@@ -64,6 +64,8 @@ func (t BlobType) String() string {
 		return "data"
 	case TreeBlob:
 		return "tree"
+	case MapBlob:
+		return "map"
 	}
 	return fmt.Sprintf("blobtype(%d)", uint8(t))
 }

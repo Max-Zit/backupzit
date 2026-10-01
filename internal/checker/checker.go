@@ -120,6 +120,35 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 	}
 	for _, sn := range sns {
 		walk(sn.Tree, "snapshot "+sn.ID.Short())
+		for _, img := range sn.Images {
+			where := fmt.Sprintf("snapshot %s disk %d", sn.ID.Short(), img.Number)
+			if !seenData[img.Head] {
+				seenData[img.Head] = true
+				if !r.Index().Has(repo.BlobHandle{Type: repo.DataBlob, ID: img.Head}) {
+					errf("%s: disk head blob %s missing", where, img.Head.Short())
+				}
+			}
+			for i := range img.Partitions {
+				p := &img.Partitions[i]
+				if !p.Included {
+					continue
+				}
+				ids, err := r.LoadBlockMap(ctx, p)
+				if err != nil {
+					errf("%s partition %d: %v", where, p.Number, err)
+					continue
+				}
+				for _, id := range ids {
+					if id.IsNull() || seenData[id] {
+						continue
+					}
+					seenData[id] = true
+					if !r.Index().Has(repo.BlobHandle{Type: repo.DataBlob, ID: id}) {
+						errf("%s partition %d: data blob %s missing", where, p.Number, id.Short())
+					}
+				}
+			}
+		}
 	}
 	res.DataBlobs = len(seenData)
 

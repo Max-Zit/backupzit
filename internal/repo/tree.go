@@ -66,6 +66,8 @@ type Snapshot struct {
 	ProgramVersion string `json:"program_version"`
 	// VSSVolumes lists volumes read from a Volume Shadow Copy snapshot.
 	VSSVolumes []string `json:"vss_volumes,omitempty"`
+	// Images is set for disk image backups (the file tree is then empty).
+	Images []DiskImage `json:"images,omitempty"`
 }
 
 // SnapshotStats summarises a backup run.

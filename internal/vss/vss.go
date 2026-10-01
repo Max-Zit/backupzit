@@ -83,3 +83,35 @@ func Create(paths []string, timeout time.Duration, onErr ErrorHandler) (*Set, er
 	}
 	return s, nil
 }
+
+// CreateVolumes snapshots whole volumes given as volume GUID paths
+// (`\\?\Volume{...}\`), as used for image backups. Volumes that cannot be
+// snapshotted are reported through onErr.
+func CreateVolumes(volumes []string, timeout time.Duration, onErr ErrorHandler) *Set {
+	s := &Set{snaps: map[string]string{}}
+	for _, v := range volumes {
+		key := strings.ToLower(v)
+		if _, ok := s.snaps[key]; ok {
+			continue
+		}
+		dev, closeFn, err := snapshotVolume(v, timeout, onErr)
+		if err != nil {
+			onErr(v, err)
+			continue
+		}
+		s.snaps[key] = dev
+		s.close = append(s.close, closeFn)
+	}
+	return s
+}
+
+// Device returns the shadow copy device (e.g.
+// `\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy3`) of a volume
+// snapshotted with CreateVolumes.
+func (s *Set) Device(volume string) (string, bool) {
+	if s == nil {
+		return "", false
+	}
+	d, ok := s.snaps[strings.ToLower(volume)]
+	return d, ok
+}
