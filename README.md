@@ -108,7 +108,7 @@ snapshots/<id>         one JSON document per backup run
 ```
 go test ./...                      # end-to-end tests (local + in-memory SFTP, server + embedded PostgreSQL)
 go build -o bin/ ./cmd/...                     # agent + server
-.packagingwindowsuild-msi.ps1 -Version X.Y.Z    # Windows MSI (WiX 5)
+.\packaging\windows\build-msi.ps1 -Version X.Y.Z   # Windows MSI (WiX 5)
 sh packaging/linux/build-packages.sh X.Y.Z       # .deb/.rpm (nfpm)
 ```
 
