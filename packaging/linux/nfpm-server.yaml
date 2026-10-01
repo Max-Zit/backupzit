@@ -1,0 +1,28 @@
+name: backupzit-server
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: admin
+priority: optional
+maintainer: backupzit <support@backupzit.example>
+description: |
+  backupzit management server: web console and API for backupzit agents.
+vendor: backupzit
+homepage: https://github.com/backupzit/backupzit
+license: AGPL-3.0-only
+recommends:
+  - postgresql
+contents:
+  - src: ./bin/linux/backupzit-server
+    dst: /usr/bin/backupzit-server
+    file_info:
+      mode: 0755
+  - src: ./packaging/linux/backupzit-server.service
+    dst: /usr/lib/systemd/system/backupzit-server.service
+  - src: ./packaging/linux/server.env
+    dst: /etc/backupzit/server.env
+    type: config|noreplace
+    file_info:
+      mode: 0640
+scripts:
+  postinstall: ./packaging/linux/server-postinstall.sh

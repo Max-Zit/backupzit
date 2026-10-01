@@ -1,0 +1,25 @@
+[Unit]
+Description=backupzit Management Server
+Documentation=https://github.com/backupzit/backupzit
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/backupzit/server.env
+ExecStart=/usr/bin/backupzit-server
+Restart=always
+RestartSec=10
+User=backupzit
+Group=backupzit
+StateDirectory=backupzit
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/backupzit
+# Allow binding to 443 if configured.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

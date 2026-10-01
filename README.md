@@ -4,13 +4,13 @@ Self-hosted backup for servers and workstations: file/folder and full image
 backup with restore, managed from a central web console. Free and open source
 (AGPLv3), with commercial support available.
 
-> Status: **phase 1** — command line agent with file/folder backup and restore
-> to a local or SFTP repository.
+> Status: **phase 2** — management console (tenants, agents, storage, jobs, schedules,
+> history, restore) and agent packages (MSI, .deb, .rpm). File/folder backup only.
 
 ## Roadmap
 
 1. **Core** — file/folder backup and restore, SFTP target, deduplication, integrity check ✅
-2. **Management console** — tenants (MSP), agent registration, jobs, schedules, history, agent downloads; Windows MSI and Linux packages
+2. **Management console** — tenants (MSP), agent registration, jobs, schedules, history, agent downloads; Windows MSI and Linux packages ✅ (first version)
 3. **Windows image backup** — VSS snapshots, volume images, file-level restore from images
 4. **Bare-metal restore** — boot media, restore to same/different hardware or a Proxmox VM
 5. **More targets** — S3, SMB; retention policies; notifications
@@ -21,7 +21,44 @@ backup with restore, managed from a central web console. Free and open source
 Supported agent platforms (target): Windows 7, 10, 11, Windows Server 2008 R2+;
 AlmaLinux, Rocky Linux, Ubuntu, Debian.
 
-## Agent CLI (phase 1)
+## Management server
+
+```
+backupzit-server --db postgres://user:pass@host/db [--listen :8443] [--data-dir DIR]
+                 [--public-url https://backup.example.com:8443] [--tls-hosts names,ips]
+```
+
+- On first start it creates a self-signed TLS certificate in the data directory.
+  Agents pin its SHA-256 fingerprint when enrolling, so no public CA is needed.
+- User `admin` is created on first start; the password comes from
+  `BACKUPZIT_ADMIN_PASSWORD` or is written to `<data-dir>/initial-admin-password.txt`.
+  Reset it with `backupzit-server --db ... --set-admin-password NEW`.
+- Agent installers placed in `<data-dir>/dist/` are offered for download in the console.
+- For evaluation: `backupzit-server --dev-embedded-db --dev-http 127.0.0.1:8080` runs a
+  private PostgreSQL in the data directory and serves the UI over plain HTTP on localhost.
+
+Agents poll the server over HTTPS (outbound only — no ports open on clients), receive
+backup/restore runs, write directly to the storage target and report results. Each
+agent gets its own repository: `<target>/<tenant-slug>/<agent-id>`.
+
+## Agent installation
+
+Windows (MSI, installs the `backupzit-agent` service running as LocalSystem):
+
+```
+msiexec /i backupzit-agent-<ver>-x64.msi /qn SERVER="https://backup:8443" TOKEN="..." FINGERPRINT="SHA256:..."
+```
+
+Linux (`.deb` for Ubuntu/Debian, `.rpm` for Alma/Rocky; systemd service):
+
+```
+backupzit-agent enroll --server https://backup:8443 --token ... --fingerprint SHA256:...
+systemctl restart backupzit-agent
+```
+
+The console shows the exact commands with token and fingerprint filled in.
+
+## Agent CLI (standalone)
 
 ```
 backupzit-agent init      --repo <location>
@@ -69,8 +106,10 @@ snapshots/<id>         one JSON document per backup run
 ## Development
 
 ```
-go test ./...                      # end-to-end backup/restore tests (local + in-memory SFTP)
-go build -o bin/ ./cmd/backupzit-agent
+go test ./...                      # end-to-end tests (local + in-memory SFTP, server + embedded PostgreSQL)
+go build -o bin/ ./cmd/...                     # agent + server
+.packagingwindowsuild-msi.ps1 -Version X.Y.Z    # Windows MSI (WiX 5)
+sh packaging/linux/build-packages.sh X.Y.Z       # .deb/.rpm (nfpm)
 ```
 
 ## License

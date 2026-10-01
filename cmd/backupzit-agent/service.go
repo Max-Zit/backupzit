@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/backupzit/backupzit/internal/agent"
 	"github.com/kardianos/service"
@@ -23,16 +24,27 @@ func cmdEnroll(ctx context.Context, args []string) error {
 	fp := fs.String("fingerprint", "", "server certificate fingerprint SHA256:... from the console")
 	cfgPath := fs.String("config", agent.DefaultConfigPath(), "agent configuration file")
 	force := fs.Bool("force", false, "replace an existing enrollment")
+	ifNot := fs.Bool("if-not-enrolled", false, "do nothing if the agent is already enrolled (used by installers)")
 	fs.Parse(args)
 	if *server == "" || *token == "" || *fp == "" {
 		fs.Usage()
 		return errors.New("--server, --token and --fingerprint are required")
 	}
-	if _, err := os.Stat(*cfgPath); err == nil && !*force {
+	if _, err := agent.LoadConfig(*cfgPath); err == nil && !*force {
+		if *ifNot {
+			fmt.Println("agent is already enrolled, keeping existing enrollment")
+			return nil
+		}
 		return fmt.Errorf("agent is already enrolled (%s); use --force to enroll again", *cfgPath)
 	}
 	cfg, err := agent.Enroll(ctx, *server, *token, *fp, version)
 	if err != nil {
+		// Installers run enroll without a console; keep the reason on disk.
+		os.MkdirAll(filepath.Dir(*cfgPath), 0o700)
+		if f, ferr := os.OpenFile(filepath.Join(filepath.Dir(*cfgPath), "enroll-error.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); ferr == nil {
+			fmt.Fprintf(f, "%s enroll with %s failed: %v\n", time.Now().Format(time.RFC3339), *server, err)
+			f.Close()
+		}
 		return err
 	}
 	if err := cfg.Save(*cfgPath); err != nil {
@@ -49,18 +61,32 @@ type program struct {
 	done    chan struct{}
 }
 
+// Start never fails because of a missing enrollment: an MSI installed
+// without a token starts the service, which waits until "enroll" is run.
 func (p *program) Start(s service.Service) error {
-	cfg, err := agent.LoadConfig(p.cfgPath)
-	if err != nil {
-		return err
-	}
 	logger := newLogger(p.cfgPath)
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancel = cancel
 	p.done = make(chan struct{})
 	go func() {
 		defer close(p.done)
-		agent.New(cfg, logger, version).Run(ctx)
+		var warned bool
+		for {
+			cfg, err := agent.LoadConfig(p.cfgPath)
+			if err == nil {
+				agent.New(cfg, logger, version).Run(ctx)
+				return
+			}
+			if !warned {
+				logger.Warn("agent is not enrolled yet, waiting", "config", p.cfgPath, "err", err)
+				warned = true
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(15 * time.Second):
+			}
+		}
 	}()
 	return nil
 }
@@ -75,6 +101,7 @@ func (p *program) Stop(s service.Service) error {
 
 func newLogger(cfgPath string) *slog.Logger {
 	var w io.Writer = os.Stdout
+	os.MkdirAll(filepath.Dir(cfgPath), 0o700)
 	logPath := filepath.Join(filepath.Dir(cfgPath), "agent.log")
 	if f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
 		if service.Interactive() {

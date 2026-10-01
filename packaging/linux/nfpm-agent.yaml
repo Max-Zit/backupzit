@@ -1,0 +1,27 @@
+name: backupzit-agent
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: admin
+priority: optional
+maintainer: backupzit <support@backupzit.example>
+description: |
+  backupzit backup agent. Backs up files, folders and (later) whole machines
+  as instructed by the backupzit management server.
+vendor: backupzit
+homepage: https://github.com/backupzit/backupzit
+license: AGPL-3.0-only
+contents:
+  - src: ./bin/linux/backupzit-agent
+    dst: /usr/bin/backupzit-agent
+    file_info:
+      mode: 0755
+  - src: ./packaging/linux/backupzit-agent.service
+    dst: /usr/lib/systemd/system/backupzit-agent.service
+  - dst: /etc/backupzit
+    type: dir
+    file_info:
+      mode: 0700
+scripts:
+  postinstall: ./packaging/linux/agent-postinstall.sh
+  preremove: ./packaging/linux/agent-preremove.sh

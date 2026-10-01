@@ -1,0 +1,19 @@
+[Unit]
+Description=backupzit Agent
+Documentation=https://github.com/backupzit/backupzit
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/backupzit-agent service run
+Restart=always
+RestartSec=30
+# Backups need to read everything on the machine.
+User=root
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target

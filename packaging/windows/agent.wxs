@@ -1,0 +1,71 @@
+<!--
+  backupzit Agent MSI.
+
+  Silent install with enrollment:
+    msiexec /i backupzit-agent.msi /qn SERVER="https://backup:8443" TOKEN="..." FINGERPRINT="SHA256:..."
+
+  Without TOKEN the service is installed and waits until
+  "backupzit-agent enroll ..." is run. Upgrades keep the existing enrollment.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package Name="backupzit Agent"
+           Manufacturer="backupzit"
+           Version="$(var.Version)"
+           UpgradeCode="6C1B6F8E-3B1A-4E0F-9A57-2C5B8D1E7A40"
+           Scope="perMachine"
+           InstallerVersion="500"
+           Compressed="yes">
+
+    <SummaryInformation Description="backupzit Agent $(var.Version)" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="SERVER" Secure="yes" />
+    <Property Id="TOKEN" Secure="yes" Hidden="yes" />
+    <Property Id="FINGERPRINT" Secure="yes" />
+    <Property Id="FORCEENROLL" Secure="yes" />
+    <Property Id="ARPCOMMENTS" Value="Backup agent managed by the backupzit server" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+
+    <Launch Condition="VersionNT64" Message="This package requires 64-bit Windows." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="backupzit Agent">
+        <Component Id="AgentExe" Bitness="always64">
+          <File Id="AgentExeFile" Source="$(var.AgentExe)" Name="backupzit-agent.exe" KeyPath="yes" />
+          <ServiceInstall Id="AgentService"
+                          Name="backupzit-agent"
+                          DisplayName="backupzit Agent"
+                          Description="Backs up this machine as instructed by the backupzit management server."
+                          Type="ownProcess"
+                          Start="auto"
+                          ErrorControl="normal"
+                          Account="LocalSystem"
+                          Arguments="service run"
+                          Vital="yes">
+            <util:ServiceConfig FirstFailureActionType="restart" SecondFailureActionType="restart" ThirdFailureActionType="restart" RestartServiceDelayInSeconds="30" ResetPeriodInDays="1" />
+          </ServiceInstall>
+          <ServiceControl Id="AgentServiceControl" Name="backupzit-agent" Start="install" Stop="both" Remove="uninstall" Wait="yes" />
+          <!-- Make the CLI available in admin shells. -->
+          <Environment Id="PathEntry" Name="PATH" Value="[INSTALLFOLDER]" Part="last" Action="set" System="yes" Permanent="no" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Enrollment runs as SYSTEM before the service starts. -->
+    <CustomAction Id="Enroll"
+                  FileRef="AgentExeFile"
+                  ExeCommand="enroll --if-not-enrolled --server &quot;[SERVER]&quot; --token &quot;[TOKEN]&quot; --fingerprint &quot;[FINGERPRINT]&quot;"
+                  Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" />
+    <CustomAction Id="EnrollForce"
+                  FileRef="AgentExeFile"
+                  ExeCommand="enroll --force --server &quot;[SERVER]&quot; --token &quot;[TOKEN]&quot; --fingerprint &quot;[FINGERPRINT]&quot;"
+                  Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" />
+
+    <InstallExecuteSequence>
+      <Custom Action="Enroll" Before="StartServices" Condition="TOKEN AND NOT FORCEENROLL AND NOT REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="EnrollForce" Before="StartServices" Condition="TOKEN AND FORCEENROLL AND NOT REMOVE~=&quot;ALL&quot;" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>
