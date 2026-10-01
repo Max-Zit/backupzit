@@ -110,16 +110,15 @@ func TestAgentLifecycle(t *testing.T) {
 	e := setup(t)
 	ctx := e.ctx
 
-	tenantID, err := e.store.CreateTenant(ctx, "Acme d.o.o.")
-	if err != nil {
-		t.Fatal(err)
-	}
 	repoBase := t.TempDir()
-	targetID, err := e.store.CreateTarget(ctx, server.Target{TenantID: tenantID, Name: "local", Kind: "local", URL: repoBase})
+	targetID, err := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: repoBase})
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, _, err := e.store.CreateEnrollmentToken(ctx, tenantID, time.Hour)
+	if _, err := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: repoBase}); err == nil {
+		t.Error("duplicate target name accepted")
+	}
+	token, _, err := e.store.CreateEnrollmentToken(ctx, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +180,7 @@ func TestAgentLifecycle(t *testing.T) {
 	if run.Status != api.StatusSuccess || run.SnapshotID == "" {
 		t.Fatalf("backup run: status %s message %q errors %v", run.Status, run.Message, run.Errors)
 	}
-	if !strings.Contains(run.RepoURL, "/acme-d-o-o/"+cfg.AgentUUID) {
+	if !strings.Contains(run.RepoURL, "_"+strings.ReplaceAll(cfg.AgentUUID, "-", "")[:8]) {
 		t.Errorf("unexpected repo url %s", run.RepoURL)
 	}
 
@@ -244,13 +243,12 @@ func TestAgentLifecycle(t *testing.T) {
 		t.Errorf("incremental run: %s stats %s", r2.Status, r2.Stats)
 	}
 
-	// --- tenant isolation: agent of another tenant cannot restore
-	other, _ := e.store.CreateTenant(ctx, "Other")
-	tok2, _, _ := e.store.CreateEnrollmentToken(ctx, other, time.Hour)
-	cfg2, err := agent.Enroll(ctx, e.ts.URL, tok2, e.fp, "test")
+	// --- restore onto a different machine
+	cfg2, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
+	ag2 := agent.New(cfg2, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
 	all, _ := e.store.ListAgents(ctx)
 	var otherAgent int64
 	for _, a := range all {
@@ -258,11 +256,21 @@ func TestAgentLifecycle(t *testing.T) {
 			otherAgent = a.ID
 		}
 	}
-	if _, err := e.store.QueueRestore(ctx, runID, otherAgent, restoreDir, nil, false); err == nil {
-		t.Error("cross-tenant restore was allowed")
+	otherDir := filepath.Join(t.TempDir(), "other")
+	xr, err := e.store.QueueRestore(ctx, runID, otherAgent, otherDir, []string{filepath.Join(src, "a.txt")}, true)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := e.store.CreateJob(ctx, server.Job{AgentID: otherAgent, TargetID: targetID, Name: "x", Paths: []string{src}}); err == nil {
-		t.Error("job with target of another tenant was allowed")
+	runAgent(t, ag) // first agent must not pick up the other agent's run
+	if r, _ := e.store.GetRun(ctx, xr); r.Status != api.StatusQueued {
+		t.Fatalf("run for agent 2 was taken by agent 1: %s", r.Status)
+	}
+	runAgent(t, ag2)
+	if r, _ := e.store.GetRun(ctx, xr); r.Status != api.StatusSuccess {
+		t.Fatalf("cross-machine restore: %s %q %v", r.Status, r.Message, r.Errors)
+	}
+	if b, err := os.ReadFile(filepath.Join(append([]string{otherDir}, comps...)...) + string(filepath.Separator) + "a.txt"); err != nil || string(b) != "alpha" {
+		t.Errorf("cross-machine restore content: %q %v", b, err)
 	}
 
 	// --- stale runs of a vanished agent are failed
@@ -317,17 +325,13 @@ func TestWebUI(t *testing.T) {
 		t.Fatalf("login: %d", r.StatusCode)
 	}
 	// CSRF: POST without Origin is rejected.
-	if r := post("/tenants", url.Values{"name": {"Evil"}}, false); r.StatusCode != http.StatusForbidden {
+	if r := post("/targets", url.Values{"name": {"evil"}, "kind": {"local"}, "url": {"C:/x"}}, false); r.StatusCode != http.StatusForbidden {
 		t.Fatalf("post without origin: %d", r.StatusCode)
 	}
-	if r := post("/tenants", url.Values{"name": {"Acme"}}, true); r.StatusCode != http.StatusSeeOther {
-		t.Fatalf("create tenant: %d", r.StatusCode)
+	if ts, _ := e.store.ListTargets(e.ctx); len(ts) != 0 {
+		t.Fatal("cross-site post created a target")
 	}
-	ts, _ := e.store.ListTenants(e.ctx)
-	if len(ts) != 1 || ts[0].Name != "Acme" {
-		t.Fatalf("tenants: %+v", ts)
-	}
-	if r := post("/targets", url.Values{"tenant_id": {fmt.Sprint(ts[0].ID)}, "name": {"nas"}, "kind": {"sftp"},
+	if r := post("/targets", url.Values{"name": {"nas"}, "kind": {"sftp"},
 		"url": {"sftp://u@10.0.0.1/backups"}, "sftp_password": {"x"}, "sftp_host_key": {"SHA256:abc"}}, true); r.StatusCode != http.StatusSeeOther ||
 		strings.Contains(r.Header.Get("Location"), "err=") {
 		t.Fatalf("create target: %d %s", r.StatusCode, r.Header.Get("Location"))
@@ -345,11 +349,11 @@ func TestWebUI(t *testing.T) {
 		}
 		return string(b)
 	}
-	for _, p := range []string{"/", "/jobs", "/runs", "/agents", "/targets", "/tenants"} {
+	for _, p := range []string{"/", "/jobs", "/runs", "/agents", "/targets"} {
 		get(p)
 	}
 	// Enrollment token page shows the fingerprint.
-	req, _ := http.NewRequest(http.MethodPost, e.ts.URL+"/agents/token", strings.NewReader(url.Values{"tenant_id": {fmt.Sprint(ts[0].ID)}}.Encode()))
+	req, _ := http.NewRequest(http.MethodPost, e.ts.URL+"/agents/token", strings.NewReader(""))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Origin", e.ts.URL)
 	resp, err = c.Do(req)

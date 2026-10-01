@@ -3,7 +3,6 @@
 <h1>{{if eq .Kind "backup"}}Backup{{else}}Restore{{end}} #{{.ID}} {{template "status" .Status}}</h1>
 <div class="panel" {{if or (eq .Status "queued") (eq .Status "running")}}data-autorefresh{{end}}>
   <dl class="kv">
-    <dt>Tenant</dt><dd>{{.TenantName}}</dd>
     <dt>Agent</dt><dd>{{.Hostname}}</dd>
     {{if .JobID}}<dt>Job</dt><dd><a href="/jobs/{{.JobID}}">{{deref .JobName}}</a></dd>{{end}}
     <dt>Trigger</dt><dd>{{.Trigger}}</dd>

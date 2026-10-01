@@ -17,7 +17,6 @@
     <a href="/runs" class="{{if eq .Nav "runs"}}on{{end}}">Activity</a>
     <a href="/agents" class="{{if eq .Nav "agents"}}on{{end}}">Agents</a>
     <a href="/targets" class="{{if eq .Nav "targets"}}on{{end}}">Storage</a>
-    <a href="/tenants" class="{{if eq .Nav "tenants"}}on{{end}}">Tenants</a>
   </nav>
   <form method="post" action="/logout" class="logout"><span>{{.User}}</span><button class="link">Sign out</button></form>
 </header>
@@ -34,12 +33,11 @@
 {{define "runtable"}}
 {{if .}}
 <div class="table-wrap"><table>
-  <tr><th>#</th><th>Type</th><th>Tenant</th><th>Agent</th><th>Job</th><th>Status</th><th>Started</th><th>Duration</th><th>Snapshot</th></tr>
+  <tr><th>#</th><th>Type</th><th>Agent</th><th>Job</th><th>Status</th><th>Started</th><th>Duration</th><th>Snapshot</th></tr>
   {{range .}}
   <tr {{if or (eq .Status "queued") (eq .Status "running")}}data-autorefresh{{end}}>
     <td><a href="/runs/{{.ID}}">{{.ID}}</a></td>
     <td>{{.Kind}}{{if eq .Trigger "schedule"}} <span class="muted">(scheduled)</span>{{end}}</td>
-    <td>{{.TenantName}}</td>
     <td>{{.Hostname}}</td>
     <td>{{if .JobID}}<a href="/jobs/{{.JobID}}">{{deref .JobName}}</a>{{end}}</td>
     <td>{{template "status" .Status}}</td>

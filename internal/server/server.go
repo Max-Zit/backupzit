@@ -154,9 +154,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.ui(s.handleLogout))
 	mux.HandleFunc("GET /{$}", s.ui(s.handleDashboard))
-	mux.HandleFunc("GET /tenants", s.ui(s.handleTenants))
-	mux.HandleFunc("POST /tenants", s.ui(s.handleTenantCreate))
-	mux.HandleFunc("POST /tenants/{id}/delete", s.ui(s.handleTenantDelete))
 	mux.HandleFunc("GET /agents", s.ui(s.handleAgents))
 	mux.HandleFunc("POST /agents/token", s.ui(s.handleAgentToken))
 	mux.HandleFunc("POST /agents/{id}/delete", s.ui(s.handleAgentDelete))
@@ -330,34 +327,6 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request, user st
 		Data: map[string]any{"Summary": sum, "Runs": runs}})
 }
 
-// ---- tenants
-
-func (s *Server) handleTenants(w http.ResponseWriter, r *http.Request, user string) {
-	ts, err := s.store.ListTenants(r.Context())
-	if err != nil {
-		s.serverError(w, err)
-		return
-	}
-	s.render(w, r, "tenants", pageData{Title: "Tenants", Nav: "tenants", User: user, Data: ts})
-}
-
-func (s *Server) handleTenantCreate(w http.ResponseWriter, r *http.Request, _ string) {
-	if _, err := s.store.CreateTenant(r.Context(), r.FormValue("name")); err != nil {
-		redirectErr(w, r, "/tenants", err)
-		return
-	}
-	redirectMsg(w, r, "/tenants", "Tenant created.")
-}
-
-func (s *Server) handleTenantDelete(w http.ResponseWriter, r *http.Request, _ string) {
-	id, _ := pathID(r)
-	if err := s.store.DeleteTenant(r.Context(), id); err != nil {
-		redirectErr(w, r, "/tenants", err)
-		return
-	}
-	redirectMsg(w, r, "/tenants", "Tenant deleted.")
-}
-
 // ---- agents
 
 type download struct {
@@ -383,7 +352,6 @@ func (s *Server) downloads() []download {
 }
 
 type enrollInfo struct {
-	Tenant      string
 	Token       string
 	Expires     time.Time
 	ServerURL   string
@@ -396,13 +364,8 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		s.serverError(w, err)
 		return
 	}
-	ts, err := s.store.ListTenants(r.Context())
-	if err != nil {
-		s.serverError(w, err)
-		return
-	}
 	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
-		"Agents": agents, "Tenants": ts, "Enroll": enroll, "Downloads": s.downloads(),
+		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(),
 	}})
 }
 
@@ -411,23 +374,7 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request, user strin
 }
 
 func (s *Server) handleAgentToken(w http.ResponseWriter, r *http.Request, user string) {
-	tid := formID(r, "tenant_id")
-	ts, err := s.store.ListTenants(r.Context())
-	if err != nil {
-		s.serverError(w, err)
-		return
-	}
-	var tenant string
-	for _, t := range ts {
-		if t.ID == tid {
-			tenant = t.Name
-		}
-	}
-	if tenant == "" {
-		redirectErr(w, r, "/agents", errors.New("select a tenant"))
-		return
-	}
-	tok, exp, err := s.store.CreateEnrollmentToken(r.Context(), tid, 7*24*time.Hour)
+	tok, exp, err := s.store.CreateEnrollmentToken(r.Context(), 7*24*time.Hour)
 	if err != nil {
 		s.serverError(w, err)
 		return
@@ -436,7 +383,7 @@ func (s *Server) handleAgentToken(w http.ResponseWriter, r *http.Request, user s
 	if pub == "" {
 		pub = "https://" + r.Host
 	}
-	s.agentsPage(w, r, user, &enrollInfo{Tenant: tenant, Token: tok, Expires: exp, ServerURL: pub, Fingerprint: s.CertFingerprint})
+	s.agentsPage(w, r, user, &enrollInfo{Token: tok, Expires: exp, ServerURL: pub, Fingerprint: s.CertFingerprint})
 }
 
 func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, _ string) {
@@ -466,18 +413,12 @@ func (s *Server) handleTargets(w http.ResponseWriter, r *http.Request, user stri
 		s.serverError(w, err)
 		return
 	}
-	ts, err := s.store.ListTenants(r.Context())
-	if err != nil {
-		s.serverError(w, err)
-		return
-	}
 	s.render(w, r, "targets", pageData{Title: "Storage", Nav: "targets", User: user,
-		Data: map[string]any{"Targets": targets, "Tenants": ts}})
+		Data: map[string]any{"Targets": targets}})
 }
 
 func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ string) {
 	_, err := s.store.CreateTarget(r.Context(), Target{
-		TenantID:     formID(r, "tenant_id"),
 		Name:         r.FormValue("name"),
 		Kind:         r.FormValue("kind"),
 		URL:          r.FormValue("url"),
@@ -635,14 +576,8 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		s.serverError(w, err)
 		return
 	}
-	var sameTenant []Agent
-	for _, a := range agents {
-		if a.TenantID == run.TenantID {
-			sameTenant = append(sameTenant, a)
-		}
-	}
 	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: map[string]any{
-		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "Agents": sameTenant,
+		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "Agents": agents,
 	}})
 }
 

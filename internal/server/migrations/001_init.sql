@@ -1,9 +1,5 @@
-CREATE TABLE tenants (
-    id          BIGSERIAL PRIMARY KEY,
-    name        TEXT NOT NULL UNIQUE,
-    slug        TEXT NOT NULL UNIQUE,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- One backupzit server serves one organization and is deployed on its
+-- local network.
 
 CREATE TABLE users (
     id             BIGSERIAL PRIMARY KEY,
@@ -20,20 +16,17 @@ CREATE TABLE sessions (
 
 CREATE TABLE storage_targets (
     id             BIGSERIAL PRIMARY KEY,
-    tenant_id      BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name           TEXT NOT NULL,
+    name           TEXT NOT NULL UNIQUE,
     kind           TEXT NOT NULL,            -- 'sftp' | 'local'
     url            TEXT NOT NULL,            -- base location; each agent gets a sub-path
     sftp_password  TEXT NOT NULL DEFAULT '',
     sftp_key       TEXT NOT NULL DEFAULT '', -- PEM private key
     sftp_host_key  TEXT NOT NULL DEFAULT '', -- SHA256:... fingerprint
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (tenant_id, name)
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE enrollment_tokens (
     id          BIGSERIAL PRIMARY KEY,
-    tenant_id   BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     token_hash  BYTEA NOT NULL UNIQUE,
     expires_at  TIMESTAMPTZ NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -41,10 +34,12 @@ CREATE TABLE enrollment_tokens (
 
 CREATE TABLE agents (
     id           BIGSERIAL PRIMARY KEY,
-    tenant_id    BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     uuid         TEXT NOT NULL UNIQUE,
     secret_hash  BYTEA NOT NULL,
     hostname     TEXT NOT NULL,
+    -- Directory of this agent's repository below each storage target.
+    -- Fixed at enrollment so a hostname change does not start a new repository.
+    repo_dir     TEXT NOT NULL UNIQUE,
     os           TEXT NOT NULL DEFAULT '',
     arch         TEXT NOT NULL DEFAULT '',
     version      TEXT NOT NULL DEFAULT '',
@@ -54,7 +49,6 @@ CREATE TABLE agents (
 
 CREATE TABLE jobs (
     id                 BIGSERIAL PRIMARY KEY,
-    tenant_id          BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     agent_id           BIGINT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     target_id          BIGINT NOT NULL REFERENCES storage_targets(id) ON DELETE RESTRICT,
     name               TEXT NOT NULL,
@@ -68,7 +62,6 @@ CREATE TABLE jobs (
 
 CREATE TABLE runs (
     id            BIGSERIAL PRIMARY KEY,
-    tenant_id     BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     agent_id      BIGINT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     job_id        BIGINT REFERENCES jobs(id) ON DELETE SET NULL,
     kind          TEXT NOT NULL,                   -- 'backup' | 'restore'

@@ -50,6 +50,15 @@ func hashToken(t string) []byte {
 	return h[:]
 }
 
+// dummyHash is compared against when a username does not exist, so login
+// takes the same time whether or not the user exists.
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("backupzit-dummy"), bcrypt.DefaultCost)
+
+func subtleEqual(a, b []byte) bool { return subtle.ConstantTimeCompare(a, b) == 1 }
+
+// RandomPassword returns a random password for generated accounts.
+func RandomPassword() string { return randomToken(15) }
+
 // ---- users & sessions
 
 func (s *Store) EnsureAdmin(ctx context.Context, username, password string) (created bool, err error) {
@@ -85,7 +94,6 @@ func (s *Store) Login(ctx context.Context, username, password string, ttl time.D
 	var hash string
 	err := s.db.QueryRow(ctx, `SELECT id, password_hash FROM users WHERE username=$1`, username).Scan(&id, &hash)
 	if err != nil {
-		// Spend comparable time to avoid user enumeration by timing.
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 		return "", errors.New("invalid username or password")
 	}
@@ -111,69 +119,10 @@ func (s *Store) Logout(ctx context.Context, token string) error {
 	return err
 }
 
-// ---- tenants
-
-type Tenant struct {
-	ID        int64
-	Name      string
-	Slug      string
-	CreatedAt time.Time
-	Agents    int
-	Jobs      int
-}
-
-var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
-
-func slugify(name string) string {
-	s := strings.Trim(slugRe.ReplaceAllString(strings.ToLower(name), "-"), "-")
-	if s == "" {
-		s = "tenant"
-	}
-	return s
-}
-
-func (s *Store) CreateTenant(ctx context.Context, name string) (int64, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return 0, errors.New("tenant name is required")
-	}
-	var id int64
-	err := s.db.QueryRow(ctx, `INSERT INTO tenants(name, slug) VALUES($1,$2) RETURNING id`, name, slugify(name)).Scan(&id)
-	if err != nil && strings.Contains(err.Error(), "duplicate key") {
-		return 0, errors.New("a tenant with this name already exists")
-	}
-	return id, err
-}
-
-func (s *Store) ListTenants(ctx context.Context) ([]Tenant, error) {
-	rows, err := s.db.Query(ctx, `SELECT t.id, t.name, t.slug, t.created_at,
-		(SELECT count(*) FROM agents a WHERE a.tenant_id=t.id),
-		(SELECT count(*) FROM jobs j WHERE j.tenant_id=t.id)
-		FROM tenants t ORDER BY t.name`)
-	if err != nil {
-		return nil, err
-	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Tenant, error) {
-		var t Tenant
-		err := r.Scan(&t.ID, &t.Name, &t.Slug, &t.CreatedAt, &t.Agents, &t.Jobs)
-		return t, err
-	})
-}
-
-func (s *Store) DeleteTenant(ctx context.Context, id int64) error {
-	_, err := s.db.Exec(ctx, `DELETE FROM tenants WHERE id=$1`, id)
-	if err != nil && strings.Contains(err.Error(), "violates foreign key") {
-		return errors.New("delete the tenant's jobs first")
-	}
-	return err
-}
-
 // ---- storage targets
 
 type Target struct {
 	ID           int64
-	TenantID     int64
-	TenantName   string
 	Name         string
 	Kind         string
 	URL          string
@@ -205,25 +154,25 @@ func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
 		return 0, fmt.Errorf("unknown target type %q", t.Kind)
 	}
 	var id int64
-	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(tenant_id,name,kind,url,sftp_password,sftp_key,sftp_host_key)
-		VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-		t.TenantID, t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey)).Scan(&id)
+	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key)
+		VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,
+		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey)).Scan(&id)
 	if err != nil && strings.Contains(err.Error(), "duplicate key") {
-		return 0, errors.New("this tenant already has a target with that name")
+		return 0, errors.New("a storage target with that name already exists")
 	}
 	return id, err
 }
 
-const targetCols = `st.id, st.tenant_id, t.name, st.name, st.kind, st.url, st.sftp_password, st.sftp_key, st.sftp_host_key, st.created_at`
+const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at`
 
 func scanTarget(r pgx.Row) (Target, error) {
 	var t Target
-	err := r.Scan(&t.ID, &t.TenantID, &t.TenantName, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt)
+	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt)
 	return t, err
 }
 
 func (s *Store) ListTargets(ctx context.Context) ([]Target, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+targetCols+` FROM storage_targets st JOIN tenants t ON t.id=st.tenant_id ORDER BY t.name, st.name`)
+	rows, err := s.db.Query(ctx, `SELECT `+targetCols+` FROM storage_targets ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +180,7 @@ func (s *Store) ListTargets(ctx context.Context) ([]Target, error) {
 }
 
 func (s *Store) GetTarget(ctx context.Context, id int64) (Target, error) {
-	t, err := scanTarget(s.db.QueryRow(ctx, `SELECT `+targetCols+` FROM storage_targets st JOIN tenants t ON t.id=st.tenant_id WHERE st.id=$1`, id))
+	t, err := scanTarget(s.db.QueryRow(ctx, `SELECT `+targetCols+` FROM storage_targets WHERE id=$1`, id))
 	return t, notFound(err)
 }
 
@@ -246,29 +195,45 @@ func (s *Store) DeleteTarget(ctx context.Context, id int64) error {
 // ---- enrollment & agents
 
 // CreateEnrollmentToken returns a new token valid for ttl.
-func (s *Store) CreateEnrollmentToken(ctx context.Context, tenantID int64, ttl time.Duration) (string, time.Time, error) {
+func (s *Store) CreateEnrollmentToken(ctx context.Context, ttl time.Duration) (string, time.Time, error) {
 	tok := randomToken(24)
 	exp := time.Now().Add(ttl)
-	_, err := s.db.Exec(ctx, `INSERT INTO enrollment_tokens(tenant_id, token_hash, expires_at) VALUES($1,$2,$3)`,
-		tenantID, hashToken(tok), exp)
+	_, err := s.db.Exec(ctx, `INSERT INTO enrollment_tokens(token_hash, expires_at) VALUES($1,$2)`, hashToken(tok), exp)
 	return tok, exp, err
+}
+
+var unsafeDirChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
+
+// agentRepoDir builds a readable, unique repository directory name.
+func agentRepoDir(hostname, uuid string) string {
+	h := strings.Trim(unsafeDirChars.ReplaceAllString(strings.ToLower(hostname), "-"), "-.")
+	if h == "" {
+		h = "agent"
+	}
+	if len(h) > 40 {
+		h = h[:40]
+	}
+	return h + "_" + strings.ReplaceAll(uuid, "-", "")[:8]
 }
 
 // EnrollAgent validates a token and registers a new agent.
 func (s *Store) EnrollAgent(ctx context.Context, req api.EnrollRequest) (api.EnrollResponse, error) {
-	var tenantID int64
-	err := s.db.QueryRow(ctx, `SELECT tenant_id FROM enrollment_tokens WHERE token_hash=$1 AND expires_at > now()`,
-		hashToken(req.Token)).Scan(&tenantID)
+	var ok bool
+	err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM enrollment_tokens WHERE token_hash=$1 AND expires_at > now())`,
+		hashToken(req.Token)).Scan(&ok)
 	if err != nil {
+		return api.EnrollResponse{}, err
+	}
+	if !ok {
 		return api.EnrollResponse{}, errors.New("invalid or expired enrollment token")
 	}
 	if strings.TrimSpace(req.Hostname) == "" {
 		return api.EnrollResponse{}, errors.New("hostname is required")
 	}
 	resp := api.EnrollResponse{AgentUUID: newUUID(), Secret: randomToken(32)}
-	_, err = s.db.Exec(ctx, `INSERT INTO agents(tenant_id, uuid, secret_hash, hostname, os, arch, version, last_seen_at)
+	_, err = s.db.Exec(ctx, `INSERT INTO agents(uuid, secret_hash, hostname, repo_dir, os, arch, version, last_seen_at)
 		VALUES($1,$2,$3,$4,$5,$6,$7,now())`,
-		tenantID, resp.AgentUUID, hashToken(resp.Secret), req.Hostname, req.OS, req.Arch, req.Version)
+		resp.AgentUUID, hashToken(resp.Secret), req.Hostname, agentRepoDir(req.Hostname, resp.AgentUUID), req.OS, req.Arch, req.Version)
 	return resp, err
 }
 
@@ -282,11 +247,9 @@ func newUUID() string {
 
 type Agent struct {
 	ID         int64
-	TenantID   int64
-	TenantName string
-	TenantSlug string
 	UUID       string
 	Hostname   string
+	RepoDir    string
 	OS         string
 	Arch       string
 	Version    string
@@ -299,18 +262,19 @@ func (a Agent) Online() bool {
 	return a.LastSeen != nil && time.Since(*a.LastSeen) < 3*time.Minute
 }
 
-const agentCols = `a.id, a.tenant_id, t.name, t.slug, a.uuid, a.hostname, a.os, a.arch, a.version, a.enrolled_at, a.last_seen_at`
+const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at`
 
-func scanAgent(r pgx.Row) (Agent, error) {
+func scanAgent(r pgx.Row, extra ...any) (Agent, error) {
 	var a Agent
-	err := r.Scan(&a.ID, &a.TenantID, &a.TenantName, &a.TenantSlug, &a.UUID, &a.Hostname, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen)
+	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen}, extra...)
+	err := r.Scan(dest...)
 	return a, err
 }
 
 // AuthenticateAgent checks "uuid:secret" credentials.
 func (s *Store) AuthenticateAgent(ctx context.Context, uuid, secret string) (Agent, error) {
 	var hash []byte
-	a, err := scanAgentWithHash(s.db.QueryRow(ctx, `SELECT `+agentCols+`, a.secret_hash FROM agents a JOIN tenants t ON t.id=a.tenant_id WHERE a.uuid=$1`, uuid), &hash)
+	a, err := scanAgent(s.db.QueryRow(ctx, `SELECT `+agentCols+`, secret_hash FROM agents WHERE uuid=$1`, uuid), &hash)
 	if err != nil {
 		return Agent{}, errors.New("unknown agent")
 	}
@@ -318,12 +282,6 @@ func (s *Store) AuthenticateAgent(ctx context.Context, uuid, secret string) (Age
 		return a, nil
 	}
 	return Agent{}, errors.New("invalid agent credentials")
-}
-
-func scanAgentWithHash(r pgx.Row, hash *[]byte) (Agent, error) {
-	var a Agent
-	err := r.Scan(&a.ID, &a.TenantID, &a.TenantName, &a.TenantSlug, &a.UUID, &a.Hostname, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, hash)
-	return a, err
 }
 
 func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest) error {
@@ -335,7 +293,7 @@ func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest) e
 }
 
 func (s *Store) ListAgents(ctx context.Context) ([]Agent, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+agentCols+` FROM agents a JOIN tenants t ON t.id=a.tenant_id ORDER BY t.name, a.hostname`)
+	rows, err := s.db.Query(ctx, `SELECT `+agentCols+` FROM agents ORDER BY hostname`)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +301,7 @@ func (s *Store) ListAgents(ctx context.Context) ([]Agent, error) {
 }
 
 func (s *Store) GetAgent(ctx context.Context, id int64) (Agent, error) {
-	a, err := scanAgent(s.db.QueryRow(ctx, `SELECT `+agentCols+` FROM agents a JOIN tenants t ON t.id=a.tenant_id WHERE a.id=$1`, id))
+	a, err := scanAgent(s.db.QueryRow(ctx, `SELECT `+agentCols+` FROM agents WHERE id=$1`, id))
 	return a, notFound(err)
 }
 
@@ -356,8 +314,6 @@ func (s *Store) DeleteAgent(ctx context.Context, id int64) error {
 
 type Job struct {
 	ID         int64
-	TenantID   int64
-	TenantName string
 	AgentID    int64
 	Hostname   string
 	TargetID   int64
@@ -384,43 +340,38 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 			return 0, err
 		}
 	}
-	agent, err := s.GetAgent(ctx, j.AgentID)
-	if err != nil {
+	if _, err := s.GetAgent(ctx, j.AgentID); err != nil {
 		return 0, errors.New("unknown agent")
 	}
-	target, err := s.GetTarget(ctx, j.TargetID)
-	if err != nil {
+	if _, err := s.GetTarget(ctx, j.TargetID); err != nil {
 		return 0, errors.New("unknown storage target")
-	}
-	if agent.TenantID != target.TenantID {
-		return 0, errors.New("agent and storage target belong to different tenants")
 	}
 	if j.Excludes == nil {
 		j.Excludes = []string{}
 	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO jobs(tenant_id, agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()) RETURNING id`,
-		agent.TenantID, j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled).Scan(&id)
+	err := s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at)
+		VALUES($1,$2,$3,$4,$5,$6,$7,now()) RETURNING id`,
+		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled).Scan(&id)
 	return id, err
 }
 
-const jobCols = `j.id, j.tenant_id, t.name, j.agent_id, a.hostname, j.target_id, st.name, j.name, j.paths, j.excludes,
+const jobCols = `j.id, j.agent_id, a.hostname, j.target_id, st.name, j.name, j.paths, j.excludes,
 	j.schedule, j.enabled, j.last_scheduled_at, j.created_at,
 	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind='backup' ORDER BY r.queued_at DESC LIMIT 1),
 	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind='backup' ORDER BY r.queued_at DESC LIMIT 1)`
 
-const jobFrom = ` FROM jobs j JOIN tenants t ON t.id=j.tenant_id JOIN agents a ON a.id=j.agent_id JOIN storage_targets st ON st.id=j.target_id`
+const jobFrom = ` FROM jobs j JOIN agents a ON a.id=j.agent_id JOIN storage_targets st ON st.id=j.target_id`
 
 func scanJob(r pgx.Row) (Job, error) {
 	var j Job
-	err := r.Scan(&j.ID, &j.TenantID, &j.TenantName, &j.AgentID, &j.Hostname, &j.TargetID, &j.TargetName, &j.Name,
+	err := r.Scan(&j.ID, &j.AgentID, &j.Hostname, &j.TargetID, &j.TargetName, &j.Name,
 		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished)
 	return j, err
 }
 
 func (s *Store) ListJobs(ctx context.Context) ([]Job, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+jobCols+jobFrom+` ORDER BY t.name, a.hostname, j.name`)
+	rows, err := s.db.Query(ctx, `SELECT `+jobCols+jobFrom+` ORDER BY a.hostname, j.name`)
 	if err != nil {
 		return nil, err
 	}
@@ -446,9 +397,9 @@ func (s *Store) DeleteJob(ctx context.Context, id int64) error {
 // gets its own repository below the target's base location.
 func repoURL(t Target, a Agent) string {
 	if t.Kind == "local" {
-		return strings.TrimRight(t.URL, `/\`) + "/" + a.TenantSlug + "/" + a.UUID
+		return strings.TrimRight(t.URL, `/\`) + "/" + a.RepoDir
 	}
-	return t.URL + "/" + path.Join(a.TenantSlug, a.UUID)
+	return t.URL + "/" + path.Clean(a.RepoDir)
 }
 
 // ErrRunActive is returned when a job already has a queued or running run.
@@ -469,11 +420,11 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 		return 0, err
 	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO runs(tenant_id, agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes)
-		SELECT $1,$2,$3,'backup',$4,$5,$6,$7,$8
-		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE job_id=$3 AND kind='backup' AND status IN ('queued','running'))
+	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes)
+		SELECT $1,$2,'backup',$3,$4,$5,$6,$7
+		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE job_id=$2 AND kind='backup' AND status IN ('queued','running'))
 		RETURNING id`,
-		j.TenantID, j.AgentID, j.ID, trigger, repoURL(t, a), t.ID, j.Paths, j.Excludes).Scan(&id)
+		j.AgentID, j.ID, trigger, repoURL(t, a), t.ID, j.Paths, j.Excludes).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrRunActive
 	}
@@ -481,7 +432,8 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 }
 
 // QueueRestore creates a restore run from a successful backup run.
-// agentID selects the agent that performs the restore (same tenant).
+// agentID selects the agent that performs the restore; it may differ from
+// the machine that was backed up.
 func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, target string, includes []string, verify bool) (int64, error) {
 	b, err := s.GetRun(ctx, backupRunID)
 	if err != nil {
@@ -490,27 +442,21 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 	if b.Kind != api.KindBackup || b.SnapshotID == "" {
 		return 0, errors.New("run has no snapshot to restore")
 	}
-	a, err := s.GetAgent(ctx, agentID)
-	if err != nil {
+	if _, err := s.GetAgent(ctx, agentID); err != nil {
 		return 0, errors.New("unknown agent")
-	}
-	if a.TenantID != b.TenantID {
-		return 0, errors.New("agent belongs to a different tenant")
 	}
 	if includes == nil {
 		includes = []string{}
 	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO runs(tenant_id, agent_id, job_id, kind, trigger, repo_url, target_id, paths, snapshot_id, restore_target, restore_verify)
-		VALUES($1,$2,$3,'restore','manual',$4,$5,$6,$7,$8,$9) RETURNING id`,
-		b.TenantID, agentID, b.JobID, b.RepoURL, b.TargetID, includes, b.SnapshotID, target, verify).Scan(&id)
+	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, snapshot_id, restore_target, restore_verify)
+		VALUES($1,$2,'restore','manual',$3,$4,$5,$6,$7,$8) RETURNING id`,
+		agentID, b.JobID, b.RepoURL, b.TargetID, includes, b.SnapshotID, target, verify).Scan(&id)
 	return id, err
 }
 
 type Run struct {
 	ID            int64
-	TenantID      int64
-	TenantName    string
 	AgentID       int64
 	Hostname      string
 	JobID         *int64
@@ -545,15 +491,15 @@ func (r Run) Duration() time.Duration {
 	return end.Sub(*r.StartedAt).Round(time.Second)
 }
 
-const runCols = `r.id, r.tenant_id, t.name, r.agent_id, a.hostname, r.job_id, j.name, r.kind, r.status, r.trigger, r.repo_url,
+const runCols = `r.id, r.agent_id, a.hostname, r.job_id, j.name, r.kind, r.status, r.trigger, r.repo_url,
 	r.target_id, r.paths, r.excludes, r.snapshot_id, r.restore_target, r.restore_verify, r.queued_at, r.started_at, r.finished_at,
 	r.stats, r.errors, r.message`
 
-const runFrom = ` FROM runs r JOIN tenants t ON t.id=r.tenant_id JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id`
+const runFrom = ` FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id`
 
 func scanRun(row pgx.Row) (Run, error) {
 	var r Run
-	err := row.Scan(&r.ID, &r.TenantID, &r.TenantName, &r.AgentID, &r.Hostname, &r.JobID, &r.JobName, &r.Kind, &r.Status,
+	err := row.Scan(&r.ID, &r.AgentID, &r.Hostname, &r.JobID, &r.JobName, &r.Kind, &r.Status,
 		&r.Trigger, &r.RepoURL, &r.TargetID, &r.Paths, &r.Excludes, &r.SnapshotID, &r.RestoreTarget, &r.RestoreVerify,
 		&r.QueuedAt, &r.StartedAt, &r.FinishedAt, &r.Stats, &r.Errors, &r.Message)
 	return r, err
@@ -639,32 +585,23 @@ func (s *Store) FailStaleRuns(ctx context.Context, after time.Duration) (int64, 
 	return ct.RowsAffected(), nil
 }
 
-// Dashboard counters.
+// Summary holds dashboard counters.
 type Summary struct {
-	Tenants, Agents, AgentsOnline, Jobs     int
+	Agents, AgentsOnline, Jobs, Targets     int
 	Runs24h, Failed24h, Warning24h, Running int
 }
 
 func (s *Store) Summary(ctx context.Context) (Summary, error) {
 	var x Summary
 	err := s.db.QueryRow(ctx, `SELECT
-		(SELECT count(*) FROM tenants),
 		(SELECT count(*) FROM agents),
 		(SELECT count(*) FROM agents WHERE last_seen_at > now() - interval '3 minutes'),
 		(SELECT count(*) FROM jobs),
+		(SELECT count(*) FROM storage_targets),
 		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours'),
 		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='failed'),
 		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='warning'),
 		(SELECT count(*) FROM runs WHERE status IN ('queued','running'))`).
-		Scan(&x.Tenants, &x.Agents, &x.AgentsOnline, &x.Jobs, &x.Runs24h, &x.Failed24h, &x.Warning24h, &x.Running)
+		Scan(&x.Agents, &x.AgentsOnline, &x.Jobs, &x.Targets, &x.Runs24h, &x.Failed24h, &x.Warning24h, &x.Running)
 	return x, err
 }
-
-// dummyHash is compared against when a username does not exist, so login
-// takes the same time whether or not the user exists.
-var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("backupzit-dummy"), bcrypt.DefaultCost)
-
-func subtleEqual(a, b []byte) bool { return subtle.ConstantTimeCompare(a, b) == 1 }
-
-// RandomPassword returns a random password for generated accounts.
-func RandomPassword() string { return randomToken(15) }

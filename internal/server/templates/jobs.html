@@ -3,10 +3,9 @@
 <div class="panel">
   {{if .Data.Jobs}}
   <div class="table-wrap"><table>
-    <tr><th>Tenant</th><th>Agent</th><th>Job</th><th>Storage</th><th>Schedule</th><th>Next run</th><th>Last result</th></tr>
+    <tr><th>Agent</th><th>Job</th><th>Storage</th><th>Schedule</th><th>Next run</th><th>Last result</th></tr>
     {{range .Data.Jobs}}
     <tr>
-      <td>{{.TenantName}}</td>
       <td>{{.Hostname}}</td>
       <td><a href="/jobs/{{.ID}}">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}</td>
       <td>{{.TargetName}}</td>
@@ -26,10 +25,10 @@
     <label>Name <input name="name" required placeholder="Documents nightly"></label>
     <div class="row">
       <label>Agent
-        <select name="agent_id" required>{{range .Data.Agents}}<option value="{{.ID}}">{{.TenantName}} — {{.Hostname}}</option>{{end}}</select>
+        <select name="agent_id" required>{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
       </label>
       <label>Storage target
-        <select name="target_id" required>{{range .Data.Targets}}<option value="{{.ID}}">{{.TenantName}} — {{.Name}}</option>{{end}}</select>
+        <select name="target_id" required>{{range .Data.Targets}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
       </label>
     </div>
     <label>Folders and files to back up <small>one path per line, as seen on the agent, e.g. C:\Users or /home</small>

@@ -4,19 +4,23 @@ Self-hosted backup for servers and workstations: file/folder and full image
 backup with restore, managed from a central web console. Free and open source
 (AGPLv3), with commercial support available.
 
-> Status: **phase 2** — management console (tenants, agents, storage, jobs, schedules,
+Each organization runs its own backupzit server on its local network (no cloud
+service, nothing exposed to the internet); agents on servers and workstations
+connect to it over HTTPS.
+
+> Status: **phase 2** — management console (agents, storage, jobs, schedules,
 > history, restore) and agent packages (MSI, .deb, .rpm). File/folder backup only.
 
 ## Roadmap
 
 1. **Core** — file/folder backup and restore, SFTP target, deduplication, integrity check ✅
-2. **Management console** — tenants (MSP), agent registration, jobs, schedules, history, agent downloads; Windows MSI and Linux packages ✅ (first version)
+2. **Management console** — agent registration, jobs, schedules, history, restore, agent downloads; Windows MSI and Linux packages ✅ (first version)
 3. **Windows image backup** — VSS snapshots, volume images, file-level restore from images
 4. **Bare-metal restore** — boot media, restore to same/different hardware or a Proxmox VM
 5. **More targets** — S3, SMB; retention policies; notifications
 6. **Security** — encryption, immutable repositories (S3 Object Lock, hardened Linux repository)
 7. **Hypervisor (agentless) backup** — Proxmox, VMware
-8. **Linux image backup**, SAML / LDAPS / roles
+8. **Linux image backup**; more users, roles, optional LDAP login
 
 Supported agent platforms (target): Windows 7, 10, 11, Windows Server 2008 R2+;
 AlmaLinux, Rocky Linux, Ubuntu, Debian.
@@ -39,7 +43,7 @@ backupzit-server --db postgres://user:pass@host/db [--listen :8443] [--data-dir 
 
 Agents poll the server over HTTPS (outbound only — no ports open on clients), receive
 backup/restore runs, write directly to the storage target and report results. Each
-agent gets its own repository: `<target>/<tenant-slug>/<agent-id>`.
+agent gets its own repository: `<target>/<hostname>_<id>`.
 
 ## Agent installation
 

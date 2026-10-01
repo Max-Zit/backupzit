@@ -2,7 +2,7 @@
 <h1>Agents</h1>
 {{with .Data.Enroll}}
 <div class="panel">
-  <h2>Enroll agents for {{.Tenant}}</h2>
+  <h2>Enroll agents</h2>
   <p>This token is valid until {{ts .Expires}} and can be used for any number of machines. It is shown only once.</p>
   <dl class="kv">
     <dt>Server</dt><dd class="mono">{{.ServerURL}}</dd>
@@ -23,10 +23,9 @@ backupzit-agent service start</pre>
 <div class="panel">
   {{if .Data.Agents}}
   <div class="table-wrap"><table>
-    <tr><th>Tenant</th><th>Hostname</th><th>OS</th><th>Version</th><th>Status</th><th>Last seen</th><th>Enrolled</th><th></th></tr>
+    <tr><th>Hostname</th><th>OS</th><th>Version</th><th>Status</th><th>Last seen</th><th>Enrolled</th><th></th></tr>
     {{range .Data.Agents}}
     <tr>
-      <td>{{.TenantName}}</td>
       <td>{{.Hostname}}</td>
       <td>{{.OS}}/{{.Arch}}</td>
       <td class="mono">{{.Version}}</td>
@@ -43,16 +42,10 @@ backupzit-agent service start</pre>
 <div class="row">
   <div class="panel">
     <h2>Add agents</h2>
-    {{if .Data.Tenants}}
+    <p class="muted">Create an enrollment token, then install the agent on each machine with it.</p>
     <form method="post" action="/agents/token" class="stack">
-      <label>Tenant
-        <select name="tenant_id" required>
-          {{range .Data.Tenants}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
-        </select>
-      </label>
       <div><button>Create enrollment token</button></div>
     </form>
-    {{else}}<p class="muted">Create a <a href="/tenants">tenant</a> first.</p>{{end}}
   </div>
   <div class="panel">
     <h2>Downloads</h2>

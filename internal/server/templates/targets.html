@@ -3,29 +3,23 @@
 <div class="panel">
   {{if .Data.Targets}}
   <div class="table-wrap"><table>
-    <tr><th>Tenant</th><th>Name</th><th>Type</th><th>Location</th><th>Host key</th><th></th></tr>
+    <tr><th>Name</th><th>Type</th><th>Location</th><th>Host key</th><th></th></tr>
     {{range .Data.Targets}}
     <tr>
-      <td>{{.TenantName}}</td><td>{{.Name}}</td><td>{{.Kind}}</td><td class="mono">{{.URL}}</td>
+      <td>{{.Name}}</td><td>{{.Kind}}</td><td class="mono">{{.URL}}</td>
       <td class="mono">{{.SFTPHostKey}}</td>
       <td><form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="Remove storage target {{.Name}}? Data on the storage is not deleted."><button class="link">Remove</button></form></td>
     </tr>
     {{end}}
   </table></div>
-  <p class="muted">Each agent stores its backups in its own repository below the target location: <code>&lt;location&gt;/&lt;tenant&gt;/&lt;agent-id&gt;</code>.</p>
+  <p class="muted">Each agent stores its backups in its own repository below the target location: <code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>.</p>
   {{else}}<p class="muted">No storage targets yet.</p>{{end}}
 </div>
 
 <div class="panel">
   <h2>Add storage target</h2>
-  {{if .Data.Tenants}}
   <form method="post" action="/targets" class="stack">
-    <div class="row">
-      <label>Tenant
-        <select name="tenant_id" required>{{range .Data.Tenants}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
-      </label>
-      <label>Name <input name="name" required placeholder="Office NAS"></label>
-    </div>
+    <label>Name <input name="name" required placeholder="Office NAS"></label>
     <label>Type
       <select name="kind" id="kind">
         <option value="sftp">SFTP</option>
@@ -43,6 +37,5 @@
     <label data-kind="local" hidden>Path on the agent <small>e.g. D:\Backups or /mnt/backup</small><input name="url" disabled></label>
     <div><button>Add target</button></div>
   </form>
-  {{else}}<p class="muted">Create a <a href="/tenants">tenant</a> first.</p>{{end}}
 </div>
 {{end}}
