@@ -30,4 +30,46 @@
   </div>
 </div>
 {{end}}
+
+<div class="panel" id="tokens">
+  <h2>{{template "icon" "lock"}} API tokens</h2>
+  <p class="muted">Tokens let scripts, RMM and monitoring tools use the <a href="/docs/api">REST API</a> on your behalf. A token's role can be lower than yours; it stops working when it expires, is revoked, or your account is disabled.</p>
+  {{with .Data.NewToken}}
+  <div class="callout tip">
+    <p><b>Copy the new token now — it is shown only once:</b></p>
+    <pre id="newtok">{{.}}</pre>
+    <button type="button" class="secondary" data-copy="#newtok">Copy</button>
+  </div>
+  {{end}}
+  {{if .Data.Tokens}}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>Role</th><th>Created</th><th>Last used</th><th>Expires</th><th></th></tr></thead>
+    <tbody>
+    {{range .Data.Tokens}}
+    <tr>
+      <td class="strong">{{.Name}}</td>
+      <td><span class="badge role-{{.Role}}">{{.RoleName}}</span></td>
+      <td class="nowrap">{{ts .CreatedAt}}</td>
+      <td class="nowrap">{{if .LastUsed}}{{ago .LastUsed}}{{else}}<span class="muted">never</span>{{end}}</td>
+      <td class="nowrap">{{if .ExpiresAt}}{{if .Expired}}<span class="badge failed"><i></i>expired</span>{{else}}{{ts .ExpiresAt}}{{end}}{{else}}<span class="muted">never</span>{{end}}</td>
+      <td><form method="post" action="/account/tokens/{{.ID}}/delete" class="inline" data-confirm="Revoke token {{.Name}}? Tools using it stop working."><button class="link">Revoke</button></form></td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table></div>
+  {{end}}
+  <details class="mt" {{if not .Data.Tokens}}open{{end}}>
+    <summary>New API token</summary>
+    <form method="post" action="/account/tokens" class="stack">
+      <div class="row">
+        <label>Name <small>what uses it</small><input name="name" required placeholder="RMM monitoring"></label>
+        <label>Role
+          <select name="role">{{range .Data.TokenRoles}}<option value="{{.Key}}" {{if eq .Key "viewer"}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+        </label>
+      </div>
+      <label>Expires after <small>days; 0 = never</small><input type="number" name="days" min="0" max="3650" value="365"></label>
+      <div><button>Create token</button></div>
+    </form>
+  </details>
+</div>
 {{end}}

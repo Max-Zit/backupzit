@@ -249,6 +249,8 @@ func (s *Server) loadTemplates() error {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
+	s.registerAPI(mux)
+
 	// Agent API
 	mux.HandleFunc("POST "+api.PathEnroll, s.handleEnroll)
 	mux.HandleFunc("POST "+api.PathPoll, s.agentAuth(s.handlePoll))
@@ -304,6 +306,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /audit", s.ui(PermUsers, s.handleAudit))
 	mux.HandleFunc("GET /account", s.ui("", s.handleAccount))
 	mux.HandleFunc("POST /account/password", s.ui("", s.handleAccountPassword))
+	mux.HandleFunc("POST /account/tokens", s.ui(PermView, s.handleTokenCreate))
+	mux.HandleFunc("POST /account/tokens/{id}/delete", s.ui(PermView, s.handleTokenDelete))
 	mux.HandleFunc("GET /account/2fa", s.ui("", s.handleAccount2FA))
 	mux.HandleFunc("POST /account/2fa/enable", s.ui("", s.handleAccount2FAEnable))
 	mux.HandleFunc("POST /account/2fa/codes", s.ui("", s.handleAccount2FACodes))

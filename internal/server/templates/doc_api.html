@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">Integrate BackupZit with RMM platforms, monitoring (PRTG, Zabbix, Nagios, Uptime Kuma …) and your own scripts.</p>
+
+<h2>Tokens</h2>
+<p>Create a token under <a href="/account#tokens">My account → API tokens</a>. Give it the lowest role that is enough — <b>Viewer</b> for monitoring, <b>Restore operator</b> to also start backups and restore tests. The token is shown once; send it in every request:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>Tokens can expire, can be revoked by their owner or an administrator (<a href="/users">Users</a>), and stop working when the owner is disabled. Actions done with a token appear in the audit log with the token's name.</p>
+
+<h2>Endpoints</h2>
+<p>All responses are JSON. Base URL: <code>https://&lt;console&gt;:8443</code>.</p>
+<table>
+  <tr><th>Method and path</th><th>Role</th><th>Returns</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Viewer</td><td>Overall health: agents online, failures and warnings in 24 h, active runs, unreviewed suspicious backups, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Viewer</td><td>Agents with OS, version, online state and last contact</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Viewer</td><td>Jobs with schedule, next run and last result</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Restore operator</td><td>Starts the job now: <code>{"run_id": 123}</code> (202), or 409 if a run is already active</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Restore operator</td><td>Starts a restore test of the job's newest backup</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Viewer</td><td>Recent runs, newest first (default 100, max 1000)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Viewer</td><td>One run with message, errors and statistics</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Viewer</td><td>The <a href="/docs/monitoring">report</a> for a period: totals, success rate and per-job details</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Viewer</td><td>Storage targets (without credentials)</td></tr>
+</table>
+<p>Periods: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, or <code>custom</code> with <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
+<p>Errors return <code>{"error": "..."}</code> with 400 (bad request), 401 (missing, invalid or expired token), 403 (role too low), 404 or 409.</p>
+
+<h2>Examples</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p>Use <code>-k</code> / <code>-SkipCertificateCheck</code> only with the console's self-signed certificate on a trusted network, or install the console certificate on the monitoring host.</p>
+<h3>Monitoring check</h3>
+<p>Poll <code>/api/v1/status</code> every few minutes and alert when <code>ok</code> is false. For per-job checks use <code>/api/v1/jobs</code> and alert when <code>last_status</code> is <code>failed</code> or <code>last_finished</code> is older than expected.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

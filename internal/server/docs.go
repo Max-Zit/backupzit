@@ -15,6 +15,7 @@ var docPages = []struct{ Slug, Title string }{
 	{"monitoring", "Monitoring, reports & calendar"},
 	{"notifications", "Email notifications"},
 	{"users", "Users, roles & LDAP"},
+	{"api", "REST API"},
 	{"cli", "Command line reference"},
 	{"security", "Security & best practices"},
 	{"troubleshooting", "Troubleshooting & FAQ"},

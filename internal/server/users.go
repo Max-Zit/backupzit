@@ -379,8 +379,13 @@ func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request, user string
 	}
 	var ls LDAPSettings
 	s.store.GetSetting(r.Context(), settingLDAP, &ls)
+	tokens, err := s.store.ListAPITokens(r.Context(), 0)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	s.render(w, r, "users", pageData{Title: "Users", Nav: "users", User: user, Data: map[string]any{
-		"Users": users, "Roles": Roles, "Perms": AllPerms, "LDAP": ls.Enabled, "MinPassword": MinPasswordLength}})
+		"Users": users, "Roles": Roles, "Perms": AllPerms, "LDAP": ls.Enabled, "MinPassword": MinPasswordLength, "Tokens": tokens}})
 }
 
 func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -490,10 +495,26 @@ func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request, _ stri
 }
 
 func (s *Server) handleAccount(w http.ResponseWriter, r *http.Request, user string) {
+	s.renderAccount(w, r, user, "")
+}
+
+func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, user, newToken string) {
 	me := currentUser(r)
 	role, _ := roleByKey(me.Role)
+	tokens, err := s.store.ListAPITokens(r.Context(), me.ID)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	var roles []Role
+	for _, x := range Roles {
+		if roleRank[x.Key] <= roleRank[me.Role] {
+			roles = append(roles, x)
+		}
+	}
 	s.render(w, r, "account", pageData{Title: "My account", Nav: "account", User: user, Data: map[string]any{
-		"U": me, "Role": role, "Perms": AllPerms, "MinPassword": MinPasswordLength}})
+		"U": me, "Role": role, "Perms": AllPerms, "MinPassword": MinPasswordLength, "Tokens": tokens, "TokenRoles": roles,
+		"NewToken": newToken, "APIURL": s.PublicURL}})
 }
 
 func (s *Server) handleAccountPassword(w http.ResponseWriter, r *http.Request, _ string) {

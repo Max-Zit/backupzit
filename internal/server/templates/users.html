@@ -56,4 +56,22 @@
     <ul class="role-notes">{{range .Data.Roles}}<li><b>{{.Name}}</b> — {{.Description}}</li>{{end}}</ul>
   </div>
 </div>
+{{if .Data.Tokens}}
+<div class="panel">
+  <h2>{{template "icon" "lock"}} API tokens of all users</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Owner</th><th>Name</th><th>Role</th><th>Last used</th><th>Expires</th><th></th></tr></thead>
+    <tbody>
+    {{range .Data.Tokens}}
+    <tr>
+      <td>{{.Username}}</td><td class="strong">{{.Name}}</td><td><span class="badge role-{{.Role}}">{{.RoleName}}</span></td>
+      <td class="nowrap">{{if .LastUsed}}{{ago .LastUsed}}{{else}}<span class="muted">never</span>{{end}}</td>
+      <td class="nowrap">{{if .ExpiresAt}}{{if .Expired}}<span class="badge failed"><i></i>expired</span>{{else}}{{ts .ExpiresAt}}{{end}}{{else}}<span class="muted">never</span>{{end}}</td>
+      <td><form method="post" action="/account/tokens/{{.ID}}/delete" class="inline" data-confirm="Revoke token {{.Name}} of {{.Username}}?"><input type="hidden" name="back" value="/users"><button class="link">Revoke</button></form></td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table></div>
+</div>
+{{end}}
 {{end}}
