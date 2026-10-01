@@ -50,6 +50,16 @@
     </div>
     <script type="application/json" id="inventory">{{.Data.Inventory}}</script>
     <fieldset class="sched">
+      <legend>Keep backups</legend>
+      <div class="keep">
+        <label>Most recent <input type="number" name="keep_last" min="0" max="999" value="3"></label>
+        <label>Daily <input type="number" name="keep_daily" min="0" max="999" value="7"></label>
+        <label>Weekly <input type="number" name="keep_weekly" min="0" max="999" value="4"></label>
+        <label>Monthly <input type="number" name="keep_monthly" min="0" max="999" value="6"></label>
+      </div>
+      <small class="muted">A backup is kept if any rule selects it, e.g. 7 daily keeps the newest backup of each of the last 7 days. Older backups are removed after each run and their space is freed. All zeros keeps everything.</small>
+    </fieldset>
+    <fieldset class="sched">
       <legend>Schedule</legend>
       <label>Run
         <select name="sched_kind" id="sched_kind" data-switch="sched">

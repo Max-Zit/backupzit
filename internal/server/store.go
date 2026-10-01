@@ -16,6 +16,7 @@ import (
 
 	"github.com/backupzit/backupzit/internal/api"
 	"github.com/backupzit/backupzit/internal/imaging"
+	"github.com/backupzit/backupzit/internal/repo"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
@@ -336,6 +337,8 @@ type Job struct {
 	ID int64
 	// Kind is JobFiles or JobImage.
 	Kind string
+	// Retention decides which of the job's backups are kept.
+	Retention repo.RetentionPolicy
 	// Image jobs: disk number and partitions (nil = whole disk).
 	ImageDisk       *int
 	ImagePartitions []int
@@ -398,13 +401,13 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 		j.Excludes = []string{}
 	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at, kind, image_disk, image_partitions)
-		VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8,$9,$10) RETURNING id`,
-		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled, j.Kind, j.ImageDisk, j.ImagePartitions).Scan(&id)
+	err = s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at, kind, image_disk, image_partitions, retention)
+		VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8,$9,$10,$11) RETURNING id`,
+		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled, j.Kind, j.ImageDisk, j.ImagePartitions, j.Retention).Scan(&id)
 	return id, err
 }
 
-const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.agent_id, a.hostname, j.target_id, st.name, j.name, j.paths, j.excludes,
+const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.retention, j.agent_id, a.hostname, j.target_id, st.name, j.name, j.paths, j.excludes,
 	j.schedule, j.enabled, j.last_scheduled_at, j.created_at,
 	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup') ORDER BY r.queued_at DESC LIMIT 1),
 	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup') ORDER BY r.queued_at DESC LIMIT 1)`
@@ -413,7 +416,7 @@ const jobFrom = ` FROM jobs j JOIN agents a ON a.id=j.agent_id JOIN storage_targ
 
 func scanJob(r pgx.Row) (Job, error) {
 	var j Job
-	err := r.Scan(&j.ID, &j.Kind, &j.ImageDisk, &j.ImagePartitions, &j.AgentID, &j.Hostname, &j.TargetID, &j.TargetName, &j.Name,
+	err := r.Scan(&j.ID, &j.Kind, &j.ImageDisk, &j.ImagePartitions, &j.Retention, &j.AgentID, &j.Hostname, &j.TargetID, &j.TargetName, &j.Name,
 		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished)
 	return j, err
 }
@@ -528,6 +531,7 @@ type Run struct {
 	TargetDisk      *int
 	KeepOffline     bool
 	Details         json.RawMessage
+	Expired         bool
 	QueuedAt        time.Time
 	StartedAt       *time.Time
 	FinishedAt      *time.Time
@@ -550,7 +554,7 @@ func (r Run) Duration() time.Duration {
 
 const runCols = `r.id, r.agent_id, a.hostname, r.job_id, j.name, r.kind, r.status, r.trigger, r.repo_url,
 	r.target_id, r.paths, r.excludes, r.snapshot_id, r.restore_target, r.restore_verify, r.queued_at, r.started_at, r.finished_at,
-	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details`
+	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired`
 
 const runFrom = ` FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id`
 
@@ -559,7 +563,7 @@ func scanRun(row pgx.Row) (Run, error) {
 	err := row.Scan(&r.ID, &r.AgentID, &r.Hostname, &r.JobID, &r.JobName, &r.Kind, &r.Status,
 		&r.Trigger, &r.RepoURL, &r.TargetID, &r.Paths, &r.Excludes, &r.SnapshotID, &r.RestoreTarget, &r.RestoreVerify,
 		&r.QueuedAt, &r.StartedAt, &r.FinishedAt, &r.Stats, &r.Errors, &r.Message,
-		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details)
+		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired)
 	return r, err
 }
 
@@ -630,6 +634,11 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	}
 	if ct.RowsAffected() == 0 {
 		return ErrNotFound
+	}
+	if len(res.Forgotten) > 0 {
+		if _, err := s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE snapshot_id = ANY($1)`, res.Forgotten); err != nil {
+			return err
+		}
 	}
 	return nil
 }

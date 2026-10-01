@@ -21,6 +21,7 @@
     <dt>Excludes</dt><dd class="mono">{{if .Excludes}}{{join .Excludes ", "}}{{else}}—{{end}}</dd>
     {{end}}
     <dt>Schedule</dt><dd>{{schedule .Schedule}}</dd>
+    <dt>Retention</dt><dd>{{.Retention.String}}</dd>
     <dt>Next run</dt><dd>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</dd>
   </dl>
 </div>

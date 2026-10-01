@@ -560,7 +560,13 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		return
 	}
 	job := Job{
-		Kind:     r.FormValue("kind"),
+		Kind: r.FormValue("kind"),
+		Retention: repo.RetentionPolicy{
+			KeepLast:    atoiDefault(r.FormValue("keep_last")),
+			KeepDaily:   atoiDefault(r.FormValue("keep_daily")),
+			KeepWeekly:  atoiDefault(r.FormValue("keep_weekly")),
+			KeepMonthly: atoiDefault(r.FormValue("keep_monthly")),
+		},
 		AgentID:  formID(r, "agent_id"),
 		TargetID: formID(r, "target_id"),
 		Name:     r.FormValue("name"),

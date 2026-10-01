@@ -34,13 +34,18 @@ func (a *Agent) imageBackup(ctx context.Context, run api.Run) api.RunResult {
 		return failed(fmt.Errorf("open repository: %w", err))
 	}
 	defer closeRepo()
+	lock, err := r.Lock(ctx, false, lockWait)
+	if err != nil {
+		return failed(err)
+	}
+	defer lock.Unlock()
 	var lastLog time.Time
 	sn, err := imaging.Backup(ctx, r, imaging.BackupOptions{
 		Disk:       run.ImageDisk,
 		Partitions: run.ImagePartitions,
 		VSS:        a.VSS,
 		Version:    a.version,
-		Tags:       []string{fmt.Sprintf("run:%d", run.ID)},
+		Tags:       []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
 		Progress: func(done, total uint64) {
 			if time.Since(lastLog) > time.Minute {
 				lastLog = time.Now()
@@ -60,7 +65,8 @@ func (a *Agent) imageBackup(ctx context.Context, run api.Run) api.RunResult {
 	if len(sn.Stats.Errors) > 0 {
 		res.Status = api.StatusWarning
 	}
-	return res
+	lock.Unlock() // retention needs an exclusive lock
+	return a.withRetention(ctx, r, run, res)
 }
 
 func (a *Agent) imageRestore(ctx context.Context, run api.Run) api.RunResult {
@@ -69,6 +75,11 @@ func (a *Agent) imageRestore(ctx context.Context, run api.Run) api.RunResult {
 		return failed(fmt.Errorf("open repository: %w", err))
 	}
 	defer closeRepo()
+	lock, err := r.Lock(ctx, false, lockWait)
+	if err != nil {
+		return failed(err)
+	}
+	defer lock.Unlock()
 	sn, err := r.LoadSnapshot(ctx, run.SnapshotID)
 	if err != nil {
 		return failed(err)
@@ -91,6 +102,11 @@ func (a *Agent) imageFileRestore(ctx context.Context, run api.Run) api.RunResult
 		return failed(fmt.Errorf("open repository: %w", err))
 	}
 	defer closeRepo()
+	lock, err := r.Lock(ctx, false, lockWait)
+	if err != nil {
+		return failed(err)
+	}
+	defer lock.Unlock()
 	sn, err := r.LoadSnapshot(ctx, run.SnapshotID)
 	if err != nil {
 		return failed(err)

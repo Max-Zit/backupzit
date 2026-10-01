@@ -21,6 +21,9 @@ import (
 
 	"github.com/backupzit/backupzit/internal/agent"
 	"github.com/backupzit/backupzit/internal/api"
+	"github.com/backupzit/backupzit/internal/backend"
+	"github.com/backupzit/backupzit/internal/checker"
+	"github.com/backupzit/backupzit/internal/repo"
 	"github.com/backupzit/backupzit/internal/server"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 )
@@ -545,5 +548,69 @@ func TestRecovery(t *testing.T) {
 	resp2.Body.Close()
 	if !strings.Contains(string(b), agents[0].Hostname) {
 		t.Error("recovery page does not list the recovery agent")
+	}
+}
+
+func TestRetentionJob(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	repoBase := t.TempDir()
+	targetID, _ := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: repoBase})
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag.VSS = false
+	agents, _ := e.store.ListAgents(ctx)
+	src := filepath.Join(t.TempDir(), "data")
+	jobID, err := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: targetID, Name: "keep one",
+		Paths: []string{src}, Enabled: true, Retention: repo.RetentionPolicy{KeepLast: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if j, _ := e.store.GetJob(ctx, jobID); j.Retention.KeepLast != 1 {
+		t.Fatalf("retention not stored: %+v", j.Retention)
+	}
+	var runIDs []int64
+	for i := 0; i < 3; i++ {
+		// Each backup has unique data that becomes garbage once expired.
+		os.MkdirAll(src, 0o755)
+		b := make([]byte, 2<<20)
+		for k := range b {
+			b[k] = byte(i*31 + k*7)
+		}
+		os.WriteFile(filepath.Join(src, "f.bin"), b, 0o644)
+		id, err := e.store.QueueBackup(ctx, jobID, "manual")
+		if err != nil {
+			t.Fatal(err)
+		}
+		runAgent(t, ag)
+		r, _ := e.store.GetRun(ctx, id)
+		if r.Status != api.StatusSuccess {
+			t.Fatalf("run %d: %s %q", i, r.Status, r.Message)
+		}
+		if i > 0 && !strings.Contains(r.Message, "removed 1 old backups") {
+			t.Errorf("run %d message %q", i, r.Message)
+		}
+		runIDs = append(runIDs, id)
+	}
+	for i, id := range runIDs {
+		r, _ := e.store.GetRun(ctx, id)
+		if r.Expired != (i < 2) {
+			t.Errorf("run %d expired=%v", i, r.Expired)
+		}
+	}
+	// Only one snapshot is left and the repository verifies.
+	be, _ := backend.OpenLocal(filepath.Join(repoBase, agents[0].RepoDir))
+	rp, err := repo.Open(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sns, _ := rp.ListSnapshots(ctx)
+	res, err := checker.Run(ctx, rp, checker.Options{ReadData: true})
+	if len(sns) != 1 || err != nil || !res.OK() {
+		t.Fatalf("snapshots %d, check %v %+v", len(sns), err, res)
 	}
 }

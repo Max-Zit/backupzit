@@ -120,6 +120,7 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	}
 	switch run.Kind {
 	case api.KindBackup:
+		s.addRetention(ctx, run, ar)
 		ar.Paths, ar.Excludes = run.Paths, run.Excludes
 	case api.KindRestore:
 		ar.SnapshotID = run.SnapshotID
@@ -127,6 +128,7 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		ar.Includes = run.Paths
 		ar.Verify = run.RestoreVerify
 	case api.KindImageBackup:
+		s.addRetention(ctx, run, ar)
 		if run.ImageDisk != nil {
 			ar.ImageDisk = *run.ImageDisk
 		}
@@ -171,4 +173,20 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 	}
 	s.log.Info("run finished", "run", id, "status", res.Status, "agent", a.Hostname)
 	writeJSON(w, http.StatusOK, struct{}{})
+}
+
+// addRetention attaches the job's retention policy to a backup run.
+func (s *Server) addRetention(ctx context.Context, run *Run, ar *api.Run) {
+	if run.JobID == nil {
+		return
+	}
+	j, err := s.store.GetJob(ctx, *run.JobID)
+	if err != nil {
+		return
+	}
+	ar.JobID = j.ID
+	if !j.Retention.Empty() {
+		p := j.Retention
+		ar.Retention = &p
+	}
 }

@@ -7,6 +7,8 @@ package api
 
 import (
 	"encoding/json"
+
+	"github.com/backupzit/backupzit/internal/repo"
 )
 
 const (
@@ -65,10 +67,14 @@ const (
 
 // Run is a unit of work assigned to an agent.
 type Run struct {
-	ID         int64      `json:"id"`
-	Kind       string     `json:"kind"`
-	JobName    string     `json:"job_name,omitempty"`
-	Repository Repository `json:"repository"`
+	ID   int64  `json:"id"`
+	Kind string `json:"kind"`
+	// JobID and Retention: after a backup the agent removes snapshots of
+	// this job that the policy no longer keeps and prunes the repository.
+	JobID      int64                 `json:"job_id,omitempty"`
+	Retention  *repo.RetentionPolicy `json:"retention,omitempty"`
+	JobName    string                `json:"job_name,omitempty"`
+	Repository Repository            `json:"repository"`
 
 	// Backup
 	Paths    []string `json:"paths,omitempty"`
@@ -119,6 +125,8 @@ type RunResult struct {
 	Message    string          `json:"message,omitempty"`
 	// Details carries kind specific data, e.g. the disk layout of an image.
 	Details json.RawMessage `json:"details,omitempty"`
+	// Forgotten lists snapshot IDs removed by the retention policy.
+	Forgotten []string `json:"forgotten,omitempty"`
 }
 
 // Error is returned by the server with non-2xx responses.

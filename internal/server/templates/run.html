@@ -53,7 +53,7 @@
         <td>{{.FileSystem}}</td>
         <td>{{if .Included}}{{if eq .Source "vss"}}VSS snapshot{{else}}live{{end}}, {{if eq .Method "used-blocks"}}used blocks{{else}}all blocks{{end}}{{else}}<span class="muted">layout only</span>{{end}}</td>
         <td>{{if .Included}}{{bytes .StoredBytes}}{{end}}</td>
-        <td>{{if and .Included (eq .FileSystem "NTFS") $.Data.Run.SnapshotID}}<a href="/runs/{{$.Data.Run.ID}}/browse?part={{.Number}}">Browse files</a>{{end}}</td>
+        <td>{{if and .Included (eq .FileSystem "NTFS") $.Data.Run.SnapshotID (not $.Data.Run.Expired)}}<a href="/runs/{{$.Data.Run.ID}}/browse?part={{.Number}}">Browse files</a>{{end}}</td>
       </tr>
       {{end}}
     </table></div>
@@ -87,7 +87,11 @@
 </div>
 {{end}}
 
-{{if and (eq .Kind "backup") .SnapshotID}}
+{{if .Expired}}
+<div class="panel"><p class="muted">This backup was removed by the job's retention policy and can no longer be restored.</p></div>
+{{end}}
+
+{{if and (eq .Kind "backup") .SnapshotID (not .Expired)}}
 <div class="panel">
   <h2>Restore from this backup</h2>
   <form method="post" action="/runs/{{.ID}}/restore" class="stack">
@@ -104,7 +108,7 @@
 </div>
 {{end}}
 
-{{if and (eq .Kind "image-backup") .SnapshotID}}
+{{if and (eq .Kind "image-backup") .SnapshotID (not .Expired)}}
 <div class="panel">
   <h2>Restore this image to a disk</h2>
   <p class="muted">The partition table is recreated with the original disk and partition IDs and all imaged partitions are written. <b>Everything on the target disk is erased.</b> The disk running Windows on the agent cannot be selected; to restore a system disk in place, boot the machine from recovery media.</p>

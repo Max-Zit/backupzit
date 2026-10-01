@@ -41,7 +41,7 @@
     <td>{{.Kind}}{{if eq .Trigger "schedule"}} <span class="muted">(scheduled)</span>{{end}}</td>
     <td>{{.Hostname}}</td>
     <td>{{if .JobID}}<a href="/jobs/{{.JobID}}">{{deref .JobName}}</a>{{end}}</td>
-    <td>{{template "status" .Status}}</td>
+    <td>{{template "status" .Status}}{{if .Expired}} <span class="badge">expired</span>{{end}}</td>
     <td>{{if .StartedAt}}{{ts .StartedAt}}{{else}}<span class="muted">queued {{ago .QueuedAt}}</span>{{end}}</td>
     <td>{{if .StartedAt}}{{.Duration}}{{end}}</td>
     <td class="mono">{{short .SnapshotID}}</td>

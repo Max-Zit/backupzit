@@ -351,11 +351,16 @@ func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
 		return failed(fmt.Errorf("open repository: %w", err))
 	}
 	defer closeRepo()
+	lock, err := r.Lock(ctx, false, lockWait)
+	if err != nil {
+		return failed(err)
+	}
+	defer lock.Unlock()
 	sn, err := archiver.Run(ctx, r, archiver.Options{
 		Paths:    run.Paths,
 		Excludes: run.Excludes,
 		Version:  a.version,
-		Tags:     []string{fmt.Sprintf("run:%d", run.ID)},
+		Tags:     []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
 		VSS:      a.VSS,
 	})
 	if err != nil {
@@ -370,7 +375,8 @@ func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
 		res.Status = api.StatusWarning
 		res.Message = strings.TrimSpace(fmt.Sprintf("%d files or folders could not be read. %s", len(sn.Stats.Errors), res.Message))
 	}
-	return res
+	lock.Unlock() // retention needs an exclusive lock
+	return a.withRetention(ctx, r, run, res)
 }
 
 func (a *Agent) restore(ctx context.Context, run api.Run) api.RunResult {
@@ -379,6 +385,11 @@ func (a *Agent) restore(ctx context.Context, run api.Run) api.RunResult {
 		return failed(fmt.Errorf("open repository: %w", err))
 	}
 	defer closeRepo()
+	lock, err := r.Lock(ctx, false, lockWait)
+	if err != nil {
+		return failed(err)
+	}
+	defer lock.Unlock()
 	sn, err := r.LoadSnapshot(ctx, run.SnapshotID)
 	if err != nil {
 		return failed(err)

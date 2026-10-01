@@ -74,3 +74,12 @@ func (s *Server) handleImageRestore(w http.ResponseWriter, r *http.Request, runI
 	}
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Image restore queued.")
 }
+
+// atoiDefault parses a non-negative form number; anything else is 0.
+func atoiDefault(s string) int {
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
+}
