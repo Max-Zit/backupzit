@@ -108,6 +108,8 @@ type Repository struct {
 	S3AccessKey  string `json:"s3_access_key,omitempty"`
 	S3SecretKey  string `json:"s3_secret_key,omitempty"`
 	S3Region     string `json:"s3_region,omitempty"`
+	SMBPassword  string `json:"smb_password,omitempty"`
+	SMBDomain    string `json:"smb_domain,omitempty"`
 }
 
 // Run statuses.

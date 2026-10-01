@@ -56,7 +56,7 @@ func (c *repoCache) expire() {
 }
 
 // ErrBrowseLocal means the repository lives on the agent's own disk.
-var ErrBrowseLocal = errors.New("this backup is stored on a local path of the agent; the console can only browse backups on network storage (SFTP or S3)")
+var ErrBrowseLocal = errors.New("this backup is stored on a local path of the agent; the console can only browse backups on network storage (SFTP, S3 or SMB)")
 
 func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repository, error) {
 	c.mu.Lock()
@@ -66,13 +66,14 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 		cr.used = time.Now()
 		return cr.r, nil
 	}
-	if t.Kind != "sftp" && t.Kind != "s3" {
+	if t.Kind != "sftp" && t.Kind != "s3" && t.Kind != "smb" {
 		return nil, ErrBrowseLocal
 	}
 	// The repository is used for many requests; do not tie it to one.
 	be, err := backend.Open(context.WithoutCancel(ctx), url, backend.Options{
 		SFTPPassword: t.SFTPPassword, SFTPKeyFile: "", SFTPHostKey: t.SFTPHostKey,
 		S3AccessKey: t.S3AccessKey, S3SecretKey: t.S3SecretKey, S3Region: t.S3Region,
+		SMBPassword: t.SMBPassword, SMBDomain: t.SMBDomain,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("connect to storage: %w", err)

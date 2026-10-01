@@ -24,9 +24,23 @@
       <select name="kind" id="kind">
         <option value="sftp">SFTP</option>
         <option value="s3">S3 compatible (AWS, Wasabi, Backblaze B2, MinIO, …)</option>
+        <option value="smb">SMB share (Windows server, NAS)</option>
         <option value="local">Local / mounted path (on the agent machine)</option>
       </select>
     </label>
+    <div data-kind="smb" hidden class="stack">
+      <div class="row">
+        <label>Server <small>name or IP, e.g. nas01 or 10.0.0.20</small><input name="smb_host" placeholder="10.0.0.20"></label>
+        <label>Share <small>e.g. Backups</small><input name="smb_share" placeholder="Backups"></label>
+      </div>
+      <label>Folder in share <small>optional</small><input name="smb_path" placeholder="backupzit"></label>
+      <div class="row">
+        <label>User <input name="smb_user" autocomplete="off"></label>
+        <label>Password <input name="smb_password" type="password" autocomplete="new-password"></label>
+      </div>
+      <label>Domain <small>optional, for domain accounts</small><input name="smb_domain"></label>
+      <small class="muted">Agents connect with these credentials themselves (SMB 2/3), so the share does not need to be mapped on the machines.</small>
+    </div>
     <div data-kind="s3" hidden class="stack">
       <div class="row">
         <label>Endpoint <small>host[:port], e.g. s3.eu-central-1.amazonaws.com, s3.wasabisys.com, 10.0.0.5:9000</small><input name="s3_endpoint" placeholder="s3.eu-central-1.amazonaws.com"></label>

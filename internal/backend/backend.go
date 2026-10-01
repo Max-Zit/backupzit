@@ -47,6 +47,8 @@ type Options struct {
 	S3AccessKey  string
 	S3SecretKey  string
 	S3Region     string
+	SMBPassword  string
+	SMBDomain    string
 }
 
 // Open parses a repository location and opens the matching backend.
@@ -54,6 +56,7 @@ type Options struct {
 //	/path/to/repo, C:\repo, local:/path   -> local directory
 //	sftp://user@host[:port]/path          -> SFTP
 //	s3://endpoint[:port]/bucket[/prefix]   -> S3 (?tls=false for plain HTTP)
+//	smb://[domain;]user@host/share[/path]  -> SMB2/3 share
 func Open(ctx context.Context, location string, opts Options) (Backend, error) {
 	switch {
 	case strings.HasPrefix(location, "sftp://"):
@@ -68,6 +71,12 @@ func Open(ctx context.Context, location string, opts Options) (Backend, error) {
 			return nil, fmt.Errorf("parse s3 url: %w", err)
 		}
 		return OpenS3(ctx, u, opts)
+	case strings.HasPrefix(location, "smb://"):
+		u, err := url.Parse(location)
+		if err != nil {
+			return nil, fmt.Errorf("parse smb url: %w", err)
+		}
+		return OpenSMB(ctx, u, opts)
 	case strings.HasPrefix(location, "local:"):
 		return OpenLocal(strings.TrimPrefix(location, "local:"))
 	case strings.Contains(location, "://"):

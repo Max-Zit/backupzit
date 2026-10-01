@@ -437,3 +437,26 @@ func TestBackupRestoreS3(t *testing.T) {
 		return be
 	}, false)
 }
+
+// TestBackupRestoreSMB runs against a real SMB share, e.g.
+//
+//	BACKUPZIT_TEST_SMB=smb://user@host/share BACKUPZIT_TEST_SMB_PASSWORD=... go test ./internal/e2e -run SMB
+func TestBackupRestoreSMB(t *testing.T) {
+	loc := os.Getenv("BACKUPZIT_TEST_SMB")
+	if loc == "" {
+		t.Skip("BACKUPZIT_TEST_SMB not set")
+	}
+	ctx := context.Background()
+	opts := backend.Options{SMBPassword: os.Getenv("BACKUPZIT_TEST_SMB_PASSWORD")}
+	loc = fmt.Sprintf("%s/e2e-%d", strings.TrimRight(loc, "/"), time.Now().UnixNano())
+	if _, err := backend.Open(ctx, loc, backend.Options{SMBPassword: "wrong"}); err == nil {
+		t.Error("wrong SMB password accepted")
+	}
+	runCycle(t, func() backend.Backend {
+		be, err := backend.Open(ctx, loc, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return be
+	}, false)
+}

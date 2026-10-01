@@ -135,6 +135,8 @@ type Target struct {
 	S3AccessKey  string
 	S3SecretKey  string
 	S3Region     string
+	SMBPassword  string
+	SMBDomain    string
 	CreatedAt    time.Time
 }
 
@@ -162,25 +164,32 @@ func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
 		if t.S3AccessKey == "" || t.S3SecretKey == "" {
 			return 0, errors.New("S3 access key and secret key are required")
 		}
+	case "smb":
+		if !strings.HasPrefix(t.URL, "smb://") {
+			return 0, errors.New("SMB location must look like smb://user@host/share/path")
+		}
+		if t.SMBPassword == "" {
+			return 0, errors.New("SMB password is required")
+		}
 	case "local":
 	default:
 		return 0, fmt.Errorf("unknown target type %q", t.Kind)
 	}
 	var id int64
-	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key,s3_access_key,s3_secret_key,s3_region)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey), strings.TrimSpace(t.S3AccessKey), t.S3SecretKey, strings.TrimSpace(t.S3Region)).Scan(&id)
+	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key,s3_access_key,s3_secret_key,s3_region,smb_password,smb_domain)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey), strings.TrimSpace(t.S3AccessKey), t.S3SecretKey, strings.TrimSpace(t.S3Region), t.SMBPassword, strings.TrimSpace(t.SMBDomain)).Scan(&id)
 	if err != nil && strings.Contains(err.Error(), "duplicate key") {
 		return 0, errors.New("a storage target with that name already exists")
 	}
 	return id, err
 }
 
-const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at, s3_access_key, s3_secret_key, s3_region`
+const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at, s3_access_key, s3_secret_key, s3_region, smb_password, smb_domain`
 
 func scanTarget(r pgx.Row) (Target, error) {
 	var t Target
-	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt, &t.S3AccessKey, &t.S3SecretKey, &t.S3Region)
+	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt, &t.S3AccessKey, &t.S3SecretKey, &t.S3Region, &t.SMBPassword, &t.SMBDomain)
 	return t, err
 }
 

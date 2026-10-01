@@ -524,6 +524,16 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 		t.S3SecretKey = r.FormValue("s3_secret_key")
 		t.S3Region = r.FormValue("s3_region")
 	}
+	if t.Kind == "smb" {
+		u, err := smbLocation(r.FormValue("smb_host"), r.FormValue("smb_share"), r.FormValue("smb_path"), r.FormValue("smb_user"))
+		if err != nil {
+			redirectErr(w, r, "/targets", err)
+			return
+		}
+		t.URL = u
+		t.SMBPassword = r.FormValue("smb_password")
+		t.SMBDomain = r.FormValue("smb_domain")
+	}
 	_, err := s.store.CreateTarget(r.Context(), t)
 	if err != nil {
 		redirectErr(w, r, "/targets", err)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -106,4 +107,23 @@ func s3Location(endpoint, bucket, prefix string, plainHTTP bool) (string, error)
 		loc += "?tls=false"
 	}
 	return loc, nil
+}
+
+// smbLocation builds smb://user@host/share/path from form fields.
+func smbLocation(host, share, dir, user string) (string, error) {
+	host = strings.Trim(strings.TrimSpace(host), `\/`)
+	share = strings.Trim(strings.TrimSpace(share), `\/`)
+	dir = strings.Trim(strings.ReplaceAll(strings.TrimSpace(dir), `\`, "/"), "/")
+	user = strings.TrimSpace(user)
+	if host == "" || share == "" || user == "" {
+		return "", errors.New("SMB server, share and user are required")
+	}
+	if strings.ContainsAny(host+share, `/\?#@`) {
+		return "", errors.New("invalid SMB server or share name")
+	}
+	u := url.URL{Scheme: "smb", User: url.User(user), Host: host, Path: "/" + share}
+	if dir != "" {
+		u.Path += "/" + dir
+	}
+	return u.String(), nil
 }

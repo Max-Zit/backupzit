@@ -46,11 +46,13 @@ Standalone commands:
 Repository options (all commands):
   --repo         Repository location: a local path, sftp://user@host[:port]/path
                  or s3://endpoint/bucket[/prefix][?tls=false]
+                 or smb://[domain;]user@host/share[/path]
                  (env BACKUPZIT_REPO)
   --sftp-password  SFTP password (env BACKUPZIT_SFTP_PASSWORD)
   --sftp-key       Path to an SSH private key
   --sftp-hostkey   Expected server host key fingerprint "SHA256:..." (env BACKUPZIT_SFTP_HOSTKEY)
   --s3-access-key, --s3-secret-key, --s3-region  (env BACKUPZIT_S3_ACCESS_KEY, _SECRET_KEY, _REGION)
+  --smb-password, --smb-domain  (env BACKUPZIT_SMB_PASSWORD, BACKUPZIT_SMB_DOMAIN)
 
 Run "backupzit-agent <command> -h" for command options.
 `
@@ -75,6 +77,8 @@ func addRepoFlags(fs *flag.FlagSet) *repoFlags {
 	fs.StringVar(&rf.opts.S3AccessKey, "s3-access-key", os.Getenv("BACKUPZIT_S3_ACCESS_KEY"), "S3 access key")
 	fs.StringVar(&rf.opts.S3SecretKey, "s3-secret-key", os.Getenv("BACKUPZIT_S3_SECRET_KEY"), "S3 secret key (prefer the environment variable)")
 	fs.StringVar(&rf.opts.S3Region, "s3-region", os.Getenv("BACKUPZIT_S3_REGION"), "S3 region")
+	fs.StringVar(&rf.opts.SMBPassword, "smb-password", os.Getenv("BACKUPZIT_SMB_PASSWORD"), "SMB password (prefer the environment variable)")
+	fs.StringVar(&rf.opts.SMBDomain, "smb-domain", os.Getenv("BACKUPZIT_SMB_DOMAIN"), "SMB domain")
 	return rf
 }
 
