@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -28,6 +29,7 @@ import (
 	"github.com/backupzit/backupzit/internal/server"
 	"github.com/backupzit/backupzit/internal/testutil"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func freePort(t *testing.T) uint32 {
@@ -41,6 +43,7 @@ func freePort(t *testing.T) uint32 {
 
 type env struct {
 	store *server.Store
+	pool  *pgxpool.Pool
 	srv   *server.Server
 	ts    *httptest.Server
 	fp    string
@@ -65,6 +68,9 @@ func setup(t *testing.T) *env {
 	}
 	t.Cleanup(pool.Close)
 	store := server.NewStore(pool)
+	if err := store.UseSecretKey(bytes.Repeat([]byte{7}, 32)); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := store.EnsureAdmin(ctx, "admin", "admin-pass-123"); err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +89,7 @@ func setup(t *testing.T) *env {
 	ts.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
 	ts.StartTLS()
 	t.Cleanup(ts.Close)
-	return &env{store: store, srv: srv, ts: ts, fp: srv.CertFingerprint, ctx: ctx}
+	return &env{store: store, pool: pool, srv: srv, ts: ts, fp: srv.CertFingerprint, ctx: ctx}
 }
 
 func writeTree(t *testing.T, root string) map[string]string {
@@ -1150,5 +1156,50 @@ func TestUsersAndRoles(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("audit log misses %s", want)
 		}
+	}
+}
+
+func TestSecretsEncryptedAtRest(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	id, err := e.store.CreateTarget(ctx, server.Target{Name: "nas", Kind: "smb", URL: "smb://bk@nas/share", SMBPassword: "smb-Secret-1", Encrypted: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.store.SetSetting(ctx, "email", server.EmailSettings{Host: "smtp.example.com", Password: "smtp-Secret-2"})
+	// Raw database contents contain no secrets.
+	var raw string
+	e.pool.QueryRow(ctx, `SELECT smb_password || repo_password FROM storage_targets WHERE id=$1`, id).Scan(&raw)
+	var settings string
+	e.pool.QueryRow(ctx, `SELECT value::text FROM settings WHERE key='email'`).Scan(&settings)
+	tg, _ := e.store.GetTarget(ctx, id)
+	if strings.Contains(raw, "smb-Secret-1") || strings.Contains(raw, tg.RecoveryKey) || strings.Contains(settings, "smtp-Secret-2") {
+		t.Fatalf("secret in plaintext: %q %q", raw, settings)
+	}
+	if tg.SMBPassword != "smb-Secret-1" || !strings.HasPrefix(raw, "enc:v1:") {
+		t.Fatalf("round trip: %q", tg.SMBPassword)
+	}
+	var es server.EmailSettings
+	if e.store.GetSetting(ctx, "email", &es); es.Password != "smtp-Secret-2" {
+		t.Fatal("email password round trip")
+	}
+	// Plaintext from older versions is encrypted at start; swapping
+	// ciphertexts between fields is detected.
+	e.pool.Exec(ctx, `UPDATE storage_targets SET smb_password='legacy-pw' WHERE id=$1`, id)
+	if n, err := e.store.EncryptExistingSecrets(ctx); err != nil || n != 1 {
+		t.Fatalf("migrate: %d %v", n, err)
+	}
+	if tg, _ := e.store.GetTarget(ctx, id); tg.SMBPassword != "legacy-pw" {
+		t.Fatal("legacy secret lost")
+	}
+	e.pool.Exec(ctx, `UPDATE storage_targets SET smb_password=repo_password WHERE id=$1`, id)
+	if _, err := e.store.GetTarget(ctx, id); err == nil {
+		t.Error("swapped ciphertext accepted")
+	}
+	// A wrong key cannot read the secrets.
+	other := server.NewStore(e.pool)
+	other.UseSecretKey(bytes.Repeat([]byte{8}, 32))
+	if _, err := other.GetTarget(ctx, id); err == nil {
+		t.Error("wrong key decrypted secrets")
 	}
 }

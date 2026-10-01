@@ -321,3 +321,16 @@ label.check.top { align-self: end; padding-bottom: 10px; }
 .tabs a { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; color: var(--muted); font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; border-radius: 8px 8px 0 0; }
 .tabs a:hover { color: var(--text); background: var(--panel); text-decoration: none; }
 .tabs a.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ---- settings with side tabs */
+.settings { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; align-items: start; }
+.sidetabs { position: sticky; top: 80px; display: grid; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; box-shadow: var(--shadow); }
+.sidetabs a { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 9px; color: var(--text); font-weight: 600; }
+.sidetabs a .ic { margin-top: 2px; color: var(--muted); }
+.sidetabs a span { display: grid; gap: 1px; }
+.sidetabs a small { font-weight: 400; font-size: 12px; color: var(--muted); }
+.sidetabs a:hover { background: var(--panel-2); text-decoration: none; }
+.sidetabs a.on { background: var(--accent-soft); color: var(--accent); }
+.sidetabs a.on .ic { color: var(--accent); }
+.settings-body > .panel:first-child { margin-top: 0; }
+@media (max-width: 900px) { .settings { grid-template-columns: 1fr; } .sidetabs { position: static; grid-auto-flow: column; overflow-x: auto; } .sidetabs a small { display: none; } }

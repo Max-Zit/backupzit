@@ -26,7 +26,8 @@ import (
 
 // Store wraps all database access.
 type Store struct {
-	db *pgxpool.Pool
+	db  *pgxpool.Pool
+	box *secretBox // encrypts stored secrets; nil = plaintext (tests)
 }
 
 func NewStore(db *pgxpool.Pool) *Store { return &Store{db: db} }
@@ -178,6 +179,7 @@ func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
 	default:
 		return 0, fmt.Errorf("unknown target type %q", t.Kind)
 	}
+	s.encryptTarget(&t)
 	var id int64
 	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key,s3_access_key,s3_secret_key,s3_region,smb_password,smb_domain,encrypted,repo_password,s3_lock_days,hardened_key,hardened_fingerprint)
 		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
@@ -201,11 +203,20 @@ func (s *Store) ListTargets(ctx context.Context) ([]Target, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Target, error) { return scanTarget(r) })
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Target, error) {
+		t, err := scanTarget(r)
+		if err == nil {
+			err = s.decryptTarget(&t)
+		}
+		return t, err
+	})
 }
 
 func (s *Store) GetTarget(ctx context.Context, id int64) (Target, error) {
 	t, err := scanTarget(s.db.QueryRow(ctx, `SELECT `+targetCols+` FROM storage_targets WHERE id=$1`, id))
+	if err == nil {
+		err = s.decryptTarget(&t)
+	}
 	return t, notFound(err)
 }
 

@@ -1,6 +1,8 @@
 {{define "content"}}
 <h1>Settings</h1>
+<div class="settings">
 {{template "settingstabs" .}}
+<div class="settings-body">
 {{if eq .Data.Tab "email"}}{{with .Data.Email}}
 <div class="panel">
   <h2>Email notifications</h2>
@@ -62,7 +64,21 @@
     <div><button>Save session settings</button></div>
   </form>
 </div>
-{{end}}{{end}}
+{{end}}
+<div class="panel">
+  <h2>{{template "icon" "shield"}} Stored secrets</h2>
+  {{if .Data.SecretKeyID}}
+  <p><span class="badge success"><i></i>encrypted</span> Storage passwords and keys, recovery keys, the SMTP and LDAP passwords and two-factor secrets are stored encrypted (AES-256-GCM). A copy of the database alone reveals none of them.</p>
+  <dl class="kv">
+    <dt>Key file</dt><dd class="mono">{{.Data.SecretKeyFile}}</dd>
+    <dt>Key ID</dt><dd class="mono">{{.Data.SecretKeyID}}</dd>
+  </dl>
+  <div class="callout warn"><p><b>Back up the key file together with the database</b> (separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets.</p></div>
+  {{else}}
+  <p><span class="badge failed"><i></i>not encrypted</span> No secrets key is loaded.</p>
+  {{end}}
+</div>
+{{end}}
 {{if eq .Data.Tab "ldap"}}{{with .Data.LDAP}}
 <div class="panel" id="ldap">
   <h2>{{template "icon" "users"}} LDAP / Active Directory sign-in</h2>
@@ -112,4 +128,6 @@
   </form>
 </div>
 {{end}}{{end}}
+</div>
+</div>
 {{end}}

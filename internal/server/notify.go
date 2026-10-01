@@ -54,6 +54,9 @@ func (s *Store) GetSetting(ctx context.Context, key string, v any) error {
 	if err != nil {
 		return err
 	}
+	if b, err = s.openSetting(key, b); err != nil {
+		return err
+	}
 	return json.Unmarshal(b, v)
 }
 
@@ -61,6 +64,9 @@ func (s *Store) GetSetting(ctx context.Context, key string, v any) error {
 func (s *Store) SetSetting(ctx context.Context, key string, v any) error {
 	b, err := json.Marshal(v)
 	if err != nil {
+		return err
+	}
+	if b, err = s.sealSetting(key, b); err != nil {
 		return err
 	}
 	_, err = s.db.Exec(ctx, `INSERT INTO settings(key, value, updated_at) VALUES($1,$2,now())

@@ -77,6 +77,21 @@ func run() error {
 	}
 	defer pool.Close()
 	store := server.NewStore(pool)
+	key, created, err := server.LoadOrCreateSecretKey(*dataDir)
+	if err != nil {
+		return fmt.Errorf("secrets key: %w", err)
+	}
+	if err := store.UseSecretKey(key); err != nil {
+		return err
+	}
+	if created {
+		log.Warn("created a new secrets key; back it up together with the database", "file", filepath.Join(*dataDir, server.SecretKeyFile))
+	}
+	if n, err := store.EncryptExistingSecrets(ctx); err != nil {
+		return fmt.Errorf("encrypt stored secrets: %w", err)
+	} else if n > 0 {
+		log.Info("encrypted secrets stored in plaintext by an earlier version", "records", n)
+	}
 
 	if *setPassword != "" {
 		if err := store.SetPassword(ctx, "admin", *setPassword); err != nil {

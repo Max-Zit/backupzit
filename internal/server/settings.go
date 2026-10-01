@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +30,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, user str
 		e.Port, e.Security, e.OnFailure, e.OnWarning, e.DailyHour = 587, "starttls", true, true, 8
 	}
 	s.render(w, r, "settings", pageData{Title: "Settings", Nav: "settings", User: user, Data: map[string]any{
-		"Tab": tab, "Email": e, "HasPassword": e.Password != "", "Sessions": s.sessionSettings(r.Context()),
+		"Tab": tab, "SecretKeyID": s.store.SecretKeyID(), "SecretKeyFile": filepath.Join(filepath.Dir(s.DistDir), SecretKeyFile), "Email": e, "HasPassword": e.Password != "", "Sessions": s.sessionSettings(r.Context()),
 		"LDAP": ldapForPage(r.Context(), s.store), "ADFilter": adUserFilter, "LDAPFilter": ldapUserFilter,
 	}})
 }
