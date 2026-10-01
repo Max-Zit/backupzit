@@ -1,6 +1,7 @@
 {{define "content"}}
 <h1>Settings</h1>
-{{with .Data.Email}}
+{{template "settingstabs" .}}
+{{if eq .Data.Tab "email"}}{{with .Data.Email}}
 <div class="panel">
   <h2>Email notifications</h2>
   <form method="post" action="/settings/email" class="stack">
@@ -44,8 +45,8 @@
     </div>
   </form>
 </div>
-{{end}}
-{{with .Data.Sessions}}
+{{end}}{{end}}
+{{if eq .Data.Tab "security"}}{{with .Data.Sessions}}
 <div class="panel">
   <h2>{{template "icon" "lock"}} Sign-in sessions</h2>
   <form method="post" action="/settings/sessions" class="stack">
@@ -61,8 +62,8 @@
     <div><button>Save session settings</button></div>
   </form>
 </div>
-{{end}}
-{{with .Data.LDAP}}
+{{end}}{{end}}
+{{if eq .Data.Tab "ldap"}}{{with .Data.LDAP}}
 <div class="panel" id="ldap">
   <h2>{{template "icon" "users"}} LDAP / Active Directory sign-in</h2>
   <p class="muted">Let users sign in with their directory accounts. Their role follows their group membership at every sign-in. Local accounts keep working, so an administrator can always sign in even if the directory is unreachable.</p>
@@ -110,5 +111,5 @@
     <div><button name="action" value="save">Save LDAP settings</button></div>
   </form>
 </div>
-{{end}}
+{{end}}{{end}}
 {{end}}

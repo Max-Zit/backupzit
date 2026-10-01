@@ -315,3 +315,9 @@ table.roles td, table.roles th { padding: 7px 8px; font-size: 12.5px; }
 .forbidden { padding: 48px 20px; }
 .forbidden h1 { justify-content: center; margin: 8px 0; }
 label.check.top { align-self: end; padding-bottom: 10px; }
+
+/* ---- tabs */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: -4px 0 22px; overflow-x: auto; }
+.tabs a { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; color: var(--muted); font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; border-radius: 8px 8px 0 0; }
+.tabs a:hover { color: var(--text); background: var(--panel); text-decoration: none; }
+.tabs a.on { color: var(--accent); border-bottom-color: var(--accent); }

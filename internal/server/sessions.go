@@ -70,11 +70,11 @@ func (s *Server) handleSettingsSessions(w http.ResponseWriter, r *http.Request, 
 	idle, err2 := strconv.Atoi(r.FormValue("idle_minutes"))
 	x := SessionSettings{LifetimeHours: life, IdleMinutes: idle}
 	if err1 != nil || err2 != nil {
-		redirectErr(w, r, "/settings", errors.New("enter whole numbers"))
+		redirectErr(w, r, "/settings/security", errors.New("enter whole numbers"))
 		return
 	}
 	if err := x.Validate(); err != nil {
-		redirectErr(w, r, "/settings", err)
+		redirectErr(w, r, "/settings/security", err)
 		return
 	}
 	if err := s.store.ApplySessionSettings(r.Context(), x); err != nil {
@@ -86,5 +86,5 @@ func (s *Server) handleSettingsSessions(w http.ResponseWriter, r *http.Request, 
 	s.sessCache.mu.Unlock()
 	s.log.Info("session settings changed", "user", user, "lifetime_hours", x.LifetimeHours, "idle_minutes", x.IdleMinutes)
 	s.audit(r, "settings.sessions", "lifetime %dh, idle %dmin", x.LifetimeHours, x.IdleMinutes)
-	redirectMsg(w, r, "/settings", "Session settings saved. They apply to new sign-ins; existing sessions were shortened if needed.")
+	redirectMsg(w, r, "/settings/security", "Session settings saved. They apply to new sign-ins; existing sessions were shortened if needed.")
 }

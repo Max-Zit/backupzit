@@ -247,21 +247,21 @@ func (s *Server) ldapFromForm(r *http.Request) (LDAPSettings, error) {
 func (s *Server) handleSettingsLDAP(w http.ResponseWriter, r *http.Request, _ string) {
 	l, err := s.ldapFromForm(r)
 	if err != nil {
-		redirectErr(w, r, "/settings#ldap", err)
+		redirectErr(w, r, "/settings/ldap", err)
 		return
 	}
 	if r.FormValue("action") == "test" {
 		l.Enabled = true
 		if err := l.Validate(); err != nil {
-			redirectErr(w, r, "/settings#ldap", err)
+			redirectErr(w, r, "/settings/ldap", err)
 			return
 		}
 		msg, err := l.Test(r.Context(), t2(r.FormValue("test_user")), r.FormValue("test_password"))
 		if err != nil {
-			redirectErr(w, r, "/settings#ldap", fmt.Errorf("LDAP test failed: %w", err))
+			redirectErr(w, r, "/settings/ldap", fmt.Errorf("LDAP test failed: %w", err))
 			return
 		}
-		redirectMsg(w, r, "/settings#ldap", msg)
+		redirectMsg(w, r, "/settings/ldap", msg)
 		return
 	}
 	if err := s.store.SetSetting(r.Context(), settingLDAP, l); err != nil {
@@ -269,7 +269,7 @@ func (s *Server) handleSettingsLDAP(w http.ResponseWriter, r *http.Request, _ st
 		return
 	}
 	s.audit(r, "settings.ldap", "LDAP sign-in enabled=%v url=%s", l.Enabled, l.URL)
-	redirectMsg(w, r, "/settings#ldap", "LDAP settings saved.")
+	redirectMsg(w, r, "/settings/ldap", "LDAP settings saved.")
 }
 
 func t2(s string) string { return strings.TrimSpace(s) }

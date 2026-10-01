@@ -998,7 +998,7 @@ func TestReportsCalendarDocs(t *testing.T) {
 	if resp, _ := do("POST", "/settings/sessions", url.Values{"lifetime_hours": {"2"}, "idle_minutes": {"15"}}); !strings.Contains(resp.Header.Get("Location"), "msg=") {
 		t.Fatalf("save sessions: %s", resp.Header.Get("Location"))
 	}
-	if _, body := do("GET", "/settings", nil); !strings.Contains(body, `name="lifetime_hours" min="1" max="2160" value="2"`) {
+	if _, body := do("GET", "/settings/security", nil); !strings.Contains(body, `name="lifetime_hours" min="1" max="2160" value="2"`) {
 		t.Error("session settings not shown")
 	}
 }
@@ -1081,7 +1081,7 @@ func TestUsersAndRoles(t *testing.T) {
 	if code, _, _ := viewer.do("POST", "/agents/token", url.Values{}); code != http.StatusForbidden {
 		t.Errorf("viewer created an enrollment token: %d", code)
 	}
-	if _, _, body := viewer.do("GET", "/", nil); strings.Contains(body, `href="/settings"`) || strings.Contains(body, `href="/users"`) {
+	if _, _, body := viewer.do("GET", "/", nil); strings.Contains(body, `href="/settings/email"`) || strings.Contains(body, `href="/users"`) {
 		t.Error("viewer sees admin navigation")
 	}
 

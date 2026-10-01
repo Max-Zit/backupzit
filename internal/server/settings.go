@@ -10,6 +10,16 @@ import (
 )
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, user string) {
+	tab := r.PathValue("tab")
+	switch tab {
+	case "email", "security", "ldap":
+	case "":
+		http.Redirect(w, r, "/settings/email", http.StatusSeeOther)
+		return
+	default:
+		http.NotFound(w, r)
+		return
+	}
 	var e EmailSettings
 	if err := s.store.GetSetting(r.Context(), settingEmail, &e); err != nil {
 		s.serverError(w, err)
@@ -19,7 +29,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, user str
 		e.Port, e.Security, e.OnFailure, e.OnWarning, e.DailyHour = 587, "starttls", true, true, 8
 	}
 	s.render(w, r, "settings", pageData{Title: "Settings", Nav: "settings", User: user, Data: map[string]any{
-		"Email": e, "HasPassword": e.Password != "", "Sessions": s.sessionSettings(r.Context()),
+		"Tab": tab, "Email": e, "HasPassword": e.Password != "", "Sessions": s.sessionSettings(r.Context()),
 		"LDAP": ldapForPage(r.Context(), s.store), "ADFilter": adUserFilter, "LDAPFilter": ldapUserFilter,
 	}})
 }
@@ -66,14 +76,14 @@ func splitAddrs(s string) []string {
 func (s *Server) handleSettingsEmail(w http.ResponseWriter, r *http.Request, _ string) {
 	e, err := s.emailFromForm(r)
 	if err != nil {
-		redirectErr(w, r, "/settings", err)
+		redirectErr(w, r, "/settings/email", err)
 		return
 	}
 	if r.FormValue("action") == "test" {
 		if !e.Enabled {
 			e.Enabled = true
 			if err := e.Validate(); err != nil {
-				redirectErr(w, r, "/settings", err)
+				redirectErr(w, r, "/settings/email", err)
 				return
 			}
 		}
@@ -81,10 +91,10 @@ func (s *Server) handleSettingsEmail(w http.ResponseWriter, r *http.Request, _ s
 		defer cancel()
 		body := "This is a test message from backupzit.\n\nEmail notifications are configured correctly."
 		if err := sendMail(ctx, e, "[BackupZit] Test message", body); err != nil {
-			redirectErr(w, r, "/settings", errors.New("test email failed: "+err.Error()))
+			redirectErr(w, r, "/settings/email", errors.New("test email failed: "+err.Error()))
 			return
 		}
-		redirectMsg(w, r, "/settings", "Test email sent to "+strings.Join(e.To, ", ")+". Settings were not saved yet.")
+		redirectMsg(w, r, "/settings/email", "Test email sent to "+strings.Join(e.To, ", ")+". Settings were not saved yet.")
 		return
 	}
 	if err := s.store.SetSetting(r.Context(), settingEmail, e); err != nil {
@@ -92,5 +102,5 @@ func (s *Server) handleSettingsEmail(w http.ResponseWriter, r *http.Request, _ s
 		return
 	}
 	s.audit(r, "settings.email", "email notifications enabled=%v", e.Enabled)
-	redirectMsg(w, r, "/settings", "Settings saved.")
+	redirectMsg(w, r, "/settings/email", "Settings saved.")
 }

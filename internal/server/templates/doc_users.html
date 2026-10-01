@@ -22,7 +22,7 @@
 <div class="callout"><p>At least one enabled <b>local administrator</b> always remains, so you can sign in even when the directory is unreachable. You cannot demote, disable or delete yourself.</p></div>
 
 <h2>Sign-in with Active Directory / LDAP</h2>
-<p>Under <a href="/settings#ldap">Settings → LDAP</a>:</p>
+<p>Under <a href="/settings/ldap">Settings → LDAP</a>:</p>
 <ol>
   <li><b>Server</b>: <code>ldaps://dc1.example.local:636</code>. Plain <code>ldap://</code> is only accepted with StartTLS, so passwords never travel unencrypted.</li>
   <li><b>Service account</b>: a normal domain account used to look up users and groups (read access is enough), e.g. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
@@ -35,7 +35,7 @@
 <p>Directory users appear in the user list after their first sign-in. Their name, email and role are updated from the directory at every sign-in. To block a directory user immediately, disable the account in BackupZit (or in the directory).</p>
 
 <h2>Sessions</h2>
-<p>Under <a href="/settings">Settings → Sign-in sessions</a> set how long a sign-in lasts (default 12 hours) and after how many minutes of inactivity users are signed out (default 60, 0 = never). After 5 wrong passwords from one address, sign-in is paused for 15 minutes.</p>
+<p>Under <a href="/settings/security">Settings → Sign-in &amp; security</a> set how long a sign-in lasts (default 12 hours) and after how many minutes of inactivity users are signed out (default 60, 0 = never). After 5 wrong passwords from one address, sign-in is paused for 15 minutes.</p>
 
 <h2>Audit log</h2>
 <p><a href="/audit">Users → Audit log</a> shows sign-ins, failed sign-ins and changes: users, jobs, storage targets, restores, displayed recovery keys and settings — with time, user and address.</p>
