@@ -7,11 +7,17 @@ import (
 	"syscall"
 )
 
-// Windows attributes we preserve. Others (archive, compressed, encrypted,
-// reparse point, ...) are either transient or need special handling.
+const fileAttributeNotContentIndexed = 0x2000
+
+// Windows attributes we preserve. Others (compressed, encrypted, sparse,
+// reparse point, ...) need special handling and are not restored yet.
+// Archive is restored too: Windows sets it on every new file, so without
+// it restored files would differ from the originals.
 const preservedAttrs = syscall.FILE_ATTRIBUTE_READONLY |
 	syscall.FILE_ATTRIBUTE_HIDDEN |
-	syscall.FILE_ATTRIBUTE_SYSTEM
+	syscall.FILE_ATTRIBUTE_SYSTEM |
+	syscall.FILE_ATTRIBUTE_ARCHIVE |
+	fileAttributeNotContentIndexed
 
 // WinAttrs returns the preserved Windows file attributes of fi.
 func WinAttrs(fi fs.FileInfo) uint32 {

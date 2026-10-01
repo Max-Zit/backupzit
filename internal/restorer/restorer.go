@@ -267,7 +267,9 @@ func (rs *restorer) applyMeta(dst string, n *repo.Node, setTimes bool) {
 			rs.addError(dst, err)
 		}
 	}
-	if runtime.GOOS == "windows" && n.WinAttrs != 0 {
+	// Always apply on Windows: zero means "no preserved attributes set" and
+	// must clear e.g. the archive bit Windows put on the new file.
+	if runtime.GOOS == "windows" {
 		if err := fsutil.SetWinAttrs(dst, n.WinAttrs); err != nil {
 			rs.addError(dst, err)
 		}
