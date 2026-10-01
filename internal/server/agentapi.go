@@ -126,6 +126,17 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		ar.RestoreTarget = run.RestoreTarget
 		ar.Includes = run.Paths
 		ar.Verify = run.RestoreVerify
+	case api.KindImageBackup:
+		if run.ImageDisk != nil {
+			ar.ImageDisk = *run.ImageDisk
+		}
+		ar.ImagePartitions = run.ImagePartitions
+	case api.KindImageRestore:
+		ar.SnapshotID = run.SnapshotID
+		if run.TargetDisk != nil {
+			ar.TargetDisk = *run.TargetDisk
+		}
+		ar.KeepOffline = run.KeepOffline
 	}
 	return ar, nil
 }

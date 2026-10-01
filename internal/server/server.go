@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/backupzit/backupzit/internal/api"
+	"github.com/backupzit/backupzit/internal/imaging"
 	"github.com/backupzit/backupzit/internal/repo"
 	"github.com/backupzit/backupzit/internal/restorer"
 )
@@ -117,6 +118,20 @@ var funcs = template.FuncMap{
 		return t.Local().Format("Mon 2006-01-02 15:04")
 	},
 	"schedule": DescribeSchedule,
+	"imagesel": DescribeImageSelection,
+	"upper":    strings.ToUpper,
+	"deref2": func(p *int) int {
+		if p == nil {
+			return 0
+		}
+		return *p
+	},
+	"partkind": func(gpt string, mbr uint8) string {
+		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
+	},
+	"kindtitle": func(k string) string {
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore"}[k]
+	},
 	"hours": func() []int {
 		h := make([]int, 24)
 		for i := range h {
@@ -527,7 +542,7 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 		return
 	}
 	s.render(w, r, "jobs", pageData{Title: "Backup jobs", Nav: "jobs", User: user,
-		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets}})
+		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents)}})
 }
 
 func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -537,7 +552,8 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		redirectErr(w, r, "/jobs", err)
 		return
 	}
-	id, err := s.store.CreateJob(r.Context(), Job{
+	job := Job{
+		Kind:     r.FormValue("kind"),
 		AgentID:  formID(r, "agent_id"),
 		TargetID: formID(r, "target_id"),
 		Name:     r.FormValue("name"),
@@ -545,7 +561,14 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		Excludes: lines(r.FormValue("excludes")),
 		Schedule: sched,
 		Enabled:  true,
-	})
+	}
+	if job.Kind == JobImage {
+		if d, err := strconv.Atoi(r.FormValue("image_disk")); err == nil {
+			job.ImageDisk = &d
+			job.ImagePartitions = s.partitionSelection(r, formID(r, "agent_id"), d)
+		}
+	}
+	id, err := s.store.CreateJob(r.Context(), job)
 	if err != nil {
 		redirectErr(w, r, "/jobs", err)
 		return
@@ -634,7 +657,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 	var backupStats *repo.SnapshotStats
 	var restoreStats *restorer.Stats
 	if len(run.Stats) > 0 {
-		if run.Kind == api.KindBackup {
+		if run.Kind == api.KindBackup || run.Kind == api.KindImageBackup {
 			backupStats = &repo.SnapshotStats{}
 			json.Unmarshal(run.Stats, backupStats)
 		} else {
@@ -649,12 +672,17 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 	}
 	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: map[string]any{
 		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "Agents": agents,
+		"Image": imageDetails(run), "Inventory": inventories(agents),
 	}})
 }
 
 func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
 	back := fmt.Sprintf("/runs/%d", id)
+	if r.FormValue("kind") == "image" {
+		s.handleImageRestore(w, r, id, back)
+		return
+	}
 	target := strings.TrimSpace(r.FormValue("target"))
 	if r.FormValue("mode") == "original" {
 		target = ""

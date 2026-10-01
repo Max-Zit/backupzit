@@ -180,7 +180,9 @@ type Agent struct {
 
 	mu   sync.Mutex
 	busy bool
-	wg   sync.WaitGroup
+	// inventoryAt is when the disk inventory was last sent.
+	inventoryAt time.Time
+	wg          sync.WaitGroup
 }
 
 func New(cfg *Config, log *slog.Logger, version string) *Agent {
@@ -192,12 +194,23 @@ func New(cfg *Config, log *slog.Logger, version string) *Agent {
 func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	a.mu.Lock()
 	busy := a.busy
+	invAt := a.inventoryAt
 	a.mu.Unlock()
 	host, osName, arch := hostInfo(a.version)
 	var resp api.PollResponse
-	err := a.client.post(ctx, api.PathPoll, api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy}, &resp, true)
+	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy}
+	sendInventory := !busy && time.Since(invAt) > inventoryInterval
+	if sendInventory {
+		req.Disks = a.diskInventory()
+	}
+	err := a.client.post(ctx, api.PathPoll, req, &resp, true)
 	if err != nil {
 		return 30 * time.Second, err
+	}
+	if sendInventory {
+		a.mu.Lock()
+		a.inventoryAt = time.Now()
+		a.mu.Unlock()
 	}
 	if resp.Run != nil {
 		a.mu.Lock()
@@ -253,6 +266,13 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res = a.backup(ctx, run)
 	case api.KindRestore:
 		res = a.restore(ctx, run)
+	case api.KindImageBackup:
+		res = a.imageBackup(ctx, run)
+	case api.KindImageRestore:
+		res = a.imageRestore(ctx, run)
+		a.mu.Lock()
+		a.inventoryAt = time.Time{} // disk layout changed
+		a.mu.Unlock()
 	default:
 		res = api.RunResult{Status: api.StatusFailed, Message: "unsupported run kind " + run.Kind}
 	}

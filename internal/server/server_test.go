@@ -3,6 +3,7 @@ package server_test
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"html"
 	"io"
@@ -373,5 +374,117 @@ func TestWebUI(t *testing.T) {
 	// Passwords are never rendered.
 	if strings.Contains(get("/targets"), `value="x"`) {
 		t.Error("password leaked into page")
+	}
+}
+
+func TestImageJobs(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	targetID, err := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	agents, _ := e.store.ListAgents(ctx)
+	var a server.Agent
+	for _, x := range agents {
+		if x.UUID == cfg.AgentUUID {
+			a = x
+		}
+	}
+
+	// The agent reports two disks; disk 0 runs Windows.
+	inv := `[{"number":0,"model":"Msft Virtual Disk","size":68719476736,"sector_size":512,"style":"gpt","system":true,
+	  "partitions":[{"number":1,"offset":1048576,"length":209715200,"gpt_type":"C12A7328-F81F-11D2-BA4B-00A0C93EC93B"},
+	                {"number":3,"offset":227540992,"length":67554508800,"mount_points":["C:\\"],"file_system":"NTFS"}]},
+	  {"number":1,"size":68719476736,"sector_size":512,"style":"mbr","partitions":[]}]`
+	if err := e.store.TouchAgent(ctx, a.ID, api.PollRequest{Disks: json.RawMessage(inv)}); err != nil {
+		t.Fatal(err)
+	}
+	a, _ = e.store.GetAgent(ctx, a.ID)
+	if len(a.Disks()) != 2 || !a.Disks()[0].System {
+		t.Fatalf("inventory not stored: %+v", a.Disks())
+	}
+
+	disk := func(n int) *int { return &n }
+	if _, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobImage, AgentID: a.ID, TargetID: targetID, Name: "x", ImageDisk: disk(5)}); err == nil {
+		t.Error("image job for a missing disk accepted")
+	}
+	if _, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobImage, AgentID: a.ID, TargetID: targetID, Name: "x", ImageDisk: disk(0), ImagePartitions: []int{9}}); err == nil {
+		t.Error("image job for a missing partition accepted")
+	}
+	jobID, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobImage, AgentID: a.ID, TargetID: targetID, Name: "System image", ImageDisk: disk(0), ImagePartitions: []int{3}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if j, _ := e.store.GetJob(ctx, jobID); j.Kind != server.JobImage || len(j.Paths) != 0 ||
+		server.DescribeImageSelection(j.ImageDisk, j.ImagePartitions) != "Disk 0: partitions 3" {
+		t.Fatalf("job: %+v", j)
+	}
+
+	runID, err := e.store.QueueBackup(ctx, jobID, "manual")
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := e.store.ClaimRun(ctx, a.ID)
+	if err != nil || claimed == nil || claimed.ID != runID || claimed.Kind != api.KindImageBackup ||
+		claimed.ImageDisk == nil || *claimed.ImageDisk != 0 || len(claimed.ImagePartitions) != 1 {
+		t.Fatalf("claimed run: %+v %v", claimed, err)
+	}
+	details := `{"number":0,"model":"Msft Virtual Disk","size":68719476736,"sector_size":512,"style":"gpt","head":"` + strings.Repeat("ab", 32) + `",
+	  "partitions":[{"number":1,"offset":1048576,"length":209715200,"included":false},
+	                {"number":3,"offset":227540992,"length":67554508800,"mount_points":["C:\\"],"file_system":"NTFS","included":true,"method":"used-blocks","source":"vss","stored_bytes":25000000000}]}`
+	if err := e.store.FinishRun(ctx, a.ID, runID, api.RunResult{Status: api.StatusSuccess, SnapshotID: strings.Repeat("cd", 32),
+		Stats: json.RawMessage(`{"bytes_read":25000000000}`), Details: json.RawMessage(details)}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Image restore: never onto the system disk, fine onto disk 1.
+	if _, err := e.store.QueueImageRestore(ctx, runID, a.ID, 0, false); err == nil {
+		t.Error("image restore onto the system disk accepted")
+	}
+	rr, err := e.store.QueueImageRestore(ctx, runID, a.ID, 1, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := e.store.GetRun(ctx, rr); r.Kind != api.KindImageRestore || r.TargetDisk == nil || *r.TargetDisk != 1 || !r.KeepOffline {
+		t.Fatalf("restore run: %+v", r)
+	}
+
+	// Pages render the inventory and the disk layout.
+	jar, _ := cookiejar.New(nil)
+	c := e.ts.Client()
+	c.Jar = jar
+	form := url.Values{"username": {"admin"}, "password": {"admin-pass-123"}}
+	req, _ := http.NewRequest(http.MethodPost, e.ts.URL+"/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Origin", e.ts.URL)
+	if resp, err := c.Do(req); err != nil {
+		t.Fatal(err)
+	} else {
+		resp.Body.Close()
+	}
+	body := func(p string) string {
+		resp, err := c.Get(e.ts.URL + p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != 200 {
+			t.Fatalf("GET %s: %d", p, resp.StatusCode)
+		}
+		return html.UnescapeString(string(b))
+	}
+	if p := body("/jobs"); !strings.Contains(p, `"Msft Virtual Disk"`) || !strings.Contains(p, "Disk 0: partitions 3") {
+		t.Error("jobs page lacks inventory or image selection")
+	}
+	if p := body(fmt.Sprintf("/runs/%d", runID)); !strings.Contains(p, "Image backup #") || !strings.Contains(p, "VSS snapshot, used blocks") ||
+		!strings.Contains(p, "layout only") || !strings.Contains(p, "Restore this image to a disk") {
+		t.Error("image run page lacks layout or restore form")
 	}
 }

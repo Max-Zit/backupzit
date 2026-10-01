@@ -51,3 +51,125 @@ document.addEventListener("change", function (e) {
   if (e.target.id === "sched_kind") syncSched();
 });
 document.addEventListener("DOMContentLoaded", syncSched);
+
+// ---- disk image jobs
+
+function inventory() {
+  var el = document.getElementById("inventory");
+  if (!el) return {};
+  try { return JSON.parse(el.textContent) || {}; } catch (e) { return {}; }
+}
+
+function fmtBytes(b) {
+  var u = ["B", "KiB", "MiB", "GiB", "TiB"], i = 0;
+  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+  return (i ? b.toFixed(1) : b) + " " + u[i];
+}
+
+var partKinds = {
+  "C12A7328-F81F-11D2-BA4B-00A0C93EC93B": "EFI System",
+  "E3C9E316-0B5C-4DB8-817D-F92DF00215AE": "Microsoft Reserved",
+  "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7": "Basic data",
+  "DE94BBA4-06D1-4D40-A16A-BFD50179D6AC": "Recovery"
+};
+
+function partText(p) {
+  var parts = [p.number + ".", fmtBytes(p.length)];
+  if (p.mount_points) parts.push(p.mount_points.map(function (m) { return m.replace(/\\+$/, ""); }).join(" "));
+  if (p.label) parts.push("“" + p.label + "”");
+  if (p.file_system) parts.push(p.file_system);
+  var kind = partKinds[(p.gpt_type || "").toUpperCase()];
+  if (kind) parts.push("(" + kind + ")");
+  return parts.join("  ");
+}
+
+function el(tag, attrs, text) {
+  var e = document.createElement(tag);
+  for (var k in attrs || {}) e.setAttribute(k, attrs[k]);
+  if (text) e.textContent = text;
+  return e;
+}
+
+function syncJobKind() {
+  var sel = document.querySelector("input[name=kind]:checked");
+  if (!sel) return;
+  document.querySelectorAll("[data-jobkind]").forEach(function (box) {
+    var on = box.getAttribute("data-jobkind") === sel.value;
+    box.hidden = !on;
+    box.querySelectorAll("input,textarea,select").forEach(function (i) { i.disabled = !on; });
+  });
+  if (sel.value === "image") syncDiskChoice();
+}
+
+function renderDiskPicker() {
+  var box = document.getElementById("disk-picker");
+  var agentSel = document.getElementById("agent_sel");
+  if (!box || !agentSel) return;
+  box.textContent = "";
+  var disks = inventory()[agentSel.value];
+  if (!disks || !disks.length) {
+    box.appendChild(el("p", { "class": "muted" }, "This agent has not reported its disks yet. Windows agents report them within a few minutes of starting."));
+    return;
+  }
+  var chosen = disks.filter(function (d) { return d.system; })[0] || disks[0];
+  disks.forEach(function (d) {
+    var wrap = el("div", { "class": "disk" });
+    var head = el("label", { "class": "check" });
+    var radio = el("input", { type: "radio", name: "image_disk", value: d.number });
+    if (d === chosen) radio.checked = true;
+    head.appendChild(radio);
+    head.appendChild(document.createTextNode(" Disk " + d.number + " — " + (d.model || "disk") + ", " + fmtBytes(d.size) + ", " + d.style.toUpperCase() + (d.system ? "  (system disk)" : "")));
+    wrap.appendChild(head);
+    var parts = el("div", { "class": "parts" });
+    (d.partitions || []).forEach(function (p) {
+      var l = el("label", { "class": "check" });
+      var cb = el("input", { type: "checkbox", name: "image_parts", value: p.number, "data-disk": d.number });
+      cb.checked = true;
+      l.appendChild(cb);
+      l.appendChild(document.createTextNode(" " + partText(p)));
+      parts.appendChild(l);
+    });
+    wrap.appendChild(parts);
+    box.appendChild(wrap);
+  });
+  syncDiskChoice();
+}
+
+// Only partitions of the selected disk are submitted.
+function syncDiskChoice() {
+  var r = document.querySelector("input[name=image_disk]:checked");
+  document.querySelectorAll("input[name=image_parts]").forEach(function (cb) {
+    var on = r && cb.getAttribute("data-disk") === r.value;
+    cb.disabled = !on;
+    cb.parentNode.classList.toggle("muted", !on);
+  });
+}
+
+function renderRestoreDisks() {
+  var agentSel = document.getElementById("restore_agent");
+  var diskSel = document.getElementById("restore_disk");
+  if (!agentSel || !diskSel) return;
+  diskSel.textContent = "";
+  var disks = (inventory()[agentSel.value] || []).filter(function (d) { return !d.system; });
+  if (!disks.length) {
+    var o = el("option", { value: "" }, "No other disks reported by this agent");
+    diskSel.appendChild(o);
+    return;
+  }
+  disks.forEach(function (d) {
+    var used = (d.partitions || []).length ? (d.partitions.length + " partitions") : "empty";
+    diskSel.appendChild(el("option", { value: d.number }, "Disk " + d.number + " — " + (d.model || "disk") + ", " + fmtBytes(d.size) + ", " + used));
+  });
+}
+
+document.addEventListener("change", function (e) {
+  if (e.target.hasAttribute && e.target.hasAttribute("data-kindsel")) syncJobKind();
+  if (e.target.id === "agent_sel") renderDiskPicker();
+  if (e.target.name === "image_disk") syncDiskChoice();
+  if (e.target.id === "restore_agent") renderRestoreDisks();
+});
+document.addEventListener("DOMContentLoaded", function () {
+  renderDiskPicker();
+  syncJobKind();
+  renderRestoreDisks();
+});

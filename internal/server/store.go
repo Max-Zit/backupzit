@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/backupzit/backupzit/internal/api"
+	"github.com/backupzit/backupzit/internal/imaging"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
@@ -255,6 +256,18 @@ type Agent struct {
 	Version    string
 	EnrolledAt time.Time
 	LastSeen   *time.Time
+	// Inventory is the agent's disk list (JSON array of imaging.Disk).
+	Inventory   json.RawMessage
+	InventoryAt *time.Time
+}
+
+// Disks decodes the reported disk inventory.
+func (a Agent) Disks() []imaging.Disk {
+	var d []imaging.Disk
+	if len(a.Inventory) > 0 {
+		json.Unmarshal(a.Inventory, &d)
+	}
+	return d
 }
 
 // Online reports whether the agent polled recently.
@@ -262,11 +275,11 @@ func (a Agent) Online() bool {
 	return a.LastSeen != nil && time.Since(*a.LastSeen) < 3*time.Minute
 }
 
-const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at`
+const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at`
 
 func scanAgent(r pgx.Row, extra ...any) (Agent, error) {
 	var a Agent
-	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen}, extra...)
+	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt}, extra...)
 	err := r.Scan(dest...)
 	return a, err
 }
@@ -285,6 +298,11 @@ func (s *Store) AuthenticateAgent(ctx context.Context, uuid, secret string) (Age
 }
 
 func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest) error {
+	if len(req.Disks) > 0 {
+		if _, err := s.db.Exec(ctx, `UPDATE agents SET inventory=$2, inventory_at=now() WHERE id=$1`, id, req.Disks); err != nil {
+			return err
+		}
+	}
 	_, err := s.db.Exec(ctx, `UPDATE agents SET last_seen_at=now(),
 		hostname=COALESCE(NULLIF($2,''),hostname), os=COALESCE(NULLIF($3,''),os),
 		arch=COALESCE(NULLIF($4,''),arch), version=COALESCE(NULLIF($5,''),version) WHERE id=$1`,
@@ -313,18 +331,23 @@ func (s *Store) DeleteAgent(ctx context.Context, id int64) error {
 // ---- jobs
 
 type Job struct {
-	ID         int64
-	AgentID    int64
-	Hostname   string
-	TargetID   int64
-	TargetName string
-	Name       string
-	Paths      []string
-	Excludes   []string
-	Schedule   string
-	Enabled    bool
-	LastSched  *time.Time
-	CreatedAt  time.Time
+	ID int64
+	// Kind is JobFiles or JobImage.
+	Kind string
+	// Image jobs: disk number and partitions (nil = whole disk).
+	ImageDisk       *int
+	ImagePartitions []int
+	AgentID         int64
+	Hostname        string
+	TargetID        int64
+	TargetName      string
+	Name            string
+	Paths           []string
+	Excludes        []string
+	Schedule        string
+	Enabled         bool
+	LastSched       *time.Time
+	CreatedAt       time.Time
 	// Last run summary
 	LastStatus   *string
 	LastFinished *time.Time
@@ -332,16 +355,39 @@ type Job struct {
 
 func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 	j.Name = strings.TrimSpace(j.Name)
-	if j.Name == "" || len(j.Paths) == 0 {
-		return 0, errors.New("name and at least one path are required")
+	if j.Kind == "" {
+		j.Kind = JobFiles
+	}
+	if j.Name == "" {
+		return 0, errors.New("name is required")
+	}
+	switch j.Kind {
+	case JobFiles:
+		if len(j.Paths) == 0 {
+			return 0, errors.New("at least one folder or file is required")
+		}
+		j.ImageDisk, j.ImagePartitions = nil, nil
+	case JobImage:
+		if j.ImageDisk == nil {
+			return 0, errors.New("choose a disk to image")
+		}
+		j.Paths = []string{}
+	default:
+		return 0, fmt.Errorf("unknown job kind %q", j.Kind)
 	}
 	sc, err := ParseSchedule(j.Schedule)
 	if err != nil {
 		return 0, err
 	}
 	j.Schedule = sc.Encode()
-	if _, err := s.GetAgent(ctx, j.AgentID); err != nil {
+	agent, err := s.GetAgent(ctx, j.AgentID)
+	if err != nil {
 		return 0, errors.New("unknown agent")
+	}
+	if j.Kind == JobImage {
+		if err := checkImageSelection(agent, *j.ImageDisk, j.ImagePartitions); err != nil {
+			return 0, err
+		}
 	}
 	if _, err := s.GetTarget(ctx, j.TargetID); err != nil {
 		return 0, errors.New("unknown storage target")
@@ -350,22 +396,22 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 		j.Excludes = []string{}
 	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at)
-		VALUES($1,$2,$3,$4,$5,$6,$7,now()) RETURNING id`,
-		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled).Scan(&id)
+	err = s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at, kind, image_disk, image_partitions)
+		VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8,$9,$10) RETURNING id`,
+		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled, j.Kind, j.ImageDisk, j.ImagePartitions).Scan(&id)
 	return id, err
 }
 
-const jobCols = `j.id, j.agent_id, a.hostname, j.target_id, st.name, j.name, j.paths, j.excludes,
+const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.agent_id, a.hostname, j.target_id, st.name, j.name, j.paths, j.excludes,
 	j.schedule, j.enabled, j.last_scheduled_at, j.created_at,
-	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind='backup' ORDER BY r.queued_at DESC LIMIT 1),
-	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind='backup' ORDER BY r.queued_at DESC LIMIT 1)`
+	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup') ORDER BY r.queued_at DESC LIMIT 1),
+	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup') ORDER BY r.queued_at DESC LIMIT 1)`
 
 const jobFrom = ` FROM jobs j JOIN agents a ON a.id=j.agent_id JOIN storage_targets st ON st.id=j.target_id`
 
 func scanJob(r pgx.Row) (Job, error) {
 	var j Job
-	err := r.Scan(&j.ID, &j.AgentID, &j.Hostname, &j.TargetID, &j.TargetName, &j.Name,
+	err := r.Scan(&j.ID, &j.Kind, &j.ImageDisk, &j.ImagePartitions, &j.AgentID, &j.Hostname, &j.TargetID, &j.TargetName, &j.Name,
 		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished)
 	return j, err
 }
@@ -419,12 +465,16 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 	if err != nil {
 		return 0, err
 	}
+	kind := api.KindBackup
+	if j.Kind == JobImage {
+		kind = api.KindImageBackup
+	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes)
-		SELECT $1,$2,'backup',$3,$4,$5,$6,$7
-		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE job_id=$2 AND kind='backup' AND status IN ('queued','running'))
+	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes, image_disk, image_partitions)
+		SELECT $1,$2,$8,$3,$4,$5,$6,$7,$9,$10
+		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE job_id=$2 AND kind IN ('backup','image-backup') AND status IN ('queued','running'))
 		RETURNING id`,
-		j.AgentID, j.ID, trigger, repoURL(t, a), t.ID, j.Paths, j.Excludes).Scan(&id)
+		j.AgentID, j.ID, trigger, repoURL(t, a), t.ID, j.Paths, j.Excludes, kind, j.ImageDisk, j.ImagePartitions).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrRunActive
 	}
@@ -456,27 +506,32 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 }
 
 type Run struct {
-	ID            int64
-	AgentID       int64
-	Hostname      string
-	JobID         *int64
-	JobName       *string
-	Kind          string
-	Status        string
-	Trigger       string
-	RepoURL       string
-	TargetID      *int64
-	Paths         []string
-	Excludes      []string
-	SnapshotID    string
-	RestoreTarget string
-	RestoreVerify bool
-	QueuedAt      time.Time
-	StartedAt     *time.Time
-	FinishedAt    *time.Time
-	Stats         json.RawMessage
-	Errors        []string
-	Message       string
+	ID              int64
+	AgentID         int64
+	Hostname        string
+	JobID           *int64
+	JobName         *string
+	Kind            string
+	Status          string
+	Trigger         string
+	RepoURL         string
+	TargetID        *int64
+	Paths           []string
+	Excludes        []string
+	SnapshotID      string
+	RestoreTarget   string
+	RestoreVerify   bool
+	ImageDisk       *int
+	ImagePartitions []int
+	TargetDisk      *int
+	KeepOffline     bool
+	Details         json.RawMessage
+	QueuedAt        time.Time
+	StartedAt       *time.Time
+	FinishedAt      *time.Time
+	Stats           json.RawMessage
+	Errors          []string
+	Message         string
 }
 
 // Duration returns how long the run took (or has been running).
@@ -493,7 +548,7 @@ func (r Run) Duration() time.Duration {
 
 const runCols = `r.id, r.agent_id, a.hostname, r.job_id, j.name, r.kind, r.status, r.trigger, r.repo_url,
 	r.target_id, r.paths, r.excludes, r.snapshot_id, r.restore_target, r.restore_verify, r.queued_at, r.started_at, r.finished_at,
-	r.stats, r.errors, r.message`
+	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details`
 
 const runFrom = ` FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id`
 
@@ -501,7 +556,8 @@ func scanRun(row pgx.Row) (Run, error) {
 	var r Run
 	err := row.Scan(&r.ID, &r.AgentID, &r.Hostname, &r.JobID, &r.JobName, &r.Kind, &r.Status,
 		&r.Trigger, &r.RepoURL, &r.TargetID, &r.Paths, &r.Excludes, &r.SnapshotID, &r.RestoreTarget, &r.RestoreVerify,
-		&r.QueuedAt, &r.StartedAt, &r.FinishedAt, &r.Stats, &r.Errors, &r.Message)
+		&r.QueuedAt, &r.StartedAt, &r.FinishedAt, &r.Stats, &r.Errors, &r.Message,
+		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details)
 	return r, err
 }
 
@@ -556,14 +612,17 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	if res.Errors == nil {
 		res.Errors = []string{}
 	}
-	var stats any
+	var stats, details any
 	if len(res.Stats) > 0 {
 		stats = res.Stats
 	}
+	if len(res.Details) > 0 {
+		details = res.Details
+	}
 	ct, err := s.db.Exec(ctx, `UPDATE runs SET status=$3, finished_at=now(), stats=$4, errors=$5, message=$6,
-		snapshot_id=CASE WHEN kind='backup' THEN $7 ELSE snapshot_id END
+		snapshot_id=CASE WHEN kind IN ('backup','image-backup') THEN $7 ELSE snapshot_id END, details=$8
 		WHERE id=$2 AND agent_id=$1 AND status='running'`,
-		agentID, runID, res.Status, stats, res.Errors, res.Message, res.SnapshotID)
+		agentID, runID, res.Status, stats, res.Errors, res.Message, res.SnapshotID, details)
 	if err != nil {
 		return err
 	}

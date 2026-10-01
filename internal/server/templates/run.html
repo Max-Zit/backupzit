@@ -1,6 +1,6 @@
 {{define "content"}}
 {{with .Data.Run}}
-<h1>{{if eq .Kind "backup"}}Backup{{else}}Restore{{end}} #{{.ID}} {{template "status" .Status}}</h1>
+<h1>{{kindtitle .Kind}} #{{.ID}} {{template "status" .Status}}</h1>
 <div class="panel" {{if or (eq .Status "queued") (eq .Status "running")}}data-autorefresh{{end}}>
   <dl class="kv">
     <dt>Agent</dt><dd>{{.Hostname}}</dd>
@@ -14,6 +14,10 @@
     {{if .SnapshotID}}<dt>Snapshot</dt><dd class="mono">{{.SnapshotID}}</dd>{{end}}
     {{if eq .Kind "backup"}}
       <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
+    {{else if eq .Kind "image-backup"}}
+      <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
+    {{else if eq .Kind "image-restore"}}
+      <dt>Target disk</dt><dd>{{if .TargetDisk}}Disk {{deref2 .TargetDisk}}{{end}}{{if .KeepOffline}} (left offline){{end}}</dd>
     {{else}}
       <dt>Restore to</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}original location{{end}}</dd>
       <dt>Only</dt><dd class="mono">{{if .Paths}}{{join .Paths "\n"}}{{else}}everything{{end}}</dd>
@@ -24,14 +28,42 @@
 </div>
 {{end}}
 
-{{with .Data.BackupStats}}
-<div class="grid">
-  <div class="stat"><b>{{.Files}}</b><span>files ({{.Dirs}} folders)</span></div>
-  <div class="stat"><b>{{bytes .Bytes}}</b><span>total size</span></div>
-  <div class="stat"><b>{{.FilesNew}} / {{.FilesChanged}}</b><span>new / changed files</span></div>
-  <div class="stat"><b>{{bytes .BytesRead}}</b><span>read</span></div>
-  <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (new data)</span></div>
-</div>
+{{if .Data.Image}}
+  {{with .Data.BackupStats}}
+  <div class="grid">
+    <div class="stat"><b>{{bytes .BytesRead}}</b><span>used blocks read</span></div>
+    <div class="stat"><b>{{bytes .BytesAdded}}</b><span>new data</span></div>
+    <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (compressed)</span></div>
+  </div>
+  {{end}}
+  {{with .Data.Image}}
+  <div class="panel">
+    <h2>Disk {{.Number}} — {{.Model}}, {{bytes .Size}}, {{upper .Style}}</h2>
+    <div class="table-wrap"><table>
+      <tr><th>#</th><th>Size</th><th>Volume</th><th>File system</th><th>Imaged</th><th>Stored</th></tr>
+      {{range .Partitions}}
+      <tr>
+        <td>{{.Number}}</td>
+        <td>{{bytes .Length}}</td>
+        <td>{{join .MountPoints " "}}{{if .Label}} “{{.Label}}”{{end}} <span class="muted">{{partkind .GPTType .MBRType}}</span></td>
+        <td>{{.FileSystem}}</td>
+        <td>{{if .Included}}{{if eq .Source "vss"}}VSS snapshot{{else}}live{{end}}, {{if eq .Method "used-blocks"}}used blocks{{else}}all blocks{{end}}{{else}}<span class="muted">layout only</span>{{end}}</td>
+        <td>{{if .Included}}{{bytes .StoredBytes}}{{end}}</td>
+      </tr>
+      {{end}}
+    </table></div>
+  </div>
+  {{end}}
+{{else}}
+  {{with .Data.BackupStats}}
+  <div class="grid">
+    <div class="stat"><b>{{.Files}}</b><span>files ({{.Dirs}} folders)</span></div>
+    <div class="stat"><b>{{bytes .Bytes}}</b><span>total size</span></div>
+    <div class="stat"><b>{{.FilesNew}} / {{.FilesChanged}}</b><span>new / changed files</span></div>
+    <div class="stat"><b>{{bytes .BytesRead}}</b><span>read</span></div>
+    <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (new data)</span></div>
+  </div>
+  {{end}}
 {{end}}
 {{with .Data.RestoreStats}}
 <div class="grid">
@@ -45,7 +77,7 @@
 {{with .Data.Run}}
 {{if .Errors}}
 <div class="panel">
-  <h2>Errors ({{len .Errors}})</h2>
+  <h2>Errors and warnings ({{len .Errors}})</h2>
   <pre>{{join .Errors "\n"}}</pre>
 </div>
 {{end}}
@@ -64,6 +96,26 @@
     <label class="check"><input type="checkbox" name="verify" checked> Verify restored files</label>
     <div><button>Start restore</button></div>
   </form>
+</div>
+{{end}}
+
+{{if and (eq .Kind "image-backup") .SnapshotID}}
+<div class="panel">
+  <h2>Restore this image to a disk</h2>
+  <p class="muted">The partition table is recreated with the original disk and partition IDs and all imaged partitions are written. <b>Everything on the target disk is erased.</b> The disk running Windows on the agent cannot be selected; to restore a system disk in place, boot the machine from recovery media.</p>
+  <form method="post" action="/runs/{{.ID}}/restore" class="stack" data-confirm="Erase the selected disk and restore this image onto it?">
+    <input type="hidden" name="kind" value="image">
+    <label>Restore on agent
+      <select name="agent_id" id="restore_agent">{{range $.Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+    </label>
+    <label>Target disk
+      <select name="target_disk" id="restore_disk" required></select>
+    </label>
+    <label class="check"><input type="checkbox" name="keep_offline"> Leave the disk offline afterwards <small>use when the original disk is in the same machine, otherwise Windows assigns new IDs and the copy will not boot</small></label>
+    <label class="check"><input type="checkbox" name="confirm_erase" required> I understand that all data on the target disk will be destroyed</label>
+    <div><button class="danger">Restore image</button></div>
+  </form>
+  <script type="application/json" id="inventory">{{$.Data.Inventory}}</script>
 </div>
 {{end}}
 {{end}}

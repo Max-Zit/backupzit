@@ -40,6 +40,9 @@ type PollRequest struct {
 	// Busy is true while the agent is executing a run; the server then
 	// assigns no new work.
 	Busy bool `json:"busy"`
+	// Disks is the disk inventory (JSON array of imaging.Disk). Agents send
+	// it on start and periodically; nil means "unchanged / not included".
+	Disks json.RawMessage `json:"disks,omitempty"`
 }
 
 // PollResponse returns work for the agent.
@@ -50,8 +53,10 @@ type PollResponse struct {
 
 // Run kinds.
 const (
-	KindBackup  = "backup"
-	KindRestore = "restore"
+	KindBackup       = "backup"        // files and folders
+	KindRestore      = "restore"       // files and folders
+	KindImageBackup  = "image-backup"  // whole disk or partitions
+	KindImageRestore = "image-restore" // image onto a disk
 )
 
 // Run is a unit of work assigned to an agent.
@@ -70,6 +75,14 @@ type Run struct {
 	RestoreTarget string   `json:"restore_target,omitempty"` // "" = original location
 	Includes      []string `json:"includes,omitempty"`
 	Verify        bool     `json:"verify,omitempty"`
+
+	// Image backup: disk number and partitions (empty = whole disk).
+	ImageDisk       int   `json:"image_disk,omitempty"`
+	ImagePartitions []int `json:"image_partitions,omitempty"`
+
+	// Image restore: disk to overwrite.
+	TargetDisk  int  `json:"target_disk,omitempty"`
+	KeepOffline bool `json:"keep_offline,omitempty"`
 }
 
 // Repository tells the agent where and how to store data.
@@ -96,6 +109,8 @@ type RunResult struct {
 	Stats      json.RawMessage `json:"stats,omitempty"`
 	Errors     []string        `json:"errors,omitempty"`
 	Message    string          `json:"message,omitempty"`
+	// Details carries kind specific data, e.g. the disk layout of an image.
+	Details json.RawMessage `json:"details,omitempty"`
 }
 
 // Error is returned by the server with non-2xx responses.

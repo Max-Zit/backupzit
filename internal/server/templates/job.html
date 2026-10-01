@@ -14,8 +14,12 @@
   <dl class="kv">
     <dt>Agent</dt><dd>{{.Hostname}}</dd>
     <dt>Storage</dt><dd>{{.TargetName}}</dd>
+    {{if eq .Kind "image"}}
+    <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
+    {{else}}
     <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
     <dt>Excludes</dt><dd class="mono">{{if .Excludes}}{{join .Excludes ", "}}{{else}}—{{end}}</dd>
+    {{end}}
     <dt>Schedule</dt><dd>{{schedule .Schedule}}</dd>
     <dt>Next run</dt><dd>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</dd>
   </dl>

@@ -3,11 +3,12 @@
 <div class="panel">
   {{if .Data.Jobs}}
   <div class="table-wrap"><table>
-    <tr><th>Agent</th><th>Job</th><th>Storage</th><th>Schedule</th><th>Next run</th><th>Last result</th></tr>
+    <tr><th>Agent</th><th>Job</th><th>Backs up</th><th>Storage</th><th>Schedule</th><th>Next run</th><th>Last result</th></tr>
     {{range .Data.Jobs}}
     <tr>
       <td>{{.Hostname}}</td>
       <td><a href="/jobs/{{.ID}}">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}</td>
+      <td>{{if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
       <td>{{.TargetName}}</td>
       <td>{{schedule .Schedule}}</td>
       <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
@@ -25,18 +26,29 @@
     <label>Name <input name="name" required placeholder="Documents nightly"></label>
     <div class="row">
       <label>Agent
-        <select name="agent_id" required>{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
+        <select name="agent_id" id="agent_sel" required>{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
       </label>
       <label>Storage target
         <select name="target_id" required>{{range .Data.Targets}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
       </label>
     </div>
-    <label>Folders and files to back up <small>one path per line, as seen on the agent, e.g. C:\Users or /home</small>
-      <textarea name="paths" required></textarea>
-    </label>
-    <label>Exclude <small>one name pattern per line, e.g. *.tmp, node_modules, Thumbs.db</small>
-      <textarea name="excludes"></textarea>
-    </label>
+    <div class="choice">
+      <label class="check"><input type="radio" name="kind" value="files" checked data-kindsel> Files and folders</label>
+      <label class="check"><input type="radio" name="kind" value="image" data-kindsel> Disk image <small>whole disk or selected partitions, restorable to an empty disk</small></label>
+    </div>
+    <div data-jobkind="files" class="stack">
+      <label>Folders and files to back up <small>one path per line, as seen on the agent, e.g. C:\Users or /home</small>
+        <textarea name="paths" required></textarea>
+      </label>
+      <label>Exclude <small>one name pattern per line, e.g. *.tmp, node_modules, Thumbs.db</small>
+        <textarea name="excludes"></textarea>
+      </label>
+    </div>
+    <div data-jobkind="image" hidden>
+      <label>Disks of the selected agent <small>tick a whole disk or only some partitions</small></label>
+      <div id="disk-picker" class="disks"><p class="muted">Select an agent.</p></div>
+    </div>
+    <script type="application/json" id="inventory">{{.Data.Inventory}}</script>
     <fieldset class="sched">
       <legend>Schedule</legend>
       <label>Run
