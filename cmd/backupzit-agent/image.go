@@ -98,6 +98,9 @@ func cmdImageBackup(ctx context.Context, args []string) error {
 		return err
 	}
 	fmt.Printf("image snapshot %s saved\n", sn.ID.Short())
+	if _, err := r.KeepImmutable(ctx, sn); err != nil {
+		return fmt.Errorf("extend immutability: %w", err)
+	}
 	printImage(sn.Images[0])
 	st := sn.Stats
 	fmt.Printf("  data: %s read, %s new (%s stored), %s\n", humanBytes(st.BytesRead), humanBytes(st.BytesAdded), humanBytes(st.BytesStored), st.Duration.Round(time.Second))

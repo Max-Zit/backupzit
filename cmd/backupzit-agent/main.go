@@ -230,6 +230,11 @@ func cmdBackup(ctx context.Context, args []string) error {
 	}
 	st := sn.Stats
 	fmt.Printf("snapshot %s saved\n", sn.ID.Short())
+	if n, err := r.KeepImmutable(ctx, sn); err != nil {
+		return fmt.Errorf("extend immutability: %w", err)
+	} else if n > 0 {
+		fmt.Printf("  locks:  immutability of %d reused objects extended\n", n)
+	}
 	if len(sn.VSSVolumes) > 0 {
 		fmt.Printf("  vss:    read from snapshot of %s\n", strings.Join(sn.VSSVolumes, ", "))
 	}
