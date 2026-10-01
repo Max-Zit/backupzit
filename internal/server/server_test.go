@@ -143,6 +143,7 @@ func TestAgentLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag.VSS = false // tests do not run elevated
 
 	// Wrong secret is rejected.
 	bad := *cfg
@@ -249,6 +250,7 @@ func TestAgentLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	ag2 := agent.New(cfg2, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag2.VSS = false
 	all, _ := e.store.ListAgents(ctx)
 	var otherAgent int64
 	for _, a := range all {

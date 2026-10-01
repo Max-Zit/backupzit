@@ -175,6 +175,8 @@ type Agent struct {
 	client  *Client
 	log     *slog.Logger
 	version string
+	// VSS makes Windows backups read from shadow copies (default on Windows).
+	VSS bool
 
 	mu   sync.Mutex
 	busy bool
@@ -182,7 +184,7 @@ type Agent struct {
 }
 
 func New(cfg *Config, log *slog.Logger, version string) *Agent {
-	return &Agent{client: NewClient(cfg), log: log, version: version}
+	return &Agent{client: NewClient(cfg), log: log, version: version, VSS: runtime.GOOS == "windows"}
 }
 
 // PollOnce sends one heartbeat and starts a run if one was assigned.
@@ -317,7 +319,7 @@ func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
 		Excludes: run.Excludes,
 		Version:  a.version,
 		Tags:     []string{fmt.Sprintf("run:%d", run.ID)},
-		VSS:      runtime.GOOS == "windows",
+		VSS:      a.VSS,
 	})
 	if err != nil {
 		return failed(err)
