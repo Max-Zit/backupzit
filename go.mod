@@ -54,4 +54,5 @@ require (
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
+	rsc.io/qr v0.2.0 // indirect
 )

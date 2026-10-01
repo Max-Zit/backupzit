@@ -73,4 +73,3 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	}
 	return a.withRetention(ctx, dst, run, res)
 }
-

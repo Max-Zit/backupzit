@@ -1,0 +1,63 @@
+{{define "content"}}
+<div class="pagehead"><h1>{{template "icon" "shield"}} Two-factor authentication</h1>
+  <div class="actions"><a class="btn secondary-link" href="/account">{{template "icon" "chevl"}}My account</a></div>
+</div>
+
+{{with .Data.NewCodes}}
+<div class="panel">
+  <h2>Your recovery codes</h2>
+  <p>Each code works <b>once</b> instead of a code from your phone. Store them somewhere safe (password manager or printed) — they are shown only now.</p>
+  <ul class="codes">{{range .}}<li class="mono">{{.}}</li>{{end}}</ul>
+  <button type="button" class="secondary" data-print>{{template "icon" "print"}}Print</button>
+</div>
+{{end}}
+
+{{if .Data.Enabled}}
+<div class="row">
+  <div class="panel">
+    <h2><span class="badge success"><i></i>on</span> Your account is protected</h2>
+    <p>Signing in requires your password and a code from your authenticator app.</p>
+    <p class="muted">{{.Data.CodesLeft}} unused recovery codes left.</p>
+    <form method="post" action="/account/2fa/codes" class="stack">
+      <label>Code from your app <input name="code" inputmode="numeric" autocomplete="one-time-code" required class="otp narrow-otp"></label>
+      <div><button class="secondary">Create new recovery codes</button></div>
+    </form>
+  </div>
+  {{if not .Data.Required}}
+  <div class="panel">
+    <h2>Turn off</h2>
+    <p class="muted">Not recommended — your password alone will be enough to sign in.</p>
+    <form method="post" action="/account/2fa/disable" class="stack" data-confirm="Turn off two-factor authentication?">
+      <label>Code from your app <input name="code" inputmode="numeric" autocomplete="one-time-code" required class="otp narrow-otp"></label>
+      <div><button class="danger">Turn off two-factor authentication</button></div>
+    </form>
+  </div>
+  {{end}}
+</div>
+{{else}}
+<div class="panel">
+  {{if .Data.Required}}<div class="callout warn"><p><b>Required for your account.</b> Set up two-factor authentication to continue using the console.</p></div>{{end}}
+  <div class="setup2fa">
+    <div>
+      <h2>1. Scan the QR code</h2>
+      <p class="muted">Use Microsoft Authenticator, Google Authenticator, Authy, 1Password, Bitwarden or any TOTP app.</p>
+      {{with .Data.QR}}
+      <svg class="qr" viewBox="0 0 {{.Size}} {{.Size}}" role="img" aria-label="QR code for your authenticator app" shape-rendering="crispEdges">
+        <rect width="{{.Size}}" height="{{.Size}}" fill="#fff"/>
+        {{range .Cells}}<rect x="{{.X}}" y="{{.Y}}" width="1" height="1" fill="#000"/>{{end}}
+      </svg>
+      {{end}}
+      <p class="muted small">Can't scan? Enter this key manually:<br><code class="secret">{{.Data.Secret}}</code></p>
+    </div>
+    <div>
+      <h2>2. Enter the code</h2>
+      <form method="post" action="/account/2fa/enable" class="stack">
+        <label>6-digit code from the app <input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" required class="otp" placeholder="123 456"></label>
+        <div><button>Turn on two-factor authentication</button></div>
+      </form>
+      <p class="muted small mt"><a href="/account/2fa?new=1">Generate a new key</a></p>
+    </div>
+  </div>
+</div>
+{{end}}
+{{end}}

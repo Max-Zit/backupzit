@@ -8,7 +8,7 @@
     <tbody>
     {{range .Data.Users}}
     <tr>
-      <td><a href="/users/{{.ID}}" class="strong">{{.Username}}</a>{{if eq .ID $.Me.ID}} <span class="badge">you</span>{{end}}</td>
+      <td><a href="/users/{{.ID}}" class="strong">{{.Username}}</a>{{if eq .ID $.Me.ID}} <span class="badge">you</span>{{end}}{{if .TwoFactor}} <span class="badge success" title="two-factor authentication">2FA</span>{{end}}</td>
       <td>{{.DisplayName}}{{if .Email}}<div class="muted small">{{.Email}}</div>{{end}}</td>
       <td><span class="badge role-{{.Role}}">{{.RoleName}}</span></td>
       <td>{{if eq .Source "ldap"}}<span class="badge info-badge">LDAP</span>{{else}}<span class="badge">local</span>{{end}}</td>

@@ -37,6 +37,10 @@
 <h2>Sessions</h2>
 <p>Under <a href="/settings/security">Settings → Sign-in &amp; security</a> set how long a sign-in lasts (default 12 hours) and after how many minutes of inactivity users are signed out (default 60, 0 = never). After 5 wrong passwords from one address, sign-in is paused for 15 minutes.</p>
 
+<h2>Two-factor authentication</h2>
+<p>Every user can protect their sign-in with a second factor under <a href="/account/2fa">My account → Two-factor</a>: scan the QR code with an authenticator app (Microsoft or Google Authenticator, Authy, 1Password, Bitwarden …) and enter the 6-digit code. Ten one-time <b>recovery codes</b> are shown once — store them safely; each works once if the phone is lost.</p>
+<p>Under <a href="/settings/security">Settings → Sign-in &amp; security</a> you can require two-factor authentication for <b>administrators</b> or for <b>all users</b>; they are asked to set it up after their next sign-in. If a user loses both phone and recovery codes, an administrator resets two-factor on the user's page. Two-factor also works for directory (LDAP) accounts.</p>
+
 <h2>Audit log</h2>
 <p><a href="/audit">Users → Audit log</a> shows sign-ins, failed sign-ins and changes: users, jobs, storage targets, restores, displayed recovery keys and settings — with time, user and address.</p>
 {{template "docpager" .}}

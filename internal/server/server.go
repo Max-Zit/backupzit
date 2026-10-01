@@ -57,11 +57,12 @@ type Server struct {
 	Notifier  *Notifier
 	cache     *repoCache
 	sessCache sessionCache
+	clock     func() time.Time // replaceable in tests
 }
 
 // New creates a server.
 func New(store *Store, log *slog.Logger) (*Server, error) {
-	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache(), logins: newLoginLimiter()}
+	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache(), logins: newLoginLimiter(), clock: time.Now}
 	if err := s.loadTemplates(); err != nil {
 		return nil, err
 	}
@@ -258,6 +259,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
 	mux.HandleFunc("GET /login", s.handleLoginPage)
 	mux.HandleFunc("POST /login", s.handleLogin)
+	mux.HandleFunc("GET /login/2fa", s.handleLogin2FA)
+	mux.HandleFunc("POST /login/2fa", s.handleLogin2FA)
 	mux.HandleFunc("POST /logout", s.ui("", s.handleLogout))
 	mux.HandleFunc("GET /{$}", s.ui(PermView, s.handleDashboard))
 	mux.HandleFunc("GET /agents", s.ui(PermView, s.handleAgents))
@@ -299,6 +302,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /audit", s.ui(PermUsers, s.handleAudit))
 	mux.HandleFunc("GET /account", s.ui("", s.handleAccount))
 	mux.HandleFunc("POST /account/password", s.ui("", s.handleAccountPassword))
+	mux.HandleFunc("GET /account/2fa", s.ui("", s.handleAccount2FA))
+	mux.HandleFunc("POST /account/2fa/enable", s.ui("", s.handleAccount2FAEnable))
+	mux.HandleFunc("POST /account/2fa/codes", s.ui("", s.handleAccount2FACodes))
+	mux.HandleFunc("POST /account/2fa/disable", s.ui("", s.handleAccount2FADisable))
+	mux.HandleFunc("POST /users/{id}/2fa-reset", s.ui(PermUsers, s.handleUser2FAReset))
 	mux.HandleFunc("GET /recovery", s.ui(PermView, s.handleRecovery))
 	mux.HandleFunc("GET /settings", s.ui(PermSettings, s.handleSettings))
 	mux.HandleFunc("GET /settings/{tab}", s.ui(PermSettings, s.handleSettings))
@@ -355,6 +363,10 @@ func (s *Server) ui(perm Perm, h func(w http.ResponseWriter, r *http.Request, us
 			return
 		}
 		r = r.WithContext(context.WithValue(r.Context(), userCtxKey, &u))
+		if !u.TwoFactor && s.sessionSettings(r.Context()).mustUse2FA(&u) && !strings.HasPrefix(r.URL.Path, "/account") && r.URL.Path != "/logout" && !strings.HasPrefix(r.URL.Path, "/docs") {
+			redirectErr(w, r, "/account/2fa", errors.New("set up two-factor authentication to continue — it is required for your account"))
+			return
+		}
 		if perm != "" && !u.Can(string(perm)) {
 			s.log.Warn("permission denied", "user", u.Username, "role", u.Role, "path", r.URL.Path)
 			w.WriteHeader(http.StatusForbidden)
@@ -486,12 +498,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 			Error: fmt.Sprintf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1)})
 		return
 	}
-	sess := s.sessionSettings(r.Context())
 	u, err := s.authenticate(r.Context(), username, r.FormValue("password"))
-	var tok string
-	if err == nil {
-		tok, err = s.store.newSession(r.Context(), u.ID, sess.Lifetime())
-	}
 	if err != nil {
 		s.logins.Fail(keys)
 		s.log.Warn("failed login", "user", username, "remote", r.RemoteAddr, "err", err)
@@ -503,13 +510,14 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "login", pageData{Title: "Sign in", Error: msg})
 		return
 	}
-	s.auditAs(r, u.Username, "login", u.Source+", role "+u.Role)
-	s.logins.Success(keys)
-	http.SetCookie(w, &http.Cookie{
-		Name: sessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: r.TLS != nil,
-		SameSite: http.SameSiteStrictMode, MaxAge: int(sess.Lifetime().Seconds()),
-	})
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	if u.TwoFactor {
+		// Failure counters are reset only after the second factor.
+		http.SetCookie(w, &http.Cookie{Name: mfaCookie, Value: mfaToken(u.ID, s.clock().Add(5*time.Minute)), Path: "/login",
+			HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteStrictMode, MaxAge: 300})
+		http.Redirect(w, r, "/login/2fa", http.StatusSeeOther)
+		return
+	}
+	s.startSession(w, r, u, "password")
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request, _ string) {

@@ -399,7 +399,7 @@ type Job struct {
 	// Copy jobs: the job whose backups are copied.
 	SourceJobID   *int64
 	SourceJobName *string
-	CreatedAt       time.Time
+	CreatedAt     time.Time
 	// Last run summary
 	LastStatus   *string
 	LastFinished *time.Time
@@ -613,12 +613,12 @@ type Run struct {
 	// Copy runs: the repository copied from.
 	SourceTargetID *int64
 	SourceRepoURL  string
-	QueuedAt        time.Time
-	StartedAt       *time.Time
-	FinishedAt      *time.Time
-	Stats           json.RawMessage
-	Errors          []string
-	Message         string
+	QueuedAt       time.Time
+	StartedAt      *time.Time
+	FinishedAt     *time.Time
+	Stats          json.RawMessage
+	Errors         []string
+	Message        string
 }
 
 // Duration returns how long the run took (or has been running).

@@ -107,8 +107,8 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		return nil, errors.New("storage target was deleted")
 	}
 	ar := &api.Run{
-		ID:   run.ID,
-		Kind: run.Kind,
+		ID:         run.ID,
+		Kind:       run.Kind,
 		Repository: targetRepository(t, run.RepoURL),
 	}
 	if run.JobName != nil {

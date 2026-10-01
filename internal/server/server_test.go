@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1273,5 +1274,85 @@ func TestCopyJob(t *testing.T) {
 		if err != nil || string(got) != want {
 			t.Errorf("restored %s: %v", p, err)
 		}
+	}
+}
+
+func TestTwoFactor(t *testing.T) {
+	e := setup(t)
+	now := time.Unix(1_800_000_000, 0)
+	server.SetClock(e.srv, func() time.Time { return now })
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	admin.do("POST", "/users", url.Values{"username": {"ana"}, "role": {"operator"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
+
+	ana := newClient(t, e)
+	if !ana.login("ana", "correct-horse-9") {
+		t.Fatal("login without 2FA")
+	}
+	_, _, page := ana.do("GET", "/account/2fa", nil)
+	m := regexp.MustCompile(`<code class="secret">([A-Z2-7 ]+)</code>`).FindStringSubmatch(page)
+	if m == nil || !strings.Contains(page, `<svg class="qr"`) {
+		t.Fatal("setup page lacks secret or QR code")
+	}
+	secret := strings.ReplaceAll(m[1], " ", "")
+	if _, loc, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {"000000"}}); !strings.Contains(loc, "err=") {
+		t.Error("wrong code enabled 2FA")
+	}
+	code, _, body := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, now)}})
+	recovery := regexp.MustCompile(`<li class="mono">([A-Z2-7]{4}-[A-Z2-7]{4})</li>`).FindAllStringSubmatch(body, -1)
+	if code != 200 || len(recovery) != 10 {
+		t.Fatalf("enable: %d, %d recovery codes", code, len(recovery))
+	}
+
+	// Password alone is no longer enough.
+	c2 := newClient(t, e)
+	_, loc, _ := c2.do("POST", "/login", url.Values{"username": {"ana"}, "password": {"correct-horse-9"}})
+	if loc != "/login/2fa" {
+		t.Fatalf("expected second step, got %q", loc)
+	}
+	if code, loc, _ := c2.do("GET", "/", nil); code != http.StatusSeeOther || loc != "/login" {
+		t.Error("signed in before the second factor")
+	}
+	// The code used to enable 2FA cannot be replayed.
+	if code, loc, body := c2.do("POST", "/login/2fa", url.Values{"code": {server.TOTPCodeForTest(secret, now)}}); loc == "/" || code != 200 || !strings.Contains(body, "Invalid code") {
+		t.Errorf("replayed code: %d %q", code, loc)
+	}
+	now = now.Add(30 * time.Second)
+	if _, loc, _ := c2.do("POST", "/login/2fa", url.Values{"code": {server.TOTPCodeForTest(secret, now)}}); loc != "/" {
+		t.Fatalf("valid code rejected: %q", loc)
+	}
+	// A recovery code works once.
+	rc := recovery[0][1]
+	for i, want := range []string{"/", ""} {
+		c := newClient(t, e)
+		c.do("POST", "/login", url.Values{"username": {"ana"}, "password": {"correct-horse-9"}})
+		if _, loc, _ := c.do("POST", "/login/2fa", url.Values{"code": {strings.ToLower(rc)}}); loc != want {
+			t.Errorf("recovery code use %d: %q", i+1, loc)
+		}
+	}
+	// Without the password step there is no way to the second step.
+	c3 := newClient(t, e)
+	if _, loc, _ := c3.do("POST", "/login/2fa", url.Values{"code": {server.TOTPCodeForTest(secret, now)}}); loc != "/login" {
+		t.Error("second step without password")
+	}
+
+	// Policy: required for administrators.
+	admin.do("POST", "/settings/sessions", url.Values{"lifetime_hours": {"12"}, "idle_minutes": {"0"}, "require_2fa": {"admins"}})
+	if code, loc, _ := admin.do("GET", "/jobs", nil); code != http.StatusSeeOther || !strings.HasPrefix(loc, "/account/2fa") {
+		t.Errorf("admin without 2FA not sent to setup: %d %s", code, loc)
+	}
+	if code, _, _ := admin.do("GET", "/account/2fa", nil); code != 200 {
+		t.Error("setup page blocked")
+	}
+	// Admin reset of a user's 2FA.
+	users, _ := e.store.ListUsers(e.ctx)
+	for _, u := range users {
+		if u.Username == "ana" {
+			e.store.DisableTwoFactor(e.ctx, u.ID)
+		}
+	}
+	c4 := newClient(t, e)
+	if !c4.login("ana", "correct-horse-9") {
+		t.Error("login after 2FA reset")
 	}
 }

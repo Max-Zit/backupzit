@@ -1,0 +1,12 @@
+{{define "content"}}
+<div class="login panel">
+  <div class="brand">{{template "logo"}}<span>Backup<b>Zit</b></span></div>
+  <p class="sub">Enter the 6-digit code from your authenticator app</p>
+  <form method="post" action="/login/2fa" class="stack">
+    <label>Code <input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9A-Za-z -]{6,12}" required autofocus class="otp" placeholder="123 456"></label>
+    <button>Verify</button>
+  </form>
+  <p class="muted small mt">Lost your phone? Enter one of your recovery codes instead (e.g. <code>K7QM-2XRD</code>), or ask an administrator to reset two-factor authentication for your account.</p>
+</div>
+<p class="login-foot"><a href="/login">Back to sign-in</a></p>
+{{end}}

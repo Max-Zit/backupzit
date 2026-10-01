@@ -31,7 +31,7 @@ func loginKeys(r *http.Request, username string) []string {
 	if err != nil {
 		ip = r.RemoteAddr
 	}
-	return []string{"ip:" + ip, "user:" + username}
+	return []string{"ip:" + ip, "user:" + strings.ToLower(strings.TrimSpace(username))}
 }
 
 // recent drops failures older than the window and returns the rest.

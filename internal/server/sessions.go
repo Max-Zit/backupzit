@@ -17,6 +17,8 @@ type SessionSettings struct {
 	LifetimeHours int `json:"lifetime_hours"`
 	// IdleMinutes signs a user out after this much inactivity; 0 = never.
 	IdleMinutes int `json:"idle_minutes"`
+	// Require2FA: "" (optional), "admins" or "all".
+	Require2FA string `json:"require_2fa,omitempty"`
 }
 
 var defaultSessions = SessionSettings{LifetimeHours: 12, IdleMinutes: 60}
@@ -27,6 +29,9 @@ func (x SessionSettings) Validate() error {
 	}
 	if x.IdleMinutes < 0 || x.IdleMinutes > 60*24*30 {
 		return errors.New("inactivity timeout must be between 0 (off) and 30 days")
+	}
+	if x.Require2FA != "" && x.Require2FA != "admins" && x.Require2FA != "all" {
+		return errors.New("invalid two-factor policy")
 	}
 	return nil
 }
@@ -68,7 +73,7 @@ func (s *Store) ApplySessionSettings(ctx context.Context, x SessionSettings) err
 func (s *Server) handleSettingsSessions(w http.ResponseWriter, r *http.Request, user string) {
 	life, err1 := strconv.Atoi(r.FormValue("lifetime_hours"))
 	idle, err2 := strconv.Atoi(r.FormValue("idle_minutes"))
-	x := SessionSettings{LifetimeHours: life, IdleMinutes: idle}
+	x := SessionSettings{LifetimeHours: life, IdleMinutes: idle, Require2FA: r.FormValue("require_2fa")}
 	if err1 != nil || err2 != nil {
 		redirectErr(w, r, "/settings/security", errors.New("enter whole numbers"))
 		return
@@ -85,6 +90,6 @@ func (s *Server) handleSettingsSessions(w http.ResponseWriter, r *http.Request, 
 	s.sessCache.at = time.Time{}
 	s.sessCache.mu.Unlock()
 	s.log.Info("session settings changed", "user", user, "lifetime_hours", x.LifetimeHours, "idle_minutes", x.IdleMinutes)
-	s.audit(r, "settings.sessions", "lifetime %dh, idle %dmin", x.LifetimeHours, x.IdleMinutes)
+	s.audit(r, "settings.sessions", "lifetime %dh, idle %dmin, require 2FA %q", x.LifetimeHours, x.IdleMinutes, x.Require2FA)
 	redirectMsg(w, r, "/settings/security", "Session settings saved. They apply to new sign-ins; existing sessions were shortened if needed.")
 }

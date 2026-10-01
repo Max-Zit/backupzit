@@ -86,6 +86,7 @@ type User struct {
 	Source      string // local | ldap
 	Disabled    bool
 	LastLogin   *time.Time
+	TwoFactor   bool
 	CreatedAt   time.Time
 }
 
@@ -111,11 +112,11 @@ func (u User) Name() string {
 	return u.Username
 }
 
-const userCols = `id, username, display_name, email, role, source, disabled, last_login_at, created_at`
+const userCols = `id, username, display_name, email, role, source, disabled, last_login_at, created_at, totp_enabled`
 
 func scanUser(r pgx.Row) (User, error) {
 	var u User
-	err := r.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.Role, &u.Source, &u.Disabled, &u.LastLogin, &u.CreatedAt)
+	err := r.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.Role, &u.Source, &u.Disabled, &u.LastLogin, &u.CreatedAt, &u.TwoFactor)
 	return u, notFound(err)
 }
 
@@ -135,7 +136,7 @@ func (s *Store) userByName(ctx context.Context, username string) (User, string, 
 	var hash string
 	var u User
 	err := s.db.QueryRow(ctx, `SELECT `+userCols+`, password_hash FROM users WHERE lower(username)=lower($1)`, username).
-		Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.Role, &u.Source, &u.Disabled, &u.LastLogin, &u.CreatedAt, &hash)
+		Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.Role, &u.Source, &u.Disabled, &u.LastLogin, &u.CreatedAt, &u.TwoFactor, &hash)
 	return u, hash, notFound(err)
 }
 
@@ -271,7 +272,7 @@ func (s *Store) SessionUser(ctx context.Context, token string, idle time.Duratio
 	return scanUser(s.db.QueryRow(ctx, `UPDATE sessions s SET last_seen_at=now() FROM users u
 		WHERE u.id=s.user_id AND s.token_hash=$1 AND s.expires_at > now() AND NOT u.disabled
 		AND ($2::bigint = 0 OR s.last_seen_at > now() - make_interval(secs => $2::bigint))
-		RETURNING u.id, u.username, u.display_name, u.email, u.role, u.source, u.disabled, u.last_login_at, u.created_at`,
+		RETURNING u.id, u.username, u.display_name, u.email, u.role, u.source, u.disabled, u.last_login_at, u.created_at, u.totp_enabled`,
 		hashToken(token), int64(idle.Seconds())))
 }
 

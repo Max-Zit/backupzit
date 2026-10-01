@@ -50,7 +50,7 @@
 {{end}}{{end}}
 {{if eq .Data.Tab "security"}}{{with .Data.Sessions}}
 <div class="panel">
-  <h2>{{template "icon" "lock"}} Sign-in sessions</h2>
+  <h2>{{template "icon" "lock"}} Sign-in</h2>
   <form method="post" action="/settings/sessions" class="stack">
     <div class="row">
       <label>Session length <small>signed-in users must sign in again after this many hours (1 – 2160)</small>
@@ -61,7 +61,14 @@
       </label>
     </div>
     <small class="muted">Shorter is safer. A shorter session length also shortens sessions that are already signed in.</small>
-    <div><button>Save session settings</button></div>
+    <label>Two-factor authentication <small>users set it up under My account → Two-factor; required users are asked to do so at their next sign-in</small>
+      <select name="require_2fa">
+        <option value="" {{if eq .Require2FA ""}}selected{{end}}>Optional for everyone</option>
+        <option value="admins" {{if eq .Require2FA "admins"}}selected{{end}}>Required for administrators</option>
+        <option value="all" {{if eq .Require2FA "all"}}selected{{end}}>Required for all users</option>
+      </select>
+    </label>
+    <div><button>Save sign-in settings</button></div>
   </form>
 </div>
 {{end}}
