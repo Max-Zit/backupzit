@@ -1,0 +1,686 @@
+// Package server implements the backupzit management console: the web UI
+// for administrators and the HTTPS API that agents poll.
+package server
+
+import (
+	"context"
+	"embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"html/template"
+	"io/fs"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/backupzit/backupzit/internal/api"
+	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/backupzit/backupzit/internal/restorer"
+)
+
+//go:embed templates/*.html
+var templateFS embed.FS
+
+//go:embed static
+var staticFS embed.FS
+
+const sessionCookie = "bz_session"
+
+// Server is the management console.
+type Server struct {
+	store *Store
+	log   *slog.Logger
+	// CertFingerprint is shown in enrollment instructions.
+	CertFingerprint string
+	// PublicURL is how agents reach the server, e.g. https://backup.example.com:8443
+	PublicURL string
+	// DistDir holds agent installers offered for download.
+	DistDir      string
+	PollInterval int
+	Version      string
+
+	pages map[string]*template.Template
+}
+
+// New creates a server.
+func New(store *Store, log *slog.Logger) (*Server, error) {
+	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev"}
+	if err := s.loadTemplates(); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+var funcs = template.FuncMap{
+	"ago": func(t any) string {
+		var tm time.Time
+		switch v := t.(type) {
+		case time.Time:
+			tm = v
+		case *time.Time:
+			if v == nil {
+				return "never"
+			}
+			tm = *v
+		default:
+			return ""
+		}
+		d := time.Since(tm)
+		switch {
+		case d < time.Minute:
+			return "just now"
+		case d < time.Hour:
+			return fmt.Sprintf("%d min ago", int(d.Minutes()))
+		case d < 48*time.Hour:
+			return fmt.Sprintf("%d h ago", int(d.Hours()))
+		}
+		return fmt.Sprintf("%d days ago", int(d.Hours()/24))
+	},
+	"ts": func(t any) string {
+		switch v := t.(type) {
+		case time.Time:
+			return v.Local().Format("2006-01-02 15:04:05")
+		case *time.Time:
+			if v == nil {
+				return "—"
+			}
+			return v.Local().Format("2006-01-02 15:04:05")
+		}
+		return ""
+	},
+	"bytes": humanBytes,
+	"join":  strings.Join,
+	"deref": func(p *string) string {
+		if p == nil {
+			return ""
+		}
+		return *p
+	},
+	"short": func(s string) string {
+		if len(s) > 8 {
+			return s[:8]
+		}
+		return s
+	},
+	"nextrun": func(expr string) string {
+		t := NextRun(expr, time.Now())
+		if t.IsZero() {
+			return "manual"
+		}
+		return t.Local().Format("2006-01-02 15:04")
+	},
+}
+
+func (s *Server) loadTemplates() error {
+	s.pages = map[string]*template.Template{}
+	entries, err := fs.ReadDir(templateFS, "templates")
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if name == "layout.html" {
+			continue
+		}
+		t, err := template.New("layout.html").Funcs(funcs).ParseFS(templateFS, "templates/layout.html", "templates/"+name)
+		if err != nil {
+			return fmt.Errorf("template %s: %w", name, err)
+		}
+		s.pages[strings.TrimSuffix(name, ".html")] = t
+	}
+	return nil
+}
+
+// Handler returns the HTTP handler for UI and agent API.
+func (s *Server) Handler() http.Handler {
+	mux := http.NewServeMux()
+
+	// Agent API
+	mux.HandleFunc("POST "+api.PathEnroll, s.handleEnroll)
+	mux.HandleFunc("POST "+api.PathPoll, s.agentAuth(s.handlePoll))
+	mux.HandleFunc("POST "+api.PathRunsPrefix+"{id}/finish", s.agentAuth(s.handleRunFinish))
+
+	// UI
+	static, _ := fs.Sub(staticFS, "static")
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
+	mux.HandleFunc("GET /login", s.handleLoginPage)
+	mux.HandleFunc("POST /login", s.handleLogin)
+	mux.HandleFunc("POST /logout", s.ui(s.handleLogout))
+	mux.HandleFunc("GET /{$}", s.ui(s.handleDashboard))
+	mux.HandleFunc("GET /tenants", s.ui(s.handleTenants))
+	mux.HandleFunc("POST /tenants", s.ui(s.handleTenantCreate))
+	mux.HandleFunc("POST /tenants/{id}/delete", s.ui(s.handleTenantDelete))
+	mux.HandleFunc("GET /agents", s.ui(s.handleAgents))
+	mux.HandleFunc("POST /agents/token", s.ui(s.handleAgentToken))
+	mux.HandleFunc("POST /agents/{id}/delete", s.ui(s.handleAgentDelete))
+	mux.HandleFunc("GET /targets", s.ui(s.handleTargets))
+	mux.HandleFunc("POST /targets", s.ui(s.handleTargetCreate))
+	mux.HandleFunc("POST /targets/{id}/delete", s.ui(s.handleTargetDelete))
+	mux.HandleFunc("GET /jobs", s.ui(s.handleJobs))
+	mux.HandleFunc("POST /jobs", s.ui(s.handleJobCreate))
+	mux.HandleFunc("GET /jobs/{id}", s.ui(s.handleJob))
+	mux.HandleFunc("POST /jobs/{id}/run", s.ui(s.handleJobRun))
+	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(s.handleJobEnable(true)))
+	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(s.handleJobEnable(false)))
+	mux.HandleFunc("POST /jobs/{id}/delete", s.ui(s.handleJobDelete))
+	mux.HandleFunc("GET /runs", s.ui(s.handleRuns))
+	mux.HandleFunc("GET /runs/{id}", s.ui(s.handleRun))
+	mux.HandleFunc("POST /runs/{id}/restore", s.ui(s.handleRestore))
+	mux.HandleFunc("GET /downloads/{file}", s.ui(s.handleDownload))
+
+	return securityHeaders(mux)
+}
+
+func securityHeaders(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "same-origin")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'")
+		h.ServeHTTP(w, r)
+	})
+}
+
+// ---- UI plumbing
+
+type pageData struct {
+	Title   string
+	Nav     string
+	User    string
+	Flash   string
+	Error   string
+	Version string
+	Data    any
+}
+
+// ui requires a logged-in admin and rejects cross-site form posts.
+func (s *Server) ui(h func(w http.ResponseWriter, r *http.Request, user string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie(sessionCookie)
+		if err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		user, err := s.store.SessionUser(r.Context(), c.Value)
+		if err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		if r.Method == http.MethodPost && !sameOrigin(r) {
+			http.Error(w, "cross-site request rejected", http.StatusForbidden)
+			return
+		}
+		h(w, r, user)
+	}
+}
+
+func sameOrigin(r *http.Request) bool {
+	src := r.Header.Get("Origin")
+	if src == "" || src == "null" {
+		src = r.Header.Get("Referer")
+	}
+	if src == "" {
+		return false
+	}
+	u, err := url.Parse(src)
+	return err == nil && u.Host == r.Host
+}
+
+func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d pageData) {
+	t, ok := s.pages[page]
+	if !ok {
+		http.Error(w, "unknown page", http.StatusInternalServerError)
+		return
+	}
+	if d.Flash == "" {
+		d.Flash = r.URL.Query().Get("msg")
+	}
+	if d.Error == "" {
+		d.Error = r.URL.Query().Get("err")
+	}
+	d.Version = s.Version
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := t.Execute(w, d); err != nil {
+		s.log.Error("render", "page", page, "err", err)
+	}
+}
+
+func redirectMsg(w http.ResponseWriter, r *http.Request, to, msg string) {
+	http.Redirect(w, r, to+"?msg="+url.QueryEscape(msg), http.StatusSeeOther)
+}
+
+func redirectErr(w http.ResponseWriter, r *http.Request, to string, err error) {
+	http.Redirect(w, r, to+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+}
+
+func (s *Server) serverError(w http.ResponseWriter, err error) {
+	s.log.Error("request failed", "err", err)
+	http.Error(w, "internal error", http.StatusInternalServerError)
+}
+
+func pathID(r *http.Request) (int64, error) {
+	return strconv.ParseInt(r.PathValue("id"), 10, 64)
+}
+
+func formID(r *http.Request, name string) int64 {
+	id, _ := strconv.ParseInt(r.FormValue(name), 10, 64)
+	return id
+}
+
+// lines splits a textarea into trimmed, non-empty lines.
+func lines(s string) []string {
+	var out []string
+	for _, l := range strings.Split(s, "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// ---- auth pages
+
+func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
+	s.render(w, r, "login", pageData{Title: "Sign in"})
+}
+
+func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	tok, err := s.store.Login(r.Context(), r.FormValue("username"), r.FormValue("password"), 12*time.Hour)
+	if err != nil {
+		s.log.Warn("failed login", "user", r.FormValue("username"), "remote", r.RemoteAddr)
+		s.render(w, r, "login", pageData{Title: "Sign in", Error: err.Error()})
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name: sessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: r.TLS != nil,
+		SameSite: http.SameSiteStrictMode, MaxAge: int((12 * time.Hour).Seconds()),
+	})
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request, _ string) {
+	if c, err := r.Cookie(sessionCookie); err == nil {
+		s.store.Logout(r.Context(), c.Value)
+	}
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1})
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// ---- dashboard
+
+func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request, user string) {
+	sum, err := s.store.Summary(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	runs, err := s.store.ListRuns(r.Context(), RunFilter{Limit: 15})
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.render(w, r, "dashboard", pageData{Title: "Dashboard", Nav: "dashboard", User: user,
+		Data: map[string]any{"Summary": sum, "Runs": runs}})
+}
+
+// ---- tenants
+
+func (s *Server) handleTenants(w http.ResponseWriter, r *http.Request, user string) {
+	ts, err := s.store.ListTenants(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.render(w, r, "tenants", pageData{Title: "Tenants", Nav: "tenants", User: user, Data: ts})
+}
+
+func (s *Server) handleTenantCreate(w http.ResponseWriter, r *http.Request, _ string) {
+	if _, err := s.store.CreateTenant(r.Context(), r.FormValue("name")); err != nil {
+		redirectErr(w, r, "/tenants", err)
+		return
+	}
+	redirectMsg(w, r, "/tenants", "Tenant created.")
+}
+
+func (s *Server) handleTenantDelete(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	if err := s.store.DeleteTenant(r.Context(), id); err != nil {
+		redirectErr(w, r, "/tenants", err)
+		return
+	}
+	redirectMsg(w, r, "/tenants", "Tenant deleted.")
+}
+
+// ---- agents
+
+type download struct {
+	Name, Size string
+}
+
+func (s *Server) downloads() []download {
+	var out []download
+	if s.DistDir == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(s.DistDir)
+	if err != nil {
+		return nil
+	}
+	for _, e := range entries {
+		if fi, err := e.Info(); err == nil && fi.Mode().IsRegular() {
+			out = append(out, download{Name: e.Name(), Size: humanBytes(uint64(fi.Size()))})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+type enrollInfo struct {
+	Tenant      string
+	Token       string
+	Expires     time.Time
+	ServerURL   string
+	Fingerprint string
+}
+
+func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string, enroll *enrollInfo) {
+	agents, err := s.store.ListAgents(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	ts, err := s.store.ListTenants(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
+		"Agents": agents, "Tenants": ts, "Enroll": enroll, "Downloads": s.downloads(),
+	}})
+}
+
+func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request, user string) {
+	s.agentsPage(w, r, user, nil)
+}
+
+func (s *Server) handleAgentToken(w http.ResponseWriter, r *http.Request, user string) {
+	tid := formID(r, "tenant_id")
+	ts, err := s.store.ListTenants(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	var tenant string
+	for _, t := range ts {
+		if t.ID == tid {
+			tenant = t.Name
+		}
+	}
+	if tenant == "" {
+		redirectErr(w, r, "/agents", errors.New("select a tenant"))
+		return
+	}
+	tok, exp, err := s.store.CreateEnrollmentToken(r.Context(), tid, 7*24*time.Hour)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	pub := s.PublicURL
+	if pub == "" {
+		pub = "https://" + r.Host
+	}
+	s.agentsPage(w, r, user, &enrollInfo{Tenant: tenant, Token: tok, Expires: exp, ServerURL: pub, Fingerprint: s.CertFingerprint})
+}
+
+func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	if err := s.store.DeleteAgent(r.Context(), id); err != nil {
+		redirectErr(w, r, "/agents", err)
+		return
+	}
+	redirectMsg(w, r, "/agents", "Agent removed. Its backups remain on the storage target.")
+}
+
+func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request, _ string) {
+	name := r.PathValue("file")
+	if s.DistDir == "" || name != filepath.Base(name) || strings.HasPrefix(name, ".") {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(name))
+	http.ServeFile(w, r, filepath.Join(s.DistDir, name))
+}
+
+// ---- targets
+
+func (s *Server) handleTargets(w http.ResponseWriter, r *http.Request, user string) {
+	targets, err := s.store.ListTargets(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	ts, err := s.store.ListTenants(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.render(w, r, "targets", pageData{Title: "Storage", Nav: "targets", User: user,
+		Data: map[string]any{"Targets": targets, "Tenants": ts}})
+}
+
+func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ string) {
+	_, err := s.store.CreateTarget(r.Context(), Target{
+		TenantID:     formID(r, "tenant_id"),
+		Name:         r.FormValue("name"),
+		Kind:         r.FormValue("kind"),
+		URL:          r.FormValue("url"),
+		SFTPPassword: r.FormValue("sftp_password"),
+		SFTPKey:      strings.TrimSpace(r.FormValue("sftp_key")),
+		SFTPHostKey:  r.FormValue("sftp_host_key"),
+	})
+	if err != nil {
+		redirectErr(w, r, "/targets", err)
+		return
+	}
+	redirectMsg(w, r, "/targets", "Storage target added.")
+}
+
+func (s *Server) handleTargetDelete(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	if err := s.store.DeleteTarget(r.Context(), id); err != nil {
+		redirectErr(w, r, "/targets", err)
+		return
+	}
+	redirectMsg(w, r, "/targets", "Storage target removed. Data on the storage was not deleted.")
+}
+
+// ---- jobs
+
+func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string) {
+	ctx := r.Context()
+	jobs, err := s.store.ListJobs(ctx)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	agents, err := s.store.ListAgents(ctx)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	targets, err := s.store.ListTargets(ctx)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.render(w, r, "jobs", pageData{Title: "Backup jobs", Nav: "jobs", User: user,
+		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets}})
+}
+
+func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
+	id, err := s.store.CreateJob(r.Context(), Job{
+		AgentID:  formID(r, "agent_id"),
+		TargetID: formID(r, "target_id"),
+		Name:     r.FormValue("name"),
+		Paths:    lines(r.FormValue("paths")),
+		Excludes: lines(r.FormValue("excludes")),
+		Schedule: strings.TrimSpace(r.FormValue("schedule")),
+		Enabled:  true,
+	})
+	if err != nil {
+		redirectErr(w, r, "/jobs", err)
+		return
+	}
+	redirectMsg(w, r, fmt.Sprintf("/jobs/%d", id), "Job created.")
+}
+
+func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) {
+	id, err := pathID(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	j, err := s.store.GetJob(r.Context(), id)
+	if errors.Is(err, ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	} else if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	runs, err := s.store.ListRuns(r.Context(), RunFilter{JobID: id, Limit: 50})
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.render(w, r, "job", pageData{Title: j.Name, Nav: "jobs", User: user, Data: map[string]any{"Job": j, "Runs": runs}})
+}
+
+func (s *Server) handleJobRun(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	back := fmt.Sprintf("/jobs/%d", id)
+	if _, err := s.store.QueueBackup(r.Context(), id, "manual"); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	redirectMsg(w, r, back, "Backup queued. The agent picks it up on its next poll.")
+}
+
+func (s *Server) handleJobEnable(enabled bool) func(http.ResponseWriter, *http.Request, string) {
+	return func(w http.ResponseWriter, r *http.Request, _ string) {
+		id, _ := pathID(r)
+		back := fmt.Sprintf("/jobs/%d", id)
+		if err := s.store.SetJobEnabled(r.Context(), id, enabled); err != nil {
+			redirectErr(w, r, back, err)
+			return
+		}
+		redirectMsg(w, r, back, map[bool]string{true: "Job enabled.", false: "Job disabled."}[enabled])
+	}
+}
+
+func (s *Server) handleJobDelete(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	if err := s.store.DeleteJob(r.Context(), id); err != nil {
+		redirectErr(w, r, "/jobs", err)
+		return
+	}
+	redirectMsg(w, r, "/jobs", "Job deleted. Existing backups remain on the storage target.")
+}
+
+// ---- runs
+
+func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request, user string) {
+	runs, err := s.store.ListRuns(r.Context(), RunFilter{Limit: 200})
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.render(w, r, "runs", pageData{Title: "Activity", Nav: "runs", User: user, Data: runs})
+}
+
+func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) {
+	id, err := pathID(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	run, err := s.store.GetRun(r.Context(), id)
+	if errors.Is(err, ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	} else if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	var backupStats *repo.SnapshotStats
+	var restoreStats *restorer.Stats
+	if len(run.Stats) > 0 {
+		if run.Kind == api.KindBackup {
+			backupStats = &repo.SnapshotStats{}
+			json.Unmarshal(run.Stats, backupStats)
+		} else {
+			restoreStats = &restorer.Stats{}
+			json.Unmarshal(run.Stats, restoreStats)
+		}
+	}
+	agents, err := s.store.ListAgents(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	var sameTenant []Agent
+	for _, a := range agents {
+		if a.TenantID == run.TenantID {
+			sameTenant = append(sameTenant, a)
+		}
+	}
+	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: map[string]any{
+		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "Agents": sameTenant,
+	}})
+}
+
+func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	back := fmt.Sprintf("/runs/%d", id)
+	target := strings.TrimSpace(r.FormValue("target"))
+	if r.FormValue("mode") == "original" {
+		target = ""
+	} else if target == "" {
+		redirectErr(w, r, back, errors.New("enter a folder to restore into, or choose original location"))
+		return
+	}
+	rid, err := s.store.QueueRestore(r.Context(), id, formID(r, "agent_id"), target,
+		lines(r.FormValue("includes")), r.FormValue("verify") == "on")
+	if err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Restore queued.")
+}
+
+func humanBytes(b uint64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := uint64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// Shutdown helper for graceful stop.
+func Shutdown(srv *http.Server) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	srv.Shutdown(ctx)
+}

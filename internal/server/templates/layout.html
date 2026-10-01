@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · backupzit</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+{{if .User}}
+<header class="top">
+  <a class="brand" href="/">backup<span>zit</span></a>
+  <nav>
+    <a href="/" class="{{if eq .Nav "dashboard"}}on{{end}}">Dashboard</a>
+    <a href="/jobs" class="{{if eq .Nav "jobs"}}on{{end}}">Jobs</a>
+    <a href="/runs" class="{{if eq .Nav "runs"}}on{{end}}">Activity</a>
+    <a href="/agents" class="{{if eq .Nav "agents"}}on{{end}}">Agents</a>
+    <a href="/targets" class="{{if eq .Nav "targets"}}on{{end}}">Storage</a>
+    <a href="/tenants" class="{{if eq .Nav "tenants"}}on{{end}}">Tenants</a>
+  </nav>
+  <form method="post" action="/logout" class="logout"><span>{{.User}}</span><button class="link">Sign out</button></form>
+</header>
+{{end}}
+<main>
+  {{if .Flash}}<div class="flash ok">{{.Flash}}</div>{{end}}
+  {{if .Error}}<div class="flash err">{{.Error}}</div>{{end}}
+  {{template "content" .}}
+</main>
+<footer>backupzit {{.Version}} · AGPLv3</footer>
+</body>
+</html>
+{{define "status"}}<span class="badge {{.}}">{{.}}</span>{{end}}
+{{define "runtable"}}
+{{if .}}
+<div class="table-wrap"><table>
+  <tr><th>#</th><th>Type</th><th>Tenant</th><th>Agent</th><th>Job</th><th>Status</th><th>Started</th><th>Duration</th><th>Snapshot</th></tr>
+  {{range .}}
+  <tr {{if or (eq .Status "queued") (eq .Status "running")}}data-autorefresh{{end}}>
+    <td><a href="/runs/{{.ID}}">{{.ID}}</a></td>
+    <td>{{.Kind}}{{if eq .Trigger "schedule"}} <span class="muted">(scheduled)</span>{{end}}</td>
+    <td>{{.TenantName}}</td>
+    <td>{{.Hostname}}</td>
+    <td>{{if .JobID}}<a href="/jobs/{{.JobID}}">{{deref .JobName}}</a>{{end}}</td>
+    <td>{{template "status" .Status}}</td>
+    <td>{{if .StartedAt}}{{ts .StartedAt}}{{else}}<span class="muted">queued {{ago .QueuedAt}}</span>{{end}}</td>
+    <td>{{if .StartedAt}}{{.Duration}}{{end}}</td>
+    <td class="mono">{{short .SnapshotID}}</td>
+  </tr>
+  {{end}}
+</table></div>
+{{else}}<p class="muted">No activity yet.</p>{{end}}
+{{end}}

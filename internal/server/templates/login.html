@@ -1,0 +1,10 @@
+{{define "content"}}
+<div class="login panel">
+  <span class="brand">backup<span>zit</span></span>
+  <form method="post" action="/login" class="stack">
+    <label>Username <input name="username" autocomplete="username" required autofocus></label>
+    <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+    <button>Sign in</button>
+  </form>
+</div>
+{{end}}

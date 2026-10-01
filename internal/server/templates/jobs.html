@@ -1,0 +1,48 @@
+{{define "content"}}
+<h1>Backup jobs</h1>
+<div class="panel">
+  {{if .Data.Jobs}}
+  <div class="table-wrap"><table>
+    <tr><th>Tenant</th><th>Agent</th><th>Job</th><th>Storage</th><th>Schedule</th><th>Next run</th><th>Last result</th></tr>
+    {{range .Data.Jobs}}
+    <tr>
+      <td>{{.TenantName}}</td>
+      <td>{{.Hostname}}</td>
+      <td><a href="/jobs/{{.ID}}">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}</td>
+      <td>{{.TargetName}}</td>
+      <td class="mono">{{if .Schedule}}{{.Schedule}}{{else}}manual{{end}}</td>
+      <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
+      <td>{{if .LastStatus}}{{template "status" (deref .LastStatus)}} <span class="muted">{{ago .LastFinished}}</span>{{else}}<span class="muted">never ran</span>{{end}}</td>
+    </tr>
+    {{end}}
+  </table></div>
+  {{else}}<p class="muted">No backup jobs yet.</p>{{end}}
+</div>
+
+<div class="panel">
+  <h2>New backup job</h2>
+  {{if and .Data.Agents .Data.Targets}}
+  <form method="post" action="/jobs" class="stack">
+    <label>Name <input name="name" required placeholder="Documents nightly"></label>
+    <div class="row">
+      <label>Agent
+        <select name="agent_id" required>{{range .Data.Agents}}<option value="{{.ID}}">{{.TenantName}} — {{.Hostname}}</option>{{end}}</select>
+      </label>
+      <label>Storage target
+        <select name="target_id" required>{{range .Data.Targets}}<option value="{{.ID}}">{{.TenantName}} — {{.Name}}</option>{{end}}</select>
+      </label>
+    </div>
+    <label>Folders and files to back up <small>one path per line, as seen on the agent, e.g. C:\Users or /home</small>
+      <textarea name="paths" required></textarea>
+    </label>
+    <label>Exclude <small>one name pattern per line, e.g. *.tmp, node_modules, Thumbs.db</small>
+      <textarea name="excludes"></textarea>
+    </label>
+    <label>Schedule <small>cron: "minute hour day month weekday" — e.g. <code>0 22 * * *</code> daily at 22:00, <code>0 */4 * * 1-5</code> every 4 h on workdays, or <code>@daily</code>. Leave empty for manual only.</small>
+      <input name="schedule" placeholder="0 22 * * *">
+    </label>
+    <div><button>Create job</button></div>
+  </form>
+  {{else}}<p class="muted">You need at least one <a href="/agents">agent</a> and one <a href="/targets">storage target</a>.</p>{{end}}
+</div>
+{{end}}

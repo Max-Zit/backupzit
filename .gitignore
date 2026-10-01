@@ -3,3 +3,5 @@
 *.msi
 *.test
 *.out
+.gotmp/
+.devdata/

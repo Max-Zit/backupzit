@@ -30,7 +30,11 @@ const usage = `backupzit-agent ` + "%s" + `
 Usage:
   backupzit-agent <command> [options]
 
-Commands:
+Managed mode (controlled by the backupzit server):
+  enroll      Register this machine with the management server
+  service     install | uninstall | start | stop | status | run
+
+Standalone commands:
   init        Create a new repository
   backup      Back up files and folders
   snapshots   List snapshots
@@ -117,6 +121,10 @@ func run(ctx context.Context, args []string) error {
 		return cmdRestore(ctx, rest)
 	case "check":
 		return cmdCheck(ctx, rest)
+	case "enroll":
+		return cmdEnroll(ctx, rest)
+	case "service":
+		return cmdService(rest)
 	case "version":
 		fmt.Println("backupzit-agent", version)
 		return nil

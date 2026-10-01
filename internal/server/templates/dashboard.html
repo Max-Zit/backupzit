@@ -1,0 +1,19 @@
+{{define "content"}}
+{{with .Data.Summary}}
+<h1>Dashboard</h1>
+<div class="grid">
+  <div class="stat"><b>{{.Tenants}}</b><span>tenants</span></div>
+  <div class="stat"><b>{{.AgentsOnline}} / {{.Agents}}</b><span>agents online</span></div>
+  <div class="stat"><b>{{.Jobs}}</b><span>backup jobs</span></div>
+  <div class="stat"><b>{{.Running}}</b><span>queued / running</span></div>
+  <div class="stat"><b>{{.Runs24h}}</b><span>runs in 24 h</span></div>
+  <div class="stat {{if .Failed24h}}bad{{end}}"><b>{{.Failed24h}}</b><span>failed in 24 h</span></div>
+  <div class="stat {{if .Warning24h}}warn{{end}}"><b>{{.Warning24h}}</b><span>warnings in 24 h</span></div>
+</div>
+{{end}}
+<div class="panel">
+  <h2>Recent activity</h2>
+  {{template "runtable" .Data.Runs}}
+</div>
+{{end}}
+

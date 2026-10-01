@@ -1,0 +1,185 @@
+// Command backupzit-server runs the management console and agent API.
+package main
+
+import (
+	"context"
+	"crypto/tls"
+	"errors"
+	"flag"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/backupzit/backupzit/internal/server"
+	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+)
+
+var version = "dev"
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+}
+
+func env(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
+func run() error {
+	listen := flag.String("listen", env("BACKUPZIT_LISTEN", ":8443"), "HTTPS listen address")
+	dbURL := flag.String("db", env("BACKUPZIT_DB", ""), "PostgreSQL URL, e.g. postgres://backupzit:pass@localhost/backupzit")
+	dataDir := flag.String("data-dir", env("BACKUPZIT_DATA_DIR", defaultDataDir()), "directory for TLS certificate and agent downloads")
+	publicURL := flag.String("public-url", env("BACKUPZIT_PUBLIC_URL", ""), "URL agents use to reach this server (default: as seen in the browser)")
+	tlsHosts := flag.String("tls-hosts", env("BACKUPZIT_TLS_HOSTS", ""), "comma-separated DNS names/IPs for the generated certificate")
+	devDB := flag.Bool("dev-embedded-db", false, "start a private PostgreSQL in the data directory (development/evaluation only)")
+	setPassword := flag.String("set-admin-password", "", "set the password of user 'admin' and exit")
+	devHTTP := flag.String("dev-http", "", "also serve plain HTTP on this loopback address, e.g. 127.0.0.1:8080 (development only)")
+	showVersion := flag.Bool("version", false, "print version and exit")
+	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("backupzit-server", version)
+		return nil
+	}
+	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
+		return err
+	}
+	if *devDB {
+		pg, url, err := startEmbeddedDB(*dataDir)
+		if err != nil {
+			return fmt.Errorf("embedded database: %w", err)
+		}
+		defer pg.Stop()
+		*dbURL = url
+		log.Warn("using embedded development database", "dir", filepath.Join(*dataDir, "pgdata"))
+	}
+	if *dbURL == "" {
+		return errors.New("database URL required (--db or BACKUPZIT_DB)")
+	}
+	pool, err := server.OpenDB(ctx, *dbURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	store := server.NewStore(pool)
+
+	if *setPassword != "" {
+		if err := store.SetPassword(ctx, "admin", *setPassword); err != nil {
+			return err
+		}
+		fmt.Println("password for 'admin' updated")
+		return nil
+	}
+	if err := ensureAdmin(ctx, store, *dataDir, log); err != nil {
+		return err
+	}
+
+	var hosts []string
+	for _, h := range strings.Split(*tlsHosts, ",") {
+		if h = strings.TrimSpace(h); h != "" {
+			hosts = append(hosts, h)
+		}
+	}
+	cert, err := server.LoadOrCreateCert(*dataDir, hosts)
+	if err != nil {
+		return fmt.Errorf("tls certificate: %w", err)
+	}
+
+	srv, err := server.New(store, log)
+	if err != nil {
+		return err
+	}
+	srv.CertFingerprint = server.CertFingerprint(cert)
+	srv.PublicURL = strings.TrimRight(*publicURL, "/")
+	srv.DistDir = filepath.Join(*dataDir, "dist")
+	srv.Version = version
+	os.MkdirAll(srv.DistDir, 0o755)
+
+	go server.NewScheduler(store, log).Run(ctx)
+
+	hs := &http.Server{
+		Addr:              *listen,
+		Handler:           srv.Handler(),
+		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12},
+		ReadHeaderTimeout: 15 * time.Second,
+	}
+	go func() {
+		<-ctx.Done()
+		server.Shutdown(hs)
+	}()
+	if *devHTTP != "" {
+		if host, _, _ := strings.Cut(*devHTTP, ":"); host != "127.0.0.1" && host != "localhost" {
+			return errors.New("--dev-http only accepts a loopback address")
+		}
+		plain := &http.Server{Addr: *devHTTP, Handler: srv.Handler(), ReadHeaderTimeout: 15 * time.Second}
+		go plain.ListenAndServe()
+		go func() { <-ctx.Done(); server.Shutdown(plain) }()
+		log.Warn("serving plain HTTP for development", "addr", *devHTTP)
+	}
+	log.Info("backupzit server listening", "addr", *listen, "fingerprint", srv.CertFingerprint, "version", version)
+	if err := hs.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
+}
+
+func defaultDataDir() string {
+	if os.PathSeparator == '\\' {
+		return filepath.Join(env("ProgramData", `C:\ProgramData`), "backupzit-server")
+	}
+	return "/var/lib/backupzit"
+}
+
+// ensureAdmin creates the 'admin' user on first start. The password comes
+// from BACKUPZIT_ADMIN_PASSWORD or is generated and written to a file.
+func ensureAdmin(ctx context.Context, store *server.Store, dataDir string, log *slog.Logger) error {
+	pw := os.Getenv("BACKUPZIT_ADMIN_PASSWORD")
+	generated := pw == ""
+	if generated {
+		pw = server.RandomPassword()
+	}
+	created, err := store.EnsureAdmin(ctx, "admin", pw)
+	if err != nil || !created {
+		return err
+	}
+	if generated {
+		p := filepath.Join(dataDir, "initial-admin-password.txt")
+		if err := os.WriteFile(p, []byte(pw+"\n"), 0o600); err != nil {
+			return err
+		}
+		log.Warn("created user 'admin' with a generated password", "password_file", p)
+	} else {
+		log.Info("created user 'admin' from BACKUPZIT_ADMIN_PASSWORD")
+	}
+	return nil
+}
+
+func startEmbeddedDB(dataDir string) (*embeddedpostgres.EmbeddedPostgres, string, error) {
+	const port = 54321
+	pg := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().
+		Port(port).
+		Username("backupzit").Password("backupzit").Database("backupzit").
+		DataPath(filepath.Join(dataDir, "pgdata")).
+		RuntimePath(filepath.Join(dataDir, "pgruntime")).
+		BinariesPath(filepath.Join(dataDir, "pgbin")).
+		Logger(nil))
+	if err := pg.Start(); err != nil {
+		return nil, "", err
+	}
+	return pg, fmt.Sprintf("postgres://backupzit:backupzit@localhost:%d/backupzit?sslmode=disable", port), nil
+}

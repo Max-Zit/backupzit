@@ -1,0 +1,71 @@
+{{define "content"}}
+{{with .Data.Run}}
+<h1>{{if eq .Kind "backup"}}Backup{{else}}Restore{{end}} #{{.ID}} {{template "status" .Status}}</h1>
+<div class="panel" {{if or (eq .Status "queued") (eq .Status "running")}}data-autorefresh{{end}}>
+  <dl class="kv">
+    <dt>Tenant</dt><dd>{{.TenantName}}</dd>
+    <dt>Agent</dt><dd>{{.Hostname}}</dd>
+    {{if .JobID}}<dt>Job</dt><dd><a href="/jobs/{{.JobID}}">{{deref .JobName}}</a></dd>{{end}}
+    <dt>Trigger</dt><dd>{{.Trigger}}</dd>
+    <dt>Queued</dt><dd>{{ts .QueuedAt}}</dd>
+    <dt>Started</dt><dd>{{ts .StartedAt}}</dd>
+    <dt>Finished</dt><dd>{{ts .FinishedAt}}</dd>
+    {{if .StartedAt}}<dt>Duration</dt><dd>{{.Duration}}</dd>{{end}}
+    <dt>Repository</dt><dd class="mono">{{.RepoURL}}</dd>
+    {{if .SnapshotID}}<dt>Snapshot</dt><dd class="mono">{{.SnapshotID}}</dd>{{end}}
+    {{if eq .Kind "backup"}}
+      <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
+    {{else}}
+      <dt>Restore to</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}original location{{end}}</dd>
+      <dt>Only</dt><dd class="mono">{{if .Paths}}{{join .Paths "\n"}}{{else}}everything{{end}}</dd>
+      <dt>Verify</dt><dd>{{.RestoreVerify}}</dd>
+    {{end}}
+    {{if .Message}}<dt>Message</dt><dd>{{.Message}}</dd>{{end}}
+  </dl>
+</div>
+{{end}}
+
+{{with .Data.BackupStats}}
+<div class="grid">
+  <div class="stat"><b>{{.Files}}</b><span>files ({{.Dirs}} folders)</span></div>
+  <div class="stat"><b>{{bytes .Bytes}}</b><span>total size</span></div>
+  <div class="stat"><b>{{.FilesNew}} / {{.FilesChanged}}</b><span>new / changed files</span></div>
+  <div class="stat"><b>{{bytes .BytesRead}}</b><span>read</span></div>
+  <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (new data)</span></div>
+</div>
+{{end}}
+{{with .Data.RestoreStats}}
+<div class="grid">
+  <div class="stat"><b>{{.Files}}</b><span>files restored</span></div>
+  <div class="stat"><b>{{.Dirs}}</b><span>folders</span></div>
+  <div class="stat"><b>{{bytes .Bytes}}</b><span>restored</span></div>
+  <div class="stat"><b>{{.FilesVerified}}</b><span>files verified</span></div>
+</div>
+{{end}}
+
+{{with .Data.Run}}
+{{if .Errors}}
+<div class="panel">
+  <h2>Errors ({{len .Errors}})</h2>
+  <pre>{{join .Errors "\n"}}</pre>
+</div>
+{{end}}
+
+{{if and (eq .Kind "backup") .SnapshotID}}
+<div class="panel">
+  <h2>Restore from this backup</h2>
+  <form method="post" action="/runs/{{.ID}}/restore" class="stack">
+    <label>Restore on agent
+      <select name="agent_id">{{range $.Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+    </label>
+    <label class="check"><input type="radio" name="mode" value="folder" checked> Restore into a folder</label>
+    <label>Folder <small>the original path structure is recreated below it, e.g. D:\Restore\C\Users\...</small><input name="target" placeholder="C:\Restore"></label>
+    <label class="check"><input type="radio" name="mode" value="original"> Restore to original location (overwrites existing files)</label>
+    <label>Only these paths <small>optional, one per line, e.g. C:\Users\ana\Documents</small><textarea name="includes"></textarea></label>
+    <label class="check"><input type="checkbox" name="verify" checked> Verify restored files</label>
+    <div><button>Start restore</button></div>
+  </form>
+</div>
+{{end}}
+{{end}}
+{{end}}

@@ -1,0 +1,29 @@
+{{define "content"}}
+{{with .Data.Job}}
+<h1>{{.Name}} {{if not .Enabled}}<span class="badge">disabled</span>{{end}}</h1>
+<div class="actions">
+  <form method="post" action="/jobs/{{.ID}}/run" class="inline"><button>Run backup now</button></form>
+  {{if .Enabled}}
+  <form method="post" action="/jobs/{{.ID}}/disable" class="inline"><button class="secondary">Disable</button></form>
+  {{else}}
+  <form method="post" action="/jobs/{{.ID}}/enable" class="inline"><button class="secondary">Enable</button></form>
+  {{end}}
+  <form method="post" action="/jobs/{{.ID}}/delete" class="inline" data-confirm="Delete job {{.Name}}? Existing backups stay on the storage."><button class="danger">Delete</button></form>
+</div>
+<div class="panel">
+  <dl class="kv">
+    <dt>Tenant</dt><dd>{{.TenantName}}</dd>
+    <dt>Agent</dt><dd>{{.Hostname}}</dd>
+    <dt>Storage</dt><dd>{{.TargetName}}</dd>
+    <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
+    <dt>Excludes</dt><dd class="mono">{{if .Excludes}}{{join .Excludes ", "}}{{else}}—{{end}}</dd>
+    <dt>Schedule</dt><dd class="mono">{{if .Schedule}}{{.Schedule}}{{else}}manual{{end}}</dd>
+    <dt>Next run</dt><dd>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</dd>
+  </dl>
+</div>
+{{end}}
+<div class="panel">
+  <h2>History</h2>
+  {{template "runtable" .Data.Runs}}
+</div>
+{{end}}
