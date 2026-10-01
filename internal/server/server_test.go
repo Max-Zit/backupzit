@@ -684,3 +684,76 @@ func TestS3Target(t *testing.T) {
 		}
 	}
 }
+
+func TestNotifications(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	smtpSrv, err := testutil.StartSMTPServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer smtpSrv.Close()
+	host, port, _ := net.SplitHostPort(smtpSrv.Addr)
+
+	// Configure through the settings form, including a test email.
+	jar, _ := cookiejar.New(nil)
+	c := e.ts.Client()
+	c.Jar = jar
+	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	post := func(p string, form url.Values) string {
+		req, _ := http.NewRequest(http.MethodPost, e.ts.URL+p, strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", e.ts.URL)
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.Header.Get("Location")
+	}
+	post("/login", url.Values{"username": {"admin"}, "password": {"admin-pass-123"}})
+	form := url.Values{"enabled": {"on"}, "host": {host}, "port": {port}, "security": {"none"},
+		"from": {"backup@example.com"}, "to": {"it@example.com, boss@example.com"},
+		"on_failure": {"on"}, "daily_report": {"on"}, "daily_hour": {"8"}}
+	form.Set("action", "test")
+	if loc := post("/settings/email", form); strings.Contains(loc, "err=") {
+		t.Fatalf("test email: %s", loc)
+	}
+	if m := smtpSrv.Messages(); len(m) != 1 || len(m[0].To) != 2 || !strings.Contains(m[0].Data, "Test message") {
+		t.Fatalf("test email not received: %+v", m)
+	}
+	form.Set("action", "save")
+	if loc := post("/settings/email", form); strings.Contains(loc, "err=") {
+		t.Fatalf("save settings: %s", loc)
+	}
+
+	// A failed and a successful run: only the failure is mailed, once.
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, _ := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag.VSS = false
+	agents, _ := e.store.ListAgents(ctx)
+	targetID, _ := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	bad, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: targetID, Name: "broken", Paths: []string{filepath.Join(t.TempDir(), "missing")}, Enabled: true})
+	good, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: targetID, Name: "fine", Paths: []string{t.TempDir()}, Enabled: true})
+	e.store.QueueBackup(ctx, bad, "manual")
+	runAgent(t, ag)
+	e.store.QueueBackup(ctx, good, "manual")
+	runAgent(t, ag)
+
+	n := server.NewNotifier(e.store, slog.New(slog.NewTextHandler(io.Discard, nil)), func() string { return "https://backup.example" })
+	n.Pass(ctx, time.Date(2026, 10, 2, 10, 0, 0, 0, time.Local)) // not report hour
+	n.Pass(ctx, time.Date(2026, 10, 2, 10, 0, 0, 0, time.Local)) // nothing new
+	msgs := smtpSrv.Messages()
+	if len(msgs) != 2 || !strings.Contains(msgs[1].Data, `FAILED Backup "broken"`) || !strings.Contains(msgs[1].Data, "https://backup.example/runs/") {
+		t.Fatalf("failure alert: %d messages, last %q", len(msgs), msgs[len(msgs)-1].Data)
+	}
+
+	// Daily report: once at 08:xx, not again the same day.
+	n.Pass(ctx, time.Date(2026, 10, 2, 8, 0, 0, 0, time.Local))
+	n.Pass(ctx, time.Date(2026, 10, 2, 8, 30, 0, 0, time.Local))
+	msgs = smtpSrv.Messages()
+	if len(msgs) != 3 || !strings.Contains(msgs[2].Data, "Daily report 2026-10-02") || !strings.Contains(msgs[2].Data, "1 failed") {
+		t.Fatalf("daily report: %d messages: %q", len(msgs), msgs[len(msgs)-1].Data)
+	}
+}

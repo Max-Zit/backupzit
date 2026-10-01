@@ -37,6 +37,8 @@ type Scheduler struct {
 	interval time.Duration
 	// StaleAfter is how long an agent may be silent while a run is in progress.
 	StaleAfter time.Duration
+	// Notifier, if set, sends alerts and daily reports on every tick.
+	Notifier *Notifier
 }
 
 func NewScheduler(store *Store, log *slog.Logger) *Scheduler {
@@ -59,6 +61,9 @@ func (s *Scheduler) Run(ctx context.Context) {
 
 // Tick performs one scheduling pass.
 func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
+	if s.Notifier != nil {
+		defer s.Notifier.Pass(ctx, now)
+	}
 	if n, err := s.store.FailStaleRuns(ctx, s.StaleAfter); err != nil {
 		s.log.Error("fail stale runs", "err", err)
 	} else if n > 0 {

@@ -1,0 +1,48 @@
+{{define "content"}}
+<h1>Settings</h1>
+{{with .Data.Email}}
+<div class="panel">
+  <h2>Email notifications</h2>
+  <form method="post" action="/settings/email" class="stack">
+    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Send email notifications</label>
+    <div class="row">
+      <label>SMTP server <input name="host" value="{{.Host}}" placeholder="smtp.office365.com"></label>
+      <div class="row">
+        <label>Port <input type="number" name="port" value="{{.Port}}" min="1" max="65535"></label>
+        <label>Security
+          <select name="security">
+            <option value="starttls" {{if eq .Security "starttls"}}selected{{end}}>STARTTLS (587)</option>
+            <option value="tls" {{if eq .Security "tls"}}selected{{end}}>TLS (465)</option>
+            <option value="none" {{if eq .Security "none"}}selected{{end}}>None (25, internal relay)</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div class="row">
+      <label>Username <small>leave empty for relays without login</small><input name="username" value="{{.Username}}" autocomplete="off"></label>
+      <label>Password <small>{{if $.Data.HasPassword}}stored — leave empty to keep it{{else}}&nbsp;{{end}}</small><input type="password" name="password" autocomplete="new-password"></label>
+    </div>
+    <div class="row">
+      <label>From <input name="from" value="{{.From}}" placeholder="backup@company.com"></label>
+      <label>To <small>one or more addresses, separated by commas</small><input name="to" value="{{join .To ", "}}" placeholder="it@company.com"></label>
+    </div>
+    <fieldset class="sched">
+      <legend>Send an email when a backup or restore</legend>
+      <div class="choice">
+        <label class="check"><input type="checkbox" name="on_failure" {{if .OnFailure}}checked{{end}}> fails</label>
+        <label class="check"><input type="checkbox" name="on_warning" {{if .OnWarning}}checked{{end}}> finishes with warnings</label>
+        <label class="check"><input type="checkbox" name="on_success" {{if .OnSuccess}}checked{{end}}> succeeds</label>
+      </div>
+      <div class="choice">
+        <label class="check"><input type="checkbox" name="daily_report" {{if .DailyReport}}checked{{end}}> Daily report at</label>
+        <select name="daily_hour" class="narrow">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $.Data.Email.DailyHour}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
+      </div>
+    </fieldset>
+    <div class="actions">
+      <button name="action" value="save">Save</button>
+      <button name="action" value="test" class="secondary">Send test email</button>
+    </div>
+  </form>
+</div>
+{{end}}
+{{end}}

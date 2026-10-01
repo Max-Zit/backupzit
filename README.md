@@ -17,7 +17,7 @@ connect to it over HTTPS.
 2. **Management console** — agent registration, jobs, schedules, history, restore, agent downloads; Windows MSI and Linux packages ✅ (first version)
 3. **Windows image backup** — VSS snapshots ✅, whole-disk / partition images ✅, file-level restore from images ✅
 4. **Bare-metal restore** — image restore to an empty disk ✅ (verified booting); boot media, dissimilar hardware
-5. **More targets** — S3 ✅, SMB ✅; retention policies ✅; notifications
+5. **More targets** — S3 ✅, SMB ✅; retention policies ✅; email notifications ✅
 6. **Security** — encryption, immutable repositories (S3 Object Lock, hardened Linux repository)
 7. **Hypervisor (agentless) backup** — Proxmox, VMware
 8. **Linux image backup**; more users, roles, optional LDAP login

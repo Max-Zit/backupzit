@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/backupzit/backupzit/internal/api"
 )
@@ -177,6 +178,13 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("run finished", "run", id, "status", res.Status, "agent", a.Hostname)
+	if s.Notifier != nil {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			s.Notifier.Pass(ctx, time.Now())
+		}()
+	}
 	writeJSON(w, http.StatusOK, struct{}{})
 }
 

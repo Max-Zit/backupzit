@@ -18,6 +18,7 @@
     <a href="/agents" class="{{if eq .Nav "agents"}}on{{end}}">Agents</a>
     <a href="/targets" class="{{if eq .Nav "targets"}}on{{end}}">Storage</a>
     <a href="/recovery" class="{{if eq .Nav "recovery"}}on{{end}}">Recovery</a>
+    <a href="/settings" class="{{if eq .Nav "settings"}}on{{end}}">Settings</a>
   </nav>
   <form method="post" action="/logout" class="logout"><span>{{.User}}</span><button class="link">Sign out</button></form>
 </header>

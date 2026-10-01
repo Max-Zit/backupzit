@@ -110,7 +110,10 @@ func run() error {
 	srv.Version = version
 	os.MkdirAll(srv.DistDir, 0o755)
 
-	go server.NewScheduler(store, log).Run(ctx)
+	srv.Notifier = server.NewNotifier(store, log, func() string { return srv.PublicURL })
+	sched := server.NewScheduler(store, log)
+	sched.Notifier = srv.Notifier
+	go sched.Run(ctx)
 
 	hs := &http.Server{
 		Addr:              *listen,

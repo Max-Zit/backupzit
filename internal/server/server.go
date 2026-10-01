@@ -48,7 +48,9 @@ type Server struct {
 	Version      string
 
 	pages map[string]*template.Template
-	cache *repoCache
+	// Notifier is triggered when a run finishes (optional).
+	Notifier *Notifier
+	cache    *repoCache
 }
 
 // New creates a server.
@@ -256,6 +258,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(s.handleFilesRestore))
 	mux.HandleFunc("GET /downloads/{file}", s.ui(s.handleDownload))
 	mux.HandleFunc("GET /recovery", s.ui(s.handleRecovery))
+	mux.HandleFunc("GET /settings", s.ui(s.handleSettings))
+	mux.HandleFunc("POST /settings/email", s.ui(s.handleSettingsEmail))
 	mux.HandleFunc("POST /recovery/token", s.ui(s.handleRecoveryToken))
 	mux.HandleFunc("POST /recovery/recovery.json", s.ui(s.handleRecoveryJSON))
 
