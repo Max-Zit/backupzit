@@ -109,21 +109,7 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	ar := &api.Run{
 		ID:   run.ID,
 		Kind: run.Kind,
-		Repository: api.Repository{
-			URL:                 run.RepoURL,
-			SFTPPassword:        t.SFTPPassword,
-			SFTPKey:             t.SFTPKey,
-			SFTPHostKey:         t.SFTPHostKey,
-			S3AccessKey:         t.S3AccessKey,
-			S3SecretKey:         t.S3SecretKey,
-			S3Region:            t.S3Region,
-			S3LockDays:          t.S3LockDays,
-			SMBPassword:         t.SMBPassword,
-			SMBDomain:           t.SMBDomain,
-			HardenedKey:         t.HardenedKey,
-			HardenedFingerprint: t.HardenedFingerprint,
-			Password:            t.RecoveryKey,
-		},
+		Repository: targetRepository(t, run.RepoURL),
 	}
 	if run.JobName != nil {
 		ar.JobName = *run.JobName
@@ -149,6 +135,11 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		ar.RestoreTarget = run.RestoreTarget
 		if len(run.ImagePartitions) > 0 {
 			ar.ImagePartition = run.ImagePartitions[0]
+		}
+	case api.KindCopy:
+		s.addRetention(ctx, run, ar)
+		if err := s.addCopySource(ctx, run, ar); err != nil {
+			return nil, err
 		}
 	case api.KindImageRestore:
 		ar.SnapshotID = run.SnapshotID
@@ -182,6 +173,15 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("run finished", "run", id, "status", res.Status, "agent", a.Hostname)
+	if res.Status != api.StatusFailed {
+		if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && (run.Kind == api.KindBackup || run.Kind == api.KindImageBackup) {
+			if ids, err := s.store.QueueCopiesAfter(r.Context(), *run.JobID); err != nil {
+				s.log.Error("queue copy jobs", "job", *run.JobID, "err", err)
+			} else if len(ids) > 0 {
+				s.log.Info("copy jobs queued after backup", "job", *run.JobID, "runs", ids)
+			}
+		}
+	}
 	if s.Notifier != nil {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

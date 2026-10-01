@@ -274,6 +274,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res = a.imageBackup(ctx, run)
 	case api.KindImageFileRestore:
 		res = a.imageFileRestore(ctx, run)
+	case api.KindCopy:
+		res = a.copyRun(ctx, run)
 	case api.KindImageRestore:
 		res = a.imageRestore(ctx, run)
 		a.mu.Lock()

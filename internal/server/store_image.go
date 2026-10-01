@@ -14,6 +14,7 @@ import (
 const (
 	JobFiles = "files"
 	JobImage = "image"
+	JobCopy  = "copy" // copy of another job's backups
 )
 
 // checkImageSelection validates a disk/partition choice against the

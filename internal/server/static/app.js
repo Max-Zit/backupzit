@@ -98,6 +98,17 @@ function syncJobKind() {
     box.hidden = !on;
     box.querySelectorAll("input,textarea,select").forEach(function (i) { i.disabled = !on; });
   });
+  document.querySelectorAll("[data-notkind]").forEach(function (el) {
+    var off = el.getAttribute("data-notkind") === sel.value;
+    el.hidden = off;
+    el.querySelectorAll("select,input").forEach(function (i) { i.disabled = off; });
+  });
+  document.querySelectorAll("[data-jobkind-opt]").forEach(function (o) {
+    o.hidden = o.disabled = o.getAttribute("data-jobkind-opt") !== sel.value;
+    if (o.disabled && o.selected) { o.parentNode.value = "daily"; syncSched(); }
+  });
+  var after = document.querySelector("option[value=after]");
+  if (sel.value === "copy" && after && !after.dataset.touched) { after.dataset.touched = "1"; after.parentNode.value = "after"; syncSched(); }
   if (sel.value === "image") syncDiskChoice();
 }
 
@@ -214,3 +225,14 @@ function syncPeriod() {
 }
 document.addEventListener("change", function (e) { if (e.target.id === "period") syncPeriod(); });
 document.addEventListener("DOMContentLoaded", syncPeriod);
+
+// Calendar: "+N more" shows all entries of a day; click again to collapse.
+document.addEventListener("click", function (e) {
+  var btn = e.target.closest && e.target.closest("[data-expand]");
+  if (!btn) return;
+  var day = btn.closest(".calday");
+  var open = day.classList.toggle("expanded");
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+  if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+  btn.textContent = open ? "show less" : btn.dataset.label;
+});

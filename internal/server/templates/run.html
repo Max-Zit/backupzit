@@ -14,6 +14,8 @@
     {{if .SnapshotID}}<dt>Snapshot</dt><dd class="mono">{{.SnapshotID}}</dd>{{end}}
     {{if eq .Kind "backup"}}
       <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
+    {{else if eq .Kind "copy"}}
+      <dt>Copied from</dt><dd class="mono">{{.SourceRepoURL}}</dd>
     {{else if eq .Kind "image-backup"}}
       <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
     {{else if eq .Kind "image-file-restore"}}
@@ -70,6 +72,14 @@
   </div>
   {{end}}
 {{end}}
+{{with .Data.CopyStats}}
+<div class="grid">
+  <div class="stat"><b>{{.Snapshots}}</b><span>backups copied</span></div>
+  <div class="stat"><b>{{.Skipped}}</b><span>already copied earlier</span></div>
+  <div class="stat"><b>{{bytes .BytesRead}}</b><span>new data copied</span></div>
+  <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (compressed)</span></div>
+</div>
+{{end}}
 {{with .Data.RestoreStats}}
 <div class="grid">
   <div class="stat"><b>{{.Files}}</b><span>files restored</span></div>
@@ -91,7 +101,7 @@
 <div class="panel"><p class="muted">This backup was removed by the job's retention policy and can no longer be restored.</p></div>
 {{end}}
 
-{{if and (eq .Kind "backup") .SnapshotID (not .Expired)}}
+{{if and (or (eq .Kind "backup") $.Data.CopyOfFiles) .SnapshotID (not .Expired)}}
 {{if $.Me.Can "restore"}}<div class="panel">
   <h2>Restore from this backup</h2>
   <form method="post" action="/runs/{{.ID}}/restore" class="stack">

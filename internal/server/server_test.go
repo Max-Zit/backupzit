@@ -1203,3 +1203,75 @@ func TestSecretsEncryptedAtRest(t *testing.T) {
 		t.Error("wrong key decrypted secrets")
 	}
 }
+
+func TestCopyJob(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag.VSS = false
+	agents, _ := e.store.ListAgents(ctx)
+	nas, _ := e.store.CreateTarget(ctx, server.Target{Name: "nas", Kind: "local", URL: filepath.Join(t.TempDir(), "nas"), Encrypted: true})
+	cloud, _ := e.store.CreateTarget(ctx, server.Target{Name: "cloud", Kind: "local", URL: filepath.Join(t.TempDir(), "cloud"), Encrypted: true})
+	src := filepath.Join(t.TempDir(), "data")
+	files := writeTree(t, src)
+	jobID, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: nas, Name: "docs", Paths: []string{src}, Enabled: true})
+
+	// Copy job through the form, running after each backup.
+	if _, loc, _ := admin.do("POST", "/jobs", url.Values{"name": {"docs offsite"}, "kind": {"copy"}, "source_job": {fmt.Sprint(jobID)},
+		"target_id": {fmt.Sprint(nas)}, "sched_kind": {"after"}}); !strings.Contains(loc, "err=") {
+		t.Error("copy to the same target accepted")
+	}
+	_, loc, _ := admin.do("POST", "/jobs", url.Values{"name": {"docs offsite"}, "kind": {"copy"}, "source_job": {fmt.Sprint(jobID)},
+		"target_id": {fmt.Sprint(cloud)}, "sched_kind": {"after"}, "keep_monthly": {"12"}})
+	if !strings.Contains(loc, "msg=") {
+		t.Fatalf("create copy job: %s", loc)
+	}
+	if _, loc, _ := admin.do("POST", "/jobs", url.Values{"name": {"x"}, "kind": {"files"}, "agent_id": {fmt.Sprint(agents[0].ID)},
+		"target_id": {fmt.Sprint(cloud)}, "paths": {src}, "sched_kind": {"after"}}); !strings.Contains(loc, "err=") {
+		t.Error("after-schedule accepted for a normal job")
+	}
+
+	runID, _ := e.store.QueueBackup(ctx, jobID, "manual")
+	runAgent(t, ag) // backup; finishing it queues the copy
+	if r, _ := e.store.GetRun(ctx, runID); r.Status != api.StatusSuccess {
+		t.Fatalf("backup: %s %s", r.Status, r.Message)
+	}
+	runs, _ := e.store.ListRuns(ctx, server.RunFilter{})
+	if len(runs) < 2 || runs[0].Kind != api.KindCopy || runs[0].Trigger != "after-backup" {
+		t.Fatalf("copy run not queued after backup: %+v", runs[0])
+	}
+	copyRunID := runs[0].ID
+	runAgent(t, ag)
+	cr, _ := e.store.GetRun(ctx, copyRunID)
+	if cr.Status != api.StatusSuccess || cr.SnapshotID == "" || !strings.Contains(cr.Message, "Copied 1 backups") {
+		t.Fatalf("copy run: %s %q", cr.Status, cr.Message)
+	}
+	if _, _, body := admin.do("GET", fmt.Sprintf("/runs/%d", copyRunID), nil); !strings.Contains(body, "backups copied") || !strings.Contains(body, "Restore from this backup") {
+		t.Error("copy run page lacks stats or restore")
+	}
+
+	// Restore from the copy.
+	dst := filepath.Join(t.TempDir(), "out")
+	rr, err := e.store.QueueRestore(ctx, copyRunID, agents[0].ID, dst, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runAgent(t, ag)
+	if r, _ := e.store.GetRun(ctx, rr); r.Status != api.StatusSuccess {
+		t.Fatalf("restore from copy: %s %q %v", r.Status, r.Message, r.Errors)
+	}
+	comps := strings.Split(strings.ReplaceAll(strings.Replace(src, ":", "", 1), `\`, "/"), "/")
+	for p, want := range files {
+		got, err := os.ReadFile(filepath.Join(append(append([]string{dst}, comps...), filepath.FromSlash(p))...))
+		if err != nil || string(got) != want {
+			t.Errorf("restored %s: %v", p, err)
+		}
+	}
+}

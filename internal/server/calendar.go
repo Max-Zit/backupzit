@@ -107,7 +107,7 @@ func (s *Server) handleCalendar(w http.ResponseWriter, r *http.Request, user str
 			return
 		}
 		for _, run := range runs {
-			if !isBackupKind(run.Kind) || run.JobID == nil {
+			if !(isBackupKind(run.Kind) || run.Kind == api.KindCopy) || run.JobID == nil {
 				continue
 			}
 			add(run.QueuedAt.Local(), CalEntry{JobID: *run.JobID, JobName: deref(run.JobName), Hostname: run.Hostname, Status: run.Status, Kind: run.Kind})

@@ -156,7 +156,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image"}[k]
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy"}[k]
 	},
 	"hours": func() []int {
 		h := make([]int, 24)
@@ -715,7 +715,7 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 		return
 	}
 	s.render(w, r, "jobs", pageData{Title: "Backup jobs", Nav: "jobs", User: user,
-		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents)}})
+		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents), "SourceJobs": sourceJobs(jobs)}})
 }
 
 func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -740,6 +740,10 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		Excludes: lines(r.FormValue("excludes")),
 		Schedule: sched,
 		Enabled:  true,
+	}
+	if job.Kind == JobCopy {
+		job.SourceJobID = optionalID(r.FormValue("source_job"))
+		job.Paths, job.Excludes = nil, nil
 	}
 	if job.Kind == JobImage {
 		if d, err := strconv.Atoi(r.FormValue("image_disk")); err == nil {
@@ -837,10 +841,14 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 	}
 	var backupStats *repo.SnapshotStats
 	var restoreStats *restorer.Stats
+	var copyStats *CopyRunStats
 	if len(run.Stats) > 0 {
 		if run.Kind == api.KindBackup || run.Kind == api.KindImageBackup {
 			backupStats = &repo.SnapshotStats{}
 			json.Unmarshal(run.Stats, backupStats)
+		} else if run.Kind == api.KindCopy {
+			copyStats = &CopyRunStats{}
+			json.Unmarshal(run.Stats, copyStats)
 		} else if run.Kind == api.KindRestore || run.Kind == api.KindImageFileRestore {
 			restoreStats = &restorer.Stats{}
 			json.Unmarshal(run.Stats, restoreStats)
@@ -852,7 +860,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		return
 	}
 	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: map[string]any{
-		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "Agents": agents,
+		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "CopyStats": copyStats, "CopyOfFiles": s.store.copyOfFiles(r.Context(), run), "Agents": agents,
 		"Image": imageDetails(run), "Inventory": inventories(agents),
 	}})
 }

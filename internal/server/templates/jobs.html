@@ -8,7 +8,7 @@
     <tr>
       <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}</td>
       <td class="nowrap">{{.Hostname}}</td>
-      <td>{{if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
+      <td>{{if eq .Kind "copy"}}<span class="badge info-badge">copy</span> of {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
       <td>{{.TargetName}}</td>
       <td>{{schedule .Schedule}}</td>
       <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
@@ -25,16 +25,17 @@
   <form method="post" action="/jobs" class="stack">
     <label>Name <input name="name" required placeholder="Documents nightly"></label>
     <div class="row">
-      <label>Agent
+      <label data-notkind="copy">Agent
         <select name="agent_id" id="agent_sel" required>{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
       </label>
-      <label>Storage target
+      <label>Storage target <small data-jobkind="copy" hidden>where the copies go — a different target than the source job's</small>
         <select name="target_id" required>{{range .Data.Targets}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
       </label>
     </div>
     <div class="choice">
       <label class="check"><input type="radio" name="kind" value="files" checked data-kindsel> Files and folders</label>
       <label class="check"><input type="radio" name="kind" value="image" data-kindsel> Disk image <small>whole disk or selected partitions, restorable to an empty disk</small></label>
+      {{if .Data.SourceJobs}}<label class="check"><input type="radio" name="kind" value="copy" data-kindsel> Backup copy <small>copy the backups of another job to a second storage (3-2-1)</small></label>{{end}}
     </div>
     <div data-jobkind="files" class="stack">
       <label>Folders and files to back up <small>one path per line, as seen on the agent, e.g. C:\Users or /home</small>
@@ -43,6 +44,12 @@
       <label>Exclude <small>one name pattern per line, e.g. *.tmp, node_modules, Thumbs.db</small>
         <textarea name="excludes"></textarea>
       </label>
+    </div>
+    <div data-jobkind="copy" hidden class="stack">
+      <label>Copy the backups of
+        <select name="source_job" required>{{range .Data.SourceJobs}}<option value="{{.ID}}">{{.Name}} — {{.Hostname}} → {{.TargetName}}</option>{{end}}</select>
+      </label>
+      <p class="muted">The agent of that job copies new backups from its storage to the storage target selected above. Only data that is not there yet is transferred, and the copy keeps its own retention below — for example 7 daily on the NAS and 12 monthly in the cloud.</p>
     </div>
     <div data-jobkind="image" hidden>
       <label>Disks of the selected agent <small>tick a whole disk or only some partitions</small></label>
@@ -66,6 +73,7 @@
           <option value="daily" selected>At specific times</option>
           <option value="interval">Repeatedly, every few hours or minutes</option>
           <option value="monthly">Once a month</option>
+          <option value="after" data-jobkind-opt="copy">After each backup of the source job</option>
           <option value="manual">Manually only</option>
         </select>
       </label>

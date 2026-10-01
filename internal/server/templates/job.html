@@ -14,7 +14,9 @@
   <dl class="kv">
     <dt>Agent</dt><dd>{{.Hostname}}</dd>
     <dt>Storage</dt><dd>{{.TargetName}}</dd>
-    {{if eq .Kind "image"}}
+    {{if eq .Kind "copy"}}
+    <dt>Copies</dt><dd>backups of <a href="/jobs/{{.SourceJobID}}">{{deref .SourceJobName}}</a></dd>
+    {{else if eq .Kind "image"}}
     <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
     {{else}}
     <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>

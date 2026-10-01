@@ -276,32 +276,35 @@ func (rs *restorer) applyMeta(dst string, n *repo.Node, setTimes bool) {
 	}
 }
 
-// verifyFile re-chunks the restored file and compares chunk IDs and size.
+// verifyFile reads the restored file back in pieces of the stored chunks'
+// lengths and compares their hashes and the total size. It does not depend
+// on the repository's chunker, so it also works for copied snapshots.
 func (rs *restorer) verifyFile(p string, n *repo.Node) error {
 	f, err := os.Open(p)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	rs.chk.Reset(f, rs.r.ChunkerPolynomial())
-	var i int
 	var size uint64
-	for {
-		c, err := rs.chk.Next(rs.buf)
-		if err == io.EOF {
-			break
+	for i, id := range n.Content {
+		l, ok := rs.r.BlobLength(id)
+		if !ok {
+			return fmt.Errorf("chunk %d not in index", i)
 		}
-		if err != nil {
-			return err
+		if cap(rs.buf) < l {
+			rs.buf = make([]byte, l)
 		}
-		if i >= len(n.Content) || repo.Hash(c.Data) != n.Content[i] {
+		b := rs.buf[:l]
+		if _, err := io.ReadFull(f, b); err != nil {
+			return fmt.Errorf("content differs at chunk %d: %w", i, err)
+		}
+		if repo.Hash(b) != id {
 			return fmt.Errorf("content differs at chunk %d", i)
 		}
-		size += uint64(c.Length)
-		i++
+		size += uint64(l)
 	}
-	if i != len(n.Content) || size != n.Size {
-		return fmt.Errorf("size/chunk count differs (%d/%d bytes, %d/%d chunks)", size, n.Size, i, len(n.Content))
+	if extra, _ := f.Read(make([]byte, 1)); extra > 0 || size != n.Size {
+		return fmt.Errorf("size differs (%d bytes restored, %d expected)", size, n.Size)
 	}
 	return nil
 }

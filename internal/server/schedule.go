@@ -16,6 +16,7 @@ const (
 	SchedDaily    = "daily"    // at fixed times on selected weekdays
 	SchedInterval = "interval" // every N minutes, optionally within a time window
 	SchedMonthly  = "monthly"  // on a day of the month at a fixed time
+	SchedAfter    = "after"    // copy jobs: after each backup of the source job
 )
 
 // Schedule is a human-friendly backup schedule. It is stored as JSON in
@@ -127,6 +128,9 @@ func (s *Schedule) Validate() error {
 	}
 	switch s.Kind {
 	case SchedManual:
+		return nil
+	case SchedAfter:
+		s.Days, s.Times = nil, nil
 		return nil
 	case SchedDaily:
 		if len(s.Times) == 0 {
@@ -281,6 +285,8 @@ func (s Schedule) Describe() string {
 		return every + ", " + s.daysText()
 	case SchedMonthly:
 		return fmt.Sprintf("Monthly on day %d at %s", s.DayOfMonth, s.Times[0])
+	case SchedAfter:
+		return "After each backup of the source job"
 	}
 	return "Manual only"
 }

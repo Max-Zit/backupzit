@@ -334,3 +334,14 @@ label.check.top { align-self: end; padding-bottom: 10px; }
 .sidetabs a.on .ic { color: var(--accent); }
 .settings-body > .panel:first-child { margin-top: 0; }
 @media (max-width: 900px) { .settings { grid-template-columns: 1fr; } .sidetabs { position: static; grid-auto-flow: column; overflow-x: auto; } .sidetabs a small { display: none; } }
+
+/* calendar: collapsed extra entries, expandable day */
+.calday .ev.extra { display: none; }
+.calday.expanded .ev.extra { display: block; }
+.calday.expanded { position: relative; z-index: 2; background: var(--panel); box-shadow: var(--shadow-lg); }
+button.more { background: none; border: 0; box-shadow: none; color: var(--accent); font-size: 11.5px; font-weight: 600; padding: 2px 6px; text-align: left; cursor: pointer; }
+button.more:hover { background: none; text-decoration: underline; }
+/* number inputs: room for the value next to the spin buttons */
+input.narrow { width: 7.5em; padding-right: 4px; }
+input[type=number] { min-width: 5.5em; }
+label.check input[type=number], label.check input[type=text] { width: 7.5em; height: auto; padding: 6px 8px; flex: none; }

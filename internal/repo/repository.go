@@ -558,3 +558,19 @@ func (r *Repository) saveIndexFile(ctx context.Context, packs []indexPack) (stri
 	}
 	return name, nil
 }
+
+// BlobLength returns the plaintext length of an indexed data blob.
+func (r *Repository) BlobLength(id ID) (int, bool) {
+	l, ok := r.idx.Lookup(BlobHandle{Type: DataBlob, ID: id})
+	if !ok {
+		return 0, false
+	}
+	if l.Raw > 0 {
+		return int(l.Raw), true
+	}
+	n := int(l.Length)
+	if r.aead != nil {
+		n -= r.aead.NonceSize() + r.aead.Overhead()
+	}
+	return n, true
+}

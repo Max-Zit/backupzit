@@ -40,6 +40,16 @@
 <p>Example: 3 recent, 7 daily, 4 weekly, 6 monthly keeps about half a year of history with ~20 restore points. After each successful run, snapshots no longer selected are removed (shown as <i>expired</i> in Activity) and data that is no longer used by any snapshot is deleted from the storage. All zeros keeps everything.</p>
 <div class="callout"><p>Thanks to deduplication, long retention is cheap: unchanged data is stored only once no matter how many snapshots reference it.</p></div>
 
+<h2>Backup copy jobs (3-2-1)</h2>
+<p>A <b>backup copy</b> job copies the backups of another job to a second storage target — for example nightly backups to the office NAS, copied to S3 or a hardened repository off-site. Choose <i>Backup copy</i> in the job form, select the job to copy and the destination storage.</p>
+<ul>
+  <li>The agent of the source job does the copying; the protected machine is <b>not read again</b>.</li>
+  <li>Only data that is not yet at the destination is transferred, re-encrypted with the destination's key.</li>
+  <li>Schedule <b>After each backup of the source job</b> (default) keeps the copy current; any normal schedule works too, e.g. once a night for a slow internet line.</li>
+  <li>The copy has its own retention, e.g. 7 daily on the NAS and 12 monthly in the cloud.</li>
+  <li>Copied file backups can be restored from the copy run's page, like any backup. Copies of disk images are restored with the command line agent.</li>
+</ul>
+
 <h2>Running, disabling, deleting</h2>
 <ul>
   <li><b>Run backup now</b> queues a backup immediately.</li>

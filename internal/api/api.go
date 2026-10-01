@@ -63,6 +63,8 @@ const (
 	KindImageRestore = "image-restore" // image onto a disk
 	// KindImageFileRestore extracts files and folders from an image backup.
 	KindImageFileRestore = "image-file-restore"
+	// KindCopy copies the backups of a job to a second storage target.
+	KindCopy = "copy"
 )
 
 // Run is a unit of work assigned to an agent.
@@ -97,6 +99,11 @@ type Run struct {
 	// Image file restore: partition to read; Includes lists paths inside it
 	// (`\Users\ana`) and RestoreTarget the folder ("" = original location).
 	ImagePartition int `json:"image_partition,omitempty"`
+
+	// Copy: Source is the repository to copy from; snapshots tagged
+	// SourceTag are copied into Repository.
+	Source    *Repository `json:"source,omitempty"`
+	SourceTag string      `json:"source_tag,omitempty"`
 }
 
 // Repository tells the agent where and how to store data.
