@@ -16,6 +16,10 @@
       <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
     {{else if eq .Kind "image-backup"}}
       <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
+    {{else if eq .Kind "image-file-restore"}}
+      <dt>From</dt><dd>partition {{index .ImagePartitions 0}} of image {{short .SnapshotID}}</dd>
+      <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
+      <dt>Restore to</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}original location{{end}}</dd>
     {{else if eq .Kind "image-restore"}}
       <dt>Target disk</dt><dd>{{if .TargetDisk}}Disk {{deref2 .TargetDisk}}{{end}}{{if .KeepOffline}} (left offline){{end}}</dd>
     {{else}}
@@ -40,7 +44,7 @@
   <div class="panel">
     <h2>Disk {{.Number}} — {{.Model}}, {{bytes .Size}}, {{upper .Style}}</h2>
     <div class="table-wrap"><table>
-      <tr><th>#</th><th>Size</th><th>Volume</th><th>File system</th><th>Imaged</th><th>Stored</th></tr>
+      <tr><th>#</th><th>Size</th><th>Volume</th><th>File system</th><th>Imaged</th><th>Stored</th><th></th></tr>
       {{range .Partitions}}
       <tr>
         <td>{{.Number}}</td>
@@ -49,6 +53,7 @@
         <td>{{.FileSystem}}</td>
         <td>{{if .Included}}{{if eq .Source "vss"}}VSS snapshot{{else}}live{{end}}, {{if eq .Method "used-blocks"}}used blocks{{else}}all blocks{{end}}{{else}}<span class="muted">layout only</span>{{end}}</td>
         <td>{{if .Included}}{{bytes .StoredBytes}}{{end}}</td>
+        <td>{{if and .Included (eq .FileSystem "NTFS") $.Data.Run.SnapshotID}}<a href="/runs/{{$.Data.Run.ID}}/browse?part={{.Number}}">Browse files</a>{{end}}</td>
       </tr>
       {{end}}
     </table></div>

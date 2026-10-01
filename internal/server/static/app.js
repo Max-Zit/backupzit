@@ -173,3 +173,10 @@ document.addEventListener("DOMContentLoaded", function () {
   syncJobKind();
   renderRestoreDisks();
 });
+
+// "Select all" checkbox: <input type="checkbox" data-checkall="name">
+document.addEventListener("change", function (e) {
+  var name = e.target.getAttribute && e.target.getAttribute("data-checkall");
+  if (!name) return;
+  document.querySelectorAll('input[name="' + name + '"]').forEach(function (c) { c.checked = e.target.checked; });
+});

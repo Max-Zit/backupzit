@@ -84,3 +84,34 @@ func (a *Agent) imageRestore(ctx context.Context, run api.Run) api.RunResult {
 	}
 	return api.RunResult{Status: api.StatusSuccess, Stats: stats, Message: msg}
 }
+
+func (a *Agent) imageFileRestore(ctx context.Context, run api.Run) api.RunResult {
+	r, closeRepo, err := a.openRepo(ctx, run.Repository, false)
+	if err != nil {
+		return failed(fmt.Errorf("open repository: %w", err))
+	}
+	defer closeRepo()
+	sn, err := r.LoadSnapshot(ctx, run.SnapshotID)
+	if err != nil {
+		return failed(err)
+	}
+	p, v, err := imaging.OpenSnapshotVolume(ctx, r, sn, run.ImagePartition)
+	if err != nil {
+		return failed(err)
+	}
+	dest, err := imaging.DestFunc(p, run.RestoreTarget)
+	if err != nil {
+		return failed(err)
+	}
+	st, err := v.Extract(ctx, run.Includes, dest, nil)
+	if err != nil {
+		return failed(err)
+	}
+	stats, _ := json.Marshal(st)
+	res := api.RunResult{Status: api.StatusSuccess, Stats: stats, Errors: st.Errors,
+		Message: fmt.Sprintf("Restored %d files and %d folders from the image", st.Files, st.Dirs)}
+	if len(st.Errors) > 0 {
+		res.Status = api.StatusWarning
+	}
+	return res
+}

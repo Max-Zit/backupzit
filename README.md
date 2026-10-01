@@ -15,7 +15,7 @@ connect to it over HTTPS.
 
 1. **Core** — file/folder backup and restore, SFTP target, deduplication, integrity check ✅
 2. **Management console** — agent registration, jobs, schedules, history, restore, agent downloads; Windows MSI and Linux packages ✅ (first version)
-3. **Windows image backup** — VSS snapshots ✅, whole-disk / partition images ✅ (CLI), file-level restore from images
+3. **Windows image backup** — VSS snapshots ✅, whole-disk / partition images ✅, file-level restore from images ✅
 4. **Bare-metal restore** — image restore to an empty disk ✅ (verified booting); boot media, dissimilar hardware
 5. **More targets** — S3, SMB; retention policies; notifications
 6. **Security** — encryption, immutable repositories (S3 Object Lock, hardened Linux repository)

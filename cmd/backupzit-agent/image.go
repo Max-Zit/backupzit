@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/backupzit/backupzit/internal/repo"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/backupzit/backupzit/internal/imaging"
@@ -160,5 +161,104 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 		return err
 	}
 	fmt.Printf("restored %d partitions, %s written in %s\n", st.Partitions, humanBytes(st.BytesWritten), st.Duration.Round(time.Second))
+	return nil
+}
+
+// openImageVolume loads snapshot ref and opens the NTFS volume of partition part.
+func openImageVolume(ctx context.Context, r *repo.Repository, ref string, part int) (*repo.Snapshot, *repo.PartitionImage, *imaging.Volume, error) {
+	sn, err := r.LoadSnapshot(ctx, ref)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if len(sn.Images) == 0 {
+		return nil, nil, nil, fmt.Errorf("snapshot %s is not an image backup", sn.ID.Short())
+	}
+	for i := range sn.Images[0].Partitions {
+		p := &sn.Images[0].Partitions[i]
+		if p.Number == part {
+			v, err := imaging.OpenVolume(ctx, r, p)
+			return sn, p, v, err
+		}
+	}
+	return nil, nil, nil, fmt.Errorf("image has no partition %d", part)
+}
+
+func cmdImageLs(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("image-ls", flag.ExitOnError)
+	rf := addRepoFlags(fs)
+	part := fs.Int("partition", -1, "partition number")
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, `Usage: backupzit-agent image-ls [options] --partition N <snapshot|latest> [\path]`)
+		fs.PrintDefaults()
+	}
+	fs.Parse(args)
+	if fs.NArg() < 1 || *part < 0 {
+		fs.Usage()
+		return errors.New("snapshot and --partition are required")
+	}
+	r, err := rf.open(ctx)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	_, _, v, err := openImageVolume(ctx, r, fs.Arg(0), *part)
+	if err != nil {
+		return err
+	}
+	dir := `\`
+	if fs.NArg() > 1 {
+		dir = fs.Arg(1)
+	}
+	entries, err := v.List(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		kind := "f"
+		size := humanBytes(uint64(e.Size))
+		if e.IsDir {
+			kind, size = "d", ""
+		}
+		fmt.Printf("%s %10s  %s  %s\n", kind, size, e.ModTime.Local().Format("2006-01-02 15:04"), e.Name)
+	}
+	return nil
+}
+
+func cmdImageExtract(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("image-extract", flag.ExitOnError)
+	rf := addRepoFlags(fs)
+	part := fs.Int("partition", -1, "partition number")
+	target := fs.String("target", "", "folder to restore into (the path inside the partition is recreated below it)")
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, `Usage: backupzit-agent image-extract [options] --partition N --target DIR <snapshot|latest> \path [\path...]`)
+		fs.PrintDefaults()
+	}
+	fs.Parse(args)
+	if fs.NArg() < 2 || *part < 0 || *target == "" {
+		fs.Usage()
+		return errors.New("snapshot, paths, --partition and --target are required")
+	}
+	r, err := rf.open(ctx)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	_, _, v, err := openImageVolume(ctx, r, fs.Arg(0), *part)
+	if err != nil {
+		return err
+	}
+	st, err := v.Extract(ctx, fs.Args()[1:], func(p string) string {
+		return filepath.Join(*target, filepath.FromSlash(strings.ReplaceAll(p, `\`, "/")))
+	}, nil)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("extracted %d files, %d folders, %s in %s\n", st.Files, st.Dirs, humanBytes(st.Bytes), st.Duration.Round(time.Millisecond))
+	for _, e := range st.Errors {
+		fmt.Println("  error:", e)
+	}
+	if len(st.Errors) > 0 {
+		return fmt.Errorf("%d errors", len(st.Errors))
+	}
 	return nil
 }

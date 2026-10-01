@@ -131,6 +131,13 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 			ar.ImageDisk = *run.ImageDisk
 		}
 		ar.ImagePartitions = run.ImagePartitions
+	case api.KindImageFileRestore:
+		ar.SnapshotID = run.SnapshotID
+		ar.Includes = run.Paths
+		ar.RestoreTarget = run.RestoreTarget
+		if len(run.ImagePartitions) > 0 {
+			ar.ImagePartition = run.ImagePartitions[0]
+		}
 	case api.KindImageRestore:
 		ar.SnapshotID = run.SnapshotID
 		if run.TargetDisk != nil {

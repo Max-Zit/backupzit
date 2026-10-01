@@ -1,0 +1,42 @@
+{{define "content"}}
+{{with .Data.Run}}
+<h1>Files in image #{{.ID}}</h1>
+<p class="muted">{{.Hostname}} · {{ts .FinishedAt}} · partition {{$.Data.Part}}{{with $.Data.Partition}} — {{join .MountPoints " "}}{{if .Label}} “{{.Label}}”{{end}} {{.FileSystem}}{{end}} · <a href="/runs/{{.ID}}">back to the backup</a></p>
+{{end}}
+
+<form method="post" action="/runs/{{.Data.Run.ID}}/files-restore" class="stack">
+<input type="hidden" name="part" value="{{.Data.Part}}">
+<input type="hidden" name="path" value="{{.Data.Path}}">
+<div class="panel">
+  <div class="crumbs">{{range $i, $c := .Data.Crumbs}}{{if $i}} \ {{end}}<a href="/runs/{{$.Data.Run.ID}}/browse?part={{$.Data.Part}}&amp;path={{$c.Path}}">{{$c.Name}}</a>{{end}}</div>
+  {{if .Data.Entries}}
+  <div class="table-wrap"><table class="files">
+    <tr><th><input type="checkbox" data-checkall="sel" title="Select all"></th><th>Name</th><th>Size</th><th>Modified</th></tr>
+    {{range .Data.Entries}}
+    <tr>
+      <td><input type="checkbox" name="sel" value="{{.Path}}"></td>
+      <td>{{if .IsDir}}<a href="/runs/{{$.Data.Run.ID}}/browse?part={{$.Data.Part}}&amp;path={{.Path}}">📁 {{.Name}}</a>{{else}}{{.Name}}{{end}}</td>
+      <td>{{if not .IsDir}}{{bytes64 .Size}}{{end}}</td>
+      <td>{{ts .ModTime}}</td>
+    </tr>
+    {{end}}
+  </table></div>
+  {{else if not .Error}}<p class="muted">This folder is empty.</p>{{end}}
+</div>
+
+{{if .Data.Entries}}
+<div class="panel">
+  <h2>Restore ticked files and folders</h2>
+  <div class="stack">
+    <label>Restore on agent
+      <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+    </label>
+    <label class="check"><input type="radio" name="mode" value="folder" checked> Restore into a folder</label>
+    <label>Folder <small>the path inside the partition is recreated below it, e.g. D:\Restore\Users\ana\...</small><input name="target" placeholder="C:\Restore"></label>
+    <label class="check"><input type="radio" name="mode" value="original"> Restore to the original location (overwrites existing files)</label>
+    <div><button>Restore</button></div>
+  </div>
+</div>
+{{end}}
+</form>
+{{end}}

@@ -48,11 +48,12 @@ type Server struct {
 	Version      string
 
 	pages map[string]*template.Template
+	cache *repoCache
 }
 
 // New creates a server.
 func New(store *Store, log *slog.Logger) (*Server, error) {
-	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev"}
+	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache()}
 	if err := s.loadTemplates(); err != nil {
 		return nil, err
 	}
@@ -119,6 +120,7 @@ var funcs = template.FuncMap{
 	},
 	"schedule": DescribeSchedule,
 	"imagesel": DescribeImageSelection,
+	"bytes64":  func(n int64) string { return humanBytes(uint64(n)) },
 	"upper":    strings.ToUpper,
 	"deref2": func(p *int) int {
 		if p == nil {
@@ -130,7 +132,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore"}[k]
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image"}[k]
 	},
 	"hours": func() []int {
 		h := make([]int, 24)
@@ -250,6 +252,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /runs", s.ui(s.handleRuns))
 	mux.HandleFunc("GET /runs/{id}", s.ui(s.handleRun))
 	mux.HandleFunc("POST /runs/{id}/restore", s.ui(s.handleRestore))
+	mux.HandleFunc("GET /runs/{id}/browse", s.ui(s.handleBrowse))
+	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(s.handleFilesRestore))
 	mux.HandleFunc("GET /downloads/{file}", s.ui(s.handleDownload))
 
 	return securityHeaders(mux)
@@ -660,7 +664,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		if run.Kind == api.KindBackup || run.Kind == api.KindImageBackup {
 			backupStats = &repo.SnapshotStats{}
 			json.Unmarshal(run.Stats, backupStats)
-		} else {
+		} else if run.Kind == api.KindRestore || run.Kind == api.KindImageFileRestore {
 			restoreStats = &restorer.Stats{}
 			json.Unmarshal(run.Stats, restoreStats)
 		}

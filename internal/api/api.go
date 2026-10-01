@@ -57,6 +57,8 @@ const (
 	KindRestore      = "restore"       // files and folders
 	KindImageBackup  = "image-backup"  // whole disk or partitions
 	KindImageRestore = "image-restore" // image onto a disk
+	// KindImageFileRestore extracts files and folders from an image backup.
+	KindImageFileRestore = "image-file-restore"
 )
 
 // Run is a unit of work assigned to an agent.
@@ -83,6 +85,10 @@ type Run struct {
 	// Image restore: disk to overwrite.
 	TargetDisk  int  `json:"target_disk,omitempty"`
 	KeepOffline bool `json:"keep_offline,omitempty"`
+
+	// Image file restore: partition to read; Includes lists paths inside it
+	// (`\Users\ana`) and RestoreTarget the folder ("" = original location).
+	ImagePartition int `json:"image_partition,omitempty"`
 }
 
 // Repository tells the agent where and how to store data.
