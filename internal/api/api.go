@@ -65,6 +65,8 @@ const (
 	KindImageFileRestore = "image-file-restore"
 	// KindCopy copies the backups of a job to a second storage target.
 	KindCopy = "copy"
+	// KindVerify restores a random sample of a backup to prove it is restorable.
+	KindVerify = "verify"
 )
 
 // Run is a unit of work assigned to an agent.
@@ -104,6 +106,11 @@ type Run struct {
 	// SourceTag are copied into Repository.
 	Source    *Repository `json:"source,omitempty"`
 	SourceTag string      `json:"source_tag,omitempty"`
+
+	// Restore test: sample size.
+	VerifyFiles    int    `json:"verify_files,omitempty"`
+	VerifyMaxBytes uint64 `json:"verify_max_bytes,omitempty"`
+	VerifyBlocks   int    `json:"verify_blocks,omitempty"`
 }
 
 // Repository tells the agent where and how to store data.

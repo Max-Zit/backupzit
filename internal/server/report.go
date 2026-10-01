@@ -107,6 +107,7 @@ type Report struct {
 	Generated time.Time
 
 	Backups, Success, Warning, Failed, Restores int
+	Tests, TestsFailed                          int
 	SuccessRate                                 float64
 	BytesRead, BytesStored                      uint64
 	Duration                                    time.Duration
@@ -128,7 +129,9 @@ type JobReport struct {
 	ProtectedFiles                 uint64
 	Duration                       time.Duration
 	SuccessRate                    float64
-	Missed                         bool // no successful backup in the period
+	Missed                         bool   // no successful backup in the period
+	LastTest                       string // status of the newest restore test
+	LastTestAt                     *time.Time
 }
 
 type DayReport struct {
@@ -179,9 +182,22 @@ func (s *Store) BuildReport(ctx context.Context, p Period, agentID, jobID int64)
 		rep.Days = append(rep.Days, *dr)
 	}
 	jobs := map[string]*JobReport{}
+	tests := map[string]Run{}
 	var order []string
 	for i := len(runs) - 1; i >= 0; i-- { // oldest first
 		r := runs[i]
+		if r.Kind == api.KindVerify && r.FinishedAt != nil {
+			rep.Tests++
+			if r.Status == api.StatusFailed {
+				rep.TestsFailed++
+				rep.Problems = append([]Run{r}, rep.Problems...)
+			}
+			tests[fmt.Sprintf("%d/%s", r.AgentID, deref(r.JobName))] = r // oldest first: newest wins
+			continue
+		}
+		if r.Kind == api.KindCopy {
+			r.Kind = api.KindBackup // copies count like backups of their job
+		}
 		if !isBackupKind(r.Kind) {
 			if strings.Contains(r.Kind, "restore") {
 				rep.Restores++
@@ -262,6 +278,9 @@ func (s *Store) BuildReport(ctx context.Context, p Period, agentID, jobID int64)
 		jr := jobs[k]
 		jr.SuccessRate = 100 * float64(jr.Success+jr.Warning) / float64(jr.Runs)
 		jr.Missed = jr.LastSuccess == nil
+		if t, ok := tests[k]; ok {
+			jr.LastTest, jr.LastTestAt = t.Status, t.FinishedAt
+		}
 		rep.Jobs = append(rep.Jobs, *jr)
 	}
 	sort.Slice(rep.Jobs, func(i, j int) bool {

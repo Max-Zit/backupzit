@@ -157,7 +157,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy"}[k]
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test"}[k]
 	},
 	"hours": func() []int {
 		h := make([]int, 24)
@@ -275,6 +275,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /jobs", s.ui(PermJobs, s.handleJobCreate))
 	mux.HandleFunc("GET /jobs/{id}", s.ui(PermView, s.handleJob))
 	mux.HandleFunc("POST /jobs/{id}/run", s.ui(PermRun, s.handleJobRun))
+	mux.HandleFunc("POST /jobs/{id}/test", s.ui(PermRun, s.handleJobTest))
 	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(PermJobs, s.handleJobEnable(true)))
 	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
 	mux.HandleFunc("POST /jobs/{id}/delete", s.ui(PermJobs, s.handleJobDelete))
@@ -312,6 +313,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /settings/{tab}", s.ui(PermSettings, s.handleSettings))
 	mux.HandleFunc("POST /settings/email", s.ui(PermSettings, s.handleSettingsEmail))
 	mux.HandleFunc("POST /settings/sessions", s.ui(PermSettings, s.handleSettingsSessions))
+	mux.HandleFunc("POST /settings/tests", s.ui(PermSettings, s.handleSettingsRestoreTests))
 	mux.HandleFunc("POST /recovery/token", s.ui(PermAgents, s.handleRecoveryToken))
 	mux.HandleFunc("POST /recovery/recovery.json", s.ui(PermAgents, s.handleRecoveryJSON))
 
@@ -850,10 +852,14 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 	var backupStats *repo.SnapshotStats
 	var restoreStats *restorer.Stats
 	var copyStats *CopyRunStats
+	var testStats *restorer.SampleStats
 	if len(run.Stats) > 0 {
 		if run.Kind == api.KindBackup || run.Kind == api.KindImageBackup {
 			backupStats = &repo.SnapshotStats{}
 			json.Unmarshal(run.Stats, backupStats)
+		} else if run.Kind == api.KindVerify {
+			testStats = &restorer.SampleStats{}
+			json.Unmarshal(run.Stats, testStats)
 		} else if run.Kind == api.KindCopy {
 			copyStats = &CopyRunStats{}
 			json.Unmarshal(run.Stats, copyStats)
@@ -868,7 +874,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		return
 	}
 	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: map[string]any{
-		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "CopyStats": copyStats, "CopyOfFiles": s.store.copyOfFiles(r.Context(), run), "Agents": agents,
+		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "CopyStats": copyStats, "TestStats": testStats, "CopyOfFiles": s.store.copyOfFiles(r.Context(), run), "Agents": agents,
 		"Image": imageDetails(run), "Inventory": inventories(agents),
 	}})
 }

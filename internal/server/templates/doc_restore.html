@@ -31,7 +31,14 @@ backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
 <p>See <a href="/docs/cli">Command line reference</a>.</p>
 
-<h2>Test your restores</h2>
-<p>Schedule a restore test regularly (e.g. monthly): restore a folder into <code>D:\RestoreTest</code> with verification enabled and check a few files. It proves the backups, the storage credentials and the recovery key all work.</p>
+<h2>Automatic restore tests</h2>
+<p>BackupZit proves your backups regularly without you doing anything: weekly (configurable under <a href="/settings/tests">Settings → Restore tests</a>) the agent of each job restores a <b>random sample of files</b> from the newest backup into a temporary folder, verifies every byte against the stored checksums and deletes it again. For disk images, random blocks are read and verified. This exercises the whole chain — storage access, credentials, encryption key and data integrity.</p>
+<ul>
+  <li>Results appear in Activity and the job history as <i>Restore test</i> runs, and per job in <a href="/reports">Reports</a> (column <i>Restore test</i>).</li>
+  <li>A failed test is a failure like any other and triggers an email alert.</li>
+  <li><b>Test restore</b> on a job's page starts a test immediately.</li>
+  <li>The sample size limits how much is read from the storage — keep it small for cloud storage with download fees.</li>
+</ul>
+<p>Additionally, restore a real folder by hand from time to time (e.g. quarterly) and open a few files — it also trains the people who will need to do it in an emergency.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

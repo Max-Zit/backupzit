@@ -2,7 +2,8 @@
 {{with .Data.Job}}
 <h1>{{.Name}} {{if not .Enabled}}<span class="badge">disabled</span>{{end}}</h1>
 <div class="actions">
-  {{if $.Me.Can "run"}}<form method="post" action="/jobs/{{.ID}}/run" class="inline"><button>Run backup now</button></form>{{end}}
+  {{if $.Me.Can "run"}}<form method="post" action="/jobs/{{.ID}}/run" class="inline"><button>{{if eq .Kind "copy"}}Copy now{{else}}Run backup now{{end}}</button></form>
+  <form method="post" action="/jobs/{{.ID}}/test" class="inline"><button class="secondary">{{template "icon" "check"}}Test restore</button></form>{{end}}
   {{if .Enabled}}
   {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/disable" class="inline"><button class="secondary">Disable</button></form>{{end}}
   {{else}}

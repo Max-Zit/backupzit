@@ -14,6 +14,8 @@
     {{if .SnapshotID}}<dt>Snapshot</dt><dd class="mono">{{.SnapshotID}}</dd>{{end}}
     {{if eq .Kind "backup"}}
       <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
+    {{else if eq .Kind "verify"}}
+      <dt>Tested backup</dt><dd class="mono">{{.SnapshotID}}</dd>
     {{else if eq .Kind "copy"}}
       <dt>Copied from</dt><dd class="mono">{{.SourceRepoURL}}</dd>
     {{else if eq .Kind "image-backup"}}
@@ -71,6 +73,14 @@
     <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (new data)</span></div>
   </div>
   {{end}}
+{{end}}
+{{with .Data.TestStats}}
+<div class="grid">
+  {{if .Blocks}}<div class="stat ok"><b>{{.Blocks}}</b><span>random blocks verified</span></div>{{else}}<div class="stat ok"><b>{{.Files}}</b><span>random files restored and verified</span></div>{{end}}
+  <div class="stat"><b>{{bytes .Bytes}}</b><span>data checked</span></div>
+  <div class="stat"><b>{{.Candidates}}</b><span>{{if .Blocks}}blocks{{else}}files{{end}} in the backup</span></div>
+  <div class="stat {{if .Errors}}bad{{end}}"><b>{{len .Errors}}</b><span>problems</span></div>
+</div>
 {{end}}
 {{with .Data.CopyStats}}
 <div class="grid">

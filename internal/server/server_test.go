@@ -1356,3 +1356,50 @@ func TestTwoFactor(t *testing.T) {
 		t.Error("login after 2FA reset")
 	}
 }
+
+func TestRestoreTests(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag.VSS = false
+	agents, _ := e.store.ListAgents(ctx)
+	tid, _ := e.store.CreateTarget(ctx, server.Target{Name: "nas", Kind: "local", URL: filepath.Join(t.TempDir(), "nas"), Encrypted: true})
+	src := filepath.Join(t.TempDir(), "data")
+	writeTree(t, src)
+	jobID, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: tid, Name: "docs", Paths: []string{src}, Enabled: true})
+
+	sch := server.NewScheduler(e.store, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	sch.Tick(ctx, time.Now())
+	if runs, _ := e.store.ListRuns(ctx, server.RunFilter{}); len(runs) != 0 {
+		t.Fatal("restore test queued without any backup")
+	}
+	e.store.QueueBackup(ctx, jobID, "manual")
+	runAgent(t, ag)
+	sch.Tick(ctx, time.Now()) // due: never tested
+	runs, _ := e.store.ListRuns(ctx, server.RunFilter{})
+	if runs[0].Kind != api.KindVerify {
+		t.Fatalf("restore test not queued: %s", runs[0].Kind)
+	}
+	runAgent(t, ag)
+	v, _ := e.store.GetRun(ctx, runs[0].ID)
+	if v.Status != api.StatusSuccess || !strings.Contains(v.Message, "Restored and verified") {
+		t.Fatalf("restore test: %s %q %v", v.Status, v.Message, v.Errors)
+	}
+	sch.Tick(ctx, time.Now()) // tested recently: nothing new
+	if runs, _ := e.store.ListRuns(ctx, server.RunFilter{}); runs[0].ID != v.ID {
+		t.Error("restore test queued again within the interval")
+	}
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	if _, _, body := admin.do("GET", "/reports?period=last7", nil); !strings.Contains(body, "restore tests") || !strings.Contains(body, `badge success`) {
+		t.Error("report lacks restore tests")
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/jobs/%d/test", jobID), url.Values{}); !strings.Contains(loc, "msg=") {
+		t.Errorf("manual restore test: %s", loc)
+	}
+}

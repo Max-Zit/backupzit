@@ -40,6 +40,7 @@
   <div class="stat {{if .Failed}}bad{{end}}"><div class="si">{{template "icon" "alert"}}</div><b>{{.Failed}}</b><span>failed</span></div>
   <div class="stat info"><div class="si">{{template "icon" "storage"}}</div><b>{{bytes .BytesStored}}</b><span>uploaded ({{bytes .BytesRead}} read)</span></div>
   <div class="stat"><div class="si">{{template "icon" "recovery"}}</div><b>{{.Restores}}</b><span>restores</span></div>
+  <div class="stat {{if .TestsFailed}}bad{{else if .Tests}}ok{{end}}"><div class="si">{{template "icon" "check"}}</div><b>{{.Tests}}{{if .TestsFailed}} / {{.TestsFailed}} failed{{end}}</b><span>restore tests</span></div>
 </div>
 
 <div class="panel">
@@ -62,7 +63,7 @@
   <h2>Jobs</h2>
   {{if .Jobs}}
   <div class="table-wrap"><table>
-    <thead><tr><th>Job</th><th>Agent</th><th>Runs</th><th>Success rate</th><th>OK / warn / failed</th><th>Last result</th><th>Last good backup</th><th>Protected</th><th>Uploaded</th></tr></thead>
+    <thead><tr><th>Job</th><th>Agent</th><th>Runs</th><th>Success rate</th><th>OK / warn / failed</th><th>Last result</th><th>Last good backup</th><th>Restore test</th><th>Protected</th><th>Uploaded</th></tr></thead>
     <tbody>
     {{range .Jobs}}
     <tr>
@@ -73,6 +74,7 @@
       <td class="nowrap">{{.Success}} / {{.Warning}} / {{.Failed}}</td>
       <td>{{template "status" .LastStatus}}</td>
       <td class="nowrap">{{if .LastSuccess}}{{ts .LastSuccess}}{{else}}<span class="badge failed"><i></i>none</span>{{end}}</td>
+      <td class="nowrap">{{if .LastTest}}{{template "status" .LastTest}} <span class="muted small">{{ts .LastTestAt}}</span>{{else}}<span class="muted">not tested</span>{{end}}</td>
       <td class="nowrap">{{if .ProtectedFiles}}{{bytes .ProtectedBytes}} <span class="muted small">{{.ProtectedFiles}} files</span>{{else}}{{bytes .ProtectedBytes}}{{end}}</td>
       <td class="nowrap">{{bytes .BytesStored}}</td>
     </tr>

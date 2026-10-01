@@ -13,7 +13,7 @@ import (
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, user string) {
 	tab := r.PathValue("tab")
 	switch tab {
-	case "email", "security", "ldap":
+	case "email", "security", "ldap", "tests":
 	case "":
 		http.Redirect(w, r, "/settings/email", http.StatusSeeOther)
 		return
@@ -30,7 +30,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, user str
 		e.Port, e.Security, e.OnFailure, e.OnWarning, e.DailyHour = 587, "starttls", true, true, 8
 	}
 	s.render(w, r, "settings", pageData{Title: "Settings", Nav: "settings", User: user, Data: map[string]any{
-		"Tab": tab, "SecretKeyID": s.store.SecretKeyID(), "SecretKeyFile": filepath.Join(filepath.Dir(s.DistDir), SecretKeyFile), "Email": e, "HasPassword": e.Password != "", "Sessions": s.sessionSettings(r.Context()),
+		"Tab": tab, "Tests": s.store.restoreTestSettings(r.Context()), "SecretKeyID": s.store.SecretKeyID(), "SecretKeyFile": filepath.Join(filepath.Dir(s.DistDir), SecretKeyFile), "Email": e, "HasPassword": e.Password != "", "Sessions": s.sessionSettings(r.Context()),
 		"LDAP": ldapForPage(r.Context(), s.store), "ADFilter": adUserFilter, "LDAPFilter": ldapUserFilter,
 	}})
 }

@@ -136,6 +136,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		if len(run.ImagePartitions) > 0 {
 			ar.ImagePartition = run.ImagePartitions[0]
 		}
+	case api.KindVerify:
+		ar.SnapshotID = run.SnapshotID
+		s.addVerifyParams(ctx, ar)
 	case api.KindCopy:
 		s.addRetention(ctx, run, ar)
 		if err := s.addCopySource(ctx, run, ar); err != nil {

@@ -135,6 +135,27 @@
   </form>
 </div>
 {{end}}{{end}}
+{{if eq .Data.Tab "tests"}}{{with .Data.Tests}}
+<div class="panel">
+  <h2>{{template "icon" "check"}} Automatic restore tests</h2>
+  <p class="muted">A backup is only proven when it has been restored. With restore tests on, the agent of each job regularly restores a random sample of files from the newest backup into a temporary folder, checks every byte against the stored checksums and deletes it again. For disk images, random blocks are read and verified. Results appear in Activity, the job history and Reports; a failed test triggers a failure email.</p>
+  <form method="post" action="/settings/tests" class="stack">
+    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Test every job's newest backup automatically</label>
+    <label>How often
+      <select name="every">
+        <option value="weekly" {{if eq .Every "weekly"}}selected{{end}}>Weekly</option>
+        <option value="monthly" {{if eq .Every "monthly"}}selected{{end}}>Monthly</option>
+      </select>
+    </label>
+    <div class="row">
+      <label>Random files per test <input type="number" name="files" min="1" max="1000" value="{{.Files}}"></label>
+      <label>Up to (MB) <small>limits the data read from storage — mind cloud download costs</small><input type="number" name="max_mb" min="1" max="100000" value="{{.MaxMB}}"></label>
+    </div>
+    <label>Random blocks per disk image test <small>1 MiB each</small><input type="number" name="blocks" min="1" max="100000" value="{{.Blocks}}"></label>
+    <div><button>Save restore test settings</button></div>
+  </form>
+</div>
+{{end}}{{end}}
 </div>
 </div>
 {{end}}

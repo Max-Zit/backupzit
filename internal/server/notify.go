@@ -277,6 +277,7 @@ func kindName(k string) string {
 	return map[string]string{
 		api.KindBackup: "Backup", api.KindRestore: "Restore", api.KindImageBackup: "Image backup",
 		api.KindImageRestore: "Image restore", api.KindImageFileRestore: "File restore from image",
+		api.KindCopy: "Backup copy", api.KindVerify: "Restore test",
 	}[k]
 }
 

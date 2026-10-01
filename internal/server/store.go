@@ -676,7 +676,7 @@ func (s *Store) ListRuns(ctx context.Context, f RunFilter) ([]Run, error) {
 func (s *Store) ClaimRun(ctx context.Context, agentID int64) (*Run, error) {
 	var id int64
 	err := s.db.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
-		WHERE id = (SELECT id FROM runs WHERE agent_id=$1 AND status='queued' ORDER BY queued_at LIMIT 1 FOR UPDATE SKIP LOCKED)
+		WHERE id = (SELECT id FROM runs WHERE agent_id=$1 AND status='queued' ORDER BY kind='verify', queued_at LIMIT 1 FOR UPDATE SKIP LOCKED)
 		RETURNING id`, agentID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
