@@ -2,7 +2,9 @@
 package testutil
 
 import (
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -44,6 +46,17 @@ func StartSFTPServer(user, password string) (*SFTPServer, error) {
 			return nil, errors.New("access denied")
 		},
 	}
+	// Like a stock OpenSSH install, also offer an ECDSA host key. Clients
+	// must still pick ed25519, whose fingerprint operators pin.
+	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	ecSigner, err := ssh.NewSignerFromKey(ecKey)
+	if err != nil {
+		return nil, err
+	}
+	cfg.AddHostKey(ecSigner)
 	cfg.AddHostKey(signer)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

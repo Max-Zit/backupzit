@@ -28,10 +28,10 @@ type SFTP struct {
 // ErrHostKeyUnknown is returned when no host key fingerprint was pinned.
 // The error message contains the fingerprint presented by the server so the
 // operator can verify and pin it.
-type ErrHostKeyUnknown struct{ Fingerprint string }
+type ErrHostKeyUnknown struct{ Fingerprint, KeyType string }
 
 func (e *ErrHostKeyUnknown) Error() string {
-	return fmt.Sprintf("sftp: server host key not pinned; server presented %s (verify it and pass it as the host key fingerprint)", e.Fingerprint)
+	return fmt.Sprintf("sftp: server host key not pinned; server presented %s key %s (verify it and pass it as the host key fingerprint)", e.KeyType, e.Fingerprint)
 }
 
 // OpenSFTP connects to sftp://user@host[:port]/path.
@@ -79,18 +79,28 @@ func OpenSFTP(ctx context.Context, u *url.URL, opts Options) (*SFTP, error) {
 		User:    user,
 		Auth:    auths,
 		Timeout: 30 * time.Second,
+		// Prefer ed25519 so the pinned fingerprint matches what operators
+		// get from "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub".
+		HostKeyAlgorithms: []string{
+			ssh.KeyAlgoED25519,
+			ssh.KeyAlgoECDSA256, ssh.KeyAlgoECDSA384, ssh.KeyAlgoECDSA521,
+			ssh.KeyAlgoRSASHA512, ssh.KeyAlgoRSASHA256,
+		},
 		HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
 			fp := ssh.FingerprintSHA256(key)
 			if opts.SFTPInsecure {
 				return nil
 			}
 			if opts.SFTPHostKey == "" {
-				return &ErrHostKeyUnknown{Fingerprint: fp}
+				return &ErrHostKeyUnknown{Fingerprint: fp, KeyType: key.Type()}
 			}
-			if fp != opts.SFTPHostKey {
-				return fmt.Errorf("sftp: host key mismatch: expected %s, server presented %s", opts.SFTPHostKey, fp)
+			// Several fingerprints may be pinned, separated by commas.
+			for _, want := range strings.Split(opts.SFTPHostKey, ",") {
+				if strings.TrimSpace(want) == fp {
+					return nil
+				}
 			}
-			return nil
+			return fmt.Errorf("sftp: host key mismatch: expected %s, server presented %s key %s", opts.SFTPHostKey, key.Type(), fp)
 		},
 	}
 
