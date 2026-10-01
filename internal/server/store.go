@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"path"
 	"regexp"
 	"strings"
@@ -131,6 +132,9 @@ type Target struct {
 	SFTPPassword string
 	SFTPKey      string
 	SFTPHostKey  string
+	S3AccessKey  string
+	S3SecretKey  string
+	S3Region     string
 	CreatedAt    time.Time
 }
 
@@ -151,25 +155,32 @@ func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
 		if t.SFTPPassword == "" && t.SFTPKey == "" {
 			return 0, errors.New("SFTP password or private key is required")
 		}
+	case "s3":
+		if !strings.HasPrefix(t.URL, "s3://") {
+			return 0, errors.New("S3 location must look like s3://endpoint/bucket/prefix")
+		}
+		if t.S3AccessKey == "" || t.S3SecretKey == "" {
+			return 0, errors.New("S3 access key and secret key are required")
+		}
 	case "local":
 	default:
 		return 0, fmt.Errorf("unknown target type %q", t.Kind)
 	}
 	var id int64
-	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key)
-		VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,
-		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey)).Scan(&id)
+	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key,s3_access_key,s3_secret_key,s3_region)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey), strings.TrimSpace(t.S3AccessKey), t.S3SecretKey, strings.TrimSpace(t.S3Region)).Scan(&id)
 	if err != nil && strings.Contains(err.Error(), "duplicate key") {
 		return 0, errors.New("a storage target with that name already exists")
 	}
 	return id, err
 }
 
-const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at`
+const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at, s3_access_key, s3_secret_key, s3_region`
 
 func scanTarget(r pgx.Row) (Target, error) {
 	var t Target
-	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt)
+	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt, &t.S3AccessKey, &t.S3SecretKey, &t.S3Region)
 	return t, err
 }
 
@@ -449,6 +460,11 @@ func (s *Store) DeleteJob(ctx context.Context, id int64) error {
 func repoURL(t Target, a Agent) string {
 	if t.Kind == "local" {
 		return strings.TrimRight(t.URL, `/\`) + "/" + a.RepoDir
+	}
+	// Insert the agent directory into the path, keeping any query (?tls=false).
+	if u, err := url.Parse(t.URL); err == nil {
+		u.Path = path.Join(u.Path, a.RepoDir)
+		return u.String()
 	}
 	return t.URL + "/" + path.Clean(a.RepoDir)
 }

@@ -105,6 +105,9 @@ type Repository struct {
 	SFTPPassword string `json:"sftp_password,omitempty"`
 	SFTPKey      string `json:"sftp_key,omitempty"` // PEM
 	SFTPHostKey  string `json:"sftp_host_key,omitempty"`
+	S3AccessKey  string `json:"s3_access_key,omitempty"`
+	S3SecretKey  string `json:"s3_secret_key,omitempty"`
+	S3Region     string `json:"s3_region,omitempty"`
 }
 
 // Run statuses.

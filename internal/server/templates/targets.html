@@ -23,9 +23,25 @@
     <label>Type
       <select name="kind" id="kind">
         <option value="sftp">SFTP</option>
+        <option value="s3">S3 compatible (AWS, Wasabi, Backblaze B2, MinIO, …)</option>
         <option value="local">Local / mounted path (on the agent machine)</option>
       </select>
     </label>
+    <div data-kind="s3" hidden class="stack">
+      <div class="row">
+        <label>Endpoint <small>host[:port], e.g. s3.eu-central-1.amazonaws.com, s3.wasabisys.com, 10.0.0.5:9000</small><input name="s3_endpoint" placeholder="s3.eu-central-1.amazonaws.com"></label>
+        <label>Region <small>optional, e.g. eu-central-1</small><input name="s3_region"></label>
+      </div>
+      <div class="row">
+        <label>Bucket <input name="s3_bucket" placeholder="company-backups"></label>
+        <label>Folder in bucket <small>optional</small><input name="s3_prefix" placeholder="backupzit"></label>
+      </div>
+      <div class="row">
+        <label>Access key <input name="s3_access_key" autocomplete="off"></label>
+        <label>Secret key <input name="s3_secret_key" type="password" autocomplete="new-password"></label>
+      </div>
+      <label class="check"><input type="checkbox" name="s3_http"> Plain HTTP (no TLS) — only for a local S3 server such as MinIO without a certificate</label>
+    </div>
     <label data-kind="sftp">Location <small>sftp://user@host:22/path — use /~/path for a path relative to the user's home</small>
       <input name="url" placeholder="sftp://backup@10.0.0.5:22/srv/backups">
     </label>

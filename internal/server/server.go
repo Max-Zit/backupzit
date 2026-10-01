@@ -505,14 +505,26 @@ func (s *Server) handleTargets(w http.ResponseWriter, r *http.Request, user stri
 }
 
 func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ string) {
-	_, err := s.store.CreateTarget(r.Context(), Target{
+	t := Target{
 		Name:         r.FormValue("name"),
 		Kind:         r.FormValue("kind"),
 		URL:          r.FormValue("url"),
 		SFTPPassword: r.FormValue("sftp_password"),
 		SFTPKey:      strings.TrimSpace(r.FormValue("sftp_key")),
 		SFTPHostKey:  r.FormValue("sftp_host_key"),
-	})
+	}
+	if t.Kind == "s3" {
+		u, err := s3Location(r.FormValue("s3_endpoint"), r.FormValue("s3_bucket"), r.FormValue("s3_prefix"), r.FormValue("s3_http") == "on")
+		if err != nil {
+			redirectErr(w, r, "/targets", err)
+			return
+		}
+		t.URL = u
+		t.S3AccessKey = r.FormValue("s3_access_key")
+		t.S3SecretKey = r.FormValue("s3_secret_key")
+		t.S3Region = r.FormValue("s3_region")
+	}
+	_, err := s.store.CreateTarget(r.Context(), t)
 	if err != nil {
 		redirectErr(w, r, "/targets", err)
 		return

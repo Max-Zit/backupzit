@@ -44,12 +44,16 @@ type Options struct {
 	SFTPKeyFile  string
 	SFTPHostKey  string // pinned host key fingerprint, "SHA256:..."
 	SFTPInsecure bool   // skip host key verification (tests only)
+	S3AccessKey  string
+	S3SecretKey  string
+	S3Region     string
 }
 
 // Open parses a repository location and opens the matching backend.
 //
 //	/path/to/repo, C:\repo, local:/path   -> local directory
 //	sftp://user@host[:port]/path          -> SFTP
+//	s3://endpoint[:port]/bucket[/prefix]   -> S3 (?tls=false for plain HTTP)
 func Open(ctx context.Context, location string, opts Options) (Backend, error) {
 	switch {
 	case strings.HasPrefix(location, "sftp://"):
@@ -58,6 +62,12 @@ func Open(ctx context.Context, location string, opts Options) (Backend, error) {
 			return nil, fmt.Errorf("parse sftp url: %w", err)
 		}
 		return OpenSFTP(ctx, u, opts)
+	case strings.HasPrefix(location, "s3://"):
+		u, err := url.Parse(location)
+		if err != nil {
+			return nil, fmt.Errorf("parse s3 url: %w", err)
+		}
+		return OpenS3(ctx, u, opts)
 	case strings.HasPrefix(location, "local:"):
 		return OpenLocal(strings.TrimPrefix(location, "local:"))
 	case strings.Contains(location, "://"):

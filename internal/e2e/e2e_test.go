@@ -416,3 +416,24 @@ func testCorruption(t *testing.T, r *repo.Repository) {
 		t.Fatal("restore from corrupted pack reported no errors")
 	}
 }
+
+func TestBackupRestoreS3(t *testing.T) {
+	srv, err := testutil.StartS3Server("backups")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	ctx := context.Background()
+	opts := backend.Options{S3AccessKey: "test", S3SecretKey: "test-secret", S3Region: "us-east-1"}
+	loc := "s3://" + srv.Host + "/backups/office/pc1?tls=false"
+	if _, err := backend.Open(ctx, "s3://"+srv.Host+"/missing?tls=false", opts); err == nil {
+		t.Error("missing bucket accepted")
+	}
+	runCycle(t, func() backend.Backend {
+		be, err := backend.Open(ctx, loc, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return be
+	}, false)
+}

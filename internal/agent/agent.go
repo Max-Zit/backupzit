@@ -312,7 +312,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 }
 
 func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*repo.Repository, func(), error) {
-	opts := backend.Options{SFTPPassword: rs.SFTPPassword, SFTPHostKey: rs.SFTPHostKey}
+	opts := backend.Options{SFTPPassword: rs.SFTPPassword, SFTPHostKey: rs.SFTPHostKey,
+		S3AccessKey: rs.S3AccessKey, S3SecretKey: rs.S3SecretKey, S3Region: rs.S3Region}
 	var cleanup = func() {}
 	if rs.SFTPKey != "" {
 		f, err := os.CreateTemp("", "bz-key-*")

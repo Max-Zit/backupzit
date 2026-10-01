@@ -113,6 +113,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 			SFTPPassword: t.SFTPPassword,
 			SFTPKey:      t.SFTPKey,
 			SFTPHostKey:  t.SFTPHostKey,
+			S3AccessKey:  t.S3AccessKey,
+			S3SecretKey:  t.S3SecretKey,
+			S3Region:     t.S3Region,
 		},
 	}
 	if run.JobName != nil {

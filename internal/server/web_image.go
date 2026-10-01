@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/backupzit/backupzit/internal/imaging"
 	"github.com/backupzit/backupzit/internal/repo"
@@ -82,4 +83,27 @@ func atoiDefault(s string) int {
 		return 0
 	}
 	return n
+}
+
+// s3Location builds s3://endpoint/bucket/prefix[?tls=false] from form fields.
+func s3Location(endpoint, bucket, prefix string, plainHTTP bool) (string, error) {
+	endpoint = strings.TrimSpace(endpoint)
+	endpoint = strings.TrimPrefix(strings.TrimPrefix(endpoint, "https://"), "http://")
+	endpoint = strings.TrimRight(endpoint, "/")
+	bucket = strings.Trim(strings.TrimSpace(bucket), "/")
+	prefix = strings.Trim(strings.TrimSpace(prefix), "/")
+	if endpoint == "" || bucket == "" {
+		return "", errors.New("S3 endpoint and bucket are required")
+	}
+	if strings.ContainsAny(endpoint, "/?#") || strings.ContainsAny(bucket, "/?#") {
+		return "", errors.New("invalid S3 endpoint or bucket name")
+	}
+	loc := "s3://" + endpoint + "/" + bucket
+	if prefix != "" {
+		loc += "/" + prefix
+	}
+	if plainHTTP {
+		loc += "?tls=false"
+	}
+	return loc, nil
 }
