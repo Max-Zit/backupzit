@@ -255,6 +255,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /runs/{id}/browse", s.ui(s.handleBrowse))
 	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(s.handleFilesRestore))
 	mux.HandleFunc("GET /downloads/{file}", s.ui(s.handleDownload))
+	mux.HandleFunc("GET /recovery", s.ui(s.handleRecovery))
+	mux.HandleFunc("POST /recovery/token", s.ui(s.handleRecoveryToken))
+	mux.HandleFunc("POST /recovery/recovery.json", s.ui(s.handleRecoveryJSON))
 
 	return securityHeaders(mux)
 }

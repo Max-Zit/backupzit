@@ -1,0 +1,60 @@
+{{define "content"}}
+<h1>Recovery</h1>
+<div class="panel">
+  <h2>Bare-metal restore</h2>
+  <ol class="steps">
+    <li>Boot the machine to restore from the backupzit recovery ISO (or a USB stick made from it).</li>
+    <li>It connects to this server using <code>\backupzit\recovery.json</code> from the boot media, or asks for the server address and a recovery code.</li>
+    <li>The machine appears below and under <a href="/agents">Agents</a> as a <span class="badge">recovery</span> agent, with its disks.</li>
+    <li>Open an image backup in <a href="/runs">Activity</a>, choose “Restore this image to a disk”, pick the recovery agent and its disk.</li>
+    <li>When the restore has finished, remove the boot media and restart the machine.</li>
+  </ol>
+</div>
+
+<div class="row">
+  <div class="panel">
+    <h2>Recovery ISO</h2>
+    {{if .Data.ISOs}}
+    <table>{{range .Data.ISOs}}<tr><td><a href="/downloads/{{.Name}}">{{.Name}}</a></td><td class="muted">{{.Size}}</td></tr>{{end}}</table>
+    {{else}}<p class="muted">No recovery ISO in the server's dist directory yet.</p>{{end}}
+    <p class="muted">To write it to a USB stick, use e.g. Rufus in “DD image” or “ISO” mode, then copy <code>recovery.json</code> into a <code>backupzit</code> folder on the stick.</p>
+  </div>
+  <div class="panel">
+    <h2>Recovery code</h2>
+    {{if .Data.Token}}
+    <dl class="kv">
+      <dt>Server</dt><dd class="mono">{{.Data.ServerURL}}</dd>
+      <dt>Recovery code</dt><dd class="mono" id="rtok">{{.Data.Token}}</dd>
+      <dt>Fingerprint</dt><dd class="mono">{{.Data.Fingerprint}}</dd>
+      <dt>Valid until</dt><dd>{{ts .Data.Expires}}</dd>
+    </dl>
+    <form method="post" action="/recovery/recovery.json" class="mt">
+      <input type="hidden" name="token" value="{{.Data.Token}}">
+      <button class="secondary">Download recovery.json</button>
+    </form>
+    {{else}}
+    <p class="muted">A recovery code lets recovery media connect to this server. It is valid for 30 days and is shown only once.</p>
+    <form method="post" action="/recovery/token"><button>Create recovery code</button></form>
+    <p class="muted mt">Fingerprint to compare on the recovery screen: <span class="mono">{{.Data.Fingerprint}}</span></p>
+    {{end}}
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Connected recovery agents</h2>
+  {{if .Data.Agents}}
+  <div class="table-wrap"><table>
+    <tr><th>Hostname</th><th>Status</th><th>Disks</th><th>Connected</th><th></th></tr>
+    {{range .Data.Agents}}
+    <tr>
+      <td>{{.Hostname}}</td>
+      <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}</td>
+      <td>{{range .Disks}}Disk {{.Number}}: {{bytes .Size}}{{if .Partitions}}, {{len .Partitions}} partitions{{else}}, empty{{end}}<br>{{end}}</td>
+      <td>{{ts .EnrolledAt}}</td>
+      <td><form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="Remove recovery agent {{.Hostname}}?"><button class="link">Remove</button></form></td>
+    </tr>
+    {{end}}
+  </table></div>
+  {{else}}<p class="muted">No machine is running the recovery environment right now.</p>{{end}}
+</div>
+{{end}}

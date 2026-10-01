@@ -111,7 +111,7 @@
   <form method="post" action="/runs/{{.ID}}/restore" class="stack" data-confirm="Erase the selected disk and restore this image onto it?">
     <input type="hidden" name="kind" value="image">
     <label>Restore on agent
-      <select name="agent_id" id="restore_agent">{{range $.Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+      <select name="agent_id" id="restore_agent">{{range $.Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}{{if .Recovery}} (recovery){{end}}</option>{{end}}</select>
     </label>
     <label>Target disk
       <select name="target_disk" id="restore_disk" required></select>

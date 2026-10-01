@@ -111,6 +111,15 @@ func hostInfo(version string) (hostname, osName, arch string) {
 
 // Enroll registers this machine with the server and returns the config to save.
 func Enroll(ctx context.Context, serverURL, token, fingerprint, version string) (*Config, error) {
+	return enroll(ctx, serverURL, token, fingerprint, version, false)
+}
+
+// EnrollRecovery registers a temporary agent running from recovery media.
+func EnrollRecovery(ctx context.Context, serverURL, token, fingerprint, version string) (*Config, error) {
+	return enroll(ctx, serverURL, token, fingerprint, version, true)
+}
+
+func enroll(ctx context.Context, serverURL, token, fingerprint, version string, recovery bool) (*Config, error) {
 	serverURL = strings.TrimRight(serverURL, "/")
 	if !strings.HasPrefix(serverURL, "https://") {
 		return nil, errors.New("server URL must start with https://")
@@ -121,7 +130,7 @@ func Enroll(ctx context.Context, serverURL, token, fingerprint, version string) 
 	host, osName, arch := hostInfo(version)
 	c := &Client{cfg: &Config{ServerURL: serverURL, Fingerprint: fingerprint}, http: httpClient(fingerprint)}
 	var resp api.EnrollResponse
-	err := c.post(ctx, api.PathEnroll, api.EnrollRequest{Token: token, Hostname: host, OS: osName, Arch: arch, Version: version}, &resp, false)
+	err := c.post(ctx, api.PathEnroll, api.EnrollRequest{Token: token, Hostname: host, OS: osName, Arch: arch, Version: version, Recovery: recovery}, &resp, false)
 	if err != nil {
 		return nil, err
 	}
@@ -177,6 +186,8 @@ type Agent struct {
 	version string
 	// VSS makes Windows backups read from shadow copies (default on Windows).
 	VSS bool
+	// InventoryInterval is how often disks are reported (default 15 min).
+	InventoryInterval time.Duration
 
 	mu   sync.Mutex
 	busy bool
@@ -199,7 +210,11 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	host, osName, arch := hostInfo(a.version)
 	var resp api.PollResponse
 	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy}
-	sendInventory := !busy && time.Since(invAt) > inventoryInterval
+	invEvery := a.InventoryInterval
+	if invEvery <= 0 {
+		invEvery = inventoryInterval
+	}
+	sendInventory := !busy && time.Since(invAt) > invEvery
 	if sendInventory {
 		req.Disks = a.diskInventory()
 	}
@@ -383,4 +398,25 @@ func (a *Agent) restore(ctx context.Context, run api.Run) api.RunResult {
 		res.Message = fmt.Sprintf("%d items could not be restored", len(st.Errors))
 	}
 	return res
+}
+
+// FetchFingerprint connects to serverURL and returns the fingerprint of the
+// certificate it presents, for trust-on-first-use confirmation by a human.
+func FetchFingerprint(ctx context.Context, serverURL string) (string, error) {
+	u := strings.TrimPrefix(strings.TrimRight(serverURL, "/"), "https://")
+	if !strings.Contains(u, ":") {
+		u += ":443"
+	}
+	d := tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true}} // fingerprint is shown to the operator
+	conn, err := d.DialContext(ctx, "tcp", u)
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	certs := conn.(*tls.Conn).ConnectionState().PeerCertificates
+	if len(certs) == 0 {
+		return "", errors.New("server presented no certificate")
+	}
+	h := sha256.Sum256(certs[0].Raw)
+	return "SHA256:" + base64.RawStdEncoding.EncodeToString(h[:]), nil
 }

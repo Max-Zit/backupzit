@@ -129,6 +129,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdImageLs(ctx, rest)
 	case "image-extract":
 		return cmdImageExtract(ctx, rest)
+	case "recovery":
+		return cmdRecovery(ctx, rest)
 	case "disks":
 		return cmdDisks(rest)
 	case "enroll":

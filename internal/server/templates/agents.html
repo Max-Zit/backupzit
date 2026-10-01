@@ -26,7 +26,7 @@ backupzit-agent service start</pre>
     <tr><th>Hostname</th><th>OS</th><th>Version</th><th>Status</th><th>Last seen</th><th>Enrolled</th><th></th></tr>
     {{range .Data.Agents}}
     <tr>
-      <td>{{.Hostname}}</td>
+      <td>{{.Hostname}}{{if .Recovery}} <span class="badge">recovery</span>{{end}}</td>
       <td>{{.OS}}/{{.Arch}}</td>
       <td class="mono">{{.Version}}</td>
       <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}</td>

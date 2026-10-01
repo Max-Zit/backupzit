@@ -23,6 +23,8 @@ type EnrollRequest struct {
 	OS       string `json:"os"`
 	Arch     string `json:"arch"`
 	Version  string `json:"version"`
+	// Recovery marks a temporary agent running from recovery media.
+	Recovery bool `json:"recovery,omitempty"`
 }
 
 // EnrollResponse carries the agent's permanent credentials.

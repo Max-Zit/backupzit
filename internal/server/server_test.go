@@ -488,3 +488,62 @@ func TestImageJobs(t *testing.T) {
 		t.Error("image run page lacks layout or restore form")
 	}
 }
+
+func TestRecovery(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	jar, _ := cookiejar.New(nil)
+	c := e.ts.Client()
+	c.Jar = jar
+	post := func(p string, form url.Values) (*http.Response, string) {
+		req, _ := http.NewRequest(http.MethodPost, e.ts.URL+p, strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", e.ts.URL)
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp, html.UnescapeString(string(b))
+	}
+	post("/login", url.Values{"username": {"admin"}, "password": {"admin-pass-123"}})
+
+	// Create a recovery code and download recovery.json with it.
+	_, page := post("/recovery/token", nil)
+	start := strings.Index(page, `id="rtok">`)
+	if start < 0 {
+		t.Fatal("recovery page shows no code")
+	}
+	tok := page[start+len(`id="rtok">`):]
+	tok = tok[:strings.Index(tok, "<")]
+	resp, body := post("/recovery/recovery.json", url.Values{"token": {tok}})
+	var rj map[string]string
+	if err := json.Unmarshal([]byte(body), &rj); err != nil || rj["token"] != tok || rj["fingerprint"] != e.fp ||
+		!strings.Contains(resp.Header.Get("Content-Disposition"), "recovery.json") {
+		t.Fatalf("recovery.json: %v %q", err, body)
+	}
+
+	// Recovery media enrolls with that code and shows up as a recovery agent.
+	cfg, err := agent.EnrollRecovery(ctx, rj["server"], rj["token"], rj["fingerprint"], "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fp, err := agent.FetchFingerprint(ctx, e.ts.URL)
+	if err != nil || fp != e.fp {
+		t.Errorf("FetchFingerprint: %s %v, want %s", fp, err, e.fp)
+	}
+	agents, _ := e.store.ListAgents(ctx)
+	if len(agents) != 1 || !agents[0].Recovery || agents[0].UUID != cfg.AgentUUID {
+		t.Fatalf("recovery agent not registered: %+v", agents)
+	}
+	resp2, err := c.Get(e.ts.URL + "/recovery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(resp2.Body)
+	resp2.Body.Close()
+	if !strings.Contains(string(b), agents[0].Hostname) {
+		t.Error("recovery page does not list the recovery agent")
+	}
+}
