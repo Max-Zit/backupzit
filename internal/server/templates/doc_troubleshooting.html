@@ -1,0 +1,45 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Troubleshooting &amp; FAQ</h1>
+
+<h2>An agent shows as offline</h2>
+<ul>
+  <li>Is the machine on and the service running? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Can the machine reach the console? <code>Test-NetConnection backup-server -Port 8443</code> or <code>curl -k https://backup-server:8443/login</code>.</li>
+  <li>Agent log: <code>C:\ProgramData\backupzit\agent.log</code> or <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" means the console certificate changed — enroll the agent again.</li>
+</ul>
+
+<h2>A backup failed</h2>
+<p>Open the run in Activity; the message names the cause. Common ones:</p>
+<table>
+  <tr><th>Message contains</th><th>Fix</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>The SFTP server's key changed or the fingerprint was entered wrongly. Check with <code>ssh-keygen -lf</code> on the server.</td></tr>
+  <tr><td>permission denied / access denied</td><td>Storage credentials or folder permissions. Test the login with an SFTP/SMB client.</td></tr>
+  <tr><td>no space left / quota</td><td>Storage is full. Reduce retention or add space; expired backups free space after the next run.</td></tr>
+  <tr><td>repository is locked</td><td>Another operation (e.g. cleanup) is running on the same repository; the run retries for 30 minutes. Stale locks expire automatically.</td></tr>
+  <tr><td>wrong password / recovery key</td><td>The repository was created with a different key — check that the job uses the right storage target.</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>Immutability was requested on a bucket created without Object Lock. Create a new bucket with Object Lock.</td></tr>
+</table>
+
+<h2>A backup ends with "warning"</h2>
+<p>Some files could not be read — usually files locked by an application while VSS is not available, or files the agent has no permission for. The list is on the run page. Everything else is backed up.</p>
+
+<h2>Backups are slow</h2>
+<ul>
+  <li>The first backup reads and uploads everything; later ones read only changed files and upload only new data.</li>
+  <li>Check the network path to the storage (Wi-Fi, VPN, internet upload speed for cloud storage).</li>
+  <li>Exclude caches, temporary files and media you do not need.</li>
+</ul>
+
+<h2>FAQ</h2>
+<h3>Can I use NFS?</h3>
+<p>Yes: mount the NFS export on the agent (Linux: <code>/etc/fstab</code>) and use a <i>Local / mounted path</i> target such as <code>/mnt/nfs-backup</code>. For Windows machines, SMB is the better choice.</p>
+<h3>Can I move backups to another storage?</h3>
+<p>Copy the repository folder (or bucket prefix) as is — it is self-contained — and add a storage target pointing to the new location with the same recovery key.</p>
+<h3>Does deleting a job delete the backups?</h3>
+<p>No. Backups stay on the storage and remain restorable from Activity or the command line.</p>
+<h3>What happens if the console is down?</h3>
+<p>No new scheduled backups start until it is back; queued runs continue afterwards. Restores are always possible from the command line with the recovery sheet.</p>
+<h3>How much space will backups need?</h3>
+<p>Roughly the size of the data after compression for the first backup, plus the daily changes for each kept day. The Reports page shows how much was uploaded per job.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

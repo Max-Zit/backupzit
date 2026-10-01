@@ -136,7 +136,7 @@ func run() error {
 		go func() { <-ctx.Done(); server.Shutdown(plain) }()
 		log.Warn("serving plain HTTP for development", "addr", *devHTTP)
 	}
-	log.Info("backupzit server listening", "addr", *listen, "fingerprint", srv.CertFingerprint, "version", version)
+	log.Info("BackupZit server listening", "addr", *listen, "fingerprint", srv.CertFingerprint, "version", version)
 	if err := hs.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

@@ -1,4 +1,4 @@
-// Command backupzit-repo is the backupzit hardened repository: an HTTPS
+// Command backupzit-repo is the BackupZit hardened repository: an HTTPS
 // service on a Linux server that stores backups write-once and immutable.
 package main
 
@@ -25,11 +25,11 @@ import (
 var version = "dev"
 
 func usage() {
-	fmt.Fprint(os.Stderr, `backupzit-repo - backupzit hardened repository
+	fmt.Fprint(os.Stderr, `backupzit-repo - BackupZit hardened repository
 
 Usage:
   backupzit-repo serve                 run the service (systemd does this)
-  backupzit-repo add-key <name>        create an access key for a backupzit console / agents
+  backupzit-repo add-key <name>        create an access key for a BackupZit console / agents
   backupzit-repo keys                  list access keys
   backupzit-repo remove-key <name>     revoke an access key
   backupzit-repo fingerprint           show the TLS certificate fingerprint clients pin
@@ -154,7 +154,7 @@ func cmdServe(args []string) error {
 		defer cancel()
 		srv.Shutdown(sctx)
 	}()
-	log.Info("backupzit hardened repository listening", "addr", *listen, "data", c.data,
+	log.Info("BackupZit hardened repository listening", "addr", *listen, "data", c.data,
 		"lock_days", *lockDays, "fingerprint", tlsutil.CertFingerprint(cert), "version", version)
 	if err := srv.ListenAndServeTLS("", ""); !errors.Is(err, http.ErrServerClosed) {
 		return err

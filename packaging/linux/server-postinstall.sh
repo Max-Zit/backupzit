@@ -13,7 +13,7 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl daemon-reload || true
     systemctl enable backupzit-server.service >/dev/null 2>&1 || true
 fi
-echo "backupzit server installed."
+echo "BackupZit server installed."
 echo "1. Create a PostgreSQL database and user, then set BACKUPZIT_DB in /etc/backupzit/server.env"
 echo "2. systemctl start backupzit-server"
 echo "3. Open https://<this-host>:8443 (admin password: /var/lib/backupzit/initial-admin-password.txt)"

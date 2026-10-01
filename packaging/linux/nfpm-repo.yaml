@@ -4,12 +4,12 @@ platform: linux
 version: ${VERSION}
 section: admin
 priority: optional
-maintainer: backupzit <support@backupzit.example>
+maintainer: BackupZit <support@backupzit.example>
 description: |
-  backupzit hardened repository: immutable, write-once backup storage for
-  backupzit agents. Backups cannot be changed or deleted by clients before
+  BackupZit hardened repository: immutable, write-once backup storage for
+  BackupZit agents. Backups cannot be changed or deleted by clients before
   the configured immutability period ends.
-vendor: backupzit
+vendor: BackupZit
 homepage: https://github.com/backupzit/backupzit
 license: AGPL-3.0-only
 contents:

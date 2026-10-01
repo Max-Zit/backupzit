@@ -1,7 +1,7 @@
 // Command backupzit-agent backs up and restores files and folders.
 //
 // Phase 1 is a command line tool; later it runs as a service controlled by
-// the backupzit management console.
+// the BackupZit management console.
 package main
 
 import (
@@ -30,7 +30,7 @@ const usage = `backupzit-agent ` + "%s" + `
 Usage:
   backupzit-agent <command> [options]
 
-Managed mode (controlled by the backupzit server):
+Managed mode (controlled by the BackupZit server):
   enroll      Register this machine with the management server
   service     install | uninstall | start | stop | status | run
 

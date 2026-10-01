@@ -1,5 +1,5 @@
 <#
-  Builds the backupzit recovery ISO (Windows PE with the agent started in
+  Builds the BackupZit recovery ISO (Windows PE with the agent started in
   recovery mode). Run elevated on a Windows machine with the Windows ADK
   (Deployment Tools) and the Windows PE add-on installed.
 
@@ -41,7 +41,7 @@ try {
     $startnet = @"
 @echo off
 wpeinit
-title backupzit recovery
+title BackupZit recovery
 color 1F
 echo Starting network...
 wpeutil WaitForNetwork >nul 2>&1

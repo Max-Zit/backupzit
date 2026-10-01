@@ -57,7 +57,7 @@ func cmdRecovery(ctx context.Context, args []string) error {
 	fs.Parse(args)
 
 	fmt.Println("==============================================")
-	fmt.Println(" backupzit recovery environment  " + version)
+	fmt.Println(" BackupZit recovery environment  " + version)
 	fmt.Println("==============================================")
 	if c.Server == "" {
 		if fc, path := findRecoveryConfig(); path != "" {

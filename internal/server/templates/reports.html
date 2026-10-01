@@ -1,0 +1,151 @@
+{{define "content"}}
+<div class="pagehead">
+  <h1>Reports</h1>
+  {{with .Data.Report}}
+  <div class="actions noprint">
+    <a class="btn secondary-link" href="/reports/csv?{{$.Data.Query}}">{{template "icon" "download"}}CSV</a>
+    <button type="button" class="secondary" data-print>{{template "icon" "print"}}Print / PDF</button>
+  </div>
+  {{end}}
+</div>
+
+<form method="get" action="/reports" class="panel filters noprint">
+  <label>Period
+    <select name="period" id="period">
+      {{range .Data.Presets}}<option value="{{.Key}}" {{if eq .Key ($.Data.Q.Get "period")}}selected{{end}}>{{.Name}}</option>{{end}}
+    </select>
+  </label>
+  <label data-custom>From <input type="date" name="from" value="{{.Data.Q.Get "from"}}"></label>
+  <label data-custom>To <input type="date" name="to" value="{{.Data.Q.Get "to"}}"></label>
+  <label>Agent
+    <select name="agent"><option value="">All agents</option>{{range .Data.Agents}}<option value="{{.ID}}" {{if eq (printf "%d" .ID) ($.Data.Q.Get "agent")}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+  </label>
+  <label>Job
+    <select name="job"><option value="">All jobs</option>{{range .Data.Jobs}}<option value="{{.ID}}" {{if eq (printf "%d" .ID) ($.Data.Q.Get "job")}}selected{{end}}>{{.Name}} ({{.Hostname}})</option>{{end}}</select>
+  </label>
+  <div><button>Show report</button></div>
+</form>
+
+{{with .Data.Report}}
+<div class="report-title">
+  <h2>{{.Period.Label}}</h2>
+  <span class="muted">{{.Scope}} · generated {{ts .Generated}}</span>
+</div>
+
+<div class="grid">
+  <div class="stat"><div class="si">{{template "icon" "jobs"}}</div><b>{{.Backups}}</b><span>backups</span></div>
+  <div class="stat {{if .Failed}}bad{{else if .Warning}}warn{{else}}ok{{end}}"><div class="si">{{template "icon" "check"}}</div><b>{{pct .SuccessRate}} %</b><span>success rate</span></div>
+  <div class="stat ok"><div class="si">{{template "icon" "check"}}</div><b>{{.Success}}</b><span>successful</span></div>
+  <div class="stat {{if .Warning}}warn{{end}}"><div class="si">{{template "icon" "warn"}}</div><b>{{.Warning}}</b><span>with warnings</span></div>
+  <div class="stat {{if .Failed}}bad{{end}}"><div class="si">{{template "icon" "alert"}}</div><b>{{.Failed}}</b><span>failed</span></div>
+  <div class="stat info"><div class="si">{{template "icon" "storage"}}</div><b>{{bytes .BytesStored}}</b><span>uploaded ({{bytes .BytesRead}} read)</span></div>
+  <div class="stat"><div class="si">{{template "icon" "recovery"}}</div><b>{{.Restores}}</b><span>restores</span></div>
+</div>
+
+<div class="panel">
+  <h2>Backups per day</h2>
+  {{if .Backups}}
+  <svg class="chart" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="Backups per day">
+    <line x1="0" y1="180.5" x2="1000" y2="180.5" class="axis"/>
+    {{range .Bars}}<g><title>{{.Title}}</title>
+      <rect x="{{fx .X}}" y="{{fx .OkY}}" width="{{fx .W}}" height="{{fx .Ok}}" class="b-ok"/>
+      <rect x="{{fx .X}}" y="{{fx .WarnY}}" width="{{fx .W}}" height="{{fx .Warn}}" class="b-warn"/>
+      <rect x="{{fx .X}}" y="{{fx .FailY}}" width="{{fx .W}}" height="{{fx .Fail}}" class="b-fail"/>
+    </g>{{end}}
+  </svg>
+  <div class="chart-labels">{{range .Bars}}<span>{{if .ShowLabel}}{{.Label}}{{end}}</span>{{end}}</div>
+  <div class="legend"><span class="l-ok">successful</span><span class="l-warn">warnings</span><span class="l-fail">failed</span></div>
+  {{else}}<div class="empty">{{template "icon" "activity"}}<p>No backups in this period.</p></div>{{end}}
+</div>
+
+<div class="panel">
+  <h2>Jobs</h2>
+  {{if .Jobs}}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Job</th><th>Agent</th><th>Runs</th><th>Success rate</th><th>OK / warn / failed</th><th>Last result</th><th>Last good backup</th><th>Protected</th><th>Uploaded</th></tr></thead>
+    <tbody>
+    {{range .Jobs}}
+    <tr>
+      <td class="strong">{{if .JobID}}<a href="/jobs/{{.JobID}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td>
+      <td>{{.Hostname}}</td>
+      <td>{{.Runs}}</td>
+      <td><div class="meter {{if lt .SuccessRate 100.0}}{{if .Missed}}bad{{else}}warn{{end}}{{end}}"><meter min="0" max="100" value="{{pct .SuccessRate}}"></meter><span>{{pct .SuccessRate}} %</span></div></td>
+      <td class="nowrap">{{.Success}} / {{.Warning}} / {{.Failed}}</td>
+      <td>{{template "status" .LastStatus}}</td>
+      <td class="nowrap">{{if .LastSuccess}}{{ts .LastSuccess}}{{else}}<span class="badge failed"><i></i>none</span>{{end}}</td>
+      <td class="nowrap">{{if .ProtectedFiles}}{{bytes .ProtectedBytes}} <span class="muted small">{{.ProtectedFiles}} files</span>{{else}}{{bytes .ProtectedBytes}}{{end}}</td>
+      <td class="nowrap">{{bytes .BytesStored}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table></div>
+  {{else}}<p class="muted">No backup jobs ran in this period.</p>{{end}}
+</div>
+
+{{if .Problems}}
+<div class="panel">
+  <h2>Failures and warnings</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Time</th><th>Job</th><th>Agent</th><th>Status</th><th>Message</th></tr></thead>
+    <tbody>
+    {{range .Problems}}
+    <tr><td><a href="/runs/{{.ID}}" class="idlink">{{.ID}}</a></td><td class="nowrap">{{ts .QueuedAt}}</td><td>{{deref .JobName}}</td><td>{{.Hostname}}</td><td>{{template "status" .Status}}</td><td class="msg">{{.Message}}</td></tr>
+    {{end}}
+    </tbody>
+  </table></div>
+</div>
+{{end}}
+
+<form method="post" action="/reports/email" class="panel inline-form noprint">
+  <h2>{{template "icon" "mail"}} Email this report</h2>
+  {{range $k, $v := $.Data.Q}}{{range $v}}<input type="hidden" name="{{$k}}" value="{{.}}">{{end}}{{end}}
+  <label>Recipients <small>comma separated; empty sends to the notification recipients from Settings</small><input name="to" placeholder="it@example.com"></label>
+  <div><button>{{template "icon" "mail"}}Send now</button></div>
+</form>
+{{end}}
+
+<div class="panel noprint" id="scheduled">
+  <h2>{{template "icon" "clock"}} Scheduled reports</h2>
+  <p class="muted">Reports are emailed automatically with the CSV attached once each period is complete. Email must be configured under <a href="/settings">Settings</a>.</p>
+  {{if .Data.Schedules}}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>When</th><th>Covers</th><th>Recipients</th><th></th></tr></thead>
+    <tbody>
+    {{range .Data.Schedules}}
+    <tr>
+      <td class="strong">{{.Name}}</td>
+      <td>{{.Describe}}</td>
+      <td>{{if .JobName}}job {{deref .JobName}}{{else if .AgentName}}agent {{deref .AgentName}}{{else}}all agents{{end}}</td>
+      <td>{{if .Recipients}}{{join .Recipients ", "}}{{else}}<span class="muted">notification recipients</span>{{end}}</td>
+      <td><form method="post" action="/reports/schedules/{{.ID}}/delete" class="inline" data-confirm="Remove scheduled report {{.Name}}?"><button class="link">Remove</button></form></td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table></div>
+  {{end}}
+  <details class="mt" {{if not .Data.Schedules}}open{{end}}>
+    <summary>New scheduled report</summary>
+    <form method="post" action="/reports/schedules" class="stack">
+      <div class="row">
+        <label>Name <input name="name" required placeholder="Monthly report for management"></label>
+        <label>Frequency
+          <select name="frequency">
+            <option value="daily">Daily — previous day</option>
+            <option value="weekly" selected>Weekly (Monday) — previous week</option>
+            <option value="monthly">Monthly (1st) — previous month</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <label>Agent <select name="agent"><option value="">All agents</option>{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select></label>
+        <label>Job <select name="job"><option value="">All jobs</option>{{range .Data.Jobs}}<option value="{{.ID}}">{{.Name}} ({{.Hostname}})</option>{{end}}</select></label>
+      </div>
+      <div class="row">
+        <label>Send at <select name="hour">{{range $h := hours}}<option value="{{$h}}" {{if eq $h 7}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select></label>
+        <label>Recipients <small>optional, comma separated</small><input name="recipients" placeholder="manager@example.com, it@example.com"></label>
+      </div>
+      <div><button>{{template "icon" "plus"}}Create scheduled report</button></div>
+    </form>
+  </details>
+</div>
+{{end}}

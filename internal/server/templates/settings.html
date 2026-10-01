@@ -45,4 +45,21 @@
   </form>
 </div>
 {{end}}
+{{with .Data.Sessions}}
+<div class="panel">
+  <h2>{{template "icon" "lock"}} Sign-in sessions</h2>
+  <form method="post" action="/settings/sessions" class="stack">
+    <div class="row">
+      <label>Session length <small>signed-in users must sign in again after this many hours (1 – 2160)</small>
+        <input type="number" name="lifetime_hours" min="1" max="2160" value="{{.LifetimeHours}}" required>
+      </label>
+      <label>Sign out after inactivity <small>minutes without any activity; 0 = never</small>
+        <input type="number" name="idle_minutes" min="0" max="43200" value="{{.IdleMinutes}}" required>
+      </label>
+    </div>
+    <small class="muted">Shorter is safer. A shorter session length also shortens sessions that are already signed in.</small>
+    <div><button>Save session settings</button></div>
+  </form>
+</div>
+{{end}}
 {{end}}

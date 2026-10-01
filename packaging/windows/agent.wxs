@@ -1,5 +1,5 @@
 <!--
-  backupzit Agent MSI.
+  BackupZit Agent MSI.
 
   Silent install with enrollment:
     msiexec /i backupzit-agent.msi /qn SERVER="https://backup:8443" TOKEN="..." FINGERPRINT="SHA256:..."
@@ -9,7 +9,7 @@
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
-  <Package Name="backupzit Agent"
+  <Package Name="BackupZit Agent"
            Manufacturer="backupzit"
            Version="$(var.Version)"
            UpgradeCode="6C1B6F8E-3B1A-4E0F-9A57-2C5B8D1E7A40"
@@ -17,7 +17,7 @@
            InstallerVersion="500"
            Compressed="yes">
 
-    <SummaryInformation Description="backupzit Agent $(var.Version)" />
+    <SummaryInformation Description="BackupZit Agent $(var.Version)" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
@@ -25,7 +25,7 @@
     <Property Id="TOKEN" Secure="yes" Hidden="yes" />
     <Property Id="FINGERPRINT" Secure="yes" />
     <Property Id="FORCEENROLL" Secure="yes" />
-    <Property Id="ARPCOMMENTS" Value="Backup agent managed by the backupzit server" />
+    <Property Id="ARPCOMMENTS" Value="Backup agent managed by the BackupZit server" />
     <Property Id="ARPNOMODIFY" Value="1" />
 
     <Launch Condition="VersionNT64" Message="This package requires 64-bit Windows." />
@@ -36,8 +36,8 @@
           <File Id="AgentExeFile" Source="$(var.AgentExe)" Name="backupzit-agent.exe" KeyPath="yes" />
           <ServiceInstall Id="AgentService"
                           Name="backupzit-agent"
-                          DisplayName="backupzit Agent"
-                          Description="Backs up this machine as instructed by the backupzit management server."
+                          DisplayName="BackupZit Agent"
+                          Description="Backs up this machine as instructed by the BackupZit management server."
                           Type="ownProcess"
                           Start="auto"
                           ErrorControl="normal"

@@ -1,0 +1,53 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Installing the server</h1>
+<p class="lead">The console runs on Linux (Debian, Ubuntu, AlmaLinux, Rocky Linux) with PostgreSQL. Each organization runs its own console on its own network.</p>
+
+<h2>Requirements</h2>
+<ul>
+  <li>A Linux VM or server: 2 vCPU, 2–4 GB RAM, 20 GB disk is plenty for hundreds of agents (backup data is not stored on it).</li>
+  <li>PostgreSQL 13 or newer (local or on another server).</li>
+  <li>Network: agents must reach the console on TCP <b>8443</b> (HTTPS). Agents must also reach the storage directly.</li>
+</ul>
+
+<h2>Install</h2>
+<h3>Debian / Ubuntu</h3>
+<pre>apt install postgresql
+apt install ./backupzit-server_*.deb</pre>
+<h3>AlmaLinux / Rocky Linux</h3>
+<pre>dnf install postgresql-server &amp;&amp; postgresql-setup --initdb &amp;&amp; systemctl enable --now postgresql
+dnf install ./backupzit-server-*.rpm</pre>
+
+<h3>Create the database</h3>
+<pre>sudo -u postgres psql -c "CREATE USER backupzit WITH PASSWORD 'choose-a-strong-password'"
+sudo -u postgres psql -c "CREATE DATABASE backupzit OWNER backupzit"</pre>
+<p>Put the connection string into <code>/etc/backupzit/server.env</code>:</p>
+<pre>BACKUPZIT_DB=postgres://backupzit:choose-a-strong-password@localhost:5432/backupzit?sslmode=disable
+BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
+BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
+<pre>systemctl start backupzit-server</pre>
+
+<h2>First sign-in</h2>
+<p>Open <code>https://&lt;server&gt;:8443</code>. The initial administrator is <b>admin</b>; the password is in <code>/var/lib/backupzit/initial-admin-password.txt</code> (or set <code>BACKUPZIT_ADMIN_PASSWORD</code> before the first start). Change it after signing in. To reset a forgotten password on the server:</p>
+<pre>set -a; . /etc/backupzit/server.env; set +a
+backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
+
+<h2>The certificate</h2>
+<p>On first start the console creates a self-signed certificate. Your browser will warn about it once; agents do not rely on certificate authorities at all — they <b>pin the certificate fingerprint</b> shown on the <a href="/agents">Agents</a> page when they enroll. That protects agents against a fake server even on an untrusted network.</p>
+<div class="callout warn"><p>If you replace the certificate (<code>cert.pem</code>/<code>key.pem</code> in the data directory), agents enrolled earlier will refuse to connect until they are enrolled again.</p></div>
+
+<h2>Firewall</h2>
+<table>
+  <tr><th>Port</th><th>From</th><th>To</th><th>Purpose</th></tr>
+  <tr><td>8443/tcp</td><td>agents, admins</td><td>console</td><td>agent API and web console</td></tr>
+  <tr><td>22/tcp</td><td>agents, console</td><td>SFTP storage</td><td>SFTP targets</td></tr>
+  <tr><td>443 or 9000/tcp</td><td>agents, console</td><td>S3 storage</td><td>S3 targets</td></tr>
+  <tr><td>445/tcp</td><td>agents, console</td><td>NAS / file server</td><td>SMB targets</td></tr>
+  <tr><td>8500/tcp</td><td>agents, console</td><td>hardened repository</td><td>hardened targets</td></tr>
+  <tr><td>587/465/25</td><td>console</td><td>mail server</td><td>email notifications</td></tr>
+</table>
+<p>The console also connects to storage to let you browse files inside disk images.</p>
+
+<h2>Backing up the console itself</h2>
+<p>Back up the PostgreSQL database (for example with a nightly <code>pg_dump</code> to a file that a BackupZit agent on the same machine backs up) and the data directory <code>/var/lib/backupzit</code> (certificate). Keep the recovery sheets of your storage targets separately — with them, backups can be restored even without the console.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

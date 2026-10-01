@@ -1,0 +1,60 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Command line reference</h1>
+<p class="lead">The agent also works on its own from the command line — for scripting, for restoring without the console, and for emergencies.</p>
+
+<h2>Repository and credentials</h2>
+<p>Every command takes <code>--repo</code> (or <code>BACKUPZIT_REPO</code>). Prefer environment variables for secrets:</p>
+<table>
+  <tr><th>Location</th><th>Credentials</th></tr>
+  <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
+  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> or <code>--sftp-key file</code>; <code>--sftp-hostkey SHA256:…</code></td></tr>
+  <tr><td><code>s3://endpoint/bucket/prefix</code> (<code>?tls=false</code> for HTTP)</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>, <code>BACKUPZIT_S3_SECRET_KEY</code>, <code>--s3-region</code></td></tr>
+  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code></td></tr>
+  <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>, <code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
+</table>
+<p>Encrypted repositories need the recovery key in <code>BACKUPZIT_PASSWORD</code>.</p>
+
+<h2>Agent commands</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>init</code></td><td>Create a new repository.</td></tr>
+  <tr><td><code>backup [--vss] PATH…</code></td><td>Back up files and folders.</td></tr>
+  <tr><td><code>snapshots</code></td><td>List snapshots.</td></tr>
+  <tr><td><code>ls SNAPSHOT [PATH]</code></td><td>List files in a snapshot.</td></tr>
+  <tr><td><code>restore --target DIR [--include PATH] [--verify] SNAPSHOT|latest</code></td><td>Restore files (<code>--original</code> writes them back to their original location).</td></tr>
+  <tr><td><code>check [--read-data]</code></td><td>Verify the repository; with <code>--read-data</code> every byte is read and checked.</td></tr>
+  <tr><td><code>disks</code></td><td>Show disks and partitions.</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2]</code></td><td>Back up a disk image.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] SNAPSHOT</code></td><td>Write an image to a disk (destroys its contents).</td></tr>
+  <tr><td><code>image-ls</code>, <code>image-extract</code></td><td>Browse and extract files from an image.</td></tr>
+  <tr><td><code>enroll --server URL --token T --fingerprint F</code></td><td>Connect the agent to a console.</td></tr>
+  <tr><td><code>service install|start|stop|uninstall</code></td><td>Manage the agent service.</td></tr>
+</table>
+<p>Read-only point-in-time view of immutable storage: add <code>--as-of 2026-10-01T14:30</code> to <code>snapshots</code>, <code>ls</code> or <code>restore</code>.</p>
+
+<h3>Examples</h3>
+<pre>set BACKUPZIT_PASSWORD=XXXX-XXXX-...
+set BACKUPZIT_S3_ACCESS_KEY=...
+set BACKUPZIT_S3_SECRET_KEY=...
+backupzit-agent snapshots --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d
+backupzit-agent restore --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d --target D:\Restore --include C:\Users\ana\Documents latest
+backupzit-agent check --repo s3://... --read-data</pre>
+
+<h2>Hardened repository commands</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>backupzit-repo add-key NAME</code></td><td>Create an access key (shown once).</td></tr>
+  <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>List / revoke access keys.</td></tr>
+  <tr><td><code>backupzit-repo fingerprint</code></td><td>Certificate fingerprint for the console.</td></tr>
+  <tr><td><code>backupzit-repo status</code></td><td>Stored and hidden (deleted, still retained) data.</td></tr>
+  <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Make files deleted since TIME visible again.</td></tr>
+</table>
+
+<h2>Server commands</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>set -a; . /etc/backupzit/server.env; backupzit-server --set-admin-password NEW-PASSWORD</code></td><td>Reset the password of the <i>admin</i> user and sign out its sessions.</td></tr>
+  <tr><td><code>systemctl status backupzit-server</code>, <code>journalctl -u backupzit-server</code></td><td>Service state and log.</td></tr>
+</table>
+{{template "docpager" .}}
+</article></div>{{end}}

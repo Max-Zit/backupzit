@@ -1,4 +1,4 @@
-// Package server implements the backupzit management console: the web UI
+// Package server implements the BackupZit management console: the web UI
 // for administrators and the HTTPS API that agents poll.
 package server
 
@@ -54,8 +54,9 @@ type Server struct {
 
 	pages map[string]*template.Template
 	// Notifier is triggered when a run finishes (optional).
-	Notifier *Notifier
-	cache    *repoCache
+	Notifier  *Notifier
+	cache     *repoCache
+	sessCache sessionCache
 }
 
 // New creates a server.
@@ -107,6 +108,15 @@ var funcs = template.FuncMap{
 	"bytes": humanBytes,
 	"join":  strings.Join,
 	"days":  days,
+	"sub":   func(a, b int) int { return a - b },
+	"pct":   func(f float64) string { return fmt.Sprintf("%.1f", f) },
+	"fx":    func(f float64) string { return fmt.Sprintf("%.1f", f) },
+	"dur": func(d time.Duration) string {
+		if d < time.Minute {
+			return d.Round(time.Second).String()
+		}
+		return d.Round(time.Minute).String()
+	},
 	"initial": func(s string) string {
 		for _, r := range s {
 			return strings.ToUpper(string(r))
@@ -271,9 +281,18 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /runs/{id}/browse", s.ui(s.handleBrowse))
 	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(s.handleFilesRestore))
 	mux.HandleFunc("GET /downloads/{file}", s.ui(s.handleDownload))
+	mux.HandleFunc("GET /reports", s.ui(s.handleReports))
+	mux.HandleFunc("GET /reports/csv", s.ui(s.handleReportCSV))
+	mux.HandleFunc("POST /reports/email", s.ui(s.handleReportEmail))
+	mux.HandleFunc("POST /reports/schedules", s.ui(s.handleReportScheduleCreate))
+	mux.HandleFunc("POST /reports/schedules/{id}/delete", s.ui(s.handleReportScheduleDelete))
+	mux.HandleFunc("GET /calendar", s.ui(s.handleCalendar))
+	mux.HandleFunc("GET /docs", s.ui(s.handleDocs))
+	mux.HandleFunc("GET /docs/{page}", s.ui(s.handleDocs))
 	mux.HandleFunc("GET /recovery", s.ui(s.handleRecovery))
 	mux.HandleFunc("GET /settings", s.ui(s.handleSettings))
 	mux.HandleFunc("POST /settings/email", s.ui(s.handleSettingsEmail))
+	mux.HandleFunc("POST /settings/sessions", s.ui(s.handleSettingsSessions))
 	mux.HandleFunc("POST /recovery/token", s.ui(s.handleRecoveryToken))
 	mux.HandleFunc("POST /recovery/recovery.json", s.ui(s.handleRecoveryJSON))
 
@@ -312,7 +331,7 @@ func (s *Server) ui(h func(w http.ResponseWriter, r *http.Request, user string))
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
-		user, err := s.store.SessionUser(r.Context(), c.Value)
+		user, err := s.store.SessionUser(r.Context(), c.Value, s.sessionSettings(r.Context()).Idle())
 		if err != nil {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
@@ -443,7 +462,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 			Error: fmt.Sprintf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1)})
 		return
 	}
-	tok, err := s.store.Login(r.Context(), username, r.FormValue("password"), 12*time.Hour)
+	sess := s.sessionSettings(r.Context())
+	tok, err := s.store.Login(r.Context(), username, r.FormValue("password"), sess.Lifetime())
 	if err != nil {
 		s.logins.Fail(keys)
 		s.log.Warn("failed login", "user", username, "remote", r.RemoteAddr)
@@ -453,7 +473,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	s.logins.Success(keys)
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: r.TLS != nil,
-		SameSite: http.SameSiteStrictMode, MaxAge: int((12 * time.Hour).Seconds()),
+		SameSite: http.SameSiteStrictMode, MaxAge: int(sess.Lifetime().Seconds()),
 	})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

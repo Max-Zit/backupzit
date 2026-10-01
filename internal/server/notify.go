@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -97,7 +98,17 @@ func (e *EmailSettings) Validate() error {
 }
 
 // sendMail delivers a plain text message.
+// attachment is a file attached to an email.
+type attachment struct {
+	Name, ContentType string
+	Data              []byte
+}
+
 func sendMail(ctx context.Context, e EmailSettings, subject, body string) error {
+	return sendMailWith(ctx, e, subject, body, nil)
+}
+
+func sendMailWith(ctx context.Context, e EmailSettings, subject, body string, atts []attachment) error {
 	addr := net.JoinHostPort(e.Host, strconv.Itoa(e.Port))
 	d := net.Dialer{Timeout: 20 * time.Second}
 	var conn net.Conn
@@ -141,9 +152,29 @@ func sendMail(ctx context.Context, e EmailSettings, subject, body string) error 
 	}
 	var id [12]byte
 	rand.Read(id[:])
-	hdr := fmt.Sprintf("From: backupzit <%s>\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMessage-ID: <%s@backupzit>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n",
+	hdr := fmt.Sprintf("From: BackupZit <%s>\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMessage-ID: <%s@backupzit>\r\nMIME-Version: 1.0\r\n",
 		e.From, strings.Join(e.To, ", "), mime.QEncoding.Encode("utf-8", subject), time.Now().Format(time.RFC1123Z), hex.EncodeToString(id[:]))
-	msg := hdr + strings.ReplaceAll(strings.ReplaceAll(body, "\r\n", "\n"), "\n", "\r\n")
+	text := strings.ReplaceAll(strings.ReplaceAll(body, "\r\n", "\n"), "\n", "\r\n")
+	msg := hdr + "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n" + text
+	if len(atts) > 0 {
+		boundary := "bz-" + hex.EncodeToString(id[:])
+		var b strings.Builder
+		b.WriteString(hdr + "Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n\r\n")
+		b.WriteString("--" + boundary + "\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n" + text + "\r\n")
+		clean := strings.NewReplacer("\"", "", "\r", "", "\n", "")
+		for _, a := range atts {
+			b.WriteString("--" + boundary + "\r\nContent-Type: " + clean.Replace(a.ContentType) + "\r\nContent-Transfer-Encoding: base64\r\n" +
+				"Content-Disposition: attachment; filename=\"" + clean.Replace(a.Name) + "\"\r\n\r\n")
+			enc := base64.StdEncoding.EncodeToString(a.Data)
+			for len(enc) > 76 {
+				b.WriteString(enc[:76] + "\r\n")
+				enc = enc[76:]
+			}
+			b.WriteString(enc + "\r\n")
+		}
+		b.WriteString("--" + boundary + "--\r\n")
+		msg = b.String()
+	}
 	if _, err := w.Write([]byte(msg)); err != nil {
 		return err
 	}
@@ -160,10 +191,11 @@ type Notifier struct {
 	publicURL func() string
 	mu        sync.Mutex // one pass at a time
 	send      func(ctx context.Context, e EmailSettings, subject, body string) error
+	sendWith  func(ctx context.Context, e EmailSettings, subject, body string, atts []attachment) error
 }
 
 func NewNotifier(store *Store, log *slog.Logger, publicURL func() string) *Notifier {
-	return &Notifier{store: store, log: log, publicURL: publicURL, send: sendMail}
+	return &Notifier{store: store, log: log, publicURL: publicURL, send: sendMail, sendWith: sendMailWith}
 }
 
 func wants(e EmailSettings, status string) bool {
@@ -189,6 +221,9 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 		return
 	}
 	n.runAlerts(ctx, e)
+	if e.Enabled {
+		n.scheduledReports(ctx, e, now)
+	}
 	if e.Enabled && e.DailyReport && now.Hour() == e.DailyHour {
 		var last string
 		n.store.GetSetting(ctx, settingDailySent, &last)
@@ -244,7 +279,7 @@ func (n *Notifier) runMessage(r Run) (string, string) {
 	if r.JobName != nil {
 		job = " \"" + *r.JobName + "\""
 	}
-	subject := fmt.Sprintf("[backupzit] %s %s%s on %s", strings.ToUpper(r.Status), kindName(r.Kind), job, r.Hostname)
+	subject := fmt.Sprintf("[BackupZit] %s %s%s on %s", strings.ToUpper(r.Status), kindName(r.Kind), job, r.Hostname)
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s%s on %s finished with status %s.\n\n", kindName(r.Kind), job, r.Hostname, strings.ToUpper(r.Status))
 	if r.StartedAt != nil {
@@ -305,7 +340,7 @@ func (n *Notifier) dailyReport(ctx context.Context, e EmailSettings, now time.Ti
 	} else if count[api.StatusWarning] > 0 {
 		state = "WARNINGS"
 	}
-	subject := fmt.Sprintf("[backupzit] Daily report %s: %s", now.Format("2006-01-02"), state)
+	subject := fmt.Sprintf("[BackupZit] Daily report %s: %s", now.Format("2006-01-02"), state)
 	var b strings.Builder
 	fmt.Fprintf(&b, "Last 24 hours: %d successful, %d with warnings, %d failed, %d queued/running.\n",
 		count[api.StatusSuccess], count[api.StatusWarning], count[api.StatusFailed], count[api.StatusQueued]+count[api.StatusRunning])

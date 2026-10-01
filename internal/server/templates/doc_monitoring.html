@@ -1,0 +1,48 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Monitoring, reports &amp; calendar</h1>
+<p class="lead">See at a glance whether everything is protected, find out what happened on any day, and send regular reports to management or customers.</p>
+
+<h2>Dashboard</h2>
+<p>Agents online, number of jobs and storage targets, runs in progress, and runs, failures and warnings in the last 24 hours. Red or yellow cards need attention. Below is the most recent activity.</p>
+
+<h2>Activity</h2>
+<p>Every backup and restore, newest first. Click a run for details: what was backed up, statistics, errors per file, and the restore options. Runs that are in progress refresh automatically.</p>
+<table>
+  <tr><th>Status</th><th>Meaning</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>Waiting for the agent (it may be offline).</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>In progress.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Completed without problems.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Completed, but some files could not be read (they are listed). The rest is backed up.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Did not complete — storage unreachable, credentials wrong, disk full… The message explains why.</td></tr>
+  <tr><td><span class="badge">expired</span></td><td>The snapshot was removed by the job's retention.</td></tr>
+</table>
+
+<h2>Calendar</h2>
+<p><a href="/calendar">Calendar</a> shows a month at a time:</p>
+<ul>
+  <li><b>Past days</b> show what actually ran, colored by result (green, yellow, red). Repeated runs of a job on one day are combined, e.g. <i>08:00 Office files ×6</i>.</li>
+  <li><b>Future days</b> show what the schedules will start (blue).</li>
+  <li><b>Next 7 days</b> lists every upcoming run in order.</li>
+</ul>
+<p>Filter by agent to see one machine's plan. Click an entry to open the job.</p>
+
+<h2>Reports</h2>
+<p><a href="/reports">Reports</a> summarize any period: today, yesterday, last 7/30/90 days, this or last week or month, or a custom date range — for all agents, one agent or one job.</p>
+<ul>
+  <li>Number of backups, success rate, successful / warning / failed runs, data read and uploaded, restores.</li>
+  <li>A chart of backups per day.</li>
+  <li>Per job: runs, success rate, last result, <b>last good backup</b> and protected size. A job with no good backup in the period is highlighted.</li>
+  <li>All failures and warnings with their messages.</li>
+</ul>
+<p>Use <b>CSV</b> to open the runs in Excel, <b>Print / PDF</b> for a document, or <b>Email this report</b>.</p>
+
+<h3>Scheduled reports</h3>
+<p>Under <i>Scheduled reports</i> create reports that are emailed automatically when a period is complete:</p>
+<ul>
+  <li><b>Daily</b> — every morning, about the previous day.</li>
+  <li><b>Weekly</b> — every Monday, about the previous week.</li>
+  <li><b>Monthly</b> — on the 1st, about the previous month (ideal for customers or management).</li>
+</ul>
+<p>Each report can cover all agents, one agent or one job, and go to its own recipients. The CSV with all runs is attached. Email must be configured under <a href="/settings">Settings</a>.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

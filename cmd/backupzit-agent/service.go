@@ -126,8 +126,8 @@ func newService(cfgPath string) (service.Service, *program, error) {
 	}
 	svc, err := service.New(p, &service.Config{
 		Name:        serviceName,
-		DisplayName: "backupzit Agent",
-		Description: "Backs up this machine as instructed by the backupzit management server.",
+		DisplayName: "BackupZit Agent",
+		Description: "Backs up this machine as instructed by the BackupZit management server.",
 		Arguments:   args,
 		Option: service.KeyValue{
 			"OnFailure":              "restart",

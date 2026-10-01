@@ -4,10 +4,10 @@ platform: linux
 version: ${VERSION}
 section: admin
 priority: optional
-maintainer: backupzit <support@backupzit.example>
+maintainer: BackupZit <support@backupzit.example>
 description: |
-  backupzit management server: web console and API for backupzit agents.
-vendor: backupzit
+  BackupZit management server: web console and API for BackupZit agents.
+vendor: BackupZit
 homepage: https://github.com/backupzit/backupzit
 license: AGPL-3.0-only
 recommends:

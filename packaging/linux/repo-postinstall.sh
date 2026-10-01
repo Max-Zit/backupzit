@@ -17,10 +17,10 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl daemon-reload || true
     systemctl enable backupzit-repo.service >/dev/null 2>&1 || true
 fi
-echo "backupzit hardened repository installed."
+echo "BackupZit hardened repository installed."
 echo "1. Review /etc/backupzit-repo/repo.env (immutability period, storage directory)"
 echo "2. systemctl start backupzit-repo"
-echo "3. backupzit-repo add-key <name>     -> access key for the backupzit console"
+echo "3. backupzit-repo add-key <name>     -> access key for the BackupZit console"
 echo "   backupzit-repo fingerprint        -> certificate fingerprint for the console"
 echo "4. Add a 'Hardened repository' storage target in the console, then disable SSH"
 echo "   and other remote access to this server."

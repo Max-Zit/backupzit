@@ -1,0 +1,53 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Backup jobs &amp; schedules</h1>
+<p class="lead">A job says what to back up on which agent, where to store it, when to run and how many backups to keep.</p>
+
+<h2>Creating a job</h2>
+<ol>
+  <li>Go to <a href="/jobs">Backup jobs</a> and fill in <i>New backup job</i>.</li>
+  <li>Choose the <b>agent</b> and the <b>storage target</b>.</li>
+  <li>Choose what to back up:
+    <ul>
+      <li><b>Files and folders</b> — one path per line as seen on the agent, e.g. <code>C:\Users</code>, <code>D:\Data</code>, <code>/home</code>, <code>/etc</code>.</li>
+      <li><b>Disk image</b> — a whole disk or selected partitions, restorable to an empty disk or new hardware. See <a href="/docs/images">Disk images</a>.</li>
+    </ul>
+  </li>
+  <li>Optionally add <b>excludes</b>, one pattern per line: <code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>.</li>
+  <li>Set <b>Keep backups</b> and the <b>Schedule</b>, then <i>Create job</i>.</li>
+</ol>
+
+<h2>Open and locked files (VSS)</h2>
+<p>On Windows the agent uses the <b>Volume Shadow Copy Service</b>: it takes a consistent, point-in-time snapshot of the volume and backs up from that, so open files (Outlook PST, databases, documents being edited) are backed up consistently. Applications that support VSS (for example SQL Server) flush their data to disk before the snapshot is taken.</p>
+
+<h2>Schedules</h2>
+<table>
+  <tr><th>Option</th><th>Example</th></tr>
+  <tr><td><b>At specific times</b></td><td>Every working day at 22:00; or at 12:00 and 18:00 every day. Up to three times a day, on the days you tick.</td></tr>
+  <tr><td><b>Repeatedly</b></td><td>Every 2 hours between 08:00 and 18:00, Monday–Friday. Intervals from 15 minutes to 12 hours.</td></tr>
+  <tr><td><b>Once a month</b></td><td>On the 1st at 23:00.</td></tr>
+  <tr><td><b>Manually only</b></td><td>Runs only when you click <i>Run backup now</i>.</td></tr>
+</table>
+<p>Times are in the console server's time zone. If an agent is offline at the scheduled time, the backup waits in the queue and starts as soon as the agent is back. See all planned runs in the <a href="/calendar">Calendar</a>.</p>
+
+<h2>Retention: how many backups to keep</h2>
+<p>A snapshot is kept if <b>any</b> rule selects it:</p>
+<ul>
+  <li><b>Most recent</b> — the newest N backups.</li>
+  <li><b>Daily</b> — the newest backup of each of the last N days that have backups.</li>
+  <li><b>Weekly</b> — the newest backup of each of the last N weeks.</li>
+  <li><b>Monthly</b> — the newest backup of each of the last N months.</li>
+</ul>
+<p>Example: 3 recent, 7 daily, 4 weekly, 6 monthly keeps about half a year of history with ~20 restore points. After each successful run, snapshots no longer selected are removed (shown as <i>expired</i> in Activity) and data that is no longer used by any snapshot is deleted from the storage. All zeros keeps everything.</p>
+<div class="callout"><p>Thanks to deduplication, long retention is cheap: unchanged data is stored only once no matter how many snapshots reference it.</p></div>
+
+<h2>Running, disabling, deleting</h2>
+<ul>
+  <li><b>Run backup now</b> queues a backup immediately.</li>
+  <li><b>Disable</b> pauses the schedule without losing the job.</li>
+  <li><b>Delete</b> removes the job; existing backups stay on the storage and remain restorable from Activity.</li>
+</ul>
+
+<h2>What a backup run reports</h2>
+<p>Open a run in <a href="/runs">Activity</a>: number of files, new/changed files, data read, new data uploaded (after deduplication and compression), duration, and any files that could not be read. A run with unreadable files ends with status <b>warning</b> — the rest of the data is backed up.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

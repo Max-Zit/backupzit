@@ -1,0 +1,26 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Email notifications</h1>
+<p class="lead">Get an email when a backup fails, and a daily summary every morning.</p>
+
+<h2>Setting up email</h2>
+<p>Under <a href="/settings">Settings</a> → Email notifications:</p>
+<table>
+  <tr><th>Field</th><th>Example</th></tr>
+  <tr><td>SMTP server / port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, internal relay / 25</td></tr>
+  <tr><td>Security</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) or none (internal relay only)</td></tr>
+  <tr><td>User / password</td><td>The mailbox used to send; leave empty for an anonymous relay. Microsoft 365 and Gmail need an app password.</td></tr>
+  <tr><td>Sender</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Recipients</td><td>One or more addresses, comma separated.</td></tr>
+</table>
+<p>Use <b>Send test email</b> to check the settings.</p>
+
+<h2>What is sent</h2>
+<ul>
+  <li><b>Failures</b> (recommended) — one email per failed run with the reason.</li>
+  <li><b>Warnings</b> — runs where some files could not be read.</li>
+  <li><b>Successes</b> — every successful run (usually too much; prefer the daily report).</li>
+  <li><b>Daily report</b> — at the chosen hour: runs of the last 24 hours, problems and offline agents. Subject starts with <i>OK</i>, <i>WARNINGS</i> or <i>ATTENTION</i>, so mail rules can sort them.</li>
+</ul>
+<p>For weekly or monthly summaries use <a href="/docs/monitoring">scheduled reports</a>.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

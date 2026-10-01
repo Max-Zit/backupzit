@@ -1,0 +1,37 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Security &amp; best practices</h1>
+<p class="lead">How BackupZit protects your data and the console, and what you should do on your side.</p>
+
+<h2>Built-in protection</h2>
+<ul>
+  <li><b>Encryption at the source</b> — AES-256-GCM in the agent; the storage only sees encrypted data. Keys are derived with Argon2id.</li>
+  <li><b>Pinned connections</b> — agents pin the console certificate; SFTP host keys and hardened repository certificates are pinned too. No certificate authority can be abused to impersonate them.</li>
+  <li><b>Agent secrets</b> — each agent has its own secret, stored only as a hash on the console and in a file only administrators can read on the agent.</li>
+  <li><b>Web console</b> — HttpOnly, SameSite=Strict session cookies; protection against cross-site requests and clickjacking; strict Content-Security-Policy; passwords hashed with bcrypt; sign-in throttling after repeated failed attempts; sensitive pages are never cached.</li>
+  <li><b>Audit trail</b> — showing a recovery key, downloading a recovery sheet, failed sign-ins and deletions on a hardened repository are logged.</li>
+</ul>
+
+<h2>Recommendations</h2>
+<h3>Console</h3>
+<ul>
+  <li>Keep the console on an internal network; do not publish port 8443 to the internet. Use a VPN for remote administration.</li>
+  <li>Use a long, unique admin password and change the initial one.</li>
+  <li>Choose a sign-in session length under <a href="/settings">Settings</a> that suits you (shorter is safer).</li>
+  <li>Keep the server updated (<code>apt upgrade</code> / <code>dnf upgrade</code>), including PostgreSQL.</li>
+</ul>
+<h3>Storage</h3>
+<ul>
+  <li>Give each storage target its own account with access only to the backup folder or bucket.</li>
+  <li>Do not join backup storage to the Windows domain; use credentials that are not used anywhere else.</li>
+  <li>Keep at least one immutable copy (S3 Object Lock or hardened repository) and one off-site copy.</li>
+</ul>
+<h3>Keys</h3>
+<ul>
+  <li>Store recovery sheets offline. Without them, encrypted backups cannot be restored if the console is lost.</li>
+  <li>Test a restore from the command line with only the recovery sheet once, so you know the procedure works.</li>
+</ul>
+
+<h2>Reporting a security issue</h2>
+<p>Please report vulnerabilities privately to the BackupZit maintainers instead of opening a public issue.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

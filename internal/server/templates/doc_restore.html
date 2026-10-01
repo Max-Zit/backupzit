@@ -1,0 +1,37 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Restoring files</h1>
+<p class="lead">Every successful backup in Activity can be restored — completely or only selected folders — to the same machine or to another agent.</p>
+
+<h2>Restore from a file backup</h2>
+<ol>
+  <li>Open <a href="/runs">Activity</a> (or the job page) and click the backup you want, e.g. last night's run.</li>
+  <li>Under <b>Restore from this backup</b> choose the agent that should receive the files. It can be a different machine than the one that was backed up — for example a replacement PC.</li>
+  <li>Choose where:
+    <ul>
+      <li><b>Restore into a folder</b> (recommended) — e.g. <code>D:\Restore</code>. The original structure is recreated below it: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nothing existing is touched.</li>
+      <li><b>Restore to original location</b> — writes the files back where they were, <b>overwriting</b> current versions.</li>
+    </ul>
+  </li>
+  <li>Optionally limit to <b>Only these paths</b>, one per line, e.g. <code>C:\Users\ana\Documents\Contracts</code>.</li>
+  <li>Keep <b>Verify restored files</b> on: each file is read back and compared with the checksum in the backup.</li>
+  <li>Click <b>Start restore</b>. Progress and results appear on the restore run's page.</li>
+</ol>
+<p>File times, Windows attributes (hidden, read-only, …) and Linux permissions are restored too.</p>
+
+<div class="callout tip"><p><b>Finding the right backup:</b> use the <a href="/calendar">Calendar</a> to see which backups ran on which day, or the job page's history.</p></div>
+
+<h2>Restore single files from a disk image</h2>
+<p>For image backups, click <b>Browse files</b> on the backup run. You can navigate the NTFS file system inside the image directly in the console, tick files and folders, and restore them to any agent — without restoring the whole disk.</p>
+
+<h2>Restore without the console</h2>
+<p>If the console itself is lost, any machine with the agent installed can restore directly from the storage using the <b>recovery sheet</b> of the storage target:</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>See <a href="/docs/cli">Command line reference</a>.</p>
+
+<h2>Test your restores</h2>
+<p>Schedule a restore test regularly (e.g. monthly): restore a folder into <code>D:\RestoreTest</code> with verification enabled and check a few files. It proves the backups, the storage credentials and the recovery key all work.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

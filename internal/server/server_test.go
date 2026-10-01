@@ -914,3 +914,91 @@ func TestHardenedTarget(t *testing.T) {
 		}
 	}
 }
+
+func TestReportsCalendarDocs(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	jar, _ := cookiejar.New(nil)
+	c := e.ts.Client()
+	c.Jar = jar
+	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	do := func(method, p string, form url.Values) (*http.Response, string) {
+		var body io.Reader
+		if form != nil {
+			body = strings.NewReader(form.Encode())
+		}
+		req, _ := http.NewRequest(method, e.ts.URL+p, body)
+		if form != nil {
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		}
+		req.Header.Set("Origin", e.ts.URL)
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return resp, string(b)
+	}
+	do("POST", "/login", url.Values{"username": {"admin"}, "password": {"admin-pass-123"}})
+
+	// Some history: an agent, a job with a schedule and finished runs.
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag.VSS = false
+	agents, _ := e.store.ListAgents(ctx)
+	tid, _ := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: filepath.Join(t.TempDir(), "repo")})
+	src := filepath.Join(t.TempDir(), "data")
+	writeTree(t, src)
+	jobID, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: tid, Name: "=Nightly docs", Paths: []string{src},
+		Enabled: true, Schedule: `{"kind":"daily","times":["22:00"]}`})
+	for i := 0; i < 2; i++ {
+		e.store.QueueBackup(ctx, jobID, "manual")
+		runAgent(t, ag)
+	}
+
+	resp, body := do("GET", "/reports?period=last7", nil)
+	if resp.StatusCode != 200 || !strings.Contains(body, "=Nightly docs") || !strings.Contains(body, "100.0 %") {
+		t.Fatalf("report page: %d %s", resp.StatusCode, body[:min(len(body), 400)])
+	}
+	resp, body = do("GET", "/reports/csv?period=last30", nil)
+	if resp.StatusCode != 200 || strings.Count(body, "\n") != 3 || !strings.Contains(body, "'=Nightly docs") {
+		t.Fatalf("csv: %d %q", resp.StatusCode, body)
+	}
+	resp, body = do("GET", "/calendar", nil)
+	if resp.StatusCode != 200 || !strings.Contains(body, "=Nightly docs") || !strings.Contains(body, "22:00") {
+		t.Fatalf("calendar: %d", resp.StatusCode)
+	}
+	for _, p := range []string{"", "/start", "/install", "/agents", "/storage", "/jobs", "/restore", "/images", "/ransomware",
+		"/monitoring", "/notifications", "/cli", "/security", "/troubleshooting"} {
+		if resp, _ := do("GET", "/docs"+p, nil); resp.StatusCode != 200 {
+			t.Errorf("docs%s: %d", p, resp.StatusCode)
+		}
+	}
+	if resp, _ := do("GET", "/docs/../settings", nil); resp.StatusCode == 200 {
+		t.Error("unknown docs page served")
+	}
+
+	// Scheduled report
+	if resp, _ := do("POST", "/reports/schedules", url.Values{"name": {"Weekly"}, "frequency": {"weekly"}, "hour": {"7"}, "recipients": {"a@example.com"}}); !strings.Contains(resp.Header.Get("Location"), "msg=") {
+		t.Fatalf("create schedule: %s", resp.Header.Get("Location"))
+	}
+	if list, _ := e.store.ListReportSchedules(ctx); len(list) != 1 || list[0].Recipients[0] != "a@example.com" {
+		t.Fatalf("schedules: %+v", list)
+	}
+
+	// Session settings
+	if resp, _ := do("POST", "/settings/sessions", url.Values{"lifetime_hours": {"0"}, "idle_minutes": {"5"}}); !strings.Contains(resp.Header.Get("Location"), "err=") {
+		t.Error("lifetime 0 accepted")
+	}
+	if resp, _ := do("POST", "/settings/sessions", url.Values{"lifetime_hours": {"2"}, "idle_minutes": {"15"}}); !strings.Contains(resp.Header.Get("Location"), "msg=") {
+		t.Fatalf("save sessions: %s", resp.Header.Get("Location"))
+	}
+	if _, body := do("GET", "/settings", nil); !strings.Contains(body, `name="lifetime_hours" min="1" max="2160" value="2"`) {
+		t.Error("session settings not shown")
+	}
+}

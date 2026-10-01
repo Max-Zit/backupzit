@@ -1,10 +1,10 @@
-# backupzit
+# BackupZit
 
 Self-hosted backup for servers and workstations: file/folder and full image
 backup with restore, managed from a central web console. Free and open source
 (AGPLv3), with commercial support available.
 
-Each organization runs its own backupzit server on its local network (no cloud
+Each organization runs its own BackupZit server on its local network (no cloud
 service, nothing exposed to the internet); agents on servers and workstations
 connect to it over HTTPS.
 
@@ -79,7 +79,7 @@ Repository locations:
 - `sftp://user@host[:port]/path` — SFTP (`/~/path` for a path relative to the home directory)
 - `smb://[domain;]user@host/share[/path]` — SMB 2/3 share (Windows server, NAS, Samba); password via `BACKUPZIT_SMB_PASSWORD`
 - `s3://endpoint[:port]/bucket[/prefix]` — S3 compatible storage (AWS, Wasabi, Backblaze B2, MinIO, …); add `?tls=false` for plain HTTP. Credentials via `BACKUPZIT_S3_ACCESS_KEY` / `BACKUPZIT_S3_SECRET_KEY`
-- `hardened://host[:port]/path` — backupzit hardened repository (port 8500 by default); access key via `BACKUPZIT_HARDENED_KEY`, certificate pin via `BACKUPZIT_HARDENED_FINGERPRINT`
+- `hardened://host[:port]/path` — BackupZit hardened repository (port 8500 by default); access key via `BACKUPZIT_HARDENED_KEY`, certificate pin via `BACKUPZIT_HARDENED_FINGERPRINT`
 
 SFTP authentication: `--sftp-password` (or `BACKUPZIT_SFTP_PASSWORD`) and/or
 `--sftp-key`. The server host key must be pinned with `--sftp-hostkey SHA256:...`;

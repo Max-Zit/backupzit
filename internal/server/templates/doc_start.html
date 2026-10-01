@@ -1,0 +1,45 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Getting started</h1>
+<p class="lead">BackupZit protects Windows and Linux machines with file and disk-image backups that you manage from one web console running on your own network.</p>
+
+<h2>How BackupZit works</h2>
+<ul>
+  <li><b>Management console</b> (this web application) — runs on a Linux server in your network. It stores configuration, schedules jobs, collects results and shows reports. It never needs to be reachable from the internet.</li>
+  <li><b>Agents</b> — a small service installed on every machine you protect (Windows MSI, Linux deb/rpm). Agents contact the console over HTTPS, receive jobs, and send the backup data <i>directly</i> to the storage.</li>
+  <li><b>Storage targets</b> — where backups are kept: an SFTP server, S3-compatible object storage (AWS, Wasabi, Backblaze B2, MinIO…), an SMB share/NAS, a local or mounted disk, or a BackupZit hardened repository.</li>
+</ul>
+<div class="callout tip"><p>Backup data never passes through the console. The console only coordinates, so it can run on a small virtual machine.</p></div>
+
+<h2>First steps</h2>
+<ol>
+  <li><b>Add a storage target</b> under <a href="/targets">Storage</a>. Keep <i>Encrypt backups</i> enabled and save the recovery sheet that is shown afterwards in a safe place. See <a href="/docs/storage">Storage targets</a>.</li>
+  <li><b>Install agents</b>: under <a href="/agents">Agents</a> click <i>Create enrollment token</i> and run the shown command on each machine. See <a href="/docs/agents">Agents</a>.</li>
+  <li><b>Create a backup job</b> under <a href="/jobs">Backup jobs</a>: choose the agent, the storage, what to back up (folders or a whole disk), when to run and how many backups to keep. See <a href="/docs/jobs">Backup jobs &amp; schedules</a>.</li>
+  <li><b>Run it once manually</b> with <i>Run backup now</i> on the job page and check the result under <a href="/runs">Activity</a>.</li>
+  <li><b>Test a restore</b> — a backup is only as good as its restore. See <a href="/docs/restore">Restoring files</a>.</li>
+  <li><b>Set up email alerts</b> under <a href="/settings">Settings</a> so you hear about failures, and optionally a weekly <a href="/reports">report</a>.</li>
+</ol>
+
+<h2>The console at a glance</h2>
+<table>
+  <tr><th>Page</th><th>What it is for</th></tr>
+  <tr><td><a href="/">Dashboard</a></td><td>Health at a glance: agents online, failures in the last 24 hours, recent activity.</td></tr>
+  <tr><td><a href="/jobs">Backup jobs</a></td><td>Create, run, disable and delete jobs; see the next scheduled run and the last result.</td></tr>
+  <tr><td><a href="/runs">Activity</a></td><td>Every backup and restore with its details, statistics and errors. Restores start from here.</td></tr>
+  <tr><td><a href="/calendar">Calendar</a></td><td>What ran on past days and what is scheduled to run in the future.</td></tr>
+  <tr><td><a href="/reports">Reports</a></td><td>Success rates and data volumes for any period, CSV export, emailed and scheduled reports.</td></tr>
+  <tr><td><a href="/agents">Agents</a></td><td>Protected machines, enrollment tokens and agent downloads.</td></tr>
+  <tr><td><a href="/targets">Storage</a></td><td>Where backups are stored, encryption and recovery keys, immutability.</td></tr>
+  <tr><td><a href="/recovery">Recovery media</a></td><td>Bootable recovery ISO for restoring a whole machine to bare metal.</td></tr>
+  <tr><td><a href="/settings">Settings</a></td><td>Email notifications, sign-in session length.</td></tr>
+</table>
+
+<h2>Key concepts</h2>
+<h3>Snapshots and deduplication</h3>
+<p>Every backup creates a <i>snapshot</i>: a complete, browsable picture of the data at that moment. Data is split into variable-size chunks, and each chunk is stored only once, so the second and later backups only upload what changed — yet every snapshot can be restored on its own. There is no "full vs. incremental chain" to manage.</p>
+<h3>Repositories</h3>
+<p>Each agent writes into its own <i>repository</i> below the storage target location (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). A repository is self-contained: with the location, the storage credentials and the recovery key, it can be restored even if the console is gone.</p>
+<h3>Retention</h3>
+<p>Each job keeps a number of recent, daily, weekly and monthly backups. Older snapshots are removed after each run and the space they used is freed.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

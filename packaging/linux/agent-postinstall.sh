@@ -8,6 +8,6 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl restart backupzit-agent.service || true
 fi
 if [ ! -f /etc/backupzit/agent.json ]; then
-    echo "backupzit agent installed. Enroll it with:"
+    echo "BackupZit agent installed. Enroll it with:"
     echo "  backupzit-agent enroll --server https://<server>:8443 --token <token> --fingerprint SHA256:<...>"
 fi

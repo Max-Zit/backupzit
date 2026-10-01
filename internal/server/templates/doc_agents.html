@@ -1,0 +1,45 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Agents</h1>
+<p class="lead">An agent is installed on every machine you protect. It runs as a service, asks the console for work every 30 seconds and talks to the storage directly.</p>
+
+<h2>Supported systems</h2>
+<ul>
+  <li>Windows 10, 11 and Windows Server 2016 and newer (a legacy build for Windows 7 and Server 2008 R2/2012 R2 is planned).</li>
+  <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bit).</li>
+</ul>
+
+<h2>Enrolling agents</h2>
+<ol>
+  <li>On the <a href="/agents">Agents</a> page click <b>Create enrollment token</b>. A token is valid for 7 days and can be used for any number of machines.</li>
+  <li>Copy the command for your platform and run it on the machine as administrator / root.</li>
+  <li>The machine appears in the agent list within a minute.</li>
+</ol>
+<h3>Windows (MSI)</h3>
+<pre>msiexec /i backupzit-agent.msi /qn SERVER="https://backup.example.local:8443" TOKEN="..." FINGERPRINT="SHA256:..."</pre>
+<p>The MSI can be deployed with Group Policy, Intune or any RMM tool. Without the properties it installs the service, which waits until you enroll it with <code>backupzit-agent enroll</code>.</p>
+<h3>Linux</h3>
+<pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
+backupzit-agent enroll --server "https://backup.example.local:8443" --token "..." --fingerprint "SHA256:..."
+systemctl enable --now backupzit-agent</pre>
+
+<h2>Agent status</h2>
+<ul>
+  <li><b>online</b> — the agent contacted the console in the last 3 minutes.</li>
+  <li><b>offline</b> — the machine is off, the service is stopped or the network is blocked. Scheduled backups are queued and start as soon as the agent comes back.</li>
+  <li><b>recovery</b> — a machine booted from the recovery ISO, ready to receive a full-disk restore.</li>
+</ul>
+
+<h2>Upgrading</h2>
+<p>Install the newer MSI / package over the old one; the enrollment is kept. Installers are offered under <i>Downloads</i> on the Agents page.</p>
+
+<h2>Removing an agent</h2>
+<p><b>Remove</b> on the Agents page deletes the agent and its jobs from the console. Backups on the storage are <b>not</b> deleted. Uninstall the software on the machine separately.</p>
+
+<h2>Where the agent keeps its configuration</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (accessible only to SYSTEM and Administrators).</li>
+  <li>Linux: <code>/etc/backupzit/agent.json</code> (root only).</li>
+</ul>
+<p>The file contains the agent's secret. Anyone who can read it can act as that agent, so keep these permissions.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

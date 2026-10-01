@@ -37,15 +37,15 @@ func (s *Server) handleRecoveryKey(w http.ResponseWriter, r *http.Request, user 
 // the backups on a target without this server.
 func recoverySheet(t Target, now time.Time) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "backupzit RECOVERY SHEET\r\n========================\r\n\r\n")
+	fmt.Fprintf(&b, "BackupZit RECOVERY SHEET\r\n========================\r\n\r\n")
 	fmt.Fprintf(&b, "Storage target: %s\r\nLocation:       %s\r\nCreated:        %s\r\n\r\n", t.Name, t.URL, now.Format("2006-01-02 15:04"))
 	fmt.Fprintf(&b, "RECOVERY KEY:   %s\r\n\r\n", t.RecoveryKey)
 	b.WriteString("Backups on this storage are encrypted with AES-256. Without this key\r\n" +
-		"they cannot be read by anyone, including backupzit support.\r\n" +
+		"they cannot be read by anyone, including BackupZit support.\r\n" +
 		"Keep this sheet in a safe place (print it, store it offline).\r\n\r\n" +
 		"Each machine has its own repository below the location:\r\n" +
 		"  <location>/<hostname>_<id>\r\n\r\n" +
-		"Restoring without the backupzit server:\r\n" +
+		"Restoring without the BackupZit server:\r\n" +
 		"  set BACKUPZIT_PASSWORD=<recovery key>\r\n" +
 		"  (plus the storage credentials, e.g. BACKUPZIT_SFTP_PASSWORD, BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, BACKUPZIT_SMB_PASSWORD,\r\n" +
 		"   BACKUPZIT_HARDENED_KEY + BACKUPZIT_HARDENED_FINGERPRINT)\r\n" +

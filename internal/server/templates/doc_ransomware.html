@@ -1,0 +1,53 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Ransomware protection</h1>
+<p class="lead">Attackers try to delete or encrypt backups before they encrypt production data. BackupZit offers storage where backups cannot be destroyed, even with stolen credentials.</p>
+
+<h2>The layers</h2>
+<table>
+  <tr><th>Layer</th><th>Protects against</th></tr>
+  <tr><td><b>Encryption</b> (AES-256)</td><td>Reading or tampering with backups on the storage. Every change is detected.</td></tr>
+  <tr><td><b>Immutable S3</b> (Object Lock, compliance mode)</td><td>Deleting or overwriting backups — by an attacker with the keys, a rogue admin, or a mistake.</td></tr>
+  <tr><td><b>Hardened repository</b></td><td>The same, on your own Linux server: files are write-once and get the filesystem immutable flag.</td></tr>
+  <tr><td><b>Off-site copy</b></td><td>Fire, theft, total site loss.</td></tr>
+</table>
+
+<h2>Immutable S3 with Object Lock</h2>
+<ol>
+  <li>Create a bucket with <b>Object Lock enabled</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
+  <li>Add a lifecycle rule that deletes <i>noncurrent versions</i> after 1 day (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
+  <li>Add the S3 target and tick <b>Immutable backups for N days</b>. Choose N at least as long as your longest retention you need protected, e.g. 30.</li>
+</ol>
+<p>Each restore point stays locked for at least N days after it was created; data shared with newer backups is extended automatically.</p>
+
+<h2>Hardened repository</h2>
+<p>A dedicated Linux server running <code>backupzit-repo</code>:</p>
+<ul>
+  <li>Agents and the console can only <b>add</b> files; existing files are never overwritten.</li>
+  <li>Every file gets the <code>chattr +i</code> attribute for the period set on that server. Not even root can delete it without removing the flag first.</li>
+  <li>Deletes from clients only <b>hide</b> files until their period ends.</li>
+  <li>The service runs as an unprivileged user; its only privilege is setting the immutable flag.</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p>After setup, <b>disable SSH and other remote access</b> on the repository server and protect its local console / iDRAC / iLO / hypervisor access. The protection is only as strong as that machine's root account.</p></div>
+
+<h2>Recovering after an attack</h2>
+<p>If an attacker deleted or overwrote backups, read the storage <b>as it was before the attack</b> — this is read-only and changes nothing:</p>
+<pre>backupzit-agent snapshots --repo &lt;repository&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;repository&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>On a hardened repository the administrator can also bring hidden files back so backups continue normally:</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>Recommendations</h2>
+<ul>
+  <li>Use a separate account for the storage that is not part of your Windows domain.</li>
+  <li>Keep at least one immutable copy (S3 Object Lock or hardened repository).</li>
+  <li>Keep the recovery sheets offline (printed, in a safe).</li>
+  <li>Enable email alerts — a sudden change in failures or in uploaded data volume is often the first sign of an attack.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

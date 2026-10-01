@@ -1,0 +1,36 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Disk images &amp; bare-metal recovery</h1>
+<p class="lead">An image backup captures a whole disk — partition table, boot partitions, system and data — so a machine can be brought back on an empty or new disk exactly as it was.</p>
+
+<h2>Creating an image job</h2>
+<ol>
+  <li>In <a href="/jobs">Backup jobs</a> choose <b>Disk image</b>.</li>
+  <li>The agent reports its disks automatically. Tick a whole disk, or only some partitions (e.g. skip a large data partition that a file job already covers).</li>
+  <li>Set retention and schedule as for any job; a weekly image plus daily file backups is a common combination.</li>
+</ol>
+<p>Only used blocks are read (NTFS allocation map), the image is taken from a VSS snapshot so the running system is consistent, and unchanged blocks are deduplicated against earlier images — the second image of the same machine usually uploads only a few percent.</p>
+
+<h2>Restoring an image to a disk</h2>
+<p>On the image backup run, use <b>Restore this image to a disk</b>:</p>
+<ul>
+  <li><b>Restore on agent</b> — the machine that has the target disk. This can be a running machine with a spare disk, or a machine booted from the recovery ISO.</li>
+  <li><b>Target disk</b> — must be at least as large as the used area of the original. <b>All data on it is destroyed.</b></li>
+  <li><b>Leave the disk offline afterwards</b> — tick this when the original disk is in the same machine, so Windows does not change the disk IDs of the copy.</li>
+</ul>
+<p>GPT and MBR disks, EFI and BIOS boot are supported. The partition layout and IDs are recreated, so the restored disk boots as before.</p>
+
+<h2>Bare-metal recovery with the recovery ISO</h2>
+<ol>
+  <li>On <a href="/recovery">Recovery media</a> download the recovery ISO. Burn it to a USB stick (Rufus, "DD image" or "ISO" mode) or attach it to a virtual machine.</li>
+  <li>Optionally create a <b>recovery code</b> and download <code>recovery.json</code>; copy it to a <code>backupzit</code> folder on the stick so the machine connects without typing.</li>
+  <li>Boot the machine to restore from the stick. It starts the agent in recovery mode and connects to the console (or asks for the server address and recovery code).</li>
+  <li>The machine appears as a <span class="badge">recovery</span> agent with its disks.</li>
+  <li>Open the image backup in Activity, choose <b>Restore this image to a disk</b>, select the recovery agent and its disk, confirm.</li>
+  <li>When the run is finished, remove the stick and reboot.</li>
+</ol>
+<div class="callout warn"><p><b>Different hardware:</b> restoring to identical or virtual hardware works out of the box. Restoring to very different hardware (other storage controller) may need drivers added to Windows; automated driver injection is planned.</p></div>
+
+<h2>Restoring to a virtual machine</h2>
+<p>Create an empty VM disk at least as large as the original, boot the VM from the recovery ISO and follow the steps above. This is also the easiest way to test that your images really boot.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

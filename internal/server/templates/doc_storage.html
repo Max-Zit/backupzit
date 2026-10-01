@@ -1,0 +1,45 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Storage targets</h1>
+<p class="lead">A storage target is where agents write their backups. Each agent uses its own repository below the target's location.</p>
+
+<h2>Choosing a storage type</h2>
+<table>
+  <tr><th>Type</th><th>Good for</th><th>Notes</th></tr>
+  <tr><td><b>SFTP</b></td><td>Any Linux server or NAS with SSH</td><td>Encrypted transport; the server's host key is pinned.</td></tr>
+  <tr><td><b>S3 compatible</b></td><td>Off-site / cloud copies: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph</td><td>Supports immutability with Object Lock.</td></tr>
+  <tr><td><b>SMB share</b></td><td>Windows file servers, Synology/QNAP NAS</td><td>SMB 2/3; agents log in themselves, no drive mapping needed.</td></tr>
+  <tr><td><b>Hardened repository</b></td><td>Ransomware-proof on-premises storage</td><td>A Linux server running <code>backupzit-repo</code>; backups cannot be deleted before their immutability period ends.</td></tr>
+  <tr><td><b>Local / mounted path</b></td><td>A USB disk, second disk, or an NFS/iSCSI volume mounted on the agent</td><td>Path as seen by the agent, e.g. <code>E:\Backups</code> or <code>/mnt/backup</code>.</td></tr>
+</table>
+<div class="callout tip"><p><b>3-2-1 rule:</b> keep 3 copies of your data, on 2 different media, 1 of them off-site — for example one job to a local NAS and another to S3 or a hardened repository in another building.</p></div>
+
+<h2>SFTP</h2>
+<p>Location: <code>sftp://user@host:22/path</code> (use <code>/~/path</code> for a path relative to the user's home). Enter a password or a private key, and the server's host key fingerprint, which you get on the server with:</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>Create a dedicated user that can only write into the backup folder.</p>
+
+<h2>S3 compatible</h2>
+<p>Enter the endpoint (e.g. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket, optional folder and an access key with read/write access to that bucket. Tick <i>Plain HTTP</i> only for a local MinIO without a certificate.</p>
+<h3>Immutable backups (Object Lock)</h3>
+<p>Create the bucket with <b>Object Lock enabled</b> and tick <i>Immutable backups … for N days</i>. Every file the agents write is locked in <b>compliance mode</b> for N days (+1 day margin): nobody — not an attacker with the keys, not the bucket owner — can delete or overwrite it before then. After each backup, data reused from older backups gets its lock extended, so every restore point is protected for the full period.</p>
+<p>Deleting (by retention or by an attacker) only adds a "delete marker". Add a lifecycle rule that expires <i>noncurrent versions</i> after one day, so space is freed once locks end. See <a href="/docs/ransomware">Ransomware protection</a>.</p>
+
+<h2>SMB share</h2>
+<p>Server, share, optional folder, user, password and (for domain accounts) the domain. Agents connect with these credentials themselves, so it works for services running as SYSTEM.</p>
+
+<h2>Hardened repository</h2>
+<p>Install the <code>backupzit-repo</code> package on a dedicated Linux server, then on that server:</p>
+<pre>backupzit-repo add-key office-console     # shows the access key once
+backupzit-repo fingerprint                # certificate fingerprint</pre>
+<p>Enter the server address, the access key and the fingerprint in the console. The immutability period is configured on the repository server (<code>/etc/backupzit-repo/repo.env</code>) and cannot be changed from the console or agents. Details in <a href="/docs/ransomware">Ransomware protection</a>.</p>
+
+<h2>Encryption and the recovery key</h2>
+<p>With <i>Encrypt backups</i> (the default), everything in the repository — file contents, file names, folder structure, snapshot lists — is encrypted with <b>AES-256-GCM</b> before it leaves the agent. The storage provider sees only random data.</p>
+<p>When you create an encrypted target the console shows a <b>recovery key</b> and offers a <b>recovery sheet</b> to download.</p>
+<div class="callout warn"><p><b>Print the recovery sheet or store it in a password manager, separately from the backups.</b> If the console is lost, the recovery key plus the storage location and credentials are all you need to restore. Without the key, encrypted backups cannot be read by anyone — including BackupZit support.</p></div>
+<p>You can show the key again later with <i>Recovery key</i> in the storage list; this is logged.</p>
+
+<h2>Removing a target</h2>
+<p>Removing a storage target from the console does not delete any data on the storage.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

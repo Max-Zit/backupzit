@@ -1,5 +1,5 @@
 [Unit]
-Description=backupzit Hardened Repository
+Description=BackupZit Hardened Repository
 Documentation=https://github.com/backupzit/backupzit
 Wants=network-online.target
 After=network-online.target local-fs.target

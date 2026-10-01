@@ -192,3 +192,25 @@ document.addEventListener("click", function (e) {
   var side = document.getElementById("side");
   if (side && side.classList.contains("open") && !side.contains(e.target)) side.classList.remove("open");
 });
+
+// Print buttons: <button data-print>
+document.addEventListener("click", function (e) {
+  if (e.target.closest && e.target.closest("[data-print]")) window.print();
+});
+
+// Selects that submit their form on change: <select data-autosubmit>
+document.addEventListener("change", function (e) {
+  if (e.target.hasAttribute && e.target.hasAttribute("data-autosubmit")) e.target.form.submit();
+});
+
+// Report period: show the date fields only for a custom range.
+function syncPeriod() {
+  var sel = document.getElementById("period");
+  if (!sel) return;
+  document.querySelectorAll("[data-custom]").forEach(function (el) {
+    el.hidden = sel.value !== "custom";
+    el.querySelectorAll("input").forEach(function (i) { i.disabled = el.hidden; });
+  });
+}
+document.addEventListener("change", function (e) { if (e.target.id === "period") syncPeriod(); });
+document.addEventListener("DOMContentLoaded", syncPeriod);

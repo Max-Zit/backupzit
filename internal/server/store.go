@@ -117,10 +117,14 @@ func (s *Store) Login(ctx context.Context, username, password string, ttl time.D
 }
 
 // SessionUser returns the username of a valid session.
-func (s *Store) SessionUser(ctx context.Context, token string) (string, error) {
+// SessionUser returns the username of a valid session and records the
+// activity. idle > 0 ends sessions unused for that long.
+func (s *Store) SessionUser(ctx context.Context, token string, idle time.Duration) (string, error) {
 	var u string
-	err := s.db.QueryRow(ctx, `SELECT u.username FROM sessions s JOIN users u ON u.id=s.user_id
-		WHERE s.token_hash=$1 AND s.expires_at > now()`, hashToken(token)).Scan(&u)
+	err := s.db.QueryRow(ctx, `UPDATE sessions s SET last_seen_at=now() FROM users u
+		WHERE u.id=s.user_id AND s.token_hash=$1 AND s.expires_at > now()
+		AND ($2::bigint = 0 OR s.last_seen_at > now() - make_interval(secs => $2::bigint))
+		RETURNING u.username`, hashToken(token), int64(idle.Seconds())).Scan(&u)
 	return u, notFound(err)
 }
 

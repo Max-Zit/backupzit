@@ -19,7 +19,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, user str
 		e.Port, e.Security, e.OnFailure, e.OnWarning, e.DailyHour = 587, "starttls", true, true, 8
 	}
 	s.render(w, r, "settings", pageData{Title: "Settings", Nav: "settings", User: user, Data: map[string]any{
-		"Email": e, "HasPassword": e.Password != "",
+		"Email": e, "HasPassword": e.Password != "", "Sessions": s.sessionSettings(r.Context()),
 	}})
 }
 
@@ -79,7 +79,7 @@ func (s *Server) handleSettingsEmail(w http.ResponseWriter, r *http.Request, _ s
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 		defer cancel()
 		body := "This is a test message from backupzit.\n\nEmail notifications are configured correctly."
-		if err := sendMail(ctx, e, "[backupzit] Test message", body); err != nil {
+		if err := sendMail(ctx, e, "[BackupZit] Test message", body); err != nil {
 			redirectErr(w, r, "/settings", errors.New("test email failed: "+err.Error()))
 			return
 		}

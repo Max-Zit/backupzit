@@ -1,4 +1,4 @@
-// Package hardened implements the backupzit hardened repository: a small
+// Package hardened implements the BackupZit hardened repository: a small
 // Linux service that stores repositories for agents over HTTPS and never
 // lets a client destroy data before its immutability period ends.
 //
