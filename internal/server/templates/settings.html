@@ -62,4 +62,53 @@
   </form>
 </div>
 {{end}}
+{{with .Data.LDAP}}
+<div class="panel" id="ldap">
+  <h2>{{template "icon" "users"}} LDAP / Active Directory sign-in</h2>
+  <p class="muted">Let users sign in with their directory accounts. Their role follows their group membership at every sign-in. Local accounts keep working, so an administrator can always sign in even if the directory is unreachable.</p>
+  <form method="post" action="/settings/ldap" class="stack">
+    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Allow sign-in with directory accounts</label>
+    <div class="row">
+      <label>Server <small>ldaps://dc1.example.local:636 (recommended) or ldap://…:389 with StartTLS</small><input name="url" value="{{.URL}}" placeholder="ldaps://dc1.example.local:636"></label>
+      <label class="check top"><input type="checkbox" name="starttls" {{if .StartTLS}}checked{{end}}> Use StartTLS (only for ldap:// URLs)</label>
+    </div>
+    <div class="row">
+      <label>Service account (bind DN) <small>used to look up users and groups</small><input name="bind_dn" value="{{.BindDN}}" placeholder="CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local"></label>
+      <label>Service account password <small>{{if .HasPassword}}leave empty to keep the stored one{{end}}</small><input name="bind_password" type="password" autocomplete="new-password"></label>
+    </div>
+    <div class="row">
+      <label>Search base (base DN) <input name="base_dn" value="{{.BaseDN}}" placeholder="DC=example,DC=local"></label>
+      <label>User filter <small>Active Directory: <code>{{$.Data.ADFilter}}</code> · OpenLDAP: <code>{{$.Data.LDAPFilter}}</code></small><input name="user_filter" value="{{.UserFilter}}"></label>
+    </div>
+    <fieldset class="sched">
+      <legend>Groups → roles <small class="muted">full group DNs; the highest matching role wins; users in none of them cannot sign in</small></legend>
+      <div class="row">
+        <label>Administrator <input name="admin_group" value="{{.AdminGroup}}" placeholder="CN=BackupZit Admins,OU=Groups,DC=example,DC=local"></label>
+        <label>Backup operator <input name="operator_group" value="{{.OperatorGroup}}" placeholder="CN=BackupZit Operators,OU=Groups,DC=example,DC=local"></label>
+      </div>
+      <div class="row">
+        <label>Restore operator <input name="restore_group" value="{{.RestoreGroup}}" placeholder="CN=Helpdesk,OU=Groups,DC=example,DC=local"></label>
+        <label>Viewer <input name="viewer_group" value="{{.ViewerGroup}}" placeholder="CN=BackupZit Viewers,OU=Groups,DC=example,DC=local"></label>
+      </div>
+      <label class="check"><input type="checkbox" name="nested_groups" {{if .NestedGroups}}checked{{end}}> Include nested groups (Active Directory only)</label>
+    </fieldset>
+    <details>
+      <summary>Certificate trust</summary>
+      <p class="muted">By default the server certificate must be issued by a CA trusted by this server. For an internal CA paste its certificate; for a self-signed directory certificate enter its fingerprint.</p>
+      <label>CA certificate (PEM) <textarea name="ca_cert" placeholder="-----BEGIN CERTIFICATE-----">{{.CACert}}</textarea></label>
+      <label>Or pin the server certificate fingerprint <input name="fingerprint" value="{{.Fingerprint}}" placeholder="SHA256:..."></label>
+    </details>
+    <details>
+      <summary>Test</summary>
+      <p class="muted">Tests the current form values without saving. Without a user name only the connection and the service account are checked; without a password the user's groups are checked.</p>
+      <div class="row">
+        <label>Test user <input name="test_user" autocomplete="off" placeholder="ana"></label>
+        <label>Password <small>optional</small><input name="test_password" type="password" autocomplete="new-password"></label>
+      </div>
+      <div><button name="action" value="test" class="secondary">Test connection</button></div>
+    </details>
+    <div><button name="action" value="save">Save LDAP settings</button></div>
+  </form>
+</div>
+{{end}}
 {{end}}

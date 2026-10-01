@@ -1,0 +1,31 @@
+{{define "content"}}
+{{with .Data.U}}
+<h1><span class="avatar lg" aria-hidden="true">{{initial .Username}}</span>My account</h1>
+<div class="row">
+  <div class="panel">
+    <h2>Profile</h2>
+    <dl class="kv">
+      <dt>Username</dt><dd>{{.Username}}</dd>
+      <dt>Name</dt><dd>{{if .DisplayName}}{{.DisplayName}}{{else}}—{{end}}</dd>
+      <dt>Email</dt><dd>{{if .Email}}{{.Email}}{{else}}—{{end}}</dd>
+      <dt>Sign-in</dt><dd>{{if eq .Source "ldap"}}Directory (LDAP){{else}}Local account{{end}}</dd>
+      <dt>Role</dt><dd><span class="badge role-{{.Role}}">{{$.Data.Role.Name}}</span></dd>
+    </dl>
+    <p class="muted mt">{{$.Data.Role.Description}}</p>
+    <ul class="perm-list">{{range $.Data.Perms}}<li class="{{if $.Data.Role.Has .Perm}}yes{{else}}no{{end}}">{{.Name}}</li>{{end}}</ul>
+  </div>
+  <div class="panel">
+    <h2>{{template "icon" "lock"}} Change password</h2>
+    {{if eq .Source "local"}}
+    <form method="post" action="/account/password" class="stack">
+      <label>Current password <input name="current" type="password" required autocomplete="current-password"></label>
+      <label>New password <small>at least {{$.Data.MinPassword}} characters</small><input name="password" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
+      <label>Repeat new password <input name="password2" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
+      <small class="muted">You will be signed out everywhere and sign in again with the new password.</small>
+      <div><button>Change password</button></div>
+    </form>
+    {{else}}<p class="muted">You sign in with your directory account; change the password in Active Directory / LDAP.</p>{{end}}
+  </div>
+</div>
+{{end}}
+{{end}}

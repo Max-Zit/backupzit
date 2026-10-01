@@ -32,7 +32,7 @@ backupzit-agent service start</pre>
       <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}</td>
       <td>{{ago .LastSeen}}</td>
       <td>{{ts .EnrolledAt}}</td>
-      <td><form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="Remove agent {{.Hostname}} and its jobs? Backups on storage stay."><button class="link">Remove</button></form></td>
+      <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="Remove agent {{.Hostname}} and its jobs? Backups on storage stay."><button class="link">Remove</button></form>{{end}}</td>
     </tr>
     {{end}}
   </table></div>
@@ -40,13 +40,13 @@ backupzit-agent service start</pre>
 </div>
 
 <div class="row">
-  <div class="panel">
+{{if $.Me.Can "agents"}}  <div class="panel">
     <h2>Add agents</h2>
     <p class="muted">Create an enrollment token, then install the agent on each machine with it.</p>
     <form method="post" action="/agents/token" class="stack">
       <div><button>Create enrollment token</button></div>
     </form>
-  </div>
+  </div>{{end}}
   <div class="panel">
     <h2>Downloads</h2>
     {{if .Data.Downloads}}

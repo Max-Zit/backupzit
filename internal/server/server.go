@@ -258,43 +258,53 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
 	mux.HandleFunc("GET /login", s.handleLoginPage)
 	mux.HandleFunc("POST /login", s.handleLogin)
-	mux.HandleFunc("POST /logout", s.ui(s.handleLogout))
-	mux.HandleFunc("GET /{$}", s.ui(s.handleDashboard))
-	mux.HandleFunc("GET /agents", s.ui(s.handleAgents))
-	mux.HandleFunc("POST /agents/token", s.ui(s.handleAgentToken))
-	mux.HandleFunc("POST /agents/{id}/delete", s.ui(s.handleAgentDelete))
-	mux.HandleFunc("GET /targets", s.ui(s.handleTargets))
-	mux.HandleFunc("POST /targets", s.ui(s.handleTargetCreate))
-	mux.HandleFunc("POST /targets/{id}/delete", s.ui(s.handleTargetDelete))
-	mux.HandleFunc("POST /targets/{id}/recovery-key", s.ui(s.handleRecoveryKey))
-	mux.HandleFunc("POST /targets/{id}/recovery-sheet", s.ui(s.handleRecoverySheet))
-	mux.HandleFunc("GET /jobs", s.ui(s.handleJobs))
-	mux.HandleFunc("POST /jobs", s.ui(s.handleJobCreate))
-	mux.HandleFunc("GET /jobs/{id}", s.ui(s.handleJob))
-	mux.HandleFunc("POST /jobs/{id}/run", s.ui(s.handleJobRun))
-	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(s.handleJobEnable(true)))
-	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(s.handleJobEnable(false)))
-	mux.HandleFunc("POST /jobs/{id}/delete", s.ui(s.handleJobDelete))
-	mux.HandleFunc("GET /runs", s.ui(s.handleRuns))
-	mux.HandleFunc("GET /runs/{id}", s.ui(s.handleRun))
-	mux.HandleFunc("POST /runs/{id}/restore", s.ui(s.handleRestore))
-	mux.HandleFunc("GET /runs/{id}/browse", s.ui(s.handleBrowse))
-	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(s.handleFilesRestore))
-	mux.HandleFunc("GET /downloads/{file}", s.ui(s.handleDownload))
-	mux.HandleFunc("GET /reports", s.ui(s.handleReports))
-	mux.HandleFunc("GET /reports/csv", s.ui(s.handleReportCSV))
-	mux.HandleFunc("POST /reports/email", s.ui(s.handleReportEmail))
-	mux.HandleFunc("POST /reports/schedules", s.ui(s.handleReportScheduleCreate))
-	mux.HandleFunc("POST /reports/schedules/{id}/delete", s.ui(s.handleReportScheduleDelete))
-	mux.HandleFunc("GET /calendar", s.ui(s.handleCalendar))
-	mux.HandleFunc("GET /docs", s.ui(s.handleDocs))
-	mux.HandleFunc("GET /docs/{page}", s.ui(s.handleDocs))
-	mux.HandleFunc("GET /recovery", s.ui(s.handleRecovery))
-	mux.HandleFunc("GET /settings", s.ui(s.handleSettings))
-	mux.HandleFunc("POST /settings/email", s.ui(s.handleSettingsEmail))
-	mux.HandleFunc("POST /settings/sessions", s.ui(s.handleSettingsSessions))
-	mux.HandleFunc("POST /recovery/token", s.ui(s.handleRecoveryToken))
-	mux.HandleFunc("POST /recovery/recovery.json", s.ui(s.handleRecoveryJSON))
+	mux.HandleFunc("POST /logout", s.ui("", s.handleLogout))
+	mux.HandleFunc("GET /{$}", s.ui(PermView, s.handleDashboard))
+	mux.HandleFunc("GET /agents", s.ui(PermView, s.handleAgents))
+	mux.HandleFunc("POST /agents/token", s.ui(PermAgents, s.handleAgentToken))
+	mux.HandleFunc("POST /agents/{id}/delete", s.ui(PermAgents, s.handleAgentDelete))
+	mux.HandleFunc("GET /targets", s.ui(PermView, s.handleTargets))
+	mux.HandleFunc("POST /targets", s.ui(PermStorage, s.handleTargetCreate))
+	mux.HandleFunc("POST /targets/{id}/delete", s.ui(PermStorage, s.handleTargetDelete))
+	mux.HandleFunc("POST /targets/{id}/recovery-key", s.ui(PermStorage, s.handleRecoveryKey))
+	mux.HandleFunc("POST /targets/{id}/recovery-sheet", s.ui(PermStorage, s.handleRecoverySheet))
+	mux.HandleFunc("GET /jobs", s.ui(PermView, s.handleJobs))
+	mux.HandleFunc("POST /jobs", s.ui(PermJobs, s.handleJobCreate))
+	mux.HandleFunc("GET /jobs/{id}", s.ui(PermView, s.handleJob))
+	mux.HandleFunc("POST /jobs/{id}/run", s.ui(PermRun, s.handleJobRun))
+	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(PermJobs, s.handleJobEnable(true)))
+	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
+	mux.HandleFunc("POST /jobs/{id}/delete", s.ui(PermJobs, s.handleJobDelete))
+	mux.HandleFunc("GET /runs", s.ui(PermView, s.handleRuns))
+	mux.HandleFunc("GET /runs/{id}", s.ui(PermView, s.handleRun))
+	mux.HandleFunc("POST /runs/{id}/restore", s.ui(PermRestore, s.handleRestore))
+	mux.HandleFunc("GET /runs/{id}/browse", s.ui(PermRestore, s.handleBrowse))
+	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(PermRestore, s.handleFilesRestore))
+	mux.HandleFunc("GET /downloads/{file}", s.ui(PermView, s.handleDownload))
+	mux.HandleFunc("GET /reports", s.ui(PermView, s.handleReports))
+	mux.HandleFunc("GET /reports/csv", s.ui(PermView, s.handleReportCSV))
+	mux.HandleFunc("POST /reports/email", s.ui(PermJobs, s.handleReportEmail))
+	mux.HandleFunc("POST /reports/schedules", s.ui(PermJobs, s.handleReportScheduleCreate))
+	mux.HandleFunc("POST /reports/schedules/{id}/delete", s.ui(PermJobs, s.handleReportScheduleDelete))
+	mux.HandleFunc("GET /calendar", s.ui(PermView, s.handleCalendar))
+	mux.HandleFunc("GET /docs", s.ui(PermView, s.handleDocs))
+	mux.HandleFunc("GET /docs/{page}", s.ui(PermView, s.handleDocs))
+	mux.HandleFunc("POST /settings/ldap", s.ui(PermSettings, s.handleSettingsLDAP))
+	mux.HandleFunc("GET /users", s.ui(PermUsers, s.handleUsers))
+	mux.HandleFunc("POST /users", s.ui(PermUsers, s.handleUserCreate))
+	mux.HandleFunc("GET /users/{id}", s.ui(PermUsers, s.handleUser))
+	mux.HandleFunc("POST /users/{id}", s.ui(PermUsers, s.handleUserUpdate))
+	mux.HandleFunc("POST /users/{id}/password", s.ui(PermUsers, s.handleUserPassword))
+	mux.HandleFunc("POST /users/{id}/delete", s.ui(PermUsers, s.handleUserDelete))
+	mux.HandleFunc("GET /audit", s.ui(PermUsers, s.handleAudit))
+	mux.HandleFunc("GET /account", s.ui("", s.handleAccount))
+	mux.HandleFunc("POST /account/password", s.ui("", s.handleAccountPassword))
+	mux.HandleFunc("GET /recovery", s.ui(PermView, s.handleRecovery))
+	mux.HandleFunc("GET /settings", s.ui(PermSettings, s.handleSettings))
+	mux.HandleFunc("POST /settings/email", s.ui(PermSettings, s.handleSettingsEmail))
+	mux.HandleFunc("POST /settings/sessions", s.ui(PermSettings, s.handleSettingsSessions))
+	mux.HandleFunc("POST /recovery/token", s.ui(PermAgents, s.handleRecoveryToken))
+	mux.HandleFunc("POST /recovery/recovery.json", s.ui(PermAgents, s.handleRecoveryJSON))
 
 	return securityHeaders(mux)
 }
@@ -321,17 +331,20 @@ type pageData struct {
 	Error   string
 	Version string
 	Data    any
+	// Me is the signed-in user (set by render).
+	Me *User
 }
 
-// ui requires a logged-in admin and rejects cross-site form posts.
-func (s *Server) ui(h func(w http.ResponseWriter, r *http.Request, user string)) http.HandlerFunc {
+// ui requires a signed-in user whose role has perm, and rejects
+// cross-site form posts.
+func (s *Server) ui(perm Perm, h func(w http.ResponseWriter, r *http.Request, user string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookie)
 		if err != nil {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
-		user, err := s.store.SessionUser(r.Context(), c.Value, s.sessionSettings(r.Context()).Idle())
+		u, err := s.store.SessionUser(r.Context(), c.Value, s.sessionSettings(r.Context()).Idle())
 		if err != nil {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
@@ -340,7 +353,14 @@ func (s *Server) ui(h func(w http.ResponseWriter, r *http.Request, user string))
 			http.Error(w, "cross-site request rejected", http.StatusForbidden)
 			return
 		}
-		h(w, r, user)
+		r = r.WithContext(context.WithValue(r.Context(), userCtxKey, &u))
+		if perm != "" && !u.Can(string(perm)) {
+			s.log.Warn("permission denied", "user", u.Username, "role", u.Role, "path", r.URL.Path)
+			w.WriteHeader(http.StatusForbidden)
+			s.render(w, r, "forbidden", pageData{Title: "Not allowed", User: u.Username})
+			return
+		}
+		h(w, r, u.Username)
 	}
 }
 
@@ -370,6 +390,9 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d p
 	}
 	if d.Error == "" && validFlash(q.Get("err"), q.Get("sig")) {
 		d.Error = q.Get("err")
+	}
+	if d.Me == nil {
+		d.Me = currentUser(r)
 	}
 	if d.User != "" {
 		w.Header().Set("Cache-Control", "no-store")
@@ -463,13 +486,23 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sess := s.sessionSettings(r.Context())
-	tok, err := s.store.Login(r.Context(), username, r.FormValue("password"), sess.Lifetime())
+	u, err := s.authenticate(r.Context(), username, r.FormValue("password"))
+	var tok string
+	if err == nil {
+		tok, err = s.store.newSession(r.Context(), u.ID, sess.Lifetime())
+	}
 	if err != nil {
 		s.logins.Fail(keys)
-		s.log.Warn("failed login", "user", username, "remote", r.RemoteAddr)
-		s.render(w, r, "login", pageData{Title: "Sign in", Error: err.Error()})
+		s.log.Warn("failed login", "user", username, "remote", r.RemoteAddr, "err", err)
+		s.auditAs(r, clip(username, 64), "login.failed", "")
+		msg := errBadLogin.Error()
+		if errors.Is(err, errNoRole) {
+			msg = err.Error()
+		}
+		s.render(w, r, "login", pageData{Title: "Sign in", Error: msg})
 		return
 	}
+	s.auditAs(r, u.Username, "login", u.Source+", role "+u.Role)
 	s.logins.Success(keys)
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: r.TLS != nil,
@@ -568,6 +601,7 @@ func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, _ str
 		redirectErr(w, r, "/agents", err)
 		return
 	}
+	s.audit(r, "agent.delete", "agent %d", id)
 	redirectMsg(w, r, "/agents", "Agent removed. Its backups remain on the storage target.")
 }
 
@@ -646,6 +680,7 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 		redirectErr(w, r, "/targets", err)
 		return
 	}
+	s.audit(r, "storage.create", "%s (%s) %s", t.Name, t.Kind, t.URL)
 	redirectMsg(w, r, "/targets", "Storage target added.")
 }
 
@@ -655,6 +690,7 @@ func (s *Server) handleTargetDelete(w http.ResponseWriter, r *http.Request, _ st
 		redirectErr(w, r, "/targets", err)
 		return
 	}
+	s.audit(r, "storage.delete", "target %d", id)
 	redirectMsg(w, r, "/targets", "Storage target removed. Data on the storage was not deleted.")
 }
 
@@ -715,6 +751,7 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		redirectErr(w, r, "/jobs", err)
 		return
 	}
+	s.audit(r, "job.create", "#%d %s", id, job.Name)
 	redirectMsg(w, r, fmt.Sprintf("/jobs/%d", id), "Job created.")
 }
 
@@ -768,6 +805,7 @@ func (s *Server) handleJobDelete(w http.ResponseWriter, r *http.Request, _ strin
 		redirectErr(w, r, "/jobs", err)
 		return
 	}
+	s.audit(r, "job.delete", "job %d", id)
 	redirectMsg(w, r, "/jobs", "Job deleted. Existing backups remain on the storage target.")
 }
 
@@ -838,6 +876,7 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request, _ string)
 		redirectErr(w, r, back, err)
 		return
 	}
+	s.audit(r, "restore.files", "run #%d from backup #%d to %q", rid, id, target)
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Restore queued.")
 }
 

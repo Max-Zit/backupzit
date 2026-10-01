@@ -76,6 +76,7 @@ func (s *Server) handleImageRestore(w http.ResponseWriter, r *http.Request, runI
 		redirectErr(w, r, back, err)
 		return
 	}
+	s.audit(r, "restore.image", "run #%d from backup #%d to disk %d", rid, runID, disk)
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Image restore queued.")
 }
 

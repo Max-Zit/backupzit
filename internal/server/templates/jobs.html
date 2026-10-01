@@ -19,7 +19,7 @@
   {{else}}<p class="muted">No backup jobs yet.</p>{{end}}
 </div>
 
-<div class="panel">
+{{if $.Me.Can "jobs"}}<div class="panel">
   <h2>New backup job</h2>
   {{if and .Data.Agents .Data.Targets}}
   <form method="post" action="/jobs" class="stack">
@@ -122,5 +122,5 @@
     <div><button>Create job</button></div>
   </form>
   {{else}}<p class="muted">You need at least one <a href="/agents">agent</a> and one <a href="/targets">storage target</a>.</p>{{end}}
-</div>
+</div>{{end}}
 {{end}}

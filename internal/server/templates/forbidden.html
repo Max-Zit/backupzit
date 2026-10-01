@@ -1,0 +1,8 @@
+{{define "content"}}
+<div class="panel empty forbidden">
+  {{template "icon" "lock"}}
+  <h1>Not allowed</h1>
+  <p>Your role{{with .Me}} ({{.RoleName}}){{end}} does not allow this. Ask an administrator if you need access.</p>
+  <p><a class="btn secondary-link" href="/">Back to the dashboard</a></p>
+</div>
+{{end}}

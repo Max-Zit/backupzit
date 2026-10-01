@@ -7,9 +7,9 @@
     {{range .Data.Targets}}
     <tr>
       <td class="strong">{{.Name}}</td><td><span class="badge">{{.Kind}}</span></td><td class="mono">{{.URL}}</td>
-      <td>{{if .Encrypted}}AES-256 <form method="post" action="/targets/{{.ID}}/recovery-key" class="inline"><button class="link">Recovery key</button></form>{{else}}<span class="muted">none</span>{{end}}</td>
+      <td>{{if .Encrypted}}AES-256 {{if $.Me.Can "storage"}}<form method="post" action="/targets/{{.ID}}/recovery-key" class="inline"><button class="link">Recovery key</button></form>{{end}}{{else}}<span class="muted">none</span>{{end}}</td>
       <td>{{if .S3LockDays}}{{days .S3LockDays}} (Object Lock){{else if eq .Kind "hardened"}}set on the repository server{{else}}<span class="muted">none</span>{{end}}</td>
-      <td><form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="Remove storage target {{.Name}}? Data on the storage is not deleted."><button class="link">Remove</button></form></td>
+      <td>{{if $.Me.Can "storage"}}<form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="Remove storage target {{.Name}}? Data on the storage is not deleted."><button class="link">Remove</button></form>{{end}}</td>
     </tr>
     {{end}}
   </table></div>
@@ -17,7 +17,7 @@
   {{else}}<p class="muted">No storage targets yet.</p>{{end}}
 </div>
 
-<div class="panel">
+{{if $.Me.Can "storage"}}<div class="panel">
   <h2>Add storage target</h2>
   <form method="post" action="/targets" class="stack">
     <label>Name <input name="name" required placeholder="Office NAS"></label>
@@ -83,5 +83,5 @@
     <label class="check"><input type="checkbox" name="encrypted" checked> Encrypt backups (AES-256) <small>recommended — a recovery key is created; without it encrypted backups cannot be read</small></label>
     <div><button>Add target</button></div>
   </form>
-</div>
+</div>{{end}}
 {{end}}

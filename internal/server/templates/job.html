@@ -2,13 +2,13 @@
 {{with .Data.Job}}
 <h1>{{.Name}} {{if not .Enabled}}<span class="badge">disabled</span>{{end}}</h1>
 <div class="actions">
-  <form method="post" action="/jobs/{{.ID}}/run" class="inline"><button>Run backup now</button></form>
+  {{if $.Me.Can "run"}}<form method="post" action="/jobs/{{.ID}}/run" class="inline"><button>Run backup now</button></form>{{end}}
   {{if .Enabled}}
-  <form method="post" action="/jobs/{{.ID}}/disable" class="inline"><button class="secondary">Disable</button></form>
+  {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/disable" class="inline"><button class="secondary">Disable</button></form>{{end}}
   {{else}}
-  <form method="post" action="/jobs/{{.ID}}/enable" class="inline"><button class="secondary">Enable</button></form>
+  {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/enable" class="inline"><button class="secondary">Enable</button></form>{{end}}
   {{end}}
-  <form method="post" action="/jobs/{{.ID}}/delete" class="inline" data-confirm="Delete job {{.Name}}? Existing backups stay on the storage."><button class="danger">Delete</button></form>
+  {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/delete" class="inline" data-confirm="Delete job {{.Name}}? Existing backups stay on the storage."><button class="danger">Delete</button></form>{{end}}
 </div>
 <div class="panel">
   <dl class="kv">

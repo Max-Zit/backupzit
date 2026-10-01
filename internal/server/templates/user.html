@@ -1,0 +1,53 @@
+{{define "content"}}
+{{with .Data.U}}
+<div class="pagehead">
+  <h1><span class="avatar lg" aria-hidden="true">{{initial .Username}}</span>{{.Username}}
+    {{if eq .Source "ldap"}}<span class="badge info-badge">LDAP</span>{{end}}
+    {{if .Disabled}}{{template "status" "disabled"}}{{end}}</h1>
+  <div class="actions"><a class="btn secondary-link" href="/users">{{template "icon" "chevl"}}All users</a></div>
+</div>
+
+<div class="row">
+  <div class="panel">
+    <h2>Profile and role</h2>
+    <form method="post" action="/users/{{.ID}}" class="stack">
+      <label>Full name <input name="display_name" value="{{.DisplayName}}" {{if eq .Source "ldap"}}readonly{{end}}></label>
+      <label>Email <input name="email" type="email" value="{{.Email}}" {{if eq .Source "ldap"}}readonly{{end}}></label>
+      <label>Role
+        <select name="role" {{if $.Data.Self}}disabled{{end}}>{{range $.Data.Roles}}<option value="{{.Key}}" {{if eq .Key $.Data.U.Role}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+        {{if eq .Source "ldap"}}<small>Updated from the directory groups at every sign-in.</small>{{end}}
+      </label>
+      {{if $.Data.Self}}<input type="hidden" name="role" value="{{.Role}}">{{end}}
+      <label class="check"><input type="checkbox" name="disabled" {{if .Disabled}}checked{{end}} {{if $.Data.Self}}disabled{{end}}> Account disabled <small>— the user cannot sign in; open sessions end immediately</small></label>
+      <dl class="kv">
+        <dt>Created</dt><dd>{{ts .CreatedAt}}</dd>
+        <dt>Last sign-in</dt><dd>{{if .LastLogin}}{{ts .LastLogin}}{{else}}never{{end}}</dd>
+      </dl>
+      <div><button>Save</button></div>
+    </form>
+  </div>
+
+  <div>
+    {{if eq .Source "local"}}
+    <div class="panel">
+      <h2>{{template "icon" "lock"}} Set a new password</h2>
+      <form method="post" action="/users/{{.ID}}/password" class="stack">
+        <label>New password <small>at least {{$.Data.MinPassword}} characters</small><input name="password" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
+        <label>Repeat <input name="password2" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
+        <div><button class="secondary">Set password</button></div>
+      </form>
+    </div>
+    {{else}}
+    <div class="panel"><h2>Password</h2><p class="muted">This user signs in with the directory password; change it in Active Directory / LDAP.</p></div>
+    {{end}}
+    {{if not $.Data.Self}}
+    <div class="panel">
+      <h2>Delete user</h2>
+      <p class="muted">Backups, jobs and history are not affected.{{if eq .Source "ldap"}} A directory user is added again at the next sign-in — disable the account instead to block access.{{end}}</p>
+      <form method="post" action="/users/{{.ID}}/delete" data-confirm="Delete user {{.Username}}?"><button class="danger">Delete user</button></form>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+{{end}}

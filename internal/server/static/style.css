@@ -291,3 +291,27 @@ kbd { font-family: var(--mono); font-size: 12px; border: 1px solid var(--line-2)
 @media (max-width: 900px) { .docs { grid-template-columns: 1fr; } .docnav { position: static; } article.doc { padding: 20px; } }
 @media (max-width: 700px) { .calday { min-height: 70px; } .ev { font-size: 10.5px; padding: 2px 4px; } .ev b { display: none; } }
 @media print { .noprint, .docnav { display: none !important; } body { background: #fff; } }
+
+/* ---- users */
+.me { display: flex; align-items: center; gap: 10px; color: var(--text); }
+.me:hover { text-decoration: none; }
+.uname { display: grid; line-height: 1.2; }
+.uname small { font-weight: 500; font-size: 11.5px; color: var(--muted); }
+.avatar.lg { width: 40px; height: 40px; font-size: 17px; display: inline-grid; }
+.badge.active { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.badge.disabled { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+.badge.info-badge { background: var(--info-bg); color: var(--info); border-color: transparent; }
+.badge.role-admin { background: #ede9fe; color: #6d28d9; border-color: transparent; }
+.badge.role-operator { background: var(--info-bg); color: var(--info); border-color: transparent; }
+.badge.role-restore { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+@media (prefers-color-scheme: dark) { .badge.role-admin { background: #2e1065; color: #c4b5fd; } }
+table.roles td, table.roles th { padding: 7px 8px; font-size: 12.5px; }
+.center { text-align: center; }
+.yes { color: var(--ok); font-weight: 700; } .no { color: var(--line-2); }
+.role-notes { margin: 14px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
+.perm-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; font-size: 13px; }
+.perm-list li::before { content: "✓"; display: inline-block; width: 20px; color: var(--ok); font-weight: 700; }
+.perm-list li.no { color: var(--muted); } .perm-list li.no::before { content: "—"; color: var(--line-2); }
+.forbidden { padding: 48px 20px; }
+.forbidden h1 { justify-content: center; margin: 8px 0; }
+label.check.top { align-self: end; padding-bottom: 10px; }

@@ -1,0 +1,24 @@
+{{define "content"}}
+<div class="pagehead"><h1>Audit log</h1>
+  <div class="actions"><a class="btn secondary-link" href="/users">{{template "icon" "chevl"}}Users</a></div>
+</div>
+<div class="panel">
+  <p class="muted">Sign-ins, failed sign-ins and changes made in the console (newest 500).</p>
+  {{if .Data}}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th><th>From</th></tr></thead>
+    <tbody>
+    {{range .Data}}
+    <tr>
+      <td class="nowrap">{{ts .At}}</td>
+      <td>{{.Username}}</td>
+      <td><span class="badge {{if eq .Action "login.failed"}}failed{{end}}">{{.Action}}</span></td>
+      <td class="msg">{{.Detail}}</td>
+      <td class="mono nowrap">{{.Remote}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table></div>
+  {{else}}<div class="empty">{{template "icon" "activity"}}<p>Nothing recorded yet.</p></div>{{end}}
+</div>
+{{end}}

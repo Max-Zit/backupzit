@@ -1,0 +1,43 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Users, roles &amp; LDAP</h1>
+<p class="lead">Give every person their own account with only the rights they need — as local accounts, or with their Active Directory / LDAP sign-in.</p>
+
+<h2>Roles</h2>
+<table>
+  <tr><th>Permission</th><th>Administrator</th><th>Backup operator</th><th>Restore operator</th><th>Viewer</th></tr>
+  <tr><td>View dashboard, activity, calendar, reports, documentation</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Start backups (Run backup now)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Restore files and disks, browse files in images</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Create, change and delete jobs; scheduled reports</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Enroll and remove agents, recovery codes</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Storage targets, credentials and recovery keys</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Settings (email, sessions, LDAP)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Users and audit log</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>Typical use: IT administrators are <b>Administrators</b>; the people who run day-to-day backups are <b>Backup operators</b>; help desk staff who recover deleted files are <b>Restore operators</b>; management and auditors are <b>Viewers</b>. Pages and buttons a role may not use are hidden, and the server refuses them in any case.</p>
+
+<h2>Local users</h2>
+<p>Under <a href="/users">Users</a> → <i>New local user</i> enter a username, role and a password of at least 10 characters. On the user's page you can change the role, disable the account (open sessions end immediately), set a new password or delete the user.</p>
+<p>Every user can change their own password under <a href="/account">My account</a> (click your name at the top right).</p>
+<div class="callout"><p>At least one enabled <b>local administrator</b> always remains, so you can sign in even when the directory is unreachable. You cannot demote, disable or delete yourself.</p></div>
+
+<h2>Sign-in with Active Directory / LDAP</h2>
+<p>Under <a href="/settings#ldap">Settings → LDAP</a>:</p>
+<ol>
+  <li><b>Server</b>: <code>ldaps://dc1.example.local:636</code>. Plain <code>ldap://</code> is only accepted with StartTLS, so passwords never travel unencrypted.</li>
+  <li><b>Service account</b>: a normal domain account used to look up users and groups (read access is enough), e.g. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
+  <li><b>Search base</b>: e.g. <code>DC=example,DC=local</code>.</li>
+  <li><b>User filter</b>: Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>, OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>.</li>
+  <li><b>Groups → roles</b>: the full DN of a group for each role you want to use, e.g. <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>. The highest matching role wins; users in none of the groups cannot sign in. Tick <i>nested groups</i> in Active Directory to include members of sub-groups.</li>
+  <li><b>Certificate trust</b>: if the domain controllers use an internal CA, paste the CA certificate; for a self-signed certificate enter its fingerprint.</li>
+  <li>Use <b>Test</b> with a real user to check the connection, the password and the resulting role, then <b>Save</b>.</li>
+</ol>
+<p>Directory users appear in the user list after their first sign-in. Their name, email and role are updated from the directory at every sign-in. To block a directory user immediately, disable the account in BackupZit (or in the directory).</p>
+
+<h2>Sessions</h2>
+<p>Under <a href="/settings">Settings → Sign-in sessions</a> set how long a sign-in lasts (default 12 hours) and after how many minutes of inactivity users are signed out (default 60, 0 = never). After 5 wrong passwords from one address, sign-in is paused for 15 minutes.</p>
+
+<h2>Audit log</h2>
+<p><a href="/audit">Users → Audit log</a> shows sign-ins, failed sign-ins and changes: users, jobs, storage targets, restores, displayed recovery keys and settings — with time, user and address.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -96,12 +96,12 @@
 </div>
 {{end}}
 
-<form method="post" action="/reports/email" class="panel inline-form noprint">
+{{if $.Me.Can "jobs"}}<form method="post" action="/reports/email" class="panel inline-form noprint">
   <h2>{{template "icon" "mail"}} Email this report</h2>
   {{range $k, $v := $.Data.Q}}{{range $v}}<input type="hidden" name="{{$k}}" value="{{.}}">{{end}}{{end}}
   <label>Recipients <small>comma separated; empty sends to the notification recipients from Settings</small><input name="to" placeholder="it@example.com"></label>
   <div><button>{{template "icon" "mail"}}Send now</button></div>
-</form>
+</form>{{end}}
 {{end}}
 
 <div class="panel noprint" id="scheduled">
@@ -117,13 +117,13 @@
       <td>{{.Describe}}</td>
       <td>{{if .JobName}}job {{deref .JobName}}{{else if .AgentName}}agent {{deref .AgentName}}{{else}}all agents{{end}}</td>
       <td>{{if .Recipients}}{{join .Recipients ", "}}{{else}}<span class="muted">notification recipients</span>{{end}}</td>
-      <td><form method="post" action="/reports/schedules/{{.ID}}/delete" class="inline" data-confirm="Remove scheduled report {{.Name}}?"><button class="link">Remove</button></form></td>
+      <td>{{if $.Me.Can "jobs"}}<form method="post" action="/reports/schedules/{{.ID}}/delete" class="inline" data-confirm="Remove scheduled report {{.Name}}?"><button class="link">Remove</button></form>{{end}}</td>
     </tr>
     {{end}}
     </tbody>
   </table></div>
   {{end}}
-  <details class="mt" {{if not .Data.Schedules}}open{{end}}>
+  {{if $.Me.Can "jobs"}}<details class="mt" {{if not .Data.Schedules}}open{{end}}>
     <summary>New scheduled report</summary>
     <form method="post" action="/reports/schedules" class="stack">
       <div class="row">
@@ -146,6 +146,6 @@
       </div>
       <div><button>{{template "icon" "plus"}}Create scheduled report</button></div>
     </form>
-  </details>
+  </details>{{end}}
 </div>
 {{end}}

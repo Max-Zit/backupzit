@@ -20,6 +20,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, user str
 	}
 	s.render(w, r, "settings", pageData{Title: "Settings", Nav: "settings", User: user, Data: map[string]any{
 		"Email": e, "HasPassword": e.Password != "", "Sessions": s.sessionSettings(r.Context()),
+		"LDAP": ldapForPage(r.Context(), s.store), "ADFilter": adUserFilter, "LDAPFilter": ldapUserFilter,
 	}})
 }
 
@@ -90,5 +91,6 @@ func (s *Server) handleSettingsEmail(w http.ResponseWriter, r *http.Request, _ s
 		s.serverError(w, err)
 		return
 	}
+	s.audit(r, "settings.email", "email notifications enabled=%v", e.Enabled)
 	redirectMsg(w, r, "/settings", "Settings saved.")
 }

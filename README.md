@@ -20,7 +20,8 @@ connect to it over HTTPS.
 5. **More targets** — S3 ✅, SMB ✅; retention policies ✅; email notifications ✅
 6. **Security** — encryption ✅, immutable repositories (S3 Object Lock ✅, hardened Linux repository ✅), encrypted secrets in the console database
 7. **Hypervisor (agentless) backup** — Proxmox, VMware
-8. **Linux image backup**; more users, roles, optional LDAP login
+8. **Users** — local accounts, roles (Administrator, Backup operator, Restore operator, Viewer), LDAPS/Active Directory sign-in, audit log ✅; reports, calendar, in-console documentation ✅
+9. **Linux image backup**
 
 Supported agent platforms (target): Windows 7, 10, 11, Windows Server 2008 R2+;
 AlmaLinux, Rocky Linux, Ubuntu, Debian.
@@ -40,6 +41,10 @@ backupzit-server --db postgres://user:pass@host/db [--listen :8443] [--data-dir 
 - Agent installers placed in `<data-dir>/dist/` are offered for download in the console.
 - For evaluation: `backupzit-server --dev-embedded-db --dev-http 127.0.0.1:8080` runs a
   private PostgreSQL in the data directory and serves the UI over plain HTTP on localhost.
+
+The console includes a user guide under *Documentation*, reports (any period, CSV,
+emailed and scheduled), a calendar of past and planned runs, and user management with
+roles and optional LDAPS sign-in (Settings → LDAP; role from directory groups).
 
 Agents poll the server over HTTPS (outbound only — no ports open on clients), receive
 backup/restore runs, write directly to the storage target and report results. Each

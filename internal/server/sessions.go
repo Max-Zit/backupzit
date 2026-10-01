@@ -85,5 +85,6 @@ func (s *Server) handleSettingsSessions(w http.ResponseWriter, r *http.Request, 
 	s.sessCache.at = time.Time{}
 	s.sessCache.mu.Unlock()
 	s.log.Info("session settings changed", "user", user, "lifetime_hours", x.LifetimeHours, "idle_minutes", x.IdleMinutes)
+	s.audit(r, "settings.sessions", "lifetime %dh, idle %dmin", x.LifetimeHours, x.IdleMinutes)
 	redirectMsg(w, r, "/settings", "Session settings saved. They apply to new sign-ins; existing sessions were shortened if needed.")
 }

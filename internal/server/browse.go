@@ -205,6 +205,7 @@ func (s *Server) handleFilesRestore(w http.ResponseWriter, r *http.Request, _ st
 		redirectErr(w, r, back, err)
 		return
 	}
+	s.audit(r, "restore.files", "run #%d from backup #%d, %d paths to %q", rid, id, len(paths), target)
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "File restore queued.")
 }
 

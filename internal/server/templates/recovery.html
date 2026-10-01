@@ -28,13 +28,13 @@
       <dt>Fingerprint</dt><dd class="mono">{{.Data.Fingerprint}}</dd>
       <dt>Valid until</dt><dd>{{ts .Data.Expires}}</dd>
     </dl>
-    <form method="post" action="/recovery/recovery.json" class="mt">
+    {{if $.Me.Can "agents"}}<form method="post" action="/recovery/recovery.json" class="mt">
       <input type="hidden" name="token" value="{{.Data.Token}}">
       <button class="secondary">Download recovery.json</button>
-    </form>
+    </form>{{end}}
     {{else}}
     <p class="muted">A recovery code lets recovery media connect to this server. It is valid for 30 days and is shown only once.</p>
-    <form method="post" action="/recovery/token"><button>Create recovery code</button></form>
+    {{if $.Me.Can "agents"}}<form method="post" action="/recovery/token"><button>Create recovery code</button></form>{{end}}
     <p class="muted mt">Fingerprint to compare on the recovery screen: <span class="mono">{{.Data.Fingerprint}}</span></p>
     {{end}}
   </div>
@@ -51,7 +51,7 @@
       <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}</td>
       <td>{{range .Disks}}Disk {{.Number}}: {{bytes .Size}}{{if .Partitions}}, {{len .Partitions}} partitions{{else}}, empty{{end}}<br>{{end}}</td>
       <td>{{ts .EnrolledAt}}</td>
-      <td><form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="Remove recovery agent {{.Hostname}}?"><button class="link">Remove</button></form></td>
+      <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="Remove recovery agent {{.Hostname}}?"><button class="link">Remove</button></form>{{end}}</td>
     </tr>
     {{end}}
   </table></div>

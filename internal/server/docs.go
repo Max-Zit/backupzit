@@ -14,6 +14,7 @@ var docPages = []struct{ Slug, Title string }{
 	{"ransomware", "Ransomware protection"},
 	{"monitoring", "Monitoring, reports & calendar"},
 	{"notifications", "Email notifications"},
+	{"users", "Users, roles & LDAP"},
 	{"cli", "Command line reference"},
 	{"security", "Security & best practices"},
 	{"troubleshooting", "Troubleshooting & FAQ"},

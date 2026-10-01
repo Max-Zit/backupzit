@@ -974,7 +974,7 @@ func TestReportsCalendarDocs(t *testing.T) {
 		t.Fatalf("calendar: %d", resp.StatusCode)
 	}
 	for _, p := range []string{"", "/start", "/install", "/agents", "/storage", "/jobs", "/restore", "/images", "/ransomware",
-		"/monitoring", "/notifications", "/cli", "/security", "/troubleshooting"} {
+		"/monitoring", "/notifications", "/users", "/cli", "/security", "/troubleshooting"} {
 		if resp, _ := do("GET", "/docs"+p, nil); resp.StatusCode != 200 {
 			t.Errorf("docs%s: %d", p, resp.StatusCode)
 		}
@@ -1000,5 +1000,155 @@ func TestReportsCalendarDocs(t *testing.T) {
 	}
 	if _, body := do("GET", "/settings", nil); !strings.Contains(body, `name="lifetime_hours" min="1" max="2160" value="2"`) {
 		t.Error("session settings not shown")
+	}
+}
+
+// client is a browser session for UI tests.
+type client struct {
+	t   *testing.T
+	c   *http.Client
+	url string
+}
+
+func newClient(t *testing.T, e *env) *client {
+	jar, _ := cookiejar.New(nil)
+	c := &http.Client{Transport: e.ts.Client().Transport, Jar: jar,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	return &client{t: t, c: c, url: e.ts.URL}
+}
+
+func (c *client) do(method, p string, form url.Values) (int, string, string) {
+	c.t.Helper()
+	var body io.Reader
+	if form != nil {
+		body = strings.NewReader(form.Encode())
+	}
+	req, _ := http.NewRequest(method, c.url+p, body)
+	if form != nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	req.Header.Set("Origin", c.url)
+	resp, err := c.c.Do(req)
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	b, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	return resp.StatusCode, resp.Header.Get("Location"), string(b)
+}
+
+func (c *client) login(user, pw string) bool {
+	_, loc, _ := c.do("POST", "/login", url.Values{"username": {user}, "password": {pw}})
+	return loc == "/"
+}
+
+func TestUsersAndRoles(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	admin := newClient(t, e)
+	if !admin.login("admin", "admin-pass-123") {
+		t.Fatal("admin login")
+	}
+	// Create one user per role.
+	for _, role := range []string{"operator", "restore", "viewer"} {
+		_, loc, _ := admin.do("POST", "/users", url.Values{"username": {role + "1"}, "role": {role}, "display_name": {"User " + role},
+			"password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
+		if !strings.Contains(loc, "msg=") {
+			t.Fatalf("create %s: %s", role, loc)
+		}
+	}
+	if _, loc, _ := admin.do("POST", "/users", url.Values{"username": {"short"}, "role": {"viewer"}, "password": {"abc"}, "password2": {"abc"}}); !strings.Contains(loc, "err=") {
+		t.Error("short password accepted")
+	}
+	if _, loc, _ := admin.do("POST", "/users", url.Values{"username": {"Operator1"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}}); !strings.Contains(loc, "err=") {
+		t.Error("duplicate (case-insensitive) username accepted")
+	}
+
+	viewer := newClient(t, e)
+	if !viewer.login("VIEWER1", "correct-horse-9") {
+		t.Fatal("viewer login (case-insensitive username)")
+	}
+	for _, p := range []string{"/", "/jobs", "/runs", "/reports", "/calendar", "/docs", "/account"} {
+		if code, _, _ := viewer.do("GET", p, nil); code != 200 {
+			t.Errorf("viewer GET %s: %d", p, code)
+		}
+	}
+	for _, p := range []string{"/settings", "/users", "/audit"} {
+		if code, _, _ := viewer.do("GET", p, nil); code != http.StatusForbidden {
+			t.Errorf("viewer GET %s: %d, want 403", p, code)
+		}
+	}
+	if code, _, _ := viewer.do("POST", "/agents/token", url.Values{}); code != http.StatusForbidden {
+		t.Errorf("viewer created an enrollment token: %d", code)
+	}
+	if _, _, body := viewer.do("GET", "/", nil); strings.Contains(body, `href="/settings"`) || strings.Contains(body, `href="/users"`) {
+		t.Error("viewer sees admin navigation")
+	}
+
+	op := newClient(t, e)
+	op.login("operator1", "correct-horse-9")
+	if code, _, _ := op.do("POST", "/agents/token", url.Values{}); code != 200 {
+		t.Errorf("operator enrollment token: %d", code)
+	}
+	if code, _, _ := op.do("POST", "/targets", url.Values{"name": {"x"}, "kind": {"local"}, "url": {"/tmp/x"}}); code != http.StatusForbidden {
+		t.Errorf("operator created storage: %d", code)
+	}
+	tid, _ := e.store.CreateTarget(ctx, server.Target{Name: "enc", Kind: "local", URL: filepath.Join(t.TempDir(), "r"), Encrypted: true})
+	if code, _, _ := op.do("POST", fmt.Sprintf("/targets/%d/recovery-key", tid), url.Values{}); code != http.StatusForbidden {
+		t.Errorf("operator saw a recovery key: %d", code)
+	}
+	if code, _, _ := admin.do("POST", fmt.Sprintf("/targets/%d/recovery-key", tid), url.Values{}); code != 200 {
+		t.Errorf("admin recovery key: %d", code)
+	}
+
+	// The last local administrator cannot be removed or demoted.
+	users, _ := e.store.ListUsers(ctx)
+	var adminID, viewerID int64
+	for _, u := range users {
+		switch u.Username {
+		case "admin":
+			adminID = u.ID
+		case "viewer1":
+			viewerID = u.ID
+		}
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/users/%d", adminID), url.Values{"role": {"viewer"}}); !strings.Contains(loc, "err=") {
+		t.Error("admin demoted itself")
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/users/%d/delete", adminID), url.Values{}); !strings.Contains(loc, "err=") {
+		t.Error("admin deleted itself")
+	}
+
+	// Disabling a user ends its session immediately.
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/users/%d", viewerID), url.Values{"role": {"viewer"}, "disabled": {"on"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("disable: %s", loc)
+	}
+	if code, loc, _ := viewer.do("GET", "/", nil); code != http.StatusSeeOther || loc != "/login" {
+		t.Errorf("disabled user still signed in: %d %s", code, loc)
+	}
+	if viewer.login("viewer1", "correct-horse-9") {
+		t.Error("disabled user signed in")
+	}
+
+	// Own password change signs out; the new password works.
+	r := newClient(t, e)
+	r.login("restore1", "correct-horse-9")
+	if _, loc, _ := r.do("POST", "/account/password", url.Values{"current": {"wrong"}, "password": {"new-password-123"}, "password2": {"new-password-123"}}); !strings.Contains(loc, "err=") {
+		t.Error("password changed with a wrong current password")
+	}
+	r.do("POST", "/account/password", url.Values{"current": {"correct-horse-9"}, "password": {"new-password-123"}, "password2": {"new-password-123"}})
+	if code, _, _ := r.do("GET", "/", nil); code != http.StatusSeeOther {
+		t.Error("session survived password change")
+	}
+	if !r.login("restore1", "new-password-123") {
+		t.Error("new password does not work")
+	}
+
+	// Audit log records it all.
+	_, _, body := admin.do("GET", "/audit", nil)
+	for _, want := range []string{"user.create", "login.failed", "user.update", "storage.recovery_key", "account.password"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("audit log misses %s", want)
+		}
 	}
 }

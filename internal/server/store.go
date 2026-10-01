@@ -77,55 +77,25 @@ func (s *Store) EnsureAdmin(ctx context.Context, username, password string) (cre
 	if err != nil {
 		return false, err
 	}
-	_, err = s.db.Exec(ctx, `INSERT INTO users(username, password_hash) VALUES($1,$2)`, username, string(h))
+	_, err = s.db.Exec(ctx, `INSERT INTO users(username, password_hash, role) VALUES($1,$2,'admin')`, username, string(h))
 	return err == nil, err
 }
 
-// SetPassword changes (or creates) a user's password.
+// SetPassword changes (or creates) a local administrator's password; used
+// to recover access from the server's command line.
 func (s *Store) SetPassword(ctx context.Context, username, password string) error {
 	h, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec(ctx, `INSERT INTO users(username, password_hash) VALUES($1,$2)
-		ON CONFLICT (username) DO UPDATE SET password_hash=EXCLUDED.password_hash`, username, string(h))
+	_, err = s.db.Exec(ctx, `INSERT INTO users(username, password_hash, role) VALUES($1,$2,'admin')
+		ON CONFLICT (username) DO UPDATE SET password_hash=EXCLUDED.password_hash, role='admin', source='local', disabled=false`, username, string(h))
 	if err != nil {
 		return err
 	}
 	// A new password signs out every existing session of the user.
 	_, err = s.db.Exec(ctx, `DELETE FROM sessions WHERE user_id=(SELECT id FROM users WHERE username=$1)`, username)
 	return err
-}
-
-// Login checks credentials and returns a new session token.
-func (s *Store) Login(ctx context.Context, username, password string, ttl time.Duration) (string, error) {
-	var id int64
-	var hash string
-	err := s.db.QueryRow(ctx, `SELECT id, password_hash FROM users WHERE username=$1`, username).Scan(&id, &hash)
-	if err != nil {
-		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
-		return "", errors.New("invalid username or password")
-	}
-	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
-		return "", errors.New("invalid username or password")
-	}
-	s.db.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now()`)
-	tok := randomToken(32)
-	_, err = s.db.Exec(ctx, `INSERT INTO sessions(token_hash, user_id, expires_at) VALUES($1,$2,$3)`,
-		hashToken(tok), id, time.Now().Add(ttl))
-	return tok, err
-}
-
-// SessionUser returns the username of a valid session.
-// SessionUser returns the username of a valid session and records the
-// activity. idle > 0 ends sessions unused for that long.
-func (s *Store) SessionUser(ctx context.Context, token string, idle time.Duration) (string, error) {
-	var u string
-	err := s.db.QueryRow(ctx, `UPDATE sessions s SET last_seen_at=now() FROM users u
-		WHERE u.id=s.user_id AND s.token_hash=$1 AND s.expires_at > now()
-		AND ($2::bigint = 0 OR s.last_seen_at > now() - make_interval(secs => $2::bigint))
-		RETURNING u.username`, hashToken(token), int64(idle.Seconds())).Scan(&u)
-	return u, notFound(err)
 }
 
 func (s *Store) Logout(ctx context.Context, token string) error {

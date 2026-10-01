@@ -30,6 +30,7 @@ func (s *Server) handleRecoveryKey(w http.ResponseWriter, r *http.Request, user 
 		return
 	}
 	s.log.Warn("recovery key displayed", "target", t.Name, "user", user, "remote", r.RemoteAddr)
+	s.audit(r, "storage.recovery_key", "recovery key of %s displayed", t.Name)
 	s.render(w, r, "recoverykey", pageData{Title: "Recovery key", Nav: "targets", User: user, Data: t})
 }
 
@@ -66,6 +67,7 @@ func (s *Server) handleRecoverySheet(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 	s.log.Warn("recovery sheet downloaded", "target", t.Name, "user", user, "remote", r.RemoteAddr)
+	s.audit(r, "storage.recovery_sheet", "recovery sheet of %s downloaded", t.Name)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="backupzit-recovery-sheet.txt"`)
 	w.Header().Set("Cache-Control", "no-store")
