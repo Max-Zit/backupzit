@@ -89,6 +89,11 @@ func (s *Store) SetPassword(ctx context.Context, username, password string) erro
 	}
 	_, err = s.db.Exec(ctx, `INSERT INTO users(username, password_hash) VALUES($1,$2)
 		ON CONFLICT (username) DO UPDATE SET password_hash=EXCLUDED.password_hash`, username, string(h))
+	if err != nil {
+		return err
+	}
+	// A new password signs out every existing session of the user.
+	_, err = s.db.Exec(ctx, `DELETE FROM sessions WHERE user_id=(SELECT id FROM users WHERE username=$1)`, username)
 	return err
 }
 
@@ -104,6 +109,7 @@ func (s *Store) Login(ctx context.Context, username, password string, ttl time.D
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
 		return "", errors.New("invalid username or password")
 	}
+	s.db.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now()`)
 	tok := randomToken(32)
 	_, err = s.db.Exec(ctx, `INSERT INTO sessions(token_hash, user_id, expires_at) VALUES($1,$2,$3)`,
 		hashToken(tok), id, time.Now().Add(ttl))
@@ -275,11 +281,20 @@ func (s *Store) EnrollAgent(ctx context.Context, req api.EnrollRequest) (api.Enr
 	if strings.TrimSpace(req.Hostname) == "" {
 		return api.EnrollResponse{}, errors.New("hostname is required")
 	}
+	req.Hostname, req.OS, req.Arch, req.Version = clip(req.Hostname, 255), clip(req.OS, 255), clip(req.Arch, 32), clip(req.Version, 64)
 	resp := api.EnrollResponse{AgentUUID: newUUID(), Secret: randomToken(32)}
 	_, err = s.db.Exec(ctx, `INSERT INTO agents(uuid, secret_hash, hostname, repo_dir, os, arch, version, last_seen_at, recovery)
 		VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8)`,
 		resp.AgentUUID, hashToken(resp.Secret), req.Hostname, agentRepoDir(req.Hostname, resp.AgentUUID), req.OS, req.Arch, req.Version, req.Recovery)
 	return resp, err
+}
+
+// clip bounds strings reported by agents.
+func clip(s string, n int) string {
+	if len(s) > n {
+		return strings.ToValidUTF8(s[:n], "")
+	}
+	return s
 }
 
 func newUUID() string {
@@ -344,6 +359,7 @@ func (s *Store) AuthenticateAgent(ctx context.Context, uuid, secret string) (Age
 }
 
 func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest) error {
+	req.Hostname, req.OS, req.Arch, req.Version = clip(req.Hostname, 255), clip(req.OS, 255), clip(req.Arch, 32), clip(req.Version, 64)
 	if len(req.Disks) > 0 {
 		if _, err := s.db.Exec(ctx, `UPDATE agents SET inventory=$2, inventory_at=now() WHERE id=$1`, id, req.Disks); err != nil {
 			return err

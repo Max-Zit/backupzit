@@ -4,7 +4,11 @@ package server
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,8 +40,9 @@ const sessionCookie = "bz_session"
 
 // Server is the management console.
 type Server struct {
-	store *Store
-	log   *slog.Logger
+	store  *Store
+	logins *loginLimiter
+	log    *slog.Logger
 	// CertFingerprint is shown in enrollment instructions.
 	CertFingerprint string
 	// PublicURL is how agents reach the server, e.g. https://backup.example.com:8443
@@ -55,7 +60,7 @@ type Server struct {
 
 // New creates a server.
 func New(store *Store, log *slog.Logger) (*Server, error) {
-	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache()}
+	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache(), logins: newLoginLimiter()}
 	if err := s.loadTemplates(); err != nil {
 		return nil, err
 	}
@@ -280,7 +285,9 @@ func securityHeaders(h http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "same-origin")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		h.ServeHTTP(w, r)
 	})
 }
@@ -336,11 +343,17 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d p
 		http.Error(w, "unknown page", http.StatusInternalServerError)
 		return
 	}
-	if d.Flash == "" {
-		d.Flash = r.URL.Query().Get("msg")
+	// Messages from redirects are signed, so a crafted link cannot make the
+	// console display arbitrary text.
+	q := r.URL.Query()
+	if d.Flash == "" && validFlash(q.Get("msg"), q.Get("sig")) {
+		d.Flash = q.Get("msg")
 	}
-	if d.Error == "" {
-		d.Error = r.URL.Query().Get("err")
+	if d.Error == "" && validFlash(q.Get("err"), q.Get("sig")) {
+		d.Error = q.Get("err")
+	}
+	if d.User != "" {
+		w.Header().Set("Cache-Control", "no-store")
 	}
 	d.Version = s.Version
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -350,11 +363,40 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d p
 }
 
 func redirectMsg(w http.ResponseWriter, r *http.Request, to, msg string) {
-	http.Redirect(w, r, to+"?msg="+url.QueryEscape(msg), http.StatusSeeOther)
+	redirectFlash(w, r, to, "msg", msg)
 }
 
 func redirectErr(w http.ResponseWriter, r *http.Request, to string, err error) {
-	http.Redirect(w, r, to+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+	redirectFlash(w, r, to, "err", err.Error())
+}
+
+func redirectFlash(w http.ResponseWriter, r *http.Request, to, kind, text string) {
+	sep := "?"
+	if strings.Contains(to, "?") {
+		sep = "&"
+	}
+	v := url.Values{kind: {text}, "sig": {flashSig(text)}}
+	http.Redirect(w, r, to+sep+v.Encode(), http.StatusSeeOther)
+}
+
+// flashKey signs redirect messages; it changes on every start, which only
+// hides messages of links from before a restart.
+var flashKey = func() []byte {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return b
+}()
+
+func flashSig(text string) string {
+	m := hmac.New(sha256.New, flashKey)
+	m.Write([]byte(text))
+	return base64.RawURLEncoding.EncodeToString(m.Sum(nil)[:16])
+}
+
+func validFlash(text, sig string) bool {
+	return text != "" && hmac.Equal([]byte(sig), []byte(flashSig(text)))
 }
 
 func (s *Server) serverError(w http.ResponseWriter, err error) {
@@ -389,12 +431,26 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	tok, err := s.store.Login(r.Context(), r.FormValue("username"), r.FormValue("password"), 12*time.Hour)
+	if !sameOrigin(r) {
+		http.Error(w, "cross-site request rejected", http.StatusForbidden)
+		return
+	}
+	username := r.FormValue("username")
+	keys := loginKeys(r, username)
+	if wait := s.logins.Blocked(keys); wait > 0 {
+		s.log.Warn("sign-in refused: too many failed attempts", "user", username, "remote", r.RemoteAddr)
+		s.render(w, r, "login", pageData{Title: "Sign in",
+			Error: fmt.Sprintf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1)})
+		return
+	}
+	tok, err := s.store.Login(r.Context(), username, r.FormValue("password"), 12*time.Hour)
 	if err != nil {
-		s.log.Warn("failed login", "user", r.FormValue("username"), "remote", r.RemoteAddr)
+		s.logins.Fail(keys)
+		s.log.Warn("failed login", "user", username, "remote", r.RemoteAddr)
 		s.render(w, r, "login", pageData{Title: "Sign in", Error: err.Error()})
 		return
 	}
+	s.logins.Success(keys)
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: r.TLS != nil,
 		SameSite: http.SameSiteStrictMode, MaxAge: int((12 * time.Hour).Seconds()),

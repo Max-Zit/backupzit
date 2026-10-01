@@ -65,6 +65,11 @@ func (c *Config) Save(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
+	if path == DefaultConfigPath() {
+		if err := protectDir(filepath.Dir(path)); err != nil {
+			return fmt.Errorf("protect configuration directory: %w", err)
+		}
+	}
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
@@ -406,4 +411,14 @@ func FetchFingerprint(ctx context.Context, serverURL string) (string, error) {
 		u += ":443"
 	}
 	return tlsutil.FetchFingerprint(ctx, u)
+}
+
+// SecureConfigDir restricts access to the directory of the default
+// configuration to administrators. The service calls it on start, which
+// also fixes installations made by older versions.
+func SecureConfigDir(path string) error {
+	if path != DefaultConfigPath() {
+		return nil
+	}
+	return protectDir(filepath.Dir(path))
 }

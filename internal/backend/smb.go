@@ -168,8 +168,15 @@ func (s *SMB) Size(_ context.Context, name string) (int64, error) {
 	return fi.Size(), nil
 }
 
-func (s *SMB) List(_ context.Context, dir string) ([]string, error) {
-	var out []string
+func (s *SMB) List(_ context.Context, dir string) (out []string, err error) {
+	// go-smb2 can panic on malformed directory listings from a hostile
+	// server (GO-2026-5051, no fixed version); fail the call instead of
+	// crashing the agent.
+	defer func() {
+		if p := recover(); p != nil {
+			out, err = nil, fmt.Errorf("smb: invalid directory listing from server: %v", p)
+		}
+	}()
 	var walk func(rel string) error
 	walk = func(rel string) error {
 		entries, err := s.share.ReadDir(s.p(rel))

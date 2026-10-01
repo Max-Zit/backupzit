@@ -127,6 +127,7 @@ func cmdServe(args []string) error {
 		Handler:           (&hardened.Server{Store: store, Keys: keys, Log: log, Version: version}).Handler(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12},
 		ReadHeaderTimeout: 30 * time.Second,
+		ReadTimeout:       30 * time.Minute, // one upload of up to 4 GiB
 		IdleTimeout:       5 * time.Minute,
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

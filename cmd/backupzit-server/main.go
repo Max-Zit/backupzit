@@ -120,6 +120,8 @@ func run() error {
 		Handler:           srv.Handler(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12},
 		ReadHeaderTimeout: 15 * time.Second,
+		ReadTimeout:       5 * time.Minute,
+		IdleTimeout:       2 * time.Minute,
 	}
 	go func() {
 		<-ctx.Done()
@@ -129,7 +131,7 @@ func run() error {
 		if host, _, _ := strings.Cut(*devHTTP, ":"); host != "127.0.0.1" && host != "localhost" {
 			return errors.New("--dev-http only accepts a loopback address")
 		}
-		plain := &http.Server{Addr: *devHTTP, Handler: srv.Handler(), ReadHeaderTimeout: 15 * time.Second}
+		plain := &http.Server{Addr: *devHTTP, Handler: srv.Handler(), ReadHeaderTimeout: 15 * time.Second, ReadTimeout: 5 * time.Minute, IdleTimeout: 2 * time.Minute}
 		go plain.ListenAndServe()
 		go func() { <-ctx.Done(); server.Shutdown(plain) }()
 		log.Warn("serving plain HTTP for development", "addr", *devHTTP)

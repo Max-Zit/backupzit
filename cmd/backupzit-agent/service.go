@@ -65,6 +65,11 @@ type program struct {
 // without a token starts the service, which waits until "enroll" is run.
 func (p *program) Start(s service.Service) error {
 	logger := newLogger(p.cfgPath)
+	if err := os.MkdirAll(filepath.Dir(p.cfgPath), 0o700); err == nil {
+		if err := agent.SecureConfigDir(p.cfgPath); err != nil {
+			logger.Warn("could not restrict access to the configuration directory", "err", err)
+		}
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancel = cancel
 	p.done = make(chan struct{})

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -186,7 +187,7 @@ func (s *Server) handleFilesRestore(w http.ResponseWriter, r *http.Request, _ st
 	id, _ := pathID(r)
 	r.ParseForm()
 	part, _ := strconv.Atoi(r.FormValue("part"))
-	back := fmt.Sprintf("/runs/%d/browse?part=%d&path=%s", id, part, r.FormValue("path"))
+	back := fmt.Sprintf("/runs/%d/browse?", id) + url.Values{"part": {strconv.Itoa(part)}, "path": {r.FormValue("path")}}.Encode()
 	paths := r.Form["sel"]
 	if len(paths) == 0 {
 		redirectErr(w, r, back, errors.New("tick the files and folders to restore"))
