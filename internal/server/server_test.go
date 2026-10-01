@@ -835,3 +835,82 @@ func TestEncryptedTarget(t *testing.T) {
 		t.Fatalf("check with recovery key: %v %+v", err, res)
 	}
 }
+
+func TestHardenedTarget(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	hr, err := testutil.StartHardened(filepath.Join(t.TempDir(), "repo"), 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer hr.Close()
+
+	jar, _ := cookiejar.New(nil)
+	c := e.ts.Client()
+	c.Jar = jar
+	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	post := func(p string, form url.Values) *http.Response {
+		req, _ := http.NewRequest(http.MethodPost, e.ts.URL+p, strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", e.ts.URL)
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp
+	}
+	post("/login", url.Values{"username": {"admin"}, "password": {"admin-pass-123"}})
+	r := post("/targets", url.Values{"name": {"vault"}, "kind": {"hardened"}, "hardened_host": {hr.Host},
+		"hardened_path": {"/office/"}, "hardened_key": {hr.Key}, "hardened_fingerprint": {hr.Fingerprint}, "encrypted": {"on"}})
+	if loc := r.Header.Get("Location"); strings.Contains(loc, "err=") {
+		t.Fatalf("create hardened target: %s", loc)
+	}
+	r = post("/targets", url.Values{"name": {"bad"}, "kind": {"hardened"}, "hardened_host": {"10.0.0.1"}, "hardened_key": {"k"}})
+	if loc := r.Header.Get("Location"); !strings.Contains(loc, "err=") {
+		t.Error("hardened target without fingerprint accepted")
+	}
+	targets, _ := e.store.ListTargets(ctx)
+	if len(targets) != 1 || targets[0].URL != "hardened://"+hr.Host+"/office" || targets[0].HardenedKey != hr.Key {
+		t.Fatalf("target: %+v", targets)
+	}
+
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag.VSS = false
+	agents, _ := e.store.ListAgents(ctx)
+	src := filepath.Join(t.TempDir(), "data")
+	files := writeTree(t, src)
+	jobID, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: targets[0].ID, Name: "to vault", Paths: []string{src}, Enabled: true,
+		Retention: repo.RetentionPolicy{KeepLast: 1}})
+	var runID int64
+	for i := 0; i < 2; i++ {
+		runID, _ = e.store.QueueBackup(ctx, jobID, "manual")
+		runAgent(t, ag)
+		run, _ := e.store.GetRun(ctx, runID)
+		if run.Status != api.StatusSuccess {
+			t.Fatalf("backup to hardened repository: %s %q", run.Status, run.Message)
+		}
+	}
+	// Retention removed the first snapshot: on the server it is only hidden.
+	if st, _ := hr.Store.Stats(); st.Hidden == 0 {
+		t.Errorf("expected hidden files after retention: %+v", st)
+	}
+	dst := filepath.Join(t.TempDir(), "out")
+	rr, _ := e.store.QueueRestore(ctx, runID, agents[0].ID, dst, nil, true)
+	runAgent(t, ag)
+	if r, _ := e.store.GetRun(ctx, rr); r.Status != api.StatusSuccess {
+		t.Fatalf("restore from hardened repository: %s %q %v", r.Status, r.Message, r.Errors)
+	}
+	comps := strings.Split(strings.ReplaceAll(strings.Replace(src, ":", "", 1), `\`, "/"), "/")
+	for p, want := range files {
+		got, err := os.ReadFile(filepath.Join(append(append([]string{dst}, comps...), filepath.FromSlash(p))...))
+		if err != nil || string(got) != want {
+			t.Errorf("restored %s: %v", p, err)
+		}
+	}
+}

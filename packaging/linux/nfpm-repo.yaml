@@ -1,0 +1,29 @@
+name: backupzit-repo
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: admin
+priority: optional
+maintainer: backupzit <support@backupzit.example>
+description: |
+  backupzit hardened repository: immutable, write-once backup storage for
+  backupzit agents. Backups cannot be changed or deleted by clients before
+  the configured immutability period ends.
+vendor: backupzit
+homepage: https://github.com/backupzit/backupzit
+license: AGPL-3.0-only
+contents:
+  - src: ./bin/linux/backupzit-repo
+    dst: /usr/bin/backupzit-repo
+    file_info:
+      mode: 0755
+  - src: ./packaging/linux/backupzit-repo.service
+    dst: /usr/lib/systemd/system/backupzit-repo.service
+  - src: ./packaging/linux/repo.env
+    dst: /etc/backupzit-repo/repo.env
+    type: config|noreplace
+    file_info:
+      mode: 0640
+scripts:
+  postinstall: ./packaging/linux/repo-postinstall.sh
+  preremove: ./packaging/linux/repo-preremove.sh

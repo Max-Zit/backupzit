@@ -141,7 +141,7 @@ func TestImmutableS3(t *testing.T) {
 
 	// --- point-in-time view before the attack
 	view := opts
-	view.S3AsOf = asOf
+	view.AsOf = asOf
 	vbe := open(view)
 	if err := vbe.Save(ctx, "x", []byte("x")); !errors.Is(err, backend.ErrReadOnly) {
 		t.Errorf("save to point-in-time view: %v", err)

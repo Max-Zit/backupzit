@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -108,6 +110,29 @@ func s3Location(endpoint, bucket, prefix string, plainHTTP bool) (string, error)
 	}
 	return loc, nil
 }
+
+// hardenedLocation builds hardened://host:port/path from form fields.
+func hardenedLocation(host, dir string) (string, error) {
+	host = strings.TrimSpace(host)
+	host = strings.TrimPrefix(strings.TrimPrefix(host, "https://"), "hardened://")
+	host = strings.TrimRight(host, "/")
+	dir = strings.Trim(strings.TrimSpace(dir), "/")
+	if host == "" || strings.ContainsAny(host, "/?#@ ") {
+		return "", errors.New("hardened repository server (host or host:port) is required")
+	}
+	if dir == "" {
+		dir = "backupzit"
+	}
+	if !hardenedPath.MatchString(dir) {
+		return "", errors.New("folder may contain only letters, digits, '.', '_', '-' and '/'")
+	}
+	if _, _, err := net.SplitHostPort(host); err != nil {
+		host = net.JoinHostPort(host, "8500")
+	}
+	return "hardened://" + host + "/" + dir, nil
+}
+
+var hardenedPath = regexp.MustCompile(`^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$`)
 
 // smbLocation builds smb://user@host/share/path from form fields.
 func smbLocation(host, share, dir, user string) (string, error) {

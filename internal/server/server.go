@@ -539,6 +539,16 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 			}
 		}
 	}
+	if t.Kind == "hardened" {
+		u, err := hardenedLocation(r.FormValue("hardened_host"), r.FormValue("hardened_path"))
+		if err != nil {
+			redirectErr(w, r, "/targets", err)
+			return
+		}
+		t.URL = u
+		t.HardenedKey = strings.TrimSpace(r.FormValue("hardened_key"))
+		t.HardenedFingerprint = strings.TrimSpace(r.FormValue("hardened_fingerprint"))
+	}
 	if t.Kind == "smb" {
 		u, err := smbLocation(r.FormValue("smb_host"), r.FormValue("smb_share"), r.FormValue("smb_path"), r.FormValue("smb_user"))
 		if err != nil {

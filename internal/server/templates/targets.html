@@ -8,7 +8,7 @@
     <tr>
       <td>{{.Name}}</td><td>{{.Kind}}</td><td class="mono">{{.URL}}</td>
       <td>{{if .Encrypted}}AES-256 <form method="post" action="/targets/{{.ID}}/recovery-key" class="inline"><button class="link">Recovery key</button></form>{{else}}<span class="muted">none</span>{{end}}</td>
-      <td>{{if .S3LockDays}}{{days .S3LockDays}} (Object Lock){{else}}<span class="muted">none</span>{{end}}</td>
+      <td>{{if .S3LockDays}}{{days .S3LockDays}} (Object Lock){{else if eq .Kind "hardened"}}set on the repository server{{else}}<span class="muted">none</span>{{end}}</td>
       <td><form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="Remove storage target {{.Name}}? Data on the storage is not deleted."><button class="link">Remove</button></form></td>
     </tr>
     {{end}}
@@ -25,10 +25,22 @@
       <select name="kind" id="kind">
         <option value="sftp">SFTP</option>
         <option value="s3">S3 compatible (AWS, Wasabi, Backblaze B2, MinIO, …)</option>
+        <option value="hardened">Hardened repository (backupzit-repo on Linux, immutable)</option>
         <option value="smb">SMB share (Windows server, NAS)</option>
         <option value="local">Local / mounted path (on the agent machine)</option>
       </select>
     </label>
+    <div data-kind="hardened" hidden class="stack">
+      <div class="row">
+        <label>Server <small>host or host:port (default port 8500)</small><input name="hardened_host" placeholder="10.0.0.30"></label>
+        <label>Folder <small>optional, default backupzit</small><input name="hardened_path" placeholder="backupzit"></label>
+      </div>
+      <div class="row">
+        <label>Access key <small>backupzit-repo add-key &lt;name&gt;</small><input name="hardened_key" type="password" autocomplete="new-password" placeholder="bzr_..."></label>
+        <label>Certificate fingerprint <small>backupzit-repo fingerprint</small><input name="hardened_fingerprint" placeholder="SHA256:..."></label>
+      </div>
+      <small class="muted">A Linux server running backupzit-repo. Backups written there cannot be changed or deleted by agents, this console or anyone holding the access key until the immutability period set on that server ends — protection against ransomware and compromised credentials. Disable SSH and other remote access to that server after setup.</small>
+    </div>
     <div data-kind="smb" hidden class="stack">
       <div class="row">
         <label>Server <small>name or IP, e.g. nas01 or 10.0.0.20</small><input name="smb_host" placeholder="10.0.0.20"></label>

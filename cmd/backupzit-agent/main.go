@@ -83,7 +83,10 @@ func addRepoFlags(fs *flag.FlagSet) *repoFlags {
 	fs.StringVar(&rf.opts.S3SecretKey, "s3-secret-key", os.Getenv("BACKUPZIT_S3_SECRET_KEY"), "S3 secret key (prefer the environment variable)")
 	fs.StringVar(&rf.opts.S3Region, "s3-region", os.Getenv("BACKUPZIT_S3_REGION"), "S3 region")
 	fs.IntVar(&rf.opts.S3LockDays, "s3-lock-days", 0, "write objects immutable (S3 Object Lock, compliance mode) for this many days")
-	fs.StringVar(&rf.asOf, "s3-as-of", "", "read the S3 repository as it was at this time (read-only; e.g. 2026-10-01 or 2026-10-01T14:30), to recover after objects were deleted or overwritten")
+	fs.StringVar(&rf.asOf, "as-of", "", "read the repository as it was at this time (read-only; S3 with Object Lock or hardened repository; e.g. 2026-10-01 or 2026-10-01T14:30), to recover after backups were deleted or overwritten")
+	fs.StringVar(&rf.asOf, "s3-as-of", "", "same as --as-of")
+	fs.StringVar(&rf.opts.HardenedKey, "hardened-key", os.Getenv("BACKUPZIT_HARDENED_KEY"), "hardened repository access key (prefer the environment variable)")
+	fs.StringVar(&rf.opts.HardenedFingerprint, "hardened-fingerprint", os.Getenv("BACKUPZIT_HARDENED_FINGERPRINT"), "hardened repository certificate fingerprint (SHA256:...)")
 	fs.StringVar(&rf.opts.SMBPassword, "smb-password", os.Getenv("BACKUPZIT_SMB_PASSWORD"), "SMB password (prefer the environment variable)")
 	fs.StringVar(&rf.opts.SMBDomain, "smb-domain", os.Getenv("BACKUPZIT_SMB_DOMAIN"), "SMB domain")
 	return rf
@@ -98,7 +101,7 @@ func (rf *repoFlags) backend(ctx context.Context) (backend.Backend, error) {
 		if err != nil {
 			return nil, err
 		}
-		rf.opts.S3AsOf = t
+		rf.opts.AsOf = t
 	}
 	return backend.Open(ctx, rf.location, rf.opts)
 }
@@ -429,5 +432,5 @@ func parseAsOf(s string) (time.Time, error) {
 			return t, nil
 		}
 	}
-	return time.Time{}, fmt.Errorf("invalid --s3-as-of %q (use e.g. 2026-10-01T14:30)", s)
+	return time.Time{}, fmt.Errorf("invalid --as-of %q (use e.g. 2026-10-01T14:30)", s)
 }

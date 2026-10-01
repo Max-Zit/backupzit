@@ -126,19 +126,21 @@ func (s *Store) Logout(ctx context.Context, token string) error {
 // ---- storage targets
 
 type Target struct {
-	ID           int64
-	Name         string
-	Kind         string
-	URL          string
-	SFTPPassword string
-	SFTPKey      string
-	SFTPHostKey  string
-	S3AccessKey  string
-	S3SecretKey  string
-	S3Region     string
-	S3LockDays   int // Object Lock retention for new objects, 0 = off
-	SMBPassword  string
-	SMBDomain    string
+	ID                  int64
+	Name                string
+	Kind                string
+	URL                 string
+	SFTPPassword        string
+	SFTPKey             string
+	SFTPHostKey         string
+	S3AccessKey         string
+	S3SecretKey         string
+	S3Region            string
+	S3LockDays          int // Object Lock retention for new objects, 0 = off
+	SMBPassword         string
+	SMBDomain           string
+	HardenedKey         string
+	HardenedFingerprint string
 	// Encrypted targets protect every repository with RecoveryKey.
 	Encrypted   bool
 	RecoveryKey string
@@ -185,25 +187,32 @@ func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
 		if t.SMBPassword == "" {
 			return 0, errors.New("SMB password is required")
 		}
+	case "hardened":
+		if !strings.HasPrefix(t.URL, "hardened://") {
+			return 0, errors.New("hardened repository location must look like hardened://host:8500/path")
+		}
+		if t.HardenedKey == "" || !strings.HasPrefix(t.HardenedFingerprint, "SHA256:") {
+			return 0, errors.New("access key and certificate fingerprint (SHA256:...) of the hardened repository are required")
+		}
 	case "local":
 	default:
 		return 0, fmt.Errorf("unknown target type %q", t.Kind)
 	}
 	var id int64
-	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key,s3_access_key,s3_secret_key,s3_region,smb_password,smb_domain,encrypted,repo_password,s3_lock_days)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
-		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey), strings.TrimSpace(t.S3AccessKey), t.S3SecretKey, strings.TrimSpace(t.S3Region), t.SMBPassword, strings.TrimSpace(t.SMBDomain), t.Encrypted, t.RecoveryKey, t.S3LockDays).Scan(&id)
+	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key,s3_access_key,s3_secret_key,s3_region,smb_password,smb_domain,encrypted,repo_password,s3_lock_days,hardened_key,hardened_fingerprint)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
+		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey), strings.TrimSpace(t.S3AccessKey), t.S3SecretKey, strings.TrimSpace(t.S3Region), t.SMBPassword, strings.TrimSpace(t.SMBDomain), t.Encrypted, t.RecoveryKey, t.S3LockDays, t.HardenedKey, t.HardenedFingerprint).Scan(&id)
 	if err != nil && strings.Contains(err.Error(), "duplicate key") {
 		return 0, errors.New("a storage target with that name already exists")
 	}
 	return id, err
 }
 
-const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at, s3_access_key, s3_secret_key, s3_region, smb_password, smb_domain, encrypted, repo_password, s3_lock_days`
+const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at, s3_access_key, s3_secret_key, s3_region, smb_password, smb_domain, encrypted, repo_password, s3_lock_days, hardened_key, hardened_fingerprint`
 
 func scanTarget(r pgx.Row) (Target, error) {
 	var t Target
-	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt, &t.S3AccessKey, &t.S3SecretKey, &t.S3Region, &t.SMBPassword, &t.SMBDomain, &t.Encrypted, &t.RecoveryKey, &t.S3LockDays)
+	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt, &t.S3AccessKey, &t.S3SecretKey, &t.S3Region, &t.SMBPassword, &t.SMBDomain, &t.Encrypted, &t.RecoveryKey, &t.S3LockDays, &t.HardenedKey, &t.HardenedFingerprint)
 	return t, err
 }
 

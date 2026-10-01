@@ -17,6 +17,9 @@ import (
 // ErrNotFound is returned when a named object does not exist.
 var ErrNotFound = errors.New("backend: object not found")
 
+// ErrReadOnly is returned for writes to a point-in-time view.
+var ErrReadOnly = errors.New("backend: point-in-time view is read-only")
+
 // Backend is a flat object store addressed by slash-separated names.
 type Backend interface {
 	// Save atomically stores data under name. Readers never observe a
@@ -59,11 +62,15 @@ type Options struct {
 	S3SecretKey  string
 	S3Region     string
 	// S3LockDays > 0 writes objects with Object Lock (COMPLIANCE) for that many days.
-	S3LockDays int
-	// S3AsOf opens a read-only view of the bucket as it was at that time.
-	S3AsOf      time.Time
+	S3LockDays  int
 	SMBPassword string
 	SMBDomain   string
+	// HardenedKey and HardenedFingerprint authenticate a hardened repository.
+	HardenedKey         string
+	HardenedFingerprint string // pinned TLS certificate, "SHA256:..."
+	// AsOf opens a read-only view of the storage as it was at that time
+	// (S3 with Object Lock, hardened repository).
+	AsOf time.Time
 }
 
 // Open parses a repository location and opens the matching backend.
@@ -72,6 +79,7 @@ type Options struct {
 //	sftp://user@host[:port]/path          -> SFTP
 //	s3://endpoint[:port]/bucket[/prefix]   -> S3 (?tls=false for plain HTTP)
 //	smb://[domain;]user@host/share[/path]  -> SMB2/3 share
+//	hardened://host[:port]/path             -> backupzit hardened repository
 func Open(ctx context.Context, location string, opts Options) (Backend, error) {
 	switch {
 	case strings.HasPrefix(location, "sftp://"):
@@ -92,6 +100,12 @@ func Open(ctx context.Context, location string, opts Options) (Backend, error) {
 			return nil, fmt.Errorf("parse smb url: %w", err)
 		}
 		return OpenSMB(ctx, u, opts)
+	case strings.HasPrefix(location, "hardened://"):
+		u, err := url.Parse(location)
+		if err != nil {
+			return nil, fmt.Errorf("parse hardened repository url: %w", err)
+		}
+		return OpenHardened(ctx, u, opts)
 	case strings.HasPrefix(location, "local:"):
 		return OpenLocal(strings.TrimPrefix(location, "local:"))
 	case strings.Contains(location, "://"):

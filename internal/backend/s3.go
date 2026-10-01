@@ -29,7 +29,7 @@ import (
 // or overwrite it before the retention ends. Deleting only adds a delete
 // marker; the data version stays.
 //
-// Point-in-time view: with Options.S3AsOf set, the backend is read-only and
+// Point-in-time view: with Options.AsOf set, the backend is read-only and
 // shows every object as it was at that moment, using object versions. This
 // recovers backups after an attacker deleted or overwrote objects.
 type S3 struct {
@@ -47,9 +47,6 @@ type s3Version struct {
 	id   string
 	size int64
 }
-
-// ErrReadOnly is returned for writes to a point-in-time view.
-var ErrReadOnly = errors.New("s3: point-in-time view is read-only")
 
 // OpenS3 connects to the bucket named in u.
 func OpenS3(ctx context.Context, u *url.URL, opts Options) (*S3, error) {
@@ -88,8 +85,8 @@ func OpenS3(ctx context.Context, u *url.URL, opts Options) (*S3, error) {
 			return nil, fmt.Errorf("s3: immutability requested but bucket %q has no Object Lock enabled (create it with Object Lock): %v", bucket, err)
 		}
 	}
-	if !opts.S3AsOf.IsZero() {
-		s.asOf = opts.S3AsOf
+	if !opts.AsOf.IsZero() {
+		s.asOf = opts.AsOf
 		if err := s.loadVersions(ctx); err != nil {
 			return nil, err
 		}

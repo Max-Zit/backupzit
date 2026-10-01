@@ -66,7 +66,7 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 		cr.used = time.Now()
 		return cr.r, nil
 	}
-	if t.Kind != "sftp" && t.Kind != "s3" && t.Kind != "smb" {
+	if t.Kind == "local" {
 		return nil, ErrBrowseLocal
 	}
 	// The repository is used for many requests; do not tie it to one.
@@ -74,6 +74,7 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 		SFTPPassword: t.SFTPPassword, SFTPKeyFile: "", SFTPHostKey: t.SFTPHostKey,
 		S3AccessKey: t.S3AccessKey, S3SecretKey: t.S3SecretKey, S3Region: t.S3Region, S3LockDays: t.S3LockDays,
 		SMBPassword: t.SMBPassword, SMBDomain: t.SMBDomain,
+		HardenedKey: t.HardenedKey, HardenedFingerprint: t.HardenedFingerprint,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("connect to storage: %w", err)

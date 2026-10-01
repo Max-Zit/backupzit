@@ -18,7 +18,7 @@ connect to it over HTTPS.
 3. **Windows image backup** — VSS snapshots ✅, whole-disk / partition images ✅, file-level restore from images ✅
 4. **Bare-metal restore** — image restore to an empty disk ✅ (verified booting); boot media, dissimilar hardware
 5. **More targets** — S3 ✅, SMB ✅; retention policies ✅; email notifications ✅
-6. **Security** — encryption ✅, immutable repositories (S3 Object Lock ✅, hardened Linux repository), encrypted secrets in the console database
+6. **Security** — encryption ✅, immutable repositories (S3 Object Lock ✅, hardened Linux repository ✅), encrypted secrets in the console database
 7. **Hypervisor (agentless) backup** — Proxmox, VMware
 8. **Linux image backup**; more users, roles, optional LDAP login
 
@@ -79,6 +79,7 @@ Repository locations:
 - `sftp://user@host[:port]/path` — SFTP (`/~/path` for a path relative to the home directory)
 - `smb://[domain;]user@host/share[/path]` — SMB 2/3 share (Windows server, NAS, Samba); password via `BACKUPZIT_SMB_PASSWORD`
 - `s3://endpoint[:port]/bucket[/prefix]` — S3 compatible storage (AWS, Wasabi, Backblaze B2, MinIO, …); add `?tls=false` for plain HTTP. Credentials via `BACKUPZIT_S3_ACCESS_KEY` / `BACKUPZIT_S3_SECRET_KEY`
+- `hardened://host[:port]/path` — backupzit hardened repository (port 8500 by default); access key via `BACKUPZIT_HARDENED_KEY`, certificate pin via `BACKUPZIT_HARDENED_FINGERPRINT`
 
 SFTP authentication: `--sftp-password` (or `BACKUPZIT_SFTP_PASSWORD`) and/or
 `--sftp-key`. The server host key must be pinned with `--sftp-hostkey SHA256:...`;
@@ -99,13 +100,40 @@ Deleting (retention, prune, an attacker) only adds delete markers. Add a lifecyc
 rule that expires noncurrent versions (e.g. `mc ilm rule add --noncurrent-expire-days 1
 --expire-delete-marker`) so space is freed once locks end.
 
-If backups were deleted or overwritten, read the repository as it was before:
+If backups were deleted or overwritten, read the repository as it was before: (also works for the hardened repository)
 
-    backupzit-agent snapshots --repo s3://... --s3-as-of 2026-10-01T14:30
-    backupzit-agent restore   --repo s3://... --s3-as-of 2026-10-01T14:30 --target D:Restore latest
+    backupzit-agent snapshots --repo s3://... --as-of 2026-10-01T14:30
+    backupzit-agent restore   --repo s3://... --as-of 2026-10-01T14:30 --target D:Restore latest
 
 The point-in-time view is read-only and uses object versions, so nothing on the
 storage changes.
+
+### Hardened repository (backupzit-repo)
+
+An immutable, write-once backup server for a Linux machine (Veeam-style
+"hardened repository"), installed from the `backupzit-repo` deb/rpm package:
+
+    apt install ./backupzit-repo_*.deb          # or dnf install ./backupzit-repo-*.rpm
+    vi /etc/backupzit-repo/repo.env             # immutability period, storage directory
+    systemctl start backupzit-repo
+    backupzit-repo add-key office-console       # access key (shown once)
+    backupzit-repo fingerprint                  # certificate fingerprint
+
+Add a *Hardened repository* storage target in the console with the server
+address, access key and fingerprint.
+
+- Files are **write-once**: existing files are never overwritten.
+- Every file gets the filesystem immutable attribute (`chattr +i`) for the
+  period configured **on the repository server** (+1 day). Not even root can
+  delete or change it without removing the attribute first. The service runs as
+  an unprivileged user whose only capability is `CAP_LINUX_IMMUTABLE`.
+- Deletes from clients (retention, prune — or an attacker with the access key)
+  only **hide** files until their period ends; then they are removed.
+  `backupzit-repo status` shows hidden data, `backupzit-repo undelete --since TIME`
+  brings it back, and `--as-of TIME` on the agent CLI reads the state before.
+- After setup, disable SSH and other remote access to the server and protect its
+  console (iDRAC/iLO/hypervisor) — the immutability is only as strong as the
+  root account of that machine.
 
 ## Repository format (v1)
 

@@ -47,13 +47,14 @@ func recoverySheet(t Target, now time.Time) string {
 		"  <location>/<hostname>_<id>\r\n\r\n" +
 		"Restoring without the backupzit server:\r\n" +
 		"  set BACKUPZIT_PASSWORD=<recovery key>\r\n" +
-		"  (plus the storage credentials, e.g. BACKUPZIT_SFTP_PASSWORD, BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, BACKUPZIT_SMB_PASSWORD)\r\n" +
+		"  (plus the storage credentials, e.g. BACKUPZIT_SFTP_PASSWORD, BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, BACKUPZIT_SMB_PASSWORD,\r\n" +
+		"   BACKUPZIT_HARDENED_KEY + BACKUPZIT_HARDENED_FINGERPRINT)\r\n" +
 		"  backupzit-agent snapshots --repo <location>/<hostname>_<id>\r\n" +
 		"  backupzit-agent restore --repo <location>/<hostname>_<id> --target C:\\Restore latest\r\n")
 	if t.S3LockDays > 0 {
 		fmt.Fprintf(&b, "\r\nImmutable storage (S3 Object Lock, %s). If backups were deleted or\r\n"+
-			"overwritten, add --s3-as-of <time before the incident>, e.g.\r\n"+
-			"  backupzit-agent snapshots --repo <location>/<hostname>_<id> --s3-as-of 2026-10-01T14:30\r\n", days(t.S3LockDays))
+			"overwritten, add --as-of <time before the incident>, e.g.\r\n"+
+			"  backupzit-agent snapshots --repo <location>/<hostname>_<id> --as-of 2026-10-01T14:30\r\n", days(t.S3LockDays))
 	}
 	return b.String()
 }

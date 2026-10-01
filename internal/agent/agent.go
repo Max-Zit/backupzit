@@ -5,9 +5,6 @@ package agent
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,6 +23,7 @@ import (
 	"github.com/backupzit/backupzit/internal/backend"
 	"github.com/backupzit/backupzit/internal/repo"
 	"github.com/backupzit/backupzit/internal/restorer"
+	"github.com/backupzit/backupzit/internal/tlsutil"
 )
 
 // Config is persisted after enrollment.
@@ -83,21 +81,7 @@ func (c *Config) Save(path string) error {
 // replaced by the pin obtained at enrollment.
 func httpClient(fingerprint string) *http.Client {
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: true, // verified by VerifyConnection below
-			VerifyConnection: func(cs tls.ConnectionState) error {
-				if len(cs.PeerCertificates) == 0 {
-					return errors.New("server presented no certificate")
-				}
-				h := sha256.Sum256(cs.PeerCertificates[0].Raw)
-				got := "SHA256:" + base64.RawStdEncoding.EncodeToString(h[:])
-				if got != fingerprint {
-					return fmt.Errorf("server certificate fingerprint mismatch: expected %s, got %s", fingerprint, got)
-				}
-				return nil
-			},
-		},
+		TLSClientConfig:     tlsutil.PinnedConfig(fingerprint),
 		Proxy:               http.ProxyFromEnvironment,
 		TLSHandshakeTimeout: 15 * time.Second,
 	}
@@ -314,7 +298,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*repo.Repository, func(), error) {
 	opts := backend.Options{SFTPPassword: rs.SFTPPassword, SFTPHostKey: rs.SFTPHostKey,
 		S3AccessKey: rs.S3AccessKey, S3SecretKey: rs.S3SecretKey, S3Region: rs.S3Region, S3LockDays: rs.S3LockDays,
-		SMBPassword: rs.SMBPassword, SMBDomain: rs.SMBDomain}
+		SMBPassword: rs.SMBPassword, SMBDomain: rs.SMBDomain,
+		HardenedKey: rs.HardenedKey, HardenedFingerprint: rs.HardenedFingerprint}
 	var cleanup = func() {}
 	if rs.SFTPKey != "" {
 		f, err := os.CreateTemp("", "bz-key-*")
@@ -420,16 +405,5 @@ func FetchFingerprint(ctx context.Context, serverURL string) (string, error) {
 	if !strings.Contains(u, ":") {
 		u += ":443"
 	}
-	d := tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true}} // fingerprint is shown to the operator
-	conn, err := d.DialContext(ctx, "tcp", u)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-	certs := conn.(*tls.Conn).ConnectionState().PeerCertificates
-	if len(certs) == 0 {
-		return "", errors.New("server presented no certificate")
-	}
-	h := sha256.Sum256(certs[0].Raw)
-	return "SHA256:" + base64.RawStdEncoding.EncodeToString(h[:]), nil
+	return tlsutil.FetchFingerprint(ctx, u)
 }

@@ -109,9 +109,11 @@ type Repository struct {
 	S3SecretKey  string `json:"s3_secret_key,omitempty"`
 	S3Region     string `json:"s3_region,omitempty"`
 	// S3LockDays makes every written object immutable for that many days.
-	S3LockDays  int    `json:"s3_lock_days,omitempty"`
-	SMBPassword string `json:"smb_password,omitempty"`
-	SMBDomain   string `json:"smb_domain,omitempty"`
+	S3LockDays          int    `json:"s3_lock_days,omitempty"`
+	SMBPassword         string `json:"smb_password,omitempty"`
+	SMBDomain           string `json:"smb_domain,omitempty"`
+	HardenedKey         string `json:"hardened_key,omitempty"`
+	HardenedFingerprint string `json:"hardened_fingerprint,omitempty"`
 	// Password unlocks (or, for a new repository, encrypts) the repository.
 	Password string `json:"password,omitempty"`
 }
