@@ -276,6 +276,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /jobs/{id}", s.ui(PermView, s.handleJob))
 	mux.HandleFunc("POST /jobs/{id}/run", s.ui(PermRun, s.handleJobRun))
 	mux.HandleFunc("POST /jobs/{id}/test", s.ui(PermRun, s.handleJobTest))
+	mux.HandleFunc("POST /jobs/{id}/release-hold", s.ui(PermJobs, s.handleJobReleaseHold))
 	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(PermJobs, s.handleJobEnable(true)))
 	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
 	mux.HandleFunc("POST /jobs/{id}/delete", s.ui(PermJobs, s.handleJobDelete))

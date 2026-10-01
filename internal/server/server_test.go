@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -1401,5 +1402,79 @@ func TestRestoreTests(t *testing.T) {
 	}
 	if _, loc, _ := admin.do("POST", fmt.Sprintf("/jobs/%d/test", jobID), url.Values{}); !strings.Contains(loc, "msg=") {
 		t.Errorf("manual restore test: %s", loc)
+	}
+}
+
+func TestRansomwareDetection(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag.VSS = false
+	agents, _ := e.store.ListAgents(ctx)
+	tid, _ := e.store.CreateTarget(ctx, server.Target{Name: "nas", Kind: "local", URL: filepath.Join(t.TempDir(), "nas")})
+	src := filepath.Join(t.TempDir(), "docs")
+	os.MkdirAll(src, 0o755)
+	for i := 0; i < 120; i++ {
+		os.WriteFile(filepath.Join(src, fmt.Sprintf("doc%03d.txt", i)), []byte(strings.Repeat(fmt.Sprintf("invoice %d line\n", i), 400)), 0o644)
+	}
+	jobID, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: tid, Name: "docs", Paths: []string{src}, Enabled: true,
+		Retention: repo.RetentionPolicy{KeepLast: 2}})
+	backup := func() server.Run {
+		id, _ := e.store.QueueBackup(ctx, jobID, "manual")
+		runAgent(t, ag)
+		r, _ := e.store.GetRun(ctx, id)
+		if r.Status != api.StatusSuccess {
+			t.Fatalf("backup: %s %s", r.Status, r.Message)
+		}
+		return r
+	}
+	for i := 0; i < 3; i++ {
+		os.WriteFile(filepath.Join(src, fmt.Sprintf("doc%03d.txt", i)), []byte(fmt.Sprintf("edited %d\n", i)), 0o644)
+		if r := backup(); r.Anomaly != "" {
+			t.Fatalf("normal backup flagged: %s", r.Anomaly)
+		}
+	}
+	// "Ransomware" encrypts every document.
+	rng := rand.New(rand.NewSource(1))
+	for i := 0; i < 120; i++ {
+		b := make([]byte, 6000)
+		rng.Read(b)
+		os.WriteFile(filepath.Join(src, fmt.Sprintf("doc%03d.txt", i)), b, 0o644)
+	}
+	r := backup()
+	if r.Anomaly == "" {
+		t.Fatal("encrypted files not detected")
+	}
+	t.Log(r.Anomaly)
+	if j, _ := e.store.GetJob(ctx, jobID); !j.RetentionHold {
+		t.Fatal("retention not paused")
+	}
+	// While paused, further backups do not expire the clean ones.
+	backup()
+	runs, _ := e.store.ListRuns(ctx, server.RunFilter{JobID: jobID})
+	clean := 0
+	for _, x := range runs {
+		if x.Anomaly == "" && !x.Expired && x.Kind == api.KindBackup {
+			clean++
+		}
+	}
+	if clean < 2 {
+		t.Errorf("clean backups expired while retention was paused (%d left)", clean)
+	}
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	if _, _, body := admin.do("GET", "/", nil); !strings.Contains(body, "suspicious backups to review") {
+		t.Error("dashboard lacks suspicious count")
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/jobs/%d/release-hold", jobID), url.Values{}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("release: %s", loc)
+	}
+	if j, _ := e.store.GetJob(ctx, jobID); j.RetentionHold {
+		t.Error("retention still paused")
 	}
 }

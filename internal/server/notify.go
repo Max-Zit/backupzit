@@ -259,7 +259,7 @@ func (n *Notifier) runAlerts(ctx context.Context, e EmailSettings) {
 		if err != nil {
 			continue
 		}
-		if e.Enabled && wants(e, run.Status) {
+		if e.Enabled && (wants(e, run.Status) || (run.Anomaly != "" && e.OnFailure)) {
 			subject, body := n.runMessage(run)
 			if err := n.send(ctx, e, subject, body); err != nil {
 				// Leave unhandled to retry on the next pass; stop to avoid
@@ -288,6 +288,10 @@ func (n *Notifier) runMessage(r Run) (string, string) {
 	}
 	subject := fmt.Sprintf("[BackupZit] %s %s%s on %s", strings.ToUpper(r.Status), kindName(r.Kind), job, r.Hostname)
 	var b strings.Builder
+	if r.Anomaly != "" {
+		subject = fmt.Sprintf("[BackupZit] SUSPICIOUS %s%s on %s — possible ransomware or mass deletion", kindName(r.Kind), job, r.Hostname)
+		fmt.Fprintf(&b, "WARNING: this backup looks unusual: %s.\n\nCheck the machine for ransomware or accidental mass deletion. Retention of this job is paused, so older backups are kept until you review it in the console.\n\n", r.Anomaly)
+	}
 	fmt.Fprintf(&b, "%s%s on %s finished with status %s.\n\n", kindName(r.Kind), job, r.Hostname, strings.ToUpper(r.Status))
 	if r.StartedAt != nil {
 		fmt.Fprintf(&b, "Started:  %s\n", r.StartedAt.Local().Format("2006-01-02 15:04:05"))

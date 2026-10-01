@@ -8,6 +8,7 @@
   <div class="stat info"><div class="si">{{template "icon" "play"}}</div><b>{{.Running}}</b><span>queued / running</span></div>
   <div class="stat ok"><div class="si">{{template "icon" "activity"}}</div><b>{{.Runs24h}}</b><span>runs in 24 h</span></div>
   <div class="stat {{if .Failed24h}}bad{{else}}ok{{end}}"><div class="si">{{template "icon" "alert"}}</div><b>{{.Failed24h}}</b><span>failed in 24 h</span></div>
+  <div class="stat {{if .Suspicious}}bad{{else}}ok{{end}}"><div class="si">{{template "icon" "shield"}}</div><b>{{.Suspicious}}</b><span>suspicious backups to review</span></div>
   <div class="stat {{if .Warning24h}}warn{{else}}ok{{end}}"><div class="si">{{template "icon" "warn"}}</div><b>{{.Warning24h}}</b><span>warnings in 24 h</span></div>
 </div>
 {{end}}

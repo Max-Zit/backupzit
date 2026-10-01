@@ -1,5 +1,6 @@
 {{define "content"}}
 {{with .Data.Job}}
+{{if .RetentionHold}}<div class="callout warn"><p><b>Retention is paused</b> because a recent backup of this job looked like ransomware or mass deletion (see the history below). Older backups are kept. Check the machine; when everything is fine, resume retention.</p>{{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/release-hold" data-confirm="Mark the suspicious backups as reviewed and resume retention?"><button class="secondary">Reviewed — resume retention</button></form>{{end}}</div>{{end}}
 <h1>{{.Name}} {{if not .Enabled}}<span class="badge">disabled</span>{{end}}</h1>
 <div class="actions">
   {{if $.Me.Can "run"}}<form method="post" action="/jobs/{{.ID}}/run" class="inline"><button>{{if eq .Kind "copy"}}Copy now{{else}}Run backup now{{end}}</button></form>

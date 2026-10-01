@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"path"
 	"regexp"
@@ -399,6 +400,8 @@ type Job struct {
 	// Copy jobs: the job whose backups are copied.
 	SourceJobID   *int64
 	SourceJobName *string
+	// RetentionHold pauses retention after a suspicious backup.
+	RetentionHold bool
 	CreatedAt     time.Time
 	// Last run summary
 	LastStatus   *string
@@ -477,14 +480,14 @@ const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.retention, j.
 	j.schedule, j.enabled, j.last_scheduled_at, j.created_at,
 	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','copy') ORDER BY r.queued_at DESC LIMIT 1),
 	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','copy') ORDER BY r.queued_at DESC LIMIT 1),
-	j.source_job_id, (SELECT sj.name FROM jobs sj WHERE sj.id=j.source_job_id)`
+	j.source_job_id, (SELECT sj.name FROM jobs sj WHERE sj.id=j.source_job_id), j.retention_hold`
 
 const jobFrom = ` FROM jobs j JOIN agents a ON a.id=j.agent_id JOIN storage_targets st ON st.id=j.target_id`
 
 func scanJob(r pgx.Row) (Job, error) {
 	var j Job
 	err := r.Scan(&j.ID, &j.Kind, &j.ImageDisk, &j.ImagePartitions, &j.Retention, &j.AgentID, &j.Hostname, &j.TargetID, &j.TargetName, &j.Name,
-		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished, &j.SourceJobID, &j.SourceJobName)
+		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished, &j.SourceJobID, &j.SourceJobName, &j.RetentionHold)
 	return j, err
 }
 
@@ -613,12 +616,15 @@ type Run struct {
 	// Copy runs: the repository copied from.
 	SourceTargetID *int64
 	SourceRepoURL  string
-	QueuedAt       time.Time
-	StartedAt      *time.Time
-	FinishedAt     *time.Time
-	Stats          json.RawMessage
-	Errors         []string
-	Message        string
+	// Anomaly explains why a backup looks like ransomware or mass deletion.
+	Anomaly    string
+	AnomalyAck bool
+	QueuedAt   time.Time
+	StartedAt  *time.Time
+	FinishedAt *time.Time
+	Stats      json.RawMessage
+	Errors     []string
+	Message    string
 }
 
 // Duration returns how long the run took (or has been running).
@@ -635,7 +641,7 @@ func (r Run) Duration() time.Duration {
 
 const runCols = `r.id, r.agent_id, a.hostname, r.job_id, j.name, r.kind, r.status, r.trigger, r.repo_url,
 	r.target_id, r.paths, r.excludes, r.snapshot_id, r.restore_target, r.restore_verify, r.queued_at, r.started_at, r.finished_at,
-	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url`
+	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url, r.anomaly, r.anomaly_ack`
 
 const runFrom = ` FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id`
 
@@ -644,7 +650,7 @@ func scanRun(row pgx.Row) (Run, error) {
 	err := row.Scan(&r.ID, &r.AgentID, &r.Hostname, &r.JobID, &r.JobName, &r.Kind, &r.Status,
 		&r.Trigger, &r.RepoURL, &r.TargetID, &r.Paths, &r.Excludes, &r.SnapshotID, &r.RestoreTarget, &r.RestoreVerify,
 		&r.QueuedAt, &r.StartedAt, &r.FinishedAt, &r.Stats, &r.Errors, &r.Message,
-		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL)
+		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL, &r.Anomaly, &r.AnomalyAck)
 	return r, err
 }
 
@@ -721,6 +727,9 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 			return err
 		}
 	}
+	if a, err := s.checkAnomaly(ctx, runID); err == nil && a != "" {
+		slog.Warn("suspicious backup: possible ransomware or mass deletion", "run", runID, "why", a)
+	}
 	return nil
 }
 
@@ -740,6 +749,7 @@ func (s *Store) FailStaleRuns(ctx context.Context, after time.Duration) (int64, 
 type Summary struct {
 	Agents, AgentsOnline, Jobs, Targets     int
 	Runs24h, Failed24h, Warning24h, Running int
+	Suspicious                              int
 }
 
 func (s *Store) Summary(ctx context.Context) (Summary, error) {
@@ -752,8 +762,9 @@ func (s *Store) Summary(ctx context.Context) (Summary, error) {
 		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours'),
 		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='failed'),
 		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='warning'),
-		(SELECT count(*) FROM runs WHERE status IN ('queued','running'))`).
-		Scan(&x.Agents, &x.AgentsOnline, &x.Jobs, &x.Targets, &x.Runs24h, &x.Failed24h, &x.Warning24h, &x.Running)
+		(SELECT count(*) FROM runs WHERE status IN ('queued','running')),
+		(SELECT count(*) FROM runs WHERE anomaly<>'' AND NOT anomaly_ack)`).
+		Scan(&x.Agents, &x.AgentsOnline, &x.Jobs, &x.Targets, &x.Runs24h, &x.Failed24h, &x.Warning24h, &x.Running, &x.Suspicious)
 	return x, err
 }
 

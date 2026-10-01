@@ -11,6 +11,16 @@
   <tr><td><b>Off-site copy</b></td><td>Fire, theft, total site loss.</td></tr>
 </table>
 
+<h2>Automatic detection of suspicious backups</h2>
+<p>Every backup is compared with the recent history of its job. It is marked <span class="badge failed"><i></i>suspicious</span> when it shows the traces of ransomware or mass deletion:</p>
+<ul>
+  <li>far more files changed than usual (e.g. 95 % instead of the usual 1 %),</li>
+  <li>the new data no longer compresses — encrypted files look like random data,</li>
+  <li>the number of files suddenly dropped by a third or more,</li>
+  <li>a sudden jump in the amount of new data (also for disk images).</li>
+</ul>
+<p>Then BackupZit sends an alert email (with failure notifications on), shows the backup on the dashboard as <i>suspicious backups to review</i>, and <b>pauses the job's retention</b>: no older backup is deleted, so the last clean backups stay restorable even if the damaged backups keep coming. After checking the machine, click <i>Reviewed — resume retention</i> on the job page.</p>
+
 <h2>Immutable S3 with Object Lock</h2>
 <ol>
   <li>Create a bucket with <b>Object Lock enabled</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>

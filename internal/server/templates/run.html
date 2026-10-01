@@ -1,6 +1,7 @@
 {{define "content"}}
 {{with .Data.Run}}
 <h1>{{kindtitle .Kind}} #{{.ID}} {{template "status" .Status}}</h1>
+{{if .Anomaly}}<div class="callout warn"><p><b>Suspicious backup — possible ransomware or mass deletion:</b> {{.Anomaly}}.</p><p>Check the machine. Retention of the job is paused so older backups are kept; resume it on the <a href="/jobs/{{.JobID}}">job page</a> after review.</p></div>{{end}}
 <div class="panel" {{if or (eq .Status "queued") (eq .Status "running")}}data-autorefresh{{end}}>
   <dl class="kv">
     <dt>Agent</dt><dd>{{.Hostname}}</dd>

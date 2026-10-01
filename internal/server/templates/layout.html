@@ -75,7 +75,7 @@
     <td><span class="kind">{{.Kind}}</span>{{if eq .Trigger "schedule"}} <span class="muted" title="scheduled">{{template "icon" "clock"}}</span>{{end}}</td>
     <td>{{.Hostname}}</td>
     <td>{{if .JobID}}<a href="/jobs/{{.JobID}}">{{deref .JobName}}</a>{{end}}</td>
-    <td>{{template "status" .Status}}{{if .Expired}} <span class="badge muted-badge">expired</span>{{end}}</td>
+    <td>{{template "status" .Status}}{{if .Expired}} <span class="badge muted-badge">expired</span>{{end}}{{if .Anomaly}} <span class="badge {{if .AnomalyAck}}warning{{else}}failed{{end}}" title="{{.Anomaly}}"><i></i>suspicious</span>{{end}}</td>
     <td class="nowrap">{{if .StartedAt}}{{ts .StartedAt}}{{else}}<span class="muted">queued {{ago .QueuedAt}}</span>{{end}}</td>
     <td class="nowrap">{{if .StartedAt}}{{.Duration}}{{end}}</td>
     <td class="mono">{{short .SnapshotID}}</td>

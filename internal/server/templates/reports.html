@@ -40,6 +40,7 @@
   <div class="stat {{if .Failed}}bad{{end}}"><div class="si">{{template "icon" "alert"}}</div><b>{{.Failed}}</b><span>failed</span></div>
   <div class="stat info"><div class="si">{{template "icon" "storage"}}</div><b>{{bytes .BytesStored}}</b><span>uploaded ({{bytes .BytesRead}} read)</span></div>
   <div class="stat"><div class="si">{{template "icon" "recovery"}}</div><b>{{.Restores}}</b><span>restores</span></div>
+  {{if .Suspicious}}<div class="stat bad"><div class="si">{{template "icon" "shield"}}</div><b>{{.Suspicious}}</b><span>suspicious backups</span></div>{{end}}
   <div class="stat {{if .TestsFailed}}bad{{else if .Tests}}ok{{end}}"><div class="si">{{template "icon" "check"}}</div><b>{{.Tests}}{{if .TestsFailed}} / {{.TestsFailed}} failed{{end}}</b><span>restore tests</span></div>
 </div>
 
@@ -91,7 +92,7 @@
     <thead><tr><th>#</th><th>Time</th><th>Job</th><th>Agent</th><th>Status</th><th>Message</th></tr></thead>
     <tbody>
     {{range .Problems}}
-    <tr><td><a href="/runs/{{.ID}}" class="idlink">{{.ID}}</a></td><td class="nowrap">{{ts .QueuedAt}}</td><td>{{deref .JobName}}</td><td>{{.Hostname}}</td><td>{{template "status" .Status}}</td><td class="msg">{{.Message}}</td></tr>
+    <tr><td><a href="/runs/{{.ID}}" class="idlink">{{.ID}}</a></td><td class="nowrap">{{ts .QueuedAt}}</td><td>{{deref .JobName}}</td><td>{{.Hostname}}</td><td>{{template "status" .Status}}</td><td class="msg">{{if .Anomaly}}<b>Suspicious:</b> {{.Anomaly}}. {{end}}{{.Message}}</td></tr>
     {{end}}
     </tbody>
   </table></div>

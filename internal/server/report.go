@@ -108,6 +108,7 @@ type Report struct {
 
 	Backups, Success, Warning, Failed, Restores int
 	Tests, TestsFailed                          int
+	Suspicious                                  int
 	SuccessRate                                 float64
 	BytesRead, BytesStored                      uint64
 	Duration                                    time.Duration
@@ -250,7 +251,10 @@ func (s *Store) BuildReport(ctx context.Context, p Period, agentID, jobID int64)
 			jr.LastSuccess = &at
 			jr.ProtectedBytes, jr.ProtectedFiles = st.Bytes, st.Files
 		}
-		if r.Status == api.StatusFailed || r.Status == api.StatusWarning {
+		if r.Anomaly != "" {
+			rep.Suspicious++
+		}
+		if r.Status == api.StatusFailed || r.Status == api.StatusWarning || r.Anomaly != "" {
 			rep.Problems = append([]Run{r}, rep.Problems...) // newest first
 		}
 		if dr != nil {
