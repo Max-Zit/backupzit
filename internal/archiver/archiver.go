@@ -15,6 +15,7 @@ import (
 
 	"github.com/backupzit/backupzit/internal/fsutil"
 	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/backupzit/backupzit/internal/vss"
 	"github.com/restic/chunker"
 )
 
@@ -33,6 +34,12 @@ type Options struct {
 	Excludes []string
 	// Progress, if set, is called for each file processed.
 	Progress func(path string, s *repo.SnapshotStats)
+	// VSS reads the sources from Volume Shadow Copy snapshots (Windows).
+	// If a snapshot cannot be created the volume is read live and a
+	// warning is recorded.
+	VSS bool
+	// VSSTimeout bounds snapshot creation (default 5 minutes).
+	VSSTimeout time.Duration
 }
 
 // Archiver performs one backup run.
@@ -42,7 +49,12 @@ type Archiver struct {
 	stats repo.SnapshotStats
 	buf   []byte
 	chk   *chunker.Chunker
+	snaps *vss.Set
 }
+
+// src maps an original path to where its data is read from (the VSS
+// snapshot when one exists for its volume).
+func (a *Archiver) src(p string) string { return a.snaps.Map(p) }
 
 // Run backs up opts.Paths and saves a snapshot.
 func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot, error) {
@@ -83,6 +95,21 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 	start := time.Now()
 	before := r.Stats()
 
+	if opts.VSS {
+		timeout := opts.VSSTimeout
+		if timeout <= 0 {
+			timeout = 5 * time.Minute
+		}
+		snaps, _ := vss.Create(abs, timeout, func(item string, err error) { a.addError(item, err) })
+		a.snaps = snaps
+		defer func() {
+			if err := snaps.Close(); err != nil {
+				// The snapshot is released by Windows eventually; not fatal.
+				a.addError("vss", fmt.Errorf("delete snapshot: %w", err))
+			}
+		}()
+	}
+
 	root := buildVTree(abs)
 	var parentTree *repo.Tree
 	if opts.Parent != nil {
@@ -100,6 +127,11 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		return nil, err
 	}
 
+	// Release snapshots before recording stats so cleanup errors are reported.
+	if err := a.snaps.Close(); err != nil {
+		a.addError("vss", fmt.Errorf("delete snapshot: %w", err))
+	}
+
 	after := r.Stats()
 	a.stats.BytesAdded = after.RawBytes - before.RawBytes
 	a.stats.BytesStored = after.StoredBytes - before.StoredBytes
@@ -113,6 +145,7 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		Tree:           treeID,
 		Stats:          a.stats,
 		ProgramVersion: opts.Version,
+		VSSVolumes:     a.snaps.Volumes(),
 	}
 	if u, err := user.Current(); err == nil {
 		sn.Username = u.Username
@@ -217,7 +250,7 @@ func (a *Archiver) saveVDir(ctx context.Context, d *vdir, parent *repo.Tree) (re
 			return repo.ID{}, err
 		}
 		n := repo.Node{Name: name, Type: repo.NodeDir, Mode: uint32(fs.ModeDir | 0o755), Subtree: &sub}
-		if fi, err := os.Stat(child.realPath); err == nil {
+		if fi, err := os.Stat(a.src(child.realPath)); err == nil {
 			n.Mode = uint32(fi.Mode())
 			n.ModTime = fi.ModTime().UTC()
 			n.WinAttrs = fsutil.WinAttrs(fi)
@@ -247,7 +280,7 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 	if err := ctx.Err(); err != nil {
 		return repo.Node{}, false, err
 	}
-	fi, err := os.Lstat(p)
+	fi, err := os.Lstat(a.src(p))
 	if err != nil {
 		a.addError(p, err)
 		return repo.Node{}, false, nil
@@ -281,7 +314,7 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 		if parent != nil && parent.Type == repo.NodeDir && parent.Subtree != nil {
 			ptree, _ = a.r.LoadTree(ctx, *parent.Subtree)
 		}
-		entries, err := os.ReadDir(p)
+		entries, err := os.ReadDir(a.src(p))
 		if err != nil {
 			a.addError(p, err)
 			// Keep the directory itself so the structure is restorable.
@@ -312,7 +345,7 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 		return n, true, nil
 
 	case fi.Mode()&fs.ModeSymlink != 0 || fi.Mode()&fs.ModeIrregular != 0:
-		target, err := os.Readlink(p)
+		target, err := os.Readlink(a.src(p))
 		if err != nil {
 			a.addError(p, fmt.Errorf("unsupported special file: %w", err))
 			return n, false, nil
@@ -354,7 +387,7 @@ func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n 
 		a.stats.FilesNew++
 	}
 
-	f, err := os.Open(p)
+	f, err := os.Open(a.src(p))
 	if err != nil {
 		return err
 	}

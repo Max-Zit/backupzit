@@ -64,6 +64,8 @@ type Snapshot struct {
 	Stats  SnapshotStats `json:"stats"`
 	// ProgramVersion is the agent version that created the snapshot.
 	ProgramVersion string `json:"program_version"`
+	// VSSVolumes lists volumes read from a Volume Shadow Copy snapshot.
+	VSSVolumes []string `json:"vss_volumes,omitempty"`
 }
 
 // SnapshotStats summarises a backup run.

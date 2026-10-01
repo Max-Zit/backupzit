@@ -317,15 +317,19 @@ func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
 		Excludes: run.Excludes,
 		Version:  a.version,
 		Tags:     []string{fmt.Sprintf("run:%d", run.ID)},
+		VSS:      runtime.GOOS == "windows",
 	})
 	if err != nil {
 		return failed(err)
 	}
 	stats, _ := json.Marshal(sn.Stats)
 	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Errors: sn.Stats.Errors}
+	if len(sn.VSSVolumes) > 0 {
+		res.Message = "Read from VSS snapshot of " + strings.Join(sn.VSSVolumes, ", ")
+	}
 	if len(sn.Stats.Errors) > 0 {
 		res.Status = api.StatusWarning
-		res.Message = fmt.Sprintf("%d files or folders could not be read", len(sn.Stats.Errors))
+		res.Message = strings.TrimSpace(fmt.Sprintf("%d files or folders could not be read. %s", len(sn.Stats.Errors), res.Message))
 	}
 	return res
 }

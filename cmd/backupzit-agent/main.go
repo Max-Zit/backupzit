@@ -157,6 +157,7 @@ func cmdBackup(ctx context.Context, args []string) error {
 	fs.Var(&tags, "tag", "tag for the snapshot (repeatable)")
 	fs.Var(&excludes, "exclude", "glob pattern of names to skip (repeatable)")
 	noParent := fs.Bool("force", false, "read all files even if unchanged since the last snapshot")
+	useVSS := fs.Bool("vss", false, "read from a Volume Shadow Copy snapshot (Windows, requires administrator)")
 	host := fs.String("host", "", "override hostname stored in the snapshot")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent backup [options] <path>...")
@@ -179,6 +180,7 @@ func cmdBackup(ctx context.Context, args []string) error {
 		Tags:     tags,
 		Excludes: excludes,
 		NoParent: *noParent,
+		VSS:      *useVSS,
 		Hostname: *host,
 		Version:  version,
 		Progress: func(p string, s *repo.SnapshotStats) {
@@ -193,6 +195,9 @@ func cmdBackup(ctx context.Context, args []string) error {
 	}
 	st := sn.Stats
 	fmt.Printf("snapshot %s saved\n", sn.ID.Short())
+	if len(sn.VSSVolumes) > 0 {
+		fmt.Printf("  vss:    read from snapshot of %s\n", strings.Join(sn.VSSVolumes, ", "))
+	}
 	fmt.Printf("  files:  %d new, %d changed, %d unchanged (%d dirs)\n", st.FilesNew, st.FilesChanged, st.FilesSkipped, st.Dirs)
 	fmt.Printf("  data:   %s total, %s read, %s new (%s stored)\n",
 		humanBytes(st.Bytes), humanBytes(st.BytesRead), humanBytes(st.BytesAdded), humanBytes(st.BytesStored))
