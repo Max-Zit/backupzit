@@ -35,3 +35,19 @@ document.addEventListener("DOMContentLoaded", function () {
     setTimeout(function () { location.reload(); }, 5000);
   }
 });
+
+// Schedule form: show the fields of the selected schedule type.
+// Elements list the types they belong to in data-sched="daily interval".
+function syncSched() {
+  var sel = document.getElementById("sched_kind");
+  if (!sel) return;
+  document.querySelectorAll("[data-sched]").forEach(function (el) {
+    var on = el.getAttribute("data-sched").split(" ").indexOf(sel.value) >= 0;
+    el.hidden = !on;
+    el.querySelectorAll("input,select").forEach(function (i) { i.disabled = !on; });
+  });
+}
+document.addEventListener("change", function (e) {
+  if (e.target.id === "sched_kind") syncSched();
+});
+document.addEventListener("DOMContentLoaded", syncSched);

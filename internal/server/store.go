@@ -335,11 +335,11 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 	if j.Name == "" || len(j.Paths) == 0 {
 		return 0, errors.New("name and at least one path are required")
 	}
-	if j.Schedule != "" {
-		if _, err := parseSchedule(j.Schedule); err != nil {
-			return 0, err
-		}
+	sc, err := ParseSchedule(j.Schedule)
+	if err != nil {
+		return 0, err
 	}
+	j.Schedule = sc.Encode()
 	if _, err := s.GetAgent(ctx, j.AgentID); err != nil {
 		return 0, errors.New("unknown agent")
 	}
@@ -350,7 +350,7 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 		j.Excludes = []string{}
 	}
 	var id int64
-	err := s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at)
+	err = s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at)
 		VALUES($1,$2,$3,$4,$5,$6,$7,now()) RETURNING id`,
 		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled).Scan(&id)
 	return id, err

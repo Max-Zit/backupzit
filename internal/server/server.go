@@ -109,13 +109,78 @@ var funcs = template.FuncMap{
 		}
 		return s
 	},
-	"nextrun": func(expr string) string {
-		t := NextRun(expr, time.Now())
+	"nextrun": func(stored string) string {
+		t := NextRun(stored, time.Now())
 		if t.IsZero() {
-			return "manual"
+			return "—"
 		}
-		return t.Local().Format("2006-01-02 15:04")
+		return t.Local().Format("Mon 2006-01-02 15:04")
 	},
+	"schedule": DescribeSchedule,
+	"hours": func() []int {
+		h := make([]int, 24)
+		for i := range h {
+			h[i] = i
+		}
+		return h
+	},
+	"monthdays": func() []int {
+		d := make([]int, 28)
+		for i := range d {
+			d[i] = i + 1
+		}
+		return d
+	},
+	// weekdays in display order, Monday first.
+	"weekdays": func() []struct {
+		Num  int
+		Name string
+	} {
+		return []struct {
+			Num  int
+			Name string
+		}{{1, "Mon"}, {2, "Tue"}, {3, "Wed"}, {4, "Thu"}, {5, "Fri"}, {6, "Sat"}, {0, "Sun"}}
+	},
+}
+
+// scheduleFromForm builds a schedule from the job form fields.
+func scheduleFromForm(r *http.Request) (string, error) {
+	sc := Schedule{Kind: r.FormValue("sched_kind")}
+	if sc.Kind == "" {
+		sc.Kind = SchedManual
+	}
+	for _, d := range r.Form["sched_days"] {
+		if n, err := strconv.Atoi(d); err == nil {
+			sc.Days = append(sc.Days, n)
+		}
+	}
+	switch sc.Kind {
+	case SchedDaily:
+		for _, t := range r.Form["sched_time"] {
+			if t = strings.TrimSpace(t); t != "" {
+				sc.Times = append(sc.Times, t)
+			}
+		}
+		if len(sc.Days) == 0 {
+			return "", errors.New("select at least one day")
+		}
+	case SchedInterval:
+		sc.EveryMinutes, _ = strconv.Atoi(r.FormValue("sched_every"))
+		if r.FormValue("sched_window") == "on" {
+			sc.FromHour, _ = strconv.Atoi(r.FormValue("sched_from"))
+			sc.ToHour, _ = strconv.Atoi(r.FormValue("sched_to"))
+		}
+		if len(sc.Days) == 0 {
+			return "", errors.New("select at least one day")
+		}
+	case SchedMonthly:
+		sc.DayOfMonth, _ = strconv.Atoi(r.FormValue("sched_dom"))
+		sc.Times = []string{r.FormValue("sched_month_time")}
+	}
+	if err := sc.Validate(); err != nil {
+		return "", err
+	}
+	return sc.Encode(), nil
 }
 
 func (s *Server) loadTemplates() error {
@@ -466,13 +531,19 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 }
 
 func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
+	r.ParseForm()
+	sched, err := scheduleFromForm(r)
+	if err != nil {
+		redirectErr(w, r, "/jobs", err)
+		return
+	}
 	id, err := s.store.CreateJob(r.Context(), Job{
 		AgentID:  formID(r, "agent_id"),
 		TargetID: formID(r, "target_id"),
 		Name:     r.FormValue("name"),
 		Paths:    lines(r.FormValue("paths")),
 		Excludes: lines(r.FormValue("excludes")),
-		Schedule: strings.TrimSpace(r.FormValue("schedule")),
+		Schedule: sched,
 		Enabled:  true,
 	})
 	if err != nil {

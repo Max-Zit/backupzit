@@ -71,3 +71,9 @@ dl.kv dd { margin: 0; word-break: break-all; }
 details summary { cursor: pointer; font-weight: 600; }
 @media (max-width: 700px) { .row { grid-template-columns: 1fr; } .top { height: auto; padding: 10px 16px; } }
 .mt { margin-top: 16px; }
+fieldset.sched { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 12px; margin: 0; }
+fieldset.sched legend { font-weight: 600; font-size: 13px; padding: 0 6px; }
+.times, .days { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.times input, .times select { width: auto; }
+.days label.check { min-width: 64px; }
+[hidden] { display: none !important; }

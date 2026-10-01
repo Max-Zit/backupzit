@@ -9,7 +9,7 @@
       <td>{{.Hostname}}</td>
       <td><a href="/jobs/{{.ID}}">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}</td>
       <td>{{.TargetName}}</td>
-      <td class="mono">{{if .Schedule}}{{.Schedule}}{{else}}manual{{end}}</td>
+      <td>{{schedule .Schedule}}</td>
       <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
       <td>{{if .LastStatus}}{{template "status" (deref .LastStatus)}} <span class="muted">{{ago .LastFinished}}</span>{{else}}<span class="muted">never ran</span>{{end}}</td>
     </tr>
@@ -37,9 +37,66 @@
     <label>Exclude <small>one name pattern per line, e.g. *.tmp, node_modules, Thumbs.db</small>
       <textarea name="excludes"></textarea>
     </label>
-    <label>Schedule <small>cron: "minute hour day month weekday" — e.g. <code>0 22 * * *</code> daily at 22:00, <code>0 */4 * * 1-5</code> every 4 h on workdays, or <code>@daily</code>. Leave empty for manual only.</small>
-      <input name="schedule" placeholder="0 22 * * *">
-    </label>
+    <fieldset class="sched">
+      <legend>Schedule</legend>
+      <label>Run
+        <select name="sched_kind" id="sched_kind" data-switch="sched">
+          <option value="daily" selected>At specific times</option>
+          <option value="interval">Repeatedly, every few hours or minutes</option>
+          <option value="monthly">Once a month</option>
+          <option value="manual">Manually only</option>
+        </select>
+      </label>
+
+      <div data-sched="daily">
+        <label>At <small>add up to three times a day</small></label>
+        <div class="times">
+          <input type="time" name="sched_time" value="22:00" required>
+          <input type="time" name="sched_time">
+          <input type="time" name="sched_time">
+        </div>
+      </div>
+
+      <div data-sched="interval" hidden>
+        <div class="row">
+          <label>Every
+            <select name="sched_every">
+              <option value="15">15 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="60">1 hour</option>
+              <option value="120">2 hours</option>
+              <option value="180">3 hours</option>
+              <option value="240" selected>4 hours</option>
+              <option value="360">6 hours</option>
+              <option value="480">8 hours</option>
+              <option value="720">12 hours</option>
+            </select>
+          </label>
+          <div>
+            <label class="check"><input type="checkbox" name="sched_window"> Only between</label>
+            <div class="times">
+              <select name="sched_from">{{range $h := hours}}<option value="{{$h}}" {{if eq $h 8}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
+              <span>and</span>
+              <select name="sched_to">{{range $h := hours}}{{if $h}}<option value="{{$h}}" {{if eq $h 18}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}{{end}}<option value="24">24:00</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-sched="daily interval">
+        <label>On these days</label>
+        <div class="days">
+          {{range $i, $d := weekdays}}<label class="check"><input type="checkbox" name="sched_days" value="{{$d.Num}}" checked> {{$d.Name}}</label>{{end}}
+        </div>
+      </div>
+
+      <div data-sched="monthly" hidden class="row">
+        <label>On day
+          <select name="sched_dom">{{range $d := monthdays}}<option value="{{$d}}">{{$d}}.</option>{{end}}</select>
+        </label>
+        <label>At <input type="time" name="sched_month_time" value="22:00"></label>
+      </div>
+    </fieldset>
     <div><button>Create job</button></div>
   </form>
   {{else}}<p class="muted">You need at least one <a href="/agents">agent</a> and one <a href="/targets">storage target</a>.</p>{{end}}

@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -12,26 +11,23 @@ import (
 
 var cronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 
-// parseSchedule accepts standard 5-field cron expressions ("30 22 * * 1-5")
-// and descriptors (@daily, @hourly, @every 4h).
-func parseSchedule(expr string) (cron.Schedule, error) {
-	s, err := cronParser.Parse(expr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid schedule %q: %w", expr, err)
-	}
-	return s, nil
-}
-
-// NextRun returns the next scheduled time after t, or zero for manual jobs.
-func NextRun(expr string, t time.Time) time.Time {
-	if expr == "" {
-		return time.Time{}
-	}
-	s, err := parseSchedule(expr)
+// NextRun returns the next scheduled time after t for a stored schedule,
+// or zero for manual jobs.
+func NextRun(stored string, t time.Time) time.Time {
+	s, err := ParseSchedule(stored)
 	if err != nil {
 		return time.Time{}
 	}
 	return s.Next(t)
+}
+
+// DescribeSchedule renders a stored schedule for humans.
+func DescribeSchedule(stored string) string {
+	s, err := ParseSchedule(stored)
+	if err != nil {
+		return "invalid schedule"
+	}
+	return s.Describe()
 }
 
 // Scheduler queues scheduled backups and fails runs of vanished agents.
