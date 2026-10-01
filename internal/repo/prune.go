@@ -38,11 +38,17 @@ func (x *Index) Each(fn func(h BlobHandle, l Location)) {
 
 // UsedBlobs returns every blob referenced by the repository's snapshots.
 func (r *Repository) UsedBlobs(ctx context.Context) (map[BlobHandle]bool, int, error) {
-	used := map[BlobHandle]bool{}
 	sns, err := r.ListSnapshots(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
+	used, err := r.BlobsOf(ctx, sns)
+	return used, len(sns), err
+}
+
+// BlobsOf returns every blob referenced by the given snapshots.
+func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHandle]bool, error) {
+	used := map[BlobHandle]bool{}
 	var walk func(id ID) error
 	walk = func(id ID) error {
 		h := BlobHandle{Type: TreeBlob, ID: id}
@@ -68,7 +74,7 @@ func (r *Repository) UsedBlobs(ctx context.Context) (map[BlobHandle]bool, int, e
 	}
 	for _, sn := range sns {
 		if err := walk(sn.Tree); err != nil {
-			return nil, 0, fmt.Errorf("snapshot %s: %w", sn.ID.Short(), err)
+			return nil, fmt.Errorf("snapshot %s: %w", sn.ID.Short(), err)
 		}
 		for _, img := range sn.Images {
 			used[BlobHandle{Type: DataBlob, ID: img.Head}] = true
@@ -82,7 +88,7 @@ func (r *Repository) UsedBlobs(ctx context.Context) (map[BlobHandle]bool, int, e
 				}
 				ids, err := r.LoadBlockMap(ctx, p)
 				if err != nil {
-					return nil, 0, fmt.Errorf("snapshot %s: %w", sn.ID.Short(), err)
+					return nil, fmt.Errorf("snapshot %s: %w", sn.ID.Short(), err)
 				}
 				for _, id := range ids {
 					if !id.IsNull() {
@@ -92,7 +98,7 @@ func (r *Repository) UsedBlobs(ctx context.Context) (map[BlobHandle]bool, int, e
 			}
 		}
 	}
-	return used, len(sns), nil
+	return used, nil
 }
 
 // Prune deletes data no longer referenced by any snapshot. The caller must

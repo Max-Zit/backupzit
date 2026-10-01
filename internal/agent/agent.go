@@ -313,7 +313,7 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 
 func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*repo.Repository, func(), error) {
 	opts := backend.Options{SFTPPassword: rs.SFTPPassword, SFTPHostKey: rs.SFTPHostKey,
-		S3AccessKey: rs.S3AccessKey, S3SecretKey: rs.S3SecretKey, S3Region: rs.S3Region,
+		S3AccessKey: rs.S3AccessKey, S3SecretKey: rs.S3SecretKey, S3Region: rs.S3Region, S3LockDays: rs.S3LockDays,
 		SMBPassword: rs.SMBPassword, SMBDomain: rs.SMBDomain}
 	var cleanup = func() {}
 	if rs.SFTPKey != "" {

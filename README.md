@@ -18,7 +18,7 @@ connect to it over HTTPS.
 3. **Windows image backup** — VSS snapshots ✅, whole-disk / partition images ✅, file-level restore from images ✅
 4. **Bare-metal restore** — image restore to an empty disk ✅ (verified booting); boot media, dissimilar hardware
 5. **More targets** — S3 ✅, SMB ✅; retention policies ✅; email notifications ✅
-6. **Security** — encryption ✅, immutable repositories (S3 Object Lock, hardened Linux repository), encrypted secrets in the console database
+6. **Security** — encryption ✅, immutable repositories (S3 Object Lock ✅, hardened Linux repository), encrypted secrets in the console database
 7. **Hypervisor (agentless) backup** — Proxmox, VMware
 8. **Linux image backup**; more users, roles, optional LDAP login
 
@@ -83,6 +83,29 @@ Repository locations:
 SFTP authentication: `--sftp-password` (or `BACKUPZIT_SFTP_PASSWORD`) and/or
 `--sftp-key`. The server host key must be pinned with `--sftp-hostkey SHA256:...`;
 on first connect without it, the agent prints the fingerprint the server presented.
+
+### Immutable backups (S3 Object Lock)
+
+Create the bucket with Object Lock enabled (e.g. `mc mb --with-lock`, or the
+"Object Lock" option on AWS / Wasabi / Backblaze B2) and enable *Immutable backups*
+on the storage target (CLI: `--s3-lock-days N`). Every object except repository
+lock files is written in **compliance mode** for N days (+1 day margin): nobody,
+not even an attacker holding the storage keys or the bucket owner, can delete or
+overwrite it before then. After each backup the agent extends the lock of older
+data the new backup reuses (deduplication), so every restore point stays fully
+protected for N days.
+
+Deleting (retention, prune, an attacker) only adds delete markers. Add a lifecycle
+rule that expires noncurrent versions (e.g. `mc ilm rule add --noncurrent-expire-days 1
+--expire-delete-marker`) so space is freed once locks end.
+
+If backups were deleted or overwritten, read the repository as it was before:
+
+    backupzit-agent snapshots --repo s3://... --s3-as-of 2026-10-01T14:30
+    backupzit-agent restore   --repo s3://... --s3-as-of 2026-10-01T14:30 --target D:Restore latest
+
+The point-in-time view is read-only and uses object versions, so nothing on the
+storage changes.
 
 ## Repository format (v1)
 

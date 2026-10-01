@@ -68,6 +68,7 @@ type repoFlags struct {
 	location string
 	password string
 	opts     backend.Options
+	asOf     string
 }
 
 func addRepoFlags(fs *flag.FlagSet) *repoFlags {
@@ -81,6 +82,8 @@ func addRepoFlags(fs *flag.FlagSet) *repoFlags {
 	fs.StringVar(&rf.opts.S3AccessKey, "s3-access-key", os.Getenv("BACKUPZIT_S3_ACCESS_KEY"), "S3 access key")
 	fs.StringVar(&rf.opts.S3SecretKey, "s3-secret-key", os.Getenv("BACKUPZIT_S3_SECRET_KEY"), "S3 secret key (prefer the environment variable)")
 	fs.StringVar(&rf.opts.S3Region, "s3-region", os.Getenv("BACKUPZIT_S3_REGION"), "S3 region")
+	fs.IntVar(&rf.opts.S3LockDays, "s3-lock-days", 0, "write objects immutable (S3 Object Lock, compliance mode) for this many days")
+	fs.StringVar(&rf.asOf, "s3-as-of", "", "read the S3 repository as it was at this time (read-only; e.g. 2026-10-01 or 2026-10-01T14:30), to recover after objects were deleted or overwritten")
 	fs.StringVar(&rf.opts.SMBPassword, "smb-password", os.Getenv("BACKUPZIT_SMB_PASSWORD"), "SMB password (prefer the environment variable)")
 	fs.StringVar(&rf.opts.SMBDomain, "smb-domain", os.Getenv("BACKUPZIT_SMB_DOMAIN"), "SMB domain")
 	return rf
@@ -89,6 +92,13 @@ func addRepoFlags(fs *flag.FlagSet) *repoFlags {
 func (rf *repoFlags) backend(ctx context.Context) (backend.Backend, error) {
 	if rf.location == "" {
 		return nil, errors.New("no repository given (use --repo or BACKUPZIT_REPO)")
+	}
+	if rf.asOf != "" {
+		t, err := parseAsOf(rf.asOf)
+		if err != nil {
+			return nil, err
+		}
+		rf.opts.S3AsOf = t
 	}
 	return backend.Open(ctx, rf.location, rf.opts)
 }
@@ -399,4 +409,20 @@ func humanBytes(b uint64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// parseAsOf accepts RFC 3339 or a local date with optional time.
+func parseAsOf(s string) (time.Time, error) {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	for _, layout := range []string{"2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02 15:04", "2006-01-02"} {
+		if t, err := time.ParseInLocation(layout, s, time.Local); err == nil {
+			if layout == "2006-01-02" {
+				t = t.Add(24*time.Hour - time.Second) // end of that day
+			}
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("invalid --s3-as-of %q (use e.g. 2026-10-01T14:30)", s)
 }

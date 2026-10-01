@@ -653,6 +653,21 @@ func TestS3Target(t *testing.T) {
 	if len(targets) != 1 || targets[0].URL != "s3://"+s3.Host+"/company-backups/backupzit?tls=false" || targets[0].S3SecretKey != "SK" {
 		t.Fatalf("target: %+v", targets)
 	}
+	// Immutability needs a bucket with Object Lock; the form stores the period.
+	r = post("/targets", url.Values{"name": {"locked"}, "kind": {"s3"}, "s3_endpoint": {s3.Host},
+		"s3_bucket": {"company-backups"}, "s3_http": {"on"}, "s3_immutable": {"on"}, "s3_lock_days": {"30"},
+		"s3_access_key": {"AK"}, "s3_secret_key": {"SK"}})
+	if loc := r.Header.Get("Location"); strings.Contains(loc, "err=") {
+		t.Fatalf("create locked target: %s", loc)
+	}
+	r = post("/targets", url.Values{"name": {"bad"}, "kind": {"s3"}, "s3_endpoint": {s3.Host},
+		"s3_bucket": {"b"}, "s3_immutable": {"on"}, "s3_lock_days": {"0"}, "s3_access_key": {"AK"}, "s3_secret_key": {"SK"}})
+	if loc := r.Header.Get("Location"); !strings.Contains(loc, "err=") {
+		t.Error("immutability of 0 days accepted")
+	}
+	if all, _ := e.store.ListTargets(ctx); len(all) != 2 || all[0].Name != "locked" || all[0].S3LockDays != 30 || all[1].S3LockDays != 0 {
+		t.Fatalf("lock days: %+v", all)
+	}
 
 	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
 	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")

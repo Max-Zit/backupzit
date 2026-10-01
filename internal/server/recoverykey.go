@@ -50,6 +50,11 @@ func recoverySheet(t Target, now time.Time) string {
 		"  (plus the storage credentials, e.g. BACKUPZIT_SFTP_PASSWORD, BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, BACKUPZIT_SMB_PASSWORD)\r\n" +
 		"  backupzit-agent snapshots --repo <location>/<hostname>_<id>\r\n" +
 		"  backupzit-agent restore --repo <location>/<hostname>_<id> --target C:\\Restore latest\r\n")
+	if t.S3LockDays > 0 {
+		fmt.Fprintf(&b, "\r\nImmutable storage (S3 Object Lock, %s). If backups were deleted or\r\n"+
+			"overwritten, add --s3-as-of <time before the incident>, e.g.\r\n"+
+			"  backupzit-agent snapshots --repo <location>/<hostname>_<id> --s3-as-of 2026-10-01T14:30\r\n", days(t.S3LockDays))
+	}
 	return b.String()
 }
 
@@ -64,4 +69,11 @@ func (s *Server) handleRecoverySheet(w http.ResponseWriter, r *http.Request, use
 	w.Header().Set("Content-Disposition", `attachment; filename="backupzit-recovery-sheet.txt"`)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Write([]byte(recoverySheet(t, time.Now())))
+}
+
+func days(n int) string {
+	if n == 1 {
+		return "1 day"
+	}
+	return fmt.Sprintf("%d days", n)
 }

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/backupzit/backupzit/internal/api"
@@ -85,6 +86,11 @@ func (a *Agent) withRetention(ctx context.Context, r *repo.Repository, run api.R
 	if res.Status == api.StatusFailed {
 		return res
 	}
+	if err := a.keepImmutable(ctx, r, res.SnapshotID); err != nil {
+		a.log.Warn("extend immutability", "run", run.ID, "err", err)
+		res.Status = api.StatusWarning
+		res.Message = strings.TrimSpace(res.Message + " Could not extend immutability of reused data: " + err.Error())
+	}
 	forgotten, msg := a.applyRetention(ctx, r, run)
 	res.Forgotten = forgotten
 	if msg != "" {
@@ -94,4 +100,26 @@ func (a *Agent) withRetention(ctx context.Context, r *repo.Repository, run api.R
 		res.Message += msg
 	}
 	return res
+}
+
+// keepImmutable extends the object lock of all data the new snapshot
+// reuses (no-op on storage without object lock).
+func (a *Agent) keepImmutable(ctx context.Context, r *repo.Repository, snapshotID string) error {
+	if snapshotID == "" {
+		return nil
+	}
+	lock, err := r.Lock(ctx, false, lockWait)
+	if err != nil {
+		return err
+	}
+	defer lock.Unlock()
+	sn, err := r.LoadSnapshot(ctx, snapshotID)
+	if err != nil {
+		return err
+	}
+	n, err := r.KeepImmutable(ctx, sn)
+	if n > 0 {
+		a.log.Info("extended immutability", "snapshot", sn.ID.Short(), "objects", n)
+	}
+	return err
 }

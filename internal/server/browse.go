@@ -72,7 +72,7 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 	// The repository is used for many requests; do not tie it to one.
 	be, err := backend.Open(context.WithoutCancel(ctx), url, backend.Options{
 		SFTPPassword: t.SFTPPassword, SFTPKeyFile: "", SFTPHostKey: t.SFTPHostKey,
-		S3AccessKey: t.S3AccessKey, S3SecretKey: t.S3SecretKey, S3Region: t.S3Region,
+		S3AccessKey: t.S3AccessKey, S3SecretKey: t.S3SecretKey, S3Region: t.S3Region, S3LockDays: t.S3LockDays,
 		SMBPassword: t.SMBPassword, SMBDomain: t.SMBDomain,
 	})
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // ErrNotFound is returned when a named object does not exist.
@@ -38,6 +39,16 @@ type Backend interface {
 	Close() error
 }
 
+// Retainer is implemented by storage that can make objects immutable
+// (S3 Object Lock).
+type Retainer interface {
+	// LockDays is the immutability period for new objects, 0 if off.
+	LockDays() int
+	// KeepLocked makes sure the named files stay immutable for at least
+	// LockDays from now. It returns how many locks had to be extended.
+	KeepLocked(ctx context.Context, names []string) (int, error)
+}
+
 // Options holds credentials and settings needed to open a backend.
 type Options struct {
 	SFTPPassword string
@@ -47,8 +58,12 @@ type Options struct {
 	S3AccessKey  string
 	S3SecretKey  string
 	S3Region     string
-	SMBPassword  string
-	SMBDomain    string
+	// S3LockDays > 0 writes objects with Object Lock (COMPLIANCE) for that many days.
+	S3LockDays int
+	// S3AsOf opens a read-only view of the bucket as it was at that time.
+	S3AsOf      time.Time
+	SMBPassword string
+	SMBDomain   string
 }
 
 // Open parses a repository location and opens the matching backend.
