@@ -3,16 +3,16 @@
 <div class="panel">
   {{if .Data.Jobs}}
   <div class="table-wrap"><table>
-    <tr><th>Agent</th><th>Job</th><th>Backs up</th><th>Storage</th><th>Schedule</th><th>Next run</th><th>Last result</th></tr>
+    <tr><th>Job</th><th>Agent</th><th>Backs up</th><th>Storage</th><th>Schedule</th><th>Next run</th><th>Last result</th></tr>
     {{range .Data.Jobs}}
     <tr>
-      <td>{{.Hostname}}</td>
-      <td><a href="/jobs/{{.ID}}">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}</td>
+      <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}</td>
+      <td class="nowrap">{{.Hostname}}</td>
       <td>{{if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
       <td>{{.TargetName}}</td>
       <td>{{schedule .Schedule}}</td>
       <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
-      <td>{{if .LastStatus}}{{template "status" (deref .LastStatus)}} <span class="muted">{{ago .LastFinished}}</span>{{else}}<span class="muted">never ran</span>{{end}}</td>
+      <td class="nowrap">{{if .LastStatus}}{{template "status" (deref .LastStatus)}}<br><span class="muted small">{{ago .LastFinished}}</span>{{else}}<span class="muted">never ran</span>{{end}}</td>
     </tr>
     {{end}}
   </table></div>

@@ -6,7 +6,7 @@
     <tr><th>Name</th><th>Type</th><th>Location</th><th>Encryption</th><th>Immutability</th><th></th></tr>
     {{range .Data.Targets}}
     <tr>
-      <td>{{.Name}}</td><td>{{.Kind}}</td><td class="mono">{{.URL}}</td>
+      <td class="strong">{{.Name}}</td><td><span class="badge">{{.Kind}}</span></td><td class="mono">{{.URL}}</td>
       <td>{{if .Encrypted}}AES-256 <form method="post" action="/targets/{{.ID}}/recovery-key" class="inline"><button class="link">Recovery key</button></form>{{else}}<span class="muted">none</span>{{end}}</td>
       <td>{{if .S3LockDays}}{{days .S3LockDays}} (Object Lock){{else if eq .Kind "hardened"}}set on the repository server{{else}}<span class="muted">none</span>{{end}}</td>
       <td><form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="Remove storage target {{.Name}}? Data on the storage is not deleted."><button class="link">Remove</button></form></td>

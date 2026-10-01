@@ -1,14 +1,14 @@
 {{define "content"}}
-{{with .Data.Summary}}
 <h1>Dashboard</h1>
+{{with .Data.Summary}}
 <div class="grid">
-  <div class="stat"><b>{{.Targets}}</b><span>storage targets</span></div>
-  <div class="stat"><b>{{.AgentsOnline}} / {{.Agents}}</b><span>agents online</span></div>
-  <div class="stat"><b>{{.Jobs}}</b><span>backup jobs</span></div>
-  <div class="stat"><b>{{.Running}}</b><span>queued / running</span></div>
-  <div class="stat"><b>{{.Runs24h}}</b><span>runs in 24 h</span></div>
-  <div class="stat {{if .Failed24h}}bad{{end}}"><b>{{.Failed24h}}</b><span>failed in 24 h</span></div>
-  <div class="stat {{if .Warning24h}}warn{{end}}"><b>{{.Warning24h}}</b><span>warnings in 24 h</span></div>
+  <div class="stat {{if lt .AgentsOnline .Agents}}warn{{else}}ok{{end}}"><div class="si">{{template "icon" "agents"}}</div><b>{{.AgentsOnline}} / {{.Agents}}</b><span>agents online</span></div>
+  <div class="stat"><div class="si">{{template "icon" "jobs"}}</div><b>{{.Jobs}}</b><span>backup jobs</span></div>
+  <div class="stat"><div class="si">{{template "icon" "storage"}}</div><b>{{.Targets}}</b><span>storage targets</span></div>
+  <div class="stat info"><div class="si">{{template "icon" "play"}}</div><b>{{.Running}}</b><span>queued / running</span></div>
+  <div class="stat ok"><div class="si">{{template "icon" "activity"}}</div><b>{{.Runs24h}}</b><span>runs in 24 h</span></div>
+  <div class="stat {{if .Failed24h}}bad{{else}}ok{{end}}"><div class="si">{{template "icon" "alert"}}</div><b>{{.Failed24h}}</b><span>failed in 24 h</span></div>
+  <div class="stat {{if .Warning24h}}warn{{else}}ok{{end}}"><div class="si">{{template "icon" "warn"}}</div><b>{{.Warning24h}}</b><span>warnings in 24 h</span></div>
 </div>
 {{end}}
 <div class="panel">
@@ -16,4 +16,3 @@
   {{template "runtable" .Data.Runs}}
 </div>
 {{end}}
-

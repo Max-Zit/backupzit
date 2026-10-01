@@ -102,6 +102,12 @@ var funcs = template.FuncMap{
 	"bytes": humanBytes,
 	"join":  strings.Join,
 	"days":  days,
+	"initial": func(s string) string {
+		for _, r := range s {
+			return strings.ToUpper(string(r))
+		}
+		return "?"
+	},
 	"deref": func(p *string) string {
 		if p == nil {
 			return ""

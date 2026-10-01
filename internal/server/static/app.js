@@ -180,3 +180,15 @@ document.addEventListener("change", function (e) {
   if (!name) return;
   document.querySelectorAll('input[name="' + name + '"]').forEach(function (c) { c.checked = e.target.checked; });
 });
+
+// Sidebar toggle on small screens: <button data-toggle="#side">
+document.addEventListener("click", function (e) {
+  var btn = e.target.closest && e.target.closest("[data-toggle]");
+  if (btn) {
+    var el = document.querySelector(btn.getAttribute("data-toggle"));
+    if (el) el.classList.toggle("open");
+    return;
+  }
+  var side = document.getElementById("side");
+  if (side && side.classList.contains("open") && !side.contains(e.target)) side.classList.remove("open");
+});
