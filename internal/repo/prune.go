@@ -204,13 +204,9 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 	written := map[string]bool{}
 	for start := 0; start < len(keep); start += indexFlushPacks * 8 {
 		end := min(start+indexFlushPacks*8, len(keep))
-		b, err := encodeIndexFile(keep[start:end])
+		name, err := r.saveIndexFile(ctx, keep[start:end])
 		if err != nil {
 			return nil, err
-		}
-		name := "index/" + Hash(b).String()
-		if err := r.be.Save(ctx, name, b); err != nil {
-			return nil, fmt.Errorf("save index: %w", err)
 		}
 		written[name] = true
 	}

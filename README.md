@@ -18,7 +18,7 @@ connect to it over HTTPS.
 3. **Windows image backup** — VSS snapshots ✅, whole-disk / partition images ✅, file-level restore from images ✅
 4. **Bare-metal restore** — image restore to an empty disk ✅ (verified booting); boot media, dissimilar hardware
 5. **More targets** — S3 ✅, SMB ✅; retention policies ✅; email notifications ✅
-6. **Security** — encryption, immutable repositories (S3 Object Lock, hardened Linux repository)
+6. **Security** — encryption ✅, immutable repositories (S3 Object Lock, hardened Linux repository), encrypted secrets in the console database
 7. **Hypervisor (agentless) backup** — Proxmox, VMware
 8. **Linux image backup**; more users, roles, optional LDAP login
 
@@ -85,6 +85,13 @@ SFTP authentication: `--sftp-password` (or `BACKUPZIT_SFTP_PASSWORD`) and/or
 on first connect without it, the agent prints the fingerprint the server presented.
 
 ## Repository format (v1)
+
+Encrypted repositories (default for new storage targets in the console) seal every
+blob, pack header, index and snapshot with AES-256-GCM under a random master key; the
+master key and chunker polynomial are stored in `keys/<id>`, sealed with a key derived
+from the recovery key via Argon2id. The plaintext `config` only states the scheme.
+With the recovery key (console: Storage → Recovery key) backups can be restored with
+the CLI alone: `BACKUPZIT_PASSWORD=<key> backupzit-agent restore --repo ...`.
 
 ```
 config                 repository id, format version, chunker polynomial

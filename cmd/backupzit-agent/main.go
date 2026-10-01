@@ -53,6 +53,8 @@ Repository options (all commands):
   --sftp-hostkey   Expected server host key fingerprint "SHA256:..." (env BACKUPZIT_SFTP_HOSTKEY)
   --s3-access-key, --s3-secret-key, --s3-region  (env BACKUPZIT_S3_ACCESS_KEY, _SECRET_KEY, _REGION)
   --smb-password, --smb-domain  (env BACKUPZIT_SMB_PASSWORD, BACKUPZIT_SMB_DOMAIN)
+  --password       Encryption password / recovery key (env BACKUPZIT_PASSWORD);
+                   init with a password creates an encrypted repository
 
 Run "backupzit-agent <command> -h" for command options.
 `
@@ -64,12 +66,14 @@ func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }
 
 type repoFlags struct {
 	location string
+	password string
 	opts     backend.Options
 }
 
 func addRepoFlags(fs *flag.FlagSet) *repoFlags {
 	rf := &repoFlags{}
 	fs.StringVar(&rf.location, "repo", os.Getenv("BACKUPZIT_REPO"), "repository location")
+	fs.StringVar(&rf.password, "password", os.Getenv("BACKUPZIT_PASSWORD"), "repository password / recovery key for encrypted repositories (prefer the environment variable)")
 	fs.StringVar(&rf.opts.SFTPPassword, "sftp-password", os.Getenv("BACKUPZIT_SFTP_PASSWORD"), "SFTP password")
 	fs.StringVar(&rf.opts.SFTPKeyFile, "sftp-key", "", "SSH private key file")
 	fs.StringVar(&rf.opts.SFTPHostKey, "sftp-hostkey", os.Getenv("BACKUPZIT_SFTP_HOSTKEY"), "expected host key fingerprint")
@@ -94,7 +98,7 @@ func (rf *repoFlags) open(ctx context.Context) (*repo.Repository, error) {
 	if err != nil {
 		return nil, err
 	}
-	r, err := repo.Open(ctx, be)
+	r, err := repo.Open(ctx, be, repo.Password(rf.password))
 	if err != nil {
 		be.Close()
 		return nil, err
@@ -161,7 +165,7 @@ func cmdInit(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	r, err := repo.Init(ctx, be)
+	r, err := repo.Init(ctx, be, repo.Password(rf.password))
 	if err != nil {
 		be.Close()
 		return err

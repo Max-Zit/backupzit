@@ -244,6 +244,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /targets", s.ui(s.handleTargets))
 	mux.HandleFunc("POST /targets", s.ui(s.handleTargetCreate))
 	mux.HandleFunc("POST /targets/{id}/delete", s.ui(s.handleTargetDelete))
+	mux.HandleFunc("POST /targets/{id}/recovery-key", s.ui(s.handleRecoveryKey))
+	mux.HandleFunc("POST /targets/{id}/recovery-sheet", s.ui(s.handleRecoverySheet))
 	mux.HandleFunc("GET /jobs", s.ui(s.handleJobs))
 	mux.HandleFunc("POST /jobs", s.ui(s.handleJobCreate))
 	mux.HandleFunc("GET /jobs/{id}", s.ui(s.handleJob))
@@ -516,6 +518,7 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 		SFTPPassword: r.FormValue("sftp_password"),
 		SFTPKey:      strings.TrimSpace(r.FormValue("sftp_key")),
 		SFTPHostKey:  r.FormValue("sftp_host_key"),
+		Encrypted:    r.FormValue("encrypted") == "on",
 	}
 	if t.Kind == "s3" {
 		u, err := s3Location(r.FormValue("s3_endpoint"), r.FormValue("s3_bucket"), r.FormValue("s3_prefix"), r.FormValue("s3_http") == "on")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -755,5 +756,67 @@ func TestNotifications(t *testing.T) {
 	msgs = smtpSrv.Messages()
 	if len(msgs) != 3 || !strings.Contains(msgs[2].Data, "Daily report 2026-10-02") || !strings.Contains(msgs[2].Data, "1 failed") {
 		t.Fatalf("daily report: %d messages: %q", len(msgs), msgs[len(msgs)-1].Data)
+	}
+}
+
+func TestEncryptedTarget(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	jar, _ := cookiejar.New(nil)
+	c := e.ts.Client()
+	c.Jar = jar
+	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	post := func(p string, form url.Values) (*http.Response, string) {
+		req, _ := http.NewRequest(http.MethodPost, e.ts.URL+p, strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", e.ts.URL)
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp, html.UnescapeString(string(b))
+	}
+	post("/login", url.Values{"username": {"admin"}, "password": {"admin-pass-123"}})
+	repoBase := t.TempDir()
+	post("/targets", url.Values{"name": {"enc"}, "kind": {"local"}, "url": {repoBase}, "encrypted": {"on"}})
+	targets, _ := e.store.ListTargets(ctx)
+	if len(targets) != 1 || !targets[0].Encrypted || len(targets[0].RecoveryKey) != 39 {
+		t.Fatalf("encrypted target: %+v", targets)
+	}
+	key := targets[0].RecoveryKey
+	if _, page := post(fmt.Sprintf("/targets/%d/recovery-key", targets[0].ID), nil); !strings.Contains(page, key) {
+		t.Error("recovery key page does not show the key")
+	}
+	if resp, sheet := post(fmt.Sprintf("/targets/%d/recovery-sheet", targets[0].ID), nil); !strings.Contains(sheet, "RECOVERY KEY:   "+key) ||
+		!strings.Contains(resp.Header.Get("Content-Disposition"), "recovery-sheet") {
+		t.Error("recovery sheet")
+	}
+
+	// Backups through the agent are encrypted and readable with the key.
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, _ := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag.VSS = false
+	agents, _ := e.store.ListAgents(ctx)
+	src := filepath.Join(t.TempDir(), "data")
+	writeTree(t, src)
+	jobID, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: targets[0].ID, Name: "enc", Paths: []string{src}, Enabled: true})
+	runID, _ := e.store.QueueBackup(ctx, jobID, "manual")
+	runAgent(t, ag)
+	if r, _ := e.store.GetRun(ctx, runID); r.Status != api.StatusSuccess {
+		t.Fatalf("encrypted backup: %s %q", r.Status, r.Message)
+	}
+	be, _ := backend.OpenLocal(filepath.Join(repoBase, agents[0].RepoDir))
+	if _, err := repo.Open(ctx, be); !errors.Is(err, repo.ErrPasswordRequired) {
+		t.Fatalf("repository is not encrypted: %v", err)
+	}
+	rp, err := repo.Open(ctx, be, repo.Password(key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res, err := checker.Run(ctx, rp, checker.Options{ReadData: true}); err != nil || !res.OK() || res.Snapshots != 1 {
+		t.Fatalf("check with recovery key: %v %+v", err, res)
 	}
 }

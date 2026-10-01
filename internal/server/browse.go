@@ -78,7 +78,7 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 	if err != nil {
 		return nil, fmt.Errorf("connect to storage: %w", err)
 	}
-	r, err := repo.Open(context.WithoutCancel(ctx), be)
+	r, err := repo.Open(context.WithoutCancel(ctx), be, repo.Password(t.RecoveryKey))
 	if err != nil {
 		be.Close()
 		return nil, fmt.Errorf("open repository: %w", err)

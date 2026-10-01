@@ -110,6 +110,8 @@ type Repository struct {
 	S3Region     string `json:"s3_region,omitempty"`
 	SMBPassword  string `json:"smb_password,omitempty"`
 	SMBDomain    string `json:"smb_domain,omitempty"`
+	// Password unlocks (or, for a new repository, encrypts) the repository.
+	Password string `json:"password,omitempty"`
 }
 
 // Run statuses.

@@ -331,9 +331,9 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 		cleanup()
 		return nil, nil, err
 	}
-	r, err := repo.Open(ctx, be)
+	r, err := repo.Open(ctx, be, repo.Password(rs.Password))
 	if errors.Is(err, repo.ErrNotInitialized) && create {
-		r, err = repo.Init(ctx, be)
+		r, err = repo.Init(ctx, be, repo.Password(rs.Password))
 	}
 	if err != nil {
 		be.Close()

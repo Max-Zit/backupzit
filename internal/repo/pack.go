@@ -47,12 +47,13 @@ func (p *packBuilder) add(t BlobType, id ID, stored []byte, rawLen int) {
 
 func (p *packBuilder) size() int { return len(p.buf) }
 
-// finish appends the header and returns the complete pack and its ID.
-func (p *packBuilder) finish() ([]byte, ID, []PackedBlob, error) {
+// finish appends the (sealed) header and returns the complete pack and its ID.
+func (p *packBuilder) finish(seal func([]byte) []byte) ([]byte, ID, []PackedBlob, error) {
 	hdr, err := json.Marshal(p.blobs)
 	if err != nil {
 		return nil, ID{}, nil, err
 	}
+	hdr = seal(hdr)
 	out := append(p.buf, hdr...)
 	out = binary.LittleEndian.AppendUint32(out, uint32(len(hdr)))
 	return out, Hash(out), p.blobs, nil

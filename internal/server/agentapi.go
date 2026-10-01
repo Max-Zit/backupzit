@@ -119,6 +119,7 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 			S3Region:     t.S3Region,
 			SMBPassword:  t.SMBPassword,
 			SMBDomain:    t.SMBDomain,
+			Password:     t.RecoveryKey,
 		},
 	}
 	if run.JobName != nil {

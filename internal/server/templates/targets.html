@@ -3,11 +3,11 @@
 <div class="panel">
   {{if .Data.Targets}}
   <div class="table-wrap"><table>
-    <tr><th>Name</th><th>Type</th><th>Location</th><th>Host key</th><th></th></tr>
+    <tr><th>Name</th><th>Type</th><th>Location</th><th>Encryption</th><th></th></tr>
     {{range .Data.Targets}}
     <tr>
       <td>{{.Name}}</td><td>{{.Kind}}</td><td class="mono">{{.URL}}</td>
-      <td class="mono">{{.SFTPHostKey}}</td>
+      <td>{{if .Encrypted}}AES-256 <form method="post" action="/targets/{{.ID}}/recovery-key" class="inline"><button class="link">Recovery key</button></form>{{else}}<span class="muted">none</span>{{end}}</td>
       <td><form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="Remove storage target {{.Name}}? Data on the storage is not deleted."><button class="link">Remove</button></form></td>
     </tr>
     {{end}}
@@ -65,6 +65,7 @@
     </div>
     <label data-kind="sftp">Private key (optional, instead of password) <textarea name="sftp_key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea></label>
     <label data-kind="local" hidden>Path on the agent <small>e.g. D:\Backups or /mnt/backup</small><input name="url" disabled></label>
+    <label class="check"><input type="checkbox" name="encrypted" checked> Encrypt backups (AES-256) <small>recommended — a recovery key is created; without it encrypted backups cannot be read</small></label>
     <div><button>Add target</button></div>
   </form>
 </div>

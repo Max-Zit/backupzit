@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/base32"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -137,10 +138,19 @@ type Target struct {
 	S3Region     string
 	SMBPassword  string
 	SMBDomain    string
-	CreatedAt    time.Time
+	// Encrypted targets protect every repository with RecoveryKey.
+	Encrypted   bool
+	RecoveryKey string
+	CreatedAt   time.Time
 }
 
 func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
+	if t.Encrypted && t.RecoveryKey == "" {
+		t.RecoveryKey = NewRecoveryKey()
+	}
+	if !t.Encrypted {
+		t.RecoveryKey = ""
+	}
 	t.Name = strings.TrimSpace(t.Name)
 	t.URL = strings.TrimRight(strings.TrimSpace(t.URL), "/")
 	if t.Name == "" || t.URL == "" {
@@ -176,20 +186,20 @@ func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
 		return 0, fmt.Errorf("unknown target type %q", t.Kind)
 	}
 	var id int64
-	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key,s3_access_key,s3_secret_key,s3_region,smb_password,smb_domain)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey), strings.TrimSpace(t.S3AccessKey), t.S3SecretKey, strings.TrimSpace(t.S3Region), t.SMBPassword, strings.TrimSpace(t.SMBDomain)).Scan(&id)
+	err := s.db.QueryRow(ctx, `INSERT INTO storage_targets(name,kind,url,sftp_password,sftp_key,sftp_host_key,s3_access_key,s3_secret_key,s3_region,smb_password,smb_domain,encrypted,repo_password)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+		t.Name, t.Kind, t.URL, t.SFTPPassword, t.SFTPKey, strings.TrimSpace(t.SFTPHostKey), strings.TrimSpace(t.S3AccessKey), t.S3SecretKey, strings.TrimSpace(t.S3Region), t.SMBPassword, strings.TrimSpace(t.SMBDomain), t.Encrypted, t.RecoveryKey).Scan(&id)
 	if err != nil && strings.Contains(err.Error(), "duplicate key") {
 		return 0, errors.New("a storage target with that name already exists")
 	}
 	return id, err
 }
 
-const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at, s3_access_key, s3_secret_key, s3_region, smb_password, smb_domain`
+const targetCols = `id, name, kind, url, sftp_password, sftp_key, sftp_host_key, created_at, s3_access_key, s3_secret_key, s3_region, smb_password, smb_domain, encrypted, repo_password`
 
 func scanTarget(r pgx.Row) (Target, error) {
 	var t Target
-	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt, &t.S3AccessKey, &t.S3SecretKey, &t.S3Region, &t.SMBPassword, &t.SMBDomain)
+	err := r.Scan(&t.ID, &t.Name, &t.Kind, &t.URL, &t.SFTPPassword, &t.SFTPKey, &t.SFTPHostKey, &t.CreatedAt, &t.S3AccessKey, &t.S3SecretKey, &t.S3Region, &t.SMBPassword, &t.SMBDomain, &t.Encrypted, &t.RecoveryKey)
 	return t, err
 }
 
@@ -699,4 +709,19 @@ func (s *Store) Summary(ctx context.Context) (Summary, error) {
 		(SELECT count(*) FROM runs WHERE status IN ('queued','running'))`).
 		Scan(&x.Agents, &x.AgentsOnline, &x.Jobs, &x.Targets, &x.Runs24h, &x.Failed24h, &x.Warning24h, &x.Running)
 	return x, err
+}
+
+// NewRecoveryKey returns a random 160-bit key formatted for writing down,
+// e.g. "K7QM-2XRD-...". It unlocks encrypted repositories.
+func NewRecoveryKey() string {
+	b := make([]byte, 20)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	s := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b) // 32 chars
+	var parts []string
+	for i := 0; i < len(s); i += 4 {
+		parts = append(parts, s[i:i+4])
+	}
+	return strings.Join(parts, "-")
 }

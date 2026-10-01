@@ -230,14 +230,14 @@ func TestBackupRestoreSFTP(t *testing.T) {
 // runCycle performs: init, full backup, restore+compare, modify, incremental
 // backup, restore both snapshots, partial restore, check, and (for local
 // repositories) corruption detection.
-func runCycle(t *testing.T, openBE func() backend.Backend, corruptionTest bool) {
+func runCycle(t *testing.T, openBE func() backend.Backend, corruptionTest bool, opts ...repo.Option) {
 	ctx := context.Background()
 	rng := rand.New(rand.NewSource(1))
 	src := filepath.Join(tempDir(t), "source data")
 	makeSource(t, src, rng)
 	want1 := manifest(t, src)
 
-	r, err := repo.Init(ctx, openBE())
+	r, err := repo.Init(ctx, openBE(), opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func runCycle(t *testing.T, openBE func() backend.Backend, corruptionTest bool) 
 
 	// --- incremental backup in a fresh session (re-open repository)
 	r.Close()
-	r, err = repo.Open(ctx, openBE())
+	r, err = repo.Open(ctx, openBE(), opts...)
 	if err != nil {
 		t.Fatal(err)
 	}

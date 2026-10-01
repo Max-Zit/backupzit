@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"crypto/cipher"
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
@@ -28,13 +29,15 @@ const DefaultPackSize = 16 << 20
 // interrupted backup does not leave too much unindexed data behind.
 const indexFlushPacks = 32
 
-// Config is stored unencrypted at "config".
+// Config is stored unencrypted at "config". For encrypted repositories the
+// chunker polynomial is kept in the key file instead.
 type Config struct {
 	Version           int       `json:"version"`
 	ID                string    `json:"id"`
 	Created           time.Time `json:"created"`
-	ChunkerPolynomial string    `json:"chunker_polynomial"`
+	ChunkerPolynomial string    `json:"chunker_polynomial,omitempty"`
 	PackSize          int       `json:"pack_size"`
+	Encryption        string    `json:"encryption,omitempty"`
 }
 
 // ErrNotInitialized means no config exists at the location.
@@ -49,6 +52,8 @@ type Repository struct {
 
 	enc *zstd.Encoder
 	dec *zstd.Decoder
+	// aead encrypts all stored data; nil for unencrypted repositories.
+	aead cipher.AEAD
 
 	mu        sync.Mutex
 	pack      *packBuilder
@@ -66,8 +71,13 @@ type WriteStats struct {
 	PacksUploaded int
 }
 
-// Init creates a new repository at the backend location.
-func Init(ctx context.Context, be backend.Backend) (*Repository, error) {
+// Init creates a new repository at the backend location. With Password
+// the repository is encrypted.
+func Init(ctx context.Context, be backend.Backend, opts ...Option) (*Repository, error) {
+	var o options
+	for _, f := range opts {
+		f(&o)
+	}
 	if _, err := be.Size(ctx, "config"); err == nil {
 		return nil, errors.New("repository already initialized at " + be.Location())
 	} else if !errors.Is(err, backend.ErrNotFound) {
@@ -81,12 +91,23 @@ func Init(ctx context.Context, be backend.Backend) (*Repository, error) {
 	if _, err := rand.Read(rid[:]); err != nil {
 		return nil, err
 	}
+	polStr := fmt.Sprintf("%x", uint64(pol))
 	cfg := Config{
 		Version:           FormatVersion,
 		ID:                hex.EncodeToString(rid[:]),
 		Created:           time.Now().UTC(),
-		ChunkerPolynomial: fmt.Sprintf("%x", uint64(pol)),
+		ChunkerPolynomial: polStr,
 		PackSize:          DefaultPackSize,
+	}
+	var key []byte
+	if o.password != "" {
+		mk, err := createKey(ctx, be, o.password, polStr)
+		if err != nil {
+			return nil, fmt.Errorf("create key: %w", err)
+		}
+		key = mk.Key
+		cfg.Encryption = EncryptionAES256GCM
+		cfg.ChunkerPolynomial = ""
 	}
 	b, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
@@ -95,11 +116,16 @@ func Init(ctx context.Context, be backend.Backend) (*Repository, error) {
 	if err := be.Save(ctx, "config", b); err != nil {
 		return nil, fmt.Errorf("save config: %w", err)
 	}
-	return newRepository(be, cfg)
+	return newRepository(be, cfg, polStr, key)
 }
 
-// Open loads the config and index of an existing repository.
-func Open(ctx context.Context, be backend.Backend) (*Repository, error) {
+// Open loads the config and index of an existing repository. Encrypted
+// repositories need the Password option.
+func Open(ctx context.Context, be backend.Backend, opts ...Option) (*Repository, error) {
+	var o options
+	for _, f := range opts {
+		f(&o)
+	}
 	b, err := be.Load(ctx, "config")
 	if errors.Is(err, backend.ErrNotFound) {
 		return nil, fmt.Errorf("%s: %w", be.Location(), ErrNotInitialized)
@@ -114,7 +140,19 @@ func Open(ctx context.Context, be backend.Backend) (*Repository, error) {
 	if cfg.Version != FormatVersion {
 		return nil, fmt.Errorf("unsupported repository version %d", cfg.Version)
 	}
-	r, err := newRepository(be, cfg)
+	polStr, key := cfg.ChunkerPolynomial, []byte(nil)
+	switch cfg.Encryption {
+	case "":
+	case EncryptionAES256GCM:
+		mk, err := unlock(ctx, be, o.password)
+		if err != nil {
+			return nil, err
+		}
+		polStr, key = mk.ChunkerPolynomial, mk.Key
+	default:
+		return nil, fmt.Errorf("unsupported encryption %q", cfg.Encryption)
+	}
+	r, err := newRepository(be, cfg, polStr, key)
 	if err != nil {
 		return nil, err
 	}
@@ -124,9 +162,9 @@ func Open(ctx context.Context, be backend.Backend) (*Repository, error) {
 	return r, nil
 }
 
-func newRepository(be backend.Backend, cfg Config) (*Repository, error) {
+func newRepository(be backend.Backend, cfg Config, polStr string, key []byte) (*Repository, error) {
 	var p uint64
-	if _, err := fmt.Sscanf(cfg.ChunkerPolynomial, "%x", &p); err != nil {
+	if _, err := fmt.Sscanf(polStr, "%x", &p); err != nil {
 		return nil, fmt.Errorf("config: bad chunker polynomial: %w", err)
 	}
 	pol := chunker.Pol(p)
@@ -144,7 +182,15 @@ func newRepository(be backend.Backend, cfg Config) (*Repository, error) {
 	if err != nil {
 		return nil, err
 	}
+	var aead cipher.AEAD
+	if key != nil {
+		var err error
+		if aead, err = newAEAD(key); err != nil {
+			return nil, err
+		}
+	}
 	return &Repository{
+		aead:    aead,
 		be:      be,
 		cfg:     cfg,
 		pol:     pol,
@@ -174,9 +220,13 @@ func (r *Repository) loadIndex(ctx context.Context) error {
 		return fmt.Errorf("list index: %w", err)
 	}
 	for _, n := range names {
-		b, err := r.be.Load(ctx, n)
+		sealed, err := r.be.Load(ctx, n)
 		if err != nil {
 			return fmt.Errorf("load %s: %w", n, err)
+		}
+		b, err := r.open(sealed)
+		if err != nil {
+			return fmt.Errorf("%s: %w", n, err)
 		}
 		f, err := decodeIndexFile(b)
 		if err != nil {
@@ -207,6 +257,7 @@ func (r *Repository) SaveBlob(ctx context.Context, t BlobType, data []byte) (ID,
 	if len(stored) >= len(data) {
 		stored, rawLen = data, 0
 	}
+	stored = r.seal(stored)
 	r.pack.add(t, id, stored, rawLen)
 	r.pending[h] = struct{}{}
 	r.stats.NewBlobs++
@@ -225,7 +276,7 @@ func (r *Repository) flushPackLocked(ctx context.Context) error {
 	if len(r.pack.blobs) == 0 {
 		return nil
 	}
-	data, packID, blobs, err := r.pack.finish()
+	data, packID, blobs, err := r.pack.finish(r.seal)
 	if err != nil {
 		return err
 	}
@@ -249,12 +300,8 @@ func (r *Repository) writeIndexLocked(ctx context.Context) error {
 	if len(r.unindexed) == 0 {
 		return nil
 	}
-	b, err := encodeIndexFile(r.unindexed)
-	if err != nil {
+	if _, err := r.saveIndexFile(ctx, r.unindexed); err != nil {
 		return err
-	}
-	if err := r.be.Save(ctx, "index/"+Hash(b).String(), b); err != nil {
-		return fmt.Errorf("save index: %w", err)
 	}
 	r.unindexed = nil
 	return nil
@@ -285,10 +332,12 @@ func (r *Repository) LoadBlob(ctx context.Context, t BlobType, id ID) ([]byte, e
 }
 
 func (r *Repository) decodeBlob(id ID, t BlobType, stored []byte, raw uint32) ([]byte, error) {
-	data := stored
+	data, err := r.open(stored)
+	if err != nil {
+		return nil, fmt.Errorf("%s blob %s: %w", t, id.Short(), err)
+	}
 	if raw > 0 {
-		var err error
-		data, err = r.dec.DecodeAll(stored, make([]byte, 0, raw))
+		data, err = r.dec.DecodeAll(data, make([]byte, 0, raw))
 		if err != nil {
 			return nil, fmt.Errorf("%s blob %s: decompress: %w", t, id.Short(), err)
 		}
@@ -313,6 +362,9 @@ func (r *Repository) ReadPackHeader(ctx context.Context, pack ID) ([]PackedBlob,
 	hdr, err := r.be.LoadRange(ctx, name, -int64(packTrailerLen+hl), int(hl))
 	if err != nil {
 		return nil, err
+	}
+	if hdr, err = r.open(hdr); err != nil {
+		return nil, fmt.Errorf("pack %s header: %w", pack.Short(), err)
 	}
 	return parsePackHeader(hdr)
 }
@@ -352,7 +404,11 @@ func (r *Repository) VerifyPack(ctx context.Context, pack ID) (int, error) {
 		return 0, fmt.Errorf("pack %s: invalid header length", pack.Short())
 	}
 	hdrStart := len(data) - packTrailerLen - hl
-	blobs, err := parsePackHeader(data[hdrStart : len(data)-packTrailerLen])
+	hdr, err := r.open(data[hdrStart : len(data)-packTrailerLen])
+	if err != nil {
+		return 0, fmt.Errorf("pack %s header: %w", pack.Short(), err)
+	}
+	blobs, err := parsePackHeader(hdr)
 	if err != nil {
 		return 0, fmt.Errorf("pack %s: %w", pack.Short(), err)
 	}
@@ -374,8 +430,9 @@ func (r *Repository) saveJSONFile(ctx context.Context, dir string, v any) (ID, e
 	if err != nil {
 		return ID{}, err
 	}
-	id := Hash(b)
-	return id, r.be.Save(ctx, dir+"/"+id.String(), b)
+	sealed := r.seal(b)
+	id := Hash(sealed)
+	return id, r.be.Save(ctx, dir+"/"+id.String(), sealed)
 }
 
 // SaveSnapshot stores a snapshot. Call Flush first.
@@ -420,13 +477,17 @@ func (r *Repository) LoadSnapshot(ctx context.Context, ref string) (*Snapshot, e
 }
 
 func (r *Repository) loadSnapshotFile(ctx context.Context, name string) (*Snapshot, error) {
-	b, err := r.be.Load(ctx, name)
+	sealed, err := r.be.Load(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	id := Hash(b)
+	id := Hash(sealed)
 	if base := name[strings.LastIndex(name, "/")+1:]; base != id.String() {
 		return nil, fmt.Errorf("snapshot %s: content hash mismatch", base)
+	}
+	b, err := r.open(sealed)
+	if err != nil {
+		return nil, fmt.Errorf("snapshot %s: %w", id.Short(), err)
 	}
 	var sn Snapshot
 	if err := json.Unmarshal(b, &sn); err != nil {
@@ -482,4 +543,18 @@ func (r *Repository) Close() error {
 	r.enc.Close()
 	r.dec.Close()
 	return r.be.Close()
+}
+
+// saveIndexFile writes an index file for packs and returns its name.
+func (r *Repository) saveIndexFile(ctx context.Context, packs []indexPack) (string, error) {
+	b, err := encodeIndexFile(packs)
+	if err != nil {
+		return "", err
+	}
+	sealed := r.seal(b)
+	name := "index/" + Hash(sealed).String()
+	if err := r.be.Save(ctx, name, sealed); err != nil {
+		return "", fmt.Errorf("save index: %w", err)
+	}
+	return name, nil
 }

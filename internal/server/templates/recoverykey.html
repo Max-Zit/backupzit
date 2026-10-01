@@ -1,0 +1,16 @@
+{{define "content"}}
+<h1>Recovery key</h1>
+<div class="panel">
+  <dl class="kv">
+    <dt>Storage target</dt><dd>{{.Data.Name}}</dd>
+    <dt>Location</dt><dd class="mono">{{.Data.URL}}</dd>
+    <dt>Recovery key</dt><dd class="mono key">{{.Data.RecoveryKey}}</dd>
+  </dl>
+  <p>Backups on this storage are encrypted with AES-256. <b>Without this key they cannot be read by anyone</b> — if this server is lost, the key and the storage location are all you need to restore with the command line agent.</p>
+  <p class="muted">Print the recovery sheet or store it in a password manager or safe, separate from the backups.</p>
+  <div class="actions">
+    <form method="post" action="/targets/{{.Data.ID}}/recovery-sheet" class="inline"><button>Download recovery sheet</button></form>
+    <a class="btn secondary-link" href="/targets">Done</a>
+  </div>
+</div>
+{{end}}
