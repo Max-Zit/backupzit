@@ -1478,3 +1478,119 @@ func TestRansomwareDetection(t *testing.T) {
 		t.Error("retention still paused")
 	}
 }
+
+func TestRESTAPI(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	admin.do("POST", "/users", url.Values{"username": {"mon"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	ag.VSS = false
+	agents, _ := e.store.ListAgents(ctx)
+	tid, _ := e.store.CreateTarget(ctx, server.Target{Name: "nas", Kind: "local", URL: filepath.Join(t.TempDir(), "nas")})
+	src := filepath.Join(t.TempDir(), "data")
+	writeTree(t, src)
+	jobID, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: tid, Name: "docs", Paths: []string{src}, Enabled: true})
+
+	newToken := func(c *client, role string) string {
+		code, _, body := c.do("POST", "/account/tokens", url.Values{"name": {"tool " + role}, "role": {role}, "days": {"30"}})
+		m := regexp.MustCompile(`<pre id="newtok">(bzt_[A-Za-z0-9_-]+)</pre>`).FindStringSubmatch(body)
+		if code != 200 || m == nil {
+			t.Fatalf("create %s token: %d", role, code)
+		}
+		return m[1]
+	}
+	call := func(tok, method, p string) (int, map[string]any, []any) {
+		req, _ := http.NewRequest(method, e.ts.URL+p, nil)
+		if tok != "" {
+			req.Header.Set("Authorization", "Bearer "+tok)
+		}
+		resp, err := e.ts.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		var obj map[string]any
+		var arr []any
+		if json.Unmarshal(b, &obj) != nil {
+			json.Unmarshal(b, &arr)
+		}
+		return resp.StatusCode, obj, arr
+	}
+
+	opTok := newToken(admin, "restore")
+	mon := newClient(t, e)
+	mon.login("mon", "correct-horse-9")
+	viewTok := newToken(mon, "viewer")
+	if code, _, _ := mon.do("POST", "/account/tokens", url.Values{"name": {"x"}, "role": {"admin"}}); code == 200 {
+		t.Error("viewer created an admin token")
+	}
+
+	if code, _, _ := call("", "GET", "/api/v1/status"); code != 401 {
+		t.Errorf("no token: %d", code)
+	}
+	if code, _, _ := call("bzt_invalid", "GET", "/api/v1/status"); code != 401 {
+		t.Errorf("bad token: %d", code)
+	}
+	code, st, _ := call(viewTok, "GET", "/api/v1/status")
+	if code != 200 || st["agents"] != float64(1) || st["jobs"] != float64(1) {
+		t.Fatalf("status: %d %v", code, st)
+	}
+	if code, _, list := call(viewTok, "GET", "/api/v1/jobs"); code != 200 || len(list) != 1 {
+		t.Fatalf("jobs: %d %v", code, list)
+	}
+	if code, _, _ := call(viewTok, "POST", fmt.Sprintf("/api/v1/jobs/%d/run", jobID)); code != 403 {
+		t.Errorf("viewer token started a backup: %d", code)
+	}
+	code, res, _ := call(opTok, "POST", fmt.Sprintf("/api/v1/jobs/%d/run", jobID))
+	if code != 202 || res["run_id"] == nil {
+		t.Fatalf("run: %d %v", code, res)
+	}
+	if code, _, _ := call(opTok, "POST", fmt.Sprintf("/api/v1/jobs/%d/run", jobID)); code != 409 {
+		t.Errorf("second run while queued: %d", code)
+	}
+	runAgent(t, ag)
+	code, run, _ := call(viewTok, "GET", fmt.Sprintf("/api/v1/runs/%v", res["run_id"]))
+	if code != 200 || run["status"] != "success" || run["stats"] == nil {
+		t.Fatalf("run status: %d %v", code, run)
+	}
+	if code, rep, _ := call(viewTok, "GET", "/api/v1/report?period=last7"); code != 200 || rep["backups"] != float64(1) || rep["success_rate"] != float64(100) {
+		t.Errorf("report: %d %v", code, rep)
+	}
+	if code, _, list := call(viewTok, "GET", "/api/v1/targets"); code != 200 || len(list) != 1 || strings.Contains(fmt.Sprint(list), "password") {
+		t.Errorf("targets: %d %v", code, list)
+	}
+	if code, _, _ := call(viewTok, "GET", "/api/v1/runs/999999"); code != 404 {
+		t.Errorf("missing run: %d", code)
+	}
+
+	// Revocation and disabling the owner stop the token.
+	toks, _ := e.store.ListAPITokens(ctx, 0)
+	for _, tk := range toks {
+		if tk.Username == "admin" {
+			admin.do("POST", fmt.Sprintf("/account/tokens/%d/delete", tk.ID), url.Values{})
+		}
+	}
+	if code, _, _ := call(opTok, "GET", "/api/v1/status"); code != 401 {
+		t.Errorf("revoked token works: %d", code)
+	}
+	users, _ := e.store.ListUsers(ctx)
+	for _, u := range users {
+		if u.Username == "mon" {
+			admin.do("POST", fmt.Sprintf("/users/%d", u.ID), url.Values{"role": {"viewer"}, "disabled": {"on"}})
+		}
+	}
+	if code, _, _ := call(viewTok, "GET", "/api/v1/status"); code != 401 {
+		t.Errorf("token of disabled user works: %d", code)
+	}
+	if _, _, body := admin.do("GET", "/audit", nil); !strings.Contains(body, "api.job_run") || !strings.Contains(body, "api_token.create") {
+		t.Error("API actions missing from audit log")
+	}
+}
