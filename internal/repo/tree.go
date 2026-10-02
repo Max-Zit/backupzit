@@ -68,6 +68,9 @@ type Snapshot struct {
 	VSSVolumes []string `json:"vss_volumes,omitempty"`
 	// Images is set for disk image backups (the file tree is then empty).
 	Images []DiskImage `json:"images,omitempty"`
+	// Guests is set for hypervisor backups of virtual machines and
+	// containers; their disks are in Images.
+	Guests []Guest `json:"guests,omitempty"`
 }
 
 // SnapshotStats summarises a backup run.

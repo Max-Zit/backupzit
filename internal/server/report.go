@@ -140,7 +140,9 @@ type DayReport struct {
 	Success, Warning, Failed, Total int
 }
 
-func isBackupKind(k string) bool { return k == api.KindBackup || k == api.KindImageBackup }
+func isBackupKind(k string) bool {
+	return k == api.KindBackup || k == api.KindImageBackup || k == api.KindVMBackup
+}
 
 // ListRunsBetween returns runs queued in [from, to), newest first.
 func (s *Store) ListRunsBetween(ctx context.Context, from, to time.Time, agentID, jobID int64) ([]Run, error) {

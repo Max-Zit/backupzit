@@ -180,6 +180,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdImageExtract(ctx, rest)
 	case "recovery":
 		return cmdRecovery(ctx, rest)
+	case "pve":
+		return cmdPVE(ctx, rest)
 	case "disks":
 		return cmdDisks(rest)
 	case "enroll":

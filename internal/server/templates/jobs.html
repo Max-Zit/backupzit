@@ -8,7 +8,7 @@
     <tr>
       <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}</td>
       <td class="nowrap">{{.Hostname}}</td>
-      <td>{{if eq .Kind "copy"}}<span class="badge info-badge">copy</span> of {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
+      <td>{{if eq .Kind "copy"}}<span class="badge info-badge">copy</span> of {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else if eq .Kind "vm"}}{{vmsel .Paths}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
       <td>{{.TargetName}}</td>
       <td>{{schedule .Schedule}}</td>
       <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
@@ -35,6 +35,7 @@
     <div class="choice">
       <label class="check"><input type="radio" name="kind" value="files" checked data-kindsel> Files and folders</label>
       <label class="check"><input type="radio" name="kind" value="image" data-kindsel> Disk image <small>whole disk or selected partitions, restorable to an empty disk</small></label>
+      {{if .Data.PVE}}<label class="check"><input type="radio" name="kind" value="vm" data-kindsel> Proxmox VMs and containers <small>without agents in the guests — run by the agent on the Proxmox host</small></label>{{end}}
       {{if .Data.SourceJobs}}<label class="check"><input type="radio" name="kind" value="copy" data-kindsel> Backup copy <small>copy the backups of another job to a second storage (3-2-1)</small></label>{{end}}
     </div>
     <div data-jobkind="files" class="stack">
@@ -55,6 +56,13 @@
       <label>Disks of the selected agent <small>tick a whole disk or only some partitions</small></label>
       <div id="disk-picker" class="disks"><p class="muted">Select an agent.</p></div>
     </div>
+    <div data-jobkind="vm" hidden class="stack">
+      <label class="check"><input type="radio" name="vm_mode" value="all" checked> All VMs and containers on the node <small>guests created later are included automatically</small></label>
+      <label class="check"><input type="radio" name="vm_mode" value="selected"> Only these:</label>
+      <div id="vm-picker" class="disks"><p class="muted">Select the agent on the Proxmox host.</p></div>
+      <p class="muted small">Each guest is captured from a Proxmox snapshot while it keeps running (file systems are frozen first when the QEMU guest agent runs in the VM). Only changed blocks are uploaded after the first backup.</p>
+    </div>
+    <script type="application/json" id="pve-inventory">{{.Data.PVE}}</script>
     <script type="application/json" id="inventory">{{.Data.Inventory}}</script>
     <fieldset class="sched">
       <legend>Keep backups</legend>

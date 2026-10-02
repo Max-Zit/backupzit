@@ -1624,3 +1624,123 @@ func TestAzureTarget(t *testing.T) {
 		t.Error("SAS token stored in plaintext")
 	}
 }
+
+func TestProxmoxJobs(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	targetID, err := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	agents, _ := e.store.ListAgents(ctx)
+	var a server.Agent
+	for _, x := range agents {
+		if x.UUID == cfg.AgentUUID {
+			a = x
+		}
+	}
+	if _, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobVM, AgentID: a.ID, TargetID: targetID, Name: "vms", Paths: []string{"*"}}); err == nil {
+		t.Error("VM job accepted for an agent that is not on a Proxmox node")
+	}
+	inv := `{"node":"pve","guests":[{"vmid":100,"name":"web","type":"qemu","node":"pve","status":"running","maxdisk":8589934592},
+		{"vmid":200,"name":"db","type":"lxc","node":"pve","status":"stopped","maxdisk":4294967296},
+		{"vmid":300,"name":"elsewhere","type":"qemu","node":"pve2","status":"running"}],"storage":["local-lvm","ceph"]}`
+	if err := e.store.TouchAgent(ctx, a.ID, api.PollRequest{Hypervisor: json.RawMessage(inv)}, ""); err != nil {
+		t.Fatal(err)
+	}
+	a, _ = e.store.GetAgent(ctx, a.ID)
+	if a.PVE() == nil || len(a.LocalGuests()) != 2 {
+		t.Fatalf("inventory not stored: %+v", a.PVE())
+	}
+	if _, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobVM, AgentID: a.ID, TargetID: targetID, Name: "vms", Paths: []string{}}); err == nil {
+		t.Error("VM job without guests accepted")
+	}
+	if _, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobVM, AgentID: a.ID, TargetID: targetID, Name: "vms", Paths: []string{"abc"}}); err == nil {
+		t.Error("VM job with an invalid ID accepted")
+	}
+	jobID, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobVM, AgentID: a.ID, TargetID: targetID, Name: "Proxmox", Paths: []string{"100", "200"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID, err := e.store.QueueBackup(ctx, jobID, "manual")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.store.QueueBackup(ctx, jobID, "manual"); err == nil {
+		t.Error("second VM backup queued while one is pending")
+	}
+	claimed, err := e.store.ClaimRun(ctx, a.ID)
+	if err != nil || claimed == nil || claimed.ID != runID || claimed.Kind != api.KindVMBackup || strings.Join(claimed.Paths, ",") != "100,200" {
+		t.Fatalf("claimed run: %+v %v", claimed, err)
+	}
+	details := `{"guests":[{"vmid":100,"type":"qemu","name":"web","consistency":"snapshot, file systems frozen by the QEMU guest agent","disks":1,"size":8589934592,"stored":1000000000},
+		{"vmid":200,"type":"lxc","name":"db","consistency":"snapshot of the stopped guest","disks":1,"size":4294967296,"stored":500000000}]}`
+	if err := e.store.FinishRun(ctx, a.ID, runID, api.RunResult{Status: api.StatusSuccess, SnapshotID: strings.Repeat("ef", 32),
+		Stats: json.RawMessage(`{"files":2,"bytes_read":12884901888}`), Details: json.RawMessage(details)}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := e.store.GetRun(ctx, runID); r.SnapshotID == "" {
+		t.Fatal("snapshot ID of the VM backup not stored")
+	}
+
+	if _, err := e.store.QueueVMRestore(ctx, runID, a.ID, api.VMRestore{VMID: 999}); err == nil {
+		t.Error("restore of a guest that is not in the backup accepted")
+	}
+	if _, err := e.store.QueueVMRestore(ctx, runID, a.ID, api.VMRestore{VMID: 100, Storage: "nfs-elsewhere"}); err == nil {
+		t.Error("restore to unknown storage accepted")
+	}
+	rr, err := e.store.QueueVMRestore(ctx, runID, a.ID, api.VMRestore{VMID: 100, NewVMID: -1, Name: "web-copy", Storage: "ceph", Start: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, err = e.store.ClaimRun(ctx, a.ID)
+	if err != nil || claimed == nil || claimed.ID != rr || claimed.Kind != api.KindVMRestore {
+		t.Fatalf("claimed restore: %+v %v", claimed, err)
+	}
+
+	if claimed.VMRestore == nil {
+		t.Fatal("restore options not stored")
+	}
+	jar, _ := cookiejar.New(nil)
+	hc := e.ts.Client()
+	hc.Jar = jar
+	form := url.Values{"username": {"admin"}, "password": {"admin-pass-123"}}
+	req, _ := http.NewRequest(http.MethodPost, e.ts.URL+"/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Origin", e.ts.URL)
+	if resp, err := hc.Do(req); err != nil {
+		t.Fatal(err)
+	} else {
+		resp.Body.Close()
+	}
+	body := func(p string) string {
+		resp, err := hc.Get(e.ts.URL + p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != 200 {
+			t.Fatalf("GET %s: %d", p, resp.StatusCode)
+		}
+		return html.UnescapeString(string(b))
+	}
+	if p := body("/jobs"); !strings.Contains(p, "Proxmox VMs and containers") || !strings.Contains(p, "Guests 100, 200") || !strings.Contains(p, `"web"`) || strings.Contains(p, `"elsewhere"`) {
+		t.Error("jobs page lacks the Proxmox option, selection or inventory")
+	}
+	if p := body(fmt.Sprintf("/runs/%d", runID)); !strings.Contains(p, "VM backup #") || !strings.Contains(p, "frozen by the QEMU guest agent") ||
+		!strings.Contains(p, "Restore a VM or container") || !strings.Contains(p, `<option value="ceph">`) {
+		t.Error("VM run page lacks guests or restore form")
+	}
+	if p := body(fmt.Sprintf("/runs/%d", rr)); !strings.Contains(p, "next free ID, name web-copy") {
+		t.Error("restore run page lacks the options")
+	}
+	if p := body("/agents"); !strings.Contains(p, "Proxmox VE · 3 guests") {
+		t.Error("agents page lacks the Proxmox badge")
+	}
+}

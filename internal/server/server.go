@@ -143,6 +143,7 @@ var funcs = template.FuncMap{
 	},
 	"schedule": DescribeSchedule,
 	"imagesel": DescribeImageSelection,
+	"vmsel":    DescribeVMSelection,
 	"bytes64":  func(n int64) string { return humanBytes(uint64(n)) },
 	"upper":    strings.ToUpper,
 	"deref2": func(p *int) int {
@@ -155,7 +156,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test"}[k]
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore"}[k]
 	},
 	"hours": func() []int {
 		h := make([]int, 24)
@@ -729,7 +730,7 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 		return
 	}
 	s.render(w, r, "jobs", pageData{Title: "Backup jobs", Nav: "jobs", User: user,
-		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents), "SourceJobs": sourceJobs(jobs)}})
+		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents), "SourceJobs": sourceJobs(jobs), "PVE": pveInventories(agents)}})
 }
 
 func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -758,6 +759,14 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 	if job.Kind == JobCopy {
 		job.SourceJobID = optionalID(r.FormValue("source_job"))
 		job.Paths, job.Excludes = nil, nil
+	}
+	if job.Kind == JobVM {
+		job.Excludes = nil
+		if r.FormValue("vm_mode") == "all" {
+			job.Paths = []string{"*"}
+		} else {
+			job.Paths = r.Form["vms"]
+		}
 	}
 	if job.Kind == JobImage {
 		if d, err := strconv.Atoi(r.FormValue("image_disk")); err == nil {
@@ -858,7 +867,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 	var copyStats *CopyRunStats
 	var testStats *restorer.SampleStats
 	if len(run.Stats) > 0 {
-		if run.Kind == api.KindBackup || run.Kind == api.KindImageBackup {
+		if isBackupKind(run.Kind) {
 			backupStats = &repo.SnapshotStats{}
 			json.Unmarshal(run.Stats, backupStats)
 		} else if run.Kind == api.KindVerify {
@@ -880,6 +889,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: map[string]any{
 		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "CopyStats": copyStats, "TestStats": testStats, "CopyOfFiles": s.store.copyOfFiles(r.Context(), run), "Agents": agents,
 		"Image": imageDetails(run), "Inventory": inventories(agents),
+		"VM": vmDetails(run), "VMRestore": vmRestoreOptions(run), "PVEAgents": pveAgents(agents),
 	}})
 }
 
@@ -888,6 +898,10 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request, _ string)
 	back := fmt.Sprintf("/runs/%d", id)
 	if r.FormValue("kind") == "image" {
 		s.handleImageRestore(w, r, id, back)
+		return
+	}
+	if r.FormValue("kind") == "vm" {
+		s.handleVMRestore(w, r, id, back)
 		return
 	}
 	target := strings.TrimSpace(r.FormValue("target"))

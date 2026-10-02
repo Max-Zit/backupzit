@@ -37,7 +37,7 @@ sudo systemctl enable --now backupzit-agent</pre>
     <tr><th>Hostname</th><th>OS</th><th>IP addresses</th><th>Version</th><th>Status</th><th>Last seen</th><th>Enrolled</th><th></th></tr>
     {{range .Data.Agents}}
     <tr>
-      <td>{{.Hostname}}{{if .Recovery}} <span class="badge">recovery</span>{{end}}</td>
+      <td>{{.Hostname}}{{if .Recovery}} <span class="badge">recovery</span>{{end}}{{with .PVE}} <span class="badge info-badge" title="Backs up the VMs and containers of this Proxmox VE node">Proxmox VE · {{len .Guests}} guests</span>{{end}}</td>
       <td>{{.OS}}/{{.Arch}}</td>
       <td class="nowrap">{{range $i, $ip := .LocalIPs}}{{if $i}}<br>{{end}}<span class="mono small">{{$ip}}</span>{{else}}<span class="muted">—</span>{{end}}{{with .RemoteAddr}}<div class="muted small" title="address the agent connects from — its public address if it is behind NAT">seen from {{.}}</div>{{end}}</td>
       <td class="mono">{{.Version}}</td>

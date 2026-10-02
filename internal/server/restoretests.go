@@ -59,7 +59,7 @@ func (s *Store) QueueRestoreTest(ctx context.Context, jobID int64, trigger strin
 		repoURL, snapshot string
 	}
 	err := s.db.QueryRow(ctx, `SELECT agent_id, target_id, repo_url, snapshot_id FROM runs
-		WHERE job_id=$1 AND kind IN ('backup','image-backup','copy') AND status IN ('success','warning')
+		WHERE job_id=$1 AND kind IN ('backup','image-backup','vm-backup','copy') AND status IN ('success','warning')
 		AND snapshot_id<>'' AND NOT expired AND target_id IS NOT NULL
 		ORDER BY finished_at DESC LIMIT 1`, jobID).Scan(&b.agentID, &b.targetID, &b.repoURL, &b.snapshot)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -86,7 +86,7 @@ func (s *Store) queueDueRestoreTests(ctx context.Context, now time.Time) ([]int6
 		return nil, nil
 	}
 	rows, err := s.db.Query(ctx, `SELECT j.id FROM jobs j WHERE j.enabled
-		AND EXISTS (SELECT 1 FROM runs b WHERE b.job_id=j.id AND b.kind IN ('backup','image-backup','copy')
+		AND EXISTS (SELECT 1 FROM runs b WHERE b.job_id=j.id AND b.kind IN ('backup','image-backup','vm-backup','copy')
 			AND b.status IN ('success','warning') AND b.snapshot_id<>'' AND NOT b.expired)
 		AND NOT EXISTS (SELECT 1 FROM runs v WHERE v.job_id=j.id AND v.kind='verify' AND v.queued_at > $1)`,
 		now.Add(-x.interval()))

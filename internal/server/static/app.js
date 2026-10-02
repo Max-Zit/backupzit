@@ -173,14 +173,46 @@ function renderRestoreDisks() {
   });
 }
 
+// ---- Proxmox VM jobs
+
+function renderVMPicker() {
+  var box = document.getElementById("vm-picker");
+  var agentSel = document.getElementById("agent_sel");
+  var data = document.getElementById("pve-inventory");
+  if (!box || !agentSel || !data) return;
+  var inv = {};
+  try { inv = JSON.parse(data.textContent) || {}; } catch (e) {}
+  box.textContent = "";
+  var guests = inv[agentSel.value];
+  if (!guests) {
+    box.appendChild(el("p", { "class": "muted" }, "This agent is not on a Proxmox VE host. Select the agent installed on the Proxmox node."));
+    return;
+  }
+  if (!guests.length) {
+    box.appendChild(el("p", { "class": "muted" }, "No VMs or containers on this node yet."));
+    return;
+  }
+  guests.forEach(function (g) {
+    var l = el("label", { "class": "check" });
+    var cb = el("input", { type: "checkbox", name: "vms", value: g.vmid });
+    l.appendChild(cb);
+    var kind = g.type === "lxc" ? "container" : "VM";
+    l.appendChild(document.createTextNode(" " + g.vmid + "  " + (g.name || "") + "  (" + kind + ", " + fmtBytes(g.maxdisk || 0) + ", " + g.status + ")"));
+    box.appendChild(l);
+  });
+}
+
 document.addEventListener("change", function (e) {
   if (e.target.hasAttribute && e.target.hasAttribute("data-kindsel")) syncJobKind();
   if (e.target.id === "agent_sel") renderDiskPicker();
+  if (e.target.id === "agent_sel") renderVMPicker();
+  if (e.target.name === "vms") { var s = document.querySelector("input[name=vm_mode][value=selected]"); if (s) s.checked = true; }
   if (e.target.name === "image_disk") syncDiskChoice();
   if (e.target.id === "restore_agent") renderRestoreDisks();
 });
 document.addEventListener("DOMContentLoaded", function () {
   renderDiskPicker();
+  renderVMPicker();
   syncJobKind();
   renderRestoreDisks();
 });

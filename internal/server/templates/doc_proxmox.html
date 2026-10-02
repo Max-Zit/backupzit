@@ -1,0 +1,65 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Proxmox VE virtual machines</h1>
+<p class="lead">BackupZit backs up Proxmox VE virtual machines (QEMU) and containers (LXC) without installing anything inside the guests. The agent runs on the Proxmox host, takes a snapshot of each guest, reads its disks and stores them deduplicated on any storage target.</p>
+
+<h2>Setup</h2>
+<ol>
+  <li>Install the <b>Linux agent — Debian / Ubuntu</b> package from <a href="/agents">Agents</a> on each Proxmox node (Proxmox VE 7 and 8 are Debian based):
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>Within a minute the node appears on the Agents page with the badge <b>Proxmox VE · N guests</b>.</li>
+  <li>In <a href="/jobs">Backup jobs</a> select that agent and choose <b>Proxmox VMs and containers</b>. Back up <b>all guests of the node</b> (guests created later are included automatically) or tick individual ones.</li>
+</ol>
+<p>The agent uses the node's own tools (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); no API token or password is stored in the console.</p>
+
+<h2>How a guest is backed up</h2>
+<ol>
+  <li>A temporary Proxmox snapshot is taken (<code>backupzit_…</code>, visible under <i>Snapshots</i> for a few seconds to minutes). The guest keeps running.</li>
+  <li>If the <b>QEMU guest agent</b> runs in the VM (and is enabled in the VM options), Proxmox freezes the file systems for the snapshot — the backup is then application consistent. Without it, the backup is crash consistent, like a power loss. Install <code>qemu-guest-agent</code> in Linux VMs and the VirtIO guest tools in Windows VMs.</li>
+  <li>Every disk is read from the snapshot in 1 MiB blocks. Empty blocks are not stored and blocks already in the repository are not uploaded again, so after the first backup only changed data is transferred.</li>
+  <li>The snapshot is removed. The guest configuration (CPU, memory, network, disks) is stored with the backup.</li>
+</ol>
+<p>The run page lists each guest, its disks and how it was captured. Restore tests check random blocks of VM backups like disk images.</p>
+
+<h3>Supported storage</h3>
+<table>
+  <tr><th>Storage type</th><th>Running guests</th><th>Stopped guests</th></tr>
+  <tr><td>LVM-thin (default <code>local-lvm</code>)</td><td>yes, snapshot</td><td>yes</td></tr>
+  <tr><td>ZFS (VM disks / zvols)</td><td>yes, snapshot</td><td>yes</td></tr>
+  <tr><td>Ceph RBD</td><td>yes, snapshot</td><td>yes</td></tr>
+  <tr><td>Directory, NFS, CIFS with <b>qcow2</b> disks</td><td>yes, snapshot</td><td>yes</td></tr>
+  <tr><td>Directory, NFS, CIFS with raw disks, thick LVM</td><td>no — stop the guest or move the disk</td><td>yes</td></tr>
+  <tr><td>ZFS subvolumes of containers</td><td colspan="2">not supported yet</td></tr>
+</table>
+<p>Disks marked <i>Backup: no</i> (<code>backup=0</code>) in Proxmox, passed-through physical disks and bind mounts are skipped and listed as warnings. Cloud-init drives are not stored; they are recreated from the configuration on restore.</p>
+
+<h2>Restoring a VM or container</h2>
+<p>Open a VM backup run (from the job page or <a href="/runs">Activity</a>) and use <b>Restore a VM or container</b>:</p>
+<ul>
+  <li><b>Guest</b> — one of the guests in that backup.</li>
+  <li><b>Restore on Proxmox node</b> — any node with the BackupZit agent; also a node of another cluster.</li>
+  <li><b>As a new guest with the next free ID</b> (default) or <b>with ID …</b> — the original keeps running. Because both exist, the network cards of the copy get new MAC addresses.</li>
+  <li><b>With its original ID</b> — after the guest was deleted. If it still exists, tick <b>stop and delete it</b> to replace it with the backup; the existing guest and its disks are deleted first.</li>
+  <li><b>Name</b> and <b>Storage for the disks</b> — e.g. restore to a different storage than the original.</li>
+  <li><b>Start the guest after the restore</b>.</li>
+</ul>
+<p>Every restore gives VMs a new generation ID (<code>vmgenid</code>), so Windows domain controllers and other software detect the rollback safely. Disks are allocated with <code>pvesm</code> on the chosen storage; on directory storage they are restored as raw files.</p>
+
+<h2>Command line</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<p>The repository options are the same as for all commands (see <a href="/docs/cli">Command line reference</a>). The command line works without the console, for example to restore a whole node after a disaster.</p>
+
+<h2>Clusters</h2>
+<p>Install the agent on every node. A job backs up the guests running on its agent's node; a guest listed in a job that has been migrated to another node is reported as a warning naming that node — back up each node with its own job, or use <i>all guests of the node</i> on every node so migrated guests are always covered.</p>
+
+<h2>Not yet included</h2>
+<ul>
+  <li>Restoring single files from a VM backup — restore the VM under a new ID and copy the files, or back up important folders inside the guest with a file job.</li>
+  <li>VMware, Hyper-V and XCP-ng hosts.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -212,6 +212,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	sendInventory := !busy && time.Since(invAt) > invEvery
 	if sendInventory {
 		req.Disks = a.diskInventory()
+		req.Hypervisor = a.hypervisorInventory(ctx)
 	}
 	err := a.client.post(ctx, api.PathPoll, req, &resp, true)
 	if err != nil {
@@ -284,6 +285,13 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res = a.copyRun(ctx, run)
 	case api.KindVerify:
 		res = a.verifyRun(ctx, run)
+	case api.KindVMBackup:
+		res = a.vmBackup(ctx, run)
+	case api.KindVMRestore:
+		res = a.vmRestore(ctx, run)
+		a.mu.Lock()
+		a.inventoryAt = time.Time{} // guest list changed
+		a.mu.Unlock()
 	case api.KindImageRestore:
 		res = a.imageRestore(ctx, run)
 		a.mu.Lock()
@@ -292,7 +300,7 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 	default:
 		res = api.RunResult{Status: api.StatusFailed, Message: "unsupported run kind " + run.Kind}
 	}
-	if strings.HasPrefix(run.Repository.URL, "usb://") && res.Status != api.StatusFailed && (run.Kind == api.KindBackup || run.Kind == api.KindImageBackup || run.Kind == api.KindCopy) {
+	if strings.HasPrefix(run.Repository.URL, "usb://") && res.Status != api.StatusFailed && (run.Kind == api.KindBackup || run.Kind == api.KindImageBackup || run.Kind == api.KindVMBackup || run.Kind == api.KindCopy) {
 		// Record which of the rotating disks holds this backup.
 		if _, loc, err := backend.ResolveUSB(run.Repository.URL); err == nil {
 			res.RepoURL = loc

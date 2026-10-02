@@ -11,6 +11,7 @@ var docPages = []struct{ Slug, Title string }{
 	{"jobs", "Backup jobs & schedules"},
 	{"restore", "Restoring files"},
 	{"images", "Disk images & bare-metal recovery"},
+	{"proxmox", "Proxmox VE virtual machines"},
 	{"ransomware", "Ransomware protection"},
 	{"monitoring", "Monitoring, reports & calendar"},
 	{"notifications", "Email notifications"},

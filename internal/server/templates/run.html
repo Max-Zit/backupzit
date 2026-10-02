@@ -21,6 +21,12 @@
       <dt>Copied from</dt><dd class="mono">{{.SourceRepoURL}}</dd>
     {{else if eq .Kind "image-backup"}}
       <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
+    {{else if eq .Kind "vm-backup"}}
+      <dt>Backs up</dt><dd>{{vmsel .Paths}}</dd>
+    {{else if eq .Kind "vm-restore"}}
+      {{with $.Data.VMRestore}}<dt>Guest</dt><dd>{{.VMID}} from backup {{short $.Data.Run.SnapshotID}}</dd>
+      <dt>Restored as</dt><dd>{{if eq .NewVMID 0}}original ID{{if .Overwrite}}, replacing the existing guest{{end}}{{else if lt .NewVMID 0}}next free ID{{else}}ID {{.NewVMID}}{{end}}{{if .Name}}, name {{.Name}}{{end}}</dd>
+      <dt>Storage</dt><dd>{{if .Storage}}{{.Storage}}{{else}}original storage{{end}}</dd>{{end}}
     {{else if eq .Kind "image-file-restore"}}
       <dt>From</dt><dd>partition {{index .ImagePartitions 0}} of image {{short .SnapshotID}}</dd>
       <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
@@ -37,7 +43,25 @@
 </div>
 {{end}}
 
-{{if .Data.Image}}
+{{if .Data.VM}}
+  {{with .Data.BackupStats}}
+  <div class="grid">
+    <div class="stat"><b>{{.Files}}</b><span>guests backed up</span></div>
+    <div class="stat"><b>{{bytes .BytesRead}}</b><span>disks read</span></div>
+    <div class="stat"><b>{{bytes .BytesAdded}}</b><span>new data</span></div>
+    <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (compressed)</span></div>
+  </div>
+  {{end}}
+  <div class="panel">
+    <h2>Virtual machines and containers</h2>
+    <div class="table-wrap"><table>
+      <tr><th>ID</th><th>Name</th><th>Type</th><th>Disks</th><th>With data</th><th>Captured</th></tr>
+      {{range .Data.VM.Guests}}
+      <tr><td>{{.VMID}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}container{{else}}VM{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td></tr>
+      {{end}}
+    </table></div>
+  </div>
+{{else if .Data.Image}}
   {{with .Data.BackupStats}}
   <div class="grid">
     <div class="stat"><b>{{bytes .BytesRead}}</b><span>used blocks read</span></div>
@@ -127,6 +151,37 @@
     <div><button>Start restore</button></div>
   </form>
 </div>{{end}}
+{{end}}
+
+{{if and (eq .Kind "vm-backup") .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.VM}}
+<div class="panel">
+  <h2>Restore a VM or container</h2>
+  {{if $.Data.PVEAgents}}
+  <form method="post" action="/runs/{{.ID}}/restore" class="stack">
+    <input type="hidden" name="kind" value="vm">
+    <div class="row">
+      <label>Guest
+        <select name="vmid">{{range $.Data.VM.Guests}}<option value="{{.VMID}}">{{.VMID}} — {{.Name}} ({{if eq .Type "lxc"}}container{{else}}VM{{end}})</option>{{end}}</select>
+      </label>
+      <label>Restore on Proxmox node
+        <select name="agent_id">{{range $.Data.PVEAgents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Inv.Node}}{{if ne .Inv.Node .Hostname}} ({{.Hostname}}){{end}}</option>{{end}}</select>
+      </label>
+    </div>
+    <label class="check"><input type="radio" name="id_mode" value="next" checked> As a new guest with the next free ID <small>the original keeps running; network cards get new MAC addresses</small></label>
+    <label class="check"><input type="radio" name="id_mode" value="custom"> As a new guest with ID <input name="new_vmid" type="number" min="100" max="999999999" class="narrow"></label>
+    <label class="check"><input type="radio" name="id_mode" value="original"> With its original ID <small>when the guest was deleted, or to replace it</small></label>
+    <label class="check"><input type="checkbox" name="overwrite"> If a guest with that ID exists, <b>stop and delete it</b> and replace it with the backup</label>
+    <div class="row">
+      <label>Name <small>optional, default: original name</small><input name="name" maxlength="63"></label>
+      <label>Storage for the disks
+        <select name="storage"><option value="">Original storage of each disk</option>{{range $.Data.PVEAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
+      </label>
+    </div>
+    <label class="check"><input type="checkbox" name="start"> Start the guest after the restore</label>
+    <div><button>Restore guest</button></div>
+  </form>
+  {{else}}<p class="muted">No agent on a Proxmox VE host is enrolled. Install the BackupZit agent on the Proxmox node to restore.</p>{{end}}
+</div>
 {{end}}
 
 {{if and (eq .Kind "image-backup") .SnapshotID (not .Expired) ($.Me.Can "restore")}}

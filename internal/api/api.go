@@ -49,6 +49,9 @@ type PollRequest struct {
 	// Disks is the disk inventory (JSON array of imaging.Disk). Agents send
 	// it on start and periodically; nil means "unchanged / not included".
 	Disks json.RawMessage `json:"disks,omitempty"`
+	// Hypervisor is the Proxmox VE inventory (JSON pve.Inventory) of an agent
+	// on a Proxmox node, sent like Disks.
+	Hypervisor json.RawMessage `json:"hypervisor,omitempty"`
 }
 
 // PollResponse returns work for the agent.
@@ -69,6 +72,11 @@ const (
 	KindCopy = "copy"
 	// KindVerify restores a random sample of a backup to prove it is restorable.
 	KindVerify = "verify"
+	// KindVMBackup backs up Proxmox VE virtual machines and containers from
+	// the agent on the node, without agents in the guests.
+	KindVMBackup = "vm-backup"
+	// KindVMRestore recreates a guest from a vm-backup on a node.
+	KindVMRestore = "vm-restore"
 )
 
 // Run is a unit of work assigned to an agent.
@@ -113,6 +121,12 @@ type Run struct {
 	VerifyFiles    int    `json:"verify_files,omitempty"`
 	VerifyMaxBytes uint64 `json:"verify_max_bytes,omitempty"`
 	VerifyBlocks   int    `json:"verify_blocks,omitempty"`
+
+	// VM backup: guest IDs ("*" = all guests on the node) and guests to skip.
+	VMs       []string `json:"vms,omitempty"`
+	VMExclude []string `json:"vm_exclude,omitempty"`
+	// VM restore.
+	VMRestore *VMRestore `json:"vm_restore,omitempty"`
 }
 
 // Repository tells the agent where and how to store data.
@@ -164,4 +178,15 @@ type RunResult struct {
 // Error is returned by the server with non-2xx responses.
 type Error struct {
 	Error string `json:"error"`
+}
+
+// VMRestore are the options of a vm-restore run.
+type VMRestore struct {
+	VMID int `json:"vmid"` // guest in the backup
+	// NewVMID: 0 = original ID, -1 = next free ID.
+	NewVMID   int    `json:"new_vmid"`
+	Name      string `json:"name,omitempty"`
+	Storage   string `json:"storage,omitempty"` // "" = original storage
+	Overwrite bool   `json:"overwrite,omitempty"`
+	Start     bool   `json:"start,omitempty"`
 }

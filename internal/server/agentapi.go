@@ -130,6 +130,12 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 			ar.ImageDisk = *run.ImageDisk
 		}
 		ar.ImagePartitions = run.ImagePartitions
+	case api.KindVMBackup:
+		s.addRetention(ctx, run, ar)
+		ar.VMs, ar.VMExclude = run.Paths, run.Excludes
+	case api.KindVMRestore:
+		ar.SnapshotID = run.SnapshotID
+		ar.VMRestore = vmRestoreOptions(*run)
 	case api.KindImageFileRestore:
 		ar.SnapshotID = run.SnapshotID
 		ar.Includes = run.Paths
@@ -178,7 +184,7 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 	}
 	s.log.Info("run finished", "run", id, "status", res.Status, "agent", a.Hostname)
 	if res.Status != api.StatusFailed {
-		if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && (run.Kind == api.KindBackup || run.Kind == api.KindImageBackup) {
+		if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && isBackupKind(run.Kind) {
 			if ids, err := s.store.QueueCopiesAfter(r.Context(), *run.JobID); err != nil {
 				s.log.Error("queue copy jobs", "job", *run.JobID, "err", err)
 			} else if len(ids) > 0 {
