@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/backupzit/backupzit/internal/api"
@@ -39,6 +40,8 @@ const sessionCookie = "bz_session"
 // Server is the management console.
 type Server struct {
 	store  *Store
+	// shaCache holds SHA-256 sums of installers offered as agent updates.
+	shaCache sync.Map
 	logins *loginLimiter
 	log    *slog.Logger
 	// CertFingerprint is shown in enrollment instructions.
@@ -156,7 +159,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore"}[k]
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update"}[k]
 	},
 	"hours": func() []int {
 		h := make([]int, 24)
@@ -253,6 +256,7 @@ func (s *Server) Handler() http.Handler {
 	// Agent API
 	mux.HandleFunc("POST "+api.PathEnroll, s.handleEnroll)
 	mux.HandleFunc("POST "+api.PathPoll, s.agentAuth(s.handlePoll))
+	mux.HandleFunc("GET "+api.PathDownloadPrefix+"{file}", s.agentAuth(s.handleAgentDownload))
 	mux.HandleFunc("POST "+api.PathRunsPrefix+"{id}/finish", s.agentAuth(s.handleRunFinish))
 
 	// UI
@@ -267,6 +271,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /agents", s.ui(PermView, s.handleAgents))
 	mux.HandleFunc("POST /agents/token", s.ui(PermAgents, s.handleAgentToken))
 	mux.HandleFunc("POST /agents/{id}/delete", s.ui(PermAgents, s.handleAgentDelete))
+	mux.HandleFunc("POST /agents/{id}/update", s.ui(PermAgents, s.handleAgentUpdate))
+	mux.HandleFunc("POST /agents/update-all", s.ui(PermAgents, s.handleAgentUpdateAll))
 	mux.HandleFunc("GET /targets", s.ui(PermView, s.handleTargets))
 	mux.HandleFunc("POST /targets", s.ui(PermStorage, s.handleTargetCreate))
 	mux.HandleFunc("POST /targets/{id}/delete", s.ui(PermStorage, s.handleTargetDelete))
@@ -568,7 +574,7 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		return
 	}
 	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
-		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(),
+		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents),
 	}})
 }
 

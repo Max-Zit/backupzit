@@ -40,7 +40,7 @@ sudo systemctl enable --now backupzit-agent</pre>
       <td>{{.Hostname}}{{if .Recovery}} <span class="badge">recovery</span>{{end}}{{with .PVE}} <span class="badge info-badge" title="Backs up the VMs and containers of this Proxmox VE node">Proxmox VE · {{len .Guests}} guests</span>{{end}}</td>
       <td>{{.OS}}/{{.Arch}}</td>
       <td class="nowrap">{{range $i, $ip := .LocalIPs}}{{if $i}}<br>{{end}}<span class="mono small">{{$ip}}</span>{{else}}<span class="muted">—</span>{{end}}{{with .RemoteAddr}}<div class="muted small" title="address the agent connects from — its public address if it is behind NAT">seen from {{.}}</div>{{end}}</td>
-      <td class="mono">{{.Version}}</td>
+      <td><span class="mono">{{.Version}}</span>{{$id := .ID}}{{$u := index $.Data.Updates .ID}}{{if $u.Version}}{{with $u}}<br>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{$id}}/update" class="inline"><button class="link small" title="Installs {{.File}} on the machine; the agent restarts">Update to {{.Version}}</button></form>{{else}}<span class="muted small">{{.Version}} available</span>{{end}}{{end}}{{end}}</td>
       <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}</td>
       <td>{{ago .LastSeen}}</td>
       <td>{{ts .EnrolledAt}}</td>
@@ -48,6 +48,7 @@ sudo systemctl enable --now backupzit-agent</pre>
     </tr>
     {{end}}
   </table></div>
+  {{if and .Data.Updates ($.Me.Can "agents")}}<form method="post" action="/agents/update-all" class="mt" data-confirm="Install the newest agent version on all {{len .Data.Updates}} agents that run an older one?"><button class="secondary">Update all agents ({{len .Data.Updates}})</button> <span class="muted small">Each agent installs the update when it is idle and restarts; backups in progress are not interrupted.</span></form>{{end}}
   {{else}}<p class="muted">No agents enrolled yet.</p>{{end}}
 </div>
 

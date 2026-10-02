@@ -16,6 +16,8 @@ const (
 	PathPoll   = "/api/agent/poll"
 	// PathRunStart and PathRunFinish take the run id as a suffix: /api/agent/runs/{id}/start
 	PathRunsPrefix = "/api/agent/runs/"
+	// PathDownloadPrefix serves agent installers to agents (self-update).
+	PathDownloadPrefix = "/api/agent/download/"
 )
 
 // EnrollRequest registers a new agent using a tenant enrollment token.
@@ -77,6 +79,8 @@ const (
 	KindVMBackup = "vm-backup"
 	// KindVMRestore recreates a guest from a vm-backup on a node.
 	KindVMRestore = "vm-restore"
+	// KindAgentUpdate installs a newer agent version from the console.
+	KindAgentUpdate = "agent-update"
 )
 
 // Run is a unit of work assigned to an agent.
@@ -127,6 +131,12 @@ type Run struct {
 	VMExclude []string `json:"vm_exclude,omitempty"`
 	// VM restore.
 	VMRestore *VMRestore `json:"vm_restore,omitempty"`
+
+	// Agent update: installer file (downloaded from PathDownloadPrefix), its
+	// SHA-256 and the version it installs.
+	UpdateFile    string `json:"update_file,omitempty"`
+	UpdateSHA256  string `json:"update_sha256,omitempty"`
+	UpdateVersion string `json:"update_version,omitempty"`
 }
 
 // Repository tells the agent where and how to store data.

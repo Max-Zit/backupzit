@@ -3,7 +3,9 @@ package server_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1742,5 +1744,121 @@ func TestProxmoxJobs(t *testing.T) {
 	}
 	if p := body("/agents"); !strings.Contains(p, "Proxmox VE · 3 guests") {
 		t.Error("agents page lacks the Proxmox badge")
+	}
+}
+
+func TestAgentUpdate(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	dist := t.TempDir()
+	e.srv.DistDir = dist
+	msi := []byte("fake msi 0.20.0")
+	for name, data := range map[string][]byte{
+		"backupzit-agent-0.19.0-x64.msi":        []byte("old"),
+		"backupzit-agent-0.20.0-x64.msi":        msi,
+		"backupzit-agent-0.21.0-x64-legacy.msi": []byte("legacy"),
+		"backupzit-agent_0.20.0_amd64.deb":      []byte("deb"),
+		"backupzit-server_0.20.0_amd64.deb":     []byte("server"),
+	} {
+		os.WriteFile(filepath.Join(dist, name), data, 0o644)
+	}
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "0.19.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	agents, _ := e.store.ListAgents(ctx)
+	var a server.Agent
+	for _, x := range agents {
+		if x.UUID == cfg.AgentUUID {
+			a = x
+		}
+	}
+	agentReq := func(method, p string, body any) *http.Response {
+		var rd io.Reader
+		if body != nil {
+			b, _ := json.Marshal(body)
+			rd = bytes.NewReader(b)
+		}
+		req, _ := http.NewRequest(method, e.ts.URL+p, rd)
+		req.Header.Set("Authorization", "Bearer "+cfg.AgentUUID+":"+cfg.Secret)
+		resp, err := e.ts.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp
+	}
+	resp := agentReq("POST", api.PathPoll, api.PollRequest{Hostname: "win", OS: "Windows 11 Pro (build 26100)", Arch: "amd64", Version: "0.19.0"})
+	resp.Body.Close()
+
+	jar, _ := cookiejar.New(nil)
+	hc := e.ts.Client()
+	hc.Jar = jar
+	post := func(p string, form url.Values) *http.Response {
+		req, _ := http.NewRequest(http.MethodPost, e.ts.URL+p, strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", e.ts.URL)
+		resp, err := hc.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp
+	}
+	post("/login", url.Values{"username": {"admin"}, "password": {"admin-pass-123"}})
+	page, _ := hc.Get(e.ts.URL + "/agents")
+	b, _ := io.ReadAll(page.Body)
+	page.Body.Close()
+	if !strings.Contains(string(b), "Update to 0.20.0") || !strings.Contains(string(b), "Update all agents (1)") {
+		t.Fatal("agents page does not offer the update")
+	}
+	post(fmt.Sprintf("/agents/%d/update", a.ID), nil)
+	post(fmt.Sprintf("/agents/%d/update", a.ID), nil) // no duplicate
+
+	// An agent that is up to date is not offered an update.
+	resp = agentReq("POST", api.PathPoll, api.PollRequest{Hostname: "win", OS: "Windows 11 Pro (build 26100)", Arch: "amd64", Version: "0.20.0", Busy: true})
+	resp.Body.Close()
+	if p, err := hc.Get(e.ts.URL + "/agents"); err == nil {
+		b, _ := io.ReadAll(p.Body)
+		p.Body.Close()
+		if strings.Contains(string(b), "Update to") {
+			t.Error("up-to-date agent offered an update")
+		}
+	}
+	resp = agentReq("POST", api.PathPoll, api.PollRequest{Hostname: "win", OS: "Windows 11 Pro (build 26100)", Arch: "amd64", Version: "0.19.0", Busy: true})
+	resp.Body.Close()
+	if rr, _ := e.store.ListRuns(ctx, server.RunFilter{AgentID: a.ID}); len(rr) != 1 {
+		resp := post(fmt.Sprintf("/agents/%d/update", a.ID), nil)
+		t.Fatalf("update not queued: %d runs; %s", len(rr), resp.Request.URL)
+	}
+
+	resp = agentReq("POST", api.PathPoll, api.PollRequest{Hostname: "win", OS: "Windows 11 Pro (build 26100)", Arch: "amd64", Version: "0.19.0"})
+	var pr api.PollResponse
+	json.NewDecoder(resp.Body).Decode(&pr)
+	resp.Body.Close()
+	sum := sha256.Sum256(msi)
+	if pr.Run == nil || pr.Run.Kind != api.KindAgentUpdate || pr.Run.UpdateFile != "backupzit-agent-0.20.0-x64.msi" ||
+		pr.Run.UpdateVersion != "0.20.0" || pr.Run.UpdateSHA256 != hex.EncodeToString(sum[:]) {
+		rr, _ := e.store.ListRuns(ctx, server.RunFilter{AgentID: a.ID})
+		t.Fatalf("update run: %+v; runs %+v", pr.Run, rr)
+	}
+	resp = agentReq("GET", api.PathDownloadPrefix+"backupzit-agent-0.20.0-x64.msi", nil)
+	got, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !bytes.Equal(got, msi) {
+		t.Fatalf("download: %d %q", resp.StatusCode, got)
+	}
+	for _, bad := range []string{"backupzit-server_0.20.0_amd64.deb", "..%2Fsecrets.key"} {
+		if resp := agentReq("GET", api.PathDownloadPrefix+bad, nil); resp.StatusCode != 404 {
+			t.Errorf("download of %s: %d", bad, resp.StatusCode)
+		}
+	}
+	req, _ := http.NewRequest("GET", e.ts.URL+api.PathDownloadPrefix+"backupzit-agent-0.20.0-x64.msi", nil)
+	if resp, _ := e.ts.Client().Do(req); resp.StatusCode != 401 {
+		t.Errorf("download without agent credentials: %d", resp.StatusCode)
+	}
+	runs, _ := e.store.ListRuns(ctx, server.RunFilter{AgentID: a.ID})
+	if len(runs) != 1 {
+		t.Errorf("%d update runs, want 1", len(runs))
 	}
 }

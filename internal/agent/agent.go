@@ -272,6 +272,7 @@ func (a *Agent) Run(ctx context.Context) {
 func (a *Agent) execute(ctx context.Context, run api.Run) {
 	a.log.Info("run started", "run", run.ID, "kind", run.Kind, "job", run.JobName)
 	var res api.RunResult
+	var after func() // runs once the result is reported
 	switch run.Kind {
 	case api.KindBackup:
 		res = a.backup(ctx, run)
@@ -285,6 +286,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res = a.copyRun(ctx, run)
 	case api.KindVerify:
 		res = a.verifyRun(ctx, run)
+	case api.KindAgentUpdate:
+		res, after = a.selfUpdate(ctx, run)
 	case api.KindVMBackup:
 		res = a.vmBackup(ctx, run)
 	case api.KindVMRestore:
@@ -315,6 +318,9 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		err := a.client.post(rctx, fmt.Sprintf("%s%d/finish", api.PathRunsPrefix, run.ID), res, nil, true)
 		cancel()
 		if err == nil {
+			if after != nil {
+				after()
+			}
 			return
 		}
 		a.log.Warn("report run result", "run", run.ID, "err", err)

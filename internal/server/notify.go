@@ -276,7 +276,7 @@ func (n *Notifier) runAlerts(ctx context.Context, e EmailSettings) {
 func kindName(k string) string {
 	return map[string]string{
 		api.KindBackup: "Backup", api.KindRestore: "Restore", api.KindImageBackup: "Image backup",
-		api.KindImageRestore: "Image restore", api.KindImageFileRestore: "File restore from image", api.KindVMBackup: "VM backup", api.KindVMRestore: "VM restore",
+		api.KindImageRestore: "Image restore", api.KindImageFileRestore: "File restore from image", api.KindVMBackup: "VM backup", api.KindVMRestore: "VM restore", api.KindAgentUpdate: "Agent update",
 		api.KindCopy: "Backup copy", api.KindVerify: "Restore test",
 	}[k]
 }

@@ -100,6 +100,10 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
+	if run.Kind == api.KindAgentUpdate {
+		ar := &api.Run{ID: run.ID, Kind: run.Kind}
+		return ar, s.addUpdate(run, ar)
+	}
 	if run.TargetID == nil {
 		return nil, errors.New("storage target was deleted")
 	}

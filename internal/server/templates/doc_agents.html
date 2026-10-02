@@ -34,7 +34,13 @@ systemctl enable --now backupzit-agent</pre>
 <p>The <b>IP addresses</b> column lists the machine's own addresses as the agent last reported them. <i>Seen from</i> is the address its connections arrive from: on a local network the same address, for a machine behind NAT (e.g. a laptop at home) the router's public address. The console does not ask any external service for it.</p>
 
 <h2>Upgrading</h2>
-<p>Install the newer MSI / package over the old one; the enrollment is kept. Installers are offered under <i>Downloads</i> on the Agents page.</p>
+<p>When the console has a newer agent installer than an agent runs, the Agents page shows <b>Update to x.y.z</b> next to its version, and <b>Update all agents</b> below the list. The agent then:</p>
+<ol>
+  <li>waits until it is idle (a running backup is never interrupted),</li>
+  <li>downloads the matching installer from the console over its pinned connection — the MSI for Windows 10/11/2016+, the <i>older systems</i> MSI for Windows 7/2008 R2/2012 R2, the deb or rpm package on Linux — and checks its SHA-256,</li>
+  <li>installs it and restarts; the new version appears in the list within a few minutes. The enrollment and all settings are kept.</li>
+</ol>
+<p>The console offers the newest installers in its <code>dist</code> directory; the server package ships the agent installers of its own version. Updates from the console work for agents from version 0.21 on; older agents are updated once by installing the newer MSI / package over the old one (the enrollment is kept). The installer log is in <code>C:\ProgramData\backupzit\updates</code> or <code>/var/tmp/backupzit-updates</code>.</p>
 
 <h2>Removing an agent</h2>
 <p><b>Remove</b> on the Agents page deletes the agent and its jobs from the console. Backups on the storage are <b>not</b> deleted. Uninstall the software on the machine separately.</p>
