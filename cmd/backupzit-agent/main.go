@@ -151,6 +151,9 @@ func main() {
 func run(ctx context.Context, args []string) error {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
 		fmt.Printf(usage, version)
+		if len(args) == 0 {
+			pauseIfStandalone()
+		}
 		return nil
 	}
 	cmd, rest := args[0], args[1:]

@@ -11,7 +11,6 @@
       <dt>Sign-in</dt><dd>{{if eq .Source "ldap"}}Directory (LDAP){{else}}Local account{{end}}</dd>
       <dt>Role</dt><dd><span class="badge role-{{.Role}}">{{$.Data.Role.Name}}</span></dd>
       <dt>Two-factor</dt><dd>{{if .TwoFactor}}<span class="badge success"><i></i>on</span>{{else}}<span class="badge warning"><i></i>off</span>{{end}} <a href="/account/2fa">Manage</a></dd>
-      <dt>Two-factor</dt><dd>{{if .TwoFactor}}<span class="badge success"><i></i>on</span>{{else}}<span class="badge warning"><i></i>off</span>{{end}} <a href="/account/2fa">Manage</a></dd>
     </dl>
     <p class="muted mt">{{$.Data.Role.Description}}</p>
     <ul class="perm-list">{{range $.Data.Perms}}<li class="{{if $.Data.Role.Has .Perm}}yes{{else}}no{{end}}">{{.Name}}</li>{{end}}</ul>

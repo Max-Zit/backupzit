@@ -7,6 +7,11 @@ fi
 mkdir -p /var/lib/backupzit/dist
 chown -R backupzit:backupzit /var/lib/backupzit
 chmod 750 /var/lib/backupzit
+# Offer the bundled agent installers for download (keeps older ones).
+if [ -d /usr/share/backupzit/dist ]; then
+    cp -f /usr/share/backupzit/dist/* /var/lib/backupzit/dist/ 2>/dev/null || true
+    chown -R backupzit:backupzit /var/lib/backupzit/dist
+fi
 chown root:backupzit /etc/backupzit/server.env
 chmod 640 /etc/backupzit/server.env
 if command -v systemctl >/dev/null 2>&1; then

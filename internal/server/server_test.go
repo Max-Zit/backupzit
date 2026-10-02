@@ -1290,6 +1290,9 @@ func TestTwoFactor(t *testing.T) {
 	if !ana.login("ana", "correct-horse-9") {
 		t.Fatal("login without 2FA")
 	}
+	if _, _, acc := ana.do("GET", "/account", nil); strings.Count(acc, "Two-factor</dt>") != 1 {
+		t.Error("account page shows the two-factor row more than once")
+	}
 	_, _, page := ana.do("GET", "/account/2fa", nil)
 	m := regexp.MustCompile(`<code class="secret">([A-Z2-7 ]+)</code>`).FindStringSubmatch(page)
 	if m == nil || !strings.Contains(page, `<svg class="qr"`) {

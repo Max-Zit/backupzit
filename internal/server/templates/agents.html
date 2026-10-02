@@ -50,8 +50,16 @@ backupzit-agent service start</pre>
   <div class="panel">
     <h2>Downloads</h2>
     {{if .Data.Downloads}}
-    <table>{{range .Data.Downloads}}<tr><td><a href="/downloads/{{.Name}}">{{.Name}}</a></td><td class="muted">{{.Size}}</td></tr>{{end}}</table>
-    {{else}}<p class="muted">No agent packages found in the server's dist directory.</p>{{end}}
+    <ul class="dl-list">
+      {{range .Data.Downloads}}
+      <li class="{{if .Primary}}primary{{end}}">
+        <a href="/downloads/{{.Name}}" class="btn {{if not .Primary}}secondary-link{{end}}">{{template "icon" "download"}}{{.Title}}</a>
+        <div><span class="muted small">{{.Desc}}</span><br><span class="mono small">{{.Name}} · {{.Size}}</span></div>
+      </li>
+      {{end}}
+    </ul>
+    <p class="muted small mt">Install the MSI on Windows (double-click, or silently with the command shown after <i>Create enrollment token</i>); it installs the agent as a service.</p>
+    {{else}}<p class="muted">No agent installers found. Place the MSI, deb and rpm packages in the server's <code>dist</code> directory (<code>/var/lib/backupzit/dist</code>).</p>{{end}}
   </div>
 </div>
 {{end}}

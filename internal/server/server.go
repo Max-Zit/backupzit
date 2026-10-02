@@ -17,9 +17,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -554,27 +552,6 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request, user st
 
 // ---- agents
 
-type download struct {
-	Name, Size string
-}
-
-func (s *Server) downloads() []download {
-	var out []download
-	if s.DistDir == "" {
-		return nil
-	}
-	entries, err := os.ReadDir(s.DistDir)
-	if err != nil {
-		return nil
-	}
-	for _, e := range entries {
-		if fi, err := e.Info(); err == nil && fi.Mode().IsRegular() {
-			out = append(out, download{Name: e.Name(), Size: humanBytes(uint64(fi.Size()))})
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out
-}
 
 type enrollInfo struct {
 	Token       string

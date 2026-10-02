@@ -26,6 +26,19 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "build failed" }
 } finally { Pop-Location }
 
+# Offer the installers built in dist\ on the Agents page.
+$offer = Join-Path $data "dist"
+New-Item -ItemType Directory -Force $offer | Out-Null
+foreach ($pattern in "backupzit-agent-*.msi", "backupzit-agent_*.deb", "backupzit-agent-*.rpm", "backupzit-repo_*.deb", "backupzit-repo-*.rpm") {
+    foreach ($legacy in $true, $false) {
+        Get-ChildItem (Join-Path $root "dist") -Filter $pattern -ErrorAction SilentlyContinue |
+            Where-Object { ($_.Name -like "*-legacy*") -eq $legacy } |
+            Sort-Object LastWriteTime | Select-Object -Last 1 | Copy-Item -Destination $offer -Force
+    }
+}
+Push-Location $root
+try { go build -ldflags "-X main.version=$Version" -o (Join-Path $offer "backupzit-agent.exe") ./cmd/backupzit-agent } finally { Pop-Location }
+
 $env:BACKUPZIT_ADMIN_PASSWORD = "admin123"
 Start-Process -FilePath (Join-Path $root "bin\backupzit-server.exe") -WorkingDirectory $root -WindowStyle Hidden `
     -RedirectStandardOutput (Join-Path $data "server.log") -RedirectStandardError (Join-Path $data "server.err") `

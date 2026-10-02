@@ -23,7 +23,6 @@
         <dt>Created</dt><dd>{{ts .CreatedAt}}</dd>
         <dt>Last sign-in</dt><dd>{{if .LastLogin}}{{ts .LastLogin}}{{else}}never{{end}}</dd>
         <dt>Two-factor</dt><dd>{{if .TwoFactor}}<span class="badge success"><i></i>on</span>{{else}}<span class="badge"><i></i>off</span>{{end}}</dd>
-        <dt>Two-factor</dt><dd>{{if .TwoFactor}}<span class="badge success"><i></i>on</span>{{else}}<span class="badge"><i></i>off</span>{{end}}</dd>
       </dl>
       <div><button>Save</button></div>
     </form>
@@ -46,13 +45,6 @@
     <div class="panel">
       <h2>Two-factor authentication</h2>
       <p class="muted">If the user lost their phone and recovery codes, reset it; they can sign in with the password and set it up again.</p>
-      <form method="post" action="/users/{{.ID}}/2fa-reset" data-confirm="Reset two-factor authentication of {{.Username}}?"><button class="secondary">Reset two-factor</button></form>
-    </div>
-    {{end}}
-    {{if .TwoFactor}}
-    <div class="panel">
-      <h2>Two-factor authentication</h2>
-      <p class="muted">If the user lost their phone and recovery codes, reset it; they sign in with the password and set it up again.</p>
       <form method="post" action="/users/{{.ID}}/2fa-reset" data-confirm="Reset two-factor authentication of {{.Username}}?"><button class="secondary">Reset two-factor</button></form>
     </div>
     {{end}}

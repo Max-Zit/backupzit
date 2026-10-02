@@ -10,7 +10,11 @@
     wix extension add -g WixToolset.Util.wixext/5.0.2
 #>
 param(
-    [Parameter(Mandatory = $true)][string]$Version
+    [Parameter(Mandatory = $true)][string]$Version,
+    # Build for Windows 7 / Server 2008 R2 / 2012 R2 with the go-legacy-win7
+    # toolchain (Go dropped those systems after 1.20). Path from
+    # BACKUPZIT_LEGACY_GO or tools-legacy next to the repository.
+    [switch]$Legacy
 )
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -26,12 +30,21 @@ Push-Location $root
 try {
     $env:GOOS = "windows"; $env:GOARCH = "amd64"; $env:CGO_ENABLED = "0"
     $exe = Join-Path $work "backupzit-agent.exe"
-    go build -trimpath -ldflags "-s -w -X main.version=$Version" -o $exe ./cmd/backupzit-agent
+    $go = "go"
+    $suffix = ""
+    if ($Legacy) {
+        $go = $env:BACKUPZIT_LEGACY_GO
+        if (-not $go) { $go = [IO.Path]::Combine($root, "..", "tools-legacy", "go-legacy-win7", "bin", "go.exe") }
+        if (-not (Test-Path $go)) { throw "legacy Go toolchain not found: $go (https://github.com/thongtech/go-legacy-win7)" }
+        $env:GOTOOLCHAIN = "local"
+        $suffix = "-legacy"
+    }
+    & $go build -trimpath -ldflags "-s -w -X main.version=$Version$suffix" -o $exe ./cmd/backupzit-agent
     if ($LASTEXITCODE -ne 0) { throw "go build failed" }
 
     $wix = Join-Path $env:USERPROFILE ".dotnet\tools\wix.exe"
     if (-not (Test-Path $wix)) { $wix = "wix" }
-    $msi = Join-Path $dist "backupzit-agent-$Version-x64.msi"
+    $msi = Join-Path $dist "backupzit-agent-$Version-x64$suffix.msi"
     & $wix build -ext WixToolset.Util.wixext -arch x64 -d "Version=$msiVersion" -d "AgentExe=$exe" -o $msi (Join-Path $PSScriptRoot "agent.wxs")
     if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
     Remove-Item (Join-Path $dist "*.wixpdb") -ErrorAction SilentlyContinue
@@ -39,5 +52,5 @@ try {
 }
 finally {
     Pop-Location
-    Remove-Item Env:GOOS, Env:GOARCH, Env:CGO_ENABLED -ErrorAction SilentlyContinue
+    Remove-Item Env:GOOS, Env:GOARCH, Env:CGO_ENABLED, Env:GOTOOLCHAIN -ErrorAction SilentlyContinue
 }

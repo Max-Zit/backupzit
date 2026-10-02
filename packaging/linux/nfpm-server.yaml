@@ -13,6 +13,8 @@ license: AGPL-3.0-only
 recommends:
   - postgresql
 contents:
+  - src: ./bin/linux/agents/*
+    dst: /usr/share/backupzit/dist/
   - src: ./bin/linux/backupzit-server
     dst: /usr/bin/backupzit-server
     file_info:
