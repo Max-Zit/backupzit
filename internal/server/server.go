@@ -671,6 +671,19 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 			}
 		}
 	}
+	if t.Kind == "azure" {
+		u, err := azureLocation(r.FormValue("azure_account"), r.FormValue("azure_container"), r.FormValue("azure_path"), r.FormValue("azure_endpoint"))
+		if err != nil {
+			redirectErr(w, r, "/targets", err)
+			return
+		}
+		t.URL = u
+		if r.FormValue("azure_auth") == "sas" {
+			t.AzureSAS = strings.TrimPrefix(strings.TrimSpace(r.FormValue("azure_secret")), "?")
+		} else {
+			t.AzureKey = strings.TrimSpace(r.FormValue("azure_secret"))
+		}
+	}
 	if t.Kind == "hardened" {
 		u, err := hardenedLocation(r.FormValue("hardened_host"), r.FormValue("hardened_path"))
 		if err != nil {

@@ -65,6 +65,9 @@ type Options struct {
 	S3LockDays  int
 	SMBPassword string
 	SMBDomain   string
+	// AzureKey (storage account key) or AzureSAS authenticate Azure Blob Storage.
+	AzureKey string
+	AzureSAS string
 	// HardenedKey and HardenedFingerprint authenticate a hardened repository.
 	HardenedKey         string
 	HardenedFingerprint string // pinned TLS certificate, "SHA256:..."
@@ -80,6 +83,7 @@ type Options struct {
 //	s3://endpoint[:port]/bucket[/prefix]   -> S3 (?tls=false for plain HTTP)
 //	smb://[domain;]user@host/share[/path]  -> SMB2/3 share
 //	hardened://host[:port]/path             -> backupzit hardened repository
+//	azure://account/container[/prefix]     -> Azure Blob Storage
 func Open(ctx context.Context, location string, opts Options) (Backend, error) {
 	switch {
 	case strings.HasPrefix(location, "sftp://"):
@@ -100,6 +104,12 @@ func Open(ctx context.Context, location string, opts Options) (Backend, error) {
 			return nil, fmt.Errorf("parse smb url: %w", err)
 		}
 		return OpenSMB(ctx, u, opts)
+	case strings.HasPrefix(location, "azure://"):
+		u, err := url.Parse(location)
+		if err != nil {
+			return nil, fmt.Errorf("parse azure url: %w", err)
+		}
+		return OpenAzure(ctx, u, opts)
 	case strings.HasPrefix(location, "hardened://"):
 		u, err := url.Parse(location)
 		if err != nil {

@@ -126,6 +126,8 @@ type Repository struct {
 	S3LockDays          int    `json:"s3_lock_days,omitempty"`
 	SMBPassword         string `json:"smb_password,omitempty"`
 	SMBDomain           string `json:"smb_domain,omitempty"`
+	AzureKey            string `json:"azure_key,omitempty"`
+	AzureSAS            string `json:"azure_sas,omitempty"`
 	HardenedKey         string `json:"hardened_key,omitempty"`
 	HardenedFingerprint string `json:"hardened_fingerprint,omitempty"`
 	// Password unlocks (or, for a new repository, encrypts) the repository.

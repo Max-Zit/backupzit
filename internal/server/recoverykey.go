@@ -49,7 +49,7 @@ func recoverySheet(t Target, now time.Time) string {
 		"Restoring without the BackupZit server:\r\n" +
 		"  set BACKUPZIT_PASSWORD=<recovery key>\r\n" +
 		"  (plus the storage credentials, e.g. BACKUPZIT_SFTP_PASSWORD, BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, BACKUPZIT_SMB_PASSWORD,\r\n" +
-		"   BACKUPZIT_HARDENED_KEY + BACKUPZIT_HARDENED_FINGERPRINT)\r\n" +
+		"   BACKUPZIT_HARDENED_KEY + BACKUPZIT_HARDENED_FINGERPRINT, BACKUPZIT_AZURE_KEY)\r\n" +
 		"  backupzit-agent snapshots --repo <location>/<hostname>_<id>\r\n" +
 		"  backupzit-agent restore --repo <location>/<hostname>_<id> --target C:\\Restore latest\r\n")
 	if t.S3LockDays > 0 {

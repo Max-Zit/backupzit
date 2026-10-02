@@ -144,6 +144,8 @@ func (s *Store) encryptTarget(t *Target) {
 	t.SMBPassword = s.box.seal(ctxTarget+"smb_password", t.SMBPassword)
 	t.HardenedKey = s.box.seal(ctxTarget+"hardened_key", t.HardenedKey)
 	t.RecoveryKey = s.box.seal(ctxTarget+"repo_password", t.RecoveryKey)
+	t.AzureKey = s.box.seal(ctxTarget+"azure_key", t.AzureKey)
+	t.AzureSAS = s.box.seal(ctxTarget+"azure_sas", t.AzureSAS)
 }
 
 func (s *Store) decryptTarget(t *Target) error {
@@ -154,6 +156,7 @@ func (s *Store) decryptTarget(t *Target) error {
 	}{
 		{"sftp_password", &t.SFTPPassword}, {"sftp_key", &t.SFTPKey}, {"s3_secret_key", &t.S3SecretKey},
 		{"smb_password", &t.SMBPassword}, {"hardened_key", &t.HardenedKey}, {"repo_password", &t.RecoveryKey},
+		{"azure_key", &t.AzureKey}, {"azure_sas", &t.AzureSAS},
 	} {
 		if *f.v, err = s.box.open(ctxTarget+f.col, *f.v); err != nil {
 			return err

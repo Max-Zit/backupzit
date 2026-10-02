@@ -25,6 +25,7 @@
       <select name="kind" id="kind">
         <option value="sftp">SFTP</option>
         <option value="s3">S3 compatible (AWS, Wasabi, Backblaze B2, MinIO, …)</option>
+        <option value="azure">Azure Blob Storage</option>
         <option value="hardened">Hardened repository (backupzit-repo on Linux, immutable)</option>
         <option value="smb">SMB share (Windows server, NAS)</option>
         <option value="local">Local / mounted path (on the agent machine)</option>
@@ -53,6 +54,27 @@
       </div>
       <label>Domain <small>optional, for domain accounts</small><input name="smb_domain"></label>
       <small class="muted">Agents connect with these credentials themselves (SMB 2/3), so the share does not need to be mapped on the machines.</small>
+    </div>
+    <div data-kind="azure" hidden class="stack">
+      <div class="row">
+        <label>Storage account <small>e.g. contosobackups</small><input name="azure_account" placeholder="contosobackups"></label>
+        <label>Container <small>create it first in the Azure portal</small><input name="azure_container" placeholder="backups"></label>
+      </div>
+      <label>Folder in container <small>optional</small><input name="azure_path" placeholder="backupzit"></label>
+      <div class="row">
+        <label>Authentication
+          <select name="azure_auth">
+            <option value="key">Storage account access key</option>
+            <option value="sas">SAS token (read, write, delete, list)</option>
+          </select>
+        </label>
+        <label>Key or SAS token <input name="azure_secret" type="password" autocomplete="new-password"></label>
+      </div>
+      <details>
+        <summary>Advanced</summary>
+        <label>Endpoint <small>only for Azure Government/China, Azure Stack or the Azurite emulator, e.g. http://10.0.0.5:10000/devstoreaccount1</small><input name="azure_endpoint"></label>
+      </details>
+      <small class="muted">For ransomware protection, enable <i>version-level immutability</i> (a time-based retention policy) on the container in Azure; deleted or overwritten backups then remain recoverable.</small>
     </div>
     <div data-kind="s3" hidden class="stack">
       <div class="row">

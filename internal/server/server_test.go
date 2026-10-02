@@ -1594,3 +1594,27 @@ func TestRESTAPI(t *testing.T) {
 		t.Error("API actions missing from audit log")
 	}
 }
+
+func TestAzureTarget(t *testing.T) {
+	e := setup(t)
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	if _, loc, _ := admin.do("POST", "/targets", url.Values{"name": {"bad"}, "kind": {"azure"}, "azure_account": {"Bad_Name"}, "azure_container": {"backups"}, "azure_secret": {"k"}}); !strings.Contains(loc, "err=") {
+		t.Error("invalid account accepted")
+	}
+	_, loc, _ := admin.do("POST", "/targets", url.Values{"name": {"azure"}, "kind": {"azure"}, "azure_account": {"contosobackups"},
+		"azure_container": {"backups"}, "azure_path": {"office"}, "azure_auth": {"sas"}, "azure_secret": {"?sv=2024&sig=SECRET"},
+		"azure_endpoint": {"http://10.0.0.5:10000/devstoreaccount1"}, "encrypted": {"on"}})
+	if !strings.Contains(loc, "msg=") {
+		t.Fatalf("create: %s", loc)
+	}
+	ts, _ := e.store.ListTargets(e.ctx)
+	if len(ts) != 1 || ts[0].URL != "azure://contosobackups/backups/office?endpoint=http%3A%2F%2F10.0.0.5%3A10000%2Fdevstoreaccount1" || ts[0].AzureSAS != "sv=2024&sig=SECRET" {
+		t.Fatalf("target: %+v", ts)
+	}
+	var raw string
+	e.pool.QueryRow(e.ctx, `SELECT azure_sas FROM storage_targets`).Scan(&raw)
+	if strings.Contains(raw, "SECRET") {
+		t.Error("SAS token stored in plaintext")
+	}
+}

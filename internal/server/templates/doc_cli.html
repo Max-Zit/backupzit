@@ -11,6 +11,7 @@
   <tr><td><code>s3://endpoint/bucket/prefix</code> (<code>?tls=false</code> for HTTP)</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>, <code>BACKUPZIT_S3_SECRET_KEY</code>, <code>--s3-region</code></td></tr>
   <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code></td></tr>
   <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>, <code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
+  <tr><td><code>azure://account/container/path</code></td><td><code>BACKUPZIT_AZURE_KEY</code> or <code>BACKUPZIT_AZURE_SAS</code></td></tr>
 </table>
 <p>Encrypted repositories need the recovery key in <code>BACKUPZIT_PASSWORD</code>.</p>
 

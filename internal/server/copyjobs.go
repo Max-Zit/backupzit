@@ -96,6 +96,8 @@ func targetRepository(t Target, url string) api.Repository {
 		SMBDomain:           t.SMBDomain,
 		HardenedKey:         t.HardenedKey,
 		HardenedFingerprint: t.HardenedFingerprint,
+		AzureKey:            t.AzureKey,
+		AzureSAS:            t.AzureSAS,
 		Password:            t.RecoveryKey,
 	}
 }

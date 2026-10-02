@@ -17,7 +17,7 @@ connect to it over HTTPS.
 2. **Management console** — agent registration, jobs, schedules, history, restore, agent downloads; Windows MSI and Linux packages ✅ (first version)
 3. **Windows image backup** — VSS snapshots ✅, whole-disk / partition images ✅, file-level restore from images ✅
 4. **Bare-metal restore** — image restore to an empty disk ✅ (verified booting); boot media, dissimilar hardware
-5. **More targets** — S3 ✅, SMB ✅; retention policies ✅; email notifications ✅
+5. **More targets** — S3 ✅ (incl. Google Cloud Storage), SMB ✅, Azure Blob ✅; retention policies ✅; email notifications ✅
 6. **Security** — encryption ✅, immutable repositories (S3 Object Lock ✅, hardened Linux repository ✅), encrypted secrets in the console database
 7. **Hypervisor (agentless) backup** — Proxmox, VMware
 8. **Users** — local accounts, roles (Administrator, Backup operator, Restore operator, Viewer), LDAPS/Active Directory sign-in, audit log ✅; reports, calendar, in-console documentation ✅
@@ -84,6 +84,7 @@ Repository locations:
 - `sftp://user@host[:port]/path` — SFTP (`/~/path` for a path relative to the home directory)
 - `smb://[domain;]user@host/share[/path]` — SMB 2/3 share (Windows server, NAS, Samba); password via `BACKUPZIT_SMB_PASSWORD`
 - `s3://endpoint[:port]/bucket[/prefix]` — S3 compatible storage (AWS, Wasabi, Backblaze B2, MinIO, …); add `?tls=false` for plain HTTP. Credentials via `BACKUPZIT_S3_ACCESS_KEY` / `BACKUPZIT_S3_SECRET_KEY`
+- `azure://account/container[/path]` — Azure Blob Storage; key via `BACKUPZIT_AZURE_KEY` or SAS token via `BACKUPZIT_AZURE_SAS`; `?endpoint=URL` for Azure Stack/sovereign clouds/Azurite
 - `hardened://host[:port]/path` — BackupZit hardened repository (port 8500 by default); access key via `BACKUPZIT_HARDENED_KEY`, certificate pin via `BACKUPZIT_HARDENED_FINGERPRINT`
 
 SFTP authentication: `--sftp-password` (or `BACKUPZIT_SFTP_PASSWORD`) and/or

@@ -6,7 +6,8 @@
 <table>
   <tr><th>Type</th><th>Good for</th><th>Notes</th></tr>
   <tr><td><b>SFTP</b></td><td>Any Linux server or NAS with SSH</td><td>Encrypted transport; the server's host key is pinned.</td></tr>
-  <tr><td><b>S3 compatible</b></td><td>Off-site / cloud copies: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph</td><td>Supports immutability with Object Lock.</td></tr>
+  <tr><td><b>S3 compatible</b></td><td>Off-site / cloud copies: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph, Google Cloud Storage</td><td>Supports immutability with Object Lock.</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>Off-site copies for Microsoft-centric companies</td><td>Account key or SAS token; immutability via Azure's version-level immutability policies.</td></tr>
   <tr><td><b>SMB share</b></td><td>Windows file servers, Synology/QNAP NAS</td><td>SMB 2/3; agents log in themselves, no drive mapping needed.</td></tr>
   <tr><td><b>Hardened repository</b></td><td>Ransomware-proof on-premises storage</td><td>A Linux server running <code>backupzit-repo</code>; backups cannot be deleted before their immutability period ends.</td></tr>
   <tr><td><b>Local / mounted path</b></td><td>A USB disk, second disk, or an NFS/iSCSI volume mounted on the agent</td><td>Path as seen by the agent, e.g. <code>E:\Backups</code> or <code>/mnt/backup</code>.</td></tr>
@@ -23,6 +24,22 @@
 <h3>Immutable backups (Object Lock)</h3>
 <p>Create the bucket with <b>Object Lock enabled</b> and tick <i>Immutable backups … for N days</i>. Every file the agents write is locked in <b>compliance mode</b> for N days (+1 day margin): nobody — not an attacker with the keys, not the bucket owner — can delete or overwrite it before then. After each backup, data reused from older backups gets its lock extended, so every restore point is protected for the full period.</p>
 <p>Deleting (by retention or by an attacker) only adds a "delete marker". Add a lifecycle rule that expires <i>noncurrent versions</i> after one day, so space is freed once locks end. See <a href="/docs/ransomware">Ransomware protection</a>.</p>
+
+<h3>Google Cloud Storage</h3>
+<p>Google Cloud Storage works as an S3 compatible target through its <i>interoperability</i> API:</p>
+<ol>
+  <li>In the Google Cloud console open <i>Cloud Storage → Settings → Interoperability</i> and create an <b>HMAC key</b> for a service account that has the <i>Storage Object Admin</i> role on the bucket.</li>
+  <li>Add an S3 target with endpoint <code>storage.googleapis.com</code>, the bucket name, the HMAC access key and secret, and region <code>auto</code>.</li>
+</ol>
+<p>The S3 Object Lock option is not available on Google Cloud Storage; for immutability set a <i>bucket retention policy</i> (and lock it) in Google Cloud. Deleted backups then remain until the retention period ends.</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>In the Azure portal create a <b>storage account</b> (StorageV2, any redundancy) and a <b>container</b>, e.g. <code>backups</code>.</li>
+  <li>Add an <i>Azure Blob Storage</i> target with the account name, container and optional folder.</li>
+  <li>Authenticate with an <b>access key</b> (<i>Storage account → Access keys</i>) or, more restricted, a <b>SAS token</b> for the container with read, write, delete and list permissions and a suitable expiry.</li>
+</ol>
+<p>For ransomware protection enable <b>version-level immutability</b> with a time-based retention policy on the container; deleted or overwritten backups then remain recoverable for that time. The <i>Advanced</i> endpoint field is only needed for Azure Government/China, Azure Stack Hub or the Azurite emulator.</p>
 
 <h2>SMB share</h2>
 <p>Server, share, optional folder, user, password and (for domain accounts) the domain. Agents connect with these credentials themselves, so it works for services running as SYSTEM.</p>

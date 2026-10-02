@@ -89,6 +89,8 @@ func addRepoFlags(fs *flag.FlagSet) *repoFlags {
 	fs.StringVar(&rf.opts.HardenedFingerprint, "hardened-fingerprint", os.Getenv("BACKUPZIT_HARDENED_FINGERPRINT"), "hardened repository certificate fingerprint (SHA256:...)")
 	fs.StringVar(&rf.opts.SMBPassword, "smb-password", os.Getenv("BACKUPZIT_SMB_PASSWORD"), "SMB password (prefer the environment variable)")
 	fs.StringVar(&rf.opts.SMBDomain, "smb-domain", os.Getenv("BACKUPZIT_SMB_DOMAIN"), "SMB domain")
+	fs.StringVar(&rf.opts.AzureKey, "azure-key", os.Getenv("BACKUPZIT_AZURE_KEY"), "Azure storage account key (prefer the environment variable)")
+	fs.StringVar(&rf.opts.AzureSAS, "azure-sas", os.Getenv("BACKUPZIT_AZURE_SAS"), "Azure SAS token (prefer the environment variable)")
 	return rf
 }
 

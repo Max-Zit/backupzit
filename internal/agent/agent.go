@@ -308,7 +308,8 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 	opts := backend.Options{SFTPPassword: rs.SFTPPassword, SFTPHostKey: rs.SFTPHostKey,
 		S3AccessKey: rs.S3AccessKey, S3SecretKey: rs.S3SecretKey, S3Region: rs.S3Region, S3LockDays: rs.S3LockDays,
 		SMBPassword: rs.SMBPassword, SMBDomain: rs.SMBDomain,
-		HardenedKey: rs.HardenedKey, HardenedFingerprint: rs.HardenedFingerprint}
+		HardenedKey: rs.HardenedKey, HardenedFingerprint: rs.HardenedFingerprint,
+		AzureKey: rs.AzureKey, AzureSAS: rs.AzureSAS}
 	var cleanup = func() {}
 	if rs.SFTPKey != "" {
 		f, err := os.CreateTemp("", "bz-key-*")

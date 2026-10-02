@@ -76,6 +76,7 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 		S3AccessKey: t.S3AccessKey, S3SecretKey: t.S3SecretKey, S3Region: t.S3Region, S3LockDays: t.S3LockDays,
 		SMBPassword: t.SMBPassword, SMBDomain: t.SMBDomain,
 		HardenedKey: t.HardenedKey, HardenedFingerprint: t.HardenedFingerprint,
+		AzureKey: t.AzureKey, AzureSAS: t.AzureSAS,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("connect to storage: %w", err)

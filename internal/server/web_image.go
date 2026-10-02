@@ -153,3 +153,31 @@ func smbLocation(host, share, dir, user string) (string, error) {
 	}
 	return u.String(), nil
 }
+
+var azureName = regexp.MustCompile(`^[a-z0-9]{3,24}$`)
+var azureContainer = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9]|-[a-z0-9]){2,62}$`)
+
+// azureLocation builds azure://account/container/folder[?endpoint=...].
+func azureLocation(account, container, dir, endpoint string) (string, error) {
+	account = strings.ToLower(strings.TrimSpace(account))
+	container = strings.ToLower(strings.TrimSpace(container))
+	dir = strings.Trim(strings.ReplaceAll(strings.TrimSpace(dir), `\`, "/"), "/")
+	if !azureName.MatchString(account) {
+		return "", errors.New("storage account names have 3-24 lowercase letters and digits")
+	}
+	if !azureContainer.MatchString(container) {
+		return "", errors.New("container names have 3-63 lowercase letters, digits and single hyphens")
+	}
+	loc := "azure://" + account + "/" + container
+	if dir != "" {
+		loc += "/" + dir
+	}
+	if endpoint = strings.TrimSpace(endpoint); endpoint != "" {
+		eu, err := url.Parse(endpoint)
+		if err != nil || (eu.Scheme != "https" && eu.Scheme != "http") || eu.Host == "" {
+			return "", errors.New("the endpoint must be a URL such as https://account.blob.core.usgovcloudapi.net")
+		}
+		loc += "?" + url.Values{"endpoint": {strings.TrimRight(endpoint, "/")}}.Encode()
+	}
+	return loc, nil
+}
