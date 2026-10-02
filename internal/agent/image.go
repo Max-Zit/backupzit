@@ -47,6 +47,7 @@ func (a *Agent) imageBackup(ctx context.Context, run api.Run) api.RunResult {
 		Version:    a.version,
 		Tags:       []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
 		Progress: func(done, total uint64) {
+			a.progress(done, total, 0)
 			if time.Since(lastLog) > time.Minute {
 				lastLog = time.Now()
 				a.log.Info("imaging", "run", run.ID, "done", done, "total", total)

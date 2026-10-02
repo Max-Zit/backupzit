@@ -86,6 +86,7 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 		VMIDs: sel, Exclude: excl, Version: a.version,
 		Tags: []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
 		Progress: func(done, total uint64) {
+			a.progress(done, total, 0)
 			if time.Since(lastLog) > time.Minute {
 				lastLog = time.Now()
 				a.log.Info("vm backup", "run", run.ID, "done", done, "total", total)

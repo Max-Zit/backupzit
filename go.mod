@@ -3,6 +3,7 @@ module github.com/backupzit/backupzit
 go 1.27.0
 
 require (
+	fyne.io/systray v1.12.2
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.2
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.8.2
 	github.com/fergusstrange/embedded-postgres v1.34.0
@@ -10,6 +11,7 @@ require (
 	github.com/go-ole/go-ole v1.3.0
 	github.com/hirochachacha/go-smb2 v1.1.0
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	github.com/johannesboyne/gofakes3 v1.2.0
 	github.com/kardianos/service v1.3.0
 	github.com/klauspost/compress v1.20.1
@@ -37,11 +39,13 @@ require (
 	github.com/geoffgarside/ber v1.1.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
+	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/google/flatbuffers v25.12.19+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect

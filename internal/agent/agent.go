@@ -189,6 +189,9 @@ type Agent struct {
 	// inventoryAt is when the disk inventory was last sent.
 	inventoryAt time.Time
 	wg          sync.WaitGroup
+
+	localOnce sync.Once
+	ls        *localState
 }
 
 func New(cfg *Config, log *slog.Logger, version string) *Agent {
@@ -205,6 +208,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	host, osName, arch := hostInfo(a.version)
 	var resp api.PollResponse
 	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, IPs: localIPs()}
+	req.WantStatus = a.wantStatus()
 	invEvery := a.InventoryInterval
 	if invEvery <= 0 {
 		invEvery = inventoryInterval
@@ -215,6 +219,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 		req.Hypervisor = a.hypervisorInventory(ctx)
 	}
 	err := a.client.post(ctx, api.PathPoll, req, &resp, true)
+	a.recordPoll(err, resp.Status)
 	if err != nil {
 		return 30 * time.Second, err
 	}
@@ -265,12 +270,14 @@ func (a *Agent) Run(ctx context.Context) {
 			a.Wait()
 			return
 		case <-time.After(iv):
+		case <-a.local().pollNow:
 		}
 	}
 }
 
 func (a *Agent) execute(ctx context.Context, run api.Run) {
 	a.log.Info("run started", "run", run.ID, "kind", run.Kind, "job", run.JobName)
+	a.runStarted(run)
 	var res api.RunResult
 	var after func() // runs once the result is reported
 	switch run.Kind {
@@ -311,6 +318,7 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		}
 	}
 	a.log.Info("run finished", "run", run.ID, "status", res.Status, "message", res.Message, "errors", len(res.Errors))
+	a.runFinished(res)
 	// Report with a fresh context: the result must reach the server even
 	// when the agent is shutting down. Retry for a while on network errors.
 	for i := 0; i < 20; i++ {
@@ -386,6 +394,7 @@ func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
 		Version:  a.version,
 		Tags:     []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
 		VSS:      a.VSS,
+		Progress: func(_ string, s *repo.SnapshotStats) { a.progress(s.BytesRead, 0, s.Files) },
 	})
 	if err != nil {
 		return failed(err)

@@ -257,6 +257,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+api.PathEnroll, s.handleEnroll)
 	mux.HandleFunc("POST "+api.PathPoll, s.agentAuth(s.handlePoll))
 	mux.HandleFunc("GET "+api.PathDownloadPrefix+"{file}", s.agentAuth(s.handleAgentDownload))
+	mux.HandleFunc("POST "+api.PathJobRunPrefix+"{id}/run", s.agentAuth(s.handleAgentJobRun))
 	mux.HandleFunc("POST "+api.PathRunsPrefix+"{id}/finish", s.agentAuth(s.handleRunFinish))
 
 	// UI

@@ -1862,3 +1862,71 @@ func TestAgentUpdate(t *testing.T) {
 		t.Errorf("%d update runs, want 1", len(runs))
 	}
 }
+
+func TestTrayStatus(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	targetID, _ := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, _ := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	agents, _ := e.store.ListAgents(ctx)
+	ids := map[string]int64{}
+	for _, a := range agents {
+		ids[a.UUID] = a.ID
+	}
+	jobID, err := e.store.CreateJob(ctx, server.Job{AgentID: ids[cfg.AgentUUID], TargetID: targetID, Name: "Documents", Paths: []string{"/docs"}, Schedule: "0 22 * * *", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherJob, _ := e.store.CreateJob(ctx, server.Job{AgentID: ids[other.AgentUUID], TargetID: targetID, Name: "Other", Paths: []string{"/x"}, Enabled: true})
+
+	call := func(c *agent.Config, method, p string, body any) (*http.Response, []byte) {
+		b, _ := json.Marshal(body)
+		req, _ := http.NewRequest(method, e.ts.URL+p, bytes.NewReader(b))
+		req.Header.Set("Authorization", "Bearer "+c.AgentUUID+":"+c.Secret)
+		resp, err := e.ts.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return resp, out
+	}
+	// The status comes only when asked for, with this agent's jobs only.
+	_, out := call(cfg, "POST", api.PathPoll, api.PollRequest{Hostname: "pc", Busy: true})
+	var pr api.PollResponse
+	json.Unmarshal(out, &pr)
+	if pr.Status != nil {
+		t.Error("status sent without WantStatus")
+	}
+	_, out = call(cfg, "POST", api.PathPoll, api.PollRequest{Hostname: "pc", Busy: true, WantStatus: true})
+	pr = api.PollResponse{}
+	json.Unmarshal(out, &pr)
+	if pr.Status == nil || len(pr.Status.Jobs) != 1 || pr.Status.Jobs[0].Name != "Documents" || pr.Status.Jobs[0].NextRun == nil || pr.Status.Jobs[0].Running {
+		t.Fatalf("status: %s", out)
+	}
+	// "Back up now" works for the agent's own job only, once at a time.
+	if resp, _ := call(cfg, "POST", fmt.Sprintf("%s%d/run", api.PathJobRunPrefix, otherJob), struct{}{}); resp.StatusCode != 404 {
+		t.Errorf("agent started another agent's job: %d", resp.StatusCode)
+	}
+	if resp, out := call(cfg, "POST", fmt.Sprintf("%s%d/run", api.PathJobRunPrefix, jobID), struct{}{}); resp.StatusCode != 200 {
+		t.Fatalf("run now: %d %s", resp.StatusCode, out)
+	}
+	if resp, _ := call(cfg, "POST", fmt.Sprintf("%s%d/run", api.PathJobRunPrefix, jobID), struct{}{}); resp.StatusCode != 409 {
+		t.Errorf("second run now: %d", resp.StatusCode)
+	}
+	_, out = call(cfg, "POST", api.PathPoll, api.PollRequest{Hostname: "pc", Busy: true, WantStatus: true})
+	pr = api.PollResponse{}
+	json.Unmarshal(out, &pr)
+	if !pr.Status.Jobs[0].Running {
+		t.Errorf("queued job not shown as running: %s", out)
+	}
+	runs, _ := e.store.ListRuns(ctx, server.RunFilter{JobID: jobID})
+	if len(runs) != 1 || runs[0].Trigger != "agent" {
+		t.Errorf("runs: %+v", runs)
+	}
+}

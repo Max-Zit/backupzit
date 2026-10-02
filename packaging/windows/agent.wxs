@@ -45,6 +45,9 @@
       <RegistrySearch Id="EnrolledSearch" Root="HKLM" Key="SOFTWARE\BackupZit\Agent" Name="Enrolled" Type="raw" Bitness="always64" />
     </Property>
 
+    <!-- The tray app runs in user sessions; close it so its file can be replaced. -->
+    <util:CloseApplication Id="CloseTray" Target="backupzit-tray.exe" TerminateProcess="0" RebootPrompt="no" />
+
     <Launch Condition="VersionNT64" Message="This package requires 64-bit Windows." />
 
     <StandardDirectory Id="ProgramFiles64Folder">
@@ -67,6 +70,16 @@
           <!-- Make the CLI available in admin shells. -->
           <Environment Id="PathEntry" Name="PATH" Value="[INSTALLFOLDER]" Part="last" Action="set" System="yes" Permanent="no" />
           <RegistryValue Root="HKLM" Key="SOFTWARE\BackupZit\Agent" Name="InstallDir" Value="[INSTALLFOLDER]" Type="string" />
+        </Component>
+        <!-- Tray app: icon next to the clock with status and "Back up now". It starts
+             at every sign-in; the service also starts it in open sessions after
+             installation and updates. -->
+        <Component Id="TrayExe" Bitness="always64">
+          <File Id="TrayExeFile" Source="$(var.TrayExe)" Name="backupzit-tray.exe" KeyPath="yes">
+            <Shortcut Id="TrayShortcut" Directory="ProgramMenuFolder" Name="BackupZit Agent" Description="Status of this computer's backups"
+                      Arguments="--show" WorkingDirectory="INSTALLFOLDER" Icon="BackupZitIcon" Advertise="yes" />
+          </File>
+          <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run" Name="BackupZit Agent" Value="&quot;[INSTALLFOLDER]backupzit-tray.exe&quot;" Type="string" />
         </Component>
       </Directory>
     </StandardDirectory>

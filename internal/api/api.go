@@ -7,6 +7,7 @@ package api
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/backupzit/backupzit/internal/repo"
 )
@@ -46,6 +47,8 @@ type PollRequest struct {
 	// Busy is true while the agent is executing a run; the server then
 	// assigns no new work.
 	Busy bool `json:"busy"`
+	// WantStatus asks for the job summary shown by the tray app.
+	WantStatus bool `json:"want_status,omitempty"`
 	// IPs are the agent's own network addresses (no loopback).
 	IPs []string `json:"ips,omitempty"`
 	// Disks is the disk inventory (JSON array of imaging.Disk). Agents send
@@ -60,6 +63,9 @@ type PollRequest struct {
 type PollResponse struct {
 	Run             *Run `json:"run,omitempty"`
 	PollIntervalSec int  `json:"poll_interval_sec"`
+	// Status is sent when the agent asks for it (WantStatus), for the tray
+	// app on the machine.
+	Status *AgentStatus `json:"status,omitempty"`
 }
 
 // Run kinds.
@@ -199,4 +205,27 @@ type VMRestore struct {
 	Storage   string `json:"storage,omitempty"` // "" = original storage
 	Overwrite bool   `json:"overwrite,omitempty"`
 	Start     bool   `json:"start,omitempty"`
+}
+
+// PathJobRunPrefix lets an agent start one of its own jobs ("Back up now"
+// in the tray app): POST PathJobRunPrefix + "{id}/run".
+const PathJobRunPrefix = "/api/agent/jobs/"
+
+// AgentStatus summarises the agent's jobs for the tray app.
+type AgentStatus struct {
+	Jobs []JobStatus `json:"jobs"`
+}
+
+// JobStatus is one job in AgentStatus.
+type JobStatus struct {
+	ID           int64      `json:"id"`
+	Name         string     `json:"name"`
+	Kind         string     `json:"kind"`
+	Enabled      bool       `json:"enabled"`
+	Schedule     string     `json:"schedule"` // human readable
+	NextRun      *time.Time `json:"next_run,omitempty"`
+	LastStatus   string     `json:"last_status,omitempty"`
+	LastFinished *time.Time `json:"last_finished,omitempty"`
+	LastMessage  string     `json:"last_message,omitempty"`
+	Running      bool       `json:"running,omitempty"`
 }

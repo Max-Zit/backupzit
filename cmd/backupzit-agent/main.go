@@ -33,6 +33,7 @@ Usage:
 Managed mode (controlled by the BackupZit server):
   enroll         Register this machine with the management server
   service        install | uninstall | start | stop | status | run
+  status         Show what the running agent is doing and its backup jobs
   recovery       Recovery mode (started by the recovery ISO)
 
 Files and folders:
@@ -49,6 +50,9 @@ Disk images (Windows):
   image-restore  Write an image onto a disk (erases it)
   image-ls       List files inside an imaged partition
   image-extract  Copy files out of an imaged partition
+
+Proxmox VE (agent on the Proxmox host):
+  pve            list | backup | show | restore — VMs and containers
 
   version        Print version
 
@@ -180,6 +184,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdImageExtract(ctx, rest)
 	case "recovery":
 		return cmdRecovery(ctx, rest)
+	case "status":
+		return cmdStatus(ctx)
 	case "pve":
 		return cmdPVE(ctx, rest)
 	case "disks":

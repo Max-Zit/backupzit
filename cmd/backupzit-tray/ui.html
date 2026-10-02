@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BackupZit Agent</title>
+<style>
+:root {
+  --bg: #f4f5fb; --panel: #ffffff; --text: #111827; --muted: #6b7280; --line: #e5e7eb;
+  --brand: #4f46e5; --brand-2: #6366f1; --brand-soft: #eef2ff;
+  --ok: #16a34a; --ok-soft: #dcfce7; --run: #2563eb; --run-soft: #dbeafe;
+  --warn: #d97706; --warn-soft: #fef3c7; --err: #dc2626; --err-soft: #fee2e2; --off: #6b7280; --off-soft: #f3f4f6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1020; --panel: #121a2e; --text: #e5e7eb; --muted: #94a3b8; --line: #1f2a44;
+    --brand-soft: #1e1b4b; --ok-soft: #052e16; --run-soft: #0c1e4a; --warn-soft: #3a2506; --err-soft: #3b0d0d; --off-soft: #1f2937;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text);
+  -webkit-user-select: none; user-select: none; overflow: hidden; display: flex; flex-direction: column; }
+header { display: flex; align-items: center; gap: 12px; padding: 16px 24px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.logo { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--brand-2), var(--brand)); display: grid; place-items: center; }
+.brand { font-weight: 700; font-size: 17px; letter-spacing: -.01em; }
+.brand span { color: var(--brand-2); }
+.host { color: var(--muted); font-size: 12.5px; }
+.conn { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
+.dot.on { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+main { flex: 1; overflow: auto; padding: 20px 24px 8px; }
+.hero { display: flex; gap: 18px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+.badge { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.badge svg { width: 30px; height: 30px; }
+.s-ok .badge, .s-idle .badge { background: var(--ok-soft); color: var(--ok); }
+.s-running .badge { background: var(--run-soft); color: var(--run); }
+.s-warning .badge { background: var(--warn-soft); color: var(--warn); }
+.s-error .badge { background: var(--err-soft); color: var(--err); }
+.s-offline .badge { background: var(--off-soft); color: var(--off); }
+.s-running .badge svg { animation: spin 1.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.hero h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -.01em; }
+.hero p { margin: 3px 0 0; color: var(--muted); }
+.bar { height: 6px; border-radius: 3px; background: var(--line); margin-top: 10px; overflow: hidden; display: none; }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--brand-2), var(--run)); width: 0; transition: width .6s; }
+.s-running .bar { display: block; }
+.grow { flex: 1; min-width: 0; }
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
+.fact { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+.fact b { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+.fact span { display: block; margin-top: 3px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 2px 8px; font-weight: 650; }
+.jobs { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.job { display: grid; grid-template-columns: 1fr 190px 150px 128px; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); }
+.job:first-child { border-top: 0; }
+.job .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job .kind { color: var(--muted); font-size: 12.5px; }
+.job .col b { display: block; color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; }
+.pill.success { background: var(--ok-soft); color: var(--ok); }
+.pill.warning { background: var(--warn-soft); color: var(--warn); }
+.pill.failed { background: var(--err-soft); color: var(--err); }
+.pill.running { background: var(--run-soft); color: var(--run); }
+.empty { padding: 22px; color: var(--muted); text-align: center; }
+button { font: inherit; font-weight: 600; font-size: 13px; border: 0; border-radius: 9px; padding: 8px 14px; cursor: pointer;
+  background: var(--brand); color: #fff; transition: filter .15s, transform .05s; }
+button:hover { filter: brightness(1.08); }
+button:active { transform: translateY(1px); }
+button:disabled { opacity: .5; cursor: default; filter: none; }
+button.ghost { background: var(--brand-soft); color: var(--brand-2); }
+footer { display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-top: 1px solid var(--line); background: var(--panel); font-size: 12.5px; color: var(--muted); }
+footer .sp { flex: 1; }
+.err { color: var(--err); font-size: 12.5px; margin-top: 8px; min-height: 1em; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6"/></svg></div>
+  <div><div class="brand">Backup<span>Zit</span> Agent</div><div class="host" id="host">&nbsp;</div></div>
+  <div class="conn"><span class="dot" id="dot"></span><span id="conn">Connecting…</span></div>
+</header>
+<main>
+  <section class="hero s-offline" id="hero">
+    <div class="badge" id="badge"></div>
+    <div class="grow">
+      <h1 id="headline">Loading…</h1>
+      <p id="detail"></p>
+      <div class="bar"><i id="bar"></i></div>
+    </div>
+  </section>
+  <div class="facts">
+    <div class="fact"><b>Last backup</b><span id="last">—</span></div>
+    <div class="fact"><b>Next backup</b><span id="next">—</span></div>
+    <div class="fact"><b>Last activity</b><span id="activity">—</span></div>
+  </div>
+  <h2>Backup jobs of this computer</h2>
+  <div class="jobs" id="jobs"><div class="empty">Loading…</div></div>
+  <div class="err" id="err"></div>
+</main>
+<footer>
+  <span id="ver"></span><span class="sp"></span>
+  <span id="server"></span>
+  <button class="ghost" id="console">Open console</button>
+</footer>
+<script>
+const icons = {
+  ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z"/><path d="M8.5 12l2.4 2.4 4.6-4.8"/></svg>',
+  running: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>',
+  warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.5"/></svg>',
+  error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>',
+  offline: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0"/><path d="M12 19v.5M3 3l18 18"/></svg>'
+};
+icons.idle = icons.ok;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let busy = {};
+
+function render(s) {
+  const st = s.status || {};
+  $('hero').className = 'hero s-' + s.state;
+  $('badge').innerHTML = icons[s.state] || icons.ok;
+  $('headline').textContent = s.headline;
+  $('detail').textContent = s.detail;
+  $('bar').style.width = (s.percent >= 0 ? s.percent : 15) + '%';
+  $('last').textContent = s.last_text || '—';
+  $('next').textContent = s.next_text || '—';
+  $('activity').textContent = st.last ? (st.last.job || st.last.kind) + ' — ' + st.last.status : (st.current ? 'running now' : '—');
+  $('host').textContent = st.hostname ? 'This computer: ' + st.hostname : '';
+  $('dot').className = 'dot' + (st.connected ? ' on' : '');
+  $('conn').textContent = st.connected ? 'Connected to console' : (s.status ? 'Console not reachable' : 'Agent service not running');
+  $('server').textContent = st.server_url || '';
+  $('console').disabled = !st.server_url;
+  $('ver').textContent = st.version ? 'Agent ' + st.version : '';
+  const jobs = s.jobs || [];
+  if (!s.status) { $('jobs').innerHTML = '<div class="empty">The agent service is not running.</div>'; return; }
+  if (!jobs.length) { $('jobs').innerHTML = '<div class="empty">' + (st.jobs_at ? 'No backup jobs for this computer yet. Create one in the console.' : 'Loading jobs from the console…') + '</div>'; return; }
+  $('jobs').innerHTML = jobs.map(j => {
+    const last = j.running ? '<span class="pill running">running</span>' :
+      (j.last_status ? '<span class="pill ' + esc(j.last_status) + '">' + esc(j.last_status) + '</span> ' : '') + esc(j.last_text);
+    return '<div class="job"><div><div class="name" title="' + esc(j.last_message) + '">' + esc(j.name) + '</div><div class="kind">' + esc(j.kind_text) + ' · ' + esc(j.schedule) + '</div></div>' +
+      '<div class="col"><b>Last</b>' + last + '</div><div class="col"><b>Next</b>' + esc(j.next_text) + '</div>' +
+      '<div><button data-job="' + j.id + '"' + (j.running || busy[j.id] ? ' disabled' : '') + '>' + (j.running ? 'Running…' : 'Back up now') + '</button></div></div>';
+  }).join('');
+}
+
+window.bzUpdate = render;
+document.addEventListener('click', async e => {
+  const b = e.target.closest('button[data-job]');
+  if (b) {
+    const id = Number(b.dataset.job);
+    busy[id] = true; b.disabled = true; b.textContent = 'Starting…'; $('err').textContent = '';
+    const err = await window.bzRun(id);
+    if (err) { $('err').textContent = err; }
+    setTimeout(() => { delete busy[id]; }, 8000);
+  }
+  if (e.target.id === 'console') window.bzConsole();
+});
+document.addEventListener('contextmenu', e => e.preventDefault());
+(async () => { try { render(await window.bzStatus()); } catch (e) {} })();
+</script>
+</body>
+</html>

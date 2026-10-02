@@ -33,6 +33,19 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>The <b>IP addresses</b> column lists the machine's own addresses as the agent last reported them. <i>Seen from</i> is the address its connections arrive from: on a local network the same address, for a machine behind NAT (e.g. a laptop at home) the router's public address. The console does not ask any external service for it.</p>
 
+<h2>The agent on the desktop (Windows)</h2>
+<p>The Windows agent shows an icon next to the clock (it may be under the <b>^</b> arrow of hidden icons — drag it onto the taskbar to keep it visible). The dot on the icon shows the state:</p>
+<table>
+  <tr><th>Dot</th><th>Meaning</th></tr>
+  <tr><td>green</td><td>Backups are fine (or waiting for the first scheduled backup).</td></tr>
+  <tr><td>blue</td><td>A backup, restore or restore test is running.</td></tr>
+  <tr><td>orange</td><td>The last backup finished with warnings (files that could not be read).</td></tr>
+  <tr><td>red</td><td>A backup job failed.</td></tr>
+  <tr><td>grey</td><td>The console cannot be reached, or the agent service is not running.</td></tr>
+</table>
+<p>Click the icon (or open <b>BackupZit Agent</b> from the Start menu) for the status window: protection state, progress of a running backup, last and next backup, and all backup jobs of the computer with <b>Back up now</b>. Right-click for the menu: <i>Back up now</i> per job, <i>Open console in browser</i>, <i>Hide this icon</i> (until the next sign-in; backups continue). The window needs Microsoft Edge WebView2, which is part of Windows 10 and 11; on older systems the icon and menu work and <i>Open</i> shows the console in the browser.</p>
+<p>Users can start a backup of their computer this way; the jobs, schedules and retention are set only in the console. On any system, <code>backupzit-agent status</code> (as administrator or root) prints the same information.</p>
+
 <h2>Upgrading</h2>
 <p>When the console has a newer agent installer than an agent runs, the Agents page shows <b>Update to x.y.z</b> next to its version, and <b>Update all agents</b> below the list. The agent then:</p>
 <ol>

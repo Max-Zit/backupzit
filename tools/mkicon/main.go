@@ -80,33 +80,14 @@ func main() {
 	if len(os.Args) > 1 {
 		dir = os.Args[1]
 	}
-	sizes := []int{16, 20, 24, 32, 40, 48, 64, 256}
-	var pngs [][]byte
-	for _, s := range sizes {
-		var b bytes.Buffer
-		png.Encode(&b, render(s))
-		pngs = append(pngs, b.Bytes())
+	var imgs []*image.NRGBA
+	for _, s := range []int{16, 20, 24, 32, 40, 48, 64, 256} {
+		imgs = append(imgs, render(s))
 	}
-	// ICO with PNG-compressed entries (Windows Vista and newer).
-	var ico bytes.Buffer
-	binary.Write(&ico, binary.LittleEndian, [3]uint16{0, 1, uint16(len(sizes))})
-	off := 6 + 16*len(sizes)
-	for i, s := range sizes {
-		dim := uint8(s)
-		if s >= 256 {
-			dim = 0
-		}
-		binary.Write(&ico, binary.LittleEndian, struct {
-			W, H, Colors, Reserved uint8
-			Planes, BPP            uint16
-			Size, Offset           uint32
-		}{dim, dim, 0, 0, 1, 32, uint32(len(pngs[i])), uint32(off)})
-		off += len(pngs[i])
+	must(os.WriteFile(filepath.Join(dir, "backupzit.ico"), encodeICO(imgs), 0o644))
+	if len(os.Args) > 2 {
+		writeTrayIcons(os.Args[2])
 	}
-	for _, p := range pngs {
-		ico.Write(p)
-	}
-	must(os.WriteFile(filepath.Join(dir, "backupzit.ico"), ico.Bytes(), 0o644))
 	// Installer bitmaps (WiX UI): dialog 493x312 with an indigo panel on the
 	// left (164px) carrying the logo, banner 493x58 with the logo on the right.
 	must(writeBMP(filepath.Join(dir, "dialog.bmp"), 493, 312, func(img *image.NRGBA) {
@@ -176,4 +157,89 @@ func writeBMP(path string, w, h int, draw func(*image.NRGBA)) error {
 		b.Write(line)
 	}
 	return os.WriteFile(path, b.Bytes(), 0o644)
+}
+
+// encodeICO builds an ICO with PNG-compressed entries (Windows Vista and
+// newer; Windows 7 reads them too).
+func encodeICO(imgs []*image.NRGBA) []byte {
+	var pngs [][]byte
+	for _, im := range imgs {
+		var b bytes.Buffer
+		png.Encode(&b, im)
+		pngs = append(pngs, b.Bytes())
+	}
+	var ico bytes.Buffer
+	binary.Write(&ico, binary.LittleEndian, [3]uint16{0, 1, uint16(len(imgs))})
+	off := 6 + 16*len(imgs)
+	for i, im := range imgs {
+		s := im.Bounds().Dx()
+		dim := uint8(s)
+		if s >= 256 {
+			dim = 0
+		}
+		binary.Write(&ico, binary.LittleEndian, struct {
+			W, H, Colors, Reserved uint8
+			Planes, BPP            uint16
+			Size, Offset           uint32
+		}{dim, dim, 0, 0, 1, 32, uint32(len(pngs[i])), uint32(off)})
+		off += len(pngs[i])
+	}
+	for _, p := range pngs {
+		ico.Write(p)
+	}
+	return ico.Bytes()
+}
+
+// writeTrayIcons writes the notification area icons: the logo with a status
+// dot in the lower right corner.
+func writeTrayIcons(dir string) {
+	states := map[string]color.NRGBA{
+		"ok":      {0x16, 0xa3, 0x4a, 0xff},
+		"running": {0x25, 0x63, 0xeb, 0xff},
+		"warning": {0xf5, 0x9e, 0x0b, 0xff},
+		"error":   {0xdc, 0x26, 0x26, 0xff},
+		"offline": {0x6b, 0x72, 0x80, 0xff},
+	}
+	must(os.MkdirAll(dir, 0o755))
+	for name, c := range states {
+		var imgs []*image.NRGBA
+		for _, s := range []int{16, 20, 24, 32, 40, 48} {
+			imgs = append(imgs, badge(render(s), c))
+		}
+		must(os.WriteFile(filepath.Join(dir, "tray-"+name+".ico"), encodeICO(imgs), 0o644))
+	}
+}
+
+// badge draws a dot with a white ring over the lower right of img.
+func badge(img *image.NRGBA, c color.NRGBA) *image.NRGBA {
+	s := float64(img.Bounds().Dx())
+	r := s * 0.27
+	cx, cy := s-r-0.2, s-r-0.2
+	ring := math.Max(1, s/16)
+	const ss = 4
+	for py := 0; py < img.Bounds().Dy(); py++ {
+		for px := 0; px < img.Bounds().Dx(); px++ {
+			var nIn, nRing int
+			for sy := 0; sy < ss; sy++ {
+				for sx := 0; sx < ss; sx++ {
+					d := math.Hypot(float64(px)+(float64(sx)+0.5)/ss-cx, float64(py)+(float64(sy)+0.5)/ss-cy)
+					if d <= r {
+						nIn++
+					} else if d <= r+ring {
+						nRing++
+					}
+				}
+			}
+			if nIn+nRing == 0 {
+				continue
+			}
+			d := img.NRGBAAt(px, py)
+			a := float64(nIn+nRing) / (ss * ss)
+			t := float64(nIn) / float64(nIn+nRing) // dot share vs. white ring
+			col := color.NRGBA{lerp(255, c.R, t), lerp(255, c.G, t), lerp(255, c.B, t), 0xff}
+			outA := a + float64(d.A)/255*(1-a)
+			img.SetNRGBA(px, py, color.NRGBA{lerp(d.R, col.R, a), lerp(d.G, col.G, a), lerp(d.B, col.B, a), uint8(outA*255 + 0.5)})
+		}
+	}
+	return img
 }

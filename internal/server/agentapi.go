@@ -79,6 +79,11 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := api.PollResponse{PollIntervalSec: s.PollInterval}
+	if req.WantStatus {
+		if st, err := s.agentStatus(r.Context(), a.ID); err == nil {
+			resp.Status = st
+		}
+	}
 	if !req.Busy {
 		run, err := s.store.ClaimRun(r.Context(), a.ID)
 		if err != nil {

@@ -99,7 +99,12 @@ func (p *program) Start(s service.Service) error {
 				if p.cfgPath == agent.DefaultConfigPath() {
 					agent.MarkEnrolled()
 				}
-				agent.New(cfg, logger, version).Run(ctx)
+				ag := agent.New(cfg, logger, version)
+				go ag.ServeLocal(ctx)
+				if !service.Interactive() {
+					agent.StartTrayInSessions(logger)
+				}
+				ag.Run(ctx)
 				return
 			}
 			if ok, perr := agent.TryPendingEnrollment(ctx, p.cfgPath, version); ok {
