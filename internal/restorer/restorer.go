@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -51,6 +50,8 @@ type restorer struct {
 	stats   Stats
 	buf     []byte
 	chk     *chunker.Chunker
+	// links maps hard link keys to the first restored path.
+	links map[string]string
 }
 
 // Run restores sn according to opts.
@@ -177,9 +178,27 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 			if !selected {
 				continue
 			}
+			if n.Unix != nil && n.Unix.LinkKey != "" {
+				if first, ok := rs.links[n.Unix.LinkKey]; ok {
+					_ = os.Remove(dst)
+					if err := os.Link(first, dst); err == nil {
+						rs.stats.Files++
+						continue
+					}
+					// Fall back to a copy (e.g. across file systems).
+				}
+			}
 			if err := rs.restoreFile(ctx, dst, n); err != nil {
 				rs.addError(dst, err)
 				continue
+			}
+			if n.Unix != nil && n.Unix.LinkKey != "" {
+				if rs.links == nil {
+					rs.links = map[string]string{}
+				}
+				if _, ok := rs.links[n.Unix.LinkKey]; !ok {
+					rs.links[n.Unix.LinkKey] = dst
+				}
 			}
 			rs.applyMeta(dst, n, true)
 			if rs.opts.Verify {
@@ -199,6 +218,18 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 				continue
 			}
 			rs.stats.Symlinks++
+			if runtime.GOOS != "windows" {
+				rs.applyMeta(dst, n, true)
+			}
+		case repo.NodeDev, repo.NodeFifo:
+			if !selected {
+				continue
+			}
+			if err := makeSpecial(dst, n); err != nil {
+				rs.addError(dst, err)
+				continue
+			}
+			rs.applyMeta(dst, n, true)
 		default:
 			rs.addError(dst, fmt.Errorf("unknown node type %q", n.Type))
 		}
@@ -207,7 +238,12 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 }
 
 func validName(n string) bool {
-	return n != "" && n != "." && n != ".." && !strings.ContainsAny(n, `/\`) && !strings.ContainsRune(n, 0)
+	if n == "" || n == "." || n == ".." || strings.ContainsRune(n, 0) || strings.ContainsRune(n, '/') {
+		return false
+	}
+	// A backslash is an ordinary character in Unix names (systemd units such
+	// as system-systemd\x2dcryptsetup.slice) but a separator on Windows.
+	return runtime.GOOS != "windows" || !strings.ContainsRune(n, '\\')
 }
 
 func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) error {
@@ -258,9 +294,10 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 
 func (rs *restorer) applyMeta(dst string, n *repo.Node, setTimes bool) {
 	if runtime.GOOS != "windows" {
-		if err := os.Chmod(dst, fs.FileMode(n.Mode).Perm()); err != nil {
+		for _, err := range applyUnix(dst, n, setTimes) {
 			rs.addError(dst, err)
 		}
+		return
 	}
 	if setTimes && !n.ModTime.IsZero() {
 		if err := os.Chtimes(dst, n.ModTime, n.ModTime); err != nil {

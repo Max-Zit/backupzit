@@ -10,6 +10,9 @@ const (
 	NodeFile    = "file"
 	NodeDir     = "dir"
 	NodeSymlink = "symlink"
+	// NodeDev is a character or block device (Unix), NodeFifo a named pipe.
+	NodeDev  = "dev"
+	NodeFifo = "fifo"
 )
 
 // Node is one entry of a directory.
@@ -27,6 +30,9 @@ type Node struct {
 	LinkTarget string `json:"link_target,omitempty"`
 	// WinAttrs holds Windows file attribute flags (FILE_ATTRIBUTE_*).
 	WinAttrs uint32 `json:"win_attrs,omitempty"`
+	// Unix holds owner, extended attributes and link information on Unix
+	// systems.
+	Unix *UnixMeta `json:"unix,omitempty"`
 }
 
 // Tree is the content of a directory, sorted by name.
@@ -71,6 +77,9 @@ type Snapshot struct {
 	// Guests is set for hypervisor backups of virtual machines and
 	// containers; their disks are in Images.
 	Guests []Guest `json:"guests,omitempty"`
+	// System is set for Linux system backups: the disk layout needed to
+	// recreate the machine; the files are in Tree.
+	System *SystemLayout `json:"system,omitempty"`
 }
 
 // SnapshotStats summarises a backup run.
@@ -86,4 +95,22 @@ type SnapshotStats struct {
 	BytesStored  uint64        `json:"bytes_stored"` // new unique data, as uploaded
 	Duration     time.Duration `json:"duration_ns"`
 	Errors       []string      `json:"errors,omitempty"`
+}
+
+// UnixMeta is the Unix specific metadata of a node.
+type UnixMeta struct {
+	UID   uint32 `json:"uid"`
+	GID   uint32 `json:"gid"`
+	User  string `json:"user,omitempty"`
+	Group string `json:"group,omitempty"`
+	// Rdev is the device number of NodeDev nodes.
+	Rdev uint64 `json:"rdev,omitempty"`
+	// Char is true for character devices (false: block device).
+	Char bool `json:"char,omitempty"`
+	// Xattrs are extended attributes (security.capability, security.selinux,
+	// system.posix_acl_access, user.*, ...).
+	Xattrs map[string][]byte `json:"xattrs,omitempty"`
+	// LinkKey identifies files with several hard links within a snapshot
+	// ("device:inode"); restore links the later ones to the first.
+	LinkKey string `json:"link_key,omitempty"`
 }

@@ -79,3 +79,52 @@ func (s *Server) handleVMRestore(w http.ResponseWriter, r *http.Request, runID i
 	s.audit(r, "restore.vm", "run #%d: guest %d from backup #%d (new id %d, overwrite %v)", rid, vmid, runID, o.NewVMID, o.Overwrite)
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "VM restore queued.")
 }
+
+func (s *Server) handleSystemRestore(w http.ResponseWriter, r *http.Request, runID int64, back string) {
+	o := api.SystemRestore{Mode: r.FormValue("mode")}
+	agentID := formID(r, "agent_id")
+	switch o.Mode {
+	case "disk":
+		if r.FormValue("confirm_erase") != "on" {
+			redirectErr(w, r, back, errors.New("confirm that the target disk will be erased"))
+			return
+		}
+		o.Device = r.FormValue("device")
+		o.NewHardware = r.FormValue("new_hardware") == "on"
+		agentID = formID(r, "disk_agent_id")
+	case "pve-vm":
+		o.Storage, o.Name, o.Bridge = r.FormValue("storage"), r.FormValue("name"), strings.TrimSpace(r.FormValue("bridge"))
+		o.VMID = -1
+		if v := strings.TrimSpace(r.FormValue("vmid")); v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				redirectErr(w, r, back, errors.New("invalid VM ID"))
+				return
+			}
+			o.VMID = n
+		}
+		o.Memory = atoiDefault(r.FormValue("memory"))
+		o.Cores = atoiDefault(r.FormValue("cores"))
+		o.Start = r.FormValue("start") == "on"
+		o.NewHardware = true
+		agentID = formID(r, "pve_agent_id")
+	}
+	rid, err := s.store.QueueSystemRestore(r.Context(), runID, agentID, o)
+	if err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	s.audit(r, "restore.system", "run #%d from backup #%d (%s %s)", rid, runID, o.Mode, o.Device+o.Storage)
+	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "System restore queued.")
+}
+
+// linuxAgents are the agents that can restore a Linux system to a disk.
+func linuxAgents(agents []Agent) []Agent {
+	var out []Agent
+	for _, a := range agents {
+		if isLinuxAgent(a) {
+			out = append(out, a)
+		}
+	}
+	return out
+}

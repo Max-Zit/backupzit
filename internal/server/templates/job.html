@@ -20,6 +20,8 @@
     <dt>Copies</dt><dd>backups of <a href="/jobs/{{.SourceJobID}}">{{deref .SourceJobName}}</a></dd>
     {{else if eq .Kind "image"}}
     <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
+    {{else if eq .Kind "system"}}
+    <dt>Backs up</dt><dd>Whole Linux system (all local file systems and the disk layout){{if .Excludes}}, excluding <span class="mono">{{join .Excludes ", "}}</span>{{end}}</dd>
     {{else if eq .Kind "vm"}}
     <dt>Backs up</dt><dd>{{vmsel .Paths}} <span class="muted">(Proxmox VE)</span></dd>
     {{else}}

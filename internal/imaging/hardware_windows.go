@@ -115,10 +115,10 @@ func PrepareForNewHardware(ctx context.Context, diskNumber int, driverDirs []str
 			if disk.Style == StyleMBR {
 				fw = "BIOS"
 			}
-			out, err := run(ctx, "bcdboot.exe", win+`\Windows`, "/s", sys, "/f", fw)
+			out, err := runRetry(ctx, "bcdboot.exe", win+`\Windows`, "/s", sys, "/f", fw)
 			unmountSys()
 			if err != nil {
-				rep.Warnings = append(rep.Warnings, "bcdboot: "+strings.TrimSpace(out))
+				rep.Warnings = append(rep.Warnings, fmt.Sprintf(`bcdboot %s\Windows /s %s /f %s: %v: %s`, win, sys, fw, err, strings.TrimSpace(out)))
 			} else {
 				rep.BootRebuilt = true
 			}
@@ -252,11 +252,11 @@ var dismAddedRe = regexp.MustCompile(`(?i)installing\s+\d+\s+of\s+\d+`)
 func addDrivers(ctx context.Context, win, dir string) (int, error) {
 	scratch := filepath.Join(os.TempDir(), "bz-dism")
 	os.MkdirAll(scratch, 0o700)
-	out, err := run(ctx, "dism.exe", "/Image:"+win+`\`, "/Add-Driver", "/Driver:"+dir, "/Recurse", "/ScratchDir:"+scratch)
+	out, err := runRetry(ctx, "dism.exe", "/Image:"+win+`\`, "/Add-Driver", "/Driver:"+dir, "/Recurse", "/ScratchDir:"+scratch)
 	n := len(dismAddedRe.FindAllString(out, -1))
 	if err != nil {
 		lines := strings.Split(strings.TrimSpace(out), "\n")
-		return n, fmt.Errorf("%s", strings.TrimSpace(lines[len(lines)-1]))
+		return n, fmt.Errorf(`dism /Image:%s\ /Add-Driver: %v: %s`, win, err, strings.TrimSpace(lines[len(lines)-1]))
 	}
 	return n, nil
 }
@@ -279,4 +279,25 @@ func RecoveryDriverDirs() []string {
 		}
 	}
 	return dirs
+}
+
+// runRetry runs a command up to three times: right after a restore Windows
+// may still be mounting the new volumes, and DISM and bcdboot then fail.
+func runRetry(ctx context.Context, name string, args ...string) (string, error) {
+	var out string
+	var err error
+	for i := 0; i < 3; i++ {
+		if out, err = run(ctx, name, args...); err == nil {
+			return out, nil
+		}
+		select {
+		case <-ctx.Done():
+			return out, err
+		case <-time.After(10 * time.Second):
+		}
+	}
+	if strings.TrimSpace(out) == "" {
+		out = "(no output)"
+	}
+	return out, err
 }

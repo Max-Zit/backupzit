@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"sort"
 	"time"
 
@@ -40,6 +42,14 @@ type Options struct {
 	VSS bool
 	// VSSTimeout bounds snapshot creation (default 5 minutes).
 	VSSTimeout time.Duration
+	// ExtraMounts are mount points of other file systems that are backed up
+	// although OneFileSystem is set (e.g. /boot/efi below /).
+	ExtraMounts []string
+	// System is stored with the snapshot of a Linux system backup.
+	System *repo.SystemLayout
+	// OneFileSystem does not descend into directories on other file systems
+	// (mount points); they are stored empty.
+	OneFileSystem bool
 }
 
 // Archiver performs one backup run.
@@ -50,6 +60,11 @@ type Archiver struct {
 	buf   []byte
 	chk   *chunker.Chunker
 	snaps *vss.Set
+	// parentDev is the file system of the directory being archived
+	// (OneFileSystem).
+	parentDev *uint64
+	// links maps hard link keys to the first stored node.
+	links map[string]*repo.Node
 }
 
 // src maps an original path to where its data is read from (the VSS
@@ -110,18 +125,39 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		}()
 	}
 
-	root := buildVTree(abs)
-	var parentTree *repo.Tree
-	if opts.Parent != nil {
-		t, err := r.LoadTree(ctx, opts.Parent.Tree)
-		if err != nil {
-			return nil, fmt.Errorf("load parent tree: %w", err)
+	var treeID repo.ID
+	if runtime.GOOS != "windows" && len(abs) > 0 && abs[0] == "/" {
+		// The Unix root is the snapshot's root tree; other paths are inside it
+		// (with OneFileSystem, list nested file systems in ExtraMounts).
+		var pnode *repo.Node
+		if opts.Parent != nil {
+			pt := opts.Parent.Tree
+			pnode = &repo.Node{Type: repo.NodeDir, Subtree: &pt}
 		}
-		parentTree = t
-	}
-	treeID, err := a.saveVDir(ctx, root, parentTree)
-	if err != nil {
-		return nil, err
+		n, ok, err := a.archivePath(ctx, "/", "", pnode)
+		if err != nil {
+			return nil, err
+		}
+		if !ok || n.Subtree == nil {
+			return nil, errors.New("cannot read /")
+		}
+		treeID = *n.Subtree
+		opts.Paths = []string{"/"}
+	} else {
+		root := buildVTree(abs)
+		var parentTree *repo.Tree
+		if opts.Parent != nil {
+			t, err := r.LoadTree(ctx, opts.Parent.Tree)
+			if err != nil {
+				return nil, fmt.Errorf("load parent tree: %w", err)
+			}
+			parentTree = t
+		}
+		id, err := a.saveVDir(ctx, root, parentTree)
+		if err != nil {
+			return nil, err
+		}
+		treeID = id
 	}
 	if err := r.Flush(ctx); err != nil {
 		return nil, err
@@ -140,12 +176,13 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 	sn := &repo.Snapshot{
 		Time:           start.UTC(),
 		Hostname:       opts.Hostname,
-		Paths:          abs,
+		Paths:          opts.Paths,
 		Tags:           opts.Tags,
 		Tree:           treeID,
 		Stats:          a.stats,
 		ProgramVersion: opts.Version,
 		VSSVolumes:     a.snaps.Volumes(),
+		System:         opts.System,
 	}
 	if u, err := user.Current(); err == nil {
 		sn.Username = u.Username
@@ -291,6 +328,9 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 		ModTime:  fi.ModTime().UTC(),
 		WinAttrs: fsutil.WinAttrs(fi),
 	}
+	if runtime.GOOS != "windows" {
+		n.Unix = unixMeta(a.src(p), fi)
+	}
 	switch {
 	case fi.Mode().IsRegular():
 		n.Type = repo.NodeFile
@@ -310,6 +350,20 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 	case fi.IsDir():
 		n.Type = repo.NodeDir
 		a.stats.Dirs++
+		dev, _ := deviceOf(fi)
+		if a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev && !slices.Contains(a.opts.ExtraMounts, p) {
+			// A mount point of another file system: keep the directory, not
+			// its contents (system backups list each file system as a path).
+			id, err := a.r.SaveTree(ctx, &repo.Tree{})
+			if err != nil {
+				return n, false, err
+			}
+			n.Subtree = &id
+			return n, true, nil
+		}
+		savedDev := a.parentDev
+		a.parentDev = &dev
+		defer func() { a.parentDev = savedDev }()
 		var ptree *repo.Tree
 		if parent != nil && parent.Type == repo.NodeDir && parent.Subtree != nil {
 			ptree, _ = a.r.LoadTree(ctx, *parent.Subtree)
@@ -354,8 +408,16 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 		n.LinkTarget = target
 		return n, true, nil
 
+	case fi.Mode()&fs.ModeDevice != 0 && n.Unix != nil:
+		n.Type = repo.NodeDev
+		return n, true, nil
+
+	case fi.Mode()&fs.ModeNamedPipe != 0 && n.Unix != nil:
+		n.Type = repo.NodeFifo
+		return n, true, nil
+
 	default:
-		// Sockets, devices, named pipes: not backed up.
+		// Sockets (and devices on Windows): not backed up.
 		return n, false, nil
 	}
 }
@@ -375,6 +437,21 @@ func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n 
 		a.opts.Progress(p, &a.stats)
 	}
 
+	// Further hard links of a file already stored share its content.
+	if n.Unix != nil && n.Unix.LinkKey != "" {
+		if l, ok := a.links[n.Unix.LinkKey]; ok && l.Size == size && (len(l.Content) > 0 || size == 0) {
+			n.Content = l.Content
+			a.stats.FilesSkipped++
+			return nil
+		}
+		defer func() {
+			if a.links == nil {
+				a.links = map[string]*repo.Node{}
+			}
+			cp := *n
+			a.links[n.Unix.LinkKey] = &cp
+		}()
+	}
 	if parent != nil && parent.Type == repo.NodeFile && parent.Size == size &&
 		parent.ModTime.Equal(n.ModTime) && a.allBlobsKnown(parent.Content) {
 		n.Content = parent.Content

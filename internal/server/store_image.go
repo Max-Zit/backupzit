@@ -16,6 +16,7 @@ const (
 	JobImage = "image"
 	JobCopy  = "copy" // copy of another job's backups
 	JobVM    = "vm"   // Proxmox VE virtual machines and containers
+	JobSystem = "system" // whole Linux system (files and disk layout)
 )
 
 // checkImageSelection validates a disk/partition choice against the

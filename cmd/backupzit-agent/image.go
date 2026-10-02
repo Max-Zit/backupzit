@@ -265,3 +265,28 @@ func cmdImageExtract(ctx context.Context, args []string) error {
 	}
 	return nil
 }
+
+// cmdPrepareHardware prepares an already restored Windows disk for
+// different hardware (the same step as "Restore to different hardware").
+func cmdPrepareHardware(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("prepare-hardware", flag.ExitOnError)
+	disk := fs.Int("disk", -1, "disk number with the restored Windows (see: backupzit-agent disks)")
+	var drivers multiFlag
+	fs.Var(&drivers, "drivers", "folder with drivers (.inf) to add (repeatable)")
+	fs.Parse(args)
+	if *disk < 0 {
+		fs.Usage()
+		return errors.New("--disk is required")
+	}
+	dirs := append(imaging.RecoveryDriverDirs(), drivers...)
+	rep, err := imaging.PrepareForNewHardware(ctx, *disk, dirs, func(s string) { fmt.Println(" ", s) })
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Windows on %s: %d disk controller drivers enabled (%s), %d drivers added, boot files rebuilt: %v\n",
+		rep.WindowsVolume, len(rep.DriversEnabled), strings.Join(rep.DriversEnabled, " "), rep.DriversAdded, rep.BootRebuilt)
+	for _, w := range rep.Warnings {
+		fmt.Println("  warning:", w)
+	}
+	return nil
+}

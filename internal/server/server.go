@@ -159,7 +159,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update"}[k]
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore"}[k]
 	},
 	"hours": func() []int {
 		h := make([]int, 24)
@@ -897,6 +897,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "CopyStats": copyStats, "TestStats": testStats, "CopyOfFiles": s.store.copyOfFiles(r.Context(), run), "Agents": agents,
 		"Image": imageDetails(run), "Inventory": inventories(agents),
 		"VM": vmDetails(run), "VMRestore": vmRestoreOptions(run), "PVEAgents": pveAgents(agents),
+		"System": sysDetails(run), "SystemRestore": systemRestoreOptions(run), "LinuxAgents": linuxAgents(agents),
 	}})
 }
 
@@ -909,6 +910,10 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request, _ string)
 	}
 	if r.FormValue("kind") == "vm" {
 		s.handleVMRestore(w, r, id, back)
+		return
+	}
+	if r.FormValue("kind") == "system" {
+		s.handleSystemRestore(w, r, id, back)
 		return
 	}
 	target := strings.TrimSpace(r.FormValue("target"))

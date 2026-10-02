@@ -85,6 +85,10 @@ const (
 	KindVMBackup = "vm-backup"
 	// KindVMRestore recreates a guest from a vm-backup on a node.
 	KindVMRestore = "vm-restore"
+	// KindSystemBackup backs up a whole Linux system (files and disk layout);
+	// KindSystemRestore recreates it on an empty disk or as a Proxmox VM.
+	KindSystemBackup  = "system-backup"
+	KindSystemRestore = "system-restore"
 	// KindAgentUpdate installs a newer agent version from the console.
 	KindAgentUpdate = "agent-update"
 )
@@ -141,6 +145,9 @@ type Run struct {
 	VMExclude []string `json:"vm_exclude,omitempty"`
 	// VM restore.
 	VMRestore *VMRestore `json:"vm_restore,omitempty"`
+
+	// System restore.
+	SystemRestore *SystemRestore `json:"system_restore,omitempty"`
 
 	// Agent update: installer file (downloaded from PathDownloadPrefix), its
 	// SHA-256 and the version it installs.
@@ -232,4 +239,22 @@ type JobStatus struct {
 	LastFinished *time.Time `json:"last_finished,omitempty"`
 	LastMessage  string     `json:"last_message,omitempty"`
 	Running      bool       `json:"running,omitempty"`
+}
+
+// SystemRestore are the options of a system-restore run.
+type SystemRestore struct {
+	// Mode "disk": overwrite Device on the agent; "pve-vm": create a new
+	// Proxmox VM on the agent's node and restore into it.
+	Mode   string `json:"mode"`
+	Device string `json:"device,omitempty"`
+	// NewHardware adapts network settings and the initramfs.
+	NewHardware bool `json:"new_hardware,omitempty"`
+	// Proxmox VM.
+	VMID    int    `json:"vmid,omitempty"` // 0 or -1 = next free ID
+	Name    string `json:"name,omitempty"`
+	Storage string `json:"storage,omitempty"`
+	Memory  int    `json:"memory,omitempty"` // MiB
+	Cores   int    `json:"cores,omitempty"`
+	Bridge  string `json:"bridge,omitempty"`
+	Start   bool   `json:"start,omitempty"`
 }

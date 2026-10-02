@@ -50,6 +50,12 @@ Disk images (Windows):
   image-restore  Write an image onto a disk (erases it)
   image-ls       List files inside an imaged partition
   image-extract  Copy files out of an imaged partition
+  prepare-hardware  Prepare a restored Windows disk for different hardware
+
+Linux system (bare-metal restore, P2V):
+  system-backup  Back up all local file systems and the disk layout
+  system-show    Show the disk layout in a system backup
+  system-restore Recreate the system on an empty disk (--target /dev/sdb)
 
 Proxmox VE (agent on the Proxmox host):
   pve            list | backup | show | restore — VMs and containers
@@ -186,8 +192,16 @@ func run(ctx context.Context, args []string) error {
 		return cmdRecovery(ctx, rest)
 	case "status":
 		return cmdStatus(ctx)
+	case "system-backup":
+		return cmdSystemBackup(ctx, rest)
+	case "system-restore":
+		return cmdSystemRestore(ctx, rest)
+	case "system-show":
+		return cmdSystemShow(ctx, rest)
 	case "pve":
 		return cmdPVE(ctx, rest)
+	case "prepare-hardware":
+		return cmdPrepareHardware(ctx, rest)
 	case "disks":
 		return cmdDisks(rest)
 	case "enroll":

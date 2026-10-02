@@ -21,6 +21,10 @@
       <dt>Copied from</dt><dd class="mono">{{.SourceRepoURL}}</dd>
     {{else if eq .Kind "image-backup"}}
       <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
+    {{else if eq .Kind "system-backup"}}
+      <dt>Backs up</dt><dd>Whole Linux system</dd>
+    {{else if eq .Kind "system-restore"}}
+      {{with $.Data.SystemRestore}}<dt>Restore to</dt><dd>{{if eq .Mode "pve-vm"}}new Proxmox VM{{if gt .VMID 0}} {{.VMID}}{{end}} on storage {{.Storage}}{{if .Start}}, started afterwards{{end}}{{else}}disk <span class="mono">{{.Device}}</span>{{if .NewHardware}}, adapted to new hardware{{end}}{{end}}</dd>{{end}}
     {{else if eq .Kind "vm-backup"}}
       <dt>Backs up</dt><dd>{{vmsel .Paths}}</dd>
     {{else if eq .Kind "vm-restore"}}
@@ -137,7 +141,7 @@
 <div class="panel"><p class="muted">This backup was removed by the job's retention policy and can no longer be restored.</p></div>
 {{end}}
 
-{{if and (or (eq .Kind "backup") $.Data.CopyOfFiles) .SnapshotID (not .Expired)}}
+{{if and (or (eq .Kind "backup") (eq .Kind "system-backup") $.Data.CopyOfFiles) .SnapshotID (not .Expired)}}
 {{if $.Me.Can "restore"}}<div class="panel">
   <h2>Restore from this backup</h2>
   <form method="post" action="/runs/{{.ID}}/restore" class="stack">
@@ -152,6 +156,63 @@
     <div><button>Start restore</button></div>
   </form>
 </div>{{end}}
+{{end}}
+
+{{with $.Data.System}}
+<div class="panel">
+  <h2>System layout — {{.OS}}, {{if .UEFI}}UEFI{{else}}BIOS{{end}} boot</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Mount point</th><th>File system</th><th>Device</th><th>Size</th><th>Used</th></tr>
+    {{range .FileSystems}}<tr><td class="mono">{{.MountPoint}}</td><td>{{.Type}}</td><td class="mono">{{.Device}}</td><td>{{bytes .Size}}</td><td>{{bytes .Used}}</td></tr>{{end}}
+  </table></div>
+  <p class="muted small mt">{{range $i, $d := .Disks}}{{if $i}}; {{end}}disk {{$d.Name}}: {{bytes $d.Size}}, {{upper $d.Table}}, {{$d.Partitions}} partitions{{end}}{{if .VGs}}; LVM volume groups {{join .VGs ", "}}{{end}}</p>
+</div>
+{{end}}
+
+{{if and (eq .Kind "system-backup") .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.System}}
+<div class="panel">
+  <h2>Restore the whole system</h2>
+  <p class="muted">Recreates partitions, LVM and file systems with their original UUIDs, restores all files and makes the disk bootable. <b>Everything on the target is erased.</b> Single files are restored with the form above.</p>
+  {{if $.Data.PVEAgents}}
+  <h3>As a new Proxmox VM</h3>
+  <form method="post" action="/runs/{{.ID}}/restore" class="stack">
+    <input type="hidden" name="kind" value="system"><input type="hidden" name="mode" value="pve-vm">
+    <div class="row">
+      <label>Proxmox node
+        <select name="pve_agent_id">{{range $.Data.PVEAgents}}<option value="{{.ID}}">{{.Inv.Node}}</option>{{end}}</select>
+      </label>
+      <label>Storage
+        <select name="storage">{{range $.Data.PVEAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
+      </label>
+    </div>
+    <div class="row">
+      <label>VM ID <small>empty: next free</small><input name="vmid" type="number" min="100"></label>
+      <label>Name <small>default: original host name</small><input name="name" maxlength="63"></label>
+      <label>Memory (MiB)<input name="memory" type="number" min="256" value="2048"></label>
+      <label>CPU cores<input name="cores" type="number" min="1" value="2"></label>
+      <label>Bridge<input name="bridge" value="vmbr0"></label>
+    </div>
+    <p class="muted small">The VM gets {{if .UEFI}}UEFI (OVMF){{else}}BIOS{{end}} firmware like the original, a VirtIO SCSI disk and network card; network settings bound to the old MAC addresses are adapted.</p>
+    <label class="check"><input type="checkbox" name="start"> Start the VM after the restore</label>
+    <div><button>Restore as VM</button></div>
+  </form>
+  {{end}}
+  <h3 class="mt">Onto a disk</h3>
+  {{if $.Data.LinuxAgents}}
+  <form method="post" action="/runs/{{.ID}}/restore" class="stack" data-confirm="Erase the target disk and restore the system onto it?">
+    <input type="hidden" name="kind" value="system"><input type="hidden" name="mode" value="disk">
+    <div class="row">
+      <label>On agent <small>a Linux machine with an empty disk, or the new machine booted from a Linux live USB with the agent in recovery mode</small>
+        <select name="disk_agent_id">{{range $.Data.LinuxAgents}}<option value="{{.ID}}">{{.Hostname}}{{if .Recovery}} (recovery){{end}}</option>{{end}}</select>
+      </label>
+      <label>Target disk<input name="device" placeholder="/dev/sdb" required></label>
+    </div>
+    <label class="check"><input type="checkbox" name="new_hardware"> Different hardware <small>adapt network settings bound to MAC addresses and rebuild the initramfs</small></label>
+    <label class="check"><input type="checkbox" name="confirm_erase" required> I understand that all data on the target disk will be destroyed</label>
+    <div><button class="danger">Restore system</button></div>
+  </form>
+  {{else}}<p class="muted">No Linux agent is enrolled.</p>{{end}}
+</div>
 {{end}}
 
 {{if and (eq .Kind "vm-backup") .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.VM}}

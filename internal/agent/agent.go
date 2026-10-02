@@ -293,6 +293,10 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res = a.copyRun(ctx, run)
 	case api.KindVerify:
 		res = a.verifyRun(ctx, run)
+	case api.KindSystemBackup:
+		res = a.systemBackup(ctx, run)
+	case api.KindSystemRestore:
+		res = a.systemRestore(ctx, run)
 	case api.KindAgentUpdate:
 		res, after = a.selfUpdate(ctx, run)
 	case api.KindVMBackup:
@@ -310,7 +314,7 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 	default:
 		res = api.RunResult{Status: api.StatusFailed, Message: "unsupported run kind " + run.Kind}
 	}
-	if strings.HasPrefix(run.Repository.URL, "usb://") && res.Status != api.StatusFailed && (run.Kind == api.KindBackup || run.Kind == api.KindImageBackup || run.Kind == api.KindVMBackup || run.Kind == api.KindCopy) {
+	if strings.HasPrefix(run.Repository.URL, "usb://") && res.Status != api.StatusFailed && (run.Kind == api.KindBackup || run.Kind == api.KindImageBackup || run.Kind == api.KindVMBackup || run.Kind == api.KindSystemBackup || run.Kind == api.KindCopy) {
 		// Record which of the rotating disks holds this backup.
 		if _, loc, err := backend.ResolveUSB(run.Repository.URL); err == nil {
 			res.RepoURL = loc

@@ -76,6 +76,20 @@ func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHand
 		if err := walk(sn.Tree); err != nil {
 			return nil, fmt.Errorf("snapshot %s: %w", sn.ID.Short(), err)
 		}
+		if sys := sn.System; sys != nil {
+			for _, d := range sys.Disks {
+				if !d.Head.IsNull() {
+					used[BlobHandle{Type: DataBlob, ID: d.Head}] = true
+				}
+				for _, p := range d.Partitions {
+					for _, id := range p.Raw {
+						if !id.IsNull() {
+							used[BlobHandle{Type: DataBlob, ID: id}] = true
+						}
+					}
+				}
+			}
+		}
 		for _, img := range sn.Images {
 			used[BlobHandle{Type: DataBlob, ID: img.Head}] = true
 			for i := range img.Partitions {
