@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -27,6 +28,10 @@ type RestoreOptions struct {
 	// settings bound to the old MAC addresses are changed to match any
 	// wired interface, and the initramfs of dracut systems is rebuilt.
 	NewHardware bool
+	// DisableAgent keeps the BackupZit agent of the restored system from
+	// starting with the identity of the original machine (for copies that
+	// run next to it); it can be enrolled as a new machine.
+	DisableAgent bool
 	// RebuildInitramfs regenerates the initramfs with all drivers (dracut
 	// --no-hostonly), needed when moving a RHEL-like system to different
 	// hardware.
@@ -145,6 +150,9 @@ func (j *restoreJob) run(name string, args ...string) (string, error) {
 // checkTarget makes sure the target is not in use and large enough, and
 // attaches files and logical volumes as loop devices so partitions appear.
 func (j *restoreJob) checkTarget() error {
+	if err := j.checkTools(); err != nil {
+		return err
+	}
 	t := j.opts.Target
 	fi, err := os.Stat(t)
 	if err != nil {
@@ -228,7 +236,7 @@ func (j *restoreJob) plan(size uint64) error {
 	}
 	avail := int64(size) - int64(last.Start) - 1<<20 // keep 1 MiB for the backup GPT
 	need := last.Size
-	if avail < int64(need) {
+	if avail < int64(need)-64<<20 {
 		minimum := j.minimumSize(last)
 		if avail < int64(minimum) {
 			return fmt.Errorf("target is too small: %s needed, %s available", human(last.Start+minimum+1<<20), human(size))
@@ -584,6 +592,12 @@ func (j *restoreJob) bootloader() error {
 	if j.opts.NewHardware {
 		j.adaptNetwork()
 	}
+	if j.opts.DisableAgent {
+		cfg := filepath.Join(j.mnt, "etc/backupzit/agent.json")
+		if _, err := os.Stat(cfg); err == nil && os.Rename(cfg, cfg+".original") == nil {
+			j.res.Notes = append(j.res.Notes, "the BackupZit agent in the restored system was unenrolled (it would report as the original machine); enroll it as a new machine if needed")
+		}
+	}
 	if j.opts.RebuildInitramfs || j.opts.NewHardware {
 		j.rebuildInitramfs()
 	}
@@ -777,4 +791,48 @@ func (j *restoreJob) adaptNetwork() {
 	if b, err := os.ReadFile(filepath.Join(j.mnt, "etc/network/interfaces")); err == nil && strings.Contains(string(b), "hwaddress") {
 		j.res.Notes = append(j.res.Notes, "/etc/network/interfaces refers to MAC addresses; check the network settings of the restored system")
 	}
+}
+
+// checkTools makes sure the programs needed for this layout exist (a Linux
+// live system may lack some) and names the packages to install.
+func (j *restoreJob) checkTools() error {
+	need := map[string]string{"wipefs": "util-linux", "blockdev": "util-linux", "losetup": "util-linux", "mount": "util-linux", "lsblk": "util-linux"}
+	if j.disk.Table == "gpt" {
+		need["sgdisk"] = "gdisk"
+	} else {
+		need["sfdisk"] = "fdisk"
+	}
+	for _, fs := range append(append([]repo.SystemFS{}, j.lay.FileSystems...), j.lay.Swap...) {
+		switch fs.Type {
+		case "ext2", "ext3", "ext4":
+			need["mkfs."+fs.Type] = "e2fsprogs"
+		case "xfs":
+			need["mkfs.xfs"] = "xfsprogs"
+		case "vfat":
+			need["mkfs.vfat"] = "dosfstools"
+		case "swap":
+			need["mkswap"] = "util-linux"
+		}
+	}
+	if len(j.lay.VGs) > 0 {
+		need["pvcreate"], need["vgcfgrestore"], need["vgchange"] = "lvm2", "lvm2", "lvm2"
+	}
+	var missing []string
+	pkgs := map[string]bool{}
+	for tool, pkg := range need {
+		if _, err := exec.LookPath(tool); err != nil {
+			missing = append(missing, tool)
+			pkgs[pkg] = true
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	sort.Strings(missing)
+	var p []string
+	for k := range pkgs {
+		p = append(p, k)
+	}
+	sort.Strings(p)
+	return fmt.Errorf("missing programs %s; install the packages %s (e.g. apt install %s)", strings.Join(missing, ", "), strings.Join(p, ", "), strings.Join(p, " "))
 }

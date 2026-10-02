@@ -192,7 +192,7 @@
       <label>CPU cores<input name="cores" type="number" min="1" value="2"></label>
       <label>Bridge<input name="bridge" value="vmbr0"></label>
     </div>
-    <p class="muted small">The VM gets {{if .UEFI}}UEFI (OVMF){{else}}BIOS{{end}} firmware like the original, a VirtIO SCSI disk and network card; network settings bound to the old MAC addresses are adapted.</p>
+    <p class="muted small">The VM gets {{if $.Data.System.UEFI}}UEFI (OVMF){{else}}BIOS{{end}} firmware like the original, a VirtIO SCSI disk and network card; network settings bound to the old MAC addresses are adapted.</p>
     <label class="check"><input type="checkbox" name="start"> Start the VM after the restore</label>
     <div><button>Restore as VM</button></div>
   </form>

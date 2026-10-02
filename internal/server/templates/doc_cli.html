@@ -38,6 +38,20 @@
   <tr><td><code>image-extract --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Copy files and folders out of an imaged partition.</td></tr>
 </table>
 
+<h2>Linux system (bare metal, P2V)</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>system-backup [--exclude PATTERN]</code></td><td>Back up all local file systems and the disk layout. See <a href="/docs/linux-system">Linux system backup</a>.</td></tr>
+  <tr><td><code>system-show SNAPSHOT|latest</code></td><td>Show the disk layout in a system backup.</td></tr>
+  <tr><td><code>system-restore --target DEVICE [--new-hardware] --yes-erase-target SNAPSHOT|latest</code></td><td>Recreate the system on an empty disk, logical volume or image file.</td></tr>
+  <tr><td><code>status</code></td><td>Show what the running agent is doing and its backup jobs (also used by the tray icon on Windows).</td></tr>
+</table>
+<h2>Windows: different hardware</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Prepare a restored Windows disk for different hardware (boot drivers, extra drivers, boot files) — the same as the restore option, e.g. to repeat it from the recovery ISO.</td></tr>
+</table>
+
 <h2>Proxmox VE (agent on the Proxmox host)</h2>
 <table>
   <tr><th>Command</th><th>What it does</th></tr>

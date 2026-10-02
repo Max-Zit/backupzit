@@ -1,0 +1,32 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Linux system backup &amp; P2V</h1>
+<p class="lead">A <b>Linux system</b> job backs up a whole Linux machine so it can be recreated on an empty disk — the same machine after a disk failure, new hardware, or a virtual machine in Proxmox VE (physical-to-virtual, P2V).</p>
+
+<h2>What is backed up</h2>
+<ul>
+  <li>Every local file system (ext2/3/4, xfs, vfat), also on LVM, file by file with owners, permissions, setuid bits, ACLs, extended attributes (SELinux labels, file capabilities), hard links and device files. Each file system is backed up separately; network shares and virtual file systems (<code>/proc</code>, <code>/sys</code>, <code>/run</code>) are skipped.</li>
+  <li>The disk layout: GPT or MBR partition tables with their IDs, LVM volume groups (<code>vgcfgbackup</code>), file system UUIDs, labels and on-disk features, and the boot code (MBR and the BIOS boot partition of GRUB).</li>
+</ul>
+<p>Like Relax-and-Recover, BackupZit does not copy the running disk block by block: Linux has no built-in snapshot of a running disk, so a raw copy would be inconsistent. Each file is read whole, and the layout makes the restored disk bootable again. Databases should be dumped before the backup or backed up with their own tools.</p>
+<p>Single files and folders are restored from a system backup like from any file backup (<b>Restore from this backup</b> on the run page).</p>
+<h3>Not supported yet</h3>
+<p>Encrypted disks (LUKS), software RAID (mdadm), btrfs and systems spread over several disks. The job reports these clearly instead of creating an incomplete backup.</p>
+
+<h2>Restoring the whole system</h2>
+<p>Open the system backup run (job page or <a href="/runs">Activity</a>) and use <b>Restore the whole system</b>:</p>
+<h3>As a new Proxmox VM</h3>
+<p>Choose the Proxmox node (its BackupZit agent does the work), storage, VM ID, name, memory and cores. BackupZit creates the VM with the same firmware as the original (UEFI/OVMF or BIOS), a VirtIO SCSI disk and network card, recreates the disk, restores all files and can start the VM. Because the VM is a copy that may run next to the original:</p>
+<ul>
+  <li>network settings bound to the old MAC addresses (common in cloud images: netplan <code>match: macaddress</code>) are changed to apply to any wired interface,</li>
+  <li>the BackupZit agent inside the copy is unenrolled, so it does not report as the original machine.</li>
+</ul>
+<h3>Onto a disk</h3>
+<p>Restore onto an empty disk of a Linux agent, e.g. a second disk (<code>/dev/sdb</code>) or the new machine itself: boot it from any Linux live USB (Ubuntu, Debian), install the agent and run it in recovery mode — <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code> with a recovery code from <a href="/recovery">Recovery media</a> — then choose it as target. Tick <b>Different hardware</b> when the machine is not the original one.</p>
+<p>The target may be larger or smaller than the original disk: the last partition grows to fill it, or shrinks as long as its data fits. The file system UUIDs and partition IDs stay the same, so <code>/etc/fstab</code> and the boot loader need no changes. For UEFI systems the boot loader is also installed at the removable-media path <code>\EFI\BOOT\BOOTX64.EFI</code>, which every UEFI firmware starts without a boot entry. RHEL-like systems (dracut) get a new initramfs with all drivers when moved to different hardware.</p>
+
+<h2>Command line</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

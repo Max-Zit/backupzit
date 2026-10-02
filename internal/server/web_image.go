@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/backupzit/backupzit/internal/api"
 	"net"
 	"net/http"
 	"net/url"
@@ -51,7 +52,7 @@ func (s *Server) partitionSelection(r *http.Request, agentID int64, disk int) []
 
 // imageDetails decodes the disk layout reported by an image backup run.
 func imageDetails(run Run) *repo.DiskImage {
-	if len(run.Details) == 0 {
+	if len(run.Details) == 0 || run.Kind != api.KindImageBackup {
 		return nil
 	}
 	var img repo.DiskImage

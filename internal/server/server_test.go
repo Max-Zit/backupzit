@@ -1940,3 +1940,113 @@ func TestTrayStatus(t *testing.T) {
 		t.Errorf("runs: %+v", runs)
 	}
 }
+
+func TestSystemJobs(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	targetID, _ := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	enroll := func(host, osName string, hyper string) server.Agent {
+		cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		agents, _ := e.store.ListAgents(ctx)
+		for _, a := range agents {
+			if a.UUID == cfg.AgentUUID {
+				req := api.PollRequest{Hostname: host, OS: osName, Arch: "amd64"}
+				if hyper != "" {
+					req.Hypervisor = json.RawMessage(hyper)
+				}
+				if err := e.store.TouchAgent(ctx, a.ID, req, ""); err != nil {
+					t.Fatal(err)
+				}
+				a, _ = e.store.GetAgent(ctx, a.ID)
+				return a
+			}
+		}
+		t.Fatal("agent not found")
+		return server.Agent{}
+	}
+	linux := enroll("web1", "Ubuntu 24.04.1 LTS", "")
+	win := enroll("pc", "Windows 11 Pro (build 26100)", "")
+	node := enroll("pve", "Debian GNU/Linux 12 (bookworm)", `{"node":"pve","guests":[{"vmid":100,"name":"x","type":"qemu","node":"pve"}],"storage":["local-lvm"]}`)
+
+	if _, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobSystem, AgentID: win.ID, TargetID: targetID, Name: "x"}); err == nil {
+		t.Error("system job accepted for a Windows agent")
+	}
+	jobID, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobSystem, AgentID: linux.ID, TargetID: targetID, Name: "web1 system", Excludes: []string{"*.tmp"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID, err := e.store.QueueBackup(ctx, jobID, "manual")
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := e.store.ClaimRun(ctx, linux.ID)
+	if err != nil || claimed == nil || claimed.Kind != api.KindSystemBackup || strings.Join(claimed.Paths, ",") != "/" {
+		t.Fatalf("claimed: %+v %v", claimed, err)
+	}
+	details := `{"system":{"os":"Ubuntu 24.04.1 LTS","uefi":true,"disks":[{"name":"sda","size":107374182400,"table":"gpt","partitions":2}],
+		"file_systems":[{"device":"sda2","type":"ext4","mount_point":"/","size":100000000000,"used":20000000000},{"device":"sda1","type":"vfat","mount_point":"/boot/efi","size":1000000000}]}}`
+	if err := e.store.FinishRun(ctx, linux.ID, runID, api.RunResult{Status: api.StatusSuccess, SnapshotID: strings.Repeat("ab", 32),
+		Stats: json.RawMessage(`{"files":1000}`), Details: json.RawMessage(details)}); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []struct {
+		agent int64
+		o     api.SystemRestore
+	}{
+		{win.ID, api.SystemRestore{Mode: "disk", Device: "/dev/sdb"}},
+		{linux.ID, api.SystemRestore{Mode: "disk", Device: "sdb; rm -rf /"}},
+		{linux.ID, api.SystemRestore{Mode: "pve-vm", Storage: "local-lvm"}},
+		{node.ID, api.SystemRestore{Mode: "pve-vm", Storage: "nfs"}},
+		{node.ID, api.SystemRestore{Mode: "pve-vm", Storage: "local-lvm", VMID: 100}},
+		{node.ID, api.SystemRestore{Mode: "other"}},
+	} {
+		if _, err := e.store.QueueSystemRestore(ctx, runID, bad.agent, bad.o); err == nil {
+			t.Errorf("accepted system restore %+v on agent %d", bad.o, bad.agent)
+		}
+	}
+	rr, err := e.store.QueueSystemRestore(ctx, runID, node.ID, api.SystemRestore{Mode: "pve-vm", Storage: "local-lvm", VMID: -1, Name: "web1-p2v", Start: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, _ = e.store.ClaimRun(ctx, node.ID)
+	if claimed == nil || claimed.ID != rr || claimed.Kind != api.KindSystemRestore || len(claimed.SystemRestore) == 0 {
+		t.Fatalf("restore run: %+v", claimed)
+	}
+	if _, err := e.store.QueueSystemRestore(ctx, runID, linux.ID, api.SystemRestore{Mode: "disk", Device: "/dev/sdb", NewHardware: true}); err != nil {
+		t.Fatal(err)
+	}
+	// Single files can be restored from a system backup.
+	if _, err := e.store.QueueRestore(ctx, runID, linux.ID, "/tmp/r", []string{"/etc"}, false); err != nil {
+		t.Errorf("file restore from a system backup: %v", err)
+	}
+
+	jar, _ := cookiejar.New(nil)
+	hc := e.ts.Client()
+	hc.Jar = jar
+	form := url.Values{"username": {"admin"}, "password": {"admin-pass-123"}}
+	req, _ := http.NewRequest(http.MethodPost, e.ts.URL+"/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Origin", e.ts.URL)
+	if resp, err := hc.Do(req); err == nil {
+		resp.Body.Close()
+	}
+	resp, err := hc.Get(e.ts.URL + fmt.Sprintf("/runs/%d", runID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	page := html.UnescapeString(string(b))
+	for _, want := range []string{"System backup #", "Ubuntu 24.04.1 LTS, UEFI boot", "/boot/efi", "As a new Proxmox VM", "UEFI (OVMF)", "Onto a disk", "</html>"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("system run page lacks %q", want)
+		}
+	}
+	if strings.Contains(page, "Disk 0 —") {
+		t.Error("system run page shows an image panel")
+	}
+}

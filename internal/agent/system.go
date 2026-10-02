@@ -121,7 +121,7 @@ func (a *Agent) systemRestore(ctx context.Context, run api.Run) api.RunResult {
 		newHW = true
 	}
 	var lastLog time.Time
-	res, err := sysbackup.Restore(ctx, r, sn, sysbackup.RestoreOptions{Target: target, NewHardware: newHW,
+	res, err := sysbackup.Restore(ctx, r, sn, sysbackup.RestoreOptions{Target: target, NewHardware: newHW, DisableAgent: vmid > 0,
 		Log: func(s string) { a.log.Info("system restore", "run", run.ID, "step", s) },
 		Progress: func(_ string, s *restorer.Stats) {
 			a.progress(s.Bytes, 0, s.Files)

@@ -52,7 +52,8 @@ func CreateSystemVM(ctx context.Context, o SystemVMOptions) (int, string, error)
 	if !ok || !st.usable(LocalNode()) || !st.has("images") {
 		return 0, "", fmt.Errorf("storage %q cannot hold VM disks on this node", o.Storage)
 	}
-	gib := (o.DiskSize + (1<<30 - 1)) >> 30
+	// Round up with some room for the backup GPT and alignment.
+	gib := (o.DiskSize + 64<<20 + (1<<30 - 1)) >> 30
 	if gib == 0 {
 		gib = 1
 	}

@@ -23,6 +23,7 @@ type RestoreOptions struct {
 	Target           string
 	Disk             string
 	NewHardware      bool
+	DisableAgent     bool
 	RebuildInitramfs bool
 	Log              func(string)
 	Progress         func(path string, s *restorer.Stats)
