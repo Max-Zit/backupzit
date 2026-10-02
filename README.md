@@ -23,7 +23,8 @@ connect to it over HTTPS.
 8. **Users** — local accounts, roles (Administrator, Backup operator, Restore operator, Viewer), LDAPS/Active Directory sign-in, audit log ✅; reports, calendar, in-console documentation ✅
 9. **Linux image backup**
 
-Supported agent platforms (target): Windows 7, 10, 11, Windows Server 2008 R2+;
+Supported agent platforms: Windows 10, 11, Server 2016+ (MSI); Windows 7, Server 2008 R2/2012 R2
+(legacy MSI built with the go-legacy-win7 toolchain: `build-msi.ps1 -Legacy`);
 AlmaLinux, Rocky Linux, Ubuntu, Debian.
 
 ## Management server

@@ -552,7 +552,6 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request, user st
 
 // ---- agents
 
-
 type enrollInfo struct {
 	Token       string
 	Expires     time.Time

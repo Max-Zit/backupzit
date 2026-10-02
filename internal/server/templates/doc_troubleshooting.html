@@ -32,6 +32,7 @@
   <tr><td>"your directory account is not in any BackupZit group"</td><td>Add the user to one of the groups mapped under <a href="/settings/ldap">Settings → LDAP</a>, or map more groups. Use <i>Test</i> there to see the groups found for a user.</td></tr>
   <tr><td>API returns 401 / 403</td><td>401: token missing, revoked, expired or its owner disabled. 403: the token's role is too low for the request.</td></tr>
   <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Wrong account key, or the SAS token lacks read, write, delete or list permission or has expired.</td></tr>
+  <tr><td>A restored Windows Server 2012 R2 / Windows 8.1 VM does not boot on Hyper-V Gen 2 ("hash was denied (DBX)")</td><td>Microsoft revoked the old boot loader for Secure Boot. Turn off Secure Boot for that VM, or update the system before backing it up.</td></tr>
 </table>
 
 <h2>A backup ends with "warning"</h2>
