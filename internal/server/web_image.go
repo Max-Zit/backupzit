@@ -71,7 +71,8 @@ func (s *Server) handleImageRestore(w http.ResponseWriter, r *http.Request, runI
 		redirectErr(w, r, back, errors.New("choose a target disk"))
 		return
 	}
-	rid, err := s.store.QueueImageRestore(r.Context(), runID, formID(r, "agent_id"), disk, r.FormValue("keep_offline") == "on")
+	rid, err := s.store.QueueImageRestore(r.Context(), runID, formID(r, "agent_id"), ImageRestoreOptions{TargetDisk: disk,
+		KeepOffline: r.FormValue("keep_offline") == "on", NewHardware: r.FormValue("new_hardware") == "on", DriverPath: r.FormValue("driver_path")})
 	if err != nil {
 		redirectErr(w, r, back, err)
 		return

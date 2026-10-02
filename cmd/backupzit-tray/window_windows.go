@@ -37,13 +37,13 @@ func (s *statusWindow) isOpen() bool {
 }
 
 var (
-	user32              = windows.NewLazySystemDLL("user32.dll")
-	procSetForeground   = user32.NewProc("SetForegroundWindow")
-	procShowWindow      = user32.NewProc("ShowWindow")
-	procSendMessage     = user32.NewProc("SendMessageW")
-	procLoadImage       = user32.NewProc("LoadImageW")
-	procPostMessage     = user32.NewProc("PostMessageW")
-	procIsIconic        = user32.NewProc("IsIconic")
+	user32            = windows.NewLazySystemDLL("user32.dll")
+	procSetForeground = user32.NewProc("SetForegroundWindow")
+	procShowWindow    = user32.NewProc("ShowWindow")
+	procSendMessage   = user32.NewProc("SendMessageW")
+	procLoadImage     = user32.NewProc("LoadImageW")
+	procPostMessage   = user32.NewProc("PostMessageW")
+	procIsIconic      = user32.NewProc("IsIconic")
 )
 
 func (s *statusWindow) show(t *tray) {

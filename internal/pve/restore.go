@@ -435,4 +435,3 @@ func newMAC() string {
 	rand.Read(b[:])
 	return fmt.Sprintf("BC:24:11:%02X:%02X:%02X", b[0], b[1], b[2])
 }
-

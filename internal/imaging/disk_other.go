@@ -52,3 +52,21 @@ type RestoreStats struct {
 func Restore(context.Context, *repo.Repository, *repo.Snapshot, RestoreOptions) (*RestoreStats, error) {
 	return nil, ErrUnsupported
 }
+
+// HardwareReport describes what PrepareForNewHardware changed.
+type HardwareReport struct {
+	WindowsVolume  string   `json:"windows_volume"`
+	DriversEnabled []string `json:"drivers_enabled"`
+	DriversAdded   int      `json:"drivers_added"`
+	DriverSources  []string `json:"driver_sources,omitempty"`
+	BootRebuilt    bool     `json:"boot_rebuilt"`
+	Warnings       []string `json:"warnings,omitempty"`
+}
+
+// PrepareForNewHardware is Windows only.
+func PrepareForNewHardware(context.Context, int, []string, func(string)) (*HardwareReport, error) {
+	return nil, ErrUnsupported
+}
+
+// RecoveryDriverDirs is Windows only.
+func RecoveryDriverDirs() []string { return nil }

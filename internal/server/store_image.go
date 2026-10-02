@@ -61,7 +61,24 @@ func DescribeImageSelection(disk *int, parts []int) string {
 
 // QueueImageRestore creates a run that writes the image of a backup run
 // onto a disk of the given agent. The disk is erased.
-func (s *Store) QueueImageRestore(ctx context.Context, backupRunID, agentID int64, targetDisk int, keepOffline bool) (int64, error) {
+// ImageRestoreOptions are the choices of an image restore.
+type ImageRestoreOptions struct {
+	TargetDisk  int
+	KeepOffline bool
+	// NewHardware prepares the restored Windows for different hardware;
+	// DriverPath lists extra driver folders on the target machine (;).
+	NewHardware bool
+	DriverPath  string
+}
+
+func (s *Store) QueueImageRestore(ctx context.Context, backupRunID, agentID int64, o ImageRestoreOptions) (int64, error) {
+	targetDisk, keepOffline := o.TargetDisk, o.KeepOffline
+	if o.NewHardware && keepOffline {
+		return 0, errors.New("a disk that stays offline cannot be prepared for new hardware")
+	}
+	if len(o.DriverPath) > 1000 {
+		return 0, errors.New("driver path too long")
+	}
 	b, err := s.GetRun(ctx, backupRunID)
 	if err != nil {
 		return 0, err
@@ -79,9 +96,9 @@ func (s *Store) QueueImageRestore(ctx context.Context, backupRunID, agentID int6
 		}
 	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, target_disk, keep_offline)
-		VALUES($1,$2,'image-restore','manual',$3,$4,$5,$6,$7) RETURNING id`,
-		agentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, targetDisk, keepOffline).Scan(&id)
+	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, target_disk, keep_offline, new_hardware, driver_path)
+		VALUES($1,$2,'image-restore','manual',$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+		agentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, targetDisk, keepOffline, o.NewHardware, strings.TrimSpace(o.DriverPath)).Scan(&id)
 	return id, err
 }
 

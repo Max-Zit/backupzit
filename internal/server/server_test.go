@@ -459,10 +459,20 @@ func TestImageJobs(t *testing.T) {
 	}
 
 	// Image restore: never onto the system disk, fine onto disk 1.
-	if _, err := e.store.QueueImageRestore(ctx, runID, a.ID, 0, false); err == nil {
+	if _, err := e.store.QueueImageRestore(ctx, runID, a.ID, server.ImageRestoreOptions{TargetDisk: 0}); err == nil {
 		t.Error("image restore onto the system disk accepted")
 	}
-	rr, err := e.store.QueueImageRestore(ctx, runID, a.ID, 1, true)
+	if _, err := e.store.QueueImageRestore(ctx, runID, a.ID, server.ImageRestoreOptions{TargetDisk: 1, KeepOffline: true, NewHardware: true}); err == nil {
+		t.Error("new-hardware restore onto an offline disk accepted")
+	}
+	hw, err := e.store.QueueImageRestore(ctx, runID, a.ID, server.ImageRestoreOptions{TargetDisk: 1, NewHardware: true, DriverPath: `E:Drivers`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := e.store.GetRun(ctx, hw); !r.NewHardware || r.DriverPath != `E:Drivers` {
+		t.Fatalf("new hardware run: %+v", r)
+	}
+	rr, err := e.store.QueueImageRestore(ctx, runID, a.ID, server.ImageRestoreOptions{TargetDisk: 1, KeepOffline: true})
 	if err != nil {
 		t.Fatal(err)
 	}

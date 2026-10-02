@@ -39,11 +39,11 @@ const sessionCookie = "bz_session"
 
 // Server is the management console.
 type Server struct {
-	store  *Store
+	store *Store
 	// shaCache holds SHA-256 sums of installers offered as agent updates.
 	shaCache sync.Map
-	logins *loginLimiter
-	log    *slog.Logger
+	logins   *loginLimiter
+	log      *slog.Logger
 	// CertFingerprint is shown in enrollment instructions.
 	CertFingerprint string
 	// PublicURL is how agents reach the server, e.g. https://backup.example.com:8443

@@ -33,6 +33,7 @@
       <dt>Restore to</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}original location{{end}}</dd>
     {{else if eq .Kind "image-restore"}}
       <dt>Target disk</dt><dd>{{if .TargetDisk}}Disk {{deref2 .TargetDisk}}{{end}}{{if .KeepOffline}} (left offline){{end}}</dd>
+      {{if .NewHardware}}<dt>New hardware</dt><dd>prepared for different hardware{{if .DriverPath}}, drivers from <span class="mono">{{.DriverPath}}</span>{{end}}</dd>{{end}}
     {{else}}
       <dt>Restore to</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}original location{{end}}</dd>
       <dt>Only</dt><dd class="mono">{{if .Paths}}{{join .Paths "\n"}}{{else}}everything{{end}}</dd>
@@ -197,6 +198,8 @@
       <select name="target_disk" id="restore_disk" required></select>
     </label>
     <label class="check"><input type="checkbox" name="keep_offline"> Leave the disk offline afterwards <small>use when the original disk is in the same machine, otherwise Windows assigns new IDs and the copy will not boot</small></label>
+    <label class="check"><input type="checkbox" name="new_hardware"> Restore to different hardware <small>for another computer, disk controller or hypervisor (e.g. a physical PC into a Proxmox or Hyper-V VM): enables the boot drivers for common disk controllers, adds drivers and rebuilds the boot files</small></label>
+    <label>Additional drivers <small>optional: folders with drivers (.inf) on the target machine, separated by ; — e.g. E:\Drivers. The recovery ISO adds its own drivers (VirtIO for Proxmox/KVM) automatically</small><input name="driver_path" placeholder="E:\Drivers"></label>
     <label class="check"><input type="checkbox" name="confirm_erase" required> I understand that all data on the target disk will be destroyed</label>
     <div><button class="danger">Restore image</button></div>
   </form>

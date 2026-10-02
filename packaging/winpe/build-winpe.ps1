@@ -7,11 +7,17 @@
 
   With -RecoveryJson the file is placed in \backupzit\ on the ISO so the
   recovery environment connects to the server without typing.
+
+  With -DriverDir the drivers (INF folders) are added to Windows PE, so it
+  sees disks and network cards that need them (e.g. VirtIO in Proxmox/KVM
+  VMs), and are copied to X:\BackupZit\drivers, from where a restore "to
+  different hardware" adds them to the restored Windows.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$AgentExe,
     [Parameter(Mandatory = $true)][string]$Out,
     [string]$RecoveryJson = "",
+    [string]$DriverDir = "",
     [string]$WorkDir = "$env:TEMP\backupzit-winpe"
 )
 $ErrorActionPreference = "Stop"
@@ -38,6 +44,13 @@ $mount = Join-Path $WorkDir "mount"
 if ($LASTEXITCODE -ne 0) { throw "mount boot.wim failed" }
 try {
     Copy-Item $AgentExe (Join-Path $mount "Windows\System32\backupzit-agent.exe")
+    if ($DriverDir) {
+        & dism.exe /Image:"$mount" /Add-Driver /Driver:"$DriverDir" /Recurse
+        if ($LASTEXITCODE -ne 0) { throw "adding drivers to Windows PE failed" }
+        $drv = Join-Path $mount "BackupZit\drivers"
+        New-Item -ItemType Directory -Force $drv | Out-Null
+        Copy-Item -Recurse -Force (Join-Path $DriverDir "*") $drv
+    }
     $startnet = @"
 @echo off
 wpeinit

@@ -166,6 +166,7 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 			ar.TargetDisk = *run.TargetDisk
 		}
 		ar.KeepOffline = run.KeepOffline
+		ar.NewHardware, ar.DriverPath = run.NewHardware, run.DriverPath
 	}
 	return ar, nil
 }

@@ -117,6 +117,10 @@ type Run struct {
 	// Image restore: disk to overwrite.
 	TargetDisk  int  `json:"target_disk,omitempty"`
 	KeepOffline bool `json:"keep_offline,omitempty"`
+	// NewHardware prepares the restored Windows for different hardware;
+	// DriverPath lists extra driver folders (separated by ;).
+	NewHardware bool   `json:"new_hardware,omitempty"`
+	DriverPath  string `json:"driver_path,omitempty"`
 
 	// Image file restore: partition to read; Includes lists paths inside it
 	// (`\Users\ana`) and RestoreTarget the folder ("" = original location).

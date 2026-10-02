@@ -29,7 +29,15 @@
   <li>Open the image backup in Activity, choose <b>Restore this image to a disk</b>, select the recovery agent and its disk, confirm.</li>
   <li>When the run is finished, remove the stick and reboot.</li>
 </ol>
-<div class="callout warn"><p><b>Different hardware:</b> restoring to identical or virtual hardware works out of the box. Restoring to very different hardware (other storage controller) may need drivers added to Windows; automated driver injection is planned.</p></div>
+<h2>Restoring to different hardware</h2>
+<p>Windows starts only with a driver for the disk controller it boots from, and Windows Setup disables the drivers it did not need. An image of a PC with an Intel controller therefore stops with <i>INACCESSIBLE_BOOT_DEVICE</i> on an AMD board, an NVMe drive, in Hyper-V or in a Proxmox VM. Tick <b>Restore to different hardware</b> in the restore form and BackupZit prepares the restored Windows after writing the image:</p>
+<ol>
+  <li>The drivers for common disk controllers that are part of Windows start at boot again: AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS and RAID, HPE Smart Array, Hyper-V and VMware.</li>
+  <li>Additional drivers are added with DISM: the drivers on the recovery ISO (it carries the VirtIO drivers for Proxmox/KVM) and the folders you enter under <b>Additional drivers</b> — e.g. the storage and network drivers of the new mainboard, extracted to a USB stick (<code>E:\Drivers</code>; subfolders are searched).</li>
+  <li>The boot files are rebuilt for the new machine (<code>bcdboot</code>).</li>
+</ol>
+<p>The run page lists the drivers enabled and added. Windows detects the remaining new devices at the first start; activation may ask to be repeated on new hardware. Restoring between UEFI and legacy BIOS is not possible — the target must boot the same way as the original.</p>
+<p><b>Physical PC or server to Proxmox VE:</b> create a VM with OVMF (UEFI) for GPT disks or SeaBIOS for MBR disks, a VirtIO SCSI disk at least as large as the original and a VirtIO network card, attach the recovery ISO, and restore with <i>Restore to different hardware</i>. The recovery ISO sees VirtIO disks and network cards itself.</p>
 
 <h2>Restoring to a virtual machine</h2>
 <p>Create an empty VM disk at least as large as the original, boot the VM from the recovery ISO and follow the steps above. This is also the easiest way to test that your images really boot.</p>

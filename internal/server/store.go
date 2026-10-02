@@ -666,13 +666,16 @@ type Run struct {
 	Anomaly    string
 	AnomalyAck bool
 	// VMRestore holds the options of a vm-restore run (JSON api.VMRestore).
-	VMRestore  json.RawMessage
-	QueuedAt   time.Time
-	StartedAt  *time.Time
-	FinishedAt *time.Time
-	Stats      json.RawMessage
-	Errors     []string
-	Message    string
+	VMRestore json.RawMessage
+	// Image restore onto different hardware.
+	NewHardware bool
+	DriverPath  string
+	QueuedAt    time.Time
+	StartedAt   *time.Time
+	FinishedAt  *time.Time
+	Stats       json.RawMessage
+	Errors      []string
+	Message     string
 }
 
 // Duration returns how long the run took (or has been running).
@@ -689,7 +692,7 @@ func (r Run) Duration() time.Duration {
 
 const runCols = `r.id, r.agent_id, a.hostname, r.job_id, j.name, r.kind, r.status, r.trigger, r.repo_url,
 	r.target_id, r.paths, r.excludes, r.snapshot_id, r.restore_target, r.restore_verify, r.queued_at, r.started_at, r.finished_at,
-	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url, r.anomaly, r.anomaly_ack, r.vm_restore`
+	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url, r.anomaly, r.anomaly_ack, r.vm_restore, r.new_hardware, r.driver_path`
 
 const runFrom = ` FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id`
 
@@ -698,7 +701,7 @@ func scanRun(row pgx.Row) (Run, error) {
 	err := row.Scan(&r.ID, &r.AgentID, &r.Hostname, &r.JobID, &r.JobName, &r.Kind, &r.Status,
 		&r.Trigger, &r.RepoURL, &r.TargetID, &r.Paths, &r.Excludes, &r.SnapshotID, &r.RestoreTarget, &r.RestoreVerify,
 		&r.QueuedAt, &r.StartedAt, &r.FinishedAt, &r.Stats, &r.Errors, &r.Message,
-		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL, &r.Anomaly, &r.AnomalyAck, &r.VMRestore)
+		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL, &r.Anomaly, &r.AnomalyAck, &r.VMRestore, &r.NewHardware, &r.DriverPath)
 	return r, err
 }
 

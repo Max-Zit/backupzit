@@ -94,7 +94,31 @@ func (a *Agent) imageRestore(ctx context.Context, run api.Run) api.RunResult {
 	if run.KeepOffline {
 		msg += " (left offline)"
 	}
-	return api.RunResult{Status: api.StatusSuccess, Stats: stats, Message: msg}
+	res := api.RunResult{Status: api.StatusSuccess, Stats: stats, Message: msg}
+	if run.NewHardware && !run.KeepOffline {
+		dirs := imaging.RecoveryDriverDirs()
+		for _, d := range strings.Split(run.DriverPath, ";") {
+			if d = strings.TrimSpace(d); d != "" {
+				dirs = append(dirs, d)
+			}
+		}
+		hw, err := imaging.PrepareForNewHardware(ctx, run.TargetDisk, dirs, func(s string) { a.log.Info("new hardware", "run", run.ID, "step", s) })
+		if err != nil {
+			res.Status = api.StatusWarning
+			res.Errors = append(res.Errors, "preparing for new hardware failed: "+err.Error())
+			return res
+		}
+		res.Details, _ = json.Marshal(map[string]any{"new_hardware": hw})
+		res.Message += fmt.Sprintf(". Prepared for new hardware: %d disk controller drivers enabled, %d drivers added", len(hw.DriversEnabled), hw.DriversAdded)
+		if hw.BootRebuilt {
+			res.Message += ", boot files rebuilt"
+		}
+		if len(hw.Warnings) > 0 {
+			res.Status = api.StatusWarning
+			res.Errors = append(res.Errors, hw.Warnings...)
+		}
+	}
+	return res
 }
 
 func (a *Agent) imageFileRestore(ctx context.Context, run api.Run) api.RunResult {
