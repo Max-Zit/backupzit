@@ -60,6 +60,9 @@ Linux system (bare-metal restore, P2V):
 Proxmox VE (agent on the Proxmox host):
   pve            list | backup | show | restore — VMs and containers
 
+Hyper-V (agent on the Hyper-V host):
+  hyperv         list | backup | restore — VMs without agents inside
+
   version        Print version
 
 Repository options (all commands):
@@ -198,6 +201,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdSystemRestore(ctx, rest)
 	case "system-show":
 		return cmdSystemShow(ctx, rest)
+	case "hyperv":
+		return cmdHyperV(ctx, rest)
 	case "pve":
 		return cmdPVE(ctx, rest)
 	case "prepare-hardware":

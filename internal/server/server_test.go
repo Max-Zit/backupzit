@@ -1742,7 +1742,7 @@ func TestProxmoxJobs(t *testing.T) {
 		}
 		return html.UnescapeString(string(b))
 	}
-	if p := body("/jobs"); !strings.Contains(p, "Proxmox VMs and containers") || !strings.Contains(p, "Guests 100, 200") || !strings.Contains(p, `"web"`) || strings.Contains(p, `"elsewhere"`) {
+	if p := body("/jobs"); !strings.Contains(p, "Virtual machines (Proxmox VE, Hyper-V)") || !strings.Contains(p, "Guests 100, 200") || !strings.Contains(p, `"web"`) || strings.Contains(p, `"elsewhere"`) {
 		t.Error("jobs page lacks the Proxmox option, selection or inventory")
 	}
 	if p := body(fmt.Sprintf("/runs/%d", runID)); !strings.Contains(p, "VM backup #") || !strings.Contains(p, "frozen by the QEMU guest agent") ||
@@ -2048,5 +2048,82 @@ func TestSystemJobs(t *testing.T) {
 	}
 	if strings.Contains(page, "Disk 0 —") {
 		t.Error("system run page shows an image panel")
+	}
+}
+
+func TestHyperVJobs(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	targetID, _ := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	enroll := func(inv string) server.Agent {
+		cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		agents, _ := e.store.ListAgents(ctx)
+		for _, a := range agents {
+			if a.UUID == cfg.AgentUUID {
+				if err := e.store.TouchAgent(ctx, a.ID, api.PollRequest{Hostname: "h", OS: "Windows Server 2022", Hypervisor: json.RawMessage(inv)}, ""); err != nil {
+					t.Fatal(err)
+				}
+				a, _ = e.store.GetAgent(ctx, a.ID)
+				return a
+			}
+		}
+		t.Fatal("agent missing")
+		return server.Agent{}
+	}
+	hv := enroll(`{"platform":"hyperv","node":"HV1","guests":[{"vmid":1934519093,"id":"cca3c658-bf70-4f80-859c-dd61d115b66f","name":"File Server","type":"vm","node":"HV1","status":"running"}],"storage":["D:\\VMs"]}`)
+	pv := enroll(`{"node":"pve","guests":[],"storage":["local-lvm"]}`)
+	if hv.Platform() != "hyperv" || pv.Platform() != "proxmox" || hv.HypervisorLabel() != "Hyper-V" {
+		t.Fatalf("platforms %q %q", hv.Platform(), pv.Platform())
+	}
+	jobID, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobVM, AgentID: hv.ID, TargetID: targetID, Name: "HV", Paths: []string{"1934519093"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID, _ := e.store.QueueBackup(ctx, jobID, "manual")
+	if c, _ := e.store.ClaimRun(ctx, hv.ID); c == nil || c.ID != runID {
+		t.Fatal("run not claimed")
+	}
+	details := `{"guests":[{"vmid":1934519093,"type":"vm","name":"File Server","platform":"hyperv","consistency":"production checkpoint","disks":1,"size":1,"stored":1}]}`
+	e.store.FinishRun(ctx, hv.ID, runID, api.RunResult{Status: api.StatusSuccess, SnapshotID: strings.Repeat("ab", 32), Details: json.RawMessage(details), Stats: json.RawMessage(`{}`)})
+	if _, err := e.store.QueueVMRestore(ctx, runID, pv.ID, api.VMRestore{VMID: 1934519093, NewVMID: -1}); err == nil {
+		t.Error("Hyper-V backup accepted for restore on a Proxmox node")
+	}
+	if _, err := e.store.QueueVMRestore(ctx, runID, hv.ID, api.VMRestore{VMID: 1934519093, NewVMID: 150}); err == nil {
+		t.Error("Hyper-V restore with a numeric ID accepted")
+	}
+	if _, err := e.store.QueueVMRestore(ctx, runID, hv.ID, api.VMRestore{VMID: 1934519093, NewVMID: -1, Name: "File Server copy", Storage: `D:\VMs`}); err != nil {
+		t.Fatalf("Hyper-V restore: %v", err)
+	}
+	jar, _ := cookiejar.New(nil)
+	hc := e.ts.Client()
+	hc.Jar = jar
+	form := url.Values{"username": {"admin"}, "password": {"admin-pass-123"}}
+	req, _ := http.NewRequest(http.MethodPost, e.ts.URL+"/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Origin", e.ts.URL)
+	if resp, err := hc.Do(req); err == nil {
+		resp.Body.Close()
+	}
+	get := func(p string) string {
+		resp, err := hc.Get(e.ts.URL + p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return html.UnescapeString(string(b))
+	}
+	if p := get(fmt.Sprintf("/runs/%d", runID)); !strings.Contains(p, "Restore a Hyper-V VM") || !strings.Contains(p, "Hyper-V virtual machines") || !strings.Contains(p, `D:\VMs`) || !strings.Contains(p, "</html>") {
+		t.Error("Hyper-V run page lacks the Hyper-V restore form")
+	}
+	if p := get("/agents"); !strings.Contains(p, "Hyper-V · 1 VMs") || !strings.Contains(p, "Proxmox VE · 0 guests") {
+		t.Error("agents page lacks hypervisor badges")
+	}
+	if p := get("/jobs"); !strings.Contains(p, "1 selected VMs") {
+		t.Error("jobs page lacks the Hyper-V selection")
 	}
 }

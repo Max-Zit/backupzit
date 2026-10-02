@@ -58,11 +58,11 @@
   </div>
   {{end}}
   <div class="panel">
-    <h2>Virtual machines and containers</h2>
+    <h2>{{if eq $.Data.VMPlatform "hyperv"}}Hyper-V virtual machines{{else}}Proxmox VMs and containers{{end}}</h2>
     <div class="table-wrap"><table>
       <tr><th>ID</th><th>Name</th><th>Type</th><th>Disks</th><th>With data</th><th>Captured</th><th></th></tr>
       {{range .Data.VM.Guests}}
-      <tr><td>{{.VMID}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}container{{else}}VM{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">Browse files</a>{{end}}</td></tr>
+      <tr><td>{{if eq .Platform "hyperv"}}—{{else}}{{.VMID}}{{end}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}container{{else}}VM{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">Browse files</a>{{end}}</td></tr>
       {{end}}
     </table></div>
   </div>
@@ -217,8 +217,35 @@
 
 {{if and (eq .Kind "vm-backup") .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.VM}}
 <div class="panel">
+  {{if eq $.Data.VMPlatform "hyperv"}}
+  <h2>Restore a Hyper-V VM</h2>
+  {{if $.Data.VMAgents}}
+  <form method="post" action="/runs/{{.ID}}/restore" class="stack">
+    <input type="hidden" name="kind" value="vm">
+    <div class="row">
+      <label>VM
+        <select name="vmid">{{range $.Data.VM.Guests}}<option value="{{.VMID}}">{{.Name}}</option>{{end}}</select>
+      </label>
+      <label>Restore on Hyper-V host
+        <select name="agent_id">{{range $.Data.VMAgents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Inv.Node}}</option>{{end}}</select>
+      </label>
+    </div>
+    <label class="check"><input type="radio" name="id_mode" value="next" checked> As a new VM next to the original <small>new name (default: original name + "restored" and the date) and new MAC addresses</small></label>
+    <label class="check"><input type="radio" name="id_mode" value="original"> In place of the original VM <small>or recreate it if it was deleted</small></label>
+    <label class="check"><input type="checkbox" name="overwrite"> If the original VM still exists, <b>turn it off and replace its disks</b> with the backup <small>it keeps its ID, network adapters and MAC addresses; the old disk files are kept renamed (<code>.replaced-…</code>)</small></label>
+    <div class="row">
+      <label>Name <small>optional</small><input name="name" maxlength="100"></label>
+      <label>Folder for the virtual disks
+        <select name="storage"><option value="">Host default (in place: next to the original disks)</option>{{range $.Data.VMAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
+      </label>
+    </div>
+    <label class="check"><input type="checkbox" name="start"> Start the VM after the restore</label>
+    <div><button>Restore VM</button></div>
+  </form>
+  {{else}}<p class="muted">No agent on a Hyper-V host is enrolled. Install the BackupZit agent on the Hyper-V host to restore.</p>{{end}}
+  {{else}}
   <h2>Restore a VM or container</h2>
-  {{if $.Data.PVEAgents}}
+  {{if $.Data.VMAgents}}
   <form method="post" action="/runs/{{.ID}}/restore" class="stack">
     <input type="hidden" name="kind" value="vm">
     <div class="row">
@@ -226,7 +253,7 @@
         <select name="vmid">{{range $.Data.VM.Guests}}<option value="{{.VMID}}">{{.VMID}} — {{.Name}} ({{if eq .Type "lxc"}}container{{else}}VM{{end}})</option>{{end}}</select>
       </label>
       <label>Restore on Proxmox node
-        <select name="agent_id">{{range $.Data.PVEAgents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Inv.Node}}{{if ne .Inv.Node .Hostname}} ({{.Hostname}}){{end}}</option>{{end}}</select>
+        <select name="agent_id">{{range $.Data.VMAgents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Inv.Node}}{{if ne .Inv.Node .Hostname}} ({{.Hostname}}){{end}}</option>{{end}}</select>
       </label>
     </div>
     <label class="check"><input type="radio" name="id_mode" value="next" checked> As a new guest with the next free ID <small>the original keeps running; network cards get new MAC addresses</small></label>
@@ -236,13 +263,14 @@
     <div class="row">
       <label>Name <small>optional, default: original name</small><input name="name" maxlength="63"></label>
       <label>Storage for the disks
-        <select name="storage"><option value="">Original storage of each disk</option>{{range $.Data.PVEAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
+        <select name="storage"><option value="">Original storage of each disk</option>{{range $.Data.VMAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
       </label>
     </div>
     <label class="check"><input type="checkbox" name="start"> Start the guest after the restore</label>
     <div><button>Restore guest</button></div>
   </form>
   {{else}}<p class="muted">No agent on a Proxmox VE host is enrolled. Install the BackupZit agent on the Proxmox node to restore.</p>{{end}}
+  {{end}}
 </div>
 {{end}}
 

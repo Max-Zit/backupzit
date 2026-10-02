@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/backupzit/backupzit/internal/diskimg"
 	"github.com/backupzit/backupzit/internal/repo"
 )
 
@@ -273,14 +274,10 @@ func writeDisk(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, d rep
 	if d.Image < 0 || d.Image >= len(sn.Images) || len(sn.Images[d.Image].Partitions) != 1 {
 		return errors.New("disk image missing in the snapshot")
 	}
-	p := &sn.Images[d.Image].Partitions[0]
-	ids, err := r.LoadBlockMap(ctx, p)
-	if err != nil {
-		return err
-	}
 	_, vol, _ := strings.Cut(volid, ":")
 	var path string
 	var cleanup func()
+	var err error
 	switch st.Type {
 	case "rbd":
 		args := append([]string{"map"}, rbdArgs(st)...)
@@ -311,32 +308,8 @@ func writeDisk(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, d rep
 		return err
 	}
 	defer f.Close()
-	for i, id := range ids {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		off := uint64(i) * uint64(p.BlockSize)
-		n := min(uint64(p.BlockSize), p.Length-off)
-		if id.IsNull() {
-			if writeZeros {
-				if _, err := f.WriteAt(zeroBlock[:n], int64(off)); err != nil {
-					return err
-				}
-			}
-			progress(n)
-			continue
-		}
-		b, err := r.LoadBlob(ctx, repo.DataBlob, id)
-		if err != nil {
-			return fmt.Errorf("block %d: %w", i, err)
-		}
-		if uint64(len(b)) != n {
-			return fmt.Errorf("block %d has %d bytes, expected %d", i, len(b), n)
-		}
-		if _, err := f.WriteAt(b, int64(off)); err != nil {
-			return err
-		}
-		progress(n)
+	if err := diskimg.Write(ctx, r, &sn.Images[d.Image], f, writeZeros, progress); err != nil {
+		return err
 	}
 	return f.Sync()
 }

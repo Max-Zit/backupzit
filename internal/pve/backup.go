@@ -1,7 +1,6 @@
 package pve
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/backupzit/backupzit/internal/diskimg"
 	"github.com/backupzit/backupzit/internal/repo"
 )
 
@@ -487,8 +487,6 @@ func nbdConnect(ctx context.Context, file, format, snap string) (*source, error)
 	return nil, errors.New("no free /dev/nbd device")
 }
 
-var zeroBlock = make([]byte, BlockSize)
-
 // imageDisk stores a disk block by block. All-zero blocks are recorded as
 // null IDs and not stored.
 func imageDisk(ctx context.Context, r *repo.Repository, src *source, number int, model string, progress func(uint64)) (repo.DiskImage, error) {
@@ -505,41 +503,7 @@ func imageDisk(ctx context.Context, r *repo.Repository, src *source, number int,
 	if size == 0 {
 		return repo.DiskImage{}, fmt.Errorf("%s is empty", src.path)
 	}
-	img := repo.DiskImage{Number: number, Model: model, Size: size, SectorSize: 512, Style: "raw"}
-	p := repo.PartitionImage{Number: 1, Offset: 0, Length: size, Included: true, Method: "full", Source: "snapshot",
-		BlockSize: BlockSize, Blocks: (size + BlockSize - 1) / BlockSize}
-	ids := make([]repo.ID, p.Blocks)
-	buf := make([]byte, BlockSize)
-	for i := uint64(0); i < p.Blocks; i++ {
-		if err := ctx.Err(); err != nil {
-			return img, err
-		}
-		n := min(uint64(BlockSize), size-i*BlockSize)
-		if _, err := f.ReadAt(buf[:n], int64(i*BlockSize)); err != nil && !(errors.Is(err, io.EOF) && i == p.Blocks-1) {
-			return img, fmt.Errorf("read block %d: %w", i, err)
-		}
-		if i == 0 {
-			if img.Head, _, err = r.SaveBlob(ctx, repo.DataBlob, buf[:n]); err != nil {
-				return img, err
-			}
-		}
-		if bytes.Equal(buf[:n], zeroBlock[:n]) {
-			progress(n)
-			continue
-		}
-		id, _, err := r.SaveBlob(ctx, repo.DataBlob, buf[:n])
-		if err != nil {
-			return img, err
-		}
-		ids[i] = id
-		p.StoredBytes += n
-		progress(n)
-	}
-	if p.Maps, err = r.SaveBlockMap(ctx, ids); err != nil {
-		return img, err
-	}
-	img.Partitions = []repo.PartitionImage{p}
-	return img, nil
+	return diskimg.Store(ctx, r, f, size, number, model, "snapshot", progress)
 }
 
 // configuredSize sums the disk sizes in a guest's configuration.

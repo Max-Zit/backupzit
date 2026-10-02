@@ -23,7 +23,7 @@
     {{else if eq .Kind "system"}}
     <dt>Backs up</dt><dd>Whole Linux system (all local file systems and the disk layout){{if .Excludes}}, excluding <span class="mono">{{join .Excludes ", "}}</span>{{end}}</dd>
     {{else if eq .Kind "vm"}}
-    <dt>Backs up</dt><dd>{{vmsel .Paths}} <span class="muted">(Proxmox VE)</span></dd>
+    <dt>Backs up</dt><dd>{{vmsel .Paths}} <span class="muted">(hypervisor host)</span></dd>
     {{else}}
     <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
     <dt>Excludes</dt><dd class="mono">{{if .Excludes}}{{join .Excludes ", "}}{{else}}—{{end}}</dd>

@@ -33,10 +33,13 @@ type pveAgent struct {
 	Inv *pve.Inventory
 }
 
-func pveAgents(agents []Agent) []pveAgent {
+func pveAgents(agents []Agent) []pveAgent { return hypervisorAgents(agents, "proxmox") }
+
+// hypervisorAgents are the agents on hosts of the given platform.
+func hypervisorAgents(agents []Agent, platform string) []pveAgent {
 	var out []pveAgent
 	for _, a := range agents {
-		if inv := a.PVE(); inv != nil {
+		if inv := a.PVE(); inv != nil && a.Platform() == platform {
 			out = append(out, pveAgent{a, inv})
 		}
 	}

@@ -51,6 +51,15 @@
   <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Prepare a restored Windows disk for different hardware (boot drivers, extra drivers, boot files) — the same as the restore option, e.g. to repeat it from the recovery ISO.</td></tr>
 </table>
 
+<h2>Hyper-V (agent on the Hyper-V host, as administrator)</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>hyperv list</code></td><td>List the host's VMs with their BackupZit numbers, and the folders for restored disks.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Back up VMs (default: all) from production checkpoints.</td></tr>
+  <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Restore a VM in place (default) or as a new VM with <code>--new</code>. <code>--overwrite</code> replaces the disks of an existing VM. See <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
+</table>
+<p><code>pve show</code>, <code>pve ls</code> and <code>pve extract</code> also work with Hyper-V backups.</p>
+
 <h2>Proxmox VE (agent on the Proxmox host)</h2>
 <table>
   <tr><th>Command</th><th>What it does</th></tr>

@@ -9,20 +9,28 @@ import (
 	"time"
 
 	"github.com/backupzit/backupzit/internal/api"
+	"github.com/backupzit/backupzit/internal/hyperv"
 	"github.com/backupzit/backupzit/internal/pve"
+	"github.com/backupzit/backupzit/internal/repo"
 )
 
-// hypervisorInventory returns the Proxmox VE guest list when the agent runs
-// on a Proxmox node, nil otherwise.
+// hypervisorInventory returns the guest list when the agent runs on a
+// Proxmox VE node or a Hyper-V host, nil otherwise.
 func (a *Agent) hypervisorInventory(ctx context.Context) json.RawMessage {
-	if !pve.Available() {
+	cctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	var inv *pve.Inventory
+	var err error
+	switch {
+	case pve.Available():
+		inv, err = pve.GetInventory(cctx)
+	case hyperv.Available():
+		inv, err = hyperv.GetInventory(cctx)
+	default:
 		return nil
 	}
-	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	inv, err := pve.GetInventory(cctx)
 	if err != nil {
-		a.log.Warn("Proxmox inventory", "err", err)
+		a.log.Warn("hypervisor inventory", "err", err)
 		return nil
 	}
 	b, _ := json.Marshal(inv)
@@ -47,14 +55,16 @@ type vmGuestSummary struct {
 	Type        string `json:"type"`
 	Name        string `json:"name"`
 	Consistency string `json:"consistency"`
+	Platform    string `json:"platform,omitempty"`
 	Disks       int    `json:"disks"`
 	Size        uint64 `json:"size"`
 	Stored      uint64 `json:"stored"` // bytes with data
 }
 
 func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
-	if !pve.Available() {
-		return failed(fmt.Errorf("this machine is not a Proxmox VE node"))
+	isPVE, isHV := pve.Available(), hyperv.Available()
+	if !isPVE && !isHV {
+		return failed(fmt.Errorf("this machine is neither a Proxmox VE node nor a Hyper-V host"))
 	}
 	var sel []int
 	if !(len(run.VMs) == 1 && run.VMs[0] == "*") {
@@ -82,24 +92,27 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	}
 	defer lock.Unlock()
 	var lastLog time.Time
-	sn, err := pve.Backup(ctx, r, pve.BackupOptions{
-		VMIDs: sel, Exclude: excl, Version: a.version,
-		Tags: []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
-		Progress: func(done, total uint64) {
-			a.progress(done, total, 0)
-			if time.Since(lastLog) > time.Minute {
-				lastLog = time.Now()
-				a.log.Info("vm backup", "run", run.ID, "done", done, "total", total)
-			}
-		},
-		Log: func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) },
-	})
+	tags := []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}
+	prog := func(done, total uint64) {
+		a.progress(done, total, 0)
+		if time.Since(lastLog) > time.Minute {
+			lastLog = time.Now()
+			a.log.Info("vm backup", "run", run.ID, "done", done, "total", total)
+		}
+	}
+	logf := func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) }
+	var sn *repo.Snapshot
+	if isPVE {
+		sn, err = pve.Backup(ctx, r, pve.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf})
+	} else {
+		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf})
+	}
 	if err != nil {
 		return failed(err)
 	}
 	var sum []vmGuestSummary
 	for _, g := range sn.Guests {
-		s := vmGuestSummary{VMID: g.VMID, Type: g.Type, Name: g.Name, Consistency: g.Consistency, Disks: len(g.Disks)}
+		s := vmGuestSummary{VMID: g.VMID, Type: g.Type, Name: g.Name, Consistency: g.Consistency, Disks: len(g.Disks), Platform: g.Platform}
 		for _, d := range g.Disks {
 			s.Size += d.Size
 			if d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {
@@ -123,8 +136,9 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 }
 
 func (a *Agent) vmRestore(ctx context.Context, run api.Run) api.RunResult {
-	if !pve.Available() {
-		return failed(fmt.Errorf("this machine is not a Proxmox VE node"))
+	isPVE, isHV := pve.Available(), hyperv.Available()
+	if !isPVE && !isHV {
+		return failed(fmt.Errorf("this machine is neither a Proxmox VE node nor a Hyper-V host"))
 	}
 	if run.VMRestore == nil {
 		return failed(fmt.Errorf("restore options missing"))
@@ -143,6 +157,9 @@ func (a *Agent) vmRestore(ctx context.Context, run api.Run) api.RunResult {
 	sn, err := r.LoadSnapshot(ctx, run.SnapshotID)
 	if err != nil {
 		return failed(err)
+	}
+	if isHV {
+		return a.hypervRestore(ctx, run, r, sn)
 	}
 	res, err := pve.Restore(ctx, r, sn, pve.RestoreOptions{
 		VMID: o.VMID, NewVMID: o.NewVMID, Name: o.Name, Storage: o.Storage, Overwrite: o.Overwrite, Start: o.Start,
@@ -165,6 +182,33 @@ func (a *Agent) vmRestore(ctx context.Context, run api.Run) api.RunResult {
 	}
 	if res.NewMACs {
 		msg += "; network cards got new MAC addresses because the original still exists"
+	}
+	if len(res.Notes) > 0 {
+		msg += ". " + strings.Join(res.Notes, "; ")
+	}
+	details, _ := json.Marshal(res)
+	stats, _ := json.Marshal(map[string]uint64{"bytes": res.Bytes})
+	return api.RunResult{Status: api.StatusSuccess, Message: msg, Details: details, Stats: stats}
+}
+
+// hypervRestore restores a Hyper-V VM: NewVMID -1 creates a second VM next
+// to the original, 0 restores in place (with Overwrite) or recreates a
+// deleted VM. Storage is the folder for the virtual disks.
+func (a *Agent) hypervRestore(ctx context.Context, run api.Run, r *repo.Repository, sn *repo.Snapshot) api.RunResult {
+	o := run.VMRestore
+	res, err := hyperv.Restore(ctx, r, sn, hyperv.RestoreOptions{
+		VMID: o.VMID, AsNew: o.NewVMID != 0, Name: o.Name, Folder: o.Storage, Overwrite: o.Overwrite, Start: o.Start,
+		Log: func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) },
+	})
+	if err != nil {
+		return failed(err)
+	}
+	msg := fmt.Sprintf("VM %q restored on %s", res.Name, res.Host)
+	if res.Started {
+		msg += " and started"
+	}
+	if res.NewMACs {
+		msg += "; network adapters got new MAC addresses because the original still exists"
 	}
 	if len(res.Notes) > 0 {
 		msg += ". " + strings.Join(res.Notes, "; ")

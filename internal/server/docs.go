@@ -13,6 +13,7 @@ var docPages = []struct{ Slug, Title string }{
 	{"images", "Disk images & bare-metal recovery"},
 	{"linux-system", "Linux system backup & P2V"},
 	{"proxmox", "Proxmox VE virtual machines"},
+	{"hyperv", "Hyper-V virtual machines"},
 	{"ransomware", "Ransomware protection"},
 	{"monitoring", "Monitoring, reports & calendar"},
 	{"notifications", "Email notifications"},

@@ -185,7 +185,7 @@ function renderVMPicker() {
   box.textContent = "";
   var guests = inv[agentSel.value];
   if (!guests) {
-    box.appendChild(el("p", { "class": "muted" }, "This agent is not on a Proxmox VE host. Select the agent installed on the Proxmox node."));
+    box.appendChild(el("p", { "class": "muted" }, "This agent is not on a Proxmox VE or Hyper-V host. Select the agent installed on the hypervisor host."));
     return;
   }
   if (!guests.length) {
@@ -197,7 +197,8 @@ function renderVMPicker() {
     var cb = el("input", { type: "checkbox", name: "vms", value: g.vmid });
     l.appendChild(cb);
     var kind = g.type === "lxc" ? "container" : "VM";
-    l.appendChild(document.createTextNode(" " + g.vmid + "  " + (g.name || "") + "  (" + kind + ", " + fmtBytes(g.maxdisk || 0) + ", " + g.status + ")"));
+    var label = g.id ? (g.name || g.id) : g.vmid + "  " + (g.name || "");
+    l.appendChild(document.createTextNode(" " + label + "  (" + kind + ", " + fmtBytes(g.maxdisk || 0) + ", " + g.status + ")"));
     box.appendChild(l);
   });
 }

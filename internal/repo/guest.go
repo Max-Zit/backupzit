@@ -8,9 +8,11 @@ type Guest struct {
 	Platform string `json:"platform"` // "proxmox"
 	Type     string `json:"type"`     // "qemu" (VM) or "lxc" (container)
 	VMID     int    `json:"vmid"`
-	Name     string `json:"name,omitempty"`
-	Node     string `json:"node,omitempty"`
-	Running  bool   `json:"running,omitempty"`
+	// ID is the Hyper-V VM GUID (empty for Proxmox).
+	ID      string `json:"id,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Node    string `json:"node,omitempty"`
+	Running bool   `json:"running,omitempty"`
 	// Consistency describes how the disks were captured, e.g.
 	// "snapshot, file systems frozen by the guest agent".
 	Consistency string `json:"consistency,omitempty"`

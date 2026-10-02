@@ -13,7 +13,7 @@
   <li><b>Audit trail</b> — sign-ins, failed sign-ins, user and role changes, jobs, storage targets, restores, displayed recovery keys, settings changes and API actions are recorded in the <a href="/audit">audit log</a>; deletions on a hardened repository are logged on that server.</li>
   <li><b>Agent updates</b> — agents download new versions only from their console over the pinned connection and install them only if the SHA-256 checksum matches.</li>
   <li><b>Local status channel</b> — the tray app talks to the agent service over a local named pipe (Windows) or a root-only socket (Linux). Signed-in users of the machine can read the status and start the machine's own backup jobs; nothing else (jobs, schedules, storage and restores are managed only in the console).</li>
-  <li><b>Hypervisor backups</b> — the agent on a Proxmox host uses the host's own tools; no hypervisor passwords or API tokens are stored in the console.</li>
+  <li><b>Hypervisor backups</b> — the agent on a Proxmox or Hyper-V host uses the host's own tools; no hypervisor passwords or API tokens are stored in the console.</li>
   <li><b>Backup integrity</b> — every chunk is verified by its SHA-256 hash on restore; automatic restore tests and ransomware detection watch the backups continuously.</li>
 </ul>
 

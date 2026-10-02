@@ -1,0 +1,83 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Hyper-V virtual machines</h1>
+<p class="lead">BackupZit backs up Hyper-V virtual machines from the agent on the Hyper-V host; nothing is installed inside the VMs. Windows and Linux guests are captured while they keep running. You can restore them as a new VM or in place of the original.</p>
+
+<h2>Setup</h2>
+<ol>
+  <li>Install the <b>Windows agent</b> MSI from <a href="/agents">Agents</a> on the Hyper-V host and enroll it. Supported hosts: Windows Server 2016 or newer with the Hyper-V role, or Windows 10/11 with Hyper-V. In a cluster, install the agent on every host.</li>
+  <li>Within a minute the host appears on the Agents page with the badge <b>Hyper-V · N VMs</b>.</li>
+  <li>In <a href="/jobs">Backup jobs</a> select that agent and choose <b>Virtual machines (Proxmox VE, Hyper-V)</b>. Then pick one:
+    <ul>
+      <li><b>all VMs of the host</b>, which also covers VMs created later;</li>
+      <li>individual VMs, by ticking them.</li>
+    </ul>
+  </li>
+</ol>
+<p>The agent works through Hyper-V's own interfaces: the Hyper-V PowerShell module and the Windows Virtual Disk API. The console stores no Hyper-V credentials.</p>
+
+<h2>How a VM is backed up</h2>
+<ol>
+  <li>A temporary <b>production checkpoint</b> (<code>backupzit_…</code>) is taken, and Hyper-V asks the guest to prepare for it:
+    <ul>
+      <li>Windows guests flush their applications through VSS.</li>
+      <li>Linux guests freeze their file systems, if the Hyper-V daemons are installed (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
+    </ul>
+    If the guest can't do either, Hyper-V takes a standard checkpoint instead, which is crash-consistent. The run page shows which kind was used.</li>
+  <li>The virtual disks are read as of the checkpoint, through the Virtual Disk API, in 1 MiB blocks. This covers VHDX and VHD files, including chains of earlier checkpoints. Empty blocks are not stored, and blocks already in the repository are not uploaded again.</li>
+  <li>The checkpoint is removed, and Hyper-V merges it in the background.</li>
+  <li>The VM's configuration is stored with the backup: generation, CPU, memory, network adapters (switch, VLAN, MAC address), disk controllers, secure boot and TPM.</li>
+</ol>
+<p>VMs that are turned off are read directly, without a checkpoint.</p>
+
+<h2>Restoring a VM</h2>
+<p>Open the VM backup run (from the job page or <a href="/runs">Activity</a>) and use <b>Restore a Hyper-V VM</b>.</p>
+
+<h3>As a new VM next to the original</h3>
+<p>Creates a second VM with new MAC addresses, so it can run on the same network as the original. By default it is named after the original plus "restored" and the date.</p>
+<p>Guest network settings that are tied to a MAC address don't apply to the new adapters. One example is netplan's <code>match: macaddress</code>, which Linux cloud images use.</p>
+
+<h3>In place of the original VM</h3>
+<p>Tick <i>turn it off and replace its disks</i>. BackupZit then:</p>
+<ul>
+  <li>turns off the existing VM;</li>
+  <li>merges its checkpoints;</li>
+  <li>swaps its disks for the restored ones.</li>
+</ul>
+<p>The VM keeps its ID, network adapters and MAC addresses, so jobs, monitoring and the guest's network keep working.</p>
+<p>The old disk files are not deleted; they are renamed to <code>….replaced-DATE</code>. Delete them once the restored VM works.</p>
+<p>If the original VM no longer exists, it is created again, with a new Hyper-V ID.</p>
+
+<h3>Options</h3>
+<ul>
+  <li><b>Folder for the virtual disks</b>: the host's default folder or any folder that holds VM disks. An in-place restore puts the new disks next to the original ones.</li>
+  <li><b>Start the VM after the restore</b>.</li>
+</ul>
+
+<h3>What a restored VM gets</h3>
+<ul>
+  <li>Virtual switches are connected by name. If a switch doesn't exist on the host, the adapter stays disconnected.</li>
+  <li>Every restored VM gets a new generation ID, so Active Directory domain controllers detect the restore safely.</li>
+</ul>
+
+<h2>Restoring single files</h2>
+<p>In the VM table of the run, click <b>Browse files</b> to see the partitions and volumes on the VM's disks. You can browse NTFS, ext2/3/4 and XFS, also inside LVM. From there you can download files or restore them to any agent. It works exactly as for <a href="/docs/proxmox">Proxmox VE</a>.</p>
+
+<h2>Command line</h2>
+<p>Run these on the Hyper-V host, as administrator:</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code> is the number shown by <code>hyperv list</code>. BackupZit derives it from the VM's GUID.</li>
+  <li>Without <code>--new</code>, the VM is restored in place.</li>
+  <li><code>--overwrite</code> confirms that the disks of an existing VM should be replaced.</li>
+</ul>
+<p>The repository options are the same as for all commands; see <a href="/docs/cli">Command line reference</a>.</p>
+
+<h2>Not yet included</h2>
+<ul>
+  <li><b>Resilient Change Tracking.</b> Every backup reads the whole disks, although only changed data is uploaded.</li>
+  <li><b>Some disk types.</b> Shared VHDX, VHD Set and pass-through disks are not backed up.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -900,6 +900,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "CopyStats": copyStats, "TestStats": testStats, "CopyOfFiles": s.store.copyOfFiles(r.Context(), run), "Agents": agents,
 		"Image": imageDetails(run), "Inventory": inventories(agents),
 		"VM": vmDetails(run), "VMRestore": vmRestoreOptions(run), "PVEAgents": pveAgents(agents),
+		"VMAgents": hypervisorAgents(agents, vmDetails(run).Platform()), "VMPlatform": vmDetails(run).Platform(),
 		"System": sysDetails(run), "SystemRestore": systemRestoreOptions(run), "LinuxAgents": linuxAgents(agents),
 	}})
 }

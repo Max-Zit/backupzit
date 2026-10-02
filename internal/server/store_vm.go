@@ -25,6 +25,26 @@ func (a Agent) PVE() *pve.Inventory {
 	return &inv
 }
 
+// Platform is "proxmox" or "hyperv" for agents on a hypervisor, "" otherwise.
+func (a Agent) Platform() string {
+	inv := a.PVE()
+	switch {
+	case inv == nil:
+		return ""
+	case inv.Platform == "":
+		return "proxmox"
+	}
+	return inv.Platform
+}
+
+// HypervisorLabel names the hypervisor of the agent's machine.
+func (a Agent) HypervisorLabel() string {
+	if a.Platform() == "hyperv" {
+		return "Hyper-V"
+	}
+	return "Proxmox VE"
+}
+
 // LocalGuests lists the guests running on the agent's own node.
 func (a Agent) LocalGuests() []pve.Guest {
 	inv := a.PVE()
@@ -44,7 +64,7 @@ func (a Agent) LocalGuests() []pve.Guest {
 // the node) or guest IDs.
 func checkVMSelection(a Agent, vms, exclude []string) error {
 	if a.PVE() == nil {
-		return fmt.Errorf("%s is not a Proxmox VE node (install the BackupZit agent on the Proxmox host)", a.Hostname)
+		return fmt.Errorf("%s is not a Proxmox VE node or Hyper-V host (install the BackupZit agent on the hypervisor host)", a.Hostname)
 	}
 	if len(vms) == 0 {
 		return errors.New("choose the virtual machines and containers to back up, or all of them")
@@ -68,7 +88,12 @@ func checkVMSelection(a Agent, vms, exclude []string) error {
 // DescribeVMSelection renders the guests of a VM job.
 func DescribeVMSelection(vms []string) string {
 	if len(vms) == 1 && vms[0] == "*" {
-		return "All VMs and containers on the node"
+		return "All VMs (and containers) on the host"
+	}
+	for _, v := range vms {
+		if len(v) >= 10 { // Hyper-V: numbers derived from VM GUIDs
+			return fmt.Sprintf("%d selected VMs", len(vms))
+		}
 	}
 	return "Guests " + strings.Join(vms, ", ")
 }
@@ -80,6 +105,7 @@ type vmBackupDetails struct {
 		Type        string `json:"type"`
 		Name        string `json:"name"`
 		Consistency string `json:"consistency"`
+		Platform    string `json:"platform"`
 		Disks       int    `json:"disks"`
 		Size        uint64 `json:"size"`
 		Stored      uint64 `json:"stored"`
@@ -136,7 +162,10 @@ func (s *Store) QueueVMRestore(ctx context.Context, backupRunID, agentID int64, 
 	}
 	inv := a.PVE()
 	if inv == nil {
-		return 0, fmt.Errorf("%s is not a Proxmox VE node", a.Hostname)
+		return 0, fmt.Errorf("%s is not a Proxmox VE node or Hyper-V host", a.Hostname)
+	}
+	if p := d.Platform(); p != a.Platform() {
+		return 0, fmt.Errorf("this is a %s backup; restore it on a %s host", platformLabel(p), platformLabel(p))
 	}
 	if o.NewVMID != 0 && o.NewVMID != -1 && (o.NewVMID < 100 || o.NewVMID > 999999999) {
 		return 0, errors.New("guest IDs are between 100 and 999999999")
@@ -151,7 +180,14 @@ func (s *Store) QueueVMRestore(ctx context.Context, backupRunID, agentID int64, 
 		}
 	}
 	o.Name = strings.TrimSpace(o.Name)
-	if len(o.Name) > 63 || strings.ContainsAny(o.Name, " \t\r\n:,=") {
+	if a.Platform() == "hyperv" {
+		if o.NewVMID != 0 && o.NewVMID != -1 {
+			return 0, errors.New("Hyper-V VMs are restored as a new VM or in place of the original")
+		}
+		if len(o.Name) > 100 || strings.ContainsAny(o.Name, "\t\r\n\\/:*?\"<>|") {
+			return 0, errors.New(`the VM name has at most 100 characters and none of \ / : * ? " < > |`)
+		}
+	} else if len(o.Name) > 63 || strings.ContainsAny(o.Name, " \t\r\n:,=") {
 		return 0, errors.New("the name may not contain spaces or : , = and has at most 63 characters")
 	}
 	opts, _ := json.Marshal(o)
@@ -160,4 +196,19 @@ func (s *Store) QueueVMRestore(ctx context.Context, backupRunID, agentID int64, 
 		VALUES($1,$2,'vm-restore','manual',$3,$4,$5,$6) RETURNING id`,
 		agentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, opts).Scan(&id)
 	return id, err
+}
+
+// Platform of the guests in a VM backup ("proxmox" for older backups).
+func (d *vmBackupDetails) Platform() string {
+	if d != nil && len(d.Guests) > 0 && d.Guests[0].Platform != "" {
+		return d.Guests[0].Platform
+	}
+	return "proxmox"
+}
+
+func platformLabel(p string) string {
+	if p == "hyperv" {
+		return "Hyper-V"
+	}
+	return "Proxmox VE"
 }

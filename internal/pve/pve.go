@@ -74,7 +74,10 @@ func Available() bool {
 
 // Guest is a VM or container as listed in the inventory.
 type Guest struct {
-	VMID     int    `json:"vmid"`
+	VMID int `json:"vmid"`
+	// ID is the hypervisor's own identifier when it is not a number
+	// (Hyper-V VM GUID); VMID is then derived from it.
+	ID       string `json:"id,omitempty"`
 	Name     string `json:"name"`
 	Type     string `json:"type"` // qemu | lxc
 	Node     string `json:"node"`
@@ -86,11 +89,13 @@ type Guest struct {
 
 // Inventory is what a node agent reports to the console.
 type Inventory struct {
-	Node    string   `json:"node"`
-	Cluster bool     `json:"cluster,omitempty"`
-	Version string   `json:"version,omitempty"`
-	Guests  []Guest  `json:"guests"`
-	Storage []string `json:"storage"` // storages usable for guest disks on this node
+	// Platform is "proxmox" (also when empty) or "hyperv".
+	Platform string   `json:"platform,omitempty"`
+	Node     string   `json:"node"`
+	Cluster  bool     `json:"cluster,omitempty"`
+	Version  string   `json:"version,omitempty"`
+	Guests   []Guest  `json:"guests"`
+	Storage  []string `json:"storage"` // storages usable for guest disks on this node
 }
 
 // LocalNode returns the Proxmox node name of this machine.
