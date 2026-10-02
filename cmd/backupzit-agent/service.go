@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -140,7 +141,9 @@ func newLogger(cfgPath string) *slog.Logger {
 	os.MkdirAll(filepath.Dir(cfgPath), 0o700)
 	logPath := filepath.Join(filepath.Dir(cfgPath), "agent.log")
 	if f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
-		if service.Interactive() {
+		// Interactive runs and systemd (journal) also get the log on stdout;
+		// the Windows service only writes the file.
+		if service.Interactive() || runtime.GOOS != "windows" {
 			w = io.MultiWriter(os.Stdout, f)
 		} else {
 			w = f

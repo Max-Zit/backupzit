@@ -5,7 +5,7 @@
 <ul>
   <li>Is the machine on and the service running? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
   <li>Can the machine reach the console? <code>Test-NetConnection backup-server -Port 8443</code> or <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Agent log: <code>C:\ProgramData\backupzit\agent.log</code> or <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" means the console certificate changed — enroll the agent again.</li>
+  <li>Agent log: <code>C:\ProgramData\backupzit\agent.log</code>, on Linux <code>/etc/backupzit/agent.log</code> or <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" means the console certificate changed — enroll the agent again.</li>
 </ul>
 
 <h2>A backup failed</h2>
@@ -33,6 +33,21 @@
   <tr><td>API returns 401 / 403</td><td>401: token missing, revoked, expired or its owner disabled. 403: the token's role is too low for the request.</td></tr>
   <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Wrong account key, or the SAS token lacks read, write, delete or list permission or has expired.</td></tr>
   <tr><td>A restored Windows Server 2012 R2 / Windows 8.1 VM does not boot on Hyper-V Gen 2 ("hash was denied (DBX)")</td><td>Microsoft revoked the old boot loader for Secure Boot. Turn off Secure Boot for that VM, or update the system before backing it up.</td></tr>
+</table>
+
+<h2>Virtual machines, Linux systems and new hardware</h2>
+<table>
+  <tr><th>Situation</th><th>What to do</th></tr>
+  <tr><td>Proxmox: "the guest is running and one of its disks is on storage without snapshot support"</td><td>Running guests need LVM-thin, ZFS, Ceph RBD or qcow2 disks. Move the disk (<i>Disk Action → Move Storage</i>) or back the guest up while it is stopped.</td></tr>
+  <tr><td>Proxmox: "runs on node X; install the BackupZit agent on X"</td><td>The guest was migrated. Install the agent on every node and back up each node's guests with that node's agent.</td></tr>
+  <tr><td>Proxmox backups or restores slow, SFTP "connection lost", "message authentication code incorrect" on the storage server</td><td>Known problem of Intel e1000e network cards on Proxmox hosts (log: "Detected Hardware Unit Hang", "Reset adapter unexpectedly"). Turn off offloading: <code>ethtool -K eno1 tso off gso off gro off</code> and add it as <code>post-up</code> line to the interface in <code>/etc/network/interfaces</code>.</td></tr>
+  <tr><td>Browse files: "stored on a local path of the agent"</td><td>The console can only read backups on network storage. Use <code>backupzit-agent pve ls/extract</code> or <code>image-ls/image-extract</code> on the agent.</td></tr>
+  <tr><td>Linux system restore: "missing programs …"</td><td>Install the named packages on the restoring machine, or boot the BackupZit Linux recovery ISO, which has them.</td></tr>
+  <tr><td>Restored Linux machine has no network</td><td>The network settings were bound to the old MAC address (netplan <code>match: macaddress</code>). Restore with <i>Different hardware</i>, or remove the <code>match</code> lines in <code>/etc/netplan/</code>.</td></tr>
+  <tr><td>Restored Windows stops with INACCESSIBLE_BOOT_DEVICE</td><td>Restore again with <i>Restore to different hardware</i>, or boot the recovery ISO and run <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
+  <tr><td>A restored copy of a machine shows up as the original agent</td><td>Restores into a new Proxmox VM unenroll the agent inside the copy automatically. For other copies, remove <code>agent.json</code> in the copy and enroll it as a new machine.</td></tr>
+  <tr><td>Agent update does not finish</td><td>See the installer log in <code>C:\ProgramData\backupzit\updates</code> or <code>/var/tmp/backupzit-updates</code>; agents before 0.21 must be updated once by hand.</td></tr>
+  <tr><td>The tray icon is missing</td><td>Click the <b>^</b> arrow next to the clock and drag the BackupZit icon onto the taskbar, or start <i>BackupZit Agent</i> from the Start menu.</td></tr>
 </table>
 
 <h2>A backup ends with "warning"</h2>

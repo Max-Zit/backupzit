@@ -43,8 +43,7 @@
   <tr><th>Command</th><th>What it does</th></tr>
   <tr><td><code>system-backup [--exclude PATTERN]</code></td><td>Back up all local file systems and the disk layout. See <a href="/docs/linux-system">Linux system backup</a>.</td></tr>
   <tr><td><code>system-show SNAPSHOT|latest</code></td><td>Show the disk layout in a system backup.</td></tr>
-  <tr><td><code>system-restore --target DEVICE [--new-hardware] --yes-erase-target SNAPSHOT|latest</code></td><td>Recreate the system on an empty disk, logical volume or image file.</td></tr>
-  <tr><td><code>status</code></td><td>Show what the running agent is doing and its backup jobs (also used by the tray icon on Windows).</td></tr>
+  <tr><td><code>system-restore --target DEVICE [--new-hardware] [--rebuild-initramfs] --yes-erase-target SNAPSHOT|latest</code></td><td>Recreate the system on an empty disk, logical volume or image file.</td></tr>
 </table>
 <h2>Windows: different hardware</h2>
 <table>
@@ -66,9 +65,10 @@
 <h2>Managed mode</h2>
 <table>
   <tr><th>Command</th><th>What it does</th></tr>
-  <tr><td><code>enroll --server URL --token T --fingerprint F [--force]</code></td><td>Connect the agent to a console (<code>--force</code> replaces an existing enrollment).</td></tr>
+  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Connect the agent to a console with the enrollment code from the Agents page (<code>--force</code> replaces an existing enrollment). The older form <code>--server URL --token T --fingerprint F</code> still works.</td></tr>
+  <tr><td><code>status</code></td><td>Show what the running agent is doing and its backup jobs (the Windows tray icon shows the same).</td></tr>
   <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Manage the agent service (the installers do this).</td></tr>
-  <tr><td><code>recovery</code></td><td>Recovery mode, started automatically by the recovery ISO.</td></tr>
+  <tr><td><code>recovery</code></td><td>Recovery mode, started automatically by the recovery ISOs; on any Linux live system: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Print the version.</td></tr>
 </table>
 

@@ -40,7 +40,7 @@ func detectAnomaly(kind string, cur repo.SnapshotStats, hist []repo.SnapshotStat
 	}
 	var reasons []string
 	const mb = 1 << 20
-	if kind == api.KindBackup {
+	if kind == api.KindBackup || kind == api.KindSystemBackup {
 		changed := cur.FilesNew + cur.FilesChanged
 		ratio := float64(changed) / float64(max(cur.Files, 1))
 		var base []float64
@@ -80,7 +80,7 @@ func detectAnomaly(kind string, cur repo.SnapshotStats, hist []repo.SnapshotStat
 func (s *Store) checkAnomaly(ctx context.Context, runID int64) (string, error) {
 	r, err := s.GetRun(ctx, runID)
 	if err != nil || r.JobID == nil || len(r.Stats) == 0 || r.Status == api.StatusFailed ||
-		(r.Kind != api.KindBackup && r.Kind != api.KindImageBackup) {
+		(r.Kind != api.KindBackup && r.Kind != api.KindImageBackup && r.Kind != api.KindSystemBackup && r.Kind != api.KindVMBackup) {
 		return "", err
 	}
 	var cur repo.SnapshotStats

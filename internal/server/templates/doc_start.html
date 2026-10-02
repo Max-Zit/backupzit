@@ -1,22 +1,32 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Getting started</h1>
-<p class="lead">BackupZit protects Windows and Linux machines with file and disk-image backups that you manage from one web console running on your own network.</p>
+<p class="lead">BackupZit protects Windows and Linux machines and Proxmox VE virtual machines — files, whole disks and whole systems — from one web console that runs on your own network.</p>
+
+<h2>What BackupZit protects</h2>
+<table>
+  <tr><th>What</th><th>How</th><th>Restore</th></tr>
+  <tr><td>Files and folders (Windows, Linux)</td><td>Agent on the machine; open files on Windows through VSS. <a href="/docs/jobs">Backup jobs</a></td><td>Whole backup or single folders, to any agent, original location or another folder. <a href="/docs/restore">Restoring files</a></td></tr>
+  <tr><td>Windows disks</td><td>Disk image of a whole disk or selected partitions, from a VSS snapshot. <a href="/docs/images">Disk images</a></td><td>Onto an empty disk or bare metal with the Windows recovery ISO, also onto different hardware or into a VM; single files from the image.</td></tr>
+  <tr><td>Linux systems</td><td>All local file systems plus the disk layout (partitions, LVM, UUIDs, boot code). <a href="/docs/linux-system">Linux system backup</a></td><td>Onto an empty disk or bare metal with the Linux recovery ISO, or as a new Proxmox VM (P2V); single files.</td></tr>
+  <tr><td>Proxmox VE VMs and containers</td><td>Agent on the Proxmox host, <b>no agent inside the guests</b>; from Proxmox snapshots, only changed blocks uploaded. <a href="/docs/proxmox">Proxmox VE</a></td><td>Whole guest as new or in place, on any node and storage; single files from VM disks (NTFS, ext4, XFS, LVM) by download or to an agent.</td></tr>
+</table>
 
 <h2>How BackupZit works</h2>
 <ul>
   <li><b>Management console</b> (this web application) — runs on a Linux server in your network. It stores configuration, schedules jobs, collects results and shows reports. It never needs to be reachable from the internet.</li>
-  <li><b>Agents</b> — a small service installed on every machine you protect (Windows MSI, Linux deb/rpm). Agents contact the console over HTTPS, receive jobs, and send the backup data <i>directly</i> to the storage.</li>
-  <li><b>Storage targets</b> — where backups are kept: an SFTP server, S3-compatible object storage (AWS, Wasabi, Backblaze B2, MinIO…), an SMB share/NAS, a local or mounted disk, or a BackupZit hardened repository.</li>
+  <li><b>Agents</b> — a small service on every protected machine (Windows MSI, Linux deb/rpm) and on Proxmox hosts. Agents contact the console over HTTPS, receive jobs, and send the backup data <i>directly</i> to the storage. On Windows the agent shows its state next to the clock.</li>
+  <li><b>Storage targets</b> — where backups are kept: SFTP, S3-compatible object storage (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, an SMB share/NAS, rotating USB disks, a local or mounted disk, or a BackupZit hardened repository.</li>
 </ul>
 <div class="callout tip"><p>Backup data never passes through the console. The console only coordinates, so it can run on a small virtual machine.</p></div>
 
 <h2>First steps</h2>
 <ol>
   <li><b>Add a storage target</b> under <a href="/targets">Storage</a>. Keep <i>Encrypt backups</i> enabled and save the recovery sheet that is shown afterwards in a safe place. See <a href="/docs/storage">Storage targets</a>.</li>
-  <li><b>Install agents</b>: under <a href="/agents">Agents</a> click <i>Create enrollment token</i> and run the shown command on each machine. See <a href="/docs/agents">Agents</a>.</li>
-  <li><b>Create a backup job</b> under <a href="/jobs">Backup jobs</a>: choose the agent, the storage, what to back up (folders or a whole disk), when to run and how many backups to keep. See <a href="/docs/jobs">Backup jobs &amp; schedules</a>.</li>
+  <li><b>Install agents</b>: under <a href="/agents">Agents</a> click <i>Create enrollment token</i>, download the installer from the same page and paste the enrollment code when the Windows installer asks for it (Linux: <code>backupzit-agent enroll --code …</code>). For Proxmox VMs install the agent on the Proxmox host. See <a href="/docs/agents">Agents</a>.</li>
+  <li><b>Create a backup job</b> under <a href="/jobs">Backup jobs</a>: choose the agent, the storage, what to back up (files, a disk image, the whole Linux system or Proxmox guests), when to run and how many backups to keep. See <a href="/docs/jobs">Backup jobs &amp; schedules</a>.</li>
   <li><b>Run it once manually</b> with <i>Run backup now</i> on the job page and check the result under <a href="/runs">Activity</a>.</li>
-  <li><b>Test a restore</b> — a backup is only as good as its restore. See <a href="/docs/restore">Restoring files</a>.</li>
+  <li><b>Test a restore</b> — a backup is only as good as its restore. Automatic restore tests run weekly; restore something by hand once too. See <a href="/docs/restore">Restoring files</a>.</li>
+  <li><b>Prepare for disasters</b>: download the recovery ISOs and create a recovery code under <a href="/recovery">Recovery media</a>.</li>
   <li><b>Set up email alerts</b> under <a href="/settings/email">Settings → Email notifications</a> so you hear about failures, and optionally a weekly <a href="/reports">report</a>.</li>
 </ol>
 
@@ -24,13 +34,13 @@
 <table>
   <tr><th>Page</th><th>What it is for</th></tr>
   <tr><td><a href="/">Dashboard</a></td><td>Health at a glance: agents online, failures in the last 24 hours, suspicious backups, recent activity.</td></tr>
-  <tr><td><a href="/jobs">Backup jobs</a></td><td>File, disk image and backup copy jobs: create, run, test restore, disable, delete; next scheduled run and last result.</td></tr>
-  <tr><td><a href="/runs">Activity</a></td><td>Every backup, copy, restore test and restore with details, statistics and errors. Restores start from here.</td></tr>
+  <tr><td><a href="/jobs">Backup jobs</a></td><td>File, disk image, Linux system, Proxmox and backup copy jobs: create, run, test restore, disable, delete; next scheduled run and last result.</td></tr>
+  <tr><td><a href="/runs">Activity</a></td><td>Every backup, copy, restore test and restore with details, statistics and errors. Restores and file browsing start from here.</td></tr>
   <tr><td><a href="/calendar">Calendar</a></td><td>What ran on past days and what is scheduled to run in the future.</td></tr>
   <tr><td><a href="/reports">Reports</a></td><td>Success rates and data volumes for any period, CSV export, emailed and scheduled reports.</td></tr>
-  <tr><td><a href="/agents">Agents</a></td><td>Protected machines, enrollment tokens and agent downloads.</td></tr>
+  <tr><td><a href="/agents">Agents</a></td><td>Protected machines with IP addresses and versions, enrollment codes, installers and agent updates.</td></tr>
   <tr><td><a href="/targets">Storage</a></td><td>Where backups are stored, encryption and recovery keys, immutability.</td></tr>
-  <tr><td><a href="/recovery">Recovery media</a></td><td>Bootable recovery ISO for restoring a whole machine to bare metal.</td></tr>
+  <tr><td><a href="/recovery">Recovery media</a></td><td>Recovery ISOs (Windows for disk images, Linux for Linux systems) and recovery codes for bare-metal restores.</td></tr>
   <tr><td><a href="/users">Users</a></td><td>Accounts, roles, API tokens of all users, audit log.</td></tr>
   <tr><td><a href="/settings/email">Settings</a></td><td>Email notifications; sign-in sessions, two-factor policy and stored secrets; LDAP / Active Directory; automatic restore tests.</td></tr>
   <tr><td><a href="/account">My account</a> (your name, top right)</td><td>Your profile and role, password, two-factor authentication, API tokens.</td></tr>
@@ -39,7 +49,7 @@
 
 <h2>Key concepts</h2>
 <h3>Snapshots and deduplication</h3>
-<p>Every backup creates a <i>snapshot</i>: a complete, browsable picture of the data at that moment. Data is split into variable-size chunks, and each chunk is stored only once, so the second and later backups only upload what changed — yet every snapshot can be restored on its own. There is no "full vs. incremental chain" to manage.</p>
+<p>Every backup creates a <i>snapshot</i>: a complete, browsable picture of the data at that moment. Files are split into variable-size chunks and disks into blocks, and each piece is stored only once, so the second and later backups only upload what changed — yet every snapshot can be restored on its own. There is no "full vs. incremental chain" to manage.</p>
 <h3>Repositories</h3>
 <p>Each agent writes into its own <i>repository</i> below the storage target location (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). A repository is self-contained: with the location, the storage credentials and the recovery key, it can be restored even if the console is gone.</p>
 <h3>Retention</h3>
@@ -47,7 +57,7 @@
 <h3>What BackupZit checks for you</h3>
 <ul>
   <li><b>Restore tests</b> — every job's newest backup is partly restored and verified weekly (<a href="/docs/restore">Restoring files</a>).</li>
-  <li><b>Ransomware detection</b> — unusual backups (mass changes, encrypted data, mass deletion) are flagged and retention is paused (<a href="/docs/ransomware">Ransomware protection</a>).</li>
+  <li><b>Ransomware detection</b> — unusual backups (mass changes, encrypted data, mass deletion, sudden data volume jumps) are flagged and retention is paused (<a href="/docs/ransomware">Ransomware protection</a>).</li>
   <li><b>Alerts and reports</b> — emails for failures and a daily summary; scheduled reports for management (<a href="/docs/notifications">Email notifications</a>, <a href="/docs/monitoring">Monitoring</a>).</li>
 </ul>
 {{template "docpager" .}}

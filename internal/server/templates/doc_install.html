@@ -47,7 +47,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>636/tcp (389 with StartTLS)</td><td>console</td><td>domain controllers</td><td>LDAP / Active Directory sign-in</td></tr>
   <tr><td>587/465/25</td><td>console</td><td>mail server</td><td>email notifications</td></tr>
 </table>
-<p>The console also connects to storage to let you browse files inside disk images.</p>
+<p>The console also connects to the storage itself to let you browse files inside disk images and VM backups (and download them), so it needs the same storage access as the agents.</p>
 
 <h2>Backing up the console itself</h2>
 <p>Back up the PostgreSQL database (for example with a nightly <code>pg_dump</code> to a file that a BackupZit agent on the same machine backs up) and the data directory <code>/var/lib/backupzit</code>: the certificate and <b><code>secrets.key</code></b>, the key that encrypts all stored passwords, storage keys and recovery keys in the database. Keep a copy of <code>secrets.key</code> outside the server (e.g. in your password manager); without it the stored credentials in a restored database cannot be read. Alternatively provide the key in <code>BACKUPZIT_SECRETS_KEY</code> (base64). Keep the recovery sheets of your storage targets separately — with them, backups can be restored even without the console.</p>

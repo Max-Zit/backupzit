@@ -29,7 +29,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li><b>online</b> — the agent contacted the console in the last 3 minutes.</li>
   <li><b>offline</b> — the machine is off, the service is stopped or the network is blocked. Scheduled backups are queued and start as soon as the agent comes back.</li>
-  <li><b>recovery</b> — a machine booted from the recovery ISO, ready to receive a full-disk restore.</li>
+  <li><b>recovery</b> — a machine booted from a recovery ISO (Windows or Linux), ready to receive a disk image or Linux system restore. Recovery agents are temporary; remove them when the restore is done.</li>
 </ul>
 <p>The <b>IP addresses</b> column lists the machine's own addresses as the agent last reported them. <i>Seen from</i> is the address its connections arrive from: on a local network the same address, for a machine behind NAT (e.g. a laptop at home) the router's public address. The console does not ask any external service for it.</p>
 
@@ -67,8 +67,9 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>Agent log</h2>
 <ul>
-  <li>Windows: <code>C:ProgramDataackupzitgent.log</code></li>
-  <li>Linux: <code>journalctl -u backupzit-agent</code></li>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
+  <li>Linux: <code>/etc/backupzit/agent.log</code> and <code>journalctl -u backupzit-agent</code></li>
+  <li>Recovery systems print the log on their screen.</li>
 </ul>
 
 <h2>Uninstalling</h2>
