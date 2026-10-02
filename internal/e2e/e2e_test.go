@@ -377,10 +377,31 @@ func testCorruption(t *testing.T, r *repo.Repository) {
 		t.Fatalf("list packs: %v", err)
 	}
 	loc := r.Backend().Location()
-	// Pick the largest pack: it holds file data.
+	// Pick the largest pack with file data of the latest snapshot (other
+	// packs may only hold files deleted since, which a restore never reads).
+	latest, err := r.LoadSnapshot(ctx, "latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	used, err := r.BlobsOf(ctx, []*repo.Snapshot{latest})
+	if err != nil {
+		t.Fatal(err)
+	}
+	needed := map[repo.ID]bool{}
+	for h := range used {
+		if h.Type != repo.DataBlob {
+			continue
+		}
+		if loc, ok := r.Index().Lookup(h); ok {
+			needed[loc.Pack] = true
+		}
+	}
 	var victim string
 	var size int64
 	for _, p := range packs {
+		if !needed[p] {
+			continue
+		}
 		s := p.String()
 		path := filepath.Join(loc, "data", s[:2], s)
 		if fi, err := os.Stat(path); err == nil && fi.Size() > size {
