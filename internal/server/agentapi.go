@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -73,7 +74,7 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "invalid request")
 		return
 	}
-	if err := s.store.TouchAgent(r.Context(), a.ID, req); err != nil {
+	if err := s.store.TouchAgent(r.Context(), a.ID, req, remoteIP(r)); err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "database error")
 		return
 	}
@@ -212,4 +213,13 @@ func (s *Server) addRetention(ctx context.Context, run *Run, ar *api.Run) {
 		p := j.Retention
 		ar.Retention = &p
 	}
+}
+
+// remoteIP is the address an agent's request comes from.
+func remoteIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }

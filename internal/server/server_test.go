@@ -415,7 +415,7 @@ func TestImageJobs(t *testing.T) {
 	  "partitions":[{"number":1,"offset":1048576,"length":209715200,"gpt_type":"C12A7328-F81F-11D2-BA4B-00A0C93EC93B"},
 	                {"number":3,"offset":227540992,"length":67554508800,"mount_points":["C:\\"],"file_system":"NTFS"}]},
 	  {"number":1,"size":68719476736,"sector_size":512,"style":"mbr","partitions":[]}]`
-	if err := e.store.TouchAgent(ctx, a.ID, api.PollRequest{Disks: json.RawMessage(inv)}); err != nil {
+	if err := e.store.TouchAgent(ctx, a.ID, api.PollRequest{Disks: json.RawMessage(inv)}, ""); err != nil {
 		t.Fatal(err)
 	}
 	a, _ = e.store.GetAgent(ctx, a.ID)
@@ -1563,6 +1563,9 @@ func TestRESTAPI(t *testing.T) {
 	code, run, _ := call(viewTok, "GET", fmt.Sprintf("/api/v1/runs/%v", res["run_id"]))
 	if code != 200 || run["status"] != "success" || run["stats"] == nil {
 		t.Fatalf("run status: %d %v", code, run)
+	}
+	if code, _, list := call(viewTok, "GET", "/api/v1/agents"); code != 200 || len(list) != 1 || list[0].(map[string]any)["seen_from"] != "127.0.0.1" {
+		t.Errorf("agent addresses: %d %v", code, list)
 	}
 	if code, rep, _ := call(viewTok, "GET", "/api/v1/report?period=last7"); code != 200 || rep["backups"] != float64(1) || rep["success_rate"] != float64(100) {
 		t.Errorf("report: %d %v", code, rep)

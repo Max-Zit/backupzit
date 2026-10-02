@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -70,6 +71,11 @@ func (c *Config) Save(path string) error {
 			return fmt.Errorf("protect configuration directory: %w", err)
 		}
 	}
+	defer func() {
+		if path == DefaultConfigPath() {
+			MarkEnrolled()
+		}
+	}()
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
@@ -198,7 +204,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	a.mu.Unlock()
 	host, osName, arch := hostInfo(a.version)
 	var resp api.PollResponse
-	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy}
+	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, IPs: localIPs()}
 	invEvery := a.InventoryInterval
 	if invEvery <= 0 {
 		invEvery = inventoryInterval
@@ -433,4 +439,67 @@ func SecureConfigDir(path string) error {
 		return nil
 	}
 	return protectDir(filepath.Dir(path))
+}
+
+// pendingEnrollment is kept when an installer could not reach the console;
+// the service retries until enrollment succeeds.
+type pendingEnrollment struct {
+	Server, Token, Fingerprint string
+}
+
+func pendingPath(cfgPath string) string {
+	return filepath.Join(filepath.Dir(cfgPath), "pending-enrollment.json")
+}
+
+// SavePendingEnrollment stores enrollment data for later retries.
+func SavePendingEnrollment(cfgPath, server, token, fingerprint string) error {
+	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o700); err != nil {
+		return err
+	}
+	if err := SecureConfigDir(cfgPath); err != nil {
+		return err
+	}
+	b, _ := json.Marshal(pendingEnrollment{server, token, fingerprint})
+	return os.WriteFile(pendingPath(cfgPath), b, 0o600)
+}
+
+// TryPendingEnrollment enrolls with stored data if there is any. It returns
+// true when the agent is now enrolled.
+func TryPendingEnrollment(ctx context.Context, cfgPath, version string) (bool, error) {
+	b, err := os.ReadFile(pendingPath(cfgPath))
+	if err != nil {
+		return false, nil
+	}
+	var p pendingEnrollment
+	if err := json.Unmarshal(b, &p); err != nil {
+		os.Remove(pendingPath(cfgPath))
+		return false, err
+	}
+	cfg, err := Enroll(ctx, p.Server, p.Token, p.Fingerprint, version)
+	if err != nil {
+		return false, err
+	}
+	if err := cfg.Save(cfgPath); err != nil {
+		return false, err
+	}
+	os.Remove(pendingPath(cfgPath))
+	return true, nil
+}
+
+// localIPs lists this machine's addresses for the console (no loopback or
+// link-local addresses).
+func localIPs() []string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, a := range addrs {
+		ipn, ok := a.(*net.IPNet)
+		if !ok || ipn.IP.IsLoopback() || ipn.IP.IsLinkLocalUnicast() || ipn.IP.IsMulticast() {
+			continue
+		}
+		out = append(out, ipn.IP.String())
+	}
+	return out
 }

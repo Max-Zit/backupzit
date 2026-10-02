@@ -3,31 +3,43 @@
 {{with .Data.Enroll}}
 <div class="panel">
   <h2>Enroll agents</h2>
-  <p>This token is valid until {{ts .Expires}} and can be used for any number of machines. It is shown only once.</p>
-  <dl class="kv">
-    <dt>Server</dt><dd class="mono">{{.ServerURL}}</dd>
-    <dt>Token</dt><dd class="mono" id="tok">{{.Token}}</dd>
-    <dt>Server fingerprint</dt><dd class="mono">{{.Fingerprint}}</dd>
-  </dl>
-  <h2 class="mt">Windows (MSI)</h2>
-  <pre id="cmd-msi">msiexec /i backupzit-agent.msi /qn SERVER="{{.ServerURL}}" TOKEN="{{.Token}}" FINGERPRINT="{{.Fingerprint}}"</pre>
-  <button class="secondary" data-copy="#cmd-msi" type="button">Copy</button>
-  <h2 class="mt">Command line (Windows or Linux)</h2>
-  <pre id="cmd-cli">backupzit-agent enroll --server "{{.ServerURL}}" --token "{{.Token}}" --fingerprint "{{.Fingerprint}}"
-backupzit-agent service install
-backupzit-agent service start</pre>
-  <button class="secondary" data-copy="#cmd-cli" type="button">Copy</button>
+  <p>This code is valid until {{ts .Expires}} and can be used for any number of machines. It is shown only once — copy it now.</p>
+  <h3>Enrollment code</h3>
+  <pre id="code" class="code-box">{{.Code}}</pre>
+  <button class="secondary" data-copy="#code" type="button">Copy enrollment code</button>
+  <ol class="steps mt">
+    <li><b>Windows:</b> download the <i>Windows agent</i> MSI below, run it and paste the enrollment code when asked.</li>
+    <li>The machine appears in the list below within a minute.</li>
+  </ol>
+  <details class="mt">
+    <summary>Silent installation, Linux and other options</summary>
+    <h3>Windows, silent (GPO, Intune, RMM)</h3>
+    <pre id="cmd-msi">msiexec /i backupzit-agent.msi /qn ENROLLCODE="{{.Code}}"</pre>
+    <button class="secondary" data-copy="#cmd-msi" type="button">Copy</button>
+    <h3 class="mt">Linux</h3>
+    <pre id="cmd-cli">sudo backupzit-agent enroll --code "{{.Code}}"
+sudo systemctl enable --now backupzit-agent</pre>
+    <button class="secondary" data-copy="#cmd-cli" type="button">Copy</button>
+    <h3 class="mt">Details</h3>
+    <dl class="kv">
+      <dt>Server</dt><dd class="mono">{{.ServerURL}}</dd>
+      <dt>Token</dt><dd class="mono" id="tok">{{.Token}}</dd>
+      <dt>Server fingerprint</dt><dd class="mono">{{.Fingerprint}}</dd>
+    </dl>
+    <p class="muted small mt">The agent checks that the console's certificate matches this fingerprint, so it cannot be tricked into talking to another server. If installation happens while the console is unreachable, the agent keeps trying and appears as soon as it can connect.</p>
+  </details>
 </div>
 {{end}}
 
 <div class="panel">
   {{if .Data.Agents}}
   <div class="table-wrap"><table>
-    <tr><th>Hostname</th><th>OS</th><th>Version</th><th>Status</th><th>Last seen</th><th>Enrolled</th><th></th></tr>
+    <tr><th>Hostname</th><th>OS</th><th>IP addresses</th><th>Version</th><th>Status</th><th>Last seen</th><th>Enrolled</th><th></th></tr>
     {{range .Data.Agents}}
     <tr>
       <td>{{.Hostname}}{{if .Recovery}} <span class="badge">recovery</span>{{end}}</td>
       <td>{{.OS}}/{{.Arch}}</td>
+      <td class="nowrap">{{range $i, $ip := .LocalIPs}}{{if $i}}<br>{{end}}<span class="mono small">{{$ip}}</span>{{else}}<span class="muted">—</span>{{end}}{{with .RemoteAddr}}<div class="muted small" title="address the agent connects from — its public address if it is behind NAT">seen from {{.}}</div>{{end}}</td>
       <td class="mono">{{.Version}}</td>
       <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}</td>
       <td>{{ago .LastSeen}}</td>

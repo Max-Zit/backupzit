@@ -1,32 +1,49 @@
 <!--
-  BackupZit Agent MSI.
+  BackupZit Agent MSI (publisher MaxZit).
+
+  Interactive: the installer asks for the enrollment code shown in the console
+  (Agents -> Create enrollment token).
 
   Silent install with enrollment:
-    msiexec /i backupzit-agent.msi /qn SERVER="https://backup:8443" TOKEN="..." FINGERPRINT="SHA256:..."
+    msiexec /i backupzit-agent.msi /qn ENROLLCODE="BZ1-..."
+  (older form: SERVER="https://backup:8443" TOKEN="..." FINGERPRINT="SHA256:...")
 
-  Without TOKEN the service is installed and waits until
-  "backupzit-agent enroll ..." is run. Upgrades keep the existing enrollment.
+  If the console cannot be reached during installation, the service keeps
+  trying to enroll. Upgrades keep the existing enrollment.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="BackupZit Agent"
-           Manufacturer="backupzit"
+           Manufacturer="MaxZit"
            Version="$(var.Version)"
            UpgradeCode="6C1B6F8E-3B1A-4E0F-9A57-2C5B8D1E7A40"
            Scope="perMachine"
            InstallerVersion="500"
            Compressed="yes">
 
-    <SummaryInformation Description="BackupZit Agent $(var.Version)" />
+    <SummaryInformation Description="BackupZit Agent $(var.Version)" Manufacturer="MaxZit" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
+    <Icon Id="BackupZitIcon" SourceFile="$(var.IconFile)" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.ArtDir)/dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.ArtDir)/banner.bmp" />
+    <Property Id="ARPPRODUCTICON" Value="BackupZitIcon" />
+    <Property Id="ARPCOMMENTS" Value="Backup agent managed by the BackupZit console" />
+    <Property Id="ARPCONTACT" Value="MaxZit" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+
+    <Property Id="ENROLLCODE" Secure="yes" Hidden="yes" />
     <Property Id="SERVER" Secure="yes" />
     <Property Id="TOKEN" Secure="yes" Hidden="yes" />
     <Property Id="FINGERPRINT" Secure="yes" />
     <Property Id="FORCEENROLL" Secure="yes" />
-    <Property Id="ARPCOMMENTS" Value="Backup agent managed by the BackupZit server" />
-    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="SKIPENROLL" Secure="yes" />
+    <!-- Set by the agent after a successful enrollment. -->
+    <Property Id="ALREADYENROLLED" Secure="yes">
+      <RegistrySearch Id="EnrolledSearch" Root="HKLM" Key="SOFTWARE\BackupZit\Agent" Name="Enrolled" Type="raw" Bitness="always64" />
+    </Property>
 
     <Launch Condition="VersionNT64" Message="This package requires 64-bit Windows." />
 
@@ -37,7 +54,7 @@
           <ServiceInstall Id="AgentService"
                           Name="backupzit-agent"
                           DisplayName="BackupZit Agent"
-                          Description="Backs up this machine as instructed by the BackupZit management server."
+                          Description="Backs up this machine as instructed by the BackupZit management console."
                           Type="ownProcess"
                           Start="auto"
                           ErrorControl="normal"
@@ -49,14 +66,19 @@
           <ServiceControl Id="AgentServiceControl" Name="backupzit-agent" Start="install" Stop="both" Remove="uninstall" Wait="yes" />
           <!-- Make the CLI available in admin shells. -->
           <Environment Id="PathEntry" Name="PATH" Value="[INSTALLFOLDER]" Part="last" Action="set" System="yes" Permanent="no" />
+          <RegistryValue Root="HKLM" Key="SOFTWARE\BackupZit\Agent" Name="InstallDir" Value="[INSTALLFOLDER]" Type="string" />
         </Component>
       </Directory>
     </StandardDirectory>
 
     <!-- Enrollment runs as SYSTEM before the service starts. -->
+    <CustomAction Id="EnrollCode"
+                  FileRef="AgentExeFile"
+                  ExeCommand="enroll --if-not-enrolled --pending-ok --code &quot;[ENROLLCODE]&quot;"
+                  Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" />
     <CustomAction Id="Enroll"
                   FileRef="AgentExeFile"
-                  ExeCommand="enroll --if-not-enrolled --server &quot;[SERVER]&quot; --token &quot;[TOKEN]&quot; --fingerprint &quot;[FINGERPRINT]&quot;"
+                  ExeCommand="enroll --if-not-enrolled --pending-ok --server &quot;[SERVER]&quot; --token &quot;[TOKEN]&quot; --fingerprint &quot;[FINGERPRINT]&quot;"
                   Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" />
     <CustomAction Id="EnrollForce"
                   FileRef="AgentExeFile"
@@ -64,8 +86,64 @@
                   Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" />
 
     <InstallExecuteSequence>
-      <Custom Action="Enroll" Before="StartServices" Condition="TOKEN AND NOT FORCEENROLL AND NOT REMOVE~=&quot;ALL&quot;" />
-      <Custom Action="EnrollForce" Before="StartServices" Condition="TOKEN AND FORCEENROLL AND NOT REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="EnrollCode" Before="StartServices" Condition="ENROLLCODE AND NOT REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="Enroll" Before="StartServices" Condition="TOKEN AND NOT ENROLLCODE AND NOT FORCEENROLL AND NOT REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="EnrollForce" Before="StartServices" Condition="TOKEN AND NOT ENROLLCODE AND FORCEENROLL AND NOT REMOVE~=&quot;ALL&quot;" />
     </InstallExecuteSequence>
+
+    <!-- Installer dialogs: welcome/enrollment, progress, finish. -->
+    <UI Id="BackupZitUI">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Segoe UI" Size="9" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Segoe UI" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Segoe UI" Size="9" Bold="yes" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+      <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="The agent runs in the background. Once enrolled, this computer appears in your BackupZit console within a minute." />
+
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <DialogRef Id="ExitDialog" />
+      <DialogRef Id="CancelDlg" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+
+      <Dialog Id="EnrollDlg" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="!(loc.WelcomeDlgBitmap)" />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="40" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Bigger}Connect to your BackupZit console" />
+        <Control Id="Intro" Type="Text" X="135" Y="64" Width="220" Height="52" Transparent="yes" NoPrefix="yes"
+                 Text="In the BackupZit console open Agents, click Create enrollment token and copy the enrollment code. Paste it here:" />
+        <Control Id="CodeEdit" Type="Edit" X="135" Y="120" Width="220" Height="18" Property="ENROLLCODE" Text="{1024}" />
+        <Control Id="Skip" Type="CheckBox" X="135" Y="148" Width="220" Height="17" Property="SKIPENROLL" CheckBoxValue="1"
+                 Text="Enroll later (backupzit-agent enroll --code ...)" />
+        <Control Id="Hint" Type="Text" X="135" Y="172" Width="220" Height="50" Transparent="yes" NoPrefix="yes"
+                 Text="The code contains the console address and the certificate fingerprint the agent checks, so it cannot connect to a wrong server." />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Disabled="yes" Text="!(loc.WixUIBack)" />
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="Install">
+          <Publish Event="SpawnDialog" Value="BadCodeDlg" Condition="NOT SKIPENROLL AND NOT (ENROLLCODE &lt;&lt; &quot;BZ1-&quot;)" />
+          <Publish Event="EndDialog" Value="Return" Condition="SKIPENROLL OR (ENROLLCODE &lt;&lt; &quot;BZ1-&quot;)" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
+      <Dialog Id="BadCodeDlg" Width="260" Height="95" Title="[ProductName] Setup" NoMinimize="yes">
+        <Control Id="Text" Type="Text" X="20" Y="15" Width="220" Height="45" NoPrefix="yes"
+                 Text="Paste the enrollment code from the console (it starts with BZ1-), or tick &quot;Enroll later&quot;." />
+        <Control Id="OK" Type="PushButton" X="102" Y="68" Width="56" Height="17" Default="yes" Cancel="yes" Text="OK">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+      </Dialog>
+
+      <InstallUISequence>
+        <Show Dialog="EnrollDlg" Before="ProgressDlg" Condition="NOT Installed AND NOT ENROLLCODE AND NOT TOKEN AND NOT ALREADYENROLLED" />
+      </InstallUISequence>
+    </UI>
+    <UIRef Id="WixUI_Common" />
   </Package>
 </Wix>

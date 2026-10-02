@@ -184,6 +184,8 @@ type apiAgent struct {
 	Online   bool       `json:"online"`
 	LastSeen *time.Time `json:"last_seen"`
 	Recovery bool       `json:"recovery"`
+	LocalIPs []string   `json:"local_ips"`
+	SeenFrom string     `json:"seen_from"`
 	Enrolled time.Time  `json:"enrolled"`
 }
 
@@ -226,7 +228,7 @@ type apiRun struct {
 }
 
 func toAPIAgent(a Agent) apiAgent {
-	return apiAgent{a.ID, a.Hostname, a.OS + "/" + a.Arch, a.Version, a.Online(), a.LastSeen, a.Recovery, a.EnrolledAt}
+	return apiAgent{a.ID, a.Hostname, a.OS + "/" + a.Arch, a.Version, a.Online(), a.LastSeen, a.Recovery, a.LocalIPs, a.RemoteAddr, a.EnrolledAt}
 }
 
 func toAPIJob(j Job) apiJob {

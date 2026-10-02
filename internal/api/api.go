@@ -44,6 +44,8 @@ type PollRequest struct {
 	// Busy is true while the agent is executing a run; the server then
 	// assigns no new work.
 	Busy bool `json:"busy"`
+	// IPs are the agent's own network addresses (no loopback).
+	IPs []string `json:"ips,omitempty"`
 	// Disks is the disk inventory (JSON array of imaging.Disk). Agents send
 	// it on start and periodically; nil means "unchanged / not included".
 	Disks json.RawMessage `json:"disks,omitempty"`

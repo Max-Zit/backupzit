@@ -319,6 +319,10 @@ type Agent struct {
 	InventoryAt *time.Time
 	// Recovery agents run from boot media to restore a machine.
 	Recovery bool
+	// LocalIPs are reported by the agent; RemoteAddr is the address its
+	// requests come from (the public address when it is behind NAT).
+	LocalIPs   []string
+	RemoteAddr string
 }
 
 // Disks decodes the reported disk inventory.
@@ -335,11 +339,11 @@ func (a Agent) Online() bool {
 	return a.LastSeen != nil && time.Since(*a.LastSeen) < 3*time.Minute
 }
 
-const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery`
+const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr`
 
 func scanAgent(r pgx.Row, extra ...any) (Agent, error) {
 	var a Agent
-	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery}, extra...)
+	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr}, extra...)
 	err := r.Scan(dest...)
 	return a, err
 }
@@ -357,12 +361,24 @@ func (s *Store) AuthenticateAgent(ctx context.Context, uuid, secret string) (Age
 	return Agent{}, errors.New("invalid agent credentials")
 }
 
-func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest) error {
+func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest, remote string) error {
 	req.Hostname, req.OS, req.Arch, req.Version = clip(req.Hostname, 255), clip(req.OS, 255), clip(req.Arch, 32), clip(req.Version, 64)
 	if len(req.Disks) > 0 {
 		if _, err := s.db.Exec(ctx, `UPDATE agents SET inventory=$2, inventory_at=now() WHERE id=$1`, id, req.Disks); err != nil {
 			return err
 		}
+	}
+	if len(req.IPs) > 16 {
+		req.IPs = req.IPs[:16]
+	}
+	for i := range req.IPs {
+		req.IPs[i] = clip(req.IPs[i], 64)
+	}
+	if req.IPs == nil {
+		req.IPs = []string{}
+	}
+	if _, err := s.db.Exec(ctx, `UPDATE agents SET local_ips=$2, remote_addr=$3 WHERE id=$1`, id, req.IPs, clip(remote, 64)); err != nil {
+		return err
 	}
 	_, err := s.db.Exec(ctx, `UPDATE agents SET last_seen_at=now(),
 		hostname=COALESCE(NULLIF($2,''),hostname), os=COALESCE(NULLIF($3,''),os),

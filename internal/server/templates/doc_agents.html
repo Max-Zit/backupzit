@@ -11,16 +11,17 @@
 
 <h2>Enrolling agents</h2>
 <ol>
-  <li>On the <a href="/agents">Agents</a> page click <b>Create enrollment token</b>. A token is valid for 7 days and can be used for any number of machines.</li>
-  <li>Copy the command for your platform and run it on the machine as administrator / root.</li>
+  <li>On the <a href="/agents">Agents</a> page click <b>Create enrollment token</b>. The console shows an <b>enrollment code</b> (<code>BZ1-…</code>), valid for 7 days and usable for any number of machines. It contains the console address, the token and the certificate fingerprint.</li>
+  <li>Windows: run the MSI and paste the code when the installer asks for it. Linux: run the command shown.</li>
   <li>The machine appears in the agent list within a minute.</li>
 </ol>
-<h3>Windows (MSI)</h3>
-<pre>msiexec /i backupzit-agent.msi /qn SERVER="https://backup.example.local:8443" TOKEN="..." FINGERPRINT="SHA256:..."</pre>
-<p>The MSI can be deployed with Group Policy, Intune or any RMM tool. Without the properties it installs the service, which waits until you enroll it with <code>backupzit-agent enroll</code>.</p>
+<p>If the console cannot be reached during installation, the agent keeps the code and retries until it can enroll. Upgrades keep the enrollment and do not ask again.</p>
+<h3>Windows, silent (GPO, Intune, RMM)</h3>
+<pre>msiexec /i backupzit-agent.msi /qn ENROLLCODE="BZ1-..."</pre>
+<p>The older form <code>SERVER="..." TOKEN="..." FINGERPRINT="SHA256:..."</code> still works. A silent install without these properties sets up the service, which waits until you enroll it with <code>backupzit-agent enroll --code "BZ1-..."</code> in an administrator prompt.</p>
 <h3>Linux</h3>
 <pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
-backupzit-agent enroll --server "https://backup.example.local:8443" --token "..." --fingerprint "SHA256:..."
+backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
 
 <h2>Agent status</h2>
@@ -29,6 +30,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>offline</b> — the machine is off, the service is stopped or the network is blocked. Scheduled backups are queued and start as soon as the agent comes back.</li>
   <li><b>recovery</b> — a machine booted from the recovery ISO, ready to receive a full-disk restore.</li>
 </ul>
+<p>The <b>IP addresses</b> column lists the machine's own addresses as the agent last reported them. <i>Seen from</i> is the address its connections arrive from: on a local network the same address, for a machine behind NAT (e.g. a laptop at home) the router's public address. The console does not ask any external service for it.</p>
 
 <h2>Upgrading</h2>
 <p>Install the newer MSI / package over the old one; the enrollment is kept. Installers are offered under <i>Downloads</i> on the Agents page.</p>

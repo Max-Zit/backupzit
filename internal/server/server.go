@@ -553,6 +553,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request, user st
 // ---- agents
 
 type enrollInfo struct {
+	Code        string // all of the below in one string for the installer
 	Token       string
 	Expires     time.Time
 	ServerURL   string
@@ -584,7 +585,8 @@ func (s *Server) handleAgentToken(w http.ResponseWriter, r *http.Request, user s
 	if pub == "" {
 		pub = "https://" + r.Host
 	}
-	s.agentsPage(w, r, user, &enrollInfo{Token: tok, Expires: exp, ServerURL: pub, Fingerprint: s.CertFingerprint})
+	s.agentsPage(w, r, user, &enrollInfo{Token: tok, Expires: exp, ServerURL: pub, Fingerprint: s.CertFingerprint,
+		Code: api.EncodeEnrollCode(pub, tok, s.CertFingerprint)})
 }
 
 func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, _ string) {

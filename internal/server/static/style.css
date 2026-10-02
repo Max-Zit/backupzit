@@ -361,3 +361,4 @@ ul.codes li { font-size: 15px; padding: 8px 10px; border: 1px dashed var(--line-
 .dl-list li { display: grid; grid-template-columns: 250px 1fr; gap: 14px; align-items: center; }
 .dl-list li .btn { justify-content: flex-start; width: 100%; }
 @media (max-width: 700px) { .dl-list li { grid-template-columns: 1fr; } }
+pre.code-box { font-size: 14px; word-break: break-all; white-space: pre-wrap; background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }

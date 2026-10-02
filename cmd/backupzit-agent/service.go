@@ -9,9 +9,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/backupzit/backupzit/internal/agent"
+	"github.com/backupzit/backupzit/internal/api"
 	"github.com/kardianos/service"
 )
 
@@ -25,10 +27,19 @@ func cmdEnroll(ctx context.Context, args []string) error {
 	cfgPath := fs.String("config", agent.DefaultConfigPath(), "agent configuration file")
 	force := fs.Bool("force", false, "replace an existing enrollment")
 	ifNot := fs.Bool("if-not-enrolled", false, "do nothing if the agent is already enrolled (used by installers)")
+	code := fs.String("code", "", "enrollment code from the console (BZ1-...), instead of --server/--token/--fingerprint")
+	pending := fs.Bool("pending-ok", false, "if the console cannot be reached now, keep the code and let the service retry (used by installers)")
 	fs.Parse(args)
+	if *code != "" {
+		s, t, f, err := api.DecodeEnrollCode(*code)
+		if err != nil {
+			return err
+		}
+		*server, *token, *fp = s, t, f
+	}
 	if *server == "" || *token == "" || *fp == "" {
 		fs.Usage()
-		return errors.New("--server, --token and --fingerprint are required")
+		return errors.New("--code, or --server, --token and --fingerprint are required")
 	}
 	if _, err := agent.LoadConfig(*cfgPath); err == nil && !*force {
 		if *ifNot {
@@ -44,6 +55,12 @@ func cmdEnroll(ctx context.Context, args []string) error {
 		if f, ferr := os.OpenFile(filepath.Join(filepath.Dir(*cfgPath), "enroll-error.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); ferr == nil {
 			fmt.Fprintf(f, "%s enroll with %s failed: %v\n", time.Now().Format(time.RFC3339), *server, err)
 			f.Close()
+		}
+		if *pending && !strings.Contains(err.Error(), "invalid or expired enrollment token") {
+			if perr := agent.SavePendingEnrollment(*cfgPath, *server, *token, *fp); perr == nil {
+				fmt.Printf("console not reachable now (%v); the service keeps trying to enroll\n", err)
+				return nil
+			}
 		}
 		return err
 	}
@@ -79,8 +96,17 @@ func (p *program) Start(s service.Service) error {
 		for {
 			cfg, err := agent.LoadConfig(p.cfgPath)
 			if err == nil {
+				if p.cfgPath == agent.DefaultConfigPath() {
+					agent.MarkEnrolled()
+				}
 				agent.New(cfg, logger, version).Run(ctx)
 				return
+			}
+			if ok, perr := agent.TryPendingEnrollment(ctx, p.cfgPath, version); ok {
+				logger.Info("enrolled with the code from the installer")
+				continue
+			} else if perr != nil {
+				logger.Warn("enrollment not possible yet, retrying", "err", perr)
 			}
 			if !warned {
 				logger.Warn("agent is not enrolled yet, waiting", "config", p.cfgPath, "err", err)
