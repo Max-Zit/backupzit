@@ -680,12 +680,12 @@ type Run struct {
 	DriverPath  string
 	// SystemRestore holds the options of a system-restore run (JSON).
 	SystemRestore json.RawMessage
-	QueuedAt    time.Time
-	StartedAt   *time.Time
-	FinishedAt  *time.Time
-	Stats       json.RawMessage
-	Errors      []string
-	Message     string
+	QueuedAt      time.Time
+	StartedAt     *time.Time
+	FinishedAt    *time.Time
+	Stats         json.RawMessage
+	Errors        []string
+	Message       string
 }
 
 // Duration returns how long the run took (or has been running).
