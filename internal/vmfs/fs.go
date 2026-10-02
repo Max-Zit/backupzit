@@ -35,7 +35,16 @@ type FS interface {
 var ErrNotBrowsable = errors.New("this volume has no file system that can be browsed (NTFS, ext2/3/4 or XFS)")
 
 // Open opens the file system of a volume.
-func Open(v Volume) (FS, error) {
+func Open(v Volume) (f FS, err error) {
+	defer guard(&err)
+	f, err = open(v)
+	if err != nil {
+		return nil, err
+	}
+	return safeFS{f}, nil
+}
+
+func open(v Volume) (FS, error) {
 	switch v.FS {
 	case "ntfs":
 		nv, err := imaging.OpenNTFS(v.r)

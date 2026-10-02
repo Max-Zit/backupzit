@@ -38,6 +38,14 @@
 <ul>
   <li>Store recovery sheets offline. Without them, encrypted backups cannot be restored if the console is lost.</li>
   <li>Test a restore from the command line with only the recovery sheet once, so you know the procedure works.</li>
+  <li>Treat a USB stick with <code>recovery.json</code> like a key: until the recovery code expires (30 days) it lets a machine join the console as a recovery agent. Create a new code when you need one instead of keeping old sticks around.</li>
+  <li>Recovery ISOs give a root / administrator command line to whoever boots them — as any boot medium does. Protect servers with a firmware (BIOS/UEFI) password and secure boot settings.</li>
+</ul>
+
+<h3>Agents and hypervisors</h3>
+<ul>
+  <li>The console can install software on agents (agent updates) and restore data onto them. Protect the administrator accounts accordingly: two-factor authentication, few administrators.</li>
+  <li>Files from VM disks are parsed by the console and agents when you browse them; damaged or hostile file system data produces an error, not a crash.</li>
 </ul>
 
 <h2>Reporting a security issue</h2>

@@ -14,7 +14,7 @@
   <tr><td>Settings (email, sessions, LDAP)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
   <tr><td>Users and audit log</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
 </table>
-<p>Typical use: IT administrators are <b>Administrators</b>; the people who run day-to-day backups are <b>Backup operators</b>; help desk staff who recover deleted files are <b>Restore operators</b>; management and auditors are <b>Viewers</b>. Pages and buttons a role may not use are hidden, and the server refuses them in any case.</p>
+<p>Typical use: IT administrators are <b>Administrators</b>; the people who run day-to-day backups are <b>Backup operators</b>; help desk staff who recover deleted files are <b>Restore operators</b>; management and auditors are <b>Viewers</b>. Pages and buttons a role may not use are hidden, and the server refuses them in any case. Note that restoring can overwrite data — a disk image or Linux system restore erases the target disk, and a VM restore with <i>replace</i> deletes the existing VM — so give the restore roles only to people you would trust with that; every restore is in the audit log.</p>
 
 <h2>Local users</h2>
 <p>Under <a href="/users">Users</a> → <i>New local user</i> enter a username, role and a password of at least 10 characters. On the user's page you can change the role, disable the account (open sessions end immediately), set a new password or delete the user.</p>

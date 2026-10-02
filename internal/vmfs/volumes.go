@@ -31,7 +31,8 @@ func (v Volume) Reader() io.ReaderAt { return v.r }
 func (v Volume) Browsable() bool { return v.FS == "ntfs" || v.FS == "ext4" || v.FS == "xfs" }
 
 // Volumes finds the partitions and logical volumes of a disk.
-func Volumes(disk io.ReaderAt, size int64) ([]Volume, error) {
+func Volumes(disk io.ReaderAt, size int64) (vols []Volume, err error) {
+	defer guard(&err)
 	head := make([]byte, 64*1024)
 	if _, err := disk.ReadAt(head[:min(int64(len(head)), size)], 0); err != nil && err != io.EOF {
 		return nil, err

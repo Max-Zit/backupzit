@@ -348,8 +348,16 @@ func (j *restoreJob) partition() error {
 		f.WriteString(b.String())
 		f.Close()
 		defer os.Remove(f.Name())
-		if _, err := j.run("sh", "-c", "sfdisk --wipe always "+shq(j.dev)+" < "+shq(f.Name())); err != nil {
+		in, err := os.Open(f.Name())
+		if err != nil {
 			return err
+		}
+		cmd := exec.CommandContext(j.ctx, "sfdisk", "--wipe", "always", j.dev)
+		cmd.Stdin = in
+		out, err := cmd.CombinedOutput()
+		in.Close()
+		if err != nil {
+			return fmt.Errorf("sfdisk: %w: %s", err, strings.TrimSpace(string(out)))
 		}
 	}
 	j.run("partprobe", j.dev)
