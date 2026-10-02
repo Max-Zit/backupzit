@@ -21,7 +21,13 @@
   <li>the BackupZit agent inside the copy is unenrolled, so it does not report as the original machine.</li>
 </ul>
 <h3>Onto a disk</h3>
-<p>Restore onto an empty disk of a Linux agent, e.g. a second disk (<code>/dev/sdb</code>) or the new machine itself: boot it from any Linux live USB (Ubuntu, Debian), install the agent and run it in recovery mode — <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code> with a recovery code from <a href="/recovery">Recovery media</a> — then choose it as target. Tick <b>Different hardware</b> when the machine is not the original one.</p>
+<p>Restore onto an empty disk of a Linux agent, e.g. a second disk (<code>/dev/sdb</code>), or onto the new machine itself (bare metal):</p>
+<ol>
+  <li>On <a href="/recovery">Recovery</a> download the <b>Linux recovery ISO</b> and create a recovery code. Write the ISO to a USB stick (Rufus, balenaEtcher) or attach it to a VM. It boots on BIOS and UEFI machines.</li>
+  <li>Boot the machine from it. The recovery system starts the agent, which connects to the console with <code>backupzit/recovery.json</code> from any other USB stick or disk, or asks for the server address and recovery code.</li>
+  <li>The machine appears as a <span class="badge">recovery</span> agent. In the system backup run choose <b>Onto a disk</b>, that agent and its disk (usually <code>/dev/sda</code>, <code>/dev/nvme0n1</code> or <code>/dev/vda</code>).</li>
+</ol>
+<p>Any Linux live system works as well: start the agent there with <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code>; the tools it needs (gdisk, LVM, mkfs) are named if missing. Tick <b>Different hardware</b> when the machine is not the original one.</p>
 <p>The target may be larger or smaller than the original disk: the last partition grows to fill it, or shrinks as long as its data fits. The file system UUIDs and partition IDs stay the same, so <code>/etc/fstab</code> and the boot loader need no changes. For UEFI systems the boot loader is also installed at the removable-media path <code>\EFI\BOOT\BOOTX64.EFI</code>, which every UEFI firmware starts without a boot entry. RHEL-like systems (dracut) get a new initramfs with all drivers when moved to different hardware.</p>
 
 <h2>Command line</h2>

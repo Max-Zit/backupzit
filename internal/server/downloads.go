@@ -38,8 +38,10 @@ func classify(name string) (title, desc string, order int, primary, ok bool) {
 		return "Hardened repository", "for a dedicated Linux backup server (" + n[strings.LastIndex(n, ".")+1:] + ")", 6, false, true
 	case n == "backupzit-agent.exe":
 		return "Command line agent", "advanced: standalone program for scripts and restores without the console — not an installer", 7, false, true
+	case strings.HasPrefix(n, "backupzit-recovery-linux") && strings.HasSuffix(n, ".iso"):
+		return "Linux recovery ISO", "bootable media for restoring Linux system backups (BIOS and UEFI)", 5, false, true
 	case strings.HasSuffix(n, ".iso"):
-		return "Recovery ISO", "bootable media for bare-metal restore", 5, false, true
+		return "Recovery ISO", "bootable media for bare-metal restore of Windows disk images", 5, false, true
 	}
 	return "", "", 0, false, false
 }

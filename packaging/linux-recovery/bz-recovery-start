@@ -1,0 +1,29 @@
+#!/bin/sh
+# Started on tty1 of the BackupZit Linux recovery system.
+clear
+echo "BackupZit Linux recovery - $(cat /etc/backupzit-recovery 2>/dev/null)"
+echo
+echo "Waiting for the network..."
+i=0
+while [ $i -lt 30 ] && ! ip -4 route | grep -q default; do sleep 1; i=$((i+1)); done
+ip -4 -br addr | grep -v "^lo"
+# recovery.json may be on another USB stick or disk: look on every
+# partition with a file system (read-only).
+for dev in $(lsblk -rpno NAME,FSTYPE | awk '$2 ~ /vfat|exfat|ntfs|ext[234]|xfs|iso9660/ {print $1}'); do
+    mp="/mnt/$(basename "$dev")"
+    mkdir -p "$mp"
+    mount -o ro "$dev" "$mp" 2>/dev/null || rmdir "$mp"
+done
+echo
+while true; do
+    backupzit-agent recovery
+    echo
+    echo "The recovery agent has stopped. Press Enter to start it again,"
+    echo "or type 'shell' for a command line, 'reboot' or 'poweroff'."
+    read -r answer
+    case "$answer" in
+        shell) echo "Type 'exit' to return."; bash ;;
+        reboot) systemctl reboot ;;
+        poweroff) systemctl poweroff ;;
+    esac
+done

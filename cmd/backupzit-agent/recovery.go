@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -25,8 +27,20 @@ type recoveryConfig struct {
 }
 
 func findRecoveryConfig() (recoveryConfig, string) {
-	for d := 'C'; d <= 'Z'; d++ {
-		p := string(d) + `:\backupzit\recovery.json`
+	var candidates []string
+	if runtime.GOOS == "windows" {
+		for d := 'C'; d <= 'Z'; d++ {
+			candidates = append(candidates, string(d)+`:\backupzit\recovery.json`)
+		}
+	} else {
+		// The Linux recovery ISO (live medium) and other mounted media.
+		for _, pat := range []string{"/run/live/medium/backupzit/recovery.json", "/mnt/*/backupzit/recovery.json",
+			"/media/*/backupzit/recovery.json", "/media/*/*/backupzit/recovery.json"} {
+			m, _ := filepath.Glob(pat)
+			candidates = append(candidates, m...)
+		}
+	}
+	for _, p := range candidates {
 		b, err := os.ReadFile(p)
 		if err != nil {
 			continue

@@ -3,21 +3,21 @@
 <div class="panel">
   <h2>Bare-metal restore</h2>
   <ol class="steps">
-    <li>Boot the machine to restore from the BackupZit recovery ISO (or a USB stick made from it).</li>
+    <li>Boot the machine to restore from a BackupZit recovery ISO (or a USB stick made from it): the <b>Windows</b> recovery ISO for disk images of Windows machines, the <b>Linux</b> recovery ISO for Linux system backups.</li>
     <li>It connects to this server using <code>\backupzit\recovery.json</code> from the boot media, or asks for the server address and a recovery code.</li>
     <li>The machine appears below and under <a href="/agents">Agents</a> as a <span class="badge">recovery</span> agent, with its disks.</li>
-    <li>Open an image backup in <a href="/runs">Activity</a>, choose “Restore this image to a disk”, pick the recovery agent and its disk.</li>
+    <li>Open the backup in <a href="/runs">Activity</a>: for a disk image choose “Restore this image to a disk”, for a Linux system backup “Restore the whole system — onto a disk” with the recovery agent and its disk (e.g. <code>/dev/sda</code>).</li>
     <li>When the restore has finished, remove the boot media and restart the machine.</li>
   </ol>
 </div>
 
 <div class="row">
   <div class="panel">
-    <h2>Recovery ISO</h2>
+    <h2>Recovery ISOs</h2>
     {{if .Data.ISOs}}
-    <table>{{range .Data.ISOs}}<tr><td><a href="/downloads/{{.Name}}">{{.Name}}</a></td><td class="muted">{{.Size}}</td></tr>{{end}}</table>
+    <table>{{range .Data.ISOs}}<tr><td><a href="/downloads/{{.Name}}">{{.Title}}</a><br><span class="muted small">{{.Desc}}</span></td><td class="mono small">{{.Name}}<br>{{.Size}}</td></tr>{{end}}</table>
     {{else}}<p class="muted">No recovery ISO in the server's dist directory yet.</p>{{end}}
-    <p class="muted">To write it to a USB stick, use e.g. Rufus in “DD image” or “ISO” mode, then copy <code>recovery.json</code> into a <code>backupzit</code> folder on the stick.</p>
+    <p class="muted">To write an ISO to a USB stick use e.g. Rufus or balenaEtcher. Put <code>recovery.json</code> into a <code>backupzit</code> folder on the stick (Windows ISO in Rufus “ISO” mode) or on a second stick (Linux ISO); otherwise the recovery system asks for the server address and recovery code.</p>
   </div>
   <div class="panel">
     <h2>Recovery code</h2>

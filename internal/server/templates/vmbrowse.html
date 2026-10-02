@@ -6,8 +6,11 @@
 {{if .Data.Volumes}}
 <div class="panel">
   <form method="get" action="/runs/{{.Data.Run.ID}}/vmbrowse" class="row">
-    <input type="hidden" name="vmid" value="{{.Data.VMID}}"><input type="hidden" name="disk" value="{{.Data.Disk}}">
-    <label>Partition or volume
+    <input type="hidden" name="vmid" value="{{.Data.VMID}}">
+    {{if gt (len .Data.Disks) 1}}<label>Disk
+      <select name="disk" data-autosubmit>{{range .Data.Disks}}<option {{if eq . $.Data.Disk}}selected{{end}}>{{.}}</option>{{end}}</select>
+    </label>{{else}}<input type="hidden" name="disk" value="{{.Data.Disk}}">{{end}}
+    <label>Partition or volume)
       <select name="vol" data-autosubmit>
         {{range .Data.Volumes}}<option value="{{.ID}}" {{if eq .ID $.Data.Volume.ID}}selected{{end}} {{if not .Browsable}}disabled{{end}}>{{.Name}} — {{bytes64 .Size}}{{if .FS}}, {{.FS}}{{end}}{{if .Label}} “{{.Label}}”{{end}}</option>{{end}}
       </select>

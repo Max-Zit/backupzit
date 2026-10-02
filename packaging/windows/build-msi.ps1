@@ -14,9 +14,26 @@ param(
     # Build for Windows 7 / Server 2008 R2 / 2012 R2 with the go-legacy-win7
     # toolchain (Go dropped those systems after 1.20). Path from
     # BACKUPZIT_LEGACY_GO or tools-legacy next to the repository.
-    [switch]$Legacy
+    [switch]$Legacy,
+    # Code signing (MaxZit certificate): SHA-1 thumbprint of a certificate in
+    # the Windows certificate store (also on a USB token / HSM), or set
+    # BACKUPZIT_SIGN_THUMBPRINT. Without it the files are left unsigned.
+    [string]$SignThumbprint = $env:BACKUPZIT_SIGN_THUMBPRINT,
+    [string]$TimestampUrl = "http://timestamp.digicert.com"
 )
 $ErrorActionPreference = "Stop"
+
+# Signs files with signtool (Windows SDK) when a certificate is configured.
+function Invoke-Sign([string[]]$Files) {
+    if (-not $SignThumbprint) { return }
+    $signtool = Get-ChildItem "${env:ProgramFiles(x86)}Windows Kitsin*dsigntool.exe" -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending | Select-Object -First 1
+    if (-not $signtool) { throw "signtool.exe not found; install the Windows SDK (Signing Tools)" }
+    foreach ($f in $Files) {
+        & $signtool.FullName sign /sha1 $SignThumbprint /fd sha256 /tr $TimestampUrl /td sha256 /d "BackupZit Agent" $f
+        if ($LASTEXITCODE -ne 0) { throw "signing $f failed" }
+    }
+}
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $dist = Join-Path $root "dist"
 $work = Join-Path $root "bin\msi"
@@ -62,12 +79,14 @@ try {
     & $go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$Version$suffix" -o $tray ./cmd/backupzit-tray
     } finally { Remove-Item ([IO.Path]::Combine($trayDir, 'rsrc_windows_amd64.syso')) -ErrorAction SilentlyContinue }
     if ($LASTEXITCODE -ne 0) { throw "go build (tray) failed" }
+    Invoke-Sign $exe, $tray
 
     $wix = Join-Path $env:USERPROFILE ".dotnet\tools\wix.exe"
     if (-not (Test-Path $wix)) { $wix = "wix" }
     $msi = Join-Path $dist "backupzit-agent-$Version-x64$suffix.msi"
     & $wix build -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -d "Version=$msiVersion" -d "AgentExe=$exe" -d "TrayExe=$tray" -d "IconFile=$icon" -d "ArtDir=$PSScriptRoot" -o $msi (Join-Path $PSScriptRoot "agent.wxs")
     if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
+    Invoke-Sign $msi
     Remove-Item (Join-Path $dist "*.wixpdb") -ErrorAction SilentlyContinue
     Write-Host "built $msi"
 }

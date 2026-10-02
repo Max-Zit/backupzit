@@ -20,10 +20,11 @@ import (
 
 // cachedVMDisk keeps the volumes and opened file systems of a guest disk.
 type cachedVMDisk struct {
-	vols []vmfs.Volume
-	fss  map[string]vmfs.FS
-	disk string
-	used time.Time
+	vols  []vmfs.Volume
+	fss   map[string]vmfs.FS
+	disk  string
+	disks []string
+	used  time.Time
 }
 
 // vmDisk opens a guest disk of a VM backup run (cached for browsing).
@@ -74,7 +75,7 @@ func (s *Server) vmDisk(ctx context.Context, run Run, vmid int, disk string) (*c
 	if err != nil {
 		return nil, err
 	}
-	c := &cachedVMDisk{vols: vols, fss: map[string]vmfs.FS{}, disk: d.Key, used: time.Now()}
+	c := &cachedVMDisk{vols: vols, fss: map[string]vmfs.FS{}, disk: d.Key, disks: vmfs.GuestDisks(sn, vmid), used: time.Now()}
 	s.cache.mu.Lock()
 	s.cache.vm[key] = c
 	s.cache.mu.Unlock()
@@ -155,7 +156,7 @@ func (s *Server) handleVMBrowse(w http.ResponseWriter, r *http.Request, user str
 		var c *cachedVMDisk
 		c, err = s.vmDisk(r.Context(), p.run, p.vmid, p.disk)
 		if err == nil {
-			data["Disk"], data["Volumes"] = c.disk, c.vols
+			data["Disk"], data["Disks"], data["Volumes"] = c.disk, c.disks, c.vols
 			var v vmfs.Volume
 			var f vmfs.FS
 			v, f, err = c.fs(p.volume)

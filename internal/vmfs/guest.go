@@ -26,6 +26,9 @@ func GuestDisk(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, vmid 
 			if key != "" && d.Key != key {
 				continue
 			}
+			if key == "" && !DataDisk(d.Key) {
+				continue // UEFI variables, TPM state
+			}
 			if d.Image < 0 || d.Image >= len(sn.Images) || len(sn.Images[d.Image].Partitions) != 1 {
 				return nil, 0, nil, fmt.Errorf("disk %s has no image", d.Key)
 			}
@@ -151,3 +154,24 @@ func extractFile(fsys FS, e Entry, dst string) (int64, error) {
 
 // Base returns the last element of a path inside a volume.
 func Base(p string) string { return path.Base(Clean(p)) }
+
+// DataDisk reports whether a guest disk holds data (not the UEFI variables
+// or TPM state of a VM).
+func DataDisk(key string) bool {
+	return !strings.HasPrefix(key, "efidisk") && !strings.HasPrefix(key, "tpmstate")
+}
+
+// GuestDisks lists the data disks of a guest in a snapshot.
+func GuestDisks(sn *repo.Snapshot, vmid int) []string {
+	var out []string
+	for _, g := range sn.Guests {
+		if g.VMID == vmid {
+			for _, d := range g.Disks {
+				if DataDisk(d.Key) {
+					out = append(out, d.Key)
+				}
+			}
+		}
+	}
+	return out
+}
