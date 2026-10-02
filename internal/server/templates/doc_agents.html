@@ -41,5 +41,14 @@ systemctl enable --now backupzit-agent</pre>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (root only).</li>
 </ul>
 <p>The file contains the agent's secret. Anyone who can read it can act as that agent, so keep these permissions.</p>
+
+<h2>Agent log</h2>
+<ul>
+  <li>Windows: <code>C:ProgramDataackupzitgent.log</code></li>
+  <li>Linux: <code>journalctl -u backupzit-agent</code></li>
+</ul>
+
+<h2>Uninstalling</h2>
+<p>Windows: <i>Settings → Apps → BackupZit Agent → Uninstall</i> (or <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Then remove the agent in the console. Backups stay on the storage.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

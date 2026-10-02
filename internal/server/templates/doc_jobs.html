@@ -52,10 +52,14 @@
 
 <h2>Running, disabling, deleting</h2>
 <ul>
-  <li><b>Run backup now</b> queues a backup immediately.</li>
+  <li><b>Run backup now</b> (<b>Copy now</b> for copy jobs) queues the job immediately.</li>
+  <li><b>Test restore</b> restores a random sample of the newest backup and verifies it (see <a href="/docs/restore">Restoring files</a>).</li>
   <li><b>Disable</b> pauses the schedule without losing the job.</li>
   <li><b>Delete</b> removes the job; existing backups stay on the storage and remain restorable from Activity.</li>
 </ul>
+
+<h2>Retention paused</h2>
+<p>If a backup of the job looked like ransomware or mass deletion, the job page shows <i>Retention is paused</i>: no backups are removed until someone checks the machine and clicks <i>Reviewed — resume retention</i>. See <a href="/docs/ransomware">Ransomware protection</a>.</p>
 
 <h2>What a backup run reports</h2>
 <p>Open a run in <a href="/runs">Activity</a>: number of files, new/changed files, data read, new data uploaded (after deduplication and compression), duration, and any files that could not be read. A run with unreadable files ends with status <b>warning</b> — the rest of the data is backed up.</p>

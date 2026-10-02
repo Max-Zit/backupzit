@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Disk images &amp; bare-metal recovery</h1>
 <p class="lead">An image backup captures a whole disk — partition table, boot partitions, system and data — so a machine can be brought back on an empty or new disk exactly as it was.</p>
+<div class="callout"><p>Disk image backup is available for <b>Windows</b> machines (NTFS volumes, GPT and MBR disks). For Linux servers use file backups of the data and configuration folders; Linux images are planned.</p></div>
 
 <h2>Creating an image job</h2>
 <ol>

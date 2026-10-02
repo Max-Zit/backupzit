@@ -17,22 +17,24 @@
   <li><b>Create a backup job</b> under <a href="/jobs">Backup jobs</a>: choose the agent, the storage, what to back up (folders or a whole disk), when to run and how many backups to keep. See <a href="/docs/jobs">Backup jobs &amp; schedules</a>.</li>
   <li><b>Run it once manually</b> with <i>Run backup now</i> on the job page and check the result under <a href="/runs">Activity</a>.</li>
   <li><b>Test a restore</b> — a backup is only as good as its restore. See <a href="/docs/restore">Restoring files</a>.</li>
-  <li><b>Set up email alerts</b> under <a href="/settings">Settings</a> so you hear about failures, and optionally a weekly <a href="/reports">report</a>.</li>
+  <li><b>Set up email alerts</b> under <a href="/settings/email">Settings → Email notifications</a> so you hear about failures, and optionally a weekly <a href="/reports">report</a>.</li>
 </ol>
 
 <h2>The console at a glance</h2>
 <table>
   <tr><th>Page</th><th>What it is for</th></tr>
-  <tr><td><a href="/">Dashboard</a></td><td>Health at a glance: agents online, failures in the last 24 hours, recent activity.</td></tr>
-  <tr><td><a href="/jobs">Backup jobs</a></td><td>Create, run, disable and delete jobs; see the next scheduled run and the last result.</td></tr>
-  <tr><td><a href="/runs">Activity</a></td><td>Every backup and restore with its details, statistics and errors. Restores start from here.</td></tr>
+  <tr><td><a href="/">Dashboard</a></td><td>Health at a glance: agents online, failures in the last 24 hours, suspicious backups, recent activity.</td></tr>
+  <tr><td><a href="/jobs">Backup jobs</a></td><td>File, disk image and backup copy jobs: create, run, test restore, disable, delete; next scheduled run and last result.</td></tr>
+  <tr><td><a href="/runs">Activity</a></td><td>Every backup, copy, restore test and restore with details, statistics and errors. Restores start from here.</td></tr>
   <tr><td><a href="/calendar">Calendar</a></td><td>What ran on past days and what is scheduled to run in the future.</td></tr>
   <tr><td><a href="/reports">Reports</a></td><td>Success rates and data volumes for any period, CSV export, emailed and scheduled reports.</td></tr>
   <tr><td><a href="/agents">Agents</a></td><td>Protected machines, enrollment tokens and agent downloads.</td></tr>
   <tr><td><a href="/targets">Storage</a></td><td>Where backups are stored, encryption and recovery keys, immutability.</td></tr>
   <tr><td><a href="/recovery">Recovery media</a></td><td>Bootable recovery ISO for restoring a whole machine to bare metal.</td></tr>
-  <tr><td><a href="/users">Users</a></td><td>Accounts, roles, audit log.</td></tr>
-  <tr><td><a href="/settings">Settings</a></td><td>Email notifications, sign-in sessions, LDAP sign-in.</td></tr>
+  <tr><td><a href="/users">Users</a></td><td>Accounts, roles, API tokens of all users, audit log.</td></tr>
+  <tr><td><a href="/settings/email">Settings</a></td><td>Email notifications; sign-in sessions, two-factor policy and stored secrets; LDAP / Active Directory; automatic restore tests.</td></tr>
+  <tr><td><a href="/account">My account</a> (your name, top right)</td><td>Your profile and role, password, two-factor authentication, API tokens.</td></tr>
+  <tr><td><a href="/docs">Documentation</a></td><td>This guide.</td></tr>
 </table>
 
 <h2>Key concepts</h2>
@@ -42,5 +44,11 @@
 <p>Each agent writes into its own <i>repository</i> below the storage target location (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). A repository is self-contained: with the location, the storage credentials and the recovery key, it can be restored even if the console is gone.</p>
 <h3>Retention</h3>
 <p>Each job keeps a number of recent, daily, weekly and monthly backups. Older snapshots are removed after each run and the space they used is freed.</p>
+<h3>What BackupZit checks for you</h3>
+<ul>
+  <li><b>Restore tests</b> — every job's newest backup is partly restored and verified weekly (<a href="/docs/restore">Restoring files</a>).</li>
+  <li><b>Ransomware detection</b> — unusual backups (mass changes, encrypted data, mass deletion) are flagged and retention is paused (<a href="/docs/ransomware">Ransomware protection</a>).</li>
+  <li><b>Alerts and reports</b> — emails for failures and a daily summary; scheduled reports for management (<a href="/docs/notifications">Email notifications</a>, <a href="/docs/monitoring">Monitoring</a>).</li>
+</ul>
 {{template "docpager" .}}
 </article></div>{{end}}

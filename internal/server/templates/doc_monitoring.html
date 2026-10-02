@@ -3,38 +3,50 @@
 <p class="lead">See at a glance whether everything is protected, find out what happened on any day, and send regular reports to management or customers.</p>
 
 <h2>Dashboard</h2>
-<p>Agents online, number of jobs and storage targets, runs in progress, and runs, failures and warnings in the last 24 hours. Red or yellow cards need attention. Below is the most recent activity.</p>
+<p>The cards show agents online, backup jobs, storage targets, queued and running runs, runs, failures and warnings in the last 24 hours, and <b>suspicious backups to review</b> (possible ransomware, see <a href="/docs/ransomware">Ransomware protection</a>). Green means fine, yellow needs a look, red needs action. Below is the most recent activity.</p>
 
 <h2>Activity</h2>
-<p>Every backup and restore, newest first. Click a run for details: what was backed up, statistics, errors per file, and the restore options. Runs that are in progress refresh automatically.</p>
+<p>Every run, newest first. Click a run for details: what was processed, statistics, errors per file, and — for backups — the restore options. Runs in progress refresh automatically. Scheduled runs show a clock icon.</p>
+<h3>Run types</h3>
+<table>
+  <tr><th>Type</th><th>What it is</th></tr>
+  <tr><td>backup</td><td>File and folder backup of a job.</td></tr>
+  <tr><td>image-backup</td><td>Disk image backup.</td></tr>
+  <tr><td>copy</td><td>Backup copy job: backups of another job copied to a second storage.</td></tr>
+  <tr><td>verify</td><td>Automatic or manual <a href="/docs/restore">restore test</a>.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Restores of files, a whole disk, or files from an image.</td></tr>
+</table>
+<h3>Status</h3>
 <table>
   <tr><th>Status</th><th>Meaning</th></tr>
-  <tr><td>{{template "status" "queued"}}</td><td>Waiting for the agent (it may be offline).</td></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>Waiting for the agent (it may be offline). Backups are always started before restore tests.</td></tr>
   <tr><td>{{template "status" "running"}}</td><td>In progress.</td></tr>
   <tr><td>{{template "status" "success"}}</td><td>Completed without problems.</td></tr>
   <tr><td>{{template "status" "warning"}}</td><td>Completed, but some files could not be read (they are listed). The rest is backed up.</td></tr>
-  <tr><td>{{template "status" "failed"}}</td><td>Did not complete — storage unreachable, credentials wrong, disk full… The message explains why.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Did not complete — storage unreachable, credentials wrong, disk full, USB disk not connected, restore test found damaged data… The message explains why.</td></tr>
   <tr><td><span class="badge">expired</span></td><td>The snapshot was removed by the job's retention.</td></tr>
+  <tr><td><span class="badge failed"><i></i>suspicious</span></td><td>The backup looks like ransomware or mass deletion; the job's retention is paused until it is reviewed. Yellow once reviewed.</td></tr>
 </table>
 
 <h2>Calendar</h2>
 <p><a href="/calendar">Calendar</a> shows a month at a time:</p>
 <ul>
-  <li><b>Past days</b> show what actually ran, colored by result (green, yellow, red). Repeated runs of a job on one day are combined, e.g. <i>08:00 Office files ×6</i>.</li>
+  <li><b>Past days</b> show what actually ran — backups and copies — colored by result (green, yellow, red). Repeated runs of a job on one day are combined, e.g. <i>08:00 Office files ×6</i>.</li>
   <li><b>Future days</b> show what the schedules will start (blue).</li>
+  <li>A day with many entries shows four and <b>+N more</b>; click it to see all of them, click again to collapse.</li>
   <li><b>Next 7 days</b> lists every upcoming run in order.</li>
 </ul>
-<p>Filter by agent to see one machine's plan. Click an entry to open the job.</p>
+<p>Filter by agent to see one machine's plan. Click an entry to open the job. Copy jobs that run "after each backup" appear on the days their source job ran.</p>
 
 <h2>Reports</h2>
 <p><a href="/reports">Reports</a> summarize any period: today, yesterday, last 7/30/90 days, this or last week or month, or a custom date range — for all agents, one agent or one job.</p>
 <ul>
-  <li>Number of backups, success rate, successful / warning / failed runs, data read and uploaded, restores.</li>
+  <li>Number of backups, success rate, successful / warning / failed runs, data read and uploaded, restores, restore tests (and failed tests), suspicious backups.</li>
   <li>A chart of backups per day.</li>
-  <li>Per job: runs, success rate, last result, <b>last good backup</b> and protected size. A job with no good backup in the period is highlighted.</li>
-  <li>All failures and warnings with their messages.</li>
+  <li>Per job: runs, success rate, last result, <b>last good backup</b>, protected size, uploaded data and the result of the newest <b>restore test</b>. A job without a good backup in the period is highlighted.</li>
+  <li>All failures, warnings and suspicious backups with their messages.</li>
 </ul>
-<p>Use <b>CSV</b> to open the runs in Excel, <b>Print / PDF</b> for a document, or <b>Email this report</b>.</p>
+<p>Use <b>CSV</b> to open all runs in Excel (formula-safe), <b>Print / PDF</b> for a document, or <b>Email this report</b>. The same data is available to monitoring tools through the <a href="/docs/api">REST API</a> (<code>/api/v1/report</code>).</p>
 
 <h3>Scheduled reports</h3>
 <p>Under <i>Scheduled reports</i> create reports that are emailed automatically when a period is complete:</p>
@@ -43,6 +55,6 @@
   <li><b>Weekly</b> — every Monday, about the previous week.</li>
   <li><b>Monthly</b> — on the 1st, about the previous month (ideal for customers or management).</li>
 </ul>
-<p>Each report can cover all agents, one agent or one job, and go to its own recipients. The CSV with all runs is attached. Email must be configured under <a href="/settings">Settings</a>.</p>
+<p>Choose the hour, the scope (all agents, one agent or one job) and recipients (empty = the notification recipients). The CSV with all runs is attached. Email must be configured under <a href="/settings/email">Settings → Email notifications</a>. Creating and removing scheduled reports requires the Backup operator or Administrator role.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

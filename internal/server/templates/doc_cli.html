@@ -1,37 +1,51 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Command line reference</h1>
-<p class="lead">The agent also works on its own from the command line — for scripting, for restoring without the console, and for emergencies.</p>
+<p class="lead">The agent also works on its own from the command line — for scripting, for restoring without the console, and for emergencies. Run <code>backupzit-agent</code> without arguments for an overview and <code>backupzit-agent &lt;command&gt; -h</code> for the options of a command.</p>
 
 <h2>Repository and credentials</h2>
-<p>Every command takes <code>--repo</code> (or <code>BACKUPZIT_REPO</code>). Prefer environment variables for secrets:</p>
+<p>Every command takes <code>--repo</code> (or <code>BACKUPZIT_REPO</code>). Prefer environment variables for secrets. The repository of an agent is <code>&lt;storage location&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — see the repository column of a run in Activity, or the recovery sheet.</p>
 <table>
   <tr><th>Location</th><th>Credentials</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
-  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> or <code>--sftp-key file</code>; <code>--sftp-hostkey SHA256:…</code></td></tr>
-  <tr><td><code>s3://endpoint/bucket/prefix</code> (<code>?tls=false</code> for HTTP)</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>, <code>BACKUPZIT_S3_SECRET_KEY</code>, <code>--s3-region</code></td></tr>
-  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code></td></tr>
+  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> or <code>--sftp-key file</code>; <code>--sftp-hostkey SHA256:…</code> (<code>BACKUPZIT_SFTP_HOSTKEY</code>)</td></tr>
+  <tr><td><code>s3://endpoint/bucket/prefix</code> (<code>?tls=false</code> for HTTP)</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>, <code>BACKUPZIT_S3_SECRET_KEY</code>, <code>--s3-region</code>; <code>--s3-lock-days N</code> writes with Object Lock</td></tr>
+  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code>, <code>--smb-domain</code></td></tr>
+  <tr><td><code>azure://account/container/path</code> (<code>?endpoint=URL</code> for sovereign clouds, Azure Stack, Azurite)</td><td><code>BACKUPZIT_AZURE_KEY</code> or <code>BACKUPZIT_AZURE_SAS</code></td></tr>
   <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>, <code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
-  <tr><td><code>azure://account/container/path</code></td><td><code>BACKUPZIT_AZURE_KEY</code> or <code>BACKUPZIT_AZURE_SAS</code></td></tr>
+  <tr><td><code>usb://LABEL/path</code> (wildcards: <code>usb://BZBACKUP*/BackupZit</code>)</td><td>— (the connected disk with that volume label is used)</td></tr>
 </table>
-<p>Encrypted repositories need the recovery key in <code>BACKUPZIT_PASSWORD</code>.</p>
+<p>Encrypted repositories need the recovery key in <code>BACKUPZIT_PASSWORD</code> (or <code>--password</code>).</p>
+<p><b>Point-in-time view:</b> on S3 with Object Lock and on a hardened repository, <code>--as-of 2026-10-01T14:30</code> (or a date) shows the repository as it was at that time — read-only, for recovering after backups were deleted or overwritten.</p>
 
-<h2>Agent commands</h2>
+<h2>Files and folders</h2>
 <table>
   <tr><th>Command</th><th>What it does</th></tr>
-  <tr><td><code>init</code></td><td>Create a new repository.</td></tr>
-  <tr><td><code>backup [--vss] PATH…</code></td><td>Back up files and folders.</td></tr>
-  <tr><td><code>snapshots</code></td><td>List snapshots.</td></tr>
-  <tr><td><code>ls SNAPSHOT [PATH]</code></td><td>List files in a snapshot.</td></tr>
-  <tr><td><code>restore --target DIR [--include PATH] [--verify] SNAPSHOT|latest</code></td><td>Restore files (<code>--original</code> writes them back to their original location).</td></tr>
-  <tr><td><code>check [--read-data]</code></td><td>Verify the repository; with <code>--read-data</code> every byte is read and checked.</td></tr>
-  <tr><td><code>disks</code></td><td>Show disks and partitions.</td></tr>
-  <tr><td><code>image-backup --disk N [--partitions 1,2]</code></td><td>Back up a disk image.</td></tr>
-  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] SNAPSHOT</code></td><td>Write an image to a disk (destroys its contents).</td></tr>
-  <tr><td><code>image-ls</code>, <code>image-extract</code></td><td>Browse and extract files from an image.</td></tr>
-  <tr><td><code>enroll --server URL --token T --fingerprint F</code></td><td>Connect the agent to a console.</td></tr>
-  <tr><td><code>service install|start|stop|uninstall</code></td><td>Manage the agent service.</td></tr>
+  <tr><td><code>init</code></td><td>Create a new repository (encrypted when a password is given).</td></tr>
+  <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Back up files and folders. <code>--vss</code> reads from a Volume Shadow Copy (Windows, administrator); <code>--force</code> reads all files even if unchanged.</td></tr>
+  <tr><td><code>snapshots</code></td><td>List snapshots with time, host, size and paths.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>List files in a snapshot.</td></tr>
+  <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Restore files below DIR (the original folder structure is recreated). <code>--original</code> instead writes them back to their original location, overwriting existing files.</td></tr>
+  <tr><td><code>check [--read-data]</code></td><td>Verify the repository structure; with <code>--read-data</code> every byte is downloaded and checked.</td></tr>
 </table>
-<p>Read-only point-in-time view of immutable storage: add <code>--as-of 2026-10-01T14:30</code> to <code>snapshots</code>, <code>ls</code> or <code>restore</code>.</p>
+
+<h2>Disk images (Windows)</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>disks [--json]</code></td><td>Show disks and partitions with their numbers.</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code></td><td>Back up a whole disk or selected partitions.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] SNAPSHOT|latest</code></td><td>Write an image onto a disk; <b>erases the disk</b>. <code>--keep-offline</code> when the original disk is in the same machine.</td></tr>
+  <tr><td><code>image-ls --partition N SNAPSHOT|latest [\path]</code></td><td>List files inside an imaged NTFS partition.</td></tr>
+  <tr><td><code>image-extract --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Copy files and folders out of an imaged partition.</td></tr>
+</table>
+
+<h2>Managed mode</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>enroll --server URL --token T --fingerprint F [--force]</code></td><td>Connect the agent to a console (<code>--force</code> replaces an existing enrollment).</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Manage the agent service (the installers do this).</td></tr>
+  <tr><td><code>recovery</code></td><td>Recovery mode, started automatically by the recovery ISO.</td></tr>
+  <tr><td><code>version</code></td><td>Print the version.</td></tr>
+</table>
 
 <h3>Examples</h3>
 <pre>set BACKUPZIT_PASSWORD=XXXX-XXXX-...
@@ -39,23 +53,39 @@ set BACKUPZIT_S3_ACCESS_KEY=...
 set BACKUPZIT_S3_SECRET_KEY=...
 backupzit-agent snapshots --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d
 backupzit-agent restore --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d --target D:\Restore --include C:\Users\ana\Documents latest
-backupzit-agent check --repo s3://... --read-data</pre>
+backupzit-agent check --repo s3://... --read-data
 
-<h2>Hardened repository commands</h2>
+backupzit-agent disks
+backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
+backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
+
+<h2>Hardened repository (<code>backupzit-repo</code>)</h2>
 <table>
   <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>backupzit-repo serve</code></td><td>Run the service (systemd does this).</td></tr>
   <tr><td><code>backupzit-repo add-key NAME</code></td><td>Create an access key (shown once).</td></tr>
   <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>List / revoke access keys.</td></tr>
   <tr><td><code>backupzit-repo fingerprint</code></td><td>Certificate fingerprint for the console.</td></tr>
   <tr><td><code>backupzit-repo status</code></td><td>Stored and hidden (deleted, still retained) data.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Make files deleted since TIME visible again.</td></tr>
 </table>
+<p>Configuration: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
 
-<h2>Server commands</h2>
+<h2>Management server (<code>backupzit-server</code>)</h2>
 <table>
-  <tr><th>Command</th><th>What it does</th></tr>
-  <tr><td><code>set -a; . /etc/backupzit/server.env; backupzit-server --set-admin-password NEW-PASSWORD</code></td><td>Reset the password of the <i>admin</i> user and sign out its sessions.</td></tr>
-  <tr><td><code>systemctl status backupzit-server</code>, <code>journalctl -u backupzit-server</code></td><td>Service state and log.</td></tr>
+  <tr><th>Option / environment</th><th>Meaning</th></tr>
+  <tr><td><code>--db</code> / <code>BACKUPZIT_DB</code></td><td>PostgreSQL connection string (required).</td></tr>
+  <tr><td><code>--listen</code> / <code>BACKUPZIT_LISTEN</code></td><td>HTTPS address, default <code>:8443</code>.</td></tr>
+  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>Certificate, <code>secrets.key</code>, agent downloads (<code>dist/</code>).</td></tr>
+  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>URL agents and email links use.</td></tr>
+  <tr><td><code>--tls-hosts</code> / <code>BACKUPZIT_TLS_HOSTS</code></td><td>Extra names/IPs for the self-signed certificate.</td></tr>
+  <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Initial admin password (first start only).</td></tr>
+  <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Secrets key (base64) instead of the <code>secrets.key</code> file.</td></tr>
+  <tr><td><code>--set-admin-password NEW</code></td><td>Reset the password of <i>admin</i> (re-enables it as a local administrator) and exit.</td></tr>
+  <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Evaluation only: private PostgreSQL in the data directory, plain HTTP on localhost.</td></tr>
+  <tr><td><code>--version</code></td><td>Print the version.</td></tr>
 </table>
+<pre>systemctl status backupzit-server
+journalctl -u backupzit-server -f</pre>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -16,11 +16,11 @@
 
 <h2>What is sent</h2>
 <ul>
-  <li><b>Failures</b> (recommended) — one email per failed run with the reason.</li>
+  <li><b>Failures</b> (recommended) — one email per failed run with the reason: backups, copies, restores and failed <b>restore tests</b>. With this option on you also get a <b>SUSPICIOUS</b> alert when a backup looks like ransomware or mass deletion.</li>
   <li><b>Warnings</b> — runs where some files could not be read.</li>
   <li><b>Successes</b> — every successful run (usually too much; prefer the daily report).</li>
   <li><b>Daily report</b> — at the chosen hour: runs of the last 24 hours, problems and offline agents. Subject starts with <i>OK</i>, <i>WARNINGS</i> or <i>ATTENTION</i>, so mail rules can sort them.</li>
 </ul>
-<p>For weekly or monthly summaries use <a href="/docs/monitoring">scheduled reports</a>.</p>
+<p>For weekly or monthly summaries use <a href="/docs/monitoring">scheduled reports</a>; they are sent with the same mail settings and have their own recipients. Subjects start with <code>[BackupZit]</code> so mail rules can sort them. The SMTP password is stored encrypted.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

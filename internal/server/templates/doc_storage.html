@@ -72,6 +72,9 @@ backupzit-repo fingerprint                # certificate fingerprint</pre>
 <div class="callout warn"><p><b>Print the recovery sheet or store it in a password manager, separately from the backups.</b> If the console is lost, the recovery key plus the storage location and credentials are all you need to restore. Without the key, encrypted backups cannot be read by anyone — including BackupZit support.</p></div>
 <p>You can show the key again later with <i>Recovery key</i> in the storage list; this is logged.</p>
 
+<h2>The storage list</h2>
+<p>The list shows each target's type, location, encryption (with access to the recovery key for administrators) and immutability: the Object Lock period for S3, or <i>set on the repository server</i> for hardened repositories. Credentials are never shown again after saving and are stored encrypted. Only administrators can add or remove targets and see recovery keys.</p>
+
 <h2>Removing a target</h2>
 <p>Removing a storage target from the console does not delete any data on the storage.</p>
 {{template "docpager" .}}

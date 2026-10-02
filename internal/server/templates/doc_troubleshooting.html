@@ -20,6 +20,20 @@
   <tr><td>bucket has no Object Lock enabled</td><td>Immutability was requested on a bucket created without Object Lock. Create a new bucket with Object Lock.</td></tr>
 </table>
 
+<h2>Other messages</h2>
+<table>
+  <tr><th>Situation</th><th>What to do</th></tr>
+  <tr><td>"no matching backup disk is connected"</td><td>Plug in one of the rotating USB disks (the message lists the label it needs and which labeled disks are connected). A restore needs exactly the disk shown in the backup run.</td></tr>
+  <tr><td>"several backup disks are connected"</td><td>Connect only one of the rotating disks at a time.</td></tr>
+  <tr><td>Restore test failed</td><td>Open the run: the message names the damaged file or block or the reason (e.g. backup deleted on the storage). Run <code>backupzit-agent check --read-data</code> against the repository, check the storage, and start a new backup. If backups were deleted on immutable storage, see <a href="/docs/ransomware">Ransomware protection</a>.</td></tr>
+  <tr><td>Backup marked <i>suspicious</i></td><td>Check the machine for ransomware or a mass deletion (e.g. a synced folder emptied). If everything is fine (e.g. a planned migration), click <i>Reviewed — resume retention</i> on the job page.</td></tr>
+  <tr><td>"Too many failed sign-ins"</td><td>Wait 15 minutes, or ask an administrator; the console never locks accounts permanently.</td></tr>
+  <tr><td>Lost phone for two-factor sign-in</td><td>Use one of the recovery codes; otherwise an administrator resets two-factor on your user page. The last administrator can reset their password on the server with <code>backupzit-server --set-admin-password</code>.</td></tr>
+  <tr><td>"your directory account is not in any BackupZit group"</td><td>Add the user to one of the groups mapped under <a href="/settings/ldap">Settings → LDAP</a>, or map more groups. Use <i>Test</i> there to see the groups found for a user.</td></tr>
+  <tr><td>API returns 401 / 403</td><td>401: token missing, revoked, expired or its owner disabled. 403: the token's role is too low for the request.</td></tr>
+  <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Wrong account key, or the SAS token lacks read, write, delete or list permission or has expired.</td></tr>
+</table>
+
 <h2>A backup ends with "warning"</h2>
 <p>Some files could not be read — usually files locked by an application while VSS is not available, or files the agent has no permission for. The list is on the run page. Everything else is backed up.</p>
 

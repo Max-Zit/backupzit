@@ -31,30 +31,48 @@ Usage:
   backupzit-agent <command> [options]
 
 Managed mode (controlled by the BackupZit server):
-  enroll      Register this machine with the management server
-  service     install | uninstall | start | stop | status | run
+  enroll         Register this machine with the management server
+  service        install | uninstall | start | stop | status | run
+  recovery       Recovery mode (started by the recovery ISO)
 
-Standalone commands:
-  init        Create a new repository
-  backup      Back up files and folders
-  snapshots   List snapshots
-  ls          List files in a snapshot
-  restore     Restore files from a snapshot
-  check       Verify repository integrity
-  version     Print version
+Files and folders:
+  init           Create a new repository
+  backup         Back up files and folders
+  snapshots      List snapshots
+  ls             List files in a snapshot
+  restore        Restore files from a snapshot
+  check          Verify repository integrity (--read-data reads everything)
+
+Disk images (Windows):
+  disks          Show disks and partitions
+  image-backup   Back up a whole disk or selected partitions
+  image-restore  Write an image onto a disk (erases it)
+  image-ls       List files inside an imaged partition
+  image-extract  Copy files out of an imaged partition
+
+  version        Print version
 
 Repository options (all commands):
-  --repo         Repository location: a local path, sftp://user@host[:port]/path
-                 or s3://endpoint/bucket[/prefix][?tls=false]
-                 or smb://[domain;]user@host/share[/path]
-                 (env BACKUPZIT_REPO)
+  --repo           Repository location (env BACKUPZIT_REPO):
+                     D:\Backups\pc1 or /mnt/backup/pc1        local or mounted directory
+                     sftp://user@host[:port]/path              SFTP
+                     s3://endpoint/bucket[/prefix][?tls=false] S3 compatible
+                     smb://[domain;]user@host/share[/path]     SMB share
+                     azure://account/container[/path]          Azure Blob Storage
+                     hardened://host[:8500]/path               BackupZit hardened repository
+                     usb://LABEL/path                          removable disk found by its label
+  --password       Recovery key of an encrypted repository (env BACKUPZIT_PASSWORD);
+                   init with a password creates an encrypted repository
   --sftp-password  SFTP password (env BACKUPZIT_SFTP_PASSWORD)
   --sftp-key       Path to an SSH private key
   --sftp-hostkey   Expected server host key fingerprint "SHA256:..." (env BACKUPZIT_SFTP_HOSTKEY)
   --s3-access-key, --s3-secret-key, --s3-region  (env BACKUPZIT_S3_ACCESS_KEY, _SECRET_KEY, _REGION)
+  --s3-lock-days   Write objects immutable (S3 Object Lock) for this many days
   --smb-password, --smb-domain  (env BACKUPZIT_SMB_PASSWORD, BACKUPZIT_SMB_DOMAIN)
-  --password       Encryption password / recovery key (env BACKUPZIT_PASSWORD);
-                   init with a password creates an encrypted repository
+  --azure-key, --azure-sas      (env BACKUPZIT_AZURE_KEY, BACKUPZIT_AZURE_SAS)
+  --hardened-key, --hardened-fingerprint  (env BACKUPZIT_HARDENED_KEY, _FINGERPRINT)
+  --as-of TIME     Read the repository as it was at TIME (read-only; S3 Object Lock
+                   or hardened repository), e.g. 2026-10-01T14:30
 
 Run "backupzit-agent <command> -h" for command options.
 `

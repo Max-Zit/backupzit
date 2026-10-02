@@ -43,6 +43,8 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>443 or 9000/tcp</td><td>agents, console</td><td>S3 storage</td><td>S3 targets</td></tr>
   <tr><td>445/tcp</td><td>agents, console</td><td>NAS / file server</td><td>SMB targets</td></tr>
   <tr><td>8500/tcp</td><td>agents, console</td><td>hardened repository</td><td>hardened targets</td></tr>
+  <tr><td>443/tcp</td><td>agents, console</td><td>Azure / cloud storage</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
+  <tr><td>636/tcp (389 with StartTLS)</td><td>console</td><td>domain controllers</td><td>LDAP / Active Directory sign-in</td></tr>
   <tr><td>587/465/25</td><td>console</td><td>mail server</td><td>email notifications</td></tr>
 </table>
 <p>The console also connects to storage to let you browse files inside disk images.</p>
