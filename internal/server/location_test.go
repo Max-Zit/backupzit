@@ -16,3 +16,17 @@ func TestStorageLocations(t *testing.T) {
 		t.Errorf("s3 http: %q", got)
 	}
 }
+
+func TestUSBLocation(t *testing.T) {
+	if u, err := usbLocation(" bzbackup* ", ""); err != nil || u != "usb://BZBACKUP*/BackupZit" {
+		t.Errorf("%q %v", u, err)
+	}
+	if u, err := usbLocation("OFFSITE1", `Backups\Office`); err != nil || u != "usb://OFFSITE1/Backups/Office" {
+		t.Errorf("%q %v", u, err)
+	}
+	for _, bad := range []string{"", "*", "a b", "x/y", "BZ:1"} {
+		if _, err := usbLocation(bad, ""); err == nil {
+			t.Errorf("label %q accepted", bad)
+		}
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -84,6 +85,7 @@ type Options struct {
 //	smb://[domain;]user@host/share[/path]  -> SMB2/3 share
 //	hardened://host[:port]/path             -> backupzit hardened repository
 //	azure://account/container[/prefix]     -> Azure Blob Storage
+//	usb://LABEL[*]/path                     -> removable disk found by its volume label
 func Open(ctx context.Context, location string, opts Options) (Backend, error) {
 	switch {
 	case strings.HasPrefix(location, "sftp://"):
@@ -104,6 +106,15 @@ func Open(ctx context.Context, location string, opts Options) (Backend, error) {
 			return nil, fmt.Errorf("parse smb url: %w", err)
 		}
 		return OpenSMB(ctx, u, opts)
+	case strings.HasPrefix(location, "usb://"):
+		dir, _, err := ResolveUSB(location)
+		if err != nil {
+			return nil, err
+		}
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return nil, err
+		}
+		return OpenLocal(dir)
 	case strings.HasPrefix(location, "azure://"):
 		u, err := url.Parse(location)
 		if err != nil {

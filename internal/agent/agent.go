@@ -286,6 +286,13 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 	default:
 		res = api.RunResult{Status: api.StatusFailed, Message: "unsupported run kind " + run.Kind}
 	}
+	if strings.HasPrefix(run.Repository.URL, "usb://") && res.Status != api.StatusFailed && (run.Kind == api.KindBackup || run.Kind == api.KindImageBackup || run.Kind == api.KindCopy) {
+		// Record which of the rotating disks holds this backup.
+		if _, loc, err := backend.ResolveUSB(run.Repository.URL); err == nil {
+			res.RepoURL = loc
+			res.Message = strings.TrimSpace("Disk " + backend.USBLabel(loc) + ". " + res.Message)
+		}
+	}
 	a.log.Info("run finished", "run", run.ID, "status", res.Status, "message", res.Message, "errors", len(res.Errors))
 	// Report with a fresh context: the result must reach the server even
 	// when the agent is shutting down. Retry for a while on network errors.

@@ -671,6 +671,14 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 			}
 		}
 	}
+	if t.Kind == "usb" {
+		u, err := usbLocation(r.FormValue("usb_label"), r.FormValue("usb_path"))
+		if err != nil {
+			redirectErr(w, r, "/targets", err)
+			return
+		}
+		t.URL = u
+	}
 	if t.Kind == "azure" {
 		u, err := azureLocation(r.FormValue("azure_account"), r.FormValue("azure_container"), r.FormValue("azure_path"), r.FormValue("azure_endpoint"))
 		if err != nil {

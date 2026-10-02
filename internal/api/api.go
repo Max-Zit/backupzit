@@ -154,6 +154,9 @@ type RunResult struct {
 	Details json.RawMessage `json:"details,omitempty"`
 	// Forgotten lists snapshot IDs removed by the retention policy.
 	Forgotten []string `json:"forgotten,omitempty"`
+	// RepoURL is the actual repository location when the run was given a
+	// pattern (rotating USB disks: the label of the disk used).
+	RepoURL string `json:"repo_url,omitempty"`
 }
 
 // Error is returned by the server with non-2xx responses.

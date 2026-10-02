@@ -67,7 +67,7 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 		cr.used = time.Now()
 		return cr.r, nil
 	}
-	if t.Kind == "local" {
+	if t.Kind == "local" || t.Kind == "usb" {
 		return nil, ErrBrowseLocal
 	}
 	// The repository is used for many requests; do not tie it to one.

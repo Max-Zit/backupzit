@@ -171,6 +171,10 @@ func (s *Store) CreateTarget(ctx context.Context, t Target) (int64, error) {
 		if t.SMBPassword == "" {
 			return 0, errors.New("SMB password is required")
 		}
+	case "usb":
+		if !strings.HasPrefix(t.URL, "usb://") {
+			return 0, errors.New("removable disk location must look like usb://LABEL/folder")
+		}
 	case "azure":
 		if !strings.HasPrefix(t.URL, "azure://") {
 			return 0, errors.New("Azure location must look like azure://account/container/folder")
@@ -730,6 +734,9 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	}
 	if ct.RowsAffected() == 0 {
 		return ErrNotFound
+	}
+	if res.RepoURL != "" {
+		s.recordUSBDisk(ctx, runID, res.RepoURL)
 	}
 	if len(res.Forgotten) > 0 {
 		if _, err := s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE snapshot_id = ANY($1)`, res.Forgotten); err != nil {

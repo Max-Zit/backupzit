@@ -181,3 +181,21 @@ func azureLocation(account, container, dir, endpoint string) (string, error) {
 	}
 	return loc, nil
 }
+
+var usbLabel = regexp.MustCompile(`^[A-Za-z0-9_*?-]{1,32}$`)
+
+// usbLocation builds usb://LABEL/folder for rotating removable disks.
+func usbLocation(label, dir string) (string, error) {
+	label = strings.ToUpper(strings.TrimSpace(label))
+	if !usbLabel.MatchString(label) || strings.Trim(label, "*?") == "" {
+		return "", errors.New("enter the disks' volume label, e.g. BZBACKUP* for BZBACKUP1, BZBACKUP2 … (letters, digits, - and _; * and ? as wildcards)")
+	}
+	dir = strings.Trim(strings.ReplaceAll(strings.TrimSpace(dir), `\`, "/"), "/")
+	if dir == "" {
+		dir = "BackupZit"
+	}
+	if !hardenedPath.MatchString(dir) {
+		return "", errors.New("folder may contain only letters, digits, '.', '_', '-' and '/'")
+	}
+	return "usb://" + label + "/" + dir, nil
+}

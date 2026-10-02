@@ -84,6 +84,7 @@ Repository locations:
 - `sftp://user@host[:port]/path` — SFTP (`/~/path` for a path relative to the home directory)
 - `smb://[domain;]user@host/share[/path]` — SMB 2/3 share (Windows server, NAS, Samba); password via `BACKUPZIT_SMB_PASSWORD`
 - `s3://endpoint[:port]/bucket[/prefix]` — S3 compatible storage (AWS, Wasabi, Backblaze B2, MinIO, …); add `?tls=false` for plain HTTP. Credentials via `BACKUPZIT_S3_ACCESS_KEY` / `BACKUPZIT_S3_SECRET_KEY`
+- `usb://LABEL/path` — removable disk found by its volume label (wildcards: `usb://BZBACKUP*/BackupZit`)
 - `azure://account/container[/path]` — Azure Blob Storage; key via `BACKUPZIT_AZURE_KEY` or SAS token via `BACKUPZIT_AZURE_SAS`; `?endpoint=URL` for Azure Stack/sovereign clouds/Azurite
 - `hardened://host[:port]/path` — BackupZit hardened repository (port 8500 by default); access key via `BACKUPZIT_HARDENED_KEY`, certificate pin via `BACKUPZIT_HARDENED_FINGERPRINT`
 

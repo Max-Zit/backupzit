@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"path"
+	"strings"
 
 	"github.com/backupzit/backupzit/internal/api"
 	"github.com/jackc/pgx/v5"
@@ -133,4 +136,23 @@ func (s *Store) copyOfFiles(ctx context.Context, run Run) bool {
 	}
 	src, err := s.GetJob(ctx, *j.SourceJobID)
 	return err == nil && src.Kind == JobFiles
+}
+
+// recordUSBDisk stores which rotating disk a backup went to, so restores
+// ask for that disk. The agent may only narrow a usb:// pattern to a disk
+// with the same path, never point the run elsewhere.
+func (s *Store) recordUSBDisk(ctx context.Context, runID int64, actual string) {
+	r, err := s.GetRun(ctx, runID)
+	if err != nil || !strings.HasPrefix(r.RepoURL, "usb://") || !strings.HasPrefix(actual, "usb://") {
+		return
+	}
+	want, err1 := url.Parse(r.RepoURL)
+	got, err2 := url.Parse(actual)
+	if err1 != nil || err2 != nil || want.Path != got.Path || got.Host == "" {
+		return
+	}
+	if ok, _ := path.Match(strings.ToUpper(want.Host), strings.ToUpper(got.Host)); !ok {
+		return
+	}
+	s.db.Exec(ctx, `UPDATE runs SET repo_url=$2 WHERE id=$1`, runID, got.String())
 }

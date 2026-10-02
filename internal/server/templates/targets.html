@@ -28,6 +28,7 @@
         <option value="azure">Azure Blob Storage</option>
         <option value="hardened">Hardened repository (backupzit-repo on Linux, immutable)</option>
         <option value="smb">SMB share (Windows server, NAS)</option>
+        <option value="usb">Rotating USB / removable disks (offline copies)</option>
         <option value="local">Local / mounted path (on the agent machine)</option>
       </select>
     </label>
@@ -75,6 +76,13 @@
         <label>Endpoint <small>only for Azure Government/China, Azure Stack or the Azurite emulator, e.g. http://10.0.0.5:10000/devstoreaccount1</small><input name="azure_endpoint"></label>
       </details>
       <small class="muted">For ransomware protection, enable <i>version-level immutability</i> (a time-based retention policy) on the container in Azure; deleted or overwritten backups then remain recoverable.</small>
+    </div>
+    <div data-kind="usb" hidden class="stack">
+      <div class="row">
+        <label>Disk label <small>volume label of the disks, e.g. BZBACKUP* for BZBACKUP1, BZBACKUP2 …</small><input name="usb_label" placeholder="BZBACKUP*"></label>
+        <label>Folder on the disk <small>optional, default BackupZit</small><input name="usb_path" placeholder="BackupZit"></label>
+      </div>
+      <small class="muted">For offline copies on rotating USB disks: name each disk's volume BZBACKUP1, BZBACKUP2 … (Windows: right-click the drive → Properties). The agent finds the connected disk by its label, whatever drive letter it gets. Each disk holds a complete, independent backup; take one home or to a safe and swap them regularly. Connect only one disk at a time.</small>
     </div>
     <div data-kind="s3" hidden class="stack">
       <div class="row">
