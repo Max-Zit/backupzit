@@ -23,6 +23,7 @@ type repoCache struct {
 	mu    sync.Mutex
 	repos map[string]*cachedRepo
 	vols  map[string]*cachedVolume
+	vm    map[string]*cachedVMDisk
 }
 
 type cachedRepo struct {

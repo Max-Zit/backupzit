@@ -60,9 +60,9 @@
   <div class="panel">
     <h2>Virtual machines and containers</h2>
     <div class="table-wrap"><table>
-      <tr><th>ID</th><th>Name</th><th>Type</th><th>Disks</th><th>With data</th><th>Captured</th></tr>
+      <tr><th>ID</th><th>Name</th><th>Type</th><th>Disks</th><th>With data</th><th>Captured</th><th></th></tr>
       {{range .Data.VM.Guests}}
-      <tr><td>{{.VMID}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}container{{else}}VM{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td></tr>
+      <tr><td>{{.VMID}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}container{{else}}VM{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">Browse files</a>{{end}}</td></tr>
       {{end}}
     </table></div>
   </div>

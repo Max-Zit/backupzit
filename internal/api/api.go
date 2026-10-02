@@ -89,6 +89,8 @@ const (
 	// KindSystemRestore recreates it on an empty disk or as a Proxmox VM.
 	KindSystemBackup  = "system-backup"
 	KindSystemRestore = "system-restore"
+	// KindVMFileRestore copies files out of a VM disk in a Proxmox backup.
+	KindVMFileRestore = "vm-file-restore"
 	// KindAgentUpdate installs a newer agent version from the console.
 	KindAgentUpdate = "agent-update"
 )
@@ -145,6 +147,9 @@ type Run struct {
 	VMExclude []string `json:"vm_exclude,omitempty"`
 	// VM restore.
 	VMRestore *VMRestore `json:"vm_restore,omitempty"`
+
+	// VM file restore: files inside a guest disk.
+	VMFiles *VMFileRestore `json:"vm_files,omitempty"`
 
 	// System restore.
 	SystemRestore *SystemRestore `json:"system_restore,omitempty"`
@@ -257,4 +262,13 @@ type SystemRestore struct {
 	Cores   int    `json:"cores,omitempty"`
 	Bridge  string `json:"bridge,omitempty"`
 	Start   bool   `json:"start,omitempty"`
+}
+
+// VMFileRestore selects files inside a VM disk of a Proxmox backup.
+type VMFileRestore struct {
+	VMID   int      `json:"vmid"`
+	Disk   string   `json:"disk"`
+	Volume string   `json:"volume"`
+	Paths  []string `json:"paths"`
+	Target string   `json:"target"` // folder on the agent
 }

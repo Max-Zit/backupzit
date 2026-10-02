@@ -159,7 +159,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore"}[k]
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM"}[k]
 	},
 	"hours": func() []int {
 		h := make([]int, 24)
@@ -293,6 +293,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /runs/{id}/restore", s.ui(PermRestore, s.handleRestore))
 	mux.HandleFunc("GET /runs/{id}/browse", s.ui(PermRestore, s.handleBrowse))
 	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(PermRestore, s.handleFilesRestore))
+	mux.HandleFunc("GET /runs/{id}/vmbrowse", s.ui(PermRestore, s.handleVMBrowse))
+	mux.HandleFunc("POST /runs/{id}/vmdownload", s.ui(PermRestore, s.handleVMDownload))
+	mux.HandleFunc("POST /runs/{id}/vmfiles-restore", s.ui(PermRestore, s.handleVMFilesRestore))
 	mux.HandleFunc("GET /downloads/{file}", s.ui(PermView, s.handleDownload))
 	mux.HandleFunc("GET /reports", s.ui(PermView, s.handleReports))
 	mux.HandleFunc("GET /reports/csv", s.ui(PermView, s.handleReportCSV))

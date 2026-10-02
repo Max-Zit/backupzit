@@ -139,6 +139,12 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 			ar.ImageDisk = *run.ImageDisk
 		}
 		ar.ImagePartitions = run.ImagePartitions
+	case api.KindVMFileRestore:
+		ar.SnapshotID = run.SnapshotID
+		var o api.VMFileRestore
+		if json.Unmarshal(run.VMRestore, &o) == nil {
+			ar.VMFiles = &o
+		}
 	case api.KindSystemBackup:
 		s.addRetention(ctx, run, ar)
 		ar.Paths, ar.Excludes = run.Paths, run.Excludes

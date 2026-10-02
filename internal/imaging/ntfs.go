@@ -147,6 +147,12 @@ func OpenVolume(ctx context.Context, r *repo.Repository, p *repo.PartitionImage)
 	if err != nil {
 		return nil, err
 	}
+	return OpenNTFS(pr)
+}
+
+// OpenNTFS opens an NTFS file system on any reader (e.g. a partition inside
+// a virtual machine disk).
+func OpenNTFS(pr io.ReaderAt) (*Volume, error) {
 	paged, err := ntfs.NewPagedReader(pr, 1024*1024, 128)
 	if err != nil {
 		return nil, err
@@ -408,4 +414,37 @@ func DestFunc(p *repo.PartitionImage, target string) (func(string) string, error
 	return func(path string) string {
 		return filepath.Join(target, filepath.FromSlash(strings.ReplaceAll(path, `\`, "/")))
 	}, nil
+}
+
+// ReadFile returns a reader for the contents of a file.
+func (v *Volume) ReadFile(p string) (io.Reader, int64, error) {
+	e, err := v.Stat(p)
+	if err != nil {
+		return nil, 0, err
+	}
+	if e.IsDir {
+		return nil, 0, fmt.Errorf("%s is a folder", p)
+	}
+	v.mu.Lock()
+	mft, err := v.open(e.Path)
+	var data ntfs.RangeReaderAt
+	if err == nil {
+		data, err = ntfs.OpenStream(v.ctx, mft, ntfs.ATTR_TYPE_DATA, ntfs.WILDCARD_STREAM_ID, ntfs.WILDCARD_STREAM_NAME)
+	}
+	v.mu.Unlock()
+	if err != nil {
+		return nil, 0, err
+	}
+	return io.NewSectionReader(lockedReaderAt{v, data}, 0, e.Size), e.Size, nil
+}
+
+type lockedReaderAt struct {
+	v *Volume
+	r io.ReaderAt
+}
+
+func (l lockedReaderAt) ReadAt(b []byte, off int64) (int, error) {
+	l.v.mu.Lock()
+	defer l.v.mu.Unlock()
+	return l.r.ReadAt(b, off)
 }

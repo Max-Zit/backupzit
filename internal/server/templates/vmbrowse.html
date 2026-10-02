@@ -1,0 +1,57 @@
+{{define "content"}}
+{{with .Data.Run}}
+<h1>Files of guest {{$.Data.VMID}}{{with $.Data.GuestName}} — {{.}}{{end}}</h1>
+<p class="muted">Backup #{{.ID}} from {{ts .FinishedAt}}{{with $.Data.Disk}} · disk {{.}}{{end}} · <a href="/runs/{{.ID}}">back to the backup</a></p>
+{{end}}
+{{if .Data.Volumes}}
+<div class="panel">
+  <form method="get" action="/runs/{{.Data.Run.ID}}/vmbrowse" class="row">
+    <input type="hidden" name="vmid" value="{{.Data.VMID}}"><input type="hidden" name="disk" value="{{.Data.Disk}}">
+    <label>Partition or volume
+      <select name="vol" data-autosubmit>
+        {{range .Data.Volumes}}<option value="{{.ID}}" {{if eq .ID $.Data.Volume.ID}}selected{{end}} {{if not .Browsable}}disabled{{end}}>{{.Name}} — {{bytes64 .Size}}{{if .FS}}, {{.FS}}{{end}}{{if .Label}} “{{.Label}}”{{end}}</option>{{end}}
+      </select>
+    </label>
+    <div><button class="secondary">Open</button></div>
+  </form>
+</div>
+{{end}}
+
+<form method="post" action="/runs/{{.Data.Run.ID}}/vmdownload" class="stack" id="vmfiles">
+<input type="hidden" name="vmid" value="{{.Data.VMID}}"><input type="hidden" name="disk" value="{{.Data.Disk}}">
+<input type="hidden" name="vol" value="{{.Data.Volume.ID}}"><input type="hidden" name="path" value="{{.Data.Path}}">
+<div class="panel">
+  <div class="crumbs">{{range $i, $c := .Data.Crumbs}}{{if gt $i 1}} / {{end}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{$.Data.VMID}}&amp;disk={{$.Data.Disk}}&amp;vol={{$.Data.Volume.ID}}&amp;path={{$c.Path}}">{{$c.Name}}</a>{{end}}</div>
+  {{if .Data.Entries}}
+  <div class="table-wrap"><table class="files">
+    <tr><th><input type="checkbox" data-checkall="sel" title="Select all"></th><th>Name</th><th>Size</th><th>Modified</th></tr>
+    {{range .Data.Entries}}
+    <tr>
+      <td><input type="checkbox" name="sel" value="{{.Path}}"></td>
+      <td>{{if .IsDir}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{$.Data.VMID}}&amp;disk={{$.Data.Disk}}&amp;vol={{$.Data.Volume.ID}}&amp;path={{.Path}}">📁 {{.Name}}</a>{{else}}{{.Name}}{{end}}</td>
+      <td>{{if not .IsDir}}{{bytes64 .Size}}{{end}}</td>
+      <td>{{ts .ModTime}}</td>
+    </tr>
+    {{end}}
+  </table></div>
+  {{else if not .Error}}<p class="muted">This folder is empty.</p>{{end}}
+</div>
+
+{{if .Data.Entries}}
+<div class="panel">
+  <h2>Ticked files and folders</h2>
+  <p><button>Download</button> <span class="muted small">one file as is, several files or folders as a ZIP archive</span></p>
+  <h3 class="mt">Or restore them on an agent</h3>
+  <div class="stack">
+    <div class="row">
+      <label>Agent
+        <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
+      </label>
+      <label>Folder <small>the path inside the volume is recreated below it</small><input name="target" placeholder="/srv/restore or D:\Restore"></label>
+    </div>
+    <div><button class="secondary" formaction="/runs/{{.Data.Run.ID}}/vmfiles-restore">Restore on agent</button></div>
+  </div>
+</div>
+{{end}}
+</form>
+{{end}}

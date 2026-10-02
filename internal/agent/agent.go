@@ -297,6 +297,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res = a.systemBackup(ctx, run)
 	case api.KindSystemRestore:
 		res = a.systemRestore(ctx, run)
+	case api.KindVMFileRestore:
+		res = a.vmFileRestore(ctx, run)
 	case api.KindAgentUpdate:
 		res, after = a.selfUpdate(ctx, run)
 	case api.KindVMBackup:

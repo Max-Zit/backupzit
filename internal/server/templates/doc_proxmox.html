@@ -56,9 +56,16 @@ backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy
 <h2>Clusters</h2>
 <p>Install the agent on every node. A job backs up the guests running on its agent's node; a guest listed in a job that has been migrated to another node is reported as a warning naming that node — back up each node with its own job, or use <i>all guests of the node</i> on every node so migrated guests are always covered.</p>
 
+<h2>Restoring single files</h2>
+<p>In the guest table of a VM backup run click <b>Browse files</b>. The console reads the disk directly from the backup — nothing is restored first — and shows its partitions and LVM logical volumes; NTFS (Windows), ext2/3/4 and XFS (Linux) can be browsed, also inside LVM. Tick files and folders and:</p>
+<ul>
+  <li><b>Download</b> — one file as is, several files or folders as a ZIP archive, straight to your browser;</li>
+  <li><b>Restore on agent</b> — copy them into a folder on any agent, e.g. back into the VM (if it runs the BackupZit agent) or onto a file server.</li>
+</ul>
+<p>On the command line: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> and <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> selects a partition or logical volume (<code>pve ls</code> without a path lists them). Browsing in the console needs the backup on network storage (SFTP, S3, SMB, Azure, hardened repository).</p>
+
 <h2>Not yet included</h2>
 <ul>
-  <li>Restoring single files from a VM backup — restore the VM under a new ID and copy the files, or back up important folders inside the guest with a file job.</li>
   <li>VMware, Hyper-V and XCP-ng hosts.</li>
 </ul>
 {{template "docpager" .}}

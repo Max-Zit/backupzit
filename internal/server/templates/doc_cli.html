@@ -58,6 +58,8 @@
   <tr><td><code>pve list</code></td><td>List the VMs and containers of the cluster and the storage usable for restores.</td></tr>
   <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Back up guests of this node (default: all) from Proxmox snapshots.</td></tr>
   <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Show the guests and disks in a VM backup.</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>List the partitions and logical volumes of a guest disk, or the files in a folder (NTFS, ext4, XFS, also on LVM).</td></tr>
+  <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Copy files and folders out of a guest disk without restoring the VM.</td></tr>
   <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Recreate a guest; <code>--new-vmid -1</code> takes the next free ID, <code>--overwrite</code> replaces an existing guest with the same ID. See <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
 </table>
 
