@@ -1,6 +1,6 @@
 {{define "content"}}
 {{with .Data.Run}}
-<h1>Files of guest {{$.Data.VMID}}{{with $.Data.GuestName}} — {{.}}{{end}}</h1>
+<h1>Files of {{$.Data.Label}}</h1>
 <p class="muted">Backup #{{.ID}} from {{ts .FinishedAt}}{{with $.Data.Disk}} · disk {{.}}{{end}} · <a href="/runs/{{.ID}}">back to the backup</a></p>
 {{end}}
 {{if .Data.Volumes}}

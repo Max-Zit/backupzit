@@ -144,14 +144,22 @@ func (s *Server) handleVMBrowse(w http.ResponseWriter, r *http.Request, user str
 		return
 	}
 	data := map[string]any{"Run": p.run, "VMID": p.vmid, "Path": p.dir, "Crumbs": vmCrumbs(p.dir)}
+	// Proxmox guests are known by their ID, Hyper-V VMs by name only.
+	label := fmt.Sprintf("guest %d", p.vmid)
 	if d := vmDetails(p.run); d != nil {
 		for _, g := range d.Guests {
 			if g.VMID == p.vmid {
 				data["GuestName"] = g.Name
+				if g.Platform == "hyperv" {
+					label = "VM " + g.Name
+				} else {
+					label = fmt.Sprintf("guest %d — %s", p.vmid, g.Name)
+				}
 			}
 		}
 	}
-	pd := pageData{Title: fmt.Sprintf("Files of guest %d", p.vmid), Nav: "runs", User: user, Data: data}
+	data["Label"] = label
+	pd := pageData{Title: "Files of " + label, Nav: "runs", User: user, Data: data}
 	if err == nil {
 		var c *cachedVMDisk
 		c, err = s.vmDisk(r.Context(), p.run, p.vmid, p.disk)
