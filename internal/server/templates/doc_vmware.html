@@ -1,0 +1,83 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>VMware ESXi virtual machines</h1>
+<p class="lead">BackupZit backs up the virtual machines of VMware ESXi hosts without installing anything on ESXi or inside the VMs. A BackupZit agent on any machine in the network works as the host's <b>proxy</b>. It takes snapshots, reads only the changed blocks of the virtual disks and writes them to your storage.</p>
+
+<h2>Requirements</h2>
+<ul>
+  <li><b>ESXi 6.7, 7 or 8</b>, connected directly. Hosts managed by vCenter are added one by one with their own address; vCenter itself is not supported yet.</li>
+  <li><b>A user with administrator rights on the host</b>, usually <code>root</code>.</li>
+  <li><b>SSH enabled on the host:</b> Host → Actions → Services → Enable Secure Shell. Restores always need it. Hosts with the free ESXi license also need it for snapshots, because their API is read-only.</li>
+  <li><b>A proxy agent:</b> any Windows or Linux agent that reaches the host on ports 443 and 22. The backup data flows through it, so put it on a fast network close to the host and the storage.</li>
+  <li><b>Free space on the VM's datastore</b> while a running VM is backed up. BackupZit copies the disk there for a moment (see below). The copy is thin, so it needs as much space as the disk actually uses.</li>
+</ul>
+
+<h2>Adding a host</h2>
+<ol>
+  <li>Open <a href="/agents#vmware">Agents → VMware ESXi hosts</a> → <i>Add an ESXi host</i>.</li>
+  <li>Enter the address, the user, the password and the proxy agent.</li>
+  <li>The console connects once to check them. It reads the VM list and the license, and <b>pins the host's HTTPS certificate and SSH host key</b>. If the host is later replaced by another machine with the same address, BackupZit refuses to connect instead of sending it the password.</li>
+</ol>
+<p>The password is stored encrypted, like all other secrets. The VM list is refreshed every 10 minutes, or immediately with <i>Refresh</i>. The table shows each host's mode:</p>
+<ul>
+  <li><b>vSphere API:</b> licensed hosts.</li>
+  <li><b>Free license:</b> snapshots and restores go over SSH.</li>
+</ul>
+
+<h2>Backup jobs</h2>
+<p>In <a href="/jobs">Backup jobs</a>, choose the ESXi host (listed under <i>VMware ESXi hosts</i> in the agent list) and <b>Virtual machines</b>. Back up all VMs of the host (VMs created later are included automatically) or tick individual ones. The job runs on the host's proxy agent. If you change the proxy, the existing jobs follow.</p>
+
+<h3>How a VM is backed up</h3>
+<ol>
+  <li><b>Changed block tracking (CBT)</b> is switched on for the VM if it is off.
+    <ul>
+      <li>On licensed hosts this happens automatically.</li>
+      <li>On free hosts CBT can only be switched on while the VM is turned off. BackupZit does it at the first backup that finds the VM off. Until then, every backup reads the whole disks and the run shows a warning.</li>
+    </ul>
+  </li>
+  <li>A snapshot <code>backupzit_…</code> is taken. When <b>VMware Tools</b> run in the guest, the snapshot is <b>quiesced</b>: applications and file systems are flushed first, which makes the backup application-consistent. Without VMware Tools it is crash-consistent. Install <code>open-vm-tools</code> in Linux VMs and VMware Tools in Windows VMs.</li>
+  <li>CBT reports which blocks to read:
+    <ul>
+      <li>for the first backup, only the blocks in use;</li>
+      <li>after that, only the blocks changed since the previous backup.</li>
+    </ul>
+  </li>
+  <li>A running VM keeps its disks locked. Its disks are therefore copied on the datastore (thin) and <b>the snapshot is removed right away</b>, usually after seconds. The copy is then read over HTTPS and deleted. VMs that are turned off are read directly.</li>
+  <li>The VM's configuration (<code>.vmx</code>) and NVRAM are stored with the backup.</li>
+</ol>
+<p>Example from the test lab: a Debian VM with an 8 GB disk, 1.6 GB of it in use. The first backup read 1.6 GB. The next one, after 50 MB of new data, read 70 MB and took 23 seconds.</p>
+
+<h2>Restoring a VM</h2>
+<p>Use the <a href="/restore">restore wizard</a> (<i>Whole virtual machine</i>) or the backup's page in Activity. Choose:</p>
+<ul>
+  <li><b>As a new VM next to the original:</b> a copy with a new name, UUID and MAC addresses. The default name is the original's plus <code>-restored-</code> and the date. Guest network settings tied to the old MAC addresses, such as netplan <code>match: macaddress</code> in cloud images, do not apply to the copy.</li>
+  <li><b>In place of the original VM:</b> with <i>turn it off and replace its disks</i>, BackupZit:
+    <ul>
+      <li>turns the VM off and deletes its snapshots;</li>
+      <li>renames the current disks to <code>….replaced-DATE.vmdk</code> (delete them once the restored VM works);</li>
+      <li>writes the backup into new disks with the original names, and sets CPU and memory as in the backup.</li>
+    </ul>
+    The VM keeps its UUID, network adapters and MAC addresses. If the VM was deleted, it is recreated with its original identity.</li>
+  <li><b>ESXi host and datastore:</b> another host, or another datastore of the same host.</li>
+  <li><b>Start the VM after the restore.</b></li>
+</ul>
+<p>Disks are restored thin, and only blocks with data are written. ISO images that were connected to CD/DVD drives are not part of the backup, so those drives are left empty.</p>
+
+<h3>Single files</h3>
+<p><b>Browse files</b> on the backup's page (or <i>Files from a virtual machine</i> in the restore wizard) opens the VM's disks. You can browse NTFS, ext2/3/4 and XFS, also on LVM, and download files or restore them to any agent.</p>
+
+<h2>Command line</h2>
+<p>These commands run on any agent. Set the ESXi password in <code>BACKUPZIT_VMWARE_PASSWORD</code>:</p>
+<pre>backupzit-agent vmware list    --host 192.168.1.20 [--user root]
+backupzit-agent vmware backup  --host … --repo … [--vmid N,N]
+backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NAME] [--datastore DS] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<p><code>vmware list</code> shows the host's certificate and SSH key fingerprints. Pass them with <code>--thumbprint</code> and <code>--ssh-host-key</code> to pin them on the command line too.</p>
+
+<h2>Not yet included</h2>
+<ul>
+  <li><b>vCenter.</b> Add each ESXi host directly.</li>
+  <li><b>VMs with snapshots of their own.</b> Their disks are deltas; delete or consolidate the snapshots first.</li>
+  <li><b>Some disk types.</b> Raw device mappings (RDM) and independent disks.</li>
+  <li><b>Instant recovery.</b> Running a VM directly from the backup is not available yet.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -145,6 +145,10 @@ type Run struct {
 	// VM backup: guest IDs ("*" = all guests on the node) and guests to skip.
 	VMs       []string `json:"vms,omitempty"`
 	VMExclude []string `json:"vm_exclude,omitempty"`
+	// VMware: the ESXi host a vm-backup or vm-restore runs against (the
+	// agent acts as proxy). Nil for Proxmox and Hyper-V, where the agent
+	// runs on the hypervisor itself.
+	VMware *VMwareHost `json:"vmware,omitempty"`
 	// VM restore.
 	VMRestore *VMRestore `json:"vm_restore,omitempty"`
 
@@ -271,4 +275,15 @@ type VMFileRestore struct {
 	Volume string   `json:"volume"`
 	Paths  []string `json:"paths"`
 	Target string   `json:"target"` // folder on the agent
+}
+
+// VMwareHost is how a proxy agent reaches an ESXi host. The certificate
+// and SSH host key are pinned.
+type VMwareHost struct {
+	Name       string `json:"name"`
+	Address    string `json:"address"`
+	User       string `json:"user"`
+	Password   string `json:"password"`
+	Thumbprint string `json:"thumbprint"`
+	SSHHostKey string `json:"ssh_host_key,omitempty"`
 }

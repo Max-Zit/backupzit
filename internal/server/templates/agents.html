@@ -52,6 +52,50 @@ sudo systemctl enable --now backupzit-agent</pre>
   {{else}}<p class="muted">No agents enrolled yet.</p>{{end}}
 </div>
 
+<div class="panel" id="vmware">
+  <h2>VMware ESXi hosts</h2>
+  <p class="muted">Nothing is installed on ESXi: an agent on any machine in the network works as its <b>proxy</b>. It snapshots the VMs, reads their disks from the host and writes the backups to the storage. Choose an agent close to the ESXi host and the storage, ideally on the same fast network.</p>
+  {{if .Data.VMwareHosts}}
+  <div class="table-wrap"><table>
+    <tr><th>Host</th><th>VMs</th><th>Mode</th><th>Proxy agent</th><th>Checked</th><th></th></tr>
+    {{range .Data.VMwareHosts}}
+    <tr>
+      <td><b>{{.Name}}</b><br><span class="mono small">{{.Address}}</span>{{with .Version}} <span class="muted small">ESXi {{.}}</span>{{end}}</td>
+      <td>{{with .Inv}}{{len .Guests}}{{else}}—{{end}}</td>
+      <td class="small">{{.Mode}}{{if not .SSHOK}}<br><span class="badge warning"><i></i>SSH off</span>{{end}}</td>
+      <td>{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/proxy" class="inline">
+          <select name="proxy_agent_id" data-autosubmit>{{if not .ProxyAgentID}}<option value="">— choose —</option>{{end}}{{$p := .ProxyAgentID}}{{range $.Data.Agents}}<option value="{{.ID}}" {{if and $p (eq .ID (deref64 $p))}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+          <button class="link small">Save</button></form>{{else}}{{with .ProxyName}}{{.}}{{else}}—{{end}}{{end}}</td>
+      <td class="nowrap small">{{ago .InventoryAt}}{{with .LastError}}<br><span class="badge failed" title="{{.}}"><i></i>error</span>{{end}}</td>
+      <td class="nowrap">{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/refresh" class="inline"><button class="link">Refresh</button></form>
+        <form method="post" action="/vmware/{{.ID}}/delete" class="inline" data-confirm="Remove {{.Name}} and its backup jobs? Backups on storage stay."><button class="link">Remove</button></form>{{end}}</td>
+    </tr>
+    {{with .LastError}}<tr><td colspan="6" class="small muted">{{.}}</td></tr>{{end}}
+    {{end}}
+  </table></div>
+  {{else}}<p class="muted">No ESXi host added yet.</p>{{end}}
+  {{if $.Me.Can "agents"}}
+  <details class="mt" {{if not .Data.VMwareHosts}}open{{end}}>
+    <summary>Add an ESXi host</summary>
+    <form method="post" action="/vmware" class="stack mt">
+      <div class="row">
+        <label>Address <small>name or IP of the ESXi host</small><input name="address" required placeholder="192.168.1.20"></label>
+        <label>Name <small>optional, shown in the console</small><input name="name" maxlength="80" placeholder="esxi1"></label>
+      </div>
+      <div class="row">
+        <label>User <small>root, or a user with administrator role on the host</small><input name="username" value="root" required></label>
+        <label>Password <small>stored encrypted</small><input name="password" type="password" autocomplete="new-password" required></label>
+        <label>Proxy agent
+          <select name="proxy_agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
+        </label>
+      </div>
+      <p class="muted small">The console connects once to check the address and password, and pins the host's certificate and SSH key. Hosts with the free ESXi license need <b>SSH enabled</b> (Host → Actions → Services → Enable Secure Shell); restores always use SSH.</p>
+      <div><button>Add ESXi host</button></div>
+    </form>
+  </details>
+  {{end}}
+</div>
+
 <div class="row">
 {{if $.Me.Can "agents"}}  <div class="panel">
     <h2>Add agents</h2>

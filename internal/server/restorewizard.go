@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/backupzit/backupzit/internal/api"
-	"github.com/jackc/pgx/v5"
 	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/jackc/pgx/v5"
 )
 
 // The restore wizard guides through: what to restore → which machine, job
@@ -29,7 +29,7 @@ type restoreType struct {
 }
 
 var restoreTypes = []restoreType{
-	{Key: "vm", Title: "Whole virtual machine", Desc: "Proxmox VE and Hyper-V VMs (and Proxmox containers), as a new VM or in place of the original.", Icon: "vm"},
+	{Key: "vm", Title: "Whole virtual machine", Desc: "Proxmox VE, Hyper-V and VMware ESXi VMs (and Proxmox containers), as a new VM or in place of the original.", Icon: "vm"},
 	{Key: "vmfiles", Title: "Files from a virtual machine", Desc: "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM), download files or restore them to an agent.", Icon: "folder"},
 	{Key: "files", Title: "Files and folders", Desc: "From file backups and Linux system backups, into a folder or to their original location.", Icon: "folder"},
 	{Key: "image", Title: "Disk image / bare metal", Desc: "A Windows disk or its partitions onto a disk, also on different hardware or as a VM, from the recovery ISO.", Icon: "disk"},
@@ -168,7 +168,7 @@ func (s *Server) wizardEntries(ctx context.Context) (map[string][]wizardEntry, e
 					platform = "proxmox"
 				}
 				title := g.Name
-				if platform != "hyperv" {
+				if platform == "proxmox" {
 					title = fmt.Sprintf("%d — %s", g.VMID, g.Name)
 				}
 				kind := "VM"

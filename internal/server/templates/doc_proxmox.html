@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>Within a minute the node appears on the Agents page with the badge <b>Proxmox VE · N guests</b>.</li>
-  <li>In <a href="/jobs">Backup jobs</a> select that agent and choose <b>Virtual machines (Proxmox VE, Hyper-V)</b>. Back up <b>all guests of the node</b> (guests created later are included automatically) or tick individual ones.</li>
+  <li>In <a href="/jobs">Backup jobs</a> select that agent and choose <b>Virtual machines (Proxmox VE, Hyper-V, VMware)</b>. Back up <b>all guests of the node</b> (guests created later are included automatically) or tick individual ones.</li>
 </ol>
 <p>The agent uses the node's own tools (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); no API token or password is stored in the console.</p>
 
@@ -66,7 +66,7 @@ backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy
 
 <h2>Not yet included</h2>
 <ul>
-  <li>VMware ESXi and XCP-ng hosts. Hyper-V: see <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>XCP-ng hosts. Hyper-V and VMware ESXi: see <a href="/docs/hyperv">Hyper-V</a> and <a href="/docs/vmware">VMware ESXi</a>.</li>
 </ul>
 {{template "docpager" .}}
 </article></div>{{end}}

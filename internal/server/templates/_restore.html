@@ -63,7 +63,34 @@ page data; .Data holds the keys built by restoreFormData. */}}
 {{end}}
 
 {{define "restore_vm"}}
-{{if eq .Data.VMPlatform "hyperv"}}
+{{if eq .Data.VMPlatform "vmware"}}
+{{if .Data.VMwareHosts}}
+<form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack">
+  {{template "restore_back" .}}
+  <input type="hidden" name="kind" value="vm">
+  <div class="row">
+    <label>VM
+      <select name="vmid">{{range .Data.VM.Guests}}<option value="{{.VMID}}" {{if eq .VMID $.Data.SelectedVMID}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+    </label>
+    <label>Restore on ESXi host
+      <select name="vmware_host_id">{{range .Data.VMwareHosts}}<option value="{{.ID}}">{{.Name}} ({{.Address}})</option>{{end}}</select>
+    </label>
+  </div>
+  <label class="check"><input type="radio" name="id_mode" value="next" checked> As a new VM next to the original <small>new name (default: original name + "-restored-" and the date), new UUID and MAC addresses</small></label>
+  <label class="check"><input type="radio" name="id_mode" value="original"> In place of the original VM <small>or recreate it if it was deleted</small></label>
+  <label class="check"><input type="checkbox" name="overwrite"> If the original VM still exists, <b>turn it off and replace its disks</b> with the backup <small>it keeps its UUID, network adapters and MAC addresses; the old disks are kept renamed (<code>.replaced-…</code>)</small></label>
+  <div class="row">
+    <label>Name <small>optional</small><input name="name" maxlength="80"></label>
+    <label>Datastore
+      <select name="storage"><option value="">Original datastore</option>{{range .Data.VMwareHosts}}{{$h := .}}{{with .Inv}}<optgroup label="{{$h.Name}}">{{range .Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}{{end}}</select>
+    </label>
+  </div>
+  <label class="check"><input type="checkbox" name="start"> Start the VM after the restore</label>
+  <p class="muted small">Disks are restored thin; only blocks with data are written. The proxy agent of the host writes them over SSH, which must be enabled on the host.</p>
+  <div><button>Restore VM</button></div>
+</form>
+{{else}}<p class="muted">No VMware ESXi host with a proxy agent is set up. Add one under <a href="/agents#vmware">Agents → VMware ESXi hosts</a>.</p>{{end}}
+{{else if eq .Data.VMPlatform "hyperv"}}
 {{if .Data.VMAgents}}
 <form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack">
   {{template "restore_back" .}}

@@ -14,6 +14,7 @@ var docPages = []struct{ Slug, Title string }{
 	{"linux-system", "Linux system backup & P2V"},
 	{"proxmox", "Proxmox VE virtual machines"},
 	{"hyperv", "Hyper-V virtual machines"},
+	{"vmware", "VMware ESXi virtual machines"},
 	{"ransomware", "Ransomware protection"},
 	{"monitoring", "Monitoring, reports & calendar"},
 	{"notifications", "Email notifications"},

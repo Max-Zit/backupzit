@@ -64,6 +64,7 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 	if s.Notifier != nil {
 		defer s.Notifier.Pass(ctx, now)
 	}
+	s.store.refreshVMware(ctx, now)
 	if n, err := s.store.FailStaleRuns(ctx, s.StaleAfter); err != nil {
 		s.log.Error("fail stale runs", "err", err)
 	} else if n > 0 {

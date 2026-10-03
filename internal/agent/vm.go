@@ -12,6 +12,7 @@ import (
 	"github.com/backupzit/backupzit/internal/hyperv"
 	"github.com/backupzit/backupzit/internal/pve"
 	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/backupzit/backupzit/internal/vmware"
 )
 
 // hypervisorInventory returns the guest list when the agent runs on a
@@ -63,7 +64,7 @@ type vmGuestSummary struct {
 
 func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	isPVE, isHV := pve.Available(), hyperv.Available()
-	if !isPVE && !isHV {
+	if run.VMware == nil && !isPVE && !isHV {
 		return failed(fmt.Errorf("this machine is neither a Proxmox VE node nor a Hyper-V host"))
 	}
 	var sel []int
@@ -102,7 +103,14 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	}
 	logf := func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) }
 	var sn *repo.Snapshot
-	if isPVE {
+	if run.VMware != nil {
+		c, err := vmwareConnect(ctx, run.VMware)
+		if err != nil {
+			return failed(err)
+		}
+		defer c.Logout()
+		sn, err = c.Backup(ctx, r, vmware.BackupOptions{VMIDs: sel, Exclude: excl, Hostname: run.VMware.Name, Version: a.version, Tags: tags, Progress: prog, Log: logf})
+	} else if isPVE {
 		sn, err = pve.Backup(ctx, r, pve.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf})
 	} else {
 		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf})
@@ -137,7 +145,7 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 
 func (a *Agent) vmRestore(ctx context.Context, run api.Run) api.RunResult {
 	isPVE, isHV := pve.Available(), hyperv.Available()
-	if !isPVE && !isHV {
+	if run.VMware == nil && !isPVE && !isHV {
 		return failed(fmt.Errorf("this machine is neither a Proxmox VE node nor a Hyper-V host"))
 	}
 	if run.VMRestore == nil {
@@ -157,6 +165,9 @@ func (a *Agent) vmRestore(ctx context.Context, run api.Run) api.RunResult {
 	sn, err := r.LoadSnapshot(ctx, run.SnapshotID)
 	if err != nil {
 		return failed(err)
+	}
+	if run.VMware != nil {
+		return a.vmwareRestore(ctx, run, r, sn)
 	}
 	if isHV {
 		return a.hypervRestore(ctx, run, r, sn)
@@ -215,5 +226,40 @@ func (a *Agent) hypervRestore(ctx context.Context, run api.Run, r *repo.Reposito
 	}
 	details, _ := json.Marshal(res)
 	stats, _ := json.Marshal(map[string]uint64{"bytes": res.Bytes})
+	return api.RunResult{Status: api.StatusSuccess, Message: msg, Details: details, Stats: stats}
+}
+
+func vmwareConnect(ctx context.Context, h *api.VMwareHost) (*vmware.Client, error) {
+	return vmware.Connect(ctx, vmware.Conn{Host: h.Address, User: h.User, Password: h.Password, Thumbprint: h.Thumbprint, SSHHostKey: h.SSHHostKey})
+}
+
+// vmwareRestore restores a VM onto an ESXi host: NewVMID -1 creates a copy
+// next to the original, 0 restores in place (with Overwrite) or recreates a
+// deleted VM. Storage is the datastore.
+func (a *Agent) vmwareRestore(ctx context.Context, run api.Run, r *repo.Repository, sn *repo.Snapshot) api.RunResult {
+	o := run.VMRestore
+	c, err := vmwareConnect(ctx, run.VMware)
+	if err != nil {
+		return failed(err)
+	}
+	defer c.Logout()
+	var written uint64
+	res, err := c.Restore(ctx, r, sn, vmware.RestoreOptions{
+		VMID: o.VMID, AsNew: o.NewVMID != 0, Name: o.Name, Datastore: o.Storage, Overwrite: o.Overwrite, Start: o.Start,
+		Progress: func(done, total uint64) { written = done; a.progress(done, total, 0) },
+		Log:      func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) },
+	})
+	if err != nil {
+		return failed(err)
+	}
+	msg := fmt.Sprintf("VM %q restored on %s", res.Name, run.VMware.Name)
+	if o.Start {
+		msg += " and started"
+	}
+	if len(res.Notes) > 0 {
+		msg += ". " + strings.Join(res.Notes, "; ")
+	}
+	details, _ := json.Marshal(res)
+	stats, _ := json.Marshal(map[string]uint64{"bytes": written})
 	return api.RunResult{Status: api.StatusSuccess, Message: msg, Details: details, Stats: stats}
 }

@@ -25,6 +25,7 @@ import (
 
 	"github.com/backupzit/backupzit/internal/api"
 	"github.com/backupzit/backupzit/internal/imaging"
+	"github.com/backupzit/backupzit/internal/pve"
 	"github.com/backupzit/backupzit/internal/repo"
 	"github.com/backupzit/backupzit/internal/restorer"
 )
@@ -151,6 +152,12 @@ var funcs = template.FuncMap{
 	"vmsel":    DescribeVMSelection,
 	"bytes64":  func(n int64) string { return humanBytes(uint64(n)) },
 	"upper":    strings.ToUpper,
+	"deref64": func(p *int64) int64 {
+		if p == nil {
+			return 0
+		}
+		return *p
+	},
 	"deref2": func(p *int) int {
 		if p == nil {
 			return 0
@@ -277,6 +284,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /agents/{id}/delete", s.ui(PermAgents, s.handleAgentDelete))
 	mux.HandleFunc("POST /agents/{id}/update", s.ui(PermAgents, s.handleAgentUpdate))
 	mux.HandleFunc("POST /agents/update-all", s.ui(PermAgents, s.handleAgentUpdateAll))
+	mux.HandleFunc("POST /vmware", s.ui(PermAgents, s.handleVMwareCreate))
+	mux.HandleFunc("POST /vmware/{id}/refresh", s.ui(PermAgents, s.handleVMwareRefresh))
+	mux.HandleFunc("POST /vmware/{id}/proxy", s.ui(PermAgents, s.handleVMwareProxy))
+	mux.HandleFunc("POST /vmware/{id}/delete", s.ui(PermAgents, s.handleVMwareDelete))
 	mux.HandleFunc("GET /targets", s.ui(PermView, s.handleTargets))
 	mux.HandleFunc("POST /targets", s.ui(PermStorage, s.handleTargetCreate))
 	mux.HandleFunc("POST /targets/{id}/delete", s.ui(PermStorage, s.handleTargetDelete))
@@ -448,12 +459,16 @@ func redirectErr(w http.ResponseWriter, r *http.Request, to string, err error) {
 }
 
 func redirectFlash(w http.ResponseWriter, r *http.Request, to, kind, text string) {
+	to, frag, _ := strings.Cut(to, "#")
 	sep := "?"
 	if strings.Contains(to, "?") {
 		sep = "&"
 	}
 	v := url.Values{kind: {text}, "sig": {flashSig(text)}}
-	http.Redirect(w, r, to+sep+v.Encode(), http.StatusSeeOther)
+	if frag != "" {
+		frag = "#" + frag
+	}
+	http.Redirect(w, r, to+sep+v.Encode()+frag, http.StatusSeeOther)
 }
 
 // flashKey signs redirect messages; it changes on every start, which only
@@ -584,8 +599,13 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		s.serverError(w, err)
 		return
 	}
+	hosts, err := s.store.ListVMwareHosts(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
-		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents),
+		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts,
 	}})
 }
 
@@ -746,8 +766,27 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 		s.serverError(w, err)
 		return
 	}
+	hosts, err := s.store.ListVMwareHosts(ctx)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	vmInv := pveInventories(agents)
+	var usable []VMwareHost
+	for _, h := range hosts {
+		if h.ProxyAgentID == nil {
+			continue
+		}
+		usable = append(usable, h)
+		gs := []pve.Guest{}
+		if inv := h.Inv(); inv != nil && inv.Guests != nil {
+			gs = inv.Guests
+		}
+		vmInv["vmware:"+strconv.FormatInt(h.ID, 10)] = gs
+	}
 	s.render(w, r, "jobs", pageData{Title: "Backup jobs", Nav: "jobs", User: user,
-		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents), "SourceJobs": sourceJobs(jobs), "PVE": pveInventories(agents)}})
+		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents), "SourceJobs": sourceJobs(jobs),
+			"PVE": vmInv, "VMwareHosts": usable}})
 }
 
 func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -776,6 +815,14 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 	if job.Kind == JobCopy {
 		job.SourceJobID = optionalID(r.FormValue("source_job"))
 		job.Paths, job.Excludes = nil, nil
+	}
+	if id, ok := strings.CutPrefix(r.FormValue("agent_id"), "vmware:"); ok {
+		hid, _ := strconv.ParseInt(id, 10, 64)
+		job.VMwareHostID = &hid
+		if job.Kind != JobVM {
+			redirectErr(w, r, "/jobs", errors.New("a VMware ESXi host can only be backed up with a virtual machines job"))
+			return
+		}
 	}
 	if job.Kind == JobVM {
 		job.Excludes = nil
@@ -918,8 +965,20 @@ func (s *Server) restoreFormData(ctx context.Context, run Run) (map[string]any, 
 		return nil, err
 	}
 	vm := vmDetails(run)
+	var hosts []VMwareHost
+	if vm.Platform() == "vmware" {
+		all, err := s.store.ListVMwareHosts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, h := range all {
+			if h.ProxyAgentID != nil {
+				hosts = append(hosts, h)
+			}
+		}
+	}
 	return map[string]any{
-		"Run": run, "Agents": agents, "Inventory": inventories(agents),
+		"Run": run, "Agents": agents, "Inventory": inventories(agents), "VMwareHosts": hosts,
 		"VM": vm, "PVEAgents": pveAgents(agents), "VMAgents": hypervisorAgents(agents, vm.Platform()), "VMPlatform": vm.Platform(),
 		"System": sysDetails(run), "LinuxAgents": linuxAgents(agents), "SelectedVMID": 0,
 	}, nil

@@ -1742,7 +1742,7 @@ func TestProxmoxJobs(t *testing.T) {
 		}
 		return html.UnescapeString(string(b))
 	}
-	if p := body("/jobs"); !strings.Contains(p, "Virtual machines (Proxmox VE, Hyper-V)") || !strings.Contains(p, "Guests 100, 200") || !strings.Contains(p, `"web"`) || strings.Contains(p, `"elsewhere"`) {
+	if p := body("/jobs"); !strings.Contains(p, "Virtual machines (Proxmox VE, Hyper-V, VMware)") || !strings.Contains(p, "Guests 100, 200") || !strings.Contains(p, `"web"`) || strings.Contains(p, `"elsewhere"`) {
 		t.Error("jobs page lacks the Proxmox option, selection or inventory")
 	}
 	if p := body(fmt.Sprintf("/runs/%d", runID)); !strings.Contains(p, "VM backup #") || !strings.Contains(p, "frozen by the QEMU guest agent") ||

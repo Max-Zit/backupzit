@@ -48,8 +48,8 @@
 <h2>Restore single files from a disk image</h2>
 <p>For image backups, click <b>Browse files</b> on the backup run. You can navigate the NTFS file system inside the image directly in the console, tick files and folders, and restore them to any agent — without restoring the whole disk.</p>
 
-<h2>Restore single files from a VM (Proxmox VE, Hyper-V)</h2>
-<p>In a VM backup run click <b>Browse files</b> next to the guest. The console shows the partitions and LVM volumes of its disks and lets you browse NTFS, ext4 and XFS file systems. <b>Download</b> the ticked files (several as a ZIP archive) or restore them on any agent. See <a href="/docs/proxmox">Proxmox VE</a> and <a href="/docs/hyperv">Hyper-V</a>.</p>
+<h2>Restore single files from a VM (Proxmox VE, Hyper-V, VMware)</h2>
+<p>In a VM backup run click <b>Browse files</b> next to the guest. The console shows the partitions and LVM volumes of its disks and lets you browse NTFS, ext4 and XFS file systems. <b>Download</b> the ticked files (several as a ZIP archive) or restore them on any agent. See <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> and <a href="/docs/vmware">VMware ESXi</a>.</p>
 
 <h2>Restore whole machines</h2>
 <ul>
@@ -57,6 +57,7 @@
   <li>Linux systems: onto a disk or bare metal, or as a new Proxmox VM — <a href="/docs/linux-system">Linux system backup</a>.</li>
   <li>Proxmox VMs and containers: as a new guest or in place — <a href="/docs/proxmox">Proxmox VE</a>.</li>
   <li>Hyper-V VMs: as a new VM or in place (keeps ID and MAC addresses) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>VMware ESXi VMs: as a new VM or in place (keeps UUID and MAC addresses), on any ESXi host and datastore — <a href="/docs/vmware">VMware ESXi</a>.</li>
 </ul>
 <p>Browsing files in the console works for backups on network storage (SFTP, S3, SMB, Azure, hardened repository); the console reads them directly. For backups on a local disk of an agent use the command line.</p>
 

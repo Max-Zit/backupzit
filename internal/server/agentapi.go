@@ -154,9 +154,15 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	case api.KindVMBackup:
 		s.addRetention(ctx, run, ar)
 		ar.VMs, ar.VMExclude = run.Paths, run.Excludes
+		if err := s.addVMware(ctx, run, ar); err != nil {
+			return nil, err
+		}
 	case api.KindVMRestore:
 		ar.SnapshotID = run.SnapshotID
 		ar.VMRestore = vmRestoreOptions(*run)
+		if err := s.addVMware(ctx, run, ar); err != nil {
+			return nil, err
+		}
 	case api.KindImageFileRestore:
 		ar.SnapshotID = run.SnapshotID
 		ar.Includes = run.Paths

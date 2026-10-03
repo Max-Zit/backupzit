@@ -207,8 +207,11 @@ func (d *vmBackupDetails) Platform() string {
 }
 
 func platformLabel(p string) string {
-	if p == "hyperv" {
+	switch p {
+	case "hyperv":
 		return "Hyper-V"
+	case "vmware":
+		return "VMware ESXi"
 	}
 	return "Proxmox VE"
 }

@@ -7,7 +7,7 @@
     {{range .Data.Jobs}}
     <tr>
       <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}</td>
-      <td class="nowrap">{{.Hostname}}</td>
+      <td class="nowrap">{{if .VMwareHostName}}{{deref .VMwareHostName}} <span class="muted small">ESXi, via {{.Hostname}}</span>{{else}}{{.Hostname}}{{end}}</td>
       <td>{{if eq .Kind "copy"}}<span class="badge info-badge">copy</span> of {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else if eq .Kind "vm"}}{{vmsel .Paths}}{{else if eq .Kind "system"}}Whole Linux system{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
       <td>{{.TargetName}}</td>
       <td>{{schedule .Schedule}}</td>
@@ -26,7 +26,7 @@
     <label>Name <input name="name" required placeholder="Documents nightly"></label>
     <div class="row">
       <label data-notkind="copy">Agent
-        <select name="agent_id" id="agent_sel" required>{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
+        <select name="agent_id" id="agent_sel" required>{{if .Data.VMwareHosts}}<optgroup label="Agents">{{end}}{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}{{if .Data.VMwareHosts}}</optgroup><optgroup label="VMware ESXi hosts (backed up through their proxy agent)">{{range .Data.VMwareHosts}}<option value="vmware:{{.ID}}">{{.Name}} — ESXi</option>{{end}}</optgroup>{{end}}</select>
       </label>
       <label>Storage target <small data-jobkind="copy" hidden>where the copies go — a different target than the source job's</small>
         <select name="target_id" required>{{range .Data.Targets}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
@@ -36,7 +36,7 @@
       <label class="check"><input type="radio" name="kind" value="files" checked data-kindsel> Files and folders</label>
       <label class="check"><input type="radio" name="kind" value="image" data-kindsel> Disk image <small>whole disk or selected partitions, restorable to an empty disk</small></label>
       <label class="check"><input type="radio" name="kind" value="system" data-kindsel> Linux system <small>all file systems and the disk layout of a Linux machine — restorable to an empty disk or as a Proxmox VM (bare metal, P2V)</small></label>
-      {{if .Data.PVE}}<label class="check"><input type="radio" name="kind" value="vm" data-kindsel> Virtual machines (Proxmox VE, Hyper-V) <small>without agents in the guests — run by the agent on the hypervisor host</small></label>{{end}}
+      {{if .Data.PVE}}<label class="check"><input type="radio" name="kind" value="vm" data-kindsel> Virtual machines (Proxmox VE, Hyper-V, VMware) <small>without agents in the guests — run by the agent on the hypervisor host, or for VMware ESXi by its proxy agent</small></label>{{end}}
       {{if .Data.SourceJobs}}<label class="check"><input type="radio" name="kind" value="copy" data-kindsel> Backup copy <small>copy the backups of another job to a second storage (3-2-1)</small></label>{{end}}
     </div>
     <div data-jobkind="files" class="stack">
@@ -66,8 +66,8 @@
     <div data-jobkind="vm" hidden class="stack">
       <label class="check"><input type="radio" name="vm_mode" value="all" checked> All VMs (and containers) on the host <small>VMs created later are included automatically</small></label>
       <label class="check"><input type="radio" name="vm_mode" value="selected"> Only these:</label>
-      <div id="vm-picker" class="disks"><p class="muted">Select the agent on the Proxmox host.</p></div>
-      <p class="muted small">Each VM is captured from a snapshot (Proxmox) or production checkpoint (Hyper-V) while it keeps running; file systems are frozen first when the guest tools run in the VM. Only changed blocks are uploaded after the first backup.</p>
+      <div id="vm-picker" class="disks"><p class="muted">Select the agent on the Proxmox or Hyper-V host, or a VMware ESXi host.</p></div>
+      <p class="muted small">Each VM is captured from a snapshot (Proxmox, VMware) or production checkpoint (Hyper-V) while it keeps running; file systems are frozen first when the guest tools run in the VM. Only changed blocks are uploaded after the first backup; on VMware only changed blocks are even read.</p>
     </div>
     <script type="application/json" id="pve-inventory">{{.Data.PVE}}</script>
     <script type="application/json" id="inventory">{{.Data.Inventory}}</script>

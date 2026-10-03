@@ -14,7 +14,7 @@
 </div>
 <div class="panel">
   <dl class="kv">
-    <dt>Agent</dt><dd>{{.Hostname}}</dd>
+    {{if .VMwareHostName}}<dt>VMware host</dt><dd>{{deref .VMwareHostName}} <span class="muted">(ESXi; disks read and written by the proxy agent {{.Hostname}})</span></dd>{{else}}<dt>Agent</dt><dd>{{.Hostname}}</dd>{{end}}
     <dt>Storage</dt><dd>{{.TargetName}}</dd>
     {{if eq .Kind "copy"}}
     <dt>Copies</dt><dd>backups of <a href="/jobs/{{.SourceJobID}}">{{deref .SourceJobName}}</a></dd>

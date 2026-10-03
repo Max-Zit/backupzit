@@ -74,7 +74,12 @@ func (s *Server) handleVMRestore(w http.ResponseWriter, r *http.Request, runID i
 		redirectErr(w, r, back, errors.New("choose the ID of the restored guest"))
 		return
 	}
-	rid, err := s.store.QueueVMRestore(r.Context(), runID, formID(r, "agent_id"), o)
+	var rid int64
+	if hid := formID(r, "vmware_host_id"); hid > 0 {
+		rid, err = s.store.QueueVMwareRestore(r.Context(), runID, hid, o)
+	} else {
+		rid, err = s.store.QueueVMRestore(r.Context(), runID, formID(r, "agent_id"), o)
+	}
 	if err != nil {
 		redirectErr(w, r, back, err)
 		return

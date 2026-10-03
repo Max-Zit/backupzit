@@ -51,6 +51,15 @@
   <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Prepare a restored Windows disk for different hardware (boot drivers, extra drivers, boot files) — the same as the restore option, e.g. to repeat it from the recovery ISO.</td></tr>
 </table>
 
+<h2>VMware ESXi (any agent as proxy; password in <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>vmware list --host H [--user root]</code></td><td>Show the host's VMs, license mode, certificate and SSH key fingerprints, and datastores.</td></tr>
+  <tr><td><code>vmware backup --host H [--vmid N,N]</code></td><td>Back up VMs (default: all) from snapshots; with changed block tracking only changed blocks are read.</td></tr>
+  <tr><td><code>vmware restore --host H --vmid N [--new] [--name X] [--datastore DS] [--overwrite] [--start] SNAPSHOT&#124;latest</code></td><td>Restore a VM in place (default) or as a new VM with <code>--new</code>. <code>--overwrite</code> replaces the disks of an existing VM; the old ones are kept renamed. See <a href="/docs/vmware">VMware ESXi</a>.</td></tr>
+</table>
+<p>Pin the host with <code>--thumbprint SHA256:…</code> and <code>--ssh-host-key SHA256:…</code> (shown by <code>vmware list</code>).</p>
+
 <h2>Hyper-V (agent on the Hyper-V host, as administrator)</h2>
 <table>
   <tr><th>Command</th><th>What it does</th></tr>

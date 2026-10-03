@@ -438,7 +438,10 @@ type Job struct {
 	SourceJobName *string
 	// RetentionHold pauses retention after a suspicious backup.
 	RetentionHold bool
-	CreatedAt     time.Time
+	// VMware VM jobs: the ESXi host (AgentID is its proxy agent).
+	VMwareHostID   *int64
+	VMwareHostName *string
+	CreatedAt      time.Time
 	// Last run summary
 	LastStatus   *string
 	LastFinished *time.Time
@@ -494,6 +497,11 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 		return 0, errors.New("\"after each backup\" is only available for copy jobs")
 	}
 	j.Schedule = sc.Encode()
+	if j.Kind == JobVM && j.VMwareHostID != nil {
+		if h, err := s.GetVMwareHost(ctx, *j.VMwareHostID); err == nil && h.ProxyAgentID != nil {
+			j.AgentID = *h.ProxyAgentID
+		}
+	}
 	agent, err := s.GetAgent(ctx, j.AgentID)
 	if err != nil {
 		return 0, errors.New("unknown agent")
@@ -501,10 +509,24 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 	if j.Kind == JobSystem && (strings.Contains(strings.ToLower(agent.OS), "windows") || agent.Recovery) {
 		return 0, fmt.Errorf("%s is not a Linux machine; use a disk image job for Windows", agent.Hostname)
 	}
-	if j.Kind == JobVM {
+	if j.Kind == JobVM && j.VMwareHostID != nil {
+		h, err := s.GetVMwareHost(ctx, *j.VMwareHostID)
+		if err != nil {
+			return 0, errors.New("unknown VMware host")
+		}
+		if h.ProxyAgentID == nil {
+			return 0, fmt.Errorf("choose a proxy agent for %s first", h.Name)
+		}
+		j.AgentID = *h.ProxyAgentID
+		if err := checkVMwareSelection(h, j.Paths, j.Excludes); err != nil {
+			return 0, err
+		}
+	} else if j.Kind == JobVM {
 		if err := checkVMSelection(agent, j.Paths, j.Excludes); err != nil {
 			return 0, err
 		}
+	} else {
+		j.VMwareHostID = nil
 	}
 	if j.Kind == JobImage {
 		if err := checkImageSelection(agent, *j.ImageDisk, j.ImagePartitions); err != nil {
@@ -518,9 +540,9 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 		j.Excludes = []string{}
 	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at, kind, image_disk, image_partitions, retention, source_job_id)
-		VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8,$9,$10,$11,$12) RETURNING id`,
-		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled, j.Kind, j.ImageDisk, j.ImagePartitions, j.Retention, j.SourceJobID).Scan(&id)
+	err = s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at, kind, image_disk, image_partitions, retention, source_job_id, vmware_host_id)
+		VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8,$9,$10,$11,$12,$13) RETURNING id`,
+		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled, j.Kind, j.ImageDisk, j.ImagePartitions, j.Retention, j.SourceJobID, j.VMwareHostID).Scan(&id)
 	return id, err
 }
 
@@ -528,14 +550,15 @@ const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.retention, j.
 	j.schedule, j.enabled, j.last_scheduled_at, j.created_at,
 	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy') ORDER BY r.queued_at DESC LIMIT 1),
 	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy') ORDER BY r.queued_at DESC LIMIT 1),
-	j.source_job_id, (SELECT sj.name FROM jobs sj WHERE sj.id=j.source_job_id), j.retention_hold`
+	j.source_job_id, (SELECT sj.name FROM jobs sj WHERE sj.id=j.source_job_id), j.retention_hold,
+	j.vmware_host_id, (SELECT vh.name FROM vmware_hosts vh WHERE vh.id=j.vmware_host_id)`
 
 const jobFrom = ` FROM jobs j JOIN agents a ON a.id=j.agent_id JOIN storage_targets st ON st.id=j.target_id`
 
 func scanJob(r pgx.Row) (Job, error) {
 	var j Job
 	err := r.Scan(&j.ID, &j.Kind, &j.ImageDisk, &j.ImagePartitions, &j.Retention, &j.AgentID, &j.Hostname, &j.TargetID, &j.TargetName, &j.Name,
-		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished, &j.SourceJobID, &j.SourceJobName, &j.RetentionHold)
+		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished, &j.SourceJobID, &j.SourceJobName, &j.RetentionHold, &j.VMwareHostID, &j.VMwareHostName)
 	return j, err
 }
 
@@ -606,12 +629,21 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 	if j.Kind == JobCopy {
 		return s.queueCopy(ctx, j, a, t, trigger)
 	}
+	repo := repoURL(t, a)
+	if j.VMwareHostID != nil {
+		// A VMware host has its own repository, independent of its proxy.
+		h, err := s.GetVMwareHost(ctx, *j.VMwareHostID)
+		if err != nil {
+			return 0, err
+		}
+		repo = repoURL(t, Agent{RepoDir: h.RepoDir})
+	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes, image_disk, image_partitions)
-		SELECT $1,$2,$8,$3,$4,$5,$6,$7,$9,$10
+	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes, image_disk, image_partitions, vmware_host_id)
+		SELECT $1,$2,$8,$3,$4,$5,$6,$7,$9,$10,$11
 		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE job_id=$2 AND kind IN ('backup','image-backup','vm-backup','system-backup') AND status IN ('queued','running'))
 		RETURNING id`,
-		j.AgentID, j.ID, trigger, repoURL(t, a), t.ID, j.Paths, j.Excludes, kind, j.ImageDisk, j.ImagePartitions).Scan(&id)
+		j.AgentID, j.ID, trigger, repo, t.ID, j.Paths, j.Excludes, kind, j.ImageDisk, j.ImagePartitions, j.VMwareHostID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrRunActive
 	}
