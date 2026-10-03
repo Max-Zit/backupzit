@@ -1267,7 +1267,7 @@ func TestCopyJob(t *testing.T) {
 	if cr.Status != api.StatusSuccess || cr.SnapshotID == "" || !strings.Contains(cr.Message, "Copied 1 backups") {
 		t.Fatalf("copy run: %s %q", cr.Status, cr.Message)
 	}
-	if _, _, body := admin.do("GET", fmt.Sprintf("/runs/%d", copyRunID), nil); !strings.Contains(body, "backups copied") || !strings.Contains(body, "Restore from this backup") {
+	if _, _, body := admin.do("GET", fmt.Sprintf("/runs/%d", copyRunID), nil); !strings.Contains(body, "backups copied") || !strings.Contains(body, "Restore files from this backup") {
 		t.Error("copy run page lacks stats or restore")
 	}
 
@@ -2125,5 +2125,25 @@ func TestHyperVJobs(t *testing.T) {
 	}
 	if p := get("/jobs"); !strings.Contains(p, "1 selected VMs") {
 		t.Error("jobs page lacks the Hyper-V selection")
+	}
+
+	// Restore wizard: type → VM → restore point → options.
+	if p := get("/restore"); !strings.Contains(p, `href="/restore?type=vm"`) || !strings.Contains(p, "1 restore point<") {
+		t.Error("restore wizard does not offer the VM backup")
+	}
+	src := "vm:hyperv:1934519093"
+	if p := get("/restore?type=vm"); !strings.Contains(p, "src=vm%3ahyperv%3a1934519093") || !strings.Contains(p, "Hyper-V") || !strings.Contains(p, "File Server") {
+		t.Error("restore wizard does not list the Hyper-V VM")
+	}
+	if p := get("/restore?type=vm&src=" + src); !strings.Contains(p, fmt.Sprintf("run=%d", runID)) {
+		t.Error("restore wizard does not list the restore point")
+	}
+	p := get(fmt.Sprintf("/restore?type=vm&src=%s&run=%d", src, runID))
+	if !strings.Contains(p, fmt.Sprintf(`action="/runs/%d/restore"`, runID)) || !strings.Contains(p, `value="1934519093" selected`) ||
+		!strings.Contains(p, `name="back" value="/restore?run=`) || !strings.Contains(p, "</html>") {
+		t.Error("restore wizard lacks the restore options")
+	}
+	if p := get("/restore?type=files"); !strings.Contains(p, "No backups of this kind yet") {
+		t.Error("restore wizard lists file backups that do not exist")
 	}
 }

@@ -235,10 +235,11 @@ func (s *Server) loadTemplates() error {
 	}
 	for _, e := range entries {
 		name := e.Name()
-		if name == "layout.html" {
+		// Files starting with "_" hold templates shared by several pages.
+		if name == "layout.html" || strings.HasPrefix(name, "_") {
 			continue
 		}
-		t, err := template.New("layout.html").Funcs(funcs).ParseFS(templateFS, "templates/layout.html", "templates/"+name)
+		t, err := template.New("layout.html").Funcs(funcs).ParseFS(templateFS, "templates/layout.html", "templates/_*.html", "templates/"+name)
 		if err != nil {
 			return fmt.Errorf("template %s: %w", name, err)
 		}
@@ -288,6 +289,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(PermJobs, s.handleJobEnable(true)))
 	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
 	mux.HandleFunc("POST /jobs/{id}/delete", s.ui(PermJobs, s.handleJobDelete))
+	mux.HandleFunc("GET /restore", s.ui(PermRestore, s.handleRestoreWizard))
 	mux.HandleFunc("GET /runs", s.ui(PermView, s.handleRuns))
 	mux.HandleFunc("GET /runs/{id}", s.ui(PermView, s.handleRun))
 	mux.HandleFunc("POST /runs/{id}/restore", s.ui(PermRestore, s.handleRestore))
@@ -891,23 +893,40 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 			json.Unmarshal(run.Stats, restoreStats)
 		}
 	}
-	agents, err := s.store.ListAgents(r.Context())
+	data, err := s.restoreFormData(r.Context(), run)
 	if err != nil {
 		s.serverError(w, err)
 		return
 	}
-	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: map[string]any{
-		"Run": run, "BackupStats": backupStats, "RestoreStats": restoreStats, "CopyStats": copyStats, "TestStats": testStats, "CopyOfFiles": s.store.copyOfFiles(r.Context(), run), "Agents": agents,
-		"Image": imageDetails(run), "Inventory": inventories(agents),
-		"VM": vmDetails(run), "VMRestore": vmRestoreOptions(run), "PVEAgents": pveAgents(agents),
-		"VMAgents": hypervisorAgents(agents, vmDetails(run).Platform()), "VMPlatform": vmDetails(run).Platform(),
-		"System": sysDetails(run), "SystemRestore": systemRestoreOptions(run), "LinuxAgents": linuxAgents(agents),
-	}})
+	for k, v := range map[string]any{"BackupStats": backupStats, "RestoreStats": restoreStats, "CopyStats": copyStats, "TestStats": testStats,
+		"CopyOfFiles": s.store.copyOfFiles(r.Context(), run), "Image": imageDetails(run),
+		"VMRestore": vmRestoreOptions(run), "SystemRestore": systemRestoreOptions(run)} {
+		data[k] = v
+	}
+	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: data})
+}
+
+// restoreFormData is what the restore forms (templates/_restore.html) need.
+func (s *Server) restoreFormData(ctx context.Context, run Run) (map[string]any, error) {
+	agents, err := s.store.ListAgents(ctx)
+	if err != nil {
+		return nil, err
+	}
+	vm := vmDetails(run)
+	return map[string]any{
+		"Run": run, "Agents": agents, "Inventory": inventories(agents),
+		"VM": vm, "PVEAgents": pveAgents(agents), "VMAgents": hypervisorAgents(agents, vm.Platform()), "VMPlatform": vm.Platform(),
+		"System": sysDetails(run), "LinuxAgents": linuxAgents(agents), "SelectedVMID": 0,
+	}, nil
 }
 
 func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
 	back := fmt.Sprintf("/runs/%d", id)
+	// The restore wizard returns to its own page on errors.
+	if b := r.FormValue("back"); strings.HasPrefix(b, "/restore?") {
+		back = b
+	}
 	if r.FormValue("kind") == "image" {
 		s.handleImageRestore(w, r, id, back)
 		return

@@ -8,7 +8,7 @@
   <li>The disk layout: GPT or MBR partition tables with their IDs, LVM volume groups (<code>vgcfgbackup</code>), file system UUIDs, labels and on-disk features, and the boot code (MBR and the BIOS boot partition of GRUB).</li>
 </ul>
 <p>Like Relax-and-Recover, BackupZit does not copy the running disk block by block: Linux has no built-in snapshot of a running disk, so a raw copy would be inconsistent. Each file is read whole, and the layout makes the restored disk bootable again. Databases should be dumped before the backup or backed up with their own tools.</p>
-<p>Single files and folders are restored from a system backup like from any file backup (<b>Restore from this backup</b> on the run page).</p>
+<p>Single files and folders are restored from a system backup like from any file backup (<b>Restore files from this backup</b> on the run page).</p>
 <h3>Not supported yet</h3>
 <p>Encrypted disks (LUKS), software RAID (mdadm), btrfs and systems spread over several disks. The job reports these clearly instead of creating an incomplete backup.</p>
 

@@ -5,7 +5,7 @@
 <h2>What BackupZit protects</h2>
 <table>
   <tr><th>What</th><th>How</th><th>Restore</th></tr>
-  <tr><td>Files and folders (Windows, Linux)</td><td>Agent on the machine; open files on Windows through VSS. <a href="/docs/jobs">Backup jobs</a></td><td>Whole backup or single folders, to any agent, original location or another folder. <a href="/docs/restore">Restoring files</a></td></tr>
+  <tr><td>Files and folders (Windows, Linux)</td><td>Agent on the machine; open files on Windows through VSS. <a href="/docs/jobs">Backup jobs</a></td><td>Whole backup or single folders, to any agent, original location or another folder. <a href="/docs/restore">Restoring</a></td></tr>
   <tr><td>Windows disks</td><td>Disk image of a whole disk or selected partitions, from a VSS snapshot. <a href="/docs/images">Disk images</a></td><td>Onto an empty disk or bare metal with the Windows recovery ISO, also onto different hardware or into a VM; single files from the image.</td></tr>
   <tr><td>Linux systems</td><td>All local file systems plus the disk layout (partitions, LVM, UUIDs, boot code). <a href="/docs/linux-system">Linux system backup</a></td><td>Onto an empty disk or bare metal with the Linux recovery ISO, or as a new Proxmox VM (P2V); single files.</td></tr>
   <tr><td>Hyper-V VMs</td><td>Agent on the Hyper-V host, <b>no agent inside the VMs</b>; production checkpoints (VSS inside the guest), only changed blocks uploaded. <a href="/docs/hyperv">Hyper-V</a></td><td>Whole VM as new or in place (keeps ID and MAC addresses); single files from VM disks.</td></tr>
@@ -26,7 +26,7 @@
   <li><b>Install agents</b>: under <a href="/agents">Agents</a> click <i>Create enrollment token</i>, download the installer from the same page and paste the enrollment code when the Windows installer asks for it (Linux: <code>backupzit-agent enroll --code …</code>). For VMs install the agent on the Proxmox or Hyper-V host. See <a href="/docs/agents">Agents</a>.</li>
   <li><b>Create a backup job</b> under <a href="/jobs">Backup jobs</a>: choose the agent, the storage, what to back up (files, a disk image, the whole Linux system or the VMs of a Proxmox or Hyper-V host), when to run and how many backups to keep. See <a href="/docs/jobs">Backup jobs &amp; schedules</a>.</li>
   <li><b>Run it once manually</b> with <i>Run backup now</i> on the job page and check the result under <a href="/runs">Activity</a>.</li>
-  <li><b>Test a restore</b> — a backup is only as good as its restore. Automatic restore tests run weekly; restore something by hand once too. See <a href="/docs/restore">Restoring files</a>.</li>
+  <li><b>Test a restore</b> — a backup is only as good as its restore. Automatic restore tests run weekly; restore something by hand once too, with the <a href="/restore">restore wizard</a>. See <a href="/docs/restore">Restoring</a>.</li>
   <li><b>Prepare for disasters</b>: download the recovery ISOs and create a recovery code under <a href="/recovery">Recovery media</a>.</li>
   <li><b>Set up email alerts</b> under <a href="/settings/email">Settings → Email notifications</a> so you hear about failures, and optionally a weekly <a href="/reports">report</a>.</li>
 </ol>
@@ -36,7 +36,8 @@
   <tr><th>Page</th><th>What it is for</th></tr>
   <tr><td><a href="/">Dashboard</a></td><td>Health at a glance: agents online, failures in the last 24 hours, suspicious backups, recent activity.</td></tr>
   <tr><td><a href="/jobs">Backup jobs</a></td><td>File, disk image, Linux system, virtual machine and backup copy jobs: create, run, test restore, disable, delete; next scheduled run and last result.</td></tr>
-  <tr><td><a href="/runs">Activity</a></td><td>Every backup, copy, restore test and restore with details, statistics and errors. Restores and file browsing start from here.</td></tr>
+  <tr><td><a href="/restore">Restore</a></td><td>Restore wizard: choose what to restore (VM, files, disk image, Linux system), the source, the restore point and the options. See <a href="/docs/restore">Restoring</a>.</td></tr>
+  <tr><td><a href="/runs">Activity</a></td><td>Every backup, copy, restore test and restore with details, statistics and errors. Restores and file browsing can also be started here.</td></tr>
   <tr><td><a href="/calendar">Calendar</a></td><td>What ran on past days and what is scheduled to run in the future.</td></tr>
   <tr><td><a href="/reports">Reports</a></td><td>Success rates and data volumes for any period, CSV export, emailed and scheduled reports.</td></tr>
   <tr><td><a href="/agents">Agents</a></td><td>Protected machines with IP addresses and versions, enrollment codes, installers and agent updates.</td></tr>
@@ -57,7 +58,7 @@
 <p>Each job keeps a number of recent, daily, weekly and monthly backups. Older snapshots are removed after each run and the space they used is freed.</p>
 <h3>What BackupZit checks for you</h3>
 <ul>
-  <li><b>Restore tests</b> — every job's newest backup is partly restored and verified weekly (<a href="/docs/restore">Restoring files</a>).</li>
+  <li><b>Restore tests</b> — every job's newest backup is partly restored and verified weekly (<a href="/docs/restore">Restoring</a>).</li>
   <li><b>Ransomware detection</b> — unusual backups (mass changes, encrypted data, mass deletion, sudden data volume jumps) are flagged and retention is paused (<a href="/docs/ransomware">Ransomware protection</a>).</li>
   <li><b>Alerts and reports</b> — emails for failures and a daily summary; scheduled reports for management (<a href="/docs/notifications">Email notifications</a>, <a href="/docs/monitoring">Monitoring</a>).</li>
 </ul>

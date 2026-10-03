@@ -1,11 +1,36 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>Restoring files</h1>
-<p class="lead">Every successful backup in Activity can be restored — completely or only selected folders — to the same machine or to another agent.</p>
+<h1>Restoring</h1>
+<p class="lead">Every successful backup can be restored: completely or only selected folders, to the same machine, to another agent, or as a new virtual machine.</p>
+
+<h2>The restore wizard</h2>
+<p>Click <a href="/restore"><b>Restore</b></a> in the menu. The wizard asks four questions:</p>
+<ol>
+  <li><b>What</b> do you want to restore?
+    <ul>
+      <li>a whole virtual machine</li>
+      <li>files from a virtual machine</li>
+      <li>files and folders</li>
+      <li>a disk image / bare metal</li>
+      <li>files from a disk image</li>
+      <li>a whole Linux system</li>
+    </ul>
+    Each choice shows how many restore points exist for it.</li>
+  <li><b>Source</b>: the virtual machine (across all hypervisors and jobs), or the backup job and its machine.</li>
+  <li><b>Restore point</b>: the backup to restore from, newest first, with its status, storage and size.
+    <ul>
+      <li>Backups flagged as suspicious (possible ransomware) are marked.</li>
+      <li>Copies on secondary storage made by a backup copy job are listed as <i>copy</i>.</li>
+    </ul>
+  </li>
+  <li><b>Options</b>: where and how to restore. A summary of what you chose is shown above the options.</li>
+</ol>
+<p>The steps at the top are links, so you can go back to any earlier step. Every step has its own address, so you can bookmark or share a step.</p>
+<p>The options are the same as on a backup's page in <a href="/runs">Activity</a>, where you can also start a restore directly. Only users whose role may restore see the wizard.</p>
 
 <h2>Restore from a file backup</h2>
 <ol>
-  <li>Open <a href="/runs">Activity</a> (or the job page) and click the backup you want, e.g. last night's run.</li>
-  <li>Under <b>Restore from this backup</b> choose the agent that should receive the files. It can be a different machine than the one that was backed up — for example a replacement PC.</li>
+  <li>Choose <b>Files and folders</b> in the <a href="/restore">restore wizard</a>, then the job and the restore point. Alternatively, open the backup in <a href="/runs">Activity</a> or on the job page.</li>
+  <li>Under <b>Restore files from this backup</b> choose the agent that should receive the files. It can be a different machine than the one that was backed up — for example a replacement PC.</li>
   <li>Choose where:
     <ul>
       <li><b>Restore into a folder</b> (recommended) — e.g. <code>D:\Restore</code>. The original structure is recreated below it: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nothing existing is touched.</li>

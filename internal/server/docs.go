@@ -9,7 +9,7 @@ var docPages = []struct{ Slug, Title string }{
 	{"agents", "Agents"},
 	{"storage", "Storage targets"},
 	{"jobs", "Backup jobs & schedules"},
-	{"restore", "Restoring files"},
+	{"restore", "Restoring"},
 	{"images", "Disk images & bare-metal recovery"},
 	{"linux-system", "Linux system backup & P2V"},
 	{"proxmox", "Proxmox VE virtual machines"},

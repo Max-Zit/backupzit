@@ -362,3 +362,27 @@ ul.codes li { font-size: 15px; padding: 8px 10px; border: 1px dashed var(--line-
 .dl-list li .btn { justify-content: flex-start; width: 100%; }
 @media (max-width: 700px) { .dl-list li { grid-template-columns: 1fr; } }
 pre.code-box { font-size: 14px; word-break: break-all; white-space: pre-wrap; background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+
+/* ---- restore wizard */
+.wizard { list-style: none; margin: 0 0 18px; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.wizard li { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0; }
+.wizard li > a, .wizard li:not(:has(a)) { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; padding: 10px 12px; color: var(--muted); }
+.wizard li > a:hover { text-decoration: none; background: var(--panel-2); border-radius: var(--radius-sm); }
+.wizard span { grid-row: span 2; align-self: center; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 650; font-size: 13px; background: var(--panel-2); border: 1px solid var(--line-2); color: var(--muted); }
+.wizard b { color: var(--text); font-weight: 600; }
+.wizard small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wizard li.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.wizard li.on span { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.wizard li.done span { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.tile { display: grid; gap: 6px; align-content: start; padding: 16px; border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--panel); color: var(--text); transition: border-color .15s, box-shadow .15s; }
+.tile .ic { width: 26px; height: 26px; color: var(--accent); }
+.tile span { color: var(--muted); font-size: 13px; }
+.tile small { color: var(--accent); font-weight: 600; margin-top: 4px; }
+a.tile:hover { text-decoration: none; border-color: var(--accent); box-shadow: var(--shadow-lg); }
+.tile.off { opacity: .55; }
+.tile.off .ic, .tile.off small { color: var(--muted); }
+table.pick td .btn { padding: 6px 12px; }
+@media (max-width: 760px) {
+  .wizard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
