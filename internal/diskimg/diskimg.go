@@ -109,3 +109,105 @@ func Write(ctx context.Context, r *repo.Repository, img *repo.DiskImage, w io.Wr
 	}
 	return nil
 }
+
+// Area is a byte range of a disk.
+type Area struct{ Offset, Length uint64 }
+
+// maxRun limits how much is read with one ReadAt call.
+const maxRun = 32 * BlockSize
+
+// StoreAreas saves a disk like Store but reads only the blocks that overlap
+// areas (the allocated or changed regions reported by changed block
+// tracking). Blocks outside the areas are taken from prev, the image of the
+// same disk in an earlier backup, or are empty when prev is nil.
+func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uint64, areas []Area, prev *repo.DiskImage,
+	number int, model, source string, progress func(uint64)) (repo.DiskImage, error) {
+	if size == 0 {
+		return repo.DiskImage{}, errors.New("disk is empty")
+	}
+	if progress == nil {
+		progress = func(uint64) {}
+	}
+	img := repo.DiskImage{Number: number, Model: model, Size: size, SectorSize: 512, Style: "raw"}
+	p := repo.PartitionImage{Number: 1, Offset: 0, Length: size, Included: true, Method: "changed-blocks", Source: source,
+		BlockSize: BlockSize, Blocks: (size + BlockSize - 1) / BlockSize}
+	ids := make([]repo.ID, p.Blocks)
+	if prev != nil {
+		if prev.Size != size || len(prev.Partitions) != 1 || prev.Partitions[0].BlockSize != BlockSize {
+			return img, errors.New("the earlier backup of this disk has a different size")
+		}
+		old, err := r.LoadBlockMap(ctx, &prev.Partitions[0])
+		if err != nil {
+			return img, fmt.Errorf("earlier backup: %w", err)
+		}
+		copy(ids, old)
+		img.Head = prev.Head
+	} else {
+		p.Method = "used-blocks"
+	}
+	read := make([]bool, p.Blocks)
+	for _, a := range areas {
+		if a.Length == 0 || a.Offset >= size {
+			continue
+		}
+		end := min(a.Offset+a.Length, size)
+		for b := a.Offset / BlockSize; b*BlockSize < end; b++ {
+			read[b] = true
+		}
+	}
+	if img.Head.IsNull() {
+		read[0] = true
+	}
+	buf := make([]byte, maxRun)
+	for i := uint64(0); i < p.Blocks; {
+		if !read[i] {
+			i++
+			continue
+		}
+		// Read a run of consecutive blocks at once.
+		j := i
+		for j < p.Blocks && read[j] && (j-i+1)*BlockSize <= maxRun {
+			j++
+		}
+		start := i * BlockSize
+		n := min(j*BlockSize, size) - start
+		if err := ctx.Err(); err != nil {
+			return img, err
+		}
+		if _, err := f.ReadAt(buf[:n], int64(start)); err != nil && !(errors.Is(err, io.EOF) && j == p.Blocks) {
+			return img, fmt.Errorf("read at %d: %w", start, err)
+		}
+		for b := i; b < j; b++ {
+			blk := buf[(b-i)*BlockSize : min((b-i+1)*BlockSize, n)]
+			if b == 0 {
+				var err error
+				if img.Head, _, err = r.SaveBlob(ctx, repo.DataBlob, blk); err != nil {
+					return img, err
+				}
+			}
+			if bytes.Equal(blk, zeroBlock[:len(blk)]) {
+				ids[b] = repo.ID{}
+				continue
+			}
+			id, _, err := r.SaveBlob(ctx, repo.DataBlob, blk)
+			if err != nil {
+				return img, err
+			}
+			ids[b] = id
+		}
+		progress(n)
+		i = j
+	}
+	for _, id := range ids {
+		if !id.IsNull() {
+			p.StoredBytes += BlockSize
+		}
+	}
+	p.StoredBytes = min(p.StoredBytes, size)
+	var err error
+	if p.Maps, err = r.SaveBlockMap(ctx, ids); err != nil {
+		return img, err
+	}
+	img.Partitions = []repo.PartitionImage{p}
+	return img, nil
+}

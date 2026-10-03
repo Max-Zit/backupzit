@@ -5,10 +5,10 @@ package repo
 // snapshot (one whole-disk partition each), so retention, prune, copy and
 // restore tests treat them like any other image.
 type Guest struct {
-	Platform string `json:"platform"` // "proxmox"
+	Platform string `json:"platform"` // "proxmox", "hyperv" or "vmware"
 	Type     string `json:"type"`     // "qemu" (VM) or "lxc" (container)
 	VMID     int    `json:"vmid"`
-	// ID is the Hyper-V VM GUID (empty for Proxmox).
+	// ID is the Hyper-V VM GUID or VMware instance UUID (empty for Proxmox).
 	ID      string `json:"id,omitempty"`
 	Name    string `json:"name,omitempty"`
 	Node    string `json:"node,omitempty"`
@@ -30,4 +30,7 @@ type GuestDisk struct {
 	Size    uint64 `json:"size"`
 	// Image is the index of the disk's data in Snapshot.Images.
 	Image int `json:"image"`
+	// ChangeID is the changed block tracking position of the disk at the
+	// backup (VMware); the next backup reads only what changed since.
+	ChangeID string `json:"change_id,omitempty"`
 }

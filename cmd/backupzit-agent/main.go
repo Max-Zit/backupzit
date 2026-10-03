@@ -203,6 +203,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdSystemShow(ctx, rest)
 	case "hyperv":
 		return cmdHyperV(ctx, rest)
+	case "vmware":
+		return cmdVMware(ctx, rest)
 	case "pve":
 		return cmdPVE(ctx, rest)
 	case "prepare-hardware":
