@@ -43,6 +43,14 @@ func main() {
 	}
 	if *pass != "" {
 		auths = append(auths, ssh.Password(*pass))
+		// ESXi only offers keyboard-interactive password prompts.
+		auths = append(auths, ssh.KeyboardInteractive(func(_, _ string, qs []string, _ []bool) ([]string, error) {
+			ans := make([]string, len(qs))
+			for i := range ans {
+				ans[i] = *pass
+			}
+			return ans, nil
+		}))
 	}
 	c, err := ssh.Dial("tcp", *host, &ssh.ClientConfig{
 		User: *user, Auth: auths, Timeout: 15 * time.Second,

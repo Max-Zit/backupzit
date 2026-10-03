@@ -44,6 +44,7 @@ func run() error {
 	tlsHosts := flag.String("tls-hosts", env("BACKUPZIT_TLS_HOSTS", ""), "comma-separated DNS names/IPs for the generated certificate")
 	devDB := flag.Bool("dev-embedded-db", false, "start a private PostgreSQL in the data directory (development/evaluation only)")
 	setPassword := flag.String("set-admin-password", "", "set the password of user 'admin' and exit")
+	unblock := flag.String("unblock-ip", "", "lift the sign-in block of an address (or \"all\") and exit")
 	devHTTP := flag.String("dev-http", "", "also serve plain HTTP on this loopback address, e.g. 127.0.0.1:8080 (development only)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -98,6 +99,14 @@ func run() error {
 			return err
 		}
 		fmt.Println("password for 'admin' updated")
+		return nil
+	}
+	if *unblock != "" {
+		n, err := store.UnblockAddress(ctx, *unblock)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%d address(es) unblocked\n", n)
 		return nil
 	}
 	if err := ensureAdmin(ctx, store, *dataDir, log); err != nil {

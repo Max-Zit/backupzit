@@ -8,7 +8,8 @@
   <li><b>Pinned connections</b> — agents pin the console certificate; SFTP host keys and hardened repository certificates are pinned too. No certificate authority can be abused to impersonate them.</li>
   <li><b>Secrets at rest</b> — storage passwords and keys, recovery keys, SMTP/LDAP passwords and two-factor secrets are encrypted in the database with a key kept outside it (<code>secrets.key</code>).</li>
   <li><b>Agent secrets</b> — each agent has its own secret, stored only as a hash on the console and in a file only administrators can read on the agent.</li>
-  <li><b>Web console</b> — HttpOnly, SameSite=Strict session cookies; protection against cross-site requests and clickjacking; strict Content-Security-Policy; passwords hashed with bcrypt; sign-in throttling after repeated failed attempts; sensitive pages are never cached.</li>
+  <li><b>Web console</b> — HttpOnly, SameSite=Strict session cookies; protection against cross-site requests and clickjacking; strict Content-Security-Policy; passwords hashed with bcrypt; sensitive pages are never cached.</li>
+  <li><b>Brute-force protection</b> — addresses that fail to sign in too often are blocked: passwords, two-factor codes and API tokens. Blocks survive restarts, repeat offenders are blocked longer, and administrators get an email. See below.</li>
   <li><b>Accounts</b> — roles with least privilege, optional two-factor authentication (TOTP) and LDAPS sign-in; API tokens with their own, lower role and expiry.</li>
   <li><b>Audit trail</b> — sign-ins, failed sign-ins, user and role changes, jobs, storage targets, restores, displayed recovery keys, settings changes and API actions are recorded in the <a href="/audit">audit log</a>; deletions on a hardened repository are logged on that server.</li>
   <li><b>Agent updates</b> — agents download new versions only from their console over the pinned connection and install them only if the SHA-256 checksum matches.</li>
@@ -16,6 +17,24 @@
   <li><b>Hypervisor backups</b> — the agent on a Proxmox or Hyper-V host uses the host's own tools; no hypervisor passwords or API tokens are stored in the console.</li>
   <li><b>Backup integrity</b> — every chunk is verified by its SHA-256 hash on restore; automatic restore tests and ransomware detection watch the backups continuously.</li>
 </ul>
+
+<h2>Brute-force protection</h2>
+<p>Configure it under <a href="/settings/security">Settings → Sign-in &amp; security</a>. The defaults are safe for most installations:</p>
+<table>
+  <tr><th>Setting</th><th>Default</th><th>Meaning</th></tr>
+  <tr><td>Failed attempts per address</td><td>5</td><td>Failed sign-ins from one IP address within the counting period block that address. This counts wrong passwords, wrong two-factor codes and invalid API tokens.</td></tr>
+  <tr><td>Counting period</td><td>15 minutes</td><td>Failures older than this are forgotten.</td></tr>
+  <tr><td>Block for</td><td>30 minutes</td><td>A blocked address cannot sign in, not even with the right password. The sign-in page answers "Too many failed sign-ins" and the API answers HTTP 429.</td></tr>
+  <tr><td>Block repeat offenders longer</td><td>on</td><td>Each further block of an address within a day lasts twice as long: 30 minutes, 1 hour, 2 hours, … up to 7 days.</td></tr>
+  <tr><td>Failed attempts per username</td><td>20</td><td>Failures for one username, from any addresses, pause sign-in for that username until the counting period has passed. This stops guessing that spreads over many addresses. Accounts are never locked permanently, so an attacker cannot lock the administrator out.</td></tr>
+  <tr><td>Never block these networks</td><td>none</td><td>Optional networks, e.g. the administrators' subnet, that are never blocked. The per-username limit still applies to them.</td></tr>
+  <tr><td>Reverse proxies</td><td>none</td><td>If the console runs behind nginx, Traefik or another proxy, enter its address. The client address is then taken from <code>X-Forwarded-For</code>; otherwise all clients would look like the proxy. The header is ignored from any other address, so it cannot be forged.</td></tr>
+  <tr><td>Email when an address is blocked</td><td>on</td><td>Sent to the recipients in the <a href="/settings/email">email settings</a>.</td></tr>
+</table>
+<p>The same page lists the blocked addresses, with the reason and how long each block lasts, and lets you lift a block. Blocks and unblocks are recorded in the <a href="/audit">audit log</a>.</p>
+<p>If you locked yourself out, sign in from another address, or run this on the server with the same database options as the service:</p>
+<pre>backupzit-server --unblock-ip all</pre>
+<p>To lift a single block, give the address instead of <code>all</code>.</p>
 
 <h2>Recommendations</h2>
 <h3>Console</h3>

@@ -258,15 +258,16 @@ func (s *Server) handleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	keys := loginKeys(r, u.Username)
-	if wait := s.logins.Blocked(keys); wait > 0 {
+	if wait := s.guard.Blocked(r, u.Username); wait > 0 {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusTooManyRequests)
 		s.render(w, r, "login2fa", pageData{Title: "Two-factor authentication",
 			Error: fmt.Sprintf("Too many failed attempts. Try again in %d minutes.", int(wait.Minutes())+1)})
 		return
 	}
 	usedRecovery, err := s.store.checkSecondFactor(r.Context(), uid, r.FormValue("code"), s.clock())
 	if err != nil {
-		s.logins.Fail(keys)
+		s.guard.Fail(r, u.Username, "two-factor codes")
 		s.auditAs(r, u.Username, "login.2fa_failed", "")
 		s.render(w, r, "login2fa", pageData{Title: "Two-factor authentication", Error: "Invalid code. Try the current code from your app."})
 		return
@@ -281,7 +282,7 @@ func (s *Server) handleLogin2FA(w http.ResponseWriter, r *http.Request) {
 
 // startSession signs the user in and redirects to the dashboard.
 func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u User, how string) {
-	s.logins.Success(loginKeys(r, u.Username))
+	s.guard.Success(r, u.Username)
 	sess := s.sessionSettings(r.Context())
 	tok, err := s.store.newSession(r.Context(), u.ID, sess.Lifetime())
 	if err != nil {

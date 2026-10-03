@@ -42,7 +42,7 @@ type Server struct {
 	store *Store
 	// shaCache holds SHA-256 sums of installers offered as agent updates.
 	shaCache sync.Map
-	logins   *loginLimiter
+	guard    *loginGuard
 	log      *slog.Logger
 	// CertFingerprint is shown in enrollment instructions.
 	CertFingerprint string
@@ -63,7 +63,9 @@ type Server struct {
 
 // New creates a server.
 func New(store *Store, log *slog.Logger) (*Server, error) {
-	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache(), logins: newLoginLimiter(), clock: time.Now}
+	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache(), clock: time.Now}
+	s.guard = newLoginGuard(store, func() time.Time { return s.clock() })
+	s.guard.onBlock = s.notifyBlock
 	if err := s.loadTemplates(); err != nil {
 		return nil, err
 	}
@@ -329,6 +331,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /settings/{tab}", s.ui(PermSettings, s.handleSettings))
 	mux.HandleFunc("POST /settings/email", s.ui(PermSettings, s.handleSettingsEmail))
 	mux.HandleFunc("POST /settings/sessions", s.ui(PermSettings, s.handleSettingsSessions))
+	mux.HandleFunc("POST /settings/login-protection", s.ui(PermSettings, s.handleSettingsLoginProtection))
+	mux.HandleFunc("POST /settings/unblock", s.ui(PermSettings, s.handleUnblockAddress))
 	mux.HandleFunc("POST /settings/tests", s.ui(PermSettings, s.handleSettingsRestoreTests))
 	mux.HandleFunc("POST /recovery/token", s.ui(PermAgents, s.handleRecoveryToken))
 	mux.HandleFunc("POST /recovery/recovery.json", s.ui(PermAgents, s.handleRecoveryJSON))
@@ -509,17 +513,18 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := r.FormValue("username")
-	keys := loginKeys(r, username)
-	if wait := s.logins.Blocked(keys); wait > 0 {
-		s.log.Warn("sign-in refused: too many failed attempts", "user", username, "remote", r.RemoteAddr)
+	if wait := s.guard.Blocked(r, username); wait > 0 {
+		s.log.Warn("sign-in refused: too many failed attempts", "user", username, "remote", s.guard.ClientIP(r))
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusTooManyRequests)
 		s.render(w, r, "login", pageData{Title: "Sign in",
 			Error: fmt.Sprintf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1)})
 		return
 	}
 	u, err := s.authenticate(r.Context(), username, r.FormValue("password"))
 	if err != nil {
-		s.logins.Fail(keys)
-		s.log.Warn("failed login", "user", username, "remote", r.RemoteAddr, "err", err)
+		s.guard.Fail(r, username, "sign-ins")
+		s.log.Warn("failed login", "user", username, "remote", s.guard.ClientIP(r), "err", err)
 		s.auditAs(r, clip(username, 64), "login.failed", "")
 		msg := errBadLogin.Error()
 		if errors.Is(err, errNoRole) {

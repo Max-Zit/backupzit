@@ -351,10 +351,10 @@ func (s *Server) audit(r *http.Request, action, format string, args ...any) {
 
 func (s *Server) auditAs(r *http.Request, user, action, detail string) {
 	if _, err := s.store.db.Exec(r.Context(), `INSERT INTO audit_log(username, action, detail, remote) VALUES($1,$2,$3,$4)`,
-		user, action, clip(detail, 2000), r.RemoteAddr); err != nil {
+		user, action, clip(detail, 2000), s.guard.ClientIP(r)); err != nil {
 		s.log.Error("audit log", "err", err)
 	}
-	s.log.Info("audit", "user", user, "action", action, "detail", detail, "remote", r.RemoteAddr)
+	s.log.Info("audit", "user", user, "action", action, "detail", detail, "remote", s.guard.ClientIP(r))
 }
 
 func (s *Store) ListAudit(ctx context.Context, limit int) ([]AuditEntry, error) {

@@ -2147,3 +2147,74 @@ func TestHyperVJobs(t *testing.T) {
 		t.Error("restore wizard lists file backups that do not exist")
 	}
 }
+
+func TestBruteForceProtection(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	attacker := newClient(t, e)
+	for i := 0; i < 5; i++ {
+		if code, _, _ := attacker.do("POST", "/login", url.Values{"username": {"admin"}, "password": {"guess"}}); code != http.StatusOK {
+			t.Fatalf("failed sign-in %d: status %d", i, code)
+		}
+	}
+	// The address is blocked now, even with the right password.
+	code, loc, body := attacker.do("POST", "/login", url.Values{"username": {"admin"}, "password": {"admin-pass-123"}})
+	if code != http.StatusTooManyRequests || loc != "" || !strings.Contains(body, "Too many failed sign-ins") {
+		t.Fatalf("blocked address signed in: %d %q", code, loc)
+	}
+	blocks, err := e.store.ListLoginBlocks(ctx, time.Now())
+	if err != nil || len(blocks) != 1 || blocks[0].IP != "127.0.0.1" || blocks[0].Strikes != 1 || !strings.Contains(blocks[0].Reason, `"admin"`) {
+		t.Fatalf("blocks: %+v %v", blocks, err)
+	}
+	if d := time.Until(blocks[0].Until); d < 29*time.Minute || d > 31*time.Minute {
+		t.Errorf("block lasts %v", d)
+	}
+	// API tokens are refused from the address too.
+	req, _ := http.NewRequest("GET", e.ts.URL+"/api/v1/agents", nil)
+	req.Header.Set("Authorization", "Bearer bzt_whatever")
+	if resp, err := e.ts.Client().Do(req); err != nil || resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("API from blocked address: %v %v", resp.StatusCode, err)
+	}
+	// A restart (new server on the same database) keeps the block.
+	srv2, _ := server.New(e.store, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	ts2 := httptest.NewServer(srv2.Handler())
+	defer ts2.Close()
+	r2, _ := http.NewRequest("POST", ts2.URL+"/login", strings.NewReader(url.Values{"username": {"admin"}, "password": {"admin-pass-123"}}.Encode()))
+	r2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r2.Header.Set("Origin", ts2.URL)
+	if resp, err := http.DefaultClient.Do(r2); err != nil || resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatal("block lost after restart")
+	}
+	// Lift the block (as `backupzit-server --unblock-ip` does).
+	if n, err := e.store.UnblockAddress(ctx, "all"); err != nil || n != 1 {
+		t.Fatalf("unblock: %d %v", n, err)
+	}
+	admin := newClient(t, e)
+	if !admin.login("admin", "admin-pass-123") {
+		t.Fatal("admin cannot sign in after unblock")
+	}
+	// Settings: trusted network, validation, page.
+	if _, loc, _ := admin.do("POST", "/settings/login-protection", url.Values{"max_attempts": {"2"}, "window_minutes": {"15"}, "block_minutes": {"30"}, "max_user_attempts": {"20"}}); !strings.Contains(loc, "err=") {
+		t.Error("2 attempts accepted")
+	}
+	form := url.Values{"max_attempts": {"3"}, "window_minutes": {"10"}, "block_minutes": {"60"}, "max_user_attempts": {"30"},
+		"progressive": {"on"}, "trusted_networks": {"127.0.0.1\n10.0.0.0/8"}}
+	if _, loc, _ := admin.do("POST", "/settings/login-protection", form); !strings.Contains(loc, "msg=") {
+		t.Fatalf("save protection: %s", loc)
+	}
+	if _, _, body := admin.do("GET", "/settings/security", nil); !strings.Contains(body, `name="max_attempts" min="3" max="100" value="3"`) || !strings.Contains(body, "10.0.0.0/8") || !strings.Contains(body, "No address is blocked") {
+		t.Error("protection settings not shown")
+	}
+	for i := 0; i < 5; i++ {
+		attacker.do("POST", "/login", url.Values{"username": {"nobody"}, "password": {"guess"}})
+	}
+	if !newClient(t, e).login("admin", "admin-pass-123") {
+		t.Error("trusted network was blocked")
+	}
+	if blocks, _ := e.store.ListLoginBlocks(ctx, time.Now()); len(blocks) != 0 {
+		t.Errorf("trusted address blocked: %+v", blocks)
+	}
+	if _, _, body := admin.do("GET", "/audit", nil); !strings.Contains(body, "settings.login_protection") {
+		t.Error("settings change not audited")
+	}
+}

@@ -29,8 +29,14 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, user str
 	if e.Port == 0 {
 		e.Port, e.Security, e.OnFailure, e.OnWarning, e.DailyHour = 587, "starttls", true, true, 8
 	}
+	blocks, err := s.store.ListLoginBlocks(r.Context(), s.clock())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	s.render(w, r, "settings", pageData{Title: "Settings", Nav: "settings", User: user, Data: map[string]any{
 		"Tab": tab, "Tests": s.store.restoreTestSettings(r.Context()), "SecretKeyID": s.store.SecretKeyID(), "SecretKeyFile": filepath.Join(filepath.Dir(s.DistDir), SecretKeyFile), "Email": e, "HasPassword": e.Password != "", "Sessions": s.sessionSettings(r.Context()),
+		"Protection": s.guard.settings(r.Context()), "Blocks": blocks, "ClientIP": s.guard.ClientIP(r),
 		"LDAP": ldapForPage(r.Context(), s.store), "ADFilter": adUserFilter, "LDAPFilter": ldapUserFilter,
 	}})
 }

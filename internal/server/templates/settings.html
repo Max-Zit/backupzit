@@ -72,6 +72,52 @@
   </form>
 </div>
 {{end}}
+{{with .Data.Protection}}
+<div class="panel" id="protection">
+  <h2>{{template "icon" "shield"}} Brute-force protection</h2>
+  <p class="muted">Addresses that fail to sign in too often are blocked: sign-in, two-factor codes and API tokens are refused from them. Blocks are kept across restarts. Your address: <span class="mono">{{$.Data.ClientIP}}</span>.</p>
+  <form method="post" action="/settings/login-protection" class="stack">
+    <div class="row">
+      <label>Failed attempts per address <small>3 – 100; this many failures block the address</small>
+        <input type="number" name="max_attempts" min="3" max="100" value="{{.MaxAttempts}}" required>
+      </label>
+      <label>Counting period (minutes) <small>failures older than this are forgotten</small>
+        <input type="number" name="window_minutes" min="1" max="1440" value="{{.WindowMinutes}}" required>
+      </label>
+      <label>Block for (minutes) <small>1 minute – 7 days</small>
+        <input type="number" name="block_minutes" min="1" max="10080" value="{{.BlockMinutes}}" required>
+      </label>
+    </div>
+    <label class="check"><input type="checkbox" name="progressive" {{if .Progressive}}checked{{end}}> Block repeat offenders longer <small>every further block within a day lasts twice as long (30 min, 1 h, 2 h, … up to 7 days)</small></label>
+    <label>Failed attempts per username <small>from any addresses within the counting period; further attempts for that username are refused until the period has passed — the account itself is never locked</small>
+      <input type="number" name="max_user_attempts" min="3" max="1000" value="{{.MaxUserAttempts}}" required class="narrow">
+    </label>
+    <div class="row">
+      <label>Never block these networks <small>optional, e.g. the administrators' network <code>192.168.10.0/24</code>; one per line. The per-username limit still applies</small>
+        <textarea name="trusted_networks" rows="3" placeholder="192.168.10.0/24">{{join .TrustedNetworks "\n"}}</textarea>
+      </label>
+      <label>Reverse proxies <small>only if the console is behind a proxy (nginx, Traefik, …): its address, so the client address is taken from <code>X-Forwarded-For</code>. Leave empty otherwise</small>
+        <textarea name="trusted_proxies" rows="3" placeholder="10.0.0.5">{{join .TrustedProxies "\n"}}</textarea>
+      </label>
+    </div>
+    <label class="check"><input type="checkbox" name="notify" {{if .Notify}}checked{{end}}> Email the administrators when an address is blocked <small>uses the <a href="/settings/email">email settings</a></small></label>
+    <div><button>Save protection settings</button></div>
+  </form>
+
+  <h3 class="mt">Blocked addresses</h3>
+  {{if $.Data.Blocks}}
+  <div class="table-wrap"><table>
+    <tr><th>Address</th><th>Blocked until</th><th>Block</th><th>Reason</th><th></th></tr>
+    {{range $.Data.Blocks}}
+    <tr><td class="mono">{{.IP}}</td><td class="nowrap">{{ts .Until}}</td><td>{{.Strikes}}</td><td class="small">{{.Reason}}<br><span class="muted">since {{ts .BlockedAt}}</span></td>
+      <td><form method="post" action="/settings/unblock" class="inline"><input type="hidden" name="ip" value="{{.IP}}"><button class="link">Unblock</button></form></td></tr>
+    {{end}}
+  </table></div>
+  {{if gt (len $.Data.Blocks) 1}}<form method="post" action="/settings/unblock" class="mt" data-confirm="Lift all blocks?"><input type="hidden" name="ip" value="all"><button class="secondary">Unblock all</button></form>{{end}}
+  {{else}}<p class="muted">No address is blocked.</p>{{end}}
+  <p class="muted small mt">Locked yourself out? Sign in from another address, or on the server run <code>backupzit-server --unblock-ip all</code> (with the same database options as the service). Every block and unblock is in the <a href="/audit">audit log</a>.</p>
+</div>
+{{end}}
 <div class="panel">
   <h2>{{template "icon" "shield"}} Stored secrets</h2>
   {{if .Data.SecretKeyID}}

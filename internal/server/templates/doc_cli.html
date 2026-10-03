@@ -116,6 +116,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Initial admin password (first start only).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Secrets key (base64) instead of the <code>secrets.key</code> file.</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>Reset the password of <i>admin</i> (re-enables it as a local administrator) and exit.</td></tr>
+  <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Lift the sign-in block of an address, or of all addresses (brute-force protection), and exit.</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Evaluation only: private PostgreSQL in the data directory, plain HTTP on localhost.</td></tr>
   <tr><td><code>--version</code></td><td>Print the version.</td></tr>
 </table>

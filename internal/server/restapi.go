@@ -137,9 +137,15 @@ func apiErr(code int, format string, a ...any) error {
 func (s *Server) api(perm Perm, h apiHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
+		if wait := s.guard.Blocked(r, ""); wait > 0 {
+			w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+			writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "too many failed sign-ins from this address"})
+			return
+		}
 		token, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 		u, who, err := s.store.tokenUser(r.Context(), strings.TrimSpace(token))
 		if err != nil {
+			s.guard.Fail(r, "", "API token sign-ins")
 			time.Sleep(300 * time.Millisecond)
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing, invalid or expired API token"})
 			return
