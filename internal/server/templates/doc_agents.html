@@ -27,6 +27,14 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
 
+<h2>Installing agents from the console</h2>
+<p>Instead of copying installers to each machine, let the console install the agent: on <a href="/agents">Agents</a> open <b>Install on a machine from here</b>, choose Linux or Windows and enter the machine's address and an administrator account.</p>
+<ul>
+  <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64-bit): the console connects over <b>SSH</b> as root, or as a user with <code>sudo</code> rights (the password is also used for sudo; with a key, passwordless sudo is needed). A password or a private key works. Enter the machine's <b>SSH host key fingerprint</b> (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on the machine) to make sure the console talks to the right machine; without it, the fingerprint is shown in the installation log.</li>
+  <li><b>Windows</b> (64-bit): the console connects over <b>WinRM</b> (port 5985, messages encrypted with NTLM; 5986 for an HTTPS listener) as a local or domain administrator. WinRM is on by default on Windows Server; on Windows 10/11 run <code>winrm quickconfig</code> once as administrator. Local accounts other than the built-in Administrator need remote admin rights (<code>LocalAccountTokenFilterPolicy</code>) — or use a domain account. Older systems (Windows 7, Server 2008 R2/2012 R2) get the legacy MSI.</li>
+</ul>
+<p>The machine downloads the newest agent package from the console through a link that works only for this installation (30 minutes, three downloads), checks its SHA-256 checksum, installs it and enrolls. The installation page shows each step; the account and password are used only for this and are not stored. If the machine is already enrolled with this console, the enrollment is kept and the package is updated; an enrollment the console does not know (an agent removed earlier, or another console) is replaced. Every installation is in the audit log. The machine must reach the console's agent address, like any agent.</p>
+
 <h2>Agent status</h2>
 <ul>
   <li><b>online</b> — the agent contacted the console in the last 3 minutes.</li>

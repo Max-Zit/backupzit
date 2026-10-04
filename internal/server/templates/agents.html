@@ -103,6 +103,27 @@ sudo systemctl enable --now backupzit-agent</pre>
     <form method="post" action="/agents/token" class="stack">
       <div><button>Create enrollment token</button></div>
     </form>
+    <details class="mt" id="install">
+      <summary><b>Install on a machine from here</b> <span class="muted small">Linux over SSH, Windows over WinRM</span></summary>
+      <form method="post" action="/agents/install" class="stack mt" autocomplete="off">
+        <div class="choice">
+          <label class="check"><input type="radio" name="os" value="linux" checked> Linux <small>Debian, Ubuntu, AlmaLinux, Rocky Linux — SSH as root or a user with sudo</small></label>
+          <label class="check"><input type="radio" name="os" value="windows"> Windows <small>WinRM (port 5985, on by default on Windows Server; on Windows 10/11 run <code>winrm quickconfig</code> once) — a local or domain administrator</small></label>
+        </div>
+        <div class="row">
+          <label>Host name or IP address <input name="host" required></label>
+          <label>Port <small>empty: 22 or 5985</small><input name="port" type="number" min="1" max="65535" class="narrow"></label>
+        </div>
+        <div class="row">
+          <label>User <input name="user" required autocomplete="off"></label>
+          <label>Password <small>for sudo too; for an SSH key its passphrase, if any</small><input name="password" type="password" autocomplete="new-password"></label>
+        </div>
+        <label>SSH private key <small>Linux, optional, instead of a password</small><textarea name="key" class="mono" rows="3" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea></label>
+        <label>SSH host key fingerprint <small>Linux, optional: SHA256:… — verifies that the console talks to the right machine</small><input name="host_key" class="mono"></label>
+        <p class="muted small">The console connects once, the machine downloads the newest agent package from the console and checks its SHA-256, installs and enrolls it. The password or key is used only for this and is not stored.</p>
+        <div><button>Install agent</button></div>
+      </form>
+    </details>
   </div>{{end}}
   <div class="panel">
     <h2>Downloads</h2>

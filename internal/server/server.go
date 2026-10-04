@@ -42,6 +42,9 @@ const sessionCookie = "bz_session"
 // Server is the management console.
 type Server struct {
 	store *Store
+	// deploys are agent installations started from the console.
+	deploys    *deployer
+	deployOnce sync.Once
 	// shaCache holds SHA-256 sums of installers offered as agent updates.
 	shaCache sync.Map
 	guard    *loginGuard
@@ -273,6 +276,7 @@ func (s *Server) Handler() http.Handler {
 	// Agent API
 	mux.HandleFunc("POST "+api.PathEnroll, s.handleEnroll)
 	mux.HandleFunc("POST "+api.PathPoll, s.agentAuth(s.handlePoll))
+	mux.HandleFunc("GET /api/deploy/{token}/{name}", s.handleDeployDownload)
 	mux.HandleFunc("GET "+api.PathDownloadPrefix+"{file}", s.agentAuth(s.handleAgentDownload))
 	mux.HandleFunc("POST "+api.PathJobRunPrefix+"{id}/run", s.agentAuth(s.handleAgentJobRun))
 	mux.HandleFunc("POST "+api.PathRunsPrefix+"{id}/finish", s.agentAuth(s.handleRunFinish))
@@ -288,6 +292,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /{$}", s.ui(PermView, s.handleDashboard))
 	mux.HandleFunc("GET /agents", s.ui(PermView, s.handleAgents))
 	mux.HandleFunc("POST /agents/token", s.ui(PermAgents, s.handleAgentToken))
+	mux.HandleFunc("POST /agents/install", s.ui(PermAgents, s.handleDeployStart))
+	mux.HandleFunc("GET /agents/install/{id}", s.ui(PermAgents, s.handleDeployPage))
 	mux.HandleFunc("POST /agents/{id}/delete", s.ui(PermAgents, s.handleAgentDelete))
 	mux.HandleFunc("POST /agents/{id}/update", s.ui(PermAgents, s.handleAgentUpdate))
 	mux.HandleFunc("POST /agents/update-all", s.ui(PermAgents, s.handleAgentUpdateAll))
