@@ -247,6 +247,40 @@
   <p class="muted small mt">Automatic security updates use the system's own tool (unattended-upgrades on Debian and Ubuntu, dnf-automatic on AlmaLinux and Rocky Linux) and install only security fixes, daily. BackupZit itself is updated above.</p>
 </div>
 {{end}}{{end}}{{end}}
+{{if eq .Data.Tab "console"}}{{with .Data.ConsoleBackup}}
+<div class="panel" id="console-backup">
+  <h2>{{template "icon" "storage"}} Backup of the console</h2>
+  <p class="muted">If the console server is lost, the backups on your storage stay readable with the recovery sheets. To also get back the console itself (jobs, schedules, users, settings, history and the stored credentials) and let all agents simply reconnect, back it up every day. The backup holds the database, the secrets key and the console's certificate, which agents pin. It is encrypted with the storage target's recovery key.</p>
+  <dl class="kv">
+    <dt>Last backup</dt><dd>{{if .LastAt.IsZero}}never{{else}}{{ts .LastAt}} {{if .LastError}}<span class="badge failed"><i></i>failed</span><br><span class="small">{{.LastError}}</span>{{else}}<span class="badge success"><i></i>ok</span> <span class="muted small">{{bytes .LastBytes}}, backup <span class="mono">{{short .LastSnapshot}}</span></span>{{end}}{{end}}</dd>
+  </dl>
+  <form method="post" action="/settings/console" class="stack mt">
+    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Back up the console every day</label>
+    <div class="row">
+      <label>Storage target <small>network storage; the backup goes to the folder <code>backupzit-console</code> there</small>
+        <select name="target_id">{{$sel := .TargetID}}{{range .Targets}}<option value="{{.ID}}" {{if eq .ID $sel}}selected{{end}}>{{.Name}}</option>{{else}}<option value="0">no network storage target yet</option>{{end}}</select>
+      </label>
+      <label>At <select name="hour">{{$h := .Hour}}{{range $i, $x := (seq 24)}}<option value="{{$i}}" {{if eq $i $h}}selected{{end}}>{{printf "%02d:00" $i}}</option>{{end}}</select></label>
+      <label>Keep <small>backups</small><input name="keep" type="number" min="1" max="365" value="{{.Keep}}" class="narrow"></label>
+    </div>
+    <div><button>Save</button></div>
+  </form>
+  <form method="post" action="/settings/console/run" class="mt"><button class="secondary">Back up now</button></form>
+
+  <h3 class="mt">Restoring the console</h3>
+  <ol class="steps">
+    <li>Install a new console, for example from the BackupZit appliance ISO, with the same or a newer version.</li>
+    <li>Take the <b>recovery sheet</b> of the storage target. It holds the address, the access credentials and the recovery key.</li>
+    <li>On the new console server, as root, set the credentials as on the recovery sheet and run:
+<pre>systemctl stop backupzit-server
+set -a; . /etc/backupzit/server.env; set +a
+export BACKUPZIT_PASSWORD='&lt;recovery key&gt;'  BACKUPZIT_SFTP_PASSWORD='…'   # or the S3/SMB/Azure/hardened variables
+backupzit-server --restore-console --repo '{{with .RepoURL}}{{.}}{{else}}&lt;target address&gt;/backupzit-console{{end}}'
+systemctl start backupzit-server</pre></li>
+    <li>Give the new server the old server's address (IP or DNS name). The agents then reconnect by themselves.</li>
+  </ol>
+</div>
+{{end}}{{end}}
 {{if eq .Data.Tab "ldap"}}{{with .Data.LDAP}}
 <div class="panel" id="ldap">
   <h2>{{template "icon" "users"}} LDAP / Active Directory sign-in</h2>

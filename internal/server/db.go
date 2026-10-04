@@ -32,10 +32,6 @@ func OpenDB(ctx context.Context, url string) (*pgxpool.Pool, error) {
 }
 
 func migrate(ctx context.Context, pool *pgxpool.Pool) error {
-	if _, err := pool.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
-		name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`); err != nil {
-		return fmt.Errorf("migrations table: %w", err)
-	}
 	entries, err := fs.ReadDir(migrationFS, "migrations")
 	if err != nil {
 		return err
@@ -46,6 +42,17 @@ func migrate(ctx context.Context, pool *pgxpool.Pool) error {
 			names = append(names, e.Name())
 		}
 	}
+	return migrateNames(ctx, pool, names)
+}
+
+// migrateNames applies the given migrations that are not applied yet, in
+// name order.
+func migrateNames(ctx context.Context, pool *pgxpool.Pool, names []string) error {
+	if _, err := pool.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+		name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`); err != nil {
+		return fmt.Errorf("migrations table: %w", err)
+	}
+	names = append([]string(nil), names...)
 	sort.Strings(names)
 	for _, name := range names {
 		var exists bool

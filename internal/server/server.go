@@ -46,6 +46,7 @@ type Server struct {
 	guard    *loginGuard
 	web      *webTLS
 	upd      *updater
+	dataDir  string
 	log      *slog.Logger
 	// CertFingerprint is shown in enrollment instructions.
 	CertFingerprint string
@@ -154,6 +155,7 @@ var funcs = template.FuncMap{
 	"vmsel":    DescribeVMSelection,
 	"bytes64":  func(n int64) string { return humanBytes(uint64(n)) },
 	"upper":    strings.ToUpper,
+	"seq":      func(n int) []int { return make([]int, n) },
 	"deref64": func(p *int64) int64 {
 		if p == nil {
 			return 0
@@ -351,6 +353,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /settings/updates/install", s.ui(PermSettings, s.handleUpdateInstall))
 	mux.HandleFunc("POST /settings/updates/upload", s.ui(PermSettings, s.handleUpdateUpload))
 	mux.HandleFunc("POST /settings/os", s.ui(PermSettings, s.handleOSAction))
+	mux.HandleFunc("POST /settings/console", s.ui(PermSettings, s.handleConsoleBackupSettings))
+	mux.HandleFunc("POST /settings/console/run", s.ui(PermSettings, s.handleConsoleBackupRun))
 	mux.HandleFunc("POST /settings/login-protection", s.ui(PermSettings, s.handleSettingsLoginProtection))
 	mux.HandleFunc("POST /settings/unblock", s.ui(PermSettings, s.handleUnblockAddress))
 	mux.HandleFunc("POST /settings/tests", s.ui(PermSettings, s.handleSettingsRestoreTests))

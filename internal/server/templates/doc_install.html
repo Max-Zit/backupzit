@@ -106,6 +106,28 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>These tasks run through the same root service as console updates. They are recorded in the audit log, and the output of the last task is shown on the page.</p>
 
 <h2>Backing up the console itself</h2>
-<p>Back up the PostgreSQL database (for example with a nightly <code>pg_dump</code> to a file that a BackupZit agent on the same machine backs up) and the data directory <code>/var/lib/backupzit</code>: the certificate and <b><code>secrets.key</code></b>, the key that encrypts all stored passwords, storage keys and recovery keys in the database. Keep a copy of <code>secrets.key</code> outside the server (e.g. in your password manager); without it the stored credentials in a restored database cannot be read. Alternatively provide the key in <code>BACKUPZIT_SECRETS_KEY</code> (base64). Keep the recovery sheets of your storage targets separately — with them, backups can be restored even without the console.</p>
+<p>Backups on your storage stay readable without the console, using the recovery sheets. To also get back the console itself after losing its server, switch on <a href="/settings/console">Settings → Console backup</a>. That includes jobs, schedules, agents, users, settings, run history and stored credentials. The console then backs itself up every day to a network storage target, into the folder <code>backupzit-console</code>.</p>
+<p>A console backup holds:</p>
+<ul>
+  <li>the whole database, exported table by table, so no particular <code>pg_dump</code> version is needed;</li>
+  <li>the secrets key that decrypts the stored credentials;</li>
+  <li>the console's certificate, which agents pin.</li>
+</ul>
+<p>It is encrypted with the target's recovery key and deduplicated. The newest backups are kept: 14 by default.</p>
+<h3>Restoring the console</h3>
+<ol>
+  <li>Install a new console with the same or a newer version, for example from the appliance ISO.</li>
+  <li>On the new server, as root, run the following. The credentials are the ones from the storage target's recovery sheet, and the repository address is shown on the Console backup page.
+<pre>systemctl stop backupzit-server
+set -a; . /etc/backupzit/server.env; set +a
+export BACKUPZIT_PASSWORD='&lt;recovery key&gt;'
+export BACKUPZIT_SFTP_PASSWORD='…' BACKUPZIT_SFTP_HOSTKEY='SHA256:…'   # or BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, _SMB_PASSWORD, _AZURE_KEY, _HARDENED_KEY/_FINGERPRINT
+backupzit-server --restore-console --repo 'sftp://backup@nas:22/backups/backupzit-console'
+systemctl start backupzit-server</pre></li>
+  <li>Give the new server the old server's IP address or DNS name. The agents trust the restored certificate and reconnect by themselves.</li>
+</ol>
+<p>The restore replaces the new console's database with the backup and brings the database up to the installed version. <code>--snapshot ID</code> restores an older backup instead of the newest one.</p>
+<p>Also keep a copy of the <b>recovery sheets</b> and of <code>secrets.key</code> outside the server, for example in your password manager.</p>
+
 {{template "docpager" .}}
 </article></div>{{end}}

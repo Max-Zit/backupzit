@@ -23,7 +23,10 @@ import (
 
 	"github.com/backupzit/backupzit/internal/agent"
 	"github.com/backupzit/backupzit/internal/api"
+	"github.com/backupzit/backupzit/internal/backend"
+	"github.com/backupzit/backupzit/internal/repo"
 	"github.com/backupzit/backupzit/internal/server"
+	"github.com/backupzit/backupzit/internal/testutil"
 	"github.com/backupzit/backupzit/internal/update"
 )
 
@@ -275,4 +278,92 @@ func TestConsoleUpdate(t *testing.T) {
 	if _, loc, _ := admin.do("POST", "/settings/os", url.Values{"action": {"reboot"}}); !strings.Contains(loc, "another+update+task") {
 		t.Errorf("second task: %s", loc)
 	}
+}
+
+func TestConsoleBackupRestore(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	s3, err := testutil.StartS3Server("company-backups")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s3.Close()
+	targetID, err := e.store.CreateTarget(ctx, server.Target{Name: "s3", Kind: "s3", URL: "s3://" + s3.Host + "/company-backups?tls=false",
+		S3AccessKey: "k", S3SecretKey: "s", Encrypted: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := t.TempDir()
+	os.WriteFile(filepath.Join(data, server.SecretKeyFile), []byte("secret key bytes"), 0o600)
+	os.WriteFile(filepath.Join(data, "cert.pem"), []byte("pinned certificate"), 0o644)
+	os.WriteFile(filepath.Join(data, "key.pem"), []byte("certificate key"), 0o600)
+	e.srv.StartConsoleBackup(ctx, data)
+	if _, err := e.store.CreateUser(ctx, server.User{Username: "ana", DisplayName: "Ana", Role: "operator"}, "ana-password-1"); err != nil {
+		t.Fatal(err)
+	}
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	if _, loc, _ := admin.do("POST", "/settings/console", url.Values{"enabled": {"on"}, "target_id": {fmt.Sprint(targetID)}, "hour": {"3"}, "keep": {"2"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("settings: %s", loc)
+	}
+	for i := 0; i < 3; i++ { // three backups, two are kept
+		if _, loc, _ := admin.do("POST", "/settings/console/run", url.Values{}); !strings.Contains(loc, "msg=") {
+			t.Fatalf("backup: %s", loc)
+		}
+	}
+	if _, _, body := admin.do("GET", "/settings/console", nil); !strings.Contains(body, "badge success") || !strings.Contains(body, "backupzit-console") {
+		t.Error("console backup page")
+	}
+	var cfg server.ConsoleBackupSettings
+	e.store.GetSetting(ctx, "console_backup", &cfg)
+	tgt, _ := e.store.GetTarget(ctx, targetID)
+	be, err := backend.Open(ctx, cfg.LastRepo, backend.Options{S3AccessKey: "k", S3SecretKey: "s"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Open(ctx, be, repo.Password(tgt.RecoveryKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	if sns, _ := r.ListSnapshots(ctx); len(sns) != 2 {
+		t.Errorf("%d console backups kept, want 2", len(sns))
+	}
+
+	// Disaster: users gone, a new data directory without keys.
+	e.pool.Exec(ctx, `DELETE FROM sessions`)
+	e.pool.Exec(ctx, `DELETE FROM users WHERE username='ana'`)
+	fresh := t.TempDir()
+	if _, err := server.RestoreConsole(ctx, e.pool.Config().ConnString(), fresh, r, "latest", t.Logf); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	e.pool.QueryRow(ctx, `SELECT count(*) FROM users WHERE username IN ('admin','ana')`).Scan(&n)
+	if n != 2 {
+		t.Errorf("%d users after restore, want 2", n)
+	}
+	var tn string
+	e.pool.QueryRow(ctx, `SELECT name FROM storage_targets WHERE id=$1`, targetID).Scan(&tn)
+	if tn != "s3" {
+		t.Error("storage target not restored")
+	}
+	for name, want := range map[string]string{server.SecretKeyFile: "secret key bytes", "cert.pem": "pinned certificate", "key.pem": "certificate key"} {
+		if b, _ := os.ReadFile(filepath.Join(fresh, name)); string(b) != want {
+			t.Errorf("%s not restored: %q", name, b)
+		}
+	}
+	// New rows get new IDs (sequences continue after the restored ones).
+	if _, err := e.store.CreateUser(ctx, server.User{Username: "marko", DisplayName: "Marko", Role: "viewer"}, "marko-password-1"); err != nil {
+		t.Errorf("insert after restore: %v", err)
+	}
+	if _, loc, _ := newClientLogin(t, e, "ana", "ana-password-1"); loc != "/" {
+		t.Errorf("restored user cannot sign in: %s", loc)
+	}
+}
+
+func newClientLogin(t *testing.T, e *env, user, pw string) (*client, string, string) {
+	c := newClient(t, e)
+	code, loc, body := c.do("POST", "/login", url.Values{"username": {user}, "password": {pw}})
+	_ = code
+	return c, loc, body
 }

@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/backupzit/backupzit/internal/backend"
+	"github.com/backupzit/backupzit/internal/repo"
 	"github.com/backupzit/backupzit/internal/server"
 	"github.com/backupzit/backupzit/internal/update"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
@@ -49,6 +51,9 @@ func run() error {
 	unblock := flag.String("unblock-ip", "", "lift the sign-in block of an address (or \"all\") and exit")
 	devHTTP := flag.String("dev-http", "", "also serve plain HTTP on this loopback address, e.g. 127.0.0.1:8080 (development only)")
 	showVersion := flag.Bool("version", false, "print version and exit")
+	restoreConsole := flag.Bool("restore-console", false, "restore a console backup into the database and data directory, then exit (stop the service first; credentials as on the storage target's recovery sheet, in the environment)")
+	restoreRepo := flag.String("repo", os.Getenv("BACKUPZIT_REPO"), "with --restore-console: repository of the console backups (<target>/backupzit-console)")
+	restoreSnapshot := flag.String("snapshot", "latest", "with --restore-console: backup to restore")
 	applyUpdate := flag.Bool("apply-update", false, "install an update requested in the web console (run by the backupzit-update service as root) and exit")
 	flag.Parse()
 
@@ -61,6 +66,9 @@ func run() error {
 	defer stop()
 	if *applyUpdate {
 		return runApplyUpdate(ctx, *dataDir, *dbURL, *listen, log)
+	}
+	if *restoreConsole {
+		return runRestoreConsole(ctx, *dbURL, *dataDir, *restoreRepo, *restoreSnapshot)
 	}
 
 	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
@@ -143,6 +151,7 @@ func run() error {
 	srv.Notifier = server.NewNotifier(store, log, func() string { return srv.PublicURL })
 	srv.StartWeb(ctx, *dataDir)
 	srv.StartUpdates(ctx, *dataDir)
+	srv.StartConsoleBackup(ctx, *dataDir)
 	sched := server.NewScheduler(store, log)
 	sched.Notifier = srv.Notifier
 	go sched.Run(ctx)
@@ -238,4 +247,34 @@ func runApplyUpdate(ctx context.Context, dataDir, dbURL, listen string, log *slo
 	}
 	_, err = a.Apply(ctx)
 	return err
+}
+
+// runRestoreConsole restores a console backup (see Settings → Console backup).
+func runRestoreConsole(ctx context.Context, dbURL, dataDir, repoURL, snapshot string) error {
+	if dbURL == "" || repoURL == "" {
+		return errors.New("--restore-console needs BACKUPZIT_DB (from /etc/backupzit/server.env) and --repo")
+	}
+	opts := backend.Options{
+		SFTPPassword: os.Getenv("BACKUPZIT_SFTP_PASSWORD"), SFTPKeyFile: os.Getenv("BACKUPZIT_SFTP_KEY"), SFTPHostKey: os.Getenv("BACKUPZIT_SFTP_HOSTKEY"),
+		S3AccessKey: os.Getenv("BACKUPZIT_S3_ACCESS_KEY"), S3SecretKey: os.Getenv("BACKUPZIT_S3_SECRET_KEY"), S3Region: os.Getenv("BACKUPZIT_S3_REGION"),
+		SMBPassword: os.Getenv("BACKUPZIT_SMB_PASSWORD"), SMBDomain: os.Getenv("BACKUPZIT_SMB_DOMAIN"),
+		HardenedKey: os.Getenv("BACKUPZIT_HARDENED_KEY"), HardenedFingerprint: os.Getenv("BACKUPZIT_HARDENED_FINGERPRINT"),
+		AzureKey: os.Getenv("BACKUPZIT_AZURE_KEY"), AzureSAS: os.Getenv("BACKUPZIT_AZURE_SAS"),
+	}
+	be, err := backend.Open(ctx, repoURL, opts)
+	if err != nil {
+		return fmt.Errorf("storage: %w", err)
+	}
+	r, err := repo.Open(ctx, be, repo.Password(os.Getenv("BACKUPZIT_PASSWORD")))
+	if err != nil {
+		be.Close()
+		return fmt.Errorf("open repository (recovery key in BACKUPZIT_PASSWORD): %w", err)
+	}
+	defer r.Close()
+	sn, err := server.RestoreConsole(ctx, dbURL, dataDir, r, snapshot, func(format string, args ...any) { fmt.Printf(format+"\n", args...) })
+	if err != nil {
+		return err
+	}
+	fmt.Printf("console restored from the backup of %s; start the service: systemctl start backupzit-server\n", sn.Time.Local().Format("2006-01-02 15:04"))
+	return nil
 }
