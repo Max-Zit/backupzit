@@ -8,7 +8,7 @@ maintainer: BackupZit <support@backupzit.example>
 description: |
   BackupZit management server: web console and API for BackupZit agents.
 vendor: BackupZit
-homepage: https://github.com/backupzit/backupzit
+homepage: https://github.com/Max-Zit/backupzit
 license: AGPL-3.0-only
 recommends:
   - postgresql

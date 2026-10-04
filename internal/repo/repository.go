@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/backend"
 	"github.com/klauspost/compress/zstd"
+	"github.com/max-zit/backupzit/internal/backend"
 	"github.com/restic/chunker"
 )
 

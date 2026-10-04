@@ -10,11 +10,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/backupzit/backupzit/internal/agent"
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/imaging"
-	"github.com/backupzit/backupzit/internal/nbd"
-	"github.com/backupzit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/agent"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/nbd"
+	"github.com/max-zit/backupzit/internal/pve"
 )
 
 // cmdNBDServe serves the disks of a VM in a backup read-only over NBD on a

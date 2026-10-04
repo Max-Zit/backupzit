@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/pve"
 )
 
 // StartInstantServer starts the NBD disk server of an instant recovery as

@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/agent"
-	"github.com/backupzit/backupzit/internal/api"
 	"github.com/kardianos/service"
+	"github.com/max-zit/backupzit/internal/agent"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 const serviceName = "backupzit-agent"

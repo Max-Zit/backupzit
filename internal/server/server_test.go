@@ -25,15 +25,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/agent"
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/backend"
-	"github.com/backupzit/backupzit/internal/checker"
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/server"
-	"github.com/backupzit/backupzit/internal/testutil"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/max-zit/backupzit/internal/agent"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/checker"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/server"
+	"github.com/max-zit/backupzit/internal/testutil"
 )
 
 func freePort(t *testing.T) uint32 {

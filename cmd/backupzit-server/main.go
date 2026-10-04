@@ -17,11 +17,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/backend"
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/server"
-	"github.com/backupzit/backupzit/internal/update"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/server"
+	"github.com/max-zit/backupzit/internal/update"
 )
 
 var version = "dev"

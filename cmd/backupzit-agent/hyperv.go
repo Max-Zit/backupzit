@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/hyperv"
+	"github.com/max-zit/backupzit/internal/hyperv"
 )
 
 // cmdHyperV handles: hyperv list|backup|restore (agent on a Hyper-V host).

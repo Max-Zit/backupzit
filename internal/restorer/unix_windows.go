@@ -3,7 +3,7 @@ package restorer
 import (
 	"errors"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 func applyUnix(string, *repo.Node, bool) []error { return nil }

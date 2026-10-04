@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/localipc"
+	"github.com/max-zit/backupzit/internal/localipc"
 )
 
 // cmdStatus prints what the running agent service is doing.

@@ -3,8 +3,8 @@ package server
 import (
 	"testing"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 func TestDetectAnomaly(t *testing.T) {

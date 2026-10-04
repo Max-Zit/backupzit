@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/backupzit/backupzit/internal/backend"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 type memDisk struct {

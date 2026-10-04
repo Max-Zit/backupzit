@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // ErrUnsupported is returned on platforms without image support yet.

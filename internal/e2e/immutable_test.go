@@ -15,10 +15,10 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
-	"github.com/backupzit/backupzit/internal/archiver"
-	"github.com/backupzit/backupzit/internal/backend"
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/restorer"
+	"github.com/max-zit/backupzit/internal/archiver"
+	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/restorer"
 )
 
 // TestImmutableS3 runs against a real bucket with Object Lock, e.g. MinIO:

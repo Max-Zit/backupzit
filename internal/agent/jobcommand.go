@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // backupKind reports whether runs of kind are backups (commands before and

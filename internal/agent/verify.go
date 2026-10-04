@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/pve"
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/restorer"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/restorer"
 )
 
 // verifyRun is a restore test: it restores a random sample of a backup

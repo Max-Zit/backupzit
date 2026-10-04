@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/tlsutil"
+	"github.com/max-zit/backupzit/internal/tlsutil"
 )
 
 // HardenedPort is the default port of a hardened repository.

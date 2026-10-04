@@ -1,6 +1,6 @@
 [Unit]
 Description=BackupZit Agent
-Documentation=https://github.com/backupzit/backupzit
+Documentation=https://github.com/Max-Zit/backupzit
 Wants=network-online.target
 After=network-online.target
 

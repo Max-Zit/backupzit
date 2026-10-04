@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/update"
+	"github.com/max-zit/backupzit/internal/update"
 )
 
 func main() {

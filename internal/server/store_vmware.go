@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/pve"
-	"github.com/backupzit/backupzit/internal/vmware"
 	"github.com/jackc/pgx/v5"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/vmware"
 )
 
 // VMwareHost is an ESXi host whose VMs are backed up through a proxy agent.

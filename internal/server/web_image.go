@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/backupzit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/api"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/imaging"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // inventories maps agent ID to its reported disks, for the disk pickers.

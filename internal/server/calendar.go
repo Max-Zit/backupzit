@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // CalEntry is one job on one calendar day: planned runs (future) or

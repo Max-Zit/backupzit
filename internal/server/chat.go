@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // Chat and webhook notifications: besides email, run results go to Slack,

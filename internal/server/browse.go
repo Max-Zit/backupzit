@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/backend"
-	"github.com/backupzit/backupzit/internal/imaging"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // repoCache keeps repositories and image volumes open for a while so that

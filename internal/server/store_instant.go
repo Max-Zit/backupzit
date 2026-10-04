@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // Instant recovery: a vm-instant run starts a VM on a Proxmox node that

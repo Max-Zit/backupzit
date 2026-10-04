@@ -23,7 +23,7 @@ import (
 	"github.com/masterzen/winrm"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/backupzit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // Installing agents from the console: the console connects to the machine

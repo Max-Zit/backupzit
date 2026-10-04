@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/imaging"
 	"github.com/masahiro331/go-ext4-filesystem/ext4"
 	"github.com/masahiro331/go-xfs-filesystem/xfs"
+	"github.com/max-zit/backupzit/internal/imaging"
 )
 
 // Entry is a file or folder inside a volume. Paths use "/" separators.

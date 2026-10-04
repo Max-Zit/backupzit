@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/pve"
 	"golang.org/x/sys/windows/svc/mgr"
 )
 

@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // Result of a check run.

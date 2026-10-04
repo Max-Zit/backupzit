@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http/httptest"
 
-	"github.com/backupzit/backupzit/internal/hardened"
-	"github.com/backupzit/backupzit/internal/tlsutil"
+	"github.com/max-zit/backupzit/internal/hardened"
+	"github.com/max-zit/backupzit/internal/tlsutil"
 )
 
 // HardenedServer is an in-process hardened repository for tests.

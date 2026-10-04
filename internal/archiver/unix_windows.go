@@ -3,7 +3,7 @@ package archiver
 import (
 	"io/fs"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 func unixMeta(string, fs.FileInfo) *repo.UnixMeta { return nil }

@@ -1,4 +1,4 @@
-module github.com/backupzit/backupzit
+module github.com/max-zit/backupzit
 
 go 1.27.0
 

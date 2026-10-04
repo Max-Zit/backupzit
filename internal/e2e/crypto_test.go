@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/backupzit/backupzit/internal/archiver"
-	"github.com/backupzit/backupzit/internal/backend"
-	"github.com/backupzit/backupzit/internal/checker"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/archiver"
+	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/checker"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 const testKey = "TQ7K-29XD-PL4M-W8ZR-3HFN-6YBC"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/backupzit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/backend"
 )
 
 // KeepImmutable extends the immutability of everything the given snapshots

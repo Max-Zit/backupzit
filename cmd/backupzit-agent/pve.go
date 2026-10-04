@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/pve"
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/vmfs"
+	"github.com/max-zit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmfs"
 )
 
 // cmdPVE handles: pve list|backup|restore|show (agent installed on a

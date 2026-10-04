@@ -3,8 +3,8 @@ package sysbackup
 import (
 	"context"
 
-	"github.com/backupzit/backupzit/internal/archiver"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/archiver"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // BackupOptions configure a system backup.

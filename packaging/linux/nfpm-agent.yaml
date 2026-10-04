@@ -10,7 +10,7 @@ description: |
   on Proxmox VE hosts, virtual machines and containers, as instructed by the
   BackupZit management server.
 vendor: BackupZit
-homepage: https://github.com/backupzit/backupzit
+homepage: https://github.com/Max-Zit/backupzit
 license: AGPL-3.0-only
 contents:
   - src: ./LICENSE

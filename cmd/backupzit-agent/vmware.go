@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/vmware"
+	"github.com/max-zit/backupzit/internal/vmware"
 )
 
 type vmwareFlags struct {

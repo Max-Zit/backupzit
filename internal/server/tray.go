@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // agentStatus summarises an agent's jobs for its tray app.

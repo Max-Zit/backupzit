@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/localipc"
+	"github.com/max-zit/backupzit/internal/localipc"
 )
 
 // Summary is the interpreted agent status shown in the tray and window.

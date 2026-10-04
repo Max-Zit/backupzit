@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/fsutil"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/fsutil"
+	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/restic/chunker"
 )
 

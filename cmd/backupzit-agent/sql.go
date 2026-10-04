@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/mssql"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/mssql"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // cmdSQL handles: sql list|backup|show|restore (Microsoft SQL Server on this

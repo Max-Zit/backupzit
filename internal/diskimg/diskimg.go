@@ -11,7 +11,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // BlockSize is the unit of deduplication for virtual disks.

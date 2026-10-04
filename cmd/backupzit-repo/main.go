@@ -18,8 +18,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/hardened"
-	"github.com/backupzit/backupzit/internal/tlsutil"
+	"github.com/max-zit/backupzit/internal/hardened"
+	"github.com/max-zit/backupzit/internal/tlsutil"
 )
 
 var version = "dev"

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/hyperv"
-	"github.com/backupzit/backupzit/internal/pve"
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/vmware"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/hyperv"
+	"github.com/max-zit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmware"
 )
 
 // hypervisorInventory returns the guest list when the agent runs on a

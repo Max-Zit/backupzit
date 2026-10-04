@@ -9,9 +9,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/pve"
 	"github.com/jackc/pgx/v5"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/pve"
 )
 
 // Replication of Proxmox VM jobs: after each backup the agent on the

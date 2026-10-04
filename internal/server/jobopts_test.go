@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/agent"
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/server"
+	"github.com/max-zit/backupzit/internal/agent"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/server"
 )
 
 func TestJobEditAndCommands(t *testing.T) {

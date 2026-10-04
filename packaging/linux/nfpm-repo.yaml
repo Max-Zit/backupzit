@@ -10,7 +10,7 @@ description: |
   BackupZit agents. Backups cannot be changed or deleted by clients before
   the configured immutability period ends.
 vendor: BackupZit
-homepage: https://github.com/backupzit/backupzit
+homepage: https://github.com/Max-Zit/backupzit
 license: AGPL-3.0-only
 contents:
   - src: ./LICENSE

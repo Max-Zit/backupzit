@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/pve"
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/restorer"
-	"github.com/backupzit/backupzit/internal/sysbackup"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/restorer"
+	"github.com/max-zit/backupzit/internal/sysbackup"
 )
 
 // systemSummary is the run detail of a system backup shown in the console.

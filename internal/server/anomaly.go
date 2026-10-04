@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/repo"
 	"github.com/jackc/pgx/v5"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // Ransomware and mass-deletion detection: every finished backup is compared

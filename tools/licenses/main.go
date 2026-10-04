@@ -42,7 +42,7 @@ func main() {
 			if err := dec.Decode(&p); err != nil {
 				fail("decode: %v", err)
 			}
-			if m := p.Module; m != nil && m.Path != "github.com/backupzit/backupzit" {
+			if m := p.Module; m != nil && m.Path != "github.com/max-zit/backupzit" {
 				mods[m.Path] = *m
 			}
 		}

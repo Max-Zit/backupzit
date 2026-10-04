@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 func TestRetentionSQLLogs(t *testing.T) {

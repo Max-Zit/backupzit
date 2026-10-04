@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // Instant recovery: a VM is started directly from a backup. An NBD server

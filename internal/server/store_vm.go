@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/pve"
 )
 
 // PVE decodes the Proxmox VE inventory of an agent on a Proxmox node (nil

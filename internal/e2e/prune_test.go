@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/archiver"
-	"github.com/backupzit/backupzit/internal/backend"
-	"github.com/backupzit/backupzit/internal/checker"
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/restorer"
+	"github.com/max-zit/backupzit/internal/archiver"
+	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/checker"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/restorer"
 )
 
 func dirSize(t *testing.T, root string) int64 {

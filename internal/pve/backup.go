@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/diskimg"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/diskimg"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // BackupOptions select the guests to back up.

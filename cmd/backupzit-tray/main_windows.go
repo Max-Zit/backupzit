@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"fyne.io/systray"
-	"github.com/backupzit/backupzit/internal/localipc"
+	"github.com/max-zit/backupzit/internal/localipc"
 	"golang.org/x/sys/windows"
 )
 

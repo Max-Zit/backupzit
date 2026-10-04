@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/localipc"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/localipc"
 )
 
 // trayActive is how long after the last local status request the agent

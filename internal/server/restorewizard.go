@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/repo"
 	"github.com/jackc/pgx/v5"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // The restore wizard guides through: what to restore → which machine, job

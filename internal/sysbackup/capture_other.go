@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/restorer"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/restorer"
 )
 
 // ErrUnsupported is returned on systems other than Linux.

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // BootResult is the outcome of booting one VM of a backup.

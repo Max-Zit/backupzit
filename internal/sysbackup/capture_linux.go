@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // Supported file systems; others (network, pseudo) are not part of a system

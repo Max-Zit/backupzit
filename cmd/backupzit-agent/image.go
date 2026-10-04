@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/imaging"
 )
 
 func cmdDisks(args []string) error {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 const qemuConf = `agent: enabled=1

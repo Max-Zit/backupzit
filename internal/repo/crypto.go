@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/backend"
 	"golang.org/x/crypto/argon2"
 )
 

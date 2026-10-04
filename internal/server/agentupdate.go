@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/api"
 	"github.com/jackc/pgx/v5"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // QueueAgentUpdate queues the installation of an agent package. The run

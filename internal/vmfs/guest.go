@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/imaging"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // GuestDisk opens a disk of a guest in a Proxmox backup (key "" = first

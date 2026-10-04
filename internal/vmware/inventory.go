@@ -12,7 +12,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 
-	"github.com/backupzit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/pve"
 )
 
 // VM describes a virtual machine.

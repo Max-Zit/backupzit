@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/pve"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // replicaEntry is the outcome for one guest, reported in the run details.

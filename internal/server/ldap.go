@@ -14,7 +14,7 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 
-	"github.com/backupzit/backupzit/internal/tlsutil"
+	"github.com/max-zit/backupzit/internal/tlsutil"
 )
 
 const settingLDAP = "ldap"

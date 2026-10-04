@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/vmfs"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/vmfs"
 )
 
 // cachedVMDisk keeps the volumes and opened file systems of a guest disk.

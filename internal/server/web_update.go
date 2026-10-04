@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/update"
+	"github.com/max-zit/backupzit/internal/update"
 )
 
 // Console self-update: the console checks a release source for signed

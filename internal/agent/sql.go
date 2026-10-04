@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/mssql"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/mssql"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // sqlBackup backs up SQL Server databases (full, or transaction logs).

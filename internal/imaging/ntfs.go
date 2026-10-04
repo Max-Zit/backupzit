@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/repo"
 	ntfs "www.velocidex.com/golang/go-ntfs/parser"
 )
 

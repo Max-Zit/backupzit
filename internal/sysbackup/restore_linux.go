@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/restorer"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/restorer"
 )
 
 // RestoreOptions control a system restore.

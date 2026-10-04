@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/backupzit/backupzit/internal/tlsutil"
+	"github.com/max-zit/backupzit/internal/tlsutil"
 )
 
 // TestLDAPLive runs against a real directory, e.g. the lab OpenLDAP:

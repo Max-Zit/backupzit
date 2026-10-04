@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // JobOptions are optional settings of a job.

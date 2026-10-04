@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // systemDetails is the run detail of a system backup.

@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/pve"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/pve"
 )
 
 // pveInventories maps agent IDs to the guests of their node, for the job

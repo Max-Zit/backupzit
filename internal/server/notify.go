@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
 	"github.com/jackc/pgx/v5"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // EmailSettings configure notifications. Stored under settings key "email".

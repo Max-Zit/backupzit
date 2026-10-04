@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/repo"
 	"github.com/jackc/pgx/v5"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // SQL Server jobs back up databases with SQL Server's own BACKUP statement

@@ -23,13 +23,13 @@ import (
 
 	"github.com/vmware/govmomi/simulator"
 
-	"github.com/backupzit/backupzit/internal/agent"
-	"github.com/backupzit/backupzit/internal/api"
-	"github.com/backupzit/backupzit/internal/backend"
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/server"
-	"github.com/backupzit/backupzit/internal/testutil"
-	"github.com/backupzit/backupzit/internal/update"
+	"github.com/max-zit/backupzit/internal/agent"
+	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/server"
+	"github.com/max-zit/backupzit/internal/testutil"
+	"github.com/max-zit/backupzit/internal/update"
 )
 
 // TestVMwareHosts drives the console side of VMware support against the

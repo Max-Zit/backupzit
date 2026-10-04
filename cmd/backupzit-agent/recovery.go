@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/agent"
-	"github.com/backupzit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/agent"
+	"github.com/max-zit/backupzit/internal/imaging"
 )
 
 // recoveryConfig is read from \backupzit\recovery.json on any drive (the

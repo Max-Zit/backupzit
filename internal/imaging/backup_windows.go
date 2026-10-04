@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/backupzit/backupzit/internal/repo"
-	"github.com/backupzit/backupzit/internal/vss"
+	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vss"
 	"golang.org/x/sys/windows"
 )
 
