@@ -80,6 +80,8 @@ type Snapshot struct {
 	// System is set for Linux system backups: the disk layout needed to
 	// recreate the machine; the files are in Tree.
 	System *SystemLayout `json:"system,omitempty"`
+	// SQL is set for SQL Server backups: which files hold which databases.
+	SQL *SQLBackup `json:"sql,omitempty"`
 }
 
 // SnapshotStats summarises a backup run.

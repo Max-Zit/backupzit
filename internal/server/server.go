@@ -176,7 +176,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start"}[k]
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "SQL Server backup", "sql-log": "SQL log backup", "sql-restore": "SQL Server restore"}[k]
 	},
 	"everyChoices": everyChoices, "minutesText": minutesText,
 	"has": func(list []string, v string) bool { return slices.Contains(list, v) },
@@ -834,6 +834,9 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		Schedule:  sched,
 		Enabled:   true,
 	}
+	if job.Kind == JobSQL {
+		job.Paths, job.Excludes = lines(r.FormValue("sql_databases")), nil
+	}
 	if job.Kind == JobCopy {
 		job.SourceJobID = optionalID(r.FormValue("source_job"))
 		job.Paths, job.Excludes = nil, nil
@@ -1005,6 +1008,8 @@ func (s *Server) restoreFormData(ctx context.Context, run Run) (map[string]any, 
 		"Run": run, "Agents": agents, "Inventory": inventories(agents), "VMwareHosts": hosts,
 		"VM": vm, "PVEAgents": pveAgents(agents), "VMAgents": hypervisorAgents(agents, vm.Platform()), "VMPlatform": vm.Platform(),
 		"System": sysDetails(run), "LinuxAgents": linuxAgents(agents), "SelectedVMID": 0,
+		"SQL": sqlDetails(run), "SQLPoints": s.store.sqlRestorePoints(ctx, run), "WindowsAgents": windowsAgents(agents),
+		"SQLInstance": s.store.jobSQLInstance(ctx, run), "SelectedDB": "", "SQLRestore": sqlRestoreOptions(run),
 	}, nil
 }
 
@@ -1014,6 +1019,10 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request, _ string)
 	// The restore wizard returns to its own page on errors.
 	if b := r.FormValue("back"); strings.HasPrefix(b, "/restore?") {
 		back = b
+	}
+	if r.FormValue("kind") == "sql" {
+		s.handleSQLRestore(w, r, id, back)
+		return
 	}
 	if r.FormValue("kind") == "image" {
 		s.handleImageRestore(w, r, id, back)

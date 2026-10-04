@@ -166,3 +166,33 @@ page data; .Data holds the keys built by restoreFormData. */}}
 </form>
 <script type="application/json" id="inventory">{{.Data.Inventory}}</script>
 {{end}}
+
+{{define "restore_sql"}}{{$d := .Data}}
+<form method="post" action="/runs/{{$d.Run.ID}}/restore" class="stack">
+  {{template "restore_back" .}}
+  <input type="hidden" name="kind" value="sql">
+  <div class="row">
+    <label>Database
+      <select name="database">{{range $d.SQLPoints}}<option value="{{.Name}}" {{if eq .Name $d.SelectedDB}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+    </label>
+    <label>Restore on
+      <select name="agent_id">{{range $d.WindowsAgents}}<option value="{{.ID}}" {{if eq .ID $d.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+    </label>
+    <label>Instance <small>empty: default instance</small><input name="instance" value="{{$d.SQLInstance}}"></label>
+  </div>
+  <label class="check"><input type="radio" name="target_mode" value="new" checked> As a new database named <input name="target" class="narrow" placeholder="sales_restored"> <small>the original stays untouched</small></label>
+  <label class="check"><input type="radio" name="target_mode" value="original"> Under its original name <small>e.g. on another server, or after the database was lost</small></label>
+  <label class="check"><input type="checkbox" name="replace"> If a database with that name exists, <b>replace it</b> (its users are disconnected)</label>
+  <fieldset class="sched">
+    <legend>State to restore</legend>
+    <label class="check"><input type="radio" name="point" value="full" checked> As of the full backup</label>
+    <label class="check"><input type="radio" name="point" value="latest"> Latest: the full backup and every log backup after it</label>
+    <label class="check"><input type="radio" name="point" value="time"> At a point in time <input type="datetime-local" name="stop_at" step="1"></label>
+    <div class="table-wrap"><table>
+      <tr><th>Database</th><th>Full backup</th><th>Log backups reach until</th></tr>
+      {{range $d.SQLPoints}}<tr><td>{{.Name}}</td><td>{{ts .Full}}</td><td>{{if .LogUntil.IsZero}}<span class="muted">no log backups</span>{{else}}{{ts .LogUntil}}{{end}}</td></tr>{{end}}
+    </table></div>
+  </fieldset>
+  <div><button>Restore database</button></div>
+</form>
+{{end}}

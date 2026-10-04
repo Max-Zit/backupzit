@@ -84,6 +84,15 @@
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Serve the disks of a VM in a backup read-only over NBD on a unix socket (started by instant recovery as a systemd unit).</td></tr>
 </table>
 
+<h2>Microsoft SQL Server (agent on the SQL Server machine)</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>sql list [--instance I]</code></td><td>List the databases of an instance with recovery model and size.</td></tr>
+  <tr><td><code>sql backup [--instance I] [--db a,b] [--system] [--log] [--copy-only]</code></td><td>Full backups (default: all user databases) or, with <code>--log</code>, transaction log backups into the repository.</td></tr>
+  <tr><td><code>sql show</code></td><td>List the SQL Server backups in the repository with their LSN ranges.</td></tr>
+  <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>Restore a database from a full backup and the log backups after it, optionally to a point in time. See <a href="/docs/sql">SQL Server</a>.</td></tr>
+</table>
+
 <h2>Managed mode</h2>
 <table>
   <tr><th>Command</th><th>What it does</th></tr>

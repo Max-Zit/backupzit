@@ -15,6 +15,7 @@ var docPages = []struct{ Slug, Title string }{
 	{"proxmox", "Proxmox VE virtual machines"},
 	{"hyperv", "Hyper-V virtual machines"},
 	{"vmware", "VMware ESXi virtual machines"},
+	{"sql", "Microsoft SQL Server"},
 	{"ransomware", "Ransomware protection"},
 	{"monitoring", "Monitoring, reports & calendar"},
 	{"notifications", "Email notifications"},

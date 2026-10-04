@@ -141,7 +141,7 @@ type DayReport struct {
 }
 
 func isBackupKind(k string) bool {
-	return k == api.KindBackup || k == api.KindImageBackup || k == api.KindVMBackup || k == api.KindSystemBackup
+	return k == api.KindBackup || k == api.KindImageBackup || k == api.KindVMBackup || k == api.KindSystemBackup || k == api.KindSQLBackup || k == api.KindSQLLog
 }
 
 // ListRunsBetween returns runs queued in [from, to), newest first.

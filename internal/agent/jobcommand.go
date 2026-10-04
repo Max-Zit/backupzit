@@ -20,7 +20,7 @@ import (
 // after them are allowed).
 func backupKind(kind string) bool {
 	switch kind {
-	case api.KindBackup, api.KindImageBackup, api.KindVMBackup, api.KindSystemBackup:
+	case api.KindBackup, api.KindImageBackup, api.KindVMBackup, api.KindSystemBackup, api.KindSQLBackup:
 		return true
 	}
 	return false

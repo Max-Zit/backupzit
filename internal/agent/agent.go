@@ -326,6 +326,10 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		a.mu.Lock()
 		a.inventoryAt = time.Time{} // guest list changed
 		a.mu.Unlock()
+	case api.KindSQLBackup, api.KindSQLLog:
+		res = a.sqlBackup(ctx, run)
+	case api.KindSQLRestore:
+		res = a.sqlRestore(ctx, run)
 	case api.KindVMReplica, api.KindVMReplicaStart:
 		res = a.vmReplica(ctx, run)
 		a.mu.Lock()

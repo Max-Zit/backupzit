@@ -473,6 +473,17 @@ func (s *Store) checkJob(ctx context.Context, j *Job) error {
 		j.ImageDisk, j.ImagePartitions = nil, nil
 	case JobSystem:
 		j.Paths, j.ImageDisk, j.ImagePartitions = []string{"/"}, nil, nil
+	case JobSQL:
+		// Paths are database names; none means all user databases.
+		if j.Paths == nil {
+			j.Paths = []string{}
+		}
+		for _, p := range j.Paths {
+			if len(p) > 128 || strings.ContainsAny(p, "\x00") {
+				return fmt.Errorf("invalid database name %q", p)
+			}
+		}
+		j.ImageDisk, j.ImagePartitions = nil, nil
 	case JobCopy:
 		if j.SourceJobID == nil {
 			return errors.New("choose the job whose backups are copied")
@@ -508,6 +519,12 @@ func (s *Store) checkJob(ctx context.Context, j *Job) error {
 	agent, err := s.GetAgent(ctx, j.AgentID)
 	if err != nil {
 		return errors.New("unknown agent")
+	}
+	if j.Kind == JobSQL && (!strings.Contains(strings.ToLower(agent.OS), "windows") || agent.Recovery) {
+		return fmt.Errorf("%s is not a Windows machine; SQL Server jobs run on the Windows machine with SQL Server", agent.Hostname)
+	}
+	if j.Kind != JobSQL {
+		j.Options.SQLInstance, j.Options.SQLSystem, j.Options.SQLLogMinutes = "", false, 0
 	}
 	if j.Kind == JobSystem && (strings.Contains(strings.ToLower(agent.OS), "windows") || agent.Recovery) {
 		return fmt.Errorf("%s is not a Linux machine; use a disk image job for Windows", agent.Hostname)
@@ -561,8 +578,8 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 
 const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.retention, j.agent_id, a.hostname, j.target_id, st.name, j.name, j.paths, j.excludes,
 	j.schedule, j.enabled, j.last_scheduled_at, j.created_at,
-	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy') ORDER BY r.queued_at DESC LIMIT 1),
-	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy') ORDER BY r.queued_at DESC LIMIT 1),
+	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') ORDER BY r.queued_at DESC LIMIT 1),
+	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') ORDER BY r.queued_at DESC LIMIT 1),
 	j.source_job_id, (SELECT sj.name FROM jobs sj WHERE sj.id=j.source_job_id), j.retention_hold,
 	j.vmware_host_id, (SELECT vh.name FROM vmware_hosts vh WHERE vh.id=j.vmware_host_id), j.options`
 
@@ -639,6 +656,9 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 	if j.Kind == JobSystem {
 		kind = api.KindSystemBackup
 	}
+	if j.Kind == JobSQL {
+		kind = api.KindSQLBackup
+	}
 	if j.Kind == JobCopy {
 		return s.queueCopy(ctx, j, a, t, trigger)
 	}
@@ -654,7 +674,7 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 	var id int64
 	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes, image_disk, image_partitions, vmware_host_id)
 		SELECT $1,$2,$8,$3,$4,$5,$6,$7,$9,$10,$11
-		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE job_id=$2 AND kind IN ('backup','image-backup','vm-backup','system-backup') AND status IN ('queued','running'))
+		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE job_id=$2 AND kind IN ('backup','image-backup','vm-backup','system-backup','sql-backup','sql-log') AND status IN ('queued','running'))
 		RETURNING id`,
 		j.AgentID, j.ID, trigger, repo, t.ID, j.Paths, j.Excludes, kind, j.ImageDisk, j.ImagePartitions, j.VMwareHostID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -819,7 +839,7 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 		details = res.Details
 	}
 	ct, err := s.db.Exec(ctx, `UPDATE runs SET status=$3, finished_at=now(), stats=$4, errors=$5, message=$6,
-		snapshot_id=CASE WHEN kind IN ('backup','image-backup','vm-backup','system-backup','copy') THEN $7 ELSE snapshot_id END, details=$8
+		snapshot_id=CASE WHEN kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') THEN $7 ELSE snapshot_id END, details=$8
 		WHERE id=$2 AND agent_id=$1 AND status='running'`,
 		agentID, runID, res.Status, stats, res.Errors, res.Message, res.SnapshotID, details)
 	if err != nil {

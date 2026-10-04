@@ -21,6 +21,10 @@
       <dt>Copied from</dt><dd class="mono">{{.SourceRepoURL}}</dd>
     {{else if eq .Kind "image-backup"}}
       <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
+    {{else if eq .Kind "sql-restore"}}
+      {{with $.Data.SQLRestore}}{{with .Restore}}<dt>Database</dt><dd>{{.Database}}{{if .Target}} as {{.Target}}{{end}}{{if .Replace}}, replacing an existing database{{end}}</dd>
+      <dt>State</dt><dd>{{if not .StopAt.IsZero}}at {{ts .StopAt}}{{else if .LogSnapshots}}latest (with log backups){{else}}as of the full backup{{end}}</dd>{{end}}
+      <dt>Instance</dt><dd>{{if .Instance}}{{.Instance}}{{else}}default instance{{end}}</dd>{{end}}
     {{else if eq .Kind "system-backup"}}
       <dt>Backs up</dt><dd>Whole Linux system</dd>
     {{else if eq .Kind "system-restore"}}
@@ -200,6 +204,21 @@
 </div>
 {{end}}
 
+{{with $.Data.SQL}}
+<div class="panel">
+  <h2>{{if eq .Kind "log"}}Transaction log backups{{else}}Databases{{end}}{{with .Instance}} <span class="muted small">instance {{.}}</span>{{end}}</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Database</th><th>Recovery model</th><th>Backup size</th><th>Taken</th><th class="small">LSN</th></tr>
+    {{range .Databases}}<tr><td>{{.Name}}</td><td>{{.Recovery}}</td><td>{{bytes .Size}}</td><td>{{ts .Finish}}</td><td class="small mono">{{.FirstLSN}} – {{.LastLSN}}</td></tr>{{end}}
+  </table></div>
+</div>
+{{end}}
+{{if and (eq .Kind "sql-backup") .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.SQLPoints}}
+<div class="panel">
+  <h2>Restore a database</h2>
+  {{template "restore_sql" $}}
+</div>
+{{end}}
 {{if and .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.VM}}
 <div class="panel">
   <h2>{{if eq $.Data.VMPlatform "hyperv"}}Restore a Hyper-V VM{{else if eq $.Data.VMPlatform "vmware"}}Restore a VMware VM{{else}}Restore a VM or container{{end}}</h2>

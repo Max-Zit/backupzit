@@ -22,6 +22,9 @@
     <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
     {{else if eq .Kind "system"}}
     <dt>Backs up</dt><dd>Whole Linux system (all local file systems and the disk layout){{if .Excludes}}, excluding <span class="mono">{{join .Excludes ", "}}</span>{{end}}</dd>
+    {{else if eq .Kind "sql"}}
+    <dt>Backs up</dt><dd>SQL Server {{if .Options.SQLInstance}}instance {{.Options.SQLInstance}}{{else}}default instance{{end}}: {{if .Paths}}{{join .Paths ", "}}{{else}}all user databases{{if .Options.SQLSystem}} and the system databases{{end}}{{end}}</dd>
+    <dt>Log backups</dt><dd>{{if .Options.SQLLogMinutes}}every {{.Options.SQLLogMinutes}} minutes (point-in-time restore){{else}}off — databases are restored to the time of a full backup{{end}}</dd>
     {{else if eq .Kind "vm"}}
     <dt>Backs up</dt><dd>{{vmsel .Paths}} <span class="muted">(hypervisor host)</span></dd>
     {{else}}
@@ -62,6 +65,7 @@
     <label>Exclude <small>one name pattern per line</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
     {{else if eq .Kind "system"}}
     <label>Exclude <small>one name pattern per line</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
+    {{else if eq .Kind "sql"}}{{template "job_sql" $.Data.Form}}
     {{else if eq .Kind "vm"}}{{$sel := .Paths}}
     <label class="check"><input type="radio" name="vm_mode" value="all" {{if eq (join .Paths ",") "*"}}checked{{end}}> All VMs on the host <small>VMs created later are included automatically</small></label>
     <label class="check"><input type="radio" name="vm_mode" value="selected" {{if ne (join .Paths ",") "*"}}checked{{end}}> Only these:</label>

@@ -98,7 +98,12 @@ const (
 	KindVMInstantDiscard = "vm-instant-discard"
 	// Replication (Proxmox): keep stopped copies of the guests of a VM
 	// backup up to date; start one (failover).
-	KindVMReplica      = "vm-replica"
+	KindVMReplica = "vm-replica"
+	// Microsoft SQL Server: full and transaction log backups of databases,
+	// and their restore.
+	KindSQLBackup      = "sql-backup"
+	KindSQLLog         = "sql-log"
+	KindSQLRestore     = "sql-restore"
 	KindVMReplicaStart = "vm-replica-start"
 	// KindAgentUpdate installs a newer agent version from the console.
 	KindAgentUpdate = "agent-update"
@@ -156,6 +161,8 @@ type Run struct {
 	// VerifyBootSeconds > 0: also start each Proxmox VM of the backup,
 	// isolated, and wait up to this long for its guest agent (boot test).
 	VerifyBootSeconds int `json:"verify_boot_seconds,omitempty"`
+	// SQL: SQL Server backup and restore runs.
+	SQL *SQLRun `json:"sql,omitempty"`
 	// Replica: replication and failover runs.
 	Replica *ReplicaRun `json:"replica,omitempty"`
 	// Limit caps the upload speed of backups and copies.
@@ -350,4 +357,26 @@ type ReplicaState struct {
 	VMID        int    `json:"vmid"`
 	ReplicaVMID int    `json:"replica_vmid"`
 	SnapshotID  string `json:"snapshot,omitempty"`
+}
+
+// SQLRun describes a SQL Server backup or restore run.
+type SQLRun struct {
+	Instance  string   `json:"instance,omitempty"`  // "" = default instance
+	Databases []string `json:"databases,omitempty"` // empty: all user databases
+	System    bool     `json:"system,omitempty"`    // with all: also master, model, msdb
+	// Logs: the job also backs up transaction logs, so full backups start
+	// the log chain (not COPY_ONLY).
+	Logs    bool        `json:"logs,omitempty"`
+	Restore *SQLRestore `json:"restore,omitempty"`
+}
+
+// SQLRestore restores one database from a full backup (the run's
+// SnapshotID) and the log backups after it.
+type SQLRestore struct {
+	Database string    `json:"database"`
+	Target   string    `json:"target,omitempty"` // "" = original name
+	Replace  bool      `json:"replace,omitempty"`
+	StopAt   time.Time `json:"stop_at,omitempty"` // zero: as far as LogSnapshots reach
+	// LogSnapshots are the log backups after the full backup, oldest first.
+	LogSnapshots []string `json:"log_snapshots,omitempty"`
 }

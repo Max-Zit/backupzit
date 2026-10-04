@@ -34,6 +34,7 @@ var restoreTypes = []restoreType{
 	{Key: "files", Title: "Files and folders", Desc: "From file backups and Linux system backups, into a folder or to their original location.", Icon: "folder"},
 	{Key: "image", Title: "Disk image / bare metal", Desc: "A Windows disk or its partitions onto a disk, also on different hardware or as a VM, from the recovery ISO.", Icon: "disk"},
 	{Key: "imagefiles", Title: "Files from a disk image", Desc: "Browse the NTFS partitions of a disk image and restore single files.", Icon: "folder"},
+	{Key: "sql", Title: "SQL Server database", Desc: "A single database from a SQL Server backup, under a new name or in place, to any point in time covered by log backups.", Icon: "storage"},
 	{Key: "system", Title: "Whole Linux system", Desc: "Onto an empty disk or bare metal (Linux recovery ISO), or as a new Proxmox VM (P2V).", Icon: "agents"},
 }
 
@@ -72,7 +73,7 @@ func restoreTypeByKey(k string) (restoreType, bool) {
 func (s *Store) ListRestorePoints(ctx context.Context) ([]Run, error) {
 	rows, err := s.db.Query(ctx, `SELECT `+runCols+runFrom+` WHERE r.kind = ANY($1) AND COALESCE(r.snapshot_id,'') <> ''
 		AND NOT r.expired AND r.status IN ('success','warning') ORDER BY r.queued_at DESC LIMIT 5000`,
-		[]string{api.KindBackup, api.KindImageBackup, api.KindVMBackup, api.KindSystemBackup, api.KindCopy})
+		[]string{api.KindBackup, api.KindImageBackup, api.KindVMBackup, api.KindSystemBackup, api.KindCopy, api.KindSQLBackup})
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +156,21 @@ func (s *Server) wizardEntries(ctx context.Context) (map[string][]wizardEntry, e
 		switch kind {
 		case api.KindBackup:
 			add("files", src, p)
+		case api.KindSQLBackup:
+			d := sqlDetails(run)
+			if d == nil {
+				continue
+			}
+			inst := d.Instance
+			if inst == "" {
+				inst = "default instance"
+			}
+			for _, db := range d.Databases {
+				gp := p
+				gp.Guest, gp.Size = db.Name, db.Size
+				add("sql", restoreSource{Key: "sql:" + run.Hostname + ":" + d.Instance + ":" + db.Name, Title: db.Name,
+					Detail: "SQL Server " + inst + " on " + run.Hostname}, gp)
+			}
 		case api.KindSystemBackup:
 			add("files", src, p)
 			add("system", src, p)
@@ -298,6 +314,9 @@ func (s *Server) handleRestoreWizard(w http.ResponseWriter, r *http.Request, use
 		data[k] = v
 	}
 	data["Point"], data["Step"], data["SelectedVMID"] = point, 4, vmid
+	if strings.HasPrefix(srcKey, "sql:") {
+		data["SelectedDB"] = srcKey[strings.LastIndex(srcKey, ":")+1:]
+	}
 	data["Image"] = imageDetails(point.Run)
 	data["Back"] = "/restore?" + url.Values{"type": {typ.Key}, "src": {srcKey}, "run": {strconv.FormatInt(runID, 10)}}.Encode()
 	s.render(w, r, "restore", page)

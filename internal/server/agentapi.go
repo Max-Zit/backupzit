@@ -161,6 +161,14 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		if err := s.addVMware(ctx, run, ar); err != nil {
 			return nil, err
 		}
+	case api.KindSQLBackup, api.KindSQLLog:
+		s.addRetention(ctx, run, ar)
+		if err := s.addSQL(ctx, run, ar); err != nil {
+			return nil, err
+		}
+	case api.KindSQLRestore:
+		ar.SnapshotID = run.SnapshotID
+		ar.SQL = sqlRestoreOptions(*run)
 	case api.KindVMReplica, api.KindVMReplicaStart:
 		if err := s.addReplica(ctx, run, ar); err != nil {
 			return nil, err

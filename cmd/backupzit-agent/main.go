@@ -63,6 +63,9 @@ Proxmox VE (agent on the Proxmox host):
 Hyper-V (agent on the Hyper-V host):
   hyperv         list | backup | restore — VMs without agents inside
 
+Microsoft SQL Server (agent on the SQL Server machine):
+  sql            list | backup | show | restore — databases, transaction logs, point in time
+
   version        Print version
 
 Repository options (all commands):
@@ -203,6 +206,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdSystemShow(ctx, rest)
 	case "hyperv":
 		return cmdHyperV(ctx, rest)
+	case "sql":
+		return cmdSQL(ctx, rest)
 	case "vmware":
 		return cmdVMware(ctx, rest)
 	case "nbd-serve":

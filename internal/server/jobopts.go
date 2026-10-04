@@ -29,6 +29,12 @@ type JobOptions struct {
 	// node of this agent, on ReplicaStorage ("" = original storage).
 	ReplicaAgentID int64  `json:"replica_agent,omitempty"`
 	ReplicaStorage string `json:"replica_storage,omitempty"`
+	// SQL Server jobs: the instance ("" = default), whether system
+	// databases are included when all are backed up, and how often the
+	// transaction logs are backed up (minutes, 0 = never).
+	SQLInstance   string `json:"sql_instance,omitempty"`
+	SQLSystem     bool   `json:"sql_system,omitempty"`
+	SQLLogMinutes int    `json:"sql_log_minutes,omitempty"`
 }
 
 func (o JobOptions) Validate() error {
@@ -42,6 +48,12 @@ func (o JobOptions) Validate() error {
 		if len(c) > 4000 || strings.ContainsRune(c, 0) {
 			return errors.New("commands have at most 4000 characters")
 		}
+	}
+	if o.SQLLogMinutes != 0 && (o.SQLLogMinutes < 5 || o.SQLLogMinutes > 1440) {
+		return errors.New("log backups run every 5 to 1440 minutes")
+	}
+	if len(o.SQLInstance) > 100 || strings.ContainsAny(o.SQLInstance, " \\/:;\"'\x00") {
+		return errors.New("enter the instance name only, e.g. SQLEXPRESS (empty for the default instance)")
 	}
 	if o.CommandMinutes < 0 || o.CommandMinutes > 1440 {
 		return errors.New("the command time limit is between 1 and 1440 minutes")
@@ -192,6 +204,9 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	} else {
 		o.PreCommand, o.PostCommand, o.CommandMinutes = old.PreCommand, old.PostCommand, old.CommandMinutes
 	}
+	o.SQLInstance = strings.TrimSpace(r.FormValue("sql_instance"))
+	o.SQLSystem = r.FormValue("sql_system") == "on"
+	o.SQLLogMinutes = atoiDefault(r.FormValue("sql_log_minutes"))
 	if r.FormValue("replicate") == "on" {
 		o.ReplicaAgentID, o.ReplicaStorage = formID(r, "replica_agent"), r.FormValue("replica_storage")
 	}
@@ -232,6 +247,8 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 		j.Paths, j.Excludes = lines(r.FormValue("paths")), lines(r.FormValue("excludes"))
 	case JobSystem:
 		j.Excludes = lines(r.FormValue("excludes"))
+	case JobSQL:
+		j.Paths = lines(r.FormValue("sql_databases"))
 	case JobVM:
 		if r.FormValue("vm_mode") == "all" {
 			j.Paths = []string{"*"}

@@ -103,6 +103,11 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 			s.log.Info("queued scheduled backup", "job", j.Name, "run", id)
 		}
 	}
+	if ids, err := s.store.queueDueSQLLogs(ctx, now); err != nil {
+		s.log.Error("queue SQL log backups", "err", err)
+	} else if len(ids) > 0 {
+		s.log.Info("queued SQL log backups", "runs", ids)
+	}
 	// Restore tests after backups, so backups go first.
 	if ids, err := s.store.queueDueRestoreTests(ctx, now); err != nil {
 		s.log.Error("queue restore tests", "err", err)

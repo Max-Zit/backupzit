@@ -47,6 +47,8 @@ type Options struct {
 	ExtraMounts []string
 	// System is stored with the snapshot of a Linux system backup.
 	System *repo.SystemLayout
+	// SQL is stored with the snapshot of a SQL Server backup.
+	SQL *repo.SQLBackup
 	// OneFileSystem does not descend into directories on other file systems
 	// (mount points); they are stored empty.
 	OneFileSystem bool
@@ -183,6 +185,7 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		ProgramVersion: opts.Version,
 		VSSVolumes:     a.snaps.Volumes(),
 		System:         opts.System,
+		SQL:            opts.SQL,
 	}
 	if u, err := user.Current(); err == nil {
 		sn.Username = u.Username

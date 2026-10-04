@@ -80,6 +80,7 @@
   {{else if eq $d.Type.Key "vm"}}{{template "restore_vm" .}}
   {{else if eq $d.Type.Key "system"}}{{template "restore_system" .}}
   {{else if eq $d.Type.Key "image"}}{{template "restore_image" .}}
+  {{else if eq $d.Type.Key "sql"}}{{template "restore_sql" .}}
   {{else if eq $d.Type.Key "imagefiles"}}
     <p class="muted">Choose the partition to browse; you can then download files or restore them to an agent.</p>
     {{with $d.Image}}<div class="table-wrap"><table>
