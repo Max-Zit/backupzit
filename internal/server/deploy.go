@@ -498,7 +498,7 @@ func (s *Server) deployWindows(ctx context.Context, d *deployment, q deployReque
 	}
 	known := s.knownAgent(ctx, d, uuid)
 	reenroll := ""
-	if !known {
+	if uuid != "" && !known {
 		// The MSI keeps an existing enrollment; replace it explicitly.
 		reenroll = `$svc = Get-CimInstance Win32_Service -Filter "Name='backupzit-agent'"
 $exe = $svc.PathName.Split('"')[1]
