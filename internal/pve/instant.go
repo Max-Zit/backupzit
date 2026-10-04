@@ -32,7 +32,9 @@ const (
 func InstantUnit(vmid int) string { return fmt.Sprintf("backupzit-instant-%d", vmid) }
 
 // InstantSocket is the NBD socket of instant VM vmid.
-func InstantSocket(vmid int) string { return filepath.Join(InstantRunDir, fmt.Sprintf("%d.sock", vmid)) }
+func InstantSocket(vmid int) string {
+	return filepath.Join(InstantRunDir, fmt.Sprintf("%d.sock", vmid))
+}
 
 // InstantOptions start an instant recovery.
 type InstantOptions struct {
