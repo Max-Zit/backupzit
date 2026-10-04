@@ -208,8 +208,8 @@ type updatePage struct {
 	Last          *update.Result
 }
 
-func (s *Server) updatePageData() updatePage {
-	p := updatePage{Version: s.Version, DefaultSource: DefaultUpdateSource}
+func (s *Server) updatePageData(ctx context.Context) updatePage {
+	p := updatePage{Version: s.Version, DefaultSource: DefaultUpdateSource, Settings: s.updateSettings(ctx)}
 	if s.upd == nil {
 		return p
 	}
@@ -259,7 +259,7 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request, _ str
 		redirectErr(w, r, back, err)
 		return
 	}
-	p := s.updatePageData()
+	p := s.updatePageData(r.Context())
 	if p.Available == nil {
 		redirectMsg(w, r, back, "BackupZit "+s.Version+" is up to date.")
 		return
