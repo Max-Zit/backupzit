@@ -239,8 +239,8 @@
   {{end}}
   {{if not .Helper}}<p class="muted small mt">Updates from the console need the Linux package of the console. This installation is updated with its package manager.</p>{{end}}
   <form method="post" action="/settings/updates" class="stack mt">
-    <label>Update source <small>the BackupZit release address (https://…), or a folder on this server with <code>manifest.json</code>, <code>manifest.json.sig</code> and the packages, for networks without internet access</small>
-      <input name="source" value="{{.Settings.Source}}" placeholder="https://updates.example.com/backupzit/stable">
+    <label>Update source <small>empty: the official BackupZit releases on GitHub. Or your own HTTPS address, or a folder on this server with <code>manifest.json</code>, <code>manifest.json.sig</code> and the packages, for networks without internet access. Every release is checked against the BackupZit signing key, wherever it comes from.</small>
+      <input name="source" value="{{if ne .Settings.Source .DefaultSource}}{{.Settings.Source}}{{end}}" placeholder="{{.DefaultSource}}">
     </label>
     <label class="check"><input type="checkbox" name="notify" {{if .Settings.Notify}}checked{{end}}> Email the administrators when a new version is available <small>checked daily</small></label>
     <label class="check"><input type="checkbox" name="auto_agents" {{if .Settings.AutoAgents}}checked{{end}}> Update the agents automatically after the console was updated <small>each agent installs the new version when it is idle</small></label>

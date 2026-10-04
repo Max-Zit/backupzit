@@ -84,7 +84,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>The console also connects to the storage itself to let you browse files inside disk images and VM backups (and download them), so it needs the same storage access as the agents.</p>
 
 <h2>Updating BackupZit</h2>
-<p>Under <a href="/settings/updates">Settings → Updates</a> enter the <b>update source</b>, either the BackupZit release address or a folder on the server. The console then checks every day for new releases and emails the administrators when one is available. To install it, click <b>Install</b>:</p>
+<p>By default the console takes updates from the official BackupZit releases on GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Under <a href="/settings/updates">Settings → Updates</a> you can enter another <b>update source</b> instead — your own HTTPS mirror or a folder on the server. Whatever the source, every release must carry a valid BackupZit signature. The console checks every day for new releases and emails the administrators when one is available. To install it, click <b>Install</b>:</p>
 <ol>
   <li>The console checks the release signature and the package checksum, and waits until no backup or restore is running.</li>
   <li>A system service (<code>backupzit-update</code>, running as root) checks the signature again with the release keys built into BackupZit. Even a compromised console cannot get any other package installed.</li>

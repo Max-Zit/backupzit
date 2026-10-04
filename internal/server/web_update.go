@@ -23,6 +23,10 @@ import (
 
 const settingUpdates = "updates"
 
+// DefaultUpdateSource is where official releases are published: the assets
+// of the newest GitHub release (manifest.json, its signature, the packages).
+const DefaultUpdateSource = "https://github.com/Max-Zit/backupzit/releases/latest/download"
+
 // UpdateSettings are configured under Settings → Updates.
 type UpdateSettings struct {
 	// Source is an HTTPS address or a local folder with manifest.json,
@@ -107,6 +111,9 @@ func packageFormat() string {
 func (s *Server) updateSettings(ctx context.Context) UpdateSettings {
 	u := UpdateSettings{Notify: true, AutoAgents: true}
 	s.store.GetSetting(ctx, settingUpdates, &u)
+	if u.Source == "" {
+		u.Source = DefaultUpdateSource
+	}
 	return u
 }
 
@@ -183,18 +190,19 @@ func (s *Server) reportUpdateResult(ctx context.Context) {
 
 // updatePage is what the Updates tab shows.
 type updatePage struct {
-	Settings  UpdateSettings
-	Version   string
-	Helper    bool
-	Checked   time.Time
-	CheckErr  string
-	Available *update.Manifest
-	Pending   bool
-	Last      *update.Result
+	Settings      UpdateSettings
+	DefaultSource string
+	Version       string
+	Helper        bool
+	Checked       time.Time
+	CheckErr      string
+	Available     *update.Manifest
+	Pending       bool
+	Last          *update.Result
 }
 
 func (s *Server) updatePageData() updatePage {
-	p := updatePage{Version: s.Version}
+	p := updatePage{Version: s.Version, DefaultSource: DefaultUpdateSource}
 	if s.upd == nil {
 		return p
 	}
