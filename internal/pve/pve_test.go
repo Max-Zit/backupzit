@@ -111,6 +111,16 @@ func TestRestoreConfig(t *testing.T) {
 	if len(notes) != 2 {
 		t.Errorf("notes = %v", notes)
 	}
+	// Unused disks, the snapshot parent and snapshot sections belong to the
+	// original: deleting the copy must never delete the original's volumes.
+	g2 := *g
+	g2.Config = "name: deb-vm\nscsi0: local-lvm:vm-100-disk-0,size=8G\nunused0: local-lvm:vm-100-disk-9\nparent: before-update\n\n[before-update]\nscsi0: local-lvm:vm-100-disk-0,size=8G\nunused1: local-lvm:vm-100-disk-8\n"
+	conf, _, _ = restoreConfig(&g2, map[string]string{"scsi0": "local-lvm:vm-150-disk-0"}, "", true)
+	for _, bad := range []string{"unused", "parent", "[before-update]", "vm-100-disk"} {
+		if strings.Contains(conf, bad) {
+			t.Errorf("config of the copy contains %q:\n%s", bad, conf)
+		}
+	}
 	// Restoring in place keeps MAC addresses.
 	conf, _, _ = restoreConfig(g, map[string]string{"scsi0": "local-lvm:vm-100-disk-0", "efidisk0": "local-lvm:vm-100-disk-1"}, "", false)
 	if !strings.Contains(conf, "virtio=BC:24:11:DB:BB:E9,bridge=vmbr0") || !strings.Contains(conf, "name: deb-vm") {

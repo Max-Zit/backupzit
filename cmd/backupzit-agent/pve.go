@@ -24,6 +24,8 @@ func cmdPVE(ctx context.Context, args []string) error {
 		return errors.New("this machine is not a Proxmox VE node (no /etc/pve/storage.cfg or qm)")
 	}
 	switch args[0] {
+	case "instant", "instant-finish", "instant-discard":
+		return cmdPVEInstant(ctx, args[0], args[1:])
 	case "list":
 		inv, err := pve.GetInventory(ctx)
 		if err != nil {

@@ -107,7 +107,7 @@ func addRepoFlags(fs *flag.FlagSet) *repoFlags {
 	fs.StringVar(&rf.location, "repo", os.Getenv("BACKUPZIT_REPO"), "repository location")
 	fs.StringVar(&rf.password, "password", os.Getenv("BACKUPZIT_PASSWORD"), "repository password / recovery key for encrypted repositories (prefer the environment variable)")
 	fs.StringVar(&rf.opts.SFTPPassword, "sftp-password", os.Getenv("BACKUPZIT_SFTP_PASSWORD"), "SFTP password")
-	fs.StringVar(&rf.opts.SFTPKeyFile, "sftp-key", "", "SSH private key file")
+	fs.StringVar(&rf.opts.SFTPKeyFile, "sftp-key", os.Getenv("BACKUPZIT_SFTP_KEY"), "SSH private key file")
 	fs.StringVar(&rf.opts.SFTPHostKey, "sftp-hostkey", os.Getenv("BACKUPZIT_SFTP_HOSTKEY"), "expected host key fingerprint")
 	fs.BoolVar(&rf.opts.SFTPInsecure, "sftp-insecure", false, "do not verify the SFTP host key (testing only)")
 	fs.StringVar(&rf.opts.S3AccessKey, "s3-access-key", os.Getenv("BACKUPZIT_S3_ACCESS_KEY"), "S3 access key")
@@ -205,6 +205,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdHyperV(ctx, rest)
 	case "vmware":
 		return cmdVMware(ctx, rest)
+	case "nbd-serve":
+		return cmdNBDServe(ctx, rest)
 	case "pve":
 		return cmdPVE(ctx, rest)
 	case "prepare-hardware":

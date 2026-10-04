@@ -335,10 +335,20 @@ func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone b
 		re = lxcDiskKey
 	}
 	for _, line := range strings.Split(strings.TrimRight(g.Config, "\n"), "\n") {
+		// Snapshot and pending sections describe the original's own
+		// snapshots and volumes: not part of the restored guest.
+		if strings.HasPrefix(strings.TrimSpace(line), "[") {
+			break
+		}
 		k, v, found := strings.Cut(line, ":")
 		k, v = strings.TrimSpace(k), strings.TrimSpace(v)
 		if !found {
 			b.WriteString(line + "\n")
+			continue
+		}
+		// Unused disks and the snapshot parent belong to the original guest;
+		// keeping them would let deleting the copy delete the original's volumes.
+		if unusedKey.MatchString(k) || k == "parent" {
 			continue
 		}
 		switch {
@@ -375,6 +385,8 @@ func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone b
 	}
 	return b.String(), cloudInit, notes
 }
+
+var unusedKey = regexp.MustCompile(`^unused\d+$`)
 
 func setOpt(opts, key, val string) string {
 	parts := []string{}
