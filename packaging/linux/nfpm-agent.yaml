@@ -6,8 +6,9 @@ section: admin
 priority: optional
 maintainer: BackupZit <support@backupzit.example>
 description: |
-  BackupZit backup agent. Backs up files, folders and (later) whole machines
-  as instructed by the BackupZit management server.
+  BackupZit backup agent. Backs up files, folders, whole Linux systems and,
+  on Proxmox VE hosts, virtual machines and containers, as instructed by the
+  BackupZit management server.
 vendor: BackupZit
 homepage: https://github.com/backupzit/backupzit
 license: AGPL-3.0-only
