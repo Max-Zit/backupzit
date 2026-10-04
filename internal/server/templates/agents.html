@@ -70,7 +70,7 @@ sudo systemctl enable --now backupzit-agent</pre>
       <td class="nowrap">{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/refresh" class="inline"><button class="link">Refresh</button></form>
         <form method="post" action="/vmware/{{.ID}}/delete" class="inline" data-confirm="Remove {{.Name}} and its backup jobs? Backups on storage stay."><button class="link">Remove</button></form>{{end}}</td>
     </tr>
-    {{with .LastError}}<tr><td colspan="6" class="small muted">{{.}}</td></tr>{{end}}
+    {{with .LastError}}<tr><td colspan="6" class="small muted wrap-any">{{.}}</td></tr>{{end}}
     {{end}}
   </table></div>
   {{else}}<p class="muted">No ESXi host added yet.</p>{{end}}

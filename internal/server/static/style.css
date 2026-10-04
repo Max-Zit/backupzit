@@ -386,3 +386,7 @@ table.pick td .btn { padding: 6px 12px; }
 @media (max-width: 760px) {
   .wizard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ---- VMware hosts */
+#vmware select[name=proxy_agent_id] { min-width: 10rem; }
+.wrap-any { overflow-wrap: anywhere; }
