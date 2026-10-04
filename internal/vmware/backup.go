@@ -34,39 +34,6 @@ type guestConfig struct {
 	Host  string `json:"host"`
 }
 
-// prevDisk is the latest backup of a disk, for changed block backups.
-type prevDisk struct {
-	img      *repo.DiskImage
-	changeID string
-}
-
-// previousDisks finds, per VM UUID and disk key, the newest backup of that
-// disk in the repository that recorded a change ID.
-func previousDisks(ctx context.Context, r *repo.Repository) (map[string]prevDisk, error) {
-	snaps, err := r.ListSnapshots(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := map[string]prevDisk{}
-	for i := len(snaps) - 1; i >= 0; i-- { // newest first
-		sn := snaps[i]
-		for _, g := range sn.Guests {
-			if g.Platform != "vmware" {
-				continue
-			}
-			for _, d := range g.Disks {
-				k := strings.ToLower(g.ID) + "/" + d.Key
-				if _, seen := out[k]; seen || d.ChangeID == "" || d.Image < 0 || d.Image >= len(sn.Images) {
-					continue
-				}
-				img := sn.Images[d.Image]
-				out[k] = prevDisk{img: &img, changeID: d.ChangeID}
-			}
-		}
-	}
-	return out, nil
-}
-
 // Backup snapshots the selected VMs and stores their disks and
 // configuration in one repository snapshot.
 func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.Snapshot, error) {
@@ -110,7 +77,7 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 	if len(sel) == 0 && len(stats.Errors) == 0 {
 		return nil, errors.New("no virtual machines on this ESXi host")
 	}
-	prev, err := previousDisks(ctx, r)
+	prev, err := diskimg.PreviousDisks(ctx, r, "vmware")
 	if err != nil {
 		return nil, fmt.Errorf("read earlier backups: %w", err)
 	}
@@ -169,7 +136,7 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 	return sn, nil
 }
 
-func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *repo.Snapshot, prev map[string]prevDisk, progress func(uint64)) (_ *repo.Guest, warns []string, _ error) {
+func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64)) (_ *repo.Guest, warns []string, _ error) {
 	if len(v.Disks) == 0 {
 		return nil, nil, errors.New("the VM has no virtual disks")
 	}
@@ -306,7 +273,7 @@ type diskPlan struct {
 // planDisk decides which areas of a disk to read: with changed block
 // tracking only what changed since the previous backup, or the allocated
 // areas; otherwise the whole disk.
-func (c *Client) planDisk(ctx context.Context, v VM, s *snapshot, d Disk, prev map[string]prevDisk) (diskPlan, error) {
+func (c *Client) planDisk(ctx context.Context, v VM, s *snapshot, d Disk, prev map[string]diskimg.Previous) (diskPlan, error) {
 	if d.Delta {
 		return diskPlan{}, fmt.Errorf("%s is a snapshot delta disk; delete or consolidate the VM's own snapshots before backing it up", d.File)
 	}
@@ -314,9 +281,9 @@ func (c *Client) planDisk(ctx context.Context, v VM, s *snapshot, d Disk, prev m
 	if d.ChangeID == "" {
 		return p, nil
 	}
-	if pd, ok := prev[strings.ToLower(v.UUID)+"/"+d.Key]; ok && pd.img.Size == d.Capacity {
-		if a, err := c.changedAreas(ctx, v, *s, d, pd.changeID); err == nil {
-			p.areas, p.base, p.method = a, pd.img, "changed blocks"
+	if pd, ok := prev[diskimg.PreviousKey(v.UUID, d.Key)]; ok && pd.Image.Size == d.Capacity {
+		if a, err := c.changedAreas(ctx, v, *s, d, pd.ChangeID); err == nil {
+			p.areas, p.base, p.method = a, pd.Image, "changed blocks"
 			return p, nil
 		}
 	}

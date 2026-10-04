@@ -144,3 +144,82 @@ func (d *attachedDisk) openForWrite() (*os.File, error) {
 	}
 	return os.NewFile(uintptr(h), d.path), nil
 }
+
+// ---- Resilient Change Tracking (RCT)
+
+var procQueryChangesVirtualDisk = virtdisk.NewProc("QueryChangesVirtualDisk")
+
+const getVirtualDiskInfoChangeTrackingState = 15
+
+// rctState returns whether change tracking is on for the opened disk and
+// its most recent change tracking ID.
+func (d *attachedDisk) rctState() (bool, string, error) {
+	info := make([]byte, 1024)
+	binary.LittleEndian.PutUint32(info[0:], getVirtualDiskInfoChangeTrackingState)
+	isz := uint32(len(info))
+	r, _, _ := procGetVirtualDiskInfo.Call(uintptr(d.h), uintptr(unsafe.Pointer(&isz)), uintptr(unsafe.Pointer(&info[0])), 0)
+	if err := callErr(r); err != nil {
+		return false, "", err
+	}
+	enabled := binary.LittleEndian.Uint32(info[8:]) != 0
+	// MostRecentId is a NUL-terminated UTF-16 string at offset 16.
+	var u []uint16
+	for i := 16; i+1 < int(isz) && i+1 < len(info); i += 2 {
+		c := binary.LittleEndian.Uint16(info[i:])
+		if c == 0 {
+			break
+		}
+		u = append(u, c)
+	}
+	return enabled, windows.UTF16ToString(u), nil
+}
+
+// rctChanges lists the byte ranges changed since change tracking ID since.
+func (d *attachedDisk) rctChanges(since string) ([][2]uint64, error) {
+	if err := procQueryChangesVirtualDisk.Find(); err != nil {
+		return nil, err
+	}
+	id, err := windows.UTF16PtrFromString(since)
+	if err != nil {
+		return nil, err
+	}
+	var out [][2]uint64
+	const batch = 4096
+	ranges := make([]uint64, batch*3) // QUERY_CHANGES_VIRTUAL_DISK_RANGE: offset, length, reserved
+	var off uint64
+	for off < d.size {
+		count := uint32(batch)
+		var processed uint64
+		r, _, _ := procQueryChangesVirtualDisk.Call(uintptr(d.h), uintptr(unsafe.Pointer(id)), uintptr(off), uintptr(d.size-off), 0,
+			uintptr(unsafe.Pointer(&ranges[0])), uintptr(unsafe.Pointer(&count)), uintptr(unsafe.Pointer(&processed)))
+		if err := callErr(r); err != nil {
+			return nil, err
+		}
+		for i := 0; i < int(count); i++ {
+			out = append(out, [2]uint64{ranges[i*3], ranges[i*3+1]})
+		}
+		if processed == 0 {
+			break
+		}
+		off += processed
+	}
+	return out, nil
+}
+
+// RCTInfo reports the change tracking state of a virtual disk file and, with
+// since, how much changed after that change tracking ID (diagnostics).
+func RCTInfo(file, since string) (enabled bool, id string, changed uint64, ranges int, err error) {
+	d, err := attachVHD(file, true)
+	if err != nil {
+		return false, "", 0, 0, err
+	}
+	defer d.close()
+	if enabled, id, err = d.rctState(); err != nil || since == "" {
+		return enabled, id, 0, 0, err
+	}
+	rs, err := d.rctChanges(since)
+	for _, r := range rs {
+		changed += r[1]
+	}
+	return enabled, id, changed, len(rs), err
+}

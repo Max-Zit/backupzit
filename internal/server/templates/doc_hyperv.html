@@ -17,17 +17,20 @@
 
 <h2>How a VM is backed up</h2>
 <ol>
-  <li>A temporary <b>production checkpoint</b> (<code>backupzit_…</code>) is taken, and Hyper-V asks the guest to prepare for it:
+  <li>A temporary <b>recovery checkpoint</b> (<code>backupzit_…</code>) is taken. This is the checkpoint type Hyper-V provides for backup applications. Hyper-V asks the guest to prepare for it:
     <ul>
       <li>Windows guests flush their applications through VSS.</li>
       <li>Linux guests freeze their file systems, if the Hyper-V daemons are installed (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
     </ul>
-    If the guest can't do either, Hyper-V takes a standard checkpoint instead, which is crash-consistent. The run page shows which kind was used.</li>
-  <li>The virtual disks are read as of the checkpoint, through the Virtual Disk API, in 1 MiB blocks. This covers VHDX and VHD files, including chains of earlier checkpoints. Empty blocks are not stored, and blocks already in the repository are not uploaded again.</li>
+    If the guest can't do either, the checkpoint is taken crash-consistent. The run page shows which kind was used.</li>
+  <li>The recovery checkpoint switches on <b>Resilient Change Tracking</b> (RCT) for the VM's disks; you will see <code>.rct</code> and <code>.mrt</code> files next to them. The first backup reads the whole disks. After that, RCT reports which blocks changed since the previous backup, and <b>only those are read</b>.</li>
+  <li>The disks are read as of the checkpoint, through the Virtual Disk API, in 1 MiB blocks. This covers VHDX and VHD files, including chains of earlier checkpoints. Empty blocks are not stored, and blocks already in the repository are not uploaded again.</li>
   <li>The checkpoint is removed, and Hyper-V merges it in the background.</li>
   <li>The VM's configuration is stored with the backup: generation, CPU, memory, network adapters (switch, VLAN, MAC address), disk controllers, secure boot and TPM.</li>
 </ol>
-<p>VMs that are turned off are read directly, without a checkpoint.</p>
+<p>VMs that are turned off are read directly, without a checkpoint. On hosts older than Windows Server 2016 (no recovery checkpoints) a production checkpoint is used and every backup reads the whole disks.</p>
+<p>Example from the test lab: a Linux VM with a 3 GB disk. The first backup read 3 GB. The next one, after 64 MB of new data, read 96 MB.</p>
+<p>On Windows 10/11, Hyper-V takes an automatic checkpoint when a VM starts, unless that option is turned off in the VM's settings. BackupZit handles such checkpoints, but for servers you will want to turn automatic checkpoints off (VM settings → Checkpoints).</p>
 
 <h2>Restoring a VM</h2>
 <p>Open the VM backup run (from the job page or <a href="/runs">Activity</a>) and use <b>Restore a Hyper-V VM</b>.</p>
@@ -76,7 +79,6 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 
 <h2>Not yet included</h2>
 <ul>
-  <li><b>Resilient Change Tracking.</b> Every backup reads the whole disks, although only changed data is uploaded.</li>
   <li><b>Some disk types.</b> Shared VHDX, VHD Set and pass-through disks are not backed up.</li>
 </ul>
 {{template "docpager" .}}

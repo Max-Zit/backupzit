@@ -20,6 +20,20 @@ func cmdHyperV(ctx context.Context, args []string) error {
 		return errors.New("this machine is not a Hyper-V host (vmms service not found)")
 	}
 	switch args[0] {
+	case "rct":
+		fs := flag.NewFlagSet("hyperv rct", flag.ExitOnError)
+		disk := fs.String("disk", "", "VHDX file")
+		since := fs.String("since", "", "change tracking ID to compare with")
+		fs.Parse(args[1:])
+		on, id, changed, n, err := hyperv.RCTInfo(*disk, *since)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("change tracking: %v\nmost recent ID: %s\n", on, id)
+		if *since != "" {
+			fmt.Printf("changed since %s: %s in %d ranges\n", *since, humanBytes(changed), n)
+		}
+		return nil
 	case "list":
 		inv, err := hyperv.GetInventory(ctx)
 		if err != nil {

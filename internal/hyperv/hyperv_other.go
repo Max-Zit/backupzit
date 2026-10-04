@@ -59,3 +59,7 @@ type RestoreResult struct {
 func Restore(context.Context, *repo.Repository, *repo.Snapshot, RestoreOptions) (*RestoreResult, error) {
 	return nil, errUnsupported
 }
+
+func RCTInfo(string, string) (bool, string, uint64, int, error) {
+	return false, "", 0, 0, errUnsupported
+}

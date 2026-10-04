@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/backupzit/backupzit/internal/repo"
 )
@@ -211,3 +212,40 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 	img.Partitions = []repo.PartitionImage{p}
 	return img, nil
 }
+
+// Previous is the newest backup of a VM disk that recorded a change
+// tracking position, for changed-block backups.
+type Previous struct {
+	Image    *repo.DiskImage
+	ChangeID string
+}
+
+// PreviousDisks finds, per VM ID and disk key ("<id>/<key>", lower case),
+// the newest backup of each disk of the platform's guests in r.
+func PreviousDisks(ctx context.Context, r *repo.Repository, platform string) (map[string]Previous, error) {
+	snaps, err := r.ListSnapshots(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]Previous{}
+	for i := len(snaps) - 1; i >= 0; i-- { // newest first
+		sn := snaps[i]
+		for _, g := range sn.Guests {
+			if g.Platform != platform {
+				continue
+			}
+			for _, d := range g.Disks {
+				k := PreviousKey(g.ID, d.Key)
+				if _, seen := out[k]; seen || d.ChangeID == "" || d.Image < 0 || d.Image >= len(sn.Images) {
+					continue
+				}
+				img := sn.Images[d.Image]
+				out[k] = Previous{Image: &img, ChangeID: d.ChangeID}
+			}
+		}
+	}
+	return out, nil
+}
+
+// PreviousKey is the key of PreviousDisks.
+func PreviousKey(vmID, diskKey string) string { return strings.ToLower(vmID + "/" + diskKey) }
