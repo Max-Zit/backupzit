@@ -157,6 +157,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		if err := s.addVMware(ctx, run, ar); err != nil {
 			return nil, err
 		}
+	case api.KindVMInstant, api.KindVMInstantFinish, api.KindVMInstantDiscard:
+		ar.SnapshotID = run.SnapshotID
+		ar.VMRestore = vmRestoreOptions(*run)
 	case api.KindVMRestore:
 		ar.SnapshotID = run.SnapshotID
 		ar.VMRestore = vmRestoreOptions(*run)
@@ -246,6 +249,12 @@ func (s *Server) addRetention(ctx context.Context, run *Run, ar *api.Run) {
 	if !j.Retention.Empty() {
 		p := j.Retention
 		ar.Retention = &p
+		// VMs running from a backup (instant recovery) need it.
+		if keep, err := s.store.instantSnapshots(ctx); err == nil {
+			ar.KeepSnapshots = keep
+		} else {
+			ar.Retention = nil
+		}
 	}
 }
 

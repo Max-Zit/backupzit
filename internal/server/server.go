@@ -172,7 +172,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM"}[k]
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard"}[k]
 	},
 	"hours": func() []int {
 		h := make([]int, 24)
@@ -310,6 +310,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /runs", s.ui(PermView, s.handleRuns))
 	mux.HandleFunc("GET /runs/{id}", s.ui(PermView, s.handleRun))
 	mux.HandleFunc("POST /runs/{id}/restore", s.ui(PermRestore, s.handleRestore))
+	mux.HandleFunc("POST /runs/{id}/instant", s.ui(PermRestore, s.handleInstantEnd))
 	mux.HandleFunc("GET /runs/{id}/browse", s.ui(PermRestore, s.handleBrowse))
 	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(PermRestore, s.handleFilesRestore))
 	mux.HandleFunc("GET /runs/{id}/vmbrowse", s.ui(PermRestore, s.handleVMBrowse))
@@ -592,8 +593,9 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request, user st
 		s.serverError(w, err)
 		return
 	}
+	instant, _ := s.store.RunningInstantVMs(r.Context())
 	s.render(w, r, "dashboard", pageData{Title: "Dashboard", Nav: "dashboard", User: user,
-		Data: map[string]any{"Summary": sum, "Runs": runs}})
+		Data: map[string]any{"Summary": sum, "Runs": runs, "Instant": instant}})
 }
 
 // ---- agents
@@ -965,7 +967,8 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 	}
 	for k, v := range map[string]any{"BackupStats": backupStats, "RestoreStats": restoreStats, "CopyStats": copyStats, "TestStats": testStats,
 		"CopyOfFiles": s.store.copyOfFiles(r.Context(), run), "Image": imageDetails(run),
-		"VMRestore": vmRestoreOptions(run), "SystemRestore": systemRestoreOptions(run)} {
+		"VMRestore": vmRestoreOptions(run), "SystemRestore": systemRestoreOptions(run),
+		"Instant": runInstant(run), "InstantStorage": s.instantStorage(r.Context(), run)} {
 		data[k] = v
 	}
 	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: data})

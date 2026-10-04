@@ -46,11 +46,23 @@ systemctl enable --now backupzit-agent</pre></li>
 </ul>
 <p>Every restore gives VMs a new generation ID (<code>vmgenid</code>), so Windows domain controllers and other software detect the rollback safely. Disks are allocated with <code>pvesm</code> on the chosen storage; on directory storage they are restored as raw files.</p>
 
+<h2>Instant recovery</h2>
+<p>Restoring a large VM takes as long as copying its disks. With <b>Instantly, running from the backup</b> in the restore form, the VM runs within seconds instead, while its disks are still in the backup:</p>
+<ol>
+  <li>The agent serves the VM's disks read-only from the backup (a small NBD server running as the systemd unit <code>backupzit-instant-&lt;ID&gt;</code>) and creates a new VM with the next free ID whose disks are qcow2 overlays on the directory storage <code>backupzit-instant</code> (<code>/var/lib/backupzit-instant</code>, added automatically). Data is read from the backup on demand; everything the VM writes stays in the overlays. Firmware variables (EFI disk) and TPM state are small and copied.</li>
+  <li>The VM starts. Check it — it gets new MAC addresses like any copy. The dashboard lists every VM that still runs from a backup.</li>
+  <li>On the run page, either <b>Finish</b>: the disks are moved to the chosen storage while the VM keeps running (<code>qm disk move</code>), then the backup is no longer used. Or <b>Discard</b>: the VM is stopped and deleted together with its changes.</li>
+</ol>
+<p>While a VM runs from a backup, retention never removes that backup. The VM is as fast as the backup storage allows: a repository on a local disk or a fast network share works best; reads over SFTP or S3 from far away make it slow until it is finished. Instant recovery is for VMs (not containers) and creates a new VM — restore in place with a normal restore. The EFI disk cannot be moved while the VM runs; it then stays on <code>backupzit-instant</code> (see the run message) and can be moved after shutting the VM down: <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
+
 <h2>Command line</h2>
 <pre>backupzit-agent pve list
 backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
 backupzit-agent pve show    --repo ... latest
-backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest</pre>
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
 <p>The repository options are the same as for all commands (see <a href="/docs/cli">Command line reference</a>). The command line works without the console, for example to restore a whole node after a disaster.</p>
 
 <h2>Clusters</h2>

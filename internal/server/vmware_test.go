@@ -10,7 +10,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -366,4 +368,140 @@ func newClientLogin(t *testing.T, e *env, user, pw string) (*client, string, str
 	code, loc, body := c.do("POST", "/login", url.Values{"username": {user}, "password": {pw}})
 	_ = code
 	return c, loc, body
+}
+
+func TestInstantRecovery(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	targetID, err := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	agents, _ := e.store.ListAgents(ctx)
+	var a server.Agent
+	for _, x := range agents {
+		if x.UUID == cfg.AgentUUID {
+			a = x
+		}
+	}
+	inv := `{"node":"pve","guests":[{"vmid":100,"name":"web","type":"qemu","node":"pve","status":"running"},{"vmid":200,"name":"db","type":"lxc","node":"pve","status":"running"}],"storage":["local-lvm","backupzit-instant"]}`
+	e.store.TouchAgent(ctx, a.ID, api.PollRequest{Hypervisor: json.RawMessage(inv)}, "")
+	poll := func() *api.Run {
+		b, _ := json.Marshal(api.PollRequest{Hostname: "pve", Version: "test", Hypervisor: json.RawMessage(inv)})
+		req, _ := http.NewRequest(http.MethodPost, e.ts.URL+api.PathPoll, bytes.NewReader(b))
+		req.Header.Set("Authorization", "Bearer "+cfg.AgentUUID+":"+cfg.Secret)
+		resp, err := e.ts.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		var pr api.PollResponse
+		json.NewDecoder(resp.Body).Decode(&pr)
+		return pr.Run
+	}
+	jobID, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobVM, AgentID: a.ID, TargetID: targetID, Name: "vms", Paths: []string{"100", "200"},
+		Retention: repo.RetentionPolicy{KeepLast: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	backupRun, _ := e.store.QueueBackup(ctx, jobID, "manual")
+	if r := poll(); r == nil || r.ID != backupRun || len(r.KeepSnapshots) != 0 {
+		t.Fatalf("backup run: %+v", r)
+	}
+	snap := strings.Repeat("ab", 32)
+	e.store.FinishRun(ctx, a.ID, backupRun, api.RunResult{Status: api.StatusSuccess, SnapshotID: snap,
+		Details: json.RawMessage(`{"guests":[{"vmid":100,"type":"qemu","name":"web","disks":1},{"vmid":200,"type":"lxc","name":"db","disks":1}]}`)})
+
+	if _, err := e.store.QueueVMInstant(ctx, backupRun, a.ID, api.VMRestore{VMID: 200, NewVMID: -1}); err == nil {
+		t.Error("instant recovery of a container accepted")
+	}
+	if _, err := e.store.QueueVMInstant(ctx, backupRun, a.ID, api.VMRestore{VMID: 100, NewVMID: 200}); err == nil {
+		t.Error("instant recovery onto an existing guest ID accepted")
+	}
+	ir, err := e.store.QueueVMInstant(ctx, backupRun, a.ID, api.VMRestore{VMID: 100, NewVMID: -1, Name: "web-instant"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := poll()
+	if r == nil || r.ID != ir || r.Kind != api.KindVMInstant || r.SnapshotID != snap || r.VMRestore == nil || r.VMRestore.VMID != 100 || r.Repository.URL == "" {
+		t.Fatalf("instant run: %+v", r)
+	}
+	if _, err := e.store.QueueInstantEnd(ctx, ir, false, ""); err == nil {
+		t.Error("discard queued before the VM started")
+	}
+	e.store.FinishRun(ctx, a.ID, ir, api.RunResult{Status: api.StatusSuccess, Message: "VM 101 runs from the backup",
+		Details: json.RawMessage(`{"instant_vmid":101,"node":"pve","name":"web-instant","state":"running","disks":["scsi0 → backupzit-instant:101/vm-101-disk-0.qcow2"]}`)})
+	if vms, err := e.store.RunningInstantVMs(ctx); err != nil || len(vms) != 1 || vms[0].VMID != 101 || vms[0].RunID != ir {
+		t.Fatalf("running instant VMs: %+v %v", vms, err)
+	}
+
+	// While VM 101 runs from the backup, retention keeps it.
+	b2, _ := e.store.QueueBackup(ctx, jobID, "manual")
+	if r := poll(); r == nil || r.ID != b2 || r.Retention == nil || strings.Join(r.KeepSnapshots, ",") != snap {
+		t.Fatalf("backup run during instant recovery: %+v", r)
+	}
+	e.store.FinishRun(ctx, a.ID, b2, api.RunResult{Status: api.StatusSuccess, SnapshotID: strings.Repeat("cd", 32)})
+
+	jar, _ := cookiejar.New(nil)
+	hc := e.ts.Client()
+	hc.Jar = jar
+	post := func(p string, form url.Values) *http.Response {
+		req, _ := http.NewRequest(http.MethodPost, e.ts.URL+p, strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", e.ts.URL)
+		resp, err := hc.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp
+	}
+	get := func(p string) string {
+		resp, err := hc.Get(e.ts.URL + p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return html.UnescapeString(string(b))
+	}
+	post("/login", url.Values{"username": {"admin"}, "password": {"admin-pass-123"}})
+	if p := get("/"); !strings.Contains(p, "1 VM still runs from a backup") || !strings.Contains(p, "VM 101 (web-instant)") {
+		t.Error("dashboard does not show the instant VM")
+	}
+	if p := get(fmt.Sprintf("/runs/%d", backupRun)); !strings.Contains(p, "Instantly, running from the backup") {
+		t.Error("restore form lacks instant recovery")
+	}
+	p := get(fmt.Sprintf("/runs/%d", ir))
+	if !strings.Contains(p, "VM 101 runs from the backup") || !strings.Contains(p, "<option>local-lvm</option>") || strings.Contains(p, "<option>backupzit-instant</option>") {
+		t.Error("instant run page lacks finish/discard or offers the overlay storage")
+	}
+	post(fmt.Sprintf("/runs/%d/instant", ir), url.Values{"action": {"finish"}, "storage": {"backupzit-instant"}})
+	post(fmt.Sprintf("/runs/%d/instant", ir), url.Values{"action": {"finish"}, "storage": {"local-lvm"}})
+	if _, err := e.store.QueueInstantEnd(ctx, ir, false, ""); err == nil {
+		t.Error("discard queued while finish is pending")
+	}
+	r = poll()
+	if r == nil || r.Kind != api.KindVMInstantFinish || r.VMRestore == nil || r.VMRestore.InstantVMID != 101 || r.VMRestore.Storage != "local-lvm" || r.VMRestore.InstantRun != ir {
+		t.Fatalf("finish run: %+v", r)
+	}
+	e.store.FinishRun(ctx, a.ID, r.ID, api.RunResult{Status: api.StatusSuccess})
+	if vms, _ := e.store.RunningInstantVMs(ctx); len(vms) != 0 {
+		t.Errorf("VM still listed as running from the backup: %+v", vms)
+	}
+	if p := get(fmt.Sprintf("/runs/%d", ir)); !strings.Contains(p, "101 on node pve — finished") {
+		t.Error("instant run page does not show the finished state")
+	}
+	if _, err := e.store.QueueInstantEnd(ctx, ir, false, ""); err == nil {
+		t.Error("discard of a finished VM accepted")
+	}
+	b3, _ := e.store.QueueBackup(ctx, jobID, "manual")
+	if r := poll(); r == nil || r.ID != b3 || len(r.KeepSnapshots) != 0 {
+		t.Fatalf("backup after finish still keeps snapshots: %+v", r)
+	}
 }

@@ -44,6 +44,18 @@ func (a *Agent) applyRetention(ctx context.Context, r *repo.Repository, run api.
 		}
 	}
 	_, remove := repo.ApplyPolicy(mine, *run.Retention, time.Local)
+	// Never remove a backup a VM currently runs from (instant recovery).
+	keep := map[string]bool{}
+	for _, id := range run.KeepSnapshots {
+		keep[id] = true
+	}
+	var filtered []*repo.Snapshot
+	for _, sn := range remove {
+		if !keep[sn.ID.String()] {
+			filtered = append(filtered, sn)
+		}
+	}
+	remove = filtered
 	if len(remove) == 0 {
 		return nil, ""
 	}

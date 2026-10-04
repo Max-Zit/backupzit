@@ -132,6 +132,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
   <label class="check"><input type="radio" name="id_mode" value="next" checked> As a new guest with the next free ID <small>the original keeps running; network cards get new MAC addresses</small></label>
   <label class="check"><input type="radio" name="id_mode" value="custom"> As a new guest with ID <input name="new_vmid" type="number" min="100" max="999999999" class="narrow"></label>
   <label class="check"><input type="radio" name="id_mode" value="original"> With its original ID <small>when the guest was deleted, or to replace it</small></label>
+  <label class="check"><input type="radio" name="id_mode" value="instant"> Instantly, running from the backup <small>VMs only: starts in seconds with the next free ID while its disks are read from the backup; then finish (move the disks to storage while it runs) or discard it on the run page</small></label>
   <label class="check"><input type="checkbox" name="overwrite"> If a guest with that ID exists, <b>stop and delete it</b> and replace it with the backup</label>
   <div class="row">
     <label>Name <small>optional, default: original name</small><input name="name" maxlength="63"></label>

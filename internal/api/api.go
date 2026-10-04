@@ -91,6 +91,11 @@ const (
 	KindSystemRestore = "system-restore"
 	// KindVMFileRestore copies files out of a VM disk in a Proxmox backup.
 	KindVMFileRestore = "vm-file-restore"
+	// Instant recovery (Proxmox): start a VM directly from a backup, then
+	// move its disks to storage (finish) or delete it (discard).
+	KindVMInstant        = "vm-instant"
+	KindVMInstantFinish  = "vm-instant-finish"
+	KindVMInstantDiscard = "vm-instant-discard"
 	// KindAgentUpdate installs a newer agent version from the console.
 	KindAgentUpdate = "agent-update"
 )
@@ -101,10 +106,13 @@ type Run struct {
 	Kind string `json:"kind"`
 	// JobID and Retention: after a backup the agent removes snapshots of
 	// this job that the policy no longer keeps and prunes the repository.
-	JobID      int64                 `json:"job_id,omitempty"`
-	Retention  *repo.RetentionPolicy `json:"retention,omitempty"`
-	JobName    string                `json:"job_name,omitempty"`
-	Repository Repository            `json:"repository"`
+	JobID     int64                 `json:"job_id,omitempty"`
+	Retention *repo.RetentionPolicy `json:"retention,omitempty"`
+	// KeepSnapshots are never removed by retention: VMs run from them
+	// (instant recovery).
+	KeepSnapshots []string   `json:"keep_snapshots,omitempty"`
+	JobName       string     `json:"job_name,omitempty"`
+	Repository    Repository `json:"repository"`
 
 	// Backup
 	Paths    []string `json:"paths,omitempty"`
@@ -225,6 +233,10 @@ type VMRestore struct {
 	Storage   string `json:"storage,omitempty"` // "" = original storage
 	Overwrite bool   `json:"overwrite,omitempty"`
 	Start     bool   `json:"start,omitempty"`
+	// Instant recovery finish/discard: the guest started from the backup
+	// and the vm-instant run that started it.
+	InstantVMID int   `json:"instant_vmid,omitempty"`
+	InstantRun  int64 `json:"instant_run,omitempty"`
 }
 
 // PathJobRunPrefix lets an agent start one of its own jobs ("Back up now"

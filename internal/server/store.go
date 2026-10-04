@@ -815,6 +815,11 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	if ct.RowsAffected() == 0 {
 		return ErrNotFound
 	}
+	if res.Status == api.StatusSuccess {
+		if err := s.endInstant(ctx, runID); err != nil {
+			return err
+		}
+	}
 	if res.RepoURL != "" {
 		s.recordUSBDisk(ctx, runID, res.RepoURL)
 	}

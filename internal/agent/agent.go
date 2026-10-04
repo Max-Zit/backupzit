@@ -308,6 +308,11 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		a.mu.Lock()
 		a.inventoryAt = time.Time{} // guest list changed
 		a.mu.Unlock()
+	case api.KindVMInstant, api.KindVMInstantFinish, api.KindVMInstantDiscard:
+		res = a.vmInstant(ctx, run)
+		a.mu.Lock()
+		a.inventoryAt = time.Time{}
+		a.mu.Unlock()
 	case api.KindImageRestore:
 		res = a.imageRestore(ctx, run)
 		a.mu.Lock()

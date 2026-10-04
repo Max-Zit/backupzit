@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -59,6 +60,16 @@ func (s *Server) handleVMRestore(w http.ResponseWriter, r *http.Request, runID i
 		o.Overwrite = r.FormValue("overwrite") == "on"
 	case "next":
 		o.NewVMID = -1
+	case "instant":
+		o.NewVMID = -1
+		rid, err := s.store.QueueVMInstant(r.Context(), runID, formID(r, "agent_id"), o)
+		if err != nil {
+			redirectErr(w, r, back, err)
+			return
+		}
+		s.audit(r, "restore.vm-instant", "run #%d: guest %d runs from backup #%d", rid, vmid, runID)
+		redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Instant recovery queued.")
+		return
 	case "custom":
 		n, err := strconv.Atoi(strings.TrimSpace(r.FormValue("new_vmid")))
 		if err != nil {
@@ -135,4 +146,42 @@ func linuxAgents(agents []Agent) []Agent {
 		}
 	}
 	return out
+}
+
+// instantStorage lists the storage of the node of a vm-instant run that
+// can hold its disks when it is finished.
+func (s *Server) instantStorage(ctx context.Context, run Run) []string {
+	if runInstant(run) == nil {
+		return nil
+	}
+	a, err := s.store.GetAgent(ctx, run.AgentID)
+	if err != nil || a.PVE() == nil {
+		return nil
+	}
+	var out []string
+	for _, st := range a.PVE().Storage {
+		if st != pve.InstantStorage {
+			out = append(out, st)
+		}
+	}
+	return out
+}
+
+// handleInstantEnd serves POST /runs/{id}/instant: finish or discard the VM
+// a vm-instant run started.
+func (s *Server) handleInstantEnd(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	back := fmt.Sprintf("/runs/%d", id)
+	finish := r.FormValue("action") == "finish"
+	rid, err := s.store.QueueInstantEnd(r.Context(), id, finish, r.FormValue("storage"))
+	if err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	what := "discard"
+	if finish {
+		what = "finish to storage " + r.FormValue("storage")
+	}
+	s.audit(r, "restore.vm-instant-end", "run #%d: %s the VM of run #%d", rid, what, id)
+	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Queued.")
 }

@@ -31,6 +31,12 @@
       {{with $.Data.VMRestore}}<dt>Guest</dt><dd>{{if ge .VMID 1000000000}}VM{{else}}{{.VMID}}{{end}} from backup {{short $.Data.Run.SnapshotID}} <span class="muted small">(name in the message below)</span></dd>
       <dt>Restored as</dt><dd>{{if eq .NewVMID 0}}original ID{{if .Overwrite}}, replacing the existing guest{{end}}{{else if lt .NewVMID 0}}next free ID{{else}}ID {{.NewVMID}}{{end}}{{if .Name}}, name {{.Name}}{{end}}</dd>
       <dt>Storage</dt><dd>{{if .Storage}}{{.Storage}}{{else}}original storage{{end}}</dd>{{end}}
+    {{else if eq .Kind "vm-instant"}}
+      {{with $.Data.VMRestore}}<dt>Guest</dt><dd>{{.VMID}} from backup {{short $.Data.Run.SnapshotID}}, started with the next free ID{{if .Name}}, name {{.Name}}{{end}}</dd>{{end}}
+      {{with $.Data.Instant}}<dt>Instant VM</dt><dd>{{.InstantVMID}} on node {{.Node}} — {{if eq .State "running"}}<b>running from the backup</b>{{else}}{{.State}}{{end}}</dd>
+      {{if .Disks}}<dt>Disks</dt><dd class="mono">{{join .Disks "\n"}}</dd>{{end}}{{end}}
+    {{else if or (eq .Kind "vm-instant-finish") (eq .Kind "vm-instant-discard")}}
+      {{with $.Data.VMRestore}}<dt>Instant VM</dt><dd>{{.InstantVMID}}, started by <a href="/runs/{{.InstantRun}}">run #{{.InstantRun}}</a>{{if .Storage}}; disks move to storage {{.Storage}}{{end}}</dd>{{end}}
     {{else if eq .Kind "image-file-restore"}}
       <dt>From</dt><dd>partition {{index .ImagePartitions 0}} of image {{short .SnapshotID}}</dd>
       <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
@@ -47,6 +53,24 @@
   </dl>
 </div>
 {{end}}
+
+{{with .Data.Instant}}{{if and (eq .State "running") ($.Me.Can "restore")}}
+<div class="card">
+  <h2>VM {{.InstantVMID}} runs from the backup</h2>
+  <p class="muted">Its disks are read from the backup, and its changes are kept on storage <span class="mono">backupzit-instant</span> of node {{.Node}}. Retention keeps this backup while the VM runs from it. When the VM works as it should, <b>finish</b>: its disks are moved to their storage while it keeps running, then the backup is no longer used. Or <b>discard</b> it: the VM is stopped and deleted with its changes.</p>
+  <form method="post" action="/runs/{{$.Data.Run.ID}}/instant" class="row">
+    <input type="hidden" name="action" value="finish">
+    <label>Move the disks to storage
+      <select name="storage">{{range $.Data.InstantStorage}}<option>{{.}}</option>{{end}}</select>
+    </label>
+    <div><button>Finish</button></div>
+  </form>
+  <form method="post" action="/runs/{{$.Data.Run.ID}}/instant" class="mt" data-confirm="Stop VM {{.InstantVMID}} and delete it with all changes made since it started?">
+    <input type="hidden" name="action" value="discard">
+    <button class="danger">Discard VM</button>
+  </form>
+</div>
+{{end}}{{end}}
 
 {{if .Data.VM}}
   {{with .Data.BackupStats}}

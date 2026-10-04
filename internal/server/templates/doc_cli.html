@@ -78,6 +78,10 @@
   <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>List the partitions and logical volumes of a guest disk, or the files in a folder (NTFS, ext4, XFS, also on LVM).</td></tr>
   <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Copy files and folders out of a guest disk without restoring the VM.</td></tr>
   <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Recreate a guest; <code>--new-vmid -1</code> takes the next free ID, <code>--overwrite</code> replaces an existing guest with the same ID. See <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
+  <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Instant recovery: start a VM within seconds while its disks are read from the backup (new VM, next free ID by default).</td></tr>
+  <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>Move the disks of an instant VM to storage while it runs; then it no longer uses the backup.</td></tr>
+  <tr><td><code>pve instant-discard --vmid N</code></td><td>Stop and delete an instant VM with its changes.</td></tr>
+  <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Serve the disks of a VM in a backup read-only over NBD on a unix socket (started by instant recovery as a systemd unit).</td></tr>
 </table>
 
 <h2>Managed mode</h2>

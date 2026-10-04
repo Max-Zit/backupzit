@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -61,4 +62,59 @@ func StartInstantServer(ctx context.Context, rs api.Repository, snapshotID strin
 		return fmt.Errorf("systemd-run: %v: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// vmInstant starts, finishes or discards an instant recovery on this
+// Proxmox node.
+func (a *Agent) vmInstant(ctx context.Context, run api.Run) api.RunResult {
+	if !pve.Available() {
+		return failed(fmt.Errorf("instant recovery needs the agent on a Proxmox VE node"))
+	}
+	o := run.VMRestore
+	if o == nil {
+		return failed(fmt.Errorf("options missing"))
+	}
+	logf := func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) }
+	switch run.Kind {
+	case api.KindVMInstantFinish:
+		notes, err := pve.InstantFinish(ctx, o.InstantVMID, o.Storage, logf)
+		if err != nil {
+			return failed(err)
+		}
+		msg := fmt.Sprintf("VM %d now runs from storage %s; the backup is no longer used", o.InstantVMID, o.Storage)
+		if len(notes) > 0 {
+			msg += ". " + strings.Join(notes, "; ")
+		}
+		return api.RunResult{Status: api.StatusSuccess, Message: msg}
+	case api.KindVMInstantDiscard:
+		if err := pve.InstantDiscard(ctx, o.InstantVMID); err != nil {
+			return failed(err)
+		}
+		return api.RunResult{Status: api.StatusSuccess, Message: fmt.Sprintf("VM %d stopped and deleted", o.InstantVMID)}
+	}
+	r, closeRepo, err := a.openRepo(ctx, run.Repository, false)
+	if err != nil {
+		return failed(fmt.Errorf("open repository: %w", err))
+	}
+	sn, err := r.LoadSnapshot(ctx, run.SnapshotID)
+	closeRepo()
+	if err != nil {
+		return failed(err)
+	}
+	res, err := pve.InstantStart(ctx, sn, pve.InstantOptions{VMID: o.VMID, NewVMID: o.NewVMID, Name: o.Name, Start: true,
+		ServeCommand: func(ctx context.Context, vmid int, socket string) error {
+			return StartInstantServer(ctx, run.Repository, sn.ID.String(), o.VMID, vmid, socket)
+		}, Log: logf})
+	if err != nil {
+		return failed(err)
+	}
+	msg := fmt.Sprintf("VM %d (%s) runs from the backup on node %s", res.VMID, res.Name, res.Node)
+	if !res.Started {
+		msg += " but did not start"
+	}
+	if len(res.Notes) > 0 {
+		msg += ". " + strings.Join(res.Notes, "; ")
+	}
+	details, _ := json.Marshal(map[string]any{"instant_vmid": res.VMID, "node": res.Node, "name": res.Name, "state": "running", "disks": res.Disks})
+	return api.RunResult{Status: api.StatusSuccess, Message: msg, Details: details}
 }
