@@ -185,6 +185,7 @@ go build -o bin/ ./cmd/...                     # agent + server
 .\packaging\windows\build-msi.ps1 -Version X.Y.Z   # Windows MSI (WiX 5)
 sh packaging/linux/build-packages.sh X.Y.Z       # .deb/.rpm (nfpm)
 sh packaging/appliance/build-iso.sh dist/backupzit-server_X.Y.Z_amd64.deb   # appliance ISO (on Debian: xorriso, isolinux)
+sh packaging/appliance/build-images.sh dist/backupzit-server_X.Y.Z_amd64.deb   # OVA, qcow2, VHDX (on a Proxmox VE host)
 go run ./tools/release sign -key release.key -version X.Y.Z -dir <release folder>   # signed update manifest
 ```
 

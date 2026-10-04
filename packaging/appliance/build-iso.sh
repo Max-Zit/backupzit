@@ -34,11 +34,19 @@ chmod -R u+w "$WORK/iso"
 # BackupZit files on the ISO (copied into the new system by the preseed).
 mkdir -p "$WORK/iso/backupzit"
 cp "$DEB" "$HERE/install.sh" "$HERE/backupzit-firstboot" "$HERE/backupzit-firstboot.service" "$WORK/iso/backupzit/"
+# IMAGE=1 builds the installer for VM images: marked for install.sh, and the
+# installer powers off instead of restarting.
+PRESEED="$HERE/preseed.cfg"
+if [ "${IMAGE:-}" = 1 ]; then
+    touch "$WORK/iso/backupzit/IMAGE"
+    sed "s#^d-i debian-installer/exit/poweroff boolean false#d-i debian-installer/exit/poweroff boolean true#" "$HERE/preseed.cfg" > "$WORK/preseed.cfg"
+    PRESEED="$WORK/preseed.cfg"
+fi
 
 # The preseed file inside the installer's initrd.
 mkdir "$WORK/initrd"
 (cd "$WORK/initrd" && gzip -dc "$WORK/iso/install.amd/initrd.gz" | cpio -id --quiet &&
-    cp "$HERE/preseed.cfg" preseed.cfg &&
+    cp "$PRESEED" preseed.cfg &&
     find . | cpio -o -H newc --quiet | gzip -9 > "$WORK/iso/install.amd/initrd.gz")
 
 # Boot menus (BIOS and UEFI): start the unattended installation after 5 seconds.

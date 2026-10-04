@@ -17,6 +17,15 @@
   <li>The server's screen shows the address of the web console and the initial password of <b>admin</b>. Open the address, sign in and change the password.</li>
 </ol>
 <p>Each appliance gets its own database password, and its secrets key is created at the first start. To sign in to the server itself (SSH or the local screen), use the user <b>bzadmin</b> with the initial password <code>backupzit</code>. You must change it at the first sign-in; the user can use <code>sudo</code>. Updates of BackupZit and of the operating system are then managed from the console (see below). VMware Tools and the QEMU guest agent are included, so hypervisors show the appliance's address.</p>
+<h3>Ready-made VM images</h3>
+<p>Instead of installing from the ISO, you can import a finished appliance. It starts in under a minute and needs no internet access:</p>
+<table>
+  <tr><th>File</th><th>For</th><th>How</th></tr>
+  <tr><td><code>backupzit-appliance-X.ova</code></td><td>VMware ESXi, Workstation, VirtualBox</td><td>ESXi host client: <i>Create / Register VM → Deploy a virtual machine from an OVF or OVA file</i>. vSphere: <i>Deploy OVF Template</i>.</td></tr>
+  <tr><td><code>backupzit-appliance-X.qcow2</code></td><td>Proxmox VE, KVM</td><td>Create a VM without a disk, then <code>qm importdisk &lt;vmid&gt; backupzit-appliance-X.qcow2 local-lvm</code>, attach the disk as SCSI and make it the boot disk. Enable the QEMU guest agent.</td></tr>
+  <tr><td><code>backupzit-appliance-X.vhdx</code></td><td>Hyper-V</td><td>New VM, <b>generation 1</b>, <i>Use an existing virtual hard disk</i>.</td></tr>
+</table>
+<p>Give the VM 2 vCPU and 2–4 GB RAM. You can enlarge the 16 GB disk at any time. At the first start every copy creates its own SSH keys, database password and secrets key, so one image can be deployed many times. The network adapter gets its address by DHCP, whatever the hypervisor calls it. Check the files against <code>SHA256SUMS</code> after downloading.</p>
 <p>The network is set up by DHCP. For a fixed address, sign in as bzadmin and edit <code>/etc/network/interfaces</code>. Agents remember the console's certificate, not its address, so keep the address stable or use a DNS name.</p>
 
 <h2>Install on an existing Linux server</h2>

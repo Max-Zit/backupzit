@@ -1,6 +1,11 @@
 #!/bin/sh
 # First start of the BackupZit appliance: database, configuration, console.
 set -e
+# VM images ship without SSH host keys: every copy gets its own.
+if ! ls /etc/ssh/ssh_host_*_key >/dev/null 2>&1; then
+    ssh-keygen -A
+    systemctl restart ssh 2>/dev/null || true
+fi
 # Wait for the network, so the certificate covers the server's address.
 for i in $(seq 120); do
     IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "src") print $(i + 1)}')
