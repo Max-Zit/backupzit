@@ -22,7 +22,7 @@ connect to it over HTTPS.
 7. **Hypervisor (agentless) backup** — Proxmox VE ✅, Hyper-V ✅, VMware ESXi ✅ (incl. changed block tracking); single files from VM disks ✅
 8. **Users** — local accounts, roles (Administrator, Backup operator, Restore operator, Viewer), LDAPS/Active Directory sign-in, audit log ✅; reports, calendar, in-console documentation ✅
 9. **Linux system backup** — whole systems with disk layout, restore to bare metal or as a Proxmox VM (P2V) ✅
-10. **Appliance** — signed console self-update with rollback ✅; next: OS updates from the console, ready-made ISO/OVA, backup of the console itself
+10. **Appliance** — installer ISO and OVA/qcow2/VHDX images ✅, trusted HTTPS certificates ✅, signed console self-update with rollback ✅, OS updates from the console ✅, backup and restore of the console itself ✅
 11. **Later** — Hyper-V changed block tracking (RCT), vCenter, instant VM recovery
 
 Supported agent platforms: Windows 10, 11, Server 2016+ (MSI); Windows 7, Server 2008 R2/2012 R2
