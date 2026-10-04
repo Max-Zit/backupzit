@@ -77,6 +77,15 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p><b>Without internet access:</b> download the release files (<code>manifest.json</code>, <code>manifest.json.sig</code> and the server package) on another computer. Then upload them under <i>Install an update from files</i>, or copy them into a folder on the server and use that folder as the update source.</p>
 <p>You can still update with the package manager (<code>apt install ./backupzit-server_….deb</code>); the database is migrated when the new version starts.</p>
 
+<h2>Operating system updates</h2>
+<p>The same page (<a href="/settings/updates#os">Settings → Updates</a>) shows the operating system of the console server: how many updates are available, how many of them are security fixes, whether a restart is needed, and whether automatic security updates are on. The status is refreshed daily, or with <i>Check now</i>. You can:</p>
+<ul>
+  <li><b>Switch on automatic security updates</b> (recommended). The system's own tool installs only security fixes, daily: <code>unattended-upgrades</code> on Debian and Ubuntu, <code>dnf-automatic</code> on AlmaLinux and Rocky Linux.</li>
+  <li><b>Install all updates now</b>. Services such as PostgreSQL may restart briefly, and the console reconnects by itself.</li>
+  <li><b>Restart the server</b>, for example after a kernel update. The console refuses while backups or restores are running. Agents keep their jobs and report the results when the console is back.</li>
+</ul>
+<p>These tasks run through the same root service as console updates. They are recorded in the audit log, and the output of the last task is shown on the page.</p>
+
 <h2>Backing up the console itself</h2>
 <p>Back up the PostgreSQL database (for example with a nightly <code>pg_dump</code> to a file that a BackupZit agent on the same machine backs up) and the data directory <code>/var/lib/backupzit</code>: the certificate and <b><code>secrets.key</code></b>, the key that encrypts all stored passwords, storage keys and recovery keys in the database. Keep a copy of <code>secrets.key</code> outside the server (e.g. in your password manager); without it the stored credentials in a restored database cannot be read. Alternatively provide the key in <code>BACKUPZIT_SECRETS_KEY</code> (base64). Keep the recovery sheets of your storage targets separately — with them, backups can be restored even without the console.</p>
 {{template "docpager" .}}

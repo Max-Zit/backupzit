@@ -251,8 +251,11 @@ func parseVersion(v string) [3]int {
 	return out
 }
 
-// Request asks the root helper to install a downloaded package.
+// Request asks the root helper to install a downloaded package, or to do
+// an operating system task (Action).
 type Request struct {
+	Action    string    `json:"action,omitempty"`
+	Enable    bool      `json:"enable,omitempty"` // ActionOSAuto
 	Manifest  []byte    `json:"manifest"`
 	Signature string    `json:"signature"`
 	File      string    `json:"file"` // name in the manifest; the package lies next to the request

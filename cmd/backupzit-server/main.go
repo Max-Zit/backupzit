@@ -236,9 +236,6 @@ func runApplyUpdate(ctx context.Context, dataDir, dbURL, listen string, log *slo
 		DBURL: dbURL, HealthURL: "https://127.0.0.1:" + port + "/login", Service: "backupzit-server",
 		Log: func(format string, args ...any) { log.Info(fmt.Sprintf(format, args...)) },
 	}
-	res, err := a.Apply(ctx)
-	if res == nil && err == nil {
-		log.Info("no update requested")
-	}
+	_, err = a.Apply(ctx)
 	return err
 }

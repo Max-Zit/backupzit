@@ -224,6 +224,29 @@
   <p class="muted small mt">Releases are signed with the BackupZit release key. The console checks the signature, and the system service that installs the package checks it again, so a modified package is never installed.</p>
 </div>
 {{end}}{{end}}
+{{if eq .Data.Tab "updates"}}{{if .Data.Updates.Helper}}{{with .Data.OS}}
+<div class="panel" id="os">
+  <h2>{{template "icon" "shield"}} Operating system of the console server</h2>
+  {{with .Status}}
+  <dl class="kv">
+    <dt>System</dt><dd>{{.OS}} <span class="muted small">kernel {{.Kernel}}</span></dd>
+    <dt>Updates</dt><dd>{{if .Pending}}<b>{{.Pending}}</b> available{{if .Security}}, <span class="badge warning"><i></i>{{.Security}} security</span>{{end}}{{else}}<span class="badge success"><i></i>up to date</span>{{end}} <span class="muted small">checked {{ago .Checked}}</span>{{with .Error}}<br><span class="small muted">{{.}}</span>{{end}}</dd>
+    <dt>Automatic security updates</dt><dd>{{if .AutoSecurity}}<span class="badge success"><i></i>on</span>{{if not .LastAutoRun.IsZero}} <span class="muted small">last run {{ago .LastAutoRun}}</span>{{end}}{{else}}<span class="badge warning"><i></i>off</span>{{end}}</dd>
+    {{if .RebootRequired}}<dt>Restart</dt><dd><span class="badge warning"><i></i>required</span> <span class="muted small">updates (e.g. of the kernel) take effect after a restart</span></dd>{{end}}
+  </dl>
+  {{with .Packages}}<details class="mt"><summary>Available updates</summary><pre class="small">{{join . "\n"}}</pre></details>{{end}}
+  {{else}}<p class="muted">The status is being read{{if not $.Data.OS.Pending}}; click Check now{{end}}.</p>{{end}}
+  {{with .Result}}<p class="small muted mt">Last action: {{.Action}} — {{if eq .Status "done"}}done{{else}}<b>failed</b>{{end}}, {{ago .Finished}}{{if ne .Status "done"}}<br>{{.Message}}{{end}}</p>{{end}}
+  {{if .Pending}}<div class="callout tip mt" data-autorefresh><p>A task is running on the server; this page reloads by itself.</p></div>{{end}}
+  <div class="row mt">
+    <form method="post" action="/settings/os" class="inline"><input type="hidden" name="action" value="status"><button class="secondary">Check now</button></form>
+    {{with .Status}}{{if .AutoSecurity}}<form method="post" action="/settings/os" class="inline"><input type="hidden" name="action" value="auto-off"><button class="secondary">Switch off automatic security updates</button></form>{{else}}<form method="post" action="/settings/os" class="inline"><input type="hidden" name="action" value="auto-on"><button>Switch on automatic security updates</button></form>{{end}}{{end}}
+    <form method="post" action="/settings/os" class="inline" data-confirm="Install all operating system updates now? Services such as PostgreSQL may restart briefly."><input type="hidden" name="action" value="upgrade"><button class="secondary">Install all updates now</button></form>
+    <form method="post" action="/settings/os" class="inline" data-confirm="Restart the console server now? The console is unavailable for a few minutes; agents continue and report later."><input type="hidden" name="action" value="reboot"><button class="danger">Restart server</button></form>
+  </div>
+  <p class="muted small mt">Automatic security updates use the system's own tool (unattended-upgrades on Debian and Ubuntu, dnf-automatic on AlmaLinux and Rocky Linux) and install only security fixes, daily. BackupZit itself is updated above.</p>
+</div>
+{{end}}{{end}}{{end}}
 {{if eq .Data.Tab "ldap"}}{{with .Data.LDAP}}
 <div class="panel" id="ldap">
   <h2>{{template "icon" "users"}} LDAP / Active Directory sign-in</h2>

@@ -253,10 +253,26 @@ func TestConsoleUpdate(t *testing.T) {
 	os.Remove(filepath.Join(data, "update", "request.json"))
 	update.WriteJSON(filepath.Join(data, "update", "result.json"), update.Result{From: "0.27.0", Version: "9.9.9", Status: "rolled-back", Message: "did not start", Finished: time.Now().UTC()}, 0o644)
 	e.srv.StartUpdates(ctx, data)
+	e.srv.EnableUpdateHelper()
 	if _, _, body := admin.do("GET", "/audit", nil); !strings.Contains(body, "update.result") {
 		t.Error("update result not in the audit log")
 	}
 	if _, _, body := admin.do("GET", "/settings/updates", nil); !strings.Contains(body, "rolled-back") {
 		t.Error("last update not shown")
+	}
+	// Operating system: status shown, tasks handed to the helper.
+	update.WriteJSON(filepath.Join(data, "update", "os-status.json"), update.OSStatus{OS: "Debian GNU/Linux 12", Pending: 3, Security: 2, RebootRequired: true, Checked: time.Now()}, 0o644)
+	if _, _, body := admin.do("GET", "/settings/updates", nil); !strings.Contains(body, "2 security") || !strings.Contains(body, "Switch on automatic security updates") || !strings.Contains(body, "required") {
+		t.Error("OS status not shown")
+	}
+	if _, loc, _ := admin.do("POST", "/settings/os", url.Values{"action": {"auto-on"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("auto-on: %s", loc)
+	}
+	var osReq update.Request
+	if update.ReadJSON(filepath.Join(data, "update", "request.json"), &osReq); osReq.Action != update.ActionOSAuto || !osReq.Enable {
+		t.Errorf("OS request %+v", osReq)
+	}
+	if _, loc, _ := admin.do("POST", "/settings/os", url.Values{"action": {"reboot"}}); !strings.Contains(loc, "another+update+task") {
+		t.Errorf("second task: %s", loc)
 	}
 }

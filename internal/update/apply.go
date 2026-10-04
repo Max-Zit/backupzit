@@ -42,6 +42,9 @@ type Applier struct {
 	// HealthWait is how long the new version may take to answer.
 	HealthWait time.Duration
 	Log        func(format string, args ...any)
+	// OSFamily forces "apt" or "dnf"; Root prefixes system paths (tests).
+	OSFamily string
+	Root     string
 }
 
 func runCmd(ctx context.Context, name string, args ...string) ([]byte, error) {
@@ -77,6 +80,9 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 	}
 	// The request is consumed in any case, so a bad one does not loop.
 	os.Remove(reqPath)
+	if req.Action != ActionInstall {
+		return a.osAction(ctx, req)
+	}
 	res := &Result{From: a.CurrentVersion}
 	m, err := Verify(req.Manifest, req.Signature, a.Keys)
 	if err != nil {

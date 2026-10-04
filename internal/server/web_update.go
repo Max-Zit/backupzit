@@ -72,6 +72,9 @@ func (s *Server) StartUpdates(ctx context.Context, dataDir string) {
 		}
 		for {
 			s.checkUpdates(ctx)
+			if s.upd.helper { // refresh the operating system status daily
+				s.requestOS(ctx, update.ActionOSStatus, false, "")
+			}
 			select {
 			case <-ctx.Done():
 				return
@@ -358,4 +361,76 @@ func (s *Server) handleUpdateUpload(w http.ResponseWriter, r *http.Request, user
 	}
 	s.audit(r, "update.install", "%s → %s (uploaded)", s.Version, m.Version)
 	redirectMsg(w, r, back, "Installing BackupZit "+m.Version+". The console restarts within a few minutes; reload this page then.")
+}
+
+// osPage is the operating system part of the Updates tab.
+type osPage struct {
+	Status  *update.OSStatus
+	Result  *update.OSResult
+	Pending bool
+}
+
+func (s *Server) osPageData() osPage {
+	var p osPage
+	if s.upd == nil {
+		return p
+	}
+	var st update.OSStatus
+	if update.ReadJSON(filepath.Join(s.upd.dir, "os-status.json"), &st) == nil {
+		p.Status = &st
+	}
+	var res update.OSResult
+	if update.ReadJSON(filepath.Join(s.upd.dir, "os-result.json"), &res) == nil {
+		p.Result = &res
+	}
+	if _, err := os.Stat(filepath.Join(s.upd.dir, "request.json")); err == nil {
+		p.Pending = true
+	}
+	return p
+}
+
+// requestOS hands an operating system task to the root helper.
+func (s *Server) requestOS(ctx context.Context, action string, enable bool, user string) error {
+	if s.upd == nil || !s.upd.helper {
+		return errors.New("operating system updates need the Linux package of the console")
+	}
+	if _, err := os.Stat(filepath.Join(s.upd.dir, "request.json")); err == nil {
+		return errors.New("another update task is in progress; try again in a minute")
+	}
+	if action == update.ActionReboot {
+		var running int
+		s.store.db.QueryRow(ctx, `SELECT count(*) FROM runs WHERE status='running'`).Scan(&running)
+		if running > 0 {
+			return fmt.Errorf("%d backups or restores are running; restart the server when they have finished", running)
+		}
+	}
+	return update.WriteJSON(filepath.Join(s.upd.dir, "request.json"),
+		update.Request{Action: action, Enable: enable, Requested: time.Now().UTC(), User: user}, 0o640)
+}
+
+func (s *Server) handleOSAction(w http.ResponseWriter, r *http.Request, user string) {
+	const back = "/settings/updates#os"
+	var action, msg string
+	enable := false
+	switch r.FormValue("action") {
+	case "status":
+		action, msg = update.ActionOSStatus, "Checking for operating system updates; reload the page in a minute."
+	case "auto-on":
+		action, enable, msg = update.ActionOSAuto, true, "Switching on automatic security updates."
+	case "auto-off":
+		action, msg = update.ActionOSAuto, "Switching off automatic security updates."
+	case "upgrade":
+		action, msg = update.ActionOSUpgrade, "Installing all operating system updates; this can take a few minutes."
+	case "reboot":
+		action, msg = update.ActionReboot, "The server restarts now; the console is back in a few minutes."
+	default:
+		redirectErr(w, r, back, errors.New("unknown action"))
+		return
+	}
+	if err := s.requestOS(r.Context(), action, enable, user); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	s.audit(r, "os."+r.FormValue("action"), "")
+	redirectMsg(w, r, back, msg)
 }
