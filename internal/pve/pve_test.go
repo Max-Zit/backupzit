@@ -127,3 +127,14 @@ func TestRestoreConfig(t *testing.T) {
 		t.Errorf("in-place restore changed identity:\n%s", conf)
 	}
 }
+
+func TestBootTestConfig(t *testing.T) {
+	if !hasGuestAgent("agent: 1\nname: x\n") || !hasGuestAgent("agent: enabled=1,fstrim_cloned_disks=1\n") || hasGuestAgent("agent: 0\n") || hasGuestAgent("name: x\n[snap]\nagent: 1\n") {
+		t.Error("hasGuestAgent wrong")
+	}
+	got := isolateConfig("name: x\nonboot: 1\nnet0: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0\nnet1: e1000=AA:BB:CC:DD:EE:00,bridge=vmbr1,link_down=1\n")
+	want := "name: x\nnet0: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0,link_down=1\nnet1: e1000=AA:BB:CC:DD:EE:00,bridge=vmbr1,link_down=1\n"
+	if got != want {
+		t.Errorf("isolateConfig:\n%s", got)
+	}
+}

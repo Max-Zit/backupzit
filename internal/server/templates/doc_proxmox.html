@@ -20,7 +20,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Every disk is read from the snapshot in 1 MiB blocks. Empty blocks are not stored and blocks already in the repository are not uploaded again, so after the first backup only changed data is transferred.</li>
   <li>The snapshot is removed. The guest configuration (CPU, memory, network, disks) is stored with the backup.</li>
 </ol>
-<p>The run page lists each guest, its disks and how it was captured. Restore tests check random blocks of VM backups like disk images.</p>
+<p>The run page lists each guest, its disks and how it was captured. Restore tests check random blocks of VM backups like disk images and, with the <a href="/docs/restore">boot test</a> on, start each VM from the backup isolated from the network to prove that it boots.</p>
 
 <h3>Supported storage</h3>
 <table>

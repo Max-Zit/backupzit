@@ -149,6 +149,9 @@ type Run struct {
 	VerifyFiles    int    `json:"verify_files,omitempty"`
 	VerifyMaxBytes uint64 `json:"verify_max_bytes,omitempty"`
 	VerifyBlocks   int    `json:"verify_blocks,omitempty"`
+	// VerifyBootSeconds > 0: also start each Proxmox VM of the backup,
+	// isolated, and wait up to this long for its guest agent (boot test).
+	VerifyBootSeconds int `json:"verify_boot_seconds,omitempty"`
 
 	// VM backup: guest IDs ("*" = all guests on the node) and guests to skip.
 	VMs       []string `json:"vms,omitempty"`

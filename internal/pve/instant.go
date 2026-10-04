@@ -42,6 +42,8 @@ type InstantOptions struct {
 	NewVMID int    // -1: next free ID; 0: the original ID (only if it is free)
 	Name    string // optional
 	Start   bool
+	// Isolated disconnects the network cards (boot tests).
+	Isolated bool
 	// ServeCommand starts the NBD server unit for the new VM ID and the
 	// socket path; it must return once the unit was started.
 	ServeCommand func(ctx context.Context, vmid int, socket string) error
@@ -172,6 +174,9 @@ func InstantStart(ctx context.Context, sn *repo.Snapshot, opts InstantOptions) (
 	}
 	conf = "description: BackupZit instant recovery from backup " + sn.ID.Short() + " of " + sn.Time.Local().Format("2006-01-02 15:04") +
 		". Finish (move the disks to their storage) or discard it in the BackupZit console.\n" + stripDescription(conf)
+	if opts.Isolated {
+		conf = isolateConfig(conf)
+	}
 	cfgFile := filepath.Join(ConfigDir, "nodes", inv.Node, "qemu-server", strconv.Itoa(target)+".conf")
 	if err := os.WriteFile(cfgFile, []byte(conf), 0o640); err != nil {
 		return nil, fmt.Errorf("create configuration: %w", err)

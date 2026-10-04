@@ -540,4 +540,28 @@ func TestInstantRecovery(t *testing.T) {
 	if r := poll(); r == nil || r.ID != rr || r.Kind != api.KindVMRestore || r.SnapshotID != copySnap || r.Repository.URL == "" {
 		t.Fatalf("restore from copy: %+v", r)
 	}
+	e.store.FinishRun(ctx, a.ID, rr, api.RunResult{Status: api.StatusSuccess})
+
+	// Restore tests with boot test.
+	if resp := post("/settings/tests", url.Values{"enabled": {"on"}, "every": {"weekly"}, "files": {"10"}, "max_mb": {"100"}, "blocks": {"100"},
+		"boot_vms": {"on"}, "boot_minutes": {"0"}}); !strings.Contains(resp.Header.Get("Location"), "err=") && resp.Request.URL.Query().Get("err") == "" {
+		t.Error("boot test of 0 minutes accepted")
+	}
+	post("/settings/tests", url.Values{"enabled": {"on"}, "every": {"weekly"}, "files": {"10"}, "max_mb": {"100"}, "blocks": {"100"},
+		"boot_vms": {"on"}, "boot_minutes": {"3"}})
+	vr, err := e.store.QueueRestoreTest(ctx, jobID, "manual")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := poll(); r == nil || r.ID != vr || r.Kind != api.KindVerify || r.VerifyBootSeconds != 180 {
+		t.Fatalf("restore test run: %+v", r)
+	}
+	e.store.FinishRun(ctx, a.ID, vr, api.RunResult{Status: api.StatusFailed, Message: "BOOT TEST FAILED",
+		Details: json.RawMessage(`{"boot":[{"vmid":100,"name":"web","booted":true,"seconds":42},{"vmid":101,"name":"db","error":"the VM stopped by itself"}]}`)})
+	if p := get(fmt.Sprintf("/runs/%d", vr)); !strings.Contains(p, "Boot test") || !strings.Contains(p, "QEMU guest agent answered") || !strings.Contains(p, "the VM stopped by itself") {
+		t.Error("restore test page lacks the boot results")
+	}
+	if p := get("/settings/tests"); !strings.Contains(p, `name="boot_vms" checked`) || !strings.Contains(p, `value="3"`) {
+		t.Error("boot test settings not shown")
+	}
 }

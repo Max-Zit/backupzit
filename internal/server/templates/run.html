@@ -136,6 +136,16 @@
   <div class="stat {{if .Errors}}bad{{end}}"><b>{{len .Errors}}</b><span>problems</span></div>
 </div>
 {{end}}
+{{with .Data.BootTests}}
+<div class="panel">
+  <h2>Boot test</h2>
+  <p class="muted small">Each VM was started from the backup with its network cards disconnected and deleted afterwards.</p>
+  <table>
+    <tr><th>VM</th><th>Result</th><th>Time</th></tr>
+    {{range .}}<tr><td>{{.VMID}} — {{.Name}}</td><td>{{if .Booted}}<span class="badge success"><i></i>booted</span> QEMU guest agent answered{{else if .Running}}<span class="badge warning"><i></i>running</span> kept running; no QEMU guest agent to confirm the boot{{else}}<span class="badge failed"><i></i>failed</span> {{.Error}}{{end}}</td><td>{{if .Seconds}}{{.Seconds}} s{{end}}</td></tr>{{end}}
+  </table>
+</div>
+{{end}}
 {{with .Data.CopyStats}}
 <div class="grid">
   <div class="stat"><b>{{.Snapshots}}</b><span>backups copied</span></div>

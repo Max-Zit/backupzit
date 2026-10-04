@@ -347,6 +347,8 @@ systemctl start backupzit-server</pre></li>
       <label>Up to (MB) <small>limits the data read from storage — mind cloud download costs</small><input type="number" name="max_mb" min="1" max="100000" value="{{.MaxMB}}"></label>
     </div>
     <label>Random blocks per disk image test <small>1 MiB each</small><input type="number" name="blocks" min="1" max="100000" value="{{.Blocks}}"></label>
+    <label class="check"><input type="checkbox" name="boot_vms" {{if .BootVMs}}checked{{end}}> Boot test for Proxmox VM backups <small>each VM is also started from the backup with its network cards disconnected, BackupZit waits until its QEMU guest agent answers, then deletes it again. Needs free memory on the node for one VM at a time; VMs without the guest agent pass when they keep running for a minute.</small></label>
+    <label>Wait for each VM to boot up to (minutes) <input type="number" name="boot_minutes" min="1" max="60" value="{{.BootMinutes}}"></label>
     <div><button>Save restore test settings</button></div>
   </form>
 </div>

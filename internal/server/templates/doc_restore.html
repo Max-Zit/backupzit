@@ -77,6 +77,13 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li><b>Test restore</b> on a job's page starts a test immediately.</li>
   <li>The sample size limits how much is read from the storage — keep it small for cloud storage with download fees.</li>
 </ul>
+<h3>Boot test for Proxmox VMs</h3>
+<p>Readable blocks do not prove that a VM still starts. With <b>Boot test for Proxmox VM backups</b> on (Settings → Restore tests), the restore test of a Proxmox VM job also starts every VM of the newest backup on the job's node, one after the other, with <a href="/docs/proxmox">instant recovery</a>: it runs from the backup with a new ID, its network cards disconnected (so it cannot conflict with the original), and is deleted again right afterwards. The test passes when the VM's <b>QEMU guest agent</b> answers within the configured time, which means the operating system booted. VMs without the guest agent pass when they keep running for a minute; the run page shows them as <i>running</i> rather than <i>booted</i>.</p>
+<ul>
+  <li>The node needs free memory for one more VM while the test runs.</li>
+  <li>Install the QEMU guest agent in the VMs (<code>qemu-guest-agent</code> on Linux, the VirtIO guest tools on Windows) and enable it in the VM options, so the test can confirm the boot.</li>
+  <li>The run page lists each VM with its result and how long the boot took.</li>
+</ul>
 <p>Additionally, restore a real folder by hand from time to time (e.g. quarterly) and open a few files — it also trains the people who will need to do it in an emergency.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

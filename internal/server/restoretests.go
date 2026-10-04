@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/backupzit/backupzit/internal/api"
+	"github.com/backupzit/backupzit/internal/pve"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -22,9 +24,13 @@ type RestoreTestSettings struct {
 	Files   int    `json:"files"`  // random files per test
 	MaxMB   int    `json:"max_mb"` // size limit of the sample
 	Blocks  int    `json:"blocks"` // random blocks for disk images
+	// BootVMs starts the Proxmox VMs of VM backups isolated from the network
+	// and waits up to BootMinutes for their guest agent.
+	BootVMs     bool `json:"boot_vms"`
+	BootMinutes int  `json:"boot_minutes"`
 }
 
-var defaultRestoreTests = RestoreTestSettings{Enabled: true, Every: "weekly", Files: 10, MaxMB: 100, Blocks: 100}
+var defaultRestoreTests = RestoreTestSettings{Enabled: true, Every: "weekly", Files: 10, MaxMB: 100, Blocks: 100, BootMinutes: 5}
 
 func (x RestoreTestSettings) Validate() error {
 	if x.Every != "weekly" && x.Every != "monthly" {
@@ -32,6 +38,9 @@ func (x RestoreTestSettings) Validate() error {
 	}
 	if x.Files < 1 || x.Files > 1000 || x.MaxMB < 1 || x.MaxMB > 100000 || x.Blocks < 1 || x.Blocks > 100000 {
 		return errors.New("sample sizes are out of range")
+	}
+	if x.BootMinutes < 1 || x.BootMinutes > 60 {
+		return errors.New("the boot test waits between 1 and 60 minutes")
 	}
 	return nil
 }
@@ -45,7 +54,11 @@ func (x RestoreTestSettings) interval() time.Duration {
 
 func (s *Store) restoreTestSettings(ctx context.Context) RestoreTestSettings {
 	x := defaultRestoreTests
-	if err := s.GetSetting(ctx, settingRestoreTests, &x); err != nil || x.Validate() != nil {
+	err := s.GetSetting(ctx, settingRestoreTests, &x)
+	if x.BootMinutes == 0 {
+		x.BootMinutes = defaultRestoreTests.BootMinutes // saved before boot tests existed
+	}
+	if err != nil || x.Validate() != nil {
 		return defaultRestoreTests
 	}
 	return x
@@ -126,7 +139,8 @@ func (s *Server) handleJobTest(w http.ResponseWriter, r *http.Request, _ string)
 func (s *Server) handleSettingsRestoreTests(w http.ResponseWriter, r *http.Request, _ string) {
 	atoi := func(k string) int { n, _ := strconv.Atoi(r.FormValue(k)); return n }
 	x := RestoreTestSettings{Enabled: r.FormValue("enabled") == "on", Every: r.FormValue("every"),
-		Files: atoi("files"), MaxMB: atoi("max_mb"), Blocks: atoi("blocks")}
+		Files: atoi("files"), MaxMB: atoi("max_mb"), Blocks: atoi("blocks"),
+		BootVMs: r.FormValue("boot_vms") == "on", BootMinutes: atoi("boot_minutes")}
 	if err := x.Validate(); err != nil {
 		redirectErr(w, r, "/settings/tests", err)
 		return
@@ -143,4 +157,19 @@ func (s *Server) handleSettingsRestoreTests(w http.ResponseWriter, r *http.Reque
 func (s *Server) addVerifyParams(ctx context.Context, ar *api.Run) {
 	x := s.store.restoreTestSettings(ctx)
 	ar.VerifyFiles, ar.VerifyMaxBytes, ar.VerifyBlocks = x.Files, uint64(x.MaxMB)<<20, x.Blocks
+	if x.BootVMs {
+		ar.VerifyBootSeconds = x.BootMinutes * 60
+	}
+}
+
+// bootTests are the VM boot results of a restore test run.
+func bootTests(run Run) []pve.BootResult {
+	if run.Kind != api.KindVerify || len(run.Details) == 0 {
+		return nil
+	}
+	var d struct {
+		Boot []pve.BootResult `json:"boot"`
+	}
+	json.Unmarshal(run.Details, &d)
+	return d.Boot
 }

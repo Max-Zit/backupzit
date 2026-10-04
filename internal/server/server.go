@@ -968,7 +968,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 	for k, v := range map[string]any{"BackupStats": backupStats, "RestoreStats": restoreStats, "CopyStats": copyStats, "TestStats": testStats,
 		"CopyOfFiles": s.store.copyOfFiles(r.Context(), run), "Image": imageDetails(run),
 		"VMRestore": vmRestoreOptions(run), "SystemRestore": systemRestoreOptions(run),
-		"Instant": runInstant(run), "InstantStorage": s.instantStorage(r.Context(), run)} {
+		"Instant": runInstant(run), "InstantStorage": s.instantStorage(r.Context(), run), "BootTests": bootTests(run)} {
 		data[k] = v
 	}
 	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: data})
