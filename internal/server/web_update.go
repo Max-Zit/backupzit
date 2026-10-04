@@ -127,6 +127,13 @@ func (s *Server) checkUpdates(ctx context.Context) error {
 	cctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	m, raw, sig, err := update.Source{Base: cfg.Source}.Latest(cctx)
+	if err != nil && strings.Contains(err.Error(), "404") {
+		if strings.TrimRight(cfg.Source, "/") == DefaultUpdateSource {
+			err = errors.New("no BackupZit release is available from GitHub yet (github.com/Max-Zit/backupzit has no public release); try again later or install an update from files")
+		} else {
+			err = fmt.Errorf("the update source has no manifest.json (%s): check the address", strings.TrimRight(cfg.Source, "/")+"/manifest.json")
+		}
+	}
 	u.mu.Lock()
 	u.checked = time.Now()
 	if err != nil {
