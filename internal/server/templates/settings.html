@@ -192,7 +192,7 @@
       <label class="check"><input type="radio" name="mode" value="acme" {{if eq .Mode "acme"}}checked{{end}}> Let's Encrypt <small>free, renewed automatically</small></label>
     </div>
     <div class="row">
-      <label>DNS name <small>the name browsers use; it must point to this server</small><input name="hostname" value="{{.Hostname}}" placeholder="backup.example.com"></label>
+      <label>DNS name <small>the name browsers use; it must point to this server. For an uploaded certificate also an IP address, if your network has no internal DNS</small><input name="hostname" value="{{.Hostname}}" placeholder="backup.example.com"></label>
       <label>HTTPS port <small>usually 443</small><input name="port" type="number" min="1" max="65535" value="{{.Port}}" class="narrow"></label>
     </div>
     <label class="check"><input type="checkbox" name="redirect_http" {{if .RedirectHTTP}}checked{{end}}> Serve port 80 <small>redirects http:// to https:// and answers Let's Encrypt's HTTP check</small></label>

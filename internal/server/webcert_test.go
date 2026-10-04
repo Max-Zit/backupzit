@@ -52,8 +52,15 @@ func newTestCA(t *testing.T) *testCA {
 // leaf issues a certificate for names, valid between from and to.
 func (ca *testCA) leaf(t *testing.T, names []string, from, to time.Time) (certPEM, keyPEM []byte) {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	tmpl := &x509.Certificate{SerialNumber: big.NewInt(time.Now().UnixNano()), Subject: pkix.Name{CommonName: names[0]}, DNSNames: names,
+	tmpl := &x509.Certificate{SerialNumber: big.NewInt(time.Now().UnixNano()), Subject: pkix.Name{CommonName: names[0]},
 		NotBefore: from, NotAfter: to, KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+	for _, n := range names {
+		if ip := net.ParseIP(n); ip != nil {
+			tmpl.IPAddresses = append(tmpl.IPAddresses, ip)
+		} else {
+			tmpl.DNSNames = append(tmpl.DNSNames, n)
+		}
+	}
 	der, err := x509.CreateCertificate(rand.Reader, tmpl, ca.cert, &key.PublicKey, ca.key)
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +89,19 @@ func TestParseKeyPair(t *testing.T) {
 	if _, err := parseKeyPair(c, k, "backup.example.com", now.Add(100*24*time.Hour)); err == nil || !strings.Contains(err.Error(), "expired") {
 		t.Errorf("expired: %v", err)
 	}
+	// Networks without internal DNS: a certificate for an IP address.
+	ic, ik := ca.leaf(t, []string{"192.168.1.20"}, now.Add(-time.Hour), now.Add(time.Hour))
+	if _, err := parseKeyPair(ic, ik, "192.168.1.20", now); err != nil {
+		t.Errorf("IP certificate: %v", err)
+	}
+	if _, err := parseKeyPair(ic, ik, "192.168.1.21", now); err == nil || !strings.Contains(err.Error(), "covers 192.168.1.20") {
+		t.Errorf("other IP: %v", err)
+	}
+	if err := (CertSettings{Mode: "upload", Hostname: "192.168.1.20", Port: 443}).Validate(); err != nil {
+		t.Errorf("IP address as hostname refused: %v", err)
+	}
 	for _, bad := range []CertSettings{
+		{Mode: "acme", Hostname: "192.168.1.20", Port: 443, ACMEEmail: "a@b.c", Challenge: "http", RedirectHTTP: true},
 		{Mode: "upload", Hostname: "not a name", Port: 443},
 		{Mode: "upload", Hostname: "a.example.com", Port: 0},
 		{Mode: "acme", Hostname: "a.example.com", Port: 443, ACMEEmail: "x", Challenge: "http", RedirectHTTP: true},

@@ -64,7 +64,14 @@ func (c CertSettings) Validate() error {
 	default:
 		return errors.New("unknown certificate mode")
 	}
-	if !hostnameRe.MatchString(c.Hostname) {
+	// Uploaded certificates may also be for an IP address (networks
+	// without internal DNS); Let's Encrypt needs a public DNS name.
+	if ip := net.ParseIP(c.Hostname); ip != nil && c.Mode == "upload" {
+		c.Hostname = ip.String()
+	} else if !hostnameRe.MatchString(c.Hostname) {
+		if c.Mode == "upload" {
+			return errors.New("enter the DNS name or IP address browsers use for the console, e.g. backup.example.com")
+		}
 		return errors.New("enter the DNS name browsers use for the console, e.g. backup.example.com")
 	}
 	if c.Port < 1 || c.Port > 65535 {
@@ -147,7 +154,11 @@ func parseKeyPair(certPEM, keyPEM []byte, hostname string, now time.Time) (*tls.
 	}
 	if hostname != "" {
 		if err := leaf.VerifyHostname(hostname); err != nil {
-			return nil, fmt.Errorf("the certificate is not valid for %s (it covers %s)", hostname, strings.Join(leaf.DNSNames, ", "))
+			covers := append([]string(nil), leaf.DNSNames...)
+			for _, ip := range leaf.IPAddresses {
+				covers = append(covers, ip.String())
+			}
+			return nil, fmt.Errorf("the certificate is not valid for %s (it covers %s)", hostname, strings.Join(covers, ", "))
 		}
 	}
 	c.Leaf = leaf
