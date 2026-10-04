@@ -18,7 +18,7 @@ var docPages = []struct{ Slug, Title string }{
 	{"sql", "Microsoft SQL Server"},
 	{"ransomware", "Ransomware protection"},
 	{"monitoring", "Monitoring, reports & calendar"},
-	{"notifications", "Email notifications"},
+	{"notifications", "Notifications"},
 	{"users", "Users, roles & LDAP"},
 	{"api", "REST API"},
 	{"cli", "Command line reference"},

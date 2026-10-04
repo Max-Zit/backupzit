@@ -1,5 +1,5 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>Email notifications</h1>
+<h1>Notifications: email, Slack, Teams, webhooks</h1>
 <p class="lead">Get an email when a backup fails, and a daily summary every morning.</p>
 
 <h2>Setting up email</h2>
@@ -22,5 +22,19 @@
   <li><b>Daily report</b> — at the chosen hour: runs of the last 24 hours, problems and offline agents. Subject starts with <i>OK</i>, <i>WARNINGS</i> or <i>ATTENTION</i>, so mail rules can sort them.</li>
 </ul>
 <p>For weekly or monthly summaries use <a href="/docs/monitoring">scheduled reports</a>; they are sent with the same mail settings and have their own recipients. Subjects start with <code>[BackupZit]</code> so mail rules can sort them. The SMTP password is stored encrypted.</p>
+
+<h2>Slack, Microsoft Teams and webhooks</h2>
+<p>Under <a href="/settings/chat">Settings → Chat &amp; webhooks</a> add any number of channels; each chooses whether it gets failures, warnings and successes. Unusual backups (possible ransomware) count as failures. <b>Send test</b> checks a channel right away.</p>
+<ul>
+  <li><b>Slack</b>: create an <i>incoming webhook</i> for the channel (Slack app settings → Incoming Webhooks) and paste its URL (<code>https://hooks.slack.com/services/…</code>).</li>
+  <li><b>Microsoft Teams</b>: in the channel, add the workflow <i>Post to a channel when a webhook request is received</i> and paste its URL. Messages arrive as cards with a button that opens the run in the console.</li>
+  <li><b>Webhook</b>: any URL that accepts a JSON POST — a ticket system, monitoring or automation tool. With a signing secret, each request carries <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, the HMAC-SHA256 of the body, so the receiver can check that it comes from your console.</li>
+</ul>
+<p>The JSON of a webhook:</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>Messages are sent once per run, also when email is off. A channel that fails (wrong URL, service down) is logged in the console log and does not hold back the others. Webhook URLs are stored encrypted.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

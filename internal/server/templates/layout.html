@@ -60,6 +60,7 @@
 {{define "docpager"}}<div class="docpager">{{with .Data.Prev}}<a href="/docs/{{.Slug}}" class="btn secondary-link">{{template "icon" "chevl"}}{{.Title}}</a>{{else}}<span></span>{{end}}{{with .Data.Next}}<a href="/docs/{{.Slug}}" class="btn secondary-link">{{.Title}}{{template "icon" "chevr"}}</a>{{end}}</div>{{end}}
 {{define "settingstabs"}}<nav class="sidetabs" aria-label="Settings">
   <a href="/settings/email" class="{{if eq .Data.Tab "email"}}on{{end}}">{{template "icon" "mail"}}<span>Email notifications<small>Alerts and daily report</small></span></a>
+  <a href="/settings/chat" class="{{if eq .Data.Tab "chat"}}on{{end}}">{{template "icon" "activity"}}<span>Chat &amp; webhooks<small>Slack, Teams, any HTTP endpoint</small></span></a>
   <a href="/settings/security" class="{{if eq .Data.Tab "security"}}on{{end}}">{{template "icon" "lock"}}<span>Sign-in &amp; security<small>Sessions, two-factor, secrets</small></span></a>
   <a href="/settings/tests" class="{{if eq .Data.Tab "tests"}}on{{end}}">{{template "icon" "check"}}<span>Restore tests<small>Prove backups are restorable</small></span></a>
   <a href="/settings/certificate" class="{{if eq .Data.Tab "certificate"}}on{{end}}">{{template "icon" "shield"}}<span>Certificate<small>HTTPS for browsers</small></span></a>

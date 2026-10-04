@@ -226,7 +226,7 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 		n.log.Error("load email settings", "err", err)
 		return
 	}
-	n.runAlerts(ctx, e)
+	n.runAlerts(ctx, e, n.store.chatSettings(ctx))
 	if e.Enabled {
 		n.scheduledReports(ctx, e, now)
 	}
@@ -244,7 +244,7 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 	}
 }
 
-func (n *Notifier) runAlerts(ctx context.Context, e EmailSettings) {
+func (n *Notifier) runAlerts(ctx context.Context, e EmailSettings, chat ChatSettings) {
 	rows, err := n.store.db.Query(ctx, `SELECT id FROM runs WHERE NOT notified AND finished_at IS NOT NULL ORDER BY finished_at LIMIT 50`)
 	if err != nil {
 		n.log.Error("pending notifications", "err", err)
@@ -268,6 +268,16 @@ func (n *Notifier) runAlerts(ctx context.Context, e EmailSettings) {
 				return
 			}
 			n.log.Info("notification sent", "run", id, "status", run.Status)
+		}
+		// Chat and webhooks: best effort, a failing channel does not hold
+		// back the others or later runs.
+		for _, c := range chat.Channels {
+			if !c.wantsStatus(run.Status, run.Anomaly != "") {
+				continue
+			}
+			if err := n.sendChat(ctx, c, run); err != nil {
+				n.log.Warn("send chat notification", "run", id, "channel", c.Name, "err", err)
+			}
 		}
 		n.store.db.Exec(ctx, `UPDATE runs SET notified=true WHERE id=$1`, id)
 	}

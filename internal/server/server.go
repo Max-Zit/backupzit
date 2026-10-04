@@ -357,6 +357,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /settings", s.ui(PermSettings, s.handleSettings))
 	mux.HandleFunc("GET /settings/{tab}", s.ui(PermSettings, s.handleSettings))
 	mux.HandleFunc("POST /settings/email", s.ui(PermSettings, s.handleSettingsEmail))
+	mux.HandleFunc("POST /settings/chat", s.ui(PermSettings, s.handleSettingsChat))
 	mux.HandleFunc("POST /settings/sessions", s.ui(PermSettings, s.handleSettingsSessions))
 	mux.HandleFunc("POST /settings/certificate", s.ui(PermSettings, s.handleSettingsCertificate))
 	mux.HandleFunc("POST /settings/certificate/renew", s.ui(PermSettings, s.handleCertificateRenew))

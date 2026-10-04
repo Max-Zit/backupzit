@@ -3,6 +3,46 @@
 <div class="settings">
 {{template "settingstabs" .}}
 <div class="settings-body">
+{{if eq .Data.Tab "chat"}}{{with .Data.Chat}}
+<div class="panel">
+  <h2>{{template "icon" "activity"}} Chat &amp; webhooks</h2>
+  <p class="muted">Besides email, run results can go to a Slack or Microsoft Teams channel, or as JSON to any HTTP endpoint (ticket system, monitoring, automation). Each channel has its own choice of results. Unusual backups (possible ransomware) count as failures.</p>
+  {{if .Channels}}
+  <div class="table-wrap"><table>
+    <tr><th>Channel</th><th>Type</th><th>Sends</th><th></th></tr>
+    {{range .Channels}}<tr>
+      <td><b>{{.Name}}</b></td>
+      <td>{{if eq .Kind "slack"}}Slack{{else if eq .Kind "teams"}}Microsoft Teams{{else}}Webhook{{if .Secret}} <span class="muted small">(signed)</span>{{end}}{{end}}</td>
+      <td><form method="post" action="/settings/chat" class="inline">
+        <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{.ID}}">
+        <label class="check"><input type="checkbox" name="on_failure" {{if .OnFailure}}checked{{end}}> failures</label>
+        <label class="check"><input type="checkbox" name="on_warning" {{if .OnWarning}}checked{{end}}> warnings</label>
+        <label class="check"><input type="checkbox" name="on_success" {{if .OnSuccess}}checked{{end}}> successes</label>
+        <button class="secondary">Save</button></form></td>
+      <td class="nowrap"><form method="post" action="/settings/chat" class="inline"><input type="hidden" name="action" value="test"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary">Send test</button></form>
+        <form method="post" action="/settings/chat" class="inline" data-confirm="Remove channel {{.Name}}?"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{.ID}}"><button class="danger">Remove</button></form></td>
+    </tr>{{end}}
+  </table></div>
+  {{else}}<p class="muted">No channels yet.</p>{{end}}
+  <h3 class="mt">Add a channel</h3>
+  <form method="post" action="/settings/chat" class="stack" autocomplete="off">
+    <input type="hidden" name="action" value="add">
+    <div class="row">
+      <label>Name <input name="name" required placeholder="#backups"></label>
+      <label>Type <select name="kind"><option value="slack">Slack</option><option value="teams">Microsoft Teams</option><option value="webhook">Webhook (JSON)</option></select></label>
+    </div>
+    <label>Webhook URL <small>Slack: an incoming webhook (https://hooks.slack.com/services/…). Teams: a channel workflow "Post to a channel when a webhook request is received". Webhook: any URL that accepts a JSON POST.</small><input name="url" required></label>
+    <label>Signing secret <small>webhook only, optional: the request then carries <code>X-BackupZit-Signature: sha256=…</code>, an HMAC-SHA256 of the body with this secret</small><input name="secret" autocomplete="off"></label>
+    <div class="row">
+      <label class="check"><input type="checkbox" name="on_failure" checked> Failures</label>
+      <label class="check"><input type="checkbox" name="on_warning"> Warnings</label>
+      <label class="check"><input type="checkbox" name="on_success"> Successes</label>
+    </div>
+    <div><button>Add channel</button></div>
+  </form>
+  <p class="muted small mt">Webhook URLs are stored encrypted like passwords.</p>
+</div>
+{{end}}{{end}}
 {{if eq .Data.Tab "email"}}{{with .Data.Email}}
 <div class="panel">
   <h2>Email notifications</h2>
