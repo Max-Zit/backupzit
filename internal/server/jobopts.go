@@ -25,6 +25,10 @@ type JobOptions struct {
 	PostCommand string `json:"post_command,omitempty"`
 	// CommandMinutes is the time limit of each command (default 30).
 	CommandMinutes int `json:"command_minutes,omitempty"`
+	// ReplicaAgentID: Proxmox VM jobs keep replicas of their guests on the
+	// node of this agent, on ReplicaStorage ("" = original storage).
+	ReplicaAgentID int64  `json:"replica_agent,omitempty"`
+	ReplicaStorage string `json:"replica_storage,omitempty"`
 }
 
 func (o JobOptions) Validate() error {
@@ -114,6 +118,8 @@ type jobForm struct {
 	MonthTime   string
 	LimitFrom   int
 	LimitTo     int
+	// ReplicaAgents are the Proxmox nodes replicas can go to.
+	ReplicaAgents []pveAgent
 }
 
 // newJobForm prepares the form for job j (a new job: defaults).
@@ -186,6 +192,9 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	} else {
 		o.PreCommand, o.PostCommand, o.CommandMinutes = old.PreCommand, old.PostCommand, old.CommandMinutes
 	}
+	if r.FormValue("replicate") == "on" {
+		o.ReplicaAgentID, o.ReplicaStorage = formID(r, "replica_agent"), r.FormValue("replica_storage")
+	}
 	return o
 }
 
@@ -256,4 +265,14 @@ func minutesText(m int) string {
 		return "1 hour"
 	}
 	return fmt.Sprintf("%d hours", m/60)
+}
+
+// jobForm prepares the shared job form fields for request r.
+func (s *Server) jobForm(r *http.Request, j Job, edit bool, agents []Agent) jobForm {
+	f := newJobForm(j, edit, canCommands(r))
+	if agents == nil {
+		agents, _ = s.store.ListAgents(r.Context())
+	}
+	f.ReplicaAgents = pveAgents(agents)
+	return f
 }

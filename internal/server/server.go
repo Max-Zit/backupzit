@@ -176,7 +176,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard"}[k]
+		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start"}[k]
 	},
 	"everyChoices": everyChoices, "minutesText": minutesText,
 	"has": func(list []string, v string) bool { return slices.Contains(list, v) },
@@ -316,6 +316,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
 	mux.HandleFunc("POST /jobs/{id}/delete", s.ui(PermJobs, s.handleJobDelete))
 	mux.HandleFunc("POST /jobs/{id}/edit", s.ui(PermJobs, s.handleJobEdit))
+	mux.HandleFunc("POST /jobs/{id}/replica-start", s.ui(PermRestore, s.handleReplicaStart))
 	mux.HandleFunc("GET /restore", s.ui(PermRestore, s.handleRestoreWizard))
 	mux.HandleFunc("GET /runs", s.ui(PermView, s.handleRuns))
 	mux.HandleFunc("GET /runs/{id}", s.ui(PermView, s.handleRun))
@@ -811,7 +812,7 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 	}
 	s.render(w, r, "jobs", pageData{Title: "Backup jobs", Nav: "jobs", User: user,
 		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents), "SourceJobs": sourceJobs(jobs),
-			"PVE": vmInv, "VMwareHosts": usable, "Form": newJobForm(Job{}, false, canCommands(r))}})
+			"PVE": vmInv, "VMwareHosts": usable, "Form": s.jobForm(r, Job{}, false, agents)}})
 }
 
 func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -888,7 +889,7 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 		return
 	}
 	s.render(w, r, "job", pageData{Title: j.Name, Nav: "jobs", User: user, Data: map[string]any{"Job": j, "Runs": runs,
-		"Form": newJobForm(j, true, canCommands(r)), "Guests": s.jobGuests(r.Context(), j)}})
+		"Form": s.jobForm(r, j, true, nil), "Guests": s.jobGuests(r.Context(), j), "Replicas": s.jobReplicas(r.Context(), j)}})
 }
 
 func (s *Server) handleJobRun(w http.ResponseWriter, r *http.Request, _ string) {

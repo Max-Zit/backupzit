@@ -31,10 +31,27 @@
     <dt>Schedule</dt><dd>{{schedule .Schedule}}</dd>
     <dt>Retention</dt><dd>{{.Retention.String}}</dd>
     <dt>Next run</dt><dd>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</dd>
+    {{if .Options.ReplicaAgentID}}<dt>Replicas</dt><dd>kept up to date after each backup{{if .Options.ReplicaStorage}}, on storage {{.Options.ReplicaStorage}}{{end}}</dd>{{end}}
     {{if .Options.LimitMBps}}<dt>Speed limit</dt><dd>{{.Options.LimitText}}</dd>{{end}}
     {{if .Options.HasCommands}}<dt>Commands</dt><dd>{{if $.Me.Can "settings"}}{{if .Options.PreCommand}}before: <span class="mono">{{.Options.PreCommand}}</span><br>{{end}}{{if .Options.PostCommand}}after: <span class="mono">{{.Options.PostCommand}}</span>{{end}}{{else}}runs commands before or after the backup{{end}}</dd>{{end}}
   </dl>
 </div>
+{{with $.Data.Replicas}}
+<div class="panel" id="replicas">
+  <h2>Replicas</h2>
+  <p class="muted small">Stopped copies of the guests, updated after each backup. If a guest is lost, start its replica: it runs with the data of the backup it holds. Replication pauses for a replica while it runs; to replicate again later, delete the replica guest in Proxmox and a new one is created.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Guest</th><th>Replica</th><th>Holds the backup of</th><th>State</th><th></th></tr>
+    {{range .}}<tr>
+      <td>{{.VMID}}</td>
+      <td>{{if .ReplicaVMID}}{{.ReplicaVMID}} — {{.Name}}{{else}}—{{end}}</td>
+      <td>{{if .SnapshotID}}{{ts .Updated}} <span class="muted small mono">{{short .SnapshotID}}</span>{{else}}—{{end}}{{if .Error}}<br><span class="badge failed"><i></i>not updated</span> <span class="small">{{.Error}}</span>{{end}}</td>
+      <td>{{if eq .Status "stopped"}}<span class="badge">stopped</span>{{else if eq .Status "running"}}<span class="badge warning"><i></i>running</span>{{else}}<span class="badge failed"><i></i>{{.Status}}</span>{{end}}</td>
+      <td>{{if and ($.Me.Can "restore") (eq .Status "stopped") .ReplicaVMID}}<form method="post" action="/jobs/{{$.Data.Job.ID}}/replica-start" data-confirm="Start replica {{.ReplicaVMID}} of guest {{.VMID}}? Do this only if the original is lost — both on the network at once can conflict."><input type="hidden" name="vmid" value="{{.VMID}}"><button class="secondary">Start replica</button></form>{{end}}</td>
+    </tr>{{end}}
+  </table></div>
+</div>
+{{end}}
 {{if $.Me.Can "jobs"}}
 <details class="panel" id="edit">
   <summary><b>Edit job</b> <span class="muted small">name, {{if eq .Kind "files"}}paths, {{else if eq .Kind "vm"}}VMs, {{end}}schedule, retention, speed limit{{if and ($.Me.Can "settings") (ne .Kind "copy")}}, commands{{end}}</span></summary>

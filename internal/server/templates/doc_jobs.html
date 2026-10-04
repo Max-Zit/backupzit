@@ -55,6 +55,9 @@
 <h2>Changing a job</h2>
 <p>Open the job and expand <b>Edit job</b>. You can change the name, the folders and exclusions (file jobs), the VMs (VM jobs), the schedule, the retention, the speed limit and the commands. The agent, the storage target and the disk of an image job stay as they are, so the job's backups remain one chain; to move a job, create a new one — with a copy job if older backups should come along. Changes apply from the next run and are recorded in the <a href="/audit">audit log</a>.</p>
 
+<h2>Replicas (Proxmox VE)</h2>
+<p>Proxmox VM jobs can keep stopped, up-to-date copies of their guests on a node of your choice, started with one click if a guest is lost — see <a href="/docs/proxmox">Proxmox VE → Replication</a>.</p>
+
 <h2>Speed limit</h2>
 <p>Under <b>Advanced</b> in the job form, <b>Limit the upload speed</b> caps how fast the agent sends data to the storage, in MB/s — for example 10 MB/s from 08:00 to 18:00, so backups during working hours leave the office line usable; outside the window the job runs at full speed. The hours are the agent's local time, and a window may span midnight (22:00 to 06:00). The limit applies to backups and to copy jobs (the upload to the second storage), not to restores: a restore always runs at full speed.</p>
 

@@ -249,3 +249,55 @@ func PreviousDisks(ctx context.Context, r *repo.Repository, platform string) (ma
 
 // PreviousKey is the key of PreviousDisks.
 func PreviousKey(vmID, diskKey string) string { return strings.ToLower(vmID + "/" + diskKey) }
+
+// WriteChanges updates a disk that holds image prev so that it holds img:
+// only blocks whose content differs between the two are written (blocks
+// that became empty are zeroed). Without a usable prev it writes every
+// block, zeros included.
+func WriteChanges(ctx context.Context, r *repo.Repository, img, prev *repo.DiskImage, w io.WriterAt, progress func(uint64)) (written uint64, err error) {
+	if len(img.Partitions) != 1 {
+		return 0, errors.New("not a whole-disk image")
+	}
+	if progress == nil {
+		progress = func(uint64) {}
+	}
+	p := &img.Partitions[0]
+	ids, err := r.LoadBlockMap(ctx, p)
+	if err != nil {
+		return 0, err
+	}
+	var old []repo.ID
+	if prev != nil && len(prev.Partitions) == 1 && prev.Partitions[0].BlockSize == p.BlockSize {
+		if old, err = r.LoadBlockMap(ctx, &prev.Partitions[0]); err != nil {
+			old = nil // e.g. removed by retention: write everything
+		}
+	}
+	for i, id := range ids {
+		if err := ctx.Err(); err != nil {
+			return written, err
+		}
+		off := uint64(i) * uint64(p.BlockSize)
+		n := min(uint64(p.BlockSize), p.Length-off)
+		if i < len(old) && old[i] == id {
+			progress(n)
+			continue
+		}
+		var b []byte
+		if id.IsNull() {
+			b = zeroBlock[:n]
+		} else {
+			if b, err = r.LoadBlob(ctx, repo.DataBlob, id); err != nil {
+				return written, fmt.Errorf("block %d: %w", i, err)
+			}
+			if uint64(len(b)) != n {
+				return written, fmt.Errorf("block %d has %d bytes, expected %d", i, len(b), n)
+			}
+		}
+		if _, err := w.WriteAt(b, int64(off)); err != nil {
+			return written, fmt.Errorf("write block %d: %w", i, err)
+		}
+		written += n
+		progress(n)
+	}
+	return written, nil
+}

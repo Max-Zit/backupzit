@@ -109,6 +109,10 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		ar := &api.Run{ID: run.ID, Kind: run.Kind}
 		return ar, s.addUpdate(run, ar)
 	}
+	if run.Kind == api.KindVMReplicaStart { // needs no storage
+		ar := &api.Run{ID: run.ID, Kind: run.Kind}
+		return ar, s.addReplica(ctx, run, ar)
+	}
 	if run.TargetID == nil {
 		return nil, errors.New("storage target was deleted")
 	}
@@ -155,6 +159,10 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		s.addRetention(ctx, run, ar)
 		ar.VMs, ar.VMExclude = run.Paths, run.Excludes
 		if err := s.addVMware(ctx, run, ar); err != nil {
+			return nil, err
+		}
+	case api.KindVMReplica, api.KindVMReplicaStart:
+		if err := s.addReplica(ctx, run, ar); err != nil {
 			return nil, err
 		}
 	case api.KindVMInstant, api.KindVMInstantFinish, api.KindVMInstantDiscard:
@@ -220,6 +228,11 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 				s.log.Error("queue copy jobs", "job", *run.JobID, "err", err)
 			} else if len(ids) > 0 {
 				s.log.Info("copy jobs queued after backup", "job", *run.JobID, "runs", ids)
+			}
+			if rid, err := s.store.QueueReplica(r.Context(), run); err != nil {
+				s.log.Error("queue replication", "job", *run.JobID, "err", err)
+			} else if rid != 0 {
+				s.log.Info("replication queued after backup", "job", *run.JobID, "run", rid)
 			}
 		}
 	}

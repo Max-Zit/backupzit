@@ -87,3 +87,50 @@ func TestStoreAreas(t *testing.T) {
 	check(&img2, append([]byte(nil), disk.b...))
 	check(&img1, orig1) // the first backup is unchanged
 }
+
+func TestWriteChanges(t *testing.T) {
+	ctx := context.Background()
+	be, err := backend.OpenLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const size = 6*BlockSize + 1000
+	rng := rand.New(rand.NewSource(2))
+	src := &memDisk{b: make([]byte, size)}
+	rng.Read(src.b[:2*BlockSize])
+	rng.Read(src.b[4*BlockSize : 5*BlockSize])
+	img1, err := Store(ctx, r, src, size, 0, "d", "t", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Changes: block 1 rewritten, block 4 emptied, block 5 filled.
+	rng.Read(src.b[BlockSize : BlockSize+100])
+	clear(src.b[4*BlockSize : 5*BlockSize])
+	rng.Read(src.b[5*BlockSize : size])
+	img2, err := Store(ctx, r, src, size, 0, "d", "t", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Flush(ctx)
+
+	// The replica holds image 1 (first sync: everything written).
+	replica := &memDisk{b: bytes.Repeat([]byte{0xee}, size)}
+	if n, err := WriteChanges(ctx, r, &img1, nil, replica, nil); err != nil || n != size {
+		t.Fatalf("full write: %d %v", n, err)
+	}
+	// Second sync writes only blocks 1, 4 and 5.
+	n, err := WriteChanges(ctx, r, &img2, &img1, replica, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := uint64(2*BlockSize + 1000 + BlockSize); n != want {
+		t.Errorf("incremental write: %d bytes, want %d", n, want)
+	}
+	if !bytes.Equal(replica.b, src.b) {
+		t.Error("replica differs from the source")
+	}
+}

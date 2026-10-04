@@ -96,6 +96,10 @@ const (
 	KindVMInstant        = "vm-instant"
 	KindVMInstantFinish  = "vm-instant-finish"
 	KindVMInstantDiscard = "vm-instant-discard"
+	// Replication (Proxmox): keep stopped copies of the guests of a VM
+	// backup up to date; start one (failover).
+	KindVMReplica      = "vm-replica"
+	KindVMReplicaStart = "vm-replica-start"
 	// KindAgentUpdate installs a newer agent version from the console.
 	KindAgentUpdate = "agent-update"
 )
@@ -152,6 +156,8 @@ type Run struct {
 	// VerifyBootSeconds > 0: also start each Proxmox VM of the backup,
 	// isolated, and wait up to this long for its guest agent (boot test).
 	VerifyBootSeconds int `json:"verify_boot_seconds,omitempty"`
+	// Replica: replication and failover runs.
+	Replica *ReplicaRun `json:"replica,omitempty"`
 	// Limit caps the upload speed of backups and copies.
 	Limit *SpeedLimit `json:"limit,omitempty"`
 	// PreCommand and PostCommand run on the agent before and after a
@@ -330,4 +336,18 @@ func (l *SpeedLimit) Active(h int) bool {
 		return h >= l.FromHour && h < l.ToHour
 	}
 	return h >= l.FromHour || h < l.ToHour // over midnight
+}
+
+// ReplicaRun describes a replication (or failover) run.
+type ReplicaRun struct {
+	Storage string `json:"storage,omitempty"` // for new replicas
+	// Guests are the replicas known so far (VMs without one get one).
+	Guests []ReplicaState `json:"guests,omitempty"`
+}
+
+// ReplicaState is the replica of one guest and the backup it holds.
+type ReplicaState struct {
+	VMID        int    `json:"vmid"`
+	ReplicaVMID int    `json:"replica_vmid"`
+	SnapshotID  string `json:"snapshot,omitempty"`
 }

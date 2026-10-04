@@ -545,7 +545,7 @@ func (s *Store) checkJob(ctx context.Context, j *Job) error {
 	if err := j.Options.Validate(); err != nil {
 		return err
 	}
-	return nil
+	return s.checkReplica(ctx, j, agent)
 }
 
 func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {

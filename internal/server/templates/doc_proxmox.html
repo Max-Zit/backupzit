@@ -55,6 +55,17 @@ systemctl enable --now backupzit-agent</pre></li>
 </ol>
 <p>While a VM runs from a backup, retention never removes that backup. The VM is as fast as the backup storage allows: a repository on a local disk or a fast network share works best; reads over SFTP or S3 from far away make it slow until it is finished. Instant recovery is for VMs (not containers) and creates a new VM — restore in place with a normal restore. The EFI disk cannot be moved while the VM runs; it then stays on <code>backupzit-instant</code> (see the run message) and can be moved after shutting the VM down: <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
 
+<h2>Replication</h2>
+<p>For guests that must be back within minutes, a VM job can keep <b>replicas</b>: under <b>Advanced</b> in the job form tick <b>Keep replicas of the VMs</b> and choose the node (any node with the BackupZit agent, also in another cluster) and the storage. After each backup, the agent on that node brings a <b>stopped copy</b> of every guest of the job up to date:</p>
+<ul>
+  <li>The first time, the replica is restored like a new guest (next free ID, name <i>original-replica</i>, new MAC addresses, never started with the node).</li>
+  <li>Later only the blocks that changed since the backup the replica holds are written — typically a few seconds per backup.</li>
+  <li>The job page lists the replicas, the backup each holds and its state. If a guest is lost, click <b>Start replica</b>: it runs with the data of the last backup, without a restore. Start it only when the original is really gone — both on the network at the same time can conflict.</li>
+  <li>While a replica runs it is no longer updated (the run reports it). To replicate again, delete the replica guest in Proxmox; the next backup creates a new one. Replicas with Proxmox snapshots are not updated either.</li>
+  <li>Disks added to a guest later are not replicated (delete the replica to start over); disks that grew are grown on the replica too. Changes to the configuration (memory, CPUs) are taken when the replica is created.</li>
+  <li>Replication reads the backups like a restore: the replica node must reach the storage. Switching replication off leaves the replicas as they are.</li>
+</ul>
+
 <h2>Command line</h2>
 <pre>backupzit-agent pve list
 backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]

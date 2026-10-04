@@ -77,6 +77,15 @@
         </div>
       </div>
       <small class="muted">For example 10 MB/s from 08:00 to 18:00 keeps the office line usable during working hours; outside the window the backup runs at full speed. Times are the agent's local time.</small>
+      {{if and .ReplicaAgents (or (not .Edit) (and (eq .J.Kind "vm") (not .J.VMwareHostID)))}}{{$ra := .J.Options.ReplicaAgentID}}{{$rs := .J.Options.ReplicaStorage}}
+      <div {{if not .Edit}}data-jobkind="vm" hidden{{end}} class="stack">
+        <label class="check"><input type="checkbox" name="replicate" {{if $ra}}checked{{end}}> Keep replicas of the VMs <small>Proxmox VE: after each backup, a stopped copy of every guest on the chosen node is brought up to date (only changed blocks are written). If a guest is lost, start its replica from the job page instead of restoring.</small></label>
+        <div class="row">
+          <label>On node <select name="replica_agent">{{range .ReplicaAgents}}<option value="{{.ID}}" {{if eq .ID $ra}}selected{{end}}>{{.Inv.Node}}{{if ne .Inv.Node .Hostname}} ({{.Hostname}}){{end}}</option>{{end}}</select></label>
+          <label>Storage <select name="replica_storage"><option value="">Original storage of each disk</option>{{range .ReplicaAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}{{if ne . "backupzit-instant"}}<option value="{{.}}" {{if eq . $rs}}selected{{end}}>{{.}}</option>{{end}}{{end}}</optgroup>{{end}}</select></label>
+        </div>
+      </div>
+      {{end}}
       {{if ne .J.Kind "copy"}}<div data-notkind="copy" class="stack">{{if .CanCommands}}
       <label>Command before the backup <small>runs on the agent as its service account (root / SYSTEM) with <code>sh</code> on Linux and <code>cmd</code> on Windows, e.g. <code>pg_dump -U postgres app &gt; /var/backups/app.sql</code>. If it fails, the backup does not run.</small>
         <textarea name="pre_command" class="mono" rows="3">{{.J.Options.PreCommand}}</textarea>

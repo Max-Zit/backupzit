@@ -274,33 +274,11 @@ func writeDisk(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, d rep
 	if d.Image < 0 || d.Image >= len(sn.Images) || len(sn.Images[d.Image].Partitions) != 1 {
 		return errors.New("disk image missing in the snapshot")
 	}
-	_, vol, _ := strings.Cut(volid, ":")
-	var path string
-	var cleanup func()
-	var err error
-	switch st.Type {
-	case "rbd":
-		args := append([]string{"map"}, rbdArgs(st)...)
-		out, err := command(ctx, "rbd", append(args, rbdImage(st, vol))...)
-		if err != nil {
-			return err
-		}
-		path = strings.TrimSpace(string(out))
-		cleanup = func() { c, cancel := bg(); defer cancel(); command(c, "rbd", "unmap", path) }
-	case "lvm", "lvmthin":
-		command(ctx, "lvchange", "-ay", st.Props["vgname"]+"/"+vol)
-		fallthrough
-	default:
-		if path, err = volumePath(ctx, volid); err != nil {
-			return err
-		}
-		if err := waitPath(ctx, path); err != nil {
-			return err
-		}
+	path, cleanup, err := volumeDevice(ctx, st, volid)
+	if err != nil {
+		return err
 	}
-	if cleanup != nil {
-		defer cleanup()
-	}
+	defer cleanup()
 	// Thin and new file volumes read as zeros; thick LVM may hold old data.
 	writeZeros := st.Type == "lvm" || st.Type == "iscsidirect" || st.Type == "iscsi"
 	f, err := os.OpenFile(path, os.O_WRONLY, 0)
@@ -419,4 +397,32 @@ func newMAC() string {
 	var b [3]byte
 	rand.Read(b[:])
 	return fmt.Sprintf("BC:24:11:%02X:%02X:%02X", b[0], b[1], b[2])
+}
+
+// volumeDevice returns the block device or file of a volume (mapping Ceph
+// images and activating LVM volumes first) and a function that releases it.
+func volumeDevice(ctx context.Context, st storage, volid string) (path string, cleanup func(), err error) {
+	_, vol, _ := strings.Cut(volid, ":")
+	cleanup = func() {}
+	switch st.Type {
+	case "rbd":
+		args := append([]string{"map"}, rbdArgs(st)...)
+		out, err := command(ctx, "rbd", append(args, rbdImage(st, vol))...)
+		if err != nil {
+			return "", nil, err
+		}
+		path = strings.TrimSpace(string(out))
+		cleanup = func() { c, cancel := bg(); defer cancel(); command(c, "rbd", "unmap", path) }
+	case "lvm", "lvmthin":
+		command(ctx, "lvchange", "-ay", st.Props["vgname"]+"/"+vol)
+		fallthrough
+	default:
+		if path, err = volumePath(ctx, volid); err != nil {
+			return "", nil, err
+		}
+		if err := waitPath(ctx, path); err != nil {
+			return "", nil, err
+		}
+	}
+	return path, cleanup, nil
 }
