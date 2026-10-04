@@ -33,12 +33,27 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 
 <h2>The certificate</h2>
 <p>On first start the console creates a self-signed certificate. Your browser will warn about it once; agents do not rely on certificate authorities at all — they <b>pin the certificate fingerprint</b> shown on the <a href="/agents">Agents</a> page when they enroll. That protects agents against a fake server even on an untrusted network.</p>
-<div class="callout warn"><p>If you replace the certificate (<code>cert.pem</code>/<code>key.pem</code> in the data directory), agents enrolled earlier will refuse to connect until they are enrolled again.</p></div>
+<div class="callout warn"><p>Do not replace that certificate (<code>cert.pem</code>/<code>key.pem</code> in the data directory): agents enrolled earlier would refuse to connect until they are enrolled again. For browsers, add a trusted certificate as described below instead.</p></div>
+
+<h3>A trusted certificate for browsers</h3>
+<p>To avoid the browser warning, open <a href="/settings/certificate">Settings → Certificate</a>. The console then also answers at a DNS name, for example <code>https://backup.example.com</code> on port 443, with a trusted certificate. Agents keep using port 8443 and the pinned certificate, so they are not affected.</p>
+<ul>
+  <li><b>Upload a certificate</b> from your company CA or a public CA, also a wildcard certificate such as <code>*.example.com</code>. Paste the certificate (with its intermediate certificates) and the private key as PEM, or choose the files. The console checks that the key belongs to the certificate, that it is valid now and that it covers the DNS name. You get an email 21 days before it expires.</li>
+  <li><b>Let's Encrypt</b>: free certificates, renewed automatically 30 days before they expire. Let's Encrypt has to verify that you control the name, in one of two ways:
+    <ul>
+      <li><b>DNS check via Cloudflare</b>, recommended for consoles that are not reachable from the internet. BackupZit creates a temporary TXT record with a Cloudflare API token. In Cloudflare, go to My Profile → API Tokens → Create Token, use the template <i>Edit zone DNS</i> and limit it to your zone.</li>
+      <li><b>HTTP check</b>: port 80 of the console must be reachable from the internet under the DNS name. This is rarely wanted for a backup server.</li>
+    </ul>
+    Try the setup first with <i>Use the Let's Encrypt test system</i>. Its certificates are not trusted by browsers, but it has no rate limits.</li>
+  <li><b>Serve port 80</b> redirects <code>http://</code> to <code>https://</code>.</li>
+</ul>
+<p>The DNS name must point to the console's IP address, usually through an A record in your internal DNS. The certificate files are kept in <code>/var/lib/backupzit/web</code>, and the key is readable only by the service. On Linux the service may use ports 80 and 443 (<code>CAP_NET_BIND_SERVICE</code>); open them in the firewall if browsers connect from other networks.</p>
 
 <h2>Firewall</h2>
 <table>
   <tr><th>Port</th><th>From</th><th>To</th><th>Purpose</th></tr>
   <tr><td>8443/tcp</td><td>agents, admins</td><td>console</td><td>agent API and web console</td></tr>
+  <tr><td>443/tcp, 80/tcp</td><td>admins</td><td>console</td><td>optional: web console with a trusted certificate, and the redirect to HTTPS</td></tr>
   <tr><td>22/tcp</td><td>agents, console</td><td>SFTP storage</td><td>SFTP targets</td></tr>
   <tr><td>443 or 9000/tcp</td><td>agents, console</td><td>S3 storage</td><td>S3 targets</td></tr>
   <tr><td>445/tcp</td><td>agents, console</td><td>NAS / file server</td><td>SMB targets</td></tr>

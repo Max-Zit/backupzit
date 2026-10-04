@@ -135,6 +135,7 @@ func run() error {
 	os.MkdirAll(srv.DistDir, 0o755)
 
 	srv.Notifier = server.NewNotifier(store, log, func() string { return srv.PublicURL })
+	srv.StartWeb(ctx, *dataDir)
 	sched := server.NewScheduler(store, log)
 	sched.Notifier = srv.Notifier
 	go sched.Run(ctx)

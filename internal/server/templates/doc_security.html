@@ -6,6 +6,7 @@
 <ul>
   <li><b>Encryption at the source</b> — AES-256-GCM in the agent; the storage only sees encrypted data. Keys are derived with Argon2id.</li>
   <li><b>Pinned connections</b> — agents pin the console certificate; SFTP host keys and hardened repository certificates are pinned too. No certificate authority can be abused to impersonate them.</li>
+  <li><b>Trusted certificate for browsers</b> — optionally an uploaded or Let's Encrypt certificate (TLS 1.2+) on a separate address, renewed automatically; see <a href="/docs/install">Installing the server</a>.</li>
   <li><b>Secrets at rest</b> — storage passwords and keys, recovery keys, SMTP/LDAP passwords and two-factor secrets are encrypted in the database with a key kept outside it (<code>secrets.key</code>).</li>
   <li><b>Agent secrets</b> — each agent has its own secret, stored only as a hash on the console and in a file only administrators can read on the agent.</li>
   <li><b>Web console</b> — HttpOnly, SameSite=Strict session cookies; protection against cross-site requests and clickjacking; strict Content-Security-Policy; passwords hashed with bcrypt; sensitive pages are never cached.</li>

@@ -161,3 +161,26 @@ func TestVMwareHosts(t *testing.T) {
 		t.Error("job of the removed host still exists")
 	}
 }
+
+func TestCertificateSettings(t *testing.T) {
+	e := setup(t)
+	e.srv.StartWeb(e.ctx, t.TempDir())
+	admin := newClient(t, e)
+	if !admin.login("admin", "admin-pass-123") {
+		t.Fatal("login")
+	}
+	if _, _, body := admin.do("GET", "/settings/certificate", nil); !strings.Contains(body, "HTTPS certificate for browsers") || !strings.Contains(body, `value="acme"`) {
+		t.Fatal("certificate tab missing")
+	}
+	if _, loc, _ := admin.do("POST", "/settings/certificate", url.Values{"mode": {"upload"}, "hostname": {"backup.example.com"}, "port": {"8444"},
+		"cert_pem": {"-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----"}, "key_pem": {"x"}}); !strings.Contains(loc, "err=") {
+		t.Errorf("invalid certificate accepted: %s", loc)
+	}
+	if _, loc, _ := admin.do("POST", "/settings/certificate", url.Values{"mode": {"acme"}, "hostname": {"backup.example.com"}, "port": {"8444"},
+		"acme_email": {"a@example.com"}, "challenge": {"cloudflare"}}); !strings.Contains(loc, "err=") || !strings.Contains(loc, "Cloudflare") {
+		t.Errorf("Let's Encrypt without token accepted: %s", loc)
+	}
+	if _, loc, _ := admin.do("POST", "/settings/certificate", url.Values{"mode": {"self"}}); !strings.Contains(loc, "msg=") {
+		t.Errorf("self mode: %s", loc)
+	}
+}
