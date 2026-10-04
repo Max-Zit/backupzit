@@ -71,77 +71,7 @@
     </div>
     <script type="application/json" id="pve-inventory">{{.Data.PVE}}</script>
     <script type="application/json" id="inventory">{{.Data.Inventory}}</script>
-    <fieldset class="sched">
-      <legend>Keep backups</legend>
-      <div class="keep">
-        <label>Most recent <input type="number" name="keep_last" min="0" max="999" value="3"></label>
-        <label>Daily <input type="number" name="keep_daily" min="0" max="999" value="7"></label>
-        <label>Weekly <input type="number" name="keep_weekly" min="0" max="999" value="4"></label>
-        <label>Monthly <input type="number" name="keep_monthly" min="0" max="999" value="6"></label>
-      </div>
-      <small class="muted">A backup is kept if any rule selects it, e.g. 7 daily keeps the newest backup of each of the last 7 days. Older backups are removed after each run and their space is freed. All zeros keeps everything.</small>
-    </fieldset>
-    <fieldset class="sched">
-      <legend>Schedule</legend>
-      <label>Run
-        <select name="sched_kind" id="sched_kind" data-switch="sched">
-          <option value="daily" selected>At specific times</option>
-          <option value="interval">Repeatedly, every few hours or minutes</option>
-          <option value="monthly">Once a month</option>
-          <option value="after" data-jobkind-opt="copy">After each backup of the source job</option>
-          <option value="manual">Manually only</option>
-        </select>
-      </label>
-
-      <div data-sched="daily">
-        <label>At <small>add up to three times a day</small></label>
-        <div class="times">
-          <input type="time" name="sched_time" value="22:00" required>
-          <input type="time" name="sched_time">
-          <input type="time" name="sched_time">
-        </div>
-      </div>
-
-      <div data-sched="interval" hidden>
-        <div class="row">
-          <label>Every
-            <select name="sched_every">
-              <option value="15">15 minutes</option>
-              <option value="30">30 minutes</option>
-              <option value="60">1 hour</option>
-              <option value="120">2 hours</option>
-              <option value="180">3 hours</option>
-              <option value="240" selected>4 hours</option>
-              <option value="360">6 hours</option>
-              <option value="480">8 hours</option>
-              <option value="720">12 hours</option>
-            </select>
-          </label>
-          <div>
-            <label class="check"><input type="checkbox" name="sched_window"> Only between</label>
-            <div class="times">
-              <select name="sched_from">{{range $h := hours}}<option value="{{$h}}" {{if eq $h 8}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
-              <span>and</span>
-              <select name="sched_to">{{range $h := hours}}{{if $h}}<option value="{{$h}}" {{if eq $h 18}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}{{end}}<option value="24">24:00</option></select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div data-sched="daily interval">
-        <label>On these days</label>
-        <div class="days">
-          {{range $i, $d := weekdays}}<label class="check"><input type="checkbox" name="sched_days" value="{{$d.Num}}" checked> {{$d.Name}}</label>{{end}}
-        </div>
-      </div>
-
-      <div data-sched="monthly" hidden class="row">
-        <label>On day
-          <select name="sched_dom">{{range $d := monthdays}}<option value="{{$d}}">{{$d}}.</option>{{end}}</select>
-        </label>
-        <label>At <input type="time" name="sched_month_time" value="22:00"></label>
-      </div>
-    </fieldset>
+    {{template "job_common" .Data.Form}}
     <div><button>Create job</button></div>
   </form>
   {{else}}<p class="muted">You need at least one <a href="/agents">agent</a> and one <a href="/targets">storage target</a>.</p>{{end}}

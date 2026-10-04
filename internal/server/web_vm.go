@@ -185,3 +185,22 @@ func (s *Server) handleInstantEnd(w http.ResponseWriter, r *http.Request, _ stri
 	s.audit(r, "restore.vm-instant-end", "run #%d: %s the VM of run #%d", rid, what, id)
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Queued.")
 }
+
+// jobGuests are the VMs a VM job can select, for its edit form.
+func (s *Server) jobGuests(ctx context.Context, j Job) []pve.Guest {
+	if j.Kind != JobVM {
+		return nil
+	}
+	if j.VMwareHostID != nil {
+		h, err := s.store.GetVMwareHost(ctx, *j.VMwareHostID)
+		if err != nil || h.Inv() == nil {
+			return nil
+		}
+		return h.Inv().Guests
+	}
+	a, err := s.store.GetAgent(ctx, j.AgentID)
+	if err != nil {
+		return nil
+	}
+	return a.LocalGuests()
+}

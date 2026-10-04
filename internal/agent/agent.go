@@ -280,7 +280,25 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 	a.runStarted(run)
 	var res api.RunResult
 	var after func() // runs once the result is reported
-	switch run.Kind {
+	if run.Limit != nil {
+		limit := run.Limit
+		ctx = backend.WithLimiter(ctx, backend.NewLimiter(func() int64 {
+			if limit.Active(time.Now().Hour()) {
+				return limit.BytesPerSec
+			}
+			return 0
+		}))
+	}
+	kind := run.Kind
+	if run.PreCommand != "" && backupKind(run.Kind) {
+		if out, err := a.jobCommand(ctx, run, "pre", run.PreCommand, ""); err != nil {
+			res = api.RunResult{Status: api.StatusFailed, Message: "The command before the backup failed (" + err.Error() + "); the backup did not run", Errors: commandOutput(out)}
+			kind = "" // skip the backup
+		}
+	}
+	switch kind {
+	case "":
+		// The command before the backup failed.
 	case api.KindBackup:
 		res = a.backup(ctx, run)
 	case api.KindRestore:
@@ -320,6 +338,17 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		a.mu.Unlock()
 	default:
 		res = api.RunResult{Status: api.StatusFailed, Message: "unsupported run kind " + run.Kind}
+	}
+	if run.PostCommand != "" && backupKind(run.Kind) {
+		// Runs also after failures, e.g. to restart services the command
+		// before the backup stopped.
+		if out, err := a.jobCommand(ctx, run, "post", run.PostCommand, res.Status); err != nil {
+			if res.Status == api.StatusSuccess {
+				res.Status = api.StatusWarning
+			}
+			res.Message = strings.TrimSpace(res.Message + ". The command after the backup failed (" + err.Error() + ")")
+			res.Errors = append(res.Errors, commandOutput(out)...)
+		}
 	}
 	if strings.HasPrefix(run.Repository.URL, "usb://") && res.Status != api.StatusFailed && (run.Kind == api.KindBackup || run.Kind == api.KindImageBackup || run.Kind == api.KindVMBackup || run.Kind == api.KindSystemBackup || run.Kind == api.KindCopy) {
 		// Record which of the rotating disks holds this backup.
@@ -372,6 +401,8 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 		cleanup()
 		return nil, nil, err
 	}
+	// Uploads honor the speed limit of the run (backend.WithLimiter).
+	be = backend.Throttle(be)
 	r, err := repo.Open(ctx, be, repo.Password(rs.Password))
 	if errors.Is(err, repo.ErrNotInitialized) && create {
 		r, err = repo.Init(ctx, be, repo.Password(rs.Password))

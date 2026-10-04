@@ -243,6 +243,7 @@ func (s *Server) addRetention(ctx context.Context, run *Run, ar *api.Run) {
 		return
 	}
 	ar.JobID = j.ID
+	j.Options.apply(ar, run.Kind)
 	if j.RetentionHold {
 		return // paused after a suspicious backup
 	}

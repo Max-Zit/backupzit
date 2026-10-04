@@ -441,29 +441,32 @@ type Job struct {
 	// VMware VM jobs: the ESXi host (AgentID is its proxy agent).
 	VMwareHostID   *int64
 	VMwareHostName *string
-	CreatedAt      time.Time
+	// Options: speed limit, commands before and after the backup.
+	Options   JobOptions
+	CreatedAt time.Time
 	// Last run summary
 	LastStatus   *string
 	LastFinished *time.Time
 }
 
-func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
+// checkJob validates and normalizes a job before it is stored.
+func (s *Store) checkJob(ctx context.Context, j *Job) error {
 	j.Name = strings.TrimSpace(j.Name)
 	if j.Kind == "" {
 		j.Kind = JobFiles
 	}
 	if j.Name == "" {
-		return 0, errors.New("name is required")
+		return errors.New("name is required")
 	}
 	switch j.Kind {
 	case JobFiles:
 		if len(j.Paths) == 0 {
-			return 0, errors.New("at least one folder or file is required")
+			return errors.New("at least one folder or file is required")
 		}
 		j.ImageDisk, j.ImagePartitions = nil, nil
 	case JobImage:
 		if j.ImageDisk == nil {
-			return 0, errors.New("choose a disk to image")
+			return errors.New("choose a disk to image")
 		}
 		j.Paths = []string{}
 	case JobVM:
@@ -472,29 +475,29 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 		j.Paths, j.ImageDisk, j.ImagePartitions = []string{"/"}, nil, nil
 	case JobCopy:
 		if j.SourceJobID == nil {
-			return 0, errors.New("choose the job whose backups are copied")
+			return errors.New("choose the job whose backups are copied")
 		}
 		src, err := s.GetJob(ctx, *j.SourceJobID)
 		if err != nil {
-			return 0, errors.New("unknown source job")
+			return errors.New("unknown source job")
 		}
 		if src.Kind == JobCopy {
-			return 0, errors.New("choose a backup job, not another copy job")
+			return errors.New("choose a backup job, not another copy job")
 		}
 		if src.TargetID == j.TargetID {
-			return 0, errors.New("the copy must go to a different storage target than the source job")
+			return errors.New("the copy must go to a different storage target than the source job")
 		}
 		j.AgentID = src.AgentID
 		j.Paths, j.ImageDisk, j.ImagePartitions = []string{}, nil, nil
 	default:
-		return 0, fmt.Errorf("unknown job kind %q", j.Kind)
+		return fmt.Errorf("unknown job kind %q", j.Kind)
 	}
 	sc, err := ParseSchedule(j.Schedule)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	if sc.Kind == SchedAfter && j.Kind != JobCopy {
-		return 0, errors.New("\"after each backup\" is only available for copy jobs")
+		return errors.New("\"after each backup\" is only available for copy jobs")
 	}
 	j.Schedule = sc.Encode()
 	if j.Kind == JobVM && j.VMwareHostID != nil {
@@ -504,45 +507,55 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 	}
 	agent, err := s.GetAgent(ctx, j.AgentID)
 	if err != nil {
-		return 0, errors.New("unknown agent")
+		return errors.New("unknown agent")
 	}
 	if j.Kind == JobSystem && (strings.Contains(strings.ToLower(agent.OS), "windows") || agent.Recovery) {
-		return 0, fmt.Errorf("%s is not a Linux machine; use a disk image job for Windows", agent.Hostname)
+		return fmt.Errorf("%s is not a Linux machine; use a disk image job for Windows", agent.Hostname)
 	}
 	if j.Kind == JobVM && j.VMwareHostID != nil {
 		h, err := s.GetVMwareHost(ctx, *j.VMwareHostID)
 		if err != nil {
-			return 0, errors.New("unknown VMware host")
+			return errors.New("unknown VMware host")
 		}
 		if h.ProxyAgentID == nil {
-			return 0, fmt.Errorf("choose a proxy agent for %s first", h.Name)
+			return fmt.Errorf("choose a proxy agent for %s first", h.Name)
 		}
 		j.AgentID = *h.ProxyAgentID
 		if err := checkVMwareSelection(h, j.Paths, j.Excludes); err != nil {
-			return 0, err
+			return err
 		}
 	} else if j.Kind == JobVM {
 		if err := checkVMSelection(agent, j.Paths, j.Excludes); err != nil {
-			return 0, err
+			return err
 		}
 	} else {
 		j.VMwareHostID = nil
 	}
 	if j.Kind == JobImage {
 		if err := checkImageSelection(agent, *j.ImageDisk, j.ImagePartitions); err != nil {
-			return 0, err
+			return err
 		}
 	}
 	if _, err := s.GetTarget(ctx, j.TargetID); err != nil {
-		return 0, errors.New("unknown storage target")
+		return errors.New("unknown storage target")
 	}
 	if j.Excludes == nil {
 		j.Excludes = []string{}
 	}
+	if err := j.Options.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
+	if err := s.checkJob(ctx, &j); err != nil {
+		return 0, err
+	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at, kind, image_disk, image_partitions, retention, source_job_id, vmware_host_id)
-		VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8,$9,$10,$11,$12,$13) RETURNING id`,
-		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled, j.Kind, j.ImageDisk, j.ImagePartitions, j.Retention, j.SourceJobID, j.VMwareHostID).Scan(&id)
+	err := s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at, kind, image_disk, image_partitions, retention, source_job_id, vmware_host_id, options)
+		VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled, j.Kind, j.ImageDisk, j.ImagePartitions, j.Retention, j.SourceJobID, j.VMwareHostID, j.Options).Scan(&id)
 	return id, err
 }
 
@@ -551,14 +564,14 @@ const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.retention, j.
 	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy') ORDER BY r.queued_at DESC LIMIT 1),
 	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy') ORDER BY r.queued_at DESC LIMIT 1),
 	j.source_job_id, (SELECT sj.name FROM jobs sj WHERE sj.id=j.source_job_id), j.retention_hold,
-	j.vmware_host_id, (SELECT vh.name FROM vmware_hosts vh WHERE vh.id=j.vmware_host_id)`
+	j.vmware_host_id, (SELECT vh.name FROM vmware_hosts vh WHERE vh.id=j.vmware_host_id), j.options`
 
 const jobFrom = ` FROM jobs j JOIN agents a ON a.id=j.agent_id JOIN storage_targets st ON st.id=j.target_id`
 
 func scanJob(r pgx.Row) (Job, error) {
 	var j Job
 	err := r.Scan(&j.ID, &j.Kind, &j.ImageDisk, &j.ImagePartitions, &j.Retention, &j.AgentID, &j.Hostname, &j.TargetID, &j.TargetName, &j.Name,
-		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished, &j.SourceJobID, &j.SourceJobName, &j.RetentionHold, &j.VMwareHostID, &j.VMwareHostName)
+		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished, &j.SourceJobID, &j.SourceJobName, &j.RetentionHold, &j.VMwareHostID, &j.VMwareHostName, &j.Options)
 	return j, err
 }
 

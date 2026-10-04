@@ -152,6 +152,13 @@ type Run struct {
 	// VerifyBootSeconds > 0: also start each Proxmox VM of the backup,
 	// isolated, and wait up to this long for its guest agent (boot test).
 	VerifyBootSeconds int `json:"verify_boot_seconds,omitempty"`
+	// Limit caps the upload speed of backups and copies.
+	Limit *SpeedLimit `json:"limit,omitempty"`
+	// PreCommand and PostCommand run on the agent before and after a
+	// backup, each for at most CommandSeconds.
+	PreCommand     string `json:"pre_command,omitempty"`
+	PostCommand    string `json:"post_command,omitempty"`
+	CommandSeconds int    `json:"command_seconds,omitempty"`
 
 	// VM backup: guest IDs ("*" = all guests on the node) and guests to skip.
 	VMs       []string `json:"vms,omitempty"`
@@ -301,4 +308,26 @@ type VMwareHost struct {
 	Password   string `json:"password"`
 	Thumbprint string `json:"thumbprint"`
 	SSHHostKey string `json:"ssh_host_key,omitempty"`
+}
+
+// SpeedLimit caps the upload speed, between FromHour and ToHour o'clock
+// (local time of the agent; equal hours: all day).
+type SpeedLimit struct {
+	BytesPerSec int64 `json:"bytes_per_sec"`
+	FromHour    int   `json:"from_hour,omitempty"`
+	ToHour      int   `json:"to_hour,omitempty"`
+}
+
+// Active reports whether the limit applies at hour h (0-23).
+func (l *SpeedLimit) Active(h int) bool {
+	if l == nil || l.BytesPerSec <= 0 {
+		return false
+	}
+	if l.FromHour == l.ToHour {
+		return true
+	}
+	if l.FromHour < l.ToHour {
+		return h >= l.FromHour && h < l.ToHour
+	}
+	return h >= l.FromHour || h < l.ToHour // over midnight
 }

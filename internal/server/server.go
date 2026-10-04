@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -174,6 +175,8 @@ var funcs = template.FuncMap{
 	"kindtitle": func(k string) string {
 		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard"}[k]
 	},
+	"everyChoices": everyChoices, "minutesText": minutesText,
+	"has": func(list []string, v string) bool { return slices.Contains(list, v) },
 	"hours": func() []int {
 		h := make([]int, 24)
 		for i := range h {
@@ -306,6 +309,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(PermJobs, s.handleJobEnable(true)))
 	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
 	mux.HandleFunc("POST /jobs/{id}/delete", s.ui(PermJobs, s.handleJobDelete))
+	mux.HandleFunc("POST /jobs/{id}/edit", s.ui(PermJobs, s.handleJobEdit))
 	mux.HandleFunc("GET /restore", s.ui(PermRestore, s.handleRestoreWizard))
 	mux.HandleFunc("GET /runs", s.ui(PermView, s.handleRuns))
 	mux.HandleFunc("GET /runs/{id}", s.ui(PermView, s.handleRun))
@@ -801,7 +805,7 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 	}
 	s.render(w, r, "jobs", pageData{Title: "Backup jobs", Nav: "jobs", User: user,
 		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents), "SourceJobs": sourceJobs(jobs),
-			"PVE": vmInv, "VMwareHosts": usable}})
+			"PVE": vmInv, "VMwareHosts": usable, "Form": newJobForm(Job{}, false, canCommands(r))}})
 }
 
 func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -812,20 +816,16 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		return
 	}
 	job := Job{
-		Kind: r.FormValue("kind"),
-		Retention: repo.RetentionPolicy{
-			KeepLast:    atoiDefault(r.FormValue("keep_last")),
-			KeepDaily:   atoiDefault(r.FormValue("keep_daily")),
-			KeepWeekly:  atoiDefault(r.FormValue("keep_weekly")),
-			KeepMonthly: atoiDefault(r.FormValue("keep_monthly")),
-		},
-		AgentID:  formID(r, "agent_id"),
-		TargetID: formID(r, "target_id"),
-		Name:     r.FormValue("name"),
-		Paths:    lines(r.FormValue("paths")),
-		Excludes: lines(r.FormValue("excludes")),
-		Schedule: sched,
-		Enabled:  true,
+		Kind:      r.FormValue("kind"),
+		Retention: retentionFromForm(r),
+		Options:   optionsFromForm(r, JobOptions{}, canCommands(r)),
+		AgentID:   formID(r, "agent_id"),
+		TargetID:  formID(r, "target_id"),
+		Name:      r.FormValue("name"),
+		Paths:     lines(r.FormValue("paths")),
+		Excludes:  lines(r.FormValue("excludes")),
+		Schedule:  sched,
+		Enabled:   true,
 	}
 	if job.Kind == JobCopy {
 		job.SourceJobID = optionalID(r.FormValue("source_job"))
@@ -858,7 +858,7 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		redirectErr(w, r, "/jobs", err)
 		return
 	}
-	s.audit(r, "job.create", "#%d %s", id, job.Name)
+	s.audit(r, "job.create", "#%d %s%s", id, job.Name, commandsAudit(JobOptions{}, job.Options))
 	redirectMsg(w, r, fmt.Sprintf("/jobs/%d", id), "Job created.")
 }
 
@@ -881,7 +881,8 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 		s.serverError(w, err)
 		return
 	}
-	s.render(w, r, "job", pageData{Title: j.Name, Nav: "jobs", User: user, Data: map[string]any{"Job": j, "Runs": runs}})
+	s.render(w, r, "job", pageData{Title: j.Name, Nav: "jobs", User: user, Data: map[string]any{"Job": j, "Runs": runs,
+		"Form": newJobForm(j, true, canCommands(r)), "Guests": s.jobGuests(r.Context(), j)}})
 }
 
 func (s *Server) handleJobRun(w http.ResponseWriter, r *http.Request, _ string) {

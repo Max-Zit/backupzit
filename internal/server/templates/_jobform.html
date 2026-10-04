@@ -1,0 +1,92 @@
+{{/* Retention, schedule and options of the job forms (new job and edit). The dot is a jobForm. */}}
+{{define "job_common"}}
+    <fieldset class="sched">
+      <legend>Keep backups</legend>
+      <div class="keep">
+        <label>Most recent <input type="number" name="keep_last" min="0" max="999" value="{{.J.Retention.KeepLast}}"></label>
+        <label>Daily <input type="number" name="keep_daily" min="0" max="999" value="{{.J.Retention.KeepDaily}}"></label>
+        <label>Weekly <input type="number" name="keep_weekly" min="0" max="999" value="{{.J.Retention.KeepWeekly}}"></label>
+        <label>Monthly <input type="number" name="keep_monthly" min="0" max="999" value="{{.J.Retention.KeepMonthly}}"></label>
+      </div>
+      <small class="muted">A backup is kept if any rule selects it, e.g. 7 daily keeps the newest backup of each of the last 7 days. Older backups are removed after each run and their space is freed. All zeros keeps everything.</small>
+    </fieldset>
+    <fieldset class="sched">
+      <legend>Schedule</legend>
+      <label>Run
+        <select name="sched_kind" id="sched_kind" data-switch="sched">
+          <option value="daily" {{if eq .S.Kind "daily"}}selected{{end}}>At specific times</option>
+          <option value="interval" {{if eq .S.Kind "interval"}}selected{{end}}>Repeatedly, every few hours or minutes</option>
+          <option value="monthly" {{if eq .S.Kind "monthly"}}selected{{end}}>Once a month</option>
+          {{if or (not .Edit) (eq .J.Kind "copy")}}<option value="after" {{if not .Edit}}data-jobkind-opt="copy"{{end}} {{if eq .S.Kind "after"}}selected{{end}}>After each backup of the source job</option>{{end}}
+          <option value="manual" {{if eq .S.Kind "manual"}}selected{{end}}>Manually only</option>
+        </select>
+      </label>
+
+      <div data-sched="daily" {{if ne .S.Kind "daily"}}hidden{{end}}>
+        <label>At <small>add up to three times a day</small></label>
+        <div class="times">
+          <input type="time" name="sched_time" value="{{index .Times 0}}" required>
+          <input type="time" name="sched_time" value="{{index .Times 1}}">
+          <input type="time" name="sched_time" value="{{index .Times 2}}">
+        </div>
+      </div>
+
+      <div data-sched="interval" {{if ne .S.Kind "interval"}}hidden{{end}}>
+        <div class="row">
+          <label>Every
+            <select name="sched_every">{{$e := .S.EveryMinutes}}
+              {{range $m := everyChoices}}<option value="{{$m}}" {{if eq $m $e}}selected{{end}}>{{minutesText $m}}</option>{{end}}
+            </select>
+          </label>
+          <div>
+            <label class="check"><input type="checkbox" name="sched_window" {{if .Window}}checked{{end}}> Only between</label>
+            <div class="times">{{$f := .From}}{{$t := .To}}
+              <select name="sched_from">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $f}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
+              <span>and</span>
+              <select name="sched_to">{{range $h := hours}}{{if $h}}<option value="{{$h}}" {{if eq $h $t}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}{{end}}<option value="24" {{if eq $t 24}}selected{{end}}>24:00</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-sched="daily interval" {{if and (ne .S.Kind "daily") (ne .S.Kind "interval")}}hidden{{end}}>
+        <label>On these days</label>
+        <div class="days">{{$days := .Days}}
+          {{range $i, $d := weekdays}}<label class="check"><input type="checkbox" name="sched_days" value="{{$d.Num}}" {{if index $days $d.Num}}checked{{end}}> {{$d.Name}}</label>{{end}}
+        </div>
+      </div>
+
+      <div data-sched="monthly" {{if ne .S.Kind "monthly"}}hidden{{end}} class="row">
+        <label>On day{{$dom := .S.DayOfMonth}}
+          <select name="sched_dom">{{range $d := monthdays}}<option value="{{$d}}" {{if eq $d $dom}}selected{{end}}>{{$d}}.</option>{{end}}</select>
+        </label>
+        <label>At <input type="time" name="sched_month_time" value="{{.MonthTime}}"></label>
+      </div>
+    </fieldset>
+    <details class="sched" {{if or .J.Options.LimitMBps .J.Options.HasCommands}}open{{end}}>
+      <summary>Advanced: speed limit{{if and .CanCommands (ne .J.Kind "copy")}}, commands before and after the backup{{end}}</summary>
+      <div class="row">
+        <label>Limit the upload speed to (MB/s) <small>0 or empty: no limit</small><input type="number" name="limit_mbps" min="0" max="100000" value="{{if .J.Options.LimitMBps}}{{.J.Options.LimitMBps}}{{end}}"></label>
+        <div>
+          <label class="check"><input type="checkbox" name="limit_window" {{if ne .J.Options.LimitFrom .J.Options.LimitTo}}checked{{end}}> Only between</label>
+          <div class="times">{{$lf := .LimitFrom}}{{$lt := .LimitTo}}
+            <select name="limit_from">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $lf}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
+            <span>and</span>
+            <select name="limit_to">{{range $h := hours}}{{if $h}}<option value="{{$h}}" {{if eq $h $lt}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}{{end}}<option value="24" {{if eq $lt 24}}selected{{end}}>24:00</option></select>
+          </div>
+        </div>
+      </div>
+      <small class="muted">For example 10 MB/s from 08:00 to 18:00 keeps the office line usable during working hours; outside the window the backup runs at full speed. Times are the agent's local time.</small>
+      {{if ne .J.Kind "copy"}}<div data-notkind="copy" class="stack">{{if .CanCommands}}
+      <label>Command before the backup <small>runs on the agent as its service account (root / SYSTEM) with <code>sh</code> on Linux and <code>cmd</code> on Windows, e.g. <code>pg_dump -U postgres app &gt; /var/backups/app.sql</code>. If it fails, the backup does not run.</small>
+        <textarea name="pre_command" class="mono" rows="3">{{.J.Options.PreCommand}}</textarea>
+      </label>
+      <label>Command after the backup <small>runs also when the backup failed; <code>BACKUPZIT_STATUS</code> is success, warning or failed. If it fails, the run ends with a warning.</small>
+        <textarea name="post_command" class="mono" rows="3">{{.J.Options.PostCommand}}</textarea>
+      </label>
+      <label>Time limit per command (minutes) <input type="number" name="command_minutes" min="1" max="1440" value="{{if .J.Options.CommandMinutes}}{{.J.Options.CommandMinutes}}{{else}}30{{end}}"></label>
+      {{else if .J.Options.HasCommands}}
+      <p class="muted small">This job runs commands before or after the backup. Only administrators can see and change them.</p>
+      {{end}}</div>{{end}}
+    </details>
+{{end}}

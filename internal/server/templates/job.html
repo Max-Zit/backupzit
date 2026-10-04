@@ -31,8 +31,33 @@
     <dt>Schedule</dt><dd>{{schedule .Schedule}}</dd>
     <dt>Retention</dt><dd>{{.Retention.String}}</dd>
     <dt>Next run</dt><dd>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</dd>
+    {{if .Options.LimitMBps}}<dt>Speed limit</dt><dd>{{.Options.LimitText}}</dd>{{end}}
+    {{if .Options.HasCommands}}<dt>Commands</dt><dd>{{if $.Me.Can "settings"}}{{if .Options.PreCommand}}before: <span class="mono">{{.Options.PreCommand}}</span><br>{{end}}{{if .Options.PostCommand}}after: <span class="mono">{{.Options.PostCommand}}</span>{{end}}{{else}}runs commands before or after the backup{{end}}</dd>{{end}}
   </dl>
 </div>
+{{if $.Me.Can "jobs"}}
+<details class="panel" id="edit">
+  <summary><b>Edit job</b> <span class="muted small">name, {{if eq .Kind "files"}}paths, {{else if eq .Kind "vm"}}VMs, {{end}}schedule, retention, speed limit{{if and ($.Me.Can "settings") (ne .Kind "copy")}}, commands{{end}}</span></summary>
+  <form method="post" action="/jobs/{{.ID}}/edit" class="stack mt">
+    <label>Name <input name="name" required value="{{.Name}}"></label>
+    {{if eq .Kind "files"}}
+    <label>Folders and files to back up <small>one path per line</small><textarea name="paths" required>{{join .Paths "\n"}}</textarea></label>
+    <label>Exclude <small>one name pattern per line</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
+    {{else if eq .Kind "system"}}
+    <label>Exclude <small>one name pattern per line</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
+    {{else if eq .Kind "vm"}}{{$sel := .Paths}}
+    <label class="check"><input type="radio" name="vm_mode" value="all" {{if eq (join .Paths ",") "*"}}checked{{end}}> All VMs on the host <small>VMs created later are included automatically</small></label>
+    <label class="check"><input type="radio" name="vm_mode" value="selected" {{if ne (join .Paths ",") "*"}}checked{{end}}> Only these:</label>
+    <div class="disks">{{range $.Data.Guests}}<label class="check"><input type="checkbox" name="vms" value="{{.VMID}}" {{if has $sel (print .VMID)}}checked{{end}}> {{.Name}}{{if lt .VMID 1000000000}} ({{.VMID}}){{end}}{{if eq .Type "lxc"}} <small>container</small>{{end}}</label>{{else}}<p class="muted">The host has not reported its VMs yet.</p>{{end}}</div>
+    {{else if eq .Kind "image"}}
+    <p class="muted small">The disk and partitions of an image job cannot be changed; create a new job for another disk.</p>
+    {{end}}
+    {{template "job_common" $.Data.Form}}
+    <p class="muted small">The agent and the storage cannot be changed: backups stay where they are. To move a job, create a new one (and a copy job to bring older backups along).</p>
+    <div><button>Save changes</button></div>
+  </form>
+</details>
+{{end}}
 {{end}}
 <div class="panel">
   <h2>History</h2>

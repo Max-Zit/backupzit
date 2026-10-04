@@ -52,6 +52,24 @@
   <li>Copied file backups and VM backups (Proxmox VE, Hyper-V, VMware) are restored from the copy run's page or the <a href="/restore">restore wizard</a>, like the originals — whole VMs, single files from VM disks, and Proxmox instant recovery. VM backups copied by an agent older than 0.29 cannot be restored this way; the next copy run with a newer agent makes its newest copy restorable. Copies of disk images are restored with the command line agent.</li>
 </ul>
 
+<h2>Changing a job</h2>
+<p>Open the job and expand <b>Edit job</b>. You can change the name, the folders and exclusions (file jobs), the VMs (VM jobs), the schedule, the retention, the speed limit and the commands. The agent, the storage target and the disk of an image job stay as they are, so the job's backups remain one chain; to move a job, create a new one — with a copy job if older backups should come along. Changes apply from the next run and are recorded in the <a href="/audit">audit log</a>.</p>
+
+<h2>Speed limit</h2>
+<p>Under <b>Advanced</b> in the job form, <b>Limit the upload speed</b> caps how fast the agent sends data to the storage, in MB/s — for example 10 MB/s from 08:00 to 18:00, so backups during working hours leave the office line usable; outside the window the job runs at full speed. The hours are the agent's local time, and a window may span midnight (22:00 to 06:00). The limit applies to backups and to copy jobs (the upload to the second storage), not to restores: a restore always runs at full speed.</p>
+
+<h2>Commands before and after the backup</h2>
+<p>Administrators can let a job run a command on the agent before and after each backup — for example a database dump, stopping a service for a consistent copy, or a notification:</p>
+<pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
+sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, before</pre>
+<ul>
+  <li>Commands run as the agent's service account (root on Linux, SYSTEM on Windows) with <code>sh</code> or <code>cmd</code>; several lines are allowed. Only <b>Administrators</b> can see and change them — a backup operator could otherwise run anything on every machine.</li>
+  <li>If the command <b>before</b> fails (exit code not 0) or runs longer than the time limit (default 30 minutes), the backup does not run and the run fails with the command's output.</li>
+  <li>The command <b>after</b> runs also when the backup failed, so it can restart what the first command stopped. A failing command after the backup turns the run into a warning.</li>
+  <li>Both get <code>BACKUPZIT_STAGE</code> (pre or post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> and, after the backup, <code>BACKUPZIT_STATUS</code> (success, warning or failed).</li>
+  <li>For VM jobs the commands run on the hypervisor host (or the VMware proxy), not inside the VMs. Copy jobs have no commands.</li>
+</ul>
+
 <h2>Running, disabling, deleting</h2>
 <ul>
   <li><b>Run backup now</b> (<b>Copy now</b> for copy jobs) queues the job immediately.</li>
