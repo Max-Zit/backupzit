@@ -195,4 +195,6 @@ without it no update can be published to existing consoles.
 
 ## License
 
-GNU Affero General Public License v3.0 — see [LICENSE](LICENSE).
+GNU Affero General Public License v3.0 — see [LICENSE](LICENSE). BackupZit is free to install and use; MaxZit offers commercial support.
+
+Third-party components keep their own licenses (MIT, BSD, Apache 2.0, ISC, MPL 2.0, zlib, public domain — all compatible with the AGPL). Their texts are in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt), which every package installs; regenerate it with `go run ./tools/licenses > THIRD_PARTY_LICENSES.txt` (it fails on a license that is not known to be compatible). `internal/vss/vss_windows.go` is adapted from restic under the BSD 2-Clause License; its header keeps the original copyright.

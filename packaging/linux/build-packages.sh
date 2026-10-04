@@ -6,6 +6,8 @@ set -eu
 VERSION=${1:?usage: build-packages.sh <version>}
 ARCH=${ARCH:-amd64}
 cd "$(dirname "$0")/../.."
+# The license texts of all bundled components ship with every package.
+go run ./tools/licenses > THIRD_PARTY_LICENSES.txt
 rm -rf bin/linux && mkdir -p bin/linux dist
 for cmd in backupzit-agent backupzit-server backupzit-repo; do
     CGO_ENABLED=0 GOOS=linux GOARCH=$ARCH go build -trimpath \

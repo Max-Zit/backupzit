@@ -84,7 +84,7 @@ try {
     $wix = Join-Path $env:USERPROFILE ".dotnet\tools\wix.exe"
     if (-not (Test-Path $wix)) { $wix = "wix" }
     $msi = Join-Path $dist "backupzit-agent-$Version-x64$suffix.msi"
-    & $wix build -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -d "Version=$msiVersion" -d "AgentExe=$exe" -d "TrayExe=$tray" -d "IconFile=$icon" -d "ArtDir=$PSScriptRoot" -o $msi (Join-Path $PSScriptRoot "agent.wxs")
+    & $wix build -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -d "Version=$msiVersion" -d "AgentExe=$exe" -d "TrayExe=$tray" -d "IconFile=$icon" -d "ArtDir=$PSScriptRoot" -d "RootDir=$(Resolve-Path (Join-Path $PSScriptRoot '..\..'))" -o $msi (Join-Path $PSScriptRoot "agent.wxs")
     if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
     Invoke-Sign $msi
     Remove-Item (Join-Path $dist "*.wixpdb") -ErrorAction SilentlyContinue

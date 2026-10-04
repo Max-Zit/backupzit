@@ -14,6 +14,10 @@ recommends:
   - postgresql
   - postgresql-client
 contents:
+  - src: ./LICENSE
+    dst: /usr/share/doc/backupzit-server/copyright
+  - src: ./THIRD_PARTY_LICENSES.txt
+    dst: /usr/share/doc/backupzit-server/THIRD_PARTY_LICENSES.txt
   - src: ./bin/linux/agents/*
     dst: /usr/share/backupzit/dist/
   - src: ./bin/linux/backupzit-server

@@ -13,6 +13,10 @@ vendor: BackupZit
 homepage: https://github.com/backupzit/backupzit
 license: AGPL-3.0-only
 contents:
+  - src: ./LICENSE
+    dst: /usr/share/doc/backupzit-repo/copyright
+  - src: ./THIRD_PARTY_LICENSES.txt
+    dst: /usr/share/doc/backupzit-repo/THIRD_PARTY_LICENSES.txt
   - src: ./bin/linux/backupzit-repo
     dst: /usr/bin/backupzit-repo
     file_info:

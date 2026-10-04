@@ -81,6 +81,13 @@
           </File>
           <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run" Name="BackupZit Agent" Value="&quot;[INSTALLFOLDER]backupzit-tray.exe&quot;" Type="string" />
         </Component>
+        <!-- License of BackupZit and of the third-party components it includes. -->
+        <Component Id="License" Bitness="always64">
+          <File Id="LicenseFile" Source="$(var.RootDir)\LICENSE" Name="LICENSE.txt" KeyPath="yes" />
+        </Component>
+        <Component Id="ThirdPartyLicenses" Bitness="always64">
+          <File Id="ThirdPartyFile" Source="$(var.RootDir)\THIRD_PARTY_LICENSES.txt" Name="THIRD_PARTY_LICENSES.txt" KeyPath="yes" />
+        </Component>
       </Directory>
     </StandardDirectory>
 
