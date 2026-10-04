@@ -28,7 +28,7 @@
     {{else if eq .Kind "vm-backup"}}
       <dt>Backs up</dt><dd>{{vmsel .Paths}}</dd>
     {{else if eq .Kind "vm-restore"}}
-      {{with $.Data.VMRestore}}<dt>Guest</dt><dd>{{.VMID}} from backup {{short $.Data.Run.SnapshotID}}</dd>
+      {{with $.Data.VMRestore}}<dt>Guest</dt><dd>{{if ge .VMID 1000000000}}VM{{else}}{{.VMID}}{{end}} from backup {{short $.Data.Run.SnapshotID}} <span class="muted small">(name in the message below)</span></dd>
       <dt>Restored as</dt><dd>{{if eq .NewVMID 0}}original ID{{if .Overwrite}}, replacing the existing guest{{end}}{{else if lt .NewVMID 0}}next free ID{{else}}ID {{.NewVMID}}{{end}}{{if .Name}}, name {{.Name}}{{end}}</dd>
       <dt>Storage</dt><dd>{{if .Storage}}{{.Storage}}{{else}}original storage{{end}}</dd>{{end}}
     {{else if eq .Kind "image-file-restore"}}

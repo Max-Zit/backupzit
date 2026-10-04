@@ -267,6 +267,11 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 						c.run(context.Background(), "vmkfstools -U "+sq(p.clone.local()))
 					}
 				}
+				for _, p := range plans {
+					if p.clone != nil { // the directory goes once it is empty
+						c.run(context.Background(), "rmdir "+sq("/vmfs/volumes/"+p.clone.DS+"/"+tmpDir)+" 2>/dev/null; true")
+					}
+				}
 			}()
 			for i := range plans {
 				if err := c.cloneDisk(ctx, v, &plans[i]); err != nil {
