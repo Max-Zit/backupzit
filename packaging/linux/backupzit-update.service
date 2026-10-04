@@ -1,0 +1,11 @@
+[Unit]
+Description=Install a BackupZit console update
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Runs as root: verifies the release signature again, backs up the
+# database, installs the package and rolls back if the console does not start.
+EnvironmentFile=/etc/backupzit/server.env
+ExecStart=/usr/bin/backupzit-server --apply-update
+TimeoutStartSec=30min

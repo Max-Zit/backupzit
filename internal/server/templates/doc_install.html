@@ -64,6 +64,19 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </table>
 <p>The console also connects to the storage itself to let you browse files inside disk images and VM backups (and download them), so it needs the same storage access as the agents.</p>
 
+<h2>Updating BackupZit</h2>
+<p>Under <a href="/settings/updates">Settings → Updates</a> enter the <b>update source</b>, either the BackupZit release address or a folder on the server. The console then checks every day for new releases and emails the administrators when one is available. To install it, click <b>Install</b>:</p>
+<ol>
+  <li>The console checks the release signature and the package checksum, and waits until no backup or restore is running.</li>
+  <li>A system service (<code>backupzit-update</code>, running as root) checks the signature again with the release keys built into BackupZit. Even a compromised console cannot get any other package installed.</li>
+  <li>It backs up the database (<code>pg_dump</code>), keeps the current program, installs the package and restarts the console.</li>
+  <li>If the new version does not answer within two minutes, the previous program and the database as it was are restored automatically. The result, with the log of the failed start, is shown on the Updates page, recorded in the audit log and emailed.</li>
+  <li>After a successful update the agents are updated too: each one installs the new version when it is idle. Turn this off on the same page if you prefer to update them yourself.</li>
+</ol>
+<p>The console is unavailable for about a minute. The database backups and previous programs of the last three updates are kept in <code>/var/lib/backupzit-update</code>.</p>
+<p><b>Without internet access:</b> download the release files (<code>manifest.json</code>, <code>manifest.json.sig</code> and the server package) on another computer. Then upload them under <i>Install an update from files</i>, or copy them into a folder on the server and use that folder as the update source.</p>
+<p>You can still update with the package manager (<code>apt install ./backupzit-server_….deb</code>); the database is migrated when the new version starts.</p>
+
 <h2>Backing up the console itself</h2>
 <p>Back up the PostgreSQL database (for example with a nightly <code>pg_dump</code> to a file that a BackupZit agent on the same machine backs up) and the data directory <code>/var/lib/backupzit</code>: the certificate and <b><code>secrets.key</code></b>, the key that encrypts all stored passwords, storage keys and recovery keys in the database. Keep a copy of <code>secrets.key</code> outside the server (e.g. in your password manager); without it the stored credentials in a restored database cannot be read. Alternatively provide the key in <code>BACKUPZIT_SECRETS_KEY</code> (base64). Keep the recovery sheets of your storage targets separately — with them, backups can be restored even without the console.</p>
 {{template "docpager" .}}

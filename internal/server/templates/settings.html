@@ -177,6 +177,53 @@
   {{if eq .Mode "acme"}}<form method="post" action="/settings/certificate/renew" class="mt"><button class="secondary">Renew now</button> <span class="muted small">Renewal runs automatically 30 days before expiry.</span></form>{{end}}
 </div>
 {{end}}{{end}}
+{{if eq .Data.Tab "updates"}}{{with .Data.Updates}}
+<div class="panel" id="updates">
+  <h2>{{template "icon" "download"}} Updates</h2>
+  <dl class="kv">
+    <dt>Installed version</dt><dd><b>{{.Version}}</b></dd>
+    <dt>Last check</dt><dd>{{if .Checked.IsZero}}never{{else}}{{ago .Checked}}{{end}}{{with .CheckErr}} <span class="badge failed" title="{{.}}"><i></i>error</span> <span class="small muted">{{.}}</span>{{end}}</dd>
+    {{with .Last}}<dt>Last update</dt><dd>{{.From}} → {{.Version}}: {{if eq .Status "installed"}}<span class="badge success"><i></i>installed</span>{{else}}<span class="badge failed"><i></i>{{.Status}}</span>{{end}} <span class="muted small">{{ts .Finished}}</span>{{if ne .Status "installed"}}<pre class="small mt">{{.Message}}</pre>{{end}}</dd>{{end}}
+  </dl>
+  {{if .Pending}}<div class="callout tip mt" data-autorefresh><p><b>An update is being installed.</b> The console restarts in a moment; this page reloads by itself.</p></div>{{end}}
+  {{with .Available}}
+  <div class="callout tip mt">
+    <p><b>BackupZit {{.Version}} is available</b>{{if not .Released.IsZero}}, released {{ts .Released}}{{end}}.</p>
+    {{with .Notes}}<pre class="small">{{.}}</pre>{{end}}
+    {{if $.Data.Updates.Helper}}
+    <form method="post" action="/settings/updates/install" data-confirm="Install BackupZit {{.Version}} now? The database is backed up first; the console restarts and is unavailable for a minute.">
+      <button>Install {{.Version}}</button> <span class="muted small">The database is backed up first; if the new version does not start, the old one and its database are restored automatically. Running backups must finish first.</span>
+    </form>
+    {{end}}
+  </div>
+  {{end}}
+  {{if not .Helper}}<p class="muted small mt">Updates from the console need the Linux package of the console. This installation is updated with its package manager.</p>{{end}}
+  <form method="post" action="/settings/updates" class="stack mt">
+    <label>Update source <small>the BackupZit release address (https://…), or a folder on this server with <code>manifest.json</code>, <code>manifest.json.sig</code> and the packages, for networks without internet access</small>
+      <input name="source" value="{{.Settings.Source}}" placeholder="https://updates.example.com/backupzit/stable">
+    </label>
+    <label class="check"><input type="checkbox" name="notify" {{if .Settings.Notify}}checked{{end}}> Email the administrators when a new version is available <small>checked daily</small></label>
+    <label class="check"><input type="checkbox" name="auto_agents" {{if .Settings.AutoAgents}}checked{{end}}> Update the agents automatically after the console was updated <small>each agent installs the new version when it is idle</small></label>
+    <div class="row"><div><button>Save</button></div></div>
+  </form>
+  <form method="post" action="/settings/updates/check" class="mt"><button class="secondary">Check now</button></form>
+  {{if .Helper}}
+  <details class="mt">
+    <summary>Install an update from files</summary>
+    <form method="post" action="/settings/updates/upload" enctype="multipart/form-data" class="stack mt" data-confirm="Install the uploaded release? The database is backed up first; the console restarts.">
+      <p class="muted small">For servers without internet access: download the release files on another computer and upload them here. Only releases signed by the BackupZit release key are accepted.</p>
+      <div class="row">
+        <label>manifest.json <input type="file" name="manifest" required></label>
+        <label>manifest.json.sig <input type="file" name="signature" required></label>
+        <label>Server package (.deb or .rpm) <input type="file" name="package" required></label>
+      </div>
+      <div><button>Upload and install</button></div>
+    </form>
+  </details>
+  {{end}}
+  <p class="muted small mt">Releases are signed with the BackupZit release key. The console checks the signature, and the system service that installs the package checks it again, so a modified package is never installed.</p>
+</div>
+{{end}}{{end}}
 {{if eq .Data.Tab "ldap"}}{{with .Data.LDAP}}
 <div class="panel" id="ldap">
   <h2>{{template "icon" "users"}} LDAP / Active Directory sign-in</h2>

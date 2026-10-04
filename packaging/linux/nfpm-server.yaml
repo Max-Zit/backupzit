@@ -12,6 +12,7 @@ homepage: https://github.com/backupzit/backupzit
 license: AGPL-3.0-only
 recommends:
   - postgresql
+  - postgresql-client
 contents:
   - src: ./bin/linux/agents/*
     dst: /usr/share/backupzit/dist/
@@ -21,6 +22,10 @@ contents:
       mode: 0755
   - src: ./packaging/linux/backupzit-server.service
     dst: /usr/lib/systemd/system/backupzit-server.service
+  - src: ./packaging/linux/backupzit-update.path
+    dst: /usr/lib/systemd/system/backupzit-update.path
+  - src: ./packaging/linux/backupzit-update.service
+    dst: /usr/lib/systemd/system/backupzit-update.service
   - src: ./packaging/linux/server.env
     dst: /etc/backupzit/server.env
     type: config|noreplace

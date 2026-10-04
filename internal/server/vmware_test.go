@@ -2,12 +2,18 @@ package server_test
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -18,6 +24,7 @@ import (
 	"github.com/backupzit/backupzit/internal/agent"
 	"github.com/backupzit/backupzit/internal/api"
 	"github.com/backupzit/backupzit/internal/server"
+	"github.com/backupzit/backupzit/internal/update"
 )
 
 // TestVMwareHosts drives the console side of VMware support against the
@@ -182,5 +189,74 @@ func TestCertificateSettings(t *testing.T) {
 	}
 	if _, loc, _ := admin.do("POST", "/settings/certificate", url.Values{"mode": {"self"}}); !strings.Contains(loc, "msg=") {
 		t.Errorf("self mode: %s", loc)
+	}
+}
+
+func TestConsoleUpdate(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	pub, key, _ := ed25519.GenerateKey(nil)
+	saved := update.TrustedKeys
+	update.TrustedKeys = []string{base64.StdEncoding.EncodeToString(pub)}
+	defer func() { update.TrustedKeys = saved }()
+
+	src := t.TempDir()
+	pkg := []byte("new console package")
+	sum := sha256.Sum256(pkg)
+	m := update.Manifest{Product: "backupzit", Version: "9.9.9", Notes: "Better everything."}
+	for _, n := range []string{"backupzit-server_9.9.9_amd64.deb", "backupzit-server-9.9.9-1.x86_64.rpm"} {
+		os.WriteFile(filepath.Join(src, n), pkg, 0o644)
+		format := "deb"
+		if strings.HasSuffix(n, ".rpm") {
+			format = "rpm"
+		}
+		m.Files = append(m.Files, update.File{Name: n, Kind: "server", Format: format, Arch: "amd64", Size: int64(len(pkg)), SHA256: hex.EncodeToString(sum[:])})
+	}
+	raw, _ := json.Marshal(m)
+	os.WriteFile(filepath.Join(src, "manifest.json"), raw, 0o644)
+	os.WriteFile(filepath.Join(src, "manifest.json.sig"), []byte(update.Sign(raw, key)), 0o644)
+
+	data := t.TempDir()
+	e.srv.Version = "0.27.0"
+	e.srv.StartUpdates(ctx, data)
+	e.srv.EnableUpdateHelper()
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	if _, loc, _ := admin.do("POST", "/settings/updates", url.Values{"source": {src}, "notify": {"on"}, "auto_agents": {"on"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("save source: %s", loc)
+	}
+	if _, _, body := admin.do("GET", "/settings/updates", nil); !strings.Contains(body, "BackupZit 9.9.9 is available") || !strings.Contains(body, "Better everything.") {
+		t.Fatal("new version not shown")
+	}
+	if _, loc, _ := admin.do("POST", "/settings/updates/install", url.Values{}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("install: %s", loc)
+	}
+	var req update.Request
+	if err := update.ReadJSON(filepath.Join(data, "update", "request.json"), &req); err != nil || !strings.Contains(req.File, "9.9.9") || req.User != "admin" {
+		t.Fatalf("request for the helper: %+v %v", req, err)
+	}
+	if _, err := update.Verify(req.Manifest, req.Signature, nil); err != nil {
+		t.Errorf("request manifest: %v", err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(data, "update", req.File)); string(b) != string(pkg) {
+		t.Error("package not staged")
+	}
+	if _, loc, _ := admin.do("POST", "/settings/updates/install", url.Values{}); !strings.Contains(loc, "already+being+installed") {
+		t.Errorf("second install: %s", loc)
+	}
+	// A tampered source is refused.
+	os.WriteFile(filepath.Join(src, "manifest.json"), append(raw, ' '), 0o644)
+	if _, loc, _ := admin.do("POST", "/settings/updates/check", url.Values{}); !strings.Contains(loc, "err=") {
+		t.Errorf("tampered manifest accepted: %s", loc)
+	}
+	// The helper's result is recorded once after the restart.
+	os.Remove(filepath.Join(data, "update", "request.json"))
+	update.WriteJSON(filepath.Join(data, "update", "result.json"), update.Result{From: "0.27.0", Version: "9.9.9", Status: "rolled-back", Message: "did not start", Finished: time.Now().UTC()}, 0o644)
+	e.srv.StartUpdates(ctx, data)
+	if _, _, body := admin.do("GET", "/audit", nil); !strings.Contains(body, "update.result") {
+		t.Error("update result not in the audit log")
+	}
+	if _, _, body := admin.do("GET", "/settings/updates", nil); !strings.Contains(body, "rolled-back") {
+		t.Error("last update not shown")
 	}
 }

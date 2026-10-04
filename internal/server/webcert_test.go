@@ -241,7 +241,7 @@ func TestACMEWithPebble(t *testing.T) {
 	if strings.Join(records, ",") != "add _acme-challenge.intern.example.com,delete" {
 		t.Errorf("Cloudflare calls: %v", records)
 	}
-	cfg.CloudflareToken = "wrong"
+	cfg.CloudflareToken, cfg.Hostname = "wrong", "other.example.com" // a new name needs a new check
 	if err := w.obtainACME(ctx, cfg, ts.Client()); err == nil || !strings.Contains(err.Error(), "bad token") {
 		t.Errorf("bad Cloudflare token: %v", err)
 	}

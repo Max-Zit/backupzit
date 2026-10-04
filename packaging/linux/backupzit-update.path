@@ -1,0 +1,8 @@
+[Unit]
+Description=Install BackupZit console updates requested from the web console
+
+[Path]
+PathExists=/var/lib/backupzit/update/request.json
+
+[Install]
+WantedBy=multi-user.target

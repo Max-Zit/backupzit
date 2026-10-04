@@ -63,6 +63,7 @@
   <a href="/settings/security" class="{{if eq .Data.Tab "security"}}on{{end}}">{{template "icon" "lock"}}<span>Sign-in &amp; security<small>Sessions, two-factor, secrets</small></span></a>
   <a href="/settings/tests" class="{{if eq .Data.Tab "tests"}}on{{end}}">{{template "icon" "check"}}<span>Restore tests<small>Prove backups are restorable</small></span></a>
   <a href="/settings/certificate" class="{{if eq .Data.Tab "certificate"}}on{{end}}">{{template "icon" "shield"}}<span>Certificate<small>HTTPS for browsers</small></span></a>
+  <a href="/settings/updates" class="{{if eq .Data.Tab "updates"}}on{{end}}">{{template "icon" "download"}}<span>Updates<small>New versions of BackupZit</small></span></a>
   <a href="/settings/ldap" class="{{if eq .Data.Tab "ldap"}}on{{end}}">{{template "icon" "users"}}<span>LDAP / Active Directory<small>Directory sign-in and roles</small></span></a>
 </nav>{{end}}
 {{define "status"}}<span class="badge {{.}}"><i></i>{{.}}</span>{{end}}

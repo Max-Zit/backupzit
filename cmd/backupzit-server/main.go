@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/backupzit/backupzit/internal/server"
+	"github.com/backupzit/backupzit/internal/update"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 )
 
@@ -47,6 +49,7 @@ func run() error {
 	unblock := flag.String("unblock-ip", "", "lift the sign-in block of an address (or \"all\") and exit")
 	devHTTP := flag.String("dev-http", "", "also serve plain HTTP on this loopback address, e.g. 127.0.0.1:8080 (development only)")
 	showVersion := flag.Bool("version", false, "print version and exit")
+	applyUpdate := flag.Bool("apply-update", false, "install an update requested in the web console (run by the backupzit-update service as root) and exit")
 	flag.Parse()
 
 	if *showVersion {
@@ -56,6 +59,9 @@ func run() error {
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if *applyUpdate {
+		return runApplyUpdate(ctx, *dataDir, *dbURL, *listen, log)
+	}
 
 	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
 		return err
@@ -136,6 +142,7 @@ func run() error {
 
 	srv.Notifier = server.NewNotifier(store, log, func() string { return srv.PublicURL })
 	srv.StartWeb(ctx, *dataDir)
+	srv.StartUpdates(ctx, *dataDir)
 	sched := server.NewScheduler(store, log)
 	sched.Notifier = srv.Notifier
 	go sched.Run(ctx)
@@ -212,4 +219,26 @@ func startEmbeddedDB(dataDir string) (*embeddedpostgres.EmbeddedPostgres, string
 		return nil, "", err
 	}
 	return pg, fmt.Sprintf("postgres://backupzit:backupzit@localhost:%d/backupzit?sslmode=disable", port), nil
+}
+
+// runApplyUpdate installs an update the console requested (as root).
+func runApplyUpdate(ctx context.Context, dataDir, dbURL, listen string, log *slog.Logger) error {
+	bin, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	_, port, err := net.SplitHostPort(listen)
+	if err != nil {
+		port = "8443"
+	}
+	a := &update.Applier{
+		Dir: filepath.Join(dataDir, "update"), Work: "/var/lib/backupzit-update", Binary: bin, CurrentVersion: version,
+		DBURL: dbURL, HealthURL: "https://127.0.0.1:" + port + "/login", Service: "backupzit-server",
+		Log: func(format string, args ...any) { log.Info(fmt.Sprintf(format, args...)) },
+	}
+	res, err := a.Apply(ctx)
+	if res == nil && err == nil {
+		log.Info("no update requested")
+	}
+	return err
 }

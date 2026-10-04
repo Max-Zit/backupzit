@@ -45,6 +45,7 @@ type Server struct {
 	shaCache sync.Map
 	guard    *loginGuard
 	web      *webTLS
+	upd      *updater
 	log      *slog.Logger
 	// CertFingerprint is shown in enrollment instructions.
 	CertFingerprint string
@@ -345,6 +346,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /settings/sessions", s.ui(PermSettings, s.handleSettingsSessions))
 	mux.HandleFunc("POST /settings/certificate", s.ui(PermSettings, s.handleSettingsCertificate))
 	mux.HandleFunc("POST /settings/certificate/renew", s.ui(PermSettings, s.handleCertificateRenew))
+	mux.HandleFunc("POST /settings/updates", s.ui(PermSettings, s.handleUpdateSettings))
+	mux.HandleFunc("POST /settings/updates/check", s.ui(PermSettings, s.handleUpdateCheck))
+	mux.HandleFunc("POST /settings/updates/install", s.ui(PermSettings, s.handleUpdateInstall))
+	mux.HandleFunc("POST /settings/updates/upload", s.ui(PermSettings, s.handleUpdateUpload))
 	mux.HandleFunc("POST /settings/login-protection", s.ui(PermSettings, s.handleSettingsLoginProtection))
 	mux.HandleFunc("POST /settings/unblock", s.ui(PermSettings, s.handleUnblockAddress))
 	mux.HandleFunc("POST /settings/tests", s.ui(PermSettings, s.handleSettingsRestoreTests))

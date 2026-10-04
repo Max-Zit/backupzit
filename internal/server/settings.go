@@ -13,7 +13,7 @@ import (
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, user string) {
 	tab := r.PathValue("tab")
 	switch tab {
-	case "email", "security", "ldap", "tests", "certificate":
+	case "email", "security", "ldap", "tests", "certificate", "updates":
 	case "":
 		http.Redirect(w, r, "/settings/email", http.StatusSeeOther)
 		return
@@ -44,7 +44,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request, user str
 		"Tab": tab, "Tests": s.store.restoreTestSettings(r.Context()), "SecretKeyID": s.store.SecretKeyID(), "SecretKeyFile": filepath.Join(filepath.Dir(s.DistDir), SecretKeyFile), "Email": e, "HasPassword": e.Password != "", "Sessions": s.sessionSettings(r.Context()),
 		"Protection": s.guard.settings(r.Context()), "Blocks": blocks, "ClientIP": s.guard.ClientIP(r),
 		"LDAP": ldapForPage(r.Context(), s.store), "ADFilter": adUserFilter, "LDAPFilter": ldapUserFilter,
-		"Cert": certForPage(s.certSettings(r.Context())), "CertInfo": webInfo, "CertErr": webErr, "WebAddress": webAddr, "ConsoleFingerprint": s.CertFingerprint,
+		"Cert": certForPage(s.certSettings(r.Context())), "CertInfo": webInfo, "CertErr": webErr, "WebAddress": webAddr, "ConsoleFingerprint": s.CertFingerprint, "Updates": s.updatePageData(),
 	}})
 }
 
