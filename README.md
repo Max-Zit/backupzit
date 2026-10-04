@@ -184,7 +184,13 @@ go test ./...                      # end-to-end tests (local + in-memory SFTP, s
 go build -o bin/ ./cmd/...                     # agent + server
 .\packaging\windows\build-msi.ps1 -Version X.Y.Z   # Windows MSI (WiX 5)
 sh packaging/linux/build-packages.sh X.Y.Z       # .deb/.rpm (nfpm)
+sh packaging/appliance/build-iso.sh dist/backupzit-server_X.Y.Z_amd64.deb   # appliance ISO (on Debian: xorriso, isolinux)
+go run ./tools/release sign -key release.key -version X.Y.Z -dir <release folder>   # signed update manifest
 ```
+
+Releases for the console's self-update are signed with the Ed25519 release key; its public
+key is built into `internal/update` (`TrustedKeys`). Keep `release.key` offline and backed up:
+without it no update can be published to existing consoles.
 
 ## License
 

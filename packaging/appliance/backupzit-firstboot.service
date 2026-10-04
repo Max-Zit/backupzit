@@ -1,0 +1,14 @@
+[Unit]
+Description=Set up BackupZit on the first start
+After=network-online.target postgresql.service
+Wants=network-online.target
+Before=getty@tty1.service
+ConditionPathExists=!/var/lib/backupzit/.appliance-ready
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/backupzit-firstboot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

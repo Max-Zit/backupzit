@@ -1,0 +1,34 @@
+#!/bin/sh
+# First start of the BackupZit appliance: database, configuration, console.
+set -e
+# Wait for the network, so the certificate covers the server's address.
+for i in $(seq 120); do
+    IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "src") print $(i + 1)}')
+    [ -n "$IP" ] && break
+    sleep 1
+done
+DB_PASS=$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)
+systemctl start postgresql
+su postgres -c "psql -qc \"CREATE USER backupzit PASSWORD '$DB_PASS';\"" 2>/dev/null ||
+    su postgres -c "psql -qc \"ALTER USER backupzit PASSWORD '$DB_PASS';\""
+su postgres -c "createdb -O backupzit backupzit" 2>/dev/null || true
+ENV=/etc/backupzit/server.env
+sed -i "s#^BACKUPZIT_DB=.*#BACKUPZIT_DB=postgres://backupzit:$DB_PASS@localhost:5432/backupzit?sslmode=disable#" $ENV
+# The certificate names the server; agents pin it, browsers show a warning
+# until a trusted certificate is set up under Settings → Certificate.
+grep -q '^BACKUPZIT_TLS_HOSTS=' $ENV || echo "BACKUPZIT_TLS_HOSTS=${IP:+$IP,}$(hostname -f)" >> $ENV
+systemctl enable --now backupzit-server
+for i in $(seq 60); do [ -f /var/lib/backupzit/initial-admin-password.txt ] && break; sleep 1; done
+PW=$(cat /var/lib/backupzit/initial-admin-password.txt 2>/dev/null || echo "in /var/lib/backupzit/initial-admin-password.txt")
+# \4 is the current IPv4 address, filled in by the login prompt.
+cat > /etc/issue <<ISSUE
+BackupZit backup appliance - \n
+
+  Web console:   https://\4:8443
+  Sign in as:    admin   (initial password: $PW)
+  Change it after the first sign-in.
+
+  Server shell:  bzadmin (initial password: backupzit, must be changed)
+
+ISSUE
+touch /var/lib/backupzit/.appliance-ready

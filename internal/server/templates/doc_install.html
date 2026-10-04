@@ -9,7 +9,17 @@
   <li>Network: agents must reach the console on TCP <b>8443</b> (HTTPS). Agents must also reach the storage directly.</li>
 </ul>
 
-<h2>Install</h2>
+<h2>Install the appliance (recommended)</h2>
+<p>The <b>BackupZit appliance ISO</b> installs everything without questions: Debian, PostgreSQL, the console and automatic security updates. It is the easiest way to set up a new console.</p>
+<ol>
+  <li>Create a VM (or use a server) with 2 vCPU, 2–4 GB RAM and a 16 GB or larger disk. Use VirtIO or the hypervisor's default devices, BIOS or UEFI.</li>
+  <li>Boot it from <code>backupzit-appliance-X.iso</code>. After 5 seconds the installation starts by itself, <b>erases the first disk</b> and installs. It downloads the operating system packages, so the server needs internet access during installation. This takes about 10–20 minutes, and the server then restarts.</li>
+  <li>The server's screen shows the address of the web console and the initial password of <b>admin</b>. Open the address, sign in and change the password.</li>
+</ol>
+<p>Each appliance gets its own database password, and its secrets key is created at the first start. To sign in to the server itself (SSH or the local screen), use the user <b>bzadmin</b> with the initial password <code>backupzit</code>. You must change it at the first sign-in; the user can use <code>sudo</code>. Updates of BackupZit and of the operating system are then managed from the console (see below). VMware Tools and the QEMU guest agent are included, so hypervisors show the appliance's address.</p>
+<p>The network is set up by DHCP. For a fixed address, sign in as bzadmin and edit <code>/etc/network/interfaces</code>. Agents remember the console's certificate, not its address, so keep the address stable or use a DNS name.</p>
+
+<h2>Install on an existing Linux server</h2>
 <h3>Debian / Ubuntu</h3>
 <pre>apt install postgresql
 apt install ./backupzit-server_*.deb</pre>

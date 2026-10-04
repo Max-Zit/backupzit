@@ -22,6 +22,7 @@
 <div class="callout tip"><p>Backup data never passes through the console. The console only coordinates, so it can run on a small virtual machine.</p></div>
 
 <h2>First steps</h2>
+<p>To set up a new console, install the <b>BackupZit appliance ISO</b> in a small VM. It installs everything without questions; see <a href="/docs/install">Installing the server</a>.</p>
 <ol>
   <li><b>Add a storage target</b> under <a href="/targets">Storage</a>. Keep <i>Encrypt backups</i> enabled and save the recovery sheet that is shown afterwards in a safe place. See <a href="/docs/storage">Storage targets</a>.</li>
   <li><b>Install agents</b>: under <a href="/agents">Agents</a> click <i>Create enrollment token</i>, download the installer from the same page and paste the enrollment code when the Windows installer asks for it (Linux: <code>backupzit-agent enroll --code …</code>). For VMs install the agent on the Proxmox or Hyper-V host; add VMware ESXi hosts under Agents → VMware ESXi hosts. See <a href="/docs/agents">Agents</a>.</li>
