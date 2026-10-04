@@ -34,11 +34,32 @@
     <dt>Schedule</dt><dd>{{schedule .Schedule}}</dd>
     <dt>Retention</dt><dd>{{.Retention.String}}</dd>
     <dt>Next run</dt><dd>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</dd>
+    {{with $.Data.Coverage}}<dt>Last successful backup</dt><dd>{{if .LastOK}}{{ts .LastOK}} <span class="muted">({{ago .LastOK}}{{if .Size}}, {{bytes .Size}}{{end}})</span>{{else}}<span class="muted">none yet</span>{{end}}</dd>
+    <dt>Restore points</dt><dd>{{.Points}}</dd>{{end}}
     {{if .Options.ReplicaAgentID}}<dt>Replicas</dt><dd>kept up to date after each backup{{if .Options.ReplicaStorage}}, on storage {{.Options.ReplicaStorage}}{{end}}</dd>{{end}}
     {{if .Options.LimitMBps}}<dt>Speed limit</dt><dd>{{.Options.LimitText}}</dd>{{end}}
     {{if .Options.HasCommands}}<dt>Commands</dt><dd>{{if $.Me.Can "settings"}}{{if .Options.PreCommand}}before: <span class="mono">{{.Options.PreCommand}}</span><br>{{end}}{{if .Options.PostCommand}}after: <span class="mono">{{.Options.PostCommand}}</span>{{end}}{{else}}runs commands before or after the backup{{end}}</dd>{{end}}
   </dl>
 </div>
+{{with $.Data.Protected}}
+<div class="panel">
+  <h2>Protected VMs <span class="muted small">in the newest backup, {{ts $.Data.ProtectedRun.QueuedAt}}</span></h2>
+  <div class="table-wrap"><table>
+    <tr><th>VM</th><th>Type</th><th>Disks</th><th>Stored</th><th>Consistency</th><th></th></tr>
+    {{range .Guests}}<tr><td>{{if or (eq .Platform "hyperv") (eq .Platform "vmware")}}{{.Name}}{{else}}{{.VMID}} — {{.Name}}{{end}}</td><td>{{if eq .Type "lxc"}}container{{else}}VM{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td>
+      <td class="nowrap">{{if $.Me.Can "restore"}}<a href="/restore?type=vm&amp;src={{printf "vm:%s:%d" (or .Platform "proxmox") .VMID}}&amp;run={{$.Data.ProtectedRun.ID}}">Restore</a> · <a href="/runs/{{$.Data.ProtectedRun.ID}}/vmbrowse?vmid={{.VMID}}">Files</a>{{end}}</td></tr>{{end}}
+  </table></div>
+</div>
+{{end}}
+{{with $.Data.ProtectedSQL}}
+<div class="panel">
+  <h2>Protected databases <span class="muted small">in the newest full backup, {{ts $.Data.ProtectedRun.QueuedAt}}</span></h2>
+  <div class="table-wrap"><table>
+    <tr><th>Database</th><th>Recovery model</th><th>Backup size</th><th>Taken</th><th></th></tr>
+    {{range .Databases}}<tr><td>{{.Name}}</td><td>{{.Recovery}}</td><td>{{bytes .Size}}</td><td>{{ts .Finish}}</td><td>{{if $.Me.Can "restore"}}<a href="/runs/{{$.Data.ProtectedRun.ID}}#restore-sql">Restore</a>{{end}}</td></tr>{{end}}
+  </table></div>
+</div>
+{{end}}
 {{with $.Data.Replicas}}
 <div class="panel" id="replicas">
   <h2>Replicas</h2>

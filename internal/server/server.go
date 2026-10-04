@@ -178,7 +178,7 @@ var funcs = template.FuncMap{
 	"kindtitle": func(k string) string {
 		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "SQL Server backup", "sql-log": "SQL log backup", "sql-restore": "SQL Server restore"}[k]
 	},
-	"everyChoices": everyChoices, "minutesText": minutesText,
+	"everyChoices": everyChoices, "minutesText": minutesText, "jobkind": jobKindTitle,
 	"has": func(list []string, v string) bool { return slices.Contains(list, v) },
 	"hours": func() []int {
 		h := make([]int, 24)
@@ -606,7 +606,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request, user st
 	}
 	instant, _ := s.store.RunningInstantVMs(r.Context())
 	s.render(w, r, "dashboard", pageData{Title: "Dashboard", Nav: "dashboard", User: user,
-		Data: map[string]any{"Summary": sum, "Runs": runs, "Instant": instant}})
+		Data: map[string]any{"Summary": sum, "Runs": runs, "Instant": instant, "Attention": s.attention(r.Context(), time.Now()), "Protection": s.protection(r.Context())}})
 }
 
 // ---- agents
@@ -812,7 +812,8 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 	}
 	s.render(w, r, "jobs", pageData{Title: "Backup jobs", Nav: "jobs", User: user,
 		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents), "SourceJobs": sourceJobs(jobs),
-			"PVE": vmInv, "VMwareHosts": usable, "Form": s.jobForm(r, Job{}, false, agents)}})
+			"PVE": vmInv, "VMwareHosts": usable, "Form": s.jobForm(r, Job{}, false, agents),
+			"Coverage": s.coverageMap(ctx), "JobKinds": jobKindCounts(jobs), "FailedJobs": failedJobs(jobs)}})
 }
 
 func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -891,8 +892,18 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 		s.serverError(w, err)
 		return
 	}
-	s.render(w, r, "job", pageData{Title: j.Name, Nav: "jobs", User: user, Data: map[string]any{"Job": j, "Runs": runs,
-		"Form": s.jobForm(r, j, true, nil), "Guests": s.jobGuests(r.Context(), j), "Replicas": s.jobReplicas(r.Context(), j)}})
+	data := map[string]any{"Job": j, "Runs": runs, "Coverage": s.coverageMap(r.Context())[j.ID], "Protected": nil, "ProtectedSQL": nil, "ProtectedRun": nil,
+		"Form": s.jobForm(r, j, true, nil), "Guests": s.jobGuests(r.Context(), j), "Replicas": s.jobReplicas(r.Context(), j)}
+	if pr, err := s.store.newestBackup(r.Context(), j.ID); err == nil && pr != nil {
+		data["ProtectedRun"] = pr
+		if d := vmDetails(*pr); d != nil {
+			data["Protected"] = d
+		}
+		if d := sqlDetails(*pr); d != nil {
+			data["ProtectedSQL"] = d
+		}
+	}
+	s.render(w, r, "job", pageData{Title: j.Name, Nav: "jobs", User: user, Data: data})
 }
 
 func (s *Server) handleJobRun(w http.ResponseWriter, r *http.Request, _ string) {

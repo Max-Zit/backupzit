@@ -101,7 +101,17 @@ func TestReplication(t *testing.T) {
 	finish(r.ID, api.RunResult{Status: api.StatusFailed, Message: "x",
 		Details: json.RawMessage(`{"replicas":[{"vmid":100,"replica_vmid":1100,"name":"web-replica","error":"write failed"}]}`)})
 
+	// Overview: the job list names the protected VMs, the job page lists them.
+	if _, _, list := admin.do("GET", "/jobs", nil); !strings.Contains(list, "1 VM: web") || !strings.Contains(list, ">Virtual machines <small>1</small>") {
+		t.Error("job list lacks the protected VMs or the kind filter")
+	}
+	if _, _, dash := admin.do("GET", "/", nil); !strings.Contains(dash, "VMs protected") || !strings.Contains(dash, "Needs attention") || !strings.Contains(dash, "Replication") {
+		t.Error("dashboard lacks the protection counts, attention panel or readable run kinds")
+	}
 	_, _, body := admin.do("GET", fmt.Sprintf("/jobs/%d", j.ID), nil)
+	if !strings.Contains(body, "Protected VMs") || !strings.Contains(body, "Restore points") {
+		t.Error("job page lacks the protected VMs")
+	}
 	if !strings.Contains(body, "Replicas") || !strings.Contains(body, "web-replica") || !strings.Contains(body, "write failed") || !strings.Contains(body, "Start replica") {
 		t.Error("job page lacks the replicas")
 	}

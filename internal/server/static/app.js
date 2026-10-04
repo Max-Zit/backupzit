@@ -269,3 +269,31 @@ document.addEventListener("click", function (e) {
   if (!btn.dataset.label) btn.dataset.label = btn.textContent;
   btn.textContent = open ? "show less" : btn.dataset.label;
 });
+
+// Filter bars: text search and kind chips over the rows of a table.
+document.addEventListener("DOMContentLoaded", function () { document.querySelectorAll("[data-filter-table]").forEach(function (bar) {
+  var table = document.getElementById(bar.getAttribute("data-filter-table"));
+  if (!table) return;
+  var input = bar.querySelector("[data-filter-text]");
+  var kind = "";
+  var empty = bar.parentNode.querySelector("[data-filter-empty]");
+  function apply() {
+    var q = (input && input.value || "").trim().toLowerCase();
+    var shown = 0;
+    table.querySelectorAll("tr[data-kind]").forEach(function (tr) {
+      var kinds = tr.getAttribute("data-kind").split(" ");
+      var ok = (!kind || kinds.indexOf(kind) >= 0) && (!q || tr.textContent.toLowerCase().indexOf(q) >= 0);
+      tr.hidden = !ok;
+      if (ok) shown++;
+    });
+    if (empty) empty.hidden = shown > 0;
+  }
+  bar.querySelectorAll("[data-filter-kind]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      kind = b.getAttribute("data-filter-kind");
+      bar.querySelectorAll("[data-filter-kind]").forEach(function (x) { x.classList.toggle("on", x === b); });
+      apply();
+    });
+  });
+  if (input) input.addEventListener("input", apply);
+}); });

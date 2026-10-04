@@ -390,3 +390,23 @@ table.pick td .btn { padding: 6px 12px; }
 /* ---- VMware hosts */
 #vmware select[name=proxy_agent_id] { min-width: 10rem; }
 .wrap-any { overflow-wrap: anywhere; }
+
+/* Job list: filter bar, kind badges */
+.filterbar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 14px; }
+.filterbar input[type=search] { flex: 1 1 220px; max-width: 340px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: none; }
+.chip small { color: var(--muted); margin-left: 4px; }
+.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.chip.bad { color: var(--bad); }
+.chip.bad.on { background: var(--bad-bg); border-color: var(--bad); }
+.kind-badge { margin-top: 4px; font-weight: 500; font-size: 11px; padding: 1px 8px; }
+.kind-vm { color: var(--info); }
+.kind-sql { color: var(--warn); }
+.kind-copy { color: var(--accent); }
+
+/* Dashboard: needs attention */
+.attention { list-style: none; margin: 0; padding: 0; }
+.attention li { padding: 8px 0; border-top: 1px solid var(--line); }
+.attention li:first-child { border-top: 0; }
+.ok-line { display: flex; align-items: center; gap: 8px; color: var(--ok); margin: 0; }

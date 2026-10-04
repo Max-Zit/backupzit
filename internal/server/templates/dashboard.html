@@ -1,6 +1,21 @@
 {{define "content"}}
 <h1>Dashboard</h1>
 {{with .Data.Instant}}<div class="callout warn"><p><b>{{len .}} VM{{if gt (len .) 1}}s{{end}} still run{{if eq (len .) 1}}s{{end}} from a backup</b> (instant recovery): {{range $i, $v := .}}{{if $i}}, {{end}}<a href="/runs/{{$v.RunID}}">VM {{$v.VMID}}{{if $v.Name}} ({{$v.Name}}){{end}} on {{$v.Hostname}}</a>{{end}}. Finish or discard {{if gt (len .) 1}}them{{else}}it{{end}}: until then {{if gt (len .) 1}}they depend{{else}}it depends{{end}} on the backup storage.</p></div>{{end}}
+{{with .Data.Protection}}
+<div class="grid">
+  <div class="stat"><div class="si">{{template "icon" "agents"}}</div><b>{{.Machines}}</b><span>machines protected</span></div>
+  <div class="stat"><div class="si">{{template "icon" "vm"}}</div><b>{{.VMs}}</b><span>VMs protected</span></div>
+  <div class="stat"><div class="si">{{template "icon" "storage"}}</div><b>{{.Databases}}</b><span>databases protected</span></div>
+</div>
+{{end}}
+<div class="panel">
+  <h2>Needs attention</h2>
+  {{with .Data.Attention}}
+  <ul class="attention">
+    {{range .}}<li class="{{.Severity}}"><span class="badge {{.Severity}}"><i></i>{{if eq .Severity "failed"}}failed{{else}}check{{end}}</span> <a href="{{.Link}}"><b>{{.Title}}</b></a> — {{.Detail}}</li>{{end}}
+  </ul>
+  {{else}}<p class="ok-line">{{template "icon" "check"}} Everything is fine: all jobs succeeded recently and all agents are online.</p>{{end}}
+</div>
 {{with .Data.Summary}}
 <div class="grid">
   <div class="stat {{if lt .AgentsOnline .Agents}}warn{{else}}ok{{end}}"><div class="si">{{template "icon" "agents"}}</div><b>{{.AgentsOnline}} / {{.Agents}}</b><span>agents online</span></div>

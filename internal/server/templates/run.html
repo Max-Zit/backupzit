@@ -214,7 +214,7 @@
 </div>
 {{end}}
 {{if and (eq .Kind "sql-backup") .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.SQLPoints}}
-<div class="panel">
+<div class="panel" id="restore-sql">
   <h2>Restore a database</h2>
   {{template "restore_sql" $}}
 </div>

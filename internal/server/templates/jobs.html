@@ -2,20 +2,29 @@
 <h1>Backup jobs</h1>
 <div class="panel">
   {{if .Data.Jobs}}
-  <div class="table-wrap"><table>
+  <div class="filterbar" data-filter-table="jobs-table">
+    <input type="search" placeholder="Search jobs, machines, VMs…" data-filter-text aria-label="Search jobs">
+    <div class="chips">
+      <button type="button" class="chip on" data-filter-kind="">All <small>{{len .Data.Jobs}}</small></button>
+      {{range .Data.JobKinds}}<button type="button" class="chip" data-filter-kind="{{.Kind}}">{{.Title}} <small>{{.Count}}</small></button>{{end}}
+      {{if .Data.FailedJobs}}<button type="button" class="chip bad" data-filter-kind="failed">Last run failed <small>{{.Data.FailedJobs}}</small></button>{{end}}
+    </div>
+  </div>
+  <div class="table-wrap"><table id="jobs-table">
     <tr><th>Job</th><th>Agent</th><th>Backs up</th><th>Storage</th><th>Schedule</th><th>Next run</th><th>Last result</th></tr>
-    {{range .Data.Jobs}}
-    <tr>
-      <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}</td>
+    {{range .Data.Jobs}}{{$c := index $.Data.Coverage .ID}}
+    <tr data-kind="{{.Kind}}{{if .LastStatus}}{{if eq (deref .LastStatus) "failed"}} failed{{end}}{{end}}">
+      <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}<br><span class="badge kind-badge kind-{{.Kind}}">{{jobkind .Kind}}</span></td>
       <td class="nowrap">{{if .VMwareHostName}}{{deref .VMwareHostName}} <span class="muted small">ESXi, via {{.Hostname}}</span>{{else}}{{.Hostname}}{{end}}</td>
-      <td>{{if eq .Kind "copy"}}<span class="badge info-badge">copy</span> of {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else if eq .Kind "vm"}}{{vmsel .Paths}}{{else if eq .Kind "system"}}Whole Linux system{{else if eq .Kind "sql"}}SQL Server{{with .Options.SQLInstance}} {{.}}{{end}}: {{if .Paths}}{{join .Paths ", "}}{{else}}all databases{{end}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
+      <td>{{if eq .Kind "copy"}}<span class="badge info-badge">copy</span> of {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else if eq .Kind "vm"}}{{if and $c $c.Count}}<span title="{{vmsel .Paths}}">{{$c.Summary}}</span>{{else}}{{vmsel .Paths}}{{end}}{{else if eq .Kind "system"}}Whole Linux system{{else if eq .Kind "sql"}}SQL Server{{with .Options.SQLInstance}} {{.}}{{end}}: {{if and $c $c.Count}}{{$c.Summary}}{{else if .Paths}}{{join .Paths ", "}}{{else}}all databases{{end}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
       <td>{{.TargetName}}</td>
       <td>{{schedule .Schedule}}</td>
       <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
-      <td class="nowrap">{{if .LastStatus}}{{template "status" (deref .LastStatus)}}<br><span class="muted small">{{ago .LastFinished}}</span>{{else}}<span class="muted">never ran</span>{{end}}</td>
+      <td class="nowrap">{{if .LastStatus}}{{template "status" (deref .LastStatus)}}<br><span class="muted small">{{ago .LastFinished}}</span>{{else}}<span class="muted">never ran</span>{{end}}{{if and $c $c.Points}}<br><span class="muted small" title="backups available for restore">{{$c.Points}} restore point{{if ne $c.Points 1}}s{{end}}</span>{{end}}</td>
     </tr>
     {{end}}
   </table></div>
+  <p class="muted small mt" data-filter-empty hidden>No job matches.</p>
   {{else}}<p class="muted">No backup jobs yet.</p>{{end}}
 </div>
 

@@ -3,7 +3,8 @@
 <p class="lead">See at a glance whether everything is protected, find out what happened on any day, and send regular reports to management or customers.</p>
 
 <h2>Dashboard</h2>
-<p>The cards show agents online, backup jobs, storage targets, queued and running runs, runs, failures and warnings in the last 24 hours, and <b>suspicious backups to review</b> (possible ransomware, see <a href="/docs/ransomware">Ransomware protection</a>). Green means fine, yellow needs a look, red needs action. Below is the most recent activity.</p>
+<p>The first cards count what is protected: <b>machines</b> (file, image and system backups), <b>VMs</b> and <b>databases</b>, each with a successful backup. <b>Needs attention</b> lists what to look at: jobs whose last run failed, jobs that missed their schedule (no success since the scheduled run before the last one — weekends and time windows of the schedule are taken into account), and agents that have not connected for 15 minutes. When nothing is listed, everything is fine.</p>
+<p>The other cards show agents online, backup jobs, storage targets, queued and running runs, runs, failures and warnings in the last 24 hours, and <b>suspicious backups to review</b> (possible ransomware, see <a href="/docs/ransomware">Ransomware protection</a>). Green means fine, yellow needs a look, red needs action. Below is the most recent activity.</p>
 
 <h2>Activity</h2>
 <p>Every run, newest first. Click a run for details: what was processed, statistics, errors per file, and — for backups — the restore options. Runs in progress refresh automatically. Scheduled runs show a clock icon.</p>
