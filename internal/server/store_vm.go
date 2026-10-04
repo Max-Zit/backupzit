@@ -113,7 +113,8 @@ type vmBackupDetails struct {
 }
 
 func vmDetails(run Run) *vmBackupDetails {
-	if run.Kind != api.KindVMBackup || len(run.Details) == 0 {
+	// Copies of VM backups list their guests too.
+	if (run.Kind != api.KindVMBackup && run.Kind != api.KindCopy) || len(run.Details) == 0 {
 		return nil
 	}
 	var d vmBackupDetails
@@ -140,7 +141,7 @@ func (s *Store) QueueVMRestore(ctx context.Context, backupRunID, agentID int64, 
 	if err != nil {
 		return 0, err
 	}
-	if b.Kind != api.KindVMBackup || b.SnapshotID == "" {
+	if vmDetails(b) == nil || b.SnapshotID == "" {
 		return 0, errors.New("run has no VM backup to restore")
 	}
 	if b.Expired {

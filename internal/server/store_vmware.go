@@ -242,7 +242,7 @@ func (s *Store) QueueVMwareRestore(ctx context.Context, backupRunID, hostID int6
 	if err != nil {
 		return 0, err
 	}
-	if b.Kind != api.KindVMBackup || b.SnapshotID == "" {
+	if vmDetails(b) == nil || b.SnapshotID == "" {
 		return 0, errors.New("run has no VM backup to restore")
 	}
 	if b.Expired {

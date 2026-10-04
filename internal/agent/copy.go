@@ -57,6 +57,10 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	res := api.RunResult{Status: api.StatusSuccess, Stats: stats}
 	if len(copied) > 0 {
 		res.SnapshotID = copied[len(copied)-1].ID.String()
+		if last := copied[len(copied)-1]; len(last.Guests) > 0 {
+			// Copies of VM backups can be restored like the originals.
+			res.Details = vmGuestDetails(last)
+		}
 	}
 	res.Message = fmt.Sprintf("Copied %d backups (%d already copied); %s new data uploaded", st.Snapshots, st.Skipped, humanSize(st.BytesStored))
 	if len(sns) == 0 {

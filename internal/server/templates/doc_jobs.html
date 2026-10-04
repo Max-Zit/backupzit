@@ -49,7 +49,7 @@
   <li>Only data that is not yet at the destination is transferred, re-encrypted with the destination's key.</li>
   <li>Schedule <b>After each backup of the source job</b> (default) keeps the copy current; any normal schedule works too, e.g. once a night for a slow internet line.</li>
   <li>The copy has its own retention, e.g. 7 daily on the NAS and 12 monthly in the cloud.</li>
-  <li>Copied file backups can be restored from the copy run's page, like any backup. Copies of disk images are restored with the command line agent.</li>
+  <li>Copied file backups and VM backups (Proxmox VE, Hyper-V, VMware) are restored from the copy run's page or the <a href="/restore">restore wizard</a>, like the originals — whole VMs, single files from VM disks, and Proxmox instant recovery. VM backups copied by an agent older than 0.29 cannot be restored this way; the next copy run with a newer agent makes its newest copy restorable. Copies of disk images are restored with the command line agent.</li>
 </ul>
 
 <h2>Running, disabling, deleting</h2>

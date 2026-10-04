@@ -504,4 +504,40 @@ func TestInstantRecovery(t *testing.T) {
 	if r := poll(); r == nil || r.ID != b3 || len(r.KeepSnapshots) != 0 {
 		t.Fatalf("backup after finish still keeps snapshots: %+v", r)
 	}
+	e.store.FinishRun(ctx, a.ID, b3, api.RunResult{Status: api.StatusFailed})
+
+	// Copies of VM backups are restored like the originals.
+	offsite, err := e.store.CreateTarget(ctx, server.Target{Name: "offsite", Kind: "local", URL: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	copyJob, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobCopy, SourceJobID: &jobID, TargetID: offsite, Name: "vms offsite"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cr, err := e.store.QueueBackup(ctx, copyJob, "manual")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := poll(); r == nil || r.ID != cr || r.Kind != api.KindCopy {
+		t.Fatalf("copy run: %+v", r)
+	}
+	copySnap := strings.Repeat("ef", 32)
+	if err := e.store.FinishRun(ctx, a.ID, cr, api.RunResult{Status: api.StatusSuccess, SnapshotID: copySnap,
+		Details: json.RawMessage(`{"guests":[{"vmid":100,"type":"qemu","name":"web","disks":1,"platform":"proxmox"}]}`)}); err != nil {
+		t.Fatal(err)
+	}
+	if p := get(fmt.Sprintf("/runs/%d", cr)); !strings.Contains(p, "Restore a VM or container") || !strings.Contains(p, "Browse files") {
+		t.Error("copy run page lacks the VM restore")
+	}
+	if p := get("/restore?type=vm&src=vm%3aproxmox%3a100"); !strings.Contains(p, fmt.Sprintf("run=%d", cr)) || !strings.Contains(p, "copy") {
+		t.Error("restore wizard does not offer the copy of the VM backup")
+	}
+	rr, err := e.store.QueueVMRestore(ctx, cr, a.ID, api.VMRestore{VMID: 100, NewVMID: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := poll(); r == nil || r.ID != rr || r.Kind != api.KindVMRestore || r.SnapshotID != copySnap || r.Repository.URL == "" {
+		t.Fatalf("restore from copy: %+v", r)
+	}
 }

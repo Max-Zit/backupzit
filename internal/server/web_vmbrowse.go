@@ -29,7 +29,7 @@ type cachedVMDisk struct {
 
 // vmDisk opens a guest disk of a VM backup run (cached for browsing).
 func (s *Server) vmDisk(ctx context.Context, run Run, vmid int, disk string) (*cachedVMDisk, error) {
-	if run.Kind != api.KindVMBackup || run.SnapshotID == "" || run.Expired {
+	if vmDetails(run) == nil || run.SnapshotID == "" || run.Expired {
 		return nil, errors.New("run has no VM backup to browse")
 	}
 	if run.TargetID == nil {
@@ -325,7 +325,7 @@ func (s *Store) QueueVMFileRestore(ctx context.Context, backupRunID, agentID int
 	if err != nil {
 		return 0, err
 	}
-	if b.Kind != api.KindVMBackup || b.SnapshotID == "" || b.Expired {
+	if vmDetails(b) == nil || b.SnapshotID == "" || b.Expired {
 		return 0, errors.New("run has no VM backup")
 	}
 	if _, err := s.GetAgent(ctx, agentID); err != nil {

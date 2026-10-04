@@ -118,20 +118,8 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	if err != nil {
 		return failed(err)
 	}
-	var sum []vmGuestSummary
-	for _, g := range sn.Guests {
-		s := vmGuestSummary{VMID: g.VMID, Type: g.Type, Name: g.Name, Consistency: g.Consistency, Disks: len(g.Disks), Platform: g.Platform}
-		for _, d := range g.Disks {
-			s.Size += d.Size
-			if d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {
-				s.Stored += sn.Images[d.Image].Partitions[0].StoredBytes
-			}
-		}
-		sum = append(sum, s)
-	}
 	stats, _ := json.Marshal(sn.Stats)
-	details, _ := json.Marshal(map[string]any{"guests": sum})
-	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: details, Errors: sn.Stats.Errors,
+	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: vmGuestDetails(sn), Errors: sn.Stats.Errors,
 		Message: fmt.Sprintf("Backed up %d guests", len(sn.Guests))}
 	if len(sn.Guests) == 1 {
 		res.Message = "Backed up 1 guest"
@@ -262,4 +250,22 @@ func (a *Agent) vmwareRestore(ctx context.Context, run api.Run, r *repo.Reposito
 	details, _ := json.Marshal(res)
 	stats, _ := json.Marshal(map[string]uint64{"bytes": written})
 	return api.RunResult{Status: api.StatusSuccess, Message: msg, Details: details, Stats: stats}
+}
+
+// vmGuestDetails are the run details listing the guests in a VM backup,
+// for the console's restore forms.
+func vmGuestDetails(sn *repo.Snapshot) json.RawMessage {
+	var sum []vmGuestSummary
+	for _, g := range sn.Guests {
+		s := vmGuestSummary{VMID: g.VMID, Type: g.Type, Name: g.Name, Consistency: g.Consistency, Disks: len(g.Disks), Platform: g.Platform}
+		for _, d := range g.Disks {
+			s.Size += d.Size
+			if d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {
+				s.Stored += sn.Images[d.Image].Partitions[0].StoredBytes
+			}
+		}
+		sum = append(sum, s)
+	}
+	details, _ := json.Marshal(map[string]any{"guests": sum})
+	return details
 }

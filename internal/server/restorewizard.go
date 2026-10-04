@@ -127,10 +127,13 @@ func (s *Server) wizardEntries(ctx context.Context) (map[string][]wizardEntry, e
 			j := jobByID[*run.JobID]
 			src = restoreSource{Key: "job:" + strconv.FormatInt(*run.JobID, 10), Title: deref(run.JobName), Detail: run.Hostname}
 			if run.Kind == api.KindCopy {
-				// Copies of file backups are restore points of the source job.
+				// Copies of file and VM backups are restore points of the source job.
 				srcJob, ok := jobByID[derefID(j.SourceJobID)]
-				if !ok || srcJob.Kind != JobFiles {
+				if !ok || (srcJob.Kind != JobFiles && srcJob.Kind != JobVM) {
 					continue
+				}
+				if srcJob.Kind == JobVM && vmDetails(run) == nil {
+					continue // copied before copies listed their guests
 				}
 				p.Copy = true
 				src = restoreSource{Key: "job:" + strconv.FormatInt(srcJob.ID, 10), Title: srcJob.Name, Detail: srcJob.Hostname}
@@ -141,8 +144,16 @@ func (s *Server) wizardEntries(ctx context.Context) (map[string][]wizardEntry, e
 		add := func(typ string, src restoreSource, p restorePoint) {
 			out[typ] = append(out[typ], wizardEntry{src: src, point: p})
 		}
-		switch run.Kind {
-		case api.KindBackup, api.KindCopy:
+		kind := run.Kind
+		if kind == api.KindCopy {
+			// A copy restores like what it copied.
+			kind = api.KindBackup
+			if vmDetails(run) != nil {
+				kind = api.KindVMBackup
+			}
+		}
+		switch kind {
+		case api.KindBackup:
 			add("files", src, p)
 		case api.KindSystemBackup:
 			add("files", src, p)

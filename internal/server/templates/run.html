@@ -190,7 +190,7 @@
 </div>
 {{end}}
 
-{{if and (eq .Kind "vm-backup") .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.VM}}
+{{if and .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.VM}}
 <div class="panel">
   <h2>{{if eq $.Data.VMPlatform "hyperv"}}Restore a Hyper-V VM{{else if eq $.Data.VMPlatform "vmware"}}Restore a VMware VM{{else}}Restore a VM or container{{end}}</h2>
   {{template "restore_vm" $}}
