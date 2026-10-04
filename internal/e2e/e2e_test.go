@@ -377,8 +377,6 @@ func testCorruption(t *testing.T, r *repo.Repository) {
 		t.Fatalf("list packs: %v", err)
 	}
 	loc := r.Backend().Location()
-	// Pick the largest pack with file data of the latest snapshot (other
-	// packs may only hold files deleted since, which a restore never reads).
 	latest, err := r.LoadSnapshot(ctx, "latest")
 	if err != nil {
 		t.Fatal(err)
@@ -387,32 +385,30 @@ func testCorruption(t *testing.T, r *repo.Repository) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	needed := map[repo.ID]bool{}
+	// Corrupt a data blob the latest snapshot needs, so both the check and
+	// a restore of that snapshot must notice.
+	var victim string
+	var off int64
 	for h := range used {
 		if h.Type != repo.DataBlob {
 			continue
 		}
-		if loc, ok := r.Index().Lookup(h); ok {
-			needed[loc.Pack] = true
-		}
-	}
-	var victim string
-	var size int64
-	for _, p := range packs {
-		if !needed[p] {
+		bl, ok := r.Index().Lookup(h)
+		if !ok || bl.Length < 32 {
 			continue
 		}
-		s := p.String()
-		path := filepath.Join(loc, "data", s[:2], s)
-		if fi, err := os.Stat(path); err == nil && fi.Size() > size {
-			victim, size = path, fi.Size()
-		}
+		s := bl.Pack.String()
+		victim, off = filepath.Join(loc, "data", s[:2], s), int64(bl.Offset)+int64(bl.Length)/2
+		break
+	}
+	if victim == "" {
+		t.Fatal("no data blob of the latest snapshot found")
 	}
 	b, err := os.ReadFile(victim)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b[100] ^= 0xff
+	b[off] ^= 0xff
 	if err := os.WriteFile(victim, b, 0o600); err != nil {
 		t.Fatal(err)
 	}
