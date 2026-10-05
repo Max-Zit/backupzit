@@ -6,3 +6,4 @@
 .gotmp/
 .devdata/
 /dist/
+.zapdata/

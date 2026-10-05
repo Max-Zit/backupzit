@@ -397,6 +397,7 @@ func securityHeaders(h http.Handler) http.Handler {
 		w.Header().Set("Referrer-Policy", "same-origin")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		h.ServeHTTP(w, r)
 	})
@@ -437,6 +438,8 @@ func (s *Server) ui(perm Perm, h func(w http.ResponseWriter, r *http.Request, us
 			http.Error(w, "cross-site request rejected", http.StatusForbidden)
 			return
 		}
+		// Pages of a signed-in user stay out of browser and proxy caches.
+		w.Header().Set("Cache-Control", "no-store")
 		r = r.WithContext(context.WithValue(r.Context(), userCtxKey, &u))
 		if !u.TwoFactor && s.sessionSettings(r.Context()).mustUse2FA(&u) && !strings.HasPrefix(r.URL.Path, "/account") && r.URL.Path != "/logout" && !strings.HasPrefix(r.URL.Path, "/docs") {
 			redirectErr(w, r, "/account/2fa", errors.New("set up two-factor authentication to continue — it is required for your account"))
