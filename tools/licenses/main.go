@@ -116,7 +116,7 @@ func classify(t string) string {
 		return "MIT License"
 	case strings.Contains(t, "redistribution and use in source and binary forms"):
 		return "BSD License"
-	case strings.Contains(t, "permission to use, copy, modify, and/or distribute"), strings.Contains(t, "isc license"):
+	case strings.Contains(t, "permission to use, copy, modify, and/or distribute"), strings.Contains(t, "permission to use, copy, modify, and distribute this software for any purpose with or without fee"), strings.Contains(t, "isc license"):
 		return "ISC License"
 	case strings.Contains(t, "this software is provided 'as-is'") && strings.Contains(t, "altered source versions must be plainly marked"):
 		return "zlib License"

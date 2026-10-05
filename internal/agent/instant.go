@@ -67,6 +67,9 @@ func StartInstantServer(ctx context.Context, rs api.Repository, snapshotID strin
 // vmInstant starts, finishes or discards an instant recovery on this
 // Proxmox node.
 func (a *Agent) vmInstant(ctx context.Context, run api.Run) api.RunResult {
+	if run.VMware != nil {
+		return a.vmwareInstant(ctx, run)
+	}
 	if !pve.Available() {
 		return failed(fmt.Errorf("instant recovery needs the agent on a Proxmox VE node"))
 	}

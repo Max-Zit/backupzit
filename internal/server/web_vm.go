@@ -62,7 +62,13 @@ func (s *Server) handleVMRestore(w http.ResponseWriter, r *http.Request, runID i
 		o.NewVMID = -1
 	case "instant":
 		o.NewVMID = -1
-		rid, err := s.store.QueueVMInstant(r.Context(), runID, formID(r, "agent_id"), o)
+		var rid int64
+		var err error
+		if hid := formID(r, "vmware_host_id"); hid > 0 {
+			rid, err = s.store.QueueVMwareInstant(r.Context(), runID, hid, o)
+		} else {
+			rid, err = s.store.QueueVMInstant(r.Context(), runID, formID(r, "agent_id"), o)
+		}
 		if err != nil {
 			redirectErr(w, r, back, err)
 			return
@@ -153,6 +159,17 @@ func linuxAgents(agents []Agent) []Agent {
 func (s *Server) instantStorage(ctx context.Context, run Run) []string {
 	if runInstant(run) == nil {
 		return nil
+	}
+	if h, err := s.store.vmwareHostOfRun(ctx, run.ID); err == nil && h != nil {
+		var out []string
+		if inv := h.Inv(); inv != nil {
+			for _, ds := range inv.Storage {
+				if !strings.HasPrefix(ds, "backupzit-") {
+					out = append(out, ds)
+				}
+			}
+		}
+		return out
 	}
 	a, err := s.store.GetAgent(ctx, run.AgentID)
 	if err != nil || a.PVE() == nil {

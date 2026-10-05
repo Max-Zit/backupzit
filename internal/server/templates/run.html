@@ -63,10 +63,14 @@
 {{with .Data.Instant}}{{if and (eq .State "running") ($.Me.Can "restore")}}
 <div class="card">
   <h2>{{T "VM"}} {{.InstantVMID}} {{T "runs from the backup"}}</h2>
+  {{if eq .Platform "vmware"}}
+  <p class="muted">{{T "It runs on ESXi host"}} {{.Node}} {{T "from a datastore that the proxy agent serves over NFS: its disks are read from the backup, its changes are kept on the agent. Retention keeps this backup while the VM runs from it. When the VM works as it should,"}} <b>{{T "finish"}}</b>{{T ": the VM is shut down, its disks are copied to the datastore and it starts again from there (downtime depends on the disk size). Or"}} <b>{{T "discard"}}</b> {{T "it: the VM is stopped and deleted with its changes."}}</p>
+  {{else}}
   <p class="muted">{{T "Its disks are read from the backup, and its changes are kept on storage"}} <span class="mono">{{T "backupzit-instant"}}</span> {{T "of node"}} {{.Node}}{{T ". Retention keeps this backup while the VM runs from it. When the VM works as it should,"}} <b>{{T "finish"}}</b>{{T ": its disks are moved to their storage while it keeps running, then the backup is no longer used. Or"}} <b>{{T "discard"}}</b> {{T "it: the VM is stopped and deleted with its changes."}}</p>
+  {{end}}
   <form method="post" action="/runs/{{$.Data.Run.ID}}/instant" class="row">
     <input type="hidden" name="action" value="finish">
-    <label>{{T "Move the disks to storage"}}
+    <label>{{if eq .Platform "vmware"}}{{T "Copy the disks to datastore"}}{{else}}{{T "Move the disks to storage"}}{{end}}
       <select name="storage">{{range $.Data.InstantStorage}}<option>{{.}}</option>{{end}}</select>
     </label>
     <div><button>{{T "Finish"}}</button></div>

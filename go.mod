@@ -7,6 +7,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.2
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.8.2
 	github.com/fergusstrange/embedded-postgres v1.34.0
+	github.com/go-git/go-billy/v5 v5.9.2
 	github.com/go-ldap/ldap/v3 v3.4.14
 	github.com/go-ole/go-ole v1.3.0
 	github.com/hirochachacha/go-smb2 v1.1.0
@@ -25,6 +26,7 @@ require (
 	github.com/restic/chunker v0.5.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/vmware/govmomi v0.56.0
+	github.com/willscott/go-nfs v0.0.4
 	golang.org/x/crypto v0.57.0
 	golang.org/x/sys v0.48.0
 	rsc.io/qr v0.2.0
@@ -41,6 +43,7 @@ require (
 	github.com/Velocidex/yaml/v2 v2.2.8 // indirect
 	github.com/apache/arrow-go/v18 v18.7.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/geoffgarside/ber v1.1.0 // indirect
@@ -76,11 +79,13 @@ require (
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.28 // indirect
+	github.com/rasky/go-xdr v0.0.0-20170124162913-1a41d1a06c93 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
+	github.com/willscott/go-nfs-client v0.0.0-20240104095149-b44639837b00 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	go.shabbyrobe.org/gocovmerge v0.0.0-20230507111327-fa4f82cfbf4d // indirect

@@ -184,6 +184,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	case api.KindVMInstant, api.KindVMInstantFinish, api.KindVMInstantDiscard:
 		ar.SnapshotID = run.SnapshotID
 		ar.VMRestore = vmRestoreOptions(*run)
+		if err := s.addVMware(ctx, run, ar); err != nil {
+			return nil, err
+		}
 	case api.KindVMRestore:
 		ar.SnapshotID = run.SnapshotID
 		ar.VMRestore = vmRestoreOptions(*run)

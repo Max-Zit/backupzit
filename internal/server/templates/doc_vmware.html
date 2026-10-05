@@ -62,6 +62,15 @@
 </ul>
 <p>Disks are restored thin, and only blocks with data are written. ISO images that were connected to CD/DVD drives are not part of the backup, so those drives are left empty.</p>
 
+<h3>Instant recovery</h3>
+<p>Choose <b>Instantly, running from the backup</b> to start a VM within seconds, without copying its disks first. The host's proxy agent — it must be a <b>Linux</b> agent — serves the VM's disks straight from the backup over NFS; the host mounts that as the datastore <code>backupzit-&lt;agent&gt;</code> and runs the VM from it. Changes the VM makes are kept on the agent (<code>/var/lib/backupzit/instant-esxi</code>, so it needs free space for them); the backup itself is never changed, and retention keeps it while the VM runs from it. If the original VM still exists, the instant VM gets a new UUID and new MAC addresses.</p>
+<p>On the run's page, when the VM works as it should:</p>
+<ul>
+  <li><b>Finish</b> copies it to a datastore of the host: the VM is shut down (through VMware Tools if they run), its disks are copied thin with <code>vmkfstools</code>, it is registered from the datastore and started again. The free ESXi license has no Storage vMotion, so this needs a short downtime that grows with the disk size. If the copy fails, the VM keeps running from the backup.</li>
+  <li><b>Discard</b> stops and deletes the VM with all its changes.</li>
+</ul>
+<p>The agent answers NFS on port 2049 (and registers it with the machine's rpcbind on port 111, or answers port 111 itself) only for the ESXi host's address; open these ports from the host to the agent if a firewall is in between. When the last instant VM is finished or discarded, the datastore is removed and the NFS server stops.</p>
+
 <h3>Single files</h3>
 <p><b>Browse files</b> on the backup's page (or <i>Files from a virtual machine</i> in the restore wizard) opens the VM's disks. You can browse NTFS, ext2/3/4 and XFS, also on LVM, and download files or restore them to any agent.</p>
 
@@ -77,7 +86,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
   <li><b>vCenter.</b> Add each ESXi host directly.</li>
   <li><b>VMs with snapshots of their own.</b> Their disks are deltas; delete or consolidate the snapshots first.</li>
   <li><b>Some disk types.</b> Raw device mappings (RDM) and independent disks.</li>
-  <li><b>Instant recovery.</b> Running a VM directly from the backup is not available yet.</li>
+  <li><b>Instant recovery through a Windows proxy agent.</b> Instant recovery needs a Linux proxy agent.</li>
 </ul>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -222,6 +222,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdVMware(ctx, rest)
 	case "nbd-serve":
 		return cmdNBDServe(ctx, rest)
+	case "esxi-nfs-serve":
+		return cmdESXiNFSServe(ctx)
 	case "pve":
 		return cmdPVE(ctx, rest)
 	case "prepare-hardware":

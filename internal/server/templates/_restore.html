@@ -79,6 +79,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
   <label class="check"><input type="radio" name="id_mode" value="next" checked> {{T "As a new VM next to the original"}} <small>{{T "new name (default: original name + \"-restored-\" and the date), new UUID and MAC addresses"}}</small></label>
   <label class="check"><input type="radio" name="id_mode" value="original"> {{T "In place of the original VM"}} <small>{{T "or recreate it if it was deleted"}}</small></label>
   <label class="check"><input type="checkbox" name="overwrite"> {{T "If the original VM still exists,"}} <b>{{T "turn it off and replace its disks"}}</b> {{T "with the backup"}} <small>{{T "it keeps its UUID, network adapters and MAC addresses; the old disks are kept renamed ("}}<code>.replaced-…</code>)</small></label>
+  <label class="check"><input type="radio" name="id_mode" value="instant"> {{T "Instantly, running from the backup"}} <small>{{T "starts in seconds from a datastore the host's Linux proxy agent serves over NFS; then finish (copy the disks to a datastore, with a short shutdown) or discard it on the run page"}}</small></label>
   <div class="row">
     <label>{{T "Name"}} <small>{{T "optional"}}</small><input name="name" maxlength="80"></label>
     <label>{{T "Datastore"}}

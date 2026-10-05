@@ -58,7 +58,7 @@
   <li>Proxmox VMs and containers: as a new guest or in place — <a href="/docs/proxmox">Proxmox VE</a>. Proxmox VMs can also run instantly from the backup and be moved to storage while they run (<a href="/docs/proxmox">instant recovery</a>).</li>
   <li>Databases (SQL Server, PostgreSQL, MySQL/MariaDB): under a new name or in place, to a point in time — <a href="/docs/sql">Databases</a>.</li>
   <li>Hyper-V VMs: as a new VM or in place (keeps ID and MAC addresses) — <a href="/docs/hyperv">Hyper-V</a>.</li>
-  <li>VMware ESXi VMs: as a new VM or in place (keeps UUID and MAC addresses), on any ESXi host and datastore — <a href="/docs/vmware">VMware ESXi</a>.</li>
+  <li>VMware ESXi VMs: as a new VM or in place (keeps UUID and MAC addresses), on any ESXi host and datastore — <a href="/docs/vmware">VMware ESXi</a>; also instantly from the backup through a Linux proxy agent, then copied to a datastore (<a href="/docs/vmware">instant recovery</a>).</li>
 </ul>
 <p>Browsing files in the console works for backups on network storage (SFTP, S3, SMB, Azure, hardened repository); the console reads them directly. For backups on a local disk of an agent use the command line.</p>
 

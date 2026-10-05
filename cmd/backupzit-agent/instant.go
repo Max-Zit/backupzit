@@ -160,3 +160,11 @@ func cmdPVEInstant(ctx context.Context, sub string, args []string) error {
 	}
 	return fmt.Errorf("unknown command %q", sub)
 }
+
+// cmdESXiNFSServe serves the instant VMs of VMware ESXi hosts over NFS
+// (started as a systemd unit by instant recovery runs).
+func cmdESXiNFSServe(ctx context.Context) error {
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGTERM, os.Interrupt)
+	defer stop()
+	return agent.ServeESXiInstant(ctx, func(f string, a ...any) { fmt.Fprintf(os.Stderr, f+"\n", a...) })
+}

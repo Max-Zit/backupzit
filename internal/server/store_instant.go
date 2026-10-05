@@ -23,6 +23,9 @@ type instantDetails struct {
 	Name        string   `json:"name"`
 	State       string   `json:"state"`
 	Disks       []string `json:"disks,omitempty"`
+	// Platform is "vmware" for ESXi (InstantVMID is then the VM's ID on
+	// the host), empty for Proxmox VE.
+	Platform string `json:"platform,omitempty"`
 }
 
 func runInstant(run Run) *instantDetails {
@@ -141,6 +144,50 @@ func (s *Store) QueueVMInstant(ctx context.Context, backupRunID, agentID int64, 
 	return id, err
 }
 
+// QueueVMwareInstant starts a VM of a VMware backup on an ESXi host directly
+// from the backup; the host's proxy agent (Linux) serves its disks over NFS.
+func (s *Store) QueueVMwareInstant(ctx context.Context, backupRunID, hostID int64, o api.VMRestore) (int64, error) {
+	b, err := s.GetRun(ctx, backupRunID)
+	if err != nil {
+		return 0, err
+	}
+	d := vmDetails(b)
+	if d == nil || b.SnapshotID == "" || d.Platform() != "vmware" {
+		return 0, errors.New("run has no VMware backup")
+	}
+	if b.Expired {
+		return 0, errors.New("this backup was removed by the retention policy")
+	}
+	found := false
+	for _, g := range d.Guests {
+		found = found || g.VMID == o.VMID
+	}
+	if !found {
+		return 0, fmt.Errorf("VM %d is not in this backup", o.VMID)
+	}
+	h, err := s.GetVMwareHost(ctx, hostID)
+	if err != nil {
+		return 0, errors.New("unknown VMware host")
+	}
+	if h.ProxyAgentID == nil {
+		return 0, fmt.Errorf("choose a proxy agent for %s first", h.Name)
+	}
+	if a, err := s.GetAgent(ctx, *h.ProxyAgentID); err != nil || !strings.Contains(strings.ToLower(a.OS), "linux") {
+		return 0, errors.New("instant recovery on ESXi needs a Linux proxy agent: it serves the disks to the host over NFS")
+	}
+	o.Name = strings.TrimSpace(o.Name)
+	if len(o.Name) > 80 || badVMName.MatchString(o.Name) {
+		return 0, errors.New(`the VM name has at most 80 characters and none of / \ : * ? " < > | %`)
+	}
+	o = api.VMRestore{VMID: o.VMID, NewVMID: -1, Name: o.Name, Start: true}
+	opts, _ := json.Marshal(o)
+	var id int64
+	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, vm_restore, vmware_host_id)
+		VALUES($1,$2,'vm-instant','manual',$3,$4,$5,$6,$7) RETURNING id`,
+		*h.ProxyAgentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, opts, h.ID).Scan(&id)
+	return id, err
+}
+
 // QueueInstantEnd finishes (moves the disks to storage) or discards (deletes)
 // the VM a vm-instant run started.
 func (s *Store) QueueInstantEnd(ctx context.Context, instantRunID int64, finish bool, storage string) (int64, error) {
@@ -163,28 +210,47 @@ func (s *Store) QueueInstantEnd(ctx context.Context, instantRunID int64, finish 
 	}
 	kind := api.KindVMInstantDiscard
 	o := api.VMRestore{VMID: d.InstantVMID, InstantVMID: d.InstantVMID, InstantRun: instantRunID}
+	host, err := s.vmwareHostOfRun(ctx, instantRunID)
+	if err != nil {
+		return 0, err
+	}
 	if finish {
 		kind = api.KindVMInstantFinish
-		a, err := s.GetAgent(ctx, ir.AgentID)
-		if err != nil {
-			return 0, err
-		}
 		ok := false
-		if inv := a.PVE(); inv != nil {
-			for _, st := range inv.Storage {
-				ok = ok || (st == storage && st != "backupzit-instant")
+		where := ""
+		if host != nil {
+			where = host.Name
+			if inv := host.Inv(); inv != nil {
+				for _, ds := range inv.Storage {
+					ok = ok || (ds == storage && !strings.HasPrefix(ds, "backupzit-"))
+				}
+			}
+		} else {
+			a, err := s.GetAgent(ctx, ir.AgentID)
+			if err != nil {
+				return 0, err
+			}
+			where = a.Hostname
+			if inv := a.PVE(); inv != nil {
+				for _, st := range inv.Storage {
+					ok = ok || (st == storage && st != "backupzit-instant")
+				}
 			}
 		}
 		if !ok {
-			return 0, fmt.Errorf("choose a storage of %s for the disks", a.Hostname)
+			return 0, fmt.Errorf("choose a storage of %s for the disks", where)
 		}
 		o.Storage = storage
 	}
+	var hostID *int64
+	if host != nil {
+		hostID = &host.ID
+	}
 	opts, _ := json.Marshal(o)
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, vm_restore)
-		VALUES($1,$2,$3,'manual',$4,$5,$6,$7) RETURNING id`,
-		ir.AgentID, ir.JobID, kind, ir.RepoURL, ir.TargetID, ir.SnapshotID, opts).Scan(&id)
+	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, vm_restore, vmware_host_id)
+		VALUES($1,$2,$3,'manual',$4,$5,$6,$7,$8) RETURNING id`,
+		ir.AgentID, ir.JobID, kind, ir.RepoURL, ir.TargetID, ir.SnapshotID, opts, hostID).Scan(&id)
 	return id, err
 }
 
