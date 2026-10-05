@@ -4,6 +4,8 @@ set -e
 # VM images ship without SSH host keys: every copy gets its own.
 if ! ls /etc/ssh/ssh_host_*_key >/dev/null 2>&1; then
     ssh-keygen -A
+    # SSH started before the keys existed and failed; let it start again.
+    systemctl reset-failed ssh.service 2>/dev/null || true
     systemctl restart ssh 2>/dev/null || true
 fi
 # Wait for the network, so the certificate covers the server's address.

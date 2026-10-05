@@ -36,6 +36,8 @@ contents:
     dst: /usr/share/backupzit/appliance/sudoers-backupzit-setup
   - src: ./packaging/appliance/sshd-backupzit.conf
     dst: /usr/share/backupzit/appliance/sshd-backupzit.conf
+  - src: ./packaging/appliance/sysctl-backupzit.conf
+    dst: /usr/share/backupzit/appliance/sysctl-backupzit.conf
   - src: ./packaging/linux/server.env
     dst: /etc/backupzit/server.env
     type: config|noreplace

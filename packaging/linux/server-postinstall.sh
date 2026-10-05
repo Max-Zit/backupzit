@@ -26,6 +26,8 @@ if [ -f /var/lib/backupzit/.appliance-ready ] || [ -x /usr/local/sbin/backupzit-
     a=/usr/share/backupzit/appliance
     install -m 0644 $a/backupzit-menu.sh /etc/profile.d/backupzit-menu.sh
     install -m 0440 $a/sudoers-backupzit-setup /etc/sudoers.d/backupzit-setup
+    install -m 0644 $a/sysctl-backupzit.conf /etc/sysctl.d/90-backupzit-console.conf
+    sysctl -q -p /etc/sysctl.d/90-backupzit-console.conf 2>/dev/null || true
     if [ -d /etc/ssh/sshd_config.d ]; then
         install -m 0644 $a/sshd-backupzit.conf /etc/ssh/sshd_config.d/50-backupzit.conf
         if sshd -t 2>/dev/null; then

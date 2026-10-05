@@ -80,6 +80,9 @@ func (s *System) ApplySSH(ctx context.Context, c SSHConfig) error {
 			return err
 		}
 	}
+	// sshd -t needs its privilege separation directory, which exists only
+	// while the SSH server runs.
+	os.MkdirAll(s.path("/run/sshd"), 0o755)
 	if out, err := s.Run(ctx, "sshd", "-t"); err != nil {
 		restore()
 		return fmt.Errorf("the SSH server refused the setting, nothing was changed: %s", strings.TrimSpace(out+" "+err.Error()))
@@ -94,6 +97,8 @@ func (s *System) ApplySSH(ctx context.Context, c SSHConfig) error {
 	if _, err := s.Run(ctx, "systemctl", "enable", unit+".service"); err != nil {
 		return err
 	}
+	// After repeated failures systemd refuses restarts for a while.
+	s.Run(ctx, "systemctl", "reset-failed", unit+".service")
 	_, err := s.Run(ctx, "systemctl", "restart", unit+".service")
 	return err
 }

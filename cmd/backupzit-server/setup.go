@@ -76,7 +76,8 @@ func runSetup(ctx context.Context) error {
 func (m *setupMenu) header(ctx context.Context) {
 	fmt.Print("\033[H\033[2J")
 	host, _ := os.Hostname()
-	fmt.Printf("\n  BackupZit appliance %s — %s\n  %s\n\n", version, host, strings.Repeat("─", 60))
+	// Plain ASCII: the Linux console font has no dashes or box lines.
+	fmt.Printf("\n  BackupZit appliance %s - %s\n  %s\n\n", version, host, strings.Repeat("-", 60))
 	st, _ := m.sys.Current(ctx)
 	if st != nil {
 		mode := "DHCP"
@@ -101,7 +102,7 @@ func (m *setupMenu) header(ctx context.Context) {
 
 func orDash(s string) string {
 	if s == "" {
-		return "—"
+		return "-"
 	}
 	return s
 }
@@ -133,7 +134,7 @@ func (m *setupMenu) pause() {
 }
 
 func (m *setupMenu) run(ctx context.Context, what string, name string, args ...string) {
-	fmt.Printf("\n  %s…\n", what)
+	fmt.Printf("\n  %s...\n", what)
 	if out, err := exec.CommandContext(ctx, name, args...).CombinedOutput(); err != nil {
 		fmt.Printf("  Failed: %v %s\n", err, strings.TrimSpace(string(out)))
 	} else {
