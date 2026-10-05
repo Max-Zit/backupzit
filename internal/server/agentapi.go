@@ -132,11 +132,19 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	case api.KindBackup:
 		s.addRetention(ctx, run, ar)
 		ar.Paths, ar.Excludes = run.Paths, run.Excludes
+		if err := s.addNAS(ctx, run, ar); err != nil {
+			return nil, err
+		}
 	case api.KindRestore:
 		ar.SnapshotID = run.SnapshotID
 		ar.RestoreTarget = run.RestoreTarget
 		ar.Includes = run.Paths
 		ar.Verify = run.RestoreVerify
+		if run.RestoreTarget == "" {
+			if err := s.addNAS(ctx, run, ar); err != nil {
+				return nil, err
+			}
+		}
 	case api.KindImageBackup:
 		s.addRetention(ctx, run, ar)
 		if run.ImageDisk != nil {

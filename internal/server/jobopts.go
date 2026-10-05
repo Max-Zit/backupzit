@@ -38,6 +38,12 @@ type JobOptions struct {
 	SQLInstance   string `json:"sql_instance,omitempty"`
 	SQLSystem     bool   `json:"sql_system,omitempty"`
 	SQLLogMinutes int    `json:"sql_log_minutes,omitempty"`
+	// NAS jobs: the share (smb://host/share or nfs://host/export) and the
+	// account the agent connects with; the password is stored encrypted.
+	NASURL      string `json:"nas_url,omitempty"`
+	NASUser     string `json:"nas_user,omitempty"`
+	NASDomain   string `json:"nas_domain,omitempty"`
+	NASPassword string `json:"nas_password,omitempty"`
 }
 
 func (o JobOptions) Validate() error {
@@ -224,6 +230,13 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	if r.FormValue("replicate") == "on" {
 		o.ReplicaAgentID, o.ReplicaStorage = formID(r, "replica_agent"), r.FormValue("replica_storage")
 	}
+	o.NASURL = strings.TrimSpace(r.FormValue("nas_url"))
+	o.NASUser = strings.TrimSpace(r.FormValue("nas_user"))
+	o.NASDomain = strings.TrimSpace(r.FormValue("nas_domain"))
+	o.NASPassword = r.FormValue("nas_password")
+	if o.NASPassword == "" && o.NASUser != "" && o.NASURL == old.NASURL && o.NASUser == old.NASUser {
+		o.NASPassword = old.NASPassword // unchanged: kept (encrypted)
+	}
 	return o
 }
 
@@ -263,6 +276,8 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 		j.Excludes = lines(r.FormValue("excludes"))
 	case JobSQL:
 		j.Paths = lines(r.FormValue("sql_databases"))
+	case JobNAS:
+		j.Paths, j.Excludes = lines(r.FormValue("paths")), lines(r.FormValue("excludes"))
 	case JobVM:
 		if r.FormValue("vm_mode") == "all" {
 			j.Paths = []string{"*"}

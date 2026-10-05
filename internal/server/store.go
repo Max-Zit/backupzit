@@ -484,6 +484,21 @@ func (s *Store) checkJob(ctx context.Context, j *Job) error {
 			}
 		}
 		j.ImageDisk, j.ImagePartitions = nil, nil
+	case JobNAS:
+		if err := checkNASShare(j.Options.NASURL); err != nil {
+			return err
+		}
+		paths, err := cleanNASFolders(j.Paths)
+		if err != nil {
+			return err
+		}
+		j.Paths, j.ImageDisk, j.ImagePartitions = paths, nil, nil
+		if j.Options.NASUser == "" {
+			j.Options.NASDomain, j.Options.NASPassword = "", ""
+		}
+		if p := j.Options.NASPassword; p != "" && !strings.HasPrefix(p, secretPrefix) {
+			j.Options.NASPassword = s.seal(ctxNASPassword, p)
+		}
 	case JobCopy:
 		if j.SourceJobID == nil {
 			return errors.New("choose the job whose backups are copied")

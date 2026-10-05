@@ -135,7 +135,7 @@ func (s *Store) copyOfFiles(ctx context.Context, run Run) bool {
 		return false
 	}
 	src, err := s.GetJob(ctx, *j.SourceJobID)
-	return err == nil && src.Kind == JobFiles
+	return err == nil && (src.Kind == JobFiles || src.Kind == JobNAS)
 }
 
 // recordUSBDisk stores which rotating disk a backup went to, so restores

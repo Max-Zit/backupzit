@@ -18,6 +18,15 @@
   <li>Set <b>Keep backups</b> and the <b>Schedule</b>, then <i>Create job</i>.</li>
 </ol>
 
+<h2>NAS and file shares (SMB, NFS)</h2>
+<p>A <b>NAS / file share</b> job backs up a network share without installing anything on the NAS (Synology, QNAP, TrueNAS, a Windows file server …). Choose any agent that reaches the share — it reads the share and writes the backup — and enter:</p>
+<ul>
+  <li><b>Share</b>: <code>smb://nas01/data</code> (optionally with a folder: <code>smb://nas01/data/Office</code>) or <code>nfs://nas01/volume1/data</code> (the export path);</li>
+  <li>for SMB the account (user, optional domain, password — stored encrypted); empty means guest access. NFS uses the agent machine's access to the export (allow its address on the NAS);</li>
+  <li>the <b>folders in the share</b> to back up, one per line (empty: the whole share), and exclusions such as <code>#recycle</code>, <code>@eaDir</code> or <code>.snapshot</code>.</li>
+</ul>
+<p>For every run the agent connects the share — Windows agents through its UNC path (<code>\nas01\data</code>, SMB only), Linux agents by mounting it read-only below <code>/mnt/backupzit-nas</code> (needs <code>cifs-utils</code> for SMB, <code>nfs-common</code> or <code>nfs-utils</code> for NFS; Proxmox VE has both) — and disconnects it afterwards. The backups are ordinary file backups: deduplicated and incremental, with retention, copy jobs, restore tests, browsing and file restore. <b>Restore to the original location</b> connects the share again, writable, and writes the files back onto it; or restore into a folder on any agent, or download.</p>
+
 <h2>Open and locked files (VSS)</h2>
 <p>On Windows the agent uses the <b>Volume Shadow Copy Service</b>: it takes a consistent, point-in-time snapshot of the volume and backs up from that, so open files (Outlook PST, databases, documents being edited) are backed up consistently. Applications that support VSS (for example SQL Server) flush their data to disk before the snapshot is taken.</p>
 

@@ -18,6 +18,7 @@ const (
 	JobVM     = "vm"     // Proxmox VE virtual machines and containers
 	JobSystem = "system" // whole Linux system (files and disk layout)
 	JobSQL    = "sql"    // Microsoft SQL Server databases
+	JobNAS    = "nas"    // SMB/NFS share read through an agent
 )
 
 // checkImageSelection validates a disk/partition choice against the

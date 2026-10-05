@@ -227,7 +227,7 @@ func humanAge(l *language, d time.Duration) string {
 
 // Protection counts what the backups protect, for the dashboard.
 type Protection struct {
-	Machines, VMs, Databases int
+	Machines, VMs, Databases, Shares int
 }
 
 func (s *Server) protection(ctx context.Context) Protection {
@@ -238,7 +238,7 @@ func (s *Server) protection(ctx context.Context) Protection {
 	}
 	jobs, _ := s.store.ListJobs(ctx)
 	machines := map[int64]bool{}
-	vms, dbs := map[string]bool{}, map[string]bool{}
+	vms, dbs, shares := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, j := range jobs {
 		c := cov[j.ID]
 		if c == nil || c.LastOK == nil || j.Kind == JobCopy {
@@ -254,15 +254,19 @@ func (s *Server) protection(ctx context.Context) Protection {
 				dbs[fmt.Sprint(j.AgentID, n)] = true
 			}
 		default:
+			if j.Kind == JobNAS {
+				shares[j.Options.NASURL] = true
+				continue
+			}
 			machines[j.AgentID] = true
 		}
 	}
-	p.Machines, p.VMs, p.Databases = len(machines), len(vms), len(dbs)
+	p.Machines, p.VMs, p.Databases, p.Shares = len(machines), len(vms), len(dbs), len(shares)
 	return p
 }
 
 func jobKindTitle(k string) string {
-	return map[string]string{JobFiles: "Files", JobImage: "Disk image", JobVM: "Virtual machines", JobSystem: "Linux system", JobCopy: "Backup copy", JobSQL: "Databases"}[k]
+	return map[string]string{JobFiles: "Files", JobImage: "Disk image", JobVM: "Virtual machines", JobSystem: "Linux system", JobCopy: "Backup copy", JobSQL: "Databases", JobNAS: "NAS shares"}[k]
 }
 
 // jobKindCount is a filter chip of the job list.
@@ -273,7 +277,7 @@ type jobKindCount struct {
 
 func jobKindCounts(jobs []Job) []jobKindCount {
 	var out []jobKindCount
-	for _, k := range []string{JobFiles, JobImage, JobVM, JobSQL, JobSystem, JobCopy} {
+	for _, k := range []string{JobFiles, JobNAS, JobImage, JobVM, JobSQL, JobSystem, JobCopy} {
 		n := 0
 		for _, j := range jobs {
 			if j.Kind == k {

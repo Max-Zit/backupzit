@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"time"
+
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // EnableUpdateHelper pretends the root update helper is installed (tests).
@@ -14,4 +16,13 @@ var PackageFormat = packageFormat
 // QueueDueSQLLogs is queueDueSQLLogs for tests.
 func (s *Store) QueueDueSQLLogs(ctx context.Context, now time.Time) ([]int64, error) {
 	return s.queueDueSQLLogs(ctx, now)
+}
+
+// APIRun is what the agent gets for a run (tests).
+func (s *Server) APIRun(ctx context.Context, runID int64) (*api.Run, error) {
+	run, err := s.store.GetRun(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	return s.toAPIRun(ctx, &run)
 }

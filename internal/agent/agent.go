@@ -429,6 +429,16 @@ func failed(err error) api.RunResult {
 }
 
 func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
+	if run.NAS != nil {
+		return a.withNAS(ctx, run, false, func(paths []string) api.RunResult {
+			return a.backupPaths(ctx, run, paths, false)
+		})
+	}
+	return a.backupPaths(ctx, run, run.Paths, a.VSS)
+}
+
+// backupPaths backs up local paths (or those of a mounted NAS share).
+func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, useVSS bool) api.RunResult {
 	r, closeRepo, err := a.openRepo(ctx, run.Repository, true)
 	if err != nil {
 		return failed(fmt.Errorf("open repository: %w", err))
@@ -440,11 +450,11 @@ func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
 	}
 	defer lock.Unlock()
 	sn, err := archiver.Run(ctx, r, archiver.Options{
-		Paths:    run.Paths,
+		Paths:    paths,
 		Excludes: run.Excludes,
 		Version:  a.version,
 		Tags:     []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
-		VSS:      a.VSS,
+		VSS:      useVSS,
 		Progress: func(_ string, s *repo.SnapshotStats) { a.progress(s.BytesRead, 0, s.Files) },
 	})
 	if err != nil {
@@ -464,6 +474,12 @@ func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
 }
 
 func (a *Agent) restore(ctx context.Context, run api.Run) api.RunResult {
+	if run.NAS != nil && run.RestoreTarget == "" {
+		// Back to the share: mount it where the backup read it, writable.
+		share := api.Run{NAS: run.NAS}
+		run.NAS = nil
+		return a.withNAS(ctx, share, true, func([]string) api.RunResult { return a.restore(ctx, run) })
+	}
 	r, closeRepo, err := a.openRepo(ctx, run.Repository, false)
 	if err != nil {
 		return failed(fmt.Errorf("open repository: %w", err))

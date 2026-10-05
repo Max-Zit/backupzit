@@ -21,7 +21,7 @@ connect to it over HTTPS.
 6. **Security** — encryption ✅, immutable repositories (S3 Object Lock ✅, hardened Linux repository ✅), encrypted secrets in the console database ✅, two-factor sign-in ✅, brute-force protection ✅, trusted HTTPS certificates (upload / Let's Encrypt) ✅
 7. **Hypervisor (agentless) backup** — Proxmox VE ✅, Hyper-V ✅ (incl. RCT), VMware ESXi ✅ (incl. changed block tracking); single files from VM disks ✅; instant VM recovery, boot tests and replication on Proxmox VE ✅
 8. **Users** — local accounts, roles (Administrator, Backup operator, Restore operator, Viewer), LDAPS/Active Directory sign-in, four-eyes approval, audit log ✅; reports, calendar, in-console documentation ✅; console in English and Serbian ✅
-9. **Linux system backup** — whole systems with disk layout, restore to bare metal or as a Proxmox VM (P2V) ✅; **databases** — Microsoft SQL Server, PostgreSQL and MySQL/MariaDB: native full and log backups, point-in-time restore of single databases ✅
+9. **Linux system backup** — whole systems with disk layout, restore to bare metal or as a Proxmox VM (P2V) ✅; **NAS shares** (SMB, NFS) through an agent ✅; **databases** — Microsoft SQL Server, PostgreSQL and MySQL/MariaDB: native full and log backups, point-in-time restore of single databases ✅
 10. **Appliance** — installer ISO and OVA/qcow2/VHDX images ✅, trusted HTTPS certificates ✅, signed console self-update with rollback ✅, OS updates from the console ✅, backup and restore of the console itself ✅
 11. **Later** — vCenter, instant recovery for Hyper-V and VMware
 

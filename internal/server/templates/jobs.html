@@ -16,7 +16,7 @@
     <tr data-kind="{{.Kind}}{{if .LastStatus}}{{if eq (deref .LastStatus) "failed"}} failed{{end}}{{end}}">
       <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">{{T "disabled"}}</span>{{end}}<br><span class="badge kind-badge kind-{{.Kind}}">{{jobkind .Kind}}</span></td>
       <td class="nowrap">{{if .VMwareHostName}}{{deref .VMwareHostName}} <span class="muted small">{{T "ESXi, via"}} {{.Hostname}}</span>{{else}}{{.Hostname}}{{end}}</td>
-      <td>{{if eq .Kind "copy"}}<span class="badge info-badge">{{T "copy"}}</span> {{T "of"}} {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else if eq .Kind "vm"}}{{if and $c $c.Count}}<span title="{{vmsel .Paths}}">{{coverage $c}}</span>{{else}}{{vmsel .Paths}}{{end}}{{else if eq .Kind "system"}}{{T "Whole Linux system"}}{{else if eq .Kind "sql"}}{{if eq .Options.SQLEngine "postgres"}}{{T "PostgreSQL"}}{{else if eq .Options.SQLEngine "mysql"}}{{T "MySQL/MariaDB"}}{{else}}{{T "SQL Server"}}{{with .Options.SQLInstance}} {{.}}{{end}}{{end}}: {{if and $c $c.Count}}{{coverage $c}}{{else if .Paths}}{{join .Paths ", "}}{{else}}{{T "all databases"}}{{end}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
+      <td>{{if eq .Kind "copy"}}<span class="badge info-badge">{{T "copy"}}</span> {{T "of"}} {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else if eq .Kind "vm"}}{{if and $c $c.Count}}<span title="{{vmsel .Paths}}">{{coverage $c}}</span>{{else}}{{vmsel .Paths}}{{end}}{{else if eq .Kind "nas"}}<span class="mono">{{.Options.NASText}}</span>{{with .Paths}}: <span class="mono">{{join . ", "}}</span>{{end}}{{else if eq .Kind "system"}}{{T "Whole Linux system"}}{{else if eq .Kind "sql"}}{{if eq .Options.SQLEngine "postgres"}}{{T "PostgreSQL"}}{{else if eq .Options.SQLEngine "mysql"}}{{T "MySQL/MariaDB"}}{{else}}{{T "SQL Server"}}{{with .Options.SQLInstance}} {{.}}{{end}}{{end}}: {{if and $c $c.Count}}{{coverage $c}}{{else if .Paths}}{{join .Paths ", "}}{{else}}{{T "all databases"}}{{end}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
       <td>{{.TargetName}}</td>
       <td>{{schedule .Schedule}}</td>
       <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
@@ -43,6 +43,7 @@
     </div>
     <div class="choice">
       <label class="check"><input type="radio" name="kind" value="files" checked data-kindsel> {{T "Files and folders"}}</label>
+      <label class="check"><input type="radio" name="kind" value="nas" data-kindsel> {{T "NAS / file share"}} <small>{{T "an SMB or NFS share read through the selected agent, without software on the NAS"}}</small></label>
       <label class="check"><input type="radio" name="kind" value="image" data-kindsel> {{T "Disk image"}} <small>{{T "whole disk or selected partitions, restorable to an empty disk"}}</small></label>
       <label class="check"><input type="radio" name="kind" value="sql" data-kindsel> {{T "Databases"}} <small>{{T "SQL Server (Windows), PostgreSQL or MySQL/MariaDB (Linux) on the agent's machine: full and log backups, restore of single databases to any point in time"}}</small></label>
       <label class="check"><input type="radio" name="kind" value="system" data-kindsel> {{T "Linux system"}} <small>{{T "all file systems and the disk layout of a Linux machine — restorable to an empty disk or as a Proxmox VM (bare metal, P2V)"}}</small></label>
@@ -68,6 +69,7 @@
       <div id="disk-picker" class="disks"><p class="muted">{{T "Select an agent."}}</p></div>
     </div>
     <div data-jobkind="sql" hidden class="stack">{{template "job_sql" .Data.Form}}</div>
+    <div data-jobkind="nas" hidden class="stack">{{template "job_nas" .Data.Form}}</div>
     <div data-jobkind="system" hidden class="stack">
       <p class="muted">{{T "Backs up every local file system (ext4, xfs, vfat; also on LVM) with owners, permissions, ACLs and capabilities, plus the partition tables, LVM layout, file system UUIDs and boot code. Single files can be restored from it like from any file backup."}}</p>
       <label>{{T "Exclude"}} <small>{{T "optional, one name pattern per line, e.g. *.tmp or cache folders"}}</small>

@@ -118,3 +118,20 @@
     <label class="check"><input type="checkbox" name="sql_system" {{if .J.Options.SQLSystem}}checked{{end}}> {{T "Also back up the system databases master, model and msdb"}} <small>{{T "when all databases are backed up"}}</small></label>
     <p class="muted small">{{T "Full backups follow the schedule below and use the database server's own tools: BACKUP DATABASE (SQL Server; the agent connects as NT AUTHORITY\\SYSTEM, which needs the sysadmin role), pg_basebackup and pg_dump (PostgreSQL), mysqldump (MySQL/MariaDB). See"}} <a href="/docs/sql">{{T "Databases"}}</a> {{T "for the setup."}}</p>
 {{end}}
+{{define "job_nas"}}{{$o := .J.Options}}
+<label>{{T "Share"}} <small>{{T "smb://host/share or nfs://host/export — read by the agent selected above; nothing is installed on the NAS"}}</small>
+  <input name="nas_url" value="{{$o.NASURL}}" placeholder="smb://nas01/data" required>
+</label>
+<div class="row">
+  <label>{{T "Username"}} <small>{{T "SMB; empty: guest access"}}</small><input name="nas_user" value="{{$o.NASUser}}" autocomplete="off"></label>
+  <label>{{T "Domain"}} <small>{{T "optional, for domain accounts"}}</small><input name="nas_domain" value="{{$o.NASDomain}}"></label>
+  <label>{{T "Password"}} <small>{{if $o.NASPassword}}{{T "stored — leave empty to keep it"}}{{else}}{{T "stored encrypted"}}{{end}}</small><input type="password" name="nas_password" autocomplete="new-password"></label>
+</div>
+<label>{{T "Folders in the share"}} <small>{{T "one per line, relative to the share, e.g. Projects or Scans/2026; empty: the whole share"}}</small>
+  <textarea name="paths">{{join .J.Paths "\n"}}</textarea>
+</label>
+<label>{{T "Exclude"}} <small>{{T "one name pattern per line, e.g. *.tmp, #recycle, .snapshot"}}</small>
+  <textarea name="excludes">{{join .J.Excludes "\n"}}</textarea>
+</label>
+<p class="muted small">{{T "NFS shares need a Linux agent with nfs-common (or nfs-utils); SMB works from Windows agents and Linux agents with cifs-utils. The agent mounts the share read-only for each backup."}}</p>
+{{end}}

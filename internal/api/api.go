@@ -126,6 +126,10 @@ type Run struct {
 	// Backup
 	Paths    []string `json:"paths,omitempty"`
 	Excludes []string `json:"excludes,omitempty"`
+	// NAS: the agent mounts this network share and backs up Paths inside
+	// it (relative; none = the whole share). Restores to the original
+	// location mount it again, writable.
+	NAS *NASShare `json:"nas,omitempty"`
 
 	// Restore
 	SnapshotID    string   `json:"snapshot_id,omitempty"`
@@ -225,6 +229,15 @@ const (
 	StatusWarning = "warning" // finished, but some files had errors
 	StatusFailed  = "failed"
 )
+
+// NASShare is a network share backed up through an agent, without
+// software on the NAS.
+type NASShare struct {
+	URL      string `json:"url"` // smb://host/share or nfs://host/export
+	User     string `json:"user,omitempty"`
+	Domain   string `json:"domain,omitempty"`
+	Password string `json:"password,omitempty"`
+}
 
 // RunResult is reported by the agent when a run finishes.
 type RunResult struct {

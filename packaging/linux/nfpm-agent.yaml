@@ -7,11 +7,21 @@ priority: optional
 maintainer: BackupZit <support@backupzit.example>
 description: |
   BackupZit backup agent. Backs up files, folders, whole Linux systems and,
-  on Proxmox VE hosts, virtual machines and containers, as instructed by the
-  BackupZit management server.
+  on Proxmox VE hosts, virtual machines and containers, and NAS shares
+  (SMB, NFS), as instructed by the BackupZit management server.
 vendor: BackupZit
 homepage: https://github.com/Max-Zit/backupzit
 license: AGPL-3.0-only
+# NAS jobs mount SMB and NFS shares (package names differ per distribution).
+overrides:
+  deb:
+    recommends:
+      - cifs-utils
+      - nfs-common
+  rpm:
+    recommends:
+      - cifs-utils
+      - nfs-utils
 contents:
   - src: ./LICENSE
     dst: /usr/share/doc/backupzit-agent/copyright

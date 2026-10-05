@@ -6,6 +6,7 @@
   <div class="stat"><div class="si">{{template "icon" "agents"}}</div><b>{{.Machines}}</b><span>{{T "machines protected"}}</span></div>
   <div class="stat"><div class="si">{{template "icon" "vm"}}</div><b>{{.VMs}}</b><span>{{T "VMs protected"}}</span></div>
   <div class="stat"><div class="si">{{template "icon" "storage"}}</div><b>{{.Databases}}</b><span>{{T "databases protected"}}</span></div>
+  {{if .Shares}}<div class="stat"><div class="si">{{template "icon" "folder"}}</div><b>{{.Shares}}</b><span>{{T "NAS shares protected"}}</span></div>{{end}}
 </div>
 {{end}}
 <div class="panel">

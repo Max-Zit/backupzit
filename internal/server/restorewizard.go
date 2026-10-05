@@ -130,7 +130,7 @@ func (s *Server) wizardEntries(ctx context.Context) (map[string][]wizardEntry, e
 			if run.Kind == api.KindCopy {
 				// Copies of file and VM backups are restore points of the source job.
 				srcJob, ok := jobByID[derefID(j.SourceJobID)]
-				if !ok || (srcJob.Kind != JobFiles && srcJob.Kind != JobVM) {
+				if !ok || (srcJob.Kind != JobFiles && srcJob.Kind != JobNAS && srcJob.Kind != JobVM) {
 					continue
 				}
 				if srcJob.Kind == JobVM && vmDetails(run) == nil {
