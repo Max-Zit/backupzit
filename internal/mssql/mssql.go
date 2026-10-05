@@ -238,7 +238,7 @@ func (s *Server) Restore(ctx context.Context, o RestoreOptions) error {
 		largs := []any{lf}
 		if !o.StopAt.IsZero() {
 			stmt += ", STOPAT = @p2"
-			largs = append(largs, o.StopAt.Format("2006-01-02T15:04:05"))
+			largs = append(largs, o.StopAt.Local().Format("2006-01-02T15:04:05"))
 		}
 		if _, err := s.db.ExecContext(ctx, stmt, largs...); err != nil {
 			return err

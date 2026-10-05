@@ -93,6 +93,17 @@
   <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>Restore a database from a full backup and the log backups after it, optionally to a point in time. See <a href="/docs/sql">SQL Server</a>.</td></tr>
 </table>
 
+<h2>PostgreSQL and MySQL/MariaDB (agent on the database server)</h2>
+<table>
+  <tr><th>Command</th><th>What it does</th></tr>
+  <tr><td><code>pg list [--port P]</code></td><td>Databases of the local cluster and whether WAL archiving is on.</td></tr>
+  <tr><td><code>pg backup [--port P] [--db a,b] [--pitr | --wal]</code></td><td>Full backup (pg_basebackup, pg_dump of each database; <code>--pitr</code> sets up WAL archiving) or, with <code>--wal</code>, the archived WAL.</td></tr>
+  <tr><td><code>pg restore --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Restore a database (from its dump, or at a point in time) or the whole cluster as a separate instance.</td></tr>
+  <tr><td><code>mysql list</code></td><td>Databases and whether the binary log is on.</td></tr>
+  <tr><td><code>mysql backup [--db a,b] [--binlog]</code></td><td>mysqldump of each database with its binary log position, or the closed binary logs.</td></tr>
+  <tr><td><code>mysql restore --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Load a dump and replay the binary logs up to a point in time. See <a href="/docs/sql">Databases</a>.</td></tr>
+</table>
+
 <h2>Managed mode</h2>
 <table>
   <tr><th>Command</th><th>What it does</th></tr>

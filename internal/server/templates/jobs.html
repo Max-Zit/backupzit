@@ -44,7 +44,7 @@
     <div class="choice">
       <label class="check"><input type="radio" name="kind" value="files" checked data-kindsel> Files and folders</label>
       <label class="check"><input type="radio" name="kind" value="image" data-kindsel> Disk image <small>whole disk or selected partitions, restorable to an empty disk</small></label>
-      <label class="check"><input type="radio" name="kind" value="sql" data-kindsel> SQL Server databases <small>Microsoft SQL Server on a Windows agent: full and transaction log backups, restore of single databases to any point in time</small></label>
+      <label class="check"><input type="radio" name="kind" value="sql" data-kindsel> Databases <small>SQL Server (Windows), PostgreSQL or MySQL/MariaDB (Linux) on the agent's machine: full and log backups, restore of single databases to any point in time</small></label>
       <label class="check"><input type="radio" name="kind" value="system" data-kindsel> Linux system <small>all file systems and the disk layout of a Linux machine — restorable to an empty disk or as a Proxmox VM (bare metal, P2V)</small></label>
       {{if .Data.PVE}}<label class="check"><input type="radio" name="kind" value="vm" data-kindsel> Virtual machines (Proxmox VE, Hyper-V, VMware) <small>without agents in the guests — run by the agent on the hypervisor host, or for VMware ESXi by its proxy agent</small></label>{{end}}
       {{if .Data.SourceJobs}}<label class="check"><input type="radio" name="kind" value="copy" data-kindsel> Backup copy <small>copy the backups of another job to a second storage (3-2-1)</small></label>{{end}}

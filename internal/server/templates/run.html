@@ -21,6 +21,8 @@
       <dt>Copied from</dt><dd class="mono">{{.SourceRepoURL}}</dd>
     {{else if eq .Kind "image-backup"}}
       <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
+    {{else if or (eq .Kind "sql-backup") (eq .Kind "sql-log")}}
+      <dt>Backs up</dt><dd>{{if eq .Kind "sql-log"}}the logs of the databases{{else}}databases{{end}} (listed below)</dd>
     {{else if eq .Kind "sql-restore"}}
       {{with $.Data.SQLRestore}}{{with .Restore}}<dt>Database</dt><dd>{{.Database}}{{if .Target}} as {{.Target}}{{end}}{{if .Replace}}, replacing an existing database{{end}}</dd>
       <dt>State</dt><dd>{{if not .StopAt.IsZero}}at {{ts .StopAt}}{{else if .LogSnapshots}}latest (with log backups){{else}}as of the full backup{{end}}</dd>{{end}}
@@ -208,7 +210,7 @@
 <div class="panel">
   <h2>{{if eq .Kind "log"}}Transaction log backups{{else}}Databases{{end}}{{with .Instance}} <span class="muted small">instance {{.}}</span>{{end}}</h2>
   <div class="table-wrap"><table>
-    <tr><th>Database</th><th>Recovery model</th><th>Backup size</th><th>Taken</th><th class="small">LSN</th></tr>
+    <tr><th>Database</th><th>{{if eq .Engine "postgres"}}Server{{else if eq .Engine ""}}Recovery model{{end}}</th><th>Backup size</th><th>Taken</th><th class="small">LSN</th></tr>
     {{range .Databases}}<tr><td>{{.Name}}</td><td>{{.Recovery}}</td><td>{{bytes .Size}}</td><td>{{ts .Finish}}</td><td class="small mono">{{.FirstLSN}} – {{.LastLSN}}</td></tr>{{end}}
   </table></div>
 </div>

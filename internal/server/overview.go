@@ -241,7 +241,7 @@ func (s *Server) protection(ctx context.Context) Protection {
 }
 
 func jobKindTitle(k string) string {
-	return map[string]string{JobFiles: "Files", JobImage: "Disk image", JobVM: "Virtual machines", JobSystem: "Linux system", JobCopy: "Backup copy", JobSQL: "SQL Server"}[k]
+	return map[string]string{JobFiles: "Files", JobImage: "Disk image", JobVM: "Virtual machines", JobSystem: "Linux system", JobCopy: "Backup copy", JobSQL: "Databases"}[k]
 }
 
 // jobKindCount is a filter chip of the job list.

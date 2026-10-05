@@ -1,49 +1,74 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>Microsoft SQL Server</h1>
-<p class="lead">BackupZit backs up SQL Server databases with SQL Server's own BACKUP statement, from the agent on the SQL Server machine. Full backups run on the job's schedule; transaction log backups every few minutes make it possible to restore a single database to any point in time — for example to one minute before a wrong DELETE.</p>
+<h1>Databases: SQL Server, PostgreSQL, MySQL</h1>
+<p class="lead">BackupZit backs up databases with the database server's own tools, from the agent on the database machine: Microsoft SQL Server on Windows, PostgreSQL and MySQL/MariaDB on Linux. Full backups run on the job's schedule; log backups every few minutes make it possible to restore a single database to any point in time — for example to one minute before a wrong DELETE.</p>
 
-<h2>Setup</h2>
+<h2>Creating a job</h2>
+<p>Under <a href="/jobs">Backup jobs</a> create a job of the kind <b>Databases</b>, on the agent of the database machine, and choose:</p>
+<ul>
+  <li><b>Database server</b>: Microsoft SQL Server, PostgreSQL or MySQL/MariaDB. It cannot be changed later.</li>
+  <li><b>Instance or port</b>: the SQL Server instance (empty for the default instance, e.g. <code>SQLEXPRESS</code>) or the PostgreSQL port (empty for 5432). MySQL/MariaDB is reached over the local socket.</li>
+  <li><b>Databases</b>: one name per line, or empty for all user databases — databases created later are included automatically.</li>
+  <li><b>Back up the logs every … minutes</b>: e.g. 15 — transaction logs (SQL Server), archived WAL (PostgreSQL) or binary logs (MySQL). Leave empty if restoring to the time of a full backup is enough.</li>
+  <li>The <b>schedule</b> is that of the full backups, e.g. daily at 22:00.</li>
+</ul>
+<p>Backups are deduplicated — unchanged data is not uploaded again — and encrypted like every backup. Retention counts the full backups; log backups are kept as long as the full backup they build on. The run page lists what each backup holds.</p>
+
+<h2>Microsoft SQL Server</h2>
 <ol>
-  <li>Install the BackupZit agent on the Windows machine that runs SQL Server (any edition from 2012 on, including Express).</li>
-  <li>The agent runs as <code>NT AUTHORITY\SYSTEM</code> and connects to the instance with Windows authentication. Give that account the <b>sysadmin</b> role, once per instance, e.g. in SQL Server Management Studio or with:
+  <li>Install the agent on the Windows machine that runs SQL Server (any edition from 2012 on, including Express).</li>
+  <li>The agent runs as <code>NT AUTHORITY\SYSTEM</code> and connects with Windows authentication. Give that account the <b>sysadmin</b> role, once per instance:
     <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
-  <li>Create a job of the kind <b>SQL Server databases</b> under <a href="/jobs">Backup jobs</a>:
-    <ul>
-      <li><b>Instance</b>: empty for the default instance (MSSQLSERVER), otherwise its name, e.g. <code>SQLEXPRESS</code>.</li>
-      <li><b>Databases</b>: one name per line, or empty for all user databases — databases created later are included automatically. Tick <i>system databases</i> to add master, model and msdb.</li>
-      <li><b>Back up the transaction logs every … minutes</b>: e.g. 15. Leave empty if restoring to the time of a full backup is enough.</li>
-      <li>The <b>schedule</b> is that of the full backups, e.g. daily at 22:00.</li>
-    </ul></li>
 </ol>
-
-<h2>How it works</h2>
 <ul>
-  <li>Each run writes one backup file per database into the instance's default backup folder (SQL Server's service account can write there), stores the files in the repository and deletes them. The folder needs free space for the largest database while the run lasts.</li>
-  <li>Backups are deduplicated: unchanged pages of the database are not uploaded again, so daily full backups of a large database cost little space. They are encrypted like every backup.</li>
-  <li>With log backups on, the full backups start the log chain (normal full backups). Without them, full backups are taken <b>COPY_ONLY</b>, so they do not disturb other backup or maintenance plans of the instance.</li>
-  <li>Log backups are taken for databases in the <b>full</b> or <b>bulk-logged</b> recovery model; databases in the simple model only get full backups. Log backups also keep the transaction log from growing.</li>
-  <li>Retention counts the full backups; log backups are kept as long as the full backup they build on.</li>
-  <li>Every run is checked with CHECKSUM; the run page lists each database with its recovery model, size and LSN range.</li>
+  <li>Each run writes one backup file per database (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) into the instance's default backup folder, stores the files and deletes them. The folder needs free space for the largest database while the run lasts.</li>
+  <li>With log backups on, the full backups start the log chain. Without them, full backups are taken <b>COPY_ONLY</b>, so they do not disturb other backup or maintenance plans.</li>
+  <li>Log backups are taken for databases in the <b>full</b> or <b>bulk-logged</b> recovery model; databases in the simple model only get full backups. Tick <i>system databases</i> to add master, model and msdb.</li>
 </ul>
 
-<h2>Restoring a database</h2>
-<p>Open a full backup run (or use the <a href="/restore">restore wizard</a> → <i>SQL Server database</i>) and choose:</p>
+<h2>PostgreSQL</h2>
+<p>The agent works as the <code>postgres</code> account over the local socket — nothing to configure for backups. A full backup stores the whole cluster (<b>pg_basebackup</b>), the roles (<code>pg_dumpall --globals-only</code>) and a <b>pg_dump</b> of each database.</p>
+<p><b>Point-in-time recovery</b> needs WAL archiving. With log backups on, the first full backup sets it up with <code>ALTER SYSTEM</code>: <code>archive_mode = on</code> and an <code>archive_command</code> that copies finished WAL segments into <code>/var/lib/backupzit-pg/wal</code>; the log backups store and remove them there. <code>archive_mode</code> takes effect after <b>one restart</b> of PostgreSQL (<code>systemctl restart postgresql</code>) — the run tells you. If another tool already uses <code>archive_command</code>, BackupZit leaves it alone and backs up without point-in-time recovery. If the log backups stop (job disabled or deleted), switch archiving off again (<code>ALTER SYSTEM RESET archive_mode</code>, restart) so the folder does not fill up.</p>
 <ul>
-  <li><b>Database</b>, and the machine and instance to restore on — the same server or another one with SQL Server.</li>
-  <li><b>As a new database</b> named e.g. <code>sales_restored</code> — the original stays untouched and you can copy rows back — or <b>under its original name</b>. To overwrite an existing database tick <i>replace it</i>: its users are disconnected first.</li>
-  <li><b>State</b>: as of the full backup; the latest state (the full backup and every log backup after it); or a <b>point in time</b> between the full backup and the newest log backup, as the table shows. Times are the local time of the SQL Server machine.</li>
+  <li><b>Restore a database</b> as of the full backup: from its pg_dump into the running server, under a new name or replacing the database.</li>
+  <li><b>At a point in time</b> (or latest): the agent unpacks the cluster backup into a temporary instance on a free port (socket only, no network, no archiving), replays the WAL up to that time, dumps the database from it into the running server and removes the temporary instance. The machine needs free space for the cluster for a while.</li>
+  <li><b>Whole cluster</b>: restored the same way as a separate instance that keeps running on a free port; the run tells you its port and data directory (below <code>/var/lib/backupzit-pg</code>) and how to connect and stop it.</li>
 </ul>
-<p>The agent restores the needed files into the instance's backup folder, runs RESTORE DATABASE and RESTORE LOG … STOPAT and deletes the files again. A database with a new name gets its own data and log files in the instance's default folders.</p>
+
+<h2>MySQL and MariaDB</h2>
+<p>The agent connects as <code>root</code> over the local socket (socket authentication, the default on Debian and Ubuntu), or with the credentials in <code>/root/.my.cnf</code>. A full backup stores a <b>mysqldump</b> of each database (consistent, with routines, events and triggers) together with the binary log position it matches.</p>
+<p><b>Point-in-time recovery</b> needs the binary log. Enable it once in the server configuration and restart the server, e.g. <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code>:</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>(create the folder for the log, owned by the mysql account). The log backups then store each closed binary log. Keep the server's own expiry longer than the log backup interval; a gap is reported, and restores cannot cross it.</p>
+<ul>
+  <li><b>Restore a database</b>: its dump is loaded into a new database (or replaces an existing one). <b>At a point in time</b> or <b>latest</b>, the changes of that database recorded in the binary logs after the dump are replayed up to that time — also when the database gets a new name. The replay is not written to the server's binary log.</li>
+  <li>Users and privileges (the <code>mysql</code> system database) are not part of the dumps.</li>
+</ul>
+
+<h2>Restoring</h2>
+<p>Open a full backup run (or use the <a href="/restore">restore wizard</a> → <i>Database</i>) and choose the database, the machine to restore on (the same server or another one with the same database server) and:</p>
+<ul>
+  <li><b>As a new database</b> named e.g. <code>sales_restored</code> — the original stays untouched and you can copy rows back — or <b>under its original name</b>; tick <i>replace it</i> to overwrite an existing database (its users are disconnected first).</li>
+  <li><b>State</b>: as of the full backup; the latest state (the full backup and every log backup after it); or a <b>point in time</b> between the full backup and the newest usable log backup, as the table shows. Enter the time as shown in the console; the agent converts it to the database server's time zone.</li>
+</ul>
 
 <h2>Command line</h2>
 <pre>backupzit-agent sql list    [--instance SQLEXPRESS]
 backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
-backupzit-agent sql show    --repo ...
-backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest</pre>
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
 
 <h2>Not included</h2>
 <ul>
-  <li>Differential backups, Always On availability groups and remote instances — the agent backs up instances on its own machine.</li>
+  <li>SQL Server differential backups and Always On availability groups; remote database servers — the agent backs up servers on its own machine.</li>
   <li>Restoring single tables: restore the database under a new name and copy the rows.</li>
 </ul>
 {{template "docpager" .}}
