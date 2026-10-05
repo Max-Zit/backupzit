@@ -260,7 +260,7 @@ func (s *Server) handleLanguage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if l := languageByCode(r.FormValue("lang")); l != nil {
-		http.SetCookie(w, &http.Cookie{Name: langCookie, Value: l.Code, Path: "/", MaxAge: 5 * 365 * 24 * 3600, HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: r.TLS != nil})
+		http.SetCookie(w, &http.Cookie{Name: langCookie, Value: l.Code, Path: "/", MaxAge: 5 * 365 * 24 * 3600, HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: s.guard.Secure(r)})
 	}
 	back := r.FormValue("back")
 	if back == "" {
@@ -272,8 +272,14 @@ func (s *Server) handleLanguage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if !strings.HasPrefix(back, "/") || strings.HasPrefix(back, "//") {
+	if !localPath(back) {
 		back = "/"
 	}
 	http.Redirect(w, r, back, http.StatusSeeOther)
+}
+
+// localPath tells whether p is a path on this console, safe to redirect to.
+// Browsers read "/\host" like "//host", another site.
+func localPath(p string) bool {
+	return strings.HasPrefix(p, "/") && !strings.HasPrefix(p, "//") && !strings.ContainsAny(p, "\\\r\n")
 }

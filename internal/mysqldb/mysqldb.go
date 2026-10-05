@@ -381,7 +381,7 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 		return 0, err
 	}
 	q := "`" + strings.ReplaceAll(target, "`", "``") + "`"
-	exists, err := s.Query(ctx, "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = '"+strings.ReplaceAll(target, "'", "''")+"'")
+	exists, err := s.Query(ctx, "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = '"+strings.NewReplacer(`\`, `\\`, "'", "''").Replace(target)+"'")
 	if err != nil {
 		return 0, err
 	}

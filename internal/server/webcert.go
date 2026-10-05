@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/max-zit/backupzit/internal/tlsutil"
 )
 
 // The console always serves agents on its main port with its own
@@ -258,7 +260,7 @@ func (w *webTLS) apply(cfg CertSettings) error {
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("HTTPS port %d: %v", cfg.Port, err))
 		} else {
-			hs := &http.Server{Handler: w.s.Handler(), TLSConfig: &tls.Config{GetCertificate: w.getCertificate, MinVersion: tls.VersionTLS12},
+			hs := &http.Server{Handler: w.s.Handler(), TLSConfig: &tls.Config{GetCertificate: w.getCertificate, MinVersion: tls.VersionTLS12, CipherSuites: tlsutil.ServerCipherSuites},
 				ReadHeaderTimeout: 15 * time.Second, ReadTimeout: 5 * time.Minute, IdleTimeout: 2 * time.Minute}
 			w.https = hs
 			go hs.ServeTLS(ln, "", "")

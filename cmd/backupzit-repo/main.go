@@ -125,7 +125,7 @@ func cmdServe(args []string) error {
 	srv := &http.Server{
 		Addr:              *listen,
 		Handler:           (&hardened.Server{Store: store, Keys: keys, Log: log, Version: version}).Handler(),
-		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12},
+		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12, CipherSuites: tlsutil.ServerCipherSuites},
 		ReadHeaderTimeout: 30 * time.Second,
 		ReadTimeout:       30 * time.Minute, // one upload of up to 4 GiB
 		IdleTimeout:       5 * time.Minute,

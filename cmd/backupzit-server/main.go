@@ -21,6 +21,7 @@ import (
 	"github.com/max-zit/backupzit/internal/backend"
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/server"
+	"github.com/max-zit/backupzit/internal/tlsutil"
 	"github.com/max-zit/backupzit/internal/update"
 )
 
@@ -159,7 +160,7 @@ func run() error {
 	hs := &http.Server{
 		Addr:              *listen,
 		Handler:           srv.Handler(),
-		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12},
+		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12, CipherSuites: tlsutil.ServerCipherSuites},
 		ReadHeaderTimeout: 15 * time.Second,
 		ReadTimeout:       5 * time.Minute,
 		IdleTimeout:       2 * time.Minute,

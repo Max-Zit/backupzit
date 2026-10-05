@@ -133,3 +133,21 @@ func TestCatalogs(t *testing.T) {
 		}
 	}
 }
+
+func TestLocalPathAndNames(t *testing.T) {
+	for p, want := range map[string]bool{"/jobs?q=1": true, "/": true, "": false, "//evil.example": false, `/\evil.example`: false, "https://evil.example": false, "/x\r\nSet-Cookie: a=b": false} {
+		if localPath(p) != want {
+			t.Errorf("localPath(%q) = %v", p, !want)
+		}
+	}
+	for n, want := range map[string]bool{"sales_restored": true, "Prodaja 2026": true, "shop-copy$1": true, `x\' OR 1=1 -- `: false, "a`b": false, "a]b": false, "": false} {
+		if dbName.MatchString(n) != want {
+			t.Errorf("dbName(%q) = %v", n, !want)
+		}
+	}
+	for n, want := range map[string]bool{"jobs": true, "agent_runs": true, "../etc/passwd": false, "Jobs": false} {
+		if tableName.MatchString(n) != want {
+			t.Errorf("tableName(%q) = %v", n, !want)
+		}
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -370,6 +371,10 @@ func mysqlRestorePoints(d *repo.SQLBackup, logs []Run) []SQLRestorePoint {
 	return out
 }
 
+// dbName limits the name of a database restored under a new name; the
+// agents quote it as well.
+var dbName = regexp.MustCompile(`^[\p{L}\p{N}_$ .-]{1,128}$`)
+
 // handleSQLRestore handles the SQL Server restore form.
 func (s *Server) handleSQLRestore(w http.ResponseWriter, r *http.Request, runID int64, back string) {
 	o := api.SQLRestore{Database: r.FormValue("database"), Target: r.FormValue("target")}
@@ -378,6 +383,9 @@ func (s *Server) handleSQLRestore(w http.ResponseWriter, r *http.Request, runID 
 		o.Target = ""
 	} else if strings.TrimSpace(o.Target) == "" {
 		redirectErr(w, r, back, errors.New("enter the name of the new database"))
+		return
+	} else if !dbName.MatchString(o.Target) {
+		redirectErr(w, r, back, errors.New("a database name may contain letters, digits, spaces and _ - $ . only"))
 		return
 	}
 	switch r.FormValue("point") {

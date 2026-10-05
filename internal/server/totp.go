@@ -291,7 +291,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u User, ho
 	}
 	s.auditAs(r, u.Username, "login", u.Source+", role "+u.Role+", "+how)
 	http.SetCookie(w, &http.Cookie{
-		Name: sessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: r.TLS != nil,
+		Name: sessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: s.guard.Secure(r),
 		SameSite: http.SameSiteStrictMode, MaxAge: int(sess.Lifetime().Seconds()),
 	})
 	http.Redirect(w, r, "/", http.StatusSeeOther)

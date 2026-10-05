@@ -431,3 +431,22 @@ func (s *Server) handleUnblockAddress(w http.ResponseWriter, r *http.Request, _ 
 	s.audit(r, "security.ip_unblocked", "%s", ip)
 	redirectMsg(w, r, "/settings/security", fmt.Sprintf("%d address(es) unblocked.", n))
 }
+
+// Secure tells whether the browser reached the console over HTTPS: directly,
+// or through a trusted reverse proxy that says so in X-Forwarded-Proto.
+// Cookies of such requests are marked Secure.
+func (g *loginGuard) Secure(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		ip = r.RemoteAddr
+	}
+	if a, err := netip.ParseAddr(ip); err == nil {
+		ip = a.Unmap().String()
+	}
+	cfg := g.settings(r.Context())
+	return len(cfg.TrustedProxies) > 0 && inPrefixes(ip, cfg.TrustedProxies) &&
+		strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https")
+}

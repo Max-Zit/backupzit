@@ -600,7 +600,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if u.TwoFactor {
 		// Failure counters are reset only after the second factor.
 		http.SetCookie(w, &http.Cookie{Name: mfaCookie, Value: mfaToken(u.ID, s.clock().Add(5*time.Minute)), Path: "/login",
-			HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteStrictMode, MaxAge: 300})
+			HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteStrictMode, MaxAge: 300})
 		http.Redirect(w, r, "/login/2fa", http.StatusSeeOther)
 		return
 	}

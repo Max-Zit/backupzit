@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +37,9 @@ const consoleTag = "console-backup"
 
 // consoleFiles are the files of the data directory in a console backup.
 var consoleFiles = []string{SecretKeyFile, "cert.pem", "key.pem", "web/cert.pem", "web/key.pem", "web/acme-account.key"}
+
+// tableName is what a table in a console backup may be called.
+var tableName = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
 
 // consoleMeta describes a console backup.
 type consoleMeta struct {
@@ -431,6 +435,9 @@ func importConsoleDB(ctx context.Context, dbURL, root string, meta consoleMeta, 
 	}
 	defer conn.Release()
 	for _, t := range meta.Tables {
+		if !tableName.MatchString(t) {
+			return fmt.Errorf("the console backup is damaged (table %q)", t)
+		}
 		f, err := os.Open(filepath.Join(root, "db", t+".csv"))
 		if err != nil {
 			return fmt.Errorf("backup of table %s: %w", t, err)

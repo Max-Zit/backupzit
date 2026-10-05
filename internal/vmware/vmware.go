@@ -10,7 +10,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -98,11 +97,13 @@ func Connect(ctx context.Context, conn Conn) (*Client, error) {
 	c := &Client{conn: conn}
 	sc := soap.NewClient(u, true)
 	tr := sc.DefaultTransport()
-	tr.TLSClientConfig.VerifyPeerCertificate = func(raw [][]byte, _ [][]*x509.Certificate) error {
-		if len(raw) == 0 {
+	// VerifyConnection also runs for resumed TLS sessions, unlike
+	// VerifyPeerCertificate.
+	tr.TLSClientConfig.VerifyConnection = func(cs tls.ConnectionState) error {
+		if len(cs.PeerCertificates) == 0 {
 			return errors.New("no certificate")
 		}
-		fp := Fingerprint(raw[0])
+		fp := Fingerprint(cs.PeerCertificates[0].Raw)
 		c.Thumbprint = fp
 		if conn.Thumbprint != "" && fp != conn.Thumbprint {
 			return fmt.Errorf("the ESXi certificate changed (%s, expected %s); if the host was reinstalled, confirm the new certificate", fp, conn.Thumbprint)
