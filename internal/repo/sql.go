@@ -6,6 +6,8 @@ import "time"
 // full or transaction log backups, one file per database, stored as
 // ordinary files in the snapshot's tree.
 type SQLBackup struct {
+	// Engine is "postgres", "mysql" or "" for Microsoft SQL Server.
+	Engine    string        `json:"engine,omitempty"`
 	Instance  string        `json:"instance"` // "" for the default instance
 	Kind      string        `json:"kind"`     // "full" or "log"
 	Databases []SQLDatabase `json:"databases"`

@@ -66,6 +66,12 @@ Hyper-V (agent on the Hyper-V host):
 Microsoft SQL Server (agent on the SQL Server machine):
   sql            list | backup | show | restore — databases, transaction logs, point in time
 
+PostgreSQL (agent on the database server, Linux):
+  pg             list | backup | restore — cluster, databases, WAL, point in time
+
+MySQL / MariaDB (agent on the database server, Linux):
+  mysql          list | backup | restore — databases, binary logs, point in time
+
   version        Print version
 
 Repository options (all commands):
@@ -208,6 +214,10 @@ func run(ctx context.Context, args []string) error {
 		return cmdHyperV(ctx, rest)
 	case "sql":
 		return cmdSQL(ctx, rest)
+	case "pg":
+		return cmdPG(ctx, rest)
+	case "mysql":
+		return cmdMySQL(ctx, rest)
 	case "vmware":
 		return cmdVMware(ctx, rest)
 	case "nbd-serve":

@@ -520,8 +520,13 @@ func (s *Store) checkJob(ctx context.Context, j *Job) error {
 	if err != nil {
 		return errors.New("unknown agent")
 	}
-	if j.Kind == JobSQL && (!strings.Contains(strings.ToLower(agent.OS), "windows") || agent.Recovery) {
-		return fmt.Errorf("%s is not a Windows machine; SQL Server jobs run on the Windows machine with SQL Server", agent.Hostname)
+	if j.Kind == JobSQL {
+		if err := sqlAgentOK(agent, j.Options.SQLEngine); err != nil {
+			return err
+		}
+		if j.Options.SQLEngine == "mysql" {
+			j.Options.SQLInstance = "" // the local socket
+		}
 	}
 	if j.Kind != JobSQL {
 		j.Options.SQLInstance, j.Options.SQLSystem, j.Options.SQLLogMinutes = "", false, 0

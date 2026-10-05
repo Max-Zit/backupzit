@@ -23,7 +23,7 @@
     {{else if eq .Kind "system"}}
     <dt>Backs up</dt><dd>Whole Linux system (all local file systems and the disk layout){{if .Excludes}}, excluding <span class="mono">{{join .Excludes ", "}}</span>{{end}}</dd>
     {{else if eq .Kind "sql"}}
-    <dt>Backs up</dt><dd>SQL Server {{if .Options.SQLInstance}}instance {{.Options.SQLInstance}}{{else}}default instance{{end}}: {{if .Paths}}{{join .Paths ", "}}{{else}}all user databases{{if .Options.SQLSystem}} and the system databases{{end}}{{end}}</dd>
+    <dt>Backs up</dt><dd>{{if eq .Options.SQLEngine "postgres"}}PostgreSQL{{if .Options.SQLInstance}} on port {{.Options.SQLInstance}}{{end}} (whole cluster and each database){{else if eq .Options.SQLEngine "mysql"}}MySQL/MariaDB{{else}}SQL Server {{if .Options.SQLInstance}}instance {{.Options.SQLInstance}}{{else}}default instance{{end}}{{end}}: {{if .Paths}}{{join .Paths ", "}}{{else}}all user databases{{if .Options.SQLSystem}} and the system databases{{end}}{{end}}</dd>
     <dt>Log backups</dt><dd>{{if .Options.SQLLogMinutes}}every {{.Options.SQLLogMinutes}} minutes (point-in-time restore){{else}}off — databases are restored to the time of a full backup{{end}}</dd>
     {{else if eq .Kind "vm"}}
     <dt>Backs up</dt><dd>{{vmsel .Paths}} <span class="muted">(hypervisor host)</span></dd>

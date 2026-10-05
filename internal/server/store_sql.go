@@ -11,6 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/mysqldb"
+	"github.com/max-zit/backupzit/internal/pgsql"
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
@@ -42,7 +44,7 @@ func (s *Server) addSQL(ctx context.Context, run *Run, ar *api.Run) error {
 	if err != nil {
 		return err
 	}
-	ar.SQL = &api.SQLRun{Instance: j.Options.SQLInstance, Databases: j.Paths, System: j.Options.SQLSystem, Logs: j.Options.SQLLogMinutes > 0}
+	ar.SQL = &api.SQLRun{Engine: j.Options.SQLEngine, Instance: j.Options.SQLInstance, Databases: j.Paths, System: j.Options.SQLSystem, Logs: j.Options.SQLLogMinutes > 0}
 	return nil
 }
 
@@ -126,6 +128,12 @@ func (s *Store) sqlRestorePoints(ctx context.Context, full Run) []SQLRestorePoin
 		return nil
 	}
 	logs, _ := s.sqlLogRuns(ctx, full)
+	switch d.Engine {
+	case "postgres":
+		return pgRestorePoints(d, logs)
+	case "mysql":
+		return mysqlRestorePoints(d, logs)
+	}
 	var out []SQLRestorePoint
 	for _, db := range d.Databases {
 		p := SQLRestorePoint{Name: db.Name, Full: db.Finish}
@@ -185,6 +193,9 @@ func (s *Store) QueueSQLRestore(ctx context.Context, fullRunID, agentID int64, i
 		return 0, fmt.Errorf("database %s is not in this backup", o.Database)
 	}
 	o.Target = strings.TrimSpace(o.Target)
+	if o.Database == pgsql.Cluster {
+		o.Target, o.Replace = "", false
+	}
 	if len(o.Target) > 128 || strings.ContainsRune(o.Target, 0) {
 		return 0, errors.New("invalid database name")
 	}
@@ -197,10 +208,16 @@ func (s *Store) QueueSQLRestore(ctx context.Context, fullRunID, agentID int64, i
 		}
 	}
 	a, err := s.GetAgent(ctx, agentID)
-	if err != nil || !strings.Contains(strings.ToLower(a.OS), "windows") {
-		return 0, errors.New("restore on a Windows agent with SQL Server")
+	if err != nil {
+		return 0, errors.New("unknown agent")
 	}
-	if len(instance) > 100 || strings.ContainsAny(instance, " \\/:;\"'") {
+	if err := sqlAgentOK(a, d.Engine); err != nil {
+		return 0, err
+	}
+	if err := (JobOptions{SQLEngine: d.Engine, SQLInstance: instance}).Validate(); err != nil {
+		return 0, err
+	}
+	if d.Engine == "" && (len(instance) > 100 || strings.ContainsAny(instance, " \\/:;\"'")) {
 		return 0, errors.New("enter the instance name only, e.g. SQLEXPRESS")
 	}
 	if o.LogSnapshots != nil {
@@ -213,7 +230,7 @@ func (s *Store) QueueSQLRestore(ctx context.Context, fullRunID, agentID int64, i
 			o.LogSnapshots = append(o.LogSnapshots, lr.SnapshotID)
 		}
 	}
-	opts, _ := json.Marshal(api.SQLRun{Instance: instance, Restore: &o})
+	opts, _ := json.Marshal(api.SQLRun{Engine: d.Engine, Instance: instance, Restore: &o})
 	var id int64
 	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, vm_restore)
 		VALUES($1,$2,'sql-restore','manual',$3,$4,$5,$6) RETURNING id`, agentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, opts).Scan(&id)
@@ -243,13 +260,112 @@ func (s *Store) jobSQLInstance(ctx context.Context, run Run) string {
 	return j.Options.SQLInstance
 }
 
-// windowsAgents are the agents a SQL Server database can be restored on.
-func windowsAgents(agents []Agent) []Agent {
+// sqlAgentOK checks that an agent can run jobs and restores of a database
+// engine: SQL Server on Windows, PostgreSQL and MySQL on Linux.
+func sqlAgentOK(a Agent, engine string) error {
+	windows := strings.Contains(strings.ToLower(a.OS), "windows")
+	switch {
+	case a.Recovery:
+		return fmt.Errorf("%s is a recovery environment", a.Hostname)
+	case engine == "" && !windows:
+		return fmt.Errorf("%s is not a Windows machine; SQL Server jobs run on the Windows machine with SQL Server", a.Hostname)
+	case engine != "" && windows:
+		return fmt.Errorf("%s is a Windows machine; %s jobs run on the Linux database server", a.Hostname, engineTitle(engine))
+	}
+	return nil
+}
+
+func engineTitle(e string) string {
+	return map[string]string{"": "SQL Server", "postgres": "PostgreSQL", "mysql": "MySQL/MariaDB"}[e]
+}
+
+// sqlRestoreAgents are the agents a database of this backup can be
+// restored on.
+func sqlRestoreAgents(agents []Agent, d *repo.SQLBackup) []Agent {
+	if d == nil {
+		return nil
+	}
 	var out []Agent
 	for _, a := range agents {
-		if strings.Contains(strings.ToLower(a.OS), "windows") && !a.Recovery {
+		if sqlAgentOK(a, d.Engine) == nil {
 			out = append(out, a)
 		}
+	}
+	return out
+}
+
+// pgRestorePoints: every database (from its pg_dump) and the whole
+// cluster; WAL covers all of them alike, as far as it is complete.
+func pgRestorePoints(d *repo.SQLBackup, logs []Run) []SQLRestorePoint {
+	var cl *repo.SQLDatabase
+	for i := range d.Databases {
+		if d.Databases[i].Name == pgsql.Cluster {
+			cl = &d.Databases[i]
+		}
+	}
+	if cl == nil {
+		return nil
+	}
+	var until time.Time
+	next := pgsql.NextSegment(cl.LastLSN)
+	for _, lr := range logs {
+		ld := sqlDetails(lr)
+		if ld == nil || ld.Engine != "postgres" {
+			continue
+		}
+		for _, w := range ld.Databases {
+			if w.Name != pgsql.WAL || w.LastLSN < cl.FirstLSN {
+				continue
+			}
+			if next != "" && w.FirstLSN > next {
+				return pgPoints(d, cl, until)
+			}
+			until, next = w.Finish, pgsql.NextSegment(w.LastLSN)
+		}
+	}
+	return pgPoints(d, cl, until)
+}
+
+func pgPoints(d *repo.SQLBackup, cl *repo.SQLDatabase, until time.Time) []SQLRestorePoint {
+	var out []SQLRestorePoint
+	for _, db := range d.Databases {
+		if strings.HasPrefix(db.Name, "(") {
+			continue
+		}
+		out = append(out, SQLRestorePoint{Name: db.Name, Full: cl.Finish, LogUntil: until})
+	}
+	return append(out, SQLRestorePoint{Name: pgsql.Cluster, Full: cl.Finish, LogUntil: until})
+}
+
+// mysqlRestorePoints: each database from its dump, then the binary logs
+// from the dump's position on, as far as they are complete.
+func mysqlRestorePoints(d *repo.SQLBackup, logs []Run) []SQLRestorePoint {
+	var out []SQLRestorePoint
+	for _, db := range d.Databases {
+		if strings.HasPrefix(db.Name, "(") {
+			continue
+		}
+		p := SQLRestorePoint{Name: db.Name, Full: db.Finish}
+		if f, _, ok := strings.Cut(db.FirstLSN, ":"); ok {
+			want := f
+		chain:
+			for _, lr := range logs {
+				ld := sqlDetails(lr)
+				if ld == nil || ld.Engine != "mysql" {
+					continue
+				}
+				for _, b := range ld.Databases {
+					if b.Name != mysqldb.Binlog || b.LastLSN < want {
+						continue
+					}
+					if b.FirstLSN > want {
+						break chain
+					}
+					p.LogUntil, want = b.Finish, mysqldb.NextBinlog(b.LastLSN)
+				}
+			}
+		}
+		out = append(out, p)
 	}
 	return out
 }
@@ -258,7 +374,7 @@ func windowsAgents(agents []Agent) []Agent {
 func (s *Server) handleSQLRestore(w http.ResponseWriter, r *http.Request, runID int64, back string) {
 	o := api.SQLRestore{Database: r.FormValue("database"), Target: r.FormValue("target")}
 	o.Replace = r.FormValue("replace") == "on"
-	if r.FormValue("target_mode") == "original" {
+	if r.FormValue("target_mode") == "original" || o.Database == pgsql.Cluster {
 		o.Target = ""
 	} else if strings.TrimSpace(o.Target) == "" {
 		redirectErr(w, r, back, errors.New("enter the name of the new database"))
@@ -284,5 +400,5 @@ func (s *Server) handleSQLRestore(w http.ResponseWriter, r *http.Request, runID 
 		return
 	}
 	s.audit(r, "restore.sql", "run #%d: database %s from backup #%d as %q (replace %v, point %s)", rid, o.Database, runID, o.Target, o.Replace, r.FormValue("point"))
-	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "SQL Server restore queued.")
+	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Database restore queued.")
 }

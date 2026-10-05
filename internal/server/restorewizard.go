@@ -34,7 +34,7 @@ var restoreTypes = []restoreType{
 	{Key: "files", Title: "Files and folders", Desc: "From file backups and Linux system backups, into a folder or to their original location.", Icon: "folder"},
 	{Key: "image", Title: "Disk image / bare metal", Desc: "A Windows disk or its partitions onto a disk, also on different hardware or as a VM, from the recovery ISO.", Icon: "disk"},
 	{Key: "imagefiles", Title: "Files from a disk image", Desc: "Browse the NTFS partitions of a disk image and restore single files.", Icon: "folder"},
-	{Key: "sql", Title: "SQL Server database", Desc: "A single database from a SQL Server backup, under a new name or in place, to any point in time covered by log backups.", Icon: "storage"},
+	{Key: "sql", Title: "Database", Desc: "A SQL Server, PostgreSQL or MySQL/MariaDB database (or a whole PostgreSQL cluster), under a new name or in place, to any point in time covered by log backups.", Icon: "storage"},
 	{Key: "system", Title: "Whole Linux system", Desc: "Onto an empty disk or bare metal (Linux recovery ISO), or as a new Proxmox VM (P2V).", Icon: "agents"},
 }
 
@@ -161,15 +161,27 @@ func (s *Server) wizardEntries(ctx context.Context) (map[string][]wizardEntry, e
 			if d == nil {
 				continue
 			}
-			inst := d.Instance
-			if inst == "" {
-				inst = "default instance"
+			server := "SQL Server " + d.Instance
+			switch {
+			case d.Engine == "postgres":
+				server = "PostgreSQL"
+			case d.Engine == "mysql":
+				server = "MySQL/MariaDB"
+			case d.Instance == "":
+				server = "SQL Server default instance"
 			}
 			for _, db := range d.Databases {
+				title := db.Name
+				switch db.Name {
+				case "(globals)":
+					continue
+				case "(cluster)":
+					title = "Whole PostgreSQL cluster"
+				}
 				gp := p
-				gp.Guest, gp.Size = db.Name, db.Size
-				add("sql", restoreSource{Key: "sql:" + run.Hostname + ":" + d.Instance + ":" + db.Name, Title: db.Name,
-					Detail: "SQL Server " + inst + " on " + run.Hostname}, gp)
+				gp.Guest, gp.Size = title, db.Size
+				add("sql", restoreSource{Key: "sql:" + run.Hostname + ":" + d.Instance + ":" + db.Name, Title: title,
+					Detail: server + " on " + run.Hostname}, gp)
 			}
 		case api.KindSystemBackup:
 			add("files", src, p)

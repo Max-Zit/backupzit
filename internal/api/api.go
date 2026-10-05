@@ -361,7 +361,10 @@ type ReplicaState struct {
 
 // SQLRun describes a SQL Server backup or restore run.
 type SQLRun struct {
-	Instance  string   `json:"instance,omitempty"`  // "" = default instance
+	// Engine is "postgres", "mysql" or "" for Microsoft SQL Server.
+	Engine string `json:"engine,omitempty"`
+	// Instance: SQL Server instance name, PostgreSQL/MySQL port ("" = default).
+	Instance  string   `json:"instance,omitempty"`
 	Databases []string `json:"databases,omitempty"` // empty: all user databases
 	System    bool     `json:"system,omitempty"`    // with all: also master, model, msdb
 	// Logs: the job also backs up transaction logs, so full backups start

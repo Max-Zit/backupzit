@@ -101,12 +101,20 @@
 {{end}}
 
 {{/* SQL Server job fields; the dot is a jobForm. */}}
-{{define "job_sql"}}
+{{define "job_sql"}}{{$e := .J.Options.SQLEngine}}
+    <label>Database server
+      <select name="sql_engine" {{if .Edit}}disabled{{end}}>
+        <option value="" {{if eq $e ""}}selected{{end}}>Microsoft SQL Server (Windows)</option>
+        <option value="postgres" {{if eq $e "postgres"}}selected{{end}}>PostgreSQL (Linux)</option>
+        <option value="mysql" {{if eq $e "mysql"}}selected{{end}}>MySQL / MariaDB (Linux)</option>
+      </select>
+    </label>
+    {{if .Edit}}<input type="hidden" name="sql_engine" value="{{$e}}">{{end}}
     <div class="row">
-      <label>SQL Server instance <small>empty for the default instance, e.g. SQLEXPRESS</small><input name="sql_instance" value="{{.J.Options.SQLInstance}}" placeholder="default instance"></label>
-      <label>Back up the transaction logs every (minutes) <small>empty: never; then databases in the full recovery model can be restored to any point in time</small><input type="number" name="sql_log_minutes" min="0" max="1440" value="{{if .J.Options.SQLLogMinutes}}{{.J.Options.SQLLogMinutes}}{{end}}" placeholder="e.g. 15"></label>
+      <label>Instance or port <small>SQL Server: instance name, empty for the default instance (e.g. SQLEXPRESS). PostgreSQL: port, empty for 5432. MySQL/MariaDB: not used (local socket)</small><input name="sql_instance" value="{{.J.Options.SQLInstance}}" placeholder="default"></label>
+      <label>Back up the logs every (minutes) <small>transaction logs (SQL Server), archived WAL (PostgreSQL) or binary logs (MySQL); empty: never. With log backups, databases can be restored to any point in time</small><input type="number" name="sql_log_minutes" min="0" max="1440" value="{{if .J.Options.SQLLogMinutes}}{{.J.Options.SQLLogMinutes}}{{end}}" placeholder="e.g. 15"></label>
     </div>
     <label>Databases <small>one name per line; empty: all user databases, also those created later</small><textarea name="sql_databases">{{if eq .J.Kind "sql"}}{{join .J.Paths "\n"}}{{end}}</textarea></label>
     <label class="check"><input type="checkbox" name="sql_system" {{if .J.Options.SQLSystem}}checked{{end}}> Also back up the system databases master, model and msdb <small>when all databases are backed up</small></label>
-    <p class="muted small">Full backups follow the schedule below and use SQL Server's own BACKUP statement. The agent connects as NT AUTHORITY\SYSTEM, which needs the sysadmin role in the instance (see <a href="/docs/sql">SQL Server</a>).</p>
+    <p class="muted small">Full backups follow the schedule below and use the database server's own tools: BACKUP DATABASE (SQL Server; the agent connects as NT AUTHORITY\SYSTEM, which needs the sysadmin role), pg_basebackup and pg_dump (PostgreSQL), mysqldump (MySQL/MariaDB). See <a href="/docs/sql">Databases</a> for the setup.</p>
 {{end}}

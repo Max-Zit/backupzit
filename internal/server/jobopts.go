@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/max-zit/backupzit/internal/api"
@@ -32,6 +33,8 @@ type JobOptions struct {
 	// SQL Server jobs: the instance ("" = default), whether system
 	// databases are included when all are backed up, and how often the
 	// transaction logs are backed up (minutes, 0 = never).
+	// SQLEngine is "postgres", "mysql" or "" for Microsoft SQL Server.
+	SQLEngine     string `json:"sql_engine,omitempty"`
 	SQLInstance   string `json:"sql_instance,omitempty"`
 	SQLSystem     bool   `json:"sql_system,omitempty"`
 	SQLLogMinutes int    `json:"sql_log_minutes,omitempty"`
@@ -47,6 +50,16 @@ func (o JobOptions) Validate() error {
 	for _, c := range []string{o.PreCommand, o.PostCommand} {
 		if len(c) > 4000 || strings.ContainsRune(c, 0) {
 			return errors.New("commands have at most 4000 characters")
+		}
+	}
+	switch o.SQLEngine {
+	case "", "postgres", "mysql":
+	default:
+		return errors.New("unknown database engine")
+	}
+	if o.SQLEngine == "postgres" && o.SQLInstance != "" {
+		if p, err := strconv.Atoi(o.SQLInstance); err != nil || p < 1 || p > 65535 {
+			return errors.New("enter the PostgreSQL port, e.g. 5432 (empty: 5432)")
 		}
 	}
 	if o.SQLLogMinutes != 0 && (o.SQLLogMinutes < 5 || o.SQLLogMinutes > 1440) {
@@ -204,6 +217,7 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	} else {
 		o.PreCommand, o.PostCommand, o.CommandMinutes = old.PreCommand, old.PostCommand, old.CommandMinutes
 	}
+	o.SQLEngine = r.FormValue("sql_engine")
 	o.SQLInstance = strings.TrimSpace(r.FormValue("sql_instance"))
 	o.SQLSystem = r.FormValue("sql_system") == "on"
 	o.SQLLogMinutes = atoiDefault(r.FormValue("sql_log_minutes"))

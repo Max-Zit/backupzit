@@ -122,7 +122,9 @@ func (s *Store) jobCoverage(ctx context.Context) (map[int64]*JobCoverage, error)
 			c := get(id)
 			c.Unit, c.Items = "database", nil
 			for _, db := range d.Databases {
-				c.Items = append(c.Items, db.Name)
+				if !strings.HasPrefix(db.Name, "(") { // (cluster), (globals)
+					c.Items = append(c.Items, db.Name)
+				}
 			}
 		}
 	}
