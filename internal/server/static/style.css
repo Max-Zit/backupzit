@@ -436,3 +436,10 @@ table.pick td .btn { padding: 6px 12px; }
 .usage-chart .uc-proj { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 4; opacity: .7; }
 .usage-chart .uc-text { fill: var(--muted); font-size: 11px; }
 .usage-forecast { margin: 6px 0 0; }
+.docnav-search { margin: 0 4px 8px; }
+.docnav-search input { width: 100%; padding: 6px 10px; font-size: 13px; }
+.docsearch-big { display: flex; gap: 8px; margin: 8px 0 16px; }
+.docsearch-big input { flex: 1; }
+.search-hits { padding-left: 20px; display: grid; gap: 14px; }
+.search-hits p { margin: 4px 0 0; color: var(--muted); }
+.search-hits mark { background: var(--accent-soft); color: var(--text); border-radius: 3px; padding: 0 2px; }

@@ -345,6 +345,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /reports/schedules/{id}/delete", s.ui(PermJobs, s.handleReportScheduleDelete))
 	mux.HandleFunc("GET /calendar", s.ui(PermView, s.handleCalendar))
 	mux.HandleFunc("GET /docs", s.ui(PermView, s.handleDocs))
+	mux.HandleFunc("GET /docs/search", s.ui(PermView, s.handleDocsSearch))
 	mux.HandleFunc("GET /docs/{page}", s.ui(PermView, s.handleDocs))
 	mux.HandleFunc("POST /settings/ldap", s.ui(PermSettings, s.handleSettingsLDAP))
 	mux.HandleFunc("GET /users", s.ui(PermUsers, s.handleUsers))
