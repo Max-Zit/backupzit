@@ -414,8 +414,8 @@ table.pick td .btn { padding: 6px 12px; }
 
 /* Language switch */
 .langs { display: flex; gap: 2px; margin-right: 6px; }
-.langs button { background: transparent; color: var(--muted); border: 1px solid transparent; border-radius: 6px; padding: 2px 7px; font-size: 12px; font-weight: 600; text-transform: uppercase; box-shadow: none; cursor: pointer; }
-.langs button.on { color: var(--accent); border-color: var(--line); background: var(--panel-2); }
+.langs select { width: auto; min-width: 0; padding: 3px 26px 3px 8px; font-size: 12.5px; background-color: transparent; color: var(--muted); border-color: var(--line); }
+.langs button { padding: 3px 8px; font-size: 12px; }
 .login-langs { display: flex; justify-content: center; margin-top: 12px; }
 
 /* storage usage */

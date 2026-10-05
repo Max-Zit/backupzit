@@ -27,20 +27,42 @@ type language struct {
 	msgs       map[string]string
 }
 
-var languages = []*language{{Code: "en", Name: "English"}, {Code: "sr", Name: "Srpski"}}
+// languages are offered in this order; Name is the language's own name.
+var languages = []*language{
+	{Code: "en", Name: "English"},
+	{Code: "de", Name: "Deutsch"},
+	{Code: "fr", Name: "Français"},
+	{Code: "es", Name: "Español"},
+	{Code: "it", Name: "Italiano"},
+	{Code: "pt", Name: "Português"},
+	{Code: "nl", Name: "Nederlands"},
+	{Code: "pl", Name: "Polski"},
+	{Code: "cs", Name: "Čeština"},
+	{Code: "sr", Name: "Srpski"},
+	{Code: "tr", Name: "Türkçe"},
+	{Code: "ru", Name: "Русский"},
+	{Code: "zh", Name: "中文（简体）"},
+	{Code: "ja", Name: "日本語"},
+}
 
 const langCookie = "bz_lang"
 
 func init() {
+	var ok []*language
 	for _, l := range languages {
 		b, err := catalogFS.ReadFile("i18n/" + l.Code + ".json")
 		if err != nil {
-			continue
+			if l.Code == "en" {
+				ok = append(ok, l)
+			}
+			continue // no catalog yet: not offered
 		}
 		if err := json.Unmarshal(b, &l.msgs); err != nil {
 			panic(fmt.Sprintf("i18n/%s.json: %v", l.Code, err))
 		}
+		ok = append(ok, l)
 	}
+	languages = ok
 }
 
 // T translates an English text (a fmt format when args are given). A
@@ -73,21 +95,51 @@ func (l *language) N(n int, singular, plural string) string {
 	return l.T(plural)
 }
 
-// pluralForm picks one of the plural forms of a translation. Serbian has
-// three: 1, 21, 31 … / 2–4, 22–24 … / the rest.
+// pluralForm picks one of the plural forms of a translation (the CLDR
+// rules for integers): Chinese and Japanese have one form; English, German
+// and most others two (1 / other; French and Portuguese also count 0 as
+// one); Czech three (1 / 2–4 / other); Polish, Russian and Serbian three
+// (one / few / many, by the last digits).
 func pluralForm(code string, n int, forms []string) string {
+	m10, m100 := n%10, n%100
 	i := 1
-	if n == 1 {
+	switch code {
+	case "zh", "ja":
 		i = 0
-	}
-	if code == "sr" {
-		switch m10, m100 := n%10, n%100; {
+	case "fr", "pt":
+		if n == 0 || n == 1 {
+			i = 0
+		}
+	case "cs":
+		switch {
+		case n == 1:
+			i = 0
+		case n >= 2 && n <= 4:
+			i = 1
+		default:
+			i = 2
+		}
+	case "pl":
+		switch {
+		case n == 1:
+			i = 0
+		case m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14):
+			i = 1
+		default:
+			i = 2
+		}
+	case "sr", "ru":
+		switch {
 		case m10 == 1 && m100 != 11:
 			i = 0
 		case m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14):
 			i = 1
 		default:
 			i = 2
+		}
+	default:
+		if n == 1 {
+			i = 0
 		}
 	}
 	if i >= len(forms) {
@@ -115,15 +167,19 @@ func requestLanguage(r *http.Request) *language {
 	}
 	for _, part := range strings.Split(r.Header.Get("Accept-Language"), ",") {
 		tag := strings.ToLower(strings.TrimSpace(strings.SplitN(part, ";", 2)[0]))
-		switch {
-		case strings.HasPrefix(tag, "sr"), strings.HasPrefix(tag, "hr"), strings.HasPrefix(tag, "bs"), strings.HasPrefix(tag, "sh"), strings.HasPrefix(tag, "cnr"):
-			return languageByCode("sr")
-		case strings.HasPrefix(tag, "en"):
-			return languages[0]
+		primary, _, _ := strings.Cut(strings.ReplaceAll(tag, "_", "-"), "-")
+		if alias, ok := languageAliases[primary]; ok {
+			primary = alias
+		}
+		if l := languageByCode(primary); l != nil {
+			return l
 		}
 	}
 	return languages[0]
 }
+
+// languageAliases map browser languages to a close console language.
+var languageAliases = map[string]string{"hr": "sr", "bs": "sr", "sh": "sr", "cnr": "sr", "sk": "cs"}
 
 // langFuncs are the template functions of a language: T, and the helpers
 // whose output is text.

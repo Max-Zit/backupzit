@@ -57,6 +57,7 @@
   <tr><td><code>vmware list --host H [--user root]</code></td><td>Show the host's VMs, license mode, certificate and SSH key fingerprints, and datastores.</td></tr>
   <tr><td><code>vmware backup --host H [--vmid N,N]</code></td><td>Back up VMs (default: all) from snapshots; with changed block tracking only changed blocks are read.</td></tr>
   <tr><td><code>vmware restore --host H --vmid N [--new] [--name X] [--datastore DS] [--overwrite] [--start] SNAPSHOT&#124;latest</code></td><td>Restore a VM in place (default) or as a new VM with <code>--new</code>. <code>--overwrite</code> replaces the disks of an existing VM; the old ones are kept renamed. See <a href="/docs/vmware">VMware ESXi</a>.</td></tr>
+  <tr><td><code>esxi-nfs-serve</code></td><td>Serve the instant VMs of ESXi hosts over NFS from <code>/var/lib/backupzit/instant-esxi</code> (Linux; started by instant recovery as the systemd unit <code>backupzit-esxi-nfs</code>).</td></tr>
 </table>
 <p>Pin the host with <code>--thumbprint SHA256:…</code> and <code>--ssh-host-key SHA256:…</code> (shown by <code>vmware list</code>).</p>
 
@@ -150,6 +151,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Secrets key (base64) instead of the <code>secrets.key</code> file.</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>Reset the password of <i>admin</i> (re-enables it as a local administrator) and exit.</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Lift the sign-in block of an address, or of all addresses (brute-force protection), and exit.</td></tr>
+  <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Restore the console from a console backup and exit (see <a href="/docs/install">Installing the server</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Evaluation only: private PostgreSQL in the data directory, plain HTTP on localhost.</td></tr>
   <tr><td><code>--version</code></td><td>Print the version.</td></tr>
 </table>

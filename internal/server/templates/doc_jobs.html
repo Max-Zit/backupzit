@@ -12,20 +12,22 @@
       <li><b>Disk image</b> — a whole disk or selected partitions, restorable to an empty disk or new hardware. See <a href="/docs/images">Disk images</a>.</li>
       <li><b>Linux system</b> — all file systems and the disk layout of a Linux machine, restorable onto an empty disk or as a Proxmox VM. See <a href="/docs/linux-system">Linux system backup</a>.</li>
       <li><b>Virtual machines (Proxmox VE, Hyper-V, VMware)</b> — VMs (and Proxmox containers) of a hypervisor host, backed up without agents in the guests: by the agent on the Proxmox or Hyper-V host, or for VMware ESXi by the host's proxy agent (choose the ESXi host in the agent list). See <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> and <a href="/docs/vmware">VMware ESXi</a>.</li>
+      <li><b>Databases</b> — SQL Server, PostgreSQL or MySQL/MariaDB on the agent's machine, with log backups for restores to any point in time. See <a href="/docs/sql">Databases</a>.</li>
+      <li><b>NAS / file share</b> — an SMB or NFS share read by the agent; see <a href="#nas">below</a>.</li>
     </ul>
   </li>
   <li>Optionally add <b>excludes</b>, one pattern per line: <code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>.</li>
   <li>Set <b>Keep backups</b> and the <b>Schedule</b>, then <i>Create job</i>.</li>
 </ol>
 
-<h2>NAS and file shares (SMB, NFS)</h2>
+<h2 id="nas">NAS and file shares (SMB, NFS)</h2>
 <p>A <b>NAS / file share</b> job backs up a network share without installing anything on the NAS (Synology, QNAP, TrueNAS, a Windows file server …). Choose any agent that reaches the share — it reads the share and writes the backup — and enter:</p>
 <ul>
   <li><b>Share</b>: <code>smb://nas01/data</code> (optionally with a folder: <code>smb://nas01/data/Office</code>) or <code>nfs://nas01/volume1/data</code> (the export path);</li>
   <li>for SMB the account (user, optional domain, password — stored encrypted); empty means guest access. NFS uses the agent machine's access to the export (allow its address on the NAS);</li>
   <li>the <b>folders in the share</b> to back up, one per line (empty: the whole share), and exclusions such as <code>#recycle</code>, <code>@eaDir</code> or <code>.snapshot</code>.</li>
 </ul>
-<p>For every run the agent connects the share — Windows agents through its UNC path (<code>\nas01\data</code>, SMB only), Linux agents by mounting it read-only below <code>/mnt/backupzit-nas</code> (needs <code>cifs-utils</code> for SMB, <code>nfs-common</code> or <code>nfs-utils</code> for NFS; Proxmox VE has both) — and disconnects it afterwards. The backups are ordinary file backups: deduplicated and incremental, with retention, copy jobs, restore tests, browsing and file restore. <b>Restore to the original location</b> connects the share again, writable, and writes the files back onto it; or restore into a folder on any agent, or download.</p>
+<p>For every run the agent connects the share — Windows agents through its UNC path (<code>\\nas01\data</code>, SMB only), Linux agents by mounting it read-only below <code>/mnt/backupzit-nas</code> (needs <code>cifs-utils</code> for SMB, <code>nfs-common</code> or <code>nfs-utils</code> for NFS; Proxmox VE has both) — and disconnects it afterwards. The backups are ordinary file backups: deduplicated and incremental, with retention, copy jobs, restore tests, browsing and file restore. <b>Restore to the original location</b> connects the share again, writable, and writes the files back onto it; or restore into a folder on any agent, or download.</p>
 
 <h2>Open and locked files (VSS)</h2>
 <p>On Windows the agent uses the <b>Volume Shadow Copy Service</b>: it takes a consistent, point-in-time snapshot of the volume and backs up from that, so open files (Outlook PST, databases, documents being edited) are backed up consistently. Applications that support VSS (for example SQL Server) flush their data to disk before the snapshot is taken.</p>
@@ -62,7 +64,7 @@
 </ul>
 
 <h2>Changing a job</h2>
-<p>Open the job and expand <b>Edit job</b>. You can change the name, the folders and exclusions (file jobs), the VMs (VM jobs), the schedule, the retention, the speed limit and the commands. The agent, the storage target and the disk of an image job stay as they are, so the job's backups remain one chain; to move a job, create a new one — with a copy job if older backups should come along. Changes apply from the next run and are recorded in the <a href="/audit">audit log</a>.</p>
+<p>Open the job and expand <b>Edit job</b>. You can change the name, the folders and exclusions (file jobs), the VMs (VM jobs), the schedule, the retention, the speed limit and the commands. The agent, the storage target and the disk of an image job stay as they are, so the job's backups remain one chain; to move a job, create a new one — with a copy job if older backups should come along. Changes apply from the next run and are recorded in the <a href="/audit">audit log</a>. With <a href="/docs/users">four-eyes approval</a> on, a shorter retention waits for a second user's approval; the other changes are saved at once.</p>
 
 <h2>Replicas (Proxmox VE)</h2>
 <p>Proxmox VM jobs can keep stopped, up-to-date copies of their guests on a node of your choice, started with one click if a guest is lost — see <a href="/docs/proxmox">Proxmox VE → Replication</a>.</p>
@@ -91,7 +93,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 </ul>
 
 <h2>Retention paused</h2>
-<p>If a backup of the job looked like ransomware or mass deletion, the job page shows <i>Retention is paused</i>: no backups are removed until someone checks the machine and clicks <i>Reviewed — resume retention</i>. See <a href="/docs/ransomware">Ransomware protection</a>.</p>
+<p>If a backup of the job looked like ransomware or mass deletion, the job page shows <i>Retention is paused</i>: no backups are removed until someone checks the machine and clicks <i>Reviewed — resume retention</i> (with four-eyes approval on, a second user has to approve it). See <a href="/docs/ransomware">Ransomware protection</a>.</p>
 
 <h2>What a backup run reports</h2>
 <p>Open a run in <a href="/runs">Activity</a>: number of files, new/changed files, data read, new data uploaded (after deduplication and compression), duration, and any files that could not be read. A run with unreadable files ends with status <b>warning</b> — the rest of the data is backed up.</p>

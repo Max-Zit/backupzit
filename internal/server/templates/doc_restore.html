@@ -12,6 +12,7 @@
       <li>files and folders</li>
       <li>a disk image / bare metal</li>
       <li>files from a disk image</li>
+      <li>a database (to a point in time)</li>
       <li>a whole Linux system</li>
     </ul>
     Each choice shows how many restore points exist for it.</li>
@@ -34,7 +35,7 @@
   <li>Choose where:
     <ul>
       <li><b>Restore into a folder</b> (recommended) — e.g. <code>D:\Restore</code>. The original structure is recreated below it: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nothing existing is touched.</li>
-      <li><b>Restore to original location</b> — writes the files back where they were, <b>overwriting</b> current versions.</li>
+      <li><b>Restore to original location</b> — writes the files back where they were, <b>overwriting</b> current versions. For a NAS share the agent connects the share again, writable.</li>
     </ul>
   </li>
   <li>Optionally limit to <b>Only these paths</b>, one per line, e.g. <code>C:\Users\ana\Documents\Contracts</code>.</li>

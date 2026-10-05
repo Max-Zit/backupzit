@@ -63,6 +63,9 @@ Proxmox VE (agent on the Proxmox host):
 Hyper-V (agent on the Hyper-V host):
   hyperv         list | backup | restore — VMs without agents inside
 
+VMware ESXi (any agent as proxy, nothing installed on ESXi):
+  vmware         list | backup | restore — VMs, password in BACKUPZIT_VMWARE_PASSWORD
+
 Microsoft SQL Server (agent on the SQL Server machine):
   sql            list | backup | show | restore — databases, transaction logs, point in time
 

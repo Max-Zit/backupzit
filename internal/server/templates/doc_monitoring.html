@@ -3,7 +3,7 @@
 <p class="lead">See at a glance whether everything is protected, find out what happened on any day, and send regular reports to management or customers.</p>
 
 <h2>Dashboard</h2>
-<p>The first cards count what is protected: <b>machines</b> (file, image and system backups), <b>VMs</b> and <b>databases</b>, each with a successful backup. <b>Needs attention</b> lists what to look at: jobs whose last run failed, jobs that missed their schedule (no success since the scheduled run before the last one — weekends and time windows of the schedule are taken into account), agents that have not connected for 15 minutes, storage targets that are 90 % full or will be full within 30 days (see <a href="/docs/storage">Storage targets</a>), and changes waiting for a second user's approval. When nothing is listed, everything is fine.</p>
+<p>The first cards count what is protected: <b>machines</b> (file, image and system backups), <b>VMs</b>, <b>databases</b> and <b>NAS shares</b> (shown once there is one), each with a successful backup. <b>Needs attention</b> lists what to look at: jobs whose last run failed, jobs that missed their schedule (no success since the scheduled run before the last one — weekends and time windows of the schedule are taken into account), agents that have not connected for 15 minutes, storage targets that are 90 % full or will be full within 30 days (see <a href="/docs/storage">Storage targets</a>), and changes waiting for a second user's approval. When nothing is listed, everything is fine.</p>
 <p>The other cards show agents online, backup jobs, storage targets, queued and running runs, runs, failures and warnings in the last 24 hours, and <b>suspicious backups to review</b> (possible ransomware, see <a href="/docs/ransomware">Ransomware protection</a>). Green means fine, yellow needs a look, red needs action. Below is the most recent activity.</p>
 
 <h2>Activity</h2>
@@ -16,7 +16,7 @@
   <tr><td>system-backup, system-restore</td><td>Linux system backup and its restore onto a disk or as a Proxmox VM.</td></tr>
   <tr><td>agent-update</td><td>Installation of a newer agent version started from the Agents page.</td></tr>
   <tr><td>vm-backup, vm-restore</td><td>Backup and restore of Proxmox VE, Hyper-V and VMware ESXi virtual machines (and Proxmox containers).</td></tr>
-  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Proxmox instant recovery: a VM started from a backup, and moving its disks to storage or deleting it.</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Instant recovery (Proxmox VE, VMware ESXi): a VM started from a backup, and finishing it (its disks moved or copied to storage) or deleting it.</td></tr>
   <tr><td>sql-backup, sql-log, sql-restore</td><td>Database backups (SQL Server, PostgreSQL, MySQL/MariaDB), their log backups, and the restore of a database.</td></tr>
   <tr><td>vm-replica, vm-replica-start</td><td>Proxmox replication after a VM backup, and starting a replica (failover).</td></tr>
   <tr><td>vm-file-restore</td><td>Files copied out of a VM disk in a Proxmox, Hyper-V or VMware backup onto an agent.</td></tr>

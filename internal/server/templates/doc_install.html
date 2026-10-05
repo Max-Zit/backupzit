@@ -9,35 +9,72 @@
   <li>Network: agents must reach the console on TCP <b>8443</b> (HTTPS). Agents must also reach the storage directly.</li>
 </ul>
 
-<h2>Install the appliance (recommended)</h2>
-<p>The <b>BackupZit appliance ISO</b> installs everything without questions: Debian, PostgreSQL, the console and automatic security updates. It is the easiest way to set up a new console.</p>
+<h2>Choose how to install</h2>
+<table>
+  <tr><th>Way</th><th>Best for</th><th>Needs</th></tr>
+  <tr><td><b>1. Ready-made VM image</b> (OVA, qcow2, VHDX)</td><td>Fastest: import, start, sign in</td><td>VMware, Proxmox/KVM or Hyper-V; no internet access needed</td></tr>
+  <tr><td><b>2. Appliance ISO</b></td><td>A new VM or a physical server, unattended installation</td><td>internet access during the installation (Debian packages)</td></tr>
+  <tr><td><b>3. Install script</b></td><td>An existing Debian, Ubuntu, AlmaLinux or Rocky Linux server</td><td>root and internet access</td></tr>
+  <tr><td><b>4. Packages by hand</b></td><td>Your own PostgreSQL, configuration management, no internet access</td><td>the server package from the release</td></tr>
+</table>
+
+<h2>Downloads</h2>
+<p>Every release is on <a href="https://github.com/Max-Zit/backupzit/releases" target="_blank" rel="noopener">github.com/Max-Zit/backupzit/releases</a>. These links always point to the newest release:</p>
+<table>
+  <tr><th>File</th><th>What</th></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova">backupzit-appliance.ova</a></td><td>VM image for VMware ESXi, Workstation, VirtualBox</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2">backupzit-appliance.qcow2</a></td><td>VM image for Proxmox VE and KVM</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip">backupzit-appliance-vhdx.zip</a></td><td>VM image for Hyper-V (unzip; generation 1)</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.iso">backupzit-appliance.iso</a></td><td>appliance installer ISO</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh">install.sh</a></td><td>install script for an existing Linux server</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>checksums of the images and the ISO</td></tr>
+</table>
+<p>The packages (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agents) are listed on the release page. The images are about 1.5 GB each. Check a download with <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) or <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+
+<h2>1. Ready-made VM image</h2>
+<p>A finished appliance (Debian, PostgreSQL, the console, automatic security updates) that starts in under a minute and needs no internet access:</p>
+<table>
+  <tr><th>Hypervisor</th><th>How</th></tr>
+  <tr><td>VMware ESXi</td><td>Host client: <i>Create / Register VM → Deploy a virtual machine from an OVF or OVA file</i>, choose <code>backupzit-appliance.ova</code>. vSphere: <i>Deploy OVF Template</i>. Workstation and VirtualBox: <i>File → Open / Import</i>.</td></tr>
+  <tr><td>Proxmox VE</td><td>Copy <code>backupzit-appliance.qcow2</code> to the node, create a VM without a disk (2 vCPU, 2–4 GB RAM, VirtIO network), then<br><code>qm importdisk &lt;vmid&gt; backupzit-appliance.qcow2 local-lvm</code><br>attach the imported disk as SCSI, make it the boot disk and enable the QEMU guest agent.</td></tr>
+  <tr><td>Hyper-V</td><td>Unzip <code>backupzit-appliance-vhdx.zip</code>, then <i>New → Virtual Machine</i>, <b>generation 1</b>, 2–4 GB RAM, <i>Use an existing virtual hard disk</i>: the VHDX.</td></tr>
+</table>
+<p>Start the VM. Its screen shows the address of the web console and the initial password of <b>admin</b> (see <a href="#first">First sign-in</a>). Give the VM 2 vCPU and 2–4 GB RAM; you can enlarge the 16 GB disk at any time. At the first start every copy creates its own SSH keys, database password and secrets key, so one image can be deployed many times. The network adapter gets its address by DHCP.</p>
+
+<h2>2. Appliance ISO</h2>
+<p>The <b>appliance ISO</b> installs everything without questions: Debian, PostgreSQL, the console and automatic security updates.</p>
 <ol>
   <li>Create a VM (or use a server) with 2 vCPU, 2–4 GB RAM and a 16 GB or larger disk. Use VirtIO or the hypervisor's default devices, BIOS or UEFI.</li>
-  <li>Boot it from <code>backupzit-appliance-X.iso</code>. After 5 seconds the installation starts by itself, <b>erases the first disk</b> and installs. It downloads the operating system packages, so the server needs internet access during installation. This takes about 10–20 minutes, and the server then restarts.</li>
+  <li>Boot it from <code>backupzit-appliance.iso</code>. After 5 seconds the installation starts by itself, <b>erases the first disk</b> and installs. It downloads the operating system packages, so the server needs internet access during installation. This takes about 10–20 minutes, and the server then restarts.</li>
   <li>The server's screen shows the address of the web console and the initial password of <b>admin</b>. Open the address, sign in and change the password.</li>
 </ol>
-<p>Each appliance gets its own database password, and its secrets key is created at the first start. To sign in to the server itself (SSH or the local screen), use the user <b>bzadmin</b> with the initial password <code>backupzit</code>. You must change it at the first sign-in; the user can use <code>sudo</code>. Updates of BackupZit and of the operating system are then managed from the console (see below). VMware Tools and the QEMU guest agent are included, so hypervisors show the appliance's address.</p>
-<h3>Ready-made VM images</h3>
-<p>Instead of installing from the ISO, you can import a finished appliance. It starts in under a minute and needs no internet access:</p>
-<table>
-  <tr><th>File</th><th>For</th><th>How</th></tr>
-  <tr><td><code>backupzit-appliance-X.ova</code></td><td>VMware ESXi, Workstation, VirtualBox</td><td>ESXi host client: <i>Create / Register VM → Deploy a virtual machine from an OVF or OVA file</i>. vSphere: <i>Deploy OVF Template</i>.</td></tr>
-  <tr><td><code>backupzit-appliance-X.qcow2</code></td><td>Proxmox VE, KVM</td><td>Create a VM without a disk, then <code>qm importdisk &lt;vmid&gt; backupzit-appliance-X.qcow2 local-lvm</code>, attach the disk as SCSI and make it the boot disk. Enable the QEMU guest agent.</td></tr>
-  <tr><td><code>backupzit-appliance-X.vhdx</code></td><td>Hyper-V</td><td>New VM, <b>generation 1</b>, <i>Use an existing virtual hard disk</i>.</td></tr>
-</table>
-<p>Give the VM 2 vCPU and 2–4 GB RAM. You can enlarge the 16 GB disk at any time. At the first start every copy creates its own SSH keys, database password and secrets key, so one image can be deployed many times. The network adapter gets its address by DHCP, whatever the hypervisor calls it. Check the files against <code>SHA256SUMS</code> after downloading.</p>
-<p>The network is set up by DHCP. For a fixed address, sign in as bzadmin and edit <code>/etc/network/interfaces</code>. Agents remember the console's certificate, not its address, so keep the address stable or use a DNS name.</p>
+<h3>The appliance (image or ISO)</h3>
+<p>To sign in to the server itself (SSH or the local screen), use the user <b>bzadmin</b> with the initial password <code>backupzit</code>; you must change it at the first sign-in, and the user can use <code>sudo</code>. Updates of BackupZit and of the operating system are then managed from the console (see below). VMware Tools and the QEMU guest agent are included, so hypervisors show the appliance's address. The network is set up by DHCP; for a fixed address, sign in as bzadmin and edit <code>/etc/systemd/network/50-dhcp.network</code> (images) or <code>/etc/network/interfaces</code> (ISO). Agents remember the console's certificate, not its address, so keep the address stable or use a DNS name.</p>
 
-<h2>Install on an existing Linux server</h2>
+<h2>3. Install script</h2>
+<p>On an existing server with <b>Debian 12+, Ubuntu 22.04+, AlmaLinux or Rocky Linux 9+</b> (x86-64), as root:</p>
+<pre>curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh</pre>
+<p>The script installs PostgreSQL, downloads the newest release, <b>checks its signature</b> with the BackupZit release key and the package checksum, installs the console, creates the database with a random password, writes <code>/etc/backupzit/server.env</code>, switches on automatic security updates, opens port 8443 in firewalld or ufw if they are active, starts the console and prints its address and the initial admin password. Options (after <code>sh -s --</code>):</p>
+<table>
+  <tr><th>Option</th><th>Effect</th></tr>
+  <tr><td><code>--version 0.32.0</code></td><td>install this release instead of the newest</td></tr>
+  <tr><td><code>--db postgres://user:pw@host:5432/db</code></td><td>use an existing PostgreSQL database instead of a local one</td></tr>
+  <tr><td><code>--hosts backup.example.local,10.0.0.10</code></td><td>names and addresses for the console's certificate (default: the server's address and name)</td></tr>
+  <tr><td><code>--no-auto-updates</code></td><td>leave automatic security updates as they are</td></tr>
+</table>
+<p>Example: <code>curl -fsSL …/install.sh | sudo sh -s -- --hosts backup.example.local</code>. Running the script again on an installed console updates BackupZit and keeps the configuration and data. To read the script before running it, download it first: <code>curl -fsSLO …/install.sh; less install.sh; sudo sh install.sh</code>.</p>
+
+<h2>4. Packages by hand</h2>
 <h3>Debian / Ubuntu</h3>
 <pre>apt install postgresql
 apt install ./backupzit-server_*.deb</pre>
 <h3>AlmaLinux / Rocky Linux</h3>
 <pre>dnf install postgresql-server &amp;&amp; postgresql-setup --initdb &amp;&amp; systemctl enable --now postgresql
 dnf install ./backupzit-server-*.rpm</pre>
+<p>On AlmaLinux and Rocky Linux, change <code>ident</code> to <code>scram-sha-256</code> for the 127.0.0.1 and ::1 lines in <code>/var/lib/pgsql/data/pg_hba.conf</code> and restart PostgreSQL, so the console can sign in with a password.</p>
 
 <h3>Create the database</h3>
-<pre>sudo -u postgres psql -c "CREATE USER backupzit WITH PASSWORD 'choose-a-strong-password'"
+<pre>sudo -u postgres psql -c "SET password_encryption = 'scram-sha-256'; CREATE USER backupzit WITH PASSWORD 'choose-a-strong-password'"
 sudo -u postgres psql -c "CREATE DATABASE backupzit OWNER backupzit"</pre>
 <p>Put the connection string into <code>/etc/backupzit/server.env</code>:</p>
 <pre>BACKUPZIT_DB=postgres://backupzit:choose-a-strong-password@localhost:5432/backupzit?sslmode=disable
@@ -45,7 +82,7 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
-<h2>First sign-in</h2>
+<h2 id="first">First sign-in</h2>
 <p>Open <code>https://&lt;server&gt;:8443</code>. The initial administrator is <b>admin</b>; the password is in <code>/var/lib/backupzit/initial-admin-password.txt</code> (or set <code>BACKUPZIT_ADMIN_PASSWORD</code> before the first start). Change it after signing in. To reset a forgotten password on the server:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
 backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>

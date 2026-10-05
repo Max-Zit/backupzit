@@ -70,7 +70,7 @@
   <a href="/settings/console" class="{{if eq .Data.Tab "console"}}on{{end}}">{{template "icon" "storage"}}<span>{{T "Console backup"}}<small>{{T "Back up the console itself"}}</small></span></a>
   <a href="/settings/ldap" class="{{if eq .Data.Tab "ldap"}}on{{end}}">{{template "icon" "users"}}<span>{{T "LDAP / Active Directory"}}<small>{{T "Directory sign-in and roles"}}</small></span></a>
 </nav>{{end}}
-{{define "langswitch"}}<form method="post" action="/lang" class="langs" aria-label="{{T "Language"}}">{{range languages}}<button name="lang" value="{{.Code}}" class="{{if eq .Code lang}}on{{end}}" title="{{.Name}}">{{.Code}}</button>{{end}}</form>{{end}}
+{{define "langswitch"}}<form method="post" action="/lang" class="langs"><select name="lang" data-autosubmit aria-label="{{T "Language"}}">{{range languages}}<option value="{{.Code}}" {{if eq .Code lang}}selected{{end}} lang="{{.Code}}">{{.Name}}</option>{{end}}</select><noscript><button>OK</button></noscript></form>{{end}}
 {{define "status"}}<span class="badge {{.}}"><i></i>{{T .}}</span>{{end}}
 {{define "runtable"}}
 {{if .}}

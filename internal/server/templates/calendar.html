@@ -24,7 +24,7 @@
       <div class="calday {{if not .InMonth}}out{{end}} {{if .Today}}today{{end}} {{if .Past}}past{{end}}">
         <div class="dnum">{{.Date.Day}}</div>
         {{range $i, $e := .Entries}}
-        <a href="/jobs/{{$e.JobID}}" class="ev {{if ge $i 4}}extra {{end}}{{if $e.Planned}}plan{{else}}{{$e.Status}}{{end}}" title="{{$e.JobName}} {{T "on"}} {{$e.Hostname}} — {{$e.TimeLabel}}{{if $e.Planned}} ({{T "planned"}}){{else}} ({{T $e.Status}}){{end}}"><b>{{$e.First.Format "15:04"}}</b> {{$e.JobName}}{{if gt $e.Count 1}} <i>×{{$e.Count}}</i>{{end}}</a>
+        <a href="/jobs/{{$e.JobID}}" class="ev {{if ge $i 4}}extra {{end}}{{if $e.Planned}}plan{{else}}{{$e.Status}}{{end}}" title="{{$e.JobName}} {{T "on host"}} {{$e.Hostname}} — {{$e.TimeLabel}}{{if $e.Planned}} ({{T "planned"}}){{else}} ({{T $e.Status}}){{end}}"><b>{{$e.First.Format "15:04"}}</b> {{$e.JobName}}{{if gt $e.Count 1}} <i>×{{$e.Count}}</i>{{end}}</a>
         {{end}}
         {{if gt (len .Entries) 4}}<button type="button" class="more" data-expand aria-expanded="false">+{{sub (len .Entries) 4}} {{T "more"}}</button>{{end}}
       </div>

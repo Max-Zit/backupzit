@@ -1,6 +1,6 @@
 {{define "content"}}
 <h1>{{T "Dashboard"}}</h1>
-{{with .Data.Instant}}<div class="callout warn"><p><b>{{len .}} {{T "VM"}}{{if gt (len .) 1}}s{{end}} {{T "still run"}}{{if eq (len .) 1}}s{{end}} {{T "from a backup"}}</b> {{T "(instant recovery):"}} {{range $i, $v := .}}{{if $i}}, {{end}}<a href="/runs/{{$v.RunID}}">{{T "VM"}} {{$v.VMID}}{{if $v.Name}} ({{$v.Name}}){{end}} {{T "on"}} {{$v.Hostname}}</a>{{end}}{{T ". Finish or discard"}} {{if gt (len .) 1}}{{T "them"}}{{else}}{{T "it"}}{{end}}{{T ": until then"}} {{if gt (len .) 1}}{{T "they depend"}}{{else}}{{T "it depends"}}{{end}} {{T "on the backup storage."}}</p></div>{{end}}
+{{with .Data.Instant}}<div class="callout warn"><p><b>{{len .}} {{N (len .) "VM still runs" "VMs still run"}} {{T "from a backup"}}</b> {{T "(instant recovery):"}} {{range $i, $v := .}}{{if $i}}, {{end}}<a href="/runs/{{$v.RunID}}">{{T "VM"}} {{$v.VMID}}{{if $v.Name}} ({{$v.Name}}){{end}} {{T "on host"}} {{$v.Hostname}}</a>{{end}}{{T ". Finish or discard"}} {{if gt (len .) 1}}{{T "them"}}{{else}}{{T "it"}}{{end}}{{T ": until then"}} {{if gt (len .) 1}}{{T "they depend"}}{{else}}{{T "it depends"}}{{end}} {{T "on the backup storage."}}</p></div>{{end}}
 {{with .Data.Protection}}
 <div class="grid">
   <div class="stat"><div class="si">{{template "icon" "agents"}}</div><b>{{.Machines}}</b><span>{{T "machines protected"}}</span></div>

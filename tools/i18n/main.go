@@ -8,6 +8,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -41,6 +42,66 @@ func main() {
 		for _, k := range keys() {
 			fmt.Println(strconv.Quote(k))
 		}
+	case "export":
+		// All texts of the Serbian catalog (templates and Go code), numbered
+		// in a stable order: "N<TAB>text"; texts with plural forms are marked
+		// with a trailing "<TAB>plural".
+		for i, k := range catalogKeys() {
+			fmt.Printf("%d\t%s", i+1, strconv.Quote(k))
+			if strings.Contains(readCatalog("sr")[k], "|") {
+				fmt.Print("\tplural")
+			}
+			fmt.Println()
+		}
+	case "import":
+		// import LANG FILE...: lines "N<TAB>translation" (translation as a
+		// Go string literal or plain text) into internal/server/i18n/LANG.json.
+		if len(os.Args) < 4 {
+			fail("usage: i18n import LANG FILE...")
+		}
+		keys := catalogKeys()
+		cat := readCatalog(os.Args[2])
+		if cat == nil {
+			cat = map[string]string{}
+		}
+		for _, f := range os.Args[3:] {
+			b, err := os.ReadFile(f)
+			if err != nil {
+				fail("%v", err)
+			}
+			for ln, line := range strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n") {
+				if strings.TrimSpace(line) == "" {
+					continue
+				}
+				num, text, ok := strings.Cut(line, "\t")
+				n, err := strconv.Atoi(strings.TrimSpace(num))
+				if !ok || err != nil || n < 1 || n > len(keys) {
+					fail("%s:%d: expected N<TAB>translation", f, ln+1)
+				}
+				if s, err := strconv.Unquote(text); err == nil {
+					text = s
+				}
+				cat[keys[n-1]] = text
+			}
+		}
+		// Texts the Serbian catalog keeps as they are (names, examples,
+		// addresses) stay the same in every language.
+		for k, v := range readCatalog("sr") {
+			if v == k && cat[k] == "" {
+				cat[k] = k
+			}
+		}
+		var out bytes.Buffer
+		enc := json.NewEncoder(&out)
+		enc.SetEscapeHTML(false)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(cat); err != nil {
+			fail("%v", err)
+		}
+		if err := os.WriteFile(filepath.Join("internal", "server", "i18n", os.Args[2]+".json"), out.Bytes(), 0o644); err != nil {
+			fail("%v", err)
+		}
+		fmt.Fprintf(os.Stderr, "%s: %d texts\n", os.Args[2], len(cat))
 	case "missing":
 		if len(os.Args) < 3 {
 			fail("usage: i18n missing LANG")
@@ -196,4 +257,35 @@ func tagName(tag string) string {
 func fail(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, "i18n: "+format+"\n", a...)
 	os.Exit(1)
+}
+
+// readCatalog loads internal/server/i18n/LANG.json (nil if missing).
+func readCatalog(lang string) map[string]string {
+	b, err := os.ReadFile(filepath.Join("internal", "server", "i18n", lang+".json"))
+	if err != nil {
+		return nil
+	}
+	var cat map[string]string
+	if err := json.Unmarshal(b, &cat); err != nil {
+		fail("%s.json: %v", lang, err)
+	}
+	return cat
+}
+
+// catalogKeys are the texts to translate: the template texts and the
+// texts of the Go code (those in the Serbian catalog), sorted.
+func catalogKeys() []string {
+	seen := map[string]bool{}
+	for _, k := range keys() {
+		seen[k] = true
+	}
+	for k := range readCatalog("sr") {
+		seen[k] = true
+	}
+	var out []string
+	for k := range seen {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

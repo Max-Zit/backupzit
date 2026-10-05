@@ -38,7 +38,7 @@
   <tr><td>Console backup: "console backups need network storage"</td><td>Choose an SFTP, S3, SMB, Azure or hardened repository target; a local path of an agent is not reachable from the console.</td></tr>
   <tr><td>"Too many failed sign-ins"</td><td>Your address was blocked after repeated wrong passwords: by default for 30 minutes, longer for repeated blocks. An administrator can lift the block under <a href="/settings/security">Settings → Sign-in &amp; security</a>. On the server, <code>backupzit-server --unblock-ip all</code> lifts all blocks. Accounts are never locked permanently.</td></tr>
   <tr><td>Lost phone for two-factor sign-in</td><td>Use one of the recovery codes; otherwise an administrator resets two-factor on your user page. The last administrator can reset their password on the server with <code>backupzit-server --set-admin-password</code>.</td></tr>
-  <tr><td>"your directory account is not in any BackupZit group"</td><td>Add the user to one of the groups mapped under <a href="/settings/ldap">Settings → LDAP</a>, or map more groups. Use <i>Test</i> there to see the groups found for a user.</td></tr>
+  <tr><td>"your directory account is not in any BackupZit group"</td><td>Add the user to one of the groups mapped under <a href="/settings/ldap">Settings → LDAP / Active Directory</a>, or map more groups. Use <i>Test</i> there to see the groups found for a user.</td></tr>
   <tr><td>API returns 401 / 403</td><td>401: token missing, revoked, expired or its owner disabled. 403: the token's role is too low for the request.</td></tr>
   <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Wrong account key, or the SAS token lacks read, write, delete or list permission or has expired.</td></tr>
   <tr><td>A restored Windows Server 2012 R2 / Windows 8.1 VM does not boot on Hyper-V Gen 2 ("hash was denied (DBX)")</td><td>Microsoft revoked the old boot loader for Secure Boot. Turn off Secure Boot for that VM, or update the system before backing it up.</td></tr>
@@ -81,7 +81,7 @@
 
 <h2>FAQ</h2>
 <h3>Can I use NFS?</h3>
-<p>Yes: mount the NFS export on the agent (Linux: <code>/etc/fstab</code>) and use a <i>Local / mounted path</i> target such as <code>/mnt/nfs-backup</code>. For Windows machines, SMB is the better choice.</p>
+<p>To <b>back up</b> an NFS (or SMB) share, create a <a href="/docs/jobs#nas">NAS / file share</a> job; a Linux agent mounts the export for each run. To <b>store</b> backups on NFS, mount the export on the agent (Linux: <code>/etc/fstab</code>) and use a <i>Local / mounted path</i> target such as <code>/mnt/nfs-backup</code>; for Windows machines an SMB target is the better choice.</p>
 <h3>Can I move backups to another storage?</h3>
 <p>Copy the repository folder (or bucket prefix) as is — it is self-contained — and add a storage target pointing to the new location with the same recovery key.</p>
 <h3>Does deleting a job delete the backups?</h3>

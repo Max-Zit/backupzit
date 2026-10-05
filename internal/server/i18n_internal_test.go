@@ -2,6 +2,9 @@ package server
 
 import (
 	"net/http/httptest"
+	"regexp"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,7 +31,7 @@ func TestScheduleInSerbian(t *testing.T) {
 }
 
 func TestRequestLanguage(t *testing.T) {
-	for header, want := range map[string]string{"": "en", "sr-Latn-RS,sr;q=0.9": "sr", "hr-HR": "sr", "de-DE,en;q=0.8": "en"} {
+	for header, want := range map[string]string{"": "en", "sr-Latn-RS,sr;q=0.9": "sr", "hr-HR": "sr", "de-DE,en;q=0.8": "de", "fr-CA": "fr", "zh-CN,zh;q=0.9": "zh", "sk": "cs", "ko-KR,ko;q=0.9": "en"} {
 		r := httptest.NewRequest("GET", "/", nil)
 		r.Header.Set("Accept-Language", header)
 		if got := requestLanguage(r).Code; got != want {
@@ -81,6 +84,52 @@ func TestShorterRetention(t *testing.T) {
 	} {
 		if got := shorterRetention(c.old, c.cur); got != c.want {
 			t.Errorf("%v → %v: %v", c.old, c.cur, got)
+		}
+	}
+}
+
+// TestCatalogs keeps every language in step with the Serbian catalog: the
+// same texts, the same format verbs and as many plural forms as the
+// language's plural rule picks from.
+func TestCatalogs(t *testing.T) {
+	verbs := regexp.MustCompile(`%(\[\d+\])?[-+# 0]*\d*(\.\d+)?[a-z%]`)
+	sorted := func(s string) string {
+		v := verbs.FindAllString(s, -1)
+		sort.Strings(v)
+		return strings.Join(v, " ")
+	}
+	sr := languageByCode("sr")
+	for _, l := range languages {
+		if l.Code == "en" || l.Code == "sr" {
+			continue
+		}
+		want := map[string]int{"zh": 1, "ja": 1, "pl": 3, "cs": 3, "ru": 3}[l.Code]
+		if want == 0 {
+			want = 2
+		}
+		for k, s := range sr.msgs {
+			v, ok := l.msgs[k]
+			if !ok || v == "" {
+				t.Errorf("%s: %q not translated", l.Code, k)
+				continue
+			}
+			if strings.Contains(s, "|") {
+				if n := len(strings.Split(v, "|")); n != want {
+					t.Errorf("%s: %q has %d plural forms, want %d", l.Code, k, n, want)
+				}
+				for _, f := range strings.Split(v, "|") {
+					if sorted(f) != sorted(strings.Split(s, "|")[0]) {
+						t.Errorf("%s: %q form %q: format verbs differ", l.Code, k, f)
+					}
+				}
+			} else if sorted(v) != sorted(k) {
+				t.Errorf("%s: %q => %q: format verbs differ", l.Code, k, v)
+			}
+		}
+		for k := range l.msgs {
+			if _, ok := sr.msgs[k]; !ok {
+				t.Errorf("%s: %q is not in the Serbian catalog", l.Code, k)
+			}
 		}
 	}
 }

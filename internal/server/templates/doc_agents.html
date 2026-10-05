@@ -66,7 +66,7 @@ systemctl enable --now backupzit-agent</pre>
 <p>The console offers the newest installers in its <code>dist</code> directory; the server package ships the agent installers of its own version. After the console was updated from <a href="/settings/updates">Settings → Updates</a>, the agents are updated automatically (can be turned off there). Updates from the console work for agents from version 0.21 on; older agents are updated once by installing the newer MSI / package over the old one (the enrollment is kept). The installer log is in <code>C:\ProgramData\backupzit\updates</code> or <code>/var/tmp/backupzit-updates</code>.</p>
 
 <h2>Removing an agent</h2>
-<p><b>Remove</b> on the Agents page deletes the agent and its jobs from the console. Backups on the storage are <b>not</b> deleted. Uninstall the software on the machine separately.</p>
+<p><b>Remove</b> on the Agents page deletes the agent and its jobs from the console. With <a href="/docs/users">four-eyes approval</a> on, a second user has to approve it first. Backups on the storage are <b>not</b> deleted. Uninstall the software on the machine separately.</p>
 
 <h2>Where the agent keeps its configuration</h2>
 <ul>

@@ -18,6 +18,11 @@ document.addEventListener("change", function (e) {
 });
 document.addEventListener("DOMContentLoaded", syncKind);
 
+// Selects that apply at once (the language switch).
+document.addEventListener("change", function (e) {
+  if (e.target.matches && e.target.matches("select[data-autosubmit]")) e.target.form.submit();
+});
+
 // Copy buttons: <button data-copy="#id">
 document.addEventListener("click", function (e) {
   var sel = e.target.getAttribute && e.target.getAttribute("data-copy");

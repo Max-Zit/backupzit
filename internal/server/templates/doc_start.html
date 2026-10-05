@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Getting started</h1>
-<p class="lead">BackupZit protects Windows and Linux machines and Proxmox VE, Hyper-V and VMware ESXi virtual machines — files, whole disks and whole systems — from one web console that runs on your own network.</p>
+<p class="lead">BackupZit protects Windows and Linux machines, Proxmox VE, Hyper-V and VMware ESXi virtual machines, databases (SQL Server, PostgreSQL, MySQL/MariaDB) and NAS shares — files, whole disks and whole systems — from one web console that runs on your own network.</p>
 
 <h2>What BackupZit protects</h2>
 <table>
@@ -12,7 +12,7 @@
   <tr><td>VMware ESXi VMs</td><td>Any agent works as proxy, <b>nothing installed on ESXi or in the VMs</b>; quiesced snapshots, changed block tracking reads only changed blocks. <a href="/docs/vmware">VMware ESXi</a></td><td>Whole VM as new or in place (keeps UUID and MAC addresses), on any host and datastore; single files.</td></tr>
   <tr><td>NAS and file shares (SMB, NFS)</td><td>No software on the NAS: an agent on any machine reads the share. <a href="/docs/jobs">Backup jobs</a></td><td>Files and folders back onto the share, into a folder or as a download.</td></tr>
   <tr><td>Databases: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent on the database machine; the server's own tools, full and log backups. <a href="/docs/sql">Databases</a></td><td>A single database under a new name or in place, to any point in time covered by log backups.</td></tr>
-  <tr><td>Proxmox VE VMs and containers</td><td>Agent on the Proxmox host, <b>no agent inside the guests</b>; from Proxmox snapshots, only changed blocks uploaded. <a href="/docs/proxmox">Proxmox VE</a></td><td>Whole guest as new or in place, on any node and storage; VMs instantly from the backup (instant recovery); single files from VM disks (NTFS, ext4, XFS, LVM) by download or to an agent.</td></tr>
+  <tr><td>Proxmox VE VMs and containers</td><td>Agent on the Proxmox host, <b>no agent inside the guests</b>; from Proxmox snapshots, only changed blocks uploaded. <a href="/docs/proxmox">Proxmox VE</a></td><td>Whole guest as new or in place, on any node and storage; VMs instantly from the backup (instant recovery, also on VMware ESXi); single files from VM disks (NTFS, ext4, XFS, LVM) by download or to an agent.</td></tr>
 </table>
 
 <h2>How BackupZit works</h2>
@@ -24,11 +24,11 @@
 <div class="callout tip"><p>Backup data never passes through the console. The console only coordinates, so it can run on a small virtual machine.</p></div>
 
 <h2>First steps</h2>
-<p>To set up a new console, install the <b>BackupZit appliance ISO</b> in a small VM. It installs everything without questions; see <a href="/docs/install">Installing the server</a>.</p>
+<p>To set up a new console, import the ready-made appliance image into a small VM, boot the appliance ISO, or run the install script on an existing Linux server; see <a href="/docs/install">Installing the server</a>.</p>
 <ol>
   <li><b>Add a storage target</b> under <a href="/targets">Storage</a>. Keep <i>Encrypt backups</i> enabled and save the recovery sheet that is shown afterwards in a safe place. See <a href="/docs/storage">Storage targets</a>.</li>
   <li><b>Install agents</b>: under <a href="/agents">Agents</a> click <i>Create enrollment token</i>, download the installer from the same page and paste the enrollment code when the Windows installer asks for it (Linux: <code>backupzit-agent enroll --code …</code>). For VMs install the agent on the Proxmox or Hyper-V host; add VMware ESXi hosts under Agents → VMware ESXi hosts. See <a href="/docs/agents">Agents</a>.</li>
-  <li><b>Create a backup job</b> under <a href="/jobs">Backup jobs</a>: choose the agent, the storage, what to back up (files, a disk image, the whole Linux system or the VMs of a Proxmox, Hyper-V or VMware ESXi host), when to run and how many backups to keep. See <a href="/docs/jobs">Backup jobs &amp; schedules</a>.</li>
+  <li><b>Create a backup job</b> under <a href="/jobs">Backup jobs</a>: choose the agent, the storage, what to back up (files, a NAS share, a disk image, databases, the whole Linux system or the VMs of a Proxmox, Hyper-V or VMware ESXi host), when to run and how many backups to keep. See <a href="/docs/jobs">Backup jobs &amp; schedules</a>.</li>
   <li><b>Run it once manually</b> with <i>Run backup now</i> on the job page and check the result under <a href="/runs">Activity</a>.</li>
   <li><b>Test a restore</b> — a backup is only as good as its restore. Automatic restore tests run weekly; restore something by hand once too, with the <a href="/restore">restore wizard</a>. See <a href="/docs/restore">Restoring</a>.</li>
   <li><b>Prepare for disasters</b>: download the recovery ISOs and create a recovery code under <a href="/recovery">Recovery media</a>.</li>
@@ -39,22 +39,23 @@
 <table>
   <tr><th>Page</th><th>What it is for</th></tr>
   <tr><td><a href="/">Dashboard</a></td><td>Health at a glance: what is protected, what needs attention, agents online, failures in the last 24 hours, suspicious backups, recent activity.</td></tr>
-  <tr><td><a href="/jobs">Backup jobs</a></td><td>File, disk image, Linux system, virtual machine, SQL Server and backup copy jobs: create, edit, run, test restore, disable, delete. The list shows each job's type, the VMs or databases it protects, the next run, the last result and the number of restore points; filter it by type or search it. A job's page lists the VMs or databases of its newest backup with links to restore them.</td></tr>
-  <tr><td><a href="/restore">Restore</a></td><td>Restore wizard: choose what to restore (VM, files, disk image, Linux system), the source, the restore point and the options. See <a href="/docs/restore">Restoring</a>.</td></tr>
+  <tr><td><a href="/jobs">Backup jobs</a></td><td>File, NAS share, disk image, Linux system, virtual machine, database and backup copy jobs: create, edit, run, test restore, disable, delete. The list shows each job's type, the VMs or databases it protects, the next run, the last result and the number of restore points; filter it by type or search it. A job's page lists the VMs or databases of its newest backup with links to restore them.</td></tr>
+  <tr><td><a href="/restore">Restore</a></td><td>Restore wizard: choose what to restore (VM, files, disk image, database, Linux system), the source, the restore point and the options. See <a href="/docs/restore">Restoring</a>.</td></tr>
   <tr><td><a href="/runs">Activity</a></td><td>Every backup, copy, restore test and restore with details, statistics and errors. Restores and file browsing can also be started here.</td></tr>
   <tr><td><a href="/calendar">Calendar</a></td><td>What ran on past days and what is scheduled to run in the future.</td></tr>
   <tr><td><a href="/reports">Reports</a></td><td>Success rates and data volumes for any period, CSV export, emailed and scheduled reports.</td></tr>
   <tr><td><a href="/agents">Agents</a></td><td>Protected machines with IP addresses and versions, enrollment codes, installers and agent updates.</td></tr>
-  <tr><td><a href="/targets">Storage</a></td><td>Where backups are stored, encryption and recovery keys, immutability.</td></tr>
+  <tr><td><a href="/targets">Storage</a></td><td>Where backups are stored, encryption and recovery keys, immutability, used space with its forecast.</td></tr>
   <tr><td><a href="/recovery">Recovery media</a></td><td>Recovery ISOs (Windows for disk images, Linux for Linux systems) and recovery codes for bare-metal restores.</td></tr>
+  <tr><td><a href="/approvals">Approvals</a></td><td>Shown when four-eyes approval is on: changes that wait for a second user. See <a href="/docs/users">Users, roles &amp; LDAP</a>.</td></tr>
   <tr><td><a href="/users">Users</a></td><td>Accounts, roles, API tokens of all users, audit log.</td></tr>
-  <tr><td><a href="/settings/email">Settings</a></td><td>Email notifications; sign-in sessions, two-factor policy and stored secrets; LDAP / Active Directory; automatic restore tests.</td></tr>
+  <tr><td><a href="/settings/email">Settings</a></td><td>Email notifications; Slack, Teams and webhooks; sign-in sessions, two-factor policy, brute-force protection, four-eyes approval and stored secrets; restore tests; the HTTPS certificate for browsers; updates of BackupZit and the operating system; backup of the console itself; LDAP / Active Directory.</td></tr>
   <tr><td><a href="/account">My account</a> (your name, top right)</td><td>Your profile and role, password, two-factor authentication, API tokens.</td></tr>
   <tr><td><a href="/docs">Documentation</a></td><td>This guide.</td></tr>
 </table>
 
 <h3>Language</h3>
-<p>The console is available in English and Serbian (Latin script). Switch with <b>EN / SR</b> at the top right or on the sign-in page; the choice is remembered in the browser. Without a choice, the browser's language decides (Serbian, Croatian, Bosnian and Montenegrin browsers get Serbian, all others English). This guide, emails, chat notifications and messages reported by the agents stay in English.</p>
+<p>The console is available in 14 languages: English, German, French, Spanish, Italian, Portuguese (Brazil), Dutch, Polish, Czech, Serbian (Latin script), Turkish, Russian, Chinese (Simplified) and Japanese. Pick one in the language list at the top right or on the sign-in page; the choice is remembered in the browser. Without a choice, the browser's language decides (Croatian, Bosnian and Montenegrin browsers get Serbian, Slovak browsers Czech, other languages English). This guide, emails, chat notifications and messages reported by the agents stay in English.</p>
 <p>The translations are in <code>internal/server/i18n/sr.json</code> in the source code: the English text is the key, the translation its value. <code>go run ./tools/i18n missing sr</code> lists texts without a translation; untranslated texts are shown in English.</p>
 
 <h2>Key concepts</h2>

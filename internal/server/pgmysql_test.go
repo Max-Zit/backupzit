@@ -107,7 +107,7 @@ func TestPostgresAndMySQLJobs(t *testing.T) {
 	// A gap (segment 7 missing): later WAL cannot be used.
 	logRun(pg.ID, `{"sql":{"engine":"postgres","kind":"log","databases":[`+entry("(wal)", "000000010000000000000008", "000000010000000000000008", t0.Add(30*time.Minute))+`]}}`)
 	_, _, body := admin.do("GET", fmt.Sprintf("/runs/%d", full), nil)
-	if !strings.Contains(body, "Whole PostgreSQL cluster") || !strings.Contains(body, "2026-10-05 10:15") || strings.Contains(body, "10:30:00") || !strings.Contains(body, "Port") {
+	if !strings.Contains(body, "Whole PostgreSQL cluster") || !strings.Contains(body, "2026-10-05 10:15") || strings.Contains(body, "10:30:00") || !strings.Contains(body, "Port <small>") {
 		t.Error("pg restore form: cluster option, WAL range or port missing")
 	}
 	if _, loc, _ := admin.do("POST", fmt.Sprintf("/runs/%d/restore", full), url.Values{"kind": {"sql"}, "database": {"(cluster)"}, "agent_id": {fmt.Sprint(a.ID)},
@@ -149,7 +149,7 @@ func TestPostgresAndMySQLJobs(t *testing.T) {
 		entry("shop", "mysql-bin.000003:157", "mysql-bin.000003:157", t0) + `,` + entry("hr", "", "", t0) + `]}}`)})
 	logRun(my.ID, `{"sql":{"engine":"mysql","kind":"log","databases":[`+entry("(binlog)", "mysql-bin.000003", "mysql-bin.000004", t0.Add(20*time.Minute))+`]}}`)
 	_, _, body = admin.do("GET", fmt.Sprintf("/runs/%d", mfull), nil)
-	if !strings.Contains(body, "2026-10-05 10:20") || strings.Contains(body, "Port") || strings.Contains(body, "Whole PostgreSQL cluster") {
+	if !strings.Contains(body, "2026-10-05 10:20") || strings.Contains(body, "Port <small>") || strings.Contains(body, "Whole PostgreSQL cluster") {
 		t.Error("mysql restore form wrong")
 	}
 	// hr has no binary log position: no point in time.

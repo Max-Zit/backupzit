@@ -26,4 +26,7 @@ else
     go run ./tools/release sign -key "$KEY" -version "$VERSION" -dir "$OUT"
     gh release create "v$VERSION" --repo Max-Zit/backupzit --title "BackupZit $VERSION" --notes "BackupZit $VERSION" "$OUT"/*
 fi
+# The install script for existing servers (not part of the signed manifest:
+# it checks the signature of the release itself).
+gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber packaging/install.sh
 echo "published v$VERSION"
