@@ -3,3 +3,5 @@
 package agent
 
 func MarkEnrolled() {}
+
+func UnmarkEnrolled() {}

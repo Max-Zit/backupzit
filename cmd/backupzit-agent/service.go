@@ -243,3 +243,21 @@ func cmdSetServer(ctx context.Context, args []string) error {
 	fmt.Printf("console address changed from %s to %s; restart the agent service to use it\n", old, cfg.ServerURL)
 	return nil
 }
+
+// cmdForget is run by the uninstaller: the enrollment is set aside (renamed,
+// not deleted), so a new installation asks for an enrollment code again.
+func cmdForget(args []string) error {
+	fs := flag.NewFlagSet("forget", flag.ExitOnError)
+	cfgPath := fs.String("config", agent.DefaultConfigPath(), "agent configuration file")
+	fs.Parse(args)
+	agent.UnmarkEnrolled()
+	if _, err := os.Stat(*cfgPath); err != nil {
+		return nil
+	}
+	kept := *cfgPath + ".removed-" + time.Now().Format("20060102-150405")
+	if err := os.Rename(*cfgPath, kept); err != nil {
+		return err
+	}
+	fmt.Println("enrollment set aside in", kept)
+	return nil
+}

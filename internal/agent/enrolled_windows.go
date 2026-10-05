@@ -13,3 +13,14 @@ func MarkEnrolled() {
 	defer k.Close()
 	k.SetDWordValue("Enrolled", 1)
 }
+
+// UnmarkEnrolled removes the installer's mark (uninstall), so the next
+// installation asks for an enrollment code again.
+func UnmarkEnrolled() {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\BackupZit\Agent`, registry.SET_VALUE)
+	if err != nil {
+		return
+	}
+	defer k.Close()
+	k.DeleteValue("Enrolled")
+}

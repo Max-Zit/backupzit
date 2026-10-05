@@ -234,6 +234,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdPrepareHardware(ctx, rest)
 	case "disks":
 		return cmdDisks(rest)
+	case "forget":
+		return cmdForget(rest)
 	case "set-server":
 		return cmdSetServer(ctx, rest)
 	case "enroll":

@@ -89,5 +89,6 @@ systemctl enable --now backupzit-agent</pre>
 
 <h2>Uninstalling</h2>
 <p>Windows: <i>Settings → Apps → BackupZit Agent → Uninstall</i> (or <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Then remove the agent in the console. Backups stay on the storage.</p>
+<p>On Windows, uninstalling sets the enrollment aside (<code>C:\ProgramData\backupzit\agent.json.removed-<i>date</i></code>), so installing the agent again asks for an enrollment code. If the installer finds an enrollment of an earlier version, it says so: leave the code empty to keep it, or paste a new code to enroll the computer again (for example with another console).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

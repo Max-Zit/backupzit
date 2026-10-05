@@ -9,7 +9,10 @@
   (older form: SERVER="https://backup:8443" TOKEN="..." FINGERPRINT="SHA256:...")
 
   If the console cannot be reached during installation, the service keeps
-  trying to enroll. Upgrades keep the existing enrollment.
+  trying to enroll. Upgrades keep the existing enrollment. Uninstalling sets
+  the enrollment aside (agent.json.removed-*), so a new installation asks for
+  a code; on a computer enrolled before, the dialog keeps the old enrollment
+  unless a new code is pasted.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util"
@@ -96,6 +99,16 @@
                   FileRef="AgentExeFile"
                   ExeCommand="enroll --if-not-enrolled --pending-ok --code &quot;[ENROLLCODE]&quot;"
                   Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" />
+    <!-- A code pasted interactively on a computer enrolled before replaces that enrollment. -->
+    <CustomAction Id="EnrollCodeForce"
+                  FileRef="AgentExeFile"
+                  ExeCommand="enroll --force --pending-ok --code &quot;[ENROLLCODE]&quot;"
+                  Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" />
+    <!-- Uninstall (not upgrade): set the enrollment aside, so a new installation asks for a code. -->
+    <CustomAction Id="ForgetEnrollment"
+                  FileRef="AgentExeFile"
+                  ExeCommand="forget"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
     <CustomAction Id="Enroll"
                   FileRef="AgentExeFile"
                   ExeCommand="enroll --if-not-enrolled --pending-ok --server &quot;[SERVER]&quot; --token &quot;[TOKEN]&quot; --fingerprint &quot;[FINGERPRINT]&quot;"
@@ -106,7 +119,9 @@
                   Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" />
 
     <InstallExecuteSequence>
-      <Custom Action="EnrollCode" Before="StartServices" Condition="ENROLLCODE AND NOT REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="EnrollCode" Before="StartServices" Condition="ENROLLCODE AND NOT (ALREADYENROLLED AND UILevel &gt;= 5) AND NOT REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="EnrollCodeForce" Before="StartServices" Condition="ENROLLCODE AND ALREADYENROLLED AND UILevel &gt;= 5 AND NOT REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="ForgetEnrollment" Before="RemoveFiles" Condition="REMOVE~=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="Enroll" Before="StartServices" Condition="TOKEN AND NOT ENROLLCODE AND NOT FORCEENROLL AND NOT REMOVE~=&quot;ALL&quot;" />
       <Custom Action="EnrollForce" Before="StartServices" Condition="TOKEN AND NOT ENROLLCODE AND FORCEENROLL AND NOT REMOVE~=&quot;ALL&quot;" />
     </InstallExecuteSequence>
@@ -139,13 +154,15 @@
         <Control Id="CodeEdit" Type="Edit" X="135" Y="120" Width="220" Height="18" Property="ENROLLCODE" Text="{1024}" />
         <Control Id="Skip" Type="CheckBox" X="135" Y="148" Width="220" Height="17" Property="SKIPENROLL" CheckBoxValue="1"
                  Text="Enroll later (backupzit-agent enroll --code ...)" />
-        <Control Id="Hint" Type="Text" X="135" Y="172" Width="220" Height="50" Transparent="yes" NoPrefix="yes"
+        <Control Id="Hint" Type="Text" X="135" Y="172" Width="220" Height="50" Transparent="yes" NoPrefix="yes" HideCondition="ALREADYENROLLED"
                  Text="The code contains the console address and the certificate fingerprint the agent checks, so it cannot connect to a wrong server." />
+        <Control Id="Already" Type="Text" X="135" Y="172" Width="220" Height="56" Transparent="yes" NoPrefix="yes" HideCondition="NOT ALREADYENROLLED"
+                 Text="This computer was enrolled before. Leave the code empty to keep that enrollment, or paste a new code to enroll it again." />
         <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Disabled="yes" Text="!(loc.WixUIBack)" />
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="Install">
-          <Publish Event="SpawnDialog" Value="BadCodeDlg" Condition="NOT SKIPENROLL AND NOT (ENROLLCODE &lt;&lt; &quot;BZ1-&quot;)" />
-          <Publish Event="EndDialog" Value="Return" Condition="SKIPENROLL OR (ENROLLCODE &lt;&lt; &quot;BZ1-&quot;)" />
+          <Publish Event="SpawnDialog" Value="BadCodeDlg" Condition="NOT SKIPENROLL AND NOT (ENROLLCODE &lt;&lt; &quot;BZ1-&quot;) AND NOT (ALREADYENROLLED AND NOT ENROLLCODE)" />
+          <Publish Event="EndDialog" Value="Return" Condition="SKIPENROLL OR (ENROLLCODE &lt;&lt; &quot;BZ1-&quot;) OR (ALREADYENROLLED AND NOT ENROLLCODE)" />
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
           <Publish Event="SpawnDialog" Value="CancelDlg" />
@@ -161,7 +178,7 @@
       </Dialog>
 
       <InstallUISequence>
-        <Show Dialog="EnrollDlg" Before="ProgressDlg" Condition="NOT Installed AND NOT ENROLLCODE AND NOT TOKEN AND NOT ALREADYENROLLED" />
+        <Show Dialog="EnrollDlg" Before="ProgressDlg" Condition="NOT Installed AND NOT ENROLLCODE AND NOT TOKEN" />
       </InstallUISequence>
     </UI>
     <UIRef Id="WixUI_Common" />
