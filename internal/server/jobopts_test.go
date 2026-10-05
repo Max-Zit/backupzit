@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -67,6 +68,43 @@ func TestJobEditAndCommands(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(statusFile); strings.TrimSpace(string(b)) != "success" {
 		t.Errorf("command after the backup wrote %q", b)
+	}
+
+	// Compression: the run shows the ratio; with "off" new data is stored
+	// as it is, with "max" it is compressed (checked with compressible text).
+	if _, _, body := admin.do("GET", fmt.Sprintf("/runs/%d", runID), nil); !strings.Contains(body, "Compression") {
+		t.Error("run page lacks the compression ratio")
+	}
+	for i, level := range []string{"off", "max"} {
+		text := strings.Repeat(fmt.Sprintf("level %s: the same words again and again %d\n", level, i), 6000)
+		os.WriteFile(filepath.Join(src, "log-"+level+".txt"), []byte(text), 0o644)
+		v := url.Values{"name": {"docs"}, "paths": {src}, "sched_kind": {"manual"}, "keep_last": {"5"}, "compression": {level}, "pre_command": {pre}, "post_command": {post}}
+		if _, loc, _ := admin.do("POST", fmt.Sprintf("/jobs/%d/edit", j.ID), v); !strings.Contains(loc, "msg=") {
+			t.Fatalf("edit compression: %s", loc)
+		}
+		if j2, _ := e.store.GetJob(ctx, j.ID); j2.Options.Compression != level {
+			t.Fatalf("compression not stored: %q", j2.Options.Compression)
+		}
+		id, _ := e.store.QueueBackup(ctx, j.ID, "manual")
+		runAgent(t, ag)
+		r, _ := e.store.GetRun(ctx, id)
+		var st struct {
+			Added  uint64 `json:"bytes_added"`
+			Stored uint64 `json:"bytes_stored"`
+		}
+		json.Unmarshal(r.Stats, &st)
+		if r.Status != api.StatusSuccess || st.Added < uint64(len(text)) {
+			t.Fatalf("%s: %s %s", level, r.Status, r.Stats)
+		}
+		if level == "off" && st.Stored < st.Added {
+			t.Errorf("off: %d stored for %d new bytes", st.Stored, st.Added)
+		}
+		if level == "max" && st.Stored*10 > st.Added {
+			t.Errorf("max: %d stored for %d new bytes", st.Stored, st.Added)
+		}
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/jobs/%d/edit", j.ID), url.Values{"name": {"docs"}, "paths": {src}, "sched_kind": {"manual"}, "keep_last": {"5"}, "compression": {"best"}}); !strings.Contains(loc, "err=") {
+		t.Errorf("unknown compression level accepted: %s", loc)
 	}
 
 	// A failing command before the backup stops it.

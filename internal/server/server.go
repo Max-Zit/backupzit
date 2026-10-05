@@ -120,6 +120,8 @@ var funcs = template.FuncMap{
 		return ""
 	},
 	"bytes": humanBytes,
+	"ratio":  compressionRatio,
+	"saved":  dedupSaved,
 	"signedbytes": func(f float64) string {
 		if f < 0 {
 			return "−" + humanBytes(uint64(-f))

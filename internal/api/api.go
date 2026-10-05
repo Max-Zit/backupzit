@@ -219,6 +219,8 @@ type Repository struct {
 	HardenedFingerprint string `json:"hardened_fingerprint,omitempty"`
 	// Password unlocks (or, for a new repository, encrypts) the repository.
 	Password string `json:"password,omitempty"`
+	// Compression of new data: "" (default), "off", "fast" or "max" (job option).
+	Compression string `json:"compression,omitempty"`
 }
 
 // Run statuses.

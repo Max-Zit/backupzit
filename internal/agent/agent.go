@@ -421,6 +421,11 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 		cleanup()
 		return nil, nil, err
 	}
+	if rs.Compression != "" {
+		if err := r.SetCompression(rs.Compression); err != nil {
+			a.log.Warn("compression level ignored", "err", err)
+		}
+	}
 	return r, func() { r.Close(); cleanup() }, nil
 }
 

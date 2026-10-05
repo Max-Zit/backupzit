@@ -90,6 +90,7 @@
     <div class="stat"><b>{{bytes .BytesAdded}}</b><span>{{T "new data"}}</span></div>
     <div class="stat"><b>{{bytes .BytesStored}}</b><span>{{T "uploaded (compressed)"}}</span></div>
   </div>
+  {{template "savings" .}}
   {{end}}
   <div class="panel">
     <h2>{{if eq $.Data.VMPlatform "hyperv"}}{{T "Hyper-V virtual machines"}}{{else if eq $.Data.VMPlatform "vmware"}}{{T "VMware virtual machines"}}{{else}}{{T "Proxmox VMs and containers"}}{{end}}</h2>
@@ -107,6 +108,7 @@
     <div class="stat"><b>{{bytes .BytesAdded}}</b><span>{{T "new data"}}</span></div>
     <div class="stat"><b>{{bytes .BytesStored}}</b><span>{{T "uploaded (compressed)"}}</span></div>
   </div>
+  {{template "savings" .}}
   {{end}}
   {{with .Data.Image}}
   <div class="panel">
@@ -136,6 +138,7 @@
     <div class="stat"><b>{{bytes .BytesRead}}</b><span>{{T "read"}}</span></div>
     <div class="stat"><b>{{bytes .BytesStored}}</b><span>{{T "uploaded (new data)"}}</span></div>
   </div>
+  {{template "savings" .}}
   {{end}}
 {{end}}
 {{with .Data.TestStats}}

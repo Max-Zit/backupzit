@@ -64,13 +64,25 @@
 </ul>
 
 <h2>Changing a job</h2>
-<p>Open the job and expand <b>Edit job</b>. You can change the name, the folders and exclusions (file jobs), the VMs (VM jobs), the schedule, the retention, the speed limit and the commands. The agent, the storage target and the disk of an image job stay as they are, so the job's backups remain one chain; to move a job, create a new one — with a copy job if older backups should come along. Changes apply from the next run and are recorded in the <a href="/audit">audit log</a>. With <a href="/docs/users">four-eyes approval</a> on, a shorter retention waits for a second user's approval; the other changes are saved at once.</p>
+<p>Open the job and expand <b>Edit job</b>. You can change the name, the folders and exclusions (file jobs), the VMs (VM jobs), the schedule, the retention, the speed limit, the compression level and the commands. The agent, the storage target and the disk of an image job stay as they are, so the job's backups remain one chain; to move a job, create a new one — with a copy job if older backups should come along. Changes apply from the next run and are recorded in the <a href="/audit">audit log</a>. With <a href="/docs/users">four-eyes approval</a> on, a shorter retention waits for a second user's approval; the other changes are saved at once.</p>
 
 <h2>Replicas (Proxmox VE)</h2>
 <p>Proxmox VM jobs can keep stopped, up-to-date copies of their guests on a node of your choice, started with one click if a guest is lost — see <a href="/docs/proxmox">Proxmox VE → Replication</a>.</p>
 
 <h2>Speed limit</h2>
 <p>Under <b>Advanced</b> in the job form, <b>Limit the upload speed</b> caps how fast the agent sends data to the storage, in MB/s — for example 10 MB/s from 08:00 to 18:00, so backups during working hours leave the office line usable; outside the window the job runs at full speed. The hours are the agent's local time, and a window may span midnight (22:00 to 06:00). The limit applies to backups and to copy jobs (the upload to the second storage), not to restores: a restore always runs at full speed.</p>
+
+<h2 id="compression">Compression and deduplication</h2>
+<p>Every backup is deduplicated: data that is already in the repository — from earlier backups of the same job, or from other jobs on the same storage target — is not stored again. New data is then compressed with zstd; pieces that do not get smaller (video, archives, encrypted files) are stored as they are. Encryption comes after compression.</p>
+<p>The compression level is a job setting (<b>Edit job → Advanced</b>):</p>
+<table>
+  <tr><th>Level</th><th>When to use it</th></tr>
+  <tr><td>Standard (recommended)</td><td>Good compression at high speed; fits almost every job.</td></tr>
+  <tr><td>Fast</td><td>Uses less CPU on busy or weak machines; backups are slightly larger.</td></tr>
+  <tr><td>Maximum</td><td>Usually 5–15 % smaller than standard, but several times slower to compress. For slow uplinks and paid cloud storage, when the machine has CPU to spare.</td></tr>
+  <tr><td>Off</td><td>For data that is already compressed: saves CPU without making backups larger.</td></tr>
+</table>
+<p>The level applies to new data from the next run; existing backups stay as they are, and restoring never depends on it. The run page shows the result: the compression ratio of the new data (e.g. <i>2.4×</i>) and how much of the data read was already stored (deduplication).</p>
 
 <h2>Commands before and after the backup</h2>
 <p>Administrators can let a job run a command on the agent before and after each backup — for example a database dump, stopping a service for a consistent copy, or a notification:</p>
@@ -96,6 +108,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 <p>If a backup of the job looked like ransomware or mass deletion, the job page shows <i>Retention is paused</i>: no backups are removed until someone checks the machine and clicks <i>Reviewed — resume retention</i> (with four-eyes approval on, a second user has to approve it). See <a href="/docs/ransomware">Ransomware protection</a>.</p>
 
 <h2>What a backup run reports</h2>
-<p>Open a run in <a href="/runs">Activity</a>: number of files, new/changed files, data read, new data uploaded (after deduplication and compression), duration, and any files that could not be read. A run with unreadable files ends with status <b>warning</b> — the rest of the data is backed up.</p>
+<p>Open a run in <a href="/runs">Activity</a>: number of files, new/changed files, data read, new data uploaded (after deduplication and compression, with the compression ratio and the share already stored — see <a href="#compression">Compression</a>), duration, and any files that could not be read. A run with unreadable files ends with status <b>warning</b> — the rest of the data is backed up.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

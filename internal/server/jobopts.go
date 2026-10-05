@@ -44,6 +44,8 @@ type JobOptions struct {
 	NASUser     string `json:"nas_user,omitempty"`
 	NASDomain   string `json:"nas_domain,omitempty"`
 	NASPassword string `json:"nas_password,omitempty"`
+	// Compression of new data: "" (default), "off", "fast" or "max".
+	Compression string `json:"compression,omitempty"`
 }
 
 func (o JobOptions) Validate() error {
@@ -74,6 +76,11 @@ func (o JobOptions) Validate() error {
 	if len(o.SQLInstance) > 100 || strings.ContainsAny(o.SQLInstance, " \\/:;\"'\x00") {
 		return errors.New("enter the instance name only, e.g. SQLEXPRESS (empty for the default instance)")
 	}
+	switch o.Compression {
+	case repo.CompressionDefault, repo.CompressionOff, repo.CompressionFast, repo.CompressionMax:
+	default:
+		return errors.New("unknown compression level")
+	}
 	if o.CommandMinutes < 0 || o.CommandMinutes > 1440 {
 		return errors.New("the command time limit is between 1 and 1440 minutes")
 	}
@@ -100,6 +107,7 @@ func (o JobOptions) apply(ar *api.Run, kind string) {
 	if o.LimitMBps > 0 {
 		ar.Limit = &api.SpeedLimit{BytesPerSec: int64(o.LimitMBps) << 20, FromHour: o.LimitFrom, ToHour: o.LimitTo}
 	}
+	ar.Repository.Compression = o.Compression
 	if kind != api.KindCopy && o.HasCommands() {
 		min := o.CommandMinutes
 		if min == 0 {
@@ -230,6 +238,7 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	if r.FormValue("replicate") == "on" {
 		o.ReplicaAgentID, o.ReplicaStorage = formID(r, "replica_agent"), r.FormValue("replica_storage")
 	}
+	o.Compression = r.FormValue("compression")
 	o.NASURL = strings.TrimSpace(r.FormValue("nas_url"))
 	o.NASUser = strings.TrimSpace(r.FormValue("nas_user"))
 	o.NASDomain = strings.TrimSpace(r.FormValue("nas_domain"))

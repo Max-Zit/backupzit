@@ -63,8 +63,8 @@
         <label>{{T "At"}} <input type="time" name="sched_month_time" value="{{.MonthTime}}"></label>
       </div>
     </fieldset>
-    <details class="sched" {{if or .J.Options.LimitMBps .J.Options.HasCommands}}open{{end}}>
-      <summary>{{T "Advanced: speed limit"}}{{if and .CanCommands (ne .J.Kind "copy")}}{{T ", commands before and after the backup"}}{{end}}</summary>
+    <details class="sched" {{if or .J.Options.LimitMBps .J.Options.HasCommands .J.Options.Compression}}open{{end}}>
+      <summary>{{T "Advanced: speed limit, compression"}}{{if and .CanCommands (ne .J.Kind "copy")}}{{T ", commands before and after the backup"}}{{end}}</summary>
       <div class="row">
         <label>{{T "Limit the upload speed to (MB/s)"}} <small>{{T "0 or empty: no limit"}}</small><input type="number" name="limit_mbps" min="0" max="100000" value="{{if .J.Options.LimitMBps}}{{.J.Options.LimitMBps}}{{end}}"></label>
         <div>
@@ -77,6 +77,13 @@
         </div>
       </div>
       <small class="muted">{{T "For example 10 MB/s from 08:00 to 18:00 keeps the office line usable during working hours; outside the window the backup runs at full speed. Times are the agent's local time."}}</small>
+      <label class="mt">{{T "Compression"}} <small>{{T "of new data; existing backups stay as they are"}}</small>
+        <select name="compression">
+          <option value="" {{if eq .J.Options.Compression ""}}selected{{end}}>{{T "Standard (recommended)"}}</option>
+          <option value="fast" {{if eq .J.Options.Compression "fast"}}selected{{end}}>{{T "Fast — less CPU, slightly larger"}}</option>
+          <option value="max" {{if eq .J.Options.Compression "max"}}selected{{end}}>{{T "Maximum — smallest, several times slower; for slow uplinks and cloud storage"}}</option>
+          <option value="off" {{if eq .J.Options.Compression "off"}}selected{{end}}>{{T "Off — for data that is already compressed (video, archives)"}}</option>
+        </select></label>
       {{if and .ReplicaAgents (or (not .Edit) (and (eq .J.Kind "vm") (not .J.VMwareHostID)))}}{{$ra := .J.Options.ReplicaAgentID}}{{$rs := .J.Options.ReplicaStorage}}
       <div {{if not .Edit}}data-jobkind="vm" hidden{{end}} class="stack">
         <label class="check"><input type="checkbox" name="replicate" {{if $ra}}checked{{end}}> {{T "Keep replicas of the VMs"}} <small>{{T "Proxmox VE: after each backup, a stopped copy of every guest on the chosen node is brought up to date (only changed blocks are written). If a guest is lost, start its replica from the job page instead of restoring."}}</small></label>

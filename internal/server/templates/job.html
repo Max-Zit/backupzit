@@ -40,6 +40,7 @@
     <dt>{{T "Restore points"}}</dt><dd>{{.Points}}</dd>{{end}}
     {{if .Options.ReplicaAgentID}}<dt>{{T "Replicas"}}</dt><dd>{{T "kept up to date after each backup"}}{{if .Options.ReplicaStorage}}{{T ", on storage"}} {{.Options.ReplicaStorage}}{{end}}</dd>{{end}}
     {{if .Options.LimitMBps}}<dt>{{T "Speed limit"}}</dt><dd>{{.Options.LimitText}}</dd>{{end}}
+    {{with .Options.Compression}}<dt>{{T "Compression"}}</dt><dd>{{if eq . "off"}}{{T "off"}}{{else if eq . "fast"}}{{T "fast"}}{{else}}{{T "maximum"}}{{end}}</dd>{{end}}
     {{if .Options.HasCommands}}<dt>{{T "Commands"}}</dt><dd>{{if $.Me.Can "settings"}}{{if .Options.PreCommand}}{{T "before:"}} <span class="mono">{{.Options.PreCommand}}</span><br>{{end}}{{if .Options.PostCommand}}{{T "after:"}} <span class="mono">{{.Options.PostCommand}}</span>{{end}}{{else}}{{T "runs commands before or after the backup"}}{{end}}</dd>{{end}}
   </dl>
 </div>

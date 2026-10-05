@@ -55,11 +55,12 @@ type Repository struct {
 	// aead encrypts all stored data; nil for unencrypted repositories.
 	aead cipher.AEAD
 
-	mu        sync.Mutex
-	pack      *packBuilder
-	pending   map[BlobHandle]struct{}
-	unindexed []indexPack // packs uploaded since the last index write
-	stats     WriteStats
+	mu         sync.Mutex
+	pack       *packBuilder
+	pending    map[BlobHandle]struct{}
+	unindexed  []indexPack // packs uploaded since the last index write
+	stats      WriteStats
+	noCompress bool // store new blobs uncompressed (SetCompression("off"))
 }
 
 // WriteStats counts what this session wrote to the backend.
@@ -252,9 +253,12 @@ func (r *Repository) SaveBlob(ctx context.Context, t BlobType, data []byte) (ID,
 		return id, false, nil
 	}
 
-	stored := r.enc.EncodeAll(data, nil)
+	var stored []byte
+	if !r.noCompress {
+		stored = r.enc.EncodeAll(data, nil)
+	}
 	rawLen := len(data)
-	if len(stored) >= len(data) {
+	if r.noCompress || len(stored) >= len(data) {
 		stored, rawLen = data, 0
 	}
 	stored = r.seal(stored)
@@ -573,4 +577,41 @@ func (r *Repository) BlobLength(id ID) (int, bool) {
 		n -= r.aead.NonceSize() + r.aead.Overhead()
 	}
 	return n, true
+}
+
+// Compression levels of new data (Job options): "" is the default.
+const (
+	CompressionDefault = ""
+	CompressionOff     = "off"
+	CompressionFast    = "fast"
+	CompressionMax     = "max"
+)
+
+// SetCompression chooses how new blobs are compressed. Reading never
+// depends on it: every blob records whether it is compressed.
+func (r *Repository) SetCompression(level string) error {
+	var lvl zstd.EncoderLevel
+	switch level {
+	case CompressionDefault:
+		lvl = zstd.SpeedDefault
+	case CompressionFast:
+		lvl = zstd.SpeedFastest
+	case CompressionMax:
+		lvl = zstd.SpeedBestCompression
+	case CompressionOff:
+		r.mu.Lock()
+		r.noCompress = true
+		r.mu.Unlock()
+		return nil
+	default:
+		return fmt.Errorf("unknown compression level %q", level)
+	}
+	enc, err := zstd.NewWriter(nil, zstd.WithEncoderLevel(lvl), zstd.WithEncoderConcurrency(1))
+	if err != nil {
+		return err
+	}
+	r.mu.Lock()
+	r.enc, r.noCompress = enc, false
+	r.mu.Unlock()
+	return nil
 }
