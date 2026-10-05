@@ -66,6 +66,7 @@
   <a href="/settings/security" class="{{if eq .Data.Tab "security"}}on{{end}}">{{template "icon" "lock"}}<span>{{T "Sign-in & security"}}<small>{{T "Sessions, two-factor, four-eyes, secrets"}}</small></span></a>
   <a href="/settings/tests" class="{{if eq .Data.Tab "tests"}}on{{end}}">{{template "icon" "check"}}<span>{{T "Restore tests"}}<small>{{T "Prove backups are restorable"}}</small></span></a>
   <a href="/settings/certificate" class="{{if eq .Data.Tab "certificate"}}on{{end}}">{{template "icon" "shield"}}<span>{{T "Certificate"}}<small>{{T "HTTPS for browsers"}}</small></span></a>
+  <a href="/settings/network" class="{{if eq .Data.Tab "network"}}on{{end}}">{{template "icon" "settings"}}<span>{{T "Network"}}<small>{{T "Address, server name, SSH"}}</small></span></a>
   <a href="/settings/updates" class="{{if eq .Data.Tab "updates"}}on{{end}}">{{template "icon" "download"}}<span>{{T "Updates"}}<small>{{T "New versions of BackupZit"}}</small></span></a>
   <a href="/settings/console" class="{{if eq .Data.Tab "console"}}on{{end}}">{{template "icon" "storage"}}<span>{{T "Console backup"}}<small>{{T "Back up the console itself"}}</small></span></a>
   <a href="/settings/ldap" class="{{if eq .Data.Tab "ldap"}}on{{end}}">{{template "icon" "users"}}<span>{{T "LDAP / Active Directory"}}<small>{{T "Directory sign-in and roles"}}</small></span></a>

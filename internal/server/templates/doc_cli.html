@@ -109,6 +109,7 @@
 <table>
   <tr><th>Command</th><th>What it does</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Connect the agent to a console with the enrollment code from the Agents page (<code>--force</code> replaces an existing enrollment). The older form <code>--server URL --token T --fingerprint F</code> still works.</td></tr>
+  <tr><td><code>set-server https://address:8443</code></td><td>Point an enrolled agent at a new address of the console (same certificate); restart the agent service afterwards. See <a href="/docs/agents#new-address">Agents</a>.</td></tr>
   <tr><td><code>status</code></td><td>Show what the running agent is doing and its backup jobs (the Windows tray icon shows the same).</td></tr>
   <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Manage the agent service (the installers do this).</td></tr>
   <tr><td><code>recovery</code></td><td>Recovery mode, started automatically by the recovery ISOs; on any Linux live system: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>

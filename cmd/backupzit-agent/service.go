@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -208,5 +209,37 @@ func cmdService(args []string) error {
 		return err
 	}
 	fmt.Printf("service %s: %s ok\n", serviceName, action)
+	return nil
+}
+
+// cmdSetServer points an enrolled agent at a new address of the console
+// (after the console's IP address or name changed). The console's
+// certificate must stay the same.
+func cmdSetServer(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("set-server", flag.ExitOnError)
+	cfgPath := fs.String("config", agent.DefaultConfigPath(), "agent configuration file")
+	fs.Parse(args)
+	if fs.NArg() != 1 {
+		return errors.New("usage: backupzit-agent set-server https://new-address:8443")
+	}
+	u, err := url.Parse(strings.TrimRight(fs.Arg(0), "/"))
+	if err != nil || u.Scheme != "https" || u.Host == "" {
+		return errors.New("the address must look like https://backup.example.com:8443")
+	}
+	cfg, err := agent.LoadConfig(*cfgPath)
+	if err != nil {
+		return err
+	}
+	pctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if err := agent.ProbeServer(pctx, u.String(), cfg.Fingerprint); err != nil {
+		return fmt.Errorf("the console does not answer at %s with its certificate %s: %w", u, cfg.Fingerprint, err)
+	}
+	old := cfg.ServerURL
+	cfg.ServerURL = u.String()
+	if err := cfg.Save(*cfgPath); err != nil {
+		return err
+	}
+	fmt.Printf("console address changed from %s to %s; restart the agent service to use it\n", old, cfg.ServerURL)
 	return nil
 }

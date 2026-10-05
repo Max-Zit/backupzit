@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/netcfg"
 )
 
 // EnableUpdateHelper pretends the root update helper is installed (tests).
@@ -25,4 +26,11 @@ func (s *Server) APIRun(ctx context.Context, runID int64) (*api.Run, error) {
 		return nil, err
 	}
 	return s.toAPIRun(ctx, &run)
+}
+
+// UseNetSystem replaces the system whose network settings the console shows.
+func UseNetSystem(s *netcfg.System) func() {
+	saved := netSystem
+	netSystem = s
+	return func() { netSystem = saved }
 }

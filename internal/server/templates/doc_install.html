@@ -49,7 +49,27 @@
   <li>The server's screen shows the address of the web console and the initial password of <b>admin</b>. Open the address, sign in and change the password.</li>
 </ol>
 <h3>The appliance (image or ISO)</h3>
-<p>To sign in to the server itself (SSH or the local screen), use the user <b>bzadmin</b> with the initial password <code>backupzit</code>; you must change it at the first sign-in, and the user can use <code>sudo</code>. Updates of BackupZit and of the operating system are then managed from the console (see below). VMware Tools and the QEMU guest agent are included, so hypervisors show the appliance's address. The network is set up by DHCP; for a fixed address, sign in as bzadmin and edit <code>/etc/systemd/network/50-dhcp.network</code> (images) or <code>/etc/network/interfaces</code> (ISO). Agents remember the console's certificate, not its address, so keep the address stable or use a DNS name.</p>
+<p>The appliance has two separate accounts:</p>
+<ul>
+  <li><b>admin</b> in the web console (<code>https://&lt;address&gt;:8443</code>) for everyday work. Its initial password is shown on the server's screen after the first start; change it under <b>My account</b>.</li>
+  <li><b>bzadmin</b> on the server itself (its screen in the hypervisor console, or SSH), initial password <code>backupzit</code>. You must change it at the first sign-in; the user can use <code>sudo</code>. Root cannot sign in.</li>
+</ul>
+<p>Updates of BackupZit and of the operating system are managed from the console (see below). VMware Tools and the QEMU guest agent are included, so hypervisors show the appliance's address.</p>
+<h3 id="setup-menu">Setup menu on the server's screen</h3>
+<p>When bzadmin signs in on the server's own screen (not over SSH), a menu opens:</p>
+<table>
+  <tr><th>Item</th><th>What it does</th></tr>
+  <tr><td>1 Network</td><td>DHCP or a static address with prefix length (e.g. <code>192.168.1.20/24</code>), gateway and up to three DNS servers.</td></tr>
+  <tr><td>2 Server name</td><td>The host name (letters, digits and -).</td></tr>
+  <tr><td>3 SSH</td><td>Switch the SSH server on or off and change its port. The ports of the console (80, 443, 8443), PostgreSQL (5432) and instant recovery (111, 2049) cannot be used.</td></tr>
+  <tr><td>4 Reset the password of "admin"</td><td>For a forgotten web console password; also lifts sign-in blocks.</td></tr>
+  <tr><td>5 Lift sign-in blocks</td><td>When too many failed sign-ins blocked an address (see <a href="/docs/security">Security</a>).</td></tr>
+  <tr><td>6–8</td><td>Restart the web console, reboot or shut down the server.</td></tr>
+  <tr><td>0 Command line</td><td>Leaves the menu. Open it again with <code>sudo backupzit-server --setup</code> (also over SSH).</td></tr>
+</table>
+<p>The same network, server name and SSH settings are under <b>Settings → Network</b> in the web console (administrators only). There, a static address whose gateway does not answer within half a minute is undone automatically, so a typo cannot cut the appliance off the network; if the console still cannot be reached, use the menu on the server's screen, which works even with SSH off.</p>
+<p>Agents remember the console's certificate, not its address. If they reach the console by its IP address and the address changes, point them at the new one with <code>backupzit-agent set-server</code> (see <a href="/docs/agents#new-address">Agents</a>), or use a DNS name from the start. With DHCP, reserve the appliance's address in the DHCP server so it does not change.</p>
+<p>The appliance's SSH server offers only AES-GCM/CTR ciphers and SHA-2 MACs (no chacha20-poly1305 or 64-bit MACs, which vulnerability scanners report as weak).</p>
 
 <h2>3. Install script</h2>
 <p>On an existing server with <b>Debian 12+, Ubuntu 22.04+, AlmaLinux or Rocky Linux 9+</b> (x86-64), as root:</p>

@@ -68,6 +68,11 @@ systemctl enable --now backupzit-agent</pre>
 <h2>Removing an agent</h2>
 <p><b>Remove</b> on the Agents page deletes the agent and its jobs from the console. With <a href="/docs/users">four-eyes approval</a> on, a second user has to approve it first. Backups on the storage are <b>not</b> deleted. Uninstall the software on the machine separately.</p>
 
+<h2 id="new-address">When the console gets a new address</h2>
+<p>Agents trust the console by its certificate, which stays the same when its IP address or name changes, but they connect to the address they were enrolled with. After a change, run on each agent machine (as administrator / root):</p>
+<pre>backupzit-agent set-server https://192.168.1.20:8443</pre>
+<p>The command checks that the console answers at the new address with the same certificate, saves it, and the agent uses it after a restart of its service (<code>systemctl restart backupzit-agent</code>, or restart the <i>BackupZit Agent</i> service on Windows). Using a DNS name for the console from the start avoids this step.</p>
+
 <h2>Where the agent keeps its configuration</h2>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (accessible only to SYSTEM and Administrators).</li>

@@ -376,6 +376,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /settings/updates/install", s.ui(PermSettings, s.handleUpdateInstall))
 	mux.HandleFunc("POST /settings/updates/upload", s.ui(PermSettings, s.handleUpdateUpload))
 	mux.HandleFunc("POST /settings/os", s.ui(PermSettings, s.handleOSAction))
+	mux.HandleFunc("POST /settings/network", s.ui(PermSettings, s.handleNetworkSettings))
+	mux.HandleFunc("POST /settings/ssh", s.ui(PermSettings, s.handleSSHSettings))
 	mux.HandleFunc("POST /settings/console", s.ui(PermSettings, s.handleConsoleBackupSettings))
 	mux.HandleFunc("POST /settings/console/run", s.ui(PermSettings, s.handleConsoleBackupRun))
 	mux.HandleFunc("POST /settings/login-protection", s.ui(PermSettings, s.handleSettingsLoginProtection))

@@ -33,7 +33,8 @@ BackupZit backup appliance - \n
   Sign in as:    admin   (initial password: $PW)
   Change it after the first sign-in.
 
-  Server shell:  bzadmin (initial password: backupzit, must be changed)
+  Setup menu:    sign in here as bzadmin (initial password: backupzit,
+                 must be changed) - network, server name, admin password
 
 ISSUE
 touch /var/lib/backupzit/.appliance-ready

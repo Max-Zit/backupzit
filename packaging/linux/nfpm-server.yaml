@@ -30,6 +30,12 @@ contents:
     dst: /usr/lib/systemd/system/backupzit-update.path
   - src: ./packaging/linux/backupzit-update.service
     dst: /usr/lib/systemd/system/backupzit-update.service
+  - src: ./packaging/appliance/backupzit-menu.sh
+    dst: /usr/share/backupzit/appliance/backupzit-menu.sh
+  - src: ./packaging/appliance/sudoers-backupzit-setup
+    dst: /usr/share/backupzit/appliance/sudoers-backupzit-setup
+  - src: ./packaging/appliance/sshd-backupzit.conf
+    dst: /usr/share/backupzit/appliance/sshd-backupzit.conf
   - src: ./packaging/linux/server.env
     dst: /etc/backupzit/server.env
     type: config|noreplace

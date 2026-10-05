@@ -296,6 +296,56 @@
   <p class="muted small mt">{{T "Automatic security updates use the system's own tool (unattended-upgrades on Debian and Ubuntu, dnf-automatic on AlmaLinux and Rocky Linux) and install only security fixes, daily. BackupZit itself is updated above."}}</p>
 </div>
 {{end}}{{end}}{{end}}
+{{if eq .Data.Tab "network"}}{{with .Data.Network}}
+{{if not .Available}}
+<div class="panel">
+  <h2>{{template "icon" "settings"}} {{T "Network"}}</h2>
+  <p class="muted">{{T .Reason}}</p>
+</div>
+{{else}}
+{{with .Result}}<div class="callout {{if eq .Status "done"}}tip{{else}}warn{{end}}"><p>{{T "Last change:"}} {{.Action}} — {{if eq .Status "done"}}{{T "done"}}{{else}}<b>{{T "failed"}}</b>{{end}}, {{ago .Finished}}{{if ne .Status "done"}}<br>{{.Message}}{{end}}</p></div>{{end}}
+{{if .Pending}}<div class="callout tip" data-autorefresh><p>{{T "A task is running on the server; this page reloads by itself."}}</p></div>{{end}}
+<div class="panel" id="network">
+  <h2>{{template "icon" "settings"}} {{T "Network"}}</h2>
+  {{with .Status}}
+  <dl class="kv">
+    <dt>{{T "Address"}}</dt><dd class="mono">{{join .Addresses ", "}}{{if .Interface}} <span class="muted small">({{.Interface}})</span>{{end}}</dd>
+    <dt>{{T "Gateway"}}</dt><dd class="mono">{{or .Gateway "—"}}</dd>
+    <dt>{{T "DNS servers"}}</dt><dd class="mono">{{or (join .DNS ", ") "—"}}</dd>
+    <dt>{{T "Server name"}}</dt><dd class="mono">{{.Hostname}}</dd>
+  </dl>
+  {{end}}
+  {{$st := .Status}}
+  <form method="post" action="/settings/network" class="mt" data-confirm="{{T "Apply the new network settings? If the address changes, the console moves to the new address and agents that reach it by its IP address must be pointed at the new one."}}">
+    <fieldset>
+      <legend>{{T "Address"}}</legend>
+      <label class="check"><input type="radio" name="mode" value="dhcp" {{if $st.DHCP}}checked{{end}}> {{T "Automatic (DHCP)"}} <small>{{T "reserve the address for this server in the DHCP server, so it does not change"}}</small></label>
+      <label class="check"><input type="radio" name="mode" value="static" {{if not $st.DHCP}}checked{{end}}> {{T "Static address"}}</label>
+      <div class="row">
+        <label>{{T "IPv4 address with prefix length"}} <small>{{T "e.g. 192.168.1.20/24"}}</small><input name="address" class="mono" value="{{$.Data.Network.Address}}"></label>
+        <label>{{T "Gateway"}}<input name="gateway" class="mono" value="{{$st.Gateway}}"></label>
+      </div>
+      <div class="row">
+        <label>{{T "DNS servers"}} <small>{{T "separated by commas, up to three"}}</small><input name="dns" class="mono" value="{{$.Data.Network.DNS}}"></label>
+        <label>{{T "Server name"}} <small>{{T "letters, digits and -"}}</small><input name="hostname" class="mono" value="{{$st.Hostname}}" maxlength="63"></label>
+      </div>
+    </fieldset>
+    <div><button>{{T "Apply network settings"}}</button></div>
+  </form>
+  <p class="muted small mt">{{T "With a static address the server checks that the gateway answers; if it does not within half a minute, the previous settings come back. If the console cannot be reached after a change, sign in as bzadmin on the server's own screen and use the setup menu."}}</p>
+</div>
+<div class="panel" id="ssh">
+  <h2>{{template "icon" "lock"}} {{T "SSH"}}</h2>
+  <p>{{if .SSH.Enabled}}<span class="badge success"><i></i>{{T "on"}}</span> {{T "port"}} <b>{{.SSH.Port}}</b>{{else}}<span class="badge"><i></i>{{T "off"}}</span>{{end}}</p>
+  <form method="post" action="/settings/ssh">
+    <label class="check"><input type="checkbox" name="enabled" {{if .SSH.Enabled}}checked{{end}}> {{T "Allow SSH sign-in to the server (user bzadmin)"}}</label>
+    <label>{{T "Port"}}<input name="port" type="number" min="1" max="65535" value="{{.SSH.Port}}"></label>
+    <div><button>{{T "Save SSH settings"}}</button></div>
+  </form>
+  <p class="muted small mt">{{T "SSH is only needed for maintenance; BackupZit itself does not use it. With SSH off, the setup menu on the server's own screen still works."}}</p>
+</div>
+{{end}}
+{{end}}{{end}}
 {{if eq .Data.Tab "console"}}{{with .Data.ConsoleBackup}}
 <div class="panel" id="console-backup">
   <h2>{{template "icon" "storage"}} {{T "Backup of the console"}}</h2>

@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/max-zit/backupzit/internal/netcfg"
 )
 
 // TrustedKeys are the public release keys (base64). A release must be
@@ -254,13 +256,15 @@ func parseVersion(v string) [3]int {
 // Request asks the root helper to install a downloaded package, or to do
 // an operating system task (Action).
 type Request struct {
-	Action    string    `json:"action,omitempty"`
-	Enable    bool      `json:"enable,omitempty"` // ActionOSAuto
-	Manifest  []byte    `json:"manifest"`
-	Signature string    `json:"signature"`
-	File      string    `json:"file"` // name in the manifest; the package lies next to the request
-	Requested time.Time `json:"requested"`
-	User      string    `json:"user"`
+	Action    string            `json:"action,omitempty"`
+	Enable    bool              `json:"enable,omitempty"`  // ActionOSAuto
+	Network   *netcfg.Config    `json:"network,omitempty"` // ActionNetwork
+	SSH       *netcfg.SSHConfig `json:"ssh,omitempty"`     // ActionSSH
+	Manifest  []byte            `json:"manifest"`
+	Signature string            `json:"signature"`
+	File      string            `json:"file"` // name in the manifest; the package lies next to the request
+	Requested time.Time         `json:"requested"`
+	User      string            `json:"user"`
 }
 
 // Result is what the helper reports back.

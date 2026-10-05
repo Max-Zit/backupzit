@@ -1,0 +1,1 @@
+bzadmin ALL=(root) NOPASSWD: /usr/bin/backupzit-server --setup

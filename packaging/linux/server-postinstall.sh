@@ -20,6 +20,21 @@ if command -v systemctl >/dev/null 2>&1; then
     # Updates requested in the web console are installed by a root helper.
     systemctl enable --now backupzit-update.path >/dev/null 2>&1 || true
 fi
+# The BackupZit appliance (not other servers): the setup menu on its screen
+# and hardened SSH settings.
+if [ -f /var/lib/backupzit/.appliance-ready ] || [ -x /usr/local/sbin/backupzit-firstboot ]; then
+    a=/usr/share/backupzit/appliance
+    install -m 0644 $a/backupzit-menu.sh /etc/profile.d/backupzit-menu.sh
+    install -m 0440 $a/sudoers-backupzit-setup /etc/sudoers.d/backupzit-setup
+    if [ -d /etc/ssh/sshd_config.d ]; then
+        install -m 0644 $a/sshd-backupzit.conf /etc/ssh/sshd_config.d/50-backupzit.conf
+        if sshd -t 2>/dev/null; then
+            systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+        else
+            rm -f /etc/ssh/sshd_config.d/50-backupzit.conf
+        fi
+    fi
+fi
 echo "BackupZit server installed."
 echo "1. Create a PostgreSQL database and user, then set BACKUPZIT_DB in /etc/backupzit/server.env"
 echo "2. systemctl start backupzit-server"

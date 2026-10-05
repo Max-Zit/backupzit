@@ -80,6 +80,9 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 	}
 	// The request is consumed in any case, so a bad one does not loop.
 	os.Remove(reqPath)
+	if req.Action == ActionNetwork || req.Action == ActionSSH {
+		return a.netAction(ctx, req)
+	}
 	if req.Action != ActionInstall {
 		return a.osAction(ctx, req)
 	}

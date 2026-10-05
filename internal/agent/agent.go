@@ -593,3 +593,18 @@ func localIPs() []string {
 	}
 	return out
 }
+
+// ProbeServer checks that a console answers at serverURL with the pinned
+// certificate (any HTTP response counts).
+func ProbeServer(ctx context.Context, serverURL, fingerprint string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(serverURL, "/")+"/login", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := httpClient(fingerprint).Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
+}

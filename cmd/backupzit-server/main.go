@@ -56,6 +56,7 @@ func run() error {
 	restoreRepo := flag.String("repo", os.Getenv("BACKUPZIT_REPO"), "with --restore-console: repository of the console backups (<target>/backupzit-console)")
 	restoreSnapshot := flag.String("snapshot", "latest", "with --restore-console: backup to restore")
 	applyUpdate := flag.Bool("apply-update", false, "install an update requested in the web console (run by the backupzit-update service as root) and exit")
+	setup := flag.Bool("setup", false, "the text menu of the appliance (network, server name, admin password); run as root")
 	flag.Parse()
 
 	if *showVersion {
@@ -65,6 +66,9 @@ func run() error {
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if *setup {
+		return runSetup(ctx)
+	}
 	if *applyUpdate {
 		return runApplyUpdate(ctx, *dataDir, *dbURL, *listen, log)
 	}

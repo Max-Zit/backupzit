@@ -104,9 +104,9 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	logf := func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) }
 	var sn *repo.Snapshot
 	if run.VMware != nil {
-		c, err := vmwareConnect(ctx, run.VMware)
-		if err != nil {
-			return failed(err)
+		c, cerr := vmwareConnect(ctx, run.VMware)
+		if cerr != nil {
+			return failed(cerr)
 		}
 		defer c.Logout()
 		sn, err = c.Backup(ctx, r, vmware.BackupOptions{VMIDs: sel, Exclude: excl, Hostname: run.VMware.Name, Version: a.version, Tags: tags, Progress: prog, Log: logf})

@@ -32,6 +32,7 @@ Usage:
 
 Managed mode (controlled by the BackupZit server):
   enroll         Register this machine with the management server
+  set-server     Point an enrolled agent at a new address of the console
   service        install | uninstall | start | stop | status | run
   status         Show what the running agent is doing and its backup jobs
   recovery       Recovery mode (started by the recovery ISO)
@@ -233,6 +234,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdPrepareHardware(ctx, rest)
 	case "disks":
 		return cmdDisks(rest)
+	case "set-server":
+		return cmdSetServer(ctx, rest)
 	case "enroll":
 		return cmdEnroll(ctx, rest)
 	case "service":

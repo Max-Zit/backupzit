@@ -2,8 +2,9 @@
 # Runs inside the installed system (preseed late_command).
 set -e
 cd /root/backupzit-install
-dpkg -i backupzit-server_*.deb
+# The firstboot script first: the package recognises the appliance by it.
 install -m 0755 backupzit-firstboot /usr/local/sbin/backupzit-firstboot
+dpkg -i backupzit-server_*.deb
 install -m 0644 backupzit-firstboot.service /etc/systemd/system/backupzit-firstboot.service
 systemctl enable backupzit-firstboot.service
 # Automatic security updates (BackupZit shows their status under Settings → Updates).
