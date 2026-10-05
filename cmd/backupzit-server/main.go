@@ -163,7 +163,7 @@ func run() error {
 
 	hs := &http.Server{
 		Addr:              *listen,
-		Handler:           srv.Handler(),
+		Handler:           srv.MainHandler(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12, CipherSuites: tlsutil.ServerCipherSuites},
 		ReadHeaderTimeout: 15 * time.Second,
 		ReadTimeout:       5 * time.Minute,

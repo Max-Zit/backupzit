@@ -39,7 +39,7 @@ func runSetup(ctx context.Context) error {
   2) Server name
   3) SSH (on or off, port)
   4) Reset the password of the web console user "admin"
-  5) Lift sign-in blocks
+  5) Lift sign-in blocks and web console address limits
   6) Restart the web console
   7) Reboot the server
   8) Shut down the server
@@ -268,6 +268,9 @@ func (m *setupMenu) unblock(ctx context.Context) {
 		var n int64
 		if n, err = st.UnblockAddress(ctx, "all"); err == nil {
 			fmt.Printf("\n  %d address(es) unblocked.\n", n)
+			if err = st.ResetWebAccess(ctx); err == nil {
+				fmt.Println("  The web console answers every address and port again (within 15 seconds).")
+			}
 		}
 	}
 	if err != nil {

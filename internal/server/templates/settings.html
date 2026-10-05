@@ -158,6 +158,17 @@
   <p class="muted small mt">{{T "Locked yourself out? Sign in from another address, or on the server run"}} <code>backupzit-server --unblock-ip all</code> {{T "(with the same database options as the service). Every block and unblock is in the"}} <a href="/audit">{{T "audit log"}}</a>.</p>
 </div>
 {{end}}
+<div class="panel" id="web-access">
+  <h2>{{template "icon" "lock"}} {{T "Web console access"}}</h2>
+  <p class="muted">{{T "For a console on a public address: agents always reach their API on port 8443, while the web console answers only the addresses below. Others get \"not found\", as if there were no console."}}</p>
+  <form method="post" action="/settings/web-access" class="stack">
+    <label>{{T "Allowed addresses"}} <small>{{T "IP addresses or networks, one per line or separated by commas, e.g. 203.0.113.10 or 10.0.0.0/24; empty: everyone. Your address is"}} <code>{{$.Data.ClientIP}}</code></small>
+      <textarea name="allow" rows="3" class="mono">{{join $.Data.WebAccess.Allow "\n"}}</textarea></label>
+    <label class="check"><input type="checkbox" name="agent_port_only" {{if $.Data.WebAccess.AgentPortOnly}}checked{{end}} {{if not $.Data.WebPort}}disabled{{end}}> {{T "Port 8443 serves agents only"}} <small>{{if $.Data.WebPort}}{{T "the web console is then only on"}} <code>{{$.Data.WebAddress}}</code>{{else}}{{T "needs the web console's own port: set up a certificate first"}} (<a href="/settings/certificate">{{T "Certificate"}}</a>){{end}}</small></label>
+    <div><button>{{T "Save web console access"}}</button></div>
+  </form>
+  <p class="muted small mt">{{T "Locked out? On the server itself (localhost) the console always answers; on the appliance, the setup menu on its screen can allow everyone again."}}</p>
+</div>
 <div class="panel" id="four-eyes">
   <h2>{{template "icon" "shield"}} {{T "Four-eyes approval"}}</h2>
   <p class="muted">{{T "Protects against a stolen or misused account: deleting jobs, agents, ESXi hosts, storage targets and users, shortening a job's retention, resuming retention after a suspicious backup and turning this option off take effect only when a second user with the same permission approves them under"}} <a href="/approvals">{{T "Approvals"}}</a>{{T ". Needs at least two enabled administrators. Requests expire after 7 days."}}</p>

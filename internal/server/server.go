@@ -50,6 +50,7 @@ type Server struct {
 	guard    *loginGuard
 	web      *webTLS
 	upd      *updater
+	access   webAccessCache
 	dataDir  string
 	log      *slog.Logger
 	// CertFingerprint is shown in enrollment instructions.
@@ -277,7 +278,14 @@ func (s *Server) loadTemplates() error {
 }
 
 // Handler returns the HTTP handler for UI and agent API.
-func (s *Server) Handler() http.Handler {
+// Handler serves the console on the web port.
+func (s *Server) Handler() http.Handler { return s.handler(false) }
+
+// MainHandler serves the agents' port (8443), which also has the web
+// console unless Settings → Sign-in & security limits it to agents.
+func (s *Server) MainHandler() http.Handler { return s.handler(true) }
+
+func (s *Server) handler(main bool) http.Handler {
 	mux := http.NewServeMux()
 
 	s.registerAPI(mux)
@@ -382,6 +390,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /settings/console", s.ui(PermSettings, s.handleConsoleBackupSettings))
 	mux.HandleFunc("POST /settings/console/run", s.ui(PermSettings, s.handleConsoleBackupRun))
 	mux.HandleFunc("POST /settings/login-protection", s.ui(PermSettings, s.handleSettingsLoginProtection))
+	mux.HandleFunc("POST /settings/web-access", s.ui(PermSettings, s.handleSettingsWebAccess))
 	mux.HandleFunc("POST /settings/unblock", s.ui(PermSettings, s.handleUnblockAddress))
 	mux.HandleFunc("POST /settings/tests", s.ui(PermSettings, s.handleSettingsRestoreTests))
 	mux.HandleFunc("POST /settings/four-eyes", s.ui(PermSettings, s.handleSettingsFourEyes))
@@ -390,7 +399,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /recovery/token", s.ui(PermAgents, s.handleRecoveryToken))
 	mux.HandleFunc("POST /recovery/recovery.json", s.ui(PermAgents, s.handleRecoveryJSON))
 
-	return securityHeaders(mux)
+	return securityHeaders(s.limitAccess(mux, main))
 }
 
 func securityHeaders(h http.Handler) http.Handler {

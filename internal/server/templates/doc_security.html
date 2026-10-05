@@ -39,6 +39,16 @@
 <pre>backupzit-server --unblock-ip all</pre>
 <p>To lift a single block, give the address instead of <code>all</code>.</p>
 
+<h2 id="web-access">Web console access (public address)</h2>
+<p>Agents connect to the console on port 8443. To offer the console on a public address — for agents at other sites or customers — while only your administrators can open the web console, use <b>Settings → Sign-in &amp; security → Web console access</b>:</p>
+<table>
+  <tr><th>Setting</th><th>Effect</th></tr>
+  <tr><td>Allowed addresses</td><td>IP addresses or networks (e.g. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). The web console, the REST API and every page answer only these addresses; others get "not found", as if there were no console. Agents always reach their API (enrollment, polling, results, downloads, push installation). Empty: everyone. The console refuses a list that does not contain your own address.</td></tr>
+  <tr><td>Port 8443 serves agents only</td><td>The web console is then only on the web port with the trusted certificate (<a href="/docs/install">Settings → Certificate</a>, usually 443), so a firewall can open 8443 to everyone and 443 only to your addresses. Available once the web port is running; change it from the web port, not from 8443.</td></tr>
+</table>
+<p>A typical firewall for a public console: 8443 open to everyone (agents), 443 and 80 (Let's Encrypt HTTP check) only from your addresses, SSH only from your addresses or off, everything else closed.</p>
+<p>Locked out? On the server itself (<code>localhost</code>) the console always answers. On the appliance, item 5 of the setup menu on its screen lifts sign-in blocks and these limits.</p>
+
 <h2>Recommendations</h2>
 <h3>Console</h3>
 <ul>
