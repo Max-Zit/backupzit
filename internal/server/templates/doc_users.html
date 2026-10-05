@@ -45,6 +45,19 @@
 <h2>API tokens</h2>
 <p>Scripts and monitoring tools use API tokens instead of passwords. Every user creates and revokes their own tokens under <a href="/account#tokens">My account → API tokens</a>; a token's role can be lower than the user's own. Administrators see and can revoke all tokens on the <a href="/users">Users</a> page. See <a href="/docs/api">REST API</a>.</p>
 
+<h2>Four-eyes approval</h2>
+<p>Optional and off by default. Turn it on under <a href="/settings/security#four-eyes">Settings → Sign-in &amp; security → Four-eyes approval</a>; it needs at least two enabled administrators. Then these changes only take effect when a <b>second user</b> approves them:</p>
+<table>
+  <tr><th>Change</th><th>Who can approve</th></tr>
+  <tr><td>Deleting a backup job, shortening a job's retention (any rule lower than before, or rules where everything was kept), resuming retention after a suspicious backup</td><td>Users who may manage jobs</td></tr>
+  <tr><td>Removing an agent or an ESXi host</td><td>Users who may manage agents</td></tr>
+  <tr><td>Removing a storage target</td><td>Users who may manage storage</td></tr>
+  <tr><td>Deleting a user</td><td>Administrators</td></tr>
+  <tr><td>Turning four-eyes approval off</td><td>Administrators</td></tr>
+</table>
+<p>The request appears under <a href="/approvals">Approvals</a> (with a counter in the menu and on the dashboard) and the notification recipients get an email. Any other user with the right permission approves or rejects it; the requester can only cancel it. An approved change is carried out at once. Requests expire after 7 days. When a job is edited with a shorter retention, its other changes are saved immediately and only the retention waits. Requests, approvals, rejections and their users are in the audit log.</p>
+<p>This protects against a single stolen or misused account removing the configuration or letting retention delete the backups. It does not replace immutable storage: for that, see <a href="/docs/ransomware">Ransomware protection</a>.</p>
+
 <h2>Audit log</h2>
 <p><a href="/audit">Users → Audit log</a> shows sign-ins, failed sign-ins and changes: users, jobs, storage targets, restores, displayed recovery keys and settings — with time, user and address.</p>
 {{template "docpager" .}}

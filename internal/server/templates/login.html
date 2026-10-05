@@ -1,12 +1,13 @@
 {{define "content"}}
 <div class="login panel">
   <div class="brand">{{template "logo"}}<span>Backup<b>Zit</b></span></div>
-  <p class="sub">Sign in to the backup console</p>
+  <p class="sub">{{T "Sign in to the backup console"}}</p>
   <form method="post" action="/login" class="stack">
-    <label>Username <input name="username" autocomplete="username" required autofocus></label>
-    <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
-    <button>Sign in</button>
+    <label>{{T "Username"}} <input name="username" autocomplete="username" required autofocus></label>
+    <label>{{T "Password"}} <input name="password" type="password" autocomplete="current-password" required></label>
+    <button>{{T "Sign in"}}</button>
   </form>
 </div>
-<p class="login-foot">{{template "icon" "lock"}} Self-hosted · data stays on your network</p>
+<div class="login-langs">{{template "langswitch"}}</div>
+<p class="login-foot">{{template "icon" "lock"}} {{T "Self-hosted · data stays on your network"}}</p>
 {{end}}

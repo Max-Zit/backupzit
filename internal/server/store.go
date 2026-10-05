@@ -861,6 +861,16 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	if res.RepoURL != "" {
 		s.recordUSBDisk(ctx, runID, res.RepoURL)
 	}
+	if res.RepoBytes > 0 {
+		var total, free any
+		if res.StorageTotal > 0 {
+			total, free = int64(res.StorageTotal), int64(res.StorageFree)
+		}
+		if _, err := s.db.Exec(ctx, `UPDATE runs SET repo_bytes=$2, storage_total=$3, storage_free=$4 WHERE id=$1`,
+			runID, int64(res.RepoBytes), total, free); err != nil {
+			return err
+		}
+	}
 	if len(res.Forgotten) > 0 {
 		if _, err := s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE snapshot_id = ANY($1)`, res.Forgotten); err != nil {
 			return err

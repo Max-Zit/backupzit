@@ -106,6 +106,9 @@ func (s *Server) handleVMwareDelete(w http.ResponseWriter, r *http.Request, _ st
 		http.NotFound(w, r)
 		return
 	}
+	if s.needsApproval(w, r, "/agents#vmware", "vmware.delete", id, h.Name, nil) {
+		return
+	}
 	if err := s.store.DeleteVMwareHost(r.Context(), id); err != nil {
 		s.serverError(w, err)
 		return

@@ -117,13 +117,30 @@ func (s *Store) checkAnomaly(ctx context.Context, runID int64) (string, error) {
 	return text, nil
 }
 
+// releaseRetentionHold resumes retention of a job and marks its
+// suspicious backups as reviewed.
+func (s *Store) releaseRetentionHold(ctx context.Context, id int64) error {
+	if _, err := s.db.Exec(ctx, `UPDATE jobs SET retention_hold=false WHERE id=$1`, id); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(ctx, `UPDATE runs SET anomaly_ack=true WHERE job_id=$1 AND anomaly<>''`, id)
+	return err
+}
+
 func (s *Server) handleJobReleaseHold(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
-	if _, err := s.store.db.Exec(r.Context(), `UPDATE jobs SET retention_hold=false WHERE id=$1`, id); err != nil {
+	j, err := s.store.GetJob(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if s.needsApproval(w, r, fmt.Sprintf("/jobs/%d", id), "job.release_hold", id, j.Name, nil) {
+		return
+	}
+	if err := s.store.releaseRetentionHold(r.Context(), id); err != nil {
 		s.serverError(w, err)
 		return
 	}
-	s.store.db.Exec(r.Context(), `UPDATE runs SET anomaly_ack=true WHERE job_id=$1 AND anomaly<>''`, id)
 	s.audit(r, "job.anomaly_ack", "job %d: suspicious backups reviewed, retention resumed", id)
 	redirectMsg(w, r, fmt.Sprintf("/jobs/%d", id), "Retention resumed.")
 }

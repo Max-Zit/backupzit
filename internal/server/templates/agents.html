@@ -1,32 +1,32 @@
 {{define "content"}}
-<h1>Agents</h1>
+<h1>{{T "Agents"}}</h1>
 {{with .Data.Enroll}}
 <div class="panel">
-  <h2>Enroll agents</h2>
-  <p>This code is valid until {{ts .Expires}} and can be used for any number of machines. It is shown only once — copy it now.</p>
-  <h3>Enrollment code</h3>
+  <h2>{{T "Enroll agents"}}</h2>
+  <p>{{T "This code is valid until"}} {{ts .Expires}} {{T "and can be used for any number of machines. It is shown only once — copy it now."}}</p>
+  <h3>{{T "Enrollment code"}}</h3>
   <pre id="code" class="code-box">{{.Code}}</pre>
-  <button class="secondary" data-copy="#code" type="button">Copy enrollment code</button>
+  <button class="secondary" data-copy="#code" type="button">{{T "Copy enrollment code"}}</button>
   <ol class="steps mt">
-    <li><b>Windows:</b> download the <i>Windows agent</i> MSI below, run it and paste the enrollment code when asked.</li>
-    <li>The machine appears in the list below within a minute.</li>
+    <li><b>{{T "Windows:"}}</b> {{T "download the"}} <i>{{T "Windows agent"}}</i> {{T "MSI below, run it and paste the enrollment code when asked."}}</li>
+    <li>{{T "The machine appears in the list below within a minute."}}</li>
   </ol>
   <details class="mt">
-    <summary>Silent installation, Linux and other options</summary>
-    <h3>Windows, silent (GPO, Intune, RMM)</h3>
+    <summary>{{T "Silent installation, Linux and other options"}}</summary>
+    <h3>{{T "Windows, silent (GPO, Intune, RMM)"}}</h3>
     <pre id="cmd-msi">msiexec /i backupzit-agent.msi /qn ENROLLCODE="{{.Code}}"</pre>
-    <button class="secondary" data-copy="#cmd-msi" type="button">Copy</button>
-    <h3 class="mt">Linux</h3>
+    <button class="secondary" data-copy="#cmd-msi" type="button">{{T "Copy"}}</button>
+    <h3 class="mt">{{T "Linux"}}</h3>
     <pre id="cmd-cli">sudo backupzit-agent enroll --code "{{.Code}}"
 sudo systemctl enable --now backupzit-agent</pre>
-    <button class="secondary" data-copy="#cmd-cli" type="button">Copy</button>
-    <h3 class="mt">Details</h3>
+    <button class="secondary" data-copy="#cmd-cli" type="button">{{T "Copy"}}</button>
+    <h3 class="mt">{{T "Details"}}</h3>
     <dl class="kv">
-      <dt>Server</dt><dd class="mono">{{.ServerURL}}</dd>
-      <dt>Token</dt><dd class="mono" id="tok">{{.Token}}</dd>
-      <dt>Server fingerprint</dt><dd class="mono">{{.Fingerprint}}</dd>
+      <dt>{{T "Server"}}</dt><dd class="mono">{{.ServerURL}}</dd>
+      <dt>{{T "Token"}}</dt><dd class="mono" id="tok">{{.Token}}</dd>
+      <dt>{{T "Server fingerprint"}}</dt><dd class="mono">{{.Fingerprint}}</dd>
     </dl>
-    <p class="muted small mt">The agent checks that the console's certificate matches this fingerprint, so it cannot be tricked into talking to another server. If installation happens while the console is unreachable, the agent keeps trying and appears as soon as it can connect.</p>
+    <p class="muted small mt">{{T "The agent checks that the console's certificate matches this fingerprint, so it cannot be tricked into talking to another server. If installation happens while the console is unreachable, the agent keeps trying and appears as soon as it can connect."}}</p>
   </details>
 </div>
 {{end}}
@@ -34,63 +34,63 @@ sudo systemctl enable --now backupzit-agent</pre>
 <div class="panel">
   {{if .Data.Agents}}
   <div class="table-wrap"><table>
-    <tr><th>Hostname</th><th>OS</th><th>IP addresses</th><th>Version</th><th>Status</th><th>Last seen</th><th>Enrolled</th><th></th></tr>
+    <tr><th>{{T "Hostname"}}</th><th>{{T "OS"}}</th><th>{{T "IP addresses"}}</th><th>{{T "Version"}}</th><th>{{T "Status"}}</th><th>{{T "Last seen"}}</th><th>{{T "Enrolled"}}</th><th></th></tr>
     {{range .Data.Agents}}
     <tr>
-      <td>{{.Hostname}}{{if .Recovery}} <span class="badge">recovery</span>{{end}}{{$label := .HypervisorLabel}}{{with .PVE}} <span class="badge info-badge" title="Backs up the VMs of this hypervisor host without agents in the guests">{{$label}} · {{len .Guests}} {{if eq $label "Hyper-V"}}VMs{{else}}guests{{end}}</span>{{end}}</td>
+      <td>{{.Hostname}}{{if .Recovery}} <span class="badge">{{T "recovery"}}</span>{{end}}{{$label := .HypervisorLabel}}{{with .PVE}} <span class="badge info-badge" title="{{T "Backs up the VMs of this hypervisor host without agents in the guests"}}">{{$label}} · {{len .Guests}} {{if eq $label "Hyper-V"}}{{N (len .Guests) "VM" "VMs (count)"}}{{else}}{{N (len .Guests) "guest" "guests"}}{{end}}</span>{{end}}</td>
       <td>{{.OS}}/{{.Arch}}</td>
-      <td class="nowrap">{{range $i, $ip := .LocalIPs}}{{if $i}}<br>{{end}}<span class="mono small">{{$ip}}</span>{{else}}<span class="muted">—</span>{{end}}{{with .RemoteAddr}}<div class="muted small" title="address the agent connects from — its public address if it is behind NAT">seen from {{.}}</div>{{end}}</td>
-      <td><span class="mono">{{.Version}}</span>{{$id := .ID}}{{$u := index $.Data.Updates .ID}}{{if $u.Version}}{{with $u}}<br>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{$id}}/update" class="inline"><button class="link small" title="Installs {{.File}} on the machine; the agent restarts">Update to {{.Version}}</button></form>{{else}}<span class="muted small">{{.Version}} available</span>{{end}}{{end}}{{end}}</td>
+      <td class="nowrap">{{range $i, $ip := .LocalIPs}}{{if $i}}<br>{{end}}<span class="mono small">{{$ip}}</span>{{else}}<span class="muted">—</span>{{end}}{{with .RemoteAddr}}<div class="muted small" title="{{T "address the agent connects from — its public address if it is behind NAT"}}">{{T "seen from"}} {{.}}</div>{{end}}</td>
+      <td><span class="mono">{{.Version}}</span>{{$id := .ID}}{{$u := index $.Data.Updates .ID}}{{if $u.Version}}{{with $u}}<br>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{$id}}/update" class="inline"><button class="link small" title="Installs {{.File}} on the machine; the agent restarts">{{T "Update to"}} {{.Version}}</button></form>{{else}}<span class="muted small">{{.Version}} {{T "available"}}</span>{{end}}{{end}}{{end}}</td>
       <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}</td>
       <td>{{ago .LastSeen}}</td>
       <td>{{ts .EnrolledAt}}</td>
-      <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="Remove agent {{.Hostname}} and its jobs? Backups on storage stay."><button class="link">Remove</button></form>{{end}}</td>
+      <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove agent %v and its jobs? Backups on storage stay." .Hostname}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
     </tr>
     {{end}}
   </table></div>
-  {{if and .Data.Updates ($.Me.Can "agents")}}<form method="post" action="/agents/update-all" class="mt" data-confirm="Install the newest agent version on all {{len .Data.Updates}} agents that run an older one?"><button class="secondary">Update all agents ({{len .Data.Updates}})</button> <span class="muted small">Each agent installs the update when it is idle and restarts; backups in progress are not interrupted.</span></form>{{end}}
-  {{else}}<p class="muted">No agents enrolled yet.</p>{{end}}
+  {{if and .Data.Updates ($.Me.Can "agents")}}<form method="post" action="/agents/update-all" class="mt" data-confirm="{{T "Install the newest agent version on all %v agents that run an older one?" (len .Data.Updates)}}"><button class="secondary">{{T "Update all agents ("}}{{len .Data.Updates}})</button> <span class="muted small">{{T "Each agent installs the update when it is idle and restarts; backups in progress are not interrupted."}}</span></form>{{end}}
+  {{else}}<p class="muted">{{T "No agents enrolled yet."}}</p>{{end}}
 </div>
 
 <div class="panel" id="vmware">
-  <h2>VMware ESXi hosts</h2>
-  <p class="muted">Nothing is installed on ESXi: an agent on any machine in the network works as its <b>proxy</b>. It snapshots the VMs, reads their disks from the host and writes the backups to the storage. Choose an agent close to the ESXi host and the storage, ideally on the same fast network.</p>
+  <h2>{{T "VMware ESXi hosts"}}</h2>
+  <p class="muted">{{T "Nothing is installed on ESXi: an agent on any machine in the network works as its"}} <b>{{T "proxy"}}</b>{{T ". It snapshots the VMs, reads their disks from the host and writes the backups to the storage. Choose an agent close to the ESXi host and the storage, ideally on the same fast network."}}</p>
   {{if .Data.VMwareHosts}}
   <div class="table-wrap"><table>
-    <tr><th>Host</th><th>VMs</th><th>Mode</th><th>Proxy agent</th><th>Checked</th><th></th></tr>
+    <tr><th>{{T "Host"}}</th><th>{{T "VMs"}}</th><th>{{T "Mode"}}</th><th>{{T "Proxy agent"}}</th><th>{{T "Checked"}}</th><th></th></tr>
     {{range .Data.VMwareHosts}}
     <tr>
-      <td><b>{{.Name}}</b><br><span class="mono small">{{.Address}}</span>{{with .Version}} <span class="muted small">ESXi {{.}}</span>{{end}}</td>
+      <td><b>{{.Name}}</b><br><span class="mono small">{{.Address}}</span>{{with .Version}} <span class="muted small">{{T "ESXi"}} {{.}}</span>{{end}}</td>
       <td>{{with .Inv}}{{len .Guests}}{{else}}—{{end}}</td>
-      <td class="small">{{.Mode}}{{if not .SSHOK}}<br><span class="badge warning"><i></i>SSH off</span>{{end}}</td>
+      <td class="small">{{T .Mode}}{{if not .SSHOK}}<br><span class="badge warning"><i></i>{{T "SSH off"}}</span>{{end}}</td>
       <td>{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/proxy" class="inline">
-          <select name="proxy_agent_id" data-autosubmit>{{if not .ProxyAgentID}}<option value="">— choose —</option>{{end}}{{$p := .ProxyAgentID}}{{range $.Data.Agents}}<option value="{{.ID}}" {{if and $p (eq .ID (deref64 $p))}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
-          <button class="link small">Save</button></form>{{else}}{{with .ProxyName}}{{.}}{{else}}—{{end}}{{end}}</td>
-      <td class="nowrap small">{{ago .InventoryAt}}{{with .LastError}}<br><span class="badge failed" title="{{.}}"><i></i>error</span>{{end}}</td>
-      <td class="nowrap">{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/refresh" class="inline"><button class="link">Refresh</button></form>
-        <form method="post" action="/vmware/{{.ID}}/delete" class="inline" data-confirm="Remove {{.Name}} and its backup jobs? Backups on storage stay."><button class="link">Remove</button></form>{{end}}</td>
+          <select name="proxy_agent_id" data-autosubmit>{{if not .ProxyAgentID}}<option value="">{{T "— choose —"}}</option>{{end}}{{$p := .ProxyAgentID}}{{range $.Data.Agents}}<option value="{{.ID}}" {{if and $p (eq .ID (deref64 $p))}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+          <button class="link small">{{T "Save"}}</button></form>{{else}}{{with .ProxyName}}{{.}}{{else}}—{{end}}{{end}}</td>
+      <td class="nowrap small">{{ago .InventoryAt}}{{with .LastError}}<br><span class="badge failed" title="{{.}}"><i></i>{{T "error"}}</span>{{end}}</td>
+      <td class="nowrap">{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/refresh" class="inline"><button class="link">{{T "Refresh"}}</button></form>
+        <form method="post" action="/vmware/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove %v and its backup jobs? Backups on storage stay." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
     </tr>
     {{with .LastError}}<tr><td colspan="6" class="small muted wrap-any">{{.}}</td></tr>{{end}}
     {{end}}
   </table></div>
-  {{else}}<p class="muted">No ESXi host added yet.</p>{{end}}
+  {{else}}<p class="muted">{{T "No ESXi host added yet."}}</p>{{end}}
   {{if $.Me.Can "agents"}}
   <details class="mt" {{if not .Data.VMwareHosts}}open{{end}}>
-    <summary>Add an ESXi host</summary>
+    <summary>{{T "Add an ESXi host"}}</summary>
     <form method="post" action="/vmware" class="stack mt">
       <div class="row">
-        <label>Address <small>name or IP of the ESXi host</small><input name="address" required placeholder="192.168.1.20"></label>
-        <label>Name <small>optional, shown in the console</small><input name="name" maxlength="80" placeholder="esxi1"></label>
+        <label>{{T "Address"}} <small>{{T "name or IP of the ESXi host"}}</small><input name="address" required placeholder="192.168.1.20"></label>
+        <label>{{T "Name"}} <small>{{T "optional, shown in the console"}}</small><input name="name" maxlength="80" placeholder="{{T "esxi1"}}"></label>
       </div>
       <div class="row">
-        <label>User <small>root, or a user with administrator role on the host</small><input name="username" value="root" required></label>
-        <label>Password <small>stored encrypted</small><input name="password" type="password" autocomplete="new-password" required></label>
-        <label>Proxy agent
+        <label>{{T "User"}} <small>{{T "root, or a user with administrator role on the host"}}</small><input name="username" value="root" required></label>
+        <label>{{T "Password"}} <small>{{T "stored encrypted"}}</small><input name="password" type="password" autocomplete="new-password" required></label>
+        <label>{{T "Proxy agent"}}
           <select name="proxy_agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
         </label>
       </div>
-      <p class="muted small">The console connects once to check the address and password, and pins the host's certificate and SSH key. Hosts with the free ESXi license need <b>SSH enabled</b> (Host → Actions → Services → Enable Secure Shell); restores always use SSH.</p>
-      <div><button>Add ESXi host</button></div>
+      <p class="muted small">{{T "The console connects once to check the address and password, and pins the host's certificate and SSH key. Hosts with the free ESXi license need"}} <b>{{T "SSH enabled"}}</b> {{T "(Host → Actions → Services → Enable Secure Shell); restores always use SSH."}}</p>
+      <div><button>{{T "Add ESXi host"}}</button></div>
     </form>
   </details>
   {{end}}
@@ -98,46 +98,46 @@ sudo systemctl enable --now backupzit-agent</pre>
 
 <div class="row">
 {{if $.Me.Can "agents"}}  <div class="panel">
-    <h2>Add agents</h2>
-    <p class="muted">Create an enrollment token, then install the agent on each machine with it.</p>
+    <h2>{{T "Add agents"}}</h2>
+    <p class="muted">{{T "Create an enrollment token, then install the agent on each machine with it."}}</p>
     <form method="post" action="/agents/token" class="stack">
-      <div><button>Create enrollment token</button></div>
+      <div><button>{{T "Create enrollment token"}}</button></div>
     </form>
     <details class="mt" id="install">
-      <summary><b>Install on a machine from here</b> <span class="muted small">Linux over SSH, Windows over WinRM</span></summary>
+      <summary><b>{{T "Install on a machine from here"}}</b> <span class="muted small">{{T "Linux over SSH, Windows over WinRM"}}</span></summary>
       <form method="post" action="/agents/install" class="stack mt" autocomplete="off">
         <div class="choice">
-          <label class="check"><input type="radio" name="os" value="linux" checked> Linux <small>Debian, Ubuntu, AlmaLinux, Rocky Linux — SSH as root or a user with sudo</small></label>
-          <label class="check"><input type="radio" name="os" value="windows"> Windows <small>WinRM (port 5985, on by default on Windows Server; on Windows 10/11 run <code>winrm quickconfig</code> once) — a local or domain administrator</small></label>
+          <label class="check"><input type="radio" name="os" value="linux" checked> {{T "Linux"}} <small>{{T "Debian, Ubuntu, AlmaLinux, Rocky Linux — SSH as root or a user with sudo"}}</small></label>
+          <label class="check"><input type="radio" name="os" value="windows"> {{T "Windows"}} <small>{{T "WinRM (port 5985, on by default on Windows Server; on Windows 10/11 run"}} <code>winrm quickconfig</code> {{T "once) — a local or domain administrator"}}</small></label>
         </div>
         <div class="row">
-          <label>Host name or IP address <input name="host" required></label>
-          <label>Port <small>empty: 22 or 5985</small><input name="port" type="number" min="1" max="65535" class="narrow"></label>
+          <label>{{T "Host name or IP address"}} <input name="host" required></label>
+          <label>{{T "Port"}} <small>{{T "empty: 22 or 5985"}}</small><input name="port" type="number" min="1" max="65535" class="narrow"></label>
         </div>
         <div class="row">
-          <label>User <input name="user" required autocomplete="off"></label>
-          <label>Password <small>for sudo too; for an SSH key its passphrase, if any</small><input name="password" type="password" autocomplete="new-password"></label>
+          <label>{{T "User"}} <input name="user" required autocomplete="off"></label>
+          <label>{{T "Password"}} <small>{{T "for sudo too; for an SSH key its passphrase, if any"}}</small><input name="password" type="password" autocomplete="new-password"></label>
         </div>
-        <label>SSH private key <small>Linux, optional, instead of a password</small><textarea name="key" class="mono" rows="3" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea></label>
-        <label>SSH host key fingerprint <small>Linux, optional: SHA256:… — verifies that the console talks to the right machine</small><input name="host_key" class="mono"></label>
-        <p class="muted small">The console connects once, the machine downloads the newest agent package from the console and checks its SHA-256, installs and enrolls it. The password or key is used only for this and is not stored.</p>
-        <div><button>Install agent</button></div>
+        <label>{{T "SSH private key"}} <small>{{T "Linux, optional, instead of a password"}}</small><textarea name="key" class="mono" rows="3" placeholder="{{T "-----BEGIN OPENSSH PRIVATE KEY-----"}}"></textarea></label>
+        <label>{{T "SSH host key fingerprint"}} <small>{{T "Linux, optional: SHA256:… — verifies that the console talks to the right machine"}}</small><input name="host_key" class="mono"></label>
+        <p class="muted small">{{T "The console connects once, the machine downloads the newest agent package from the console and checks its SHA-256, installs and enrolls it. The password or key is used only for this and is not stored."}}</p>
+        <div><button>{{T "Install agent"}}</button></div>
       </form>
     </details>
   </div>{{end}}
   <div class="panel">
-    <h2>Downloads</h2>
+    <h2>{{T "Downloads"}}</h2>
     {{if .Data.Downloads}}
     <ul class="dl-list">
       {{range .Data.Downloads}}
       <li class="{{if .Primary}}primary{{end}}">
-        <a href="/downloads/{{.Name}}" class="btn {{if not .Primary}}secondary-link{{end}}">{{template "icon" "download"}}{{.Title}}</a>
-        <div><span class="muted small">{{.Desc}}</span><br><span class="mono small">{{.Name}} · {{.Size}}</span></div>
+        <a href="/downloads/{{.Name}}" class="btn {{if not .Primary}}secondary-link{{end}}">{{template "icon" "download"}}{{T .Title}}</a>
+        <div><span class="muted small">{{T .Desc}}</span><br><span class="mono small">{{.Name}} · {{.Size}}</span></div>
       </li>
       {{end}}
     </ul>
-    <p class="muted small mt">Install the MSI on Windows (double-click, or silently with the command shown after <i>Create enrollment token</i>); it installs the agent as a service.</p>
-    {{else}}<p class="muted">No agent installers found. Place the MSI, deb and rpm packages in the server's <code>dist</code> directory (<code>/var/lib/backupzit/dist</code>).</p>{{end}}
+    <p class="muted small mt">{{T "Install the MSI on Windows (double-click, or silently with the command shown after"}} <i>{{T "Create enrollment token"}}</i>{{T "); it installs the agent as a service."}}</p>
+    {{else}}<p class="muted">{{T "No agent installers found. Place the MSI, deb and rpm packages in the server's"}} <code>dist</code> {{T "directory ("}}<code>/var/lib/backupzit/dist</code>).</p>{{end}}
   </div>
 </div>
 {{end}}

@@ -244,51 +244,54 @@ func (s Schedule) Next(t time.Time) time.Time {
 
 var dayNames = []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 
-func (s Schedule) daysText() string {
+func (s Schedule) daysText(l *language) string {
 	switch d := s.dowField(); d {
 	case "*":
-		return "every day"
+		return l.T("every day")
 	case "1,2,3,4,5":
-		return "Mon–Fri"
+		return l.T("Mon–Fri")
 	case "0,6":
-		return "Sat and Sun"
+		return l.T("Sat and Sun")
 	}
 	names := make([]string, len(s.Days))
 	for i, d := range s.Days {
-		names[i] = dayNames[d]
+		names[i] = l.T(dayNames[d])
 	}
-	return "on " + strings.Join(names, ", ")
+	return l.T("on %s", strings.Join(names, ", "))
 }
 
 // Describe returns a human readable summary, e.g. "Every day at 22:00".
-func (s Schedule) Describe() string {
+func (s Schedule) Describe() string { return s.DescribeIn(languages[0]) }
+
+// DescribeIn is Describe in a console language.
+func (s Schedule) DescribeIn(l *language) string {
 	if s.cron != "" {
 		return "cron: " + s.cron
 	}
 	switch s.Kind {
 	case SchedDaily:
-		d := s.daysText()
-		return strings.ToUpper(d[:1]) + d[1:] + " at " + strings.Join(s.Times, ", ")
+		d := []rune(s.daysText(l))
+		return l.T("%s at %s", strings.ToUpper(string(d[:1]))+string(d[1:]), strings.Join(s.Times, ", "))
 	case SchedInterval:
 		var every string
 		switch {
 		case s.EveryMinutes < 60:
-			every = fmt.Sprintf("Every %d minutes", s.EveryMinutes)
+			every = l.T("Every %d minutes", s.EveryMinutes)
 		case s.EveryMinutes == 60:
-			every = "Every hour"
+			every = l.T("Every hour")
 		default:
-			every = fmt.Sprintf("Every %d hours", s.EveryMinutes/60)
+			every = l.T("Every %d hours", s.EveryMinutes/60)
 		}
 		if s.FromHour != 0 || s.ToHour != 0 {
-			every += fmt.Sprintf(" between %02d:00 and %02d:00", s.FromHour, s.ToHour)
+			every = l.T("%s between %02d:00 and %02d:00", every, s.FromHour, s.ToHour)
 		}
-		return every + ", " + s.daysText()
+		return every + ", " + s.daysText(l)
 	case SchedMonthly:
-		return fmt.Sprintf("Monthly on day %d at %s", s.DayOfMonth, s.Times[0])
+		return l.T("Monthly on day %d at %s", s.DayOfMonth, s.Times[0])
 	case SchedAfter:
-		return "After each backup of the source job"
+		return l.T("After each backup of the source job")
 	}
-	return "Manual only"
+	return l.T("Manual only")
 }
 
 // IsManual reports whether the job only runs when started by hand.

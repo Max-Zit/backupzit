@@ -5,61 +5,61 @@ page data; .Data holds the keys built by restoreFormData. */}}
 {{define "restore_files"}}
 <form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack">
   {{template "restore_back" .}}
-  <label>Restore on agent
+  <label>{{T "Restore on agent"}}
     <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
   </label>
-  <label class="check"><input type="radio" name="mode" value="folder" checked> Restore into a folder</label>
-  <label>Folder <small>the original path structure is recreated below it, e.g. D:\Restore\C\Users\...</small><input name="target" placeholder="C:\Restore"></label>
-  <label class="check"><input type="radio" name="mode" value="original"> Restore to original location (overwrites existing files)</label>
-  <label>Only these paths <small>optional, one per line, e.g. C:\Users\ana\Documents</small><textarea name="includes"></textarea></label>
-  <label class="check"><input type="checkbox" name="verify" checked> Verify restored files</label>
-  <div><button>Start restore</button></div>
+  <label class="check"><input type="radio" name="mode" value="folder" checked> {{T "Restore into a folder"}}</label>
+  <label>{{T "Folder"}} <small>{{T "the original path structure is recreated below it, e.g. D:\\Restore\\C\\Users\\..."}}</small><input name="target" placeholder="{{T "C:\\Restore"}}"></label>
+  <label class="check"><input type="radio" name="mode" value="original"> {{T "Restore to original location (overwrites existing files)"}}</label>
+  <label>{{T "Only these paths"}} <small>{{T "optional, one per line, e.g. C:\\Users\\ana\\Documents"}}</small><textarea name="includes"></textarea></label>
+  <label class="check"><input type="checkbox" name="verify" checked> {{T "Verify restored files"}}</label>
+  <div><button>{{T "Start restore"}}</button></div>
 </form>
 {{end}}
 
 {{define "restore_system"}}
-<p class="muted">Recreates partitions, LVM and file systems with their original UUIDs, restores all files and makes the disk bootable. <b>Everything on the target is erased.</b></p>
+<p class="muted">{{T "Recreates partitions, LVM and file systems with their original UUIDs, restores all files and makes the disk bootable."}} <b>{{T "Everything on the target is erased."}}</b></p>
 {{if .Data.PVEAgents}}
-<h3>As a new Proxmox VM</h3>
+<h3>{{T "As a new Proxmox VM"}}</h3>
 <form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack">
   {{template "restore_back" .}}
   <input type="hidden" name="kind" value="system"><input type="hidden" name="mode" value="pve-vm">
   <div class="row">
-    <label>Proxmox node
+    <label>{{T "Proxmox node"}}
       <select name="pve_agent_id">{{range .Data.PVEAgents}}<option value="{{.ID}}">{{.Inv.Node}}</option>{{end}}</select>
     </label>
-    <label>Storage
+    <label>{{T "Storage"}}
       <select name="storage">{{range .Data.PVEAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
     </label>
   </div>
   <div class="row">
-    <label>VM ID <small>empty: next free</small><input name="vmid" type="number" min="100"></label>
-    <label>Name <small>default: original host name</small><input name="name" maxlength="63"></label>
-    <label>Memory (MiB)<input name="memory" type="number" min="256" value="2048"></label>
-    <label>CPU cores<input name="cores" type="number" min="1" value="2"></label>
-    <label>Bridge<input name="bridge" value="vmbr0"></label>
+    <label>{{T "VM ID"}} <small>{{T "empty: next free"}}</small><input name="vmid" type="number" min="100"></label>
+    <label>{{T "Name"}} <small>{{T "default: original host name"}}</small><input name="name" maxlength="63"></label>
+    <label>{{T "Memory (MiB)"}}<input name="memory" type="number" min="256" value="2048"></label>
+    <label>{{T "CPU cores"}}<input name="cores" type="number" min="1" value="2"></label>
+    <label>{{T "Bridge"}}<input name="bridge" value="vmbr0"></label>
   </div>
-  <p class="muted small">The VM gets {{if .Data.System.UEFI}}UEFI (OVMF){{else}}BIOS{{end}} firmware like the original, a VirtIO SCSI disk and network card; network settings bound to the old MAC addresses are adapted.</p>
-  <label class="check"><input type="checkbox" name="start"> Start the VM after the restore</label>
-  <div><button>Restore as VM</button></div>
+  <p class="muted small">{{T "The VM gets"}} {{if .Data.System.UEFI}}{{T "UEFI (OVMF)"}}{{else}}{{T "BIOS"}}{{end}} {{T "firmware like the original, a VirtIO SCSI disk and network card; network settings bound to the old MAC addresses are adapted."}}</p>
+  <label class="check"><input type="checkbox" name="start"> {{T "Start the VM after the restore"}}</label>
+  <div><button>{{T "Restore as VM"}}</button></div>
 </form>
 {{end}}
-<h3 class="mt">Onto a disk</h3>
+<h3 class="mt">{{T "Onto a disk"}}</h3>
 {{if .Data.LinuxAgents}}
-<form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack" data-confirm="Erase the target disk and restore the system onto it?">
+<form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack" data-confirm="{{T "Erase the target disk and restore the system onto it?"}}">
   {{template "restore_back" .}}
   <input type="hidden" name="kind" value="system"><input type="hidden" name="mode" value="disk">
   <div class="row">
-    <label>On agent <small>a Linux machine with an empty disk, or the new machine booted from the Linux recovery ISO</small>
-      <select name="disk_agent_id">{{range .Data.LinuxAgents}}<option value="{{.ID}}">{{.Hostname}}{{if .Recovery}} (recovery){{end}}</option>{{end}}</select>
+    <label>{{T "On agent"}} <small>{{T "a Linux machine with an empty disk, or the new machine booted from the Linux recovery ISO"}}</small>
+      <select name="disk_agent_id">{{range .Data.LinuxAgents}}<option value="{{.ID}}">{{.Hostname}}{{if .Recovery}} {{T "(recovery)"}}{{end}}</option>{{end}}</select>
     </label>
-    <label>Target disk<input name="device" placeholder="/dev/sdb" required></label>
+    <label>{{T "Target disk"}}<input name="device" placeholder="{{T "/dev/sdb"}}" required></label>
   </div>
-  <label class="check"><input type="checkbox" name="new_hardware"> Different hardware <small>adapt network settings bound to MAC addresses and rebuild the initramfs</small></label>
-  <label class="check"><input type="checkbox" name="confirm_erase" required> I understand that all data on the target disk will be destroyed</label>
-  <div><button class="danger">Restore system</button></div>
+  <label class="check"><input type="checkbox" name="new_hardware"> {{T "Different hardware"}} <small>{{T "adapt network settings bound to MAC addresses and rebuild the initramfs"}}</small></label>
+  <label class="check"><input type="checkbox" name="confirm_erase" required> {{T "I understand that all data on the target disk will be destroyed"}}</label>
+  <div><button class="danger">{{T "Restore system"}}</button></div>
 </form>
-{{else}}<p class="muted">No Linux agent is enrolled. Boot the target machine from the <a href="/recovery">Linux recovery ISO</a> so it appears here.</p>{{end}}
+{{else}}<p class="muted">{{T "No Linux agent is enrolled. Boot the target machine from the"}} <a href="/recovery">{{T "Linux recovery ISO"}}</a> {{T "so it appears here."}}</p>{{end}}
 {{end}}
 
 {{define "restore_vm"}}
@@ -69,100 +69,100 @@ page data; .Data holds the keys built by restoreFormData. */}}
   {{template "restore_back" .}}
   <input type="hidden" name="kind" value="vm">
   <div class="row">
-    <label>VM
+    <label>{{T "VM"}}
       <select name="vmid">{{range .Data.VM.Guests}}<option value="{{.VMID}}" {{if eq .VMID $.Data.SelectedVMID}}selected{{end}}>{{.Name}}</option>{{end}}</select>
     </label>
-    <label>Restore on ESXi host
+    <label>{{T "Restore on ESXi host"}}
       <select name="vmware_host_id">{{range .Data.VMwareHosts}}<option value="{{.ID}}">{{.Name}} ({{.Address}})</option>{{end}}</select>
     </label>
   </div>
-  <label class="check"><input type="radio" name="id_mode" value="next" checked> As a new VM next to the original <small>new name (default: original name + "-restored-" and the date), new UUID and MAC addresses</small></label>
-  <label class="check"><input type="radio" name="id_mode" value="original"> In place of the original VM <small>or recreate it if it was deleted</small></label>
-  <label class="check"><input type="checkbox" name="overwrite"> If the original VM still exists, <b>turn it off and replace its disks</b> with the backup <small>it keeps its UUID, network adapters and MAC addresses; the old disks are kept renamed (<code>.replaced-…</code>)</small></label>
+  <label class="check"><input type="radio" name="id_mode" value="next" checked> {{T "As a new VM next to the original"}} <small>{{T "new name (default: original name + \"-restored-\" and the date), new UUID and MAC addresses"}}</small></label>
+  <label class="check"><input type="radio" name="id_mode" value="original"> {{T "In place of the original VM"}} <small>{{T "or recreate it if it was deleted"}}</small></label>
+  <label class="check"><input type="checkbox" name="overwrite"> {{T "If the original VM still exists,"}} <b>{{T "turn it off and replace its disks"}}</b> {{T "with the backup"}} <small>{{T "it keeps its UUID, network adapters and MAC addresses; the old disks are kept renamed ("}}<code>.replaced-…</code>)</small></label>
   <div class="row">
-    <label>Name <small>optional</small><input name="name" maxlength="80"></label>
-    <label>Datastore
-      <select name="storage"><option value="">Original datastore</option>{{range .Data.VMwareHosts}}{{$h := .}}{{with .Inv}}<optgroup label="{{$h.Name}}">{{range .Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}{{end}}</select>
+    <label>{{T "Name"}} <small>{{T "optional"}}</small><input name="name" maxlength="80"></label>
+    <label>{{T "Datastore"}}
+      <select name="storage"><option value="">{{T "Original datastore"}}</option>{{range .Data.VMwareHosts}}{{$h := .}}{{with .Inv}}<optgroup label="{{$h.Name}}">{{range .Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}{{end}}</select>
     </label>
   </div>
-  <label class="check"><input type="checkbox" name="start"> Start the VM after the restore</label>
-  <p class="muted small">Disks are restored thin; only blocks with data are written. The proxy agent of the host writes them over SSH, which must be enabled on the host.</p>
-  <div><button>Restore VM</button></div>
+  <label class="check"><input type="checkbox" name="start"> {{T "Start the VM after the restore"}}</label>
+  <p class="muted small">{{T "Disks are restored thin; only blocks with data are written. The proxy agent of the host writes them over SSH, which must be enabled on the host."}}</p>
+  <div><button>{{T "Restore VM"}}</button></div>
 </form>
-{{else}}<p class="muted">No VMware ESXi host with a proxy agent is set up. Add one under <a href="/agents#vmware">Agents → VMware ESXi hosts</a>.</p>{{end}}
+{{else}}<p class="muted">{{T "No VMware ESXi host with a proxy agent is set up. Add one under"}} <a href="/agents#vmware">{{T "Agents → VMware ESXi hosts"}}</a>.</p>{{end}}
 {{else if eq .Data.VMPlatform "hyperv"}}
 {{if .Data.VMAgents}}
 <form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack">
   {{template "restore_back" .}}
   <input type="hidden" name="kind" value="vm">
   <div class="row">
-    <label>VM
+    <label>{{T "VM"}}
       <select name="vmid">{{range .Data.VM.Guests}}<option value="{{.VMID}}" {{if eq .VMID $.Data.SelectedVMID}}selected{{end}}>{{.Name}}</option>{{end}}</select>
     </label>
-    <label>Restore on Hyper-V host
+    <label>{{T "Restore on Hyper-V host"}}
       <select name="agent_id">{{range .Data.VMAgents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Inv.Node}}</option>{{end}}</select>
     </label>
   </div>
-  <label class="check"><input type="radio" name="id_mode" value="next" checked> As a new VM next to the original <small>new name (default: original name + "restored" and the date) and new MAC addresses</small></label>
-  <label class="check"><input type="radio" name="id_mode" value="original"> In place of the original VM <small>or recreate it if it was deleted</small></label>
-  <label class="check"><input type="checkbox" name="overwrite"> If the original VM still exists, <b>turn it off and replace its disks</b> with the backup <small>it keeps its ID, network adapters and MAC addresses; the old disk files are kept renamed (<code>.replaced-…</code>)</small></label>
+  <label class="check"><input type="radio" name="id_mode" value="next" checked> {{T "As a new VM next to the original"}} <small>{{T "new name (default: original name + \"restored\" and the date) and new MAC addresses"}}</small></label>
+  <label class="check"><input type="radio" name="id_mode" value="original"> {{T "In place of the original VM"}} <small>{{T "or recreate it if it was deleted"}}</small></label>
+  <label class="check"><input type="checkbox" name="overwrite"> {{T "If the original VM still exists,"}} <b>{{T "turn it off and replace its disks"}}</b> {{T "with the backup"}} <small>{{T "it keeps its ID, network adapters and MAC addresses; the old disk files are kept renamed ("}}<code>.replaced-…</code>)</small></label>
   <div class="row">
-    <label>Name <small>optional</small><input name="name" maxlength="100"></label>
-    <label>Folder for the virtual disks
-      <select name="storage"><option value="">Host default (in place: next to the original disks)</option>{{range .Data.VMAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
+    <label>{{T "Name"}} <small>{{T "optional"}}</small><input name="name" maxlength="100"></label>
+    <label>{{T "Folder for the virtual disks"}}
+      <select name="storage"><option value="">{{T "Host default (in place: next to the original disks)"}}</option>{{range .Data.VMAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
     </label>
   </div>
-  <label class="check"><input type="checkbox" name="start"> Start the VM after the restore</label>
-  <div><button>Restore VM</button></div>
+  <label class="check"><input type="checkbox" name="start"> {{T "Start the VM after the restore"}}</label>
+  <div><button>{{T "Restore VM"}}</button></div>
 </form>
-{{else}}<p class="muted">No agent on a Hyper-V host is enrolled. Install the BackupZit agent on the Hyper-V host to restore.</p>{{end}}
+{{else}}<p class="muted">{{T "No agent on a Hyper-V host is enrolled. Install the BackupZit agent on the Hyper-V host to restore."}}</p>{{end}}
 {{else}}
 {{if .Data.VMAgents}}
 <form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack">
   {{template "restore_back" .}}
   <input type="hidden" name="kind" value="vm">
   <div class="row">
-    <label>Guest
-      <select name="vmid">{{range .Data.VM.Guests}}<option value="{{.VMID}}" {{if eq .VMID $.Data.SelectedVMID}}selected{{end}}>{{.VMID}} — {{.Name}} ({{if eq .Type "lxc"}}container{{else}}VM{{end}})</option>{{end}}</select>
+    <label>{{T "Guest"}}
+      <select name="vmid">{{range .Data.VM.Guests}}<option value="{{.VMID}}" {{if eq .VMID $.Data.SelectedVMID}}selected{{end}}>{{.VMID}} — {{.Name}} ({{if eq .Type "lxc"}}{{T "container"}}{{else}}{{T "VM"}}{{end}})</option>{{end}}</select>
     </label>
-    <label>Restore on Proxmox node
+    <label>{{T "Restore on Proxmox node"}}
       <select name="agent_id">{{range .Data.VMAgents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Inv.Node}}{{if ne .Inv.Node .Hostname}} ({{.Hostname}}){{end}}</option>{{end}}</select>
     </label>
   </div>
-  <label class="check"><input type="radio" name="id_mode" value="next" checked> As a new guest with the next free ID <small>the original keeps running; network cards get new MAC addresses</small></label>
-  <label class="check"><input type="radio" name="id_mode" value="custom"> As a new guest with ID <input name="new_vmid" type="number" min="100" max="999999999" class="narrow"></label>
-  <label class="check"><input type="radio" name="id_mode" value="original"> With its original ID <small>when the guest was deleted, or to replace it</small></label>
-  <label class="check"><input type="radio" name="id_mode" value="instant"> Instantly, running from the backup <small>VMs only: starts in seconds with the next free ID while its disks are read from the backup; then finish (move the disks to storage while it runs) or discard it on the run page</small></label>
-  <label class="check"><input type="checkbox" name="overwrite"> If a guest with that ID exists, <b>stop and delete it</b> and replace it with the backup</label>
+  <label class="check"><input type="radio" name="id_mode" value="next" checked> {{T "As a new guest with the next free ID"}} <small>{{T "the original keeps running; network cards get new MAC addresses"}}</small></label>
+  <label class="check"><input type="radio" name="id_mode" value="custom"> {{T "As a new guest with ID"}} <input name="new_vmid" type="number" min="100" max="999999999" class="narrow"></label>
+  <label class="check"><input type="radio" name="id_mode" value="original"> {{T "With its original ID"}} <small>{{T "when the guest was deleted, or to replace it"}}</small></label>
+  <label class="check"><input type="radio" name="id_mode" value="instant"> {{T "Instantly, running from the backup"}} <small>{{T "VMs only: starts in seconds with the next free ID while its disks are read from the backup; then finish (move the disks to storage while it runs) or discard it on the run page"}}</small></label>
+  <label class="check"><input type="checkbox" name="overwrite"> {{T "If a guest with that ID exists,"}} <b>{{T "stop and delete it"}}</b> {{T "and replace it with the backup"}}</label>
   <div class="row">
-    <label>Name <small>optional, default: original name</small><input name="name" maxlength="63"></label>
-    <label>Storage for the disks
-      <select name="storage"><option value="">Original storage of each disk</option>{{range .Data.VMAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
+    <label>{{T "Name"}} <small>{{T "optional, default: original name"}}</small><input name="name" maxlength="63"></label>
+    <label>{{T "Storage for the disks"}}
+      <select name="storage"><option value="">{{T "Original storage of each disk"}}</option>{{range .Data.VMAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
     </label>
   </div>
-  <label class="check"><input type="checkbox" name="start"> Start the guest after the restore</label>
-  <div><button>Restore guest</button></div>
+  <label class="check"><input type="checkbox" name="start"> {{T "Start the guest after the restore"}}</label>
+  <div><button>{{T "Restore guest"}}</button></div>
 </form>
-{{else}}<p class="muted">No agent on a Proxmox VE host is enrolled. Install the BackupZit agent on the Proxmox node to restore.</p>{{end}}
+{{else}}<p class="muted">{{T "No agent on a Proxmox VE host is enrolled. Install the BackupZit agent on the Proxmox node to restore."}}</p>{{end}}
 {{end}}
 {{end}}
 
 {{define "restore_image"}}
-<p class="muted">The partition table is recreated with the original disk and partition IDs and all imaged partitions are written. <b>Everything on the target disk is erased.</b> The disk running Windows on the agent cannot be selected; to restore a system disk in place, boot the machine from <a href="/recovery">recovery media</a>.</p>
-<form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack" data-confirm="Erase the selected disk and restore this image onto it?">
+<p class="muted">{{T "The partition table is recreated with the original disk and partition IDs and all imaged partitions are written."}} <b>{{T "Everything on the target disk is erased."}}</b> {{T "The disk running Windows on the agent cannot be selected; to restore a system disk in place, boot the machine from"}} <a href="/recovery">{{T "recovery media"}}</a>.</p>
+<form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack" data-confirm="{{T "Erase the selected disk and restore this image onto it?"}}">
   {{template "restore_back" .}}
   <input type="hidden" name="kind" value="image">
-  <label>Restore on agent
-    <select name="agent_id" id="restore_agent">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}{{if .Recovery}} (recovery){{end}}</option>{{end}}</select>
+  <label>{{T "Restore on agent"}}
+    <select name="agent_id" id="restore_agent">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}{{if .Recovery}} {{T "(recovery)"}}{{end}}</option>{{end}}</select>
   </label>
-  <label>Target disk
+  <label>{{T "Target disk"}}
     <select name="target_disk" id="restore_disk" required></select>
   </label>
-  <label class="check"><input type="checkbox" name="keep_offline"> Leave the disk offline afterwards <small>use when the original disk is in the same machine, otherwise Windows assigns new IDs and the copy will not boot</small></label>
-  <label class="check"><input type="checkbox" name="new_hardware"> Restore to different hardware <small>for another computer, disk controller or hypervisor (e.g. a physical PC into a Proxmox or Hyper-V VM): enables the boot drivers for common disk controllers, adds drivers and rebuilds the boot files</small></label>
-  <label>Additional drivers <small>optional: folders with drivers (.inf) on the target machine, separated by ; — e.g. E:\Drivers. The recovery ISO adds its own drivers (VirtIO for Proxmox/KVM) automatically</small><input name="driver_path" placeholder="E:\Drivers"></label>
-  <label class="check"><input type="checkbox" name="confirm_erase" required> I understand that all data on the target disk will be destroyed</label>
-  <div><button class="danger">Restore image</button></div>
+  <label class="check"><input type="checkbox" name="keep_offline"> {{T "Leave the disk offline afterwards"}} <small>{{T "use when the original disk is in the same machine, otherwise Windows assigns new IDs and the copy will not boot"}}</small></label>
+  <label class="check"><input type="checkbox" name="new_hardware"> {{T "Restore to different hardware"}} <small>{{T "for another computer, disk controller or hypervisor (e.g. a physical PC into a Proxmox or Hyper-V VM): enables the boot drivers for common disk controllers, adds drivers and rebuilds the boot files"}}</small></label>
+  <label>{{T "Additional drivers"}} <small>{{T "optional: folders with drivers (.inf) on the target machine, separated by ; — e.g. E:\\Drivers. The recovery ISO adds its own drivers (VirtIO for Proxmox/KVM) automatically"}}</small><input name="driver_path" placeholder="{{T "E:\\Drivers"}}"></label>
+  <label class="check"><input type="checkbox" name="confirm_erase" required> {{T "I understand that all data on the target disk will be destroyed"}}</label>
+  <div><button class="danger">{{T "Restore image"}}</button></div>
 </form>
 <script type="application/json" id="inventory">{{.Data.Inventory}}</script>
 {{end}}
@@ -172,27 +172,27 @@ page data; .Data holds the keys built by restoreFormData. */}}
   {{template "restore_back" .}}
   <input type="hidden" name="kind" value="sql">
   <div class="row">
-    <label>Database
-      <select name="database">{{range $d.SQLPoints}}<option value="{{.Name}}" {{if eq .Name $d.SelectedDB}}selected{{end}}>{{if eq .Name "(cluster)"}}Whole PostgreSQL cluster — as a separate instance on a free port{{else}}{{.Name}}{{end}}</option>{{end}}</select>
+    <label>{{T "Database"}}
+      <select name="database">{{range $d.SQLPoints}}<option value="{{.Name}}" {{if eq .Name $d.SelectedDB}}selected{{end}}>{{if eq .Name "(cluster)"}}{{T "Whole PostgreSQL cluster — as a separate instance on a free port"}}{{else}}{{.Name}}{{end}}</option>{{end}}</select>
     </label>
-    <label>Restore on
+    <label>{{T "Restore on"}}
       <select name="agent_id">{{range $d.WindowsAgents}}<option value="{{.ID}}" {{if eq .ID $d.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
     </label>
-    {{if ne $d.SQL.Engine "mysql"}}<label>{{if eq $d.SQL.Engine "postgres"}}Port <small>of the PostgreSQL server to restore into; empty: 5432</small>{{else}}Instance <small>empty: default instance</small>{{end}}<input name="instance" value="{{$d.SQLInstance}}"></label>{{end}}
+    {{if ne $d.SQL.Engine "mysql"}}<label>{{if eq $d.SQL.Engine "postgres"}}{{T "Port"}} <small>{{T "of the PostgreSQL server to restore into; empty: 5432"}}</small>{{else}}{{T "Instance"}} <small>{{T "empty: default instance"}}</small>{{end}}<input name="instance" value="{{$d.SQLInstance}}"></label>{{end}}
   </div>
-  <label class="check"><input type="radio" name="target_mode" value="new" checked> As a new database named <input name="target" class="narrow" placeholder="sales_restored"> <small>the original stays untouched</small></label>
-  <label class="check"><input type="radio" name="target_mode" value="original"> Under its original name <small>e.g. on another server, or after the database was lost</small></label>
-  <label class="check"><input type="checkbox" name="replace"> If a database with that name exists, <b>replace it</b> (its users are disconnected)</label>
+  <label class="check"><input type="radio" name="target_mode" value="new" checked> {{T "As a new database named"}} <input name="target" class="narrow" placeholder="{{T "sales_restored"}}"> <small>{{T "the original stays untouched"}}</small></label>
+  <label class="check"><input type="radio" name="target_mode" value="original"> {{T "Under its original name"}} <small>{{T "e.g. on another server, or after the database was lost"}}</small></label>
+  <label class="check"><input type="checkbox" name="replace"> {{T "If a database with that name exists,"}} <b>{{T "replace it"}}</b> {{T "(its users are disconnected)"}}</label>
   <fieldset class="sched">
-    <legend>State to restore</legend>
-    <label class="check"><input type="radio" name="point" value="full" checked> As of the full backup</label>
-    <label class="check"><input type="radio" name="point" value="latest"> Latest: the full backup and every log backup after it</label>
-    <label class="check"><input type="radio" name="point" value="time"> At a point in time <input type="datetime-local" name="stop_at" step="1"></label>
+    <legend>{{T "State to restore"}}</legend>
+    <label class="check"><input type="radio" name="point" value="full" checked> {{T "As of the full backup"}}</label>
+    <label class="check"><input type="radio" name="point" value="latest"> {{T "Latest: the full backup and every log backup after it"}}</label>
+    <label class="check"><input type="radio" name="point" value="time"> {{T "At a point in time"}} <input type="datetime-local" name="stop_at" step="1"></label>
     <div class="table-wrap"><table>
-      <tr><th>Database</th><th>Full backup</th><th>Log backups reach until</th></tr>
-      {{range $d.SQLPoints}}<tr><td>{{if eq .Name "(cluster)"}}whole cluster{{else}}{{.Name}}{{end}}</td><td>{{ts .Full}}</td><td>{{if .LogUntil.IsZero}}<span class="muted">no log backups</span>{{else}}{{ts .LogUntil}}{{end}}</td></tr>{{end}}
+      <tr><th>{{T "Database"}}</th><th>{{T "Full backup"}}</th><th>{{T "Log backups reach until"}}</th></tr>
+      {{range $d.SQLPoints}}<tr><td>{{if eq .Name "(cluster)"}}{{T "whole cluster"}}{{else}}{{.Name}}{{end}}</td><td>{{ts .Full}}</td><td>{{if .LogUntil.IsZero}}<span class="muted">{{T "no log backups"}}</span>{{else}}{{ts .LogUntil}}{{end}}</td></tr>{{end}}
     </table></div>
   </fieldset>
-  <div><button>Restore database</button></div>
+  <div><button>{{T "Restore database"}}</button></div>
 </form>
 {{end}}

@@ -26,20 +26,23 @@ type JobCoverage struct {
 func (c JobCoverage) Count() int { return len(c.Items) }
 
 // Summary is e.g. "3 VMs: web, db, mail" (at most five names).
-func (c JobCoverage) Summary() string {
+func (c JobCoverage) Summary() string { return c.SummaryIn(languages[0]) }
+
+// SummaryIn is Summary in a console language.
+func (c JobCoverage) SummaryIn(l *language) string {
 	if c.Unit == "" || len(c.Items) == 0 {
 		return ""
 	}
-	unit := c.Unit
+	format := "%d " + c.Unit + ": %s"
 	if len(c.Items) != 1 {
-		unit += "s"
+		format = "%d " + c.Unit + "s: %s"
 	}
 	names := c.Items
-	more := ""
+	list := strings.Join(names, ", ")
 	if len(names) > 5 {
-		names, more = names[:5], fmt.Sprintf(" and %d more", len(c.Items)-5)
+		list = l.T("%s and %d more", strings.Join(names[:5], ", "), len(c.Items)-5)
 	}
-	return fmt.Sprintf("%d %s: %s%s", len(c.Items), unit, strings.Join(names, ", "), more)
+	return l.T(format, len(c.Items), list)
 }
 
 // jobCoverage returns the coverage of every job.
@@ -141,7 +144,7 @@ type Attention struct {
 
 // attention lists failing jobs, offline agents and jobs without a recent
 // successful backup.
-func (s *Server) attention(ctx context.Context, now time.Time) []Attention {
+func (s *Server) attention(ctx context.Context, now time.Time, l *language) []Attention {
 	var out []Attention
 	jobs, err := s.store.ListJobs(ctx)
 	if err != nil {
@@ -154,7 +157,7 @@ func (s *Server) attention(ctx context.Context, now time.Time) []Attention {
 		}
 		link := fmt.Sprintf("/jobs/%d", j.ID)
 		if j.LastStatus != nil && *j.LastStatus == api.StatusFailed {
-			out = append(out, Attention{"failed", j.Name, "the last run failed", link})
+			out = append(out, Attention{"failed", j.Name, l.T("the last run failed"), link})
 			continue
 		}
 		sc, err := ParseSchedule(j.Schedule)
@@ -171,10 +174,10 @@ func (s *Server) attention(ctx context.Context, now time.Time) []Attention {
 		switch {
 		case c == nil || c.LastOK == nil:
 			if j.CreatedAt.Before(prev) {
-				out = append(out, Attention{"warning", j.Name, "no successful backup yet", link})
+				out = append(out, Attention{"warning", j.Name, l.T("no successful backup yet"), link})
 			}
 		case c.LastOK.Before(prev.Add(-time.Hour)):
-			out = append(out, Attention{"warning", j.Name, "last successful backup " + humanAge(now.Sub(*c.LastOK)) + " ago; scheduled runs since then did not succeed", link})
+			out = append(out, Attention{"warning", j.Name, l.T("last successful backup %s ago; scheduled runs since then did not succeed", humanAge(l, now.Sub(*c.LastOK))), link})
 		}
 	}
 	agents, _ := s.store.ListAgents(ctx)
@@ -183,25 +186,43 @@ func (s *Server) attention(ctx context.Context, now time.Time) []Attention {
 			continue
 		}
 		if a.LastSeen == nil || now.Sub(*a.LastSeen) > 15*time.Minute {
-			seen := "never connected"
+			seen := l.T("agent never connected")
 			if a.LastSeen != nil {
-				seen = "offline for " + humanAge(now.Sub(*a.LastSeen))
+				seen = l.T("agent offline for %s", humanAge(l, now.Sub(*a.LastSeen)))
 			}
-			out = append(out, Attention{"warning", a.Hostname, "agent " + seen, "/agents"})
+			out = append(out, Attention{"warning", a.Hostname, seen, "/agents"})
 		}
+	}
+	if usage, err := s.store.storageUsage(ctx, now); err == nil && len(usage) > 0 {
+		targets, _ := s.store.ListTargets(ctx)
+		for _, t := range targets {
+			u := usage[t.ID]
+			if u == nil || u.Total == 0 {
+				continue
+			}
+			switch soon := u.FullInDays >= 0 && u.FullInDays <= 30; {
+			case u.UsedPercent() >= 90 || soon && u.FullInDays <= 7:
+				out = append(out, Attention{"failed", t.Name, storageWarning(l, u), "/targets#usage"})
+			case soon:
+				out = append(out, Attention{"warning", t.Name, storageWarning(l, u), "/targets#usage"})
+			}
+		}
+	}
+	if n := s.store.PendingApprovals(ctx); n > 0 {
+		out = append(out, Attention{"warning", l.T("Approvals"), l.T("%d changes wait for a second user's approval", n), "/approvals"})
 	}
 	sort.SliceStable(out, func(i, k int) bool { return out[i].Severity == "failed" && out[k].Severity != "failed" })
 	return out
 }
 
-func humanAge(d time.Duration) string {
+func humanAge(l *language, d time.Duration) string {
 	switch {
 	case d < time.Hour:
-		return fmt.Sprintf("%d min", int(d.Minutes()))
+		return l.T("%d min", int(d.Minutes()))
 	case d < 48*time.Hour:
-		return fmt.Sprintf("%d h", int(d.Hours()))
+		return l.T("%d h", int(d.Hours()))
 	}
-	return fmt.Sprintf("%d days", int(d.Hours()/24))
+	return l.T("%d days", int(d.Hours()/24))
 }
 
 // Protection counts what the backups protect, for the dashboard.

@@ -1,0 +1,61 @@
+{{define "content"}}
+<div class="pagehead">
+  <h1>{{T "Approvals"}}</h1>
+</div>
+
+<div class="panel">
+  <h2>{{template "icon" "shield"}} {{T "Waiting for approval"}}</h2>
+  {{if .Data.On}}
+  <p class="muted">{{T "Four-eyes approval is on: deleting jobs, agents, ESXi hosts, storage targets and users, shortening retention, resuming retention after a suspicious backup and turning the approval off take effect only when a second user approves them. Requests expire after 7 days."}}</p>
+  {{else}}
+  <p class="muted">{{T "Four-eyes approval is off. Turn it on under"}} <a href="/settings/security">{{T "Settings → Sign-in & security"}}</a>.</p>
+  {{end}}
+  {{with .Data.Pending}}
+  <div class="table-wrap"><table>
+    <thead><tr><th>{{T "Change"}}</th><th>{{T "Object"}}</th><th>{{T "Requested by"}}</th><th>{{T "Requested"}}</th><th>{{T "Expires"}}</th><th></th></tr></thead>
+    <tbody>
+    {{range .}}
+    <tr>
+      <td class="strong">{{T .Title}}{{if eq .Action "job.retention"}}<br><span class="muted small">{{retention .Policy}}</span>{{end}}</td>
+      <td>{{.ObjectName}}</td>
+      <td>{{.RequestedBy}}</td>
+      <td>{{ts .RequestedAt}} <span class="muted small">({{ago .RequestedAt}})</span></td>
+      <td>{{ts .Expires}}</td>
+      <td class="nowrap">
+        {{if eq .RequestedBy $.User}}
+        <form method="post" action="/approvals/{{.ID}}/cancel" class="inline"><button class="link">{{T "Cancel request"}}</button></form>
+        {{else if canDecide $.Me .}}
+        <form method="post" action="/approvals/{{.ID}}/approve" class="inline" data-confirm="{{T "Approve and carry out this change now?"}}"><button class="danger">{{T "Approve"}}</button></form>
+        <form method="post" action="/approvals/{{.ID}}/reject" class="inline"><button class="secondary">{{T "Reject"}}</button></form>
+        {{else}}<span class="muted small">{{T "another user with the right role decides"}}</span>{{end}}
+      </td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table></div>
+  {{else}}
+  <p class="muted">{{T "Nothing is waiting for approval."}}</p>
+  {{end}}
+</div>
+
+{{with .Data.Decided}}
+<div class="panel">
+  <h2>{{T "Decided"}}</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>{{T "Change"}}</th><th>{{T "Object"}}</th><th>{{T "Requested by"}}</th><th>{{T "Result"}}</th><th>{{T "Decided by"}}</th><th>{{T "When"}}</th></tr></thead>
+    <tbody>
+    {{range .}}
+    <tr>
+      <td>{{T .Title}}{{if eq .Action "job.retention"}}<br><span class="muted small">{{retention .Policy}}</span>{{end}}</td>
+      <td>{{.ObjectName}}</td>
+      <td>{{.RequestedBy}}</td>
+      <td><span class="badge {{if eq .Status "approved"}}success{{else if eq .Status "failed"}}failed{{end}}"><i></i>{{T .Status}}</span>{{with .Note}}<br><span class="muted small">{{.}}</span>{{end}}</td>
+      <td>{{with .DecidedBy}}{{.}}{{else}}—{{end}}</td>
+      <td>{{with .DecidedAt}}{{ts .}}{{end}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table></div>
+</div>
+{{end}}
+{{end}}

@@ -1,90 +1,90 @@
 {{define "content"}}
-<h1>Backup jobs</h1>
+<h1>{{T "Backup jobs"}}</h1>
 <div class="panel">
   {{if .Data.Jobs}}
   <div class="filterbar" data-filter-table="jobs-table">
-    <input type="search" placeholder="Search jobs, machines, VMs…" data-filter-text aria-label="Search jobs">
+    <input type="search" placeholder="{{T "Search jobs, machines, VMs…"}}" data-filter-text aria-label="{{T "Search jobs"}}">
     <div class="chips">
-      <button type="button" class="chip on" data-filter-kind="">All <small>{{len .Data.Jobs}}</small></button>
-      {{range .Data.JobKinds}}<button type="button" class="chip" data-filter-kind="{{.Kind}}">{{.Title}} <small>{{.Count}}</small></button>{{end}}
-      {{if .Data.FailedJobs}}<button type="button" class="chip bad" data-filter-kind="failed">Last run failed <small>{{.Data.FailedJobs}}</small></button>{{end}}
+      <button type="button" class="chip on" data-filter-kind="">{{T "All"}} <small>{{len .Data.Jobs}}</small></button>
+      {{range .Data.JobKinds}}<button type="button" class="chip" data-filter-kind="{{.Kind}}">{{T .Title}} <small>{{.Count}}</small></button>{{end}}
+      {{if .Data.FailedJobs}}<button type="button" class="chip bad" data-filter-kind="failed">{{T "Last run failed"}} <small>{{.Data.FailedJobs}}</small></button>{{end}}
     </div>
   </div>
   <div class="table-wrap"><table id="jobs-table">
-    <tr><th>Job</th><th>Agent</th><th>Backs up</th><th>Storage</th><th>Schedule</th><th>Next run</th><th>Last result</th></tr>
+    <tr><th>{{T "Job"}}</th><th>{{T "Agent"}}</th><th>{{T "Backs up"}}</th><th>{{T "Storage"}}</th><th>{{T "Schedule"}}</th><th>{{T "Next run"}}</th><th>{{T "Last result"}}</th></tr>
     {{range .Data.Jobs}}{{$c := index $.Data.Coverage .ID}}
     <tr data-kind="{{.Kind}}{{if .LastStatus}}{{if eq (deref .LastStatus) "failed"}} failed{{end}}{{end}}">
-      <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">disabled</span>{{end}}<br><span class="badge kind-badge kind-{{.Kind}}">{{jobkind .Kind}}</span></td>
-      <td class="nowrap">{{if .VMwareHostName}}{{deref .VMwareHostName}} <span class="muted small">ESXi, via {{.Hostname}}</span>{{else}}{{.Hostname}}{{end}}</td>
-      <td>{{if eq .Kind "copy"}}<span class="badge info-badge">copy</span> of {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else if eq .Kind "vm"}}{{if and $c $c.Count}}<span title="{{vmsel .Paths}}">{{$c.Summary}}</span>{{else}}{{vmsel .Paths}}{{end}}{{else if eq .Kind "system"}}Whole Linux system{{else if eq .Kind "sql"}}{{if eq .Options.SQLEngine "postgres"}}PostgreSQL{{else if eq .Options.SQLEngine "mysql"}}MySQL/MariaDB{{else}}SQL Server{{with .Options.SQLInstance}} {{.}}{{end}}{{end}}: {{if and $c $c.Count}}{{$c.Summary}}{{else if .Paths}}{{join .Paths ", "}}{{else}}all databases{{end}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
+      <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">{{T "disabled"}}</span>{{end}}<br><span class="badge kind-badge kind-{{.Kind}}">{{jobkind .Kind}}</span></td>
+      <td class="nowrap">{{if .VMwareHostName}}{{deref .VMwareHostName}} <span class="muted small">{{T "ESXi, via"}} {{.Hostname}}</span>{{else}}{{.Hostname}}{{end}}</td>
+      <td>{{if eq .Kind "copy"}}<span class="badge info-badge">{{T "copy"}}</span> {{T "of"}} {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else if eq .Kind "vm"}}{{if and $c $c.Count}}<span title="{{vmsel .Paths}}">{{coverage $c}}</span>{{else}}{{vmsel .Paths}}{{end}}{{else if eq .Kind "system"}}{{T "Whole Linux system"}}{{else if eq .Kind "sql"}}{{if eq .Options.SQLEngine "postgres"}}{{T "PostgreSQL"}}{{else if eq .Options.SQLEngine "mysql"}}{{T "MySQL/MariaDB"}}{{else}}{{T "SQL Server"}}{{with .Options.SQLInstance}} {{.}}{{end}}{{end}}: {{if and $c $c.Count}}{{coverage $c}}{{else if .Paths}}{{join .Paths ", "}}{{else}}{{T "all databases"}}{{end}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
       <td>{{.TargetName}}</td>
       <td>{{schedule .Schedule}}</td>
       <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
-      <td class="nowrap">{{if .LastStatus}}{{template "status" (deref .LastStatus)}}<br><span class="muted small">{{ago .LastFinished}}</span>{{else}}<span class="muted">never ran</span>{{end}}{{if and $c $c.Points}}<br><span class="muted small" title="backups available for restore">{{$c.Points}} restore point{{if ne $c.Points 1}}s{{end}}</span>{{end}}</td>
+      <td class="nowrap">{{if .LastStatus}}{{template "status" (deref .LastStatus)}}<br><span class="muted small">{{ago .LastFinished}}</span>{{else}}<span class="muted">{{T "never ran"}}</span>{{end}}{{if and $c $c.Points}}<br><span class="muted small" title="{{T "backups available for restore"}}">{{$c.Points}} {{N $c.Points "restore point" "restore points"}}</span>{{end}}</td>
     </tr>
     {{end}}
   </table></div>
-  <p class="muted small mt" data-filter-empty hidden>No job matches.</p>
-  {{else}}<p class="muted">No backup jobs yet.</p>{{end}}
+  <p class="muted small mt" data-filter-empty hidden>{{T "No job matches."}}</p>
+  {{else}}<p class="muted">{{T "No backup jobs yet."}}</p>{{end}}
 </div>
 
 {{if $.Me.Can "jobs"}}<div class="panel">
-  <h2>New backup job</h2>
+  <h2>{{T "New backup job"}}</h2>
   {{if and .Data.Agents .Data.Targets}}
   <form method="post" action="/jobs" class="stack">
-    <label>Name <input name="name" required placeholder="Documents nightly"></label>
+    <label>{{T "Name"}} <input name="name" required placeholder="{{T "Documents nightly"}}"></label>
     <div class="row">
-      <label data-notkind="copy">Agent
-        <select name="agent_id" id="agent_sel" required>{{if .Data.VMwareHosts}}<optgroup label="Agents">{{end}}{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}{{if .Data.VMwareHosts}}</optgroup><optgroup label="VMware ESXi hosts (backed up through their proxy agent)">{{range .Data.VMwareHosts}}<option value="vmware:{{.ID}}">{{.Name}} — ESXi</option>{{end}}</optgroup>{{end}}</select>
+      <label data-notkind="copy">{{T "Agent"}}
+        <select name="agent_id" id="agent_sel" required>{{if .Data.VMwareHosts}}<optgroup label="Agents">{{end}}{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}{{if .Data.VMwareHosts}}</optgroup><optgroup label="VMware ESXi hosts (backed up through their proxy agent)">{{range .Data.VMwareHosts}}<option value="vmware:{{.ID}}">{{.Name}} {{T "— ESXi"}}</option>{{end}}</optgroup>{{end}}</select>
       </label>
-      <label>Storage target <small data-jobkind="copy" hidden>where the copies go — a different target than the source job's</small>
+      <label>{{T "Storage target"}} <small data-jobkind="copy" hidden>{{T "where the copies go — a different target than the source job's"}}</small>
         <select name="target_id" required>{{range .Data.Targets}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
       </label>
     </div>
     <div class="choice">
-      <label class="check"><input type="radio" name="kind" value="files" checked data-kindsel> Files and folders</label>
-      <label class="check"><input type="radio" name="kind" value="image" data-kindsel> Disk image <small>whole disk or selected partitions, restorable to an empty disk</small></label>
-      <label class="check"><input type="radio" name="kind" value="sql" data-kindsel> Databases <small>SQL Server (Windows), PostgreSQL or MySQL/MariaDB (Linux) on the agent's machine: full and log backups, restore of single databases to any point in time</small></label>
-      <label class="check"><input type="radio" name="kind" value="system" data-kindsel> Linux system <small>all file systems and the disk layout of a Linux machine — restorable to an empty disk or as a Proxmox VM (bare metal, P2V)</small></label>
-      {{if .Data.PVE}}<label class="check"><input type="radio" name="kind" value="vm" data-kindsel> Virtual machines (Proxmox VE, Hyper-V, VMware) <small>without agents in the guests — run by the agent on the hypervisor host, or for VMware ESXi by its proxy agent</small></label>{{end}}
-      {{if .Data.SourceJobs}}<label class="check"><input type="radio" name="kind" value="copy" data-kindsel> Backup copy <small>copy the backups of another job to a second storage (3-2-1)</small></label>{{end}}
+      <label class="check"><input type="radio" name="kind" value="files" checked data-kindsel> {{T "Files and folders"}}</label>
+      <label class="check"><input type="radio" name="kind" value="image" data-kindsel> {{T "Disk image"}} <small>{{T "whole disk or selected partitions, restorable to an empty disk"}}</small></label>
+      <label class="check"><input type="radio" name="kind" value="sql" data-kindsel> {{T "Databases"}} <small>{{T "SQL Server (Windows), PostgreSQL or MySQL/MariaDB (Linux) on the agent's machine: full and log backups, restore of single databases to any point in time"}}</small></label>
+      <label class="check"><input type="radio" name="kind" value="system" data-kindsel> {{T "Linux system"}} <small>{{T "all file systems and the disk layout of a Linux machine — restorable to an empty disk or as a Proxmox VM (bare metal, P2V)"}}</small></label>
+      {{if .Data.PVE}}<label class="check"><input type="radio" name="kind" value="vm" data-kindsel> {{T "Virtual machines (Proxmox VE, Hyper-V, VMware)"}} <small>{{T "without agents in the guests — run by the agent on the hypervisor host, or for VMware ESXi by its proxy agent"}}</small></label>{{end}}
+      {{if .Data.SourceJobs}}<label class="check"><input type="radio" name="kind" value="copy" data-kindsel> {{T "Backup copy"}} <small>{{T "copy the backups of another job to a second storage (3-2-1)"}}</small></label>{{end}}
     </div>
     <div data-jobkind="files" class="stack">
-      <label>Folders and files to back up <small>one path per line, as seen on the agent, e.g. C:\Users or /home</small>
+      <label>{{T "Folders and files to back up"}} <small>{{T "one path per line, as seen on the agent, e.g. C:\\Users or /home"}}</small>
         <textarea name="paths" required></textarea>
       </label>
-      <label>Exclude <small>one name pattern per line, e.g. *.tmp, node_modules, Thumbs.db</small>
+      <label>{{T "Exclude"}} <small>{{T "one name pattern per line, e.g. *.tmp, node_modules, Thumbs.db"}}</small>
         <textarea name="excludes"></textarea>
       </label>
     </div>
     <div data-jobkind="copy" hidden class="stack">
-      <label>Copy the backups of
+      <label>{{T "Copy the backups of"}}
         <select name="source_job" required>{{range .Data.SourceJobs}}<option value="{{.ID}}">{{.Name}} — {{.Hostname}} → {{.TargetName}}</option>{{end}}</select>
       </label>
-      <p class="muted">The agent of that job copies new backups from its storage to the storage target selected above. Only data that is not there yet is transferred, and the copy keeps its own retention below — for example 7 daily on the NAS and 12 monthly in the cloud.</p>
+      <p class="muted">{{T "The agent of that job copies new backups from its storage to the storage target selected above. Only data that is not there yet is transferred, and the copy keeps its own retention below — for example 7 daily on the NAS and 12 monthly in the cloud."}}</p>
     </div>
     <div data-jobkind="image" hidden>
-      <label>Disks of the selected agent <small>tick a whole disk or only some partitions</small></label>
-      <div id="disk-picker" class="disks"><p class="muted">Select an agent.</p></div>
+      <label>{{T "Disks of the selected agent"}} <small>{{T "tick a whole disk or only some partitions"}}</small></label>
+      <div id="disk-picker" class="disks"><p class="muted">{{T "Select an agent."}}</p></div>
     </div>
     <div data-jobkind="sql" hidden class="stack">{{template "job_sql" .Data.Form}}</div>
     <div data-jobkind="system" hidden class="stack">
-      <p class="muted">Backs up every local file system (ext4, xfs, vfat; also on LVM) with owners, permissions, ACLs and capabilities, plus the partition tables, LVM layout, file system UUIDs and boot code. Single files can be restored from it like from any file backup.</p>
-      <label>Exclude <small>optional, one name pattern per line, e.g. *.tmp or cache folders</small>
+      <p class="muted">{{T "Backs up every local file system (ext4, xfs, vfat; also on LVM) with owners, permissions, ACLs and capabilities, plus the partition tables, LVM layout, file system UUIDs and boot code. Single files can be restored from it like from any file backup."}}</p>
+      <label>{{T "Exclude"}} <small>{{T "optional, one name pattern per line, e.g. *.tmp or cache folders"}}</small>
         <textarea name="excludes"></textarea>
       </label>
     </div>
     <div data-jobkind="vm" hidden class="stack">
-      <label class="check"><input type="radio" name="vm_mode" value="all" checked> All VMs (and containers) on the host <small>VMs created later are included automatically</small></label>
-      <label class="check"><input type="radio" name="vm_mode" value="selected"> Only these:</label>
-      <div id="vm-picker" class="disks"><p class="muted">Select the agent on the Proxmox or Hyper-V host, or a VMware ESXi host.</p></div>
-      <p class="muted small">Each VM is captured from a snapshot (Proxmox, VMware) or production checkpoint (Hyper-V) while it keeps running; file systems are frozen first when the guest tools run in the VM. Only changed blocks are uploaded after the first backup; on VMware only changed blocks are even read.</p>
+      <label class="check"><input type="radio" name="vm_mode" value="all" checked> {{T "All VMs (and containers) on the host"}} <small>{{T "VMs created later are included automatically"}}</small></label>
+      <label class="check"><input type="radio" name="vm_mode" value="selected"> {{T "Only these:"}}</label>
+      <div id="vm-picker" class="disks"><p class="muted">{{T "Select the agent on the Proxmox or Hyper-V host, or a VMware ESXi host."}}</p></div>
+      <p class="muted small">{{T "Each VM is captured from a snapshot (Proxmox, VMware) or production checkpoint (Hyper-V) while it keeps running; file systems are frozen first when the guest tools run in the VM. Only changed blocks are uploaded after the first backup; on VMware only changed blocks are even read."}}</p>
     </div>
     <script type="application/json" id="pve-inventory">{{.Data.PVE}}</script>
     <script type="application/json" id="inventory">{{.Data.Inventory}}</script>
     {{template "job_common" .Data.Form}}
-    <div><button>Create job</button></div>
+    <div><button>{{T "Create job"}}</button></div>
   </form>
-  {{else}}<p class="muted">You need at least one <a href="/agents">agent</a> and one <a href="/targets">storage target</a>.</p>{{end}}
+  {{else}}<p class="muted">{{T "You need at least one"}} <a href="/agents">{{T "agent"}}</a> {{T "and one"}} <a href="/targets">{{T "storage target"}}</a>.</p>{{end}}
 </div>{{end}}
 {{end}}

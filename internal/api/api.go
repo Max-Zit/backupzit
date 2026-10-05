@@ -240,6 +240,12 @@ type RunResult struct {
 	// RepoURL is the actual repository location when the run was given a
 	// pattern (rotating USB disks: the label of the disk used).
 	RepoURL string `json:"repo_url,omitempty"`
+	// RepoBytes is the space the repository takes after a backup and its
+	// retention; StorageTotal and StorageFree the capacity of the storage
+	// holding it, when it can tell (disks, SFTP, SMB).
+	RepoBytes    uint64 `json:"repo_bytes,omitempty"`
+	StorageTotal uint64 `json:"storage_total,omitempty"`
+	StorageFree  uint64 `json:"storage_free,omitempty"`
 }
 
 // Error is returned by the server with non-2xx responses.

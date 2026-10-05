@@ -61,7 +61,7 @@ type Server struct {
 	PollInterval int
 	Version      string
 
-	pages map[string]*template.Template
+	pages map[string]map[string]*template.Template // language -> page -> template
 	// Notifier is triggered when a run finishes (optional).
 	Notifier  *Notifier
 	cache     *repoCache
@@ -105,6 +105,7 @@ var funcs = template.FuncMap{
 		}
 		return fmt.Sprintf("%d days ago", int(d.Hours()/24))
 	},
+	"canDecide": canDecide,
 	"ts": func(t any) string {
 		switch v := t.(type) {
 		case time.Time:
@@ -118,11 +119,17 @@ var funcs = template.FuncMap{
 		return ""
 	},
 	"bytes": humanBytes,
-	"join":  strings.Join,
-	"days":  days,
-	"sub":   func(a, b int) int { return a - b },
-	"pct":   func(f float64) string { return fmt.Sprintf("%.1f", f) },
-	"fx":    func(f float64) string { return fmt.Sprintf("%.1f", f) },
+	"signedbytes": func(f float64) string {
+		if f < 0 {
+			return "−" + humanBytes(uint64(-f))
+		}
+		return "+" + humanBytes(uint64(f))
+	},
+	"join": strings.Join,
+	"days": days,
+	"sub":  func(a, b int) int { return a - b },
+	"pct":  func(f float64) string { return fmt.Sprintf("%.1f", f) },
+	"fx":   func(f float64) string { return fmt.Sprintf("%.1f", f) },
 	"dur": func(d time.Duration) string {
 		if d < time.Minute {
 			return d.Round(time.Second).String()
@@ -175,9 +182,7 @@ var funcs = template.FuncMap{
 	"partkind": func(gpt string, mbr uint8) string {
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
-	"kindtitle": func(k string) string {
-		return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
-	},
+	"kindtitle":    kindTitleEN,
 	"everyChoices": everyChoices, "minutesText": minutesText, "jobkind": jobKindTitle,
 	"has": func(list []string, v string) bool { return slices.Contains(list, v) },
 	"hours": func() []int {
@@ -247,22 +252,26 @@ func scheduleFromForm(r *http.Request) (string, error) {
 }
 
 func (s *Server) loadTemplates() error {
-	s.pages = map[string]*template.Template{}
+	s.pages = map[string]map[string]*template.Template{}
 	entries, err := fs.ReadDir(templateFS, "templates")
 	if err != nil {
 		return err
 	}
-	for _, e := range entries {
-		name := e.Name()
-		// Files starting with "_" hold templates shared by several pages.
-		if name == "layout.html" || strings.HasPrefix(name, "_") {
-			continue
+	// One set per language: T and the text helpers are bound to it.
+	for _, l := range languages {
+		s.pages[l.Code] = map[string]*template.Template{}
+		for _, e := range entries {
+			name := e.Name()
+			// Files starting with "_" hold templates shared by several pages.
+			if name == "layout.html" || strings.HasPrefix(name, "_") {
+				continue
+			}
+			t, err := template.New("layout.html").Funcs(funcs).Funcs(langFuncs(l)).ParseFS(templateFS, "templates/layout.html", "templates/_*.html", "templates/"+name)
+			if err != nil {
+				return fmt.Errorf("template %s: %w", name, err)
+			}
+			s.pages[l.Code][strings.TrimSuffix(name, ".html")] = t
 		}
-		t, err := template.New("layout.html").Funcs(funcs).ParseFS(templateFS, "templates/layout.html", "templates/_*.html", "templates/"+name)
-		if err != nil {
-			return fmt.Errorf("template %s: %w", name, err)
-		}
-		s.pages[strings.TrimSuffix(name, ".html")] = t
 	}
 	return nil
 }
@@ -286,6 +295,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
 	mux.HandleFunc("GET /login", s.handleLoginPage)
 	mux.HandleFunc("POST /login", s.handleLogin)
+	mux.HandleFunc("POST /lang", s.handleLanguage)
 	mux.HandleFunc("GET /login/2fa", s.handleLogin2FA)
 	mux.HandleFunc("POST /login/2fa", s.handleLogin2FA)
 	mux.HandleFunc("POST /logout", s.ui("", s.handleLogout))
@@ -371,6 +381,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /settings/login-protection", s.ui(PermSettings, s.handleSettingsLoginProtection))
 	mux.HandleFunc("POST /settings/unblock", s.ui(PermSettings, s.handleUnblockAddress))
 	mux.HandleFunc("POST /settings/tests", s.ui(PermSettings, s.handleSettingsRestoreTests))
+	mux.HandleFunc("POST /settings/four-eyes", s.ui(PermSettings, s.handleSettingsFourEyes))
+	mux.HandleFunc("GET /approvals", s.ui(PermView, s.handleApprovals))
+	mux.HandleFunc("POST /approvals/{id}/{decision}", s.ui(PermView, s.handleApprovalDecision))
 	mux.HandleFunc("POST /recovery/token", s.ui(PermAgents, s.handleRecoveryToken))
 	mux.HandleFunc("POST /recovery/recovery.json", s.ui(PermAgents, s.handleRecoveryJSON))
 
@@ -401,6 +414,9 @@ type pageData struct {
 	Data    any
 	// Me is the signed-in user (set by render).
 	Me *User
+	// FourEyes and Approvals (pending requests) are set by render.
+	FourEyes  bool
+	Approvals int
 }
 
 // ui requires a signed-in user whose role has perm, and rejects
@@ -449,7 +465,8 @@ func sameOrigin(r *http.Request) bool {
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d pageData) {
-	t, ok := s.pages[page]
+	lang := requestLanguage(r)
+	t, ok := s.pages[lang.Code][page]
 	if !ok {
 		http.Error(w, "unknown page", http.StatusInternalServerError)
 		return
@@ -463,8 +480,14 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d p
 	if d.Error == "" && validFlash(q.Get("err"), q.Get("sig")) {
 		d.Error = q.Get("err")
 	}
+	// Fixed messages are translated; ones with names or numbers stay English.
+	d.Flash, d.Error = lang.T(d.Flash), lang.T(d.Error)
 	if d.Me == nil {
 		d.Me = currentUser(r)
+	}
+	if d.Me != nil {
+		d.FourEyes = s.store.fourEyes(r.Context())
+		d.Approvals = s.store.PendingApprovals(r.Context())
 	}
 	if d.User != "" {
 		w.Header().Set("Cache-Control", "no-store")
@@ -607,7 +630,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request, user st
 	}
 	instant, _ := s.store.RunningInstantVMs(r.Context())
 	s.render(w, r, "dashboard", pageData{Title: "Dashboard", Nav: "dashboard", User: user,
-		Data: map[string]any{"Summary": sum, "Runs": runs, "Instant": instant, "Attention": s.attention(r.Context(), time.Now()), "Protection": s.protection(r.Context())}})
+		Data: map[string]any{"Summary": sum, "Runs": runs, "Instant": instant, "Attention": s.attention(r.Context(), time.Now(), requestLanguage(r)), "Protection": s.protection(r.Context())}})
 }
 
 // ---- agents
@@ -656,6 +679,14 @@ func (s *Server) handleAgentToken(w http.ResponseWriter, r *http.Request, user s
 
 func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
+	a, err := s.store.GetAgent(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if s.needsApproval(w, r, "/agents", "agent.delete", id, a.Hostname, nil) {
+		return
+	}
 	if err := s.store.DeleteAgent(r.Context(), id); err != nil {
 		redirectErr(w, r, "/agents", err)
 		return
@@ -682,8 +713,13 @@ func (s *Server) handleTargets(w http.ResponseWriter, r *http.Request, user stri
 		s.serverError(w, err)
 		return
 	}
+	usage, err := s.store.storageUsage(r.Context(), time.Now())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	s.render(w, r, "targets", pageData{Title: "Storage", Nav: "targets", User: user,
-		Data: map[string]any{"Targets": targets}})
+		Data: map[string]any{"Targets": targets, "Usage": usage}})
 }
 
 func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -766,6 +802,14 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 
 func (s *Server) handleTargetDelete(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
+	t, err := s.store.GetTarget(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if s.needsApproval(w, r, "/targets", "storage.delete", id, t.Name, nil) {
+		return
+	}
 	if err := s.store.DeleteTarget(r.Context(), id); err != nil {
 		redirectErr(w, r, "/targets", err)
 		return
@@ -931,6 +975,14 @@ func (s *Server) handleJobEnable(enabled bool) func(http.ResponseWriter, *http.R
 
 func (s *Server) handleJobDelete(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
+	j, err := s.store.GetJob(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if s.needsApproval(w, r, fmt.Sprintf("/jobs/%d", id), "job.delete", id, j.Name, nil) {
+		return
+	}
 	if err := s.store.DeleteJob(r.Context(), id); err != nil {
 		redirectErr(w, r, "/jobs", err)
 		return
@@ -994,7 +1046,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		"Instant": runInstant(run), "InstantStorage": s.instantStorage(r.Context(), run), "BootTests": bootTests(run)} {
 		data[k] = v
 	}
-	s.render(w, r, "run", pageData{Title: fmt.Sprintf("Run #%d", run.ID), Nav: "runs", User: user, Data: data})
+	s.render(w, r, "run", pageData{Title: requestLanguage(r).T("Run #%d", run.ID), Nav: "runs", User: user, Data: data})
 }
 
 // restoreFormData is what the restore forms (templates/_restore.html) need.
@@ -1083,4 +1135,9 @@ func Shutdown(srv *http.Server) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	srv.Shutdown(ctx)
+}
+
+// kindTitleEN names a run kind for people (English).
+func kindTitleEN(k string) string {
+	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
 }

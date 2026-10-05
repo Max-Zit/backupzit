@@ -22,12 +22,24 @@ func NextRun(stored string, t time.Time) time.Time {
 }
 
 // DescribeSchedule renders a stored schedule for humans.
-func DescribeSchedule(stored string) string {
+func DescribeSchedule(stored string) string { return describeSchedule(languages[0], stored) }
+
+func describeSchedule(l *language, stored string) string {
 	s, err := ParseSchedule(stored)
 	if err != nil {
-		return "invalid schedule"
+		return l.T("invalid schedule")
 	}
-	return s.Describe()
+	return s.DescribeIn(l)
+}
+
+// nextRunText is the next scheduled run, e.g. "Mon 2026-10-05 22:00".
+func nextRunText(l *language, stored string) string {
+	t := NextRun(stored, time.Now())
+	if t.IsZero() {
+		return "—"
+	}
+	t = t.Local()
+	return l.T(t.Format("Mon")) + " " + t.Format("2006-01-02 15:04")
 }
 
 // Scheduler queues scheduled backups and fails runs of vanished agents.

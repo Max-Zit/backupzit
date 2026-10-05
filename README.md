@@ -17,10 +17,10 @@ connect to it over HTTPS.
 2. **Management console** — agent registration, jobs, schedules, history, restore wizard, agent downloads and self-update; Windows MSI and Linux packages ✅
 3. **Windows image backup** — VSS snapshots ✅, whole-disk / partition images ✅, file-level restore from images ✅
 4. **Bare-metal restore** — image restore to an empty disk ✅, Windows (WinPE) and Linux recovery ISOs ✅, dissimilar hardware ✅
-5. **More targets** — S3 ✅ (incl. Google Cloud Storage), SMB ✅, Azure Blob ✅, rotating USB disks ✅; retention policies ✅; email notifications ✅
+5. **More targets** — S3 ✅ (incl. Google Cloud Storage), SMB ✅, Azure Blob ✅, rotating USB disks ✅; retention policies ✅; storage usage charts and forecast ✅; email notifications ✅
 6. **Security** — encryption ✅, immutable repositories (S3 Object Lock ✅, hardened Linux repository ✅), encrypted secrets in the console database ✅, two-factor sign-in ✅, brute-force protection ✅, trusted HTTPS certificates (upload / Let's Encrypt) ✅
 7. **Hypervisor (agentless) backup** — Proxmox VE ✅, Hyper-V ✅ (incl. RCT), VMware ESXi ✅ (incl. changed block tracking); single files from VM disks ✅; instant VM recovery, boot tests and replication on Proxmox VE ✅
-8. **Users** — local accounts, roles (Administrator, Backup operator, Restore operator, Viewer), LDAPS/Active Directory sign-in, audit log ✅; reports, calendar, in-console documentation ✅
+8. **Users** — local accounts, roles (Administrator, Backup operator, Restore operator, Viewer), LDAPS/Active Directory sign-in, four-eyes approval, audit log ✅; reports, calendar, in-console documentation ✅; console in English and Serbian ✅
 9. **Linux system backup** — whole systems with disk layout, restore to bare metal or as a Proxmox VM (P2V) ✅; **databases** — Microsoft SQL Server, PostgreSQL and MySQL/MariaDB: native full and log backups, point-in-time restore of single databases ✅
 10. **Appliance** — installer ISO and OVA/qcow2/VHDX images ✅, trusted HTTPS certificates ✅, signed console self-update with rollback ✅, OS updates from the console ✅, backup and restore of the console itself ✅
 11. **Later** — vCenter, instant recovery for Hyper-V and VMware

@@ -1,29 +1,29 @@
 {{/* Retention, schedule and options of the job forms (new job and edit). The dot is a jobForm. */}}
 {{define "job_common"}}
     <fieldset class="sched">
-      <legend>Keep backups</legend>
+      <legend>{{T "Keep backups"}}</legend>
       <div class="keep">
-        <label>Most recent <input type="number" name="keep_last" min="0" max="999" value="{{.J.Retention.KeepLast}}"></label>
-        <label>Daily <input type="number" name="keep_daily" min="0" max="999" value="{{.J.Retention.KeepDaily}}"></label>
-        <label>Weekly <input type="number" name="keep_weekly" min="0" max="999" value="{{.J.Retention.KeepWeekly}}"></label>
-        <label>Monthly <input type="number" name="keep_monthly" min="0" max="999" value="{{.J.Retention.KeepMonthly}}"></label>
+        <label>{{T "Most recent"}} <input type="number" name="keep_last" min="0" max="999" value="{{.J.Retention.KeepLast}}"></label>
+        <label>{{T "Daily"}} <input type="number" name="keep_daily" min="0" max="999" value="{{.J.Retention.KeepDaily}}"></label>
+        <label>{{T "Weekly"}} <input type="number" name="keep_weekly" min="0" max="999" value="{{.J.Retention.KeepWeekly}}"></label>
+        <label>{{T "Monthly"}} <input type="number" name="keep_monthly" min="0" max="999" value="{{.J.Retention.KeepMonthly}}"></label>
       </div>
-      <small class="muted">A backup is kept if any rule selects it, e.g. 7 daily keeps the newest backup of each of the last 7 days. Older backups are removed after each run and their space is freed. All zeros keeps everything.</small>
+      <small class="muted">{{T "A backup is kept if any rule selects it, e.g. 7 daily keeps the newest backup of each of the last 7 days. Older backups are removed after each run and their space is freed. All zeros keeps everything."}}</small>
     </fieldset>
     <fieldset class="sched">
-      <legend>Schedule</legend>
-      <label>Run
+      <legend>{{T "Schedule"}}</legend>
+      <label>{{T "Run"}}
         <select name="sched_kind" id="sched_kind" data-switch="sched">
-          <option value="daily" {{if eq .S.Kind "daily"}}selected{{end}}>At specific times</option>
-          <option value="interval" {{if eq .S.Kind "interval"}}selected{{end}}>Repeatedly, every few hours or minutes</option>
-          <option value="monthly" {{if eq .S.Kind "monthly"}}selected{{end}}>Once a month</option>
-          {{if or (not .Edit) (eq .J.Kind "copy")}}<option value="after" {{if not .Edit}}data-jobkind-opt="copy"{{end}} {{if eq .S.Kind "after"}}selected{{end}}>After each backup of the source job</option>{{end}}
-          <option value="manual" {{if eq .S.Kind "manual"}}selected{{end}}>Manually only</option>
+          <option value="daily" {{if eq .S.Kind "daily"}}selected{{end}}>{{T "At specific times"}}</option>
+          <option value="interval" {{if eq .S.Kind "interval"}}selected{{end}}>{{T "Repeatedly, every few hours or minutes"}}</option>
+          <option value="monthly" {{if eq .S.Kind "monthly"}}selected{{end}}>{{T "Once a month"}}</option>
+          {{if or (not .Edit) (eq .J.Kind "copy")}}<option value="after" {{if not .Edit}}data-jobkind-opt="copy"{{end}} {{if eq .S.Kind "after"}}selected{{end}}>{{T "After each backup of the source job"}}</option>{{end}}
+          <option value="manual" {{if eq .S.Kind "manual"}}selected{{end}}>{{T "Manually only"}}</option>
         </select>
       </label>
 
       <div data-sched="daily" {{if ne .S.Kind "daily"}}hidden{{end}}>
-        <label>At <small>add up to three times a day</small></label>
+        <label>{{T "At"}} <small>{{T "add up to three times a day"}}</small></label>
         <div class="times">
           <input type="time" name="sched_time" value="{{index .Times 0}}" required>
           <input type="time" name="sched_time" value="{{index .Times 1}}">
@@ -33,16 +33,16 @@
 
       <div data-sched="interval" {{if ne .S.Kind "interval"}}hidden{{end}}>
         <div class="row">
-          <label>Every
+          <label>{{T "Every"}}
             <select name="sched_every">{{$e := .S.EveryMinutes}}
               {{range $m := everyChoices}}<option value="{{$m}}" {{if eq $m $e}}selected{{end}}>{{minutesText $m}}</option>{{end}}
             </select>
           </label>
           <div>
-            <label class="check"><input type="checkbox" name="sched_window" {{if .Window}}checked{{end}}> Only between</label>
+            <label class="check"><input type="checkbox" name="sched_window" {{if .Window}}checked{{end}}> {{T "Only between"}}</label>
             <div class="times">{{$f := .From}}{{$t := .To}}
               <select name="sched_from">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $f}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
-              <span>and</span>
+              <span>{{T "and"}}</span>
               <select name="sched_to">{{range $h := hours}}{{if $h}}<option value="{{$h}}" {{if eq $h $t}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}{{end}}<option value="24" {{if eq $t 24}}selected{{end}}>24:00</option></select>
             </div>
           </div>
@@ -50,71 +50,71 @@
       </div>
 
       <div data-sched="daily interval" {{if and (ne .S.Kind "daily") (ne .S.Kind "interval")}}hidden{{end}}>
-        <label>On these days</label>
+        <label>{{T "On these days"}}</label>
         <div class="days">{{$days := .Days}}
           {{range $i, $d := weekdays}}<label class="check"><input type="checkbox" name="sched_days" value="{{$d.Num}}" {{if index $days $d.Num}}checked{{end}}> {{$d.Name}}</label>{{end}}
         </div>
       </div>
 
       <div data-sched="monthly" {{if ne .S.Kind "monthly"}}hidden{{end}} class="row">
-        <label>On day{{$dom := .S.DayOfMonth}}
+        <label>{{T "On day"}}{{$dom := .S.DayOfMonth}}
           <select name="sched_dom">{{range $d := monthdays}}<option value="{{$d}}" {{if eq $d $dom}}selected{{end}}>{{$d}}.</option>{{end}}</select>
         </label>
-        <label>At <input type="time" name="sched_month_time" value="{{.MonthTime}}"></label>
+        <label>{{T "At"}} <input type="time" name="sched_month_time" value="{{.MonthTime}}"></label>
       </div>
     </fieldset>
     <details class="sched" {{if or .J.Options.LimitMBps .J.Options.HasCommands}}open{{end}}>
-      <summary>Advanced: speed limit{{if and .CanCommands (ne .J.Kind "copy")}}, commands before and after the backup{{end}}</summary>
+      <summary>{{T "Advanced: speed limit"}}{{if and .CanCommands (ne .J.Kind "copy")}}{{T ", commands before and after the backup"}}{{end}}</summary>
       <div class="row">
-        <label>Limit the upload speed to (MB/s) <small>0 or empty: no limit</small><input type="number" name="limit_mbps" min="0" max="100000" value="{{if .J.Options.LimitMBps}}{{.J.Options.LimitMBps}}{{end}}"></label>
+        <label>{{T "Limit the upload speed to (MB/s)"}} <small>{{T "0 or empty: no limit"}}</small><input type="number" name="limit_mbps" min="0" max="100000" value="{{if .J.Options.LimitMBps}}{{.J.Options.LimitMBps}}{{end}}"></label>
         <div>
-          <label class="check"><input type="checkbox" name="limit_window" {{if ne .J.Options.LimitFrom .J.Options.LimitTo}}checked{{end}}> Only between</label>
+          <label class="check"><input type="checkbox" name="limit_window" {{if ne .J.Options.LimitFrom .J.Options.LimitTo}}checked{{end}}> {{T "Only between"}}</label>
           <div class="times">{{$lf := .LimitFrom}}{{$lt := .LimitTo}}
             <select name="limit_from">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $lf}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
-            <span>and</span>
+            <span>{{T "and"}}</span>
             <select name="limit_to">{{range $h := hours}}{{if $h}}<option value="{{$h}}" {{if eq $h $lt}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}{{end}}<option value="24" {{if eq $lt 24}}selected{{end}}>24:00</option></select>
           </div>
         </div>
       </div>
-      <small class="muted">For example 10 MB/s from 08:00 to 18:00 keeps the office line usable during working hours; outside the window the backup runs at full speed. Times are the agent's local time.</small>
+      <small class="muted">{{T "For example 10 MB/s from 08:00 to 18:00 keeps the office line usable during working hours; outside the window the backup runs at full speed. Times are the agent's local time."}}</small>
       {{if and .ReplicaAgents (or (not .Edit) (and (eq .J.Kind "vm") (not .J.VMwareHostID)))}}{{$ra := .J.Options.ReplicaAgentID}}{{$rs := .J.Options.ReplicaStorage}}
       <div {{if not .Edit}}data-jobkind="vm" hidden{{end}} class="stack">
-        <label class="check"><input type="checkbox" name="replicate" {{if $ra}}checked{{end}}> Keep replicas of the VMs <small>Proxmox VE: after each backup, a stopped copy of every guest on the chosen node is brought up to date (only changed blocks are written). If a guest is lost, start its replica from the job page instead of restoring.</small></label>
+        <label class="check"><input type="checkbox" name="replicate" {{if $ra}}checked{{end}}> {{T "Keep replicas of the VMs"}} <small>{{T "Proxmox VE: after each backup, a stopped copy of every guest on the chosen node is brought up to date (only changed blocks are written). If a guest is lost, start its replica from the job page instead of restoring."}}</small></label>
         <div class="row">
-          <label>On node <select name="replica_agent">{{range .ReplicaAgents}}<option value="{{.ID}}" {{if eq .ID $ra}}selected{{end}}>{{.Inv.Node}}{{if ne .Inv.Node .Hostname}} ({{.Hostname}}){{end}}</option>{{end}}</select></label>
-          <label>Storage <select name="replica_storage"><option value="">Original storage of each disk</option>{{range .ReplicaAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}{{if ne . "backupzit-instant"}}<option value="{{.}}" {{if eq . $rs}}selected{{end}}>{{.}}</option>{{end}}{{end}}</optgroup>{{end}}</select></label>
+          <label>{{T "On node"}} <select name="replica_agent">{{range .ReplicaAgents}}<option value="{{.ID}}" {{if eq .ID $ra}}selected{{end}}>{{.Inv.Node}}{{if ne .Inv.Node .Hostname}} ({{.Hostname}}){{end}}</option>{{end}}</select></label>
+          <label>{{T "Storage"}} <select name="replica_storage"><option value="">{{T "Original storage of each disk"}}</option>{{range .ReplicaAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}{{if ne . "backupzit-instant"}}<option value="{{.}}" {{if eq . $rs}}selected{{end}}>{{.}}</option>{{end}}{{end}}</optgroup>{{end}}</select></label>
         </div>
       </div>
       {{end}}
       {{if ne .J.Kind "copy"}}<div data-notkind="copy" class="stack">{{if .CanCommands}}
-      <label>Command before the backup <small>runs on the agent as its service account (root / SYSTEM) with <code>sh</code> on Linux and <code>cmd</code> on Windows, e.g. <code>pg_dump -U postgres app &gt; /var/backups/app.sql</code>. If it fails, the backup does not run.</small>
+      <label>{{T "Command before the backup"}} <small>{{T "runs on the agent as its service account (root / SYSTEM) with"}} <code>sh</code> {{T "on Linux and"}} <code>cmd</code> {{T "on Windows, e.g."}} <code>pg_dump -U postgres app &gt; /var/backups/app.sql</code>{{T ". If it fails, the backup does not run."}}</small>
         <textarea name="pre_command" class="mono" rows="3">{{.J.Options.PreCommand}}</textarea>
       </label>
-      <label>Command after the backup <small>runs also when the backup failed; <code>BACKUPZIT_STATUS</code> is success, warning or failed. If it fails, the run ends with a warning.</small>
+      <label>{{T "Command after the backup"}} <small>{{T "runs also when the backup failed;"}} <code>BACKUPZIT_STATUS</code> {{T "is success, warning or failed. If it fails, the run ends with a warning."}}</small>
         <textarea name="post_command" class="mono" rows="3">{{.J.Options.PostCommand}}</textarea>
       </label>
-      <label>Time limit per command (minutes) <input type="number" name="command_minutes" min="1" max="1440" value="{{if .J.Options.CommandMinutes}}{{.J.Options.CommandMinutes}}{{else}}30{{end}}"></label>
+      <label>{{T "Time limit per command (minutes)"}} <input type="number" name="command_minutes" min="1" max="1440" value="{{if .J.Options.CommandMinutes}}{{.J.Options.CommandMinutes}}{{else}}30{{end}}"></label>
       {{else if .J.Options.HasCommands}}
-      <p class="muted small">This job runs commands before or after the backup. Only administrators can see and change them.</p>
+      <p class="muted small">{{T "This job runs commands before or after the backup. Only administrators can see and change them."}}</p>
       {{end}}</div>{{end}}
     </details>
 {{end}}
 
 {{/* SQL Server job fields; the dot is a jobForm. */}}
 {{define "job_sql"}}{{$e := .J.Options.SQLEngine}}
-    <label>Database server
+    <label>{{T "Database server"}}
       <select name="sql_engine" {{if .Edit}}disabled{{end}}>
-        <option value="" {{if eq $e ""}}selected{{end}}>Microsoft SQL Server (Windows)</option>
-        <option value="postgres" {{if eq $e "postgres"}}selected{{end}}>PostgreSQL (Linux)</option>
-        <option value="mysql" {{if eq $e "mysql"}}selected{{end}}>MySQL / MariaDB (Linux)</option>
+        <option value="" {{if eq $e ""}}selected{{end}}>{{T "Microsoft SQL Server (Windows)"}}</option>
+        <option value="postgres" {{if eq $e "postgres"}}selected{{end}}>{{T "PostgreSQL (Linux)"}}</option>
+        <option value="mysql" {{if eq $e "mysql"}}selected{{end}}>{{T "MySQL / MariaDB (Linux)"}}</option>
       </select>
     </label>
     {{if .Edit}}<input type="hidden" name="sql_engine" value="{{$e}}">{{end}}
     <div class="row">
-      <label>Instance or port <small>SQL Server: instance name, empty for the default instance (e.g. SQLEXPRESS). PostgreSQL: port, empty for 5432. MySQL/MariaDB: not used (local socket)</small><input name="sql_instance" value="{{.J.Options.SQLInstance}}" placeholder="default"></label>
-      <label>Back up the logs every (minutes) <small>transaction logs (SQL Server), archived WAL (PostgreSQL) or binary logs (MySQL); empty: never. With log backups, databases can be restored to any point in time</small><input type="number" name="sql_log_minutes" min="0" max="1440" value="{{if .J.Options.SQLLogMinutes}}{{.J.Options.SQLLogMinutes}}{{end}}" placeholder="e.g. 15"></label>
+      <label>{{T "Instance or port"}} <small>{{T "SQL Server: instance name, empty for the default instance (e.g. SQLEXPRESS). PostgreSQL: port, empty for 5432. MySQL/MariaDB: not used (local socket)"}}</small><input name="sql_instance" value="{{.J.Options.SQLInstance}}" placeholder="{{T "default"}}"></label>
+      <label>{{T "Back up the logs every (minutes)"}} <small>{{T "transaction logs (SQL Server), archived WAL (PostgreSQL) or binary logs (MySQL); empty: never. With log backups, databases can be restored to any point in time"}}</small><input type="number" name="sql_log_minutes" min="0" max="1440" value="{{if .J.Options.SQLLogMinutes}}{{.J.Options.SQLLogMinutes}}{{end}}" placeholder="e.g. 15"></label>
     </div>
-    <label>Databases <small>one name per line; empty: all user databases, also those created later</small><textarea name="sql_databases">{{if eq .J.Kind "sql"}}{{join .J.Paths "\n"}}{{end}}</textarea></label>
-    <label class="check"><input type="checkbox" name="sql_system" {{if .J.Options.SQLSystem}}checked{{end}}> Also back up the system databases master, model and msdb <small>when all databases are backed up</small></label>
-    <p class="muted small">Full backups follow the schedule below and use the database server's own tools: BACKUP DATABASE (SQL Server; the agent connects as NT AUTHORITY\SYSTEM, which needs the sysadmin role), pg_basebackup and pg_dump (PostgreSQL), mysqldump (MySQL/MariaDB). See <a href="/docs/sql">Databases</a> for the setup.</p>
+    <label>{{T "Databases"}} <small>{{T "one name per line; empty: all user databases, also those created later"}}</small><textarea name="sql_databases">{{if eq .J.Kind "sql"}}{{join .J.Paths "\n"}}{{end}}</textarea></label>
+    <label class="check"><input type="checkbox" name="sql_system" {{if .J.Options.SQLSystem}}checked{{end}}> {{T "Also back up the system databases master, model and msdb"}} <small>{{T "when all databases are backed up"}}</small></label>
+    <p class="muted small">{{T "Full backups follow the schedule below and use the database server's own tools: BACKUP DATABASE (SQL Server; the agent connects as NT AUTHORITY\\SYSTEM, which needs the sysadmin role), pg_basebackup and pg_dump (PostgreSQL), mysqldump (MySQL/MariaDB). See"}} <a href="/docs/sql">{{T "Databases"}}</a> {{T "for the setup."}}</p>
 {{end}}

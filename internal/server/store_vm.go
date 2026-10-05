@@ -86,16 +86,18 @@ func checkVMSelection(a Agent, vms, exclude []string) error {
 }
 
 // DescribeVMSelection renders the guests of a VM job.
-func DescribeVMSelection(vms []string) string {
+func DescribeVMSelection(vms []string) string { return describeVMSelection(languages[0], vms) }
+
+func describeVMSelection(l *language, vms []string) string {
 	if len(vms) == 1 && vms[0] == "*" {
-		return "All VMs (and containers) on the host"
+		return l.T("All VMs (and containers) on the host")
 	}
 	for _, v := range vms {
 		if len(v) >= 10 { // Hyper-V: numbers derived from VM GUIDs
-			return fmt.Sprintf("%d selected VMs", len(vms))
+			return l.T("%d selected VMs", len(vms))
 		}
 	}
-	return "Guests " + strings.Join(vms, ", ")
+	return l.T("Guests %s", strings.Join(vms, ", "))
 }
 
 // vmBackupDetails is the run detail reported by the agent.

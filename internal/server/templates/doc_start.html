@@ -52,6 +52,10 @@
   <tr><td><a href="/docs">Documentation</a></td><td>This guide.</td></tr>
 </table>
 
+<h3>Language</h3>
+<p>The console is available in English and Serbian (Latin script). Switch with <b>EN / SR</b> at the top right or on the sign-in page; the choice is remembered in the browser. Without a choice, the browser's language decides (Serbian, Croatian, Bosnian and Montenegrin browsers get Serbian, all others English). This guide, emails, chat notifications and messages reported by the agents stay in English.</p>
+<p>The translations are in <code>internal/server/i18n/sr.json</code> in the source code: the English text is the key, the translation its value. <code>go run ./tools/i18n missing sr</code> lists texts without a translation; untranslated texts are shown in English.</p>
+
 <h2>Key concepts</h2>
 <h3>Snapshots and deduplication</h3>
 <p>Every backup creates a <i>snapshot</i>: a complete, browsable picture of the data at that moment. Files are split into variable-size chunks and disks into blocks, and each piece is stored only once, so the second and later backups only upload what changed — yet every snapshot can be restored on its own. There is no "full vs. incremental chain" to manage.</p>

@@ -1,12 +1,12 @@
 {{define "content"}}
-<div class="pagehead"><h1>Audit log</h1>
-  <div class="actions"><a class="btn secondary-link" href="/users">{{template "icon" "chevl"}}Users</a></div>
+<div class="pagehead"><h1>{{T "Audit log"}}</h1>
+  <div class="actions"><a class="btn secondary-link" href="/users">{{template "icon" "chevl"}}{{T "Users"}}</a></div>
 </div>
 <div class="panel">
-  <p class="muted">Sign-ins, failed sign-ins and changes made in the console (newest 500).</p>
+  <p class="muted">{{T "Sign-ins, failed sign-ins and changes made in the console (newest 500)."}}</p>
   {{if .Data}}
   <div class="table-wrap"><table>
-    <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th><th>From</th></tr></thead>
+    <thead><tr><th>{{T "Time"}}</th><th>{{T "User"}}</th><th>{{T "Action"}}</th><th>{{T "Details"}}</th><th>{{T "From"}}</th></tr></thead>
     <tbody>
     {{range .Data}}
     <tr>
@@ -19,6 +19,6 @@
     {{end}}
     </tbody>
   </table></div>
-  {{else}}<div class="empty">{{template "icon" "activity"}}<p>Nothing recorded yet.</p></div>{{end}}
+  {{else}}<div class="empty">{{template "icon" "activity"}}<p>{{T "Nothing recorded yet."}}</p></div>{{end}}
 </div>
 {{end}}

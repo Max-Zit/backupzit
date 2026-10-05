@@ -471,6 +471,25 @@ func (s *Server) handleUserPassword(w http.ResponseWriter, r *http.Request, _ st
 	redirectMsg(w, r, back, "Password changed; the user was signed out everywhere.")
 }
 
+// checkUserDeletable keeps the last enabled local administrator.
+func (s *Store) checkUserDeletable(ctx context.Context, u User) error {
+	gone := u
+	gone.Disabled = true
+	if err := s.checkAdminsRemain(ctx, gone); err != nil && u.Role == "admin" && u.Source == "local" && !u.Disabled {
+		return err
+	}
+	return nil
+}
+
+// deleteUserChecked deletes a user unless it is the last enabled local
+// administrator.
+func (s *Store) deleteUserChecked(ctx context.Context, u User) error {
+	if err := s.checkUserDeletable(ctx, u); err != nil {
+		return err
+	}
+	return s.DeleteUser(ctx, u.ID)
+}
+
 func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request, _ string) {
 	u, ok := s.userFromPath(w, r)
 	if !ok {
@@ -480,10 +499,11 @@ func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request, _ stri
 		redirectErr(w, r, fmt.Sprintf("/users/%d", u.ID), errors.New("you cannot delete yourself"))
 		return
 	}
-	gone := u
-	gone.Disabled = true
-	if err := s.store.checkAdminsRemain(r.Context(), gone); err != nil && u.Role == "admin" && u.Source == "local" && !u.Disabled {
+	if err := s.store.checkUserDeletable(r.Context(), u); err != nil {
 		redirectErr(w, r, fmt.Sprintf("/users/%d", u.ID), err)
+		return
+	}
+	if s.needsApproval(w, r, "/users", "user.delete", u.ID, u.Username, nil) {
 		return
 	}
 	if err := s.store.DeleteUser(r.Context(), u.ID); err != nil {

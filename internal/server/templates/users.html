@@ -1,73 +1,73 @@
 {{define "content"}}
-<div class="pagehead"><h1>Users</h1>
-  <div class="actions"><a class="btn secondary-link" href="/audit">{{template "icon" "activity"}}Audit log</a></div>
+<div class="pagehead"><h1>{{T "Users"}}</h1>
+  <div class="actions"><a class="btn secondary-link" href="/audit">{{template "icon" "activity"}}{{T "Audit log"}}</a></div>
 </div>
 <div class="panel">
   <div class="table-wrap"><table>
-    <thead><tr><th>User</th><th>Name</th><th>Role</th><th>Sign-in</th><th>Status</th><th>Last sign-in</th></tr></thead>
+    <thead><tr><th>{{T "User"}}</th><th>{{T "Name"}}</th><th>{{T "Role"}}</th><th>{{T "Sign-in"}}</th><th>{{T "Status"}}</th><th>{{T "Last sign-in"}}</th></tr></thead>
     <tbody>
     {{range .Data.Users}}
     <tr>
-      <td><a href="/users/{{.ID}}" class="strong">{{.Username}}</a>{{if eq .ID $.Me.ID}} <span class="badge">you</span>{{end}}{{if .TwoFactor}} <span class="badge success" title="two-factor authentication">2FA</span>{{end}}</td>
+      <td><a href="/users/{{.ID}}" class="strong">{{.Username}}</a>{{if eq .ID $.Me.ID}} <span class="badge">{{T "you"}}</span>{{end}}{{if .TwoFactor}} <span class="badge success" title="{{T "two-factor authentication"}}">{{T "2FA"}}</span>{{end}}</td>
       <td>{{.DisplayName}}{{if .Email}}<div class="muted small">{{.Email}}</div>{{end}}</td>
-      <td><span class="badge role-{{.Role}}">{{.RoleName}}</span></td>
-      <td>{{if eq .Source "ldap"}}<span class="badge info-badge">LDAP</span>{{else}}<span class="badge">local</span>{{end}}</td>
+      <td><span class="badge role-{{.Role}}">{{T .RoleName}}</span></td>
+      <td>{{if eq .Source "ldap"}}<span class="badge info-badge">{{T "LDAP"}}</span>{{else}}<span class="badge">{{T "local"}}</span>{{end}}</td>
       <td>{{if .Disabled}}{{template "status" "disabled"}}{{else}}{{template "status" "active"}}{{end}}</td>
-      <td class="nowrap">{{if .LastLogin}}{{ago .LastLogin}}{{else}}<span class="muted">never</span>{{end}}</td>
+      <td class="nowrap">{{if .LastLogin}}{{ago .LastLogin}}{{else}}<span class="muted">{{T "never"}}</span>{{end}}</td>
     </tr>
     {{end}}
     </tbody>
   </table></div>
-  {{if .Data.LDAP}}<p class="muted mt">Directory users are added automatically at their first sign-in; their role follows their LDAP groups.</p>
-  {{else}}<p class="muted mt">To let users sign in with their Active Directory / LDAP accounts, configure <a href="/settings/ldap">LDAP sign-in</a>.</p>{{end}}
+  {{if .Data.LDAP}}<p class="muted mt">{{T "Directory users are added automatically at their first sign-in; their role follows their LDAP groups."}}</p>
+  {{else}}<p class="muted mt">{{T "To let users sign in with their Active Directory / LDAP accounts, configure"}} <a href="/settings/ldap">{{T "LDAP sign-in"}}</a>.</p>{{end}}
 </div>
 
 <div class="row">
   <div class="panel">
-    <h2>{{template "icon" "plus"}} New local user</h2>
+    <h2>{{template "icon" "plus"}} {{T "New local user"}}</h2>
     <form method="post" action="/users" class="stack">
       <div class="row">
-        <label>Username <input name="username" required autocomplete="off" placeholder="ana"></label>
-        <label>Role
-          <select name="role">{{range .Data.Roles}}<option value="{{.Key}}" {{if eq .Key "operator"}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+        <label>{{T "Username"}} <input name="username" required autocomplete="off" placeholder="{{T "ana"}}"></label>
+        <label>{{T "Role"}}
+          <select name="role">{{range .Data.Roles}}<option value="{{.Key}}" {{if eq .Key "operator"}}selected{{end}}>{{T .Name}}</option>{{end}}</select>
         </label>
       </div>
       <div class="row">
-        <label>Full name <small>optional</small><input name="display_name" placeholder="Ana Petrović"></label>
-        <label>Email <small>optional</small><input name="email" type="email" placeholder="ana@example.com"></label>
+        <label>{{T "Full name"}} <small>{{T "optional"}}</small><input name="display_name" placeholder="{{T "Ana Petrović"}}"></label>
+        <label>{{T "Email"}} <small>{{T "optional"}}</small><input name="email" type="email" placeholder="{{T "ana@example.com"}}"></label>
       </div>
       <div class="row">
-        <label>Password <small>at least {{.Data.MinPassword}} characters</small><input name="password" type="password" required minlength="{{.Data.MinPassword}}" autocomplete="new-password"></label>
-        <label>Repeat password <input name="password2" type="password" required minlength="{{.Data.MinPassword}}" autocomplete="new-password"></label>
+        <label>{{T "Password"}} <small>{{T "at least"}} {{.Data.MinPassword}} {{T "characters"}}</small><input name="password" type="password" required minlength="{{.Data.MinPassword}}" autocomplete="new-password"></label>
+        <label>{{T "Repeat password"}} <input name="password2" type="password" required minlength="{{.Data.MinPassword}}" autocomplete="new-password"></label>
       </div>
-      <div><button>Create user</button></div>
+      <div><button>{{T "Create user"}}</button></div>
     </form>
   </div>
   <div class="panel">
-    <h2>{{template "icon" "shield"}} Roles</h2>
+    <h2>{{template "icon" "shield"}} {{T "Roles"}}</h2>
     <div class="table-wrap"><table class="roles">
-      <thead><tr><th></th>{{range .Data.Roles}}<th>{{.Name}}</th>{{end}}</tr></thead>
+      <thead><tr><th></th>{{range .Data.Roles}}<th>{{T .Name}}</th>{{end}}</tr></thead>
       <tbody>
       {{range $p := .Data.Perms}}
-      <tr><td>{{$p.Name}}</td>{{range $.Data.Roles}}<td class="center">{{if .Has $p.Perm}}<span class="yes">✓</span>{{else}}<span class="no">—</span>{{end}}</td>{{end}}</tr>
+      <tr><td>{{T $p.Name}}</td>{{range $.Data.Roles}}<td class="center">{{if .Has $p.Perm}}<span class="yes">✓</span>{{else}}<span class="no">—</span>{{end}}</td>{{end}}</tr>
       {{end}}
       </tbody>
     </table></div>
-    <ul class="role-notes">{{range .Data.Roles}}<li><b>{{.Name}}</b> — {{.Description}}</li>{{end}}</ul>
+    <ul class="role-notes">{{range .Data.Roles}}<li><b>{{T .Name}}</b> — {{T .Description}}</li>{{end}}</ul>
   </div>
 </div>
 {{if .Data.Tokens}}
 <div class="panel">
-  <h2>{{template "icon" "lock"}} API tokens of all users</h2>
+  <h2>{{template "icon" "lock"}} {{T "API tokens of all users"}}</h2>
   <div class="table-wrap"><table>
-    <thead><tr><th>Owner</th><th>Name</th><th>Role</th><th>Last used</th><th>Expires</th><th></th></tr></thead>
+    <thead><tr><th>{{T "Owner"}}</th><th>{{T "Name"}}</th><th>{{T "Role"}}</th><th>{{T "Last used"}}</th><th>{{T "Expires"}}</th><th></th></tr></thead>
     <tbody>
     {{range .Data.Tokens}}
     <tr>
-      <td>{{.Username}}</td><td class="strong">{{.Name}}</td><td><span class="badge role-{{.Role}}">{{.RoleName}}</span></td>
-      <td class="nowrap">{{if .LastUsed}}{{ago .LastUsed}}{{else}}<span class="muted">never</span>{{end}}</td>
-      <td class="nowrap">{{if .ExpiresAt}}{{if .Expired}}<span class="badge failed"><i></i>expired</span>{{else}}{{ts .ExpiresAt}}{{end}}{{else}}<span class="muted">never</span>{{end}}</td>
-      <td><form method="post" action="/account/tokens/{{.ID}}/delete" class="inline" data-confirm="Revoke token {{.Name}} of {{.Username}}?"><input type="hidden" name="back" value="/users"><button class="link">Revoke</button></form></td>
+      <td>{{.Username}}</td><td class="strong">{{.Name}}</td><td><span class="badge role-{{.Role}}">{{T .RoleName}}</span></td>
+      <td class="nowrap">{{if .LastUsed}}{{ago .LastUsed}}{{else}}<span class="muted">{{T "never"}}</span>{{end}}</td>
+      <td class="nowrap">{{if .ExpiresAt}}{{if .Expired}}<span class="badge failed"><i></i>{{T "expired"}}</span>{{else}}{{ts .ExpiresAt}}{{end}}{{else}}<span class="muted">{{T "never"}}</span>{{end}}</td>
+      <td><form method="post" action="/account/tokens/{{.ID}}/delete" class="inline" data-confirm="{{T "Revoke token %v of %v?" .Name .Username}}"><input type="hidden" name="back" value="/users"><button class="link">{{T "Revoke"}}</button></form></td>
     </tr>
     {{end}}
     </tbody>

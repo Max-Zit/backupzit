@@ -48,17 +48,21 @@ func checkImageSelection(a Agent, disk int, parts []int) error {
 
 // DescribeImageSelection renders "Disk 0 (whole disk)" or "Disk 0: partitions 1, 3".
 func DescribeImageSelection(disk *int, parts []int) string {
+	return describeImageSelection(languages[0], disk, parts)
+}
+
+func describeImageSelection(l *language, disk *int, parts []int) string {
 	if disk == nil {
 		return ""
 	}
 	if len(parts) == 0 {
-		return fmt.Sprintf("Disk %d (whole disk)", *disk)
+		return l.T("Disk %d (whole disk)", *disk)
 	}
 	s := make([]string, len(parts))
 	for i, p := range parts {
 		s[i] = fmt.Sprint(p)
 	}
-	return fmt.Sprintf("Disk %d: partitions %s", *disk, strings.Join(s, ", "))
+	return l.T("Disk %d: partitions %s", *disk, strings.Join(s, ", "))
 }
 
 // QueueImageRestore creates a run that writes the image of a backup run

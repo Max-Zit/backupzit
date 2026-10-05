@@ -1,47 +1,47 @@
 {{define "content"}}
 {{with .Data}}
 <div class="pagehead">
-  <h1>Calendar</h1>
+  <h1>{{T "Calendar"}}</h1>
   <div class="actions">
     <form method="get" action="/calendar" class="inline calfilter">
       <input type="hidden" name="month" value="{{.Month.Format "2006-01"}}">
-      <select name="agent" data-autosubmit><option value="">All agents</option>{{range .Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+      <select name="agent" data-autosubmit><option value="">{{T "All agents"}}</option>{{range .Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
     </form>
-    <a class="btn secondary-link" href="/calendar?month={{.Prev}}{{if .AgentID}}&agent={{.AgentID}}{{end}}" aria-label="Previous month">{{template "icon" "chevl"}}</a>
-    <a class="btn secondary-link" href="/calendar{{if .AgentID}}?agent={{.AgentID}}{{end}}">Today</a>
-    <a class="btn secondary-link" href="/calendar?month={{.Next}}{{if .AgentID}}&agent={{.AgentID}}{{end}}" aria-label="Next month">{{template "icon" "chevr"}}</a>
+    <a class="btn secondary-link" href="/calendar?month={{.Prev}}{{if .AgentID}}&agent={{.AgentID}}{{end}}" aria-label="{{T "Previous month"}}">{{template "icon" "chevl"}}</a>
+    <a class="btn secondary-link" href="/calendar{{if .AgentID}}?agent={{.AgentID}}{{end}}">{{T "Today"}}</a>
+    <a class="btn secondary-link" href="/calendar?month={{.Next}}{{if .AgentID}}&agent={{.AgentID}}{{end}}" aria-label="{{T "Next month"}}">{{template "icon" "chevr"}}</a>
   </div>
 </div>
 
 <div class="calwrap">
   <div class="panel cal">
     <div class="calhead"><h2>{{.Month.Format "January 2006"}}</h2>
-      <div class="legend"><span class="l-plan">planned</span><span class="l-ok">successful</span><span class="l-warn">warnings</span><span class="l-fail">failed</span></div>
+      <div class="legend"><span class="l-plan">{{T "planned"}}</span><span class="l-ok">{{T "successful"}}</span><span class="l-warn">{{T "warnings"}}</span><span class="l-fail">{{T "failed"}}</span></div>
     </div>
     <div class="calgrid">
-      <div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div><div class="dow">Sun</div>
+      <div class="dow">{{T "Mon"}}</div><div class="dow">{{T "Tue"}}</div><div class="dow">{{T "Wed"}}</div><div class="dow">{{T "Thu"}}</div><div class="dow">{{T "Fri"}}</div><div class="dow">{{T "Sat"}}</div><div class="dow">{{T "Sun"}}</div>
       {{range .Weeks}}{{range .}}
       <div class="calday {{if not .InMonth}}out{{end}} {{if .Today}}today{{end}} {{if .Past}}past{{end}}">
         <div class="dnum">{{.Date.Day}}</div>
         {{range $i, $e := .Entries}}
-        <a href="/jobs/{{$e.JobID}}" class="ev {{if ge $i 4}}extra {{end}}{{if $e.Planned}}plan{{else}}{{$e.Status}}{{end}}" title="{{$e.JobName}} on {{$e.Hostname}} — {{$e.TimeLabel}}{{if $e.Planned}} (planned){{else}} ({{$e.Status}}){{end}}"><b>{{$e.First.Format "15:04"}}</b> {{$e.JobName}}{{if gt $e.Count 1}} <i>×{{$e.Count}}</i>{{end}}</a>
+        <a href="/jobs/{{$e.JobID}}" class="ev {{if ge $i 4}}extra {{end}}{{if $e.Planned}}plan{{else}}{{$e.Status}}{{end}}" title="{{$e.JobName}} {{T "on"}} {{$e.Hostname}} — {{$e.TimeLabel}}{{if $e.Planned}} ({{T "planned"}}){{else}} ({{T $e.Status}}){{end}}"><b>{{$e.First.Format "15:04"}}</b> {{$e.JobName}}{{if gt $e.Count 1}} <i>×{{$e.Count}}</i>{{end}}</a>
         {{end}}
-        {{if gt (len .Entries) 4}}<button type="button" class="more" data-expand aria-expanded="false">+{{sub (len .Entries) 4}} more</button>{{end}}
+        {{if gt (len .Entries) 4}}<button type="button" class="more" data-expand aria-expanded="false">+{{sub (len .Entries) 4}} {{T "more"}}</button>{{end}}
       </div>
       {{end}}{{end}}
     </div>
   </div>
 
   <div class="panel agenda">
-    <h2>{{template "icon" "clock"}} Next 7 days</h2>
+    <h2>{{template "icon" "clock"}} {{T "Next 7 days"}}</h2>
     {{if .Upcoming}}
     <ul class="agenda-list">
       {{range .Upcoming}}
       <li><div class="when"><b>{{.First.Format "Mon 2 Jan"}}</b><span>{{.First.Format "15:04"}}</span></div>
-        <div><a href="/jobs/{{.JobID}}" class="strong">{{.JobName}}</a><div class="muted small">{{.Hostname}} · {{if eq .Kind "image"}}disk image{{else}}files{{end}}</div></div></li>
+        <div><a href="/jobs/{{.JobID}}" class="strong">{{.JobName}}</a><div class="muted small">{{.Hostname}} · {{if eq .Kind "image"}}{{T "disk image"}}{{else}}{{T "files"}}{{end}}</div></div></li>
       {{end}}
     </ul>
-    {{else}}<div class="empty">{{template "icon" "calendar"}}<p>No scheduled backups in the next 7 days.</p></div>{{end}}
+    {{else}}<div class="empty">{{template "icon" "calendar"}}<p>{{T "No scheduled backups in the next 7 days."}}</p></div>{{end}}
   </div>
 </div>
 {{end}}

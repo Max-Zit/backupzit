@@ -1,73 +1,73 @@
 {{define "content"}}
 {{with .Data.U}}
-<h1><span class="avatar lg" aria-hidden="true">{{initial .Username}}</span>My account</h1>
+<h1><span class="avatar lg" aria-hidden="true">{{initial .Username}}</span>{{T "My account"}}</h1>
 <div class="row">
   <div class="panel">
-    <h2>Profile</h2>
+    <h2>{{T "Profile"}}</h2>
     <dl class="kv">
-      <dt>Username</dt><dd>{{.Username}}</dd>
-      <dt>Name</dt><dd>{{if .DisplayName}}{{.DisplayName}}{{else}}—{{end}}</dd>
-      <dt>Email</dt><dd>{{if .Email}}{{.Email}}{{else}}—{{end}}</dd>
-      <dt>Sign-in</dt><dd>{{if eq .Source "ldap"}}Directory (LDAP){{else}}Local account{{end}}</dd>
-      <dt>Role</dt><dd><span class="badge role-{{.Role}}">{{$.Data.Role.Name}}</span></dd>
-      <dt>Two-factor</dt><dd>{{if .TwoFactor}}<span class="badge success"><i></i>on</span>{{else}}<span class="badge warning"><i></i>off</span>{{end}} <a href="/account/2fa">Manage</a></dd>
+      <dt>{{T "Username"}}</dt><dd>{{.Username}}</dd>
+      <dt>{{T "Name"}}</dt><dd>{{if .DisplayName}}{{.DisplayName}}{{else}}—{{end}}</dd>
+      <dt>{{T "Email"}}</dt><dd>{{if .Email}}{{.Email}}{{else}}—{{end}}</dd>
+      <dt>{{T "Sign-in"}}</dt><dd>{{if eq .Source "ldap"}}{{T "Directory (LDAP)"}}{{else}}{{T "Local account"}}{{end}}</dd>
+      <dt>{{T "Role"}}</dt><dd><span class="badge role-{{.Role}}">{{$.Data.Role.Name}}</span></dd>
+      <dt>{{T "Two-factor"}}</dt><dd>{{if .TwoFactor}}<span class="badge success"><i></i>{{T "on"}}</span>{{else}}<span class="badge warning"><i></i>{{T "off"}}</span>{{end}} <a href="/account/2fa">{{T "Manage"}}</a></dd>
     </dl>
-    <p class="muted mt">{{$.Data.Role.Description}}</p>
-    <ul class="perm-list">{{range $.Data.Perms}}<li class="{{if $.Data.Role.Has .Perm}}yes{{else}}no{{end}}">{{.Name}}</li>{{end}}</ul>
+    <p class="muted mt">{{T $.Data.Role.Description}}</p>
+    <ul class="perm-list">{{range $.Data.Perms}}<li class="{{if $.Data.Role.Has .Perm}}yes{{else}}no{{end}}">{{T .Name}}</li>{{end}}</ul>
   </div>
   <div class="panel">
-    <h2>{{template "icon" "lock"}} Change password</h2>
+    <h2>{{template "icon" "lock"}} {{T "Change password"}}</h2>
     {{if eq .Source "local"}}
     <form method="post" action="/account/password" class="stack">
-      <label>Current password <input name="current" type="password" required autocomplete="current-password"></label>
-      <label>New password <small>at least {{$.Data.MinPassword}} characters</small><input name="password" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
-      <label>Repeat new password <input name="password2" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
-      <small class="muted">You will be signed out everywhere and sign in again with the new password.</small>
-      <div><button>Change password</button></div>
+      <label>{{T "Current password"}} <input name="current" type="password" required autocomplete="current-password"></label>
+      <label>{{T "New password"}} <small>{{T "at least"}} {{$.Data.MinPassword}} {{T "characters"}}</small><input name="password" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
+      <label>{{T "Repeat new password"}} <input name="password2" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
+      <small class="muted">{{T "You will be signed out everywhere and sign in again with the new password."}}</small>
+      <div><button>{{T "Change password"}}</button></div>
     </form>
-    {{else}}<p class="muted">You sign in with your directory account; change the password in Active Directory / LDAP.</p>{{end}}
+    {{else}}<p class="muted">{{T "You sign in with your directory account; change the password in Active Directory / LDAP."}}</p>{{end}}
   </div>
 </div>
 {{end}}
 
 <div class="panel" id="tokens">
-  <h2>{{template "icon" "lock"}} API tokens</h2>
-  <p class="muted">Tokens let scripts, RMM and monitoring tools use the <a href="/docs/api">REST API</a> on your behalf. A token's role can be lower than yours; it stops working when it expires, is revoked, or your account is disabled.</p>
+  <h2>{{template "icon" "lock"}} {{T "API tokens"}}</h2>
+  <p class="muted">{{T "Tokens let scripts, RMM and monitoring tools use the"}} <a href="/docs/api">{{T "REST API"}}</a> {{T "on your behalf. A token's role can be lower than yours; it stops working when it expires, is revoked, or your account is disabled."}}</p>
   {{with .Data.NewToken}}
   <div class="callout tip">
-    <p><b>Copy the new token now — it is shown only once:</b></p>
+    <p><b>{{T "Copy the new token now — it is shown only once:"}}</b></p>
     <pre id="newtok">{{.}}</pre>
-    <button type="button" class="secondary" data-copy="#newtok">Copy</button>
+    <button type="button" class="secondary" data-copy="#newtok">{{T "Copy"}}</button>
   </div>
   {{end}}
   {{if .Data.Tokens}}
   <div class="table-wrap"><table>
-    <thead><tr><th>Name</th><th>Role</th><th>Created</th><th>Last used</th><th>Expires</th><th></th></tr></thead>
+    <thead><tr><th>{{T "Name"}}</th><th>{{T "Role"}}</th><th>{{T "Created"}}</th><th>{{T "Last used"}}</th><th>{{T "Expires"}}</th><th></th></tr></thead>
     <tbody>
     {{range .Data.Tokens}}
     <tr>
       <td class="strong">{{.Name}}</td>
-      <td><span class="badge role-{{.Role}}">{{.RoleName}}</span></td>
+      <td><span class="badge role-{{.Role}}">{{T .RoleName}}</span></td>
       <td class="nowrap">{{ts .CreatedAt}}</td>
-      <td class="nowrap">{{if .LastUsed}}{{ago .LastUsed}}{{else}}<span class="muted">never</span>{{end}}</td>
-      <td class="nowrap">{{if .ExpiresAt}}{{if .Expired}}<span class="badge failed"><i></i>expired</span>{{else}}{{ts .ExpiresAt}}{{end}}{{else}}<span class="muted">never</span>{{end}}</td>
-      <td><form method="post" action="/account/tokens/{{.ID}}/delete" class="inline" data-confirm="Revoke token {{.Name}}? Tools using it stop working."><button class="link">Revoke</button></form></td>
+      <td class="nowrap">{{if .LastUsed}}{{ago .LastUsed}}{{else}}<span class="muted">{{T "never"}}</span>{{end}}</td>
+      <td class="nowrap">{{if .ExpiresAt}}{{if .Expired}}<span class="badge failed"><i></i>{{T "expired"}}</span>{{else}}{{ts .ExpiresAt}}{{end}}{{else}}<span class="muted">{{T "never"}}</span>{{end}}</td>
+      <td><form method="post" action="/account/tokens/{{.ID}}/delete" class="inline" data-confirm="{{T "Revoke token %v? Tools using it stop working." .Name}}"><button class="link">{{T "Revoke"}}</button></form></td>
     </tr>
     {{end}}
     </tbody>
   </table></div>
   {{end}}
   <details class="mt" {{if not .Data.Tokens}}open{{end}}>
-    <summary>New API token</summary>
+    <summary>{{T "New API token"}}</summary>
     <form method="post" action="/account/tokens" class="stack">
       <div class="row">
-        <label>Name <small>what uses it</small><input name="name" required placeholder="RMM monitoring"></label>
-        <label>Role
-          <select name="role">{{range .Data.TokenRoles}}<option value="{{.Key}}" {{if eq .Key "viewer"}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+        <label>{{T "Name"}} <small>{{T "what uses it"}}</small><input name="name" required placeholder="{{T "RMM monitoring"}}"></label>
+        <label>{{T "Role"}}
+          <select name="role">{{range .Data.TokenRoles}}<option value="{{.Key}}" {{if eq .Key "viewer"}}selected{{end}}>{{T .Name}}</option>{{end}}</select>
         </label>
       </div>
-      <label>Expires after <small>days; 0 = never</small><input type="number" name="days" min="0" max="3650" value="365"></label>
-      <div><button>Create token</button></div>
+      <label>{{T "Expires after"}} <small>{{T "days; 0 = never"}}</small><input type="number" name="days" min="0" max="3650" value="365"></label>
+      <div><button>{{T "Create token"}}</button></div>
     </form>
   </details>
 </div>

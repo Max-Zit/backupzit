@@ -270,11 +270,21 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 			j.Paths = r.Form["vms"]
 		}
 	}
+	// With four-eyes approval a shorter retention waits for a second user;
+	// the other changes are saved now.
+	wanted := j.Retention
+	held := s.store.fourEyes(r.Context()) && shorterRetention(old.Retention, wanted)
+	if held {
+		j.Retention = old.Retention
+	}
 	if err := s.store.UpdateJob(r.Context(), j); err != nil {
 		redirectErr(w, r, back+"#edit", err)
 		return
 	}
 	s.audit(r, "job.update", "#%d %s%s", id, j.Name, commandsAudit(old.Options, j.Options))
+	if held && s.needsApproval(w, r, back, "job.retention", id, j.Name, wanted) {
+		return
+	}
 	redirectMsg(w, r, back, "Job saved.")
 }
 
@@ -288,14 +298,16 @@ func commandsAudit(old, cur JobOptions) string {
 
 func everyChoices() []int { return []int{15, 30, 60, 120, 180, 240, 360, 480, 720} }
 
-func minutesText(m int) string {
+func minutesText(m int) string { return minutesTextIn(languages[0], m) }
+
+func minutesTextIn(l *language, m int) string {
 	if m < 60 {
-		return fmt.Sprintf("%d minutes", m)
+		return l.T("%d minutes", m)
 	}
 	if m == 60 {
-		return "1 hour"
+		return l.T("1 hour")
 	}
-	return fmt.Sprintf("%d hours", m/60)
+	return l.T("%d hours", m/60)
 }
 
 // jobForm prepares the shared job form fields for request r.

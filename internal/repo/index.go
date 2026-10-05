@@ -68,6 +68,18 @@ func (x *Index) Len() int {
 	return len(x.blobs)
 }
 
+// StoredBytes is the size of the indexed data as stored (compressed and
+// encrypted), i.e. roughly the space the repository takes on the storage.
+func (x *Index) StoredBytes() uint64 {
+	x.mu.RLock()
+	defer x.mu.RUnlock()
+	var n uint64
+	for _, l := range x.blobs {
+		n += uint64(l.Length)
+	}
+	return n
+}
+
 // Packs returns the set of packs referenced by the index.
 func (x *Index) Packs() map[ID]struct{} {
 	x.mu.RLock()

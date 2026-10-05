@@ -1,62 +1,62 @@
 {{define "content"}}
 {{$d := .Data}}
-<div class="pagehead"><h1>Restore</h1><a href="/docs/restore" class="btn secondary-link">{{template "icon" "book"}}How restoring works</a></div>
+<div class="pagehead"><h1>{{T "Restore"}}</h1><a href="/docs/restore" class="btn secondary-link">{{template "icon" "book"}}{{T "How restoring works"}}</a></div>
 
 <ol class="wizard">
-  <li class="{{if eq $d.Step 1}}on{{else}}done{{end}}">{{if gt $d.Step 1}}<a href="/restore">{{end}}<span>1</span><b>What</b><small>{{with $d.Type}}{{.Title}}{{else}}type of restore{{end}}</small>{{if gt $d.Step 1}}</a>{{end}}</li>
-  <li class="{{if eq $d.Step 2}}on{{else if gt $d.Step 2}}done{{end}}">{{if gt $d.Step 2}}<a href="/restore?type={{$d.Type.Key}}">{{end}}<span>2</span><b>Source</b><small>{{with $d.Source}}{{.Title}}{{else}}machine, job or VM{{end}}</small>{{if gt $d.Step 2}}</a>{{end}}</li>
-  <li class="{{if eq $d.Step 3}}on{{else if gt $d.Step 3}}done{{end}}">{{if gt $d.Step 3}}<a href="/restore?type={{$d.Type.Key}}&amp;src={{$d.Source.Key}}">{{end}}<span>3</span><b>Restore point</b><small>{{with $d.Point}}{{ts .Run.QueuedAt}}{{else}}date of the backup{{end}}</small>{{if gt $d.Step 3}}</a>{{end}}</li>
-  <li class="{{if eq $d.Step 4}}on{{end}}"><span>4</span><b>Options</b><small>where and how</small></li>
+  <li class="{{if eq $d.Step 1}}on{{else}}done{{end}}">{{if gt $d.Step 1}}<a href="/restore">{{end}}<span>1</span><b>{{T "What"}}</b><small>{{with $d.Type}}{{.Title}}{{else}}{{T "type of restore"}}{{end}}</small>{{if gt $d.Step 1}}</a>{{end}}</li>
+  <li class="{{if eq $d.Step 2}}on{{else if gt $d.Step 2}}done{{end}}">{{if gt $d.Step 2}}<a href="/restore?type={{$d.Type.Key}}">{{end}}<span>2</span><b>{{T "Source"}}</b><small>{{with $d.Source}}{{.Title}}{{else}}{{T "machine, job or VM"}}{{end}}</small>{{if gt $d.Step 2}}</a>{{end}}</li>
+  <li class="{{if eq $d.Step 3}}on{{else if gt $d.Step 3}}done{{end}}">{{if gt $d.Step 3}}<a href="/restore?type={{$d.Type.Key}}&amp;src={{$d.Source.Key}}">{{end}}<span>3</span><b>{{T "Restore point"}}</b><small>{{with $d.Point}}{{ts .Run.QueuedAt}}{{else}}{{T "date of the backup"}}{{end}}</small>{{if gt $d.Step 3}}</a>{{end}}</li>
+  <li class="{{if eq $d.Step 4}}on{{end}}"><span>4</span><b>{{T "Options"}}</b><small>{{T "where and how"}}</small></li>
 </ol>
 
 {{if eq $d.Step 1}}
 <div class="panel">
-  <h2>What do you want to restore?</h2>
+  <h2>{{T "What do you want to restore?"}}</h2>
   <div class="tiles">
   {{range $d.Types}}
     {{if .Count}}<a class="tile" href="/restore?type={{.Key}}">{{else}}<div class="tile off">{{end}}
       {{template "icon" .Icon}}
-      <b>{{.Title}}</b>
-      <span>{{.Desc}}</span>
-      <small>{{if .Count}}{{.Count}} restore point{{if ne .Count 1}}s{{end}}{{else}}no backups of this kind yet{{end}}</small>
+      <b>{{T .Title}}</b>
+      <span>{{T .Desc}}</span>
+      <small>{{if .Count}}{{.Count}} {{N .Count "restore point" "restore points"}}{{else}}{{T "no backups of this kind yet"}}{{end}}</small>
     {{if .Count}}</a>{{else}}</div>{{end}}
   {{end}}
   </div>
-  <p class="muted small mt">Machines that no longer boot are restored from <a href="/recovery">recovery media</a>: boot the Windows or Linux recovery ISO on the target and it appears as an agent in step 4.</p>
+  <p class="muted small mt">{{T "Machines that no longer boot are restored from"}} <a href="/recovery">{{T "recovery media"}}</a>{{T ": boot the Windows or Linux recovery ISO on the target and it appears as an agent in step 4."}}</p>
 </div>
 
 {{else if eq $d.Step 2}}
 <div class="panel">
-  <h2>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}Which virtual machine?{{else}}Which machine or backup job?{{end}}</h2>
+  <h2>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}{{T "Which virtual machine?"}}{{else}}{{T "Which machine or backup job?"}}{{end}}</h2>
   {{if $d.Sources}}
   <div class="table-wrap"><table class="pick">
-    <tr><th>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}VM{{else}}Backup job{{end}}</th><th>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}Hypervisor{{else}}Machine{{end}}</th><th>Latest backup</th><th>Restore points</th><th></th></tr>
+    <tr><th>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}{{T "VM"}}{{else}}{{T "Backup job"}}{{end}}</th><th>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}{{T "Hypervisor"}}{{else}}{{T "Machine"}}{{end}}</th><th>{{T "Latest backup"}}</th><th>{{T "Restore points"}}</th><th></th></tr>
     {{range $d.Sources}}
     <tr><td class="nowrap"><a href="/restore?type={{$d.Type.Key}}&amp;src={{.Key}}"><b>{{.Title}}</b></a></td>
       <td>{{with .Platform}}<span class="badge info-badge">{{.}}</span> {{end}}{{.Detail}}</td>
       <td class="nowrap">{{ts .Latest}} <span class="muted small">{{ago .Latest}}</span></td>
       <td>{{.Count}}</td>
-      <td><a href="/restore?type={{$d.Type.Key}}&amp;src={{.Key}}" class="btn secondary-link">Select{{template "icon" "chevr"}}</a></td></tr>
+      <td><a href="/restore?type={{$d.Type.Key}}&amp;src={{.Key}}" class="btn secondary-link">{{T "Select"}}{{template "icon" "chevr"}}</a></td></tr>
     {{end}}
   </table></div>
-  {{else}}<div class="empty">{{template "icon" "activity"}}<p>No backups of this kind yet.</p></div>{{end}}
+  {{else}}<div class="empty">{{template "icon" "activity"}}<p>{{T "No backups of this kind yet."}}</p></div>{{end}}
 </div>
 
 {{else if eq $d.Step 3}}
 <div class="panel">
-  <h2>Restore point of {{$d.Source.Title}}</h2>
-  <p class="muted">Pick the backup to restore from. The newest is at the top.</p>
+  <h2>{{T "Restore point of"}} {{$d.Source.Title}}</h2>
+  <p class="muted">{{T "Pick the backup to restore from. The newest is at the top."}}</p>
   <div class="table-wrap"><table class="pick">
-    <tr><th>Date</th><th>Status</th><th>Storage</th><th>Size</th><th>Backup</th><th></th></tr>
+    <tr><th>{{T "Date"}}</th><th>{{T "Status"}}</th><th>{{T "Storage"}}</th><th>{{T "Size"}}</th><th>{{T "Backup"}}</th><th></th></tr>
     {{range $d.Points}}
     {{$href := printf "/restore?type=%s&src=%s&run=%d" $d.Type.Key $d.Source.Key .Run.ID}}
     {{if eq $d.Type.Key "vmfiles"}}{{$href = printf "/runs/%d/vmbrowse?vmid=%d" .Run.ID $d.VMID}}{{end}}
     <tr><td class="nowrap"><a href="{{$href}}"><b>{{ts .Run.QueuedAt}}</b></a> <span class="muted small">{{ago .Run.QueuedAt}}</span></td>
-      <td>{{template "status" .Run.Status}}{{if .Run.Anomaly}} <span class="badge {{if .Run.AnomalyAck}}warning{{else}}failed{{end}}" title="{{.Run.Anomaly}}"><i></i>suspicious</span>{{end}}{{if .Copy}} <span class="badge info-badge" title="backup copy on secondary storage">copy</span>{{end}}</td>
+      <td>{{template "status" .Run.Status}}{{if .Run.Anomaly}} <span class="badge {{if .Run.AnomalyAck}}warning{{else}}failed{{end}}" title="{{.Run.Anomaly}}"><i></i>{{T "suspicious"}}</span>{{end}}{{if .Copy}} <span class="badge info-badge" title="{{T "backup copy on secondary storage"}}">{{T "copy"}}</span>{{end}}</td>
       <td>{{.Target}}</td>
       <td class="nowrap">{{if .Size}}{{bytes .Size}}{{end}}</td>
       <td><a href="/runs/{{.Run.ID}}" class="mono small">#{{.Run.ID}} {{short .Run.SnapshotID}}</a></td>
-      <td><a href="{{$href}}" class="btn secondary-link">{{if eq $d.Type.Key "vmfiles"}}Browse files{{else}}Select{{end}}{{template "icon" "chevr"}}</a></td></tr>
+      <td><a href="{{$href}}" class="btn secondary-link">{{if eq $d.Type.Key "vmfiles"}}{{T "Browse files"}}{{else}}{{T "Select"}}{{end}}{{template "icon" "chevr"}}</a></td></tr>
     {{end}}
   </table></div>
 </div>
@@ -64,30 +64,30 @@
 {{else}}
 {{with $d.Point}}
 <div class="panel summary">
-  <h2>Restoring</h2>
+  <h2>{{T "Restoring"}}</h2>
   <dl class="kv">
-    <dt>What</dt><dd>{{$d.Type.Title}}{{with .Guest}}: <b>{{.}}</b>{{end}}</dd>
-    <dt>From</dt><dd>{{$d.Source.Title}} <span class="muted">({{.Run.Hostname}})</span></dd>
-    <dt>Restore point</dt><dd>{{ts .Run.QueuedAt}} <span class="muted">{{ago .Run.QueuedAt}}</span>{{if .Run.Anomaly}} <span class="badge failed" title="{{.Run.Anomaly}}"><i></i>suspicious</span>{{end}}</dd>
-    <dt>Storage</dt><dd>{{.Target}}{{if .Copy}} <span class="badge info-badge">copy</span>{{end}}</dd>
+    <dt>{{T "What"}}</dt><dd>{{$d.Type.Title}}{{with .Guest}}: <b>{{.}}</b>{{end}}</dd>
+    <dt>{{T "From"}}</dt><dd>{{$d.Source.Title}} <span class="muted">({{.Run.Hostname}})</span></dd>
+    <dt>{{T "Restore point"}}</dt><dd>{{ts .Run.QueuedAt}} <span class="muted">{{ago .Run.QueuedAt}}</span>{{if .Run.Anomaly}} <span class="badge failed" title="{{.Run.Anomaly}}"><i></i>{{T "suspicious"}}</span>{{end}}</dd>
+    <dt>{{T "Storage"}}</dt><dd>{{.Target}}{{if .Copy}} <span class="badge info-badge">{{T "copy"}}</span>{{end}}</dd>
   </dl>
-  {{if .Run.Anomaly}}<div class="callout warn mt"><p>This backup was flagged as suspicious: {{.Run.Anomaly}}. Consider an older restore point.</p></div>{{end}}
+  {{if .Run.Anomaly}}<div class="callout warn mt"><p>{{T "This backup was flagged as suspicious:"}} {{.Run.Anomaly}}{{T ". Consider an older restore point."}}</p></div>{{end}}
 </div>
 {{end}}
 <div class="panel">
-  <h2>Options</h2>
+  <h2>{{T "Options"}}</h2>
   {{if eq $d.Type.Key "files"}}{{template "restore_files" .}}
   {{else if eq $d.Type.Key "vm"}}{{template "restore_vm" .}}
   {{else if eq $d.Type.Key "system"}}{{template "restore_system" .}}
   {{else if eq $d.Type.Key "image"}}{{template "restore_image" .}}
   {{else if eq $d.Type.Key "sql"}}{{template "restore_sql" .}}
   {{else if eq $d.Type.Key "imagefiles"}}
-    <p class="muted">Choose the partition to browse; you can then download files or restore them to an agent.</p>
+    <p class="muted">{{T "Choose the partition to browse; you can then download files or restore them to an agent."}}</p>
     {{with $d.Image}}<div class="table-wrap"><table>
-      <tr><th>#</th><th>Size</th><th>Volume</th><th>File system</th><th></th></tr>
+      <tr><th>#</th><th>{{T "Size"}}</th><th>{{T "Volume"}}</th><th>{{T "File system"}}</th><th></th></tr>
       {{range .Partitions}}{{if and .Included (eq .FileSystem "NTFS")}}
       <tr><td>{{.Number}}</td><td>{{bytes .Length}}</td><td>{{join .MountPoints " "}}{{if .Label}} “{{.Label}}”{{end}}</td><td>{{.FileSystem}}</td>
-        <td><a href="/runs/{{$d.Run.ID}}/browse?part={{.Number}}" class="btn secondary-link">Browse files{{template "icon" "chevr"}}</a></td></tr>
+        <td><a href="/runs/{{$d.Run.ID}}/browse?part={{.Number}}" class="btn secondary-link">{{T "Browse files"}}{{template "icon" "chevr"}}</a></td></tr>
       {{end}}{{end}}
     </table></div>{{end}}
   {{end}}

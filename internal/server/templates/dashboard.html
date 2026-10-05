@@ -1,35 +1,35 @@
 {{define "content"}}
-<h1>Dashboard</h1>
-{{with .Data.Instant}}<div class="callout warn"><p><b>{{len .}} VM{{if gt (len .) 1}}s{{end}} still run{{if eq (len .) 1}}s{{end}} from a backup</b> (instant recovery): {{range $i, $v := .}}{{if $i}}, {{end}}<a href="/runs/{{$v.RunID}}">VM {{$v.VMID}}{{if $v.Name}} ({{$v.Name}}){{end}} on {{$v.Hostname}}</a>{{end}}. Finish or discard {{if gt (len .) 1}}them{{else}}it{{end}}: until then {{if gt (len .) 1}}they depend{{else}}it depends{{end}} on the backup storage.</p></div>{{end}}
+<h1>{{T "Dashboard"}}</h1>
+{{with .Data.Instant}}<div class="callout warn"><p><b>{{len .}} {{T "VM"}}{{if gt (len .) 1}}s{{end}} {{T "still run"}}{{if eq (len .) 1}}s{{end}} {{T "from a backup"}}</b> {{T "(instant recovery):"}} {{range $i, $v := .}}{{if $i}}, {{end}}<a href="/runs/{{$v.RunID}}">{{T "VM"}} {{$v.VMID}}{{if $v.Name}} ({{$v.Name}}){{end}} {{T "on"}} {{$v.Hostname}}</a>{{end}}{{T ". Finish or discard"}} {{if gt (len .) 1}}{{T "them"}}{{else}}{{T "it"}}{{end}}{{T ": until then"}} {{if gt (len .) 1}}{{T "they depend"}}{{else}}{{T "it depends"}}{{end}} {{T "on the backup storage."}}</p></div>{{end}}
 {{with .Data.Protection}}
 <div class="grid">
-  <div class="stat"><div class="si">{{template "icon" "agents"}}</div><b>{{.Machines}}</b><span>machines protected</span></div>
-  <div class="stat"><div class="si">{{template "icon" "vm"}}</div><b>{{.VMs}}</b><span>VMs protected</span></div>
-  <div class="stat"><div class="si">{{template "icon" "storage"}}</div><b>{{.Databases}}</b><span>databases protected</span></div>
+  <div class="stat"><div class="si">{{template "icon" "agents"}}</div><b>{{.Machines}}</b><span>{{T "machines protected"}}</span></div>
+  <div class="stat"><div class="si">{{template "icon" "vm"}}</div><b>{{.VMs}}</b><span>{{T "VMs protected"}}</span></div>
+  <div class="stat"><div class="si">{{template "icon" "storage"}}</div><b>{{.Databases}}</b><span>{{T "databases protected"}}</span></div>
 </div>
 {{end}}
 <div class="panel">
-  <h2>Needs attention</h2>
+  <h2>{{T "Needs attention"}}</h2>
   {{with .Data.Attention}}
   <ul class="attention">
-    {{range .}}<li class="{{.Severity}}"><span class="badge {{.Severity}}"><i></i>{{if eq .Severity "failed"}}failed{{else}}check{{end}}</span> <a href="{{.Link}}"><b>{{.Title}}</b></a> — {{.Detail}}</li>{{end}}
+    {{range .}}<li class="{{.Severity}}"><span class="badge {{.Severity}}"><i></i>{{if eq .Severity "failed"}}{{T "failed"}}{{else}}{{T "check"}}{{end}}</span> <a href="{{.Link}}"><b>{{.Title}}</b></a> — {{.Detail}}</li>{{end}}
   </ul>
-  {{else}}<p class="ok-line">{{template "icon" "check"}} Everything is fine: all jobs succeeded recently and all agents are online.</p>{{end}}
+  {{else}}<p class="ok-line">{{template "icon" "check"}} {{T "Everything is fine: all jobs succeeded recently and all agents are online."}}</p>{{end}}
 </div>
 {{with .Data.Summary}}
 <div class="grid">
-  <div class="stat {{if lt .AgentsOnline .Agents}}warn{{else}}ok{{end}}"><div class="si">{{template "icon" "agents"}}</div><b>{{.AgentsOnline}} / {{.Agents}}</b><span>agents online</span></div>
-  <div class="stat"><div class="si">{{template "icon" "jobs"}}</div><b>{{.Jobs}}</b><span>backup jobs</span></div>
-  <div class="stat"><div class="si">{{template "icon" "storage"}}</div><b>{{.Targets}}</b><span>storage targets</span></div>
-  <div class="stat info"><div class="si">{{template "icon" "play"}}</div><b>{{.Running}}</b><span>queued / running</span></div>
-  <div class="stat ok"><div class="si">{{template "icon" "activity"}}</div><b>{{.Runs24h}}</b><span>runs in 24 h</span></div>
-  <div class="stat {{if .Failed24h}}bad{{else}}ok{{end}}"><div class="si">{{template "icon" "alert"}}</div><b>{{.Failed24h}}</b><span>failed in 24 h</span></div>
-  <div class="stat {{if .Suspicious}}bad{{else}}ok{{end}}"><div class="si">{{template "icon" "shield"}}</div><b>{{.Suspicious}}</b><span>suspicious backups to review</span></div>
-  <div class="stat {{if .Warning24h}}warn{{else}}ok{{end}}"><div class="si">{{template "icon" "warn"}}</div><b>{{.Warning24h}}</b><span>warnings in 24 h</span></div>
+  <div class="stat {{if lt .AgentsOnline .Agents}}warn{{else}}ok{{end}}"><div class="si">{{template "icon" "agents"}}</div><b>{{.AgentsOnline}} / {{.Agents}}</b><span>{{T "agents online"}}</span></div>
+  <div class="stat"><div class="si">{{template "icon" "jobs"}}</div><b>{{.Jobs}}</b><span>{{T "backup jobs"}}</span></div>
+  <div class="stat"><div class="si">{{template "icon" "storage"}}</div><b>{{.Targets}}</b><span>{{T "storage targets"}}</span></div>
+  <div class="stat info"><div class="si">{{template "icon" "play"}}</div><b>{{.Running}}</b><span>{{T "queued / running"}}</span></div>
+  <div class="stat ok"><div class="si">{{template "icon" "activity"}}</div><b>{{.Runs24h}}</b><span>{{T "runs in 24 h"}}</span></div>
+  <div class="stat {{if .Failed24h}}bad{{else}}ok{{end}}"><div class="si">{{template "icon" "alert"}}</div><b>{{.Failed24h}}</b><span>{{T "failed in 24 h"}}</span></div>
+  <div class="stat {{if .Suspicious}}bad{{else}}ok{{end}}"><div class="si">{{template "icon" "shield"}}</div><b>{{.Suspicious}}</b><span>{{T "suspicious backups to review"}}</span></div>
+  <div class="stat {{if .Warning24h}}warn{{else}}ok{{end}}"><div class="si">{{template "icon" "warn"}}</div><b>{{.Warning24h}}</b><span>{{T "warnings in 24 h"}}</span></div>
 </div>
 {{end}}
 <div class="panel">
-  <h2>Recent activity</h2>
+  <h2>{{T "Recent activity"}}</h2>
   {{template "runtable" .Data.Runs}}
 </div>
 {{end}}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/backend"
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
@@ -110,6 +111,11 @@ func (a *Agent) withRetention(ctx context.Context, r *repo.Repository, run api.R
 			res.Message += ". "
 		}
 		res.Message += msg
+	}
+	// Storage usage for the console's charts and forecast.
+	res.RepoBytes = r.Index().StoredBytes()
+	if u, ok := backend.UsageOf(ctx, r.Backend()); ok {
+		res.StorageTotal, res.StorageFree = u.Total, u.Free
 	}
 	return res
 }

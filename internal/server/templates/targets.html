@@ -1,117 +1,146 @@
 {{define "content"}}
-<h1>Storage targets</h1>
+<h1>{{T "Storage targets"}}</h1>
 <div class="panel">
   {{if .Data.Targets}}
   <div class="table-wrap"><table>
-    <tr><th>Name</th><th>Type</th><th>Location</th><th>Encryption</th><th>Immutability</th><th></th></tr>
+    <tr><th>{{T "Name"}}</th><th>{{T "Type"}}</th><th>{{T "Location"}}</th><th>{{T "Encryption"}}</th><th>{{T "Immutability"}}</th><th></th></tr>
     {{range .Data.Targets}}
     <tr>
       <td class="strong">{{.Name}}</td><td><span class="badge">{{.Kind}}</span></td><td class="mono">{{.URL}}</td>
-      <td>{{if .Encrypted}}AES-256 {{if $.Me.Can "storage"}}<form method="post" action="/targets/{{.ID}}/recovery-key" class="inline"><button class="link">Recovery key</button></form>{{end}}{{else}}<span class="muted">none</span>{{end}}</td>
-      <td>{{if .S3LockDays}}{{days .S3LockDays}} (Object Lock){{else if eq .Kind "hardened"}}set on the repository server{{else}}<span class="muted">none</span>{{end}}</td>
-      <td>{{if $.Me.Can "storage"}}<form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="Remove storage target {{.Name}}? Data on the storage is not deleted."><button class="link">Remove</button></form>{{end}}</td>
+      <td>{{if .Encrypted}}{{T "AES-256"}} {{if $.Me.Can "storage"}}<form method="post" action="/targets/{{.ID}}/recovery-key" class="inline"><button class="link">{{T "Recovery key"}}</button></form>{{end}}{{else}}<span class="muted">{{T "none"}}</span>{{end}}</td>
+      <td>{{if .S3LockDays}}{{days .S3LockDays}} {{T "(Object Lock)"}}{{else if eq .Kind "hardened"}}{{T "set on the repository server"}}{{else}}<span class="muted">{{T "none"}}</span>{{end}}</td>
+      <td>{{if $.Me.Can "storage"}}<form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove storage target %v? Data on the storage is not deleted." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
     </tr>
     {{end}}
   </table></div>
-  <p class="muted">Each agent stores its backups in its own repository below the target location: <code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>.</p>
-  {{else}}<p class="muted">No storage targets yet.</p>{{end}}
+  <p class="muted">{{T "Each agent stores its backups in its own repository below the target location:"}} <code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>.</p>
+  {{else}}<p class="muted">{{T "No storage targets yet."}}</p>{{end}}
 </div>
 
+{{if .Data.Usage}}<div class="panel" id="usage">
+  <h2>{{template "icon" "storage"}} {{T "Storage usage"}}</h2>
+  <p class="muted small">{{T "Space the backups take on each target, reported by the agents after every backup and its retention. The forecast follows the trend of the last 30 days."}}</p>
+  <div class="usage-grid">
+  {{range .Data.Targets}}{{$t := .}}{{with index $.Data.Usage .ID}}
+  <div class="usage-card">
+    <div class="usage-head">
+      <b>{{$t.Name}}</b>
+      <span class="muted small">{{bytes .Used}} {{T "used by"}} {{.Repos}} {{N .Repos "repository" "repositories"}}</span>
+    </div>
+    {{if .Total}}
+    <div class="usage-cap">
+      <svg class="usage-bar {{if ge .UsedPercent 90}}crit{{else if ge .UsedPercent 75}}high{{end}}" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><rect class="ub-bg" width="100" height="6" rx="3"/><rect class="ub-fill" width="{{.UsedPercent}}" height="6" rx="3"/></svg>
+      <span class="small">{{T "Storage %d %% full" .UsedPercent}} · {{bytes .Free}} {{T "free of"}} {{bytes .Total}}</span>
+    </div>
+    {{end}}
+    {{usagechart .}}
+    <p class="small usage-forecast">
+    {{if .Trend}}
+      {{T "Growth"}}: <b>{{signedbytes .GrowthPerDay}}</b> {{T "per day"}} ·
+      {{if ge .FullInDays 0}}{{if le .FullInDays 30}}<span class="badge failed"><i></i>{{T "full in about %d days" .FullInDays}}</span>{{else if le .FullInDays 365}}<span class="badge warning"><i></i>{{T "full in about %d days" .FullInDays}}</span>{{else}}{{T "full in more than a year"}}{{end}}
+      {{else}}{{T "in 90 days"}}: <b>{{bytes .In90}}</b>{{end}}
+    {{else}}<span class="muted">{{T "The forecast appears after a week of backups."}}</span>{{end}}
+    </p>
+  </div>
+  {{end}}{{end}}
+  </div>
+</div>{{end}}
+
 {{if $.Me.Can "storage"}}<div class="panel">
-  <h2>Add storage target</h2>
+  <h2>{{T "Add storage target"}}</h2>
   <form method="post" action="/targets" class="stack">
-    <label>Name <input name="name" required placeholder="Office NAS"></label>
-    <label>Type
+    <label>{{T "Name"}} <input name="name" required placeholder="{{T "Office NAS"}}"></label>
+    <label>{{T "Type"}}
       <select name="kind" id="kind">
-        <option value="sftp">SFTP</option>
-        <option value="s3">S3 compatible (AWS, Wasabi, Backblaze B2, MinIO, …)</option>
-        <option value="azure">Azure Blob Storage</option>
-        <option value="hardened">Hardened repository (backupzit-repo on Linux, immutable)</option>
-        <option value="smb">SMB share (Windows server, NAS)</option>
-        <option value="usb">Rotating USB / removable disks (offline copies)</option>
-        <option value="local">Local / mounted path (on the agent machine)</option>
+        <option value="sftp">{{T "SFTP"}}</option>
+        <option value="s3">{{T "S3 compatible (AWS, Wasabi, Backblaze B2, MinIO, …)"}}</option>
+        <option value="azure">{{T "Azure Blob Storage"}}</option>
+        <option value="hardened">{{T "Hardened repository (backupzit-repo on Linux, immutable)"}}</option>
+        <option value="smb">{{T "SMB share (Windows server, NAS)"}}</option>
+        <option value="usb">{{T "Rotating USB / removable disks (offline copies)"}}</option>
+        <option value="local">{{T "Local / mounted path (on the agent machine)"}}</option>
       </select>
     </label>
     <div data-kind="hardened" hidden class="stack">
       <div class="row">
-        <label>Server <small>host or host:port (default port 8500)</small><input name="hardened_host" placeholder="10.0.0.30"></label>
-        <label>Folder <small>optional, default backupzit</small><input name="hardened_path" placeholder="backupzit"></label>
+        <label>{{T "Server"}} <small>{{T "host or host:port (default port 8500)"}}</small><input name="hardened_host" placeholder="10.0.0.30"></label>
+        <label>{{T "Folder"}} <small>{{T "optional, default backupzit"}}</small><input name="hardened_path" placeholder="{{T "backupzit"}}"></label>
       </div>
       <div class="row">
-        <label>Access key <small>backupzit-repo add-key &lt;name&gt;</small><input name="hardened_key" type="password" autocomplete="new-password" placeholder="bzr_..."></label>
-        <label>Certificate fingerprint <small>backupzit-repo fingerprint</small><input name="hardened_fingerprint" placeholder="SHA256:..."></label>
+        <label>{{T "Access key"}} <small>{{T "backupzit-repo add-key <name>"}}</small><input name="hardened_key" type="password" autocomplete="new-password" placeholder="{{T "bzr_..."}}"></label>
+        <label>{{T "Certificate fingerprint"}} <small>{{T "backupzit-repo fingerprint"}}</small><input name="hardened_fingerprint" placeholder="{{T "SHA256:..."}}"></label>
       </div>
-      <small class="muted">A Linux server running backupzit-repo. Backups written there cannot be changed or deleted by agents, this console or anyone holding the access key until the immutability period set on that server ends — protection against ransomware and compromised credentials. Disable SSH and other remote access to that server after setup.</small>
+      <small class="muted">{{T "A Linux server running backupzit-repo. Backups written there cannot be changed or deleted by agents, this console or anyone holding the access key until the immutability period set on that server ends — protection against ransomware and compromised credentials. Disable SSH and other remote access to that server after setup."}}</small>
     </div>
     <div data-kind="smb" hidden class="stack">
       <div class="row">
-        <label>Server <small>name or IP, e.g. nas01 or 10.0.0.20</small><input name="smb_host" placeholder="10.0.0.20"></label>
-        <label>Share <small>e.g. Backups</small><input name="smb_share" placeholder="Backups"></label>
+        <label>{{T "Server"}} <small>{{T "name or IP, e.g. nas01 or 10.0.0.20"}}</small><input name="smb_host" placeholder="10.0.0.20"></label>
+        <label>{{T "Share"}} <small>{{T "e.g. Backups"}}</small><input name="smb_share" placeholder="{{T "Backups"}}"></label>
       </div>
-      <label>Folder in share <small>optional</small><input name="smb_path" placeholder="backupzit"></label>
+      <label>{{T "Folder in share"}} <small>{{T "optional"}}</small><input name="smb_path" placeholder="{{T "backupzit"}}"></label>
       <div class="row">
-        <label>User <input name="smb_user" autocomplete="off"></label>
-        <label>Password <input name="smb_password" type="password" autocomplete="new-password"></label>
+        <label>{{T "User"}} <input name="smb_user" autocomplete="off"></label>
+        <label>{{T "Password"}} <input name="smb_password" type="password" autocomplete="new-password"></label>
       </div>
-      <label>Domain <small>optional, for domain accounts</small><input name="smb_domain"></label>
-      <small class="muted">Agents connect with these credentials themselves (SMB 2/3), so the share does not need to be mapped on the machines.</small>
+      <label>{{T "Domain"}} <small>{{T "optional, for domain accounts"}}</small><input name="smb_domain"></label>
+      <small class="muted">{{T "Agents connect with these credentials themselves (SMB 2/3), so the share does not need to be mapped on the machines."}}</small>
     </div>
     <div data-kind="azure" hidden class="stack">
       <div class="row">
-        <label>Storage account <small>e.g. contosobackups</small><input name="azure_account" placeholder="contosobackups"></label>
-        <label>Container <small>create it first in the Azure portal</small><input name="azure_container" placeholder="backups"></label>
+        <label>{{T "Storage account"}} <small>{{T "e.g. contosobackups"}}</small><input name="azure_account" placeholder="{{T "contosobackups"}}"></label>
+        <label>{{T "Container"}} <small>{{T "create it first in the Azure portal"}}</small><input name="azure_container" placeholder="{{T "backups"}}"></label>
       </div>
-      <label>Folder in container <small>optional</small><input name="azure_path" placeholder="backupzit"></label>
+      <label>{{T "Folder in container"}} <small>{{T "optional"}}</small><input name="azure_path" placeholder="{{T "backupzit"}}"></label>
       <div class="row">
-        <label>Authentication
+        <label>{{T "Authentication"}}
           <select name="azure_auth">
-            <option value="key">Storage account access key</option>
-            <option value="sas">SAS token (read, write, delete, list)</option>
+            <option value="key">{{T "Storage account access key"}}</option>
+            <option value="sas">{{T "SAS token (read, write, delete, list)"}}</option>
           </select>
         </label>
-        <label>Key or SAS token <input name="azure_secret" type="password" autocomplete="new-password"></label>
+        <label>{{T "Key or SAS token"}} <input name="azure_secret" type="password" autocomplete="new-password"></label>
       </div>
       <details>
-        <summary>Advanced</summary>
-        <label>Endpoint <small>only for Azure Government/China, Azure Stack or the Azurite emulator, e.g. http://10.0.0.5:10000/devstoreaccount1</small><input name="azure_endpoint"></label>
+        <summary>{{T "Advanced"}}</summary>
+        <label>{{T "Endpoint"}} <small>{{T "only for Azure Government/China, Azure Stack or the Azurite emulator, e.g. http://10.0.0.5:10000/devstoreaccount1"}}</small><input name="azure_endpoint"></label>
       </details>
-      <small class="muted">For ransomware protection, enable <i>version-level immutability</i> (a time-based retention policy) on the container in Azure; deleted or overwritten backups then remain recoverable.</small>
+      <small class="muted">{{T "For ransomware protection, enable"}} <i>{{T "version-level immutability"}}</i> {{T "(a time-based retention policy) on the container in Azure; deleted or overwritten backups then remain recoverable."}}</small>
     </div>
     <div data-kind="usb" hidden class="stack">
       <div class="row">
-        <label>Disk label <small>volume label of the disks, e.g. BZBACKUP* for BZBACKUP1, BZBACKUP2 …</small><input name="usb_label" placeholder="BZBACKUP*"></label>
-        <label>Folder on the disk <small>optional, default BackupZit</small><input name="usb_path" placeholder="BackupZit"></label>
+        <label>{{T "Disk label"}} <small>{{T "volume label of the disks, e.g. BZBACKUP* for BZBACKUP1, BZBACKUP2 …"}}</small><input name="usb_label" placeholder="{{T "BZBACKUP*"}}"></label>
+        <label>{{T "Folder on the disk"}} <small>{{T "optional, default BackupZit"}}</small><input name="usb_path" placeholder="{{T "BackupZit"}}"></label>
       </div>
-      <small class="muted">For offline copies on rotating USB disks: name each disk's volume BZBACKUP1, BZBACKUP2 … (Windows: right-click the drive → Properties). The agent finds the connected disk by its label, whatever drive letter it gets. Each disk holds a complete, independent backup; take one home or to a safe and swap them regularly. Connect only one disk at a time.</small>
+      <small class="muted">{{T "For offline copies on rotating USB disks: name each disk's volume BZBACKUP1, BZBACKUP2 … (Windows: right-click the drive → Properties). The agent finds the connected disk by its label, whatever drive letter it gets. Each disk holds a complete, independent backup; take one home or to a safe and swap them regularly. Connect only one disk at a time."}}</small>
     </div>
     <div data-kind="s3" hidden class="stack">
       <div class="row">
-        <label>Endpoint <small>host[:port], e.g. s3.eu-central-1.amazonaws.com, s3.wasabisys.com, 10.0.0.5:9000</small><input name="s3_endpoint" placeholder="s3.eu-central-1.amazonaws.com"></label>
-        <label>Region <small>optional, e.g. eu-central-1</small><input name="s3_region"></label>
+        <label>{{T "Endpoint"}} <small>{{T "host[:port], e.g. s3.eu-central-1.amazonaws.com, s3.wasabisys.com, 10.0.0.5:9000"}}</small><input name="s3_endpoint" placeholder="{{T "s3.eu-central-1.amazonaws.com"}}"></label>
+        <label>{{T "Region"}} <small>{{T "optional, e.g. eu-central-1"}}</small><input name="s3_region"></label>
       </div>
       <div class="row">
-        <label>Bucket <input name="s3_bucket" placeholder="company-backups"></label>
-        <label>Folder in bucket <small>optional</small><input name="s3_prefix" placeholder="backupzit"></label>
+        <label>{{T "Bucket"}} <input name="s3_bucket" placeholder="{{T "company-backups"}}"></label>
+        <label>{{T "Folder in bucket"}} <small>{{T "optional"}}</small><input name="s3_prefix" placeholder="{{T "backupzit"}}"></label>
       </div>
       <div class="row">
-        <label>Access key <input name="s3_access_key" autocomplete="off"></label>
-        <label>Secret key <input name="s3_secret_key" type="password" autocomplete="new-password"></label>
+        <label>{{T "Access key"}} <input name="s3_access_key" autocomplete="off"></label>
+        <label>{{T "Secret key"}} <input name="s3_secret_key" type="password" autocomplete="new-password"></label>
       </div>
-      <label class="check"><input type="checkbox" name="s3_http"> Plain HTTP (no TLS) — only for a local S3 server such as MinIO without a certificate</label>
-      <label class="check"><input type="checkbox" name="s3_immutable"> Immutable backups (S3 Object Lock, compliance mode) for <input name="s3_lock_days" type="number" min="1" max="3650" value="30" class="narrow"> days</label>
-      <small class="muted">Protects against ransomware and deleted backups: nobody, not even with the storage keys, can delete or change backup data before the period ends. The bucket must be created with Object Lock enabled. Deleted or expired backups free space only after the period ends — add a lifecycle rule that removes noncurrent versions. Choose a period at least as long as your retention.</small>
+      <label class="check"><input type="checkbox" name="s3_http"> {{T "Plain HTTP (no TLS) — only for a local S3 server such as MinIO without a certificate"}}</label>
+      <label class="check"><input type="checkbox" name="s3_immutable"> {{T "Immutable backups (S3 Object Lock, compliance mode) for"}} <input name="s3_lock_days" type="number" min="1" max="3650" value="30" class="narrow"> {{T "days"}}</label>
+      <small class="muted">{{T "Protects against ransomware and deleted backups: nobody, not even with the storage keys, can delete or change backup data before the period ends. The bucket must be created with Object Lock enabled. Deleted or expired backups free space only after the period ends — add a lifecycle rule that removes noncurrent versions. Choose a period at least as long as your retention."}}</small>
     </div>
-    <label data-kind="sftp">Location <small>sftp://user@host:22/path — use /~/path for a path relative to the user's home</small>
-      <input name="url" placeholder="sftp://backup@10.0.0.5:22/srv/backups">
+    <label data-kind="sftp">{{T "Location"}} <small>{{T "sftp://user@host:22/path — use /~/path for a path relative to the user's home"}}</small>
+      <input name="url" placeholder="{{T "sftp://backup@10.0.0.5:22/srv/backups"}}">
     </label>
     <div data-kind="sftp" class="row">
-      <label>Password <input name="sftp_password" type="password" autocomplete="new-password"></label>
-      <label>Host key fingerprint <small>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</small><input name="sftp_host_key" placeholder="SHA256:..."></label>
+      <label>{{T "Password"}} <input name="sftp_password" type="password" autocomplete="new-password"></label>
+      <label>{{T "Host key fingerprint"}} <small>{{T "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub"}}</small><input name="sftp_host_key" placeholder="{{T "SHA256:..."}}"></label>
     </div>
-    <label data-kind="sftp">Private key (optional, instead of password) <textarea name="sftp_key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea></label>
-    <label data-kind="local" hidden>Path on the agent <small>e.g. D:\Backups or /mnt/backup</small><input name="url" disabled></label>
-    <label class="check"><input type="checkbox" name="encrypted" checked> Encrypt backups (AES-256) <small>recommended — a recovery key is created; without it encrypted backups cannot be read</small></label>
-    <div><button>Add target</button></div>
+    <label data-kind="sftp">{{T "Private key (optional, instead of password)"}} <textarea name="sftp_key" placeholder="{{T "-----BEGIN OPENSSH PRIVATE KEY-----"}}"></textarea></label>
+    <label data-kind="local" hidden>{{T "Path on the agent"}} <small>{{T "e.g. D:\\Backups or /mnt/backup"}}</small><input name="url" disabled></label>
+    <label class="check"><input type="checkbox" name="encrypted" checked> {{T "Encrypt backups (AES-256)"}} <small>{{T "recommended — a recovery key is created; without it encrypted backups cannot be read"}}</small></label>
+    <div><button>{{T "Add target"}}</button></div>
   </form>
 </div>{{end}}
 {{end}}

@@ -75,6 +75,15 @@ backupzit-repo fingerprint                # certificate fingerprint</pre>
 <h2>The storage list</h2>
 <p>The list shows each target's type, location, encryption (with access to the recovery key for administrators) and immutability: the Object Lock period for S3, or <i>set on the repository server</i> for hardened repositories. Credentials are never shown again after saving and are stored encrypted. Only administrators can add or remove targets and see recovery keys.</p>
 
+<h2>Storage usage and forecast</h2>
+<p>After every backup (and its retention) the agent reports how much space its repository takes, and — for local and USB disks, SFTP servers (OpenSSH's <code>statvfs</code> extension) and SMB shares — the size and free space of the storage. Under <a href="/targets#usage">Storage → Storage usage</a> each target shows:</p>
+<ul>
+  <li>the space used by all repositories on it (one per agent; rotating USB disks count each disk);</li>
+  <li>for storage with a known size, how full it is (yellow from 75 %, red from 90 %), with the capacity as a dashed red line in the chart;</li>
+  <li>a chart of the last 90 days and, after a week of backups, the growth per day (a linear trend of the last 30 days), drawn 30 days ahead as a dashed line, and when the storage will be full — or, without a known size, the expected use in 90 days.</li>
+</ul>
+<p>The dashboard's <b>Needs attention</b> warns when a storage target is 90 % full or will be full within 30 days. S3 and Azure have no fixed size; there only the used space and its growth are shown. The used space is the stored (compressed, encrypted, deduplicated) data; files the storage keeps for other reasons (object versions, other programs) are not counted.</p>
+
 <h2>Removing a target</h2>
 <p>Removing a storage target from the console does not delete any data on the storage.</p>
 {{template "docpager" .}}

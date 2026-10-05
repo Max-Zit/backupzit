@@ -1,108 +1,108 @@
 {{define "content"}}
 {{with .Data.Job}}
-{{if .RetentionHold}}<div class="callout warn"><p><b>Retention is paused</b> because a recent backup of this job looked like ransomware or mass deletion (see the history below). Older backups are kept. Check the machine; when everything is fine, resume retention.</p>{{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/release-hold" data-confirm="Mark the suspicious backups as reviewed and resume retention?"><button class="secondary">Reviewed — resume retention</button></form>{{end}}</div>{{end}}
-<h1>{{.Name}} {{if not .Enabled}}<span class="badge">disabled</span>{{end}}</h1>
+{{if .RetentionHold}}<div class="callout warn"><p><b>{{T "Retention is paused"}}</b> {{T "because a recent backup of this job looked like ransomware or mass deletion (see the history below). Older backups are kept. Check the machine; when everything is fine, resume retention."}}</p>{{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/release-hold" data-confirm="{{T "Mark the suspicious backups as reviewed and resume retention?"}}"><button class="secondary">{{T "Reviewed — resume retention"}}</button></form>{{end}}</div>{{end}}
+<h1>{{.Name}} {{if not .Enabled}}<span class="badge">{{T "disabled"}}</span>{{end}}</h1>
 <div class="actions">
-  {{if $.Me.Can "run"}}<form method="post" action="/jobs/{{.ID}}/run" class="inline"><button>{{if eq .Kind "copy"}}Copy now{{else}}Run backup now{{end}}</button></form>
-  <form method="post" action="/jobs/{{.ID}}/test" class="inline"><button class="secondary">{{template "icon" "check"}}Test restore</button></form>{{end}}
+  {{if $.Me.Can "run"}}<form method="post" action="/jobs/{{.ID}}/run" class="inline"><button>{{if eq .Kind "copy"}}{{T "Copy now"}}{{else}}{{T "Run backup now"}}{{end}}</button></form>
+  <form method="post" action="/jobs/{{.ID}}/test" class="inline"><button class="secondary">{{template "icon" "check"}}{{T "Test restore"}}</button></form>{{end}}
   {{if .Enabled}}
-  {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/disable" class="inline"><button class="secondary">Disable</button></form>{{end}}
+  {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/disable" class="inline"><button class="secondary">{{T "Disable"}}</button></form>{{end}}
   {{else}}
-  {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/enable" class="inline"><button class="secondary">Enable</button></form>{{end}}
+  {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/enable" class="inline"><button class="secondary">{{T "Enable"}}</button></form>{{end}}
   {{end}}
-  {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/delete" class="inline" data-confirm="Delete job {{.Name}}? Existing backups stay on the storage."><button class="danger">Delete</button></form>{{end}}
+  {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/delete" class="inline" data-confirm="{{T "Delete job %v? Existing backups stay on the storage." .Name}}"><button class="danger">{{T "Delete"}}</button></form>{{end}}
 </div>
 <div class="panel">
   <dl class="kv">
-    {{if .VMwareHostName}}<dt>VMware host</dt><dd>{{deref .VMwareHostName}} <span class="muted">(ESXi; disks read and written by the proxy agent {{.Hostname}})</span></dd>{{else}}<dt>Agent</dt><dd>{{.Hostname}}</dd>{{end}}
-    <dt>Storage</dt><dd>{{.TargetName}}</dd>
+    {{if .VMwareHostName}}<dt>{{T "VMware host"}}</dt><dd>{{deref .VMwareHostName}} <span class="muted">{{T "(ESXi; disks read and written by the proxy agent"}} {{.Hostname}})</span></dd>{{else}}<dt>{{T "Agent"}}</dt><dd>{{.Hostname}}</dd>{{end}}
+    <dt>{{T "Storage"}}</dt><dd>{{.TargetName}}</dd>
     {{if eq .Kind "copy"}}
-    <dt>Copies</dt><dd>backups of <a href="/jobs/{{.SourceJobID}}">{{deref .SourceJobName}}</a></dd>
+    <dt>{{T "Copies"}}</dt><dd>{{T "backups of"}} <a href="/jobs/{{.SourceJobID}}">{{deref .SourceJobName}}</a></dd>
     {{else if eq .Kind "image"}}
-    <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
+    <dt>{{T "Backs up"}}</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
     {{else if eq .Kind "system"}}
-    <dt>Backs up</dt><dd>Whole Linux system (all local file systems and the disk layout){{if .Excludes}}, excluding <span class="mono">{{join .Excludes ", "}}</span>{{end}}</dd>
+    <dt>{{T "Backs up"}}</dt><dd>{{T "Whole Linux system (all local file systems and the disk layout)"}}{{if .Excludes}}{{T ", excluding"}} <span class="mono">{{join .Excludes ", "}}</span>{{end}}</dd>
     {{else if eq .Kind "sql"}}
-    <dt>Backs up</dt><dd>{{if eq .Options.SQLEngine "postgres"}}PostgreSQL{{if .Options.SQLInstance}} on port {{.Options.SQLInstance}}{{end}} (whole cluster and each database){{else if eq .Options.SQLEngine "mysql"}}MySQL/MariaDB{{else}}SQL Server {{if .Options.SQLInstance}}instance {{.Options.SQLInstance}}{{else}}default instance{{end}}{{end}}: {{if .Paths}}{{join .Paths ", "}}{{else}}all user databases{{if .Options.SQLSystem}} and the system databases{{end}}{{end}}</dd>
-    <dt>Log backups</dt><dd>{{if .Options.SQLLogMinutes}}every {{.Options.SQLLogMinutes}} minutes (point-in-time restore){{else}}off — databases are restored to the time of a full backup{{end}}</dd>
+    <dt>{{T "Backs up"}}</dt><dd>{{if eq .Options.SQLEngine "postgres"}}{{T "PostgreSQL"}}{{if .Options.SQLInstance}} {{T "on port"}} {{.Options.SQLInstance}}{{end}} {{T "(whole cluster and each database)"}}{{else if eq .Options.SQLEngine "mysql"}}{{T "MySQL/MariaDB"}}{{else}}{{T "SQL Server"}} {{if .Options.SQLInstance}}{{T "instance"}} {{.Options.SQLInstance}}{{else}}{{T "default instance"}}{{end}}{{end}}: {{if .Paths}}{{join .Paths ", "}}{{else}}{{T "all user databases"}}{{if .Options.SQLSystem}} {{T "and the system databases"}}{{end}}{{end}}</dd>
+    <dt>{{T "Log backups"}}</dt><dd>{{if .Options.SQLLogMinutes}}{{T "every"}} {{.Options.SQLLogMinutes}} {{T "minutes (point-in-time restore)"}}{{else}}{{T "off — databases are restored to the time of a full backup"}}{{end}}</dd>
     {{else if eq .Kind "vm"}}
-    <dt>Backs up</dt><dd>{{vmsel .Paths}} <span class="muted">(hypervisor host)</span></dd>
+    <dt>{{T "Backs up"}}</dt><dd>{{vmsel .Paths}} <span class="muted">{{T "(hypervisor host)"}}</span></dd>
     {{else}}
-    <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
-    <dt>Excludes</dt><dd class="mono">{{if .Excludes}}{{join .Excludes ", "}}{{else}}—{{end}}</dd>
+    <dt>{{T "Paths"}}</dt><dd class="mono">{{join .Paths "\n"}}</dd>
+    <dt>{{T "Excludes"}}</dt><dd class="mono">{{if .Excludes}}{{join .Excludes ", "}}{{else}}—{{end}}</dd>
     {{end}}
-    <dt>Schedule</dt><dd>{{schedule .Schedule}}</dd>
-    <dt>Retention</dt><dd>{{.Retention.String}}</dd>
-    <dt>Next run</dt><dd>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</dd>
-    {{with $.Data.Coverage}}<dt>Last successful backup</dt><dd>{{if .LastOK}}{{ts .LastOK}} <span class="muted">({{ago .LastOK}}{{if .Size}}, {{bytes .Size}}{{end}})</span>{{else}}<span class="muted">none yet</span>{{end}}</dd>
-    <dt>Restore points</dt><dd>{{.Points}}</dd>{{end}}
-    {{if .Options.ReplicaAgentID}}<dt>Replicas</dt><dd>kept up to date after each backup{{if .Options.ReplicaStorage}}, on storage {{.Options.ReplicaStorage}}{{end}}</dd>{{end}}
-    {{if .Options.LimitMBps}}<dt>Speed limit</dt><dd>{{.Options.LimitText}}</dd>{{end}}
-    {{if .Options.HasCommands}}<dt>Commands</dt><dd>{{if $.Me.Can "settings"}}{{if .Options.PreCommand}}before: <span class="mono">{{.Options.PreCommand}}</span><br>{{end}}{{if .Options.PostCommand}}after: <span class="mono">{{.Options.PostCommand}}</span>{{end}}{{else}}runs commands before or after the backup{{end}}</dd>{{end}}
+    <dt>{{T "Schedule"}}</dt><dd>{{schedule .Schedule}}</dd>
+    <dt>{{T "Retention"}}</dt><dd>{{retention .Retention}}</dd>
+    <dt>{{T "Next run"}}</dt><dd>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</dd>
+    {{with $.Data.Coverage}}<dt>{{T "Last successful backup"}}</dt><dd>{{if .LastOK}}{{ts .LastOK}} <span class="muted">({{ago .LastOK}}{{if .Size}}, {{bytes .Size}}{{end}})</span>{{else}}<span class="muted">{{T "none yet"}}</span>{{end}}</dd>
+    <dt>{{T "Restore points"}}</dt><dd>{{.Points}}</dd>{{end}}
+    {{if .Options.ReplicaAgentID}}<dt>{{T "Replicas"}}</dt><dd>{{T "kept up to date after each backup"}}{{if .Options.ReplicaStorage}}{{T ", on storage"}} {{.Options.ReplicaStorage}}{{end}}</dd>{{end}}
+    {{if .Options.LimitMBps}}<dt>{{T "Speed limit"}}</dt><dd>{{.Options.LimitText}}</dd>{{end}}
+    {{if .Options.HasCommands}}<dt>{{T "Commands"}}</dt><dd>{{if $.Me.Can "settings"}}{{if .Options.PreCommand}}{{T "before:"}} <span class="mono">{{.Options.PreCommand}}</span><br>{{end}}{{if .Options.PostCommand}}{{T "after:"}} <span class="mono">{{.Options.PostCommand}}</span>{{end}}{{else}}{{T "runs commands before or after the backup"}}{{end}}</dd>{{end}}
   </dl>
 </div>
 {{with $.Data.Protected}}
 <div class="panel">
-  <h2>Protected VMs <span class="muted small">in the newest backup, {{ts $.Data.ProtectedRun.QueuedAt}}</span></h2>
+  <h2>{{T "Protected VMs"}} <span class="muted small">{{T "in the newest backup,"}} {{ts $.Data.ProtectedRun.QueuedAt}}</span></h2>
   <div class="table-wrap"><table>
-    <tr><th>VM</th><th>Type</th><th>Disks</th><th>Stored</th><th>Consistency</th><th></th></tr>
-    {{range .Guests}}<tr><td>{{if or (eq .Platform "hyperv") (eq .Platform "vmware")}}{{.Name}}{{else}}{{.VMID}} — {{.Name}}{{end}}</td><td>{{if eq .Type "lxc"}}container{{else}}VM{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td>
-      <td class="nowrap">{{if $.Me.Can "restore"}}<a href="/restore?type=vm&amp;src={{printf "vm:%s:%d" (or .Platform "proxmox") .VMID}}&amp;run={{$.Data.ProtectedRun.ID}}">Restore</a> · <a href="/runs/{{$.Data.ProtectedRun.ID}}/vmbrowse?vmid={{.VMID}}">Files</a>{{end}}</td></tr>{{end}}
+    <tr><th>{{T "VM"}}</th><th>{{T "Type"}}</th><th>{{T "Disks"}}</th><th>{{T "Stored"}}</th><th>{{T "Consistency"}}</th><th></th></tr>
+    {{range .Guests}}<tr><td>{{if or (eq .Platform "hyperv") (eq .Platform "vmware")}}{{.Name}}{{else}}{{.VMID}} — {{.Name}}{{end}}</td><td>{{if eq .Type "lxc"}}{{T "container"}}{{else}}{{T "VM"}}{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td>
+      <td class="nowrap">{{if $.Me.Can "restore"}}<a href="/restore?type=vm&amp;src={{printf "vm:%s:%d" (or .Platform "proxmox") .VMID}}&amp;run={{$.Data.ProtectedRun.ID}}">{{T "Restore"}}</a> · <a href="/runs/{{$.Data.ProtectedRun.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Files"}}</a>{{end}}</td></tr>{{end}}
   </table></div>
 </div>
 {{end}}
 {{with $.Data.ProtectedSQL}}
 <div class="panel">
-  <h2>Protected databases <span class="muted small">in the newest full backup, {{ts $.Data.ProtectedRun.QueuedAt}}</span></h2>
+  <h2>{{T "Protected databases"}} <span class="muted small">{{T "in the newest full backup,"}} {{ts $.Data.ProtectedRun.QueuedAt}}</span></h2>
   <div class="table-wrap"><table>
-    <tr><th>Database</th><th>Recovery model</th><th>Backup size</th><th>Taken</th><th></th></tr>
-    {{range .Databases}}<tr><td>{{.Name}}</td><td>{{.Recovery}}</td><td>{{bytes .Size}}</td><td>{{ts .Finish}}</td><td>{{if $.Me.Can "restore"}}<a href="/runs/{{$.Data.ProtectedRun.ID}}#restore-sql">Restore</a>{{end}}</td></tr>{{end}}
+    <tr><th>{{T "Database"}}</th><th>{{T "Recovery model"}}</th><th>{{T "Backup size"}}</th><th>{{T "Taken"}}</th><th></th></tr>
+    {{range .Databases}}<tr><td>{{.Name}}</td><td>{{.Recovery}}</td><td>{{bytes .Size}}</td><td>{{ts .Finish}}</td><td>{{if $.Me.Can "restore"}}<a href="/runs/{{$.Data.ProtectedRun.ID}}#restore-sql">{{T "Restore"}}</a>{{end}}</td></tr>{{end}}
   </table></div>
 </div>
 {{end}}
 {{with $.Data.Replicas}}
 <div class="panel" id="replicas">
-  <h2>Replicas</h2>
-  <p class="muted small">Stopped copies of the guests, updated after each backup. If a guest is lost, start its replica: it runs with the data of the backup it holds. Replication pauses for a replica while it runs; to replicate again later, delete the replica guest in Proxmox and a new one is created.</p>
+  <h2>{{T "Replicas"}}</h2>
+  <p class="muted small">{{T "Stopped copies of the guests, updated after each backup. If a guest is lost, start its replica: it runs with the data of the backup it holds. Replication pauses for a replica while it runs; to replicate again later, delete the replica guest in Proxmox and a new one is created."}}</p>
   <div class="table-wrap"><table>
-    <tr><th>Guest</th><th>Replica</th><th>Holds the backup of</th><th>State</th><th></th></tr>
+    <tr><th>{{T "Guest"}}</th><th>{{T "Replica"}}</th><th>{{T "Holds the backup of"}}</th><th>{{T "State"}}</th><th></th></tr>
     {{range .}}<tr>
       <td>{{.VMID}}</td>
       <td>{{if .ReplicaVMID}}{{.ReplicaVMID}} — {{.Name}}{{else}}—{{end}}</td>
-      <td>{{if .SnapshotID}}{{ts .Updated}} <span class="muted small mono">{{short .SnapshotID}}</span>{{else}}—{{end}}{{if .Error}}<br><span class="badge failed"><i></i>not updated</span> <span class="small">{{.Error}}</span>{{end}}</td>
-      <td>{{if eq .Status "stopped"}}<span class="badge">stopped</span>{{else if eq .Status "running"}}<span class="badge warning"><i></i>running</span>{{else}}<span class="badge failed"><i></i>{{.Status}}</span>{{end}}</td>
-      <td>{{if and ($.Me.Can "restore") (eq .Status "stopped") .ReplicaVMID}}<form method="post" action="/jobs/{{$.Data.Job.ID}}/replica-start" data-confirm="Start replica {{.ReplicaVMID}} of guest {{.VMID}}? Do this only if the original is lost — both on the network at once can conflict."><input type="hidden" name="vmid" value="{{.VMID}}"><button class="secondary">Start replica</button></form>{{end}}</td>
+      <td>{{if .SnapshotID}}{{ts .Updated}} <span class="muted small mono">{{short .SnapshotID}}</span>{{else}}—{{end}}{{if .Error}}<br><span class="badge failed"><i></i>{{T "not updated"}}</span> <span class="small">{{.Error}}</span>{{end}}</td>
+      <td>{{if eq .Status "stopped"}}<span class="badge">{{T "stopped"}}</span>{{else if eq .Status "running"}}<span class="badge warning"><i></i>{{T "running"}}</span>{{else}}<span class="badge failed"><i></i>{{T .Status}}</span>{{end}}</td>
+      <td>{{if and ($.Me.Can "restore") (eq .Status "stopped") .ReplicaVMID}}<form method="post" action="/jobs/{{$.Data.Job.ID}}/replica-start" data-confirm="{{T "Start replica %v of guest %v? Do this only if the original is lost — both on the network at once can conflict." .ReplicaVMID .VMID}}"><input type="hidden" name="vmid" value="{{.VMID}}"><button class="secondary">{{T "Start replica"}}</button></form>{{end}}</td>
     </tr>{{end}}
   </table></div>
 </div>
 {{end}}
 {{if $.Me.Can "jobs"}}
 <details class="panel" id="edit">
-  <summary><b>Edit job</b> <span class="muted small">name, {{if eq .Kind "files"}}paths, {{else if eq .Kind "vm"}}VMs, {{end}}schedule, retention, speed limit{{if and ($.Me.Can "settings") (ne .Kind "copy")}}, commands{{end}}</span></summary>
+  <summary><b>{{T "Edit job"}}</b> <span class="muted small">{{T "name,"}} {{if eq .Kind "files"}}{{T "paths,"}} {{else if eq .Kind "vm"}}{{T "VMs,"}} {{end}}{{T "schedule, retention, speed limit"}}{{if and ($.Me.Can "settings") (ne .Kind "copy")}}{{T ", commands"}}{{end}}</span></summary>
   <form method="post" action="/jobs/{{.ID}}/edit" class="stack mt">
-    <label>Name <input name="name" required value="{{.Name}}"></label>
+    <label>{{T "Name"}} <input name="name" required value="{{.Name}}"></label>
     {{if eq .Kind "files"}}
-    <label>Folders and files to back up <small>one path per line</small><textarea name="paths" required>{{join .Paths "\n"}}</textarea></label>
-    <label>Exclude <small>one name pattern per line</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
+    <label>{{T "Folders and files to back up"}} <small>{{T "one path per line"}}</small><textarea name="paths" required>{{join .Paths "\n"}}</textarea></label>
+    <label>{{T "Exclude"}} <small>{{T "one name pattern per line"}}</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
     {{else if eq .Kind "system"}}
-    <label>Exclude <small>one name pattern per line</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
+    <label>{{T "Exclude"}} <small>{{T "one name pattern per line"}}</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
     {{else if eq .Kind "sql"}}{{template "job_sql" $.Data.Form}}
     {{else if eq .Kind "vm"}}{{$sel := .Paths}}
-    <label class="check"><input type="radio" name="vm_mode" value="all" {{if eq (join .Paths ",") "*"}}checked{{end}}> All VMs on the host <small>VMs created later are included automatically</small></label>
-    <label class="check"><input type="radio" name="vm_mode" value="selected" {{if ne (join .Paths ",") "*"}}checked{{end}}> Only these:</label>
-    <div class="disks">{{range $.Data.Guests}}<label class="check"><input type="checkbox" name="vms" value="{{.VMID}}" {{if has $sel (print .VMID)}}checked{{end}}> {{.Name}}{{if lt .VMID 1000000000}} ({{.VMID}}){{end}}{{if eq .Type "lxc"}} <small>container</small>{{end}}</label>{{else}}<p class="muted">The host has not reported its VMs yet.</p>{{end}}</div>
+    <label class="check"><input type="radio" name="vm_mode" value="all" {{if eq (join .Paths ",") "*"}}checked{{end}}> {{T "All VMs on the host"}} <small>{{T "VMs created later are included automatically"}}</small></label>
+    <label class="check"><input type="radio" name="vm_mode" value="selected" {{if ne (join .Paths ",") "*"}}checked{{end}}> {{T "Only these:"}}</label>
+    <div class="disks">{{range $.Data.Guests}}<label class="check"><input type="checkbox" name="vms" value="{{.VMID}}" {{if has $sel (print .VMID)}}checked{{end}}> {{.Name}}{{if lt .VMID 1000000000}} ({{.VMID}}){{end}}{{if eq .Type "lxc"}} <small>{{T "container"}}</small>{{end}}</label>{{else}}<p class="muted">{{T "The host has not reported its VMs yet."}}</p>{{end}}</div>
     {{else if eq .Kind "image"}}
-    <p class="muted small">The disk and partitions of an image job cannot be changed; create a new job for another disk.</p>
+    <p class="muted small">{{T "The disk and partitions of an image job cannot be changed; create a new job for another disk."}}</p>
     {{end}}
     {{template "job_common" $.Data.Form}}
-    <p class="muted small">The agent and the storage cannot be changed: backups stay where they are. To move a job, create a new one (and a copy job to bring older backups along).</p>
-    <div><button>Save changes</button></div>
+    <p class="muted small">{{T "The agent and the storage cannot be changed: backups stay where they are. To move a job, create a new one (and a copy job to bring older backups along)."}}</p>
+    <div><button>{{T "Save changes"}}</button></div>
   </form>
 </details>
 {{end}}
 {{end}}
 <div class="panel">
-  <h2>History</h2>
+  <h2>{{T "History"}}</h2>
   {{template "runtable" .Data.Runs}}
 </div>
 {{end}}

@@ -1,79 +1,79 @@
 {{define "content"}}
 {{with .Data.Run}}
 <h1>{{kindtitle .Kind}} #{{.ID}} {{template "status" .Status}}</h1>
-{{if .Anomaly}}<div class="callout warn"><p><b>Suspicious backup — possible ransomware or mass deletion:</b> {{.Anomaly}}.</p><p>Check the machine. Retention of the job is paused so older backups are kept; resume it on the <a href="/jobs/{{.JobID}}">job page</a> after review.</p></div>{{end}}
+{{if .Anomaly}}<div class="callout warn"><p><b>{{T "Suspicious backup — possible ransomware or mass deletion:"}}</b> {{.Anomaly}}.</p><p>{{T "Check the machine. Retention of the job is paused so older backups are kept; resume it on the"}} <a href="/jobs/{{.JobID}}">{{T "job page"}}</a> {{T "after review."}}</p></div>{{end}}
 <div class="panel" {{if or (eq .Status "queued") (eq .Status "running")}}data-autorefresh{{end}}>
   <dl class="kv">
-    <dt>Agent</dt><dd>{{.Hostname}}</dd>
-    {{if .JobID}}<dt>Job</dt><dd><a href="/jobs/{{.JobID}}">{{deref .JobName}}</a></dd>{{end}}
-    <dt>Trigger</dt><dd>{{.Trigger}}</dd>
-    <dt>Queued</dt><dd>{{ts .QueuedAt}}</dd>
-    <dt>Started</dt><dd>{{ts .StartedAt}}</dd>
-    <dt>Finished</dt><dd>{{ts .FinishedAt}}</dd>
-    {{if .StartedAt}}<dt>Duration</dt><dd>{{.Duration}}</dd>{{end}}
-    <dt>Repository</dt><dd class="mono">{{.RepoURL}}</dd>
-    {{if .SnapshotID}}<dt>Snapshot</dt><dd class="mono">{{.SnapshotID}}</dd>{{end}}
+    <dt>{{T "Agent"}}</dt><dd>{{.Hostname}}</dd>
+    {{if .JobID}}<dt>{{T "Job"}}</dt><dd><a href="/jobs/{{.JobID}}">{{deref .JobName}}</a></dd>{{end}}
+    <dt>{{T "Trigger"}}</dt><dd>{{T .Trigger}}</dd>
+    <dt>{{T "Queued"}}</dt><dd>{{ts .QueuedAt}}</dd>
+    <dt>{{T "Started"}}</dt><dd>{{ts .StartedAt}}</dd>
+    <dt>{{T "Finished"}}</dt><dd>{{ts .FinishedAt}}</dd>
+    {{if .StartedAt}}<dt>{{T "Duration"}}</dt><dd>{{.Duration}}</dd>{{end}}
+    <dt>{{T "Repository"}}</dt><dd class="mono">{{.RepoURL}}</dd>
+    {{if .SnapshotID}}<dt>{{T "Snapshot"}}</dt><dd class="mono">{{.SnapshotID}}</dd>{{end}}
     {{if eq .Kind "backup"}}
-      <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
+      <dt>{{T "Paths"}}</dt><dd class="mono">{{join .Paths "\n"}}</dd>
     {{else if eq .Kind "verify"}}
-      <dt>Tested backup</dt><dd class="mono">{{.SnapshotID}}</dd>
+      <dt>{{T "Tested backup"}}</dt><dd class="mono">{{.SnapshotID}}</dd>
     {{else if eq .Kind "copy"}}
-      <dt>Copied from</dt><dd class="mono">{{.SourceRepoURL}}</dd>
+      <dt>{{T "Copied from"}}</dt><dd class="mono">{{.SourceRepoURL}}</dd>
     {{else if eq .Kind "image-backup"}}
-      <dt>Backs up</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
+      <dt>{{T "Backs up"}}</dt><dd>{{imagesel .ImageDisk .ImagePartitions}}</dd>
     {{else if or (eq .Kind "sql-backup") (eq .Kind "sql-log")}}
-      <dt>Backs up</dt><dd>{{if eq .Kind "sql-log"}}the logs of the databases{{else}}databases{{end}} (listed below)</dd>
+      <dt>{{T "Backs up"}}</dt><dd>{{if eq .Kind "sql-log"}}{{T "the logs of the databases"}}{{else}}{{T "databases"}}{{end}} {{T "(listed below)"}}</dd>
     {{else if eq .Kind "sql-restore"}}
-      {{with $.Data.SQLRestore}}{{with .Restore}}<dt>Database</dt><dd>{{.Database}}{{if .Target}} as {{.Target}}{{end}}{{if .Replace}}, replacing an existing database{{end}}</dd>
-      <dt>State</dt><dd>{{if not .StopAt.IsZero}}at {{ts .StopAt}}{{else if .LogSnapshots}}latest (with log backups){{else}}as of the full backup{{end}}</dd>{{end}}
-      <dt>Instance</dt><dd>{{if .Instance}}{{.Instance}}{{else}}default instance{{end}}</dd>{{end}}
+      {{with $.Data.SQLRestore}}{{with .Restore}}<dt>{{T "Database"}}</dt><dd>{{.Database}}{{if .Target}} {{T "as"}} {{.Target}}{{end}}{{if .Replace}}{{T ", replacing an existing database"}}{{end}}</dd>
+      <dt>{{T "State"}}</dt><dd>{{if not .StopAt.IsZero}}{{T "at"}} {{ts .StopAt}}{{else if .LogSnapshots}}{{T "latest (with log backups)"}}{{else}}{{T "as of the full backup"}}{{end}}</dd>{{end}}
+      <dt>{{T "Instance"}}</dt><dd>{{if .Instance}}{{.Instance}}{{else}}{{T "default instance"}}{{end}}</dd>{{end}}
     {{else if eq .Kind "system-backup"}}
-      <dt>Backs up</dt><dd>Whole Linux system</dd>
+      <dt>{{T "Backs up"}}</dt><dd>{{T "Whole Linux system"}}</dd>
     {{else if eq .Kind "system-restore"}}
-      {{with $.Data.SystemRestore}}<dt>Restore to</dt><dd>{{if eq .Mode "pve-vm"}}new Proxmox VM{{if gt .VMID 0}} {{.VMID}}{{end}} on storage {{.Storage}}{{if .Start}}, started afterwards{{end}}{{else}}disk <span class="mono">{{.Device}}</span>{{if .NewHardware}}, adapted to new hardware{{end}}{{end}}</dd>{{end}}
+      {{with $.Data.SystemRestore}}<dt>{{T "Restore to"}}</dt><dd>{{if eq .Mode "pve-vm"}}{{T "new Proxmox VM"}}{{if gt .VMID 0}} {{.VMID}}{{end}} {{T "on storage"}} {{.Storage}}{{if .Start}}{{T ", started afterwards"}}{{end}}{{else}}{{T "disk"}} <span class="mono">{{.Device}}</span>{{if .NewHardware}}{{T ", adapted to new hardware"}}{{end}}{{end}}</dd>{{end}}
     {{else if eq .Kind "vm-backup"}}
-      <dt>Backs up</dt><dd>{{vmsel .Paths}}</dd>
+      <dt>{{T "Backs up"}}</dt><dd>{{vmsel .Paths}}</dd>
     {{else if eq .Kind "vm-restore"}}
-      {{with $.Data.VMRestore}}<dt>Guest</dt><dd>{{if ge .VMID 1000000000}}VM{{else}}{{.VMID}}{{end}} from backup {{short $.Data.Run.SnapshotID}} <span class="muted small">(name in the message below)</span></dd>
-      <dt>Restored as</dt><dd>{{if eq .NewVMID 0}}original ID{{if .Overwrite}}, replacing the existing guest{{end}}{{else if lt .NewVMID 0}}next free ID{{else}}ID {{.NewVMID}}{{end}}{{if .Name}}, name {{.Name}}{{end}}</dd>
-      <dt>Storage</dt><dd>{{if .Storage}}{{.Storage}}{{else}}original storage{{end}}</dd>{{end}}
+      {{with $.Data.VMRestore}}<dt>{{T "Guest"}}</dt><dd>{{if ge .VMID 1000000000}}{{T "VM"}}{{else}}{{.VMID}}{{end}} {{T "from backup"}} {{short $.Data.Run.SnapshotID}} <span class="muted small">{{T "(name in the message below)"}}</span></dd>
+      <dt>{{T "Restored as"}}</dt><dd>{{if eq .NewVMID 0}}{{T "original ID"}}{{if .Overwrite}}{{T ", replacing the existing guest"}}{{end}}{{else if lt .NewVMID 0}}{{T "next free ID"}}{{else}}{{T "ID"}} {{.NewVMID}}{{end}}{{if .Name}}{{T ", name"}} {{.Name}}{{end}}</dd>
+      <dt>{{T "Storage"}}</dt><dd>{{if .Storage}}{{.Storage}}{{else}}{{T "original storage"}}{{end}}</dd>{{end}}
     {{else if eq .Kind "vm-instant"}}
-      {{with $.Data.VMRestore}}<dt>Guest</dt><dd>{{.VMID}} from backup {{short $.Data.Run.SnapshotID}}, started with the next free ID{{if .Name}}, name {{.Name}}{{end}}</dd>{{end}}
-      {{with $.Data.Instant}}<dt>Instant VM</dt><dd>{{.InstantVMID}} on node {{.Node}} — {{if eq .State "running"}}<b>running from the backup</b>{{else}}{{.State}}{{end}}</dd>
-      {{if .Disks}}<dt>Disks</dt><dd class="mono">{{join .Disks "\n"}}</dd>{{end}}{{end}}
+      {{with $.Data.VMRestore}}<dt>{{T "Guest"}}</dt><dd>{{.VMID}} {{T "from backup"}} {{short $.Data.Run.SnapshotID}}{{T ", started with the next free ID"}}{{if .Name}}{{T ", name"}} {{.Name}}{{end}}</dd>{{end}}
+      {{with $.Data.Instant}}<dt>{{T "Instant VM"}}</dt><dd>{{.InstantVMID}} {{T "on node"}} {{.Node}} — {{if eq .State "running"}}<b>{{T "running from the backup"}}</b>{{else}}{{.State}}{{end}}</dd>
+      {{if .Disks}}<dt>{{T "Disks"}}</dt><dd class="mono">{{join .Disks "\n"}}</dd>{{end}}{{end}}
     {{else if or (eq .Kind "vm-instant-finish") (eq .Kind "vm-instant-discard")}}
-      {{with $.Data.VMRestore}}<dt>Instant VM</dt><dd>{{.InstantVMID}}, started by <a href="/runs/{{.InstantRun}}">run #{{.InstantRun}}</a>{{if .Storage}}; disks move to storage {{.Storage}}{{end}}</dd>{{end}}
+      {{with $.Data.VMRestore}}<dt>{{T "Instant VM"}}</dt><dd>{{.InstantVMID}}{{T ", started by"}} <a href="/runs/{{.InstantRun}}">{{T "run #"}}{{.InstantRun}}</a>{{if .Storage}}{{T "; disks move to storage"}} {{.Storage}}{{end}}</dd>{{end}}
     {{else if eq .Kind "image-file-restore"}}
-      <dt>From</dt><dd>partition {{index .ImagePartitions 0}} of image {{short .SnapshotID}}</dd>
-      <dt>Paths</dt><dd class="mono">{{join .Paths "\n"}}</dd>
-      <dt>Restore to</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}original location{{end}}</dd>
+      <dt>{{T "From"}}</dt><dd>{{T "partition"}} {{index .ImagePartitions 0}} {{T "of image"}} {{short .SnapshotID}}</dd>
+      <dt>{{T "Paths"}}</dt><dd class="mono">{{join .Paths "\n"}}</dd>
+      <dt>{{T "Restore to"}}</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}{{T "original location"}}{{end}}</dd>
     {{else if eq .Kind "image-restore"}}
-      <dt>Target disk</dt><dd>{{if .TargetDisk}}Disk {{deref2 .TargetDisk}}{{end}}{{if .KeepOffline}} (left offline){{end}}</dd>
-      {{if .NewHardware}}<dt>New hardware</dt><dd>prepared for different hardware{{if .DriverPath}}, drivers from <span class="mono">{{.DriverPath}}</span>{{end}}</dd>{{end}}
+      <dt>{{T "Target disk"}}</dt><dd>{{if .TargetDisk}}{{T "Disk"}} {{deref2 .TargetDisk}}{{end}}{{if .KeepOffline}} {{T "(left offline)"}}{{end}}</dd>
+      {{if .NewHardware}}<dt>{{T "New hardware"}}</dt><dd>{{T "prepared for different hardware"}}{{if .DriverPath}}{{T ", drivers from"}} <span class="mono">{{.DriverPath}}</span>{{end}}</dd>{{end}}
     {{else}}
-      <dt>Restore to</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}original location{{end}}</dd>
-      <dt>Only</dt><dd class="mono">{{if .Paths}}{{join .Paths "\n"}}{{else}}everything{{end}}</dd>
-      <dt>Verify</dt><dd>{{.RestoreVerify}}</dd>
+      <dt>{{T "Restore to"}}</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}{{T "original location"}}{{end}}</dd>
+      <dt>{{T "Only"}}</dt><dd class="mono">{{if .Paths}}{{join .Paths "\n"}}{{else}}{{T "everything"}}{{end}}</dd>
+      <dt>{{T "Verify"}}</dt><dd>{{.RestoreVerify}}</dd>
     {{end}}
-    {{if .Message}}<dt>Message</dt><dd>{{.Message}}</dd>{{end}}
+    {{if .Message}}<dt>{{T "Message"}}</dt><dd>{{.Message}}</dd>{{end}}
   </dl>
 </div>
 {{end}}
 
 {{with .Data.Instant}}{{if and (eq .State "running") ($.Me.Can "restore")}}
 <div class="card">
-  <h2>VM {{.InstantVMID}} runs from the backup</h2>
-  <p class="muted">Its disks are read from the backup, and its changes are kept on storage <span class="mono">backupzit-instant</span> of node {{.Node}}. Retention keeps this backup while the VM runs from it. When the VM works as it should, <b>finish</b>: its disks are moved to their storage while it keeps running, then the backup is no longer used. Or <b>discard</b> it: the VM is stopped and deleted with its changes.</p>
+  <h2>{{T "VM"}} {{.InstantVMID}} {{T "runs from the backup"}}</h2>
+  <p class="muted">{{T "Its disks are read from the backup, and its changes are kept on storage"}} <span class="mono">{{T "backupzit-instant"}}</span> {{T "of node"}} {{.Node}}{{T ". Retention keeps this backup while the VM runs from it. When the VM works as it should,"}} <b>{{T "finish"}}</b>{{T ": its disks are moved to their storage while it keeps running, then the backup is no longer used. Or"}} <b>{{T "discard"}}</b> {{T "it: the VM is stopped and deleted with its changes."}}</p>
   <form method="post" action="/runs/{{$.Data.Run.ID}}/instant" class="row">
     <input type="hidden" name="action" value="finish">
-    <label>Move the disks to storage
+    <label>{{T "Move the disks to storage"}}
       <select name="storage">{{range $.Data.InstantStorage}}<option>{{.}}</option>{{end}}</select>
     </label>
-    <div><button>Finish</button></div>
+    <div><button>{{T "Finish"}}</button></div>
   </form>
-  <form method="post" action="/runs/{{$.Data.Run.ID}}/instant" class="mt" data-confirm="Stop VM {{.InstantVMID}} and delete it with all changes made since it started?">
+  <form method="post" action="/runs/{{$.Data.Run.ID}}/instant" class="mt" data-confirm="{{T "Stop VM %v and delete it with all changes made since it started?" .InstantVMID}}">
     <input type="hidden" name="action" value="discard">
-    <button class="danger">Discard VM</button>
+    <button class="danger">{{T "Discard VM"}}</button>
   </form>
 </div>
 {{end}}{{end}}
@@ -81,43 +81,43 @@
 {{if .Data.VM}}
   {{with .Data.BackupStats}}
   <div class="grid">
-    <div class="stat"><b>{{.Files}}</b><span>guests backed up</span></div>
-    <div class="stat"><b>{{bytes .BytesRead}}</b><span>disks read</span></div>
-    <div class="stat"><b>{{bytes .BytesAdded}}</b><span>new data</span></div>
-    <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (compressed)</span></div>
+    <div class="stat"><b>{{.Files}}</b><span>{{T "guests backed up"}}</span></div>
+    <div class="stat"><b>{{bytes .BytesRead}}</b><span>{{T "disks read"}}</span></div>
+    <div class="stat"><b>{{bytes .BytesAdded}}</b><span>{{T "new data"}}</span></div>
+    <div class="stat"><b>{{bytes .BytesStored}}</b><span>{{T "uploaded (compressed)"}}</span></div>
   </div>
   {{end}}
   <div class="panel">
-    <h2>{{if eq $.Data.VMPlatform "hyperv"}}Hyper-V virtual machines{{else if eq $.Data.VMPlatform "vmware"}}VMware virtual machines{{else}}Proxmox VMs and containers{{end}}</h2>
+    <h2>{{if eq $.Data.VMPlatform "hyperv"}}{{T "Hyper-V virtual machines"}}{{else if eq $.Data.VMPlatform "vmware"}}{{T "VMware virtual machines"}}{{else}}{{T "Proxmox VMs and containers"}}{{end}}</h2>
     <div class="table-wrap"><table>
-      <tr><th>ID</th><th>Name</th><th>Type</th><th>Disks</th><th>With data</th><th>Captured</th><th></th></tr>
+      <tr><th>{{T "ID"}}</th><th>{{T "Name"}}</th><th>{{T "Type"}}</th><th>{{T "Disks"}}</th><th>{{T "With data"}}</th><th>{{T "Captured"}}</th><th></th></tr>
       {{range .Data.VM.Guests}}
-      <tr><td>{{if or (eq .Platform "hyperv") (eq .Platform "vmware")}}—{{else}}{{.VMID}}{{end}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}container{{else}}VM{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">Browse files</a>{{end}}</td></tr>
+      <tr><td>{{if or (eq .Platform "hyperv") (eq .Platform "vmware")}}—{{else}}{{.VMID}}{{end}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}{{T "container"}}{{else}}{{T "VM"}}{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}</td></tr>
       {{end}}
     </table></div>
   </div>
 {{else if .Data.Image}}
   {{with .Data.BackupStats}}
   <div class="grid">
-    <div class="stat"><b>{{bytes .BytesRead}}</b><span>used blocks read</span></div>
-    <div class="stat"><b>{{bytes .BytesAdded}}</b><span>new data</span></div>
-    <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (compressed)</span></div>
+    <div class="stat"><b>{{bytes .BytesRead}}</b><span>{{T "used blocks read"}}</span></div>
+    <div class="stat"><b>{{bytes .BytesAdded}}</b><span>{{T "new data"}}</span></div>
+    <div class="stat"><b>{{bytes .BytesStored}}</b><span>{{T "uploaded (compressed)"}}</span></div>
   </div>
   {{end}}
   {{with .Data.Image}}
   <div class="panel">
-    <h2>Disk {{.Number}} — {{.Model}}, {{bytes .Size}}, {{upper .Style}}</h2>
+    <h2>{{T "Disk"}} {{.Number}} — {{.Model}}, {{bytes .Size}}, {{upper .Style}}</h2>
     <div class="table-wrap"><table>
-      <tr><th>#</th><th>Size</th><th>Volume</th><th>File system</th><th>Imaged</th><th>Stored</th><th></th></tr>
+      <tr><th>#</th><th>{{T "Size"}}</th><th>{{T "Volume"}}</th><th>{{T "File system"}}</th><th>{{T "Imaged"}}</th><th>{{T "Stored"}}</th><th></th></tr>
       {{range .Partitions}}
       <tr>
         <td>{{.Number}}</td>
         <td>{{bytes .Length}}</td>
         <td>{{join .MountPoints " "}}{{if .Label}} “{{.Label}}”{{end}} <span class="muted">{{partkind .GPTType .MBRType}}</span></td>
         <td>{{.FileSystem}}</td>
-        <td>{{if .Included}}{{if eq .Source "vss"}}VSS snapshot{{else}}live{{end}}, {{if eq .Method "used-blocks"}}used blocks{{else}}all blocks{{end}}{{else}}<span class="muted">layout only</span>{{end}}</td>
+        <td>{{if .Included}}{{if eq .Source "vss"}}{{T "VSS snapshot"}}{{else}}{{T "live"}}{{end}}, {{if eq .Method "used-blocks"}}{{T "used blocks"}}{{else}}{{T "all blocks"}}{{end}}{{else}}<span class="muted">{{T "layout only"}}</span>{{end}}</td>
         <td>{{if .Included}}{{bytes .StoredBytes}}{{end}}</td>
-        <td>{{if and .Included (eq .FileSystem "NTFS") $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/browse?part={{.Number}}">Browse files</a>{{end}}</td>
+        <td>{{if and .Included (eq .FileSystem "NTFS") $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/browse?part={{.Number}}">{{T "Browse files"}}</a>{{end}}</td>
       </tr>
       {{end}}
     </table></div>
@@ -126,111 +126,111 @@
 {{else}}
   {{with .Data.BackupStats}}
   <div class="grid">
-    <div class="stat"><b>{{.Files}}</b><span>files ({{.Dirs}} folders)</span></div>
-    <div class="stat"><b>{{bytes .Bytes}}</b><span>total size</span></div>
-    <div class="stat"><b>{{.FilesNew}} / {{.FilesChanged}}</b><span>new / changed files</span></div>
-    <div class="stat"><b>{{bytes .BytesRead}}</b><span>read</span></div>
-    <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (new data)</span></div>
+    <div class="stat"><b>{{.Files}}</b><span>{{T "files ("}}{{.Dirs}} {{T "folders)"}}</span></div>
+    <div class="stat"><b>{{bytes .Bytes}}</b><span>{{T "total size"}}</span></div>
+    <div class="stat"><b>{{.FilesNew}} / {{.FilesChanged}}</b><span>{{T "new / changed files"}}</span></div>
+    <div class="stat"><b>{{bytes .BytesRead}}</b><span>{{T "read"}}</span></div>
+    <div class="stat"><b>{{bytes .BytesStored}}</b><span>{{T "uploaded (new data)"}}</span></div>
   </div>
   {{end}}
 {{end}}
 {{with .Data.TestStats}}
 <div class="grid">
-  {{if .Blocks}}<div class="stat ok"><b>{{.Blocks}}</b><span>random blocks verified</span></div>{{else}}<div class="stat ok"><b>{{.Files}}</b><span>random files restored and verified</span></div>{{end}}
-  <div class="stat"><b>{{bytes .Bytes}}</b><span>data checked</span></div>
-  <div class="stat"><b>{{.Candidates}}</b><span>{{if .Blocks}}blocks{{else}}files{{end}} in the backup</span></div>
-  <div class="stat {{if .Errors}}bad{{end}}"><b>{{len .Errors}}</b><span>problems</span></div>
+  {{if .Blocks}}<div class="stat ok"><b>{{.Blocks}}</b><span>{{T "random blocks verified"}}</span></div>{{else}}<div class="stat ok"><b>{{.Files}}</b><span>{{T "random files restored and verified"}}</span></div>{{end}}
+  <div class="stat"><b>{{bytes .Bytes}}</b><span>{{T "data checked"}}</span></div>
+  <div class="stat"><b>{{.Candidates}}</b><span>{{if .Blocks}}{{T "blocks"}}{{else}}{{T "files"}}{{end}} {{T "in the backup"}}</span></div>
+  <div class="stat {{if .Errors}}bad{{end}}"><b>{{len .Errors}}</b><span>{{T "problems"}}</span></div>
 </div>
 {{end}}
 {{with .Data.BootTests}}
 <div class="panel">
-  <h2>Boot test</h2>
-  <p class="muted small">Each VM was started from the backup with its network cards disconnected and deleted afterwards.</p>
+  <h2>{{T "Boot test"}}</h2>
+  <p class="muted small">{{T "Each VM was started from the backup with its network cards disconnected and deleted afterwards."}}</p>
   <table>
-    <tr><th>VM</th><th>Result</th><th>Time</th></tr>
-    {{range .}}<tr><td>{{.VMID}} — {{.Name}}</td><td>{{if .Booted}}<span class="badge success"><i></i>booted</span> QEMU guest agent answered{{else if .Running}}<span class="badge warning"><i></i>running</span> kept running; no QEMU guest agent to confirm the boot{{else}}<span class="badge failed"><i></i>failed</span> {{.Error}}{{end}}</td><td>{{if .Seconds}}{{.Seconds}} s{{end}}</td></tr>{{end}}
+    <tr><th>{{T "VM"}}</th><th>{{T "Result"}}</th><th>{{T "Time"}}</th></tr>
+    {{range .}}<tr><td>{{.VMID}} — {{.Name}}</td><td>{{if .Booted}}<span class="badge success"><i></i>{{T "booted"}}</span> {{T "QEMU guest agent answered"}}{{else if .Running}}<span class="badge warning"><i></i>{{T "running"}}</span> {{T "kept running; no QEMU guest agent to confirm the boot"}}{{else}}<span class="badge failed"><i></i>{{T "failed"}}</span> {{.Error}}{{end}}</td><td>{{if .Seconds}}{{.Seconds}} s{{end}}</td></tr>{{end}}
   </table>
 </div>
 {{end}}
 {{with .Data.CopyStats}}
 <div class="grid">
-  <div class="stat"><b>{{.Snapshots}}</b><span>backups copied</span></div>
-  <div class="stat"><b>{{.Skipped}}</b><span>already copied earlier</span></div>
-  <div class="stat"><b>{{bytes .BytesRead}}</b><span>new data copied</span></div>
-  <div class="stat"><b>{{bytes .BytesStored}}</b><span>uploaded (compressed)</span></div>
+  <div class="stat"><b>{{.Snapshots}}</b><span>{{T "backups copied"}}</span></div>
+  <div class="stat"><b>{{.Skipped}}</b><span>{{T "already copied earlier"}}</span></div>
+  <div class="stat"><b>{{bytes .BytesRead}}</b><span>{{T "new data copied"}}</span></div>
+  <div class="stat"><b>{{bytes .BytesStored}}</b><span>{{T "uploaded (compressed)"}}</span></div>
 </div>
 {{end}}
 {{with .Data.RestoreStats}}
 <div class="grid">
-  <div class="stat"><b>{{.Files}}</b><span>files restored</span></div>
-  <div class="stat"><b>{{.Dirs}}</b><span>folders</span></div>
-  <div class="stat"><b>{{bytes .Bytes}}</b><span>restored</span></div>
-  <div class="stat"><b>{{.FilesVerified}}</b><span>files verified</span></div>
+  <div class="stat"><b>{{.Files}}</b><span>{{T "files restored"}}</span></div>
+  <div class="stat"><b>{{.Dirs}}</b><span>{{T "folders"}}</span></div>
+  <div class="stat"><b>{{bytes .Bytes}}</b><span>{{T "restored"}}</span></div>
+  <div class="stat"><b>{{.FilesVerified}}</b><span>{{T "files verified"}}</span></div>
 </div>
 {{end}}
 
 {{with .Data.Run}}
 {{if .Errors}}
 <div class="panel">
-  <h2>Errors and warnings ({{len .Errors}})</h2>
+  <h2>{{T "Errors and warnings ("}}{{len .Errors}})</h2>
   <pre>{{join .Errors "\n"}}</pre>
 </div>
 {{end}}
 
 {{if .Expired}}
-<div class="panel"><p class="muted">This backup was removed by the job's retention policy and can no longer be restored.</p></div>
+<div class="panel"><p class="muted">{{T "This backup was removed by the job's retention policy and can no longer be restored."}}</p></div>
 {{end}}
 
 {{if and (or (eq .Kind "backup") (eq .Kind "system-backup") $.Data.CopyOfFiles) .SnapshotID (not .Expired)}}
 {{if $.Me.Can "restore"}}<div class="panel">
-  <h2>Restore files from this backup</h2>
+  <h2>{{T "Restore files from this backup"}}</h2>
   {{template "restore_files" $}}
 </div>{{end}}
 {{end}}
 
 {{with $.Data.System}}
 <div class="panel">
-  <h2>System layout — {{.OS}}, {{if .UEFI}}UEFI{{else}}BIOS{{end}} boot</h2>
+  <h2>{{T "System layout —"}} {{.OS}}, {{if .UEFI}}{{T "UEFI"}}{{else}}{{T "BIOS"}}{{end}} {{T "boot"}}</h2>
   <div class="table-wrap"><table>
-    <tr><th>Mount point</th><th>File system</th><th>Device</th><th>Size</th><th>Used</th></tr>
+    <tr><th>{{T "Mount point"}}</th><th>{{T "File system"}}</th><th>{{T "Device"}}</th><th>{{T "Size"}}</th><th>{{T "Used"}}</th></tr>
     {{range .FileSystems}}<tr><td class="mono">{{.MountPoint}}</td><td>{{.Type}}</td><td class="mono">{{.Device}}</td><td>{{bytes .Size}}</td><td>{{bytes .Used}}</td></tr>{{end}}
   </table></div>
-  <p class="muted small mt">{{range $i, $d := .Disks}}{{if $i}}; {{end}}disk {{$d.Name}}: {{bytes $d.Size}}, {{upper $d.Table}}, {{$d.Partitions}} partitions{{end}}{{if .VGs}}; LVM volume groups {{join .VGs ", "}}{{end}}</p>
+  <p class="muted small mt">{{range $i, $d := .Disks}}{{if $i}}; {{end}}{{T "disk"}} {{$d.Name}}: {{bytes $d.Size}}, {{upper $d.Table}}, {{$d.Partitions}} {{T "partitions"}}{{end}}{{if .VGs}}{{T "; LVM volume groups"}} {{join .VGs ", "}}{{end}}</p>
 </div>
 {{end}}
 
 {{if and (eq .Kind "system-backup") .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.System}}
 <div class="panel">
-  <h2>Restore the whole system</h2>
+  <h2>{{T "Restore the whole system"}}</h2>
   {{template "restore_system" $}}
 </div>
 {{end}}
 
 {{with $.Data.SQL}}
 <div class="panel">
-  <h2>{{if eq .Kind "log"}}Transaction log backups{{else}}Databases{{end}}{{with .Instance}} <span class="muted small">instance {{.}}</span>{{end}}</h2>
+  <h2>{{if eq .Kind "log"}}{{T "Transaction log backups"}}{{else}}{{T "Databases"}}{{end}}{{with .Instance}} <span class="muted small">{{T "instance"}} {{.}}</span>{{end}}</h2>
   <div class="table-wrap"><table>
-    <tr><th>Database</th><th>{{if eq .Engine "postgres"}}Server{{else if eq .Engine ""}}Recovery model{{end}}</th><th>Backup size</th><th>Taken</th><th class="small">LSN</th></tr>
+    <tr><th>{{T "Database"}}</th><th>{{if eq .Engine "postgres"}}{{T "Server"}}{{else if eq .Engine ""}}{{T "Recovery model"}}{{end}}</th><th>{{T "Backup size"}}</th><th>{{T "Taken"}}</th><th class="small">{{T "LSN"}}</th></tr>
     {{range .Databases}}<tr><td>{{.Name}}</td><td>{{.Recovery}}</td><td>{{bytes .Size}}</td><td>{{ts .Finish}}</td><td class="small mono">{{.FirstLSN}} – {{.LastLSN}}</td></tr>{{end}}
   </table></div>
 </div>
 {{end}}
 {{if and (eq .Kind "sql-backup") .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.SQLPoints}}
 <div class="panel" id="restore-sql">
-  <h2>Restore a database</h2>
+  <h2>{{T "Restore a database"}}</h2>
   {{template "restore_sql" $}}
 </div>
 {{end}}
 {{if and .SnapshotID (not .Expired) ($.Me.Can "restore") $.Data.VM}}
 <div class="panel">
-  <h2>{{if eq $.Data.VMPlatform "hyperv"}}Restore a Hyper-V VM{{else if eq $.Data.VMPlatform "vmware"}}Restore a VMware VM{{else}}Restore a VM or container{{end}}</h2>
+  <h2>{{if eq $.Data.VMPlatform "hyperv"}}{{T "Restore a Hyper-V VM"}}{{else if eq $.Data.VMPlatform "vmware"}}{{T "Restore a VMware VM"}}{{else}}{{T "Restore a VM or container"}}{{end}}</h2>
   {{template "restore_vm" $}}
 </div>
 {{end}}
 
 {{if and (eq .Kind "image-backup") .SnapshotID (not .Expired) ($.Me.Can "restore")}}
 <div class="panel">
-  <h2>Restore this image to a disk</h2>
+  <h2>{{T "Restore this image to a disk"}}</h2>
   {{template "restore_image" $}}
 </div>
 {{end}}

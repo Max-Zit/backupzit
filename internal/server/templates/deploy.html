@@ -1,16 +1,16 @@
 {{define "content"}}
 {{with .Data}}
 {{if not .Done}}<meta http-equiv="refresh" content="3">{{end}}
-<h1>Installing the agent on {{.Host}}</h1>
+<h1>{{T "Installing the agent on"}} {{.Host}}</h1>
 <div class="panel">
   <dl class="kv">
-    <dt>Machine</dt><dd>{{.Host}} ({{if eq .OS "windows"}}Windows, WinRM{{else}}Linux, SSH{{end}}){{if .Hostname}} — {{.Hostname}}{{end}}</dd>
-    <dt>Started</dt><dd>{{ts .Started}} by {{.By}}</dd>
-    <dt>Status</dt><dd>{{if not .Done}}<span class="badge running"><i></i>running</span>{{else if .Err}}<span class="badge failed"><i></i>failed</span> {{.Err}}{{else}}<span class="badge success"><i></i>installed</span> {{if .AgentID}}<a href="/agents#agent-{{.AgentID}}">the agent</a> is enrolled and appears under Agents{{end}}{{end}}</dd>
+    <dt>{{T "Machine"}}</dt><dd>{{.Host}} ({{if eq .OS "windows"}}{{T "Windows, WinRM"}}{{else}}{{T "Linux, SSH"}}{{end}}){{if .Hostname}} — {{.Hostname}}{{end}}</dd>
+    <dt>{{T "Started"}}</dt><dd>{{ts .Started}} {{T "by"}} {{.By}}</dd>
+    <dt>{{T "Status"}}</dt><dd>{{if not .Done}}<span class="badge running"><i></i>{{T "running"}}</span>{{else if .Err}}<span class="badge failed"><i></i>{{T "failed"}}</span> {{.Err}}{{else}}<span class="badge success"><i></i>{{T "installed"}}</span> {{if .AgentID}}<a href="/agents#agent-{{.AgentID}}">{{T "the agent"}}</a> {{T "is enrolled and appears under Agents"}}{{end}}{{end}}</dd>
   </dl>
   <pre class="code-box mt">{{range .Log}}{{.}}
 {{end}}</pre>
-  <p class="mt"><a href="/agents">Back to Agents</a>{{if .Done}} · <a href="/agents#install">Install on another machine</a>{{end}}</p>
+  <p class="mt"><a href="/agents">{{T "Back to Agents"}}</a>{{if .Done}} · <a href="/agents#install">{{T "Install on another machine"}}</a>{{end}}</p>
 </div>
 {{end}}
 {{end}}

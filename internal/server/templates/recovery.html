@@ -1,60 +1,60 @@
 {{define "content"}}
-<h1>Recovery</h1>
+<h1>{{T "Recovery"}}</h1>
 <div class="panel">
-  <h2>Bare-metal restore</h2>
+  <h2>{{T "Bare-metal restore"}}</h2>
   <ol class="steps">
-    <li>Boot the machine to restore from a BackupZit recovery ISO (or a USB stick made from it): the <b>Windows</b> recovery ISO for disk images of Windows machines, the <b>Linux</b> recovery ISO for Linux system backups.</li>
-    <li>It connects to this server using <code>\backupzit\recovery.json</code> from the boot media, or asks for the server address and a recovery code.</li>
-    <li>The machine appears below and under <a href="/agents">Agents</a> as a <span class="badge">recovery</span> agent, with its disks.</li>
-    <li>Open the backup in <a href="/runs">Activity</a>: for a disk image choose “Restore this image to a disk”, for a Linux system backup “Restore the whole system — onto a disk” with the recovery agent and its disk (e.g. <code>/dev/sda</code>).</li>
-    <li>When the restore has finished, remove the boot media and restart the machine.</li>
+    <li>{{T "Boot the machine to restore from a BackupZit recovery ISO (or a USB stick made from it): the"}} <b>{{T "Windows"}}</b> {{T "recovery ISO for disk images of Windows machines, the"}} <b>{{T "Linux"}}</b> {{T "recovery ISO for Linux system backups."}}</li>
+    <li>{{T "It connects to this server using"}} <code>\backupzit\recovery.json</code> {{T "from the boot media, or asks for the server address and a recovery code."}}</li>
+    <li>{{T "The machine appears below and under"}} <a href="/agents">{{T "Agents"}}</a> {{T "as a"}} <span class="badge">{{T "recovery"}}</span> {{T "agent, with its disks."}}</li>
+    <li>{{T "Open the backup in"}} <a href="/runs">{{T "Activity"}}</a>{{T ": for a disk image choose “Restore this image to a disk”, for a Linux system backup “Restore the whole system — onto a disk” with the recovery agent and its disk (e.g."}} <code>/dev/sda</code>).</li>
+    <li>{{T "When the restore has finished, remove the boot media and restart the machine."}}</li>
   </ol>
 </div>
 
 <div class="row">
   <div class="panel">
-    <h2>Recovery ISOs</h2>
+    <h2>{{T "Recovery ISOs"}}</h2>
     {{if .Data.ISOs}}
-    <table>{{range .Data.ISOs}}<tr><td><a href="/downloads/{{.Name}}">{{.Title}}</a><br><span class="muted small">{{.Desc}}</span></td><td class="mono small">{{.Name}}<br>{{.Size}}</td></tr>{{end}}</table>
-    {{else}}<p class="muted">No recovery ISO in the server's dist directory yet.</p>{{end}}
-    <p class="muted">To write an ISO to a USB stick use e.g. Rufus or balenaEtcher. Put <code>recovery.json</code> into a <code>backupzit</code> folder on the stick (Windows ISO in Rufus “ISO” mode) or on a second stick (Linux ISO); otherwise the recovery system asks for the server address and recovery code.</p>
+    <table>{{range .Data.ISOs}}<tr><td><a href="/downloads/{{.Name}}">{{T .Title}}</a><br><span class="muted small">{{T .Desc}}</span></td><td class="mono small">{{.Name}}<br>{{.Size}}</td></tr>{{end}}</table>
+    {{else}}<p class="muted">{{T "No recovery ISO in the server's dist directory yet."}}</p>{{end}}
+    <p class="muted">{{T "To write an ISO to a USB stick use e.g. Rufus or balenaEtcher. Put"}} <code>recovery.json</code> {{T "into a"}} <code>backupzit</code> {{T "folder on the stick (Windows ISO in Rufus “ISO” mode) or on a second stick (Linux ISO); otherwise the recovery system asks for the server address and recovery code."}}</p>
   </div>
   <div class="panel">
-    <h2>Recovery code</h2>
+    <h2>{{T "Recovery code"}}</h2>
     {{if .Data.Token}}
     <dl class="kv">
-      <dt>Server</dt><dd class="mono">{{.Data.ServerURL}}</dd>
-      <dt>Recovery code</dt><dd class="mono" id="rtok">{{.Data.Token}}</dd>
-      <dt>Fingerprint</dt><dd class="mono">{{.Data.Fingerprint}}</dd>
-      <dt>Valid until</dt><dd>{{ts .Data.Expires}}</dd>
+      <dt>{{T "Server"}}</dt><dd class="mono">{{.Data.ServerURL}}</dd>
+      <dt>{{T "Recovery code"}}</dt><dd class="mono" id="rtok">{{.Data.Token}}</dd>
+      <dt>{{T "Fingerprint"}}</dt><dd class="mono">{{.Data.Fingerprint}}</dd>
+      <dt>{{T "Valid until"}}</dt><dd>{{ts .Data.Expires}}</dd>
     </dl>
     {{if $.Me.Can "agents"}}<form method="post" action="/recovery/recovery.json" class="mt">
       <input type="hidden" name="token" value="{{.Data.Token}}">
-      <button class="secondary">Download recovery.json</button>
+      <button class="secondary">{{T "Download recovery.json"}}</button>
     </form>{{end}}
     {{else}}
-    <p class="muted">A recovery code lets recovery media connect to this server. It is valid for 30 days and is shown only once.</p>
-    {{if $.Me.Can "agents"}}<form method="post" action="/recovery/token"><button>Create recovery code</button></form>{{end}}
-    <p class="muted mt">Fingerprint to compare on the recovery screen: <span class="mono">{{.Data.Fingerprint}}</span></p>
+    <p class="muted">{{T "A recovery code lets recovery media connect to this server. It is valid for 30 days and is shown only once."}}</p>
+    {{if $.Me.Can "agents"}}<form method="post" action="/recovery/token"><button>{{T "Create recovery code"}}</button></form>{{end}}
+    <p class="muted mt">{{T "Fingerprint to compare on the recovery screen:"}} <span class="mono">{{.Data.Fingerprint}}</span></p>
     {{end}}
   </div>
 </div>
 
 <div class="panel">
-  <h2>Connected recovery agents</h2>
+  <h2>{{T "Connected recovery agents"}}</h2>
   {{if .Data.Agents}}
   <div class="table-wrap"><table>
-    <tr><th>Hostname</th><th>Status</th><th>Disks</th><th>Connected</th><th></th></tr>
+    <tr><th>{{T "Hostname"}}</th><th>{{T "Status"}}</th><th>{{T "Disks"}}</th><th>{{T "Connected"}}</th><th></th></tr>
     {{range .Data.Agents}}
     <tr>
       <td>{{.Hostname}}</td>
       <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}</td>
-      <td>{{range .Disks}}Disk {{.Number}}: {{bytes .Size}}{{if .Partitions}}, {{len .Partitions}} partitions{{else}}, empty{{end}}<br>{{end}}</td>
+      <td>{{range .Disks}}{{T "Disk"}} {{.Number}}: {{bytes .Size}}{{if .Partitions}}, {{len .Partitions}} {{T "partitions"}}{{else}}{{T ", empty"}}{{end}}<br>{{end}}</td>
       <td>{{ts .EnrolledAt}}</td>
-      <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="Remove recovery agent {{.Hostname}}?"><button class="link">Remove</button></form>{{end}}</td>
+      <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove recovery agent %v?" .Hostname}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
     </tr>
     {{end}}
   </table></div>
-  {{else}}<p class="muted">No machine is running the recovery environment right now.</p>{{end}}
+  {{else}}<p class="muted">{{T "No machine is running the recovery environment right now."}}</p>{{end}}
 </div>
 {{end}}

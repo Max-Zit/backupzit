@@ -1,395 +1,404 @@
 {{define "content"}}
-<h1>Settings</h1>
+<h1>{{T "Settings"}}</h1>
 <div class="settings">
 {{template "settingstabs" .}}
 <div class="settings-body">
 {{if eq .Data.Tab "chat"}}{{with .Data.Chat}}
 <div class="panel">
-  <h2>{{template "icon" "activity"}} Chat &amp; webhooks</h2>
-  <p class="muted">Besides email, run results can go to a Slack or Microsoft Teams channel, or as JSON to any HTTP endpoint (ticket system, monitoring, automation). Each channel has its own choice of results. Unusual backups (possible ransomware) count as failures.</p>
+  <h2>{{template "icon" "activity"}} {{T "Chat & webhooks"}}</h2>
+  <p class="muted">{{T "Besides email, run results can go to a Slack or Microsoft Teams channel, or as JSON to any HTTP endpoint (ticket system, monitoring, automation). Each channel has its own choice of results. Unusual backups (possible ransomware) count as failures."}}</p>
   {{if .Channels}}
   <div class="table-wrap"><table>
-    <tr><th>Channel</th><th>Type</th><th>Sends</th><th></th></tr>
+    <tr><th>{{T "Channel"}}</th><th>{{T "Type"}}</th><th>{{T "Sends"}}</th><th></th></tr>
     {{range .Channels}}<tr>
       <td><b>{{.Name}}</b></td>
-      <td>{{if eq .Kind "slack"}}Slack{{else if eq .Kind "teams"}}Microsoft Teams{{else}}Webhook{{if .Secret}} <span class="muted small">(signed)</span>{{end}}{{end}}</td>
+      <td>{{if eq .Kind "slack"}}{{T "Slack"}}{{else if eq .Kind "teams"}}{{T "Microsoft Teams"}}{{else}}{{T "Webhook"}}{{if .Secret}} <span class="muted small">{{T "(signed)"}}</span>{{end}}{{end}}</td>
       <td><form method="post" action="/settings/chat" class="inline">
         <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{.ID}}">
-        <label class="check"><input type="checkbox" name="on_failure" {{if .OnFailure}}checked{{end}}> failures</label>
-        <label class="check"><input type="checkbox" name="on_warning" {{if .OnWarning}}checked{{end}}> warnings</label>
-        <label class="check"><input type="checkbox" name="on_success" {{if .OnSuccess}}checked{{end}}> successes</label>
-        <button class="secondary">Save</button></form></td>
-      <td class="nowrap"><form method="post" action="/settings/chat" class="inline"><input type="hidden" name="action" value="test"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary">Send test</button></form>
-        <form method="post" action="/settings/chat" class="inline" data-confirm="Remove channel {{.Name}}?"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{.ID}}"><button class="danger">Remove</button></form></td>
+        <label class="check"><input type="checkbox" name="on_failure" {{if .OnFailure}}checked{{end}}> {{T "failures"}}</label>
+        <label class="check"><input type="checkbox" name="on_warning" {{if .OnWarning}}checked{{end}}> {{T "warnings"}}</label>
+        <label class="check"><input type="checkbox" name="on_success" {{if .OnSuccess}}checked{{end}}> {{T "successes"}}</label>
+        <button class="secondary">{{T "Save"}}</button></form></td>
+      <td class="nowrap"><form method="post" action="/settings/chat" class="inline"><input type="hidden" name="action" value="test"><input type="hidden" name="id" value="{{.ID}}"><button class="secondary">{{T "Send test"}}</button></form>
+        <form method="post" action="/settings/chat" class="inline" data-confirm="{{T "Remove channel %v?" .Name}}"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{.ID}}"><button class="danger">{{T "Remove"}}</button></form></td>
     </tr>{{end}}
   </table></div>
-  {{else}}<p class="muted">No channels yet.</p>{{end}}
-  <h3 class="mt">Add a channel</h3>
+  {{else}}<p class="muted">{{T "No channels yet."}}</p>{{end}}
+  <h3 class="mt">{{T "Add a channel"}}</h3>
   <form method="post" action="/settings/chat" class="stack" autocomplete="off">
     <input type="hidden" name="action" value="add">
     <div class="row">
-      <label>Name <input name="name" required placeholder="#backups"></label>
-      <label>Type <select name="kind"><option value="slack">Slack</option><option value="teams">Microsoft Teams</option><option value="webhook">Webhook (JSON)</option></select></label>
+      <label>{{T "Name"}} <input name="name" required placeholder="{{T "#backups"}}"></label>
+      <label>{{T "Type"}} <select name="kind"><option value="slack">{{T "Slack"}}</option><option value="teams">{{T "Microsoft Teams"}}</option><option value="webhook">{{T "Webhook (JSON)"}}</option></select></label>
     </div>
-    <label>Webhook URL <small>Slack: an incoming webhook (https://hooks.slack.com/services/…). Teams: a channel workflow "Post to a channel when a webhook request is received". Webhook: any URL that accepts a JSON POST.</small><input name="url" required></label>
-    <label>Signing secret <small>webhook only, optional: the request then carries <code>X-BackupZit-Signature: sha256=…</code>, an HMAC-SHA256 of the body with this secret</small><input name="secret" autocomplete="off"></label>
+    <label>{{T "Webhook URL"}} <small>{{T "Slack: an incoming webhook (https://hooks.slack.com/services/…). Teams: a channel workflow \"Post to a channel when a webhook request is received\". Webhook: any URL that accepts a JSON POST."}}</small><input name="url" required></label>
+    <label>{{T "Signing secret"}} <small>{{T "webhook only, optional: the request then carries"}} <code>X-BackupZit-Signature: sha256=…</code>{{T ", an HMAC-SHA256 of the body with this secret"}}</small><input name="secret" autocomplete="off"></label>
     <div class="row">
-      <label class="check"><input type="checkbox" name="on_failure" checked> Failures</label>
-      <label class="check"><input type="checkbox" name="on_warning"> Warnings</label>
-      <label class="check"><input type="checkbox" name="on_success"> Successes</label>
+      <label class="check"><input type="checkbox" name="on_failure" checked> {{T "Failures"}}</label>
+      <label class="check"><input type="checkbox" name="on_warning"> {{T "Warnings"}}</label>
+      <label class="check"><input type="checkbox" name="on_success"> {{T "Successes"}}</label>
     </div>
-    <div><button>Add channel</button></div>
+    <div><button>{{T "Add channel"}}</button></div>
   </form>
-  <p class="muted small mt">Webhook URLs are stored encrypted like passwords.</p>
+  <p class="muted small mt">{{T "Webhook URLs are stored encrypted like passwords."}}</p>
 </div>
 {{end}}{{end}}
 {{if eq .Data.Tab "email"}}{{with .Data.Email}}
 <div class="panel">
-  <h2>Email notifications</h2>
+  <h2>{{T "Email notifications"}}</h2>
   <form method="post" action="/settings/email" class="stack">
-    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Send email notifications</label>
+    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> {{T "Send email notifications"}}</label>
     <div class="row">
-      <label>SMTP server <input name="host" value="{{.Host}}" placeholder="smtp.office365.com"></label>
+      <label>{{T "SMTP server"}} <input name="host" value="{{.Host}}" placeholder="{{T "smtp.office365.com"}}"></label>
       <div class="row">
-        <label>Port <input type="number" name="port" value="{{.Port}}" min="1" max="65535"></label>
-        <label>Security
+        <label>{{T "Port"}} <input type="number" name="port" value="{{.Port}}" min="1" max="65535"></label>
+        <label>{{T "Security"}}
           <select name="security">
-            <option value="starttls" {{if eq .Security "starttls"}}selected{{end}}>STARTTLS (587)</option>
-            <option value="tls" {{if eq .Security "tls"}}selected{{end}}>TLS (465)</option>
-            <option value="none" {{if eq .Security "none"}}selected{{end}}>None (25, internal relay)</option>
+            <option value="starttls" {{if eq .Security "starttls"}}selected{{end}}>{{T "STARTTLS (587)"}}</option>
+            <option value="tls" {{if eq .Security "tls"}}selected{{end}}>{{T "TLS (465)"}}</option>
+            <option value="none" {{if eq .Security "none"}}selected{{end}}>{{T "None (25, internal relay)"}}</option>
           </select>
         </label>
       </div>
     </div>
     <div class="row">
-      <label>Username <small>leave empty for relays without login</small><input name="username" value="{{.Username}}" autocomplete="off"></label>
-      <label>Password <small>{{if $.Data.HasPassword}}stored — leave empty to keep it{{else}}&nbsp;{{end}}</small><input type="password" name="password" autocomplete="new-password"></label>
+      <label>{{T "Username"}} <small>{{T "leave empty for relays without login"}}</small><input name="username" value="{{.Username}}" autocomplete="off"></label>
+      <label>{{T "Password"}} <small>{{if $.Data.HasPassword}}{{T "stored — leave empty to keep it"}}{{else}}{{T "\u00a0"}}{{end}}</small><input type="password" name="password" autocomplete="new-password"></label>
     </div>
     <div class="row">
-      <label>From <input name="from" value="{{.From}}" placeholder="backup@company.com"></label>
-      <label>To <small>one or more addresses, separated by commas</small><input name="to" value="{{join .To ", "}}" placeholder="it@company.com"></label>
+      <label>{{T "From"}} <input name="from" value="{{.From}}" placeholder="{{T "backup@company.com"}}"></label>
+      <label>{{T "To"}} <small>{{T "one or more addresses, separated by commas"}}</small><input name="to" value="{{join .To ", "}}" placeholder="{{T "it@company.com"}}"></label>
     </div>
     <fieldset class="sched">
-      <legend>Send an email when a backup or restore</legend>
+      <legend>{{T "Send an email when a backup or restore"}}</legend>
       <div class="choice">
-        <label class="check"><input type="checkbox" name="on_failure" {{if .OnFailure}}checked{{end}}> fails</label>
-        <label class="check"><input type="checkbox" name="on_warning" {{if .OnWarning}}checked{{end}}> finishes with warnings</label>
-        <label class="check"><input type="checkbox" name="on_success" {{if .OnSuccess}}checked{{end}}> succeeds</label>
+        <label class="check"><input type="checkbox" name="on_failure" {{if .OnFailure}}checked{{end}}> {{T "fails"}}</label>
+        <label class="check"><input type="checkbox" name="on_warning" {{if .OnWarning}}checked{{end}}> {{T "finishes with warnings"}}</label>
+        <label class="check"><input type="checkbox" name="on_success" {{if .OnSuccess}}checked{{end}}> {{T "succeeds"}}</label>
       </div>
       <div class="choice">
-        <label class="check"><input type="checkbox" name="daily_report" {{if .DailyReport}}checked{{end}}> Daily report at</label>
+        <label class="check"><input type="checkbox" name="daily_report" {{if .DailyReport}}checked{{end}}> {{T "Daily report at"}}</label>
         <select name="daily_hour" class="narrow">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $.Data.Email.DailyHour}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
       </div>
     </fieldset>
     <div class="actions">
-      <button name="action" value="save">Save</button>
-      <button name="action" value="test" class="secondary">Send test email</button>
+      <button name="action" value="save">{{T "Save"}}</button>
+      <button name="action" value="test" class="secondary">{{T "Send test email"}}</button>
     </div>
   </form>
 </div>
 {{end}}{{end}}
 {{if eq .Data.Tab "security"}}{{with .Data.Sessions}}
 <div class="panel">
-  <h2>{{template "icon" "lock"}} Sign-in</h2>
+  <h2>{{template "icon" "lock"}} {{T "Sign-in"}}</h2>
   <form method="post" action="/settings/sessions" class="stack">
     <div class="row">
-      <label>Session length <small>signed-in users must sign in again after this many hours (1 – 2160)</small>
+      <label>{{T "Session length"}} <small>{{T "signed-in users must sign in again after this many hours (1 – 2160)"}}</small>
         <input type="number" name="lifetime_hours" min="1" max="2160" value="{{.LifetimeHours}}" required>
       </label>
-      <label>Sign out after inactivity <small>minutes without any activity; 0 = never</small>
+      <label>{{T "Sign out after inactivity"}} <small>{{T "minutes without any activity; 0 = never"}}</small>
         <input type="number" name="idle_minutes" min="0" max="43200" value="{{.IdleMinutes}}" required>
       </label>
     </div>
-    <small class="muted">Shorter is safer. A shorter session length also shortens sessions that are already signed in.</small>
-    <label>Two-factor authentication <small>users set it up under My account → Two-factor; required users are asked to do so at their next sign-in</small>
+    <small class="muted">{{T "Shorter is safer. A shorter session length also shortens sessions that are already signed in."}}</small>
+    <label>{{T "Two-factor authentication"}} <small>{{T "users set it up under My account → Two-factor; required users are asked to do so at their next sign-in"}}</small>
       <select name="require_2fa">
-        <option value="" {{if eq .Require2FA ""}}selected{{end}}>Optional for everyone</option>
-        <option value="admins" {{if eq .Require2FA "admins"}}selected{{end}}>Required for administrators</option>
-        <option value="all" {{if eq .Require2FA "all"}}selected{{end}}>Required for all users</option>
+        <option value="" {{if eq .Require2FA ""}}selected{{end}}>{{T "Optional for everyone"}}</option>
+        <option value="admins" {{if eq .Require2FA "admins"}}selected{{end}}>{{T "Required for administrators"}}</option>
+        <option value="all" {{if eq .Require2FA "all"}}selected{{end}}>{{T "Required for all users"}}</option>
       </select>
     </label>
-    <div><button>Save sign-in settings</button></div>
+    <div><button>{{T "Save sign-in settings"}}</button></div>
   </form>
 </div>
 {{end}}
 {{with .Data.Protection}}
 <div class="panel" id="protection">
-  <h2>{{template "icon" "shield"}} Brute-force protection</h2>
-  <p class="muted">Addresses that fail to sign in too often are blocked: sign-in, two-factor codes and API tokens are refused from them. Blocks are kept across restarts. Your address: <span class="mono">{{$.Data.ClientIP}}</span>.</p>
+  <h2>{{template "icon" "shield"}} {{T "Brute-force protection"}}</h2>
+  <p class="muted">{{T "Addresses that fail to sign in too often are blocked: sign-in, two-factor codes and API tokens are refused from them. Blocks are kept across restarts. Your address:"}} <span class="mono">{{$.Data.ClientIP}}</span>.</p>
   <form method="post" action="/settings/login-protection" class="stack">
     <div class="row">
-      <label>Failed attempts per address <small>3 – 100; this many failures block the address</small>
+      <label>{{T "Failed attempts per address"}} <small>{{T "3 – 100; this many failures block the address"}}</small>
         <input type="number" name="max_attempts" min="3" max="100" value="{{.MaxAttempts}}" required>
       </label>
-      <label>Counting period (minutes) <small>failures older than this are forgotten</small>
+      <label>{{T "Counting period (minutes)"}} <small>{{T "failures older than this are forgotten"}}</small>
         <input type="number" name="window_minutes" min="1" max="1440" value="{{.WindowMinutes}}" required>
       </label>
-      <label>Block for (minutes) <small>1 minute – 7 days</small>
+      <label>{{T "Block for (minutes)"}} <small>{{T "1 minute – 7 days"}}</small>
         <input type="number" name="block_minutes" min="1" max="10080" value="{{.BlockMinutes}}" required>
       </label>
     </div>
-    <label class="check"><input type="checkbox" name="progressive" {{if .Progressive}}checked{{end}}> Block repeat offenders longer <small>every further block within a day lasts twice as long (30 min, 1 h, 2 h, … up to 7 days)</small></label>
-    <label>Failed attempts per username <small>from any addresses within the counting period; further attempts for that username are refused until the period has passed — the account itself is never locked</small>
+    <label class="check"><input type="checkbox" name="progressive" {{if .Progressive}}checked{{end}}> {{T "Block repeat offenders longer"}} <small>{{T "every further block within a day lasts twice as long (30 min, 1 h, 2 h, … up to 7 days)"}}</small></label>
+    <label>{{T "Failed attempts per username"}} <small>{{T "from any addresses within the counting period; further attempts for that username are refused until the period has passed — the account itself is never locked"}}</small>
       <input type="number" name="max_user_attempts" min="3" max="1000" value="{{.MaxUserAttempts}}" required class="narrow">
     </label>
     <div class="row">
-      <label>Never block these networks <small>optional, e.g. the administrators' network <code>192.168.10.0/24</code>; one per line. The per-username limit still applies</small>
+      <label>{{T "Never block these networks"}} <small>{{T "optional, e.g. the administrators' network"}} <code>192.168.10.0/24</code>{{T "; one per line. The per-username limit still applies"}}</small>
         <textarea name="trusted_networks" rows="3" placeholder="192.168.10.0/24">{{join .TrustedNetworks "\n"}}</textarea>
       </label>
-      <label>Reverse proxies <small>only if the console is behind a proxy (nginx, Traefik, …): its address, so the client address is taken from <code>X-Forwarded-For</code>. Leave empty otherwise</small>
+      <label>{{T "Reverse proxies"}} <small>{{T "only if the console is behind a proxy (nginx, Traefik, …): its address, so the client address is taken from"}} <code>X-Forwarded-For</code>{{T ". Leave empty otherwise"}}</small>
         <textarea name="trusted_proxies" rows="3" placeholder="10.0.0.5">{{join .TrustedProxies "\n"}}</textarea>
       </label>
     </div>
-    <label class="check"><input type="checkbox" name="notify" {{if .Notify}}checked{{end}}> Email the administrators when an address is blocked <small>uses the <a href="/settings/email">email settings</a></small></label>
-    <div><button>Save protection settings</button></div>
+    <label class="check"><input type="checkbox" name="notify" {{if .Notify}}checked{{end}}> {{T "Email the administrators when an address is blocked"}} <small>{{T "uses the"}} <a href="/settings/email">{{T "email settings"}}</a></small></label>
+    <div><button>{{T "Save protection settings"}}</button></div>
   </form>
 
-  <h3 class="mt">Blocked addresses</h3>
+  <h3 class="mt">{{T "Blocked addresses"}}</h3>
   {{if $.Data.Blocks}}
   <div class="table-wrap"><table>
-    <tr><th>Address</th><th>Blocked until</th><th>Block</th><th>Reason</th><th></th></tr>
+    <tr><th>{{T "Address"}}</th><th>{{T "Blocked until"}}</th><th>{{T "Block"}}</th><th>{{T "Reason"}}</th><th></th></tr>
     {{range $.Data.Blocks}}
-    <tr><td class="mono">{{.IP}}</td><td class="nowrap">{{ts .Until}}</td><td>{{.Strikes}}</td><td class="small">{{.Reason}}<br><span class="muted">since {{ts .BlockedAt}}</span></td>
-      <td><form method="post" action="/settings/unblock" class="inline"><input type="hidden" name="ip" value="{{.IP}}"><button class="link">Unblock</button></form></td></tr>
+    <tr><td class="mono">{{.IP}}</td><td class="nowrap">{{ts .Until}}</td><td>{{.Strikes}}</td><td class="small">{{.Reason}}<br><span class="muted">{{T "since"}} {{ts .BlockedAt}}</span></td>
+      <td><form method="post" action="/settings/unblock" class="inline"><input type="hidden" name="ip" value="{{.IP}}"><button class="link">{{T "Unblock"}}</button></form></td></tr>
     {{end}}
   </table></div>
-  {{if gt (len $.Data.Blocks) 1}}<form method="post" action="/settings/unblock" class="mt" data-confirm="Lift all blocks?"><input type="hidden" name="ip" value="all"><button class="secondary">Unblock all</button></form>{{end}}
-  {{else}}<p class="muted">No address is blocked.</p>{{end}}
-  <p class="muted small mt">Locked yourself out? Sign in from another address, or on the server run <code>backupzit-server --unblock-ip all</code> (with the same database options as the service). Every block and unblock is in the <a href="/audit">audit log</a>.</p>
+  {{if gt (len $.Data.Blocks) 1}}<form method="post" action="/settings/unblock" class="mt" data-confirm="{{T "Lift all blocks?"}}"><input type="hidden" name="ip" value="all"><button class="secondary">{{T "Unblock all"}}</button></form>{{end}}
+  {{else}}<p class="muted">{{T "No address is blocked."}}</p>{{end}}
+  <p class="muted small mt">{{T "Locked yourself out? Sign in from another address, or on the server run"}} <code>backupzit-server --unblock-ip all</code> {{T "(with the same database options as the service). Every block and unblock is in the"}} <a href="/audit">{{T "audit log"}}</a>.</p>
 </div>
 {{end}}
+<div class="panel" id="four-eyes">
+  <h2>{{template "icon" "shield"}} {{T "Four-eyes approval"}}</h2>
+  <p class="muted">{{T "Protects against a stolen or misused account: deleting jobs, agents, ESXi hosts, storage targets and users, shortening a job's retention, resuming retention after a suspicious backup and turning this option off take effect only when a second user with the same permission approves them under"}} <a href="/approvals">{{T "Approvals"}}</a>{{T ". Needs at least two enabled administrators. Requests expire after 7 days."}}</p>
+  <form method="post" action="/settings/four-eyes" class="stack">
+    <label class="check"><input type="checkbox" name="four_eyes" {{if $.FourEyes}}checked{{end}}> {{T "Require a second user's approval for destructive changes"}}</label>
+    {{if $.FourEyes}}<p class="muted small">{{T "Turning it off needs approval too."}}</p>{{end}}
+    <div><button>{{T "Save"}}</button></div>
+  </form>
+</div>
 <div class="panel">
-  <h2>{{template "icon" "shield"}} Stored secrets</h2>
+  <h2>{{template "icon" "shield"}} {{T "Stored secrets"}}</h2>
   {{if .Data.SecretKeyID}}
-  <p><span class="badge success"><i></i>encrypted</span> Storage passwords and keys, recovery keys, the SMTP and LDAP passwords and two-factor secrets are stored encrypted (AES-256-GCM). A copy of the database alone reveals none of them.</p>
+  <p><span class="badge success"><i></i>{{T "encrypted"}}</span> {{T "Storage passwords and keys, recovery keys, the SMTP and LDAP passwords and two-factor secrets are stored encrypted (AES-256-GCM). A copy of the database alone reveals none of them."}}</p>
   <dl class="kv">
-    <dt>Key file</dt><dd class="mono">{{.Data.SecretKeyFile}}</dd>
-    <dt>Key ID</dt><dd class="mono">{{.Data.SecretKeyID}}</dd>
+    <dt>{{T "Key file"}}</dt><dd class="mono">{{.Data.SecretKeyFile}}</dd>
+    <dt>{{T "Key ID"}}</dt><dd class="mono">{{.Data.SecretKeyID}}</dd>
   </dl>
-  <div class="callout warn"><p><b>Back up the key file together with the database</b> (separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets.</p></div>
+  <div class="callout warn"><p><b>{{T "Back up the key file together with the database"}}</b> {{T "(separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets."}}</p></div>
   {{else}}
-  <p><span class="badge failed"><i></i>not encrypted</span> No secrets key is loaded.</p>
+  <p><span class="badge failed"><i></i>{{T "not encrypted"}}</span> {{T "No secrets key is loaded."}}</p>
   {{end}}
 </div>
 {{end}}
 {{if eq .Data.Tab "certificate"}}{{with .Data.Cert}}
 <div class="panel" id="certificate">
-  <h2>{{template "icon" "shield"}} HTTPS certificate for browsers</h2>
-  <p class="muted">Agents always connect to the console's main address with its own certificate, which they pin (<span class="mono small">{{$.Data.ConsoleFingerprint}}</span>), so nothing here affects them. For browsers the console can additionally answer at a DNS name with a <b>trusted certificate</b>, so no security warning appears.</p>
+  <h2>{{template "icon" "shield"}} {{T "HTTPS certificate for browsers"}}</h2>
+  <p class="muted">{{T "Agents always connect to the console's main address with its own certificate, which they pin ("}}<span class="mono small">{{$.Data.ConsoleFingerprint}}</span>{{T "), so nothing here affects them. For browsers the console can additionally answer at a DNS name with a"}} <b>{{T "trusted certificate"}}</b>{{T ", so no security warning appears."}}</p>
   {{with $.Data.CertInfo}}
   <dl class="kv">
-    <dt>Address</dt><dd>{{with $.Data.WebAddress}}<a href="{{.}}">{{.}}</a>{{else}}—{{end}}</dd>
-    <dt>Certificate</dt><dd>{{.Subject}} <span class="muted">issued by {{.Issuer}}</span></dd>
-    <dt>Valid for</dt><dd class="mono small">{{join .Names ", "}}</dd>
-    <dt>Expires</dt><dd>{{ts .NotAfter}} {{if lt .DaysLeft 21}}<span class="badge warning"><i></i>in {{.DaysLeft}} days</span>{{else}}<span class="muted">in {{.DaysLeft}} days</span>{{end}}</dd>
+    <dt>{{T "Address"}}</dt><dd>{{with $.Data.WebAddress}}<a href="{{.}}">{{.}}</a>{{else}}—{{end}}</dd>
+    <dt>{{T "Certificate"}}</dt><dd>{{.Subject}} <span class="muted">{{T "issued by"}} {{.Issuer}}</span></dd>
+    <dt>{{T "Valid for"}}</dt><dd class="mono small">{{join .Names ", "}}</dd>
+    <dt>{{T "Expires"}}</dt><dd>{{ts .NotAfter}} {{if lt .DaysLeft 21}}<span class="badge warning"><i></i>{{T "in"}} {{.DaysLeft}} {{T "days"}}</span>{{else}}<span class="muted">{{T "in"}} {{.DaysLeft}} {{T "days"}}</span>{{end}}</dd>
   </dl>
   {{end}}
   {{with $.Data.CertErr}}<div class="callout warn mt"><p>{{.}}</p></div>{{end}}
   <form method="post" action="/settings/certificate" class="stack mt" enctype="multipart/form-data">
     <div class="choice">
-      <label class="check"><input type="radio" name="mode" value="self" {{if eq .Mode "self"}}checked{{end}}> Console certificate only <small>browsers show a warning once</small></label>
-      <label class="check"><input type="radio" name="mode" value="upload" {{if eq .Mode "upload"}}checked{{end}}> Upload a certificate <small>from your company CA or a public CA, also wildcard</small></label>
-      <label class="check"><input type="radio" name="mode" value="acme" {{if eq .Mode "acme"}}checked{{end}}> Let's Encrypt <small>free, renewed automatically</small></label>
+      <label class="check"><input type="radio" name="mode" value="self" {{if eq .Mode "self"}}checked{{end}}> {{T "Console certificate only"}} <small>{{T "browsers show a warning once"}}</small></label>
+      <label class="check"><input type="radio" name="mode" value="upload" {{if eq .Mode "upload"}}checked{{end}}> {{T "Upload a certificate"}} <small>{{T "from your company CA or a public CA, also wildcard"}}</small></label>
+      <label class="check"><input type="radio" name="mode" value="acme" {{if eq .Mode "acme"}}checked{{end}}> {{T "Let's Encrypt"}} <small>{{T "free, renewed automatically"}}</small></label>
     </div>
     <div class="row">
-      <label>DNS name <small>the name browsers use; it must point to this server. For an uploaded certificate also an IP address, if your network has no internal DNS</small><input name="hostname" value="{{.Hostname}}" placeholder="backup.example.com"></label>
-      <label>HTTPS port <small>usually 443</small><input name="port" type="number" min="1" max="65535" value="{{.Port}}" class="narrow"></label>
+      <label>{{T "DNS name"}} <small>{{T "the name browsers use; it must point to this server. For an uploaded certificate also an IP address, if your network has no internal DNS"}}</small><input name="hostname" value="{{.Hostname}}" placeholder="{{T "backup.example.com"}}"></label>
+      <label>{{T "HTTPS port"}} <small>{{T "usually 443"}}</small><input name="port" type="number" min="1" max="65535" value="{{.Port}}" class="narrow"></label>
     </div>
-    <label class="check"><input type="checkbox" name="redirect_http" {{if .RedirectHTTP}}checked{{end}}> Serve port 80 <small>redirects http:// to https:// and answers Let's Encrypt's HTTP check</small></label>
+    <label class="check"><input type="checkbox" name="redirect_http" {{if .RedirectHTTP}}checked{{end}}> {{T "Serve port 80"}} <small>{{T "redirects http:// to https:// and answers Let's Encrypt's HTTP check"}}</small></label>
     <fieldset class="sched">
-      <legend>Upload</legend>
+      <legend>{{T "Upload"}}</legend>
       <div class="row">
-        <label>Certificate (PEM) <small>the certificate followed by its intermediate certificates</small><textarea name="cert_pem" rows="4" placeholder="-----BEGIN CERTIFICATE-----"></textarea><input type="file" name="cert_pem_file" accept=".pem,.crt,.cer"></label>
-        <label>Private key (PEM) <small>not encrypted; stored readable only by the service</small><textarea name="key_pem" rows="4" placeholder="-----BEGIN PRIVATE KEY-----"></textarea><input type="file" name="key_pem_file" accept=".pem,.key"></label>
+        <label>{{T "Certificate (PEM)"}} <small>{{T "the certificate followed by its intermediate certificates"}}</small><textarea name="cert_pem" rows="4" placeholder="{{T "-----BEGIN CERTIFICATE-----"}}"></textarea><input type="file" name="cert_pem_file" accept=".pem,.crt,.cer"></label>
+        <label>{{T "Private key (PEM)"}} <small>{{T "not encrypted; stored readable only by the service"}}</small><textarea name="key_pem" rows="4" placeholder="{{T "-----BEGIN PRIVATE KEY-----"}}"></textarea><input type="file" name="key_pem_file" accept=".pem,.key"></label>
       </div>
-      <p class="muted small">Leave both empty to keep the uploaded certificate. Uploaded certificates are not renewed automatically; you get a warning 21 days before they expire.</p>
+      <p class="muted small">{{T "Leave both empty to keep the uploaded certificate. Uploaded certificates are not renewed automatically; you get a warning 21 days before they expire."}}</p>
     </fieldset>
     <fieldset class="sched">
-      <legend>Let's Encrypt</legend>
-      <label>Email <small>Let's Encrypt sends expiry notices here</small><input name="acme_email" type="email" value="{{.ACMEEmail}}"></label>
-      <label class="check"><input type="radio" name="challenge" value="http" {{if ne .Challenge "cloudflare"}}checked{{end}}> HTTP check <small>port 80 of this server must be reachable from the internet under the DNS name</small></label>
-      <label class="check"><input type="radio" name="challenge" value="cloudflare" {{if eq .Challenge "cloudflare"}}checked{{end}}> DNS check via Cloudflare <small>for consoles that are not reachable from the internet (recommended): BackupZit creates a temporary TXT record</small></label>
-      <label>Cloudflare API token <small>{{if .HasToken}}stored; leave empty to keep it. {{end}}Create it in Cloudflare under My Profile → API Tokens with permission Zone → DNS → Edit for the zone</small><input name="cloudflare_token" type="password" autocomplete="new-password"></label>
-      <label class="check"><input type="checkbox" name="staging" {{if .Staging}}checked{{end}}> Use the Let's Encrypt test system <small>certificates are not trusted by browsers; for trying the setup without hitting rate limits</small></label>
+      <legend>{{T "Let's Encrypt"}}</legend>
+      <label>{{T "Email"}} <small>{{T "Let's Encrypt sends expiry notices here"}}</small><input name="acme_email" type="email" value="{{.ACMEEmail}}"></label>
+      <label class="check"><input type="radio" name="challenge" value="http" {{if ne .Challenge "cloudflare"}}checked{{end}}> {{T "HTTP check"}} <small>{{T "port 80 of this server must be reachable from the internet under the DNS name"}}</small></label>
+      <label class="check"><input type="radio" name="challenge" value="cloudflare" {{if eq .Challenge "cloudflare"}}checked{{end}}> {{T "DNS check via Cloudflare"}} <small>{{T "for consoles that are not reachable from the internet (recommended): BackupZit creates a temporary TXT record"}}</small></label>
+      <label>{{T "Cloudflare API token"}} <small>{{if .HasToken}}{{T "stored; leave empty to keep it."}} {{end}}{{T "Create it in Cloudflare under My Profile → API Tokens with permission Zone → DNS → Edit for the zone"}}</small><input name="cloudflare_token" type="password" autocomplete="new-password"></label>
+      <label class="check"><input type="checkbox" name="staging" {{if .Staging}}checked{{end}}> {{T "Use the Let's Encrypt test system"}} <small>{{T "certificates are not trusted by browsers; for trying the setup without hitting rate limits"}}</small></label>
     </fieldset>
-    <div><button>Save and install</button></div>
+    <div><button>{{T "Save and install"}}</button></div>
   </form>
-  {{if eq .Mode "acme"}}<form method="post" action="/settings/certificate/renew" class="mt"><button class="secondary">Renew now</button> <span class="muted small">Renewal runs automatically 30 days before expiry.</span></form>{{end}}
+  {{if eq .Mode "acme"}}<form method="post" action="/settings/certificate/renew" class="mt"><button class="secondary">{{T "Renew now"}}</button> <span class="muted small">{{T "Renewal runs automatically 30 days before expiry."}}</span></form>{{end}}
 </div>
 {{end}}{{end}}
 {{if eq .Data.Tab "updates"}}{{with .Data.Updates}}
 <div class="panel" id="updates">
-  <h2>{{template "icon" "download"}} Updates</h2>
+  <h2>{{template "icon" "download"}} {{T "Updates"}}</h2>
   <dl class="kv">
-    <dt>Installed version</dt><dd><b>{{.Version}}</b></dd>
-    <dt>Last check</dt><dd>{{if .Checked.IsZero}}never{{else}}{{ago .Checked}}{{end}}{{with .CheckErr}} <span class="badge failed" title="{{.}}"><i></i>error</span> <span class="small muted">{{.}}</span>{{end}}</dd>
-    {{with .Last}}<dt>Last update</dt><dd>{{.From}} → {{.Version}}: {{if eq .Status "installed"}}<span class="badge success"><i></i>installed</span>{{else}}<span class="badge failed"><i></i>{{.Status}}</span>{{end}} <span class="muted small">{{ts .Finished}}</span>{{if ne .Status "installed"}}<pre class="small mt">{{.Message}}</pre>{{end}}</dd>{{end}}
+    <dt>{{T "Installed version"}}</dt><dd><b>{{.Version}}</b></dd>
+    <dt>{{T "Last check"}}</dt><dd>{{if .Checked.IsZero}}{{T "never"}}{{else}}{{ago .Checked}}{{end}}{{with .CheckErr}} <span class="badge failed" title="{{.}}"><i></i>{{T "error"}}</span> <span class="small muted">{{.}}</span>{{end}}</dd>
+    {{with .Last}}<dt>{{T "Last update"}}</dt><dd>{{.From}} → {{.Version}}: {{if eq .Status "installed"}}<span class="badge success"><i></i>{{T "installed"}}</span>{{else}}<span class="badge failed"><i></i>{{T .Status}}</span>{{end}} <span class="muted small">{{ts .Finished}}</span>{{if ne .Status "installed"}}<pre class="small mt">{{.Message}}</pre>{{end}}</dd>{{end}}
   </dl>
-  {{if .Pending}}<div class="callout tip mt" data-autorefresh><p><b>An update is being installed.</b> The console restarts in a moment; this page reloads by itself.</p></div>{{end}}
+  {{if .Pending}}<div class="callout tip mt" data-autorefresh><p><b>{{T "An update is being installed."}}</b> {{T "The console restarts in a moment; this page reloads by itself."}}</p></div>{{end}}
   {{with .Available}}
   <div class="callout tip mt">
-    <p><b>BackupZit {{.Version}} is available</b>{{if not .Released.IsZero}}, released {{ts .Released}}{{end}}.</p>
+    <p><b>{{T "BackupZit"}} {{.Version}} {{T "is available"}}</b>{{if not .Released.IsZero}}{{T ", released"}} {{ts .Released}}{{end}}.</p>
     {{with .Notes}}<pre class="small">{{.}}</pre>{{end}}
     {{if $.Data.Updates.Helper}}
-    <form method="post" action="/settings/updates/install" data-confirm="Install BackupZit {{.Version}} now? The database is backed up first; the console restarts and is unavailable for a minute.">
-      <button>Install {{.Version}}</button> <span class="muted small">The database is backed up first; if the new version does not start, the old one and its database are restored automatically. Running backups must finish first.</span>
+    <form method="post" action="/settings/updates/install" data-confirm="{{T "Install BackupZit %v now? The database is backed up first; the console restarts and is unavailable for a minute." .Version}}">
+      <button>{{T "Install"}} {{.Version}}</button> <span class="muted small">{{T "The database is backed up first; if the new version does not start, the old one and its database are restored automatically. Running backups must finish first."}}</span>
     </form>
     {{end}}
   </div>
   {{end}}
-  {{if not .Helper}}<p class="muted small mt">Updates from the console need the Linux package of the console. This installation is updated with its package manager.</p>{{end}}
+  {{if not .Helper}}<p class="muted small mt">{{T "Updates from the console need the Linux package of the console. This installation is updated with its package manager."}}</p>{{end}}
   <form method="post" action="/settings/updates" class="stack mt">
-    <label>Update source <small>empty: the official BackupZit releases on GitHub. Or your own HTTPS address, or a folder on this server with <code>manifest.json</code>, <code>manifest.json.sig</code> and the packages, for networks without internet access. Every release is checked against the BackupZit signing key, wherever it comes from.</small>
+    <label>{{T "Update source"}} <small>{{T "empty: the official BackupZit releases on GitHub. Or your own HTTPS address, or a folder on this server with"}} <code>manifest.json</code>, <code>manifest.json.sig</code> {{T "and the packages, for networks without internet access. Every release is checked against the BackupZit signing key, wherever it comes from."}}</small>
       <input name="source" value="{{if ne .Settings.Source .DefaultSource}}{{.Settings.Source}}{{end}}" placeholder="{{.DefaultSource}}">
     </label>
-    <label class="check"><input type="checkbox" name="notify" {{if .Settings.Notify}}checked{{end}}> Email the administrators when a new version is available <small>checked daily</small></label>
-    <label class="check"><input type="checkbox" name="auto_agents" {{if .Settings.AutoAgents}}checked{{end}}> Update the agents automatically after the console was updated <small>each agent installs the new version when it is idle</small></label>
-    <div class="row"><div><button>Save</button></div></div>
+    <label class="check"><input type="checkbox" name="notify" {{if .Settings.Notify}}checked{{end}}> {{T "Email the administrators when a new version is available"}} <small>{{T "checked daily"}}</small></label>
+    <label class="check"><input type="checkbox" name="auto_agents" {{if .Settings.AutoAgents}}checked{{end}}> {{T "Update the agents automatically after the console was updated"}} <small>{{T "each agent installs the new version when it is idle"}}</small></label>
+    <div class="row"><div><button>{{T "Save"}}</button></div></div>
   </form>
-  <form method="post" action="/settings/updates/check" class="mt"><button class="secondary">Check now</button></form>
+  <form method="post" action="/settings/updates/check" class="mt"><button class="secondary">{{T "Check now"}}</button></form>
   {{if .Helper}}
   <details class="mt">
-    <summary>Install an update from files</summary>
-    <form method="post" action="/settings/updates/upload" enctype="multipart/form-data" class="stack mt" data-confirm="Install the uploaded release? The database is backed up first; the console restarts.">
-      <p class="muted small">For servers without internet access: download the release files on another computer and upload them here. Only releases signed by the BackupZit release key are accepted.</p>
+    <summary>{{T "Install an update from files"}}</summary>
+    <form method="post" action="/settings/updates/upload" enctype="multipart/form-data" class="stack mt" data-confirm="{{T "Install the uploaded release? The database is backed up first; the console restarts."}}">
+      <p class="muted small">{{T "For servers without internet access: download the release files on another computer and upload them here. Only releases signed by the BackupZit release key are accepted."}}</p>
       <div class="row">
-        <label>manifest.json <input type="file" name="manifest" required></label>
-        <label>manifest.json.sig <input type="file" name="signature" required></label>
-        <label>Server package (.deb or .rpm) <input type="file" name="package" required></label>
+        <label>{{T "manifest.json"}} <input type="file" name="manifest" required></label>
+        <label>{{T "manifest.json.sig"}} <input type="file" name="signature" required></label>
+        <label>{{T "Server package (.deb or .rpm)"}} <input type="file" name="package" required></label>
       </div>
-      <div><button>Upload and install</button></div>
+      <div><button>{{T "Upload and install"}}</button></div>
     </form>
   </details>
   {{end}}
-  <p class="muted small mt">Releases are signed with the BackupZit release key. The console checks the signature, and the system service that installs the package checks it again, so a modified package is never installed.</p>
+  <p class="muted small mt">{{T "Releases are signed with the BackupZit release key. The console checks the signature, and the system service that installs the package checks it again, so a modified package is never installed."}}</p>
 </div>
 {{end}}{{end}}
 {{if eq .Data.Tab "updates"}}{{if .Data.Updates.Helper}}{{with .Data.OS}}
 <div class="panel" id="os">
-  <h2>{{template "icon" "shield"}} Operating system of the console server</h2>
+  <h2>{{template "icon" "shield"}} {{T "Operating system of the console server"}}</h2>
   {{with .Status}}
   <dl class="kv">
-    <dt>System</dt><dd>{{.OS}} <span class="muted small">kernel {{.Kernel}}</span></dd>
-    <dt>Updates</dt><dd>{{if .Pending}}<b>{{.Pending}}</b> available{{if .Security}}, <span class="badge warning"><i></i>{{.Security}} security</span>{{end}}{{else}}<span class="badge success"><i></i>up to date</span>{{end}} <span class="muted small">checked {{ago .Checked}}</span>{{with .Error}}<br><span class="small muted">{{.}}</span>{{end}}</dd>
-    <dt>Automatic security updates</dt><dd>{{if .AutoSecurity}}<span class="badge success"><i></i>on</span>{{if not .LastAutoRun.IsZero}} <span class="muted small">last run {{ago .LastAutoRun}}</span>{{end}}{{else}}<span class="badge warning"><i></i>off</span>{{end}}</dd>
-    {{if .RebootRequired}}<dt>Restart</dt><dd><span class="badge warning"><i></i>required</span> <span class="muted small">updates (e.g. of the kernel) take effect after a restart</span></dd>{{end}}
+    <dt>{{T "System"}}</dt><dd>{{.OS}} <span class="muted small">{{T "kernel"}} {{.Kernel}}</span></dd>
+    <dt>{{T "Updates"}}</dt><dd>{{if .Pending}}<b>{{.Pending}}</b> {{T "available"}}{{if .Security}}, <span class="badge warning"><i></i>{{.Security}} {{T "security"}}</span>{{end}}{{else}}<span class="badge success"><i></i>{{T "up to date"}}</span>{{end}} <span class="muted small">{{T "checked"}} {{ago .Checked}}</span>{{with .Error}}<br><span class="small muted">{{.}}</span>{{end}}</dd>
+    <dt>{{T "Automatic security updates"}}</dt><dd>{{if .AutoSecurity}}<span class="badge success"><i></i>{{T "on"}}</span>{{if not .LastAutoRun.IsZero}} <span class="muted small">{{T "last run"}} {{ago .LastAutoRun}}</span>{{end}}{{else}}<span class="badge warning"><i></i>{{T "off"}}</span>{{end}}</dd>
+    {{if .RebootRequired}}<dt>{{T "Restart"}}</dt><dd><span class="badge warning"><i></i>{{T "required"}}</span> <span class="muted small">{{T "updates (e.g. of the kernel) take effect after a restart"}}</span></dd>{{end}}
   </dl>
-  {{with .Packages}}<details class="mt"><summary>Available updates</summary><pre class="small">{{join . "\n"}}</pre></details>{{end}}
-  {{else}}<p class="muted">The status is being read{{if not $.Data.OS.Pending}}; click Check now{{end}}.</p>{{end}}
-  {{with .Result}}<p class="small muted mt">Last action: {{.Action}} — {{if eq .Status "done"}}done{{else}}<b>failed</b>{{end}}, {{ago .Finished}}{{if ne .Status "done"}}<br>{{.Message}}{{end}}</p>{{end}}
-  {{if .Pending}}<div class="callout tip mt" data-autorefresh><p>A task is running on the server; this page reloads by itself.</p></div>{{end}}
+  {{with .Packages}}<details class="mt"><summary>{{T "Available updates"}}</summary><pre class="small">{{join . "\n"}}</pre></details>{{end}}
+  {{else}}<p class="muted">{{T "The status is being read"}}{{if not $.Data.OS.Pending}}{{T "; click Check now"}}{{end}}.</p>{{end}}
+  {{with .Result}}<p class="small muted mt">{{T "Last action:"}} {{.Action}} — {{if eq .Status "done"}}{{T "done"}}{{else}}<b>{{T "failed"}}</b>{{end}}, {{ago .Finished}}{{if ne .Status "done"}}<br>{{.Message}}{{end}}</p>{{end}}
+  {{if .Pending}}<div class="callout tip mt" data-autorefresh><p>{{T "A task is running on the server; this page reloads by itself."}}</p></div>{{end}}
   <div class="row mt">
-    <form method="post" action="/settings/os" class="inline"><input type="hidden" name="action" value="status"><button class="secondary">Check now</button></form>
-    {{with .Status}}{{if .AutoSecurity}}<form method="post" action="/settings/os" class="inline"><input type="hidden" name="action" value="auto-off"><button class="secondary">Switch off automatic security updates</button></form>{{else}}<form method="post" action="/settings/os" class="inline"><input type="hidden" name="action" value="auto-on"><button>Switch on automatic security updates</button></form>{{end}}{{end}}
-    <form method="post" action="/settings/os" class="inline" data-confirm="Install all operating system updates now? Services such as PostgreSQL may restart briefly."><input type="hidden" name="action" value="upgrade"><button class="secondary">Install all updates now</button></form>
-    <form method="post" action="/settings/os" class="inline" data-confirm="Restart the console server now? The console is unavailable for a few minutes; agents continue and report later."><input type="hidden" name="action" value="reboot"><button class="danger">Restart server</button></form>
+    <form method="post" action="/settings/os" class="inline"><input type="hidden" name="action" value="status"><button class="secondary">{{T "Check now"}}</button></form>
+    {{with .Status}}{{if .AutoSecurity}}<form method="post" action="/settings/os" class="inline"><input type="hidden" name="action" value="auto-off"><button class="secondary">{{T "Switch off automatic security updates"}}</button></form>{{else}}<form method="post" action="/settings/os" class="inline"><input type="hidden" name="action" value="auto-on"><button>{{T "Switch on automatic security updates"}}</button></form>{{end}}{{end}}
+    <form method="post" action="/settings/os" class="inline" data-confirm="{{T "Install all operating system updates now? Services such as PostgreSQL may restart briefly."}}"><input type="hidden" name="action" value="upgrade"><button class="secondary">{{T "Install all updates now"}}</button></form>
+    <form method="post" action="/settings/os" class="inline" data-confirm="{{T "Restart the console server now? The console is unavailable for a few minutes; agents continue and report later."}}"><input type="hidden" name="action" value="reboot"><button class="danger">{{T "Restart server"}}</button></form>
   </div>
-  <p class="muted small mt">Automatic security updates use the system's own tool (unattended-upgrades on Debian and Ubuntu, dnf-automatic on AlmaLinux and Rocky Linux) and install only security fixes, daily. BackupZit itself is updated above.</p>
+  <p class="muted small mt">{{T "Automatic security updates use the system's own tool (unattended-upgrades on Debian and Ubuntu, dnf-automatic on AlmaLinux and Rocky Linux) and install only security fixes, daily. BackupZit itself is updated above."}}</p>
 </div>
 {{end}}{{end}}{{end}}
 {{if eq .Data.Tab "console"}}{{with .Data.ConsoleBackup}}
 <div class="panel" id="console-backup">
-  <h2>{{template "icon" "storage"}} Backup of the console</h2>
-  <p class="muted">If the console server is lost, the backups on your storage stay readable with the recovery sheets. To also get back the console itself (jobs, schedules, users, settings, history and the stored credentials) and let all agents simply reconnect, back it up every day. The backup holds the database, the secrets key and the console's certificate, which agents pin. It is encrypted with the storage target's recovery key.</p>
+  <h2>{{template "icon" "storage"}} {{T "Backup of the console"}}</h2>
+  <p class="muted">{{T "If the console server is lost, the backups on your storage stay readable with the recovery sheets. To also get back the console itself (jobs, schedules, users, settings, history and the stored credentials) and let all agents simply reconnect, back it up every day. The backup holds the database, the secrets key and the console's certificate, which agents pin. It is encrypted with the storage target's recovery key."}}</p>
   <dl class="kv">
-    <dt>Last backup</dt><dd>{{if .LastAt.IsZero}}never{{else}}{{ts .LastAt}} {{if .LastError}}<span class="badge failed"><i></i>failed</span><br><span class="small">{{.LastError}}</span>{{else}}<span class="badge success"><i></i>ok</span> <span class="muted small">{{bytes .LastBytes}}, backup <span class="mono">{{short .LastSnapshot}}</span></span>{{end}}{{end}}</dd>
+    <dt>{{T "Last backup"}}</dt><dd>{{if .LastAt.IsZero}}{{T "never"}}{{else}}{{ts .LastAt}} {{if .LastError}}<span class="badge failed"><i></i>{{T "failed"}}</span><br><span class="small">{{.LastError}}</span>{{else}}<span class="badge success"><i></i>{{T "ok"}}</span> <span class="muted small">{{bytes .LastBytes}}{{T ", backup"}} <span class="mono">{{short .LastSnapshot}}</span></span>{{end}}{{end}}</dd>
   </dl>
   <form method="post" action="/settings/console" class="stack mt">
-    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Back up the console every day</label>
+    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> {{T "Back up the console every day"}}</label>
     <div class="row">
-      <label>Storage target <small>network storage; the backup goes to the folder <code>backupzit-console</code> there</small>
-        <select name="target_id">{{$sel := .TargetID}}{{range .Targets}}<option value="{{.ID}}" {{if eq .ID $sel}}selected{{end}}>{{.Name}}</option>{{else}}<option value="0">no network storage target yet</option>{{end}}</select>
+      <label>{{T "Storage target"}} <small>{{T "network storage; the backup goes to the folder"}} <code>backupzit-console</code> {{T "there"}}</small>
+        <select name="target_id">{{$sel := .TargetID}}{{range .Targets}}<option value="{{.ID}}" {{if eq .ID $sel}}selected{{end}}>{{.Name}}</option>{{else}}<option value="0">{{T "no network storage target yet"}}</option>{{end}}</select>
       </label>
-      <label>At <select name="hour">{{$h := .Hour}}{{range $i, $x := (seq 24)}}<option value="{{$i}}" {{if eq $i $h}}selected{{end}}>{{printf "%02d:00" $i}}</option>{{end}}</select></label>
-      <label>Keep <small>backups</small><input name="keep" type="number" min="1" max="365" value="{{.Keep}}" class="narrow"></label>
+      <label>{{T "At"}} <select name="hour">{{$h := .Hour}}{{range $i, $x := (seq 24)}}<option value="{{$i}}" {{if eq $i $h}}selected{{end}}>{{printf "%02d:00" $i}}</option>{{end}}</select></label>
+      <label>{{T "Keep"}} <small>{{T "backups"}}</small><input name="keep" type="number" min="1" max="365" value="{{.Keep}}" class="narrow"></label>
     </div>
-    <div><button>Save</button></div>
+    <div><button>{{T "Save"}}</button></div>
   </form>
-  <form method="post" action="/settings/console/run" class="mt"><button class="secondary">Back up now</button></form>
+  <form method="post" action="/settings/console/run" class="mt"><button class="secondary">{{T "Back up now"}}</button></form>
 
-  <h3 class="mt">Restoring the console</h3>
+  <h3 class="mt">{{T "Restoring the console"}}</h3>
   <ol class="steps">
-    <li>Install a new console, for example from the BackupZit appliance ISO, with the same or a newer version.</li>
-    <li>Take the <b>recovery sheet</b> of the storage target. It holds the address, the access credentials and the recovery key.</li>
-    <li>On the new console server, as root, set the credentials as on the recovery sheet and run:
+    <li>{{T "Install a new console, for example from the BackupZit appliance ISO, with the same or a newer version."}}</li>
+    <li>{{T "Take the"}} <b>{{T "recovery sheet"}}</b> {{T "of the storage target. It holds the address, the access credentials and the recovery key."}}</li>
+    <li>{{T "On the new console server, as root, set the credentials as on the recovery sheet and run:"}}
 <pre>systemctl stop backupzit-server
 set -a; . /etc/backupzit/server.env; set +a
 export BACKUPZIT_PASSWORD='&lt;recovery key&gt;'  BACKUPZIT_SFTP_PASSWORD='…'   # or the S3/SMB/Azure/hardened variables
 backupzit-server --restore-console --repo '{{with .RepoURL}}{{.}}{{else}}&lt;target address&gt;/backupzit-console{{end}}'
 systemctl start backupzit-server</pre></li>
-    <li>Give the new server the old server's address (IP or DNS name). The agents then reconnect by themselves.</li>
+    <li>{{T "Give the new server the old server's address (IP or DNS name). The agents then reconnect by themselves."}}</li>
   </ol>
 </div>
 {{end}}{{end}}
 {{if eq .Data.Tab "ldap"}}{{with .Data.LDAP}}
 <div class="panel" id="ldap">
-  <h2>{{template "icon" "users"}} LDAP / Active Directory sign-in</h2>
-  <p class="muted">Let users sign in with their directory accounts. Their role follows their group membership at every sign-in. Local accounts keep working, so an administrator can always sign in even if the directory is unreachable.</p>
+  <h2>{{template "icon" "users"}} {{T "LDAP / Active Directory sign-in"}}</h2>
+  <p class="muted">{{T "Let users sign in with their directory accounts. Their role follows their group membership at every sign-in. Local accounts keep working, so an administrator can always sign in even if the directory is unreachable."}}</p>
   <form method="post" action="/settings/ldap" class="stack">
-    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Allow sign-in with directory accounts</label>
+    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> {{T "Allow sign-in with directory accounts"}}</label>
     <div class="row">
-      <label>Server <small>ldaps://dc1.example.local:636 (recommended) or ldap://…:389 with StartTLS</small><input name="url" value="{{.URL}}" placeholder="ldaps://dc1.example.local:636"></label>
-      <label class="check top"><input type="checkbox" name="starttls" {{if .StartTLS}}checked{{end}}> Use StartTLS (only for ldap:// URLs)</label>
+      <label>{{T "Server"}} <small>{{T "ldaps://dc1.example.local:636 (recommended) or ldap://…:389 with StartTLS"}}</small><input name="url" value="{{.URL}}" placeholder="{{T "ldaps://dc1.example.local:636"}}"></label>
+      <label class="check top"><input type="checkbox" name="starttls" {{if .StartTLS}}checked{{end}}> {{T "Use StartTLS (only for ldap:// URLs)"}}</label>
     </div>
     <div class="row">
-      <label>Service account (bind DN) <small>used to look up users and groups</small><input name="bind_dn" value="{{.BindDN}}" placeholder="CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local"></label>
-      <label>Service account password <small>{{if .HasPassword}}leave empty to keep the stored one{{end}}</small><input name="bind_password" type="password" autocomplete="new-password"></label>
+      <label>{{T "Service account (bind DN)"}} <small>{{T "used to look up users and groups"}}</small><input name="bind_dn" value="{{.BindDN}}" placeholder="{{T "CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local"}}"></label>
+      <label>{{T "Service account password"}} <small>{{if .HasPassword}}{{T "leave empty to keep the stored one"}}{{end}}</small><input name="bind_password" type="password" autocomplete="new-password"></label>
     </div>
     <div class="row">
-      <label>Search base (base DN) <input name="base_dn" value="{{.BaseDN}}" placeholder="DC=example,DC=local"></label>
-      <label>User filter <small>Active Directory: <code>{{$.Data.ADFilter}}</code> · OpenLDAP: <code>{{$.Data.LDAPFilter}}</code></small><input name="user_filter" value="{{.UserFilter}}"></label>
+      <label>{{T "Search base (base DN)"}} <input name="base_dn" value="{{.BaseDN}}" placeholder="{{T "DC=example,DC=local"}}"></label>
+      <label>{{T "User filter"}} <small>{{T "Active Directory:"}} <code>{{$.Data.ADFilter}}</code> {{T "· OpenLDAP:"}} <code>{{$.Data.LDAPFilter}}</code></small><input name="user_filter" value="{{.UserFilter}}"></label>
     </div>
     <fieldset class="sched">
-      <legend>Groups → roles <small class="muted">full group DNs; the highest matching role wins; users in none of them cannot sign in</small></legend>
+      <legend>{{T "Groups → roles"}} <small class="muted">{{T "full group DNs; the highest matching role wins; users in none of them cannot sign in"}}</small></legend>
       <div class="row">
-        <label>Administrator <input name="admin_group" value="{{.AdminGroup}}" placeholder="CN=BackupZit Admins,OU=Groups,DC=example,DC=local"></label>
-        <label>Backup operator <input name="operator_group" value="{{.OperatorGroup}}" placeholder="CN=BackupZit Operators,OU=Groups,DC=example,DC=local"></label>
+        <label>{{T "Administrator"}} <input name="admin_group" value="{{.AdminGroup}}" placeholder="{{T "CN=BackupZit Admins,OU=Groups,DC=example,DC=local"}}"></label>
+        <label>{{T "Backup operator"}} <input name="operator_group" value="{{.OperatorGroup}}" placeholder="{{T "CN=BackupZit Operators,OU=Groups,DC=example,DC=local"}}"></label>
       </div>
       <div class="row">
-        <label>Restore operator <input name="restore_group" value="{{.RestoreGroup}}" placeholder="CN=Helpdesk,OU=Groups,DC=example,DC=local"></label>
-        <label>Viewer <input name="viewer_group" value="{{.ViewerGroup}}" placeholder="CN=BackupZit Viewers,OU=Groups,DC=example,DC=local"></label>
+        <label>{{T "Restore operator"}} <input name="restore_group" value="{{.RestoreGroup}}" placeholder="{{T "CN=Helpdesk,OU=Groups,DC=example,DC=local"}}"></label>
+        <label>{{T "Viewer"}} <input name="viewer_group" value="{{.ViewerGroup}}" placeholder="{{T "CN=BackupZit Viewers,OU=Groups,DC=example,DC=local"}}"></label>
       </div>
-      <label class="check"><input type="checkbox" name="nested_groups" {{if .NestedGroups}}checked{{end}}> Include nested groups (Active Directory only)</label>
+      <label class="check"><input type="checkbox" name="nested_groups" {{if .NestedGroups}}checked{{end}}> {{T "Include nested groups (Active Directory only)"}}</label>
     </fieldset>
     <details>
-      <summary>Certificate trust</summary>
-      <p class="muted">By default the server certificate must be issued by a CA trusted by this server. For an internal CA paste its certificate; for a self-signed directory certificate enter its fingerprint.</p>
-      <label>CA certificate (PEM) <textarea name="ca_cert" placeholder="-----BEGIN CERTIFICATE-----">{{.CACert}}</textarea></label>
-      <label>Or pin the server certificate fingerprint <input name="fingerprint" value="{{.Fingerprint}}" placeholder="SHA256:..."></label>
+      <summary>{{T "Certificate trust"}}</summary>
+      <p class="muted">{{T "By default the server certificate must be issued by a CA trusted by this server. For an internal CA paste its certificate; for a self-signed directory certificate enter its fingerprint."}}</p>
+      <label>{{T "CA certificate (PEM)"}} <textarea name="ca_cert" placeholder="{{T "-----BEGIN CERTIFICATE-----"}}">{{.CACert}}</textarea></label>
+      <label>{{T "Or pin the server certificate fingerprint"}} <input name="fingerprint" value="{{.Fingerprint}}" placeholder="{{T "SHA256:..."}}"></label>
     </details>
     <details>
-      <summary>Test</summary>
-      <p class="muted">Tests the current form values without saving. Without a user name only the connection and the service account are checked; without a password the user's groups are checked.</p>
+      <summary>{{T "Test"}}</summary>
+      <p class="muted">{{T "Tests the current form values without saving. Without a user name only the connection and the service account are checked; without a password the user's groups are checked."}}</p>
       <div class="row">
-        <label>Test user <input name="test_user" autocomplete="off" placeholder="ana"></label>
-        <label>Password <small>optional</small><input name="test_password" type="password" autocomplete="new-password"></label>
+        <label>{{T "Test user"}} <input name="test_user" autocomplete="off" placeholder="{{T "ana"}}"></label>
+        <label>{{T "Password"}} <small>{{T "optional"}}</small><input name="test_password" type="password" autocomplete="new-password"></label>
       </div>
-      <div><button name="action" value="test" class="secondary">Test connection</button></div>
+      <div><button name="action" value="test" class="secondary">{{T "Test connection"}}</button></div>
     </details>
-    <div><button name="action" value="save">Save LDAP settings</button></div>
+    <div><button name="action" value="save">{{T "Save LDAP settings"}}</button></div>
   </form>
 </div>
 {{end}}{{end}}
 {{if eq .Data.Tab "tests"}}{{with .Data.Tests}}
 <div class="panel">
-  <h2>{{template "icon" "check"}} Automatic restore tests</h2>
-  <p class="muted">A backup is only proven when it has been restored. With restore tests on, the agent of each job regularly restores a random sample of files from the newest backup into a temporary folder, checks every byte against the stored checksums and deletes it again. For disk images, random blocks are read and verified. Results appear in Activity, the job history and Reports; a failed test triggers a failure email.</p>
+  <h2>{{template "icon" "check"}} {{T "Automatic restore tests"}}</h2>
+  <p class="muted">{{T "A backup is only proven when it has been restored. With restore tests on, the agent of each job regularly restores a random sample of files from the newest backup into a temporary folder, checks every byte against the stored checksums and deletes it again. For disk images, random blocks are read and verified. Results appear in Activity, the job history and Reports; a failed test triggers a failure email."}}</p>
   <form method="post" action="/settings/tests" class="stack">
-    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Test every job's newest backup automatically</label>
-    <label>How often
+    <label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> {{T "Test every job's newest backup automatically"}}</label>
+    <label>{{T "How often"}}
       <select name="every">
-        <option value="weekly" {{if eq .Every "weekly"}}selected{{end}}>Weekly</option>
-        <option value="monthly" {{if eq .Every "monthly"}}selected{{end}}>Monthly</option>
+        <option value="weekly" {{if eq .Every "weekly"}}selected{{end}}>{{T "Weekly"}}</option>
+        <option value="monthly" {{if eq .Every "monthly"}}selected{{end}}>{{T "Monthly"}}</option>
       </select>
     </label>
     <div class="row">
-      <label>Random files per test <input type="number" name="files" min="1" max="1000" value="{{.Files}}"></label>
-      <label>Up to (MB) <small>limits the data read from storage — mind cloud download costs</small><input type="number" name="max_mb" min="1" max="100000" value="{{.MaxMB}}"></label>
+      <label>{{T "Random files per test"}} <input type="number" name="files" min="1" max="1000" value="{{.Files}}"></label>
+      <label>{{T "Up to (MB)"}} <small>{{T "limits the data read from storage — mind cloud download costs"}}</small><input type="number" name="max_mb" min="1" max="100000" value="{{.MaxMB}}"></label>
     </div>
-    <label>Random blocks per disk image test <small>1 MiB each</small><input type="number" name="blocks" min="1" max="100000" value="{{.Blocks}}"></label>
-    <label class="check"><input type="checkbox" name="boot_vms" {{if .BootVMs}}checked{{end}}> Boot test for Proxmox VM backups <small>each VM is also started from the backup with its network cards disconnected, BackupZit waits until its QEMU guest agent answers, then deletes it again. Needs free memory on the node for one VM at a time; VMs without the guest agent pass when they keep running for a minute.</small></label>
-    <label>Wait for each VM to boot up to (minutes) <input type="number" name="boot_minutes" min="1" max="60" value="{{.BootMinutes}}"></label>
-    <div><button>Save restore test settings</button></div>
+    <label>{{T "Random blocks per disk image test"}} <small>{{T "1 MiB each"}}</small><input type="number" name="blocks" min="1" max="100000" value="{{.Blocks}}"></label>
+    <label class="check"><input type="checkbox" name="boot_vms" {{if .BootVMs}}checked{{end}}> {{T "Boot test for Proxmox VM backups"}} <small>{{T "each VM is also started from the backup with its network cards disconnected, BackupZit waits until its QEMU guest agent answers, then deletes it again. Needs free memory on the node for one VM at a time; VMs without the guest agent pass when they keep running for a minute."}}</small></label>
+    <label>{{T "Wait for each VM to boot up to (minutes)"}} <input type="number" name="boot_minutes" min="1" max="60" value="{{.BootMinutes}}"></label>
+    <div><button>{{T "Save restore test settings"}}</button></div>
   </form>
 </div>
 {{end}}{{end}}

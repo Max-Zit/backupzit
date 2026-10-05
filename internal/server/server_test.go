@@ -2120,7 +2120,7 @@ func TestHyperVJobs(t *testing.T) {
 	if p := get(fmt.Sprintf("/runs/%d", runID)); !strings.Contains(p, "Restore a Hyper-V VM") || !strings.Contains(p, "Hyper-V virtual machines") || !strings.Contains(p, `D:\VMs`) || !strings.Contains(p, "</html>") {
 		t.Error("Hyper-V run page lacks the Hyper-V restore form")
 	}
-	if p := get("/agents"); !strings.Contains(p, "Hyper-V · 1 VMs") || !strings.Contains(p, "Proxmox VE · 0 guests") {
+	if p := get("/agents"); !strings.Contains(p, "Hyper-V · 1 VM</span>") || !strings.Contains(p, "Proxmox VE · 0 guests") {
 		t.Error("agents page lacks hypervisor badges")
 	}
 	if p := get("/jobs"); !strings.Contains(p, "1 selected VMs") {

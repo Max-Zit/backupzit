@@ -1,21 +1,21 @@
 {{define "content"}}
 {{with .Data.Run}}
-<h1>Files of {{$.Data.Label}}</h1>
-<p class="muted">Backup #{{.ID}} from {{ts .FinishedAt}}{{with $.Data.Disk}} · disk {{.}}{{end}} · <a href="/runs/{{.ID}}">back to the backup</a></p>
+<h1>{{T "Files of"}} {{$.Data.Label}}</h1>
+<p class="muted">{{T "Backup #"}}{{.ID}} {{T "from"}} {{ts .FinishedAt}}{{with $.Data.Disk}} {{T "· disk"}} {{.}}{{end}} · <a href="/runs/{{.ID}}">{{T "back to the backup"}}</a></p>
 {{end}}
 {{if .Data.Volumes}}
 <div class="panel">
   <form method="get" action="/runs/{{.Data.Run.ID}}/vmbrowse" class="row">
     <input type="hidden" name="vmid" value="{{.Data.VMID}}">
-    {{if gt (len .Data.Disks) 1}}<label>Disk
+    {{if gt (len .Data.Disks) 1}}<label>{{T "Disk"}}
       <select name="disk" data-autosubmit>{{range .Data.Disks}}<option {{if eq . $.Data.Disk}}selected{{end}}>{{.}}</option>{{end}}</select>
     </label>{{else}}<input type="hidden" name="disk" value="{{.Data.Disk}}">{{end}}
-    <label>Partition or volume)
+    <label>{{T "Partition or volume)"}}
       <select name="vol" data-autosubmit>
         {{range .Data.Volumes}}<option value="{{.ID}}" {{if eq .ID $.Data.Volume.ID}}selected{{end}} {{if not .Browsable}}disabled{{end}}>{{.Name}} — {{bytes64 .Size}}{{if .FS}}, {{.FS}}{{end}}{{if .Label}} “{{.Label}}”{{end}}</option>{{end}}
       </select>
     </label>
-    <div><button class="secondary">Open</button></div>
+    <div><button class="secondary">{{T "Open"}}</button></div>
   </form>
 </div>
 {{end}}
@@ -27,7 +27,7 @@
   <div class="crumbs">{{range $i, $c := .Data.Crumbs}}{{if gt $i 1}} / {{end}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{$.Data.VMID}}&amp;disk={{$.Data.Disk}}&amp;vol={{$.Data.Volume.ID}}&amp;path={{$c.Path}}">{{$c.Name}}</a>{{end}}</div>
   {{if .Data.Entries}}
   <div class="table-wrap"><table class="files">
-    <tr><th><input type="checkbox" data-checkall="sel" title="Select all"></th><th>Name</th><th>Size</th><th>Modified</th></tr>
+    <tr><th><input type="checkbox" data-checkall="sel" title="{{T "Select all"}}"></th><th>{{T "Name"}}</th><th>{{T "Size"}}</th><th>{{T "Modified"}}</th></tr>
     {{range .Data.Entries}}
     <tr>
       <td><input type="checkbox" name="sel" value="{{.Path}}"></td>
@@ -37,22 +37,22 @@
     </tr>
     {{end}}
   </table></div>
-  {{else if not .Error}}<p class="muted">This folder is empty.</p>{{end}}
+  {{else if not .Error}}<p class="muted">{{T "This folder is empty."}}</p>{{end}}
 </div>
 
 {{if .Data.Entries}}
 <div class="panel">
-  <h2>Ticked files and folders</h2>
-  <p><button>Download</button> <span class="muted small">one file as is, several files or folders as a ZIP archive</span></p>
-  <h3 class="mt">Or restore them on an agent</h3>
+  <h2>{{T "Ticked files and folders"}}</h2>
+  <p><button>{{T "Download"}}</button> <span class="muted small">{{T "one file as is, several files or folders as a ZIP archive"}}</span></p>
+  <h3 class="mt">{{T "Or restore them on an agent"}}</h3>
   <div class="stack">
     <div class="row">
-      <label>Agent
+      <label>{{T "Agent"}}
         <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
       </label>
-      <label>Folder <small>the path inside the volume is recreated below it</small><input name="target" placeholder="/srv/restore or D:\Restore"></label>
+      <label>{{T "Folder"}} <small>{{T "the path inside the volume is recreated below it"}}</small><input name="target" placeholder="{{T "/srv/restore or D:\\Restore"}}"></label>
     </div>
-    <div><button class="secondary" formaction="/runs/{{.Data.Run.ID}}/vmfiles-restore">Restore on agent</button></div>
+    <div><button class="secondary" formaction="/runs/{{.Data.Run.ID}}/vmfiles-restore">{{T "Restore on agent"}}</button></div>
   </div>
 </div>
 {{end}}

@@ -535,14 +535,17 @@ func (rs ReportSchedule) periodFor(now time.Time) (Period, string) {
 	return p, rs.Frequency + ":" + p.From.Format("2006-01-02")
 }
 
-func (rs ReportSchedule) Describe() string {
+func (rs ReportSchedule) Describe() string { return rs.DescribeIn(languages[0]) }
+
+// DescribeIn is Describe in a console language.
+func (rs ReportSchedule) DescribeIn(l *language) string {
 	switch rs.Frequency {
 	case "daily":
-		return fmt.Sprintf("Every day at %02d:00, covering the previous day", rs.Hour)
+		return l.T("Every day at %02d:00, covering the previous day", rs.Hour)
 	case "weekly":
-		return fmt.Sprintf("Every Monday at %02d:00, covering the previous week", rs.Hour)
+		return l.T("Every Monday at %02d:00, covering the previous week", rs.Hour)
 	case "monthly":
-		return fmt.Sprintf("On the 1st of every month at %02d:00, covering the previous month", rs.Hour)
+		return l.T("On the 1st of every month at %02d:00, covering the previous month", rs.Hour)
 	}
 	return rs.Frequency
 }
