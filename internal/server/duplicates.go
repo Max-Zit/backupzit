@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -112,6 +113,10 @@ func (d *dupTracker) current(now time.Time) map[int64]AgentDuplicate {
 			continue
 		}
 		sort.Strings(m)
+		m = slices.Compact(m) // a restarted agent shows the same machine twice
+		if len(m) < 2 {
+			continue
+		}
 		out[id] = AgentDuplicate{AgentID: id, Machines: m, Since: since}
 	}
 	return out
@@ -126,14 +131,20 @@ func (s *Server) agentDuplicate(ctx context.Context, a Agent, instance, host str
 		// router in between does not change them).
 		instance = legacyInstance(host, localIPs)
 	}
-	dup, fresh := s.dups.seen(a.ID, instance, host, ip, s.clock())
+	// Machines are shown with their own address (several can share one
+	// address on the way, behind NAT).
+	addr := ip
+	if len(localIPs) > 0 {
+		addr = localIPs[0]
+	}
+	dup, fresh := s.dups.seen(a.ID, instance, host, addr, s.clock())
 	if fresh {
 		m := s.dups.current(s.clock())[a.ID].Machines
 		s.log.Warn("two machines use one agent enrollment; its runs are held", "agent", a.Hostname, "machines", m)
 		if _, err := s.store.AppendAudit(ctx, "", "agent.duplicate", fmt.Sprintf("agent %s is used by two machines: %v; runs are held", a.Hostname, m), ip); err != nil {
 			s.log.Error("audit log", "err", err)
 		}
-		go s.mailAdmins(context.WithoutCancel(ctx), "[BackupZit] Two machines use the agent "+a.Hostname,
+		go s.mailAdmins(context.WithoutCancel(ctx), "[BackupZit] Two machines use one agent: "+strings.Join(m, ", "),
 			fmt.Sprintf("Two machines are connected to the console as the agent %q right now: %v.\n\n"+
 				"This happens when a copy of the machine runs (a VM restored as a new VM, an instant recovery, a started replica or a cloned disk). "+
 				"Backups and restores of this agent are held so they cannot run on the wrong machine.\n\n"+
