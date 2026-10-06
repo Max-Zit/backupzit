@@ -6,9 +6,11 @@
 <h2>Creating an image job</h2>
 <ol>
   <li>In <a href="/jobs">Backup jobs</a> choose <b>Disk image</b>.</li>
-  <li>The agent reports its disks automatically. Tick a whole disk, or only some partitions (e.g. skip a large data partition that a file job already covers).</li>
+  <li>The agent reports its disks automatically. Choose <b>All disks</b> to image every internal disk of the machine in one job, or tick a single disk — whole, or only some partitions (e.g. skip a large data partition that a file job already covers).</li>
   <li>Set retention and schedule as for any job; a weekly image plus daily file backups is a common combination.</li>
 </ol>
+<h3 id="all-disks">All disks</h3>
+<p>An <b>All disks</b> job backs up every internal disk with a partition table into one backup, also disks added later. All volumes of all disks are read from one VSS snapshot, so the disks are consistent with each other (e.g. a database on D: with its logs on E:). USB and SD disks, mounted VHD/VHDX files and removable media are left out — an external backup disk must not image itself; choose such a disk on its own if you need it. The run page lists every disk with its partitions; files can be browsed and restored from each. Restoring writes one disk at a time: in the restore form choose the <b>Disk of the backup</b> and the target disk, then repeat for the next disk (for bare metal: restore the system disk first, from the recovery ISO). The agent must be 0.33.7 or newer; an older one reports that it has to be updated.</p>
 <p>Only used blocks are read (NTFS allocation map), the image is taken from a VSS snapshot so the running system is consistent, and unchanged blocks are deduplicated against earlier images — the second image of the same machine usually uploads only a few percent.</p>
 
 <h2>Restoring an image to a disk</h2>

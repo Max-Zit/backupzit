@@ -32,10 +32,10 @@
 <table>
   <tr><th>Command</th><th>What it does</th></tr>
   <tr><td><code>disks [--json]</code></td><td>Show disks and partitions with their numbers.</td></tr>
-  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code></td><td>Back up a whole disk or selected partitions.</td></tr>
-  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] SNAPSHOT|latest</code></td><td>Write an image onto a disk; <b>erases the disk</b>. <code>--keep-offline</code> when the original disk is in the same machine.</td></tr>
-  <tr><td><code>image-ls --partition N SNAPSHOT|latest [\path]</code></td><td>List files inside an imaged NTFS partition.</td></tr>
-  <tr><td><code>image-extract --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Copy files and folders out of an imaged partition.</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Back up a whole disk or selected partitions, or every internal disk into one snapshot.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Write an image onto a disk; <b>erases the disk</b>. <code>--keep-offline</code> when the original disk is in the same machine; <code>--source-disk</code> chooses the disk of an all-disks backup.</td></tr>
+  <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>List files inside an imaged NTFS partition (<code>--disk</code>: the backed up disk, for all-disks backups).</td></tr>
+  <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Copy files and folders out of an imaged partition.</td></tr>
 </table>
 
 <h2>Linux system (bare metal, P2V)</h2>

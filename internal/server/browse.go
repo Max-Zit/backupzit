@@ -162,9 +162,27 @@ func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request, user strin
 		s.serverError(w, err)
 		return
 	}
-	part, _ := strconv.Atoi(r.URL.Query().Get("part"))
+	part, perr := strconv.Atoi(r.URL.Query().Get("part"))
+	disks := imageDetails(run)
+	if perr != nil {
+		// No partition given: the first one with files.
+	first:
+		for _, d := range disks {
+			for _, p := range d.Partitions {
+				if p.Included && p.FileSystem == "NTFS" {
+					part = imaging.PartRef(d.Index, p.Number)
+					break first
+				}
+			}
+		}
+	}
+	img, num := imaging.SplitPartRef(part)
+	label := strconv.Itoa(num)
+	if len(disks) > 1 && img < len(disks) {
+		label = fmt.Sprintf("%d (%s %d)", num, requestLanguage(r).T("disk"), disks[img].Number)
+	}
 	dir := imaging.CleanPath(r.URL.Query().Get("path"))
-	data := map[string]any{"Run": run, "Part": part, "Path": dir, "Crumbs": crumbs(dir)}
+	data := map[string]any{"Run": run, "Part": part, "PartLabel": label, "Path": dir, "Crumbs": crumbs(dir)}
 	v, p, err := s.imageVolume(r.Context(), run, part)
 	if err == nil {
 		data["Partition"] = p

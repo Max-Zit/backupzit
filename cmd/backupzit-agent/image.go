@@ -77,10 +77,13 @@ func cmdImageBackup(ctx context.Context, args []string) error {
 	disk := fs.Int("disk", -1, "disk number to image (see: backupzit-agent disks)")
 	parts := fs.String("partitions", "", "comma-separated partition numbers (default: all)")
 	noVSS := fs.Bool("no-vss", false, "read volumes live instead of from VSS snapshots")
+	allDisks := fs.Bool("all-disks", false, "image every internal disk (not USB/SD disks or mounted VHDs) into one snapshot")
 	fs.Parse(args)
-	if *disk < 0 {
+	if *allDisks {
+		*disk = imaging.AllDisks
+	} else if *disk < 0 {
 		fs.Usage()
-		return errors.New("--disk is required")
+		return errors.New("--disk or --all-disks is required")
 	}
 	sel, err := parseInts(*parts)
 	if err != nil {
@@ -101,7 +104,9 @@ func cmdImageBackup(ctx context.Context, args []string) error {
 	if _, err := r.KeepImmutable(ctx, sn); err != nil {
 		return fmt.Errorf("extend immutability: %w", err)
 	}
-	printImage(sn.Images[0])
+	for _, img := range sn.Images {
+		printImage(img)
+	}
 	st := sn.Stats
 	fmt.Printf("  data: %s read, %s new (%s stored), %s\n", humanBytes(st.BytesRead), humanBytes(st.BytesAdded), humanBytes(st.BytesStored), st.Duration.Round(time.Second))
 	if len(st.Errors) > 0 {
@@ -134,6 +139,7 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 	target := fs.Int("target-disk", -1, "disk number to overwrite")
 	confirm := fs.Bool("yes-erase-target", false, "confirm that all data on the target disk will be destroyed")
 	keepOffline := fs.Bool("keep-offline", false, "leave the target disk offline (when the source disk is in the same machine)")
+	srcDisk := fs.Int("source-disk", -1, "for a backup of several disks: the number of the backed up disk to restore")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent image-restore [options] <snapshot-id|latest>")
 		fs.PrintDefaults()
@@ -158,8 +164,12 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 	if len(sn.Images) == 0 {
 		return fmt.Errorf("snapshot %s is not an image backup", sn.ID.Short())
 	}
-	fmt.Printf("restoring image %s from %s to disk %d\n", sn.ID.Short(), sn.Time.Local().Format("2006-01-02 15:04:05"), *target)
-	st, err := imaging.Restore(ctx, r, sn, imaging.RestoreOptions{TargetDisk: *target, KeepOffline: *keepOffline, Progress: progressPrinter("written")})
+	idx, err := imageIndex(sn, *srcDisk)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("restoring disk %d of image %s from %s to disk %d\n", sn.Images[idx].Number, sn.ID.Short(), sn.Time.Local().Format("2006-01-02 15:04:05"), *target)
+	st, err := imaging.Restore(ctx, r, sn, imaging.RestoreOptions{Image: idx, TargetDisk: *target, KeepOffline: *keepOffline, Progress: progressPrinter("written")})
 	if err != nil {
 		return err
 	}
@@ -168,16 +178,17 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 }
 
 // openImageVolume loads snapshot ref and opens the NTFS volume of partition part.
-func openImageVolume(ctx context.Context, r *repo.Repository, ref string, part int) (*repo.Snapshot, *repo.PartitionImage, *imaging.Volume, error) {
+func openImageVolume(ctx context.Context, r *repo.Repository, ref string, disk, part int) (*repo.Snapshot, *repo.PartitionImage, *imaging.Volume, error) {
 	sn, err := r.LoadSnapshot(ctx, ref)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if len(sn.Images) == 0 {
-		return nil, nil, nil, fmt.Errorf("snapshot %s is not an image backup", sn.ID.Short())
+	idx, err := imageIndex(sn, disk)
+	if err != nil {
+		return nil, nil, nil, err
 	}
-	for i := range sn.Images[0].Partitions {
-		p := &sn.Images[0].Partitions[i]
+	for i := range sn.Images[idx].Partitions {
+		p := &sn.Images[idx].Partitions[i]
 		if p.Number == part {
 			v, err := imaging.OpenVolume(ctx, r, p)
 			return sn, p, v, err
@@ -190,6 +201,7 @@ func cmdImageLs(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("image-ls", flag.ExitOnError)
 	rf := addRepoFlags(fs)
 	part := fs.Int("partition", -1, "partition number")
+	disk := fs.Int("disk", -1, "for a backup of several disks: the number of the backed up disk")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `Usage: backupzit-agent image-ls [options] --partition N <snapshot|latest> [\path]`)
 		fs.PrintDefaults()
@@ -204,7 +216,7 @@ func cmdImageLs(ctx context.Context, args []string) error {
 		return err
 	}
 	defer r.Close()
-	_, _, v, err := openImageVolume(ctx, r, fs.Arg(0), *part)
+	_, _, v, err := openImageVolume(ctx, r, fs.Arg(0), *disk, *part)
 	if err != nil {
 		return err
 	}
@@ -231,6 +243,7 @@ func cmdImageExtract(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("image-extract", flag.ExitOnError)
 	rf := addRepoFlags(fs)
 	part := fs.Int("partition", -1, "partition number")
+	disk := fs.Int("disk", -1, "for a backup of several disks: the number of the backed up disk")
 	target := fs.String("target", "", "folder to restore into (the path inside the partition is recreated below it)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `Usage: backupzit-agent image-extract [options] --partition N --target DIR <snapshot|latest> \path [\path...]`)
@@ -246,7 +259,7 @@ func cmdImageExtract(ctx context.Context, args []string) error {
 		return err
 	}
 	defer r.Close()
-	_, _, v, err := openImageVolume(ctx, r, fs.Arg(0), *part)
+	_, _, v, err := openImageVolume(ctx, r, fs.Arg(0), *disk, *part)
 	if err != nil {
 		return err
 	}
@@ -289,4 +302,28 @@ func cmdPrepareHardware(ctx context.Context, args []string) error {
 		fmt.Println("  warning:", w)
 	}
 	return nil
+}
+
+// imageIndex finds the backed up disk number disk in sn (-1: the only disk
+// of a single-disk backup).
+func imageIndex(sn *repo.Snapshot, disk int) (int, error) {
+	if len(sn.Images) == 0 {
+		return 0, fmt.Errorf("snapshot %s is not an image backup", sn.ID.Short())
+	}
+	if disk < 0 {
+		if len(sn.Images) > 1 {
+			nums := make([]string, len(sn.Images))
+			for i, img := range sn.Images {
+				nums[i] = fmt.Sprint(img.Number)
+			}
+			return 0, fmt.Errorf("snapshot %s holds disks %s; choose one with --source-disk (restore) or --disk (ls, extract)", sn.ID.Short(), strings.Join(nums, ", "))
+		}
+		return 0, nil
+	}
+	for i, img := range sn.Images {
+		if img.Number == disk {
+			return i, nil
+		}
+	}
+	return 0, fmt.Errorf("snapshot %s has no disk %d", sn.ID.Short(), disk)
 }

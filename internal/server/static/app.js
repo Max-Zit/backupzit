@@ -128,13 +128,23 @@ function renderDiskPicker() {
     return;
   }
   var chosen = disks.filter(function (d) { return d.system; })[0] || disks[0];
+  // "All disks": every internal disk in one job, also disks added later.
+  {
+    var all = el("div", { "class": "disk" });
+    var allHead = el("label", { "class": "check" });
+    allHead.appendChild(el("input", { type: "radio", name: "image_disk", value: "-1" }));
+    allHead.appendChild(document.createTextNode(" " + (box.getAttribute("data-all") || "All disks")));
+    all.appendChild(allHead);
+    all.appendChild(el("p", { "class": "muted small" }, box.getAttribute("data-all-hint") || ""));
+    box.appendChild(all);
+  }
   disks.forEach(function (d) {
     var wrap = el("div", { "class": "disk" });
     var head = el("label", { "class": "check" });
     var radio = el("input", { type: "radio", name: "image_disk", value: d.number });
     if (d === chosen) radio.checked = true;
     head.appendChild(radio);
-    head.appendChild(document.createTextNode(" Disk " + d.number + " — " + (d.model || "disk") + ", " + fmtBytes(d.size) + ", " + d.style.toUpperCase() + (d.system ? "  (system disk)" : "")));
+    head.appendChild(document.createTextNode(" Disk " + d.number + " — " + (d.model || "disk") + ", " + fmtBytes(d.size) + ", " + d.style.toUpperCase() + (d.system ? "  (system disk)" : "") + (d.bus ? "  (" + d.bus + ")" : "")));
     wrap.appendChild(head);
     var parts = el("div", { "class": "parts" });
     (d.partitions || []).forEach(function (p) {

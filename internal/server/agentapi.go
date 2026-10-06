@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/update"
 )
 
 type ctxKey int
@@ -159,6 +161,12 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		s.addRetention(ctx, run, ar)
 		if run.ImageDisk != nil {
 			ar.ImageDisk = *run.ImageDisk
+			// Older agents read "all disks" as a disk number.
+			if *run.ImageDisk == imaging.AllDisks {
+				if a, err := s.store.GetAgent(ctx, run.AgentID); err == nil && strings.Count(a.Version, ".") == 2 && update.Newer(minAllDisksVersion, a.Version) {
+					return nil, fmt.Errorf("the agent on %s (%s) cannot back up all disks yet; update it to %s or newer (Agents page)", a.Hostname, a.Version, minAllDisksVersion)
+				}
+			}
 		}
 		ar.ImagePartitions = run.ImagePartitions
 	case api.KindVMFileRestore:
@@ -225,6 +233,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		}
 		ar.KeepOffline = run.KeepOffline
 		ar.NewHardware, ar.DriverPath = run.NewHardware, run.DriverPath
+		if len(run.ImagePartitions) > 0 {
+			ar.ImageIndex = run.ImagePartitions[0] // which disk of the backup
+		}
 	}
 	return ar, nil
 }
@@ -309,3 +320,6 @@ func remoteIP(r *http.Request) string {
 	}
 	return host
 }
+
+// minAllDisksVersion is the first agent that images all disks in one job.
+const minAllDisksVersion = "0.33.7"

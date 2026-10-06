@@ -58,7 +58,13 @@ func (a *Agent) imageBackup(ctx context.Context, run api.Run) api.RunResult {
 		return failed(err)
 	}
 	stats, _ := json.Marshal(sn.Stats)
-	details, _ := json.Marshal(sn.Images[0])
+	// One disk: its layout (as before); several: the list.
+	var details []byte
+	if len(sn.Images) == 1 {
+		details, _ = json.Marshal(sn.Images[0])
+	} else {
+		details, _ = json.Marshal(sn.Images)
+	}
 	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: details, Errors: sn.Stats.Errors}
 	if len(sn.VSSVolumes) > 0 {
 		res.Message = "Read from VSS snapshot of " + strings.Join(sn.VSSVolumes, ", ")
@@ -85,12 +91,15 @@ func (a *Agent) imageRestore(ctx context.Context, run api.Run) api.RunResult {
 	if err != nil {
 		return failed(err)
 	}
-	st, err := imaging.Restore(ctx, r, sn, imaging.RestoreOptions{TargetDisk: run.TargetDisk, KeepOffline: run.KeepOffline})
+	st, err := imaging.Restore(ctx, r, sn, imaging.RestoreOptions{Image: run.ImageIndex, TargetDisk: run.TargetDisk, KeepOffline: run.KeepOffline})
 	if err != nil {
 		return failed(err)
 	}
 	stats, _ := json.Marshal(st)
 	msg := fmt.Sprintf("Wrote %d partitions to disk %d", st.Partitions, run.TargetDisk)
+	if len(sn.Images) > 1 && run.ImageIndex < len(sn.Images) {
+		msg = fmt.Sprintf("Wrote %d partitions of backed up disk %d to disk %d", st.Partitions, sn.Images[run.ImageIndex].Number, run.TargetDisk)
+	}
 	if run.KeepOffline {
 		msg += " (left offline)"
 	}

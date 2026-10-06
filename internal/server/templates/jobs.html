@@ -66,7 +66,7 @@
     </div>
     <div data-jobkind="image" hidden>
       <label>{{T "Disks of the selected agent"}} <small>{{T "tick a whole disk or only some partitions"}}</small></label>
-      <div id="disk-picker" class="disks"><p class="muted">{{T "Select an agent."}}</p></div>
+      <div id="disk-picker" class="disks" data-all="{{T "All disks"}}" data-all-hint="{{T "every internal disk of the machine in one backup, also disks added later, from one VSS snapshot; USB and SD disks and mounted VHD files are left out"}}"><p class="muted">{{T "Select an agent."}}</p></div>
     </div>
     <div data-jobkind="sql" hidden class="stack">{{template "job_sql" .Data.Form}}</div>
     <div data-jobkind="nas" hidden class="stack">{{template "job_nas" .Data.Form}}</div>

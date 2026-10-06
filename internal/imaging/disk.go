@@ -23,15 +23,18 @@ const (
 
 // Disk describes a physical disk and its partitions.
 type Disk struct {
-	Number       int         `json:"number"`
-	Model        string      `json:"model,omitempty"`
-	Size         uint64      `json:"size"`
-	SectorSize   uint32      `json:"sector_size"`
-	Style        string      `json:"style"`
-	GPTDiskID    string      `json:"gpt_disk_id,omitempty"`
-	MBRSignature uint32      `json:"mbr_signature,omitempty"`
-	System       bool        `json:"system,omitempty"` // holds the running Windows
-	Partitions   []Partition `json:"partitions"`
+	Number       int    `json:"number"`
+	Model        string `json:"model,omitempty"`
+	Size         uint64 `json:"size"`
+	SectorSize   uint32 `json:"sector_size"`
+	Style        string `json:"style"`
+	GPTDiskID    string `json:"gpt_disk_id,omitempty"`
+	MBRSignature uint32 `json:"mbr_signature,omitempty"`
+	System       bool   `json:"system,omitempty"` // holds the running Windows
+	// Bus is "usb", "sd", "virtual-file" (a mounted VHD/ISO), "removable"
+	// or "" for internal disks.
+	Bus        string      `json:"bus,omitempty"`
+	Partitions []Partition `json:"partitions"`
 }
 
 // Partition describes one partition and the volume on it, if any.
@@ -100,3 +103,22 @@ func (p Partition) Describe() string {
 
 // End is the first byte after the partition.
 func (p Partition) End() uint64 { return p.Offset + p.Length }
+
+// AllDisks selects every internal disk in an image job ("all disks").
+const AllDisks = -1
+
+// InAllDisks tells whether "all disks" includes d: internal disks with a
+// partition table. USB and SD disks, mounted VHD files and removable
+// media are left out (an external backup disk must not image itself);
+// they can still be chosen on their own.
+func InAllDisks(d Disk) bool {
+	return d.Style != StyleRaw && len(d.Partitions) > 0 && d.Bus == ""
+}
+
+// PartRef addresses partition num of disk image img of a snapshot in one
+// number (img*1000 + num); for the first image it is the partition
+// number itself, as before snapshots could hold several disks.
+func PartRef(img, num int) int { return img*1000 + num }
+
+// SplitPartRef is the reverse of PartRef.
+func SplitPartRef(ref int) (img, num int) { return ref / 1000, ref % 1000 }

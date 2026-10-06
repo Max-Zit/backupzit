@@ -47,32 +47,49 @@ func included(sel []int, n int) bool {
 	return false
 }
 
-// Backup images a disk into the repository and saves a snapshot.
+// Backup images a disk (or, with Disk = AllDisks, every internal disk)
+// into the repository and saves one snapshot. All volumes of all disks are
+// read from one VSS snapshot set, so the disks are consistent with each
+// other.
 func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.Snapshot, error) {
-	disks, err := ListDisks()
+	all, err := ListDisks()
 	if err != nil {
 		return nil, err
 	}
-	var disk *Disk
-	for i := range disks {
-		if disks[i].Number == opts.Disk {
-			disk = &disks[i]
+	var disks []*Disk
+	if opts.Disk == AllDisks {
+		for i := range all {
+			if InAllDisks(all[i]) {
+				disks = append(disks, &all[i])
+			}
 		}
-	}
-	if disk == nil {
-		return nil, fmt.Errorf("disk %d not found", opts.Disk)
-	}
-	if disk.Style == StyleRaw {
-		return nil, fmt.Errorf("disk %d has no partition table", opts.Disk)
-	}
-	for _, n := range opts.Partitions {
-		found := false
-		for _, p := range disk.Partitions {
-			found = found || p.Number == n
+		if len(disks) == 0 {
+			return nil, errors.New("no internal disk with a partition table found")
 		}
-		if !found {
-			return nil, fmt.Errorf("disk %d has no partition %d", opts.Disk, n)
+		opts.Partitions = nil
+	} else {
+		var disk *Disk
+		for i := range all {
+			if all[i].Number == opts.Disk {
+				disk = &all[i]
+			}
 		}
+		if disk == nil {
+			return nil, fmt.Errorf("disk %d not found", opts.Disk)
+		}
+		if disk.Style == StyleRaw {
+			return nil, fmt.Errorf("disk %d has no partition table", opts.Disk)
+		}
+		for _, n := range opts.Partitions {
+			found := false
+			for _, p := range disk.Partitions {
+				found = found || p.Number == n
+			}
+			if !found {
+				return nil, fmt.Errorf("disk %d has no partition %d", opts.Disk, n)
+			}
+		}
+		disks = []*Disk{disk}
 	}
 	if opts.Hostname == "" {
 		opts.Hostname, _ = os.Hostname()
@@ -83,13 +100,15 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	var stats repo.SnapshotStats
 	addErr := func(item string, err error) { stats.Errors = append(stats.Errors, fmt.Sprintf("%s: %v", item, err)) }
 
-	// Snapshot every included volume that VSS supports.
+	// Snapshot every included volume that VSS supports, of all disks at once.
 	var snaps *vss.Set
 	if opts.VSS {
 		var vols []string
-		for _, p := range disk.Partitions {
-			if included(opts.Partitions, p.Number) && p.VolumeGUIDPath != "" && vssCapable(p.FileSystem) {
-				vols = append(vols, p.VolumeGUIDPath)
+		for _, disk := range disks {
+			for _, p := range disk.Partitions {
+				if included(opts.Partitions, p.Number) && p.VolumeGUIDPath != "" && vssCapable(p.FileSystem) {
+					vols = append(vols, p.VolumeGUIDPath)
+				}
 			}
 		}
 		timeout := opts.VSSTimeout
@@ -102,29 +121,12 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 		defer snaps.Close()
 	}
 
-	diskH, err := openDevice(physicalDrivePath(disk.Number), false)
-	if err != nil {
-		return nil, fmt.Errorf("open disk %d: %w", disk.Number, err)
-	}
-	diskF := os.NewFile(uintptr(diskH), physicalDrivePath(disk.Number))
-	defer diskF.Close()
-
-	img := repo.DiskImage{
-		Number: disk.Number, Model: disk.Model, Size: disk.Size, SectorSize: disk.SectorSize,
-		Style: disk.Style, GPTDiskID: disk.GPTDiskID, MBRSignature: disk.MBRSignature,
-	}
-	head := make([]byte, min(uint64(BlockSize), disk.Size))
-	if _, err := diskF.ReadAt(head, 0); err != nil {
-		return nil, fmt.Errorf("read disk head: %w", err)
-	}
-	if img.Head, _, err = r.SaveBlob(ctx, repo.DataBlob, head); err != nil {
-		return nil, err
-	}
-
 	var total, done uint64
-	for _, p := range disk.Partitions {
-		if included(opts.Partitions, p.Number) {
-			total += p.Length
+	for _, disk := range disks {
+		for _, p := range disk.Partitions {
+			if included(opts.Partitions, p.Number) {
+				total += p.Length
+			}
 		}
 	}
 	progress := func(n uint64) {
@@ -134,24 +136,19 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 		}
 	}
 
-	for _, p := range disk.Partitions {
-		pi := repo.PartitionImage{
-			Number: p.Number, Offset: p.Offset, Length: p.Length,
-			GPTType: p.GPTType, GPTID: p.GPTID, GPTAttributes: p.GPTAttributes, Name: p.Name,
-			MBRType: p.MBRType, Bootable: p.Bootable,
-			MountPoints: p.MountPoints, FileSystem: p.FileSystem, Label: p.Label,
+	sn := &repo.Snapshot{
+		Time:           start.UTC(),
+		Hostname:       opts.Hostname,
+		Tags:           append([]string{"image"}, opts.Tags...),
+		ProgramVersion: opts.Version,
+	}
+	for _, disk := range disks {
+		img, err := imageDisk(ctx, r, disk, opts.Partitions, snaps, progress, addErr, &stats)
+		if err != nil {
+			return nil, err
 		}
-		if !included(opts.Partitions, p.Number) {
-			img.Partitions = append(img.Partitions, pi)
-			continue
-		}
-		if err := imagePartition(ctx, r, diskF, p, snaps, &pi, progress, addErr); err != nil {
-			return nil, fmt.Errorf("partition %d: %w", p.Number, err)
-		}
-		stats.Files++
-		stats.Bytes += pi.StoredBytes
-		stats.BytesRead += pi.StoredBytes
-		img.Partitions = append(img.Partitions, pi)
+		sn.Paths = append(sn.Paths, physicalDrivePath(disk.Number))
+		sn.Images = append(sn.Images, img)
 	}
 
 	// The snapshot has no file tree; store an empty one so all snapshots
@@ -170,21 +167,13 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	stats.BytesAdded = after.RawBytes - before.RawBytes
 	stats.BytesStored = after.StoredBytes - before.StoredBytes
 	stats.Duration = time.Since(start)
-
-	sn := &repo.Snapshot{
-		Time:           start.UTC(),
-		Hostname:       opts.Hostname,
-		Paths:          []string{physicalDrivePath(disk.Number)},
-		Tags:           append([]string{"image"}, opts.Tags...),
-		Tree:           treeID,
-		Stats:          stats,
-		ProgramVersion: opts.Version,
-		Images:         []repo.DiskImage{img},
-	}
+	sn.Tree, sn.Stats = treeID, stats
 	if snaps != nil {
-		for _, p := range img.Partitions {
-			if p.Source == "vss" {
-				sn.VSSVolumes = append(sn.VSSVolumes, partitionLabel(p))
+		for _, img := range sn.Images {
+			for _, p := range img.Partitions {
+				if p.Source == "vss" {
+					sn.VSSVolumes = append(sn.VSSVolumes, partitionLabel(p))
+				}
 			}
 		}
 	}
@@ -192,6 +181,51 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 		return nil, fmt.Errorf("save snapshot: %w", err)
 	}
 	return sn, nil
+}
+
+// imageDisk stores the head (partition table, boot code) and the selected
+// partitions of one disk.
+func imageDisk(ctx context.Context, r *repo.Repository, disk *Disk, parts []int, snaps *vss.Set,
+	progress func(uint64), addErr func(string, error), stats *repo.SnapshotStats) (repo.DiskImage, error) {
+
+	img := repo.DiskImage{
+		Number: disk.Number, Model: disk.Model, Size: disk.Size, SectorSize: disk.SectorSize,
+		Style: disk.Style, GPTDiskID: disk.GPTDiskID, MBRSignature: disk.MBRSignature,
+	}
+	diskH, err := openDevice(physicalDrivePath(disk.Number), false)
+	if err != nil {
+		return img, fmt.Errorf("open disk %d: %w", disk.Number, err)
+	}
+	diskF := os.NewFile(uintptr(diskH), physicalDrivePath(disk.Number))
+	defer diskF.Close()
+
+	head := make([]byte, min(uint64(BlockSize), disk.Size))
+	if _, err := diskF.ReadAt(head, 0); err != nil {
+		return img, fmt.Errorf("disk %d: read disk head: %w", disk.Number, err)
+	}
+	if img.Head, _, err = r.SaveBlob(ctx, repo.DataBlob, head); err != nil {
+		return img, err
+	}
+	for _, p := range disk.Partitions {
+		pi := repo.PartitionImage{
+			Number: p.Number, Offset: p.Offset, Length: p.Length,
+			GPTType: p.GPTType, GPTID: p.GPTID, GPTAttributes: p.GPTAttributes, Name: p.Name,
+			MBRType: p.MBRType, Bootable: p.Bootable,
+			MountPoints: p.MountPoints, FileSystem: p.FileSystem, Label: p.Label,
+		}
+		if !included(parts, p.Number) {
+			img.Partitions = append(img.Partitions, pi)
+			continue
+		}
+		if err := imagePartition(ctx, r, diskF, p, snaps, &pi, progress, addErr); err != nil {
+			return img, fmt.Errorf("disk %d partition %d: %w", disk.Number, p.Number, err)
+		}
+		stats.Files++
+		stats.Bytes += pi.StoredBytes
+		stats.BytesRead += pi.StoredBytes
+		img.Partitions = append(img.Partitions, pi)
+	}
+	return img, nil
 }
 
 func partitionLabel(p repo.PartitionImage) string {

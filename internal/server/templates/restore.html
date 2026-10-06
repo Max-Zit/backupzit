@@ -83,12 +83,12 @@
   {{else if eq $d.Type.Key "sql"}}{{template "restore_sql" .}}
   {{else if eq $d.Type.Key "imagefiles"}}
     <p class="muted">{{T "Choose the partition to browse; you can then download files or restore them to an agent."}}</p>
-    {{with $d.Image}}<div class="table-wrap"><table>
+    {{if $d.Image}}<div class="table-wrap"><table>
       <tr><th>#</th><th>{{T "Size"}}</th><th>{{T "Volume"}}</th><th>{{T "File system"}}</th><th></th></tr>
-      {{range .Partitions}}{{if and .Included (eq .FileSystem "NTFS")}}
-      <tr><td>{{.Number}}</td><td>{{bytes .Length}}</td><td>{{join .MountPoints " "}}{{if .Label}} “{{.Label}}”{{end}}</td><td>{{.FileSystem}}</td>
-        <td><a href="/runs/{{$d.Run.ID}}/browse?part={{.Number}}" class="btn secondary-link">{{T "Browse files"}}{{template "icon" "chevr"}}</a></td></tr>
-      {{end}}{{end}}
+      {{range $img := $d.Image}}{{range .Partitions}}{{if and .Included (eq .FileSystem "NTFS")}}
+      <tr><td>{{if gt (len $d.Image) 1}}{{T "Disk"}} {{$img.Number}} · {{end}}{{.Number}}</td><td>{{bytes .Length}}</td><td>{{join .MountPoints " "}}{{if .Label}} “{{.Label}}”{{end}}</td><td>{{.FileSystem}}</td>
+        <td><a href="/runs/{{$d.Run.ID}}/browse?part={{partref $img.Index .Number}}" class="btn secondary-link">{{T "Browse files"}}{{template "icon" "chevr"}}</a></td></tr>
+      {{end}}{{end}}{{end}}
     </table></div>{{end}}
   {{end}}
 </div>

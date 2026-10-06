@@ -50,16 +50,36 @@ func (s *Server) partitionSelection(r *http.Request, agentID int64, disk int) []
 	return sel
 }
 
-// imageDetails decodes the disk layout reported by an image backup run.
-func imageDetails(run Run) *repo.DiskImage {
+// imageDisk is one disk of an image backup for the pages; Index is its
+// position in the backup (see imaging.PartRef).
+type imageDisk struct {
+	repo.DiskImage
+	Index int
+}
+
+// imageDetails decodes the disk layout(s) reported by an image backup run:
+// one disk (an object) or several ("all disks", a list).
+func imageDetails(run Run) []imageDisk {
 	if len(run.Details) == 0 || run.Kind != api.KindImageBackup {
 		return nil
 	}
-	var img repo.DiskImage
-	if json.Unmarshal(run.Details, &img) != nil {
-		return nil
+	var list []repo.DiskImage
+	if strings.HasPrefix(strings.TrimSpace(string(run.Details)), "[") {
+		if json.Unmarshal(run.Details, &list) != nil {
+			return nil
+		}
+	} else {
+		var img repo.DiskImage
+		if json.Unmarshal(run.Details, &img) != nil {
+			return nil
+		}
+		list = []repo.DiskImage{img}
 	}
-	return &img
+	out := make([]imageDisk, len(list))
+	for i, d := range list {
+		out[i] = imageDisk{d, i}
+	}
+	return out
 }
 
 func (s *Server) handleImageRestore(w http.ResponseWriter, r *http.Request, runID int64, back string) {
@@ -72,7 +92,7 @@ func (s *Server) handleImageRestore(w http.ResponseWriter, r *http.Request, runI
 		redirectErr(w, r, back, errors.New("choose a target disk"))
 		return
 	}
-	rid, err := s.store.QueueImageRestore(r.Context(), runID, formID(r, "agent_id"), ImageRestoreOptions{TargetDisk: disk,
+	rid, err := s.store.QueueImageRestore(r.Context(), runID, formID(r, "agent_id"), ImageRestoreOptions{TargetDisk: disk, Image: atoiDefault(r.FormValue("image_index")),
 		KeepOffline: r.FormValue("keep_offline") == "on", NewHardware: r.FormValue("new_hardware") == "on", DriverPath: r.FormValue("driver_path")})
 	if err != nil {
 		redirectErr(w, r, back, err)

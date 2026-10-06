@@ -195,6 +195,8 @@ var funcs = template.FuncMap{
 		}
 		return *p
 	},
+	// partref addresses a partition of disk image img of a backup (browse links).
+	"partref": imaging.PartRef,
 	"partkind": func(gpt string, mbr uint8) string {
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
@@ -948,7 +950,9 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 	if job.Kind == JobImage {
 		if d, err := strconv.Atoi(r.FormValue("image_disk")); err == nil {
 			job.ImageDisk = &d
-			job.ImagePartitions = s.partitionSelection(r, formID(r, "agent_id"), d)
+			if d != imaging.AllDisks {
+				job.ImagePartitions = s.partitionSelection(r, formID(r, "agent_id"), d)
+			}
 		}
 	}
 	id, err := s.store.CreateJob(r.Context(), job)

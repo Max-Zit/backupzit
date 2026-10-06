@@ -29,6 +29,17 @@ func checkImageSelection(a Agent, disk int, parts []int) error {
 	if len(disks) == 0 {
 		return nil
 	}
+	if disk == imaging.AllDisks {
+		if len(parts) > 0 {
+			return errors.New("partitions can only be chosen for a single disk")
+		}
+		for _, d := range disks {
+			if imaging.InAllDisks(d) {
+				return nil
+			}
+		}
+		return fmt.Errorf("agent %s reports no internal disk with a partition table", a.Hostname)
+	}
 	for _, d := range disks {
 		if d.Number != disk {
 			continue
@@ -56,6 +67,9 @@ func describeImageSelection(l *language, disk *int, parts []int) string {
 	if disk == nil {
 		return ""
 	}
+	if *disk == imaging.AllDisks {
+		return l.T("All disks")
+	}
 	if len(parts) == 0 {
 		return l.T("Disk %d (whole disk)", *disk)
 	}
@@ -70,6 +84,8 @@ func describeImageSelection(l *language, disk *int, parts []int) string {
 // onto a disk of the given agent. The disk is erased.
 // ImageRestoreOptions are the choices of an image restore.
 type ImageRestoreOptions struct {
+	// Image is the disk of the backup to restore (index; 0 for single-disk backups).
+	Image       int
 	TargetDisk  int
 	KeepOffline bool
 	// NewHardware prepares the restored Windows for different hardware;
@@ -93,6 +109,9 @@ func (s *Store) QueueImageRestore(ctx context.Context, backupRunID, agentID int6
 	if b.Kind != api.KindImageBackup || b.SnapshotID == "" {
 		return 0, errors.New("run has no disk image to restore")
 	}
+	if n := len(imageDetails(b)); o.Image < 0 || (n > 0 && o.Image >= n) {
+		return 0, errors.New("choose a disk of the backup to restore")
+	}
 	a, err := s.GetAgent(ctx, agentID)
 	if err != nil {
 		return 0, errors.New("unknown agent")
@@ -103,9 +122,9 @@ func (s *Store) QueueImageRestore(ctx context.Context, backupRunID, agentID int6
 		}
 	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, target_disk, keep_offline, new_hardware, driver_path)
-		VALUES($1,$2,'image-restore','manual',$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-		agentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, targetDisk, keepOffline, o.NewHardware, strings.TrimSpace(o.DriverPath)).Scan(&id)
+	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, target_disk, keep_offline, new_hardware, driver_path, image_partitions)
+		VALUES($1,$2,'image-restore','manual',$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+		agentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, targetDisk, keepOffline, o.NewHardware, strings.TrimSpace(o.DriverPath), []int{o.Image}).Scan(&id)
 	return id, err
 }
 

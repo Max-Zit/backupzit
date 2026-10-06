@@ -145,8 +145,10 @@ type Run struct {
 	ImageDisk       int   `json:"image_disk,omitempty"`
 	ImagePartitions []int `json:"image_partitions,omitempty"`
 
-	// Image restore: disk to overwrite.
+	// Image restore: disk to overwrite, and which disk image of the backup
+	// to write (index into the snapshot's images; 0 for single-disk backups).
 	TargetDisk  int  `json:"target_disk,omitempty"`
+	ImageIndex  int  `json:"image_index,omitempty"`
 	KeepOffline bool `json:"keep_offline,omitempty"`
 	// NewHardware prepares the restored Windows for different hardware;
 	// DriverPath lists extra driver folders (separated by ;).

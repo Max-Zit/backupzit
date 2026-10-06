@@ -156,6 +156,11 @@ page data; .Data holds the keys built by restoreFormData. */}}
   <label>{{T "Restore on agent"}}
     <select name="agent_id" id="restore_agent">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}{{if .Recovery}} {{T "(recovery)"}}{{end}}</option>{{end}}</select>
   </label>
+  {{if gt (len .Data.Image) 1}}
+  <label>{{T "Disk of the backup"}} <small>{{T "this backup holds several disks; restore them one by one, each onto its own disk"}}</small>
+    <select name="image_index">{{range .Data.Image}}<option value="{{.Index}}">{{T "Disk"}} {{.Number}} — {{.Model}}, {{bytes .Size}}</option>{{end}}</select>
+  </label>
+  {{end}}
   <label>{{T "Target disk"}}
     <select name="target_disk" id="restore_disk" required></select>
   </label>

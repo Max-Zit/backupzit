@@ -110,7 +110,7 @@
   </div>
   {{template "savings" .}}
   {{end}}
-  {{with .Data.Image}}
+  {{range .Data.Image}}{{$img := .}}
   <div class="panel">
     <h2>{{T "Disk"}} {{.Number}} — {{.Model}}, {{bytes .Size}}, {{upper .Style}}</h2>
     <div class="table-wrap"><table>
@@ -123,7 +123,7 @@
         <td>{{.FileSystem}}</td>
         <td>{{if .Included}}{{if eq .Source "vss"}}{{T "VSS snapshot"}}{{else}}{{T "live"}}{{end}}, {{if eq .Method "used-blocks"}}{{T "used blocks"}}{{else}}{{T "all blocks"}}{{end}}{{else}}<span class="muted">{{T "layout only"}}</span>{{end}}</td>
         <td>{{if .Included}}{{bytes .StoredBytes}}{{end}}</td>
-        <td>{{if and .Included (eq .FileSystem "NTFS") $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/browse?part={{.Number}}">{{T "Browse files"}}</a>{{end}}</td>
+        <td>{{if and .Included (eq .FileSystem "NTFS") $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/browse?part={{partref $img.Index .Number}}">{{T "Browse files"}}</a>{{end}}</td>
       </tr>
       {{end}}
     </table></div>

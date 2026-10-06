@@ -188,11 +188,12 @@ func (s *Server) wizardEntries(ctx context.Context) (map[string][]wizardEntry, e
 			add("system", src, p)
 		case api.KindImageBackup:
 			add("image", src, p)
-			if img := imageDetails(run); img != nil {
+		browse:
+			for _, img := range imageDetails(run) {
 				for _, part := range img.Partitions {
 					if part.Included && part.FileSystem == "NTFS" {
 						add("imagefiles", src, p)
-						break
+						break browse
 					}
 				}
 			}

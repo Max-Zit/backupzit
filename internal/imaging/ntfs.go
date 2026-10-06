@@ -382,14 +382,18 @@ func (v *Volume) extractFile(e Entry, target string) (int64, error) {
 	return off, nil
 }
 
-// OpenSnapshotVolume opens the NTFS volume of partition number part of the
-// first disk image in sn.
-func OpenSnapshotVolume(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, part int) (*repo.PartitionImage, *Volume, error) {
+// OpenSnapshotVolume opens the NTFS volume of a partition of sn; ref is a
+// PartRef (the partition number for the first disk image).
+func OpenSnapshotVolume(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, ref int) (*repo.PartitionImage, *Volume, error) {
+	img, part := SplitPartRef(ref)
 	if len(sn.Images) == 0 {
 		return nil, nil, fmt.Errorf("snapshot %s is not an image backup", sn.ID.Short())
 	}
-	for i := range sn.Images[0].Partitions {
-		p := &sn.Images[0].Partitions[i]
+	if img < 0 || img >= len(sn.Images) {
+		return nil, nil, fmt.Errorf("image has no disk %d", img)
+	}
+	for i := range sn.Images[img].Partitions {
+		p := &sn.Images[img].Partitions[i]
 		if p.Number == part {
 			v, err := OpenVolume(ctx, r, p)
 			return p, v, err

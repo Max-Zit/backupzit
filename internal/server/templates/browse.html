@@ -1,7 +1,7 @@
 {{define "content"}}
 {{with .Data.Run}}
 <h1>{{T "Files in image #"}}{{.ID}}</h1>
-<p class="muted">{{.Hostname}} · {{ts .FinishedAt}} {{T "· partition"}} {{$.Data.Part}}{{with $.Data.Partition}} — {{join .MountPoints " "}}{{if .Label}} “{{.Label}}”{{end}} {{.FileSystem}}{{end}} · <a href="/runs/{{.ID}}">{{T "back to the backup"}}</a></p>
+<p class="muted">{{.Hostname}} · {{ts .FinishedAt}} {{T "· partition"}} {{$.Data.PartLabel}}{{with $.Data.Partition}} — {{join .MountPoints " "}}{{if .Label}} “{{.Label}}”{{end}} {{.FileSystem}}{{end}} · <a href="/runs/{{.ID}}">{{T "back to the backup"}}</a></p>
 {{end}}
 
 <form method="post" action="/runs/{{.Data.Run.ID}}/files-restore" class="stack">

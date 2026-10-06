@@ -168,7 +168,7 @@ func readDisk(h windows.Handle, n int) (Disk, error) {
 	}
 	d.SectorSize = binary.LittleEndian.Uint32(geo[20:24])
 	d.Size = binary.LittleEndian.Uint64(geo[24:32])
-	d.Model = storageModel(h)
+	d.Model, d.Bus = storageInfo(h)
 
 	lay, err := ioctl(h, ioctlDiskGetDriveLayoutEx, nil, 48+144*16)
 	if err != nil {
@@ -216,12 +216,27 @@ func readDisk(h windows.Handle, n int) (Disk, error) {
 	return d, nil
 }
 
-// storageModel returns "Vendor Product" from IOCTL_STORAGE_QUERY_PROPERTY.
-func storageModel(h windows.Handle) string {
+// storageInfo returns "Vendor Product" and the bus kind ("usb", "sd",
+// "virtual-file", "removable" or "") from IOCTL_STORAGE_QUERY_PROPERTY.
+func storageInfo(h windows.Handle) (model, bus string) {
 	q := make([]byte, 12) // PropertyId=StorageDeviceProperty(0), QueryType=PropertyStandardQuery(0)
 	out, err := ioctl(h, ioctlStorageQueryProperty, q, 1024)
 	if err != nil || len(out) < 28 {
-		return ""
+		return "", ""
+	}
+	// STORAGE_DEVICE_DESCRIPTOR: RemovableMedia at 10, BusType at 28.
+	if len(out) >= 32 {
+		switch binary.LittleEndian.Uint32(out[28:32]) {
+		case 7: // BusTypeUsb
+			bus = "usb"
+		case 0xC, 0xD: // BusTypeSd, BusTypeMmc
+			bus = "sd"
+		case 0xF: // BusTypeFileBackedVirtual (a mounted VHD/VHDX or ISO)
+			bus = "virtual-file"
+		}
+	}
+	if bus == "" && out[10] != 0 {
+		bus = "removable"
 	}
 	str := func(off uint32) string {
 		if off == 0 || int(off) >= len(out) {
@@ -233,7 +248,7 @@ func storageModel(h windows.Handle) string {
 		}
 		return strings.TrimSpace(string(out[off:end]))
 	}
-	return strings.TrimSpace(str(binary.LittleEndian.Uint32(out[12:16])) + " " + str(binary.LittleEndian.Uint32(out[16:20])))
+	return strings.TrimSpace(str(binary.LittleEndian.Uint32(out[12:16])) + " " + str(binary.LittleEndian.Uint32(out[16:20]))), bus
 }
 
 type volumeInfo struct {
