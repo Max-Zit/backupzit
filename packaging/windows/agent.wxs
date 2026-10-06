@@ -49,7 +49,7 @@
     </Property>
 
     <!-- The tray app runs in user sessions; close it so its file can be replaced. -->
-    <util:CloseApplication Id="CloseTray" Target="backupzit-tray.exe" TerminateProcess="0" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseTray" Target="backupzit-tray.exe" TerminateProcess="0" RebootPrompt="no" Condition="NOT Installed OR REINSTALL OR REMOVE" />
 
     <Launch Condition="VersionNT64" Message="This package requires 64-bit Windows." />
 

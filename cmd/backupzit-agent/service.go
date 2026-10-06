@@ -74,6 +74,14 @@ func cmdEnroll(ctx context.Context, args []string) error {
 		}
 		return err
 	}
+	// A replaced enrollment is set aside, so the machine can go back to its
+	// previous console as the same agent (rename it to agent.json again).
+	if _, err := os.Stat(*cfgPath); err == nil {
+		kept := *cfgPath + ".replaced-" + time.Now().Format("20060102-150405")
+		if os.Rename(*cfgPath, kept) == nil {
+			fmt.Printf("previous enrollment kept as %s\n", kept)
+		}
+	}
 	if err := cfg.Save(*cfgPath); err != nil {
 		return fmt.Errorf("save configuration: %w", err)
 	}

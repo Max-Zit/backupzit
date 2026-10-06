@@ -698,7 +698,7 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		return
 	}
 	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
-		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts, "Duplicates": s.dups.current(time.Now()),
+		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts, "Duplicates": s.dups.current(s.clock()),
 	}})
 }
 

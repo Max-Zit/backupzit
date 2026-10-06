@@ -184,7 +184,7 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 		out = append(out, Attention{"warning", "admin", l.T("still has the generated initial password — change it under Account"), "/account"})
 	}
 	agents, _ := s.store.ListAgents(ctx)
-	dups := s.dups.current(now)
+	dups := s.dups.current(s.clock())
 	for _, a := range agents {
 		if a.Recovery {
 			continue

@@ -152,6 +152,11 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 	if ierr == nil {
 		res.Status, res.Message = "installed", "BackupZit "+m.Version+" installed"
 		a.prune()
+		// The appliance's login screen reflects the restarted console (it
+		// shows the initial password only while that is still valid).
+		if _, err := os.Stat(filepath.Join(a.Root, "/usr/local/sbin/backupzit-appliance-boot")); err == nil {
+			a.Run(ctx, "/usr/local/sbin/backupzit-appliance-boot", "issue")
+		}
 		return a.finish(res)
 	}
 	// Roll back: previous program and the database as it was.

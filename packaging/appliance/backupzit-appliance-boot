@@ -56,6 +56,11 @@ grow_root() {
 # password is shown only while the administrator has not changed it.
 write_issue() {
     pwfile=/var/lib/backupzit/initial-admin-password.txt
+    # The console removes the file at its start once the password was
+    # changed; give a just started console a moment.
+    if [ -f "$pwfile" ] && systemctl is-active -q backupzit-server 2>/dev/null; then
+        sleep 3
+    fi
     if [ -f "$pwfile" ]; then
         signin="admin   (initial password: $(cat "$pwfile"))
   Change it after the first sign-in."

@@ -1,6 +1,6 @@
 [Unit]
 Description=BackupZit appliance: grow the disk, write the login screen
-After=local-fs.target backupzit-firstboot.service
+After=local-fs.target backupzit-firstboot.service backupzit-server.service
 Before=getty@tty1.service
 
 [Service]

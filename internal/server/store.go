@@ -832,10 +832,17 @@ func (s *Store) ListRuns(ctx context.Context, f RunFilter) ([]Run, error) {
 
 // ClaimRun atomically assigns the oldest queued run of an agent.
 func (s *Store) ClaimRun(ctx context.Context, agentID int64) (*Run, error) {
+	return s.claimRun(ctx, agentID, false)
+}
+
+// claimRun hands out the next queued run; onlyUpdate limits it to agent
+// updates (an agent whose other runs are held).
+func (s *Store) claimRun(ctx context.Context, agentID int64, onlyUpdate bool) (*Run, error) {
 	var id int64
 	err := s.db.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
-		WHERE id = (SELECT id FROM runs WHERE agent_id=$1 AND status='queued' ORDER BY kind='verify', queued_at LIMIT 1 FOR UPDATE SKIP LOCKED)
-		RETURNING id`, agentID).Scan(&id)
+		WHERE id = (SELECT id FROM runs WHERE agent_id=$1 AND status='queued' AND (NOT $2 OR kind='agent-update')
+			ORDER BY kind='verify', queued_at LIMIT 1 FOR UPDATE SKIP LOCKED)
+		RETURNING id`, agentID, onlyUpdate).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}

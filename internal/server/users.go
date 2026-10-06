@@ -594,3 +594,10 @@ func (s *Server) InitialPasswordInUse() bool {
 	_, err := os.Stat(s.InitialPasswordFile)
 	return err == nil
 }
+
+// LocalPasswordMatches tells whether password is the current password of
+// the local user (false for unknown or directory users).
+func (s *Store) LocalPasswordMatches(ctx context.Context, username, password string) bool {
+	u, hash, err := s.userByName(ctx, username)
+	return err == nil && u.Source == "local" && bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+}

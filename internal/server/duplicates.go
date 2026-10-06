@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -118,10 +119,16 @@ func (d *dupTracker) current(now time.Time) map[int64]AgentDuplicate {
 
 // agentDuplicate is called on every poll; it holds the agent's work while
 // two machines use its enrollment and alerts the administrators once.
-func (s *Server) agentDuplicate(ctx context.Context, a Agent, instance, host, ip string) bool {
-	dup, fresh := s.dups.seen(a.ID, instance, host, ip, time.Now())
+func (s *Server) agentDuplicate(ctx context.Context, a Agent, instance, host string, localIPs []string, ip string) bool {
+	if instance == "" {
+		// Agents before 0.33.4 send no instance: tell machines apart by
+		// their name and own addresses (a copy gets another address; a
+		// router in between does not change them).
+		instance = legacyInstance(host, localIPs)
+	}
+	dup, fresh := s.dups.seen(a.ID, instance, host, ip, s.clock())
 	if fresh {
-		m := s.dups.current(time.Now())[a.ID].Machines
+		m := s.dups.current(s.clock())[a.ID].Machines
 		s.log.Warn("two machines use one agent enrollment; its runs are held", "agent", a.Hostname, "machines", m)
 		if _, err := s.store.AppendAudit(ctx, "", "agent.duplicate", fmt.Sprintf("agent %s is used by two machines: %v; runs are held", a.Hostname, m), ip); err != nil {
 			s.log.Error("audit log", "err", err)
@@ -134,4 +141,14 @@ func (s *Server) agentDuplicate(ctx context.Context, a Agent, instance, host, ip
 				"The runs continue a few minutes after only one machine is left.\n", a.Hostname, m))
 	}
 	return dup
+}
+
+// legacyInstance identifies an agent that sends no instance ID.
+func legacyInstance(host string, localIPs []string) string {
+	if len(localIPs) == 0 {
+		return ""
+	}
+	ips := append([]string(nil), localIPs...)
+	sort.Strings(ips)
+	return "legacy:" + strings.ToLower(host) + "/" + strings.Join(ips, ",")
 }

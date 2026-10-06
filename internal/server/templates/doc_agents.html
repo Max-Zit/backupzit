@@ -18,7 +18,7 @@
   <li>Windows: run the MSI and paste the code when the installer asks for it. Linux: run the command shown.</li>
   <li>The machine appears in the agent list within a minute.</li>
 </ol>
-<p>If the console cannot be reached during installation, the agent keeps the code and retries until it can enroll. Upgrades keep the enrollment and do not ask again.</p>
+<p>If the console cannot be reached during installation, the agent keeps the code and retries until it can enroll. Upgrades keep the enrollment and do not ask again. A silent install with <code>ENROLLCODE</code> on a machine that is already enrolled keeps the enrollment when the code is for the same console (GPO or RMM can repeat it safely), and moves the machine when the code is for another console; the previous enrollment is kept as <code>agent.json.replaced-<i>date</i></code> next to <code>agent.json</code>, so renaming it back returns the machine to its old console as the same agent.</p>
 <h3>Windows, silent (GPO, Intune, RMM)</h3>
 <pre>msiexec /i backupzit-agent.msi /qn ENROLLCODE="BZ1-..."</pre>
 <p>The older form <code>SERVER="..." TOKEN="..." FINGERPRINT="SHA256:..."</code> still works. A silent install without these properties sets up the service, which waits until you enroll it with <code>backupzit-agent enroll --code "BZ1-..."</code> in an administrator prompt.</p>

@@ -131,6 +131,7 @@ func run() error {
 	if err := ensureAdmin(ctx, store, *dataDir, log); err != nil {
 		return err
 	}
+	forgetChangedInitialPassword(ctx, store, *dataDir, log)
 
 	var hosts []string
 	for _, h := range strings.Split(*tlsHosts, ",") {
@@ -284,4 +285,20 @@ func runRestoreConsole(ctx context.Context, dbURL, dataDir, repoURL, snapshot st
 	}
 	fmt.Printf("console restored from the backup of %s; start the service: systemctl start backupzit-server\n", sn.Time.Local().Format("2006-01-02 15:04"))
 	return nil
+}
+
+// forgetChangedInitialPassword removes the file with the generated first
+// password once it no longer works (admin changed it, also with versions
+// that kept the file), so the appliance screen stops showing it.
+func forgetChangedInitialPassword(ctx context.Context, store *server.Store, dataDir string, log *slog.Logger) {
+	p := filepath.Join(dataDir, "initial-admin-password.txt")
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return
+	}
+	if pw := strings.TrimSpace(string(b)); pw != "" && !store.LocalPasswordMatches(ctx, "admin", pw) {
+		if os.Remove(p) == nil {
+			log.Info("the initial admin password was changed; its file was removed", "file", p)
+		}
+	}
 }

@@ -91,10 +91,11 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 			resp.Status = st
 		}
 	}
-	// Runs wait while two machines use this enrollment (a running copy).
-	held := s.agentDuplicate(r.Context(), a, req.Instance, req.Hostname, remoteIP(r))
-	if !req.Busy && !held {
-		run, err := s.store.ClaimRun(r.Context(), a.ID)
+	// Runs wait while two machines use this enrollment (a running copy);
+	// only agent updates go out, after which agents tell themselves apart.
+	held := s.agentDuplicate(r.Context(), a, req.Instance, req.Hostname, req.IPs, remoteIP(r))
+	if !req.Busy {
+		run, err := s.store.claimRun(r.Context(), a.ID, held)
 		if err != nil {
 			s.log.Error("claim run", "err", err)
 			writeAPIError(w, http.StatusInternalServerError, "database error")
