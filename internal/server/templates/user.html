@@ -2,7 +2,7 @@
 {{with .Data.U}}
 <div class="pagehead">
   <h1><span class="avatar lg" aria-hidden="true">{{initial .Username}}</span>{{.Username}}
-    {{if eq .Source "ldap"}}<span class="badge info-badge">{{T "LDAP"}}</span>{{end}}
+    {{if eq .Source "ldap"}}<span class="badge info-badge">{{T "LDAP"}}</span>{{else if eq .Source "sso"}}<span class="badge info-badge">{{T "SSO"}}</span>{{end}}
     {{if .Disabled}}{{template "status" "disabled"}}{{end}}</h1>
   <div class="actions"><a class="btn secondary-link" href="/users">{{template "icon" "chevl"}}{{T "All users"}}</a></div>
 </div>
@@ -11,11 +11,11 @@
   <div class="panel">
     <h2>{{T "Profile and role"}}</h2>
     <form method="post" action="/users/{{.ID}}" class="stack">
-      <label>{{T "Full name"}} <input name="display_name" value="{{.DisplayName}}" {{if eq .Source "ldap"}}readonly{{end}}></label>
-      <label>{{T "Email"}} <input name="email" type="email" value="{{.Email}}" {{if eq .Source "ldap"}}readonly{{end}}></label>
+      <label>{{T "Full name"}} <input name="display_name" value="{{.DisplayName}}" {{if ne .Source "local"}}readonly{{end}}></label>
+      <label>{{T "Email"}} <input name="email" type="email" value="{{.Email}}" {{if ne .Source "local"}}readonly{{end}}></label>
       <label>{{T "Role"}}
         <select name="role" {{if $.Data.Self}}disabled{{end}}>{{range $.Data.Roles}}<option value="{{.Key}}" {{if eq .Key $.Data.U.Role}}selected{{end}}>{{T .Name}}</option>{{end}}</select>
-        {{if eq .Source "ldap"}}<small>{{T "Updated from the directory groups at every sign-in."}}</small>{{end}}
+        {{if ne .Source "local"}}<small>{{T "Updated from the directory groups at every sign-in."}}</small>{{end}}
       </label>
       {{if $.Data.Self}}<input type="hidden" name="role" value="{{.Role}}">{{end}}
       <label class="check"><input type="checkbox" name="disabled" {{if .Disabled}}checked{{end}} {{if $.Data.Self}}disabled{{end}}> {{T "Account disabled"}} <small>{{T "— the user cannot sign in; open sessions end immediately"}}</small></label>
@@ -51,7 +51,7 @@
     {{if not $.Data.Self}}
     <div class="panel">
       <h2>{{T "Delete user"}}</h2>
-      <p class="muted">{{T "Backups, jobs and history are not affected."}}{{if eq .Source "ldap"}} {{T "A directory user is added again at the next sign-in — disable the account instead to block access."}}{{end}}</p>
+      <p class="muted">{{T "Backups, jobs and history are not affected."}}{{if ne .Source "local"}} {{T "A directory user is added again at the next sign-in — disable the account instead to block access."}}{{end}}</p>
       <form method="post" action="/users/{{.ID}}/delete" data-confirm="{{T "Delete user %v?" .Username}}"><button class="danger">{{T "Delete user"}}</button></form>
     </div>
     {{end}}

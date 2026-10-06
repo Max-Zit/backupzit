@@ -11,7 +11,7 @@
       <td><a href="/users/{{.ID}}" class="strong">{{.Username}}</a>{{if eq .ID $.Me.ID}} <span class="badge">{{T "you"}}</span>{{end}}{{if .TwoFactor}} <span class="badge success" title="{{T "two-factor authentication"}}">{{T "2FA"}}</span>{{end}}</td>
       <td>{{.DisplayName}}{{if .Email}}<div class="muted small">{{.Email}}</div>{{end}}</td>
       <td><span class="badge role-{{.Role}}">{{T .RoleName}}</span></td>
-      <td>{{if eq .Source "ldap"}}<span class="badge info-badge">{{T "LDAP"}}</span>{{else}}<span class="badge">{{T "local"}}</span>{{end}}</td>
+      <td>{{if eq .Source "ldap"}}<span class="badge info-badge">{{T "LDAP"}}</span>{{else if eq .Source "sso"}}<span class="badge info-badge">{{T "SSO"}}</span>{{else}}<span class="badge">{{T "local"}}</span>{{end}}</td>
       <td>{{if .Disabled}}{{template "status" "disabled"}}{{else}}{{template "status" "active"}}{{end}}</td>
       <td class="nowrap">{{if .LastLogin}}{{ago .LastLogin}}{{else}}<span class="muted">{{T "never"}}</span>{{end}}</td>
     </tr>

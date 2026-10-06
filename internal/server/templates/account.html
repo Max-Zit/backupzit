@@ -8,7 +8,7 @@
       <dt>{{T "Username"}}</dt><dd>{{.Username}}</dd>
       <dt>{{T "Name"}}</dt><dd>{{if .DisplayName}}{{.DisplayName}}{{else}}—{{end}}</dd>
       <dt>{{T "Email"}}</dt><dd>{{if .Email}}{{.Email}}{{else}}—{{end}}</dd>
-      <dt>{{T "Sign-in"}}</dt><dd>{{if eq .Source "ldap"}}{{T "Directory (LDAP)"}}{{else}}{{T "Local account"}}{{end}}</dd>
+      <dt>{{T "Sign-in"}}</dt><dd>{{if eq .Source "ldap"}}{{T "Directory (LDAP)"}}{{else if eq .Source "sso"}}{{T "Single sign-on"}}{{else}}{{T "Local account"}}{{end}}</dd>
       <dt>{{T "Role"}}</dt><dd><span class="badge role-{{.Role}}">{{$.Data.Role.Name}}</span></dd>
       <dt>{{T "Two-factor"}}</dt><dd>{{if .TwoFactor}}<span class="badge success"><i></i>{{T "on"}}</span>{{else}}<span class="badge warning"><i></i>{{T "off"}}</span>{{end}} <a href="/account/2fa">{{T "Manage"}}</a></dd>
     </dl>

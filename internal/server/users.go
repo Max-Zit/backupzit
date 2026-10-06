@@ -243,10 +243,17 @@ func (s *Store) checkAdminsRemain(ctx context.Context, changed User) error {
 
 // upsertLDAPUser records an LDAP user after a successful sign-in.
 func (s *Store) upsertLDAPUser(ctx context.Context, username, display, email, role string) (User, error) {
+	return s.upsertDirectoryUser(ctx, "ldap", username, display, email, role)
+}
+
+// upsertDirectoryUser records a user of a directory ("ldap") or an identity
+// provider ("sso") after a successful sign-in; a local account (or one of
+// the other source) with the same name is left alone.
+func (s *Store) upsertDirectoryUser(ctx context.Context, source, username, display, email, role string) (User, error) {
 	_, err := s.db.Exec(ctx, `INSERT INTO users(username, password_hash, display_name, email, role, source)
-		VALUES($1,'!ldap',$2,$3,$4,'ldap')
+		VALUES($1,'!' || $5,$2,$3,$4,$5)
 		ON CONFLICT (lower(username)) DO UPDATE SET display_name=EXCLUDED.display_name, email=EXCLUDED.email, role=EXCLUDED.role
-		WHERE users.source='ldap'`, strings.ToLower(username), display, email, role)
+		WHERE users.source=EXCLUDED.source`, strings.ToLower(username), display, email, role, source)
 	if err != nil {
 		return User{}, err
 	}

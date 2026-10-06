@@ -132,7 +132,7 @@ func (s *Store) SecretKeyID() string {
 }
 
 // secretSettings are settings that contain passwords.
-var secretSettings = map[string]bool{settingEmail: true, settingLDAP: true, settingCert: true, settingChat: true}
+var secretSettings = map[string]bool{settingEmail: true, settingLDAP: true, settingCert: true, settingChat: true, settingSSO: true}
 
 // target columns holding secrets, in scan order of encryptTarget.
 const ctxTarget = "storage_targets."

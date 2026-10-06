@@ -7,6 +7,8 @@
     <label>{{T "Password"}} <input name="password" type="password" autocomplete="current-password" required></label>
     <button>{{T "Sign in"}}</button>
   </form>
+  {{if .SSO}}<div class="sso-or"><span>{{T "or"}}</span></div>
+  <a class="btn secondary sso-btn" href="/login/sso">{{template "icon" "lock"}} {{T "Sign in with"}} {{.SSO}}</a>{{end}}
 </div>
 <div class="login-langs">{{template "langswitch"}}</div>
 <p class="login-foot">{{template "icon" "lock"}} {{T "Self-hosted · data stays on your network"}}</p>

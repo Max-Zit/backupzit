@@ -223,6 +223,9 @@ func parseMFAToken(tok string, now time.Time) (int64, bool) {
 
 // TwoFactorRequired says who must use a second factor: "", "admins", "all".
 func (x SessionSettings) mustUse2FA(u *User) bool {
+	if u.Source == "sso" {
+		return false // the identity provider asks for the second factor
+	}
 	switch x.Require2FA {
 	case "all":
 		return true

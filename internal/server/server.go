@@ -308,6 +308,10 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /lang", s.handleLanguage)
 	mux.HandleFunc("GET /login/2fa", s.handleLogin2FA)
 	mux.HandleFunc("POST /login/2fa", s.handleLogin2FA)
+	mux.HandleFunc("GET /login/sso", s.handleSSOStart)
+	mux.HandleFunc("GET /login/sso/callback", s.handleOIDCCallback)
+	mux.HandleFunc("POST /login/sso/acs", s.handleSAMLACS)
+	mux.HandleFunc("GET /login/sso/metadata", s.handleSAMLMetadata)
 	mux.HandleFunc("POST /logout", s.ui("", s.handleLogout))
 	mux.HandleFunc("GET /{$}", s.ui(PermView, s.handleDashboard))
 	mux.HandleFunc("GET /agents", s.ui(PermView, s.handleAgents))
@@ -358,6 +362,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /docs/search", s.ui(PermView, s.handleDocsSearch))
 	mux.HandleFunc("GET /docs/{page}", s.ui(PermView, s.handleDocs))
 	mux.HandleFunc("POST /settings/ldap", s.ui(PermSettings, s.handleSettingsLDAP))
+	mux.HandleFunc("POST /settings/sso", s.ui(PermSettings, s.handleSettingsSSO))
 	mux.HandleFunc("GET /users", s.ui(PermUsers, s.handleUsers))
 	mux.HandleFunc("POST /users", s.ui(PermUsers, s.handleUserCreate))
 	mux.HandleFunc("GET /users/{id}", s.ui(PermUsers, s.handleUser))
@@ -432,6 +437,8 @@ type pageData struct {
 	// FourEyes and Approvals (pending requests) are set by render.
 	FourEyes  bool
 	Approvals int
+	// SSO is the sign-in button text when single sign-on is set up (login page).
+	SSO string
 }
 
 // ui requires a signed-in user whose role has perm, and rejects
@@ -484,6 +491,11 @@ func sameOrigin(r *http.Request) bool {
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d pageData) {
 	lang := requestLanguage(r)
 	t, ok := s.pages[lang.Code][page]
+	if page == "login" {
+		if c := s.ssoSettings(r.Context()); c.Protocol != "" {
+			d.SSO = c.label()
+		}
+	}
 	if !ok {
 		http.Error(w, "unknown page", http.StatusInternalServerError)
 		return

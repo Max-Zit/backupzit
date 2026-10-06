@@ -440,6 +440,61 @@ systemctl start backupzit-server</pre></li>
   </form>
 </div>
 {{end}}{{end}}
+{{if eq .Data.Tab "sso"}}{{with .Data.SSO}}
+<div class="panel" id="sso">
+  <h2>{{template "icon" "users"}} {{T "Single sign-on (SAML, OpenID Connect)"}}</h2>
+  <p class="muted">{{T "Users sign in at your identity provider (Microsoft Entra ID, Okta, Google Workspace, Keycloak, ADFS…). They are created at their first sign-in and get their role from their groups at every sign-in. Local accounts keep working, so an administrator can always sign in. The identity provider handles the second factor."}}</p>
+  <form method="post" action="/settings/sso" class="stack">
+    <fieldset>
+      <legend>{{T "Protocol"}}</legend>
+      <label class="check"><input type="radio" name="protocol" value="" {{if eq .Protocol ""}}checked{{end}}> {{T "Off"}}</label>
+      <label class="check"><input type="radio" name="protocol" value="oidc" {{if eq .Protocol "oidc"}}checked{{end}}> {{T "OpenID Connect"}} <small>{{T "recommended for Entra ID, Google, Okta, Keycloak"}}</small></label>
+      <label class="check"><input type="radio" name="protocol" value="saml" {{if eq .Protocol "saml"}}checked{{end}}> {{T "SAML 2.0"}} <small>{{T "for ADFS and other SAML identity providers"}}</small></label>
+      <label>{{T "Button text"}} <small>{{T "on the sign-in page, e.g. Microsoft 365"}}</small><input name="label" value="{{.Label}}" placeholder="{{T "Single sign-on"}}"></label>
+    </fieldset>
+    <fieldset>
+      <legend>{{T "OpenID Connect"}}</legend>
+      <p class="small muted">{{T "Register an application (web) at the identity provider with this redirect URI:"}} <code>{{.Callback}}</code></p>
+      <label>{{T "Issuer"}} <small>{{T "e.g. https://login.microsoftonline.com/<tenant ID>/v2.0 or https://keycloak.example.com/realms/company"}}</small><input name="issuer" value="{{.Issuer}}" class="mono"></label>
+      <div class="row">
+        <label>{{T "Client ID"}}<input name="client_id" value="{{.ClientID}}" class="mono"></label>
+        <label>{{T "Client secret"}} <small>{{if .HasSecret}}{{T "stored — leave empty to keep it"}}{{end}}</small><input name="client_secret" type="password" autocomplete="new-password"></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>{{T "SAML 2.0"}}</legend>
+      <p class="small muted">{{T "Add the console at the identity provider with its metadata:"}} <code>{{.Metadata}}</code> ({{T "assertion consumer service:"}} <code>{{.ACS}}</code>). {{T "Needs HTTPS."}}</p>
+      <label>{{T "Metadata URL of the identity provider"}}<input name="metadata_url" value="{{.MetadataURL}}" class="mono" placeholder="https://adfs.example.com/FederationMetadata/2007-06/FederationMetadata.xml"></label>
+      <label>{{T "or paste its metadata XML"}}<textarea name="metadata_xml" rows="3" class="mono">{{.MetadataXML}}</textarea></label>
+    </fieldset>
+    <fieldset>
+      <legend>{{T "Users and roles"}}</legend>
+      <div class="row">
+        <label>{{T "User name claim / attribute"}} <small>{{T "empty: preferred_username, upn, email (SAML: NameID)"}}</small><input name="username_claim" value="{{.UsernameClaim}}" class="mono"></label>
+        <label>{{T "Groups claim / attribute"}} <small>{{T "empty: groups"}}</small><input name="groups_claim" value="{{.GroupsClaim}}" class="mono"></label>
+      </div>
+      <div class="row">
+        <label>{{T "Administrators"}} <small>{{T "group name or ID"}}</small><input name="admin_group" value="{{.AdminGroup}}"></label>
+        <label>{{T "Backup operators"}}<input name="operator_group" value="{{.OperatorGroup}}"></label>
+      </div>
+      <div class="row">
+        <label>{{T "Restore operators"}}<input name="restore_group" value="{{.RestoreGroup}}"></label>
+        <label>{{T "Viewers"}}<input name="viewer_group" value="{{.ViewerGroup}}"></label>
+      </div>
+      <label>{{T "Users in none of these groups"}}
+        <select name="default_role">
+          <option value="" {{if eq .DefaultRole ""}}selected{{end}}>{{T "cannot sign in"}}</option>
+          <option value="viewer" {{if eq .DefaultRole "viewer"}}selected{{end}}>{{T "Viewer"}}</option>
+          <option value="restore" {{if eq .DefaultRole "restore"}}selected{{end}}>{{T "Restore operator"}}</option>
+          <option value="operator" {{if eq .DefaultRole "operator"}}selected{{end}}>{{T "Backup operator"}}</option>
+          <option value="admin" {{if eq .DefaultRole "admin"}}selected{{end}}>{{T "Administrator"}}</option>
+        </select></label>
+    </fieldset>
+    <div><button>{{T "Save single sign-on settings"}}</button></div>
+  </form>
+  <p class="muted small mt">{{T "Saving checks the identity provider. Test the sign-in in a private browser window before you sign out."}}</p>
+</div>
+{{end}}{{end}}
 {{if eq .Data.Tab "tests"}}{{with .Data.Tests}}
 <div class="panel">
   <h2>{{template "icon" "check"}} {{T "Automatic restore tests"}}</h2>

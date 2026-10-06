@@ -70,6 +70,7 @@
   <a href="/settings/updates" class="{{if eq .Data.Tab "updates"}}on{{end}}">{{template "icon" "download"}}<span>{{T "Updates"}}<small>{{T "New versions of BackupZit"}}</small></span></a>
   <a href="/settings/console" class="{{if eq .Data.Tab "console"}}on{{end}}">{{template "icon" "storage"}}<span>{{T "Console backup"}}<small>{{T "Back up the console itself"}}</small></span></a>
   <a href="/settings/ldap" class="{{if eq .Data.Tab "ldap"}}on{{end}}">{{template "icon" "users"}}<span>{{T "LDAP / Active Directory"}}<small>{{T "Directory sign-in and roles"}}</small></span></a>
+  <a href="/settings/sso" class="{{if eq .Data.Tab "sso"}}on{{end}}">{{template "icon" "users"}}<span>{{T "Single sign-on"}}<small>{{T "SAML, OpenID Connect"}}</small></span></a>
 </nav>{{end}}
 {{define "langswitch"}}<form method="post" action="/lang" class="langs"><select name="lang" data-autosubmit aria-label="{{T "Language"}}">{{range languages}}<option value="{{.Code}}" {{if eq .Code lang}}selected{{end}} lang="{{.Code}}">{{.Name}}</option>{{end}}</select><noscript><button>OK</button></noscript></form>{{end}}
 {{define "savings"}}{{if and .BytesAdded .BytesStored}}<p class="muted small savings">{{T "Compression"}} <b>{{ratio .BytesAdded .BytesStored}}</b>{{if gt .BytesRead .BytesAdded}} · {{T "already stored (deduplication)"}} <b>{{saved .BytesRead .BytesAdded}}</b> {{T "of the data read"}}{{end}}</p>{{end}}{{end}}
