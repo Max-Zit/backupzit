@@ -151,6 +151,9 @@ func run() error {
 	srv.CertFingerprint = server.CertFingerprint(cert)
 	srv.PublicURL = strings.TrimRight(*publicURL, "/")
 	srv.DistDir = filepath.Join(*dataDir, "dist")
+	if _, port, err := net.SplitHostPort(*listen); err == nil {
+		srv.AgentPort = port
+	}
 	srv.InitialPasswordFile = filepath.Join(*dataDir, "initial-admin-password.txt")
 	srv.Version = version
 	os.MkdirAll(srv.DistDir, 0o755)

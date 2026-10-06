@@ -59,6 +59,8 @@ type Server struct {
 	auditState atomic.Pointer[AuditIntegrity]
 	dataDir    string
 	log        *slog.Logger
+	// AgentPort is the port agents connect to (of the main listener).
+	AgentPort string
 	// InitialPasswordFile holds the generated first password of "admin"
 	// (removed when the password is changed).
 	InitialPasswordFile string
@@ -712,10 +714,7 @@ func (s *Server) handleAgentToken(w http.ResponseWriter, r *http.Request, user s
 		s.serverError(w, err)
 		return
 	}
-	pub := s.PublicURL
-	if pub == "" {
-		pub = "https://" + r.Host
-	}
+	pub := s.publicURL(r)
 	s.agentsPage(w, r, user, &enrollInfo{Token: tok, Expires: exp, ServerURL: pub, Fingerprint: s.CertFingerprint,
 		Code: api.EncodeEnrollCode(pub, tok, s.CertFingerprint)})
 }

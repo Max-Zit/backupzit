@@ -111,9 +111,15 @@ func (p *program) Start(s service.Service) error {
 	go func() {
 		defer close(p.done)
 		var warned bool
+		// While not enrolled, the tray still gets an answer: "not enrolled"
+		// and why, instead of "service not running".
+		var waiting *waitingStatus
 		for {
 			cfg, err := agent.LoadConfig(p.cfgPath)
 			if err == nil {
+				if waiting != nil {
+					waiting.stop()
+				}
 				if p.cfgPath == agent.DefaultConfigPath() {
 					agent.MarkEnrolled()
 				}
@@ -125,11 +131,17 @@ func (p *program) Start(s service.Service) error {
 				ag.Run(ctx)
 				return
 			}
+			if waiting == nil {
+				waiting = startWaitingStatus(ctx, logger)
+			}
 			if ok, perr := agent.TryPendingEnrollment(ctx, p.cfgPath, version); ok {
 				logger.Info("enrolled with the code from the installer")
 				continue
 			} else if perr != nil {
 				logger.Warn("enrollment not possible yet, retrying", "err", perr)
+				waiting.set(agent.PendingServer(p.cfgPath), perr.Error())
+			} else {
+				waiting.set("", "")
 			}
 			if !warned {
 				logger.Warn("agent is not enrolled yet, waiting", "config", p.cfgPath, "err", err)

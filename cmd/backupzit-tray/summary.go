@@ -82,6 +82,16 @@ func summarize(st *localipc.Status, callErr error, now time.Time) Summary {
 		return s
 	}
 	s.Status = st
+	if !st.Enrolled {
+		s.State, s.Headline = "offline", "This computer is not enrolled yet"
+		switch {
+		case st.ServerURL != "" && st.LastError != "":
+			s.Detail = "Enrolling with " + st.ServerURL + " failed: " + st.LastError + ". Create a new enrollment code on the console's agent port (usually :8443) and run the installer again."
+		default:
+			s.Detail = "Run the installer again and paste the enrollment code from the console (Agents page)."
+		}
+		return s
+	}
 
 	// Newest finished backup and next scheduled run over all jobs.
 	var lastJob *localipc.Job

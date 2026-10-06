@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -127,7 +128,19 @@ func enroll(ctx context.Context, serverURL, token, fingerprint, version string, 
 	host, osName, arch := hostInfo(version)
 	c := &Client{cfg: &Config{ServerURL: serverURL, Fingerprint: fingerprint}, http: httpClient(fingerprint)}
 	var resp api.EnrollResponse
-	err := c.post(ctx, api.PathEnroll, api.EnrollRequest{Token: token, Hostname: host, OS: osName, Arch: arch, Version: version, Recovery: recovery}, &resp, false)
+	req := api.EnrollRequest{Token: token, Hostname: host, OS: osName, Arch: arch, Version: version, Recovery: recovery}
+	err := c.post(ctx, api.PathEnroll, req, &resp, false)
+	if err != nil && errors.Is(err, tlsutil.ErrFingerprintMismatch) {
+		// Codes made by consoles before 0.33.6 on their web port (443,
+		// another certificate) name that port. The pinned certificate is
+		// the agents' port: try it there, still pinned.
+		if alt := agentPortURL(serverURL); alt != "" {
+			c2 := &Client{cfg: &Config{ServerURL: alt, Fingerprint: fingerprint}, http: httpClient(fingerprint)}
+			if err2 := c2.post(ctx, api.PathEnroll, req, &resp, false); err2 == nil {
+				serverURL, err = alt, nil
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -626,3 +639,31 @@ func newInstanceID() string {
 	rand.Read(b)
 	return hex.EncodeToString(b)
 }
+
+// PendingServer is the console of a stored, not yet completed enrollment
+// ("" if there is none).
+func PendingServer(cfgPath string) string {
+	b, err := os.ReadFile(pendingPath(cfgPath))
+	if err != nil {
+		return ""
+	}
+	var p pendingEnrollment
+	if json.Unmarshal(b, &p) != nil {
+		return ""
+	}
+	return p.Server
+}
+
+// agentPortURL is serverURL on the console's default agent port (8443),
+// or "" when it already uses that port.
+func agentPortURL(serverURL string) string {
+	u, err := url.Parse(serverURL)
+	if err != nil || u.Hostname() == "" || u.Port() == defaultAgentPort {
+		return ""
+	}
+	u.Host = net.JoinHostPort(u.Hostname(), defaultAgentPort)
+	return strings.TrimRight(u.String(), "/")
+}
+
+// defaultAgentPort is where consoles listen for agents (tests change it).
+var defaultAgentPort = "8443"

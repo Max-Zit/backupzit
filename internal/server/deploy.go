@@ -594,10 +594,7 @@ func cleanCLIXML(s string) string {
 func (s *Server) handleDeployStart(w http.ResponseWriter, r *http.Request, user string) {
 	q := deployRequest{Host: r.FormValue("host"), OS: r.FormValue("os"), User: r.FormValue("user"), Password: r.FormValue("password"),
 		Key: r.FormValue("key"), HostKey: r.FormValue("host_key"), Port: atoiDefault(r.FormValue("port")), By: user}
-	pub := s.PublicURL
-	if pub == "" {
-		pub = "https://" + r.Host
-	}
+	pub := s.publicURL(r)
 	d, err := s.startDeploy(q, pub)
 	if err != nil {
 		redirectErr(w, r, "/agents#install", err)

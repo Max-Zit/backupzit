@@ -14,7 +14,7 @@
 
 <h2>Enrolling agents</h2>
 <ol>
-  <li>On the <a href="/agents">Agents</a> page click <b>Create enrollment token</b>. The console shows an <b>enrollment code</b> (<code>BZ1-…</code>), valid for 7 days and usable for any number of machines. It contains the console address, the token and the certificate fingerprint.</li>
+  <li>On the <a href="/agents">Agents</a> page click <b>Create enrollment token</b>. The console shows an <b>enrollment code</b> (<code>BZ1-…</code>), valid for 7 days and usable for any number of machines. It contains the console address for agents (with the agents' port, usually 8443, also when the page is open on the web port 443), the token and the certificate fingerprint. Agents from 0.33.6 also enroll with codes that older consoles made on the web port.</li>
   <li>Windows: run the MSI and paste the code when the installer asks for it. Linux: run the command shown.</li>
   <li>The machine appears in the agent list within a minute.</li>
 </ol>

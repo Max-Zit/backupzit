@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -48,11 +49,22 @@ func (s *Server) recoveryPage(w http.ResponseWriter, r *http.Request, user strin
 	}})
 }
 
+// publicURL is how agents reach the console: PublicURL, or the host name
+// the browser used with the agents' port. The page may be open on the web
+// port (with another certificate), which agents must not use: they pin
+// the certificate of the agents' port.
 func (s *Server) publicURL(r *http.Request) string {
 	if s.PublicURL != "" {
 		return s.PublicURL
 	}
-	return "https://" + r.Host
+	host := r.Host
+	if h, _, err := net.SplitHostPort(r.Host); err == nil {
+		host = h
+	}
+	if s.AgentPort == "" {
+		return "https://" + r.Host // one listener (tests, --listen only)
+	}
+	return "https://" + net.JoinHostPort(strings.Trim(host, "[]"), s.AgentPort)
 }
 
 func (s *Server) handleRecovery(w http.ResponseWriter, r *http.Request, user string) {
