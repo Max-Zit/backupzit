@@ -173,7 +173,7 @@ func (s *Server) reportUpdateResult(ctx context.Context) {
 	}
 	s.store.SetSetting(ctx, "update_result_seen", res.Finished)
 	detail := fmt.Sprintf("%s → %s: %s", res.From, res.Version, res.Status)
-	if _, err := s.store.db.Exec(ctx, `INSERT INTO audit_log(username, action, detail, remote) VALUES('', 'update.result', $1, '')`, clip(detail+": "+res.Message, 2000)); err != nil {
+	if _, err := s.store.AppendAudit(ctx, "", "update.result", detail+": "+res.Message, ""); err != nil {
 		s.log.Error("audit log", "err", err)
 	}
 	if res.Status != "installed" {

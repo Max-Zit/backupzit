@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -120,6 +121,9 @@ func (s *Store) UseSecretKey(key []byte) error {
 		return err
 	}
 	s.box = b
+	m := hmac.New(sha256.New, key)
+	m.Write([]byte("backupzit audit chain"))
+	s.auditKey = m.Sum(nil)
 	return nil
 }
 

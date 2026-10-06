@@ -222,7 +222,7 @@ func (s *Server) BackupConsole(ctx context.Context) error {
 		s.mailAdmins(ctx, "[BackupZit] Backup of the console failed",
 			"The daily backup of the BackupZit console failed:\n\n"+err.Error()+"\n\nCheck Settings → Console backup.\n")
 	}
-	s.store.db.Exec(ctx, `INSERT INTO audit_log(username, action, detail, remote) VALUES('', 'console.backup', $1, '')`, clip(detail, 2000))
+	s.store.AppendAudit(ctx, "", "console.backup", detail, "")
 	return err
 }
 

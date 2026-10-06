@@ -29,6 +29,12 @@ import (
 type Store struct {
 	db  *pgxpool.Pool
 	box *secretBox // encrypts stored secrets; nil = plaintext (tests)
+	// auditKey keys the audit chain (derived from the secrets key);
+	// auditHeadFile keeps the newest entry outside the database; auditSink
+	// receives every new entry (syslog export).
+	auditKey      []byte
+	auditHeadFile string
+	auditSink     func(AuditEntry)
 }
 
 func NewStore(db *pgxpool.Pool) *Store { return &Store{db: db} }

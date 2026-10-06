@@ -70,5 +70,20 @@
 
 <h2>Audit log</h2>
 <p><a href="/audit">Users → Audit log</a> shows sign-ins, failed sign-ins and changes: users, jobs, storage targets, restores, displayed recovery keys and settings — with time, user and address.</p>
+
+<h3 id="audit-integrity">Protection against changes</h3>
+<p>Every entry is chained to the previous one: it carries a hash of its own content and of the previous entry, keyed with a secret from the server's secrets file (which is not in the database). Somebody who changes or deletes entries directly in the database therefore breaks the chain. The newest hash is also kept in a file next to the console data, so deleting the newest entries is detected as well.</p>
+<ul>
+  <li>The console checks the whole chain at start and once a day. If it is broken, the Audit log page shows <b>The audit log was changed</b> with the first bad entry, and the administrators get an email.</li>
+  <li><b>Verify integrity now</b> on the Audit log page runs the check at once.</li>
+  <li>Entries written before version 0.33.3 have no chain; the page shows how many of them there are.</li>
+</ul>
+<p>The chain shows that the log was changed, but cannot bring back what was changed — and somebody who takes over the console server itself, with its secrets file, could rewrite the chain. Against that, send a copy of every entry to a separate syslog server or SIEM under <a href="/settings/security#audit-syslog">Settings → Sign-in &amp; security → Audit log protection</a>:</p>
+<ul>
+  <li><b>Syslog server</b> as <code>host:port</code>, and the <b>protocol</b>: TLS (recommended, usually port 6514), TCP or UDP (usually 514). The certificate of a TLS server must be trusted by the console machine.</li>
+  <li>Saving sends a test message; if the server does not take it, the settings are saved and the error is shown.</li>
+  <li>Messages are RFC 5424 (facility <i>auth</i>) with the entry number, user, action, address and chain hash. Once a day an <code>audit.checkpoint</code> message carries the newest hash, so the copy can be compared with the console.</li>
+  <li>While the syslog server is unreachable, entries wait in memory (up to 1000) and are sent when it answers again; the console keeps working, and the entries stay in its own audit log in any case.</li>
+</ul>
 {{template "docpager" .}}
 </article></div>{{end}}

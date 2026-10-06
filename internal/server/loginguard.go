@@ -361,7 +361,7 @@ func (s *Server) notifyBlock(ip string, until time.Time, strikes int, reason str
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	detail := fmt.Sprintf("%s blocked until %s (block %d): %s", ip, until.Local().Format("2006-01-02 15:04"), strikes, reason)
-	if _, err := s.store.db.Exec(ctx, `INSERT INTO audit_log(username, action, detail, remote) VALUES('', 'security.ip_blocked', $1, $2)`, detail, ip); err != nil {
+	if _, err := s.store.AppendAudit(ctx, "", "security.ip_blocked", detail, ip); err != nil {
 		s.log.Error("audit log", "err", err)
 	}
 	s.log.Warn("address blocked after failed sign-ins", "ip", ip, "until", until, "strikes", strikes, "reason", reason)

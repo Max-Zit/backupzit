@@ -344,8 +344,10 @@ func currentUser(r *http.Request) *User {
 // ---- audit log
 
 type AuditEntry struct {
+	ID                               int64
 	At                               time.Time
 	Username, Action, Detail, Remote string
+	PrevHash, Hash                   string
 }
 
 func (s *Server) audit(r *http.Request, action, format string, args ...any) {
@@ -357,8 +359,7 @@ func (s *Server) audit(r *http.Request, action, format string, args ...any) {
 }
 
 func (s *Server) auditAs(r *http.Request, user, action, detail string) {
-	if _, err := s.store.db.Exec(r.Context(), `INSERT INTO audit_log(username, action, detail, remote) VALUES($1,$2,$3,$4)`,
-		user, action, clip(detail, 2000), s.guard.ClientIP(r)); err != nil {
+	if _, err := s.store.AppendAudit(r.Context(), user, action, detail, s.guard.ClientIP(r)); err != nil {
 		s.log.Error("audit log", "err", err)
 	}
 	s.log.Info("audit", "user", user, "action", action, "detail", detail, "remote", s.guard.ClientIP(r))
@@ -568,5 +569,5 @@ func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request, user string
 		s.serverError(w, err)
 		return
 	}
-	s.render(w, r, "audit", pageData{Title: "Audit log", Nav: "audit", User: user, Data: list})
+	s.render(w, r, "audit", pageData{Title: "Audit log", Nav: "audit", User: user, Data: map[string]any{"Entries": list, "Integrity": s.auditState.Load()}})
 }

@@ -4,11 +4,13 @@
 </div>
 <div class="panel">
   <p class="muted">{{T "Sign-ins, failed sign-ins and changes made in the console (newest 500)."}}</p>
-  {{if .Data}}
+  {{with .Data.Integrity}}{{if .OK}}<div class="callout tip"><p>{{template "icon" "shield"}} <b>{{T "Integrity verified"}}</b> — {{.Entries}} {{T "entries form an unbroken chain"}}{{if .Legacy}} ({{.Legacy}} {{T "older entries from before the chain are not protected"}}){{end}}; {{T "checked"}} {{ago .Checked}}.</p></div>{{else}}<div class="callout warn"><p><b>{{T "The audit log was changed"}}</b>: {{.Problem}}. {{T "Somebody with access to the database changed or deleted entries."}}</p></div>{{end}}{{end}}
+  <form method="post" action="/audit/verify" class="mt"><button class="secondary">{{T "Verify integrity now"}}</button></form>
+  {{if .Data.Entries}}
   <div class="table-wrap"><table>
     <thead><tr><th>{{T "Time"}}</th><th>{{T "User"}}</th><th>{{T "Action"}}</th><th>{{T "Details"}}</th><th>{{T "From"}}</th></tr></thead>
     <tbody>
-    {{range .Data}}
+    {{range .Data.Entries}}
     <tr>
       <td class="nowrap">{{ts .At}}</td>
       <td>{{.Username}}</td>

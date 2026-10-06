@@ -169,6 +169,23 @@
   </form>
   <p class="muted small mt">{{T "Locked out? On the server itself (localhost) the console always answers; on the appliance, the setup menu on its screen can allow everyone again."}}</p>
 </div>
+<div class="panel" id="audit-syslog">
+  <h2>{{template "icon" "report"}} {{T "Audit log protection"}}</h2>
+  <p class="muted">{{T "Every audit entry is chained to the previous one with a key from the server's secrets file, so changed or deleted entries show on the Audit log page and are reported by email. A copy on a syslog server or SIEM keeps the entries even if the console server is lost or taken over."}}</p>
+  <form method="post" action="/settings/audit-syslog" class="stack">
+    <div class="row">
+      <label>{{T "Syslog server"}} <small>{{T "host:port, e.g. siem.example.com:6514; empty: no copy"}}</small><input name="address" class="mono" value="{{$.Data.AuditSyslog.Address}}"></label>
+      <label>{{T "Protocol"}}
+        <select name="protocol">
+          <option value="tls" {{if eq $.Data.AuditSyslog.Protocol "tls"}}selected{{end}}>{{T "TLS (encrypted, recommended)"}}</option>
+          <option value="tcp" {{if eq $.Data.AuditSyslog.Protocol "tcp"}}selected{{end}}>TCP</option>
+          <option value="udp" {{if eq $.Data.AuditSyslog.Protocol "udp"}}selected{{end}}>UDP</option>
+        </select></label>
+    </div>
+    <div><button>{{T "Save audit log export"}}</button></div>
+  </form>
+  <p class="muted small mt">{{T "Messages are RFC 5424 with the entry's number and chain hash; a daily checkpoint message carries the newest hash."}}</p>
+</div>
 <div class="panel" id="four-eyes">
   <h2>{{template "icon" "shield"}} {{T "Four-eyes approval"}}</h2>
   <p class="muted">{{T "Protects against a stolen or misused account: deleting jobs, agents, ESXi hosts, storage targets and users, shortening a job's retention, resuming retention after a suspicious backup and turning this option off take effect only when a second user with the same permission approves them under"}} <a href="/approvals">{{T "Approvals"}}</a>{{T ". Needs at least two enabled administrators. Requests expire after 7 days."}}</p>

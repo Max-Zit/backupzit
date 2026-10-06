@@ -157,6 +157,7 @@ func run() error {
 	srv.StartWeb(ctx, *dataDir)
 	srv.StartUpdates(ctx, *dataDir)
 	srv.StartConsoleBackup(ctx, *dataDir)
+	srv.StartAuditChain(ctx, *dataDir)
 	sched := server.NewScheduler(store, log)
 	sched.Notifier = srv.Notifier
 	go sched.Run(ctx)

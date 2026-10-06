@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
@@ -51,8 +52,11 @@ type Server struct {
 	web      *webTLS
 	upd      *updater
 	access   webAccessCache
-	dataDir  string
-	log      *slog.Logger
+	// syslog sends audit entries out; auditState is the last chain check.
+	syslog     *syslogSender
+	auditState atomic.Pointer[AuditIntegrity]
+	dataDir    string
+	log        *slog.Logger
 	// CertFingerprint is shown in enrollment instructions.
 	CertFingerprint string
 	// PublicURL is how agents reach the server, e.g. https://backup.example.com:8443
@@ -370,6 +374,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /users/{id}/password", s.ui(PermUsers, s.handleUserPassword))
 	mux.HandleFunc("POST /users/{id}/delete", s.ui(PermUsers, s.handleUserDelete))
 	mux.HandleFunc("GET /audit", s.ui(PermUsers, s.handleAudit))
+	mux.HandleFunc("POST /audit/verify", s.ui(PermUsers, s.handleAuditVerify))
 	mux.HandleFunc("GET /account", s.ui("", s.handleAccount))
 	mux.HandleFunc("POST /account/password", s.ui("", s.handleAccountPassword))
 	mux.HandleFunc("POST /account/tokens", s.ui(PermView, s.handleTokenCreate))
@@ -398,6 +403,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /settings/console/run", s.ui(PermSettings, s.handleConsoleBackupRun))
 	mux.HandleFunc("POST /settings/login-protection", s.ui(PermSettings, s.handleSettingsLoginProtection))
 	mux.HandleFunc("POST /settings/web-access", s.ui(PermSettings, s.handleSettingsWebAccess))
+	mux.HandleFunc("POST /settings/audit-syslog", s.ui(PermSettings, s.handleSettingsAuditSyslog))
 	mux.HandleFunc("POST /settings/unblock", s.ui(PermSettings, s.handleUnblockAddress))
 	mux.HandleFunc("POST /settings/tests", s.ui(PermSettings, s.handleSettingsRestoreTests))
 	mux.HandleFunc("POST /settings/four-eyes", s.ui(PermSettings, s.handleSettingsFourEyes))
