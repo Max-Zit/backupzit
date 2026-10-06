@@ -16,7 +16,9 @@
     <h2>{{T "Recovery ISOs"}}</h2>
     {{if .Data.ISOs}}
     <table>{{range .Data.ISOs}}<tr><td><a href="/downloads/{{.Name}}">{{T .Title}}</a><br><span class="muted small">{{T .Desc}}</span></td><td class="mono small">{{.Name}}<br>{{.Size}}</td></tr>{{end}}</table>
-    {{else}}<p class="muted">{{T "No recovery ISO in the server's dist directory yet."}}</p>{{end}}
+    {{else if not .Data.OnlineISO}}<p class="muted">{{T "No recovery ISO in the server's dist directory yet."}}</p>{{end}}
+    {{with .Data.OnlineISO}}<p><a class="btn secondary-link" href="{{.}}">{{template "icon" "download"}} {{T "Download the Linux recovery ISO"}}</a><br><span class="muted small">{{T "for Linux system backups; published with every release, from the update source"}}</span></p>{{end}}
+    <p class="muted small">{{T "The Windows recovery ISO (for disk images of Windows machines) is built on a Windows PC with the free Windows ADK, because Windows PE may not be redistributed:"}} <a href="/docs/restore#recovery-iso">{{T "how to build it"}}</a>.</p>
     <p class="muted">{{T "To write an ISO to a USB stick use e.g. Rufus or balenaEtcher. Put"}} <code>recovery.json</code> {{T "into a"}} <code>backupzit</code> {{T "folder on the stick (Windows ISO in Rufus “ISO” mode) or on a second stick (Linux ISO); otherwise the recovery system asks for the server address and recovery code."}}</p>
   </div>
   <div class="panel">

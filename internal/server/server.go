@@ -43,6 +43,8 @@ const sessionCookie = "bz_session"
 // Server is the management console.
 type Server struct {
 	store *Store
+	// dups finds agent enrollments used by two machines at once.
+	dups *dupTracker
 	// deploys are agent installations started from the console.
 	deploys    *deployer
 	deployOnce sync.Once
@@ -57,6 +59,9 @@ type Server struct {
 	auditState atomic.Pointer[AuditIntegrity]
 	dataDir    string
 	log        *slog.Logger
+	// InitialPasswordFile holds the generated first password of "admin"
+	// (removed when the password is changed).
+	InitialPasswordFile string
 	// CertFingerprint is shown in enrollment instructions.
 	CertFingerprint string
 	// PublicURL is how agents reach the server, e.g. https://backup.example.com:8443
@@ -76,7 +81,7 @@ type Server struct {
 
 // New creates a server.
 func New(store *Store, log *slog.Logger) (*Server, error) {
-	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache(), clock: time.Now}
+	s := &Server{store: store, log: log, PollInterval: 30, Version: "dev", cache: newRepoCache(), clock: time.Now, dups: newDupTracker()}
 	s.guard = newLoginGuard(store, func() time.Time { return s.clock() })
 	s.guard.onBlock = s.notifyBlock
 	if err := s.loadTemplates(); err != nil {
@@ -86,6 +91,8 @@ func New(store *Store, log *slog.Logger) (*Server, error) {
 }
 
 var funcs = template.FuncMap{
+	// zone names the console server's time zone, e.g. "CEST, UTC+02:00".
+	"zone": func() string { return time.Now().Format("MST, UTC-07:00") },
 	"ago": func(t any) string {
 		var tm time.Time
 		switch v := t.(type) {
@@ -399,6 +406,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /settings/os", s.ui(PermSettings, s.handleOSAction))
 	mux.HandleFunc("POST /settings/network", s.ui(PermSettings, s.handleNetworkSettings))
 	mux.HandleFunc("POST /settings/ssh", s.ui(PermSettings, s.handleSSHSettings))
+	mux.HandleFunc("POST /settings/timezone", s.ui(PermSettings, s.handleTimeZoneSettings))
 	mux.HandleFunc("POST /settings/console", s.ui(PermSettings, s.handleConsoleBackupSettings))
 	mux.HandleFunc("POST /settings/console/run", s.ui(PermSettings, s.handleConsoleBackupRun))
 	mux.HandleFunc("POST /settings/login-protection", s.ui(PermSettings, s.handleSettingsLoginProtection))
@@ -690,7 +698,7 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		return
 	}
 	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
-		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts,
+		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts, "Duplicates": s.dups.current(time.Now()),
 	}})
 }
 

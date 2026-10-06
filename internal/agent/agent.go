@@ -5,6 +5,8 @@ package agent
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -192,10 +194,14 @@ type Agent struct {
 
 	localOnce sync.Once
 	ls        *localState
+
+	// instance identifies this agent process; the console sees two
+	// machines using one enrollment (a clone) by two live instances.
+	instance string
 }
 
 func New(cfg *Config, log *slog.Logger, version string) *Agent {
-	return &Agent{client: NewClient(cfg), log: log, version: version, VSS: runtime.GOOS == "windows"}
+	return &Agent{client: NewClient(cfg), log: log, version: version, VSS: runtime.GOOS == "windows", instance: newInstanceID()}
 }
 
 // PollOnce sends one heartbeat and starts a run if one was assigned.
@@ -207,7 +213,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	a.mu.Unlock()
 	host, osName, arch := hostInfo(a.version)
 	var resp api.PollResponse
-	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, IPs: localIPs()}
+	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, IPs: localIPs(), Instance: a.instance}
 	req.WantStatus = a.wantStatus()
 	invEvery := a.InventoryInterval
 	if invEvery <= 0 {
@@ -612,4 +618,11 @@ func ProbeServer(ctx context.Context, serverURL, fingerprint string) error {
 	}
 	resp.Body.Close()
 	return nil
+}
+
+// newInstanceID is a random identifier of this agent process.
+func newInstanceID() string {
+	b := make([]byte, 8)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }

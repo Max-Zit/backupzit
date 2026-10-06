@@ -68,6 +68,15 @@ systemctl enable --now backupzit-agent</pre>
 <h2>Removing an agent</h2>
 <p><b>Remove</b> on the Agents page deletes the agent and its jobs from the console. With <a href="/docs/users">four-eyes approval</a> on, a second user has to approve it first. Backups on the storage are <b>not</b> deleted. Uninstall the software on the machine separately.</p>
 
+<h2 id="duplicate">Two machines using one agent</h2>
+<p>A copy of an enrolled machine carries its agent and enrollment along: a VM restored as a new VM, an <a href="/docs/proxmox">instant recovery</a>, a started replica, a cloned disk or template. When the copy runs next to the original, both connect as the same agent. The console notices it within a minute or two and then:</p>
+<ul>
+  <li>shows <b>two machines</b> with both names and addresses on the Agents page, and the agent under <b>Needs attention</b> on the dashboard;</li>
+  <li><b>holds</b> the agent's backups and restores, so nothing runs on the wrong machine (a restore to the original location could otherwise overwrite the copy instead of the original);</li>
+  <li>emails the administrators once and writes an <code>agent.duplicate</code> entry to the audit log.</li>
+</ul>
+<p>Stop the copy, or — if it should stay — enroll it as a new machine on the copy: <code>backupzit-agent enroll --force --code "BZ1-..."</code> (code from the Agents page). The held runs start a few minutes after only one machine is left. Restoring a Linux system with <a href="/docs/linux-system">Restore the whole system</a> already unenrolls the agent in the restored copy, and restore tests boot their VMs without a network, so neither causes this.</p>
+
 <h2 id="new-address">When the console gets a new address</h2>
 <p>Agents trust the console by its certificate, which stays the same when its IP address or name changes, but they connect to the address they were enrolled with. After a change, run on each agent machine (as administrator / root):</p>
 <pre>backupzit-agent set-server https://192.168.1.20:8443</pre>

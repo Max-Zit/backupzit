@@ -1,0 +1,87 @@
+#!/bin/sh
+# Runs at every start of the BackupZit appliance (as root):
+#  - grows the root file system when the VM disk was enlarged,
+#  - writes the login screen text (/etc/issue).
+# "backupzit-appliance-boot issue" only rewrites the screen text.
+
+log() { echo "backupzit-appliance-boot: $*"; }
+
+# grow_root extends the partition holding the root file system (and the
+# extended partition around it, on MBR disks), the LVM volume group and
+# the root logical volume to the end of the disk.
+grow_root() {
+    src=$(findmnt -no SOURCE /) || return 0
+    case "$src" in
+    /dev/mapper/* | /dev/dm-*)
+        lv=$src
+        vg=$(lvs --noheadings -o vg_name "$lv" 2>/dev/null | tr -d ' ')
+        pv=$(pvs --noheadings -o pv_name -S vg_name="$vg" 2>/dev/null | tr -d ' ' | head -1)
+        ;;
+    *)
+        lv=""
+        pv=$src
+        ;;
+    esac
+    [ -b "$pv" ] || return 0
+    part=$(basename "$(readlink -f "$pv")")
+    [ -f "/sys/class/block/$part/partition" ] || return 0
+    num=$(cat "/sys/class/block/$part/partition")
+    disk=/dev/$(basename "$(readlink -f "/sys/class/block/$part/..")")
+    total=$(blockdev --getsz "$disk")
+    end=$(($(cat "/sys/class/block/$part/start") + $(cat "/sys/class/block/$part/size")))
+    # Less than 100 MiB behind the partition: nothing to do.
+    [ $((total - end)) -gt 204800 ] || return 0
+    log "the disk $disk has $(((total - end) / 2048)) MiB unused space; growing $pv"
+    if sfdisk -d "$disk" | grep -q '^label: gpt'; then
+        sfdisk -q --relocate gpt-bak-std "$disk" || return 1
+    fi
+    if [ "$num" -ge 5 ]; then
+        ext=$(sfdisk -d "$disk" | awk '/type=(f|5|85)([, ]|$)/ { sub(/ .*/, "", $1); print $1; exit }')
+        if [ -n "$ext" ]; then
+            echo ', +' | sfdisk -q --no-reread --no-tell-kernel -N "${ext##*[!0-9]}" "$disk" || return 1
+        fi
+    fi
+    echo ', +' | sfdisk -q --no-reread --no-tell-kernel -N "$num" "$disk" || return 1
+    partx -u "$disk" || return 1
+    if [ -n "$lv" ]; then
+        pvresize -q "$pv" || return 1
+        lvextend -q -r -l +100%FREE "$lv" || return 1
+    else
+        resize2fs "$pv" >/dev/null 2>&1 || xfs_growfs / >/dev/null 2>&1 || return 1
+    fi
+    log "root file system now $(df -h / | awk 'NR == 2 { print $2 }')"
+}
+
+# write_issue shows the console address and how to sign in. The initial
+# password is shown only while the administrator has not changed it.
+write_issue() {
+    pwfile=/var/lib/backupzit/initial-admin-password.txt
+    if [ -f "$pwfile" ]; then
+        signin="admin   (initial password: $(cat "$pwfile"))
+  Change it after the first sign-in."
+    else
+        signin="admin   (password set by the administrator;
+                 setup menu item 4 sets a new one)"
+    fi
+    # \4 is the current IPv4 address, filled in by the login prompt.
+    cat > /etc/issue <<ISSUE
+BackupZit backup appliance - \n
+
+  Web console:   https://\4:8443
+  Sign in as:    $signin
+
+  Setup menu:    sign in here as bzadmin (initial password: backupzit,
+                 must be changed) - network, server name, time zone,
+                 admin password
+
+ISSUE
+}
+
+case "$1" in
+issue) write_issue ;;
+*)
+    grow_root || log "growing the root file system failed"
+    write_issue
+    ;;
+esac
+exit 0

@@ -38,6 +38,12 @@ contents:
     dst: /usr/share/backupzit/appliance/sshd-backupzit.conf
   - src: ./packaging/appliance/sysctl-backupzit.conf
     dst: /usr/share/backupzit/appliance/sysctl-backupzit.conf
+  - src: ./packaging/appliance/backupzit-appliance-boot
+    dst: /usr/share/backupzit/appliance/backupzit-appliance-boot
+    file_info:
+      mode: 0755
+  - src: ./packaging/appliance/backupzit-appliance-boot.service
+    dst: /usr/share/backupzit/appliance/backupzit-appliance-boot.service
   - src: ./packaging/linux/server.env
     dst: /etc/backupzit/server.env
     type: config|noreplace

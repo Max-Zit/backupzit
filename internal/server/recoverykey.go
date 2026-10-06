@@ -46,10 +46,36 @@ func recoverySheet(t Target, now time.Time) string {
 		"Keep this sheet in a safe place (print it, store it offline).\r\n\r\n" +
 		"Each machine has its own repository below the location:\r\n" +
 		"  <location>/<hostname>_<id>\r\n\r\n" +
-		"Restoring without the BackupZit server:\r\n" +
-		"  set BACKUPZIT_PASSWORD=<recovery key>\r\n" +
-		"  (plus the storage credentials, e.g. BACKUPZIT_SFTP_PASSWORD, BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, BACKUPZIT_SMB_PASSWORD,\r\n" +
-		"   BACKUPZIT_HARDENED_KEY + BACKUPZIT_HARDENED_FINGERPRINT, BACKUPZIT_AZURE_KEY)\r\n" +
+		"Restoring without the BackupZit server, on any machine with the agent\r\n" +
+		"(Windows: set NAME=value in an administrator prompt; Linux: export NAME=value as root):\r\n" +
+		"  BACKUPZIT_PASSWORD=<recovery key>\r\n")
+	// The storage's own credentials are not on the sheet; their names are,
+	// together with the fingerprints the console pinned (not secret).
+	switch t.Kind {
+	case "sftp":
+		b.WriteString("  BACKUPZIT_SFTP_PASSWORD=<password of the storage account> (or BACKUPZIT_SFTP_KEY=<private key file>)\r\n")
+		if t.SFTPHostKey != "" {
+			fmt.Fprintf(&b, "  BACKUPZIT_SFTP_HOSTKEY=%s\r\n", t.SFTPHostKey)
+		} else {
+			b.WriteString("  BACKUPZIT_SFTP_HOSTKEY=<SSH host key fingerprint of the server, SHA256:...>\r\n")
+		}
+	case "s3":
+		b.WriteString("  BACKUPZIT_S3_ACCESS_KEY=<access key>\r\n  BACKUPZIT_S3_SECRET_KEY=<secret key>\r\n")
+		if t.S3Region != "" {
+			fmt.Fprintf(&b, "  BACKUPZIT_S3_REGION=%s\r\n", t.S3Region)
+		}
+	case "smb":
+		b.WriteString("  BACKUPZIT_SMB_PASSWORD=<password of the share account>\r\n")
+		if t.SMBDomain != "" {
+			fmt.Fprintf(&b, "  BACKUPZIT_SMB_DOMAIN=%s\r\n", t.SMBDomain)
+		}
+	case "hardened":
+		b.WriteString("  BACKUPZIT_HARDENED_KEY=<access key of the hardened repository>\r\n")
+		fmt.Fprintf(&b, "  BACKUPZIT_HARDENED_FINGERPRINT=%s\r\n", t.HardenedFingerprint)
+	case "azure":
+		b.WriteString("  BACKUPZIT_AZURE_KEY=<storage account key> (or BACKUPZIT_AZURE_SAS=<SAS token>)\r\n")
+	}
+	b.WriteString("then:\r\n" +
 		"  backupzit-agent snapshots --repo <location>/<hostname>_<id>\r\n" +
 		"  backupzit-agent restore --repo <location>/<hostname>_<id> --target C:\\Restore latest\r\n")
 	if t.S3LockDays > 0 {

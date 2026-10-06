@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -243,10 +244,21 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	o.NASUser = strings.TrimSpace(r.FormValue("nas_user"))
 	o.NASDomain = strings.TrimSpace(r.FormValue("nas_domain"))
 	o.NASPassword = r.FormValue("nas_password")
-	if o.NASPassword == "" && o.NASUser != "" && o.NASURL == old.NASURL && o.NASUser == old.NASUser {
-		o.NASPassword = old.NASPassword // unchanged: kept (encrypted)
+	// An empty password keeps the stored one while the server and the user
+	// stay the same (another share or folder on it may be chosen); it is
+	// never sent to another server.
+	if o.NASPassword == "" && o.NASUser != "" && o.NASUser == old.NASUser && sameNASServer(o.NASURL, old.NASURL) {
+		o.NASPassword = old.NASPassword // kept (encrypted)
 	}
 	return o
+}
+
+// sameNASServer reports whether two share addresses point to the same
+// server with the same protocol.
+func sameNASServer(a, b string) bool {
+	ua, err1 := url.Parse(a)
+	ub, err2 := url.Parse(b)
+	return err1 == nil && err2 == nil && ua.Scheme == ub.Scheme && ua.Host != "" && strings.EqualFold(ua.Host, ub.Host)
 }
 
 func retentionFromForm(r *http.Request) repo.RetentionPolicy {

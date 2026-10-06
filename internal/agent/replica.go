@@ -93,7 +93,7 @@ func (a *Agent) vmReplica(ctx context.Context, run api.Run) api.RunResult {
 	}
 	details, _ := json.Marshal(map[string]any{"replicas": entries})
 	res := api.RunResult{Status: api.StatusSuccess, Details: details, Errors: failures,
-		Message: fmt.Sprintf("%d replicas updated from the backup of %s; %s written", len(entries)-len(failures), sn.Time.Local().Format("2006-01-02 15:04"), humanSize(written))}
+		Message: fmt.Sprintf("%s updated from the backup of %s; %s written", count(len(entries)-len(failures), "replica", "replicas"), sn.Time.Local().Format("2006-01-02 15:04"), humanSize(written))}
 	if len(entries) == 0 {
 		res.Message = "The backup has no Proxmox guests"
 	}

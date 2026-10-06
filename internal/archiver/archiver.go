@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/max-zit/backupzit/internal/fsutil"
@@ -32,7 +33,9 @@ type Options struct {
 	NoParent bool
 	Hostname string
 	Version  string
-	// Excludes are glob patterns matched against the base name.
+	// Excludes are glob patterns matched against the base name (*.tmp,
+	// node_modules); a pattern with a path separator is matched against the
+	// full path (/srv/data/cache, C:\Data\Temp\*).
 	Excludes []string
 	// Progress, if set, is called for each file processed.
 	Progress func(path string, s *repo.SnapshotStats)
@@ -305,13 +308,31 @@ func (a *Archiver) addError(path string, err error) {
 	a.stats.Errors = append(a.stats.Errors, fmt.Sprintf("%s: %v", path, err))
 }
 
-func (a *Archiver) excluded(name string) bool {
+func (a *Archiver) excluded(p, name string) bool {
 	for _, pat := range a.opts.Excludes {
-		if ok, _ := filepath.Match(pat, name); ok {
+		if strings.ContainsAny(pat, `/\`) {
+			if matchPath(pat, p) {
+				return true
+			}
+		} else if ok, _ := filepath.Match(pat, name); ok {
 			return true
 		}
 	}
 	return false
+}
+
+// matchPath matches a full-path exclusion: the pattern in either slash
+// style, without a trailing separator, and case-insensitive on Windows.
+func matchPath(pat, p string) bool {
+	norm := func(s string) string {
+		s = filepath.Clean(filepath.FromSlash(s))
+		if runtime.GOOS == "windows" {
+			s = strings.ToLower(s)
+		}
+		return s
+	}
+	ok, _ := filepath.Match(norm(pat), norm(p))
+	return ok
 }
 
 // archivePath stores the file, directory or symlink at p. ok is false if
@@ -378,7 +399,7 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 		}
 		t := &repo.Tree{}
 		for _, e := range entries {
-			if a.excluded(e.Name()) {
+			if a.excluded(filepath.Join(p, e.Name()), e.Name()) {
 				continue
 			}
 			var pn *repo.Node

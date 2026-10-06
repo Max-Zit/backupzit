@@ -39,7 +39,7 @@
   <tr><td>Proxmox VE</td><td>Copy <code>backupzit-appliance.qcow2</code> to the node, create a VM without a disk (2 vCPU, 2–4 GB RAM, VirtIO network), then<br><code>qm importdisk &lt;vmid&gt; backupzit-appliance.qcow2 local-lvm</code><br>attach the imported disk as SCSI, make it the boot disk and enable the QEMU guest agent.</td></tr>
   <tr><td>Hyper-V</td><td>Unzip <code>backupzit-appliance-vhdx.zip</code>, then <i>New → Virtual Machine</i>, <b>generation 1</b>, 2–4 GB RAM, <i>Use an existing virtual hard disk</i>: the VHDX.</td></tr>
 </table>
-<p>Start the VM. Its screen shows the address of the web console and the initial password of <b>admin</b> (see <a href="#first">First sign-in</a>). Give the VM 2 vCPU and 2–4 GB RAM; you can enlarge the 16 GB disk at any time. At the first start every copy creates its own SSH keys, database password and secrets key, so one image can be deployed many times. The network adapter gets its address by DHCP.</p>
+<p>Start the VM. Its screen shows the address of the web console and the initial password of <b>admin</b> (see <a href="#first">First sign-in</a>). Give the VM 2 vCPU and 2–4 GB RAM; you can enlarge the 16 GB disk at any time — the appliance takes the new space into use at its next start (the root file system grows while running). At the first start every copy creates its own SSH keys, database password and secrets key, so one image can be deployed many times. The network adapter gets its address by DHCP.</p>
 
 <h2>2. Appliance ISO</h2>
 <p>The <b>appliance ISO</b> installs everything without questions: Debian, PostgreSQL, the console and automatic security updates.</p>
@@ -62,12 +62,13 @@
   <tr><td>1 Network</td><td>DHCP or a static address with prefix length (e.g. <code>192.168.1.20/24</code>), gateway and up to three DNS servers.</td></tr>
   <tr><td>2 Server name</td><td>The host name (letters, digits and -).</td></tr>
   <tr><td>3 SSH</td><td>Switch the SSH server on or off and change its port. The ports of the console (80, 443, 8443), PostgreSQL (5432) and instant recovery (111, 2049) cannot be used.</td></tr>
-  <tr><td>4 Reset the password of "admin"</td><td>For a forgotten web console password; also lifts sign-in blocks.</td></tr>
+  <tr><td>4 Reset the password of "admin"</td><td>For a forgotten web console password; also lifts sign-in blocks. The screen then stops showing the generated initial password (it also does once admin's password is changed in the web console, from the next start).</td></tr>
   <tr><td>5 Lift sign-in blocks and web console limits</td><td>When too many failed sign-ins blocked an address, or the web console is limited to addresses you can no longer use (see <a href="/docs/security#web-access">Security</a>).</td></tr>
   <tr><td>6–8</td><td>Restart the web console, reboot or shut down the server.</td></tr>
+  <tr><td>9 Time zone</td><td>The appliance starts in UTC. Set your zone, e.g. <code>Europe/Belgrade</code>: the console shows all times, runs the schedules and reads restore points (also the point in time of a database restore) in it. The console restarts to use it.</td></tr>
   <tr><td>0 Command line</td><td>Leaves the menu. Open it again with <code>sudo backupzit-server --setup</code> (also over SSH).</td></tr>
 </table>
-<p>The same network, server name and SSH settings are under <b>Settings → Network</b> in the web console (administrators only). There, a static address whose gateway does not answer within half a minute is undone automatically, so a typo cannot cut the appliance off the network; if the console still cannot be reached, use the menu on the server's screen, which works even with SSH off.</p>
+<p>The same network, server name, SSH and time zone settings are under <b>Settings → Network</b> in the web console (administrators only). There, a static address whose gateway does not answer within half a minute is undone automatically, so a typo cannot cut the appliance off the network; if the console still cannot be reached, use the menu on the server's screen, which works even with SSH off.</p>
 <p>Agents remember the console's certificate, not its address. If they reach the console by its IP address and the address changes, point them at the new one with <code>backupzit-agent set-server</code> (see <a href="/docs/agents#new-address">Agents</a>), or use a DNS name from the start. With DHCP, reserve the appliance's address in the DHCP server so it does not change.</p>
 <p>The appliance's SSH server offers only AES-GCM/CTR ciphers and SHA-2 MACs (no chacha20-poly1305 or 64-bit MACs, which vulnerability scanners report as weak).</p>
 

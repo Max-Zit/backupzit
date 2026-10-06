@@ -188,7 +188,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
     <legend>{{T "State to restore"}}</legend>
     <label class="check"><input type="radio" name="point" value="full" checked> {{T "As of the full backup"}}</label>
     <label class="check"><input type="radio" name="point" value="latest"> {{T "Latest: the full backup and every log backup after it"}}</label>
-    <label class="check"><input type="radio" name="point" value="time"> {{T "At a point in time"}} <input type="datetime-local" name="stop_at" step="1"></label>
+    <label class="check"><input type="radio" name="point" value="time"> {{T "At a point in time"}} <input type="datetime-local" name="stop_at" step="1"> <small class="muted">{{zone}}</small></label>
     <div class="table-wrap"><table>
       <tr><th>{{T "Database"}}</th><th>{{T "Full backup"}}</th><th>{{T "Log backups reach until"}}</th></tr>
       {{range $d.SQLPoints}}<tr><td>{{if eq .Name "(cluster)"}}{{T "whole cluster"}}{{else}}{{.Name}}{{end}}</td><td>{{ts .Full}}</td><td>{{if .LogUntil.IsZero}}<span class="muted">{{T "no log backups"}}</span>{{else}}{{ts .LogUntil}}{{end}}</td></tr>{{end}}

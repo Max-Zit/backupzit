@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -64,6 +65,12 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("agent enrolled", "hostname", req.Hostname, "uuid", resp.AgentUUID)
+	what := "agent"
+	if req.Recovery {
+		what = "recovery media"
+	}
+	// A new machine got access to the console: worth an audit entry.
+	s.auditAs(r, "", "agent.enroll", fmt.Sprintf("%s %s enrolled (%s %s, agent %s)", what, req.Hostname, req.OS, req.Arch, req.Version))
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -84,7 +91,9 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 			resp.Status = st
 		}
 	}
-	if !req.Busy {
+	// Runs wait while two machines use this enrollment (a running copy).
+	held := s.agentDuplicate(r.Context(), a, req.Instance, req.Hostname, remoteIP(r))
+	if !req.Busy && !held {
 		run, err := s.store.ClaimRun(r.Context(), a.ID)
 		if err != nil {
 			s.log.Error("claim run", "err", err)

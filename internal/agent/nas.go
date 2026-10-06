@@ -75,6 +75,9 @@ func (a *Agent) withNAS(ctx context.Context, run api.Run, writable bool, fn func
 	}
 	root, unmount, err := mountNAS(ctx, s, run.NAS, writable)
 	if err != nil {
+		if hint := nasHint(err); hint != "" {
+			return failed(fmt.Errorf("connect to the share %s: %s (%w)", run.NAS.URL, hint, err))
+		}
 		return failed(fmt.Errorf("connect to the share %s: %w", run.NAS.URL, err))
 	}
 	defer unmount()
@@ -83,4 +86,24 @@ func (a *Agent) withNAS(ctx context.Context, run api.Run, writable bool, fn func
 		return failed(err)
 	}
 	return fn(paths)
+}
+
+// nasHint explains the usual mount failures (mount.cifs, mount.nfs, net
+// use) in words; the original message is kept after it.
+func nasHint(err error) string {
+	m := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(m, "mount error(2)"), strings.Contains(m, "network name cannot be found"), strings.Contains(m, "system error 67"):
+		return "the share does not exist on this server — check the share name"
+	case strings.Contains(m, "mount error(13)"), strings.Contains(m, "logon failure"), strings.Contains(m, "system error 1326"), strings.Contains(m, "system error 86"):
+		return "access denied — check the user name, password and domain of the job"
+	case strings.Contains(m, "access denied by server"):
+		return "the NFS export does not allow this agent's address — add it on the NAS"
+	case strings.Contains(m, "mount error(112)"), strings.Contains(m, "host is down"), strings.Contains(m, "no route to host"),
+		strings.Contains(m, "network path was not found"), strings.Contains(m, "system error 53"), strings.Contains(m, "connection timed out"):
+		return "the server does not answer — check its address and that SMB/NFS is enabled"
+	case strings.Contains(m, "wrong fs type"), strings.Contains(m, "bad option"), strings.Contains(m, "executable file not found"):
+		return "this machine cannot mount the share — install cifs-utils (SMB) or nfs-common / nfs-utils (NFS)"
+	}
+	return ""
 }

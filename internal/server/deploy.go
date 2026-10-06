@@ -355,6 +355,13 @@ func (s *Server) deployLinux(ctx context.Context, d *deployment, q deployRequest
 	}
 	want := strings.TrimSpace(q.HostKey)
 	cfg := &ssh.ClientConfig{User: q.User, Auth: auth, Timeout: 20 * time.Second,
+		// Prefer ed25519 so the fingerprint matches what the docs tell
+		// operators to read ("ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub").
+		HostKeyAlgorithms: []string{
+			ssh.KeyAlgoED25519,
+			ssh.KeyAlgoECDSA256, ssh.KeyAlgoECDSA384, ssh.KeyAlgoECDSA521,
+			ssh.KeyAlgoRSASHA512, ssh.KeyAlgoRSASHA256,
+		},
 		HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
 			fp := ssh.FingerprintSHA256(key)
 			if want != "" && fp != want {

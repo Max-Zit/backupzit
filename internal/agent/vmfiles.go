@@ -52,7 +52,7 @@ func (a *Agent) vmFileRestore(ctx context.Context, run api.Run) api.RunResult {
 	}
 	stats, _ := json.Marshal(map[string]any{"files": st.Files, "dirs": st.Dirs, "bytes": st.Bytes})
 	res := api.RunResult{Status: api.StatusSuccess, Stats: stats, Errors: st.Errors,
-		Message: fmt.Sprintf("Restored %d files and %d folders (%s) from VM %d, %s into %s", st.Files, st.Dirs, humanSize(st.Bytes), o.VMID, v.Name, o.Target)}
+		Message: fmt.Sprintf("Restored %s and %s (%s) from VM %d, %s into %s", count(int(st.Files), "file", "files"), count(int(st.Dirs), "folder", "folders"), humanSize(st.Bytes), o.VMID, v.Name, o.Target)}
 	if len(st.Errors) > 0 {
 		res.Status = api.StatusWarning
 	}

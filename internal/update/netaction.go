@@ -12,8 +12,9 @@ import (
 // Network and SSH settings of the appliance, changed from the console
 // (Settings → Network) through the root helper.
 const (
-	ActionNetwork = "network" // Request.Network
-	ActionSSH     = "ssh"     // Request.SSH
+	ActionNetwork  = "network"  // Request.Network
+	ActionSSH      = "ssh"      // Request.SSH
+	ActionTimeZone = "timezone" // Request.TimeZone
 )
 
 // netSystem is the netcfg system behind a.Root, with a.Run.
@@ -41,6 +42,12 @@ func (a *Applier) netAction(ctx context.Context, req Request) (*Result, error) {
 	case req.Action == ActionSSH && req.SSH != nil:
 		err = sys.ApplySSH(ctx, *req.SSH)
 		res.Message = "SSH settings applied"
+	case req.Action == ActionTimeZone:
+		// The console restarts to use the new zone; write the result first.
+		if err = netcfg.ValidTimeZone(req.TimeZone); err == nil {
+			err = sys.ApplyTimeZone(ctx, req.TimeZone, false)
+		}
+		res.Message = "time zone set to " + req.TimeZone
 	default:
 		err = errors.New("incomplete network request")
 	}
@@ -49,5 +56,11 @@ func (a *Applier) netAction(ctx context.Context, req Request) (*Result, error) {
 	}
 	res.Finished = time.Now().UTC()
 	a.logf("%s: %s %s", req.Action, res.Status, res.Message)
-	return nil, WriteJSON(filepath.Join(a.Dir, "net-result.json"), res, 0o644)
+	if err := WriteJSON(filepath.Join(a.Dir, "net-result.json"), res, 0o644); err != nil {
+		return nil, err
+	}
+	if req.Action == ActionTimeZone && res.Status == "done" {
+		a.Run(ctx, "systemctl", "restart", "backupzit-server")
+	}
+	return nil, nil
 }

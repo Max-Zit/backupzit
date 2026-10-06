@@ -95,11 +95,11 @@ func (a *Agent) sqlBackup(ctx context.Context, run api.Run) api.RunResult {
 	case kind == "log" && o.Engine == "postgres":
 		res.Message = fmt.Sprintf("Archived WAL %s to %s (%s)", sn.SQL.Databases[0].FirstLSN, sn.SQL.Databases[0].LastLSN, humanSize(size))
 	case kind == "log":
-		res.Message = fmt.Sprintf("Backed up the transaction logs of %d databases (%s)", len(sn.SQL.Databases), humanSize(size))
+		res.Message = fmt.Sprintf("Backed up the transaction logs of %s (%s)", count(len(sn.SQL.Databases), "database", "databases"), humanSize(size))
 	case o.Engine == "postgres":
-		res.Message = fmt.Sprintf("Backed up the PostgreSQL cluster and %d databases (%s)", dbs, humanSize(size))
+		res.Message = fmt.Sprintf("Backed up the PostgreSQL cluster and %s (%s)", count(dbs, "database", "databases"), humanSize(size))
 	default:
-		res.Message = fmt.Sprintf("Backed up %d databases (%s)", len(sn.SQL.Databases), humanSize(size))
+		res.Message = fmt.Sprintf("Backed up %s (%s)", count(len(sn.SQL.Databases), "database", "databases"), humanSize(size))
 	}
 	if len(problems) > 0 {
 		res.Status = api.StatusWarning
@@ -172,7 +172,7 @@ func (a *Agent) sqlRestore(ctx context.Context, run api.Run) api.RunResult {
 	}
 	msg := fmt.Sprintf("Database %s restored from the full backup", target)
 	if n > 0 {
-		msg += fmt.Sprintf(" and %d log backups", n)
+		msg += " and " + count(n, "log backup", "log backups")
 	}
 	if !o.StopAt.IsZero() {
 		msg += ", to " + o.StopAt.Local().Format("2006-01-02 15:04:05 MST")

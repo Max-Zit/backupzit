@@ -25,6 +25,8 @@ type networkPage struct {
 	Reason    string // why not
 	Status    *netcfg.Status
 	SSH       netcfg.SSHConfig
+	TimeZone  string   // system time zone, e.g. Europe/Belgrade
+	Zones     []string // the zones the system knows
 	Result    *update.OSResult
 	Pending   bool
 	DNS       string
@@ -51,6 +53,10 @@ func (s *Server) networkPageData(ctx context.Context) networkPage {
 		}
 	}
 	p.SSH = netSystem.SSH(ctx)
+	p.TimeZone = netSystem.TimeZone()
+	if out, err := netSystem.Run(ctx, "timedatectl", "list-timezones"); err == nil {
+		p.Zones = strings.Fields(out)
+	}
 	var res update.OSResult
 	if update.ReadJSON(filepath.Join(s.upd.dir, "net-result.json"), &res) == nil {
 		p.Result = &res
@@ -126,4 +132,19 @@ func (s *Server) handleSSHSettings(w http.ResponseWriter, r *http.Request, user 
 	}
 	s.audit(r, "settings.ssh", "SSH %s", state)
 	redirectMsg(w, r, back, "Applying the SSH settings; reload the page in a few seconds.")
+}
+
+func (s *Server) handleTimeZoneSettings(w http.ResponseWriter, r *http.Request, user string) {
+	const back = "/settings/network#timezone"
+	zone := strings.TrimSpace(r.FormValue("zone"))
+	if err := netcfg.ValidTimeZone(zone); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	if err := s.requestHelper(update.Request{Action: update.ActionTimeZone, TimeZone: zone, User: user}); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	s.audit(r, "settings.timezone", "time zone %s", zone)
+	redirectMsg(w, r, back, "Setting the time zone; the console restarts and is back in a few seconds.")
 }

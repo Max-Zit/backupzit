@@ -16,7 +16,7 @@
       <li><b>NAS / file share</b> — an SMB or NFS share read by the agent; see <a href="#nas">below</a>.</li>
     </ul>
   </li>
-  <li>Optionally add <b>excludes</b>, one pattern per line: <code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>.</li>
+  <li>Optionally add <b>excludes</b>, one per line: a name pattern, which applies in every folder (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), or a full path, which applies to that one file or folder (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, also with wildcards: <code>D:\VMs\*.iso</code>). Full paths ignore upper and lower case on Windows.</li>
   <li>Set <b>Keep backups</b> and the <b>Schedule</b>, then <i>Create job</i>.</li>
 </ol>
 
@@ -40,7 +40,7 @@
   <tr><td><b>Once a month</b></td><td>On the 1st at 23:00.</td></tr>
   <tr><td><b>Manually only</b></td><td>Runs only when you click <i>Run backup now</i>.</td></tr>
 </table>
-<p>Times are in the console server's time zone. If an agent is offline at the scheduled time, the backup waits in the queue and starts as soon as the agent is back. See all planned runs in the <a href="/calendar">Calendar</a>.</p>
+<p>Times are in the console server's time zone (on the appliance: <a href="/settings/network#timezone">Settings → Network → Time zone</a> or item 9 of the setup menu; it starts in UTC). If an agent is offline at the scheduled time, the backup waits in the queue and starts as soon as the agent is back. See all planned runs in the <a href="/calendar">Calendar</a>.</p>
 
 <h2>Retention: how many backups to keep</h2>
 <p>A snapshot is kept if <b>any</b> rule selects it:</p>

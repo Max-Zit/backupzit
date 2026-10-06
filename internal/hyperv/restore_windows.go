@@ -188,6 +188,9 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		gen = existing.Generation
 	} else {
 		fmt.Fprintf(&s, `$vm = New-VM -Name %s -Generation %d -MemoryStartupBytes %d -NoVHD; `, psq(name), gen, max(cfg.Memory, 512<<20))
+		// Windows turns automatic checkpoints on for new VMs; every start
+		// would then leave an .avhdx next to the restored disk.
+		s.WriteString(`if ((Get-Command Set-VM).Parameters.ContainsKey('AutomaticCheckpointsEnabled')) { Set-VM -VM $vm -AutomaticCheckpointsEnabled $false }; `)
 	}
 	if cfg.CPU > 0 {
 		fmt.Fprintf(&s, `Set-VMProcessor -VM $vm -Count %d; `, cfg.CPU)

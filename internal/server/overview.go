@@ -180,10 +180,17 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 			out = append(out, Attention{"warning", j.Name, l.T("last successful backup %s ago; scheduled runs since then did not succeed", humanAge(l, now.Sub(*c.LastOK))), link})
 		}
 	}
+	if s.InitialPasswordInUse() {
+		out = append(out, Attention{"warning", "admin", l.T("still has the generated initial password — change it under Account"), "/account"})
+	}
 	agents, _ := s.store.ListAgents(ctx)
+	dups := s.dups.current(now)
 	for _, a := range agents {
 		if a.Recovery {
 			continue
+		}
+		if d, ok := dups[a.ID]; ok {
+			out = append(out, Attention{"failed", a.Hostname, l.T("two machines use this agent (%s); its backups and restores are held — stop the copy or enroll it as a new machine", strings.Join(d.Machines, ", ")), "/agents"})
 		}
 		if a.LastSeen == nil || now.Sub(*a.LastSeen) > 15*time.Minute {
 			seen := l.T("agent never connected")

@@ -52,7 +52,7 @@ expire_logs_days = 7</pre>
 <p>Open a full backup run (or use the <a href="/restore">restore wizard</a> → <i>Database</i>) and choose the database, the machine to restore on (the same server or another one with the same database server) and:</p>
 <ul>
   <li><b>As a new database</b> named e.g. <code>sales_restored</code> — the original stays untouched and you can copy rows back — or <b>under its original name</b>; tick <i>replace it</i> to overwrite an existing database (its users are disconnected first).</li>
-  <li><b>State</b>: as of the full backup; the latest state (the full backup and every log backup after it); or a <b>point in time</b> between the full backup and the newest usable log backup, as the table shows. Enter the time as shown in the console; the agent converts it to the database server's time zone.</li>
+  <li><b>State</b>: as of the full backup; the latest state (the full backup and every log backup after it); or a <b>point in time</b> between the full backup and the newest usable log backup, as the table shows. Enter the time as shown in the console, in the console server's time zone (see <a href="/docs/install#setup-menu">Time zone</a>); the agent converts it to the database server's time zone.</li>
 </ul>
 
 <h2>Command line</h2>

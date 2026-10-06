@@ -50,6 +50,9 @@ type SSOSettings struct {
 	// SAML: the identity provider's metadata, by URL or pasted.
 	MetadataURL string `json:"metadata_url,omitempty"`
 	MetadataXML string `json:"metadata_xml,omitempty"`
+	// CACert (PEM) is trusted for the identity provider's HTTPS, for one
+	// with an internal CA or a self-signed certificate.
+	CACert string `json:"ca_cert,omitempty"`
 	// The console's SAML key and certificate (created once).
 	SPKey  string `json:"sp_key,omitempty"`
 	SPCert string `json:"sp_cert,omitempty"`
@@ -73,6 +76,9 @@ func (c SSOSettings) label() string {
 }
 
 func (c *SSOSettings) Validate() error {
+	if c.CACert != "" && !x509.NewCertPool().AppendCertsFromPEM([]byte(c.CACert)) {
+		return errors.New("the CA certificate must be in PEM format (-----BEGIN CERTIFICATE-----)")
+	}
 	switch c.Protocol {
 	case "":
 		return nil
@@ -228,7 +234,7 @@ func (s *Server) oidcConfig(ctx context.Context, c SSOSettings, r *http.Request)
 	if ssoProviders.key != c.cacheKey() || ssoProviders.provider == nil {
 		pctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
-		p, err := oidc.NewProvider(pctx, strings.TrimRight(c.Issuer, "/"))
+		p, err := oidc.NewProvider(oidc.ClientContext(pctx, c.httpClient()), strings.TrimRight(c.Issuer, "/"))
 		if err != nil {
 			return nil, nil, fmt.Errorf("identity provider %s: %w", c.Issuer, err)
 		}
@@ -251,7 +257,7 @@ func (s *Server) serviceProvider(ctx context.Context, c SSOSettings, r *http.Req
 			idp, err = parseIdPMetadata([]byte(c.MetadataXML))
 		} else {
 			fctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-			idp, err = fetchIdPMetadata(fctx, c.MetadataURL)
+			idp, err = fetchIdPMetadata(fctx, c.httpClient(), c.MetadataURL)
 			cancel()
 		}
 		if err != nil {
@@ -352,7 +358,7 @@ func (s *Server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		s.ssoFailed(w, r, err)
 		return
 	}
-	tok, err := oc.Exchange(r.Context(), r.FormValue("code"), oauth2.VerifierOption(st[2]))
+	tok, err := oc.Exchange(context.WithValue(r.Context(), oauth2.HTTPClient, c.httpClient()), r.FormValue("code"), oauth2.VerifierOption(st[2]))
 	if err != nil {
 		s.ssoFailed(w, r, fmt.Errorf("token exchange: %w", err))
 		return
@@ -565,12 +571,12 @@ func parseIdPMetadata(b []byte) (*saml.EntityDescriptor, error) {
 	return nil, errors.New("no identity provider in the metadata")
 }
 
-func fetchIdPMetadata(ctx context.Context, u string) (*saml.EntityDescriptor, error) {
+func fetchIdPMetadata(ctx context.Context, client *http.Client, u string) (*saml.EntityDescriptor, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -609,7 +615,7 @@ func (s *Server) handleSettingsSSO(w http.ResponseWriter, r *http.Request, user 
 	old := s.ssoSettings(r.Context())
 	t := func(k string) string { return strings.TrimSpace(r.FormValue(k)) }
 	c := SSOSettings{Protocol: t("protocol"), Label: t("label"), Issuer: t("issuer"), ClientID: t("client_id"), ClientSecret: r.FormValue("client_secret"),
-		MetadataURL: t("metadata_url"), MetadataXML: t("metadata_xml"), UsernameClaim: t("username_claim"), GroupsClaim: t("groups_claim"),
+		MetadataURL: t("metadata_url"), MetadataXML: t("metadata_xml"), CACert: t("ca_cert"), UsernameClaim: t("username_claim"), GroupsClaim: t("groups_claim"),
 		AdminGroup: t("admin_group"), OperatorGroup: t("operator_group"), RestoreGroup: t("restore_group"), ViewerGroup: t("viewer_group"),
 		DefaultRole: t("default_role"), SPKey: old.SPKey, SPCert: old.SPCert}
 	if c.ClientSecret == "" {
@@ -671,4 +677,21 @@ func firstUse(state string) bool {
 	}
 	usedSSOStates.m[state] = now
 	return true
+}
+
+// httpClient reaches the identity provider; with CACert it also trusts
+// that certificate (an internal CA or a self-signed identity provider).
+func (c SSOSettings) httpClient() *http.Client {
+	if c.CACert == "" {
+		return &http.Client{Timeout: 30 * time.Second}
+	}
+	pool, err := x509.SystemCertPool()
+	if err != nil || pool == nil {
+		pool = x509.NewCertPool()
+	}
+	pool.AppendCertsFromPEM([]byte(c.CACert))
+	return &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{
+		Proxy:           http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12},
+	}}
 }

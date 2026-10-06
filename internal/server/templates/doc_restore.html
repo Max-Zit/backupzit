@@ -61,6 +61,18 @@
   <li>Hyper-V VMs: as a new VM or in place (keeps ID and MAC addresses) — <a href="/docs/hyperv">Hyper-V</a>.</li>
   <li>VMware ESXi VMs: as a new VM or in place (keeps UUID and MAC addresses), on any ESXi host and datastore — <a href="/docs/vmware">VMware ESXi</a>; also instantly from the backup through a Linux proxy agent, then copied to a datastore (<a href="/docs/vmware">instant recovery</a>).</li>
 </ul>
+<h3 id="recovery-iso">Recovery ISOs</h3>
+<p>Bare-metal restores boot the machine from a recovery ISO (on a USB stick or attached to a VM), see <a href="/recovery">Recovery media</a>:</p>
+<ul>
+  <li><b>Linux recovery ISO</b> — published with every release (<code>backupzit-recovery-linux.iso</code>); the Recovery media page links it from the update source.</li>
+  <li id="winpe"><b>Windows recovery ISO</b> — Windows PE may not be redistributed, so it is built once on any Windows 10/11 or Server PC:
+    <ol>
+      <li>Install the free <b>Windows ADK</b> (feature <i>Deployment Tools</i>) and the <b>Windows PE add-on</b> from Microsoft.</li>
+      <li>Download <code>build-winpe.ps1</code> from the release (next to the agent packages) and take <code>backupzit-agent.exe</code> from <code>C:\Program Files\backupzit Agent</code> of a machine with the agent.</li>
+      <li>In an administrator PowerShell: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Add <code>-DriverDir C:\Drivers</code> for storage or network drivers (e.g. VirtIO for Proxmox VMs) and <code>-RecoveryJson .\recovery.json</code> so it connects without typing.</li>
+      <li>Optionally copy the ISO into the console's <code>/var/lib/backupzit/dist</code>; it is then offered on the Recovery media page.</li>
+    </ol></li>
+</ul>
 <p>Browsing files in the console works for backups on network storage (SFTP, S3, SMB, Azure, hardened repository); the console reads them directly. For backups on a local disk of an agent use the command line.</p>
 
 <h2>Restore without the console</h2>

@@ -26,17 +26,7 @@ sed -i "s#^BACKUPZIT_DB=.*#BACKUPZIT_DB=postgres://backupzit:$DB_PASS@localhost:
 grep -q '^BACKUPZIT_TLS_HOSTS=' $ENV || echo "BACKUPZIT_TLS_HOSTS=${IP:+$IP,}$(hostname -f)" >> $ENV
 systemctl enable --now backupzit-server
 for i in $(seq 60); do [ -f /var/lib/backupzit/initial-admin-password.txt ] && break; sleep 1; done
-PW=$(cat /var/lib/backupzit/initial-admin-password.txt 2>/dev/null || echo "in /var/lib/backupzit/initial-admin-password.txt")
-# \4 is the current IPv4 address, filled in by the login prompt.
-cat > /etc/issue <<ISSUE
-BackupZit backup appliance - \n
-
-  Web console:   https://\4:8443
-  Sign in as:    admin   (initial password: $PW)
-  Change it after the first sign-in.
-
-  Setup menu:    sign in here as bzadmin (initial password: backupzit,
-                 must be changed) - network, server name, admin password
-
-ISSUE
+# The login screen (address, how to sign in) is written again at every
+# start by backupzit-appliance-boot (from the server package).
+/usr/local/sbin/backupzit-appliance-boot issue || true
 touch /var/lib/backupzit/.appliance-ready

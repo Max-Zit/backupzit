@@ -28,6 +28,16 @@ if [ -f /var/lib/backupzit/.appliance-ready ] || [ -x /usr/local/sbin/backupzit-
     install -m 0440 $a/sudoers-backupzit-setup /etc/sudoers.d/backupzit-setup
     install -m 0644 $a/sysctl-backupzit.conf /etc/sysctl.d/90-backupzit-console.conf
     sysctl -q -p /etc/sysctl.d/90-backupzit-console.conf 2>/dev/null || true
+    # At every start: grow the root file system to an enlarged disk, and
+    # write the login screen (it shows the initial password only until
+    # admin's password is changed).
+    install -m 0755 $a/backupzit-appliance-boot /usr/local/sbin/backupzit-appliance-boot
+    install -m 0644 $a/backupzit-appliance-boot.service /etc/systemd/system/backupzit-appliance-boot.service
+    systemctl daemon-reload 2>/dev/null || true
+    systemctl enable backupzit-appliance-boot.service >/dev/null 2>&1 || true
+    if [ -f /var/lib/backupzit/.appliance-ready ]; then
+        /usr/local/sbin/backupzit-appliance-boot >/dev/null 2>&1 || true
+    fi
     if [ -d /etc/ssh/sshd_config.d ]; then
         install -m 0644 $a/sshd-backupzit.conf /etc/ssh/sshd_config.d/50-backupzit.conf
         if sshd -t 2>/dev/null; then

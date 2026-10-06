@@ -1,5 +1,17 @@
 {{define "content"}}
 <h1>{{T "Dashboard"}}</h1>
+{{with .Data.Summary}}{{if and (eq .Agents 0) (eq .Targets 0) (eq .Jobs 0)}}
+<div class="panel" id="getting-started">
+  <h2>{{template "icon" "play"}} {{T "Getting started"}}</h2>
+  <ol class="steps">
+    <li><a href="/account">{{T "Change the password of admin"}}</a> {{T "and, if you like, turn on two-factor sign-in."}}</li>
+    <li><a href="/targets">{{T "Add a storage target"}}</a> {{T "— a NAS (SMB), an SFTP server, S3 or Azure storage, or a hardened repository."}}</li>
+    <li><a href="/agents">{{T "Install agents"}}</a> {{T "on the machines to protect, or add a Proxmox, Hyper-V or ESXi host for its VMs."}}</li>
+    <li><a href="/jobs">{{T "Create a backup job"}}</a> {{T "and run it once; then try a restore."}}</li>
+  </ol>
+  <p class="muted small">{{T "The guide explains every step:"}} <a href="/docs/start">{{T "Getting started"}}</a>.</p>
+</div>
+{{end}}{{end}}
 {{with .Data.Instant}}<div class="callout warn"><p><b>{{len .}} {{N (len .) "VM still runs" "VMs still run"}} {{T "from a backup"}}</b> {{T "(instant recovery):"}} {{range $i, $v := .}}{{if $i}}, {{end}}<a href="/runs/{{$v.RunID}}">{{T "VM"}} {{$v.VMID}}{{if $v.Name}} ({{$v.Name}}){{end}} {{T "on host"}} {{$v.Hostname}}</a>{{end}}{{T ". Finish or discard"}} {{if gt (len .) 1}}{{T "them"}}{{else}}{{T "it"}}{{end}}{{T ": until then"}} {{if gt (len .) 1}}{{T "they depend"}}{{else}}{{T "it depends"}}{{end}} {{T "on the backup storage."}}</p></div>{{end}}
 {{with .Data.Protection}}
 <div class="grid">

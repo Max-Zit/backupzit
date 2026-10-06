@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/term"
 
@@ -43,6 +44,7 @@ func runSetup(ctx context.Context) error {
   6) Restart the web console
   7) Reboot the server
   8) Shut down the server
+  9) Time zone
   0) Command line (open this menu again with: sudo backupzit-server --setup)
 
 `)
@@ -67,6 +69,8 @@ func runSetup(ctx context.Context) error {
 			if m.yes("Shut down the server now? Running backups are interrupted") {
 				return exec.CommandContext(ctx, "systemctl", "poweroff").Run()
 			}
+		case "9":
+			m.timeZone(ctx)
 		case "0", "q", "exit":
 			return nil
 		}
@@ -96,6 +100,7 @@ func (m *setupMenu) header(ctx context.Context) {
 	} else {
 		fmt.Println("  SSH:          off")
 	}
+	fmt.Printf("  Time:         %s (%s)\n", time.Now().Format("2006-01-02 15:04"), m.sys.TimeZone())
 	state, _ := exec.CommandContext(ctx, "systemctl", "is-active", "backupzit-server").Output()
 	fmt.Printf("  Service:      %s\n\n", strings.TrimSpace(string(state)))
 }
@@ -256,6 +261,9 @@ func (m *setupMenu) password(ctx context.Context) {
 		if err != nil {
 			fmt.Println("\n  Failed: " + err.Error())
 		} else {
+			// The screen no longer shows the generated initial password.
+			os.Remove("/var/lib/backupzit/initial-admin-password.txt")
+			exec.CommandContext(ctx, "/usr/local/sbin/backupzit-appliance-boot", "issue").Run()
 			fmt.Println("\n  The password of \"admin\" was changed and sign-in blocks were lifted.")
 		}
 	}
@@ -302,6 +310,27 @@ func (m *setupMenu) ssh(ctx context.Context) {
 		fmt.Printf("\n  SSH is on, port %d.\n", c.Port)
 	} else {
 		fmt.Println("\n  SSH is off. This menu on the server's screen still works.")
+	}
+	m.pause()
+}
+
+// timeZone sets the system time zone; the console restarts to use it.
+func (m *setupMenu) timeZone(ctx context.Context) {
+	fmt.Printf("\n  Current time zone: %s\n", m.sys.TimeZone())
+	fmt.Println("  Enter a zone such as Europe/Belgrade, Europe/Berlin, America/New_York or UTC.")
+	z := m.ask("Time zone", m.sys.TimeZone())
+	if z == m.sys.TimeZone() {
+		return
+	}
+	if err := netcfg.ValidTimeZone(z); err != nil {
+		fmt.Println("\n  " + err.Error())
+		m.pause()
+		return
+	}
+	if err := m.sys.ApplyTimeZone(ctx, z, true); err != nil {
+		fmt.Println("\n  Failed: " + err.Error())
+	} else {
+		fmt.Printf("\n  The time zone is now %s; the web console was restarted.\n", z)
 	}
 	m.pause()
 }

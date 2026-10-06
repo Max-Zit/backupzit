@@ -86,9 +86,9 @@
     <label>{{T "Name"}} <input name="name" required value="{{.Name}}"></label>
     {{if eq .Kind "files"}}
     <label>{{T "Folders and files to back up"}} <small>{{T "one path per line"}}</small><textarea name="paths" required>{{join .Paths "\n"}}</textarea></label>
-    <label>{{T "Exclude"}} <small>{{T "one name pattern per line"}}</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
+    <label>{{T "Exclude"}} <small>{{T "one per line: a name pattern (*.tmp, node_modules) or a full path (C:\\Data\\Temp, /srv/cache)"}}</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
     {{else if eq .Kind "system"}}
-    <label>{{T "Exclude"}} <small>{{T "one name pattern per line"}}</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
+    <label>{{T "Exclude"}} <small>{{T "one per line: a name pattern (*.tmp, node_modules) or a full path (C:\\Data\\Temp, /srv/cache)"}}</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
     {{else if eq .Kind "sql"}}{{template "job_sql" $.Data.Form}}
     {{else if eq .Kind "nas"}}{{template "job_nas" $.Data.Form}}
     {{else if eq .Kind "vm"}}{{$sel := .Paths}}

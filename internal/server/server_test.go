@@ -613,7 +613,7 @@ func TestRetentionJob(t *testing.T) {
 		if r.Status != api.StatusSuccess {
 			t.Fatalf("run %d: %s %q", i, r.Status, r.Message)
 		}
-		if i > 0 && !strings.Contains(r.Message, "removed 1 old backups") {
+		if i > 0 && !strings.Contains(r.Message, "removed 1 old backup,") {
 			t.Errorf("run %d message %q", i, r.Message)
 		}
 		runIDs = append(runIDs, id)
@@ -1264,7 +1264,7 @@ func TestCopyJob(t *testing.T) {
 	copyRunID := runs[0].ID
 	runAgent(t, ag)
 	cr, _ := e.store.GetRun(ctx, copyRunID)
-	if cr.Status != api.StatusSuccess || cr.SnapshotID == "" || !strings.Contains(cr.Message, "Copied 1 backups") {
+	if cr.Status != api.StatusSuccess || cr.SnapshotID == "" || !strings.Contains(cr.Message, "Copied 1 backup (") {
 		t.Fatalf("copy run: %s %q", cr.Status, cr.Message)
 	}
 	if _, _, body := admin.do("GET", fmt.Sprintf("/runs/%d", copyRunID), nil); !strings.Contains(body, "backups copied") || !strings.Contains(body, "Restore files from this backup") {

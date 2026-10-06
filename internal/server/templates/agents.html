@@ -41,7 +41,7 @@ sudo systemctl enable --now backupzit-agent</pre>
       <td>{{.OS}}/{{.Arch}}</td>
       <td class="nowrap">{{range $i, $ip := .LocalIPs}}{{if $i}}<br>{{end}}<span class="mono small">{{$ip}}</span>{{else}}<span class="muted">—</span>{{end}}{{with .RemoteAddr}}<div class="muted small" title="{{T "address the agent connects from — its public address if it is behind NAT"}}">{{T "seen from"}} {{.}}</div>{{end}}</td>
       <td><span class="mono">{{.Version}}</span>{{$id := .ID}}{{$u := index $.Data.Updates .ID}}{{if $u.Version}}{{with $u}}<br>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{$id}}/update" class="inline"><button class="link small" title="Installs {{.File}} on the machine; the agent restarts">{{T "Update to"}} {{.Version}}</button></form>{{else}}<span class="muted small">{{.Version}} {{T "available"}}</span>{{end}}{{end}}{{end}}</td>
-      <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}</td>
+      <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}{{with (index $.Data.Duplicates .ID).Machines}}<br><span class="badge failed" title="{{join . ", "}}"><i></i>{{T "two machines"}}</span> <span class="muted small">{{join . ", "}} — {{T "runs are held"}} · <a href="/docs/agents#duplicate">{{T "help"}}</a></span>{{end}}</td>
       <td>{{ago .LastSeen}}</td>
       <td>{{ts .EnrolledAt}}</td>
       <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove agent %v and its jobs? Backups on storage stay." .Hostname}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>

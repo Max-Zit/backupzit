@@ -62,7 +62,7 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 			res.Details = vmGuestDetails(last)
 		}
 	}
-	res.Message = fmt.Sprintf("Copied %d backups (%d already copied); %s new data uploaded", st.Snapshots, st.Skipped, humanSize(st.BytesStored))
+	res.Message = fmt.Sprintf("Copied %s (%d already copied); %s new data uploaded", count(st.Snapshots, "backup", "backups"), st.Skipped, humanSize(st.BytesStored))
 	if len(sns) == 0 {
 		res.Message = "The source job has no backups yet"
 	}

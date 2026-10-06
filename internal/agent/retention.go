@@ -75,9 +75,9 @@ func (a *Agent) applyRetention(ctx context.Context, r *repo.Repository, run api.
 	}
 	st, err := r.Prune(ctx, repo.PruneOptions{Progress: func(m string) { a.log.Info("prune", "run", run.ID, "msg", m) }})
 	if err != nil {
-		return forgotten, fmt.Sprintf("removed %d old backups; freeing space failed: %v", len(forgotten), err)
+		return forgotten, fmt.Sprintf("removed %s; freeing space failed: %v", count(len(forgotten), "old backup", "old backups"), err)
 	}
-	return forgotten, fmt.Sprintf("removed %d old backups, freed %s", len(forgotten), humanSize(st.BytesFreed))
+	return forgotten, fmt.Sprintf("removed %s, freed %s", count(len(forgotten), "old backup", "old backups"), humanSize(st.BytesFreed))
 }
 
 func humanSize(b uint64) string {

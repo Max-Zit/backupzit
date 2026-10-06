@@ -43,12 +43,20 @@ func cmdEnroll(ctx context.Context, args []string) error {
 		fs.Usage()
 		return errors.New("--code, or --server, --token and --fingerprint are required")
 	}
-	if _, err := agent.LoadConfig(*cfgPath); err == nil && !*force {
-		if *ifNot {
-			fmt.Println("agent is already enrolled, keeping existing enrollment")
+	if old, err := agent.LoadConfig(*cfgPath); err == nil && !*force {
+		switch {
+		case *ifNot && old.Fingerprint == *fp:
+			// A reinstall or upgrade with the same code (GPO, RMM) keeps
+			// the enrollment instead of adding the machine again.
+			fmt.Println("agent is already enrolled with this console, keeping existing enrollment")
 			return nil
+		case *ifNot:
+			// The code is for another console: the administrator moves the
+			// machine, so the new code wins.
+			fmt.Printf("agent was enrolled with %s; enrolling with %s\n", old.ServerURL, *server)
+		default:
+			return fmt.Errorf("agent is already enrolled (%s); use --force to enroll again", *cfgPath)
 		}
-		return fmt.Errorf("agent is already enrolled (%s); use --force to enroll again", *cfgPath)
 	}
 	cfg, err := agent.Enroll(ctx, *server, *token, *fp, version)
 	if err != nil {

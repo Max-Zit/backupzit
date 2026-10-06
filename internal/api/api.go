@@ -51,6 +51,10 @@ type PollRequest struct {
 	WantStatus bool `json:"want_status,omitempty"`
 	// IPs are the agent's own network addresses (no loopback).
 	IPs []string `json:"ips,omitempty"`
+	// Instance is random per agent process. Two instances polling at the
+	// same time mean two machines use one enrollment (a cloned or restored
+	// copy of the machine is running).
+	Instance string `json:"instance,omitempty"`
 	// Disks is the disk inventory (JSON array of imaging.Disk). Agents send
 	// it on start and periodically; nil means "unchanged / not included".
 	Disks json.RawMessage `json:"disks,omitempty"`

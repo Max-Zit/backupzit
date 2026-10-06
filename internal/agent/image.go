@@ -150,7 +150,7 @@ func (a *Agent) imageFileRestore(ctx context.Context, run api.Run) api.RunResult
 	}
 	stats, _ := json.Marshal(st)
 	res := api.RunResult{Status: api.StatusSuccess, Stats: stats, Errors: st.Errors,
-		Message: fmt.Sprintf("Restored %d files and %d folders from the image", st.Files, st.Dirs)}
+		Message: fmt.Sprintf("Restored %s and %s from the image", count(int(st.Files), "file", "files"), count(int(st.Dirs), "folder", "folders"))}
 	if len(st.Errors) > 0 {
 		res.Status = api.StatusWarning
 	}

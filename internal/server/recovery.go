@@ -11,6 +11,9 @@ import (
 // stored on recovery media.
 const recoveryTokenTTL = 30 * 24 * time.Hour
 
+// LinuxRecoveryISO is the name of the Linux recovery ISO in each release.
+const LinuxRecoveryISO = "backupzit-recovery-linux.iso"
+
 func (s *Server) recoveryPage(w http.ResponseWriter, r *http.Request, user string, token string, exp time.Time) {
 	var isos []download
 	for _, d := range s.downloads() {
@@ -23,6 +26,16 @@ func (s *Server) recoveryPage(w http.ResponseWriter, r *http.Request, user strin
 		s.serverError(w, err)
 		return
 	}
+	// Without a Linux recovery ISO here, offer the one published with the
+	// release at the update source (GitHub by default).
+	var online string
+	hasLinux := false
+	for _, d := range isos {
+		hasLinux = hasLinux || strings.Contains(strings.ToLower(d.Name), "linux")
+	}
+	if src := s.updateSettings(r.Context()).Source; !hasLinux && (strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "http://")) {
+		online = strings.TrimRight(src, "/") + "/" + LinuxRecoveryISO
+	}
 	var rec []Agent
 	for _, a := range agents {
 		if a.Recovery {
@@ -31,7 +44,7 @@ func (s *Server) recoveryPage(w http.ResponseWriter, r *http.Request, user strin
 	}
 	s.render(w, r, "recovery", pageData{Title: "Recovery", Nav: "recovery", User: user, Data: map[string]any{
 		"ISOs": isos, "Token": token, "Expires": exp, "ServerURL": s.publicURL(r),
-		"Fingerprint": s.CertFingerprint, "Agents": rec,
+		"Fingerprint": s.CertFingerprint, "Agents": rec, "OnlineISO": online,
 	}})
 }
 

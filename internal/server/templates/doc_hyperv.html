@@ -36,7 +36,7 @@
 <p>Open the VM backup run (from the job page or <a href="/runs">Activity</a>) and use <b>Restore a Hyper-V VM</b>.</p>
 
 <h3>As a new VM next to the original</h3>
-<p>Creates a second VM with new MAC addresses, so it can run on the same network as the original. By default it is named after the original plus "restored" and the date.</p>
+<p>Creates a second VM with new MAC addresses, so it can run on the same network as the original. By default it is named after the original plus "restored" and the date. Automatic checkpoints are turned off on it (Windows turns them on for new VMs), so starting it does not leave checkpoint files behind. If the copy runs next to the original and has the BackupZit agent inside, see <a href="/docs/agents#duplicate">Two machines using one agent</a>.</p>
 <p>Guest network settings that are tied to a MAC address don't apply to the new adapters. One example is netplan's <code>match: macaddress</code>, which Linux cloud images use.</p>
 
 <h3>In place of the original VM</h3>

@@ -54,7 +54,7 @@
       <label>{{T "Folders and files to back up"}} <small>{{T "one path per line, as seen on the agent, e.g. C:\\Users or /home"}}</small>
         <textarea name="paths" required></textarea>
       </label>
-      <label>{{T "Exclude"}} <small>{{T "one name pattern per line, e.g. *.tmp, node_modules, Thumbs.db"}}</small>
+      <label>{{T "Exclude"}} <small>{{T "one per line: a name pattern (*.tmp, node_modules) or a full path (C:\\Data\\Temp, /srv/cache)"}}</small>
         <textarea name="excludes"></textarea>
       </label>
     </div>
@@ -72,7 +72,7 @@
     <div data-jobkind="nas" hidden class="stack">{{template "job_nas" .Data.Form}}</div>
     <div data-jobkind="system" hidden class="stack">
       <p class="muted">{{T "Backs up every local file system (ext4, xfs, vfat; also on LVM) with owners, permissions, ACLs and capabilities, plus the partition tables, LVM layout, file system UUIDs and boot code. Single files can be restored from it like from any file backup."}}</p>
-      <label>{{T "Exclude"}} <small>{{T "optional, one name pattern per line, e.g. *.tmp or cache folders"}}</small>
+      <label>{{T "Exclude"}} <small>{{T "one per line: a name pattern (*.tmp, node_modules) or a full path (C:\\Data\\Temp, /srv/cache)"}}</small>
         <textarea name="excludes"></textarea>
       </label>
     </div>

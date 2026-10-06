@@ -372,6 +372,17 @@
   </form>
   <p class="muted small mt">{{T "SSH is only needed for maintenance; BackupZit itself does not use it. With SSH off, the setup menu on the server's own screen still works."}}</p>
 </div>
+<div class="panel" id="timezone">
+  <h2>{{template "icon" "clock"}} {{T "Time zone"}}</h2>
+  <p>{{T "The console shows all times, runs the schedules and reads restore points in this time zone."}} {{T "Now:"}} <b>{{.TimeZone}}</b></p>
+  <form method="post" action="/settings/timezone" class="row">
+    <label>{{T "Time zone"}}
+      {{if .Zones}}<select name="zone">{{$cur := .TimeZone}}{{range .Zones}}<option {{if eq . $cur}}selected{{end}}>{{.}}</option>{{end}}</select>
+      {{else}}<input name="zone" value="{{.TimeZone}}" placeholder="Europe/Belgrade">{{end}}</label>
+    <div><button>{{T "Save time zone"}}</button></div>
+  </form>
+  <p class="muted small mt">{{T "The console restarts to use the new zone (a few seconds); running backups continue on the agents."}}</p>
+</div>
 {{end}}
 {{end}}{{end}}
 {{if eq .Data.Tab "console"}}{{with .Data.ConsoleBackup}}
@@ -483,6 +494,10 @@ systemctl start backupzit-server</pre></li>
       <p class="small muted">{{T "Add the console at the identity provider with its metadata:"}} <code>{{.Metadata}}</code> ({{T "assertion consumer service:"}} <code>{{.ACS}}</code>). {{T "Needs HTTPS."}}</p>
       <label>{{T "Metadata URL of the identity provider"}}<input name="metadata_url" value="{{.MetadataURL}}" class="mono" placeholder="https://adfs.example.com/FederationMetadata/2007-06/FederationMetadata.xml"></label>
       <label>{{T "or paste its metadata XML"}}<textarea name="metadata_xml" rows="3" class="mono">{{.MetadataXML}}</textarea></label>
+    </fieldset>
+    <fieldset>
+      <legend>{{T "Certificate of the identity provider"}}</legend>
+      <label>{{T "CA certificate (PEM)"}} <small>{{T "optional: only for an identity provider with a certificate from your own CA or a self-signed one (on-premises Keycloak, AD FS); public ones such as Entra ID, Okta or Google need nothing"}}</small><textarea name="ca_cert" rows="3" class="mono" placeholder="-----BEGIN CERTIFICATE-----">{{.CACert}}</textarea></label>
     </fieldset>
     <fieldset>
       <legend>{{T "Users and roles"}}</legend>

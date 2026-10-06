@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -475,6 +476,7 @@ func (s *Server) handleUserPassword(w http.ResponseWriter, r *http.Request, _ st
 		redirectErr(w, r, back, err)
 		return
 	}
+	s.initialPasswordUsed(u.Username)
 	s.audit(r, "user.password", "password of %s reset", u.Username)
 	redirectMsg(w, r, back, "Password changed; the user was signed out everywhere.")
 }
@@ -559,6 +561,7 @@ func (s *Server) handleAccountPassword(w http.ResponseWriter, r *http.Request, _
 		redirectErr(w, r, "/account", err)
 		return
 	}
+	s.initialPasswordUsed(me.Username)
 	s.audit(r, "account.password", "changed own password")
 	http.Redirect(w, r, "/login", http.StatusSeeOther) // all sessions ended
 }
@@ -570,4 +573,24 @@ func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request, user string
 		return
 	}
 	s.render(w, r, "audit", pageData{Title: "Audit log", Nav: "audit", User: user, Data: map[string]any{"Entries": list, "Integrity": s.auditState.Load()}})
+}
+
+// initialPasswordUsed forgets the generated first password of "admin" once
+// it was changed: the file goes, and the appliance screen stops showing it.
+func (s *Server) initialPasswordUsed(username string) {
+	if username != "admin" || s.InitialPasswordFile == "" {
+		return
+	}
+	if err := os.Remove(s.InitialPasswordFile); err == nil {
+		s.log.Info("initial admin password file removed", "file", s.InitialPasswordFile)
+	}
+}
+
+// InitialPasswordInUse tells whether admin still has the generated password.
+func (s *Server) InitialPasswordInUse() bool {
+	if s.InitialPasswordFile == "" {
+		return false
+	}
+	_, err := os.Stat(s.InitialPasswordFile)
+	return err == nil
 }

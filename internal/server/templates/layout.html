@@ -30,7 +30,7 @@
     {{if .Me.Can "settings"}}<a href="/settings/email" class="{{if eq .Nav "settings"}}on{{end}}">{{template "icon" "settings"}}{{T "Settings"}}</a>{{end}}
     <a href="/docs" class="{{if eq .Nav "docs"}}on{{end}}">{{template "icon" "book"}}{{T "Documentation"}}</a>
   </nav>
-  <div class="side-foot">{{T "BackupZit"}} {{.Version}}<br>{{T "AGPLv3 · self-hosted"}}</div>
+  <div class="side-foot">{{T "BackupZit"}} {{.Version}}<br>{{T "AGPLv3 · self-hosted"}}<br><span title="{{T "Times in the console are in this time zone"}}">{{template "icon" "clock"}} {{zone}}</span></div>
 </aside>
 <div class="shell">
   <header class="topbar">

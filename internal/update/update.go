@@ -257,9 +257,10 @@ func parseVersion(v string) [3]int {
 // an operating system task (Action).
 type Request struct {
 	Action    string            `json:"action,omitempty"`
-	Enable    bool              `json:"enable,omitempty"`  // ActionOSAuto
-	Network   *netcfg.Config    `json:"network,omitempty"` // ActionNetwork
-	SSH       *netcfg.SSHConfig `json:"ssh,omitempty"`     // ActionSSH
+	Enable    bool              `json:"enable,omitempty"`    // ActionOSAuto
+	Network   *netcfg.Config    `json:"network,omitempty"`   // ActionNetwork
+	SSH       *netcfg.SSHConfig `json:"ssh,omitempty"`       // ActionSSH
+	TimeZone  string            `json:"time_zone,omitempty"` // ActionTimeZone
 	Manifest  []byte            `json:"manifest"`
 	Signature string            `json:"signature"`
 	File      string            `json:"file"` // name in the manifest; the package lies next to the request

@@ -29,4 +29,12 @@ fi
 # The install script for existing servers (not part of the signed manifest:
 # it checks the signature of the release itself).
 gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber packaging/install.sh
+# The script that builds the Windows recovery ISO on the user's PC (Windows
+# PE cannot be redistributed), and the Linux recovery ISO when built
+# (packaging/linux-recovery/build-iso.sh, on a Debian/Proxmox host).
+gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber packaging/winpe/build-winpe.ps1
+if [ -f "dist/backupzit-recovery-linux-$VERSION.iso" ]; then
+    cp "dist/backupzit-recovery-linux-$VERSION.iso" "dist/backupzit-recovery-linux.iso"
+    gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber dist/backupzit-recovery-linux.iso
+fi
 echo "published v$VERSION"

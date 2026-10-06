@@ -1,0 +1,11 @@
+[Unit]
+Description=BackupZit appliance: grow the disk, write the login screen
+After=local-fs.target backupzit-firstboot.service
+Before=getty@tty1.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/backupzit-appliance-boot
+
+[Install]
+WantedBy=multi-user.target
