@@ -17,7 +17,7 @@ cd "$(dirname "$0")/.."
 OUT="dist/release-$VERSION"
 rm -rf "$OUT" && mkdir -p "$OUT"
 cp dist/*"$VERSION"* "$OUT"/ 2>/dev/null || true
-rm -rf "$OUT/release-$VERSION"
+rm -rf "$OUT/release-$VERSION" "$OUT"/*.iso  # the recovery ISO goes up once, under its fixed name (below)
 ls "$OUT" | grep -q "backupzit-server_${VERSION}_" || { echo "no server package for $VERSION in dist/" >&2; exit 1; }
 if [ -n "$NOTES" ]; then
     go run ./tools/release sign -key "$KEY" -version "$VERSION" -dir "$OUT" -notes "$NOTES"
