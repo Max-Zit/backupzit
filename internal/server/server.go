@@ -1036,6 +1036,16 @@ func (s *Server) handleJobEnable(enabled bool) func(http.ResponseWriter, *http.R
 	return func(w http.ResponseWriter, r *http.Request, _ string) {
 		id, _ := pathID(r)
 		back := fmt.Sprintf("/jobs/%d", id)
+		if !enabled {
+			// A disabled job silently stops backing up.
+			name := fmt.Sprintf("#%d", id)
+			if j, err := s.store.GetJob(r.Context(), id); err == nil {
+				name = j.Name
+			}
+			if s.needsApproval(w, r, back, "job.disable", id, name, nil) {
+				return
+			}
+		}
 		if err := s.store.SetJobEnabled(r.Context(), id, enabled); err != nil {
 			redirectErr(w, r, back, err)
 			return

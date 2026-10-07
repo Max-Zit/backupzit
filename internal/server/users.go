@@ -403,6 +403,17 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request, _ stri
 		return
 	}
 	u := User{Username: r.FormValue("username"), DisplayName: r.FormValue("display_name"), Email: r.FormValue("email"), Role: r.FormValue("role")}
+	if s.store.fourEyes(r.Context()) && canApproveRole(u.Role) {
+		// A new approver could decide the requests of its creator.
+		hash, err := s.store.checkNewUser(r.Context(), &u, r.FormValue("password"))
+		if err != nil {
+			redirectErr(w, r, "/users", err)
+			return
+		}
+		if s.needsApproval(w, r, "/users", "user.create", 0, u.Username+" ("+u.RoleName()+")", newUserRequest{User: u, Hash: hash}) {
+			return
+		}
+	}
 	if _, err := s.store.CreateUser(r.Context(), u, r.FormValue("password")); err != nil {
 		redirectErr(w, r, "/users", err)
 		return
@@ -454,6 +465,16 @@ func (s *Server) handleUserUpdate(w http.ResponseWriter, r *http.Request, _ stri
 		redirectErr(w, r, back, err)
 		return
 	}
+	if err := s.store.keepsTwoAdmins(r.Context(), u); err != nil && old.Role == "admin" && !old.Disabled {
+		redirectErr(w, r, back, err)
+		return
+	}
+	if s.store.fourEyes(r.Context()) && gainsApproval(old.Role, old.Disabled, u.Role, u.Disabled) {
+		p := User{DisplayName: u.DisplayName, Email: u.Email, Role: u.Role, Disabled: u.Disabled}
+		if s.needsApproval(w, r, back, "user.role", u.ID, u.Username+" → "+u.RoleName(), p) {
+			return
+		}
+	}
 	if err := s.store.UpdateUser(r.Context(), u); err != nil {
 		redirectErr(w, r, back, err)
 		return
@@ -471,6 +492,17 @@ func (s *Server) handleUserPassword(w http.ResponseWriter, r *http.Request, _ st
 	if r.FormValue("password") != r.FormValue("password2") {
 		redirectErr(w, r, back, errors.New("the passwords do not match"))
 		return
+	}
+	if u.ID != currentUser(r).ID && u.Source == "local" && !u.Disabled && s.store.fourEyes(r.Context()) && canApproveRole(u.Role) {
+		// Whoever sets the password could sign in as this approver.
+		hash, err := hashNewPassword(r.FormValue("password"))
+		if err != nil {
+			redirectErr(w, r, back, err)
+			return
+		}
+		if s.needsApproval(w, r, back, "user.password", u.ID, u.Username, hash) {
+			return
+		}
 	}
 	if err := s.store.SetUserPassword(r.Context(), u.ID, r.FormValue("password")); err != nil {
 		redirectErr(w, r, back, err)
@@ -510,6 +542,12 @@ func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request, _ stri
 		return
 	}
 	if err := s.store.checkUserDeletable(r.Context(), u); err != nil {
+		redirectErr(w, r, fmt.Sprintf("/users/%d", u.ID), err)
+		return
+	}
+	gone := u
+	gone.Disabled = true
+	if err := s.store.keepsTwoAdmins(r.Context(), gone); err != nil && u.Role == "admin" && !u.Disabled {
 		redirectErr(w, r, fmt.Sprintf("/users/%d", u.ID), err)
 		return
 	}

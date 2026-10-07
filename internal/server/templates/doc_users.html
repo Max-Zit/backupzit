@@ -59,13 +59,15 @@
 <p>Optional and off by default. Turn it on under <a href="/settings/security#four-eyes">Settings → Sign-in &amp; security → Four-eyes approval</a>; it needs at least two enabled administrators. Then these changes only take effect when a <b>second user</b> approves them:</p>
 <table>
   <tr><th>Change</th><th>Who can approve</th></tr>
-  <tr><td>Deleting a backup job, shortening a job's retention (any rule lower than before, or rules where everything was kept), resuming retention after a suspicious backup</td><td>Users who may manage jobs</td></tr>
+  <tr><td>Deleting or disabling a backup job, shortening a job's retention (any rule lower than before, or rules where everything was kept), resuming retention after a suspicious backup</td><td>Users who may manage jobs</td></tr>
   <tr><td>Removing an agent or an ESXi host</td><td>Users who may manage agents</td></tr>
   <tr><td>Removing a storage target</td><td>Users who may manage storage</td></tr>
-  <tr><td>Deleting a user</td><td>Administrators</td></tr>
+  <tr><td>Deleting a user; creating a user who can approve (Administrator or Backup operator); giving a user a role with more rights, or enabling such a user again; resetting the password or the two-factor sign-in of such a user</td><td>Administrators</td></tr>
+  <tr><td>Changing LDAP sign-in or single sign-on (they decide the roles of directory users)</td><td>Administrators</td></tr>
   <tr><td>Turning four-eyes approval off</td><td>Administrators</td></tr>
 </table>
 <p>The request appears under <a href="/approvals">Approvals</a> (with a counter in the menu and on the dashboard) and the notification recipients get an email. Any other user with the right permission approves or rejects it; the requester can only cancel it. An approved change is carried out at once. Requests expire after 7 days. When a job is edited with a shorter retention, its other changes are saved immediately and only the retention waits. Requests, approvals, rejections and their users are in the audit log.</p>
+<p><b>Only accounts that existed before a request can decide it.</b> Together with the approval of new approvers, password resets and directory settings, this keeps a single administrator from getting a second approver alone — for example by creating a second administrator account, by setting another administrator's password, or by mapping a directory group to the Administrator role. While the option is on, the last two enabled administrators cannot be deleted, disabled or given a lower role, so requests can always be decided. Passwords in requests are stored only as hashes, and LDAP and single sign-on settings encrypted with the console's secrets key. Group memberships in the directory itself (Active Directory, Entra ID) are outside the console; protect those administrator groups there.</p>
 <p>This protects against a single stolen or misused account removing the configuration or letting retention delete the backups. It does not replace immutable storage: for that, see <a href="/docs/ransomware">Ransomware protection</a>.</p>
 
 <h2>Audit log</h2>

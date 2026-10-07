@@ -647,6 +647,17 @@ func (s *Server) handleSettingsSSO(w http.ResponseWriter, r *http.Request, user 
 			return
 		}
 	}
+	if s.store.fourEyes(r.Context()) {
+		// Identity provider groups decide roles, as with LDAP.
+		p, err := s.store.sealPayload(c)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		if s.needsApproval(w, r, back, "settings.sso", 0, strings.ToUpper(c.Protocol)+" "+c.Issuer+c.MetadataURL, p) {
+			return
+		}
+	}
 	if err := s.store.SetSetting(r.Context(), settingSSO, c); err != nil {
 		s.serverError(w, err)
 		return

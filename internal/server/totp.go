@@ -399,6 +399,10 @@ func (s *Server) handleUser2FAReset(w http.ResponseWriter, r *http.Request, _ st
 	if !ok {
 		return
 	}
+	if u.ID != currentUser(r).ID && !u.Disabled && canApproveRole(u.Role) &&
+		s.needsApproval(w, r, fmt.Sprintf("/users/%d", u.ID), "user.2fa_reset", u.ID, u.Username, nil) {
+		return
+	}
 	if err := s.store.DisableTwoFactor(r.Context(), u.ID); err != nil {
 		s.serverError(w, err)
 		return

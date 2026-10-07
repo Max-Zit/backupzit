@@ -6,7 +6,7 @@
 <div class="panel">
   <h2>{{template "icon" "shield"}} {{T "Waiting for approval"}}</h2>
   {{if .Data.On}}
-  <p class="muted">{{T "Four-eyes approval is on: deleting jobs, agents, ESXi hosts, storage targets and users, shortening retention, resuming retention after a suspicious backup and turning the approval off take effect only when a second user approves them. Requests expire after 7 days."}}</p>
+  <p class="muted">{{T "Four-eyes approval is on: the changes listed under Settings → Sign-in & security take effect only when a second user approves them. Only accounts that existed before a request can decide it. Requests expire after 7 days."}}</p>
   {{else}}
   <p class="muted">{{T "Four-eyes approval is off. Turn it on under"}} <a href="/settings/security">{{T "Settings → Sign-in & security"}}</a>.</p>
   {{end}}
@@ -27,7 +27,7 @@
         {{else if canDecide $.Me .}}
         <form method="post" action="/approvals/{{.ID}}/approve" class="inline" data-confirm="{{T "Approve and carry out this change now?"}}"><button class="danger">{{T "Approve"}}</button></form>
         <form method="post" action="/approvals/{{.ID}}/reject" class="inline"><button class="secondary">{{T "Reject"}}</button></form>
-        {{else}}<span class="muted small">{{T "another user with the right role decides"}}</span>{{end}}
+        {{else}}<span class="muted small">{{T "another user with the right role, whose account existed before the request, decides"}}</span>{{end}}
       </td>
     </tr>
     {{end}}

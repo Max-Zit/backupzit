@@ -40,6 +40,13 @@ var approvalActions = map[string]approvalAction{
 	"storage.delete":   {"Remove storage target", PermStorage},
 	"user.delete":      {"Delete user", PermUsers},
 	"four_eyes.off":    {"Turn off four-eyes approval", PermSettings},
+	"user.create":      {"Create a user who can approve", PermUsers},
+	"user.role":        {"Give a user more rights", PermUsers},
+	"user.password":    {"Reset the password of a user who can approve", PermUsers},
+	"user.2fa_reset":   {"Reset the two-factor sign-in of a user who can approve", PermUsers},
+	"settings.ldap":    {"Change LDAP sign-in", PermSettings},
+	"settings.sso":     {"Change single sign-on", PermSettings},
+	"job.disable":      {"Disable backup job", PermJobs},
 }
 
 // Approval is a change waiting for (or decided by) a second user.
@@ -190,6 +197,9 @@ func (s *Server) needsApproval(w http.ResponseWriter, r *http.Request, back, act
 
 // executeApproval carries out an approved change.
 func (s *Server) executeApproval(ctx context.Context, a Approval) error {
+	if ok, err := s.executeUserApproval(ctx, a); ok {
+		return err
+	}
 	id := a.ObjectID
 	switch a.Action {
 	case "job.delete":
@@ -226,8 +236,10 @@ func (s *Server) executeApproval(ctx context.Context, a Approval) error {
 }
 
 // canDecide reports whether user u may approve or reject a.
+// Accounts created after the request cannot decide it, so an account made
+// for the purpose does not help.
 func canDecide(u *User, a Approval) bool {
-	return u != nil && u.Username != a.RequestedBy && u.Can(string(approvalActions[a.Action].Perm))
+	return u != nil && u.Username != a.RequestedBy && u.Can(string(approvalActions[a.Action].Perm)) && u.CreatedAt.Before(a.RequestedAt)
 }
 
 func (s *Server) handleApprovals(w http.ResponseWriter, r *http.Request, user string) {
@@ -265,7 +277,7 @@ func (s *Server) handleApprovalDecision(w http.ResponseWriter, r *http.Request, 
 		redirectMsg(w, r, "/approvals", "Request cancelled.")
 	case "reject":
 		if !canDecide(me, a) {
-			redirectErr(w, r, "/approvals", errors.New("a different user with the right role must decide"))
+			redirectErr(w, r, "/approvals", errors.New("a different user with the right role, whose account existed before the request, must decide"))
 			return
 		}
 		if err := s.store.decideApproval(ctx, id, "rejected", me.Username, ""); err != nil {
@@ -276,7 +288,7 @@ func (s *Server) handleApprovalDecision(w http.ResponseWriter, r *http.Request, 
 		redirectMsg(w, r, "/approvals", "Request rejected; nothing was changed.")
 	case "approve":
 		if !canDecide(me, a) {
-			redirectErr(w, r, "/approvals", errors.New("a different user with the right role must decide"))
+			redirectErr(w, r, "/approvals", errors.New("a different user with the right role, whose account existed before the request, must decide"))
 			return
 		}
 		// Claim the request first so two approvers cannot run it twice.

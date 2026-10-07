@@ -188,7 +188,9 @@
 </div>
 <div class="panel" id="four-eyes">
   <h2>{{template "icon" "shield"}} {{T "Four-eyes approval"}}</h2>
-  <p class="muted">{{T "Protects against a stolen or misused account: deleting jobs, agents, ESXi hosts, storage targets and users, shortening a job's retention, resuming retention after a suspicious backup and turning this option off take effect only when a second user with the same permission approves them under"}} <a href="/approvals">{{T "Approvals"}}</a>{{T ". Needs at least two enabled administrators. Requests expire after 7 days."}}</p>
+  <p class="muted">{{T "Protects against a stolen or misused account: deleting jobs, agents, ESXi hosts, storage targets and users, disabling a job, shortening a job's retention, resuming retention after a suspicious backup and turning this option off take effect only when a second user with the same permission approves them under"}} <a href="/approvals">{{T "Approvals"}}</a>{{T ". Needs at least two enabled administrators. Requests expire after 7 days."}}</p>
+  <p class="muted">{{T "So that one administrator cannot get a second approver alone, these wait for approval too: creating a user who can approve (Administrator, Backup operator), giving a user more rights or enabling such a user again, resetting the password or two-factor sign-in of such a user, and changing LDAP or single sign-on. Only accounts that existed before a request can decide it. While the option is on, the last two administrators cannot be removed, disabled or given a lower role."}}</p>
+  {{if and $.FourEyes (lt .Data.Approvers.Admins 2)}}<p class="flash err">{{T "Fewer than two enabled administrators: requests that need an administrator cannot be approved. Enable or add an administrator."}}</p>{{end}}
   <form method="post" action="/settings/four-eyes" class="stack">
     <label class="check"><input type="checkbox" name="four_eyes" {{if $.FourEyes}}checked{{end}}> {{T "Require a second user's approval for destructive changes"}}</label>
     {{if $.FourEyes}}<p class="muted small">{{T "Turning it off needs approval too."}}</p>{{end}}

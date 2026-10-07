@@ -264,6 +264,17 @@ func (s *Server) handleSettingsLDAP(w http.ResponseWriter, r *http.Request, _ st
 		redirectMsg(w, r, "/settings/ldap", msg)
 		return
 	}
+	if s.store.fourEyes(r.Context()) {
+		// LDAP groups decide roles: a change could make anyone an approver.
+		p, err := s.store.sealPayload(l)
+		if err != nil {
+			s.serverError(w, err)
+			return
+		}
+		if s.needsApproval(w, r, "/settings/ldap", "settings.ldap", 0, "LDAP "+l.URL, p) {
+			return
+		}
+	}
 	if err := s.store.SetSetting(r.Context(), settingLDAP, l); err != nil {
 		s.serverError(w, err)
 		return
