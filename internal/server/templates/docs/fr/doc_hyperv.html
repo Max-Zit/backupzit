@@ -1,0 +1,85 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Machines virtuelles Hyper-V</h1>
+<p class="lead">BackupZit sauvegarde les machines virtuelles Hyper-V depuis l'agent installé sur l'hôte Hyper-V ; rien n'est installé dans les VM. Les invités Windows et Linux sont capturés sans être arrêtés. Vous pouvez les restaurer en tant que nouvelle VM ou à la place de l'original.</p>
+
+<h2>Mise en place</h2>
+<ol>
+  <li>Installez le MSI de l'<b>Agent Windows</b> depuis <a href="/agents">Agents</a> sur l'hôte Hyper-V et inscrivez-le. Hôtes pris en charge : Windows Server 2016 ou plus récent avec le rôle Hyper-V, ou Windows 10/11 avec Hyper-V. Dans un cluster, installez l'agent sur chaque hôte.</li>
+  <li>En moins d'une minute, l'hôte apparaît sur la page Agents avec le badge <b>Hyper-V · N VMs</b>.</li>
+  <li>Dans <a href="/jobs">Tâches de sauvegarde</a>, sélectionnez cet agent et choisissez <b>Machines virtuelles (Proxmox VE, Hyper-V, VMware)</b>. Choisissez ensuite :
+    <ul>
+      <li><b>toutes les VM de l'hôte</b>, ce qui couvre aussi les VM créées plus tard ;</li>
+      <li>des VM individuelles, en les cochant.</li>
+    </ul>
+  </li>
+</ol>
+<p>L'agent passe par les interfaces propres à Hyper-V : le module PowerShell Hyper-V et l'API Virtual Disk de Windows. La console ne stocke aucun identifiant Hyper-V.</p>
+
+<h2>Comment une VM est sauvegardée</h2>
+<ol>
+  <li>Un <b>point de contrôle de récupération</b> temporaire (<code>backupzit_…</code>) est créé. C'est le type de point de contrôle qu'Hyper-V fournit aux applications de sauvegarde. Hyper-V demande à l'invité de s'y préparer :
+    <ul>
+      <li>Les invités Windows vident les tampons de leurs applications via VSS.</li>
+      <li>Les invités Linux gèlent leurs systèmes de fichiers, si les démons Hyper-V sont installés (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
+    </ul>
+    Si l'invité ne peut faire ni l'un ni l'autre, le point de contrôle est pris en cohérence de crash. La page de l'exécution indique le type utilisé.</li>
+  <li>Le point de contrôle de récupération active le <b>Resilient Change Tracking</b> (RCT) pour les disques de la VM ; vous verrez des fichiers <code>.rct</code> et <code>.mrt</code> à côté d'eux. La première sauvegarde lit les disques entiers. Ensuite, RCT indique quels blocs ont changé depuis la sauvegarde précédente, et <b>seuls ceux-ci sont lus</b>.</li>
+  <li>Les disques sont lus dans l'état du point de contrôle, via l'API Virtual Disk, par blocs de 1 Mio. Cela couvre les fichiers VHDX et VHD, y compris les chaînes de points de contrôle antérieurs. Les blocs vides ne sont pas stockés, et les blocs déjà présents dans le dépôt ne sont pas renvoyés.</li>
+  <li>Le point de contrôle est supprimé et Hyper-V le fusionne en arrière-plan.</li>
+  <li>La configuration de la VM est stockée avec la sauvegarde : génération, processeur, mémoire, cartes réseau (commutateur, VLAN, adresse MAC), contrôleurs de disque, démarrage sécurisé et TPM.</li>
+</ol>
+<p>Les VM éteintes sont lues directement, sans point de contrôle. Sur les hôtes antérieurs à Windows Server 2016 (sans points de contrôle de récupération), un point de contrôle de production est utilisé et chaque sauvegarde lit les disques entiers.</p>
+<p>Exemple du laboratoire de test : une VM Linux avec un disque de 3 Go. La première sauvegarde a lu 3 Go. La suivante, après 64 Mo de nouvelles données, a lu 96 Mo.</p>
+<p>Sous Windows 10/11, Hyper-V crée un point de contrôle automatique au démarrage d'une VM, sauf si cette option est désactivée dans les paramètres de la VM. BackupZit gère ces points de contrôle, mais pour des serveurs vous voudrez désactiver les points de contrôle automatiques (paramètres de la VM → Points de contrôle).</p>
+
+<h2>Restaurer une VM</h2>
+<p>Ouvrez l'exécution de la sauvegarde de VM (depuis la page de la tâche ou <a href="/runs">Activité</a>) et utilisez <b>Restaurer une VM Hyper-V</b>.</p>
+
+<h3>En tant que nouvelle VM à côté de l'original</h3>
+<p>Crée une seconde VM avec de nouvelles adresses MAC, afin qu'elle puisse tourner sur le même réseau que l'original. Par défaut, elle porte le nom de l'original suivi de « restored » et de la date. Les points de contrôle automatiques y sont désactivés (Windows les active pour les nouvelles VM), donc son démarrage ne laisse pas de fichiers de point de contrôle. Si la copie tourne à côté de l'original et contient l'agent BackupZit, voir <a href="/docs/agents#duplicate">Deux machines utilisant un même agent</a>.</p>
+<p>Les paramètres réseau de l'invité liés à une adresse MAC ne s'appliquent pas aux nouvelles cartes. Un exemple est <code>match: macaddress</code> de netplan, utilisé par les images cloud Linux.</p>
+
+<h3>À la place de la VM d'origine</h3>
+<p>Cochez <i>l'arrêter et remplacer ses disques</i>. BackupZit alors :</p>
+<ul>
+  <li>éteint la VM existante ;</li>
+  <li>fusionne ses points de contrôle ;</li>
+  <li>remplace ses disques par les disques restaurés.</li>
+</ul>
+<p>La VM conserve son ID, ses cartes réseau et ses adresses MAC, donc les tâches, la supervision et le réseau de l'invité continuent de fonctionner.</p>
+<p>Les anciens fichiers de disque ne sont pas supprimés ; ils sont renommés en <code>….replaced-DATE</code>. Supprimez-les une fois que la VM restaurée fonctionne.</p>
+<p>Si la VM d'origine n'existe plus, elle est recréée, avec un nouvel ID Hyper-V.</p>
+
+<h3>Options</h3>
+<ul>
+  <li><b>Dossier des disques virtuels</b> : le dossier par défaut de l'hôte ou tout dossier contenant des disques de VM. Une restauration sur place met les nouveaux disques à côté des originaux.</li>
+  <li><b>Démarrer la VM après la restauration</b>.</li>
+</ul>
+
+<h3>Ce que reçoit une VM restaurée</h3>
+<ul>
+  <li>Les commutateurs virtuels sont connectés par leur nom. Si un commutateur n'existe pas sur l'hôte, la carte reste déconnectée.</li>
+  <li>Chaque VM restaurée reçoit un nouvel ID de génération, afin que les contrôleurs de domaine Active Directory détectent la restauration en toute sécurité.</li>
+</ul>
+
+<h2>Restaurer des fichiers individuels</h2>
+<p>Dans le tableau des VM de l'exécution, cliquez sur <b>Parcourir les fichiers</b> pour voir les partitions et volumes des disques de la VM. Vous pouvez parcourir NTFS, ext2/3/4 et XFS, y compris dans LVM. De là, vous pouvez télécharger des fichiers ou les restaurer sur n'importe quel agent. Cela fonctionne exactement comme pour <a href="/docs/proxmox">Proxmox VE</a>.</p>
+
+<h2>Ligne de commande</h2>
+<p>Exécutez ces commandes sur l'hôte Hyper-V, en tant qu'administrateur :</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code> est le numéro affiché par <code>hyperv list</code>. BackupZit le dérive du GUID de la VM.</li>
+  <li>Sans <code>--new</code>, la VM est restaurée sur place.</li>
+  <li><code>--overwrite</code> confirme que les disques d'une VM existante doivent être remplacés.</li>
+</ul>
+<p>Les options du dépôt sont les mêmes que pour toutes les commandes ; voir <a href="/docs/cli">Référence de la ligne de commande</a>.</p>
+
+<h2>Pas encore inclus</h2>
+<ul>
+  <li><b>Certains types de disques.</b> Les VHDX partagés, les ensembles VHD (VHD Set) et les disques pass-through ne sont pas sauvegardés.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

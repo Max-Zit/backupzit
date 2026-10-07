@@ -1,0 +1,85 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Macchine virtuali Hyper-V</h1>
+<p class="lead">BackupZit esegue il backup delle macchine virtuali Hyper-V tramite l'agente sull'host Hyper-V; nelle VM non viene installato nulla. I guest Windows e Linux vengono acquisiti mentre continuano a funzionare. Puoi ripristinarli come nuova VM o al posto dell'originale.</p>
+
+<h2>Configurazione</h2>
+<ol>
+  <li>Installa l'MSI dell'<b>Agente Windows</b> da <a href="/agents">Agenti</a> sull'host Hyper-V e registralo. Host supportati: Windows Server 2016 o successivo con il ruolo Hyper-V, oppure Windows 10/11 con Hyper-V. In un cluster installa l'agente su ogni host.</li>
+  <li>Entro un minuto l'host compare nella pagina Agenti con il badge <b>Hyper-V · N VMs</b>.</li>
+  <li>In <a href="/jobs">Job di backup</a> seleziona quell'agente e scegli <b>Macchine virtuali (Proxmox VE, Hyper-V, VMware)</b>. Poi scegli:
+    <ul>
+      <li><b>tutte le VM dell'host</b>, che include anche le VM create in seguito;</li>
+      <li>singole VM, selezionandole.</li>
+    </ul>
+  </li>
+</ol>
+<p>L'agente lavora tramite le interfacce proprie di Hyper-V: il modulo PowerShell di Hyper-V e la Virtual Disk API di Windows. La console non memorizza credenziali Hyper-V.</p>
+
+<h2>Come viene salvata una VM</h2>
+<ol>
+  <li>Viene creato un <b>checkpoint di ripristino</b> temporaneo (<code>backupzit_…</code>). È il tipo di checkpoint che Hyper-V fornisce alle applicazioni di backup. Hyper-V chiede al guest di prepararsi:
+    <ul>
+      <li>I guest Windows svuotano i buffer delle applicazioni tramite VSS.</li>
+      <li>I guest Linux congelano i file system, se sono installati i daemon Hyper-V (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
+    </ul>
+    Se il guest non può fare né l'una né l'altra cosa, il checkpoint viene preso in modalità crash-consistent. La pagina dell'esecuzione mostra quale tipo è stato usato.</li>
+  <li>Il checkpoint di ripristino attiva il <b>Resilient Change Tracking</b> (RCT) per i dischi della VM; accanto a essi vedrai file <code>.rct</code> e <code>.mrt</code>. Il primo backup legge i dischi interi. In seguito RCT indica quali blocchi sono cambiati dal backup precedente, e <b>vengono letti solo quelli</b>.</li>
+  <li>I dischi vengono letti allo stato del checkpoint, tramite la Virtual Disk API, in blocchi da 1 MiB. Ciò comprende file VHDX e VHD, incluse le catene di checkpoint precedenti. I blocchi vuoti non vengono memorizzati e i blocchi già presenti nel repository non vengono ricaricati.</li>
+  <li>Il checkpoint viene rimosso e Hyper-V lo unisce in background.</li>
+  <li>La configurazione della VM viene salvata con il backup: generazione, CPU, memoria, schede di rete (switch, VLAN, indirizzo MAC), controller disco, avvio protetto e TPM.</li>
+</ol>
+<p>Le VM spente vengono lette direttamente, senza checkpoint. Sugli host precedenti a Windows Server 2016 (senza checkpoint di ripristino) si usa un checkpoint di produzione e ogni backup legge i dischi interi.</p>
+<p>Esempio dal laboratorio di test: una VM Linux con un disco da 3 GB. Il primo backup ha letto 3 GB. Il successivo, dopo 64 MB di nuovi dati, ha letto 96 MB.</p>
+<p>Su Windows 10/11 Hyper-V crea un checkpoint automatico all'avvio di una VM, a meno che l'opzione non sia disattivata nelle impostazioni della VM. BackupZit gestisce questi checkpoint, ma per i server conviene disattivare i checkpoint automatici (impostazioni della VM → Checkpoint).</p>
+
+<h2>Ripristinare una VM</h2>
+<p>Apri l'esecuzione del backup della VM (dalla pagina del job o da <a href="/runs">Attività</a>) e usa <b>Ripristina una VM Hyper-V</b>.</p>
+
+<h3>Come nuova VM accanto all'originale</h3>
+<p>Crea una seconda VM con nuovi indirizzi MAC, così può girare sulla stessa rete dell'originale. Per impostazione predefinita prende il nome dell'originale più "restored" e la data. I checkpoint automatici vengono disattivati su di essa (Windows li attiva per le nuove VM), così avviarla non lascia file di checkpoint. Se la copia gira accanto all'originale e contiene l'agente BackupZit, vedi <a href="/docs/agents#duplicate">Due macchine che usano lo stesso agente</a>.</p>
+<p>Le impostazioni di rete del guest legate a un indirizzo MAC non si applicano alle nuove schede. Un esempio è <code>match: macaddress</code> di netplan, usato dalle immagini cloud Linux.</p>
+
+<h3>Al posto della VM originale</h3>
+<p>Seleziona <i>spegnila e sostituisci i suoi dischi</i>. BackupZit quindi:</p>
+<ul>
+  <li>spegne la VM esistente;</li>
+  <li>unisce i suoi checkpoint;</li>
+  <li>sostituisce i suoi dischi con quelli ripristinati.</li>
+</ul>
+<p>La VM mantiene ID, schede di rete e indirizzi MAC, quindi job, monitoraggio e rete del guest continuano a funzionare.</p>
+<p>I vecchi file disco non vengono eliminati; vengono rinominati in <code>….replaced-DATE</code>. Eliminali quando la VM ripristinata funziona.</p>
+<p>Se la VM originale non esiste più, viene ricreata, con un nuovo ID Hyper-V.</p>
+
+<h3>Opzioni</h3>
+<ul>
+  <li><b>Cartella per i dischi virtuali</b>: la cartella predefinita dell'host o qualsiasi cartella che contenga dischi di VM. Un ripristino sul posto mette i nuovi dischi accanto a quelli originali.</li>
+  <li><b>Avvia la VM dopo il ripristino</b>.</li>
+</ul>
+
+<h3>Cosa riceve una VM ripristinata</h3>
+<ul>
+  <li>Gli switch virtuali vengono collegati per nome. Se uno switch non esiste sull'host, la scheda resta scollegata.</li>
+  <li>Ogni VM ripristinata riceve un nuovo ID di generazione, così i controller di dominio Active Directory rilevano il ripristino in sicurezza.</li>
+</ul>
+
+<h2>Ripristinare singoli file</h2>
+<p>Nella tabella delle VM dell'esecuzione, fai clic su <b>Sfoglia file</b> per vedere partizioni e volumi sui dischi della VM. Puoi sfogliare NTFS, ext2/3/4 e XFS, anche dentro LVM. Da lì puoi scaricare file o ripristinarli su qualsiasi agente. Funziona esattamente come per <a href="/docs/proxmox">Proxmox VE</a>.</p>
+
+<h2>Riga di comando</h2>
+<p>Esegui questi comandi sull'host Hyper-V, come amministratore:</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code> è il numero mostrato da <code>hyperv list</code>. BackupZit lo ricava dal GUID della VM.</li>
+  <li>Senza <code>--new</code>, la VM viene ripristinata sul posto.</li>
+  <li><code>--overwrite</code> conferma che i dischi di una VM esistente vanno sostituiti.</li>
+</ul>
+<p>Le opzioni del repository sono le stesse di tutti i comandi; vedi <a href="/docs/cli">Riferimento della riga di comando</a>.</p>
+
+<h2>Non ancora incluso</h2>
+<ul>
+  <li><b>Alcuni tipi di disco.</b> VHDX condivisi, VHD Set e dischi pass-through non vengono salvati.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,47 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Disk-Images &amp; Bare-Metal-Wiederherstellung</h1>
+<p class="lead">Eine Abbildsicherung erfasst eine ganze Festplatte — Partitionstabelle, Boot-Partitionen, System und Daten —, sodass eine Maschine auf einer leeren oder neuen Festplatte genau so wiederhergestellt werden kann, wie sie war.</p>
+<div class="callout"><p>Festplattenabbild-Sicherungen gibt es für <b>Windows</b>-Maschinen (NTFS-Volumes, GPT- und MBR-Festplatten). Für Linux-Maschinen verwenden Sie einen Auftrag <a href="/docs/linux-system">Linux-System</a>.</p></div>
+
+<h2>Einen Abbildauftrag erstellen</h2>
+<ol>
+  <li>Wählen Sie unter <a href="/jobs">Sicherungsaufträge</a> <b>Festplattenabbild</b>.</li>
+  <li>Der Agent meldet seine Festplatten automatisch. Wählen Sie <b>Alle Datenträger</b>, um jede interne Festplatte der Maschine in einem Auftrag abzubilden, oder markieren Sie eine einzelne Festplatte — ganz oder nur einige Partitionen (z. B. eine große Datenpartition auslassen, die bereits ein Dateiauftrag abdeckt).</li>
+  <li>Stellen Sie Aufbewahrung und Zeitplan wie bei jedem Auftrag ein; ein wöchentliches Abbild plus tägliche Dateisicherungen ist eine gängige Kombination.</li>
+</ol>
+<h3 id="all-disks">Alle Datenträger</h3>
+<p>Ein Auftrag <b>Alle Datenträger</b> sichert jede interne Festplatte mit Partitionstabelle in einer Sicherung, auch später hinzugefügte Festplatten. Alle Volumes aller Festplatten werden aus einem VSS-Snapshot gelesen, sodass die Festplatten zueinander konsistent sind (z. B. eine Datenbank auf D: mit ihren Logs auf E:). USB- und SD-Festplatten, eingebundene VHD/VHDX-Dateien und Wechselmedien werden ausgelassen — eine externe Sicherungsfestplatte darf sich nicht selbst abbilden; wählen Sie eine solche Festplatte einzeln, wenn Sie sie brauchen. Die Laufseite listet jede Festplatte mit ihren Partitionen auf; aus jeder können Dateien durchsucht und wiederhergestellt werden. Die Wiederherstellung schreibt jeweils eine Festplatte: Wählen Sie im Wiederherstellungsformular den <b>Datenträger der Sicherung</b> und die Zielfestplatte und wiederholen Sie das für die nächste Festplatte (bei Bare Metal: zuerst die Systemfestplatte vom Wiederherstellungs-ISO wiederherstellen). Der Agent muss 0.33.7 oder neuer sein; ein älterer meldet, dass er aktualisiert werden muss.</p>
+<p>Es werden nur belegte Blöcke gelesen (NTFS-Belegungstabelle), das Abbild wird aus einem VSS-Snapshot erstellt, damit das laufende System konsistent ist, und unveränderte Blöcke werden gegen frühere Abbilder dedupliziert — das zweite Abbild derselben Maschine lädt meist nur wenige Prozent hoch.</p>
+
+<h2>Ein Abbild auf eine Festplatte wiederherstellen</h2>
+<p>Verwenden Sie im Lauf der Abbildsicherung <b>Dieses Abbild auf eine Festplatte wiederherstellen</b>:</p>
+<ul>
+  <li><b>Auf Agent wiederherstellen</b> — die Maschine mit der Zielfestplatte. Das kann eine laufende Maschine mit einer freien Festplatte sein oder eine vom Wiederherstellungs-ISO gestartete Maschine.</li>
+  <li><b>Zieldatenträger</b> — muss mindestens so groß sein wie der belegte Bereich des Originals. <b>Alle Daten darauf werden gelöscht.</b></li>
+  <li><b>Festplatte danach offline lassen</b> — aktivieren Sie dies, wenn sich die Originalfestplatte in derselben Maschine befindet, damit Windows die Datenträger-IDs der Kopie nicht ändert.</li>
+</ul>
+<p>GPT- und MBR-Festplatten, EFI- und BIOS-Boot werden unterstützt. Partitionslayout und IDs werden neu erstellt, sodass die wiederhergestellte Festplatte wie zuvor startet.</p>
+
+<h2>Bare-Metal-Wiederherstellung mit dem Wiederherstellungs-ISO</h2>
+<ol>
+  <li>Laden Sie unter <a href="/recovery">Wiederherstellungsmedien</a> das (Windows-)Wiederherstellungs-ISO herunter. Schreiben Sie es auf einen USB-Stick (Rufus, Modus „DD-Image“ oder „ISO“) oder hängen Sie es an eine virtuelle Maschine.</li>
+  <li>Erstellen Sie optional einen <b>Wiederherstellungscode</b> und laden Sie <code>recovery.json</code> herunter; kopieren Sie die Datei in einen Ordner <code>backupzit</code> auf dem Stick, damit die Maschine sich ohne Eingaben verbindet.</li>
+  <li>Starten Sie die wiederherzustellende Maschine vom Stick. Sie startet den Agenten im Wiederherstellungsmodus und verbindet sich mit der Konsole (oder fragt nach Serveradresse und Wiederherstellungscode).</li>
+  <li>Die Maschine erscheint als <span class="badge">Wiederherstellung</span>-Agent mit ihren Festplatten.</li>
+  <li>Öffnen Sie die Abbildsicherung in Aktivität, wählen Sie <b>Dieses Abbild auf eine Festplatte wiederherstellen</b>, wählen Sie den Wiederherstellungsagenten und seine Festplatte, bestätigen Sie.</li>
+  <li>Wenn der Lauf abgeschlossen ist, entfernen Sie den Stick und starten Sie neu.</li>
+</ol>
+<h2>Auf andere Hardware wiederherstellen</h2>
+<p>Windows startet nur mit einem Treiber für den Festplattencontroller, von dem es bootet, und Windows Setup deaktiviert die Treiber, die es nicht brauchte. Ein Abbild eines PCs mit Intel-Controller bleibt deshalb auf einem AMD-Board, einem NVMe-Laufwerk, in Hyper-V oder in einer Proxmox-VM mit <i>INACCESSIBLE_BOOT_DEVICE</i> stehen. Aktivieren Sie im Wiederherstellungsformular <b>Auf andere Hardware wiederherstellen</b>, und BackupZit bereitet das wiederhergestellte Windows nach dem Schreiben des Abbilds vor:</p>
+<ol>
+  <li>Die zu Windows gehörenden Treiber für gängige Festplattencontroller starten wieder beim Booten: AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS und RAID, HPE Smart Array, Hyper-V und VMware.</li>
+  <li>Zusätzliche Treiber werden mit DISM hinzugefügt: die Treiber auf dem Wiederherstellungs-ISO (es enthält die VirtIO-Treiber für Proxmox/KVM) und die Ordner, die Sie unter <b>Zusätzliche Treiber</b> angeben — z. B. die Speicher- und Netzwerktreiber des neuen Mainboards, entpackt auf einen USB-Stick (<code>E:\Drivers</code>; Unterordner werden durchsucht).</li>
+  <li>Die Bootdateien werden für die neue Maschine neu erstellt (<code>bcdboot</code>).</li>
+</ol>
+<p>Die Laufseite listet die aktivierten und hinzugefügten Treiber auf. Windows erkennt die übrigen neuen Geräte beim ersten Start; die Aktivierung muss auf neuer Hardware eventuell wiederholt werden. Eine Wiederherstellung zwischen UEFI und Legacy-BIOS ist nicht möglich — das Ziel muss auf dieselbe Weise booten wie das Original.</p>
+<p><b>Physischer PC oder Server nach Proxmox VE:</b> Erstellen Sie eine VM mit OVMF (UEFI) für GPT-Festplatten oder SeaBIOS für MBR-Festplatten, eine VirtIO-SCSI-Festplatte, mindestens so groß wie das Original, und eine VirtIO-Netzwerkkarte, hängen Sie das Wiederherstellungs-ISO an und stellen Sie mit <i>Auf andere Hardware wiederherstellen</i> wieder her. Das Wiederherstellungs-ISO erkennt VirtIO-Festplatten und -Netzwerkkarten selbst.</p>
+
+<h2>Auf eine virtuelle Maschine wiederherstellen</h2>
+<p>Erstellen Sie eine leere VM-Festplatte, mindestens so groß wie das Original, starten Sie die VM vom Wiederherstellungs-ISO und folgen Sie den Schritten oben. Das ist auch der einfachste Weg zu testen, ob Ihre Abbilder wirklich starten.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

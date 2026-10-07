@@ -1,0 +1,85 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Maszyny wirtualne Hyper-V</h1>
+<p class="lead">BackupZit tworzy kopie maszyn wirtualnych Hyper-V za pomocą agenta na hoście Hyper-V; wewnątrz maszyn nic nie jest instalowane. Goście Windows i Linux są przechwytywani bez zatrzymywania. Można je przywrócić jako nową maszynę lub w miejsce oryginału.</p>
+
+<h2>Konfiguracja</h2>
+<ol>
+  <li>Zainstaluj MSI <b>Agent Windows</b> z <a href="/agents">Agenci</a> na hoście Hyper-V i zarejestruj go. Obsługiwane hosty: Windows Server 2016 lub nowszy z rolą Hyper-V albo Windows 10/11 z Hyper-V. W klastrze zainstaluj agenta na każdym hoście.</li>
+  <li>W ciągu minuty host pojawia się na stronie Agenci z oznaczeniem <b>Hyper-V · N VMs</b>.</li>
+  <li>W <a href="/jobs">Zadania kopii</a> wybierz tego agenta i <b>Maszyny wirtualne (Proxmox VE, Hyper-V, VMware)</b>. Następnie wybierz:
+    <ul>
+      <li><b>wszystkie maszyny hosta</b>, co obejmuje też maszyny utworzone później;</li>
+      <li>pojedyncze maszyny, zaznaczając je.</li>
+    </ul>
+  </li>
+</ol>
+<p>Agent korzysta z własnych interfejsów Hyper-V: modułu PowerShell Hyper-V i interfejsu Windows Virtual Disk API. Konsola nie przechowuje danych logowania Hyper-V.</p>
+
+<h2>Jak kopiowana jest maszyna</h2>
+<ol>
+  <li>Tworzony jest tymczasowy <b>punkt kontrolny odzyskiwania</b> (<code>backupzit_…</code>). To typ punktu kontrolnego, który Hyper-V udostępnia aplikacjom do kopii. Hyper-V prosi gościa o przygotowanie:
+    <ul>
+      <li>Goście Windows opróżniają bufory aplikacji przez VSS.</li>
+      <li>Goście Linux zamrażają systemy plików, jeśli zainstalowano demony Hyper-V (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
+    </ul>
+    Jeśli gość nie może zrobić żadnego z nich, punkt kontrolny jest tworzony w trybie spójności awaryjnej (crash-consistent). Strona uruchomienia pokazuje, który rodzaj został użyty.</li>
+  <li>Punkt kontrolny odzyskiwania włącza <b>Resilient Change Tracking</b> (RCT) dla dysków maszyny; obok nich zobaczysz pliki <code>.rct</code> i <code>.mrt</code>. Pierwsza kopia odczytuje całe dyski. Potem RCT wskazuje, które bloki zmieniły się od poprzedniej kopii, i <b>tylko one są odczytywane</b>.</li>
+  <li>Dyski są odczytywane w stanie z punktu kontrolnego, przez Virtual Disk API, w blokach po 1 MiB. Obejmuje to pliki VHDX i VHD, w tym łańcuchy wcześniejszych punktów kontrolnych. Puste bloki nie są zapisywane, a bloki już obecne w repozytorium nie są ponownie wysyłane.</li>
+  <li>Punkt kontrolny jest usuwany, a Hyper-V scala go w tle.</li>
+  <li>Konfiguracja maszyny jest zapisywana razem z kopią: generacja, procesor, pamięć, karty sieciowe (przełącznik, VLAN, adres MAC), kontrolery dysków, bezpieczny rozruch i TPM.</li>
+</ol>
+<p>Wyłączone maszyny są odczytywane bezpośrednio, bez punktu kontrolnego. Na hostach starszych niż Windows Server 2016 (bez punktów kontrolnych odzyskiwania) używany jest produkcyjny punkt kontrolny, a każda kopia odczytuje całe dyski.</p>
+<p>Przykład z laboratorium testowego: maszyna Linux z dyskiem 3 GB. Pierwsza kopia odczytała 3 GB. Następna, po 64 MB nowych danych, odczytała 96 MB.</p>
+<p>W Windows 10/11 Hyper-V tworzy automatyczny punkt kontrolny przy starcie maszyny, chyba że ta opcja jest wyłączona w ustawieniach maszyny. BackupZit radzi sobie z takimi punktami, ale na serwerach warto wyłączyć automatyczne punkty kontrolne (ustawienia maszyny → Punkty kontrolne).</p>
+
+<h2>Przywracanie maszyny</h2>
+<p>Otwórz uruchomienie kopii maszyny (ze strony zadania lub z <a href="/runs">Aktywność</a>) i użyj <b>Przywróć VM Hyper-V</b>.</p>
+
+<h3>Jako nowa maszyna obok oryginału</h3>
+<p>Tworzy drugą maszynę z nowymi adresami MAC, aby mogła działać w tej samej sieci co oryginał. Domyślnie nosi nazwę oryginału z dopiskiem „restored” i datą. Automatyczne punkty kontrolne są w niej wyłączane (Windows włącza je w nowych maszynach), więc jej uruchomienie nie pozostawia plików punktów kontrolnych. Jeśli kopia działa obok oryginału i zawiera agenta BackupZit, zobacz <a href="/docs/agents#duplicate">Dwie maszyny z jednym agentem</a>.</p>
+<p>Ustawienia sieci gościa powiązane z adresem MAC nie dotyczą nowych kart. Przykładem jest <code>match: macaddress</code> w netplan, używane przez obrazy chmurowe Linux.</p>
+
+<h3>W miejsce oryginalnej maszyny</h3>
+<p>Zaznacz <i>wyłącz ją i zastąp jej dyski</i>. BackupZit wtedy:</p>
+<ul>
+  <li>wyłącza istniejącą maszynę;</li>
+  <li>scala jej punkty kontrolne;</li>
+  <li>zamienia jej dyski na przywrócone.</li>
+</ul>
+<p>Maszyna zachowuje swój identyfikator, karty sieciowe i adresy MAC, więc zadania, monitoring i sieć gościa nadal działają.</p>
+<p>Stare pliki dysków nie są usuwane; zmienia się ich nazwę na <code>….replaced-DATE</code>. Usuń je, gdy przywrócona maszyna działa.</p>
+<p>Jeśli oryginalna maszyna już nie istnieje, jest tworzona ponownie, z nowym identyfikatorem Hyper-V.</p>
+
+<h3>Opcje</h3>
+<ul>
+  <li><b>Folder na dyski wirtualne</b>: domyślny folder hosta lub dowolny folder z dyskami maszyn. Przywracanie w miejscu umieszcza nowe dyski obok oryginalnych.</li>
+  <li><b>Uruchom VM po przywróceniu</b>.</li>
+</ul>
+
+<h3>Co otrzymuje przywrócona maszyna</h3>
+<ul>
+  <li>Przełączniki wirtualne są łączone według nazwy. Jeśli przełącznik nie istnieje na hoście, karta pozostaje odłączona.</li>
+  <li>Każda przywrócona maszyna otrzymuje nowy identyfikator generacji, aby kontrolery domeny Active Directory bezpiecznie wykryły przywrócenie.</li>
+</ul>
+
+<h2>Przywracanie pojedynczych plików</h2>
+<p>W tabeli maszyn uruchomienia kliknij <b>Przeglądaj pliki</b>, aby zobaczyć partycje i woluminy na dyskach maszyny. Możesz przeglądać NTFS, ext2/3/4 i XFS, także wewnątrz LVM. Stamtąd pobierzesz pliki lub przywrócisz je na dowolnego agenta. Działa to dokładnie tak jak w <a href="/docs/proxmox">Proxmox VE</a>.</p>
+
+<h2>Wiersz poleceń</h2>
+<p>Uruchom na hoście Hyper-V jako administrator:</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code> to numer pokazywany przez <code>hyperv list</code>. BackupZit wylicza go z GUID maszyny.</li>
+  <li>Bez <code>--new</code> maszyna jest przywracana w miejscu.</li>
+  <li><code>--overwrite</code> potwierdza, że dyski istniejącej maszyny mają zostać zastąpione.</li>
+</ul>
+<p>Opcje repozytorium są takie same jak dla wszystkich poleceń; zobacz <a href="/docs/cli">Wiersz poleceń — dokumentacja</a>.</p>
+
+<h2>Jeszcze nieobsługiwane</h2>
+<ul>
+  <li><b>Niektóre typy dysków.</b> Współdzielone VHDX, VHD Set i dyski pass-through nie są kopiowane.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

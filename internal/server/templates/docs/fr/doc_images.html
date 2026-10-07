@@ -1,0 +1,47 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Images disque et restauration bare-metal</h1>
+<p class="lead">Une sauvegarde image capture un disque entier — table de partitions, partitions d'amorçage, système et données — afin qu'une machine puisse être remise sur un disque vide ou neuf exactement telle qu'elle était.</p>
+<div class="callout"><p>La sauvegarde d'image disque est disponible pour les machines <b>Windows</b> (volumes NTFS, disques GPT et MBR). Pour les machines Linux, utilisez une tâche <a href="/docs/linux-system">Système Linux</a>.</p></div>
+
+<h2>Créer une tâche d'image</h2>
+<ol>
+  <li>Dans <a href="/jobs">Tâches de sauvegarde</a>, choisissez <b>Image disque</b>.</li>
+  <li>L'agent signale automatiquement ses disques. Choisissez <b>Tous les disques</b> pour créer l'image de chaque disque interne de la machine dans une seule tâche, ou cochez un seul disque — entier ou seulement certaines partitions (par ex. ignorer une grande partition de données déjà couverte par une tâche de fichiers).</li>
+  <li>Réglez la rétention et la planification comme pour toute tâche ; une image hebdomadaire plus des sauvegardes de fichiers quotidiennes est une combinaison courante.</li>
+</ol>
+<h3 id="all-disks">Tous les disques</h3>
+<p>Une tâche <b>Tous les disques</b> sauvegarde chaque disque interne doté d'une table de partitions dans une seule sauvegarde, y compris les disques ajoutés plus tard. Tous les volumes de tous les disques sont lus depuis un même instantané VSS, de sorte que les disques sont cohérents entre eux (par ex. une base de données sur D: avec ses journaux sur E:). Les disques USB et SD, les fichiers VHD/VHDX montés et les supports amovibles sont exclus — un disque de sauvegarde externe ne doit pas s'inclure lui-même ; choisissez un tel disque seul si vous en avez besoin. La page de l'exécution liste chaque disque avec ses partitions ; on peut parcourir et restaurer des fichiers depuis chacun. La restauration écrit un disque à la fois : dans le formulaire de restauration, choisissez le <b>Disque de la sauvegarde</b> et le disque cible, puis recommencez pour le disque suivant (en bare metal : restaurez d'abord le disque système, depuis l'ISO de récupération). L'agent doit être en version 0.33.7 ou plus récente ; une version plus ancienne indique qu'elle doit être mise à jour.</p>
+<p>Seuls les blocs utilisés sont lus (table d'allocation NTFS), l'image est prise depuis un instantané VSS pour que le système en marche soit cohérent, et les blocs inchangés sont dédupliqués par rapport aux images précédentes — la deuxième image de la même machine n'envoie généralement que quelques pour cent.</p>
+
+<h2>Restaurer une image sur un disque</h2>
+<p>Dans l'exécution de la sauvegarde image, utilisez <b>Restaurer cette image sur un disque</b> :</p>
+<ul>
+  <li><b>Restaurer sur l’agent</b> — la machine qui possède le disque cible. Cela peut être une machine en marche avec un disque libre, ou une machine démarrée depuis l'ISO de récupération.</li>
+  <li><b>Disque cible</b> — doit être au moins aussi grand que la zone utilisée de l'original. <b>Toutes ses données sont détruites.</b></li>
+  <li><b>Laisser ensuite le disque hors ligne</b> — cochez cette option lorsque le disque d'origine se trouve dans la même machine, afin que Windows ne modifie pas les identifiants de disque de la copie.</li>
+</ul>
+<p>Les disques GPT et MBR, l'amorçage EFI et BIOS sont pris en charge. La disposition des partitions et les identifiants sont recréés, donc le disque restauré démarre comme avant.</p>
+
+<h2>Restauration bare-metal avec l'ISO de récupération</h2>
+<ol>
+  <li>Dans <a href="/recovery">Supports de récupération</a>, téléchargez l'ISO de récupération (Windows). Gravez-la sur une clé USB (Rufus, mode « image DD » ou « ISO ») ou attachez-la à une machine virtuelle.</li>
+  <li>Créez éventuellement un <b>code de récupération</b> et téléchargez <code>recovery.json</code> ; copiez-le dans un dossier <code>backupzit</code> sur la clé pour que la machine se connecte sans saisie.</li>
+  <li>Démarrez la machine à restaurer depuis la clé. Elle lance l'agent en mode récupération et se connecte à la console (ou demande l'adresse du serveur et le code de récupération).</li>
+  <li>La machine apparaît comme agent de <span class="badge">récupération</span> avec ses disques.</li>
+  <li>Ouvrez la sauvegarde image dans Activité, choisissez <b>Restaurer cette image sur un disque</b>, sélectionnez l'agent de récupération et son disque, confirmez.</li>
+  <li>Une fois l'exécution terminée, retirez la clé et redémarrez.</li>
+</ol>
+<h2>Restaurer sur un matériel différent</h2>
+<p>Windows ne démarre qu'avec un pilote pour le contrôleur de disque depuis lequel il s'amorce, et l'installation de Windows désactive les pilotes dont elle n'avait pas besoin. L'image d'un PC à contrôleur Intel s'arrête donc avec <i>INACCESSIBLE_BOOT_DEVICE</i> sur une carte AMD, un disque NVMe, dans Hyper-V ou dans une VM Proxmox. Cochez <b>Restaurer sur un matériel différent</b> dans le formulaire de restauration et BackupZit prépare le Windows restauré après l'écriture de l'image :</p>
+<ol>
+  <li>Les pilotes des contrôleurs de disque courants fournis avec Windows redémarrent à l'amorçage : AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS et RAID, HPE Smart Array, Hyper-V et VMware.</li>
+  <li>Des pilotes supplémentaires sont ajoutés avec DISM : les pilotes présents sur l'ISO de récupération (elle contient les pilotes VirtIO pour Proxmox/KVM) et les dossiers que vous indiquez sous <b>Pilotes supplémentaires</b> — par ex. les pilotes de stockage et de réseau de la nouvelle carte mère, extraits sur une clé USB (<code>E:\Drivers</code> ; les sous-dossiers sont parcourus).</li>
+  <li>Les fichiers d'amorçage sont reconstruits pour la nouvelle machine (<code>bcdboot</code>).</li>
+</ol>
+<p>La page de l'exécution liste les pilotes activés et ajoutés. Windows détecte les autres nouveaux périphériques au premier démarrage ; l'activation peut devoir être refaite sur un nouveau matériel. La restauration entre UEFI et BIOS hérité n'est pas possible — la cible doit démarrer de la même manière que l'original.</p>
+<p><b>PC ou serveur physique vers Proxmox VE :</b> créez une VM avec OVMF (UEFI) pour les disques GPT ou SeaBIOS pour les disques MBR, un disque VirtIO SCSI au moins aussi grand que l'original et une carte réseau VirtIO, attachez l'ISO de récupération et restaurez avec <i>Restaurer sur un matériel différent</i>. L'ISO de récupération reconnaît elle-même les disques et cartes réseau VirtIO.</p>
+
+<h2>Restaurer sur une machine virtuelle</h2>
+<p>Créez un disque de VM vide au moins aussi grand que l'original, démarrez la VM depuis l'ISO de récupération et suivez les étapes ci-dessus. C'est aussi la manière la plus simple de vérifier que vos images démarrent vraiment.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

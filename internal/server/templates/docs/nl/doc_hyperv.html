@@ -1,0 +1,85 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Hyper-V virtuele machines</h1>
+<p class="lead">BackupZit maakt back-ups van virtuele Hyper-V-machines via de agent op de Hyper-V-host; in de VM's wordt niets geïnstalleerd. Windows- en Linux-gasten worden vastgelegd terwijl ze blijven draaien. U kunt ze herstellen als nieuwe VM of in plaats van het origineel.</p>
+
+<h2>Instellen</h2>
+<ol>
+  <li>Installeer de MSI van de <b>Windows-agent</b> vanuit <a href="/agents">Agents</a> op de Hyper-V-host en registreer hem. Ondersteunde hosts: Windows Server 2016 of nieuwer met de Hyper-V-rol, of Windows 10/11 met Hyper-V. Installeer in een cluster de agent op elke host.</li>
+  <li>Binnen een minuut verschijnt de host op de pagina Agents met het label <b>Hyper-V · N VMs</b>.</li>
+  <li>Selecteer in <a href="/jobs">Back-uptaken</a> die agent en kies <b>Virtuele machines (Proxmox VE, Hyper-V, VMware)</b>. Kies daarna:
+    <ul>
+      <li><b>alle VM's van de host</b>, wat ook later gemaakte VM's omvat;</li>
+      <li>afzonderlijke VM's, door ze aan te vinken.</li>
+    </ul>
+  </li>
+</ol>
+<p>De agent werkt via de eigen interfaces van Hyper-V: de Hyper-V PowerShell-module en de Windows Virtual Disk API. De console slaat geen Hyper-V-inloggegevens op.</p>
+
+<h2>Hoe een VM wordt geback-upt</h2>
+<ol>
+  <li>Er wordt een tijdelijk <b>herstelcontrolepunt</b> (<code>backupzit_…</code>) gemaakt. Dat is het type controlepunt dat Hyper-V voor back-uptoepassingen biedt. Hyper-V vraagt de gast zich voor te bereiden:
+    <ul>
+      <li>Windows-gasten legen de buffers van hun toepassingen via VSS.</li>
+      <li>Linux-gasten bevriezen hun bestandssystemen, als de Hyper-V-daemons zijn geïnstalleerd (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
+    </ul>
+    Kan de gast geen van beide, dan wordt het controlepunt crash-consistent gemaakt. De runpagina toont welk type is gebruikt.</li>
+  <li>Het herstelcontrolepunt schakelt <b>Resilient Change Tracking</b> (RCT) in voor de schijven van de VM; u ziet <code>.rct</code>- en <code>.mrt</code>-bestanden ernaast. De eerste back-up leest de volledige schijven. Daarna meldt RCT welke blokken sinds de vorige back-up zijn gewijzigd, en <b>alleen die worden gelezen</b>.</li>
+  <li>De schijven worden in de staat van het controlepunt gelezen, via de Virtual Disk API, in blokken van 1 MiB. Dat omvat VHDX- en VHD-bestanden, inclusief ketens van eerdere controlepunten. Lege blokken worden niet opgeslagen, en blokken die al in de repository staan worden niet opnieuw geüpload.</li>
+  <li>Het controlepunt wordt verwijderd en Hyper-V voegt het op de achtergrond samen.</li>
+  <li>De configuratie van de VM wordt met de back-up opgeslagen: generatie, CPU, geheugen, netwerkadapters (switch, VLAN, MAC-adres), schijfcontrollers, secure boot en TPM.</li>
+</ol>
+<p>Uitgeschakelde VM's worden direct gelezen, zonder controlepunt. Op hosts ouder dan Windows Server 2016 (geen herstelcontrolepunten) wordt een productiecontrolepunt gebruikt en leest elke back-up de volledige schijven.</p>
+<p>Voorbeeld uit het testlab: een Linux-VM met een schijf van 3 GB. De eerste back-up las 3 GB. De volgende, na 64 MB nieuwe gegevens, las 96 MB.</p>
+<p>Op Windows 10/11 maakt Hyper-V een automatisch controlepunt wanneer een VM start, tenzij die optie in de VM-instellingen is uitgeschakeld. BackupZit kan met zulke controlepunten omgaan, maar voor servers wilt u automatische controlepunten uitschakelen (VM-instellingen → Controlepunten).</p>
+
+<h2>Een VM herstellen</h2>
+<p>Open de run van de VM-back-up (vanaf de taakpagina of <a href="/runs">Activiteit</a>) en gebruik <b>Een Hyper-V-VM herstellen</b>.</p>
+
+<h3>Als nieuwe VM naast het origineel</h3>
+<p>Maakt een tweede VM met nieuwe MAC-adressen, zodat die op hetzelfde netwerk als het origineel kan draaien. Standaard krijgt hij de naam van het origineel plus "restored" en de datum. Automatische controlepunten worden erop uitgeschakeld (Windows schakelt ze in voor nieuwe VM's), zodat het starten geen controlepuntbestanden achterlaat. Als de kopie naast het origineel draait en de BackupZit-agent bevat, zie <a href="/docs/agents#duplicate">Twee machines met één agent</a>.</p>
+<p>Netwerkinstellingen in de gast die aan een MAC-adres gebonden zijn, gelden niet voor de nieuwe adapters. Een voorbeeld is <code>match: macaddress</code> van netplan, dat Linux-cloud-images gebruiken.</p>
+
+<h3>In plaats van de originele VM</h3>
+<p>Vink <i>uitschakelen en de schijven vervangen</i> aan. BackupZit dan:</p>
+<ul>
+  <li>schakelt de bestaande VM uit;</li>
+  <li>voegt de controlepunten samen;</li>
+  <li>verwisselt de schijven voor de herstelde.</li>
+</ul>
+<p>De VM behoudt zijn ID, netwerkadapters en MAC-adressen, zodat taken, monitoring en het netwerk van de gast blijven werken.</p>
+<p>De oude schijfbestanden worden niet verwijderd; ze worden hernoemd naar <code>….replaced-DATE</code>. Verwijder ze zodra de herstelde VM werkt.</p>
+<p>Bestaat de originele VM niet meer, dan wordt hij opnieuw gemaakt, met een nieuwe Hyper-V-ID.</p>
+
+<h3>Opties</h3>
+<ul>
+  <li><b>Map voor de virtuele schijven</b>: de standaardmap van de host of een willekeurige map met VM-schijven. Een herstel ter plaatse zet de nieuwe schijven naast de originele.</li>
+  <li><b>De VM na het herstel starten</b>.</li>
+</ul>
+
+<h3>Wat een herstelde VM krijgt</h3>
+<ul>
+  <li>Virtuele switches worden op naam gekoppeld. Bestaat een switch niet op de host, dan blijft de adapter losgekoppeld.</li>
+  <li>Elke herstelde VM krijgt een nieuwe generatie-ID, zodat Active Directory-domeincontrollers het herstel veilig detecteren.</li>
+</ul>
+
+<h2>Losse bestanden herstellen</h2>
+<p>Klik in de VM-tabel van de run op <b>Bestanden bladeren</b> om de partities en volumes op de schijven van de VM te zien. U kunt NTFS, ext2/3/4 en XFS bladeren, ook binnen LVM. Van daaruit kunt u bestanden downloaden of naar elke agent herstellen. Het werkt precies zoals bij <a href="/docs/proxmox">Proxmox VE</a>.</p>
+
+<h2>Opdrachtregel</h2>
+<p>Voer dit uit op de Hyper-V-host, als beheerder:</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code> is het nummer dat <code>hyperv list</code> toont. BackupZit leidt het af van de GUID van de VM.</li>
+  <li>Zonder <code>--new</code> wordt de VM ter plaatse hersteld.</li>
+  <li><code>--overwrite</code> bevestigt dat de schijven van een bestaande VM vervangen moeten worden.</li>
+</ul>
+<p>De repository-opties zijn dezelfde als bij alle opdrachten; zie <a href="/docs/cli">Opdrachtregelreferentie</a>.</p>
+
+<h2>Nog niet inbegrepen</h2>
+<ul>
+  <li><b>Sommige schijftypen.</b> Gedeelde VHDX, VHD Sets en pass-through-schijven worden niet geback-upt.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

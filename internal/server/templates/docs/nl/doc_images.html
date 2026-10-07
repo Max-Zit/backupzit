@@ -1,0 +1,47 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Schijfimages en bare-metal-herstel</h1>
+<p class="lead">Een image-back-up legt een hele schijf vast — partitietabel, opstartpartities, systeem en gegevens — zodat een machine op een lege of nieuwe schijf precies zo kan worden teruggezet als ze was.</p>
+<div class="callout"><p>Schijfimage-back-ups zijn beschikbaar voor <b>Windows</b>-machines (NTFS-volumes, GPT- en MBR-schijven). Gebruik voor Linux-machines een taak <a href="/docs/linux-system">Linux-systeem</a>.</p></div>
+
+<h2>Een image-taak maken</h2>
+<ol>
+  <li>Kies in <a href="/jobs">Back-uptaken</a> <b>Schijfimage</b>.</li>
+  <li>De agent meldt zijn schijven automatisch. Kies <b>Alle schijven</b> om elke interne schijf van de machine in één taak te imagen, of vink één schijf aan — volledig of alleen enkele partities (bijv. een grote datapartitie overslaan die al door een bestandstaak wordt gedekt).</li>
+  <li>Stel bewaarbeleid en schema in zoals bij elke taak; een wekelijkse image plus dagelijkse bestandsback-ups is een gangbare combinatie.</li>
+</ol>
+<h3 id="all-disks">Alle schijven</h3>
+<p>Een taak <b>Alle schijven</b> maakt een back-up van elke interne schijf met een partitietabel in één back-up, ook van later toegevoegde schijven. Alle volumes van alle schijven worden uit één VSS-snapshot gelezen, zodat de schijven onderling consistent zijn (bijv. een database op D: met de logboeken op E:). USB- en SD-schijven, gekoppelde VHD/VHDX-bestanden en verwisselbare media worden overgeslagen — een externe back-upschijf mag zichzelf niet imagen; kies zo'n schijf apart als u hem nodig hebt. De runpagina toont elke schijf met zijn partities; uit elke schijf kunt u bestanden bladeren en herstellen. Herstellen schrijft één schijf tegelijk: kies in het herstelformulier de <b>Schijf van de back-up</b> en de doelschijf, en herhaal dat voor de volgende schijf (bij bare metal: eerst de systeemschijf herstellen, vanaf de herstel-ISO). De agent moet 0.33.7 of nieuwer zijn; een oudere meldt dat hij bijgewerkt moet worden.</p>
+<p>Alleen gebruikte blokken worden gelezen (NTFS-toewijzingstabel), de image wordt uit een VSS-snapshot gemaakt zodat het draaiende systeem consistent is, en ongewijzigde blokken worden gededupliceerd tegen eerdere images — de tweede image van dezelfde machine uploadt meestal maar een paar procent.</p>
+
+<h2>Een image op een schijf herstellen</h2>
+<p>Gebruik in de run van de image-back-up <b>Deze image op een schijf herstellen</b>:</p>
+<ul>
+  <li><b>Herstellen op agent</b> — de machine met de doelschijf. Dat kan een draaiende machine met een vrije schijf zijn, of een machine die vanaf de herstel-ISO is opgestart.</li>
+  <li><b>Doelschijf</b> — moet minstens zo groot zijn als het gebruikte deel van het origineel. <b>Alle gegevens erop worden vernietigd.</b></li>
+  <li><b>Schijf daarna offline laten</b> — vink dit aan als de originele schijf in dezelfde machine zit, zodat Windows de schijf-ID's van de kopie niet wijzigt.</li>
+</ul>
+<p>GPT- en MBR-schijven, EFI- en BIOS-opstart worden ondersteund. De partitie-indeling en ID's worden opnieuw gemaakt, zodat de herstelde schijf opstart zoals voorheen.</p>
+
+<h2>Bare-metal-herstel met de herstel-ISO</h2>
+<ol>
+  <li>Download onder <a href="/recovery">Herstelmedia</a> de (Windows-)herstel-ISO. Schrijf hem naar een USB-stick (Rufus, modus "DD-image" of "ISO") of koppel hem aan een virtuele machine.</li>
+  <li>Maak eventueel een <b>herstelcode</b> aan en download <code>recovery.json</code>; kopieer het naar een map <code>backupzit</code> op de stick, zodat de machine zonder typen verbinding maakt.</li>
+  <li>Start de te herstellen machine op vanaf de stick. Hij start de agent in herstelmodus en maakt verbinding met de console (of vraagt om het serveradres en de herstelcode).</li>
+  <li>De machine verschijnt als <span class="badge">herstel</span>-agent met zijn schijven.</li>
+  <li>Open de image-back-up in Activiteit, kies <b>Deze image op een schijf herstellen</b>, selecteer de herstelagent en zijn schijf en bevestig.</li>
+  <li>Verwijder na afloop van de run de stick en start opnieuw op.</li>
+</ol>
+<h2>Herstellen op andere hardware</h2>
+<p>Windows start alleen met een stuurprogramma voor de schijfcontroller waarvan het opstart, en Windows Setup schakelt de stuurprogramma's uit die het niet nodig had. Een image van een pc met een Intel-controller stopt daarom met <i>INACCESSIBLE_BOOT_DEVICE</i> op een AMD-bord, een NVMe-schijf, in Hyper-V of in een Proxmox-VM. Vink <b>Herstellen op andere hardware</b> aan in het herstelformulier, en BackupZit bereidt de herstelde Windows voor nadat de image is geschreven:</p>
+<ol>
+  <li>De stuurprogramma's voor gangbare schijfcontrollers die bij Windows horen, starten weer bij het opstarten: AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS en RAID, HPE Smart Array, Hyper-V en VMware.</li>
+  <li>Extra stuurprogramma's worden met DISM toegevoegd: de stuurprogramma's op de herstel-ISO (die bevat de VirtIO-stuurprogramma's voor Proxmox/KVM) en de mappen die u opgeeft onder <b>Extra stuurprogramma's</b> — bijv. de opslag- en netwerkstuurprogramma's van het nieuwe moederbord, uitgepakt op een USB-stick (<code>E:\Drivers</code>; submappen worden doorzocht).</li>
+  <li>De opstartbestanden worden opnieuw opgebouwd voor de nieuwe machine (<code>bcdboot</code>).</li>
+</ol>
+<p>De runpagina toont de ingeschakelde en toegevoegde stuurprogramma's. Windows detecteert de overige nieuwe apparaten bij de eerste start; op nieuwe hardware kan om herhaling van de activering worden gevraagd. Herstellen tussen UEFI en legacy BIOS is niet mogelijk — het doel moet op dezelfde manier opstarten als het origineel.</p>
+<p><b>Fysieke pc of server naar Proxmox VE:</b> maak een VM met OVMF (UEFI) voor GPT-schijven of SeaBIOS voor MBR-schijven, een VirtIO SCSI-schijf minstens zo groot als het origineel en een VirtIO-netwerkkaart, koppel de herstel-ISO en herstel met <i>Herstellen op andere hardware</i>. De herstel-ISO herkent VirtIO-schijven en -netwerkkaarten zelf.</p>
+
+<h2>Herstellen op een virtuele machine</h2>
+<p>Maak een lege VM-schijf minstens zo groot als het origineel, start de VM op vanaf de herstel-ISO en volg de stappen hierboven. Dit is ook de eenvoudigste manier om te testen of uw images echt opstarten.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

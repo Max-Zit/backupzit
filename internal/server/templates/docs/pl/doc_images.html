@@ -1,0 +1,47 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Obrazy dysków i odtwarzanie bare-metal</h1>
+<p class="lead">Kopia obrazu obejmuje cały dysk — tablicę partycji, partycje rozruchowe, system i dane — dzięki czemu maszynę można odtworzyć na pustym lub nowym dysku dokładnie w takim stanie, w jakim była.</p>
+<div class="callout"><p>Kopia obrazu dysku jest dostępna dla maszyn <b>Windows</b> (woluminy NTFS, dyski GPT i MBR). Dla maszyn Linux użyj zadania <a href="/docs/linux-system">System Linux</a>.</p></div>
+
+<h2>Tworzenie zadania obrazu</h2>
+<ol>
+  <li>W <a href="/jobs">Zadania kopii</a> wybierz <b>Obraz dysku</b>.</li>
+  <li>Agent automatycznie zgłasza swoje dyski. Wybierz <b>Wszystkie dyski</b>, aby objąć obrazem każdy wewnętrzny dysk maszyny w jednym zadaniu, albo zaznacz jeden dysk — cały lub tylko niektóre partycje (np. pomiń dużą partycję z danymi, którą obejmuje już zadanie plików).</li>
+  <li>Ustaw przechowywanie i harmonogram jak w każdym zadaniu; cotygodniowy obraz plus codzienne kopie plików to częste połączenie.</li>
+</ol>
+<h3 id="all-disks">Wszystkie dyski</h3>
+<p>Zadanie <b>Wszystkie dyski</b> kopiuje każdy wewnętrzny dysk z tablicą partycji do jednej kopii, także dyski dodane później. Wszystkie woluminy wszystkich dysków są odczytywane z jednej migawki VSS, więc dyski są ze sobą spójne (np. baza danych na D: z dziennikami na E:). Dyski USB i SD, zamontowane pliki VHD/VHDX i nośniki wymienne są pomijane — zewnętrzny dysk kopii nie może kopiować samego siebie; jeśli go potrzebujesz, wybierz taki dysk osobno. Strona uruchomienia wymienia każdy dysk z jego partycjami; z każdego można przeglądać i przywracać pliki. Przywracanie zapisuje jeden dysk naraz: w formularzu przywracania wybierz <b>Dysk z kopii</b> i dysk docelowy, a potem powtórz dla następnego dysku (przy bare metal: najpierw przywróć dysk systemowy, z ISO odzyskiwania). Agent musi mieć wersję 0.33.7 lub nowszą; starszy zgłasza, że trzeba go zaktualizować.</p>
+<p>Odczytywane są tylko używane bloki (mapa alokacji NTFS), obraz jest tworzony z migawki VSS, aby działający system był spójny, a niezmienione bloki są deduplikowane względem wcześniejszych obrazów — drugi obraz tej samej maszyny zwykle wysyła tylko kilka procent.</p>
+
+<h2>Przywracanie obrazu na dysk</h2>
+<p>W uruchomieniu kopii obrazu użyj <b>Przywróć ten obraz na dysk</b>:</p>
+<ul>
+  <li><b>Przywróć na agencie</b> — maszyna z dyskiem docelowym. Może to być działająca maszyna z wolnym dyskiem albo maszyna uruchomiona z ISO odzyskiwania.</li>
+  <li><b>Dysk docelowy</b> — musi być co najmniej tak duży jak zajęty obszar oryginału. <b>Wszystkie dane na nim zostaną zniszczone.</b></li>
+  <li><b>Pozostaw potem dysk offline</b> — zaznacz, gdy oryginalny dysk jest w tej samej maszynie, aby Windows nie zmienił identyfikatorów dysku kopii.</li>
+</ul>
+<p>Obsługiwane są dyski GPT i MBR oraz rozruch EFI i BIOS. Układ partycji i identyfikatory są odtwarzane, więc przywrócony dysk uruchamia się jak wcześniej.</p>
+
+<h2>Odtwarzanie bare-metal z ISO odzyskiwania</h2>
+<ol>
+  <li>W <a href="/recovery">Nośniki odzyskiwania</a> pobierz ISO odzyskiwania (Windows). Zapisz je na pendrive (Rufus, tryb „obraz DD” lub „ISO”) lub podłącz do maszyny wirtualnej.</li>
+  <li>Opcjonalnie utwórz <b>kod odzyskiwania</b> i pobierz <code>recovery.json</code>; skopiuj go do folderu <code>backupzit</code> na pendrivie, aby maszyna połączyła się bez wpisywania.</li>
+  <li>Uruchom przywracaną maszynę z pendrive'a. Uruchamia ona agenta w trybie odzyskiwania i łączy się z konsolą (lub pyta o adres serwera i kod odzyskiwania).</li>
+  <li>Maszyna pojawia się jako agent <span class="badge">odzyskiwanie</span> ze swoimi dyskami.</li>
+  <li>Otwórz kopię obrazu w Aktywność, wybierz <b>Przywróć ten obraz na dysk</b>, wskaż agenta odzyskiwania i jego dysk, potwierdź.</li>
+  <li>Po zakończeniu uruchomienia wyjmij pendrive i uruchom ponownie.</li>
+</ol>
+<h2>Przywracanie na inny sprzęt</h2>
+<p>Windows uruchamia się tylko ze sterownikiem kontrolera dysku, z którego startuje, a instalator Windows wyłącza sterowniki, których nie potrzebował. Obraz komputera z kontrolerem Intel zatrzymuje się więc z <i>INACCESSIBLE_BOOT_DEVICE</i> na płycie AMD, dysku NVMe, w Hyper-V lub w maszynie Proxmox. Zaznacz <b>Przywróć na inny sprzęt</b> w formularzu przywracania, a BackupZit przygotuje przywrócony Windows po zapisaniu obrazu:</p>
+<ol>
+  <li>Sterowniki popularnych kontrolerów dysków będące częścią Windows znów startują przy rozruchu: AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS i RAID, HPE Smart Array, Hyper-V i VMware.</li>
+  <li>Dodatkowe sterowniki są dodawane przez DISM: sterowniki z ISO odzyskiwania (zawiera sterowniki VirtIO dla Proxmox/KVM) oraz foldery wskazane w <b>Dodatkowe sterowniki</b> — np. sterowniki pamięci masowej i sieci nowej płyty głównej, rozpakowane na pendrive (<code>E:\Drivers</code>; przeszukiwane są podfoldery).</li>
+  <li>Pliki rozruchowe są odbudowywane dla nowej maszyny (<code>bcdboot</code>).</li>
+</ol>
+<p>Strona uruchomienia wymienia włączone i dodane sterowniki. Pozostałe nowe urządzenia Windows wykrywa przy pierwszym starcie; na nowym sprzęcie może być potrzebna ponowna aktywacja. Przywracanie między UEFI a starszym BIOS nie jest możliwe — cel musi uruchamiać się tak samo jak oryginał.</p>
+<p><b>Fizyczny komputer lub serwer do Proxmox VE:</b> utwórz maszynę z OVMF (UEFI) dla dysków GPT lub SeaBIOS dla dysków MBR, dyskiem VirtIO SCSI co najmniej tak dużym jak oryginał i kartą sieciową VirtIO, podłącz ISO odzyskiwania i przywróć z opcją <i>Przywróć na inny sprzęt</i>. ISO odzyskiwania samo widzi dyski i karty sieciowe VirtIO.</p>
+
+<h2>Przywracanie na maszynę wirtualną</h2>
+<p>Utwórz pusty dysk maszyny wirtualnej co najmniej tak duży jak oryginał, uruchom maszynę z ISO odzyskiwania i wykonaj powyższe kroki. To także najprostszy sposób, by sprawdzić, czy Twoje obrazy naprawdę się uruchamiają.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

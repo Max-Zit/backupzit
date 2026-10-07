@@ -1,0 +1,47 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Imágenes de disco y recuperación bare-metal</h1>
+<p class="lead">Una copia de imagen captura un disco completo —tabla de particiones, particiones de arranque, sistema y datos— para que una máquina pueda volver a un disco vacío o nuevo exactamente como estaba.</p>
+<div class="callout"><p>La copia de imagen de disco está disponible para máquinas <b>Windows</b> (volúmenes NTFS, discos GPT y MBR). Para máquinas Linux use un trabajo de <a href="/docs/linux-system">Sistema Linux</a>.</p></div>
+
+<h2>Crear un trabajo de imagen</h2>
+<ol>
+  <li>En <a href="/jobs">Trabajos de copia</a> elija <b>Imagen de disco</b>.</li>
+  <li>El agente informa de sus discos automáticamente. Elija <b>Todos los discos</b> para crear la imagen de cada disco interno de la máquina en un solo trabajo, o marque un solo disco: entero o solo algunas particiones (p. ej., omitir una gran partición de datos que ya cubre un trabajo de archivos).</li>
+  <li>Configure la retención y la programación como en cualquier trabajo; una imagen semanal más copias diarias de archivos es una combinación habitual.</li>
+</ol>
+<h3 id="all-disks">Todos los discos</h3>
+<p>Un trabajo de <b>Todos los discos</b> copia cada disco interno con tabla de particiones en una sola copia, también los discos añadidos más tarde. Todos los volúmenes de todos los discos se leen de una misma instantánea VSS, de modo que los discos son coherentes entre sí (p. ej., una base de datos en D: con sus registros en E:). Los discos USB y SD, los archivos VHD/VHDX montados y los medios extraíbles quedan fuera: un disco de copia externo no debe copiarse a sí mismo; elija ese disco por separado si lo necesita. La página de la ejecución muestra cada disco con sus particiones; de cada uno se pueden examinar y restaurar archivos. La restauración escribe un disco cada vez: en el formulario de restauración elija el <b>Disco de la copia</b> y el disco de destino, y repita para el siguiente disco (en bare metal: restaure primero el disco del sistema, desde la ISO de recuperación). El agente debe ser 0.33.7 o posterior; uno anterior indica que debe actualizarse.</p>
+<p>Solo se leen los bloques usados (mapa de asignación de NTFS), la imagen se toma de una instantánea VSS para que el sistema en marcha sea coherente, y los bloques sin cambios se deduplican frente a imágenes anteriores: la segunda imagen de la misma máquina suele enviar solo un pequeño porcentaje.</p>
+
+<h2>Restaurar una imagen en un disco</h2>
+<p>En la ejecución de la copia de imagen, use <b>Restaurar esta imagen en un disco</b>:</p>
+<ul>
+  <li><b>Restaurar en el agente</b>: la máquina que tiene el disco de destino. Puede ser una máquina en marcha con un disco libre o una máquina arrancada desde la ISO de recuperación.</li>
+  <li><b>Disco de destino</b>: debe ser al menos tan grande como el área usada del original. <b>Se destruyen todos sus datos.</b></li>
+  <li><b>Dejar el disco sin conexión después</b>: márquelo cuando el disco original esté en la misma máquina, para que Windows no cambie los identificadores de disco de la copia.</li>
+</ul>
+<p>Se admiten discos GPT y MBR, y arranque EFI y BIOS. La disposición de particiones y los identificadores se recrean, así que el disco restaurado arranca como antes.</p>
+
+<h2>Recuperación bare-metal con la ISO de recuperación</h2>
+<ol>
+  <li>En <a href="/recovery">Medios de recuperación</a> descargue la ISO de recuperación (de Windows). Grábela en una memoria USB (Rufus, modo «imagen DD» o «ISO») o conéctela a una máquina virtual.</li>
+  <li>Si lo desea, cree un <b>código de recuperación</b> y descargue <code>recovery.json</code>; cópielo en una carpeta <code>backupzit</code> de la memoria para que la máquina se conecte sin escribir nada.</li>
+  <li>Arranque desde la memoria la máquina que va a restaurar. Inicia el agente en modo de recuperación y se conecta a la consola (o pide la dirección del servidor y el código de recuperación).</li>
+  <li>La máquina aparece como agente de <span class="badge">recuperación</span> con sus discos.</li>
+  <li>Abra la copia de imagen en Actividad, elija <b>Restaurar esta imagen en un disco</b>, seleccione el agente de recuperación y su disco, y confirme.</li>
+  <li>Cuando termine la ejecución, retire la memoria y reinicie.</li>
+</ol>
+<h2>Restaurar en hardware distinto</h2>
+<p>Windows solo arranca con un controlador para la controladora de disco desde la que arranca, y el programa de instalación de Windows desactiva los controladores que no necesitó. Por eso, la imagen de un PC con controladora Intel se detiene con <i>INACCESSIBLE_BOOT_DEVICE</i> en una placa AMD, una unidad NVMe, en Hyper-V o en una VM de Proxmox. Marque <b>Restaurar en hardware distinto</b> en el formulario de restauración y BackupZit prepara el Windows restaurado tras escribir la imagen:</p>
+<ol>
+  <li>Los controladores de las controladoras de disco habituales incluidos en Windows vuelven a iniciarse al arrancar: AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS y RAID, HPE Smart Array, Hyper-V y VMware.</li>
+  <li>Se añaden controladores adicionales con DISM: los de la ISO de recuperación (incluye los controladores VirtIO para Proxmox/KVM) y las carpetas que indique en <b>Controladores adicionales</b>, p. ej., los controladores de almacenamiento y red de la nueva placa base, extraídos en una memoria USB (<code>E:\Drivers</code>; se buscan en las subcarpetas).</li>
+  <li>Los archivos de arranque se reconstruyen para la nueva máquina (<code>bcdboot</code>).</li>
+</ol>
+<p>La página de la ejecución muestra los controladores activados y añadidos. Windows detecta el resto de dispositivos nuevos en el primer arranque; la activación puede pedir repetirse en hardware nuevo. No se puede restaurar entre UEFI y BIOS heredado: el destino debe arrancar del mismo modo que el original.</p>
+<p><b>De PC o servidor físico a Proxmox VE:</b> cree una VM con OVMF (UEFI) para discos GPT o SeaBIOS para discos MBR, un disco VirtIO SCSI al menos tan grande como el original y una tarjeta de red VirtIO, conecte la ISO de recuperación y restaure con <i>Restaurar en hardware distinto</i>. La ISO de recuperación reconoce por sí misma los discos y tarjetas de red VirtIO.</p>
+
+<h2>Restaurar en una máquina virtual</h2>
+<p>Cree un disco de VM vacío al menos tan grande como el original, arranque la VM desde la ISO de recuperación y siga los pasos anteriores. También es la forma más sencilla de comprobar que sus imágenes realmente arrancan.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

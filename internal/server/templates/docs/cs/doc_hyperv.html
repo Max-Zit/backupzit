@@ -1,0 +1,85 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Virtuální počítače Hyper-V</h1>
+<p class="lead">BackupZit zálohuje virtuální počítače Hyper-V přes agenta na hostiteli Hyper-V; do VM se nic neinstaluje. Hosté s Windows i Linuxem se zachytí za běhu. Obnovit je můžete jako nový VM nebo místo originálu.</p>
+
+<h2>Nastavení</h2>
+<ol>
+  <li>Nainstalujte MSI <b>Agent pro Windows</b> z <a href="/agents">Agenti</a> na hostitele Hyper-V a zaregistrujte ho. Podporovaní hostitelé: Windows Server 2016 nebo novější s rolí Hyper-V, nebo Windows 10/11 s Hyper-V. V clusteru nainstalujte agenta na každého hostitele.</li>
+  <li>Do minuty se hostitel objeví na stránce Agenti se štítkem <b>Hyper-V · N VMs</b>.</li>
+  <li>V <a href="/jobs">Úlohy zálohování</a> vyberte tohoto agenta a zvolte <b>Virtuální počítače (Proxmox VE, Hyper-V, VMware)</b>. Pak zvolte:
+    <ul>
+      <li><b>všechny VM hostitele</b>, což zahrnuje i později vytvořené VM;</li>
+      <li>jednotlivé VM jejich zaškrtnutím.</li>
+    </ul>
+  </li>
+</ol>
+<p>Agent pracuje přes vlastní rozhraní Hyper-V: modul PowerShell pro Hyper-V a rozhraní Windows Virtual Disk API. Konzole neukládá žádné přihlašovací údaje k Hyper-V.</p>
+
+<h2>Jak se VM zálohuje</h2>
+<ol>
+  <li>Vytvoří se dočasný <b>kontrolní bod pro obnovu</b> (<code>backupzit_…</code>). To je typ kontrolního bodu, který Hyper-V poskytuje zálohovacím aplikacím. Hyper-V požádá hosta, aby se připravil:
+    <ul>
+      <li>Hosté s Windows vyprázdní vyrovnávací paměti aplikací přes VSS.</li>
+      <li>Hosté s Linuxem zmrazí své souborové systémy, pokud jsou nainstalovaní démoni Hyper-V (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
+    </ul>
+    Pokud host nezvládne ani jedno, kontrolní bod se pořídí v konzistenci jako při havárii (crash-consistent). Stránka běhu ukazuje, který druh byl použit.</li>
+  <li>Kontrolní bod pro obnovu zapne pro disky VM <b>Resilient Change Tracking</b> (RCT); vedle nich uvidíte soubory <code>.rct</code> a <code>.mrt</code>. První záloha čte celé disky. Potom RCT hlásí, které bloky se od předchozí zálohy změnily, a <b>čtou se jen ty</b>.</li>
+  <li>Disky se čtou ve stavu kontrolního bodu přes Virtual Disk API v blocích po 1 MiB. To zahrnuje soubory VHDX a VHD včetně řetězců dřívějších kontrolních bodů. Prázdné bloky se neukládají a bloky, které už jsou v úložišti, se znovu neodesílají.</li>
+  <li>Kontrolní bod se odstraní a Hyper-V ho na pozadí sloučí.</li>
+  <li>Konfigurace VM se uloží se zálohou: generace, CPU, paměť, síťové adaptéry (přepínač, VLAN, MAC adresa), řadiče disků, zabezpečené spouštění a TPM.</li>
+</ol>
+<p>Vypnuté VM se čtou přímo, bez kontrolního bodu. Na hostitelích starších než Windows Server 2016 (bez kontrolních bodů pro obnovu) se použije produkční kontrolní bod a každá záloha čte celé disky.</p>
+<p>Příklad z testovací laboratoře: linuxový VM s diskem 3 GB. První záloha přečetla 3 GB. Další, po 64 MB nových dat, přečetla 96 MB.</p>
+<p>Ve Windows 10/11 vytváří Hyper-V při startu VM automatický kontrolní bod, pokud tato volba není v nastavení VM vypnutá. BackupZit si s takovými kontrolními body poradí, ale u serverů je vhodné automatické kontrolní body vypnout (nastavení VM → Kontrolní body).</p>
+
+<h2>Obnova VM</h2>
+<p>Otevřete běh zálohy VM (ze stránky úlohy nebo z <a href="/runs">Aktivita</a>) a použijte <b>Obnovit VM Hyper-V</b>.</p>
+
+<h3>Jako nový VM vedle originálu</h3>
+<p>Vytvoří druhý VM s novými MAC adresami, aby mohl běžet ve stejné síti jako originál. Ve výchozím stavu dostane název originálu s dodatkem „restored“ a datem. Automatické kontrolní body se u něj vypnou (Windows je u nových VM zapínají), takže jeho spuštění nezanechá soubory kontrolních bodů. Pokud kopie běží vedle originálu a obsahuje agenta BackupZit, viz <a href="/docs/agents#duplicate">Dva počítače s jedním agentem</a>.</p>
+<p>Síťová nastavení hosta vázaná na MAC adresu se na nové adaptéry nevztahují. Příkladem je <code>match: macaddress</code> v netplan, který používají linuxové cloudové obrazy.</p>
+
+<h3>Místo původního VM</h3>
+<p>Zaškrtněte <i>vypnout ho a nahradit jeho disky</i>. BackupZit pak:</p>
+<ul>
+  <li>vypne existující VM;</li>
+  <li>sloučí jeho kontrolní body;</li>
+  <li>vymění jeho disky za obnovené.</li>
+</ul>
+<p>VM si ponechá své ID, síťové adaptéry a MAC adresy, takže úlohy, monitoring i síť hosta dál fungují.</p>
+<p>Staré soubory disků se nemažou; přejmenují se na <code>….replaced-DATE</code>. Smažte je, jakmile obnovený VM funguje.</p>
+<p>Pokud původní VM už neexistuje, vytvoří se znovu, s novým ID Hyper-V.</p>
+
+<h3>Možnosti</h3>
+<ul>
+  <li><b>Složka pro virtuální disky</b>: výchozí složka hostitele nebo jakákoli složka s disky VM. Obnova na místo uloží nové disky vedle původních.</li>
+  <li><b>Po obnově spustit VM</b>.</li>
+</ul>
+
+<h3>Co obnovený VM dostane</h3>
+<ul>
+  <li>Virtuální přepínače se připojí podle názvu. Pokud přepínač na hostiteli neexistuje, adaptér zůstane odpojený.</li>
+  <li>Každý obnovený VM dostane nové ID generace, aby řadiče domény Active Directory obnovu bezpečně rozpoznaly.</li>
+</ul>
+
+<h2>Obnova jednotlivých souborů</h2>
+<p>V tabulce VM v běhu klikněte na <b>Procházet soubory</b> a uvidíte oddíly a svazky na discích VM. Procházet lze NTFS, ext2/3/4 a XFS, i uvnitř LVM. Odtud můžete soubory stáhnout nebo je obnovit na libovolného agenta. Funguje to přesně jako u <a href="/docs/proxmox">Proxmox VE</a>.</p>
+
+<h2>Příkazový řádek</h2>
+<p>Spouštějte na hostiteli Hyper-V jako správce:</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code> je číslo, které ukazuje <code>hyperv list</code>. BackupZit ho odvozuje z GUID VM.</li>
+  <li>Bez <code>--new</code> se VM obnoví na místo.</li>
+  <li><code>--overwrite</code> potvrzuje, že se mají nahradit disky existujícího VM.</li>
+</ul>
+<p>Volby úložiště jsou stejné jako u všech příkazů; viz <a href="/docs/cli">Příkazový řádek — reference</a>.</p>
+
+<h2>Zatím nezahrnuto</h2>
+<ul>
+  <li><b>Některé typy disků.</b> Sdílené VHDX, VHD Set a průchozí (pass-through) disky se nezálohují.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

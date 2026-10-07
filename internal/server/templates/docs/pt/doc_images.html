@@ -1,0 +1,47 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Imagens de disco e recuperação bare-metal</h1>
+<p class="lead">Um backup de imagem captura um disco inteiro — tabela de partições, partições de boot, sistema e dados — para que uma máquina possa voltar em um disco vazio ou novo exatamente como era.</p>
+<div class="callout"><p>O backup de imagem de disco está disponível para máquinas <b>Windows</b> (volumes NTFS, discos GPT e MBR). Para máquinas Linux use uma tarefa <a href="/docs/linux-system">Sistema Linux</a>.</p></div>
+
+<h2>Criar uma tarefa de imagem</h2>
+<ol>
+  <li>Em <a href="/jobs">Tarefas de backup</a> escolha <b>Imagem de disco</b>.</li>
+  <li>O agente informa seus discos automaticamente. Escolha <b>Todos os discos</b> para gerar a imagem de cada disco interno da máquina em uma só tarefa, ou marque um único disco — inteiro ou apenas algumas partições (por ex. pular uma grande partição de dados que uma tarefa de arquivos já cobre).</li>
+  <li>Defina retenção e agendamento como em qualquer tarefa; uma imagem semanal mais backups diários de arquivos é uma combinação comum.</li>
+</ol>
+<h3 id="all-disks">Todos os discos</h3>
+<p>Uma tarefa <b>Todos os discos</b> faz backup de cada disco interno com tabela de partições em um único backup, também dos discos adicionados depois. Todos os volumes de todos os discos são lidos de um único snapshot VSS, então os discos ficam consistentes entre si (por ex. um banco de dados em D: com seus logs em E:). Discos USB e SD, arquivos VHD/VHDX montados e mídias removíveis ficam de fora — um disco de backup externo não deve incluir a si mesmo; escolha esse disco sozinho se precisar. A página da execução lista cada disco com suas partições; é possível navegar e restaurar arquivos de cada um. A restauração grava um disco por vez: no formulário de restauração escolha o <b>Disco do backup</b> e o disco de destino, e repita para o próximo disco (em bare metal: restaure primeiro o disco do sistema, pela ISO de recuperação). O agente deve ser 0.33.7 ou mais novo; um mais antigo informa que precisa ser atualizado.</p>
+<p>Apenas os blocos usados são lidos (mapa de alocação NTFS), a imagem é tirada de um snapshot VSS para que o sistema em execução fique consistente, e blocos inalterados são deduplicados em relação às imagens anteriores — a segunda imagem da mesma máquina normalmente envia só uma pequena porcentagem.</p>
+
+<h2>Restaurar uma imagem em um disco</h2>
+<p>Na execução do backup de imagem, use <b>Restaurar esta imagem em um disco</b>:</p>
+<ul>
+  <li><b>Restaurar no agente</b> — a máquina que tem o disco de destino. Pode ser uma máquina em funcionamento com um disco livre ou uma máquina iniciada pela ISO de recuperação.</li>
+  <li><b>Disco de destino</b> — deve ser pelo menos tão grande quanto a área usada do original. <b>Todos os dados nele são destruídos.</b></li>
+  <li><b>Deixar o disco offline depois</b> — marque quando o disco original estiver na mesma máquina, para que o Windows não altere os IDs de disco da cópia.</li>
+</ul>
+<p>Discos GPT e MBR, boot EFI e BIOS são suportados. O layout de partições e os IDs são recriados, então o disco restaurado inicia como antes.</p>
+
+<h2>Recuperação bare-metal com a ISO de recuperação</h2>
+<ol>
+  <li>Em <a href="/recovery">Mídia de recuperação</a> baixe a ISO de recuperação (Windows). Grave-a em um pendrive (Rufus, modo "imagem DD" ou "ISO") ou anexe-a a uma máquina virtual.</li>
+  <li>Opcionalmente crie um <b>código de recuperação</b> e baixe <code>recovery.json</code>; copie-o para uma pasta <code>backupzit</code> no pendrive para que a máquina se conecte sem digitar nada.</li>
+  <li>Inicie pelo pendrive a máquina a ser restaurada. Ela inicia o agente em modo de recuperação e se conecta ao console (ou pede o endereço do servidor e o código de recuperação).</li>
+  <li>A máquina aparece como agente de <span class="badge">recuperação</span> com seus discos.</li>
+  <li>Abra o backup de imagem em Atividade, escolha <b>Restaurar esta imagem em um disco</b>, selecione o agente de recuperação e o disco dele, confirme.</li>
+  <li>Quando a execução terminar, remova o pendrive e reinicie.</li>
+</ol>
+<h2>Restaurar em hardware diferente</h2>
+<p>O Windows só inicia com um driver para a controladora de disco de onde ele dá boot, e a instalação do Windows desativa os drivers de que não precisou. Por isso a imagem de um PC com controladora Intel para com <i>INACCESSIBLE_BOOT_DEVICE</i> em uma placa AMD, um drive NVMe, no Hyper-V ou em uma VM do Proxmox. Marque <b>Restaurar em hardware diferente</b> no formulário de restauração e o BackupZit prepara o Windows restaurado após gravar a imagem:</p>
+<ol>
+  <li>Os drivers das controladoras de disco comuns que fazem parte do Windows voltam a iniciar no boot: AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS e RAID, HPE Smart Array, Hyper-V e VMware.</li>
+  <li>Drivers adicionais são incluídos com o DISM: os drivers da ISO de recuperação (ela traz os drivers VirtIO para Proxmox/KVM) e as pastas que você informar em <b>Drivers adicionais</b> — por ex. os drivers de armazenamento e rede da nova placa-mãe, extraídos em um pendrive (<code>E:\Drivers</code>; as subpastas são pesquisadas).</li>
+  <li>Os arquivos de boot são recriados para a nova máquina (<code>bcdboot</code>).</li>
+</ol>
+<p>A página da execução lista os drivers ativados e adicionados. O Windows detecta os demais dispositivos novos na primeira inicialização; a ativação pode pedir para ser repetida em hardware novo. Não é possível restaurar entre UEFI e BIOS legado — o destino deve dar boot da mesma forma que o original.</p>
+<p><b>De PC ou servidor físico para o Proxmox VE:</b> crie uma VM com OVMF (UEFI) para discos GPT ou SeaBIOS para discos MBR, um disco VirtIO SCSI pelo menos tão grande quanto o original e uma placa de rede VirtIO, anexe a ISO de recuperação e restaure com <i>Restaurar em hardware diferente</i>. A ISO de recuperação reconhece sozinha discos e placas de rede VirtIO.</p>
+
+<h2>Restaurar em uma máquina virtual</h2>
+<p>Crie um disco de VM vazio pelo menos tão grande quanto o original, inicie a VM pela ISO de recuperação e siga os passos acima. Essa também é a maneira mais fácil de testar se suas imagens realmente iniciam.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

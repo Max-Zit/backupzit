@@ -1,0 +1,85 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Hyper-V 虚拟机</h1>
+<p class="lead">BackupZit 通过 Hyper-V 主机上的代理备份 Hyper-V 虚拟机；虚拟机内部无需安装任何东西。Windows 和 Linux 来宾在保持运行的情况下被捕获。您可以将其还原为新虚拟机，或替换原虚拟机。</p>
+
+<h2>设置</h2>
+<ol>
+  <li>从 <a href="/agents">Agent</a> 页面在 Hyper-V 主机上安装 <b>Windows 代理</b> MSI 并注册。支持的主机：带 Hyper-V 角色的 Windows Server 2016 或更高版本，或启用了 Hyper-V 的 Windows 10/11。在群集中，请在每台主机上安装代理。</li>
+  <li>一分钟内，该主机会出现在代理页面上，并带有 <b>Hyper-V · N VMs</b> 标记。</li>
+  <li>在 <a href="/jobs">备份作业</a> 中选择该代理并选择 <b>虚拟机（Proxmox VE、Hyper-V、VMware）</b>。然后选择：
+    <ul>
+      <li><b>主机的所有虚拟机</b>，也包括以后创建的虚拟机；</li>
+      <li>勾选单个虚拟机。</li>
+    </ul>
+  </li>
+</ol>
+<p>代理通过 Hyper-V 自身的接口工作：Hyper-V PowerShell 模块和 Windows Virtual Disk API。控制台不存储任何 Hyper-V 凭据。</p>
+
+<h2>虚拟机如何备份</h2>
+<ol>
+  <li>创建一个临时<b>恢复检查点</b>（<code>backupzit_…</code>）。这是 Hyper-V 为备份应用程序提供的检查点类型。Hyper-V 会要求来宾做好准备：
+    <ul>
+      <li>Windows 来宾通过 VSS 刷新其应用程序。</li>
+      <li>如果安装了 Hyper-V 守护程序（<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>），Linux 来宾会冻结其文件系统。</li>
+    </ul>
+    如果来宾两者都无法做到，则以崩溃一致方式创建检查点。运行页面会显示使用了哪种方式。</li>
+  <li>恢复检查点会为虚拟机的磁盘启用 <b>Resilient Change Tracking</b>（RCT）；您会在磁盘旁看到 <code>.rct</code> 和 <code>.mrt</code> 文件。第一次备份读取整个磁盘。之后，RCT 会报告自上次备份以来更改了哪些块，<b>只读取这些块</b>。</li>
+  <li>通过 Virtual Disk API，以 1 MiB 块读取检查点时刻的磁盘。这包括 VHDX 和 VHD 文件，以及更早检查点形成的链。空块不会存储，存储库中已有的块不会再次上传。</li>
+  <li>检查点被删除，Hyper-V 会在后台合并它。</li>
+  <li>虚拟机配置随备份一起保存：代数、CPU、内存、网络适配器（交换机、VLAN、MAC 地址）、磁盘控制器、安全启动和 TPM。</li>
+</ol>
+<p>已关闭的虚拟机直接读取，无需检查点。在早于 Windows Server 2016 的主机上（没有恢复检查点），会使用生产检查点，并且每次备份都读取整个磁盘。</p>
+<p>测试实验室中的示例：一台带 3 GB 磁盘的 Linux 虚拟机。第一次备份读取了 3 GB。下一次在新增 64 MB 数据后读取了 96 MB。</p>
+<p>在 Windows 10/11 上，除非在虚拟机设置中关闭该选项，否则 Hyper-V 会在虚拟机启动时创建自动检查点。BackupZit 能处理此类检查点，但对于服务器，建议关闭自动检查点（虚拟机设置 → 检查点）。</p>
+
+<h2>还原虚拟机</h2>
+<p>打开虚拟机备份的运行（从作业页面或 <a href="/runs">活动</a>），使用 <b>还原 Hyper-V 虚拟机</b>。</p>
+
+<h3>作为原虚拟机旁边的新虚拟机</h3>
+<p>创建一台使用新 MAC 地址的第二台虚拟机，使其可以与原虚拟机在同一网络中运行。默认情况下，其名称为原名称加上“restored”和日期。会在其上关闭自动检查点（Windows 会为新虚拟机开启它们），因此启动它不会留下检查点文件。如果副本与原机并行运行且内部装有 BackupZit 代理，请参见 <a href="/docs/agents#duplicate">两台机器使用同一个代理</a>。</p>
+<p>与 MAC 地址绑定的来宾网络设置不适用于新的适配器。例如 Linux 云镜像使用的 netplan <code>match: macaddress</code>。</p>
+
+<h3>替换原虚拟机</h3>
+<p>勾选 <i>关闭它并替换其磁盘</i>。BackupZit 会：</p>
+<ul>
+  <li>关闭现有虚拟机；</li>
+  <li>合并其检查点；</li>
+  <li>用还原的磁盘替换其磁盘。</li>
+</ul>
+<p>虚拟机保留其 ID、网络适配器和 MAC 地址，因此作业、监控和来宾网络都能继续工作。</p>
+<p>旧磁盘文件不会被删除，而是重命名为 <code>….replaced-DATE</code>。确认还原的虚拟机正常工作后再删除它们。</p>
+<p>如果原虚拟机已不存在，则会使用新的 Hyper-V ID 重新创建。</p>
+
+<h3>选项</h3>
+<ul>
+  <li><b>虚拟磁盘文件夹</b>：主机的默认文件夹或任何存放虚拟机磁盘的文件夹。原位还原会将新磁盘放在原磁盘旁边。</li>
+  <li><b>还原后启动虚拟机</b>。</li>
+</ul>
+
+<h3>还原的虚拟机会得到什么</h3>
+<ul>
+  <li>虚拟交换机按名称连接。如果主机上不存在某个交换机，该适配器保持断开。</li>
+  <li>每台还原的虚拟机都会获得新的代 ID，以便 Active Directory 域控制器安全地检测到还原。</li>
+</ul>
+
+<h2>还原单个文件</h2>
+<p>在运行的虚拟机表格中，点击 <b>浏览文件</b> 可查看虚拟机磁盘上的分区和卷。您可以浏览 NTFS、ext2/3/4 和 XFS，也包括 LVM 中的卷。可以从那里下载文件或将其还原到任意代理。操作方式与 <a href="/docs/proxmox">Proxmox VE</a> 完全相同。</p>
+
+<h2>命令行</h2>
+<p>以管理员身份在 Hyper-V 主机上运行：</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code> 是 <code>hyperv list</code> 显示的编号。BackupZit 根据虚拟机的 GUID 推导出它。</li>
+  <li>不带 <code>--new</code> 时，虚拟机原位还原。</li>
+  <li><code>--overwrite</code> 确认应替换现有虚拟机的磁盘。</li>
+</ul>
+<p>存储库选项与所有命令相同；参见 <a href="/docs/cli">命令行参考</a>。</p>
+
+<h2>尚未包含</h2>
+<ul>
+  <li><b>某些磁盘类型。</b> 共享 VHDX、VHD Set 和直通（pass-through）磁盘不会备份。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

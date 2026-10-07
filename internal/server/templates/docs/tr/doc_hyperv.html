@@ -1,0 +1,85 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Hyper-V sanal makineleri</h1>
+<p class="lead">BackupZit, Hyper-V sanal makinelerini Hyper-V ana bilgisayarındaki aracı üzerinden yedekler; VM'lerin içine hiçbir şey kurulmaz. Windows ve Linux konukları çalışmaya devam ederken yakalanır. Bunları yeni bir VM olarak veya orijinalin yerine geri yükleyebilirsiniz.</p>
+
+<h2>Kurulum</h2>
+<ol>
+  <li><a href="/agents">Aracılar</a> sayfasından <b>Windows aracısı</b> MSI'sını Hyper-V ana bilgisayarına kurun ve kaydedin. Desteklenen ana bilgisayarlar: Hyper-V rolüne sahip Windows Server 2016 veya daha yenisi ya da Hyper-V'li Windows 10/11. Bir kümede aracıyı her ana bilgisayara kurun.</li>
+  <li>Bir dakika içinde ana bilgisayar Aracılar sayfasında <b>Hyper-V · N VMs</b> rozetiyle görünür.</li>
+  <li><a href="/jobs">Yedekleme işleri</a> içinde bu aracıyı seçin ve <b>Sanal makineler (Proxmox VE, Hyper-V, VMware)</b>'ı seçin. Sonra birini seçin:
+    <ul>
+      <li>sonradan oluşturulan VM'leri de kapsayan <b>ana bilgisayarın tüm VM'leri</b>;</li>
+      <li>işaretleyerek tek tek VM'ler.</li>
+    </ul>
+  </li>
+</ol>
+<p>Aracı, Hyper-V'nin kendi arabirimleriyle çalışır: Hyper-V PowerShell modülü ve Windows Virtual Disk API. Konsol hiçbir Hyper-V kimlik bilgisi saklamaz.</p>
+
+<h2>Bir VM nasıl yedeklenir</h2>
+<ol>
+  <li>Geçici bir <b>kurtarma denetim noktası</b> (<code>backupzit_…</code>) alınır. Bu, Hyper-V'nin yedekleme uygulamaları için sağladığı denetim noktası türüdür. Hyper-V konuktan hazırlanmasını ister:
+    <ul>
+      <li>Windows konukları uygulamalarının arabelleklerini VSS ile boşaltır.</li>
+      <li>Linux konukları, Hyper-V daemon'ları kuruluysa (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>) dosya sistemlerini dondurur.</li>
+    </ul>
+    Konuk ikisini de yapamazsa denetim noktası çökme tutarlı (crash-consistent) olarak alınır. Çalıştırma sayfası hangi türün kullanıldığını gösterir.</li>
+  <li>Kurtarma denetim noktası, VM'nin diskleri için <b>Resilient Change Tracking</b> (RCT) özelliğini açar; yanlarında <code>.rct</code> ve <code>.mrt</code> dosyaları görürsünüz. İlk yedek disklerin tamamını okur. Ardından RCT önceki yedekten bu yana hangi blokların değiştiğini bildirir ve <b>yalnızca bunlar okunur</b>.</li>
+  <li>Diskler, Virtual Disk API ile 1 MiB'lik bloklar halinde denetim noktasındaki haliyle okunur. Buna önceki denetim noktası zincirleri dahil VHDX ve VHD dosyaları girer. Boş bloklar saklanmaz ve depoda zaten bulunan bloklar yeniden yüklenmez.</li>
+  <li>Denetim noktası kaldırılır ve Hyper-V onu arka planda birleştirir.</li>
+  <li>VM'nin yapılandırması yedekle birlikte saklanır: nesil, CPU, bellek, ağ bağdaştırıcıları (anahtar, VLAN, MAC adresi), disk denetleyicileri, güvenli önyükleme ve TPM.</li>
+</ol>
+<p>Kapalı VM'ler denetim noktası olmadan doğrudan okunur. Windows Server 2016'dan eski ana bilgisayarlarda (kurtarma denetim noktası yok) bir üretim denetim noktası kullanılır ve her yedek disklerin tamamını okur.</p>
+<p>Test laboratuvarından örnek: 3 GB diskli bir Linux VM. İlk yedek 3 GB okudu. Sonraki, 64 MB yeni veriden sonra, 96 MB okudu.</p>
+<p>Windows 10/11'de Hyper-V, VM ayarlarında bu seçenek kapatılmadıkça bir VM başladığında otomatik denetim noktası alır. BackupZit bu denetim noktalarını işler, ancak sunucular için otomatik denetim noktalarını kapatmanız iyi olur (VM ayarları → Denetim noktaları).</p>
+
+<h2>Bir VM'yi geri yükleme</h2>
+<p>VM yedeği çalıştırmasını açın (iş sayfasından veya <a href="/runs">Etkinlik</a>'ten) ve <b>Bir Hyper-V VM'sini geri yükle</b>'yi kullanın.</p>
+
+<h3>Orijinalin yanında yeni bir VM olarak</h3>
+<p>Orijinalle aynı ağda çalışabilmesi için yeni MAC adresleriyle ikinci bir VM oluşturur. Varsayılan olarak adı, orijinalin adı artı "restored" ve tarihtir. Üzerinde otomatik denetim noktaları kapatılır (Windows yeni VM'lerde bunları açar), böylece başlatılması geride denetim noktası dosyası bırakmaz. Kopya orijinalin yanında çalışıyor ve içinde BackupZit aracısı varsa bkz. <a href="/docs/agents#duplicate">Tek aracıyı kullanan iki makine</a>.</p>
+<p>Konuğun bir MAC adresine bağlı ağ ayarları yeni bağdaştırıcılar için geçerli olmaz. Bir örnek, Linux bulut görüntülerinin kullandığı netplan <code>match: macaddress</code>'tir.</p>
+
+<h3>Orijinal VM'nin yerine</h3>
+<p><i>kapat ve disklerini değiştir</i>'i işaretleyin. BackupZit bu durumda:</p>
+<ul>
+  <li>mevcut VM'yi kapatır;</li>
+  <li>denetim noktalarını birleştirir;</li>
+  <li>disklerini geri yüklenenlerle değiştirir.</li>
+</ul>
+<p>VM kimliğini, ağ bağdaştırıcılarını ve MAC adreslerini korur; böylece işler, izleme ve konuğun ağı çalışmaya devam eder.</p>
+<p>Eski disk dosyaları silinmez; <code>….replaced-DATE</code> olarak yeniden adlandırılır. Geri yüklenen VM çalışınca bunları silin.</p>
+<p>Orijinal VM artık yoksa, yeni bir Hyper-V kimliğiyle yeniden oluşturulur.</p>
+
+<h3>Seçenekler</h3>
+<ul>
+  <li><b>Sanal diskler için klasör</b>: ana bilgisayarın varsayılan klasörü veya VM diskleri içeren herhangi bir klasör. Yerinde geri yükleme yeni diskleri orijinallerin yanına koyar.</li>
+  <li><b>Geri yüklemeden sonra VM'yi başlat</b>.</li>
+</ul>
+
+<h3>Geri yüklenen VM neler alır</h3>
+<ul>
+  <li>Sanal anahtarlar ada göre bağlanır. Ana bilgisayarda bir anahtar yoksa bağdaştırıcı bağlantısız kalır.</li>
+  <li>Her geri yüklenen VM yeni bir nesil kimliği alır; böylece Active Directory etki alanı denetleyicileri geri yüklemeyi güvenle algılar.</li>
+</ul>
+
+<h2>Tek tek dosyaları geri yükleme</h2>
+<p>Çalıştırmanın VM tablosunda <b>Dosyalara göz at</b>'a tıklayarak VM disklerindeki bölümleri ve birimleri görün. NTFS, ext2/3/4 ve XFS'e, LVM içinde de göz atabilirsiniz. Oradan dosyaları indirebilir veya herhangi bir aracıya geri yükleyebilirsiniz. <a href="/docs/proxmox">Proxmox VE</a>'deki gibi çalışır.</p>
+
+<h2>Komut satırı</h2>
+<p>Bunları Hyper-V ana bilgisayarında yönetici olarak çalıştırın:</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code>, <code>hyperv list</code>'in gösterdiği numaradır. BackupZit bunu VM'nin GUID'inden türetir.</li>
+  <li><code>--new</code> olmadan VM yerinde geri yüklenir.</li>
+  <li><code>--overwrite</code>, mevcut bir VM'nin disklerinin değiştirileceğini onaylar.</li>
+</ul>
+<p>Depo seçenekleri tüm komutlardakiyle aynıdır; bkz. <a href="/docs/cli">Komut satırı başvurusu</a>.</p>
+
+<h2>Henüz dahil olmayanlar</h2>
+<ul>
+  <li><b>Bazı disk türleri.</b> Paylaşılan VHDX, VHD Set ve doğrudan geçişli (pass-through) diskler yedeklenmez.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

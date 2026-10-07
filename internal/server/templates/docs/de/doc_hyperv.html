@@ -1,0 +1,85 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Virtuelle Hyper-V-Maschinen</h1>
+<p class="lead">BackupZit sichert virtuelle Hyper-V-Maschinen über den Agenten auf dem Hyper-V-Host; in den VMs wird nichts installiert. Windows- und Linux-Gäste werden erfasst, während sie weiterlaufen. Sie können sie als neue VM oder anstelle des Originals wiederherstellen.</p>
+
+<h2>Einrichtung</h2>
+<ol>
+  <li>Installieren Sie das MSI des <b>Windows-Agent</b> von <a href="/agents">Agenten</a> auf dem Hyper-V-Host und registrieren Sie ihn. Unterstützte Hosts: Windows Server 2016 oder neuer mit der Hyper-V-Rolle oder Windows 10/11 mit Hyper-V. In einem Cluster installieren Sie den Agenten auf jedem Host.</li>
+  <li>Innerhalb einer Minute erscheint der Host auf der Seite Agenten mit dem Kennzeichen <b>Hyper-V · N VMs</b>.</li>
+  <li>Wählen Sie unter <a href="/jobs">Sicherungsaufträge</a> diesen Agenten und <b>Virtuelle Maschinen (Proxmox VE, Hyper-V, VMware)</b>. Wählen Sie dann eines:
+    <ul>
+      <li><b>alle VMs des Hosts</b>, was auch später erstellte VMs abdeckt;</li>
+      <li>einzelne VMs, indem Sie sie markieren.</li>
+    </ul>
+  </li>
+</ol>
+<p>Der Agent arbeitet über die eigenen Schnittstellen von Hyper-V: das Hyper-V-PowerShell-Modul und die Windows Virtual Disk API. Die Konsole speichert keine Hyper-V-Zugangsdaten.</p>
+
+<h2>Wie eine VM gesichert wird</h2>
+<ol>
+  <li>Ein temporärer <b>Wiederherstellungsprüfpunkt</b> (recovery checkpoint, <code>backupzit_…</code>) wird erstellt. Das ist der Prüfpunkttyp, den Hyper-V für Sicherungsanwendungen bereitstellt. Hyper-V bittet den Gast, sich darauf vorzubereiten:
+    <ul>
+      <li>Windows-Gäste leeren ihre Anwendungspuffer über VSS.</li>
+      <li>Linux-Gäste frieren ihre Dateisysteme ein, wenn die Hyper-V-Daemons installiert sind (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
+    </ul>
+    Kann der Gast keines von beiden, wird der Prüfpunkt absturzkonsistent erstellt. Die Laufseite zeigt, welche Art verwendet wurde.</li>
+  <li>Der Wiederherstellungsprüfpunkt schaltet <b>Resilient Change Tracking</b> (RCT) für die Festplatten der VM ein; daneben sehen Sie <code>.rct</code>- und <code>.mrt</code>-Dateien. Die erste Sicherung liest die ganzen Festplatten. Danach meldet RCT, welche Blöcke sich seit der vorigen Sicherung geändert haben, und <b>nur diese werden gelesen</b>.</li>
+  <li>Die Festplatten werden im Stand des Prüfpunkts über die Virtual Disk API in Blöcken zu 1 MiB gelesen. Das umfasst VHDX- und VHD-Dateien, einschließlich Ketten früherer Prüfpunkte. Leere Blöcke werden nicht gespeichert, und Blöcke, die bereits im Repository liegen, werden nicht erneut hochgeladen.</li>
+  <li>Der Prüfpunkt wird entfernt, und Hyper-V führt ihn im Hintergrund zusammen.</li>
+  <li>Die Konfiguration der VM wird mit der Sicherung gespeichert: Generation, CPU, Arbeitsspeicher, Netzwerkadapter (Switch, VLAN, MAC-Adresse), Festplattencontroller, Secure Boot und TPM.</li>
+</ol>
+<p>Ausgeschaltete VMs werden direkt gelesen, ohne Prüfpunkt. Auf Hosts älter als Windows Server 2016 (keine Wiederherstellungsprüfpunkte) wird ein Produktionsprüfpunkt verwendet, und jede Sicherung liest die ganzen Festplatten.</p>
+<p>Beispiel aus dem Testlabor: eine Linux-VM mit einer 3-GB-Festplatte. Die erste Sicherung las 3 GB. Die nächste, nach 64 MB neuen Daten, las 96 MB.</p>
+<p>Unter Windows 10/11 erstellt Hyper-V beim Start einer VM einen automatischen Prüfpunkt, sofern diese Option in den VM-Einstellungen nicht ausgeschaltet ist. BackupZit kommt mit solchen Prüfpunkten zurecht, aber bei Servern sollten Sie automatische Prüfpunkte ausschalten (VM-Einstellungen → Prüfpunkte).</p>
+
+<h2>Eine VM wiederherstellen</h2>
+<p>Öffnen Sie den Lauf der VM-Sicherung (über die Auftragsseite oder <a href="/runs">Aktivität</a>) und verwenden Sie <b>Eine Hyper-V-VM wiederherstellen</b>.</p>
+
+<h3>Als neue VM neben dem Original</h3>
+<p>Erstellt eine zweite VM mit neuen MAC-Adressen, sodass sie im selben Netz wie das Original laufen kann. Standardmäßig wird sie nach dem Original plus „restored“ und dem Datum benannt. Automatische Prüfpunkte werden bei ihr ausgeschaltet (Windows schaltet sie für neue VMs ein), sodass ihr Start keine Prüfpunktdateien hinterlässt. Läuft die Kopie neben dem Original und enthält sie den BackupZit-Agenten, siehe <a href="/docs/agents#duplicate">Zwei Maschinen mit einem Agenten</a>.</p>
+<p>Netzwerkeinstellungen im Gast, die an eine MAC-Adresse gebunden sind, gelten nicht für die neuen Adapter. Ein Beispiel ist <code>match: macaddress</code> von netplan, das Linux-Cloud-Images verwenden.</p>
+
+<h3>Anstelle der Original-VM</h3>
+<p>Aktivieren Sie <i>ausschalten und ihre Datenträger ersetzen</i>. BackupZit dann:</p>
+<ul>
+  <li>schaltet die vorhandene VM aus;</li>
+  <li>führt ihre Prüfpunkte zusammen;</li>
+  <li>tauscht ihre Festplatten gegen die wiederhergestellten.</li>
+</ul>
+<p>Die VM behält ihre ID, Netzwerkadapter und MAC-Adressen, sodass Aufträge, Überwachung und das Netzwerk des Gasts weiter funktionieren.</p>
+<p>Die alten Festplattendateien werden nicht gelöscht, sondern in <code>….replaced-DATE</code> umbenannt. Löschen Sie sie, sobald die wiederhergestellte VM funktioniert.</p>
+<p>Existiert die Original-VM nicht mehr, wird sie neu erstellt, mit einer neuen Hyper-V-ID.</p>
+
+<h3>Optionen</h3>
+<ul>
+  <li><b>Ordner für die virtuellen Festplatten</b>: der Standardordner des Hosts oder ein beliebiger Ordner mit VM-Festplatten. Eine Wiederherstellung an Ort und Stelle legt die neuen Festplatten neben die ursprünglichen.</li>
+  <li><b>VM nach der Wiederherstellung starten</b>.</li>
+</ul>
+
+<h3>Was eine wiederhergestellte VM erhält</h3>
+<ul>
+  <li>Virtuelle Switches werden nach Namen verbunden. Gibt es einen Switch auf dem Host nicht, bleibt der Adapter getrennt.</li>
+  <li>Jede wiederhergestellte VM erhält eine neue Generations-ID, sodass Active-Directory-Domänencontroller die Wiederherstellung sicher erkennen.</li>
+</ul>
+
+<h2>Einzelne Dateien wiederherstellen</h2>
+<p>Klicken Sie in der VM-Tabelle des Laufs auf <b>Dateien durchsuchen</b>, um die Partitionen und Volumes auf den Festplatten der VM zu sehen. Sie können NTFS, ext2/3/4 und XFS durchsuchen, auch innerhalb von LVM. Von dort laden Sie Dateien herunter oder stellen sie auf einem beliebigen Agenten wieder her. Es funktioniert genau wie bei <a href="/docs/proxmox">Proxmox VE</a>.</p>
+
+<h2>Befehlszeile</h2>
+<p>Führen Sie dies auf dem Hyper-V-Host als Administrator aus:</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code> ist die von <code>hyperv list</code> angezeigte Nummer. BackupZit leitet sie aus der GUID der VM ab.</li>
+  <li>Ohne <code>--new</code> wird die VM an Ort und Stelle wiederhergestellt.</li>
+  <li><code>--overwrite</code> bestätigt, dass die Festplatten einer vorhandenen VM ersetzt werden sollen.</li>
+</ul>
+<p>Die Repository-Optionen sind dieselben wie bei allen Befehlen; siehe <a href="/docs/cli">Befehlszeilenreferenz</a>.</p>
+
+<h2>Noch nicht enthalten</h2>
+<ul>
+  <li><b>Einige Festplattentypen.</b> Freigegebene VHDX (Shared VHDX), VHD-Sets und Pass-Through-Festplatten werden nicht gesichert.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,47 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Immagini disco e ripristino bare-metal</h1>
+<p class="lead">Un backup d'immagine cattura un intero disco — tabella delle partizioni, partizioni di avvio, sistema e dati — così una macchina può essere riportata su un disco vuoto o nuovo esattamente com'era.</p>
+<div class="callout"><p>Il backup di immagini disco è disponibile per le macchine <b>Windows</b> (volumi NTFS, dischi GPT e MBR). Per le macchine Linux usa un job <a href="/docs/linux-system">Sistema Linux</a>.</p></div>
+
+<h2>Creare un job di immagine</h2>
+<ol>
+  <li>In <a href="/jobs">Job di backup</a> scegli <b>Immagine disco</b>.</li>
+  <li>L'agente segnala automaticamente i suoi dischi. Scegli <b>Tutti i dischi</b> per creare l'immagine di ogni disco interno della macchina in un solo job, oppure seleziona un singolo disco — intero o solo alcune partizioni (ad es. per saltare una grande partizione dati già coperta da un job di file).</li>
+  <li>Imposta conservazione e pianificazione come per qualsiasi job; un'immagine settimanale più backup giornalieri dei file è una combinazione comune.</li>
+</ol>
+<h3 id="all-disks">Tutti i dischi</h3>
+<p>Un job <b>Tutti i dischi</b> salva ogni disco interno con tabella delle partizioni in un unico backup, anche i dischi aggiunti in seguito. Tutti i volumi di tutti i dischi vengono letti da un unico snapshot VSS, quindi i dischi sono coerenti tra loro (ad es. un database su D: con i log su E:). Dischi USB e SD, file VHD/VHDX montati e supporti rimovibili vengono esclusi — un disco di backup esterno non deve includere se stesso; scegli un tale disco da solo se ti serve. La pagina dell'esecuzione elenca ogni disco con le sue partizioni; da ciascuno si possono sfogliare e ripristinare file. Il ripristino scrive un disco alla volta: nel modulo di ripristino scegli il <b>Disco del backup</b> e il disco di destinazione, poi ripeti per il disco successivo (per il bare metal: ripristina prima il disco di sistema, dalla ISO di ripristino). L'agente deve essere 0.33.7 o successivo; uno più vecchio segnala che va aggiornato.</p>
+<p>Vengono letti solo i blocchi usati (mappa di allocazione NTFS), l'immagine è presa da uno snapshot VSS così il sistema in esecuzione è coerente, e i blocchi invariati vengono deduplicati rispetto alle immagini precedenti — la seconda immagine della stessa macchina di solito carica solo poche percentuali.</p>
+
+<h2>Ripristinare un'immagine su un disco</h2>
+<p>Nell'esecuzione del backup d'immagine usa <b>Ripristina questa immagine su un disco</b>:</p>
+<ul>
+  <li><b>Ripristina sull’agente</b> — la macchina che ha il disco di destinazione. Può essere una macchina in funzione con un disco libero, o una macchina avviata dalla ISO di ripristino.</li>
+  <li><b>Disco di destinazione</b> — deve essere grande almeno quanto l'area usata dell'originale. <b>Tutti i dati su di esso vengono distrutti.</b></li>
+  <li><b>Lascia poi il disco offline</b> — selezionalo quando il disco originale è nella stessa macchina, così Windows non cambia gli ID disco della copia.</li>
+</ul>
+<p>Sono supportati dischi GPT e MBR, avvio EFI e BIOS. Il layout delle partizioni e gli ID vengono ricreati, quindi il disco ripristinato si avvia come prima.</p>
+
+<h2>Ripristino bare-metal con la ISO di ripristino</h2>
+<ol>
+  <li>In <a href="/recovery">Supporti di ripristino</a> scarica la ISO di ripristino (Windows). Scrivila su una chiavetta USB (Rufus, modalità "immagine DD" o "ISO") o collegala a una macchina virtuale.</li>
+  <li>Facoltativamente crea un <b>codice di ripristino</b> e scarica <code>recovery.json</code>; copialo in una cartella <code>backupzit</code> sulla chiavetta, così la macchina si collega senza digitare nulla.</li>
+  <li>Avvia dalla chiavetta la macchina da ripristinare. Avvia l'agente in modalità ripristino e si collega alla console (oppure chiede l'indirizzo del server e il codice di ripristino).</li>
+  <li>La macchina compare come agente di <span class="badge">ripristino</span> con i suoi dischi.</li>
+  <li>Apri il backup d'immagine in Attività, scegli <b>Ripristina questa immagine su un disco</b>, seleziona l'agente di ripristino e il suo disco, conferma.</li>
+  <li>Al termine dell'esecuzione, rimuovi la chiavetta e riavvia.</li>
+</ol>
+<h2>Ripristinare su hardware diverso</h2>
+<p>Windows si avvia solo con un driver per il controller del disco da cui fa il boot, e l'installazione di Windows disattiva i driver che non le servivano. L'immagine di un PC con controller Intel si blocca quindi con <i>INACCESSIBLE_BOOT_DEVICE</i> su una scheda AMD, un'unità NVMe, in Hyper-V o in una VM Proxmox. Seleziona <b>Ripristina su hardware diverso</b> nel modulo di ripristino e BackupZit prepara il Windows ripristinato dopo aver scritto l'immagine:</p>
+<ol>
+  <li>I driver dei controller disco comuni inclusi in Windows tornano ad avviarsi al boot: AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS e RAID, HPE Smart Array, Hyper-V e VMware.</li>
+  <li>Driver aggiuntivi vengono aggiunti con DISM: quelli presenti sulla ISO di ripristino (contiene i driver VirtIO per Proxmox/KVM) e le cartelle che indichi in <b>Driver aggiuntivi</b> — ad es. i driver di archiviazione e di rete della nuova scheda madre, estratti su una chiavetta USB (<code>E:\Drivers</code>; vengono cercate anche le sottocartelle).</li>
+  <li>I file di avvio vengono ricreati per la nuova macchina (<code>bcdboot</code>).</li>
+</ol>
+<p>La pagina dell'esecuzione elenca i driver attivati e aggiunti. Windows rileva gli altri nuovi dispositivi al primo avvio; su hardware nuovo l'attivazione potrebbe dover essere ripetuta. Non è possibile ripristinare tra UEFI e BIOS legacy — la destinazione deve avviarsi allo stesso modo dell'originale.</p>
+<p><b>Da PC o server fisico a Proxmox VE:</b> crea una VM con OVMF (UEFI) per dischi GPT o SeaBIOS per dischi MBR, un disco VirtIO SCSI grande almeno quanto l'originale e una scheda di rete VirtIO, collega la ISO di ripristino e ripristina con <i>Ripristina su hardware diverso</i>. La ISO di ripristino riconosce da sola dischi e schede di rete VirtIO.</p>
+
+<h2>Ripristinare su una macchina virtuale</h2>
+<p>Crea un disco VM vuoto grande almeno quanto l'originale, avvia la VM dalla ISO di ripristino e segui i passaggi sopra. È anche il modo più semplice per verificare che le tue immagini si avviino davvero.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

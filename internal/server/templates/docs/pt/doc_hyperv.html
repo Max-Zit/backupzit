@@ -1,0 +1,85 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Máquinas virtuais Hyper-V</h1>
+<p class="lead">O BackupZit faz backup de máquinas virtuais Hyper-V a partir do agente no host Hyper-V; nada é instalado dentro das VMs. Convidados Windows e Linux são capturados enquanto continuam rodando. Você pode restaurá-los como uma nova VM ou no lugar da original.</p>
+
+<h2>Configuração</h2>
+<ol>
+  <li>Instale o MSI do <b>Agente Windows</b> a partir de <a href="/agents">Agentes</a> no host Hyper-V e registre-o. Hosts suportados: Windows Server 2016 ou mais novo com a função Hyper-V, ou Windows 10/11 com Hyper-V. Em um cluster, instale o agente em cada host.</li>
+  <li>Em até um minuto o host aparece na página Agentes com o selo <b>Hyper-V · N VMs</b>.</li>
+  <li>Em <a href="/jobs">Tarefas de backup</a> selecione esse agente e escolha <b>Máquinas virtuais (Proxmox VE, Hyper-V, VMware)</b>. Depois escolha:
+    <ul>
+      <li><b>todas as VMs do host</b>, o que também cobre VMs criadas depois;</li>
+      <li>VMs individuais, marcando-as.</li>
+    </ul>
+  </li>
+</ol>
+<p>O agente trabalha pelas interfaces do próprio Hyper-V: o módulo PowerShell do Hyper-V e a Virtual Disk API do Windows. O console não armazena credenciais do Hyper-V.</p>
+
+<h2>Como uma VM é copiada</h2>
+<ol>
+  <li>Um <b>ponto de verificação de recuperação</b> temporário (<code>backupzit_…</code>) é criado. É o tipo de ponto de verificação que o Hyper-V oferece a aplicativos de backup. O Hyper-V pede ao convidado que se prepare:
+    <ul>
+      <li>Convidados Windows descarregam os buffers de seus aplicativos via VSS.</li>
+      <li>Convidados Linux congelam seus sistemas de arquivos, se os daemons do Hyper-V estiverem instalados (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
+    </ul>
+    Se o convidado não puder fazer nenhum dos dois, o ponto de verificação é feito com consistência de falha (crash-consistent). A página da execução mostra qual tipo foi usado.</li>
+  <li>O ponto de verificação de recuperação liga o <b>Resilient Change Tracking</b> (RCT) para os discos da VM; você verá arquivos <code>.rct</code> e <code>.mrt</code> ao lado deles. O primeiro backup lê os discos inteiros. Depois disso, o RCT informa quais blocos mudaram desde o backup anterior, e <b>só esses são lidos</b>.</li>
+  <li>Os discos são lidos no estado do ponto de verificação, pela Virtual Disk API, em blocos de 1 MiB. Isso abrange arquivos VHDX e VHD, incluindo cadeias de pontos de verificação anteriores. Blocos vazios não são armazenados, e blocos que já estão no repositório não são enviados de novo.</li>
+  <li>O ponto de verificação é removido e o Hyper-V o mescla em segundo plano.</li>
+  <li>A configuração da VM é armazenada com o backup: geração, CPU, memória, adaptadores de rede (switch, VLAN, endereço MAC), controladoras de disco, inicialização segura e TPM.</li>
+</ol>
+<p>VMs desligadas são lidas diretamente, sem ponto de verificação. Em hosts anteriores ao Windows Server 2016 (sem pontos de verificação de recuperação) é usado um ponto de verificação de produção, e todo backup lê os discos inteiros.</p>
+<p>Exemplo do laboratório de testes: uma VM Linux com um disco de 3 GB. O primeiro backup leu 3 GB. O seguinte, após 64 MB de dados novos, leu 96 MB.</p>
+<p>No Windows 10/11, o Hyper-V cria um ponto de verificação automático quando uma VM inicia, a menos que essa opção esteja desligada nas configurações da VM. O BackupZit lida com esses pontos de verificação, mas em servidores é melhor desligar os pontos de verificação automáticos (configurações da VM → Pontos de verificação).</p>
+
+<h2>Restaurar uma VM</h2>
+<p>Abra a execução do backup da VM (pela página da tarefa ou <a href="/runs">Atividade</a>) e use <b>Restaurar uma VM Hyper-V</b>.</p>
+
+<h3>Como nova VM ao lado da original</h3>
+<p>Cria uma segunda VM com novos endereços MAC, para que ela possa rodar na mesma rede que a original. Por padrão ela recebe o nome da original mais "restored" e a data. Os pontos de verificação automáticos são desligados nela (o Windows os liga em VMs novas), então iniciá-la não deixa arquivos de ponto de verificação. Se a cópia roda ao lado da original e tem o agente BackupZit dentro, veja <a href="/docs/agents#duplicate">Duas máquinas usando o mesmo agente</a>.</p>
+<p>Configurações de rede do convidado vinculadas a um endereço MAC não se aplicam aos novos adaptadores. Um exemplo é o <code>match: macaddress</code> do netplan, usado por imagens de nuvem Linux.</p>
+
+<h3>No lugar da VM original</h3>
+<p>Marque <i>desligá-la e substituir seus discos</i>. O BackupZit então:</p>
+<ul>
+  <li>desliga a VM existente;</li>
+  <li>mescla seus pontos de verificação;</li>
+  <li>troca seus discos pelos restaurados.</li>
+</ul>
+<p>A VM mantém seu ID, adaptadores de rede e endereços MAC, então tarefas, monitoramento e a rede do convidado continuam funcionando.</p>
+<p>Os arquivos de disco antigos não são excluídos; eles são renomeados para <code>….replaced-DATE</code>. Exclua-os quando a VM restaurada estiver funcionando.</p>
+<p>Se a VM original não existir mais, ela é criada de novo, com um novo ID do Hyper-V.</p>
+
+<h3>Opções</h3>
+<ul>
+  <li><b>Pasta para os discos virtuais</b>: a pasta padrão do host ou qualquer pasta que contenha discos de VM. Uma restauração no local coloca os novos discos ao lado dos originais.</li>
+  <li><b>Iniciar a VM após a restauração</b>.</li>
+</ul>
+
+<h3>O que uma VM restaurada recebe</h3>
+<ul>
+  <li>Switches virtuais são conectados pelo nome. Se um switch não existir no host, o adaptador fica desconectado.</li>
+  <li>Toda VM restaurada recebe um novo ID de geração, para que controladores de domínio do Active Directory detectem a restauração com segurança.</li>
+</ul>
+
+<h2>Restaurar arquivos avulsos</h2>
+<p>Na tabela de VMs da execução, clique em <b>Navegar pelos arquivos</b> para ver as partições e volumes dos discos da VM. Você pode navegar em NTFS, ext2/3/4 e XFS, também dentro de LVM. A partir dali pode baixar arquivos ou restaurá-los em qualquer agente. Funciona exatamente como no <a href="/docs/proxmox">Proxmox VE</a>.</p>
+
+<h2>Linha de comando</h2>
+<p>Execute no host Hyper-V, como administrador:</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code> é o número mostrado por <code>hyperv list</code>. O BackupZit o deriva do GUID da VM.</li>
+  <li>Sem <code>--new</code>, a VM é restaurada no local.</li>
+  <li><code>--overwrite</code> confirma que os discos de uma VM existente devem ser substituídos.</li>
+</ul>
+<p>As opções de repositório são as mesmas de todos os comandos; veja <a href="/docs/cli">Referência da linha de comando</a>.</p>
+
+<h2>Ainda não incluído</h2>
+<ul>
+  <li><b>Alguns tipos de disco.</b> VHDX compartilhado, VHD Set e discos pass-through não são copiados.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,47 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Disk görüntüleri ve çıplak donanıma kurtarma</h1>
+<p class="lead">Görüntü yedeği bir diskin tamamını yakalar — bölüm tablosu, önyükleme bölümleri, sistem ve veriler — böylece bir makine boş veya yeni bir diske tam olarak eski haliyle geri getirilebilir.</p>
+<div class="callout"><p>Disk görüntüsü yedeği <b>Windows</b> makineler için kullanılabilir (NTFS birimleri, GPT ve MBR diskler). Linux makineler için bir <a href="/docs/linux-system">Linux sistemi</a> işi kullanın.</p></div>
+
+<h2>Görüntü işi oluşturma</h2>
+<ol>
+  <li><a href="/jobs">Yedekleme işleri</a> içinde <b>Disk görüntüsü</b>'nü seçin.</li>
+  <li>Aracı disklerini otomatik bildirir. Makinenin her iç diskinin görüntüsünü tek işte almak için <b>Tüm diskler</b>'i seçin veya tek bir diski işaretleyin — tamamını ya da yalnızca bazı bölümlerini (ör. bir dosya işinin zaten kapsadığı büyük bir veri bölümünü atlayın).</li>
+  <li>Saklama ve zamanlamayı her işte olduğu gibi ayarlayın; haftalık görüntü artı günlük dosya yedekleri yaygın bir birleşimdir.</li>
+</ol>
+<h3 id="all-disks">Tüm diskler</h3>
+<p><b>Tüm diskler</b> işi, bölüm tablosu olan her iç diski tek bir yedekte yedekler; sonradan eklenen diskleri de. Tüm disklerin tüm birimleri tek bir VSS anlık görüntüsünden okunur, böylece diskler birbiriyle tutarlıdır (ör. D: üzerindeki bir veritabanı ve E: üzerindeki günlükleri). USB ve SD diskler, bağlanmış VHD/VHDX dosyaları ve çıkarılabilir ortamlar dışarıda bırakılır — harici bir yedek diski kendi görüntüsünü almamalıdır; gerekirse böyle bir diski tek başına seçin. Çalıştırma sayfası her diski bölümleriyle listeler; her birinden dosyalara göz atılabilir ve geri yüklenebilir. Geri yükleme her seferinde bir disk yazar: geri yükleme formunda <b>Yedekteki disk</b>'i ve hedef diski seçin, ardından sonraki disk için tekrarlayın (çıplak donanımda: önce sistem diskini kurtarma ISO'sundan geri yükleyin). Aracı 0.33.7 veya daha yeni olmalıdır; daha eski olan, güncellenmesi gerektiğini bildirir.</p>
+<p>Yalnızca kullanılan bloklar okunur (NTFS ayırma haritası), görüntü çalışan sistemin tutarlı olması için bir VSS anlık görüntüsünden alınır ve değişmeyen bloklar önceki görüntülere karşı tekilleştirilir — aynı makinenin ikinci görüntüsü genellikle yalnızca yüzde birkaçını yükler.</p>
+
+<h2>Bir görüntüyü diske geri yükleme</h2>
+<p>Görüntü yedeği çalıştırmasında <b>Bu görüntüyü bir diske geri yükle</b>'yi kullanın:</p>
+<ul>
+  <li><b>Aracıda geri yükle</b> — hedef diske sahip makine. Boş diski olan çalışan bir makine ya da kurtarma ISO'sundan başlatılmış bir makine olabilir.</li>
+  <li><b>Hedef disk</b> — en az orijinalin kullanılan alanı kadar büyük olmalıdır. <b>Üzerindeki tüm veriler yok edilir.</b></li>
+  <li><b>Diski sonra çevrimdışı bırak</b> — orijinal disk aynı makinedeyse işaretleyin, böylece Windows kopyanın disk kimliklerini değiştirmez.</li>
+</ul>
+<p>GPT ve MBR diskler, EFI ve BIOS önyükleme desteklenir. Bölüm düzeni ve kimlikler yeniden oluşturulur, böylece geri yüklenen disk önceki gibi önyüklenir.</p>
+
+<h2>Kurtarma ISO'su ile çıplak donanıma kurtarma</h2>
+<ol>
+  <li><a href="/recovery">Kurtarma ortamı</a> sayfasından (Windows) kurtarma ISO'sunu indirin. Bir USB belleğe yazın (Rufus, "DD görüntüsü" veya "ISO" modu) ya da bir sanal makineye bağlayın.</li>
+  <li>İsteğe bağlı olarak bir <b>kurtarma kodu</b> oluşturup <code>recovery.json</code> dosyasını indirin; makinenin yazmadan bağlanması için bellekteki bir <code>backupzit</code> klasörüne kopyalayın.</li>
+  <li>Geri yüklenecek makineyi bellekten başlatın. Aracıyı kurtarma modunda başlatır ve konsola bağlanır (ya da sunucu adresini ve kurtarma kodunu sorar).</li>
+  <li>Makine, diskleriyle birlikte bir <span class="badge">kurtarma</span> aracısı olarak görünür.</li>
+  <li>Görüntü yedeğini Etkinlik'te açın, <b>Bu görüntüyü bir diske geri yükle</b>'yi seçin, kurtarma aracısını ve diskini belirleyip onaylayın.</li>
+  <li>Çalıştırma bitince belleği çıkarıp yeniden başlatın.</li>
+</ol>
+<h2>Farklı donanıma geri yükleme</h2>
+<p>Windows yalnızca önyüklendiği disk denetleyicisinin sürücüsüyle başlar ve Windows Kurulumu ihtiyaç duymadığı sürücüleri devre dışı bırakır. Bu yüzden Intel denetleyicili bir PC'nin görüntüsü AMD kartta, NVMe sürücüde, Hyper-V'de veya bir Proxmox VM'de <i>INACCESSIBLE_BOOT_DEVICE</i> ile durur. Geri yükleme formunda <b>Farklı donanıma geri yükle</b>'yi işaretleyin; BackupZit görüntüyü yazdıktan sonra geri yüklenen Windows'u hazırlar:</p>
+<ol>
+  <li>Windows'un parçası olan yaygın disk denetleyicisi sürücüleri önyüklemede yeniden başlar: AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS ve RAID, HPE Smart Array, Hyper-V ve VMware.</li>
+  <li>Ek sürücüler DISM ile eklenir: kurtarma ISO'sundaki sürücüler (Proxmox/KVM için VirtIO sürücülerini içerir) ve <b>Ek sürücüler</b> altında girdiğiniz klasörler — ör. yeni ana kartın depolama ve ağ sürücüleri, bir USB belleğe çıkarılmış olarak (<code>E:\Drivers</code>; alt klasörler de aranır).</li>
+  <li>Önyükleme dosyaları yeni makine için yeniden oluşturulur (<code>bcdboot</code>).</li>
+</ol>
+<p>Çalıştırma sayfası etkinleştirilen ve eklenen sürücüleri listeler. Windows kalan yeni aygıtları ilk başlatmada algılar; yeni donanımda etkinleştirmenin yinelenmesi istenebilir. UEFI ile eski BIOS arasında geri yükleme mümkün değildir — hedef, orijinalle aynı şekilde önyüklenmelidir.</p>
+<p><b>Fiziksel PC veya sunucudan Proxmox VE'ye:</b> GPT diskler için OVMF (UEFI), MBR diskler için SeaBIOS ile bir VM, en az orijinal kadar büyük bir VirtIO SCSI disk ve bir VirtIO ağ kartı oluşturun, kurtarma ISO'sunu bağlayın ve <i>Farklı donanıma geri yükle</i> ile geri yükleyin. Kurtarma ISO'su VirtIO diskleri ve ağ kartlarını kendisi görür.</p>
+
+<h2>Bir sanal makineye geri yükleme</h2>
+<p>En az orijinal kadar büyük boş bir VM diski oluşturun, VM'yi kurtarma ISO'sundan başlatın ve yukarıdaki adımları izleyin. Bu, görüntülerinizin gerçekten önyüklendiğini test etmenin de en kolay yoludur.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

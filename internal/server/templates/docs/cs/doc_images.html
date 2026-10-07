@@ -1,0 +1,47 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Obrazy disků a obnova na holý hardware</h1>
+<p class="lead">Záloha obrazu zachytí celý disk — tabulku oddílů, zaváděcí oddíly, systém i data — takže počítač lze vrátit na prázdný nebo nový disk přesně v podobě, v jaké byl.</p>
+<div class="callout"><p>Záloha obrazu disku je k dispozici pro počítače s <b>Windows</b> (svazky NTFS, disky GPT a MBR). Pro linuxové počítače použijte úlohu <a href="/docs/linux-system">Systém Linux</a>.</p></div>
+
+<h2>Vytvoření úlohy obrazu</h2>
+<ol>
+  <li>V <a href="/jobs">Úlohy zálohování</a> zvolte <b>Obraz disku</b>.</li>
+  <li>Agent hlásí své disky automaticky. Zvolte <b>Všechny disky</b>, chcete-li v jedné úloze zálohovat obraz každého interního disku počítače, nebo zaškrtněte jeden disk — celý, nebo jen některé oddíly (např. vynechat velký datový oddíl, který už pokrývá úloha souborů).</li>
+  <li>Nastavte uchovávání a plán jako u každé úlohy; týdenní obraz plus denní zálohy souborů je běžná kombinace.</li>
+</ol>
+<h3 id="all-disks">Všechny disky</h3>
+<p>Úloha <b>Všechny disky</b> zálohuje každý interní disk s tabulkou oddílů do jedné zálohy, i disky přidané později. Všechny svazky všech disků se čtou z jednoho snímku VSS, takže disky jsou navzájem konzistentní (např. databáze na D: s protokoly na E:). Disky USB a SD, připojené soubory VHD/VHDX a vyměnitelná média se vynechávají — externí zálohovací disk nesmí zálohovat sám sebe; potřebujete-li takový disk, zvolte ho samostatně. Stránka běhu vypisuje každý disk s jeho oddíly; z každého lze procházet a obnovovat soubory. Obnova zapisuje vždy jeden disk: ve formuláři obnovy zvolte <b>Disk ze zálohy</b> a cílový disk, pak opakujte pro další disk (u holého hardwaru: nejdřív obnovte systémový disk, z obnovovacího ISO). Agent musí mít verzi 0.33.7 nebo novější; starší ohlásí, že je třeba ho aktualizovat.</p>
+<p>Čtou se jen použité bloky (alokační mapa NTFS), obraz se pořizuje ze snímku VSS, aby byl běžící systém konzistentní, a nezměněné bloky se deduplikují vůči dřívějším obrazům — druhý obraz téhož počítače obvykle odešle jen pár procent.</p>
+
+<h2>Obnova obrazu na disk</h2>
+<p>V běhu zálohy obrazu použijte <b>Obnovit tento obraz na disk</b>:</p>
+<ul>
+  <li><b>Obnovit na agentovi</b> — počítač s cílovým diskem. Může to být běžící počítač s volným diskem, nebo počítač spuštěný z obnovovacího ISO.</li>
+  <li><b>Cílový disk</b> — musí být alespoň tak velký jako použitá oblast originálu. <b>Všechna data na něm budou zničena.</b></li>
+  <li><b>Ponechat disk poté offline</b> — zaškrtněte, pokud je původní disk ve stejném počítači, aby Windows nezměnily ID disku kopie.</li>
+</ul>
+<p>Podporovány jsou disky GPT i MBR a zavádění EFI i BIOS. Rozložení oddílů a ID se znovu vytvoří, takže obnovený disk se spustí jako dřív.</p>
+
+<h2>Obnova na holý hardware z obnovovacího ISO</h2>
+<ol>
+  <li>V <a href="/recovery">Obnovovací média</a> stáhněte obnovovací ISO (Windows). Zapište ho na USB flash disk (Rufus, režim „obraz DD“ nebo „ISO“) nebo ho připojte k virtuálnímu počítači.</li>
+  <li>Volitelně vytvořte <b>kód obnovy</b> a stáhněte <code>recovery.json</code>; zkopírujte ho do složky <code>backupzit</code> na flash disku, aby se počítač připojil bez psaní.</li>
+  <li>Spusťte obnovovaný počítač z flash disku. Spustí agenta v režimu obnovy a připojí se ke konzoli (nebo se zeptá na adresu serveru a kód obnovy).</li>
+  <li>Počítač se objeví jako agent <span class="badge">obnova</span> se svými disky.</li>
+  <li>Otevřete zálohu obrazu v Aktivita, zvolte <b>Obnovit tento obraz na disk</b>, vyberte agenta obnovy a jeho disk a potvrďte.</li>
+  <li>Po dokončení běhu vyjměte flash disk a restartujte.</li>
+</ol>
+<h2>Obnova na jiný hardware</h2>
+<p>Windows se spustí jen s ovladačem řadiče disku, ze kterého zavádějí, a instalace Windows vypne ovladače, které nepotřebovala. Obraz PC s řadičem Intel se proto zastaví s <i>INACCESSIBLE_BOOT_DEVICE</i> na desce AMD, disku NVMe, v Hyper-V nebo ve VM Proxmoxu. Zaškrtněte ve formuláři obnovy <b>Obnovit na jiný hardware</b> a BackupZit po zapsání obrazu obnovené Windows připraví:</p>
+<ol>
+  <li>Ovladače běžných řadičů disků, které jsou součástí Windows, se znovu spouštějí při startu: AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS a RAID, HPE Smart Array, Hyper-V a VMware.</li>
+  <li>Další ovladače se přidají nástrojem DISM: ovladače na obnovovacím ISO (obsahuje ovladače VirtIO pro Proxmox/KVM) a složky, které zadáte v <b>Další ovladače</b> — např. ovladače úložiště a sítě nové základní desky rozbalené na USB flash disk (<code>E:\Drivers</code>; prohledávají se i podsložky).</li>
+  <li>Zaváděcí soubory se pro nový počítač znovu vytvoří (<code>bcdboot</code>).</li>
+</ol>
+<p>Stránka běhu vypisuje zapnuté a přidané ovladače. Ostatní nová zařízení Windows rozpoznají při prvním startu; na novém hardwaru může být nutné aktivaci zopakovat. Obnova mezi UEFI a starším BIOSem není možná — cíl musí zavádět stejně jako originál.</p>
+<p><b>Fyzické PC nebo server do Proxmox VE:</b> vytvořte VM s OVMF (UEFI) pro disky GPT nebo SeaBIOS pro disky MBR, disk VirtIO SCSI alespoň tak velký jako originál a síťovou kartu VirtIO, připojte obnovovací ISO a obnovte s volbou <i>Obnovit na jiný hardware</i>. Obnovovací ISO samo rozpozná disky a síťové karty VirtIO.</p>
+
+<h2>Obnova na virtuální počítač</h2>
+<p>Vytvořte prázdný disk VM alespoň tak velký jako originál, spusťte VM z obnovovacího ISO a postupujte podle kroků výše. Je to také nejjednodušší způsob, jak ověřit, že se vaše obrazy opravdu spustí.</p>
+{{template "docpager" .}}
+</article></div>{{end}}
