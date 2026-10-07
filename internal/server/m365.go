@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -47,8 +48,25 @@ func (s *Store) checkM365Job(j *Job) error {
 	if o.M365Secret == "" {
 		return errors.New("enter the client secret (its Value) of the app registration")
 	}
-	if o.M365NoMail && o.M365NoOneDrive {
-		return errors.New("choose mail, OneDrive or both")
+	if o.M365NoMail && o.M365NoOneDrive && !o.M365Calendar && !o.M365SharePoint {
+		return errors.New("choose what to back up: mail, OneDrive, calendars and contacts or SharePoint")
+	}
+	sites := []string{}
+	if o.M365SharePoint {
+		for _, raw := range o.M365Sites {
+			raw = strings.TrimRight(strings.TrimSpace(raw), "/")
+			u, err := url.Parse(raw)
+			if err != nil || u.Scheme != "https" || !validAddress(u.Host) || u.RawQuery != "" || u.Fragment != "" {
+				return fmt.Errorf("%q is not a SharePoint site address (https://contoso.sharepoint.com/sites/sales)", raw)
+			}
+			if !slices.Contains(sites, raw) {
+				sites = append(sites, raw)
+			}
+		}
+	}
+	o.M365Sites = sites
+	if len(o.M365Sites) == 0 {
+		o.M365Sites = nil
 	}
 	users := []string{}
 	for _, p := range j.Paths {
@@ -61,6 +79,9 @@ func (s *Store) checkM365Job(j *Job) error {
 		}
 		users = append(users, p)
 	}
+	if o.M365NoMail && o.M365NoOneDrive && !o.M365Calendar {
+		users = []string{} // SharePoint only: no accounts
+	}
 	j.Paths, j.Excludes, j.ImageDisk, j.ImagePartitions = users, nil, nil, nil
 	if !strings.HasPrefix(o.M365Secret, secretPrefix) {
 		o.M365Secret = s.seal(ctxM365Secret, o.M365Secret)
@@ -71,6 +92,7 @@ func (s *Store) checkM365Job(j *Job) error {
 // clearM365 removes Microsoft 365 settings from jobs of other kinds.
 func (o *JobOptions) clearM365() {
 	o.M365Tenant, o.M365Client, o.M365Secret, o.M365NoMail, o.M365NoOneDrive = "", "", "", false, false
+	o.M365Calendar, o.M365SharePoint, o.M365Sites = false, false, nil
 }
 
 // m365RepoDir is the repository of a tenant's jobs below a target: it does
@@ -112,20 +134,51 @@ func (s *Server) addM365(ctx context.Context, run *Run, ar *api.Run) error {
 	if err != nil || j.Kind != JobM365 {
 		return nil
 	}
-	if a, err := s.store.GetAgent(ctx, run.AgentID); err == nil && m365AgentTooOld(a) {
-		return fmt.Errorf("the agent on %s (%s) cannot back up Microsoft 365 yet; update it to %s or newer (Agents page)", a.Hostname, a.Version, minM365Version)
+	if a, err := s.store.GetAgent(ctx, run.AgentID); err == nil {
+		if min := m365MinVersion(j.Options); agentOlder(a, min) {
+			return fmt.Errorf("the agent on %s (%s) cannot back up %s yet; update it to %s or newer (Agents page)", a.Hostname, a.Version, m365Parts(j.Options), min)
+		}
 	}
 	secret, err := s.store.m365Secret(j.Options)
 	if err != nil {
 		return err
 	}
 	o := j.Options
-	ar.M365 = &api.M365Source{Tenant: o.M365Tenant, Client: o.M365Client, Secret: secret, Mail: !o.M365NoMail, OneDrive: !o.M365NoOneDrive}
+	ar.M365 = &api.M365Source{Tenant: o.M365Tenant, Client: o.M365Client, Secret: secret, Mail: !o.M365NoMail, OneDrive: !o.M365NoOneDrive,
+		Calendar: o.M365Calendar, SharePoint: o.M365SharePoint, Sites: o.M365Sites}
 	return nil
 }
 
-func m365AgentTooOld(a Agent) bool {
-	return strings.Count(a.Version, ".") == 2 && update.Newer(minM365Version, a.Version)
+// minM365PIMVersion is the first agent version that backs up calendars,
+// contacts and SharePoint.
+const minM365PIMVersion = "0.35.0"
+
+// m365MinVersion is the oldest agent that can run a job with these options.
+func m365MinVersion(o JobOptions) string {
+	if o.M365Calendar || o.M365SharePoint {
+		return minM365PIMVersion
+	}
+	return minM365Version
+}
+
+func agentOlder(a Agent, min string) bool {
+	return strings.Count(a.Version, ".") == 2 && update.Newer(min, a.Version)
+}
+
+// m365Parts names what a job backs up, in English, e.g. "Microsoft 365
+// calendars and SharePoint" (for messages).
+func m365Parts(o JobOptions) string {
+	var p []string
+	if o.M365Calendar {
+		p = append(p, "calendars and contacts")
+	}
+	if o.M365SharePoint {
+		p = append(p, "SharePoint")
+	}
+	if len(p) == 0 {
+		return "Microsoft 365"
+	}
+	return "Microsoft 365 " + strings.Join(p, " and ")
 }
 
 // m365TestTimeout bounds the check of an app registration.
@@ -168,12 +221,22 @@ func (s *Server) checkM365Access(ctx context.Context, l *language, j Job) (note 
 		// No answer from Microsoft: the agent may still reach it.
 		return l.T("The console could not reach Microsoft 365 to check the app (%v); the first backup shows whether it works.", err), nil
 	}
-	need := []string{"User.Read.All"}
-	if !j.Options.M365NoMail {
+	o := j.Options
+	var need []string
+	if !o.M365NoMail || !o.M365NoOneDrive || o.M365Calendar {
+		need = append(need, "User.Read.All")
+	}
+	if !o.M365NoMail {
 		need = append(need, "Mail.Read")
 	}
-	if !j.Options.M365NoOneDrive {
+	if !o.M365NoOneDrive {
 		need = append(need, "Files.Read.All")
+	}
+	if o.M365Calendar {
+		need = append(need, "Calendars.Read", "Contacts.Read")
+	}
+	if o.M365SharePoint {
+		need = append(need, "Sites.Read.All")
 	}
 	var missing []string
 	for _, n := range need {
@@ -190,6 +253,14 @@ func (s *Server) checkM365Access(ctx context.Context, l *language, j Job) (note 
 				return "", errors.New(l.T("The account %s does not exist in this tenant.", u))
 			}
 			return "", fmt.Errorf("%s: %w", u, err)
+		}
+	}
+	for _, raw := range o.M365Sites {
+		if _, err := c.SiteByURL(ctx, raw); err != nil {
+			if m365.IsNotFound(err) {
+				return "", errors.New(l.T("The SharePoint site %s does not exist in this tenant.", raw))
+			}
+			return "", fmt.Errorf("%s: %w", raw, err)
 		}
 	}
 	return l.T("Microsoft 365 checked: the app signs in and has the permissions %s.", strings.Join(need, ", ")), nil
@@ -216,15 +287,22 @@ func joinNote(l *language, msg, note string) string {
 	return l.T(msg) + " " + note
 }
 
-// M365Text describes the content of a Microsoft 365 job for the console.
-func (o JobOptions) M365Text() string {
-	switch {
-	case o.M365NoOneDrive:
-		return "Mail"
-	case o.M365NoMail:
-		return "OneDrive"
+// M365Items lists what a Microsoft 365 job backs up (texts to translate).
+func (o JobOptions) M365Items() []string {
+	var out []string
+	if !o.M365NoMail {
+		out = append(out, "Mail")
 	}
-	return "Mail + OneDrive"
+	if !o.M365NoOneDrive {
+		out = append(out, "OneDrive")
+	}
+	if o.M365Calendar {
+		out = append(out, "Calendars and contacts")
+	}
+	if o.M365SharePoint {
+		out = append(out, "SharePoint")
+	}
+	return out
 }
 
 // isM365Run reports whether a backup (or a copy of one) holds Microsoft
@@ -244,4 +322,10 @@ func (s *Store) isM365Run(ctx context.Context, run Run) bool {
 		}
 	}
 	return j.Kind == JobM365
+}
+
+// M365Accounts reports whether a Microsoft 365 job backs up accounts
+// (mail, OneDrive, calendars or contacts), not only SharePoint.
+func (o JobOptions) M365Accounts() bool {
+	return !o.M365NoMail || !o.M365NoOneDrive || o.M365Calendar
 }

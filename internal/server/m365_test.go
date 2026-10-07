@@ -46,6 +46,26 @@ func fakeTenant(t *testing.T, roles ...string) *atomic.Int64 {
 			j(w, map[string]any{"value": []map[string]string{{"id": "u1", "userPrincipalName": "ana@contoso.test"}}})
 		case p == "/users/ana@contoso.test":
 			j(w, map[string]string{"id": "u1", "userPrincipalName": "ana@contoso.test"})
+		case p == "/users/u1/calendars":
+			j(w, map[string]any{"value": []map[string]string{{"id": "c1", "name": "Calendar"}}})
+		case p == "/users/u1/calendars/c1/events":
+			j(w, map[string]any{"value": []map[string]any{{"id": "e1", "subject": "Board meeting", "lastModifiedDateTime": day,
+				"start": map[string]string{"dateTime": "2026-10-08T10:00:00.0000000"}, "end": map[string]string{"dateTime": "2026-10-08T11:00:00.0000000"}}}})
+		case p == "/users/u1/contacts":
+			j(w, map[string]any{"value": []map[string]any{{"id": "k1", "displayName": "Marko", "lastModifiedDateTime": day}}})
+		case p == "/users/u1/contactFolders":
+			j(w, map[string]any{"value": []any{}})
+		case p == "/sites/getAllSites":
+			j(w, map[string]any{"value": []map[string]string{{"id": "s1", "displayName": "Sales", "webUrl": "https://contoso.sharepoint.com/sites/sales"}}})
+		case p == "/sites/contoso.sharepoint.com:/sites/sales:":
+			j(w, map[string]string{"id": "s1", "displayName": "Sales", "webUrl": "https://contoso.sharepoint.com/sites/sales"})
+		case p == "/sites/s1/drives":
+			j(w, map[string]any{"value": []map[string]string{{"id": "sd1", "name": "Documents"}}})
+		case p == "/drives/sd1/items/root/children":
+			j(w, map[string]any{"value": []map[string]any{{"id": "p1", "name": "price list.xlsx", "size": 11, "file": map[string]any{}, "lastModifiedDateTime": day}}})
+		case p == "/drives/sd1/items/p1/content":
+			downloads.Add(1)
+			w.Write([]byte("price bytes"))
 		case strings.HasPrefix(p, "/users/") && !strings.HasPrefix(p, "/users/u1"):
 			w.WriteHeader(404)
 			j(w, map[string]any{"error": map[string]string{"code": "Request_ResourceNotFound", "message": "not found"}})
@@ -149,7 +169,7 @@ func TestM365Job(t *testing.T) {
 		t.Error("job page shows the secret or lacks the account")
 	}
 	_, _, body = admin.do("GET", "/jobs", nil)
-	if !strings.Contains(body, "Microsoft 365 Mail &#43; OneDrive") {
+	if !strings.Contains(body, "Microsoft 365 Mail + OneDrive: ") {
 		t.Error("job list lacks the Microsoft 365 job")
 	}
 
@@ -297,5 +317,91 @@ func TestM365JobMissingPermissions(t *testing.T) {
 	msg, _ = url.QueryUnescape(loc)
 	if !strings.Contains(msg, "Aplikaciji nedostaju aplikacione dozvole Mail.Read, Files.Read.All") {
 		t.Fatalf("create (sr): %s", msg)
+	}
+}
+
+// Calendars, contacts and SharePoint: the permissions and sites are
+// checked when the job is saved; a SharePoint-only job needs no accounts.
+func TestM365CalendarSharePointJob(t *testing.T) {
+	fakeTenant(t, "User.Read.All", "Mail.Read", "Files.Read.All", "Calendars.Read", "Contacts.Read", "Sites.Read.All")
+	e := setup(t)
+	ctx := e.ctx
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag := agent.New(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "test")
+	agents, _ := e.store.ListAgents(ctx)
+	s3, err := testutil.StartS3Server("backups")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s3.Close()
+	target, _ := e.store.CreateTarget(ctx, server.Target{Name: "s3", Kind: "s3", URL: "s3://" + s3.Host + "/backups/m365?tls=false", S3AccessKey: "AK", S3SecretKey: "SK"})
+	form := url.Values{"name": {"sp"}, "kind": {"m365"}, "agent_id": {fmt.Sprint(agents[0].ID)}, "target_id": {fmt.Sprint(target)},
+		"m365_form": {"1"}, "m365_tenant": {testTenant}, "m365_client": {testClient}, "m365_secret": {"app-secret-value"},
+		"m365_calendar": {"on"}, "m365_sharepoint": {"on"}, "m365_users": {"ana@contoso.test"}, "sched_kind": {"manual"}}
+	for site, want := range map[string]string{
+		"http://contoso.sharepoint.com/sites/sales":  "is not a SharePoint site address",
+		"https://contoso.sharepoint.com/sites/gone": "does not exist in this tenant",
+	} {
+		form.Set("m365_sites", site)
+		_, loc, _ := admin.do("POST", "/jobs", form)
+		if msg, _ := url.QueryUnescape(loc); !strings.Contains(msg, want) {
+			t.Errorf("%s: %s", site, msg)
+		}
+	}
+	form.Set("m365_sites", "https://contoso.sharepoint.com/sites/sales/")
+	_, loc, _ := admin.do("POST", "/jobs", form)
+	msg, _ := url.QueryUnescape(loc)
+	if !strings.Contains(msg, "permissions User.Read.All, Calendars.Read, Contacts.Read, Sites.Read.All") {
+		t.Fatalf("create: %s", msg)
+	}
+	var id int64
+	fmt.Sscanf(strings.TrimPrefix(loc, "/jobs/"), "%d", &id)
+	_, _, body := admin.do("GET", "/jobs", nil)
+	if !strings.Contains(body, "Microsoft 365 Calendars and contacts + SharePoint: <span class=\"mono\">ana@contoso.test</span>; SharePoint <span class=\"mono\">https://contoso.sharepoint.com/sites/sales</span>") {
+		t.Error("job list")
+	}
+	rid, _ := e.store.QueueBackup(ctx, id, "manual")
+	ar, err := e.srv.APIRun(ctx, rid)
+	if err != nil || ar.M365.Mail || ar.M365.OneDrive || !ar.M365.Calendar || !ar.M365.SharePoint || strings.Join(ar.M365.Sites, ",") != "https://contoso.sharepoint.com/sites/sales" {
+		t.Fatalf("agent gets %+v %v", ar.M365, err)
+	}
+	runAgent(t, ag)
+	run, _ := e.store.GetRun(ctx, rid)
+	if run.Status != api.StatusSuccess || !strings.Contains(run.Message, "1 SharePoint site: https://contoso.sharepoint.com/sites/sales") {
+		t.Fatalf("backup: %s %s %v", run.Status, run.Message, run.Errors)
+	}
+	for dir, want := range map[string]string{
+		"ana@contoso.test/Calendar/Calendar": "2026-10-08 1000 Board meeting [",
+		"ana@contoso.test/Contacts":          "Marko [",
+		"SharePoint/Sales/Documents":         "price list.xlsx",
+	} {
+		_, _, body := admin.do("GET", fmt.Sprintf("/runs/%d/files?path=%s", rid, url.QueryEscape(dir)), nil)
+		if !strings.Contains(body, want) {
+			t.Errorf("%s lacks %q", dir, want)
+		}
+	}
+
+	// SharePoint only: accounts are not needed; an old agent is refused.
+	form.Del("m365_calendar")
+	form.Set("m365_sites", "")
+	_, loc, _ = admin.do("POST", "/jobs", form)
+	msg, _ = url.QueryUnescape(loc)
+	if !strings.Contains(msg, "the permissions Sites.Read.All.") {
+		t.Fatalf("SharePoint only: %s", msg)
+	}
+	fmt.Sscanf(strings.TrimPrefix(loc, "/jobs/"), "%d", &id)
+	if j, _ := e.store.GetJob(ctx, id); len(j.Paths) != 0 {
+		t.Errorf("accounts kept: %v", j.Paths)
+	}
+	e.pool.Exec(ctx, `UPDATE agents SET version='0.34.0'`)
+	rid, _ = e.store.QueueBackup(ctx, id, "manual")
+	if _, err := e.srv.APIRun(ctx, rid); err == nil || !strings.Contains(err.Error(), "cannot back up Microsoft 365 SharePoint yet; update it to 0.35.0") {
+		t.Errorf("old agent: %v", err)
 	}
 }

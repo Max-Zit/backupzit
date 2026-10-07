@@ -52,6 +52,11 @@ type JobOptions struct {
 	M365Secret     string `json:"m365_secret,omitempty"`
 	M365NoMail     bool   `json:"m365_no_mail,omitempty"`
 	M365NoOneDrive bool   `json:"m365_no_onedrive,omitempty"`
+	// M365Calendar adds calendars and contacts; M365SharePoint the
+	// document libraries of M365Sites (none: every site of the tenant).
+	M365Calendar   bool     `json:"m365_calendar,omitempty"`
+	M365SharePoint bool     `json:"m365_sharepoint,omitempty"`
+	M365Sites      []string `json:"m365_sites,omitempty"`
 	// Compression of new data: "" (default), "off", "fast" or "max".
 	Compression string `json:"compression,omitempty"`
 }
@@ -263,12 +268,16 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 		o.M365Secret = strings.TrimSpace(r.FormValue("m365_secret"))
 		o.M365NoMail = r.FormValue("m365_mail") != "on"
 		o.M365NoOneDrive = r.FormValue("m365_onedrive") != "on"
+		o.M365Calendar = r.FormValue("m365_calendar") == "on"
+		o.M365SharePoint = r.FormValue("m365_sharepoint") == "on"
+		o.M365Sites = lines(r.FormValue("m365_sites"))
 		// An empty secret keeps the stored one for the same app.
 		if o.M365Secret == "" && strings.EqualFold(o.M365Tenant, old.M365Tenant) && strings.EqualFold(o.M365Client, old.M365Client) {
 			o.M365Secret = old.M365Secret
 		}
 	} else {
 		o.M365Tenant, o.M365Client, o.M365Secret, o.M365NoMail, o.M365NoOneDrive = old.M365Tenant, old.M365Client, old.M365Secret, old.M365NoMail, old.M365NoOneDrive
+		o.M365Calendar, o.M365SharePoint, o.M365Sites = old.M365Calendar, old.M365SharePoint, old.M365Sites
 	}
 	return o
 }

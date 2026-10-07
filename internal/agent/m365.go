@@ -34,14 +34,17 @@ func (a *Agent) m365Backup(ctx context.Context, run api.Run) api.RunResult {
 	}
 	c := m365.NewClient(m365.Credentials{Tenant: src.Tenant, Client: src.Client, Secret: src.Secret})
 	res, err := m365.Backup(ctx, r, c, m365.Options{
-		Users:    run.Paths,
-		Mail:     src.Mail,
-		OneDrive: src.OneDrive,
-		Parent:   parent,
-		Hostname: "m365-" + src.Tenant,
-		Version:  a.version,
-		Tags:     []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
-		Progress: func(s *repo.SnapshotStats) { a.progress(s.BytesRead, 0, s.Files) },
+		Users:      run.Paths,
+		Mail:       src.Mail,
+		OneDrive:   src.OneDrive,
+		Calendar:   src.Calendar,
+		SharePoint: src.SharePoint,
+		Sites:      src.Sites,
+		Parent:     parent,
+		Hostname:   "m365-" + src.Tenant,
+		Version:    a.version,
+		Tags:       []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
+		Progress:   func(s *repo.SnapshotStats) { a.progress(s.BytesRead, 0, s.Files) },
 	})
 	if err != nil {
 		return failed(fmt.Errorf("Microsoft 365: %w", err))
@@ -49,7 +52,14 @@ func (a *Agent) m365Backup(ctx context.Context, run api.Run) api.RunResult {
 	sn := res.Snapshot
 	stats, _ := json.Marshal(sn.Stats)
 	out := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Errors: sn.Stats.Errors}
-	out.Message = count(len(res.Accounts), "account", "accounts") + ": " + strings.Join(res.Accounts, ", ")
+	var parts []string
+	if len(res.Accounts) > 0 {
+		parts = append(parts, count(len(res.Accounts), "account", "accounts")+": "+strings.Join(res.Accounts, ", "))
+	}
+	if len(res.Sites) > 0 {
+		parts = append(parts, count(len(res.Sites), "SharePoint site", "SharePoint sites")+": "+strings.Join(res.Sites, ", "))
+	}
+	out.Message = strings.Join(parts, ". ")
 	if len(res.Skipped) > 0 {
 		out.Message += fmt.Sprintf(". %s without mailbox or OneDrive skipped", count(len(res.Skipped), "account", "accounts"))
 	}

@@ -14,7 +14,7 @@
       <li><b>Virtual machines (Proxmox VE, Hyper-V, VMware)</b> — VMs (and Proxmox containers) of a hypervisor host, backed up without agents in the guests: by the agent on the Proxmox or Hyper-V host, or for VMware ESXi by the host's proxy agent (choose the ESXi host in the agent list). See <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> and <a href="/docs/vmware">VMware ESXi</a>.</li>
       <li><b>Databases</b> — SQL Server, PostgreSQL or MySQL/MariaDB on the agent's machine, with log backups for restores to any point in time. See <a href="/docs/sql">Databases</a>.</li>
       <li><b>NAS / file share</b> — an SMB or NFS share read by the agent; see <a href="#nas">below</a>.</li>
-      <li><b>Microsoft 365</b> — Exchange Online mailboxes and OneDrive, read through Microsoft Graph by any agent; see <a href="/docs/m365">Microsoft 365</a>.</li>
+      <li><b>Microsoft 365</b> — Exchange Online mailboxes, calendars, contacts, OneDrive and SharePoint sites, read through Microsoft Graph by any agent; see <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
   <li>Optionally add <b>excludes</b>, one per line: a name pattern, which applies in every folder (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), or a full path, which applies to that one file or folder (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, also with wildcards: <code>D:\VMs\*.iso</code>). Full paths ignore upper and lower case on Windows.</li>

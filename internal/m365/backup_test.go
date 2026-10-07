@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/max-zit/backupzit/internal/backend"
 	"github.com/max-zit/backupzit/internal/repo"
@@ -140,6 +141,47 @@ func newFakeGraph(t *testing.T) *httptest.Server {
 		case p == "/drives/d1/items/i-offer/content":
 			g.downloads.Add(1)
 			w.Write([]byte("offer doc"))
+		case p == "/users/u-ana/calendars":
+			writeJSON(w, map[string]any{"value": []map[string]string{{"id": "c1", "name": "Calendar"}}})
+		case p == "/users/u-ana/calendars/c1/events":
+			if !strings.Contains(r.Header.Get("Prefer"), `outlook.timezone="UTC"`) {
+				w.WriteHeader(400)
+				return
+			}
+			writeJSON(w, map[string]any{"value": []map[string]any{{
+				"id": "e1", "iCalUId": "040000008200E00074C5B7101A82E008", "subject": "Weekly sync, team",
+				"body":                 map[string]string{"content": "Agenda:\nstatus"},
+				"start":                map[string]string{"dateTime": "2026-10-05T08:00:00.0000000", "timeZone": "UTC"},
+				"end":                  map[string]string{"dateTime": "2026-10-05T08:30:00.0000000", "timeZone": "UTC"},
+				"lastModifiedDateTime": day, "location": map[string]string{"displayName": "Room 1"},
+				"organizer": map[string]any{"emailAddress": map[string]string{"name": "Ana", "address": "ana@contoso.test"}},
+				"attendees": []map[string]any{{"type": "required", "emailAddress": map[string]string{"name": "Marko", "address": "marko@contoso.test"}, "status": map[string]string{"response": "accepted"}}},
+				"recurrence": map[string]any{"pattern": map[string]any{"type": "weekly", "interval": 1, "daysOfWeek": []string{"monday"}, "firstDayOfWeek": "monday"},
+					"range": map[string]any{"type": "numbered", "numberOfOccurrences": 10}},
+			}}})
+		case p == "/users/u-ana/contacts":
+			writeJSON(w, map[string]any{"value": []map[string]any{{"id": "k1", "displayName": "Marko Marković", "givenName": "Marko", "surname": "Marković",
+				"emailAddresses": []map[string]string{{"address": "marko@contoso.test"}}, "mobilePhone": "+381 64 123", "lastModifiedDateTime": day}}})
+		case p == "/users/u-ana/contactFolders":
+			writeJSON(w, map[string]any{"value": []map[string]string{{"id": "cf1", "displayName": "Suppliers"}}})
+		case p == "/users/u-ana/contactFolders/cf1/contacts":
+			writeJSON(w, map[string]any{"value": []map[string]any{{"id": "k2", "displayName": "Oil Ltd", "companyName": "Oil Ltd", "lastModifiedDateTime": day}}})
+		case p == "/users/u-ana/contactFolders/cf1/childFolders":
+			writeJSON(w, map[string]any{"value": []any{}})
+		case p == "/sites/getAllSites":
+			writeJSON(w, map[string]any{"value": []map[string]string{
+				{"id": "s1", "displayName": "Sales", "webUrl": "https://contoso.sharepoint.com/sites/sales"},
+				{"id": "s9", "displayName": "Ana", "webUrl": "https://contoso-my.sharepoint.com/personal/ana_contoso_test"},
+			}})
+		case p == "/sites/contoso.sharepoint.com:/sites/sales:":
+			writeJSON(w, map[string]string{"id": "s1", "displayName": "Sales", "webUrl": "https://contoso.sharepoint.com/sites/sales"})
+		case p == "/sites/s1/drives":
+			writeJSON(w, map[string]any{"value": []map[string]string{{"id": "sd1", "name": "Documents", "driveType": "documentLibrary"}}})
+		case p == "/drives/sd1/items/root/children":
+			writeJSON(w, map[string]any{"value": []map[string]any{{"id": "i-pol", "name": "policy.pdf", "size": 6, "file": map[string]any{}, "lastModifiedDateTime": day}}})
+		case p == "/drives/sd1/items/i-pol/content":
+			g.downloads.Add(1)
+			w.Write([]byte("policy"))
 		default:
 			w.WriteHeader(404)
 			writeJSON(w, map[string]any{"error": map[string]string{"code": "itemNotFound", "message": p}})
@@ -296,10 +338,6 @@ func TestBackupIncremental(t *testing.T) {
 	}
 }
 
-func idHash(id string) string {
-	return messageName(Message{ID: id})[len("0001-01-01 0000 (no subject) [") : len("0001-01-01 0000 (no subject) [")+10]
-}
-
 func TestBackupNamedAccounts(t *testing.T) {
 	newFakeGraph(t)
 	ctx := context.Background()
@@ -387,5 +425,130 @@ func TestLive(t *testing.T) {
 	t.Logf("incremental: %d files, %d unchanged, %d new, %d changed, %.1f MB read, %v", s2.Files, s2.FilesSkipped, s2.FilesNew, s2.FilesChanged, float64(s2.BytesRead)/1e6, time.Since(start).Round(time.Second))
 	if s2.FilesSkipped < s.Files*9/10 {
 		t.Errorf("incremental read too much: %+v", s2)
+	}
+}
+
+// Calendars, contacts and SharePoint libraries are stored as .ics, .vcf
+// and files; unchanged items are not stored again.
+func TestBackupCalendarContactsSharePoint(t *testing.T) {
+	srv := newFakeGraph(t)
+	g := fakes[srv.URL]
+	ctx := context.Background()
+	r := newRepo(t)
+	c := NewClient(Credentials{Tenant: "contoso.test", Client: "app", Secret: "s3cret"})
+	res, err := Backup(ctx, r, c, Options{Calendar: true, SharePoint: true, Users: []string{"ana@contoso.test"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sn := res.Snapshot
+	if len(sn.Stats.Errors) != 0 || strings.Join(res.Sites, ",") != "https://contoso.sharepoint.com/sites/sales" {
+		t.Fatalf("errors %v sites %v", sn.Stats.Errors, res.Sites)
+	}
+	ics, _ := readFile(t, r, sn, "ana@contoso.test/Calendar/Calendar/2026-10-05 0800 Weekly sync, team ["+idHash("e1")+"].ics")
+	ics = strings.ReplaceAll(ics, "\r\n ", "")
+	for _, want := range []string{"BEGIN:VEVENT", "UID:040000008200E00074C5B7101A82E008", "DTSTART:20261005T080000Z", "DTEND:20261005T083000Z",
+		"RRULE:FREQ=WEEKLY;BYDAY=MO;WKST=MO;COUNT=10", `SUMMARY:Weekly sync\, team`, `DESCRIPTION:Agenda:\nstatus`, "LOCATION:Room 1",
+		"ORGANIZER;CN=Ana:mailto:ana@contoso.test", "ATTENDEE;CN=Marko;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED:mailto:marko@contoso.test", "\r\n"} {
+		if !strings.Contains(ics, want) {
+			t.Errorf("ics lacks %q:\n%s", want, ics)
+		}
+	}
+	vcf, _ := readFile(t, r, sn, "ana@contoso.test/Contacts/Marko Marković ["+idHash("k1")+"].vcf")
+	for _, want := range []string{"BEGIN:VCARD", "FN:Marko Marković", "N:Marković;Marko;;;", "EMAIL;TYPE=INTERNET,PREF:marko@contoso.test", "TEL;TYPE=CELL:+381 64 123"} {
+		if !strings.Contains(vcf, want) {
+			t.Errorf("vcf lacks %q:\n%s", want, vcf)
+		}
+	}
+	if vcf, _ = readFile(t, r, sn, "ana@contoso.test/Contacts/Suppliers/Oil Ltd ["+idHash("k2")+"].vcf"); !strings.Contains(vcf, "ORG:Oil Ltd;") {
+		t.Errorf("contact folder: %s", vcf)
+	}
+	if body, _ := readFile(t, r, sn, "SharePoint/Sales/Documents/policy.pdf"); body != "policy" {
+		t.Errorf("SharePoint file %q", body)
+	}
+	tree, _ := r.LoadTree(ctx, sn.Tree)
+	spt, _ := r.LoadTree(ctx, *tree.Find(SharePointDir).Subtree)
+	if len(spt.Nodes) != 1 {
+		t.Errorf("personal site not left out: %+v", spt.Nodes)
+	}
+
+	// Named sites; unchanged items are reused.
+	g.downloads.Store(0)
+	res2, err := Backup(ctx, r, c, Options{Calendar: true, SharePoint: true, Users: []string{"ana@contoso.test"},
+		Sites: []string{"https://contoso.sharepoint.com/sites/sales", "https://contoso.sharepoint.com/sites/gone"}, Parent: sn})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s2 := res2.Snapshot.Stats
+	if g.downloads.Load() != 0 || s2.FilesSkipped != s2.Files || s2.Files != 4 {
+		t.Errorf("incremental: %d downloads, %+v", g.downloads.Load(), s2)
+	}
+	if len(s2.Errors) != 1 || !strings.Contains(s2.Errors[0], "sites/gone") {
+		t.Errorf("errors %v", s2.Errors)
+	}
+
+	// SharePoint only.
+	res3, err := Backup(ctx, r, c, Options{SharePoint: true})
+	if err != nil || len(res3.Accounts) != 0 || len(res3.Snapshot.Paths) != 1 {
+		t.Fatalf("SharePoint only: %v %+v", err, res3)
+	}
+}
+
+func TestRRule(t *testing.T) {
+	var e Event
+	json.Unmarshal([]byte(`{"recurrence":{"pattern":{"type":"relativeMonthly","interval":2,"daysOfWeek":["friday"],"index":"last"},"range":{"type":"endDate","endDate":"2027-01-31"}}}`), &e)
+	if got := e.rrule(); got != "RRULE:FREQ=MONTHLY;BYDAY=FR;BYSETPOS=-1;INTERVAL=2;UNTIL=20270131T235959Z" {
+		t.Errorf("rrule %q", got)
+	}
+	long := foldLines([]string{"DESCRIPTION:" + strings.Repeat("ž", 60)})
+	for _, l := range strings.Split(strings.TrimSuffix(string(long), "\r\n"), "\r\n") {
+		if len(l) > 75 || !utf8.ValidString(strings.TrimPrefix(l, " ")) {
+			t.Errorf("bad folded line %q", l)
+		}
+	}
+}
+
+// TestLivePIM reads calendars, contacts and all SharePoint sites of a real
+// tenant (read-only); see TestLive for the variables.
+func TestLivePIM(t *testing.T) {
+	cfg := os.Getenv("BACKUPZIT_TEST_M365")
+	if cfg == "" {
+		t.Skip("BACKUPZIT_TEST_M365 not set")
+	}
+	tenant, client, _ := strings.Cut(cfg, ":")
+	ctx := context.Background()
+	r := newRepo(t)
+	c := NewClient(Credentials{Tenant: tenant, Client: client, Secret: os.Getenv("BACKUPZIT_TEST_M365_SECRET")})
+	opts := Options{Calendar: true, SharePoint: true, Users: []string{os.Getenv("BACKUPZIT_TEST_M365_USER")}}
+	res, err := Backup(ctx, r, c, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := res.Snapshot.Stats
+	t.Logf("sites %v; %d files, %d dirs, %.1f MB, errors %v", res.Sites, s.Files, s.Dirs, float64(s.Bytes)/1e6, s.Errors)
+	var walk func(id repo.ID, at string, depth int)
+	walk = func(id repo.ID, at string, depth int) {
+		tr, _ := r.LoadTree(ctx, id)
+		n := 0
+		for _, x := range tr.Nodes {
+			if x.Type == repo.NodeDir {
+				if depth < 8 {
+					walk(*x.Subtree, at+"/"+x.Name, depth+1)
+				}
+			} else {
+				n++
+			}
+		}
+		if n > 0 {
+			t.Logf("%s: %d files", at, n)
+		}
+	}
+	walk(res.Snapshot.Tree, "", 0)
+	opts.Parent = res.Snapshot
+	res2, err := Backup(ctx, r, c, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s2 := res2.Snapshot.Stats; s2.FilesSkipped != s2.Files {
+		t.Errorf("incremental: %+v", s2)
 	}
 }

@@ -25,7 +25,9 @@
     {{else if eq .Kind "nas"}}
     <dt>{{T "Backs up"}}</dt><dd><span class="mono">{{.Options.NASText}}</span>{{if .Paths}}: <span class="mono">{{join .Paths ", "}}</span>{{else}} {{T "(whole share)"}}{{end}}{{if .Excludes}}{{T ", excluding"}} <span class="mono">{{join .Excludes ", "}}</span>{{end}} <span class="muted">{{T "through the agent"}}</span></dd>
     {{else if eq .Kind "m365"}}
-    <dt>{{T "Backs up"}}</dt><dd>{{T "Microsoft 365"}} {{T .Options.M365Text}}: {{if .Paths}}<span class="mono">{{join .Paths ", "}}</span>{{else}}{{T "all accounts with a mailbox or OneDrive"}}{{end}} <span class="muted">{{T "through the agent"}}</span></dd>
+    <dt>{{T "Backs up"}}</dt><dd>{{T "Microsoft 365"}} {{range $i, $p := .Options.M365Items}}{{if $i}} + {{end}}{{T $p}}{{end}} <span class="muted">{{T "through the agent"}}</span></dd>
+    {{if .Options.M365Accounts}}<dt>{{T "Accounts"}}</dt><dd>{{if .Paths}}<span class="mono">{{join .Paths ", "}}</span>{{else}}{{T "all accounts with a mailbox or OneDrive"}}{{end}}</dd>{{end}}
+    {{if .Options.M365SharePoint}}<dt>{{T "SharePoint sites"}}</dt><dd>{{if .Options.M365Sites}}<span class="mono">{{join .Options.M365Sites ", "}}</span>{{else}}{{T "all sites of the tenant"}}{{end}}</dd>{{end}}
     <dt>{{T "Tenant"}}</dt><dd class="mono">{{.Options.M365Tenant}}</dd>
     {{else if eq .Kind "sql"}}
     <dt>{{T "Backs up"}}</dt><dd>{{if eq .Options.SQLEngine "postgres"}}{{T "PostgreSQL"}}{{if .Options.SQLInstance}} {{T "on port"}} {{.Options.SQLInstance}}{{end}} {{T "(whole cluster and each database)"}}{{else if eq .Options.SQLEngine "mysql"}}{{T "MySQL/MariaDB"}}{{else}}{{T "SQL Server"}} {{if .Options.SQLInstance}}{{T "instance"}} {{.Options.SQLInstance}}{{else}}{{T "default instance"}}{{end}}{{end}}: {{if .Paths}}{{join .Paths ", "}}{{else}}{{T "all user databases"}}{{if .Options.SQLSystem}} {{T "and the system databases"}}{{end}}{{end}}</dd>

@@ -144,7 +144,7 @@
 {{end}}
 {{define "job_m365"}}{{$o := .J.Options}}
 <input type="hidden" name="m365_form" value="1">
-<p class="muted small">{{T "Needs an app registration in Microsoft Entra ID with the Microsoft Graph application permissions User.Read.All, Mail.Read and Files.Read.All and admin consent — see"}} <a href="/docs/m365">{{T "Microsoft 365"}}</a>. {{T "The agent selected above downloads the data; it only needs internet access."}}</p>
+<p class="muted small">{{T "Needs an app registration in Microsoft Entra ID with Microsoft Graph application permissions (User.Read.All, Mail.Read, Files.Read.All; for calendars and contacts also Calendars.Read and Contacts.Read, for SharePoint Sites.Read.All) and admin consent — see"}} <a href="/docs/m365">{{T "Microsoft 365"}}</a>. {{T "The agent selected above downloads the data; it only needs internet access."}}</p>
 <div class="row">
   <label>{{T "Directory (tenant) ID"}}<input name="m365_tenant" value="{{$o.M365Tenant}}" placeholder="0244a840-1973-4553-901c-ead0f5823b22" required autocomplete="off"></label>
   <label>{{T "Application (client) ID"}}<input name="m365_client" value="{{$o.M365Client}}" placeholder="6be64ab9-0b80-44b4-a37e-5dd8fb5644db" required autocomplete="off"></label>
@@ -153,8 +153,13 @@
 <div class="row">
   <label class="check"><input type="checkbox" name="m365_mail" {{if not $o.M365NoMail}}checked{{end}}> {{T "Mail (Exchange Online)"}} <small>{{T "all mail folders, each message as an .eml file"}}</small></label>
   <label class="check"><input type="checkbox" name="m365_onedrive" {{if not $o.M365NoOneDrive}}checked{{end}}> {{T "OneDrive"}} <small>{{T "all files and folders"}}</small></label>
+  <label class="check"><input type="checkbox" name="m365_calendar" {{if $o.M365Calendar}}checked{{end}}> {{T "Calendars and contacts"}} <small>{{T "events as .ics, contacts as .vcf files; needs Calendars.Read and Contacts.Read"}}</small></label>
+  <label class="check"><input type="checkbox" name="m365_sharepoint" {{if $o.M365SharePoint}}checked{{end}}> {{T "SharePoint sites"}} <small>{{T "all document libraries of the sites; needs Sites.Read.All"}}</small></label>
 </div>
 <label>{{T "Accounts"}} <small>{{T "one address per line, e.g. ana@contoso.com; empty: every account with a mailbox or OneDrive, also accounts added later"}}</small>
   <textarea name="m365_users">{{if eq .J.Kind "m365"}}{{join .J.Paths "\n"}}{{end}}</textarea>
+</label>
+<label>{{T "SharePoint sites"}} <small>{{T "one site address per line, e.g. https://contoso.sharepoint.com/sites/sales; empty: every site of the tenant, also sites added later"}}</small>
+  <textarea name="m365_sites">{{join $o.M365Sites "\n"}}</textarea>
 </label>
 {{end}}

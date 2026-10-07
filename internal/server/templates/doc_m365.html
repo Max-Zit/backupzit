@@ -1,13 +1,13 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
-<h1>Microsoft 365: Exchange Online and OneDrive</h1>
-<p class="lead">BackupZit backs up the mailboxes (Exchange Online) and OneDrive of a Microsoft 365 tenant through Microsoft Graph. It only reads: nothing in the tenant is changed or deleted. Any agent with internet access downloads the data — for example the agent on the console machine — and stores it like every backup: deduplicated, encrypted, with retention, copy jobs and restore tests.</p>
+<h1>Microsoft 365: Exchange Online, OneDrive and SharePoint</h1>
+<p class="lead">BackupZit backs up the mailboxes (Exchange Online), calendars, contacts, OneDrive and SharePoint sites of a Microsoft 365 tenant through Microsoft Graph. It only reads: nothing in the tenant is changed or deleted. Any agent with internet access downloads the data — for example the agent on the console machine — and stores it like every backup: deduplicated, encrypted, with retention, copy jobs and restore tests.</p>
 
 <h2 id="app">1. Register an app in Microsoft Entra ID</h2>
 <p>Once per tenant, as a Global Administrator, in the <a href="https://entra.microsoft.com" rel="noopener">Microsoft Entra admin center</a>:</p>
 <ol>
   <li><b>App registrations → New registration</b>: name e.g. <i>BackupZit</i>, <i>Accounts in this organizational directory only</i>, no redirect URI. Note the <b>Application (client) ID</b> and the <b>Directory (tenant) ID</b> on its overview.</li>
   <li><b>Certificates &amp; secrets → New client secret</b>: choose a lifetime (e.g. 24 months) and copy the secret's <b>Value</b> right away — it is shown only once. The <i>Secret ID</i> is not the secret.</li>
-  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (not <i>delegated</i>): <code>User.Read.All</code>, <code>Mail.Read</code> and <code>Files.Read.All</code>.</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (not <i>delegated</i>): <code>User.Read.All</code>, <code>Mail.Read</code> and <code>Files.Read.All</code>; for calendars and contacts also <code>Calendars.Read</code> and <code>Contacts.Read</code>, for SharePoint <code>Sites.Read.All</code>.</li>
   <li>Click <b>Grant admin consent for …</b>. Until then the status shows <i>Not granted</i> and backups are refused.</li>
 </ol>
 <p>These are read permissions only. Restoring into mailboxes later needs write permissions, which BackupZit does not ask for.</p>
@@ -16,26 +16,30 @@
 <h2 id="job">2. Create the job</h2>
 <p>Under <a href="/jobs">Backup jobs</a> create a job of the kind <b>Microsoft 365</b>:</p>
 <ul>
-  <li><b>Agent</b>: the agent that downloads (Windows or Linux, version 0.34.0 or newer). It needs HTTPS access to <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> and, for OneDrive files, <code>*.sharepoint.com</code>.</li>
+  <li><b>Agent</b>: the agent that downloads (Windows or Linux, version 0.34.0 or newer; 0.35.0 for calendars, contacts and SharePoint). It needs HTTPS access to <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> and, for OneDrive and SharePoint files, <code>*.sharepoint.com</code>.</li>
   <li><b>Directory (tenant) ID</b>, <b>Application (client) ID</b> and <b>Client secret</b> from step 1. The secret is stored encrypted.</li>
-  <li><b>Mail</b> and/or <b>OneDrive</b>.</li>
+  <li>What to back up: <b>Mail</b>, <b>OneDrive</b>, <b>Calendars and contacts</b>, <b>SharePoint sites</b> — any combination.</li>
   <li><b>Accounts</b>: one address per line, or empty for every account of the tenant that has a mailbox or OneDrive — accounts added later are included automatically; accounts without a license are skipped.</li>
+  <li><b>SharePoint sites</b>: one site address per line (e.g. <code>https://contoso.sharepoint.com/sites/sales</code>), or empty for every site of the tenant — sites added later are included automatically. Personal sites (OneDrive) are left out; they are backed up with the accounts. A job with only SharePoint needs no accounts.</li>
 </ul>
-<p>When the job is saved, the console signs in as the app and checks the permissions and the accounts, so a wrong secret or a missing admin consent shows at once. A console without internet access skips the check; the first backup then shows whether it works.</p>
+<p>When the job is saved, the console signs in as the app and checks the permissions, the accounts and the sites, so a wrong secret or a missing admin consent shows at once. A console without internet access skips the check; the first backup then shows whether it works.</p>
 
 <h2 id="what">What is backed up</h2>
 <ul>
   <li><b>Mail</b>: all mail folders with their subfolders (Inbox, Sent Items, Deleted Items, Archive, your own folders…). Each message is stored complete with attachments in MIME format as an <code>.eml</code> file, named by when it arrived and its subject, e.g. <code>2026-10-07 0621 Offer for October [3fa2c1d9e0].eml</code>. Outlook, Thunderbird and most mail programs open .eml files.</li>
   <li><b>OneDrive</b>: all files and folders of the account's OneDrive, with their modification time.</li>
+  <li><b>Calendars</b>: every calendar of the account; each event as an iCalendar file (<code>.ics</code>) with time, place, description, organizer, attendees, reminder and — for a series — its recurrence, named by its start and subject, e.g. <code>2026-10-08 1000 Board meeting [8c1e…].ics</code>. Outlook, Google Calendar and Thunderbird import .ics files. Times are stored in UTC.</li>
+  <li><b>Contacts</b>: the account's contacts and contact folders, each as a vCard (<code>.vcf</code>) with names, e-mail addresses, phone numbers, addresses, company and notes.</li>
+  <li><b>SharePoint</b>: every document library of each site (Documents, Site Assets and libraries you created), with all folders and files.</li>
 </ul>
-<p>Not yet included: calendars, contacts, Teams chats, SharePoint sites and shared mailboxes without a user account.</p>
-<p>A backup holds one folder per account: <code>ana@contoso.com/Mail/Inbox/…</code> and <code>ana@contoso.com/OneDrive/…</code>. The first backup downloads everything; every later backup lists the folders again but downloads only messages and files that are new or changed since the previous backup (read, flagged, moved or edited messages count as changed) — unchanged data is taken from the previous backup. Microsoft limits how fast an app may read; BackupZit waits when Microsoft asks it to and continues, so a first backup of large mailboxes can take hours.</p>
+<p>Not included: attachments of calendar events, contact photos, single changed occurrences of a series, SharePoint lists and pages (only document libraries), Teams chats and channel messages (Teams files are in SharePoint and are backed up with it), and shared mailboxes without a user account.</p>
+<p>A backup holds one folder per account — <code>ana@contoso.com/Mail/Inbox/…</code>, <code>…/OneDrive/…</code>, <code>…/Calendar/Calendar/…</code>, <code>…/Contacts/…</code> — and <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code>. The first backup downloads everything; every later backup lists the folders again but downloads only messages and files that are new or changed since the previous backup (read, flagged, moved or edited messages count as changed) — unchanged data is taken from the previous backup. Microsoft limits how fast an app may read; BackupZit waits when Microsoft asks it to and continues, so a first backup of large mailboxes can take hours.</p>
 <p>The backups of a tenant are stored in their own repository on the storage target (folder <code>m365-&lt;tenant ID&gt;</code>), so the downloading agent can be replaced without starting over.</p>
 
 <h2 id="restore">Restoring</h2>
 <ul>
-  <li><b>Browse files</b> on a backup run: open an account's mail folders or OneDrive, tick messages, files or folders and <b>download</b> them (one file as is, several as a ZIP) — open the .eml files in Outlook or drag them into a mailbox.</li>
-  <li><b>Restore into a folder</b> on any agent: the messages are written as .eml files and the OneDrive files as they were, below <code>&lt;folder&gt;/&lt;account&gt;/…</code>.</li>
+  <li><b>Browse files</b> on a backup run: open an account's mail folders, OneDrive, calendars or contacts, or a SharePoint site, tick messages, events, files or folders and <b>download</b> them (one file as is, several as a ZIP) — open the .eml files in Outlook or drag them into a mailbox.</li>
+  <li><b>Restore into a folder</b> on any agent: the messages are written as .eml files, events as .ics, contacts as .vcf and OneDrive and SharePoint files as they were, below <code>&lt;folder&gt;/&lt;account&gt;/…</code> and <code>&lt;folder&gt;/SharePoint/…</code>.</li>
 </ul>
 <p>Restoring directly into a mailbox or OneDrive is planned; it will write only into a new folder and never overwrite or delete.</p>
 

@@ -558,8 +558,8 @@ func (s *Store) checkJob(ctx context.Context, j *Job) error {
 	}
 	if j.Kind != JobM365 {
 		j.Options.clearM365()
-	} else if m365AgentTooOld(agent) {
-		return fmt.Errorf("the agent on %s (%s) cannot back up Microsoft 365 yet; update it to %s or newer, or choose another agent", agent.Hostname, agent.Version, minM365Version)
+	} else if min := m365MinVersion(j.Options); agentOlder(agent, min) {
+		return fmt.Errorf("the agent on %s (%s) cannot back up %s yet; update it to %s or newer, or choose another agent", agent.Hostname, agent.Version, m365Parts(j.Options), min)
 	}
 	if j.Kind == JobSystem && (strings.Contains(strings.ToLower(agent.OS), "windows") || agent.Recovery) {
 		return fmt.Errorf("%s is not a Linux machine; use a disk image job for Windows", agent.Hostname)

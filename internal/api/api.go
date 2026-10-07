@@ -257,6 +257,11 @@ type M365Source struct {
 	Secret   string `json:"secret"`
 	Mail     bool   `json:"mail,omitempty"`
 	OneDrive bool   `json:"onedrive,omitempty"`
+	// Calendar adds calendars and contacts; SharePoint the document
+	// libraries of Sites (none: every site).
+	Calendar   bool     `json:"calendar,omitempty"`
+	SharePoint bool     `json:"sharepoint,omitempty"`
+	Sites      []string `json:"sites,omitempty"`
 }
 
 // RunResult is reported by the agent when a run finishes.

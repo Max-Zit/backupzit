@@ -185,6 +185,9 @@ func (c *Client) do(ctx context.Context, path string) (*http.Response, error) {
 			return nil, err
 		}
 		req.Header.Set("Authorization", "Bearer "+tok)
+		if p, ok := ctx.Value(preferKey{}).(string); ok {
+			req.Header.Set("Prefer", p)
+		}
 		resp, err := c.http.Do(req)
 		if err != nil {
 			if ctx.Err() != nil || try >= maxTries {
@@ -248,6 +251,14 @@ func readError(resp *http.Response) error {
 		e.Message = http.StatusText(resp.StatusCode)
 	}
 	return e
+}
+
+// preferKey carries a Prefer header for the requests of a context.
+type preferKey struct{}
+
+// withPrefer asks Graph for times in UTC and bodies as text (events).
+func withPrefer(ctx context.Context) context.Context {
+	return context.WithValue(ctx, preferKey{}, `outlook.timezone="UTC", outlook.body-content-type="text"`)
 }
 
 // getJSON decodes one answer.

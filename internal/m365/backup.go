@@ -19,20 +19,27 @@ import (
 	"github.com/restic/chunker"
 )
 
-// Snapshots of Microsoft 365 hold one folder per account:
+// Snapshots of Microsoft 365 hold one folder per account and one for
+// SharePoint:
 //
 //	<account>/Mail/<mail folder>/.../<date> <subject> [<id>].eml
 //	<account>/OneDrive/<folders>/<file>
+//	<account>/Calendar/<calendar>/<start> <subject> [<id>].ics
+//	<account>/Contacts/<folder>/.../<name> [<id>].vcf
+//	SharePoint/<site>/<library>/<folders>/<file>
 //
 // Messages are stored in MIME format, as Outlook and other mail programs
 // open them. A message or file whose modification time (and for files the
 // size) equals the one in the previous backup reuses its stored data
 // without downloading it again.
 
-// Folder names below an account.
+// Folder names below an account and at the top.
 const (
-	MailDir     = "Mail"
-	OneDriveDir = "OneDrive"
+	MailDir       = "Mail"
+	OneDriveDir   = "OneDrive"
+	CalendarDir   = "Calendar"
+	ContactsDir   = "Contacts"
+	SharePointDir = "SharePoint"
 	// Tag marks Microsoft 365 snapshots.
 	Tag = "m365"
 )
@@ -44,6 +51,12 @@ type Options struct {
 	Users    []string
 	Mail     bool
 	OneDrive bool
+	// Calendar backs up the calendars and contacts of the accounts.
+	Calendar bool
+	// SharePoint backs up the document libraries of Sites (addresses;
+	// none means every site of the tenant).
+	SharePoint bool
+	Sites      []string
 	// Parent is the previous backup of the same job (nil: full backup).
 	Parent   *repo.Snapshot
 	Hostname string
@@ -55,6 +68,8 @@ type Options struct {
 	Progress func(s *repo.SnapshotStats)
 }
 
+func (o Options) accounts() bool { return o.Mail || o.OneDrive || o.Calendar }
+
 // Result of a backup.
 type Result struct {
 	Snapshot *repo.Snapshot
@@ -62,6 +77,8 @@ type Result struct {
 	// without a mailbox or OneDrive (all accounts mode).
 	Accounts []string
 	Skipped  []string
+	// Sites are the SharePoint sites backed up.
+	Sites []string
 }
 
 type backup struct {
@@ -76,8 +93,8 @@ type backup struct {
 
 // Backup reads the accounts from Microsoft 365 and saves a snapshot.
 func Backup(ctx context.Context, r *repo.Repository, c *Client, opts Options) (*Result, error) {
-	if !opts.Mail && !opts.OneDrive {
-		return nil, errors.New("choose mail, OneDrive or both")
+	if !opts.accounts() && !opts.SharePoint {
+		return nil, errors.New("choose mail, OneDrive, calendars and contacts or SharePoint")
 	}
 	if opts.Workers <= 0 {
 		opts.Workers = 4
@@ -88,13 +105,15 @@ func Backup(ctx context.Context, r *repo.Repository, c *Client, opts Options) (*
 
 	var accounts []User
 	all := len(opts.Users) == 0
-	if all {
+	switch {
+	case !opts.accounts():
+	case all:
 		us, err := c.Users(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("list the accounts: %w", err)
 		}
 		accounts = us
-	} else {
+	default:
 		for _, name := range opts.Users {
 			u, err := c.User(ctx, name)
 			if err != nil {
@@ -134,6 +153,16 @@ func Backup(ctx context.Context, r *repo.Repository, c *Client, opts Options) (*
 		root.Nodes = append(root.Nodes, n)
 		res.Accounts = append(res.Accounts, u.UserPrincipalName)
 	}
+	if opts.SharePoint {
+		n, sites, err := b.sharePoint(ctx, b.subtree(ctx, ptree, SharePointDir))
+		if err != nil {
+			return nil, err
+		}
+		if len(sites) > 0 {
+			root.Nodes = append(root.Nodes, n)
+			res.Sites = sites
+		}
+	}
 	if len(root.Nodes) == 0 {
 		if len(b.stats.Errors) > 0 {
 			return nil, errors.New(b.stats.Errors[0])
@@ -152,9 +181,12 @@ func Backup(ctx context.Context, r *repo.Repository, c *Client, opts Options) (*
 	b.stats.BytesAdded = after.RawBytes - before.RawBytes
 	b.stats.BytesStored = after.StoredBytes - before.StoredBytes
 	b.stats.Duration = time.Since(b.start)
-	paths := make([]string, len(res.Accounts))
-	for i, a := range res.Accounts {
-		paths[i] = "/" + strings.ToLower(a)
+	paths := make([]string, 0, len(res.Accounts)+1)
+	for _, a := range res.Accounts {
+		paths = append(paths, "/"+strings.ToLower(a))
+	}
+	if len(res.Sites) > 0 {
+		paths = append(paths, "/"+SharePointDir)
 	}
 	sn := &repo.Snapshot{
 		Time:           b.start.UTC(),
@@ -179,9 +211,9 @@ func Backup(ctx context.Context, r *repo.Repository, c *Client, opts Options) (*
 	return res, nil
 }
 
-// account backs up the mailbox and OneDrive of one account. found is
-// false when it has neither (no license); explicit reports that as an
-// error, for accounts the job names.
+// account backs up the mailbox, OneDrive, calendars and contacts of one
+// account. found is false when it has none of them (no license); explicit
+// reports that as an error, for accounts the job names.
 func (b *backup) account(ctx context.Context, u User, ptree *repo.Tree, explicit bool) (repo.Node, bool, error) {
 	t := &repo.Tree{}
 	found := false
@@ -207,6 +239,26 @@ func (b *backup) account(ctx context.Context, u User, ptree *repo.Tree, explicit
 			found = true
 		} else if explicit && !b.opts.Mail {
 			b.addError(u.UserPrincipalName, errors.New("the account has no OneDrive"))
+		}
+	}
+	if b.opts.Calendar {
+		n, ok, err := b.calendars(ctx, u, b.subtree(ctx, ptree, CalendarDir))
+		if err != nil {
+			return repo.Node{}, false, err
+		}
+		if ok {
+			t.Nodes = append(t.Nodes, n)
+			found = true
+		} else if explicit && !b.opts.Mail {
+			b.addError(u.UserPrincipalName, errors.New("the account has no Exchange Online mailbox"))
+		}
+		n, ok, err = b.contactBook(ctx, u, b.subtree(ctx, ptree, ContactsDir))
+		if err != nil {
+			return repo.Node{}, false, err
+		}
+		if ok {
+			t.Nodes = append(t.Nodes, n)
+			found = true
 		}
 	}
 	if !found {
@@ -562,8 +614,13 @@ func messageName(m Message) string {
 	if strings.TrimSpace(m.Subject) == "" {
 		subj = "(no subject)"
 	}
-	h := sha256.Sum256([]byte(m.ID))
-	return fmt.Sprintf("%s %s [%s].eml", t.UTC().Format("2006-01-02 1504"), subj, hex.EncodeToString(h[:])[:10])
+	return fmt.Sprintf("%s %s [%s].eml", t.UTC().Format("2006-01-02 1504"), subj, idHash(m.ID))
+}
+
+// idHash is a short hash of a Graph ID, which keeps names unique.
+func idHash(id string) string {
+	h := sha256.Sum256([]byte(id))
+	return hex.EncodeToString(h[:])[:10]
 }
 
 // cleanName makes a name valid as a file name on Windows and Linux and

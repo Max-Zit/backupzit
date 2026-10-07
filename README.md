@@ -23,8 +23,8 @@ connect to it over HTTPS.
 8. **Users** — local accounts, roles (Administrator, Backup operator, Restore operator, Viewer), LDAPS/Active Directory sign-in, four-eyes approval, audit log ✅; reports, calendar, in-console documentation ✅; console in 14 languages (English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Czech, Serbian, Turkish, Russian, Chinese, Japanese) ✅
 9. **Linux system backup** — whole systems with disk layout, restore to bare metal or as a Proxmox VM (P2V) ✅; **NAS shares** (SMB, NFS) through an agent ✅; **databases** — Microsoft SQL Server, PostgreSQL and MySQL/MariaDB: native full and log backups, point-in-time restore of single databases ✅
 10. **Appliance** — installer ISO and OVA/qcow2/VHDX images ✅, trusted HTTPS certificates ✅, signed console self-update with rollback ✅, OS updates from the console ✅, backup and restore of the console itself ✅
-11. **Microsoft 365** — Exchange Online mailboxes (every message as .eml) and OneDrive through Microsoft Graph, read-only app permissions, incremental; browse, download, restore into a folder ✅
-12. **Later** — vCenter, instant recovery for Hyper-V, Microsoft 365 restore into mailboxes, calendars, contacts, SharePoint and Teams
+11. **Microsoft 365** — Exchange Online mailboxes (every message as .eml), calendars (.ics), contacts (.vcf), OneDrive and SharePoint document libraries through Microsoft Graph, read-only app permissions, incremental; browse, download, restore into a folder ✅
+12. **Later** — vCenter, instant recovery for Hyper-V, Microsoft 365 restore into mailboxes, Teams chats
 
 Supported agent platforms: Windows 10, 11, Server 2016+ (MSI); Windows 7, Server 2008 R2/2012 R2
 (legacy MSI built with the go-legacy-win7 toolchain: `build-msi.ps1 -Legacy`);
