@@ -41,6 +41,11 @@ type Client struct {
 	token   string
 	expires time.Time
 	roles   []string
+
+	// throttled counts answers that asked to slow down (429, 503) and
+	// waited the time spent waiting for them.
+	throttled int
+	waited    time.Duration
 }
 
 // NewClient returns a client; nothing is sent before the first call.
@@ -70,6 +75,14 @@ func IsNotFound(err error) bool {
 	var e *Error
 	return errors.As(err, &e) && (e.Status == http.StatusNotFound ||
 		e.Code == "MailboxNotEnabledForRESTAPI" || e.Code == "MailboxNotHostedInExchangeOnline" || e.Code == "ResourceNotFound")
+}
+
+// Throttled reports how often Microsoft asked to slow down and how long
+// the client waited.
+func (c *Client) Throttled() (int, time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.throttled, c.waited
 }
 
 // Roles are the application permissions in the current token.
@@ -197,7 +210,14 @@ func (c *Client) do(ctx context.Context, path string) (*http.Response, error) {
 		if !retry || try >= maxTries {
 			return nil, gerr
 		}
-		if err := sleep(ctx, retryWait(try, resp.Header.Get("Retry-After"))); err != nil {
+		wait := retryWait(try, resp.Header.Get("Retry-After"))
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+			c.mu.Lock()
+			c.throttled++
+			c.waited += wait
+			c.mu.Unlock()
+		}
+		if err := sleep(ctx, wait); err != nil {
 			return nil, err
 		}
 	}

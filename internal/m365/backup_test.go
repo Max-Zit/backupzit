@@ -232,6 +232,9 @@ func TestBackupIncremental(t *testing.T) {
 	if len(sn.Stats.Errors) != 0 {
 		t.Fatalf("errors: %v", sn.Stats.Errors)
 	}
+	if n, _ := c.Throttled(); n != 1 {
+		t.Errorf("throttled %d times, want 1", n)
+	}
 	if got := g.downloads.Load(); got != 5 {
 		t.Fatalf("first backup downloaded %d items, want 5", got)
 	}

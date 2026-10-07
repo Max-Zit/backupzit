@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/m365"
@@ -51,6 +52,9 @@ func (a *Agent) m365Backup(ctx context.Context, run api.Run) api.RunResult {
 	out.Message = count(len(res.Accounts), "account", "accounts") + ": " + strings.Join(res.Accounts, ", ")
 	if len(res.Skipped) > 0 {
 		out.Message += fmt.Sprintf(". %s without mailbox or OneDrive skipped", count(len(res.Skipped), "account", "accounts"))
+	}
+	if n, wait := c.Throttled(); n > 0 {
+		out.Message += fmt.Sprintf(". Microsoft 365 asked %d times to slow down (waited %s)", n, wait.Round(time.Second))
 	}
 	if len(sn.Stats.Errors) > 0 {
 		out.Status = api.StatusWarning
