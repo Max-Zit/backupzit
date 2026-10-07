@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Monitoramento, relatórios e calendário</h1>
+<p class="lead">Veja de relance se tudo está protegido, descubra o que aconteceu em qualquer dia e envie relatórios regulares para a diretoria ou para clientes.</p>
+
+<h2>Painel</h2>
+<p>Os primeiros cartões contam o que está protegido: <b>máquinas</b> (backups de arquivos, imagens e sistemas), <b>VMs</b>, <b>bancos de dados</b> e <b>compartilhamentos NAS</b> (exibidos quando houver um), cada um com um backup bem-sucedido. <b>Requer atenção</b> lista o que olhar: tarefas cuja última execução falhou, tarefas que perderam o agendamento (nenhum sucesso desde a penúltima execução agendada — fins de semana e janelas de horário do agendamento são considerados), agentes que não se conectam há 15 minutos, destinos de armazenamento com 90 % ocupados ou que vão encher em 30 dias (veja <a href="/docs/storage">Destinos de armazenamento</a>) e alterações aguardando a aprovação de um segundo usuário. Quando nada aparece, está tudo bem.</p>
+<p>Os demais cartões mostram agentes online, tarefas de backup, destinos de armazenamento, execuções na fila e em andamento, execuções, falhas e avisos das últimas 24 horas e <b>backups suspeitos para revisar</b> (possível ransomware, veja <a href="/docs/ransomware">Proteção contra ransomware</a>). Verde significa tudo bem, amarelo pede uma olhada, vermelho pede ação. Abaixo está a atividade mais recente.</p>
+
+<h2>Atividade</h2>
+<p>Todas as execuções, da mais nova para a mais antiga. Clique em uma execução para ver detalhes: o que foi processado, estatísticas, erros por arquivo e — nos backups — as opções de restauração. Execuções em andamento se atualizam sozinhas. Execuções agendadas mostram um ícone de relógio.</p>
+<h3>Tipos de execução</h3>
+<table>
+  <tr><th>Tipo</th><th>O que é</th></tr>
+  <tr><td>backup</td><td>Backup de arquivos e pastas de uma tarefa.</td></tr>
+  <tr><td>image-backup</td><td>Backup de imagem de disco.</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Backup do sistema Linux e sua restauração em um disco ou como VM do Proxmox.</td></tr>
+  <tr><td>agent-update</td><td>Instalação de uma versão mais nova do agente iniciada na página Agentes.</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Backup e restauração de máquinas virtuais do Proxmox VE, Hyper-V e VMware ESXi (e de contêineres do Proxmox).</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Recuperação instantânea (Proxmox VE, VMware ESXi): uma VM iniciada a partir de um backup, e sua conclusão (discos movidos ou copiados para um armazenamento) ou exclusão.</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>Backups de bancos de dados (SQL Server, PostgreSQL, MySQL/MariaDB), seus backups de log e a restauração de um banco.</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>Replicação do Proxmox após um backup de VM, e início de uma réplica (failover).</td></tr>
+  <tr><td>vm-file-restore</td><td>Arquivos copiados de um disco de VM em um backup do Proxmox, Hyper-V ou VMware para um agente.</td></tr>
+  <tr><td>copy</td><td>Tarefa de cópia de backup: backups de outra tarefa copiados para um segundo armazenamento.</td></tr>
+  <tr><td>verify</td><td><a href="/docs/restore">Teste de restauração</a> automático ou manual.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Restaurações de arquivos, de um disco inteiro ou de arquivos de uma imagem.</td></tr>
+</table>
+<h3>Status</h3>
+<table>
+  <tr><th>Status</th><th>Significado</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>Aguardando o agente (ele pode estar offline). Backups sempre começam antes dos testes de restauração.</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>Em andamento.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Concluída sem problemas.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Concluída, mas alguns arquivos não puderam ser lidos (eles são listados). O resto foi copiado.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Não concluída — armazenamento inacessível, credenciais erradas, disco cheio, disco USB não conectado, teste de restauração encontrou dados danificados… A mensagem explica o motivo.</td></tr>
+  <tr><td><span class="badge">expirado</span></td><td>O snapshot foi removido pela retenção da tarefa.</td></tr>
+  <tr><td><span class="badge failed"><i></i>suspeito</span></td><td>O backup parece ransomware ou exclusão em massa; a retenção da tarefa fica pausada até ele ser revisado. Amarelo após a revisão.</td></tr>
+</table>
+
+<h2>Calendário</h2>
+<p>O <a href="/calendar">Calendário</a> mostra um mês por vez:</p>
+<ul>
+  <li><b>Dias passados</b> mostram o que realmente rodou — backups e cópias — colorido pelo resultado (verde, amarelo, vermelho). Execuções repetidas de uma tarefa no mesmo dia são agrupadas, por ex. <i>08:00 Arquivos do escritório ×6</i>.</li>
+  <li><b>Dias futuros</b> mostram o que os agendamentos vão iniciar (azul).</li>
+  <li>Um dia com muitas entradas mostra quatro e <b>+N a mais</b>; clique para ver todas, clique de novo para recolher.</li>
+  <li><b>Próximos 7 dias</b> lista cada execução futura em ordem.</li>
+</ul>
+<p>Filtre por agente para ver o plano de uma máquina. Clique em uma entrada para abrir a tarefa. Tarefas de cópia que rodam "após cada backup" aparecem nos dias em que a tarefa de origem rodou.</p>
+
+<h2>Relatórios</h2>
+<p><a href="/reports">Relatórios</a> resumem qualquer período: hoje, ontem, últimos 7/30/90 dias, esta semana ou a anterior, este mês ou o anterior, ou um intervalo de datas personalizado — para todos os agentes, um agente ou uma tarefa.</p>
+<ul>
+  <li>Número de backups, taxa de sucesso, execuções bem-sucedidas / com aviso / com falha, dados lidos e enviados, restaurações, testes de restauração (e testes com falha), backups suspeitos.</li>
+  <li>Um gráfico de backups por dia.</li>
+  <li>Por tarefa: execuções, taxa de sucesso, último resultado, <b>último backup bom</b>, tamanho protegido, dados enviados e o resultado do <b>teste de restauração</b> mais recente. Uma tarefa sem backup bom no período é destacada.</li>
+  <li>Todas as falhas, avisos e backups suspeitos com suas mensagens.</li>
+</ul>
+<p>Use <b>CSV</b> para abrir todas as execuções no Excel (seguro contra fórmulas), <b>Imprimir / PDF</b> para um documento, ou <b>Enviar este relatório por e-mail</b>. Os mesmos dados ficam disponíveis para ferramentas de monitoramento pela <a href="/docs/api">REST API</a> (<code>/api/v1/report</code>).</p>
+
+<h3>Relatórios agendados</h3>
+<p>Em <i>Relatórios agendados</i> crie relatórios enviados automaticamente por e-mail quando um período termina:</p>
+<ul>
+  <li><b>Diário</b> — toda manhã, sobre o dia anterior.</li>
+  <li><b>Semanal</b> — toda segunda-feira, sobre a semana anterior.</li>
+  <li><b>Mensal</b> — no dia 1º, sobre o mês anterior (ideal para clientes ou diretoria).</li>
+</ul>
+<p>Escolha a hora, o escopo (todos os agentes, um agente ou uma tarefa) e os destinatários (vazio = os destinatários das notificações). O CSV com todas as execuções vai em anexo. O e-mail precisa estar configurado em <a href="/settings/email">Configurações → Notificações por e-mail</a>. Criar e remover relatórios agendados exige a função Operador de backup ou Administrador.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

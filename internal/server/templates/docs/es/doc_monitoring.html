@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Supervisión, informes y calendario</h1>
+<p class="lead">Vea de un vistazo si todo está protegido, averigüe qué ocurrió cualquier día y envíe informes periódicos a la dirección o a los clientes.</p>
+
+<h2>Panel</h2>
+<p>Las primeras tarjetas cuentan lo que está protegido: <b>máquinas</b> (copias de archivos, imágenes y sistemas), <b>VM</b>, <b>bases de datos</b> y <b>recursos NAS</b> (se muestran en cuanto hay uno), cada uno con una copia correcta. <b>Requiere atención</b> muestra lo que hay que revisar: trabajos cuya última ejecución falló, trabajos que no cumplieron su programación (sin éxito desde la penúltima ejecución programada; se tienen en cuenta los fines de semana y las ventanas horarias de la programación), agentes que llevan 15 minutos sin conectarse, destinos de almacenamiento llenos al 90 % o que se llenarán en 30 días (consulte <a href="/docs/storage">Destinos de almacenamiento</a>) y cambios pendientes de la aprobación de un segundo usuario. Si no aparece nada, todo está bien.</p>
+<p>Las demás tarjetas muestran los agentes en línea, los trabajos de copia, los destinos de almacenamiento, las ejecuciones en cola y en curso, las ejecuciones, fallos y advertencias de las últimas 24 horas, y las <b>copias sospechosas por revisar</b> (posible ransomware, consulte <a href="/docs/ransomware">Protección contra ransomware</a>). Verde significa bien, amarillo que hay que mirar, rojo que hay que actuar. Debajo está la actividad más reciente.</p>
+
+<h2>Actividad</h2>
+<p>Todas las ejecuciones, las más recientes primero. Haga clic en una ejecución para ver los detalles: qué se procesó, estadísticas, errores por archivo y, en las copias, las opciones de restauración. Las ejecuciones en curso se actualizan solas. Las ejecuciones programadas muestran un icono de reloj.</p>
+<h3>Tipos de ejecución</h3>
+<table>
+  <tr><th>Tipo</th><th>Qué es</th></tr>
+  <tr><td>backup</td><td>Copia de archivos y carpetas de un trabajo.</td></tr>
+  <tr><td>image-backup</td><td>Copia de imagen de disco.</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Copia del sistema Linux y su restauración en un disco o como VM de Proxmox.</td></tr>
+  <tr><td>agent-update</td><td>Instalación de una versión más reciente del agente iniciada desde la página Agentes.</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Copia y restauración de máquinas virtuales de Proxmox VE, Hyper-V y VMware ESXi (y de contenedores de Proxmox).</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Recuperación instantánea (Proxmox VE, VMware ESXi): una VM iniciada desde una copia, y su finalización (discos movidos o copiados a un almacenamiento) o su eliminación.</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>Copias de bases de datos (SQL Server, PostgreSQL, MySQL/MariaDB), sus copias de registros y la restauración de una base.</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>Replicación de Proxmox tras una copia de VM, e inicio de una réplica (conmutación por error).</td></tr>
+  <tr><td>vm-file-restore</td><td>Archivos copiados de un disco de VM de una copia de Proxmox, Hyper-V o VMware a un agente.</td></tr>
+  <tr><td>copy</td><td>Trabajo de copia secundaria: copias de otro trabajo copiadas a un segundo almacenamiento.</td></tr>
+  <tr><td>verify</td><td><a href="/docs/restore">Prueba de restauración</a> automática o manual.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Restauraciones de archivos, de un disco completo o de archivos de una imagen.</td></tr>
+</table>
+<h3>Estado</h3>
+<table>
+  <tr><th>Estado</th><th>Significado</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>Esperando al agente (puede estar sin conexión). Las copias siempre se inician antes que las pruebas de restauración.</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>En curso.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Completada sin problemas.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Completada, pero no se pudieron leer algunos archivos (se enumeran). El resto está copiado.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>No se completó: almacenamiento inaccesible, credenciales erróneas, disco lleno, disco USB no conectado, la prueba de restauración encontró datos dañados… El mensaje explica el motivo.</td></tr>
+  <tr><td><span class="badge">caducado</span></td><td>La retención del trabajo eliminó la instantánea.</td></tr>
+  <tr><td><span class="badge failed"><i></i>sospechosa</span></td><td>La copia parece ransomware o un borrado masivo; la retención del trabajo queda en pausa hasta que se revise. Amarilla una vez revisada.</td></tr>
+</table>
+
+<h2>Calendario</h2>
+<p>El <a href="/calendar">Calendario</a> muestra un mes cada vez:</p>
+<ul>
+  <li>Los <b>días pasados</b> muestran lo que se ejecutó realmente (copias y copias secundarias), coloreado según el resultado (verde, amarillo, rojo). Las ejecuciones repetidas de un trabajo en un mismo día se agrupan, p. ej. <i>08:00 Archivos de oficina ×6</i>.</li>
+  <li>Los <b>días futuros</b> muestran lo que iniciarán las programaciones (azul).</li>
+  <li>Un día con muchas entradas muestra cuatro y <b>+N más</b>; haga clic para verlas todas y de nuevo para contraerlas.</li>
+  <li><b>Próximos 7 días</b> enumera en orden cada ejecución futura.</li>
+</ul>
+<p>Filtre por agente para ver el plan de una máquina. Haga clic en una entrada para abrir el trabajo. Los trabajos de copia secundaria que se ejecutan «después de cada copia» aparecen los días en que se ejecutó su trabajo de origen.</p>
+
+<h2>Informes</h2>
+<p>Los <a href="/reports">Informes</a> resumen cualquier periodo: hoy, ayer, los últimos 7/30/90 días, esta semana o la anterior, este mes o el anterior, o un rango de fechas personalizado, para todos los agentes, un agente o un trabajo.</p>
+<ul>
+  <li>Número de copias, tasa de éxito, ejecuciones correctas / con advertencias / fallidas, datos leídos y enviados, restauraciones, pruebas de restauración (y pruebas fallidas), copias sospechosas.</li>
+  <li>Un gráfico de copias por día.</li>
+  <li>Por trabajo: ejecuciones, tasa de éxito, último resultado, <b>última copia correcta</b>, tamaño protegido, datos enviados y resultado de la <b>prueba de restauración</b> más reciente. Se resalta un trabajo sin copia correcta en el periodo.</li>
+  <li>Todos los fallos, advertencias y copias sospechosas con sus mensajes.</li>
+</ul>
+<p>Use <b>CSV</b> para abrir todas las ejecuciones en Excel (a salvo de fórmulas), <b>Imprimir / PDF</b> para obtener un documento, o <b>Enviar este informe por correo</b>. Los mismos datos están disponibles para las herramientas de supervisión mediante la <a href="/docs/api">REST API</a> (<code>/api/v1/report</code>).</p>
+
+<h3>Informes programados</h3>
+<p>En <i>Informes programados</i> cree informes que se envían automáticamente por correo cuando termina un periodo:</p>
+<ul>
+  <li><b>Diario</b>: cada mañana, sobre el día anterior.</li>
+  <li><b>Semanal</b>: cada lunes, sobre la semana anterior.</li>
+  <li><b>Mensual</b>: el día 1, sobre el mes anterior (ideal para clientes o la dirección).</li>
+</ul>
+<p>Elija la hora, el alcance (todos los agentes, un agente o un trabajo) y los destinatarios (vacío = los destinatarios de las notificaciones). Se adjunta el CSV con todas las ejecuciones. El correo debe estar configurado en <a href="/settings/email">Configuración → Notificaciones por correo</a>. Crear y eliminar informes programados requiere el rol Operador de copias o Administrador.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

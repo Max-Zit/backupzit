@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Überwachung, Berichte &amp; Kalender</h1>
+<p class="lead">Sehen Sie auf einen Blick, ob alles geschützt ist, finden Sie heraus, was an einem beliebigen Tag passiert ist, und senden Sie regelmäßige Berichte an die Geschäftsleitung oder an Kunden.</p>
+
+<h2>Dashboard</h2>
+<p>Die ersten Karten zählen, was geschützt ist: <b>Maschinen</b> (Datei-, Abbild- und Systemsicherungen), <b>VMs</b>, <b>Datenbanken</b> und <b>NAS-Freigaben</b> (sobald es eine gibt), jeweils mit erfolgreicher Sicherung. <b>Benötigt Aufmerksamkeit</b> listet auf, was anzusehen ist: Aufträge, deren letzter Lauf fehlgeschlagen ist, Aufträge, die ihren Zeitplan verpasst haben (kein Erfolg seit dem vorletzten geplanten Lauf — Wochenenden und Zeitfenster des Zeitplans werden berücksichtigt), Agenten, die sich seit 15 Minuten nicht gemeldet haben, Speicherziele, die zu 90 % voll sind oder innerhalb von 30 Tagen voll sein werden (siehe <a href="/docs/storage">Speicherziele</a>), und Änderungen, die auf die Freigabe eines zweiten Benutzers warten. Wenn nichts aufgeführt ist, ist alles in Ordnung.</p>
+<p>Die übrigen Karten zeigen Agenten online, Sicherungsaufträge, Speicherziele, eingereihte und laufende Läufe, Läufe, Fehler und Warnungen der letzten 24 Stunden sowie <b>zu prüfende verdächtige Sicherungen</b> (mögliche Ransomware, siehe <a href="/docs/ransomware">Schutz vor Ransomware</a>). Grün heißt in Ordnung, Gelb sollte man ansehen, Rot erfordert Handeln. Darunter steht die jüngste Aktivität.</p>
+
+<h2>Aktivität</h2>
+<p>Jeder Lauf, neueste zuerst. Klicken Sie auf einen Lauf für Details: was verarbeitet wurde, Statistik, Fehler pro Datei und — bei Sicherungen — die Wiederherstellungsoptionen. Laufende Läufe aktualisieren sich automatisch. Geplante Läufe zeigen ein Uhrsymbol.</p>
+<h3>Laufarten</h3>
+<table>
+  <tr><th>Art</th><th>Was es ist</th></tr>
+  <tr><td>backup</td><td>Datei- und Ordnersicherung eines Auftrags.</td></tr>
+  <tr><td>image-backup</td><td>Festplattenabbild-Sicherung.</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Linux-Systemsicherung und ihre Wiederherstellung auf eine Festplatte oder als Proxmox-VM.</td></tr>
+  <tr><td>agent-update</td><td>Installation einer neueren Agentenversion, gestartet auf der Seite Agenten.</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Sicherung und Wiederherstellung virtueller Maschinen in Proxmox VE, Hyper-V und VMware ESXi (und von Proxmox-Containern).</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Sofortige Wiederherstellung (Proxmox VE, VMware ESXi): eine aus einer Sicherung gestartete VM sowie ihr Abschluss (Festplatten auf Speicher verschoben oder kopiert) oder ihre Löschung.</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>Datenbanksicherungen (SQL Server, PostgreSQL, MySQL/MariaDB), ihre Log-Sicherungen und die Wiederherstellung einer Datenbank.</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>Proxmox-Replikation nach einer VM-Sicherung und Start eines Replikats (Failover).</td></tr>
+  <tr><td>vm-file-restore</td><td>Dateien, die aus einer VM-Festplatte in einer Proxmox-, Hyper-V- oder VMware-Sicherung auf einen Agenten kopiert wurden.</td></tr>
+  <tr><td>copy</td><td>Sicherungskopie-Auftrag: Sicherungen eines anderen Auftrags auf einen zweiten Speicher kopiert.</td></tr>
+  <tr><td>verify</td><td>Automatischer oder manueller <a href="/docs/restore">Wiederherstellungstest</a>.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Wiederherstellungen von Dateien, einer ganzen Festplatte oder von Dateien aus einem Abbild.</td></tr>
+</table>
+<h3>Status</h3>
+<table>
+  <tr><th>Status</th><th>Bedeutung</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>Wartet auf den Agenten (er ist vielleicht offline). Sicherungen werden immer vor Wiederherstellungstests gestartet.</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>Läuft.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Ohne Probleme abgeschlossen.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Abgeschlossen, aber einige Dateien konnten nicht gelesen werden (sie sind aufgeführt). Der Rest ist gesichert.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Nicht abgeschlossen — Speicher nicht erreichbar, falsche Zugangsdaten, Festplatte voll, USB-Festplatte nicht angeschlossen, Wiederherstellungstest hat beschädigte Daten gefunden… Die Meldung erklärt den Grund.</td></tr>
+  <tr><td><span class="badge">abgelaufen</span></td><td>Der Snapshot wurde durch die Aufbewahrung des Auftrags entfernt.</td></tr>
+  <tr><td><span class="badge failed"><i></i>verdächtig</span></td><td>Die Sicherung sieht nach Ransomware oder Massenlöschung aus; die Aufbewahrung des Auftrags ist pausiert, bis sie geprüft ist. Nach der Prüfung gelb.</td></tr>
+</table>
+
+<h2>Kalender</h2>
+<p><a href="/calendar">Kalender</a> zeigt jeweils einen Monat:</p>
+<ul>
+  <li><b>Vergangene Tage</b> zeigen, was tatsächlich lief — Sicherungen und Kopien —, nach Ergebnis eingefärbt (grün, gelb, rot). Wiederholte Läufe eines Auftrags an einem Tag werden zusammengefasst, z. B. <i>08:00 Bürodateien ×6</i>.</li>
+  <li><b>Zukünftige Tage</b> zeigen, was die Zeitpläne starten werden (blau).</li>
+  <li>Ein Tag mit vielen Einträgen zeigt vier und <b>+N weitere</b>; klicken Sie darauf, um alle zu sehen, und erneut, um sie einzuklappen.</li>
+  <li><b>Nächste 7 Tage</b> listet jeden anstehenden Lauf der Reihe nach auf.</li>
+</ul>
+<p>Filtern Sie nach Agent, um den Plan einer Maschine zu sehen. Klicken Sie auf einen Eintrag, um den Auftrag zu öffnen. Kopieraufträge, die „nach jeder Sicherung“ laufen, erscheinen an den Tagen, an denen ihr Quellauftrag lief.</p>
+
+<h2>Berichte</h2>
+<p><a href="/reports">Berichte</a> fassen einen beliebigen Zeitraum zusammen: heute, gestern, letzte 7/30/90 Tage, diese oder letzte Woche bzw. dieser oder letzter Monat, oder ein eigener Datumsbereich — für alle Agenten, einen Agenten oder einen Auftrag.</p>
+<ul>
+  <li>Anzahl der Sicherungen, Erfolgsquote, erfolgreiche / mit Warnung / fehlgeschlagene Läufe, gelesene und hochgeladene Daten, Wiederherstellungen, Wiederherstellungstests (und fehlgeschlagene Tests), verdächtige Sicherungen.</li>
+  <li>Ein Diagramm der Sicherungen pro Tag.</li>
+  <li>Pro Auftrag: Läufe, Erfolgsquote, letztes Ergebnis, <b>letzte gute Sicherung</b>, geschützte Größe, hochgeladene Daten und das Ergebnis des neuesten <b>Wiederherstellungstests</b>. Ein Auftrag ohne gute Sicherung im Zeitraum wird hervorgehoben.</li>
+  <li>Alle Fehler, Warnungen und verdächtigen Sicherungen mit ihren Meldungen.</li>
+</ul>
+<p>Verwenden Sie <b>CSV</b>, um alle Läufe in Excel zu öffnen (formelsicher), <b>Drucken / PDF</b> für ein Dokument oder <b>Diesen Bericht per E-Mail senden</b>. Dieselben Daten stehen Überwachungswerkzeugen über die <a href="/docs/api">REST API</a> zur Verfügung (<code>/api/v1/report</code>).</p>
+
+<h3>Geplante Berichte</h3>
+<p>Unter <i>Geplante Berichte</i> erstellen Sie Berichte, die automatisch per E-Mail gesendet werden, wenn ein Zeitraum abgeschlossen ist:</p>
+<ul>
+  <li><b>Täglich</b> — jeden Morgen, über den Vortag.</li>
+  <li><b>Wöchentlich</b> — jeden Montag, über die Vorwoche.</li>
+  <li><b>Monatlich</b> — am 1., über den Vormonat (ideal für Kunden oder die Geschäftsleitung).</li>
+</ul>
+<p>Wählen Sie die Stunde, den Umfang (alle Agenten, ein Agent oder ein Auftrag) und die Empfänger (leer = die Empfänger der Benachrichtigungen). Die CSV mit allen Läufen ist angehängt. E-Mail muss unter <a href="/settings/email">Einstellungen → E-Mail-Benachrichtigungen</a> eingerichtet sein. Erstellen und Entfernen geplanter Berichte erfordert die Rolle Sicherungsoperator oder Administrator.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

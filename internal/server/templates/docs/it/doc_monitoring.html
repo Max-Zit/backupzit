@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Monitoraggio, report e calendario</h1>
+<p class="lead">Vedi a colpo d'occhio se tutto è protetto, scopri cosa è successo in qualsiasi giorno e invia report regolari alla direzione o ai clienti.</p>
+
+<h2>Dashboard</h2>
+<p>Le prime schede contano ciò che è protetto: <b>macchine</b> (backup di file, immagini e sistemi), <b>VM</b>, <b>database</b> e <b>condivisioni NAS</b> (mostrate appena ce n'è una), ciascuna con un backup riuscito. <b>Richiede attenzione</b> elenca cosa controllare: job la cui ultima esecuzione non è riuscita, job che hanno saltato la pianificazione (nessun successo dalla penultima esecuzione pianificata — fine settimana e finestre orarie della pianificazione sono considerati), agenti che non si collegano da 15 minuti, destinazioni di archiviazione piene al 90 % o che lo saranno entro 30 giorni (vedi <a href="/docs/storage">Destinazioni di archiviazione</a>) e modifiche in attesa dell'approvazione di un secondo utente. Se non c'è nulla in elenco, va tutto bene.</p>
+<p>Le altre schede mostrano agenti online, job di backup, destinazioni di archiviazione, esecuzioni in coda e in corso, esecuzioni, errori e avvisi delle ultime 24 ore e i <b>backup sospetti da esaminare</b> (possibile ransomware, vedi <a href="/docs/ransomware">Protezione dal ransomware</a>). Verde significa tutto bene, giallo da controllare, rosso da intervenire. Sotto c'è l'attività più recente.</p>
+
+<h2>Attività</h2>
+<p>Ogni esecuzione, dalla più recente. Fai clic su un'esecuzione per i dettagli: cosa è stato elaborato, statistiche, errori per file e — per i backup — le opzioni di ripristino. Le esecuzioni in corso si aggiornano automaticamente. Le esecuzioni pianificate mostrano un'icona a forma di orologio.</p>
+<h3>Tipi di esecuzione</h3>
+<table>
+  <tr><th>Tipo</th><th>Che cos'è</th></tr>
+  <tr><td>backup</td><td>Backup di file e cartelle di un job.</td></tr>
+  <tr><td>image-backup</td><td>Backup di un'immagine disco.</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Backup del sistema Linux e suo ripristino su un disco o come VM Proxmox.</td></tr>
+  <tr><td>agent-update</td><td>Installazione di una versione più recente dell'agente avviata dalla pagina Agenti.</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Backup e ripristino di macchine virtuali Proxmox VE, Hyper-V e VMware ESXi (e container Proxmox).</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Ripristino istantaneo (Proxmox VE, VMware ESXi): una VM avviata da un backup, e il suo completamento (dischi spostati o copiati su uno storage) o la sua eliminazione.</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>Backup di database (SQL Server, PostgreSQL, MySQL/MariaDB), i loro backup dei log e il ripristino di un database.</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>Replica Proxmox dopo un backup di VM, e avvio di una replica (failover).</td></tr>
+  <tr><td>vm-file-restore</td><td>File copiati da un disco di VM in un backup Proxmox, Hyper-V o VMware su un agente.</td></tr>
+  <tr><td>copy</td><td>Job di copia dei backup: backup di un altro job copiati su un secondo storage.</td></tr>
+  <tr><td>verify</td><td><a href="/docs/restore">Test di ripristino</a> automatico o manuale.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Ripristini di file, di un intero disco o di file da un'immagine.</td></tr>
+</table>
+<h3>Stato</h3>
+<table>
+  <tr><th>Stato</th><th>Significato</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>In attesa dell'agente (potrebbe essere offline). I backup partono sempre prima dei test di ripristino.</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>In corso.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Completata senza problemi.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Completata, ma alcuni file non sono stati letti (sono elencati). Il resto è salvato.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Non completata — storage irraggiungibile, credenziali errate, disco pieno, disco USB non collegato, il test di ripristino ha trovato dati danneggiati… Il messaggio spiega il motivo.</td></tr>
+  <tr><td><span class="badge">scaduto</span></td><td>Lo snapshot è stato rimosso dalla conservazione del job.</td></tr>
+  <tr><td><span class="badge failed"><i></i>sospetto</span></td><td>Il backup sembra ransomware o una cancellazione di massa; la conservazione del job è sospesa finché non viene esaminato. Giallo dopo l'esame.</td></tr>
+</table>
+
+<h2>Calendario</h2>
+<p>Il <a href="/calendar">Calendario</a> mostra un mese alla volta:</p>
+<ul>
+  <li>I <b>giorni passati</b> mostrano cosa è stato effettivamente eseguito — backup e copie — colorato in base al risultato (verde, giallo, rosso). Le esecuzioni ripetute di un job nello stesso giorno vengono raggruppate, ad es. <i>08:00 File d'ufficio ×6</i>.</li>
+  <li>I <b>giorni futuri</b> mostrano cosa avvieranno le pianificazioni (blu).</li>
+  <li>Un giorno con molte voci ne mostra quattro e <b>+N altri</b>; fai clic per vederle tutte, di nuovo per comprimerle.</li>
+  <li><b>Prossimi 7 giorni</b> elenca in ordine ogni esecuzione in arrivo.</li>
+</ul>
+<p>Filtra per agente per vedere il piano di una macchina. Fai clic su una voce per aprire il job. I job di copia che girano "dopo ogni backup" compaiono nei giorni in cui è stato eseguito il loro job di origine.</p>
+
+<h2>Report</h2>
+<p>I <a href="/reports">Report</a> riassumono qualsiasi periodo: oggi, ieri, ultimi 7/30/90 giorni, questa o la scorsa settimana o mese, oppure un intervallo di date personalizzato — per tutti gli agenti, un agente o un job.</p>
+<ul>
+  <li>Numero di backup, percentuale di successo, esecuzioni riuscite / con avvisi / non riuscite, dati letti e caricati, ripristini, test di ripristino (e test non riusciti), backup sospetti.</li>
+  <li>Un grafico dei backup per giorno.</li>
+  <li>Per job: esecuzioni, percentuale di successo, ultimo risultato, <b>ultimo backup valido</b>, dimensione protetta, dati caricati e risultato del <b>test di ripristino</b> più recente. Un job senza backup valido nel periodo viene evidenziato.</li>
+  <li>Tutti gli errori, gli avvisi e i backup sospetti con i loro messaggi.</li>
+</ul>
+<p>Usa <b>CSV</b> per aprire tutte le esecuzioni in Excel (sicuro contro le formule), <b>Stampa / PDF</b> per un documento, oppure <b>Invia questo report via e-mail</b>. Gli stessi dati sono disponibili agli strumenti di monitoraggio tramite la <a href="/docs/api">REST API</a> (<code>/api/v1/report</code>).</p>
+
+<h3>Report pianificati</h3>
+<p>In <i>Report pianificati</i> crea report inviati automaticamente via e-mail al termine di un periodo:</p>
+<ul>
+  <li><b>Giornaliero</b> — ogni mattina, sul giorno precedente.</li>
+  <li><b>Settimanale</b> — ogni lunedì, sulla settimana precedente.</li>
+  <li><b>Mensile</b> — il 1° del mese, sul mese precedente (ideale per clienti o direzione).</li>
+</ul>
+<p>Scegli l'ora, l'ambito (tutti gli agenti, un agente o un job) e i destinatari (vuoto = i destinatari delle notifiche). Il CSV con tutte le esecuzioni è allegato. L'e-mail deve essere configurata in <a href="/settings/email">Impostazioni → Notifiche e-mail</a>. Creare e rimuovere report pianificati richiede il ruolo Operatore di backup o Amministratore.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

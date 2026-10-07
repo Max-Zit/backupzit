@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Bewaking, rapporten en kalender</h1>
+<p class="lead">Zie in één oogopslag of alles beschermd is, zoek uit wat er op een willekeurige dag is gebeurd, en stuur regelmatig rapporten naar het management of naar klanten.</p>
+
+<h2>Dashboard</h2>
+<p>De eerste kaarten tellen wat beschermd is: <b>machines</b> (bestands-, image- en systeemback-ups), <b>VM's</b>, <b>databases</b> en <b>NAS-shares</b> (getoond zodra er een is), elk met een geslaagde back-up. <b>Vraagt aandacht</b> toont waar u naar moet kijken: taken waarvan de laatste run mislukte, taken die hun schema hebben gemist (geen succes sinds de voorlaatste geplande run — weekenden en tijdvensters van het schema worden meegerekend), agents die al 15 minuten geen verbinding hebben gemaakt, opslagdoelen die voor 90 % vol zijn of binnen 30 dagen vol zullen zijn (zie <a href="/docs/storage">Opslagdoelen</a>), en wijzigingen die wachten op goedkeuring door een tweede gebruiker. Als er niets wordt vermeld, is alles in orde.</p>
+<p>De andere kaarten tonen agents online, back-uptaken, opslagdoelen, runs in de wachtrij en actieve runs, runs, fouten en waarschuwingen van de laatste 24 uur, en <b>verdachte back-ups om te controleren</b> (mogelijk ransomware, zie <a href="/docs/ransomware">Bescherming tegen ransomware</a>). Groen betekent in orde, geel vraagt om een blik, rood vraagt om actie. Daaronder staat de meest recente activiteit.</p>
+
+<h2>Activiteit</h2>
+<p>Elke run, nieuwste eerst. Klik op een run voor details: wat er is verwerkt, statistieken, fouten per bestand en — bij back-ups — de herstelopties. Actieve runs vernieuwen automatisch. Geplande runs tonen een klokpictogram.</p>
+<h3>Soorten runs</h3>
+<table>
+  <tr><th>Type</th><th>Wat het is</th></tr>
+  <tr><td>backup</td><td>Back-up van bestanden en mappen van een taak.</td></tr>
+  <tr><td>image-backup</td><td>Schijfimage-back-up.</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Linux-systeemback-up en het herstel ervan op een schijf of als Proxmox-VM.</td></tr>
+  <tr><td>agent-update</td><td>Installatie van een nieuwere agentversie, gestart vanaf de pagina Agents.</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Back-up en herstel van virtuele machines in Proxmox VE, Hyper-V en VMware ESXi (en Proxmox-containers).</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Direct herstel (Proxmox VE, VMware ESXi): een VM gestart vanuit een back-up, en het voltooien (schijven naar opslag verplaatst of gekopieerd) of verwijderen ervan.</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>Databaseback-ups (SQL Server, PostgreSQL, MySQL/MariaDB), hun logback-ups en het herstel van een database.</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>Proxmox-replicatie na een VM-back-up, en het starten van een replica (failover).</td></tr>
+  <tr><td>vm-file-restore</td><td>Bestanden die uit een VM-schijf in een Proxmox-, Hyper-V- of VMware-back-up naar een agent zijn gekopieerd.</td></tr>
+  <tr><td>copy</td><td>Back-upkopietaak: back-ups van een andere taak gekopieerd naar een tweede opslag.</td></tr>
+  <tr><td>verify</td><td>Automatische of handmatige <a href="/docs/restore">hersteltest</a>.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Herstel van bestanden, een hele schijf, of bestanden uit een image.</td></tr>
+</table>
+<h3>Status</h3>
+<table>
+  <tr><th>Status</th><th>Betekenis</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>Wacht op de agent (die mogelijk offline is). Back-ups starten altijd vóór hersteltests.</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>Bezig.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Zonder problemen voltooid.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Voltooid, maar sommige bestanden konden niet worden gelezen (ze worden vermeld). De rest is geback-upt.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Niet voltooid — opslag onbereikbaar, verkeerde inloggegevens, schijf vol, USB-schijf niet aangesloten, hersteltest vond beschadigde gegevens… De melding legt uit waarom.</td></tr>
+  <tr><td><span class="badge">verlopen</span></td><td>De snapshot is door het bewaarbeleid van de taak verwijderd.</td></tr>
+  <tr><td><span class="badge failed"><i></i>verdacht</span></td><td>De back-up lijkt op ransomware of massaal verwijderen; het bewaarbeleid van de taak is gepauzeerd tot hij is gecontroleerd. Geel na controle.</td></tr>
+</table>
+
+<h2>Kalender</h2>
+<p><a href="/calendar">Kalender</a> toont één maand tegelijk:</p>
+<ul>
+  <li><b>Afgelopen dagen</b> tonen wat er echt heeft gedraaid — back-ups en kopieën — gekleurd naar resultaat (groen, geel, rood). Herhaalde runs van een taak op één dag worden samengevoegd, bijv. <i>08:00 Kantoorbestanden ×6</i>.</li>
+  <li><b>Toekomstige dagen</b> tonen wat de schema's zullen starten (blauw).</li>
+  <li>Een dag met veel items toont er vier en <b>+N meer</b>; klik erop om ze allemaal te zien, klik nogmaals om in te klappen.</li>
+  <li><b>Komende 7 dagen</b> toont elke komende run op volgorde.</li>
+</ul>
+<p>Filter op agent om het plan van één machine te zien. Klik op een item om de taak te openen. Kopietaken die "na elke back-up" draaien, verschijnen op de dagen waarop hun brontaak draaide.</p>
+
+<h2>Rapporten</h2>
+<p><a href="/reports">Rapporten</a> vatten elke periode samen: vandaag, gisteren, de laatste 7/30/90 dagen, deze of vorige week of maand, of een eigen datumbereik — voor alle agents, één agent of één taak.</p>
+<ul>
+  <li>Aantal back-ups, slagingspercentage, geslaagde / met waarschuwing / mislukte runs, gelezen en geüploade gegevens, herstelbewerkingen, hersteltests (en mislukte tests), verdachte back-ups.</li>
+  <li>Een grafiek van back-ups per dag.</li>
+  <li>Per taak: runs, slagingspercentage, laatste resultaat, <b>laatste goede back-up</b>, beschermde grootte, geüploade gegevens en het resultaat van de nieuwste <b>hersteltest</b>. Een taak zonder goede back-up in de periode wordt gemarkeerd.</li>
+  <li>Alle fouten, waarschuwingen en verdachte back-ups met hun meldingen.</li>
+</ul>
+<p>Gebruik <b>CSV</b> om alle runs in Excel te openen (formuleveilig), <b>Afdrukken / PDF</b> voor een document, of <b>Dit rapport e-mailen</b>. Dezelfde gegevens zijn voor monitoringtools beschikbaar via de <a href="/docs/api">REST API</a> (<code>/api/v1/report</code>).</p>
+
+<h3>Geplande rapporten</h3>
+<p>Maak onder <i>Geplande rapporten</i> rapporten die automatisch worden gemaild wanneer een periode voorbij is:</p>
+<ul>
+  <li><b>Dagelijks</b> — elke ochtend, over de vorige dag.</li>
+  <li><b>Wekelijks</b> — elke maandag, over de vorige week.</li>
+  <li><b>Maandelijks</b> — op de 1e, over de vorige maand (ideaal voor klanten of management).</li>
+</ul>
+<p>Kies het uur, het bereik (alle agents, één agent of één taak) en de ontvangers (leeg = de ontvangers van de meldingen). De CSV met alle runs wordt bijgevoegd. E-mail moet zijn ingesteld onder <a href="/settings/email">Instellingen → E-mailmeldingen</a>. Geplande rapporten maken en verwijderen vereist de rol Back-upoperator of Beheerder.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

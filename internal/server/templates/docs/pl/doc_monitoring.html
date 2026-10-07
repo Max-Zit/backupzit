@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Monitorowanie, raporty i kalendarz</h1>
+<p class="lead">Zobacz na pierwszy rzut oka, czy wszystko jest chronione, sprawdź, co działo się dowolnego dnia, i wysyłaj regularne raporty kierownictwu lub klientom.</p>
+
+<h2>Pulpit</h2>
+<p>Pierwsze karty liczą, co jest chronione: <b>maszyny</b> (kopie plików, obrazów i systemów), <b>maszyny wirtualne</b>, <b>bazy danych</b> i <b>udziały NAS</b> (pokazywane, gdy jest choć jeden), każde z udaną kopią. <b>Wymaga uwagi</b> wymienia, czemu się przyjrzeć: zadania, których ostatnie uruchomienie się nie powiodło, zadania, które opuściły harmonogram (brak sukcesu od przedostatniego zaplanowanego uruchomienia — weekendy i okna czasowe harmonogramu są brane pod uwagę), agentów, którzy nie łączyli się od 15 minut, magazyny zapełnione w 90 % lub takie, które zapełnią się w ciągu 30 dni (zobacz <a href="/docs/storage">Magazyny docelowe</a>), oraz zmiany czekające na zatwierdzenie przez drugiego użytkownika. Gdy nic nie jest wymienione, wszystko jest w porządku.</p>
+<p>Pozostałe karty pokazują agentów online, zadania kopii, magazyny, uruchomienia w kolejce i w toku, uruchomienia, błędy i ostrzeżenia z ostatnich 24 godzin oraz <b>podejrzanych kopii do sprawdzenia</b> (możliwy ransomware, zobacz <a href="/docs/ransomware">Ochrona przed ransomware</a>). Zielony oznacza porządek, żółty — trzeba spojrzeć, czerwony — trzeba działać. Poniżej jest najnowsza aktywność.</p>
+
+<h2>Aktywność</h2>
+<p>Każde uruchomienie, od najnowszego. Kliknij uruchomienie, aby zobaczyć szczegóły: co zostało przetworzone, statystykę, błędy dla każdego pliku i — przy kopiach — opcje przywracania. Uruchomienia w toku odświeżają się automatycznie. Zaplanowane uruchomienia mają ikonę zegara.</p>
+<h3>Rodzaje uruchomień</h3>
+<table>
+  <tr><th>Typ</th><th>Co to jest</th></tr>
+  <tr><td>backup</td><td>Kopia plików i folderów zadania.</td></tr>
+  <tr><td>image-backup</td><td>Kopia obrazu dysku.</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Kopia systemu Linux i jej przywrócenie na dysk lub jako VM Proxmox.</td></tr>
+  <tr><td>agent-update</td><td>Instalacja nowszej wersji agenta uruchomiona ze strony Agenci.</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Kopia i przywracanie maszyn wirtualnych Proxmox VE, Hyper-V i VMware ESXi (oraz kontenerów Proxmox).</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Natychmiastowe odzyskiwanie (Proxmox VE, VMware ESXi): maszyna uruchomiona z kopii oraz jej zakończenie (dyski przeniesione lub skopiowane do magazynu) lub usunięcie.</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>Kopie baz danych (SQL Server, PostgreSQL, MySQL/MariaDB), ich kopie dzienników i przywrócenie bazy.</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>Replikacja Proxmox po kopii maszyny i uruchomienie repliki (failover).</td></tr>
+  <tr><td>vm-file-restore</td><td>Pliki skopiowane z dysku maszyny w kopii Proxmox, Hyper-V lub VMware na agenta.</td></tr>
+  <tr><td>copy</td><td>Zadanie kopii wtórnej: kopie innego zadania skopiowane do drugiego magazynu.</td></tr>
+  <tr><td>verify</td><td>Automatyczny lub ręczny <a href="/docs/restore">test przywracania</a>.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Przywracanie plików, całego dysku lub plików z obrazu.</td></tr>
+</table>
+<h3>Stan</h3>
+<table>
+  <tr><th>Stan</th><th>Znaczenie</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>Czeka na agenta (może być offline). Kopie zawsze startują przed testami przywracania.</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>W toku.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Zakończone bez problemów.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Zakończone, ale części plików nie udało się odczytać (są wymienione). Reszta jest skopiowana.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Niezakończone — magazyn nieosiągalny, błędne dane logowania, pełny dysk, niepodłączony dysk USB, test przywracania wykrył uszkodzone dane… Komunikat wyjaśnia przyczynę.</td></tr>
+  <tr><td><span class="badge">wygasł</span></td><td>Migawka została usunięta przez przechowywanie zadania.</td></tr>
+  <tr><td><span class="badge failed"><i></i>podejrzana</span></td><td>Kopia wygląda na ransomware lub masowe usunięcie; przechowywanie zadania jest wstrzymane do czasu sprawdzenia. Po sprawdzeniu żółta.</td></tr>
+</table>
+
+<h2>Kalendarz</h2>
+<p><a href="/calendar">Kalendarz</a> pokazuje jeden miesiąc naraz:</p>
+<ul>
+  <li><b>Dni minione</b> pokazują, co faktycznie działało — kopie i kopie wtórne — w kolorze wyniku (zielony, żółty, czerwony). Powtarzane uruchomienia zadania w jednym dniu są łączone, np. <i>08:00 Pliki biura ×6</i>.</li>
+  <li><b>Dni przyszłe</b> pokazują, co uruchomią harmonogramy (niebieski).</li>
+  <li>Dzień z wieloma wpisami pokazuje cztery i <b>+N więcej</b>; kliknij, aby zobaczyć wszystkie, kliknij ponownie, aby zwinąć.</li>
+  <li><b>Następne 7 dni</b> wymienia po kolei każde nadchodzące uruchomienie.</li>
+</ul>
+<p>Filtruj według agenta, aby zobaczyć plan jednej maszyny. Kliknij wpis, aby otworzyć zadanie. Zadania kopii wtórnych działające „po każdej kopii” pojawiają się w dniach, w których działało ich zadanie źródłowe.</p>
+
+<h2>Raporty</h2>
+<p><a href="/reports">Raporty</a> podsumowują dowolny okres: dziś, wczoraj, ostatnie 7/30/90 dni, ten lub poprzedni tydzień albo miesiąc, lub własny zakres dat — dla wszystkich agentów, jednego agenta lub jednego zadania.</p>
+<ul>
+  <li>Liczba kopii, odsetek sukcesów, uruchomienia udane / z ostrzeżeniem / nieudane, dane odczytane i wysłane, przywracania, testy przywracania (i nieudane testy), podejrzane kopie.</li>
+  <li>Wykres kopii na dzień.</li>
+  <li>Dla każdego zadania: uruchomienia, odsetek sukcesów, ostatni wynik, <b>ostatnia dobra kopia</b>, chroniony rozmiar, wysłane dane i wynik najnowszego <b>testu przywracania</b>. Zadanie bez dobrej kopii w okresie jest wyróżnione.</li>
+  <li>Wszystkie błędy, ostrzeżenia i podejrzane kopie wraz z komunikatami.</li>
+</ul>
+<p>Użyj <b>CSV</b>, aby otworzyć wszystkie uruchomienia w Excelu (bezpieczne względem formuł), <b>Drukuj / PDF</b>, aby uzyskać dokument, lub <b>Wyślij ten raport e-mailem</b>. Te same dane są dostępne dla narzędzi monitoringu przez <a href="/docs/api">REST API</a> (<code>/api/v1/report</code>).</p>
+
+<h3>Zaplanowane raporty</h3>
+<p>W <i>Zaplanowane raporty</i> utwórz raporty wysyłane automatycznie e-mailem po zakończeniu okresu:</p>
+<ul>
+  <li><b>Codziennie</b> — każdego ranka, o poprzednim dniu.</li>
+  <li><b>Co tydzień</b> — w każdy poniedziałek, o poprzednim tygodniu.</li>
+  <li><b>Co miesiąc</b> — pierwszego dnia, o poprzednim miesiącu (idealne dla klientów lub kierownictwa).</li>
+</ul>
+<p>Wybierz godzinę, zakres (wszyscy agenci, jeden agent lub jedno zadanie) i odbiorców (puste = odbiorcy powiadomień). W załączniku jest CSV ze wszystkimi uruchomieniami. E-mail musi być skonfigurowany w <a href="/settings/email">Ustawienia → Powiadomienia e-mail</a>. Tworzenie i usuwanie zaplanowanych raportów wymaga roli Operator kopii lub Administrator.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

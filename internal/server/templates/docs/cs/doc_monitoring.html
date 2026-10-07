@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Sledování, přehledy a kalendář</h1>
+<p class="lead">Na první pohled uvidíte, zda je vše chráněné, zjistíte, co se dělo kterýkoli den, a můžete posílat pravidelné přehledy vedení nebo zákazníkům.</p>
+
+<h2>Přehled</h2>
+<p>První karty počítají, co je chráněné: <b>počítače</b> (zálohy souborů, obrazů a systémů), <b>VM</b>, <b>databáze</b> a <b>sdílené složky NAS</b> (zobrazí se, jakmile nějaká existuje), každé s úspěšnou zálohou. <b>Vyžaduje pozornost</b> vypisuje, na co se podívat: úlohy, jejichž poslední běh selhal, úlohy, které vynechaly plán (žádný úspěch od předposledního plánovaného běhu — víkendy a časová okna plánu se berou v úvahu), agenty, kteří se 15 minut nepřipojili, cílová úložiště zaplněná na 90 % nebo taková, která se zaplní do 30 dní (viz <a href="/docs/storage">Cílová úložiště</a>), a změny čekající na schválení druhým uživatelem. Když není nic uvedeno, vše je v pořádku.</p>
+<p>Ostatní karty ukazují agenty online, úlohy zálohování, cílová úložiště, běhy ve frontě a probíhající, běhy, chyby a varování za posledních 24 hodin a <b>podezřelé zálohy ke kontrole</b> (možný ransomware, viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>). Zelená znamená v pořádku, žlutá je třeba se podívat, červená je třeba jednat. Pod nimi je nejnovější aktivita.</p>
+
+<h2>Aktivita</h2>
+<p>Každý běh, nejnovější první. Klikněte na běh pro podrobnosti: co bylo zpracováno, statistika, chyby podle souborů a — u záloh — možnosti obnovy. Probíhající běhy se obnovují automaticky. Plánované běhy mají ikonu hodin.</p>
+<h3>Typy běhů</h3>
+<table>
+  <tr><th>Typ</th><th>Co to je</th></tr>
+  <tr><td>backup</td><td>Záloha souborů a složek úlohy.</td></tr>
+  <tr><td>image-backup</td><td>Záloha obrazu disku.</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Záloha systému Linux a její obnova na disk nebo jako VM v Proxmoxu.</td></tr>
+  <tr><td>agent-update</td><td>Instalace novější verze agenta spuštěná ze stránky Agenti.</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Záloha a obnova virtuálních počítačů Proxmox VE, Hyper-V a VMware ESXi (a kontejnerů Proxmox).</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Okamžitá obnova (Proxmox VE, VMware ESXi): VM spuštěný ze zálohy a jeho dokončení (disky přesunuté nebo zkopírované na úložiště) nebo smazání.</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>Zálohy databází (SQL Server, PostgreSQL, MySQL/MariaDB), jejich zálohy protokolů a obnova databáze.</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>Replikace Proxmoxu po záloze VM a spuštění repliky (failover).</td></tr>
+  <tr><td>vm-file-restore</td><td>Soubory zkopírované z disku VM v záloze Proxmoxu, Hyper-V nebo VMware na agenta.</td></tr>
+  <tr><td>copy</td><td>Úloha kopírování záloh: zálohy jiné úlohy zkopírované na druhé úložiště.</td></tr>
+  <tr><td>verify</td><td>Automatický nebo ruční <a href="/docs/restore">test obnovy</a>.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Obnovy souborů, celého disku nebo souborů z obrazu.</td></tr>
+</table>
+<h3>Stav</h3>
+<table>
+  <tr><th>Stav</th><th>Význam</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>Čeká na agenta (může být offline). Zálohy se vždy spouštějí před testy obnovy.</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>Probíhá.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Dokončeno bez problémů.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Dokončeno, ale některé soubory nešlo přečíst (jsou vypsány). Zbytek je zálohován.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Nedokončeno — úložiště nedostupné, chybné přihlašovací údaje, plný disk, nepřipojený USB disk, test obnovy našel poškozená data… Zpráva vysvětluje proč.</td></tr>
+  <tr><td><span class="badge">vypršelo</span></td><td>Snímek odstranilo uchovávání úlohy.</td></tr>
+  <tr><td><span class="badge failed"><i></i>podezřelá</span></td><td>Záloha vypadá jako ransomware nebo hromadné mazání; uchovávání úlohy je pozastavené, dokud se nezkontroluje. Po kontrole žlutá.</td></tr>
+</table>
+
+<h2>Kalendář</h2>
+<p><a href="/calendar">Kalendář</a> ukazuje vždy jeden měsíc:</p>
+<ul>
+  <li><b>Minulé dny</b> ukazují, co skutečně běželo — zálohy a kopie — barevně podle výsledku (zelená, žlutá, červená). Opakované běhy úlohy v jednom dni se slučují, např. <i>08:00 Kancelářské soubory ×6</i>.</li>
+  <li><b>Budoucí dny</b> ukazují, co spustí plány (modře).</li>
+  <li>Den s mnoha položkami jich ukáže čtyři a <b>+N další</b>; kliknutím zobrazíte všechny, dalším kliknutím je sbalíte.</li>
+  <li><b>Příštích 7 dní</b> vypisuje každý nadcházející běh v pořadí.</li>
+</ul>
+<p>Filtrujte podle agenta, abyste viděli plán jednoho počítače. Kliknutím na položku otevřete úlohu. Úlohy kopírování, které běží „po každé záloze“, se zobrazují ve dnech, kdy běžela jejich zdrojová úloha.</p>
+
+<h2>Přehledy</h2>
+<p><a href="/reports">Sestavy</a> shrnují libovolné období: dnes, včera, posledních 7/30/90 dní, tento nebo minulý týden či měsíc, nebo vlastní rozsah dat — pro všechny agenty, jednoho agenta nebo jednu úlohu.</p>
+<ul>
+  <li>Počet záloh, úspěšnost, úspěšné / s varováním / neúspěšné běhy, přečtená a odeslaná data, obnovy, testy obnovy (a neúspěšné testy), podezřelé zálohy.</li>
+  <li>Graf záloh po dnech.</li>
+  <li>Pro každou úlohu: běhy, úspěšnost, poslední výsledek, <b>poslední dobrá záloha</b>, chráněná velikost, odeslaná data a výsledek nejnovějšího <b>testu obnovy</b>. Úloha bez dobré zálohy v období je zvýrazněna.</li>
+  <li>Všechny chyby, varování a podezřelé zálohy s jejich zprávami.</li>
+</ul>
+<p>Použijte <b>CSV</b> pro otevření všech běhů v Excelu (bezpečné vůči vzorcům), <b>Tisk / PDF</b> pro dokument, nebo <b>Poslat tuto sestavu e-mailem</b>. Stejná data jsou nástrojům monitoringu dostupná přes <a href="/docs/api">REST API</a> (<code>/api/v1/report</code>).</p>
+
+<h3>Plánované sestavy</h3>
+<p>V části <i>Plánované sestavy</i> vytvoříte sestavy, které se po skončení období automaticky pošlou e-mailem:</p>
+<ul>
+  <li><b>Denně</b> — každé ráno, o předchozím dni.</li>
+  <li><b>Týdně</b> — každé pondělí, o předchozím týdnu.</li>
+  <li><b>Měsíčně</b> — prvního dne, o předchozím měsíci (ideální pro zákazníky nebo vedení).</li>
+</ul>
+<p>Zvolte hodinu, rozsah (všichni agenti, jeden agent nebo jedna úloha) a příjemce (prázdné = příjemci oznámení). CSV se všemi běhy je v příloze. E-mail musí být nastaven v <a href="/settings/email">Nastavení → E-mailová oznámení</a>. Vytváření a odebírání plánovaných sestav vyžaduje roli Operátor záloh nebo Správce.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

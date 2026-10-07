@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>İzleme, raporlar ve takvim</h1>
+<p class="lead">Her şeyin korunup korunmadığını bir bakışta görün, herhangi bir günde ne olduğunu öğrenin ve yönetime ya da müşterilere düzenli raporlar gönderin.</p>
+
+<h2>Pano</h2>
+<p>İlk kartlar neyin korunduğunu sayar: <b>makineler</b> (dosya, görüntü ve sistem yedekleri), <b>VM'ler</b>, <b>veritabanları</b> ve <b>NAS paylaşımları</b> (bir tane olduğunda gösterilir), her biri başarılı bir yedekle. <b>İlgi gerekiyor</b> bakılması gerekenleri listeler: son çalıştırması başarısız olan işler, zamanlamasını kaçıran işler (sondan bir önceki zamanlanmış çalıştırmadan bu yana başarı yok — hafta sonları ve zamanlamanın zaman pencereleri dikkate alınır), 15 dakikadır bağlanmamış aracılar, %90 dolu olan veya 30 gün içinde dolacak depolama hedefleri (bkz. <a href="/docs/storage">Depolama hedefleri</a>) ve ikinci bir kullanıcının onayını bekleyen değişiklikler. Hiçbir şey listelenmiyorsa her şey yolundadır.</p>
+<p>Diğer kartlar çevrimiçi aracıları, yedekleme işlerini, depolama hedeflerini, kuyruktaki ve çalışan çalıştırmaları, son 24 saatteki çalıştırmaları, hataları ve uyarıları ve <b>incelenecek şüpheli yedek</b>leri (olası fidye yazılımı, bkz. <a href="/docs/ransomware">Fidye yazılımı koruması</a>) gösterir. Yeşil sorun yok, sarı bakılmalı, kırmızı müdahale gerekiyor demektir. Altında en son etkinlik yer alır.</p>
+
+<h2>Etkinlik</h2>
+<p>Her çalıştırma, en yenisi önce. Ayrıntılar için bir çalıştırmaya tıklayın: neyin işlendiği, istatistikler, dosya başına hatalar ve — yedekler için — geri yükleme seçenekleri. Süren çalıştırmalar otomatik yenilenir. Zamanlanmış çalıştırmalar bir saat simgesi gösterir.</p>
+<h3>Çalıştırma türleri</h3>
+<table>
+  <tr><th>Tür</th><th>Nedir</th></tr>
+  <tr><td>backup</td><td>Bir işin dosya ve klasör yedeği.</td></tr>
+  <tr><td>image-backup</td><td>Disk görüntüsü yedeği.</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Linux sistem yedeği ve bir diske veya Proxmox VM olarak geri yüklenmesi.</td></tr>
+  <tr><td>agent-update</td><td>Aracılar sayfasından başlatılan daha yeni bir aracı sürümünün kurulumu.</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Proxmox VE, Hyper-V ve VMware ESXi sanal makinelerinin (ve Proxmox kapsayıcılarının) yedeklenmesi ve geri yüklenmesi.</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Anında kurtarma (Proxmox VE, VMware ESXi): yedekten başlatılan bir VM ve tamamlanması (diskleri depolamaya taşınır veya kopyalanır) ya da silinmesi.</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>Veritabanı yedekleri (SQL Server, PostgreSQL, MySQL/MariaDB), günlük yedekleri ve bir veritabanının geri yüklenmesi.</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>Bir VM yedeğinden sonra Proxmox çoğaltması ve bir replikanın başlatılması (yük devretme).</td></tr>
+  <tr><td>vm-file-restore</td><td>Bir Proxmox, Hyper-V veya VMware yedeğindeki VM diskinden bir aracıya kopyalanan dosyalar.</td></tr>
+  <tr><td>copy</td><td>Yedek kopyalama işi: başka bir işin yedekleri ikinci bir depolamaya kopyalanır.</td></tr>
+  <tr><td>verify</td><td>Otomatik veya elle başlatılan <a href="/docs/restore">geri yükleme testi</a>.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Dosyaların, bütün bir diskin veya bir görüntüdeki dosyaların geri yüklenmesi.</td></tr>
+</table>
+<h3>Durum</h3>
+<table>
+  <tr><th>Durum</th><th>Anlamı</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>Aracıyı bekliyor (çevrimdışı olabilir). Yedekler her zaman geri yükleme testlerinden önce başlatılır.</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>Sürüyor.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Sorunsuz tamamlandı.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Tamamlandı, ancak bazı dosyalar okunamadı (listelenir). Gerisi yedeklendi.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Tamamlanmadı — depolamaya ulaşılamıyor, kimlik bilgileri yanlış, disk dolu, USB disk bağlı değil, geri yükleme testi hasarlı veri buldu… Mesaj nedenini açıklar.</td></tr>
+  <tr><td><span class="badge">süresi doldu</span></td><td>Anlık görüntü, işin saklama kuralı tarafından kaldırıldı.</td></tr>
+  <tr><td><span class="badge failed"><i></i>şüpheli</span></td><td>Yedek fidye yazılımı veya toplu silme gibi görünüyor; işin saklama kuralı incelenene kadar duraklatıldı. İncelendikten sonra sarı.</td></tr>
+</table>
+
+<h2>Takvim</h2>
+<p><a href="/calendar">Takvim</a> her seferinde bir ay gösterir:</p>
+<ul>
+  <li><b>Geçmiş günler</b>, gerçekten neyin çalıştığını — yedekler ve kopyalar — sonuca göre renklendirerek gösterir (yeşil, sarı, kırmızı). Bir işin aynı gündeki tekrarlanan çalıştırmaları birleştirilir, ör. <i>08:00 Ofis dosyaları ×6</i>.</li>
+  <li><b>Gelecek günler</b>, zamanlamaların neyi başlatacağını gösterir (mavi).</li>
+  <li>Çok girişi olan bir gün dördünü ve <b>+N daha</b> gösterir; hepsini görmek için tıklayın, daraltmak için yeniden tıklayın.</li>
+  <li><b>Sonraki 7 gün</b>, yaklaşan her çalıştırmayı sırayla listeler.</li>
+</ul>
+<p>Bir makinenin planını görmek için aracıya göre filtreleyin. İşi açmak için bir girişe tıklayın. "Her yedekten sonra" çalışan kopyalama işleri, kaynak işlerinin çalıştığı günlerde görünür.</p>
+
+<h2>Raporlar</h2>
+<p><a href="/reports">Raporlar</a> herhangi bir dönemi özetler: bugün, dün, son 7/30/90 gün, bu veya geçen hafta ya da ay, veya özel bir tarih aralığı — tüm aracılar, bir aracı veya bir iş için.</p>
+<ul>
+  <li>Yedek sayısı, başarı oranı, başarılı / uyarılı / başarısız çalıştırmalar, okunan ve yüklenen veri, geri yüklemeler, geri yükleme testleri (ve başarısız testler), şüpheli yedekler.</li>
+  <li>Günlük yedek grafiği.</li>
+  <li>İş başına: çalıştırmalar, başarı oranı, son sonuç, <b>son sağlam yedek</b>, korunan boyut, yüklenen veri ve en yeni <b>geri yükleme testi</b>nin sonucu. Dönem içinde sağlam yedeği olmayan bir iş vurgulanır.</li>
+  <li>Tüm hatalar, uyarılar ve şüpheli yedekler mesajlarıyla birlikte.</li>
+</ul>
+<p>Tüm çalıştırmaları Excel'de açmak için <b>CSV</b>'yi (formül açısından güvenli), bir belge için <b>Yazdır / PDF</b>'yi veya <b>Bu raporu e-postayla gönder</b>'i kullanın. Aynı veriler izleme araçlarına <a href="/docs/api">REST API</a> (<code>/api/v1/report</code>) üzerinden sunulur.</p>
+
+<h3>Zamanlanmış raporlar</h3>
+<p><i>Zamanlanmış raporlar</i> altında, bir dönem tamamlandığında otomatik olarak e-postayla gönderilen raporlar oluşturun:</p>
+<ul>
+  <li><b>Günlük</b> — her sabah, önceki gün hakkında.</li>
+  <li><b>Haftalık</b> — her pazartesi, önceki hafta hakkında.</li>
+  <li><b>Aylık</b> — ayın 1'inde, önceki ay hakkında (müşteriler veya yönetim için ideal).</li>
+</ul>
+<p>Saati, kapsamı (tüm aracılar, bir aracı veya bir iş) ve alıcıları (boş = bildirim alıcıları) seçin. Tüm çalıştırmaları içeren CSV eklenir. E-posta <a href="/settings/email">Ayarlar → E-posta bildirimleri</a> altında yapılandırılmış olmalıdır. Zamanlanmış rapor oluşturmak ve kaldırmak için Yedekleme operatörü veya Yönetici rolü gerekir.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

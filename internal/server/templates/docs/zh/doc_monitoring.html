@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>监控、报告和日历</h1>
+<p class="lead">一眼看出是否一切都受到保护，查明任意一天发生了什么，并定期向管理层或客户发送报告。</p>
+
+<h2>仪表板</h2>
+<p>最前面的卡片统计受保护的对象：<b>机器</b>（文件、映像和系统备份）、<b>虚拟机</b>、<b>数据库</b>和 <b>NAS 共享</b>（有了之后才显示），每项都有成功的备份。<b>需要关注</b> 列出需要查看的内容：最后一次运行失败的作业、错过计划的作业（自倒数第二次计划运行以来没有成功 —— 会考虑周末和计划的时间窗口）、15 分钟未连接的代理、已满 90 % 或将在 30 天内装满的存储目标（参见 <a href="/docs/storage">存储目标</a>），以及等待第二个用户批准的更改。如果没有列出任何内容，就说明一切正常。</p>
+<p>其他卡片显示在线代理、备份作业、存储目标、排队和正在进行的运行、过去 24 小时的运行、失败和警告，以及<b>待检查的可疑备份</b>（可能是勒索软件，参见 <a href="/docs/ransomware">勒索软件防护</a>）。绿色表示正常，黄色需要查看，红色需要处理。下方是最近的活动。</p>
+
+<h2>活动</h2>
+<p>所有运行，最新的在前。点击某次运行查看详情：处理了什么、统计信息、每个文件的错误，以及（对于备份）还原选项。正在进行的运行会自动刷新。计划运行会显示时钟图标。</p>
+<h3>运行类型</h3>
+<table>
+  <tr><th>类型</th><th>说明</th></tr>
+  <tr><td>backup</td><td>作业的文件和文件夹备份。</td></tr>
+  <tr><td>image-backup</td><td>磁盘映像备份。</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Linux 系统备份，以及将其还原到磁盘或作为 Proxmox 虚拟机还原。</td></tr>
+  <tr><td>agent-update</td><td>从代理页面启动的较新代理版本的安装。</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Proxmox VE、Hyper-V 和 VMware ESXi 虚拟机（以及 Proxmox 容器）的备份和还原。</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>即时恢复（Proxmox VE、VMware ESXi）：从备份启动的虚拟机，以及完成它（将其磁盘移动或复制到存储）或删除它。</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>数据库备份（SQL Server、PostgreSQL、MySQL/MariaDB）、其日志备份以及数据库还原。</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>虚拟机备份后的 Proxmox 复制，以及启动副本（故障转移）。</td></tr>
+  <tr><td>vm-file-restore</td><td>从 Proxmox、Hyper-V 或 VMware 备份中的虚拟机磁盘复制到代理的文件。</td></tr>
+  <tr><td>copy</td><td>备份复制作业：将另一个作业的备份复制到第二个存储。</td></tr>
+  <tr><td>verify</td><td>自动或手动的<a href="/docs/restore">还原测试</a>。</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>还原文件、整块磁盘或映像中的文件。</td></tr>
+</table>
+<h3>状态</h3>
+<table>
+  <tr><th>状态</th><th>含义</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>正在等待代理（它可能离线）。备份始终先于还原测试启动。</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>进行中。</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>顺利完成。</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>已完成，但有些文件无法读取（已列出）。其余部分已备份。</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>未完成 —— 存储不可达、凭据错误、磁盘已满、USB 磁盘未连接、还原测试发现损坏的数据…… 消息会说明原因。</td></tr>
+  <tr><td><span class="badge">已过期</span></td><td>快照已被作业的保留策略删除。</td></tr>
+  <tr><td><span class="badge failed"><i></i>可疑</span></td><td>该备份看起来像勒索软件或大规模删除；在检查之前作业的保留策略会暂停。检查后显示为黄色。</td></tr>
+</table>
+
+<h2>日历</h2>
+<p><a href="/calendar">日历</a> 每次显示一个月：</p>
+<ul>
+  <li><b>过去的日子</b> 显示实际运行的内容 —— 备份和复制 —— 按结果着色（绿色、黄色、红色）。同一作业在同一天的多次运行会合并，例如 <i>08:00 办公文件 ×6</i>。</li>
+  <li><b>未来的日子</b> 显示计划将要启动的内容（蓝色）。</li>
+  <li>条目很多的日子会显示四条和 <b>+N 更多</b>；点击查看全部，再次点击收起。</li>
+  <li><b>未来 7 天</b> 按顺序列出每次即将进行的运行。</li>
+</ul>
+<p>按代理筛选可查看某台机器的计划。点击条目可打开作业。“每次备份后”运行的复制作业会显示在其源作业运行的日子。</p>
+
+<h2>报告</h2>
+<p><a href="/reports">报告</a> 可汇总任意时段：今天、昨天、过去 7/30/90 天、本周或上周、本月或上月，或自定义日期范围 —— 针对所有代理、某个代理或某个作业。</p>
+<ul>
+  <li>备份次数、成功率、成功 / 有警告 / 失败的运行、读取和上传的数据、还原、还原测试（以及失败的测试）、可疑备份。</li>
+  <li>每日备份图表。</li>
+  <li>每个作业：运行次数、成功率、最后结果、<b>最近成功备份</b>、受保护大小、上传数据以及最新<b>还原测试</b>的结果。在该时段内没有成功备份的作业会突出显示。</li>
+  <li>所有失败、警告和可疑备份及其消息。</li>
+</ul>
+<p>使用 <b>CSV</b> 在 Excel 中打开所有运行（防公式注入），使用 <b>打印 / PDF</b> 生成文档，或使用 <b>通过电子邮件发送此报告</b>。监控工具也可以通过 <a href="/docs/api">REST API</a>（<code>/api/v1/report</code>）获取相同的数据。</p>
+
+<h3>计划报告</h3>
+<p>在 <i>计划报告</i> 下创建在时段结束时自动通过电子邮件发送的报告：</p>
+<ul>
+  <li><b>每日</b> —— 每天早上，关于前一天。</li>
+  <li><b>每周</b> —— 每周一，关于上一周。</li>
+  <li><b>每月</b> —— 每月 1 日，关于上个月（非常适合客户或管理层）。</li>
+</ul>
+<p>选择小时、范围（所有代理、某个代理或某个作业）和收件人（留空 = 通知收件人）。附件中包含所有运行的 CSV。必须在 <a href="/settings/email">设置 → 电子邮件通知</a> 中配置电子邮件。创建和删除计划报告需要备份操作员或管理员角色。</p>
+{{template "docpager" .}}
+</article></div>{{end}}

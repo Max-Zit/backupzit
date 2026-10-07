@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Surveillance, rapports et calendrier</h1>
+<p class="lead">Voyez d'un coup d'œil si tout est protégé, découvrez ce qui s'est passé n'importe quel jour, et envoyez des rapports réguliers à la direction ou aux clients.</p>
+
+<h2>Tableau de bord</h2>
+<p>Les premières cartes comptent ce qui est protégé : <b>machines</b> (sauvegardes de fichiers, d'images et de systèmes), <b>VM</b>, <b>bases de données</b> et <b>partages NAS</b> (affichés dès qu'il y en a un), chacun avec une sauvegarde réussie. <b>Nécessite votre attention</b> liste ce qu'il faut examiner : les tâches dont la dernière exécution a échoué, les tâches qui ont manqué leur planification (aucune réussite depuis l'avant-dernière exécution planifiée — les week-ends et plages horaires de la planification sont pris en compte), les agents qui ne se sont pas connectés depuis 15 minutes, les cibles de stockage pleines à 90 % ou qui seront pleines dans les 30 jours (voir <a href="/docs/storage">Cibles de stockage</a>), et les modifications en attente de l'approbation d'un second utilisateur. Quand rien n'est listé, tout va bien.</p>
+<p>Les autres cartes montrent les agents en ligne, les tâches de sauvegarde, les cibles de stockage, les exécutions en file d'attente et en cours, les exécutions, échecs et avertissements des dernières 24 heures, et les <b>sauvegardes suspectes à examiner</b> (rançongiciel possible, voir <a href="/docs/ransomware">Protection contre les rançongiciels</a>). Vert signifie que tout va bien, jaune qu'il faut regarder, rouge qu'il faut agir. En dessous figure l'activité la plus récente.</p>
+
+<h2>Activité</h2>
+<p>Chaque exécution, la plus récente en premier. Cliquez sur une exécution pour les détails : ce qui a été traité, les statistiques, les erreurs par fichier et — pour les sauvegardes — les options de restauration. Les exécutions en cours s'actualisent automatiquement. Les exécutions planifiées affichent une icône d'horloge.</p>
+<h3>Types d'exécution</h3>
+<table>
+  <tr><th>Type</th><th>De quoi il s'agit</th></tr>
+  <tr><td>backup</td><td>Sauvegarde de fichiers et dossiers d'une tâche.</td></tr>
+  <tr><td>image-backup</td><td>Sauvegarde d'image disque.</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Sauvegarde du système Linux et sa restauration sur un disque ou en VM Proxmox.</td></tr>
+  <tr><td>agent-update</td><td>Installation d'une version plus récente de l'agent lancée depuis la page Agents.</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Sauvegarde et restauration de machines virtuelles Proxmox VE, Hyper-V et VMware ESXi (et de conteneurs Proxmox).</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Restauration instantanée (Proxmox VE, VMware ESXi) : une VM démarrée depuis une sauvegarde, et sa finalisation (disques déplacés ou copiés vers un stockage) ou sa suppression.</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>Sauvegardes de bases de données (SQL Server, PostgreSQL, MySQL/MariaDB), leurs sauvegardes de journaux et la restauration d'une base.</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>Réplication Proxmox après une sauvegarde de VM, et démarrage d'une réplique (basculement).</td></tr>
+  <tr><td>vm-file-restore</td><td>Fichiers copiés depuis un disque de VM d'une sauvegarde Proxmox, Hyper-V ou VMware vers un agent.</td></tr>
+  <tr><td>copy</td><td>Tâche de copie de sauvegarde : sauvegardes d'une autre tâche copiées vers un second stockage.</td></tr>
+  <tr><td>verify</td><td><a href="/docs/restore">Test de restauration</a> automatique ou manuel.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Restaurations de fichiers, d'un disque entier ou de fichiers depuis une image.</td></tr>
+</table>
+<h3>État</h3>
+<table>
+  <tr><th>État</th><th>Signification</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>En attente de l'agent (il est peut-être hors ligne). Les sauvegardes démarrent toujours avant les tests de restauration.</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>En cours.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Terminée sans problème.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Terminée, mais certains fichiers n'ont pas pu être lus (ils sont listés). Le reste est sauvegardé.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Non terminée — stockage injoignable, identifiants erronés, disque plein, disque USB non connecté, test de restauration ayant trouvé des données endommagées… Le message explique pourquoi.</td></tr>
+  <tr><td><span class="badge">expiré</span></td><td>L'instantané a été supprimé par la rétention de la tâche.</td></tr>
+  <tr><td><span class="badge failed"><i></i>suspecte</span></td><td>La sauvegarde ressemble à un rançongiciel ou à une suppression massive ; la rétention de la tâche est suspendue jusqu'à son examen. Jaune une fois examinée.</td></tr>
+</table>
+
+<h2>Calendrier</h2>
+<p>Le <a href="/calendar">Calendrier</a> affiche un mois à la fois :</p>
+<ul>
+  <li>Les <b>jours passés</b> montrent ce qui s'est réellement exécuté — sauvegardes et copies — coloré selon le résultat (vert, jaune, rouge). Les exécutions répétées d'une tâche un même jour sont regroupées, par ex. <i>08:00 Fichiers du bureau ×6</i>.</li>
+  <li>Les <b>jours à venir</b> montrent ce que les planifications vont lancer (bleu).</li>
+  <li>Un jour avec beaucoup d'entrées en affiche quatre et <b>+N de plus</b> ; cliquez pour tout voir, cliquez à nouveau pour replier.</li>
+  <li><b>7 prochains jours</b> liste chaque exécution à venir dans l'ordre.</li>
+</ul>
+<p>Filtrez par agent pour voir le plan d'une machine. Cliquez sur une entrée pour ouvrir la tâche. Les tâches de copie qui s'exécutent « après chaque sauvegarde » apparaissent les jours où leur tâche source s'est exécutée.</p>
+
+<h2>Rapports</h2>
+<p>Les <a href="/reports">Rapports</a> résument n'importe quelle période : aujourd'hui, hier, les 7/30/90 derniers jours, cette semaine ou la semaine dernière, ce mois-ci ou le mois dernier, ou une plage de dates personnalisée — pour tous les agents, un agent ou une tâche.</p>
+<ul>
+  <li>Nombre de sauvegardes, taux de réussite, exécutions réussies / avec avertissement / échouées, données lues et envoyées, restaurations, tests de restauration (et tests échoués), sauvegardes suspectes.</li>
+  <li>Un graphique des sauvegardes par jour.</li>
+  <li>Par tâche : exécutions, taux de réussite, dernier résultat, <b>dernière bonne sauvegarde</b>, taille protégée, données envoyées et résultat du plus récent <b>test de restauration</b>. Une tâche sans bonne sauvegarde sur la période est mise en évidence.</li>
+  <li>Tous les échecs, avertissements et sauvegardes suspectes avec leurs messages.</li>
+</ul>
+<p>Utilisez <b>CSV</b> pour ouvrir toutes les exécutions dans Excel (protégé contre les formules), <b>Imprimer / PDF</b> pour un document, ou <b>Envoyer ce rapport par e-mail</b>. Les mêmes données sont accessibles aux outils de supervision via l'<a href="/docs/api">REST API</a> (<code>/api/v1/report</code>).</p>
+
+<h3>Rapports planifiés</h3>
+<p>Sous <i>Rapports planifiés</i>, créez des rapports envoyés automatiquement par e-mail à la fin d'une période :</p>
+<ul>
+  <li><b>Quotidien</b> — chaque matin, sur la veille.</li>
+  <li><b>Hebdomadaire</b> — chaque lundi, sur la semaine précédente.</li>
+  <li><b>Mensuel</b> — le 1er, sur le mois précédent (idéal pour les clients ou la direction).</li>
+</ul>
+<p>Choisissez l'heure, la portée (tous les agents, un agent ou une tâche) et les destinataires (vide = les destinataires des notifications). Le CSV de toutes les exécutions est joint. L'e-mail doit être configuré dans <a href="/settings/email">Paramètres → Notifications par e-mail</a>. Créer et supprimer des rapports planifiés nécessite le rôle Opérateur de sauvegarde ou Administrateur.</p>
+{{template "docpager" .}}
+</article></div>{{end}}
