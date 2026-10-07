@@ -1,0 +1,85 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Hyper-V virtuelne mašine</h1>
+<p class="lead">BackupZit pravi bekap Hyper-V virtuelnih mašina preko agenta na Hyper-V hostu; u virtuelnim mašinama se ništa ne instalira. Windows i Linux gosti se čuvaju dok rade. Možete ih vratiti kao novu VM ili umesto originala.</p>
+
+<h2>Podešavanje</h2>
+<ol>
+  <li>Instalirajte MSI <b>Windows agent</b> sa stranice <a href="/agents">Agenti</a> na Hyper-V host i registrujte ga. Podržani hostovi: Windows Server 2016 ili noviji sa Hyper-V ulogom, ili Windows 10/11 sa Hyper-V-om. U klasteru instalirajte agenta na svaki host.</li>
+  <li>Za minut se host pojavljuje na stranici Agenti sa oznakom <b>Hyper-V · N VM-ova</b>.</li>
+  <li>U <a href="/jobs">Poslovi bekapa</a> izaberite tog agenta i <b>Virtuelne mašine (Proxmox VE, Hyper-V, VMware)</b>. Zatim izaberite:
+    <ul>
+      <li><b>sve virtuelne mašine hosta</b>, što obuhvata i virtuelne mašine napravljene kasnije;</li>
+      <li>pojedinačne virtuelne mašine, označavanjem.</li>
+    </ul>
+  </li>
+</ol>
+<p>Agent radi preko sopstvenih interfejsa Hyper-V-a: Hyper-V PowerShell modula i Windows Virtual Disk API-ja. Konzola ne čuva Hyper-V pristupne podatke.</p>
+
+<h2>Kako se pravi bekap VM-a</h2>
+<ol>
+  <li>Pravi se privremeni <b>recovery checkpoint</b> (<code>backupzit_…</code>). To je vrsta checkpoint-a koju Hyper-V nudi programima za bekap. Hyper-V traži od gosta da se pripremi za njega:
+    <ul>
+      <li>Windows gosti upisuju podatke svojih aplikacija preko VSS-a.</li>
+      <li>Linux gosti „zamrzavaju“ svoje fajl-sisteme, ako su instalirani Hyper-V servisi (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
+    </ul>
+    Ako gost ne može ni jedno ni drugo, checkpoint se pravi konzistentan kao posle nestanka struje. Stranica pokretanja prikazuje koja vrsta je korišćena.</li>
+  <li>Recovery checkpoint uključuje <b>Resilient Change Tracking</b> (RCT) za diskove VM-a; pored njih ćete videti fajlove <code>.rct</code> i <code>.mrt</code>. Prvi bekap čita cele diskove. Posle toga RCT javlja koji su se blokovi promenili od prethodnog bekapa, i <b>čitaju se samo oni</b>.</li>
+  <li>Diskovi se čitaju u stanju iz checkpoint-a, preko Virtual Disk API-ja, u blokovima od 1 MiB. Ovo obuhvata VHDX i VHD fajlove, uključujući lance ranijih checkpoint-a. Prazni blokovi se ne čuvaju, a blokovi koji su već u repozitorijumu ne šalju se ponovo.</li>
+  <li>Checkpoint se uklanja, a Hyper-V ga spaja u pozadini.</li>
+  <li>Konfiguracija VM-a se čuva uz bekap: generacija, CPU, memorija, mrežni adapteri (switch, VLAN, MAC adresa), kontroleri diskova, secure boot i TPM.</li>
+</ol>
+<p>Ugašene virtuelne mašine se čitaju direktno, bez checkpoint-a. Na hostovima starijim od Windows Servera 2016 (nema recovery checkpoint-a) koristi se production checkpoint i svaki bekap čita cele diskove.</p>
+<p>Primer iz test laboratorije: Linux VM sa diskom od 3 GB. Prvi bekap je pročitao 3 GB. Sledeći, posle 64 MB novih podataka, pročitao je 96 MB.</p>
+<p>Na Windowsu 10/11 Hyper-V pravi automatski checkpoint kada se VM pokrene, osim ako ta opcija nije isključena u podešavanjima VM-a. BackupZit radi i sa takvim checkpoint-ima, ali na serverima ćete želeti da automatske checkpoint-e isključite (podešavanja VM-a → Checkpoints).</p>
+
+<h2>Vraćanje VM-a</h2>
+<p>Otvorite pokretanje VM bekapa (sa stranice posla ili iz <a href="/runs">Aktivnosti</a>) i koristite <b>Vraćanje Hyper-V VM-a</b>.</p>
+
+<h3>Kao nova VM pored originala</h3>
+<p>Pravi drugu VM sa novim MAC adresama, pa može da radi na istoj mreži kao original. Podrazumevano dobija ime originala uz „restored“ i datum. Automatski checkpoint-i su na njoj isključeni (Windows ih uključuje za nove virtuelne mašine), pa njeno pokretanje ne ostavlja checkpoint fajlove. Ako kopija radi pored originala i u njoj je BackupZit agent, vidi <a href="/docs/agents#duplicate">Dve mašine koriste istog agenta</a>.</p>
+<p>Mrežna podešavanja gosta vezana za MAC adresu ne važe za nove adaptere. Primer je netplan <code>match: macaddress</code>, koji koriste Linux cloud slike.</p>
+
+<h3>Umesto originalne VM</h3>
+<p>Označite <i>isključi ga i zameni mu diskove</i>. BackupZit tada:</p>
+<ul>
+  <li>gasi postojeću VM;</li>
+  <li>spaja njene checkpoint-e;</li>
+  <li>menja njene diskove vraćenim.</li>
+</ul>
+<p>VM zadržava ID, mrežne adaptere i MAC adrese, pa poslovi, nadzor i mreža gosta nastavljaju da rade.</p>
+<p>Stari fajlovi diskova se ne brišu; preimenuju se u <code>….replaced-DATUM</code>. Obrišite ih kada vraćena VM proradi.</p>
+<p>Ako originalna VM više ne postoji, ponovo se pravi, sa novim Hyper-V ID-jem.</p>
+
+<h3>Opcije</h3>
+<ul>
+  <li><b>Folder za virtuelne diskove</b>: podrazumevani folder hosta ili bilo koji folder sa diskovima virtuelnih mašina. Vraćanje na mesto originala stavlja nove diskove pored originalnih.</li>
+  <li><b>Pokreni VM posle vraćanja</b>.</li>
+</ul>
+
+<h3>Šta vraćena VM dobija</h3>
+<ul>
+  <li>Virtuelni switch-evi se povezuju po imenu. Ako switch ne postoji na hostu, adapter ostaje nepovezan.</li>
+  <li>Svaka vraćena VM dobija nov generation ID, pa Active Directory kontroleri domena bezbedno prepoznaju vraćanje.</li>
+</ul>
+
+<h2>Vraćanje pojedinačnih fajlova</h2>
+<p>U tabeli virtuelnih mašina pokretanja kliknite <b>Pregledaj fajlove</b> da biste videli particije i volumene na diskovima VM-a. Možete da pregledate NTFS, ext2/3/4 i XFS, i unutar LVM-a. Odatle fajlove možete da preuzmete ili vratite na bilo kog agenta. Radi isto kao za <a href="/docs/proxmox">Proxmox VE</a>.</p>
+
+<h2>Komandna linija</h2>
+<p>Pokrenite ih na Hyper-V hostu, kao administrator:</p>
+<pre>backupzit-agent hyperv list
+backupzit-agent hyperv backup  --repo ... [--vmid N,N]
+backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<ul>
+  <li><code>--vmid</code> je broj koji prikazuje <code>hyperv list</code>. BackupZit ga izvodi iz GUID-a VM-a.</li>
+  <li>Bez <code>--new</code>, VM se vraća na mesto originala.</li>
+  <li><code>--overwrite</code> potvrđuje da diskovi postojeće VM treba da se zamene.</li>
+</ul>
+<p>Opcije repozitorijuma su iste kao za sve komande; vidi <a href="/docs/cli">Komandna linija</a>.</p>
+
+<h2>Još nije uključeno</h2>
+<ul>
+  <li><b>Neke vrste diskova.</b> Shared VHDX, VHD Set i pass-through diskovi se ne čuvaju.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

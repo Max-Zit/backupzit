@@ -1,0 +1,40 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Obaveštenja: email, Slack, Teams, webhook-ovi</h1>
+<p class="lead">Dobijte email kada bekap ne uspe, i dnevni pregled svakog jutra.</p>
+
+<h2>Podešavanje emaila</h2>
+<p>U <a href="/settings/email">Podešavanja → Email obaveštenja</a>:</p>
+<table>
+  <tr><th>Polje</th><th>Primer</th></tr>
+  <tr><td>SMTP server / port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, interni relej / 25</td></tr>
+  <tr><td>Bezbednost</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) ili bez (samo interni relej)</td></tr>
+  <tr><td>Korisnik / lozinka</td><td>Sanduče koje šalje; ostavite prazno za anonimni relej. Microsoft 365 i Gmail traže lozinku za aplikaciju (app password).</td></tr>
+  <tr><td>Pošiljalac</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Primaoci</td><td>Jedna ili više adresa, odvojenih zarezom.</td></tr>
+</table>
+<p>Koristite <b>Pošalji test email</b> da proverite podešavanja.</p>
+
+<h2>Šta se šalje</h2>
+<ul>
+  <li><b>Neuspesi</b> (preporučeno) — jedan email po neuspelom pokretanju sa razlogom: bekapi, kopije, vraćanja i neuspeli <b>testovi vraćanja</b>. Uz ovu opciju dobijate i upozorenje <b>SUSPICIOUS</b> kada bekap liči na ransomware ili masovno brisanje.</li>
+  <li><b>Upozorenja</b> — pokretanja u kojima neki fajlovi nisu mogli da se pročitaju.</li>
+  <li><b>Uspesi</b> — svako uspešno pokretanje (obično previše; bolje dnevni izveštaj).</li>
+  <li><b>Dnevni izveštaj</b> — u izabrani sat: pokretanja u poslednja 24 sata, problemi i agenti van mreže. Naslov počinje sa <i>OK</i>, <i>WARNINGS</i> ili <i>ATTENTION</i>, pa pravila za poštu mogu da ih razvrstaju.</li>
+</ul>
+<p>Za nedeljne ili mesečne preglede koristite <a href="/docs/monitoring">zakazane izveštaje</a>; šalju se sa istim podešavanjima pošte i imaju svoje primaoce. Naslovi počinju sa <code>[BackupZit]</code>, pa pravila za poštu mogu da ih razvrstaju. SMTP lozinka se čuva šifrovana. Emailovi su na engleskom.</p>
+
+<h2>Slack, Microsoft Teams i webhook-ovi</h2>
+<p>U <a href="/settings/chat">Podešavanja → Chat i webhook-ovi</a> dodajte bilo koliko kanala; svaki bira da li dobija neuspehe, upozorenja i uspehe. Neobični bekapi (mogući ransomware) računaju se kao neuspesi. <b>Pošalji test</b> odmah proverava kanal.</p>
+<ul>
+  <li><b>Slack</b>: napravite <i>incoming webhook</i> za kanal (podešavanja Slack aplikacije → Incoming Webhooks) i nalepite njegov URL (<code>https://hooks.slack.com/services/…</code>).</li>
+  <li><b>Microsoft Teams</b>: u kanalu dodajte workflow <i>Post to a channel when a webhook request is received</i> i nalepite njegov URL. Poruke stižu kao kartice sa dugmetom koje otvara pokretanje u konzoli.</li>
+  <li><b>Webhook</b>: bilo koji URL koji prima JSON POST — sistem za tikete, nadzor ili alat za automatizaciju. Uz tajnu za potpisivanje, svaki zahtev nosi <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, HMAC-SHA256 tela zahteva, pa primalac može da proveri da dolazi sa vaše konzole.</li>
+</ul>
+<p>JSON webhook-a:</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>Poruke se šalju jednom po pokretanju, i kada je email isključen. Kanal koji ne radi (pogrešan URL, servis nedostupan) beleži se u logu konzole i ne zadržava ostale. URL-ovi webhook-ova se čuvaju šifrovani.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">Povežite BackupZit sa RMM platformama, nadzorom (PRTG, Zabbix, Nagios, Uptime Kuma …) i sopstvenim skriptama.</p>
+
+<h2>Tokeni</h2>
+<p>Napravite token u <a href="/account#tokens">Moj nalog → API tokeni</a>. Dajte mu najnižu ulogu koja je dovoljna — <b>Posmatrač</b> za nadzor, <b>Operater vraćanja</b> da bi mogao i da pokreće bekape i testove vraćanja. Token se prikazuje jednom; šaljite ga u svakom zahtevu:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>Tokeni mogu da isteknu, može da ih opozove vlasnik ili administrator (<a href="/users">Korisnici</a>), i prestaju da rade kada se vlasnik onemogući. Radnje urađene tokenom pojavljuju se u dnevniku revizije sa imenom tokena.</p>
+
+<h2>Krajnje tačke</h2>
+<p>Svi odgovori su JSON. Osnovni URL: <code>https://&lt;konzola&gt;:8443</code>.</p>
+<table>
+  <tr><th>Metod i putanja</th><th>Uloga</th><th>Vraća</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Posmatrač</td><td>Ukupno stanje: agenti na mreži, neuspesi i upozorenja u 24 h, aktivna pokretanja, nepregledani sumnjivi bekapi, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Posmatrač</td><td>Agente sa OS-om, verzijom, stanjem na mreži i poslednjim kontaktom</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Posmatrač</td><td>Poslove sa rasporedom, sledećim pokretanjem i poslednjim rezultatom</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Operater vraćanja</td><td>Pokreće posao odmah: <code>{"run_id": 123}</code> (202), ili 409 ako je pokretanje već aktivno</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Operater vraćanja</td><td>Pokreće test vraćanja najnovijeg bekapa posla</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Posmatrač</td><td>Skorašnja pokretanja, od najnovijeg (podrazumevano 100, najviše 1000)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Posmatrač</td><td>Jedno pokretanje sa porukom, greškama i statistikom</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Posmatrač</td><td><a href="/docs/monitoring">Izveštaj</a> za period: zbirovi, procenat uspešnosti i detalji po poslu</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Posmatrač</td><td>Skladišta (bez pristupnih podataka)</td></tr>
+</table>
+<p>Periodi: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, ili <code>custom</code> sa <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
+<p>Greške vraćaju <code>{"error": "..."}</code> sa 400 (loš zahtev), 401 (token nedostaje, neispravan je ili je istekao), 403 (preniska uloga), 404 ili 409.</p>
+
+<h2>Primeri</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p>Koristite <code>-k</code> / <code>-SkipCertificateCheck</code> samo sa samopotpisanim sertifikatom konzole u pouzdanoj mreži, ili instalirajte sertifikat konzole na host za nadzor.</p>
+<h3>Provera za nadzor</h3>
+<p>Proveravajte <code>/api/v1/status</code> na svakih nekoliko minuta i uzbunite kada je <code>ok</code> false. Za proveru po poslu koristite <code>/api/v1/jobs</code> i uzbunite kada je <code>last_status</code> <code>failed</code> ili je <code>last_finished</code> stariji nego što se očekuje.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

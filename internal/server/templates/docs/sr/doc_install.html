@@ -1,0 +1,191 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Instalacija servera</h1>
+<p class="lead">Konzola radi na Linuxu (Debian, Ubuntu, AlmaLinux, Rocky Linux) sa PostgreSQL-om. Svaka organizacija ima svoju konzolu na svojoj mreži.</p>
+
+<h2>Zahtevi</h2>
+<ul>
+  <li>Linux VM ili server: 2 vCPU, 2–4 GB RAM i disk od 20 GB su dovoljni i za stotine agenata (podaci bekapa se ne čuvaju na njemu).</li>
+  <li>PostgreSQL 13 ili noviji (lokalno ili na drugom serveru).</li>
+  <li>Mreža: agenti moraju da dođu do konzole na TCP <b>8443</b> (HTTPS). Agenti moraju i direktno da dođu do skladišta.</li>
+</ul>
+
+<h2>Izaberite način instalacije</h2>
+<table>
+  <tr><th>Način</th><th>Najbolje za</th><th>Potrebno</th></tr>
+  <tr><td><b>1. Gotova slika VM-a</b> (OVA, qcow2, VHDX)</td><td>Najbrže: uvoz, pokretanje, prijava</td><td>VMware, Proxmox/KVM ili Hyper-V; pristup internetu nije potreban</td></tr>
+  <tr><td><b>2. ISO uređaja</b></td><td>Nova VM ili fizički server, instalacija bez pitanja</td><td>pristup internetu tokom instalacije (Debian paketi)</td></tr>
+  <tr><td><b>3. Instalacioni skript</b></td><td>Postojeći Debian, Ubuntu, AlmaLinux ili Rocky Linux server</td><td>root i pristup internetu</td></tr>
+  <tr><td><b>4. Paketi ručno</b></td><td>Sopstveni PostgreSQL, upravljanje konfiguracijom, bez pristupa internetu</td><td>serverski paket iz izdanja</td></tr>
+</table>
+
+<h2>Preuzimanja</h2>
+<p>Sva izdanja su na <a href="https://github.com/Max-Zit/backupzit/releases" target="_blank" rel="noopener">github.com/Max-Zit/backupzit/releases</a>. Ovi linkovi uvek vode do najnovijeg izdanja:</p>
+<table>
+  <tr><th>Fajl</th><th>Šta je</th></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova">backupzit-appliance.ova</a></td><td>slika VM-a za VMware ESXi, Workstation, VirtualBox</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2">backupzit-appliance.qcow2</a></td><td>slika VM-a za Proxmox VE i KVM</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip">backupzit-appliance-vhdx.zip</a></td><td>slika VM-a za Hyper-V (raspakujte; generacija 1)</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.iso">backupzit-appliance.iso</a></td><td>ISO za instalaciju uređaja</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh">install.sh</a></td><td>instalacioni skript za postojeći Linux server</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>kontrolni zbirovi slika i ISO-a</td></tr>
+</table>
+<p>Paketi (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agenti) su navedeni na stranici izdanja. Svaka slika ima oko 1,5 GB. Preuzimanje proverite sa <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) ili <code>Get-FileHash fajl -Algorithm SHA256</code> (Windows).</p>
+
+<h2>1. Gotova slika VM-a</h2>
+<p>Gotov uređaj (Debian, PostgreSQL, konzola, automatska bezbednosna ažuriranja) koji se pokreće za manje od minuta i ne traži pristup internetu:</p>
+<table>
+  <tr><th>Hipervizor</th><th>Kako</th></tr>
+  <tr><td>VMware ESXi</td><td>Host Client: <i>Create / Register VM → Deploy a virtual machine from an OVF or OVA file</i>, izaberite <code>backupzit-appliance.ova</code>. vSphere: <i>Deploy OVF Template</i>. Workstation i VirtualBox: <i>File → Open / Import</i>.</td></tr>
+  <tr><td>Proxmox VE</td><td>Kopirajte <code>backupzit-appliance.qcow2</code> na čvor, napravite VM bez diska (2 vCPU, 2–4 GB RAM, VirtIO mreža), zatim<br><code>qm importdisk &lt;vmid&gt; backupzit-appliance.qcow2 local-lvm</code><br>zakačite uvezeni disk kao SCSI, postavite ga za disk za pokretanje i uključite QEMU guest agent.</td></tr>
+  <tr><td>Hyper-V</td><td>Raspakujte <code>backupzit-appliance-vhdx.zip</code>, zatim <i>New → Virtual Machine</i>, <b>generacija 1</b>, 2–4 GB RAM, <i>Use an existing virtual hard disk</i>: VHDX.</td></tr>
+</table>
+<p>Pokrenite VM. Njen ekran prikazuje adresu web konzole i početnu lozinku korisnika <b>admin</b> (vidi <a href="#first">Prva prijava</a>). Dajte VM-u 2 vCPU i 2–4 GB RAM; disk od 16 GB možete povećati u bilo kom trenutku — uređaj novi prostor koristi od sledećeg pokretanja (root fajl-sistem se povećava u radu). Pri prvom pokretanju svaka kopija pravi svoje SSH ključeve, lozinku baze i ključ za tajne, pa jedna slika može da se postavi mnogo puta. Mrežna kartica dobija adresu preko DHCP-a.</p>
+
+<h2>2. ISO uređaja</h2>
+<p><b>ISO uređaja</b> instalira sve bez pitanja: Debian, PostgreSQL, konzolu i automatska bezbednosna ažuriranja.</p>
+<ol>
+  <li>Napravite VM (ili koristite server) sa 2 vCPU, 2–4 GB RAM i diskom od 16 GB ili većim. Koristite VirtIO ili podrazumevane uređaje hipervizora, BIOS ili UEFI.</li>
+  <li>Pokrenite je sa <code>backupzit-appliance.iso</code>. Posle 5 sekundi instalacija počinje sama, <b>briše prvi disk</b> i instalira. Preuzima pakete operativnog sistema, pa server tokom instalacije mora da ima pristup internetu. To traje oko 10–20 minuta, a zatim se server restartuje.</li>
+  <li>Ekran servera prikazuje adresu web konzole i početnu lozinku korisnika <b>admin</b>. Otvorite adresu, prijavite se i promenite lozinku.</li>
+</ol>
+<h3>Uređaj (slika ili ISO)</h3>
+<p>Uređaj ima dva odvojena naloga:</p>
+<ul>
+  <li><b>admin</b> u web konzoli (<code>https://&lt;adresa&gt;:8443</code>) za svakodnevni rad. Njegova početna lozinka se prikazuje na ekranu servera posle prvog pokretanja; promenite je u <b>Moj nalog</b>.</li>
+  <li><b>bzadmin</b> na samom serveru (njegov ekran u konzoli hipervizora, ili SSH), početna lozinka <code>backupzit</code>. Morate da je promenite pri prvoj prijavi; korisnik može da koristi <code>sudo</code>. Root ne može da se prijavi.</li>
+</ul>
+<p>Ažuriranjima BackupZit-a i operativnog sistema upravlja se iz konzole (vidi dole). VMware Tools i QEMU guest agent su uključeni, pa hipervizori prikazuju adresu uređaja.</p>
+<h3 id="setup-menu">Meni za podešavanje na ekranu servera</h3>
+<p>Kada se bzadmin prijavi na samom ekranu servera (ne preko SSH-a), otvara se meni (na engleskom):</p>
+<table>
+  <tr><th>Stavka</th><th>Šta radi</th></tr>
+  <tr><td>1 Network</td><td>DHCP ili statička adresa sa dužinom prefiksa (npr. <code>192.168.1.20/24</code>), gateway i do tri DNS servera.</td></tr>
+  <tr><td>2 Server name</td><td>Ime hosta (slova, cifre i -).</td></tr>
+  <tr><td>3 SSH</td><td>Uključivanje ili isključivanje SSH servera i promena njegovog porta. Portovi konzole (80, 443, 8443), PostgreSQL-a (5432) i instant recovery-ja (111, 2049) ne mogu da se koriste.</td></tr>
+  <tr><td>4 Reset the password of "admin"</td><td>Za zaboravljenu lozinku web konzole; usput skida i blokade prijave. Ekran zatim više ne prikazuje generisanu početnu lozinku (to važi i kada se lozinka korisnika admin promeni u web konzoli, od sledećeg pokretanja).</td></tr>
+  <tr><td>5 Lift sign-in blocks and web console limits</td><td>Kada je previše neuspelih prijava blokiralo neku adresu, ili je web konzola ograničena na adrese koje više ne možete da koristite (vidi <a href="/docs/security#web-access">Bezbednost</a>).</td></tr>
+  <tr><td>6–8</td><td>Restart web konzole, restart ili gašenje servera.</td></tr>
+  <tr><td>9 Time zone</td><td>Uređaj počinje u UTC-u. Podesite svoju zonu, npr. <code>Europe/Belgrade</code>: konzola u njoj prikazuje sva vremena, pokreće rasporede i čita tačke vraćanja (i trenutak za vraćanje baze). Konzola se restartuje da bi je koristila.</td></tr>
+  <tr><td>0 Command line</td><td>Izlazi iz menija. Ponovo ga otvarate sa <code>sudo backupzit-server --setup</code> (i preko SSH-a).</td></tr>
+</table>
+<p>Ista podešavanja mreže, imena servera, SSH-a i vremenske zone su u web konzoli pod <b>Podešavanja → Mreža</b> (samo za administratore). Tamo se statička adresa čiji gateway ne odgovori za pola minuta automatski poništava, pa greška u kucanju ne može da odseče uređaj od mreže; ako konzola ipak nije dostupna, koristite meni na ekranu servera, koji radi i sa isključenim SSH-om.</p>
+<p>Agenti pamte sertifikat konzole, a ne njenu adresu. Ako se konzoli javljaju preko IP adrese, a adresa se promeni, usmerite ih na novu komandom <code>backupzit-agent set-server</code> (vidi <a href="/docs/agents#new-address">Agenti</a>), ili od početka koristite DNS ime. Uz DHCP, rezervišite adresu uređaja u DHCP serveru da se ne bi menjala.</p>
+<p>SSH server uređaja nudi samo AES-GCM/CTR šifre i SHA-2 MAC-ove (bez chacha20-poly1305 i 64-bitnih MAC-ova, koje skeneri ranjivosti prijavljuju kao slabe).</p>
+
+<h2>3. Instalacioni skript</h2>
+<p>Na postojećem serveru sa <b>Debian 12+, Ubuntu 22.04+, AlmaLinux ili Rocky Linux 9+</b> (x86-64), kao root:</p>
+<pre>curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh</pre>
+<p>Skript instalira PostgreSQL, preuzima najnovije izdanje, <b>proverava njegov potpis</b> BackupZit ključem za izdanja i kontrolni zbir paketa, instalira konzolu, pravi bazu sa nasumičnom lozinkom, piše <code>/etc/backupzit/server.env</code>, uključuje automatska bezbednosna ažuriranja, otvara port 8443 u firewalld-u ili ufw-u ako su aktivni, pokreće konzolu i ispisuje njenu adresu i početnu lozinku korisnika admin. Opcije (posle <code>sh -s --</code>):</p>
+<table>
+  <tr><th>Opcija</th><th>Dejstvo</th></tr>
+  <tr><td><code>--version 0.32.0</code></td><td>instalira ovo izdanje umesto najnovijeg</td></tr>
+  <tr><td><code>--db postgres://user:pw@host:5432/db</code></td><td>koristi postojeću PostgreSQL bazu umesto lokalne</td></tr>
+  <tr><td><code>--hosts backup.example.local,10.0.0.10</code></td><td>imena i adrese za sertifikat konzole (podrazumevano: adresa i ime servera)</td></tr>
+  <tr><td><code>--no-auto-updates</code></td><td>ostavlja automatska bezbednosna ažuriranja kakva jesu</td></tr>
+</table>
+<p>Primer: <code>curl -fsSL …/install.sh | sudo sh -s -- --hosts backup.example.local</code>. Ponovno pokretanje skripta na instaliranoj konzoli ažurira BackupZit i zadržava podešavanja i podatke. Da biste skript pročitali pre pokretanja, prvo ga preuzmite: <code>curl -fsSLO …/install.sh; less install.sh; sudo sh install.sh</code>.</p>
+
+<h2>4. Paketi ručno</h2>
+<h3>Debian / Ubuntu</h3>
+<pre>apt install postgresql
+apt install ./backupzit-server_*.deb</pre>
+<h3>AlmaLinux / Rocky Linux</h3>
+<pre>dnf install postgresql-server &amp;&amp; postgresql-setup --initdb &amp;&amp; systemctl enable --now postgresql
+dnf install ./backupzit-server-*.rpm</pre>
+<p>Na AlmaLinuxu i Rocky Linuxu, u <code>/var/lib/pgsql/data/pg_hba.conf</code> za redove 127.0.0.1 i ::1 promenite <code>ident</code> u <code>scram-sha-256</code> i restartujte PostgreSQL, da bi konzola mogla da se prijavi lozinkom.</p>
+
+<h3>Pravljenje baze</h3>
+<pre>sudo -u postgres psql -c "SET password_encryption = 'scram-sha-256'; CREATE USER backupzit WITH PASSWORD 'choose-a-strong-password'"
+sudo -u postgres psql -c "CREATE DATABASE backupzit OWNER backupzit"</pre>
+<p>Upišite podatke za povezivanje u <code>/etc/backupzit/server.env</code>:</p>
+<pre>BACKUPZIT_DB=postgres://backupzit:choose-a-strong-password@localhost:5432/backupzit?sslmode=disable
+BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
+BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
+<pre>systemctl start backupzit-server</pre>
+
+<h2 id="first">Prva prijava</h2>
+<p>Otvorite <code>https://&lt;server&gt;:8443</code>. Početni administrator je <b>admin</b>; lozinka je u <code>/var/lib/backupzit/initial-admin-password.txt</code> (ili postavite <code>BACKUPZIT_ADMIN_PASSWORD</code> pre prvog pokretanja). Promenite je posle prijave. Zaboravljenu lozinku resetujete na serveru:</p>
+<pre>set -a; . /etc/backupzit/server.env; set +a
+backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
+
+<h2>Sertifikat</h2>
+<p>Pri prvom pokretanju konzola pravi samopotpisani sertifikat. Pregledač će jednom upozoriti na njega; agenti se uopšte ne oslanjaju na sertifikaciona tela — oni pri registraciji <b>zapamte otisak sertifikata</b> prikazan na stranici <a href="/agents">Agenti</a>. To štiti agente od lažnog servera čak i na mreži kojoj se ne veruje.</p>
+<div class="callout warn"><p>Ne menjajte taj sertifikat (<code>cert.pem</code>/<code>key.pem</code> u folderu sa podacima): ranije registrovani agenti bi odbili da se povežu dok se ponovo ne registruju. Za pregledače umesto toga dodajte pouzdan sertifikat, kako je opisano dole.</p></div>
+
+<h3>Pouzdan sertifikat za pregledače</h3>
+<p>Da biste izbegli upozorenje pregledača, otvorite <a href="/settings/certificate">Podešavanja → Sertifikat</a>. Konzola tada odgovara i na DNS imenu, na primer <code>https://backup.example.com</code> na portu 443, sa pouzdanim sertifikatom. Agenti i dalje koriste port 8443 i zapamćeni sertifikat, pa se na njih ovo ne odnosi.</p>
+<ul>
+  <li><b>Otpremi sertifikat</b> iz CA vaše firme ili javnog CA, može i wildcard sertifikat kao <code>*.example.com</code>. Nalepite sertifikat (sa posredničkim sertifikatima) i privatni ključ u PEM formatu, ili izaberite fajlove. Konzola proverava da ključ pripada sertifikatu, da je sertifikat trenutno važeći i da pokriva DNS ime. Bez internog DNS-a unesite IP adresu konzole i koristite sertifikat izdat za tu IP adresu (subject alternative name <code>IP:192.168.1.20</code>); konzoli tada dajte fiksnu adresu. Email stiže 21 dan pre isteka.</li>
+  <li><b>Let's Encrypt</b>: besplatni sertifikati, automatski se obnavljaju 30 dana pre isteka. Let's Encrypt mora da proveri da upravljate imenom, na jedan od dva načina:
+    <ul>
+      <li><b>DNS provera preko Cloudflare-a</b>, preporučena za konzole koje nisu dostupne sa interneta. BackupZit pravi privremeni TXT zapis pomoću Cloudflare API tokena. U Cloudflare-u idite na My Profile → API Tokens → Create Token, koristite šablon <i>Edit zone DNS</i> i ograničite ga na svoju zonu.</li>
+      <li><b>HTTP provera</b>: port 80 konzole mora da bude dostupan sa interneta pod DNS imenom. To se retko želi za server za bekap.</li>
+    </ul>
+    Podešavanje prvo isprobajte sa <i>Koristi Let's Encrypt test sistem</i>. Njegovim sertifikatima pregledači ne veruju, ali nema ograničenja broja zahteva.</li>
+  <li><b>Koristi port 80</b> preusmerava <code>http://</code> na <code>https://</code>.</li>
+</ul>
+<p>DNS ime mora da pokazuje na IP adresu konzole, obično preko A zapisa u internom DNS-u. Fajlovi sertifikata se čuvaju u <code>/var/lib/backupzit/web</code>, a ključ može da čita samo servis. Na Linuxu servis sme da koristi portove 80 i 443 (<code>CAP_NET_BIND_SERVICE</code>); otvorite ih u firewall-u ako se pregledači povezuju iz drugih mreža.</p>
+
+<h2>Firewall</h2>
+<table>
+  <tr><th>Port</th><th>Odakle</th><th>Kuda</th><th>Namena</th></tr>
+  <tr><td>8443/tcp</td><td>agenti, administratori</td><td>konzola</td><td>API za agente i web konzola</td></tr>
+  <tr><td>443/tcp, 80/tcp</td><td>administratori</td><td>konzola</td><td>opciono: web konzola sa pouzdanim sertifikatom i preusmeravanje na HTTPS</td></tr>
+  <tr><td>22/tcp</td><td>agenti, konzola</td><td>SFTP skladište</td><td>SFTP skladišta</td></tr>
+  <tr><td>443 ili 9000/tcp</td><td>agenti, konzola</td><td>S3 skladište</td><td>S3 skladišta</td></tr>
+  <tr><td>445/tcp</td><td>agenti, konzola</td><td>NAS / fajl server</td><td>SMB skladišta</td></tr>
+  <tr><td>8500/tcp</td><td>agenti, konzola</td><td>ojačani repozitorijum</td><td>ojačana skladišta</td></tr>
+  <tr><td>443/tcp</td><td>agenti, konzola</td><td>Azure / cloud skladište</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
+  <tr><td>636/tcp (389 sa StartTLS-om)</td><td>konzola</td><td>kontroleri domena</td><td>prijava preko LDAP-a / Active Directory-ja</td></tr>
+  <tr><td>587/465/25</td><td>konzola</td><td>mail server</td><td>email obaveštenja</td></tr>
+</table>
+<p>Konzola se i sama povezuje na skladište da biste mogli da pregledate fajlove u slikama diskova i bekapima VM-ova (i da ih preuzmete), pa joj treba isti pristup skladištu kao agentima.</p>
+
+<h2>Ažuriranje BackupZit-a</h2>
+<p>Podrazumevano konzola uzima ažuriranja iz zvaničnih BackupZit izdanja na GitHub-u (<code>https://github.com/Max-Zit/backupzit/releases</code>). U <a href="/settings/updates">Podešavanja → Ažuriranja</a> možete umesto toga uneti drugi <b>izvor ažuriranja</b> — svoj HTTPS mirror ili folder na serveru. Bez obzira na izvor, svako izdanje mora da ima ispravan BackupZit potpis. Konzola svakog dana proverava ima li novih izdanja i šalje email administratorima kada se pojavi novo. Za instalaciju kliknite <b>Instaliraj</b>:</p>
+<ol>
+  <li>Konzola proverava potpis izdanja i kontrolni zbir paketa, i čeka da se ne izvršava nijedan bekap ni vraćanje.</li>
+  <li>Sistemski servis (<code>backupzit-update</code>, radi kao root) ponovo proverava potpis ključevima za izdanja ugrađenim u BackupZit. Ni kompromitovana konzola ne može da instalira neki drugi paket.</li>
+  <li>Pravi bekap baze (<code>pg_dump</code>), čuva trenutni program, instalira paket i restartuje konzolu.</li>
+  <li>Ako nova verzija ne odgovori za dva minuta, prethodni program i baza kakva je bila automatski se vraćaju. Rezultat, sa logom neuspelog pokretanja, prikazuje se na stranici Ažuriranja, upisuje u audit log i šalje emailom.</li>
+  <li>Posle uspešnog ažuriranja ažuriraju se i agenti: svaki instalira novu verziju kada je slobodan. To možete isključiti na istoj stranici ako agente želite da ažurirate sami.</li>
+</ol>
+<p>Konzola je nedostupna oko jedan minut. Bekapi baze i prethodni programi poslednja tri ažuriranja čuvaju se u <code>/var/lib/backupzit-update</code>.</p>
+<p><b>Bez pristupa internetu:</b> fajlove izdanja (<code>manifest.json</code>, <code>manifest.json.sig</code> i serverski paket) preuzmite na drugom računaru. Zatim ih otpremite pod <i>Instaliraj ažuriranje iz fajlova</i>, ili ih kopirajte u folder na serveru i taj folder koristite kao izvor ažuriranja.</p>
+<p>I dalje možete da ažurirate menadžerom paketa (<code>apt install ./backupzit-server_….deb</code>); baza se migrira kada se nova verzija pokrene.</p>
+
+<h2>Ažuriranja operativnog sistema</h2>
+<p>Ista stranica (<a href="/settings/updates#os">Podešavanja → Ažuriranja</a>) prikazuje operativni sistem servera konzole: koliko je ažuriranja dostupno, koliko su od njih bezbednosne ispravke, da li je potreban restart i da li su uključena automatska bezbednosna ažuriranja. Stanje se osvežava svakog dana, ili dugmetom <i>Proveri sada</i>. Možete:</p>
+<ul>
+  <li><b>Uključi automatska bezbednosna ažuriranja</b> (preporučeno). Sopstveni alat sistema svakog dana instalira samo bezbednosne ispravke: <code>unattended-upgrades</code> na Debianu i Ubuntuu, <code>dnf-automatic</code> na AlmaLinuxu i Rocky Linuxu.</li>
+  <li><b>Instaliraj sva ažuriranja sada</b>. Servisi kao PostgreSQL mogu kratko da se restartuju, a konzola se sama ponovo povezuje.</li>
+  <li><b>Restartuj server</b>, na primer posle ažuriranja kernela. Konzola to odbija dok se izvršavaju bekapi ili vraćanja. Agenti zadržavaju svoje poslove i javljaju rezultate kada se konzola vrati.</li>
+</ul>
+<p>Ovi zadaci rade preko istog root servisa kao ažuriranja konzole. Upisuju se u audit log, a izlaz poslednjeg zadatka se prikazuje na stranici.</p>
+
+<h2>Bekap same konzole</h2>
+<p>Bekapi na vašem skladištu ostaju čitljivi i bez konzole, pomoću listova za oporavak. Da biste posle gubitka servera vratili i samu konzolu, uključite <a href="/settings/console">Podešavanja → Bekap konzole</a>. To obuhvata poslove, rasporede, agente, korisnike, podešavanja, istoriju pokretanja i sačuvane pristupne podatke. Konzola tada svakog dana pravi svoj bekap na mrežno skladište, u folder <code>backupzit-console</code>.</p>
+<p>Bekap konzole sadrži:</p>
+<ul>
+  <li>celu bazu, izvezenu tabelu po tabelu, pa nije potrebna određena verzija <code>pg_dump</code>-a;</li>
+  <li>ključ za tajne koji dešifruje sačuvane pristupne podatke;</li>
+  <li>sertifikat konzole, koji agenti pamte.</li>
+</ul>
+<p>Šifrovan je ključem za oporavak skladišta i dedupliciran. Čuvaju se najnoviji bekapi: podrazumevano 14.</p>
+<h3>Vraćanje konzole</h3>
+<ol>
+  <li>Instalirajte novu konzolu iste ili novije verzije, na primer sa ISO-a uređaja.</li>
+  <li>Na novom serveru, kao root, pokrenite sledeće. Pristupni podaci su oni sa lista za oporavak skladišta, a adresa repozitorijuma je prikazana na stranici Bekap konzole.
+<pre>systemctl stop backupzit-server
+set -a; . /etc/backupzit/server.env; set +a
+export BACKUPZIT_PASSWORD='&lt;ključ za oporavak&gt;'
+export BACKUPZIT_SFTP_PASSWORD='…' BACKUPZIT_SFTP_HOSTKEY='SHA256:…'   # ili BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, _SMB_PASSWORD, _AZURE_KEY, _HARDENED_KEY/_FINGERPRINT
+backupzit-server --restore-console --repo 'sftp://backup@nas:22/backups/backupzit-console'
+systemctl start backupzit-server</pre></li>
+  <li>Dajte novom serveru IP adresu ili DNS ime starog servera. Agenti veruju vraćenom sertifikatu i sami se ponovo povezuju.</li>
+</ol>
+<p>Vraćanje zamenjuje bazu nove konzole bekapom i podiže bazu na instaliranu verziju. <code>--snapshot ID</code> vraća stariji bekap umesto najnovijeg.</p>
+<p>Kopiju <b>listova za oporavak</b> i fajla <code>secrets.key</code> čuvajte i van servera, na primer u menadžeru lozinki.</p>
+
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,95 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Proxmox VE virtuelne mašine</h1>
+<p class="lead">BackupZit pravi bekap Proxmox VE virtuelnih mašina (QEMU) i kontejnera (LXC) bez instaliranja bilo čega u gostima. Agent radi na Proxmox hostu, pravi snimak svakog gosta, čita njegove diskove i čuva ih deduplicirane na bilo kom skladištu.</p>
+
+<h2>Podešavanje</h2>
+<ol>
+  <li>Instalirajte paket <b>Linux agent — Debian / Ubuntu</b> sa stranice <a href="/agents">Agenti</a> na svaki Proxmox čvor (Proxmox VE 7 i 8 su zasnovani na Debianu):
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>Za minut se čvor pojavljuje na stranici Agenti sa oznakom <b>Proxmox VE · N gostiju</b>.</li>
+  <li>U <a href="/jobs">Poslovi bekapa</a> izaberite tog agenta i <b>Virtuelne mašine (Proxmox VE, Hyper-V, VMware)</b>. Čuvajte <b>sve goste čvora</b> (gosti napravljeni kasnije uključuju se automatski) ili označite pojedinačne.</li>
+</ol>
+<p>Agent koristi sopstvene alate čvora (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); u konzoli se ne čuvaju API token ni lozinka.</p>
+
+<h2>Kako se pravi bekap gosta</h2>
+<ol>
+  <li>Pravi se privremeni Proxmox snimak (<code>backupzit_…</code>, vidljiv pod <i>Snapshots</i> nekoliko sekundi do minuta). Gost nastavlja da radi.</li>
+  <li>Ako u VM-u radi <b>QEMU guest agent</b> (i uključen je u opcijama VM-a), Proxmox „zamrzava“ fajl-sisteme za snimak — bekap je tada konzistentan na nivou aplikacija. Bez njega, bekap je konzistentan kao posle nestanka struje. Instalirajte <code>qemu-guest-agent</code> u Linux virtuelne mašine i VirtIO guest tools u Windows virtuelne mašine.</li>
+  <li>Svaki disk se čita iz snimka u blokovima od 1 MiB. Prazni blokovi se ne čuvaju, a blokovi koji su već u repozitorijumu ne šalju se ponovo, pa se posle prvog bekapa prenose samo promenjeni podaci.</li>
+  <li>Snimak se uklanja. Konfiguracija gosta (CPU, memorija, mreža, diskovi) čuva se uz bekap.</li>
+</ol>
+<p>Stranica pokretanja navodi svakog gosta, njegove diskove i kako je sačuvan. Testovi vraćanja proveravaju nasumične blokove bekapa virtuelnih mašina kao kod slika diskova i, uz uključen <a href="/docs/restore">test pokretanja</a>, pokreću svaku VM iz bekapa izolovanu od mreže da bi dokazali da se podiže.</p>
+
+<h3>Podržana skladišta</h3>
+<table>
+  <tr><th>Vrsta skladišta</th><th>Gosti koji rade</th><th>Zaustavljeni gosti</th></tr>
+  <tr><td>LVM-thin (podrazumevano <code>local-lvm</code>)</td><td>da, snimak</td><td>da</td></tr>
+  <tr><td>ZFS (diskovi VM-a / zvol-ovi)</td><td>da, snimak</td><td>da</td></tr>
+  <tr><td>Ceph RBD</td><td>da, snimak</td><td>da</td></tr>
+  <tr><td>Directory, NFS, CIFS sa <b>qcow2</b> diskovima</td><td>da, snimak</td><td>da</td></tr>
+  <tr><td>Directory, NFS, CIFS sa raw diskovima, thick LVM</td><td>ne — zaustavite gosta ili premestite disk</td><td>da</td></tr>
+  <tr><td>ZFS podvolumeni kontejnera</td><td colspan="2">još nije podržano</td></tr>
+</table>
+<p>Diskovi označeni sa <i>Backup: no</i> (<code>backup=0</code>) u Proxmoxu, prosleđeni fizički diskovi i bind mount-ovi se preskaču i navode kao upozorenja. Cloud-init diskovi se ne čuvaju; pri vraćanju se ponovo prave iz konfiguracije.</p>
+
+<h2>Vraćanje VM-a ili kontejnera</h2>
+<p>Otvorite pokretanje VM bekapa (sa stranice posla ili iz <a href="/runs">Aktivnosti</a>) i koristite <b>Vraćanje VM-a ili kontejnera</b>:</p>
+<ul>
+  <li><b>Gost</b> — jedan od gostiju u tom bekapu.</li>
+  <li><b>Vrati na Proxmox čvor</b> — bilo koji čvor sa BackupZit agentom; i čvor drugog klastera.</li>
+  <li><b>Kao novi gost sa sledećim slobodnim ID-jem</b> (podrazumevano) ili <b>sa ID-jem …</b> — original nastavlja da radi. Pošto postoje oba, mrežne kartice kopije dobijaju nove MAC adrese.</li>
+  <li><b>Sa originalnim ID-jem</b> — pošto je gost obrisan. Ako i dalje postoji, označite <b>zaustavite ga i obrišite</b> da biste ga zamenili bekapom; postojeći gost i njegovi diskovi se prvo brišu.</li>
+  <li><b>Ime</b> i <b>Skladište za diskove</b> — npr. vraćanje na drugo skladište od originalnog.</li>
+  <li><b>Pokreni gosta posle vraćanja</b>.</li>
+</ul>
+<p>Svako vraćanje daje virtuelnim mašinama nov generation ID (<code>vmgenid</code>), pa Windows kontroleri domena i drugi softver bezbedno prepoznaju vraćanje u prošlost. Diskovi se zauzimaju preko <code>pvesm</code> na izabranom skladištu; na directory skladištu vraćaju se kao raw fajlovi.</p>
+
+<h2>Instant recovery</h2>
+<p>Vraćanje velike VM traje koliko i kopiranje njenih diskova. Sa <b>Odmah, pokrenut iz bekapa</b> u obrascu za vraćanje, VM umesto toga radi za nekoliko sekundi, dok su joj diskovi još u bekapu:</p>
+<ol>
+  <li>Agent servira diskove VM-a samo za čitanje iz bekapa (mali NBD server koji radi kao systemd jedinica <code>backupzit-instant-&lt;ID&gt;</code>) i pravi novu VM sa sledećim slobodnim ID-jem, čiji su diskovi qcow2 slojevi na directory skladištu <code>backupzit-instant</code> (<code>/var/lib/backupzit-instant</code>, dodaje se automatski). Podaci se čitaju iz bekapa po potrebi; sve što VM upiše ostaje u slojevima. Promenljive firmvera (EFI disk) i TPM stanje su mali i kopiraju se.</li>
+  <li>VM se pokreće. Proverite je — dobija nove MAC adrese kao svaka kopija. Kontrolna tabla navodi svaku VM koja još radi iz bekapa.</li>
+  <li>Na stranici pokretanja izaberite <b>Završi</b>: diskovi se premeštaju na izabrano skladište dok VM radi (<code>qm disk move</code>), a zatim se bekap više ne koristi. Ili <b>Odbaci VM</b>: VM se zaustavlja i briše zajedno sa svojim izmenama.</li>
+</ol>
+<p>Dok VM radi iz bekapa, retencija nikad ne briše taj bekap. VM je brza koliko dozvoljava skladište bekapa: repozitorijum na lokalnom disku ili brzom mrežnom deljenom folderu radi najbolje; čitanje preko SFTP-a ili S3 sa udaljene lokacije je usporava dok se ne završi. Instant recovery je za virtuelne mašine (ne za kontejnere) i pravi novu VM — na mestu originala vratite običnim vraćanjem. EFI disk ne može da se premesti dok VM radi; tada ostaje na <code>backupzit-instant</code> (vidi poruku pokretanja) i može da se premesti posle gašenja VM-a: <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
+
+<h2>Replikacija</h2>
+<p>Za goste koji moraju da se vrate za nekoliko minuta, VM posao može da drži <b>replike</b>: pod <b>Napredno</b> u obrascu posla označite <b>Održavaj replike VM-ova</b> i izaberite čvor (bilo koji čvor sa BackupZit agentom, i u drugom klasteru) i skladište. Posle svakog bekapa, agent na tom čvoru ažurira <b>zaustavljenu kopiju</b> svakog gosta tog posla:</p>
+<ul>
+  <li>Prvi put se replika vraća kao nov gost (sledeći slobodan ID, ime <i>original-replica</i>, nove MAC adrese, nikad se ne pokreće sa čvorom).</li>
+  <li>Kasnije se upisuju samo blokovi koji su se promenili od bekapa koji replika sadrži — obično nekoliko sekundi po bekapu.</li>
+  <li>Stranica posla navodi replike, bekap koji svaka sadrži i njeno stanje. Ako se gost izgubi, kliknite <b>Pokreni repliku</b>: radi sa podacima poslednjeg bekapa, bez vraćanja. Pokrenite je samo kada originala zaista više nema — oba na mreži u isto vreme mogu da se sudare.</li>
+  <li>Dok replika radi, više se ne ažurira (pokretanje to javlja). Da biste ponovo replicirali, obrišite gosta repliku u Proxmoxu; sledeći bekap pravi novu. Ni replike sa Proxmox snimcima se ne ažuriraju.</li>
+  <li>Diskovi dodati gostu kasnije se ne repliciraju (obrišite repliku da biste počeli iznova); diskovi koji su povećani povećavaju se i na replici. Izmene konfiguracije (memorija, procesori) preuzimaju se kada se replika pravi.</li>
+  <li>Replikacija čita bekape kao vraćanje: čvor replike mora da dođe do skladišta. Isključivanje replikacije ostavlja replike kakve jesu.</li>
+</ul>
+
+<h2>Komandna linija</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
+<p>Opcije repozitorijuma su iste kao za sve komande (vidi <a href="/docs/cli">Komandna linija</a>). Komandna linija radi bez konzole, na primer za vraćanje celog čvora posle katastrofe.</p>
+
+<h2>Klasteri</h2>
+<p>Instalirajte agenta na svaki čvor. Posao pravi bekap gostiju koji rade na čvoru njegovog agenta; gost naveden u poslu koji je migriran na drugi čvor prijavljuje se kao upozorenje sa imenom tog čvora — pravite bekap svakog čvora sopstvenim poslom, ili koristite <i>sve goste čvora</i> na svakom čvoru, da migrirani gosti uvek budu pokriveni.</p>
+
+<h2>Vraćanje pojedinačnih fajlova</h2>
+<p>U tabeli gostiju pokretanja VM bekapa kliknite <b>Pregledaj fajlove</b>. Konzola čita disk direktno iz bekapa — ništa se prvo ne vraća — i prikazuje njegove particije i LVM logičke volumene; mogu da se pregledaju NTFS (Windows), ext2/3/4 i XFS (Linux), i unutar LVM-a. Označite fajlove i foldere i:</p>
+<ul>
+  <li><b>Preuzmi</b> — jedan fajl kakav jeste, više fajlova ili foldera kao ZIP arhiva, direktno u pregledač;</li>
+  <li><b>Vrati na agenta</b> — kopirajte ih u folder na bilo kom agentu, npr. nazad u VM (ako u njoj radi BackupZit agent) ili na fajl server.</li>
+</ul>
+<p>U komandnoj liniji: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> i <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> bira particiju ili logički volumen (<code>pve ls</code> bez putanje ih navodi). Za pregled u konzoli bekap mora da bude na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum).</p>
+
+<h2>Još nije uključeno</h2>
+<ul>
+  <li>XCP-ng hostovi. Hyper-V i VMware ESXi: vidi <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

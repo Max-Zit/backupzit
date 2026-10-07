@@ -1,0 +1,92 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>VMware ESXi virtuelne mašine</h1>
+<p class="lead">BackupZit pravi bekap virtuelnih mašina VMware ESXi hostova bez instaliranja bilo čega na ESXi ili u virtuelnim mašinama. BackupZit agent na bilo kojoj mašini u mreži radi kao <b>proxy</b> hosta. Pravi snimke, čita samo promenjene blokove virtuelnih diskova i upisuje ih na vaše skladište.</p>
+
+<h2>Zahtevi</h2>
+<ul>
+  <li><b>ESXi 6.7, 7 ili 8</b>, povezan direktno. Hostovi kojima upravlja vCenter dodaju se jedan po jedan, sa sopstvenom adresom; sam vCenter još nije podržan.</li>
+  <li><b>Korisnik sa administratorskim pravima na hostu</b>, obično <code>root</code>.</li>
+  <li><b>SSH uključen na hostu:</b> Host → Actions → Services → Enable Secure Shell. Vraćanja ga uvek traže. Hostovima sa besplatnom ESXi licencom treba i za snimke, jer je njihov API samo za čitanje.</li>
+  <li><b>Proxy agent:</b> bilo koji Windows ili Linux agent koji dolazi do hosta na portovima 443 i 22. Podaci bekapa prolaze kroz njega, pa ga postavite na brzu mrežu blizu hosta i skladišta.</li>
+  <li><b>Slobodan prostor na datastore-u VM-a</b> dok se pravi bekap VM-a koja radi. BackupZit tamo na trenutak kopira disk (vidi dole). Kopija je thin, pa joj treba onoliko prostora koliko disk zaista koristi.</li>
+</ul>
+
+<h2>Dodavanje hosta</h2>
+<ol>
+  <li>Otvorite <a href="/agents#vmware">Agenti → VMware ESXi hostovi</a> → <i>Dodajte ESXi host</i>.</li>
+  <li>Unesite adresu, korisnika, lozinku i proxy agenta.</li>
+  <li>Konzola se jednom povezuje da ih proveri. Čita listu virtuelnih mašina i licencu, i <b>pamti HTTPS sertifikat i SSH ključ hosta</b>. Ako se host kasnije zameni drugom mašinom sa istom adresom, BackupZit odbija da se poveže umesto da joj pošalje lozinku.</li>
+</ol>
+<p>Lozinka se čuva šifrovana, kao i sve druge tajne. Lista virtuelnih mašina se osvežava svakih 10 minuta, ili odmah dugmetom <i>Osveži</i>. Tabela prikazuje režim svakog hosta:</p>
+<ul>
+  <li><b>vSphere API:</b> licencirani hostovi.</li>
+  <li><b>Besplatna licenca:</b> snimci i vraćanja idu preko SSH-a.</li>
+</ul>
+
+<h2>Poslovi bekapa</h2>
+<p>U <a href="/jobs">Poslovi bekapa</a> izaberite ESXi host (naveden pod <i>VMware ESXi hostovi</i> u listi agenata) i <b>Virtuelne mašine</b>. Čuvajte sve virtuelne mašine hosta (virtuelne mašine napravljene kasnije uključuju se automatski) ili označite pojedinačne. Posao radi na proxy agentu hosta. Ako promenite proxy, postojeći poslovi ga prate.</p>
+
+<h3>Kako se pravi bekap VM-a</h3>
+<ol>
+  <li><b>Changed block tracking (CBT)</b> se uključuje za VM ako je isključen.
+    <ul>
+      <li>Na licenciranim hostovima to se dešava automatski.</li>
+      <li>Na besplatnim hostovima CBT može da se uključi samo dok je VM ugašena. BackupZit to radi pri prvom bekapu koji zatekne VM ugašenu. Do tada svaki bekap čita cele diskove, a pokretanje prikazuje upozorenje.</li>
+    </ul>
+  </li>
+  <li>Pravi se snimak <code>backupzit_…</code>. Kada u gostu rade <b>VMware Tools</b>, snimak je <b>quiesced</b>: aplikacije i fajl-sistemi prvo upisuju svoje podatke, pa je bekap konzistentan na nivou aplikacija. Bez VMware Tools-a konzistentan je kao posle nestanka struje. Instalirajte <code>open-vm-tools</code> u Linux virtuelne mašine i VMware Tools u Windows virtuelne mašine.</li>
+  <li>CBT javlja koje blokove treba čitati:
+    <ul>
+      <li>za prvi bekap, samo blokove u upotrebi;</li>
+      <li>posle toga, samo blokove promenjene od prethodnog bekapa.</li>
+    </ul>
+  </li>
+  <li>VM koja radi drži svoje diskove zaključane. Zato se njeni diskovi kopiraju na datastore-u (thin), a <b>snimak se odmah uklanja</b>, obično posle nekoliko sekundi. Kopija se zatim čita preko HTTPS-a i briše. Ugašene virtuelne mašine se čitaju direktno.</li>
+  <li>Konfiguracija VM-a (<code>.vmx</code>) i NVRAM se čuvaju uz bekap.</li>
+</ol>
+<p>Primer iz test laboratorije: Debian VM sa diskom od 8 GB, od čega je 1,6 GB u upotrebi. Prvi bekap je pročitao 1,6 GB. Sledeći, posle 50 MB novih podataka, pročitao je 70 MB i trajao 23 sekunde.</p>
+
+<h2>Vraćanje VM-a</h2>
+<p>Koristite <a href="/restore">čarobnjak za vraćanje</a> (<i>Cela virtuelna mašina</i>) ili stranicu bekapa u Aktivnosti. Izaberite:</p>
+<ul>
+  <li><b>Kao nova VM pored originala:</b> kopija sa novim imenom, UUID-om i MAC adresama. Podrazumevano ime je ime originala uz <code>-restored-</code> i datum. Mrežna podešavanja gosta vezana za stare MAC adrese, kao netplan <code>match: macaddress</code> u cloud slikama, ne važe za kopiju.</li>
+  <li><b>Umesto originalne VM:</b> uz <i>isključi ga i zameni mu diskove</i>, BackupZit:
+    <ul>
+      <li>gasi VM i briše njene snimke;</li>
+      <li>preimenuje trenutne diskove u <code>….replaced-DATUM.vmdk</code> (obrišite ih kada vraćena VM proradi);</li>
+      <li>upisuje bekap u nove diskove sa originalnim imenima, i postavlja CPU i memoriju kao u bekapu.</li>
+    </ul>
+    VM zadržava UUID, mrežne adaptere i MAC adrese. Ako je VM obrisana, ponovo se pravi sa svojim originalnim identitetom.</li>
+  <li><b>ESXi host i datastore:</b> drugi host, ili drugi datastore istog hosta.</li>
+  <li><b>Pokreni VM posle vraćanja.</b></li>
+</ul>
+<p>Diskovi se vraćaju kao thin, a upisuju se samo blokovi sa podacima. ISO slike koje su bile povezane na CD/DVD uređaje nisu deo bekapa, pa ti uređaji ostaju prazni.</p>
+
+<h3>Instant recovery</h3>
+<p>Izaberite <b>Odmah, pokrenut iz bekapa</b> da biste pokrenuli VM za nekoliko sekundi, bez prethodnog kopiranja diskova. Proxy agent hosta — mora da bude <b>Linux</b> agent — servira diskove VM-a direktno iz bekapa preko NFS-a; host to montira kao datastore <code>backupzit-&lt;agent&gt;</code> i pokreće VM sa njega. Izmene koje VM napravi čuvaju se na agentu (<code>/var/lib/backupzit/instant-esxi</code>, pa mu treba slobodnog prostora za njih); sam bekap se nikad ne menja, a retencija ga čuva dok VM radi iz njega. Ako originalna VM i dalje postoji, instant VM dobija nov UUID i nove MAC adrese.</p>
+<p>Na stranici pokretanja, kada VM radi kako treba:</p>
+<ul>
+  <li><b>Završi</b> je kopira na datastore hosta: VM se gasi (preko VMware Tools-a ako rade), njeni diskovi se kopiraju kao thin pomoću <code>vmkfstools</code>, registruje se sa datastore-a i ponovo pokreće. Besplatna ESXi licenca nema Storage vMotion, pa ovo traži kratak prekid koji raste sa veličinom diska. Ako kopiranje ne uspe, VM nastavlja da radi iz bekapa.</li>
+  <li><b>Odbaci VM</b> zaustavlja i briše VM sa svim njenim izmenama.</li>
+</ul>
+<p>Agent odgovara na NFS na portu 2049 (i registruje ga u rpcbind-u mašine na portu 111, ili sam odgovara na portu 111) samo za adresu ESXi hosta; otvorite ove portove od hosta ka agentu ako je između njih firewall. Kada se poslednja instant VM završi ili odbaci, datastore se uklanja, a NFS server zaustavlja.</p>
+
+<h3>Pojedinačni fajlovi</h3>
+<p><b>Pregledaj fajlove</b> na stranici bekapa (ili <i>Fajlovi iz virtuelne mašine</i> u čarobnjaku za vraćanje) otvara diskove VM-a. Možete da pregledate NTFS, ext2/3/4 i XFS, i na LVM-u, i da preuzmete fajlove ili ih vratite na bilo kog agenta.</p>
+
+<h2>Komandna linija</h2>
+<p>Ove komande rade na bilo kom agentu. ESXi lozinku postavite u <code>BACKUPZIT_VMWARE_PASSWORD</code>:</p>
+<pre>backupzit-agent vmware list    --host 192.168.1.20 [--user root]
+backupzit-agent vmware backup  --host … --repo … [--vmid N,N]
+backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NAME] [--datastore DS] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<p><code>vmware list</code> prikazuje otiske sertifikata i SSH ključa hosta. Prosledite ih sa <code>--thumbprint</code> i <code>--ssh-host-key</code> da biste ih zapamtili i u komandnoj liniji.</p>
+
+<h2>Još nije uključeno</h2>
+<ul>
+  <li><b>vCenter.</b> Svaki ESXi host dodajte direktno.</li>
+  <li><b>Virtuelne mašine sa sopstvenim snimcima.</b> Njihovi diskovi su delte; prvo obrišite ili konsolidujte snimke.</li>
+  <li><b>Neke vrste diskova.</b> Raw device mappings (RDM) i nezavisni diskovi.</li>
+  <li><b>Instant recovery preko Windows proxy agenta.</b> Instant recovery traži Linux proxy agenta.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

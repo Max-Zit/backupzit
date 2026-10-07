@@ -1,0 +1,75 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Baze podataka: SQL Server, PostgreSQL, MySQL</h1>
+<p class="lead">BackupZit pravi bekap baza alatima samog servera baze, preko agenta na mašini sa bazom: Microsoft SQL Server na Windowsu, PostgreSQL i MySQL/MariaDB na Linuxu. Puni bekapi rade po rasporedu posla; bekapi logova na svakih nekoliko minuta omogućavaju vraćanje jedne baze u bilo koji trenutak — na primer na minut pre pogrešnog DELETE-a.</p>
+
+<h2>Pravljenje posla</h2>
+<p>U <a href="/jobs">Poslovi bekapa</a> napravite posao vrste <b>Baze podataka</b>, na agentu mašine sa bazom, i izaberite:</p>
+<ul>
+  <li><b>Server baze</b>: Microsoft SQL Server, PostgreSQL ili MySQL/MariaDB. Kasnije ne može da se promeni.</li>
+  <li><b>Instanca ili port</b>: SQL Server instanca (prazno za podrazumevanu instancu, npr. <code>SQLEXPRESS</code>) ili PostgreSQL port (prazno za 5432). Do MySQL/MariaDB-a se stiže preko lokalnog socketa.</li>
+  <li><b>Baze podataka</b>: jedno ime po redu, ili prazno za sve korisničke baze — baze napravljene kasnije uključuju se automatski.</li>
+  <li><b>Bekap logova na svakih … minuta</b>: npr. 15 — transakcioni logovi (SQL Server), arhivirani WAL (PostgreSQL) ili binarni logovi (MySQL). Ostavite prazno ako je dovoljno vraćanje na vreme punog bekapa.</li>
+  <li><b>Raspored</b> je raspored punih bekapa, npr. svakog dana u 22:00.</li>
+</ul>
+<p>Bekapi su deduplicirani — nepromenjeni podaci se ne šalju ponovo — i šifrovani kao svaki bekap. Retencija broji pune bekape; bekapi logova se čuvaju dok postoji puni bekap na koji se nastavljaju. Stranica pokretanja navodi šta svaki bekap sadrži.</p>
+
+<h2>Microsoft SQL Server</h2>
+<ol>
+  <li>Instalirajte agenta na Windows mašinu na kojoj radi SQL Server (bilo koje izdanje od 2012, uključujući Express).</li>
+  <li>Agent radi kao <code>NT AUTHORITY\SYSTEM</code> i povezuje se Windows autentifikacijom. Dajte tom nalogu ulogu <b>sysadmin</b>, jednom po instanci:
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+</ol>
+<ul>
+  <li>Svako pokretanje upisuje po jedan fajl bekapa za svaku bazu (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) u podrazumevani folder za bekape instance, čuva fajlove i briše ih. Folderu tokom pokretanja treba slobodnog prostora za najveću bazu.</li>
+  <li>Uz uključen bekap logova, puni bekapi započinju lanac logova. Bez njega, puni bekapi se prave kao <b>COPY_ONLY</b>, pa ne ometaju druge planove bekapa ili održavanja.</li>
+  <li>Bekap logova se pravi za baze u modelu oporavka <b>full</b> ili <b>bulk-logged</b>; baze u modelu simple dobijaju samo pune bekape. Označite <i>sistemske baze</i> da biste dodali master, model i msdb.</li>
+</ul>
+
+<h2>PostgreSQL</h2>
+<p>Agent radi kao nalog <code>postgres</code> preko lokalnog socketa — za bekape ništa ne treba podešavati. Puni bekap čuva ceo klaster (<b>pg_basebackup</b>), uloge (<code>pg_dumpall --globals-only</code>) i <b>pg_dump</b> svake baze.</p>
+<p><b>Vraćanje u trenutak</b> (point-in-time recovery) traži arhiviranje WAL-a. Uz uključen bekap logova, prvi puni bekap ga podešava komandom <code>ALTER SYSTEM</code>: <code>archive_mode = on</code> i <code>archive_command</code> koji kopira završene WAL segmente u <code>/var/lib/backupzit-pg/wal</code>; bekapi logova ih tamo čuvaju i brišu. <code>archive_mode</code> počinje da važi posle <b>jednog restarta</b> PostgreSQL-a (<code>systemctl restart postgresql</code>) — pokretanje vam to kaže. Ako neki drugi alat već koristi <code>archive_command</code>, BackupZit ga ne dira i pravi bekap bez vraćanja u trenutak. Ako bekapi logova prestanu (posao onemogućen ili obrisan), ponovo isključite arhiviranje (<code>ALTER SYSTEM RESET archive_mode</code>, restart) da se folder ne bi napunio.</p>
+<ul>
+  <li><b>Vraćanje baze</b> u stanje iz punog bekapa: iz njenog pg_dump-a u server koji radi, pod novim imenom ili umesto postojeće baze.</li>
+  <li><b>U određenom trenutku</b> (ili najnovije): agent raspakuje bekap klastera u privremenu instancu na slobodnom portu (samo socket, bez mreže, bez arhiviranja), ponavlja WAL do tog trenutka, iz nje pravi dump baze u server koji radi i uklanja privremenu instancu. Mašini na neko vreme treba slobodnog prostora za klaster.</li>
+  <li><b>Ceo klaster</b>: vraća se na isti način, kao posebna instanca koja nastavlja da radi na slobodnom portu; pokretanje vam kaže njen port i folder sa podacima (ispod <code>/var/lib/backupzit-pg</code>) i kako da se povežete i da je zaustavite.</li>
+</ul>
+
+<h2>MySQL i MariaDB</h2>
+<p>Agent se povezuje kao <code>root</code> preko lokalnog socketa (socket autentifikacija, podrazumevana na Debianu i Ubuntuu), ili sa pristupnim podacima iz <code>/root/.my.cnf</code>. Puni bekap čuva <b>mysqldump</b> svake baze (konzistentan, sa rutinama, događajima i trigerima) zajedno sa pozicijom binarnog loga kojoj odgovara.</p>
+<p><b>Vraćanje u trenutak</b> traži binarni log. Uključite ga jednom u konfiguraciji servera i restartujte server, npr. <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code>:</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>(napravite folder za log, sa nalogom mysql kao vlasnikom). Bekapi logova zatim čuvaju svaki zatvoreni binarni log. Neka sopstveni rok brisanja servera bude duži od intervala bekapa logova; praznina se prijavljuje, a vraćanja ne mogu da je pređu.</p>
+<ul>
+  <li><b>Vraćanje baze</b>: njen dump se učitava u novu bazu (ili zamenjuje postojeću). <b>U određenom trenutku</b> ili <b>najnovije</b>, izmene te baze zabeležene u binarnim logovima posle dump-a ponavljaju se do tog trenutka — i kada baza dobije novo ime. Ponavljanje se ne upisuje u binarni log servera.</li>
+  <li>Korisnici i prava (sistemska baza <code>mysql</code>) nisu deo dump-ova.</li>
+</ul>
+
+<h2>Vraćanje</h2>
+<p>Otvorite pokretanje punog bekapa (ili koristite <a href="/restore">čarobnjak za vraćanje</a> → <i>Baza</i>) i izaberite bazu, mašinu na koju se vraća (isti server ili drugi sa istim serverom baze) i:</p>
+<ul>
+  <li><b>Kao nova baza pod nazivom</b> npr. <code>sales_restored</code> — original ostaje netaknut i redove možete da kopirate nazad — ili <b>pod originalnim nazivom</b>; označite <i>zameni ga</i> da biste prepisali postojeću bazu (njeni korisnici se prvo isključuju).</li>
+  <li><b>Stanje</b>: stanje iz punog bekapa; najnovije stanje (puni bekap i svaki bekap logova posle njega); ili <b>određeni trenutak</b> između punog bekapa i najnovijeg upotrebljivog bekapa logova, kako tabela prikazuje. Unesite vreme kako ga prikazuje konzola, u vremenskoj zoni servera konzole (vidi <a href="/docs/install#setup-menu">Vremenska zona</a>); agent ga pretvara u vremensku zonu servera baze.</li>
+</ul>
+
+<h2>Komandna linija</h2>
+<pre>backupzit-agent sql list    [--instance SQLEXPRESS]
+backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
+
+<h2>Nije uključeno</h2>
+<ul>
+  <li>SQL Server diferencijalni bekapi i Always On availability groups; udaljeni serveri baza — agent pravi bekap servera na svojoj mašini.</li>
+  <li>Vraćanje pojedinačnih tabela: vratite bazu pod novim imenom i kopirajte redove.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

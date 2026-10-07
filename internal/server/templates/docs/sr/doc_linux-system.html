@@ -1,0 +1,38 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Bekap Linux sistema i P2V</h1>
+<p class="lead">Posao <b>Linux sistem</b> pravi bekap cele Linux mašine, tako da može ponovo da se napravi na praznom disku — ista mašina posle kvara diska, nov hardver, ili virtuelna mašina u Proxmox VE (fizičko u virtuelno, P2V).</p>
+
+<h2>Šta se čuva</h2>
+<ul>
+  <li>Svaki lokalni fajl-sistem (ext2/3/4, xfs, vfat), i na LVM-u, fajl po fajl sa vlasnicima, dozvolama, setuid bitovima, ACL-ovima, proširenim atributima (SELinux oznake, file capabilities), čvrstim linkovima i fajlovima uređaja. Svaki fajl-sistem se čuva posebno; mrežni deljeni folderi i virtuelni fajl-sistemi (<code>/proc</code>, <code>/sys</code>, <code>/run</code>) se preskaču.</li>
+  <li>Raspored diskova: GPT ili MBR tabele particija sa njihovim ID-jevima, LVM grupe volumena (<code>vgcfgbackup</code>), UUID-ovi, oznake i osobine fajl-sistema, i boot kod (MBR i BIOS boot particija GRUB-a).</li>
+</ul>
+<p>Kao i Relax-and-Recover, BackupZit ne kopira disk koji radi blok po blok: Linux nema ugrađen snimak diska koji radi, pa bi sirova kopija bila nekonzistentna. Svaki fajl se čita ceo, a raspored čini da se vraćeni disk ponovo pokreće. Za baze podataka napravite dump pre bekapa ili ih čuvajte njihovim alatima.</p>
+<p>Pojedinačni fajlovi i folderi se iz bekapa sistema vraćaju kao iz bilo kog bekapa fajlova (<b>Vrati fajlove iz ovog bekapa</b> na stranici pokretanja).</p>
+<h3>Još nije podržano</h3>
+<p>Šifrovani diskovi (LUKS), softverski RAID (mdadm), btrfs i sistemi raspoređeni na više diskova. Posao ovo jasno javlja umesto da napravi nepotpun bekap.</p>
+
+<h2>Vraćanje celog sistema</h2>
+<p>Otvorite pokretanje bekapa sistema (stranica posla ili <a href="/runs">Aktivnost</a>) i koristite <b>Vrati ceo sistem</b>:</p>
+<h3>Kao nova Proxmox VM</h3>
+<p>Izaberite Proxmox čvor (posao radi njegov BackupZit agent), skladište, ID VM-a, ime, memoriju i jezgra. BackupZit pravi VM sa istim firmverom kao original (UEFI/OVMF ili BIOS), VirtIO SCSI diskom i mrežnom karticom, ponovo pravi disk, vraća sve fajlove i može da pokrene VM. Pošto je VM kopija koja može da radi pored originala:</p>
+<ul>
+  <li>mrežna podešavanja vezana za stare MAC adrese (česta u cloud slikama: netplan <code>match: macaddress</code>) menjaju se tako da važe za bilo koji žičani interfejs,</li>
+  <li>BackupZit agent u kopiji se odjavljuje, da se ne bi javljao kao originalna mašina.</li>
+</ul>
+<h3>Na disk</h3>
+<p>Vratite na prazan disk Linux agenta, npr. drugi disk (<code>/dev/sdb</code>), ili na samu novu mašinu („goli metal“):</p>
+<ol>
+  <li>Na stranici <a href="/recovery">Oporavak</a> preuzmite <b>Linux ISO za oporavak</b> i napravite kod za oporavak. Upišite ISO na USB stik (Rufus, balenaEtcher) ili ga zakačite na VM. Pokreće se na BIOS i UEFI mašinama.</li>
+  <li>Pokrenite mašinu sa njega. Sistem za oporavak pokreće agenta, koji se povezuje na konzolu sa <code>backupzit/recovery.json</code> sa bilo kog drugog USB stika ili diska, ili traži adresu servera i kod za oporavak.</li>
+  <li>Mašina se pojavljuje kao agent <span class="badge">oporavak</span>. U pokretanju bekapa sistema izaberite <b>Na disk</b>, tog agenta i njegov disk (obično <code>/dev/sda</code>, <code>/dev/nvme0n1</code> ili <code>/dev/vda</code>).</li>
+</ol>
+<p>Radi i bilo koji Linux live sistem: tamo pokrenite agenta sa <code>sudo backupzit-agent recovery --server https://console:8443 --token KOD</code>; alati koji su mu potrebni (gdisk, LVM, mkfs) navode se ako nedostaju. Označite <b>Drugi hardver</b> kada mašina nije originalna.</p>
+<p>Cilj može da bude veći ili manji od originalnog diska: poslednja particija se povećava da ga popuni, ili se smanjuje dok god njeni podaci staju. UUID-ovi fajl-sistema i ID-jevi particija ostaju isti, pa <code>/etc/fstab</code> i boot loader ne treba menjati. Za UEFI sisteme boot loader se instalira i na putanju za prenosive medije <code>\EFI\BOOT\BOOTX64.EFI</code>, koju svaki UEFI firmver pokreće i bez boot unosa. Sistemi slični RHEL-u (dracut) dobijaju nov initramfs sa svim drajverima kada se premeste na drugi hardver.</p>
+
+<h2>Komandna linija</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

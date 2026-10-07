@@ -1,0 +1,64 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Zaštita od ransomware-a</h1>
+<p class="lead">Napadači pokušavaju da obrišu ili šifruju bekape pre nego što šifruju produkcione podatke. BackupZit nudi skladišta na kojima bekapi ne mogu da se unište, čak ni ukradenim pristupnim podacima.</p>
+
+<h2>Slojevi zaštite</h2>
+<table>
+  <tr><th>Sloj</th><th>Štiti od</th></tr>
+  <tr><td><b>Šifrovanje</b> (AES-256)</td><td>Čitanja ili menjanja bekapa na skladištu. Svaka izmena se otkriva.</td></tr>
+  <tr><td><b>Nepromenljivi S3</b> (Object Lock, compliance režim)</td><td>Brisanja ili prepisivanja bekapa — od strane napadača sa ključevima, nesavesnog administratora ili greškom.</td></tr>
+  <tr><td><b>Ojačani repozitorijum</b></td><td>Isto, na vašem Linux serveru: fajlovi se upisuju samo jednom i dobijaju oznaku nepromenljivosti fajl-sistema.</td></tr>
+  <tr><td><b>Kopija van firme</b></td><td>Požara, krađe, potpunog gubitka lokacije.</td></tr>
+  <tr><td><b>Odobrenje „četiri oka”</b> (opciono)</td><td>Jednog ukradenog ili zloupotrebljenog naloga konzole koji briše poslove i skladišta ili skraćuje retenciju: drugi korisnik mora da odobri. Vidi <a href="/docs/users">Korisnici, uloge i LDAP</a>.</td></tr>
+</table>
+
+<h2>Automatsko otkrivanje sumnjivih bekapa</h2>
+<p>Svaki bekap se poredi sa skorašnjom istorijom svog posla. Označava se kao <span class="badge failed"><i></i>sumnjivo</span> kada pokazuje tragove ransomware-a ili masovnog brisanja:</p>
+<ul>
+  <li>promenilo se mnogo više fajlova nego obično (npr. 95 % umesto uobičajenog 1 %),</li>
+  <li>novi podaci se više ne kompresuju — šifrovani fajlovi izgledaju kao nasumični podaci,</li>
+  <li>broj fajlova je naglo pao za trećinu ili više,</li>
+  <li>nagli skok količine novih podataka (i za slike diskova, Linux sisteme i virtuelne mašine).</li>
+</ul>
+<p>Tada BackupZit šalje email upozorenje (uz uključena obaveštenja o neuspesima), prikazuje bekap na kontrolnoj tabli kao <i>sumnjivih bekapa za pregled</i> i <b>pauzira retenciju posla</b>: nijedan stariji bekap se ne briše, pa poslednji čisti bekapi ostaju vraćljivi čak i ako oštećeni bekapi nastave da stižu. Pošto proverite mašinu, kliknite <i>Pregledano — nastavi čuvanje</i> na stranici posla.</p>
+
+<h2>Nepromenljivi S3 sa Object Lock-om</h2>
+<ol>
+  <li>Napravite bucket sa <b>uključenim Object Lock-om</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
+  <li>Dodajte lifecycle pravilo koje briše <i>prethodne verzije</i> (noncurrent versions) posle 1 dana (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
+  <li>Dodajte S3 skladište i označite <b>Nepromenljivi bekapi na N dana</b>. Izaberite N bar onoliko dugo koliko je najduža retencija koju želite da zaštitite, npr. 30.</li>
+</ol>
+<p>Svaka tačka vraćanja ostaje zaključana bar N dana posle nastanka; podacima zajedničkim sa novijim bekapima rok se automatski produžava.</p>
+
+<h2>Ojačani repozitorijum</h2>
+<p>Poseban Linux server sa <code>backupzit-repo</code>:</p>
+<ul>
+  <li>Agenti i konzola mogu samo da <b>dodaju</b> fajlove; postojeći fajlovi se nikad ne prepisuju.</li>
+  <li>Svaki fajl dobija atribut <code>chattr +i</code> za period podešen na tom serveru. Ni root ne može da ga obriše bez prethodnog uklanjanja oznake.</li>
+  <li>Brisanja od strane klijenata samo <b>sakrivaju</b> fajlove do isteka njihovog perioda.</li>
+  <li>Servis radi kao neprivilegovan korisnik; jedino pravo mu je postavljanje oznake nepromenljivosti.</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p>Posle podešavanja <b>isključite SSH i drugi udaljeni pristup</b> na serveru repozitorijuma i zaštitite pristup njegovoj lokalnoj konzoli / iDRAC-u / iLO-u / hipervizoru. Zaštita je jaka onoliko koliko i root nalog te mašine.</p></div>
+
+<h2>Oporavak posle napada</h2>
+<p>Ako je napadač obrisao ili prepisao bekape, čitajte skladište <b>onakvo kakvo je bilo pre napada</b> — to je samo čitanje i ništa ne menja:</p>
+<pre>backupzit-agent snapshots --repo &lt;repozitorijum&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;repozitorijum&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>Na ojačanom repozitorijumu administrator može i da vrati sakrivene fajlove, da bi se bekapi normalno nastavili:</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>Preporuke</h2>
+<ul>
+  <li>Za skladište koristite poseban nalog koji nije deo vašeg Windows domena.</li>
+  <li>Čuvajte bar jednu nepromenljivu kopiju (S3 Object Lock ili ojačani repozitorijum).</li>
+  <li>Listove za oporavak čuvajte offline (odštampane, u sefu).</li>
+  <li>Uključite email upozorenja — nagla promena broja neuspeha ili količine poslatih podataka često je prvi znak napada.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

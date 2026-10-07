@@ -1,0 +1,93 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Skladišta</h1>
+<p class="lead">Skladište je mesto gde agenti upisuju svoje bekape. Svaki agent koristi svoj repozitorijum ispod lokacije skladišta.</p>
+
+<h2>Izbor vrste skladišta</h2>
+<table>
+  <tr><th>Vrsta</th><th>Pogodno za</th><th>Napomene</th></tr>
+  <tr><td><b>SFTP</b></td><td>Bilo koji Linux server ili NAS sa SSH-om</td><td>Šifrovan prenos; ključ hosta servera se pamti.</td></tr>
+  <tr><td><b>S3-kompatibilno</b></td><td>Kopije van firme / u cloudu: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph, Google Cloud Storage</td><td>Podržava nepromenljivost preko Object Lock-a.</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>Kopije van firme za kompanije koje koriste Microsoft</td><td>Ključ naloga ili SAS token; nepromenljivost preko Azure pravila nepromenljivosti na nivou verzija.</td></tr>
+  <tr><td><b>SMB deljeni folder</b></td><td>Windows fajl serveri, Synology/QNAP NAS</td><td>SMB 2/3; agenti se sami prijavljuju, mapiranje diska nije potrebno.</td></tr>
+  <tr><td><b>Ojačani repozitorijum</b></td><td>Lokalno skladište otporno na ransomware</td><td>Linux server sa <code>backupzit-repo</code>; bekapi ne mogu da se obrišu pre isteka perioda nepromenljivosti.</td></tr>
+  <tr><td><b>USB diskovi u rotaciji</b></td><td>Offline kopije za male kancelarije: dva ili više diskova koji se menjaju nedeljno</td><td>Pronalaze se po oznaci volumena (BZBACKUP1, BZBACKUP2 …), ne po slovu diska.</td></tr>
+  <tr><td><b>Lokalna / montirana putanja</b></td><td>USB disk, drugi disk, ili NFS/iSCSI volumen montiran na agentu</td><td>Putanja kako je vidi agent, npr. <code>E:\Backups</code> ili <code>/mnt/backup</code>.</td></tr>
+</table>
+<div class="callout tip"><p><b>Pravilo 3-2-1:</b> čuvajte 3 kopije podataka, na 2 različita medija, od kojih je 1 van firme — na primer jedan posao na lokalni NAS, a drugi na S3 ili ojačani repozitorijum u drugoj zgradi.</p></div>
+
+<h2 id="test">Testiranje veze</h2>
+<p>Kada se skladište doda, konzola ga odmah testira sa unetim pristupnim podacima: upiše mali fajl, pročita ga i obriše. Na nepromenljivom skladištu (S3 sa Object Lock-om, ojačani repozitorijum) samo se prijavi i izlista sadržaj, da ne bi ostalo ništa zaključano; za S3 proverava i da bucket ima Object Lock kada je nepromenljivost tražena. Skladište se u svakom slučaju čuva, a rezultat se prikazuje — pogrešna lozinka, ključ hosta, bucket ili deljeni folder vide se odmah, a ne tek pri prvom bekapu. <b>Testiraj vezu</b> na stranici Skladište ponavlja test. Konzola testira iz svoje mreže; bekape upisuju agenti, pa se skladište do kog dolaze samo agenti (lokalni ili USB disk) testira prvim bekapom.</p>
+
+<h2>SFTP</h2>
+<p>Lokacija: <code>sftp://korisnik@host:22/putanja</code> (koristite <code>/~/putanja</code> za putanju u odnosu na home folder korisnika). Unesite lozinku ili privatni ključ, i otisak ključa hosta servera, koji dobijate na serveru sa:</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>Napravite posebnog korisnika koji može da piše samo u folder za bekape.</p>
+
+<h2>S3-kompatibilno</h2>
+<p>Unesite endpoint (npr. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket, opcioni folder i pristupni ključ sa pravom čitanja i pisanja za taj bucket. <i>Običan HTTP</i> označite samo za lokalni MinIO bez sertifikata.</p>
+<h3>Nepromenljivi bekapi (Object Lock)</h3>
+<p>Napravite bucket sa <b>uključenim Object Lock-om</b> i označite <i>Nepromenljivi bekapi … na N dana</i>. Svaki fajl koji agenti upišu zaključava se u <b>compliance režimu</b> na N dana (+1 dan rezerve): niko — ni napadač sa ključevima, ni vlasnik bucketa — ne može da ga obriše ili prepiše pre toga. Posle svakog bekapa podacima koji se ponovo koriste iz starijih bekapa produžava se zaključavanje, pa je svaka tačka vraćanja zaštićena ceo period.</p>
+<p>Brisanje (retencijom ili od strane napadača) samo dodaje „oznaku brisanja“. Dodajte lifecycle pravilo koje briše <i>prethodne verzije</i> (noncurrent versions) posle jednog dana, da bi se prostor oslobodio kada zaključavanja isteknu. Vidi <a href="/docs/ransomware">Zaštita od ransomware-a</a>.</p>
+
+<h3>Google Cloud Storage</h3>
+<p>Google Cloud Storage radi kao S3-kompatibilno skladište preko svog <i>interoperability</i> API-ja:</p>
+<ol>
+  <li>U Google Cloud konzoli otvorite <i>Cloud Storage → Settings → Interoperability</i> i napravite <b>HMAC ključ</b> za servisni nalog koji ima ulogu <i>Storage Object Admin</i> na bucketu.</li>
+  <li>Dodajte S3 skladište sa endpointom <code>storage.googleapis.com</code>, imenom bucketa, HMAC pristupnim ključem i tajnom, i regionom <code>auto</code>.</li>
+</ol>
+<p>Opcija S3 Object Lock nije dostupna na Google Cloud Storage-u; za nepromenljivost podesite <i>bucket retention policy</i> (i zaključajte je) u Google Cloud-u. Obrisani bekapi tada ostaju do isteka perioda čuvanja.</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>U Azure portalu napravite <b>storage account</b> (StorageV2, bilo koja redundansa) i <b>container</b>, npr. <code>backups</code>.</li>
+  <li>Dodajte skladište <i>Azure Blob Storage</i> sa imenom naloga, containerom i opcionim folderom.</li>
+  <li>Prijavite se <b>pristupnim ključem</b> (<i>Storage account → Access keys</i>) ili, uz manja prava, <b>SAS tokenom</b> za container sa pravima read, write, delete i list i odgovarajućim rokom važenja.</li>
+</ol>
+<p>Za zaštitu od ransomware-a uključite <b>nepromenljivost na nivou verzija</b> (version-level immutability) sa vremenskim pravilom čuvanja na containeru; obrisani ili prepisani bekapi tada ostaju dostupni to vreme. Polje za endpoint pod <i>Napredno</i> potrebno je samo za Azure Government/China, Azure Stack Hub ili Azurite emulator.</p>
+
+<h2>USB diskovi u rotaciji</h2>
+<p>Diskovi koji se isključuju i odnose van kancelarije su najjednostavnija zaštita od ransomware-a, požara i krađe za male kancelarije. BackupZit pronalazi disk po njegovoj <b>oznaci volumena</b>, bez obzira na slovo koje mu Windows dodeli:</p>
+<ol>
+  <li>Formatirajte dva ili više diskova kao NTFS (Linux: ext4) i nazovite ih <code>BZBACKUP1</code>, <code>BZBACKUP2</code>, … (Windows: desni klik na disk → Properties → ime).</li>
+  <li>Dodajte skladište vrste <i>Rotirajući USB / prenosivi diskovi</i> sa oznakom <code>BZBACKUP*</code>.</li>
+  <li>Napravite posao bekapa na njega — ili, bolje, posao <b>kopije bekapa</b> koji kopira posao sa NAS-a ili clouda na disk.</li>
+  <li>Redovno menjajte diskove (npr. nedeljno), a isključeni čuvajte na sigurnom mestu.</li>
+</ol>
+<ul>
+  <li>Svaki disk sadrži potpun, nezavisan bekap sa svojom retencijom; svi diskovi su šifrovani ključem za oporavak skladišta.</li>
+  <li>Pokretanje prikazuje koji je disk korišćen (<i>Disk BZBACKUP2</i>). Vraćanje traži baš taj disk i kaže vam koji je priključen.</li>
+  <li>Kada nijedan disk nije priključen, pokretanje ne uspeva sa jasnom porukom i upozorenjem — podsetnik da vratite disk.</li>
+  <li>Priključite samo jedan disk u isto vreme.</li>
+</ul>
+
+<h2>SMB deljeni folder</h2>
+<p>Server, deljeni folder, opcioni folder, korisnik, lozinka i (za naloge domena) domen. Agenti se sami povezuju sa ovim podacima, pa radi i za servise koji rade kao SYSTEM.</p>
+
+<h2>Ojačani repozitorijum</h2>
+<p>Instalirajte paket <code>backupzit-repo</code> na poseban Linux server, zatim na tom serveru:</p>
+<pre>backupzit-repo add-key office-console     # jednom prikazuje pristupni ključ
+backupzit-repo fingerprint                # otisak sertifikata</pre>
+<p>U konzolu unesite adresu servera, pristupni ključ i otisak. Period nepromenljivosti se podešava na serveru repozitorijuma (<code>/etc/backupzit-repo/repo.env</code>) i ne može da se promeni iz konzole ni sa agenata. Detalji su u <a href="/docs/ransomware">Zaštita od ransomware-a</a>.</p>
+
+<h2>Šifrovanje i ključ za oporavak</h2>
+<p>Uz <i>Šifruj bekape</i> (podrazumevano), sve u repozitorijumu — sadržaj fajlova, imena fajlova, struktura foldera, liste snimaka — šifruje se sa <b>AES-256-GCM</b> pre nego što napusti agenta. Pružalac skladišta vidi samo nasumične podatke.</p>
+<p>Kada napravite šifrovano skladište, konzola prikazuje <b>ključ za oporavak</b> i nudi <b>list za oporavak</b> za preuzimanje.</p>
+<div class="callout warn"><p><b>Odštampajte list za oporavak ili ga sačuvajte u menadžeru lozinki, odvojeno od bekapa.</b> Ako se konzola izgubi, ključ za oporavak uz lokaciju skladišta i pristupne podatke je sve što vam treba za vraćanje. Bez ključa šifrovane bekape ne može da pročita niko — ni BackupZit podrška.</p></div>
+<p>Ključ kasnije možete ponovo da prikažete dugmetom <i>Ključ za oporavak</i> u listi skladišta; to se beleži.</p>
+
+<h2>Lista skladišta</h2>
+<p>Lista prikazuje za svako skladište vrstu, lokaciju, šifrovanje (sa pristupom ključu za oporavak za administratore) i nepromenljivost: period Object Lock-a za S3, ili <i>podešeno na serveru repozitorijuma</i> za ojačane repozitorijume. Pristupni podaci se posle čuvanja više nikad ne prikazuju i čuvaju se šifrovani. Samo administratori mogu da dodaju ili uklanjaju skladišta i vide ključeve za oporavak.</p>
+
+<h2>Zauzeće skladišta i prognoza</h2>
+<p>Posle svakog bekapa (i njegove retencije) agent javlja koliko prostora zauzima njegov repozitorijum, a — za lokalne i USB diskove, SFTP servere (OpenSSH proširenje <code>statvfs</code>) i SMB deljene foldere — i veličinu i slobodan prostor skladišta. Pod <a href="/targets#usage">Skladište → Zauzeće skladišta</a> svako skladište prikazuje:</p>
+<ul>
+  <li>prostor koji zauzimaju svi repozitorijumi na njemu (jedan po agentu; kod USB diskova u rotaciji računa se svaki disk);</li>
+  <li>za skladište poznate veličine, koliko je puno (žuto od 75 %, crveno od 90 %), sa kapacitetom kao isprekidanom crvenom linijom na grafikonu;</li>
+  <li>grafikon poslednjih 90 dana i, posle nedelju dana bekapa, rast po danu (linearni trend poslednjih 30 dana), iscrtan 30 dana unapred kao isprekidana linija, i kada će se skladište popuniti — ili, bez poznate veličine, očekivano zauzeće za 90 dana.</li>
+</ul>
+<p><b>Zahteva pažnju</b> na kontrolnoj tabli upozorava kada je skladište 90 % puno ili će se popuniti u narednih 30 dana. S3 i Azure nemaju fiksnu veličinu; tamo se prikazuju samo zauzet prostor i njegov rast. Zauzet prostor su sačuvani (kompresovani, šifrovani, deduplicirani) podaci; fajlovi koje skladište čuva iz drugih razloga (verzije objekata, drugi programi) se ne računaju.</p>
+
+<h2>Uklanjanje skladišta</h2>
+<p>Uklanjanje skladišta iz konzole ne briše nikakve podatke na skladištu. Uz uključeno <a href="/docs/users">odobrenje „četiri oka”</a>, drugi korisnik prvo mora to da odobri.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

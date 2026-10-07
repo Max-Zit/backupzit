@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Vraćanje</h1>
+<p class="lead">Svaki uspešan bekap može da se vrati: ceo ili samo izabrani folderi, na istu mašinu, na drugog agenta ili kao nova virtuelna mašina.</p>
+
+<h2>Čarobnjak za vraćanje</h2>
+<p>Kliknite <a href="/restore"><b>Vraćanje</b></a> u meniju. Čarobnjak postavlja četiri pitanja:</p>
+<ol>
+  <li><b>Šta</b> želite da vratite?
+    <ul>
+      <li>celu virtuelnu mašinu</li>
+      <li>fajlove iz virtuelne mašine</li>
+      <li>fajlove i foldere</li>
+      <li>sliku diska / „goli metal“</li>
+      <li>fajlove iz slike diska</li>
+      <li>bazu podataka (u određeni trenutak)</li>
+      <li>ceo Linux sistem</li>
+      <li>Microsoft 365 poštu i OneDrive (vidi <a href="/docs/m365">Microsoft 365</a>)</li>
+    </ul>
+    Za svaki izbor se prikazuje koliko tačaka vraćanja postoji.</li>
+  <li><b>Izvor</b>: virtuelna mašina (preko svih hipervizora i poslova), ili posao bekapa i njegova mašina.</li>
+  <li><b>Tačka vraćanja</b>: bekap iz kog se vraća, od najnovijeg, sa statusom, skladištem i veličinom.
+    <ul>
+      <li>Bekapi označeni kao sumnjivi (mogući ransomware) su obeleženi.</li>
+      <li>Kopije na drugom skladištu koje je napravio posao kopije bekapa navedene su kao <i>kopija</i> (bekapi fajlova i virtuelnih mašina).</li>
+    </ul>
+  </li>
+  <li><b>Opcije</b>: gde i kako se vraća. Iznad opcija se prikazuje pregled onoga što ste izabrali.</li>
+</ol>
+<p>Koraci na vrhu su linkovi, pa možete da se vratite na bilo koji raniji korak. Svaki korak ima svoju adresu, pa korak možete da sačuvate u obeleživačima ili podelite.</p>
+<p>Opcije su iste kao na stranici bekapa u <a href="/runs">Aktivnosti</a>, gde vraćanje možete pokrenuti i direktno. Čarobnjak vide samo korisnici čija uloga sme da vraća.</p>
+
+<h2>Vraćanje iz bekapa fajlova</h2>
+<ol>
+  <li>U <a href="/restore">čarobnjaku za vraćanje</a> izaberite <b>Fajlovi i folderi</b>, zatim posao i tačku vraćanja. Ili otvorite bekap u <a href="/runs">Aktivnosti</a> ili na stranici posla.</li>
+  <li>Pod <b>Vrati fajlove iz ovog bekapa</b> izaberite agenta koji treba da primi fajlove. To može da bude druga mašina, ne ona čiji je bekap — na primer zamenski PC.</li>
+  <li>Izaberite gde:
+    <ul>
+      <li><b>Vrati u folder</b> (preporučeno) — npr. <code>D:\Restore</code>. Ispod njega se ponovo pravi originalna struktura: <code>D:\Restore\C\Users\ana\Documents\…</code>. Ništa postojeće se ne dira.</li>
+      <li><b>Vrati na originalnu lokaciju</b> — vraća fajlove tamo gde su bili i <b>prepisuje</b> trenutne verzije. Za NAS deljeni folder agent ponovo povezuje folder, sa pravom pisanja.</li>
+    </ul>
+  </li>
+  <li>Po želji ograničite na <b>Samo ove putanje</b>, jednu po redu, npr. <code>C:\Users\ana\Documents\Ugovori</code> — ili ih izaberite u pregledaču fajlova (dole).</li>
+  <li>Ostavite uključeno <b>Proveri vraćene fajlove</b>: svaki fajl se ponovo pročita i uporedi sa kontrolnim zbirom iz bekapa.</li>
+  <li>Kliknite <b>Pokreni vraćanje</b>. Napredak i rezultati se prikazuju na stranici pokretanja vraćanja.</li>
+</ol>
+<p>Vraćaju se i vremena fajlova, Windows atributi (skriven, samo za čitanje, …) i Linux vlasnici, dozvole (uključujući setuid bitove), ACL-ovi, prošireni atributi (SELinux oznake, file capabilities), simbolički i čvrsti linkovi. Vlasnici se postavljaju samo kada agent radi kao root/administrator.</p>
+
+<h3 id="browse-files">Pregled, preuzimanje i izbor fajlova</h3>
+<p>Na pokretanju bekapa, <b>Pregledaj fajlove</b> prikazuje sačuvane foldere onakve kakvi su bili (i za NAS deljene foldere i bekape Linux sistema). Otvarajte foldere, označite fajlove i foldere, zatim:</p>
+<ul>
+  <li><b>Preuzmi</b> — jedan fajl stiže kakav jeste, više fajlova ili foldera kao ZIP arhiva, direktno u pregledaču. Preuzimanja se upisuju u audit log.</li>
+  <li><b>Vrati ih na agenta</b> — u folder ili na originalnu lokaciju, kao vraćanje sa <i>Samo ove putanje</i>.</li>
+</ul>
+<p><b>Simbolički link</b> ka fajlu (npr. <code>/etc/os-release</code>) preuzima se kao fajl na koji pokazuje, ako je taj fajl u bekapu; linkovi ka folderima se izostavljaju iz ZIP arhiva. Isto važi za fajlove preuzete iz bekapa virtuelnih mašina (ext4, XFS). Vraćanje na agenta ponovo pravi linkove kao linkove.</p>
+<p>Konzola sama čita bekap sa skladišta, pa pregled radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); za lokalni ili USB disk agenta vratite pomoću putanja. Korisnici sa ulogom za vraćanje mogu da pregledaju i preuzimaju.</p>
+
+<div class="callout tip"><p><b>Kako naći pravi bekap:</b> u <a href="/calendar">Kalendaru</a> vidite koji bekapi su radili kog dana, ili pogledajte istoriju na stranici posla.</p></div>
+
+<h2>Vraćanje pojedinačnih fajlova iz slike diska</h2>
+<p>Za bekape slika diska kliknite <b>Pregledaj fajlove</b> na pokretanju bekapa. NTFS fajl-sistem u slici možete da pregledate direktno u konzoli, označite fajlove i foldere i vratite ih na bilo kog agenta — bez vraćanja celog diska.</p>
+
+<h2>Vraćanje pojedinačnih fajlova iz VM-a (Proxmox VE, Hyper-V, VMware)</h2>
+<p>U pokretanju bekapa VM-a kliknite <b>Pregledaj fajlove</b> pored gosta. Konzola prikazuje particije i LVM volumene njegovih diskova i omogućava pregled NTFS, ext4 i XFS fajl-sistema. <b>Preuzmite</b> označene fajlove (više njih kao ZIP arhivu) ili ih vratite na bilo kog agenta. Vidi <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>.</p>
+
+<h2>Vraćanje celih mašina</h2>
+<ul>
+  <li>Windows slike diskova: na disk ili „goli metal“, i na drugi hardver — <a href="/docs/images">Slike diskova</a>.</li>
+  <li>Linux sistemi: na disk ili „goli metal“, ili kao nova Proxmox VM — <a href="/docs/linux-system">Bekap Linux sistema</a>.</li>
+  <li>Proxmox virtuelne mašine i kontejneri: kao nov gost ili na mestu originala — <a href="/docs/proxmox">Proxmox VE</a>. Proxmox virtuelne mašine mogu i da se pokrenu odmah iz bekapa i premeste na skladište dok rade (<a href="/docs/proxmox">instant recovery</a>).</li>
+  <li>Baze podataka (SQL Server, PostgreSQL, MySQL/MariaDB): pod novim imenom ili na mestu originala, u određeni trenutak — <a href="/docs/sql">Baze podataka</a>.</li>
+  <li>Hyper-V virtuelne mašine: kao nova VM ili na mestu originala (zadržava ID i MAC adrese) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>VMware ESXi virtuelne mašine: kao nova VM ili na mestu originala (zadržava UUID i MAC adrese), na bilo kom ESXi hostu i datastore-u — <a href="/docs/vmware">VMware ESXi</a>; i odmah iz bekapa preko Linux proxy agenta, a zatim kopirano na datastore (<a href="/docs/vmware">instant recovery</a>).</li>
+</ul>
+<h3 id="recovery-iso">ISO-i za oporavak</h3>
+<p>Vraćanja na „goli metal“ pokreću mašinu sa ISO-a za oporavak (na USB stiku ili zakačenog na VM), vidi <a href="/recovery">Medijum za oporavak</a>:</p>
+<ul>
+  <li><b>Linux ISO za oporavak</b> — objavljuje se sa svakim izdanjem (<code>backupzit-recovery-linux.iso</code>); stranica Medijum za oporavak ga linkuje iz izvora ažuriranja.</li>
+  <li id="winpe"><b>Windows ISO za oporavak</b> — Windows PE ne sme da se deli dalje, pa se pravi jednom, na bilo kom Windows 10/11 ili Server računaru:
+    <ol>
+      <li>Instalirajte besplatni <b>Windows ADK</b> (funkcija <i>Deployment Tools</i>) i <b>Windows PE add-on</b> od Microsofta.</li>
+      <li>Preuzmite <code>build-winpe.ps1</code> iz izdanja (pored paketa agenta) i uzmite <code>backupzit-agent.exe</code> iz <code>C:\Program Files\backupzit Agent</code> na mašini sa agentom.</li>
+      <li>U administratorskom PowerShell-u: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Dodajte <code>-DriverDir C:\Drivers</code> za drajvere za diskove ili mrežu (npr. VirtIO za Proxmox virtuelne mašine) i <code>-RecoveryJson .\recovery.json</code> da se povezuje bez kucanja.</li>
+      <li>Po želji kopirajte ISO u <code>/var/lib/backupzit/dist</code> konzole; tada se nudi na stranici Medijum za oporavak.</li>
+    </ol></li>
+</ul>
+<p>Pregled fajlova u konzoli radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); konzola ih čita direktno. Za bekape na lokalnom disku agenta koristite komandnu liniju.</p>
+
+<h2>Vraćanje bez konzole</h2>
+<p>Ako se izgubi i sama konzola, bilo koja mašina sa instaliranim agentom može da vrati direktno sa skladišta, pomoću <b>lista za oporavak</b> tog skladišta:</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;ključ za oporavak&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (ili pristupni podaci za S3/SMB/ojačani repozitorijum)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>Vidi <a href="/docs/cli">Komandna linija</a>.</p>
+
+<h2>Automatski testovi vraćanja</h2>
+<p>BackupZit redovno dokazuje vaše bekape bez ikakvog vašeg rada: jednom nedeljno (podešava se u <a href="/settings/tests">Podešavanja → Testovi vraćanja</a>) agent svakog posla vraća <b>nasumični uzorak fajlova</b> iz najnovijeg bekapa u privremeni folder, proverava svaki bajt u odnosu na sačuvane kontrolne zbirove i ponovo ga briše. Za slike diskova čitaju se i proveravaju nasumični blokovi. Tako se proverava ceo lanac — pristup skladištu, pristupni podaci, ključ za šifrovanje i ispravnost podataka.</p>
+<ul>
+  <li>Rezultati se prikazuju u Aktivnosti i istoriji posla kao pokretanja <i>Test vraćanja</i>, i po poslu u <a href="/reports">Izveštajima</a> (kolona <i>Test vraćanja</i>).</li>
+  <li>Neuspeo test je neuspeh kao i svaki drugi i šalje email upozorenje.</li>
+  <li><b>Testiraj vraćanje</b> na stranici posla odmah pokreće test.</li>
+  <li>Veličina uzorka ograničava koliko se čita sa skladišta — držite je malom za cloud skladišta koja naplaćuju preuzimanje.</li>
+</ul>
+<h3>Test pokretanja za Proxmox virtuelne mašine</h3>
+<p>Čitljivi blokovi ne dokazuju da se VM i dalje pokreće. Uz uključen <b>Test pokretanja za bekape Proxmox VM-ova</b> (Podešavanja → Testovi vraćanja), test vraćanja Proxmox VM posla pokreće i svaku VM iz najnovijeg bekapa na čvoru posla, jednu za drugom, pomoću <a href="/docs/proxmox">instant recovery-ja</a>: radi iz bekapa sa novim ID-jem, sa isključenim mrežnim karticama (pa ne može da se sudari sa originalom), i odmah zatim se briše. Test prolazi kada <b>QEMU guest agent</b> u VM-u odgovori u podešenom vremenu, što znači da se operativni sistem podigao. Virtuelne mašine bez guest agenta prolaze ako rade bar minut; stranica pokretanja ih prikazuje kao <i>radi</i> umesto <i>pokrenut</i>.</p>
+<ul>
+  <li>Čvoru je tokom testa potrebno slobodne memorije za još jednu VM.</li>
+  <li>Instalirajte QEMU guest agent u virtuelne mašine (<code>qemu-guest-agent</code> na Linuxu, VirtIO guest tools na Windowsu) i uključite ga u opcijama VM-a, da bi test mogao da potvrdi pokretanje.</li>
+  <li>Stranica pokretanja navodi svaku VM sa rezultatom i trajanjem pokretanja.</li>
+</ul>
+<p>Pored toga, s vremena na vreme (npr. jednom u tromesečju) ručno vratite pravi folder i otvorite nekoliko fajlova — tako se uvežbavaju i ljudi koji će to morati da urade u hitnom slučaju.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

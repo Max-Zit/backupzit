@@ -1,0 +1,162 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Komandna linija</h1>
+<p class="lead">Agent radi i samostalno iz komandne linije — za skripte, za vraćanje bez konzole i za hitne slučajeve. Pokrenite <code>backupzit-agent</code> bez argumenata za pregled i <code>backupzit-agent &lt;command&gt; -h</code> za opcije neke komande.</p>
+
+<h2>Repozitorijum i pristupni podaci</h2>
+<p>Svaka komanda prima <code>--repo</code> (ili <code>BACKUPZIT_REPO</code>). Za tajne radije koristite promenljive okruženja. Repozitorijum agenta je <code>&lt;lokacija skladišta&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — vidi kolonu repozitorijuma pokretanja u Aktivnost, ili list za oporavak.</p>
+<table>
+  <tr><th>Lokacija</th><th>Pristupni podaci</th></tr>
+  <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
+  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> ili <code>--sftp-key file</code>; <code>--sftp-hostkey SHA256:…</code> (<code>BACKUPZIT_SFTP_HOSTKEY</code>)</td></tr>
+  <tr><td><code>s3://endpoint/bucket/prefix</code> (<code>?tls=false</code> za HTTP)</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>, <code>BACKUPZIT_S3_SECRET_KEY</code>, <code>--s3-region</code>; <code>--s3-lock-days N</code> upisuje sa Object Lock-om</td></tr>
+  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code>, <code>--smb-domain</code></td></tr>
+  <tr><td><code>azure://account/container/path</code> (<code>?endpoint=URL</code> za suverene oblake, Azure Stack, Azurite)</td><td><code>BACKUPZIT_AZURE_KEY</code> ili <code>BACKUPZIT_AZURE_SAS</code></td></tr>
+  <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>, <code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
+  <tr><td><code>usb://LABEL/path</code> (džokeri: <code>usb://BZBACKUP*/BackupZit</code>)</td><td>— (koristi se priključeni disk sa tom oznakom volumena)</td></tr>
+</table>
+<p>Šifrovani repozitorijumi traže ključ za oporavak u <code>BACKUPZIT_PASSWORD</code> (ili <code>--password</code>).</p>
+<p><b>Pogled u trenutku:</b> na S3 sa Object Lock-om i na ojačanom repozitorijumu, <code>--as-of 2026-10-01T14:30</code> (ili datum) prikazuje repozitorijum kakav je bio u to vreme — samo za čitanje, za oporavak posle brisanja ili prepisivanja bekapa.</p>
+
+<h2>Fajlovi i folderi</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>init</code></td><td>Pravi nov repozitorijum (šifrovan kada je data lozinka).</td></tr>
+  <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Bekap fajlova i foldera. <code>--vss</code> čita iz Volume Shadow Copy-ja (Windows, administrator); <code>--force</code> čita sve fajlove i kada su nepromenjeni.</td></tr>
+  <tr><td><code>snapshots</code></td><td>Navodi snimke sa vremenom, hostom, veličinom i putanjama.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Navodi fajlove u snimku.</td></tr>
+  <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Vraća fajlove ispod DIR (originalna struktura foldera se ponovo pravi). <code>--original</code> ih umesto toga upisuje nazad na originalnu lokaciju, prepisujući postojeće fajlove.</td></tr>
+  <tr><td><code>check [--read-data]</code></td><td>Proverava strukturu repozitorijuma; sa <code>--read-data</code> se svaki bajt preuzima i proverava.</td></tr>
+</table>
+
+<h2>Slike diskova (Windows)</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>disks [--json]</code></td><td>Prikazuje diskove i particije sa njihovim brojevima.</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Bekap celog diska ili izabranih particija, ili svih internih diskova u jedan snimak.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Upisuje sliku na disk; <b>briše disk</b>. <code>--keep-offline</code> kada je originalni disk u istoj mašini; <code>--source-disk</code> bira disk iz bekapa svih diskova.</td></tr>
+  <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Navodi fajlove unutar NTFS particije iz slike (<code>--disk</code>: disk iz bekapa, za bekape svih diskova).</td></tr>
+  <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Kopira fajlove i foldere iz particije iz slike.</td></tr>
+</table>
+
+<h2>Linux sistem (bare metal, P2V)</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>system-backup [--exclude PATTERN]</code></td><td>Bekap svih lokalnih fajl-sistema i rasporeda diskova. Vidi <a href="/docs/linux-system">Bekap Linux sistema</a>.</td></tr>
+  <tr><td><code>system-show SNAPSHOT|latest</code></td><td>Prikazuje raspored diskova u bekapu sistema.</td></tr>
+  <tr><td><code>system-restore --target DEVICE [--new-hardware] [--rebuild-initramfs] --yes-erase-target SNAPSHOT|latest</code></td><td>Ponovo pravi sistem na praznom disku, logičkom volumenu ili fajlu slike.</td></tr>
+</table>
+<h2>Windows: drugi hardver</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Priprema vraćeni Windows disk za drugi hardver (drajveri za podizanje, dodatni drajveri, boot fajlovi) — isto kao opcija vraćanja, npr. da se ponovi sa ISO-a za oporavak.</td></tr>
+</table>
+
+<h2>VMware ESXi (bilo koji agent kao proxy; lozinka u <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>vmware list --host H [--user root]</code></td><td>Prikazuje VM-ove hosta, režim licence, otiske sertifikata i SSH ključa, i datastore-ove.</td></tr>
+  <tr><td><code>vmware backup --host H [--vmid N,N]</code></td><td>Bekap VM-ova (podrazumevano: svih) iz snimaka; sa changed block tracking-om čitaju se samo izmenjeni blokovi.</td></tr>
+  <tr><td><code>vmware restore --host H --vmid N [--new] [--name X] [--datastore DS] [--overwrite] [--start] SNAPSHOT&#124;latest</code></td><td>Vraća VM na mesto (podrazumevano) ili kao nov VM sa <code>--new</code>. <code>--overwrite</code> zamenjuje diskove postojećeg VM-a; stari se čuvaju preimenovani. Vidi <a href="/docs/vmware">VMware ESXi</a>.</td></tr>
+  <tr><td><code>esxi-nfs-serve</code></td><td>Servira instant VM-ove ESXi hostova preko NFS-a iz <code>/var/lib/backupzit/instant-esxi</code> (Linux; pokreće ga instant recovery kao systemd jedinicu <code>backupzit-esxi-nfs</code>).</td></tr>
+</table>
+<p>Fiksirajte host sa <code>--thumbprint SHA256:…</code> i <code>--ssh-host-key SHA256:…</code> (prikazuje ih <code>vmware list</code>).</p>
+
+<h2>Hyper-V (agent na Hyper-V hostu, kao administrator)</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>hyperv list</code></td><td>Navodi VM-ove hosta sa njihovim BackupZit brojevima, i foldere za vraćene diskove.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Bekap VM-ova (podrazumevano: svih) iz produkcionih checkpoint-a.</td></tr>
+  <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Vraća VM na mesto (podrazumevano) ili kao nov VM sa <code>--new</code>. <code>--overwrite</code> zamenjuje diskove postojećeg VM-a. Vidi <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
+</table>
+<p><code>pve show</code>, <code>pve ls</code> i <code>pve extract</code> rade i sa Hyper-V bekapima.</p>
+
+<h2>Proxmox VE (agent na Proxmox hostu)</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>pve list</code></td><td>Navodi VM-ove i kontejnere klastera i storage koji se može koristiti za vraćanja.</td></tr>
+  <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Bekap gostiju ovog čvora (podrazumevano: svih) iz Proxmox snimaka.</td></tr>
+  <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Prikazuje goste i diskove u bekapu VM-a.</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Navodi particije i logičke volumene diska gosta, ili fajlove u folderu (NTFS, ext4, XFS, i na LVM-u).</td></tr>
+  <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Kopira fajlove i foldere sa diska gosta bez vraćanja VM-a.</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Ponovo pravi gosta; <code>--new-vmid -1</code> uzima sledeći slobodan ID, <code>--overwrite</code> zamenjuje postojećeg gosta sa istim ID-jem. Vidi <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
+  <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Instant recovery: pokreće VM za nekoliko sekundi dok se njegovi diskovi čitaju iz bekapa (nov VM, podrazumevano sledeći slobodan ID).</td></tr>
+  <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>Premešta diskove instant VM-a na storage dok radi; posle toga više ne koristi bekap.</td></tr>
+  <tr><td><code>pve instant-discard --vmid N</code></td><td>Zaustavlja i briše instant VM sa njegovim izmenama.</td></tr>
+  <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Servira diskove VM-a iz bekapa samo za čitanje preko NBD-a na unix socketu (pokreće ga instant recovery kao systemd jedinicu).</td></tr>
+</table>
+
+<h2>Microsoft SQL Server (agent na mašini sa SQL Serverom)</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>sql list [--instance I]</code></td><td>Navodi baze instance sa modelom oporavka i veličinom.</td></tr>
+  <tr><td><code>sql backup [--instance I] [--db a,b] [--system] [--log] [--copy-only]</code></td><td>Puni bekapi (podrazumevano: sve korisničke baze) ili, sa <code>--log</code>, bekapi transakcionih logova u repozitorijum.</td></tr>
+  <tr><td><code>sql show</code></td><td>Navodi SQL Server bekape u repozitorijumu sa njihovim LSN opsezima.</td></tr>
+  <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>Vraća bazu iz punog bekapa i bekapa logova posle njega, po želji u određeni trenutak. Vidi <a href="/docs/sql">SQL Server</a>.</td></tr>
+</table>
+
+<h2>PostgreSQL i MySQL/MariaDB (agent na serveru baze)</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>pg list [--port P]</code></td><td>Baze lokalnog klastera i da li je arhiviranje WAL-a uključeno.</td></tr>
+  <tr><td><code>pg backup [--port P] [--db a,b] [--pitr | --wal]</code></td><td>Puni bekap (pg_basebackup, pg_dump svake baze; <code>--pitr</code> podešava arhiviranje WAL-a) ili, sa <code>--wal</code>, arhivirani WAL.</td></tr>
+  <tr><td><code>pg restore --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Vraća bazu (iz njenog dump-a, ili u trenutak) ili ceo klaster kao posebnu instancu.</td></tr>
+  <tr><td><code>mysql list</code></td><td>Baze i da li je binarni log uključen.</td></tr>
+  <tr><td><code>mysql backup [--db a,b] [--binlog]</code></td><td>mysqldump svake baze sa pozicijom binarnog loga, ili zatvoreni binarni logovi.</td></tr>
+  <tr><td><code>mysql restore --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Učitava dump i ponavlja binarne logove do određenog trenutka. Vidi <a href="/docs/sql">Baze podataka</a>.</td></tr>
+</table>
+
+<h2>Upravljani režim</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Povezuje agenta sa konzolom pomoću koda za prijavljivanje sa stranice Agenti (<code>--force</code> zamenjuje postojeće prijavljivanje). Stariji oblik <code>--server URL --token T --fingerprint F</code> i dalje radi.</td></tr>
+  <tr><td><code>set-server https://address:8443</code></td><td>Usmerava prijavljenog agenta na novu adresu konzole (isti sertifikat); posle toga restartujte servis agenta. Vidi <a href="/docs/agents#new-address">Agenti</a>.</td></tr>
+  <tr><td><code>status</code></td><td>Prikazuje šta agent koji radi trenutno radi i njegove poslove bekapa (Windows ikona u traci prikazuje isto).</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Upravlja servisom agenta (to rade instalacioni programi).</td></tr>
+  <tr><td><code>recovery</code></td><td>Režim oporavka, koji ISO-i za oporavak pokreću automatski; na bilo kom Linux live sistemu: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
+  <tr><td><code>version</code></td><td>Ispisuje verziju.</td></tr>
+</table>
+
+<h3>Primeri</h3>
+<pre>set BACKUPZIT_PASSWORD=XXXX-XXXX-...
+set BACKUPZIT_S3_ACCESS_KEY=...
+set BACKUPZIT_S3_SECRET_KEY=...
+backupzit-agent snapshots --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d
+backupzit-agent restore --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d --target D:\Restore --include C:\Users\ana\Documents latest
+backupzit-agent check --repo s3://... --read-data
+
+backupzit-agent disks
+backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
+backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
+
+<h2>Ojačani repozitorijum (<code>backupzit-repo</code>)</h2>
+<table>
+  <tr><th>Komanda</th><th>Šta radi</th></tr>
+  <tr><td><code>backupzit-repo serve</code></td><td>Pokreće servis (to radi systemd).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME</code></td><td>Pravi pristupni ključ (prikazuje se jednom).</td></tr>
+  <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Navodi / opoziva pristupne ključeve.</td></tr>
+  <tr><td><code>backupzit-repo fingerprint</code></td><td>Otisak sertifikata za konzolu.</td></tr>
+  <tr><td><code>backupzit-repo status</code></td><td>Sačuvani i sakriveni (obrisani, još zadržani) podaci.</td></tr>
+  <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Ponovo čini vidljivim fajlove obrisane od TIME.</td></tr>
+</table>
+<p>Konfiguracija: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+
+<h2>Server za upravljanje (<code>backupzit-server</code>)</h2>
+<table>
+  <tr><th>Opcija / okruženje</th><th>Značenje</th></tr>
+  <tr><td><code>--db</code> / <code>BACKUPZIT_DB</code></td><td>PostgreSQL connection string (obavezno).</td></tr>
+  <tr><td><code>--listen</code> / <code>BACKUPZIT_LISTEN</code></td><td>HTTPS adresa, podrazumevano <code>:8443</code>.</td></tr>
+  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>Sertifikat, <code>secrets.key</code>, preuzimanja agenata (<code>dist/</code>).</td></tr>
+  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>URL koji koriste agenti i linkovi u emailovima.</td></tr>
+  <tr><td><code>--tls-hosts</code> / <code>BACKUPZIT_TLS_HOSTS</code></td><td>Dodatna imena/IP adrese za samopotpisani sertifikat.</td></tr>
+  <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Početna lozinka administratora (samo pri prvom pokretanju).</td></tr>
+  <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Ključ tajni (base64) umesto fajla <code>secrets.key</code>.</td></tr>
+  <tr><td><code>--set-admin-password NEW</code></td><td>Resetuje lozinku naloga <i>admin</i> (ponovo ga omogućava kao lokalnog administratora) i izlazi.</td></tr>
+  <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Skida blokadu prijave sa adrese, ili sa svih adresa (zaštita od pogađanja lozinki), i izlazi.</td></tr>
+  <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Vraća konzolu iz bekapa konzole i izlazi (vidi <a href="/docs/install">Instalacija servera</a>).</td></tr>
+  <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Samo za probu: privatni PostgreSQL u folderu podataka, običan HTTP na localhost-u.</td></tr>
+  <tr><td><code>--version</code></td><td>Ispisuje verziju.</td></tr>
+</table>
+<pre>systemctl status backupzit-server
+journalctl -u backupzit-server -f</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

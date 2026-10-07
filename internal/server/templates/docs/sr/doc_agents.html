@@ -1,0 +1,103 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Agenti</h1>
+<p class="lead">Agent se instalira na svaku mašinu koju štitite. Radi kao servis, svakih 30 sekundi pita konzolu ima li posla i direktno komunicira sa skladištem.</p>
+
+<h2>Podržani sistemi</h2>
+<ul>
+  <li>Windows 10, 11 i Windows Server 2016 i noviji — MSI <b>Windows agent</b>.</li>
+  <li>Windows 7 SP1, Windows Server 2008 R2 SP1 i 2012 R2 — MSI <b>Windows agent — stariji sistemi</b> (<code>…-legacy.msi</code>), sa istim mogućnostima uključujući VSS i slike diskova.</li>
+  <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bitni).</li>
+  <li>Proxmox VE 7 i 8 čvorovi — Debian paket; agent tada pravi bekap i virtuelnih mašina i kontejnera tog čvora (vidi <a href="/docs/proxmox">Proxmox VE</a>).</li>
+  <li>Hyper-V hostovi (Windows Server 2016 i noviji, Windows 10/11 sa Hyper-V-om): Windows MSI. Agent tada pravi bekap i virtuelnih mašina tog hosta (vidi <a href="/docs/hyperv">Hyper-V</a>).</li>
+  <li>VMware ESXi hostovi — na ESXi se ništa ne instalira: dodajte host pod <a href="/agents#vmware">VMware ESXi hostovi</a> i izaberite agenta koji mu služi kao proxy (vidi <a href="/docs/vmware">VMware ESXi</a>).</li>
+</ul>
+
+<h2>Registracija agenata</h2>
+<ol>
+  <li>Na stranici <a href="/agents">Agenti</a> kliknite <b>Napravi token za registraciju</b>. Konzola prikazuje <b>kod za registraciju</b> (<code>BZ1-…</code>), koji važi 7 dana i može da se koristi za bilo koliko mašina. Sadrži adresu konzole za agente (sa portom za agente, obično 8443, čak i kada je stranica otvorena na web portu 443), token i otisak sertifikata. Agenti od verzije 0.33.6 se registruju i kodovima koje su starije konzole napravile na web portu.</li>
+  <li>Windows: pokrenite MSI i nalepite kod kada ga instalacija zatraži. Linux: pokrenite prikazanu komandu.</li>
+  <li>Mašina se pojavljuje u listi agenata za manje od minuta.</li>
+</ol>
+<p>Ako konzola nije dostupna tokom instalacije, agent čuva kod i pokušava ponovo dok ne uspe da se registruje. Nadogradnje zadržavaju registraciju i ne pitaju ponovo. Tiha instalacija sa <code>ENROLLCODE</code> na mašini koja je već registrovana zadržava registraciju kada je kod za istu konzolu (GPO ili RMM mogu bezbedno da je ponavljaju), a premešta mašinu kada je kod za drugu konzolu; prethodna registracija se čuva kao <code>agent.json.replaced-<i>datum</i></code> pored <code>agent.json</code>, pa vraćanje starog imena vraća mašinu na staru konzolu kao istog agenta.</p>
+<h3>Windows, tiha instalacija (GPO, Intune, RMM)</h3>
+<pre>msiexec /i backupzit-agent.msi /qn ENROLLCODE="BZ1-..."</pre>
+<p>Stariji oblik <code>SERVER="..." TOKEN="..." FINGERPRINT="SHA256:..."</code> i dalje radi. Tiha instalacija bez ovih svojstava postavlja servis, koji čeka dok ga ne registrujete komandom <code>backupzit-agent enroll --code "BZ1-..."</code> u administratorskom komandnom prozoru.</p>
+<h3>Linux</h3>
+<pre>apt install ./backupzit-agent_*.deb        # ili: dnf install ./backupzit-agent-*.rpm
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre>
+
+<h2>Instalacija agenata iz konzole</h2>
+<p>Umesto da instalaciju kopirate na svaku mašinu, prepustite instalaciju konzoli: na stranici <a href="/agents">Agenti</a> otvorite <b>Instaliraj na mašinu odavde</b>, izaberite Linux ili Windows i unesite adresu mašine i administratorski nalog.</p>
+<ul>
+  <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64-bitni): konzola se povezuje preko <b>SSH</b>-a kao root, ili kao korisnik sa <code>sudo</code> pravima (lozinka se koristi i za sudo; uz ključ je potreban sudo bez lozinke). Radi lozinka ili privatni ključ. Unesite <b>otisak SSH ključa hosta</b> (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> na mašini) da biste bili sigurni da konzola razgovara sa pravom mašinom; bez njega se otisak prikazuje u logu instalacije.</li>
+  <li><b>Windows</b> (64-bitni): konzola se povezuje preko <b>WinRM</b>-a (port 5985, poruke šifrovane NTLM-om; 5986 za HTTPS listener) kao lokalni administrator ili administrator domena. WinRM je podrazumevano uključen na Windows Serveru; na Windows 10/11 jednom pokrenite <code>winrm quickconfig</code> kao administrator. Lokalni nalozi osim ugrađenog naloga Administrator trebaju prava za udaljenu administraciju (<code>LocalAccountTokenFilterPolicy</code>) — ili koristite nalog domena. Stariji sistemi (Windows 7, Server 2008 R2/2012 R2) dobijaju legacy MSI.</li>
+</ul>
+<p>Mašina preuzima najnoviji paket agenta sa konzole preko linka koji radi samo za ovu instalaciju (30 minuta, tri preuzimanja), proverava njegov SHA-256 kontrolni zbir, instalira ga i registruje se. Stranica instalacije prikazuje svaki korak; nalog i lozinka se koriste samo za ovo i ne čuvaju se. Ako je mašina već registrovana na ovoj konzoli, registracija se zadržava, a paket ažurira; registracija koju konzola ne poznaje (ranije uklonjen agent ili druga konzola) se zamenjuje. Svaka instalacija je u audit logu. Mašina mora da dođe do adrese konzole za agente, kao i svaki agent.</p>
+
+<h2>Stanje agenta</h2>
+<ul>
+  <li><b>na mreži</b> — agent se javio konzoli u poslednja 3 minuta.</li>
+  <li><b>van mreže</b> — mašina je ugašena, servis je zaustavljen ili je mreža blokirana. Zakazani bekapi se stavljaju u red i počinju čim se agent vrati.</li>
+  <li><b>oporavak</b> — mašina pokrenuta sa ISO-a za oporavak (Windows ili Linux), spremna da primi sliku diska ili vraćanje Linux sistema. Agenti za oporavak su privremeni; uklonite ih kada je vraćanje završeno.</li>
+</ul>
+<p>Kolona <b>IP adrese</b> navodi sopstvene adrese mašine kako ih je agent poslednji put prijavio. <i>Viđen sa</i> je adresa sa koje stižu njegove veze: na lokalnoj mreži ista adresa, a za mašinu iza NAT-a (npr. laptop kod kuće) javna adresa rutera. Konzola za to ne pita nijedan spoljni servis.</p>
+
+<h2>Agent na radnoj površini (Windows)</h2>
+<p>Windows agent prikazuje ikonu pored sata (može da bude ispod strelice <b>^</b> za skrivene ikone — prevucite je na traku zadataka da ostane vidljiva). Tačka na ikoni pokazuje stanje:</p>
+<table>
+  <tr><th>Tačka</th><th>Značenje</th></tr>
+  <tr><td>zelena</td><td>Bekapi su u redu (ili se čeka prvi zakazani bekap).</td></tr>
+  <tr><td>plava</td><td>Izvršava se bekap, vraćanje ili test vraćanja.</td></tr>
+  <tr><td>narandžasta</td><td>Poslednji bekap je završen sa upozorenjima (fajlovi koji nisu mogli da se pročitaju).</td></tr>
+  <tr><td>crvena</td><td>Posao bekapa nije uspeo.</td></tr>
+  <tr><td>siva</td><td>Konzola nije dostupna ili servis agenta ne radi.</td></tr>
+</table>
+<p>Kliknite ikonu (ili otvorite <b>BackupZit Agent</b> iz Start menija) za prozor sa stanjem: stanje zaštite, napredak bekapa koji je u toku, poslednji i sledeći bekap, i svi poslovi bekapa tog računara sa dugmetom <b>Napravi bekap sada</b>. Desni klik otvara meni: <i>Napravi bekap sada</i> po poslu, <i>Otvori konzolu u pregledaču</i>, <i>Sakrij ovu ikonu</i> (do sledeće prijave; bekapi se nastavljaju). Prozoru je potreban Microsoft Edge WebView2, koji je deo Windowsa 10 i 11; na starijim sistemima ikona i meni rade, a <i>Otvori</i> prikazuje konzolu u pregledaču.</p>
+<p>Korisnici ovako mogu da pokrenu bekap svog računara; poslovi, rasporedi i čuvanje se podešavaju samo u konzoli. Na bilo kom sistemu, <code>backupzit-agent status</code> (kao administrator ili root) ispisuje iste informacije.</p>
+
+<h2>Nadogradnja</h2>
+<p>Kada konzola ima noviju instalaciju agenta od one koju agent koristi, stranica Agenti pored njegove verzije prikazuje <b>Ažuriraj na x.y.z</b>, a ispod liste <b>Ažuriraj sve agente</b>. Agent tada:</p>
+<ol>
+  <li>čeka da bude slobodan (bekap koji je u toku se nikada ne prekida),</li>
+  <li>preuzima odgovarajuću instalaciju sa konzole preko svoje zapamćene veze — MSI za Windows 10/11/2016+, MSI za <i>starije sisteme</i> za Windows 7/2008 R2/2012 R2, deb ili rpm paket na Linuxu — i proverava njen SHA-256,</li>
+  <li>instalira je i restartuje se; nova verzija se pojavljuje u listi za nekoliko minuta. Registracija i sva podešavanja se zadržavaju.</li>
+</ol>
+<p>Konzola nudi najnovije instalacije iz svog foldera <code>dist</code>; serverski paket donosi instalacije agenata svoje verzije. Posle ažuriranja konzole u <a href="/settings/updates">Podešavanja → Ažuriranja</a>, agenti se ažuriraju automatski (to može da se isključi tamo). Ažuriranja iz konzole rade za agente od verzije 0.21; stariji agenti se jednom ažuriraju instaliranjem novijeg MSI-a / paketa preko starog (registracija se zadržava). Log instalacije je u <code>C:\ProgramData\backupzit\updates</code> ili <code>/var/tmp/backupzit-updates</code>.</p>
+
+<h2>Uklanjanje agenta</h2>
+<p><b>Ukloni</b> na stranici Agenti briše agenta i njegove poslove iz konzole. Uz uključeno <a href="/docs/users">odobrenje „četiri oka”</a>, drugi korisnik prvo mora to da odobri. Bekapi na skladištu se <b>ne</b> brišu. Softver na mašini deinstalirajte posebno.</p>
+
+<h2 id="duplicate">Dve mašine koriste istog agenta</h2>
+<p>Kopija registrovane mašine nosi sa sobom i agenta i registraciju: VM vraćena kao nova VM, <a href="/docs/proxmox">instant recovery</a>, pokrenuta replika, klonirani disk ili šablon. Kada kopija radi pored originala, obe se javljaju kao isti agent. Konzola to primeti za minut-dva i tada:</p>
+<ul>
+  <li>prikazuje <b>dve mašine</b> sa oba imena i adresama na stranici Agenti, a agenta pod <b>Zahteva pažnju</b> na kontrolnoj tabli;</li>
+  <li><b>zadržava</b> bekape i vraćanja tog agenta, da se ništa ne bi izvršilo na pogrešnoj mašini (vraćanje na originalnu lokaciju bi inače moglo da prepiše kopiju umesto originala);</li>
+  <li>jednom šalje email administratorima i upisuje <code>agent.duplicate</code> u audit log.</li>
+</ul>
+<p>Zaustavite kopiju ili — ako treba da ostane — registrujte je kao novu mašinu, na samoj kopiji: <code>backupzit-agent enroll --force --code "BZ1-..."</code> (kod sa stranice Agenti). Zadržana pokretanja počinju nekoliko minuta pošto ostane samo jedna mašina. Vraćanje Linux sistema opcijom <a href="/docs/linux-system">Vrati ceo sistem</a> već odjavljuje agenta u vraćenoj kopiji, a testovi vraćanja pokreću svoje virtuelne mašine bez mreže, pa ni jedno ni drugo ne izaziva ovo.</p>
+
+<h2 id="new-address">Kada konzola dobije novu adresu</h2>
+<p>Agenti veruju konzoli po njenom sertifikatu, koji ostaje isti kada se promene IP adresa ili ime, ali se povezuju na adresu sa kojom su registrovani. Posle promene, na svakoj mašini sa agentom pokrenite (kao administrator / root):</p>
+<pre>backupzit-agent set-server https://192.168.1.20:8443</pre>
+<p>Komanda proverava da konzola na novoj adresi odgovara sa istim sertifikatom, čuva adresu, a agent je koristi posle restarta svog servisa (<code>systemctl restart backupzit-agent</code>, ili restart servisa <i>BackupZit Agent</i> na Windowsu). Ako od početka koristite DNS ime za konzolu, ovaj korak nije potreban.</p>
+
+<h2>Gde agent čuva svoja podešavanja</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (dostupno samo SYSTEM-u i administratorima).</li>
+  <li>Linux: <code>/etc/backupzit/agent.json</code> (samo root).</li>
+</ul>
+<p>Fajl sadrži tajnu agenta. Ko god može da ga pročita, može da se predstavi kao taj agent, pa zadržite ove dozvole.</p>
+
+<h2>Log agenta</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
+  <li>Linux: <code>/etc/backupzit/agent.log</code> i <code>journalctl -u backupzit-agent</code></li>
+  <li>Sistemi za oporavak ispisuju log na svom ekranu.</li>
+</ul>
+
+<h2>Deinstalacija</h2>
+<p>Windows: <i>Settings → Apps → BackupZit Agent → Uninstall</i> (ili <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Zatim uklonite agenta u konzoli. Bekapi ostaju na skladištu.</p>
+<p>Na Windowsu deinstalacija sklanja registraciju u stranu (<code>C:\ProgramData\backupzit\agent.json.removed-<i>datum</i></code>), pa ponovna instalacija agenta traži kod za registraciju. Ako instalacija pronađe registraciju ranije verzije, to i kaže: ostavite kod prazan da biste je zadržali, ili nalepite novi kod da biste računar ponovo registrovali (na primer na drugoj konzoli).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

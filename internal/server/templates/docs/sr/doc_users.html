@@ -1,0 +1,91 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Korisnici, uloge i LDAP</h1>
+<p class="lead">Dajte svakoj osobi sopstveni nalog sa samo onim pravima koja su joj potrebna — kao lokalne naloge, ili sa njihovom prijavom iz Active Directory-ja / LDAP-a.</p>
+
+<h2>Uloge</h2>
+<table>
+  <tr><th>Pravo</th><th>Administrator</th><th>Operater bekapa</th><th>Operater vraćanja</th><th>Posmatrač</th></tr>
+  <tr><td>Pregled kontrolne table, aktivnosti, kalendara, izveštaja, dokumentacije</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Pokretanje bekapa (Pokreni bekap sada)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Vraćanje fajlova, diskova, Linux sistema i VM-ova; pregled i preuzimanje fajlova iz slika i VM bekapa</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Pravljenje, izmena i brisanje poslova; zakazani izveštaji</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Prijavljivanje, ažuriranje i uklanjanje agenata; kodovi za oporavak</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Skladišta, pristupni podaci i ključevi za oporavak</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Podešavanja (email, sesije, LDAP, sertifikat, ažuriranja, bekap konzole)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Komande pre i posle bekapa (izvršavaju se kao root / SYSTEM na agentu)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Korisnici i dnevnik revizije</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>Uobičajena podela: IT administratori su <b>Administratori</b>; ljudi koji vode svakodnevne bekape su <b>Operateri bekapa</b>; helpdesk koji vraća obrisane fajlove su <b>Operateri vraćanja</b>; rukovodstvo i revizori su <b>Posmatrači</b>. Stranice i dugmad koje uloga ne sme da koristi su sakriveni, a server ih u svakom slučaju odbija. Imajte u vidu da vraćanje može da prepiše podatke — vraćanje slike diska ili Linux sistema briše ciljni disk, a vraćanje VM-a sa opcijom <i>zameni</i> briše postojeći VM — pa uloge za vraćanje dajte samo ljudima kojima biste to poverili; svako vraćanje je u dnevniku revizije.</p>
+
+<h2>Lokalni korisnici</h2>
+<p>U <a href="/users">Korisnici</a> → <i>Novi lokalni korisnik</i> unesite korisničko ime, ulogu i lozinku od bar 10 znakova. Na stranici korisnika možete da promenite ulogu, onemogućite nalog (otvorene sesije se odmah završavaju), postavite novu lozinku ili obrišete korisnika.</p>
+<p>Svaki korisnik može da promeni svoju lozinku u <a href="/account">Moj nalog</a> (kliknite svoje ime gore desno).</p>
+<div class="callout"><p>Uvek ostaje bar jedan omogućen <b>lokalni administrator</b>, pa možete da se prijavite i kada direktorijum nije dostupan. Ne možete sebi da smanjite ulogu, da se onemogućite ili obrišete.</p></div>
+
+<h2>Prijava preko Active Directory-ja / LDAP-a</h2>
+<p>U <a href="/settings/ldap">Podešavanja → LDAP / Active Directory</a>:</p>
+<ol>
+  <li><b>Server</b>: <code>ldaps://dc1.example.local:636</code>. Običan <code>ldap://</code> se prihvata samo sa StartTLS-om, pa lozinke nikad ne putuju nešifrovane.</li>
+  <li><b>Servisni nalog</b>: običan domenski nalog kojim se traže korisnici i grupe (dovoljno je pravo čitanja), npr. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
+  <li><b>Baza pretrage</b>: npr. <code>DC=example,DC=local</code>.</li>
+  <li><b>Filter korisnika</b>: Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>, OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>.</li>
+  <li><b>Grupe → uloge</b>: pun DN grupe za svaku ulogu koju želite da koristite, npr. <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>. Pobeđuje najviša odgovarajuća uloga; korisnici koji nisu ni u jednoj grupi ne mogu da se prijave. U Active Directory-ju označite <i>ugnežđene grupe</i> da biste uključili i članove podgrupa.</li>
+  <li><b>Poverenje u sertifikat</b>: ako kontroleri domena koriste interni CA, nalepite CA sertifikat; za samopotpisani sertifikat unesite njegov otisak (fingerprint).</li>
+  <li>Kliknite <b>Test</b> sa stvarnim korisnikom da proverite vezu, lozinku i dobijenu ulogu, pa <b>Sačuvaj</b>.</li>
+</ol>
+<p>Korisnici iz direktorijuma pojavljuju se na listi korisnika posle prve prijave. Njihovo ime, email i uloga osvežavaju se iz direktorijuma pri svakoj prijavi. Da biste odmah blokirali korisnika iz direktorijuma, onemogućite nalog u BackupZit-u (ili u direktorijumu).</p>
+
+<h2 id="sso">Jedinstvena prijava (SAML, OpenID Connect)</h2>
+<p>Uz jedinstvenu prijavu korisnici na stranici za prijavu kliknu <b>Prijavi se preko …</b> i prijavljuju se kod vašeg provajdera identiteta — Microsoft Entra ID (Azure AD), Okta, Google Workspace, Keycloak, ADFS ili bilo kog drugog SAML 2.0 ili OpenID Connect provajdera. Podešava se u <b>Podešavanja → Jedinstvena prijava</b>:</p>
+<ol>
+  <li>Izaberite <b>OpenID Connect</b> (preporučeno gde je dostupno) ili <b>SAML 2.0</b>.</li>
+  <li><b>OpenID Connect:</b> kod provajdera identiteta registrujte web aplikaciju sa redirect URI-jem prikazanim na stranici podešavanja (<code>https://&lt;konzola&gt;/login/sso/callback</code>) i unesite njen issuer, client ID i client secret. Neka provajder upisuje grupe korisnika u claim <code>groups</code> (Entra ID: <i>Token configuration → Add groups claim</i>, koji šalje ID-jeve grupa; Keycloak: mapper <i>Group Membership</i>; Okta: groups claim).</li>
+  <li><b>SAML 2.0:</b> dodajte konzolu kod provajdera identiteta sa njenim metadata URL-om (<code>https://&lt;konzola&gt;/login/sso/metadata</code>, assertion consumer service <code>/login/sso/acs</code>), neka šalje grupe kao atribut, i unesite metadata URL provajdera identiteta ili nalepite njegov metadata XML. SAML traži konzolu na HTTPS-u. Tvrdnje (assertions) moraju da budu potpisane; zahtevi konzole nisu potpisani.</li>
+  <li>Mapirajte grupe (imena, ili ID-jeve za Entra ID) na četiri uloge; pobeđuje najviša odgovarajuća uloga. Korisnici koji nisu ni u jednoj ne mogu da se prijave, osim ako im ne izaberete ulogu.</li>
+</ol>
+<p>Provajderu identiteta čiji HTTPS sertifikat izdaje vaš sopstveni CA ili je samopotpisan (lokalni Keycloak ili AD FS) treba taj CA sertifikat u <b>CA sertifikat (PEM)</b>; javnim provajderima (Entra ID, Okta, Google) ne treba ništa. Čuvanje proverava da li provajder identiteta odgovara. Korisnici se prave pri prvoj prijavi (označeni sa <b>SSO</b> u Korisnici) i dobijaju ulogu iz svojih grupa pri svakoj prijavi, kao korisnici iz direktorijuma; ime i email dolaze od provajdera identiteta. Drugi faktor obezbeđuje provajder identiteta, pa konzola od SSO korisnika ne traži svoj dvofaktorski kod. Lokalni nalozi i dalje rade, pa administrator uvek može da se prijavi i kada provajder identiteta nije dostupan. Odgovor na prijavu može da se iskoristi samo jednom i mora da ga potpiše provajder identiteta; svaka SSO prijava i odbijanje su u dnevniku revizije.</p>
+
+<h2>Sesije</h2>
+<p>U <a href="/settings/security">Podešavanja → Prijava i bezbednost</a> podesite koliko traje prijava (podrazumevano 12 sati) i posle koliko minuta neaktivnosti se korisnici odjavljuju (podrazumevano 60, 0 = nikad). Ponovljene pogrešne lozinke na neko vreme blokiraju adresu: podrazumevano posle 5 neuspeha u 15 minuta, na 30 minuta. Ograničenja su na istoj stranici; vidi <a href="/docs/security">Bezbednost</a>.</p>
+
+<h2>Dvofaktorska autentifikacija</h2>
+<p>Svaki korisnik može da zaštiti prijavu drugim faktorom u <a href="/account/2fa">Moj nalog → Dvofaktorska</a>: skenirajte QR kod aplikacijom za autentifikaciju (Microsoft ili Google Authenticator, Authy, 1Password, Bitwarden …) i unesite šestocifreni kod. Deset jednokratnih <b>kodova za oporavak</b> prikazuje se jednom — sačuvajte ih na sigurnom; svaki radi jednom ako se telefon izgubi. Korisnici koji se prijavljuju preko <a href="#sso">jedinstvene prijave</a> ne unose kod konzole: drugi faktor obezbeđuje njihov provajder identiteta.</p>
+<p>U <a href="/settings/security">Podešavanja → Prijava i bezbednost</a> možete da zahtevate dvofaktorsku autentifikaciju za <b>administratore</b> ili za <b>sve korisnike</b>; od njih se traži da je podese posle sledeće prijave. Ako korisnik izgubi i telefon i kodove za oporavak, administrator resetuje dvofaktorsku prijavu na stranici korisnika. Dvofaktorska autentifikacija radi i za naloge iz direktorijuma (LDAP).</p>
+
+<h2>API tokeni</h2>
+<p>Skripte i alati za nadzor koriste API tokene umesto lozinki. Svaki korisnik pravi i opoziva svoje tokene u <a href="/account#tokens">Moj nalog → API tokeni</a>; uloga tokena može da bude niža od uloge korisnika. Administratori vide i mogu da opozovu sve tokene na stranici <a href="/users">Korisnici</a>. Vidi <a href="/docs/api">REST API</a>.</p>
+
+<h2>Odobrenje „četiri oka”</h2>
+<p>Opciono i podrazumevano isključeno. Uključuje se u <a href="/settings/security#four-eyes">Podešavanja → Prijava i bezbednost → Odobrenje „četiri oka”</a>; traži bar dva omogućena administratora. Tada ove izmene važe tek kada ih odobri <b>drugi korisnik</b>:</p>
+<table>
+  <tr><th>Izmena</th><th>Ko može da odobri</th></tr>
+  <tr><td>Brisanje ili onemogućavanje posla bekapa, skraćivanje retencije posla (bilo koje pravilo niže nego pre, ili pravila tamo gde se sve čuvalo), nastavak retencije posle sumnjivog bekapa</td><td>Korisnici koji smeju da upravljaju poslovima</td></tr>
+  <tr><td>Uklanjanje agenta ili ESXi hosta</td><td>Korisnici koji smeju da upravljaju agentima</td></tr>
+  <tr><td>Uklanjanje skladišta</td><td>Korisnici koji smeju da upravljaju skladištima</td></tr>
+  <tr><td>Brisanje korisnika; pravljenje korisnika koji može da odobrava (Administrator ili Operater bekapa); davanje korisniku uloge sa više prava, ili ponovno omogućavanje takvog korisnika; resetovanje lozinke ili dvofaktorske prijave takvog korisnika</td><td>Administratori</td></tr>
+  <tr><td>Izmena LDAP prijave ili jedinstvene prijave (one određuju uloge korisnika iz direktorijuma)</td><td>Administratori</td></tr>
+  <tr><td>Isključivanje odobrenja „četiri oka”</td><td>Administratori</td></tr>
+</table>
+<p>Zahtev se pojavljuje u <a href="/approvals">Odobrenja</a> (sa brojačem u meniju i na kontrolnoj tabli), a primaoci obaveštenja dobijaju email. Bilo koji drugi korisnik sa odgovarajućim pravom ga odobrava ili odbija; podnosilac može samo da ga otkaže. Odobrena izmena se odmah izvršava. Zahtevi ističu posle 7 dana. Kada se posao izmeni sa kraćom retencijom, ostale izmene se čuvaju odmah, a čeka samo retencija. Zahtevi, odobrenja, odbijanja i njihovi korisnici su u dnevniku revizije.</p>
+<p><b>O zahtevu mogu da odluče samo nalozi koji su postojali pre zahteva.</b> Zajedno sa odobravanjem novih odobravača, resetovanja lozinki i podešavanja direktorijuma, ovo sprečava da jedan administrator sam dobije drugog odobravača — na primer pravljenjem drugog administratorskog naloga, postavljanjem lozinke drugom administratoru ili mapiranjem grupe iz direktorijuma na ulogu Administrator. Dok je opcija uključena, poslednja dva omogućena administratora ne mogu da se obrišu, onemoguće ili dobiju nižu ulogu, pa se o zahtevima uvek može odlučiti. Lozinke u zahtevima čuvaju se samo kao heševi, a LDAP podešavanja i podešavanja jedinstvene prijave šifrovana ključem tajni konzole. Članstva u grupama u samom direktorijumu (Active Directory, Entra ID) su van konzole; te administratorske grupe zaštitite tamo.</p>
+<p>Ovo štiti od jednog ukradenog ili zloupotrebljenog naloga koji uklanja konfiguraciju ili pušta retenciju da obriše bekape. Ne zamenjuje nepromenljivo skladište: za to vidi <a href="/docs/ransomware">Zaštita od ransomware-a</a>.</p>
+
+<h2>Dnevnik revizije</h2>
+<p><a href="/audit">Korisnici → Dnevnik revizije</a> prikazuje prijave, neuspele prijave i izmene: korisnike, poslove, skladišta, vraćanja, prikazane ključeve za oporavak i podešavanja — sa vremenom, korisnikom i adresom.</p>
+
+<h3 id="audit-integrity">Zaštita od izmena</h3>
+<p>Svaki unos je povezan u lanac sa prethodnim: nosi heš svog sadržaja i prethodnog unosa, potpisan tajnom iz fajla tajni servera (koji nije u bazi). Ko direktno u bazi izmeni ili obriše unose, zato prekida lanac. Najnoviji heš se čuva i u fajlu pored podataka konzole, pa se otkriva i brisanje najnovijih unosa.</p>
+<ul>
+  <li>Konzola proverava ceo lanac pri pokretanju i jednom dnevno. Ako je prekinut, stranica Dnevnik revizije prikazuje <b>Dnevnik revizije je izmenjen</b> sa prvim lošim unosom, a administratori dobijaju email.</li>
+  <li><b>Proveri integritet sada</b> na stranici Dnevnik revizije odmah pokreće proveru.</li>
+  <li>Unosi upisani pre verzije 0.33.3 nemaju lanac; stranica prikazuje koliko ih je.</li>
+</ul>
+<p>Lanac pokazuje da je dnevnik izmenjen, ali ne može da vrati izmenjeno — a neko ko preuzme sam server konzole, sa njegovim fajlom tajni, mogao bi da prepiše lanac. Protiv toga, šaljite kopiju svakog unosa na poseban syslog server ili SIEM u <a href="/settings/security#audit-syslog">Podešavanja → Prijava i bezbednost → Zaštita dnevnika revizije</a>:</p>
+<ul>
+  <li><b>Syslog server</b> kao <code>host:port</code>, i <b>protokol</b>: TLS (preporučeno, obično port 6514), TCP ili UDP (obično 514). Mašina konzole mora da veruje sertifikatu TLS servera.</li>
+  <li>Čuvanje šalje test poruku; ako je server ne primi, podešavanja se čuvaju i greška se prikazuje.</li>
+  <li>Poruke su RFC 5424 (facility <i>auth</i>) sa brojem unosa, korisnikom, radnjom, adresom i hešom lanca. Jednom dnevno poruka <code>audit.checkpoint</code> nosi najnoviji heš, pa kopija može da se uporedi sa konzolom.</li>
+  <li>Dok syslog server nije dostupan, unosi čekaju u memoriji (do 1000) i šalju se kada ponovo odgovori; konzola nastavlja da radi, a unosi u svakom slučaju ostaju u njenom dnevniku revizije.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

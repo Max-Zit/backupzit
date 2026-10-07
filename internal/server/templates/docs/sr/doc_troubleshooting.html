@@ -1,0 +1,94 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Rešavanje problema i česta pitanja</h1>
+
+<h2>Agent je prikazan kao van mreže</h2>
+<ul>
+  <li>Da li je mašina uključena i da li servis radi? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Da li mašina dolazi do konzole? <code>Test-NetConnection backup-server -Port 8443</code> ili <code>curl -k https://backup-server:8443/login</code>.</li>
+  <li>Log agenta: <code>C:\ProgramData\backupzit\agent.log</code>, na Linuxu <code>/etc/backupzit/agent.log</code> ili <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch” znači da se sertifikat konzole promenio — ponovo prijavite agenta.</li>
+</ul>
+
+<h2>Bekap nije uspeo</h2>
+<p>Otvorite pokretanje u Aktivnost; poruka navodi uzrok. Česti uzroci:</p>
+<table>
+  <tr><th>Poruka sadrži</th><th>Rešenje</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>Ključ SFTP servera se promenio ili je otisak pogrešno unet. Proverite sa <code>ssh-keygen -lf</code> na serveru.</td></tr>
+  <tr><td>permission denied / access denied</td><td>Pristupni podaci skladišta ili prava na folderu. Testirajte prijavu SFTP/SMB klijentom.</td></tr>
+  <tr><td>no space left / quota</td><td>Skladište je puno. Smanjite retenciju ili dodajte prostor; istekli bekapi oslobađaju prostor posle sledećeg pokretanja.</td></tr>
+  <tr><td>repository is locked</td><td>Druga operacija (npr. čišćenje) radi na istom repozitorijumu; pokretanje pokušava ponovo 30 minuta. Zastarela zaključavanja ističu automatski.</td></tr>
+  <tr><td>wrong password / recovery key</td><td>Repozitorijum je napravljen drugim ključem — proverite da posao koristi pravo skladište.</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>Nepromenljivost je zatražena na bucket-u napravljenom bez Object Lock-a. Napravite nov bucket sa Object Lock-om.</td></tr>
+</table>
+
+<h2>Ostale poruke</h2>
+<table>
+  <tr><th>Situacija</th><th>Šta uraditi</th></tr>
+  <tr><td>„no matching backup disk is connected”</td><td>Priključite jedan od rotirajućih USB diskova (poruka navodi oznaku koja je potrebna i koji označeni diskovi su priključeni). Vraćanju treba tačno disk prikazan u pokretanju bekapa.</td></tr>
+  <tr><td>„several backup disks are connected”</td><td>Priključite samo jedan od rotirajućih diskova u isto vreme.</td></tr>
+  <tr><td>Test vraćanja nije uspeo</td><td>Otvorite pokretanje: poruka navodi oštećeni fajl ili blok ili razlog (npr. bekap obrisan na skladištu). Pokrenite <code>backupzit-agent check --read-data</code> nad repozitorijumom, proverite skladište i pokrenite nov bekap. Ako su bekapi obrisani na nepromenljivom skladištu, vidi <a href="/docs/ransomware">Zaštita od ransomware-a</a>.</td></tr>
+  <tr><td>Bekap označen kao <i>sumnjiv</i></td><td>Proverite mašinu na ransomware ili masovno brisanje (npr. ispražnjen sinhronizovan folder). Ako je sve u redu (npr. planirana migracija), kliknite <i>Pregledano — nastavi čuvanje</i> na stranici posla.</td></tr>
+  <tr><td>Let's Encrypt: „could not verify … is port 80 … reachable”</td><td>HTTP provera traži da port 80 bude dostupan sa interneta. Za interne konzole koristite DNS proveru preko Cloudflare-a.</td></tr>
+  <tr><td>Let's Encrypt: „no Cloudflare zone … is accessible with this token”</td><td>Token mora da ima pravo Zone → DNS → Edit za zonu koja sadrži ime konzole.</td></tr>
+  <tr><td>„HTTPS port 443: … permission denied” ili „address already in use”</td><td>Drugi program koristi port, ili servis ne sme da koristi portove ispod 1024 (pokrenite ga sa <code>CAP_NET_BIND_SERVICE</code>, kao što paket radi). Izaberite drugi port u Podešavanja → Sertifikat.</td></tr>
+  <tr><td>Ažuriranja: „updates from the console need the Linux package of the console”</td><td>Konzola nije instalirana iz deb/rpm paketa (na primer režim za probu). Ažurirajte je onako kako je instalirana.</td></tr>
+  <tr><td>Ažuriranja: „the release is not signed with a BackupZit release key”</td><td>Izvor ažuriranja ne sadrži zvanično izdanje, ili su fajlovi izmenjeni usput. Preuzmite ih ponovo sa zvanične adrese.</td></tr>
+  <tr><td>Ažuriranja: status <i>rolled-back</i></td><td>Nova verzija se nije pokrenula, pa su prethodna i njena baza vraćene. Log neuspelog pokretanja je na stranici Ažuriranja; pošaljite ga podršci.</td></tr>
+  <tr><td>Operativni sistem: „no supported package manager”</td><td>Ažuriranja operativnog sistema podržana su na Debianu, Ubuntuu (apt) i AlmaLinuxu, Rocky Linuxu, RHEL-u (dnf).</td></tr>
+  <tr><td>Bekap konzole: „the backup was made by a newer BackupZit”</td><td>Pre vraćanja instalirajte na novu konzolu verziju koja je napravila bekap, ili noviju.</td></tr>
+  <tr><td>Bekap konzole: „console backups need network storage”</td><td>Izaberite SFTP, S3, SMB, Azure ili ojačani repozitorijum; lokalna putanja agenta nije dostupna konzoli.</td></tr>
+  <tr><td>„Previše neuspelih prijava”</td><td>Vaša adresa je blokirana posle ponovljenih pogrešnih lozinki: podrazumevano na 30 minuta, duže za ponovljene blokade. Administrator može da skine blokadu u <a href="/settings/security">Podešavanja → Prijava i bezbednost</a>. Na serveru, <code>backupzit-server --unblock-ip all</code> skida sve blokade. Nalozi se nikad ne zaključavaju trajno.</td></tr>
+  <tr><td>Izgubljen telefon za dvofaktorsku prijavu</td><td>Iskoristite jedan od kodova za oporavak; u suprotnom administrator resetuje dvofaktorsku prijavu na stranici vašeg korisnika. Poslednji administrator može da resetuje svoju lozinku na serveru sa <code>backupzit-server --set-admin-password</code>.</td></tr>
+  <tr><td>„your directory account is not in any BackupZit group”</td><td>Dodajte korisnika u jednu od grupa mapiranih u <a href="/settings/ldap">Podešavanja → LDAP / Active Directory</a>, ili mapirajte više grupa. Tamo koristite <i>Test</i> da vidite grupe pronađene za korisnika.</td></tr>
+  <tr><td>API vraća 401 / 403</td><td>401: token nedostaje, opozvan je, istekao ili mu je vlasnik onemogućen. 403: uloga tokena je preniska za zahtev.</td></tr>
+  <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Pogrešan ključ naloga, ili SAS tokenu nedostaje pravo čitanja, pisanja, brisanja ili listanja, ili je istekao.</td></tr>
+  <tr><td>Vraćeni Windows Server 2012 R2 / Windows 8.1 VM se ne podiže na Hyper-V Gen 2 („hash was denied (DBX)”)</td><td>Microsoft je opozvao stari boot loader za Secure Boot. Isključite Secure Boot za taj VM, ili ažurirajte sistem pre bekapa.</td></tr>
+</table>
+
+<h2>Virtuelne mašine, Linux sistemi i novi hardver</h2>
+<table>
+  <tr><th>Situacija</th><th>Šta uraditi</th></tr>
+  <tr><td>Proxmox: „the guest is running and one of its disks is on storage without snapshot support”</td><td>Gosti koji rade traže LVM-thin, ZFS, Ceph RBD ili qcow2 diskove. Premestite disk (<i>Disk Action → Move Storage</i>) ili pravite bekap gosta dok je zaustavljen.</td></tr>
+  <tr><td>Hyper-V: pokretanje kaže „crash-consistent”</td><td>Gost nije mogao da se pripremi za checkpoint. U Windows gostima proverite da su Hyper-V integration services (<i>Backup (volume shadow copy)</i>) uključeni u podešavanjima VM-a. U Linux gostima instalirajte <code>hyperv-daemons</code> (RHEL) ili <code>linux-cloud-tools</code> / <code>hyperv-daemons</code> (Debian/Ubuntu).</td></tr>
+  <tr><td>VMware: „SSH off” ili „SSH to …: connection refused”</td><td>Uključite SSH na ESXi hostu: Host → Actions → Services → Enable Secure Shell (i podesite da se pokreće sa hostom). Treba za vraćanja, i za bekape uz besplatnu licencu.</td></tr>
+  <tr><td>VMware: „changed block tracking is off and can be enabled … only while the VM is off”</td><td>Besplatna ESXi licenca: jednom ugasite VM, pa pokrenite posao; BackupZit uključuje changed block tracking i kasniji bekapi čitaju samo izmenjene blokove.</td></tr>
+  <tr><td>VMware: „copy the disk on the datastore (needs free space …)”</td><td>VM-ovi koji rade kratko se kopiraju na svom datastore-u. Oslobodite tamo prostor (onoliko koliko disk zauzima), ili pravite bekap VM-a dok je ugašen.</td></tr>
+  <tr><td>VMware: „… is a snapshot delta disk”</td><td>VM ima sopstvene snimke. Obrišite ih ili konsolidujte u ESXi host klijentu (Snapshots → Delete all).</td></tr>
+  <tr><td>VMware: „the ESXi certificate changed”</td><td>Host je ponovo instaliran ili druga mašina odgovara na njegovoj adresi. Ako je to očekivano, uklonite host u Agenti i ponovo ga dodajte da biste fiksirali nov sertifikat.</td></tr>
+  <tr><td>VMware: fajlovi <code>*.replaced-DATE.vmdk</code> pored diskova VM-a</td><td>Stari diskovi VM-a vraćenog na mesto. Obrišite ih u pregledaču datastore-a kada vraćeni VM proradi.</td></tr>
+  <tr><td>Hyper-V: fajlovi <code>*.replaced-DATE</code> pored diskova VM-a</td><td>Stari diskovi VM-a vraćenog na mesto. Obrišite ih kada vraćeni VM proradi.</td></tr>
+  <tr><td>Proxmox instant recovery: VM se ne podiže ili koči</td><td>Proverite disk server: <code>systemctl status backupzit-instant-ID</code> i <code>journalctl -u backupzit-instant-ID</code> na čvoru. Skladište bekapa mora da ostane dostupno; kada repozitorijum ne može da se čita, čitanja diska VM-a staju.</td></tr>
+  <tr><td>Proxmox instant recovery: „efidisk0 stays on storage backupzit-instant”</td><td>QEMU ne može da premesti EFI skladište promenljivih dok VM radi. Ugasite VM i pokrenite <code>qm disk move ID efidisk0 STORAGE --delete 1</code>; to ne zavisi od bekapa.</td></tr>
+  <tr><td>Proxmox: „runs on node X; install the BackupZit agent on X”</td><td>Gost je migriran. Instalirajte agenta na svaki čvor i pravite bekap gostiju svakog čvora agentom tog čvora.</td></tr>
+  <tr><td>Proxmox bekapi ili vraćanja spori, SFTP „connection lost”, „message authentication code incorrect” na serveru skladišta</td><td>Poznat problem Intel e1000e mrežnih kartica na Proxmox hostovima (log: „Detected Hardware Unit Hang”, „Reset adapter unexpectedly”). Isključite offloading: <code>ethtool -K eno1 tso off gso off gro off</code> i dodajte to kao <code>post-up</code> red interfejsu u <code>/etc/network/interfaces</code>.</td></tr>
+  <tr><td>Pregled fajlova: „stored on a local path of the agent”</td><td>Konzola može da čita samo bekape na mrežnom skladištu. Koristite <code>backupzit-agent pve ls/extract</code> ili <code>image-ls/image-extract</code> na agentu.</td></tr>
+  <tr><td>Vraćanje Linux sistema: „missing programs …”</td><td>Instalirajte navedene pakete na mašinu na koju se vraća, ili podignite BackupZit Linux ISO za oporavak, koji ih ima.</td></tr>
+  <tr><td>Vraćena Linux mašina nema mrežu</td><td>Mrežna podešavanja su vezana za staru MAC adresu (netplan <code>match: macaddress</code>). Vratite sa opcijom <i>Drugi hardver</i>, ili uklonite redove <code>match</code> u <code>/etc/netplan/</code>.</td></tr>
+  <tr><td>Vraćeni Windows staje sa INACCESSIBLE_BOOT_DEVICE</td><td>Vratite ponovo sa <i>Vrati na drugi hardver</i>, ili podignite ISO za oporavak i pokrenite <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
+  <tr><td>Vraćena kopija mašine se prikazuje kao originalni agent</td><td>Vraćanja u nov Proxmox VM automatski odjavljuju agenta u kopiji. Za druge kopije uklonite <code>agent.json</code> u kopiji i prijavite je kao novu mašinu.</td></tr>
+  <tr><td>Ažuriranje agenta se ne završava</td><td>Pogledajte log instalacionog programa u <code>C:\ProgramData\backupzit\updates</code> ili <code>/var/tmp/backupzit-updates</code>; agenti pre 0.21 moraju jednom da se ažuriraju ručno.</td></tr>
+  <tr><td>Nema ikone u traci</td><td>Kliknite strelicu <b>^</b> pored sata i prevucite BackupZit ikonu na traku zadataka, ili pokrenite <i>BackupZit Agent</i> iz Start menija.</td></tr>
+</table>
+
+<h2>Bekap se završava sa „upozorenjem”</h2>
+<p>Neki fajlovi nisu mogli da se pročitaju — obično fajlovi koje je zaključala aplikacija dok VSS nije dostupan, ili fajlovi za koje agent nema prava. Lista je na stranici pokretanja. Sve ostalo je bekapovano.</p>
+
+<h2>Bekapi su spori</h2>
+<ul>
+  <li>Prvi bekap čita i šalje sve; kasniji čitaju samo izmenjene fajlove i šalju samo nove podatke.</li>
+  <li>Proverite mrežnu putanju do skladišta (Wi-Fi, VPN, brzina slanja na internet za cloud skladište).</li>
+  <li>Izuzmite keševe, privremene fajlove i medije koji vam ne trebaju.</li>
+</ul>
+
+<h2>Česta pitanja</h2>
+<h3>Mogu li da koristim NFS?</h3>
+<p>Za <b>bekap</b> NFS (ili SMB) deljenog foldera napravite posao <a href="/docs/jobs#nas">NAS / deljeni folder</a>; Linux agent montira export za svako pokretanje. Za <b>čuvanje</b> bekapa na NFS-u montirajte export na agentu (Linux: <code>/etc/fstab</code>) i koristite skladište <i>Lokalna / montirana putanja</i> kao <code>/mnt/nfs-backup</code>; za Windows mašine SMB skladište je bolji izbor.</p>
+<h3>Mogu li da premestim bekape na drugo skladište?</h3>
+<p>Kopirajte folder repozitorijuma (ili prefiks bucket-a) kakav jeste — samostalan je — i dodajte skladište koje pokazuje na novu lokaciju sa istim ključem za oporavak.</p>
+<h3>Da li brisanje posla briše bekape?</h3>
+<p>Ne. Bekapi ostaju na skladištu i mogu da se vrate iz Aktivnost ili iz komandne linije.</p>
+<h3>Šta se dešava ako konzola ne radi?</h3>
+<p>Novi zakazani bekapi ne počinju dok se ne vrati; pokretanja u redu se posle toga nastavljaju. Vraćanja su uvek moguća iz komandne linije sa listom za oporavak.</p>
+<h3>Koliko prostora će bekapi trebati?</h3>
+<p>Za prvi bekap otprilike veličinu podataka posle kompresije, plus dnevne izmene za svaki čuvani dan. Stranica Izveštaji prikazuje koliko je poslato po poslu.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

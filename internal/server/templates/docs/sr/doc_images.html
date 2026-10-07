@@ -1,0 +1,47 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Slike diskova i oporavak na „goli metal“</h1>
+<p class="lead">Bekap slike diska obuhvata ceo disk — tabelu particija, boot particije, sistem i podatke — pa mašina može da se vrati na prazan ili nov disk tačno onakva kakva je bila.</p>
+<div class="callout"><p>Bekap slike diska je dostupan za <b>Windows</b> mašine (NTFS volumeni, GPT i MBR diskovi). Za Linux mašine koristite posao <a href="/docs/linux-system">Linux sistem</a>.</p></div>
+
+<h2>Pravljenje posla za sliku diska</h2>
+<ol>
+  <li>U <a href="/jobs">Poslovi bekapa</a> izaberite <b>Slika diska</b>.</li>
+  <li>Agent automatski javlja svoje diskove. Izaberite <b>Svi diskovi</b> da bi jedan posao napravio sliku svakog internog diska mašine, ili označite jedan disk — ceo, ili samo neke particije (npr. preskočite veliku particiju sa podacima koju već pokriva posao fajlova).</li>
+  <li>Podesite retenciju i raspored kao za svaki posao; nedeljna slika uz dnevne bekape fajlova je česta kombinacija.</li>
+</ol>
+<h3 id="all-disks">Svi diskovi</h3>
+<p>Posao <b>Svi diskovi</b> pravi bekap svakog internog diska sa tabelom particija u jedan bekap, i diskova dodatih kasnije. Svi volumeni svih diskova čitaju se iz jednog VSS snimka, pa su diskovi međusobno konzistentni (npr. baza na D: sa logovima na E:). USB i SD diskovi, montirani VHD/VHDX fajlovi i prenosivi mediji se izostavljaju — spoljni disk za bekap ne sme da pravi sliku samog sebe; takav disk izaberite posebno ako vam treba. Stranica pokretanja navodi svaki disk sa particijama; fajlovi mogu da se pregledaju i vrate iz svakog. Vraćanje upisuje jedan disk po jedan: u obrascu za vraćanje izaberite <b>Disk iz kopije</b> i ciljni disk, zatim ponovite za sledeći disk (za „goli metal“: prvo vratite sistemski disk, sa ISO-a za oporavak). Agent mora da bude verzije 0.33.7 ili novije; stariji javlja da mora da se ažurira.</p>
+<p>Čitaju se samo zauzeti blokovi (NTFS mapa zauzeća), slika se pravi iz VSS snimka pa je sistem koji radi konzistentan, a nepromenjeni blokovi se dedupliciraju sa ranijim slikama — druga slika iste mašine obično šalje samo nekoliko procenata.</p>
+
+<h2>Vraćanje slike na disk</h2>
+<p>Na pokretanju bekapa slike koristite <b>Vrati ovu sliku na disk</b>:</p>
+<ul>
+  <li><b>Vrati na agenta</b> — mašina na kojoj je ciljni disk. To može da bude mašina koja radi i ima slobodan disk, ili mašina pokrenuta sa ISO-a za oporavak.</li>
+  <li><b>Ciljni disk</b> — mora da bude bar onoliki koliki je zauzet deo originala. <b>Svi podaci na njemu se brišu.</b></li>
+  <li><b>Posle toga ostavi disk offline</b> — označite ovo kada je originalni disk u istoj mašini, da Windows ne bi promenio ID-jeve diska kopije.</li>
+</ul>
+<p>Podržani su GPT i MBR diskovi, EFI i BIOS pokretanje. Raspored particija i ID-jevi se ponovo prave, pa se vraćeni disk pokreće kao ranije.</p>
+
+<h2>Oporavak na „goli metal“ pomoću ISO-a za oporavak</h2>
+<ol>
+  <li>Na stranici <a href="/recovery">Medijum za oporavak</a> preuzmite (Windows) ISO za oporavak. Narežite ga na USB stik (Rufus, režim „DD image“ ili „ISO“) ili ga zakačite na virtuelnu mašinu.</li>
+  <li>Po želji napravite <b>kod za oporavak</b> i preuzmite <code>recovery.json</code>; kopirajte ga u folder <code>backupzit</code> na stiku, da se mašina poveže bez kucanja.</li>
+  <li>Pokrenite mašinu koju vraćate sa stika. Ona pokreće agenta u režimu oporavka i povezuje se na konzolu (ili traži adresu servera i kod za oporavak).</li>
+  <li>Mašina se pojavljuje kao agent <span class="badge">oporavak</span> sa svojim diskovima.</li>
+  <li>Otvorite bekap slike u Aktivnosti, izaberite <b>Vrati ovu sliku na disk</b>, izaberite agenta za oporavak i njegov disk, potvrdite.</li>
+  <li>Kada se pokretanje završi, izvadite stik i restartujte.</li>
+</ol>
+<h2>Vraćanje na drugi hardver</h2>
+<p>Windows se pokreće samo uz drajver za kontroler diska sa kog se podiže, a Windows Setup isključuje drajvere koji mu nisu bili potrebni. Zato se slika PC-ja sa Intel kontrolerom zaustavlja sa <i>INACCESSIBLE_BOOT_DEVICE</i> na AMD ploči, na NVMe disku, u Hyper-V-u ili u Proxmox VM-u. Označite <b>Vrati na drugi hardver</b> u obrascu za vraćanje i BackupZit priprema vraćeni Windows posle upisa slike:</p>
+<ol>
+  <li>Drajveri za uobičajene kontrolere diskova koji su deo Windowsa ponovo se pokreću pri podizanju: AHCI/SATA, NVMe, Intel RST, LSI/Broadcom/Dell PERC SAS i RAID, HPE Smart Array, Hyper-V i VMware.</li>
+  <li>Dodatni drajveri se dodaju DISM-om: drajveri na ISO-u za oporavak (sadrži VirtIO drajvere za Proxmox/KVM) i folderi koje unesete pod <b>Dodatni drajveri</b> — npr. drajveri za diskove i mrežu nove matične ploče, raspakovani na USB stik (<code>E:\Drivers</code>; pretražuju se i podfolderi).</li>
+  <li>Boot fajlovi se ponovo prave za novu mašinu (<code>bcdboot</code>).</li>
+</ol>
+<p>Stranica pokretanja navodi uključene i dodate drajvere. Ostale nove uređaje Windows prepoznaje pri prvom pokretanju; na novom hardveru aktivacija možda mora da se ponovi. Vraćanje između UEFI-ja i starog BIOS-a nije moguće — cilj mora da se pokreće na isti način kao original.</p>
+<p><b>Fizički PC ili server u Proxmox VE:</b> napravite VM sa OVMF-om (UEFI) za GPT diskove ili SeaBIOS-om za MBR diskove, VirtIO SCSI diskom bar onolikim koliki je original i VirtIO mrežnom karticom, zakačite ISO za oporavak i vratite sa <i>Vrati na drugi hardver</i>. ISO za oporavak sam vidi VirtIO diskove i mrežne kartice.</p>
+
+<h2>Vraćanje u virtuelnu mašinu</h2>
+<p>Napravite prazan disk VM-a bar onolikog koliki je original, pokrenite VM sa ISO-a za oporavak i pratite gornje korake. To je i najlakši način da proverite da se vaše slike zaista pokreću.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

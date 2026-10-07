@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365: Exchange Online, OneDrive i SharePoint</h1>
+<p class="lead">BackupZit pravi bekap sandučića (Exchange Online), kalendara, kontakata, OneDrive-a i SharePoint sajtova Microsoft 365 tenanta preko Microsoft Grapha. Samo čita: u tenantu se ništa ne menja niti briše. Podatke preuzima bilo koji agent sa pristupom internetu — na primer agent na mašini konzole — i čuva ih kao svaki bekap: deduplicirane, šifrovane, sa retencijom, poslovima kopiranja i testovima vraćanja.</p>
+
+<h2 id="app">1. Registracija aplikacije u Microsoft Entra ID</h2>
+<p>Jednom po tenantu, kao Global Administrator, u <a href="https://entra.microsoft.com" rel="noopener">Microsoft Entra admin centru</a>:</p>
+<ol>
+  <li><b>App registrations → New registration</b>: ime npr. <i>BackupZit</i>, <i>Accounts in this organizational directory only</i>, bez redirect URI-ja. Zapišite <b>Application (client) ID</b> i <b>Directory (tenant) ID</b> sa pregleda aplikacije.</li>
+  <li><b>Certificates &amp; secrets → New client secret</b>: izaberite trajanje (npr. 24 meseca) i odmah kopirajte <b>Value</b> tajne — prikazuje se samo jednom. <i>Secret ID</i> nije tajna.</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (ne <i>delegated</i>): <code>User.Read.All</code>, <code>Mail.Read</code> i <code>Files.Read.All</code>; za kalendare i kontakte još <code>Calendars.Read</code> i <code>Contacts.Read</code>, za SharePoint <code>Sites.Read.All</code>.</li>
+  <li>Kliknite <b>Grant admin consent for …</b>. Do tada status pokazuje <i>Not granted</i> i bekapi se odbijaju.</li>
+</ol>
+<p>Ovo su samo dozvole za čitanje. Kasnije vraćanje u sandučiće traži dozvole za pisanje, koje BackupZit ne traži.</p>
+<p class="muted">Da biste aplikaciju ograničili na neke sandučiće, Exchange administrator može da doda <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">application access policy</a> ili RBAC for Applications scope; nalozi van njega se tada prijavljuju kao nečitljivi.</p>
+
+<h2 id="job">2. Pravljenje posla</h2>
+<p>U <a href="/jobs">Poslovi bekapa</a> napravite posao vrste <b>Microsoft 365</b>:</p>
+<ul>
+  <li><b>Agent</b>: agent koji preuzima (Windows ili Linux, verzija 0.34.0 ili novija; 0.35.0 za kalendare, kontakte i SharePoint). Treba mu HTTPS pristup do <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> i, za OneDrive i SharePoint fajlove, <code>*.sharepoint.com</code>.</li>
+  <li><b>ID direktorijuma (tenanta)</b>, <b>ID aplikacije (klijenta)</b> i <b>Tajna klijenta</b> iz koraka 1. Tajna se čuva šifrovana.</li>
+  <li>Šta se čuva: <b>Pošta</b>, <b>OneDrive</b>, <b>Kalendari i kontakti</b>, <b>SharePoint sajtovi</b> — u bilo kojoj kombinaciji.</li>
+  <li><b>Nalozi</b>: jedna adresa po redu, ili prazno za svaki nalog tenanta koji ima sanduče ili OneDrive — nalozi dodati kasnije uključuju se automatski; nalozi bez licence se preskaču.</li>
+  <li><b>SharePoint sajtovi</b>: jedna adresa sajta po redu (npr. <code>https://contoso.sharepoint.com/sites/sales</code>), ili prazno za svaki sajt tenanta — sajtovi dodati kasnije uključuju se automatski. Lični sajtovi (OneDrive) se izostavljaju; oni se čuvaju uz naloge. Posao samo za SharePoint ne traži naloge.</li>
+</ul>
+<p>Umesto kucanja adresa kliknite <b>Izaberi sa liste</b>: konzola, preko gore unete aplikacije, čita naloge (i označava one bez licence, koji nemaju sanduče ni OneDrive) i SharePoint sajtove tenanta i prikazuje ih za označavanje; označeni popunjavaju polja. Pri izmeni posla koristi se sačuvana tajna.</p>
+<p>Kada se posao sačuva, konzola se prijavljuje kao aplikacija i proverava dozvole, naloge i sajtove, pa se pogrešna tajna ili nedostajuća administratorska saglasnost vide odmah. Konzola bez pristupa internetu preskače proveru; tada prvi bekap pokazuje da li radi.</p>
+
+<h2 id="what">Šta se čuva</h2>
+<ul>
+  <li><b>Pošta</b>: svi folderi pošte sa podfolderima (Inbox, Sent Items, Deleted Items, Archive, vaši folderi…). Svaka poruka se čuva cela, sa prilozima, u MIME formatu kao fajl <code>.eml</code>, nazvan po vremenu prijema i naslovu, npr. <code>2026-10-07 0621 Ponuda za oktobar [3fa2c1d9e0].eml</code>. Outlook, Thunderbird i većina programa za poštu otvaraju .eml fajlove.</li>
+  <li><b>OneDrive</b>: svi fajlovi i folderi OneDrive-a naloga, sa vremenom izmene.</li>
+  <li><b>Kalendari</b>: svaki kalendar naloga; svaki događaj kao iCalendar fajl (<code>.ics</code>) sa vremenom, mestom, opisom, organizatorom, učesnicima, podsetnikom i — za seriju — pravilom ponavljanja, nazvan po početku i naslovu, npr. <code>2026-10-08 1000 Sastanak uprave [8c1e…].ics</code>. Outlook, Google Calendar i Thunderbird uvoze .ics fajlove. Vremena se čuvaju u UTC-u.</li>
+  <li><b>Kontakti</b>: kontakti i folderi kontakata naloga, svaki kao vCard (<code>.vcf</code>) sa imenima, email adresama, brojevima telefona, adresama, firmom i beleškama.</li>
+  <li><b>SharePoint</b>: svaka biblioteka dokumenata svakog sajta (Documents, Site Assets i biblioteke koje ste napravili), sa svim folderima i fajlovima.</li>
+</ul>
+<p>Nije uključeno: prilozi događaja u kalendaru, fotografije kontakata, pojedinačno izmenjena ponavljanja serije, SharePoint liste i stranice (samo biblioteke dokumenata), Teams chat-ovi i poruke kanala (Teams fajlovi su na SharePoint-u i čuvaju se sa njim), i deljena sandučad bez korisničkog naloga.</p>
+<p>Bekap sadrži po jedan folder za svaki nalog — <code>ana@contoso.com/Mail/Inbox/…</code>, <code>…/OneDrive/…</code>, <code>…/Calendar/Calendar/…</code>, <code>…/Contacts/…</code> — i <code>SharePoint/&lt;sajt&gt;/&lt;biblioteka&gt;/…</code>. Prvi bekap preuzima sve; svaki kasniji bekap ponovo izlistava foldere, ali preuzima samo poruke i fajlove koji su novi ili izmenjeni od prethodnog bekapa (pročitane, označene, premeštene ili izmenjene poruke računaju se kao izmenjene) — nepromenjeni podaci se uzimaju iz prethodnog bekapa. Microsoft ograničava koliko brzo aplikacija sme da čita; BackupZit čeka kada Microsoft to zatraži i nastavlja, pa prvi bekap velikih sandučića može da traje satima.</p>
+<p>Bekapi jednog tenanta čuvaju se u sopstvenom repozitorijumu na skladištu (folder <code>m365-&lt;tenant ID&gt;</code>), pa agent koji preuzima može da se zameni bez počinjanja iznova.</p>
+
+<h2 id="restore">Vraćanje</h2>
+<ul>
+  <li><b>Pregledaj fajlove</b> na pokretanju bekapa: otvorite foldere pošte, OneDrive, kalendare ili kontakte naloga, ili SharePoint sajt, označite poruke, događaje, fajlove ili foldere i <b>preuzmite</b> ih (jedan fajl kakav jeste, više kao ZIP) — otvorite .eml fajlove u Outlook-u ili ih prevucite u sanduče.</li>
+  <li><b>Vrati u folder</b> na bilo kom agentu: poruke se upisuju kao .eml fajlovi, događaji kao .ics, kontakti kao .vcf, a OneDrive i SharePoint fajlovi kakvi su bili, ispod <code>&lt;folder&gt;/&lt;nalog&gt;/…</code> i <code>&lt;folder&gt;/SharePoint/…</code>.</li>
+</ul>
+<p>Vraćanje direktno u sanduče ili OneDrive je planirano; pisaće samo u nov folder i nikad neće prepisivati niti brisati.</p>
+
+<h2 id="troubleshooting">Rešavanje problema</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b>: nije kopiran <i>Value</i> tajne (nego njen ID), ili je istekla — napravite novu i unesite je u posao.</li>
+  <li><b>missing the application permissions</b> ili <b>Authorization_RequestDenied</b>: dodajte dozvole kao <i>application</i> dozvole i kliknite <i>Grant admin consent</i>.</li>
+  <li><b>the account has no Exchange Online mailbox</b>: nalog nema Exchange licencu (ili je kontakt); uklonite ga iz posla.</li>
+  <li>Pokretanje sa upozorenjima navodi poruke ili fajlove koji nisu mogli da se pročitaju (npr. OneNote beležnica); ostatak bekapa je potpun.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

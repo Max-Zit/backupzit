@@ -1,0 +1,68 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Praćenje, izveštaji i kalendar</h1>
+<p class="lead">Na prvi pogled vidite da li je sve zaštićeno, saznajte šta se dešavalo bilo kog dana i šaljite redovne izveštaje rukovodstvu ili klijentima.</p>
+
+<h2>Kontrolna tabla</h2>
+<p>Prve kartice broje šta je zaštićeno: <b>mašine</b> (bekapi fajlova, slika i sistema), <b>virtuelne mašine</b>, <b>baze podataka</b> i <b>NAS deljeni folderi</b> (prikazuju se kada postoji bar jedan), svaki sa uspešnim bekapom. <b>Zahteva pažnju</b> navodi šta treba pogledati: poslove čije poslednje pokretanje nije uspelo, poslove koji su propustili raspored (nema uspeha od zakazanog pokretanja pre poslednjeg — vikendi i vremenski prozori rasporeda se uzimaju u obzir), agente koji se nisu javili 15 minuta, skladišta koja su 90 % puna ili će se popuniti u narednih 30 dana (vidi <a href="/docs/storage">Skladišta</a>), i izmene koje čekaju odobrenje drugog korisnika. Kada ništa nije navedeno, sve je u redu.</p>
+<p>Ostale kartice prikazuju agente na mreži, poslove bekapa, skladišta, pokretanja u redu i u toku, pokretanja, neuspehe i upozorenja u poslednja 24 sata, i <b>sumnjive bekape za pregled</b> (mogući ransomware, vidi <a href="/docs/ransomware">Zaštita od ransomware-a</a>). Zeleno znači u redu, žuto da treba pogledati, crveno da treba reagovati. Ispod je najskorija aktivnost.</p>
+
+<h2>Aktivnost</h2>
+<p>Svako pokretanje, od najnovijeg. Kliknite pokretanje za detalje: šta je obrađeno, statistika, greške po fajlu, i — za bekape — opcije vraćanja. Pokretanja u toku se automatski osvežavaju. Zakazana pokretanja imaju ikonu sata.</p>
+<h3>Vrste pokretanja</h3>
+<table>
+  <tr><th>Vrsta</th><th>Šta je</th></tr>
+  <tr><td>backup</td><td>Bekap fajlova i foldera nekog posla.</td></tr>
+  <tr><td>image-backup</td><td>Bekap slike diska.</td></tr>
+  <tr><td>system-backup, system-restore</td><td>Bekap Linux sistema i njegovo vraćanje na disk ili kao Proxmox VM.</td></tr>
+  <tr><td>agent-update</td><td>Instalacija novije verzije agenta pokrenuta sa stranice Agenti.</td></tr>
+  <tr><td>vm-backup, vm-restore</td><td>Bekap i vraćanje Proxmox VE, Hyper-V i VMware ESXi virtuelnih mašina (i Proxmox kontejnera).</td></tr>
+  <tr><td>vm-instant, vm-instant-finish, vm-instant-discard</td><td>Instant recovery (Proxmox VE, VMware ESXi): VM pokrenuta iz bekapa, i njeno završavanje (diskovi premešteni ili kopirani na skladište) ili brisanje.</td></tr>
+  <tr><td>sql-backup, sql-log, sql-restore</td><td>Bekapi baza (SQL Server, PostgreSQL, MySQL/MariaDB), njihovi bekapi logova, i vraćanje baze.</td></tr>
+  <tr><td>vm-replica, vm-replica-start</td><td>Proxmox replikacija posle bekapa VM-a, i pokretanje replike (failover).</td></tr>
+  <tr><td>vm-file-restore</td><td>Fajlovi kopirani sa diska VM-a iz Proxmox, Hyper-V ili VMware bekapa na agenta.</td></tr>
+  <tr><td>copy</td><td>Posao kopije bekapa: bekapi drugog posla kopirani na drugo skladište.</td></tr>
+  <tr><td>verify</td><td>Automatski ili ručni <a href="/docs/restore">test vraćanja</a>.</td></tr>
+  <tr><td>restore, image-restore, image-file-restore</td><td>Vraćanja fajlova, celog diska, ili fajlova iz slike.</td></tr>
+</table>
+<h3>Status</h3>
+<table>
+  <tr><th>Status</th><th>Značenje</th></tr>
+  <tr><td>{{template "status" "queued"}}</td><td>Čeka agenta (možda je van mreže). Bekapi uvek počinju pre testova vraćanja.</td></tr>
+  <tr><td>{{template "status" "running"}}</td><td>U toku.</td></tr>
+  <tr><td>{{template "status" "success"}}</td><td>Završeno bez problema.</td></tr>
+  <tr><td>{{template "status" "warning"}}</td><td>Završeno, ali neki fajlovi nisu mogli da se pročitaju (navedeni su). Ostalo je sačuvano.</td></tr>
+  <tr><td>{{template "status" "failed"}}</td><td>Nije završeno — skladište nedostupno, pogrešni pristupni podaci, pun disk, USB disk nije priključen, test vraćanja je našao oštećene podatke… Poruka objašnjava zašto.</td></tr>
+  <tr><td><span class="badge">isteklo</span></td><td>Snimak je obrisala retencija posla.</td></tr>
+  <tr><td><span class="badge failed"><i></i>sumnjivo</span></td><td>Bekap liči na ransomware ili masovno brisanje; retencija posla je pauzirana dok se ne pregleda. Posle pregleda je žut.</td></tr>
+</table>
+
+<h2>Kalendar</h2>
+<p><a href="/calendar">Kalendar</a> prikazuje po jedan mesec:</p>
+<ul>
+  <li><b>Prošli dani</b> prikazuju šta je zaista radilo — bekape i kopije — obojeno po rezultatu (zeleno, žuto, crveno). Ponovljena pokretanja jednog posla u jednom danu se spajaju, npr. <i>08:00 Kancelarijski fajlovi ×6</i>.</li>
+  <li><b>Budući dani</b> prikazuju šta će rasporedi pokrenuti (plavo).</li>
+  <li>Dan sa mnogo unosa prikazuje četiri i <b>+N još</b>; kliknite da vidite sve, kliknite ponovo da sakrijete.</li>
+  <li><b>Narednih 7 dana</b> navodi svako predstojeće pokretanje po redu.</li>
+</ul>
+<p>Filtrirajte po agentu da vidite plan jedne mašine. Kliknite unos da otvorite posao. Poslovi kopije koji rade „posle svakog bekapa“ pojavljuju se u dane kada je radio njihov izvorni posao.</p>
+
+<h2>Izveštaji</h2>
+<p><a href="/reports">Izveštaji</a> sumiraju bilo koji period: danas, juče, poslednjih 7/30/90 dana, ova ili prošla nedelja ili mesec, ili proizvoljan raspon datuma — za sve agente, jednog agenta ili jedan posao.</p>
+<ul>
+  <li>Broj bekapa, procenat uspešnosti, uspešna / sa upozorenjem / neuspela pokretanja, pročitani i poslati podaci, vraćanja, testovi vraćanja (i neuspeli testovi), sumnjivi bekapi.</li>
+  <li>Grafikon bekapa po danu.</li>
+  <li>Po poslu: pokretanja, procenat uspešnosti, poslednji rezultat, <b>poslednji uspešan bekap</b>, zaštićena veličina, poslati podaci i rezultat najnovijeg <b>testa vraćanja</b>. Posao bez uspešnog bekapa u periodu je istaknut.</li>
+  <li>Svi neuspesi, upozorenja i sumnjivi bekapi sa porukama.</li>
+</ul>
+<p>Koristite <b>CSV</b> da otvorite sva pokretanja u Excelu (zaštićeno od formula), <b>Štampa / PDF</b> za dokument, ili <b>Pošalji ovaj izveštaj emailom</b>. Isti podaci su dostupni alatima za nadzor preko <a href="/docs/api">REST API-ja</a> (<code>/api/v1/report</code>).</p>
+
+<h3>Zakazani izveštaji</h3>
+<p>Pod <i>Zakazani izveštaji</i> napravite izveštaje koji se automatski šalju emailom kada se period završi:</p>
+<ul>
+  <li><b>Dnevni</b> — svakog jutra, o prethodnom danu.</li>
+  <li><b>Nedeljni</b> — svakog ponedeljka, o prethodnoj nedelji.</li>
+  <li><b>Mesečni</b> — prvog u mesecu, o prethodnom mesecu (idealno za klijente ili rukovodstvo).</li>
+</ul>
+<p>Izaberite sat, obuhvat (svi agenti, jedan agent ili jedan posao) i primaoce (prazno = primaoci obaveštenja). CSV sa svim pokretanjima je u prilogu. Email mora da bude podešen u <a href="/settings/email">Podešavanja → Email obaveštenja</a>. Pravljenje i uklanjanje zakazanih izveštaja traži ulogu operatera bekapa ili administratora.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

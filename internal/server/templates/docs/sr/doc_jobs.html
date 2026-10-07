@@ -1,0 +1,114 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Poslovi bekapa i rasporedi</h1>
+<p class="lead">Posao određuje šta se čuva na kom agentu, gde se čuva, kada se pokreće i koliko bekapa se zadržava.</p>
+
+<h2>Pravljenje posla</h2>
+<ol>
+  <li>Idite na <a href="/jobs">Poslovi bekapa</a> i popunite <i>Novi posao bekapa</i>.</li>
+  <li>Izaberite <b>agenta</b> i <b>skladište</b>.</li>
+  <li>Izaberite šta se čuva:
+    <ul>
+      <li><b>Fajlovi i folderi</b> — jedna putanja po redu, kako je vidi agent, npr. <code>C:\Users</code>, <code>D:\Data</code>, <code>/home</code>, <code>/etc</code>.</li>
+      <li><b>Slika diska</b> — ceo disk ili izabrane particije, može da se vrati na prazan disk ili nov hardver. Vidi <a href="/docs/images">Slike diskova</a>.</li>
+      <li><b>Linux sistem</b> — svi fajl-sistemi i raspored diskova Linux mašine, može da se vrati na prazan disk ili kao Proxmox VM. Vidi <a href="/docs/linux-system">Bekap Linux sistema</a>.</li>
+      <li><b>Virtuelne mašine (Proxmox VE, Hyper-V, VMware)</b> — virtuelne mašine (i Proxmox kontejneri) hipervizor hosta, bez agenata u gostima: bekap pravi agent na Proxmox ili Hyper-V hostu, a za VMware ESXi proxy agent tog hosta (izaberite ESXi host u listi agenata). Vidi <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>.</li>
+      <li><b>Baze podataka</b> — SQL Server, PostgreSQL ili MySQL/MariaDB na mašini agenta, sa bekapom logova za vraćanje u bilo koji trenutak. Vidi <a href="/docs/sql">Baze podataka</a>.</li>
+      <li><b>NAS / deljeni folder</b> — SMB ili NFS deljeni folder koji čita agent; vidi <a href="#nas">dole</a>.</li>
+      <li><b>Microsoft 365</b> — Exchange Online sandučići, kalendari, kontakti, OneDrive i SharePoint sajtovi, koje bilo koji agent čita preko Microsoft Grapha; vidi <a href="/docs/m365">Microsoft 365</a>.</li>
+    </ul>
+  </li>
+  <li>Po želji dodajte <b>izuzetke</b>, jedan po redu: obrazac imena, koji važi u svakom folderu (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), ili punu putanju, koja važi samo za taj fajl ili folder (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, i sa džokerima: <code>D:\VMs\*.iso</code>). Na Windowsu pune putanje ne razlikuju velika i mala slova.</li>
+  <li>Podesite <b>Čuvaj bekape</b> i <b>Raspored</b>, zatim <i>Napravi posao</i>.</li>
+</ol>
+
+<h2 id="nas">NAS i deljeni folderi (SMB, NFS)</h2>
+<p>Posao <b>NAS / deljeni folder</b> pravi bekap mrežnog deljenog foldera bez instaliranja bilo čega na NAS (Synology, QNAP, TrueNAS, Windows fajl server …). Izaberite bilo kog agenta koji dolazi do deljenog foldera — on ga čita i upisuje bekap — i unesite:</p>
+<ul>
+  <li><b>Share</b>: <code>smb://nas01/data</code> (po želji sa folderom: <code>smb://nas01/data/Office</code>) ili <code>nfs://nas01/volume1/data</code> (putanja exporta);</li>
+  <li>za SMB nalog (korisnik, opciono domen, lozinka — čuva se šifrovana); prazno znači pristup kao gost. NFS koristi pristup mašine agenta exportu (dozvolite njenu adresu na NAS-u);</li>
+  <li><b>foldere na share-u</b> za bekap, jedan po redu (prazno: ceo share), i izuzetke kao <code>#recycle</code>, <code>@eaDir</code> ili <code>.snapshot</code>.</li>
+</ul>
+<p>Za svako pokretanje agent povezuje deljeni folder — Windows agenti preko njegove UNC putanje (<code>\\nas01\data</code>, samo SMB), Linux agenti tako što ga montiraju samo za čitanje ispod <code>/mnt/backupzit-nas</code> (potreban je <code>cifs-utils</code> za SMB, <code>nfs-common</code> ili <code>nfs-utils</code> za NFS; Proxmox VE ima oba) — i posle ga odvaja. Bekapi su obični bekapi fajlova: deduplicirani i inkrementalni, sa retencijom, poslovima kopiranja, testovima vraćanja, pregledom i vraćanjem fajlova. <b>Vraćanje na originalnu lokaciju</b> ponovo povezuje deljeni folder, sa pravom pisanja, i upisuje fajlove nazad; ili vratite u folder na bilo kom agentu, ili preuzmite.</p>
+
+<h2>Otvoreni i zaključani fajlovi (VSS)</h2>
+<p>Na Windowsu agent koristi <b>Volume Shadow Copy Service</b>: pravi konzistentan snimak volumena u jednom trenutku i bekap pravi iz njega, pa se otvoreni fajlovi (Outlook PST, baze, dokumenti koji se menjaju) čuvaju konzistentno. Aplikacije koje podržavaju VSS (na primer SQL Server) upisuju svoje podatke na disk pre snimka.</p>
+
+<h2>Rasporedi</h2>
+<table>
+  <tr><th>Opcija</th><th>Primer</th></tr>
+  <tr><td><b>U određeno vreme</b></td><td>Svakog radnog dana u 22:00; ili u 12:00 i 18:00 svakog dana. Do tri puta dnevno, u dane koje označite.</td></tr>
+  <tr><td><b>Više puta</b></td><td>Na svaka 2 sata između 08:00 i 18:00, od ponedeljka do petka. Intervali od 15 minuta do 12 sati.</td></tr>
+  <tr><td><b>Jednom mesečno</b></td><td>Prvog u mesecu u 23:00.</td></tr>
+  <tr><td><b>Samo ručno</b></td><td>Pokreće se samo kada kliknete <i>Pokreni bekap sada</i>.</td></tr>
+</table>
+<p>Vremena su u vremenskoj zoni servera konzole (na uređaju: <a href="/settings/network#timezone">Podešavanja → Mreža → Vremenska zona</a> ili stavka 9 menija za podešavanje; počinje u UTC-u). Ako je agent van mreže u zakazano vreme, bekap čeka u redu i počinje čim se agent vrati. Sva planirana pokretanja vidite u <a href="/calendar">Kalendaru</a>.</p>
+
+<h2>Retencija: koliko bekapa se čuva</h2>
+<p>Snimak se zadržava ako ga izabere <b>bilo koje</b> pravilo:</p>
+<ul>
+  <li><b>Najnovije</b> — najnovijih N bekapa.</li>
+  <li><b>Dnevno</b> — najnoviji bekap za svaki od poslednjih N dana koji imaju bekape.</li>
+  <li><b>Nedeljno</b> — najnoviji bekap za svaku od poslednjih N nedelja.</li>
+  <li><b>Mesečno</b> — najnoviji bekap za svaki od poslednjih N meseci.</li>
+</ul>
+<p>Primer: 3 najnovija, 7 dnevnih, 4 nedeljna, 6 mesečnih čuva oko pola godine istorije sa ~20 tačaka vraćanja. Posle svakog uspešnog pokretanja, snimci koje nijedno pravilo više ne bira se brišu (u Aktivnosti se prikazuju kao <i>isteklo</i>), a podaci koje više ne koristi nijedan snimak brišu se sa skladišta. Sve nule čuvaju sve.</p>
+<div class="callout"><p>Zahvaljujući deduplikaciji, duga retencija je jeftina: nepromenjeni podaci se čuvaju samo jednom, bez obzira na to koliko snimaka ih koristi.</p></div>
+
+<h2>Poslovi kopije bekapa (3-2-1)</h2>
+<p>Posao <b>kopije bekapa</b> kopira bekape drugog posla na drugo skladište — na primer noćne bekape na NAS u kancelariji, kopirane na S3 ili ojačani repozitorijum van firme. U obrascu posla izaberite <i>Kopija bekapa</i>, posao koji se kopira i odredišno skladište.</p>
+<ul>
+  <li>Kopiranje radi agent izvornog posla; zaštićena mašina se <b>ne čita ponovo</b>.</li>
+  <li>Prenose se samo podaci kojih još nema na odredištu, ponovo šifrovani ključem odredišta.</li>
+  <li>Raspored <b>Posle svakog bekapa izvornog posla</b> (podrazumevano) drži kopiju ažurnom; radi i bilo koji običan raspored, npr. jednom noću za spor internet.</li>
+  <li>Kopija ima svoju retenciju, npr. 7 dnevnih na NAS-u i 12 mesečnih u cloudu.</li>
+  <li>Kopirani bekapi fajlova i virtuelnih mašina (Proxmox VE, Hyper-V, VMware) vraćaju se sa stranice pokretanja kopije ili iz <a href="/restore">čarobnjaka za vraćanje</a>, kao i originali — cele VM, pojedinačni fajlovi sa diskova VM-a i Proxmox instant recovery. VM bekapi koje je kopirao agent stariji od 0.29 ne mogu ovako da se vrate; sledeće pokretanje kopije sa novijim agentom čini najnoviju kopiju vraćljivom. Kopije slika diskova se vraćaju agentom iz komandne linije.</li>
+</ul>
+
+<h2>Izmena posla</h2>
+<p>Otvorite posao i raširite <b>Izmeni posao</b>. Možete promeniti ime, foldere i izuzetke (poslovi fajlova), virtuelne mašine (VM poslovi), raspored, retenciju, ograničenje brzine, nivo kompresije i komande. Agent, skladište i disk posla za sliku diska ostaju isti, da bi bekapi posla ostali jedan lanac; da biste premestili posao, napravite nov — sa poslom kopije ako treba preneti i starije bekape. Izmene važe od sledećeg pokretanja i upisuju se u <a href="/audit">audit log</a>. Uz uključeno <a href="/docs/users">odobrenje „četiri oka”</a>, kraća retencija čeka odobrenje drugog korisnika; ostale izmene se čuvaju odmah.</p>
+
+<h2>Replike (Proxmox VE)</h2>
+<p>Proxmox VM poslovi mogu da drže ugašene, ažurne kopije svojih gostiju na čvoru po izboru, koje se pokreću jednim klikom ako se gost izgubi — vidi <a href="/docs/proxmox">Proxmox VE → Replikacija</a>.</p>
+
+<h2>Ograničenje brzine</h2>
+<p>Pod <b>Napredno</b> u obrascu posla, <b>Ograniči brzinu slanja</b> ograničava koliko brzo agent šalje podatke na skladište, u MB/s — na primer 10 MB/s od 08:00 do 18:00, da bekapi u radno vreme ostave internet vezu kancelarije upotrebljivom; van tog prozora posao radi punom brzinom. Sati su lokalno vreme agenta, a prozor može da prelazi ponoć (22:00 do 06:00). Ograničenje važi za bekape i poslove kopiranja (slanje na drugo skladište), ne i za vraćanja: vraćanje uvek radi punom brzinom.</p>
+
+<h2 id="compression">Kompresija i deduplikacija</h2>
+<p>Svaki bekap je dedupliciran: podaci koji su već u repozitorijumu — iz ranijih bekapa istog posla ili iz drugih poslova na istom skladištu — ne čuvaju se ponovo. Novi podaci se zatim kompresuju algoritmom zstd; delovi koji se ne smanje (video, arhive, šifrovani fajlovi) čuvaju se kakvi jesu. Šifrovanje dolazi posle kompresije.</p>
+<p>Nivo kompresije je podešavanje posla (<b>Izmeni posao → Napredno</b>):</p>
+<table>
+  <tr><th>Nivo</th><th>Kada ga koristiti</th></tr>
+  <tr><td>Standardna (preporučeno)</td><td>Dobra kompresija uz veliku brzinu; odgovara skoro svakom poslu.</td></tr>
+  <tr><td>Brza</td><td>Troši manje procesora na zauzetim ili slabim mašinama; bekapi su malo veći.</td></tr>
+  <tr><td>Maksimalna</td><td>Obično 5–15 % manje od standardne, ali kompresija je nekoliko puta sporija. Za spore veze i plaćeno cloud skladište, kada mašina ima slobodnog procesora.</td></tr>
+  <tr><td>Isključeno</td><td>Za podatke koji su već kompresovani: štedi procesor, a bekapi nisu veći.</td></tr>
+</table>
+<p>Nivo važi za nove podatke od sledećeg pokretanja; postojeći bekapi ostaju kakvi jesu, a vraćanje nikad ne zavisi od njega. Stranica pokretanja prikazuje rezultat: odnos kompresije novih podataka (npr. <i>2.4×</i>) i koliki deo pročitanih podataka je već bio sačuvan (deduplikacija).</p>
+
+<h2>Komande pre i posle bekapa</h2>
+<p>Administratori mogu da podese da posao pokrene komandu na agentu pre i posle svakog bekapa — na primer dump baze, zaustavljanje servisa radi konzistentne kopije, ili obaveštenje:</p>
+<pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, pre
+sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, pre</pre>
+<ul>
+  <li>Komande se izvršavaju pod servisnim nalogom agenta (root na Linuxu, SYSTEM na Windowsu) preko <code>sh</code> ili <code>cmd</code>; dozvoljeno je više redova. Samo <b>administratori</b> mogu da ih vide i menjaju — operater bekapa bi inače mogao da pokrene bilo šta na svakoj mašini.</li>
+  <li>Ako komanda <b>pre</b> ne uspe (izlazni kod nije 0) ili traje duže od vremenskog ograničenja (podrazumevano 30 minuta), bekap se ne pokreće, a pokretanje ne uspeva sa izlazom komande.</li>
+  <li>Komanda <b>posle</b> se izvršava i kada bekap nije uspeo, da bi mogla ponovo da pokrene ono što je prva komanda zaustavila. Neuspela komanda posle bekapa pretvara pokretanje u upozorenje.</li>
+  <li>Obe dobijaju <code>BACKUPZIT_STAGE</code> (pre ili post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> i, posle bekapa, <code>BACKUPZIT_STATUS</code> (success, warning ili failed).</li>
+  <li>Za VM poslove komande se izvršavaju na hipervizor hostu (ili VMware proxy-ju), ne u virtuelnim mašinama. Poslovi kopiranja nemaju komande.</li>
+</ul>
+
+<h2>Pokretanje, onemogućavanje, brisanje</h2>
+<ul>
+  <li><b>Pokreni bekap sada</b> (<b>Kopiraj sada</b> za poslove kopije) odmah stavlja posao u red.</li>
+  <li><b>Testiraj vraćanje</b> vraća nasumični uzorak najnovijeg bekapa i proverava ga (vidi <a href="/docs/restore">Vraćanje</a>).</li>
+  <li><b>Onemogući</b> pauzira raspored bez gubitka posla (uz uključeno odobrenje „četiri oka”, drugi korisnik mora to da odobri).</li>
+  <li><b>Obriši</b> uklanja posao; postojeći bekapi ostaju na skladištu i mogu da se vrate iz Aktivnosti.</li>
+</ul>
+
+<h2>Pauzirano čuvanje</h2>
+<p>Ako je neki bekap posla ličio na ransomware ili masovno brisanje, stranica posla prikazuje <i>Čuvanje je pauzirano</i>: nijedan bekap se ne briše dok neko ne proveri mašinu i ne klikne <i>Pregledano — nastavi čuvanje</i> (uz uključeno odobrenje „četiri oka”, drugi korisnik mora to da odobri). Vidi <a href="/docs/ransomware">Zaštita od ransomware-a</a>.</p>
+
+<h2>Šta pokretanje bekapa prijavljuje</h2>
+<p>Otvorite pokretanje u <a href="/runs">Aktivnosti</a>: broj fajlova, novi/promenjeni fajlovi, pročitani podaci, novi poslati podaci (posle deduplikacije i kompresije, sa odnosom kompresije i delom koji je već bio sačuvan — vidi <a href="#compression">Kompresija</a>), trajanje i fajlovi koji nisu mogli da se pročitaju. Pokretanje sa nečitljivim fajlovima završava se statusom <b>upozorenje</b> — ostali podaci su sačuvani.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

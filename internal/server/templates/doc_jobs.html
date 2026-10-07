@@ -101,7 +101,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 <ul>
   <li><b>Run backup now</b> (<b>Copy now</b> for copy jobs) queues the job immediately.</li>
   <li><b>Test restore</b> restores a random sample of the newest backup and verifies it (see <a href="/docs/restore">Restoring</a>).</li>
-  <li><b>Disable</b> pauses the schedule without losing the job.</li>
+  <li><b>Disable</b> pauses the schedule without losing the job (with four-eyes approval on, a second user has to approve it).</li>
   <li><b>Delete</b> removes the job; existing backups stay on the storage and remain restorable from Activity.</li>
 </ul>
 

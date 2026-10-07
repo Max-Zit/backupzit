@@ -1,0 +1,86 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Bezbednost i dobre prakse</h1>
+<p class="lead">Kako BackupZit štiti vaše podatke i konzolu, i šta treba da uradite sa svoje strane.</p>
+
+<h2>Ugrađena zaštita</h2>
+<ul>
+  <li><b>Šifrovanje na izvoru</b> — AES-256-GCM u agentu; skladište vidi samo šifrovane podatke. Ključevi se izvode pomoću Argon2id.</li>
+  <li><b>Fiksirane veze</b> — agenti fiksiraju sertifikat konzole; SFTP ključevi hostova i sertifikati ojačanih repozitorijuma takođe su fiksirani. Nijedan sertifikacioni autoritet ne može da se zloupotrebi da bi se lažno predstavio kao oni.</li>
+  <li><b>Pouzdan sertifikat za pregledače</b> — opciono otpremljen ili Let's Encrypt sertifikat (TLS 1.2+) na posebnoj adresi, automatski obnavljan; vidi <a href="/docs/install">Instalacija servera</a>.</li>
+  <li><b>Tajne u mirovanju</b> — lozinke i ključevi skladišta, ključevi za oporavak, SMTP/LDAP lozinke i dvofaktorske tajne čuvaju se šifrovani u bazi ključem koji se drži van nje (<code>secrets.key</code>).</li>
+  <li><b>Tajne agenata</b> — svaki agent ima sopstvenu tajnu, sačuvanu na konzoli samo kao heš, a na agentu u fajlu koji mogu da čitaju samo administratori.</li>
+  <li><b>Web konzola</b> — HttpOnly, SameSite=Strict kolačići sesije; zaštita od cross-site zahteva i clickjacking-a; strogi Content-Security-Policy; lozinke heširane bcrypt-om; osetljive stranice se nikad ne keširaju.</li>
+  <li><b>Zaštita od pogađanja lozinki</b> — adrese koje prečesto ne uspeju da se prijave se blokiraju: lozinke, dvofaktorski kodovi i API tokeni. Blokade preživljavaju restart, ponovni prekršioci se blokiraju duže, a administratori dobijaju email. Vidi dole.</li>
+  <li><b>Nalozi</b> — uloge sa najmanjim potrebnim pravima, opciona dvofaktorska autentifikacija (TOTP) i LDAPS prijava; API tokeni sa sopstvenom, nižom ulogom i rokom važenja.</li>
+  <li><b>Odobrenje „četiri oka”</b> (opciono) — brisanje ili onemogućavanje poslova, brisanje agenata, ESXi hostova, skladišta i korisnika, skraćivanje retencije, isključivanje odobrenja, i sve što bi jednom administratoru moglo da da drugog odobravača (novi odobravači, više prava, resetovanje lozinke i dvofaktorske prijave, izmene LDAP-a i SSO-a) traže odobrenje drugog korisnika. Vidi <a href="/docs/users">Korisnici, uloge i LDAP</a>.</li>
+  <li><b>Revizijski trag</b> — prijave, neuspele prijave, izmene korisnika i uloga, poslovi, skladišta, vraćanja, prikazani ključevi za oporavak, izmene podešavanja i API radnje beleže se u <a href="/audit">dnevniku revizije</a>; unosi su povezani u lanac, pa se izmene i brisanja u bazi otkrivaju, i mogu da se kopiraju na syslog server ili SIEM (<a href="/docs/users#audit-integrity">Zaštita od izmena</a>); brisanja na ojačanom repozitorijumu beleže se na tom serveru.</li>
+  <li><b>Ažuriranja konzole</b> — izdanja su potpisana BackupZit ključem za izdanja (Ed25519). I konzola i root servis koji ih instalira proveravaju potpis, baza se prvo bekapuje, a neuspelo ažuriranje se vraća unazad.</li>
+  <li><b>Ažuriranja agenata</b> — agenti preuzimaju nove verzije samo sa svoje konzole preko fiksirane veze i instaliraju ih samo ako se SHA-256 kontrolni zbir poklapa.</li>
+  <li><b>Lokalni kanal statusa</b> — aplikacija u traci razgovara sa servisom agenta preko lokalnog named pipe-a (Windows) ili socketa dostupnog samo root-u (Linux). Prijavljeni korisnici mašine mogu da čitaju status i pokreću poslove bekapa same mašine; ništa drugo (poslovima, rasporedima, skladištima i vraćanjima upravlja se samo u konzoli).</li>
+  <li><b>Bekapi hipervizora</b> — agent na Proxmox ili Hyper-V hostu koristi alate samog hosta; za njih se ne čuvaju lozinke hipervizora. Za VMware ESXi konzola čuva lozinku hosta šifrovanu, fiksira njegov HTTPS sertifikat i SSH ključ hosta, i predaje vezu samo proxy agentu tog hosta za njegova pokretanja.</li>
+  <li><b>Integritet bekapa</b> — svaki deo se pri vraćanju proverava po svom SHA-256 hešu; automatski testovi vraćanja i otkrivanje ransomware-a neprestano prate bekape.</li>
+</ul>
+
+<h2>Zaštita od pogađanja lozinki</h2>
+<p>Podešava se u <a href="/settings/security">Podešavanja → Prijava i bezbednost</a>. Podrazumevane vrednosti su bezbedne za većinu instalacija:</p>
+<table>
+  <tr><th>Podešavanje</th><th>Podrazumevano</th><th>Značenje</th></tr>
+  <tr><td>Neuspeli pokušaji po adresi</td><td>5</td><td>Neuspele prijave sa jedne IP adrese u periodu brojanja blokiraju tu adresu. Broje se pogrešne lozinke, pogrešni dvofaktorski kodovi i neispravni API tokeni.</td></tr>
+  <tr><td>Period brojanja</td><td>15 minuta</td><td>Neuspesi stariji od ovoga se zaboravljaju.</td></tr>
+  <tr><td>Blokiraj na</td><td>30 minuta</td><td>Blokirana adresa ne može da se prijavi, čak ni sa ispravnom lozinkom. Stranica za prijavu odgovara „Previše neuspelih prijava”, a API odgovara HTTP 429.</td></tr>
+  <tr><td>Duže blokiraj ponovne prekršioce</td><td>uključeno</td><td>Svaka sledeća blokada adrese u toku dana traje dvostruko duže: 30 minuta, 1 sat, 2 sata, … do 7 dana.</td></tr>
+  <tr><td>Neuspeli pokušaji po korisničkom imenu</td><td>20</td><td>Neuspesi za jedno korisničko ime, sa bilo kojih adresa, pauziraju prijavu za to korisničko ime dok ne prođe period brojanja. Ovo zaustavlja pogađanje raspoređeno na mnogo adresa. Nalozi se nikad ne zaključavaju trajno, pa napadač ne može da zaključa administratora.</td></tr>
+  <tr><td>Nikad ne blokiraj ove mreže</td><td>nijedna</td><td>Opcione mreže, npr. podmreža administratora, koje se nikad ne blokiraju. Ograničenje po korisničkom imenu i dalje važi za njih.</td></tr>
+  <tr><td>Reverse proxy serveri</td><td>nijedan</td><td>Ako konzola radi iza nginx-a, Traefik-a ili drugog proxy-ja, unesite njegovu adresu: adresa klijenta se tada uzima iz <code>X-Forwarded-For</code> (inače bi svi klijenti izgledali kao proxy) i, kada proxy šalje <code>X-Forwarded-Proto: https</code>, kolačići prijave se označavaju kao Secure. Oba zaglavlja se ignorišu sa bilo koje druge adrese, pa ne mogu da se falsifikuju.</td></tr>
+  <tr><td>Email kada se adresa blokira</td><td>uključeno</td><td>Šalje se primaocima iz <a href="/settings/email">podešavanja emaila</a>.</td></tr>
+</table>
+<p>Ista stranica navodi blokirane adrese, sa razlogom i trajanjem svake blokade, i omogućava da se blokada skine. Blokade i skidanja blokada beleže se u <a href="/audit">dnevniku revizije</a>.</p>
+<p>Ako ste sami sebe zaključali, prijavite se sa druge adrese, ili na serveru pokrenite ovo sa istim opcijama baze kao servis:</p>
+<pre>backupzit-server --unblock-ip all</pre>
+<p>Da biste skinuli jednu blokadu, umesto <code>all</code> navedite adresu.</p>
+
+<h2 id="web-access">Pristup web konzoli (javna adresa)</h2>
+<p>Agenti se povezuju na konzolu na portu 8443. Da biste konzolu ponudili na javnoj adresi — za agente na drugim lokacijama ili kod klijenata — a da web konzolu mogu da otvore samo vaši administratori, koristite <b>Podešavanja → Prijava i bezbednost → Pristup web konzoli</b>:</p>
+<table>
+  <tr><th>Podešavanje</th><th>Efekat</th></tr>
+  <tr><td>Dozvoljene adrese</td><td>IP adrese ili mreže (npr. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). Web konzola, REST API i svaka stranica odgovaraju samo ovim adresama; ostale dobijaju „not found”, kao da konzola ne postoji. Agenti uvek dolaze do svog API-ja (prijavljivanje, provere, rezultati, preuzimanja, push instalacija). Prazno: svi. Konzola odbija listu koja ne sadrži vašu sopstvenu adresu.</td></tr>
+  <tr><td>Port 8443 samo za agente</td><td>Web konzola je tada samo na web portu sa pouzdanim sertifikatom (<a href="/docs/install">Podešavanja → Sertifikat</a>, obično 443), pa firewall može da otvori 8443 svima, a 443 samo vašim adresama. Dostupno kada web port radi; menja se sa web porta, ne sa 8443.</td></tr>
+</table>
+<p>Tipičan firewall za javnu konzolu: 8443 otvoren svima (agenti), 443 i 80 (Let's Encrypt HTTP provera) samo sa vaših adresa, SSH samo sa vaših adresa ili isključen, sve ostalo zatvoreno.</p>
+<p>Zaključani ste? Na samom serveru (<code>localhost</code>) konzola uvek odgovara. Na appliance-u, stavka 5 menija za podešavanje na njegovom ekranu skida blokade prijave i ova ograničenja.</p>
+
+<h2>Preporuke</h2>
+<h3>Konzola</h3>
+<ul>
+  <li>Držite konzolu u internoj mreži; ne objavljujte port 8443 na internetu. Za udaljenu administraciju koristite VPN.</li>
+  <li>Koristite dugu, jedinstvenu administratorsku lozinku i promenite početnu.</li>
+  <li>Zahtevajte <b>dvofaktorsku autentifikaciju</b> za administratore (<a href="/settings/security">Podešavanja → Prijava i bezbednost</a>).</li>
+  <li>Dajte svakoj osobi sopstveni nalog sa najnižom ulogom koja je dovoljna; za nadzor koristite API tokene sa ulogom Posmatrač.</li>
+  <li>Bekapujte <code>secrets.key</code> odvojeno od baze (<a href="/docs/install">Instalacija servera</a>).</li>
+  <li>Izaberite trajanje sesije prijave u <a href="/settings/security">Podešavanja → Prijava i bezbednost</a> koje vam odgovara (kraće je bezbednije).</li>
+  <li>Održavajte server ažurnim (<code>apt upgrade</code> / <code>dnf upgrade</code>), uključujući PostgreSQL.</li>
+</ul>
+<h3>Skladište</h3>
+<ul>
+  <li>Dajte svakom skladištu sopstveni nalog sa pristupom samo folderu ili bucket-u za bekape.</li>
+  <li>Ne uključujte skladište za bekape u Windows domen; koristite pristupne podatke koji se ne koriste nigde drugde.</li>
+  <li>Čuvajte bar jednu nepromenljivu kopiju (S3 Object Lock ili ojačani repozitorijum) i jednu kopiju van lokacije.</li>
+</ul>
+<h3>Ključevi</h3>
+<ul>
+  <li>Listove za oporavak čuvajte offline. Bez njih šifrovani bekapi ne mogu da se vrate ako se konzola izgubi.</li>
+  <li>Jednom testirajte vraćanje iz komandne linije samo sa listom za oporavak, da biste znali da postupak radi.</li>
+  <li>USB stick sa <code>recovery.json</code> čuvajte kao ključ: dok kod za oporavak ne istekne (30 dana), on omogućava mašini da se priključi konzoli kao agent za oporavak. Napravite nov kod kada vam zatreba, umesto da čuvate stare stick-ove.</li>
+  <li>ISO-i za oporavak daju root / administratorsku komandnu liniju svakome ko ih podigne — kao i svaki medijum za podizanje. Zaštitite servere lozinkom firmvera (BIOS/UEFI) i podešavanjima bezbednog podizanja.</li>
+</ul>
+
+<h3>Agenti i hipervizori</h3>
+<ul>
+  <li>Konzola može da instalira softver na agente (ažuriranja agenata) i da vraća podatke na njih. Zaštitite administratorske naloge u skladu s tim: dvofaktorska autentifikacija, malo administratora.</li>
+  <li>Fajlove sa diskova VM-ova parsiraju konzola i agenti kada ih pregledate; oštećeni ili zlonamerni podaci fajl-sistema daju grešku, a ne pad.</li>
+</ul>
+
+<h2>Prijava bezbednosnog problema</h2>
+<p>Ranjivosti prijavite privatno održavaocima BackupZit-a umesto otvaranja javnog issue-a.</p>
+{{template "docpager" .}}
+</article></div>{{end}}
