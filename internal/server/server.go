@@ -357,6 +357,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
 	mux.HandleFunc("POST /jobs/{id}/delete", s.ui(PermJobs, s.handleJobDelete))
 	mux.HandleFunc("POST /jobs/{id}/edit", s.ui(PermJobs, s.handleJobEdit))
+	mux.HandleFunc("POST /jobs/m365-directory", s.ui(PermJobs, s.handleM365Directory))
 	mux.HandleFunc("POST /jobs/{id}/replica-start", s.ui(PermRestore, s.handleReplicaStart))
 	mux.HandleFunc("GET /restore", s.ui(PermRestore, s.handleRestoreWizard))
 	mux.HandleFunc("GET /runs", s.ui(PermView, s.handleRuns))

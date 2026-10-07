@@ -22,6 +22,7 @@
   <li><b>Accounts</b>: one address per line, or empty for every account of the tenant that has a mailbox or OneDrive — accounts added later are included automatically; accounts without a license are skipped.</li>
   <li><b>SharePoint sites</b>: one site address per line (e.g. <code>https://contoso.sharepoint.com/sites/sales</code>), or empty for every site of the tenant — sites added later are included automatically. Personal sites (OneDrive) are left out; they are backed up with the accounts. A job with only SharePoint needs no accounts.</li>
 </ul>
+<p>Instead of typing addresses, click <b>Choose from the list</b>: the console reads the accounts (marking those without a license, which have no mailbox or OneDrive) and the SharePoint sites of the tenant with the app entered above and lists them to tick; the ticked ones fill the fields. When editing a job, the stored secret is used.</p>
 <p>When the job is saved, the console signs in as the app and checks the permissions, the accounts and the sites, so a wrong secret or a missing admin consent shows at once. A console without internet access skips the check; the first backup then shows whether it works.</p>
 
 <h2 id="what">What is backed up</h2>

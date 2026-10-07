@@ -302,11 +302,16 @@ type User struct {
 	UserPrincipalName string `json:"userPrincipalName"`
 	DisplayName       string `json:"displayName"`
 	Mail              string `json:"mail"`
+	// Licenses of the account (only licensed accounts have a mailbox or a
+	// OneDrive).
+	Licenses []struct {
+		SkuID string `json:"skuId"`
+	} `json:"assignedLicenses"`
 }
 
 // Users lists the accounts of the tenant.
 func (c *Client) Users(ctx context.Context) ([]User, error) {
-	return listAll[User](ctx, c, "/users?$select=id,userPrincipalName,displayName,mail&$top=999")
+	return listAll[User](ctx, c, "/users?$select=id,userPrincipalName,displayName,mail,assignedLicenses&$top=999")
 }
 
 // User looks up one account by user principal name, address or ID.

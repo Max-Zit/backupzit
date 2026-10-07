@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -240,7 +242,7 @@ func (s *Server) checkM365Access(ctx context.Context, l *language, j Job) (note 
 	}
 	var missing []string
 	for _, n := range need {
-		if !slices.Contains(roles, n) && !slices.Contains(roles, strings.Replace(n, ".Read", ".ReadWrite", 1)) {
+		if !hasRole(roles, n) {
 			missing = append(missing, n)
 		}
 	}
@@ -328,4 +330,105 @@ func (s *Store) isM365Run(ctx context.Context, run Run) bool {
 // (mail, OneDrive, calendars or contacts), not only SharePoint.
 func (o JobOptions) M365Accounts() bool {
 	return !o.M365NoMail || !o.M365NoOneDrive || o.M365Calendar
+}
+
+// hasRole reports whether the granted permissions include n or one that
+// covers it: the ".All" form (Calendars.Read.All) or a ReadWrite one.
+func hasRole(roles []string, n string) bool {
+	base := strings.TrimSuffix(n, ".All")
+	rw := strings.Replace(base, ".Read", ".ReadWrite", 1)
+	for _, r := range roles {
+		switch r {
+		case base, base + ".All", rw, rw + ".All":
+			return true
+		}
+	}
+	return false
+}
+
+// m365DirEntry is an account or site offered for selection.
+type m365DirEntry struct {
+	ID   string `json:"id"` // address of the account or the site
+	Name string `json:"name"`
+	Note string `json:"note,omitempty"`
+}
+
+// handleM365Directory serves POST /jobs/m365-directory: the accounts and
+// SharePoint sites of a tenant, read with the app of the form (or the
+// stored secret of the job being edited), for ticking in the job form.
+func (s *Server) handleM365Directory(w http.ResponseWriter, r *http.Request, _ string) {
+	l := requestLanguage(r)
+	fail := func(err error) { writeJSON(w, http.StatusOK, map[string]string{"error": err.Error()}) }
+	j := Job{Kind: JobM365, Options: JobOptions{M365Tenant: r.FormValue("m365_tenant"), M365Client: r.FormValue("m365_client"),
+		M365Secret: strings.TrimSpace(r.FormValue("m365_secret"))}}
+	if j.Options.M365Secret == "" {
+		if id, err := strconv.ParseInt(r.FormValue("job_id"), 10, 64); err == nil && id > 0 {
+			if old, err := s.store.GetJob(r.Context(), id); err == nil && old.Kind == JobM365 &&
+				strings.EqualFold(old.Options.M365Tenant, strings.TrimSpace(j.Options.M365Tenant)) &&
+				strings.EqualFold(old.Options.M365Client, strings.TrimSpace(j.Options.M365Client)) {
+				j.Options.M365Secret = old.Options.M365Secret
+			}
+		}
+	}
+	if err := s.store.checkM365Job(&j); err != nil {
+		fail(errors.New(l.T(err.Error())))
+		return
+	}
+	secret, err := s.store.m365Secret(j.Options)
+	if err != nil {
+		fail(err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+	c := m365.NewClient(m365.Credentials{Tenant: j.Options.M365Tenant, Client: j.Options.M365Client, Secret: secret})
+	roles, err := c.Roles(ctx)
+	if err != nil {
+		var ge *m365.Error
+		if errors.As(err, &ge) {
+			if h := m365Hint(ge.Message); h != "" {
+				err = fmt.Errorf("%v — %s", err, l.T(h))
+			}
+		}
+		fail(err)
+		return
+	}
+	out := map[string]any{"accounts": []m365DirEntry{}, "sites": []m365DirEntry{}}
+	if hasRole(roles, "User.Read.All") {
+		users, err := c.Users(ctx)
+		if err != nil {
+			fail(err)
+			return
+		}
+		list := []m365DirEntry{}
+		for _, u := range users {
+			e := m365DirEntry{ID: strings.ToLower(u.UserPrincipalName), Name: u.DisplayName}
+			if len(u.Licenses) == 0 {
+				e.Note = l.T("no license — no mailbox or OneDrive")
+			}
+			list = append(list, e)
+		}
+		slices.SortFunc(list, func(a, b m365DirEntry) int { return strings.Compare(a.ID, b.ID) })
+		out["accounts"] = list
+	} else {
+		out["accounts_error"] = l.T("The app is missing the application permissions %s. In the Microsoft Entra admin center open App registrations → the app → API permissions, add them as Microsoft Graph application permissions and click \"Grant admin consent\".", "User.Read.All")
+	}
+	if hasRole(roles, "Sites.Read.All") {
+		sites, err := c.Sites(ctx)
+		if err != nil {
+			fail(err)
+			return
+		}
+		list := []m365DirEntry{}
+		for _, st := range sites {
+			if strings.TrimSpace(st.DisplayName) == "" {
+				continue // system sites such as the search center
+			}
+			list = append(list, m365DirEntry{ID: strings.TrimRight(st.WebURL, "/"), Name: st.DisplayName})
+		}
+		out["sites"] = list
+	} else {
+		out["sites_error"] = l.T("The app is missing the application permissions %s. In the Microsoft Entra admin center open App registrations → the app → API permissions, add them as Microsoft Graph application permissions and click \"Grant admin consent\".", "Sites.Read.All")
+	}
+	writeJSON(w, http.StatusOK, out)
 }

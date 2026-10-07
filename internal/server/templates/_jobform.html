@@ -159,6 +159,10 @@
 <label>{{T "Accounts"}} <small>{{T "one address per line, e.g. ana@contoso.com; empty: every account with a mailbox or OneDrive, also accounts added later"}}</small>
   <textarea name="m365_users">{{if eq .J.Kind "m365"}}{{join .J.Paths "\n"}}{{end}}</textarea>
 </label>
+<div class="m365-pick" data-m365-pick data-job="{{.J.ID}}" data-loading="{{T "Reading the accounts and sites of the tenant…"}}" data-accounts="{{T "Accounts"}}" data-sites="{{T "SharePoint sites"}}" data-filter="{{T "Filter"}}" data-all-hint="{{T "Nothing ticked: all, also those added later."}}" data-empty="{{T "None found."}}">
+  <button type="button" class="secondary" data-m365-load>{{T "Choose from the list"}}</button> <small class="muted">{{T "reads the accounts and SharePoint sites of the tenant with the app above; tick the ones to back up"}}</small>
+  <div data-m365-list hidden></div>
+</div>
 <label>{{T "SharePoint sites"}} <small>{{T "one site address per line, e.g. https://contoso.sharepoint.com/sites/sales; empty: every site of the tenant, also sites added later"}}</small>
   <textarea name="m365_sites">{{join $o.M365Sites "\n"}}</textarea>
 </label>

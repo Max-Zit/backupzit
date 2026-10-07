@@ -312,3 +312,79 @@ document.addEventListener("DOMContentLoaded", function () { document.querySelect
   });
   if (input) input.addEventListener("input", apply);
 }); });
+
+// Microsoft 365 jobs: read the accounts and SharePoint sites of the tenant
+// with the app of the form and tick them instead of typing addresses.
+document.addEventListener("click", function (e) {
+  var btn = e.target.closest && e.target.closest("[data-m365-load]");
+  if (!btn) return;
+  var box = btn.closest("[data-m365-pick]");
+  var form = btn.closest("form");
+  var list = box.querySelector("[data-m365-list]");
+  var body = new URLSearchParams();
+  ["m365_tenant", "m365_client", "m365_secret"].forEach(function (n) {
+    var i = form.querySelector("[name=" + n + "]");
+    body.append(n, i ? i.value : "");
+  });
+  body.append("job_id", box.getAttribute("data-job") || "");
+  list.hidden = false;
+  list.textContent = box.getAttribute("data-loading");
+  btn.disabled = true;
+  fetch("/jobs/m365-directory", { method: "POST", body: body, credentials: "same-origin" })
+    .then(function (r) { return r.json(); })
+    .then(function (d) { btn.disabled = false; m365List(box, form, list, d); })
+    .catch(function (err) { btn.disabled = false; list.textContent = String(err); });
+});
+
+function m365List(box, form, list, d) {
+  function el(tag, cls, text) {
+    var x = document.createElement(tag);
+    if (cls) x.className = cls;
+    if (text) x.textContent = text;
+    return x;
+  }
+  function lines(ta) {
+    return ta.value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+  list.textContent = "";
+  if (d.error) { list.appendChild(el("p", "flash err", d.error)); return; }
+  group(d.accounts, d.accounts_error, "m365_users", box.getAttribute("data-accounts"));
+  group(d.sites, d.sites_error, "m365_sites", box.getAttribute("data-sites"));
+  function group(items, err, field, title) {
+    var ta = form.querySelector("[name=" + field + "]");
+    list.appendChild(el("h4", "", title));
+    if (err) { list.appendChild(el("p", "muted small", err)); return; }
+    if (!items || !items.length) { list.appendChild(el("p", "muted small", box.getAttribute("data-empty"))); return; }
+    list.appendChild(el("p", "muted small", box.getAttribute("data-all-hint")));
+    var filter = el("input", "", "");
+    filter.type = "search";
+    filter.placeholder = box.getAttribute("data-filter");
+    list.appendChild(filter);
+    var wrap = el("div", "disks", "");
+    var known = items.map(function (it) { return it.id.toLowerCase(); });
+    var chosen = lines(ta).map(function (s) { return s.toLowerCase().replace(/\/+$/, ""); });
+    items.forEach(function (it) {
+      var lab = el("label", "check", "");
+      var cb = el("input", "", "");
+      cb.type = "checkbox";
+      cb.value = it.id;
+      cb.checked = chosen.indexOf(it.id.toLowerCase()) >= 0;
+      lab.appendChild(cb);
+      lab.appendChild(document.createTextNode(" " + it.id + (it.name && it.name.toLowerCase() !== it.id.toLowerCase() ? " — " + it.name : "")));
+      if (it.note) { lab.appendChild(document.createTextNode(" ")); lab.appendChild(el("small", "", it.note)); }
+      cb.addEventListener("change", sync);
+      wrap.appendChild(lab);
+    });
+    list.appendChild(wrap);
+    // The textarea keeps typed entries that are not in the list.
+    function sync() {
+      var v = lines(ta).filter(function (x) { return known.indexOf(x.toLowerCase().replace(/\/+$/, "")) < 0; });
+      wrap.querySelectorAll("input:checked").forEach(function (c) { v.push(c.value); });
+      ta.value = v.join("\n");
+    }
+    filter.addEventListener("input", function () {
+      var q = filter.value.toLowerCase();
+      wrap.querySelectorAll("label").forEach(function (l) { l.hidden = !!q && l.textContent.toLowerCase().indexOf(q) < 0; });
+    });
+  }
+}

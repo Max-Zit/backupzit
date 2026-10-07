@@ -345,7 +345,7 @@ func TestM365CalendarSharePointJob(t *testing.T) {
 		"m365_form": {"1"}, "m365_tenant": {testTenant}, "m365_client": {testClient}, "m365_secret": {"app-secret-value"},
 		"m365_calendar": {"on"}, "m365_sharepoint": {"on"}, "m365_users": {"ana@contoso.test"}, "sched_kind": {"manual"}}
 	for site, want := range map[string]string{
-		"http://contoso.sharepoint.com/sites/sales":  "is not a SharePoint site address",
+		"http://contoso.sharepoint.com/sites/sales": "is not a SharePoint site address",
 		"https://contoso.sharepoint.com/sites/gone": "does not exist in this tenant",
 	} {
 		form.Set("m365_sites", site)
@@ -403,5 +403,53 @@ func TestM365CalendarSharePointJob(t *testing.T) {
 	rid, _ = e.store.QueueBackup(ctx, id, "manual")
 	if _, err := e.srv.APIRun(ctx, rid); err == nil || !strings.Contains(err.Error(), "cannot back up Microsoft 365 SharePoint yet; update it to 0.35.0") {
 		t.Errorf("old agent: %v", err)
+	}
+}
+
+// The job form lists the accounts and sites of the tenant for ticking,
+// with the secret of the form or the stored one of the job.
+func TestM365Directory(t *testing.T) {
+	fakeTenant(t, "User.Read.All", "Mail.Read", "Sites.Read.All")
+	e := setup(t)
+	ctx := e.ctx
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
+	agents, _ := e.store.ListAgents(ctx)
+	target, _ := e.store.CreateTarget(ctx, server.Target{Name: "store", Kind: "local", URL: t.TempDir()})
+	dir := func(v url.Values) map[string]any {
+		t.Helper()
+		_, _, body := admin.do("POST", "/jobs/m365-directory", v)
+		var d map[string]any
+		if err := json.Unmarshal([]byte(body), &d); err != nil {
+			t.Fatalf("%v: %s", err, body)
+		}
+		return d
+	}
+	d := dir(url.Values{"m365_tenant": {testTenant}, "m365_client": {testClient}, "m365_secret": {"app-secret-value"}})
+	b, _ := json.Marshal(d)
+	if !strings.Contains(string(b), `"accounts":[{"id":"ana@contoso.test","name":"","note":"no license — no mailbox or OneDrive"}]`) ||
+		!strings.Contains(string(b), `"sites":[{"id":"https://contoso.sharepoint.com/sites/sales","name":"Sales"}]`) {
+		t.Errorf("directory: %s", b)
+	}
+	if d := dir(url.Values{"m365_tenant": {testTenant}, "m365_client": {testClient}, "m365_secret": {"wrong"}}); !strings.Contains(fmt.Sprint(d["error"]), "client secret is wrong") {
+		t.Errorf("wrong secret: %v", d)
+	}
+	// Editing a job: the stored secret is used, only for the job's own app.
+	id, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobM365, AgentID: agents[0].ID, TargetID: target, Name: "m", Enabled: true,
+		Options: server.JobOptions{M365Tenant: testTenant, M365Client: testClient, M365Secret: "app-secret-value"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := dir(url.Values{"m365_tenant": {testTenant}, "m365_client": {testClient}, "job_id": {fmt.Sprint(id)}}); d["error"] != nil {
+		t.Errorf("stored secret: %v", d)
+	}
+	if d := dir(url.Values{"m365_tenant": {"other.onmicrosoft.com"}, "m365_client": {testClient}, "job_id": {fmt.Sprint(id)}}); !strings.Contains(fmt.Sprint(d["error"]), "client secret") {
+		t.Errorf("stored secret sent to another tenant: %v", d)
+	}
+	// The form offers the list.
+	if _, _, body := admin.do("GET", fmt.Sprintf("/jobs/%d", id), nil); !strings.Contains(body, "data-m365-load") {
+		t.Error("job form lacks the picker")
 	}
 }
