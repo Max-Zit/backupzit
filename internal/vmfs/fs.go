@@ -153,27 +153,74 @@ func (f *ioFS) List(dir string) ([]Entry, error) {
 	return out, nil
 }
 
+// linkReader reads the target of a symbolic link (the ext4 reader can).
+type linkReader interface {
+	ReadLink(name string) (string, error)
+}
+
+// maxLinks bounds chains of symbolic links (and loops).
+const maxLinks = 16
+
+func (f *ioFS) isLink(p string) bool {
+	fi, err := fs.Stat(f.fsys, rel(p))
+	return err == nil && fi.Mode()&fs.ModeSymlink != 0
+}
+
+// resolve follows symbolic links inside the file system, so a link (such
+// as /etc/os-release) is read as the file it points to.
+func (f *ioFS) resolve(p string) (string, error) {
+	p = Clean(p)
+	for i := 0; i < maxLinks; i++ {
+		if p == "/" || !f.isLink(p) {
+			return p, nil
+		}
+		lr, ok := f.fsys.(linkReader)
+		if !ok {
+			return "", fmt.Errorf("%s is a symbolic link, which cannot be followed in this file system", p)
+		}
+		t, err := lr.ReadLink(rel(p))
+		if err != nil {
+			return "", fmt.Errorf("read the symbolic link %s: %w", p, err)
+		}
+		t = strings.ReplaceAll(t, `\`, "/") // the reader cleans with the OS separator
+		if !strings.HasPrefix(t, "/") {
+			t = path.Join(path.Dir(p), t)
+		}
+		p = Clean(t)
+	}
+	return "", fmt.Errorf("%s: too many levels of symbolic links", p)
+}
+
+// Stat describes p; for a symbolic link, the file or folder it points to.
 func (f *ioFS) Stat(p string) (Entry, error) {
 	p = Clean(p)
 	if p == "/" {
 		return Entry{Name: "/", Path: "/", IsDir: true}, nil
 	}
-	fi, err := fs.Stat(f.fsys, rel(p))
+	target, err := f.resolve(p)
 	if err != nil {
 		return Entry{}, err
 	}
-	return Entry{Name: fi.Name(), Path: p, IsDir: fi.IsDir(), Size: fi.Size(), ModTime: fi.ModTime()}, nil
+	fi, err := fs.Stat(f.fsys, rel(target))
+	if err != nil {
+		return Entry{}, err
+	}
+	return Entry{Name: path.Base(p), Path: p, IsDir: fi.IsDir(), Size: fi.Size(), ModTime: fi.ModTime()}, nil
 }
 
 func (f *ioFS) ReadFile(p string) (io.Reader, int64, error) {
-	e, err := f.Stat(p)
+	target, err := f.resolve(p)
+	if err != nil {
+		return nil, 0, err
+	}
+	e, err := f.Stat(target)
 	if err != nil {
 		return nil, 0, err
 	}
 	if e.IsDir {
 		return nil, 0, fmt.Errorf("%s is a folder", p)
 	}
-	file, err := f.fsys.Open(rel(p))
+	file, err := f.fsys.Open(rel(target))
 	if err != nil {
 		return nil, 0, err
 	}

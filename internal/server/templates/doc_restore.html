@@ -50,6 +50,7 @@
   <li><b>Download</b> — one file comes as it is, several files or folders as a ZIP archive, straight in the browser. Downloads are recorded in the audit log.</li>
   <li><b>Restore them on an agent</b> — into a folder or to the original location, like a restore with <i>Only these paths</i>.</li>
 </ul>
+<p>A <b>symbolic link</b> to a file (e.g. <code>/etc/os-release</code>) is downloaded as the file it points to, when that file is in the backup; links to folders are left out of ZIP archives. The same applies to files downloaded from virtual machine backups (ext4, XFS). A restore on an agent recreates links as links.</p>
 <p>The console reads the backup from the storage itself, so browsing works for backups on network storage (SFTP, S3, SMB, Azure, hardened repository); for a local disk or a USB disk of an agent, restore with the paths. Users with a restore role may browse and download.</p>
 
 <div class="callout tip"><p><b>Finding the right backup:</b> use the <a href="/calendar">Calendar</a> to see which backups ran on which day, or the job page's history.</p></div>

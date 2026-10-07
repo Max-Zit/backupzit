@@ -232,6 +232,22 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 		return nil
 	}
 	if len(sel) == 1 {
+		if _, n, err := lookupNode(ctx, repoR, sn.Tree, snapshotComps(sel[0])); err == nil && n != nil && n.Type == repo.NodeSymlink {
+			name := n.Name
+			if n, err = followLink(ctx, repoR, sn.Tree, snapshotComps(sel[0]), n); err != nil {
+				redirectErr(w, r, fileBack(run, dir), err)
+				return
+			}
+			if n.Type == repo.NodeFile {
+				cp := *n
+				cp.Name = name
+				w.Header().Set("Content-Type", "application/octet-stream")
+				w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(cp.Name))
+				w.Header().Set("Content-Length", strconv.FormatUint(cp.Size, 10))
+				writeFile(w, &cp)
+				return
+			}
+		}
 		if _, n, err := lookupNode(ctx, repoR, sn.Tree, snapshotComps(sel[0])); err == nil && n != nil && n.Type == repo.NodeFile {
 			w.Header().Set("Content-Type", "application/octet-stream")
 			w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(n.Name))
@@ -245,8 +261,8 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(name))
 	zw := zip.NewWriter(w)
 	defer zw.Close()
-	var add func(rel string, n *repo.Node) error
-	add = func(rel string, n *repo.Node) error {
+	var add func(rel string, comps []string, n *repo.Node) error
+	add = func(rel string, comps []string, n *repo.Node) error {
 		if err := r.Context().Err(); err != nil {
 			return err
 		}
@@ -263,7 +279,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 				zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: n.ModTime})
 			}
 			for i := range t.Nodes {
-				if err := add(path.Join(rel, t.Nodes[i].Name), &t.Nodes[i]); err != nil {
+				if err := add(path.Join(rel, t.Nodes[i].Name), append(append([]string{}, comps...), t.Nodes[i].Name), &t.Nodes[i]); err != nil {
 					return err
 				}
 			}
@@ -273,15 +289,25 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 				return err
 			}
 			return writeFile(zf, n)
+		case repo.NodeSymlink:
+			// A link to a file is stored as that file; links to folders are
+			// left out (they could loop).
+			if t, err := followLink(ctx, repoR, sn.Tree, comps, n); err == nil && t.Type == repo.NodeFile {
+				zf, err := zw.CreateHeader(&zip.FileHeader{Name: rel, Method: zip.Deflate, Modified: t.ModTime})
+				if err != nil {
+					return err
+				}
+				return writeFile(zf, t)
+			}
 		}
-		return nil // symlinks and devices are not part of the archive
+		return nil // devices are not part of the archive
 	}
 	for _, sp := range sel {
 		_, n, err := lookupNode(ctx, repoR, sn.Tree, snapshotComps(sp))
 		if err != nil || n == nil {
 			continue
 		}
-		if add(n.Name, n) != nil {
+		if add(n.Name, snapshotComps(sp), n) != nil {
 			return
 		}
 	}
@@ -324,4 +350,33 @@ func (s *Server) handleFilePickRestore(w http.ResponseWriter, r *http.Request, _
 	}
 	s.audit(r, "restore.files", "run #%d from backup #%d to %q: %d ticked paths", rid, run.ID, target, len(includes))
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Restore queued.")
+}
+
+// followLink resolves a symbolic link of a file backup inside the
+// snapshot: an absolute target (/srv/data/x, C:\Data\x) or one relative to
+// the link's folder. Links to links are followed, up to a limit.
+func followLink(ctx context.Context, r *repo.Repository, root repo.ID, comps []string, n *repo.Node) (*repo.Node, error) {
+	for i := 0; n != nil && n.Type == repo.NodeSymlink; i++ {
+		if i == 16 {
+			return nil, fmt.Errorf("%s: too many levels of symbolic links", strings.Join(comps, "/"))
+		}
+		t := strings.ReplaceAll(n.LinkTarget, `\`, "/")
+		var next string
+		switch {
+		case strings.HasPrefix(t, "/"):
+			next = t
+		case len(t) > 1 && t[1] == ':': // C:/Data/x
+			next = t[:1] + t[2:]
+		default:
+			next = path.Join(strings.Join(comps[:len(comps)-1], "/"), t)
+		}
+		next = path.Clean("/" + next)
+		target := snapshotComps(next)
+		_, nn, err := lookupNode(ctx, r, root, target)
+		if err != nil || nn == nil {
+			return nil, fmt.Errorf("%s is a link to %s, which is not in the backup", strings.Join(comps, "/"), n.LinkTarget)
+		}
+		n, comps = nn, target
+	}
+	return n, nil
 }

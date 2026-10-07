@@ -50,6 +50,8 @@ func TestFileBrowse(t *testing.T) {
 	os.WriteFile(filepath.Join(src, "docs", "report.txt"), []byte("quarterly report"), 0o644)
 	os.WriteFile(filepath.Join(src, "docs", "deep", "note.md"), []byte("a note"), 0o644)
 	os.WriteFile(filepath.Join(src, "top.bin"), bytes.Repeat([]byte{7}, 3000), 0o644)
+	// A relative link to a file (Windows may refuse to create links).
+	hasLink := os.Symlink("report.txt", filepath.Join(src, "docs", "link-report")) == nil
 
 	jobID, err := e.store.CreateJob(ctx, server.Job{AgentID: a.ID, TargetID: targetID, Name: "Docs", Paths: []string{src}, Enabled: true})
 	if err != nil {
@@ -123,6 +125,17 @@ func TestFileBrowse(t *testing.T) {
 	}
 	if names["docs/report.txt"] != "quarterly report" || names["docs/deep/note.md"] != "a note" {
 		t.Fatalf("zip content: %v", names)
+	}
+	if hasLink {
+		// Links are downloaded as the file they point to.
+		if names["docs/link-report"] != "quarterly report" {
+			t.Errorf("link in zip: %q", names["docs/link-report"])
+		}
+		if _, body := download(docs + "/link-report"); string(body) != "quarterly report" {
+			t.Errorf("link download: %q", body)
+		}
+	} else {
+		t.Log("symbolic links not available here")
 	}
 
 	// Restore the ticked file into a folder on the agent.
