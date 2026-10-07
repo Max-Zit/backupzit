@@ -490,6 +490,10 @@ func (s *Store) checkJob(ctx context.Context, j *Job) error {
 			}
 		}
 		j.ImageDisk, j.ImagePartitions = nil, nil
+	case JobM365:
+		if err := s.checkM365Job(j); err != nil {
+			return err
+		}
 	case JobNAS:
 		if err := checkNASShare(j.Options.NASURL); err != nil {
 			return err
@@ -551,6 +555,11 @@ func (s *Store) checkJob(ctx context.Context, j *Job) error {
 	}
 	if j.Kind != JobSQL {
 		j.Options.SQLInstance, j.Options.SQLSystem, j.Options.SQLLogMinutes = "", false, 0
+	}
+	if j.Kind != JobM365 {
+		j.Options.clearM365()
+	} else if m365AgentTooOld(agent) {
+		return fmt.Errorf("the agent on %s (%s) cannot back up Microsoft 365 yet; update it to %s or newer, or choose another agent", agent.Hostname, agent.Version, minM365Version)
 	}
 	if j.Kind == JobSystem && (strings.Contains(strings.ToLower(agent.OS), "windows") || agent.Recovery) {
 		return fmt.Errorf("%s is not a Linux machine; use a disk image job for Windows", agent.Hostname)
@@ -688,15 +697,11 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 	if j.Kind == JobCopy {
 		return s.queueCopy(ctx, j, a, t, trigger)
 	}
-	repo := repoURL(t, a)
-	if j.VMwareHostID != nil {
-		// A VMware host has its own repository, independent of its proxy.
-		h, err := s.GetVMwareHost(ctx, *j.VMwareHostID)
-		if err != nil {
-			return 0, err
-		}
-		repo = repoURL(t, Agent{RepoDir: h.RepoDir})
+	dir, err := s.jobRepoDir(ctx, j, a)
+	if err != nil {
+		return 0, err
 	}
+	repo := repoURL(t, Agent{RepoDir: dir})
 	var id int64
 	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes, image_disk, image_partitions, vmware_host_id)
 		SELECT $1,$2,$8,$3,$4,$5,$6,$7,$9,$10,$11
@@ -725,6 +730,9 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 	}
 	if _, err := s.GetAgent(ctx, agentID); err != nil {
 		return 0, errors.New("unknown agent")
+	}
+	if target == "" && s.isM365Run(ctx, b) {
+		return 0, errors.New("Microsoft 365 backups are restored into a folder (as .eml messages and files) or downloaded; enter a folder")
 	}
 	if includes == nil {
 		includes = []string{}

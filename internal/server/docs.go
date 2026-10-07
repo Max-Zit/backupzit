@@ -16,6 +16,7 @@ var docPages = []struct{ Slug, Title string }{
 	{"hyperv", "Hyper-V virtual machines"},
 	{"vmware", "VMware ESXi virtual machines"},
 	{"sql", "Databases (SQL Server, PostgreSQL, MySQL)"},
+	{"m365", "Microsoft 365 (Exchange Online, OneDrive)"},
 	{"ransomware", "Ransomware protection"},
 	{"monitoring", "Monitoring, reports & calendar"},
 	{"notifications", "Notifications"},

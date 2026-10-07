@@ -33,7 +33,7 @@
     </label>
     <label class="check"><input type="radio" name="mode" value="folder" checked> {{T "Restore into a folder"}}</label>
     <label>{{T "Folder"}} <small>{{T "the original path structure is recreated below it, e.g. D:\\Restore\\C\\Users\\..."}}</small><input name="target" placeholder="{{T "/srv/restore or D:\\Restore"}}"></label>
-    <label class="check"><input type="radio" name="mode" value="original"> {{T "Restore to original location (overwrites existing files)"}}</label>
+    {{if not .Data.M365}}<label class="check"><input type="radio" name="mode" value="original"> {{T "Restore to original location (overwrites existing files)"}}</label>{{end}}
     <label class="check"><input type="checkbox" name="verify"> {{T "Verify restored files"}}</label>
     <div><button class="secondary" formaction="/runs/{{.Data.Run.ID}}/files-pick-restore">{{T "Start restore"}}</button></div>
   </div>

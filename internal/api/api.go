@@ -134,6 +134,9 @@ type Run struct {
 	// it (relative; none = the whole share). Restores to the original
 	// location mount it again, writable.
 	NAS *NASShare `json:"nas,omitempty"`
+	// M365: the agent reads these Microsoft 365 accounts through Microsoft
+	// Graph instead of local files (Paths are the accounts; none = all).
+	M365 *M365Source `json:"m365,omitempty"`
 
 	// Restore
 	SnapshotID    string   `json:"snapshot_id,omitempty"`
@@ -245,6 +248,15 @@ type NASShare struct {
 	User     string `json:"user,omitempty"`
 	Domain   string `json:"domain,omitempty"`
 	Password string `json:"password,omitempty"`
+}
+
+// M365Source is a Microsoft 365 tenant read through an app registration.
+type M365Source struct {
+	Tenant   string `json:"tenant"`
+	Client   string `json:"client"`
+	Secret   string `json:"secret"`
+	Mail     bool   `json:"mail,omitempty"`
+	OneDrive bool   `json:"onedrive,omitempty"`
 }
 
 // RunResult is reported by the agent when a run finishes.

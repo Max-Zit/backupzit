@@ -10,7 +10,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
   </label>
   <label class="check"><input type="radio" name="mode" value="folder" checked> {{T "Restore into a folder"}}</label>
   <label>{{T "Folder"}} <small>{{T "the original path structure is recreated below it, e.g. D:\\Restore\\C\\Users\\..."}}</small><input name="target" placeholder="{{T "C:\\Restore"}}"></label>
-  <label class="check"><input type="radio" name="mode" value="original"> {{T "Restore to original location (overwrites existing files)"}}</label>
+  {{if not .Data.M365}}<label class="check"><input type="radio" name="mode" value="original"> {{T "Restore to original location (overwrites existing files)"}}</label>{{end}}
   <label>{{T "Only these paths"}} <small>{{T "optional, one per line, e.g. C:\\Users\\ana\\Documents"}}{{if or (eq .Data.Run.Kind "backup") (eq .Data.Run.Kind "system-backup")}} — <a href="/runs/{{.Data.Run.ID}}/files">{{T "or browse and tick them"}}</a>{{end}}</small><textarea name="includes"></textarea></label>
   <label class="check"><input type="checkbox" name="verify" checked> {{T "Verify restored files"}}</label>
   <div><button>{{T "Start restore"}}</button></div>
@@ -159,8 +159,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
   {{if gt (len .Data.Image) 1}}
   <label>{{T "Disk of the backup"}} <small>{{T "this backup holds several disks; restore them one by one, each onto its own disk"}}</small>
     <select name="image_index">{{range .Data.Image}}<option value="{{.Index}}">{{T "Disk"}} {{.Number}} — {{.Model}}, {{bytes .Size}}</option>{{end}}</select>
-  </label>
-  {{end}}
+  </label>{{end}}
   <label>{{T "Target disk"}}
     <select name="target_disk" id="restore_disk" required></select>
   </label>

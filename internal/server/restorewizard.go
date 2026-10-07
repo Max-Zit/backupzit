@@ -32,6 +32,7 @@ var restoreTypes = []restoreType{
 	{Key: "vm", Title: "Whole virtual machine", Desc: "Proxmox VE, Hyper-V and VMware ESXi VMs (and Proxmox containers), as a new VM or in place of the original.", Icon: "vm"},
 	{Key: "vmfiles", Title: "Files from a virtual machine", Desc: "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM), download files or restore them to an agent.", Icon: "folder"},
 	{Key: "files", Title: "Files and folders", Desc: "From file backups and Linux system backups, into a folder or to their original location.", Icon: "folder"},
+	{Key: "m365", Title: "Microsoft 365 mail and OneDrive", Desc: "Messages (.eml) and OneDrive files from Microsoft 365 backups: browse and download them, or restore them into a folder.", Icon: "folder"},
 	{Key: "image", Title: "Disk image / bare metal", Desc: "A Windows disk or its partitions onto a disk, also on different hardware or as a VM, from the recovery ISO.", Icon: "disk"},
 	{Key: "imagefiles", Title: "Files from a disk image", Desc: "Browse the NTFS partitions of a disk image and restore single files.", Icon: "folder"},
 	{Key: "sql", Title: "Database", Desc: "A SQL Server, PostgreSQL or MySQL/MariaDB database (or a whole PostgreSQL cluster), under a new name or in place, to any point in time covered by log backups.", Icon: "storage"},
@@ -123,20 +124,22 @@ func (s *Server) wizardEntries(ctx context.Context) (map[string][]wizardEntry, e
 		}
 		// A job's backups are one source; runs of deleted jobs are grouped
 		// by machine.
+		var j Job
 		src := restoreSource{Key: "agent:" + strconv.FormatInt(run.AgentID, 10), Title: run.Hostname, Detail: "backups of a deleted job"}
 		if run.JobID != nil {
-			j := jobByID[*run.JobID]
+			j = jobByID[*run.JobID]
 			src = restoreSource{Key: "job:" + strconv.FormatInt(*run.JobID, 10), Title: deref(run.JobName), Detail: run.Hostname}
 			if run.Kind == api.KindCopy {
 				// Copies of file and VM backups are restore points of the source job.
 				srcJob, ok := jobByID[derefID(j.SourceJobID)]
-				if !ok || (srcJob.Kind != JobFiles && srcJob.Kind != JobNAS && srcJob.Kind != JobVM) {
+				if !ok || (srcJob.Kind != JobFiles && srcJob.Kind != JobNAS && srcJob.Kind != JobM365 && srcJob.Kind != JobVM) {
 					continue
 				}
 				if srcJob.Kind == JobVM && vmDetails(run) == nil {
 					continue // copied before copies listed their guests
 				}
 				p.Copy = true
+				j = srcJob
 				src = restoreSource{Key: "job:" + strconv.FormatInt(srcJob.ID, 10), Title: srcJob.Name, Detail: srcJob.Hostname}
 			}
 		} else if run.Kind == api.KindCopy {
@@ -155,7 +158,11 @@ func (s *Server) wizardEntries(ctx context.Context) (map[string][]wizardEntry, e
 		}
 		switch kind {
 		case api.KindBackup:
-			add("files", src, p)
+			if j.Kind == JobM365 {
+				add("m365", src, p)
+			} else {
+				add("files", src, p)
+			}
 		case api.KindSQLBackup:
 			d := sqlDetails(run)
 			if d == nil {

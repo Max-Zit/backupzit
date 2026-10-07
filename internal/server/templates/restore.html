@@ -76,7 +76,7 @@
 {{end}}
 <div class="panel">
   <h2>{{T "Options"}}</h2>
-  {{if eq $d.Type.Key "files"}}{{template "restore_files" .}}
+  {{if or (eq $d.Type.Key "files") (eq $d.Type.Key "m365")}}{{template "restore_files" .}}
   {{else if eq $d.Type.Key "vm"}}{{template "restore_vm" .}}
   {{else if eq $d.Type.Key "system"}}{{template "restore_system" .}}
   {{else if eq $d.Type.Key "image"}}{{template "restore_image" .}}

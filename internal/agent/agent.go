@@ -458,6 +458,9 @@ func failed(err error) api.RunResult {
 }
 
 func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
+	if run.M365 != nil {
+		return a.m365Backup(ctx, run)
+	}
 	if run.NAS != nil {
 		return a.withNAS(ctx, run, false, func(paths []string) api.RunResult {
 			return a.backupPaths(ctx, run, paths, false)

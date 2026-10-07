@@ -45,6 +45,13 @@ type JobOptions struct {
 	NASUser     string `json:"nas_user,omitempty"`
 	NASDomain   string `json:"nas_domain,omitempty"`
 	NASPassword string `json:"nas_password,omitempty"`
+	// Microsoft 365 jobs: the app registration (directory and application
+	// ID, client secret stored encrypted) and what is backed up.
+	M365Tenant     string `json:"m365_tenant,omitempty"`
+	M365Client     string `json:"m365_client,omitempty"`
+	M365Secret     string `json:"m365_secret,omitempty"`
+	M365NoMail     bool   `json:"m365_no_mail,omitempty"`
+	M365NoOneDrive bool   `json:"m365_no_onedrive,omitempty"`
 	// Compression of new data: "" (default), "off", "fast" or "max".
 	Compression string `json:"compression,omitempty"`
 }
@@ -250,6 +257,19 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	if o.NASPassword == "" && o.NASUser != "" && o.NASUser == old.NASUser && sameNASServer(o.NASURL, old.NASURL) {
 		o.NASPassword = old.NASPassword // kept (encrypted)
 	}
+	if r.FormValue("m365_form") != "" {
+		o.M365Tenant = strings.TrimSpace(r.FormValue("m365_tenant"))
+		o.M365Client = strings.TrimSpace(r.FormValue("m365_client"))
+		o.M365Secret = strings.TrimSpace(r.FormValue("m365_secret"))
+		o.M365NoMail = r.FormValue("m365_mail") != "on"
+		o.M365NoOneDrive = r.FormValue("m365_onedrive") != "on"
+		// An empty secret keeps the stored one for the same app.
+		if o.M365Secret == "" && strings.EqualFold(o.M365Tenant, old.M365Tenant) && strings.EqualFold(o.M365Client, old.M365Client) {
+			o.M365Secret = old.M365Secret
+		}
+	} else {
+		o.M365Tenant, o.M365Client, o.M365Secret, o.M365NoMail, o.M365NoOneDrive = old.M365Tenant, old.M365Client, old.M365Secret, old.M365NoMail, old.M365NoOneDrive
+	}
 	return o
 }
 
@@ -299,6 +319,8 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 		j.Paths = lines(r.FormValue("sql_databases"))
 	case JobNAS:
 		j.Paths, j.Excludes = lines(r.FormValue("paths")), lines(r.FormValue("excludes"))
+	case JobM365:
+		j.Paths = lines(r.FormValue("m365_users"))
 	case JobVM:
 		if r.FormValue("vm_mode") == "all" {
 			j.Paths = []string{"*"}
@@ -313,6 +335,11 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 	if held {
 		j.Retention = old.Retention
 	}
+	note, err := s.m365Precheck(r.Context(), requestLanguage(r), j)
+	if err != nil {
+		redirectErr(w, r, back+"#edit", err)
+		return
+	}
 	if err := s.store.UpdateJob(r.Context(), j); err != nil {
 		redirectErr(w, r, back+"#edit", err)
 		return
@@ -321,7 +348,7 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 	if held && s.needsApproval(w, r, back, "job.retention", id, j.Name, wanted) {
 		return
 	}
-	redirectMsg(w, r, back, "Job saved.")
+	redirectMsg(w, r, back, joinNote(requestLanguage(r), "Job saved.", note))
 }
 
 // commandsAudit notes changed commands in the audit log.

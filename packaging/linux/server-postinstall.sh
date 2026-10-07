@@ -19,6 +19,8 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl enable backupzit-server.service >/dev/null 2>&1 || true
     # Updates requested in the web console are installed by a root helper.
     systemctl enable --now backupzit-update.path >/dev/null 2>&1 || true
+    # An upgrade by hand (dpkg -i, rpm -U) runs the new version right away.
+    systemctl try-restart backupzit-server.service >/dev/null 2>&1 || true
 fi
 # The BackupZit appliance (not other servers): the setup menu on its screen
 # and hardened SSH settings.

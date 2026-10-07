@@ -27,12 +27,18 @@ func (s *Store) queueCopy(ctx context.Context, j Job, a Agent, dst Target, trigg
 	if err != nil {
 		return 0, err
 	}
+	// The copy keeps the repository folder of the source job.
+	dir, err := s.jobRepoDir(ctx, src, a)
+	if err != nil {
+		return 0, err
+	}
+	da := Agent{RepoDir: dir}
 	var id int64
 	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, source_target_id, source_repo_url)
 		SELECT $1,$2,'copy',$3,$4,$5,$6,$7
 		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE job_id=$2 AND kind='copy' AND status IN ('queued','running'))
 		RETURNING id`,
-		j.AgentID, j.ID, trigger, repoURL(dst, a), dst.ID, st.ID, repoURL(st, a)).Scan(&id)
+		j.AgentID, j.ID, trigger, repoURL(dst, da), dst.ID, st.ID, repoURL(st, da)).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrRunActive
 	}
@@ -135,7 +141,7 @@ func (s *Store) copyOfFiles(ctx context.Context, run Run) bool {
 		return false
 	}
 	src, err := s.GetJob(ctx, *j.SourceJobID)
-	return err == nil && (src.Kind == JobFiles || src.Kind == JobNAS)
+	return err == nil && (src.Kind == JobFiles || src.Kind == JobNAS || src.Kind == JobM365)
 }
 
 // recordUSBDisk stores which rotating disk a backup went to, so restores

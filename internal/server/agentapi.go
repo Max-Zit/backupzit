@@ -147,6 +147,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		if err := s.addNAS(ctx, run, ar); err != nil {
 			return nil, err
 		}
+		if err := s.addM365(ctx, run, ar); err != nil {
+			return nil, err
+		}
 	case api.KindRestore:
 		ar.SnapshotID = run.SnapshotID
 		ar.RestoreTarget = run.RestoreTarget

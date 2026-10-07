@@ -943,6 +943,9 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 	if job.Kind == JobSQL {
 		job.Paths, job.Excludes = lines(r.FormValue("sql_databases")), nil
 	}
+	if job.Kind == JobM365 {
+		job.Paths, job.Excludes = lines(r.FormValue("m365_users")), nil
+	}
 	if job.Kind == JobCopy {
 		job.SourceJobID = optionalID(r.FormValue("source_job"))
 		job.Paths, job.Excludes = nil, nil
@@ -971,13 +974,18 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 			}
 		}
 	}
+	note, err := s.m365Precheck(r.Context(), requestLanguage(r), job)
+	if err != nil {
+		redirectErr(w, r, "/jobs", err)
+		return
+	}
 	id, err := s.store.CreateJob(r.Context(), job)
 	if err != nil {
 		redirectErr(w, r, "/jobs", err)
 		return
 	}
 	s.audit(r, "job.create", "#%d %s%s", id, job.Name, commandsAudit(JobOptions{}, job.Options))
-	redirectMsg(w, r, fmt.Sprintf("/jobs/%d", id), "Job created.")
+	redirectMsg(w, r, fmt.Sprintf("/jobs/%d", id), joinNote(requestLanguage(r), "Job created.", note))
 }
 
 func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) {
@@ -1136,6 +1144,7 @@ func (s *Server) restoreFormData(ctx context.Context, run Run) (map[string]any, 
 		"System": sysDetails(run), "LinuxAgents": linuxAgents(agents), "SelectedVMID": 0,
 		"SQL": sqlDetails(run), "SQLPoints": s.store.sqlRestorePoints(ctx, run), "WindowsAgents": sqlRestoreAgents(agents, sqlDetails(run)),
 		"SQLInstance": s.store.jobSQLInstance(ctx, run), "SelectedDB": "", "SQLRestore": sqlRestoreOptions(run),
+		"M365": s.store.isM365Run(ctx, run),
 	}, nil
 }
 

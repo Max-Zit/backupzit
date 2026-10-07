@@ -265,6 +265,9 @@ func (s *Server) protection(ctx context.Context) Protection {
 				shares[j.Options.NASURL] = true
 				continue
 			}
+			if j.Kind == JobM365 {
+				continue // the agent only downloads
+			}
 			machines[j.AgentID] = true
 		}
 	}
@@ -273,7 +276,7 @@ func (s *Server) protection(ctx context.Context) Protection {
 }
 
 func jobKindTitle(k string) string {
-	return map[string]string{JobFiles: "Files", JobImage: "Disk image", JobVM: "Virtual machines", JobSystem: "Linux system", JobCopy: "Backup copy", JobSQL: "Databases", JobNAS: "NAS shares"}[k]
+	return map[string]string{JobFiles: "Files", JobImage: "Disk image", JobVM: "Virtual machines", JobSystem: "Linux system", JobCopy: "Backup copy", JobSQL: "Databases", JobNAS: "NAS shares", JobM365: "Microsoft 365"}[k]
 }
 
 // jobKindCount is a filter chip of the job list.
@@ -284,7 +287,7 @@ type jobKindCount struct {
 
 func jobKindCounts(jobs []Job) []jobKindCount {
 	var out []jobKindCount
-	for _, k := range []string{JobFiles, JobNAS, JobImage, JobVM, JobSQL, JobSystem, JobCopy} {
+	for _, k := range []string{JobFiles, JobNAS, JobM365, JobImage, JobVM, JobSQL, JobSystem, JobCopy} {
 		n := 0
 		for _, j := range jobs {
 			if j.Kind == k {
