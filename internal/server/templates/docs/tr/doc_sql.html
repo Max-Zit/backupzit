@@ -1,0 +1,75 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Veritabanları: SQL Server, PostgreSQL, MySQL</h1>
+<p class="lead">BackupZit, veritabanlarını veritabanı sunucusunun kendi araçlarıyla, veritabanı makinesindeki aracı üzerinden yedekler: Windows'ta Microsoft SQL Server, Linux'ta PostgreSQL ve MySQL/MariaDB. Tam yedekler işin zamanlamasına göre çalışır; birkaç dakikada bir alınan günlük yedekleri, tek bir veritabanını herhangi bir zamana geri yüklemeyi mümkün kılar — örneğin hatalı bir DELETE'ten bir dakika öncesine.</p>
+
+<h2>İş oluşturma</h2>
+<p><a href="/jobs">Yedekleme işleri</a> içinde, veritabanı makinesinin aracısında <b>Veritabanları</b> türünde bir iş oluşturun ve şunları seçin:</p>
+<ul>
+  <li><b>Veritabanı sunucusu</b>: Microsoft SQL Server, PostgreSQL veya MySQL/MariaDB. Sonradan değiştirilemez.</li>
+  <li><b>Örnek veya port</b>: SQL Server örneği (varsayılan örnek için boş, ör. <code>SQLEXPRESS</code>) veya PostgreSQL portu (5432 için boş). MySQL/MariaDB'ye yerel soket üzerinden erişilir.</li>
+  <li><b>Veritabanları</b>: satır başına bir ad, veya tüm kullanıcı veritabanları için boş — sonradan oluşturulan veritabanları otomatik dahil edilir.</li>
+  <li><b>Günlükleri her … dakikada bir yedekle</b>: ör. 15 — işlem günlükleri (SQL Server), arşivlenmiş WAL (PostgreSQL) veya ikili günlükler (MySQL). Tam yedeğin zamanına geri yükleme yeterliyse boş bırakın.</li>
+  <li><b>Zamanlama</b>, tam yedeklerin zamanlamasıdır, ör. her gün 22:00'de.</li>
+</ul>
+<p>Yedekler tekilleştirilir — değişmeyen veriler yeniden yüklenmez — ve her yedek gibi şifrelenir. Saklama kuralı tam yedekleri sayar; günlük yedekleri, dayandıkları tam yedek var olduğu sürece tutulur. Çalıştırma sayfası her yedeğin neler içerdiğini listeler.</p>
+
+<h2>Microsoft SQL Server</h2>
+<ol>
+  <li>Aracıyı SQL Server'ın çalıştığı Windows makineye kurun (Express dahil 2012'den itibaren her sürüm).</li>
+  <li>Aracı <code>NT AUTHORITY\SYSTEM</code> olarak çalışır ve Windows kimlik doğrulamasıyla bağlanır. Bu hesaba her örnek için bir kez <b>sysadmin</b> rolünü verin:
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+</ol>
+<ul>
+  <li>Her çalıştırma, veritabanı başına bir yedek dosyasını (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) örneğin varsayılan yedek klasörüne yazar, dosyaları saklar ve siler. Klasörün, çalıştırma süresince en büyük veritabanı için boş alana ihtiyacı vardır.</li>
+  <li>Günlük yedekleri açıkken tam yedekler günlük zincirini başlatır. Kapalıyken tam yedekler <b>COPY_ONLY</b> olarak alınır, böylece diğer yedekleme veya bakım planlarını bozmaz.</li>
+  <li>Günlük yedekleri <b>full</b> veya <b>bulk-logged</b> kurtarma modelindeki veritabanları için alınır; simple modeldeki veritabanları yalnızca tam yedek alır. master, model ve msdb'yi eklemek için <i>sistem veritabanları</i>'nı işaretleyin.</li>
+</ul>
+
+<h2>PostgreSQL</h2>
+<p>Aracı yerel soket üzerinden <code>postgres</code> hesabı olarak çalışır — yedekler için yapılandırılacak bir şey yoktur. Tam yedek, kümenin tamamını (<b>pg_basebackup</b>), rolleri (<code>pg_dumpall --globals-only</code>) ve her veritabanının bir <b>pg_dump</b>'ını saklar.</p>
+<p><b>Belirli bir zamana kurtarma</b> WAL arşivlemesi gerektirir. Günlük yedekleri açıkken ilk tam yedek bunu <code>ALTER SYSTEM</code> ile ayarlar: <code>archive_mode = on</code> ve tamamlanmış WAL segmentlerini <code>/var/lib/backupzit-pg/wal</code> klasörüne kopyalayan bir <code>archive_command</code>; günlük yedekleri bunları orada saklar ve kaldırır. <code>archive_mode</code>, PostgreSQL'in <b>bir kez yeniden başlatılmasından</b> sonra etkinleşir (<code>systemctl restart postgresql</code>) — çalıştırma bunu size söyler. <code>archive_command</code>'ı zaten başka bir araç kullanıyorsa BackupZit ona dokunmaz ve belirli bir zamana kurtarma olmadan yedekler. Günlük yedekleri durursa (iş devre dışı bırakıldı veya silindi), klasör dolmasın diye arşivlemeyi yeniden kapatın (<code>ALTER SYSTEM RESET archive_mode</code>, yeniden başlatma).</p>
+<ul>
+  <li><b>Bir veritabanını geri yükle</b>: tam yedekteki haliyle, pg_dump'ından çalışan sunucuya, yeni bir adla veya veritabanının yerine.</li>
+  <li><b>Belirli bir zamana</b> (veya en son): aracı küme yedeğini boş bir porttaki geçici bir örneğe açar (yalnızca soket, ağ yok, arşivleme yok), WAL'ı o zamana kadar yeniden oynatır, veritabanını oradan çalışan sunucuya aktarır ve geçici örneği kaldırır. Makinenin bir süre küme için boş alana ihtiyacı vardır.</li>
+  <li><b>Tüm küme</b>: aynı şekilde, boş bir portta çalışmaya devam eden ayrı bir örnek olarak geri yüklenir; çalıştırma size portunu ve veri dizinini (<code>/var/lib/backupzit-pg</code> altında) ve nasıl bağlanıp durduracağınızı söyler.</li>
+</ul>
+
+<h2>MySQL ve MariaDB</h2>
+<p>Aracı yerel soket üzerinden <code>root</code> olarak (Debian ve Ubuntu'da varsayılan olan soket kimlik doğrulaması) veya <code>/root/.my.cnf</code> içindeki kimlik bilgileriyle bağlanır. Tam yedek, her veritabanının bir <b>mysqldump</b>'ını (tutarlı, rutinler, olaylar ve tetikleyicilerle) eşleştiği ikili günlük konumuyla birlikte saklar.</p>
+<p><b>Belirli bir zamana kurtarma</b> ikili günlük gerektirir. Bunu sunucu yapılandırmasında bir kez etkinleştirip sunucuyu yeniden başlatın, ör. <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code>:</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>(günlük için sahibi mysql hesabı olan klasörü oluşturun). Günlük yedekleri bundan sonra kapanan her ikili günlüğü saklar. Sunucunun kendi sona erme süresini günlük yedekleme aralığından uzun tutun; bir boşluk bildirilir ve geri yüklemeler onu aşamaz.</p>
+<ul>
+  <li><b>Bir veritabanını geri yükle</b>: dökümü yeni bir veritabanına yüklenir (veya mevcut birinin yerini alır). <b>Belirli bir zamana</b> veya <b>en son</b> haline: dökümden sonra ikili günlüklere kaydedilen o veritabanının değişiklikleri o zamana kadar yeniden oynatılır — veritabanı yeni bir ad aldığında da. Yeniden oynatma sunucunun ikili günlüğüne yazılmaz.</li>
+  <li>Kullanıcılar ve yetkiler (<code>mysql</code> sistem veritabanı) dökümlere dahil değildir.</li>
+</ul>
+
+<h2>Geri yükleme</h2>
+<p>Bir tam yedek çalıştırmasını açın (veya <a href="/restore">geri yükleme sihirbazını</a> → <i>Veritabanı</i> kullanın) ve veritabanını, geri yüklenecek makineyi (aynı sunucu veya aynı veritabanı sunucusuna sahip başka biri) ve şunları seçin:</p>
+<ul>
+  <li><b>Yeni bir veritabanı olarak</b>, ör. <code>sales_restored</code> adıyla — orijinal dokunulmadan kalır ve satırları geri kopyalayabilirsiniz — veya <b>özgün adıyla</b>; mevcut bir veritabanının üzerine yazmak için <i>onu değiştir</i>'i işaretleyin (önce kullanıcılarının bağlantısı kesilir).</li>
+  <li><b>Durum</b>: tam yedekteki hali; en son hali (tam yedek ve sonrasındaki her günlük yedeği); veya tabloda gösterildiği gibi tam yedek ile kullanılabilir en yeni günlük yedeği arasındaki <b>belirli bir zaman</b>. Zamanı konsolun gösterdiği gibi, konsol sunucusunun saat diliminde girin (bkz. <a href="/docs/install#setup-menu">Saat dilimi</a>); aracı bunu veritabanı sunucusunun saat dilimine çevirir.</li>
+</ul>
+
+<h2>Komut satırı</h2>
+<pre>backupzit-agent sql list    [--instance SQLEXPRESS]
+backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
+
+<h2>Dahil olmayanlar</h2>
+<ul>
+  <li>SQL Server fark yedekleri ve Always On kullanılabilirlik grupları; uzak veritabanı sunucuları — aracı kendi makinesindeki sunucuları yedekler.</li>
+  <li>Tek tek tabloları geri yükleme: veritabanını yeni bir adla geri yükleyin ve satırları kopyalayın.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

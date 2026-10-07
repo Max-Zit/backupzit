@@ -1,0 +1,75 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Database: SQL Server, PostgreSQL, MySQL</h1>
+<p class="lead">BackupZit esegue il backup dei database con gli strumenti propri del server di database, tramite l'agente sulla macchina del database: Microsoft SQL Server su Windows, PostgreSQL e MySQL/MariaDB su Linux. I backup completi seguono la pianificazione del job; i backup dei log ogni pochi minuti permettono di ripristinare un singolo database a qualsiasi momento — ad esempio a un minuto prima di un DELETE sbagliato.</p>
+
+<h2>Creare un job</h2>
+<p>In <a href="/jobs">Job di backup</a> crea un job di tipo <b>Database</b> sull'agente della macchina del database e scegli:</p>
+<ul>
+  <li><b>Server di database</b>: Microsoft SQL Server, PostgreSQL o MySQL/MariaDB. Non può essere cambiato in seguito.</li>
+  <li><b>Istanza o porta</b>: l'istanza SQL Server (vuoto per l'istanza predefinita, ad es. <code>SQLEXPRESS</code>) o la porta PostgreSQL (vuoto per 5432). MySQL/MariaDB si raggiunge tramite il socket locale.</li>
+  <li><b>Database</b>: un nome per riga, o vuoto per tutti i database utente — i database creati in seguito sono inclusi automaticamente.</li>
+  <li><b>Esegui il backup dei log ogni … minuti</b>: ad es. 15 — log delle transazioni (SQL Server), WAL archiviati (PostgreSQL) o log binari (MySQL). Lascia vuoto se basta ripristinare all'ora di un backup completo.</li>
+  <li>La <b>pianificazione</b> è quella dei backup completi, ad es. ogni giorno alle 22:00.</li>
+</ul>
+<p>I backup sono deduplicati — i dati invariati non vengono ricaricati — e cifrati come ogni backup. La conservazione conta i backup completi; i backup dei log vengono mantenuti finché esiste il backup completo su cui si basano. La pagina dell'esecuzione elenca cosa contiene ogni backup.</p>
+
+<h2>Microsoft SQL Server</h2>
+<ol>
+  <li>Installa l'agente sulla macchina Windows su cui gira SQL Server (qualsiasi edizione dal 2012, inclusa Express).</li>
+  <li>L'agente gira come <code>NT AUTHORITY\SYSTEM</code> e si collega con l'autenticazione Windows. Assegna a quell'account il ruolo <b>sysadmin</b>, una volta per istanza:
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+</ol>
+<ul>
+  <li>Ogni esecuzione scrive un file di backup per database (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) nella cartella di backup predefinita dell'istanza, archivia i file e li elimina. Durante l'esecuzione la cartella deve avere spazio libero per il database più grande.</li>
+  <li>Con i backup dei log attivi, i backup completi avviano la catena dei log. Senza, i backup completi vengono eseguiti come <b>COPY_ONLY</b>, così non disturbano altri piani di backup o di manutenzione.</li>
+  <li>I backup dei log vengono eseguiti per i database con modello di recupero <b>full</b> o <b>bulk-logged</b>; i database con modello simple ricevono solo backup completi. Seleziona <i>database di sistema</i> per aggiungere master, model e msdb.</li>
+</ul>
+
+<h2>PostgreSQL</h2>
+<p>L'agente lavora come account <code>postgres</code> tramite il socket locale — nulla da configurare per i backup. Un backup completo salva l'intero cluster (<b>pg_basebackup</b>), i ruoli (<code>pg_dumpall --globals-only</code>) e un <b>pg_dump</b> di ogni database.</p>
+<p>Il <b>ripristino a un momento preciso</b> richiede l'archiviazione dei WAL. Con i backup dei log attivi, il primo backup completo la configura con <code>ALTER SYSTEM</code>: <code>archive_mode = on</code> e un <code>archive_command</code> che copia i segmenti WAL completati in <code>/var/lib/backupzit-pg/wal</code>; i backup dei log li archiviano e li rimuovono da lì. <code>archive_mode</code> diventa effettivo dopo <b>un riavvio</b> di PostgreSQL (<code>systemctl restart postgresql</code>) — l'esecuzione te lo segnala. Se un altro strumento usa già <code>archive_command</code>, BackupZit non lo tocca ed esegue il backup senza ripristino a un momento preciso. Se i backup dei log si fermano (job disattivato o eliminato), disattiva di nuovo l'archiviazione (<code>ALTER SYSTEM RESET archive_mode</code>, riavvio) perché la cartella non si riempia.</p>
+<ul>
+  <li><b>Ripristina un database</b> allo stato del backup completo: dal suo pg_dump nel server in esecuzione, con un nuovo nome o al posto del database.</li>
+  <li><b>A un momento preciso</b> (o il più recente): l'agente estrae il backup del cluster in un'istanza temporanea su una porta libera (solo socket, nessuna rete, nessuna archiviazione), riapplica i WAL fino a quel momento, ne esporta il database nel server in esecuzione e rimuove l'istanza temporanea. Per un po' la macchina ha bisogno di spazio libero per il cluster.</li>
+  <li><b>Intero cluster</b>: ripristinato allo stesso modo come istanza separata che continua a girare su una porta libera; l'esecuzione ti indica la sua porta e la cartella dei dati (sotto <code>/var/lib/backupzit-pg</code>) e come collegarti e arrestarla.</li>
+</ul>
+
+<h2>MySQL e MariaDB</h2>
+<p>L'agente si collega come <code>root</code> tramite il socket locale (autenticazione via socket, predefinita su Debian e Ubuntu), oppure con le credenziali in <code>/root/.my.cnf</code>. Un backup completo salva un <b>mysqldump</b> di ogni database (coerente, con routine, eventi e trigger) insieme alla posizione del log binario a cui corrisponde.</p>
+<p>Il <b>ripristino a un momento preciso</b> richiede il log binario. Attivalo una volta nella configurazione del server e riavvia il server, ad es. <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code>:</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>(crea la cartella per il log, con l'account mysql come proprietario). I backup dei log salvano poi ogni log binario chiuso. Mantieni la scadenza propria del server più lunga dell'intervallo dei backup dei log; un buco viene segnalato e i ripristini non possono superarlo.</p>
+<ul>
+  <li><b>Ripristina un database</b>: il suo dump viene caricato in un nuovo database (o ne sostituisce uno esistente). <b>A un momento preciso</b> o <b>il più recente</b>, le modifiche di quel database registrate nei log binari dopo il dump vengono riapplicate fino a quel momento — anche quando il database riceve un nuovo nome. La riapplicazione non viene scritta nel log binario del server.</li>
+  <li>Utenti e privilegi (il database di sistema <code>mysql</code>) non fanno parte dei dump.</li>
+</ul>
+
+<h2>Ripristino</h2>
+<p>Apri un'esecuzione di backup completo (o usa la <a href="/restore">procedura guidata di ripristino</a> → <i>Database</i>) e scegli il database, la macchina su cui ripristinare (lo stesso server o un altro con lo stesso server di database) e:</p>
+<ul>
+  <li><b>Come nuovo database</b> chiamato ad es. <code>sales_restored</code> — l'originale resta intatto e puoi ricopiare le righe — oppure <b>con il nome originale</b>; seleziona <i>sostituirlo</i> per sovrascrivere un database esistente (i suoi utenti vengono prima disconnessi).</li>
+  <li><b>Stato</b>: quello del backup completo; lo stato più recente (il backup completo e ogni backup dei log successivo); oppure un <b>momento preciso</b> tra il backup completo e il backup dei log utilizzabile più recente, come mostra la tabella. Inserisci l'ora come la mostra la console, nel fuso orario del server della console (vedi <a href="/docs/install#setup-menu">Fuso orario</a>); l'agente la converte nel fuso orario del server di database.</li>
+</ul>
+
+<h2>Riga di comando</h2>
+<pre>backupzit-agent sql list    [--instance SQLEXPRESS]
+backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
+
+<h2>Non incluso</h2>
+<ul>
+  <li>Backup differenziali di SQL Server e gruppi di disponibilità Always On; server di database remoti — l'agente salva i server della propria macchina.</li>
+  <li>Ripristino di singole tabelle: ripristina il database con un nuovo nome e copia le righe.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

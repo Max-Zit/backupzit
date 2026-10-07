@@ -1,0 +1,75 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>数据库：SQL Server、PostgreSQL、MySQL</h1>
+<p class="lead">BackupZit 通过数据库机器上的代理，使用数据库服务器自身的工具备份数据库：Windows 上的 Microsoft SQL Server，Linux 上的 PostgreSQL 和 MySQL/MariaDB。完整备份按作业计划运行；每隔几分钟的日志备份可以将单个数据库还原到任意时间点 —— 例如还原到一次错误 DELETE 之前一分钟。</p>
+
+<h2>创建作业</h2>
+<p>在 <a href="/jobs">备份作业</a> 中，在数据库机器的代理上创建 <b>数据库</b> 类型的作业，并选择：</p>
+<ul>
+  <li><b>数据库服务器</b>：Microsoft SQL Server、PostgreSQL 或 MySQL/MariaDB。以后无法更改。</li>
+  <li><b>实例或端口</b>：SQL Server 实例（默认实例留空，例如 <code>SQLEXPRESS</code>）或 PostgreSQL 端口（5432 留空）。MySQL/MariaDB 通过本地套接字访问。</li>
+  <li><b>数据库</b>：每行一个名称，或留空以包含所有用户数据库 —— 以后创建的数据库会自动包含。</li>
+  <li><b>每 … 分钟备份一次日志</b>：例如 15 —— 事务日志（SQL Server）、归档 WAL（PostgreSQL）或二进制日志（MySQL）。如果还原到完整备份的时间就足够，请留空。</li>
+  <li><b>计划</b> 是完整备份的计划，例如每天 22:00。</li>
+</ul>
+<p>备份经过重复数据删除 —— 未更改的数据不会再次上传 —— 并像所有备份一样加密。保留策略按完整备份计数；日志备份会一直保留到其所依赖的完整备份被删除为止。运行页面会列出每个备份包含的内容。</p>
+
+<h2>Microsoft SQL Server</h2>
+<ol>
+  <li>在运行 SQL Server 的 Windows 机器上安装代理（2012 及以后的任何版本，包括 Express）。</li>
+  <li>代理以 <code>NT AUTHORITY\SYSTEM</code> 身份运行，并使用 Windows 身份验证连接。为每个实例授予该帐户一次 <b>sysadmin</b> 角色：
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+</ol>
+<ul>
+  <li>每次运行都会为每个数据库写入一个备份文件（BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM）到实例的默认备份文件夹，存储这些文件后将其删除。运行期间该文件夹需要能容纳最大数据库的可用空间。</li>
+  <li>开启日志备份时，完整备份会开始日志链。未开启时，完整备份以 <b>COPY_ONLY</b> 方式进行，因此不会干扰其他备份或维护计划。</li>
+  <li>日志备份只针对恢复模式为 <b>full</b> 或 <b>bulk-logged</b> 的数据库；simple 模式的数据库只获得完整备份。勾选 <i>系统数据库</i> 可加入 master、model 和 msdb。</li>
+</ul>
+
+<h2>PostgreSQL</h2>
+<p>代理以 <code>postgres</code> 帐户通过本地套接字工作 —— 备份无需任何配置。完整备份会存储整个集群（<b>pg_basebackup</b>）、角色（<code>pg_dumpall --globals-only</code>）以及每个数据库的 <b>pg_dump</b>。</p>
+<p><b>时间点恢复</b>需要 WAL 归档。开启日志备份后，第一次完整备份会通过 <code>ALTER SYSTEM</code> 进行设置：<code>archive_mode = on</code>，以及一个将已完成的 WAL 段复制到 <code>/var/lib/backupzit-pg/wal</code> 的 <code>archive_command</code>；日志备份会在那里存储并删除它们。<code>archive_mode</code> 在 PostgreSQL <b>重启一次</b>后生效（<code>systemctl restart postgresql</code>）—— 运行会提示您。如果已有其他工具在使用 <code>archive_command</code>，BackupZit 不会改动它，并在没有时间点恢复的情况下进行备份。如果日志备份停止（作业被禁用或删除），请再次关闭归档（<code>ALTER SYSTEM RESET archive_mode</code>，然后重启），以免文件夹被填满。</p>
+<ul>
+  <li><b>还原数据库</b>到完整备份时的状态：从其 pg_dump 还原到正在运行的服务器，可使用新名称或替换该数据库。</li>
+  <li><b>指定时间点</b>（或最新）：代理将集群备份解压到空闲端口上的临时实例（仅套接字、无网络、无归档），将 WAL 重放到该时间点，从中导出数据库到正在运行的服务器，然后删除临时实例。机器在一段时间内需要有容纳集群的可用空间。</li>
+  <li><b>整个集群</b>：以同样方式还原为在空闲端口上持续运行的独立实例；运行会告诉您其端口和数据目录（位于 <code>/var/lib/backupzit-pg</code> 下），以及如何连接和停止它。</li>
+</ul>
+
+<h2>MySQL 和 MariaDB</h2>
+<p>代理通过本地套接字以 <code>root</code> 身份连接（套接字身份验证，Debian 和 Ubuntu 上的默认方式），或使用 <code>/root/.my.cnf</code> 中的凭据。完整备份会存储每个数据库的 <b>mysqldump</b>（一致的，包含例程、事件和触发器），以及与之对应的二进制日志位置。</p>
+<p><b>时间点恢复</b>需要二进制日志。请在服务器配置中启用一次并重启服务器，例如 <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code>：</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>（创建日志文件夹，所有者为 mysql 帐户）。之后日志备份会存储每个已关闭的二进制日志。请让服务器自身的过期时间长于日志备份间隔；出现缺口时会报告，并且还原无法跨越缺口。</p>
+<ul>
+  <li><b>还原数据库</b>：其转储会加载到新数据库中（或替换现有数据库）。选择<b>指定时间点</b>或<b>最新</b>时，转储之后记录在二进制日志中的该数据库更改会重放到该时间点 —— 即使数据库使用了新名称也是如此。重放不会写入服务器的二进制日志。</li>
+  <li>用户和权限（<code>mysql</code> 系统数据库）不包含在转储中。</li>
+</ul>
+
+<h2>还原</h2>
+<p>打开完整备份的运行（或使用 <a href="/restore">还原向导</a> → <i>数据库</i>），选择数据库、要还原到的机器（同一服务器或具有相同数据库服务器的另一台），以及：</p>
+<ul>
+  <li><b>作为新数据库</b>，例如命名为 <code>sales_restored</code> —— 原数据库保持不变，您可以把行复制回去 —— 或 <b>使用原名称</b>；勾选 <i>替换它</i> 可覆盖现有数据库（会先断开其用户的连接）。</li>
+  <li><b>状态</b>：完整备份时的状态；最新状态（完整备份及其后的每个日志备份）；或表格所示完整备份与最新可用日志备份之间的<b>某个时间点</b>。按控制台显示的格式输入时间，使用控制台服务器的时区（参见 <a href="/docs/install#setup-menu">时区</a>）；代理会将其转换为数据库服务器的时区。</li>
+</ul>
+
+<h2>命令行</h2>
+<pre>backupzit-agent sql list    [--instance SQLEXPRESS]
+backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
+
+<h2>不包含</h2>
+<ul>
+  <li>SQL Server 差异备份和 Always On 可用性组；远程数据库服务器 —— 代理只备份其所在机器上的服务器。</li>
+  <li>还原单个表：以新名称还原数据库，然后复制行。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

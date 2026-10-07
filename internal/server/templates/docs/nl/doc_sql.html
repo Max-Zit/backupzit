@@ -1,0 +1,75 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Databases: SQL Server, PostgreSQL, MySQL</h1>
+<p class="lead">BackupZit maakt back-ups van databases met de eigen tools van de databaseserver, via de agent op de databasemachine: Microsoft SQL Server op Windows, PostgreSQL en MySQL/MariaDB op Linux. Volledige back-ups volgen het schema van de taak; logback-ups om de paar minuten maken het mogelijk één database naar elk willekeurig tijdstip te herstellen — bijvoorbeeld naar één minuut vóór een verkeerde DELETE.</p>
+
+<h2>Een taak maken</h2>
+<p>Maak onder <a href="/jobs">Back-uptaken</a> een taak van het type <b>Databases</b> op de agent van de databasemachine en kies:</p>
+<ul>
+  <li><b>Databaseserver</b>: Microsoft SQL Server, PostgreSQL of MySQL/MariaDB. Dit kan later niet worden gewijzigd.</li>
+  <li><b>Instantie of poort</b>: de SQL Server-instantie (leeg voor de standaardinstantie, bijv. <code>SQLEXPRESS</code>) of de PostgreSQL-poort (leeg voor 5432). MySQL/MariaDB wordt via de lokale socket bereikt.</li>
+  <li><b>Databases</b>: één naam per regel, of leeg voor alle gebruikersdatabases — later aangemaakte databases worden automatisch opgenomen.</li>
+  <li><b>Logboeken elke … minuten back-uppen</b>: bijv. 15 — transactielogboeken (SQL Server), gearchiveerde WAL (PostgreSQL) of binaire logboeken (MySQL). Laat leeg als herstel naar het tijdstip van een volledige back-up volstaat.</li>
+  <li>Het <b>schema</b> is dat van de volledige back-ups, bijv. dagelijks om 22:00.</li>
+</ul>
+<p>Back-ups worden gededupliceerd — ongewijzigde gegevens worden niet opnieuw geüpload — en versleuteld zoals elke back-up. Het bewaarbeleid telt de volledige back-ups; logback-ups worden bewaard zolang de volledige back-up waarop ze voortbouwen bestaat. De runpagina toont wat elke back-up bevat.</p>
+
+<h2>Microsoft SQL Server</h2>
+<ol>
+  <li>Installeer de agent op de Windows-machine waarop SQL Server draait (elke editie vanaf 2012, inclusief Express).</li>
+  <li>De agent draait als <code>NT AUTHORITY\SYSTEM</code> en maakt verbinding met Windows-verificatie. Geef dat account de rol <b>sysadmin</b>, één keer per instantie:
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+</ol>
+<ul>
+  <li>Elke run schrijft één back-upbestand per database (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) in de standaard back-upmap van de instantie, slaat de bestanden op en verwijdert ze. De map heeft tijdens de run vrije ruimte nodig voor de grootste database.</li>
+  <li>Met logback-ups ingeschakeld starten de volledige back-ups de logketen. Zonder logback-ups worden volledige back-ups als <b>COPY_ONLY</b> gemaakt, zodat ze andere back-up- of onderhoudsplannen niet verstoren.</li>
+  <li>Logback-ups worden gemaakt voor databases in het herstelmodel <b>full</b> of <b>bulk-logged</b>; databases in het model simple krijgen alleen volledige back-ups. Vink <i>systeemdatabases</i> aan om master, model en msdb toe te voegen.</li>
+</ul>
+
+<h2>PostgreSQL</h2>
+<p>De agent werkt als het account <code>postgres</code> via de lokale socket — voor back-ups hoeft niets te worden ingesteld. Een volledige back-up slaat het hele cluster op (<b>pg_basebackup</b>), de rollen (<code>pg_dumpall --globals-only</code>) en een <b>pg_dump</b> van elke database.</p>
+<p><b>Herstel naar een tijdstip</b> vereist WAL-archivering. Met logback-ups ingeschakeld stelt de eerste volledige back-up die in met <code>ALTER SYSTEM</code>: <code>archive_mode = on</code> en een <code>archive_command</code> die voltooide WAL-segmenten naar <code>/var/lib/backupzit-pg/wal</code> kopieert; de logback-ups slaan ze daar op en verwijderen ze. <code>archive_mode</code> wordt actief na <b>één herstart</b> van PostgreSQL (<code>systemctl restart postgresql</code>) — de run meldt het. Gebruikt een andere tool al <code>archive_command</code>, dan laat BackupZit die met rust en maakt back-ups zonder herstel naar een tijdstip. Als de logback-ups stoppen (taak uitgeschakeld of verwijderd), schakel de archivering dan weer uit (<code>ALTER SYSTEM RESET archive_mode</code>, herstart) zodat de map niet volloopt.</p>
+<ul>
+  <li><b>Een database herstellen</b> in de staat van de volledige back-up: vanuit de pg_dump naar de draaiende server, onder een nieuwe naam of ter vervanging van de database.</li>
+  <li><b>Naar een tijdstip</b> (of de nieuwste staat): de agent pakt de clusterback-up uit in een tijdelijke instantie op een vrije poort (alleen socket, geen netwerk, geen archivering), speelt de WAL af tot dat tijdstip, dumpt de database daaruit naar de draaiende server en verwijdert de tijdelijke instantie. De machine heeft een tijdje vrije ruimte nodig voor het cluster.</li>
+  <li><b>Heel cluster</b>: wordt op dezelfde manier hersteld als aparte instantie die op een vrije poort blijft draaien; de run vertelt u de poort en de datamap (onder <code>/var/lib/backupzit-pg</code>) en hoe u verbinding maakt en hem stopt.</li>
+</ul>
+
+<h2>MySQL en MariaDB</h2>
+<p>De agent maakt verbinding als <code>root</code> via de lokale socket (socketverificatie, standaard op Debian en Ubuntu), of met de inloggegevens in <code>/root/.my.cnf</code>. Een volledige back-up slaat een <b>mysqldump</b> van elke database op (consistent, met routines, events en triggers) samen met de bijbehorende positie in het binaire logboek.</p>
+<p><b>Herstel naar een tijdstip</b> vereist het binaire logboek. Schakel het één keer in in de serverconfiguratie en herstart de server, bijv. <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code>:</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>(maak de map voor het logboek aan, met het account mysql als eigenaar). De logback-ups slaan daarna elk gesloten binair logboek op. Houd de eigen vervaltermijn van de server langer dan het interval van de logback-ups; een gat wordt gemeld en herstel kan het niet overbruggen.</p>
+<ul>
+  <li><b>Een database herstellen</b>: de dump wordt in een nieuwe database geladen (of vervangt een bestaande). <b>Naar een tijdstip</b> of <b>nieuwste</b>: de wijzigingen van die database die na de dump in de binaire logboeken zijn vastgelegd, worden tot dat tijdstip afgespeeld — ook als de database een nieuwe naam krijgt. Het afspelen wordt niet in het binaire logboek van de server geschreven.</li>
+  <li>Gebruikers en rechten (de systeemdatabase <code>mysql</code>) maken geen deel uit van de dumps.</li>
+</ul>
+
+<h2>Herstellen</h2>
+<p>Open een run van een volledige back-up (of gebruik de <a href="/restore">herstelwizard</a> → <i>Database</i>) en kies de database, de machine om op te herstellen (dezelfde server of een andere met dezelfde databaseserver) en:</p>
+<ul>
+  <li><b>Als nieuwe database</b> met bijv. de naam <code>sales_restored</code> — het origineel blijft onaangeroerd en u kunt rijen terugkopiëren — of <b>onder de oorspronkelijke naam</b>; vink <i>vervangen</i> aan om een bestaande database te overschrijven (de gebruikers worden eerst losgekoppeld).</li>
+  <li><b>Status</b>: die van de volledige back-up; de nieuwste staat (de volledige back-up en elke logback-up daarna); of een <b>tijdstip</b> tussen de volledige back-up en de nieuwste bruikbare logback-up, zoals de tabel toont. Voer de tijd in zoals de console die toont, in de tijdzone van de consoleserver (zie <a href="/docs/install#setup-menu">Tijdzone</a>); de agent rekent hem om naar de tijdzone van de databaseserver.</li>
+</ul>
+
+<h2>Opdrachtregel</h2>
+<pre>backupzit-agent sql list    [--instance SQLEXPRESS]
+backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
+
+<h2>Niet inbegrepen</h2>
+<ul>
+  <li>Differentiële SQL Server-back-ups en Always On-beschikbaarheidsgroepen; externe databaseservers — de agent maakt back-ups van servers op zijn eigen machine.</li>
+  <li>Losse tabellen herstellen: herstel de database onder een nieuwe naam en kopieer de rijen.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,75 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>データベース: SQL Server、PostgreSQL、MySQL</h1>
+<p class="lead">BackupZit は、データベース マシン上のエージェントから、データベース サーバー自身のツールを使ってデータベースをバックアップします: Windows の Microsoft SQL Server、Linux の PostgreSQL と MySQL/MariaDB。完全バックアップはジョブのスケジュールで実行され、数分ごとのログ バックアップにより、1 つのデータベースを任意の時点 — たとえば誤った DELETE の 1 分前 — に復元できます。</p>
+
+<h2>ジョブの作成</h2>
+<p><a href="/jobs">バックアップ ジョブ</a> で、データベース マシンのエージェントに種類 <b>データベース</b> のジョブを作成し、次を選びます:</p>
+<ul>
+  <li><b>データベース サーバー</b>: Microsoft SQL Server、PostgreSQL、MySQL/MariaDB。後から変更できません。</li>
+  <li><b>インスタンスまたはポート</b>: SQL Server のインスタンス（既定のインスタンスなら空欄、例: <code>SQLEXPRESS</code>）または PostgreSQL のポート（5432 なら空欄）。MySQL/MariaDB にはローカル ソケットで接続します。</li>
+  <li><b>データベース</b>: 1 行に 1 つの名前、または空欄ですべてのユーザー データベース — 後から作成したデータベースも自動的に含まれます。</li>
+  <li><b>ログを … 分ごとにバックアップ</b>: 例: 15 — トランザクション ログ（SQL Server）、アーカイブ済み WAL（PostgreSQL）、バイナリ ログ（MySQL）。完全バックアップの時点への復元で十分なら空欄にします。</li>
+  <li><b>スケジュール</b> は完全バックアップのスケジュールです（例: 毎日 22:00）。</li>
+</ul>
+<p>バックアップは重複排除され（変更のないデータは再送信されません）、ほかのバックアップと同様に暗号化されます。保持は完全バックアップを数えます。ログ バックアップは、基になる完全バックアップがある限り保持されます。実行ページには各バックアップの内容が表示されます。</p>
+
+<h2>Microsoft SQL Server</h2>
+<ol>
+  <li>SQL Server が動作する Windows マシンにエージェントをインストールします（2012 以降の任意のエディション、Express を含む）。</li>
+  <li>エージェントは <code>NT AUTHORITY\SYSTEM</code> として動作し、Windows 認証で接続します。インスタンスごとに 1 回、このアカウントに <b>sysadmin</b> ロールを付与します:
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+</ol>
+<ul>
+  <li>各実行は、データベースごとに 1 つのバックアップ ファイル（BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM）をインスタンスの既定のバックアップ フォルダーに書き込み、保存してから削除します。実行中、フォルダーには最大のデータベース分の空き容量が必要です。</li>
+  <li>ログ バックアップを有効にすると、完全バックアップがログ チェーンを開始します。無効の場合、完全バックアップは <b>COPY_ONLY</b> で取得され、ほかのバックアップ計画やメンテナンス計画を妨げません。</li>
+  <li>ログ バックアップは復旧モデルが <b>full</b> または <b>bulk-logged</b> のデータベースで取得されます。simple モデルのデータベースは完全バックアップのみです。master、model、msdb を含めるには <i>システム データベース</i> をオンにします。</li>
+</ul>
+
+<h2>PostgreSQL</h2>
+<p>エージェントはローカル ソケットで <code>postgres</code> アカウントとして動作します — バックアップのための設定は不要です。完全バックアップは、クラスター全体（<b>pg_basebackup</b>）、ロール（<code>pg_dumpall --globals-only</code>）、各データベースの <b>pg_dump</b> を保存します。</p>
+<p><b>ポイントインタイム リカバリー</b> には WAL アーカイブが必要です。ログ バックアップを有効にすると、最初の完全バックアップが <code>ALTER SYSTEM</code> で設定します: <code>archive_mode = on</code> と、完了した WAL セグメントを <code>/var/lib/backupzit-pg/wal</code> にコピーする <code>archive_command</code>。ログ バックアップがそこに保存して削除します。<code>archive_mode</code> は PostgreSQL の <b>再起動 1 回</b>（<code>systemctl restart postgresql</code>）の後に有効になり、実行でその旨が表示されます。ほかのツールが既に <code>archive_command</code> を使っている場合、BackupZit はそれに手を触れず、ポイントインタイム リカバリーなしでバックアップします。ログ バックアップを止めた場合（ジョブの無効化や削除）は、フォルダーがいっぱいにならないようアーカイブを再びオフにしてください（<code>ALTER SYSTEM RESET archive_mode</code>、再起動）。</p>
+<ul>
+  <li><b>データベースを復元</b>（完全バックアップの時点）: pg_dump から稼働中のサーバーへ、新しい名前で、またはデータベースを置き換えて。</li>
+  <li><b>特定の時点</b>（または最新）: エージェントはクラスターのバックアップを空きポートの一時インスタンス（ソケットのみ、ネットワークなし、アーカイブなし）に展開し、その時点まで WAL を再生して、そこからデータベースを稼働中のサーバーにダンプし、一時インスタンスを削除します。マシンにはしばらくクラスター分の空き容量が必要です。</li>
+  <li><b>クラスター全体</b>: 同じ方法で、空きポートで稼働し続ける別インスタンスとして復元されます。実行ではそのポートとデータ ディレクトリ（<code>/var/lib/backupzit-pg</code> 配下）、接続と停止の方法が表示されます。</li>
+</ul>
+
+<h2>MySQL と MariaDB</h2>
+<p>エージェントはローカル ソケットで <code>root</code> として接続するか（ソケット認証、Debian と Ubuntu の既定）、<code>/root/.my.cnf</code> の資格情報を使います。完全バックアップは、各データベースの <b>mysqldump</b>（整合性あり、ルーチン、イベント、トリガーを含む）を、対応するバイナリ ログの位置とともに保存します。</p>
+<p><b>ポイントインタイム リカバリー</b> にはバイナリ ログが必要です。サーバーの構成で一度有効にしてサーバーを再起動します。例: <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code>:</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>（ログ用のフォルダーを mysql アカウントの所有で作成します）。その後、ログ バックアップが閉じた各バイナリ ログを保存します。サーバー自身の保存期限はログ バックアップの間隔より長くしてください。欠落があると報告され、復元はそれを越えられません。</p>
+<ul>
+  <li><b>データベースを復元</b>: ダンプが新しいデータベースに読み込まれます（または既存のものを置き換えます）。<b>特定の時点</b> または <b>最新</b> では、ダンプ以降にバイナリ ログに記録されたそのデータベースの変更をその時点まで再生します — データベースに新しい名前を付けた場合も同様です。再生はサーバーのバイナリ ログには書き込まれません。</li>
+  <li>ユーザーと権限（<code>mysql</code> システム データベース）はダンプに含まれません。</li>
+</ul>
+
+<h2>復元</h2>
+<p>完全バックアップの実行を開き（または <a href="/restore">復元ウィザード</a> → <i>データベース</i> を使い）、データベース、復元先のマシン（同じサーバー、または同じデータベース サーバーを持つ別のマシン）と次を選びます:</p>
+<ul>
+  <li><b>新しいデータベースとして</b>（例: <code>sales_restored</code>）— 元のデータベースはそのままで、行をコピーして戻せます — または <b>元の名前で</b>。既存のデータベースを上書きするには <i>置き換える</i> をオンにします（先にユーザーの接続が切断されます）。</li>
+  <li><b>状態</b>: 完全バックアップの時点、最新の状態（完全バックアップとその後のすべてのログ バックアップ）、または表に示される、完全バックアップから使用可能な最新のログ バックアップまでの間の <b>特定の時点</b>。時刻はコンソールの表示どおり、コンソール サーバーのタイムゾーンで入力します（<a href="/docs/install#setup-menu">タイムゾーン</a> を参照）。エージェントがデータベース サーバーのタイムゾーンに変換します。</li>
+</ul>
+
+<h2>コマンドライン</h2>
+<pre>backupzit-agent sql list    [--instance SQLEXPRESS]
+backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
+
+<h2>対象外</h2>
+<ul>
+  <li>SQL Server の差分バックアップと Always On 可用性グループ、リモートのデータベース サーバー — エージェントは自身のマシン上のサーバーをバックアップします。</li>
+  <li>個別テーブルの復元: データベースを新しい名前で復元し、行をコピーしてください。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,75 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Bases de datos: SQL Server, PostgreSQL, MySQL</h1>
+<p class="lead">BackupZit copia bases de datos con las herramientas propias del servidor de base de datos, desde el agente de la máquina de la base: Microsoft SQL Server en Windows, PostgreSQL y MySQL/MariaDB en Linux. Las copias completas siguen la programación del trabajo; las copias de registros cada pocos minutos permiten restaurar una sola base de datos a cualquier momento, por ejemplo a un minuto antes de un DELETE erróneo.</p>
+
+<h2>Crear un trabajo</h2>
+<p>En <a href="/jobs">Trabajos de copia</a> cree un trabajo del tipo <b>Bases de datos</b> en el agente de la máquina de la base y elija:</p>
+<ul>
+  <li><b>Servidor de base de datos</b>: Microsoft SQL Server, PostgreSQL o MySQL/MariaDB. No se puede cambiar después.</li>
+  <li><b>Instancia o puerto</b>: la instancia de SQL Server (vacío para la instancia predeterminada, p. ej. <code>SQLEXPRESS</code>) o el puerto de PostgreSQL (vacío para 5432). A MySQL/MariaDB se accede por el socket local.</li>
+  <li><b>Bases de datos</b>: un nombre por línea, o vacío para todas las bases de usuario; las bases creadas más tarde se incluyen automáticamente.</li>
+  <li><b>Copiar los registros cada … minutos</b>: p. ej. 15: registros de transacciones (SQL Server), WAL archivado (PostgreSQL) o registros binarios (MySQL). Déjelo vacío si basta con restaurar a la hora de una copia completa.</li>
+  <li>La <b>programación</b> es la de las copias completas, p. ej. a diario a las 22:00.</li>
+</ul>
+<p>Las copias se deduplican (los datos sin cambios no se vuelven a enviar) y se cifran como cualquier copia. La retención cuenta las copias completas; las copias de registros se conservan mientras exista la copia completa en la que se basan. La página de la ejecución muestra qué contiene cada copia.</p>
+
+<h2>Microsoft SQL Server</h2>
+<ol>
+  <li>Instale el agente en la máquina Windows que ejecuta SQL Server (cualquier edición desde 2012, incluida Express).</li>
+  <li>El agente se ejecuta como <code>NT AUTHORITY\SYSTEM</code> y se conecta con autenticación de Windows. Dé a esa cuenta el rol <b>sysadmin</b>, una vez por instancia:
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+</ol>
+<ul>
+  <li>Cada ejecución escribe un archivo de copia por base de datos (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) en la carpeta de copias predeterminada de la instancia, guarda los archivos y los borra. Mientras dura la ejecución, la carpeta necesita espacio libre para la base más grande.</li>
+  <li>Con las copias de registros activadas, las copias completas inician la cadena de registros. Sin ellas, las copias completas se hacen como <b>COPY_ONLY</b>, para no alterar otros planes de copia o mantenimiento.</li>
+  <li>Las copias de registros se hacen para bases con modelo de recuperación <b>full</b> o <b>bulk-logged</b>; las bases con modelo simple solo tienen copias completas. Marque <i>bases del sistema</i> para añadir master, model y msdb.</li>
+</ul>
+
+<h2>PostgreSQL</h2>
+<p>El agente trabaja como la cuenta <code>postgres</code> por el socket local: no hay nada que configurar para las copias. Una copia completa guarda todo el clúster (<b>pg_basebackup</b>), los roles (<code>pg_dumpall --globals-only</code>) y un <b>pg_dump</b> de cada base de datos.</p>
+<p>La <b>recuperación a un momento concreto</b> requiere el archivado de WAL. Con las copias de registros activadas, la primera copia completa lo configura con <code>ALTER SYSTEM</code>: <code>archive_mode = on</code> y un <code>archive_command</code> que copia los segmentos WAL terminados en <code>/var/lib/backupzit-pg/wal</code>; las copias de registros los guardan y los eliminan de ahí. <code>archive_mode</code> entra en vigor tras <b>un reinicio</b> de PostgreSQL (<code>systemctl restart postgresql</code>); la ejecución se lo indica. Si otra herramienta ya usa <code>archive_command</code>, BackupZit no lo toca y copia sin recuperación a un momento concreto. Si las copias de registros se detienen (trabajo deshabilitado o eliminado), vuelva a desactivar el archivado (<code>ALTER SYSTEM RESET archive_mode</code>, reinicio) para que la carpeta no se llene.</p>
+<ul>
+  <li><b>Restaurar una base de datos</b> al estado de la copia completa: desde su pg_dump al servidor en marcha, con un nombre nuevo o sustituyendo la base.</li>
+  <li><b>En un momento concreto</b> (o el más reciente): el agente descomprime la copia del clúster en una instancia temporal en un puerto libre (solo socket, sin red, sin archivado), reproduce el WAL hasta ese momento, vuelca la base desde ella al servidor en marcha y elimina la instancia temporal. La máquina necesita durante un rato espacio libre para el clúster.</li>
+  <li><b>Clúster completo</b>: se restaura de la misma forma como una instancia aparte que sigue funcionando en un puerto libre; la ejecución le indica su puerto y su directorio de datos (bajo <code>/var/lib/backupzit-pg</code>) y cómo conectarse y detenerla.</li>
+</ul>
+
+<h2>MySQL y MariaDB</h2>
+<p>El agente se conecta como <code>root</code> por el socket local (autenticación por socket, la predeterminada en Debian y Ubuntu), o con las credenciales de <code>/root/.my.cnf</code>. Una copia completa guarda un <b>mysqldump</b> de cada base de datos (coherente, con rutinas, eventos y disparadores) junto con la posición del registro binario correspondiente.</p>
+<p>La <b>recuperación a un momento concreto</b> requiere el registro binario. Actívelo una vez en la configuración del servidor y reinicie el servidor, p. ej. <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code>:</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>(cree la carpeta del registro, con la cuenta mysql como propietaria). Las copias de registros guardan entonces cada registro binario cerrado. Mantenga la caducidad propia del servidor más larga que el intervalo de las copias de registros; un hueco se notifica, y las restauraciones no pueden cruzarlo.</p>
+<ul>
+  <li><b>Restaurar una base de datos</b>: su volcado se carga en una base nueva (o sustituye a una existente). <b>En un momento concreto</b> o <b>la más reciente</b>, los cambios de esa base registrados en los registros binarios tras el volcado se reproducen hasta ese momento, también cuando la base recibe un nombre nuevo. La reproducción no se escribe en el registro binario del servidor.</li>
+  <li>Los usuarios y privilegios (la base del sistema <code>mysql</code>) no forman parte de los volcados.</li>
+</ul>
+
+<h2>Restaurar</h2>
+<p>Abra una ejecución de copia completa (o use el <a href="/restore">asistente de restauración</a> → <i>Base de datos</i>) y elija la base, la máquina donde restaurar (el mismo servidor u otro con el mismo servidor de base de datos) y:</p>
+<ul>
+  <li><b>Como base de datos nueva</b> llamada p. ej. <code>sales_restored</code> (el original queda intacto y puede copiar filas de vuelta) o <b>con su nombre original</b>; marque <i>sustituirla</i> para sobrescribir una base existente (antes se desconectan sus usuarios).</li>
+  <li><b>Estado</b>: el de la copia completa; el estado más reciente (la copia completa y cada copia de registros posterior); o un <b>momento concreto</b> entre la copia completa y la copia de registros utilizable más reciente, como muestra la tabla. Escriba la hora tal como la muestra la consola, en la zona horaria del servidor de la consola (consulte <a href="/docs/install#setup-menu">Zona horaria</a>); el agente la convierte a la zona horaria del servidor de base de datos.</li>
+</ul>
+
+<h2>Línea de comandos</h2>
+<pre>backupzit-agent sql list    [--instance SQLEXPRESS]
+backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
+
+<h2>No incluido</h2>
+<ul>
+  <li>Copias diferenciales de SQL Server y grupos de disponibilidad Always On; servidores de bases de datos remotos: el agente copia los servidores de su propia máquina.</li>
+  <li>Restaurar tablas sueltas: restaure la base con un nombre nuevo y copie las filas.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

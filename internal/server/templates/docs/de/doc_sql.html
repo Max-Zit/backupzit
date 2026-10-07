@@ -1,0 +1,75 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Datenbanken: SQL Server, PostgreSQL, MySQL</h1>
+<p class="lead">BackupZit sichert Datenbanken mit den eigenen Werkzeugen des Datenbankservers, über den Agenten auf der Datenbankmaschine: Microsoft SQL Server unter Windows, PostgreSQL und MySQL/MariaDB unter Linux. Vollsicherungen laufen nach dem Zeitplan des Auftrags; Log-Sicherungen alle paar Minuten ermöglichen es, eine einzelne Datenbank auf einen beliebigen Zeitpunkt wiederherzustellen — zum Beispiel auf eine Minute vor einem falschen DELETE.</p>
+
+<h2>Einen Auftrag erstellen</h2>
+<p>Erstellen Sie unter <a href="/jobs">Sicherungsaufträge</a> einen Auftrag der Art <b>Datenbanken</b> auf dem Agenten der Datenbankmaschine und wählen Sie:</p>
+<ul>
+  <li><b>Datenbankserver</b>: Microsoft SQL Server, PostgreSQL oder MySQL/MariaDB. Kann später nicht geändert werden.</li>
+  <li><b>Instanz oder Port</b>: die SQL-Server-Instanz (leer für die Standardinstanz, z. B. <code>SQLEXPRESS</code>) oder der PostgreSQL-Port (leer für 5432). MySQL/MariaDB wird über den lokalen Socket erreicht.</li>
+  <li><b>Datenbanken</b>: ein Name pro Zeile, oder leer für alle Benutzerdatenbanken — später erstellte Datenbanken werden automatisch einbezogen.</li>
+  <li><b>Logs alle … Minuten sichern</b>: z. B. 15 — Transaktionslogs (SQL Server), archiviertes WAL (PostgreSQL) oder Binärlogs (MySQL). Leer lassen, wenn die Wiederherstellung auf den Zeitpunkt einer Vollsicherung genügt.</li>
+  <li>Der <b>Zeitplan</b> ist der der Vollsicherungen, z. B. täglich um 22:00.</li>
+</ul>
+<p>Sicherungen werden dedupliziert — unveränderte Daten werden nicht erneut hochgeladen — und wie jede Sicherung verschlüsselt. Die Aufbewahrung zählt die Vollsicherungen; Log-Sicherungen werden so lange behalten wie die Vollsicherung, auf der sie aufbauen. Die Laufseite listet auf, was jede Sicherung enthält.</p>
+
+<h2>Microsoft SQL Server</h2>
+<ol>
+  <li>Installieren Sie den Agenten auf der Windows-Maschine, auf der SQL Server läuft (jede Edition ab 2012, einschließlich Express).</li>
+  <li>Der Agent läuft als <code>NT AUTHORITY\SYSTEM</code> und verbindet sich mit Windows-Authentifizierung. Geben Sie diesem Konto einmal pro Instanz die Rolle <b>sysadmin</b>:
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+</ol>
+<ul>
+  <li>Jeder Lauf schreibt eine Sicherungsdatei pro Datenbank (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) in den Standard-Sicherungsordner der Instanz, speichert die Dateien und löscht sie. Der Ordner braucht während des Laufs freien Platz für die größte Datenbank.</li>
+  <li>Mit aktivierten Log-Sicherungen beginnen die Vollsicherungen die Log-Kette. Ohne sie werden Vollsicherungen als <b>COPY_ONLY</b> erstellt, sodass sie andere Sicherungs- oder Wartungspläne nicht stören.</li>
+  <li>Log-Sicherungen werden für Datenbanken im Wiederherstellungsmodell <b>full</b> oder <b>bulk-logged</b> erstellt; Datenbanken im Modell simple erhalten nur Vollsicherungen. Aktivieren Sie <i>Systemdatenbanken</i>, um master, model und msdb hinzuzufügen.</li>
+</ul>
+
+<h2>PostgreSQL</h2>
+<p>Der Agent arbeitet als Konto <code>postgres</code> über den lokalen Socket — für Sicherungen ist nichts zu konfigurieren. Eine Vollsicherung speichert den ganzen Cluster (<b>pg_basebackup</b>), die Rollen (<code>pg_dumpall --globals-only</code>) und einen <b>pg_dump</b> jeder Datenbank.</p>
+<p><b>Point-in-Time-Recovery</b> braucht WAL-Archivierung. Mit aktivierten Log-Sicherungen richtet die erste Vollsicherung sie mit <code>ALTER SYSTEM</code> ein: <code>archive_mode = on</code> und ein <code>archive_command</code>, der abgeschlossene WAL-Segmente nach <code>/var/lib/backupzit-pg/wal</code> kopiert; die Log-Sicherungen speichern und entfernen sie dort. <code>archive_mode</code> wird nach <b>einem Neustart</b> von PostgreSQL wirksam (<code>systemctl restart postgresql</code>) — der Lauf weist darauf hin. Verwendet bereits ein anderes Werkzeug <code>archive_command</code>, lässt BackupZit es unverändert und sichert ohne Point-in-Time-Recovery. Hören die Log-Sicherungen auf (Auftrag deaktiviert oder gelöscht), schalten Sie die Archivierung wieder aus (<code>ALTER SYSTEM RESET archive_mode</code>, Neustart), damit der Ordner nicht vollläuft.</p>
+<ul>
+  <li><b>Eine Datenbank wiederherstellen</b> im Stand der Vollsicherung: aus ihrem pg_dump in den laufenden Server, unter neuem Namen oder anstelle der Datenbank.</li>
+  <li><b>Zu einem Zeitpunkt</b> (oder neuester Stand): Der Agent entpackt die Cluster-Sicherung in eine temporäre Instanz auf einem freien Port (nur Socket, kein Netzwerk, keine Archivierung), spielt das WAL bis zu diesem Zeitpunkt ein, erstellt daraus einen Dump der Datenbank in den laufenden Server und entfernt die temporäre Instanz. Die Maschine braucht eine Weile freien Platz für den Cluster.</li>
+  <li><b>Ganzer Cluster</b>: wird auf dieselbe Weise als separate Instanz wiederhergestellt, die auf einem freien Port weiterläuft; der Lauf nennt ihren Port und ihr Datenverzeichnis (unter <code>/var/lib/backupzit-pg</code>) sowie, wie man sich verbindet und sie stoppt.</li>
+</ul>
+
+<h2>MySQL und MariaDB</h2>
+<p>Der Agent verbindet sich als <code>root</code> über den lokalen Socket (Socket-Authentifizierung, Standard unter Debian und Ubuntu) oder mit den Zugangsdaten aus <code>/root/.my.cnf</code>. Eine Vollsicherung speichert einen <b>mysqldump</b> jeder Datenbank (konsistent, mit Routinen, Events und Triggern) zusammen mit der zugehörigen Binärlog-Position.</p>
+<p><b>Point-in-Time-Recovery</b> braucht das Binärlog. Aktivieren Sie es einmal in der Serverkonfiguration und starten Sie den Server neu, z. B. <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code>:</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>(legen Sie den Ordner für das Log an, mit dem Konto mysql als Besitzer). Die Log-Sicherungen speichern dann jedes geschlossene Binärlog. Halten Sie die eigene Ablaufzeit des Servers länger als das Intervall der Log-Sicherungen; eine Lücke wird gemeldet, und Wiederherstellungen können sie nicht überbrücken.</p>
+<ul>
+  <li><b>Eine Datenbank wiederherstellen</b>: Ihr Dump wird in eine neue Datenbank geladen (oder ersetzt eine vorhandene). <b>Zu einem Zeitpunkt</b> oder <b>neuester Stand</b>: Die nach dem Dump in den Binärlogs aufgezeichneten Änderungen dieser Datenbank werden bis zu diesem Zeitpunkt eingespielt — auch wenn die Datenbank einen neuen Namen erhält. Das Einspielen wird nicht in das Binärlog des Servers geschrieben.</li>
+  <li>Benutzer und Rechte (die Systemdatenbank <code>mysql</code>) sind nicht Teil der Dumps.</li>
+</ul>
+
+<h2>Wiederherstellen</h2>
+<p>Öffnen Sie einen Lauf einer Vollsicherung (oder verwenden Sie den <a href="/restore">Wiederherstellungsassistenten</a> → <i>Datenbank</i>) und wählen Sie die Datenbank, die Maschine für die Wiederherstellung (derselbe Server oder ein anderer mit demselben Datenbankserver) und:</p>
+<ul>
+  <li><b>Als neue Datenbank</b> mit z. B. dem Namen <code>sales_restored</code> — das Original bleibt unberührt, und Sie können Zeilen zurückkopieren — oder <b>unter ihrem ursprünglichen Namen</b>; aktivieren Sie <i>ersetzen</i>, um eine vorhandene Datenbank zu überschreiben (ihre Benutzer werden zuerst getrennt).</li>
+  <li><b>Zustand</b>: Stand der Vollsicherung; der neueste Stand (die Vollsicherung und jede Log-Sicherung danach); oder ein <b>Zeitpunkt</b> zwischen der Vollsicherung und der neuesten verwendbaren Log-Sicherung, wie die Tabelle zeigt. Geben Sie die Zeit so ein, wie die Konsole sie anzeigt, in der Zeitzone des Konsolenservers (siehe <a href="/docs/install#setup-menu">Zeitzone</a>); der Agent rechnet sie in die Zeitzone des Datenbankservers um.</li>
+</ul>
+
+<h2>Befehlszeile</h2>
+<pre>backupzit-agent sql list    [--instance SQLEXPRESS]
+backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
+
+<h2>Nicht enthalten</h2>
+<ul>
+  <li>Differenzielle SQL-Server-Sicherungen und Always-On-Verfügbarkeitsgruppen; entfernte Datenbankserver — der Agent sichert Server auf seiner eigenen Maschine.</li>
+  <li>Wiederherstellung einzelner Tabellen: Stellen Sie die Datenbank unter neuem Namen wieder her und kopieren Sie die Zeilen.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

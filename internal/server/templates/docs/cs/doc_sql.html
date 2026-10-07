@@ -1,0 +1,75 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Databáze: SQL Server, PostgreSQL, MySQL</h1>
+<p class="lead">BackupZit zálohuje databáze vlastními nástroji databázového serveru, přes agenta na databázovém počítači: Microsoft SQL Server ve Windows, PostgreSQL a MySQL/MariaDB v Linuxu. Úplné zálohy běží podle plánu úlohy; zálohy protokolů každých pár minut umožňují obnovit jednu databázi k libovolnému okamžiku — například minutu před chybným DELETE.</p>
+
+<h2>Vytvoření úlohy</h2>
+<p>V <a href="/jobs">Úlohy zálohování</a> vytvořte úlohu typu <b>Databáze</b> na agentovi databázového počítače a zvolte:</p>
+<ul>
+  <li><b>Databázový server</b>: Microsoft SQL Server, PostgreSQL nebo MySQL/MariaDB. Později ho nelze změnit.</li>
+  <li><b>Instance nebo port</b>: instance SQL Serveru (prázdné pro výchozí instanci, např. <code>SQLEXPRESS</code>) nebo port PostgreSQL (prázdné pro 5432). K MySQL/MariaDB se agent připojuje přes místní socket.</li>
+  <li><b>Databáze</b>: jeden název na řádek, nebo prázdné pro všechny uživatelské databáze — později vytvořené databáze se zahrnou automaticky.</li>
+  <li><b>Zálohovat protokoly každých … minut</b>: např. 15 — transakční protokoly (SQL Server), archivovaný WAL (PostgreSQL) nebo binární protokoly (MySQL). Nechte prázdné, pokud stačí obnova k času úplné zálohy.</li>
+  <li><b>Plán</b> je plánem úplných záloh, např. denně ve 22:00.</li>
+</ul>
+<p>Zálohy jsou deduplikované — nezměněná data se znovu neodesílají — a šifrované jako každá záloha. Uchovávání počítá úplné zálohy; zálohy protokolů se uchovávají, dokud existuje úplná záloha, na kterou navazují. Stránka běhu vypisuje, co každá záloha obsahuje.</p>
+
+<h2>Microsoft SQL Server</h2>
+<ol>
+  <li>Nainstalujte agenta na počítač s Windows, na kterém běží SQL Server (libovolná edice od 2012 včetně Express).</li>
+  <li>Agent běží jako <code>NT AUTHORITY\SYSTEM</code> a připojuje se ověřováním Windows. Dejte tomuto účtu roli <b>sysadmin</b>, jednou pro každou instanci:
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+</ol>
+<ul>
+  <li>Každý běh zapíše jeden soubor zálohy na databázi (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) do výchozí složky záloh instance, uloží soubory a smaže je. Složka potřebuje po dobu běhu volné místo pro největší databázi.</li>
+  <li>Se zapnutými zálohami protokolů zahajují úplné zálohy řetězec protokolů. Bez nich se úplné zálohy pořizují jako <b>COPY_ONLY</b>, takže neruší jiné plány záloh nebo údržby.</li>
+  <li>Zálohy protokolů se pořizují pro databáze v modelu obnovení <b>full</b> nebo <b>bulk-logged</b>; databáze v modelu simple dostávají jen úplné zálohy. Zaškrtněte <i>systémové databáze</i> a přidáte master, model a msdb.</li>
+</ul>
+
+<h2>PostgreSQL</h2>
+<p>Agent pracuje jako účet <code>postgres</code> přes místní socket — pro zálohy není co nastavovat. Úplná záloha uloží celý cluster (<b>pg_basebackup</b>), role (<code>pg_dumpall --globals-only</code>) a <b>pg_dump</b> každé databáze.</p>
+<p><b>Obnova k okamžiku</b> vyžaduje archivaci WAL. Se zapnutými zálohami protokolů ji první úplná záloha nastaví pomocí <code>ALTER SYSTEM</code>: <code>archive_mode = on</code> a <code>archive_command</code>, který kopíruje dokončené segmenty WAL do <code>/var/lib/backupzit-pg/wal</code>; zálohy protokolů je tam ukládají a odstraňují. <code>archive_mode</code> začne platit po <b>jednom restartu</b> PostgreSQL (<code>systemctl restart postgresql</code>) — běh vám to řekne. Pokud <code>archive_command</code> už používá jiný nástroj, BackupZit ho nechá být a zálohuje bez obnovy k okamžiku. Pokud zálohy protokolů přestanou (úloha zakázána nebo smazána), archivaci zase vypněte (<code>ALTER SYSTEM RESET archive_mode</code>, restart), aby se složka nezaplnila.</p>
+<ul>
+  <li><b>Obnovit databázi</b> ve stavu úplné zálohy: z jejího pg_dump do běžícího serveru, pod novým názvem nebo místo databáze.</li>
+  <li><b>K určitému okamžiku</b> (nebo nejnovější): agent rozbalí zálohu clusteru do dočasné instance na volném portu (jen socket, bez sítě, bez archivace), přehraje WAL do tohoto okamžiku, vyexportuje z ní databázi do běžícího serveru a dočasnou instanci odstraní. Počítač na chvíli potřebuje volné místo pro cluster.</li>
+  <li><b>Celý cluster</b>: obnoví se stejně jako samostatná instance, která dál běží na volném portu; běh vám sdělí její port a datový adresář (pod <code>/var/lib/backupzit-pg</code>) a jak se k ní připojit a zastavit ji.</li>
+</ul>
+
+<h2>MySQL a MariaDB</h2>
+<p>Agent se připojuje jako <code>root</code> přes místní socket (ověřování socketem, výchozí v Debianu a Ubuntu), nebo s přihlašovacími údaji z <code>/root/.my.cnf</code>. Úplná záloha uloží <b>mysqldump</b> každé databáze (konzistentní, s rutinami, událostmi a triggery) spolu s odpovídající pozicí binárního protokolu.</p>
+<p><b>Obnova k okamžiku</b> vyžaduje binární protokol. Zapněte ho jednou v konfiguraci serveru a server restartujte, např. <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code>:</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>(vytvořte složku pro protokol s vlastníkem mysql). Zálohy protokolů pak ukládají každý uzavřený binární protokol. Vlastní dobu vypršení na serveru držte delší než interval záloh protokolů; mezera se ohlásí a obnovy ji nemohou překročit.</p>
+<ul>
+  <li><b>Obnovit databázi</b>: její dump se načte do nové databáze (nebo nahradí existující). <b>K určitému okamžiku</b> nebo <b>nejnovější</b>: změny této databáze zaznamenané v binárních protokolech po dumpu se přehrají do tohoto okamžiku — i když databáze dostane nový název. Přehrávání se nezapisuje do binárního protokolu serveru.</li>
+  <li>Uživatelé a oprávnění (systémová databáze <code>mysql</code>) nejsou součástí dumpů.</li>
+</ul>
+
+<h2>Obnova</h2>
+<p>Otevřete běh úplné zálohy (nebo použijte <a href="/restore">průvodce obnovou</a> → <i>Databáze</i>) a zvolte databázi, počítač pro obnovu (stejný server nebo jiný se stejným databázovým serverem) a:</p>
+<ul>
+  <li><b>Jako novou databázi</b> pojmenovanou např. <code>sales_restored</code> — originál zůstane nedotčený a řádky můžete zkopírovat zpět — nebo <b>pod původním názvem</b>; zaškrtněte <i>nahradit ji</i> a přepíšete existující databázi (její uživatelé se nejprve odpojí).</li>
+  <li><b>Stav</b>: stav úplné zálohy; nejnovější stav (úplná záloha a každá záloha protokolů po ní); nebo <b>určitý okamžik</b> mezi úplnou zálohou a nejnovější použitelnou zálohou protokolů, jak ukazuje tabulka. Zadejte čas tak, jak ho ukazuje konzole, v časovém pásmu serveru konzole (viz <a href="/docs/install#setup-menu">Časové pásmo</a>); agent ho převede do časového pásma databázového serveru.</li>
+</ul>
+
+<h2>Příkazový řádek</h2>
+<pre>backupzit-agent sql list    [--instance SQLEXPRESS]
+backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
+
+<h2>Nezahrnuto</h2>
+<ul>
+  <li>Rozdílové zálohy SQL Serveru a skupiny dostupnosti Always On; vzdálené databázové servery — agent zálohuje servery na svém vlastním počítači.</li>
+  <li>Obnova jednotlivých tabulek: obnovte databázi pod novým názvem a zkopírujte řádky.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

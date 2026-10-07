@@ -1,0 +1,75 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Bases de données : SQL Server, PostgreSQL, MySQL</h1>
+<p class="lead">BackupZit sauvegarde les bases de données avec les outils propres au serveur de base de données, depuis l'agent installé sur la machine de la base : Microsoft SQL Server sous Windows, PostgreSQL et MySQL/MariaDB sous Linux. Les sauvegardes complètes suivent la planification de la tâche ; des sauvegardes de journaux toutes les quelques minutes permettent de restaurer une seule base à n'importe quel instant — par exemple une minute avant un DELETE erroné.</p>
+
+<h2>Créer une tâche</h2>
+<p>Dans <a href="/jobs">Tâches de sauvegarde</a>, créez une tâche du type <b>Bases de données</b> sur l'agent de la machine de la base, et choisissez :</p>
+<ul>
+  <li><b>Serveur de base de données</b> : Microsoft SQL Server, PostgreSQL ou MySQL/MariaDB. Il ne peut pas être modifié ensuite.</li>
+  <li><b>Instance ou port</b> : l'instance SQL Server (vide pour l'instance par défaut, par ex. <code>SQLEXPRESS</code>) ou le port PostgreSQL (vide pour 5432). MySQL/MariaDB est joint via le socket local.</li>
+  <li><b>Bases de données</b> : un nom par ligne, ou vide pour toutes les bases utilisateur — les bases créées plus tard sont incluses automatiquement.</li>
+  <li><b>Sauvegarder les journaux toutes les … minutes</b> : par ex. 15 — journaux de transactions (SQL Server), WAL archivés (PostgreSQL) ou journaux binaires (MySQL). Laissez vide si restaurer à l'heure d'une sauvegarde complète suffit.</li>
+  <li>La <b>planification</b> est celle des sauvegardes complètes, par ex. tous les jours à 22:00.</li>
+</ul>
+<p>Les sauvegardes sont dédupliquées — les données inchangées ne sont pas renvoyées — et chiffrées comme toute sauvegarde. La rétention compte les sauvegardes complètes ; les sauvegardes de journaux sont conservées aussi longtemps que la sauvegarde complète sur laquelle elles reposent. La page de l'exécution indique ce que contient chaque sauvegarde.</p>
+
+<h2>Microsoft SQL Server</h2>
+<ol>
+  <li>Installez l'agent sur la machine Windows qui exécute SQL Server (toute édition à partir de 2012, y compris Express).</li>
+  <li>L'agent tourne sous <code>NT AUTHORITY\SYSTEM</code> et se connecte avec l'authentification Windows. Donnez à ce compte le rôle <b>sysadmin</b>, une fois par instance :
+    <pre>sqlcmd -S .\SQLEXPRESS -E -Q "ALTER SERVER ROLE sysadmin ADD MEMBER [NT AUTHORITY\SYSTEM]"</pre></li>
+</ol>
+<ul>
+  <li>Chaque exécution écrit un fichier de sauvegarde par base (BACKUP DATABASE / BACKUP LOG … WITH CHECKSUM) dans le dossier de sauvegarde par défaut de l'instance, stocke les fichiers puis les supprime. Le dossier a besoin, pendant l'exécution, d'espace libre pour la plus grande base.</li>
+  <li>Avec les sauvegardes de journaux activées, les sauvegardes complètes démarrent la chaîne de journaux. Sans elles, les sauvegardes complètes sont prises en <b>COPY_ONLY</b>, afin de ne pas perturber d'autres plans de sauvegarde ou de maintenance.</li>
+  <li>Les sauvegardes de journaux sont prises pour les bases en mode de récupération <b>full</b> ou <b>bulk-logged</b> ; les bases en mode simple n'ont que des sauvegardes complètes. Cochez <i>bases système</i> pour ajouter master, model et msdb.</li>
+</ul>
+
+<h2>PostgreSQL</h2>
+<p>L'agent travaille sous le compte <code>postgres</code> via le socket local — rien à configurer pour les sauvegardes. Une sauvegarde complète stocke tout le cluster (<b>pg_basebackup</b>), les rôles (<code>pg_dumpall --globals-only</code>) et un <b>pg_dump</b> de chaque base.</p>
+<p>La <b>restauration à un instant précis</b> nécessite l'archivage des WAL. Avec les sauvegardes de journaux activées, la première sauvegarde complète le configure avec <code>ALTER SYSTEM</code> : <code>archive_mode = on</code> et un <code>archive_command</code> qui copie les segments WAL terminés dans <code>/var/lib/backupzit-pg/wal</code> ; les sauvegardes de journaux les y stockent puis les suppriment. <code>archive_mode</code> prend effet après <b>un redémarrage</b> de PostgreSQL (<code>systemctl restart postgresql</code>) — l'exécution vous le signale. Si un autre outil utilise déjà <code>archive_command</code>, BackupZit n'y touche pas et sauvegarde sans restauration à un instant précis. Si les sauvegardes de journaux s'arrêtent (tâche désactivée ou supprimée), désactivez à nouveau l'archivage (<code>ALTER SYSTEM RESET archive_mode</code>, redémarrage) pour que le dossier ne se remplisse pas.</p>
+<ul>
+  <li><b>Restaurer une base de données</b> dans l'état de la sauvegarde complète : depuis son pg_dump vers le serveur en marche, sous un nouveau nom ou en remplaçant la base.</li>
+  <li><b>À un instant précis</b> (ou le plus récent) : l'agent décompresse la sauvegarde du cluster dans une instance temporaire sur un port libre (socket uniquement, sans réseau, sans archivage), rejoue les WAL jusqu'à cet instant, en extrait la base vers le serveur en marche et supprime l'instance temporaire. La machine a besoin pendant un moment d'espace libre pour le cluster.</li>
+  <li><b>Cluster entier</b> : restauré de la même manière en tant qu'instance séparée qui continue de tourner sur un port libre ; l'exécution vous indique son port et son répertoire de données (sous <code>/var/lib/backupzit-pg</code>) ainsi que la façon de s'y connecter et de l'arrêter.</li>
+</ul>
+
+<h2>MySQL et MariaDB</h2>
+<p>L'agent se connecte en tant que <code>root</code> via le socket local (authentification par socket, par défaut sous Debian et Ubuntu), ou avec les identifiants de <code>/root/.my.cnf</code>. Une sauvegarde complète stocke un <b>mysqldump</b> de chaque base (cohérent, avec routines, événements et déclencheurs) ainsi que la position du journal binaire correspondante.</p>
+<p>La <b>restauration à un instant précis</b> nécessite le journal binaire. Activez-le une fois dans la configuration du serveur et redémarrez le serveur, par ex. <code>/etc/mysql/mariadb.conf.d/60-binlog.cnf</code> :</p>
+<pre>[mysqld]
+server_id = 1
+log_bin = /var/log/mysql/mysql-bin
+binlog_format = ROW
+expire_logs_days = 7</pre>
+<p>(créez le dossier du journal, avec le compte mysql comme propriétaire). Les sauvegardes de journaux stockent ensuite chaque journal binaire fermé. Gardez la durée d'expiration propre au serveur plus longue que l'intervalle des sauvegardes de journaux ; un trou est signalé, et les restaurations ne peuvent pas le franchir.</p>
+<ul>
+  <li><b>Restaurer une base de données</b> : son dump est chargé dans une nouvelle base (ou remplace une base existante). <b>À un instant précis</b> ou <b>le plus récent</b> : les modifications de cette base enregistrées dans les journaux binaires après le dump sont rejouées jusqu'à cet instant — y compris quand la base reçoit un nouveau nom. Le rejeu n'est pas écrit dans le journal binaire du serveur.</li>
+  <li>Les utilisateurs et privilèges (la base système <code>mysql</code>) ne font pas partie des dumps.</li>
+</ul>
+
+<h2>Restauration</h2>
+<p>Ouvrez une exécution de sauvegarde complète (ou utilisez l'<a href="/restore">assistant de restauration</a> → <i>Base de données</i>) et choisissez la base, la machine de restauration (le même serveur ou un autre avec le même serveur de base de données) et :</p>
+<ul>
+  <li><b>En tant que nouvelle base</b> nommée par ex. <code>sales_restored</code> — l'original reste intact et vous pouvez recopier des lignes — ou <b>sous son nom d'origine</b> ; cochez <i>la remplacer</i> pour écraser une base existante (ses utilisateurs sont d'abord déconnectés).</li>
+  <li><b>État</b> : celui de la sauvegarde complète ; l'état le plus récent (la sauvegarde complète et chaque sauvegarde de journaux suivante) ; ou un <b>instant précis</b> entre la sauvegarde complète et la plus récente sauvegarde de journaux utilisable, comme l'indique le tableau. Saisissez l'heure telle que la console l'affiche, dans le fuseau horaire du serveur de la console (voir <a href="/docs/install#setup-menu">Fuseau horaire</a>) ; l'agent la convertit dans le fuseau horaire du serveur de base de données.</li>
+</ul>
+
+<h2>Ligne de commande</h2>
+<pre>backupzit-agent sql list    [--instance SQLEXPRESS]
+backupzit-agent sql backup  --repo ... [--instance I] [--db a,b] [--system] [--log] [--copy-only]
+backupzit-agent sql restore --repo ... [--instance I] --db NAME [--as NEW] [--replace] [--at "2026-10-04 14:59:00"] SNAPSHOT|latest
+backupzit-agent pg list     [--port 5432]
+backupzit-agent pg backup   --repo ... [--port P] [--db a,b] [--pitr | --wal]
+backupzit-agent pg restore  --repo ... --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest
+backupzit-agent mysql list
+backupzit-agent mysql backup  --repo ... [--db a,b] [--binlog]
+backupzit-agent mysql restore --repo ... --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</pre>
+
+<h2>Non inclus</h2>
+<ul>
+  <li>Les sauvegardes différentielles SQL Server et les groupes de disponibilité Always On ; les serveurs de base de données distants — l'agent sauvegarde les serveurs de sa propre machine.</li>
+  <li>La restauration de tables individuelles : restaurez la base sous un nouveau nom et copiez les lignes.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}
