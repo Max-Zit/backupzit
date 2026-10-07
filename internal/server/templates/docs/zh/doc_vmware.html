@@ -1,0 +1,92 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>VMware ESXi 虚拟机</h1>
+<p class="lead">BackupZit 备份 VMware ESXi 主机上的虚拟机，无需在 ESXi 或虚拟机内部安装任何东西。网络中任意机器上的 BackupZit 代理都可以充当主机的<b>代理（proxy）</b>。它创建快照，只读取虚拟磁盘中更改的块，并将其写入您的存储。</p>
+
+<h2>要求</h2>
+<ul>
+  <li><b>ESXi 6.7、7 或 8</b>，直接连接。由 vCenter 管理的主机需使用各自的地址逐台添加；暂不支持 vCenter 本身。</li>
+  <li><b>在主机上拥有管理员权限的用户</b>，通常为 <code>root</code>。</li>
+  <li><b>主机上已启用 SSH：</b> Host → Actions → Services → Enable Secure Shell。还原始终需要它。使用免费 ESXi 许可证的主机创建快照也需要它，因为其 API 是只读的。</li>
+  <li><b>代理（proxy）代理程序：</b> 任何能通过 443 和 22 端口访问主机的 Windows 或 Linux 代理。备份数据会经过它，因此请将其放在靠近主机和存储的快速网络中。</li>
+  <li>备份运行中的虚拟机时，<b>虚拟机数据存储上需有可用空间</b>。BackupZit 会在那里短暂复制磁盘（见下文）。副本为精简（thin）格式，因此所需空间与磁盘实际使用量相同。</li>
+</ul>
+
+<h2>添加主机</h2>
+<ol>
+  <li>打开 <a href="/agents#vmware">Agent → VMware ESXi 主机</a> → <i>添加 ESXi 主机</i>。</li>
+  <li>输入地址、用户、密码和代理（proxy）代理程序。</li>
+  <li>控制台会连接一次以进行检查。它读取虚拟机列表和许可证，并<b>固定主机的 HTTPS 证书和 SSH 主机密钥</b>。如果主机之后被具有相同地址的另一台机器替换，BackupZit 会拒绝连接，而不是把密码发给它。</li>
+</ol>
+<p>密码与所有其他机密一样加密存储。虚拟机列表每 10 分钟刷新一次，或点击 <i>刷新</i> 立即刷新。表格显示每台主机的模式：</p>
+<ul>
+  <li><b>vSphere API：</b> 已授权的主机。</li>
+  <li><b>免费许可证：</b> 快照和还原通过 SSH 进行。</li>
+</ul>
+
+<h2>备份作业</h2>
+<p>在 <a href="/jobs">备份作业</a> 中，选择 ESXi 主机（在代理列表的 <i>VMware ESXi 主机</i> 下列出）和 <b>虚拟机</b>。备份主机的所有虚拟机（以后创建的虚拟机会自动包含）或勾选单个虚拟机。作业在主机的代理（proxy）上运行。如果更换代理，现有作业会随之更改。</p>
+
+<h3>虚拟机如何备份</h3>
+<ol>
+  <li>如果虚拟机的<b>更改块跟踪（CBT）</b>处于关闭状态，则会将其开启。
+    <ul>
+      <li>在已授权的主机上会自动完成。</li>
+      <li>在免费主机上，只有在虚拟机关闭时才能开启 CBT。BackupZit 会在第一次发现虚拟机处于关闭状态的备份时开启它。在此之前，每次备份都读取整个磁盘，运行会显示警告。</li>
+    </ul>
+  </li>
+  <li>创建快照 <code>backupzit_…</code>。当来宾中运行着 <b>VMware Tools</b> 时，快照会<b>静默</b>（quiesced）：先刷新应用程序和文件系统，使备份具有应用一致性。没有 VMware Tools 时则为崩溃一致性。请在 Linux 虚拟机中安装 <code>open-vm-tools</code>，在 Windows 虚拟机中安装 VMware Tools。</li>
+  <li>CBT 报告需要读取哪些块：
+    <ul>
+      <li>第一次备份时，只读取已使用的块；</li>
+      <li>之后，只读取自上次备份以来更改的块。</li>
+    </ul>
+  </li>
+  <li>运行中的虚拟机会锁定其磁盘。因此会在数据存储上复制其磁盘（精简），并<b>立即删除快照</b>，通常只需几秒钟。然后通过 HTTPS 读取副本并将其删除。已关闭的虚拟机直接读取。</li>
+  <li>虚拟机的配置（<code>.vmx</code>）和 NVRAM 随备份一起存储。</li>
+</ol>
+<p>测试实验室中的示例：一台带 8 GB 磁盘的 Debian 虚拟机，其中已用 1.6 GB。第一次备份读取了 1.6 GB。下一次在新增 50 MB 数据后读取了 70 MB，耗时 23 秒。</p>
+
+<h2>还原虚拟机</h2>
+<p>使用 <a href="/restore">还原向导</a>（<i>整台虚拟机</i>）或活动中该备份的页面。选择：</p>
+<ul>
+  <li><b>作为原虚拟机旁边的新虚拟机：</b> 一个具有新名称、UUID 和 MAC 地址的副本。默认名称为原名称加上 <code>-restored-</code> 和日期。绑定到旧 MAC 地址的来宾网络设置（例如云镜像中的 netplan <code>match: macaddress</code>）不适用于副本。</li>
+  <li><b>替换原虚拟机：</b> 选中 <i>关闭它并替换其磁盘</i> 后，BackupZit 会：
+    <ul>
+      <li>关闭虚拟机并删除其快照；</li>
+      <li>将当前磁盘重命名为 <code>….replaced-DATE.vmdk</code>（确认还原的虚拟机正常后删除它们）；</li>
+      <li>将备份写入使用原名称的新磁盘，并按备份设置 CPU 和内存。</li>
+    </ul>
+    虚拟机保留其 UUID、网络适配器和 MAC 地址。如果虚拟机已被删除，则以其原始身份重新创建。</li>
+  <li><b>ESXi 主机和数据存储：</b> 另一台主机，或同一主机的另一个数据存储。</li>
+  <li><b>还原后启动虚拟机。</b></li>
+</ul>
+<p>磁盘以精简方式还原，只写入有数据的块。连接到 CD/DVD 驱动器的 ISO 映像不属于备份，因此这些驱动器保持为空。</p>
+
+<h3>即时恢复</h3>
+<p>选择 <b>即时从备份运行</b>，即可在几秒钟内启动虚拟机，而无需先复制其磁盘。主机的代理（proxy）—— 必须是 <b>Linux</b> 代理 —— 通过 NFS 直接从备份提供虚拟机磁盘；主机将其挂载为数据存储 <code>backupzit-&lt;agent&gt;</code> 并从中运行虚拟机。虚拟机所做的更改保存在代理上（<code>/var/lib/backupzit/instant-esxi</code>，因此需要为此留出可用空间）；备份本身永远不会被更改，只要虚拟机还从中运行，保留策略就会保留它。如果原虚拟机仍然存在，即时虚拟机会获得新的 UUID 和新的 MAC 地址。</p>
+<p>在运行页面上，当虚拟机按预期工作时：</p>
+<ul>
+  <li><b>完成</b> 会将其复制到主机的数据存储：关闭虚拟机（如果 VMware Tools 正在运行则通过它关闭），使用 <code>vmkfstools</code> 以精简方式复制其磁盘，从数据存储注册并重新启动。免费 ESXi 许可证没有 Storage vMotion，因此需要短暂停机，停机时间随磁盘大小增加。如果复制失败，虚拟机将继续从备份运行。</li>
+  <li><b>放弃</b> 会停止并删除虚拟机及其所有更改。</li>
+</ul>
+<p>代理只为 ESXi 主机的地址在 2049 端口响应 NFS（并将其注册到本机 111 端口的 rpcbind，或自行响应 111 端口）；如果中间有防火墙，请开放从主机到代理的这些端口。当最后一台即时虚拟机完成或被放弃后，数据存储会被移除，NFS 服务器停止。</p>
+
+<h3>单个文件</h3>
+<p>备份页面上的 <b>浏览文件</b>（或还原向导中的 <i>虚拟机中的文件</i>）会打开虚拟机的磁盘。您可以浏览 NTFS、ext2/3/4 和 XFS（包括 LVM 上的），并下载文件或将其还原到任意代理。</p>
+
+<h2>命令行</h2>
+<p>这些命令可在任意代理上运行。请在 <code>BACKUPZIT_VMWARE_PASSWORD</code> 中设置 ESXi 密码：</p>
+<pre>backupzit-agent vmware list    --host 192.168.1.20 [--user root]
+backupzit-agent vmware backup  --host … --repo … [--vmid N,N]
+backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NAME] [--datastore DS] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<p><code>vmware list</code> 会显示主机证书和 SSH 密钥的指纹。使用 <code>--thumbprint</code> 和 <code>--ssh-host-key</code> 传入它们，即可在命令行中同样进行固定。</p>
+
+<h2>尚未包含</h2>
+<ul>
+  <li><b>vCenter。</b> 请直接添加每台 ESXi 主机。</li>
+  <li><b>自带快照的虚拟机。</b> 其磁盘是增量磁盘；请先删除或合并快照。</li>
+  <li><b>某些磁盘类型。</b> 裸设备映射（RDM）和独立磁盘。</li>
+  <li><b>通过 Windows 代理（proxy）进行即时恢复。</b> 即时恢复需要 Linux 代理（proxy）。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

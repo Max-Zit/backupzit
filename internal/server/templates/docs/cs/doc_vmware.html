@@ -1,0 +1,92 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Virtuální počítače VMware ESXi</h1>
+<p class="lead">BackupZit zálohuje virtuální počítače hostitelů VMware ESXi, aniž by cokoli instaloval na ESXi nebo do VM. Agent BackupZit na libovolném počítači v síti funguje jako <b>proxy</b> hostitele. Pořizuje snímky, čte jen změněné bloky virtuálních disků a zapisuje je na vaše úložiště.</p>
+
+<h2>Požadavky</h2>
+<ul>
+  <li><b>ESXi 6.7, 7 nebo 8</b>, připojený přímo. Hostitelé spravovaní vCenterem se přidávají jednotlivě s vlastní adresou; samotný vCenter zatím není podporován.</li>
+  <li><b>Uživatel s právy správce na hostiteli</b>, obvykle <code>root</code>.</li>
+  <li><b>SSH zapnuté na hostiteli:</b> Host → Actions → Services → Enable Secure Shell. Obnova ho potřebuje vždy. Hostitelé s bezplatnou licencí ESXi ho potřebují i pro snímky, protože jejich API je jen pro čtení.</li>
+  <li><b>Proxy agent:</b> libovolný agent pro Windows nebo Linux, který dosáhne na hostitele na portech 443 a 22. Data záloh tečou přes něj, proto ho umístěte do rychlé sítě blízko hostitele a úložiště.</li>
+  <li><b>Volné místo na datastoru VM</b> při zálohování běžícího VM. BackupZit tam disk na chvíli zkopíruje (viz níže). Kopie je thin, takže potřebuje tolik místa, kolik disk skutečně zabírá.</li>
+</ul>
+
+<h2>Přidání hostitele</h2>
+<ol>
+  <li>Otevřete <a href="/agents#vmware">Agenti → Hostitelé VMware ESXi</a> → <i>Přidat hostitele ESXi</i>.</li>
+  <li>Zadejte adresu, uživatele, heslo a proxy agenta.</li>
+  <li>Konzole se jednou připojí, aby je ověřila. Načte seznam VM a licenci a <b>připne HTTPS certifikát a SSH klíč hostitele</b>. Pokud bude hostitel později nahrazen jiným počítačem se stejnou adresou, BackupZit odmítne připojení místo toho, aby mu poslal heslo.</li>
+</ol>
+<p>Heslo se ukládá šifrovaně, jako všechna ostatní tajemství. Seznam VM se obnovuje každých 10 minut, nebo hned tlačítkem <i>Obnovit</i>. Tabulka ukazuje režim každého hostitele:</p>
+<ul>
+  <li><b>vSphere API:</b> licencovaní hostitelé.</li>
+  <li><b>Bezplatná licence:</b> snímky a obnovy jdou přes SSH.</li>
+</ul>
+
+<h2>Úlohy zálohování</h2>
+<p>V <a href="/jobs">Úlohy zálohování</a> zvolte hostitele ESXi (uvedeného v části <i>Hostitelé VMware ESXi</i> v seznamu agentů) a <b>Virtuální počítače</b>. Zálohujte všechny VM hostitele (VM vytvořené později se zahrnou automaticky) nebo zaškrtněte jednotlivé. Úloha běží na proxy agentovi hostitele. Pokud proxy změníte, existující úlohy ho následují.</p>
+
+<h3>Jak se VM zálohuje</h3>
+<ol>
+  <li><b>Sledování změněných bloků (CBT)</b> se pro VM zapne, pokud je vypnuté.
+    <ul>
+      <li>Na licencovaných hostitelích se to děje automaticky.</li>
+      <li>Na bezplatných hostitelích lze CBT zapnout jen při vypnutém VM. BackupZit to udělá při první záloze, která najde VM vypnutý. Do té doby každá záloha čte celé disky a běh ukazuje varování.</li>
+    </ul>
+  </li>
+  <li>Pořídí se snímek <code>backupzit_…</code>. Když v hostovi běží <b>VMware Tools</b>, snímek se <b>uklidní</b> (quiesced): aplikace a souborové systémy se nejdřív vyprázdní, takže záloha je konzistentní na úrovni aplikací. Bez VMware Tools je konzistentní jako při havárii. Do linuxových VM nainstalujte <code>open-vm-tools</code> a do VM s Windows VMware Tools.</li>
+  <li>CBT hlásí, které bloky číst:
+    <ul>
+      <li>při první záloze jen používané bloky;</li>
+      <li>potom jen bloky změněné od předchozí zálohy.</li>
+    </ul>
+  </li>
+  <li>Běžící VM drží své disky zamčené. Jeho disky se proto zkopírují na datastoru (thin) a <b>snímek se hned odstraní</b>, obvykle po několika sekundách. Kopie se pak přečte přes HTTPS a smaže. Vypnuté VM se čtou přímo.</li>
+  <li>Konfigurace VM (<code>.vmx</code>) a NVRAM se uloží se zálohou.</li>
+</ol>
+<p>Příklad z testovací laboratoře: VM s Debianem a diskem 8 GB, z toho 1,6 GB použito. První záloha přečetla 1,6 GB. Další, po 50 MB nových dat, přečetla 70 MB a trvala 23 sekund.</p>
+
+<h2>Obnova VM</h2>
+<p>Použijte <a href="/restore">průvodce obnovou</a> (<i>Celý virtuální počítač</i>) nebo stránku zálohy v Aktivita. Zvolte:</p>
+<ul>
+  <li><b>Jako nový VM vedle originálu:</b> kopie s novým názvem, UUID a MAC adresami. Výchozí název je název originálu plus <code>-restored-</code> a datum. Síťová nastavení hosta vázaná na staré MAC adresy, například netplan <code>match: macaddress</code> v cloudových obrazech, se na kopii nevztahují.</li>
+  <li><b>Místo původního VM:</b> s volbou <i>vypnout ho a nahradit jeho disky</i> BackupZit:
+    <ul>
+      <li>vypne VM a smaže jeho snímky;</li>
+      <li>přejmenuje současné disky na <code>….replaced-DATE.vmdk</code> (smažte je, jakmile obnovený VM funguje);</li>
+      <li>zapíše zálohu do nových disků s původními názvy a nastaví CPU a paměť jako v záloze.</li>
+    </ul>
+    VM si ponechá UUID, síťové adaptéry a MAC adresy. Pokud byl VM smazán, vytvoří se znovu s původní identitou.</li>
+  <li><b>Hostitel ESXi a datastore:</b> jiný hostitel, nebo jiný datastore stejného hostitele.</li>
+  <li><b>Po obnově spustit VM.</b></li>
+</ul>
+<p>Disky se obnovují jako thin a zapisují se jen bloky s daty. ISO obrazy připojené k jednotkám CD/DVD nejsou součástí zálohy, takže tyto jednotky zůstanou prázdné.</p>
+
+<h3>Okamžitá obnova</h3>
+<p>Zvolte <b>Okamžitě, běží ze zálohy</b> a VM se spustí během několika sekund, aniž by se nejdřív kopírovaly jeho disky. Proxy agent hostitele — musí to být agent pro <b>Linux</b> — poskytuje disky VM přímo ze zálohy přes NFS; hostitel to připojí jako datastore <code>backupzit-&lt;agent&gt;</code> a spustí z něj VM. Změny, které VM provede, se ukládají na agentovi (<code>/var/lib/backupzit/instant-esxi</code>, takže pro ně potřebuje volné místo); samotná záloha se nikdy nemění a uchovávání ji drží, dokud z ní VM běží. Pokud původní VM stále existuje, okamžitý VM dostane nové UUID a nové MAC adresy.</p>
+<p>Na stránce běhu, když VM funguje, jak má:</p>
+<ul>
+  <li><b>Dokončit</b> ho zkopíruje na datastore hostitele: VM se vypne (přes VMware Tools, pokud běží), jeho disky se zkopírují jako thin pomocí <code>vmkfstools</code>, zaregistruje se z datastoru a znovu spustí. Bezplatná licence ESXi nemá Storage vMotion, takže je potřeba krátký výpadek, který roste s velikostí disků. Pokud kopírování selže, VM dál běží ze zálohy.</li>
+  <li><b>Zahodit</b> zastaví a smaže VM se všemi jeho změnami.</li>
+</ul>
+<p>Agent odpovídá na NFS na portu 2049 (a registruje ho v rpcbind počítače na portu 111, nebo sám odpovídá na portu 111) jen pro adresu hostitele ESXi; pokud je mezi nimi firewall, otevřete tyto porty od hostitele k agentovi. Když se poslední okamžitý VM dokončí nebo zahodí, datastore se odstraní a server NFS se zastaví.</p>
+
+<h3>Jednotlivé soubory</h3>
+<p><b>Procházet soubory</b> na stránce zálohy (nebo <i>Soubory z virtuálního počítače</i> v průvodci obnovou) otevře disky VM. Procházet lze NTFS, ext2/3/4 a XFS, i na LVM, a soubory stáhnout nebo obnovit na libovolného agenta.</p>
+
+<h2>Příkazový řádek</h2>
+<p>Tyto příkazy běží na libovolném agentovi. Heslo ESXi nastavte v <code>BACKUPZIT_VMWARE_PASSWORD</code>:</p>
+<pre>backupzit-agent vmware list    --host 192.168.1.20 [--user root]
+backupzit-agent vmware backup  --host … --repo … [--vmid N,N]
+backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NAME] [--datastore DS] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<p><code>vmware list</code> ukazuje otisky certifikátu a SSH klíče hostitele. Předejte je pomocí <code>--thumbprint</code> a <code>--ssh-host-key</code>, abyste je připnuli i na příkazovém řádku.</p>
+
+<h2>Zatím nezahrnuto</h2>
+<ul>
+  <li><b>vCenter.</b> Přidejte každého hostitele ESXi přímo.</li>
+  <li><b>VM s vlastními snímky.</b> Jejich disky jsou delty; snímky nejdřív smažte nebo konsolidujte.</li>
+  <li><b>Některé typy disků.</b> Raw device mapping (RDM) a nezávislé disky.</li>
+  <li><b>Okamžitá obnova přes proxy agenta pro Windows.</b> Okamžitá obnova potřebuje proxy agenta pro Linux.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

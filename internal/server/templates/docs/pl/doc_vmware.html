@@ -1,0 +1,92 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Maszyny wirtualne VMware ESXi</h1>
+<p class="lead">BackupZit tworzy kopie maszyn wirtualnych hostów VMware ESXi bez instalowania czegokolwiek na ESXi ani wewnątrz maszyn. Agent BackupZit na dowolnej maszynie w sieci działa jako <b>proxy</b> hosta. Tworzy migawki, odczytuje tylko zmienione bloki dysków wirtualnych i zapisuje je w Twoim magazynie.</p>
+
+<h2>Wymagania</h2>
+<ul>
+  <li><b>ESXi 6.7, 7 lub 8</b>, podłączony bezpośrednio. Hosty zarządzane przez vCenter dodaje się pojedynczo z ich własnym adresem; sam vCenter nie jest jeszcze obsługiwany.</li>
+  <li><b>Użytkownik z prawami administratora na hoście</b>, zwykle <code>root</code>.</li>
+  <li><b>SSH włączone na hoście:</b> Host → Actions → Services → Enable Secure Shell. Przywracanie zawsze go wymaga. Hosty z darmową licencją ESXi potrzebują go także do migawek, bo ich API jest tylko do odczytu.</li>
+  <li><b>Agent proxy:</b> dowolny agent Windows lub Linux, który łączy się z hostem na portach 443 i 22. Dane kopii przechodzą przez niego, więc umieść go w szybkiej sieci blisko hosta i magazynu.</li>
+  <li><b>Wolne miejsce w datastore maszyny</b> podczas kopiowania działającej maszyny. BackupZit kopiuje tam na chwilę dysk (zobacz niżej). Kopia jest thin, więc potrzebuje tyle miejsca, ile dysk faktycznie zajmuje.</li>
+</ul>
+
+<h2>Dodawanie hosta</h2>
+<ol>
+  <li>Otwórz <a href="/agents#vmware">Agenci → Hosty VMware ESXi</a> → <i>Dodaj host ESXi</i>.</li>
+  <li>Wpisz adres, użytkownika, hasło i agenta proxy.</li>
+  <li>Konsola łączy się raz, aby je sprawdzić. Odczytuje listę maszyn i licencję oraz <b>przypina certyfikat HTTPS i klucz hosta SSH</b>. Jeśli host zostanie później zastąpiony inną maszyną o tym samym adresie, BackupZit odmówi połączenia zamiast wysłać jej hasło.</li>
+</ol>
+<p>Hasło jest przechowywane w postaci zaszyfrowanej, jak wszystkie inne sekrety. Lista maszyn jest odświeżana co 10 minut lub od razu przyciskiem <i>Odśwież</i>. Tabela pokazuje tryb każdego hosta:</p>
+<ul>
+  <li><b>vSphere API:</b> hosty licencjonowane.</li>
+  <li><b>Darmowa licencja:</b> migawki i przywracanie odbywają się przez SSH.</li>
+</ul>
+
+<h2>Zadania kopii</h2>
+<p>W <a href="/jobs">Zadania kopii</a> wybierz host ESXi (wymieniony w <i>Hosty VMware ESXi</i> na liście agentów) i <b>Maszyny wirtualne</b>. Kopiuj wszystkie maszyny hosta (maszyny utworzone później są dołączane automatycznie) albo zaznacz wybrane. Zadanie działa na agencie proxy hosta. Jeśli zmienisz proxy, istniejące zadania podążą za nim.</p>
+
+<h3>Jak kopiowana jest maszyna</h3>
+<ol>
+  <li><b>Śledzenie zmienionych bloków (CBT)</b> jest włączane dla maszyny, jeśli jest wyłączone.
+    <ul>
+      <li>Na hostach licencjonowanych dzieje się to automatycznie.</li>
+      <li>Na hostach darmowych CBT można włączyć tylko przy wyłączonej maszynie. BackupZit robi to przy pierwszej kopii, która zastanie maszynę wyłączoną. Do tego czasu każda kopia odczytuje całe dyski, a uruchomienie pokazuje ostrzeżenie.</li>
+    </ul>
+  </li>
+  <li>Tworzona jest migawka <code>backupzit_…</code>. Gdy w gościu działają <b>VMware Tools</b>, migawka jest <b>wyciszana</b> (quiesced): najpierw opróżniane są aplikacje i systemy plików, co czyni kopię spójną aplikacyjnie. Bez VMware Tools jest spójna awaryjnie. Zainstaluj <code>open-vm-tools</code> w maszynach Linux i VMware Tools w maszynach Windows.</li>
+  <li>CBT wskazuje, które bloki odczytać:
+    <ul>
+      <li>przy pierwszej kopii tylko używane bloki;</li>
+      <li>potem tylko bloki zmienione od poprzedniej kopii.</li>
+    </ul>
+  </li>
+  <li>Działająca maszyna trzyma swoje dyski zablokowane. Dlatego jej dyski są kopiowane w datastore (thin), a <b>migawka jest od razu usuwana</b>, zwykle po kilku sekundach. Kopia jest następnie odczytywana przez HTTPS i usuwana. Wyłączone maszyny są odczytywane bezpośrednio.</li>
+  <li>Konfiguracja maszyny (<code>.vmx</code>) i NVRAM są zapisywane razem z kopią.</li>
+</ol>
+<p>Przykład z laboratorium testowego: maszyna Debian z dyskiem 8 GB, z czego 1,6 GB zajęte. Pierwsza kopia odczytała 1,6 GB. Następna, po 50 MB nowych danych, odczytała 70 MB i trwała 23 sekundy.</p>
+
+<h2>Przywracanie maszyny</h2>
+<p>Użyj <a href="/restore">kreatora przywracania</a> (<i>Cała maszyna wirtualna</i>) lub strony kopii w Aktywność. Wybierz:</p>
+<ul>
+  <li><b>Jako nowa maszyna obok oryginału:</b> kopia z nową nazwą, UUID i adresami MAC. Domyślna nazwa to nazwa oryginału plus <code>-restored-</code> i data. Ustawienia sieci gościa powiązane ze starymi adresami MAC, np. netplan <code>match: macaddress</code> w obrazach chmurowych, nie dotyczą kopii.</li>
+  <li><b>W miejsce oryginalnej maszyny:</b> z opcją <i>wyłącz ją i zastąp jej dyski</i> BackupZit:
+    <ul>
+      <li>wyłącza maszynę i usuwa jej migawki;</li>
+      <li>zmienia nazwy bieżących dysków na <code>….replaced-DATE.vmdk</code> (usuń je, gdy przywrócona maszyna działa);</li>
+      <li>zapisuje kopię do nowych dysków o oryginalnych nazwach i ustawia procesor oraz pamięć jak w kopii.</li>
+    </ul>
+    Maszyna zachowuje UUID, karty sieciowe i adresy MAC. Jeśli maszyna została usunięta, jest tworzona ponownie z oryginalną tożsamością.</li>
+  <li><b>Host ESXi i datastore:</b> inny host albo inny datastore tego samego hosta.</li>
+  <li><b>Uruchom VM po przywróceniu.</b></li>
+</ul>
+<p>Dyski są przywracane jako thin, a zapisywane są tylko bloki z danymi. Obrazy ISO podłączone do napędów CD/DVD nie są częścią kopii, więc te napędy pozostają puste.</p>
+
+<h3>Natychmiastowe odzyskiwanie</h3>
+<p>Wybierz <b>Natychmiast, działając z kopii</b>, aby uruchomić maszynę w kilka sekund, bez wcześniejszego kopiowania dysków. Agent proxy hosta — musi to być agent <b>Linux</b> — udostępnia dyski maszyny wprost z kopii przez NFS; host montuje to jako datastore <code>backupzit-&lt;agent&gt;</code> i uruchamia z niego maszynę. Zmiany wprowadzane przez maszynę są przechowywane na agencie (<code>/var/lib/backupzit/instant-esxi</code>, który potrzebuje na nie wolnego miejsca); sama kopia nigdy się nie zmienia, a przechowywanie zachowuje ją, dopóki maszyna z niej działa. Jeśli oryginalna maszyna nadal istnieje, natychmiastowa maszyna dostaje nowy UUID i nowe adresy MAC.</p>
+<p>Na stronie uruchomienia, gdy maszyna działa jak należy:</p>
+<ul>
+  <li><b>Zakończ</b> kopiuje ją do datastore hosta: maszyna jest wyłączana (przez VMware Tools, jeśli działają), jej dyski są kopiowane jako thin poleceniem <code>vmkfstools</code>, jest rejestrowana z datastore i uruchamiana ponownie. Darmowa licencja ESXi nie ma Storage vMotion, więc wymaga to krótkiej przerwy rosnącej z rozmiarem dysków. Jeśli kopiowanie się nie powiedzie, maszyna nadal działa z kopii.</li>
+  <li><b>Odrzuć</b> zatrzymuje i usuwa maszynę ze wszystkimi zmianami.</li>
+</ul>
+<p>Agent odpowiada na NFS na porcie 2049 (i rejestruje go w rpcbind maszyny na porcie 111 albo sam odpowiada na porcie 111) tylko dla adresu hosta ESXi; jeśli po drodze jest zapora, otwórz te porty od hosta do agenta. Gdy ostatnia natychmiastowa maszyna zostanie zakończona lub odrzucona, datastore jest usuwany, a serwer NFS się zatrzymuje.</p>
+
+<h3>Pojedyncze pliki</h3>
+<p><b>Przeglądaj pliki</b> na stronie kopii (lub <i>Pliki z maszyny wirtualnej</i> w kreatorze przywracania) otwiera dyski maszyny. Możesz przeglądać NTFS, ext2/3/4 i XFS, także na LVM, oraz pobierać pliki lub przywracać je na dowolnego agenta.</p>
+
+<h2>Wiersz poleceń</h2>
+<p>Te polecenia działają na dowolnym agencie. Ustaw hasło ESXi w <code>BACKUPZIT_VMWARE_PASSWORD</code>:</p>
+<pre>backupzit-agent vmware list    --host 192.168.1.20 [--user root]
+backupzit-agent vmware backup  --host … --repo … [--vmid N,N]
+backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NAME] [--datastore DS] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<p><code>vmware list</code> pokazuje odciski certyfikatu i klucza SSH hosta. Przekaż je przez <code>--thumbprint</code> i <code>--ssh-host-key</code>, aby przypiąć je również w wierszu poleceń.</p>
+
+<h2>Jeszcze nieobsługiwane</h2>
+<ul>
+  <li><b>vCenter.</b> Dodaj każdy host ESXi bezpośrednio.</li>
+  <li><b>Maszyny z własnymi migawkami.</b> Ich dyski są deltami; najpierw usuń lub skonsoliduj migawki.</li>
+  <li><b>Niektóre typy dysków.</b> Mapowania surowych urządzeń (RDM) i dyski niezależne.</li>
+  <li><b>Natychmiastowe odzyskiwanie przez agenta proxy Windows.</b> Natychmiastowe odzyskiwanie wymaga agenta proxy Linux.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

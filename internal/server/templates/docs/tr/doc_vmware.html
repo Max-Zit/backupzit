@@ -1,0 +1,92 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>VMware ESXi sanal makineleri</h1>
+<p class="lead">BackupZit, VMware ESXi ana bilgisayarlarındaki sanal makineleri ESXi'ye veya VM'lerin içine hiçbir şey kurmadan yedekler. Ağdaki herhangi bir makinedeki BackupZit aracısı ana bilgisayarın <b>vekili (proxy)</b> olarak çalışır. Anlık görüntüler alır, sanal disklerin yalnızca değişen bloklarını okur ve bunları depolamanıza yazar.</p>
+
+<h2>Gereksinimler</h2>
+<ul>
+  <li>Doğrudan bağlı <b>ESXi 6.7, 7 veya 8</b>. vCenter tarafından yönetilen ana bilgisayarlar kendi adresleriyle tek tek eklenir; vCenter'ın kendisi henüz desteklenmez.</li>
+  <li><b>Ana bilgisayarda yönetici haklarına sahip bir kullanıcı</b>, genellikle <code>root</code>.</li>
+  <li><b>Ana bilgisayarda SSH etkin:</b> Host → Actions → Services → Enable Secure Shell. Geri yüklemeler her zaman gerektirir. Ücretsiz ESXi lisanslı ana bilgisayarlar, API'leri salt okunur olduğu için anlık görüntüler için de gerektirir.</li>
+  <li><b>Bir vekil aracı:</b> ana bilgisayara 443 ve 22 numaralı bağlantı noktalarından ulaşan herhangi bir Windows veya Linux aracısı. Yedek verileri onun üzerinden akar; bu yüzden onu ana bilgisayara ve depolamaya yakın, hızlı bir ağa koyun.</li>
+  <li>Çalışan bir VM yedeklenirken <b>VM'nin datastore'unda boş alan</b>. BackupZit diski kısa süreliğine oraya kopyalar (aşağıya bakın). Kopya thin olduğundan diskin gerçekten kullandığı kadar alan gerekir.</li>
+</ul>
+
+<h2>Ana bilgisayar ekleme</h2>
+<ol>
+  <li><a href="/agents#vmware">Aracılar → VMware ESXi ana bilgisayarları</a> → <i>ESXi ana bilgisayarı ekleyin</i>'i açın.</li>
+  <li>Adresi, kullanıcıyı, parolayı ve vekil aracıyı girin.</li>
+  <li>Konsol bunları denetlemek için bir kez bağlanır. VM listesini ve lisansı okur ve <b>ana bilgisayarın HTTPS sertifikasını ve SSH ana bilgisayar anahtarını sabitler</b>. Ana bilgisayar daha sonra aynı adrese sahip başka bir makineyle değiştirilirse, BackupZit parolayı ona göndermek yerine bağlanmayı reddeder.</li>
+</ol>
+<p>Parola, diğer tüm gizli bilgiler gibi şifreli saklanır. VM listesi her 10 dakikada bir veya <i>Yenile</i> ile hemen yenilenir. Tablo her ana bilgisayarın modunu gösterir:</p>
+<ul>
+  <li><b>vSphere API:</b> lisanslı ana bilgisayarlar.</li>
+  <li><b>Ücretsiz lisans:</b> anlık görüntüler ve geri yüklemeler SSH üzerinden yapılır.</li>
+</ul>
+
+<h2>Yedekleme işleri</h2>
+<p><a href="/jobs">Yedekleme işleri</a> içinde ESXi ana bilgisayarını (aracı listesinde <i>VMware ESXi ana bilgisayarları</i> altında listelenir) ve <b>Sanal makineler</b>'i seçin. Ana bilgisayarın tüm VM'lerini yedekleyin (sonradan oluşturulan VM'ler otomatik dahil edilir) veya tek tek işaretleyin. İş, ana bilgisayarın vekil aracısında çalışır. Vekili değiştirirseniz mevcut işler de onu izler.</p>
+
+<h3>Bir VM nasıl yedeklenir</h3>
+<ol>
+  <li>Kapalıysa VM için <b>değişen blok izleme (CBT)</b> açılır.
+    <ul>
+      <li>Lisanslı ana bilgisayarlarda bu otomatik olur.</li>
+      <li>Ücretsiz ana bilgisayarlarda CBT yalnızca VM kapalıyken açılabilir. BackupZit bunu VM'yi kapalı bulan ilk yedeklemede yapar. O zamana kadar her yedek disklerin tamamını okur ve çalıştırma bir uyarı gösterir.</li>
+    </ul>
+  </li>
+  <li>Bir <code>backupzit_…</code> anlık görüntüsü alınır. Konukta <b>VMware Tools</b> çalışıyorsa anlık görüntü <b>sessize alınır</b> (quiesced): uygulamalar ve dosya sistemleri önce boşaltılır, bu da yedeği uygulama tutarlı yapar. VMware Tools olmadan çökme tutarlıdır. Linux VM'lere <code>open-vm-tools</code>, Windows VM'lere VMware Tools kurun.</li>
+  <li>CBT hangi blokların okunacağını bildirir:
+    <ul>
+      <li>ilk yedekte yalnızca kullanılan bloklar;</li>
+      <li>sonrasında yalnızca önceki yedekten bu yana değişen bloklar.</li>
+    </ul>
+  </li>
+  <li>Çalışan bir VM disklerini kilitli tutar. Bu yüzden diskleri datastore üzerinde kopyalanır (thin) ve <b>anlık görüntü hemen kaldırılır</b>, genellikle birkaç saniye sonra. Kopya ardından HTTPS üzerinden okunur ve silinir. Kapalı VM'ler doğrudan okunur.</li>
+  <li>VM'nin yapılandırması (<code>.vmx</code>) ve NVRAM yedekle birlikte saklanır.</li>
+</ol>
+<p>Test laboratuvarından örnek: 8 GB diskli, 1,6 GB'ı kullanılan bir Debian VM. İlk yedek 1,6 GB okudu. Sonraki, 50 MB yeni veriden sonra, 70 MB okudu ve 23 saniye sürdü.</p>
+
+<h2>Bir VM'yi geri yükleme</h2>
+<p><a href="/restore">Geri yükleme sihirbazını</a> (<i>Tüm sanal makine</i>) veya yedeğin Etkinlik'teki sayfasını kullanın. Şunları seçin:</p>
+<ul>
+  <li><b>Orijinalin yanında yeni bir VM olarak:</b> yeni ad, UUID ve MAC adresleriyle bir kopya. Varsayılan ad, orijinalin adı artı <code>-restored-</code> ve tarihtir. Bulut görüntülerindeki netplan <code>match: macaddress</code> gibi eski MAC adreslerine bağlı konuk ağ ayarları kopya için geçerli olmaz.</li>
+  <li><b>Orijinal VM'nin yerine:</b> <i>kapat ve disklerini değiştir</i> ile BackupZit:
+    <ul>
+      <li>VM'yi kapatır ve anlık görüntülerini siler;</li>
+      <li>mevcut diskleri <code>….replaced-DATE.vmdk</code> olarak yeniden adlandırır (geri yüklenen VM çalışınca bunları silin);</li>
+      <li>yedeği özgün adları taşıyan yeni disklere yazar ve CPU ile belleği yedekteki gibi ayarlar.</li>
+    </ul>
+    VM UUID'sini, ağ bağdaştırıcılarını ve MAC adreslerini korur. VM silinmişse özgün kimliğiyle yeniden oluşturulur.</li>
+  <li><b>ESXi ana bilgisayarı ve datastore:</b> başka bir ana bilgisayar veya aynı ana bilgisayarın başka bir datastore'u.</li>
+  <li><b>Geri yüklemeden sonra VM'yi başlat.</b></li>
+</ul>
+<p>Diskler thin olarak geri yüklenir ve yalnızca veri içeren bloklar yazılır. CD/DVD sürücülerine bağlı ISO görüntüleri yedeğin parçası değildir, bu yüzden bu sürücüler boş kalır.</p>
+
+<h3>Anında kurtarma</h3>
+<p>Bir VM'yi önce disklerini kopyalamadan saniyeler içinde başlatmak için <b>Anında, yedekten çalışarak</b>'ı seçin. Ana bilgisayarın vekil aracısı — bir <b>Linux</b> aracısı olmalıdır — VM'nin disklerini doğrudan yedekten NFS ile sunar; ana bilgisayar bunu <code>backupzit-&lt;agent&gt;</code> datastore'u olarak bağlar ve VM'yi oradan çalıştırır. VM'nin yaptığı değişiklikler aracıda tutulur (<code>/var/lib/backupzit/instant-esxi</code>; bunlar için boş alan gerekir); yedeğin kendisi asla değiştirilmez ve VM ondan çalıştığı sürece saklama kuralı onu korur. Orijinal VM hâlâ varsa, anında VM yeni bir UUID ve yeni MAC adresleri alır.</p>
+<p>Çalıştırma sayfasında, VM olması gerektiği gibi çalıştığında:</p>
+<ul>
+  <li><b>Tamamla</b>, onu ana bilgisayarın bir datastore'una kopyalar: VM kapatılır (çalışıyorsa VMware Tools üzerinden), diskleri <code>vmkfstools</code> ile thin olarak kopyalanır, datastore'dan kaydedilir ve yeniden başlatılır. Ücretsiz ESXi lisansında Storage vMotion olmadığından bu, disk boyutuyla artan kısa bir kesinti gerektirir. Kopyalama başarısız olursa VM yedekten çalışmaya devam eder.</li>
+  <li><b>At</b>, VM'yi tüm değişiklikleriyle birlikte durdurur ve siler.</li>
+</ul>
+<p>Aracı, NFS'e 2049 numaralı bağlantı noktasında yalnızca ESXi ana bilgisayarının adresi için yanıt verir (ve bunu makinenin 111 numaralı bağlantı noktasındaki rpcbind'ine kaydeder ya da 111'i kendisi yanıtlar); arada bir güvenlik duvarı varsa bu bağlantı noktalarını ana bilgisayardan aracıya açın. Son anında VM tamamlandığında veya atıldığında datastore kaldırılır ve NFS sunucusu durur.</p>
+
+<h3>Tek tek dosyalar</h3>
+<p>Yedeğin sayfasındaki <b>Dosyalara göz at</b> (veya geri yükleme sihirbazındaki <i>Bir sanal makinedeki dosyalar</i>) VM'nin disklerini açar. NTFS, ext2/3/4 ve XFS'e, LVM üzerinde de göz atabilir, dosyaları indirebilir veya herhangi bir aracıya geri yükleyebilirsiniz.</p>
+
+<h2>Komut satırı</h2>
+<p>Bu komutlar herhangi bir aracıda çalışır. ESXi parolasını <code>BACKUPZIT_VMWARE_PASSWORD</code> içinde ayarlayın:</p>
+<pre>backupzit-agent vmware list    --host 192.168.1.20 [--user root]
+backupzit-agent vmware backup  --host … --repo … [--vmid N,N]
+backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NAME] [--datastore DS] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<p><code>vmware list</code>, ana bilgisayarın sertifika ve SSH anahtarı parmak izlerini gösterir. Komut satırında da sabitlemek için bunları <code>--thumbprint</code> ve <code>--ssh-host-key</code> ile verin.</p>
+
+<h2>Henüz dahil olmayanlar</h2>
+<ul>
+  <li><b>vCenter.</b> Her ESXi ana bilgisayarını doğrudan ekleyin.</li>
+  <li><b>Kendi anlık görüntüleri olan VM'ler.</b> Diskleri deltadır; önce anlık görüntüleri silin veya birleştirin.</li>
+  <li><b>Bazı disk türleri.</b> Ham aygıt eşlemeleri (RDM) ve bağımsız diskler.</li>
+  <li><b>Windows vekil aracısı üzerinden anında kurtarma.</b> Anında kurtarma bir Linux vekil aracısı gerektirir.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

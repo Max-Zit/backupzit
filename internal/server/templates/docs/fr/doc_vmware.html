@@ -1,0 +1,92 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Machines virtuelles VMware ESXi</h1>
+<p class="lead">BackupZit sauvegarde les machines virtuelles des hôtes VMware ESXi sans rien installer sur ESXi ni dans les VM. Un agent BackupZit sur n'importe quelle machine du réseau sert de <b>proxy</b> à l'hôte. Il prend des instantanés, lit uniquement les blocs modifiés des disques virtuels et les écrit sur votre stockage.</p>
+
+<h2>Prérequis</h2>
+<ul>
+  <li><b>ESXi 6.7, 7 ou 8</b>, connecté directement. Les hôtes gérés par vCenter s'ajoutent un par un avec leur propre adresse ; vCenter lui-même n'est pas encore pris en charge.</li>
+  <li><b>Un utilisateur disposant des droits d'administrateur sur l'hôte</b>, généralement <code>root</code>.</li>
+  <li><b>SSH activé sur l'hôte :</b> Host → Actions → Services → Enable Secure Shell. Les restaurations en ont toujours besoin. Les hôtes sous licence ESXi gratuite en ont aussi besoin pour les instantanés, car leur API est en lecture seule.</li>
+  <li><b>Un agent proxy :</b> tout agent Windows ou Linux qui atteint l'hôte sur les ports 443 et 22. Les données de sauvegarde passent par lui ; placez-le donc sur un réseau rapide, proche de l'hôte et du stockage.</li>
+  <li><b>De l'espace libre sur le datastore de la VM</b> pendant la sauvegarde d'une VM en marche. BackupZit y copie brièvement le disque (voir ci-dessous). La copie est thin, elle a donc besoin d'autant d'espace que le disque en utilise réellement.</li>
+</ul>
+
+<h2>Ajouter un hôte</h2>
+<ol>
+  <li>Ouvrez <a href="/agents#vmware">Agents → Hôtes VMware ESXi</a> → <i>Ajouter un hôte ESXi</i>.</li>
+  <li>Saisissez l'adresse, l'utilisateur, le mot de passe et l'agent proxy.</li>
+  <li>La console se connecte une fois pour les vérifier. Elle lit la liste des VM et la licence, et <b>épingle le certificat HTTPS et la clé d'hôte SSH de l'hôte</b>. Si l'hôte est plus tard remplacé par une autre machine à la même adresse, BackupZit refuse de se connecter au lieu de lui envoyer le mot de passe.</li>
+</ol>
+<p>Le mot de passe est stocké chiffré, comme tous les autres secrets. La liste des VM est actualisée toutes les 10 minutes, ou immédiatement avec <i>Actualiser</i>. Le tableau indique le mode de chaque hôte :</p>
+<ul>
+  <li><b>vSphere API :</b> hôtes sous licence.</li>
+  <li><b>Licence gratuite :</b> les instantanés et les restaurations passent par SSH.</li>
+</ul>
+
+<h2>Tâches de sauvegarde</h2>
+<p>Dans <a href="/jobs">Tâches de sauvegarde</a>, choisissez l'hôte ESXi (listé sous <i>Hôtes VMware ESXi</i> dans la liste des agents) et <b>Machines virtuelles</b>. Sauvegardez toutes les VM de l'hôte (les VM créées plus tard sont incluses automatiquement) ou cochez-en certaines. La tâche s'exécute sur l'agent proxy de l'hôte. Si vous changez de proxy, les tâches existantes suivent.</p>
+
+<h3>Comment une VM est sauvegardée</h3>
+<ol>
+  <li>Le <b>suivi des blocs modifiés (CBT)</b> est activé pour la VM s'il est désactivé.
+    <ul>
+      <li>Sur les hôtes sous licence, cela se fait automatiquement.</li>
+      <li>Sur les hôtes gratuits, le CBT ne peut être activé que lorsque la VM est éteinte. BackupZit le fait lors de la première sauvegarde qui trouve la VM éteinte. D'ici là, chaque sauvegarde lit les disques entiers et l'exécution affiche un avertissement.</li>
+    </ul>
+  </li>
+  <li>Un instantané <code>backupzit_…</code> est pris. Lorsque les <b>VMware Tools</b> tournent dans l'invité, l'instantané est <b>suspendu</b> (quiesced) : les applications et systèmes de fichiers sont vidés d'abord, ce qui rend la sauvegarde cohérente au niveau applicatif. Sans VMware Tools, elle est cohérente en cas de crash. Installez <code>open-vm-tools</code> dans les VM Linux et VMware Tools dans les VM Windows.</li>
+  <li>Le CBT indique quels blocs lire :
+    <ul>
+      <li>pour la première sauvegarde, uniquement les blocs utilisés ;</li>
+      <li>ensuite, uniquement les blocs modifiés depuis la sauvegarde précédente.</li>
+    </ul>
+  </li>
+  <li>Une VM en marche garde ses disques verrouillés. Ses disques sont donc copiés sur le datastore (thin) et <b>l'instantané est supprimé aussitôt</b>, généralement après quelques secondes. La copie est ensuite lue via HTTPS et supprimée. Les VM éteintes sont lues directement.</li>
+  <li>La configuration de la VM (<code>.vmx</code>) et la NVRAM sont stockées avec la sauvegarde.</li>
+</ol>
+<p>Exemple du laboratoire de test : une VM Debian avec un disque de 8 Go, dont 1,6 Go utilisés. La première sauvegarde a lu 1,6 Go. La suivante, après 50 Mo de nouvelles données, a lu 70 Mo et a duré 23 secondes.</p>
+
+<h2>Restaurer une VM</h2>
+<p>Utilisez l'<a href="/restore">assistant de restauration</a> (<i>Machine virtuelle complète</i>) ou la page de la sauvegarde dans Activité. Choisissez :</p>
+<ul>
+  <li><b>En tant que nouvelle VM à côté de l'original :</b> une copie avec un nouveau nom, un nouvel UUID et de nouvelles adresses MAC. Le nom par défaut est celui de l'original suivi de <code>-restored-</code> et de la date. Les paramètres réseau de l'invité liés aux anciennes adresses MAC, comme netplan <code>match: macaddress</code> dans les images cloud, ne s'appliquent pas à la copie.</li>
+  <li><b>À la place de la VM d'origine :</b> avec <i>l'arrêter et remplacer ses disques</i>, BackupZit :
+    <ul>
+      <li>éteint la VM et supprime ses instantanés ;</li>
+      <li>renomme les disques actuels en <code>….replaced-DATE.vmdk</code> (supprimez-les une fois que la VM restaurée fonctionne) ;</li>
+      <li>écrit la sauvegarde dans de nouveaux disques portant les noms d'origine, et règle le processeur et la mémoire comme dans la sauvegarde.</li>
+    </ul>
+    La VM conserve son UUID, ses cartes réseau et ses adresses MAC. Si la VM a été supprimée, elle est recréée avec son identité d'origine.</li>
+  <li><b>Hôte ESXi et datastore :</b> un autre hôte, ou un autre datastore du même hôte.</li>
+  <li><b>Démarrer la VM après la restauration.</b></li>
+</ul>
+<p>Les disques sont restaurés en thin, et seuls les blocs contenant des données sont écrits. Les images ISO connectées aux lecteurs CD/DVD ne font pas partie de la sauvegarde ; ces lecteurs restent donc vides.</p>
+
+<h3>Restauration instantanée</h3>
+<p>Choisissez <b>Instantanément, en s’exécutant depuis la sauvegarde</b> pour démarrer une VM en quelques secondes, sans copier d'abord ses disques. L'agent proxy de l'hôte — il doit s'agir d'un agent <b>Linux</b> — sert les disques de la VM directement depuis la sauvegarde via NFS ; l'hôte les monte comme datastore <code>backupzit-&lt;agent&gt;</code> et exécute la VM depuis celui-ci. Les modifications faites par la VM sont conservées sur l'agent (<code>/var/lib/backupzit/instant-esxi</code>, qui a donc besoin d'espace libre) ; la sauvegarde elle-même n'est jamais modifiée, et la rétention la conserve tant que la VM tourne depuis elle. Si la VM d'origine existe encore, la VM instantanée reçoit un nouvel UUID et de nouvelles adresses MAC.</p>
+<p>Sur la page de l'exécution, lorsque la VM fonctionne comme prévu :</p>
+<ul>
+  <li><b>Terminer</b> la copie sur un datastore de l'hôte : la VM est arrêtée (via VMware Tools s'ils tournent), ses disques sont copiés en thin avec <code>vmkfstools</code>, elle est enregistrée depuis le datastore et redémarrée. La licence ESXi gratuite n'a pas de Storage vMotion, cela nécessite donc une courte interruption qui augmente avec la taille des disques. Si la copie échoue, la VM continue de tourner depuis la sauvegarde.</li>
+  <li><b>Abandonner</b> arrête et supprime la VM avec toutes ses modifications.</li>
+</ul>
+<p>L'agent répond en NFS sur le port 2049 (et l'enregistre auprès du rpcbind de la machine sur le port 111, ou répond lui-même sur le port 111) uniquement pour l'adresse de l'hôte ESXi ; ouvrez ces ports de l'hôte vers l'agent si un pare-feu se trouve entre les deux. Lorsque la dernière VM instantanée est terminée ou abandonnée, le datastore est supprimé et le serveur NFS s'arrête.</p>
+
+<h3>Fichiers individuels</h3>
+<p><b>Parcourir les fichiers</b> sur la page de la sauvegarde (ou <i>Fichiers d’une machine virtuelle</i> dans l'assistant de restauration) ouvre les disques de la VM. Vous pouvez parcourir NTFS, ext2/3/4 et XFS, y compris sur LVM, et télécharger des fichiers ou les restaurer sur n'importe quel agent.</p>
+
+<h2>Ligne de commande</h2>
+<p>Ces commandes s'exécutent sur n'importe quel agent. Définissez le mot de passe ESXi dans <code>BACKUPZIT_VMWARE_PASSWORD</code> :</p>
+<pre>backupzit-agent vmware list    --host 192.168.1.20 [--user root]
+backupzit-agent vmware backup  --host … --repo … [--vmid N,N]
+backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NAME] [--datastore DS] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<p><code>vmware list</code> affiche les empreintes du certificat et de la clé SSH de l'hôte. Passez-les avec <code>--thumbprint</code> et <code>--ssh-host-key</code> pour les épingler aussi en ligne de commande.</p>
+
+<h2>Pas encore inclus</h2>
+<ul>
+  <li><b>vCenter.</b> Ajoutez chaque hôte ESXi directement.</li>
+  <li><b>Les VM ayant leurs propres instantanés.</b> Leurs disques sont des deltas ; supprimez ou consolidez d'abord les instantanés.</li>
+  <li><b>Certains types de disques.</b> Les mappages de périphériques bruts (RDM) et les disques indépendants.</li>
+  <li><b>La restauration instantanée via un agent proxy Windows.</b> La restauration instantanée nécessite un agent proxy Linux.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

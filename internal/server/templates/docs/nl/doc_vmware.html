@@ -1,0 +1,92 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Virtuele machines in VMware ESXi</h1>
+<p class="lead">BackupZit maakt back-ups van de virtuele machines van VMware ESXi-hosts zonder iets op ESXi of in de VM's te installeren. Een BackupZit-agent op een willekeurige machine in het netwerk werkt als <b>proxy</b> van de host. Hij maakt snapshots, leest alleen de gewijzigde blokken van de virtuele schijven en schrijft ze naar uw opslag.</p>
+
+<h2>Vereisten</h2>
+<ul>
+  <li><b>ESXi 6.7, 7 of 8</b>, rechtstreeks verbonden. Hosts die door vCenter worden beheerd, voegt u een voor een toe met hun eigen adres; vCenter zelf wordt nog niet ondersteund.</li>
+  <li><b>Een gebruiker met beheerdersrechten op de host</b>, meestal <code>root</code>.</li>
+  <li><b>SSH ingeschakeld op de host:</b> Host → Actions → Services → Enable Secure Shell. Herstelbewerkingen hebben het altijd nodig. Hosts met de gratis ESXi-licentie hebben het ook nodig voor snapshots, omdat hun API alleen-lezen is.</li>
+  <li><b>Een proxy-agent:</b> een willekeurige Windows- of Linux-agent die de host bereikt op de poorten 443 en 22. De back-upgegevens lopen erdoorheen, zet hem dus op een snel netwerk dicht bij de host en de opslag.</li>
+  <li><b>Vrije ruimte op de datastore van de VM</b> terwijl een draaiende VM wordt geback-upt. BackupZit kopieert de schijf daar even (zie hieronder). De kopie is thin, dus hij heeft zoveel ruimte nodig als de schijf werkelijk gebruikt.</li>
+</ul>
+
+<h2>Een host toevoegen</h2>
+<ol>
+  <li>Open <a href="/agents#vmware">Agents → VMware ESXi-hosts</a> → <i>Een ESXi-host toevoegen</i>.</li>
+  <li>Voer het adres, de gebruiker, het wachtwoord en de proxy-agent in.</li>
+  <li>De console maakt één keer verbinding om ze te controleren. Hij leest de VM-lijst en de licentie, en <b>pint het HTTPS-certificaat en de SSH-hostsleutel van de host</b>. Als de host later wordt vervangen door een andere machine met hetzelfde adres, weigert BackupZit verbinding te maken in plaats van die het wachtwoord te sturen.</li>
+</ol>
+<p>Het wachtwoord wordt versleuteld opgeslagen, zoals alle andere geheimen. De VM-lijst wordt elke 10 minuten vernieuwd, of direct met <i>Vernieuwen</i>. De tabel toont de modus van elke host:</p>
+<ul>
+  <li><b>vSphere API:</b> gelicentieerde hosts.</li>
+  <li><b>Gratis licentie:</b> snapshots en herstelbewerkingen lopen via SSH.</li>
+</ul>
+
+<h2>Back-uptaken</h2>
+<p>Kies in <a href="/jobs">Back-uptaken</a> de ESXi-host (vermeld onder <i>VMware ESXi-hosts</i> in de agentlijst) en <b>Virtuele machines</b>. Maak een back-up van alle VM's van de host (later gemaakte VM's worden automatisch opgenomen) of vink er enkele aan. De taak draait op de proxy-agent van de host. Als u de proxy wijzigt, volgen de bestaande taken.</p>
+
+<h3>Hoe een VM wordt geback-upt</h3>
+<ol>
+  <li><b>Changed block tracking (CBT)</b> wordt voor de VM ingeschakeld als het uit staat.
+    <ul>
+      <li>Op gelicentieerde hosts gebeurt dat automatisch.</li>
+      <li>Op gratis hosts kan CBT alleen worden ingeschakeld terwijl de VM uit staat. BackupZit doet het bij de eerste back-up die de VM uitgeschakeld aantreft. Tot dan leest elke back-up de volledige schijven en toont de run een waarschuwing.</li>
+    </ul>
+  </li>
+  <li>Er wordt een snapshot <code>backupzit_…</code> gemaakt. Als <b>VMware Tools</b> in de gast draaien, wordt de snapshot <b>gequiesced</b>: toepassingen en bestandssystemen worden eerst geleegd, wat de back-up applicatieconsistent maakt. Zonder VMware Tools is hij crash-consistent. Installeer <code>open-vm-tools</code> in Linux-VM's en VMware Tools in Windows-VM's.</li>
+  <li>CBT meldt welke blokken gelezen moeten worden:
+    <ul>
+      <li>bij de eerste back-up alleen de gebruikte blokken;</li>
+      <li>daarna alleen de blokken die sinds de vorige back-up zijn gewijzigd.</li>
+    </ul>
+  </li>
+  <li>Een draaiende VM houdt zijn schijven vergrendeld. Zijn schijven worden daarom op de datastore gekopieerd (thin) en <b>de snapshot wordt meteen verwijderd</b>, meestal na enkele seconden. De kopie wordt daarna via HTTPS gelezen en verwijderd. Uitgeschakelde VM's worden direct gelezen.</li>
+  <li>De configuratie van de VM (<code>.vmx</code>) en de NVRAM worden met de back-up opgeslagen.</li>
+</ol>
+<p>Voorbeeld uit het testlab: een Debian-VM met een schijf van 8 GB, waarvan 1,6 GB in gebruik. De eerste back-up las 1,6 GB. De volgende, na 50 MB nieuwe gegevens, las 70 MB en duurde 23 seconden.</p>
+
+<h2>Een VM herstellen</h2>
+<p>Gebruik de <a href="/restore">herstelwizard</a> (<i>Volledige virtuele machine</i>) of de pagina van de back-up in Activiteit. Kies:</p>
+<ul>
+  <li><b>Als nieuwe VM naast het origineel:</b> een kopie met een nieuwe naam, UUID en MAC-adressen. De standaardnaam is die van het origineel plus <code>-restored-</code> en de datum. Netwerkinstellingen in de gast die aan de oude MAC-adressen gebonden zijn, zoals netplan <code>match: macaddress</code> in cloud-images, gelden niet voor de kopie.</li>
+  <li><b>In plaats van de originele VM:</b> met <i>uitschakelen en de schijven vervangen</i> zal BackupZit:
+    <ul>
+      <li>de VM uitschakelen en de snapshots verwijderen;</li>
+      <li>de huidige schijven hernoemen naar <code>….replaced-DATE.vmdk</code> (verwijder ze zodra de herstelde VM werkt);</li>
+      <li>de back-up naar nieuwe schijven met de oorspronkelijke namen schrijven, en CPU en geheugen instellen zoals in de back-up.</li>
+    </ul>
+    De VM behoudt zijn UUID, netwerkadapters en MAC-adressen. Als de VM was verwijderd, wordt hij opnieuw gemaakt met zijn oorspronkelijke identiteit.</li>
+  <li><b>ESXi-host en datastore:</b> een andere host, of een andere datastore van dezelfde host.</li>
+  <li><b>De VM na het herstel starten.</b></li>
+</ul>
+<p>Schijven worden thin hersteld en alleen blokken met gegevens worden geschreven. ISO-images die aan cd/dvd-stations gekoppeld waren, maken geen deel uit van de back-up, dus die stations blijven leeg.</p>
+
+<h3>Direct herstel</h3>
+<p>Kies <b>Direct, draaiend vanuit de back-up</b> om een VM binnen enkele seconden te starten, zonder eerst zijn schijven te kopiëren. De proxy-agent van de host — dat moet een <b>Linux</b>-agent zijn — biedt de schijven van de VM rechtstreeks vanuit de back-up aan via NFS; de host koppelt dat als datastore <code>backupzit-&lt;agent&gt;</code> en draait de VM daarvandaan. Wijzigingen die de VM maakt, worden op de agent bewaard (<code>/var/lib/backupzit/instant-esxi</code>, die daarvoor vrije ruimte nodig heeft); de back-up zelf wordt nooit gewijzigd, en het bewaarbeleid houdt hem vast zolang de VM ervan draait. Als de originele VM nog bestaat, krijgt de directe VM een nieuwe UUID en nieuwe MAC-adressen.</p>
+<p>Op de runpagina, wanneer de VM werkt zoals het hoort:</p>
+<ul>
+  <li><b>Voltooien</b> kopieert hem naar een datastore van de host: de VM wordt afgesloten (via VMware Tools als die draaien), zijn schijven worden thin gekopieerd met <code>vmkfstools</code>, hij wordt vanaf de datastore geregistreerd en weer gestart. De gratis ESXi-licentie heeft geen Storage vMotion, dus dit vraagt een korte onderbreking die met de schijfgrootte toeneemt. Mislukt het kopiëren, dan blijft de VM vanuit de back-up draaien.</li>
+  <li><b>Verwerpen</b> stopt en verwijdert de VM met al zijn wijzigingen.</li>
+</ul>
+<p>De agent beantwoordt NFS op poort 2049 (en registreert het bij de rpcbind van de machine op poort 111, of beantwoordt poort 111 zelf) alleen voor het adres van de ESXi-host; open deze poorten van de host naar de agent als er een firewall tussen zit. Wanneer de laatste directe VM is voltooid of verworpen, wordt de datastore verwijderd en stopt de NFS-server.</p>
+
+<h3>Losse bestanden</h3>
+<p><b>Bestanden bladeren</b> op de pagina van de back-up (of <i>Bestanden uit een virtuele machine</i> in de herstelwizard) opent de schijven van de VM. U kunt NTFS, ext2/3/4 en XFS bladeren, ook op LVM, en bestanden downloaden of naar elke agent herstellen.</p>
+
+<h2>Opdrachtregel</h2>
+<p>Deze opdrachten draaien op elke agent. Zet het ESXi-wachtwoord in <code>BACKUPZIT_VMWARE_PASSWORD</code>:</p>
+<pre>backupzit-agent vmware list    --host 192.168.1.20 [--user root]
+backupzit-agent vmware backup  --host … --repo … [--vmid N,N]
+backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NAME] [--datastore DS] [--overwrite] [--start] SNAPSHOT|latest</pre>
+<p><code>vmware list</code> toont de vingerafdrukken van het certificaat en de SSH-sleutel van de host. Geef ze mee met <code>--thumbprint</code> en <code>--ssh-host-key</code> om ze ook op de opdrachtregel te pinnen.</p>
+
+<h2>Nog niet inbegrepen</h2>
+<ul>
+  <li><b>vCenter.</b> Voeg elke ESXi-host rechtstreeks toe.</li>
+  <li><b>VM's met eigen snapshots.</b> Hun schijven zijn delta's; verwijder of consolideer de snapshots eerst.</li>
+  <li><b>Sommige schijftypen.</b> Raw device mappings (RDM) en onafhankelijke schijven.</li>
+  <li><b>Direct herstel via een Windows-proxy-agent.</b> Direct herstel vereist een Linux-proxy-agent.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}
