@@ -55,6 +55,7 @@ type env struct {
 }
 
 func setup(t *testing.T) *env {
+	server.SetTargetTestTimeout(3 * time.Second)
 	t.Helper()
 	dir := t.TempDir()
 	port := freePort(t)
@@ -349,9 +350,11 @@ func TestWebUI(t *testing.T) {
 	if ts, _ := e.store.ListTargets(e.ctx); len(ts) != 0 {
 		t.Fatal("cross-site post created a target")
 	}
+	// The target is saved and tested at once; nothing listens here, so the
+	// test fails and says so.
 	if r := post("/targets", url.Values{"name": {"nas"}, "kind": {"sftp"},
-		"url": {"sftp://u@10.0.0.1/backups"}, "sftp_password": {"x"}, "sftp_host_key": {"SHA256:abc"}}, true); r.StatusCode != http.StatusSeeOther ||
-		strings.Contains(r.Header.Get("Location"), "err=") {
+		"url": {"sftp://u@127.0.0.1:1/backups"}, "sftp_password": {"x"}, "sftp_host_key": {"SHA256:abc"}}, true); r.StatusCode != http.StatusSeeOther ||
+		!strings.Contains(r.Header.Get("Location"), "err=Storage+target+added.+nas%3A+connection+test+failed") {
 		t.Fatalf("create target: %d %s", r.StatusCode, r.Header.Get("Location"))
 	}
 
@@ -383,7 +386,7 @@ func TestWebUI(t *testing.T) {
 	if page := html.UnescapeString(string(b)); !strings.Contains(page, e.fp) || !strings.Contains(page, "msiexec") {
 		t.Fatalf("enrollment page lacks fingerprint/instructions")
 	}
-	if !strings.Contains(get("/targets"), "sftp://u@10.0.0.1/backups") {
+	if !strings.Contains(get("/targets"), "sftp://u@127.0.0.1:1/backups") {
 		t.Error("target not listed")
 	}
 	// Passwords are never rendered.
@@ -677,7 +680,8 @@ func TestS3Target(t *testing.T) {
 	r = post("/targets", url.Values{"name": {"locked"}, "kind": {"s3"}, "s3_endpoint": {s3.Host},
 		"s3_bucket": {"company-backups"}, "s3_http": {"on"}, "s3_immutable": {"on"}, "s3_lock_days": {"30"},
 		"s3_access_key": {"AK"}, "s3_secret_key": {"SK"}})
-	if loc := r.Header.Get("Location"); strings.Contains(loc, "err=") {
+	// Saved; the test notices that this bucket has no Object Lock.
+	if loc := r.Header.Get("Location"); !strings.Contains(loc, "Storage+target+added.") || !strings.Contains(loc, "no+Object+Lock") {
 		t.Fatalf("create locked target: %s", loc)
 	}
 	r = post("/targets", url.Values{"name": {"bad"}, "kind": {"s3"}, "s3_endpoint": {s3.Host},
@@ -1623,7 +1627,8 @@ func TestAzureTarget(t *testing.T) {
 	_, loc, _ := admin.do("POST", "/targets", url.Values{"name": {"azure"}, "kind": {"azure"}, "azure_account": {"contosobackups"},
 		"azure_container": {"backups"}, "azure_path": {"office"}, "azure_auth": {"sas"}, "azure_secret": {"?sv=2024&sig=SECRET"},
 		"azure_endpoint": {"http://10.0.0.5:10000/devstoreaccount1"}, "encrypted": {"on"}})
-	if !strings.Contains(loc, "msg=") {
+	// Saved, and the connection test reports the unreachable endpoint.
+	if !strings.Contains(loc, "Storage+target+added.+azure%3A+connection+test+failed") {
 		t.Fatalf("create: %s", loc)
 	}
 	ts, _ := e.store.ListTargets(e.ctx)

@@ -9,7 +9,7 @@
       <td class="strong">{{.Name}}</td><td><span class="badge">{{.Kind}}</span></td><td class="mono">{{.URL}}</td>
       <td>{{if .Encrypted}}{{T "AES-256"}} {{if $.Me.Can "storage"}}<form method="post" action="/targets/{{.ID}}/recovery-key" class="inline"><button class="link">{{T "Recovery key"}}</button></form>{{end}}{{else}}<span class="muted">{{T "none"}}</span>{{end}}</td>
       <td>{{if .S3LockDays}}{{days .S3LockDays}} {{T "(Object Lock)"}}{{else if eq .Kind "hardened"}}{{T "set on the repository server"}}{{else}}<span class="muted">{{T "none"}}</span>{{end}}</td>
-      <td>{{if $.Me.Can "storage"}}<form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove storage target %v? Data on the storage is not deleted." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
+      <td>{{if $.Me.Can "storage"}}{{if and (ne .Kind "local") (ne .Kind "usb")}}<form method="post" action="/targets/{{.ID}}/test" class="inline"><button class="link">{{T "Test connection"}}</button></form> · {{end}}<form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove storage target %v? Data on the storage is not deleted." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
     </tr>
     {{end}}
   </table></div>

@@ -449,7 +449,12 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 }
 
 func failed(err error) api.RunResult {
-	return api.RunResult{Status: api.StatusFailed, Message: err.Error()}
+	msg := err.Error()
+	// SFTP servers answer a full disk or quota with a bare "Failure".
+	if m := strings.ToLower(msg); strings.Contains(m, "ssh_fx_failure") || strings.Contains(m, "no space left") || strings.Contains(m, "quota exceeded") {
+		msg += " (the storage may be full or over its quota)"
+	}
+	return api.RunResult{Status: api.StatusFailed, Message: msg}
 }
 
 func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {

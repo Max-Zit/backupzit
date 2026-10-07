@@ -49,3 +49,6 @@ func TOTPCodeForTest(secret string, now time.Time) string {
 
 // SetClock replaces the server clock in tests.
 func SetClock(s *Server, f func() time.Time) { s.clock = f }
+
+// SetTargetTestTimeout shortens storage connection tests in tests.
+func SetTargetTestTimeout(d time.Duration) { targetTestTimeout = d }

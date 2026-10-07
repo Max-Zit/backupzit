@@ -15,6 +15,9 @@
 </table>
 <div class="callout tip"><p><b>3-2-1 rule:</b> keep 3 copies of your data, on 2 different media, 1 of them off-site — for example one job to a local NAS and another to S3 or a hardened repository in another building.</p></div>
 
+<h2 id="test">Testing the connection</h2>
+<p>When a storage target is added, the console tests it right away with the entered credentials: it writes a small file, reads it back and removes it. On immutable storage (S3 with Object Lock, hardened repository) it only signs in and lists, so nothing locked stays behind; for S3 it also checks that the bucket has Object Lock when immutability is requested. The target is saved either way, and the result is shown — a wrong password, host key, bucket or share shows now and not at the first backup. <b>Test connection</b> on the Storage page repeats the test. The console tests from its own network; agents write the backups, so a target only the agents can reach (a local or USB disk) is tested by the first backup.</p>
+
 <h2>SFTP</h2>
 <p>Location: <code>sftp://user@host:22/path</code> (use <code>/~/path</code> for a path relative to the user's home). Enter a password or a private key, and the server's host key fingerprint, which you get on the server with:</p>
 <pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>

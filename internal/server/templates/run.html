@@ -191,6 +191,7 @@
 {{if and (or (eq .Kind "backup") (eq .Kind "system-backup") $.Data.CopyOfFiles) .SnapshotID (not .Expired)}}
 {{if $.Me.Can "restore"}}<div class="panel">
   <h2>{{T "Restore files from this backup"}}</h2>
+  {{if or (eq .Kind "backup") (eq .Kind "system-backup")}}<p><a class="btn secondary-link" href="/runs/{{.ID}}/files">{{template "icon" "folder"}} {{T "Browse files — download or restore selected ones"}}</a></p>{{end}}
   {{template "restore_files" $}}
 </div>{{end}}
 {{end}}

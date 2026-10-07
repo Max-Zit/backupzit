@@ -195,6 +195,7 @@ var funcs = template.FuncMap{
 		}
 		return *p
 	},
+	"markdown": markdownHTML,
 	// partref addresses a partition of disk image img of a backup (browse links).
 	"partref": imaging.PartRef,
 	"partkind": func(gpt string, mbr uint8) string {
@@ -343,6 +344,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /targets", s.ui(PermView, s.handleTargets))
 	mux.HandleFunc("POST /targets", s.ui(PermStorage, s.handleTargetCreate))
 	mux.HandleFunc("POST /targets/{id}/delete", s.ui(PermStorage, s.handleTargetDelete))
+	mux.HandleFunc("POST /targets/{id}/test", s.ui(PermStorage, s.handleTargetTest))
 	mux.HandleFunc("POST /targets/{id}/recovery-key", s.ui(PermStorage, s.handleRecoveryKey))
 	mux.HandleFunc("POST /targets/{id}/recovery-sheet", s.ui(PermStorage, s.handleRecoverySheet))
 	mux.HandleFunc("GET /jobs", s.ui(PermView, s.handleJobs))
@@ -360,6 +362,9 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /runs", s.ui(PermView, s.handleRuns))
 	mux.HandleFunc("GET /runs/{id}", s.ui(PermView, s.handleRun))
 	mux.HandleFunc("POST /runs/{id}/restore", s.ui(PermRestore, s.handleRestore))
+	mux.HandleFunc("GET /runs/{id}/files", s.ui(PermRestore, s.handleFileBrowse))
+	mux.HandleFunc("POST /runs/{id}/files-download", s.ui(PermRestore, s.handleFileDownload))
+	mux.HandleFunc("POST /runs/{id}/files-pick-restore", s.ui(PermRestore, s.handleFilePickRestore))
 	mux.HandleFunc("POST /runs/{id}/instant", s.ui(PermRestore, s.handleInstantEnd))
 	mux.HandleFunc("GET /runs/{id}/browse", s.ui(PermRestore, s.handleBrowse))
 	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(PermRestore, s.handleFilesRestore))
@@ -835,12 +840,23 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 		t.SMBPassword = r.FormValue("smb_password")
 		t.SMBDomain = r.FormValue("smb_domain")
 	}
-	_, err := s.store.CreateTarget(r.Context(), t)
+	id, err := s.store.CreateTarget(r.Context(), t)
 	if err != nil {
 		redirectErr(w, r, "/targets", err)
 		return
 	}
 	s.audit(r, "storage.create", "%s (%s) %s", t.Name, t.Kind, t.URL)
+	// Test it right away, so a typo shows now and not at the first backup.
+	if saved, err := s.store.GetTarget(r.Context(), id); err == nil && saved.Kind != "local" && saved.Kind != "usb" {
+		l := requestLanguage(r)
+		ok, terr := testTarget(r.Context(), saved)
+		if msg, terr := targetTestMessage(l, saved.Name, ok, terr); terr != nil {
+			redirectErr(w, r, "/targets", fmt.Errorf("%s %w", l.T("Storage target added."), terr))
+		} else {
+			redirectMsg(w, r, "/targets", l.T("Storage target added.")+" "+msg)
+		}
+		return
+	}
 	redirectMsg(w, r, "/targets", "Storage target added.")
 }
 

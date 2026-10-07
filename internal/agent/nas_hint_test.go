@@ -19,3 +19,13 @@ func TestNASHint(t *testing.T) {
 		}
 	}
 }
+
+func TestFailedFullStorageHint(t *testing.T) {
+	r := failed(errors.New(`upload pack x: sftp write /a: sftp: "Failure" (SSH_FX_FAILURE)`))
+	if !strings.Contains(r.Message, "storage may be full") {
+		t.Error(r.Message)
+	}
+	if r := failed(errors.New("other")); r.Message != "other" {
+		t.Error(r.Message)
+	}
+}

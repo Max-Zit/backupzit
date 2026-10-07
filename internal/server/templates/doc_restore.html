@@ -38,11 +38,19 @@
       <li><b>Restore to original location</b> — writes the files back where they were, <b>overwriting</b> current versions. For a NAS share the agent connects the share again, writable.</li>
     </ul>
   </li>
-  <li>Optionally limit to <b>Only these paths</b>, one per line, e.g. <code>C:\Users\ana\Documents\Contracts</code>.</li>
+  <li>Optionally limit to <b>Only these paths</b>, one per line, e.g. <code>C:\Users\ana\Documents\Contracts</code> — or pick them in the file browser (below).</li>
   <li>Keep <b>Verify restored files</b> on: each file is read back and compared with the checksum in the backup.</li>
   <li>Click <b>Start restore</b>. Progress and results appear on the restore run's page.</li>
 </ol>
 <p>File times, Windows attributes (hidden, read-only, …) and Linux owners, permissions (including setuid bits), ACLs, extended attributes (SELinux labels, file capabilities), symbolic and hard links are restored too. Owners are set only when the agent runs as root/administrator.</p>
+
+<h3 id="browse-files">Browse, download and pick files</h3>
+<p>On the backup run, <b>Browse files</b> shows the backed up folders as they were (also for NAS shares and Linux system backups). Open folders, tick files and folders, then:</p>
+<ul>
+  <li><b>Download</b> — one file comes as it is, several files or folders as a ZIP archive, straight in the browser. Downloads are recorded in the audit log.</li>
+  <li><b>Restore them on an agent</b> — into a folder or to the original location, like a restore with <i>Only these paths</i>.</li>
+</ul>
+<p>The console reads the backup from the storage itself, so browsing works for backups on network storage (SFTP, S3, SMB, Azure, hardened repository); for a local disk or a USB disk of an agent, restore with the paths. Users with a restore role may browse and download.</p>
 
 <div class="callout tip"><p><b>Finding the right backup:</b> use the <a href="/calendar">Calendar</a> to see which backups ran on which day, or the job page's history.</p></div>
 

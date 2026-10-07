@@ -266,7 +266,7 @@
   {{with .Available}}
   <div class="callout tip mt">
     <p><b>{{T "BackupZit"}} {{.Version}} {{T "is available"}}</b>{{if not .Released.IsZero}}{{T ", released"}} {{ts .Released}}{{end}}.</p>
-    {{with .Notes}}<pre class="small">{{.}}</pre>{{end}}
+    {{with .Notes}}<div class="release-notes small">{{markdown .}}</div>{{end}}
     {{if $.Data.Updates.Helper}}
     <form method="post" action="/settings/updates/install" data-confirm="{{T "Install BackupZit %v now? The database is backed up first; the console restarts and is unavailable for a minute." .Version}}">
       <button>{{T "Install"}} {{.Version}}</button> <span class="muted small">{{T "The database is backed up first; if the new version does not start, the old one and its database are restored automatically. Running backups must finish first."}}</span>
