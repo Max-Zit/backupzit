@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365: Exchange Online, OneDrive ve SharePoint</h1>
+<p class="lead">BackupZit, bir Microsoft 365 kiracısının posta kutularını (Exchange Online), takvimlerini, kişilerini, OneDrive'ını ve SharePoint sitelerini Microsoft Graph üzerinden yedekler. Yalnızca okur: kiracıda hiçbir şey değiştirilmez veya silinmez. İnternet erişimi olan herhangi bir aracı verileri indirir — örneğin konsol makinesindeki aracı — ve bunları her yedek gibi saklar: tekilleştirilmiş, şifrelenmiş, saklama kuralları, kopyalama işleri ve geri yükleme testleriyle.</p>
+
+<h2 id="app">1. Microsoft Entra ID'de uygulama kaydetme</h2>
+<p>Kiracı başına bir kez, Genel Yönetici olarak, <a href="https://entra.microsoft.com" rel="noopener">Microsoft Entra yönetim merkezinde</a>:</p>
+<ol>
+  <li><b>App registrations → New registration</b>: ad ör. <i>BackupZit</i>, <i>Accounts in this organizational directory only</i>, yönlendirme URI'si yok. Genel bakıştaki <b>Application (client) ID</b> ve <b>Directory (tenant) ID</b> değerlerini not edin.</li>
+  <li><b>Certificates &amp; secrets → New client secret</b>: bir geçerlilik süresi seçin (ör. 24 ay) ve gizli anahtarın <b>Value</b> değerini hemen kopyalayın — yalnızca bir kez gösterilir. <i>Secret ID</i> gizli anahtar değildir.</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (<i>delegated</i> değil): <code>User.Read.All</code>, <code>Mail.Read</code> ve <code>Files.Read.All</code>; takvimler ve kişiler için ayrıca <code>Calendars.Read</code> ve <code>Contacts.Read</code>, SharePoint için <code>Sites.Read.All</code>.</li>
+  <li><b>Grant admin consent for …</b>'a tıklayın. O zamana kadar durum <i>Not granted</i> gösterir ve yedekler reddedilir.</li>
+</ol>
+<p>Bunlar yalnızca okuma izinleridir. İleride posta kutularına geri yükleme yazma izinleri gerektirir; BackupZit bunları istemez.</p>
+<p class="muted">Uygulamayı bazı posta kutularıyla sınırlamak için bir Exchange yöneticisi bir <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">application access policy</a> veya RBAC for Applications kapsamı ekleyebilir; bunun dışındaki hesaplar bu durumda okunamaz olarak bildirilir.</p>
+
+<h2 id="job">2. İşi oluşturma</h2>
+<p><a href="/jobs">Yedekleme işleri</a> içinde <b>Microsoft 365</b> türünde bir iş oluşturun:</p>
+<ul>
+  <li><b>Aracı</b>: indirmeyi yapan aracı (Windows veya Linux, sürüm 0.34.0 veya daha yeni; takvimler, kişiler ve SharePoint için 0.35.0). <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> ve OneDrive ile SharePoint dosyaları için <code>*.sharepoint.com</code> adreslerine HTTPS erişimi gerekir.</li>
+  <li>1. adımdaki <b>Dizin (kiracı) kimliği</b>, <b>Uygulama (istemci) kimliği</b> ve <b>İstemci gizli anahtarı</b>. Gizli anahtar şifreli saklanır.</li>
+  <li>Neyin yedekleneceği: <b>Posta</b>, <b>OneDrive</b>, <b>Takvimler ve kişiler</b>, <b>SharePoint siteleri</b> — herhangi bir birleşimde.</li>
+  <li><b>Hesaplar</b>: satır başına bir adres veya posta kutusu ya da OneDrive'ı olan kiracının her hesabı için boş — sonradan eklenen hesaplar otomatik dahil edilir; lisansı olmayan hesaplar atlanır.</li>
+  <li><b>SharePoint siteleri</b>: satır başına bir site adresi (ör. <code>https://contoso.sharepoint.com/sites/sales</code>) veya kiracının her sitesi için boş — sonradan eklenen siteler otomatik dahil edilir. Kişisel siteler (OneDrive) dışarıda bırakılır; bunlar hesaplarla birlikte yedeklenir. Yalnızca SharePoint içeren bir iş hesap gerektirmez.</li>
+</ul>
+<p>Adres yazmak yerine <b>Listeden seç</b>'e tıklayın: konsol yukarıda girilen uygulamayla kiracının hesaplarını (posta kutusu veya OneDrive'ı olmayan lisanssız hesapları işaretleyerek) ve SharePoint sitelerini okur ve işaretlemeniz için listeler; işaretlenenler alanları doldurur. Bir iş düzenlenirken saklanan gizli anahtar kullanılır.</p>
+<p>İş kaydedildiğinde konsol uygulama olarak oturum açar ve izinleri, hesapları ve siteleri denetler; böylece yanlış bir gizli anahtar veya eksik yönetici onayı hemen görülür. İnternet erişimi olmayan bir konsol denetimi atlar; bu durumda ilk yedek çalışıp çalışmadığını gösterir.</p>
+
+<h2 id="what">Neler yedeklenir</h2>
+<ul>
+  <li><b>Posta</b>: tüm posta klasörleri alt klasörleriyle (Gelen Kutusu, Gönderilmiş Öğeler, Silinmiş Öğeler, Arşiv, kendi klasörleriniz…). Her ileti ekleriyle birlikte eksiksiz olarak MIME biçiminde bir <code>.eml</code> dosyası olarak, geliş zamanı ve konusuna göre adlandırılarak saklanır, ör. <code>2026-10-07 0621 Ekim teklifi [3fa2c1d9e0].eml</code>. Outlook, Thunderbird ve çoğu posta programı .eml dosyalarını açar.</li>
+  <li><b>OneDrive</b>: hesabın OneDrive'ındaki tüm dosya ve klasörler, değiştirilme zamanlarıyla.</li>
+  <li><b>Takvimler</b>: hesabın her takvimi; her etkinlik zaman, yer, açıklama, düzenleyici, katılımcılar, anımsatıcı ve — bir seri için — yinelenmesiyle birlikte, başlangıcı ve konusuna göre adlandırılmış bir iCalendar dosyası (<code>.ics</code>) olarak, ör. <code>2026-10-08 1000 Yönetim kurulu toplantısı [8c1e…].ics</code>. Outlook, Google Takvim ve Thunderbird .ics dosyalarını içe aktarır. Zamanlar UTC olarak saklanır.</li>
+  <li><b>Kişiler</b>: hesabın kişileri ve kişi klasörleri, her biri adlar, e-posta adresleri, telefon numaraları, adresler, şirket ve notlar içeren bir vCard (<code>.vcf</code>) olarak.</li>
+  <li><b>SharePoint</b>: her sitenin her belge kitaplığı (Belgeler, Site Varlıkları ve oluşturduğunuz kitaplıklar), tüm klasör ve dosyalarıyla.</li>
+</ul>
+<p>Dahil olmayanlar: takvim etkinliklerinin ekleri, kişi fotoğrafları, bir serinin tek tek değiştirilmiş yinelemeleri, SharePoint listeleri ve sayfaları (yalnızca belge kitaplıkları), Teams sohbetleri ve kanal iletileri (Teams dosyaları SharePoint'tedir ve onunla birlikte yedeklenir) ve kullanıcı hesabı olmayan paylaşılan posta kutuları.</p>
+<p>Bir yedek hesap başına bir klasör içerir — <code>ana@contoso.com/Mail/Inbox/…</code>, <code>…/OneDrive/…</code>, <code>…/Calendar/Calendar/…</code>, <code>…/Contacts/…</code> — ve <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code>. İlk yedek her şeyi indirir; sonraki her yedek klasörleri yeniden listeler ama yalnızca önceki yedekten bu yana yeni veya değişmiş iletileri ve dosyaları indirir (okunan, bayraklanan, taşınan veya düzenlenen iletiler değişmiş sayılır) — değişmeyen veriler önceki yedekten alınır. Microsoft bir uygulamanın ne kadar hızlı okuyabileceğini sınırlar; BackupZit Microsoft istediğinde bekler ve devam eder, bu yüzden büyük posta kutularının ilk yedeği saatler sürebilir.</p>
+<p>Bir kiracının yedekleri depolama hedefinde kendi deposunda saklanır (klasör <code>m365-&lt;tenant ID&gt;</code>); böylece indirmeyi yapan aracı baştan başlamadan değiştirilebilir.</p>
+
+<h2 id="restore">Geri yükleme</h2>
+<ul>
+  <li>Bir yedek çalıştırmasında <b>Dosyalara göz at</b>: bir hesabın posta klasörlerini, OneDrive'ını, takvimlerini veya kişilerini ya da bir SharePoint sitesini açın, iletileri, etkinlikleri, dosyaları veya klasörleri işaretleyip <b>indirin</b> (tek dosya olduğu gibi, birden fazlası ZIP olarak) — .eml dosyalarını Outlook'ta açın veya bir posta kutusuna sürükleyin.</li>
+  <li>Herhangi bir aracıda <b>Bir klasöre geri yükle</b>: iletiler .eml dosyaları, etkinlikler .ics, kişiler .vcf olarak, OneDrive ve SharePoint dosyaları da oldukları gibi <code>&lt;folder&gt;/&lt;account&gt;/…</code> ve <code>&lt;folder&gt;/SharePoint/…</code> altına yazılır.</li>
+</ul>
+<p>Doğrudan bir posta kutusuna veya OneDrive'a geri yükleme planlanmaktadır; yalnızca yeni bir klasöre yazacak, asla üzerine yazmayacak veya silmeyecektir.</p>
+
+<h2 id="troubleshooting">Sorun giderme</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b>: gizli anahtarın <i>Value</i> değeri değil (kimliği) kopyalanmış ya da süresi dolmuş — yenisini oluşturup işe girin.</li>
+  <li><b>missing the application permissions</b> veya <b>Authorization_RequestDenied</b>: izinleri <i>uygulama</i> izinleri olarak ekleyin ve <i>Grant admin consent</i>'e tıklayın.</li>
+  <li><b>the account has no Exchange Online mailbox</b>: hesabın Exchange lisansı yok (veya bir kişi); onu işten çıkarın.</li>
+  <li>Uyarılı bir çalıştırma, okunamayan iletileri veya dosyaları listeler (ör. bir OneNote not defteri); yedeğin geri kalanı eksiksizdir.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

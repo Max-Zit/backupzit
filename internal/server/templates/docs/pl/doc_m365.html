@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365: Exchange Online, OneDrive i SharePoint</h1>
+<p class="lead">BackupZit tworzy kopie skrzynek pocztowych (Exchange Online), kalendarzy, kontaktów, OneDrive i witryn SharePoint dzierżawy Microsoft 365 przez Microsoft Graph. Tylko odczytuje: w dzierżawie nic nie jest zmieniane ani usuwane. Dane pobiera dowolny agent z dostępem do internetu — na przykład agent na maszynie konsoli — i zapisuje je jak każdą kopię: z deduplikacją, szyfrowaniem, przechowywaniem, zadaniami kopii wtórnych i testami przywracania.</p>
+
+<h2 id="app">1. Rejestracja aplikacji w Microsoft Entra ID</h2>
+<p>Raz na dzierżawę, jako administrator globalny, w <a href="https://entra.microsoft.com" rel="noopener">centrum administracyjnym Microsoft Entra</a>:</p>
+<ol>
+  <li><b>App registrations → New registration</b>: nazwa np. <i>BackupZit</i>, <i>Accounts in this organizational directory only</i>, bez URI przekierowania. Zanotuj <b>Application (client) ID</b> i <b>Directory (tenant) ID</b> z przeglądu.</li>
+  <li><b>Certificates &amp; secrets → New client secret</b>: wybierz okres ważności (np. 24 miesiące) i od razu skopiuj <b>Value</b> klucza tajnego — jest pokazywana tylko raz. <i>Secret ID</i> nie jest kluczem tajnym.</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (nie <i>delegated</i>): <code>User.Read.All</code>, <code>Mail.Read</code> i <code>Files.Read.All</code>; dla kalendarzy i kontaktów także <code>Calendars.Read</code> i <code>Contacts.Read</code>, dla SharePoint <code>Sites.Read.All</code>.</li>
+  <li>Kliknij <b>Grant admin consent for …</b>. Do tego czasu stan pokazuje <i>Not granted</i>, a kopie są odrzucane.</li>
+</ol>
+<p>To wyłącznie uprawnienia do odczytu. Przywracanie do skrzynek w przyszłości wymaga uprawnień do zapisu, o które BackupZit nie prosi.</p>
+<p class="muted">Aby ograniczyć aplikację do niektórych skrzynek, administrator Exchange może dodać <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">application access policy</a> lub zakres RBAC for Applications; konta spoza niego są wtedy zgłaszane jako nieczytelne.</p>
+
+<h2 id="job">2. Tworzenie zadania</h2>
+<p>W <a href="/jobs">Zadania kopii</a> utwórz zadanie typu <b>Microsoft 365</b>:</p>
+<ul>
+  <li><b>Agent</b>: agent, który pobiera dane (Windows lub Linux, wersja 0.34.0 lub nowsza; 0.35.0 dla kalendarzy, kontaktów i SharePoint). Potrzebuje dostępu HTTPS do <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> oraz, dla plików OneDrive i SharePoint, <code>*.sharepoint.com</code>.</li>
+  <li><b>Identyfikator katalogu (dzierżawy)</b>, <b>Identyfikator aplikacji (klienta)</b> i <b>Klucz tajny klienta</b> z kroku 1. Klucz jest przechowywany w postaci zaszyfrowanej.</li>
+  <li>Co kopiować: <b>Poczta</b>, <b>OneDrive</b>, <b>Kalendarze i kontakty</b>, <b>Witryny SharePoint</b> — w dowolnym połączeniu.</li>
+  <li><b>Konta</b>: jeden adres w wierszu albo puste dla każdego konta dzierżawy, które ma skrzynkę lub OneDrive — konta dodane później są dołączane automatycznie; konta bez licencji są pomijane.</li>
+  <li><b>Witryny SharePoint</b>: jeden adres witryny w wierszu (np. <code>https://contoso.sharepoint.com/sites/sales</code>) albo puste dla każdej witryny dzierżawy — witryny dodane później są dołączane automatycznie. Witryny osobiste (OneDrive) są pomijane; są kopiowane razem z kontami. Zadanie tylko dla SharePoint nie wymaga kont.</li>
+</ul>
+<p>Zamiast wpisywać adresy, kliknij <b>Wybierz z listy</b>: konsola za pomocą podanej wyżej aplikacji odczytuje konta (oznaczając te bez licencji, które nie mają skrzynki ani OneDrive) i witryny SharePoint dzierżawy, a następnie wyświetla je do zaznaczenia; zaznaczone wypełniają pola. Podczas edycji zadania używany jest zapisany klucz tajny.</p>
+<p>Przy zapisywaniu zadania konsola loguje się jako aplikacja i sprawdza uprawnienia, konta i witryny, więc błędny klucz tajny lub brak zgody administratora widać od razu. Konsola bez dostępu do internetu pomija sprawdzenie; pierwsza kopia pokaże wtedy, czy wszystko działa.</p>
+
+<h2 id="what">Co jest kopiowane</h2>
+<ul>
+  <li><b>Poczta</b>: wszystkie foldery poczty z podfolderami (Skrzynka odbiorcza, Elementy wysłane, Elementy usunięte, Archiwum, własne foldery…). Każda wiadomość jest zapisywana w całości z załącznikami w formacie MIME jako plik <code>.eml</code>, nazwany według czasu nadejścia i tematu, np. <code>2026-10-07 0621 Oferta na październik [3fa2c1d9e0].eml</code>. Outlook, Thunderbird i większość programów pocztowych otwiera pliki .eml.</li>
+  <li><b>OneDrive</b>: wszystkie pliki i foldery OneDrive konta, z czasem modyfikacji.</li>
+  <li><b>Kalendarze</b>: każdy kalendarz konta; każde wydarzenie jako plik iCalendar (<code>.ics</code>) z czasem, miejscem, opisem, organizatorem, uczestnikami, przypomnieniem i — dla serii — jej cyklicznością, nazwany według początku i tematu, np. <code>2026-10-08 1000 Posiedzenie zarządu [8c1e…].ics</code>. Outlook, Kalendarz Google i Thunderbird importują pliki .ics. Czasy są zapisywane w UTC.</li>
+  <li><b>Kontakty</b>: kontakty i foldery kontaktów konta, każdy jako vCard (<code>.vcf</code>) z imionami i nazwiskami, adresami e-mail, numerami telefonów, adresami, firmą i notatkami.</li>
+  <li><b>SharePoint</b>: każda biblioteka dokumentów każdej witryny (Dokumenty, Zasoby witryny i utworzone przez Ciebie biblioteki), ze wszystkimi folderami i plikami.</li>
+</ul>
+<p>Nie są objęte: załączniki wydarzeń kalendarza, zdjęcia kontaktów, pojedynczo zmienione wystąpienia serii, listy i strony SharePoint (tylko biblioteki dokumentów), czaty Teams i wiadomości kanałów (pliki Teams są w SharePoint i są kopiowane razem z nim) oraz skrzynki współdzielone bez konta użytkownika.</p>
+<p>Kopia zawiera jeden folder na konto — <code>ana@contoso.com/Mail/Inbox/…</code>, <code>…/OneDrive/…</code>, <code>…/Calendar/Calendar/…</code>, <code>…/Contacts/…</code> — oraz <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code>. Pierwsza kopia pobiera wszystko; każda kolejna ponownie listuje foldery, ale pobiera tylko wiadomości i pliki nowe lub zmienione od poprzedniej kopii (przeczytane, oflagowane, przeniesione lub edytowane wiadomości liczą się jako zmienione) — niezmienione dane są brane z poprzedniej kopii. Microsoft ogranicza tempo odczytu przez aplikację; BackupZit czeka, gdy Microsoft o to prosi, i kontynuuje, więc pierwsza kopia dużych skrzynek może trwać godzinami.</p>
+<p>Kopie dzierżawy są zapisywane we własnym repozytorium w magazynie (folder <code>m365-&lt;tenant ID&gt;</code>), więc pobierającego agenta można wymienić bez zaczynania od nowa.</p>
+
+<h2 id="restore">Przywracanie</h2>
+<ul>
+  <li><b>Przeglądaj pliki</b> w uruchomieniu kopii: otwórz foldery poczty, OneDrive, kalendarze lub kontakty konta albo witrynę SharePoint, zaznacz wiadomości, wydarzenia, pliki lub foldery i <b>pobierz</b> je (jeden plik bez zmian, kilka jako ZIP) — otwórz pliki .eml w Outlooku lub przeciągnij je do skrzynki.</li>
+  <li><b>Przywróć do folderu</b> na dowolnym agencie: wiadomości są zapisywane jako pliki .eml, wydarzenia jako .ics, kontakty jako .vcf, a pliki OneDrive i SharePoint w oryginalnej postaci, pod <code>&lt;folder&gt;/&lt;account&gt;/…</code> i <code>&lt;folder&gt;/SharePoint/…</code>.</li>
+</ul>
+<p>Bezpośrednie przywracanie do skrzynki lub OneDrive jest planowane; będzie zapisywać tylko do nowego folderu i nigdy niczego nie nadpisze ani nie usunie.</p>
+
+<h2 id="troubleshooting">Rozwiązywanie problemów</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b>: skopiowano nie <i>Value</i> klucza tajnego (lecz jego ID) albo klucz wygasł — utwórz nowy i wpisz go w zadaniu.</li>
+  <li><b>missing the application permissions</b> lub <b>Authorization_RequestDenied</b>: dodaj uprawnienia jako uprawnienia <i>aplikacji</i> i kliknij <i>Grant admin consent</i>.</li>
+  <li><b>the account has no Exchange Online mailbox</b>: konto nie ma licencji Exchange (albo jest kontaktem); usuń je z zadania.</li>
+  <li>Uruchomienie z ostrzeżeniami wymienia wiadomości lub pliki, których nie dało się odczytać (np. notes OneNote); reszta kopii jest kompletna.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

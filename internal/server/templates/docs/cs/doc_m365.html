@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365: Exchange Online, OneDrive a SharePoint</h1>
+<p class="lead">BackupZit zálohuje poštovní schránky (Exchange Online), kalendáře, kontakty, OneDrive a weby SharePoint tenanta Microsoft 365 přes Microsoft Graph. Pouze čte: v tenantovi se nic nemění ani nemaže. Data stáhne libovolný agent s přístupem k internetu — například agent na počítači konzole — a uloží je jako každou zálohu: deduplikovaně, šifrovaně, s uchováváním, úlohami kopírování a testy obnovy.</p>
+
+<h2 id="app">1. Registrace aplikace v Microsoft Entra ID</h2>
+<p>Jednou pro každého tenanta, jako globální správce, v <a href="https://entra.microsoft.com" rel="noopener">centru pro správu Microsoft Entra</a>:</p>
+<ol>
+  <li><b>App registrations → New registration</b>: název např. <i>BackupZit</i>, <i>Accounts in this organizational directory only</i>, bez URI přesměrování. Poznamenejte si <b>Application (client) ID</b> a <b>Directory (tenant) ID</b> z přehledu.</li>
+  <li><b>Certificates &amp; secrets → New client secret</b>: zvolte platnost (např. 24 měsíců) a hned zkopírujte <b>Value</b> tajného klíče — zobrazí se jen jednou. <i>Secret ID</i> není tajný klíč.</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (ne <i>delegated</i>): <code>User.Read.All</code>, <code>Mail.Read</code> a <code>Files.Read.All</code>; pro kalendáře a kontakty také <code>Calendars.Read</code> a <code>Contacts.Read</code>, pro SharePoint <code>Sites.Read.All</code>.</li>
+  <li>Klikněte na <b>Grant admin consent for …</b>. Do té doby stav ukazuje <i>Not granted</i> a zálohy se odmítají.</li>
+</ol>
+<p>Jde jen o oprávnění ke čtení. Pozdější obnova do schránek potřebuje oprávnění k zápisu, o která BackupZit nežádá.</p>
+<p class="muted">Chcete-li aplikaci omezit na některé schránky, může správce Exchange přidat <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">application access policy</a> nebo obor RBAC for Applications; účty mimo něj se pak hlásí jako nečitelné.</p>
+
+<h2 id="job">2. Vytvoření úlohy</h2>
+<p>V <a href="/jobs">Úlohy zálohování</a> vytvořte úlohu typu <b>Microsoft 365</b>:</p>
+<ul>
+  <li><b>Agent</b>: agent, který stahuje (Windows nebo Linux, verze 0.34.0 nebo novější; 0.35.0 pro kalendáře, kontakty a SharePoint). Potřebuje přístup HTTPS k <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> a pro soubory OneDrive a SharePoint k <code>*.sharepoint.com</code>.</li>
+  <li><b>ID adresáře (tenanta)</b>, <b>ID aplikace (klienta)</b> a <b>Tajný klíč klienta</b> z kroku 1. Tajný klíč se ukládá šifrovaně.</li>
+  <li>Co zálohovat: <b>Pošta</b>, <b>OneDrive</b>, <b>Kalendáře a kontakty</b>, <b>Weby SharePoint</b> — v libovolné kombinaci.</li>
+  <li><b>Účty</b>: jedna adresa na řádek, nebo prázdné pro každý účet tenanta se schránkou nebo OneDrive — účty přidané později se zahrnou automaticky; účty bez licence se přeskočí.</li>
+  <li><b>Weby SharePoint</b>: jedna adresa webu na řádek (např. <code>https://contoso.sharepoint.com/sites/sales</code>), nebo prázdné pro každý web tenanta — weby přidané později se zahrnou automaticky. Osobní weby (OneDrive) se vynechávají; zálohují se s účty. Úloha jen pro SharePoint nepotřebuje účty.</li>
+</ul>
+<p>Místo psaní adres klikněte na <b>Vybrat ze seznamu</b>: konzole pomocí výše zadané aplikace načte účty (a označí ty bez licence, které nemají schránku ani OneDrive) a weby SharePoint tenanta a zobrazí je k zaškrtnutí; zaškrtnuté vyplní pole. Při úpravě úlohy se použije uložený tajný klíč.</p>
+<p>Při uložení úlohy se konzole přihlásí jako aplikace a zkontroluje oprávnění, účty a weby, takže špatný tajný klíč nebo chybějící souhlas správce se ukáže hned. Konzole bez přístupu k internetu kontrolu přeskočí; první záloha pak ukáže, zda vše funguje.</p>
+
+<h2 id="what">Co se zálohuje</h2>
+<ul>
+  <li><b>Pošta</b>: všechny poštovní složky s podsložkami (Doručená pošta, Odeslaná pošta, Odstraněná pošta, Archiv, vlastní složky…). Každá zpráva se uloží celá s přílohami ve formátu MIME jako soubor <code>.eml</code>, pojmenovaný podle času doručení a předmětu, např. <code>2026-10-07 0621 Nabídka na říjen [3fa2c1d9e0].eml</code>. Outlook, Thunderbird a většina poštovních programů soubory .eml otevřou.</li>
+  <li><b>OneDrive</b>: všechny soubory a složky OneDrive účtu, s časem změny.</li>
+  <li><b>Kalendáře</b>: každý kalendář účtu; každá událost jako soubor iCalendar (<code>.ics</code>) s časem, místem, popisem, organizátorem, účastníky, připomenutím a — u série — jejím opakováním, pojmenovaná podle začátku a předmětu, např. <code>2026-10-08 1000 Zasedání představenstva [8c1e…].ics</code>. Outlook, Kalendář Google a Thunderbird soubory .ics importují. Časy se ukládají v UTC.</li>
+  <li><b>Kontakty</b>: kontakty a složky kontaktů účtu, každý jako vCard (<code>.vcf</code>) se jmény, e-mailovými adresami, telefonními čísly, adresami, firmou a poznámkami.</li>
+  <li><b>SharePoint</b>: každá knihovna dokumentů každého webu (Dokumenty, Prostředky webu a knihovny, které jste vytvořili), se všemi složkami a soubory.</li>
+</ul>
+<p>Nezahrnuto: přílohy událostí kalendáře, fotografie kontaktů, jednotlivě změněné výskyty série, seznamy a stránky SharePoint (jen knihovny dokumentů), chaty Teams a zprávy kanálů (soubory Teams jsou na SharePointu a zálohují se s ním) a sdílené schránky bez uživatelského účtu.</p>
+<p>Záloha obsahuje jednu složku na účet — <code>ana@contoso.com/Mail/Inbox/…</code>, <code>…/OneDrive/…</code>, <code>…/Calendar/Calendar/…</code>, <code>…/Contacts/…</code> — a <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code>. První záloha stáhne vše; každá další znovu vypíše složky, ale stáhne jen zprávy a soubory nové nebo změněné od předchozí zálohy (přečtené, označené, přesunuté nebo upravené zprávy se počítají jako změněné) — nezměněná data se převezmou z předchozí zálohy. Microsoft omezuje, jak rychle smí aplikace číst; BackupZit počká, když o to Microsoft požádá, a pokračuje, takže první záloha velkých schránek může trvat hodiny.</p>
+<p>Zálohy tenanta se ukládají do vlastního úložiště na cílovém úložišti (složka <code>m365-&lt;tenant ID&gt;</code>), takže stahujícího agenta lze vyměnit, aniž by se začínalo znovu.</p>
+
+<h2 id="restore">Obnova</h2>
+<ul>
+  <li><b>Procházet soubory</b> v běhu zálohy: otevřete poštovní složky, OneDrive, kalendáře nebo kontakty účtu, nebo web SharePoint, zaškrtněte zprávy, události, soubory nebo složky a <b>stáhněte</b> je (jeden soubor tak, jak je, více jako ZIP) — soubory .eml otevřete v Outlooku nebo je přetáhněte do schránky.</li>
+  <li><b>Obnovit do složky</b> na libovolném agentovi: zprávy se zapíšou jako soubory .eml, události jako .ics, kontakty jako .vcf a soubory OneDrive a SharePoint tak, jak byly, pod <code>&lt;folder&gt;/&lt;account&gt;/…</code> a <code>&lt;folder&gt;/SharePoint/…</code>.</li>
+</ul>
+<p>Přímá obnova do schránky nebo OneDrive je plánovaná; bude zapisovat jen do nové složky a nikdy nic nepřepíše ani nesmaže.</p>
+
+<h2 id="troubleshooting">Řešení potíží</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b>: nebyl zkopírován <i>Value</i> tajného klíče (ale jeho ID), nebo vypršel — vytvořte nový a zadejte ho do úlohy.</li>
+  <li><b>missing the application permissions</b> nebo <b>Authorization_RequestDenied</b>: přidejte oprávnění jako oprávnění <i>aplikace</i> a klikněte na <i>Grant admin consent</i>.</li>
+  <li><b>the account has no Exchange Online mailbox</b>: účet nemá licenci Exchange (nebo je to kontakt); odeberte ho z úlohy.</li>
+  <li>Běh s varováními vypíše zprávy nebo soubory, které nešlo přečíst (např. poznámkový blok OneNote); zbytek zálohy je úplný.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

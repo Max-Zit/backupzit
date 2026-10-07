@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365: Exchange Online, OneDrive y SharePoint</h1>
+<p class="lead">BackupZit copia los buzones (Exchange Online), calendarios, contactos, OneDrive y sitios de SharePoint de un inquilino de Microsoft 365 mediante Microsoft Graph. Solo lee: no se cambia ni se borra nada en el inquilino. Cualquier agente con acceso a Internet descarga los datos —por ejemplo el agente de la máquina de la consola— y los guarda como cualquier copia: deduplicados, cifrados, con retención, trabajos de copia secundaria y pruebas de restauración.</p>
+
+<h2 id="app">1. Registrar una aplicación en Microsoft Entra ID</h2>
+<p>Una vez por inquilino, como administrador global, en el <a href="https://entra.microsoft.com" rel="noopener">centro de administración de Microsoft Entra</a>:</p>
+<ol>
+  <li><b>App registrations → New registration</b>: nombre p. ej. <i>BackupZit</i>, <i>Accounts in this organizational directory only</i>, sin URI de redirección. Anote el <b>Application (client) ID</b> y el <b>Directory (tenant) ID</b> de su información general.</li>
+  <li><b>Certificates &amp; secrets → New client secret</b>: elija una vigencia (p. ej. 24 meses) y copie enseguida el <b>Value</b> del secreto; solo se muestra una vez. El <i>Secret ID</i> no es el secreto.</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (no <i>delegated</i>): <code>User.Read.All</code>, <code>Mail.Read</code> y <code>Files.Read.All</code>; para calendarios y contactos también <code>Calendars.Read</code> y <code>Contacts.Read</code>, para SharePoint <code>Sites.Read.All</code>.</li>
+  <li>Haga clic en <b>Grant admin consent for …</b>. Hasta entonces el estado muestra <i>Not granted</i> y las copias se rechazan.</li>
+</ol>
+<p>Son solo permisos de lectura. Restaurar más adelante en los buzones necesita permisos de escritura, que BackupZit no solicita.</p>
+<p class="muted">Para limitar la aplicación a algunos buzones, un administrador de Exchange puede añadir una <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">application access policy</a> o un ámbito de RBAC for Applications; las cuentas fuera de él se notifican entonces como no legibles.</p>
+
+<h2 id="job">2. Crear el trabajo</h2>
+<p>En <a href="/jobs">Trabajos de copia</a> cree un trabajo del tipo <b>Microsoft 365</b>:</p>
+<ul>
+  <li><b>Agente</b>: el agente que descarga (Windows o Linux, versión 0.34.0 o posterior; 0.35.0 para calendarios, contactos y SharePoint). Necesita acceso HTTPS a <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> y, para los archivos de OneDrive y SharePoint, <code>*.sharepoint.com</code>.</li>
+  <li><b>Id. de directorio (inquilino)</b>, <b>Id. de aplicación (cliente)</b> y <b>Secreto de cliente</b> del paso 1. El secreto se guarda cifrado.</li>
+  <li>Qué copiar: <b>Correo</b>, <b>OneDrive</b>, <b>Calendarios y contactos</b>, <b>Sitios de SharePoint</b>, en cualquier combinación.</li>
+  <li><b>Cuentas</b>: una dirección por línea, o vacío para todas las cuentas del inquilino que tengan buzón u OneDrive; las cuentas añadidas más tarde se incluyen automáticamente; las cuentas sin licencia se omiten.</li>
+  <li><b>Sitios de SharePoint</b>: una dirección de sitio por línea (p. ej. <code>https://contoso.sharepoint.com/sites/sales</code>), o vacío para todos los sitios del inquilino; los sitios añadidos más tarde se incluyen automáticamente. Los sitios personales (OneDrive) se excluyen; se copian con las cuentas. Un trabajo solo de SharePoint no necesita cuentas.</li>
+</ul>
+<p>En lugar de escribir direcciones, haga clic en <b>Elegir de la lista</b>: con la aplicación indicada arriba, la consola lee las cuentas (marcando las que no tienen licencia, que no tienen buzón ni OneDrive) y los sitios de SharePoint del inquilino y los muestra para marcarlos; los marcados rellenan los campos. Al editar un trabajo se usa el secreto guardado.</p>
+<p>Al guardar el trabajo, la consola inicia sesión como la aplicación y comprueba los permisos, las cuentas y los sitios, de modo que un secreto erróneo o la falta de consentimiento del administrador se ve al momento. Una consola sin acceso a Internet omite la comprobación; la primera copia muestra entonces si funciona.</p>
+
+<h2 id="what">Qué se copia</h2>
+<ul>
+  <li><b>Correo</b>: todas las carpetas de correo con sus subcarpetas (Bandeja de entrada, Elementos enviados, Elementos eliminados, Archivo, sus propias carpetas…). Cada mensaje se guarda completo con sus adjuntos en formato MIME como archivo <code>.eml</code>, con el nombre de su hora de llegada y su asunto, p. ej. <code>2026-10-07 0621 Oferta para octubre [3fa2c1d9e0].eml</code>. Outlook, Thunderbird y la mayoría de programas de correo abren archivos .eml.</li>
+  <li><b>OneDrive</b>: todos los archivos y carpetas del OneDrive de la cuenta, con su hora de modificación.</li>
+  <li><b>Calendarios</b>: todos los calendarios de la cuenta; cada evento como archivo iCalendar (<code>.ics</code>) con hora, lugar, descripción, organizador, asistentes, aviso y, en una serie, su periodicidad, con el nombre de su inicio y asunto, p. ej. <code>2026-10-08 1000 Reunión del consejo [8c1e…].ics</code>. Outlook, Google Calendar y Thunderbird importan archivos .ics. Las horas se guardan en UTC.</li>
+  <li><b>Contactos</b>: los contactos y carpetas de contactos de la cuenta, cada uno como vCard (<code>.vcf</code>) con nombres, direcciones de correo, teléfonos, direcciones, empresa y notas.</li>
+  <li><b>SharePoint</b>: todas las bibliotecas de documentos de cada sitio (Documentos, Activos del sitio y las bibliotecas que haya creado), con todas las carpetas y archivos.</li>
+</ul>
+<p>No incluido: adjuntos de eventos del calendario, fotos de contactos, apariciones de una serie modificadas por separado, listas y páginas de SharePoint (solo bibliotecas de documentos), chats de Teams y mensajes de canal (los archivos de Teams están en SharePoint y se copian con él) y buzones compartidos sin cuenta de usuario.</p>
+<p>Una copia contiene una carpeta por cuenta —<code>ana@contoso.com/Mail/Inbox/…</code>, <code>…/OneDrive/…</code>, <code>…/Calendar/Calendar/…</code>, <code>…/Contacts/…</code>— y <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code>. La primera copia lo descarga todo; cada copia posterior vuelve a listar las carpetas pero solo descarga los mensajes y archivos nuevos o cambiados desde la copia anterior (los mensajes leídos, marcados, movidos o editados cuentan como cambiados); los datos sin cambios se toman de la copia anterior. Microsoft limita la velocidad a la que puede leer una aplicación; BackupZit espera cuando Microsoft se lo pide y continúa, así que una primera copia de buzones grandes puede tardar horas.</p>
+<p>Las copias de un inquilino se guardan en su propio repositorio en el destino de almacenamiento (carpeta <code>m365-&lt;tenant ID&gt;</code>), de modo que el agente que descarga puede sustituirse sin empezar de cero.</p>
+
+<h2 id="restore">Restaurar</h2>
+<ul>
+  <li><b>Examinar archivos</b> en una ejecución de copia: abra las carpetas de correo, el OneDrive, los calendarios o los contactos de una cuenta, o un sitio de SharePoint, marque mensajes, eventos, archivos o carpetas y <b>descárguelos</b> (un archivo tal cual, varios como ZIP); abra los archivos .eml en Outlook o arrástrelos a un buzón.</li>
+  <li><b>Restaurar en una carpeta</b> de cualquier agente: los mensajes se escriben como archivos .eml, los eventos como .ics, los contactos como .vcf y los archivos de OneDrive y SharePoint tal como eran, bajo <code>&lt;folder&gt;/&lt;account&gt;/…</code> y <code>&lt;folder&gt;/SharePoint/…</code>.</li>
+</ul>
+<p>Está prevista la restauración directa en un buzón u OneDrive; solo escribirá en una carpeta nueva y nunca sobrescribirá ni borrará.</p>
+
+<h2 id="troubleshooting">Solución de problemas</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b>: no se copió el <i>Value</i> del secreto (sino su ID), o ha caducado; cree uno nuevo e introdúzcalo en el trabajo.</li>
+  <li><b>missing the application permissions</b> o <b>Authorization_RequestDenied</b>: añada los permisos como permisos de <i>aplicación</i> y haga clic en <i>Grant admin consent</i>.</li>
+  <li><b>the account has no Exchange Online mailbox</b>: la cuenta no tiene licencia de Exchange (o es un contacto); quítela del trabajo.</li>
+  <li>Una ejecución con advertencias muestra los mensajes o archivos que no se pudieron leer (p. ej. un bloc de notas de OneNote); el resto de la copia está completo.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

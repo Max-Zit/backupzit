@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365: Exchange Online, OneDrive en SharePoint</h1>
+<p class="lead">BackupZit maakt back-ups van de mailboxen (Exchange Online), agenda's, contactpersonen, OneDrive en SharePoint-sites van een Microsoft 365-tenant via Microsoft Graph. Het leest alleen: in de tenant wordt niets gewijzigd of verwijderd. Een willekeurige agent met internettoegang downloadt de gegevens — bijvoorbeeld de agent op de consolemachine — en slaat ze op zoals elke back-up: gededupliceerd, versleuteld, met bewaarbeleid, kopietaken en hersteltests.</p>
+
+<h2 id="app">1. Een app registreren in Microsoft Entra ID</h2>
+<p>Eén keer per tenant, als globale beheerder, in het <a href="https://entra.microsoft.com" rel="noopener">Microsoft Entra-beheercentrum</a>:</p>
+<ol>
+  <li><b>App registrations → New registration</b>: naam bijv. <i>BackupZit</i>, <i>Accounts in this organizational directory only</i>, geen omleidings-URI. Noteer de <b>Application (client) ID</b> en de <b>Directory (tenant) ID</b> uit het overzicht.</li>
+  <li><b>Certificates &amp; secrets → New client secret</b>: kies een geldigheidsduur (bijv. 24 maanden) en kopieer meteen de <b>Value</b> van het geheim — die wordt maar één keer getoond. De <i>Secret ID</i> is niet het geheim.</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (niet <i>delegated</i>): <code>User.Read.All</code>, <code>Mail.Read</code> en <code>Files.Read.All</code>; voor agenda's en contactpersonen ook <code>Calendars.Read</code> en <code>Contacts.Read</code>, voor SharePoint <code>Sites.Read.All</code>.</li>
+  <li>Klik op <b>Grant admin consent for …</b>. Tot dan toont de status <i>Not granted</i> en worden back-ups geweigerd.</li>
+</ol>
+<p>Dit zijn alleen leesmachtigingen. Later herstellen in mailboxen vereist schrijfmachtigingen, waar BackupZit niet om vraagt.</p>
+<p class="muted">Om de app tot enkele mailboxen te beperken, kan een Exchange-beheerder een <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">application access policy</a> of een RBAC for Applications-bereik toevoegen; accounts daarbuiten worden dan als niet leesbaar gemeld.</p>
+
+<h2 id="job">2. De taak maken</h2>
+<p>Maak onder <a href="/jobs">Back-uptaken</a> een taak van het type <b>Microsoft 365</b>:</p>
+<ul>
+  <li><b>Agent</b>: de agent die downloadt (Windows of Linux, versie 0.34.0 of nieuwer; 0.35.0 voor agenda's, contactpersonen en SharePoint). Hij heeft HTTPS-toegang nodig tot <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> en, voor OneDrive- en SharePoint-bestanden, <code>*.sharepoint.com</code>.</li>
+  <li><b>Map-id (tenant)</b>, <b>Toepassings-id (client)</b> en <b>Clientgeheim</b> uit stap 1. Het geheim wordt versleuteld opgeslagen.</li>
+  <li>Wat geback-upt wordt: <b>E-mail</b>, <b>OneDrive</b>, <b>Agenda's en contactpersonen</b>, <b>SharePoint-sites</b> — in elke combinatie.</li>
+  <li><b>Accounts</b>: één adres per regel, of leeg voor elk account van de tenant met een mailbox of OneDrive — later toegevoegde accounts worden automatisch opgenomen; accounts zonder licentie worden overgeslagen.</li>
+  <li><b>SharePoint-sites</b>: één siteadres per regel (bijv. <code>https://contoso.sharepoint.com/sites/sales</code>), of leeg voor elke site van de tenant — later toegevoegde sites worden automatisch opgenomen. Persoonlijke sites (OneDrive) worden weggelaten; die worden met de accounts geback-upt. Een taak met alleen SharePoint heeft geen accounts nodig.</li>
+</ul>
+<p>In plaats van adressen te typen klikt u op <b>Kiezen uit de lijst</b>: met de hierboven ingevoerde app leest de console de accounts (en markeert die zonder licentie, die geen mailbox of OneDrive hebben) en de SharePoint-sites van de tenant en toont ze om aan te vinken; de aangevinkte vullen de velden. Bij het bewerken van een taak wordt het opgeslagen geheim gebruikt.</p>
+<p>Bij het opslaan van de taak meldt de console zich aan als de app en controleert de machtigingen, de accounts en de sites, zodat een verkeerd geheim of ontbrekende beheerderstoestemming meteen zichtbaar is. Een console zonder internettoegang slaat de controle over; de eerste back-up laat dan zien of het werkt.</p>
+
+<h2 id="what">Wat wordt geback-upt</h2>
+<ul>
+  <li><b>E-mail</b>: alle mailmappen met hun submappen (Postvak IN, Verzonden items, Verwijderde items, Archief, uw eigen mappen…). Elk bericht wordt volledig met bijlagen in MIME-formaat opgeslagen als <code>.eml</code>-bestand, genoemd naar het tijdstip van ontvangst en het onderwerp, bijv. <code>2026-10-07 0621 Offerte voor oktober [3fa2c1d9e0].eml</code>. Outlook, Thunderbird en de meeste mailprogramma's openen .eml-bestanden.</li>
+  <li><b>OneDrive</b>: alle bestanden en mappen van de OneDrive van het account, met hun wijzigingstijd.</li>
+  <li><b>Agenda's</b>: elke agenda van het account; elke afspraak als iCalendar-bestand (<code>.ics</code>) met tijd, plaats, beschrijving, organisator, deelnemers, herinnering en — bij een reeks — het herhalingspatroon, genoemd naar begin en onderwerp, bijv. <code>2026-10-08 1000 Directievergadering [8c1e…].ics</code>. Outlook, Google Agenda en Thunderbird importeren .ics-bestanden. Tijden worden in UTC opgeslagen.</li>
+  <li><b>Contactpersonen</b>: de contactpersonen en contactmappen van het account, elk als vCard (<code>.vcf</code>) met namen, e-mailadressen, telefoonnummers, adressen, bedrijf en notities.</li>
+  <li><b>SharePoint</b>: elke documentbibliotheek van elke site (Documenten, Siteactiva en bibliotheken die u hebt gemaakt), met alle mappen en bestanden.</li>
+</ul>
+<p>Niet inbegrepen: bijlagen van agenda-afspraken, foto's van contactpersonen, afzonderlijk gewijzigde exemplaren van een reeks, SharePoint-lijsten en -pagina's (alleen documentbibliotheken), Teams-chats en kanaalberichten (Teams-bestanden staan in SharePoint en worden daarmee geback-upt) en gedeelde mailboxen zonder gebruikersaccount.</p>
+<p>Een back-up bevat één map per account — <code>ana@contoso.com/Mail/Inbox/…</code>, <code>…/OneDrive/…</code>, <code>…/Calendar/Calendar/…</code>, <code>…/Contacts/…</code> — en <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code>. De eerste back-up downloadt alles; elke latere back-up somt de mappen opnieuw op, maar downloadt alleen berichten en bestanden die sinds de vorige back-up nieuw of gewijzigd zijn (gelezen, gemarkeerde, verplaatste of bewerkte berichten tellen als gewijzigd) — ongewijzigde gegevens worden uit de vorige back-up overgenomen. Microsoft beperkt hoe snel een app mag lezen; BackupZit wacht als Microsoft daarom vraagt en gaat dan verder, dus een eerste back-up van grote mailboxen kan uren duren.</p>
+<p>De back-ups van een tenant worden in een eigen repository op het opslagdoel opgeslagen (map <code>m365-&lt;tenant ID&gt;</code>), zodat de downloadende agent vervangen kan worden zonder opnieuw te beginnen.</p>
+
+<h2 id="restore">Herstellen</h2>
+<ul>
+  <li><b>Bestanden bladeren</b> in een back-uprun: open de mailmappen, OneDrive, agenda's of contactpersonen van een account, of een SharePoint-site, vink berichten, afspraken, bestanden of mappen aan en <b>download</b> ze (één bestand zoals het is, meerdere als ZIP) — open de .eml-bestanden in Outlook of sleep ze naar een mailbox.</li>
+  <li><b>Naar een map herstellen</b> op een willekeurige agent: berichten worden als .eml-bestanden geschreven, afspraken als .ics, contactpersonen als .vcf en OneDrive- en SharePoint-bestanden zoals ze waren, onder <code>&lt;folder&gt;/&lt;account&gt;/…</code> en <code>&lt;folder&gt;/SharePoint/…</code>.</li>
+</ul>
+<p>Direct herstellen in een mailbox of OneDrive is gepland; dat zal alleen in een nieuwe map schrijven en nooit overschrijven of verwijderen.</p>
+
+<h2 id="troubleshooting">Problemen oplossen</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b>: niet de <i>Value</i> van het geheim is gekopieerd (maar de ID), of het is verlopen — maak een nieuw geheim en voer het in de taak in.</li>
+  <li><b>missing the application permissions</b> of <b>Authorization_RequestDenied</b>: voeg de machtigingen toe als <i>toepassings</i>machtigingen en klik op <i>Grant admin consent</i>.</li>
+  <li><b>the account has no Exchange Online mailbox</b>: het account heeft geen Exchange-licentie (of is een contactpersoon); verwijder het uit de taak.</li>
+  <li>Een run met waarschuwingen toont berichten of bestanden die niet gelezen konden worden (bijv. een OneNote-notitieblok); de rest van de back-up is volledig.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

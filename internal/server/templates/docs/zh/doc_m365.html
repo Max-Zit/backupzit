@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365：Exchange Online、OneDrive 和 SharePoint</h1>
+<p class="lead">BackupZit 通过 Microsoft Graph 备份 Microsoft 365 租户的邮箱（Exchange Online）、日历、联系人、OneDrive 和 SharePoint 网站。它只读取数据：不会更改或删除租户中的任何内容。任何能访问互联网的代理都可以下载数据 —— 例如控制台机器上的代理 —— 并像所有备份一样存储：重复数据删除、加密，并支持保留策略、复制作业和还原测试。</p>
+
+<h2 id="app">1. 在 Microsoft Entra ID 中注册应用</h2>
+<p>每个租户一次，以全局管理员身份在 <a href="https://entra.microsoft.com" rel="noopener">Microsoft Entra 管理中心</a> 中操作：</p>
+<ol>
+  <li><b>App registrations → New registration</b>：名称例如 <i>BackupZit</i>，选择 <i>Accounts in this organizational directory only</i>，不填重定向 URI。记下概览页上的 <b>Application (client) ID</b> 和 <b>Directory (tenant) ID</b>。</li>
+  <li><b>Certificates &amp; secrets → New client secret</b>：选择有效期（例如 24 个月），并立即复制密钥的 <b>Value</b> —— 它只显示一次。<i>Secret ID</i> 不是密钥。</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b>（不是 <i>delegated</i>）：<code>User.Read.All</code>、<code>Mail.Read</code> 和 <code>Files.Read.All</code>；日历和联系人还需 <code>Calendars.Read</code> 和 <code>Contacts.Read</code>，SharePoint 需 <code>Sites.Read.All</code>。</li>
+  <li>点击 <b>Grant admin consent for …</b>。在此之前状态显示 <i>Not granted</i>，备份会被拒绝。</li>
+</ol>
+<p>这些只是读取权限。将来还原到邮箱需要写入权限，BackupZit 不会请求这些权限。</p>
+<p class="muted">如需将应用限制为部分邮箱，Exchange 管理员可以添加 <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">application access policy</a> 或 RBAC for Applications 作用域；作用域之外的帐户会被报告为无法读取。</p>
+
+<h2 id="job">2. 创建作业</h2>
+<p>在 <a href="/jobs">备份作业</a> 中创建 <b>Microsoft 365</b> 类型的作业：</p>
+<ul>
+  <li><b>代理</b>：执行下载的代理（Windows 或 Linux，版本 0.34.0 或更高；日历、联系人和 SharePoint 需 0.35.0）。它需要通过 HTTPS 访问 <code>login.microsoftonline.com</code>、<code>graph.microsoft.com</code>，以及 OneDrive 和 SharePoint 文件所需的 <code>*.sharepoint.com</code>。</li>
+  <li>第 1 步中的 <b>目录(租户) ID</b>、<b>应用程序(客户端) ID</b> 和 <b>客户端密钥</b>。密钥加密存储。</li>
+  <li>要备份的内容：<b>邮件</b>、<b>OneDrive</b>、<b>日历和联系人</b>、<b>SharePoint 网站</b> —— 可任意组合。</li>
+  <li><b>帐户</b>：每行一个地址，或留空以包含租户中所有拥有邮箱或 OneDrive 的帐户 —— 以后添加的帐户会自动包含；没有许可证的帐户会被跳过。</li>
+  <li><b>SharePoint 网站</b>：每行一个网站地址（例如 <code>https://contoso.sharepoint.com/sites/sales</code>），或留空以包含租户的所有网站 —— 以后添加的网站会自动包含。个人网站（OneDrive）不包括在内；它们随帐户一起备份。只备份 SharePoint 的作业不需要帐户。</li>
+</ul>
+<p>无需手动输入地址，点击 <b>从列表中选择</b>：控制台会使用上面输入的应用读取租户的帐户（并标记没有许可证、既无邮箱也无 OneDrive 的帐户）和 SharePoint 网站，列出供您勾选；勾选的项目会填入字段。编辑作业时会使用已保存的密钥。</p>
+<p>保存作业时，控制台会以该应用身份登录并检查权限、帐户和网站，因此错误的密钥或缺少管理员同意会立即显现。无法访问互联网的控制台会跳过检查；之后第一次备份会显示是否正常。</p>
+
+<h2 id="what">备份内容</h2>
+<ul>
+  <li><b>邮件</b>：所有邮件文件夹及其子文件夹（收件箱、已发送邮件、已删除邮件、存档、您自己的文件夹……）。每封邮件连同附件以 MIME 格式完整存储为 <code>.eml</code> 文件，按接收时间和主题命名，例如 <code>2026-10-07 0621 十月报价 [3fa2c1d9e0].eml</code>。Outlook、Thunderbird 和大多数邮件程序都能打开 .eml 文件。</li>
+  <li><b>OneDrive</b>：帐户 OneDrive 中的所有文件和文件夹，以及其修改时间。</li>
+  <li><b>日历</b>：帐户的每个日历；每个事件存储为 iCalendar 文件（<code>.ics</code>），包含时间、地点、说明、组织者、参与者、提醒，以及系列事件的重复规则，按开始时间和主题命名，例如 <code>2026-10-08 1000 董事会会议 [8c1e…].ics</code>。Outlook、Google 日历和 Thunderbird 都能导入 .ics 文件。时间以 UTC 存储。</li>
+  <li><b>联系人</b>：帐户的联系人和联系人文件夹，每个联系人存储为 vCard（<code>.vcf</code>），包含姓名、电子邮件地址、电话号码、地址、公司和备注。</li>
+  <li><b>SharePoint</b>：每个网站的每个文档库（文档、网站资产以及您创建的库），包括所有文件夹和文件。</li>
+</ul>
+<p>不包括：日历事件的附件、联系人照片、系列中单独修改的事件、SharePoint 列表和页面（仅文档库）、Teams 聊天和频道消息（Teams 文件位于 SharePoint 中，会随之备份），以及没有用户帐户的共享邮箱。</p>
+<p>一个备份中每个帐户一个文件夹 —— <code>ana@contoso.com/Mail/Inbox/…</code>、<code>…/OneDrive/…</code>、<code>…/Calendar/Calendar/…</code>、<code>…/Contacts/…</code> —— 以及 <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code>。第一次备份下载所有内容；之后的每次备份会重新列出文件夹，但只下载自上次备份以来新增或更改的邮件和文件（已读、已标记、已移动或已编辑的邮件均视为已更改）—— 未更改的数据取自上一次备份。Microsoft 会限制应用的读取速度；当 Microsoft 要求时 BackupZit 会等待然后继续，因此大型邮箱的第一次备份可能需要数小时。</p>
+<p>一个租户的备份存储在存储目标上它自己的存储库中（文件夹 <code>m365-&lt;tenant ID&gt;</code>），因此可以更换执行下载的代理而无需从头开始。</p>
+
+<h2 id="restore">还原</h2>
+<ul>
+  <li>在备份运行上 <b>浏览文件</b>：打开某个帐户的邮件文件夹、OneDrive、日历或联系人，或某个 SharePoint 网站，勾选邮件、事件、文件或文件夹并 <b>下载</b>（单个文件原样下载，多个则打包为 ZIP）—— 在 Outlook 中打开 .eml 文件或将其拖入邮箱。</li>
+  <li>在任意代理上 <b>还原到文件夹</b>：邮件写为 .eml 文件，事件写为 .ics，联系人写为 .vcf，OneDrive 和 SharePoint 文件按原样写入 <code>&lt;folder&gt;/&lt;account&gt;/…</code> 和 <code>&lt;folder&gt;/SharePoint/…</code> 下。</li>
+</ul>
+<p>直接还原到邮箱或 OneDrive 已在计划中；它只会写入新文件夹，绝不会覆盖或删除任何内容。</p>
+
+<h2 id="troubleshooting">故障排除</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b>：复制的不是密钥的 <i>Value</i>（而是其 ID），或者密钥已过期 —— 请创建新密钥并在作业中输入。</li>
+  <li><b>missing the application permissions</b> 或 <b>Authorization_RequestDenied</b>：将权限添加为<i>应用程序</i>权限，并点击 <i>Grant admin consent</i>。</li>
+  <li><b>the account has no Exchange Online mailbox</b>：该帐户没有 Exchange 许可证（或者是联系人）；请将其从作业中移除。</li>
+  <li>带有警告的运行会列出无法读取的邮件或文件（例如 OneNote 笔记本）；备份的其余部分是完整的。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

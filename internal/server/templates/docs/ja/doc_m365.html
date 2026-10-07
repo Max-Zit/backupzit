@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365: Exchange Online、OneDrive、SharePoint</h1>
+<p class="lead">BackupZit は Microsoft Graph を通じて、Microsoft 365 テナントのメールボックス（Exchange Online）、予定表、連絡先、OneDrive、SharePoint サイトをバックアップします。読み取りのみで、テナント内の何も変更・削除しません。インターネットにアクセスできる任意のエージェント（たとえばコンソール マシン上のエージェント）がデータをダウンロードし、ほかのバックアップと同様に保存します: 重複排除、暗号化、保持、コピー ジョブ、復元テスト付きです。</p>
+
+<h2 id="app">1. Microsoft Entra ID にアプリを登録</h2>
+<p>テナントごとに 1 回、グローバル管理者として <a href="https://entra.microsoft.com" rel="noopener">Microsoft Entra 管理センター</a> で行います:</p>
+<ol>
+  <li><b>App registrations → New registration</b>: 名前は例えば <i>BackupZit</i>、<i>Accounts in this organizational directory only</i>、リダイレクト URI なし。概要ページの <b>Application (client) ID</b> と <b>Directory (tenant) ID</b> を控えます。</li>
+  <li><b>Certificates &amp; secrets → New client secret</b>: 有効期間（例: 24 か月）を選び、シークレットの <b>Value</b> をすぐにコピーします — 一度しか表示されません。<i>Secret ID</i> はシークレットではありません。</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b>（<i>delegated</i> ではない）: <code>User.Read.All</code>、<code>Mail.Read</code>、<code>Files.Read.All</code>。予定表と連絡先には <code>Calendars.Read</code> と <code>Contacts.Read</code>、SharePoint には <code>Sites.Read.All</code> も追加します。</li>
+  <li><b>Grant admin consent for …</b> をクリックします。それまではステータスが <i>Not granted</i> と表示され、バックアップは拒否されます。</li>
+</ol>
+<p>これらは読み取り権限のみです。将来メールボックスへ復元するには書き込み権限が必要ですが、BackupZit はそれを要求しません。</p>
+<p class="muted">アプリを一部のメールボックスに限定するには、Exchange 管理者が <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">application access policy</a> または RBAC for Applications のスコープを追加できます。スコープ外のアカウントは読み取れないものとして報告されます。</p>
+
+<h2 id="job">2. ジョブの作成</h2>
+<p><a href="/jobs">バックアップ ジョブ</a> で種類 <b>Microsoft 365</b> のジョブを作成します:</p>
+<ul>
+  <li><b>エージェント</b>: ダウンロードを行うエージェント（Windows または Linux、バージョン 0.34.0 以降。予定表、連絡先、SharePoint には 0.35.0）。<code>login.microsoftonline.com</code>、<code>graph.microsoft.com</code>、OneDrive と SharePoint のファイルには <code>*.sharepoint.com</code> への HTTPS アクセスが必要です。</li>
+  <li>手順 1 の <b>ディレクトリ (テナント) ID</b>、<b>アプリケーション (クライアント) ID</b>、<b>クライアントシークレット</b>。シークレットは暗号化して保存されます。</li>
+  <li>バックアップ対象: <b>メール</b>、<b>OneDrive</b>、<b>予定表と連絡先</b>、<b>SharePoint サイト</b> — 任意の組み合わせ。</li>
+  <li><b>アカウント</b>: 1 行に 1 つのアドレス、または空欄でメールボックスか OneDrive を持つテナントのすべてのアカウント — 後から追加したアカウントも自動的に含まれます。ライセンスのないアカウントはスキップされます。</li>
+  <li><b>SharePoint サイト</b>: 1 行に 1 つのサイト アドレス（例: <code>https://contoso.sharepoint.com/sites/sales</code>）、または空欄でテナントのすべてのサイト — 後から追加したサイトも自動的に含まれます。個人用サイト（OneDrive）は除外され、アカウントとともにバックアップされます。SharePoint のみのジョブにはアカウントは不要です。</li>
+</ul>
+<p>アドレスを入力する代わりに <b>一覧から選択</b> をクリックすると、コンソールが上で入力したアプリを使ってテナントのアカウント（メールボックスも OneDrive もないライセンスなしのアカウントには印を付けます）と SharePoint サイトを読み取り、チェックできる一覧を表示します。チェックしたものがフィールドに入力されます。ジョブの編集時は保存済みのシークレットが使われます。</p>
+<p>ジョブを保存すると、コンソールはアプリとしてサインインし、権限、アカウント、サイトを確認します。そのため、シークレットの誤りや管理者の同意の不足がすぐにわかります。インターネットにアクセスできないコンソールは確認をスキップし、最初のバックアップで動作するかがわかります。</p>
+
+<h2 id="what">バックアップされるもの</h2>
+<ul>
+  <li><b>メール</b>: すべてのメール フォルダーとそのサブフォルダー（受信トレイ、送信済みアイテム、削除済みアイテム、アーカイブ、独自のフォルダーなど）。各メッセージは添付ファイルを含めて MIME 形式の <code>.eml</code> ファイルとして完全に保存され、受信日時と件名で名前が付けられます（例: <code>2026-10-07 0621 10 月のお見積もり [3fa2c1d9e0].eml</code>）。Outlook、Thunderbird、ほとんどのメール ソフトで .eml ファイルを開けます。</li>
+  <li><b>OneDrive</b>: アカウントの OneDrive のすべてのファイルとフォルダー（更新日時付き）。</li>
+  <li><b>予定表</b>: アカウントのすべての予定表。各予定は、日時、場所、説明、開催者、出席者、アラーム、定期的な予定の場合は繰り返しを含む iCalendar ファイル（<code>.ics</code>）として、開始日時と件名で名前が付けられます（例: <code>2026-10-08 1000 取締役会 [8c1e…].ics</code>）。Outlook、Google カレンダー、Thunderbird で .ics ファイルをインポートできます。時刻は UTC で保存されます。</li>
+  <li><b>連絡先</b>: アカウントの連絡先と連絡先フォルダー。それぞれ名前、メール アドレス、電話番号、住所、会社、メモを含む vCard（<code>.vcf</code>）として保存されます。</li>
+  <li><b>SharePoint</b>: 各サイトのすべてのドキュメント ライブラリ（ドキュメント、サイトのアセット、作成したライブラリ）と、そのすべてのフォルダーとファイル。</li>
+</ul>
+<p>含まれないもの: 予定の添付ファイル、連絡先の写真、定期的な予定の個別に変更された回、SharePoint のリストとページ（ドキュメント ライブラリのみ対象）、Teams のチャットとチャネルのメッセージ（Teams のファイルは SharePoint にあり、一緒にバックアップされます）、ユーザー アカウントのない共有メールボックス。</p>
+<p>バックアップにはアカウントごとに 1 つのフォルダー — <code>ana@contoso.com/Mail/Inbox/…</code>、<code>…/OneDrive/…</code>、<code>…/Calendar/Calendar/…</code>、<code>…/Contacts/…</code> — と <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code> が含まれます。最初のバックアップはすべてをダウンロードします。以降のバックアップはフォルダーを再度一覧しますが、前回のバックアップ以降に新しく追加または変更されたメッセージとファイルだけをダウンロードします（既読、フラグ付け、移動、編集されたメッセージは変更扱い）。変更のないデータは前回のバックアップから引き継がれます。Microsoft はアプリの読み取り速度を制限しています。BackupZit は Microsoft の要求に応じて待機してから続行するため、大きなメールボックスの初回バックアップには数時間かかることがあります。</p>
+<p>テナントのバックアップは、ストレージ先の専用リポジトリ（フォルダー <code>m365-&lt;tenant ID&gt;</code>）に保存されるため、ダウンロードするエージェントを交換しても最初からやり直す必要はありません。</p>
+
+<h2 id="restore">復元</h2>
+<ul>
+  <li>バックアップの実行で <b>ファイルを参照</b>: アカウントのメール フォルダー、OneDrive、予定表、連絡先、または SharePoint サイトを開き、メッセージ、予定、ファイル、フォルダーにチェックを付けて <b>ダウンロード</b> します（1 つのファイルはそのまま、複数は ZIP）。.eml ファイルは Outlook で開くか、メールボックスにドラッグします。</li>
+  <li>任意のエージェントで <b>フォルダーに復元</b>: メッセージは .eml ファイル、予定は .ics、連絡先は .vcf、OneDrive と SharePoint のファイルは元のまま、<code>&lt;folder&gt;/&lt;account&gt;/…</code> と <code>&lt;folder&gt;/SharePoint/…</code> の下に書き込まれます。</li>
+</ul>
+<p>メールボックスや OneDrive への直接の復元は予定されています。新しいフォルダーにのみ書き込み、上書きや削除は一切行いません。</p>
+
+<h2 id="troubleshooting">トラブルシューティング</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b>: シークレットの <i>Value</i> ではなく ID をコピーしたか、期限切れです — 新しいシークレットを作成してジョブに入力してください。</li>
+  <li><b>missing the application permissions</b> または <b>Authorization_RequestDenied</b>: 権限を <i>アプリケーション</i> の許可として追加し、<i>Grant admin consent</i> をクリックしてください。</li>
+  <li><b>the account has no Exchange Online mailbox</b>: アカウントに Exchange のライセンスがない（または連絡先である）ため、ジョブから削除してください。</li>
+  <li>警告のある実行には、読み取れなかったメッセージやファイル（例: OneNote ノートブック）が表示されます。バックアップのそれ以外の部分は完全です。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

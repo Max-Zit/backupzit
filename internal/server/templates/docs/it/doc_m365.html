@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365: Exchange Online, OneDrive e SharePoint</h1>
+<p class="lead">BackupZit esegue il backup di caselle di posta (Exchange Online), calendari, contatti, OneDrive e siti SharePoint di un tenant Microsoft 365 tramite Microsoft Graph. Legge soltanto: nel tenant nulla viene modificato o eliminato. Qualsiasi agente con accesso a Internet scarica i dati — ad esempio l'agente sulla macchina della console — e li archivia come ogni backup: deduplicati, cifrati, con conservazione, job di copia e test di ripristino.</p>
+
+<h2 id="app">1. Registrare un'app in Microsoft Entra ID</h2>
+<p>Una volta per tenant, come Amministratore globale, nell'<a href="https://entra.microsoft.com" rel="noopener">interfaccia di amministrazione di Microsoft Entra</a>:</p>
+<ol>
+  <li><b>App registrations → New registration</b>: nome ad es. <i>BackupZit</i>, <i>Accounts in this organizational directory only</i>, nessun URI di reindirizzamento. Annota l'<b>Application (client) ID</b> e il <b>Directory (tenant) ID</b> dalla panoramica.</li>
+  <li><b>Certificates &amp; secrets → New client secret</b>: scegli una durata (ad es. 24 mesi) e copia subito il <b>Value</b> del segreto — viene mostrato una sola volta. Il <i>Secret ID</i> non è il segreto.</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (non <i>delegated</i>): <code>User.Read.All</code>, <code>Mail.Read</code> e <code>Files.Read.All</code>; per calendari e contatti anche <code>Calendars.Read</code> e <code>Contacts.Read</code>, per SharePoint <code>Sites.Read.All</code>.</li>
+  <li>Fai clic su <b>Grant admin consent for …</b>. Fino ad allora lo stato mostra <i>Not granted</i> e i backup vengono rifiutati.</li>
+</ol>
+<p>Sono solo autorizzazioni di lettura. Un futuro ripristino nelle caselle di posta richiede autorizzazioni di scrittura, che BackupZit non chiede.</p>
+<p class="muted">Per limitare l'app ad alcune caselle di posta, un amministratore Exchange può aggiungere una <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">application access policy</a> o un ambito RBAC for Applications; gli account esterni vengono allora segnalati come non leggibili.</p>
+
+<h2 id="job">2. Creare il job</h2>
+<p>In <a href="/jobs">Job di backup</a> crea un job di tipo <b>Microsoft 365</b>:</p>
+<ul>
+  <li><b>Agente</b>: l'agente che scarica (Windows o Linux, versione 0.34.0 o successiva; 0.35.0 per calendari, contatti e SharePoint). Gli serve l'accesso HTTPS a <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> e, per i file di OneDrive e SharePoint, <code>*.sharepoint.com</code>.</li>
+  <li><b>ID directory (tenant)</b>, <b>ID applicazione (client)</b> e <b>Segreto client</b> del passaggio 1. Il segreto è memorizzato cifrato.</li>
+  <li>Cosa salvare: <b>Posta</b>, <b>OneDrive</b>, <b>Calendari e contatti</b>, <b>Siti SharePoint</b> — in qualsiasi combinazione.</li>
+  <li><b>Account</b>: un indirizzo per riga, o vuoto per ogni account del tenant che abbia una casella di posta o OneDrive — gli account aggiunti in seguito sono inclusi automaticamente; gli account senza licenza vengono saltati.</li>
+  <li><b>Siti SharePoint</b>: un indirizzo di sito per riga (ad es. <code>https://contoso.sharepoint.com/sites/sales</code>), o vuoto per ogni sito del tenant — i siti aggiunti in seguito sono inclusi automaticamente. I siti personali (OneDrive) vengono esclusi; sono salvati con gli account. Un job solo SharePoint non richiede account.</li>
+</ul>
+<p>Invece di digitare gli indirizzi, fai clic su <b>Scegli dall'elenco</b>: la console, con l'app inserita sopra, legge gli account (segnando quelli senza licenza, che non hanno casella né OneDrive) e i siti SharePoint del tenant e li elenca da selezionare; quelli selezionati compilano i campi. Quando modifichi un job viene usato il segreto memorizzato.</p>
+<p>Al salvataggio del job, la console accede come l'app e verifica autorizzazioni, account e siti, così un segreto errato o un consenso amministratore mancante si vede subito. Una console senza accesso a Internet salta la verifica; il primo backup mostra allora se funziona.</p>
+
+<h2 id="what">Cosa viene salvato</h2>
+<ul>
+  <li><b>Posta</b>: tutte le cartelle di posta con le sottocartelle (Posta in arrivo, Posta inviata, Posta eliminata, Archivio, le tue cartelle…). Ogni messaggio viene salvato completo di allegati in formato MIME come file <code>.eml</code>, con il nome basato su ora di arrivo e oggetto, ad es. <code>2026-10-07 0621 Offerta per ottobre [3fa2c1d9e0].eml</code>. Outlook, Thunderbird e la maggior parte dei programmi di posta aprono i file .eml.</li>
+  <li><b>OneDrive</b>: tutti i file e le cartelle del OneDrive dell'account, con la data di modifica.</li>
+  <li><b>Calendari</b>: ogni calendario dell'account; ogni evento come file iCalendar (<code>.ics</code>) con ora, luogo, descrizione, organizzatore, partecipanti, promemoria e — per una serie — la sua ricorrenza, con il nome basato su inizio e oggetto, ad es. <code>2026-10-08 1000 Riunione del consiglio [8c1e…].ics</code>. Outlook, Google Calendar e Thunderbird importano i file .ics. Gli orari sono memorizzati in UTC.</li>
+  <li><b>Contatti</b>: i contatti e le cartelle dei contatti dell'account, ciascuno come vCard (<code>.vcf</code>) con nomi, indirizzi e-mail, numeri di telefono, indirizzi, azienda e note.</li>
+  <li><b>SharePoint</b>: ogni raccolta documenti di ogni sito (Documenti, Risorse del sito e raccolte che hai creato), con tutte le cartelle e i file.</li>
+</ul>
+<p>Non inclusi: allegati degli eventi del calendario, foto dei contatti, singole occorrenze modificate di una serie, elenchi e pagine SharePoint (solo raccolte documenti), chat di Teams e messaggi dei canali (i file di Teams sono in SharePoint e vengono salvati con esso) e cassette postali condivise senza account utente.</p>
+<p>Un backup contiene una cartella per account — <code>ana@contoso.com/Mail/Inbox/…</code>, <code>…/OneDrive/…</code>, <code>…/Calendar/Calendar/…</code>, <code>…/Contacts/…</code> — e <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code>. Il primo backup scarica tutto; ogni backup successivo rielenca le cartelle ma scarica solo i messaggi e i file nuovi o modificati dal backup precedente (i messaggi letti, contrassegnati, spostati o modificati contano come modificati) — i dati invariati vengono presi dal backup precedente. Microsoft limita la velocità con cui un'app può leggere; BackupZit attende quando Microsoft lo richiede e prosegue, quindi un primo backup di caselle grandi può richiedere ore.</p>
+<p>I backup di un tenant sono archiviati in un proprio repository sulla destinazione di archiviazione (cartella <code>m365-&lt;tenant ID&gt;</code>), così l'agente che scarica può essere sostituito senza ricominciare da capo.</p>
+
+<h2 id="restore">Ripristino</h2>
+<ul>
+  <li><b>Sfoglia file</b> su un'esecuzione di backup: apri le cartelle di posta, il OneDrive, i calendari o i contatti di un account, oppure un sito SharePoint, seleziona messaggi, eventi, file o cartelle e <b>scaricali</b> (un file così com'è, più file come ZIP) — apri i file .eml in Outlook o trascinali in una casella di posta.</li>
+  <li><b>Ripristina in una cartella</b> su qualsiasi agente: i messaggi vengono scritti come file .eml, gli eventi come .ics, i contatti come .vcf e i file di OneDrive e SharePoint così com'erano, sotto <code>&lt;folder&gt;/&lt;account&gt;/…</code> e <code>&lt;folder&gt;/SharePoint/…</code>.</li>
+</ul>
+<p>Il ripristino diretto in una casella di posta o in OneDrive è previsto; scriverà solo in una nuova cartella e non sovrascriverà né eliminerà mai nulla.</p>
+
+<h2 id="troubleshooting">Risoluzione dei problemi</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b>: non è stato copiato il <i>Value</i> del segreto (ma il suo ID), oppure è scaduto — creane uno nuovo e inseriscilo nel job.</li>
+  <li><b>missing the application permissions</b> o <b>Authorization_RequestDenied</b>: aggiungi le autorizzazioni come autorizzazioni di <i>applicazione</i> e fai clic su <i>Grant admin consent</i>.</li>
+  <li><b>the account has no Exchange Online mailbox</b>: l'account non ha una licenza Exchange (o è un contatto); rimuovilo dal job.</li>
+  <li>Un'esecuzione con avvisi elenca i messaggi o i file che non è stato possibile leggere (ad es. un blocco appunti OneNote); il resto del backup è completo.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

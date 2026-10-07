@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365 : Exchange Online, OneDrive et SharePoint</h1>
+<p class="lead">BackupZit sauvegarde les boîtes aux lettres (Exchange Online), calendriers, contacts, OneDrive et sites SharePoint d'un locataire Microsoft 365 via Microsoft Graph. Il ne fait que lire : rien n'est modifié ni supprimé dans le locataire. N'importe quel agent ayant accès à Internet télécharge les données — par exemple l'agent de la machine de la console — et les stocke comme toute sauvegarde : dédupliquées, chiffrées, avec rétention, tâches de copie et tests de restauration.</p>
+
+<h2 id="app">1. Enregistrer une application dans Microsoft Entra ID</h2>
+<p>Une fois par locataire, en tant qu'administrateur général, dans le <a href="https://entra.microsoft.com" rel="noopener">centre d'administration Microsoft Entra</a> :</p>
+<ol>
+  <li><b>App registrations → New registration</b> : nom par ex. <i>BackupZit</i>, <i>Accounts in this organizational directory only</i>, sans URI de redirection. Notez l'<b>Application (client) ID</b> et le <b>Directory (tenant) ID</b> dans sa vue d'ensemble.</li>
+  <li><b>Certificates &amp; secrets → New client secret</b> : choisissez une durée de validité (par ex. 24 mois) et copiez immédiatement la <b>Value</b> du secret — elle n'est affichée qu'une fois. Le <i>Secret ID</i> n'est pas le secret.</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (pas <i>delegated</i>) : <code>User.Read.All</code>, <code>Mail.Read</code> et <code>Files.Read.All</code> ; pour les calendriers et contacts aussi <code>Calendars.Read</code> et <code>Contacts.Read</code>, pour SharePoint <code>Sites.Read.All</code>.</li>
+  <li>Cliquez sur <b>Grant admin consent for …</b>. D'ici là, l'état indique <i>Not granted</i> et les sauvegardes sont refusées.</li>
+</ol>
+<p>Ce sont uniquement des autorisations de lecture. Restaurer plus tard dans les boîtes aux lettres nécessitera des autorisations d'écriture, que BackupZit ne demande pas.</p>
+<p class="muted">Pour limiter l'application à certaines boîtes aux lettres, un administrateur Exchange peut ajouter une <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">application access policy</a> ou une étendue RBAC for Applications ; les comptes hors de cette étendue sont alors signalés comme illisibles.</p>
+
+<h2 id="job">2. Créer la tâche</h2>
+<p>Dans <a href="/jobs">Tâches de sauvegarde</a>, créez une tâche du type <b>Microsoft 365</b> :</p>
+<ul>
+  <li><b>Agent</b> : l'agent qui télécharge (Windows ou Linux, version 0.34.0 ou plus récente ; 0.35.0 pour les calendriers, contacts et SharePoint). Il a besoin d'un accès HTTPS à <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> et, pour les fichiers OneDrive et SharePoint, <code>*.sharepoint.com</code>.</li>
+  <li><b>ID de l'annuaire (locataire)</b>, <b>ID d'application (client)</b> et <b>Secret client</b> de l'étape 1. Le secret est stocké chiffré.</li>
+  <li>Ce qu'il faut sauvegarder : <b>Messagerie</b>, <b>OneDrive</b>, <b>Calendriers et contacts</b>, <b>Sites SharePoint</b> — dans n'importe quelle combinaison.</li>
+  <li><b>Comptes</b> : une adresse par ligne, ou vide pour chaque compte du locataire qui a une boîte aux lettres ou un OneDrive — les comptes ajoutés plus tard sont inclus automatiquement ; les comptes sans licence sont ignorés.</li>
+  <li><b>Sites SharePoint</b> : une adresse de site par ligne (par ex. <code>https://contoso.sharepoint.com/sites/sales</code>), ou vide pour chaque site du locataire — les sites ajoutés plus tard sont inclus automatiquement. Les sites personnels (OneDrive) sont exclus ; ils sont sauvegardés avec les comptes. Une tâche uniquement SharePoint n'a pas besoin de comptes.</li>
+</ul>
+<p>Au lieu de saisir les adresses, cliquez sur <b>Choisir dans la liste</b> : avec l'application saisie ci-dessus, la console lit les comptes (en marquant ceux sans licence, qui n'ont ni boîte aux lettres ni OneDrive) et les sites SharePoint du locataire et les liste pour que vous les cochiez ; ceux cochés remplissent les champs. Lors de la modification d'une tâche, le secret enregistré est utilisé.</p>
+<p>À l'enregistrement de la tâche, la console se connecte en tant qu'application et vérifie les autorisations, les comptes et les sites, de sorte qu'un mauvais secret ou un consentement administrateur manquant apparaît aussitôt. Une console sans accès à Internet saute la vérification ; la première sauvegarde montre alors si cela fonctionne.</p>
+
+<h2 id="what">Ce qui est sauvegardé</h2>
+<ul>
+  <li><b>Messagerie</b> : tous les dossiers de courrier avec leurs sous-dossiers (Boîte de réception, Éléments envoyés, Éléments supprimés, Archive, vos propres dossiers…). Chaque message est stocké complet avec ses pièces jointes au format MIME sous forme de fichier <code>.eml</code>, nommé d'après sa date d'arrivée et son objet, par ex. <code>2026-10-07 0621 Offre pour octobre [3fa2c1d9e0].eml</code>. Outlook, Thunderbird et la plupart des logiciels de messagerie ouvrent les fichiers .eml.</li>
+  <li><b>OneDrive</b> : tous les fichiers et dossiers du OneDrive du compte, avec leur date de modification.</li>
+  <li><b>Calendriers</b> : chaque calendrier du compte ; chaque événement sous forme de fichier iCalendar (<code>.ics</code>) avec heure, lieu, description, organisateur, participants, rappel et — pour une série — sa périodicité, nommé d'après son début et son objet, par ex. <code>2026-10-08 1000 Conseil d'administration [8c1e…].ics</code>. Outlook, Google Agenda et Thunderbird importent les fichiers .ics. Les heures sont stockées en UTC.</li>
+  <li><b>Contacts</b> : les contacts et dossiers de contacts du compte, chacun sous forme de vCard (<code>.vcf</code>) avec noms, adresses e-mail, numéros de téléphone, adresses, société et notes.</li>
+  <li><b>SharePoint</b> : chaque bibliothèque de documents de chaque site (Documents, Ressources du site et bibliothèques que vous avez créées), avec tous les dossiers et fichiers.</li>
+</ul>
+<p>Non inclus : les pièces jointes des événements du calendrier, les photos des contacts, les occurrences modifiées individuellement d'une série, les listes et pages SharePoint (uniquement les bibliothèques de documents), les conversations Teams et messages de canal (les fichiers Teams sont dans SharePoint et sont sauvegardés avec lui), et les boîtes aux lettres partagées sans compte utilisateur.</p>
+<p>Une sauvegarde contient un dossier par compte — <code>ana@contoso.com/Mail/Inbox/…</code>, <code>…/OneDrive/…</code>, <code>…/Calendar/Calendar/…</code>, <code>…/Contacts/…</code> — et <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code>. La première sauvegarde télécharge tout ; chaque sauvegarde suivante liste à nouveau les dossiers mais ne télécharge que les messages et fichiers nouveaux ou modifiés depuis la sauvegarde précédente (les messages lus, marqués, déplacés ou modifiés comptent comme modifiés) — les données inchangées sont reprises de la sauvegarde précédente. Microsoft limite la vitesse de lecture d'une application ; BackupZit attend lorsque Microsoft le demande, puis continue, de sorte qu'une première sauvegarde de grandes boîtes aux lettres peut prendre des heures.</p>
+<p>Les sauvegardes d'un locataire sont stockées dans leur propre dépôt sur la cible de stockage (dossier <code>m365-&lt;tenant ID&gt;</code>), afin que l'agent de téléchargement puisse être remplacé sans tout recommencer.</p>
+
+<h2 id="restore">Restauration</h2>
+<ul>
+  <li><b>Parcourir les fichiers</b> sur une exécution de sauvegarde : ouvrez les dossiers de courrier, le OneDrive, les calendriers ou les contacts d'un compte, ou un site SharePoint, cochez des messages, événements, fichiers ou dossiers et <b>téléchargez</b>-les (un fichier tel quel, plusieurs en ZIP) — ouvrez les fichiers .eml dans Outlook ou glissez-les dans une boîte aux lettres.</li>
+  <li><b>Restaurer dans un dossier</b> sur n'importe quel agent : les messages sont écrits en fichiers .eml, les événements en .ics, les contacts en .vcf et les fichiers OneDrive et SharePoint tels qu'ils étaient, sous <code>&lt;folder&gt;/&lt;account&gt;/…</code> et <code>&lt;folder&gt;/SharePoint/…</code>.</li>
+</ul>
+<p>La restauration directe dans une boîte aux lettres ou un OneDrive est prévue ; elle n'écrira que dans un nouveau dossier et n'écrasera ni ne supprimera jamais rien.</p>
+
+<h2 id="troubleshooting">Dépannage</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b> : ce n'est pas la <i>Value</i> du secret qui a été copiée (mais son ID), ou il a expiré — créez-en un nouveau et saisissez-le dans la tâche.</li>
+  <li><b>missing the application permissions</b> ou <b>Authorization_RequestDenied</b> : ajoutez les autorisations en tant qu'autorisations d'<i>application</i> et cliquez sur <i>Grant admin consent</i>.</li>
+  <li><b>the account has no Exchange Online mailbox</b> : le compte n'a pas de licence Exchange (ou est un contact) ; retirez-le de la tâche.</li>
+  <li>Une exécution avec avertissements liste les messages ou fichiers qui n'ont pas pu être lus (par ex. un bloc-notes OneNote) ; le reste de la sauvegarde est complet.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

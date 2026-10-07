@@ -1,0 +1,55 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Microsoft 365: Exchange Online, OneDrive und SharePoint</h1>
+<p class="lead">BackupZit sichert die Postfächer (Exchange Online), Kalender, Kontakte, OneDrive und SharePoint-Websites eines Microsoft-365-Mandanten über Microsoft Graph. Es liest nur: Im Mandanten wird nichts geändert oder gelöscht. Ein beliebiger Agent mit Internetzugang lädt die Daten herunter — zum Beispiel der Agent auf der Konsolenmaschine — und speichert sie wie jede Sicherung: dedupliziert, verschlüsselt, mit Aufbewahrung, Kopieraufträgen und Wiederherstellungstests.</p>
+
+<h2 id="app">1. Eine App in Microsoft Entra ID registrieren</h2>
+<p>Einmal pro Mandant, als Globaler Administrator, im <a href="https://entra.microsoft.com" rel="noopener">Microsoft Entra Admin Center</a>:</p>
+<ol>
+  <li><b>App registrations → New registration</b>: Name z. B. <i>BackupZit</i>, <i>Accounts in this organizational directory only</i>, keine Umleitungs-URI. Notieren Sie die <b>Application (client) ID</b> und die <b>Directory (tenant) ID</b> aus der Übersicht.</li>
+  <li><b>Certificates &amp; secrets → New client secret</b>: Wählen Sie eine Laufzeit (z. B. 24 Monate) und kopieren Sie sofort den <b>Value</b> des Geheimnisses — er wird nur einmal angezeigt. Die <i>Secret ID</i> ist nicht das Geheimnis.</li>
+  <li><b>API permissions → Add a permission → Microsoft Graph → Application permissions</b> (nicht <i>delegated</i>): <code>User.Read.All</code>, <code>Mail.Read</code> und <code>Files.Read.All</code>; für Kalender und Kontakte zusätzlich <code>Calendars.Read</code> und <code>Contacts.Read</code>, für SharePoint <code>Sites.Read.All</code>.</li>
+  <li>Klicken Sie auf <b>Grant admin consent for …</b>. Bis dahin zeigt der Status <i>Not granted</i>, und Sicherungen werden abgelehnt.</li>
+</ol>
+<p>Das sind nur Leseberechtigungen. Eine spätere Wiederherstellung in Postfächer braucht Schreibberechtigungen, die BackupZit nicht anfordert.</p>
+<p class="muted">Um die App auf einige Postfächer zu beschränken, kann ein Exchange-Administrator eine <a href="https://learn.microsoft.com/graph/auth-limit-mailbox-access" rel="noopener">Application Access Policy</a> oder einen RBAC-for-Applications-Bereich hinzufügen; Konten außerhalb davon werden dann als nicht lesbar gemeldet.</p>
+
+<h2 id="job">2. Den Auftrag erstellen</h2>
+<p>Erstellen Sie unter <a href="/jobs">Sicherungsaufträge</a> einen Auftrag der Art <b>Microsoft 365</b>:</p>
+<ul>
+  <li><b>Agent</b>: der Agent, der herunterlädt (Windows oder Linux, Version 0.34.0 oder neuer; 0.35.0 für Kalender, Kontakte und SharePoint). Er braucht HTTPS-Zugriff auf <code>login.microsoftonline.com</code>, <code>graph.microsoft.com</code> und, für OneDrive- und SharePoint-Dateien, <code>*.sharepoint.com</code>.</li>
+  <li><b>Verzeichnis-ID (Mandant)</b>, <b>Anwendungs-ID (Client)</b> und <b>Clientgeheimnis</b> aus Schritt 1. Das Geheimnis wird verschlüsselt gespeichert.</li>
+  <li>Was gesichert wird: <b>E-Mail</b>, <b>OneDrive</b>, <b>Kalender und Kontakte</b>, <b>SharePoint-Websites</b> — in beliebiger Kombination.</li>
+  <li><b>Konten</b>: eine Adresse pro Zeile, oder leer für jedes Konto des Mandanten, das ein Postfach oder OneDrive hat — später hinzugefügte Konten werden automatisch einbezogen; Konten ohne Lizenz werden übersprungen.</li>
+  <li><b>SharePoint-Websites</b>: eine Website-Adresse pro Zeile (z. B. <code>https://contoso.sharepoint.com/sites/sales</code>), oder leer für jede Website des Mandanten — später hinzugefügte Websites werden automatisch einbezogen. Persönliche Websites (OneDrive) werden ausgelassen; sie werden mit den Konten gesichert. Ein Auftrag nur für SharePoint braucht keine Konten.</li>
+</ul>
+<p>Statt Adressen einzutippen, klicken Sie auf <b>Aus der Liste wählen</b>: Die Konsole liest mit der oben eingegebenen App die Konten (und markiert die ohne Lizenz, die kein Postfach und kein OneDrive haben) und die SharePoint-Websites des Mandanten und listet sie zum Ankreuzen auf; die angekreuzten füllen die Felder. Beim Bearbeiten eines Auftrags wird das gespeicherte Geheimnis verwendet.</p>
+<p>Beim Speichern des Auftrags meldet sich die Konsole als die App an und prüft die Berechtigungen, die Konten und die Websites, sodass ein falsches Geheimnis oder eine fehlende Administratorzustimmung sofort auffällt. Eine Konsole ohne Internetzugang überspringt die Prüfung; die erste Sicherung zeigt dann, ob es funktioniert.</p>
+
+<h2 id="what">Was gesichert wird</h2>
+<ul>
+  <li><b>E-Mail</b>: alle E-Mail-Ordner mit ihren Unterordnern (Posteingang, Gesendete Elemente, Gelöschte Elemente, Archiv, eigene Ordner…). Jede Nachricht wird vollständig mit Anhängen im MIME-Format als <code>.eml</code>-Datei gespeichert, benannt nach Eingangszeit und Betreff, z. B. <code>2026-10-07 0621 Angebot für Oktober [3fa2c1d9e0].eml</code>. Outlook, Thunderbird und die meisten Mailprogramme öffnen .eml-Dateien.</li>
+  <li><b>OneDrive</b>: alle Dateien und Ordner des OneDrive des Kontos, mit ihrer Änderungszeit.</li>
+  <li><b>Kalender</b>: jeder Kalender des Kontos; jeder Termin als iCalendar-Datei (<code>.ics</code>) mit Zeit, Ort, Beschreibung, Organisator, Teilnehmern, Erinnerung und — bei einer Serie — ihrer Wiederholung, benannt nach Beginn und Betreff, z. B. <code>2026-10-08 1000 Vorstandssitzung [8c1e…].ics</code>. Outlook, Google Kalender und Thunderbird importieren .ics-Dateien. Zeiten werden in UTC gespeichert.</li>
+  <li><b>Kontakte</b>: die Kontakte und Kontaktordner des Kontos, jeweils als vCard (<code>.vcf</code>) mit Namen, E-Mail-Adressen, Telefonnummern, Adressen, Firma und Notizen.</li>
+  <li><b>SharePoint</b>: jede Dokumentbibliothek jeder Website (Dokumente, Websiteobjekte und selbst erstellte Bibliotheken), mit allen Ordnern und Dateien.</li>
+</ul>
+<p>Nicht enthalten: Anhänge von Kalenderterminen, Kontaktfotos, einzeln geänderte Vorkommen einer Serie, SharePoint-Listen und -Seiten (nur Dokumentbibliotheken), Teams-Chats und Kanalnachrichten (Teams-Dateien liegen in SharePoint und werden mit gesichert) sowie freigegebene Postfächer ohne Benutzerkonto.</p>
+<p>Eine Sicherung enthält einen Ordner pro Konto — <code>ana@contoso.com/Mail/Inbox/…</code>, <code>…/OneDrive/…</code>, <code>…/Calendar/Calendar/…</code>, <code>…/Contacts/…</code> — und <code>SharePoint/&lt;site&gt;/&lt;library&gt;/…</code>. Die erste Sicherung lädt alles herunter; jede spätere Sicherung listet die Ordner erneut auf, lädt aber nur Nachrichten und Dateien herunter, die seit der vorigen Sicherung neu oder geändert sind (gelesene, markierte, verschobene oder bearbeitete Nachrichten gelten als geändert) — unveränderte Daten werden aus der vorigen Sicherung übernommen. Microsoft begrenzt, wie schnell eine App lesen darf; BackupZit wartet, wenn Microsoft darum bittet, und macht weiter, daher kann eine erste Sicherung großer Postfächer Stunden dauern.</p>
+<p>Die Sicherungen eines Mandanten werden in einem eigenen Repository auf dem Speicherziel abgelegt (Ordner <code>m365-&lt;tenant ID&gt;</code>), sodass der herunterladende Agent ersetzt werden kann, ohne neu zu beginnen.</p>
+
+<h2 id="restore">Wiederherstellen</h2>
+<ul>
+  <li><b>Dateien durchsuchen</b> in einem Sicherungslauf: Öffnen Sie die E-Mail-Ordner, OneDrive, Kalender oder Kontakte eines Kontos oder eine SharePoint-Website, markieren Sie Nachrichten, Termine, Dateien oder Ordner und <b>laden</b> Sie sie <b>herunter</b> (eine Datei unverändert, mehrere als ZIP) — öffnen Sie die .eml-Dateien in Outlook oder ziehen Sie sie in ein Postfach.</li>
+  <li><b>In einen Ordner wiederherstellen</b> auf einem beliebigen Agenten: Nachrichten werden als .eml-Dateien geschrieben, Termine als .ics, Kontakte als .vcf und OneDrive- und SharePoint-Dateien so, wie sie waren, unter <code>&lt;folder&gt;/&lt;account&gt;/…</code> und <code>&lt;folder&gt;/SharePoint/…</code>.</li>
+</ul>
+<p>Die direkte Wiederherstellung in ein Postfach oder OneDrive ist geplant; sie wird nur in einen neuen Ordner schreiben und nie überschreiben oder löschen.</p>
+
+<h2 id="troubleshooting">Fehlerbehebung</h2>
+<ul>
+  <li><b>AADSTS7000215 / invalid client secret</b>: Es wurde nicht der <i>Value</i> des Geheimnisses kopiert (sondern seine ID), oder es ist abgelaufen — erstellen Sie ein neues und tragen Sie es im Auftrag ein.</li>
+  <li><b>missing the application permissions</b> oder <b>Authorization_RequestDenied</b>: Fügen Sie die Berechtigungen als <i>Application</i>-Berechtigungen hinzu und klicken Sie auf <i>Grant admin consent</i>.</li>
+  <li><b>the account has no Exchange Online mailbox</b>: Das Konto hat keine Exchange-Lizenz (oder ist ein Kontakt); entfernen Sie es aus dem Auftrag.</li>
+  <li>Ein Lauf mit Warnungen listet Nachrichten oder Dateien auf, die nicht gelesen werden konnten (z. B. ein OneNote-Notizbuch); der Rest der Sicherung ist vollständig.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}
