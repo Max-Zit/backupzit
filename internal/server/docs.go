@@ -49,6 +49,6 @@ func (s *Server) handleDocs(w http.ResponseWriter, r *http.Request, user string)
 		http.NotFound(w, r)
 		return
 	}
-	s.render(w, r, "doc_"+page, pageData{Title: "Docs · " + title, Nav: "docs", User: user,
+	s.render(w, r, "doc_"+page, pageData{Title: requestLanguage(r).T("User guide") + " · " + requestLanguage(r).T(title), Nav: "docs", User: user,
 		Data: map[string]any{"Page": page, "Pages": docPages, "Title": title, "Prev": prev, "Next": next}})
 }

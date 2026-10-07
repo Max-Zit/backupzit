@@ -27,8 +27,8 @@ type docHit struct {
 }
 
 var (
-	docIndexOnce sync.Once
-	docIndex     []docSection
+	docIndexMu sync.Mutex
+	docIndex   = map[string][]docSection{} // by language
 
 	reNav     = regexp.MustCompile(`(?s)<nav class="docnav".*?</nav>`)
 	reHeading = regexp.MustCompile(`(?s)<h([23])([^>]*)>(.*?)</h[23]>`)
@@ -41,12 +41,22 @@ func plainText(s string) string {
 	return strings.TrimSpace(reSpace.ReplaceAllString(html.UnescapeString(reTag.ReplaceAllString(s, " ")), " "))
 }
 
-// docSections renders the English guide (the guide is English in every
-// console language) and splits it at h2/h3 headings.
-func (s *Server) docSections() []docSection {
-	docIndexOnce.Do(func() {
+// docSections renders the guide in a language (pages without a
+// translation are English) and splits it at h2/h3 headings.
+func (s *Server) docSections(lang string) []docSection {
+	docIndexMu.Lock()
+	defer docIndexMu.Unlock()
+	if idx, ok := docIndex[lang]; ok {
+		return idx
+	}
+	var idx []docSection
+	pages := s.pages[lang]
+	if pages == nil {
+		pages = s.pages["en"]
+	}
+	{
 		for _, p := range docPages {
-			t := s.pages["en"]["doc_"+p.Slug]
+			t := pages["doc_"+p.Slug]
 			if t == nil {
 				continue
 			}
@@ -61,7 +71,7 @@ func (s *Server) docSections() []docSection {
 				if text == "" && heading == "" {
 					return
 				}
-				docIndex = append(docIndex, docSection{Slug: p.Slug, Page: p.Title, Heading: heading, Anchor: anchor,
+				idx = append(idx, docSection{Slug: p.Slug, Page: p.Title, Heading: heading, Anchor: anchor,
 					text: text, lower: strings.ToLower(text), lowerHead: strings.ToLower(heading + " " + p.Title)})
 			}
 			start, heading, anchor := 0, "", ""
@@ -76,12 +86,13 @@ func (s *Server) docSections() []docSection {
 			}
 			add(heading, anchor, body[start:])
 		}
-	})
-	return docIndex
+	}
+	docIndex[lang] = idx
+	return idx
 }
 
 // searchDocs finds the sections containing all words of q.
-func (s *Server) searchDocs(q string) []docHit {
+func (s *Server) searchDocs(lang, q string) []docHit {
 	var terms []string
 	for _, w := range strings.Fields(strings.ToLower(q)) {
 		if utf8.RuneCountInString(w) >= 2 && len(terms) < 8 {
@@ -92,7 +103,7 @@ func (s *Server) searchDocs(q string) []docHit {
 		return nil
 	}
 	var hits []docHit
-	for _, sec := range s.docSections() {
+	for _, sec := range s.docSections(lang) {
 		score := 0
 		for _, t := range terms {
 			n := strings.Count(sec.lower, t) + 5*strings.Count(sec.lowerHead, t)
@@ -171,5 +182,5 @@ func (s *Server) handleDocsSearch(w http.ResponseWriter, r *http.Request, user s
 		q = q[:200]
 	}
 	s.render(w, r, "docsearch", pageData{Title: "Docs · Search", Nav: "docs", User: user,
-		Data: map[string]any{"Page": "", "Pages": docPages, "Q": q, "Hits": s.searchDocs(q)}})
+		Data: map[string]any{"Page": "", "Pages": docPages, "Q": q, "Hits": s.searchDocs(requestLanguage(r).Code, q)}})
 }

@@ -32,7 +32,7 @@ import (
 	"github.com/max-zit/backupzit/internal/restorer"
 )
 
-//go:embed templates/*.html
+//go:embed templates/*.html templates/docs
 var templateFS embed.FS
 
 //go:embed static
@@ -270,6 +270,12 @@ func scheduleFromForm(r *http.Request) (string, error) {
 	return sc.Encode(), nil
 }
 
+// fileExists reports whether the embedded templates hold a file.
+func fileExists(name string) bool {
+	_, err := fs.Stat(templateFS, name)
+	return err == nil
+}
+
 func (s *Server) loadTemplates() error {
 	s.pages = map[string]map[string]*template.Template{}
 	entries, err := fs.ReadDir(templateFS, "templates")
@@ -281,13 +287,24 @@ func (s *Server) loadTemplates() error {
 		s.pages[l.Code] = map[string]*template.Template{}
 		for _, e := range entries {
 			name := e.Name()
+			if e.IsDir() {
+				continue // docs/<language>: translated guide pages
+			}
 			// Files starting with "_" hold templates shared by several pages.
 			if name == "layout.html" || strings.HasPrefix(name, "_") {
 				continue
 			}
-			t, err := template.New("layout.html").Funcs(funcs).Funcs(langFuncs(l)).ParseFS(templateFS, "templates/layout.html", "templates/_*.html", "templates/"+name)
+			src := "templates/" + name
+			// The user guide is translated page by page; a page without a
+			// translation is shown in English.
+			if strings.HasPrefix(name, "doc_") && l.Code != "en" {
+				if tr := "templates/docs/" + l.Code + "/" + name; fileExists(tr) {
+					src = tr
+				}
+			}
+			t, err := template.New("layout.html").Funcs(funcs).Funcs(langFuncs(l)).ParseFS(templateFS, "templates/layout.html", "templates/_*.html", src)
 			if err != nil {
-				return fmt.Errorf("template %s: %w", name, err)
+				return fmt.Errorf("template %s: %w", src, err)
 			}
 			s.pages[l.Code][strings.TrimSuffix(name, ".html")] = t
 		}

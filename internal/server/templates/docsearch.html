@@ -5,7 +5,7 @@
 {{if .Data.Hits}}
 <p class="muted">{{len .Data.Hits}} {{N (len .Data.Hits) "result" "results"}}</p>
 <ol class="search-hits">
-{{range .Data.Hits}}<li><a href="/docs/{{.Slug}}{{if .Anchor}}#{{.Anchor}}{{end}}"><b>{{.Page}}</b>{{if .Heading}} › {{.Heading}}{{end}}</a><p class="small">{{.Snippet}}</p></li>
+{{range .Data.Hits}}<li><a href="/docs/{{.Slug}}{{if .Anchor}}#{{.Anchor}}{{end}}"><b>{{T .Page}}</b>{{if .Heading}} › {{.Heading}}{{end}}</a><p class="small">{{.Snippet}}</p></li>
 {{end}}</ol>
 {{else}}<p class="muted">{{T "Nothing in the guide contains all of these words. Try fewer or other words."}}</p>{{end}}
 {{end}}
