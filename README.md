@@ -327,7 +327,7 @@ rule that expires noncurrent versions (e.g. `mc ilm rule add --noncurrent-expire
 If backups were deleted or overwritten, read the repository as it was before: (also works for the hardened repository)
 
     backupzit-agent snapshots --repo s3://... --as-of 2026-10-01T14:30
-    backupzit-agent restore   --repo s3://... --as-of 2026-10-01T14:30 --target D:Restore latest
+    backupzit-agent restore   --repo s3://... --as-of 2026-10-01T14:30 --target D:\Restore latest
 
 The point-in-time view is read-only and uses object versions, so nothing on the
 storage changes.
