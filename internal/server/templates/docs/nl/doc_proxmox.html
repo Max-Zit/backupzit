@@ -1,0 +1,95 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Virtuele machines in Proxmox VE</h1>
+<p class="lead">BackupZit maakt back-ups van virtuele machines (QEMU) en containers (LXC) in Proxmox VE zonder iets in de gasten te installeren. De agent draait op de Proxmox-host, maakt een snapshot van elke gast, leest de schijven en slaat ze gededupliceerd op elk opslagdoel op.</p>
+
+<h2>Instellen</h2>
+<ol>
+  <li>Installeer het pakket <b>Linux-agent — Debian / Ubuntu</b> vanuit <a href="/agents">Agents</a> op elke Proxmox-node (Proxmox VE 7 en 8 zijn op Debian gebaseerd):
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>Binnen een minuut verschijnt de node op de pagina Agents met het label <b>Proxmox VE · N guests</b>.</li>
+  <li>Selecteer in <a href="/jobs">Back-uptaken</a> die agent en kies <b>Virtuele machines (Proxmox VE, Hyper-V, VMware)</b>. Maak een back-up van <b>alle gasten van de node</b> (later aangemaakte gasten worden automatisch opgenomen) of vink er enkele aan.</li>
+</ol>
+<p>De agent gebruikt de eigen tools van de node (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); er wordt geen API-token of wachtwoord in de console opgeslagen.</p>
+
+<h2>Hoe een gast wordt geback-upt</h2>
+<ol>
+  <li>Er wordt een tijdelijke Proxmox-snapshot gemaakt (<code>backupzit_…</code>, enkele seconden tot minuten zichtbaar onder <i>Snapshots</i>). De gast blijft draaien.</li>
+  <li>Als de <b>QEMU-gastagent</b> in de VM draait (en in de VM-opties is ingeschakeld), bevriest Proxmox de bestandssystemen voor de snapshot — de back-up is dan applicatieconsistent. Zonder agent is de back-up crash-consistent, zoals bij een stroomstoring. Installeer <code>qemu-guest-agent</code> in Linux-VM's en de VirtIO-gasttools in Windows-VM's.</li>
+  <li>Elke schijf wordt uit de snapshot gelezen in blokken van 1 MiB. Lege blokken worden niet opgeslagen en blokken die al in de repository staan niet opnieuw geüpload, dus na de eerste back-up worden alleen gewijzigde gegevens overgedragen.</li>
+  <li>De snapshot wordt verwijderd. De gastconfiguratie (CPU, geheugen, netwerk, schijven) wordt met de back-up opgeslagen.</li>
+</ol>
+<p>De runpagina toont elke gast, zijn schijven en hoe hij is vastgelegd. Hersteltests controleren willekeurige blokken van VM-back-ups zoals bij schijfimages en starten — met de <a href="/docs/restore">opstarttest</a> ingeschakeld — elke VM vanuit de back-up, geïsoleerd van het netwerk, om te bewijzen dat hij opstart.</p>
+
+<h3>Ondersteunde opslag</h3>
+<table>
+  <tr><th>Opslagtype</th><th>Draaiende gasten</th><th>Gestopte gasten</th></tr>
+  <tr><td>LVM-thin (standaard <code>local-lvm</code>)</td><td>ja, snapshot</td><td>ja</td></tr>
+  <tr><td>ZFS (VM-schijven / zvols)</td><td>ja, snapshot</td><td>ja</td></tr>
+  <tr><td>Ceph RBD</td><td>ja, snapshot</td><td>ja</td></tr>
+  <tr><td>Directory, NFS, CIFS met <b>qcow2</b>-schijven</td><td>ja, snapshot</td><td>ja</td></tr>
+  <tr><td>Directory, NFS, CIFS met raw-schijven, thick LVM</td><td>nee — stop de gast of verplaats de schijf</td><td>ja</td></tr>
+  <tr><td>ZFS-subvolumes van containers</td><td colspan="2">nog niet ondersteund</td></tr>
+</table>
+<p>Schijven die in Proxmox als <i>Backup: no</i> (<code>backup=0</code>) zijn gemarkeerd, doorgegeven fysieke schijven en bind mounts worden overgeslagen en als waarschuwingen vermeld. Cloud-init-stations worden niet opgeslagen; ze worden bij het herstel uit de configuratie opnieuw gemaakt.</p>
+
+<h2>Een VM of container herstellen</h2>
+<p>Open een run van een VM-back-up (vanaf de taakpagina of <a href="/runs">Activiteit</a>) en gebruik <b>Een VM of container herstellen</b>:</p>
+<ul>
+  <li><b>Gast</b> — een van de gasten in die back-up.</li>
+  <li><b>Herstellen op Proxmox-node</b> — elke node met de BackupZit-agent, ook een node van een ander cluster.</li>
+  <li><b>Als nieuwe gast met de volgende vrije ID</b> (standaard) of <b>met ID …</b> — het origineel blijft draaien. Omdat beide bestaan, krijgen de netwerkkaarten van de kopie nieuwe MAC-adressen.</li>
+  <li><b>Met het oorspronkelijke ID</b> — nadat de gast is verwijderd. Bestaat hij nog, vink dan <b>stoppen en verwijderen</b> aan om hem door de back-up te vervangen; de bestaande gast en zijn schijven worden eerst verwijderd.</li>
+  <li><b>Naam</b> en <b>Opslag voor de schijven</b> — bijv. herstellen naar een andere opslag dan het origineel.</li>
+  <li><b>De gast na het herstel starten</b>.</li>
+</ul>
+<p>Elk herstel geeft VM's een nieuwe generatie-ID (<code>vmgenid</code>), zodat Windows-domeincontrollers en andere software het terugzetten veilig detecteren. Schijven worden met <code>pvesm</code> op de gekozen opslag toegewezen; op directory-opslag worden ze als raw-bestanden hersteld.</p>
+
+<h2>Direct herstel</h2>
+<p>Het herstellen van een grote VM duurt even lang als het kopiëren van zijn schijven. Met <b>Direct, draaiend vanuit de back-up</b> in het herstelformulier draait de VM in plaats daarvan binnen enkele seconden, terwijl zijn schijven nog in de back-up staan:</p>
+<ol>
+  <li>De agent biedt de schijven van de VM alleen-lezen aan vanuit de back-up (een kleine NBD-server die draait als systemd-unit <code>backupzit-instant-&lt;ID&gt;</code>) en maakt een nieuwe VM met de volgende vrije ID, waarvan de schijven qcow2-overlays zijn op de directory-opslag <code>backupzit-instant</code> (<code>/var/lib/backupzit-instant</code>, automatisch toegevoegd). Gegevens worden op verzoek uit de back-up gelezen; alles wat de VM schrijft blijft in de overlays. Firmwarevariabelen (EFI-schijf) en TPM-status zijn klein en worden gekopieerd.</li>
+  <li>De VM start. Controleer hem — hij krijgt nieuwe MAC-adressen zoals elke kopie. Het dashboard toont elke VM die nog vanuit een back-up draait.</li>
+  <li>Kies op de runpagina <b>Voltooien</b>: de schijven worden naar de gekozen opslag verplaatst terwijl de VM blijft draaien (<code>qm disk move</code>), daarna wordt de back-up niet meer gebruikt. Of <b>Verwerpen</b>: de VM wordt gestopt en samen met zijn wijzigingen verwijderd.</li>
+</ol>
+<p>Zolang een VM vanuit een back-up draait, verwijdert het bewaarbeleid die back-up nooit. De VM is zo snel als de back-upopslag toelaat: een repository op een lokale schijf of een snelle netwerkshare werkt het best; lezen via SFTP of S3 van ver maakt hem traag tot hij is voltooid. Direct herstel is voor VM's (niet voor containers) en maakt een nieuwe VM — herstel ter plaatse doet u met een normaal herstel. De EFI-schijf kan niet worden verplaatst terwijl de VM draait; hij blijft dan op <code>backupzit-instant</code> (zie de runmelding) en kan na het afsluiten van de VM worden verplaatst: <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
+
+<h2>Replicatie</h2>
+<p>Voor gasten die binnen minuten terug moeten zijn, kan een VM-taak <b>replica's</b> bijhouden: vink onder <b>Geavanceerd</b> in het taakformulier <b>Replica's van de VM's bijhouden</b> aan en kies de node (elke node met de BackupZit-agent, ook in een ander cluster) en de opslag. Na elke back-up werkt de agent op die node een <b>gestopte kopie</b> van elke gast van de taak bij:</p>
+<ul>
+  <li>De eerste keer wordt de replica hersteld als een nieuwe gast (volgende vrije ID, naam <i>original-replica</i>, nieuwe MAC-adressen, start nooit mee met de node).</li>
+  <li>Daarna worden alleen de blokken geschreven die zijn gewijzigd sinds de back-up die de replica bevat — meestal een paar seconden per back-up.</li>
+  <li>De taakpagina toont de replica's, de back-up die elke replica bevat en hun status. Als een gast verloren gaat, klikt u op <b>Replica starten</b>: hij draait met de gegevens van de laatste back-up, zonder herstel. Start hem alleen als het origineel echt weg is — beide tegelijk op het netwerk kan conflicten geven.</li>
+  <li>Zolang een replica draait, wordt hij niet meer bijgewerkt (de run meldt dat). Om opnieuw te repliceren verwijdert u de replicagast in Proxmox; de volgende back-up maakt een nieuwe. Replica's met Proxmox-snapshots worden ook niet bijgewerkt.</li>
+  <li>Schijven die later aan een gast worden toegevoegd, worden niet gerepliceerd (verwijder de replica om opnieuw te beginnen); gegroeide schijven groeien ook op de replica. Configuratiewijzigingen (geheugen, CPU's) worden overgenomen bij het aanmaken van de replica.</li>
+  <li>Replicatie leest de back-ups zoals een herstel: de replicanode moet de opslag kunnen bereiken. Replicatie uitschakelen laat de replica's zoals ze zijn.</li>
+</ul>
+
+<h2>Opdrachtregel</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
+<p>De repository-opties zijn dezelfde als bij alle opdrachten (zie <a href="/docs/cli">Opdrachtregelreferentie</a>). De opdrachtregel werkt zonder de console, bijvoorbeeld om na een ramp een hele node te herstellen.</p>
+
+<h2>Clusters</h2>
+<p>Installeer de agent op elke node. Een taak maakt een back-up van de gasten die op de node van zijn agent draaien; een gast in een taak die naar een andere node is gemigreerd, wordt gemeld als waarschuwing met de naam van die node — maak van elke node een back-up met een eigen taak, of gebruik <i>alle gasten van de node</i> op elke node, zodat gemigreerde gasten altijd gedekt zijn.</p>
+
+<h2>Losse bestanden herstellen</h2>
+<p>Klik in de gastentabel van een VM-back-uprun op <b>Bestanden bladeren</b>. De console leest de schijf rechtstreeks uit de back-up — er wordt vooraf niets hersteld — en toont de partities en logische LVM-volumes; NTFS (Windows), ext2/3/4 en XFS (Linux) kunnen worden gebladerd, ook binnen LVM. Vink bestanden en mappen aan en:</p>
+<ul>
+  <li><b>Downloaden</b> — één bestand zoals het is, meerdere bestanden of mappen als ZIP-archief, rechtstreeks naar uw browser;</li>
+  <li><b>Herstellen op agent</b> — kopieer ze naar een map op een willekeurige agent, bijv. terug in de VM (als die de BackupZit-agent draait) of naar een bestandsserver.</li>
+</ul>
+<p>Op de opdrachtregel: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> en <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> kiest een partitie of logisch volume (<code>pve ls</code> zonder pad toont ze). Bladeren in de console vereist dat de back-up op netwerkopslag staat (SFTP, S3, SMB, Azure, geharde repository).</p>
+
+<h2>Nog niet inbegrepen</h2>
+<ul>
+  <li>XCP-ng-hosts. Hyper-V en VMware ESXi: zie <a href="/docs/hyperv">Hyper-V</a> en <a href="/docs/vmware">VMware ESXi</a>.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

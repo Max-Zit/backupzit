@@ -1,0 +1,95 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Proxmox VE 虚拟机</h1>
+<p class="lead">BackupZit 备份 Proxmox VE 虚拟机（QEMU）和容器（LXC），无需在来宾内部安装任何东西。代理运行在 Proxmox 主机上，为每个来宾创建快照，读取其磁盘，并以重复数据删除方式存储到任意存储目标。</p>
+
+<h2>设置</h2>
+<ol>
+  <li>从 <a href="/agents">Agent</a> 页面在每个 Proxmox 节点上安装 <b>Linux 代理 — Debian / Ubuntu</b> 软件包（Proxmox VE 7 和 8 基于 Debian）：
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>一分钟内，该节点会出现在代理页面上，并带有 <b>Proxmox VE · N guests</b> 标记。</li>
+  <li>在 <a href="/jobs">备份作业</a> 中选择该代理并选择 <b>虚拟机（Proxmox VE、Hyper-V、VMware）</b>。备份<b>节点的所有来宾</b>（以后创建的来宾会自动包含）或勾选单个来宾。</li>
+</ol>
+<p>代理使用节点自身的工具（<code>qm</code>、<code>pct</code>、<code>pvesm</code>、LVM、ZFS、Ceph）；控制台中不存储任何 API 令牌或密码。</p>
+
+<h2>来宾如何备份</h2>
+<ol>
+  <li>创建一个临时 Proxmox 快照（<code>backupzit_…</code>，会在 <i>Snapshots</i> 下显示几秒到几分钟）。来宾继续运行。</li>
+  <li>如果虚拟机中运行着 <b>QEMU 来宾代理</b>（并在虚拟机选项中启用），Proxmox 会为快照冻结文件系统 —— 此时备份具有应用一致性。没有它，备份只具有崩溃一致性，相当于断电。请在 Linux 虚拟机中安装 <code>qemu-guest-agent</code>，在 Windows 虚拟机中安装 VirtIO 来宾工具。</li>
+  <li>每块磁盘以 1 MiB 块从快照读取。空块不会存储，存储库中已有的块不会再次上传，因此首次备份之后只传输更改的数据。</li>
+  <li>快照被删除。来宾配置（CPU、内存、网络、磁盘）随备份一起存储。</li>
+</ol>
+<p>运行页面列出每个来宾、其磁盘以及捕获方式。还原测试会像检查磁盘映像一样检查虚拟机备份的随机块；开启 <a href="/docs/restore">启动测试</a> 后，还会在与网络隔离的情况下从备份启动每台虚拟机，以证明它能够启动。</p>
+
+<h3>支持的存储</h3>
+<table>
+  <tr><th>存储类型</th><th>运行中的来宾</th><th>已停止的来宾</th></tr>
+  <tr><td>LVM-thin（默认 <code>local-lvm</code>）</td><td>是，快照</td><td>是</td></tr>
+  <tr><td>ZFS（虚拟机磁盘 / zvol）</td><td>是，快照</td><td>是</td></tr>
+  <tr><td>Ceph RBD</td><td>是，快照</td><td>是</td></tr>
+  <tr><td>使用 <b>qcow2</b> 磁盘的目录、NFS、CIFS</td><td>是，快照</td><td>是</td></tr>
+  <tr><td>使用 raw 磁盘的目录、NFS、CIFS，厚置备 LVM</td><td>否 —— 停止来宾或移动磁盘</td><td>是</td></tr>
+  <tr><td>容器的 ZFS 子卷</td><td colspan="2">暂不支持</td></tr>
+</table>
+<p>在 Proxmox 中标记为 <i>Backup: no</i>（<code>backup=0</code>）的磁盘、直通的物理磁盘和 bind 挂载会被跳过并列为警告。Cloud-init 驱动器不会存储；还原时会根据配置重新创建。</p>
+
+<h2>还原虚拟机或容器</h2>
+<p>打开虚拟机备份的运行（从作业页面或 <a href="/runs">活动</a>），使用 <b>还原虚拟机或容器</b>：</p>
+<ul>
+  <li><b>来宾</b> —— 该备份中的某个来宾。</li>
+  <li><b>在 Proxmox 节点上还原</b> —— 任何装有 BackupZit 代理的节点，包括其他群集的节点。</li>
+  <li><b>作为新虚拟机，使用下一个可用 ID</b>（默认）或 <b>使用 ID …</b> —— 原来宾继续运行。由于两者同时存在，副本的网卡会获得新的 MAC 地址。</li>
+  <li><b>使用原 ID</b> —— 在来宾被删除后。如果它仍然存在，勾选 <b>停止并删除它</b> 以用备份替换；会先删除现有来宾及其磁盘。</li>
+  <li><b>名称</b> 和 <b>磁盘的存储</b> —— 例如还原到与原来不同的存储。</li>
+  <li><b>还原后启动客户机</b>。</li>
+</ul>
+<p>每次还原都会给虚拟机分配新的代 ID（<code>vmgenid</code>），以便 Windows 域控制器和其他软件安全地检测到回滚。磁盘通过 <code>pvesm</code> 在所选存储上分配；在目录存储上会还原为 raw 文件。</p>
+
+<h2>即时恢复</h2>
+<p>还原一台大型虚拟机所需的时间与复制其磁盘一样长。在还原表单中选择 <b>即时从备份运行</b> 后，虚拟机会在几秒钟内运行起来，而其磁盘仍在备份中：</p>
+<ol>
+  <li>代理以只读方式从备份提供虚拟机磁盘（一个小型 NBD 服务器，以 systemd 单元 <code>backupzit-instant-&lt;ID&gt;</code> 运行），并以下一个可用 ID 创建一台新虚拟机，其磁盘是目录存储 <code>backupzit-instant</code>（<code>/var/lib/backupzit-instant</code>，自动添加）上的 qcow2 覆盖层。数据按需从备份读取；虚拟机写入的一切都留在覆盖层中。固件变量（EFI 磁盘）和 TPM 状态很小，会被复制。</li>
+  <li>虚拟机启动。请检查它 —— 与任何副本一样，它会获得新的 MAC 地址。仪表板会列出仍在从备份运行的每台虚拟机。</li>
+  <li>在运行页面上，选择 <b>完成</b>：在虚拟机继续运行的同时将磁盘移动到所选存储（<code>qm disk move</code>），之后不再使用备份。或选择 <b>放弃</b>：停止并删除虚拟机及其更改。</li>
+</ol>
+<p>只要虚拟机还在从某个备份运行，保留策略就绝不会删除该备份。虚拟机的速度取决于备份存储：本地磁盘或快速网络共享上的存储库效果最好；远程通过 SFTP 或 S3 读取会使其变慢，直到完成为止。即时恢复适用于虚拟机（不适用于容器），并会创建一台新虚拟机 —— 要原位还原，请使用普通还原。虚拟机运行时无法移动 EFI 磁盘；此时它会留在 <code>backupzit-instant</code> 上（见运行消息），可在关闭虚拟机后移动：<code>qm disk move ID efidisk0 STORAGE --delete 1</code>。</p>
+
+<h2>复制</h2>
+<p>对于必须在几分钟内恢复的来宾，虚拟机作业可以保留<b>副本</b>：在作业表单的 <b>高级</b> 下勾选 <b>保留虚拟机副本</b>，并选择节点（任何装有 BackupZit 代理的节点，也可在其他群集中）和存储。每次备份后，该节点上的代理会更新作业中每个来宾的<b>已停止副本</b>：</p>
+<ul>
+  <li>第一次，副本会像新来宾一样还原（下一个可用 ID，名称 <i>original-replica</i>，新 MAC 地址，从不随节点启动）。</li>
+  <li>之后只写入自副本所含备份以来更改的块 —— 通常每次备份只需几秒钟。</li>
+  <li>作业页面列出副本、每个副本所含的备份及其状态。如果某个来宾丢失，点击 <b>启动副本</b>：它会使用最后一次备份的数据运行，无需还原。只有在原来宾确实不存在时才启动它 —— 两者同时在网络上可能会冲突。</li>
+  <li>副本运行期间不再更新（运行会报告这一点）。要重新复制，请在 Proxmox 中删除副本来宾；下一次备份会创建新的副本。带有 Proxmox 快照的副本也不会更新。</li>
+  <li>之后添加到来宾的磁盘不会被复制（删除副本以重新开始）；扩容的磁盘在副本上也会扩容。配置更改（内存、CPU）在创建副本时采用。</li>
+  <li>复制像还原一样读取备份：副本节点必须能访问存储。关闭复制会保持副本原样。</li>
+</ul>
+
+<h2>命令行</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
+<p>存储库选项与所有命令相同（参见 <a href="/docs/cli">命令行参考</a>）。命令行无需控制台即可工作，例如在灾难后还原整个节点。</p>
+
+<h2>群集</h2>
+<p>在每个节点上安装代理。作业备份在其代理所在节点上运行的来宾；作业中列出但已迁移到其他节点的来宾会以警告形式报告，并注明该节点 —— 请用各自的作业备份每个节点，或在每个节点上使用<i>节点的所有来宾</i>，这样迁移的来宾总能被覆盖。</p>
+
+<h2>还原单个文件</h2>
+<p>在虚拟机备份运行的来宾表格中，点击 <b>浏览文件</b>。控制台直接从备份读取磁盘 —— 无需先还原 —— 并显示其分区和 LVM 逻辑卷；可以浏览 NTFS（Windows）、ext2/3/4 和 XFS（Linux），也包括 LVM 内部。勾选文件和文件夹，然后：</p>
+<ul>
+  <li><b>下载</b> —— 单个文件原样下载，多个文件或文件夹打包为 ZIP 压缩包，直接下载到浏览器；</li>
+  <li><b>在代理上还原</b> —— 将它们复制到任意代理上的文件夹，例如复制回虚拟机（如果其中运行着 BackupZit 代理）或文件服务器。</li>
+</ul>
+<p>在命令行中：<code>backupzit-agent pve ls --vmid 100 latest /etc</code> 和 <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>；<code>--volume</code> 选择分区或逻辑卷（不带路径的 <code>pve ls</code> 会列出它们）。在控制台中浏览要求备份位于网络存储上（SFTP、S3、SMB、Azure、加固存储库）。</p>
+
+<h2>尚未包含</h2>
+<ul>
+  <li>XCP-ng 主机。Hyper-V 和 VMware ESXi：参见 <a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

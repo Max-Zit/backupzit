@@ -1,0 +1,95 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Proxmox VE sanal makineleri</h1>
+<p class="lead">BackupZit, Proxmox VE sanal makinelerini (QEMU) ve kapsayıcılarını (LXC) konukların içine hiçbir şey kurmadan yedekler. Aracı Proxmox ana bilgisayarında çalışır, her konuğun anlık görüntüsünü alır, disklerini okur ve tekilleştirilmiş olarak herhangi bir depolama hedefine kaydeder.</p>
+
+<h2>Kurulum</h2>
+<ol>
+  <li><a href="/agents">Aracılar</a> sayfasından <b>Linux aracısı — Debian / Ubuntu</b> paketini her Proxmox düğümüne kurun (Proxmox VE 7 ve 8 Debian tabanlıdır):
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>Bir dakika içinde düğüm Aracılar sayfasında <b>Proxmox VE · N guests</b> rozetiyle görünür.</li>
+  <li><a href="/jobs">Yedekleme işleri</a> içinde bu aracıyı seçin ve <b>Sanal makineler (Proxmox VE, Hyper-V, VMware)</b>'ı seçin. <b>Düğümün tüm konuklarını</b> yedekleyin (sonradan oluşturulan konuklar otomatik dahil edilir) veya tek tek işaretleyin.</li>
+</ol>
+<p>Aracı düğümün kendi araçlarını kullanır (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); konsolda hiçbir API belirteci veya parola saklanmaz.</p>
+
+<h2>Bir konuk nasıl yedeklenir</h2>
+<ol>
+  <li>Geçici bir Proxmox anlık görüntüsü alınır (<code>backupzit_…</code>, birkaç saniye ile birkaç dakika arasında <i>Snapshots</i> altında görünür). Konuk çalışmaya devam eder.</li>
+  <li>VM'de <b>QEMU konuk aracısı</b> çalışıyorsa (ve VM seçeneklerinde etkinse), Proxmox anlık görüntü için dosya sistemlerini dondurur — yedek bu durumda uygulama tutarlıdır. Bu olmadan yedek, elektrik kesintisindeki gibi çökme tutarlıdır. Linux VM'lere <code>qemu-guest-agent</code>, Windows VM'lere VirtIO konuk araçlarını kurun.</li>
+  <li>Her disk anlık görüntüden 1 MiB'lik bloklar halinde okunur. Boş bloklar saklanmaz ve depoda zaten bulunan bloklar yeniden yüklenmez; böylece ilk yedekten sonra yalnızca değişen veriler aktarılır.</li>
+  <li>Anlık görüntü kaldırılır. Konuk yapılandırması (CPU, bellek, ağ, diskler) yedekle birlikte saklanır.</li>
+</ol>
+<p>Çalıştırma sayfası her konuğu, disklerini ve nasıl yakalandığını listeler. Geri yükleme testleri VM yedeklerinin rastgele bloklarını disk görüntülerindeki gibi denetler ve <a href="/docs/restore">önyükleme testi</a> açıkken her VM'yi ağdan yalıtılmış olarak yedekten başlatıp önyüklendiğini kanıtlar.</p>
+
+<h3>Desteklenen depolama</h3>
+<table>
+  <tr><th>Depolama türü</th><th>Çalışan konuklar</th><th>Durdurulmuş konuklar</th></tr>
+  <tr><td>LVM-thin (varsayılan <code>local-lvm</code>)</td><td>evet, anlık görüntü</td><td>evet</td></tr>
+  <tr><td>ZFS (VM diskleri / zvol'lar)</td><td>evet, anlık görüntü</td><td>evet</td></tr>
+  <tr><td>Ceph RBD</td><td>evet, anlık görüntü</td><td>evet</td></tr>
+  <tr><td><b>qcow2</b> diskli dizin, NFS, CIFS</td><td>evet, anlık görüntü</td><td>evet</td></tr>
+  <tr><td>Ham (raw) diskli dizin, NFS, CIFS, kalın LVM</td><td>hayır — konuğu durdurun veya diski taşıyın</td><td>evet</td></tr>
+  <tr><td>Kapsayıcıların ZFS alt birimleri</td><td colspan="2">henüz desteklenmiyor</td></tr>
+</table>
+<p>Proxmox'ta <i>Backup: no</i> (<code>backup=0</code>) olarak işaretlenmiş diskler, doğrudan aktarılan fiziksel diskler ve bind bağlamaları atlanır ve uyarı olarak listelenir. Cloud-init sürücüleri saklanmaz; geri yüklemede yapılandırmadan yeniden oluşturulur.</p>
+
+<h2>Bir VM veya kapsayıcıyı geri yükleme</h2>
+<p>Bir VM yedeği çalıştırmasını açın (iş sayfasından veya <a href="/runs">Etkinlik</a>'ten) ve <b>Bir VM veya kapsayıcıyı geri yükle</b>'yi kullanın:</p>
+<ul>
+  <li><b>Konuk</b> — o yedekteki konuklardan biri.</li>
+  <li><b>Proxmox düğümünde geri yükle</b> — BackupZit aracısı olan herhangi bir düğüm; başka bir kümenin düğümü de olabilir.</li>
+  <li><b>Sonraki boş kimlikle yeni bir konuk olarak</b> (varsayılan) veya <b>şu kimlikle …</b> — orijinal çalışmaya devam eder. İkisi birden var olduğundan kopyanın ağ kartları yeni MAC adresleri alır.</li>
+  <li><b>Özgün kimliğiyle</b> — konuk silindikten sonra. Hâlâ varsa, onu yedekle değiştirmek için <b>durdur ve sil</b>'i işaretleyin; önce mevcut konuk ve diskleri silinir.</li>
+  <li><b>Ad</b> ve <b>Diskler için depolama</b> — ör. orijinalden farklı bir depolamaya geri yükleme.</li>
+  <li><b>Geri yüklemeden sonra konuğu başlat</b>.</li>
+</ul>
+<p>Her geri yükleme VM'lere yeni bir nesil kimliği (<code>vmgenid</code>) verir; böylece Windows etki alanı denetleyicileri ve diğer yazılımlar geri dönüşü güvenle algılar. Diskler seçilen depolamada <code>pvesm</code> ile ayrılır; dizin depolamada ham dosya olarak geri yüklenir.</p>
+
+<h2>Anında kurtarma</h2>
+<p>Büyük bir VM'yi geri yüklemek, disklerini kopyalamak kadar sürer. Geri yükleme formunda <b>Anında, yedekten çalışarak</b> seçeneğiyle VM, diskleri hâlâ yedekteyken birkaç saniye içinde çalışır:</p>
+<ol>
+  <li>Aracı, VM'nin disklerini yedekten salt okunur olarak sunar (systemd birimi <code>backupzit-instant-&lt;ID&gt;</code> olarak çalışan küçük bir NBD sunucusu) ve diskleri <code>backupzit-instant</code> dizin depolamasında (<code>/var/lib/backupzit-instant</code>, otomatik eklenir) qcow2 katmanları olan, sonraki boş kimliğe sahip yeni bir VM oluşturur. Veriler istendikçe yedekten okunur; VM'nin yazdığı her şey katmanlarda kalır. Ürün yazılımı değişkenleri (EFI diski) ve TPM durumu küçüktür ve kopyalanır.</li>
+  <li>VM başlar. Denetleyin — her kopya gibi yeni MAC adresleri alır. Pano, hâlâ bir yedekten çalışan her VM'yi listeler.</li>
+  <li>Çalıştırma sayfasında ya <b>Tamamla</b>: VM çalışmaya devam ederken diskler seçilen depolamaya taşınır (<code>qm disk move</code>), ardından yedek artık kullanılmaz. Ya da <b>At</b>: VM durdurulur ve değişiklikleriyle birlikte silinir.</li>
+</ol>
+<p>Bir VM bir yedekten çalıştığı sürece saklama kuralı o yedeği asla kaldırmaz. VM, yedek depolamasının izin verdiği kadar hızlıdır: yerel diskte veya hızlı bir ağ paylaşımında bulunan bir depo en iyi sonucu verir; uzaktan SFTP veya S3 üzerinden okumalar, tamamlanana kadar onu yavaşlatır. Anında kurtarma VM'ler içindir (kapsayıcılar için değil) ve yeni bir VM oluşturur — yerinde geri yükleme için normal geri yüklemeyi kullanın. EFI diski VM çalışırken taşınamaz; bu durumda <code>backupzit-instant</code> üzerinde kalır (çalıştırma mesajına bakın) ve VM kapatıldıktan sonra taşınabilir: <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
+
+<h2>Çoğaltma</h2>
+<p>Dakikalar içinde geri gelmesi gereken konuklar için bir VM işi <b>replikalar</b> tutabilir: iş formunda <b>Gelişmiş</b> altında <b>VM'lerin replikalarını tut</b>'u işaretleyin ve düğümü (BackupZit aracısı olan herhangi bir düğüm, başka bir kümede de olabilir) ve depolamayı seçin. Her yedekten sonra o düğümdeki aracı, işin her konuğunun <b>durdurulmuş bir kopyasını</b> günceller:</p>
+<ul>
+  <li>İlk seferde replika yeni bir konuk gibi geri yüklenir (sonraki boş kimlik, ad <i>original-replica</i>, yeni MAC adresleri, düğümle asla başlatılmaz).</li>
+  <li>Sonrasında yalnızca replikanın tuttuğu yedekten bu yana değişen bloklar yazılır — genellikle yedek başına birkaç saniye.</li>
+  <li>İş sayfası replikaları, her birinin tuttuğu yedeği ve durumlarını listeler. Bir konuk kaybolursa <b>Replikayı başlat</b>'a tıklayın: geri yükleme olmadan son yedeğin verileriyle çalışır. Yalnızca orijinal gerçekten yok olduğunda başlatın — ikisinin aynı anda ağda olması çakışmaya yol açabilir.</li>
+  <li>Bir replika çalışırken artık güncellenmez (çalıştırma bunu bildirir). Yeniden çoğaltmak için replika konuğunu Proxmox'ta silin; sonraki yedek yenisini oluşturur. Proxmox anlık görüntüleri olan replikalar da güncellenmez.</li>
+  <li>Bir konuğa sonradan eklenen diskler çoğaltılmaz (baştan başlamak için replikayı silin); büyüyen diskler replikada da büyütülür. Yapılandırma değişiklikleri (bellek, CPU) replika oluşturulurken alınır.</li>
+  <li>Çoğaltma, yedekleri bir geri yükleme gibi okur: replika düğümünün depolamaya erişebilmesi gerekir. Çoğaltmayı kapatmak replikaları olduğu gibi bırakır.</li>
+</ul>
+
+<h2>Komut satırı</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
+<p>Depo seçenekleri tüm komutlardakiyle aynıdır (bkz. <a href="/docs/cli">Komut satırı başvurusu</a>). Komut satırı konsol olmadan da çalışır; örneğin bir felaketten sonra bütün bir düğümü geri yüklemek için.</p>
+
+<h2>Kümeler</h2>
+<p>Aracıyı her düğüme kurun. Bir iş, aracısının düğümünde çalışan konukları yedekler; bir işte listelenen ve başka bir düğüme taşınmış bir konuk, o düğümün adıyla uyarı olarak bildirilir — her düğümü kendi işiyle yedekleyin veya her düğümde <i>düğümün tüm konukları</i>'nı kullanın; böylece taşınan konuklar her zaman kapsanır.</p>
+
+<h2>Tek tek dosyaları geri yükleme</h2>
+<p>Bir VM yedeği çalıştırmasının konuk tablosunda <b>Dosyalara göz at</b>'a tıklayın. Konsol diski doğrudan yedekten okur — önce hiçbir şey geri yüklenmez — ve bölümlerini ve LVM mantıksal birimlerini gösterir; NTFS (Windows), ext2/3/4 ve XFS'e (Linux), LVM içinde de göz atılabilir. Dosya ve klasörleri işaretleyip:</p>
+<ul>
+  <li><b>İndir</b> — tek bir dosyayı olduğu gibi, birden fazla dosya veya klasörü ZIP arşivi olarak doğrudan tarayıcınıza;</li>
+  <li><b>Aracıda geri yükle</b> — bunları herhangi bir aracıdaki bir klasöre kopyalayın; ör. VM'ye geri (içinde BackupZit aracısı çalışıyorsa) veya bir dosya sunucusuna.</li>
+</ul>
+<p>Komut satırında: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> ve <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> bir bölüm veya mantıksal birim seçer (yol olmadan <code>pve ls</code> bunları listeler). Konsolda göz atmak için yedeğin ağ depolamasında (SFTP, S3, SMB, Azure, güçlendirilmiş depo) olması gerekir.</p>
+
+<h2>Henüz dahil olmayanlar</h2>
+<ul>
+  <li>XCP-ng ana bilgisayarları. Hyper-V ve VMware ESXi için bkz. <a href="/docs/hyperv">Hyper-V</a> ve <a href="/docs/vmware">VMware ESXi</a>.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

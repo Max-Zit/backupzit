@@ -1,0 +1,95 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Máquinas virtuales de Proxmox VE</h1>
+<p class="lead">BackupZit copia máquinas virtuales (QEMU) y contenedores (LXC) de Proxmox VE sin instalar nada dentro de los invitados. El agente se ejecuta en el host Proxmox, toma una instantánea de cada invitado, lee sus discos y los guarda deduplicados en cualquier destino de almacenamiento.</p>
+
+<h2>Configuración</h2>
+<ol>
+  <li>Instale el paquete <b>Agente de Linux — Debian / Ubuntu</b> desde <a href="/agents">Agentes</a> en cada nodo Proxmox (Proxmox VE 7 y 8 se basan en Debian):
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>En menos de un minuto el nodo aparece en la página Agentes con la etiqueta <b>Proxmox VE · N guests</b>.</li>
+  <li>En <a href="/jobs">Trabajos de copia</a> seleccione ese agente y elija <b>Máquinas virtuales (Proxmox VE, Hyper-V, VMware)</b>. Copie <b>todos los invitados del nodo</b> (los invitados creados más tarde se incluyen automáticamente) o marque algunos.</li>
+</ol>
+<p>El agente usa las herramientas propias del nodo (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); en la consola no se guarda ningún token de API ni contraseña.</p>
+
+<h2>Cómo se copia un invitado</h2>
+<ol>
+  <li>Se toma una instantánea temporal de Proxmox (<code>backupzit_…</code>, visible en <i>Snapshots</i> durante unos segundos o minutos). El invitado sigue funcionando.</li>
+  <li>Si el <b>agente invitado de QEMU</b> se ejecuta en la VM (y está habilitado en las opciones de la VM), Proxmox congela los sistemas de archivos para la instantánea: la copia es entonces coherente con las aplicaciones. Sin él, la copia es coherente ante bloqueos, como un corte de corriente. Instale <code>qemu-guest-agent</code> en las VM Linux y las herramientas de invitado VirtIO en las VM Windows.</li>
+  <li>Cada disco se lee de la instantánea en bloques de 1 MiB. Los bloques vacíos no se guardan y los bloques ya presentes en el repositorio no se vuelven a enviar, así que tras la primera copia solo se transfieren los datos modificados.</li>
+  <li>La instantánea se elimina. La configuración del invitado (CPU, memoria, red, discos) se guarda con la copia.</li>
+</ol>
+<p>La página de la ejecución muestra cada invitado, sus discos y cómo se capturó. Las pruebas de restauración comprueban bloques aleatorios de las copias de VM igual que con las imágenes de disco y, con la <a href="/docs/restore">prueba de arranque</a> activada, inician cada VM desde la copia, aislada de la red, para demostrar que arranca.</p>
+
+<h3>Almacenamiento compatible</h3>
+<table>
+  <tr><th>Tipo de almacenamiento</th><th>Invitados en marcha</th><th>Invitados detenidos</th></tr>
+  <tr><td>LVM-thin (por defecto <code>local-lvm</code>)</td><td>sí, instantánea</td><td>sí</td></tr>
+  <tr><td>ZFS (discos de VM / zvols)</td><td>sí, instantánea</td><td>sí</td></tr>
+  <tr><td>Ceph RBD</td><td>sí, instantánea</td><td>sí</td></tr>
+  <tr><td>Directorio, NFS, CIFS con discos <b>qcow2</b></td><td>sí, instantánea</td><td>sí</td></tr>
+  <tr><td>Directorio, NFS, CIFS con discos raw, LVM grueso</td><td>no: detenga el invitado o mueva el disco</td><td>sí</td></tr>
+  <tr><td>Subvolúmenes ZFS de contenedores</td><td colspan="2">aún no compatible</td></tr>
+</table>
+<p>Los discos marcados como <i>Backup: no</i> (<code>backup=0</code>) en Proxmox, los discos físicos en passthrough y los montajes bind se omiten y se muestran como advertencias. Las unidades cloud-init no se guardan; se recrean a partir de la configuración al restaurar.</p>
+
+<h2>Restaurar una VM o un contenedor</h2>
+<p>Abra una ejecución de copia de VM (desde la página del trabajo o <a href="/runs">Actividad</a>) y use <b>Restaurar una VM o un contenedor</b>:</p>
+<ul>
+  <li><b>Invitado</b>: uno de los invitados de esa copia.</li>
+  <li><b>Restaurar en el nodo de Proxmox</b>: cualquier nodo con el agente BackupZit, también un nodo de otro clúster.</li>
+  <li><b>Como nuevo invitado con el siguiente ID libre</b> (por defecto) o <b>con el ID …</b>: el original sigue funcionando. Como existen ambos, las tarjetas de red de la copia reciben direcciones MAC nuevas.</li>
+  <li><b>Con su ID original</b>: después de borrar el invitado. Si aún existe, marque <b>detenerlo y eliminarlo</b> para sustituirlo por la copia; primero se eliminan el invitado existente y sus discos.</li>
+  <li><b>Nombre</b> y <b>Almacenamiento para los discos</b>: p. ej., restaurar en un almacenamiento distinto del original.</li>
+  <li><b>Iniciar el invitado tras la restauración</b>.</li>
+</ul>
+<p>Cada restauración da a las VM un nuevo ID de generación (<code>vmgenid</code>), para que los controladores de dominio de Windows y otro software detecten la vuelta atrás de forma segura. Los discos se asignan con <code>pvesm</code> en el almacenamiento elegido; en almacenamiento de tipo directorio se restauran como archivos raw.</p>
+
+<h2>Recuperación instantánea</h2>
+<p>Restaurar una VM grande tarda lo mismo que copiar sus discos. Con <b>Al instante, ejecutándose desde la copia</b> en el formulario de restauración, la VM funciona en cambio en segundos, mientras sus discos siguen en la copia:</p>
+<ol>
+  <li>El agente sirve los discos de la VM en solo lectura desde la copia (un pequeño servidor NBD que se ejecuta como unidad systemd <code>backupzit-instant-&lt;ID&gt;</code>) y crea una VM nueva con el siguiente ID libre cuyos discos son overlays qcow2 en el almacenamiento de directorio <code>backupzit-instant</code> (<code>/var/lib/backupzit-instant</code>, añadido automáticamente). Los datos se leen de la copia bajo demanda; todo lo que escribe la VM se queda en los overlays. Las variables de firmware (disco EFI) y el estado del TPM son pequeños y se copian.</li>
+  <li>La VM arranca. Compruébela: recibe direcciones MAC nuevas como cualquier copia. El panel muestra cada VM que aún se ejecuta desde una copia.</li>
+  <li>En la página de la ejecución, o bien <b>Finalizar</b>: los discos se mueven al almacenamiento elegido mientras la VM sigue funcionando (<code>qm disk move</code>) y después la copia deja de usarse. O bien <b>Descartar</b>: la VM se detiene y se elimina junto con sus cambios.</li>
+</ol>
+<p>Mientras una VM se ejecuta desde una copia, la retención nunca elimina esa copia. La VM es tan rápida como permita el almacenamiento de copias: lo mejor es un repositorio en un disco local o un recurso de red rápido; las lecturas por SFTP o S3 desde lejos la ralentizan hasta que se finaliza. La recuperación instantánea es para VM (no contenedores) y crea una VM nueva; para restaurar en el sitio use una restauración normal. El disco EFI no se puede mover mientras la VM funciona; se queda entonces en <code>backupzit-instant</code> (vea el mensaje de la ejecución) y puede moverse tras apagar la VM: <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
+
+<h2>Replicación</h2>
+<p>Para invitados que deben volver en minutos, un trabajo de VM puede mantener <b>réplicas</b>: en <b>Avanzado</b> del formulario del trabajo marque <b>Mantener réplicas de las VM</b> y elija el nodo (cualquier nodo con el agente BackupZit, también en otro clúster) y el almacenamiento. Tras cada copia, el agente de ese nodo actualiza una <b>copia detenida</b> de cada invitado del trabajo:</p>
+<ul>
+  <li>La primera vez, la réplica se restaura como un invitado nuevo (siguiente ID libre, nombre <i>original-replica</i>, direcciones MAC nuevas, nunca se inicia con el nodo).</li>
+  <li>Después solo se escriben los bloques que cambiaron desde la copia que contiene la réplica: normalmente unos segundos por copia.</li>
+  <li>La página del trabajo muestra las réplicas, la copia que contiene cada una y su estado. Si se pierde un invitado, haga clic en <b>Iniciar réplica</b>: funciona con los datos de la última copia, sin restauración. Iníciela solo si el original ya no existe de verdad: ambos en la red a la vez pueden entrar en conflicto.</li>
+  <li>Mientras una réplica está en marcha deja de actualizarse (la ejecución lo indica). Para volver a replicar, elimine el invitado réplica en Proxmox; la siguiente copia crea uno nuevo. Las réplicas con instantáneas de Proxmox tampoco se actualizan.</li>
+  <li>Los discos añadidos más tarde a un invitado no se replican (elimine la réplica para empezar de nuevo); los discos que crecieron también crecen en la réplica. Los cambios de configuración (memoria, CPU) se aplican al crear la réplica.</li>
+  <li>La replicación lee las copias como una restauración: el nodo de la réplica debe llegar al almacenamiento. Desactivar la replicación deja las réplicas como están.</li>
+</ul>
+
+<h2>Línea de comandos</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
+<p>Las opciones del repositorio son las mismas que en todos los comandos (consulte <a href="/docs/cli">Referencia de la línea de comandos</a>). La línea de comandos funciona sin la consola, por ejemplo para restaurar un nodo completo tras un desastre.</p>
+
+<h2>Clústeres</h2>
+<p>Instale el agente en cada nodo. Un trabajo copia los invitados que se ejecutan en el nodo de su agente; un invitado incluido en un trabajo que se haya migrado a otro nodo se notifica como advertencia con el nombre de ese nodo: copie cada nodo con su propio trabajo, o use <i>todos los invitados del nodo</i> en cada nodo para que los invitados migrados queden siempre cubiertos.</p>
+
+<h2>Restaurar archivos sueltos</h2>
+<p>En la tabla de invitados de una ejecución de copia de VM, haga clic en <b>Examinar archivos</b>. La consola lee el disco directamente de la copia —no se restaura nada antes— y muestra sus particiones y volúmenes lógicos LVM; se pueden examinar NTFS (Windows), ext2/3/4 y XFS (Linux), también dentro de LVM. Marque archivos y carpetas y:</p>
+<ul>
+  <li><b>Descargar</b>: un archivo tal cual, varios archivos o carpetas como archivo ZIP, directamente en el navegador;</li>
+  <li><b>Restaurar en el agente</b>: copiarlos a una carpeta de cualquier agente, p. ej., de vuelta a la VM (si ejecuta el agente BackupZit) o a un servidor de archivos.</li>
+</ul>
+<p>En la línea de comandos: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> y <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> selecciona una partición o volumen lógico (<code>pve ls</code> sin ruta los muestra). Examinar en la consola requiere que la copia esté en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado).</p>
+
+<h2>Aún no incluido</h2>
+<ul>
+  <li>Hosts XCP-ng. Hyper-V y VMware ESXi: consulte <a href="/docs/hyperv">Hyper-V</a> y <a href="/docs/vmware">VMware ESXi</a>.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

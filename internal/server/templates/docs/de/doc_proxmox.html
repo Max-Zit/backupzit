@@ -1,0 +1,95 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Virtuelle Maschinen in Proxmox VE</h1>
+<p class="lead">BackupZit sichert virtuelle Maschinen (QEMU) und Container (LXC) von Proxmox VE, ohne etwas in den Gästen zu installieren. Der Agent läuft auf dem Proxmox-Host, erstellt einen Snapshot jedes Gasts, liest dessen Festplatten und speichert sie dedupliziert auf einem beliebigen Speicherziel.</p>
+
+<h2>Einrichtung</h2>
+<ol>
+  <li>Installieren Sie das Paket <b>Linux-Agent — Debian / Ubuntu</b> von <a href="/agents">Agenten</a> auf jedem Proxmox-Knoten (Proxmox VE 7 und 8 basieren auf Debian):
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>Innerhalb einer Minute erscheint der Knoten auf der Seite Agenten mit dem Kennzeichen <b>Proxmox VE · N guests</b>.</li>
+  <li>Wählen Sie unter <a href="/jobs">Sicherungsaufträge</a> diesen Agenten und <b>Virtuelle Maschinen (Proxmox VE, Hyper-V, VMware)</b>. Sichern Sie <b>alle Gäste des Knotens</b> (später erstellte Gäste werden automatisch einbezogen) oder markieren Sie einzelne.</li>
+</ol>
+<p>Der Agent verwendet die eigenen Werkzeuge des Knotens (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); in der Konsole wird weder API-Token noch Passwort gespeichert.</p>
+
+<h2>Wie ein Gast gesichert wird</h2>
+<ol>
+  <li>Ein temporärer Proxmox-Snapshot wird erstellt (<code>backupzit_…</code>, für einige Sekunden bis Minuten unter <i>Snapshots</i> sichtbar). Der Gast läuft weiter.</li>
+  <li>Läuft der <b>QEMU-Gastagent</b> in der VM (und ist er in den VM-Optionen aktiviert), friert Proxmox die Dateisysteme für den Snapshot ein — die Sicherung ist dann anwendungskonsistent. Ohne ihn ist die Sicherung absturzkonsistent, wie bei einem Stromausfall. Installieren Sie <code>qemu-guest-agent</code> in Linux-VMs und die VirtIO-Gastwerkzeuge in Windows-VMs.</li>
+  <li>Jede Festplatte wird aus dem Snapshot in Blöcken zu 1 MiB gelesen. Leere Blöcke werden nicht gespeichert und Blöcke, die bereits im Repository liegen, nicht erneut hochgeladen; nach der ersten Sicherung werden also nur geänderte Daten übertragen.</li>
+  <li>Der Snapshot wird entfernt. Die Gastkonfiguration (CPU, Arbeitsspeicher, Netzwerk, Festplatten) wird mit der Sicherung gespeichert.</li>
+</ol>
+<p>Die Laufseite listet jeden Gast, seine Festplatten und die Art der Erfassung auf. Wiederherstellungstests prüfen zufällige Blöcke von VM-Sicherungen wie bei Festplattenabbildern und starten — mit aktiviertem <a href="/docs/restore">Boot-Test</a> — jede VM vom Netzwerk isoliert aus der Sicherung, um zu beweisen, dass sie startet.</p>
+
+<h3>Unterstützter Speicher</h3>
+<table>
+  <tr><th>Speichertyp</th><th>Laufende Gäste</th><th>Gestoppte Gäste</th></tr>
+  <tr><td>LVM-thin (Standard <code>local-lvm</code>)</td><td>ja, Snapshot</td><td>ja</td></tr>
+  <tr><td>ZFS (VM-Festplatten / zvols)</td><td>ja, Snapshot</td><td>ja</td></tr>
+  <tr><td>Ceph RBD</td><td>ja, Snapshot</td><td>ja</td></tr>
+  <tr><td>Verzeichnis, NFS, CIFS mit <b>qcow2</b>-Festplatten</td><td>ja, Snapshot</td><td>ja</td></tr>
+  <tr><td>Verzeichnis, NFS, CIFS mit Raw-Festplatten, Thick-LVM</td><td>nein — Gast stoppen oder Festplatte verschieben</td><td>ja</td></tr>
+  <tr><td>ZFS-Subvolumes von Containern</td><td colspan="2">noch nicht unterstützt</td></tr>
+</table>
+<p>In Proxmox mit <i>Backup: no</i> (<code>backup=0</code>) markierte Festplatten, durchgereichte physische Festplatten und Bind-Mounts werden übersprungen und als Warnungen aufgeführt. Cloud-Init-Laufwerke werden nicht gespeichert; sie werden bei der Wiederherstellung aus der Konfiguration neu erstellt.</p>
+
+<h2>Eine VM oder einen Container wiederherstellen</h2>
+<p>Öffnen Sie einen Lauf einer VM-Sicherung (über die Auftragsseite oder <a href="/runs">Aktivität</a>) und verwenden Sie <b>Eine VM oder einen Container wiederherstellen</b>:</p>
+<ul>
+  <li><b>Gast</b> — einer der Gäste in dieser Sicherung.</li>
+  <li><b>Auf Proxmox-Knoten wiederherstellen</b> — jeder Knoten mit dem BackupZit-Agenten, auch ein Knoten eines anderen Clusters.</li>
+  <li><b>Als neuer Gast mit der nächsten freien ID</b> (Standard) oder <b>mit ID …</b> — das Original läuft weiter. Da beide existieren, erhalten die Netzwerkkarten der Kopie neue MAC-Adressen.</li>
+  <li><b>Mit seiner ursprünglichen ID</b> — nachdem der Gast gelöscht wurde. Existiert er noch, aktivieren Sie <b>stoppen und löschen</b>, um ihn durch die Sicherung zu ersetzen; der vorhandene Gast und seine Festplatten werden zuerst gelöscht.</li>
+  <li><b>Name</b> und <b>Speicher für die Datenträger</b> — z. B. auf einen anderen Speicher als das Original wiederherstellen.</li>
+  <li><b>Gast nach der Wiederherstellung starten</b>.</li>
+</ul>
+<p>Jede Wiederherstellung gibt VMs eine neue Generations-ID (<code>vmgenid</code>), sodass Windows-Domänencontroller und andere Software das Zurücksetzen sicher erkennen. Festplatten werden mit <code>pvesm</code> auf dem gewählten Speicher angelegt; auf Verzeichnisspeicher werden sie als Raw-Dateien wiederhergestellt.</p>
+
+<h2>Sofortige Wiederherstellung</h2>
+<p>Das Wiederherstellen einer großen VM dauert so lange wie das Kopieren ihrer Festplatten. Mit <b>Sofort, aus der Sicherung laufend</b> im Wiederherstellungsformular läuft die VM stattdessen innerhalb von Sekunden, während ihre Festplatten noch in der Sicherung liegen:</p>
+<ol>
+  <li>Der Agent stellt die Festplatten der VM schreibgeschützt aus der Sicherung bereit (ein kleiner NBD-Server, der als systemd-Unit <code>backupzit-instant-&lt;ID&gt;</code> läuft) und erstellt eine neue VM mit der nächsten freien ID, deren Festplatten qcow2-Overlays auf dem Verzeichnisspeicher <code>backupzit-instant</code> sind (<code>/var/lib/backupzit-instant</code>, automatisch hinzugefügt). Daten werden bei Bedarf aus der Sicherung gelesen; alles, was die VM schreibt, bleibt in den Overlays. Firmware-Variablen (EFI-Festplatte) und TPM-Zustand sind klein und werden kopiert.</li>
+  <li>Die VM startet. Prüfen Sie sie — sie erhält wie jede Kopie neue MAC-Adressen. Das Dashboard listet jede VM auf, die noch aus einer Sicherung läuft.</li>
+  <li>Auf der Laufseite entweder <b>Abschließen</b>: Die Festplatten werden auf den gewählten Speicher verschoben, während die VM weiterläuft (<code>qm disk move</code>); danach wird die Sicherung nicht mehr verwendet. Oder <b>Verwerfen</b>: Die VM wird gestoppt und samt ihren Änderungen gelöscht.</li>
+</ol>
+<p>Solange eine VM aus einer Sicherung läuft, entfernt die Aufbewahrung diese Sicherung nie. Die VM ist so schnell, wie es der Sicherungsspeicher erlaubt: Ein Repository auf einer lokalen Festplatte oder einer schnellen Netzwerkfreigabe funktioniert am besten; Lesezugriffe über SFTP oder S3 aus der Ferne machen sie langsam, bis sie abgeschlossen ist. Die sofortige Wiederherstellung gilt für VMs (nicht für Container) und erstellt eine neue VM — an Ort und Stelle stellen Sie mit einer normalen Wiederherstellung wieder her. Die EFI-Festplatte kann nicht verschoben werden, während die VM läuft; sie bleibt dann auf <code>backupzit-instant</code> (siehe Laufmeldung) und kann nach dem Herunterfahren der VM verschoben werden: <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
+
+<h2>Replikation</h2>
+<p>Für Gäste, die innerhalb von Minuten wieder da sein müssen, kann ein VM-Auftrag <b>Replikate</b> vorhalten: Aktivieren Sie unter <b>Erweitert</b> im Auftragsformular <b>Replikate der VMs vorhalten</b> und wählen Sie den Knoten (jeder Knoten mit dem BackupZit-Agenten, auch in einem anderen Cluster) und den Speicher. Nach jeder Sicherung bringt der Agent auf diesem Knoten eine <b>gestoppte Kopie</b> jedes Gasts des Auftrags auf den neuesten Stand:</p>
+<ul>
+  <li>Beim ersten Mal wird das Replikat wie ein neuer Gast wiederhergestellt (nächste freie ID, Name <i>original-replica</i>, neue MAC-Adressen, startet nie mit dem Knoten).</li>
+  <li>Danach werden nur die Blöcke geschrieben, die sich seit der Sicherung des Replikats geändert haben — typischerweise einige Sekunden pro Sicherung.</li>
+  <li>Die Auftragsseite listet die Replikate, die jeweils enthaltene Sicherung und ihren Zustand auf. Geht ein Gast verloren, klicken Sie auf <b>Replikat starten</b>: Es läuft mit den Daten der letzten Sicherung, ohne Wiederherstellung. Starten Sie es nur, wenn das Original wirklich weg ist — beide gleichzeitig im Netzwerk können Konflikte verursachen.</li>
+  <li>Solange ein Replikat läuft, wird es nicht mehr aktualisiert (der Lauf meldet das). Um erneut zu replizieren, löschen Sie den Replikat-Gast in Proxmox; die nächste Sicherung erstellt ein neues. Replikate mit Proxmox-Snapshots werden ebenfalls nicht aktualisiert.</li>
+  <li>Später zu einem Gast hinzugefügte Festplatten werden nicht repliziert (löschen Sie das Replikat, um neu zu beginnen); vergrößerte Festplatten werden auch auf dem Replikat vergrößert. Konfigurationsänderungen (Arbeitsspeicher, CPUs) werden beim Erstellen des Replikats übernommen.</li>
+  <li>Die Replikation liest die Sicherungen wie eine Wiederherstellung: Der Replikatknoten muss den Speicher erreichen. Das Ausschalten der Replikation lässt die Replikate unverändert.</li>
+</ul>
+
+<h2>Befehlszeile</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
+<p>Die Repository-Optionen sind dieselben wie bei allen Befehlen (siehe <a href="/docs/cli">Befehlszeilenreferenz</a>). Die Befehlszeile funktioniert ohne Konsole, zum Beispiel um nach einem Desaster einen ganzen Knoten wiederherzustellen.</p>
+
+<h2>Cluster</h2>
+<p>Installieren Sie den Agenten auf jedem Knoten. Ein Auftrag sichert die Gäste, die auf dem Knoten seines Agenten laufen; ein in einem Auftrag aufgeführter Gast, der auf einen anderen Knoten migriert wurde, wird als Warnung mit dem Namen dieses Knotens gemeldet — sichern Sie jeden Knoten mit einem eigenen Auftrag, oder verwenden Sie <i>alle Gäste des Knotens</i> auf jedem Knoten, damit migrierte Gäste immer abgedeckt sind.</p>
+
+<h2>Einzelne Dateien wiederherstellen</h2>
+<p>Klicken Sie in der Gasttabelle eines VM-Sicherungslaufs auf <b>Dateien durchsuchen</b>. Die Konsole liest die Festplatte direkt aus der Sicherung — nichts wird vorher wiederhergestellt — und zeigt ihre Partitionen und logischen LVM-Volumes; NTFS (Windows), ext2/3/4 und XFS (Linux) können durchsucht werden, auch innerhalb von LVM. Markieren Sie Dateien und Ordner und:</p>
+<ul>
+  <li><b>Herunterladen</b> — eine Datei unverändert, mehrere Dateien oder Ordner als ZIP-Archiv, direkt in Ihren Browser;</li>
+  <li><b>Auf Agent wiederherstellen</b> — in einen Ordner auf einem beliebigen Agenten kopieren, z. B. zurück in die VM (wenn dort der BackupZit-Agent läuft) oder auf einen Dateiserver.</li>
+</ul>
+<p>In der Befehlszeile: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> und <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> wählt eine Partition oder ein logisches Volume (<code>pve ls</code> ohne Pfad listet sie auf). Das Durchsuchen in der Konsole erfordert die Sicherung auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository).</p>
+
+<h2>Noch nicht enthalten</h2>
+<ul>
+  <li>XCP-ng-Hosts. Hyper-V und VMware ESXi: siehe <a href="/docs/hyperv">Hyper-V</a> und <a href="/docs/vmware">VMware ESXi</a>.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,95 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Macchine virtuali Proxmox VE</h1>
+<p class="lead">BackupZit esegue il backup di macchine virtuali (QEMU) e container (LXC) di Proxmox VE senza installare nulla nei guest. L'agente gira sull'host Proxmox, crea uno snapshot di ogni guest, ne legge i dischi e li archivia deduplicati su qualsiasi destinazione di archiviazione.</p>
+
+<h2>Configurazione</h2>
+<ol>
+  <li>Installa il pacchetto <b>Agente Linux — Debian / Ubuntu</b> da <a href="/agents">Agenti</a> su ogni nodo Proxmox (Proxmox VE 7 e 8 sono basati su Debian):
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>Entro un minuto il nodo compare nella pagina Agenti con il badge <b>Proxmox VE · N guests</b>.</li>
+  <li>In <a href="/jobs">Job di backup</a> seleziona quell'agente e scegli <b>Macchine virtuali (Proxmox VE, Hyper-V, VMware)</b>. Esegui il backup di <b>tutti i guest del nodo</b> (i guest creati in seguito sono inclusi automaticamente) oppure selezionane alcuni.</li>
+</ol>
+<p>L'agente usa gli strumenti propri del nodo (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); nella console non viene memorizzato alcun token API né password.</p>
+
+<h2>Come viene salvato un guest</h2>
+<ol>
+  <li>Viene creato uno snapshot Proxmox temporaneo (<code>backupzit_…</code>, visibile in <i>Snapshots</i> per alcuni secondi o minuti). Il guest continua a funzionare.</li>
+  <li>Se nella VM gira il <b>QEMU guest agent</b> (ed è abilitato nelle opzioni della VM), Proxmox congela i file system per lo snapshot — il backup è allora coerente a livello applicativo. Senza di esso, il backup è crash-consistent, come dopo un'interruzione di corrente. Installa <code>qemu-guest-agent</code> nelle VM Linux e i VirtIO guest tools nelle VM Windows.</li>
+  <li>Ogni disco viene letto dallo snapshot in blocchi da 1 MiB. I blocchi vuoti non vengono memorizzati e i blocchi già presenti nel repository non vengono ricaricati, quindi dopo il primo backup si trasferiscono solo i dati modificati.</li>
+  <li>Lo snapshot viene rimosso. La configurazione del guest (CPU, memoria, rete, dischi) viene salvata con il backup.</li>
+</ol>
+<p>La pagina dell'esecuzione elenca ogni guest, i suoi dischi e come è stato acquisito. I test di ripristino controllano blocchi casuali dei backup di VM come per le immagini disco e, con il <a href="/docs/restore">test di avvio</a> attivo, avviano ogni VM dal backup, isolata dalla rete, per dimostrare che si avvia.</p>
+
+<h3>Storage supportati</h3>
+<table>
+  <tr><th>Tipo di storage</th><th>Guest in esecuzione</th><th>Guest arrestati</th></tr>
+  <tr><td>LVM-thin (predefinito <code>local-lvm</code>)</td><td>sì, snapshot</td><td>sì</td></tr>
+  <tr><td>ZFS (dischi VM / zvol)</td><td>sì, snapshot</td><td>sì</td></tr>
+  <tr><td>Ceph RBD</td><td>sì, snapshot</td><td>sì</td></tr>
+  <tr><td>Directory, NFS, CIFS con dischi <b>qcow2</b></td><td>sì, snapshot</td><td>sì</td></tr>
+  <tr><td>Directory, NFS, CIFS con dischi raw, LVM thick</td><td>no — arresta il guest o sposta il disco</td><td>sì</td></tr>
+  <tr><td>Subvolumi ZFS dei container</td><td colspan="2">non ancora supportati</td></tr>
+</table>
+<p>I dischi contrassegnati con <i>Backup: no</i> (<code>backup=0</code>) in Proxmox, i dischi fisici in passthrough e i bind mount vengono saltati e indicati come avvisi. Le unità cloud-init non vengono salvate; vengono ricreate dalla configurazione al ripristino.</p>
+
+<h2>Ripristinare una VM o un container</h2>
+<p>Apri un'esecuzione di backup di VM (dalla pagina del job o da <a href="/runs">Attività</a>) e usa <b>Ripristina una VM o un container</b>:</p>
+<ul>
+  <li><b>Guest</b> — uno dei guest di quel backup.</li>
+  <li><b>Ripristina sul nodo Proxmox</b> — qualsiasi nodo con l'agente BackupZit, anche un nodo di un altro cluster.</li>
+  <li><b>Come nuovo guest con il primo ID libero</b> (predefinito) o <b>con ID …</b> — l'originale continua a funzionare. Poiché esistono entrambi, le schede di rete della copia ricevono nuovi indirizzi MAC.</li>
+  <li><b>Con il suo ID originale</b> — dopo che il guest è stato eliminato. Se esiste ancora, seleziona <b>arrestalo ed eliminalo</b> per sostituirlo con il backup; il guest esistente e i suoi dischi vengono eliminati per primi.</li>
+  <li><b>Nome</b> e <b>Archiviazione per i dischi</b> — ad es. ripristinare su uno storage diverso dall'originale.</li>
+  <li><b>Avvia il guest dopo il ripristino</b>.</li>
+</ul>
+<p>Ogni ripristino assegna alle VM un nuovo ID di generazione (<code>vmgenid</code>), così i controller di dominio Windows e altri software rilevano il rollback in sicurezza. I dischi vengono allocati con <code>pvesm</code> sullo storage scelto; su storage di tipo directory vengono ripristinati come file raw.</p>
+
+<h2>Ripristino istantaneo</h2>
+<p>Ripristinare una VM grande richiede quanto copiare i suoi dischi. Con <b>Subito, in esecuzione dal backup</b> nel modulo di ripristino, la VM gira invece in pochi secondi, mentre i suoi dischi sono ancora nel backup:</p>
+<ol>
+  <li>L'agente fornisce i dischi della VM in sola lettura dal backup (un piccolo server NBD eseguito come unità systemd <code>backupzit-instant-&lt;ID&gt;</code>) e crea una nuova VM con il primo ID libero, i cui dischi sono overlay qcow2 sullo storage directory <code>backupzit-instant</code> (<code>/var/lib/backupzit-instant</code>, aggiunto automaticamente). I dati vengono letti dal backup su richiesta; tutto ciò che la VM scrive resta negli overlay. Le variabili del firmware (disco EFI) e lo stato del TPM sono piccoli e vengono copiati.</li>
+  <li>La VM si avvia. Controllala — riceve nuovi indirizzi MAC come qualsiasi copia. La dashboard elenca ogni VM che gira ancora da un backup.</li>
+  <li>Nella pagina dell'esecuzione, scegli <b>Completa</b>: i dischi vengono spostati sullo storage scelto mentre la VM continua a girare (<code>qm disk move</code>), poi il backup non viene più usato. Oppure <b>Scarta</b>: la VM viene arrestata ed eliminata insieme alle sue modifiche.</li>
+</ol>
+<p>Finché una VM gira da un backup, la conservazione non rimuove mai quel backup. La VM è veloce quanto lo consente lo storage dei backup: un repository su un disco locale o una condivisione di rete veloce funziona meglio; letture via SFTP o S3 da lontano la rallentano finché non viene completata. Il ripristino istantaneo vale per le VM (non per i container) e crea una nuova VM — per ripristinare sul posto usa un ripristino normale. Il disco EFI non può essere spostato mentre la VM gira; resta quindi su <code>backupzit-instant</code> (vedi il messaggio dell'esecuzione) e può essere spostato dopo aver spento la VM: <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
+
+<h2>Replica</h2>
+<p>Per i guest che devono tornare disponibili in pochi minuti, un job di VM può mantenere delle <b>repliche</b>: in <b>Avanzate</b> nel modulo del job seleziona <b>Mantieni repliche delle VM</b> e scegli il nodo (qualsiasi nodo con l'agente BackupZit, anche in un altro cluster) e lo storage. Dopo ogni backup, l'agente su quel nodo aggiorna una <b>copia arrestata</b> di ogni guest del job:</p>
+<ul>
+  <li>La prima volta la replica viene ripristinata come un nuovo guest (primo ID libero, nome <i>original-replica</i>, nuovi indirizzi MAC, mai avviata con il nodo).</li>
+  <li>In seguito vengono scritti solo i blocchi cambiati dal backup contenuto nella replica — in genere pochi secondi per backup.</li>
+  <li>La pagina del job elenca le repliche, il backup contenuto in ciascuna e il loro stato. Se un guest va perso, fai clic su <b>Avvia replica</b>: gira con i dati dell'ultimo backup, senza ripristino. Avviala solo quando l'originale non c'è davvero più — entrambi in rete contemporaneamente possono andare in conflitto.</li>
+  <li>Mentre una replica gira non viene più aggiornata (l'esecuzione lo segnala). Per replicare di nuovo, elimina il guest replica in Proxmox; il backup successivo ne crea uno nuovo. Anche le repliche con snapshot Proxmox non vengono aggiornate.</li>
+  <li>I dischi aggiunti in seguito a un guest non vengono replicati (elimina la replica per ricominciare); i dischi ingranditi vengono ingranditi anche sulla replica. Le modifiche alla configurazione (memoria, CPU) vengono applicate alla creazione della replica.</li>
+  <li>La replica legge i backup come un ripristino: il nodo della replica deve raggiungere lo storage. Disattivare la replica lascia le repliche come sono.</li>
+</ul>
+
+<h2>Riga di comando</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
+<p>Le opzioni del repository sono le stesse di tutti i comandi (vedi <a href="/docs/cli">Riferimento della riga di comando</a>). La riga di comando funziona senza la console, ad esempio per ripristinare un intero nodo dopo un disastro.</p>
+
+<h2>Cluster</h2>
+<p>Installa l'agente su ogni nodo. Un job salva i guest in esecuzione sul nodo del suo agente; un guest elencato in un job e migrato su un altro nodo viene segnalato come avviso con il nome di quel nodo — salva ogni nodo con un proprio job, oppure usa <i>tutti i guest del nodo</i> su ogni nodo, così i guest migrati sono sempre coperti.</p>
+
+<h2>Ripristinare singoli file</h2>
+<p>Nella tabella dei guest di un'esecuzione di backup di VM fai clic su <b>Sfoglia file</b>. La console legge il disco direttamente dal backup — nulla viene ripristinato prima — e mostra le sue partizioni e i volumi logici LVM; si possono sfogliare NTFS (Windows), ext2/3/4 e XFS (Linux), anche dentro LVM. Seleziona file e cartelle e:</p>
+<ul>
+  <li><b>Scarica</b> — un file così com'è, più file o cartelle come archivio ZIP, direttamente nel browser;</li>
+  <li><b>Ripristina sull’agente</b> — copiali in una cartella su qualsiasi agente, ad es. di nuovo nella VM (se esegue l'agente BackupZit) o su un file server.</li>
+</ul>
+<p>Da riga di comando: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> e <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> seleziona una partizione o un volume logico (<code>pve ls</code> senza percorso li elenca). Sfogliare dalla console richiede che il backup sia su uno storage di rete (SFTP, S3, SMB, Azure, repository protetto).</p>
+
+<h2>Non ancora incluso</h2>
+<ul>
+  <li>Host XCP-ng. Hyper-V e VMware ESXi: vedi <a href="/docs/hyperv">Hyper-V</a> e <a href="/docs/vmware">VMware ESXi</a>.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

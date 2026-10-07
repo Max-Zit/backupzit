@@ -1,0 +1,95 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Machines virtuelles Proxmox VE</h1>
+<p class="lead">BackupZit sauvegarde les machines virtuelles (QEMU) et les conteneurs (LXC) de Proxmox VE sans rien installer dans les invités. L'agent tourne sur l'hôte Proxmox, prend un instantané de chaque invité, lit ses disques et les stocke dédupliqués sur n'importe quelle cible de stockage.</p>
+
+<h2>Mise en place</h2>
+<ol>
+  <li>Installez le paquet <b>Agent Linux — Debian / Ubuntu</b> depuis <a href="/agents">Agents</a> sur chaque nœud Proxmox (Proxmox VE 7 et 8 sont basés sur Debian) :
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>En moins d'une minute, le nœud apparaît sur la page Agents avec le badge <b>Proxmox VE · N guests</b>.</li>
+  <li>Dans <a href="/jobs">Tâches de sauvegarde</a>, sélectionnez cet agent et choisissez <b>Machines virtuelles (Proxmox VE, Hyper-V, VMware)</b>. Sauvegardez <b>tous les invités du nœud</b> (les invités créés plus tard sont inclus automatiquement) ou cochez-en certains.</li>
+</ol>
+<p>L'agent utilise les outils propres au nœud (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph) ; aucun jeton d'API ni mot de passe n'est stocké dans la console.</p>
+
+<h2>Comment un invité est sauvegardé</h2>
+<ol>
+  <li>Un instantané Proxmox temporaire est pris (<code>backupzit_…</code>, visible sous <i>Snapshots</i> pendant quelques secondes à quelques minutes). L'invité continue de tourner.</li>
+  <li>Si l'<b>agent invité QEMU</b> tourne dans la VM (et est activé dans les options de la VM), Proxmox gèle les systèmes de fichiers pour l'instantané — la sauvegarde est alors cohérente au niveau applicatif. Sans lui, la sauvegarde est cohérente en cas de crash, comme une coupure de courant. Installez <code>qemu-guest-agent</code> dans les VM Linux et les outils invités VirtIO dans les VM Windows.</li>
+  <li>Chaque disque est lu depuis l'instantané par blocs de 1 Mio. Les blocs vides ne sont pas stockés et les blocs déjà présents dans le dépôt ne sont pas renvoyés ; après la première sauvegarde, seules les données modifiées sont transférées.</li>
+  <li>L'instantané est supprimé. La configuration de l'invité (processeur, mémoire, réseau, disques) est stockée avec la sauvegarde.</li>
+</ol>
+<p>La page de l'exécution liste chaque invité, ses disques et la façon dont il a été capturé. Les tests de restauration vérifient des blocs aléatoires des sauvegardes de VM comme pour les images disque et, avec le <a href="/docs/restore">test de démarrage</a> activé, démarrent chaque VM depuis la sauvegarde, isolée du réseau, pour prouver qu'elle démarre.</p>
+
+<h3>Stockages pris en charge</h3>
+<table>
+  <tr><th>Type de stockage</th><th>Invités en marche</th><th>Invités arrêtés</th></tr>
+  <tr><td>LVM-thin (par défaut <code>local-lvm</code>)</td><td>oui, instantané</td><td>oui</td></tr>
+  <tr><td>ZFS (disques de VM / zvols)</td><td>oui, instantané</td><td>oui</td></tr>
+  <tr><td>Ceph RBD</td><td>oui, instantané</td><td>oui</td></tr>
+  <tr><td>Répertoire, NFS, CIFS avec disques <b>qcow2</b></td><td>oui, instantané</td><td>oui</td></tr>
+  <tr><td>Répertoire, NFS, CIFS avec disques raw, LVM épais</td><td>non — arrêtez l'invité ou déplacez le disque</td><td>oui</td></tr>
+  <tr><td>Sous-volumes ZFS des conteneurs</td><td colspan="2">pas encore pris en charge</td></tr>
+</table>
+<p>Les disques marqués <i>Backup: no</i> (<code>backup=0</code>) dans Proxmox, les disques physiques en passthrough et les montages bind sont ignorés et listés comme avertissements. Les lecteurs cloud-init ne sont pas stockés ; ils sont recréés à partir de la configuration lors de la restauration.</p>
+
+<h2>Restaurer une VM ou un conteneur</h2>
+<p>Ouvrez une exécution de sauvegarde de VM (depuis la page de la tâche ou <a href="/runs">Activité</a>) et utilisez <b>Restaurer une VM ou un conteneur</b> :</p>
+<ul>
+  <li><b>Invité</b> — l'un des invités de cette sauvegarde.</li>
+  <li><b>Restaurer sur le nœud Proxmox</b> — tout nœud doté de l'agent BackupZit, y compris un nœud d'un autre cluster.</li>
+  <li><b>En tant que nouvel invité avec le prochain ID libre</b> (par défaut) ou <b>avec l'ID …</b> — l'original continue de tourner. Comme les deux existent, les cartes réseau de la copie reçoivent de nouvelles adresses MAC.</li>
+  <li><b>Avec son ID d'origine</b> — après la suppression de l'invité. S'il existe encore, cochez <b>l'arrêter et le supprimer</b> pour le remplacer par la sauvegarde ; l'invité existant et ses disques sont supprimés d'abord.</li>
+  <li><b>Nom</b> et <b>Stockage pour les disques</b> — par ex. restaurer sur un autre stockage que l'original.</li>
+  <li><b>Démarrer l'invité après la restauration</b>.</li>
+</ul>
+<p>Chaque restauration attribue aux VM un nouvel ID de génération (<code>vmgenid</code>), afin que les contrôleurs de domaine Windows et d'autres logiciels détectent le retour en arrière en toute sécurité. Les disques sont alloués avec <code>pvesm</code> sur le stockage choisi ; sur un stockage de type répertoire, ils sont restaurés en fichiers raw.</p>
+
+<h2>Restauration instantanée</h2>
+<p>Restaurer une grande VM prend autant de temps que copier ses disques. Avec <b>Instantanément, en s’exécutant depuis la sauvegarde</b> dans le formulaire de restauration, la VM tourne au contraire en quelques secondes, alors que ses disques sont encore dans la sauvegarde :</p>
+<ol>
+  <li>L'agent sert les disques de la VM en lecture seule depuis la sauvegarde (un petit serveur NBD tournant comme unité systemd <code>backupzit-instant-&lt;ID&gt;</code>) et crée une nouvelle VM avec le prochain ID libre dont les disques sont des overlays qcow2 sur le stockage de type répertoire <code>backupzit-instant</code> (<code>/var/lib/backupzit-instant</code>, ajouté automatiquement). Les données sont lues depuis la sauvegarde à la demande ; tout ce que la VM écrit reste dans les overlays. Les variables du micrologiciel (disque EFI) et l'état du TPM sont petits et copiés.</li>
+  <li>La VM démarre. Vérifiez-la — elle reçoit de nouvelles adresses MAC comme toute copie. Le tableau de bord liste chaque VM qui tourne encore depuis une sauvegarde.</li>
+  <li>Sur la page de l'exécution, soit <b>Terminer</b> : les disques sont déplacés vers le stockage choisi pendant que la VM tourne (<code>qm disk move</code>), puis la sauvegarde n'est plus utilisée. Soit <b>Abandonner</b> : la VM est arrêtée et supprimée avec ses modifications.</li>
+</ol>
+<p>Tant qu'une VM tourne depuis une sauvegarde, la rétention ne supprime jamais cette sauvegarde. La VM est aussi rapide que le stockage de sauvegarde le permet : un dépôt sur un disque local ou un partage réseau rapide fonctionne le mieux ; des lectures via SFTP ou S3 depuis un site éloigné la ralentissent jusqu'à ce qu'elle soit terminée. La restauration instantanée concerne les VM (pas les conteneurs) et crée une nouvelle VM — pour restaurer sur place, utilisez une restauration normale. Le disque EFI ne peut pas être déplacé pendant que la VM tourne ; il reste alors sur <code>backupzit-instant</code> (voir le message de l'exécution) et peut être déplacé après l'arrêt de la VM : <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
+
+<h2>Réplication</h2>
+<p>Pour les invités qui doivent revenir en quelques minutes, une tâche de VM peut conserver des <b>répliques</b> : sous <b>Avancé</b> dans le formulaire de la tâche, cochez <b>Conserver des répliques des VM</b> et choisissez le nœud (tout nœud doté de l'agent BackupZit, y compris dans un autre cluster) et le stockage. Après chaque sauvegarde, l'agent de ce nœud met à jour une <b>copie arrêtée</b> de chaque invité de la tâche :</p>
+<ul>
+  <li>La première fois, la réplique est restaurée comme un nouvel invité (prochain ID libre, nom <i>original-replica</i>, nouvelles adresses MAC, jamais démarrée avec le nœud).</li>
+  <li>Ensuite, seuls les blocs modifiés depuis la sauvegarde que contient la réplique sont écrits — généralement quelques secondes par sauvegarde.</li>
+  <li>La page de la tâche liste les répliques, la sauvegarde que chacune contient et leur état. Si un invité est perdu, cliquez sur <b>Démarrer le réplica</b> : il tourne avec les données de la dernière sauvegarde, sans restauration. Ne le démarrez que si l'original a vraiment disparu — les deux en même temps sur le réseau peuvent entrer en conflit.</li>
+  <li>Tant qu'une réplique tourne, elle n'est plus mise à jour (l'exécution le signale). Pour répliquer à nouveau, supprimez l'invité réplique dans Proxmox ; la sauvegarde suivante en crée une nouvelle. Les répliques ayant des instantanés Proxmox ne sont pas mises à jour non plus.</li>
+  <li>Les disques ajoutés plus tard à un invité ne sont pas répliqués (supprimez la réplique pour recommencer) ; les disques agrandis le sont aussi sur la réplique. Les modifications de configuration (mémoire, processeurs) sont reprises à la création de la réplique.</li>
+  <li>La réplication lit les sauvegardes comme une restauration : le nœud de réplique doit atteindre le stockage. Désactiver la réplication laisse les répliques en l'état.</li>
+</ul>
+
+<h2>Ligne de commande</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
+<p>Les options du dépôt sont les mêmes que pour toutes les commandes (voir <a href="/docs/cli">Référence de la ligne de commande</a>). La ligne de commande fonctionne sans la console, par exemple pour restaurer un nœud entier après un sinistre.</p>
+
+<h2>Clusters</h2>
+<p>Installez l'agent sur chaque nœud. Une tâche sauvegarde les invités qui tournent sur le nœud de son agent ; un invité listé dans une tâche et migré vers un autre nœud est signalé par un avertissement nommant ce nœud — sauvegardez chaque nœud avec sa propre tâche, ou utilisez <i>tous les invités du nœud</i> sur chaque nœud pour que les invités migrés soient toujours couverts.</p>
+
+<h2>Restaurer des fichiers individuels</h2>
+<p>Dans le tableau des invités d'une exécution de sauvegarde de VM, cliquez sur <b>Parcourir les fichiers</b>. La console lit le disque directement depuis la sauvegarde — rien n'est restauré au préalable — et affiche ses partitions et volumes logiques LVM ; NTFS (Windows), ext2/3/4 et XFS (Linux) peuvent être parcourus, y compris dans LVM. Cochez des fichiers et dossiers, puis :</p>
+<ul>
+  <li><b>Télécharger</b> — un fichier tel quel, plusieurs fichiers ou dossiers dans une archive ZIP, directement dans votre navigateur ;</li>
+  <li><b>Restaurer sur l’agent</b> — les copier dans un dossier sur n'importe quel agent, par ex. dans la VM (si elle exécute l'agent BackupZit) ou sur un serveur de fichiers.</li>
+</ul>
+<p>En ligne de commande : <code>backupzit-agent pve ls --vmid 100 latest /etc</code> et <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code> ; <code>--volume</code> sélectionne une partition ou un volume logique (<code>pve ls</code> sans chemin les liste). La navigation dans la console nécessite que la sauvegarde soit sur un stockage réseau (SFTP, S3, SMB, Azure, dépôt renforcé).</p>
+
+<h2>Pas encore inclus</h2>
+<ul>
+  <li>Hôtes XCP-ng. Hyper-V et VMware ESXi : voir <a href="/docs/hyperv">Hyper-V</a> et <a href="/docs/vmware">VMware ESXi</a>.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

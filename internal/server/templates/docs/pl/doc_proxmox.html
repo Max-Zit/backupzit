@@ -1,0 +1,95 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Maszyny wirtualne Proxmox VE</h1>
+<p class="lead">BackupZit tworzy kopie maszyn wirtualnych (QEMU) i kontenerów (LXC) Proxmox VE bez instalowania czegokolwiek w gościach. Agent działa na hoście Proxmox, tworzy migawkę każdego gościa, odczytuje jego dyski i zapisuje je z deduplikacją w dowolnym magazynie.</p>
+
+<h2>Konfiguracja</h2>
+<ol>
+  <li>Zainstaluj pakiet <b>Agent Linux — Debian / Ubuntu</b> z <a href="/agents">Agenci</a> na każdym węźle Proxmox (Proxmox VE 7 i 8 bazują na Debianie):
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>W ciągu minuty węzeł pojawia się na stronie Agenci z oznaczeniem <b>Proxmox VE · N guests</b>.</li>
+  <li>W <a href="/jobs">Zadania kopii</a> wybierz tego agenta i <b>Maszyny wirtualne (Proxmox VE, Hyper-V, VMware)</b>. Kopiuj <b>wszystkich gości węzła</b> (goście utworzeni później są dołączani automatycznie) albo zaznacz wybranych.</li>
+</ol>
+<p>Agent używa własnych narzędzi węzła (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); w konsoli nie jest przechowywany żaden token API ani hasło.</p>
+
+<h2>Jak kopiowany jest gość</h2>
+<ol>
+  <li>Tworzona jest tymczasowa migawka Proxmox (<code>backupzit_…</code>, widoczna w <i>Snapshots</i> przez kilka sekund do kilku minut). Gość działa dalej.</li>
+  <li>Jeśli w maszynie działa <b>agent gościa QEMU</b> (i jest włączony w opcjach maszyny), Proxmox zamraża systemy plików na czas migawki — kopia jest wtedy spójna aplikacyjnie. Bez niego kopia jest spójna awaryjnie, jak po zaniku zasilania. Zainstaluj <code>qemu-guest-agent</code> w maszynach Linux i narzędzia gościa VirtIO w maszynach Windows.</li>
+  <li>Każdy dysk jest odczytywany z migawki w blokach po 1 MiB. Puste bloki nie są zapisywane, a bloki już obecne w repozytorium nie są wysyłane ponownie, więc po pierwszej kopii przesyłane są tylko zmienione dane.</li>
+  <li>Migawka jest usuwana. Konfiguracja gościa (procesor, pamięć, sieć, dyski) jest zapisywana razem z kopią.</li>
+</ol>
+<p>Strona uruchomienia wymienia każdego gościa, jego dyski i sposób przechwycenia. Testy przywracania sprawdzają losowe bloki kopii maszyn jak w obrazach dysków, a przy włączonym <a href="/docs/restore">teście rozruchu</a> uruchamiają każdą maszynę z kopii, odizolowaną od sieci, aby udowodnić, że się uruchamia.</p>
+
+<h3>Obsługiwane magazyny</h3>
+<table>
+  <tr><th>Typ magazynu</th><th>Działający goście</th><th>Zatrzymani goście</th></tr>
+  <tr><td>LVM-thin (domyślnie <code>local-lvm</code>)</td><td>tak, migawka</td><td>tak</td></tr>
+  <tr><td>ZFS (dyski maszyn / zvole)</td><td>tak, migawka</td><td>tak</td></tr>
+  <tr><td>Ceph RBD</td><td>tak, migawka</td><td>tak</td></tr>
+  <tr><td>Katalog, NFS, CIFS z dyskami <b>qcow2</b></td><td>tak, migawka</td><td>tak</td></tr>
+  <tr><td>Katalog, NFS, CIFS z dyskami raw, gruby LVM</td><td>nie — zatrzymaj gościa lub przenieś dysk</td><td>tak</td></tr>
+  <tr><td>Podwoluminy ZFS kontenerów</td><td colspan="2">jeszcze nieobsługiwane</td></tr>
+</table>
+<p>Dyski oznaczone w Proxmox jako <i>Backup: no</i> (<code>backup=0</code>), przekazane dyski fizyczne i montowania bind są pomijane i wymieniane jako ostrzeżenia. Napędy cloud-init nie są zapisywane; przy przywracaniu są odtwarzane z konfiguracji.</p>
+
+<h2>Przywracanie maszyny lub kontenera</h2>
+<p>Otwórz uruchomienie kopii maszyny (ze strony zadania lub z <a href="/runs">Aktywność</a>) i użyj <b>Przywróć VM lub kontener</b>:</p>
+<ul>
+  <li><b>Gość</b> — jeden z gości w tej kopii.</li>
+  <li><b>Przywróć na węźle Proxmox</b> — dowolny węzeł z agentem BackupZit, także węzeł innego klastra.</li>
+  <li><b>Jako nowy gość z następnym wolnym ID</b> (domyślnie) lub <b>z ID …</b> — oryginał działa dalej. Ponieważ istnieją oba, karty sieciowe kopii dostają nowe adresy MAC.</li>
+  <li><b>Z oryginalnym ID</b> — po usunięciu gościa. Jeśli nadal istnieje, zaznacz <b>zatrzymaj go i usuń</b>, aby zastąpić go kopią; najpierw usuwany jest istniejący gość i jego dyski.</li>
+  <li><b>Nazwa</b> i <b>Magazyn dla dysków</b> — np. przywróć do innego magazynu niż oryginał.</li>
+  <li><b>Uruchom gościa po przywróceniu</b>.</li>
+</ul>
+<p>Każde przywrócenie nadaje maszynom nowy identyfikator generacji (<code>vmgenid</code>), aby kontrolery domeny Windows i inne oprogramowanie bezpiecznie wykryły cofnięcie stanu. Dyski są przydzielane przez <code>pvesm</code> w wybranym magazynie; w magazynie katalogowym są przywracane jako pliki raw.</p>
+
+<h2>Natychmiastowe odzyskiwanie</h2>
+<p>Przywrócenie dużej maszyny trwa tyle, co skopiowanie jej dysków. Z opcją <b>Natychmiast, działając z kopii</b> w formularzu przywracania maszyna działa już po kilku sekundach, podczas gdy jej dyski wciąż są w kopii:</p>
+<ol>
+  <li>Agent udostępnia dyski maszyny tylko do odczytu z kopii (mały serwer NBD działający jako jednostka systemd <code>backupzit-instant-&lt;ID&gt;</code>) i tworzy nową maszynę z następnym wolnym ID, której dyski są nakładkami qcow2 w magazynie katalogowym <code>backupzit-instant</code> (<code>/var/lib/backupzit-instant</code>, dodawany automatycznie). Dane są odczytywane z kopii na żądanie; wszystko, co zapisuje maszyna, zostaje w nakładkach. Zmienne firmware (dysk EFI) i stan TPM są małe i są kopiowane.</li>
+  <li>Maszyna startuje. Sprawdź ją — jak każda kopia dostaje nowe adresy MAC. Pulpit wymienia każdą maszynę, która wciąż działa z kopii.</li>
+  <li>Na stronie uruchomienia wybierz <b>Zakończ</b>: dyski są przenoszone do wybranego magazynu, gdy maszyna działa (<code>qm disk move</code>), potem kopia przestaje być używana. Albo <b>Odrzuć</b>: maszyna jest zatrzymywana i usuwana wraz ze zmianami.</li>
+</ol>
+<p>Dopóki maszyna działa z kopii, przechowywanie nigdy jej nie usuwa. Maszyna jest tak szybka, jak pozwala magazyn kopii: najlepiej sprawdza się repozytorium na dysku lokalnym lub szybkim udziale sieciowym; odczyty przez SFTP lub S3 z daleka spowalniają ją, dopóki nie zostanie zakończona. Natychmiastowe odzyskiwanie dotyczy maszyn wirtualnych (nie kontenerów) i tworzy nową maszynę — przywrócenie w miejscu wykonuje się zwykłym przywracaniem. Dysku EFI nie da się przenieść, gdy maszyna działa; zostaje wtedy w <code>backupzit-instant</code> (zobacz komunikat uruchomienia) i można go przenieść po wyłączeniu maszyny: <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
+
+<h2>Replikacja</h2>
+<p>Dla gości, którzy muszą wrócić w ciągu minut, zadanie maszyn może utrzymywać <b>repliki</b>: w <b>Zaawansowane</b> formularza zadania zaznacz <b>Utrzymuj repliki maszyn wirtualnych</b> i wybierz węzeł (dowolny węzeł z agentem BackupZit, także w innym klastrze) oraz magazyn. Po każdej kopii agent na tym węźle aktualizuje <b>zatrzymaną kopię</b> każdego gościa zadania:</p>
+<ul>
+  <li>Za pierwszym razem replika jest przywracana jak nowy gość (następne wolne ID, nazwa <i>original-replica</i>, nowe adresy MAC, nigdy nie startuje razem z węzłem).</li>
+  <li>Później zapisywane są tylko bloki zmienione od kopii, którą zawiera replika — zwykle kilka sekund na kopię.</li>
+  <li>Strona zadania wymienia repliki, kopię, którą zawiera każda z nich, i ich stan. Jeśli gość zostanie utracony, kliknij <b>Uruchom replikę</b>: działa z danymi z ostatniej kopii, bez przywracania. Uruchamiaj ją tylko wtedy, gdy oryginału naprawdę już nie ma — oba w sieci jednocześnie mogą powodować konflikty.</li>
+  <li>Gdy replika działa, nie jest już aktualizowana (uruchomienie to zgłasza). Aby replikować ponownie, usuń gościa-replikę w Proxmox; następna kopia utworzy nową. Repliki z migawkami Proxmox również nie są aktualizowane.</li>
+  <li>Dyski dodane później do gościa nie są replikowane (usuń replikę, aby zacząć od nowa); powiększone dyski są powiększane także w replice. Zmiany konfiguracji (pamięć, procesory) są przejmowane przy tworzeniu repliki.</li>
+  <li>Replikacja odczytuje kopie jak przywracanie: węzeł repliki musi mieć dostęp do magazynu. Wyłączenie replikacji pozostawia repliki bez zmian.</li>
+</ul>
+
+<h2>Wiersz poleceń</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
+<p>Opcje repozytorium są takie same jak dla wszystkich poleceń (zobacz <a href="/docs/cli">Wiersz poleceń — dokumentacja</a>). Wiersz poleceń działa bez konsoli, na przykład do przywrócenia całego węzła po awarii.</p>
+
+<h2>Klastry</h2>
+<p>Zainstaluj agenta na każdym węźle. Zadanie kopiuje gości działających na węźle jego agenta; gość wymieniony w zadaniu, który został zmigrowany na inny węzeł, jest zgłaszany jako ostrzeżenie z nazwą tego węzła — kopiuj każdy węzeł osobnym zadaniem albo użyj <i>wszystkich gości węzła</i> na każdym węźle, aby zmigrowani goście byli zawsze objęci.</p>
+
+<h2>Przywracanie pojedynczych plików</h2>
+<p>W tabeli gości uruchomienia kopii maszyny kliknij <b>Przeglądaj pliki</b>. Konsola odczytuje dysk bezpośrednio z kopii — nic nie jest najpierw przywracane — i pokazuje jego partycje oraz woluminy logiczne LVM; można przeglądać NTFS (Windows), ext2/3/4 i XFS (Linux), także wewnątrz LVM. Zaznacz pliki i foldery, a następnie:</p>
+<ul>
+  <li><b>Pobierz</b> — jeden plik bez zmian, wiele plików lub folderów jako archiwum ZIP, wprost do przeglądarki;</li>
+  <li><b>Przywróć na agencie</b> — skopiuj je do folderu na dowolnym agencie, np. z powrotem do maszyny (jeśli działa w niej agent BackupZit) albo na serwer plików.</li>
+</ul>
+<p>W wierszu poleceń: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> i <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> wybiera partycję lub wolumin logiczny (<code>pve ls</code> bez ścieżki je wymienia). Przeglądanie w konsoli wymaga kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, utwardzone repozytorium).</p>
+
+<h2>Jeszcze nieobsługiwane</h2>
+<ul>
+  <li>Hosty XCP-ng. Hyper-V i VMware ESXi: zobacz <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

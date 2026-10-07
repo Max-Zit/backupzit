@@ -1,0 +1,95 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Virtuální počítače Proxmox VE</h1>
+<p class="lead">BackupZit zálohuje virtuální počítače (QEMU) a kontejnery (LXC) Proxmox VE, aniž by cokoli instaloval do hostů. Agent běží na hostiteli Proxmox, pořídí snímek každého hosta, přečte jeho disky a uloží je deduplikovaně na libovolné cílové úložiště.</p>
+
+<h2>Nastavení</h2>
+<ol>
+  <li>Nainstalujte balíček <b>Agent pro Linux — Debian / Ubuntu</b> z <a href="/agents">Agenti</a> na každý uzel Proxmoxu (Proxmox VE 7 a 8 vycházejí z Debianu):
+<pre>apt install ./backupzit-agent_*.deb
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre></li>
+  <li>Do minuty se uzel objeví na stránce Agenti se štítkem <b>Proxmox VE · N guests</b>.</li>
+  <li>V <a href="/jobs">Úlohy zálohování</a> vyberte tohoto agenta a zvolte <b>Virtuální počítače (Proxmox VE, Hyper-V, VMware)</b>. Zálohujte <b>všechny hosty uzlu</b> (hosté vytvoření později se zahrnou automaticky) nebo zaškrtněte jednotlivé.</li>
+</ol>
+<p>Agent používá vlastní nástroje uzlu (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); v konzoli se neukládá žádný API token ani heslo.</p>
+
+<h2>Jak se host zálohuje</h2>
+<ol>
+  <li>Pořídí se dočasný snímek Proxmoxu (<code>backupzit_…</code>, viditelný v <i>Snapshots</i> několik sekund až minut). Host dál běží.</li>
+  <li>Pokud ve VM běží <b>QEMU guest agent</b> (a je zapnutý v možnostech VM), Proxmox pro snímek zmrazí souborové systémy — záloha je pak konzistentní na úrovni aplikací. Bez něj je záloha konzistentní jako při havárii, jako po výpadku proudu. Do linuxových VM nainstalujte <code>qemu-guest-agent</code> a do VM s Windows nástroje hosta VirtIO.</li>
+  <li>Každý disk se čte ze snímku po blocích 1 MiB. Prázdné bloky se neukládají a bloky, které už jsou v úložišti, se znovu neodesílají, takže po první záloze se přenášejí jen změněná data.</li>
+  <li>Snímek se odstraní. Konfigurace hosta (CPU, paměť, síť, disky) se uloží se zálohou.</li>
+</ol>
+<p>Stránka běhu vypisuje každého hosta, jeho disky a způsob zachycení. Testy obnovy kontrolují náhodné bloky záloh VM stejně jako u obrazů disků a se zapnutým <a href="/docs/restore">testem spuštění</a> spustí každý VM ze zálohy, izolovaný od sítě, aby prokázaly, že startuje.</p>
+
+<h3>Podporovaná úložiště</h3>
+<table>
+  <tr><th>Typ úložiště</th><th>Běžící hosté</th><th>Zastavení hosté</th></tr>
+  <tr><td>LVM-thin (výchozí <code>local-lvm</code>)</td><td>ano, snímek</td><td>ano</td></tr>
+  <tr><td>ZFS (disky VM / zvoly)</td><td>ano, snímek</td><td>ano</td></tr>
+  <tr><td>Ceph RBD</td><td>ano, snímek</td><td>ano</td></tr>
+  <tr><td>Adresář, NFS, CIFS s disky <b>qcow2</b></td><td>ano, snímek</td><td>ano</td></tr>
+  <tr><td>Adresář, NFS, CIFS s disky raw, tlusté LVM</td><td>ne — zastavte hosta nebo přesuňte disk</td><td>ano</td></tr>
+  <tr><td>Subsvazky ZFS kontejnerů</td><td colspan="2">zatím nepodporováno</td></tr>
+</table>
+<p>Disky označené v Proxmoxu <i>Backup: no</i> (<code>backup=0</code>), průchozí fyzické disky a bind mounty se přeskočí a uvedou jako varování. Jednotky cloud-init se neukládají; při obnově se znovu vytvoří z konfigurace.</p>
+
+<h2>Obnova VM nebo kontejneru</h2>
+<p>Otevřete běh zálohy VM (ze stránky úlohy nebo z <a href="/runs">Aktivita</a>) a použijte <b>Obnovit VM nebo kontejner</b>:</p>
+<ul>
+  <li><b>Host</b> — jeden z hostů v této záloze.</li>
+  <li><b>Obnovit na uzlu Proxmox</b> — libovolný uzel s agentem BackupZit, i uzel jiného clusteru.</li>
+  <li><b>Jako nového hosta s dalším volným ID</b> (výchozí) nebo <b>s ID …</b> — originál dál běží. Protože existují oba, síťové karty kopie dostanou nové MAC adresy.</li>
+  <li><b>S původním ID</b> — poté, co byl host smazán. Pokud ještě existuje, zaškrtněte <b>zastavit a smazat ho</b> a nahraďte ho zálohou; nejdřív se smaže existující host a jeho disky.</li>
+  <li><b>Název</b> a <b>Úložiště pro disky</b> — např. obnova na jiné úložiště než originál.</li>
+  <li><b>Po obnově spustit hosta</b>.</li>
+</ul>
+<p>Každá obnova dá VM nové ID generace (<code>vmgenid</code>), aby řadiče domény Windows a další software bezpečně rozpoznaly návrat do minulosti. Disky se alokují pomocí <code>pvesm</code> na zvoleném úložišti; na adresářovém úložišti se obnoví jako soubory raw.</p>
+
+<h2>Okamžitá obnova</h2>
+<p>Obnova velkého VM trvá tak dlouho jako kopírování jeho disků. S volbou <b>Okamžitě, běží ze zálohy</b> ve formuláři obnovy VM naopak běží během několika sekund, zatímco jeho disky jsou stále v záloze:</p>
+<ol>
+  <li>Agent poskytuje disky VM ze zálohy jen pro čtení (malý server NBD běžící jako jednotka systemd <code>backupzit-instant-&lt;ID&gt;</code>) a vytvoří nový VM s dalším volným ID, jehož disky jsou překryvy qcow2 na adresářovém úložišti <code>backupzit-instant</code> (<code>/var/lib/backupzit-instant</code>, přidá se automaticky). Data se čtou ze zálohy podle potřeby; vše, co VM zapíše, zůstává v překryvech. Proměnné firmwaru (disk EFI) a stav TPM jsou malé a kopírují se.</li>
+  <li>VM se spustí. Zkontrolujte ho — jako každá kopie dostane nové MAC adresy. Přehled vypisuje každý VM, který stále běží ze zálohy.</li>
+  <li>Na stránce běhu buď <b>Dokončit</b>: disky se přesunou na zvolené úložiště, zatímco VM dál běží (<code>qm disk move</code>), a pak se záloha už nepoužívá. Nebo <b>Zahodit</b>: VM se zastaví a smaže i se svými změnami.</li>
+</ol>
+<p>Dokud VM běží ze zálohy, uchovávání tuto zálohu nikdy neodstraní. VM je tak rychlý, jak dovolí úložiště záloh: nejlépe funguje úložiště na místním disku nebo rychlé síťové sdílené složce; čtení přes SFTP nebo S3 z dálky ho zpomalí, dokud se nedokončí. Okamžitá obnova je pro VM (ne kontejnery) a vytváří nový VM — obnovu na místo proveďte běžnou obnovou. Disk EFI nelze přesunout, dokud VM běží; zůstane pak na <code>backupzit-instant</code> (viz zpráva běhu) a lze ho přesunout po vypnutí VM: <code>qm disk move ID efidisk0 STORAGE --delete 1</code>.</p>
+
+<h2>Replikace</h2>
+<p>Pro hosty, kteří musí být zpět během minut, může úloha VM udržovat <b>repliky</b>: v části <b>Pokročilé</b> formuláře úlohy zaškrtněte <b>Udržovat repliky VM</b> a zvolte uzel (libovolný uzel s agentem BackupZit, i v jiném clusteru) a úložiště. Po každé záloze agent na tomto uzlu aktualizuje <b>zastavenou kopii</b> každého hosta úlohy:</p>
+<ul>
+  <li>Poprvé se replika obnoví jako nový host (další volné ID, název <i>original-replica</i>, nové MAC adresy, nikdy se nespouští s uzlem).</li>
+  <li>Později se zapisují jen bloky změněné od zálohy, kterou replika obsahuje — obvykle pár sekund na zálohu.</li>
+  <li>Stránka úlohy vypisuje repliky, zálohu, kterou každá obsahuje, a jejich stav. Pokud se host ztratí, klikněte na <b>Spustit repliku</b>: poběží s daty poslední zálohy, bez obnovy. Spusťte ji jen tehdy, když originál opravdu zmizel — oba v síti současně mohou kolidovat.</li>
+  <li>Dokud replika běží, už se neaktualizuje (běh to ohlásí). Chcete-li znovu replikovat, smažte hosta repliky v Proxmoxu; další záloha vytvoří novou. Repliky se snímky Proxmoxu se také neaktualizují.</li>
+  <li>Disky přidané k hostovi později se nereplikují (smažte repliku a začněte znovu); zvětšené disky se zvětší i na replice. Změny konfigurace (paměť, CPU) se převezmou při vytvoření repliky.</li>
+  <li>Replikace čte zálohy jako obnova: uzel repliky musí dosáhnout na úložiště. Vypnutí replikace ponechá repliky, jak jsou.</li>
+</ul>
+
+<h2>Příkazový řádek</h2>
+<pre>backupzit-agent pve list
+backupzit-agent pve backup  --repo ... [--vmid 100,200] [--exclude 300]
+backupzit-agent pve show    --repo ... latest
+backupzit-agent pve restore --repo ... --vmid 100 [--new-vmid -1|N] [--name copy] [--storage local-lvm] [--overwrite] [--start] SNAPSHOT|latest
+backupzit-agent pve instant --repo ... --vmid 100 [--new-vmid N] [--name X] SNAPSHOT|latest
+backupzit-agent pve instant-finish --vmid 101 --storage local-lvm
+backupzit-agent pve instant-discard --vmid 101</pre>
+<p>Volby úložiště jsou stejné jako u všech příkazů (viz <a href="/docs/cli">Příkazový řádek — reference</a>). Příkazový řádek funguje bez konzole, například pro obnovu celého uzlu po havárii.</p>
+
+<h2>Clustery</h2>
+<p>Nainstalujte agenta na každý uzel. Úloha zálohuje hosty běžící na uzlu svého agenta; host uvedený v úloze, který byl migrován na jiný uzel, se ohlásí jako varování s názvem toho uzlu — zálohujte každý uzel vlastní úlohou, nebo na každém uzlu použijte <i>všechny hosty uzlu</i>, aby byli migrovaní hosté vždy pokryti.</p>
+
+<h2>Obnova jednotlivých souborů</h2>
+<p>V tabulce hostů běhu zálohy VM klikněte na <b>Procházet soubory</b>. Konzole čte disk přímo ze zálohy — nic se předem neobnovuje — a ukáže jeho oddíly a logické svazky LVM; procházet lze NTFS (Windows), ext2/3/4 a XFS (Linux), i uvnitř LVM. Zaškrtněte soubory a složky a:</p>
+<ul>
+  <li><b>Stáhnout</b> — jeden soubor tak, jak je, více souborů nebo složek jako archiv ZIP, přímo do prohlížeče;</li>
+  <li><b>Obnovit na agentovi</b> — zkopírovat je do složky na libovolném agentovi, např. zpět do VM (pokud v něm běží agent BackupZit) nebo na souborový server.</li>
+</ul>
+<p>Na příkazovém řádku: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> a <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> vybere oddíl nebo logický svazek (<code>pve ls</code> bez cesty je vypíše). Procházení v konzoli vyžaduje zálohu na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečené úložiště).</p>
+
+<h2>Zatím nezahrnuto</h2>
+<ul>
+  <li>Hostitelé XCP-ng. Hyper-V a VMware ESXi: viz <a href="/docs/hyperv">Hyper-V</a> a <a href="/docs/vmware">VMware ESXi</a>.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}
