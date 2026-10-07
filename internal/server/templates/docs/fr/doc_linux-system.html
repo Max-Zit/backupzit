@@ -1,0 +1,38 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Sauvegarde du système Linux et P2V</h1>
+<p class="lead">Une tâche <b>Système Linux</b> sauvegarde une machine Linux entière afin de pouvoir la recréer sur un disque vide — la même machine après une panne de disque, un nouveau matériel ou une machine virtuelle dans Proxmox VE (physique vers virtuel, P2V).</p>
+
+<h2>Ce qui est sauvegardé</h2>
+<ul>
+  <li>Chaque système de fichiers local (ext2/3/4, xfs, vfat), y compris sur LVM, fichier par fichier avec propriétaires, permissions, bits setuid, ACL, attributs étendus (étiquettes SELinux, capacités de fichiers), liens physiques et fichiers de périphériques. Chaque système de fichiers est sauvegardé séparément ; les partages réseau et les systèmes de fichiers virtuels (<code>/proc</code>, <code>/sys</code>, <code>/run</code>) sont ignorés.</li>
+  <li>La disposition des disques : tables de partitions GPT ou MBR avec leurs identifiants, groupes de volumes LVM (<code>vgcfgbackup</code>), UUID, étiquettes et fonctionnalités des systèmes de fichiers, et le code d'amorçage (MBR et partition d'amorçage BIOS de GRUB).</li>
+</ul>
+<p>Comme Relax-and-Recover, BackupZit ne copie pas le disque en cours d'utilisation bloc par bloc : Linux n'a pas d'instantané intégré d'un disque en marche, une copie brute serait donc incohérente. Chaque fichier est lu en entier, et la disposition rend le disque restauré à nouveau amorçable. Les bases de données doivent être exportées avant la sauvegarde ou sauvegardées avec leurs propres outils.</p>
+<p>Les fichiers et dossiers individuels se restaurent depuis une sauvegarde système comme depuis toute sauvegarde de fichiers (<b>Restaurer des fichiers depuis cette sauvegarde</b> sur la page de l'exécution).</p>
+<h3>Pas encore pris en charge</h3>
+<p>Disques chiffrés (LUKS), RAID logiciel (mdadm), btrfs et systèmes répartis sur plusieurs disques. La tâche les signale clairement au lieu de créer une sauvegarde incomplète.</p>
+
+<h2>Restaurer le système entier</h2>
+<p>Ouvrez l'exécution de la sauvegarde système (page de la tâche ou <a href="/runs">Activité</a>) et utilisez <b>Restaurer tout le système</b> :</p>
+<h3>En tant que nouvelle VM Proxmox</h3>
+<p>Choisissez le nœud Proxmox (son agent BackupZit fait le travail), le stockage, l'ID de VM, le nom, la mémoire et les cœurs. BackupZit crée la VM avec le même micrologiciel que l'original (UEFI/OVMF ou BIOS), un disque et une carte réseau VirtIO SCSI, recrée le disque, restaure tous les fichiers et peut démarrer la VM. Comme la VM est une copie qui peut tourner à côté de l'original :</p>
+<ul>
+  <li>les paramètres réseau liés aux anciennes adresses MAC (courants dans les images cloud : netplan <code>match: macaddress</code>) sont modifiés pour s'appliquer à toute interface filaire,</li>
+  <li>l'agent BackupZit de la copie est désinscrit, afin qu'il ne se présente pas comme la machine d'origine.</li>
+</ul>
+<h3>Sur un disque</h3>
+<p>Restaurez sur un disque vide d'un agent Linux, par ex. un second disque (<code>/dev/sdb</code>), ou sur la nouvelle machine elle-même (bare metal) :</p>
+<ol>
+  <li>Dans <a href="/recovery">Récupération</a>, téléchargez l'<b>ISO de récupération Linux</b> et créez un code de récupération. Écrivez l'ISO sur une clé USB (Rufus, balenaEtcher) ou attachez-la à une VM. Elle démarre sur les machines BIOS et UEFI.</li>
+  <li>Démarrez la machine dessus. Le système de récupération lance l'agent, qui se connecte à la console avec <code>backupzit/recovery.json</code> présent sur une autre clé USB ou un autre disque, ou demande l'adresse du serveur et le code de récupération.</li>
+  <li>La machine apparaît comme agent de <span class="badge">récupération</span>. Dans l'exécution de la sauvegarde système, choisissez <b>Sur un disque</b>, cet agent et son disque (généralement <code>/dev/sda</code>, <code>/dev/nvme0n1</code> ou <code>/dev/vda</code>).</li>
+</ol>
+<p>Tout système Linux live convient aussi : lancez-y l'agent avec <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code> ; les outils nécessaires (gdisk, LVM, mkfs) sont nommés s'ils manquent. Cochez <b>Matériel différent</b> lorsque la machine n'est pas l'originale.</p>
+<p>La cible peut être plus grande ou plus petite que le disque d'origine : la dernière partition s'agrandit pour la remplir, ou se réduit tant que ses données tiennent. Les UUID des systèmes de fichiers et les identifiants de partitions restent identiques, donc <code>/etc/fstab</code> et le chargeur d'amorçage n'ont pas besoin de modifications. Pour les systèmes UEFI, le chargeur d'amorçage est aussi installé au chemin des supports amovibles <code>\EFI\BOOT\BOOTX64.EFI</code>, que tout micrologiciel UEFI démarre sans entrée d'amorçage. Les systèmes de type RHEL (dracut) reçoivent un nouvel initramfs avec tous les pilotes lorsqu'ils sont déplacés vers un matériel différent.</p>
+
+<h2>Ligne de commande</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

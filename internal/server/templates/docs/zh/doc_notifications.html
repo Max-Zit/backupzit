@@ -1,0 +1,40 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>通知：电子邮件、Slack、Teams、Webhook</h1>
+<p class="lead">备份失败时收到电子邮件，每天早上收到每日摘要。</p>
+
+<h2>设置电子邮件</h2>
+<p>在 <a href="/settings/email">设置 → 电子邮件通知</a> 中：</p>
+<table>
+  <tr><th>字段</th><th>示例</th></tr>
+  <tr><td>SMTP 服务器 / 端口</td><td><code>smtp.office365.com</code> / 587，<code>smtp.gmail.com</code> / 587，内部中继 / 25</td></tr>
+  <tr><td>安全</td><td><b>STARTTLS</b>（端口 587）、<b>TLS</b>（端口 465）或无（仅限内部中继）</td></tr>
+  <tr><td>用户 / 密码</td><td>用于发送的邮箱；匿名中继请留空。Microsoft 365 和 Gmail 需要应用密码。</td></tr>
+  <tr><td>发件人</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>收件人</td><td>一个或多个地址，以逗号分隔。</td></tr>
+</table>
+<p>使用 <b>发送测试邮件</b> 检查设置。</p>
+
+<h2>发送哪些内容</h2>
+<ul>
+  <li><b>失败</b>（推荐）—— 每次运行失败发送一封邮件并说明原因：备份、复制、还原以及失败的<b>还原测试</b>。开启此项后，当备份看起来像勒索软件或大规模删除时，您还会收到 <b>SUSPICIOUS</b> 警报。</li>
+  <li><b>警告</b> —— 有些文件无法读取的运行。</li>
+  <li><b>成功</b> —— 每次成功的运行（通常太多；建议使用每日报告）。</li>
+  <li><b>每日报告</b> —— 在所选时间发送：过去 24 小时的运行、问题和离线代理。主题以 <i>OK</i>、<i>WARNINGS</i> 或 <i>ATTENTION</i> 开头，便于邮件规则分类。</li>
+</ul>
+<p>如需每周或每月摘要，请使用<a href="/docs/monitoring">计划报告</a>；它们使用相同的邮件设置发送，并有自己的收件人。主题以 <code>[BackupZit]</code> 开头，便于邮件规则分类。SMTP 密码加密存储。</p>
+
+<h2>Slack、Microsoft Teams 和 Webhook</h2>
+<p>在 <a href="/settings/chat">设置 → 聊天和 Webhook</a> 中可添加任意数量的通道；每个通道选择是否接收失败、警告和成功。异常备份（可能是勒索软件）计为失败。<b>发送测试</b> 会立即检查通道。</p>
+<ul>
+  <li><b>Slack</b>：为频道创建 <i>incoming webhook</i>（Slack 应用设置 → Incoming Webhooks），并粘贴其 URL（<code>https://hooks.slack.com/services/…</code>）。</li>
+  <li><b>Microsoft Teams</b>：在频道中添加工作流 <i>Post to a channel when a webhook request is received</i>，并粘贴其 URL。消息以卡片形式到达，卡片上有一个按钮可在控制台中打开该运行。</li>
+  <li><b>Webhook</b>：任何接受 JSON POST 的 URL —— 工单系统、监控或自动化工具。配置签名密钥后，每个请求都带有 <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>，即请求体的 HMAC-SHA256，接收方可据此验证请求来自您的控制台。</li>
+</ul>
+<p>Webhook 的 JSON：</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>每次运行只发送一次消息，即使关闭了电子邮件也会发送。出错的通道（URL 错误、服务不可用）会记录在控制台日志中，不会耽误其他通道。Webhook URL 加密存储。</p>
+{{template "docpager" .}}
+</article></div>{{end}}

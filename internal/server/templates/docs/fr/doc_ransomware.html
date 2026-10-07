@@ -1,0 +1,64 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Protection contre les rançongiciels</h1>
+<p class="lead">Les attaquants tentent de supprimer ou de chiffrer les sauvegardes avant de chiffrer les données de production. BackupZit propose un stockage où les sauvegardes ne peuvent pas être détruites, même avec des identifiants volés.</p>
+
+<h2>Les couches de protection</h2>
+<table>
+  <tr><th>Couche</th><th>Protège contre</th></tr>
+  <tr><td><b>Chiffrement</b> (AES-256)</td><td>La lecture ou l'altération des sauvegardes sur le stockage. Toute modification est détectée.</td></tr>
+  <tr><td><b>S3 immuable</b> (Object Lock, mode conformité)</td><td>La suppression ou l'écrasement des sauvegardes — par un attaquant disposant des clés, un administrateur malveillant ou une erreur.</td></tr>
+  <tr><td><b>Dépôt renforcé</b></td><td>La même chose, sur votre propre serveur Linux : les fichiers sont écrits une seule fois et reçoivent l'attribut d'immuabilité du système de fichiers.</td></tr>
+  <tr><td><b>Copie hors site</b></td><td>Incendie, vol, perte totale du site.</td></tr>
+  <tr><td><b>Approbation à quatre yeux</b> (facultative)</td><td>Un compte de console volé ou détourné qui supprime des tâches et des cibles de stockage ou raccourcit la rétention : un second utilisateur doit approuver. Voir <a href="/docs/users">Utilisateurs, rôles et LDAP</a>.</td></tr>
+</table>
+
+<h2>Détection automatique des sauvegardes suspectes</h2>
+<p>Chaque sauvegarde est comparée à l'historique récent de sa tâche. Elle est marquée <span class="badge failed"><i></i>suspecte</span> lorsqu'elle montre des traces de rançongiciel ou de suppression massive :</p>
+<ul>
+  <li>beaucoup plus de fichiers modifiés que d'habitude (par ex. 95 % au lieu de 1 % habituellement),</li>
+  <li>les nouvelles données ne se compressent plus — les fichiers chiffrés ressemblent à des données aléatoires,</li>
+  <li>le nombre de fichiers a soudainement chuté d'un tiers ou plus,</li>
+  <li>un saut soudain de la quantité de nouvelles données (aussi pour les images disque, les systèmes Linux et les VM).</li>
+</ul>
+<p>BackupZit envoie alors un e-mail d'alerte (si les notifications d'échec sont activées), affiche la sauvegarde sur le tableau de bord parmi les <i>sauvegardes suspectes à examiner</i> et <b>suspend la rétention de la tâche</b> : aucune sauvegarde plus ancienne n'est supprimée, de sorte que les dernières sauvegardes saines restent restaurables même si des sauvegardes endommagées continuent d'arriver. Après avoir vérifié la machine, cliquez sur <i>Examiné — reprendre la rétention</i> sur la page de la tâche.</p>
+
+<h2>S3 immuable avec Object Lock</h2>
+<ol>
+  <li>Créez un bucket avec <b>Object Lock activé</b> (AWS, Wasabi, Backblaze B2, MinIO : <code>mc mb --with-lock</code>).</li>
+  <li>Ajoutez une règle de cycle de vie qui supprime les <i>versions non actuelles</i> (noncurrent versions) après 1 jour (MinIO : <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
+  <li>Ajoutez la cible S3 et cochez <b>Sauvegardes immuables pendant N jours</b>. Choisissez N au moins aussi long que la plus longue rétention à protéger, par ex. 30.</li>
+</ol>
+<p>Chaque point de restauration reste verrouillé au moins N jours après sa création ; les données partagées avec des sauvegardes plus récentes sont prolongées automatiquement.</p>
+
+<h2>Dépôt renforcé</h2>
+<p>Un serveur Linux dédié exécutant <code>backupzit-repo</code> :</p>
+<ul>
+  <li>Les agents et la console peuvent seulement <b>ajouter</b> des fichiers ; les fichiers existants ne sont jamais écrasés.</li>
+  <li>Chaque fichier reçoit l'attribut <code>chattr +i</code> pour la période définie sur ce serveur. Même root ne peut pas le supprimer sans retirer d'abord l'attribut.</li>
+  <li>Les suppressions des clients ne font que <b>masquer</b> les fichiers jusqu'à la fin de leur période.</li>
+  <li>Le service tourne sous un utilisateur non privilégié ; son seul privilège est de poser l'attribut d'immuabilité.</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p>Après la configuration, <b>désactivez SSH et tout autre accès distant</b> sur le serveur du dépôt et protégez l'accès à sa console locale / iDRAC / iLO / hyperviseur. La protection n'est pas plus forte que le compte root de cette machine.</p></div>
+
+<h2>Récupérer après une attaque</h2>
+<p>Si un attaquant a supprimé ou écrasé des sauvegardes, lisez le stockage <b>tel qu'il était avant l'attaque</b> — en lecture seule, sans rien modifier :</p>
+<pre>backupzit-agent snapshots --repo &lt;dépôt&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;dépôt&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>Sur un dépôt renforcé, l'administrateur peut aussi faire réapparaître les fichiers masqués afin que les sauvegardes reprennent normalement :</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>Recommandations</h2>
+<ul>
+  <li>Utilisez pour le stockage un compte distinct qui ne fait pas partie de votre domaine Windows.</li>
+  <li>Conservez au moins une copie immuable (S3 Object Lock ou dépôt renforcé).</li>
+  <li>Conservez les fiches de récupération hors ligne (imprimées, dans un coffre).</li>
+  <li>Activez les alertes par e-mail — un changement soudain du nombre d'échecs ou du volume envoyé est souvent le premier signe d'une attaque.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

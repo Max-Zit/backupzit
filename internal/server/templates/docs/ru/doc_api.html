@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">Интегрируйте BackupZit с RMM-платформами, системами мониторинга (PRTG, Zabbix, Nagios, Uptime Kuma …) и собственными скриптами.</p>
+
+<h2>Токены</h2>
+<p>Создайте токен в <a href="/account#tokens">Моя учётная запись → API-токены</a>. Дайте ему минимально достаточную роль — <b>Наблюдатель</b> для мониторинга, <b>Оператор восстановления</b>, чтобы также запускать копирование и тесты восстановления. Токен показывается один раз; передавайте его в каждом запросе:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>Токены могут истекать, их может отозвать владелец или администратор (<a href="/users">Пользователи</a>), и они перестают работать, когда владелец отключён. Действия, выполненные токеном, отображаются в журнале аудита с именем токена.</p>
+
+<h2>Конечные точки</h2>
+<p>Все ответы — JSON. Базовый URL: <code>https://&lt;консоль&gt;:8443</code>.</p>
+<table>
+  <tr><th>Метод и путь</th><th>Роль</th><th>Возвращает</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Наблюдатель</td><td>Общее состояние: агенты в сети, ошибки и предупреждения за 24 ч, активные запуски, непроверенные подозрительные копии, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Наблюдатель</td><td>Агенты с ОС, версией, состоянием в сети и последним контактом</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Наблюдатель</td><td>Задания с расписанием, следующим запуском и последним результатом</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Оператор восстановления</td><td>Запускает задание сейчас: <code>{"run_id": 123}</code> (202) или 409, если запуск уже идёт</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Оператор восстановления</td><td>Запускает тест восстановления последней копии задания</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Наблюдатель</td><td>Последние запуски, сначала новые (по умолчанию 100, максимум 1000)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Наблюдатель</td><td>Один запуск с сообщением, ошибками и статистикой</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Наблюдатель</td><td><a href="/docs/monitoring">Отчёт</a> за период: итоги, доля успешных и сведения по каждому заданию</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Наблюдатель</td><td>Хранилища (без учётных данных)</td></tr>
+</table>
+<p>Периоды: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> или <code>custom</code> с <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
+<p>Ошибки возвращают <code>{"error": "..."}</code> с кодом 400 (неверный запрос), 401 (токен отсутствует, недействителен или истёк), 403 (недостаточная роль), 404 или 409.</p>
+
+<h2>Примеры</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p>Используйте <code>-k</code> / <code>-SkipCertificateCheck</code> только с самоподписанным сертификатом консоли в доверенной сети или установите сертификат консоли на хост мониторинга.</p>
+<h3>Проверка мониторинга</h3>
+<p>Опрашивайте <code>/api/v1/status</code> каждые несколько минут и поднимайте тревогу, когда <code>ok</code> равно false. Для проверки отдельных заданий используйте <code>/api/v1/jobs</code> и поднимайте тревогу, когда <code>last_status</code> равно <code>failed</code> или <code>last_finished</code> старше ожидаемого.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

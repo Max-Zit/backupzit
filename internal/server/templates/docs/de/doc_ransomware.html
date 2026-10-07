@@ -1,0 +1,64 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Schutz vor Ransomware</h1>
+<p class="lead">Angreifer versuchen, Sicherungen zu löschen oder zu verschlüsseln, bevor sie die Produktivdaten verschlüsseln. BackupZit bietet Speicher, auf dem Sicherungen nicht zerstört werden können — auch nicht mit gestohlenen Zugangsdaten.</p>
+
+<h2>Die Schutzschichten</h2>
+<table>
+  <tr><th>Schicht</th><th>Schützt vor</th></tr>
+  <tr><td><b>Verschlüsselung</b> (AES-256)</td><td>Lesen oder Manipulieren von Sicherungen auf dem Speicher. Jede Änderung wird erkannt.</td></tr>
+  <tr><td><b>Unveränderlicher S3</b> (Object Lock, Compliance-Modus)</td><td>Löschen oder Überschreiben von Sicherungen — durch einen Angreifer mit den Schlüsseln, einen böswilligen Administrator oder einen Fehler.</td></tr>
+  <tr><td><b>Gehärtetes Repository</b></td><td>Dasselbe auf Ihrem eigenen Linux-Server: Dateien werden nur einmal geschrieben und erhalten das Unveränderlich-Flag des Dateisystems.</td></tr>
+  <tr><td><b>Externe Kopie</b></td><td>Brand, Diebstahl, Totalverlust des Standorts.</td></tr>
+  <tr><td><b>Vier-Augen-Freigabe</b> (optional)</td><td>Ein gestohlenes oder missbrauchtes Konsolenkonto, das Aufträge und Speicherziele löscht oder die Aufbewahrung verkürzt: Ein zweiter Benutzer muss zustimmen. Siehe <a href="/docs/users">Benutzer, Rollen &amp; LDAP</a>.</td></tr>
+</table>
+
+<h2>Automatische Erkennung verdächtiger Sicherungen</h2>
+<p>Jede Sicherung wird mit dem jüngsten Verlauf ihres Auftrags verglichen. Sie wird als <span class="badge failed"><i></i>verdächtig</span> markiert, wenn sie Spuren von Ransomware oder Massenlöschung zeigt:</p>
+<ul>
+  <li>weit mehr Dateien geändert als üblich (z. B. 95 % statt der üblichen 1 %),</li>
+  <li>die neuen Daten lassen sich nicht mehr komprimieren — verschlüsselte Dateien sehen wie Zufallsdaten aus,</li>
+  <li>die Zahl der Dateien ist plötzlich um ein Drittel oder mehr gesunken,</li>
+  <li>ein plötzlicher Sprung in der Menge neuer Daten (auch bei Festplattenabbildern, Linux-Systemen und VMs).</li>
+</ul>
+<p>Dann sendet BackupZit eine Warn-E-Mail (bei aktivierten Fehlerbenachrichtigungen), zeigt die Sicherung im Dashboard unter <i>zu prüfende verdächtige Sicherungen</i> an und <b>pausiert die Aufbewahrung des Auftrags</b>: Keine ältere Sicherung wird gelöscht, sodass die letzten sauberen Sicherungen wiederherstellbar bleiben, auch wenn weiter beschädigte Sicherungen kommen. Nachdem Sie die Maschine geprüft haben, klicken Sie auf der Auftragsseite auf <i>Geprüft – Aufbewahrung fortsetzen</i>.</p>
+
+<h2>Unveränderlicher S3 mit Object Lock</h2>
+<ol>
+  <li>Erstellen Sie einen Bucket mit <b>aktiviertem Object Lock</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
+  <li>Fügen Sie eine Lifecycle-Regel hinzu, die <i>nicht aktuelle Versionen</i> (noncurrent versions) nach 1 Tag löscht (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
+  <li>Fügen Sie das S3-Ziel hinzu und aktivieren Sie <b>Unveränderliche Sicherungen für N Tage</b>. Wählen Sie N mindestens so lang wie die längste Aufbewahrung, die geschützt sein soll, z. B. 30.</li>
+</ol>
+<p>Jeder Wiederherstellungspunkt bleibt mindestens N Tage nach seiner Erstellung gesperrt; Daten, die mit neueren Sicherungen geteilt werden, werden automatisch verlängert.</p>
+
+<h2>Gehärtetes Repository</h2>
+<p>Ein eigener Linux-Server mit <code>backupzit-repo</code>:</p>
+<ul>
+  <li>Agenten und Konsole können Dateien nur <b>hinzufügen</b>; vorhandene Dateien werden nie überschrieben.</li>
+  <li>Jede Datei erhält das Attribut <code>chattr +i</code> für den auf diesem Server eingestellten Zeitraum. Nicht einmal root kann sie löschen, ohne vorher das Flag zu entfernen.</li>
+  <li>Löschungen durch Clients <b>verbergen</b> Dateien nur, bis ihr Zeitraum abgelaufen ist.</li>
+  <li>Der Dienst läuft als nicht privilegierter Benutzer; sein einziges Recht ist das Setzen des Unveränderlich-Flags.</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p>Nach der Einrichtung <b>deaktivieren Sie SSH und anderen Fernzugriff</b> auf dem Repository-Server und schützen Sie den Zugang zu seiner lokalen Konsole / iDRAC / iLO / zum Hypervisor. Der Schutz ist nur so stark wie das root-Konto dieser Maschine.</p></div>
+
+<h2>Wiederherstellung nach einem Angriff</h2>
+<p>Hat ein Angreifer Sicherungen gelöscht oder überschrieben, lesen Sie den Speicher <b>so, wie er vor dem Angriff war</b> — das ist nur lesend und ändert nichts:</p>
+<pre>backupzit-agent snapshots --repo &lt;repository&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;repository&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>Auf einem gehärteten Repository kann der Administrator verborgene Dateien auch zurückholen, damit die Sicherungen normal weiterlaufen:</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>Empfehlungen</h2>
+<ul>
+  <li>Verwenden Sie für den Speicher ein eigenes Konto, das nicht Teil Ihrer Windows-Domäne ist.</li>
+  <li>Halten Sie mindestens eine unveränderliche Kopie vor (S3 Object Lock oder gehärtetes Repository).</li>
+  <li>Bewahren Sie die Wiederherstellungsblätter offline auf (ausgedruckt, im Tresor).</li>
+  <li>Aktivieren Sie E-Mail-Warnungen — eine plötzliche Änderung bei Fehlern oder beim hochgeladenen Datenvolumen ist oft das erste Anzeichen eines Angriffs.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

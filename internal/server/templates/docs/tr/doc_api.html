@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">BackupZit'i RMM platformları, izleme araçları (PRTG, Zabbix, Nagios, Uptime Kuma …) ve kendi betiklerinizle entegre edin.</p>
+
+<h2>Belirteçler</h2>
+<p><a href="/account#tokens">Hesabım → API belirteçleri</a> altında bir belirteç oluşturun. Ona yeterli olan en düşük rolü verin — izleme için <b>Görüntüleyici</b>, yedeklemeleri ve geri yükleme testlerini de başlatmak için <b>Geri yükleme operatörü</b>. Belirteç yalnızca bir kez gösterilir; her istekte gönderin:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>Belirteçlerin süresi dolabilir, sahibi veya bir yönetici tarafından iptal edilebilir (<a href="/users">Kullanıcılar</a>) ve sahibi devre dışı bırakıldığında çalışmaz. Bir belirteçle yapılan işlemler denetim günlüğünde belirtecin adıyla görünür.</p>
+
+<h2>Uç noktalar</h2>
+<p>Tüm yanıtlar JSON'dur. Temel URL: <code>https://&lt;konsol&gt;:8443</code>.</p>
+<table>
+  <tr><th>Yöntem ve yol</th><th>Rol</th><th>Döndürür</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Görüntüleyici</td><td>Genel durum: çevrimiçi aracılar, 24 saatteki hatalar ve uyarılar, etkin çalıştırmalar, incelenmemiş şüpheli yedekler, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Görüntüleyici</td><td>İşletim sistemi, sürüm, çevrimiçi durum ve son temasla birlikte aracılar</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Görüntüleyici</td><td>Zamanlama, sonraki çalıştırma ve son sonuçla birlikte işler</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Geri yükleme operatörü</td><td>İşi hemen başlatır: <code>{"run_id": 123}</code> (202) veya zaten bir çalıştırma etkinse 409</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Geri yükleme operatörü</td><td>İşin en yeni yedeğinin geri yükleme testini başlatır</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Görüntüleyici</td><td>Son çalıştırmalar, en yeni önce (varsayılan 100, en fazla 1000)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Görüntüleyici</td><td>Mesaj, hatalar ve istatistiklerle tek bir çalıştırma</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Görüntüleyici</td><td>Bir dönemin <a href="/docs/monitoring">raporu</a>: toplamlar, başarı oranı ve iş başına ayrıntılar</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Görüntüleyici</td><td>Depolama hedefleri (kimlik bilgileri olmadan)</td></tr>
+</table>
+<p>Dönemler: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> veya <code>from=2026-09-01&amp;to=2026-09-30</code> ile <code>custom</code>.</p>
+<p>Hatalar <code>{"error": "..."}</code> döndürür: 400 (hatalı istek), 401 (belirteç eksik, geçersiz veya süresi dolmuş), 403 (rol yetersiz), 404 veya 409.</p>
+
+<h2>Örnekler</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p><code>-k</code> / <code>-SkipCertificateCheck</code> seçeneğini yalnızca güvenilir bir ağda konsolun kendinden imzalı sertifikasıyla kullanın veya konsol sertifikasını izleme sunucusuna yükleyin.</p>
+<h3>İzleme denetimi</h3>
+<p><code>/api/v1/status</code> adresini birkaç dakikada bir sorgulayın ve <code>ok</code> false olduğunda uyarı verin. İş bazında denetim için <code>/api/v1/jobs</code> kullanın ve <code>last_status</code> <code>failed</code> olduğunda veya <code>last_finished</code> beklenenden eski olduğunda uyarı verin.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

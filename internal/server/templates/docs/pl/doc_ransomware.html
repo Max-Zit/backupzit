@@ -1,0 +1,64 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Ochrona przed ransomware</h1>
+<p class="lead">Atakujący próbują usunąć lub zaszyfrować kopie, zanim zaszyfrują dane produkcyjne. BackupZit oferuje magazyny, na których kopii nie da się zniszczyć, nawet skradzionymi danymi logowania.</p>
+
+<h2>Warstwy ochrony</h2>
+<table>
+  <tr><th>Warstwa</th><th>Chroni przed</th></tr>
+  <tr><td><b>Szyfrowanie</b> (AES-256)</td><td>Odczytem lub modyfikacją kopii w magazynie. Każda zmiana jest wykrywana.</td></tr>
+  <tr><td><b>Niezmienny S3</b> (Object Lock, tryb zgodności)</td><td>Usunięciem lub nadpisaniem kopii — przez atakującego z kluczami, nieuczciwego administratora lub przez pomyłkę.</td></tr>
+  <tr><td><b>Utwardzone repozytorium</b></td><td>To samo na Twoim własnym serwerze Linux: pliki są zapisywane tylko raz i otrzymują flagę niezmienności systemu plików.</td></tr>
+  <tr><td><b>Kopia poza siedzibą</b></td><td>Pożarem, kradzieżą, całkowitą utratą lokalizacji.</td></tr>
+  <tr><td><b>Zatwierdzanie na cztery oczy</b> (opcjonalne)</td><td>Jednym skradzionym lub nadużytym kontem konsoli, które usuwa zadania i magazyny lub skraca przechowywanie: drugi użytkownik musi zatwierdzić. Zobacz <a href="/docs/users">Użytkownicy, role i LDAP</a>.</td></tr>
+</table>
+
+<h2>Automatyczne wykrywanie podejrzanych kopii</h2>
+<p>Każda kopia jest porównywana z niedawną historią jej zadania. Zostaje oznaczona jako <span class="badge failed"><i></i>podejrzana</span>, gdy widać w niej ślady ransomware lub masowego usuwania:</p>
+<ul>
+  <li>zmieniło się znacznie więcej plików niż zwykle (np. 95 % zamiast typowego 1 %),</li>
+  <li>nowe dane przestały się kompresować — zaszyfrowane pliki wyglądają jak dane losowe,</li>
+  <li>liczba plików nagle spadła o jedną trzecią lub więcej,</li>
+  <li>nagły skok ilości nowych danych (także dla obrazów dysków, systemów Linux i maszyn wirtualnych).</li>
+</ul>
+<p>Wtedy BackupZit wysyła e-mail z alertem (przy włączonych powiadomieniach o błędach), pokazuje kopię na pulpicie jako <i>podejrzanych kopii do sprawdzenia</i> i <b>wstrzymuje przechowywanie zadania</b>: żadna starsza kopia nie jest usuwana, więc ostatnie czyste kopie pozostają możliwe do przywrócenia, nawet jeśli nadal napływają uszkodzone kopie. Po sprawdzeniu maszyny kliknij <i>Sprawdzono — wznów przechowywanie</i> na stronie zadania.</p>
+
+<h2>Niezmienny S3 z Object Lock</h2>
+<ol>
+  <li>Utwórz bucket z <b>włączonym Object Lock</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
+  <li>Dodaj regułę cyklu życia, która usuwa <i>nieaktualne wersje</i> (noncurrent versions) po 1 dniu (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
+  <li>Dodaj magazyn S3 i zaznacz <b>Niezmienne kopie przez N dni</b>. Wybierz N co najmniej tak długie, jak najdłuższe przechowywanie, które chcesz chronić, np. 30.</li>
+</ol>
+<p>Każdy punkt przywracania pozostaje zablokowany co najmniej N dni od utworzenia; dane współdzielone z nowszymi kopiami są przedłużane automatycznie.</p>
+
+<h2>Utwardzone repozytorium</h2>
+<p>Osobny serwer Linux z <code>backupzit-repo</code>:</p>
+<ul>
+  <li>Agenci i konsola mogą tylko <b>dodawać</b> pliki; istniejące pliki nigdy nie są nadpisywane.</li>
+  <li>Każdy plik otrzymuje atrybut <code>chattr +i</code> na okres ustawiony na tym serwerze. Nawet root nie może go usunąć bez wcześniejszego zdjęcia flagi.</li>
+  <li>Usunięcia przez klientów tylko <b>ukrywają</b> pliki do końca ich okresu.</li>
+  <li>Usługa działa jako nieuprzywilejowany użytkownik; jej jedynym uprawnieniem jest ustawianie flagi niezmienności.</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p>Po konfiguracji <b>wyłącz SSH i inny zdalny dostęp</b> na serwerze repozytorium i zabezpiecz dostęp do jego lokalnej konsoli / iDRAC / iLO / hiperwizora. Ochrona jest tak silna jak konto root tej maszyny.</p></div>
+
+<h2>Odzyskiwanie po ataku</h2>
+<p>Jeśli atakujący usunął lub nadpisał kopie, odczytaj magazyn <b>w stanie sprzed ataku</b> — to tylko odczyt i niczego nie zmienia:</p>
+<pre>backupzit-agent snapshots --repo &lt;repozytorium&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;repozytorium&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>W utwardzonym repozytorium administrator może też przywrócić ukryte pliki, aby kopie działały dalej normalnie:</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>Zalecenia</h2>
+<ul>
+  <li>Używaj dla magazynu osobnego konta, które nie należy do Twojej domeny Windows.</li>
+  <li>Utrzymuj co najmniej jedną niezmienną kopię (S3 Object Lock lub utwardzone repozytorium).</li>
+  <li>Przechowuj arkusze odzyskiwania offline (wydrukowane, w sejfie).</li>
+  <li>Włącz alerty e-mail — nagła zmiana liczby błędów lub ilości wysyłanych danych jest często pierwszym sygnałem ataku.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,40 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Benachrichtigungen: E-Mail, Slack, Teams, Webhooks</h1>
+<p class="lead">Erhalten Sie eine E-Mail, wenn eine Sicherung fehlschlägt, und jeden Morgen eine Tageszusammenfassung.</p>
+
+<h2>E-Mail einrichten</h2>
+<p>Unter <a href="/settings/email">Einstellungen → E-Mail-Benachrichtigungen</a>:</p>
+<table>
+  <tr><th>Feld</th><th>Beispiel</th></tr>
+  <tr><td>SMTP-Server / Port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, internes Relay / 25</td></tr>
+  <tr><td>Sicherheit</td><td><b>STARTTLS</b> (Port 587), <b>TLS</b> (Port 465) oder keine (nur internes Relay)</td></tr>
+  <tr><td>Benutzer / Passwort</td><td>Das Postfach, über das gesendet wird; leer lassen für ein anonymes Relay. Microsoft 365 und Gmail benötigen ein App-Passwort.</td></tr>
+  <tr><td>Absender</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Empfänger</td><td>Eine oder mehrere Adressen, durch Kommas getrennt.</td></tr>
+</table>
+<p>Prüfen Sie die Einstellungen mit <b>Test-E-Mail senden</b>.</p>
+
+<h2>Was gesendet wird</h2>
+<ul>
+  <li><b>Fehler</b> (empfohlen) — eine E-Mail pro fehlgeschlagenem Lauf mit dem Grund: Sicherungen, Kopien, Wiederherstellungen und fehlgeschlagene <b>Wiederherstellungstests</b>. Mit dieser Option erhalten Sie auch eine Warnung <b>SUSPICIOUS</b>, wenn eine Sicherung nach Ransomware oder Massenlöschung aussieht.</li>
+  <li><b>Warnungen</b> — Läufe, in denen einige Dateien nicht gelesen werden konnten.</li>
+  <li><b>Erfolge</b> — jeder erfolgreiche Lauf (meist zu viel; besser den Tagesbericht verwenden).</li>
+  <li><b>Tagesbericht</b> — zur gewählten Stunde: Läufe der letzten 24 Stunden, Probleme und Agenten offline. Der Betreff beginnt mit <i>OK</i>, <i>WARNINGS</i> oder <i>ATTENTION</i>, sodass Mailregeln sie sortieren können.</li>
+</ul>
+<p>Für wöchentliche oder monatliche Zusammenfassungen verwenden Sie <a href="/docs/monitoring">geplante Berichte</a>; sie werden mit denselben Mail-Einstellungen gesendet und haben eigene Empfänger. Betreffzeilen beginnen mit <code>[BackupZit]</code>, sodass Mailregeln sie sortieren können. Das SMTP-Passwort wird verschlüsselt gespeichert.</p>
+
+<h2>Slack, Microsoft Teams und Webhooks</h2>
+<p>Unter <a href="/settings/chat">Einstellungen → Chat und Webhooks</a> fügen Sie beliebig viele Kanäle hinzu; jeder wählt, ob er Fehler, Warnungen und Erfolge erhält. Ungewöhnliche Sicherungen (mögliche Ransomware) zählen als Fehler. <b>Test senden</b> prüft einen Kanal sofort.</p>
+<ul>
+  <li><b>Slack</b>: Erstellen Sie einen <i>Incoming Webhook</i> für den Kanal (Slack-App-Einstellungen → Incoming Webhooks) und fügen Sie dessen URL ein (<code>https://hooks.slack.com/services/…</code>).</li>
+  <li><b>Microsoft Teams</b>: Fügen Sie im Kanal den Workflow <i>Post to a channel when a webhook request is received</i> hinzu und fügen Sie dessen URL ein. Nachrichten kommen als Karten mit einer Schaltfläche, die den Lauf in der Konsole öffnet.</li>
+  <li><b>Webhook</b>: jede URL, die einen JSON-POST annimmt — ein Ticketsystem, eine Überwachung oder ein Automatisierungswerkzeug. Mit einem Signaturgeheimnis trägt jede Anfrage <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, den HMAC-SHA256 des Inhalts, sodass der Empfänger prüfen kann, dass sie von Ihrer Konsole stammt.</li>
+</ul>
+<p>Das JSON eines Webhooks:</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>Nachrichten werden einmal pro Lauf gesendet, auch wenn E-Mail aus ist. Ein Kanal, der fehlschlägt (falsche URL, Dienst nicht erreichbar), wird im Konsolenprotokoll vermerkt und hält die anderen nicht auf. Webhook-URLs werden verschlüsselt gespeichert.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

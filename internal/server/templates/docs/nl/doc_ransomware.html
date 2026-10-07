@@ -1,0 +1,64 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Bescherming tegen ransomware</h1>
+<p class="lead">Aanvallers proberen back-ups te verwijderen of te versleutelen voordat ze de productiegegevens versleutelen. BackupZit biedt opslag waarop back-ups niet vernietigd kunnen worden, zelfs niet met gestolen inloggegevens.</p>
+
+<h2>De lagen</h2>
+<table>
+  <tr><th>Laag</th><th>Beschermt tegen</th></tr>
+  <tr><td><b>Versleuteling</b> (AES-256)</td><td>Het lezen of manipuleren van back-ups op de opslag. Elke wijziging wordt gedetecteerd.</td></tr>
+  <tr><td><b>Onveranderlijke S3</b> (Object Lock, compliance-modus)</td><td>Het verwijderen of overschrijven van back-ups — door een aanvaller met de sleutels, een kwaadwillende beheerder of een vergissing.</td></tr>
+  <tr><td><b>Geharde repository</b></td><td>Hetzelfde, op uw eigen Linux-server: bestanden worden eenmalig geschreven en krijgen de onveranderlijkheidsvlag van het bestandssysteem.</td></tr>
+  <tr><td><b>Externe kopie</b></td><td>Brand, diefstal, volledig verlies van de locatie.</td></tr>
+  <tr><td><b>Vier-ogengoedkeuring</b> (optioneel)</td><td>Eén gestolen of misbruikt consoleaccount dat taken en opslagdoelen verwijdert of het bewaarbeleid inkort: een tweede gebruiker moet goedkeuren. Zie <a href="/docs/users">Gebruikers, rollen en LDAP</a>.</td></tr>
+</table>
+
+<h2>Automatische detectie van verdachte back-ups</h2>
+<p>Elke back-up wordt vergeleken met de recente geschiedenis van zijn taak. Hij wordt als <span class="badge failed"><i></i>verdacht</span> gemarkeerd wanneer hij sporen van ransomware of massaal verwijderen vertoont:</p>
+<ul>
+  <li>veel meer bestanden gewijzigd dan normaal (bijv. 95 % in plaats van de gebruikelijke 1 %),</li>
+  <li>de nieuwe gegevens laten zich niet meer comprimeren — versleutelde bestanden lijken op willekeurige gegevens,</li>
+  <li>het aantal bestanden is plotseling met een derde of meer gedaald,</li>
+  <li>een plotselinge sprong in de hoeveelheid nieuwe gegevens (ook voor schijfimages, Linux-systemen en VM's).</li>
+</ul>
+<p>BackupZit stuurt dan een waarschuwingsmail (als foutmeldingen aan staan), toont de back-up op het dashboard bij <i>verdachte back-ups om te controleren</i> en <b>pauzeert het bewaarbeleid van de taak</b>: er wordt geen oudere back-up verwijderd, zodat de laatste schone back-ups herstelbaar blijven, ook als er beschadigde back-ups blijven binnenkomen. Klik na controle van de machine op <i>Gecontroleerd — bewaarbeleid hervatten</i> op de taakpagina.</p>
+
+<h2>Onveranderlijke S3 met Object Lock</h2>
+<ol>
+  <li>Maak een bucket met <b>Object Lock ingeschakeld</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
+  <li>Voeg een lifecycle-regel toe die <i>niet-actuele versies</i> (noncurrent versions) na 1 dag verwijdert (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
+  <li>Voeg het S3-doel toe en vink <b>Onveranderlijke back-ups gedurende N dagen</b> aan. Kies N minstens zo lang als de langste bewaartermijn die u beschermd wilt hebben, bijv. 30.</li>
+</ol>
+<p>Elk herstelpunt blijft minstens N dagen na het aanmaken vergrendeld; gegevens die gedeeld worden met nieuwere back-ups worden automatisch verlengd.</p>
+
+<h2>Geharde repository</h2>
+<p>Een aparte Linux-server met <code>backupzit-repo</code>:</p>
+<ul>
+  <li>Agents en de console kunnen alleen bestanden <b>toevoegen</b>; bestaande bestanden worden nooit overschreven.</li>
+  <li>Elk bestand krijgt het attribuut <code>chattr +i</code> voor de periode die op die server is ingesteld. Zelfs root kan het niet verwijderen zonder eerst de vlag te verwijderen.</li>
+  <li>Verwijderingen door clients <b>verbergen</b> bestanden alleen tot hun periode afloopt.</li>
+  <li>De dienst draait als niet-geprivilegieerde gebruiker; zijn enige recht is het zetten van de onveranderlijkheidsvlag.</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p><b>Schakel na de installatie SSH en andere externe toegang uit</b> op de repositoryserver en bescherm de toegang tot de lokale console / iDRAC / iLO / hypervisor. De bescherming is maar zo sterk als het root-account van die machine.</p></div>
+
+<h2>Herstellen na een aanval</h2>
+<p>Als een aanvaller back-ups heeft verwijderd of overschreven, lees de opslag dan <b>zoals hij vóór de aanval was</b> — dat is alleen-lezen en verandert niets:</p>
+<pre>backupzit-agent snapshots --repo &lt;repository&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;repository&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>Op een geharde repository kan de beheerder verborgen bestanden ook terughalen, zodat de back-ups normaal doorgaan:</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>Aanbevelingen</h2>
+<ul>
+  <li>Gebruik voor de opslag een apart account dat geen deel uitmaakt van uw Windows-domein.</li>
+  <li>Bewaar minstens één onveranderlijke kopie (S3 Object Lock of geharde repository).</li>
+  <li>Bewaar de herstelbladen offline (afgedrukt, in een kluis).</li>
+  <li>Schakel e-mailwaarschuwingen in — een plotselinge verandering in fouten of in het verzonden datavolume is vaak het eerste teken van een aanval.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

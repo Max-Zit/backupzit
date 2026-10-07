@@ -1,0 +1,38 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Záloha systému Linux a P2V</h1>
+<p class="lead">Úloha <b>Systém Linux</b> zálohuje celý linuxový počítač, aby ho šlo znovu vytvořit na prázdném disku — tentýž počítač po selhání disku, nový hardware nebo virtuální počítač v Proxmox VE (z fyzického na virtuální, P2V).</p>
+
+<h2>Co se zálohuje</h2>
+<ul>
+  <li>Každý místní souborový systém (ext2/3/4, xfs, vfat), i na LVM, soubor po souboru s vlastníky, oprávněními, bity setuid, ACL, rozšířenými atributy (štítky SELinux, capabilities souborů), pevnými odkazy a soubory zařízení. Každý souborový systém se zálohuje zvlášť; síťové sdílené složky a virtuální souborové systémy (<code>/proc</code>, <code>/sys</code>, <code>/run</code>) se přeskakují.</li>
+  <li>Rozložení disků: tabulky oddílů GPT nebo MBR s jejich ID, skupiny svazků LVM (<code>vgcfgbackup</code>), UUID, štítky a vlastnosti souborových systémů a zaváděcí kód (MBR a zaváděcí oddíl BIOS pro GRUB).</li>
+</ul>
+<p>Stejně jako Relax-and-Recover BackupZit nekopíruje běžící disk blok po bloku: Linux nemá vestavěný snímek běžícího disku, takže surová kopie by byla nekonzistentní. Každý soubor se přečte celý a rozložení zajistí, že obnovený disk bude znovu zaváděcí. Databáze je třeba před zálohou vyexportovat nebo zálohovat jejich vlastními nástroji.</p>
+<p>Jednotlivé soubory a složky se ze zálohy systému obnovují jako z kterékoli zálohy souborů (<b>Obnovit soubory z této zálohy</b> na stránce běhu).</p>
+<h3>Zatím nepodporováno</h3>
+<p>Šifrované disky (LUKS), softwarový RAID (mdadm), btrfs a systémy rozložené na více disků. Úloha to jasně ohlásí, místo aby vytvořila neúplnou zálohu.</p>
+
+<h2>Obnova celého systému</h2>
+<p>Otevřete běh zálohy systému (stránka úlohy nebo <a href="/runs">Aktivita</a>) a použijte <b>Obnovit celý systém</b>:</p>
+<h3>Jako nový VM v Proxmoxu</h3>
+<p>Zvolte uzel Proxmoxu (práci odvede jeho agent BackupZit), úložiště, ID VM, název, paměť a jádra. BackupZit vytvoří VM se stejným firmwarem jako originál (UEFI/OVMF nebo BIOS), s diskem a síťovou kartou VirtIO SCSI, znovu vytvoří disk, obnoví všechny soubory a může VM spustit. Protože VM je kopie, která může běžet vedle originálu:</p>
+<ul>
+  <li>síťová nastavení vázaná na staré MAC adresy (běžná v cloudových obrazech: netplan <code>match: macaddress</code>) se upraví tak, aby platila pro libovolné kabelové rozhraní,</li>
+  <li>agent BackupZit v kopii se odregistruje, aby se nehlásil jako původní počítač.</li>
+</ul>
+<h3>Na disk</h3>
+<p>Obnovte na prázdný disk linuxového agenta, např. druhý disk (<code>/dev/sdb</code>), nebo přímo na nový počítač (bare metal):</p>
+<ol>
+  <li>V <a href="/recovery">Obnova</a> stáhněte <b>Obnovovací ISO pro Linux</b> a vytvořte kód obnovy. Zapište ISO na USB flash disk (Rufus, balenaEtcher) nebo ho připojte k VM. Startuje na počítačích s BIOS i UEFI.</li>
+  <li>Spusťte z něj počítač. Obnovovací systém spustí agenta, který se připojí ke konzoli pomocí <code>backupzit/recovery.json</code> z jiného USB disku nebo disku, nebo se zeptá na adresu serveru a kód obnovy.</li>
+  <li>Počítač se objeví jako agent <span class="badge">obnova</span>. V běhu zálohy systému zvolte <b>Na disk</b>, tohoto agenta a jeho disk (obvykle <code>/dev/sda</code>, <code>/dev/nvme0n1</code> nebo <code>/dev/vda</code>).</li>
+</ol>
+<p>Funguje také jakýkoli linuxový live systém: spusťte v něm agenta příkazem <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code>; chybějící nástroje (gdisk, LVM, mkfs) se vypíšou. Zaškrtněte <b>Jiný hardware</b>, pokud počítač není původní.</p>
+<p>Cíl může být větší nebo menší než původní disk: poslední oddíl se zvětší, aby ho vyplnil, nebo zmenší, dokud se jeho data vejdou. UUID souborových systémů a ID oddílů zůstávají stejné, takže <code>/etc/fstab</code> ani zavaděč nepotřebují změny. U systémů UEFI se zavaděč instaluje i do cesty pro vyměnitelná média <code>\EFI\BOOT\BOOTX64.EFI</code>, kterou každý firmware UEFI spustí bez zaváděcí položky. Systémy podobné RHEL (dracut) dostanou při přesunu na jiný hardware nový initramfs se všemi ovladači.</p>
+
+<h2>Příkazový řádek</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

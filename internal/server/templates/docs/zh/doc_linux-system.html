@@ -1,0 +1,38 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Linux 系统备份和 P2V</h1>
+<p class="lead"><b>Linux 系统</b>作业会备份整台 Linux 机器，以便在空磁盘上重建它 —— 磁盘故障后的同一台机器、新硬件，或 Proxmox VE 中的虚拟机（物理到虚拟，P2V）。</p>
+
+<h2>备份内容</h2>
+<ul>
+  <li>每个本地文件系统（ext2/3/4、xfs、vfat），包括 LVM 上的文件系统，逐个文件备份，并保留所有者、权限、setuid 位、ACL、扩展属性（SELinux 标签、文件 capabilities）、硬链接和设备文件。每个文件系统单独备份；网络共享和虚拟文件系统（<code>/proc</code>、<code>/sys</code>、<code>/run</code>）会被跳过。</li>
+  <li>磁盘布局：带 ID 的 GPT 或 MBR 分区表、LVM 卷组（<code>vgcfgbackup</code>）、文件系统 UUID、标签和磁盘特性，以及引导代码（MBR 和 GRUB 的 BIOS 引导分区）。</li>
+</ul>
+<p>与 Relax-and-Recover 一样，BackupZit 不会逐块复制正在运行的磁盘：Linux 没有内置的运行中磁盘快照，因此原始复制会不一致。每个文件都被完整读取，而布局信息使还原后的磁盘能够再次引导。数据库应在备份前导出，或使用其自身的工具备份。</p>
+<p>单个文件和文件夹可以像任何文件备份一样从系统备份中还原（运行页面上的 <b>从此备份还原文件</b>）。</p>
+<h3>暂不支持</h3>
+<p>加密磁盘（LUKS）、软件 RAID（mdadm）、btrfs 以及分布在多块磁盘上的系统。作业会明确报告这些情况，而不是创建不完整的备份。</p>
+
+<h2>还原整个系统</h2>
+<p>打开系统备份的运行（作业页面或 <a href="/runs">活动</a>），使用 <b>还原整个系统</b>：</p>
+<h3>作为新的 Proxmox 虚拟机</h3>
+<p>选择 Proxmox 节点（由其 BackupZit 代理执行）、存储、虚拟机 ID、名称、内存和核心数。BackupZit 会使用与原机相同的固件（UEFI/OVMF 或 BIOS）创建虚拟机，配备 VirtIO SCSI 磁盘和网卡，重建磁盘，还原所有文件，并可启动虚拟机。由于该虚拟机是可与原机并行运行的副本：</p>
+<ul>
+  <li>绑定到旧 MAC 地址的网络设置（在云镜像中很常见：netplan <code>match: macaddress</code>）会被改为适用于任意有线接口，</li>
+  <li>副本中的 BackupZit 代理会被取消注册，因此不会冒充原机器上报。</li>
+</ul>
+<h3>到磁盘</h3>
+<p>还原到 Linux 代理的空磁盘，例如第二块磁盘（<code>/dev/sdb</code>），或还原到新机器本身（裸机）：</p>
+<ol>
+  <li>在 <a href="/recovery">恢复</a> 页面下载 <b>Linux 恢复 ISO</b> 并创建恢复代码。将 ISO 写入 U 盘（Rufus、balenaEtcher）或挂载到虚拟机。它可在 BIOS 和 UEFI 机器上启动。</li>
+  <li>从它启动机器。恢复系统会启动代理，代理使用另一个 U 盘或磁盘上的 <code>backupzit/recovery.json</code> 连接控制台，或者询问服务器地址和恢复代码。</li>
+  <li>机器会显示为 <span class="badge">恢复</span> 代理。在系统备份的运行中选择 <b>到磁盘</b>、该代理及其磁盘（通常是 <code>/dev/sda</code>、<code>/dev/nvme0n1</code> 或 <code>/dev/vda</code>）。</li>
+</ol>
+<p>任何 Linux Live 系统也可以：在其中用 <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code> 启动代理；缺少所需工具（gdisk、LVM、mkfs）时会给出名称。如果机器不是原机器，请勾选 <b>不同硬件</b>。</p>
+<p>目标磁盘可以比原磁盘大或小：最后一个分区会扩展以填满磁盘，或在数据能放下的前提下缩小。文件系统 UUID 和分区 ID 保持不变，因此 <code>/etc/fstab</code> 和引导加载程序无需修改。对于 UEFI 系统，引导加载程序还会安装到可移动介质路径 <code>\EFI\BOOT\BOOTX64.EFI</code>，任何 UEFI 固件都可在没有引导项的情况下启动它。类 RHEL 系统（dracut）迁移到不同硬件时会获得包含所有驱动程序的新 initramfs。</p>
+
+<h2>命令行</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

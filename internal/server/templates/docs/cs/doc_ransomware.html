@@ -1,0 +1,64 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Ochrana proti ransomwaru</h1>
+<p class="lead">Útočníci se snaží smazat nebo zašifrovat zálohy dřív, než zašifrují produkční data. BackupZit nabízí úložiště, na kterém zálohy nelze zničit ani s ukradenými přihlašovacími údaji.</p>
+
+<h2>Vrstvy ochrany</h2>
+<table>
+  <tr><th>Vrstva</th><th>Chrání před</th></tr>
+  <tr><td><b>Šifrování</b> (AES-256)</td><td>Čtením nebo úpravou záloh na úložišti. Každá změna se odhalí.</td></tr>
+  <tr><td><b>Neměnné S3</b> (Object Lock, režim compliance)</td><td>Smazáním nebo přepsáním záloh — útočníkem s klíči, nepoctivým správcem nebo omylem.</td></tr>
+  <tr><td><b>Zabezpečené úložiště</b></td><td>Totéž na vašem vlastním linuxovém serveru: soubory se zapisují jen jednou a dostanou příznak neměnnosti souborového systému.</td></tr>
+  <tr><td><b>Kopie mimo lokalitu</b></td><td>Požárem, krádeží, úplnou ztrátou lokality.</td></tr>
+  <tr><td><b>Schválení čtyř očí</b> (volitelné)</td><td>Jedním ukradeným nebo zneužitým účtem konzole, který maže úlohy a cílová úložiště nebo zkracuje uchovávání: musí schválit druhý uživatel. Viz <a href="/docs/users">Uživatelé, role a LDAP</a>.</td></tr>
+</table>
+
+<h2>Automatické odhalení podezřelých záloh</h2>
+<p>Každá záloha se porovná s nedávnou historií své úlohy. Označí se jako <span class="badge failed"><i></i>podezřelá</span>, když nese stopy ransomwaru nebo hromadného mazání:</p>
+<ul>
+  <li>změnilo se mnohem více souborů než obvykle (např. 95 % místo obvyklého 1 %),</li>
+  <li>nová data se už nekomprimují — zašifrované soubory vypadají jako náhodná data,</li>
+  <li>počet souborů náhle klesl o třetinu nebo více,</li>
+  <li>náhlý skok v množství nových dat (i u obrazů disků, systémů Linux a VM).</li>
+</ul>
+<p>Pak BackupZit pošle varovný e-mail (při zapnutých oznámeních o chybách), zobrazí zálohu na přehledu jako <i>podezřelé zálohy ke kontrole</i> a <b>pozastaví uchovávání úlohy</b>: žádná starší záloha se nesmaže, takže poslední čisté zálohy zůstanou obnovitelné, i když poškozené zálohy dál přicházejí. Po kontrole počítače klikněte na stránce úlohy na <i>Zkontrolováno — obnovit uchovávání</i>.</p>
+
+<h2>Neměnné S3 s Object Lock</h2>
+<ol>
+  <li>Vytvořte bucket se <b>zapnutým Object Lock</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
+  <li>Přidejte pravidlo životního cyklu, které maže <i>neaktuální verze</i> (noncurrent versions) po 1 dni (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
+  <li>Přidejte cíl S3 a zaškrtněte <b>Neměnné zálohy na N dní</b>. Zvolte N alespoň tak dlouhé jako nejdelší uchovávání, které chcete chránit, např. 30.</li>
+</ol>
+<p>Každý bod obnovy zůstane zamčený alespoň N dní od vytvoření; data sdílená s novějšími zálohami se prodlužují automaticky.</p>
+
+<h2>Zabezpečené úložiště</h2>
+<p>Samostatný linuxový server s <code>backupzit-repo</code>:</p>
+<ul>
+  <li>Agenti a konzole mohou soubory jen <b>přidávat</b>; existující soubory se nikdy nepřepisují.</li>
+  <li>Každý soubor dostane atribut <code>chattr +i</code> na dobu nastavenou na tom serveru. Ani root ho nemůže smazat, aniž by nejdřív příznak odstranil.</li>
+  <li>Mazání od klientů soubory jen <b>skryje</b>, dokud jejich doba neuplyne.</li>
+  <li>Služba běží jako neprivilegovaný uživatel; jejím jediným oprávněním je nastavit příznak neměnnosti.</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p>Po nastavení <b>vypněte SSH a jiný vzdálený přístup</b> na serveru úložiště a chraňte přístup k jeho místní konzoli / iDRAC / iLO / hypervizoru. Ochrana je jen tak silná jako účet root tohoto počítače.</p></div>
+
+<h2>Obnova po útoku</h2>
+<p>Pokud útočník smazal nebo přepsal zálohy, čtěte úložiště <b>ve stavu před útokem</b> — je to jen pro čtení a nic nemění:</p>
+<pre>backupzit-agent snapshots --repo &lt;úložiště&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;úložiště&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>Na zabezpečeném úložišti může správce skryté soubory také vrátit, aby zálohy normálně pokračovaly:</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>Doporučení</h2>
+<ul>
+  <li>Pro úložiště používejte samostatný účet, který není součástí vaší domény Windows.</li>
+  <li>Mějte alespoň jednu neměnnou kopii (S3 Object Lock nebo zabezpečené úložiště).</li>
+  <li>Listy pro obnovu uchovávejte offline (vytištěné, v trezoru).</li>
+  <li>Zapněte e-mailová upozornění — náhlá změna v počtu chyb nebo v objemu odesílaných dat bývá prvním znakem útoku.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

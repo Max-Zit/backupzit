@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">Koppel BackupZit aan RMM-platforms, monitoring (PRTG, Zabbix, Nagios, Uptime Kuma …) en uw eigen scripts.</p>
+
+<h2>Tokens</h2>
+<p>Maak een token aan onder <a href="/account#tokens">Mijn account → API-tokens</a>. Geef het de laagste rol die volstaat — <b>Kijker</b> voor monitoring, <b>Herstelmedewerker</b> om ook back-ups en hersteltests te starten. Het token wordt één keer getoond; stuur het mee met elk verzoek:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>Tokens kunnen verlopen, kunnen door hun eigenaar of een beheerder worden ingetrokken (<a href="/users">Gebruikers</a>) en werken niet meer wanneer de eigenaar wordt uitgeschakeld. Acties met een token verschijnen in het auditlogboek met de naam van het token.</p>
+
+<h2>Eindpunten</h2>
+<p>Alle antwoorden zijn JSON. Basis-URL: <code>https://&lt;console&gt;:8443</code>.</p>
+<table>
+  <tr><th>Methode en pad</th><th>Rol</th><th>Geeft terug</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Kijker</td><td>Algemene toestand: agents online, fouten en waarschuwingen in 24 u, actieve runs, niet-gecontroleerde verdachte back-ups, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Kijker</td><td>Agents met besturingssysteem, versie, online-status en laatste contact</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Kijker</td><td>Taken met schema, volgende run en laatste resultaat</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Herstelmedewerker</td><td>Start de taak nu: <code>{"run_id": 123}</code> (202), of 409 als er al een run actief is</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Herstelmedewerker</td><td>Start een hersteltest van de nieuwste back-up van de taak</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Kijker</td><td>Recente runs, nieuwste eerst (standaard 100, maximaal 1000)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Kijker</td><td>Eén run met melding, fouten en statistieken</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Kijker</td><td>Het <a href="/docs/monitoring">rapport</a> voor een periode: totalen, slagingspercentage en details per taak</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Kijker</td><td>Opslagdoelen (zonder inloggegevens)</td></tr>
+</table>
+<p>Perioden: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, of <code>custom</code> met <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
+<p>Fouten geven <code>{"error": "..."}</code> terug met 400 (ongeldig verzoek), 401 (token ontbreekt, ongeldig of verlopen), 403 (rol te laag), 404 of 409.</p>
+
+<h2>Voorbeelden</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p>Gebruik <code>-k</code> / <code>-SkipCertificateCheck</code> alleen met het zelfondertekende certificaat van de console op een vertrouwd netwerk, of installeer het consolecertificaat op de monitoringhost.</p>
+<h3>Monitoringcontrole</h3>
+<p>Vraag <code>/api/v1/status</code> om de paar minuten op en geef een melding als <code>ok</code> false is. Voor controles per taak gebruikt u <code>/api/v1/jobs</code> en meldt u wanneer <code>last_status</code> <code>failed</code> is of <code>last_finished</code> ouder is dan verwacht.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

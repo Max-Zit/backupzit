@@ -1,0 +1,40 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Notificações: e-mail, Slack, Teams, webhooks</h1>
+<p class="lead">Receba um e-mail quando um backup falhar e um resumo diário toda manhã.</p>
+
+<h2>Configurar o e-mail</h2>
+<p>Em <a href="/settings/email">Configurações → Notificações por e-mail</a>:</p>
+<table>
+  <tr><th>Campo</th><th>Exemplo</th></tr>
+  <tr><td>Servidor SMTP / porta</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, relay interno / 25</td></tr>
+  <tr><td>Segurança</td><td><b>STARTTLS</b> (porta 587), <b>TLS</b> (porta 465) ou nenhuma (somente relay interno)</td></tr>
+  <tr><td>Usuário / senha</td><td>A caixa de correio usada para enviar; deixe vazio para um relay anônimo. Microsoft 365 e Gmail exigem uma senha de aplicativo.</td></tr>
+  <tr><td>Remetente</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Destinatários</td><td>Um ou mais endereços, separados por vírgula.</td></tr>
+</table>
+<p>Use <b>Enviar e-mail de teste</b> para verificar as configurações.</p>
+
+<h2>O que é enviado</h2>
+<ul>
+  <li><b>Falhas</b> (recomendado) — um e-mail por execução com falha, com o motivo: backups, cópias, restaurações e <b>testes de restauração</b> com falha. Com esta opção você também recebe um alerta <b>SUSPICIOUS</b> quando um backup parece ransomware ou exclusão em massa.</li>
+  <li><b>Avisos</b> — execuções em que alguns arquivos não puderam ser lidos.</li>
+  <li><b>Sucessos</b> — toda execução bem-sucedida (geralmente demais; prefira o relatório diário).</li>
+  <li><b>Relatório diário</b> — no horário escolhido: execuções das últimas 24 horas, problemas e agentes offline. O assunto começa com <i>OK</i>, <i>WARNINGS</i> ou <i>ATTENTION</i>, para que regras de e-mail possam classificá-los.</li>
+</ul>
+<p>Para resumos semanais ou mensais use <a href="/docs/monitoring">relatórios agendados</a>; eles são enviados com as mesmas configurações de e-mail e têm seus próprios destinatários. Os assuntos começam com <code>[BackupZit]</code> para que regras de e-mail possam classificá-los. A senha SMTP é armazenada criptografada.</p>
+
+<h2>Slack, Microsoft Teams e webhooks</h2>
+<p>Em <a href="/settings/chat">Configurações → Chat e webhooks</a> adicione quantos canais quiser; cada um escolhe se recebe falhas, avisos e sucessos. Backups incomuns (possível ransomware) contam como falhas. <b>Enviar teste</b> verifica um canal na hora.</p>
+<ul>
+  <li><b>Slack</b>: crie um <i>incoming webhook</i> para o canal (configurações do app Slack → Incoming Webhooks) e cole a URL dele (<code>https://hooks.slack.com/services/…</code>).</li>
+  <li><b>Microsoft Teams</b>: no canal, adicione o fluxo <i>Post to a channel when a webhook request is received</i> e cole a URL dele. As mensagens chegam como cartões com um botão que abre a execução no console.</li>
+  <li><b>Webhook</b>: qualquer URL que aceite um POST JSON — sistema de chamados, monitoramento ou ferramenta de automação. Com um segredo de assinatura, cada requisição leva <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, o HMAC-SHA256 do corpo, para que o receptor confirme que ela vem do seu console.</li>
+</ul>
+<p>O JSON de um webhook:</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>As mensagens são enviadas uma vez por execução, também quando o e-mail está desligado. Um canal que falha (URL errada, serviço fora do ar) é registrado no log do console e não atrasa os outros. As URLs dos webhooks são armazenadas criptografadas.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

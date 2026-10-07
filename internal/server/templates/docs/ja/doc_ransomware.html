@@ -1,0 +1,64 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>ランサムウェア対策</h1>
+<p class="lead">攻撃者は本番データを暗号化する前に、バックアップを削除または暗号化しようとします。BackupZit は、盗まれた資格情報を使われてもバックアップを破壊できないストレージを提供します。</p>
+
+<h2>保護の層</h2>
+<table>
+  <tr><th>層</th><th>防げるもの</th></tr>
+  <tr><td><b>暗号化</b>（AES-256）</td><td>ストレージ上のバックアップの読み取りや改ざん。あらゆる変更が検出されます。</td></tr>
+  <tr><td><b>変更不可の S3</b>（Object Lock、コンプライアンス モード）</td><td>バックアップの削除や上書き — キーを持つ攻撃者、不正な管理者、操作ミスのいずれによるものも。</td></tr>
+  <tr><td><b>強化リポジトリ</b></td><td>同じ保護を自社の Linux サーバーで: ファイルは一度だけ書き込まれ、ファイル システムの変更不可フラグが付きます。</td></tr>
+  <tr><td><b>オフサイト コピー</b></td><td>火災、盗難、拠点の全損。</td></tr>
+  <tr><td><b>4 つの目による承認</b>（任意）</td><td>盗まれた、または悪用された 1 つのコンソール アカウントによるジョブやストレージ先の削除、保持期間の短縮: 2 人目のユーザーの承認が必要になります。<a href="/docs/users">ユーザー、ロール、LDAP</a> を参照してください。</td></tr>
+</table>
+
+<h2>不審なバックアップの自動検出</h2>
+<p>各バックアップはジョブの最近の履歴と比較されます。ランサムウェアや大量削除の痕跡があると <span class="badge failed"><i></i>不審</span> としてマークされます:</p>
+<ul>
+  <li>通常よりはるかに多くのファイルが変更された（例: 通常の 1 % ではなく 95 %）、</li>
+  <li>新しいデータが圧縮できなくなった — 暗号化されたファイルはランダムなデータのように見えます、</li>
+  <li>ファイル数が突然 3 分の 1 以上減った、</li>
+  <li>新しいデータ量が急増した（ディスク イメージ、Linux システム、VM も対象）。</li>
+</ul>
+<p>このとき BackupZit はアラート メールを送信し（失敗通知が有効な場合）、ダッシュボードに<i>確認が必要な不審なバックアップ</i>として表示し、<b>ジョブの保持を一時停止</b>します。古いバックアップは削除されないため、破損したバックアップが届き続けても最後の正常なバックアップは復元可能なままです。マシンを確認したら、ジョブのページで <i>確認済み — 保持を再開</i> をクリックします。</p>
+
+<h2>Object Lock による変更不可の S3</h2>
+<ol>
+  <li><b>Object Lock を有効にした</b>バケットを作成します（AWS、Wasabi、Backblaze B2、MinIO: <code>mc mb --with-lock</code>）。</li>
+  <li><i>最新でないバージョン</i>（noncurrent versions）を 1 日後に削除するライフサイクル ルールを追加します（MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>）。</li>
+  <li>S3 ストレージ先を追加し、<b>N 日間変更不可のバックアップ</b>をオンにします。N は保護したい最長の保持期間以上にします（例: 30）。</li>
+</ol>
+<p>各復元ポイントは作成後少なくとも N 日間ロックされます。新しいバックアップと共有されるデータのロックは自動的に延長されます。</p>
+
+<h2>強化リポジトリ</h2>
+<p><code>backupzit-repo</code> を実行する専用の Linux サーバー:</p>
+<ul>
+  <li>エージェントとコンソールはファイルの<b>追加</b>しかできません。既存のファイルが上書きされることはありません。</li>
+  <li>各ファイルには、そのサーバーで設定した期間 <code>chattr +i</code> 属性が付きます。root でも先にフラグを外さない限り削除できません。</li>
+  <li>クライアントからの削除は、期間が終わるまでファイルを<b>非表示</b>にするだけです。</li>
+  <li>サービスは非特権ユーザーとして動作し、唯一の権限は変更不可フラグの設定です。</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p>セットアップ後は、リポジトリ サーバーで <b>SSH などのリモート アクセスを無効化</b>し、ローカル コンソール / iDRAC / iLO / ハイパーバイザーへのアクセスを保護してください。保護の強さは、そのマシンの root アカウントの強さで決まります。</p></div>
+
+<h2>攻撃後の復旧</h2>
+<p>攻撃者がバックアップを削除または上書きした場合は、ストレージを<b>攻撃前の状態</b>で読み取ります — 読み取り専用で、何も変更しません:</p>
+<pre>backupzit-agent snapshots --repo &lt;リポジトリ&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;リポジトリ&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>強化リポジトリでは、管理者が非表示のファイルを元に戻し、バックアップを通常どおり続けることもできます:</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>推奨事項</h2>
+<ul>
+  <li>ストレージには、Windows ドメインに参加していない専用のアカウントを使います。</li>
+  <li>少なくとも 1 つの変更不可のコピーを保持します（S3 Object Lock または強化リポジトリ）。</li>
+  <li>リカバリーシートはオフライン（印刷して金庫）で保管します。</li>
+  <li>メール アラートを有効にします — 失敗数や送信データ量の急な変化は、攻撃の最初の兆候であることがよくあります。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

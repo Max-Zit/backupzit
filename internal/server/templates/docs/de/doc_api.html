@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">Binden Sie BackupZit an RMM-Plattformen, Überwachung (PRTG, Zabbix, Nagios, Uptime Kuma …) und eigene Skripte an.</p>
+
+<h2>Token</h2>
+<p>Erstellen Sie ein Token unter <a href="/account#tokens">Mein Konto → API-Token</a>. Geben Sie ihm die niedrigste Rolle, die genügt — <b>Betrachter</b> für die Überwachung, <b>Wiederherstellungsoperator</b>, um auch Sicherungen und Wiederherstellungstests zu starten. Das Token wird nur einmal angezeigt; senden Sie es mit jeder Anfrage:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>Token können ablaufen, von ihrem Besitzer oder einem Administrator widerrufen werden (<a href="/users">Benutzer</a>) und funktionieren nicht mehr, wenn der Besitzer deaktiviert wird. Mit einem Token ausgeführte Aktionen erscheinen im Prüfprotokoll mit dem Namen des Tokens.</p>
+
+<h2>Endpunkte</h2>
+<p>Alle Antworten sind JSON. Basis-URL: <code>https://&lt;konsole&gt;:8443</code>.</p>
+<table>
+  <tr><th>Methode und Pfad</th><th>Rolle</th><th>Liefert</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Betrachter</td><td>Gesamtzustand: Agenten online, Fehler und Warnungen in 24 h, aktive Läufe, ungeprüfte verdächtige Sicherungen, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Betrachter</td><td>Agenten mit Betriebssystem, Version, Online-Status und letztem Kontakt</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Betrachter</td><td>Aufträge mit Zeitplan, nächstem Lauf und letztem Ergebnis</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Wiederherstellungsoperator</td><td>Startet den Auftrag sofort: <code>{"run_id": 123}</code> (202), oder 409, wenn bereits ein Lauf aktiv ist</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Wiederherstellungsoperator</td><td>Startet einen Wiederherstellungstest der neuesten Sicherung des Auftrags</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Betrachter</td><td>Letzte Läufe, neueste zuerst (Standard 100, maximal 1000)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Betrachter</td><td>Ein Lauf mit Meldung, Fehlern und Statistik</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Betrachter</td><td>Der <a href="/docs/monitoring">Bericht</a> für einen Zeitraum: Summen, Erfolgsquote und Details pro Auftrag</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Betrachter</td><td>Speicherziele (ohne Zugangsdaten)</td></tr>
+</table>
+<p>Zeiträume: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> oder <code>custom</code> mit <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
+<p>Fehler liefern <code>{"error": "..."}</code> mit 400 (ungültige Anfrage), 401 (Token fehlt, ist ungültig oder abgelaufen), 403 (Rolle zu niedrig), 404 oder 409.</p>
+
+<h2>Beispiele</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p>Verwenden Sie <code>-k</code> / <code>-SkipCertificateCheck</code> nur mit dem selbstsignierten Zertifikat der Konsole in einem vertrauenswürdigen Netz, oder installieren Sie das Konsolenzertifikat auf dem Überwachungshost.</p>
+<h3>Überwachungsprüfung</h3>
+<p>Fragen Sie <code>/api/v1/status</code> alle paar Minuten ab und alarmieren Sie, wenn <code>ok</code> false ist. Für Prüfungen pro Auftrag verwenden Sie <code>/api/v1/jobs</code> und alarmieren, wenn <code>last_status</code> <code>failed</code> ist oder <code>last_finished</code> älter als erwartet ist.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

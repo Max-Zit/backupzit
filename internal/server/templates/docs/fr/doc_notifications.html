@@ -1,0 +1,40 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Notifications : e-mail, Slack, Teams, webhooks</h1>
+<p class="lead">Recevez un e-mail quand une sauvegarde échoue, et un résumé quotidien chaque matin.</p>
+
+<h2>Configurer l'e-mail</h2>
+<p>Dans <a href="/settings/email">Paramètres → Notifications par e-mail</a> :</p>
+<table>
+  <tr><th>Champ</th><th>Exemple</th></tr>
+  <tr><td>Serveur SMTP / port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, relais interne / 25</td></tr>
+  <tr><td>Sécurité</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) ou aucune (relais interne uniquement)</td></tr>
+  <tr><td>Utilisateur / mot de passe</td><td>La boîte aux lettres utilisée pour l'envoi ; laissez vide pour un relais anonyme. Microsoft 365 et Gmail exigent un mot de passe d'application.</td></tr>
+  <tr><td>Expéditeur</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Destinataires</td><td>Une ou plusieurs adresses, séparées par des virgules.</td></tr>
+</table>
+<p>Utilisez <b>Envoyer un e-mail de test</b> pour vérifier les paramètres.</p>
+
+<h2>Ce qui est envoyé</h2>
+<ul>
+  <li><b>Échecs</b> (recommandé) — un e-mail par exécution échouée avec la raison : sauvegardes, copies, restaurations et <b>tests de restauration</b> échoués. Avec cette option, vous recevez aussi une alerte <b>SUSPICIOUS</b> lorsqu'une sauvegarde ressemble à un rançongiciel ou à une suppression massive.</li>
+  <li><b>Avertissements</b> — exécutions où certains fichiers n'ont pas pu être lus.</li>
+  <li><b>Réussites</b> — chaque exécution réussie (souvent trop ; préférez le rapport quotidien).</li>
+  <li><b>Rapport quotidien</b> — à l'heure choisie : exécutions des dernières 24 heures, problèmes et agents hors ligne. L'objet commence par <i>OK</i>, <i>WARNINGS</i> ou <i>ATTENTION</i>, afin que les règles de messagerie puissent les trier.</li>
+</ul>
+<p>Pour des résumés hebdomadaires ou mensuels, utilisez les <a href="/docs/monitoring">rapports planifiés</a> ; ils sont envoyés avec les mêmes paramètres de messagerie et ont leurs propres destinataires. Les objets commencent par <code>[BackupZit]</code> afin que les règles de messagerie puissent les trier. Le mot de passe SMTP est stocké chiffré.</p>
+
+<h2>Slack, Microsoft Teams et webhooks</h2>
+<p>Dans <a href="/settings/chat">Paramètres → Chat et webhooks</a>, ajoutez autant de canaux que vous voulez ; chacun choisit s'il reçoit les échecs, les avertissements et les réussites. Les sauvegardes inhabituelles (rançongiciel possible) comptent comme des échecs. <b>Envoyer un test</b> vérifie immédiatement un canal.</p>
+<ul>
+  <li><b>Slack</b> : créez un <i>incoming webhook</i> pour le canal (paramètres de l'application Slack → Incoming Webhooks) et collez son URL (<code>https://hooks.slack.com/services/…</code>).</li>
+  <li><b>Microsoft Teams</b> : dans le canal, ajoutez le workflow <i>Post to a channel when a webhook request is received</i> et collez son URL. Les messages arrivent sous forme de cartes avec un bouton qui ouvre l'exécution dans la console.</li>
+  <li><b>Webhook</b> : toute URL qui accepte un POST JSON — système de tickets, supervision ou outil d'automatisation. Avec un secret de signature, chaque requête porte <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, le HMAC-SHA256 du corps, afin que le destinataire puisse vérifier qu'elle vient de votre console.</li>
+</ul>
+<p>Le JSON d'un webhook :</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>Les messages sont envoyés une fois par exécution, même lorsque l'e-mail est désactivé. Un canal en échec (mauvaise URL, service indisponible) est consigné dans le journal de la console et ne bloque pas les autres. Les URL de webhook sont stockées chiffrées.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

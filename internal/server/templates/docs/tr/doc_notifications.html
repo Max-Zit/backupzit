@@ -1,0 +1,40 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Bildirimler: e-posta, Slack, Teams, webhook'lar</h1>
+<p class="lead">Bir yedekleme başarısız olduğunda e-posta, her sabah da günlük özet alın.</p>
+
+<h2>E-postayı ayarlama</h2>
+<p><a href="/settings/email">Ayarlar → E-posta bildirimleri</a> altında:</p>
+<table>
+  <tr><th>Alan</th><th>Örnek</th></tr>
+  <tr><td>SMTP sunucusu / bağlantı noktası</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, dahili aktarıcı / 25</td></tr>
+  <tr><td>Güvenlik</td><td><b>STARTTLS</b> (bağlantı noktası 587), <b>TLS</b> (bağlantı noktası 465) veya yok (yalnızca dahili aktarıcı)</td></tr>
+  <tr><td>Kullanıcı / parola</td><td>Gönderim için kullanılan posta kutusu; anonim aktarıcı için boş bırakın. Microsoft 365 ve Gmail uygulama parolası ister.</td></tr>
+  <tr><td>Gönderen</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Alıcılar</td><td>Virgülle ayrılmış bir veya daha fazla adres.</td></tr>
+</table>
+<p>Ayarları denetlemek için <b>Test e-postası gönder</b> düğmesini kullanın.</p>
+
+<h2>Neler gönderilir</h2>
+<ul>
+  <li><b>Hatalar</b> (önerilir) — başarısız her çalıştırma için nedeniyle birlikte bir e-posta: yedeklemeler, kopyalar, geri yüklemeler ve başarısız <b>geri yükleme testleri</b>. Bu seçenek açıkken bir yedek fidye yazılımı veya toplu silme gibi göründüğünde <b>SUSPICIOUS</b> uyarısı da alırsınız.</li>
+  <li><b>Uyarılar</b> — bazı dosyaların okunamadığı çalıştırmalar.</li>
+  <li><b>Başarılar</b> — her başarılı çalıştırma (genellikle fazla; günlük raporu tercih edin).</li>
+  <li><b>Günlük rapor</b> — seçilen saatte: son 24 saatin çalıştırmaları, sorunlar ve çevrimdışı aracılar. Konu <i>OK</i>, <i>WARNINGS</i> veya <i>ATTENTION</i> ile başlar, böylece posta kuralları bunları ayıklayabilir.</li>
+</ul>
+<p>Haftalık veya aylık özetler için <a href="/docs/monitoring">zamanlanmış raporları</a> kullanın; aynı posta ayarlarıyla gönderilir ve kendi alıcıları vardır. Konular <code>[BackupZit]</code> ile başlar, böylece posta kuralları bunları ayıklayabilir. SMTP parolası şifreli saklanır.</p>
+
+<h2>Slack, Microsoft Teams ve webhook'lar</h2>
+<p><a href="/settings/chat">Ayarlar → Sohbet ve webhook'lar</a> altında istediğiniz kadar kanal ekleyin; her biri hataları, uyarıları ve başarıları alıp almayacağını seçer. Olağandışı yedekler (olası fidye yazılımı) hata sayılır. <b>Test gönder</b> bir kanalı hemen denetler.</p>
+<ul>
+  <li><b>Slack</b>: kanal için bir <i>incoming webhook</i> oluşturun (Slack uygulama ayarları → Incoming Webhooks) ve URL'sini yapıştırın (<code>https://hooks.slack.com/services/…</code>).</li>
+  <li><b>Microsoft Teams</b>: kanala <i>Post to a channel when a webhook request is received</i> iş akışını ekleyin ve URL'sini yapıştırın. Mesajlar, çalıştırmayı konsolda açan bir düğmeye sahip kartlar olarak gelir.</li>
+  <li><b>Webhook</b>: JSON POST kabul eden herhangi bir URL — bilet sistemi, izleme veya otomasyon aracı. İmzalama sırrıyla her istek <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code> başlığını, yani gövdenin HMAC-SHA256 değerini taşır; alıcı isteğin konsolunuzdan geldiğini doğrulayabilir.</li>
+</ul>
+<p>Bir webhook'un JSON'u:</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>Mesajlar çalıştırma başına bir kez, e-posta kapalıyken de gönderilir. Başarısız olan bir kanal (yanlış URL, hizmet çalışmıyor) konsol günlüğüne yazılır ve diğerlerini bekletmez. Webhook URL'leri şifreli saklanır.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

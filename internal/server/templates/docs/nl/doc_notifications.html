@@ -1,0 +1,40 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Meldingen: e-mail, Slack, Teams, webhooks</h1>
+<p class="lead">Ontvang een e-mail wanneer een back-up mislukt, en elke ochtend een dagelijks overzicht.</p>
+
+<h2>E-mail instellen</h2>
+<p>Onder <a href="/settings/email">Instellingen → E-mailmeldingen</a>:</p>
+<table>
+  <tr><th>Veld</th><th>Voorbeeld</th></tr>
+  <tr><td>SMTP-server / poort</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, interne relay / 25</td></tr>
+  <tr><td>Beveiliging</td><td><b>STARTTLS</b> (poort 587), <b>TLS</b> (poort 465) of geen (alleen interne relay)</td></tr>
+  <tr><td>Gebruiker / wachtwoord</td><td>De mailbox waarmee wordt verzonden; leeg laten voor een anonieme relay. Microsoft 365 en Gmail vereisen een app-wachtwoord.</td></tr>
+  <tr><td>Afzender</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Ontvangers</td><td>Een of meer adressen, gescheiden door komma's.</td></tr>
+</table>
+<p>Gebruik <b>Testmail verzenden</b> om de instellingen te controleren.</p>
+
+<h2>Wat wordt verzonden</h2>
+<ul>
+  <li><b>Fouten</b> (aanbevolen) — één e-mail per mislukte run met de reden: back-ups, kopieën, herstelbewerkingen en mislukte <b>hersteltests</b>. Met deze optie krijgt u ook een waarschuwing <b>SUSPICIOUS</b> wanneer een back-up op ransomware of massaal verwijderen lijkt.</li>
+  <li><b>Waarschuwingen</b> — runs waarin sommige bestanden niet gelezen konden worden.</li>
+  <li><b>Geslaagd</b> — elke geslaagde run (meestal te veel; gebruik liever het dagrapport).</li>
+  <li><b>Dagrapport</b> — op het gekozen uur: runs van de laatste 24 uur, problemen en offline agents. Het onderwerp begint met <i>OK</i>, <i>WARNINGS</i> of <i>ATTENTION</i>, zodat mailregels ze kunnen sorteren.</li>
+</ul>
+<p>Voor wekelijkse of maandelijkse overzichten gebruikt u <a href="/docs/monitoring">geplande rapporten</a>; die worden met dezelfde mailinstellingen verzonden en hebben hun eigen ontvangers. Onderwerpen beginnen met <code>[BackupZit]</code>, zodat mailregels ze kunnen sorteren. Het SMTP-wachtwoord wordt versleuteld opgeslagen.</p>
+
+<h2>Slack, Microsoft Teams en webhooks</h2>
+<p>Onder <a href="/settings/chat">Instellingen → Chat en webhooks</a> voegt u zoveel kanalen toe als u wilt; elk kanaal kiest of het fouten, waarschuwingen en geslaagde runs ontvangt. Ongewone back-ups (mogelijk ransomware) tellen als fouten. <b>Test verzenden</b> controleert een kanaal direct.</p>
+<ul>
+  <li><b>Slack</b>: maak een <i>incoming webhook</i> voor het kanaal (Slack-app-instellingen → Incoming Webhooks) en plak de URL (<code>https://hooks.slack.com/services/…</code>).</li>
+  <li><b>Microsoft Teams</b>: voeg in het kanaal de workflow <i>Post to a channel when a webhook request is received</i> toe en plak de URL. Berichten komen binnen als kaarten met een knop die de run in de console opent.</li>
+  <li><b>Webhook</b>: elke URL die een JSON-POST accepteert — een ticketsysteem, monitoring of automatiseringstool. Met een ondertekeningsgeheim draagt elk verzoek <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, de HMAC-SHA256 van de body, zodat de ontvanger kan controleren dat het van uw console komt.</li>
+</ul>
+<p>De JSON van een webhook:</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>Berichten worden één keer per run verzonden, ook als e-mail uit staat. Een kanaal dat faalt (verkeerde URL, dienst onbereikbaar) wordt in het consolelogboek vastgelegd en houdt de andere niet op. Webhook-URL's worden versleuteld opgeslagen.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

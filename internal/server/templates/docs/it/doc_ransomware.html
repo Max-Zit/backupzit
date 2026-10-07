@@ -1,0 +1,64 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Protezione dal ransomware</h1>
+<p class="lead">Gli aggressori cercano di cancellare o cifrare i backup prima di cifrare i dati di produzione. BackupZit offre archiviazione in cui i backup non possono essere distrutti, nemmeno con credenziali rubate.</p>
+
+<h2>I livelli di protezione</h2>
+<table>
+  <tr><th>Livello</th><th>Protegge da</th></tr>
+  <tr><td><b>Cifratura</b> (AES-256)</td><td>Lettura o manomissione dei backup sull'archiviazione. Ogni modifica viene rilevata.</td></tr>
+  <tr><td><b>S3 immutabile</b> (Object Lock, modalità compliance)</td><td>Cancellazione o sovrascrittura dei backup — da parte di un aggressore con le chiavi, di un amministratore infedele o per errore.</td></tr>
+  <tr><td><b>Repository protetto</b></td><td>Lo stesso, sul tuo server Linux: i file si scrivono una sola volta e ricevono il flag di immutabilità del file system.</td></tr>
+  <tr><td><b>Copia fuori sede</b></td><td>Incendio, furto, perdita totale della sede.</td></tr>
+  <tr><td><b>Approvazione a quattro occhi</b> (facoltativa)</td><td>Un account della console rubato o usato male che elimina job e destinazioni di archiviazione o accorcia la conservazione: un secondo utente deve approvare. Vedi <a href="/docs/users">Utenti, ruoli e LDAP</a>.</td></tr>
+</table>
+
+<h2>Rilevamento automatico dei backup sospetti</h2>
+<p>Ogni backup viene confrontato con la cronologia recente del suo job. Viene contrassegnato come <span class="badge failed"><i></i>sospetto</span> quando mostra tracce di ransomware o di cancellazione di massa:</p>
+<ul>
+  <li>molti più file modificati del solito (ad es. 95 % invece del solito 1 %),</li>
+  <li>i nuovi dati non si comprimono più — i file cifrati sembrano dati casuali,</li>
+  <li>il numero di file è calato improvvisamente di un terzo o più,</li>
+  <li>un salto improvviso nella quantità di nuovi dati (anche per immagini disco, sistemi Linux e VM).</li>
+</ul>
+<p>BackupZit invia allora un'e-mail di avviso (con le notifiche di errore attive), mostra il backup nella dashboard tra i <i>backup sospetti da esaminare</i> e <b>sospende la conservazione del job</b>: nessun backup più vecchio viene eliminato, così gli ultimi backup puliti restano ripristinabili anche se continuano ad arrivare backup danneggiati. Dopo aver controllato la macchina, fai clic su <i>Verificato — riprendi la conservazione</i> nella pagina del job.</p>
+
+<h2>S3 immutabile con Object Lock</h2>
+<ol>
+  <li>Crea un bucket con <b>Object Lock attivato</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
+  <li>Aggiungi una regola di lifecycle che elimini le <i>versioni non correnti</i> (noncurrent versions) dopo 1 giorno (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
+  <li>Aggiungi la destinazione S3 e seleziona <b>Backup immutabili per N giorni</b>. Scegli N almeno pari alla conservazione più lunga che vuoi proteggere, ad es. 30.</li>
+</ol>
+<p>Ogni punto di ripristino resta bloccato per almeno N giorni dalla sua creazione; i dati condivisi con backup più recenti vengono prorogati automaticamente.</p>
+
+<h2>Repository protetto</h2>
+<p>Un server Linux dedicato che esegue <code>backupzit-repo</code>:</p>
+<ul>
+  <li>Agenti e console possono solo <b>aggiungere</b> file; i file esistenti non vengono mai sovrascritti.</li>
+  <li>Ogni file riceve l'attributo <code>chattr +i</code> per il periodo impostato su quel server. Nemmeno root può eliminarlo senza prima rimuovere il flag.</li>
+  <li>Le cancellazioni dai client si limitano a <b>nascondere</b> i file fino alla fine del loro periodo.</li>
+  <li>Il servizio gira come utente non privilegiato; il suo unico privilegio è impostare il flag di immutabilità.</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p>Dopo la configurazione <b>disattiva SSH e ogni altro accesso remoto</b> sul server del repository e proteggi l'accesso alla sua console locale / iDRAC / iLO / hypervisor. La protezione è forte quanto l'account root di quella macchina.</p></div>
+
+<h2>Ripristino dopo un attacco</h2>
+<p>Se un aggressore ha eliminato o sovrascritto dei backup, leggi l'archiviazione <b>com'era prima dell'attacco</b> — è in sola lettura e non modifica nulla:</p>
+<pre>backupzit-agent snapshots --repo &lt;repository&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;repository&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>Su un repository protetto l'amministratore può anche far riapparire i file nascosti, così i backup proseguono normalmente:</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>Raccomandazioni</h2>
+<ul>
+  <li>Usa per l'archiviazione un account separato che non faccia parte del tuo dominio Windows.</li>
+  <li>Mantieni almeno una copia immutabile (S3 Object Lock o repository protetto).</li>
+  <li>Conserva le schede di ripristino offline (stampate, in una cassaforte).</li>
+  <li>Attiva gli avvisi e-mail — un cambiamento improvviso negli errori o nel volume di dati inviati è spesso il primo segno di un attacco.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

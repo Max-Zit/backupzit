@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">Propojte BackupZit s platformami RMM, monitoringem (PRTG, Zabbix, Nagios, Uptime Kuma …) a vlastními skripty.</p>
+
+<h2>Tokeny</h2>
+<p>Token vytvoříte v <a href="/account#tokens">Můj účet → Tokeny API</a>. Dejte mu nejnižší roli, která stačí — <b>Čtenář</b> pro monitoring, <b>Operátor obnovy</b>, aby mohl také spouštět zálohy a testy obnovy. Token se zobrazí jen jednou; posílejte ho v každém požadavku:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>Tokeny mohou vypršet, může je odvolat vlastník nebo správce (<a href="/users">Uživatelé</a>) a přestanou fungovat, když je vlastník zakázán. Akce provedené tokenem se objeví v protokolu auditu s názvem tokenu.</p>
+
+<h2>Koncové body</h2>
+<p>Všechny odpovědi jsou v JSON. Základní URL: <code>https://&lt;konzole&gt;:8443</code>.</p>
+<table>
+  <tr><th>Metoda a cesta</th><th>Role</th><th>Vrací</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Čtenář</td><td>Celkový stav: agenti online, chyby a varování za 24 h, aktivní běhy, nezkontrolované podezřelé zálohy, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Čtenář</td><td>Agenty se systémem, verzí, stavem online a posledním kontaktem</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Čtenář</td><td>Úlohy s plánem, dalším během a posledním výsledkem</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Operátor obnovy</td><td>Spustí úlohu hned: <code>{"run_id": 123}</code> (202), nebo 409, pokud již běh probíhá</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Operátor obnovy</td><td>Spustí test obnovy nejnovější zálohy úlohy</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Čtenář</td><td>Nedávné běhy, nejnovější první (výchozí 100, nejvýše 1000)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Čtenář</td><td>Jeden běh se zprávou, chybami a statistikou</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Čtenář</td><td><a href="/docs/monitoring">Přehled</a> za období: součty, úspěšnost a podrobnosti podle úloh</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Čtenář</td><td>Cílová úložiště (bez přihlašovacích údajů)</td></tr>
+</table>
+<p>Období: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> nebo <code>custom</code> s <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
+<p>Chyby vracejí <code>{"error": "..."}</code> s kódem 400 (chybný požadavek), 401 (token chybí, je neplatný nebo vypršel), 403 (příliš nízká role), 404 nebo 409.</p>
+
+<h2>Příklady</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p><code>-k</code> / <code>-SkipCertificateCheck</code> používejte jen s certifikátem konzole podepsaným sám sebou v důvěryhodné síti, nebo certifikát konzole nainstalujte na monitorovací hostitel.</p>
+<h3>Kontrola v monitoringu</h3>
+<p>Dotazujte se na <code>/api/v1/status</code> každých pár minut a upozorněte, když je <code>ok</code> false. Pro kontrolu jednotlivých úloh použijte <code>/api/v1/jobs</code> a upozorněte, když je <code>last_status</code> <code>failed</code> nebo je <code>last_finished</code> starší, než se čeká.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

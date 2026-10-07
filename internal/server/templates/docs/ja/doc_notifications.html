@@ -1,0 +1,40 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>通知: メール、Slack、Teams、Webhook</h1>
+<p class="lead">バックアップが失敗したときにメールを受け取り、毎朝日次サマリーを受け取れます。</p>
+
+<h2>メールの設定</h2>
+<p><a href="/settings/email">設定 → メール通知</a> で設定します:</p>
+<table>
+  <tr><th>項目</th><th>例</th></tr>
+  <tr><td>SMTP サーバー / ポート</td><td><code>smtp.office365.com</code> / 587、<code>smtp.gmail.com</code> / 587、社内リレー / 25</td></tr>
+  <tr><td>セキュリティ</td><td><b>STARTTLS</b>（ポート 587）、<b>TLS</b>（ポート 465）、またはなし（社内リレーのみ）</td></tr>
+  <tr><td>ユーザー / パスワード</td><td>送信に使うメールボックス。匿名リレーの場合は空欄。Microsoft 365 と Gmail ではアプリ パスワードが必要です。</td></tr>
+  <tr><td>送信者</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>受信者</td><td>1 つ以上のアドレス（カンマ区切り）。</td></tr>
+</table>
+<p><b>テストメールを送信</b> で設定を確認します。</p>
+
+<h2>送信される内容</h2>
+<ul>
+  <li><b>失敗</b>（推奨）— 失敗した実行ごとに理由を記したメールを 1 通: バックアップ、コピー、復元、失敗した<b>復元テスト</b>。このオプションを有効にすると、バックアップがランサムウェアや大量削除のように見える場合に <b>SUSPICIOUS</b> アラートも届きます。</li>
+  <li><b>警告</b> — 一部のファイルを読み取れなかった実行。</li>
+  <li><b>成功</b> — 成功したすべての実行（通常は多すぎるため、日次レポートがおすすめ）。</li>
+  <li><b>日次レポート</b> — 選択した時刻に、過去 24 時間の実行、問題、オフラインのエージェントを送信。件名は <i>OK</i>、<i>WARNINGS</i>、<i>ATTENTION</i> のいずれかで始まるため、メールのルールで振り分けられます。</li>
+</ul>
+<p>週次または月次のサマリーには<a href="/docs/monitoring">スケジュール レポート</a>を使います。同じメール設定で送信され、独自の受信者を持ちます。件名は <code>[BackupZit]</code> で始まるため、メールのルールで振り分けられます。SMTP パスワードは暗号化して保存されます。</p>
+
+<h2>Slack、Microsoft Teams、Webhook</h2>
+<p><a href="/settings/chat">設定 → チャットと Webhook</a> でチャネルをいくつでも追加できます。各チャネルで失敗、警告、成功を受け取るかを選びます。通常と異なるバックアップ（ランサムウェアの可能性）は失敗として扱われます。<b>テスト送信</b> でチャネルをすぐに確認できます。</p>
+<ul>
+  <li><b>Slack</b>: チャネル用の <i>incoming webhook</i> を作成し（Slack アプリの設定 → Incoming Webhooks）、その URL（<code>https://hooks.slack.com/services/…</code>）を貼り付けます。</li>
+  <li><b>Microsoft Teams</b>: チャネルにワークフロー <i>Post to a channel when a webhook request is received</i> を追加し、その URL を貼り付けます。メッセージは、コンソールで実行を開くボタン付きのカードとして届きます。</li>
+  <li><b>Webhook</b>: JSON の POST を受け付ける任意の URL — チケット システム、監視、自動化ツールなど。署名シークレットを設定すると、各リクエストに本文の HMAC-SHA256 である <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code> が付き、受信側はコンソールから来たことを確認できます。</li>
+</ul>
+<p>Webhook の JSON:</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>メッセージは実行ごとに 1 回、メールがオフでも送信されます。失敗したチャネル（URL の誤り、サービス停止）はコンソールのログに記録され、ほかのチャネルを妨げません。Webhook の URL は暗号化して保存されます。</p>
+{{template "docpager" .}}
+</article></div>{{end}}

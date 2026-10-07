@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">BackupZit を RMM プラットフォーム、監視ツール（PRTG、Zabbix、Nagios、Uptime Kuma など）、独自のスクリプトと連携できます。</p>
+
+<h2>トークン</h2>
+<p><a href="/account#tokens">マイ アカウント → API トークン</a> でトークンを作成します。必要最小限のロールを付与してください — 監視には <b>閲覧者</b>、バックアップや復元テストも開始するなら <b>復元オペレーター</b>。トークンは一度だけ表示されます。すべてのリクエストで送信してください:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>トークンには有効期限を設定でき、所有者または管理者が失効させることができ（<a href="/users">ユーザー</a>）、所有者が無効化されると使えなくなります。トークンで行った操作は、トークン名とともに監査ログに記録されます。</p>
+
+<h2>エンドポイント</h2>
+<p>すべての応答は JSON です。ベース URL: <code>https://&lt;コンソール&gt;:8443</code>。</p>
+<table>
+  <tr><th>メソッドとパス</th><th>ロール</th><th>返す内容</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>閲覧者</td><td>全体の状態: オンラインのエージェント、24 時間以内の失敗と警告、実行中の処理、未確認の不審なバックアップ、<code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>閲覧者</td><td>OS、バージョン、オンライン状態、最終接続時刻を含むエージェント</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>閲覧者</td><td>スケジュール、次回実行、最終結果を含むジョブ</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>復元オペレーター</td><td>ジョブを今すぐ開始: <code>{"run_id": 123}</code>（202）、すでに実行中なら 409</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>復元オペレーター</td><td>ジョブの最新バックアップの復元テストを開始</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>閲覧者</td><td>最近の実行、新しい順（既定 100、最大 1000）</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>閲覧者</td><td>メッセージ、エラー、統計を含む 1 件の実行</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>閲覧者</td><td>期間の<a href="/docs/monitoring">レポート</a>: 合計、成功率、ジョブごとの詳細</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>閲覧者</td><td>ストレージ先（資格情報を除く）</td></tr>
+</table>
+<p>期間: <code>today</code>、<code>yesterday</code>、<code>last7</code>、<code>last30</code>、<code>last90</code>、<code>thisweek</code>、<code>lastweek</code>、<code>thismonth</code>、<code>lastmonth</code>、または <code>custom</code> と <code>from=2026-09-01&amp;to=2026-09-30</code>。</p>
+<p>エラーは <code>{"error": "..."}</code> を返し、ステータスは 400（不正なリクエスト）、401（トークンがない、無効、または期限切れ）、403（ロールの権限不足）、404、409 です。</p>
+
+<h2>例</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p><code>-k</code> / <code>-SkipCertificateCheck</code> は、信頼できるネットワークでコンソールの自己署名証明書を使う場合にのみ使用するか、監視ホストにコンソールの証明書をインストールしてください。</p>
+<h3>監視チェック</h3>
+<p>数分ごとに <code>/api/v1/status</code> をポーリングし、<code>ok</code> が false のときにアラートを出します。ジョブ単位のチェックには <code>/api/v1/jobs</code> を使い、<code>last_status</code> が <code>failed</code> のとき、または <code>last_finished</code> が想定より古いときにアラートを出します。</p>
+{{template "docpager" .}}
+</article></div>{{end}}

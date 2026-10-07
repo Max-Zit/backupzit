@@ -1,0 +1,40 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Powiadomienia: e-mail, Slack, Teams, webhooki</h1>
+<p class="lead">Otrzymuj e-mail, gdy kopia się nie powiedzie, i codzienne podsumowanie każdego ranka.</p>
+
+<h2>Konfiguracja e-maila</h2>
+<p>W <a href="/settings/email">Ustawienia → Powiadomienia e-mail</a>:</p>
+<table>
+  <tr><th>Pole</th><th>Przykład</th></tr>
+  <tr><td>Serwer SMTP / port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, wewnętrzny przekaźnik / 25</td></tr>
+  <tr><td>Bezpieczeństwo</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) lub brak (tylko wewnętrzny przekaźnik)</td></tr>
+  <tr><td>Użytkownik / hasło</td><td>Skrzynka używana do wysyłania; pozostaw puste dla anonimowego przekaźnika. Microsoft 365 i Gmail wymagają hasła aplikacji.</td></tr>
+  <tr><td>Nadawca</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Odbiorcy</td><td>Jeden lub więcej adresów, rozdzielonych przecinkami.</td></tr>
+</table>
+<p>Użyj <b>Wyślij testowy e-mail</b>, aby sprawdzić ustawienia.</p>
+
+<h2>Co jest wysyłane</h2>
+<ul>
+  <li><b>Błędy</b> (zalecane) — jeden e-mail na każde nieudane uruchomienie z przyczyną: kopie, kopie wtórne, przywracania i nieudane <b>testy przywracania</b>. Przy tej opcji otrzymasz też alert <b>SUSPICIOUS</b>, gdy kopia wygląda na ransomware lub masowe usunięcie.</li>
+  <li><b>Ostrzeżenia</b> — uruchomienia, w których nie udało się odczytać części plików.</li>
+  <li><b>Sukcesy</b> — każde udane uruchomienie (zwykle za dużo; lepiej raport dzienny).</li>
+  <li><b>Raport dzienny</b> — o wybranej godzinie: uruchomienia z ostatnich 24 godzin, problemy i agenci offline. Temat zaczyna się od <i>OK</i>, <i>WARNINGS</i> lub <i>ATTENTION</i>, więc reguły poczty mogą je sortować.</li>
+</ul>
+<p>Do podsumowań tygodniowych lub miesięcznych używaj <a href="/docs/monitoring">raportów zaplanowanych</a>; są wysyłane z tymi samymi ustawieniami poczty i mają własnych odbiorców. Tematy zaczynają się od <code>[BackupZit]</code>, więc reguły poczty mogą je sortować. Hasło SMTP jest przechowywane w postaci zaszyfrowanej.</p>
+
+<h2>Slack, Microsoft Teams i webhooki</h2>
+<p>W <a href="/settings/chat">Ustawienia → Czat i webhooki</a> dodaj dowolną liczbę kanałów; każdy wybiera, czy otrzymuje błędy, ostrzeżenia i sukcesy. Nietypowe kopie (możliwy ransomware) liczą się jako błędy. <b>Wyślij test</b> od razu sprawdza kanał.</p>
+<ul>
+  <li><b>Slack</b>: utwórz <i>incoming webhook</i> dla kanału (ustawienia aplikacji Slack → Incoming Webhooks) i wklej jego URL (<code>https://hooks.slack.com/services/…</code>).</li>
+  <li><b>Microsoft Teams</b>: w kanale dodaj przepływ pracy <i>Post to a channel when a webhook request is received</i> i wklej jego URL. Wiadomości przychodzą jako karty z przyciskiem otwierającym uruchomienie w konsoli.</li>
+  <li><b>Webhook</b>: dowolny URL przyjmujący POST z JSON — system zgłoszeń, monitoring lub narzędzie automatyzacji. Z sekretem podpisu każde żądanie zawiera <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, HMAC-SHA256 treści, więc odbiorca może sprawdzić, że pochodzi z Twojej konsoli.</li>
+</ul>
+<p>JSON webhooka:</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>Wiadomości są wysyłane raz na uruchomienie, także gdy e-mail jest wyłączony. Kanał, który zawiedzie (błędny URL, usługa niedostępna), jest zapisywany w logu konsoli i nie wstrzymuje pozostałych. Adresy URL webhooków są przechowywane w postaci zaszyfrowanej.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

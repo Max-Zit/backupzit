@@ -1,0 +1,38 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Kopia systemu Linux i P2V</h1>
+<p class="lead">Zadanie <b>System Linux</b> tworzy kopię całej maszyny Linux, aby można ją było odtworzyć na pustym dysku — tę samą maszynę po awarii dysku, nowy sprzęt lub maszynę wirtualną w Proxmox VE (z fizycznej na wirtualną, P2V).</p>
+
+<h2>Co jest kopiowane</h2>
+<ul>
+  <li>Każdy lokalny system plików (ext2/3/4, xfs, vfat), także na LVM, plik po pliku z właścicielami, uprawnieniami, bitami setuid, listami ACL, atrybutami rozszerzonymi (etykiety SELinux, capabilities plików), dowiązaniami twardymi i plikami urządzeń. Każdy system plików jest kopiowany osobno; udziały sieciowe i wirtualne systemy plików (<code>/proc</code>, <code>/sys</code>, <code>/run</code>) są pomijane.</li>
+  <li>Układ dysków: tablice partycji GPT lub MBR z ich identyfikatorami, grupy woluminów LVM (<code>vgcfgbackup</code>), UUID, etykiety i funkcje systemów plików oraz kod rozruchowy (MBR i partycja rozruchowa BIOS dla GRUB).</li>
+</ul>
+<p>Podobnie jak Relax-and-Recover, BackupZit nie kopiuje działającego dysku blok po bloku: Linux nie ma wbudowanej migawki działającego dysku, więc surowa kopia byłaby niespójna. Każdy plik jest odczytywany w całości, a układ sprawia, że przywrócony dysk znów się uruchamia. Bazy danych należy przed kopią zrzucić lub kopiować ich własnymi narzędziami.</p>
+<p>Pojedyncze pliki i foldery przywraca się z kopii systemu jak z każdej kopii plików (<b>Przywróć pliki z tej kopii</b> na stronie uruchomienia).</p>
+<h3>Jeszcze nieobsługiwane</h3>
+<p>Szyfrowane dyski (LUKS), programowy RAID (mdadm), btrfs i systemy rozłożone na kilka dysków. Zadanie wyraźnie to zgłasza, zamiast tworzyć niepełną kopię.</p>
+
+<h2>Przywracanie całego systemu</h2>
+<p>Otwórz uruchomienie kopii systemu (strona zadania lub <a href="/runs">Aktywność</a>) i użyj <b>Przywróć cały system</b>:</p>
+<h3>Jako nowa VM Proxmox</h3>
+<p>Wybierz węzeł Proxmox (pracę wykonuje jego agent BackupZit), magazyn, ID maszyny, nazwę, pamięć i rdzenie. BackupZit tworzy maszynę z tym samym firmware co oryginał (UEFI/OVMF lub BIOS), dyskiem i kartą sieciową VirtIO SCSI, odtwarza dysk, przywraca wszystkie pliki i może uruchomić maszynę. Ponieważ maszyna jest kopią, która może działać obok oryginału:</p>
+<ul>
+  <li>ustawienia sieci powiązane ze starymi adresami MAC (typowe w obrazach chmurowych: netplan <code>match: macaddress</code>) są zmieniane tak, by dotyczyły dowolnego interfejsu przewodowego,</li>
+  <li>agent BackupZit w kopii jest wyrejestrowywany, aby nie zgłaszał się jako oryginalna maszyna.</li>
+</ul>
+<h3>Na dysk</h3>
+<p>Przywróć na pusty dysk agenta Linux, np. drugi dysk (<code>/dev/sdb</code>), albo na samą nową maszynę (bare metal):</p>
+<ol>
+  <li>W <a href="/recovery">Odzyskiwanie</a> pobierz <b>ISO odzyskiwania Linux</b> i utwórz kod odzyskiwania. Zapisz ISO na pendrive (Rufus, balenaEtcher) lub podłącz do maszyny wirtualnej. Uruchamia się na maszynach BIOS i UEFI.</li>
+  <li>Uruchom z niego maszynę. System odzyskiwania uruchamia agenta, który łączy się z konsolą za pomocą <code>backupzit/recovery.json</code> z innego pendrive'a lub dysku albo pyta o adres serwera i kod odzyskiwania.</li>
+  <li>Maszyna pojawia się jako agent <span class="badge">odzyskiwanie</span>. W uruchomieniu kopii systemu wybierz <b>Na dysk</b>, tego agenta i jego dysk (zwykle <code>/dev/sda</code>, <code>/dev/nvme0n1</code> lub <code>/dev/vda</code>).</li>
+</ol>
+<p>Działa też dowolny system Linux live: uruchom w nim agenta poleceniem <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code>; brakujące narzędzia (gdisk, LVM, mkfs) zostaną wymienione. Zaznacz <b>Inny sprzęt</b>, gdy maszyna nie jest oryginalna.</p>
+<p>Cel może być większy lub mniejszy niż oryginalny dysk: ostatnia partycja powiększa się, by go wypełnić, lub zmniejsza, o ile jej dane się mieszczą. UUID systemów plików i identyfikatory partycji pozostają te same, więc <code>/etc/fstab</code> i program rozruchowy nie wymagają zmian. W systemach UEFI program rozruchowy jest też instalowany w ścieżce nośników wymiennych <code>\EFI\BOOT\BOOTX64.EFI</code>, którą każdy firmware UEFI uruchamia bez wpisu rozruchowego. Systemy podobne do RHEL (dracut) dostają nowy initramfs ze wszystkimi sterownikami przy przenosinach na inny sprzęt.</p>
+
+<h2>Wiersz poleceń</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

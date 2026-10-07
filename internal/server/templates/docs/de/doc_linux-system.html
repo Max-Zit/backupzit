@@ -1,0 +1,38 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Linux-Systemsicherung &amp; P2V</h1>
+<p class="lead">Ein Auftrag <b>Linux-System</b> sichert eine ganze Linux-Maschine, damit sie auf einer leeren Festplatte neu erstellt werden kann — dieselbe Maschine nach einem Festplattenausfall, neue Hardware oder eine virtuelle Maschine in Proxmox VE (physisch zu virtuell, P2V).</p>
+
+<h2>Was gesichert wird</h2>
+<ul>
+  <li>Jedes lokale Dateisystem (ext2/3/4, xfs, vfat), auch auf LVM, Datei für Datei mit Besitzern, Berechtigungen, setuid-Bits, ACLs, erweiterten Attributen (SELinux-Labels, Datei-Capabilities), Hardlinks und Gerätedateien. Jedes Dateisystem wird separat gesichert; Netzwerkfreigaben und virtuelle Dateisysteme (<code>/proc</code>, <code>/sys</code>, <code>/run</code>) werden übersprungen.</li>
+  <li>Das Festplattenlayout: GPT- oder MBR-Partitionstabellen mit ihren IDs, LVM-Volumegruppen (<code>vgcfgbackup</code>), Dateisystem-UUIDs, Labels und On-Disk-Features sowie der Bootcode (MBR und die BIOS-Boot-Partition von GRUB).</li>
+</ul>
+<p>Wie Relax-and-Recover kopiert BackupZit die laufende Festplatte nicht blockweise: Linux hat keinen eingebauten Snapshot einer laufenden Festplatte, eine Rohkopie wäre also inkonsistent. Jede Datei wird vollständig gelesen, und das Layout macht die wiederhergestellte Festplatte wieder bootfähig. Datenbanken sollten vor der Sicherung gedumpt oder mit eigenen Werkzeugen gesichert werden.</p>
+<p>Einzelne Dateien und Ordner werden aus einer Systemsicherung wie aus jeder Dateisicherung wiederhergestellt (<b>Dateien aus dieser Sicherung wiederherstellen</b> auf der Laufseite).</p>
+<h3>Noch nicht unterstützt</h3>
+<p>Verschlüsselte Festplatten (LUKS), Software-RAID (mdadm), btrfs und Systeme, die über mehrere Festplatten verteilt sind. Der Auftrag meldet diese klar, statt eine unvollständige Sicherung zu erstellen.</p>
+
+<h2>Das ganze System wiederherstellen</h2>
+<p>Öffnen Sie den Lauf der Systemsicherung (Auftragsseite oder <a href="/runs">Aktivität</a>) und verwenden Sie <b>Gesamtes System wiederherstellen</b>:</p>
+<h3>Als neue Proxmox-VM</h3>
+<p>Wählen Sie den Proxmox-Knoten (sein BackupZit-Agent erledigt die Arbeit), Speicher, VM-ID, Name, Arbeitsspeicher und Kerne. BackupZit erstellt die VM mit derselben Firmware wie das Original (UEFI/OVMF oder BIOS), einer VirtIO-SCSI-Festplatte und Netzwerkkarte, erstellt die Festplatte neu, stellt alle Dateien wieder her und kann die VM starten. Da die VM eine Kopie ist, die neben dem Original laufen kann:</p>
+<ul>
+  <li>werden Netzwerkeinstellungen, die an die alten MAC-Adressen gebunden sind (üblich in Cloud-Images: netplan <code>match: macaddress</code>), so geändert, dass sie für jede kabelgebundene Schnittstelle gelten,</li>
+  <li>wird der BackupZit-Agent in der Kopie abgemeldet, damit er sich nicht als die Originalmaschine meldet.</li>
+</ul>
+<h3>Auf eine Festplatte</h3>
+<p>Stellen Sie auf eine leere Festplatte eines Linux-Agenten wieder her, z. B. eine zweite Festplatte (<code>/dev/sdb</code>), oder auf die neue Maschine selbst (Bare Metal):</p>
+<ol>
+  <li>Laden Sie unter <a href="/recovery">Wiederherstellung</a> das <b>Linux-Wiederherstellungs-ISO</b> herunter und erstellen Sie einen Wiederherstellungscode. Schreiben Sie das ISO auf einen USB-Stick (Rufus, balenaEtcher) oder hängen Sie es an eine VM. Es startet auf BIOS- und UEFI-Maschinen.</li>
+  <li>Starten Sie die Maschine davon. Das Wiederherstellungssystem startet den Agenten, der sich mit <code>backupzit/recovery.json</code> von einem anderen USB-Stick oder einer anderen Festplatte mit der Konsole verbindet oder nach Serveradresse und Wiederherstellungscode fragt.</li>
+  <li>Die Maschine erscheint als <span class="badge">Wiederherstellung</span>-Agent. Wählen Sie im Lauf der Systemsicherung <b>Auf eine Festplatte</b>, diesen Agenten und seine Festplatte (meist <code>/dev/sda</code>, <code>/dev/nvme0n1</code> oder <code>/dev/vda</code>).</li>
+</ol>
+<p>Jedes Linux-Live-System funktioniert ebenfalls: Starten Sie dort den Agenten mit <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code>; fehlende Werkzeuge (gdisk, LVM, mkfs) werden genannt. Aktivieren Sie <b>Andere Hardware</b>, wenn die Maschine nicht die ursprüngliche ist.</p>
+<p>Das Ziel darf größer oder kleiner als die Originalfestplatte sein: Die letzte Partition wächst, um es zu füllen, oder schrumpft, solange ihre Daten passen. Dateisystem-UUIDs und Partitions-IDs bleiben gleich, sodass <code>/etc/fstab</code> und der Bootloader keine Änderungen brauchen. Bei UEFI-Systemen wird der Bootloader zusätzlich im Pfad für Wechselmedien <code>\EFI\BOOT\BOOTX64.EFI</code> installiert, den jede UEFI-Firmware ohne Booteintrag startet. RHEL-ähnliche Systeme (dracut) erhalten beim Umzug auf andere Hardware ein neues initramfs mit allen Treibern.</p>
+
+<h2>Befehlszeile</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

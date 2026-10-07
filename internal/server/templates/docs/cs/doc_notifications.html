@@ -1,0 +1,40 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Oznámení: e-mail, Slack, Teams, webhooky</h1>
+<p class="lead">Dostaňte e-mail, když záloha selže, a každé ráno denní souhrn.</p>
+
+<h2>Nastavení e-mailu</h2>
+<p>V <a href="/settings/email">Nastavení → E-mailová oznámení</a>:</p>
+<table>
+  <tr><th>Pole</th><th>Příklad</th></tr>
+  <tr><td>Server SMTP / port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, interní relay / 25</td></tr>
+  <tr><td>Zabezpečení</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) nebo žádné (jen interní relay)</td></tr>
+  <tr><td>Uživatel / heslo</td><td>Schránka, ze které se odesílá; pro anonymní relay nechte prázdné. Microsoft 365 a Gmail vyžadují heslo aplikace.</td></tr>
+  <tr><td>Odesílatel</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Příjemci</td><td>Jedna nebo více adres oddělených čárkou.</td></tr>
+</table>
+<p>Nastavení ověříte tlačítkem <b>Odeslat testovací e-mail</b>.</p>
+
+<h2>Co se odesílá</h2>
+<ul>
+  <li><b>Chyby</b> (doporučeno) — jeden e-mail za každý neúspěšný běh s důvodem: zálohy, kopie, obnovy a neúspěšné <b>testy obnovy</b>. S touto volbou dostanete také upozornění <b>SUSPICIOUS</b>, když záloha vypadá jako ransomware nebo hromadné mazání.</li>
+  <li><b>Varování</b> — běhy, ve kterých nešlo přečíst některé soubory.</li>
+  <li><b>Úspěchy</b> — každý úspěšný běh (obvykle příliš mnoho; lepší je denní zpráva).</li>
+  <li><b>Denní zpráva</b> — ve zvolenou hodinu: běhy za posledních 24 hodin, problémy a agenti offline. Předmět začíná <i>OK</i>, <i>WARNINGS</i> nebo <i>ATTENTION</i>, takže je pravidla pošty mohou třídit.</li>
+</ul>
+<p>Pro týdenní nebo měsíční souhrny použijte <a href="/docs/monitoring">plánované přehledy</a>; odesílají se se stejným nastavením pošty a mají vlastní příjemce. Předměty začínají <code>[BackupZit]</code>, takže je pravidla pošty mohou třídit. Heslo SMTP se ukládá šifrovaně.</p>
+
+<h2>Slack, Microsoft Teams a webhooky</h2>
+<p>V <a href="/settings/chat">Nastavení → Chat a webhooky</a> přidejte libovolný počet kanálů; každý volí, zda dostává chyby, varování a úspěchy. Neobvyklé zálohy (možný ransomware) se počítají jako chyby. <b>Odeslat test</b> kanál hned ověří.</p>
+<ul>
+  <li><b>Slack</b>: vytvořte pro kanál <i>incoming webhook</i> (nastavení aplikace Slack → Incoming Webhooks) a vložte jeho URL (<code>https://hooks.slack.com/services/…</code>).</li>
+  <li><b>Microsoft Teams</b>: v kanálu přidejte workflow <i>Post to a channel when a webhook request is received</i> a vložte jeho URL. Zprávy přicházejí jako karty s tlačítkem, které otevře běh v konzoli.</li>
+  <li><b>Webhook</b>: libovolná URL, která přijímá JSON POST — systém tiketů, monitoring nebo nástroj pro automatizaci. S podpisovým tajemstvím nese každý požadavek <code>X-BackupZit-Signature: sha256=&lt;hex&gt;</code>, HMAC-SHA256 těla, takže příjemce může ověřit, že pochází z vaší konzole.</li>
+</ul>
+<p>JSON webhooku:</p>
+<pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
+ "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+<p>Zprávy se odesílají jednou za běh, i když je e-mail vypnutý. Kanál, který selže (špatná URL, nedostupná služba), se zapíše do protokolu konzole a nezdržuje ostatní. URL webhooků se ukládají šifrovaně.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

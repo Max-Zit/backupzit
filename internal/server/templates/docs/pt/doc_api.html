@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">Integre o BackupZit a plataformas RMM, monitoramento (PRTG, Zabbix, Nagios, Uptime Kuma…) e seus próprios scripts.</p>
+
+<h2>Tokens</h2>
+<p>Crie um token em <a href="/account#tokens">Minha conta → Tokens de API</a>. Dê a ele a função mais baixa que seja suficiente — <b>Visualizador</b> para monitoramento, <b>Operador de restauração</b> para também iniciar backups e testes de restauração. O token é mostrado uma única vez; envie-o em cada requisição:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>Tokens podem expirar, ser revogados pelo dono ou por um administrador (<a href="/users">Usuários</a>) e param de funcionar quando o dono é desativado. Ações feitas com um token aparecem no log de auditoria com o nome do token.</p>
+
+<h2>Endpoints</h2>
+<p>Todas as respostas são JSON. URL base: <code>https://&lt;console&gt;:8443</code>.</p>
+<table>
+  <tr><th>Método e caminho</th><th>Função</th><th>Retorna</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Visualizador</td><td>Estado geral: agentes online, falhas e avisos em 24 h, execuções ativas, backups suspeitos não revisados, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Visualizador</td><td>Agentes com sistema operacional, versão, estado online e último contato</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Visualizador</td><td>Tarefas com agendamento, próxima execução e último resultado</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Operador de restauração</td><td>Inicia a tarefa agora: <code>{"run_id": 123}</code> (202), ou 409 se já houver uma execução ativa</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Operador de restauração</td><td>Inicia um teste de restauração do backup mais recente da tarefa</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Visualizador</td><td>Execuções recentes, da mais nova (padrão 100, máximo 1000)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Visualizador</td><td>Uma execução com mensagem, erros e estatísticas</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Visualizador</td><td>O <a href="/docs/monitoring">relatório</a> de um período: totais, taxa de sucesso e detalhes por tarefa</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Visualizador</td><td>Destinos de armazenamento (sem credenciais)</td></tr>
+</table>
+<p>Períodos: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, ou <code>custom</code> com <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
+<p>Erros retornam <code>{"error": "..."}</code> com 400 (requisição inválida), 401 (token ausente, inválido ou expirado), 403 (função insuficiente), 404 ou 409.</p>
+
+<h2>Exemplos</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p>Use <code>-k</code> / <code>-SkipCertificateCheck</code> somente com o certificado autoassinado do console em uma rede confiável, ou instale o certificado do console no host de monitoramento.</p>
+<h3>Verificação de monitoramento</h3>
+<p>Consulte <code>/api/v1/status</code> a cada poucos minutos e alerte quando <code>ok</code> for false. Para verificar cada tarefa use <code>/api/v1/jobs</code> e alerte quando <code>last_status</code> for <code>failed</code> ou <code>last_finished</code> for mais antigo que o esperado.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

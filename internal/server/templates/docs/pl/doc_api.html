@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">Zintegruj BackupZit z platformami RMM, monitoringiem (PRTG, Zabbix, Nagios, Uptime Kuma …) i własnymi skryptami.</p>
+
+<h2>Tokeny</h2>
+<p>Utwórz token w <a href="/account#tokens">Moje konto → Tokeny API</a>. Nadaj mu najniższą wystarczającą rolę — <b>Obserwator</b> do monitoringu, <b>Operator przywracania</b>, aby także uruchamiać kopie i testy przywracania. Token jest pokazywany tylko raz; wysyłaj go w każdym żądaniu:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>Tokeny mogą wygasać, mogą zostać odwołane przez właściciela lub administratora (<a href="/users">Użytkownicy</a>) i przestają działać, gdy właściciel zostanie wyłączony. Działania wykonane tokenem pojawiają się w dzienniku audytu z nazwą tokenu.</p>
+
+<h2>Punkty końcowe</h2>
+<p>Wszystkie odpowiedzi są w JSON. Bazowy URL: <code>https://&lt;konsola&gt;:8443</code>.</p>
+<table>
+  <tr><th>Metoda i ścieżka</th><th>Rola</th><th>Zwraca</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Obserwator</td><td>Ogólny stan: agenci online, błędy i ostrzeżenia w ciągu 24 h, aktywne uruchomienia, niesprawdzone podejrzane kopie, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Obserwator</td><td>Agenci z systemem, wersją, stanem online i ostatnim kontaktem</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Obserwator</td><td>Zadania z harmonogramem, następnym uruchomieniem i ostatnim wynikiem</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Operator przywracania</td><td>Uruchamia zadanie teraz: <code>{"run_id": 123}</code> (202) lub 409, jeśli uruchomienie jest już aktywne</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Operator przywracania</td><td>Uruchamia test przywracania najnowszej kopii zadania</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Obserwator</td><td>Ostatnie uruchomienia, od najnowszych (domyślnie 100, maks. 1000)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Obserwator</td><td>Jedno uruchomienie z komunikatem, błędami i statystyką</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Obserwator</td><td><a href="/docs/monitoring">Raport</a> za okres: sumy, odsetek sukcesów i szczegóły dla każdego zadania</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Obserwator</td><td>Magazyny docelowe (bez danych logowania)</td></tr>
+</table>
+<p>Okresy: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> lub <code>custom</code> z <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
+<p>Błędy zwracają <code>{"error": "..."}</code> z kodem 400 (błędne żądanie), 401 (brak tokenu, token nieprawidłowy lub wygasły), 403 (zbyt niska rola), 404 lub 409.</p>
+
+<h2>Przykłady</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p>Używaj <code>-k</code> / <code>-SkipCertificateCheck</code> tylko z certyfikatem samopodpisanym konsoli w zaufanej sieci albo zainstaluj certyfikat konsoli na hoście monitoringu.</p>
+<h3>Sprawdzanie w monitoringu</h3>
+<p>Odpytuj <code>/api/v1/status</code> co kilka minut i alarmuj, gdy <code>ok</code> ma wartość false. Do sprawdzania poszczególnych zadań użyj <code>/api/v1/jobs</code> i alarmuj, gdy <code>last_status</code> to <code>failed</code> albo <code>last_finished</code> jest starszy niż oczekiwano.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

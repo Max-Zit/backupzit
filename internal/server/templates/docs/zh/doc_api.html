@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">将 BackupZit 与 RMM 平台、监控系统（PRTG、Zabbix、Nagios、Uptime Kuma 等）以及您自己的脚本集成。</p>
+
+<h2>令牌</h2>
+<p>在 <a href="/account#tokens">我的帐户 → API 令牌</a> 中创建令牌。授予它够用的最低角色 —— 监控用 <b>查看者</b>，若还需启动备份和还原测试则用 <b>还原操作员</b>。令牌只显示一次；在每个请求中发送它：</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>令牌可以设置过期时间，可由其所有者或管理员撤销（<a href="/users">用户</a>），所有者被禁用后令牌也会失效。使用令牌执行的操作会以令牌名称记录在审计日志中。</p>
+
+<h2>端点</h2>
+<p>所有响应均为 JSON。基础 URL：<code>https://&lt;控制台&gt;:8443</code>。</p>
+<table>
+  <tr><th>方法和路径</th><th>角色</th><th>返回</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>查看者</td><td>总体状态：在线代理、24 小时内的失败和警告、正在进行的运行、未检查的可疑备份，<code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>查看者</td><td>代理及其操作系统、版本、在线状态和最后联系时间</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>查看者</td><td>作业及其计划、下次运行和上次结果</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>还原操作员</td><td>立即启动作业：<code>{"run_id": 123}</code>（202），如已有运行在进行则返回 409</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>还原操作员</td><td>对作业的最新备份启动还原测试</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>查看者</td><td>最近的运行，最新的在前（默认 100，最多 1000）</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>查看者</td><td>单次运行及其消息、错误和统计信息</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>查看者</td><td>某个时段的<a href="/docs/monitoring">报告</a>：合计、成功率和每个作业的详情</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>查看者</td><td>存储目标（不含凭据）</td></tr>
+</table>
+<p>时段：<code>today</code>、<code>yesterday</code>、<code>last7</code>、<code>last30</code>、<code>last90</code>、<code>thisweek</code>、<code>lastweek</code>、<code>thismonth</code>、<code>lastmonth</code>，或 <code>custom</code> 加 <code>from=2026-09-01&amp;to=2026-09-30</code>。</p>
+<p>错误返回 <code>{"error": "..."}</code>，状态码为 400（请求有误）、401（令牌缺失、无效或已过期）、403（角色权限不足）、404 或 409。</p>
+
+<h2>示例</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p>仅在可信网络中针对控制台的自签名证书使用 <code>-k</code> / <code>-SkipCertificateCheck</code>，或者在监控主机上安装控制台证书。</p>
+<h3>监控检查</h3>
+<p>每隔几分钟轮询一次 <code>/api/v1/status</code>，当 <code>ok</code> 为 false 时发出警报。若要按作业检查，请使用 <code>/api/v1/jobs</code>，当 <code>last_status</code> 为 <code>failed</code> 或 <code>last_finished</code> 早于预期时发出警报。</p>
+{{template "docpager" .}}
+</article></div>{{end}}

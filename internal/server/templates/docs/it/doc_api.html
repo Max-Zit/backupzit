@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">Integra BackupZit con piattaforme RMM, monitoraggio (PRTG, Zabbix, Nagios, Uptime Kuma…) e i tuoi script.</p>
+
+<h2>Token</h2>
+<p>Crea un token in <a href="/account#tokens">Il mio account → Token API</a>. Assegnagli il ruolo più basso sufficiente: <b>Visualizzatore</b> per il monitoraggio, <b>Operatore di ripristino</b> per avviare anche backup e test di ripristino. Il token viene mostrato una sola volta; invialo in ogni richiesta:</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>I token possono scadere, essere revocati dal proprietario o da un amministratore (<a href="/users">Utenti</a>) e smettono di funzionare quando il proprietario viene disattivato. Le azioni eseguite con un token compaiono nel registro di controllo con il nome del token.</p>
+
+<h2>Endpoint</h2>
+<p>Tutte le risposte sono in JSON. URL di base: <code>https://&lt;console&gt;:8443</code>.</p>
+<table>
+  <tr><th>Metodo e percorso</th><th>Ruolo</th><th>Restituisce</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Visualizzatore</td><td>Stato generale: agenti online, errori e avvisi nelle 24 h, esecuzioni attive, backup sospetti non esaminati, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Visualizzatore</td><td>Agenti con sistema operativo, versione, stato online e ultimo contatto</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Visualizzatore</td><td>Job con pianificazione, prossima esecuzione e ultimo risultato</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Operatore di ripristino</td><td>Avvia subito il job: <code>{"run_id": 123}</code> (202), oppure 409 se un'esecuzione è già attiva</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Operatore di ripristino</td><td>Avvia un test di ripristino del backup più recente del job</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Visualizzatore</td><td>Esecuzioni recenti, dalla più nuova (predefinito 100, massimo 1000)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Visualizzatore</td><td>Un'esecuzione con messaggio, errori e statistiche</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Visualizzatore</td><td>Il <a href="/docs/monitoring">report</a> di un periodo: totali, percentuale di successo e dettagli per job</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Visualizzatore</td><td>Destinazioni di archiviazione (senza credenziali)</td></tr>
+</table>
+<p>Periodi: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, oppure <code>custom</code> con <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
+<p>Gli errori restituiscono <code>{"error": "..."}</code> con 400 (richiesta non valida), 401 (token mancante, non valido o scaduto), 403 (ruolo insufficiente), 404 o 409.</p>
+
+<h2>Esempi</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p>Usa <code>-k</code> / <code>-SkipCertificateCheck</code> solo con il certificato autofirmato della console in una rete fidata, oppure installa il certificato della console sull'host di monitoraggio.</p>
+<h3>Controllo di monitoraggio</h3>
+<p>Interroga <code>/api/v1/status</code> ogni pochi minuti e genera un avviso quando <code>ok</code> è false. Per controlli per singolo job usa <code>/api/v1/jobs</code> e avvisa quando <code>last_status</code> è <code>failed</code> o <code>last_finished</code> è più vecchio del previsto.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

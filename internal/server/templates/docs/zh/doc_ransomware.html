@@ -1,0 +1,64 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>勒索软件防护</h1>
+<p class="lead">攻击者会在加密生产数据之前设法删除或加密备份。BackupZit 提供的存储即使凭据被盗，备份也无法被销毁。</p>
+
+<h2>防护层</h2>
+<table>
+  <tr><th>防护层</th><th>防范</th></tr>
+  <tr><td><b>加密</b>（AES-256）</td><td>读取或篡改存储上的备份。任何更改都会被检测到。</td></tr>
+  <tr><td><b>不可变 S3</b>（Object Lock，合规模式）</td><td>删除或覆盖备份 —— 无论是持有密钥的攻击者、恶意管理员还是误操作。</td></tr>
+  <tr><td><b>加固存储库</b></td><td>同样的保护，部署在您自己的 Linux 服务器上：文件只写一次，并带有文件系统的不可变标志。</td></tr>
+  <tr><td><b>异地副本</b></td><td>火灾、盗窃、站点完全损毁。</td></tr>
+  <tr><td><b>四眼审批</b>（可选）</td><td>单个被盗或被滥用的控制台帐户删除作业和存储目标或缩短保留期：必须由第二个用户批准。参见 <a href="/docs/users">用户、角色和 LDAP</a>。</td></tr>
+</table>
+
+<h2>自动检测可疑备份</h2>
+<p>每个备份都会与其作业的近期历史进行比较。当它出现勒索软件或大规模删除的迹象时，会被标记为 <span class="badge failed"><i></i>可疑</span>：</p>
+<ul>
+  <li>更改的文件远多于平常（例如 95 %，而平常为 1 %），</li>
+  <li>新数据不再能压缩 —— 加密后的文件看起来像随机数据，</li>
+  <li>文件数量突然减少三分之一或更多，</li>
+  <li>新数据量突然激增（也适用于磁盘映像、Linux 系统和虚拟机）。</li>
+</ul>
+<p>此时 BackupZit 会发送警报邮件（需开启失败通知），在仪表板上将该备份显示为<i>待检查的可疑备份</i>，并<b>暂停作业的保留策略</b>：不会删除任何较旧的备份，因此即使损坏的备份持续产生，最后的干净备份仍可还原。检查完机器后，在作业页面上点击 <i>已检查 — 恢复保留</i>。</p>
+
+<h2>使用 Object Lock 的不可变 S3</h2>
+<ol>
+  <li>创建一个<b>启用 Object Lock</b> 的存储桶（AWS、Wasabi、Backblaze B2、MinIO：<code>mc mb --with-lock</code>）。</li>
+  <li>添加一条生命周期规则，在 1 天后删除<i>非当前版本</i>（noncurrent versions）（MinIO：<code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>）。</li>
+  <li>添加 S3 目标并勾选 <b>N 天内不可变备份</b>。N 至少应与您需要保护的最长保留期一样长，例如 30。</li>
+</ol>
+<p>每个还原点在创建后至少锁定 N 天；与较新备份共享的数据会自动延长锁定期。</p>
+
+<h2>加固存储库</h2>
+<p>一台运行 <code>backupzit-repo</code> 的专用 Linux 服务器：</p>
+<ul>
+  <li>代理和控制台只能<b>添加</b>文件；现有文件永远不会被覆盖。</li>
+  <li>每个文件在该服务器设置的期限内带有 <code>chattr +i</code> 属性。即使 root 也必须先移除该标志才能删除它。</li>
+  <li>客户端的删除只会<b>隐藏</b>文件，直到其期限结束。</li>
+  <li>该服务以非特权用户运行；它唯一的特权是设置不可变标志。</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p>设置完成后，请在存储库服务器上<b>禁用 SSH 和其他远程访问</b>，并保护其本地控制台 / iDRAC / iLO / 虚拟化管理程序的访问。防护强度取决于该机器 root 帐户的安全性。</p></div>
+
+<h2>遭受攻击后的恢复</h2>
+<p>如果攻击者删除或覆盖了备份，请读取<b>攻击前状态</b>的存储 —— 这是只读操作，不会更改任何内容：</p>
+<pre>backupzit-agent snapshots --repo &lt;存储库&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;存储库&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>在加固存储库上，管理员还可以恢复被隐藏的文件，使备份正常继续：</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>建议</h2>
+<ul>
+  <li>为存储使用不属于 Windows 域的独立帐户。</li>
+  <li>至少保留一份不可变副本（S3 Object Lock 或加固存储库）。</li>
+  <li>离线保存恢复单（打印出来，放在保险柜中）。</li>
+  <li>启用电子邮件警报 —— 失败数或上传数据量的突然变化往往是攻击的第一个迹象。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,38 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Linux システム バックアップと P2V</h1>
+<p class="lead"><b>Linux システム</b> ジョブは Linux マシン全体をバックアップし、空のディスク上に再作成できるようにします — ディスク故障後の同じマシン、新しいハードウェア、または Proxmox VE の仮想マシン（物理から仮想へ、P2V）。</p>
+
+<h2>バックアップされるもの</h2>
+<ul>
+  <li>すべてのローカル ファイル システム（ext2/3/4、xfs、vfat、LVM 上も含む）を、所有者、権限、setuid ビット、ACL、拡張属性（SELinux ラベル、ファイル capabilities）、ハードリンク、デバイス ファイルとともにファイル単位で。各ファイル システムは個別にバックアップされ、ネットワーク共有と仮想ファイル システム（<code>/proc</code>、<code>/sys</code>、<code>/run</code>）はスキップされます。</li>
+  <li>ディスク レイアウト: ID 付きの GPT または MBR パーティション テーブル、LVM ボリューム グループ（<code>vgcfgbackup</code>）、ファイル システムの UUID、ラベル、ディスク上の機能、ブート コード（MBR と GRUB の BIOS ブート パーティション）。</li>
+</ul>
+<p>Relax-and-Recover と同様に、BackupZit は稼働中のディスクをブロック単位でコピーしません。Linux には稼働中のディスクのスナップショット機能が組み込まれていないため、生のコピーは不整合になるからです。各ファイルを丸ごと読み取り、レイアウト情報で復元したディスクを再び起動可能にします。データベースはバックアップ前にダンプするか、専用のツールでバックアップしてください。</p>
+<p>個々のファイルやフォルダーは、通常のファイル バックアップと同じようにシステム バックアップから復元できます（実行ページの <b>このバックアップからファイルを復元</b>）。</p>
+<h3>未対応</h3>
+<p>暗号化ディスク（LUKS）、ソフトウェア RAID（mdadm）、btrfs、複数ディスクにまたがるシステム。ジョブは不完全なバックアップを作らず、これらを明確に報告します。</p>
+
+<h2>システム全体の復元</h2>
+<p>システム バックアップの実行（ジョブのページまたは <a href="/runs">アクティビティ</a>）を開き、<b>システム全体を復元</b> を使います:</p>
+<h3>新しい Proxmox VM として</h3>
+<p>Proxmox ノード（その BackupZit エージェントが処理を行います）、ストレージ、VM ID、名前、メモリ、コア数を選びます。BackupZit は元と同じファームウェア（UEFI/OVMF または BIOS）、VirtIO SCSI ディスクとネットワーク カードで VM を作成し、ディスクを再作成してすべてのファイルを復元し、VM を起動することもできます。VM は元のマシンと並行して動作しうるコピーであるため:</p>
+<ul>
+  <li>古い MAC アドレスに結び付いたネットワーク設定（クラウド イメージで一般的な netplan <code>match: macaddress</code>）は、任意の有線インターフェイスに適用されるよう変更されます。</li>
+  <li>コピー内の BackupZit エージェントは登録解除され、元のマシンとして報告しないようにします。</li>
+</ul>
+<h3>ディスクへ</h3>
+<p>Linux エージェントの空のディスク（例: 2 台目のディスク <code>/dev/sdb</code>）、または新しいマシン自体（ベアメタル）に復元します:</p>
+<ol>
+  <li><a href="/recovery">リカバリー</a> で <b>Linux リカバリ ISO</b> をダウンロードし、リカバリー コードを作成します。ISO を USB メモリーに書き込む（Rufus、balenaEtcher）か、VM に接続します。BIOS と UEFI の両方のマシンで起動します。</li>
+  <li>そこからマシンを起動します。リカバリー システムがエージェントを起動し、エージェントは別の USB メモリーやディスク上の <code>backupzit/recovery.json</code> を使ってコンソールに接続するか、サーバーのアドレスとリカバリー コードを尋ねます。</li>
+  <li>マシンは <span class="badge">リカバリー</span> エージェントとして表示されます。システム バックアップの実行で <b>ディスクへ</b>、そのエージェントとディスク（通常は <code>/dev/sda</code>、<code>/dev/nvme0n1</code>、<code>/dev/vda</code>）を選びます。</li>
+</ol>
+<p>任意の Linux ライブ システムでも構いません。そこで <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code> でエージェントを起動します。必要なツール（gdisk、LVM、mkfs）が不足している場合は名前が表示されます。元のマシンでない場合は <b>別のハードウェア</b> をオンにします。</p>
+<p>復元先は元のディスクより大きくても小さくても構いません。最後のパーティションが拡張されて全体を使うか、データが収まる範囲で縮小されます。ファイル システムの UUID とパーティション ID は変わらないため、<code>/etc/fstab</code> とブートローダーの変更は不要です。UEFI システムでは、ブートローダーがリムーバブル メディア用のパス <code>\EFI\BOOT\BOOTX64.EFI</code> にもインストールされ、どの UEFI ファームウェアもブート エントリなしで起動できます。RHEL 系のシステム（dracut）は、別のハードウェアに移す際にすべてのドライバーを含む新しい initramfs を受け取ります。</p>
+
+<h2>コマンドライン</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

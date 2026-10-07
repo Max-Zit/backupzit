@@ -1,0 +1,64 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Fidye yazılımı koruması</h1>
+<p class="lead">Saldırganlar üretim verilerini şifrelemeden önce yedekleri silmeye veya şifrelemeye çalışır. BackupZit, yedeklerin çalınmış kimlik bilgileriyle bile yok edilemediği depolama sunar.</p>
+
+<h2>Koruma katmanları</h2>
+<table>
+  <tr><th>Katman</th><th>Neye karşı korur</th></tr>
+  <tr><td><b>Şifreleme</b> (AES-256)</td><td>Depolamadaki yedeklerin okunması veya kurcalanması. Her değişiklik algılanır.</td></tr>
+  <tr><td><b>Değiştirilemez S3</b> (Object Lock, uyumluluk modu)</td><td>Yedeklerin silinmesi veya üzerine yazılması — anahtarlara sahip bir saldırgan, kötü niyetli bir yönetici ya da bir hata yüzünden.</td></tr>
+  <tr><td><b>Güçlendirilmiş depo</b></td><td>Aynısı, kendi Linux sunucunuzda: dosyalar yalnızca bir kez yazılır ve dosya sisteminin değiştirilemezlik bayrağını alır.</td></tr>
+  <tr><td><b>Tesis dışı kopya</b></td><td>Yangın, hırsızlık, tesisin tamamen kaybı.</td></tr>
+  <tr><td><b>Dört göz onayı</b> (isteğe bağlı)</td><td>İşleri ve depolama hedeflerini silen ya da saklamayı kısaltan, çalınmış veya kötüye kullanılan tek bir konsol hesabı: ikinci bir kullanıcının onaylaması gerekir. Bkz. <a href="/docs/users">Kullanıcılar, roller ve LDAP</a>.</td></tr>
+</table>
+
+<h2>Şüpheli yedeklerin otomatik algılanması</h2>
+<p>Her yedek, işinin yakın geçmişiyle karşılaştırılır. Fidye yazılımı veya toplu silme izleri gösterdiğinde <span class="badge failed"><i></i>şüpheli</span> olarak işaretlenir:</p>
+<ul>
+  <li>normalden çok daha fazla dosya değişmiş (ör. alışılmış %1 yerine %95),</li>
+  <li>yeni veriler artık sıkıştırılamıyor — şifrelenmiş dosyalar rastgele veriye benzer,</li>
+  <li>dosya sayısı aniden üçte bir veya daha fazla düşmüş,</li>
+  <li>yeni veri miktarında ani bir sıçrama (disk görüntüleri, Linux sistemleri ve sanal makineler için de).</li>
+</ul>
+<p>Bu durumda BackupZit bir uyarı e-postası gönderir (hata bildirimleri açıksa), yedeği panoda <i>incelenecek şüpheli yedek</i> olarak gösterir ve <b>işin saklama kuralını duraklatır</b>: hiçbir eski yedek silinmez, böylece hasarlı yedekler gelmeye devam etse bile son temiz yedekler geri yüklenebilir kalır. Makineyi denetledikten sonra iş sayfasında <i>İncelendi — saklamayı sürdür</i>'e tıklayın.</p>
+
+<h2>Object Lock ile değiştirilemez S3</h2>
+<ol>
+  <li><b>Object Lock etkin</b> bir kova oluşturun (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
+  <li><i>Güncel olmayan sürümleri</i> (noncurrent versions) 1 gün sonra silen bir yaşam döngüsü kuralı ekleyin (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
+  <li>S3 hedefini ekleyin ve <b>N gün boyunca değiştirilemez yedekler</b> seçeneğini işaretleyin. N'yi korunmasını istediğiniz en uzun saklama süresi kadar seçin, ör. 30.</li>
+</ol>
+<p>Her geri yükleme noktası oluşturulduktan sonra en az N gün kilitli kalır; daha yeni yedeklerle paylaşılan verilerin süresi otomatik olarak uzatılır.</p>
+
+<h2>Güçlendirilmiş depo</h2>
+<p><code>backupzit-repo</code> çalıştıran özel bir Linux sunucusu:</p>
+<ul>
+  <li>Aracılar ve konsol yalnızca dosya <b>ekleyebilir</b>; mevcut dosyaların üzerine asla yazılmaz.</li>
+  <li>Her dosya, o sunucuda ayarlanan süre boyunca <code>chattr +i</code> özniteliğini alır. Root bile önce bayrağı kaldırmadan silemez.</li>
+  <li>İstemcilerin silmeleri dosyaları yalnızca süreleri dolana kadar <b>gizler</b>.</li>
+  <li>Hizmet ayrıcalıksız bir kullanıcı olarak çalışır; tek yetkisi değiştirilemezlik bayrağını koymaktır.</li>
+</ul>
+<pre>apt install ./backupzit-repo_*.deb
+vi /etc/backupzit-repo/repo.env        # BACKUPZIT_REPO_LOCK_DAYS=30
+systemctl start backupzit-repo
+backupzit-repo add-key office-console
+backupzit-repo fingerprint</pre>
+<div class="callout warn"><p>Kurulumdan sonra depo sunucusunda <b>SSH'yi ve diğer uzaktan erişimleri kapatın</b>, yerel konsoluna / iDRAC / iLO / hipervizör erişimine de koruma koyun. Koruma, o makinenin root hesabı kadar güçlüdür.</p></div>
+
+<h2>Saldırıdan sonra kurtarma</h2>
+<p>Bir saldırgan yedekleri sildiyse veya üzerine yazdıysa, depolamayı <b>saldırıdan önceki haliyle</b> okuyun — bu salt okunurdur ve hiçbir şeyi değiştirmez:</p>
+<pre>backupzit-agent snapshots --repo &lt;depo&gt; --as-of 2026-10-01T14:30
+backupzit-agent restore   --repo &lt;depo&gt; --as-of 2026-10-01T14:30 --target D:\Restore latest</pre>
+<p>Güçlendirilmiş depoda yönetici, yedeklerin normal şekilde devam etmesi için gizlenen dosyaları da geri getirebilir:</p>
+<pre>backupzit-repo status
+backupzit-repo undelete --since 2026-10-01T14:00</pre>
+
+<h2>Öneriler</h2>
+<ul>
+  <li>Depolama için Windows etki alanınızın parçası olmayan ayrı bir hesap kullanın.</li>
+  <li>En az bir değiştirilemez kopya tutun (S3 Object Lock veya güçlendirilmiş depo).</li>
+  <li>Kurtarma sayfalarını çevrimdışı saklayın (basılı, bir kasada).</li>
+  <li>E-posta uyarılarını açın — hatalarda veya gönderilen veri miktarında ani bir değişiklik çoğu zaman saldırının ilk işaretidir.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

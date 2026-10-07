@@ -1,0 +1,38 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Linux-systeemback-up en P2V</h1>
+<p class="lead">Een taak <b>Linux-systeem</b> maakt een back-up van een complete Linux-machine, zodat die op een lege schijf opnieuw kan worden opgebouwd — dezelfde machine na een schijfdefect, nieuwe hardware of een virtuele machine in Proxmox VE (fysiek naar virtueel, P2V).</p>
+
+<h2>Wat wordt geback-upt</h2>
+<ul>
+  <li>Elk lokaal bestandssysteem (ext2/3/4, xfs, vfat), ook op LVM, bestand voor bestand met eigenaars, rechten, setuid-bits, ACL's, uitgebreide attributen (SELinux-labels, bestandscapabilities), harde koppelingen en apparaatbestanden. Elk bestandssysteem wordt afzonderlijk geback-upt; netwerkshares en virtuele bestandssystemen (<code>/proc</code>, <code>/sys</code>, <code>/run</code>) worden overgeslagen.</li>
+  <li>De schijfindeling: GPT- of MBR-partitietabellen met hun ID's, LVM-volumegroepen (<code>vgcfgbackup</code>), bestandssysteem-UUID's, labels en on-disk-functies, en de opstartcode (MBR en de BIOS-opstartpartitie van GRUB).</li>
+</ul>
+<p>Net als Relax-and-Recover kopieert BackupZit de draaiende schijf niet blok voor blok: Linux heeft geen ingebouwde snapshot van een draaiende schijf, dus een ruwe kopie zou inconsistent zijn. Elk bestand wordt volledig gelezen, en de indeling maakt de herstelde schijf weer opstartbaar. Databases moeten vóór de back-up worden gedumpt of met hun eigen tools worden geback-upt.</p>
+<p>Losse bestanden en mappen herstelt u uit een systeemback-up zoals uit elke bestandsback-up (<b>Bestanden uit deze back-up herstellen</b> op de runpagina).</p>
+<h3>Nog niet ondersteund</h3>
+<p>Versleutelde schijven (LUKS), software-RAID (mdadm), btrfs en systemen verspreid over meerdere schijven. De taak meldt dit duidelijk in plaats van een onvolledige back-up te maken.</p>
+
+<h2>Het hele systeem herstellen</h2>
+<p>Open de run van de systeemback-up (taakpagina of <a href="/runs">Activiteit</a>) en gebruik <b>Het hele systeem herstellen</b>:</p>
+<h3>Als nieuwe Proxmox-VM</h3>
+<p>Kies de Proxmox-node (zijn BackupZit-agent doet het werk), opslag, VM-ID, naam, geheugen en cores. BackupZit maakt de VM met dezelfde firmware als het origineel (UEFI/OVMF of BIOS), een VirtIO SCSI-schijf en netwerkkaart, bouwt de schijf opnieuw op, herstelt alle bestanden en kan de VM starten. Omdat de VM een kopie is die naast het origineel kan draaien:</p>
+<ul>
+  <li>worden netwerkinstellingen die aan de oude MAC-adressen gebonden zijn (gebruikelijk in cloud-images: netplan <code>match: macaddress</code>) aangepast zodat ze voor elke bekabelde interface gelden,</li>
+  <li>wordt de BackupZit-agent in de kopie afgemeld, zodat hij zich niet als de originele machine meldt.</li>
+</ul>
+<h3>Op een schijf</h3>
+<p>Herstel naar een lege schijf van een Linux-agent, bijv. een tweede schijf (<code>/dev/sdb</code>), of naar de nieuwe machine zelf (bare metal):</p>
+<ol>
+  <li>Download onder <a href="/recovery">Herstel</a> de <b>Linux-herstel-ISO</b> en maak een herstelcode aan. Schrijf de ISO naar een USB-stick (Rufus, balenaEtcher) of koppel hem aan een VM. Hij start op BIOS- en UEFI-machines.</li>
+  <li>Start de machine ervan op. Het herstelsysteem start de agent, die verbinding maakt met de console via <code>backupzit/recovery.json</code> op een andere USB-stick of schijf, of om het serveradres en de herstelcode vraagt.</li>
+  <li>De machine verschijnt als <span class="badge">herstel</span>-agent. Kies in de run van de systeemback-up <b>Op een schijf</b>, die agent en zijn schijf (meestal <code>/dev/sda</code>, <code>/dev/nvme0n1</code> of <code>/dev/vda</code>).</li>
+</ol>
+<p>Elk Linux-livesysteem werkt ook: start daar de agent met <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code>; ontbrekende tools (gdisk, LVM, mkfs) worden genoemd. Vink <b>Andere hardware</b> aan als de machine niet de originele is.</p>
+<p>Het doel mag groter of kleiner zijn dan de originele schijf: de laatste partitie groeit mee om hem te vullen, of krimpt zolang de gegevens passen. Bestandssysteem-UUID's en partitie-ID's blijven gelijk, dus <code>/etc/fstab</code> en de bootloader hoeven niet te worden aangepast. Op UEFI-systemen wordt de bootloader ook op het pad voor verwisselbare media <code>\EFI\BOOT\BOOTX64.EFI</code> geïnstalleerd, dat elke UEFI-firmware zonder opstartvermelding start. RHEL-achtige systemen (dracut) krijgen bij verhuizing naar andere hardware een nieuwe initramfs met alle drivers.</p>
+
+<h2>Opdrachtregel</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

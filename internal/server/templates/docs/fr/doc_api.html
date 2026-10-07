@@ -1,0 +1,39 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>REST API</h1>
+<p class="lead">Intégrez BackupZit aux plateformes RMM, à la supervision (PRTG, Zabbix, Nagios, Uptime Kuma…) et à vos propres scripts.</p>
+
+<h2>Jetons</h2>
+<p>Créez un jeton dans <a href="/account#tokens">Mon compte → Jetons API</a>. Donnez-lui le rôle le plus bas qui suffit — <b>Lecteur</b> pour la supervision, <b>Opérateur de restauration</b> pour aussi lancer des sauvegardes et des tests de restauration. Le jeton n'est affiché qu'une fois ; envoyez-le dans chaque requête :</p>
+<pre>Authorization: Bearer bzt_...</pre>
+<p>Les jetons peuvent expirer, être révoqués par leur propriétaire ou un administrateur (<a href="/users">Utilisateurs</a>) et cessent de fonctionner lorsque le propriétaire est désactivé. Les actions effectuées avec un jeton apparaissent dans le journal d'audit avec le nom du jeton.</p>
+
+<h2>Points de terminaison</h2>
+<p>Toutes les réponses sont en JSON. URL de base : <code>https://&lt;console&gt;:8443</code>.</p>
+<table>
+  <tr><th>Méthode et chemin</th><th>Rôle</th><th>Renvoie</th></tr>
+  <tr><td><code>GET /api/v1/status</code></td><td>Lecteur</td><td>État global : agents en ligne, échecs et avertissements sur 24 h, exécutions actives, sauvegardes suspectes non examinées, <code>"ok": true|false</code></td></tr>
+  <tr><td><code>GET /api/v1/agents</code></td><td>Lecteur</td><td>Agents avec système, version, état en ligne et dernier contact</td></tr>
+  <tr><td><code>GET /api/v1/jobs</code>, <code>GET /api/v1/jobs/{id}</code></td><td>Lecteur</td><td>Tâches avec planification, prochaine exécution et dernier résultat</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/run</code></td><td>Opérateur de restauration</td><td>Lance la tâche immédiatement : <code>{"run_id": 123}</code> (202), ou 409 si une exécution est déjà active</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/test</code></td><td>Opérateur de restauration</td><td>Lance un test de restauration de la sauvegarde la plus récente de la tâche</td></tr>
+  <tr><td><code>GET /api/v1/runs?job=&amp;agent=&amp;status=&amp;limit=</code></td><td>Lecteur</td><td>Exécutions récentes, les plus récentes en premier (100 par défaut, 1000 au maximum)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Lecteur</td><td>Une exécution avec message, erreurs et statistiques</td></tr>
+  <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Lecteur</td><td>Le <a href="/docs/monitoring">rapport</a> d'une période : totaux, taux de réussite et détails par tâche</td></tr>
+  <tr><td><code>GET /api/v1/targets</code></td><td>Lecteur</td><td>Cibles de stockage (sans identifiants)</td></tr>
+</table>
+<p>Périodes : <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, ou <code>custom</code> avec <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
+<p>Les erreurs renvoient <code>{"error": "..."}</code> avec 400 (requête invalide), 401 (jeton absent, invalide ou expiré), 403 (rôle insuffisant), 404 ou 409.</p>
+
+<h2>Exemples</h2>
+<h3>curl</h3>
+<pre>curl -sk -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/status
+curl -sk -X POST -H "Authorization: Bearer $BZ_TOKEN" https://backup.example.local:8443/api/v1/jobs/7/run</pre>
+<h3>PowerShell</h3>
+<pre>$h = @{ Authorization = "Bearer $env:BZ_TOKEN" }
+$s = Invoke-RestMethod -Uri https://backup.example.local:8443/api/v1/status -Headers $h -SkipCertificateCheck
+if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) failed backups" }</pre>
+<p>N'utilisez <code>-k</code> / <code>-SkipCertificateCheck</code> qu'avec le certificat auto-signé de la console sur un réseau de confiance, ou installez le certificat de la console sur l'hôte de supervision.</p>
+<h3>Contrôle de supervision</h3>
+<p>Interrogez <code>/api/v1/status</code> toutes les quelques minutes et alertez lorsque <code>ok</code> vaut false. Pour un contrôle par tâche, utilisez <code>/api/v1/jobs</code> et alertez lorsque <code>last_status</code> vaut <code>failed</code> ou que <code>last_finished</code> est plus ancien que prévu.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

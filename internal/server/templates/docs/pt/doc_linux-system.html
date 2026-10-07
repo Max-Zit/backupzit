@@ -1,0 +1,38 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Backup do sistema Linux e P2V</h1>
+<p class="lead">Uma tarefa <b>Sistema Linux</b> faz backup de uma máquina Linux inteira para que ela possa ser recriada em um disco vazio — a mesma máquina após uma falha de disco, hardware novo ou uma máquina virtual no Proxmox VE (físico para virtual, P2V).</p>
+
+<h2>O que é copiado</h2>
+<ul>
+  <li>Cada sistema de arquivos local (ext2/3/4, xfs, vfat), também sobre LVM, arquivo por arquivo com donos, permissões, bits setuid, ACLs, atributos estendidos (rótulos SELinux, capabilities de arquivo), links físicos e arquivos de dispositivo. Cada sistema de arquivos é copiado separadamente; compartilhamentos de rede e sistemas de arquivos virtuais (<code>/proc</code>, <code>/sys</code>, <code>/run</code>) são ignorados.</li>
+  <li>O layout dos discos: tabelas de partição GPT ou MBR com seus IDs, grupos de volumes LVM (<code>vgcfgbackup</code>), UUIDs, rótulos e recursos dos sistemas de arquivos, e o código de boot (MBR e a partição de boot BIOS do GRUB).</li>
+</ul>
+<p>Assim como o Relax-and-Recover, o BackupZit não copia o disco em uso bloco a bloco: o Linux não tem snapshot embutido de um disco em funcionamento, então uma cópia bruta seria inconsistente. Cada arquivo é lido inteiro, e o layout torna o disco restaurado inicializável de novo. Bancos de dados devem ser exportados antes do backup ou copiados com suas próprias ferramentas.</p>
+<p>Arquivos e pastas avulsos são restaurados de um backup de sistema como de qualquer backup de arquivos (<b>Restaurar arquivos deste backup</b> na página da execução).</p>
+<h3>Ainda não suportado</h3>
+<p>Discos criptografados (LUKS), RAID por software (mdadm), btrfs e sistemas espalhados por vários discos. A tarefa informa isso claramente em vez de criar um backup incompleto.</p>
+
+<h2>Restaurar o sistema inteiro</h2>
+<p>Abra a execução do backup do sistema (página da tarefa ou <a href="/runs">Atividade</a>) e use <b>Restaurar o sistema inteiro</b>:</p>
+<h3>Como nova VM do Proxmox</h3>
+<p>Escolha o nó Proxmox (o agente BackupZit dele faz o trabalho), o armazenamento, o ID da VM, o nome, a memória e os núcleos. O BackupZit cria a VM com o mesmo firmware do original (UEFI/OVMF ou BIOS), um disco e uma placa de rede VirtIO SCSI, recria o disco, restaura todos os arquivos e pode iniciar a VM. Como a VM é uma cópia que pode rodar ao lado do original:</p>
+<ul>
+  <li>configurações de rede vinculadas aos endereços MAC antigos (comuns em imagens de nuvem: netplan <code>match: macaddress</code>) são alteradas para valer para qualquer interface cabeada,</li>
+  <li>o agente BackupZit dentro da cópia tem o registro cancelado, para não se apresentar como a máquina original.</li>
+</ul>
+<h3>Em um disco</h3>
+<p>Restaure em um disco vazio de um agente Linux, por ex. um segundo disco (<code>/dev/sdb</code>), ou na própria máquina nova (bare metal):</p>
+<ol>
+  <li>Em <a href="/recovery">Recuperação</a> baixe a <b>ISO de recuperação Linux</b> e crie um código de recuperação. Grave a ISO em um pendrive (Rufus, balenaEtcher) ou anexe-a a uma VM. Ela inicia em máquinas BIOS e UEFI.</li>
+  <li>Inicie a máquina por ela. O sistema de recuperação inicia o agente, que se conecta ao console com <code>backupzit/recovery.json</code> de outro pendrive ou disco, ou pede o endereço do servidor e o código de recuperação.</li>
+  <li>A máquina aparece como agente de <span class="badge">recuperação</span>. Na execução do backup do sistema escolha <b>Em um disco</b>, esse agente e o disco dele (geralmente <code>/dev/sda</code>, <code>/dev/nvme0n1</code> ou <code>/dev/vda</code>).</li>
+</ol>
+<p>Qualquer sistema Linux live também serve: inicie o agente nele com <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code>; as ferramentas necessárias (gdisk, LVM, mkfs) são indicadas se faltarem. Marque <b>Hardware diferente</b> quando a máquina não for a original.</p>
+<p>O destino pode ser maior ou menor que o disco original: a última partição cresce para preenchê-lo, ou diminui desde que seus dados caibam. Os UUIDs dos sistemas de arquivos e os IDs das partições continuam os mesmos, então <code>/etc/fstab</code> e o carregador de boot não precisam de alterações. Em sistemas UEFI, o carregador de boot também é instalado no caminho de mídia removível <code>\EFI\BOOT\BOOTX64.EFI</code>, que todo firmware UEFI inicia sem entrada de boot. Sistemas do tipo RHEL (dracut) recebem um novo initramfs com todos os drivers ao serem movidos para hardware diferente.</p>
+
+<h2>Linha de comando</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

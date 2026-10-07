@@ -1,0 +1,38 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Linux sistem yedeği ve P2V</h1>
+<p class="lead"><b>Linux sistemi</b> işi, bir Linux makinesinin tamamını yedekler; böylece boş bir diskte yeniden oluşturulabilir — disk arızasından sonra aynı makine, yeni donanım veya Proxmox VE'de bir sanal makine (fizikselden sanala, P2V).</p>
+
+<h2>Neler yedeklenir</h2>
+<ul>
+  <li>Her yerel dosya sistemi (ext2/3/4, xfs, vfat), LVM üzerinde de, dosya dosya; sahipler, izinler, setuid bitleri, ACL'ler, genişletilmiş öznitelikler (SELinux etiketleri, dosya yetenekleri), sabit bağlantılar ve aygıt dosyalarıyla birlikte. Her dosya sistemi ayrı yedeklenir; ağ paylaşımları ve sanal dosya sistemleri (<code>/proc</code>, <code>/sys</code>, <code>/run</code>) atlanır.</li>
+  <li>Disk düzeni: kimlikleriyle GPT veya MBR bölüm tabloları, LVM birim grupları (<code>vgcfgbackup</code>), dosya sistemi UUID'leri, etiketleri ve disk üstü özellikleri ile önyükleme kodu (MBR ve GRUB'un BIOS önyükleme bölümü).</li>
+</ul>
+<p>Relax-and-Recover gibi BackupZit de çalışan diski blok blok kopyalamaz: Linux'ta çalışan bir diskin yerleşik anlık görüntüsü yoktur, bu yüzden ham kopya tutarsız olur. Her dosya bütün olarak okunur ve düzen, geri yüklenen diski yeniden önyüklenebilir yapar. Veritabanları yedeklemeden önce dışa aktarılmalı veya kendi araçlarıyla yedeklenmelidir.</p>
+<p>Tek tek dosyalar ve klasörler, sistem yedeğinden de herhangi bir dosya yedeğinden olduğu gibi geri yüklenir (çalıştırma sayfasında <b>Bu yedekten dosyaları geri yükle</b>).</p>
+<h3>Henüz desteklenmeyenler</h3>
+<p>Şifreli diskler (LUKS), yazılım RAID'i (mdadm), btrfs ve birden fazla diske yayılmış sistemler. İş eksik bir yedek oluşturmak yerine bunları açıkça bildirir.</p>
+
+<h2>Tüm sistemi geri yükleme</h2>
+<p>Sistem yedeği çalıştırmasını açın (iş sayfası veya <a href="/runs">Etkinlik</a>) ve <b>Tüm sistemi geri yükle</b>'yi kullanın:</p>
+<h3>Yeni bir Proxmox VM olarak</h3>
+<p>Proxmox düğümünü (işi onun BackupZit aracısı yapar), depolamayı, VM kimliğini, adı, belleği ve çekirdekleri seçin. BackupZit, VM'yi orijinaliyle aynı ürün yazılımıyla (UEFI/OVMF veya BIOS), bir VirtIO SCSI disk ve ağ kartıyla oluşturur, diski yeniden oluşturur, tüm dosyaları geri yükler ve VM'yi başlatabilir. VM orijinalin yanında çalışabilecek bir kopya olduğundan:</p>
+<ul>
+  <li>eski MAC adreslerine bağlı ağ ayarları (bulut görüntülerinde yaygın: netplan <code>match: macaddress</code>) herhangi bir kablolu arabirim için geçerli olacak şekilde değiştirilir,</li>
+  <li>kopyanın içindeki BackupZit aracısının kaydı silinir, böylece kendini orijinal makine olarak bildirmez.</li>
+</ul>
+<h3>Bir diske</h3>
+<p>Bir Linux aracısının boş diskine, ör. ikinci bir diske (<code>/dev/sdb</code>) veya yeni makinenin kendisine (çıplak donanım) geri yükleyin:</p>
+<ol>
+  <li><a href="/recovery">Kurtarma</a> sayfasından <b>Linux kurtarma ISO'su</b>'nu indirin ve bir kurtarma kodu oluşturun. ISO'yu bir USB belleğe yazın (Rufus, balenaEtcher) veya bir VM'ye bağlayın. BIOS ve UEFI makinelerde önyüklenir.</li>
+  <li>Makineyi ondan başlatın. Kurtarma sistemi aracıyı başlatır; aracı, başka bir USB bellekteki veya diskteki <code>backupzit/recovery.json</code> ile konsola bağlanır ya da sunucu adresini ve kurtarma kodunu sorar.</li>
+  <li>Makine bir <span class="badge">kurtarma</span> aracısı olarak görünür. Sistem yedeği çalıştırmasında <b>Bir diske</b>, bu aracıyı ve diskini (genellikle <code>/dev/sda</code>, <code>/dev/nvme0n1</code> veya <code>/dev/vda</code>) seçin.</li>
+</ol>
+<p>Herhangi bir Linux canlı sistemi de olur: aracıyı orada <code>sudo backupzit-agent recovery --server https://console:8443 --token CODE</code> ile başlatın; eksik araçlar (gdisk, LVM, mkfs) belirtilir. Makine orijinali değilse <b>Farklı donanım</b>'ı işaretleyin.</p>
+<p>Hedef, orijinal diskten büyük veya küçük olabilir: son bölüm hedefi dolduracak şekilde büyür ya da verileri sığdığı sürece küçülür. Dosya sistemi UUID'leri ve bölüm kimlikleri aynı kalır, bu yüzden <code>/etc/fstab</code> ve önyükleyici değişiklik gerektirmez. UEFI sistemlerde önyükleyici ayrıca çıkarılabilir ortam yoluna <code>\EFI\BOOT\BOOTX64.EFI</code> kurulur; her UEFI ürün yazılımı bunu önyükleme girdisi olmadan başlatır. RHEL benzeri sistemler (dracut) farklı donanıma taşındığında tüm sürücüleri içeren yeni bir initramfs alır.</p>
+
+<h2>Komut satırı</h2>
+<pre>backupzit-agent system-backup  --repo ... [--exclude PATTERN]
+backupzit-agent system-show    --repo ... latest
+backupzit-agent system-restore --repo ... --target /dev/sdb [--new-hardware] --yes-erase-target latest</pre>
+{{template "docpager" .}}
+</article></div>{{end}}
