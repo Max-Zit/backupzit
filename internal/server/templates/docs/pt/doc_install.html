@@ -1,0 +1,191 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Instalar o servidor</h1>
+<p class="lead">A console funciona em Linux (Debian, Ubuntu, AlmaLinux, Rocky Linux) com PostgreSQL. Cada organização executa a sua própria console na sua própria rede.</p>
+
+<h2>Requisitos</h2>
+<ul>
+  <li>Uma VM ou um servidor Linux: 2 vCPU, 2–4 GB de RAM e 20 GB de disco chegam para centenas de agentes (os dados de backup não são guardados nele).</li>
+  <li>PostgreSQL 13 ou mais recente (local ou noutro servidor).</li>
+  <li>Rede: os agentes precisam alcançar a console por TCP <b>8443</b> (HTTPS). Os agentes também precisam alcançar diretamente o armazenamento.</li>
+</ul>
+
+<h2>Escolher como instalar</h2>
+<table>
+  <tr><th>Forma</th><th>Ideal para</th><th>Precisa de</th></tr>
+  <tr><td><b>1. Imagem de VM pronta</b> (OVA, qcow2, VHDX)</td><td>O mais rápido: importar, iniciar, entrar</td><td>VMware, Proxmox/KVM ou Hyper-V; não precisa de acesso à internet</td></tr>
+  <tr><td><b>2. ISO do appliance</b></td><td>Uma nova VM ou um servidor físico, instalação sem interação</td><td>acesso à internet durante a instalação (pacotes Debian)</td></tr>
+  <tr><td><b>3. Script de instalação</b></td><td>Um servidor Debian, Ubuntu, AlmaLinux ou Rocky Linux existente</td><td>root e acesso à internet</td></tr>
+  <tr><td><b>4. Pacotes à mão</b></td><td>O seu próprio PostgreSQL, gestão de configuração, sem acesso à internet</td><td>o pacote do servidor da versão</td></tr>
+</table>
+
+<h2>Downloads</h2>
+<p>Todas as versões estão em <a href="https://github.com/Max-Zit/backupzit/releases" target="_blank" rel="noopener">github.com/Max-Zit/backupzit/releases</a>. Estes links apontam sempre para a versão mais recente:</p>
+<table>
+  <tr><th>Arquivo</th><th>O que é</th></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova">backupzit-appliance.ova</a></td><td>imagem de VM para VMware ESXi, Workstation, VirtualBox</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2">backupzit-appliance.qcow2</a></td><td>imagem de VM para Proxmox VE e KVM</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip">backupzit-appliance-vhdx.zip</a></td><td>imagem de VM para Hyper-V (descompactar; geração 1)</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.iso">backupzit-appliance.iso</a></td><td>ISO de instalação do appliance</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh">install.sh</a></td><td>script de instalação para um servidor Linux existente</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>somas de verificação das imagens e da ISO</td></tr>
+</table>
+<p>Os pacotes (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agentes) estão na página da versão. As imagens têm cerca de 1,5 GB cada. Verifique um download com <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) ou <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+
+<h2>1. Imagem de VM pronta</h2>
+<p>Um appliance pronto (Debian, PostgreSQL, a console, atualizações de segurança automáticas) que inicia em menos de um minuto e não precisa de acesso à internet:</p>
+<table>
+  <tr><th>Hipervisor</th><th>Como</th></tr>
+  <tr><td>VMware ESXi</td><td>Host Client: <i>Create / Register VM → Deploy a virtual machine from an OVF or OVA file</i>, escolha <code>backupzit-appliance.ova</code>. vSphere: <i>Deploy OVF Template</i>. Workstation e VirtualBox: <i>File → Open / Import</i>.</td></tr>
+  <tr><td>Proxmox VE</td><td>Copie <code>backupzit-appliance.qcow2</code> para o nó, crie uma VM sem disco (2 vCPU, 2–4 GB de RAM, rede VirtIO), depois<br><code>qm importdisk &lt;vmid&gt; backupzit-appliance.qcow2 local-lvm</code><br>anexe o disco importado como SCSI, torne-o o disco de arranque e ative o agente convidado QEMU.</td></tr>
+  <tr><td>Hyper-V</td><td>Descompacte <code>backupzit-appliance-vhdx.zip</code>, depois <i>Novo → Máquina Virtual</i>, <b>geração 1</b>, 2–4 GB de RAM, <i>Usar um disco rígido virtual existente</i>: o VHDX.</td></tr>
+</table>
+<p>Inicie a VM. A tela dela mostra o endereço da console web e a senha inicial de <b>admin</b> (veja <a href="#first">Primeiro login</a>). Dê à VM 2 vCPU e 2–4 GB de RAM; pode aumentar o disco de 16 GB a qualquer momento — o appliance passa a usar o novo espaço no arranque seguinte (o sistema de arquivos raiz cresce a quente). No primeiro arranque cada cópia cria as suas próprias chaves SSH, senha do banco de dados e chave de segredos, por isso a mesma imagem pode ser implantada muitas vezes. A placa de rede obtém o endereço por DHCP.</p>
+
+<h2>2. ISO do appliance</h2>
+<p>A <b>ISO do appliance</b> instala tudo sem perguntas: Debian, PostgreSQL, a console e as atualizações de segurança automáticas.</p>
+<ol>
+  <li>Crie uma VM (ou use um servidor) com 2 vCPU, 2–4 GB de RAM e um disco de 16 GB ou mais. Use VirtIO ou os dispositivos padrão do hipervisor, BIOS ou UEFI.</li>
+  <li>Inicie-a a partir de <code>backupzit-appliance.iso</code>. Após 5 segundos a instalação começa sozinha, <b>apaga o primeiro disco</b> e instala. Ela baixa os pacotes do sistema operacional, por isso o servidor precisa de acesso à internet durante a instalação. Demora cerca de 10–20 minutos e depois o servidor reinicia.</li>
+  <li>A tela do servidor mostra o endereço da console web e a senha inicial de <b>admin</b>. Abra o endereço, faça login e altere a senha.</li>
+</ol>
+<h3>O appliance (imagem ou ISO)</h3>
+<p>O appliance tem duas contas separadas:</p>
+<ul>
+  <li><b>admin</b> na console web (<code>https://&lt;address&gt;:8443</code>) para o trabalho diário. A sua senha inicial aparece na tela do servidor após o primeiro arranque; altere-a em <b>Minha conta</b>.</li>
+  <li><b>bzadmin</b> no próprio servidor (a sua tela na console do hipervisor, ou SSH), senha inicial <code>backupzit</code>. Tem de alterá-la no primeiro login; o usuário pode usar <code>sudo</code>. O root não pode fazer login.</li>
+</ul>
+<p>As atualizações do BackupZit e do sistema operacional são geridas a partir da console (veja abaixo). O VMware Tools e o agente convidado QEMU estão incluídos, para que os hipervisores mostrem o endereço do appliance.</p>
+<h3 id="setup-menu">Menu de configuração na tela do servidor</h3>
+<p>Quando o bzadmin faz login na própria tela do servidor (não por SSH), abre-se um menu:</p>
+<table>
+  <tr><th>Item</th><th>O que faz</th></tr>
+  <tr><td>1 Network</td><td>DHCP ou um endereço estático com comprimento de prefixo (p. ex. <code>192.168.1.20/24</code>), gateway e até três servidores DNS.</td></tr>
+  <tr><td>2 Server name</td><td>O nome do host (letras, dígitos e -).</td></tr>
+  <tr><td>3 SSH</td><td>Liga ou desliga o servidor SSH e altera a sua porta. As portas da console (80, 443, 8443), do PostgreSQL (5432) e da recuperação instantânea (111, 2049) não podem ser usadas.</td></tr>
+  <tr><td>4 Reset the password of "admin"</td><td>Para uma senha esquecida da console web; também remove bloqueios de login. Depois a tela deixa de mostrar a senha inicial gerada (o mesmo acontece a partir do arranque seguinte, depois de a senha de admin ser alterada na console web).</td></tr>
+  <tr><td>5 Lift sign-in blocks and web console limits</td><td>Quando demasiados logins falhados bloquearam um endereço, ou a console web está limitada a endereços que já não pode usar (veja <a href="/docs/security#web-access">Segurança</a>).</td></tr>
+  <tr><td>6–8</td><td>Reiniciar a console web, reiniciar ou desligar o servidor.</td></tr>
+  <tr><td>9 Time zone</td><td>O appliance começa em UTC. Defina o seu fuso, p. ex. <code>Europe/Belgrade</code>: a console mostra todas as horas, executa os agendamentos e lê os pontos de restauração (também o momento de uma restauração de banco de dados) nesse fuso. A console reinicia para o aplicar.</td></tr>
+  <tr><td>0 Command line</td><td>Sai do menu. Abra-o de novo com <code>sudo backupzit-server --setup</code> (também por SSH).</td></tr>
+</table>
+<p>As mesmas configurações de rede, nome do servidor, SSH e fuso horário estão em <b>Configurações → Rede</b> na console web (só administradores). Aí, um endereço estático cujo gateway não responde em meio minuto é desfeito automaticamente, para que um erro de digitação não deixe o appliance sem rede; se mesmo assim não conseguir alcançar a console, use o menu na tela do servidor, que funciona mesmo com o SSH desligado.</p>
+<p>Os agentes lembram-se do certificado da console, não do seu endereço. Se alcançam a console pelo endereço IP e este muda, aponte-os para o novo com <code>backupzit-agent set-server</code> (veja <a href="/docs/agents#new-address">Agentes</a>), ou use um nome DNS desde o início. Com DHCP, reserve o endereço do appliance no servidor DHCP para que não mude.</p>
+<p>O servidor SSH do appliance só oferece cifras AES-GCM/CTR e MACs SHA-2 (nada de chacha20-poly1305 nem MACs de 64 bits, que os scanners de vulnerabilidades apontam como fracos).</p>
+
+<h2>3. Script de instalação</h2>
+<p>Num servidor existente com <b>Debian 12+, Ubuntu 22.04+, AlmaLinux ou Rocky Linux 9+</b> (x86-64), como root:</p>
+<pre>curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh</pre>
+<p>O script instala o PostgreSQL, baixa a versão mais recente, <b>verifica a sua assinatura</b> com a chave de publicação do BackupZit e a soma de verificação do pacote, instala a console, cria o banco de dados com uma senha aleatória, grava <code>/etc/backupzit/server.env</code>, ativa as atualizações de segurança automáticas, abre a porta 8443 no firewalld ou ufw se estiverem ativos, inicia a console e mostra o seu endereço e a senha inicial de admin. Opções (depois de <code>sh -s --</code>):</p>
+<table>
+  <tr><th>Opção</th><th>Efeito</th></tr>
+  <tr><td><code>--version 0.32.0</code></td><td>instalar esta versão em vez da mais recente</td></tr>
+  <tr><td><code>--db postgres://user:pw@host:5432/db</code></td><td>usar um banco PostgreSQL existente em vez de um local</td></tr>
+  <tr><td><code>--hosts backup.example.local,10.0.0.10</code></td><td>nomes e endereços para o certificado da console (padrão: o endereço e o nome do servidor)</td></tr>
+  <tr><td><code>--no-auto-updates</code></td><td>deixar as atualizações de segurança automáticas como estão</td></tr>
+</table>
+<p>Exemplo: <code>curl -fsSL …/install.sh | sudo sh -s -- --hosts backup.example.local</code>. Executar o script de novo numa console instalada atualiza o BackupZit e mantém a configuração e os dados. Para ler o script antes de o executar, baixe-o primeiro: <code>curl -fsSLO …/install.sh; less install.sh; sudo sh install.sh</code>.</p>
+
+<h2>4. Pacotes à mão</h2>
+<h3>Debian / Ubuntu</h3>
+<pre>apt install postgresql
+apt install ./backupzit-server_*.deb</pre>
+<h3>AlmaLinux / Rocky Linux</h3>
+<pre>dnf install postgresql-server &amp;&amp; postgresql-setup --initdb &amp;&amp; systemctl enable --now postgresql
+dnf install ./backupzit-server-*.rpm</pre>
+<p>No AlmaLinux e no Rocky Linux, troque <code>ident</code> por <code>scram-sha-256</code> nas linhas 127.0.0.1 e ::1 de <code>/var/lib/pgsql/data/pg_hba.conf</code> e reinicie o PostgreSQL, para que a console possa fazer login com senha.</p>
+
+<h3>Criar o banco de dados</h3>
+<pre>sudo -u postgres psql -c "SET password_encryption = 'scram-sha-256'; CREATE USER backupzit WITH PASSWORD 'choose-a-strong-password'"
+sudo -u postgres psql -c "CREATE DATABASE backupzit OWNER backupzit"</pre>
+<p>Coloque a string de conexão em <code>/etc/backupzit/server.env</code>:</p>
+<pre>BACKUPZIT_DB=postgres://backupzit:choose-a-strong-password@localhost:5432/backupzit?sslmode=disable
+BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
+BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
+<pre>systemctl start backupzit-server</pre>
+
+<h2 id="first">Primeiro login</h2>
+<p>Abra <code>https://&lt;server&gt;:8443</code>. O administrador inicial é <b>admin</b>; a senha está em <code>/var/lib/backupzit/initial-admin-password.txt</code> (ou defina <code>BACKUPZIT_ADMIN_PASSWORD</code> antes do primeiro arranque). Altere-a depois de fazer login. Para redefinir uma senha esquecida no servidor:</p>
+<pre>set -a; . /etc/backupzit/server.env; set +a
+backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
+
+<h2>O certificado</h2>
+<p>No primeiro arranque a console cria um certificado autoassinado. O navegador avisará uma vez; os agentes não dependem de autoridades de certificação — eles <b>fixam a impressão digital do certificado</b> mostrada na página <a href="/agents">Agentes</a> quando se registram. Isso protege os agentes contra um servidor falso mesmo numa rede não confiável.</p>
+<div class="callout warn"><p>Não substitua esse certificado (<code>cert.pem</code>/<code>key.pem</code> no diretório de dados): os agentes registrados antes recusariam a conexão até serem registrados de novo. Para os navegadores, adicione em vez disso um certificado confiável como descrito abaixo.</p></div>
+
+<h3>Um certificado confiável para os navegadores</h3>
+<p>Para evitar o aviso do navegador, abra <a href="/settings/certificate">Configurações → Certificado</a>. A console passa então a responder também num nome DNS, por exemplo <code>https://backup.example.com</code> na porta 443, com um certificado confiável. Os agentes continuam a usar a porta 8443 e o certificado fixado, por isso não são afetados.</p>
+<ul>
+  <li><b>Enviar um certificado</b> da CA da sua empresa ou de uma CA pública, também um certificado curinga como <code>*.example.com</code>. Cole o certificado (com os certificados intermediários) e a chave privada em PEM, ou escolha os arquivos. A console verifica que a chave pertence ao certificado, que este é válido agora e que cobre o nome DNS. Sem DNS interno, informe em vez disso o endereço IP da console e use um certificado emitido para esse IP (nome alternativo <code>IP:192.168.1.20</code>); nesse caso dê à console um endereço fixo. Receberá um e-mail 21 dias antes de expirar.</li>
+  <li><b>Let's Encrypt</b>: certificados gratuitos, renovados automaticamente 30 dias antes de expirarem. O Let's Encrypt tem de verificar que controla o nome, de uma de duas formas:
+    <ul>
+      <li><b>Verificação DNS via Cloudflare</b>, recomendada para consoles que não são acessíveis pela internet. O BackupZit cria um registro TXT temporário com um token de API do Cloudflare. No Cloudflare, vá a My Profile → API Tokens → Create Token, use o modelo <i>Edit zone DNS</i> e limite-o à sua zona.</li>
+      <li><b>Verificação HTTP</b>: a porta 80 da console tem de estar acessível pela internet com o nome DNS. Raramente se quer isso num servidor de backup.</li>
+    </ul>
+    Experimente primeiro a configuração com <i>Usar o sistema de testes do Let's Encrypt</i>. Os navegadores não confiam nos seus certificados, mas não tem limites de taxa.</li>
+  <li><b>Atender na porta 80</b> redireciona <code>http://</code> para <code>https://</code>.</li>
+</ul>
+<p>O nome DNS tem de apontar para o endereço IP da console, normalmente através de um registro A no seu DNS interno. Os arquivos do certificado ficam em <code>/var/lib/backupzit/web</code> e a chave só pode ser lida pelo serviço. No Linux o serviço pode usar as portas 80 e 443 (<code>CAP_NET_BIND_SERVICE</code>); abra-as no firewall se houver navegadores a conectar-se de outras redes.</p>
+
+<h2>Firewall</h2>
+<table>
+  <tr><th>Porta</th><th>De</th><th>Para</th><th>Finalidade</th></tr>
+  <tr><td>8443/tcp</td><td>agentes, administradores</td><td>console</td><td>API dos agentes e console web</td></tr>
+  <tr><td>443/tcp, 80/tcp</td><td>administradores</td><td>console</td><td>opcional: console web com certificado confiável e redirecionamento para HTTPS</td></tr>
+  <tr><td>22/tcp</td><td>agentes, console</td><td>armazenamento SFTP</td><td>destinos SFTP</td></tr>
+  <tr><td>443 ou 9000/tcp</td><td>agentes, console</td><td>armazenamento S3</td><td>destinos S3</td></tr>
+  <tr><td>445/tcp</td><td>agentes, console</td><td>NAS / servidor de arquivos</td><td>destinos SMB</td></tr>
+  <tr><td>8500/tcp</td><td>agentes, console</td><td>repositório protegido</td><td>destinos protegidos</td></tr>
+  <tr><td>443/tcp</td><td>agentes, console</td><td>Azure / armazenamento em nuvem</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
+  <tr><td>636/tcp (389 com StartTLS)</td><td>console</td><td>controladores de domínio</td><td>login LDAP / Active Directory</td></tr>
+  <tr><td>587/465/25</td><td>console</td><td>servidor de e-mail</td><td>notificações por e-mail</td></tr>
+</table>
+<p>A console também se conecta diretamente ao armazenamento para permitir navegar em arquivos dentro de imagens de disco e backups de VM (e baixá-los), por isso precisa do mesmo acesso ao armazenamento que os agentes.</p>
+
+<h2>Atualizar o BackupZit</h2>
+<p>Por padrão a console obtém as atualizações das versões oficiais do BackupZit no GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Em <a href="/settings/updates">Configurações → Atualizações</a> pode indicar outra <b>origem de atualizações</b> — o seu próprio espelho HTTPS ou uma pasta no servidor. Seja qual for a origem, cada versão tem de ter uma assinatura válida do BackupZit. A console verifica diariamente se há novas versões e envia um e-mail aos administradores quando há uma disponível. Para instalá-la, clique em <b>Instalar</b>:</p>
+<ol>
+  <li>A console verifica a assinatura da versão e a soma de verificação do pacote, e espera até não haver nenhum backup ou restauração em curso.</li>
+  <li>Um serviço do sistema (<code>backupzit-update</code>, executado como root) volta a verificar a assinatura com as chaves de publicação incorporadas no BackupZit. Nem mesmo uma console comprometida consegue fazer instalar outro pacote.</li>
+  <li>Faz backup do banco de dados (<code>pg_dump</code>), mantém o programa atual, instala o pacote e reinicia a console.</li>
+  <li>Se a nova versão não responder em dois minutos, o programa anterior e o banco de dados como estava são restaurados automaticamente. O resultado, com o log do arranque falhado, aparece na página Atualizações, fica no log de auditoria e é enviado por e-mail.</li>
+  <li>Após uma atualização bem-sucedida os agentes também são atualizados: cada um instala a nova versão quando está ocioso. Desative isso na mesma página se preferir atualizá-los você mesmo.</li>
+</ol>
+<p>A console fica indisponível durante cerca de um minuto. Os backups do banco de dados e os programas anteriores das últimas três atualizações são mantidos em <code>/var/lib/backupzit-update</code>.</p>
+<p><b>Sem acesso à internet:</b> baixe os arquivos da versão (<code>manifest.json</code>, <code>manifest.json.sig</code> e o pacote do servidor) noutro computador. Depois envie-os em <i>Instalar uma atualização a partir de arquivos</i>, ou copie-os para uma pasta no servidor e use essa pasta como origem de atualizações.</p>
+<p>Ainda pode atualizar com o gerenciador de pacotes (<code>apt install ./backupzit-server_….deb</code>); o banco de dados é migrado quando a nova versão inicia.</p>
+
+<h2>Atualizações do sistema operacional</h2>
+<p>A mesma página (<a href="/settings/updates#os">Configurações → Atualizações</a>) mostra o sistema operacional do servidor da console: quantas atualizações estão disponíveis, quantas são correções de segurança, se é preciso reiniciar e se as atualizações de segurança automáticas estão ativas. O estado é atualizado diariamente, ou com <i>Verificar agora</i>. Pode:</p>
+<ul>
+  <li><b>Ativar as atualizações de segurança automáticas</b> (recomendado). A ferramenta do próprio sistema instala diariamente só correções de segurança: <code>unattended-upgrades</code> no Debian e Ubuntu, <code>dnf-automatic</code> no AlmaLinux e Rocky Linux.</li>
+  <li><b>Instalar agora todas as atualizações</b>. Serviços como o PostgreSQL podem reiniciar brevemente, e a console reconecta-se sozinha.</li>
+  <li><b>Reiniciar servidor</b>, por exemplo após uma atualização do kernel. A console recusa enquanto houver backups ou restaurações em curso. Os agentes mantêm as suas tarefas e reportam os resultados quando a console voltar.</li>
+</ul>
+<p>Estas tarefas passam pelo mesmo serviço root que as atualizações da console. Ficam registradas no log de auditoria, e a saída da última tarefa aparece na página.</p>
+
+<h2>Fazer backup da própria console</h2>
+<p>Os backups no seu armazenamento continuam legíveis sem a console, graças às fichas de recuperação. Para recuperar também a própria console depois de perder o seu servidor, ative <a href="/settings/console">Configurações → Backup do console</a>. Isso inclui tarefas, agendamentos, agentes, usuários, configurações, histórico de execuções e credenciais guardadas. A console passa então a fazer backup de si mesma diariamente para um destino de armazenamento de rede, na pasta <code>backupzit-console</code>.</p>
+<p>Um backup da console contém:</p>
+<ul>
+  <li>todo o banco de dados, exportado tabela a tabela, para não ser preciso nenhuma versão específica de <code>pg_dump</code>;</li>
+  <li>a chave de segredos que descriptografa as credenciais guardadas;</li>
+  <li>o certificado da console, que os agentes fixam.</li>
+</ul>
+<p>É criptografado com a chave de recuperação do destino e desduplicado. Os backups mais recentes são mantidos: 14 por padrão.</p>
+<h3>Restaurar a console</h3>
+<ol>
+  <li>Instale uma nova console com a mesma versão ou uma mais recente, por exemplo a partir da ISO do appliance.</li>
+  <li>No novo servidor, como root, execute o seguinte. As credenciais são as da ficha de recuperação do destino de armazenamento, e o endereço do repositório aparece na página Backup do console.
+<pre>systemctl stop backupzit-server
+set -a; . /etc/backupzit/server.env; set +a
+export BACKUPZIT_PASSWORD='&lt;recovery key&gt;'
+export BACKUPZIT_SFTP_PASSWORD='…' BACKUPZIT_SFTP_HOSTKEY='SHA256:…'   # or BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, _SMB_PASSWORD, _AZURE_KEY, _HARDENED_KEY/_FINGERPRINT
+backupzit-server --restore-console --repo 'sftp://backup@nas:22/backups/backupzit-console'
+systemctl start backupzit-server</pre></li>
+  <li>Dê ao novo servidor o endereço IP ou o nome DNS do antigo. Os agentes confiam no certificado restaurado e reconectam-se sozinhos.</li>
+</ol>
+<p>A restauração substitui o banco de dados da nova console pelo do backup e atualiza-o para a versão instalada. <code>--snapshot ID</code> restaura um backup mais antigo em vez do mais recente.</p>
+<p>Guarde também uma cópia das <b>fichas de recuperação</b> e de <code>secrets.key</code> fora do servidor, por exemplo no seu gerenciador de senhas.</p>
+
+{{template "docpager" .}}
+</article></div>{{end}}

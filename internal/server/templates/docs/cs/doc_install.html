@@ -1,0 +1,191 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Instalace serveru</h1>
+<p class="lead">Konzole běží na Linuxu (Debian, Ubuntu, AlmaLinux, Rocky Linux) s PostgreSQL. Každá organizace provozuje vlastní konzoli ve vlastní síti.</p>
+
+<h2>Požadavky</h2>
+<ul>
+  <li>Linuxový VM nebo server: 2 vCPU, 2–4 GB RAM a 20 GB disku bohatě stačí pro stovky agentů (data záloh se na něm neukládají).</li>
+  <li>PostgreSQL 13 nebo novější (místně nebo na jiném serveru).</li>
+  <li>Síť: agenti musí na konzoli dosáhnout přes TCP <b>8443</b> (HTTPS). Agenti musí také přímo dosáhnout na úložiště.</li>
+</ul>
+
+<h2>Výběr způsobu instalace</h2>
+<table>
+  <tr><th>Způsob</th><th>Nejlepší pro</th><th>Vyžaduje</th></tr>
+  <tr><td><b>1. Hotový obraz VM</b> (OVA, qcow2, VHDX)</td><td>Nejrychlejší: importovat, spustit, přihlásit se</td><td>VMware, Proxmox/KVM nebo Hyper-V; bez přístupu k internetu</td></tr>
+  <tr><td><b>2. ISO appliance</b></td><td>Nový VM nebo fyzický server, bezobslužná instalace</td><td>přístup k internetu během instalace (balíčky Debianu)</td></tr>
+  <tr><td><b>3. Instalační skript</b></td><td>Existující server s Debianem, Ubuntu, AlmaLinuxem nebo Rocky Linuxem</td><td>root a přístup k internetu</td></tr>
+  <tr><td><b>4. Balíčky ručně</b></td><td>Vlastní PostgreSQL, správa konfigurace, bez přístupu k internetu</td><td>balíček serveru z vydání</td></tr>
+</table>
+
+<h2>Ke stažení</h2>
+<p>Všechna vydání jsou na <a href="https://github.com/Max-Zit/backupzit/releases" target="_blank" rel="noopener">github.com/Max-Zit/backupzit/releases</a>. Tyto odkazy vždy vedou na nejnovější vydání:</p>
+<table>
+  <tr><th>Soubor</th><th>Co to je</th></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova">backupzit-appliance.ova</a></td><td>obraz VM pro VMware ESXi, Workstation, VirtualBox</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2">backupzit-appliance.qcow2</a></td><td>obraz VM pro Proxmox VE a KVM</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip">backupzit-appliance-vhdx.zip</a></td><td>obraz VM pro Hyper-V (rozbalit; generace 1)</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.iso">backupzit-appliance.iso</a></td><td>instalační ISO appliance</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh">install.sh</a></td><td>instalační skript pro existující linuxový server</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>kontrolní součty obrazů a ISO</td></tr>
+</table>
+<p>Balíčky (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agenti) jsou uvedeny na stránce vydání. Obrazy mají každý zhruba 1,5 GB. Stažený soubor ověřte příkazem <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) nebo <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+
+<h2>1. Hotový obraz VM</h2>
+<p>Hotová appliance (Debian, PostgreSQL, konzole, automatické bezpečnostní aktualizace), která naběhne za méně než minutu a nepotřebuje přístup k internetu:</p>
+<table>
+  <tr><th>Hypervizor</th><th>Jak</th></tr>
+  <tr><td>VMware ESXi</td><td>Host Client: <i>Create / Register VM → Deploy a virtual machine from an OVF or OVA file</i>, zvolte <code>backupzit-appliance.ova</code>. vSphere: <i>Deploy OVF Template</i>. Workstation a VirtualBox: <i>File → Open / Import</i>.</td></tr>
+  <tr><td>Proxmox VE</td><td>Zkopírujte <code>backupzit-appliance.qcow2</code> na uzel, vytvořte VM bez disku (2 vCPU, 2–4 GB RAM, síť VirtIO), pak<br><code>qm importdisk &lt;vmid&gt; backupzit-appliance.qcow2 local-lvm</code><br>připojte importovaný disk jako SCSI, nastavte ho jako zaváděcí disk a zapněte agenta hosta QEMU.</td></tr>
+  <tr><td>Hyper-V</td><td>Rozbalte <code>backupzit-appliance-vhdx.zip</code>, pak <i>Nový → Virtuální počítač</i>, <b>generace 1</b>, 2–4 GB RAM, <i>Použít existující virtuální pevný disk</i>: soubor VHDX.</td></tr>
+</table>
+<p>Spusťte VM. Jeho obrazovka ukáže adresu webové konzole a počáteční heslo účtu <b>admin</b> (viz <a href="#first">První přihlášení</a>). Dejte VM 2 vCPU a 2–4 GB RAM; 16GB disk můžete kdykoli zvětšit — appliance nové místo využije při dalším spuštění (kořenový souborový systém se zvětší za běhu). Při prvním spuštění si každá kopie vytvoří vlastní klíče SSH, heslo databáze a klíč tajných údajů, takže jeden obraz lze nasadit mnohokrát. Síťový adaptér získá adresu přes DHCP.</p>
+
+<h2>2. ISO appliance</h2>
+<p><b>ISO appliance</b> nainstaluje vše bez dotazů: Debian, PostgreSQL, konzoli a automatické bezpečnostní aktualizace.</p>
+<ol>
+  <li>Vytvořte VM (nebo použijte server) se 2 vCPU, 2–4 GB RAM a diskem o velikosti 16 GB nebo větším. Použijte VirtIO nebo výchozí zařízení hypervizoru, BIOS nebo UEFI.</li>
+  <li>Spusťte ho z <code>backupzit-appliance.iso</code>. Po 5 sekundách se instalace spustí sama, <b>vymaže první disk</b> a nainstaluje se. Stahuje balíčky operačního systému, takže server potřebuje během instalace přístup k internetu. Trvá to zhruba 10–20 minut a server se pak restartuje.</li>
+  <li>Obrazovka serveru ukáže adresu webové konzole a počáteční heslo účtu <b>admin</b>. Otevřete adresu, přihlaste se a změňte heslo.</li>
+</ol>
+<h3>Appliance (obraz nebo ISO)</h3>
+<p>Appliance má dva oddělené účty:</p>
+<ul>
+  <li><b>admin</b> ve webové konzoli (<code>https://&lt;address&gt;:8443</code>) pro každodenní práci. Jeho počáteční heslo se po prvním spuštění zobrazí na obrazovce serveru; změňte ho v části <b>Můj účet</b>.</li>
+  <li><b>bzadmin</b> přímo na serveru (jeho obrazovka v konzoli hypervizoru, nebo SSH), počáteční heslo <code>backupzit</code>. Při prvním přihlášení ho musíte změnit; uživatel může používat <code>sudo</code>. Root se přihlásit nemůže.</li>
+</ul>
+<p>Aktualizace BackupZit a operačního systému se spravují z konzole (viz níže). VMware Tools a agent hosta QEMU jsou součástí, takže hypervizory zobrazují adresu appliance.</p>
+<h3 id="setup-menu">Nabídka nastavení na obrazovce serveru</h3>
+<p>Když se bzadmin přihlásí na vlastní obrazovce serveru (ne přes SSH), otevře se nabídka:</p>
+<table>
+  <tr><th>Položka</th><th>Co dělá</th></tr>
+  <tr><td>1 Network</td><td>DHCP nebo statická adresa s délkou prefixu (např. <code>192.168.1.20/24</code>), brána a až tři servery DNS.</td></tr>
+  <tr><td>2 Server name</td><td>Název hostitele (písmena, číslice a -).</td></tr>
+  <tr><td>3 SSH</td><td>Zapne nebo vypne server SSH a změní jeho port. Porty konzole (80, 443, 8443), PostgreSQL (5432) a okamžité obnovy (111, 2049) použít nelze.</td></tr>
+  <tr><td>4 Reset the password of "admin"</td><td>Pro zapomenuté heslo webové konzole; zruší také blokování přihlášení. Obrazovka pak přestane zobrazovat vygenerované počáteční heslo (stejně tak od dalšího spuštění poté, co se heslo admina změní ve webové konzoli).</td></tr>
+  <tr><td>5 Lift sign-in blocks and web console limits</td><td>Když příliš mnoho neúspěšných přihlášení zablokovalo adresu nebo je webová konzole omezena na adresy, které už nemůžete použít (viz <a href="/docs/security#web-access">Zabezpečení</a>).</td></tr>
+  <tr><td>6–8</td><td>Restart webové konzole, restart nebo vypnutí serveru.</td></tr>
+  <tr><td>9 Time zone</td><td>Appliance začíná v UTC. Nastavte své pásmo, např. <code>Europe/Belgrade</code>: konzole v něm zobrazuje všechny časy, spouští plány a čte body obnovy (i okamžik obnovy databáze). Konzole se restartuje, aby ho začala používat.</td></tr>
+  <tr><td>0 Command line</td><td>Opustí nabídku. Znovu ji otevřete příkazem <code>sudo backupzit-server --setup</code> (i přes SSH).</td></tr>
+</table>
+<p>Stejná nastavení sítě, názvu serveru, SSH a časového pásma jsou ve webové konzoli v části <b>Nastavení → Síť</b> (jen správci). Tam se statická adresa, jejíž brána neodpoví do půl minuty, automaticky vrátí, takže překlep nemůže appliance odříznout od sítě; pokud konzole přesto není dostupná, použijte nabídku na obrazovce serveru, která funguje i s vypnutým SSH.</p>
+<p>Agenti si pamatují certifikát konzole, ne její adresu. Pokud konzoli dosahují přes IP adresu a ta se změní, nasměrujte je na novou příkazem <code>backupzit-agent set-server</code> (viz <a href="/docs/agents#new-address">Agenti</a>), nebo od začátku používejte název DNS. S DHCP si adresu appliance v serveru DHCP rezervujte, aby se neměnila.</p>
+<p>Server SSH appliance nabízí jen šifry AES-GCM/CTR a MAC SHA-2 (žádné chacha20-poly1305 ani 64bitové MAC, které skenery zranitelností hlásí jako slabé).</p>
+
+<h2>3. Instalační skript</h2>
+<p>Na existujícím serveru s <b>Debianem 12+, Ubuntu 22.04+, AlmaLinuxem nebo Rocky Linuxem 9+</b> (x86-64), jako root:</p>
+<pre>curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh</pre>
+<p>Skript nainstaluje PostgreSQL, stáhne nejnovější vydání, <b>ověří jeho podpis</b> klíčem vydání BackupZit a kontrolní součet balíčku, nainstaluje konzoli, vytvoří databázi s náhodným heslem, zapíše <code>/etc/backupzit/server.env</code>, zapne automatické bezpečnostní aktualizace, otevře port 8443 ve firewalld nebo ufw, pokud jsou aktivní, spustí konzoli a vypíše její adresu a počáteční heslo admina. Volby (za <code>sh -s --</code>):</p>
+<table>
+  <tr><th>Volba</th><th>Účinek</th></tr>
+  <tr><td><code>--version 0.32.0</code></td><td>nainstaluje toto vydání místo nejnovějšího</td></tr>
+  <tr><td><code>--db postgres://user:pw@host:5432/db</code></td><td>použije existující databázi PostgreSQL místo místní</td></tr>
+  <tr><td><code>--hosts backup.example.local,10.0.0.10</code></td><td>názvy a adresy pro certifikát konzole (výchozí: adresa a název serveru)</td></tr>
+  <tr><td><code>--no-auto-updates</code></td><td>ponechá automatické bezpečnostní aktualizace beze změny</td></tr>
+</table>
+<p>Příklad: <code>curl -fsSL …/install.sh | sudo sh -s -- --hosts backup.example.local</code>. Opětovné spuštění skriptu na nainstalované konzoli aktualizuje BackupZit a zachová konfiguraci i data. Chcete-li si skript před spuštěním přečíst, nejdřív ho stáhněte: <code>curl -fsSLO …/install.sh; less install.sh; sudo sh install.sh</code>.</p>
+
+<h2>4. Balíčky ručně</h2>
+<h3>Debian / Ubuntu</h3>
+<pre>apt install postgresql
+apt install ./backupzit-server_*.deb</pre>
+<h3>AlmaLinux / Rocky Linux</h3>
+<pre>dnf install postgresql-server &amp;&amp; postgresql-setup --initdb &amp;&amp; systemctl enable --now postgresql
+dnf install ./backupzit-server-*.rpm</pre>
+<p>V AlmaLinuxu a Rocky Linuxu změňte v souboru <code>/var/lib/pgsql/data/pg_hba.conf</code> u řádků 127.0.0.1 a ::1 <code>ident</code> na <code>scram-sha-256</code> a restartujte PostgreSQL, aby se konzole mohla přihlásit heslem.</p>
+
+<h3>Vytvoření databáze</h3>
+<pre>sudo -u postgres psql -c "SET password_encryption = 'scram-sha-256'; CREATE USER backupzit WITH PASSWORD 'choose-a-strong-password'"
+sudo -u postgres psql -c "CREATE DATABASE backupzit OWNER backupzit"</pre>
+<p>Zapište připojovací řetězec do <code>/etc/backupzit/server.env</code>:</p>
+<pre>BACKUPZIT_DB=postgres://backupzit:choose-a-strong-password@localhost:5432/backupzit?sslmode=disable
+BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
+BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
+<pre>systemctl start backupzit-server</pre>
+
+<h2 id="first">První přihlášení</h2>
+<p>Otevřete <code>https://&lt;server&gt;:8443</code>. Počátečním správcem je <b>admin</b>; heslo je v <code>/var/lib/backupzit/initial-admin-password.txt</code> (nebo před prvním spuštěním nastavte <code>BACKUPZIT_ADMIN_PASSWORD</code>). Po přihlášení ho změňte. Zapomenuté heslo obnovíte na serveru takto:</p>
+<pre>set -a; . /etc/backupzit/server.env; set +a
+backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
+
+<h2>Certifikát</h2>
+<p>Při prvním spuštění konzole vytvoří certifikát podepsaný sám sebou. Prohlížeč na to jednou upozorní; agenti se na certifikační autority vůbec nespoléhají — <b>připínají otisk certifikátu</b>, který se zobrazí na stránce <a href="/agents">Agenti</a> při registraci. To agenty chrání před falešným serverem i v nedůvěryhodné síti.</p>
+<div class="callout warn"><p>Tento certifikát nenahrazujte (<code>cert.pem</code>/<code>key.pem</code> v datovém adresáři): dříve registrovaní agenti by odmítli připojení, dokud by nebyli znovu zaregistrováni. Pro prohlížeče místo toho přidejte důvěryhodný certifikát, jak je popsáno níže.</p></div>
+
+<h3>Důvěryhodný certifikát pro prohlížeče</h3>
+<p>Abyste se vyhnuli varování prohlížeče, otevřete <a href="/settings/certificate">Nastavení → Certifikát</a>. Konzole pak odpovídá i na názvu DNS, například <code>https://backup.example.com</code> na portu 443, s důvěryhodným certifikátem. Agenti dál používají port 8443 a připnutý certifikát, takže se jich to netýká.</p>
+<ul>
+  <li><b>Nahrát certifikát</b> z firemní CA nebo veřejné CA, i certifikát se zástupným znakem, například <code>*.example.com</code>. Vložte certifikát (s mezilehlými certifikáty) a soukromý klíč ve formátu PEM, nebo vyberte soubory. Konzole ověří, že klíč patří k certifikátu, že je certifikát nyní platný a pokrývá název DNS. Bez interního DNS zadejte místo toho IP adresu konzole a použijte certifikát vydaný pro tuto IP adresu (alternativní název <code>IP:192.168.1.20</code>); konzoli pak dejte pevnou adresu. 21 dní před vypršením dostanete e-mail.</li>
+  <li><b>Let's Encrypt</b>: bezplatné certifikáty, automaticky obnovované 30 dní před vypršením. Let's Encrypt musí ověřit, že název ovládáte, jedním ze dvou způsobů:
+    <ul>
+      <li><b>Ověření DNS přes Cloudflare</b>, doporučeno pro konzole nedostupné z internetu. BackupZit vytvoří dočasný záznam TXT pomocí tokenu API Cloudflare. V Cloudflare přejděte do My Profile → API Tokens → Create Token, použijte šablonu <i>Edit zone DNS</i> a omezte ji na svou zónu.</li>
+      <li><b>Ověření HTTP</b>: port 80 konzole musí být pod názvem DNS dostupný z internetu. U zálohovacího serveru to bývá nežádoucí.</li>
+    </ul>
+    Nastavení si nejdřív vyzkoušejte s <i>Použít testovací systém Let's Encrypt</i>. Jeho certifikátům prohlížeče nedůvěřují, ale nemá omezení počtu požadavků.</li>
+  <li><b>Obsluhovat port 80</b> přesměruje <code>http://</code> na <code>https://</code>.</li>
+</ul>
+<p>Název DNS musí ukazovat na IP adresu konzole, obvykle přes záznam A v interním DNS. Soubory certifikátu jsou v <code>/var/lib/backupzit/web</code> a klíč může číst jen služba. V Linuxu smí služba používat porty 80 a 443 (<code>CAP_NET_BIND_SERVICE</code>); pokud se prohlížeče připojují z jiných sítí, otevřete je ve firewallu.</p>
+
+<h2>Firewall</h2>
+<table>
+  <tr><th>Port</th><th>Odkud</th><th>Kam</th><th>Účel</th></tr>
+  <tr><td>8443/tcp</td><td>agenti, správci</td><td>konzole</td><td>API agentů a webová konzole</td></tr>
+  <tr><td>443/tcp, 80/tcp</td><td>správci</td><td>konzole</td><td>volitelně: webová konzole s důvěryhodným certifikátem a přesměrování na HTTPS</td></tr>
+  <tr><td>22/tcp</td><td>agenti, konzole</td><td>úložiště SFTP</td><td>cíle SFTP</td></tr>
+  <tr><td>443 nebo 9000/tcp</td><td>agenti, konzole</td><td>úložiště S3</td><td>cíle S3</td></tr>
+  <tr><td>445/tcp</td><td>agenti, konzole</td><td>NAS / souborový server</td><td>cíle SMB</td></tr>
+  <tr><td>8500/tcp</td><td>agenti, konzole</td><td>zabezpečené úložiště</td><td>zabezpečené cíle</td></tr>
+  <tr><td>443/tcp</td><td>agenti, konzole</td><td>Azure / cloudové úložiště</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
+  <tr><td>636/tcp (389 se StartTLS)</td><td>konzole</td><td>řadiče domény</td><td>přihlášení přes LDAP / Active Directory</td></tr>
+  <tr><td>587/465/25</td><td>konzole</td><td>poštovní server</td><td>e-mailová oznámení</td></tr>
+</table>
+<p>Konzole se k úložišti připojuje i sama, abyste mohli procházet soubory v obrazech disků a zálohách VM (a stahovat je), takže potřebuje stejný přístup k úložišti jako agenti.</p>
+
+<h2>Aktualizace BackupZit</h2>
+<p>Ve výchozím stavu konzole stahuje aktualizace z oficiálních vydání BackupZit na GitHubu (<code>https://github.com/Max-Zit/backupzit/releases</code>). V <a href="/settings/updates">Nastavení → Aktualizace</a> můžete místo toho zadat jiný <b>zdroj aktualizací</b> — vlastní zrcadlo HTTPS nebo složku na serveru. Ať je zdroj jakýkoli, každé vydání musí mít platný podpis BackupZit. Konzole denně kontroluje nová vydání a pošle správcům e-mail, když je některé k dispozici. Pro instalaci klikněte na <b>Instalovat</b>:</p>
+<ol>
+  <li>Konzole ověří podpis vydání a kontrolní součet balíčku a počká, až neběží žádná záloha ani obnova.</li>
+  <li>Systémová služba (<code>backupzit-update</code>, běží jako root) ověří podpis znovu pomocí klíčů vydání zabudovaných v BackupZit. Ani kompromitovaná konzole tak nemůže nechat nainstalovat jiný balíček.</li>
+  <li>Zazálohuje databázi (<code>pg_dump</code>), ponechá si aktuální program, nainstaluje balíček a restartuje konzoli.</li>
+  <li>Pokud nová verze do dvou minut neodpoví, předchozí program a databáze v původním stavu se automaticky obnoví. Výsledek s protokolem neúspěšného spuštění se zobrazí na stránce Aktualizace, zapíše se do protokolu auditu a odešle e-mailem.</li>
+  <li>Po úspěšné aktualizaci se aktualizují i agenti: každý nainstaluje novou verzi, když je nečinný. Pokud je chcete aktualizovat sami, vypněte to na stejné stránce.</li>
+</ol>
+<p>Konzole je asi minutu nedostupná. Zálohy databáze a předchozí programy z posledních tří aktualizací se uchovávají v <code>/var/lib/backupzit-update</code>.</p>
+<p><b>Bez přístupu k internetu:</b> stáhněte soubory vydání (<code>manifest.json</code>, <code>manifest.json.sig</code> a balíček serveru) na jiném počítači. Pak je nahrajte v části <i>Nainstalovat aktualizaci ze souborů</i>, nebo je zkopírujte do složky na serveru a tuto složku použijte jako zdroj aktualizací.</p>
+<p>Aktualizovat můžete i nadále správcem balíčků (<code>apt install ./backupzit-server_….deb</code>); databáze se převede při spuštění nové verze.</p>
+
+<h2>Aktualizace operačního systému</h2>
+<p>Stejná stránka (<a href="/settings/updates#os">Nastavení → Aktualizace</a>) ukazuje operační systém serveru konzole: kolik aktualizací je k dispozici, kolik z nich jsou bezpečnostní opravy, zda je potřeba restart a zda jsou zapnuté automatické bezpečnostní aktualizace. Stav se obnovuje denně, nebo tlačítkem <i>Zkontrolovat nyní</i>. Můžete:</p>
+<ul>
+  <li><b>Zapnout automatické bezpečnostní aktualizace</b> (doporučeno). Nástroj samotného systému denně instaluje jen bezpečnostní opravy: <code>unattended-upgrades</code> v Debianu a Ubuntu, <code>dnf-automatic</code> v AlmaLinuxu a Rocky Linuxu.</li>
+  <li><b>Nainstalovat nyní všechny aktualizace</b>. Služby jako PostgreSQL se mohou krátce restartovat a konzole se znovu připojí sama.</li>
+  <li><b>Restartovat server</b>, například po aktualizaci jádra. Konzole to odmítne, dokud běží zálohy nebo obnovy. Agenti si ponechají své úlohy a výsledky nahlásí, až bude konzole zpět.</li>
+</ul>
+<p>Tyto úlohy běží přes stejnou službu root jako aktualizace konzole. Zaznamenávají se do protokolu auditu a výstup poslední úlohy se zobrazí na stránce.</p>
+
+<h2>Záloha samotné konzole</h2>
+<p>Zálohy na vašem úložišti zůstávají čitelné i bez konzole díky listům pro obnovu. Chcete-li po ztrátě serveru získat zpět i samotnou konzoli, zapněte <a href="/settings/console">Nastavení → Záloha konzole</a>. To zahrnuje úlohy, rozvrhy, agenty, uživatele, nastavení, historii běhů a uložené přihlašovací údaje. Konzole se pak denně zálohuje na síťový cíl úložiště do složky <code>backupzit-console</code>.</p>
+<p>Záloha konzole obsahuje:</p>
+<ul>
+  <li>celou databázi, exportovanou tabulku po tabulce, takže není potřeba žádná konkrétní verze <code>pg_dump</code>;</li>
+  <li>klíč tajných údajů, který dešifruje uložené přihlašovací údaje;</li>
+  <li>certifikát konzole, který si agenti připínají.</li>
+</ul>
+<p>Je šifrována klíčem pro obnovení daného cíle a deduplikována. Uchovávají se nejnovější zálohy: ve výchozím stavu 14.</p>
+<h3>Obnova konzole</h3>
+<ol>
+  <li>Nainstalujte novou konzoli ve stejné nebo novější verzi, například z ISO appliance.</li>
+  <li>Na novém serveru jako root spusťte následující. Přihlašovací údaje jsou z listu pro obnovu cíle úložiště a adresa repozitáře je zobrazena na stránce Záloha konzole.
+<pre>systemctl stop backupzit-server
+set -a; . /etc/backupzit/server.env; set +a
+export BACKUPZIT_PASSWORD='&lt;recovery key&gt;'
+export BACKUPZIT_SFTP_PASSWORD='…' BACKUPZIT_SFTP_HOSTKEY='SHA256:…'   # or BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, _SMB_PASSWORD, _AZURE_KEY, _HARDENED_KEY/_FINGERPRINT
+backupzit-server --restore-console --repo 'sftp://backup@nas:22/backups/backupzit-console'
+systemctl start backupzit-server</pre></li>
+  <li>Dejte novému serveru IP adresu nebo název DNS starého serveru. Agenti důvěřují obnovenému certifikátu a připojí se sami.</li>
+</ol>
+<p>Obnova nahradí databázi nové konzole databází ze zálohy a převede ji na nainstalovanou verzi. <code>--snapshot ID</code> obnoví místo nejnovější zálohy starší.</p>
+<p>Kopii <b>listů pro obnovu</b> a souboru <code>secrets.key</code> uchovávejte i mimo server, například ve správci hesel.</p>
+
+{{template "docpager" .}}
+</article></div>{{end}}

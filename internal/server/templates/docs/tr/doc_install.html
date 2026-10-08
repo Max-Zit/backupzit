@@ -1,0 +1,191 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Sunucuyu kurma</h1>
+<p class="lead">Konsol, PostgreSQL ile Linux üzerinde (Debian, Ubuntu, AlmaLinux, Rocky Linux) çalışır. Her kuruluş kendi konsolunu kendi ağında çalıştırır.</p>
+
+<h2>Gereksinimler</h2>
+<ul>
+  <li>Bir Linux VM'si veya sunucusu: yüzlerce aracı için 2 vCPU, 2–4 GB RAM ve 20 GB disk fazlasıyla yeterlidir (yedek verileri burada saklanmaz).</li>
+  <li>PostgreSQL 13 veya üstü (yerel ya da başka bir sunucuda).</li>
+  <li>Ağ: aracılar konsola TCP <b>8443</b> (HTTPS) üzerinden ulaşabilmelidir. Aracılar depolamaya da doğrudan ulaşabilmelidir.</li>
+</ul>
+
+<h2>Kurulum yolunu seçme</h2>
+<table>
+  <tr><th>Yol</th><th>En uygun olduğu durum</th><th>Gerekenler</th></tr>
+  <tr><td><b>1. Hazır VM görüntüsü</b> (OVA, qcow2, VHDX)</td><td>En hızlısı: içe aktar, başlat, oturum aç</td><td>VMware, Proxmox/KVM veya Hyper-V; internet erişimi gerekmez</td></tr>
+  <tr><td><b>2. Appliance ISO'su</b></td><td>Yeni bir VM veya fiziksel sunucu, gözetimsiz kurulum</td><td>kurulum sırasında internet erişimi (Debian paketleri)</td></tr>
+  <tr><td><b>3. Kurulum betiği</b></td><td>Mevcut bir Debian, Ubuntu, AlmaLinux veya Rocky Linux sunucusu</td><td>root ve internet erişimi</td></tr>
+  <tr><td><b>4. Paketleri elle kurma</b></td><td>Kendi PostgreSQL'iniz, yapılandırma yönetimi, internet erişimi yok</td><td>sürümdeki sunucu paketi</td></tr>
+</table>
+
+<h2>İndirmeler</h2>
+<p>Tüm sürümler <a href="https://github.com/Max-Zit/backupzit/releases" target="_blank" rel="noopener">github.com/Max-Zit/backupzit/releases</a> adresindedir. Bu bağlantılar her zaman en yeni sürümü gösterir:</p>
+<table>
+  <tr><th>Dosya</th><th>Ne</th></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova">backupzit-appliance.ova</a></td><td>VMware ESXi, Workstation, VirtualBox için VM görüntüsü</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2">backupzit-appliance.qcow2</a></td><td>Proxmox VE ve KVM için VM görüntüsü</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip">backupzit-appliance-vhdx.zip</a></td><td>Hyper-V için VM görüntüsü (zip'ten çıkarın; 1. nesil)</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.iso">backupzit-appliance.iso</a></td><td>appliance kurulum ISO'su</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh">install.sh</a></td><td>mevcut bir Linux sunucusu için kurulum betiği</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>görüntülerin ve ISO'nun sağlama toplamları</td></tr>
+</table>
+<p>Paketler (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, aracılar) sürüm sayfasında listelenir. Görüntülerin her biri yaklaşık 1,5 GB'dir. Bir indirmeyi <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) veya <code>Get-FileHash file -Algorithm SHA256</code> (Windows) ile denetleyin.</p>
+
+<h2>1. Hazır VM görüntüsü</h2>
+<p>Bir dakikadan kısa sürede açılan ve internet erişimi gerektirmeyen hazır bir appliance (Debian, PostgreSQL, konsol, otomatik güvenlik güncellemeleri):</p>
+<table>
+  <tr><th>Hipervizör</th><th>Nasıl</th></tr>
+  <tr><td>VMware ESXi</td><td>Host Client: <i>Create / Register VM → Deploy a virtual machine from an OVF or OVA file</i>, <code>backupzit-appliance.ova</code>'yı seçin. vSphere: <i>Deploy OVF Template</i>. Workstation ve VirtualBox: <i>File → Open / Import</i>.</td></tr>
+  <tr><td>Proxmox VE</td><td><code>backupzit-appliance.qcow2</code>'yi düğüme kopyalayın, disksiz bir VM oluşturun (2 vCPU, 2–4 GB RAM, VirtIO ağı), ardından<br><code>qm importdisk &lt;vmid&gt; backupzit-appliance.qcow2 local-lvm</code><br>içe aktarılan diski SCSI olarak bağlayın, önyükleme diski yapın ve QEMU konuk aracısını etkinleştirin.</td></tr>
+  <tr><td>Hyper-V</td><td><code>backupzit-appliance-vhdx.zip</code>'i çıkarın, ardından <i>Yeni → Sanal Makine</i>, <b>1. nesil</b>, 2–4 GB RAM, <i>Var olan bir sanal sabit diski kullan</i>: VHDX.</td></tr>
+</table>
+<p>VM'yi başlatın. Ekranında web konsolunun adresi ve <b>admin</b>'in ilk parolası görünür (bkz. <a href="#first">İlk oturum açma</a>). VM'ye 2 vCPU ve 2–4 GB RAM verin; 16 GB'lık diski istediğiniz zaman büyütebilirsiniz — appliance yeni alanı bir sonraki açılışta kullanmaya başlar (kök dosya sistemi çalışırken büyür). İlk açılışta her kopya kendi SSH anahtarlarını, veritabanı parolasını ve gizli bilgi anahtarını oluşturur; böylece tek bir görüntü birçok kez dağıtılabilir. Ağ bağdaştırıcısı adresini DHCP ile alır.</p>
+
+<h2>2. Appliance ISO'su</h2>
+<p><b>Appliance ISO'su</b> her şeyi soru sormadan kurar: Debian, PostgreSQL, konsol ve otomatik güvenlik güncellemeleri.</p>
+<ol>
+  <li>2 vCPU, 2–4 GB RAM ve 16 GB veya daha büyük bir diske sahip bir VM oluşturun (veya bir sunucu kullanın). VirtIO'yu veya hipervizörün varsayılan aygıtlarını, BIOS ya da UEFI kullanın.</li>
+  <li><code>backupzit-appliance.iso</code>'dan önyükleyin. 5 saniye sonra kurulum kendiliğinden başlar, <b>ilk diski siler</b> ve kurar. İşletim sistemi paketlerini indirdiği için sunucunun kurulum sırasında internet erişimi olmalıdır. Bu yaklaşık 10–20 dakika sürer, ardından sunucu yeniden başlar.</li>
+  <li>Sunucunun ekranında web konsolunun adresi ve <b>admin</b>'in ilk parolası görünür. Adresi açın, oturum açın ve parolayı değiştirin.</li>
+</ol>
+<h3>Appliance (görüntü veya ISO)</h3>
+<p>Appliance'ın iki ayrı hesabı vardır:</p>
+<ul>
+  <li>Günlük işler için web konsolunda (<code>https://&lt;address&gt;:8443</code>) <b>admin</b>. İlk parolası ilk açılıştan sonra sunucunun ekranında gösterilir; <b>Hesabım</b> altında değiştirin.</li>
+  <li>Sunucunun kendisinde (hipervizör konsolundaki ekranı veya SSH) <b>bzadmin</b>, ilk parola <code>backupzit</code>. İlk oturum açmada değiştirmeniz gerekir; kullanıcı <code>sudo</code> kullanabilir. Root oturum açamaz.</li>
+</ul>
+<p>BackupZit ve işletim sistemi güncellemeleri konsoldan yönetilir (aşağıya bakın). VMware Tools ve QEMU konuk aracısı dahildir; böylece hipervizörler appliance'ın adresini gösterir.</p>
+<h3 id="setup-menu">Sunucunun ekranındaki kurulum menüsü</h3>
+<p>bzadmin sunucunun kendi ekranında (SSH üzerinden değil) oturum açtığında bir menü açılır:</p>
+<table>
+  <tr><th>Öğe</th><th>Ne yapar</th></tr>
+  <tr><td>1 Network</td><td>DHCP veya önek uzunluğuyla statik bir adres (ör. <code>192.168.1.20/24</code>), ağ geçidi ve en fazla üç DNS sunucusu.</td></tr>
+  <tr><td>2 Server name</td><td>Ana bilgisayar adı (harfler, rakamlar ve -).</td></tr>
+  <tr><td>3 SSH</td><td>SSH sunucusunu açar veya kapatır ve bağlantı noktasını değiştirir. Konsolun (80, 443, 8443), PostgreSQL'in (5432) ve anında kurtarmanın (111, 2049) bağlantı noktaları kullanılamaz.</td></tr>
+  <tr><td>4 Reset the password of "admin"</td><td>Unutulan bir web konsolu parolası için; oturum açma engellerini de kaldırır. Ardından ekran üretilen ilk parolayı göstermeyi bırakır (admin'in parolası web konsolunda değiştirildiğinde de bir sonraki açılıştan itibaren böyledir).</td></tr>
+  <tr><td>5 Lift sign-in blocks and web console limits</td><td>Çok fazla başarısız oturum açma bir adresi engellediğinde veya web konsolu artık kullanamadığınız adreslerle sınırlandığında (bkz. <a href="/docs/security#web-access">Güvenlik</a>).</td></tr>
+  <tr><td>6–8</td><td>Web konsolunu yeniden başlatır, sunucuyu yeniden başlatır veya kapatır.</td></tr>
+  <tr><td>9 Time zone</td><td>Appliance UTC'de başlar. Bölgenizi ayarlayın, ör. <code>Europe/Belgrade</code>: konsol tüm saatleri bu bölgede gösterir, zamanlamaları çalıştırır ve geri yükleme noktalarını (bir veritabanı geri yüklemesinin zaman noktası dahil) bu bölgeye göre okur. Konsol bunu kullanmak için yeniden başlar.</td></tr>
+  <tr><td>0 Command line</td><td>Menüden çıkar. <code>sudo backupzit-server --setup</code> ile yeniden açın (SSH üzerinden de).</td></tr>
+</table>
+<p>Aynı ağ, sunucu adı, SSH ve saat dilimi ayarları web konsolunda <b>Ayarlar → Ağ</b> altındadır (yalnızca yöneticiler). Orada, ağ geçidi yarım dakika içinde yanıt vermeyen statik bir adres otomatik olarak geri alınır; böylece bir yazım hatası appliance'ı ağdan koparamaz. Konsola yine de ulaşılamıyorsa, SSH kapalıyken bile çalışan sunucu ekranındaki menüyü kullanın.</p>
+<p>Aracılar konsolun adresini değil sertifikasını hatırlar. Konsola IP adresiyle ulaşıyorlarsa ve adres değişirse, onları <code>backupzit-agent set-server</code> ile yeni adrese yönlendirin (bkz. <a href="/docs/agents#new-address">Aracılar</a>) ya da baştan bir DNS adı kullanın. DHCP ile, değişmemesi için appliance'ın adresini DHCP sunucusunda ayırın.</p>
+<p>Appliance'ın SSH sunucusu yalnızca AES-GCM/CTR şifrelerini ve SHA-2 MAC'lerini sunar (güvenlik açığı tarayıcılarının zayıf olarak bildirdiği chacha20-poly1305 ve 64 bit MAC'ler yoktur).</p>
+
+<h2>3. Kurulum betiği</h2>
+<p><b>Debian 12+, Ubuntu 22.04+, AlmaLinux veya Rocky Linux 9+</b> (x86-64) çalıştıran mevcut bir sunucuda, root olarak:</p>
+<pre>curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh</pre>
+<p>Betik PostgreSQL'i kurar, en yeni sürümü indirir, BackupZit sürüm anahtarıyla <b>imzasını</b> ve paket sağlama toplamını <b>denetler</b>, konsolu kurar, veritabanını rastgele bir parolayla oluşturur, <code>/etc/backupzit/server.env</code> dosyasını yazar, otomatik güvenlik güncellemelerini açar, etkinse firewalld veya ufw'de 8443 numaralı bağlantı noktasını açar, konsolu başlatır ve adresini ve ilk admin parolasını yazdırır. Seçenekler (<code>sh -s --</code> sonrasında):</p>
+<table>
+  <tr><th>Seçenek</th><th>Etkisi</th></tr>
+  <tr><td><code>--version 0.32.0</code></td><td>en yenisi yerine bu sürümü kurar</td></tr>
+  <tr><td><code>--db postgres://user:pw@host:5432/db</code></td><td>yerel bir veritabanı yerine mevcut bir PostgreSQL veritabanını kullanır</td></tr>
+  <tr><td><code>--hosts backup.example.local,10.0.0.10</code></td><td>konsol sertifikası için adlar ve adresler (varsayılan: sunucunun adresi ve adı)</td></tr>
+  <tr><td><code>--no-auto-updates</code></td><td>otomatik güvenlik güncellemelerini olduğu gibi bırakır</td></tr>
+</table>
+<p>Örnek: <code>curl -fsSL …/install.sh | sudo sh -s -- --hosts backup.example.local</code>. Betiği kurulu bir konsolda yeniden çalıştırmak BackupZit'i günceller, yapılandırmayı ve verileri korur. Betiği çalıştırmadan önce okumak için önce indirin: <code>curl -fsSLO …/install.sh; less install.sh; sudo sh install.sh</code>.</p>
+
+<h2>4. Paketleri elle kurma</h2>
+<h3>Debian / Ubuntu</h3>
+<pre>apt install postgresql
+apt install ./backupzit-server_*.deb</pre>
+<h3>AlmaLinux / Rocky Linux</h3>
+<pre>dnf install postgresql-server &amp;&amp; postgresql-setup --initdb &amp;&amp; systemctl enable --now postgresql
+dnf install ./backupzit-server-*.rpm</pre>
+<p>AlmaLinux ve Rocky Linux'ta, konsolun parolayla oturum açabilmesi için <code>/var/lib/pgsql/data/pg_hba.conf</code> dosyasındaki 127.0.0.1 ve ::1 satırlarında <code>ident</code>'i <code>scram-sha-256</code> olarak değiştirin ve PostgreSQL'i yeniden başlatın.</p>
+
+<h3>Veritabanını oluşturma</h3>
+<pre>sudo -u postgres psql -c "SET password_encryption = 'scram-sha-256'; CREATE USER backupzit WITH PASSWORD 'choose-a-strong-password'"
+sudo -u postgres psql -c "CREATE DATABASE backupzit OWNER backupzit"</pre>
+<p>Bağlantı dizesini <code>/etc/backupzit/server.env</code> dosyasına yazın:</p>
+<pre>BACKUPZIT_DB=postgres://backupzit:choose-a-strong-password@localhost:5432/backupzit?sslmode=disable
+BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
+BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
+<pre>systemctl start backupzit-server</pre>
+
+<h2 id="first">İlk oturum açma</h2>
+<p><code>https://&lt;server&gt;:8443</code> adresini açın. İlk yönetici <b>admin</b>'dir; parola <code>/var/lib/backupzit/initial-admin-password.txt</code> dosyasındadır (veya ilk açılıştan önce <code>BACKUPZIT_ADMIN_PASSWORD</code> ayarlayın). Oturum açtıktan sonra değiştirin. Unutulan bir parolayı sunucuda sıfırlamak için:</p>
+<pre>set -a; . /etc/backupzit/server.env; set +a
+backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
+
+<h2>Sertifika</h2>
+<p>İlk açılışta konsol kendinden imzalı bir sertifika oluşturur. Tarayıcınız bir kez uyarır; aracılar ise sertifika yetkililerine hiç güvenmez — kaydolurken <a href="/agents">Aracılar</a> sayfasında gösterilen <b>sertifika parmak izini sabitlerler</b>. Bu, aracıları güvenilmeyen bir ağda bile sahte bir sunucuya karşı korur.</p>
+<div class="callout warn"><p>Bu sertifikayı değiştirmeyin (veri dizinindeki <code>cert.pem</code>/<code>key.pem</code>): daha önce kaydolmuş aracılar yeniden kaydolana kadar bağlanmayı reddeder. Tarayıcılar için bunun yerine aşağıda anlatıldığı gibi güvenilir bir sertifika ekleyin.</p></div>
+
+<h3>Tarayıcılar için güvenilir bir sertifika</h3>
+<p>Tarayıcı uyarısından kaçınmak için <a href="/settings/certificate">Ayarlar → Sertifika</a>'yı açın. Konsol bu durumda bir DNS adında da, örneğin 443 numaralı bağlantı noktasında <code>https://backup.example.com</code> adresinde, güvenilir bir sertifikayla yanıt verir. Aracılar 8443 numaralı bağlantı noktasını ve sabitlenmiş sertifikayı kullanmaya devam eder; bu yüzden etkilenmezler.</p>
+<ul>
+  <li>Şirket CA'nızdan veya genel bir CA'dan <b>Sertifika yükle</b>; <code>*.example.com</code> gibi bir joker sertifika da olabilir. Sertifikayı (ara sertifikalarıyla) ve özel anahtarı PEM olarak yapıştırın ya da dosyaları seçin. Konsol, anahtarın sertifikaya ait olduğunu, sertifikanın şu anda geçerli olduğunu ve DNS adını kapsadığını denetler. İç DNS yoksa bunun yerine konsolun IP adresini girin ve bu IP adresi için verilmiş bir sertifika kullanın (alternatif ad <code>IP:192.168.1.20</code>); bu durumda konsola sabit bir adres verin. Süresi dolmadan 21 gün önce bir e-posta alırsınız.</li>
+  <li><b>Let's Encrypt</b>: ücretsiz sertifikalar, süreleri dolmadan 30 gün önce otomatik yenilenir. Let's Encrypt, adı sizin denetlediğinizi iki yoldan biriyle doğrulamalıdır:
+    <ul>
+      <li><b>Cloudflare üzerinden DNS denetimi</b>, internetten erişilemeyen konsollar için önerilir. BackupZit bir Cloudflare API belirteciyle geçici bir TXT kaydı oluşturur. Cloudflare'de My Profile → API Tokens → Create Token'a gidin, <i>Edit zone DNS</i> şablonunu kullanın ve bölgenizle sınırlayın.</li>
+      <li><b>HTTP denetimi</b>: konsolun 80 numaralı bağlantı noktası DNS adı altında internetten erişilebilir olmalıdır. Bir yedekleme sunucusu için bu nadiren istenir.</li>
+    </ul>
+    Kurulumu önce <i>Let's Encrypt test sistemini kullan</i> ile deneyin. Tarayıcılar sertifikalarına güvenmez, ama hız sınırı yoktur.</li>
+  <li><b>80 numaralı portu sun</b>, <code>http://</code>'yi <code>https://</code>'ye yönlendirir.</li>
+</ul>
+<p>DNS adı, genellikle iç DNS'inizdeki bir A kaydıyla konsolun IP adresine işaret etmelidir. Sertifika dosyaları <code>/var/lib/backupzit/web</code> içinde tutulur ve anahtarı yalnızca hizmet okuyabilir. Linux'ta hizmet 80 ve 443 numaralı bağlantı noktalarını kullanabilir (<code>CAP_NET_BIND_SERVICE</code>); tarayıcılar başka ağlardan bağlanıyorsa bunları güvenlik duvarında açın.</p>
+
+<h2>Güvenlik duvarı</h2>
+<table>
+  <tr><th>Bağlantı noktası</th><th>Kaynak</th><th>Hedef</th><th>Amaç</th></tr>
+  <tr><td>8443/tcp</td><td>aracılar, yöneticiler</td><td>konsol</td><td>aracı API'si ve web konsolu</td></tr>
+  <tr><td>443/tcp, 80/tcp</td><td>yöneticiler</td><td>konsol</td><td>isteğe bağlı: güvenilir sertifikalı web konsolu ve HTTPS'ye yönlendirme</td></tr>
+  <tr><td>22/tcp</td><td>aracılar, konsol</td><td>SFTP depolama</td><td>SFTP hedefleri</td></tr>
+  <tr><td>443 veya 9000/tcp</td><td>aracılar, konsol</td><td>S3 depolama</td><td>S3 hedefleri</td></tr>
+  <tr><td>445/tcp</td><td>aracılar, konsol</td><td>NAS / dosya sunucusu</td><td>SMB hedefleri</td></tr>
+  <tr><td>8500/tcp</td><td>aracılar, konsol</td><td>güçlendirilmiş depo</td><td>güçlendirilmiş hedefler</td></tr>
+  <tr><td>443/tcp</td><td>aracılar, konsol</td><td>Azure / bulut depolama</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
+  <tr><td>636/tcp (StartTLS ile 389)</td><td>konsol</td><td>etki alanı denetleyicileri</td><td>LDAP / Active Directory ile oturum açma</td></tr>
+  <tr><td>587/465/25</td><td>konsol</td><td>posta sunucusu</td><td>e-posta bildirimleri</td></tr>
+</table>
+<p>Konsol, disk görüntüleri ve VM yedeklerindeki dosyalara göz atmanıza (ve onları indirmenize) izin vermek için depolamaya kendisi de bağlanır; bu yüzden aracılarla aynı depolama erişimine ihtiyaç duyar.</p>
+
+<h2>BackupZit'i güncelleme</h2>
+<p>Varsayılan olarak konsol güncellemeleri GitHub'daki resmi BackupZit sürümlerinden alır (<code>https://github.com/Max-Zit/backupzit/releases</code>). <a href="/settings/updates">Ayarlar → Güncellemeler</a> altında bunun yerine başka bir <b>güncelleme kaynağı</b> girebilirsiniz — kendi HTTPS yansınız veya sunucudaki bir klasör. Kaynak ne olursa olsun, her sürüm geçerli bir BackupZit imzası taşımalıdır. Konsol her gün yeni sürümleri denetler ve biri kullanılabilir olduğunda yöneticilere e-posta gönderir. Kurmak için <b>Kur</b>'a tıklayın:</p>
+<ol>
+  <li>Konsol sürüm imzasını ve paket sağlama toplamını denetler ve hiçbir yedekleme veya geri yükleme çalışmayana kadar bekler.</li>
+  <li>Bir sistem hizmeti (<code>backupzit-update</code>, root olarak çalışır) imzayı BackupZit'e gömülü sürüm anahtarlarıyla yeniden denetler. Ele geçirilmiş bir konsol bile başka bir paketin kurulmasını sağlayamaz.</li>
+  <li>Veritabanını yedekler (<code>pg_dump</code>), mevcut programı saklar, paketi kurar ve konsolu yeniden başlatır.</li>
+  <li>Yeni sürüm iki dakika içinde yanıt vermezse önceki program ve veritabanının önceki hâli otomatik olarak geri yüklenir. Sonuç, başarısız başlatmanın günlüğüyle birlikte Güncellemeler sayfasında gösterilir, denetim günlüğüne kaydedilir ve e-postayla gönderilir.</li>
+  <li>Başarılı bir güncellemeden sonra aracılar da güncellenir: her biri boşta olduğunda yeni sürümü kurar. Bunları kendiniz güncellemeyi tercih ederseniz aynı sayfada kapatın.</li>
+</ol>
+<p>Konsol yaklaşık bir dakika kullanılamaz. Son üç güncellemenin veritabanı yedekleri ve önceki programları <code>/var/lib/backupzit-update</code> içinde tutulur.</p>
+<p><b>İnternet erişimi olmadan:</b> sürüm dosyalarını (<code>manifest.json</code>, <code>manifest.json.sig</code> ve sunucu paketi) başka bir bilgisayarda indirin. Ardından bunları <i>Dosyalardan güncelleme kur</i> altında yükleyin ya da sunucudaki bir klasöre kopyalayıp o klasörü güncelleme kaynağı olarak kullanın.</p>
+<p>Paket yöneticisiyle de güncellemeye devam edebilirsiniz (<code>apt install ./backupzit-server_….deb</code>); veritabanı yeni sürüm başladığında taşınır.</p>
+
+<h2>İşletim sistemi güncellemeleri</h2>
+<p>Aynı sayfa (<a href="/settings/updates#os">Ayarlar → Güncellemeler</a>) konsol sunucusunun işletim sistemini gösterir: kaç güncelleme kullanılabilir olduğunu, bunların kaçının güvenlik düzeltmesi olduğunu, yeniden başlatma gerekip gerekmediğini ve otomatik güvenlik güncellemelerinin açık olup olmadığını. Durum her gün ya da <i>Şimdi denetle</i> ile yenilenir. Şunları yapabilirsiniz:</p>
+<ul>
+  <li><b>Otomatik güvenlik güncellemelerini aç</b> (önerilir). Sistemin kendi aracı her gün yalnızca güvenlik düzeltmelerini kurar: Debian ve Ubuntu'da <code>unattended-upgrades</code>, AlmaLinux ve Rocky Linux'ta <code>dnf-automatic</code>.</li>
+  <li><b>Tüm güncellemeleri şimdi kur</b>. PostgreSQL gibi hizmetler kısa süreliğine yeniden başlayabilir ve konsol kendiliğinden yeniden bağlanır.</li>
+  <li><b>Sunucuyu yeniden başlat</b>, örneğin bir çekirdek güncellemesinden sonra. Yedeklemeler veya geri yüklemeler çalışırken konsol bunu reddeder. Aracılar işlerini korur ve konsol geri geldiğinde sonuçları bildirir.</li>
+</ul>
+<p>Bu görevler konsol güncellemeleriyle aynı root hizmeti üzerinden çalışır. Denetim günlüğüne kaydedilir ve son görevin çıktısı sayfada gösterilir.</p>
+
+<h2>Konsolun kendisini yedekleme</h2>
+<p>Depolamanızdaki yedekler, kurtarma sayfaları sayesinde konsol olmadan da okunabilir kalır. Sunucusu kaybolduktan sonra konsolun kendisini de geri almak için <a href="/settings/console">Ayarlar → Konsol yedeği</a>'ni açın. Bu; işleri, zamanlamaları, aracıları, kullanıcıları, ayarları, çalıştırma geçmişini ve saklanan kimlik bilgilerini kapsar. Konsol bundan sonra her gün kendini bir ağ depolama hedefine, <code>backupzit-console</code> klasörüne yedekler.</p>
+<p>Bir konsol yedeği şunları içerir:</p>
+<ul>
+  <li>tablo tablo dışa aktarılan tüm veritabanı; böylece belirli bir <code>pg_dump</code> sürümü gerekmez;</li>
+  <li>saklanan kimlik bilgilerinin şifresini çözen gizli bilgi anahtarı;</li>
+  <li>aracıların sabitlediği konsol sertifikası.</li>
+</ul>
+<p>Hedefin kurtarma anahtarıyla şifrelenir ve tekilleştirilir. En yeni yedekler tutulur: varsayılan olarak 14.</p>
+<h3>Konsolu geri yükleme</h3>
+<ol>
+  <li>Aynı veya daha yeni sürümde yeni bir konsol kurun, örneğin appliance ISO'sundan.</li>
+  <li>Yeni sunucuda root olarak aşağıdakini çalıştırın. Kimlik bilgileri depolama hedefinin kurtarma sayfasındakilerdir ve depo adresi Konsol yedeği sayfasında gösterilir.
+<pre>systemctl stop backupzit-server
+set -a; . /etc/backupzit/server.env; set +a
+export BACKUPZIT_PASSWORD='&lt;recovery key&gt;'
+export BACKUPZIT_SFTP_PASSWORD='…' BACKUPZIT_SFTP_HOSTKEY='SHA256:…'   # or BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, _SMB_PASSWORD, _AZURE_KEY, _HARDENED_KEY/_FINGERPRINT
+backupzit-server --restore-console --repo 'sftp://backup@nas:22/backups/backupzit-console'
+systemctl start backupzit-server</pre></li>
+  <li>Yeni sunucuya eski sunucunun IP adresini veya DNS adını verin. Aracılar geri yüklenen sertifikaya güvenir ve kendiliğinden yeniden bağlanır.</li>
+</ol>
+<p>Geri yükleme, yeni konsolun veritabanını yedektekiyle değiştirir ve veritabanını kurulu sürüme yükseltir. <code>--snapshot ID</code> en yenisi yerine daha eski bir yedeği geri yükler.</p>
+<p><b>Kurtarma sayfalarının</b> ve <code>secrets.key</code>'in bir kopyasını da sunucunun dışında, örneğin parola yöneticinizde saklayın.</p>
+
+{{template "docpager" .}}
+</article></div>{{end}}

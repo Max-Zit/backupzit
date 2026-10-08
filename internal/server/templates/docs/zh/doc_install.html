@@ -1,0 +1,191 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>安装服务器</h1>
+<p class="lead">控制台运行在带 PostgreSQL 的 Linux（Debian、Ubuntu、AlmaLinux、Rocky Linux）上。每个组织在自己的网络中运行自己的控制台。</p>
+
+<h2>要求</h2>
+<ul>
+  <li>一台 Linux 虚拟机或服务器：2 个 vCPU、2–4 GB 内存、20 GB 磁盘足以支持数百个代理（备份数据不存储在其上）。</li>
+  <li>PostgreSQL 13 或更高版本（本地或其他服务器上）。</li>
+  <li>网络：代理必须能通过 TCP <b>8443</b>（HTTPS）访问控制台。代理还必须能直接访问存储。</li>
+</ul>
+
+<h2>选择安装方式</h2>
+<table>
+  <tr><th>方式</th><th>最适合</th><th>需要</th></tr>
+  <tr><td><b>1. 现成的虚拟机映像</b>（OVA、qcow2、VHDX）</td><td>最快：导入、启动、登录</td><td>VMware、Proxmox/KVM 或 Hyper-V；无需互联网访问</td></tr>
+  <tr><td><b>2. 设备 ISO</b></td><td>新虚拟机或物理服务器，无人值守安装</td><td>安装期间需要互联网访问（Debian 软件包）</td></tr>
+  <tr><td><b>3. 安装脚本</b></td><td>现有的 Debian、Ubuntu、AlmaLinux 或 Rocky Linux 服务器</td><td>root 和互联网访问</td></tr>
+  <tr><td><b>4. 手动安装软件包</b></td><td>自有 PostgreSQL、配置管理、无互联网访问</td><td>发布中的服务器软件包</td></tr>
+</table>
+
+<h2>下载</h2>
+<p>所有版本都在 <a href="https://github.com/Max-Zit/backupzit/releases" target="_blank" rel="noopener">github.com/Max-Zit/backupzit/releases</a>。以下链接始终指向最新版本：</p>
+<table>
+  <tr><th>文件</th><th>内容</th></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova">backupzit-appliance.ova</a></td><td>适用于 VMware ESXi、Workstation、VirtualBox 的虚拟机映像</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2">backupzit-appliance.qcow2</a></td><td>适用于 Proxmox VE 和 KVM 的虚拟机映像</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip">backupzit-appliance-vhdx.zip</a></td><td>适用于 Hyper-V 的虚拟机映像（解压；第 1 代）</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.iso">backupzit-appliance.iso</a></td><td>设备安装 ISO</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh">install.sh</a></td><td>用于现有 Linux 服务器的安装脚本</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>映像和 ISO 的校验和</td></tr>
+</table>
+<p>软件包（<code>backupzit-server_X_amd64.deb</code>、<code>backupzit-server-X.x86_64.rpm</code>、代理）列在发布页面上。每个映像约 1.5 GB。使用 <code>sha256sum -c SHA256SUMS --ignore-missing</code>（Linux）或 <code>Get-FileHash file -Algorithm SHA256</code>（Windows）校验下载文件。</p>
+
+<h2>1. 现成的虚拟机映像</h2>
+<p>一个现成的设备（Debian、PostgreSQL、控制台、自动安全更新），不到一分钟即可启动，无需互联网访问：</p>
+<table>
+  <tr><th>虚拟化平台</th><th>方法</th></tr>
+  <tr><td>VMware ESXi</td><td>Host Client：<i>Create / Register VM → Deploy a virtual machine from an OVF or OVA file</i>，选择 <code>backupzit-appliance.ova</code>。vSphere：<i>Deploy OVF Template</i>。Workstation 和 VirtualBox：<i>File → Open / Import</i>。</td></tr>
+  <tr><td>Proxmox VE</td><td>将 <code>backupzit-appliance.qcow2</code> 复制到节点，创建一台不带磁盘的虚拟机（2 个 vCPU、2–4 GB 内存、VirtIO 网络），然后<br><code>qm importdisk &lt;vmid&gt; backupzit-appliance.qcow2 local-lvm</code><br>将导入的磁盘作为 SCSI 挂载，设为启动盘，并启用 QEMU 客户机代理。</td></tr>
+  <tr><td>Hyper-V</td><td>解压 <code>backupzit-appliance-vhdx.zip</code>，然后<i>新建 → 虚拟机</i>，<b>第 1 代</b>，2–4 GB 内存，<i>使用现有虚拟硬盘</i>：该 VHDX。</td></tr>
+</table>
+<p>启动虚拟机。其屏幕会显示 Web 控制台的地址和 <b>admin</b> 的初始密码（参见<a href="#first">首次登录</a>）。为虚拟机分配 2 个 vCPU 和 2–4 GB 内存；16 GB 磁盘可随时扩大——设备会在下次启动时使用新空间（根文件系统可在线扩展）。首次启动时，每个副本都会创建自己的 SSH 密钥、数据库密码和机密密钥，因此同一映像可以部署多次。网络适配器通过 DHCP 获取地址。</p>
+
+<h2>2. 设备 ISO</h2>
+<p><b>设备 ISO</b> 会不经询问地安装所有内容：Debian、PostgreSQL、控制台和自动安全更新。</p>
+<ol>
+  <li>创建一台虚拟机（或使用服务器），配置 2 个 vCPU、2–4 GB 内存和 16 GB 或更大的磁盘。使用 VirtIO 或虚拟化平台的默认设备，BIOS 或 UEFI 均可。</li>
+  <li>从 <code>backupzit-appliance.iso</code> 启动。5 秒后安装会自动开始，<b>清除第一块磁盘</b>并进行安装。它会下载操作系统软件包，因此安装期间服务器需要访问互联网。整个过程约需 10–20 分钟，之后服务器会重新启动。</li>
+  <li>服务器屏幕会显示 Web 控制台的地址和 <b>admin</b> 的初始密码。打开该地址，登录并更改密码。</li>
+</ol>
+<h3>设备（映像或 ISO）</h3>
+<p>设备有两个独立的帐户：</p>
+<ul>
+  <li>Web 控制台（<code>https://&lt;address&gt;:8443</code>）中的 <b>admin</b>，用于日常工作。其初始密码在首次启动后显示在服务器屏幕上；请在<b>我的帐户</b>中更改。</li>
+  <li>服务器本身上的 <b>bzadmin</b>（虚拟化平台控制台中的屏幕或 SSH），初始密码为 <code>backupzit</code>。首次登录时必须更改；该用户可以使用 <code>sudo</code>。root 无法登录。</li>
+</ul>
+<p>BackupZit 和操作系统的更新从控制台管理（见下文）。已包含 VMware Tools 和 QEMU 客户机代理，因此虚拟化平台会显示设备的地址。</p>
+<h3 id="setup-menu">服务器屏幕上的设置菜单</h3>
+<p>当 bzadmin 在服务器自身屏幕上（而非通过 SSH）登录时，会打开一个菜单：</p>
+<table>
+  <tr><th>项目</th><th>作用</th></tr>
+  <tr><td>1 Network</td><td>DHCP 或带前缀长度的静态地址（例如 <code>192.168.1.20/24</code>）、网关以及最多三个 DNS 服务器。</td></tr>
+  <tr><td>2 Server name</td><td>主机名（字母、数字和 -）。</td></tr>
+  <tr><td>3 SSH</td><td>开启或关闭 SSH 服务器并更改其端口。不能使用控制台（80、443、8443）、PostgreSQL（5432）和即时恢复（111、2049）的端口。</td></tr>
+  <tr><td>4 Reset the password of "admin"</td><td>用于忘记的 Web 控制台密码；同时解除登录封锁。之后屏幕不再显示生成的初始密码（在 Web 控制台中更改 admin 密码后，从下次启动起也是如此）。</td></tr>
+  <tr><td>5 Lift sign-in blocks and web console limits</td><td>当过多失败的登录封锁了某个地址，或 Web 控制台被限制为您已无法使用的地址时（参见 <a href="/docs/security#web-access">安全</a>）。</td></tr>
+  <tr><td>6–8</td><td>重启 Web 控制台、重启或关闭服务器。</td></tr>
+  <tr><td>9 Time zone</td><td>设备以 UTC 启动。设置您的时区，例如 <code>Europe/Belgrade</code>：控制台会以该时区显示所有时间、运行计划并读取还原点（包括数据库还原的时间点）。控制台会重启以应用该设置。</td></tr>
+  <tr><td>0 Command line</td><td>退出菜单。可使用 <code>sudo backupzit-server --setup</code> 再次打开（也可通过 SSH）。</td></tr>
+</table>
+<p>相同的网络、服务器名称、SSH 和时区设置也位于 Web 控制台的<b>设置 → 网络</b>下（仅管理员）。在那里，如果静态地址的网关在半分钟内没有响应，设置会自动撤销，因此输入错误不会使设备断网；如果仍无法访问控制台，请使用服务器屏幕上的菜单，即使关闭了 SSH 也能使用。</p>
+<p>代理记住的是控制台的证书，而不是其地址。如果代理通过 IP 地址访问控制台且地址发生变化，请使用 <code>backupzit-agent set-server</code> 将其指向新地址（参见 <a href="/docs/agents#new-address">Agent</a>），或从一开始就使用 DNS 名称。使用 DHCP 时，请在 DHCP 服务器中为设备保留地址，使其不会变化。</p>
+<p>设备的 SSH 服务器仅提供 AES-GCM/CTR 加密算法和 SHA-2 MAC（不提供漏洞扫描器报告为弱的 chacha20-poly1305 和 64 位 MAC）。</p>
+
+<h2>3. 安装脚本</h2>
+<p>在运行 <b>Debian 12+、Ubuntu 22.04+、AlmaLinux 或 Rocky Linux 9+</b>（x86-64）的现有服务器上，以 root 身份运行：</p>
+<pre>curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh</pre>
+<p>脚本会安装 PostgreSQL，下载最新版本，使用 BackupZit 发布密钥<b>检查其签名</b>以及软件包校验和，安装控制台，使用随机密码创建数据库，写入 <code>/etc/backupzit/server.env</code>，开启自动安全更新，如果 firewalld 或 ufw 处于活动状态则在其中开放 8443 端口，启动控制台并打印其地址和初始 admin 密码。选项（位于 <code>sh -s --</code> 之后）：</p>
+<table>
+  <tr><th>选项</th><th>效果</th></tr>
+  <tr><td><code>--version 0.32.0</code></td><td>安装此版本而非最新版本</td></tr>
+  <tr><td><code>--db postgres://user:pw@host:5432/db</code></td><td>使用现有 PostgreSQL 数据库而非本地数据库</td></tr>
+  <tr><td><code>--hosts backup.example.local,10.0.0.10</code></td><td>控制台证书使用的名称和地址（默认：服务器的地址和名称）</td></tr>
+  <tr><td><code>--no-auto-updates</code></td><td>保持自动安全更新的现状</td></tr>
+</table>
+<p>示例：<code>curl -fsSL …/install.sh | sudo sh -s -- --hosts backup.example.local</code>。在已安装的控制台上再次运行脚本会更新 BackupZit，并保留配置和数据。若要在运行前阅读脚本，请先下载：<code>curl -fsSLO …/install.sh; less install.sh; sudo sh install.sh</code>。</p>
+
+<h2>4. 手动安装软件包</h2>
+<h3>Debian / Ubuntu</h3>
+<pre>apt install postgresql
+apt install ./backupzit-server_*.deb</pre>
+<h3>AlmaLinux / Rocky Linux</h3>
+<pre>dnf install postgresql-server &amp;&amp; postgresql-setup --initdb &amp;&amp; systemctl enable --now postgresql
+dnf install ./backupzit-server-*.rpm</pre>
+<p>在 AlmaLinux 和 Rocky Linux 上，将 <code>/var/lib/pgsql/data/pg_hba.conf</code> 中 127.0.0.1 和 ::1 行的 <code>ident</code> 改为 <code>scram-sha-256</code> 并重启 PostgreSQL，以便控制台可以使用密码登录。</p>
+
+<h3>创建数据库</h3>
+<pre>sudo -u postgres psql -c "SET password_encryption = 'scram-sha-256'; CREATE USER backupzit WITH PASSWORD 'choose-a-strong-password'"
+sudo -u postgres psql -c "CREATE DATABASE backupzit OWNER backupzit"</pre>
+<p>将连接字符串写入 <code>/etc/backupzit/server.env</code>：</p>
+<pre>BACKUPZIT_DB=postgres://backupzit:choose-a-strong-password@localhost:5432/backupzit?sslmode=disable
+BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
+BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
+<pre>systemctl start backupzit-server</pre>
+
+<h2 id="first">首次登录</h2>
+<p>打开 <code>https://&lt;server&gt;:8443</code>。初始管理员是 <b>admin</b>；密码位于 <code>/var/lib/backupzit/initial-admin-password.txt</code>（或在首次启动前设置 <code>BACKUPZIT_ADMIN_PASSWORD</code>）。登录后请更改密码。在服务器上重置忘记的密码：</p>
+<pre>set -a; . /etc/backupzit/server.env; set +a
+backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
+
+<h2>证书</h2>
+<p>首次启动时，控制台会创建一个自签名证书。浏览器会对此警告一次；代理完全不依赖证书颁发机构——它们在注册时会<b>固定 <a href="/agents">Agent</a> 页面上显示的证书指纹</b>。这样即使在不可信的网络中，代理也能防范伪造的服务器。</p>
+<div class="callout warn"><p>不要替换该证书（数据目录中的 <code>cert.pem</code>/<code>key.pem</code>）：之前注册的代理在重新注册前会拒绝连接。对于浏览器，请按下文所述另外添加受信任的证书。</p></div>
+
+<h3>供浏览器使用的受信任证书</h3>
+<p>要避免浏览器警告，请打开 <a href="/settings/certificate">设置 → 证书</a>。控制台随后还会在某个 DNS 名称上（例如 443 端口上的 <code>https://backup.example.com</code>）使用受信任的证书进行响应。代理继续使用 8443 端口和固定的证书，因此不受影响。</p>
+<ul>
+  <li><b>上传证书</b>，来自您公司的 CA 或公共 CA，也可以是通配符证书，例如 <code>*.example.com</code>。以 PEM 格式粘贴证书（含中间证书）和私钥，或选择文件。控制台会检查密钥与证书匹配、证书当前有效且涵盖该 DNS 名称。没有内部 DNS 时，请改为输入控制台的 IP 地址，并使用为该 IP 地址颁发的证书（使用者可选名称 <code>IP:192.168.1.20</code>）；此时请为控制台分配固定地址。证书到期前 21 天您会收到电子邮件。</li>
+  <li><b>Let's Encrypt</b>：免费证书，在到期前 30 天自动续订。Let's Encrypt 需要通过以下两种方式之一验证您控制该名称：
+    <ul>
+      <li><b>通过 Cloudflare 进行 DNS 验证</b>，推荐用于无法从互联网访问的控制台。BackupZit 使用 Cloudflare API 令牌创建临时 TXT 记录。在 Cloudflare 中，转到 My Profile → API Tokens → Create Token，使用模板 <i>Edit zone DNS</i> 并将其限制在您的区域。</li>
+      <li><b>HTTP 验证</b>：控制台的 80 端口必须能通过该 DNS 名称从互联网访问。对于备份服务器，很少希望这样做。</li>
+    </ul>
+    请先使用<i>使用 Let's Encrypt 测试系统</i>试用设置。浏览器不信任其证书，但它没有速率限制。</li>
+  <li><b>提供 80 端口服务</b>会将 <code>http://</code> 重定向到 <code>https://</code>。</li>
+</ul>
+<p>DNS 名称必须指向控制台的 IP 地址，通常通过内部 DNS 中的 A 记录实现。证书文件保存在 <code>/var/lib/backupzit/web</code> 中，密钥只有该服务可以读取。在 Linux 上，该服务可以使用 80 和 443 端口（<code>CAP_NET_BIND_SERVICE</code>）；如果浏览器从其他网络连接，请在防火墙中开放这些端口。</p>
+
+<h2>防火墙</h2>
+<table>
+  <tr><th>端口</th><th>来源</th><th>目标</th><th>用途</th></tr>
+  <tr><td>8443/tcp</td><td>代理、管理员</td><td>控制台</td><td>代理 API 和 Web 控制台</td></tr>
+  <tr><td>443/tcp, 80/tcp</td><td>管理员</td><td>控制台</td><td>可选：使用受信任证书的 Web 控制台，以及重定向到 HTTPS</td></tr>
+  <tr><td>22/tcp</td><td>代理、控制台</td><td>SFTP 存储</td><td>SFTP 目标</td></tr>
+  <tr><td>443 或 9000/tcp</td><td>代理、控制台</td><td>S3 存储</td><td>S3 目标</td></tr>
+  <tr><td>445/tcp</td><td>代理、控制台</td><td>NAS / 文件服务器</td><td>SMB 目标</td></tr>
+  <tr><td>8500/tcp</td><td>代理、控制台</td><td>加固存储库</td><td>加固目标</td></tr>
+  <tr><td>443/tcp</td><td>代理、控制台</td><td>Azure / 云存储</td><td>Azure Blob、AWS、Wasabi、Google Cloud …</td></tr>
+  <tr><td>636/tcp（使用 StartTLS 时为 389）</td><td>控制台</td><td>域控制器</td><td>LDAP / Active Directory 登录</td></tr>
+  <tr><td>587/465/25</td><td>控制台</td><td>邮件服务器</td><td>电子邮件通知</td></tr>
+</table>
+<p>控制台还会自行连接存储，以便您浏览磁盘映像和虚拟机备份中的文件（并下载），因此它需要与代理相同的存储访问权限。</p>
+
+<h2>更新 BackupZit</h2>
+<p>默认情况下，控制台从 GitHub 上的 BackupZit 官方发布获取更新（<code>https://github.com/Max-Zit/backupzit/releases</code>）。在 <a href="/settings/updates">设置 → 更新</a> 下，您可以改为输入另一个<b>更新源</b>——您自己的 HTTPS 镜像或服务器上的文件夹。无论来源如何，每个版本都必须带有有效的 BackupZit 签名。控制台每天检查新版本，有可用版本时会向管理员发送电子邮件。要安装它，请点击<b>安装</b>：</p>
+<ol>
+  <li>控制台检查版本签名和软件包校验和，并等待没有正在运行的备份或还原。</li>
+  <li>系统服务（<code>backupzit-update</code>，以 root 身份运行）使用 BackupZit 内置的发布密钥再次检查签名。即使控制台被入侵，也无法让其他软件包被安装。</li>
+  <li>它会备份数据库（<code>pg_dump</code>），保留当前程序，安装软件包并重启控制台。</li>
+  <li>如果新版本在两分钟内没有响应，会自动恢复之前的程序和原先状态的数据库。结果连同启动失败的日志会显示在更新页面上，记录在审计日志中并通过电子邮件发送。</li>
+  <li>更新成功后，代理也会随之更新：每个代理在空闲时安装新版本。如果您希望自行更新代理，可在同一页面上关闭此功能。</li>
+</ol>
+<p>控制台会有大约一分钟不可用。最近三次更新的数据库备份和之前的程序保存在 <code>/var/lib/backupzit-update</code> 中。</p>
+<p><b>无互联网访问时：</b>在另一台计算机上下载版本文件（<code>manifest.json</code>、<code>manifest.json.sig</code> 和服务器软件包）。然后在<i>从文件安装更新</i>下上传它们，或将其复制到服务器上的文件夹并将该文件夹用作更新源。</p>
+<p>您仍然可以使用软件包管理器更新（<code>apt install ./backupzit-server_….deb</code>）；新版本启动时会迁移数据库。</p>
+
+<h2>操作系统更新</h2>
+<p>同一页面（<a href="/settings/updates#os">设置 → 更新</a>）显示控制台服务器的操作系统：有多少可用更新、其中多少是安全修复、是否需要重启以及自动安全更新是否开启。状态每天刷新一次，也可以点击<i>立即检查</i>。您可以：</p>
+<ul>
+  <li><b>开启自动安全更新</b>（推荐）。系统自带的工具每天只安装安全修复：Debian 和 Ubuntu 上为 <code>unattended-upgrades</code>，AlmaLinux 和 Rocky Linux 上为 <code>dnf-automatic</code>。</li>
+  <li><b>立即安装所有更新</b>。PostgreSQL 等服务可能会短暂重启，控制台会自动重新连接。</li>
+  <li><b>重启服务器</b>，例如在内核更新之后。有备份或还原正在运行时，控制台会拒绝重启。代理会保留其作业，并在控制台恢复后报告结果。</li>
+</ul>
+<p>这些任务通过与控制台更新相同的 root 服务运行。它们会记录在审计日志中，最后一个任务的输出会显示在页面上。</p>
+
+<h2>备份控制台本身</h2>
+<p>借助恢复单，存储上的备份在没有控制台的情况下仍然可读。若要在服务器丢失后也能恢复控制台本身，请开启 <a href="/settings/console">设置 → 控制台备份</a>。其中包括作业、计划、代理、用户、设置、运行历史和存储的凭据。之后控制台每天将自身备份到网络存储目标的 <code>backupzit-console</code> 文件夹中。</p>
+<p>控制台备份包含：</p>
+<ul>
+  <li>整个数据库，按表逐个导出，因此不需要特定版本的 <code>pg_dump</code>；</li>
+  <li>用于解密已存储凭据的机密密钥；</li>
+  <li>代理所固定的控制台证书。</li>
+</ul>
+<p>它使用目标的恢复密钥加密并进行重复数据删除。保留最新的备份：默认 14 个。</p>
+<h3>还原控制台</h3>
+<ol>
+  <li>安装相同或更新版本的新控制台，例如从设备 ISO 安装。</li>
+  <li>在新服务器上以 root 身份运行以下命令。凭据来自存储目标的恢复单，存储库地址显示在控制台备份页面上。
+<pre>systemctl stop backupzit-server
+set -a; . /etc/backupzit/server.env; set +a
+export BACKUPZIT_PASSWORD='&lt;recovery key&gt;'
+export BACKUPZIT_SFTP_PASSWORD='…' BACKUPZIT_SFTP_HOSTKEY='SHA256:…'   # or BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, _SMB_PASSWORD, _AZURE_KEY, _HARDENED_KEY/_FINGERPRINT
+backupzit-server --restore-console --repo 'sftp://backup@nas:22/backups/backupzit-console'
+systemctl start backupzit-server</pre></li>
+  <li>为新服务器分配旧服务器的 IP 地址或 DNS 名称。代理信任还原后的证书，并会自动重新连接。</li>
+</ol>
+<p>还原会用备份中的数据库替换新控制台的数据库，并将其升级到已安装的版本。<code>--snapshot ID</code> 会还原较旧的备份而不是最新的备份。</p>
+<p>另外，请将<b>恢复单</b>和 <code>secrets.key</code> 的副本保存在服务器之外，例如密码管理器中。</p>
+
+{{template "docpager" .}}
+</article></div>{{end}}

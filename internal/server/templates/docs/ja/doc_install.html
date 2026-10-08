@@ -1,0 +1,191 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>サーバーのインストール</h1>
+<p class="lead">コンソールは PostgreSQL とともに Linux（Debian、Ubuntu、AlmaLinux、Rocky Linux）上で動作します。各組織は自社のネットワークで自社のコンソールを運用します。</p>
+
+<h2>要件</h2>
+<ul>
+  <li>Linux の VM またはサーバー: 2 vCPU、2～4 GB RAM、20 GB のディスクで数百のエージェントに十分です（バックアップ データはそこに保存されません）。</li>
+  <li>PostgreSQL 13 以降（ローカルまたは別のサーバー）。</li>
+  <li>ネットワーク: エージェントは TCP <b>8443</b>（HTTPS）でコンソールに到達できる必要があります。エージェントはストレージにも直接到達できる必要があります。</li>
+</ul>
+
+<h2>インストール方法の選択</h2>
+<table>
+  <tr><th>方法</th><th>適した用途</th><th>必要なもの</th></tr>
+  <tr><td><b>1. 既製の VM イメージ</b>（OVA、qcow2、VHDX）</td><td>最速: インポート、起動、サインイン</td><td>VMware、Proxmox/KVM、Hyper-V。インターネット アクセス不要</td></tr>
+  <tr><td><b>2. アプライアンス ISO</b></td><td>新しい VM または物理サーバー、無人インストール</td><td>インストール中のインターネット アクセス（Debian パッケージ）</td></tr>
+  <tr><td><b>3. インストール スクリプト</b></td><td>既存の Debian、Ubuntu、AlmaLinux、Rocky Linux サーバー</td><td>root とインターネット アクセス</td></tr>
+  <tr><td><b>4. パッケージを手動で</b></td><td>独自の PostgreSQL、構成管理、インターネット アクセスなし</td><td>リリースのサーバー パッケージ</td></tr>
+</table>
+
+<h2>ダウンロード</h2>
+<p>すべてのリリースは <a href="https://github.com/Max-Zit/backupzit/releases" target="_blank" rel="noopener">github.com/Max-Zit/backupzit/releases</a> にあります。次のリンクは常に最新のリリースを指します:</p>
+<table>
+  <tr><th>ファイル</th><th>内容</th></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova">backupzit-appliance.ova</a></td><td>VMware ESXi、Workstation、VirtualBox 用の VM イメージ</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2">backupzit-appliance.qcow2</a></td><td>Proxmox VE と KVM 用の VM イメージ</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip">backupzit-appliance-vhdx.zip</a></td><td>Hyper-V 用の VM イメージ（展開して使用。第 1 世代）</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.iso">backupzit-appliance.iso</a></td><td>アプライアンスのインストール ISO</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh">install.sh</a></td><td>既存の Linux サーバー用のインストール スクリプト</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>イメージと ISO のチェックサム</td></tr>
+</table>
+<p>パッケージ（<code>backupzit-server_X_amd64.deb</code>、<code>backupzit-server-X.x86_64.rpm</code>、エージェント）はリリース ページに掲載されています。イメージはそれぞれ約 1.5 GB です。ダウンロードは <code>sha256sum -c SHA256SUMS --ignore-missing</code>（Linux）または <code>Get-FileHash file -Algorithm SHA256</code>（Windows）で確認してください。</p>
+
+<h2>1. 既製の VM イメージ</h2>
+<p>1 分以内に起動し、インターネット アクセスを必要としない完成済みのアプライアンス（Debian、PostgreSQL、コンソール、自動セキュリティ更新）:</p>
+<table>
+  <tr><th>ハイパーバイザー</th><th>方法</th></tr>
+  <tr><td>VMware ESXi</td><td>Host Client: <i>Create / Register VM → Deploy a virtual machine from an OVF or OVA file</i> で <code>backupzit-appliance.ova</code> を選択。vSphere: <i>Deploy OVF Template</i>。Workstation と VirtualBox: <i>File → Open / Import</i>。</td></tr>
+  <tr><td>Proxmox VE</td><td><code>backupzit-appliance.qcow2</code> をノードにコピーし、ディスクなしの VM（2 vCPU、2～4 GB RAM、VirtIO ネットワーク）を作成してから<br><code>qm importdisk &lt;vmid&gt; backupzit-appliance.qcow2 local-lvm</code><br>インポートしたディスクを SCSI として接続し、ブート ディスクにして、QEMU ゲスト エージェントを有効にします。</td></tr>
+  <tr><td>Hyper-V</td><td><code>backupzit-appliance-vhdx.zip</code> を展開し、<i>新規 → 仮想マシン</i>、<b>第 1 世代</b>、2～4 GB RAM、<i>既存の仮想ハード ディスクを使用する</i>: その VHDX。</td></tr>
+</table>
+<p>VM を起動します。画面に Web コンソールのアドレスと <b>admin</b> の初期パスワードが表示されます（<a href="#first">初回サインイン</a>を参照）。VM には 2 vCPU と 2～4 GB RAM を割り当ててください。16 GB のディスクはいつでも拡張でき、アプライアンスは次回の起動時に新しい領域を使い始めます（ルート ファイル システムは稼働中に拡張されます）。初回起動時に各コピーが独自の SSH キー、データベース パスワード、シークレット キーを作成するため、1 つのイメージを何度でも展開できます。ネットワーク アダプターは DHCP でアドレスを取得します。</p>
+
+<h2>2. アプライアンス ISO</h2>
+<p><b>アプライアンス ISO</b> は、Debian、PostgreSQL、コンソール、自動セキュリティ更新を質問なしですべてインストールします。</p>
+<ol>
+  <li>2 vCPU、2～4 GB RAM、16 GB 以上のディスクを持つ VM を作成します（またはサーバーを使用）。VirtIO またはハイパーバイザーの既定のデバイスを使い、BIOS でも UEFI でも構いません。</li>
+  <li><code>backupzit-appliance.iso</code> から起動します。5 秒後にインストールが自動で始まり、<b>最初のディスクを消去</b>してインストールします。オペレーティング システムのパッケージをダウンロードするため、インストール中はサーバーにインターネット アクセスが必要です。所要時間は約 10～20 分で、その後サーバーが再起動します。</li>
+  <li>サーバーの画面に Web コンソールのアドレスと <b>admin</b> の初期パスワードが表示されます。アドレスを開いてサインインし、パスワードを変更してください。</li>
+</ol>
+<h3>アプライアンス（イメージまたは ISO）</h3>
+<p>アプライアンスには 2 つの独立したアカウントがあります:</p>
+<ul>
+  <li>日常業務用の Web コンソール（<code>https://&lt;address&gt;:8443</code>）の <b>admin</b>。初期パスワードは初回起動後にサーバーの画面に表示されます。<b>マイ アカウント</b>で変更してください。</li>
+  <li>サーバー自体（ハイパーバイザー コンソール上の画面、または SSH）の <b>bzadmin</b>。初期パスワードは <code>backupzit</code> です。初回サインイン時に変更が必要です。このユーザーは <code>sudo</code> を使えます。root はサインインできません。</li>
+</ul>
+<p>BackupZit とオペレーティング システムの更新はコンソールから管理します（下記参照）。VMware Tools と QEMU ゲスト エージェントが含まれているため、ハイパーバイザーにアプライアンスのアドレスが表示されます。</p>
+<h3 id="setup-menu">サーバー画面のセットアップ メニュー</h3>
+<p>bzadmin がサーバー自体の画面で（SSH 経由ではなく）サインインすると、メニューが開きます:</p>
+<table>
+  <tr><th>項目</th><th>機能</th></tr>
+  <tr><td>1 Network</td><td>DHCP、またはプレフィックス長付きの静的アドレス（例: <code>192.168.1.20/24</code>）、ゲートウェイ、最大 3 つの DNS サーバー。</td></tr>
+  <tr><td>2 Server name</td><td>ホスト名（英字、数字、-）。</td></tr>
+  <tr><td>3 SSH</td><td>SSH サーバーのオン/オフとポートの変更。コンソール（80、443、8443）、PostgreSQL（5432）、インスタント リカバリ（111、2049）のポートは使用できません。</td></tr>
+  <tr><td>4 Reset the password of "admin"</td><td>Web コンソールのパスワードを忘れた場合に。サインイン ブロックも解除します。その後、画面には生成された初期パスワードが表示されなくなります（Web コンソールで admin のパスワードを変更した場合も、次回起動以降は同様です）。</td></tr>
+  <tr><td>5 Lift sign-in blocks and web console limits</td><td>サインインの失敗が多すぎてアドレスがブロックされた場合や、Web コンソールが使えなくなったアドレスに制限されている場合に（<a href="/docs/security#web-access">セキュリティ</a>を参照）。</td></tr>
+  <tr><td>6–8</td><td>Web コンソールの再起動、サーバーの再起動またはシャットダウン。</td></tr>
+  <tr><td>9 Time zone</td><td>アプライアンスは UTC で起動します。タイムゾーン（例: <code>Europe/Belgrade</code>）を設定すると、コンソールはそのタイムゾーンですべての時刻を表示し、スケジュールを実行し、復元ポイント（データベース復元の時点も含む）を解釈します。適用のためにコンソールが再起動します。</td></tr>
+  <tr><td>0 Command line</td><td>メニューを終了します。<code>sudo backupzit-server --setup</code> で再度開けます（SSH 経由でも可）。</td></tr>
+</table>
+<p>同じネットワーク、サーバー名、SSH、タイムゾーンの設定は、Web コンソールの<b>設定 → ネットワーク</b>にもあります（管理者のみ）。そこでは、ゲートウェイが 30 秒以内に応答しない静的アドレスは自動的に元に戻されるため、入力ミスでアプライアンスがネットワークから切り離されることはありません。それでもコンソールに到達できない場合は、SSH がオフでも使えるサーバー画面のメニューを使ってください。</p>
+<p>エージェントが記憶するのはコンソールのアドレスではなく証明書です。エージェントが IP アドレスでコンソールに接続していてアドレスが変わった場合は、<code>backupzit-agent set-server</code> で新しいアドレスに向けてください（<a href="/docs/agents#new-address">エージェント</a>を参照）。または最初から DNS 名を使ってください。DHCP を使う場合は、アドレスが変わらないよう DHCP サーバーでアプライアンスのアドレスを予約してください。</p>
+<p>アプライアンスの SSH サーバーは AES-GCM/CTR 暗号と SHA-2 MAC のみを提供します（脆弱性スキャナーが弱いと報告する chacha20-poly1305 や 64 ビット MAC は提供しません）。</p>
+
+<h2>3. インストール スクリプト</h2>
+<p><b>Debian 12 以降、Ubuntu 22.04 以降、AlmaLinux または Rocky Linux 9 以降</b>（x86-64）の既存サーバーで、root として:</p>
+<pre>curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh</pre>
+<p>スクリプトは PostgreSQL をインストールし、最新リリースをダウンロードして、BackupZit のリリース キーで<b>署名を確認</b>し、パッケージのチェックサムも確認します。さらにコンソールをインストールし、ランダムなパスワードでデータベースを作成し、<code>/etc/backupzit/server.env</code> を書き込み、自動セキュリティ更新をオンにし、firewalld または ufw が有効ならポート 8443 を開き、コンソールを起動して、アドレスと初期 admin パスワードを表示します。オプション（<code>sh -s --</code> の後）:</p>
+<table>
+  <tr><th>オプション</th><th>効果</th></tr>
+  <tr><td><code>--version 0.32.0</code></td><td>最新ではなくこのリリースをインストール</td></tr>
+  <tr><td><code>--db postgres://user:pw@host:5432/db</code></td><td>ローカルではなく既存の PostgreSQL データベースを使用</td></tr>
+  <tr><td><code>--hosts backup.example.local,10.0.0.10</code></td><td>コンソールの証明書に使う名前とアドレス（既定: サーバーのアドレスと名前）</td></tr>
+  <tr><td><code>--no-auto-updates</code></td><td>自動セキュリティ更新の設定を変更しない</td></tr>
+</table>
+<p>例: <code>curl -fsSL …/install.sh | sudo sh -s -- --hosts backup.example.local</code>。インストール済みのコンソールでスクリプトを再度実行すると、構成とデータを保持したまま BackupZit が更新されます。実行前にスクリプトを読むには、先にダウンロードしてください: <code>curl -fsSLO …/install.sh; less install.sh; sudo sh install.sh</code>。</p>
+
+<h2>4. パッケージを手動で</h2>
+<h3>Debian / Ubuntu</h3>
+<pre>apt install postgresql
+apt install ./backupzit-server_*.deb</pre>
+<h3>AlmaLinux / Rocky Linux</h3>
+<pre>dnf install postgresql-server &amp;&amp; postgresql-setup --initdb &amp;&amp; systemctl enable --now postgresql
+dnf install ./backupzit-server-*.rpm</pre>
+<p>AlmaLinux と Rocky Linux では、コンソールがパスワードでサインインできるよう、<code>/var/lib/pgsql/data/pg_hba.conf</code> の 127.0.0.1 と ::1 の行の <code>ident</code> を <code>scram-sha-256</code> に変更し、PostgreSQL を再起動してください。</p>
+
+<h3>データベースの作成</h3>
+<pre>sudo -u postgres psql -c "SET password_encryption = 'scram-sha-256'; CREATE USER backupzit WITH PASSWORD 'choose-a-strong-password'"
+sudo -u postgres psql -c "CREATE DATABASE backupzit OWNER backupzit"</pre>
+<p>接続文字列を <code>/etc/backupzit/server.env</code> に書き込みます:</p>
+<pre>BACKUPZIT_DB=postgres://backupzit:choose-a-strong-password@localhost:5432/backupzit?sslmode=disable
+BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
+BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
+<pre>systemctl start backupzit-server</pre>
+
+<h2 id="first">初回サインイン</h2>
+<p><code>https://&lt;server&gt;:8443</code> を開きます。初期管理者は <b>admin</b> で、パスワードは <code>/var/lib/backupzit/initial-admin-password.txt</code> にあります（または初回起動前に <code>BACKUPZIT_ADMIN_PASSWORD</code> を設定）。サインイン後に変更してください。忘れたパスワードをサーバーでリセットするには:</p>
+<pre>set -a; . /etc/backupzit/server.env; set +a
+backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
+
+<h2>証明書</h2>
+<p>初回起動時、コンソールは自己署名証明書を作成します。ブラウザーは一度警告を表示しますが、エージェントは証明機関にまったく依存しません。エージェントは登録時に<a href="/agents">エージェント</a>ページに表示される<b>証明書のフィンガープリントを固定</b>します。これにより、信頼できないネットワークでも偽のサーバーからエージェントが保護されます。</p>
+<div class="callout warn"><p>この証明書（データ ディレクトリ内の <code>cert.pem</code>/<code>key.pem</code>）は置き換えないでください。以前に登録したエージェントは、再登録するまで接続を拒否します。ブラウザー向けには、代わりに次のように信頼された証明書を追加してください。</p></div>
+
+<h3>ブラウザー用の信頼された証明書</h3>
+<p>ブラウザーの警告を避けるには、<a href="/settings/certificate">設定 → 証明書</a>を開きます。するとコンソールは、信頼された証明書を使って DNS 名（例: ポート 443 の <code>https://backup.example.com</code>）でも応答します。エージェントは引き続きポート 8443 と固定された証明書を使うため、影響を受けません。</p>
+<ul>
+  <li>社内 CA または公的 CA の<b>証明書をアップロード</b>します。<code>*.example.com</code> のようなワイルドカード証明書も使えます。証明書（中間証明書を含む）と秘密キーを PEM で貼り付けるか、ファイルを選択します。コンソールは、キーが証明書と一致すること、証明書が現在有効であること、DNS 名をカバーしていることを確認します。社内 DNS がない場合は、代わりにコンソールの IP アドレスを入力し、その IP アドレス向けに発行された証明書（サブジェクト代替名 <code>IP:192.168.1.20</code>）を使ってください。その場合はコンソールに固定アドレスを割り当ててください。有効期限の 21 日前にメールが届きます。</li>
+  <li><b>Let's Encrypt</b>: 無料の証明書で、有効期限の 30 日前に自動更新されます。Let's Encrypt は、次の 2 つの方法のいずれかで名前の管理権を確認する必要があります:
+    <ul>
+      <li><b>Cloudflare による DNS 確認</b>。インターネットから到達できないコンソールにはこちらをお勧めします。BackupZit は Cloudflare API トークンを使って一時的な TXT レコードを作成します。Cloudflare で My Profile → API Tokens → Create Token に進み、テンプレート <i>Edit zone DNS</i> を使い、対象をお使いのゾーンに限定してください。</li>
+      <li><b>HTTP 確認</b>: コンソールのポート 80 が DNS 名でインターネットから到達できる必要があります。バックアップ サーバーではあまり望ましくありません。</li>
+    </ul>
+    まずは <i>Let's Encrypt のテストシステムを使用</i>で設定を試してください。その証明書はブラウザーに信頼されませんが、レート制限がありません。</li>
+  <li><b>ポート 80 で応答</b>すると、<code>http://</code> が <code>https://</code> にリダイレクトされます。</li>
+</ul>
+<p>DNS 名は、通常は社内 DNS の A レコードによってコンソールの IP アドレスを指す必要があります。証明書ファイルは <code>/var/lib/backupzit/web</code> に保存され、キーはサービスだけが読み取れます。Linux ではサービスがポート 80 と 443 を使用できます（<code>CAP_NET_BIND_SERVICE</code>）。ブラウザーが別のネットワークから接続する場合は、ファイアウォールでこれらのポートを開いてください。</p>
+
+<h2>ファイアウォール</h2>
+<table>
+  <tr><th>ポート</th><th>送信元</th><th>宛先</th><th>用途</th></tr>
+  <tr><td>8443/tcp</td><td>エージェント、管理者</td><td>コンソール</td><td>エージェント API と Web コンソール</td></tr>
+  <tr><td>443/tcp, 80/tcp</td><td>管理者</td><td>コンソール</td><td>任意: 信頼された証明書による Web コンソールと HTTPS へのリダイレクト</td></tr>
+  <tr><td>22/tcp</td><td>エージェント、コンソール</td><td>SFTP ストレージ</td><td>SFTP ターゲット</td></tr>
+  <tr><td>443 または 9000/tcp</td><td>エージェント、コンソール</td><td>S3 ストレージ</td><td>S3 ターゲット</td></tr>
+  <tr><td>445/tcp</td><td>エージェント、コンソール</td><td>NAS / ファイル サーバー</td><td>SMB ターゲット</td></tr>
+  <tr><td>8500/tcp</td><td>エージェント、コンソール</td><td>強化リポジトリ</td><td>強化ターゲット</td></tr>
+  <tr><td>443/tcp</td><td>エージェント、コンソール</td><td>Azure / クラウド ストレージ</td><td>Azure Blob、AWS、Wasabi、Google Cloud …</td></tr>
+  <tr><td>636/tcp（StartTLS の場合は 389）</td><td>コンソール</td><td>ドメイン コントローラー</td><td>LDAP / Active Directory によるサインイン</td></tr>
+  <tr><td>587/465/25</td><td>コンソール</td><td>メール サーバー</td><td>メール通知</td></tr>
+</table>
+<p>コンソールは、ディスク イメージや VM バックアップ内のファイルを参照（およびダウンロード）できるよう、自らもストレージに接続します。そのため、エージェントと同じストレージ アクセスが必要です。</p>
+
+<h2>BackupZit の更新</h2>
+<p>既定では、コンソールは GitHub 上の BackupZit 公式リリース（<code>https://github.com/Max-Zit/backupzit/releases</code>）から更新を取得します。<a href="/settings/updates">設定 → 更新</a>で、代わりに別の<b>更新ソース</b>（独自の HTTPS ミラーまたはサーバー上のフォルダー）を指定できます。ソースが何であれ、すべてのリリースには有効な BackupZit 署名が必要です。コンソールは毎日新しいリリースを確認し、利用可能になると管理者にメールを送ります。インストールするには<b>インストール</b>をクリックします:</p>
+<ol>
+  <li>コンソールはリリースの署名とパッケージのチェックサムを確認し、バックアップや復元が実行されていない状態になるまで待ちます。</li>
+  <li>システム サービス（<code>backupzit-update</code>、root として実行）が、BackupZit に組み込まれたリリース キーで署名を再確認します。コンソールが侵害されても、他のパッケージをインストールさせることはできません。</li>
+  <li>データベースをバックアップし（<code>pg_dump</code>）、現在のプログラムを保持し、パッケージをインストールしてコンソールを再起動します。</li>
+  <li>新しいバージョンが 2 分以内に応答しない場合は、以前のプログラムと元の状態のデータベースが自動的に復元されます。起動失敗のログを含む結果は、更新ページに表示され、監査ログに記録され、メールで送信されます。</li>
+  <li>更新が成功すると、エージェントも更新されます。各エージェントはアイドル時に新しいバージョンをインストールします。自分で更新したい場合は、同じページでこれを無効にしてください。</li>
+</ol>
+<p>コンソールは約 1 分間利用できなくなります。直近 3 回の更新のデータベース バックアップと以前のプログラムは <code>/var/lib/backupzit-update</code> に保存されます。</p>
+<p><b>インターネット アクセスがない場合:</b> 別のコンピューターでリリース ファイル（<code>manifest.json</code>、<code>manifest.json.sig</code>、サーバー パッケージ）をダウンロードします。その後、<i>ファイルから更新をインストール</i>でアップロードするか、サーバー上のフォルダーにコピーしてそのフォルダーを更新ソースとして使います。</p>
+<p>パッケージ マネージャーで更新することもできます（<code>apt install ./backupzit-server_….deb</code>）。データベースは新しいバージョンの起動時に移行されます。</p>
+
+<h2>オペレーティング システムの更新</h2>
+<p>同じページ（<a href="/settings/updates#os">設定 → 更新</a>）には、コンソール サーバーのオペレーティング システムの状態が表示されます。利用可能な更新の数、そのうちセキュリティ修正の数、再起動が必要かどうか、自動セキュリティ更新がオンかどうか。状態は毎日、または<i>今すぐ確認</i>で更新されます。次の操作ができます:</p>
+<ul>
+  <li><b>自動セキュリティ更新をオンにする</b>（推奨）。システム自身のツールがセキュリティ修正のみを毎日インストールします。Debian と Ubuntu では <code>unattended-upgrades</code>、AlmaLinux と Rocky Linux では <code>dnf-automatic</code>。</li>
+  <li><b>すべての更新を今すぐインストール</b>。PostgreSQL などのサービスが一時的に再起動することがあり、コンソールは自動的に再接続します。</li>
+  <li><b>サーバーを再起動</b>（カーネル更新の後など）。バックアップや復元の実行中はコンソールが拒否します。エージェントはジョブを保持し、コンソールが戻ると結果を報告します。</li>
+</ul>
+<p>これらのタスクは、コンソールの更新と同じ root サービスを通じて実行されます。監査ログに記録され、最後のタスクの出力がページに表示されます。</p>
+
+<h2>コンソール自体のバックアップ</h2>
+<p>ストレージ上のバックアップは、復旧シートを使えばコンソールなしでも読み取れます。サーバーを失った後にコンソール自体も取り戻すには、<a href="/settings/console">設定 → コンソールのバックアップ</a>をオンにしてください。対象にはジョブ、スケジュール、エージェント、ユーザー、設定、実行履歴、保存された資格情報が含まれます。コンソールは毎日、ネットワーク ストレージ ターゲットの <code>backupzit-console</code> フォルダーに自分自身をバックアップします。</p>
+<p>コンソールのバックアップには次が含まれます:</p>
+<ul>
+  <li>テーブルごとにエクスポートしたデータベース全体（特定の <code>pg_dump</code> バージョンは不要）。</li>
+  <li>保存された資格情報を復号するシークレット キー。</li>
+  <li>エージェントが固定しているコンソールの証明書。</li>
+</ul>
+<p>ターゲットの回復キーで暗号化され、重複排除されます。最新のバックアップが保持されます（既定は 14 個）。</p>
+<h3>コンソールの復元</h3>
+<ol>
+  <li>同じかそれより新しいバージョンの新しいコンソールをインストールします（例: アプライアンス ISO から）。</li>
+  <li>新しいサーバーで root として次を実行します。資格情報はストレージ ターゲットの復旧シートのもので、リポジトリのアドレスはコンソールのバックアップ ページに表示されます。
+<pre>systemctl stop backupzit-server
+set -a; . /etc/backupzit/server.env; set +a
+export BACKUPZIT_PASSWORD='&lt;recovery key&gt;'
+export BACKUPZIT_SFTP_PASSWORD='…' BACKUPZIT_SFTP_HOSTKEY='SHA256:…'   # or BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, _SMB_PASSWORD, _AZURE_KEY, _HARDENED_KEY/_FINGERPRINT
+backupzit-server --restore-console --repo 'sftp://backup@nas:22/backups/backupzit-console'
+systemctl start backupzit-server</pre></li>
+  <li>新しいサーバーに古いサーバーの IP アドレスまたは DNS 名を割り当てます。エージェントは復元された証明書を信頼し、自動的に再接続します。</li>
+</ol>
+<p>復元により、新しいコンソールのデータベースがバックアップのものに置き換えられ、インストール済みのバージョンに合わせて更新されます。<code>--snapshot ID</code> を指定すると、最新ではなく古いバックアップを復元します。</p>
+<p><b>復旧シート</b>と <code>secrets.key</code> のコピーも、パスワード マネージャーなどサーバーの外に保管してください。</p>
+
+{{template "docpager" .}}
+</article></div>{{end}}

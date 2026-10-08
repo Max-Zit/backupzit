@@ -1,0 +1,191 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Server installeren</h1>
+<p class="lead">De console draait op Linux (Debian, Ubuntu, AlmaLinux, Rocky Linux) met PostgreSQL. Elke organisatie draait haar eigen console in haar eigen netwerk.</p>
+
+<h2>Vereisten</h2>
+<ul>
+  <li>Een Linux-VM of -server: 2 vCPU, 2–4 GB RAM en 20 GB schijf is ruim voldoende voor honderden agents (back-upgegevens worden er niet op opgeslagen).</li>
+  <li>PostgreSQL 13 of nieuwer (lokaal of op een andere server).</li>
+  <li>Netwerk: agents moeten de console bereiken via TCP <b>8443</b> (HTTPS). Agents moeten ook de opslag rechtstreeks bereiken.</li>
+</ul>
+
+<h2>Kies hoe u installeert</h2>
+<table>
+  <tr><th>Manier</th><th>Het best voor</th><th>Vereist</th></tr>
+  <tr><td><b>1. Kant-en-klare VM-image</b> (OVA, qcow2, VHDX)</td><td>Het snelst: importeren, starten, aanmelden</td><td>VMware, Proxmox/KVM of Hyper-V; geen internettoegang nodig</td></tr>
+  <tr><td><b>2. Appliance-ISO</b></td><td>Een nieuwe VM of een fysieke server, onbeheerde installatie</td><td>internettoegang tijdens de installatie (Debian-pakketten)</td></tr>
+  <tr><td><b>3. Installatiescript</b></td><td>Een bestaande Debian-, Ubuntu-, AlmaLinux- of Rocky Linux-server</td><td>root en internettoegang</td></tr>
+  <tr><td><b>4. Pakketten met de hand</b></td><td>Uw eigen PostgreSQL, configuratiebeheer, geen internettoegang</td><td>het serverpakket uit de versie</td></tr>
+</table>
+
+<h2>Downloads</h2>
+<p>Elke versie staat op <a href="https://github.com/Max-Zit/backupzit/releases" target="_blank" rel="noopener">github.com/Max-Zit/backupzit/releases</a>. Deze links wijzen altijd naar de nieuwste versie:</p>
+<table>
+  <tr><th>Bestand</th><th>Wat</th></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova">backupzit-appliance.ova</a></td><td>VM-image voor VMware ESXi, Workstation, VirtualBox</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2">backupzit-appliance.qcow2</a></td><td>VM-image voor Proxmox VE en KVM</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip">backupzit-appliance-vhdx.zip</a></td><td>VM-image voor Hyper-V (uitpakken; generatie 1)</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.iso">backupzit-appliance.iso</a></td><td>installatie-ISO van de appliance</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh">install.sh</a></td><td>installatiescript voor een bestaande Linux-server</td></tr>
+  <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>controlesommen van de images en de ISO</td></tr>
+</table>
+<p>De pakketten (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agents) staan op de versiepagina. De images zijn elk ongeveer 1,5 GB. Controleer een download met <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) of <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+
+<h2>1. Kant-en-klare VM-image</h2>
+<p>Een kant-en-klare appliance (Debian, PostgreSQL, de console, automatische beveiligingsupdates) die in minder dan een minuut start en geen internettoegang nodig heeft:</p>
+<table>
+  <tr><th>Hypervisor</th><th>Hoe</th></tr>
+  <tr><td>VMware ESXi</td><td>Host Client: <i>Create / Register VM → Deploy a virtual machine from an OVF or OVA file</i>, kies <code>backupzit-appliance.ova</code>. vSphere: <i>Deploy OVF Template</i>. Workstation en VirtualBox: <i>File → Open / Import</i>.</td></tr>
+  <tr><td>Proxmox VE</td><td>Kopieer <code>backupzit-appliance.qcow2</code> naar het knooppunt, maak een VM zonder schijf (2 vCPU, 2–4 GB RAM, VirtIO-netwerk) en daarna<br><code>qm importdisk &lt;vmid&gt; backupzit-appliance.qcow2 local-lvm</code><br>koppel de geïmporteerde schijf als SCSI, maak er de opstartschijf van en schakel de QEMU-gastagent in.</td></tr>
+  <tr><td>Hyper-V</td><td>Pak <code>backupzit-appliance-vhdx.zip</code> uit, daarna <i>Nieuw → Virtuele machine</i>, <b>generatie 1</b>, 2–4 GB RAM, <i>Een bestaande virtuele harde schijf gebruiken</i>: de VHDX.</td></tr>
+</table>
+<p>Start de VM. Het scherm toont het adres van de webconsole en het initiële wachtwoord van <b>admin</b> (zie <a href="#first">Eerste aanmelding</a>). Geef de VM 2 vCPU en 2–4 GB RAM; u kunt de schijf van 16 GB op elk moment vergroten — de appliance neemt de nieuwe ruimte bij de volgende start in gebruik (het root-bestandssysteem groeit tijdens het draaien). Bij de eerste start maakt elke kopie eigen SSH-sleutels, een eigen databasewachtwoord en een eigen geheimensleutel, zodat één image vele keren kan worden uitgerold. De netwerkadapter krijgt zijn adres via DHCP.</p>
+
+<h2>2. Appliance-ISO</h2>
+<p>De <b>appliance-ISO</b> installeert alles zonder vragen: Debian, PostgreSQL, de console en automatische beveiligingsupdates.</p>
+<ol>
+  <li>Maak een VM (of gebruik een server) met 2 vCPU, 2–4 GB RAM en een schijf van 16 GB of groter. Gebruik VirtIO of de standaardapparaten van de hypervisor, BIOS of UEFI.</li>
+  <li>Start vanaf <code>backupzit-appliance.iso</code>. Na 5 seconden begint de installatie vanzelf, <b>wist de eerste schijf</b> en installeert. Ze downloadt de pakketten van het besturingssysteem, dus de server heeft tijdens de installatie internettoegang nodig. Dit duurt ongeveer 10–20 minuten, daarna start de server opnieuw.</li>
+  <li>Het scherm van de server toont het adres van de webconsole en het initiële wachtwoord van <b>admin</b>. Open het adres, meld u aan en wijzig het wachtwoord.</li>
+</ol>
+<h3>De appliance (image of ISO)</h3>
+<p>De appliance heeft twee aparte accounts:</p>
+<ul>
+  <li><b>admin</b> in de webconsole (<code>https://&lt;address&gt;:8443</code>) voor het dagelijkse werk. Het initiële wachtwoord wordt na de eerste start op het scherm van de server getoond; wijzig het onder <b>Mijn account</b>.</li>
+  <li><b>bzadmin</b> op de server zelf (het scherm in de hypervisorconsole, of SSH), initieel wachtwoord <code>backupzit</code>. U moet het bij de eerste aanmelding wijzigen; de gebruiker kan <code>sudo</code> gebruiken. Root kan zich niet aanmelden.</li>
+</ul>
+<p>Updates van BackupZit en van het besturingssysteem worden vanuit de console beheerd (zie hieronder). VMware Tools en de QEMU-gastagent zijn inbegrepen, zodat hypervisors het adres van de appliance tonen.</p>
+<h3 id="setup-menu">Setupmenu op het scherm van de server</h3>
+<p>Wanneer bzadmin zich op het eigen scherm van de server aanmeldt (niet via SSH), opent een menu:</p>
+<table>
+  <tr><th>Item</th><th>Wat het doet</th></tr>
+  <tr><td>1 Network</td><td>DHCP of een statisch adres met prefixlengte (bijv. <code>192.168.1.20/24</code>), gateway en maximaal drie DNS-servers.</td></tr>
+  <tr><td>2 Server name</td><td>De hostnaam (letters, cijfers en -).</td></tr>
+  <tr><td>3 SSH</td><td>De SSH-server in- of uitschakelen en de poort ervan wijzigen. De poorten van de console (80, 443, 8443), PostgreSQL (5432) en direct herstel (111, 2049) kunnen niet worden gebruikt.</td></tr>
+  <tr><td>4 Reset the password of "admin"</td><td>Voor een vergeten wachtwoord van de webconsole; heft ook aanmeldblokkades op. Daarna toont het scherm het gegenereerde initiële wachtwoord niet meer (ook vanaf de volgende start, zodra het wachtwoord van admin in de webconsole is gewijzigd).</td></tr>
+  <tr><td>5 Lift sign-in blocks and web console limits</td><td>Als te veel mislukte aanmeldingen een adres hebben geblokkeerd, of de webconsole beperkt is tot adressen die u niet meer kunt gebruiken (zie <a href="/docs/security#web-access">Beveiliging</a>).</td></tr>
+  <tr><td>6–8</td><td>De webconsole herstarten, de server herstarten of afsluiten.</td></tr>
+  <tr><td>9 Time zone</td><td>De appliance start in UTC. Stel uw zone in, bijv. <code>Europe/Belgrade</code>: de console toont alle tijden, voert de schema's uit en leest herstelpunten (ook het tijdstip van een databaseherstel) in die zone. De console herstart om die te gebruiken.</td></tr>
+  <tr><td>0 Command line</td><td>Verlaat het menu. Open het opnieuw met <code>sudo backupzit-server --setup</code> (ook via SSH).</td></tr>
+</table>
+<p>Dezelfde instellingen voor netwerk, servernaam, SSH en tijdzone staan onder <b>Instellingen → Netwerk</b> in de webconsole (alleen beheerders). Daar wordt een statisch adres waarvan de gateway niet binnen een halve minuut antwoordt automatisch teruggedraaid, zodat een typefout de appliance niet van het netwerk kan afsnijden; is de console toch niet bereikbaar, gebruik dan het menu op het scherm van de server, dat ook werkt met SSH uitgeschakeld.</p>
+<p>Agents onthouden het certificaat van de console, niet haar adres. Bereiken ze de console via haar IP-adres en verandert dat adres, wijs ze dan naar het nieuwe met <code>backupzit-agent set-server</code> (zie <a href="/docs/agents#new-address">Agents</a>), of gebruik vanaf het begin een DNS-naam. Reserveer bij DHCP het adres van de appliance in de DHCP-server zodat het niet verandert.</p>
+<p>De SSH-server van de appliance biedt alleen AES-GCM/CTR-cijfers en SHA-2-MAC's aan (geen chacha20-poly1305 en geen 64-bits MAC's, die kwetsbaarheidsscanners als zwak melden).</p>
+
+<h2>3. Installatiescript</h2>
+<p>Op een bestaande server met <b>Debian 12+, Ubuntu 22.04+, AlmaLinux of Rocky Linux 9+</b> (x86-64), als root:</p>
+<pre>curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh</pre>
+<p>Het script installeert PostgreSQL, downloadt de nieuwste versie, <b>controleert de handtekening</b> met de BackupZit-releasesleutel en de controlesom van het pakket, installeert de console, maakt de database met een willekeurig wachtwoord, schrijft <code>/etc/backupzit/server.env</code>, schakelt automatische beveiligingsupdates in, opent poort 8443 in firewalld of ufw als die actief zijn, start de console en toont het adres en het initiële admin-wachtwoord. Opties (na <code>sh -s --</code>):</p>
+<table>
+  <tr><th>Optie</th><th>Effect</th></tr>
+  <tr><td><code>--version 0.32.0</code></td><td>deze versie installeren in plaats van de nieuwste</td></tr>
+  <tr><td><code>--db postgres://user:pw@host:5432/db</code></td><td>een bestaande PostgreSQL-database gebruiken in plaats van een lokale</td></tr>
+  <tr><td><code>--hosts backup.example.local,10.0.0.10</code></td><td>namen en adressen voor het certificaat van de console (standaard: adres en naam van de server)</td></tr>
+  <tr><td><code>--no-auto-updates</code></td><td>automatische beveiligingsupdates laten zoals ze zijn</td></tr>
+</table>
+<p>Voorbeeld: <code>curl -fsSL …/install.sh | sudo sh -s -- --hosts backup.example.local</code>. Het script opnieuw uitvoeren op een geïnstalleerde console werkt BackupZit bij en behoudt configuratie en gegevens. Om het script te lezen voordat u het uitvoert, downloadt u het eerst: <code>curl -fsSLO …/install.sh; less install.sh; sudo sh install.sh</code>.</p>
+
+<h2>4. Pakketten met de hand</h2>
+<h3>Debian / Ubuntu</h3>
+<pre>apt install postgresql
+apt install ./backupzit-server_*.deb</pre>
+<h3>AlmaLinux / Rocky Linux</h3>
+<pre>dnf install postgresql-server &amp;&amp; postgresql-setup --initdb &amp;&amp; systemctl enable --now postgresql
+dnf install ./backupzit-server-*.rpm</pre>
+<p>Wijzig op AlmaLinux en Rocky Linux <code>ident</code> in <code>scram-sha-256</code> voor de regels 127.0.0.1 en ::1 in <code>/var/lib/pgsql/data/pg_hba.conf</code> en herstart PostgreSQL, zodat de console zich met een wachtwoord kan aanmelden.</p>
+
+<h3>De database maken</h3>
+<pre>sudo -u postgres psql -c "SET password_encryption = 'scram-sha-256'; CREATE USER backupzit WITH PASSWORD 'choose-a-strong-password'"
+sudo -u postgres psql -c "CREATE DATABASE backupzit OWNER backupzit"</pre>
+<p>Zet de verbindingsreeks in <code>/etc/backupzit/server.env</code>:</p>
+<pre>BACKUPZIT_DB=postgres://backupzit:choose-a-strong-password@localhost:5432/backupzit?sslmode=disable
+BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
+BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
+<pre>systemctl start backupzit-server</pre>
+
+<h2 id="first">Eerste aanmelding</h2>
+<p>Open <code>https://&lt;server&gt;:8443</code>. De initiële beheerder is <b>admin</b>; het wachtwoord staat in <code>/var/lib/backupzit/initial-admin-password.txt</code> (of stel <code>BACKUPZIT_ADMIN_PASSWORD</code> in vóór de eerste start). Wijzig het na het aanmelden. Een vergeten wachtwoord stelt u op de server zo opnieuw in:</p>
+<pre>set -a; . /etc/backupzit/server.env; set +a
+backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
+
+<h2>Het certificaat</h2>
+<p>Bij de eerste start maakt de console een zelfondertekend certificaat. Uw browser waarschuwt er één keer voor; agents vertrouwen helemaal niet op certificeringsinstanties — ze <b>pinnen de certificaatvingerafdruk</b> die bij de registratie op de pagina <a href="/agents">Agents</a> wordt getoond. Dat beschermt agents tegen een valse server, zelfs op een onbetrouwbaar netwerk.</p>
+<div class="callout warn"><p>Vervang dat certificaat niet (<code>cert.pem</code>/<code>key.pem</code> in de gegevensmap): eerder geregistreerde agents zouden de verbinding weigeren tot ze opnieuw zijn geregistreerd. Voeg voor browsers in plaats daarvan een vertrouwd certificaat toe zoals hieronder beschreven.</p></div>
+
+<h3>Een vertrouwd certificaat voor browsers</h3>
+<p>Om de browserwaarschuwing te vermijden, opent u <a href="/settings/certificate">Instellingen → Certificaat</a>. De console antwoordt dan ook op een DNS-naam, bijvoorbeeld <code>https://backup.example.com</code> op poort 443, met een vertrouwd certificaat. Agents blijven poort 8443 en het vastgepinde certificaat gebruiken, dus zij merken er niets van.</p>
+<ul>
+  <li><b>Een certificaat uploaden</b> van uw bedrijfs-CA of een publieke CA, ook een wildcardcertificaat zoals <code>*.example.com</code>. Plak het certificaat (met de tussencertificaten) en de privésleutel als PEM, of kies de bestanden. De console controleert dat de sleutel bij het certificaat hoort, dat het nu geldig is en dat het de DNS-naam dekt. Zonder interne DNS voert u in plaats daarvan het IP-adres van de console in en gebruikt u een certificaat dat voor dat IP-adres is uitgegeven (alternatieve naam <code>IP:192.168.1.20</code>); geef de console dan een vast adres. U krijgt 21 dagen voor het verlopen een e-mail.</li>
+  <li><b>Let's Encrypt</b>: gratis certificaten, automatisch vernieuwd 30 dagen voordat ze verlopen. Let's Encrypt moet controleren dat u de naam beheert, op een van twee manieren:
+    <ul>
+      <li><b>DNS-controle via Cloudflare</b>, aanbevolen voor consoles die niet vanaf internet bereikbaar zijn. BackupZit maakt met een Cloudflare-API-token een tijdelijk TXT-record. Ga in Cloudflare naar My Profile → API Tokens → Create Token, gebruik de sjabloon <i>Edit zone DNS</i> en beperk het tot uw zone.</li>
+      <li><b>HTTP-controle</b>: poort 80 van de console moet onder de DNS-naam vanaf internet bereikbaar zijn. Dat wilt u zelden voor een back-upserver.</li>
+    </ul>
+    Probeer de instelling eerst met <i>Het testsysteem van Let's Encrypt gebruiken</i>. Browsers vertrouwen de certificaten daarvan niet, maar het heeft geen snelheidslimieten.</li>
+  <li><b>Poort 80 bedienen</b> leidt <code>http://</code> om naar <code>https://</code>.</li>
+</ul>
+<p>De DNS-naam moet naar het IP-adres van de console wijzen, meestal via een A-record in uw interne DNS. De certificaatbestanden staan in <code>/var/lib/backupzit/web</code>, en de sleutel is alleen leesbaar voor de service. Op Linux mag de service de poorten 80 en 443 gebruiken (<code>CAP_NET_BIND_SERVICE</code>); open ze in de firewall als browsers vanaf andere netwerken verbinden.</p>
+
+<h2>Firewall</h2>
+<table>
+  <tr><th>Poort</th><th>Van</th><th>Naar</th><th>Doel</th></tr>
+  <tr><td>8443/tcp</td><td>agents, beheerders</td><td>console</td><td>agent-API en webconsole</td></tr>
+  <tr><td>443/tcp, 80/tcp</td><td>beheerders</td><td>console</td><td>optioneel: webconsole met vertrouwd certificaat, en de omleiding naar HTTPS</td></tr>
+  <tr><td>22/tcp</td><td>agents, console</td><td>SFTP-opslag</td><td>SFTP-doelen</td></tr>
+  <tr><td>443 of 9000/tcp</td><td>agents, console</td><td>S3-opslag</td><td>S3-doelen</td></tr>
+  <tr><td>445/tcp</td><td>agents, console</td><td>NAS / bestandsserver</td><td>SMB-doelen</td></tr>
+  <tr><td>8500/tcp</td><td>agents, console</td><td>geharde repository</td><td>geharde doelen</td></tr>
+  <tr><td>443/tcp</td><td>agents, console</td><td>Azure / cloudopslag</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
+  <tr><td>636/tcp (389 met StartTLS)</td><td>console</td><td>domeincontrollers</td><td>aanmelding via LDAP / Active Directory</td></tr>
+  <tr><td>587/465/25</td><td>console</td><td>mailserver</td><td>e-mailmeldingen</td></tr>
+</table>
+<p>De console maakt ook zelf verbinding met de opslag, zodat u bestanden in schijfimages en VM-back-ups kunt doorbladeren (en downloaden); ze heeft dus dezelfde opslagtoegang nodig als de agents.</p>
+
+<h2>BackupZit bijwerken</h2>
+<p>Standaard haalt de console updates uit de officiële BackupZit-versies op GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Onder <a href="/settings/updates">Instellingen → Updates</a> kunt u in plaats daarvan een andere <b>updatebron</b> invoeren — uw eigen HTTPS-mirror of een map op de server. Welke bron ook, elke versie moet een geldige BackupZit-handtekening dragen. De console controleert dagelijks op nieuwe versies en mailt de beheerders als er een beschikbaar is. Klik op <b>Installeren</b> om hem te installeren:</p>
+<ol>
+  <li>De console controleert de handtekening van de versie en de controlesom van het pakket, en wacht tot er geen back-up of herstel loopt.</li>
+  <li>Een systeemservice (<code>backupzit-update</code>, draait als root) controleert de handtekening opnieuw met de releasesleutels die in BackupZit zijn ingebouwd. Zelfs een gecompromitteerde console kan zo geen ander pakket laten installeren.</li>
+  <li>Hij maakt een back-up van de database (<code>pg_dump</code>), bewaart het huidige programma, installeert het pakket en herstart de console.</li>
+  <li>Antwoordt de nieuwe versie niet binnen twee minuten, dan worden het vorige programma en de database zoals die was automatisch hersteld. Het resultaat, met het logboek van de mislukte start, wordt op de pagina Updates getoond, vastgelegd in het auditlogboek en gemaild.</li>
+  <li>Na een geslaagde update worden ook de agents bijgewerkt: elke agent installeert de nieuwe versie zodra hij inactief is. Schakel dat op dezelfde pagina uit als u ze liever zelf bijwerkt.</li>
+</ol>
+<p>De console is ongeveer een minuut niet beschikbaar. De databaseback-ups en vorige programma's van de laatste drie updates worden bewaard in <code>/var/lib/backupzit-update</code>.</p>
+<p><b>Zonder internettoegang:</b> download de versiebestanden (<code>manifest.json</code>, <code>manifest.json.sig</code> en het serverpakket) op een andere computer. Upload ze daarna onder <i>Een update uit bestanden installeren</i>, of kopieer ze naar een map op de server en gebruik die map als updatebron.</p>
+<p>U kunt nog steeds bijwerken met de pakketbeheerder (<code>apt install ./backupzit-server_….deb</code>); de database wordt gemigreerd wanneer de nieuwe versie start.</p>
+
+<h2>Updates van het besturingssysteem</h2>
+<p>Dezelfde pagina (<a href="/settings/updates#os">Instellingen → Updates</a>) toont het besturingssysteem van de consoleserver: hoeveel updates er beschikbaar zijn, hoeveel daarvan beveiligingsfixes zijn, of een herstart nodig is en of automatische beveiligingsupdates aan staan. De status wordt dagelijks vernieuwd, of met <i>Nu controleren</i>. U kunt:</p>
+<ul>
+  <li><b>Automatische beveiligingsupdates inschakelen</b> (aanbevolen). Het eigen hulpmiddel van het systeem installeert dagelijks alleen beveiligingsfixes: <code>unattended-upgrades</code> op Debian en Ubuntu, <code>dnf-automatic</code> op AlmaLinux en Rocky Linux.</li>
+  <li><b>Nu alle updates installeren</b>. Services zoals PostgreSQL kunnen kort herstarten, en de console maakt vanzelf opnieuw verbinding.</li>
+  <li><b>Server herstarten</b>, bijvoorbeeld na een kernelupdate. De console weigert dat zolang er back-ups of herstelacties lopen. Agents behouden hun taken en melden de resultaten zodra de console terug is.</li>
+</ul>
+<p>Deze taken lopen via dezelfde root-service als console-updates. Ze worden vastgelegd in het auditlogboek, en de uitvoer van de laatste taak wordt op de pagina getoond.</p>
+
+<h2>Een back-up van de console zelf maken</h2>
+<p>Back-ups op uw opslag blijven zonder de console leesbaar met de herstelbladen. Om ook de console zelf terug te krijgen na verlies van haar server, schakelt u <a href="/settings/console">Instellingen → Consoleback-up</a> in. Dat omvat taken, schema's, agents, gebruikers, instellingen, uitvoeringsgeschiedenis en opgeslagen referenties. De console maakt dan dagelijks een back-up van zichzelf naar een netwerkopslagdoel, in de map <code>backupzit-console</code>.</p>
+<p>Een consoleback-up bevat:</p>
+<ul>
+  <li>de hele database, tabel voor tabel geëxporteerd, zodat er geen specifieke <code>pg_dump</code>-versie nodig is;</li>
+  <li>de geheimensleutel die de opgeslagen referenties ontsleutelt;</li>
+  <li>het certificaat van de console, dat de agents vastpinnen.</li>
+</ul>
+<p>Ze is versleuteld met de herstelsleutel van het doel en gededupliceerd. De nieuwste back-ups worden bewaard: standaard 14.</p>
+<h3>De console herstellen</h3>
+<ol>
+  <li>Installeer een nieuwe console met dezelfde of een nieuwere versie, bijvoorbeeld vanaf de appliance-ISO.</li>
+  <li>Voer op de nieuwe server als root het volgende uit. De referenties zijn die van het herstelblad van het opslagdoel, en het repositoryadres staat op de pagina Consoleback-up.
+<pre>systemctl stop backupzit-server
+set -a; . /etc/backupzit/server.env; set +a
+export BACKUPZIT_PASSWORD='&lt;recovery key&gt;'
+export BACKUPZIT_SFTP_PASSWORD='…' BACKUPZIT_SFTP_HOSTKEY='SHA256:…'   # or BACKUPZIT_S3_ACCESS_KEY/_SECRET_KEY, _SMB_PASSWORD, _AZURE_KEY, _HARDENED_KEY/_FINGERPRINT
+backupzit-server --restore-console --repo 'sftp://backup@nas:22/backups/backupzit-console'
+systemctl start backupzit-server</pre></li>
+  <li>Geef de nieuwe server het IP-adres of de DNS-naam van de oude. De agents vertrouwen het herstelde certificaat en maken vanzelf opnieuw verbinding.</li>
+</ol>
+<p>Het herstel vervangt de database van de nieuwe console door die uit de back-up en brengt de database op het niveau van de geïnstalleerde versie. <code>--snapshot ID</code> herstelt een oudere back-up in plaats van de nieuwste.</p>
+<p>Bewaar ook een kopie van de <b>herstelbladen</b> en van <code>secrets.key</code> buiten de server, bijvoorbeeld in uw wachtwoordmanager.</p>
+
+{{template "docpager" .}}
+</article></div>{{end}}
