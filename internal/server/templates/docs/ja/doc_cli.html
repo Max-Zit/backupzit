@@ -1,0 +1,162 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>コマンドライン リファレンス</h1>
+<p class="lead">エージェントはコマンドラインから単独でも動作します。スクリプト、コンソールなしでの復元、緊急時に使えます。概要は引数なしで <code>backupzit-agent</code> を、コマンドのオプションは <code>backupzit-agent &lt;command&gt; -h</code> を実行してください。</p>
+
+<h2>リポジトリと資格情報</h2>
+<p>すべてのコマンドは <code>--repo</code>（または <code>BACKUPZIT_REPO</code>）を受け取ります。シークレットには環境変数を使うことをお勧めします。エージェントのリポジトリは <code>&lt;ストレージの場所&gt;/&lt;hostname&gt;_&lt;id&gt;</code> です。「アクティビティ」の実行のリポジトリ列か、復旧シートを参照してください。</p>
+<table>
+  <tr><th>場所</th><th>資格情報</th></tr>
+  <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
+  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> または <code>--sftp-key file</code>、<code>--sftp-hostkey SHA256:…</code>（<code>BACKUPZIT_SFTP_HOSTKEY</code>）</td></tr>
+  <tr><td><code>s3://endpoint/bucket/prefix</code>（HTTP の場合は <code>?tls=false</code>）</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>、<code>BACKUPZIT_S3_SECRET_KEY</code>、<code>--s3-region</code>。<code>--s3-lock-days N</code> は Object Lock 付きで書き込みます</td></tr>
+  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code>、<code>--smb-domain</code></td></tr>
+  <tr><td><code>azure://account/container/path</code>（ソブリン クラウド、Azure Stack、Azurite には <code>?endpoint=URL</code>）</td><td><code>BACKUPZIT_AZURE_KEY</code> または <code>BACKUPZIT_AZURE_SAS</code></td></tr>
+  <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>、<code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
+  <tr><td><code>usb://LABEL/path</code>（ワイルドカード: <code>usb://BZBACKUP*/BackupZit</code>）</td><td>—（そのボリューム ラベルを持つ接続済みディスクが使われます）</td></tr>
+</table>
+<p>暗号化されたリポジトリには <code>BACKUPZIT_PASSWORD</code>（または <code>--password</code>）で回復キーが必要です。</p>
+<p><b>特定時点のビュー:</b> Object Lock 付き S3 と強化リポジトリでは、<code>--as-of 2026-10-01T14:30</code>（または日付）でその時点のリポジトリを表示します。読み取り専用で、バックアップが削除または上書きされた後の復旧に使います。</p>
+
+<h2>ファイルとフォルダー</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>init</code></td><td>新しいリポジトリを作成します（パスワードを指定すると暗号化）。</td></tr>
+  <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>ファイルとフォルダーをバックアップします。<code>--vss</code> はボリューム シャドウ コピーから読み取ります（Windows、管理者）。<code>--force</code> は変更のないファイルも含めすべて読み取ります。</td></tr>
+  <tr><td><code>snapshots</code></td><td>スナップショットを時刻、ホスト、サイズ、パスとともに一覧表示します。</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>スナップショット内のファイルを一覧表示します。</td></tr>
+  <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>ファイルを DIR の下に復元します（元のフォルダー構造が再作成されます）。<code>--original</code> では代わりに元の場所に書き戻し、既存のファイルを上書きします。</td></tr>
+  <tr><td><code>check [--read-data]</code></td><td>リポジトリの構造を確認します。<code>--read-data</code> ではすべてのバイトをダウンロードして検証します。</td></tr>
+</table>
+
+<h2>ディスク イメージ（Windows）</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>disks [--json]</code></td><td>ディスクとパーティションを番号付きで表示します。</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>ディスク全体または選択したパーティション、あるいはすべての内蔵ディスクを 1 つのスナップショットにバックアップします。</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>イメージをディスクに書き込みます。<b>ディスクは消去されます</b>。元のディスクが同じマシンにある場合は <code>--keep-offline</code>。<code>--source-disk</code> は全ディスク バックアップからディスクを選びます。</td></tr>
+  <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>イメージ内の NTFS パーティションのファイルを一覧表示します（<code>--disk</code>: 全ディスク バックアップでバックアップされたディスク）。</td></tr>
+  <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>イメージ内のパーティションからファイルとフォルダーをコピーします。</td></tr>
+</table>
+
+<h2>Linux システム（ベアメタル、P2V）</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>system-backup [--exclude PATTERN]</code></td><td>すべてのローカル ファイル システムとディスク レイアウトをバックアップします。<a href="/docs/linux-system">Linux システム バックアップ</a>を参照してください。</td></tr>
+  <tr><td><code>system-show SNAPSHOT|latest</code></td><td>システム バックアップのディスク レイアウトを表示します。</td></tr>
+  <tr><td><code>system-restore --target DEVICE [--new-hardware] [--rebuild-initramfs] --yes-erase-target SNAPSHOT|latest</code></td><td>空のディスク、論理ボリューム、またはイメージ ファイル上にシステムを再作成します。</td></tr>
+</table>
+<h2>Windows: 異なるハードウェア</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>復元した Windows ディスクを異なるハードウェア用に準備します（ブート ドライバー、追加ドライバー、ブート ファイル）。復元オプションと同じで、たとえば復旧 ISO からやり直す場合に使います。</td></tr>
+</table>
+
+<h2>VMware ESXi（任意のエージェントをプロキシとして使用。パスワードは <code>BACKUPZIT_VMWARE_PASSWORD</code>）</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>vmware list --host H [--user root]</code></td><td>ホストの VM、ライセンス モード、証明書と SSH キーのフィンガープリント、データストアを表示します。</td></tr>
+  <tr><td><code>vmware backup --host H [--vmid N,N]</code></td><td>スナップショットから VM（既定: すべて）をバックアップします。Changed Block Tracking では変更されたブロックのみ読み取ります。</td></tr>
+  <tr><td><code>vmware restore --host H --vmid N [--new] [--name X] [--datastore DS] [--overwrite] [--start] SNAPSHOT&#124;latest</code></td><td>VM をその場（既定）または <code>--new</code> で新しい VM として復元します。<code>--overwrite</code> は既存 VM のディスクを置き換え、古いものは名前を変えて保持します。<a href="/docs/vmware">VMware ESXi</a> を参照してください。</td></tr>
+  <tr><td><code>esxi-nfs-serve</code></td><td><code>/var/lib/backupzit/instant-esxi</code> から NFS 経由で ESXi ホストにインスタント VM を提供します（Linux。インスタント リカバリが systemd ユニット <code>backupzit-esxi-nfs</code> として起動）。</td></tr>
+</table>
+<p>ホストは <code>--thumbprint SHA256:…</code> と <code>--ssh-host-key SHA256:…</code> で固定します（<code>vmware list</code> で表示されます）。</p>
+
+<h2>Hyper-V（Hyper-V ホスト上のエージェント、管理者として）</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>hyperv list</code></td><td>ホストの VM を BackupZit 番号付きで、復元ディスク用のフォルダーとともに一覧表示します。</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>運用チェックポイントから VM（既定: すべて）をバックアップします。</td></tr>
+  <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>VM をその場（既定）または <code>--new</code> で新しい VM として復元します。<code>--overwrite</code> は既存 VM のディスクを置き換えます。<a href="/docs/hyperv">Hyper-V</a> を参照してください。</td></tr>
+</table>
+<p><code>pve show</code>、<code>pve ls</code>、<code>pve extract</code> は Hyper-V バックアップでも使えます。</p>
+
+<h2>Proxmox VE（Proxmox ホスト上のエージェント）</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>pve list</code></td><td>クラスターの VM とコンテナー、および復元に使えるストレージを一覧表示します。</td></tr>
+  <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>このノードのゲスト（既定: すべて）を Proxmox スナップショットからバックアップします。</td></tr>
+  <tr><td><code>pve show SNAPSHOT|latest</code></td><td>VM バックアップ内のゲストとディスクを表示します。</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>ゲスト ディスクのパーティションと論理ボリューム、またはフォルダー内のファイルを一覧表示します（NTFS、ext4、XFS、LVM 上も可）。</td></tr>
+  <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>VM を復元せずにゲスト ディスクからファイルとフォルダーをコピーします。</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>ゲストを再作成します。<code>--new-vmid -1</code> は次の空き ID を使い、<code>--overwrite</code> は同じ ID の既存ゲストを置き換えます。<a href="/docs/proxmox">Proxmox VE</a> を参照してください。</td></tr>
+  <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>インスタント リカバリ: ディスクをバックアップから読み取りながら数秒で VM を起動します（新しい VM、既定は次の空き ID）。</td></tr>
+  <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>実行中のインスタント VM のディスクをストレージに移動します。その後はバックアップを使いません。</td></tr>
+  <tr><td><code>pve instant-discard --vmid N</code></td><td>インスタント VM を停止し、変更とともに削除します。</td></tr>
+  <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>バックアップ内の VM のディスクを Unix ソケット上の NBD で読み取り専用で提供します（インスタント リカバリが systemd ユニットとして起動）。</td></tr>
+</table>
+
+<h2>Microsoft SQL Server（SQL Server マシン上のエージェント）</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>sql list [--instance I]</code></td><td>インスタンスのデータベースを復旧モデルとサイズ付きで一覧表示します。</td></tr>
+  <tr><td><code>sql backup [--instance I] [--db a,b] [--system] [--log] [--copy-only]</code></td><td>完全バックアップ（既定: すべてのユーザー データベース）、または <code>--log</code> でトランザクション ログ バックアップをリポジトリに取ります。</td></tr>
+  <tr><td><code>sql show</code></td><td>リポジトリ内の SQL Server バックアップを LSN 範囲付きで一覧表示します。</td></tr>
+  <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>完全バックアップとその後のログ バックアップからデータベースを復元します。特定時点への復元も可能です。<a href="/docs/sql">SQL Server</a> を参照してください。</td></tr>
+</table>
+
+<h2>PostgreSQL と MySQL/MariaDB（データベース サーバー上のエージェント）</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>pg list [--port P]</code></td><td>ローカル クラスターのデータベースと、WAL アーカイブが有効かどうか。</td></tr>
+  <tr><td><code>pg backup [--port P] [--db a,b] [--pitr | --wal]</code></td><td>完全バックアップ（pg_basebackup、各データベースの pg_dump。<code>--pitr</code> で WAL アーカイブを設定）、または <code>--wal</code> でアーカイブ済み WAL。</td></tr>
+  <tr><td><code>pg restore --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>データベース（ダンプから、または特定時点へ）、またはクラスター全体を別インスタンスとして復元します。</td></tr>
+  <tr><td><code>mysql list</code></td><td>データベースと、バイナリ ログが有効かどうか。</td></tr>
+  <tr><td><code>mysql backup [--db a,b] [--binlog]</code></td><td>各データベースのバイナリ ログ位置付き mysqldump、または閉じたバイナリ ログ。</td></tr>
+  <tr><td><code>mysql restore --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>ダンプを読み込み、特定時点までバイナリ ログを再生します。<a href="/docs/sql">データベース</a>を参照してください。</td></tr>
+</table>
+
+<h2>管理モード</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>「エージェント」ページの登録コードでエージェントをコンソールに接続します（<code>--force</code> は既存の登録を置き換えます）。旧形式の <code>--server URL --token T --fingerprint F</code> も引き続き使えます。</td></tr>
+  <tr><td><code>set-server https://address:8443</code></td><td>登録済みエージェントをコンソールの新しいアドレス（同じ証明書）に向けます。その後エージェント サービスを再起動してください。<a href="/docs/agents#new-address">エージェント</a>を参照してください。</td></tr>
+  <tr><td><code>status</code></td><td>実行中のエージェントの処理内容とバックアップ ジョブを表示します（Windows のトレイ アイコンも同じ内容を表示します）。</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>エージェント サービスを管理します（インストーラーが行います）。</td></tr>
+  <tr><td><code>recovery</code></td><td>復旧モード。復旧 ISO が自動的に起動します。任意の Linux ライブ システムでは: <code>sudo backupzit-agent recovery --server URL --token CODE</code>。</td></tr>
+  <tr><td><code>version</code></td><td>バージョンを表示します。</td></tr>
+</table>
+
+<h3>例</h3>
+<pre>set BACKUPZIT_PASSWORD=XXXX-XXXX-...
+set BACKUPZIT_S3_ACCESS_KEY=...
+set BACKUPZIT_S3_SECRET_KEY=...
+backupzit-agent snapshots --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d
+backupzit-agent restore --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d --target D:\Restore --include C:\Users\ana\Documents latest
+backupzit-agent check --repo s3://... --read-data
+
+backupzit-agent disks
+backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
+backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
+
+<h2>強化リポジトリ（<code>backupzit-repo</code>）</h2>
+<table>
+  <tr><th>コマンド</th><th>機能</th></tr>
+  <tr><td><code>backupzit-repo serve</code></td><td>サービスを実行します（systemd が行います）。</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME</code></td><td>アクセス キーを作成します（一度だけ表示）。</td></tr>
+  <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>アクセス キーの一覧表示 / 失効。</td></tr>
+  <tr><td><code>backupzit-repo fingerprint</code></td><td>コンソール用の証明書フィンガープリント。</td></tr>
+  <tr><td><code>backupzit-repo status</code></td><td>保存済みのデータと非表示（削除済みだが保持中）のデータ。</td></tr>
+  <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>TIME 以降に削除されたファイルを再び表示可能にします。</td></tr>
+</table>
+<p>構成: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>、<code>BACKUPZIT_REPO_DATA</code>、<code>BACKUPZIT_REPO_LISTEN</code>、<code>BACKUPZIT_REPO_TLS_HOSTS</code>。</p>
+
+<h2>管理サーバー（<code>backupzit-server</code>）</h2>
+<table>
+  <tr><th>オプション / 環境変数</th><th>意味</th></tr>
+  <tr><td><code>--db</code> / <code>BACKUPZIT_DB</code></td><td>PostgreSQL 接続文字列（必須）。</td></tr>
+  <tr><td><code>--listen</code> / <code>BACKUPZIT_LISTEN</code></td><td>HTTPS アドレス。既定は <code>:8443</code>。</td></tr>
+  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>証明書、<code>secrets.key</code>、エージェントのダウンロード（<code>dist/</code>）。</td></tr>
+  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>エージェントとメールのリンクが使う URL。</td></tr>
+  <tr><td><code>--tls-hosts</code> / <code>BACKUPZIT_TLS_HOSTS</code></td><td>自己署名証明書に追加する名前/IP。</td></tr>
+  <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>初期管理者パスワード（初回起動時のみ）。</td></tr>
+  <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td><code>secrets.key</code> ファイルの代わりのシークレット キー（base64）。</td></tr>
+  <tr><td><code>--set-admin-password NEW</code></td><td><i>admin</i> のパスワードをリセットし（ローカル管理者として再有効化）、終了します。</td></tr>
+  <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>アドレスまたはすべてのアドレスのサインイン ブロック（ブルートフォース対策）を解除して終了します。</td></tr>
+  <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>コンソール バックアップからコンソールを復元して終了します（<a href="/docs/install">サーバーのインストール</a>を参照）。</td></tr>
+  <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>評価専用: データ ディレクトリ内のプライベート PostgreSQL、localhost 上の平文 HTTP。</td></tr>
+  <tr><td><code>--version</code></td><td>バージョンを表示します。</td></tr>
+</table>
+<pre>systemctl status backupzit-server
+journalctl -u backupzit-server -f</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

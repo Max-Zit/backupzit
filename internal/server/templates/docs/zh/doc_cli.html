@@ -1,0 +1,162 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>命令行参考</h1>
+<p class="lead">代理也可以在命令行中独立工作——用于脚本、在没有控制台的情况下还原以及应急。不带参数运行 <code>backupzit-agent</code> 查看概览，运行 <code>backupzit-agent &lt;command&gt; -h</code> 查看某个命令的选项。</p>
+
+<h2>存储库和凭据</h2>
+<p>每个命令都接受 <code>--repo</code>（或 <code>BACKUPZIT_REPO</code>）。机密信息最好使用环境变量。代理的存储库是 <code>&lt;存储位置&gt;/&lt;hostname&gt;_&lt;id&gt;</code>——请查看“活动”中某次运行的存储库列，或恢复单。</p>
+<table>
+  <tr><th>位置</th><th>凭据</th></tr>
+  <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
+  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> 或 <code>--sftp-key file</code>；<code>--sftp-hostkey SHA256:…</code>（<code>BACKUPZIT_SFTP_HOSTKEY</code>）</td></tr>
+  <tr><td><code>s3://endpoint/bucket/prefix</code>（HTTP 用 <code>?tls=false</code>）</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>、<code>BACKUPZIT_S3_SECRET_KEY</code>、<code>--s3-region</code>；<code>--s3-lock-days N</code> 以 Object Lock 写入</td></tr>
+  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code>、<code>--smb-domain</code></td></tr>
+  <tr><td><code>azure://account/container/path</code>（主权云、Azure Stack、Azurite 用 <code>?endpoint=URL</code>）</td><td><code>BACKUPZIT_AZURE_KEY</code> 或 <code>BACKUPZIT_AZURE_SAS</code></td></tr>
+  <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>、<code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
+  <tr><td><code>usb://LABEL/path</code>（通配符：<code>usb://BZBACKUP*/BackupZit</code>）</td><td>—（使用带有该卷标的已连接磁盘）</td></tr>
+</table>
+<p>加密的存储库需要在 <code>BACKUPZIT_PASSWORD</code>（或 <code>--password</code>）中提供恢复密钥。</p>
+<p><b>某一时刻的视图：</b>在启用 Object Lock 的 S3 和加固存储库上，<code>--as-of 2026-10-01T14:30</code>（或一个日期）会显示存储库在该时刻的样子——只读，用于在备份被删除或覆盖后进行恢复。</p>
+
+<h2>文件和文件夹</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>init</code></td><td>创建新的存储库（如果提供了密码则加密）。</td></tr>
+  <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>备份文件和文件夹。<code>--vss</code> 从卷影副本读取（Windows，管理员）；<code>--force</code> 读取所有文件，包括未更改的。</td></tr>
+  <tr><td><code>snapshots</code></td><td>列出快照及其时间、主机、大小和路径。</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>列出快照中的文件。</td></tr>
+  <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>将文件还原到 DIR 下（重建原始文件夹结构）。<code>--original</code> 则将其写回原始位置，覆盖现有文件。</td></tr>
+  <tr><td><code>check [--read-data]</code></td><td>检查存储库结构；使用 <code>--read-data</code> 时会下载并校验每个字节。</td></tr>
+</table>
+
+<h2>磁盘映像（Windows）</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>disks [--json]</code></td><td>显示磁盘和分区及其编号。</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>备份整个磁盘或选定的分区，或将所有内部磁盘备份到一个快照中。</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>将映像写入磁盘；<b>会擦除该磁盘</b>。原始磁盘在同一台机器中时使用 <code>--keep-offline</code>；<code>--source-disk</code> 从所有磁盘备份中选择磁盘。</td></tr>
+  <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>列出映像中 NTFS 分区的文件（<code>--disk</code>：所有磁盘备份中被备份的磁盘）。</td></tr>
+  <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>从映像中的分区复制文件和文件夹。</td></tr>
+</table>
+
+<h2>Linux 系统（裸机，P2V）</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>system-backup [--exclude PATTERN]</code></td><td>备份所有本地文件系统和磁盘布局。参见 <a href="/docs/linux-system">Linux 系统备份</a>。</td></tr>
+  <tr><td><code>system-show SNAPSHOT|latest</code></td><td>显示系统备份中的磁盘布局。</td></tr>
+  <tr><td><code>system-restore --target DEVICE [--new-hardware] [--rebuild-initramfs] --yes-erase-target SNAPSHOT|latest</code></td><td>在空磁盘、逻辑卷或映像文件上重建系统。</td></tr>
+</table>
+<h2>Windows：不同硬件</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>为不同硬件准备已还原的 Windows 磁盘（启动驱动程序、附加驱动程序、启动文件）——与还原选项相同，例如可从恢复 ISO 中再次执行。</td></tr>
+</table>
+
+<h2>VMware ESXi（任意代理作为代理服务器；密码在 <code>BACKUPZIT_VMWARE_PASSWORD</code> 中）</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>vmware list --host H [--user root]</code></td><td>显示主机的虚拟机、许可证模式、证书和 SSH 密钥指纹以及数据存储。</td></tr>
+  <tr><td><code>vmware backup --host H [--vmid N,N]</code></td><td>从快照备份虚拟机（默认：全部）；启用 Changed Block Tracking 时只读取更改的块。</td></tr>
+  <tr><td><code>vmware restore --host H --vmid N [--new] [--name X] [--datastore DS] [--overwrite] [--start] SNAPSHOT&#124;latest</code></td><td>就地还原虚拟机（默认），或使用 <code>--new</code> 作为新虚拟机还原。<code>--overwrite</code> 替换现有虚拟机的磁盘；旧磁盘会改名保留。参见 <a href="/docs/vmware">VMware ESXi</a>。</td></tr>
+  <tr><td><code>esxi-nfs-serve</code></td><td>通过 NFS 从 <code>/var/lib/backupzit/instant-esxi</code> 向 ESXi 主机提供即时虚拟机（Linux；由即时恢复作为 systemd 单元 <code>backupzit-esxi-nfs</code> 启动）。</td></tr>
+</table>
+<p>用 <code>--thumbprint SHA256:…</code> 和 <code>--ssh-host-key SHA256:…</code> 固定主机（由 <code>vmware list</code> 显示）。</p>
+
+<h2>Hyper-V（Hyper-V 主机上的代理，以管理员身份）</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>hyperv list</code></td><td>列出主机的虚拟机及其 BackupZit 编号，以及用于还原磁盘的文件夹。</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>从生产检查点备份虚拟机（默认：全部）。</td></tr>
+  <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>就地还原虚拟机（默认），或使用 <code>--new</code> 作为新虚拟机还原。<code>--overwrite</code> 替换现有虚拟机的磁盘。参见 <a href="/docs/hyperv">Hyper-V</a>。</td></tr>
+</table>
+<p><code>pve show</code>、<code>pve ls</code> 和 <code>pve extract</code> 也适用于 Hyper-V 备份。</p>
+
+<h2>Proxmox VE（Proxmox 主机上的代理）</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>pve list</code></td><td>列出集群的虚拟机和容器，以及可用于还原的存储。</td></tr>
+  <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>从 Proxmox 快照备份此节点的客户机（默认：全部）。</td></tr>
+  <tr><td><code>pve show SNAPSHOT|latest</code></td><td>显示虚拟机备份中的客户机和磁盘。</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>列出客户机磁盘的分区和逻辑卷，或文件夹中的文件（NTFS、ext4、XFS，也支持 LVM 上的）。</td></tr>
+  <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>从客户机磁盘复制文件和文件夹，无需还原虚拟机。</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>重建客户机；<code>--new-vmid -1</code> 使用下一个空闲 ID，<code>--overwrite</code> 替换具有相同 ID 的现有客户机。参见 <a href="/docs/proxmox">Proxmox VE</a>。</td></tr>
+  <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>即时恢复：在几秒钟内启动虚拟机，同时从备份读取其磁盘（新虚拟机，默认使用下一个空闲 ID）。</td></tr>
+  <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>在运行时将即时虚拟机的磁盘迁移到存储；之后不再使用备份。</td></tr>
+  <tr><td><code>pve instant-discard --vmid N</code></td><td>停止并删除即时虚拟机及其更改。</td></tr>
+  <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>通过 Unix 套接字上的 NBD 以只读方式提供备份中虚拟机的磁盘（由即时恢复作为 systemd 单元启动）。</td></tr>
+</table>
+
+<h2>Microsoft SQL Server（SQL Server 机器上的代理）</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>sql list [--instance I]</code></td><td>列出实例的数据库及其恢复模式和大小。</td></tr>
+  <tr><td><code>sql backup [--instance I] [--db a,b] [--system] [--log] [--copy-only]</code></td><td>完整备份（默认：所有用户数据库），或使用 <code>--log</code> 将事务日志备份到存储库。</td></tr>
+  <tr><td><code>sql show</code></td><td>列出存储库中的 SQL Server 备份及其 LSN 范围。</td></tr>
+  <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>从完整备份及其后的日志备份还原数据库，可选择还原到某一时刻。参见 <a href="/docs/sql">SQL Server</a>。</td></tr>
+</table>
+
+<h2>PostgreSQL 和 MySQL/MariaDB（数据库服务器上的代理）</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>pg list [--port P]</code></td><td>本地集群的数据库，以及 WAL 归档是否开启。</td></tr>
+  <tr><td><code>pg backup [--port P] [--db a,b] [--pitr | --wal]</code></td><td>完整备份（pg_basebackup、每个数据库的 pg_dump；<code>--pitr</code> 设置 WAL 归档），或使用 <code>--wal</code> 备份已归档的 WAL。</td></tr>
+  <tr><td><code>pg restore --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>还原一个数据库（从其转储或到某一时刻），或将整个集群还原为单独的实例。</td></tr>
+  <tr><td><code>mysql list</code></td><td>数据库，以及二进制日志是否开启。</td></tr>
+  <tr><td><code>mysql backup [--db a,b] [--binlog]</code></td><td>每个数据库的 mysqldump 及其二进制日志位置，或已关闭的二进制日志。</td></tr>
+  <tr><td><code>mysql restore --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>加载转储并重放二进制日志到某一时刻。参见 <a href="/docs/sql">数据库</a>。</td></tr>
+</table>
+
+<h2>托管模式</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>使用“Agent”页面上的注册码将代理连接到控制台（<code>--force</code> 替换现有注册）。旧形式 <code>--server URL --token T --fingerprint F</code> 仍然可用。</td></tr>
+  <tr><td><code>set-server https://address:8443</code></td><td>将已注册的代理指向控制台的新地址（相同证书）；然后重启代理服务。参见 <a href="/docs/agents#new-address">Agent</a>。</td></tr>
+  <tr><td><code>status</code></td><td>显示正在运行的代理在做什么及其备份作业（Windows 托盘图标显示相同内容）。</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>管理代理服务（安装程序会处理）。</td></tr>
+  <tr><td><code>recovery</code></td><td>恢复模式，由恢复 ISO 自动启动；在任何 Linux 实时系统上：<code>sudo backupzit-agent recovery --server URL --token CODE</code>。</td></tr>
+  <tr><td><code>version</code></td><td>打印版本。</td></tr>
+</table>
+
+<h3>示例</h3>
+<pre>set BACKUPZIT_PASSWORD=XXXX-XXXX-...
+set BACKUPZIT_S3_ACCESS_KEY=...
+set BACKUPZIT_S3_SECRET_KEY=...
+backupzit-agent snapshots --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d
+backupzit-agent restore --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d --target D:\Restore --include C:\Users\ana\Documents latest
+backupzit-agent check --repo s3://... --read-data
+
+backupzit-agent disks
+backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
+backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
+
+<h2>加固存储库（<code>backupzit-repo</code>）</h2>
+<table>
+  <tr><th>命令</th><th>作用</th></tr>
+  <tr><td><code>backupzit-repo serve</code></td><td>运行服务（由 systemd 负责）。</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME</code></td><td>创建访问密钥（只显示一次）。</td></tr>
+  <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>列出 / 吊销访问密钥。</td></tr>
+  <tr><td><code>backupzit-repo fingerprint</code></td><td>供控制台使用的证书指纹。</td></tr>
+  <tr><td><code>backupzit-repo status</code></td><td>已存储和隐藏（已删除、仍保留）的数据。</td></tr>
+  <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>使自 TIME 以来删除的文件重新可见。</td></tr>
+</table>
+<p>配置：<code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>、<code>BACKUPZIT_REPO_DATA</code>、<code>BACKUPZIT_REPO_LISTEN</code>、<code>BACKUPZIT_REPO_TLS_HOSTS</code>。</p>
+
+<h2>管理服务器（<code>backupzit-server</code>）</h2>
+<table>
+  <tr><th>选项 / 环境变量</th><th>含义</th></tr>
+  <tr><td><code>--db</code> / <code>BACKUPZIT_DB</code></td><td>PostgreSQL 连接字符串（必需）。</td></tr>
+  <tr><td><code>--listen</code> / <code>BACKUPZIT_LISTEN</code></td><td>HTTPS 地址，默认 <code>:8443</code>。</td></tr>
+  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>证书、<code>secrets.key</code>、代理下载（<code>dist/</code>）。</td></tr>
+  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>代理和电子邮件链接使用的 URL。</td></tr>
+  <tr><td><code>--tls-hosts</code> / <code>BACKUPZIT_TLS_HOSTS</code></td><td>自签名证书的附加名称/IP。</td></tr>
+  <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>初始管理员密码（仅首次启动时）。</td></tr>
+  <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>机密密钥（base64），代替 <code>secrets.key</code> 文件。</td></tr>
+  <tr><td><code>--set-admin-password NEW</code></td><td>重置 <i>admin</i> 的密码（重新启用其本地管理员身份）并退出。</td></tr>
+  <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>解除某个地址或所有地址的登录封锁（暴力破解防护）并退出。</td></tr>
+  <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>从控制台备份还原控制台并退出（参见 <a href="/docs/install">安装服务器</a>）。</td></tr>
+  <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>仅用于试用：数据目录中的私有 PostgreSQL，localhost 上的明文 HTTP。</td></tr>
+  <tr><td><code>--version</code></td><td>打印版本。</td></tr>
+</table>
+<pre>systemctl status backupzit-server
+journalctl -u backupzit-server -f</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

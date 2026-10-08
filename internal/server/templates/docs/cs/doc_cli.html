@@ -1,0 +1,162 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Referenční příručka příkazového řádku</h1>
+<p class="lead">Agent funguje i samostatně z příkazového řádku — pro skripty, pro obnovu bez konzole a pro nouzové situace. Spusťte <code>backupzit-agent</code> bez argumentů pro přehled a <code>backupzit-agent &lt;command&gt; -h</code> pro volby příkazu.</p>
+
+<h2>Repozitář a přihlašovací údaje</h2>
+<p>Každý příkaz přijímá <code>--repo</code> (nebo <code>BACKUPZIT_REPO</code>). Pro tajné údaje dávejte přednost proměnným prostředí. Repozitář agenta je <code>&lt;umístění úložiště&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — viz sloupec repozitáře u běhu v Aktivitě nebo list pro obnovu.</p>
+<table>
+  <tr><th>Umístění</th><th>Přihlašovací údaje</th></tr>
+  <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
+  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> nebo <code>--sftp-key file</code>; <code>--sftp-hostkey SHA256:…</code> (<code>BACKUPZIT_SFTP_HOSTKEY</code>)</td></tr>
+  <tr><td><code>s3://endpoint/bucket/prefix</code> (<code>?tls=false</code> pro HTTP)</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>, <code>BACKUPZIT_S3_SECRET_KEY</code>, <code>--s3-region</code>; <code>--s3-lock-days N</code> zapisuje s Object Lock</td></tr>
+  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code>, <code>--smb-domain</code></td></tr>
+  <tr><td><code>azure://account/container/path</code> (<code>?endpoint=URL</code> pro suverénní cloudy, Azure Stack, Azurite)</td><td><code>BACKUPZIT_AZURE_KEY</code> nebo <code>BACKUPZIT_AZURE_SAS</code></td></tr>
+  <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>, <code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
+  <tr><td><code>usb://LABEL/path</code> (zástupné znaky: <code>usb://BZBACKUP*/BackupZit</code>)</td><td>— (použije se připojený disk s touto jmenovkou svazku)</td></tr>
+</table>
+<p>Šifrované repozitáře potřebují klíč pro obnovení v <code>BACKUPZIT_PASSWORD</code> (nebo <code>--password</code>).</p>
+<p><b>Pohled k určitému okamžiku:</b> na S3 s Object Lock a na zabezpečeném repozitáři <code>--as-of 2026-10-01T14:30</code> (nebo datum) ukáže repozitář tak, jak byl v tom okamžiku — jen pro čtení, k obnově poté, co byly zálohy smazány nebo přepsány.</p>
+
+<h2>Soubory a složky</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>init</code></td><td>Vytvoří nový repozitář (šifrovaný, pokud je zadáno heslo).</td></tr>
+  <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Zálohuje soubory a složky. <code>--vss</code> čte ze stínové kopie svazku (Windows, správce); <code>--force</code> čte všechny soubory, i nezměněné.</td></tr>
+  <tr><td><code>snapshots</code></td><td>Vypíše snímky s časem, hostitelem, velikostí a cestami.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Vypíše soubory ve snímku.</td></tr>
+  <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Obnoví soubory pod DIR (původní struktura složek se vytvoří znovu). <code>--original</code> je místo toho zapíše na původní místo a přepíše existující soubory.</td></tr>
+  <tr><td><code>check [--read-data]</code></td><td>Zkontroluje strukturu repozitáře; s <code>--read-data</code> se každý bajt stáhne a ověří.</td></tr>
+</table>
+
+<h2>Obrazy disků (Windows)</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>disks [--json]</code></td><td>Zobrazí disky a oddíly s jejich čísly.</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Zálohuje celý disk nebo vybrané oddíly, nebo všechny interní disky v jednom snímku.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Zapíše obraz na disk; <b>vymaže disk</b>. <code>--keep-offline</code>, když je původní disk ve stejném počítači; <code>--source-disk</code> vybere disk ze zálohy všech disků.</td></tr>
+  <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Vypíše soubory v oddílu NTFS v obrazu (<code>--disk</code>: zálohovaný disk, u záloh všech disků).</td></tr>
+  <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Zkopíruje soubory a složky z oddílu v obrazu.</td></tr>
+</table>
+
+<h2>Systém Linux (bare metal, P2V)</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>system-backup [--exclude PATTERN]</code></td><td>Zálohuje všechny místní souborové systémy a rozložení disků. Viz <a href="/docs/linux-system">Záloha systému Linux</a>.</td></tr>
+  <tr><td><code>system-show SNAPSHOT|latest</code></td><td>Zobrazí rozložení disků v záloze systému.</td></tr>
+  <tr><td><code>system-restore --target DEVICE [--new-hardware] [--rebuild-initramfs] --yes-erase-target SNAPSHOT|latest</code></td><td>Znovu vytvoří systém na prázdném disku, logickém svazku nebo v souboru obrazu.</td></tr>
+</table>
+<h2>Windows: jiný hardware</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Připraví obnovený disk Windows pro jiný hardware (zaváděcí ovladače, další ovladače, zaváděcí soubory) — totéž co volba obnovy, např. pro zopakování z ISO pro obnovu.</td></tr>
+</table>
+
+<h2>VMware ESXi (libovolný agent jako proxy; heslo v <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>vmware list --host H [--user root]</code></td><td>Zobrazí VM hostitele, režim licence, otisky certifikátu a klíče SSH a datová úložiště.</td></tr>
+  <tr><td><code>vmware backup --host H [--vmid N,N]</code></td><td>Zálohuje VM (výchozí: všechny) ze snímků; s Changed Block Tracking se čtou jen změněné bloky.</td></tr>
+  <tr><td><code>vmware restore --host H --vmid N [--new] [--name X] [--datastore DS] [--overwrite] [--start] SNAPSHOT&#124;latest</code></td><td>Obnoví VM na místě (výchozí) nebo jako novou VM s <code>--new</code>. <code>--overwrite</code> nahradí disky existující VM; staré se ponechají přejmenované. Viz <a href="/docs/vmware">VMware ESXi</a>.</td></tr>
+  <tr><td><code>esxi-nfs-serve</code></td><td>Poskytuje okamžité VM hostitelům ESXi přes NFS z <code>/var/lib/backupzit/instant-esxi</code> (Linux; spouští ho okamžitá obnova jako jednotku systemd <code>backupzit-esxi-nfs</code>).</td></tr>
+</table>
+<p>Připněte hostitele pomocí <code>--thumbprint SHA256:…</code> a <code>--ssh-host-key SHA256:…</code> (zobrazí je <code>vmware list</code>).</p>
+
+<h2>Hyper-V (agent na hostiteli Hyper-V, jako správce)</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>hyperv list</code></td><td>Vypíše VM hostitele s jejich čísly BackupZit a složky pro obnovené disky.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Zálohuje VM (výchozí: všechny) z produkčních kontrolních bodů.</td></tr>
+  <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Obnoví VM na místě (výchozí) nebo jako novou VM s <code>--new</code>. <code>--overwrite</code> nahradí disky existující VM. Viz <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
+</table>
+<p><code>pve show</code>, <code>pve ls</code> a <code>pve extract</code> fungují i se zálohami Hyper-V.</p>
+
+<h2>Proxmox VE (agent na hostiteli Proxmox)</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>pve list</code></td><td>Vypíše VM a kontejnery clusteru a úložiště použitelné pro obnovu.</td></tr>
+  <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Zálohuje hosty tohoto uzlu (výchozí: všechny) ze snímků Proxmoxu.</td></tr>
+  <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Zobrazí hosty a disky v záloze VM.</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Vypíše oddíly a logické svazky disku hosta nebo soubory ve složce (NTFS, ext4, XFS, i na LVM).</td></tr>
+  <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Zkopíruje soubory a složky z disku hosta bez obnovy VM.</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Znovu vytvoří hosta; <code>--new-vmid -1</code> vezme další volné ID, <code>--overwrite</code> nahradí existujícího hosta se stejným ID. Viz <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
+  <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Okamžitá obnova: spustí VM během několika sekund, zatímco se její disky čtou ze zálohy (nová VM, ve výchozím stavu další volné ID).</td></tr>
+  <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>Přesune disky okamžité VM na úložiště za běhu; poté už zálohu nepoužívá.</td></tr>
+  <tr><td><code>pve instant-discard --vmid N</code></td><td>Zastaví a smaže okamžitou VM i s jejími změnami.</td></tr>
+  <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Poskytuje disky VM ze zálohy jen pro čtení přes NBD na unixovém soketu (spouští ho okamžitá obnova jako jednotku systemd).</td></tr>
+</table>
+
+<h2>Microsoft SQL Server (agent na počítači se SQL Serverem)</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>sql list [--instance I]</code></td><td>Vypíše databáze instance s modelem obnovení a velikostí.</td></tr>
+  <tr><td><code>sql backup [--instance I] [--db a,b] [--system] [--log] [--copy-only]</code></td><td>Úplné zálohy (výchozí: všechny uživatelské databáze) nebo s <code>--log</code> zálohy transakčního logu do repozitáře.</td></tr>
+  <tr><td><code>sql show</code></td><td>Vypíše zálohy SQL Serveru v repozitáři s jejich rozsahy LSN.</td></tr>
+  <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>Obnoví databázi z úplné zálohy a následných záloh logu, volitelně k určitému okamžiku. Viz <a href="/docs/sql">SQL Server</a>.</td></tr>
+</table>
+
+<h2>PostgreSQL a MySQL/MariaDB (agent na databázovém serveru)</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>pg list [--port P]</code></td><td>Databáze místního clusteru a zda je zapnuta archivace WAL.</td></tr>
+  <tr><td><code>pg backup [--port P] [--db a,b] [--pitr | --wal]</code></td><td>Úplná záloha (pg_basebackup, pg_dump každé databáze; <code>--pitr</code> nastaví archivaci WAL) nebo s <code>--wal</code> archivovaný WAL.</td></tr>
+  <tr><td><code>pg restore --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Obnoví databázi (z jejího výpisu nebo k určitému okamžiku) nebo celý cluster jako samostatnou instanci.</td></tr>
+  <tr><td><code>mysql list</code></td><td>Databáze a zda je zapnut binární log.</td></tr>
+  <tr><td><code>mysql backup [--db a,b] [--binlog]</code></td><td>mysqldump každé databáze s její pozicí v binárním logu, nebo uzavřené binární logy.</td></tr>
+  <tr><td><code>mysql restore --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Načte výpis a přehraje binární logy do určitého okamžiku. Viz <a href="/docs/sql">Databáze</a>.</td></tr>
+</table>
+
+<h2>Spravovaný režim</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Připojí agenta ke konzoli pomocí registračního kódu ze stránky Agenti (<code>--force</code> nahradí existující registraci). Starší forma <code>--server URL --token T --fingerprint F</code> stále funguje.</td></tr>
+  <tr><td><code>set-server https://address:8443</code></td><td>Nasměruje registrovaného agenta na novou adresu konzole (stejný certifikát); poté restartujte službu agenta. Viz <a href="/docs/agents#new-address">Agenti</a>.</td></tr>
+  <tr><td><code>status</code></td><td>Zobrazí, co běžící agent právě dělá, a jeho úlohy zálohování (ikona v oznamovací oblasti Windows ukazuje totéž).</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Spravuje službu agenta (dělají to instalátory).</td></tr>
+  <tr><td><code>recovery</code></td><td>Režim obnovy, spouštěný automaticky ISO pro obnovu; na libovolném živém systému Linux: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
+  <tr><td><code>version</code></td><td>Vypíše verzi.</td></tr>
+</table>
+
+<h3>Příklady</h3>
+<pre>set BACKUPZIT_PASSWORD=XXXX-XXXX-...
+set BACKUPZIT_S3_ACCESS_KEY=...
+set BACKUPZIT_S3_SECRET_KEY=...
+backupzit-agent snapshots --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d
+backupzit-agent restore --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d --target D:\Restore --include C:\Users\ana\Documents latest
+backupzit-agent check --repo s3://... --read-data
+
+backupzit-agent disks
+backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
+backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
+
+<h2>Zabezpečený repozitář (<code>backupzit-repo</code>)</h2>
+<table>
+  <tr><th>Příkaz</th><th>Co dělá</th></tr>
+  <tr><td><code>backupzit-repo serve</code></td><td>Spustí službu (to dělá systemd).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME</code></td><td>Vytvoří přístupový klíč (zobrazí se jednou).</td></tr>
+  <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Vypsat / odvolat přístupové klíče.</td></tr>
+  <tr><td><code>backupzit-repo fingerprint</code></td><td>Otisk certifikátu pro konzoli.</td></tr>
+  <tr><td><code>backupzit-repo status</code></td><td>Uložená a skrytá (smazaná, ještě uchovávaná) data.</td></tr>
+  <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Znovu zviditelní soubory smazané od TIME.</td></tr>
+</table>
+<p>Konfigurace: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+
+<h2>Správcovský server (<code>backupzit-server</code>)</h2>
+<table>
+  <tr><th>Volba / prostředí</th><th>Význam</th></tr>
+  <tr><td><code>--db</code> / <code>BACKUPZIT_DB</code></td><td>Připojovací řetězec PostgreSQL (povinný).</td></tr>
+  <tr><td><code>--listen</code> / <code>BACKUPZIT_LISTEN</code></td><td>Adresa HTTPS, výchozí <code>:8443</code>.</td></tr>
+  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>Certifikát, <code>secrets.key</code>, soubory ke stažení pro agenty (<code>dist/</code>).</td></tr>
+  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>URL, kterou používají agenti a odkazy v e-mailech.</td></tr>
+  <tr><td><code>--tls-hosts</code> / <code>BACKUPZIT_TLS_HOSTS</code></td><td>Další názvy/IP pro certifikát podepsaný sám sebou.</td></tr>
+  <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Počáteční heslo správce (jen při prvním spuštění).</td></tr>
+  <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Klíč tajných údajů (base64) místo souboru <code>secrets.key</code>.</td></tr>
+  <tr><td><code>--set-admin-password NEW</code></td><td>Obnoví heslo účtu <i>admin</i> (znovu ho povolí jako místního správce) a skončí.</td></tr>
+  <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Zruší blokování přihlášení adresy nebo všech adres (ochrana proti hrubé síle) a skončí.</td></tr>
+  <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Obnoví konzoli ze zálohy konzole a skončí (viz <a href="/docs/install">Instalace serveru</a>).</td></tr>
+  <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Jen pro vyzkoušení: soukromý PostgreSQL v datovém adresáři, nešifrované HTTP na localhost.</td></tr>
+  <tr><td><code>--version</code></td><td>Vypíše verzi.</td></tr>
+</table>
+<pre>systemctl status backupzit-server
+journalctl -u backupzit-server -f</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,162 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Komut satırı başvurusu</h1>
+<p class="lead">Ajan komut satırından tek başına da çalışır — betikler için, konsol olmadan geri yükleme için ve acil durumlar için. Genel bakış için <code>backupzit-agent</code> komutunu argümansız, bir komutun seçenekleri için <code>backupzit-agent &lt;command&gt; -h</code> komutunu çalıştırın.</p>
+
+<h2>Depo ve kimlik bilgileri</h2>
+<p>Her komut <code>--repo</code> (veya <code>BACKUPZIT_REPO</code>) alır. Gizli bilgiler için ortam değişkenlerini tercih edin. Bir ajanın deposu <code>&lt;depolama konumu&gt;/&lt;hostname&gt;_&lt;id&gt;</code> şeklindedir — Etkinlik'te bir çalıştırmanın depo sütununa veya kurtarma sayfasına bakın.</p>
+<table>
+  <tr><th>Konum</th><th>Kimlik bilgileri</th></tr>
+  <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
+  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> veya <code>--sftp-key file</code>; <code>--sftp-hostkey SHA256:…</code> (<code>BACKUPZIT_SFTP_HOSTKEY</code>)</td></tr>
+  <tr><td><code>s3://endpoint/bucket/prefix</code> (HTTP için <code>?tls=false</code>)</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>, <code>BACKUPZIT_S3_SECRET_KEY</code>, <code>--s3-region</code>; <code>--s3-lock-days N</code> Object Lock ile yazar</td></tr>
+  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code>, <code>--smb-domain</code></td></tr>
+  <tr><td><code>azure://account/container/path</code> (egemen bulutlar, Azure Stack, Azurite için <code>?endpoint=URL</code>)</td><td><code>BACKUPZIT_AZURE_KEY</code> veya <code>BACKUPZIT_AZURE_SAS</code></td></tr>
+  <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>, <code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
+  <tr><td><code>usb://LABEL/path</code> (joker karakterler: <code>usb://BZBACKUP*/BackupZit</code>)</td><td>— (bu birim etiketine sahip takılı disk kullanılır)</td></tr>
+</table>
+<p>Şifreli depolar <code>BACKUPZIT_PASSWORD</code> (veya <code>--password</code>) içinde kurtarma anahtarını gerektirir.</p>
+<p><b>Belirli bir andaki görünüm:</b> Object Lock'lu S3'te ve sağlamlaştırılmış bir depoda <code>--as-of 2026-10-01T14:30</code> (veya bir tarih), depoyu o anda olduğu gibi gösterir — salt okunur, yedekler silindikten veya üzerine yazıldıktan sonra kurtarmak için.</p>
+
+<h2>Dosyalar ve klasörler</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>init</code></td><td>Yeni bir depo oluşturur (parola verilirse şifreli).</td></tr>
+  <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Dosya ve klasörleri yedekler. <code>--vss</code> bir birim gölge kopyasından okur (Windows, yönetici); <code>--force</code> değişmemiş olanlar dahil tüm dosyaları okur.</td></tr>
+  <tr><td><code>snapshots</code></td><td>Anlık görüntüleri zaman, ana bilgisayar, boyut ve yollarla listeler.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Bir anlık görüntüdeki dosyaları listeler.</td></tr>
+  <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Dosyaları DIR altına geri yükler (özgün klasör yapısı yeniden oluşturulur). <code>--original</code> bunun yerine dosyaları özgün konumlarına yazar ve mevcut dosyaların üzerine yazar.</td></tr>
+  <tr><td><code>check [--read-data]</code></td><td>Depo yapısını denetler; <code>--read-data</code> ile her bayt indirilip doğrulanır.</td></tr>
+</table>
+
+<h2>Disk görüntüleri (Windows)</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>disks [--json]</code></td><td>Diskleri ve bölümleri numaralarıyla gösterir.</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Tüm diski veya seçilen bölümleri ya da tüm dahili diskleri tek bir anlık görüntüde yedekler.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Bir görüntüyü diske yazar; <b>diski siler</b>. Özgün disk aynı makinedeyse <code>--keep-offline</code>; <code>--source-disk</code> tüm diskler yedeğinden diski seçer.</td></tr>
+  <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Görüntülenmiş bir NTFS bölümündeki dosyaları listeler (<code>--disk</code>: tüm diskler yedeklerinde yedeklenen disk).</td></tr>
+  <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Görüntülenmiş bir bölümden dosya ve klasörleri kopyalar.</td></tr>
+</table>
+
+<h2>Linux sistemi (bare metal, P2V)</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>system-backup [--exclude PATTERN]</code></td><td>Tüm yerel dosya sistemlerini ve disk düzenini yedekler. Bkz. <a href="/docs/linux-system">Linux sistem yedeği</a>.</td></tr>
+  <tr><td><code>system-show SNAPSHOT|latest</code></td><td>Bir sistem yedeğindeki disk düzenini gösterir.</td></tr>
+  <tr><td><code>system-restore --target DEVICE [--new-hardware] [--rebuild-initramfs] --yes-erase-target SNAPSHOT|latest</code></td><td>Sistemi boş bir diske, mantıksal birime veya görüntü dosyasına yeniden oluşturur.</td></tr>
+</table>
+<h2>Windows: farklı donanım</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Geri yüklenmiş bir Windows diskini farklı donanıma hazırlar (önyükleme sürücüleri, ek sürücüler, önyükleme dosyaları) — geri yükleme seçeneğiyle aynıdır, ör. kurtarma ISO'sundan yinelemek için.</td></tr>
+</table>
+
+<h2>VMware ESXi (herhangi bir ajan proxy olarak; parola <code>BACKUPZIT_VMWARE_PASSWORD</code> içinde)</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>vmware list --host H [--user root]</code></td><td>Ana bilgisayarın VM'lerini, lisans modunu, sertifika ve SSH anahtarı parmak izlerini ve veri depolarını gösterir.</td></tr>
+  <tr><td><code>vmware backup --host H [--vmid N,N]</code></td><td>VM'leri (varsayılan: tümü) anlık görüntülerden yedekler; Changed Block Tracking ile yalnızca değişen bloklar okunur.</td></tr>
+  <tr><td><code>vmware restore --host H --vmid N [--new] [--name X] [--datastore DS] [--overwrite] [--start] SNAPSHOT&#124;latest</code></td><td>Bir VM'yi yerinde (varsayılan) veya <code>--new</code> ile yeni VM olarak geri yükler. <code>--overwrite</code> mevcut bir VM'nin disklerini değiştirir; eskileri yeniden adlandırılarak saklanır. Bkz. <a href="/docs/vmware">VMware ESXi</a>.</td></tr>
+  <tr><td><code>esxi-nfs-serve</code></td><td>Anında VM'leri ESXi ana bilgisayarlarına NFS üzerinden <code>/var/lib/backupzit/instant-esxi</code> konumundan sunar (Linux; anında kurtarma tarafından <code>backupzit-esxi-nfs</code> systemd birimi olarak başlatılır).</td></tr>
+</table>
+<p>Ana bilgisayarı <code>--thumbprint SHA256:…</code> ve <code>--ssh-host-key SHA256:…</code> ile sabitleyin (<code>vmware list</code> gösterir).</p>
+
+<h2>Hyper-V (Hyper-V ana bilgisayarındaki ajan, yönetici olarak)</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>hyperv list</code></td><td>Ana bilgisayarın VM'lerini BackupZit numaralarıyla ve geri yüklenen diskler için klasörleri listeler.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>VM'leri (varsayılan: tümü) üretim denetim noktalarından yedekler.</td></tr>
+  <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Bir VM'yi yerinde (varsayılan) veya <code>--new</code> ile yeni VM olarak geri yükler. <code>--overwrite</code> mevcut bir VM'nin disklerini değiştirir. Bkz. <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
+</table>
+<p><code>pve show</code>, <code>pve ls</code> ve <code>pve extract</code> Hyper-V yedekleriyle de çalışır.</p>
+
+<h2>Proxmox VE (Proxmox ana bilgisayarındaki ajan)</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>pve list</code></td><td>Kümenin VM'lerini ve kapsayıcılarını ve geri yükleme için kullanılabilen depolamayı listeler.</td></tr>
+  <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Bu düğümün konuklarını (varsayılan: tümü) Proxmox anlık görüntülerinden yedekler.</td></tr>
+  <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Bir VM yedeğindeki konukları ve diskleri gösterir.</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Bir konuk diskinin bölümlerini ve mantıksal birimlerini ya da bir klasördeki dosyaları listeler (NTFS, ext4, XFS, LVM üzerinde de).</td></tr>
+  <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>VM'yi geri yüklemeden bir konuk diskinden dosya ve klasörleri kopyalar.</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Bir konuğu yeniden oluşturur; <code>--new-vmid -1</code> sonraki boş kimliği alır, <code>--overwrite</code> aynı kimliğe sahip mevcut konuğu değiştirir. Bkz. <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
+  <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Anında kurtarma: diskleri yedekten okunurken bir VM'yi saniyeler içinde başlatır (yeni VM, varsayılan olarak sonraki boş kimlik).</td></tr>
+  <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>Anında VM'nin disklerini çalışırken depolamaya taşır; sonrasında yedeği kullanmaz.</td></tr>
+  <tr><td><code>pve instant-discard --vmid N</code></td><td>Anında VM'yi değişiklikleriyle birlikte durdurur ve siler.</td></tr>
+  <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Bir yedekteki VM'nin disklerini bir Unix soketinde NBD üzerinden salt okunur sunar (anında kurtarma tarafından systemd birimi olarak başlatılır).</td></tr>
+</table>
+
+<h2>Microsoft SQL Server (SQL Server makinesindeki ajan)</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>sql list [--instance I]</code></td><td>Bir örneğin veritabanlarını kurtarma modeli ve boyutla listeler.</td></tr>
+  <tr><td><code>sql backup [--instance I] [--db a,b] [--system] [--log] [--copy-only]</code></td><td>Tam yedekler (varsayılan: tüm kullanıcı veritabanları) veya <code>--log</code> ile depoya işlem günlüğü yedekleri.</td></tr>
+  <tr><td><code>sql show</code></td><td>Depodaki SQL Server yedeklerini LSN aralıklarıyla listeler.</td></tr>
+  <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>Bir veritabanını tam yedekten ve sonrasındaki günlük yedeklerinden, isteğe bağlı olarak belirli bir ana geri yükler. Bkz. <a href="/docs/sql">SQL Server</a>.</td></tr>
+</table>
+
+<h2>PostgreSQL ve MySQL/MariaDB (veritabanı sunucusundaki ajan)</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>pg list [--port P]</code></td><td>Yerel kümenin veritabanları ve WAL arşivlemenin açık olup olmadığı.</td></tr>
+  <tr><td><code>pg backup [--port P] [--db a,b] [--pitr | --wal]</code></td><td>Tam yedek (pg_basebackup, her veritabanının pg_dump'ı; <code>--pitr</code> WAL arşivlemeyi kurar) veya <code>--wal</code> ile arşivlenmiş WAL.</td></tr>
+  <tr><td><code>pg restore --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Bir veritabanını (dökümünden veya belirli bir ana) ya da tüm kümeyi ayrı bir örnek olarak geri yükler.</td></tr>
+  <tr><td><code>mysql list</code></td><td>Veritabanları ve ikili günlüğün açık olup olmadığı.</td></tr>
+  <tr><td><code>mysql backup [--db a,b] [--binlog]</code></td><td>Her veritabanının ikili günlük konumuyla mysqldump'ı veya kapanmış ikili günlükler.</td></tr>
+  <tr><td><code>mysql restore --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Bir dökümü yükler ve ikili günlükleri belirli bir ana kadar yeniden oynatır. Bkz. <a href="/docs/sql">Veritabanları</a>.</td></tr>
+</table>
+
+<h2>Yönetilen mod</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Ajanı Ajanlar sayfasındaki kayıt koduyla bir konsola bağlar (<code>--force</code> mevcut kaydı değiştirir). Eski biçim <code>--server URL --token T --fingerprint F</code> hâlâ çalışır.</td></tr>
+  <tr><td><code>set-server https://address:8443</code></td><td>Kayıtlı bir ajanı konsolun yeni adresine yönlendirir (aynı sertifika); ardından ajan hizmetini yeniden başlatın. Bkz. <a href="/docs/agents#new-address">Ajanlar</a>.</td></tr>
+  <tr><td><code>status</code></td><td>Çalışan ajanın ne yaptığını ve yedekleme işlerini gösterir (Windows tepsi simgesi de aynısını gösterir).</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Ajan hizmetini yönetir (yükleyiciler bunu yapar).</td></tr>
+  <tr><td><code>recovery</code></td><td>Kurtarma modu, kurtarma ISO'ları tarafından otomatik başlatılır; herhangi bir canlı Linux sisteminde: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
+  <tr><td><code>version</code></td><td>Sürümü yazdırır.</td></tr>
+</table>
+
+<h3>Örnekler</h3>
+<pre>set BACKUPZIT_PASSWORD=XXXX-XXXX-...
+set BACKUPZIT_S3_ACCESS_KEY=...
+set BACKUPZIT_S3_SECRET_KEY=...
+backupzit-agent snapshots --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d
+backupzit-agent restore --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d --target D:\Restore --include C:\Users\ana\Documents latest
+backupzit-agent check --repo s3://... --read-data
+
+backupzit-agent disks
+backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
+backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
+
+<h2>Sağlamlaştırılmış depo (<code>backupzit-repo</code>)</h2>
+<table>
+  <tr><th>Komut</th><th>Ne yapar</th></tr>
+  <tr><td><code>backupzit-repo serve</code></td><td>Hizmeti çalıştırır (bunu systemd yapar).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME</code></td><td>Bir erişim anahtarı oluşturur (bir kez gösterilir).</td></tr>
+  <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Erişim anahtarlarını listele / iptal et.</td></tr>
+  <tr><td><code>backupzit-repo fingerprint</code></td><td>Konsol için sertifika parmak izi.</td></tr>
+  <tr><td><code>backupzit-repo status</code></td><td>Saklanan ve gizli (silinmiş, hâlâ tutulan) veriler.</td></tr>
+  <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>TIME'dan beri silinen dosyaları yeniden görünür yapar.</td></tr>
+</table>
+<p>Yapılandırma: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+
+<h2>Yönetim sunucusu (<code>backupzit-server</code>)</h2>
+<table>
+  <tr><th>Seçenek / ortam</th><th>Anlamı</th></tr>
+  <tr><td><code>--db</code> / <code>BACKUPZIT_DB</code></td><td>PostgreSQL bağlantı dizesi (zorunlu).</td></tr>
+  <tr><td><code>--listen</code> / <code>BACKUPZIT_LISTEN</code></td><td>HTTPS adresi, varsayılan <code>:8443</code>.</td></tr>
+  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>Sertifika, <code>secrets.key</code>, ajan indirmeleri (<code>dist/</code>).</td></tr>
+  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>Ajanların ve e-posta bağlantılarının kullandığı URL.</td></tr>
+  <tr><td><code>--tls-hosts</code> / <code>BACKUPZIT_TLS_HOSTS</code></td><td>Kendinden imzalı sertifika için ek adlar/IP'ler.</td></tr>
+  <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>İlk yönetici parolası (yalnızca ilk başlatmada).</td></tr>
+  <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td><code>secrets.key</code> dosyası yerine gizli bilgi anahtarı (base64).</td></tr>
+  <tr><td><code>--set-admin-password NEW</code></td><td><i>admin</i> parolasını sıfırlar (onu yerel yönetici olarak yeniden etkinleştirir) ve çıkar.</td></tr>
+  <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Bir adresin veya tüm adreslerin oturum açma engelini kaldırır (kaba kuvvet koruması) ve çıkar.</td></tr>
+  <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Konsolu bir konsol yedeğinden geri yükler ve çıkar (bkz. <a href="/docs/install">Sunucuyu kurma</a>).</td></tr>
+  <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Yalnızca deneme için: veri dizininde özel PostgreSQL, localhost üzerinde şifresiz HTTP.</td></tr>
+  <tr><td><code>--version</code></td><td>Sürümü yazdırır.</td></tr>
+</table>
+<pre>systemctl status backupzit-server
+journalctl -u backupzit-server -f</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

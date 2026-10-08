@@ -1,0 +1,162 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Referencia de la línea de comandos</h1>
+<p class="lead">El agente también funciona por sí solo desde la línea de comandos: para scripts, para restaurar sin la consola y para emergencias. Ejecute <code>backupzit-agent</code> sin argumentos para ver un resumen y <code>backupzit-agent &lt;command&gt; -h</code> para las opciones de un comando.</p>
+
+<h2>Repositorio y credenciales</h2>
+<p>Todos los comandos aceptan <code>--repo</code> (o <code>BACKUPZIT_REPO</code>). Para los secretos, mejor use variables de entorno. El repositorio de un agente es <code>&lt;ubicación de almacenamiento&gt;/&lt;hostname&gt;_&lt;id&gt;</code>: vea la columna de repositorio de una ejecución en Actividad, o la hoja de recuperación.</p>
+<table>
+  <tr><th>Ubicación</th><th>Credenciales</th></tr>
+  <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
+  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> o <code>--sftp-key file</code>; <code>--sftp-hostkey SHA256:…</code> (<code>BACKUPZIT_SFTP_HOSTKEY</code>)</td></tr>
+  <tr><td><code>s3://endpoint/bucket/prefix</code> (<code>?tls=false</code> para HTTP)</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>, <code>BACKUPZIT_S3_SECRET_KEY</code>, <code>--s3-region</code>; <code>--s3-lock-days N</code> escribe con Object Lock</td></tr>
+  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code>, <code>--smb-domain</code></td></tr>
+  <tr><td><code>azure://account/container/path</code> (<code>?endpoint=URL</code> para nubes soberanas, Azure Stack, Azurite)</td><td><code>BACKUPZIT_AZURE_KEY</code> o <code>BACKUPZIT_AZURE_SAS</code></td></tr>
+  <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>, <code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
+  <tr><td><code>usb://LABEL/path</code> (comodines: <code>usb://BZBACKUP*/BackupZit</code>)</td><td>— (se usa el disco conectado con esa etiqueta de volumen)</td></tr>
+</table>
+<p>Los repositorios cifrados necesitan la clave de recuperación en <code>BACKUPZIT_PASSWORD</code> (o <code>--password</code>).</p>
+<p><b>Vista en un momento concreto:</b> en S3 con Object Lock y en un repositorio reforzado, <code>--as-of 2026-10-01T14:30</code> (o una fecha) muestra el repositorio tal como estaba en ese momento, en solo lectura, para recuperarse después de que se borraran o sobrescribieran copias.</p>
+
+<h2>Archivos y carpetas</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>init</code></td><td>Crea un repositorio nuevo (cifrado si se indica una contraseña).</td></tr>
+  <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Copia archivos y carpetas. <code>--vss</code> lee de una instantánea de volumen (Windows, administrador); <code>--force</code> lee todos los archivos aunque no hayan cambiado.</td></tr>
+  <tr><td><code>snapshots</code></td><td>Muestra las instantáneas con hora, host, tamaño y rutas.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Muestra los archivos de una instantánea.</td></tr>
+  <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Restaura archivos bajo DIR (se recrea la estructura de carpetas original). <code>--original</code> los escribe en cambio en su ubicación original, sobrescribiendo los archivos existentes.</td></tr>
+  <tr><td><code>check [--read-data]</code></td><td>Verifica la estructura del repositorio; con <code>--read-data</code> se descarga y comprueba cada byte.</td></tr>
+</table>
+
+<h2>Imágenes de disco (Windows)</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>disks [--json]</code></td><td>Muestra los discos y particiones con sus números.</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Copia un disco completo o particiones elegidas, o todos los discos internos en una sola instantánea.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Escribe una imagen en un disco; <b>borra el disco</b>. <code>--keep-offline</code> cuando el disco original está en la misma máquina; <code>--source-disk</code> elige el disco de una copia de todos los discos.</td></tr>
+  <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Muestra los archivos de una partición NTFS de una imagen (<code>--disk</code>: el disco copiado, en copias de todos los discos).</td></tr>
+  <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Copia archivos y carpetas desde una partición de una imagen.</td></tr>
+</table>
+
+<h2>Sistema Linux (bare metal, P2V)</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>system-backup [--exclude PATTERN]</code></td><td>Copia todos los sistemas de archivos locales y la disposición de los discos. Consulte <a href="/docs/linux-system">Copia del sistema Linux</a>.</td></tr>
+  <tr><td><code>system-show SNAPSHOT|latest</code></td><td>Muestra la disposición de los discos de una copia del sistema.</td></tr>
+  <tr><td><code>system-restore --target DEVICE [--new-hardware] [--rebuild-initramfs] --yes-erase-target SNAPSHOT|latest</code></td><td>Recrea el sistema en un disco vacío, un volumen lógico o un archivo de imagen.</td></tr>
+</table>
+<h2>Windows: hardware distinto</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Prepara un disco de Windows restaurado para hardware distinto (controladores de arranque, controladores adicionales, archivos de arranque), igual que la opción de restauración, p. ej. para repetirlo desde la ISO de recuperación.</td></tr>
+</table>
+
+<h2>VMware ESXi (cualquier agente como proxy; contraseña en <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>vmware list --host H [--user root]</code></td><td>Muestra las VM del host, el modo de licencia, las huellas del certificado y de la clave SSH, y los datastores.</td></tr>
+  <tr><td><code>vmware backup --host H [--vmid N,N]</code></td><td>Copia VM (por defecto: todas) a partir de instantáneas; con el seguimiento de bloques cambiados solo se leen los bloques cambiados.</td></tr>
+  <tr><td><code>vmware restore --host H --vmid N [--new] [--name X] [--datastore DS] [--overwrite] [--start] SNAPSHOT&#124;latest</code></td><td>Restaura una VM en el sitio (por defecto) o como VM nueva con <code>--new</code>. <code>--overwrite</code> sustituye los discos de una VM existente; los antiguos se conservan renombrados. Consulte <a href="/docs/vmware">VMware ESXi</a>.</td></tr>
+  <tr><td><code>esxi-nfs-serve</code></td><td>Sirve las VM instantáneas de los hosts ESXi por NFS desde <code>/var/lib/backupzit/instant-esxi</code> (Linux; la recuperación instantánea lo inicia como unidad systemd <code>backupzit-esxi-nfs</code>).</td></tr>
+</table>
+<p>Fije el host con <code>--thumbprint SHA256:…</code> y <code>--ssh-host-key SHA256:…</code> (los muestra <code>vmware list</code>).</p>
+
+<h2>Hyper-V (agente en el host Hyper-V, como administrador)</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>hyperv list</code></td><td>Muestra las VM del host con sus números de BackupZit, y las carpetas para los discos restaurados.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Copia VM (por defecto: todas) a partir de puntos de control de producción.</td></tr>
+  <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Restaura una VM en el sitio (por defecto) o como VM nueva con <code>--new</code>. <code>--overwrite</code> sustituye los discos de una VM existente. Consulte <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
+</table>
+<p><code>pve show</code>, <code>pve ls</code> y <code>pve extract</code> también funcionan con copias de Hyper-V.</p>
+
+<h2>Proxmox VE (agente en el host Proxmox)</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>pve list</code></td><td>Muestra las VM y contenedores del clúster y el almacenamiento utilizable para restauraciones.</td></tr>
+  <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Copia los invitados de este nodo (por defecto: todos) a partir de instantáneas de Proxmox.</td></tr>
+  <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Muestra los invitados y discos de una copia de VM.</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Muestra las particiones y volúmenes lógicos de un disco de invitado, o los archivos de una carpeta (NTFS, ext4, XFS, también sobre LVM).</td></tr>
+  <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Copia archivos y carpetas de un disco de invitado sin restaurar la VM.</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Recrea un invitado; <code>--new-vmid -1</code> toma el siguiente ID libre, <code>--overwrite</code> sustituye un invitado existente con el mismo ID. Consulte <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
+  <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Recuperación instantánea: inicia una VM en segundos mientras sus discos se leen de la copia (VM nueva, siguiente ID libre por defecto).</td></tr>
+  <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>Mueve los discos de una VM instantánea a un almacenamiento mientras funciona; después ya no usa la copia.</td></tr>
+  <tr><td><code>pve instant-discard --vmid N</code></td><td>Detiene y elimina una VM instantánea con sus cambios.</td></tr>
+  <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Sirve los discos de una VM de una copia en solo lectura por NBD en un socket Unix (la recuperación instantánea lo inicia como unidad systemd).</td></tr>
+</table>
+
+<h2>Microsoft SQL Server (agente en la máquina de SQL Server)</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>sql list [--instance I]</code></td><td>Muestra las bases de una instancia con el modelo de recuperación y el tamaño.</td></tr>
+  <tr><td><code>sql backup [--instance I] [--db a,b] [--system] [--log] [--copy-only]</code></td><td>Copias completas (por defecto: todas las bases de usuario) o, con <code>--log</code>, copias de registros de transacciones en el repositorio.</td></tr>
+  <tr><td><code>sql show</code></td><td>Muestra las copias de SQL Server del repositorio con sus rangos de LSN.</td></tr>
+  <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>Restaura una base desde una copia completa y las copias de registros posteriores, opcionalmente a un momento concreto. Consulte <a href="/docs/sql">SQL Server</a>.</td></tr>
+</table>
+
+<h2>PostgreSQL y MySQL/MariaDB (agente en el servidor de base de datos)</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>pg list [--port P]</code></td><td>Bases del clúster local y si el archivado de WAL está activo.</td></tr>
+  <tr><td><code>pg backup [--port P] [--db a,b] [--pitr | --wal]</code></td><td>Copia completa (pg_basebackup, pg_dump de cada base; <code>--pitr</code> configura el archivado de WAL) o, con <code>--wal</code>, el WAL archivado.</td></tr>
+  <tr><td><code>pg restore --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Restaura una base (desde su volcado o a un momento concreto) o el clúster completo como instancia aparte.</td></tr>
+  <tr><td><code>mysql list</code></td><td>Bases y si el registro binario está activo.</td></tr>
+  <tr><td><code>mysql backup [--db a,b] [--binlog]</code></td><td>mysqldump de cada base con su posición del registro binario, o los registros binarios cerrados.</td></tr>
+  <tr><td><code>mysql restore --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Carga un volcado y reproduce los registros binarios hasta un momento concreto. Consulte <a href="/docs/sql">Bases de datos</a>.</td></tr>
+</table>
+
+<h2>Modo gestionado</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Conecta el agente a una consola con el código de registro de la página Agentes (<code>--force</code> sustituye un registro existente). La forma antigua <code>--server URL --token T --fingerprint F</code> sigue funcionando.</td></tr>
+  <tr><td><code>set-server https://address:8443</code></td><td>Apunta un agente registrado a una nueva dirección de la consola (mismo certificado); después reinicie el servicio del agente. Consulte <a href="/docs/agents#new-address">Agentes</a>.</td></tr>
+  <tr><td><code>status</code></td><td>Muestra qué está haciendo el agente en ejecución y sus trabajos de copia (el icono de la bandeja de Windows muestra lo mismo).</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Gestiona el servicio del agente (lo hacen los instaladores).</td></tr>
+  <tr><td><code>recovery</code></td><td>Modo de recuperación, iniciado automáticamente por las ISO de recuperación; en cualquier sistema Linux en vivo: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
+  <tr><td><code>version</code></td><td>Muestra la versión.</td></tr>
+</table>
+
+<h3>Ejemplos</h3>
+<pre>set BACKUPZIT_PASSWORD=XXXX-XXXX-...
+set BACKUPZIT_S3_ACCESS_KEY=...
+set BACKUPZIT_S3_SECRET_KEY=...
+backupzit-agent snapshots --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d
+backupzit-agent restore --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d --target D:\Restore --include C:\Users\ana\Documents latest
+backupzit-agent check --repo s3://... --read-data
+
+backupzit-agent disks
+backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
+backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
+
+<h2>Repositorio reforzado (<code>backupzit-repo</code>)</h2>
+<table>
+  <tr><th>Comando</th><th>Qué hace</th></tr>
+  <tr><td><code>backupzit-repo serve</code></td><td>Ejecuta el servicio (lo hace systemd).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME</code></td><td>Crea una clave de acceso (se muestra una vez).</td></tr>
+  <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Mostrar / revocar claves de acceso.</td></tr>
+  <tr><td><code>backupzit-repo fingerprint</code></td><td>Huella del certificado para la consola.</td></tr>
+  <tr><td><code>backupzit-repo status</code></td><td>Datos guardados y ocultos (borrados, aún conservados).</td></tr>
+  <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Vuelve a hacer visibles los archivos borrados desde TIME.</td></tr>
+</table>
+<p>Configuración: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+
+<h2>Servidor de gestión (<code>backupzit-server</code>)</h2>
+<table>
+  <tr><th>Opción / entorno</th><th>Significado</th></tr>
+  <tr><td><code>--db</code> / <code>BACKUPZIT_DB</code></td><td>Cadena de conexión de PostgreSQL (obligatoria).</td></tr>
+  <tr><td><code>--listen</code> / <code>BACKUPZIT_LISTEN</code></td><td>Dirección HTTPS, por defecto <code>:8443</code>.</td></tr>
+  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>Certificado, <code>secrets.key</code>, descargas de agentes (<code>dist/</code>).</td></tr>
+  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>URL que usan los agentes y los enlaces de los correos.</td></tr>
+  <tr><td><code>--tls-hosts</code> / <code>BACKUPZIT_TLS_HOSTS</code></td><td>Nombres/IP adicionales para el certificado autofirmado.</td></tr>
+  <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Contraseña inicial del administrador (solo en el primer arranque).</td></tr>
+  <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Clave de secretos (base64) en lugar del archivo <code>secrets.key</code>.</td></tr>
+  <tr><td><code>--set-admin-password NEW</code></td><td>Restablece la contraseña de <i>admin</i> (lo vuelve a habilitar como administrador local) y termina.</td></tr>
+  <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Levanta el bloqueo de inicio de sesión de una dirección, o de todas (protección contra fuerza bruta), y termina.</td></tr>
+  <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Restaura la consola desde una copia de la consola y termina (consulte <a href="/docs/install">Instalar el servidor</a>).</td></tr>
+  <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Solo para evaluación: PostgreSQL privado en el directorio de datos, HTTP sin cifrar en localhost.</td></tr>
+  <tr><td><code>--version</code></td><td>Muestra la versión.</td></tr>
+</table>
+<pre>systemctl status backupzit-server
+journalctl -u backupzit-server -f</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

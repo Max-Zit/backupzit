@@ -1,0 +1,162 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Opdrachtregelreferentie</h1>
+<p class="lead">De agent werkt ook zelfstandig vanaf de opdrachtregel: voor scripts, voor herstel zonder de console en voor noodgevallen. Voer <code>backupzit-agent</code> zonder argumenten uit voor een overzicht en <code>backupzit-agent &lt;command&gt; -h</code> voor de opties van een opdracht.</p>
+
+<h2>Repository en referenties</h2>
+<p>Elke opdracht accepteert <code>--repo</code> (of <code>BACKUPZIT_REPO</code>). Gebruik voor geheimen bij voorkeur omgevingsvariabelen. De repository van een agent is <code>&lt;opslaglocatie&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — zie de repositorykolom van een uitvoering in Activiteit, of het herstelblad.</p>
+<table>
+  <tr><th>Locatie</th><th>Referenties</th></tr>
+  <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
+  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> of <code>--sftp-key file</code>; <code>--sftp-hostkey SHA256:…</code> (<code>BACKUPZIT_SFTP_HOSTKEY</code>)</td></tr>
+  <tr><td><code>s3://endpoint/bucket/prefix</code> (<code>?tls=false</code> voor HTTP)</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>, <code>BACKUPZIT_S3_SECRET_KEY</code>, <code>--s3-region</code>; <code>--s3-lock-days N</code> schrijft met Object Lock</td></tr>
+  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code>, <code>--smb-domain</code></td></tr>
+  <tr><td><code>azure://account/container/path</code> (<code>?endpoint=URL</code> voor soevereine clouds, Azure Stack, Azurite)</td><td><code>BACKUPZIT_AZURE_KEY</code> of <code>BACKUPZIT_AZURE_SAS</code></td></tr>
+  <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>, <code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
+  <tr><td><code>usb://LABEL/path</code> (jokertekens: <code>usb://BZBACKUP*/BackupZit</code>)</td><td>— (de aangesloten schijf met dat volumelabel wordt gebruikt)</td></tr>
+</table>
+<p>Versleutelde repositories hebben de herstelsleutel nodig in <code>BACKUPZIT_PASSWORD</code> (of <code>--password</code>).</p>
+<p><b>Weergave op een tijdstip:</b> op S3 met Object Lock en op een geharde repository toont <code>--as-of 2026-10-01T14:30</code> (of een datum) de repository zoals die op dat moment was — alleen-lezen, om te herstellen nadat back-ups zijn verwijderd of overschreven.</p>
+
+<h2>Bestanden en mappen</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>init</code></td><td>Maakt een nieuwe repository (versleuteld als een wachtwoord is opgegeven).</td></tr>
+  <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Maakt een back-up van bestanden en mappen. <code>--vss</code> leest uit een volumeschaduwkopie (Windows, beheerder); <code>--force</code> leest alle bestanden, ook ongewijzigde.</td></tr>
+  <tr><td><code>snapshots</code></td><td>Toont snapshots met tijd, host, grootte en paden.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Toont de bestanden in een snapshot.</td></tr>
+  <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Herstelt bestanden onder DIR (de oorspronkelijke mapstructuur wordt nagebouwd). <code>--original</code> schrijft ze in plaats daarvan terug naar hun oorspronkelijke locatie en overschrijft bestaande bestanden.</td></tr>
+  <tr><td><code>check [--read-data]</code></td><td>Controleert de structuur van de repository; met <code>--read-data</code> wordt elke byte gedownload en gecontroleerd.</td></tr>
+</table>
+
+<h2>Schijfimages (Windows)</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>disks [--json]</code></td><td>Toont schijven en partities met hun nummers.</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Maakt een back-up van een hele schijf of gekozen partities, of van alle interne schijven in één snapshot.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Schrijft een image naar een schijf; <b>wist de schijf</b>. <code>--keep-offline</code> wanneer de oorspronkelijke schijf in dezelfde machine zit; <code>--source-disk</code> kiest de schijf uit een back-up van alle schijven.</td></tr>
+  <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Toont de bestanden in een NTFS-partitie in een image (<code>--disk</code>: de gebackupte schijf, bij back-ups van alle schijven).</td></tr>
+  <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Kopieert bestanden en mappen uit een partitie in een image.</td></tr>
+</table>
+
+<h2>Linux-systeem (bare metal, P2V)</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>system-backup [--exclude PATTERN]</code></td><td>Maakt een back-up van alle lokale bestandssystemen en de schijfindeling. Zie <a href="/docs/linux-system">Linux-systeemback-up</a>.</td></tr>
+  <tr><td><code>system-show SNAPSHOT|latest</code></td><td>Toont de schijfindeling in een systeemback-up.</td></tr>
+  <tr><td><code>system-restore --target DEVICE [--new-hardware] [--rebuild-initramfs] --yes-erase-target SNAPSHOT|latest</code></td><td>Bouwt het systeem opnieuw op een lege schijf, een logisch volume of een imagebestand.</td></tr>
+</table>
+<h2>Windows: andere hardware</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Bereidt een herstelde Windows-schijf voor op andere hardware (opstartstuurprogramma's, extra stuurprogramma's, opstartbestanden) — hetzelfde als de herstelfunctie, bijv. om het vanaf de herstel-ISO opnieuw te doen.</td></tr>
+</table>
+
+<h2>VMware ESXi (elke agent als proxy; wachtwoord in <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>vmware list --host H [--user root]</code></td><td>Toont de VM's van de host, de licentiemodus, de vingerafdrukken van certificaat en SSH-sleutel, en de datastores.</td></tr>
+  <tr><td><code>vmware backup --host H [--vmid N,N]</code></td><td>Maakt een back-up van VM's (standaard: alle) vanuit snapshots; met Changed Block Tracking worden alleen gewijzigde blokken gelezen.</td></tr>
+  <tr><td><code>vmware restore --host H --vmid N [--new] [--name X] [--datastore DS] [--overwrite] [--start] SNAPSHOT&#124;latest</code></td><td>Herstelt een VM ter plaatse (standaard) of als nieuwe VM met <code>--new</code>. <code>--overwrite</code> vervangt de schijven van een bestaande VM; de oude blijven hernoemd bewaard. Zie <a href="/docs/vmware">VMware ESXi</a>.</td></tr>
+  <tr><td><code>esxi-nfs-serve</code></td><td>Biedt de directe VM's van ESXi-hosts via NFS aan vanuit <code>/var/lib/backupzit/instant-esxi</code> (Linux; gestart door direct herstel als systemd-unit <code>backupzit-esxi-nfs</code>).</td></tr>
+</table>
+<p>Pin de host met <code>--thumbprint SHA256:…</code> en <code>--ssh-host-key SHA256:…</code> (getoond door <code>vmware list</code>).</p>
+
+<h2>Hyper-V (agent op de Hyper-V-host, als beheerder)</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>hyperv list</code></td><td>Toont de VM's van de host met hun BackupZit-nummers, en de mappen voor herstelde schijven.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Maakt een back-up van VM's (standaard: alle) vanuit productiecontrolepunten.</td></tr>
+  <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Herstelt een VM ter plaatse (standaard) of als nieuwe VM met <code>--new</code>. <code>--overwrite</code> vervangt de schijven van een bestaande VM. Zie <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
+</table>
+<p><code>pve show</code>, <code>pve ls</code> en <code>pve extract</code> werken ook met Hyper-V-back-ups.</p>
+
+<h2>Proxmox VE (agent op de Proxmox-host)</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>pve list</code></td><td>Toont de VM's en containers van het cluster en de opslag die bruikbaar is voor herstel.</td></tr>
+  <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Maakt een back-up van de gasten van dit knooppunt (standaard: alle) vanuit Proxmox-snapshots.</td></tr>
+  <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Toont de gasten en schijven in een VM-back-up.</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Toont de partities en logische volumes van een gastschijf, of de bestanden in een map (NTFS, ext4, XFS, ook op LVM).</td></tr>
+  <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Kopieert bestanden en mappen van een gastschijf zonder de VM te herstellen.</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Bouwt een gast opnieuw; <code>--new-vmid -1</code> neemt de volgende vrije ID, <code>--overwrite</code> vervangt een bestaande gast met dezelfde ID. Zie <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
+  <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Direct herstel: start een VM binnen seconden terwijl de schijven uit de back-up worden gelezen (nieuwe VM, standaard de volgende vrije ID).</td></tr>
+  <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>Verplaatst de schijven van een directe VM naar opslag terwijl ze draait; daarna gebruikt ze de back-up niet meer.</td></tr>
+  <tr><td><code>pve instant-discard --vmid N</code></td><td>Stopt en verwijdert een directe VM met haar wijzigingen.</td></tr>
+  <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Biedt de schijven van een VM in een back-up alleen-lezen aan via NBD op een Unix-socket (gestart door direct herstel als systemd-unit).</td></tr>
+</table>
+
+<h2>Microsoft SQL Server (agent op de SQL Server-machine)</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>sql list [--instance I]</code></td><td>Toont de databases van een instantie met herstelmodel en grootte.</td></tr>
+  <tr><td><code>sql backup [--instance I] [--db a,b] [--system] [--log] [--copy-only]</code></td><td>Volledige back-ups (standaard: alle gebruikersdatabases) of, met <code>--log</code>, transactielogback-ups naar de repository.</td></tr>
+  <tr><td><code>sql show</code></td><td>Toont de SQL Server-back-ups in de repository met hun LSN-bereiken.</td></tr>
+  <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>Herstelt een database uit een volledige back-up en de logback-ups daarna, optioneel naar een tijdstip. Zie <a href="/docs/sql">SQL Server</a>.</td></tr>
+</table>
+
+<h2>PostgreSQL en MySQL/MariaDB (agent op de databaseserver)</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>pg list [--port P]</code></td><td>Databases van het lokale cluster en of WAL-archivering actief is.</td></tr>
+  <tr><td><code>pg backup [--port P] [--db a,b] [--pitr | --wal]</code></td><td>Volledige back-up (pg_basebackup, pg_dump van elke database; <code>--pitr</code> stelt WAL-archivering in) of, met <code>--wal</code>, de gearchiveerde WAL.</td></tr>
+  <tr><td><code>pg restore --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Herstelt een database (uit de dump of naar een tijdstip) of het hele cluster als aparte instantie.</td></tr>
+  <tr><td><code>mysql list</code></td><td>Databases en of het binaire log actief is.</td></tr>
+  <tr><td><code>mysql backup [--db a,b] [--binlog]</code></td><td>mysqldump van elke database met de positie in het binaire log, of de gesloten binaire logs.</td></tr>
+  <tr><td><code>mysql restore --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Laadt een dump en speelt de binaire logs af tot een tijdstip. Zie <a href="/docs/sql">Databases</a>.</td></tr>
+</table>
+
+<h2>Beheerde modus</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Verbindt de agent met een console met de registratiecode van de pagina Agents (<code>--force</code> vervangt een bestaande registratie). De oudere vorm <code>--server URL --token T --fingerprint F</code> werkt nog steeds.</td></tr>
+  <tr><td><code>set-server https://address:8443</code></td><td>Wijst een geregistreerde agent naar een nieuw adres van de console (zelfde certificaat); start daarna de agentservice opnieuw. Zie <a href="/docs/agents#new-address">Agents</a>.</td></tr>
+  <tr><td><code>status</code></td><td>Toont wat de draaiende agent doet en zijn back-uptaken (het Windows-systeemvakpictogram toont hetzelfde).</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Beheert de agentservice (de installatieprogramma's doen dit).</td></tr>
+  <tr><td><code>recovery</code></td><td>Herstelmodus, automatisch gestart door de herstel-ISO's; op elk live Linux-systeem: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
+  <tr><td><code>version</code></td><td>Toont de versie.</td></tr>
+</table>
+
+<h3>Voorbeelden</h3>
+<pre>set BACKUPZIT_PASSWORD=XXXX-XXXX-...
+set BACKUPZIT_S3_ACCESS_KEY=...
+set BACKUPZIT_S3_SECRET_KEY=...
+backupzit-agent snapshots --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d
+backupzit-agent restore --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d --target D:\Restore --include C:\Users\ana\Documents latest
+backupzit-agent check --repo s3://... --read-data
+
+backupzit-agent disks
+backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
+backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
+
+<h2>Geharde repository (<code>backupzit-repo</code>)</h2>
+<table>
+  <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+  <tr><td><code>backupzit-repo serve</code></td><td>Draait de service (systemd doet dit).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME</code></td><td>Maakt een toegangssleutel (één keer getoond).</td></tr>
+  <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Toegangssleutels tonen / intrekken.</td></tr>
+  <tr><td><code>backupzit-repo fingerprint</code></td><td>Certificaatvingerafdruk voor de console.</td></tr>
+  <tr><td><code>backupzit-repo status</code></td><td>Opgeslagen en verborgen (verwijderde, nog bewaarde) gegevens.</td></tr>
+  <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Maakt bestanden die sinds TIME zijn verwijderd weer zichtbaar.</td></tr>
+</table>
+<p>Configuratie: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+
+<h2>Beheerserver (<code>backupzit-server</code>)</h2>
+<table>
+  <tr><th>Optie / omgeving</th><th>Betekenis</th></tr>
+  <tr><td><code>--db</code> / <code>BACKUPZIT_DB</code></td><td>PostgreSQL-verbindingsreeks (verplicht).</td></tr>
+  <tr><td><code>--listen</code> / <code>BACKUPZIT_LISTEN</code></td><td>HTTPS-adres, standaard <code>:8443</code>.</td></tr>
+  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>Certificaat, <code>secrets.key</code>, agentdownloads (<code>dist/</code>).</td></tr>
+  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>URL die agents en e-maillinks gebruiken.</td></tr>
+  <tr><td><code>--tls-hosts</code> / <code>BACKUPZIT_TLS_HOSTS</code></td><td>Extra namen/IP's voor het zelfondertekende certificaat.</td></tr>
+  <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Initieel beheerderswachtwoord (alleen bij de eerste start).</td></tr>
+  <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Geheimensleutel (base64) in plaats van het bestand <code>secrets.key</code>.</td></tr>
+  <tr><td><code>--set-admin-password NEW</code></td><td>Stelt het wachtwoord van <i>admin</i> opnieuw in (activeert hem weer als lokale beheerder) en stopt.</td></tr>
+  <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Heft de aanmeldblokkade van een adres, of van alle, op (bescherming tegen brute force) en stopt.</td></tr>
+  <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Herstelt de console uit een consoleback-up en stopt (zie <a href="/docs/install">Server installeren</a>).</td></tr>
+  <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Alleen voor evaluatie: privé-PostgreSQL in de gegevensmap, onversleuteld HTTP op localhost.</td></tr>
+  <tr><td><code>--version</code></td><td>Toont de versie.</td></tr>
+</table>
+<pre>systemctl status backupzit-server
+journalctl -u backupzit-server -f</pre>
+{{template "docpager" .}}
+</article></div>{{end}}

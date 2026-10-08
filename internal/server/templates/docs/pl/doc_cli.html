@@ -1,0 +1,162 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Dokumentacja wiersza poleceń</h1>
+<p class="lead">Agent działa także samodzielnie z wiersza poleceń — do skryptów, do przywracania bez konsoli i w sytuacjach awaryjnych. Uruchom <code>backupzit-agent</code> bez argumentów, aby zobaczyć przegląd, oraz <code>backupzit-agent &lt;command&gt; -h</code>, aby zobaczyć opcje polecenia.</p>
+
+<h2>Repozytorium i dane uwierzytelniające</h2>
+<p>Każde polecenie przyjmuje <code>--repo</code> (lub <code>BACKUPZIT_REPO</code>). Do sekretów lepiej używać zmiennych środowiskowych. Repozytorium agenta to <code>&lt;lokalizacja magazynu&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — zobacz kolumnę repozytorium uruchomienia w Aktywności lub arkusz odzyskiwania.</p>
+<table>
+  <tr><th>Lokalizacja</th><th>Dane uwierzytelniające</th></tr>
+  <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
+  <tr><td><code>sftp://user@host:22/path</code></td><td><code>BACKUPZIT_SFTP_PASSWORD</code> lub <code>--sftp-key file</code>; <code>--sftp-hostkey SHA256:…</code> (<code>BACKUPZIT_SFTP_HOSTKEY</code>)</td></tr>
+  <tr><td><code>s3://endpoint/bucket/prefix</code> (<code>?tls=false</code> dla HTTP)</td><td><code>BACKUPZIT_S3_ACCESS_KEY</code>, <code>BACKUPZIT_S3_SECRET_KEY</code>, <code>--s3-region</code>; <code>--s3-lock-days N</code> zapisuje z Object Lock</td></tr>
+  <tr><td><code>smb://[domain;]user@host/share/path</code></td><td><code>BACKUPZIT_SMB_PASSWORD</code>, <code>--smb-domain</code></td></tr>
+  <tr><td><code>azure://account/container/path</code> (<code>?endpoint=URL</code> dla chmur suwerennych, Azure Stack, Azurite)</td><td><code>BACKUPZIT_AZURE_KEY</code> lub <code>BACKUPZIT_AZURE_SAS</code></td></tr>
+  <tr><td><code>hardened://host:8500/path</code></td><td><code>BACKUPZIT_HARDENED_KEY</code>, <code>BACKUPZIT_HARDENED_FINGERPRINT</code></td></tr>
+  <tr><td><code>usb://LABEL/path</code> (symbole wieloznaczne: <code>usb://BZBACKUP*/BackupZit</code>)</td><td>— (używany jest podłączony dysk o tej etykiecie woluminu)</td></tr>
+</table>
+<p>Zaszyfrowane repozytoria wymagają klucza odzyskiwania w <code>BACKUPZIT_PASSWORD</code> (lub <code>--password</code>).</p>
+<p><b>Widok z danej chwili:</b> na S3 z Object Lock i w utwardzonym repozytorium <code>--as-of 2026-10-01T14:30</code> (lub data) pokazuje repozytorium takie, jakie było w tym momencie — tylko do odczytu, aby odzyskać dane po usunięciu lub nadpisaniu kopii.</p>
+
+<h2>Pliki i foldery</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>init</code></td><td>Tworzy nowe repozytorium (zaszyfrowane, jeśli podano hasło).</td></tr>
+  <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Tworzy kopię plików i folderów. <code>--vss</code> czyta z kopii w tle woluminu (Windows, administrator); <code>--force</code> czyta wszystkie pliki, także niezmienione.</td></tr>
+  <tr><td><code>snapshots</code></td><td>Wyświetla migawki z czasem, hostem, rozmiarem i ścieżkami.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Wyświetla pliki w migawce.</td></tr>
+  <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Przywraca pliki pod DIR (odtwarzana jest oryginalna struktura folderów). <code>--original</code> zapisuje je zamiast tego w oryginalnej lokalizacji, nadpisując istniejące pliki.</td></tr>
+  <tr><td><code>check [--read-data]</code></td><td>Sprawdza strukturę repozytorium; z <code>--read-data</code> każdy bajt jest pobierany i sprawdzany.</td></tr>
+</table>
+
+<h2>Obrazy dysków (Windows)</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>disks [--json]</code></td><td>Pokazuje dyski i partycje z ich numerami.</td></tr>
+  <tr><td><code>image-backup --disk N [--partitions 1,2] [--no-vss]</code><br><code>image-backup --all-disks</code></td><td>Tworzy kopię całego dysku lub wybranych partycji albo wszystkich dysków wewnętrznych w jednej migawce.</td></tr>
+  <tr><td><code>image-restore --target-disk N --yes-erase-target [--keep-offline] [--source-disk N] SNAPSHOT|latest</code></td><td>Zapisuje obraz na dysk; <b>kasuje dysk</b>. <code>--keep-offline</code>, gdy oryginalny dysk jest w tej samej maszynie; <code>--source-disk</code> wybiera dysk z kopii wszystkich dysków.</td></tr>
+  <tr><td><code>image-ls [--disk N] --partition N SNAPSHOT|latest [\path]</code></td><td>Wyświetla pliki w partycji NTFS w obrazie (<code>--disk</code>: skopiowany dysk, przy kopiach wszystkich dysków).</td></tr>
+  <tr><td><code>image-extract [--disk N] --partition N --target DIR SNAPSHOT|latest \path…</code></td><td>Kopiuje pliki i foldery z partycji w obrazie.</td></tr>
+</table>
+
+<h2>System Linux (bare metal, P2V)</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>system-backup [--exclude PATTERN]</code></td><td>Tworzy kopię wszystkich lokalnych systemów plików i układu dysków. Zobacz <a href="/docs/linux-system">Kopia systemu Linux</a>.</td></tr>
+  <tr><td><code>system-show SNAPSHOT|latest</code></td><td>Pokazuje układ dysków w kopii systemu.</td></tr>
+  <tr><td><code>system-restore --target DEVICE [--new-hardware] [--rebuild-initramfs] --yes-erase-target SNAPSHOT|latest</code></td><td>Odtwarza system na pustym dysku, woluminie logicznym lub w pliku obrazu.</td></tr>
+</table>
+<h2>Windows: inny sprzęt</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Przygotowuje przywrócony dysk Windows do innego sprzętu (sterowniki rozruchowe, dodatkowe sterowniki, pliki rozruchowe) — to samo co opcja przywracania, np. aby powtórzyć to z ISO odzyskiwania.</td></tr>
+</table>
+
+<h2>VMware ESXi (dowolny agent jako proxy; hasło w <code>BACKUPZIT_VMWARE_PASSWORD</code>)</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>vmware list --host H [--user root]</code></td><td>Pokazuje maszyny wirtualne hosta, tryb licencji, odciski certyfikatu i klucza SSH oraz magazyny danych.</td></tr>
+  <tr><td><code>vmware backup --host H [--vmid N,N]</code></td><td>Tworzy kopie maszyn wirtualnych (domyślnie: wszystkich) z migawek; z Changed Block Tracking czytane są tylko zmienione bloki.</td></tr>
+  <tr><td><code>vmware restore --host H --vmid N [--new] [--name X] [--datastore DS] [--overwrite] [--start] SNAPSHOT&#124;latest</code></td><td>Przywraca maszynę wirtualną na miejscu (domyślnie) lub jako nową z <code>--new</code>. <code>--overwrite</code> zastępuje dyski istniejącej maszyny; stare są zachowywane pod zmienioną nazwą. Zobacz <a href="/docs/vmware">VMware ESXi</a>.</td></tr>
+  <tr><td><code>esxi-nfs-serve</code></td><td>Udostępnia natychmiastowe maszyny wirtualne hostom ESXi przez NFS z <code>/var/lib/backupzit/instant-esxi</code> (Linux; uruchamiane przez natychmiastowe odzyskiwanie jako jednostka systemd <code>backupzit-esxi-nfs</code>).</td></tr>
+</table>
+<p>Przypnij host za pomocą <code>--thumbprint SHA256:…</code> i <code>--ssh-host-key SHA256:…</code> (pokazywane przez <code>vmware list</code>).</p>
+
+<h2>Hyper-V (agent na hoście Hyper-V, jako administrator)</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>hyperv list</code></td><td>Wyświetla maszyny wirtualne hosta z ich numerami BackupZit oraz foldery na przywrócone dyski.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Tworzy kopie maszyn wirtualnych (domyślnie: wszystkich) z produkcyjnych punktów kontrolnych.</td></tr>
+  <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Przywraca maszynę wirtualną na miejscu (domyślnie) lub jako nową z <code>--new</code>. <code>--overwrite</code> zastępuje dyski istniejącej maszyny. Zobacz <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
+</table>
+<p><code>pve show</code>, <code>pve ls</code> i <code>pve extract</code> działają także z kopiami Hyper-V.</p>
+
+<h2>Proxmox VE (agent na hoście Proxmox)</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>pve list</code></td><td>Wyświetla maszyny wirtualne i kontenery klastra oraz magazyn dostępny do przywracania.</td></tr>
+  <tr><td><code>pve backup [--vmid 100,200] [--exclude 300]</code></td><td>Tworzy kopie gości tego węzła (domyślnie: wszystkich) z migawek Proxmox.</td></tr>
+  <tr><td><code>pve show SNAPSHOT|latest</code></td><td>Pokazuje gości i dyski w kopii maszyn wirtualnych.</td></tr>
+  <tr><td><code>pve ls --vmid N [--disk scsi0] [--volume ID] SNAPSHOT|latest [path]</code></td><td>Wyświetla partycje i woluminy logiczne dysku gościa lub pliki w folderze (NTFS, ext4, XFS, także na LVM).</td></tr>
+  <tr><td><code>pve extract --vmid N --target DIR [--volume ID] SNAPSHOT|latest path...</code></td><td>Kopiuje pliki i foldery z dysku gościa bez przywracania maszyny.</td></tr>
+  <tr><td><code>pve restore --vmid N [--new-vmid -1|N] [--name X] [--storage S] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Odtwarza gościa; <code>--new-vmid -1</code> bierze następny wolny ID, <code>--overwrite</code> zastępuje istniejącego gościa o tym samym ID. Zobacz <a href="/docs/proxmox">Proxmox VE</a>.</td></tr>
+  <tr><td><code>pve instant --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest</code></td><td>Natychmiastowe odzyskiwanie: uruchamia maszynę w kilka sekund, podczas gdy jej dyski są czytane z kopii (nowa maszyna, domyślnie następny wolny ID).</td></tr>
+  <tr><td><code>pve instant-finish --vmid N --storage S</code></td><td>Przenosi dyski natychmiastowej maszyny do magazynu w trakcie jej działania; potem nie korzysta ona już z kopii.</td></tr>
+  <tr><td><code>pve instant-discard --vmid N</code></td><td>Zatrzymuje i usuwa natychmiastową maszynę wraz z jej zmianami.</td></tr>
+  <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Udostępnia dyski maszyny z kopii tylko do odczytu przez NBD na gnieździe Unix (uruchamiane przez natychmiastowe odzyskiwanie jako jednostka systemd).</td></tr>
+</table>
+
+<h2>Microsoft SQL Server (agent na maszynie z SQL Server)</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>sql list [--instance I]</code></td><td>Wyświetla bazy danych instancji z modelem odzyskiwania i rozmiarem.</td></tr>
+  <tr><td><code>sql backup [--instance I] [--db a,b] [--system] [--log] [--copy-only]</code></td><td>Pełne kopie (domyślnie: wszystkie bazy użytkownika) lub, z <code>--log</code>, kopie dziennika transakcji do repozytorium.</td></tr>
+  <tr><td><code>sql show</code></td><td>Wyświetla kopie SQL Server w repozytorium z ich zakresami LSN.</td></tr>
+  <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>Przywraca bazę z pełnej kopii i następujących po niej kopii dziennika, opcjonalnie do danej chwili. Zobacz <a href="/docs/sql">SQL Server</a>.</td></tr>
+</table>
+
+<h2>PostgreSQL i MySQL/MariaDB (agent na serwerze baz danych)</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>pg list [--port P]</code></td><td>Bazy lokalnego klastra i czy archiwizacja WAL jest włączona.</td></tr>
+  <tr><td><code>pg backup [--port P] [--db a,b] [--pitr | --wal]</code></td><td>Pełna kopia (pg_basebackup, pg_dump każdej bazy; <code>--pitr</code> konfiguruje archiwizację WAL) lub, z <code>--wal</code>, zarchiwizowany WAL.</td></tr>
+  <tr><td><code>pg restore --db NAME|"(cluster)" [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Przywraca bazę (z jej zrzutu lub do danej chwili) albo cały klaster jako osobną instancję.</td></tr>
+  <tr><td><code>mysql list</code></td><td>Bazy i czy dziennik binarny jest włączony.</td></tr>
+  <tr><td><code>mysql backup [--db a,b] [--binlog]</code></td><td>mysqldump każdej bazy z jej pozycją w dzienniku binarnym lub zamknięte dzienniki binarne.</td></tr>
+  <tr><td><code>mysql restore --db NAME [--as NEW] [--replace] [--at TIME | --latest] SNAPSHOT|latest</code></td><td>Wczytuje zrzut i odtwarza dzienniki binarne do danej chwili. Zobacz <a href="/docs/sql">Bazy danych</a>.</td></tr>
+</table>
+
+<h2>Tryb zarządzany</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Łączy agenta z konsolą przy użyciu kodu rejestracji ze strony Agenci (<code>--force</code> zastępuje istniejącą rejestrację). Starsza forma <code>--server URL --token T --fingerprint F</code> nadal działa.</td></tr>
+  <tr><td><code>set-server https://address:8443</code></td><td>Kieruje zarejestrowanego agenta na nowy adres konsoli (ten sam certyfikat); następnie uruchom ponownie usługę agenta. Zobacz <a href="/docs/agents#new-address">Agenci</a>.</td></tr>
+  <tr><td><code>status</code></td><td>Pokazuje, co robi działający agent, oraz jego zadania kopii (ikona w zasobniku Windows pokazuje to samo).</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Zarządza usługą agenta (robią to instalatory).</td></tr>
+  <tr><td><code>recovery</code></td><td>Tryb odzyskiwania, uruchamiany automatycznie przez ISO odzyskiwania; na dowolnym systemie Linux live: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
+  <tr><td><code>version</code></td><td>Wyświetla wersję.</td></tr>
+</table>
+
+<h3>Przykłady</h3>
+<pre>set BACKUPZIT_PASSWORD=XXXX-XXXX-...
+set BACKUPZIT_S3_ACCESS_KEY=...
+set BACKUPZIT_S3_SECRET_KEY=...
+backupzit-agent snapshots --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d
+backupzit-agent restore --repo s3://s3.wasabisys.com/company-backups/backupzit/pc1_1a2b3c4d --target D:\Restore --include C:\Users\ana\Documents latest
+backupzit-agent check --repo s3://... --read-data
+
+backupzit-agent disks
+backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
+backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
+
+<h2>Utwardzone repozytorium (<code>backupzit-repo</code>)</h2>
+<table>
+  <tr><th>Polecenie</th><th>Co robi</th></tr>
+  <tr><td><code>backupzit-repo serve</code></td><td>Uruchamia usługę (robi to systemd).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME</code></td><td>Tworzy klucz dostępu (pokazywany raz).</td></tr>
+  <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Wyświetl / unieważnij klucze dostępu.</td></tr>
+  <tr><td><code>backupzit-repo fingerprint</code></td><td>Odcisk certyfikatu dla konsoli.</td></tr>
+  <tr><td><code>backupzit-repo status</code></td><td>Zapisane i ukryte (usunięte, nadal przechowywane) dane.</td></tr>
+  <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Ponownie udostępnia pliki usunięte od TIME.</td></tr>
+</table>
+<p>Konfiguracja: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+
+<h2>Serwer zarządzania (<code>backupzit-server</code>)</h2>
+<table>
+  <tr><th>Opcja / środowisko</th><th>Znaczenie</th></tr>
+  <tr><td><code>--db</code> / <code>BACKUPZIT_DB</code></td><td>Ciąg połączenia PostgreSQL (wymagany).</td></tr>
+  <tr><td><code>--listen</code> / <code>BACKUPZIT_LISTEN</code></td><td>Adres HTTPS, domyślnie <code>:8443</code>.</td></tr>
+  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>Certyfikat, <code>secrets.key</code>, pliki do pobrania dla agentów (<code>dist/</code>).</td></tr>
+  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>URL używany przez agentów i linki w e-mailach.</td></tr>
+  <tr><td><code>--tls-hosts</code> / <code>BACKUPZIT_TLS_HOSTS</code></td><td>Dodatkowe nazwy/IP dla certyfikatu z podpisem własnym.</td></tr>
+  <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Początkowe hasło administratora (tylko przy pierwszym uruchomieniu).</td></tr>
+  <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Klucz sekretów (base64) zamiast pliku <code>secrets.key</code>.</td></tr>
+  <tr><td><code>--set-admin-password NEW</code></td><td>Resetuje hasło konta <i>admin</i> (ponownie włącza je jako lokalnego administratora) i kończy działanie.</td></tr>
+  <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Znosi blokadę logowania adresu lub wszystkich adresów (ochrona przed brute force) i kończy działanie.</td></tr>
+  <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Przywraca konsolę z kopii konsoli i kończy działanie (zobacz <a href="/docs/install">Instalacja serwera</a>).</td></tr>
+  <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Tylko do testów: prywatny PostgreSQL w katalogu danych, nieszyfrowany HTTP na localhost.</td></tr>
+  <tr><td><code>--version</code></td><td>Wyświetla wersję.</td></tr>
+</table>
+<pre>systemctl status backupzit-server
+journalctl -u backupzit-server -f</pre>
+{{template "docpager" .}}
+</article></div>{{end}}
