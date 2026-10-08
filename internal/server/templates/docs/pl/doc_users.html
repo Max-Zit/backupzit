@@ -1,0 +1,91 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Użytkownicy, role i LDAP</h1>
+<p class="lead">Daj każdej osobie własne konto tylko z potrzebnymi jej uprawnieniami — jako konta lokalne lub z logowaniem z Active Directory / LDAP.</p>
+
+<h2>Role</h2>
+<table>
+  <tr><th>Uprawnienie</th><th>Administrator</th><th>Operator kopii</th><th>Operator przywracania</th><th>Obserwator</th></tr>
+  <tr><td>Przeglądanie pulpitu, aktywności, kalendarza, raportów, dokumentacji</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Uruchamianie kopii (Uruchom kopię teraz)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Przywracanie plików, dysków, systemów Linux i maszyn wirtualnych; przeglądanie i pobieranie plików z obrazów i kopii maszyn</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Tworzenie, zmiana i usuwanie zadań; zaplanowane raporty</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Rejestrowanie, aktualizacja i usuwanie agentów; kody odzyskiwania</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Magazyny docelowe, dane logowania i klucze odzyskiwania</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Ustawienia (e-mail, sesje, LDAP, certyfikat, aktualizacje, kopia konsoli)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Polecenia przed i po kopii (działają jako root / SYSTEM na agencie)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Użytkownicy i dziennik audytu</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>Typowy podział: administratorzy IT to <b>Administratorzy</b>; osoby prowadzące codzienne kopie to <b>Operatorzy kopii</b>; helpdesk przywracający usunięte pliki to <b>Operatorzy przywracania</b>; kierownictwo i audytorzy to <b>Obserwatorzy</b>. Strony i przyciski, których rola nie może używać, są ukryte, a serwer i tak je odrzuca. Pamiętaj, że przywracanie może nadpisać dane — przywrócenie obrazu dysku lub systemu Linux kasuje dysk docelowy, a przywrócenie maszyny z opcją <i>zastąp</i> usuwa istniejącą maszynę — więc nadawaj role przywracania tylko osobom, którym byś to powierzył; każde przywrócenie jest w dzienniku audytu.</p>
+
+<h2>Użytkownicy lokalni</h2>
+<p>W <a href="/users">Użytkownicy</a> → <i>Nowy użytkownik lokalny</i> wpisz nazwę użytkownika, rolę i hasło o długości co najmniej 10 znaków. Na stronie użytkownika możesz zmienić rolę, wyłączyć konto (otwarte sesje kończą się natychmiast), ustawić nowe hasło lub usunąć użytkownika.</p>
+<p>Każdy użytkownik może zmienić własne hasło w <a href="/account">Moje konto</a> (kliknij swoje imię w prawym górnym rogu).</p>
+<div class="callout"><p>Zawsze pozostaje co najmniej jeden włączony <b>administrator lokalny</b>, więc możesz się zalogować nawet przy niedostępnym katalogu. Nie możesz obniżyć sobie roli, wyłączyć ani usunąć samego siebie.</p></div>
+
+<h2>Logowanie przez Active Directory / LDAP</h2>
+<p>W <a href="/settings/ldap">Ustawienia → LDAP / Active Directory</a>:</p>
+<ol>
+  <li><b>Serwer</b>: <code>ldaps://dc1.example.local:636</code>. Zwykłe <code>ldap://</code> jest akceptowane tylko ze StartTLS, więc hasła nigdy nie są przesyłane bez szyfrowania.</li>
+  <li><b>Konto usługi</b>: zwykłe konto domenowe do wyszukiwania użytkowników i grup (wystarczy prawo odczytu), np. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
+  <li><b>Baza wyszukiwania</b>: np. <code>DC=example,DC=local</code>.</li>
+  <li><b>Filtr użytkowników</b>: Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>, OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>.</li>
+  <li><b>Grupy → role</b>: pełny DN grupy dla każdej roli, której chcesz używać, np. <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>. Wygrywa najwyższa pasująca rola; użytkownicy spoza wszystkich grup nie mogą się zalogować. W Active Directory zaznacz <i>grupy zagnieżdżone</i>, aby uwzględnić członków podgrup.</li>
+  <li><b>Zaufanie do certyfikatu</b>: jeśli kontrolery domeny używają wewnętrznego CA, wklej certyfikat CA; dla certyfikatu samopodpisanego wpisz jego odcisk.</li>
+  <li>Użyj <b>Test</b> z prawdziwym użytkownikiem, aby sprawdzić połączenie, hasło i wynikową rolę, a następnie <b>Zapisz</b>.</li>
+</ol>
+<p>Użytkownicy katalogu pojawiają się na liście użytkowników po pierwszym logowaniu. Ich imię, e-mail i rola są aktualizowane z katalogu przy każdym logowaniu. Aby od razu zablokować użytkownika katalogu, wyłącz konto w BackupZit (lub w katalogu).</p>
+
+<h2 id="sso">Logowanie jednokrotne (SAML, OpenID Connect)</h2>
+<p>Przy logowaniu jednokrotnym użytkownicy klikają na stronie logowania <b>Zaloguj się przez …</b> i logują się u Twojego dostawcy tożsamości — Microsoft Entra ID (Azure AD), Okta, Google Workspace, Keycloak, ADFS lub innego dostawcy SAML 2.0 albo OpenID Connect. Konfiguruje się je w <b>Ustawienia → Logowanie jednokrotne</b>:</p>
+<ol>
+  <li>Wybierz <b>OpenID Connect</b> (zalecane, gdzie to możliwe) lub <b>SAML 2.0</b>.</li>
+  <li><b>OpenID Connect:</b> zarejestruj u dostawcy tożsamości aplikację internetową z identyfikatorem URI przekierowania pokazanym na stronie ustawień (<code>https://&lt;konsola&gt;/login/sso/callback</code>) i wpisz jej issuer, ID klienta i klucz tajny klienta. Niech dostawca umieszcza grupy użytkownika w oświadczeniu <code>groups</code> (Entra ID: <i>Token configuration → Add groups claim</i>, które wysyła ID grup; Keycloak: mapper <i>Group Membership</i>; Okta: oświadczenie groups).</li>
+  <li><b>SAML 2.0:</b> dodaj konsolę u dostawcy tożsamości z jej adresem URL metadanych (<code>https://&lt;konsola&gt;/login/sso/metadata</code>, assertion consumer service <code>/login/sso/acs</code>), niech wysyła grupy jako atrybut, i wpisz URL metadanych dostawcy tożsamości lub wklej jego XML metadanych. SAML wymaga konsoli na HTTPS. Asercje muszą być podpisane; żądania konsoli nie są podpisywane.</li>
+  <li>Przypisz grupy (nazwy, a w Entra ID — identyfikatory) do czterech ról; wygrywa najwyższa pasująca rola. Użytkownicy spoza wszystkich grup nie mogą się zalogować, chyba że wybierzesz dla nich rolę.</li>
+</ol>
+<p>Dostawca tożsamości, którego certyfikat HTTPS pochodzi z Twojego własnego CA lub jest samopodpisany (lokalny Keycloak lub AD FS), wymaga tego certyfikatu CA w <b>Certyfikat CA (PEM)</b>; dostawcy publiczni (Entra ID, Okta, Google) nie wymagają niczego. Zapisanie sprawdza, czy dostawca tożsamości odpowiada. Użytkownicy są tworzeni przy pierwszym logowaniu (oznaczeni jako <b>SSO</b> w Użytkownicy) i przy każdym logowaniu dostają rolę ze swoich grup, jak użytkownicy katalogu; imię i e-mail pochodzą od dostawcy tożsamości. Drugi składnik obsługuje dostawca tożsamości, więc konsola nie prosi użytkowników SSO o własny kod dwuskładnikowy. Konta lokalne działają dalej, więc administrator zawsze może się zalogować, nawet gdy dostawca tożsamości jest niedostępny. Odpowiedź logowania można użyć tylko raz i musi być podpisana przez dostawcę tożsamości; każde logowanie SSO i każda odmowa są w dzienniku audytu.</p>
+
+<h2>Sesje</h2>
+<p>W <a href="/settings/security">Ustawienia → Logowanie i bezpieczeństwo</a> ustaw, jak długo trwa zalogowanie (domyślnie 12 godzin) i po ilu minutach bezczynności użytkownicy są wylogowywani (domyślnie 60, 0 = nigdy). Powtarzane błędne hasła blokują adres na pewien czas: domyślnie po 5 nieudanych próbach w ciągu 15 minut, na 30 minut. Limity są na tej samej stronie; zobacz <a href="/docs/security">Bezpieczeństwo</a>.</p>
+
+<h2>Uwierzytelnianie dwuskładnikowe</h2>
+<p>Każdy użytkownik może chronić logowanie drugim składnikiem w <a href="/account/2fa">Moje konto → Dwuskładnikowe</a>: zeskanuj kod QR aplikacją uwierzytelniającą (Microsoft lub Google Authenticator, Authy, 1Password, Bitwarden …) i wpisz 6-cyfrowy kod. Dziesięć jednorazowych <b>kodów odzyskiwania</b> jest pokazywanych raz — przechowuj je bezpiecznie; każdy działa raz, jeśli zgubisz telefon. Użytkownicy logujący się przez <a href="#sso">logowanie jednokrotne</a> nie są proszeni o kod konsoli: drugi składnik obsługuje ich dostawca tożsamości.</p>
+<p>W <a href="/settings/security">Ustawienia → Logowanie i bezpieczeństwo</a> możesz wymagać uwierzytelniania dwuskładnikowego od <b>administratorów</b> lub od <b>wszystkich użytkowników</b>; po następnym logowaniu są proszeni o jego skonfigurowanie. Jeśli użytkownik zgubi telefon i kody odzyskiwania, administrator resetuje logowanie dwuskładnikowe na stronie użytkownika. Działa to także dla kont z katalogu (LDAP).</p>
+
+<h2>Tokeny API</h2>
+<p>Skrypty i narzędzia monitoringu używają tokenów API zamiast haseł. Każdy użytkownik tworzy i odwołuje własne tokeny w <a href="/account#tokens">Moje konto → Tokeny API</a>; rola tokenu może być niższa niż rola użytkownika. Administratorzy widzą wszystkie tokeny na stronie <a href="/users">Użytkownicy</a> i mogą je odwołać. Zobacz <a href="/docs/api">REST API</a>.</p>
+
+<h2>Zatwierdzanie na cztery oczy</h2>
+<p>Opcjonalne i domyślnie wyłączone. Włącz je w <a href="/settings/security#four-eyes">Ustawienia → Logowanie i bezpieczeństwo → Zatwierdzanie na cztery oczy</a>; wymaga co najmniej dwóch włączonych administratorów. Wtedy te zmiany obowiązują dopiero po zatwierdzeniu przez <b>drugiego użytkownika</b>:</p>
+<table>
+  <tr><th>Zmiana</th><th>Kto może zatwierdzić</th></tr>
+  <tr><td>Usunięcie lub wyłączenie zadania kopii, skrócenie przechowywania zadania (każda reguła niższa niż wcześniej lub reguły tam, gdzie zachowywano wszystko), wznowienie przechowywania po podejrzanej kopii</td><td>Użytkownicy, którzy mogą zarządzać zadaniami</td></tr>
+  <tr><td>Usunięcie agenta lub hosta ESXi</td><td>Użytkownicy, którzy mogą zarządzać agentami</td></tr>
+  <tr><td>Usunięcie magazynu docelowego</td><td>Użytkownicy, którzy mogą zarządzać magazynami</td></tr>
+  <tr><td>Usunięcie użytkownika; utworzenie użytkownika, który może zatwierdzać (Administrator lub Operator kopii); nadanie użytkownikowi roli z większymi uprawnieniami albo ponowne włączenie takiego użytkownika; reset hasła lub logowania dwuskładnikowego takiego użytkownika</td><td>Administratorzy</td></tr>
+  <tr><td>Zmiana logowania LDAP lub logowania jednokrotnego (określają role użytkowników katalogu)</td><td>Administratorzy</td></tr>
+  <tr><td>Wyłączenie zatwierdzania na cztery oczy</td><td>Administratorzy</td></tr>
+</table>
+<p>Wniosek pojawia się w <a href="/approvals">Zatwierdzenia</a> (z licznikiem w menu i na pulpicie), a odbiorcy powiadomień dostają e-mail. Każdy inny użytkownik z odpowiednim uprawnieniem go zatwierdza lub odrzuca; wnioskodawca może go tylko anulować. Zatwierdzona zmiana jest od razu wykonywana. Wnioski wygasają po 7 dniach. Gdy zadanie jest edytowane z krótszym przechowywaniem, pozostałe zmiany są zapisywane od razu, a czeka tylko przechowywanie. Wnioski, zatwierdzenia, odrzucenia i ich użytkownicy są w dzienniku audytu.</p>
+<p><b>O wniosku mogą decydować tylko konta istniejące przed jego złożeniem.</b> Razem z zatwierdzaniem nowych zatwierdzających, resetów haseł i ustawień katalogu uniemożliwia to pojedynczemu administratorowi samodzielne zdobycie drugiego zatwierdzającego — np. przez utworzenie drugiego konta administratora, ustawienie hasła innemu administratorowi lub przypisanie grupy z katalogu do roli Administrator. Gdy opcja jest włączona, dwóch ostatnich włączonych administratorów nie można usunąć, wyłączyć ani obniżyć im roli, więc zawsze można zdecydować o wnioskach. Hasła we wnioskach są przechowywane tylko jako skróty, a ustawienia LDAP i logowania jednokrotnego zaszyfrowane kluczem sekretów konsoli. Członkostwa w grupach w samym katalogu (Active Directory, Entra ID) są poza konsolą; tam chroń te grupy administratorów.</p>
+<p>Chroni to przed jednym skradzionym lub nadużytym kontem, które usuwa konfigurację lub pozwala przechowywaniu skasować kopie. Nie zastępuje niezmiennego magazynu: w tym celu zobacz <a href="/docs/ransomware">Ochrona przed ransomware</a>.</p>
+
+<h2>Dziennik audytu</h2>
+<p><a href="/audit">Użytkownicy → Dziennik audytu</a> pokazuje logowania, nieudane logowania i zmiany: użytkowników, zadania, magazyny, przywracania, wyświetlone klucze odzyskiwania i ustawienia — z czasem, użytkownikiem i adresem.</p>
+
+<h3 id="audit-integrity">Ochrona przed zmianami</h3>
+<p>Każdy wpis jest powiązany łańcuchem z poprzednim: zawiera skrót własnej treści i poprzedniego wpisu, liczony z sekretem z pliku sekretów serwera (którego nie ma w bazie). Kto zmieni lub usunie wpisy bezpośrednio w bazie, przerywa więc łańcuch. Najnowszy skrót jest też przechowywany w pliku obok danych konsoli, więc wykrywane jest również usunięcie najnowszych wpisów.</p>
+<ul>
+  <li>Konsola sprawdza cały łańcuch przy starcie i raz dziennie. Jeśli jest przerwany, strona Dziennik audytu pokazuje <b>Dziennik audytu został zmieniony</b> z pierwszym złym wpisem, a administratorzy dostają e-mail.</li>
+  <li><b>Sprawdź integralność teraz</b> na stronie Dziennik audytu od razu uruchamia sprawdzenie.</li>
+  <li>Wpisy zapisane przed wersją 0.33.3 nie mają łańcucha; strona pokazuje, ile ich jest.</li>
+</ul>
+<p>Łańcuch pokazuje, że dziennik został zmieniony, ale nie przywróci tego, co zmieniono — a ktoś, kto przejmie sam serwer konsoli wraz z plikiem sekretów, mógłby przepisać łańcuch. Aby się przed tym chronić, wysyłaj kopię każdego wpisu na osobny serwer syslog lub SIEM w <a href="/settings/security#audit-syslog">Ustawienia → Logowanie i bezpieczeństwo → Ochrona dziennika audytu</a>:</p>
+<ul>
+  <li><b>Serwer syslog</b> jako <code>host:port</code> oraz <b>protokół</b>: TLS (zalecany, zwykle port 6514), TCP lub UDP (zwykle 514). Maszyna konsoli musi ufać certyfikatowi serwera TLS.</li>
+  <li>Zapisanie wysyła wiadomość testową; jeśli serwer jej nie przyjmie, ustawienia zostaną zapisane, a błąd wyświetlony.</li>
+  <li>Wiadomości są w formacie RFC 5424 (facility <i>auth</i>) z numerem wpisu, użytkownikiem, czynnością, adresem i skrótem łańcucha. Raz dziennie wiadomość <code>audit.checkpoint</code> zawiera najnowszy skrót, aby kopię można było porównać z konsolą.</li>
+  <li>Gdy serwer syslog jest niedostępny, wpisy czekają w pamięci (do 1000) i są wysyłane, gdy znów odpowie; konsola działa dalej, a wpisy w każdym razie pozostają w jej własnym dzienniku audytu.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

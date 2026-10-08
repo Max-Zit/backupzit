@@ -1,0 +1,91 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Gebruikers, rollen en LDAP</h1>
+<p class="lead">Geef iedereen een eigen account met alleen de rechten die nodig zijn — als lokale accounts, of met hun aanmelding uit Active Directory / LDAP.</p>
+
+<h2>Rollen</h2>
+<table>
+  <tr><th>Recht</th><th>Beheerder</th><th>Back-upoperator</th><th>Herstelmedewerker</th><th>Kijker</th></tr>
+  <tr><td>Dashboard, activiteit, kalender, rapporten, documentatie bekijken</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Back-ups starten (Back-up nu uitvoeren)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Bestanden, schijven, Linux-systemen en VM's herstellen; bestanden in images en VM-back-ups bladeren en downloaden</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Taken maken, wijzigen en verwijderen; geplande rapporten</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Agents registreren, bijwerken en verwijderen; herstelcodes</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Opslagdoelen, inloggegevens en herstelsleutels</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Instellingen (e-mail, sessies, LDAP, certificaat, updates, consoleback-up)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Opdrachten vóór en na een back-up (ze draaien als root / SYSTEM op de agent)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Gebruikers en auditlogboek</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>Gebruikelijke verdeling: IT-beheerders zijn <b>Beheerders</b>; wie de dagelijkse back-ups verzorgt is <b>Back-upoperator</b>; de helpdesk die verwijderde bestanden terughaalt is <b>Herstelmedewerker</b>; management en auditors zijn <b>Kijkers</b>. Pagina's en knoppen die een rol niet mag gebruiken worden verborgen, en de server weigert ze hoe dan ook. Houd er rekening mee dat herstellen gegevens kan overschrijven — het herstel van een schijfimage of Linux-systeem wist de doelschijf, en een VM-herstel met <i>vervangen</i> verwijdert de bestaande VM — geef de herstelrollen dus alleen aan mensen aan wie u dat zou toevertrouwen; elk herstel staat in het auditlogboek.</p>
+
+<h2>Lokale gebruikers</h2>
+<p>Voer onder <a href="/users">Gebruikers</a> → <i>Nieuwe lokale gebruiker</i> een gebruikersnaam, een rol en een wachtwoord van minstens 10 tekens in. Op de pagina van de gebruiker kunt u de rol wijzigen, het account uitschakelen (open sessies eindigen direct), een nieuw wachtwoord instellen of de gebruiker verwijderen.</p>
+<p>Elke gebruiker kan zijn eigen wachtwoord wijzigen onder <a href="/account">Mijn account</a> (klik rechtsboven op uw naam).</p>
+<div class="callout"><p>Er blijft altijd minstens één ingeschakelde <b>lokale beheerder</b> over, zodat u zich ook kunt aanmelden als de directory onbereikbaar is. U kunt uzelf niet degraderen, uitschakelen of verwijderen.</p></div>
+
+<h2>Aanmelden met Active Directory / LDAP</h2>
+<p>Onder <a href="/settings/ldap">Instellingen → LDAP / Active Directory</a>:</p>
+<ol>
+  <li><b>Server</b>: <code>ldaps://dc1.example.local:636</code>. Gewoon <code>ldap://</code> wordt alleen met StartTLS geaccepteerd, zodat wachtwoorden nooit onversleuteld over het netwerk gaan.</li>
+  <li><b>Serviceaccount</b>: een normaal domeinaccount waarmee gebruikers en groepen worden opgezocht (leesrechten volstaan), bijv. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
+  <li><b>Zoekbasis</b>: bijv. <code>DC=example,DC=local</code>.</li>
+  <li><b>Gebruikersfilter</b>: Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>, OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>.</li>
+  <li><b>Groepen → rollen</b>: de volledige DN van een groep voor elke rol die u wilt gebruiken, bijv. <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>. De hoogste overeenkomende rol wint; gebruikers die in geen van de groepen zitten, kunnen zich niet aanmelden. Vink in Active Directory <i>geneste groepen</i> aan om leden van subgroepen mee te nemen.</li>
+  <li><b>Certificaatvertrouwen</b>: als de domeincontrollers een interne CA gebruiken, plak dan het CA-certificaat; voer voor een zelfondertekend certificaat de vingerafdruk in.</li>
+  <li>Gebruik <b>Test</b> met een echte gebruiker om de verbinding, het wachtwoord en de resulterende rol te controleren, en daarna <b>Opslaan</b>.</li>
+</ol>
+<p>Directorygebruikers verschijnen na hun eerste aanmelding in de gebruikerslijst. Hun naam, e-mail en rol worden bij elke aanmelding uit de directory bijgewerkt. Om een directorygebruiker direct te blokkeren, schakelt u het account uit in BackupZit (of in de directory).</p>
+
+<h2 id="sso">Eenmalige aanmelding (SAML, OpenID Connect)</h2>
+<p>Met eenmalige aanmelding klikken gebruikers op de aanmeldpagina op <b>Aanmelden met …</b> en melden ze zich aan bij uw identiteitsprovider — Microsoft Entra ID (Azure AD), Okta, Google Workspace, Keycloak, ADFS of een andere SAML 2.0- of OpenID Connect-provider. Stel het in onder <b>Instellingen → Eenmalige aanmelding</b>:</p>
+<ol>
+  <li>Kies <b>OpenID Connect</b> (aanbevolen waar beschikbaar) of <b>SAML 2.0</b>.</li>
+  <li><b>OpenID Connect:</b> registreer bij de identiteitsprovider een webtoepassing met de omleidings-URI die op de instellingenpagina staat (<code>https://&lt;console&gt;/login/sso/callback</code>), en voer de issuer, client-ID en het clientgeheim in. Laat de provider de groepen van de gebruiker in een claim <code>groups</code> zetten (Entra ID: <i>Token configuration → Add groups claim</i>, dat groeps-ID's verstuurt; Keycloak: een mapper <i>Group Membership</i>; Okta: een groups-claim).</li>
+  <li><b>SAML 2.0:</b> voeg de console toe bij de identiteitsprovider met zijn metadata-URL (<code>https://&lt;console&gt;/login/sso/metadata</code>, assertion consumer service <code>/login/sso/acs</code>), laat de groepen als attribuut meesturen, en voer de metadata-URL van de identiteitsprovider in of plak de metadata-XML. SAML vereist de console op HTTPS. Assertions moeten ondertekend zijn; de verzoeken van de console zijn niet ondertekend.</li>
+  <li>Koppel groepen (namen, of ID's bij Entra ID) aan de vier rollen; de hoogste overeenkomende rol wint. Gebruikers die in geen ervan zitten, kunnen zich niet aanmelden, tenzij u een rol voor hen kiest.</li>
+</ol>
+<p>Een identiteitsprovider waarvan het HTTPS-certificaat van uw eigen CA komt of zelfondertekend is (een lokale Keycloak of AD FS), heeft dat CA-certificaat nodig in <b>CA-certificaat (PEM)</b>; publieke providers (Entra ID, Okta, Google) hebben niets nodig. Bij het opslaan wordt gecontroleerd of de identiteitsprovider antwoordt. Gebruikers worden bij hun eerste aanmelding aangemaakt (gemarkeerd met <b>SSO</b> onder Gebruikers) en krijgen bij elke aanmelding hun rol uit hun groepen, net als directorygebruikers; naam en e-mail komen van de identiteitsprovider. De identiteitsprovider regelt de tweede factor, dus de console vraagt SSO-gebruikers niet om een eigen tweestapscode. Lokale accounts blijven werken, zodat een beheerder zich altijd kan aanmelden, ook als de identiteitsprovider onbereikbaar is. Een aanmeldantwoord kan maar één keer worden gebruikt en moet door de identiteitsprovider zijn ondertekend; elke SSO-aanmelding en -weigering staat in het auditlogboek.</p>
+
+<h2>Sessies</h2>
+<p>Stel onder <a href="/settings/security">Instellingen → Aanmelden en beveiliging</a> in hoe lang een aanmelding geldig is (standaard 12 uur) en na hoeveel minuten inactiviteit gebruikers worden afgemeld (standaard 60, 0 = nooit). Herhaalde verkeerde wachtwoorden blokkeren het adres een tijd: standaard na 5 mislukte pogingen binnen 15 minuten, gedurende 30 minuten. De limieten staan op dezelfde pagina; zie <a href="/docs/security">Beveiliging</a>.</p>
+
+<h2>Tweestapsverificatie</h2>
+<p>Elke gebruiker kan zijn aanmelding beschermen met een tweede factor onder <a href="/account/2fa">Mijn account → Tweestaps</a>: scan de QR-code met een authenticator-app (Microsoft of Google Authenticator, Authy, 1Password, Bitwarden …) en voer de 6-cijferige code in. Tien eenmalige <b>herstelcodes</b> worden één keer getoond — bewaar ze veilig; elk werkt één keer als de telefoon kwijt is. Gebruikers die zich aanmelden via <a href="#sso">eenmalige aanmelding</a> krijgen niet de code van de console te zien: hun identiteitsprovider regelt de tweede factor.</p>
+<p>Onder <a href="/settings/security">Instellingen → Aanmelden en beveiliging</a> kunt u tweestapsverificatie verplichten voor <b>beheerders</b> of voor <b>alle gebruikers</b>; zij worden na hun volgende aanmelding gevraagd die in te stellen. Verliest een gebruiker zowel telefoon als herstelcodes, dan zet een beheerder de tweestapsaanmelding terug op de pagina van de gebruiker. Tweestaps werkt ook voor directoryaccounts (LDAP).</p>
+
+<h2>API-tokens</h2>
+<p>Scripts en monitoringtools gebruiken API-tokens in plaats van wachtwoorden. Elke gebruiker maakt en trekt zijn eigen tokens in onder <a href="/account#tokens">Mijn account → API-tokens</a>; de rol van een token kan lager zijn dan die van de gebruiker. Beheerders zien alle tokens op de pagina <a href="/users">Gebruikers</a> en kunnen ze intrekken. Zie <a href="/docs/api">REST API</a>.</p>
+
+<h2>Vier-ogengoedkeuring</h2>
+<p>Optioneel en standaard uit. Schakel het in onder <a href="/settings/security#four-eyes">Instellingen → Aanmelden en beveiliging → Vier-ogengoedkeuring</a>; het vereist minstens twee ingeschakelde beheerders. Dan worden deze wijzigingen pas van kracht als een <b>tweede gebruiker</b> ze goedkeurt:</p>
+<table>
+  <tr><th>Wijziging</th><th>Wie kan goedkeuren</th></tr>
+  <tr><td>Een back-uptaak verwijderen of uitschakelen, het bewaarbeleid van een taak inkorten (elke regel lager dan voorheen, of regels waar alles werd bewaard), het bewaarbeleid hervatten na een verdachte back-up</td><td>Gebruikers die taken mogen beheren</td></tr>
+  <tr><td>Een agent of ESXi-host verwijderen</td><td>Gebruikers die agents mogen beheren</td></tr>
+  <tr><td>Een opslagdoel verwijderen</td><td>Gebruikers die opslag mogen beheren</td></tr>
+  <tr><td>Een gebruiker verwijderen; een gebruiker aanmaken die kan goedkeuren (Beheerder of Back-upoperator); een gebruiker een rol met meer rechten geven, of zo'n gebruiker weer inschakelen; het wachtwoord of de tweestapsaanmelding van zo'n gebruiker terugzetten</td><td>Beheerders</td></tr>
+  <tr><td>De LDAP-aanmelding of eenmalige aanmelding wijzigen (die bepalen de rollen van directorygebruikers)</td><td>Beheerders</td></tr>
+  <tr><td>Vier-ogengoedkeuring uitschakelen</td><td>Beheerders</td></tr>
+</table>
+<p>Het verzoek verschijnt onder <a href="/approvals">Goedkeuringen</a> (met een teller in het menu en op het dashboard) en de ontvangers van meldingen krijgen een e-mail. Elke andere gebruiker met het juiste recht keurt het goed of af; de aanvrager kan het alleen annuleren. Een goedgekeurde wijziging wordt meteen uitgevoerd. Verzoeken verlopen na 7 dagen. Wordt een taak bewerkt met een korter bewaarbeleid, dan worden de andere wijzigingen meteen opgeslagen en wacht alleen het bewaarbeleid. Verzoeken, goedkeuringen, afwijzingen en hun gebruikers staan in het auditlogboek.</p>
+<p><b>Alleen accounts die al bestonden vóór een verzoek kunnen erover beslissen.</b> Samen met de goedkeuring van nieuwe goedkeurders, wachtwoordresets en directory-instellingen voorkomt dit dat één beheerder in zijn eentje een tweede goedkeurder verkrijgt — bijvoorbeeld door een tweede beheerdersaccount aan te maken, het wachtwoord van een andere beheerder in te stellen of een directorygroep aan de rol Beheerder te koppelen. Zolang de optie aan staat, kunnen de laatste twee ingeschakelde beheerders niet worden verwijderd, uitgeschakeld of gedegradeerd, zodat er altijd over verzoeken kan worden beslist. Wachtwoorden in verzoeken worden alleen als hash opgeslagen, en LDAP- en SSO-instellingen versleuteld met de geheimensleutel van de console. Groepslidmaatschappen in de directory zelf (Active Directory, Entra ID) vallen buiten de console; bescherm die beheerdersgroepen daar.</p>
+<p>Dit beschermt tegen één gestolen of misbruikt account dat de configuratie verwijdert of het bewaarbeleid de back-ups laat wissen. Het vervangt geen onveranderlijke opslag: zie daarvoor <a href="/docs/ransomware">Bescherming tegen ransomware</a>.</p>
+
+<h2>Auditlogboek</h2>
+<p><a href="/audit">Gebruikers → Auditlogboek</a> toont aanmeldingen, mislukte aanmeldingen en wijzigingen: gebruikers, taken, opslagdoelen, herstelbewerkingen, getoonde herstelsleutels en instellingen — met tijd, gebruiker en adres.</p>
+
+<h3 id="audit-integrity">Bescherming tegen wijzigingen</h3>
+<p>Elk item is gekoppeld aan het vorige: het draagt een hash van de eigen inhoud en van het vorige item, berekend met een geheim uit het geheimenbestand van de server (dat niet in de database staat). Wie items rechtstreeks in de database wijzigt of verwijdert, breekt daardoor de keten. De nieuwste hash wordt ook in een bestand naast de consolegegevens bewaard, zodat ook het verwijderen van de nieuwste items wordt gedetecteerd.</p>
+<ul>
+  <li>De console controleert de hele keten bij het starten en één keer per dag. Is die verbroken, dan toont de pagina Auditlogboek <b>Het auditlogboek is gewijzigd</b> met het eerste foute item, en krijgen de beheerders een e-mail.</li>
+  <li><b>Integriteit nu controleren</b> op de pagina Auditlogboek voert de controle direct uit.</li>
+  <li>Items die vóór versie 0.33.3 zijn geschreven, hebben geen keten; de pagina toont hoeveel het er zijn.</li>
+</ul>
+<p>De keten laat zien dat het logboek is gewijzigd, maar kan het gewijzigde niet terughalen — en iemand die de consoleserver zelf overneemt, met zijn geheimenbestand, zou de keten kunnen herschrijven. Stuur daarom een kopie van elk item naar een aparte syslog-server of SIEM onder <a href="/settings/security#audit-syslog">Instellingen → Aanmelden en beveiliging → Bescherming van het auditlogboek</a>:</p>
+<ul>
+  <li><b>Syslog-server</b> als <code>host:poort</code>, en het <b>protocol</b>: TLS (aanbevolen, meestal poort 6514), TCP of UDP (meestal 514). Het certificaat van een TLS-server moet door de consolemachine worden vertrouwd.</li>
+  <li>Bij het opslaan wordt een testbericht verzonden; neemt de server het niet aan, dan worden de instellingen toch opgeslagen en wordt de fout getoond.</li>
+  <li>De berichten zijn RFC 5424 (facility <i>auth</i>) met itemnummer, gebruiker, actie, adres en ketenhash. Eén keer per dag draagt een bericht <code>audit.checkpoint</code> de nieuwste hash, zodat de kopie met de console kan worden vergeleken.</li>
+  <li>Zolang de syslog-server onbereikbaar is, wachten items in het geheugen (tot 1000) en worden ze verzonden zodra hij weer antwoordt; de console blijft werken, en de items blijven in elk geval in het eigen auditlogboek.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

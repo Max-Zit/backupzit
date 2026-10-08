@@ -1,0 +1,91 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>用户、角色和 LDAP</h1>
+<p class="lead">为每个人分配自己的帐户，只授予其所需的权限 —— 可以是本地帐户，也可以使用 Active Directory / LDAP 登录。</p>
+
+<h2>角色</h2>
+<table>
+  <tr><th>权限</th><th>管理员</th><th>备份操作员</th><th>还原操作员</th><th>查看者</th></tr>
+  <tr><td>查看仪表板、活动、日历、报告、文档</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>启动备份（立即运行备份）</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>还原文件、磁盘、Linux 系统和虚拟机；浏览和下载映像及虚拟机备份中的文件</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>创建、更改和删除作业；计划报告</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>注册、更新和删除代理；恢复代码</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>存储目标、凭据和恢复密钥</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>设置（电子邮件、会话、LDAP、证书、更新、控制台备份）</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>备份前后执行的命令（在代理上以 root / SYSTEM 身份运行）</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>用户和审计日志</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>典型分配：IT 管理员为 <b>管理员</b>；负责日常备份的人员为 <b>备份操作员</b>；恢复已删除文件的服务台人员为 <b>还原操作员</b>；管理层和审计人员为 <b>查看者</b>。角色无权使用的页面和按钮会被隐藏，服务器也会拒绝相应操作。请注意，还原可能会覆盖数据 —— 还原磁盘映像或 Linux 系统会擦除目标磁盘，使用 <i>替换</i> 还原虚拟机会删除现有虚拟机 —— 因此只将还原角色授予您信任的人；每次还原都会记录在审计日志中。</p>
+
+<h2>本地用户</h2>
+<p>在 <a href="/users">用户</a> → <i>新建本地用户</i> 中输入用户名、角色和至少 10 个字符的密码。在用户页面上，您可以更改角色、禁用帐户（已打开的会话会立即结束）、设置新密码或删除用户。</p>
+<p>每个用户都可以在 <a href="/account">我的帐户</a> 中更改自己的密码（点击右上角您的名字）。</p>
+<div class="callout"><p>系统始终至少保留一个已启用的<b>本地管理员</b>，这样即使目录不可达也能登录。您不能降级、禁用或删除自己。</p></div>
+
+<h2>使用 Active Directory / LDAP 登录</h2>
+<p>在 <a href="/settings/ldap">设置 → LDAP / Active Directory</a> 中：</p>
+<ol>
+  <li><b>服务器</b>：<code>ldaps://dc1.example.local:636</code>。普通 <code>ldap://</code> 只有在使用 StartTLS 时才被接受，因此密码绝不会以明文传输。</li>
+  <li><b>服务帐户</b>：用于查找用户和组的普通域帐户（只需读取权限），例如 <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>。</li>
+  <li><b>搜索基准</b>：例如 <code>DC=example,DC=local</code>。</li>
+  <li><b>用户筛选器</b>：Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>，OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>。</li>
+  <li><b>组 → 角色</b>：为每个要使用的角色填写组的完整 DN，例如 <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>。以匹配的最高角色为准；不属于任何组的用户无法登录。在 Active Directory 中勾选 <i>嵌套组</i> 可包含子组成员。</li>
+  <li><b>证书信任</b>：如果域控制器使用内部 CA，请粘贴 CA 证书；对于自签名证书，请输入其指纹。</li>
+  <li>用真实用户点击 <b>测试</b>，检查连接、密码和得到的角色，然后点击 <b>保存</b>。</li>
+</ol>
+<p>目录用户在首次登录后出现在用户列表中。每次登录时都会从目录更新其姓名、电子邮件和角色。要立即阻止某个目录用户，请在 BackupZit（或目录）中禁用该帐户。</p>
+
+<h2 id="sso">单点登录（SAML、OpenID Connect）</h2>
+<p>使用单点登录时，用户在登录页面点击 <b>登录方式： …</b>，然后在您的身份提供程序处登录 —— Microsoft Entra ID（Azure AD）、Okta、Google Workspace、Keycloak、ADFS 或任何其他 SAML 2.0 或 OpenID Connect 提供程序。在 <b>设置 → 单点登录</b> 中设置：</p>
+<ol>
+  <li>选择 <b>OpenID Connect</b>（如可用则推荐）或 <b>SAML 2.0</b>。</li>
+  <li><b>OpenID Connect：</b> 在身份提供程序处注册一个 Web 应用，使用设置页面上显示的重定向 URI（<code>https://&lt;控制台&gt;/login/sso/callback</code>），并输入其 issuer、客户端 ID 和客户端密钥。让提供程序将用户的组放入 <code>groups</code> 声明（Entra ID：<i>Token configuration → Add groups claim</i>，发送组 ID；Keycloak：<i>Group Membership</i> 映射器；Okta：groups 声明）。</li>
+  <li><b>SAML 2.0：</b> 在身份提供程序处使用控制台的元数据 URL 添加控制台（<code>https://&lt;控制台&gt;/login/sso/metadata</code>，断言使用者服务 <code>/login/sso/acs</code>），让其将组作为属性发送，并输入身份提供程序的元数据 URL 或粘贴其元数据 XML。SAML 要求控制台使用 HTTPS。断言必须签名；控制台的请求不签名。</li>
+  <li>将组（名称，Entra ID 为 ID）映射到四个角色；以匹配的最高角色为准。不属于任何组的用户无法登录，除非您为他们选择一个角色。</li>
+</ol>
+<p>如果身份提供程序的 HTTPS 证书来自您自己的 CA 或是自签名的（本地 Keycloak 或 AD FS），需要在 <b>CA 证书（PEM）</b> 中提供该 CA 证书；公共提供程序（Entra ID、Okta、Google）则无需任何设置。保存时会检查身份提供程序是否响应。用户在首次登录时创建（在用户中标记为 <b>SSO</b>），并像目录用户一样在每次登录时根据其组获得角色；姓名和电子邮件来自身份提供程序。第二重验证由身份提供程序负责，因此控制台不会向 SSO 用户索要自己的双因素代码。本地帐户继续可用，因此即使身份提供程序不可达，管理员也始终可以登录。登录响应只能使用一次，并且必须由身份提供程序签名；每次 SSO 登录和拒绝都会记录在审计日志中。</p>
+
+<h2>会话</h2>
+<p>在 <a href="/settings/security">设置 → 登录与安全</a> 中设置登录有效期（默认 12 小时）以及用户闲置多少分钟后注销（默认 60，0 = 从不）。反复输错密码会暂时封锁该地址：默认在 15 分钟内失败 5 次后封锁 30 分钟。这些限制在同一页面上；参见 <a href="/docs/security">安全</a>。</p>
+
+<h2>双因素身份验证</h2>
+<p>每个用户都可以在 <a href="/account/2fa">我的帐户 → 双因素</a> 中用第二重验证保护登录：用身份验证器应用（Microsoft 或 Google Authenticator、Authy、1Password、Bitwarden 等）扫描二维码并输入 6 位代码。十个一次性<b>恢复代码</b>只显示一次 —— 请妥善保存；手机丢失时每个代码可使用一次。通过 <a href="#sso">单点登录</a> 登录的用户无需输入控制台的代码：第二重验证由其身份提供程序负责。</p>
+<p>在 <a href="/settings/security">设置 → 登录与安全</a> 中，您可以要求 <b>管理员</b> 或 <b>所有用户</b> 使用双因素身份验证；他们会在下次登录后被要求进行设置。如果用户同时丢失了手机和恢复代码，管理员可以在该用户的页面上重置双因素登录。它同样适用于目录（LDAP）帐户。</p>
+
+<h2>API 令牌</h2>
+<p>脚本和监控工具使用 API 令牌代替密码。每个用户在 <a href="/account#tokens">我的帐户 → API 令牌</a> 中创建和撤销自己的令牌；令牌的角色可以低于用户本身的角色。管理员可以在 <a href="/users">用户</a> 页面查看并撤销所有令牌。参见 <a href="/docs/api">REST API</a>。</p>
+
+<h2>四眼审批</h2>
+<p>可选功能，默认关闭。在 <a href="/settings/security#four-eyes">设置 → 登录与安全 → 四眼审批</a> 中开启；至少需要两名已启用的管理员。开启后，以下更改只有在<b>第二个用户</b>批准后才会生效：</p>
+<table>
+  <tr><th>更改</th><th>谁可以批准</th></tr>
+  <tr><td>删除或禁用备份作业、缩短作业的保留期（任何低于之前的规则，或在原本全部保留的地方设置规则）、在可疑备份后恢复保留</td><td>可以管理作业的用户</td></tr>
+  <tr><td>删除代理或 ESXi 主机</td><td>可以管理代理的用户</td></tr>
+  <tr><td>删除存储目标</td><td>可以管理存储的用户</td></tr>
+  <tr><td>删除用户；创建可以审批的用户（管理员或备份操作员）；授予用户权限更多的角色，或重新启用此类用户；重置此类用户的密码或双因素登录</td><td>管理员</td></tr>
+  <tr><td>更改 LDAP 登录或单点登录（它们决定目录用户的角色）</td><td>管理员</td></tr>
+  <tr><td>关闭四眼审批</td><td>管理员</td></tr>
+</table>
+<p>请求会出现在 <a href="/approvals">审批</a> 中（菜单和仪表板上有计数），通知收件人会收到电子邮件。任何其他具有相应权限的用户可以批准或拒绝；请求者只能取消。已批准的更改会立即执行。请求在 7 天后过期。当作业被编辑为更短的保留期时，其他更改会立即保存，只有保留期需要等待。请求、批准、拒绝及其用户都会记录在审计日志中。</p>
+<p><b>只有在请求之前已存在的帐户才能对其作出决定。</b> 加上对新审批人、密码重置和目录设置的审批，这可以防止单个管理员独自获得第二个审批人 —— 例如创建第二个管理员帐户、设置另一个管理员的密码，或将目录组映射到管理员角色。只要该选项开启，最后两名已启用的管理员就不能被删除、禁用或降级，因此请求始终能得到处理。请求中的密码只以哈希形式存储，LDAP 和单点登录设置则使用控制台的密钥加密。目录本身（Active Directory、Entra ID）中的组成员身份不在控制台的管理范围内；请在那里保护这些管理员组。</p>
+<p>这可以防止单个被盗或被滥用的帐户删除配置，或让保留策略删除备份。它不能替代不可变存储：相关内容参见 <a href="/docs/ransomware">勒索软件防护</a>。</p>
+
+<h2>审计日志</h2>
+<p><a href="/audit">用户 → 审计日志</a> 显示登录、失败的登录以及各种更改：用户、作业、存储目标、还原、已显示的恢复密钥和设置 —— 附带时间、用户和地址。</p>
+
+<h3 id="audit-integrity">防篡改保护</h3>
+<p>每条记录都与前一条链接：它带有自身内容和前一条记录的哈希，并使用服务器机密文件（不在数据库中）中的密钥计算。因此，任何人直接在数据库中更改或删除记录都会破坏链条。最新的哈希还会保存在控制台数据旁边的一个文件中，所以删除最新记录也会被检测到。</p>
+<ul>
+  <li>控制台在启动时和每天一次检查整个链条。如果链条断裂，审计日志页面会显示 <b>审计日志已被修改</b> 以及第一条有问题的记录，管理员会收到电子邮件。</li>
+  <li>审计日志页面上的 <b>立即验证完整性</b> 会立即运行检查。</li>
+  <li>0.33.3 版本之前写入的记录没有链条；页面会显示其数量。</li>
+</ul>
+<p>链条可以表明日志已被修改，但无法恢复被修改的内容 —— 而且接管了控制台服务器本身及其机密文件的人可以重写链条。为此，请在 <a href="/settings/security#audit-syslog">设置 → 登录与安全 → 审计日志保护</a> 中将每条记录的副本发送到单独的 syslog 服务器或 SIEM：</p>
+<ul>
+  <li><b>Syslog 服务器</b> 填写为 <code>host:port</code>，以及 <b>协议</b>：TLS（推荐，通常为端口 6514）、TCP 或 UDP（通常为 514）。控制台机器必须信任 TLS 服务器的证书。</li>
+  <li>保存时会发送一条测试消息；如果服务器不接受，设置仍会保存并显示错误。</li>
+  <li>消息采用 RFC 5424 格式（facility <i>auth</i>），包含记录编号、用户、操作、地址和链哈希。每天一次 <code>audit.checkpoint</code> 消息携带最新的哈希，以便将副本与控制台进行比较。</li>
+  <li>当 syslog 服务器不可达时，记录在内存中等待（最多 1000 条），在其重新响应后发送；控制台继续工作，而且记录无论如何都保留在其自身的审计日志中。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

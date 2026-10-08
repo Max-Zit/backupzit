@@ -1,0 +1,91 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Kullanıcılar, roller ve LDAP</h1>
+<p class="lead">Her kişiye yalnızca ihtiyaç duyduğu haklara sahip kendi hesabını verin — yerel hesaplar olarak veya Active Directory / LDAP oturum açmalarıyla.</p>
+
+<h2>Roller</h2>
+<table>
+  <tr><th>İzin</th><th>Yönetici</th><th>Yedekleme operatörü</th><th>Geri yükleme operatörü</th><th>Görüntüleyici</th></tr>
+  <tr><td>Panoyu, etkinliği, takvimi, raporları, belgeleri görüntüleme</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Yedekleme başlatma (Yedeklemeyi şimdi çalıştır)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Dosyaları, diskleri, Linux sistemlerini ve VM'leri geri yükleme; görüntülerdeki ve VM yedeklerindeki dosyalara göz atma ve indirme</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>İş oluşturma, değiştirme ve silme; zamanlanmış raporlar</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Aracıları kaydetme, güncelleme ve kaldırma; kurtarma kodları</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Depolama hedefleri, kimlik bilgileri ve kurtarma anahtarları</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Ayarlar (e-posta, oturumlar, LDAP, sertifika, güncellemeler, konsol yedeği)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Yedeklemeden önce ve sonra çalışan komutlar (aracıda root / SYSTEM olarak çalışır)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Kullanıcılar ve denetim günlüğü</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>Tipik kullanım: BT yöneticileri <b>Yönetici</b>; günlük yedeklemeleri yürütenler <b>Yedekleme operatörü</b>; silinen dosyaları geri getiren yardım masası <b>Geri yükleme operatörü</b>; yönetim ve denetçiler <b>Görüntüleyici</b>dir. Bir rolün kullanamayacağı sayfalar ve düğmeler gizlenir ve sunucu bunları her durumda reddeder. Geri yüklemenin verilerin üzerine yazabileceğini unutmayın — bir disk görüntüsünün veya Linux sisteminin geri yüklenmesi hedef diski siler, <i>değiştir</i> ile yapılan bir VM geri yüklemesi mevcut VM'yi siler — bu yüzden geri yükleme rollerini yalnızca buna güvenebileceğiniz kişilere verin; her geri yükleme denetim günlüğündedir.</p>
+
+<h2>Yerel kullanıcılar</h2>
+<p><a href="/users">Kullanıcılar</a> → <i>Yeni yerel kullanıcı</i> altında bir kullanıcı adı, bir rol ve en az 10 karakterlik bir parola girin. Kullanıcının sayfasında rolü değiştirebilir, hesabı devre dışı bırakabilir (açık oturumlar hemen sona erer), yeni bir parola belirleyebilir veya kullanıcıyı silebilirsiniz.</p>
+<p>Her kullanıcı kendi parolasını <a href="/account">Hesabım</a> altında değiştirebilir (sağ üstte adınıza tıklayın).</p>
+<div class="callout"><p>Her zaman en az bir etkin <b>yerel yönetici</b> kalır; böylece dizine ulaşılamadığında da oturum açabilirsiniz. Kendinizi düşüremez, devre dışı bırakamaz veya silemezsiniz.</p></div>
+
+<h2>Active Directory / LDAP ile oturum açma</h2>
+<p><a href="/settings/ldap">Ayarlar → LDAP / Active Directory</a> altında:</p>
+<ol>
+  <li><b>Sunucu</b>: <code>ldaps://dc1.example.local:636</code>. Düz <code>ldap://</code> yalnızca StartTLS ile kabul edilir; böylece parolalar asla şifrelenmeden iletilmez.</li>
+  <li><b>Hizmet hesabı</b>: kullanıcıları ve grupları aramak için kullanılan normal bir etki alanı hesabı (okuma erişimi yeterlidir), ör. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
+  <li><b>Arama tabanı</b>: ör. <code>DC=example,DC=local</code>.</li>
+  <li><b>Kullanıcı filtresi</b>: Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>, OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>.</li>
+  <li><b>Gruplar → roller</b>: kullanmak istediğiniz her rol için bir grubun tam DN'i, ör. <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>. Eşleşen en yüksek rol geçerlidir; hiçbir grupta olmayan kullanıcılar oturum açamaz. Alt grupların üyelerini dahil etmek için Active Directory'de <i>iç içe gruplar</i>'ı işaretleyin.</li>
+  <li><b>Sertifika güveni</b>: etki alanı denetleyicileri dahili bir CA kullanıyorsa CA sertifikasını yapıştırın; kendinden imzalı bir sertifika için parmak izini girin.</li>
+  <li>Bağlantıyı, parolayı ve ortaya çıkan rolü denetlemek için gerçek bir kullanıcıyla <b>Test</b>'i kullanın, ardından <b>Kaydet</b>.</li>
+</ol>
+<p>Dizin kullanıcıları ilk oturum açmalarından sonra kullanıcı listesinde görünür. Adları, e-postaları ve rolleri her oturum açmada dizinden güncellenir. Bir dizin kullanıcısını hemen engellemek için hesabı BackupZit'te (veya dizinde) devre dışı bırakın.</p>
+
+<h2 id="sso">Çoklu oturum açma (SAML, OpenID Connect)</h2>
+<p>Çoklu oturum açmada kullanıcılar oturum açma sayfasında <b>Şununla oturum aç: …</b>'a tıklar ve kimlik sağlayıcınızda oturum açar — Microsoft Entra ID (Azure AD), Okta, Google Workspace, Keycloak, ADFS veya başka herhangi bir SAML 2.0 ya da OpenID Connect sağlayıcısı. <b>Ayarlar → Çoklu oturum açma</b> altında ayarlanır:</p>
+<ol>
+  <li><b>OpenID Connect</b> (mümkün olduğunda önerilir) veya <b>SAML 2.0</b>'ı seçin.</li>
+  <li><b>OpenID Connect:</b> kimlik sağlayıcıda, ayarlar sayfasında gösterilen yönlendirme URI'si (<code>https://&lt;konsol&gt;/login/sso/callback</code>) ile bir web uygulaması kaydedin ve issuer, istemci kimliği ve istemci gizli anahtarını girin. Sağlayıcının kullanıcının gruplarını bir <code>groups</code> talebine koymasını sağlayın (Entra ID: grup kimliklerini gönderen <i>Token configuration → Add groups claim</i>; Keycloak: bir <i>Group Membership</i> eşleyicisi; Okta: bir groups talebi).</li>
+  <li><b>SAML 2.0:</b> konsolu kimlik sağlayıcıya meta veri URL'siyle ekleyin (<code>https://&lt;konsol&gt;/login/sso/metadata</code>, assertion consumer service <code>/login/sso/acs</code>), grupları öznitelik olarak göndermesini sağlayın ve kimlik sağlayıcının meta veri URL'sini girin ya da meta veri XML'ini yapıştırın. SAML, konsolun HTTPS üzerinde olmasını gerektirir. Onaylar (assertion) imzalı olmalıdır; konsolun istekleri imzalanmaz.</li>
+  <li>Grupları (adları, Entra ID için kimlikleri) dört role eşleyin; eşleşen en yüksek rol geçerlidir. Hiçbirinde olmayan kullanıcılar, onlar için bir rol seçmediğiniz sürece oturum açamaz.</li>
+</ol>
+<p>HTTPS sertifikası kendi CA'nızdan gelen veya kendinden imzalı olan bir kimlik sağlayıcının (yerel bir Keycloak veya AD FS) bu CA sertifikasına <b>CA sertifikası (PEM)</b> alanında ihtiyacı vardır; genel sağlayıcıların (Entra ID, Okta, Google) hiçbir şeye ihtiyacı yoktur. Kaydetme, kimlik sağlayıcının yanıt verip vermediğini denetler. Kullanıcılar ilk oturum açmalarında oluşturulur (Kullanıcılar altında <b>SSO</b> olarak işaretlenir) ve dizin kullanıcıları gibi her oturum açmada rollerini gruplarından alır; adları ve e-postaları kimlik sağlayıcıdan gelir. İkinci faktörü kimlik sağlayıcı yönettiği için konsol SSO kullanıcılarından kendi iki aşamalı kodunu istemez. Yerel hesaplar çalışmaya devam eder; böylece kimlik sağlayıcıya ulaşılamadığında da bir yönetici her zaman oturum açabilir. Bir oturum açma yanıtı yalnızca bir kez kullanılabilir ve kimlik sağlayıcı tarafından imzalanmış olmalıdır; her SSO oturum açması ve reddi denetim günlüğündedir.</p>
+
+<h2>Oturumlar</h2>
+<p><a href="/settings/security">Ayarlar → Oturum açma ve güvenlik</a> altında bir oturumun ne kadar süreceğini (varsayılan 12 saat) ve kullanıcıların kaç dakika etkinlik dışı kaldıktan sonra oturumunun kapatılacağını (varsayılan 60, 0 = asla) ayarlayın. Tekrarlanan yanlış parolalar adresi bir süreliğine engeller: varsayılan olarak 15 dakika içinde 5 hatadan sonra, 30 dakika boyunca. Sınırlar aynı sayfadadır; bkz. <a href="/docs/security">Güvenlik</a>.</p>
+
+<h2>İki aşamalı kimlik doğrulama</h2>
+<p>Her kullanıcı oturum açmasını <a href="/account/2fa">Hesabım → İki aşamalı</a> altında ikinci bir faktörle koruyabilir: QR kodunu bir kimlik doğrulayıcı uygulamayla (Microsoft veya Google Authenticator, Authy, 1Password, Bitwarden …) tarayın ve 6 haneli kodu girin. On adet tek kullanımlık <b>kurtarma kodu</b> bir kez gösterilir — bunları güvenle saklayın; telefon kaybolursa her biri bir kez çalışır. <a href="#sso">Çoklu oturum açma</a> ile oturum açan kullanıcılardan konsolun kodu istenmez: ikinci faktörü kimlik sağlayıcıları yönetir.</p>
+<p><a href="/settings/security">Ayarlar → Oturum açma ve güvenlik</a> altında <b>yöneticiler</b> veya <b>tüm kullanıcılar</b> için iki aşamalı kimlik doğrulamayı zorunlu kılabilirsiniz; bir sonraki oturum açmalarından sonra bunu ayarlamaları istenir. Bir kullanıcı hem telefonunu hem de kurtarma kodlarını kaybederse, bir yönetici kullanıcının sayfasında iki aşamalı oturum açmayı sıfırlar. İki aşamalı doğrulama dizin (LDAP) hesapları için de çalışır.</p>
+
+<h2>API belirteçleri</h2>
+<p>Betikler ve izleme araçları parolalar yerine API belirteçleri kullanır. Her kullanıcı kendi belirteçlerini <a href="/account#tokens">Hesabım → API belirteçleri</a> altında oluşturur ve iptal eder; bir belirtecin rolü kullanıcınınkinden düşük olabilir. Yöneticiler tüm belirteçleri <a href="/users">Kullanıcılar</a> sayfasında görür ve iptal edebilir. Bkz. <a href="/docs/api">REST API</a>.</p>
+
+<h2>Dört göz onayı</h2>
+<p>İsteğe bağlıdır ve varsayılan olarak kapalıdır. <a href="/settings/security#four-eyes">Ayarlar → Oturum açma ve güvenlik → Dört göz onayı</a> altında açın; en az iki etkin yönetici gerektirir. Bundan sonra bu değişiklikler yalnızca <b>ikinci bir kullanıcı</b> onayladığında geçerli olur:</p>
+<table>
+  <tr><th>Değişiklik</th><th>Kim onaylayabilir</th></tr>
+  <tr><td>Bir yedekleme işini silme veya devre dışı bırakma, bir işin saklama süresini kısaltma (öncekinden düşük herhangi bir kural veya her şeyin tutulduğu yerde kurallar), şüpheli bir yedekten sonra saklamayı sürdürme</td><td>İşleri yönetebilen kullanıcılar</td></tr>
+  <tr><td>Bir aracıyı veya ESXi ana bilgisayarını kaldırma</td><td>Aracıları yönetebilen kullanıcılar</td></tr>
+  <tr><td>Bir depolama hedefini kaldırma</td><td>Depolamayı yönetebilen kullanıcılar</td></tr>
+  <tr><td>Bir kullanıcıyı silme; onaylayabilen bir kullanıcı oluşturma (Yönetici veya Yedekleme operatörü); bir kullanıcıya daha fazla haklı bir rol verme veya böyle bir kullanıcıyı yeniden etkinleştirme; böyle bir kullanıcının parolasını veya iki aşamalı oturum açmasını sıfırlama</td><td>Yöneticiler</td></tr>
+  <tr><td>LDAP oturum açmasını veya çoklu oturum açmayı değiştirme (bunlar dizin kullanıcılarının rollerini belirler)</td><td>Yöneticiler</td></tr>
+  <tr><td>Dört göz onayını kapatma</td><td>Yöneticiler</td></tr>
+</table>
+<p>İstek <a href="/approvals">Onaylar</a> altında görünür (menüde ve panoda bir sayaçla) ve bildirim alıcıları bir e-posta alır. Uygun izne sahip başka herhangi bir kullanıcı onu onaylar veya reddeder; talep eden yalnızca iptal edebilir. Onaylanan bir değişiklik hemen uygulanır. İstekler 7 gün sonra sona erer. Bir iş daha kısa saklama süresiyle düzenlendiğinde diğer değişiklikleri hemen kaydedilir, yalnızca saklama süresi bekler. İstekler, onaylar, retler ve bunların kullanıcıları denetim günlüğündedir.</p>
+<p><b>Bir istek hakkında yalnızca istekten önce var olan hesaplar karar verebilir.</b> Yeni onaylayıcıların, parola sıfırlamalarının ve dizin ayarlarının onaylanmasıyla birlikte bu, tek bir yöneticinin tek başına ikinci bir onaylayıcı edinmesini engeller — örneğin ikinci bir yönetici hesabı oluşturarak, başka bir yöneticinin parolasını belirleyerek veya bir dizin grubunu Yönetici rolüne eşleyerek. Seçenek açıkken son iki etkin yönetici silinemez, devre dışı bırakılamaz veya düşürülemez; böylece istekler hakkında her zaman karar verilebilir. İsteklerdeki parolalar yalnızca karma (hash) olarak saklanır; LDAP ve çoklu oturum açma ayarları konsolun gizli anahtarıyla şifrelenir. Dizinin kendisindeki grup üyelikleri (Active Directory, Entra ID) konsolun dışındadır; bu yönetici gruplarını orada koruyun.</p>
+<p>Bu, çalınmış veya kötüye kullanılan tek bir hesabın yapılandırmayı kaldırmasına ya da saklama kuralının yedekleri silmesine izin vermesine karşı korur. Değiştirilemez depolamanın yerini tutmaz: bunun için bkz. <a href="/docs/ransomware">Fidye yazılımı koruması</a>.</p>
+
+<h2>Denetim günlüğü</h2>
+<p><a href="/audit">Kullanıcılar → Denetim günlüğü</a>, oturum açmaları, başarısız oturum açmaları ve değişiklikleri gösterir: kullanıcılar, işler, depolama hedefleri, geri yüklemeler, görüntülenen kurtarma anahtarları ve ayarlar — zaman, kullanıcı ve adresle birlikte.</p>
+
+<h3 id="audit-integrity">Değişikliklere karşı koruma</h3>
+<p>Her giriş bir öncekine zincirlenir: kendi içeriğinin ve önceki girişin, sunucunun gizli anahtar dosyasındaki (veritabanında olmayan) bir sırla hesaplanan karmasını taşır. Bu yüzden girişleri doğrudan veritabanında değiştiren veya silen biri zinciri koparır. En yeni karma ayrıca konsol verilerinin yanındaki bir dosyada tutulur; böylece en yeni girişlerin silinmesi de algılanır.</p>
+<ul>
+  <li>Konsol, başlangıçta ve günde bir kez tüm zinciri denetler. Zincir kopmuşsa, Denetim günlüğü sayfası ilk hatalı girişle birlikte <b>Denetim günlüğü değiştirildi</b> gösterir ve yöneticiler bir e-posta alır.</li>
+  <li>Denetim günlüğü sayfasındaki <b>Bütünlüğü şimdi doğrula</b> denetimi hemen çalıştırır.</li>
+  <li>0.33.3 sürümünden önce yazılan girişlerin zinciri yoktur; sayfa kaç tane olduğunu gösterir.</li>
+</ul>
+<p>Zincir, günlüğün değiştirildiğini gösterir ama değiştirileni geri getiremez — ve konsol sunucusunun kendisini gizli anahtar dosyasıyla birlikte ele geçiren biri zinciri yeniden yazabilir. Buna karşı, her girişin bir kopyasını <a href="/settings/security#audit-syslog">Ayarlar → Oturum açma ve güvenlik → Denetim günlüğü koruması</a> altında ayrı bir syslog sunucusuna veya SIEM'e gönderin:</p>
+<ul>
+  <li><code>host:port</code> olarak <b>Syslog sunucusu</b> ve <b>protokol</b>: TLS (önerilir, genellikle 6514 numaralı port), TCP veya UDP (genellikle 514). Bir TLS sunucusunun sertifikasına konsol makinesi güvenmelidir.</li>
+  <li>Kaydetme bir test mesajı gönderir; sunucu onu kabul etmezse ayarlar kaydedilir ve hata gösterilir.</li>
+  <li>Mesajlar giriş numarası, kullanıcı, işlem, adres ve zincir karmasıyla RFC 5424 biçimindedir (facility <i>auth</i>). Günde bir kez bir <code>audit.checkpoint</code> mesajı en yeni karmayı taşır; böylece kopya konsolla karşılaştırılabilir.</li>
+  <li>Syslog sunucusuna ulaşılamadığı sürece girişler bellekte bekler (1000'e kadar) ve yeniden yanıt verdiğinde gönderilir; konsol çalışmaya devam eder ve girişler her durumda kendi denetim günlüğünde kalır.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

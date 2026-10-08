@@ -1,0 +1,91 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Usuarios, roles y LDAP</h1>
+<p class="lead">Dé a cada persona su propia cuenta con solo los derechos que necesita, como cuentas locales o con su inicio de sesión de Active Directory / LDAP.</p>
+
+<h2>Roles</h2>
+<table>
+  <tr><th>Permiso</th><th>Administrador</th><th>Operador de copias</th><th>Operador de restauración</th><th>Observador</th></tr>
+  <tr><td>Ver el panel, la actividad, el calendario, los informes y la documentación</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Iniciar copias (Ejecutar copia ahora)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Restaurar archivos, discos, sistemas Linux y VM; examinar y descargar archivos de imágenes y copias de VM</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Crear, cambiar y eliminar trabajos; informes programados</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Registrar, actualizar y eliminar agentes; códigos de recuperación</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Destinos de almacenamiento, credenciales y claves de recuperación</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Configuración (correo, sesiones, LDAP, certificado, actualizaciones, copia de la consola)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Comandos antes y después de una copia (se ejecutan como root / SYSTEM en el agente)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Usuarios y registro de auditoría</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>Uso típico: los administradores de TI son <b>Administradores</b>; quienes gestionan las copias del día a día son <b>Operadores de copias</b>; el soporte que recupera archivos borrados son <b>Operadores de restauración</b>; la dirección y los auditores son <b>Observadores</b>. Las páginas y botones que un rol no puede usar se ocultan, y el servidor los rechaza en cualquier caso. Tenga en cuenta que restaurar puede sobrescribir datos —restaurar una imagen de disco o un sistema Linux borra el disco de destino, y restaurar una VM con <i>sustituir</i> elimina la VM existente—, así que dé los roles de restauración solo a personas a las que se lo confiaría; cada restauración queda en el registro de auditoría.</p>
+
+<h2>Usuarios locales</h2>
+<p>En <a href="/users">Usuarios</a> → <i>Nuevo usuario local</i> introduzca un nombre de usuario, un rol y una contraseña de al menos 10 caracteres. En la página del usuario puede cambiar el rol, deshabilitar la cuenta (las sesiones abiertas terminan de inmediato), establecer una contraseña nueva o eliminar el usuario.</p>
+<p>Cada usuario puede cambiar su propia contraseña en <a href="/account">Mi cuenta</a> (haga clic en su nombre arriba a la derecha).</p>
+<div class="callout"><p>Siempre queda al menos un <b>administrador local</b> habilitado, para que pueda iniciar sesión aunque el directorio no esté disponible. No puede quitarse privilegios, deshabilitarse ni eliminarse a sí mismo.</p></div>
+
+<h2>Inicio de sesión con Active Directory / LDAP</h2>
+<p>En <a href="/settings/ldap">Configuración → LDAP / Active Directory</a>:</p>
+<ol>
+  <li><b>Servidor</b>: <code>ldaps://dc1.example.local:636</code>. El <code>ldap://</code> simple solo se acepta con StartTLS, de modo que las contraseñas nunca viajan sin cifrar.</li>
+  <li><b>Cuenta de servicio</b>: una cuenta de dominio normal que se usa para buscar usuarios y grupos (basta con acceso de lectura), p. ej. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
+  <li><b>Base de búsqueda</b>: p. ej. <code>DC=example,DC=local</code>.</li>
+  <li><b>Filtro de usuarios</b>: Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>, OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>.</li>
+  <li><b>Grupos → roles</b>: el DN completo de un grupo para cada rol que quiera usar, p. ej. <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>. Gana el rol más alto que coincida; los usuarios que no están en ningún grupo no pueden iniciar sesión. Marque <i>grupos anidados</i> en Active Directory para incluir a los miembros de los subgrupos.</li>
+  <li><b>Confianza del certificado</b>: si los controladores de dominio usan una CA interna, pegue el certificado de la CA; para un certificado autofirmado, introduzca su huella.</li>
+  <li>Use <b>Prueba</b> con un usuario real para comprobar la conexión, la contraseña y el rol resultante, y después <b>Guardar</b>.</li>
+</ol>
+<p>Los usuarios del directorio aparecen en la lista de usuarios tras su primer inicio de sesión. Su nombre, correo y rol se actualizan desde el directorio en cada inicio de sesión. Para bloquear de inmediato a un usuario del directorio, deshabilite la cuenta en BackupZit (o en el directorio).</p>
+
+<h2 id="sso">Inicio de sesión único (SAML, OpenID Connect)</h2>
+<p>Con el inicio de sesión único, los usuarios hacen clic en <b>Iniciar sesión con …</b> en la página de inicio de sesión y se autentican en su proveedor de identidad: Microsoft Entra ID (Azure AD), Okta, Google Workspace, Keycloak, ADFS o cualquier otro proveedor SAML 2.0 u OpenID Connect. Se configura en <b>Configuración → Inicio de sesión único</b>:</p>
+<ol>
+  <li>Elija <b>OpenID Connect</b> (recomendado cuando esté disponible) o <b>SAML 2.0</b>.</li>
+  <li><b>OpenID Connect:</b> registre una aplicación web en el proveedor de identidad con el URI de redirección que muestra la página de configuración (<code>https://&lt;consola&gt;/login/sso/callback</code>) e introduzca su emisor (issuer), id. de cliente y secreto de cliente. Haga que el proveedor incluya los grupos del usuario en una notificación <code>groups</code> (Entra ID: <i>Token configuration → Add groups claim</i>, que envía id. de grupo; Keycloak: un mapper <i>Group Membership</i>; Okta: una notificación groups).</li>
+  <li><b>SAML 2.0:</b> añada la consola en el proveedor de identidad con su URL de metadatos (<code>https://&lt;consola&gt;/login/sso/metadata</code>, servicio consumidor de aserciones <code>/login/sso/acs</code>), haga que envíe los grupos como atributo e introduzca la URL de metadatos del proveedor de identidad o pegue su XML de metadatos. SAML requiere la consola en HTTPS. Las aserciones deben estar firmadas; las solicitudes de la consola no se firman.</li>
+  <li>Asigne grupos (nombres, o id. en Entra ID) a los cuatro roles; gana el rol más alto que coincida. Los usuarios que no están en ninguno no pueden iniciar sesión, salvo que elija un rol para ellos.</li>
+</ol>
+<p>Un proveedor de identidad cuyo certificado HTTPS procede de su propia CA o es autofirmado (un Keycloak o AD FS local) necesita ese certificado de CA en <b>Certificado de la CA (PEM)</b>; los públicos (Entra ID, Okta, Google) no necesitan nada. Al guardar se comprueba que el proveedor de identidad responde. Los usuarios se crean en su primer inicio de sesión (marcados como <b>SSO</b> en Usuarios) y reciben su rol de sus grupos en cada inicio de sesión, como los usuarios del directorio; su nombre y correo proceden del proveedor de identidad. El segundo factor lo gestiona el proveedor de identidad, así que la consola no pide a los usuarios SSO su propio código de dos pasos. Las cuentas locales siguen funcionando, de modo que un administrador siempre puede iniciar sesión aunque el proveedor de identidad no esté disponible. Una respuesta de inicio de sesión solo se puede usar una vez y debe estar firmada por el proveedor de identidad; cada inicio de sesión SSO y cada rechazo queda en el registro de auditoría.</p>
+
+<h2>Sesiones</h2>
+<p>En <a href="/settings/security">Configuración → Inicio de sesión y seguridad</a> defina cuánto dura un inicio de sesión (12 horas por defecto) y tras cuántos minutos de inactividad se cierra la sesión de los usuarios (60 por defecto, 0 = nunca). Las contraseñas erróneas repetidas bloquean la dirección durante un tiempo: por defecto tras 5 fallos en 15 minutos, durante 30 minutos. Los límites están en la misma página; consulte <a href="/docs/security">Seguridad</a>.</p>
+
+<h2>Verificación en dos pasos</h2>
+<p>Cada usuario puede proteger su inicio de sesión con un segundo factor en <a href="/account/2fa">Mi cuenta → Dos pasos</a>: escanee el código QR con una aplicación de autenticación (Microsoft o Google Authenticator, Authy, 1Password, Bitwarden…) e introduzca el código de 6 dígitos. Se muestran una vez diez <b>códigos de recuperación</b> de un solo uso: guárdelos en un lugar seguro; cada uno sirve una vez si se pierde el teléfono. A los usuarios que inician sesión con <a href="#sso">inicio de sesión único</a> no se les pide el código de la consola: el segundo factor lo gestiona su proveedor de identidad.</p>
+<p>En <a href="/settings/security">Configuración → Inicio de sesión y seguridad</a> puede exigir la verificación en dos pasos a los <b>administradores</b> o a <b>todos los usuarios</b>; se les pide que la configuren tras su próximo inicio de sesión. Si un usuario pierde el teléfono y los códigos de recuperación, un administrador restablece la verificación en dos pasos en la página del usuario. También funciona con cuentas del directorio (LDAP).</p>
+
+<h2>Tokens de API</h2>
+<p>Los scripts y las herramientas de supervisión usan tokens de API en lugar de contraseñas. Cada usuario crea y revoca sus propios tokens en <a href="/account#tokens">Mi cuenta → Tokens de API</a>; el rol de un token puede ser inferior al del usuario. Los administradores ven y pueden revocar todos los tokens en la página <a href="/users">Usuarios</a>. Consulte <a href="/docs/api">REST API</a>.</p>
+
+<h2>Aprobación de cuatro ojos</h2>
+<p>Opcional y desactivada por defecto. Actívela en <a href="/settings/security#four-eyes">Configuración → Inicio de sesión y seguridad → Aprobación de cuatro ojos</a>; requiere al menos dos administradores habilitados. Entonces estos cambios solo surten efecto cuando un <b>segundo usuario</b> los aprueba:</p>
+<table>
+  <tr><th>Cambio</th><th>Quién puede aprobar</th></tr>
+  <tr><td>Eliminar o deshabilitar un trabajo de copia, acortar la retención de un trabajo (cualquier regla inferior a la anterior, o reglas donde antes se conservaba todo), reanudar la retención tras una copia sospechosa</td><td>Usuarios que pueden gestionar trabajos</td></tr>
+  <tr><td>Eliminar un agente o un host ESXi</td><td>Usuarios que pueden gestionar agentes</td></tr>
+  <tr><td>Eliminar un destino de almacenamiento</td><td>Usuarios que pueden gestionar el almacenamiento</td></tr>
+  <tr><td>Eliminar un usuario; crear un usuario que pueda aprobar (Administrador u Operador de copias); dar a un usuario un rol con más derechos, o volver a habilitar a un usuario así; restablecer la contraseña o la verificación en dos pasos de un usuario así</td><td>Administradores</td></tr>
+  <tr><td>Cambiar el inicio de sesión LDAP o el inicio de sesión único (determinan los roles de los usuarios del directorio)</td><td>Administradores</td></tr>
+  <tr><td>Desactivar la aprobación de cuatro ojos</td><td>Administradores</td></tr>
+</table>
+<p>La solicitud aparece en <a href="/approvals">Aprobaciones</a> (con un contador en el menú y en el panel) y los destinatarios de las notificaciones reciben un correo. Cualquier otro usuario con el permiso adecuado la aprueba o la rechaza; el solicitante solo puede cancelarla. Un cambio aprobado se ejecuta de inmediato. Las solicitudes caducan a los 7 días. Cuando se edita un trabajo con una retención más corta, sus demás cambios se guardan al momento y solo la retención queda pendiente. Las solicitudes, aprobaciones, rechazos y sus usuarios quedan en el registro de auditoría.</p>
+<p><b>Solo las cuentas que existían antes de una solicitud pueden decidir sobre ella.</b> Junto con la aprobación de nuevos aprobadores, de restablecimientos de contraseña y de la configuración del directorio, esto impide que un solo administrador consiga por su cuenta un segundo aprobador, por ejemplo creando una segunda cuenta de administrador, estableciendo la contraseña de otro administrador o asignando un grupo del directorio al rol Administrador. Mientras la opción está activa, los dos últimos administradores habilitados no se pueden eliminar, deshabilitar ni rebajar de rol, de modo que siempre se puede decidir sobre las solicitudes. Las contraseñas de las solicitudes solo se guardan como hash, y la configuración de LDAP e inicio de sesión único se cifra con la clave de secretos de la consola. Las pertenencias a grupos en el propio directorio (Active Directory, Entra ID) quedan fuera de la consola; proteja allí esos grupos de administradores.</p>
+<p>Esto protege frente a una sola cuenta robada o mal utilizada que elimine la configuración o deje que la retención borre las copias. No sustituye al almacenamiento inmutable: para eso, consulte <a href="/docs/ransomware">Protección contra ransomware</a>.</p>
+
+<h2>Registro de auditoría</h2>
+<p><a href="/audit">Usuarios → Registro de auditoría</a> muestra los inicios de sesión, los inicios de sesión fallidos y los cambios: usuarios, trabajos, destinos de almacenamiento, restauraciones, claves de recuperación mostradas y configuración, con hora, usuario y dirección.</p>
+
+<h3 id="audit-integrity">Protección frente a cambios</h3>
+<p>Cada entrada está encadenada con la anterior: lleva un hash de su propio contenido y de la entrada anterior, calculado con un secreto del archivo de secretos del servidor (que no está en la base de datos). Por eso, quien cambie o borre entradas directamente en la base de datos rompe la cadena. El hash más reciente se guarda también en un archivo junto a los datos de la consola, así que también se detecta el borrado de las entradas más recientes.</p>
+<ul>
+  <li>La consola comprueba toda la cadena al arrancar y una vez al día. Si está rota, la página Registro de auditoría muestra <b>El registro de auditoría fue modificado</b> con la primera entrada incorrecta, y los administradores reciben un correo.</li>
+  <li><b>Verificar integridad ahora</b> en la página Registro de auditoría ejecuta la comprobación al momento.</li>
+  <li>Las entradas escritas antes de la versión 0.33.3 no tienen cadena; la página indica cuántas hay.</li>
+</ul>
+<p>La cadena muestra que el registro se modificó, pero no puede recuperar lo cambiado, y alguien que se haga con el propio servidor de la consola, con su archivo de secretos, podría reescribir la cadena. Para evitarlo, envíe una copia de cada entrada a un servidor syslog o SIEM aparte en <a href="/settings/security#audit-syslog">Configuración → Inicio de sesión y seguridad → Protección del registro de auditoría</a>:</p>
+<ul>
+  <li><b>Servidor syslog</b> como <code>host:puerto</code>, y el <b>protocolo</b>: TLS (recomendado, normalmente puerto 6514), TCP o UDP (normalmente 514). La máquina de la consola debe confiar en el certificado de un servidor TLS.</li>
+  <li>Al guardar se envía un mensaje de prueba; si el servidor no lo acepta, la configuración se guarda y se muestra el error.</li>
+  <li>Los mensajes son RFC 5424 (facility <i>auth</i>) con el número de entrada, el usuario, la acción, la dirección y el hash de la cadena. Una vez al día, un mensaje <code>audit.checkpoint</code> lleva el hash más reciente, para poder comparar la copia con la consola.</li>
+  <li>Mientras el servidor syslog no está disponible, las entradas esperan en memoria (hasta 1000) y se envían cuando vuelve a responder; la consola sigue funcionando y, en cualquier caso, las entradas permanecen en su propio registro de auditoría.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

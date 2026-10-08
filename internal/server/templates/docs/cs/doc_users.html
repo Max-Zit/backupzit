@@ -1,0 +1,91 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Uživatelé, role a LDAP</h1>
+<p class="lead">Dejte každé osobě vlastní účet jen s právy, která potřebuje — jako místní účty, nebo s přihlášením z Active Directory / LDAP.</p>
+
+<h2>Role</h2>
+<table>
+  <tr><th>Oprávnění</th><th>Správce</th><th>Operátor záloh</th><th>Operátor obnovy</th><th>Čtenář</th></tr>
+  <tr><td>Zobrazení přehledu, aktivity, kalendáře, sestav, dokumentace</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Spouštění záloh (Spustit zálohu nyní)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Obnova souborů, disků, systémů Linux a VM; procházení a stahování souborů v obrazech a zálohách VM</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Vytváření, změna a mazání úloh; plánované sestavy</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Registrace, aktualizace a odebírání agentů; kódy obnovy</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Cílová úložiště, přihlašovací údaje a klíče pro obnovu</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Nastavení (e-mail, relace, LDAP, certifikát, aktualizace, záloha konzole)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Příkazy před zálohou a po ní (běží jako root / SYSTEM na agentovi)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Uživatelé a protokol auditu</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>Typické rozdělení: IT správci jsou <b>Správci</b>; lidé, kteří vedou každodenní zálohy, jsou <b>Operátoři záloh</b>; helpdesk, který obnovuje smazané soubory, jsou <b>Operátoři obnovy</b>; vedení a auditoři jsou <b>Čtenáři</b>. Stránky a tlačítka, které role nesmí používat, jsou skryté a server je v každém případě odmítne. Mějte na paměti, že obnova může přepsat data — obnova obrazu disku nebo systému Linux vymaže cílový disk a obnova VM s volbou <i>nahradit</i> smaže existující VM — proto role obnovy dávejte jen lidem, kterým byste to svěřili; každá obnova je v protokolu auditu.</p>
+
+<h2>Místní uživatelé</h2>
+<p>V <a href="/users">Uživatelé</a> → <i>Nový místní uživatel</i> zadejte uživatelské jméno, roli a heslo o délce alespoň 10 znaků. Na stránce uživatele můžete změnit roli, zakázat účet (otevřené relace okamžitě skončí), nastavit nové heslo nebo uživatele smazat.</p>
+<p>Každý uživatel si může změnit vlastní heslo v <a href="/account">Můj účet</a> (klikněte na své jméno vpravo nahoře).</p>
+<div class="callout"><p>Vždy zůstane alespoň jeden povolený <b>místní správce</b>, takže se můžete přihlásit i tehdy, když je adresář nedostupný. Sami sobě nemůžete snížit roli, zakázat se ani se smazat.</p></div>
+
+<h2>Přihlášení přes Active Directory / LDAP</h2>
+<p>V <a href="/settings/ldap">Nastavení → LDAP / Active Directory</a>:</p>
+<ol>
+  <li><b>Server</b>: <code>ldaps://dc1.example.local:636</code>. Prosté <code>ldap://</code> se přijímá jen se StartTLS, takže hesla nikdy necestují nešifrovaně.</li>
+  <li><b>Servisní účet</b>: běžný doménový účet pro vyhledávání uživatelů a skupin (stačí právo čtení), např. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
+  <li><b>Základ hledání</b>: např. <code>DC=example,DC=local</code>.</li>
+  <li><b>Filtr uživatelů</b>: Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>, OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>.</li>
+  <li><b>Skupiny → role</b>: úplné DN skupiny pro každou roli, kterou chcete používat, např. <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>. Vyhrává nejvyšší odpovídající role; uživatelé, kteří nejsou v žádné skupině, se nemohou přihlásit. V Active Directory zaškrtněte <i>vnořené skupiny</i>, aby se zahrnuli i členové podskupin.</li>
+  <li><b>Důvěra v certifikát</b>: pokud řadiče domény používají interní CA, vložte certifikát CA; u certifikátu podepsaného sám sebou zadejte jeho otisk.</li>
+  <li>Pomocí <b>Test</b> se skutečným uživatelem ověřte připojení, heslo a výslednou roli, pak <b>Uložit</b>.</li>
+</ol>
+<p>Uživatelé z adresáře se objeví v seznamu uživatelů po prvním přihlášení. Jejich jméno, e-mail a role se při každém přihlášení aktualizují z adresáře. Chcete-li uživatele z adresáře okamžitě zablokovat, zakažte účet v BackupZit (nebo v adresáři).</p>
+
+<h2 id="sso">Jednotné přihlášení (SAML, OpenID Connect)</h2>
+<p>S jednotným přihlášením uživatelé na přihlašovací stránce kliknou na <b>Přihlásit přes …</b> a přihlásí se u vašeho poskytovatele identity — Microsoft Entra ID (Azure AD), Okta, Google Workspace, Keycloak, ADFS nebo jiného poskytovatele SAML 2.0 či OpenID Connect. Nastavuje se v <b>Nastavení → Jednotné přihlášení</b>:</p>
+<ol>
+  <li>Zvolte <b>OpenID Connect</b> (doporučeno, kde je k dispozici) nebo <b>SAML 2.0</b>.</li>
+  <li><b>OpenID Connect:</b> u poskytovatele identity zaregistrujte webovou aplikaci s URI přesměrování zobrazeným na stránce nastavení (<code>https://&lt;konzole&gt;/login/sso/callback</code>) a zadejte její issuer, ID klienta a tajný klíč klienta. Nechte poskytovatele vkládat skupiny uživatele do deklarace <code>groups</code> (Entra ID: <i>Token configuration → Add groups claim</i>, která posílá ID skupin; Keycloak: mapper <i>Group Membership</i>; Okta: groups claim).</li>
+  <li><b>SAML 2.0:</b> přidejte konzoli u poskytovatele identity s její URL metadat (<code>https://&lt;konzole&gt;/login/sso/metadata</code>, assertion consumer service <code>/login/sso/acs</code>), nechte posílat skupiny jako atribut a zadejte URL metadat poskytovatele identity nebo vložte jeho XML metadat. SAML vyžaduje konzoli na HTTPS. Aserce musí být podepsané; požadavky konzole podepsané nejsou.</li>
+  <li>Přiřaďte skupiny (názvy, u Entra ID ID) ke čtyřem rolím; vyhrává nejvyšší odpovídající role. Uživatelé, kteří nejsou v žádné z nich, se nemohou přihlásit, pokud jim nezvolíte roli.</li>
+</ol>
+<p>Poskytovatel identity, jehož HTTPS certifikát pochází z vaší vlastní CA nebo je podepsaný sám sebou (místní Keycloak nebo AD FS), potřebuje tento certifikát CA v <b>Certifikát CA (PEM)</b>; veřejní poskytovatelé (Entra ID, Okta, Google) nepotřebují nic. Uložení ověří, že poskytovatel identity odpovídá. Uživatelé se vytvoří při prvním přihlášení (označení <b>SSO</b> v Uživatelé) a roli dostávají ze svých skupin při každém přihlášení, stejně jako uživatelé z adresáře; jméno a e-mail pocházejí od poskytovatele identity. Druhý faktor zajišťuje poskytovatel identity, takže konzole po uživatelích SSO nežádá vlastní dvoufázový kód. Místní účty dál fungují, takže se správce může vždy přihlásit, i když poskytovatel identity není dostupný. Odpověď přihlášení lze použít jen jednou a musí ji podepsat poskytovatel identity; každé přihlášení SSO i každé odmítnutí je v protokolu auditu.</p>
+
+<h2>Relace</h2>
+<p>V <a href="/settings/security">Nastavení → Přihlášení a zabezpečení</a> nastavte, jak dlouho přihlášení platí (výchozí 12 hodin) a po kolika minutách nečinnosti se uživatelé odhlásí (výchozí 60, 0 = nikdy). Opakovaně špatná hesla adresu na chvíli zablokují: ve výchozím stavu po 5 neúspěších během 15 minut na 30 minut. Limity jsou na stejné stránce; viz <a href="/docs/security">Zabezpečení</a>.</p>
+
+<h2>Dvoufázové ověření</h2>
+<p>Každý uživatel může přihlášení chránit druhým faktorem v <a href="/account/2fa">Můj účet → Dvoufázové</a>: naskenujte QR kód ověřovací aplikací (Microsoft nebo Google Authenticator, Authy, 1Password, Bitwarden …) a zadejte šestimístný kód. Deset jednorázových <b>kódů obnovy</b> se zobrazí jen jednou — uschovejte je na bezpečném místě; každý funguje jednou, pokud ztratíte telefon. Uživatelé přihlašující se přes <a href="#sso">jednotné přihlášení</a> kód konzole nezadávají: druhý faktor zajišťuje jejich poskytovatel identity.</p>
+<p>V <a href="/settings/security">Nastavení → Přihlášení a zabezpečení</a> můžete vyžadovat dvoufázové ověření pro <b>správce</b> nebo pro <b>všechny uživatele</b>; po dalším přihlášení budou požádáni o jeho nastavení. Pokud uživatel ztratí telefon i kódy obnovy, správce dvoufázové přihlášení na stránce uživatele resetuje. Funguje i pro účty z adresáře (LDAP).</p>
+
+<h2>Tokeny API</h2>
+<p>Skripty a nástroje monitoringu používají místo hesel tokeny API. Každý uživatel vytváří a odvolává své tokeny v <a href="/account#tokens">Můj účet → Tokeny API</a>; role tokenu může být nižší než role uživatele. Správci vidí všechny tokeny na stránce <a href="/users">Uživatelé</a> a mohou je odvolat. Viz <a href="/docs/api">REST API</a>.</p>
+
+<h2>Schválení čtyř očí</h2>
+<p>Volitelné a ve výchozím stavu vypnuté. Zapnete ho v <a href="/settings/security#four-eyes">Nastavení → Přihlášení a zabezpečení → Schválení čtyř očí</a>; vyžaduje alespoň dva povolené správce. Pak tyto změny začnou platit až po schválení <b>druhým uživatelem</b>:</p>
+<table>
+  <tr><th>Změna</th><th>Kdo může schválit</th></tr>
+  <tr><td>Smazání nebo zakázání úlohy zálohování, zkrácení uchovávání úlohy (jakékoli pravidlo nižší než dříve, nebo pravidla tam, kde se uchovávalo vše), obnovení uchovávání po podezřelé záloze</td><td>Uživatelé, kteří smějí spravovat úlohy</td></tr>
+  <tr><td>Odebrání agenta nebo hostitele ESXi</td><td>Uživatelé, kteří smějí spravovat agenty</td></tr>
+  <tr><td>Odebrání cílového úložiště</td><td>Uživatelé, kteří smějí spravovat úložiště</td></tr>
+  <tr><td>Smazání uživatele; vytvoření uživatele, který může schvalovat (Správce nebo Operátor záloh); přidělení role s více právy, nebo opětovné povolení takového uživatele; reset hesla nebo dvoufázového přihlášení takového uživatele</td><td>Správci</td></tr>
+  <tr><td>Změna přihlášení LDAP nebo jednotného přihlášení (určují role uživatelů z adresáře)</td><td>Správci</td></tr>
+  <tr><td>Vypnutí schválení čtyř očí</td><td>Správci</td></tr>
+</table>
+<p>Žádost se objeví v <a href="/approvals">Schválení</a> (s počítadlem v nabídce a na přehledu) a příjemci oznámení dostanou e-mail. Kterýkoli jiný uživatel s odpovídajícím oprávněním ji schválí nebo zamítne; žadatel ji může jen zrušit. Schválená změna se provede okamžitě. Žádosti vyprší po 7 dnech. Když se úloha upraví s kratším uchováváním, její ostatní změny se uloží hned a čeká jen uchovávání. Žádosti, schválení, zamítnutí a jejich uživatelé jsou v protokolu auditu.</p>
+<p><b>O žádosti mohou rozhodnout jen účty, které existovaly před jejím podáním.</b> Spolu se schvalováním nových schvalovatelů, resetů hesel a nastavení adresáře to brání jednomu správci, aby si sám obstaral druhého schvalovatele — například vytvořením druhého správcovského účtu, nastavením hesla jinému správci nebo přiřazením skupiny z adresáře k roli Správce. Dokud je volba zapnutá, poslední dva povolené správce nelze smazat, zakázat ani jim snížit roli, takže o žádostech lze vždy rozhodnout. Hesla v žádostech se ukládají jen jako hashe a nastavení LDAP a jednotného přihlášení šifrovaně klíčem tajemství konzole. Členství ve skupinách v samotném adresáři (Active Directory, Entra ID) je mimo konzoli; tyto skupiny správců chraňte tam.</p>
+<p>Chrání to před jedním ukradeným nebo zneužitým účtem, který odstraní konfiguraci nebo nechá uchovávání smazat zálohy. Nenahrazuje to neměnné úložiště: k tomu viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>.</p>
+
+<h2>Protokol auditu</h2>
+<p><a href="/audit">Uživatelé → Protokol auditu</a> ukazuje přihlášení, neúspěšná přihlášení a změny: uživatele, úlohy, cílová úložiště, obnovy, zobrazené klíče pro obnovu a nastavení — s časem, uživatelem a adresou.</p>
+
+<h3 id="audit-integrity">Ochrana proti změnám</h3>
+<p>Každý záznam je zřetězený s předchozím: nese hash svého obsahu a předchozího záznamu, vypočtený s tajemstvím ze souboru tajemství serveru (který není v databázi). Kdo záznamy přímo v databázi změní nebo smaže, tím řetězec přeruší. Nejnovější hash se uchovává také v souboru vedle dat konzole, takže se odhalí i smazání nejnovějších záznamů.</p>
+<ul>
+  <li>Konzole kontroluje celý řetězec při startu a jednou denně. Je-li přerušený, stránka Protokol auditu ukáže <b>Protokol auditu byl změněn</b> s prvním chybným záznamem a správci dostanou e-mail.</li>
+  <li><b>Ověřit integritu nyní</b> na stránce Protokol auditu spustí kontrolu okamžitě.</li>
+  <li>Záznamy zapsané před verzí 0.33.3 řetězec nemají; stránka ukazuje, kolik jich je.</li>
+</ul>
+<p>Řetězec ukazuje, že protokol byl změněn, ale změněné nedokáže vrátit — a kdo převezme samotný server konzole i se souborem tajemství, mohl by řetězec přepsat. Proti tomu posílejte kopii každého záznamu na samostatný server syslog nebo SIEM v <a href="/settings/security#audit-syslog">Nastavení → Přihlášení a zabezpečení → Ochrana protokolu auditu</a>:</p>
+<ul>
+  <li><b>Server syslog</b> jako <code>host:port</code> a <b>protokol</b>: TLS (doporučeno, obvykle port 6514), TCP nebo UDP (obvykle 514). Počítač konzole musí důvěřovat certifikátu serveru TLS.</li>
+  <li>Uložení odešle testovací zprávu; pokud ji server nepřijme, nastavení se uloží a zobrazí se chyba.</li>
+  <li>Zprávy jsou ve formátu RFC 5424 (facility <i>auth</i>) s číslem záznamu, uživatelem, akcí, adresou a hashem řetězce. Jednou denně nese zpráva <code>audit.checkpoint</code> nejnovější hash, takže kopii lze porovnat s konzolí.</li>
+  <li>Dokud je server syslog nedostupný, záznamy čekají v paměti (až 1000) a odešlou se, jakmile znovu odpoví; konzole dál funguje a záznamy v každém případě zůstávají v jejím vlastním protokolu auditu.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,91 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Benutzer, Rollen &amp; LDAP</h1>
+<p class="lead">Geben Sie jeder Person ein eigenes Konto mit genau den Rechten, die sie braucht — als lokale Konten oder mit ihrer Anmeldung aus Active Directory / LDAP.</p>
+
+<h2>Rollen</h2>
+<table>
+  <tr><th>Berechtigung</th><th>Administrator</th><th>Sicherungsoperator</th><th>Wiederherstellungsoperator</th><th>Betrachter</th></tr>
+  <tr><td>Dashboard, Aktivität, Kalender, Berichte, Dokumentation ansehen</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Sicherungen starten (Sicherung jetzt ausführen)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Dateien, Festplatten, Linux-Systeme und VMs wiederherstellen; Dateien in Abbildern und VM-Sicherungen durchsuchen und herunterladen</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Aufträge erstellen, ändern und löschen; geplante Berichte</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Agenten registrieren, aktualisieren und entfernen; Wiederherstellungscodes</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Speicherziele, Zugangsdaten und Wiederherstellungsschlüssel</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Einstellungen (E-Mail, Sitzungen, LDAP, Zertifikat, Updates, Konsolensicherung)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Befehle vor und nach einer Sicherung (sie laufen als root / SYSTEM auf dem Agenten)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Benutzer und Prüfprotokoll</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>Typische Verteilung: IT-Administratoren sind <b>Administratoren</b>; wer die täglichen Sicherungen betreut, ist <b>Sicherungsoperator</b>; der Helpdesk, der gelöschte Dateien zurückholt, ist <b>Wiederherstellungsoperator</b>; Geschäftsleitung und Prüfer sind <b>Betrachter</b>. Seiten und Schaltflächen, die eine Rolle nicht verwenden darf, werden ausgeblendet, und der Server lehnt sie ohnehin ab. Beachten Sie, dass eine Wiederherstellung Daten überschreiben kann — eine Wiederherstellung eines Festplattenabbilds oder Linux-Systems löscht die Zielfestplatte, und eine VM-Wiederherstellung mit <i>ersetzen</i> löscht die vorhandene VM —, geben Sie die Wiederherstellungsrollen also nur Personen, denen Sie das anvertrauen würden; jede Wiederherstellung steht im Prüfprotokoll.</p>
+
+<h2>Lokale Benutzer</h2>
+<p>Geben Sie unter <a href="/users">Benutzer</a> → <i>Neuer lokaler Benutzer</i> einen Benutzernamen, eine Rolle und ein Passwort mit mindestens 10 Zeichen ein. Auf der Seite des Benutzers können Sie die Rolle ändern, das Konto deaktivieren (offene Sitzungen enden sofort), ein neues Passwort setzen oder den Benutzer löschen.</p>
+<p>Jeder Benutzer kann sein eigenes Passwort unter <a href="/account">Mein Konto</a> ändern (klicken Sie oben rechts auf Ihren Namen).</p>
+<div class="callout"><p>Es bleibt immer mindestens ein aktivierter <b>lokaler Administrator</b>, sodass Sie sich auch anmelden können, wenn das Verzeichnis nicht erreichbar ist. Sie können sich nicht selbst herabstufen, deaktivieren oder löschen.</p></div>
+
+<h2>Anmeldung mit Active Directory / LDAP</h2>
+<p>Unter <a href="/settings/ldap">Einstellungen → LDAP / Active Directory</a>:</p>
+<ol>
+  <li><b>Server</b>: <code>ldaps://dc1.example.local:636</code>. Einfaches <code>ldap://</code> wird nur mit StartTLS akzeptiert, sodass Passwörter nie unverschlüsselt übertragen werden.</li>
+  <li><b>Dienstkonto</b>: ein normales Domänenkonto, mit dem Benutzer und Gruppen gesucht werden (Lesezugriff genügt), z. B. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
+  <li><b>Suchbasis</b>: z. B. <code>DC=example,DC=local</code>.</li>
+  <li><b>Benutzerfilter</b>: Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>, OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>.</li>
+  <li><b>Gruppen → Rollen</b>: der vollständige DN einer Gruppe für jede Rolle, die Sie verwenden möchten, z. B. <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>. Die höchste passende Rolle gewinnt; Benutzer in keiner der Gruppen können sich nicht anmelden. Aktivieren Sie in Active Directory <i>verschachtelte Gruppen</i>, um Mitglieder von Untergruppen einzuschließen.</li>
+  <li><b>Zertifikatsvertrauen</b>: Verwenden die Domänencontroller eine interne Zertifizierungsstelle, fügen Sie das CA-Zertifikat ein; für ein selbstsigniertes Zertifikat geben Sie seinen Fingerabdruck ein.</li>
+  <li>Prüfen Sie mit <b>Test</b> und einem echten Benutzer die Verbindung, das Passwort und die resultierende Rolle, dann <b>Speichern</b>.</li>
+</ol>
+<p>Verzeichnisbenutzer erscheinen nach ihrer ersten Anmeldung in der Benutzerliste. Name, E-Mail und Rolle werden bei jeder Anmeldung aus dem Verzeichnis aktualisiert. Um einen Verzeichnisbenutzer sofort zu sperren, deaktivieren Sie das Konto in BackupZit (oder im Verzeichnis).</p>
+
+<h2 id="sso">Single Sign-On (SAML, OpenID Connect)</h2>
+<p>Mit Single Sign-On klicken Benutzer auf der Anmeldeseite auf <b>Anmelden mit …</b> und melden sich bei Ihrem Identitätsanbieter an — Microsoft Entra ID (Azure AD), Okta, Google Workspace, Keycloak, ADFS oder jedem anderen SAML-2.0- oder OpenID-Connect-Anbieter. Eingerichtet wird es unter <b>Einstellungen → Single Sign-On</b>:</p>
+<ol>
+  <li>Wählen Sie <b>OpenID Connect</b> (empfohlen, wo verfügbar) oder <b>SAML 2.0</b>.</li>
+  <li><b>OpenID Connect:</b> Registrieren Sie beim Identitätsanbieter eine Webanwendung mit der auf der Einstellungsseite angezeigten Umleitungs-URI (<code>https://&lt;konsole&gt;/login/sso/callback</code>) und geben Sie deren Issuer, Client-ID und Client-Secret ein. Lassen Sie den Anbieter die Gruppen des Benutzers in einen Claim <code>groups</code> schreiben (Entra ID: <i>Token configuration → Add groups claim</i>, das Gruppen-IDs sendet; Keycloak: ein Mapper <i>Group Membership</i>; Okta: ein Groups-Claim).</li>
+  <li><b>SAML 2.0:</b> Fügen Sie die Konsole beim Identitätsanbieter mit ihrer Metadaten-URL hinzu (<code>https://&lt;konsole&gt;/login/sso/metadata</code>, Assertion Consumer Service <code>/login/sso/acs</code>), lassen Sie die Gruppen als Attribut senden, und geben Sie die Metadaten-URL des Identitätsanbieters ein oder fügen Sie dessen Metadaten-XML ein. SAML erfordert die Konsole unter HTTPS. Assertions müssen signiert sein; die Anfragen der Konsole sind nicht signiert.</li>
+  <li>Ordnen Sie Gruppen (Namen, bei Entra ID IDs) den vier Rollen zu; die höchste passende Rolle gewinnt. Benutzer in keiner davon können sich nicht anmelden, es sei denn, Sie wählen eine Rolle für sie.</li>
+</ol>
+<p>Ein Identitätsanbieter, dessen HTTPS-Zertifikat von Ihrer eigenen CA stammt oder selbstsigniert ist (ein lokales Keycloak oder AD FS), braucht dieses CA-Zertifikat in <b>CA-Zertifikat (PEM)</b>; öffentliche (Entra ID, Okta, Google) brauchen nichts. Beim Speichern wird geprüft, ob der Identitätsanbieter antwortet. Benutzer werden bei ihrer ersten Anmeldung angelegt (unter Benutzer mit <b>SSO</b> markiert) und erhalten ihre Rolle bei jeder Anmeldung aus ihren Gruppen, wie Verzeichnisbenutzer; Name und E-Mail kommen vom Identitätsanbieter. Den zweiten Faktor übernimmt der Identitätsanbieter, daher fragt die Konsole SSO-Benutzer nicht nach ihrem eigenen Zwei-Faktor-Code. Lokale Konten funktionieren weiter, sodass sich ein Administrator immer anmelden kann, auch wenn der Identitätsanbieter nicht erreichbar ist. Eine Anmeldeantwort kann nur einmal verwendet werden und muss vom Identitätsanbieter signiert sein; jede SSO-Anmeldung und -Ablehnung steht im Prüfprotokoll.</p>
+
+<h2>Sitzungen</h2>
+<p>Unter <a href="/settings/security">Einstellungen → Anmeldung &amp; Sicherheit</a> legen Sie fest, wie lange eine Anmeldung gilt (Standard 12 Stunden) und nach wie vielen Minuten Inaktivität Benutzer abgemeldet werden (Standard 60, 0 = nie). Wiederholt falsche Passwörter sperren die Adresse eine Zeit lang: standardmäßig nach 5 Fehlversuchen innerhalb von 15 Minuten für 30 Minuten. Die Grenzen stehen auf derselben Seite; siehe <a href="/docs/security">Sicherheit</a>.</p>
+
+<h2>Zwei-Faktor-Authentifizierung</h2>
+<p>Jeder Benutzer kann seine Anmeldung unter <a href="/account/2fa">Mein Konto → Zwei-Faktor</a> mit einem zweiten Faktor schützen: Scannen Sie den QR-Code mit einer Authentifizierungs-App (Microsoft oder Google Authenticator, Authy, 1Password, Bitwarden …) und geben Sie den 6-stelligen Code ein. Zehn einmalige <b>Wiederherstellungscodes</b> werden einmal angezeigt — bewahren Sie sie sicher auf; jeder funktioniert einmal, falls das Telefon verloren geht. Benutzer, die sich per <a href="#sso">Single Sign-On</a> anmelden, werden nicht nach dem Code der Konsole gefragt: Den zweiten Faktor übernimmt ihr Identitätsanbieter.</p>
+<p>Unter <a href="/settings/security">Einstellungen → Anmeldung &amp; Sicherheit</a> können Sie die Zwei-Faktor-Authentifizierung für <b>Administratoren</b> oder für <b>alle Benutzer</b> verlangen; sie werden nach ihrer nächsten Anmeldung zur Einrichtung aufgefordert. Verliert ein Benutzer Telefon und Wiederherstellungscodes, setzt ein Administrator die Zwei-Faktor-Anmeldung auf der Seite des Benutzers zurück. Zwei-Faktor funktioniert auch für Verzeichniskonten (LDAP).</p>
+
+<h2>API-Token</h2>
+<p>Skripte und Überwachungswerkzeuge verwenden API-Token statt Passwörtern. Jeder Benutzer erstellt und widerruft seine eigenen Token unter <a href="/account#tokens">Mein Konto → API-Token</a>; die Rolle eines Tokens kann niedriger sein als die des Benutzers. Administratoren sehen alle Token auf der Seite <a href="/users">Benutzer</a> und können sie widerrufen. Siehe <a href="/docs/api">REST API</a>.</p>
+
+<h2>Vier-Augen-Freigabe</h2>
+<p>Optional und standardmäßig aus. Schalten Sie sie unter <a href="/settings/security#four-eyes">Einstellungen → Anmeldung &amp; Sicherheit → Vier-Augen-Freigabe</a> ein; sie erfordert mindestens zwei aktivierte Administratoren. Dann werden diese Änderungen erst wirksam, wenn ein <b>zweiter Benutzer</b> sie freigibt:</p>
+<table>
+  <tr><th>Änderung</th><th>Wer freigeben kann</th></tr>
+  <tr><td>Löschen oder Deaktivieren eines Sicherungsauftrags, Verkürzen der Aufbewahrung eines Auftrags (jede Regel niedriger als vorher, oder Regeln, wo alles behalten wurde), Fortsetzen der Aufbewahrung nach einer verdächtigen Sicherung</td><td>Benutzer, die Aufträge verwalten dürfen</td></tr>
+  <tr><td>Entfernen eines Agenten oder ESXi-Hosts</td><td>Benutzer, die Agenten verwalten dürfen</td></tr>
+  <tr><td>Entfernen eines Speicherziels</td><td>Benutzer, die Speicher verwalten dürfen</td></tr>
+  <tr><td>Löschen eines Benutzers; Erstellen eines Benutzers, der freigeben kann (Administrator oder Sicherungsoperator); einem Benutzer eine Rolle mit mehr Rechten geben oder einen solchen Benutzer wieder aktivieren; Passwort oder Zwei-Faktor-Anmeldung eines solchen Benutzers zurücksetzen</td><td>Administratoren</td></tr>
+  <tr><td>Ändern der LDAP-Anmeldung oder des Single Sign-On (sie bestimmen die Rollen der Verzeichnisbenutzer)</td><td>Administratoren</td></tr>
+  <tr><td>Ausschalten der Vier-Augen-Freigabe</td><td>Administratoren</td></tr>
+</table>
+<p>Die Anfrage erscheint unter <a href="/approvals">Freigaben</a> (mit einem Zähler im Menü und im Dashboard), und die Empfänger der Benachrichtigungen erhalten eine E-Mail. Jeder andere Benutzer mit der passenden Berechtigung gibt sie frei oder lehnt sie ab; der Antragsteller kann sie nur zurückziehen. Eine freigegebene Änderung wird sofort ausgeführt. Anfragen verfallen nach 7 Tagen. Wird ein Auftrag mit kürzerer Aufbewahrung bearbeitet, werden seine anderen Änderungen sofort gespeichert und nur die Aufbewahrung wartet. Anfragen, Freigaben, Ablehnungen und ihre Benutzer stehen im Prüfprotokoll.</p>
+<p><b>Nur Konten, die vor einer Anfrage existierten, können über sie entscheiden.</b> Zusammen mit der Freigabepflicht für neue Freigebende, Passwortrücksetzungen und Verzeichniseinstellungen verhindert das, dass ein einzelner Administrator sich allein einen zweiten Freigebenden verschafft — etwa durch Anlegen eines zweiten Administratorkontos, durch Setzen des Passworts eines anderen Administrators oder durch Zuordnen einer Verzeichnisgruppe zur Rolle Administrator. Solange die Option eingeschaltet ist, können die letzten zwei aktivierten Administratoren nicht gelöscht, deaktiviert oder herabgestuft werden, sodass über Anfragen immer entschieden werden kann. Passwörter in Anfragen werden nur als Hashes gespeichert, LDAP- und Single-Sign-On-Einstellungen mit dem Geheimnisschlüssel der Konsole verschlüsselt. Gruppenmitgliedschaften im Verzeichnis selbst (Active Directory, Entra ID) liegen außerhalb der Konsole; schützen Sie diese Administratorgruppen dort.</p>
+<p>Das schützt davor, dass ein einzelnes gestohlenes oder missbrauchtes Konto die Konfiguration entfernt oder die Aufbewahrung die Sicherungen löschen lässt. Es ersetzt keinen unveränderlichen Speicher: Dafür siehe <a href="/docs/ransomware">Schutz vor Ransomware</a>.</p>
+
+<h2>Prüfprotokoll</h2>
+<p><a href="/audit">Benutzer → Prüfprotokoll</a> zeigt Anmeldungen, fehlgeschlagene Anmeldungen und Änderungen: Benutzer, Aufträge, Speicherziele, Wiederherstellungen, angezeigte Wiederherstellungsschlüssel und Einstellungen — mit Zeit, Benutzer und Adresse.</p>
+
+<h3 id="audit-integrity">Schutz vor Änderungen</h3>
+<p>Jeder Eintrag ist mit dem vorherigen verkettet: Er trägt einen Hash seines eigenen Inhalts und des vorherigen Eintrags, verschlüsselt mit einem Geheimnis aus der Geheimnisdatei des Servers (die nicht in der Datenbank liegt). Wer Einträge direkt in der Datenbank ändert oder löscht, unterbricht daher die Kette. Der neueste Hash wird außerdem in einer Datei neben den Konsolendaten gehalten, sodass auch das Löschen der neuesten Einträge erkannt wird.</p>
+<ul>
+  <li>Die Konsole prüft die ganze Kette beim Start und einmal täglich. Ist sie unterbrochen, zeigt die Seite Prüfprotokoll <b>Das Audit-Protokoll wurde geändert</b> mit dem ersten fehlerhaften Eintrag, und die Administratoren erhalten eine E-Mail.</li>
+  <li><b>Integrität jetzt prüfen</b> auf der Seite Prüfprotokoll führt die Prüfung sofort aus.</li>
+  <li>Einträge, die vor Version 0.33.3 geschrieben wurden, haben keine Kette; die Seite zeigt, wie viele es sind.</li>
+</ul>
+<p>Die Kette zeigt, dass das Protokoll geändert wurde, kann das Geänderte aber nicht zurückholen — und wer den Konsolenserver selbst mit seiner Geheimnisdatei übernimmt, könnte die Kette neu schreiben. Dagegen senden Sie eine Kopie jedes Eintrags an einen separaten Syslog-Server oder ein SIEM unter <a href="/settings/security#audit-syslog">Einstellungen → Anmeldung &amp; Sicherheit → Schutz des Audit-Protokolls</a>:</p>
+<ul>
+  <li><b>Syslog-Server</b> als <code>host:port</code> und das <b>Protokoll</b>: TLS (empfohlen, meist Port 6514), TCP oder UDP (meist 514). Dem Zertifikat eines TLS-Servers muss die Konsolenmaschine vertrauen.</li>
+  <li>Beim Speichern wird eine Testnachricht gesendet; nimmt der Server sie nicht an, werden die Einstellungen trotzdem gespeichert und der Fehler angezeigt.</li>
+  <li>Die Nachrichten sind RFC 5424 (Facility <i>auth</i>) mit Eintragsnummer, Benutzer, Aktion, Adresse und Ketten-Hash. Einmal täglich trägt eine Nachricht <code>audit.checkpoint</code> den neuesten Hash, sodass die Kopie mit der Konsole verglichen werden kann.</li>
+  <li>Solange der Syslog-Server nicht erreichbar ist, warten Einträge im Speicher (bis zu 1000) und werden gesendet, sobald er wieder antwortet; die Konsole arbeitet weiter, und die Einträge bleiben in jedem Fall in ihrem eigenen Prüfprotokoll.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,91 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Utilisateurs, rôles et LDAP</h1>
+<p class="lead">Donnez à chaque personne son propre compte avec uniquement les droits dont elle a besoin — en comptes locaux, ou avec sa connexion Active Directory / LDAP.</p>
+
+<h2>Rôles</h2>
+<table>
+  <tr><th>Autorisation</th><th>Administrateur</th><th>Opérateur de sauvegarde</th><th>Opérateur de restauration</th><th>Lecteur</th></tr>
+  <tr><td>Voir le tableau de bord, l'activité, le calendrier, les rapports, la documentation</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Lancer des sauvegardes (Lancer la sauvegarde maintenant)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Restaurer des fichiers, des disques, des systèmes Linux et des VM ; parcourir et télécharger des fichiers dans les images et sauvegardes de VM</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Créer, modifier et supprimer des tâches ; rapports planifiés</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Inscrire, mettre à jour et supprimer des agents ; codes de récupération</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Cibles de stockage, identifiants et clés de récupération</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Paramètres (e-mail, sessions, LDAP, certificat, mises à jour, sauvegarde de la console)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Commandes avant et après une sauvegarde (exécutées en root / SYSTEM sur l'agent)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Utilisateurs et journal d'audit</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>Usage typique : les administrateurs informatiques sont <b>Administrateurs</b> ; les personnes qui gèrent les sauvegardes au quotidien sont <b>Opérateurs de sauvegarde</b> ; le support qui récupère les fichiers supprimés est <b>Opérateur de restauration</b> ; la direction et les auditeurs sont <b>Lecteurs</b>. Les pages et boutons qu'un rôle ne peut pas utiliser sont masqués, et le serveur les refuse de toute façon. Notez qu'une restauration peut écraser des données — la restauration d'une image disque ou d'un système Linux efface le disque cible, et une restauration de VM avec <i>remplacer</i> supprime la VM existante — ne donnez donc les rôles de restauration qu'aux personnes à qui vous confieriez cela ; chaque restauration figure dans le journal d'audit.</p>
+
+<h2>Utilisateurs locaux</h2>
+<p>Dans <a href="/users">Utilisateurs</a> → <i>Nouvel utilisateur local</i>, saisissez un nom d'utilisateur, un rôle et un mot de passe d'au moins 10 caractères. Sur la page de l'utilisateur, vous pouvez changer le rôle, désactiver le compte (les sessions ouvertes se terminent immédiatement), définir un nouveau mot de passe ou supprimer l'utilisateur.</p>
+<p>Chaque utilisateur peut changer son propre mot de passe dans <a href="/account">Mon compte</a> (cliquez sur votre nom en haut à droite).</p>
+<div class="callout"><p>Il reste toujours au moins un <b>administrateur local</b> actif, afin que vous puissiez vous connecter même si l'annuaire est injoignable. Vous ne pouvez pas vous rétrograder, vous désactiver ou vous supprimer vous-même.</p></div>
+
+<h2>Connexion avec Active Directory / LDAP</h2>
+<p>Dans <a href="/settings/ldap">Paramètres → LDAP / Active Directory</a> :</p>
+<ol>
+  <li><b>Serveur</b> : <code>ldaps://dc1.example.local:636</code>. Le simple <code>ldap://</code> n'est accepté qu'avec StartTLS, de sorte que les mots de passe ne circulent jamais en clair.</li>
+  <li><b>Compte de service</b> : un compte de domaine normal utilisé pour rechercher utilisateurs et groupes (l'accès en lecture suffit), par ex. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
+  <li><b>Base de recherche</b> : par ex. <code>DC=example,DC=local</code>.</li>
+  <li><b>Filtre d'utilisateurs</b> : Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>, OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>.</li>
+  <li><b>Groupes → rôles</b> : le DN complet d'un groupe pour chaque rôle que vous voulez utiliser, par ex. <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>. Le rôle le plus élevé correspondant l'emporte ; les utilisateurs qui ne sont dans aucun groupe ne peuvent pas se connecter. Cochez <i>groupes imbriqués</i> dans Active Directory pour inclure les membres des sous-groupes.</li>
+  <li><b>Confiance du certificat</b> : si les contrôleurs de domaine utilisent une AC interne, collez le certificat de l'AC ; pour un certificat auto-signé, saisissez son empreinte.</li>
+  <li>Utilisez <b>Test</b> avec un vrai utilisateur pour vérifier la connexion, le mot de passe et le rôle obtenu, puis <b>Enregistrer</b>.</li>
+</ol>
+<p>Les utilisateurs de l'annuaire apparaissent dans la liste des utilisateurs après leur première connexion. Leur nom, leur e-mail et leur rôle sont mis à jour depuis l'annuaire à chaque connexion. Pour bloquer immédiatement un utilisateur de l'annuaire, désactivez le compte dans BackupZit (ou dans l'annuaire).</p>
+
+<h2 id="sso">Authentification unique (SAML, OpenID Connect)</h2>
+<p>Avec l'authentification unique, les utilisateurs cliquent sur <b>Se connecter avec …</b> sur la page de connexion et se connectent auprès de votre fournisseur d'identité — Microsoft Entra ID (Azure AD), Okta, Google Workspace, Keycloak, ADFS ou tout autre fournisseur SAML 2.0 ou OpenID Connect. Configurez-la dans <b>Paramètres → Authentification unique</b> :</p>
+<ol>
+  <li>Choisissez <b>OpenID Connect</b> (recommandé quand c'est possible) ou <b>SAML 2.0</b>.</li>
+  <li><b>OpenID Connect :</b> enregistrez une application web auprès du fournisseur d'identité avec l'URI de redirection affichée sur la page des paramètres (<code>https://&lt;console&gt;/login/sso/callback</code>), et saisissez son émetteur (issuer), son ID client et son secret client. Faites placer par le fournisseur les groupes de l'utilisateur dans une revendication <code>groups</code> (Entra ID : <i>Token configuration → Add groups claim</i>, qui envoie des ID de groupe ; Keycloak : un mappeur <i>Group Membership</i> ; Okta : une revendication groups).</li>
+  <li><b>SAML 2.0 :</b> ajoutez la console auprès du fournisseur d'identité avec son URL de métadonnées (<code>https://&lt;console&gt;/login/sso/metadata</code>, service consommateur d'assertions <code>/login/sso/acs</code>), faites-lui envoyer les groupes comme attribut, et saisissez l'URL des métadonnées du fournisseur d'identité ou collez son XML de métadonnées. SAML exige la console en HTTPS. Les assertions doivent être signées ; les requêtes de la console ne le sont pas.</li>
+  <li>Associez des groupes (noms, ou ID pour Entra ID) aux quatre rôles ; le rôle le plus élevé correspondant l'emporte. Les utilisateurs qui ne sont dans aucun d'eux ne peuvent pas se connecter, sauf si vous choisissez un rôle pour eux.</li>
+</ol>
+<p>Un fournisseur d'identité dont le certificat HTTPS provient de votre propre AC ou est auto-signé (un Keycloak ou AD FS sur site) a besoin de ce certificat d'AC dans <b>Certificat de l’AC (PEM)</b> ; les fournisseurs publics (Entra ID, Okta, Google) n'ont besoin de rien. L'enregistrement vérifie que le fournisseur d'identité répond. Les utilisateurs sont créés à leur première connexion (marqués <b>SSO</b> dans Utilisateurs) et reçoivent leur rôle depuis leurs groupes à chaque connexion, comme les utilisateurs de l'annuaire ; leur nom et leur e-mail viennent du fournisseur d'identité. Le second facteur est géré par le fournisseur d'identité, la console ne demande donc pas aux utilisateurs SSO son propre code à deux facteurs. Les comptes locaux continuent de fonctionner, de sorte qu'un administrateur peut toujours se connecter même si le fournisseur d'identité est injoignable. Une réponse de connexion n'est utilisable qu'une seule fois et doit être signée par le fournisseur d'identité ; chaque connexion SSO et chaque refus figurent dans le journal d'audit.</p>
+
+<h2>Sessions</h2>
+<p>Dans <a href="/settings/security">Paramètres → Connexion et sécurité</a>, définissez la durée d'une connexion (12 heures par défaut) et après combien de minutes d'inactivité les utilisateurs sont déconnectés (60 par défaut, 0 = jamais). Des mots de passe erronés répétés bloquent l'adresse pendant un moment : par défaut après 5 échecs en 15 minutes, pendant 30 minutes. Les limites se trouvent sur la même page ; voir <a href="/docs/security">Sécurité</a>.</p>
+
+<h2>Authentification à deux facteurs</h2>
+<p>Chaque utilisateur peut protéger sa connexion par un second facteur dans <a href="/account/2fa">Mon compte → Deux facteurs</a> : scannez le code QR avec une application d'authentification (Microsoft ou Google Authenticator, Authy, 1Password, Bitwarden…) et saisissez le code à 6 chiffres. Dix <b>codes de récupération</b> à usage unique sont affichés une fois — conservez-les en lieu sûr ; chacun fonctionne une fois si le téléphone est perdu. Les utilisateurs qui se connectent par <a href="#sso">authentification unique</a> ne doivent pas saisir le code de la console : leur fournisseur d'identité gère le second facteur.</p>
+<p>Dans <a href="/settings/security">Paramètres → Connexion et sécurité</a>, vous pouvez exiger l'authentification à deux facteurs pour les <b>administrateurs</b> ou pour <b>tous les utilisateurs</b> ; il leur est demandé de la configurer après leur prochaine connexion. Si un utilisateur perd à la fois son téléphone et ses codes de récupération, un administrateur réinitialise la double authentification sur la page de l'utilisateur. Elle fonctionne aussi pour les comptes de l'annuaire (LDAP).</p>
+
+<h2>Jetons API</h2>
+<p>Les scripts et outils de supervision utilisent des jetons API au lieu de mots de passe. Chaque utilisateur crée et révoque ses propres jetons dans <a href="/account#tokens">Mon compte → Jetons API</a> ; le rôle d'un jeton peut être inférieur à celui de l'utilisateur. Les administrateurs voient et peuvent révoquer tous les jetons sur la page <a href="/users">Utilisateurs</a>. Voir <a href="/docs/api">REST API</a>.</p>
+
+<h2>Approbation à quatre yeux</h2>
+<p>Facultative et désactivée par défaut. Activez-la dans <a href="/settings/security#four-eyes">Paramètres → Connexion et sécurité → Approbation à quatre yeux</a> ; elle nécessite au moins deux administrateurs actifs. Ces modifications ne prennent alors effet que lorsqu'un <b>second utilisateur</b> les approuve :</p>
+<table>
+  <tr><th>Modification</th><th>Qui peut approuver</th></tr>
+  <tr><td>Supprimer ou désactiver une tâche de sauvegarde, raccourcir la rétention d'une tâche (toute règle plus basse qu'avant, ou des règles là où tout était conservé), reprendre la rétention après une sauvegarde suspecte</td><td>Les utilisateurs autorisés à gérer les tâches</td></tr>
+  <tr><td>Supprimer un agent ou un hôte ESXi</td><td>Les utilisateurs autorisés à gérer les agents</td></tr>
+  <tr><td>Supprimer une cible de stockage</td><td>Les utilisateurs autorisés à gérer le stockage</td></tr>
+  <tr><td>Supprimer un utilisateur ; créer un utilisateur pouvant approuver (Administrateur ou Opérateur de sauvegarde) ; donner à un utilisateur un rôle avec plus de droits, ou réactiver un tel utilisateur ; réinitialiser le mot de passe ou la double authentification d'un tel utilisateur</td><td>Administrateurs</td></tr>
+  <tr><td>Modifier la connexion LDAP ou l'authentification unique (elles déterminent les rôles des utilisateurs de l'annuaire)</td><td>Administrateurs</td></tr>
+  <tr><td>Désactiver l'approbation à quatre yeux</td><td>Administrateurs</td></tr>
+</table>
+<p>La demande apparaît dans <a href="/approvals">Approbations</a> (avec un compteur dans le menu et sur le tableau de bord) et les destinataires des notifications reçoivent un e-mail. Tout autre utilisateur disposant de l'autorisation adéquate l'approuve ou la rejette ; le demandeur peut seulement l'annuler. Une modification approuvée est exécutée immédiatement. Les demandes expirent après 7 jours. Lorsqu'une tâche est modifiée avec une rétention plus courte, ses autres modifications sont enregistrées immédiatement et seule la rétention attend. Les demandes, approbations, rejets et leurs utilisateurs figurent dans le journal d'audit.</p>
+<p><b>Seuls les comptes qui existaient avant une demande peuvent en décider.</b> Avec l'approbation des nouveaux approbateurs, des réinitialisations de mot de passe et des paramètres d'annuaire, cela empêche un administrateur seul d'obtenir un second approbateur — par exemple en créant un second compte administrateur, en définissant le mot de passe d'un autre administrateur ou en associant un groupe de l'annuaire au rôle Administrateur. Tant que l'option est active, les deux derniers administrateurs actifs ne peuvent être ni supprimés, ni désactivés, ni rétrogradés, de sorte qu'il est toujours possible de statuer sur les demandes. Les mots de passe contenus dans les demandes ne sont stockés que sous forme de hachage, et les paramètres LDAP et d'authentification unique chiffrés avec la clé des secrets de la console. Les appartenances aux groupes dans l'annuaire lui-même (Active Directory, Entra ID) sont hors de la console ; protégez-y ces groupes d'administrateurs.</p>
+<p>Cela protège contre un seul compte volé ou détourné qui supprimerait la configuration ou laisserait la rétention effacer les sauvegardes. Cela ne remplace pas un stockage immuable : pour cela, voir <a href="/docs/ransomware">Protection contre les rançongiciels</a>.</p>
+
+<h2>Journal d'audit</h2>
+<p><a href="/audit">Utilisateurs → Journal d'audit</a> affiche les connexions, les échecs de connexion et les modifications : utilisateurs, tâches, cibles de stockage, restaurations, clés de récupération affichées et paramètres — avec l'heure, l'utilisateur et l'adresse.</p>
+
+<h3 id="audit-integrity">Protection contre les modifications</h3>
+<p>Chaque entrée est chaînée à la précédente : elle porte un hachage de son propre contenu et de l'entrée précédente, calculé avec un secret du fichier de secrets du serveur (qui n'est pas dans la base de données). Quiconque modifie ou supprime des entrées directement dans la base rompt donc la chaîne. Le hachage le plus récent est aussi conservé dans un fichier à côté des données de la console, de sorte que la suppression des entrées les plus récentes est également détectée.</p>
+<ul>
+  <li>La console vérifie toute la chaîne au démarrage et une fois par jour. Si elle est rompue, la page Journal d'audit affiche <b>Le journal d'audit a été modifié</b> avec la première entrée défectueuse, et les administrateurs reçoivent un e-mail.</li>
+  <li><b>Vérifier l'intégrité maintenant</b> sur la page Journal d'audit lance la vérification immédiatement.</li>
+  <li>Les entrées écrites avant la version 0.33.3 n'ont pas de chaîne ; la page indique combien il y en a.</li>
+</ul>
+<p>La chaîne montre que le journal a été modifié, mais ne peut pas restaurer ce qui l'a été — et quelqu'un qui prend le contrôle du serveur de la console lui-même, avec son fichier de secrets, pourrait réécrire la chaîne. Pour s'en protéger, envoyez une copie de chaque entrée à un serveur syslog ou SIEM séparé dans <a href="/settings/security#audit-syslog">Paramètres → Connexion et sécurité → Protection du journal d'audit</a> :</p>
+<ul>
+  <li><b>Serveur syslog</b> sous la forme <code>hôte:port</code>, et le <b>protocole</b> : TLS (recommandé, généralement port 6514), TCP ou UDP (généralement 514). Le certificat d'un serveur TLS doit être approuvé par la machine de la console.</li>
+  <li>L'enregistrement envoie un message de test ; si le serveur ne l'accepte pas, les paramètres sont enregistrés et l'erreur est affichée.</li>
+  <li>Les messages sont au format RFC 5424 (facility <i>auth</i>) avec le numéro d'entrée, l'utilisateur, l'action, l'adresse et le hachage de chaîne. Une fois par jour, un message <code>audit.checkpoint</code> contient le hachage le plus récent, afin que la copie puisse être comparée à la console.</li>
+  <li>Tant que le serveur syslog est injoignable, les entrées attendent en mémoire (jusqu'à 1000) et sont envoyées dès qu'il répond à nouveau ; la console continue de fonctionner, et les entrées restent de toute façon dans son propre journal d'audit.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

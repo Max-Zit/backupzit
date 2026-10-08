@@ -1,0 +1,91 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Usuários, funções e LDAP</h1>
+<p class="lead">Dê a cada pessoa sua própria conta, só com os direitos de que ela precisa — como contas locais ou com o login do Active Directory / LDAP.</p>
+
+<h2>Funções</h2>
+<table>
+  <tr><th>Permissão</th><th>Administrador</th><th>Operador de backup</th><th>Operador de restauração</th><th>Visualizador</th></tr>
+  <tr><td>Ver painel, atividade, calendário, relatórios, documentação</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+  <tr><td>Iniciar backups (Executar backup agora)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Restaurar arquivos, discos, sistemas Linux e VMs; navegar e baixar arquivos em imagens e backups de VM</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+  <tr><td>Criar, alterar e excluir tarefas; relatórios agendados</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Registrar, atualizar e remover agentes; códigos de recuperação</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Destinos de armazenamento, credenciais e chaves de recuperação</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Configurações (e-mail, sessões, LDAP, certificado, atualizações, backup do console)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Comandos antes e depois de um backup (rodam como root / SYSTEM no agente)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Usuários e log de auditoria</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>Uso típico: administradores de TI são <b>Administradores</b>; quem cuida dos backups do dia a dia é <b>Operador de backup</b>; o suporte que recupera arquivos excluídos é <b>Operador de restauração</b>; diretoria e auditores são <b>Visualizadores</b>. Páginas e botões que uma função não pode usar ficam ocultos, e o servidor os recusa de qualquer forma. Lembre-se de que restaurar pode sobrescrever dados — restaurar uma imagem de disco ou um sistema Linux apaga o disco de destino, e restaurar uma VM com <i>substituir</i> exclui a VM existente — então dê as funções de restauração só a pessoas a quem você confiaria isso; toda restauração fica no log de auditoria.</p>
+
+<h2>Usuários locais</h2>
+<p>Em <a href="/users">Usuários</a> → <i>Novo usuário local</i> informe um nome de usuário, uma função e uma senha de pelo menos 10 caracteres. Na página do usuário você pode alterar a função, desativar a conta (sessões abertas terminam na hora), definir uma nova senha ou excluir o usuário.</p>
+<p>Todo usuário pode alterar a própria senha em <a href="/account">Minha conta</a> (clique no seu nome no canto superior direito).</p>
+<div class="callout"><p>Sempre resta pelo menos um <b>administrador local</b> ativo, para que você possa entrar mesmo quando o diretório estiver inacessível. Você não pode rebaixar, desativar ou excluir a si mesmo.</p></div>
+
+<h2>Login com Active Directory / LDAP</h2>
+<p>Em <a href="/settings/ldap">Configurações → LDAP / Active Directory</a>:</p>
+<ol>
+  <li><b>Servidor</b>: <code>ldaps://dc1.example.local:636</code>. O <code>ldap://</code> simples só é aceito com StartTLS, então as senhas nunca trafegam sem criptografia.</li>
+  <li><b>Conta de serviço</b>: uma conta de domínio comum usada para buscar usuários e grupos (acesso de leitura basta), por ex. <code>CN=svc-backupzit,OU=Service Accounts,DC=example,DC=local</code>.</li>
+  <li><b>Base de pesquisa</b>: por ex. <code>DC=example,DC=local</code>.</li>
+  <li><b>Filtro de usuários</b>: Active Directory <code>(&amp;(objectClass=user)(sAMAccountName={username}))</code>, OpenLDAP <code>(&amp;(objectClass=inetOrgPerson)(uid={username}))</code>.</li>
+  <li><b>Grupos → funções</b>: o DN completo de um grupo para cada função que você quer usar, por ex. <code>CN=BackupZit Admins,OU=Groups,DC=example,DC=local</code>. Vale a função mais alta correspondente; usuários que não estão em nenhum grupo não conseguem entrar. Marque <i>grupos aninhados</i> no Active Directory para incluir membros de subgrupos.</li>
+  <li><b>Confiança no certificado</b>: se os controladores de domínio usam uma CA interna, cole o certificado da CA; para um certificado autoassinado, informe a impressão digital dele.</li>
+  <li>Use <b>Teste</b> com um usuário real para verificar a conexão, a senha e a função resultante, depois <b>Salvar</b>.</li>
+</ol>
+<p>Usuários do diretório aparecem na lista de usuários após o primeiro login. Nome, e-mail e função são atualizados a partir do diretório a cada login. Para bloquear um usuário do diretório na hora, desative a conta no BackupZit (ou no diretório).</p>
+
+<h2 id="sso">Login único (SAML, OpenID Connect)</h2>
+<p>Com o login único, os usuários clicam em <b>Entrar com …</b> na página de login e se autenticam no seu provedor de identidade — Microsoft Entra ID (Azure AD), Okta, Google Workspace, Keycloak, ADFS ou qualquer outro provedor SAML 2.0 ou OpenID Connect. Configure em <b>Configurações → Login único</b>:</p>
+<ol>
+  <li>Escolha <b>OpenID Connect</b> (recomendado quando disponível) ou <b>SAML 2.0</b>.</li>
+  <li><b>OpenID Connect:</b> registre um aplicativo web no provedor de identidade com a URI de redirecionamento mostrada na página de configurações (<code>https://&lt;console&gt;/login/sso/callback</code>) e informe o emissor (issuer), o ID do cliente e o segredo do cliente. Faça o provedor colocar os grupos do usuário em uma declaração <code>groups</code> (Entra ID: <i>Token configuration → Add groups claim</i>, que envia IDs de grupo; Keycloak: um mapper <i>Group Membership</i>; Okta: uma declaração groups).</li>
+  <li><b>SAML 2.0:</b> adicione o console no provedor de identidade com a URL de metadados dele (<code>https://&lt;console&gt;/login/sso/metadata</code>, serviço consumidor de asserções <code>/login/sso/acs</code>), faça-o enviar os grupos como atributo e informe a URL de metadados do provedor de identidade ou cole o XML de metadados dele. O SAML exige o console em HTTPS. As asserções precisam ser assinadas; as requisições do console não são assinadas.</li>
+  <li>Associe grupos (nomes, ou IDs no Entra ID) às quatro funções; vale a função mais alta correspondente. Usuários que não estão em nenhum deles não conseguem entrar, a menos que você escolha uma função para eles.</li>
+</ol>
+<p>Um provedor de identidade cujo certificado HTTPS vem da sua própria CA ou é autoassinado (um Keycloak ou AD FS local) precisa desse certificado de CA em <b>Certificado da CA (PEM)</b>; os públicos (Entra ID, Okta, Google) não precisam de nada. Ao salvar, verifica-se se o provedor de identidade responde. Os usuários são criados no primeiro login (marcados como <b>SSO</b> em Usuários) e recebem a função a partir dos grupos a cada login, como os usuários do diretório; nome e e-mail vêm do provedor de identidade. O segundo fator fica a cargo do provedor de identidade, então o console não pede aos usuários SSO o próprio código de dois fatores. As contas locais continuam funcionando, então um administrador sempre consegue entrar mesmo quando o provedor de identidade está inacessível. Uma resposta de login só pode ser usada uma vez e precisa ser assinada pelo provedor de identidade; todo login e toda recusa SSO ficam no log de auditoria.</p>
+
+<h2>Sessões</h2>
+<p>Em <a href="/settings/security">Configurações → Login e segurança</a> defina quanto tempo dura um login (padrão 12 horas) e após quantos minutos de inatividade os usuários são desconectados (padrão 60, 0 = nunca). Senhas erradas repetidas bloqueiam o endereço por um tempo: por padrão após 5 falhas em 15 minutos, por 30 minutos. Os limites ficam na mesma página; veja <a href="/docs/security">Segurança</a>.</p>
+
+<h2>Autenticação de dois fatores</h2>
+<p>Todo usuário pode proteger o login com um segundo fator em <a href="/account/2fa">Minha conta → Dois fatores</a>: escaneie o código QR com um aplicativo autenticador (Microsoft ou Google Authenticator, Authy, 1Password, Bitwarden…) e digite o código de 6 dígitos. Dez <b>códigos de recuperação</b> de uso único são mostrados uma vez — guarde-os em local seguro; cada um funciona uma vez se o telefone for perdido. Usuários que entram com <a href="#sso">login único</a> não precisam do código do console: o segundo fator fica a cargo do provedor de identidade deles.</p>
+<p>Em <a href="/settings/security">Configurações → Login e segurança</a> você pode exigir autenticação de dois fatores para <b>administradores</b> ou para <b>todos os usuários</b>; eles são solicitados a configurá-la após o próximo login. Se um usuário perder o telefone e os códigos de recuperação, um administrador redefine os dois fatores na página do usuário. Ela também funciona para contas do diretório (LDAP).</p>
+
+<h2>Tokens de API</h2>
+<p>Scripts e ferramentas de monitoramento usam tokens de API em vez de senhas. Cada usuário cria e revoga os próprios tokens em <a href="/account#tokens">Minha conta → Tokens de API</a>; a função de um token pode ser inferior à do usuário. Administradores veem e podem revogar todos os tokens na página <a href="/users">Usuários</a>. Veja <a href="/docs/api">REST API</a>.</p>
+
+<h2>Aprovação a quatro olhos</h2>
+<p>Opcional e desligada por padrão. Ligue-a em <a href="/settings/security#four-eyes">Configurações → Login e segurança → Aprovação a quatro olhos</a>; ela exige pelo menos dois administradores ativos. A partir daí, estas alterações só valem quando um <b>segundo usuário</b> as aprova:</p>
+<table>
+  <tr><th>Alteração</th><th>Quem pode aprovar</th></tr>
+  <tr><td>Excluir ou desativar uma tarefa de backup, encurtar a retenção de uma tarefa (qualquer regra menor que antes, ou regras onde antes tudo era mantido), retomar a retenção após um backup suspeito</td><td>Usuários que podem gerenciar tarefas</td></tr>
+  <tr><td>Remover um agente ou um host ESXi</td><td>Usuários que podem gerenciar agentes</td></tr>
+  <tr><td>Remover um destino de armazenamento</td><td>Usuários que podem gerenciar armazenamento</td></tr>
+  <tr><td>Excluir um usuário; criar um usuário que pode aprovar (Administrador ou Operador de backup); dar a um usuário uma função com mais direitos, ou reativar esse usuário; redefinir a senha ou os dois fatores desse usuário</td><td>Administradores</td></tr>
+  <tr><td>Alterar o login LDAP ou o login único (eles definem as funções dos usuários do diretório)</td><td>Administradores</td></tr>
+  <tr><td>Desligar a aprovação a quatro olhos</td><td>Administradores</td></tr>
+</table>
+<p>A solicitação aparece em <a href="/approvals">Aprovações</a> (com um contador no menu e no painel) e os destinatários das notificações recebem um e-mail. Qualquer outro usuário com a permissão adequada a aprova ou rejeita; o solicitante só pode cancelá-la. Uma alteração aprovada é executada na hora. As solicitações expiram após 7 dias. Quando uma tarefa é editada com retenção mais curta, as demais alterações dela são salvas na hora e só a retenção fica aguardando. Solicitações, aprovações, rejeições e seus usuários ficam no log de auditoria.</p>
+<p><b>Só contas que existiam antes de uma solicitação podem decidir sobre ela.</b> Junto com a aprovação de novos aprovadores, redefinições de senha e configurações de diretório, isso impede que um único administrador obtenha sozinho um segundo aprovador — por exemplo criando uma segunda conta de administrador, definindo a senha de outro administrador ou associando um grupo do diretório à função Administrador. Enquanto a opção está ligada, os dois últimos administradores ativos não podem ser excluídos, desativados nem rebaixados, então sempre é possível decidir sobre as solicitações. As senhas nas solicitações são armazenadas apenas como hash, e as configurações de LDAP e login único criptografadas com a chave de segredos do console. Associações a grupos no próprio diretório (Active Directory, Entra ID) ficam fora do console; proteja esses grupos de administradores lá.</p>
+<p>Isso protege contra uma única conta roubada ou mal usada que remova a configuração ou deixe a retenção apagar os backups. Não substitui o armazenamento imutável: para isso, veja <a href="/docs/ransomware">Proteção contra ransomware</a>.</p>
+
+<h2>Log de auditoria</h2>
+<p><a href="/audit">Usuários → Log de auditoria</a> mostra logins, logins com falha e alterações: usuários, tarefas, destinos de armazenamento, restaurações, chaves de recuperação exibidas e configurações — com hora, usuário e endereço.</p>
+
+<h3 id="audit-integrity">Proteção contra alterações</h3>
+<p>Cada entrada é encadeada à anterior: ela traz um hash do próprio conteúdo e da entrada anterior, calculado com um segredo do arquivo de segredos do servidor (que não está no banco de dados). Quem altera ou exclui entradas diretamente no banco de dados, portanto, quebra a corrente. O hash mais recente também fica em um arquivo ao lado dos dados do console, então a exclusão das entradas mais recentes também é detectada.</p>
+<ul>
+  <li>O console verifica toda a corrente ao iniciar e uma vez por dia. Se ela estiver quebrada, a página Log de auditoria mostra <b>O registro de auditoria foi alterado</b> com a primeira entrada ruim, e os administradores recebem um e-mail.</li>
+  <li><b>Verificar integridade agora</b> na página Log de auditoria executa a verificação na hora.</li>
+  <li>Entradas gravadas antes da versão 0.33.3 não têm corrente; a página mostra quantas são.</li>
+</ul>
+<p>A corrente mostra que o log foi alterado, mas não consegue recuperar o que foi alterado — e alguém que tome o próprio servidor do console, com seu arquivo de segredos, poderia reescrever a corrente. Contra isso, envie uma cópia de cada entrada para um servidor syslog ou SIEM separado em <a href="/settings/security#audit-syslog">Configurações → Login e segurança → Proteção do registro de auditoria</a>:</p>
+<ul>
+  <li><b>Servidor syslog</b> como <code>host:porta</code>, e o <b>protocolo</b>: TLS (recomendado, normalmente porta 6514), TCP ou UDP (normalmente 514). O certificado de um servidor TLS precisa ser confiável para a máquina do console.</li>
+  <li>Ao salvar, uma mensagem de teste é enviada; se o servidor não a aceitar, as configurações são salvas e o erro é exibido.</li>
+  <li>As mensagens são RFC 5424 (facility <i>auth</i>) com número da entrada, usuário, ação, endereço e hash da corrente. Uma vez por dia uma mensagem <code>audit.checkpoint</code> leva o hash mais recente, para que a cópia possa ser comparada com o console.</li>
+  <li>Enquanto o servidor syslog estiver inacessível, as entradas aguardam na memória (até 1000) e são enviadas quando ele voltar a responder; o console continua funcionando, e as entradas permanecem de qualquer forma no próprio log de auditoria.</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}
