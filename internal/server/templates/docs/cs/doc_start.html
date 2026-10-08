@@ -1,0 +1,78 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Začínáme</h1>
+<p class="lead">BackupZit chrání počítače s Windows a Linuxem, virtuální počítače Proxmox VE, Hyper-V a VMware ESXi, databáze (SQL Server, PostgreSQL, MySQL/MariaDB) a sdílené složky NAS — soubory, celé disky i celé systémy — z jedné webové konzole, která běží ve vaší vlastní síti.</p>
+
+<h2>Co BackupZit chrání</h2>
+<table>
+  <tr><th>Co</th><th>Jak</th><th>Obnova</th></tr>
+  <tr><td>Soubory a složky (Windows, Linux)</td><td>Agent na počítači; otevřené soubory ve Windows přes VSS. <a href="/docs/jobs">Úlohy zálohování</a></td><td>Celá záloha nebo jednotlivé složky, na libovolného agenta, na původní místo nebo do jiné složky. <a href="/docs/restore">Obnova</a></td></tr>
+  <tr><td>Disky Windows</td><td>Obraz celého disku nebo vybraných oddílů ze snímku VSS. <a href="/docs/images">Obrazy disků</a></td><td>Na prázdný disk nebo bare metal s ISO pro obnovu Windows, i na jiný hardware nebo do VM; jednotlivé soubory z obrazu.</td></tr>
+  <tr><td>Systémy Linux</td><td>Všechny místní souborové systémy plus rozložení disků (oddíly, LVM, UUID, zaváděcí kód). <a href="/docs/linux-system">Záloha systému Linux</a></td><td>Na prázdný disk nebo bare metal s ISO pro obnovu Linuxu, nebo jako nový VM v Proxmoxu (P2V); jednotlivé soubory.</td></tr>
+  <tr><td>VM Hyper-V</td><td>Agent na hostiteli Hyper-V, <b>žádný agent uvnitř VM</b>; kontrolní body pro obnovu (VSS uvnitř hosta), Resilient Change Tracking čte jen změněné bloky. <a href="/docs/hyperv">Hyper-V</a></td><td>Celý VM jako nový nebo na místě (zachová ID a MAC adresy); jednotlivé soubory z disků VM.</td></tr>
+  <tr><td>VM VMware ESXi</td><td>Jako proxy funguje libovolný agent, <b>na ESXi ani do VM se nic neinstaluje</b>; snímky s quiesce, Changed Block Tracking čte jen změněné bloky. <a href="/docs/vmware">VMware ESXi</a></td><td>Celý VM jako nový nebo na místě (zachová UUID a MAC adresy), na libovolném hostiteli a datovém úložišti; jednotlivé soubory.</td></tr>
+  <tr><td>NAS a sdílené složky (SMB, NFS)</td><td>Na NAS žádný software: sdílenou složku čte agent na libovolném počítači. <a href="/docs/jobs">Úlohy zálohování</a></td><td>Soubory a složky zpět do sdílené složky, do složky nebo ke stažení.</td></tr>
+  <tr><td>Databáze: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent na databázovém počítači; vlastní nástroje serveru, úplné zálohy a zálohy logů. <a href="/docs/sql">Databáze</a></td><td>Jednotlivá databáze pod novým názvem nebo na místě, k libovolnému okamžiku pokrytému zálohami logů.</td></tr>
+  <tr><td>VM a kontejnery Proxmox VE</td><td>Agent na hostiteli Proxmox, <b>žádný agent uvnitř hostů</b>; ze snímků Proxmoxu, nahrávají se jen změněné bloky. <a href="/docs/proxmox">Proxmox VE</a></td><td>Celý host jako nový nebo na místě, na libovolném uzlu a úložišti; VM okamžitě ze zálohy (okamžitá obnova, i na VMware ESXi); jednotlivé soubory z disků VM (NTFS, ext4, XFS, LVM) ke stažení nebo na agenta.</td></tr>
+</table>
+
+<h2>Jak BackupZit funguje</h2>
+<ul>
+  <li><b>Správcovská konzole</b> (tato webová aplikace) — běží na linuxovém serveru ve vaší síti. Ukládá konfiguraci, plánuje úlohy, sbírá výsledky a zobrazuje sestavy. Nikdy nemusí být dostupná z internetu.</li>
+  <li><b>Agenti</b> — malá služba na každém chráněném počítači (MSI pro Windows, deb/rpm pro Linux) a na hostitelích Proxmox a Hyper-V; k hostitelům VMware ESXi se přistupuje přes agenta, který funguje jako proxy. Agenti kontaktují konzoli přes HTTPS, přijímají úlohy a posílají data záloh <i>přímo</i> na úložiště. Ve Windows agent zobrazuje svůj stav vedle hodin.</li>
+  <li><b>Cíle úložiště</b> — kde se zálohy uchovávají: SFTP, objektové úložiště kompatibilní s S3 (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, sdílená složka SMB/NAS, rotující disky USB, místní nebo připojený disk, nebo zabezpečený repozitář BackupZit.</li>
+</ul>
+<div class="callout tip"><p>Data záloh nikdy neprocházejí konzolí. Konzole jen koordinuje, takže jí stačí malý virtuální počítač.</p></div>
+
+<h2>První kroky</h2>
+<p>Novou konzoli nastavíte tak, že naimportujete hotový obraz appliance do malého VM, spustíte ISO appliance nebo spustíte instalační skript na existujícím linuxovém serveru; viz <a href="/docs/install">Instalace serveru</a>.</p>
+<ol>
+  <li><b>Přidejte cíl úložiště</b> v části <a href="/targets">Úložiště</a>. Nechte zapnuté <i>Šifrovat zálohy</i> a list pro obnovu, který se poté zobrazí, uložte na bezpečné místo. Viz <a href="/docs/storage">Cíle úložiště</a>.</li>
+  <li><b>Nainstalujte agenty</b>: v části <a href="/agents">Agenti</a> klikněte na <i>Vytvořit registrační token</i>, stáhněte instalátor ze stejné stránky a vložte registrační kód, když o něj instalátor Windows požádá (Linux: <code>backupzit-agent enroll --code …</code>). Pro VM nainstalujte agenta na hostitele Proxmox nebo Hyper-V; hostitele VMware ESXi přidejte v Agenti → Hostitelé VMware ESXi. Viz <a href="/docs/agents">Agenti</a>.</li>
+  <li><b>Vytvořte úlohu zálohování</b> v části <a href="/jobs">Úlohy zálohování</a>: zvolte agenta, úložiště, co zálohovat (soubory, sdílenou složku NAS, obraz disku, databáze, celý systém Linux nebo VM hostitele Proxmox, Hyper-V či VMware ESXi), kdy spouštět a kolik záloh ponechat. Viz <a href="/docs/jobs">Úlohy zálohování a plány</a>.</li>
+  <li><b>Jednou ji spusťte ručně</b> tlačítkem <i>Spustit zálohu nyní</i> na stránce úlohy a výsledek zkontrolujte v <a href="/runs">Aktivita</a>.</li>
+  <li><b>Vyzkoušejte obnovu</b> — záloha je jen tak dobrá jako její obnova. Automatické testy obnovy běží týdně; obnovte také jednou něco ručně pomocí <a href="/restore">průvodce obnovou</a>. Viz <a href="/docs/restore">Obnova</a>.</li>
+  <li><b>Připravte se na havárie</b>: stáhněte ISO pro obnovu a vytvořte kód pro obnovu v části <a href="/recovery">Obnovovací média</a>.</li>
+  <li><b>Nastavte e-mailová upozornění</b> v <a href="/settings/email">Nastavení → E-mailová oznámení</a>, abyste se dozvěděli o selháních, a volitelně týdenní <a href="/reports">sestavu</a>.</li>
+</ol>
+
+<h2>Konzole v kostce</h2>
+<table>
+  <tr><th>Stránka</th><th>K čemu slouží</th></tr>
+  <tr><td><a href="/">Přehled</a></td><td>Stav na první pohled: co je chráněno, co vyžaduje pozornost, agenti online, selhání za posledních 24 hodin, podezřelé zálohy, nedávná aktivita.</td></tr>
+  <tr><td><a href="/jobs">Úlohy zálohování</a></td><td>Úlohy pro soubory, sdílené složky NAS, obrazy disků, systémy Linux, virtuální počítače, databáze a kopie záloh: vytvořit, upravit, spustit, otestovat obnovu, zakázat, smazat. Seznam ukazuje u každé úlohy typ, chráněné VM nebo databáze, příští běh, poslední výsledek a počet bodů obnovy; filtrujte podle typu nebo vyhledávejte. Stránka úlohy uvádí VM nebo databáze z její nejnovější zálohy s odkazy na jejich obnovu.</td></tr>
+  <tr><td><a href="/restore">Obnova</a></td><td>Průvodce obnovou: zvolte, co obnovit (VM, soubory, obraz disku, databázi, systém Linux), zdroj, bod obnovy a volby. Viz <a href="/docs/restore">Obnova</a>.</td></tr>
+  <tr><td><a href="/runs">Aktivita</a></td><td>Každá záloha, kopie, test obnovy a obnova s podrobnostmi, statistikami a chybami. Odtud lze také spustit obnovy a procházení souborů.</td></tr>
+  <tr><td><a href="/calendar">Kalendář</a></td><td>Co běželo v minulých dnech a co je naplánováno do budoucna.</td></tr>
+  <tr><td><a href="/reports">Sestavy</a></td><td>Míry úspěšnosti a objemy dat za libovolné období, export CSV, sestavy zasílané e-mailem a plánované.</td></tr>
+  <tr><td><a href="/agents">Agenti</a></td><td>Chráněné počítače s IP adresami a verzemi, registrační kódy, instalátory a aktualizace agentů.</td></tr>
+  <tr><td><a href="/targets">Úložiště</a></td><td>Kde jsou zálohy uloženy, šifrování a klíče pro obnovení, neměnnost, využité místo s prognózou.</td></tr>
+  <tr><td><a href="/recovery">Obnovovací média</a></td><td>ISO pro obnovu (Windows pro obrazy disků, Linux pro systémy Linux) a kódy pro obnovu bare metal.</td></tr>
+  <tr><td><a href="/approvals">Schválení</a></td><td>Zobrazuje se, když je zapnuté schválení čtyř očí: změny čekající na druhého uživatele. Viz <a href="/docs/users">Uživatelé, role a LDAP</a>.</td></tr>
+  <tr><td><a href="/users">Uživatelé</a></td><td>Účty, role, tokeny API všech uživatelů, protokol auditu.</td></tr>
+  <tr><td><a href="/settings/email">Nastavení</a></td><td>E-mailová oznámení; Slack, Teams a webhooky; přihlašovací relace, zásady dvoufaktorového ověření, ochrana proti hrubé síle, schválení čtyř očí a uložené tajné údaje; testy obnovy; certifikát HTTPS pro prohlížeče; na appliance její síť (adresa, název serveru, SSH — viz <a href="/docs/install#setup-menu">Instalace</a>); aktualizace BackupZit a operačního systému; záloha samotné konzole; LDAP / Active Directory; jednotné přihlašování přes SAML nebo OpenID Connect.</td></tr>
+  <tr><td><a href="/account">Můj účet</a> (vaše jméno, vpravo nahoře)</td><td>Váš profil a role, heslo, dvoufaktorové ověření, tokeny API.</td></tr>
+  <tr><td><a href="/docs">Dokumentace</a></td><td>Tato příručka.</td></tr>
+</table>
+
+<h3>Jazyk</h3>
+<p>Konzole je k dispozici ve 14 jazycích: angličtině, němčině, francouzštině, španělštině, italštině, portugalštině (Brazílie), nizozemštině, polštině, češtině, srbštině (latinka), turečtině, ruštině, čínštině (zjednodušené) a japonštině. Vyberte jazyk v seznamu vpravo nahoře nebo na přihlašovací stránce; volba se pamatuje v prohlížeči. Bez volby rozhoduje jazyk prohlížeče (chorvatské, bosenské a černohorské prohlížeče dostanou srbštinu, slovenské češtinu, ostatní jazyky angličtinu). Přeložena je i tato příručka (stránka bez překladu se zobrazí anglicky). E-maily, oznámení do chatu a zprávy hlášené agenty zůstávají anglicky.</p>
+<p>Překlady jsou ve zdrojovém kódu v <code>internal/server/i18n/cs.json</code>: anglický text je klíč, překlad jeho hodnota. <code>go run ./tools/i18n missing cs</code> vypíše texty bez překladu; nepřeložené texty se zobrazují anglicky.</p>
+
+<h2>Základní pojmy</h2>
+<h3>Snímky a deduplikace</h3>
+<p>Každá záloha vytvoří <i>snímek</i>: úplný, procházitelný obraz dat v daném okamžiku. Soubory se dělí na části proměnné velikosti a disky na bloky a každá část se uloží jen jednou, takže druhá a další zálohy nahrávají jen to, co se změnilo — a přesto lze každý snímek obnovit samostatně. Žádný „řetězec úplná/přírůstková“ se nespravuje.</p>
+<h3>Repozitáře</h3>
+<p>Každý agent zapisuje do vlastního <i>repozitáře</i> pod umístěním cíle úložiště (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Repozitář je soběstačný: s umístěním, přihlašovacími údaji k úložišti a klíčem pro obnovení jej lze obnovit, i když konzole už neexistuje.</p>
+<h3>Uchovávání</h3>
+<p>Každá úloha uchovává určitý počet nedávných, denních, týdenních a měsíčních záloh. Starší snímky se po každém běhu odstraní a uvolní se místo, které zabíraly.</p>
+<h3>Co BackupZit kontroluje za vás</h3>
+<ul>
+  <li><b>Testy obnovy</b> — nejnovější záloha každé úlohy se jednou týdně částečně obnoví a ověří (<a href="/docs/restore">Obnova</a>).</li>
+  <li><b>Detekce ransomwaru</b> — neobvyklé zálohy (hromadné změny, šifrovaná data, hromadné mazání, náhlé skoky objemu dat) se označí a uchovávání se pozastaví (<a href="/docs/ransomware">Ochrana proti ransomwaru</a>).</li>
+  <li><b>Upozornění a sestavy</b> — e-maily při selhání a denní souhrn; plánované sestavy pro vedení (<a href="/docs/notifications">E-mailová oznámení</a>, <a href="/docs/monitoring">Monitorování</a>).</li>
+</ul>
+
+<h2>Licence a podpora</h2>
+<p>BackupZit je svobodný software pod licencí <b>GNU Affero General Public License v3</b>: můžete jej instalovat a používat bez placení, na libovolném počtu počítačů. Komerční podporu nabízí MaxZit. BackupZit obsahuje open-source komponenty pod jejich vlastními licencemi (MIT, BSD, Apache 2.0, ISC, MPL 2.0, zlib); jejich texty se instalují s každým balíčkem jako <code>THIRD_PARTY_LICENSES.txt</code> (<code>/usr/share/doc/backupzit-*/</code> v Linuxu, složka programu agenta ve Windows).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

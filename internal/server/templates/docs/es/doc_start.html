@@ -1,0 +1,78 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Primeros pasos</h1>
+<p class="lead">BackupZit protege equipos Windows y Linux, máquinas virtuales de Proxmox VE, Hyper-V y VMware ESXi, bases de datos (SQL Server, PostgreSQL, MySQL/MariaDB) y recursos compartidos NAS —archivos, discos completos y sistemas completos— desde una consola web que se ejecuta en su propia red.</p>
+
+<h2>Qué protege BackupZit</h2>
+<table>
+  <tr><th>Qué</th><th>Cómo</th><th>Restauración</th></tr>
+  <tr><td>Archivos y carpetas (Windows, Linux)</td><td>Agente en el equipo; archivos abiertos en Windows mediante VSS. <a href="/docs/jobs">Trabajos de copia</a></td><td>Copia completa o carpetas sueltas, a cualquier agente, a la ubicación original o a otra carpeta. <a href="/docs/restore">Restauración</a></td></tr>
+  <tr><td>Discos de Windows</td><td>Imagen de un disco completo o de particiones elegidas, desde una instantánea VSS. <a href="/docs/images">Imágenes de disco</a></td><td>En un disco vacío o bare metal con la ISO de recuperación de Windows, también en hardware distinto o en una VM; archivos sueltos desde la imagen.</td></tr>
+  <tr><td>Sistemas Linux</td><td>Todos los sistemas de archivos locales más la disposición de discos (particiones, LVM, UUID, código de arranque). <a href="/docs/linux-system">Copia del sistema Linux</a></td><td>En un disco vacío o bare metal con la ISO de recuperación de Linux, o como VM nueva de Proxmox (P2V); archivos sueltos.</td></tr>
+  <tr><td>VM de Hyper-V</td><td>Agente en el host Hyper-V, <b>sin agente dentro de las VM</b>; puntos de control de recuperación (VSS dentro del invitado), Resilient Change Tracking lee solo los bloques cambiados. <a href="/docs/hyperv">Hyper-V</a></td><td>VM completa como nueva o en el sitio (conserva el ID y las direcciones MAC); archivos sueltos de los discos de la VM.</td></tr>
+  <tr><td>VM de VMware ESXi</td><td>Cualquier agente hace de proxy, <b>no se instala nada en ESXi ni en las VM</b>; instantáneas en reposo, el seguimiento de bloques cambiados lee solo los bloques cambiados. <a href="/docs/vmware">VMware ESXi</a></td><td>VM completa como nueva o en el sitio (conserva el UUID y las direcciones MAC), en cualquier host y datastore; archivos sueltos.</td></tr>
+  <tr><td>NAS y recursos compartidos (SMB, NFS)</td><td>Ningún software en el NAS: un agente en cualquier equipo lee el recurso. <a href="/docs/jobs">Trabajos de copia</a></td><td>Archivos y carpetas de vuelta al recurso, a una carpeta o como descarga.</td></tr>
+  <tr><td>Bases de datos: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agente en el equipo de la base de datos; las herramientas propias del servidor, copias completas y de registros. <a href="/docs/sql">Bases de datos</a></td><td>Una base suelta con un nombre nuevo o en el sitio, a cualquier momento cubierto por las copias de registros.</td></tr>
+  <tr><td>VM y contenedores de Proxmox VE</td><td>Agente en el host Proxmox, <b>sin agente dentro de los invitados</b>; desde instantáneas de Proxmox, solo se suben los bloques cambiados. <a href="/docs/proxmox">Proxmox VE</a></td><td>Invitado completo como nuevo o en el sitio, en cualquier nodo y almacenamiento; VM al instante desde la copia (recuperación instantánea, también en VMware ESXi); archivos sueltos de discos de VM (NTFS, ext4, XFS, LVM) como descarga o a un agente.</td></tr>
+</table>
+
+<h2>Cómo funciona BackupZit</h2>
+<ul>
+  <li><b>Consola de gestión</b> (esta aplicación web): se ejecuta en un servidor Linux de su red. Guarda la configuración, programa trabajos, recoge resultados y muestra informes. Nunca necesita ser accesible desde Internet.</li>
+  <li><b>Agentes</b>: un pequeño servicio en cada equipo protegido (MSI de Windows, deb/rpm de Linux) y en los hosts Proxmox y Hyper-V; a los hosts VMware ESXi se llega mediante un agente que hace de proxy. Los agentes contactan con la consola por HTTPS, reciben trabajos y envían los datos de copia <i>directamente</i> al almacenamiento. En Windows el agente muestra su estado junto al reloj.</li>
+  <li><b>Destinos de almacenamiento</b>: donde se guardan las copias: SFTP, almacenamiento de objetos compatible con S3 (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, un recurso SMB/NAS, discos USB rotativos, un disco local o montado, o un repositorio reforzado de BackupZit.</li>
+</ul>
+<div class="callout tip"><p>Los datos de copia nunca pasan por la consola. La consola solo coordina, por lo que basta una máquina virtual pequeña.</p></div>
+
+<h2>Primeros pasos</h2>
+<p>Para poner en marcha una consola nueva, importe la imagen de appliance lista para usar en una VM pequeña, arranque la ISO del appliance o ejecute el script de instalación en un servidor Linux existente; consulte <a href="/docs/install">Instalar el servidor</a>.</p>
+<ol>
+  <li><b>Añada un destino de almacenamiento</b> en <a href="/targets">Almacenamiento</a>. Deje activado <i>Cifrar copias</i> y guarde en un lugar seguro la hoja de recuperación que se muestra después. Consulte <a href="/docs/storage">Destinos de almacenamiento</a>.</li>
+  <li><b>Instale agentes</b>: en <a href="/agents">Agentes</a> haga clic en <i>Crear token de registro</i>, descargue el instalador de la misma página y pegue el código de registro cuando el instalador de Windows lo pida (Linux: <code>backupzit-agent enroll --code …</code>). Para las VM, instale el agente en el host Proxmox o Hyper-V; añada los hosts VMware ESXi en Agentes → Hosts VMware ESXi. Consulte <a href="/docs/agents">Agentes</a>.</li>
+  <li><b>Cree un trabajo de copia</b> en <a href="/jobs">Trabajos de copia</a>: elija el agente, el almacenamiento, qué copiar (archivos, un recurso NAS, una imagen de disco, bases de datos, todo el sistema Linux o las VM de un host Proxmox, Hyper-V o VMware ESXi), cuándo ejecutarlo y cuántas copias conservar. Consulte <a href="/docs/jobs">Trabajos de copia y programaciones</a>.</li>
+  <li><b>Ejecútelo una vez manualmente</b> con <i>Ejecutar copia ahora</i> en la página del trabajo y compruebe el resultado en <a href="/runs">Actividad</a>.</li>
+  <li><b>Pruebe una restauración</b>: una copia vale lo que vale su restauración. Las pruebas de restauración automáticas se ejecutan cada semana; restaure algo también a mano una vez con el <a href="/restore">asistente de restauración</a>. Consulte <a href="/docs/restore">Restauración</a>.</li>
+  <li><b>Prepárese para desastres</b>: descargue las ISO de recuperación y cree un código de recuperación en <a href="/recovery">Medios de recuperación</a>.</li>
+  <li><b>Configure alertas por correo</b> en <a href="/settings/email">Configuración → Notificaciones por correo</a> para enterarse de los fallos y, opcionalmente, un <a href="/reports">informe</a> semanal.</li>
+</ol>
+
+<h2>La consola de un vistazo</h2>
+<table>
+  <tr><th>Página</th><th>Para qué sirve</th></tr>
+  <tr><td><a href="/">Panel</a></td><td>El estado de un vistazo: qué está protegido, qué requiere atención, agentes en línea, fallos de las últimas 24 horas, copias sospechosas, actividad reciente.</td></tr>
+  <tr><td><a href="/jobs">Trabajos de copia</a></td><td>Trabajos de archivos, recursos NAS, imágenes de disco, sistemas Linux, máquinas virtuales, bases de datos y copias de copias: crear, editar, ejecutar, probar la restauración, desactivar, eliminar. La lista muestra el tipo de cada trabajo, las VM o bases que protege, la próxima ejecución, el último resultado y el número de puntos de restauración; filtre por tipo o busque. La página de un trabajo lista las VM o bases de su copia más reciente con enlaces para restaurarlas.</td></tr>
+  <tr><td><a href="/restore">Restaurar</a></td><td>Asistente de restauración: elija qué restaurar (VM, archivos, imagen de disco, base de datos, sistema Linux), el origen, el punto de restauración y las opciones. Consulte <a href="/docs/restore">Restauración</a>.</td></tr>
+  <tr><td><a href="/runs">Actividad</a></td><td>Cada copia, copia de copia, prueba de restauración y restauración con detalles, estadísticas y errores. Las restauraciones y la exploración de archivos también se pueden iniciar aquí.</td></tr>
+  <tr><td><a href="/calendar">Calendario</a></td><td>Qué se ejecutó en días pasados y qué está programado en el futuro.</td></tr>
+  <tr><td><a href="/reports">Informes</a></td><td>Tasas de éxito y volúmenes de datos para cualquier periodo, exportación CSV, informes por correo y programados.</td></tr>
+  <tr><td><a href="/agents">Agentes</a></td><td>Equipos protegidos con direcciones IP y versiones, códigos de registro, instaladores y actualizaciones de agentes.</td></tr>
+  <tr><td><a href="/targets">Almacenamiento</a></td><td>Dónde se guardan las copias, cifrado y claves de recuperación, inmutabilidad, espacio usado con su previsión.</td></tr>
+  <tr><td><a href="/recovery">Medios de recuperación</a></td><td>ISO de recuperación (Windows para imágenes de disco, Linux para sistemas Linux) y códigos de recuperación para restauraciones bare metal.</td></tr>
+  <tr><td><a href="/approvals">Aprobaciones</a></td><td>Se muestra cuando la aprobación de cuatro ojos está activada: cambios que esperan a un segundo usuario. Consulte <a href="/docs/users">Usuarios, roles y LDAP</a>.</td></tr>
+  <tr><td><a href="/users">Usuarios</a></td><td>Cuentas, roles, tokens de API de todos los usuarios, registro de auditoría.</td></tr>
+  <tr><td><a href="/settings/email">Configuración</a></td><td>Notificaciones por correo; Slack, Teams y webhooks; sesiones de inicio de sesión, política de doble factor, protección contra fuerza bruta, aprobación de cuatro ojos y secretos guardados; pruebas de restauración; el certificado HTTPS para navegadores; en el appliance, su red (dirección, nombre del servidor, SSH; consulte <a href="/docs/install#setup-menu">Instalación</a>); actualizaciones de BackupZit y del sistema operativo; copia de la propia consola; LDAP / Active Directory; inicio de sesión único con SAML u OpenID Connect.</td></tr>
+  <tr><td><a href="/account">Mi cuenta</a> (su nombre, arriba a la derecha)</td><td>Su perfil y rol, contraseña, autenticación de doble factor, tokens de API.</td></tr>
+  <tr><td><a href="/docs">Documentación</a></td><td>Esta guía.</td></tr>
+</table>
+
+<h3>Idioma</h3>
+<p>La consola está disponible en 14 idiomas: inglés, alemán, francés, español, italiano, portugués (Brasil), neerlandés, polaco, checo, serbio (alfabeto latino), turco, ruso, chino (simplificado) y japonés. Elija uno en la lista de idiomas arriba a la derecha o en la página de inicio de sesión; la elección se recuerda en el navegador. Sin elección, decide el idioma del navegador (los navegadores croatas, bosnios y montenegrinos obtienen serbio, los eslovacos checo, los demás idiomas inglés). Esta guía también está traducida (una página sin traducción se muestra en inglés). Los correos, las notificaciones de chat y los mensajes enviados por los agentes se mantienen en inglés.</p>
+<p>Las traducciones están en el código fuente, en <code>internal/server/i18n/es.json</code>: el texto en inglés es la clave y la traducción su valor. <code>go run ./tools/i18n missing es</code> muestra los textos sin traducción; los textos no traducidos se muestran en inglés.</p>
+
+<h2>Conceptos clave</h2>
+<h3>Instantáneas y deduplicación</h3>
+<p>Cada copia crea una <i>instantánea</i>: una imagen completa y explorable de los datos en ese momento. Los archivos se dividen en fragmentos de tamaño variable y los discos en bloques, y cada pieza se guarda una sola vez, de modo que la segunda copia y las siguientes solo suben lo que cambió; aun así, cada instantánea se puede restaurar por sí sola. No hay que gestionar ninguna «cadena completa/incremental».</p>
+<h3>Repositorios</h3>
+<p>Cada agente escribe en su propio <i>repositorio</i> bajo la ubicación del destino de almacenamiento (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Un repositorio es autónomo: con la ubicación, las credenciales del almacenamiento y la clave de recuperación, se puede restaurar aunque la consola ya no exista.</p>
+<h3>Retención</h3>
+<p>Cada trabajo conserva un número de copias recientes, diarias, semanales y mensuales. Las instantáneas más antiguas se eliminan tras cada ejecución y se libera el espacio que ocupaban.</p>
+<h3>Qué comprueba BackupZit por usted</h3>
+<ul>
+  <li><b>Pruebas de restauración</b>: la copia más reciente de cada trabajo se restaura parcialmente y se verifica cada semana (<a href="/docs/restore">Restauración</a>).</li>
+  <li><b>Detección de ransomware</b>: las copias inusuales (cambios masivos, datos cifrados, borrado masivo, saltos bruscos del volumen de datos) se marcan y la retención se pausa (<a href="/docs/ransomware">Protección contra ransomware</a>).</li>
+  <li><b>Alertas e informes</b>: correos ante fallos y un resumen diario; informes programados para la dirección (<a href="/docs/notifications">Notificaciones por correo</a>, <a href="/docs/monitoring">Supervisión</a>).</li>
+</ul>
+
+<h2>Licencia y soporte</h2>
+<p>BackupZit es software libre bajo la <b>GNU Affero General Public License v3</b>: puede instalarlo y usarlo sin pagar, en cualquier número de equipos. MaxZit ofrece soporte comercial. BackupZit incluye componentes de código abierto bajo sus propias licencias (MIT, BSD, Apache 2.0, ISC, MPL 2.0, zlib); sus textos se instalan con cada paquete como <code>THIRD_PARTY_LICENSES.txt</code> (<code>/usr/share/doc/backupzit-*/</code> en Linux, la carpeta del programa del agente en Windows).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

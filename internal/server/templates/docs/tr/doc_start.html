@@ -1,0 +1,78 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Başlarken</h1>
+<p class="lead">BackupZit; Windows ve Linux makineleri, Proxmox VE, Hyper-V ve VMware ESXi sanal makinelerini, veritabanlarını (SQL Server, PostgreSQL, MySQL/MariaDB) ve NAS paylaşımlarını — dosyaları, tüm diskleri ve tüm sistemleri — kendi ağınızda çalışan tek bir web konsolundan korur.</p>
+
+<h2>BackupZit neleri korur</h2>
+<table>
+  <tr><th>Ne</th><th>Nasıl</th><th>Geri yükleme</th></tr>
+  <tr><td>Dosyalar ve klasörler (Windows, Linux)</td><td>Makinede aracı; Windows'ta açık dosyalar VSS üzerinden. <a href="/docs/jobs">Yedekleme işleri</a></td><td>Tüm yedek veya tek tek klasörler; herhangi bir aracıya, özgün konuma veya başka bir klasöre. <a href="/docs/restore">Geri yükleme</a></td></tr>
+  <tr><td>Windows diskleri</td><td>Bir VSS anlık görüntüsünden tüm diskin veya seçilen bölümlerin disk görüntüsü. <a href="/docs/images">Disk görüntüleri</a></td><td>Windows kurtarma ISO'su ile boş bir diske veya bare metal'e, farklı donanıma ya da bir VM'ye de; görüntüden tek tek dosyalar.</td></tr>
+  <tr><td>Linux sistemleri</td><td>Tüm yerel dosya sistemleri ve disk düzeni (bölümler, LVM, UUID'ler, önyükleme kodu). <a href="/docs/linux-system">Linux sistem yedeği</a></td><td>Linux kurtarma ISO'su ile boş bir diske veya bare metal'e ya da yeni bir Proxmox VM'si olarak (P2V); tek tek dosyalar.</td></tr>
+  <tr><td>Hyper-V VM'leri</td><td>Hyper-V ana bilgisayarında aracı, <b>VM'lerin içinde aracı yok</b>; kurtarma denetim noktaları (konukta VSS), Resilient Change Tracking yalnızca değişen blokları okur. <a href="/docs/hyperv">Hyper-V</a></td><td>Tüm VM yeni olarak veya yerinde (kimliği ve MAC adreslerini korur); VM disklerinden tek tek dosyalar.</td></tr>
+  <tr><td>VMware ESXi VM'leri</td><td>Herhangi bir aracı proxy olarak çalışır, <b>ESXi'ye veya VM'lere hiçbir şey kurulmaz</b>; durgunlaştırılmış anlık görüntüler, Changed Block Tracking yalnızca değişen blokları okur. <a href="/docs/vmware">VMware ESXi</a></td><td>Tüm VM yeni olarak veya yerinde (UUID'yi ve MAC adreslerini korur), herhangi bir ana bilgisayar ve veri deposunda; tek tek dosyalar.</td></tr>
+  <tr><td>NAS ve dosya paylaşımları (SMB, NFS)</td><td>NAS'ta yazılım yok: herhangi bir makinedeki aracı paylaşımı okur. <a href="/docs/jobs">Yedekleme işleri</a></td><td>Dosya ve klasörler paylaşıma geri, bir klasöre veya indirme olarak.</td></tr>
+  <tr><td>Veritabanları: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Veritabanı makinesinde aracı; sunucunun kendi araçları, tam ve günlük yedekleri. <a href="/docs/sql">Veritabanları</a></td><td>Tek bir veritabanı yeni bir adla veya yerinde, günlük yedeklerinin kapsadığı herhangi bir ana.</td></tr>
+  <tr><td>Proxmox VE VM'leri ve kapsayıcıları</td><td>Proxmox ana bilgisayarında aracı, <b>konukların içinde aracı yok</b>; Proxmox anlık görüntülerinden, yalnızca değişen bloklar yüklenir. <a href="/docs/proxmox">Proxmox VE</a></td><td>Tüm konuk yeni olarak veya yerinde, herhangi bir düğüm ve depolamada; VM'ler yedekten anında (anında kurtarma, VMware ESXi'de de); VM disklerinden tek tek dosyalar (NTFS, ext4, XFS, LVM) indirme olarak veya bir aracıya.</td></tr>
+</table>
+
+<h2>BackupZit nasıl çalışır</h2>
+<ul>
+  <li><b>Yönetim konsolu</b> (bu web uygulaması) — ağınızdaki bir Linux sunucusunda çalışır. Yapılandırmayı saklar, işleri zamanlar, sonuçları toplar ve raporları gösterir. İnternetten erişilebilir olması hiçbir zaman gerekmez.</li>
+  <li><b>Aracılar</b> — korunan her makinede (Windows MSI, Linux deb/rpm) ve Proxmox ile Hyper-V ana bilgisayarlarında çalışan küçük bir hizmet; VMware ESXi ana bilgisayarlarına proxy olarak çalışan bir aracı üzerinden ulaşılır. Aracılar konsola HTTPS ile bağlanır, işleri alır ve yedek verilerini <i>doğrudan</i> depolamaya gönderir. Windows'ta aracı durumunu saatin yanında gösterir.</li>
+  <li><b>Depolama hedefleri</b> — yedeklerin tutulduğu yer: SFTP, S3 uyumlu nesne depolama (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, bir SMB paylaşımı/NAS, dönüşümlü USB diskler, yerel veya bağlanmış bir disk ya da bir BackupZit sağlamlaştırılmış deposu.</li>
+</ul>
+<div class="callout tip"><p>Yedek verileri hiçbir zaman konsoldan geçmez. Konsol yalnızca koordine eder; bu yüzden küçük bir sanal makine yeterlidir.</p></div>
+
+<h2>İlk adımlar</h2>
+<p>Yeni bir konsol kurmak için hazır appliance görüntüsünü küçük bir VM'ye aktarın, appliance ISO'sunu başlatın veya mevcut bir Linux sunucusunda kurulum betiğini çalıştırın; bkz. <a href="/docs/install">Sunucuyu kurma</a>.</p>
+<ol>
+  <li><a href="/targets">Depolama</a> altında <b>bir depolama hedefi ekleyin</b>. <i>Yedekleri şifrele</i> seçeneğini açık bırakın ve ardından gösterilen kurtarma sayfasını güvenli bir yerde saklayın. Bkz. <a href="/docs/storage">Depolama hedefleri</a>.</li>
+  <li><b>Aracıları kurun</b>: <a href="/agents">Aracılar</a> altında <i>Kayıt belirteci oluştur</i>'a tıklayın, yükleyiciyi aynı sayfadan indirin ve Windows yükleyicisi istediğinde kayıt kodunu yapıştırın (Linux: <code>backupzit-agent enroll --code …</code>). VM'ler için aracıyı Proxmox veya Hyper-V ana bilgisayarına kurun; VMware ESXi ana bilgisayarlarını Aracılar → VMware ESXi ana bilgisayarları altında ekleyin. Bkz. <a href="/docs/agents">Aracılar</a>.</li>
+  <li><a href="/jobs">Yedekleme işleri</a> altında <b>bir yedekleme işi oluşturun</b>: aracıyı, depolamayı, neyin yedekleneceğini (dosyalar, bir NAS paylaşımı, bir disk görüntüsü, veritabanları, tüm Linux sistemi veya bir Proxmox, Hyper-V ya da VMware ESXi ana bilgisayarının VM'leri), ne zaman çalışacağını ve kaç yedeğin tutulacağını seçin. Bkz. <a href="/docs/jobs">Yedekleme işleri ve zamanlamalar</a>.</li>
+  <li>İş sayfasındaki <i>Yedeklemeyi şimdi çalıştır</i> ile <b>bir kez elle çalıştırın</b> ve sonucu <a href="/runs">Etkinlik</a> altında denetleyin.</li>
+  <li><b>Bir geri yüklemeyi test edin</b> — bir yedek ancak geri yüklemesi kadar iyidir. Otomatik geri yükleme testleri haftalık çalışır; ayrıca bir kez <a href="/restore">geri yükleme sihirbazı</a> ile elle bir şey geri yükleyin. Bkz. <a href="/docs/restore">Geri yükleme</a>.</li>
+  <li><b>Felaketlere hazırlanın</b>: <a href="/recovery">Kurtarma ortamı</a> altında kurtarma ISO'larını indirin ve bir kurtarma kodu oluşturun.</li>
+  <li>Hatalardan haberdar olmak için <a href="/settings/email">Ayarlar → E-posta bildirimleri</a> altında <b>e-posta uyarılarını ayarlayın</b>, isteğe bağlı olarak haftalık bir <a href="/reports">rapor</a> da.</li>
+</ol>
+
+<h2>Bir bakışta konsol</h2>
+<table>
+  <tr><th>Sayfa</th><th>Ne işe yarar</th></tr>
+  <tr><td><a href="/">Pano</a></td><td>Bir bakışta durum: neyin korunduğu, neyin ilgi gerektirdiği, çevrimiçi aracılar, son 24 saatteki hatalar, şüpheli yedekler, son etkinlik.</td></tr>
+  <tr><td><a href="/jobs">Yedekleme işleri</a></td><td>Dosya, NAS paylaşımı, disk görüntüsü, Linux sistemi, sanal makine, veritabanı ve yedek kopyalama işleri: oluşturma, düzenleme, çalıştırma, geri yükleme testi, devre dışı bırakma, silme. Liste her işin türünü, koruduğu VM'leri veya veritabanlarını, sonraki çalıştırmayı, son sonucu ve geri yükleme noktası sayısını gösterir; türe göre filtreleyin veya arayın. Bir işin sayfası en yeni yedeğindeki VM'leri veya veritabanlarını geri yükleme bağlantılarıyla listeler.</td></tr>
+  <tr><td><a href="/restore">Geri yükle</a></td><td>Geri yükleme sihirbazı: neyin geri yükleneceğini (VM, dosyalar, disk görüntüsü, veritabanı, Linux sistemi), kaynağı, geri yükleme noktasını ve seçenekleri seçin. Bkz. <a href="/docs/restore">Geri yükleme</a>.</td></tr>
+  <tr><td><a href="/runs">Etkinlik</a></td><td>Her yedekleme, kopya, geri yükleme testi ve geri yükleme; ayrıntılar, istatistikler ve hatalarla. Geri yüklemeler ve dosyalara göz atma buradan da başlatılabilir.</td></tr>
+  <tr><td><a href="/calendar">Takvim</a></td><td>Geçmiş günlerde neyin çalıştığı ve gelecekte neyin zamanlandığı.</td></tr>
+  <tr><td><a href="/reports">Raporlar</a></td><td>Herhangi bir dönem için başarı oranları ve veri hacimleri, CSV dışa aktarma, e-postayla gönderilen ve zamanlanmış raporlar.</td></tr>
+  <tr><td><a href="/agents">Aracılar</a></td><td>IP adresleri ve sürümleriyle korunan makineler, kayıt kodları, yükleyiciler ve aracı güncellemeleri.</td></tr>
+  <tr><td><a href="/targets">Depolama</a></td><td>Yedeklerin nerede saklandığı, şifreleme ve kurtarma anahtarları, değiştirilemezlik, tahminiyle birlikte kullanılan alan.</td></tr>
+  <tr><td><a href="/recovery">Kurtarma ortamı</a></td><td>Kurtarma ISO'ları (disk görüntüleri için Windows, Linux sistemleri için Linux) ve bare metal geri yüklemeler için kurtarma kodları.</td></tr>
+  <tr><td><a href="/approvals">Onaylar</a></td><td>Dört göz onayı açıkken gösterilir: ikinci bir kullanıcıyı bekleyen değişiklikler. Bkz. <a href="/docs/users">Kullanıcılar, roller ve LDAP</a>.</td></tr>
+  <tr><td><a href="/users">Kullanıcılar</a></td><td>Hesaplar, roller, tüm kullanıcıların API belirteçleri, denetim günlüğü.</td></tr>
+  <tr><td><a href="/settings/email">Ayarlar</a></td><td>E-posta bildirimleri; Slack, Teams ve webhook'lar; oturum açma oturumları, iki faktör ilkesi, kaba kuvvet koruması, dört göz onayı ve saklanan gizli bilgiler; geri yükleme testleri; tarayıcılar için HTTPS sertifikası; appliance'ta ağı (adres, sunucu adı, SSH — bkz. <a href="/docs/install#setup-menu">Kurulum</a>); BackupZit ve işletim sistemi güncellemeleri; konsolun kendi yedeği; LDAP / Active Directory; SAML veya OpenID Connect ile çoklu oturum açma.</td></tr>
+  <tr><td><a href="/account">Hesabım</a> (adınız, sağ üstte)</td><td>Profiliniz ve rolünüz, parola, iki faktörlü kimlik doğrulama, API belirteçleri.</td></tr>
+  <tr><td><a href="/docs">Belgeler</a></td><td>Bu kılavuz.</td></tr>
+</table>
+
+<h3>Dil</h3>
+<p>Konsol 14 dilde kullanılabilir: İngilizce, Almanca, Fransızca, İspanyolca, İtalyanca, Portekizce (Brezilya), Felemenkçe, Lehçe, Çekçe, Sırpça (Latin alfabesi), Türkçe, Rusça, Çince (basitleştirilmiş) ve Japonca. Sağ üstteki dil listesinden veya oturum açma sayfasından birini seçin; seçim tarayıcıda hatırlanır. Seçim yapılmazsa tarayıcının dili belirler (Hırvatça, Boşnakça ve Karadağca tarayıcılar Sırpça, Slovakça tarayıcılar Çekçe, diğer diller İngilizce alır). Bu kılavuz da çevrilmiştir (çevirisi olmayan bir sayfa İngilizce gösterilir). E-postalar, sohbet bildirimleri ve aracıların bildirdiği iletiler İngilizce kalır.</p>
+<p>Çeviriler kaynak kodda, <code>internal/server/i18n/tr.json</code> içindedir: İngilizce metin anahtar, çeviri onun değeridir. <code>go run ./tools/i18n missing tr</code> çevirisi olmayan metinleri listeler; çevrilmemiş metinler İngilizce gösterilir.</p>
+
+<h2>Temel kavramlar</h2>
+<h3>Anlık görüntüler ve tekilleştirme</h3>
+<p>Her yedekleme bir <i>anlık görüntü</i> oluşturur: verilerin o andaki eksiksiz, göz atılabilir bir resmi. Dosyalar değişken boyutlu parçalara, diskler bloklara bölünür ve her parça yalnızca bir kez saklanır; böylece ikinci ve sonraki yedekler yalnızca değişeni yükler — yine de her anlık görüntü tek başına geri yüklenebilir. Yönetilecek bir "tam/artımlı zincir" yoktur.</p>
+<h3>Depolar</h3>
+<p>Her aracı, depolama hedefi konumunun altındaki kendi <i>deposuna</i> yazar (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Bir depo kendi kendine yeterlidir: konum, depolama kimlik bilgileri ve kurtarma anahtarıyla, konsol ortadan kalksa bile geri yüklenebilir.</p>
+<h3>Saklama</h3>
+<p>Her iş belirli sayıda son, günlük, haftalık ve aylık yedeği tutar. Daha eski anlık görüntüler her çalıştırmadan sonra kaldırılır ve kullandıkları alan boşaltılır.</p>
+<h3>BackupZit sizin için neleri denetler</h3>
+<ul>
+  <li><b>Geri yükleme testleri</b> — her işin en yeni yedeği haftalık olarak kısmen geri yüklenir ve doğrulanır (<a href="/docs/restore">Geri yükleme</a>).</li>
+  <li><b>Fidye yazılımı algılama</b> — olağandışı yedekler (toplu değişiklikler, şifrelenmiş veriler, toplu silme, veri hacminde ani sıçramalar) işaretlenir ve saklama duraklatılır (<a href="/docs/ransomware">Fidye yazılımı koruması</a>).</li>
+  <li><b>Uyarılar ve raporlar</b> — hatalar için e-postalar ve günlük özet; yönetim için zamanlanmış raporlar (<a href="/docs/notifications">E-posta bildirimleri</a>, <a href="/docs/monitoring">İzleme</a>).</li>
+</ul>
+
+<h2>Lisans ve destek</h2>
+<p>BackupZit, <b>GNU Affero General Public License v3</b> kapsamında özgür yazılımdır: ücret ödemeden, istediğiniz sayıda makineye kurup kullanabilirsiniz. Ticari destek MaxZit'ten alınabilir. BackupZit, kendi lisanslarına (MIT, BSD, Apache 2.0, ISC, MPL 2.0, zlib) tabi açık kaynak bileşenler içerir; bunların metinleri her paketle birlikte <code>THIRD_PARTY_LICENSES.txt</code> olarak kurulur (Linux'ta <code>/usr/share/doc/backupzit-*/</code>, Windows'ta aracının program klasörü).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

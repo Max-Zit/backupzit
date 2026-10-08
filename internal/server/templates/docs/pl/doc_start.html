@@ -1,0 +1,78 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Pierwsze kroki</h1>
+<p class="lead">BackupZit chroni komputery z Windows i Linuksem, maszyny wirtualne Proxmox VE, Hyper-V i VMware ESXi, bazy danych (SQL Server, PostgreSQL, MySQL/MariaDB) i udziały NAS — pliki, całe dyski i całe systemy — z jednej konsoli WWW działającej w Twojej własnej sieci.</p>
+
+<h2>Co chroni BackupZit</h2>
+<table>
+  <tr><th>Co</th><th>Jak</th><th>Przywracanie</th></tr>
+  <tr><td>Pliki i foldery (Windows, Linux)</td><td>Agent na maszynie; otwarte pliki w Windows przez VSS. <a href="/docs/jobs">Zadania kopii</a></td><td>Cała kopia lub pojedyncze foldery, do dowolnego agenta, do oryginalnej lokalizacji lub innego folderu. <a href="/docs/restore">Przywracanie</a></td></tr>
+  <tr><td>Dyski Windows</td><td>Obraz całego dysku lub wybranych partycji z migawki VSS. <a href="/docs/images">Obrazy dysków</a></td><td>Na pusty dysk lub bare metal z ISO odzyskiwania Windows, także na inny sprzęt lub do maszyny wirtualnej; pojedyncze pliki z obrazu.</td></tr>
+  <tr><td>Systemy Linux</td><td>Wszystkie lokalne systemy plików plus układ dysków (partycje, LVM, UUID, kod rozruchowy). <a href="/docs/linux-system">Kopia systemu Linux</a></td><td>Na pusty dysk lub bare metal z ISO odzyskiwania Linux albo jako nowa maszyna Proxmox (P2V); pojedyncze pliki.</td></tr>
+  <tr><td>Maszyny wirtualne Hyper-V</td><td>Agent na hoście Hyper-V, <b>bez agenta w maszynach</b>; punkty kontrolne odzyskiwania (VSS w gościu), Resilient Change Tracking czyta tylko zmienione bloki. <a href="/docs/hyperv">Hyper-V</a></td><td>Cała maszyna jako nowa lub na miejscu (zachowuje ID i adresy MAC); pojedyncze pliki z dysków maszyn.</td></tr>
+  <tr><td>Maszyny wirtualne VMware ESXi</td><td>Dowolny agent działa jako proxy, <b>nic nie jest instalowane na ESXi ani w maszynach</b>; migawki z wyciszeniem, Changed Block Tracking czyta tylko zmienione bloki. <a href="/docs/vmware">VMware ESXi</a></td><td>Cała maszyna jako nowa lub na miejscu (zachowuje UUID i adresy MAC), na dowolnym hoście i magazynie danych; pojedyncze pliki.</td></tr>
+  <tr><td>NAS i udziały plików (SMB, NFS)</td><td>Żadnego oprogramowania na NAS: agent na dowolnej maszynie czyta udział. <a href="/docs/jobs">Zadania kopii</a></td><td>Pliki i foldery z powrotem na udział, do folderu lub jako plik do pobrania.</td></tr>
+  <tr><td>Bazy danych: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent na maszynie z bazą danych; własne narzędzia serwera, kopie pełne i dzienników. <a href="/docs/sql">Bazy danych</a></td><td>Pojedyncza baza pod nową nazwą lub na miejscu, do dowolnej chwili objętej kopiami dzienników.</td></tr>
+  <tr><td>Maszyny wirtualne i kontenery Proxmox VE</td><td>Agent na hoście Proxmox, <b>bez agenta w gościach</b>; z migawek Proxmox, wysyłane są tylko zmienione bloki. <a href="/docs/proxmox">Proxmox VE</a></td><td>Cały gość jako nowy lub na miejscu, na dowolnym węźle i magazynie; maszyny natychmiast z kopii (natychmiastowe odzyskiwanie, także na VMware ESXi); pojedyncze pliki z dysków maszyn (NTFS, ext4, XFS, LVM) do pobrania lub do agenta.</td></tr>
+</table>
+
+<h2>Jak działa BackupZit</h2>
+<ul>
+  <li><b>Konsola zarządzania</b> (ta aplikacja WWW) — działa na serwerze Linux w Twojej sieci. Przechowuje konfigurację, planuje zadania, zbiera wyniki i pokazuje raporty. Nigdy nie musi być dostępna z Internetu.</li>
+  <li><b>Agenci</b> — mała usługa na każdej chronionej maszynie (MSI dla Windows, deb/rpm dla Linuksa) oraz na hostach Proxmox i Hyper-V; do hostów VMware ESXi dociera się przez agenta działającego jako proxy. Agenci łączą się z konsolą przez HTTPS, odbierają zadania i wysyłają dane kopii <i>bezpośrednio</i> do magazynu. W Windows agent pokazuje swój stan obok zegara.</li>
+  <li><b>Miejsca docelowe</b> — gdzie przechowywane są kopie: SFTP, magazyn obiektów zgodny z S3 (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, udział SMB/NAS, rotowane dyski USB, dysk lokalny lub zamontowany albo utwardzone repozytorium BackupZit.</li>
+</ul>
+<div class="callout tip"><p>Dane kopii nigdy nie przechodzą przez konsolę. Konsola tylko koordynuje, więc wystarczy jej mała maszyna wirtualna.</p></div>
+
+<h2>Pierwsze kroki</h2>
+<p>Aby uruchomić nową konsolę, zaimportuj gotowy obraz appliance do małej maszyny wirtualnej, uruchom ISO appliance lub wykonaj skrypt instalacyjny na istniejącym serwerze Linux; zobacz <a href="/docs/install">Instalacja serwera</a>.</p>
+<ol>
+  <li><b>Dodaj miejsce docelowe</b> w <a href="/targets">Magazyn</a>. Pozostaw włączone <i>Szyfruj kopie</i> i zachowaj w bezpiecznym miejscu arkusz odzyskiwania pokazany potem. Zobacz <a href="/docs/storage">Miejsca docelowe</a>.</li>
+  <li><b>Zainstaluj agentów</b>: w <a href="/agents">Agenci</a> kliknij <i>Utwórz token rejestracji</i>, pobierz instalator z tej samej strony i wklej kod rejestracji, gdy instalator Windows o niego poprosi (Linux: <code>backupzit-agent enroll --code …</code>). Dla maszyn wirtualnych zainstaluj agenta na hoście Proxmox lub Hyper-V; hosty VMware ESXi dodaj w Agenci → Hosty VMware ESXi. Zobacz <a href="/docs/agents">Agenci</a>.</li>
+  <li><b>Utwórz zadanie kopii</b> w <a href="/jobs">Zadania kopii</a>: wybierz agenta, magazyn, co kopiować (pliki, udział NAS, obraz dysku, bazy danych, cały system Linux lub maszyny wirtualne hosta Proxmox, Hyper-V lub VMware ESXi), kiedy uruchamiać i ile kopii zachować. Zobacz <a href="/docs/jobs">Zadania kopii i harmonogramy</a>.</li>
+  <li><b>Uruchom je raz ręcznie</b> przyciskiem <i>Uruchom kopię teraz</i> na stronie zadania i sprawdź wynik w <a href="/runs">Aktywność</a>.</li>
+  <li><b>Przetestuj przywracanie</b> — kopia jest warta tyle, ile jej przywrócenie. Automatyczne testy przywracania działają co tydzień; przywróć też raz coś ręcznie za pomocą <a href="/restore">kreatora przywracania</a>. Zobacz <a href="/docs/restore">Przywracanie</a>.</li>
+  <li><b>Przygotuj się na awarie</b>: pobierz ISO odzyskiwania i utwórz kod odzyskiwania w <a href="/recovery">Nośniki odzyskiwania</a>.</li>
+  <li><b>Skonfiguruj alerty e-mail</b> w <a href="/settings/email">Ustawienia → Powiadomienia e-mail</a>, aby dowiadywać się o błędach, i opcjonalnie cotygodniowy <a href="/reports">raport</a>.</li>
+</ol>
+
+<h2>Konsola w skrócie</h2>
+<table>
+  <tr><th>Strona</th><th>Do czego służy</th></tr>
+  <tr><td><a href="/">Pulpit</a></td><td>Stan w skrócie: co jest chronione, co wymaga uwagi, agenci online, błędy z ostatnich 24 godzin, podejrzane kopie, ostatnia aktywność.</td></tr>
+  <tr><td><a href="/jobs">Zadania kopii</a></td><td>Zadania plików, udziałów NAS, obrazów dysków, systemów Linux, maszyn wirtualnych, baz danych i kopii zapasowych kopii: tworzenie, edycja, uruchamianie, test przywracania, wyłączanie, usuwanie. Lista pokazuje typ każdego zadania, chronione maszyny lub bazy, następne uruchomienie, ostatni wynik i liczbę punktów przywracania; filtruj po typie lub wyszukuj. Strona zadania pokazuje maszyny lub bazy z jego najnowszej kopii z linkami do ich przywrócenia.</td></tr>
+  <tr><td><a href="/restore">Przywracanie</a></td><td>Kreator przywracania: wybierz, co przywrócić (maszynę wirtualną, pliki, obraz dysku, bazę danych, system Linux), źródło, punkt przywracania i opcje. Zobacz <a href="/docs/restore">Przywracanie</a>.</td></tr>
+  <tr><td><a href="/runs">Aktywność</a></td><td>Każda kopia, kopia kopii, test przywracania i przywracanie ze szczegółami, statystykami i błędami. Przywracanie i przeglądanie plików można też uruchomić tutaj.</td></tr>
+  <tr><td><a href="/calendar">Kalendarz</a></td><td>Co działało w minionych dniach i co jest zaplanowane na przyszłość.</td></tr>
+  <tr><td><a href="/reports">Raporty</a></td><td>Wskaźniki powodzenia i ilości danych dla dowolnego okresu, eksport CSV, raporty wysyłane e-mailem i planowane.</td></tr>
+  <tr><td><a href="/agents">Agenci</a></td><td>Chronione maszyny z adresami IP i wersjami, kody rejestracji, instalatory i aktualizacje agentów.</td></tr>
+  <tr><td><a href="/targets">Magazyn</a></td><td>Gdzie przechowywane są kopie, szyfrowanie i klucze odzyskiwania, niezmienność, zajęte miejsce z prognozą.</td></tr>
+  <tr><td><a href="/recovery">Nośniki odzyskiwania</a></td><td>ISO odzyskiwania (Windows dla obrazów dysków, Linux dla systemów Linux) i kody odzyskiwania do przywracania bare metal.</td></tr>
+  <tr><td><a href="/approvals">Zatwierdzenia</a></td><td>Widoczne, gdy zatwierdzanie na cztery oczy jest włączone: zmiany czekające na drugiego użytkownika. Zobacz <a href="/docs/users">Użytkownicy, role i LDAP</a>.</td></tr>
+  <tr><td><a href="/users">Użytkownicy</a></td><td>Konta, role, tokeny API wszystkich użytkowników, dziennik audytu.</td></tr>
+  <tr><td><a href="/settings/email">Ustawienia</a></td><td>Powiadomienia e-mail; Slack, Teams i webhooki; sesje logowania, zasady uwierzytelniania dwuskładnikowego, ochrona przed brute force, zatwierdzanie na cztery oczy i zapisane sekrety; testy przywracania; certyfikat HTTPS dla przeglądarek; na appliance jego sieć (adres, nazwa serwera, SSH — zobacz <a href="/docs/install#setup-menu">Instalacja</a>); aktualizacje BackupZit i systemu operacyjnego; kopia samej konsoli; LDAP / Active Directory; logowanie jednokrotne przez SAML lub OpenID Connect.</td></tr>
+  <tr><td><a href="/account">Moje konto</a> (Twoje imię, w prawym górnym rogu)</td><td>Twój profil i rola, hasło, uwierzytelnianie dwuskładnikowe, tokeny API.</td></tr>
+  <tr><td><a href="/docs">Dokumentacja</a></td><td>Ten przewodnik.</td></tr>
+</table>
+
+<h3>Język</h3>
+<p>Konsola jest dostępna w 14 językach: angielskim, niemieckim, francuskim, hiszpańskim, włoskim, portugalskim (Brazylia), niderlandzkim, polskim, czeskim, serbskim (alfabet łaciński), tureckim, rosyjskim, chińskim (uproszczonym) i japońskim. Wybierz język z listy w prawym górnym rogu lub na stronie logowania; wybór jest zapamiętywany w przeglądarce. Bez wyboru decyduje język przeglądarki (przeglądarki chorwackie, bośniackie i czarnogórskie dostają serbski, słowackie czeski, inne języki angielski). Ten przewodnik też jest przetłumaczony (strona bez tłumaczenia jest wyświetlana po angielsku). E-maile, powiadomienia na czacie i komunikaty zgłaszane przez agentów pozostają po angielsku.</p>
+<p>Tłumaczenia są w kodzie źródłowym, w <code>internal/server/i18n/pl.json</code>: tekst angielski jest kluczem, a tłumaczenie jego wartością. <code>go run ./tools/i18n missing pl</code> wyświetla teksty bez tłumaczenia; nieprzetłumaczone teksty są wyświetlane po angielsku.</p>
+
+<h2>Podstawowe pojęcia</h2>
+<h3>Migawki i deduplikacja</h3>
+<p>Każda kopia tworzy <i>migawkę</i>: pełny, przeglądalny obraz danych w danym momencie. Pliki są dzielone na fragmenty o zmiennej wielkości, a dyski na bloki, i każdy fragment jest zapisywany tylko raz, więc druga i kolejne kopie wysyłają tylko to, co się zmieniło — a mimo to każdą migawkę można przywrócić samodzielnie. Nie ma żadnego „łańcucha pełna/przyrostowa” do zarządzania.</p>
+<h3>Repozytoria</h3>
+<p>Każdy agent zapisuje do własnego <i>repozytorium</i> pod lokalizacją miejsca docelowego (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Repozytorium jest samowystarczalne: z lokalizacją, danymi dostępu do magazynu i kluczem odzyskiwania można je przywrócić, nawet jeśli konsoli już nie ma.</p>
+<h3>Retencja</h3>
+<p>Każde zadanie zachowuje pewną liczbę ostatnich, dziennych, tygodniowych i miesięcznych kopii. Starsze migawki są usuwane po każdym uruchomieniu, a zajmowane przez nie miejsce jest zwalniane.</p>
+<h3>Co BackupZit sprawdza za Ciebie</h3>
+<ul>
+  <li><b>Testy przywracania</b> — najnowsza kopia każdego zadania jest co tydzień częściowo przywracana i weryfikowana (<a href="/docs/restore">Przywracanie</a>).</li>
+  <li><b>Wykrywanie ransomware</b> — nietypowe kopie (masowe zmiany, zaszyfrowane dane, masowe usuwanie, nagłe skoki ilości danych) są oznaczane, a retencja wstrzymywana (<a href="/docs/ransomware">Ochrona przed ransomware</a>).</li>
+  <li><b>Alerty i raporty</b> — e-maile o błędach i codzienne podsumowanie; planowane raporty dla kierownictwa (<a href="/docs/notifications">Powiadomienia e-mail</a>, <a href="/docs/monitoring">Monitorowanie</a>).</li>
+</ul>
+
+<h2>Licencja i wsparcie</h2>
+<p>BackupZit jest wolnym oprogramowaniem na licencji <b>GNU Affero General Public License v3</b>: możesz go instalować i używać bez opłat, na dowolnej liczbie maszyn. Wsparcie komercyjne oferuje MaxZit. BackupZit zawiera komponenty open source na ich własnych licencjach (MIT, BSD, Apache 2.0, ISC, MPL 2.0, zlib); ich teksty są instalowane z każdym pakietem jako <code>THIRD_PARTY_LICENSES.txt</code> (<code>/usr/share/doc/backupzit-*/</code> w Linuksie, folder programu agenta w Windows).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

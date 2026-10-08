@@ -1,0 +1,78 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Prise en main</h1>
+<p class="lead">BackupZit protège les machines Windows et Linux, les machines virtuelles Proxmox VE, Hyper-V et VMware ESXi, les bases de données (SQL Server, PostgreSQL, MySQL/MariaDB) et les partages NAS — fichiers, disques entiers et systèmes entiers — depuis une console web qui tourne sur votre propre réseau.</p>
+
+<h2>Ce que BackupZit protège</h2>
+<table>
+  <tr><th>Quoi</th><th>Comment</th><th>Restauration</th></tr>
+  <tr><td>Fichiers et dossiers (Windows, Linux)</td><td>Agent sur la machine ; fichiers ouverts sous Windows via VSS. <a href="/docs/jobs">Tâches de sauvegarde</a></td><td>Sauvegarde entière ou dossiers individuels, vers n'importe quel agent, à l'emplacement d'origine ou dans un autre dossier. <a href="/docs/restore">Restauration</a></td></tr>
+  <tr><td>Disques Windows</td><td>Image disque d'un disque entier ou de partitions choisies, depuis un instantané VSS. <a href="/docs/images">Images disque</a></td><td>Sur un disque vide ou en bare metal avec l'ISO de récupération Windows, aussi sur un matériel différent ou dans une VM ; fichiers individuels depuis l'image.</td></tr>
+  <tr><td>Systèmes Linux</td><td>Tous les systèmes de fichiers locaux plus la disposition des disques (partitions, LVM, UUID, code d'amorçage). <a href="/docs/linux-system">Sauvegarde du système Linux</a></td><td>Sur un disque vide ou en bare metal avec l'ISO de récupération Linux, ou comme nouvelle VM Proxmox (P2V) ; fichiers individuels.</td></tr>
+  <tr><td>VM Hyper-V</td><td>Agent sur l'hôte Hyper-V, <b>aucun agent dans les VM</b> ; points de contrôle de récupération (VSS dans l'invité), Resilient Change Tracking ne lit que les blocs modifiés. <a href="/docs/hyperv">Hyper-V</a></td><td>VM entière comme nouvelle ou sur place (conserve l'ID et les adresses MAC) ; fichiers individuels des disques de VM.</td></tr>
+  <tr><td>VM VMware ESXi</td><td>N'importe quel agent sert de proxy, <b>rien n'est installé sur ESXi ni dans les VM</b> ; instantanés suspendus, le suivi des blocs modifiés ne lit que les blocs modifiés. <a href="/docs/vmware">VMware ESXi</a></td><td>VM entière comme nouvelle ou sur place (conserve l'UUID et les adresses MAC), sur n'importe quel hôte et datastore ; fichiers individuels.</td></tr>
+  <tr><td>NAS et partages de fichiers (SMB, NFS)</td><td>Aucun logiciel sur le NAS : un agent sur n'importe quelle machine lit le partage. <a href="/docs/jobs">Tâches de sauvegarde</a></td><td>Fichiers et dossiers de retour sur le partage, dans un dossier ou en téléchargement.</td></tr>
+  <tr><td>Bases de données : SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent sur la machine de base de données ; les outils propres du serveur, sauvegardes complètes et de journaux. <a href="/docs/sql">Bases de données</a></td><td>Une base individuelle sous un nouveau nom ou sur place, à tout instant couvert par les sauvegardes de journaux.</td></tr>
+  <tr><td>VM et conteneurs Proxmox VE</td><td>Agent sur l'hôte Proxmox, <b>aucun agent dans les invités</b> ; depuis les instantanés Proxmox, seuls les blocs modifiés sont envoyés. <a href="/docs/proxmox">Proxmox VE</a></td><td>Invité entier comme nouveau ou sur place, sur n'importe quel nœud et stockage ; VM instantanément depuis la sauvegarde (restauration instantanée, aussi sur VMware ESXi) ; fichiers individuels des disques de VM (NTFS, ext4, XFS, LVM) en téléchargement ou vers un agent.</td></tr>
+</table>
+
+<h2>Comment fonctionne BackupZit</h2>
+<ul>
+  <li><b>Console de gestion</b> (cette application web) — tourne sur un serveur Linux de votre réseau. Elle stocke la configuration, planifie les tâches, collecte les résultats et affiche les rapports. Elle n'a jamais besoin d'être joignable depuis Internet.</li>
+  <li><b>Agents</b> — un petit service sur chaque machine protégée (MSI Windows, deb/rpm Linux) et sur les hôtes Proxmox et Hyper-V ; les hôtes VMware ESXi sont atteints via un agent servant de proxy. Les agents contactent la console en HTTPS, reçoivent les tâches et envoient les données de sauvegarde <i>directement</i> au stockage. Sous Windows, l'agent affiche son état à côté de l'horloge.</li>
+  <li><b>Cibles de stockage</b> — là où les sauvegardes sont conservées : SFTP, stockage objet compatible S3 (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, un partage SMB/NAS, des disques USB en rotation, un disque local ou monté, ou un dépôt renforcé BackupZit.</li>
+</ul>
+<div class="callout tip"><p>Les données de sauvegarde ne passent jamais par la console. La console ne fait que coordonner ; une petite machine virtuelle lui suffit.</p></div>
+
+<h2>Premiers pas</h2>
+<p>Pour mettre en place une nouvelle console, importez l'image d'appliance prête à l'emploi dans une petite VM, démarrez l'ISO de l'appliance ou lancez le script d'installation sur un serveur Linux existant ; voir <a href="/docs/install">Installer le serveur</a>.</p>
+<ol>
+  <li><b>Ajoutez une cible de stockage</b> sous <a href="/targets">Stockage</a>. Laissez <i>Chiffrer les sauvegardes</i> activé et conservez en lieu sûr la fiche de récupération affichée ensuite. Voir <a href="/docs/storage">Cibles de stockage</a>.</li>
+  <li><b>Installez des agents</b> : sous <a href="/agents">Agents</a>, cliquez sur <i>Créer un jeton d’inscription</i>, téléchargez l'installateur depuis la même page et collez le code d'inscription quand l'installateur Windows le demande (Linux : <code>backupzit-agent enroll --code …</code>). Pour les VM, installez l'agent sur l'hôte Proxmox ou Hyper-V ; ajoutez les hôtes VMware ESXi sous Agents → Hôtes VMware ESXi. Voir <a href="/docs/agents">Agents</a>.</li>
+  <li><b>Créez une tâche de sauvegarde</b> sous <a href="/jobs">Tâches de sauvegarde</a> : choisissez l'agent, le stockage, ce qu'il faut sauvegarder (fichiers, un partage NAS, une image disque, des bases de données, tout le système Linux ou les VM d'un hôte Proxmox, Hyper-V ou VMware ESXi), quand l'exécuter et combien de sauvegardes conserver. Voir <a href="/docs/jobs">Tâches de sauvegarde et planifications</a>.</li>
+  <li><b>Exécutez-la une fois manuellement</b> avec <i>Lancer la sauvegarde maintenant</i> sur la page de la tâche et vérifiez le résultat sous <a href="/runs">Activité</a>.</li>
+  <li><b>Testez une restauration</b> — une sauvegarde ne vaut que par sa restauration. Les tests de restauration automatiques s'exécutent chaque semaine ; restaurez aussi une fois quelque chose à la main avec l'<a href="/restore">assistant de restauration</a>. Voir <a href="/docs/restore">Restauration</a>.</li>
+  <li><b>Préparez-vous aux sinistres</b> : téléchargez les ISO de récupération et créez un code de récupération sous <a href="/recovery">Supports de récupération</a>.</li>
+  <li><b>Configurez les alertes par e-mail</b> sous <a href="/settings/email">Paramètres → Notifications par e-mail</a> pour être informé des échecs, et éventuellement un <a href="/reports">rapport</a> hebdomadaire.</li>
+</ol>
+
+<h2>La console en un coup d'œil</h2>
+<table>
+  <tr><th>Page</th><th>À quoi elle sert</th></tr>
+  <tr><td><a href="/">Tableau de bord</a></td><td>L'état d'un coup d'œil : ce qui est protégé, ce qui nécessite votre attention, agents en ligne, échecs des dernières 24 heures, sauvegardes suspectes, activité récente.</td></tr>
+  <tr><td><a href="/jobs">Tâches de sauvegarde</a></td><td>Tâches de fichiers, partage NAS, image disque, système Linux, machine virtuelle, base de données et copie de sauvegarde : créer, modifier, exécuter, tester la restauration, désactiver, supprimer. La liste montre le type de chaque tâche, les VM ou bases qu'elle protège, la prochaine exécution, le dernier résultat et le nombre de points de restauration ; filtrez par type ou recherchez. La page d'une tâche liste les VM ou bases de sa sauvegarde la plus récente avec des liens pour les restaurer.</td></tr>
+  <tr><td><a href="/restore">Restaurer</a></td><td>Assistant de restauration : choisissez quoi restaurer (VM, fichiers, image disque, base de données, système Linux), la source, le point de restauration et les options. Voir <a href="/docs/restore">Restauration</a>.</td></tr>
+  <tr><td><a href="/runs">Activité</a></td><td>Chaque sauvegarde, copie, test de restauration et restauration avec détails, statistiques et erreurs. Les restaurations et la navigation dans les fichiers peuvent aussi être lancées ici.</td></tr>
+  <tr><td><a href="/calendar">Calendrier</a></td><td>Ce qui s'est exécuté les jours passés et ce qui est planifié à l'avenir.</td></tr>
+  <tr><td><a href="/reports">Rapports</a></td><td>Taux de réussite et volumes de données pour n'importe quelle période, export CSV, rapports envoyés par e-mail et planifiés.</td></tr>
+  <tr><td><a href="/agents">Agents</a></td><td>Machines protégées avec adresses IP et versions, codes d'inscription, installateurs et mises à jour des agents.</td></tr>
+  <tr><td><a href="/targets">Stockage</a></td><td>Où les sauvegardes sont stockées, chiffrement et clés de récupération, immuabilité, espace utilisé avec sa prévision.</td></tr>
+  <tr><td><a href="/recovery">Supports de récupération</a></td><td>ISO de récupération (Windows pour les images disque, Linux pour les systèmes Linux) et codes de récupération pour les restaurations bare metal.</td></tr>
+  <tr><td><a href="/approvals">Approbations</a></td><td>Affichée quand l'approbation à quatre yeux est active : modifications qui attendent un second utilisateur. Voir <a href="/docs/users">Utilisateurs, rôles et LDAP</a>.</td></tr>
+  <tr><td><a href="/users">Utilisateurs</a></td><td>Comptes, rôles, jetons API de tous les utilisateurs, journal d'audit.</td></tr>
+  <tr><td><a href="/settings/email">Paramètres</a></td><td>Notifications par e-mail ; Slack, Teams et webhooks ; sessions de connexion, politique à deux facteurs, protection contre la force brute, approbation à quatre yeux et secrets enregistrés ; tests de restauration ; le certificat HTTPS pour les navigateurs ; sur l'appliance son réseau (adresse, nom du serveur, SSH — voir <a href="/docs/install#setup-menu">Installation</a>) ; mises à jour de BackupZit et du système d'exploitation ; sauvegarde de la console elle-même ; LDAP / Active Directory ; authentification unique avec SAML ou OpenID Connect.</td></tr>
+  <tr><td><a href="/account">Mon compte</a> (votre nom, en haut à droite)</td><td>Votre profil et votre rôle, mot de passe, authentification à deux facteurs, jetons API.</td></tr>
+  <tr><td><a href="/docs">Documentation</a></td><td>Ce guide.</td></tr>
+</table>
+
+<h3>Langue</h3>
+<p>La console est disponible en 14 langues : anglais, allemand, français, espagnol, italien, portugais (Brésil), néerlandais, polonais, tchèque, serbe (alphabet latin), turc, russe, chinois (simplifié) et japonais. Choisissez-en une dans la liste des langues en haut à droite ou sur la page de connexion ; le choix est mémorisé dans le navigateur. Sans choix, c'est la langue du navigateur qui décide (les navigateurs croates, bosniens et monténégrins obtiennent le serbe, les slovaques le tchèque, les autres langues l'anglais). Ce guide est également traduit (une page sans traduction s'affiche en anglais). Les e-mails, notifications de chat et messages remontés par les agents restent en anglais.</p>
+<p>Les traductions se trouvent dans le code source, dans <code>internal/server/i18n/fr.json</code> : le texte anglais est la clé, la traduction sa valeur. <code>go run ./tools/i18n missing fr</code> liste les textes sans traduction ; les textes non traduits s'affichent en anglais.</p>
+
+<h2>Notions clés</h2>
+<h3>Instantanés et déduplication</h3>
+<p>Chaque sauvegarde crée un <i>instantané</i> : une image complète et consultable des données à ce moment. Les fichiers sont découpés en morceaux de taille variable et les disques en blocs, et chaque morceau n'est stocké qu'une fois ; la deuxième sauvegarde et les suivantes n'envoient donc que ce qui a changé — et pourtant chaque instantané peut être restauré seul. Il n'y a pas de « chaîne complète/incrémentale » à gérer.</p>
+<h3>Dépôts</h3>
+<p>Chaque agent écrit dans son propre <i>dépôt</i> sous l'emplacement de la cible de stockage (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Un dépôt est autonome : avec l'emplacement, les identifiants du stockage et la clé de récupération, il peut être restauré même si la console a disparu.</p>
+<h3>Rétention</h3>
+<p>Chaque tâche conserve un certain nombre de sauvegardes récentes, quotidiennes, hebdomadaires et mensuelles. Les instantanés plus anciens sont supprimés après chaque exécution et l'espace qu'ils occupaient est libéré.</p>
+<h3>Ce que BackupZit vérifie pour vous</h3>
+<ul>
+  <li><b>Tests de restauration</b> — la sauvegarde la plus récente de chaque tâche est partiellement restaurée et vérifiée chaque semaine (<a href="/docs/restore">Restauration</a>).</li>
+  <li><b>Détection des rançongiciels</b> — les sauvegardes inhabituelles (modifications massives, données chiffrées, suppression massive, sauts soudains du volume de données) sont signalées et la rétention est suspendue (<a href="/docs/ransomware">Protection contre les rançongiciels</a>).</li>
+  <li><b>Alertes et rapports</b> — e-mails en cas d'échec et résumé quotidien ; rapports planifiés pour la direction (<a href="/docs/notifications">Notifications par e-mail</a>, <a href="/docs/monitoring">Supervision</a>).</li>
+</ul>
+
+<h2>Licence et support</h2>
+<p>BackupZit est un logiciel libre sous la <b>GNU Affero General Public License v3</b> : vous pouvez l'installer et l'utiliser gratuitement, sur un nombre quelconque de machines. Un support commercial est proposé par MaxZit. BackupZit inclut des composants open source sous leurs propres licences (MIT, BSD, Apache 2.0, ISC, MPL 2.0, zlib) ; leurs textes sont installés avec chaque paquet sous <code>THIRD_PARTY_LICENSES.txt</code> (<code>/usr/share/doc/backupzit-*/</code> sous Linux, le dossier du programme de l'agent sous Windows).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,78 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Aan de slag</h1>
+<p class="lead">BackupZit beschermt Windows- en Linux-machines, virtuele machines op Proxmox VE, Hyper-V en VMware ESXi, databases (SQL Server, PostgreSQL, MySQL/MariaDB) en NAS-shares — bestanden, hele schijven en hele systemen — vanuit één webconsole die in uw eigen netwerk draait.</p>
+
+<h2>Wat BackupZit beschermt</h2>
+<table>
+  <tr><th>Wat</th><th>Hoe</th><th>Herstel</th></tr>
+  <tr><td>Bestanden en mappen (Windows, Linux)</td><td>Agent op de machine; geopende bestanden op Windows via VSS. <a href="/docs/jobs">Back-uptaken</a></td><td>Hele back-up of losse mappen, naar elke agent, de oorspronkelijke locatie of een andere map. <a href="/docs/restore">Herstellen</a></td></tr>
+  <tr><td>Windows-schijven</td><td>Schijfimage van een hele schijf of gekozen partities, vanuit een VSS-snapshot. <a href="/docs/images">Schijfimages</a></td><td>Op een lege schijf of bare metal met de Windows-herstel-ISO, ook op andere hardware of in een VM; losse bestanden uit de image.</td></tr>
+  <tr><td>Linux-systemen</td><td>Alle lokale bestandssystemen plus de schijfindeling (partities, LVM, UUID's, opstartcode). <a href="/docs/linux-system">Linux-systeemback-up</a></td><td>Op een lege schijf of bare metal met de Linux-herstel-ISO, of als nieuwe Proxmox-VM (P2V); losse bestanden.</td></tr>
+  <tr><td>Hyper-V-VM's</td><td>Agent op de Hyper-V-host, <b>geen agent in de VM's</b>; herstelcontrolepunten (VSS in de gast), Resilient Change Tracking leest alleen gewijzigde blokken. <a href="/docs/hyperv">Hyper-V</a></td><td>Hele VM als nieuwe of ter plaatse (behoudt ID en MAC-adressen); losse bestanden van VM-schijven.</td></tr>
+  <tr><td>VMware ESXi-VM's</td><td>Elke agent werkt als proxy, <b>niets geïnstalleerd op ESXi of in de VM's</b>; gequiesceerde snapshots, Changed Block Tracking leest alleen gewijzigde blokken. <a href="/docs/vmware">VMware ESXi</a></td><td>Hele VM als nieuwe of ter plaatse (behoudt UUID en MAC-adressen), op elke host en datastore; losse bestanden.</td></tr>
+  <tr><td>NAS en bestandsshares (SMB, NFS)</td><td>Geen software op de NAS: een agent op een willekeurige machine leest de share. <a href="/docs/jobs">Back-uptaken</a></td><td>Bestanden en mappen terug op de share, in een map of als download.</td></tr>
+  <tr><td>Databases: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent op de databasemachine; de eigen hulpmiddelen van de server, volledige en logback-ups. <a href="/docs/sql">Databases</a></td><td>Eén database onder een nieuwe naam of ter plaatse, naar elk tijdstip dat de logback-ups dekken.</td></tr>
+  <tr><td>Proxmox VE-VM's en -containers</td><td>Agent op de Proxmox-host, <b>geen agent in de gasten</b>; vanuit Proxmox-snapshots, alleen gewijzigde blokken worden geüpload. <a href="/docs/proxmox">Proxmox VE</a></td><td>Hele gast als nieuwe of ter plaatse, op elk knooppunt en elke opslag; VM's direct vanuit de back-up (direct herstel, ook op VMware ESXi); losse bestanden van VM-schijven (NTFS, ext4, XFS, LVM) als download of naar een agent.</td></tr>
+</table>
+
+<h2>Hoe BackupZit werkt</h2>
+<ul>
+  <li><b>Beheerconsole</b> (deze webtoepassing) — draait op een Linux-server in uw netwerk. Ze bewaart de configuratie, plant taken, verzamelt resultaten en toont rapporten. Ze hoeft nooit vanaf internet bereikbaar te zijn.</li>
+  <li><b>Agents</b> — een kleine service op elke beschermde machine (Windows-MSI, Linux deb/rpm) en op Proxmox- en Hyper-V-hosts; VMware ESXi-hosts worden bereikt via een agent die als proxy werkt. Agents nemen via HTTPS contact op met de console, ontvangen taken en sturen de back-upgegevens <i>rechtstreeks</i> naar de opslag. Op Windows toont de agent zijn status naast de klok.</li>
+  <li><b>Opslagdoelen</b> — waar back-ups worden bewaard: SFTP, S3-compatibele objectopslag (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, een SMB-share/NAS, roterende USB-schijven, een lokale of gekoppelde schijf, of een geharde BackupZit-repository.</li>
+</ul>
+<div class="callout tip"><p>Back-upgegevens gaan nooit via de console. De console coördineert alleen, dus een kleine virtuele machine volstaat.</p></div>
+
+<h2>Eerste stappen</h2>
+<p>Om een nieuwe console op te zetten, importeert u de kant-en-klare appliance-image in een kleine VM, start u de appliance-ISO of voert u het installatiescript uit op een bestaande Linux-server; zie <a href="/docs/install">Server installeren</a>.</p>
+<ol>
+  <li><b>Voeg een opslagdoel toe</b> onder <a href="/targets">Opslag</a>. Laat <i>Back-ups versleutelen</i> aan staan en bewaar het herstelblad dat daarna wordt getoond op een veilige plek. Zie <a href="/docs/storage">Opslagdoelen</a>.</li>
+  <li><b>Installeer agents</b>: klik onder <a href="/agents">Agents</a> op <i>Registratietoken maken</i>, download het installatieprogramma van dezelfde pagina en plak de registratiecode wanneer het Windows-installatieprogramma erom vraagt (Linux: <code>backupzit-agent enroll --code …</code>). Installeer voor VM's de agent op de Proxmox- of Hyper-V-host; voeg VMware ESXi-hosts toe onder Agents → VMware ESXi-hosts. Zie <a href="/docs/agents">Agents</a>.</li>
+  <li><b>Maak een back-uptaak</b> onder <a href="/jobs">Back-uptaken</a>: kies de agent, de opslag, wat er geback-upt wordt (bestanden, een NAS-share, een schijfimage, databases, het hele Linux-systeem of de VM's van een Proxmox-, Hyper-V- of VMware ESXi-host), wanneer hij draait en hoeveel back-ups bewaard blijven. Zie <a href="/docs/jobs">Back-uptaken en planningen</a>.</li>
+  <li><b>Voer hem één keer handmatig uit</b> met <i>Back-up nu uitvoeren</i> op de taakpagina en controleer het resultaat onder <a href="/runs">Activiteit</a>.</li>
+  <li><b>Test een herstel</b> — een back-up is maar zo goed als het herstel ervan. Automatische hersteltests draaien wekelijks; herstel ook één keer iets met de hand met de <a href="/restore">herstelwizard</a>. Zie <a href="/docs/restore">Herstellen</a>.</li>
+  <li><b>Bereid u voor op rampen</b>: download de herstel-ISO's en maak een herstelcode onder <a href="/recovery">Herstelmedia</a>.</li>
+  <li><b>Stel e-mailwaarschuwingen in</b> onder <a href="/settings/email">Instellingen → E-mailmeldingen</a> zodat u van fouten hoort, en optioneel een wekelijks <a href="/reports">rapport</a>.</li>
+</ol>
+
+<h2>De console in één oogopslag</h2>
+<table>
+  <tr><th>Pagina</th><th>Waarvoor</th></tr>
+  <tr><td><a href="/">Dashboard</a></td><td>De status in één oogopslag: wat beschermd is, wat aandacht vraagt, agents online, fouten in de laatste 24 uur, verdachte back-ups, recente activiteit.</td></tr>
+  <tr><td><a href="/jobs">Back-uptaken</a></td><td>Taken voor bestanden, NAS-shares, schijfimages, Linux-systemen, virtuele machines, databases en back-upkopieën: maken, bewerken, uitvoeren, herstel testen, uitschakelen, verwijderen. De lijst toont per taak het type, de beschermde VM's of databases, de volgende uitvoering, het laatste resultaat en het aantal herstelpunten; filter op type of zoek. De pagina van een taak toont de VM's of databases van de nieuwste back-up met links om ze te herstellen.</td></tr>
+  <tr><td><a href="/restore">Herstellen</a></td><td>Herstelwizard: kies wat u herstelt (VM, bestanden, schijfimage, database, Linux-systeem), de bron, het herstelpunt en de opties. Zie <a href="/docs/restore">Herstellen</a>.</td></tr>
+  <tr><td><a href="/runs">Activiteit</a></td><td>Elke back-up, kopie, hersteltest en elk herstel met details, statistieken en fouten. Herstel en het bladeren door bestanden kunnen ook hier worden gestart.</td></tr>
+  <tr><td><a href="/calendar">Kalender</a></td><td>Wat er op vorige dagen draaide en wat in de toekomst gepland staat.</td></tr>
+  <tr><td><a href="/reports">Rapporten</a></td><td>Succespercentages en gegevensvolumes voor elke periode, CSV-export, gemailde en geplande rapporten.</td></tr>
+  <tr><td><a href="/agents">Agents</a></td><td>Beschermde machines met IP-adressen en versies, registratiecodes, installatieprogramma's en agentupdates.</td></tr>
+  <tr><td><a href="/targets">Opslag</a></td><td>Waar back-ups worden opgeslagen, versleuteling en herstelsleutels, onveranderlijkheid, gebruikte ruimte met prognose.</td></tr>
+  <tr><td><a href="/recovery">Herstelmedia</a></td><td>Herstel-ISO's (Windows voor schijfimages, Linux voor Linux-systemen) en herstelcodes voor bare-metal-herstel.</td></tr>
+  <tr><td><a href="/approvals">Goedkeuringen</a></td><td>Getoond als vier-ogengoedkeuring aan staat: wijzigingen die op een tweede gebruiker wachten. Zie <a href="/docs/users">Gebruikers, rollen en LDAP</a>.</td></tr>
+  <tr><td><a href="/users">Gebruikers</a></td><td>Accounts, rollen, API-tokens van alle gebruikers, auditlogboek.</td></tr>
+  <tr><td><a href="/settings/email">Instellingen</a></td><td>E-mailmeldingen; Slack, Teams en webhooks; aanmeldsessies, tweefactorbeleid, bescherming tegen brute force, vier-ogengoedkeuring en opgeslagen geheimen; hersteltests; het HTTPS-certificaat voor browsers; op de appliance het netwerk (adres, servernaam, SSH — zie <a href="/docs/install#setup-menu">Installatie</a>); updates van BackupZit en het besturingssysteem; back-up van de console zelf; LDAP / Active Directory; eenmalige aanmelding met SAML of OpenID Connect.</td></tr>
+  <tr><td><a href="/account">Mijn account</a> (uw naam, rechtsboven)</td><td>Uw profiel en rol, wachtwoord, tweefactorauthenticatie, API-tokens.</td></tr>
+  <tr><td><a href="/docs">Documentatie</a></td><td>Deze handleiding.</td></tr>
+</table>
+
+<h3>Taal</h3>
+<p>De console is beschikbaar in 14 talen: Engels, Duits, Frans, Spaans, Italiaans, Portugees (Brazilië), Nederlands, Pools, Tsjechisch, Servisch (Latijns schrift), Turks, Russisch, Chinees (vereenvoudigd) en Japans. Kies er een in de taallijst rechtsboven of op de aanmeldpagina; de keuze wordt in de browser onthouden. Zonder keuze beslist de taal van de browser (Kroatische, Bosnische en Montenegrijnse browsers krijgen Servisch, Slowaakse Tsjechisch, andere talen Engels). Ook deze handleiding is vertaald (een pagina zonder vertaling wordt in het Engels getoond). E-mails, chatmeldingen en berichten die de agents melden blijven in het Engels.</p>
+<p>De vertalingen staan in de broncode, in <code>internal/server/i18n/nl.json</code>: de Engelse tekst is de sleutel, de vertaling de waarde. <code>go run ./tools/i18n missing nl</code> toont teksten zonder vertaling; onvertaalde teksten worden in het Engels getoond.</p>
+
+<h2>Kernbegrippen</h2>
+<h3>Snapshots en deduplicatie</h3>
+<p>Elke back-up maakt een <i>snapshot</i>: een volledig, doorzoekbaar beeld van de gegevens op dat moment. Bestanden worden in stukken van variabele grootte gesplitst en schijven in blokken, en elk stuk wordt maar één keer opgeslagen, zodat de tweede en latere back-ups alleen uploaden wat veranderd is — en toch kan elke snapshot op zichzelf worden hersteld. Er is geen „volledige/incrementele keten” om te beheren.</p>
+<h3>Repositories</h3>
+<p>Elke agent schrijft in zijn eigen <i>repository</i> onder de locatie van het opslagdoel (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Een repository is op zichzelf staand: met de locatie, de opslagreferenties en de herstelsleutel kan hij worden hersteld, zelfs als de console weg is.</p>
+<h3>Bewaring</h3>
+<p>Elke taak bewaart een aantal recente, dagelijkse, wekelijkse en maandelijkse back-ups. Oudere snapshots worden na elke uitvoering verwijderd en de ruimte die ze gebruikten komt vrij.</p>
+<h3>Wat BackupZit voor u controleert</h3>
+<ul>
+  <li><b>Hersteltests</b> — de nieuwste back-up van elke taak wordt wekelijks gedeeltelijk hersteld en gecontroleerd (<a href="/docs/restore">Herstellen</a>).</li>
+  <li><b>Ransomwaredetectie</b> — ongebruikelijke back-ups (massale wijzigingen, versleutelde gegevens, massale verwijdering, plotselinge sprongen in het gegevensvolume) worden gemarkeerd en de bewaring wordt gepauzeerd (<a href="/docs/ransomware">Ransomwarebescherming</a>).</li>
+  <li><b>Waarschuwingen en rapporten</b> — e-mails bij fouten en een dagelijks overzicht; geplande rapporten voor het management (<a href="/docs/notifications">E-mailmeldingen</a>, <a href="/docs/monitoring">Monitoring</a>).</li>
+</ul>
+
+<h2>Licentie en ondersteuning</h2>
+<p>BackupZit is vrije software onder de <b>GNU Affero General Public License v3</b>: u mag het zonder betaling installeren en gebruiken, op een willekeurig aantal machines. Commerciële ondersteuning is verkrijgbaar bij MaxZit. BackupZit bevat opensourcecomponenten onder hun eigen licenties (MIT, BSD, Apache 2.0, ISC, MPL 2.0, zlib); hun teksten worden met elk pakket geïnstalleerd als <code>THIRD_PARTY_LICENSES.txt</code> (<code>/usr/share/doc/backupzit-*/</code> op Linux, de programmamap van de agent op Windows).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

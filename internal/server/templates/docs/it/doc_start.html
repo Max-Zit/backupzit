@@ -1,0 +1,78 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Per iniziare</h1>
+<p class="lead">BackupZit protegge macchine Windows e Linux, macchine virtuali Proxmox VE, Hyper-V e VMware ESXi, database (SQL Server, PostgreSQL, MySQL/MariaDB) e condivisioni NAS — file, dischi interi e sistemi interi — da un'unica console web che gira nella vostra rete.</p>
+
+<h2>Cosa protegge BackupZit</h2>
+<table>
+  <tr><th>Cosa</th><th>Come</th><th>Ripristino</th></tr>
+  <tr><td>File e cartelle (Windows, Linux)</td><td>Agente sulla macchina; file aperti su Windows tramite VSS. <a href="/docs/jobs">Job di backup</a></td><td>Backup intero o singole cartelle, su qualsiasi agente, nella posizione originale o in un'altra cartella. <a href="/docs/restore">Ripristino</a></td></tr>
+  <tr><td>Dischi Windows</td><td>Immagine disco di un disco intero o di partizioni scelte, da uno snapshot VSS. <a href="/docs/images">Immagini disco</a></td><td>Su un disco vuoto o bare metal con la ISO di ripristino Windows, anche su hardware diverso o in una VM; singoli file dall'immagine.</td></tr>
+  <tr><td>Sistemi Linux</td><td>Tutti i file system locali più il layout dei dischi (partizioni, LVM, UUID, codice di avvio). <a href="/docs/linux-system">Backup del sistema Linux</a></td><td>Su un disco vuoto o bare metal con la ISO di ripristino Linux, o come nuova VM Proxmox (P2V); singoli file.</td></tr>
+  <tr><td>VM Hyper-V</td><td>Agente sull'host Hyper-V, <b>nessun agente nelle VM</b>; checkpoint di ripristino (VSS nel guest), Resilient Change Tracking legge solo i blocchi modificati. <a href="/docs/hyperv">Hyper-V</a></td><td>VM intera come nuova o sul posto (mantiene ID e indirizzi MAC); singoli file dai dischi delle VM.</td></tr>
+  <tr><td>VM VMware ESXi</td><td>Qualsiasi agente fa da proxy, <b>nulla viene installato su ESXi o nelle VM</b>; snapshot quiesced, il Changed Block Tracking legge solo i blocchi modificati. <a href="/docs/vmware">VMware ESXi</a></td><td>VM intera come nuova o sul posto (mantiene UUID e indirizzi MAC), su qualsiasi host e datastore; singoli file.</td></tr>
+  <tr><td>NAS e condivisioni di file (SMB, NFS)</td><td>Nessun software sul NAS: un agente su qualsiasi macchina legge la condivisione. <a href="/docs/jobs">Job di backup</a></td><td>File e cartelle di nuovo sulla condivisione, in una cartella o come download.</td></tr>
+  <tr><td>Database: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agente sulla macchina del database; gli strumenti propri del server, backup completi e dei log. <a href="/docs/sql">Database</a></td><td>Un singolo database con un nuovo nome o sul posto, a qualsiasi momento coperto dai backup dei log.</td></tr>
+  <tr><td>VM e container Proxmox VE</td><td>Agente sull'host Proxmox, <b>nessun agente nei guest</b>; da snapshot Proxmox, vengono caricati solo i blocchi modificati. <a href="/docs/proxmox">Proxmox VE</a></td><td>Guest intero come nuovo o sul posto, su qualsiasi nodo e storage; VM istantaneamente dal backup (ripristino istantaneo, anche su VMware ESXi); singoli file dai dischi delle VM (NTFS, ext4, XFS, LVM) come download o su un agente.</td></tr>
+</table>
+
+<h2>Come funziona BackupZit</h2>
+<ul>
+  <li><b>Console di gestione</b> (questa applicazione web) — gira su un server Linux nella vostra rete. Memorizza la configurazione, pianifica i job, raccoglie i risultati e mostra i report. Non deve mai essere raggiungibile da Internet.</li>
+  <li><b>Agenti</b> — un piccolo servizio su ogni macchina protetta (MSI Windows, deb/rpm Linux) e sugli host Proxmox e Hyper-V; gli host VMware ESXi vengono raggiunti tramite un agente che fa da proxy. Gli agenti contattano la console via HTTPS, ricevono i job e inviano i dati di backup <i>direttamente</i> allo storage. Su Windows l'agente mostra il suo stato accanto all'orologio.</li>
+  <li><b>Destinazioni di archiviazione</b> — dove vengono conservati i backup: SFTP, object storage compatibile S3 (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, una condivisione SMB/NAS, dischi USB a rotazione, un disco locale o montato, o un repository protetto BackupZit.</li>
+</ul>
+<div class="callout tip"><p>I dati di backup non passano mai dalla console. La console si limita a coordinare, quindi può girare su una piccola macchina virtuale.</p></div>
+
+<h2>Primi passi</h2>
+<p>Per configurare una nuova console, importate l'immagine dell'appliance pronta in una piccola VM, avviate la ISO dell'appliance o eseguite lo script di installazione su un server Linux esistente; vedete <a href="/docs/install">Installare il server</a>.</p>
+<ol>
+  <li><b>Aggiungete una destinazione di archiviazione</b> in <a href="/targets">Archiviazione</a>. Lasciate attivo <i>Cifra i backup</i> e conservate in un luogo sicuro il foglio di ripristino mostrato subito dopo. Vedete <a href="/docs/storage">Destinazioni di archiviazione</a>.</li>
+  <li><b>Installate gli agenti</b>: in <a href="/agents">Agenti</a> fate clic su <i>Crea token di registrazione</i>, scaricate l'installer dalla stessa pagina e incollate il codice di registrazione quando l'installer Windows lo chiede (Linux: <code>backupzit-agent enroll --code …</code>). Per le VM installate l'agente sull'host Proxmox o Hyper-V; aggiungete gli host VMware ESXi in Agenti → Host VMware ESXi. Vedete <a href="/docs/agents">Agenti</a>.</li>
+  <li><b>Create un job di backup</b> in <a href="/jobs">Job di backup</a>: scegliete l'agente, lo storage, cosa salvare (file, una condivisione NAS, un'immagine disco, database, l'intero sistema Linux o le VM di un host Proxmox, Hyper-V o VMware ESXi), quando eseguirlo e quanti backup conservare. Vedete <a href="/docs/jobs">Job di backup e pianificazioni</a>.</li>
+  <li><b>Eseguitelo una volta manualmente</b> con <i>Esegui backup ora</i> nella pagina del job e controllate il risultato in <a href="/runs">Attività</a>.</li>
+  <li><b>Provate un ripristino</b> — un backup vale quanto il suo ripristino. I test di ripristino automatici vengono eseguiti ogni settimana; ripristinate anche una volta qualcosa a mano con la <a href="/restore">procedura guidata di ripristino</a>. Vedete <a href="/docs/restore">Ripristino</a>.</li>
+  <li><b>Preparatevi ai disastri</b>: scaricate le ISO di ripristino e create un codice di ripristino in <a href="/recovery">Supporti di ripristino</a>.</li>
+  <li><b>Configurate gli avvisi via email</b> in <a href="/settings/email">Impostazioni → Notifiche e-mail</a> per essere informati degli errori, e facoltativamente un <a href="/reports">report</a> settimanale.</li>
+</ol>
+
+<h2>La console in breve</h2>
+<table>
+  <tr><th>Pagina</th><th>A cosa serve</th></tr>
+  <tr><td><a href="/">Dashboard</a></td><td>Lo stato a colpo d'occhio: cosa è protetto, cosa richiede attenzione, agenti online, errori delle ultime 24 ore, backup sospetti, attività recente.</td></tr>
+  <tr><td><a href="/jobs">Job di backup</a></td><td>Job di file, condivisioni NAS, immagini disco, sistemi Linux, macchine virtuali, database e copie di backup: creare, modificare, eseguire, testare il ripristino, disattivare, eliminare. L'elenco mostra per ogni job il tipo, le VM o i database protetti, la prossima esecuzione, l'ultimo risultato e il numero di punti di ripristino; filtratelo per tipo o cercate. La pagina di un job elenca le VM o i database del suo backup più recente con link per ripristinarli.</td></tr>
+  <tr><td><a href="/restore">Ripristina</a></td><td>Procedura guidata di ripristino: scegliete cosa ripristinare (VM, file, immagine disco, database, sistema Linux), l'origine, il punto di ripristino e le opzioni. Vedete <a href="/docs/restore">Ripristino</a>.</td></tr>
+  <tr><td><a href="/runs">Attività</a></td><td>Ogni backup, copia, test di ripristino e ripristino con dettagli, statistiche ed errori. Anche ripristini e navigazione dei file possono essere avviati da qui.</td></tr>
+  <tr><td><a href="/calendar">Calendario</a></td><td>Cosa è stato eseguito nei giorni passati e cosa è pianificato in futuro.</td></tr>
+  <tr><td><a href="/reports">Report</a></td><td>Tassi di successo e volumi di dati per qualsiasi periodo, esportazione CSV, report inviati via email e pianificati.</td></tr>
+  <tr><td><a href="/agents">Agenti</a></td><td>Macchine protette con indirizzi IP e versioni, codici di registrazione, installer e aggiornamenti degli agenti.</td></tr>
+  <tr><td><a href="/targets">Archiviazione</a></td><td>Dove sono archiviati i backup, cifratura e chiavi di ripristino, immutabilità, spazio usato con la sua previsione.</td></tr>
+  <tr><td><a href="/recovery">Supporti di ripristino</a></td><td>ISO di ripristino (Windows per le immagini disco, Linux per i sistemi Linux) e codici di ripristino per i ripristini bare metal.</td></tr>
+  <tr><td><a href="/approvals">Approvazioni</a></td><td>Visibile quando è attiva l'approvazione a quattro occhi: modifiche in attesa di un secondo utente. Vedete <a href="/docs/users">Utenti, ruoli e LDAP</a>.</td></tr>
+  <tr><td><a href="/users">Utenti</a></td><td>Account, ruoli, token API di tutti gli utenti, log di audit.</td></tr>
+  <tr><td><a href="/settings/email">Impostazioni</a></td><td>Notifiche e-mail; Slack, Teams e webhook; sessioni di accesso, criterio a due fattori, protezione da forza bruta, approvazione a quattro occhi e segreti memorizzati; test di ripristino; il certificato HTTPS per i browser; sull'appliance la sua rete (indirizzo, nome del server, SSH — vedete <a href="/docs/install#setup-menu">Installazione</a>); aggiornamenti di BackupZit e del sistema operativo; backup della console stessa; LDAP / Active Directory; single sign-on con SAML o OpenID Connect.</td></tr>
+  <tr><td><a href="/account">Il mio account</a> (il vostro nome, in alto a destra)</td><td>Il vostro profilo e ruolo, password, autenticazione a due fattori, token API.</td></tr>
+  <tr><td><a href="/docs">Documentazione</a></td><td>Questa guida.</td></tr>
+</table>
+
+<h3>Lingua</h3>
+<p>La console è disponibile in 14 lingue: inglese, tedesco, francese, spagnolo, italiano, portoghese (Brasile), olandese, polacco, ceco, serbo (alfabeto latino), turco, russo, cinese (semplificato) e giapponese. Sceglietene una nell'elenco delle lingue in alto a destra o nella pagina di accesso; la scelta viene ricordata nel browser. Senza una scelta decide la lingua del browser (i browser croati, bosniaci e montenegrini ottengono il serbo, quelli slovacchi il ceco, le altre lingue l'inglese). Anche questa guida è tradotta (una pagina senza traduzione viene mostrata in inglese). Email, notifiche chat e messaggi inviati dagli agenti restano in inglese.</p>
+<p>Le traduzioni si trovano nel codice sorgente, in <code>internal/server/i18n/it.json</code>: il testo inglese è la chiave, la traduzione il suo valore. <code>go run ./tools/i18n missing it</code> elenca i testi senza traduzione; i testi non tradotti vengono mostrati in inglese.</p>
+
+<h2>Concetti chiave</h2>
+<h3>Snapshot e deduplicazione</h3>
+<p>Ogni backup crea uno <i>snapshot</i>: un'immagine completa e consultabile dei dati in quel momento. I file vengono suddivisi in frammenti di dimensione variabile e i dischi in blocchi, e ogni pezzo viene memorizzato una sola volta, così il secondo backup e i successivi caricano solo ciò che è cambiato — eppure ogni snapshot può essere ripristinato da solo. Non c'è alcuna «catena completo/incrementale» da gestire.</p>
+<h3>Repository</h3>
+<p>Ogni agente scrive nel proprio <i>repository</i> sotto la posizione della destinazione di archiviazione (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Un repository è autonomo: con la posizione, le credenziali dello storage e la chiave di ripristino può essere ripristinato anche se la console non c'è più.</p>
+<h3>Conservazione</h3>
+<p>Ogni job conserva un certo numero di backup recenti, giornalieri, settimanali e mensili. Gli snapshot più vecchi vengono rimossi dopo ogni esecuzione e lo spazio che occupavano viene liberato.</p>
+<h3>Cosa controlla BackupZit per voi</h3>
+<ul>
+  <li><b>Test di ripristino</b> — il backup più recente di ogni job viene parzialmente ripristinato e verificato ogni settimana (<a href="/docs/restore">Ripristino</a>).</li>
+  <li><b>Rilevamento ransomware</b> — i backup insoliti (modifiche di massa, dati cifrati, eliminazioni di massa, salti improvvisi del volume di dati) vengono segnalati e la conservazione viene sospesa (<a href="/docs/ransomware">Protezione dal ransomware</a>).</li>
+  <li><b>Avvisi e report</b> — email per gli errori e un riepilogo giornaliero; report pianificati per la direzione (<a href="/docs/notifications">Notifiche e-mail</a>, <a href="/docs/monitoring">Monitoraggio</a>).</li>
+</ul>
+
+<h2>Licenza e supporto</h2>
+<p>BackupZit è software libero sotto la <b>GNU Affero General Public License v3</b>: potete installarlo e usarlo senza pagare, su un numero qualsiasi di macchine. Il supporto commerciale è disponibile da MaxZit. BackupZit include componenti open source con le proprie licenze (MIT, BSD, Apache 2.0, ISC, MPL 2.0, zlib); i loro testi vengono installati con ogni pacchetto come <code>THIRD_PARTY_LICENSES.txt</code> (<code>/usr/share/doc/backupzit-*/</code> su Linux, la cartella del programma dell'agente su Windows).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

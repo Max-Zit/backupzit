@@ -1,0 +1,78 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Erste Schritte</h1>
+<p class="lead">BackupZit schützt Windows- und Linux-Rechner, virtuelle Maschinen unter Proxmox VE, Hyper-V und VMware ESXi, Datenbanken (SQL Server, PostgreSQL, MySQL/MariaDB) und NAS-Freigaben — Dateien, ganze Festplatten und ganze Systeme — aus einer Webkonsole, die in Ihrem eigenen Netzwerk läuft.</p>
+
+<h2>Was BackupZit schützt</h2>
+<table>
+  <tr><th>Was</th><th>Wie</th><th>Wiederherstellung</th></tr>
+  <tr><td>Dateien und Ordner (Windows, Linux)</td><td>Agent auf dem Rechner; geöffnete Dateien unter Windows über VSS. <a href="/docs/jobs">Sicherungsaufträge</a></td><td>Ganze Sicherung oder einzelne Ordner, auf jeden Agenten, an den ursprünglichen Ort oder in einen anderen Ordner. <a href="/docs/restore">Wiederherstellen</a></td></tr>
+  <tr><td>Windows-Festplatten</td><td>Festplattenabbild einer ganzen Festplatte oder ausgewählter Partitionen aus einem VSS-Snapshot. <a href="/docs/images">Festplattenabbilder</a></td><td>Auf eine leere Festplatte oder Bare Metal mit dem Windows-Wiederherstellungs-ISO, auch auf andere Hardware oder in eine VM; einzelne Dateien aus dem Abbild.</td></tr>
+  <tr><td>Linux-Systeme</td><td>Alle lokalen Dateisysteme plus das Festplattenlayout (Partitionen, LVM, UUIDs, Bootcode). <a href="/docs/linux-system">Linux-Systemsicherung</a></td><td>Auf eine leere Festplatte oder Bare Metal mit dem Linux-Wiederherstellungs-ISO oder als neue Proxmox-VM (P2V); einzelne Dateien.</td></tr>
+  <tr><td>Hyper-V-VMs</td><td>Agent auf dem Hyper-V-Host, <b>kein Agent in den VMs</b>; Wiederherstellungsprüfpunkte (VSS im Gast), Resilient Change Tracking liest nur geänderte Blöcke. <a href="/docs/hyperv">Hyper-V</a></td><td>Ganze VM als neue oder an Ort und Stelle (behält ID und MAC-Adressen); einzelne Dateien von VM-Festplatten.</td></tr>
+  <tr><td>VMware-ESXi-VMs</td><td>Jeder Agent arbeitet als Proxy, <b>nichts wird auf ESXi oder in den VMs installiert</b>; stillgelegte Snapshots, Changed Block Tracking liest nur geänderte Blöcke. <a href="/docs/vmware">VMware ESXi</a></td><td>Ganze VM als neue oder an Ort und Stelle (behält UUID und MAC-Adressen), auf jedem Host und Datastore; einzelne Dateien.</td></tr>
+  <tr><td>NAS und Dateifreigaben (SMB, NFS)</td><td>Keine Software auf dem NAS: Ein Agent auf einem beliebigen Rechner liest die Freigabe. <a href="/docs/jobs">Sicherungsaufträge</a></td><td>Dateien und Ordner zurück auf die Freigabe, in einen Ordner oder als Download.</td></tr>
+  <tr><td>Datenbanken: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent auf dem Datenbankrechner; die eigenen Werkzeuge des Servers, Voll- und Log-Sicherungen. <a href="/docs/sql">Datenbanken</a></td><td>Eine einzelne Datenbank unter neuem Namen oder an Ort und Stelle, zu jedem Zeitpunkt, den die Log-Sicherungen abdecken.</td></tr>
+  <tr><td>Proxmox-VE-VMs und -Container</td><td>Agent auf dem Proxmox-Host, <b>kein Agent in den Gästen</b>; aus Proxmox-Snapshots, nur geänderte Blöcke werden hochgeladen. <a href="/docs/proxmox">Proxmox VE</a></td><td>Ganzer Gast als neuer oder an Ort und Stelle, auf jedem Knoten und Speicher; VMs sofort aus der Sicherung (Sofortwiederherstellung, auch auf VMware ESXi); einzelne Dateien von VM-Festplatten (NTFS, ext4, XFS, LVM) als Download oder auf einen Agenten.</td></tr>
+</table>
+
+<h2>Wie BackupZit funktioniert</h2>
+<ul>
+  <li><b>Verwaltungskonsole</b> (diese Webanwendung) — läuft auf einem Linux-Server in Ihrem Netzwerk. Sie speichert die Konfiguration, plant Aufträge, sammelt Ergebnisse und zeigt Berichte. Sie muss nie aus dem Internet erreichbar sein.</li>
+  <li><b>Agenten</b> — ein kleiner Dienst auf jedem geschützten Rechner (Windows-MSI, Linux deb/rpm) und auf Proxmox- und Hyper-V-Hosts; VMware-ESXi-Hosts werden über einen Agenten als Proxy erreicht. Agenten kontaktieren die Konsole über HTTPS, erhalten Aufträge und senden die Sicherungsdaten <i>direkt</i> an den Speicher. Unter Windows zeigt der Agent seinen Zustand neben der Uhr.</li>
+  <li><b>Speicherziele</b> — wo Sicherungen aufbewahrt werden: SFTP, S3-kompatibler Objektspeicher (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, eine SMB-Freigabe/NAS, rotierende USB-Festplatten, eine lokale oder eingebundene Festplatte oder ein gehärtetes BackupZit-Repository.</li>
+</ul>
+<div class="callout tip"><p>Sicherungsdaten laufen nie durch die Konsole. Die Konsole koordiniert nur, daher genügt eine kleine virtuelle Maschine.</p></div>
+
+<h2>Erste Schritte</h2>
+<p>Um eine neue Konsole einzurichten, importieren Sie das fertige Appliance-Image in eine kleine VM, starten Sie das Appliance-ISO oder führen Sie das Installationsskript auf einem vorhandenen Linux-Server aus; siehe <a href="/docs/install">Server installieren</a>.</p>
+<ol>
+  <li><b>Fügen Sie ein Speicherziel hinzu</b> unter <a href="/targets">Speicher</a>. Lassen Sie <i>Sicherungen verschlüsseln</i> eingeschaltet und bewahren Sie das danach angezeigte Wiederherstellungsblatt sicher auf. Siehe <a href="/docs/storage">Speicherziele</a>.</li>
+  <li><b>Installieren Sie Agenten</b>: Klicken Sie unter <a href="/agents">Agenten</a> auf <i>Registrierungstoken erstellen</i>, laden Sie das Installationsprogramm von derselben Seite herunter und fügen Sie den Registrierungscode ein, wenn das Windows-Installationsprogramm danach fragt (Linux: <code>backupzit-agent enroll --code …</code>). Für VMs installieren Sie den Agenten auf dem Proxmox- oder Hyper-V-Host; VMware-ESXi-Hosts fügen Sie unter Agenten → VMware-ESXi-Hosts hinzu. Siehe <a href="/docs/agents">Agenten</a>.</li>
+  <li><b>Erstellen Sie einen Sicherungsauftrag</b> unter <a href="/jobs">Sicherungsaufträge</a>: Wählen Sie den Agenten, den Speicher, was gesichert wird (Dateien, eine NAS-Freigabe, ein Festplattenabbild, Datenbanken, das ganze Linux-System oder die VMs eines Proxmox-, Hyper-V- oder VMware-ESXi-Hosts), wann er läuft und wie viele Sicherungen behalten werden. Siehe <a href="/docs/jobs">Sicherungsaufträge und Zeitpläne</a>.</li>
+  <li><b>Führen Sie ihn einmal manuell aus</b> mit <i>Sicherung jetzt ausführen</i> auf der Auftragsseite und prüfen Sie das Ergebnis unter <a href="/runs">Aktivität</a>.</li>
+  <li><b>Testen Sie eine Wiederherstellung</b> — eine Sicherung ist nur so gut wie ihre Wiederherstellung. Automatische Wiederherstellungstests laufen wöchentlich; stellen Sie auch einmal etwas von Hand mit dem <a href="/restore">Wiederherstellungsassistenten</a> wieder her. Siehe <a href="/docs/restore">Wiederherstellen</a>.</li>
+  <li><b>Bereiten Sie sich auf Katastrophen vor</b>: Laden Sie die Wiederherstellungs-ISOs herunter und erstellen Sie einen Wiederherstellungscode unter <a href="/recovery">Wiederherstellungsmedien</a>.</li>
+  <li><b>Richten Sie E-Mail-Warnungen ein</b> unter <a href="/settings/email">Einstellungen → E-Mail-Benachrichtigungen</a>, damit Sie von Fehlern erfahren, und optional einen wöchentlichen <a href="/reports">Bericht</a>.</li>
+</ol>
+
+<h2>Die Konsole im Überblick</h2>
+<table>
+  <tr><th>Seite</th><th>Wofür sie da ist</th></tr>
+  <tr><td><a href="/">Dashboard</a></td><td>Zustand auf einen Blick: was geschützt ist, was Aufmerksamkeit braucht, Agenten online, Fehler der letzten 24 Stunden, verdächtige Sicherungen, letzte Aktivität.</td></tr>
+  <tr><td><a href="/jobs">Sicherungsaufträge</a></td><td>Aufträge für Dateien, NAS-Freigaben, Festplattenabbilder, Linux-Systeme, virtuelle Maschinen, Datenbanken und Sicherungskopien: erstellen, bearbeiten, ausführen, Wiederherstellung testen, deaktivieren, löschen. Die Liste zeigt Typ, geschützte VMs oder Datenbanken, nächsten Lauf, letztes Ergebnis und Anzahl der Wiederherstellungspunkte jedes Auftrags; filtern Sie nach Typ oder durchsuchen Sie sie. Die Seite eines Auftrags listet die VMs oder Datenbanken seiner neuesten Sicherung mit Links zur Wiederherstellung.</td></tr>
+  <tr><td><a href="/restore">Wiederherstellen</a></td><td>Wiederherstellungsassistent: Wählen Sie, was wiederhergestellt wird (VM, Dateien, Festplattenabbild, Datenbank, Linux-System), die Quelle, den Wiederherstellungspunkt und die Optionen. Siehe <a href="/docs/restore">Wiederherstellen</a>.</td></tr>
+  <tr><td><a href="/runs">Aktivität</a></td><td>Jede Sicherung, Kopie, jeder Wiederherstellungstest und jede Wiederherstellung mit Details, Statistiken und Fehlern. Wiederherstellungen und das Durchsuchen von Dateien können auch hier gestartet werden.</td></tr>
+  <tr><td><a href="/calendar">Kalender</a></td><td>Was an vergangenen Tagen lief und was künftig geplant ist.</td></tr>
+  <tr><td><a href="/reports">Berichte</a></td><td>Erfolgsquoten und Datenmengen für beliebige Zeiträume, CSV-Export, per E-Mail gesendete und geplante Berichte.</td></tr>
+  <tr><td><a href="/agents">Agenten</a></td><td>Geschützte Rechner mit IP-Adressen und Versionen, Registrierungscodes, Installationsprogramme und Agenten-Updates.</td></tr>
+  <tr><td><a href="/targets">Speicher</a></td><td>Wo Sicherungen gespeichert werden, Verschlüsselung und Wiederherstellungsschlüssel, Unveränderlichkeit, belegter Platz mit Prognose.</td></tr>
+  <tr><td><a href="/recovery">Wiederherstellungsmedien</a></td><td>Wiederherstellungs-ISOs (Windows für Festplattenabbilder, Linux für Linux-Systeme) und Wiederherstellungscodes für Bare-Metal-Wiederherstellungen.</td></tr>
+  <tr><td><a href="/approvals">Freigaben</a></td><td>Wird angezeigt, wenn die Vier-Augen-Freigabe aktiv ist: Änderungen, die auf einen zweiten Benutzer warten. Siehe <a href="/docs/users">Benutzer, Rollen und LDAP</a>.</td></tr>
+  <tr><td><a href="/users">Benutzer</a></td><td>Konten, Rollen, API-Tokens aller Benutzer, Audit-Protokoll.</td></tr>
+  <tr><td><a href="/settings/email">Einstellungen</a></td><td>E-Mail-Benachrichtigungen; Slack, Teams und Webhooks; Anmeldesitzungen, Zwei-Faktor-Richtlinie, Brute-Force-Schutz, Vier-Augen-Freigabe und gespeicherte Geheimnisse; Wiederherstellungstests; das HTTPS-Zertifikat für Browser; auf der Appliance ihr Netzwerk (Adresse, Servername, SSH — siehe <a href="/docs/install#setup-menu">Installation</a>); Updates von BackupZit und dem Betriebssystem; Sicherung der Konsole selbst; LDAP / Active Directory; Single Sign-On mit SAML oder OpenID Connect.</td></tr>
+  <tr><td><a href="/account">Mein Konto</a> (Ihr Name oben rechts)</td><td>Ihr Profil und Ihre Rolle, Passwort, Zwei-Faktor-Authentifizierung, API-Tokens.</td></tr>
+  <tr><td><a href="/docs">Dokumentation</a></td><td>Diese Anleitung.</td></tr>
+</table>
+
+<h3>Sprache</h3>
+<p>Die Konsole ist in 14 Sprachen verfügbar: Englisch, Deutsch, Französisch, Spanisch, Italienisch, Portugiesisch (Brasilien), Niederländisch, Polnisch, Tschechisch, Serbisch (lateinische Schrift), Türkisch, Russisch, Chinesisch (vereinfacht) und Japanisch. Wählen Sie eine in der Sprachliste oben rechts oder auf der Anmeldeseite; die Wahl wird im Browser gespeichert. Ohne Wahl entscheidet die Sprache des Browsers (kroatische, bosnische und montenegrinische Browser erhalten Serbisch, slowakische Tschechisch, andere Sprachen Englisch). Auch diese Anleitung ist übersetzt (eine Seite ohne Übersetzung wird auf Englisch angezeigt). E-Mails, Chat-Benachrichtigungen und von den Agenten gemeldete Meldungen bleiben auf Englisch.</p>
+<p>Die Übersetzungen liegen im Quellcode in <code>internal/server/i18n/de.json</code>: Der englische Text ist der Schlüssel, die Übersetzung sein Wert. <code>go run ./tools/i18n missing de</code> listet Texte ohne Übersetzung; nicht übersetzte Texte werden auf Englisch angezeigt.</p>
+
+<h2>Grundbegriffe</h2>
+<h3>Snapshots und Deduplizierung</h3>
+<p>Jede Sicherung erstellt einen <i>Snapshot</i>: ein vollständiges, durchsuchbares Bild der Daten zu diesem Zeitpunkt. Dateien werden in Blöcke variabler Größe und Festplatten in Blöcke zerlegt, und jedes Stück wird nur einmal gespeichert, sodass die zweite und alle späteren Sicherungen nur Geändertes hochladen — und doch lässt sich jeder Snapshot für sich wiederherstellen. Es gibt keine „Voll- und inkrementelle Kette“ zu verwalten.</p>
+<h3>Repositories</h3>
+<p>Jeder Agent schreibt in sein eigenes <i>Repository</i> unterhalb des Speicherziels (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Ein Repository ist in sich geschlossen: Mit dem Ort, den Speicherzugangsdaten und dem Wiederherstellungsschlüssel lässt es sich wiederherstellen, auch wenn die Konsole weg ist.</p>
+<h3>Aufbewahrung</h3>
+<p>Jeder Auftrag behält eine Anzahl aktueller, täglicher, wöchentlicher und monatlicher Sicherungen. Ältere Snapshots werden nach jedem Lauf entfernt und ihr Platz freigegeben.</p>
+<h3>Was BackupZit für Sie prüft</h3>
+<ul>
+  <li><b>Wiederherstellungstests</b> — die neueste Sicherung jedes Auftrags wird wöchentlich teilweise wiederhergestellt und überprüft (<a href="/docs/restore">Wiederherstellen</a>).</li>
+  <li><b>Ransomware-Erkennung</b> — ungewöhnliche Sicherungen (Massenänderungen, verschlüsselte Daten, Massenlöschung, plötzliche Sprünge der Datenmenge) werden markiert und die Aufbewahrung pausiert (<a href="/docs/ransomware">Ransomware-Schutz</a>).</li>
+  <li><b>Warnungen und Berichte</b> — E-Mails bei Fehlern und eine tägliche Zusammenfassung; geplante Berichte für die Geschäftsleitung (<a href="/docs/notifications">E-Mail-Benachrichtigungen</a>, <a href="/docs/monitoring">Überwachung</a>).</li>
+</ul>
+
+<h2>Lizenz und Support</h2>
+<p>BackupZit ist freie Software unter der <b>GNU Affero General Public License v3</b>: Sie dürfen es kostenlos installieren und auf beliebig vielen Rechnern nutzen. Kommerzieller Support ist bei MaxZit erhältlich. BackupZit enthält Open-Source-Komponenten unter ihren eigenen Lizenzen (MIT, BSD, Apache 2.0, ISC, MPL 2.0, zlib); deren Texte werden mit jedem Paket als <code>THIRD_PARTY_LICENSES.txt</code> installiert (<code>/usr/share/doc/backupzit-*/</code> unter Linux, der Programmordner des Agenten unter Windows).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

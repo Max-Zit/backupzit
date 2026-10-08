@@ -1,0 +1,78 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>入门</h1>
+<p class="lead">BackupZit 通过一个运行在您自己网络中的 Web 控制台，保护 Windows 和 Linux 机器、Proxmox VE、Hyper-V 和 VMware ESXi 虚拟机、数据库（SQL Server、PostgreSQL、MySQL/MariaDB）以及 NAS 共享——文件、整个磁盘和整个系统。</p>
+
+<h2>BackupZit 保护什么</h2>
+<table>
+  <tr><th>对象</th><th>方式</th><th>还原</th></tr>
+  <tr><td>文件和文件夹（Windows、Linux）</td><td>机器上的代理；Windows 上打开的文件通过 VSS 读取。<a href="/docs/jobs">备份作业</a></td><td>整个备份或单个文件夹，还原到任意代理、原始位置或其他文件夹。<a href="/docs/restore">还原</a></td></tr>
+  <tr><td>Windows 磁盘</td><td>从 VSS 快照创建整个磁盘或选定分区的磁盘映像。<a href="/docs/images">磁盘映像</a></td><td>使用 Windows 恢复 ISO 还原到空磁盘或裸机，也可还原到不同硬件或虚拟机；从映像中提取单个文件。</td></tr>
+  <tr><td>Linux 系统</td><td>所有本地文件系统以及磁盘布局（分区、LVM、UUID、引导代码）。<a href="/docs/linux-system">Linux 系统备份</a></td><td>使用 Linux 恢复 ISO 还原到空磁盘或裸机，或作为新的 Proxmox 虚拟机（P2V）；单个文件。</td></tr>
+  <tr><td>Hyper-V 虚拟机</td><td>Hyper-V 主机上的代理，<b>虚拟机内无需代理</b>；恢复检查点（客户机内 VSS），Resilient Change Tracking 只读取更改的块。<a href="/docs/hyperv">Hyper-V</a></td><td>整个虚拟机作为新虚拟机或就地还原（保留 ID 和 MAC 地址）；从虚拟机磁盘提取单个文件。</td></tr>
+  <tr><td>VMware ESXi 虚拟机</td><td>任意代理都可作为代理服务器，<b>ESXi 和虚拟机内无需安装任何东西</b>；静默快照，Changed Block Tracking 只读取更改的块。<a href="/docs/vmware">VMware ESXi</a></td><td>整个虚拟机作为新虚拟机或就地还原（保留 UUID 和 MAC 地址），可还原到任意主机和数据存储；单个文件。</td></tr>
+  <tr><td>NAS 和文件共享（SMB、NFS）</td><td>NAS 上无需软件：任意机器上的代理读取共享。<a href="/docs/jobs">备份作业</a></td><td>文件和文件夹还原回共享、某个文件夹或作为下载。</td></tr>
+  <tr><td>数据库：SQL Server、PostgreSQL、MySQL/MariaDB</td><td>数据库机器上的代理；使用服务器自带工具，完整备份和日志备份。<a href="/docs/sql">数据库</a></td><td>单个数据库以新名称或就地还原，可还原到日志备份覆盖的任意时刻。</td></tr>
+  <tr><td>Proxmox VE 虚拟机和容器</td><td>Proxmox 主机上的代理，<b>客户机内无需代理</b>；基于 Proxmox 快照，只上传更改的块。<a href="/docs/proxmox">Proxmox VE</a></td><td>整个客户机作为新客户机或就地还原，可还原到任意节点和存储；直接从备份即时启动虚拟机（即时恢复，也支持 VMware ESXi）；从虚拟机磁盘（NTFS、ext4、XFS、LVM）提取单个文件，可下载或发送到代理。</td></tr>
+</table>
+
+<h2>BackupZit 的工作方式</h2>
+<ul>
+  <li><b>管理控制台</b>（本 Web 应用）——运行在您网络中的 Linux 服务器上。它存储配置、调度作业、收集结果并显示报告。它永远不需要从互联网访问。</li>
+  <li><b>代理</b>——每台受保护机器（Windows MSI、Linux deb/rpm）以及 Proxmox 和 Hyper-V 主机上的小型服务；VMware ESXi 主机通过作为代理服务器的代理访问。代理通过 HTTPS 联系控制台，接收作业，并将备份数据<i>直接</i>发送到存储。在 Windows 上，代理会在时钟旁显示其状态。</li>
+  <li><b>存储目标</b>——保存备份的位置：SFTP、S3 兼容对象存储（AWS、Wasabi、Backblaze B2、MinIO、Google Cloud…）、Azure Blob Storage、SMB 共享/NAS、轮换的 USB 磁盘、本地或已挂载的磁盘，或 BackupZit 加固存储库。</li>
+</ul>
+<div class="callout tip"><p>备份数据从不经过控制台。控制台只负责协调，因此一台小型虚拟机就足够了。</p></div>
+
+<h2>第一步</h2>
+<p>要搭建新的控制台，可将现成的设备映像导入一台小型虚拟机、启动设备 ISO，或在现有 Linux 服务器上运行安装脚本；参见 <a href="/docs/install">安装服务器</a>。</p>
+<ol>
+  <li>在 <a href="/targets">存储</a> 下<b>添加存储目标</b>。保持<i>加密备份</i>处于启用状态，并将随后显示的恢复单保存在安全的地方。参见 <a href="/docs/storage">存储目标</a>。</li>
+  <li><b>安装代理</b>：在 <a href="/agents">Agent</a> 下点击<i>创建注册令牌</i>，从同一页面下载安装程序，并在 Windows 安装程序要求时粘贴注册码（Linux：<code>backupzit-agent enroll --code …</code>）。对于虚拟机，请在 Proxmox 或 Hyper-V 主机上安装代理；在 Agent → VMware ESXi 主机 下添加 VMware ESXi 主机。参见 <a href="/docs/agents">Agent</a>。</li>
+  <li>在 <a href="/jobs">备份作业</a> 下<b>创建备份作业</b>：选择代理、存储、要备份的内容（文件、NAS 共享、磁盘映像、数据库、整个 Linux 系统，或 Proxmox、Hyper-V、VMware ESXi 主机的虚拟机）、运行时间以及保留的备份数量。参见 <a href="/docs/jobs">备份作业和计划</a>。</li>
+  <li>在作业页面上使用<i>立即运行备份</i><b>手动运行一次</b>，并在 <a href="/runs">活动</a> 下检查结果。</li>
+  <li><b>测试还原</b>——备份的价值取决于能否还原。自动还原测试每周运行；也请使用<a href="/restore">还原向导</a>手动还原一次。参见 <a href="/docs/restore">还原</a>。</li>
+  <li><b>为灾难做好准备</b>：在 <a href="/recovery">恢复介质</a> 下下载恢复 ISO 并创建恢复码。</li>
+  <li>在 <a href="/settings/email">设置 → 电子邮件通知</a> 下<b>设置电子邮件警报</b>，以便及时了解故障，还可以设置每周<a href="/reports">报告</a>。</li>
+</ol>
+
+<h2>控制台一览</h2>
+<table>
+  <tr><th>页面</th><th>用途</th></tr>
+  <tr><td><a href="/">仪表板</a></td><td>一目了然的健康状况：哪些受到保护、哪些需要关注、在线代理、过去 24 小时的故障、可疑备份、最近活动。</td></tr>
+  <tr><td><a href="/jobs">备份作业</a></td><td>文件、NAS 共享、磁盘映像、Linux 系统、虚拟机、数据库和备份复制作业：创建、编辑、运行、测试还原、禁用、删除。列表显示每个作业的类型、所保护的虚拟机或数据库、下次运行、上次结果和还原点数量；可按类型筛选或搜索。作业页面列出其最新备份中的虚拟机或数据库，并提供还原链接。</td></tr>
+  <tr><td><a href="/restore">还原</a></td><td>还原向导：选择要还原的内容（虚拟机、文件、磁盘映像、数据库、Linux 系统）、来源、还原点和选项。参见 <a href="/docs/restore">还原</a>。</td></tr>
+  <tr><td><a href="/runs">活动</a></td><td>每次备份、复制、还原测试和还原，包含详细信息、统计和错误。也可以在这里启动还原和浏览文件。</td></tr>
+  <tr><td><a href="/calendar">日历</a></td><td>过去几天运行了什么，以及将来计划运行什么。</td></tr>
+  <tr><td><a href="/reports">报告</a></td><td>任意时间段的成功率和数据量、CSV 导出、通过电子邮件发送的报告和计划报告。</td></tr>
+  <tr><td><a href="/agents">Agent</a></td><td>受保护的机器及其 IP 地址和版本、注册码、安装程序和代理更新。</td></tr>
+  <tr><td><a href="/targets">存储</a></td><td>备份的存储位置、加密和恢复密钥、不可变性、已用空间及其预测。</td></tr>
+  <tr><td><a href="/recovery">恢复介质</a></td><td>恢复 ISO（Windows 用于磁盘映像，Linux 用于 Linux 系统）以及用于裸机还原的恢复码。</td></tr>
+  <tr><td><a href="/approvals">审批</a></td><td>启用四眼审批时显示：等待第二个用户处理的更改。参见 <a href="/docs/users">用户、角色和 LDAP</a>。</td></tr>
+  <tr><td><a href="/users">用户</a></td><td>所有用户的帐户、角色、API 令牌，审计日志。</td></tr>
+  <tr><td><a href="/settings/email">设置</a></td><td>电子邮件通知；Slack、Teams 和 Webhook；登录会话、双因素策略、暴力破解防护、四眼审批和存储的机密；还原测试；浏览器使用的 HTTPS 证书；设备上的网络（地址、服务器名称、SSH——参见 <a href="/docs/install#setup-menu">安装</a>）；BackupZit 和操作系统更新；控制台自身的备份；LDAP / Active Directory；使用 SAML 或 OpenID Connect 的单点登录。</td></tr>
+  <tr><td><a href="/account">我的帐户</a>（右上角您的名字）</td><td>您的个人资料和角色、密码、双因素身份验证、API 令牌。</td></tr>
+  <tr><td><a href="/docs">文档</a></td><td>本指南。</td></tr>
+</table>
+
+<h3>语言</h3>
+<p>控制台提供 14 种语言：英语、德语、法语、西班牙语、意大利语、葡萄牙语（巴西）、荷兰语、波兰语、捷克语、塞尔维亚语（拉丁字母）、土耳其语、俄语、中文（简体）和日语。在右上角的语言列表或登录页面中选择一种；选择会保存在浏览器中。未作选择时，由浏览器语言决定（克罗地亚语、波斯尼亚语和黑山语浏览器使用塞尔维亚语，斯洛伐克语浏览器使用捷克语，其他语言使用英语）。本指南也已翻译（没有翻译的页面以英语显示）。电子邮件、聊天通知和代理报告的消息保持英语。</p>
+<p>翻译位于源代码的 <code>internal/server/i18n/zh.json</code> 中：英语文本是键，翻译是其值。<code>go run ./tools/i18n missing zh</code> 列出未翻译的文本；未翻译的文本以英语显示。</p>
+
+<h2>关键概念</h2>
+<h3>快照和重复数据删除</h3>
+<p>每次备份都会创建一个<i>快照</i>：数据在该时刻的完整、可浏览的映像。文件被拆分为大小可变的块，磁盘被拆分为块，每一块只存储一次，因此第二次及以后的备份只上传更改的内容——但每个快照都可以单独还原。无需管理“完整/增量链”。</p>
+<h3>存储库</h3>
+<p>每个代理写入存储目标位置下自己的<i>存储库</i>（<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>）。存储库是自包含的：有了位置、存储凭据和恢复密钥，即使控制台已不存在也能还原。</p>
+<h3>保留</h3>
+<p>每个作业保留一定数量的最近、每日、每周和每月备份。较旧的快照在每次运行后删除，其占用的空间随之释放。</p>
+<h3>BackupZit 为您检查的内容</h3>
+<ul>
+  <li><b>还原测试</b>——每个作业的最新备份每周会被部分还原并验证（<a href="/docs/restore">还原</a>）。</li>
+  <li><b>勒索软件检测</b>——异常备份（大规模更改、加密数据、大规模删除、数据量突然激增）会被标记，并暂停保留清理（<a href="/docs/ransomware">勒索软件防护</a>）。</li>
+  <li><b>警报和报告</b>——故障时发送电子邮件并提供每日摘要；为管理层提供计划报告（<a href="/docs/notifications">电子邮件通知</a>、<a href="/docs/monitoring">监控</a>）。</li>
+</ul>
+
+<h2>许可证和支持</h2>
+<p>BackupZit 是采用 <b>GNU Affero General Public License v3</b> 的自由软件：您可以免费安装和使用，机器数量不限。MaxZit 提供商业支持。BackupZit 包含采用各自许可证（MIT、BSD、Apache 2.0、ISC、MPL 2.0、zlib）的开源组件；其许可文本随每个软件包以 <code>THIRD_PARTY_LICENSES.txt</code> 安装（Linux 上位于 <code>/usr/share/doc/backupzit-*/</code>，Windows 上位于代理的程序文件夹）。</p>
+{{template "docpager" .}}
+</article></div>{{end}}
