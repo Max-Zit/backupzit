@@ -1,0 +1,94 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Problemen oplossen en veelgestelde vragen</h1>
+
+<h2>Een agent wordt als offline getoond</h2>
+<ul>
+  <li>Staat de machine aan en draait de dienst? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Kan de machine de console bereiken? <code>Test-NetConnection backup-server -Port 8443</code> of <code>curl -k https://backup-server:8443/login</code>.</li>
+  <li>Agentlogboek: <code>C:\ProgramData\backupzit\agent.log</code>, op Linux <code>/etc/backupzit/agent.log</code> of <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" betekent dat het consolecertificaat is gewijzigd — registreer de agent opnieuw.</li>
+</ul>
+
+<h2>Een back-up is mislukt</h2>
+<p>Open de run in Activiteit; de melding noemt de oorzaak. Veelvoorkomende oorzaken:</p>
+<table>
+  <tr><th>Melding bevat</th><th>Oplossing</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>De sleutel van de SFTP-server is gewijzigd of de vingerafdruk is verkeerd ingevoerd. Controleer met <code>ssh-keygen -lf</code> op de server.</td></tr>
+  <tr><td>permission denied / access denied</td><td>Inloggegevens van de opslag of maprechten. Test de aanmelding met een SFTP/SMB-client.</td></tr>
+  <tr><td>no space left / quota</td><td>De opslag is vol. Verkort het bewaarbeleid of voeg ruimte toe; verlopen back-ups maken na de volgende run ruimte vrij.</td></tr>
+  <tr><td>repository is locked</td><td>Een andere bewerking (bijv. opschonen) draait op dezelfde repository; de run probeert het 30 minuten lang opnieuw. Verouderde vergrendelingen verlopen automatisch.</td></tr>
+  <tr><td>wrong password / recovery key</td><td>De repository is met een andere sleutel aangemaakt — controleer of de taak het juiste opslagdoel gebruikt.</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>Er is onveranderlijkheid gevraagd voor een bucket zonder Object Lock. Maak een nieuwe bucket met Object Lock.</td></tr>
+</table>
+
+<h2>Andere meldingen</h2>
+<table>
+  <tr><th>Situatie</th><th>Wat te doen</th></tr>
+  <tr><td>"no matching backup disk is connected"</td><td>Sluit een van de roulerende USB-schijven aan (de melding noemt het benodigde label en welke gelabelde schijven aangesloten zijn). Een herstel heeft precies de schijf nodig die in de back-uprun wordt getoond.</td></tr>
+  <tr><td>"several backup disks are connected"</td><td>Sluit telkens maar één van de roulerende schijven aan.</td></tr>
+  <tr><td>Hersteltest mislukt</td><td>Open de run: de melding noemt het beschadigde bestand of blok of de reden (bijv. back-up verwijderd op de opslag). Voer <code>backupzit-agent check --read-data</code> uit op de repository, controleer de opslag en start een nieuwe back-up. Zijn back-ups verwijderd op onveranderlijke opslag, zie <a href="/docs/ransomware">Bescherming tegen ransomware</a>.</td></tr>
+  <tr><td>Back-up gemarkeerd als <i>verdacht</i></td><td>Controleer de machine op ransomware of massaal verwijderen (bijv. een leeggemaakte gesynchroniseerde map). Is alles in orde (bijv. een geplande migratie), klik dan op de taakpagina op <i>Gecontroleerd — bewaarbeleid hervatten</i>.</td></tr>
+  <tr><td>Let's Encrypt: "could not verify … is port 80 … reachable"</td><td>De HTTP-controle vereist dat poort 80 vanaf internet bereikbaar is. Gebruik voor interne consoles de DNS-controle via Cloudflare.</td></tr>
+  <tr><td>Let's Encrypt: "no Cloudflare zone … is accessible with this token"</td><td>Het token moet het recht Zone → DNS → Edit hebben voor de zone die de naam van de console bevat.</td></tr>
+  <tr><td>"HTTPS port 443: … permission denied" of "address already in use"</td><td>Een ander programma gebruikt de poort, of de dienst mag geen poorten onder 1024 openen (start hem met <code>CAP_NET_BIND_SERVICE</code>, zoals het pakket doet). Kies een andere poort in Instellingen → Certificaat.</td></tr>
+  <tr><td>Updates: "updates from the console need the Linux package of the console"</td><td>De console is niet vanuit het deb/rpm-pakket geïnstalleerd (bijvoorbeeld de evaluatiemodus). Werk hem bij op dezelfde manier als hij is geïnstalleerd.</td></tr>
+  <tr><td>Updates: "the release is not signed with a BackupZit release key"</td><td>De updatebron bevat geen officiële release, of de bestanden zijn onderweg gewijzigd. Download ze opnieuw vanaf het officiële adres.</td></tr>
+  <tr><td>Updates: status <i>rolled-back</i></td><td>De nieuwe versie startte niet, dus de vorige en de bijbehorende database zijn teruggezet. Het logboek van de mislukte start staat op de pagina Updates; stuur het naar support.</td></tr>
+  <tr><td>Besturingssysteem: "no supported package manager"</td><td>Updates van het besturingssysteem worden ondersteund op Debian, Ubuntu (apt) en AlmaLinux, Rocky Linux, RHEL (dnf).</td></tr>
+  <tr><td>Consoleback-up: "the backup was made by a newer BackupZit"</td><td>Installeer vóór het herstel op de nieuwe console de versie die de back-up heeft gemaakt, of een nieuwere.</td></tr>
+  <tr><td>Consoleback-up: "console backups need network storage"</td><td>Kies een SFTP-, S3-, SMB-, Azure- of geharde-repositorydoel; een lokaal pad van een agent is vanaf de console niet bereikbaar.</td></tr>
+  <tr><td>"Te veel mislukte aanmeldingen"</td><td>Uw adres is geblokkeerd na herhaalde verkeerde wachtwoorden: standaard 30 minuten, langer bij herhaalde blokkades. Een beheerder kan de blokkade opheffen onder <a href="/settings/security">Instellingen → Aanmelden en beveiliging</a>. Op de server heft <code>backupzit-server --unblock-ip all</code> alle blokkades op. Accounts worden nooit permanent vergrendeld.</td></tr>
+  <tr><td>Telefoon voor tweestapsaanmelding kwijt</td><td>Gebruik een van de herstelcodes; anders zet een beheerder de tweestapsaanmelding terug op uw gebruikerspagina. De laatste beheerder kan zijn wachtwoord op de server terugzetten met <code>backupzit-server --set-admin-password</code>.</td></tr>
+  <tr><td>"your directory account is not in any BackupZit group"</td><td>Voeg de gebruiker toe aan een van de groepen die zijn gekoppeld onder <a href="/settings/ldap">Instellingen → LDAP / Active Directory</a>, of koppel meer groepen. Gebruik daar <i>Test</i> om de groepen te zien die voor een gebruiker worden gevonden.</td></tr>
+  <tr><td>API geeft 401 / 403</td><td>401: token ontbreekt, is ingetrokken, verlopen of de eigenaar is uitgeschakeld. 403: de rol van het token is te laag voor het verzoek.</td></tr>
+  <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Verkeerde accountsleutel, of het SAS-token mist het recht om te lezen, schrijven, verwijderen of weergeven, of het is verlopen.</td></tr>
+  <tr><td>Een herstelde VM met Windows Server 2012 R2 / Windows 8.1 start niet op Hyper-V Gen 2 ("hash was denied (DBX)")</td><td>Microsoft heeft de oude bootloader voor Secure Boot ingetrokken. Schakel Secure Boot uit voor die VM, of werk het systeem bij voordat u er een back-up van maakt.</td></tr>
+</table>
+
+<h2>Virtuele machines, Linux-systemen en nieuwe hardware</h2>
+<table>
+  <tr><th>Situatie</th><th>Wat te doen</th></tr>
+  <tr><td>Proxmox: "the guest is running and one of its disks is on storage without snapshot support"</td><td>Draaiende gasten hebben LVM-thin-, ZFS-, Ceph RBD- of qcow2-schijven nodig. Verplaats de schijf (<i>Disk Action → Move Storage</i>) of maak een back-up van de gast terwijl die gestopt is.</td></tr>
+  <tr><td>Hyper-V: de run meldt "crash-consistent"</td><td>De gast kon zich niet voorbereiden op het controlepunt. Controleer in Windows-gasten dat de Hyper-V-integratieservices (<i>Backup (volume shadow copy)</i>) in de VM-instellingen zijn ingeschakeld. Installeer in Linux-gasten <code>hyperv-daemons</code> (RHEL) of <code>linux-cloud-tools</code> / <code>hyperv-daemons</code> (Debian/Ubuntu).</td></tr>
+  <tr><td>VMware: "SSH off" of "SSH to …: connection refused"</td><td>Schakel SSH in op de ESXi-host: Host → Actions → Services → Enable Secure Shell (en laat het met de host starten). Herstelbewerkingen, en back-ups met de gratis licentie, hebben het nodig.</td></tr>
+  <tr><td>VMware: "changed block tracking is off and can be enabled … only while the VM is off"</td><td>Gratis ESXi-licentie: sluit de VM één keer af en voer daarna de taak uit; BackupZit schakelt changed block tracking in en latere back-ups lezen alleen gewijzigde blokken.</td></tr>
+  <tr><td>VMware: "copy the disk on the datastore (needs free space …)"</td><td>Draaiende VM's worden kort op hun datastore gekopieerd. Maak daar ruimte vrij (zoveel als de schijf gebruikt), of maak een back-up van de VM terwijl die uit staat.</td></tr>
+  <tr><td>VMware: "… is a snapshot delta disk"</td><td>De VM heeft eigen snapshots. Verwijder of consolideer ze in de ESXi Host Client (Snapshots → Delete all).</td></tr>
+  <tr><td>VMware: "the ESXi certificate changed"</td><td>De host is opnieuw geïnstalleerd of een andere machine antwoordt op zijn adres. Is dat verwacht, verwijder de host dan onder Agents en voeg hem opnieuw toe om het nieuwe certificaat te pinnen.</td></tr>
+  <tr><td>VMware: bestanden <code>*.replaced-DATE.vmdk</code> naast VM-schijven</td><td>De oude schijven van een ter plaatse herstelde VM. Verwijder ze in de datastorebrowser zodra de herstelde VM werkt.</td></tr>
+  <tr><td>Hyper-V: bestanden <code>*.replaced-DATE</code> naast VM-schijven</td><td>De oude schijven van een ter plaatse herstelde VM. Verwijder ze zodra de herstelde VM werkt.</td></tr>
+  <tr><td>Direct herstel in Proxmox: de VM start niet of hangt</td><td>Controleer de schijfserver: <code>systemctl status backupzit-instant-ID</code> en <code>journalctl -u backupzit-instant-ID</code> op de node. De back-upopslag moet bereikbaar blijven; als de repository niet gelezen kan worden, blijven de schijfleesacties van de VM hangen.</td></tr>
+  <tr><td>Direct herstel in Proxmox: "efidisk0 stays on storage backupzit-instant"</td><td>QEMU kan de EFI-variabelenopslag niet verplaatsen terwijl de VM draait. Sluit de VM af en voer <code>qm disk move ID efidisk0 STORAGE --delete 1</code> uit; dat hangt niet van de back-up af.</td></tr>
+  <tr><td>Proxmox: "runs on node X; install the BackupZit agent on X"</td><td>De gast is gemigreerd. Installeer de agent op elke node en maak back-ups van de gasten van elke node met de agent van die node.</td></tr>
+  <tr><td>Proxmox-back-ups of -herstel traag, SFTP "connection lost", "message authentication code incorrect" op de opslagserver</td><td>Bekend probleem van Intel e1000e-netwerkkaarten in Proxmox-hosts (logboek: "Detected Hardware Unit Hang", "Reset adapter unexpectedly"). Schakel offloading uit: <code>ethtool -K eno1 tso off gso off gro off</code> en voeg het toe als <code>post-up</code>-regel van de interface in <code>/etc/network/interfaces</code>.</td></tr>
+  <tr><td>Bestanden bladeren: "stored on a local path of the agent"</td><td>De console kan alleen back-ups op netwerkopslag lezen. Gebruik <code>backupzit-agent pve ls/extract</code> of <code>image-ls/image-extract</code> op de agent.</td></tr>
+  <tr><td>Herstel van Linux-systeem: "missing programs …"</td><td>Installeer de genoemde pakketten op de herstellende machine, of start de BackupZit Linux-herstel-ISO, die ze bevat.</td></tr>
+  <tr><td>Herstelde Linux-machine heeft geen netwerk</td><td>De netwerkinstellingen waren gebonden aan het oude MAC-adres (netplan <code>match: macaddress</code>). Herstel met <i>Andere hardware</i>, of verwijder de <code>match</code>-regels in <code>/etc/netplan/</code>.</td></tr>
+  <tr><td>Herstelde Windows stopt met INACCESSIBLE_BOOT_DEVICE</td><td>Herstel opnieuw met <i>Herstellen op andere hardware</i>, of start de herstel-ISO en voer <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code> uit.</td></tr>
+  <tr><td>Een herstelde kopie van een machine verschijnt als de originele agent</td><td>Herstel naar een nieuwe Proxmox-VM meldt de agent in de kopie automatisch af. Verwijder bij andere kopieën <code>agent.json</code> in de kopie en registreer die als nieuwe machine.</td></tr>
+  <tr><td>Agent-update wordt niet voltooid</td><td>Bekijk het installatielogboek in <code>C:\ProgramData\backupzit\updates</code> of <code>/var/tmp/backupzit-updates</code>; agents van vóór 0.21 moeten één keer handmatig worden bijgewerkt.</td></tr>
+  <tr><td>Het tray-pictogram ontbreekt</td><td>Klik op de pijl <b>^</b> naast de klok en sleep het BackupZit-pictogram naar de taakbalk, of start <i>BackupZit Agent</i> vanuit het menu Start.</td></tr>
+</table>
+
+<h2>Een back-up eindigt met "waarschuwing"</h2>
+<p>Sommige bestanden konden niet worden gelezen — meestal bestanden die door een toepassing zijn vergrendeld terwijl VSS niet beschikbaar is, of bestanden waarvoor de agent geen rechten heeft. De lijst staat op de runpagina. Al het andere is geback-upt.</p>
+
+<h2>Back-ups zijn traag</h2>
+<ul>
+  <li>De eerste back-up leest en uploadt alles; latere lezen alleen gewijzigde bestanden en uploaden alleen nieuwe gegevens.</li>
+  <li>Controleer het netwerkpad naar de opslag (wifi, VPN, uploadsnelheid naar internet bij cloudopslag).</li>
+  <li>Sluit caches, tijdelijke bestanden en media uit die u niet nodig hebt.</li>
+</ul>
+
+<h2>Veelgestelde vragen</h2>
+<h3>Kan ik NFS gebruiken?</h3>
+<p>Om een back-up te maken van een NFS- (of SMB-)share, maakt u een taak <a href="/docs/jobs#nas">NAS / bestandsshare</a>; een Linux-agent koppelt de export voor elke run. Om back-ups op NFS <b>op te slaan</b>, koppelt u de export op de agent (Linux: <code>/etc/fstab</code>) en gebruikt u een doel <i>Lokaal / gekoppeld pad</i> zoals <code>/mnt/nfs-backup</code>; voor Windows-machines is een SMB-doel de betere keuze.</p>
+<h3>Kan ik back-ups naar andere opslag verplaatsen?</h3>
+<p>Kopieer de repositorymap (of het bucketvoorvoegsel) zoals hij is — hij is op zichzelf staand — en voeg een opslagdoel toe dat met dezelfde herstelsleutel naar de nieuwe locatie wijst.</p>
+<h3>Verwijdert het verwijderen van een taak de back-ups?</h3>
+<p>Nee. Back-ups blijven op de opslag en blijven herstelbaar vanuit Activiteit of de opdrachtregel.</p>
+<h3>Wat gebeurt er als de console uitvalt?</h3>
+<p>Er starten geen nieuwe geplande back-ups tot hij terug is; runs in de wachtrij gaan daarna verder. Herstel is altijd mogelijk vanaf de opdrachtregel met het herstelblad.</p>
+<h3>Hoeveel ruimte hebben back-ups nodig?</h3>
+<p>Voor de eerste back-up ongeveer de grootte van de gegevens na compressie, plus de dagelijkse wijzigingen voor elke bewaarde dag. De pagina Rapporten toont hoeveel er per taak is geüpload.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

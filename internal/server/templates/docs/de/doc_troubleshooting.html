@@ -1,0 +1,94 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Fehlerbehebung &amp; FAQ</h1>
+
+<h2>Ein Agent wird als offline angezeigt</h2>
+<ul>
+  <li>Ist die Maschine eingeschaltet und läuft der Dienst? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Erreicht die Maschine die Konsole? <code>Test-NetConnection backup-server -Port 8443</code> oder <code>curl -k https://backup-server:8443/login</code>.</li>
+  <li>Agentenprotokoll: <code>C:\ProgramData\backupzit\agent.log</code>, unter Linux <code>/etc/backupzit/agent.log</code> oder <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch“ bedeutet, dass sich das Konsolenzertifikat geändert hat — registrieren Sie den Agenten erneut.</li>
+</ul>
+
+<h2>Eine Sicherung ist fehlgeschlagen</h2>
+<p>Öffnen Sie den Lauf in Aktivität; die Meldung nennt die Ursache. Häufige Ursachen:</p>
+<table>
+  <tr><th>Meldung enthält</th><th>Lösung</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>Der Schlüssel des SFTP-Servers hat sich geändert oder der Fingerabdruck wurde falsch eingegeben. Prüfen Sie mit <code>ssh-keygen -lf</code> auf dem Server.</td></tr>
+  <tr><td>permission denied / access denied</td><td>Zugangsdaten des Speichers oder Ordnerberechtigungen. Testen Sie die Anmeldung mit einem SFTP-/SMB-Client.</td></tr>
+  <tr><td>no space left / quota</td><td>Der Speicher ist voll. Verkürzen Sie die Aufbewahrung oder fügen Sie Platz hinzu; abgelaufene Sicherungen geben nach dem nächsten Lauf Platz frei.</td></tr>
+  <tr><td>repository is locked</td><td>Ein anderer Vorgang (z. B. Bereinigung) läuft auf demselben Repository; der Lauf versucht es 30 Minuten lang erneut. Veraltete Sperren laufen automatisch ab.</td></tr>
+  <tr><td>wrong password / recovery key</td><td>Das Repository wurde mit einem anderen Schlüssel angelegt — prüfen Sie, ob der Auftrag das richtige Speicherziel verwendet.</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>Unveränderlichkeit wurde für einen Bucket ohne Object Lock angefordert. Erstellen Sie einen neuen Bucket mit Object Lock.</td></tr>
+</table>
+
+<h2>Andere Meldungen</h2>
+<table>
+  <tr><th>Situation</th><th>Was tun</th></tr>
+  <tr><td>„no matching backup disk is connected“</td><td>Schließen Sie eine der rotierenden USB-Festplatten an (die Meldung nennt das benötigte Label und welche beschrifteten Festplatten angeschlossen sind). Eine Wiederherstellung braucht genau die Festplatte, die im Sicherungslauf angezeigt wird.</td></tr>
+  <tr><td>„several backup disks are connected“</td><td>Schließen Sie jeweils nur eine der rotierenden Festplatten an.</td></tr>
+  <tr><td>Wiederherstellungstest fehlgeschlagen</td><td>Öffnen Sie den Lauf: Die Meldung nennt die beschädigte Datei bzw. den Block oder den Grund (z. B. Sicherung auf dem Speicher gelöscht). Führen Sie <code>backupzit-agent check --read-data</code> für das Repository aus, prüfen Sie den Speicher und starten Sie eine neue Sicherung. Wurden Sicherungen auf unveränderlichem Speicher gelöscht, siehe <a href="/docs/ransomware">Schutz vor Ransomware</a>.</td></tr>
+  <tr><td>Sicherung als <i>verdächtig</i> markiert</td><td>Prüfen Sie die Maschine auf Ransomware oder eine Massenlöschung (z. B. ein geleerter synchronisierter Ordner). Ist alles in Ordnung (z. B. eine geplante Migration), klicken Sie auf der Auftragsseite auf <i>Geprüft – Aufbewahrung fortsetzen</i>.</td></tr>
+  <tr><td>Let's Encrypt: „could not verify … is port 80 … reachable“</td><td>Die HTTP-Prüfung braucht Port 80 aus dem Internet erreichbar. Verwenden Sie für interne Konsolen die DNS-Prüfung über Cloudflare.</td></tr>
+  <tr><td>Let's Encrypt: „no Cloudflare zone … is accessible with this token“</td><td>Das Token braucht die Berechtigung Zone → DNS → Edit für die Zone, die den Namen der Konsole enthält.</td></tr>
+  <tr><td>„HTTPS port 443: … permission denied“ oder „address already in use“</td><td>Ein anderes Programm nutzt den Port, oder der Dienst darf keine Ports unter 1024 belegen (starten Sie ihn mit <code>CAP_NET_BIND_SERVICE</code>, wie es das Paket tut). Wählen Sie unter Einstellungen → Zertifikat einen anderen Port.</td></tr>
+  <tr><td>Updates: „updates from the console need the Linux package of the console“</td><td>Die Konsole wurde nicht aus dem deb/rpm-Paket installiert (zum Beispiel der Testmodus). Aktualisieren Sie sie so, wie sie installiert wurde.</td></tr>
+  <tr><td>Updates: „the release is not signed with a BackupZit release key“</td><td>Die Update-Quelle enthält kein offizielles Release, oder die Dateien wurden unterwegs verändert. Laden Sie sie erneut von der offiziellen Adresse herunter.</td></tr>
+  <tr><td>Updates: Status <i>rolled-back</i></td><td>Die neue Version ist nicht gestartet, daher wurden die vorherige Version und ihre Datenbank wiederhergestellt. Das Protokoll des fehlgeschlagenen Starts steht auf der Seite Updates; senden Sie es an den Support.</td></tr>
+  <tr><td>Betriebssystem: „no supported package manager“</td><td>Betriebssystem-Updates werden unter Debian, Ubuntu (apt) und AlmaLinux, Rocky Linux, RHEL (dnf) unterstützt.</td></tr>
+  <tr><td>Konsolensicherung: „the backup was made by a newer BackupZit“</td><td>Installieren Sie vor der Wiederherstellung auf der neuen Konsole die Version, mit der die Sicherung erstellt wurde, oder eine neuere.</td></tr>
+  <tr><td>Konsolensicherung: „console backups need network storage“</td><td>Wählen Sie ein SFTP-, S3-, SMB-, Azure- oder gehärtetes Repository-Ziel; ein lokaler Pfad eines Agenten ist von der Konsole aus nicht erreichbar.</td></tr>
+  <tr><td>„Zu viele fehlgeschlagene Anmeldungen“</td><td>Ihre Adresse wurde nach wiederholt falschen Passwörtern gesperrt: standardmäßig für 30 Minuten, bei wiederholten Sperren länger. Ein Administrator kann die Sperre unter <a href="/settings/security">Einstellungen → Anmeldung &amp; Sicherheit</a> aufheben. Auf dem Server hebt <code>backupzit-server --unblock-ip all</code> alle Sperren auf. Konten werden nie dauerhaft gesperrt.</td></tr>
+  <tr><td>Telefon für die Zwei-Faktor-Anmeldung verloren</td><td>Verwenden Sie einen der Wiederherstellungscodes; andernfalls setzt ein Administrator die Zwei-Faktor-Anmeldung auf Ihrer Benutzerseite zurück. Der letzte Administrator kann sein Passwort auf dem Server mit <code>backupzit-server --set-admin-password</code> zurücksetzen.</td></tr>
+  <tr><td>„your directory account is not in any BackupZit group“</td><td>Fügen Sie den Benutzer einer der unter <a href="/settings/ldap">Einstellungen → LDAP / Active Directory</a> zugeordneten Gruppen hinzu oder ordnen Sie weitere Gruppen zu. Mit <i>Test</i> sehen Sie dort die für einen Benutzer gefundenen Gruppen.</td></tr>
+  <tr><td>API liefert 401 / 403</td><td>401: Token fehlt, wurde widerrufen, ist abgelaufen oder sein Besitzer ist deaktiviert. 403: Die Rolle des Tokens ist für die Anfrage zu niedrig.</td></tr>
+  <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Falscher Kontoschlüssel, oder dem SAS-Token fehlt die Berechtigung zum Lesen, Schreiben, Löschen oder Auflisten, oder es ist abgelaufen.</td></tr>
+  <tr><td>Eine wiederhergestellte VM mit Windows Server 2012 R2 / Windows 8.1 startet nicht unter Hyper-V Gen 2 („hash was denied (DBX)“)</td><td>Microsoft hat den alten Bootloader für Secure Boot widerrufen. Schalten Sie Secure Boot für diese VM aus oder aktualisieren Sie das System vor der Sicherung.</td></tr>
+</table>
+
+<h2>Virtuelle Maschinen, Linux-Systeme und neue Hardware</h2>
+<table>
+  <tr><th>Situation</th><th>Was tun</th></tr>
+  <tr><td>Proxmox: „the guest is running and one of its disks is on storage without snapshot support“</td><td>Laufende Gäste brauchen LVM-thin-, ZFS-, Ceph-RBD- oder qcow2-Festplatten. Verschieben Sie die Festplatte (<i>Disk Action → Move Storage</i>) oder sichern Sie den Gast, während er gestoppt ist.</td></tr>
+  <tr><td>Hyper-V: Der Lauf meldet „crash-consistent“</td><td>Der Gast konnte sich nicht auf den Prüfpunkt vorbereiten. Prüfen Sie in Windows-Gästen, dass die Hyper-V-Integrationsdienste (<i>Backup (volume shadow copy)</i>) in den VM-Einstellungen aktiviert sind. In Linux-Gästen installieren Sie <code>hyperv-daemons</code> (RHEL) bzw. <code>linux-cloud-tools</code> / <code>hyperv-daemons</code> (Debian/Ubuntu).</td></tr>
+  <tr><td>VMware: „SSH off“ oder „SSH to …: connection refused“</td><td>Aktivieren Sie SSH auf dem ESXi-Host: Host → Actions → Services → Enable Secure Shell (und lassen Sie es mit dem Host starten). Wiederherstellungen und Sicherungen mit der kostenlosen Lizenz brauchen es.</td></tr>
+  <tr><td>VMware: „changed block tracking is off and can be enabled … only while the VM is off“</td><td>Kostenlose ESXi-Lizenz: Fahren Sie die VM einmal herunter und führen Sie dann den Auftrag aus; BackupZit aktiviert Changed Block Tracking, und spätere Sicherungen lesen nur geänderte Blöcke.</td></tr>
+  <tr><td>VMware: „copy the disk on the datastore (needs free space …)“</td><td>Laufende VMs werden kurz auf ihrem Datastore kopiert. Schaffen Sie dort Platz (so viel, wie die Festplatte belegt), oder sichern Sie die VM im ausgeschalteten Zustand.</td></tr>
+  <tr><td>VMware: „… is a snapshot delta disk“</td><td>Die VM hat eigene Snapshots. Löschen oder konsolidieren Sie sie im ESXi Host Client (Snapshots → Delete all).</td></tr>
+  <tr><td>VMware: „the ESXi certificate changed“</td><td>Der Host wurde neu installiert oder eine andere Maschine antwortet unter seiner Adresse. Ist das erwartet, entfernen Sie den Host unter Agenten und fügen Sie ihn erneut hinzu, um das neue Zertifikat zu pinnen.</td></tr>
+  <tr><td>VMware: Dateien <code>*.replaced-DATE.vmdk</code> neben VM-Festplatten</td><td>Die alten Festplatten einer an Ort und Stelle wiederhergestellten VM. Löschen Sie sie im Datastore-Browser, sobald die wiederhergestellte VM funktioniert.</td></tr>
+  <tr><td>Hyper-V: Dateien <code>*.replaced-DATE</code> neben VM-Festplatten</td><td>Die alten Festplatten einer an Ort und Stelle wiederhergestellten VM. Löschen Sie sie, sobald die wiederhergestellte VM funktioniert.</td></tr>
+  <tr><td>Proxmox-Sofortwiederherstellung: Die VM startet nicht oder hängt</td><td>Prüfen Sie den Festplattenserver: <code>systemctl status backupzit-instant-ID</code> und <code>journalctl -u backupzit-instant-ID</code> auf dem Knoten. Der Sicherungsspeicher muss erreichbar bleiben; kann das Repository nicht gelesen werden, stocken die Lesezugriffe der VM auf ihre Festplatten.</td></tr>
+  <tr><td>Proxmox-Sofortwiederherstellung: „efidisk0 stays on storage backupzit-instant“</td><td>QEMU kann den EFI-Variablenspeicher nicht verschieben, während die VM läuft. Fahren Sie die VM herunter und führen Sie <code>qm disk move ID efidisk0 STORAGE --delete 1</code> aus; das hängt nicht von der Sicherung ab.</td></tr>
+  <tr><td>Proxmox: „runs on node X; install the BackupZit agent on X“</td><td>Der Gast wurde migriert. Installieren Sie den Agenten auf jedem Knoten und sichern Sie die Gäste jedes Knotens mit dessen Agenten.</td></tr>
+  <tr><td>Proxmox-Sicherungen oder -Wiederherstellungen langsam, SFTP „connection lost“, „message authentication code incorrect“ auf dem Speicherserver</td><td>Bekanntes Problem von Intel-e1000e-Netzwerkkarten in Proxmox-Hosts (Protokoll: „Detected Hardware Unit Hang“, „Reset adapter unexpectedly“). Schalten Sie das Offloading aus: <code>ethtool -K eno1 tso off gso off gro off</code> und tragen Sie es als <code>post-up</code>-Zeile der Schnittstelle in <code>/etc/network/interfaces</code> ein.</td></tr>
+  <tr><td>Dateien durchsuchen: „stored on a local path of the agent“</td><td>Die Konsole kann nur Sicherungen auf Netzwerkspeicher lesen. Verwenden Sie <code>backupzit-agent pve ls/extract</code> oder <code>image-ls/image-extract</code> auf dem Agenten.</td></tr>
+  <tr><td>Linux-System-Wiederherstellung: „missing programs …“</td><td>Installieren Sie die genannten Pakete auf der wiederherstellenden Maschine, oder starten Sie das BackupZit-Linux-Wiederherstellungs-ISO, das sie enthält.</td></tr>
+  <tr><td>Die wiederhergestellte Linux-Maschine hat kein Netzwerk</td><td>Die Netzwerkeinstellungen waren an die alte MAC-Adresse gebunden (netplan <code>match: macaddress</code>). Stellen Sie mit <i>Andere Hardware</i> wieder her oder entfernen Sie die <code>match</code>-Zeilen in <code>/etc/netplan/</code>.</td></tr>
+  <tr><td>Wiederhergestelltes Windows bleibt mit INACCESSIBLE_BOOT_DEVICE stehen</td><td>Stellen Sie erneut mit <i>Auf andere Hardware wiederherstellen</i> wieder her, oder starten Sie das Wiederherstellungs-ISO und führen Sie <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code> aus.</td></tr>
+  <tr><td>Eine wiederhergestellte Kopie einer Maschine erscheint als der ursprüngliche Agent</td><td>Wiederherstellungen in eine neue Proxmox-VM melden den Agenten in der Kopie automatisch ab. Bei anderen Kopien entfernen Sie <code>agent.json</code> in der Kopie und registrieren Sie sie als neue Maschine.</td></tr>
+  <tr><td>Das Agenten-Update wird nicht abgeschlossen</td><td>Siehe das Installationsprotokoll in <code>C:\ProgramData\backupzit\updates</code> bzw. <code>/var/tmp/backupzit-updates</code>; Agenten vor 0.21 müssen einmal von Hand aktualisiert werden.</td></tr>
+  <tr><td>Das Tray-Symbol fehlt</td><td>Klicken Sie auf den Pfeil <b>^</b> neben der Uhr und ziehen Sie das BackupZit-Symbol auf die Taskleiste, oder starten Sie <i>BackupZit Agent</i> aus dem Startmenü.</td></tr>
+</table>
+
+<h2>Eine Sicherung endet mit „Warnung“</h2>
+<p>Einige Dateien konnten nicht gelesen werden — meist Dateien, die von einer Anwendung gesperrt sind, während VSS nicht verfügbar ist, oder Dateien, für die der Agent keine Berechtigung hat. Die Liste steht auf der Laufseite. Alles andere ist gesichert.</p>
+
+<h2>Sicherungen sind langsam</h2>
+<ul>
+  <li>Die erste Sicherung liest und lädt alles hoch; spätere lesen nur geänderte Dateien und laden nur neue Daten hoch.</li>
+  <li>Prüfen Sie den Netzwerkweg zum Speicher (WLAN, VPN, Upload-Geschwindigkeit ins Internet bei Cloud-Speicher).</li>
+  <li>Schließen Sie Caches, temporäre Dateien und nicht benötigte Medien aus.</li>
+</ul>
+
+<h2>FAQ</h2>
+<h3>Kann ich NFS verwenden?</h3>
+<p>Um eine NFS- (oder SMB-)Freigabe zu <b>sichern</b>, erstellen Sie einen Auftrag <a href="/docs/jobs#nas">NAS / Dateifreigabe</a>; ein Linux-Agent bindet den Export für jeden Lauf ein. Um Sicherungen auf NFS zu <b>speichern</b>, binden Sie den Export auf dem Agenten ein (Linux: <code>/etc/fstab</code>) und verwenden ein Ziel <i>Lokaler / eingebundener Pfad</i> wie <code>/mnt/nfs-backup</code>; für Windows-Maschinen ist ein SMB-Ziel die bessere Wahl.</p>
+<h3>Kann ich Sicherungen auf einen anderen Speicher verschieben?</h3>
+<p>Kopieren Sie den Repository-Ordner (oder Bucket-Präfix) unverändert — er ist in sich geschlossen — und fügen Sie ein Speicherziel hinzu, das mit demselben Wiederherstellungsschlüssel auf den neuen Ort zeigt.</p>
+<h3>Löscht das Löschen eines Auftrags die Sicherungen?</h3>
+<p>Nein. Die Sicherungen bleiben auf dem Speicher und lassen sich über Aktivität oder die Befehlszeile wiederherstellen.</p>
+<h3>Was passiert, wenn die Konsole ausfällt?</h3>
+<p>Bis sie wieder da ist, starten keine neuen geplanten Sicherungen; eingereihte Läufe werden danach fortgesetzt. Wiederherstellungen sind über die Befehlszeile mit dem Wiederherstellungsblatt immer möglich.</p>
+<h3>Wie viel Platz brauchen die Sicherungen?</h3>
+<p>Für die erste Sicherung ungefähr die Datenmenge nach Komprimierung, plus die täglichen Änderungen für jeden aufbewahrten Tag. Die Seite Berichte zeigt, wie viel pro Auftrag hochgeladen wurde.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

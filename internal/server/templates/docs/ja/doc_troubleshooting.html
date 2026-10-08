@@ -1,0 +1,94 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>トラブルシューティングと FAQ</h1>
+
+<h2>エージェントがオフラインと表示される</h2>
+<ul>
+  <li>マシンの電源は入っていて、サービスは動作していますか？ Windows: <code>Get-Service backupzit-agent</code>、Linux: <code>systemctl status backupzit-agent</code>。</li>
+  <li>マシンからコンソールに到達できますか？ <code>Test-NetConnection backup-server -Port 8443</code> または <code>curl -k https://backup-server:8443/login</code>。</li>
+  <li>エージェントのログ: <code>C:\ProgramData\backupzit\agent.log</code>、Linux では <code>/etc/backupzit/agent.log</code> または <code>journalctl -u backupzit-agent</code>。「fingerprint mismatch」はコンソールの証明書が変わったことを意味します — エージェントを登録し直してください。</li>
+</ul>
+
+<h2>バックアップが失敗した</h2>
+<p>アクティビティで実行を開くと、メッセージに原因が表示されます。よくある原因:</p>
+<table>
+  <tr><th>メッセージに含まれる語</th><th>対処</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>SFTP サーバーのキーが変わったか、フィンガープリントの入力が誤っています。サーバーで <code>ssh-keygen -lf</code> を使って確認してください。</td></tr>
+  <tr><td>permission denied / access denied</td><td>ストレージの資格情報またはフォルダーの権限です。SFTP/SMB クライアントでログインを試してください。</td></tr>
+  <tr><td>no space left / quota</td><td>ストレージがいっぱいです。保持期間を短くするか容量を追加してください。期限切れのバックアップは次の実行後に領域を解放します。</td></tr>
+  <tr><td>repository is locked</td><td>同じリポジトリで別の処理（例: クリーンアップ）が実行中です。実行は 30 分間再試行します。古いロックは自動的に解除されます。</td></tr>
+  <tr><td>wrong password / recovery key</td><td>リポジトリが別のキーで作成されています — ジョブが正しいストレージ先を使っているか確認してください。</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>Object Lock なしで作成されたバケットに変更不可が要求されました。Object Lock を有効にした新しいバケットを作成してください。</td></tr>
+</table>
+
+<h2>その他のメッセージ</h2>
+<table>
+  <tr><th>状況</th><th>対処</th></tr>
+  <tr><td>「no matching backup disk is connected」</td><td>ローテーション用 USB ディスクのいずれかを接続してください（メッセージに必要なラベルと、接続されているラベル付きディスクが表示されます）。復元には、バックアップの実行に表示されたディスクそのものが必要です。</td></tr>
+  <tr><td>「several backup disks are connected」</td><td>ローテーション用ディスクは一度に 1 台だけ接続してください。</td></tr>
+  <tr><td>復元テストが失敗した</td><td>実行を開くと、メッセージに破損したファイルやブロック、または理由（例: ストレージ上でバックアップが削除された）が表示されます。リポジトリに対して <code>backupzit-agent check --read-data</code> を実行し、ストレージを確認して新しいバックアップを開始してください。変更不可のストレージでバックアップが削除された場合は、<a href="/docs/ransomware">ランサムウェア対策</a> を参照してください。</td></tr>
+  <tr><td>バックアップが <i>不審</i> とマークされた</td><td>マシンにランサムウェアや大量削除（例: 同期フォルダーが空になった）がないか確認してください。問題がなければ（例: 計画的な移行）、ジョブのページで <i>確認済み — 保持を再開</i> をクリックします。</td></tr>
+  <tr><td>Let's Encrypt: 「could not verify … is port 80 … reachable」</td><td>HTTP 確認にはインターネットからポート 80 に到達できる必要があります。社内のコンソールでは Cloudflare 経由の DNS 確認を使ってください。</td></tr>
+  <tr><td>Let's Encrypt: 「no Cloudflare zone … is accessible with this token」</td><td>トークンには、コンソールの名前を含むゾーンに対する Zone → DNS → Edit の権限が必要です。</td></tr>
+  <tr><td>「HTTPS port 443: … permission denied」または「address already in use」</td><td>別のプログラムがポートを使っているか、サービスが 1024 未満のポートを使えません（パッケージと同様に <code>CAP_NET_BIND_SERVICE</code> 付きで実行してください）。設定 → 証明書 で別のポートを選んでください。</td></tr>
+  <tr><td>更新: 「updates from the console need the Linux package of the console」</td><td>コンソールが deb/rpm パッケージからインストールされていません（例: 評価モード）。インストールしたのと同じ方法で更新してください。</td></tr>
+  <tr><td>更新: 「the release is not signed with a BackupZit release key」</td><td>更新元に公式リリースがないか、途中でファイルが改変されています。公式のアドレスから再度ダウンロードしてください。</td></tr>
+  <tr><td>更新: 状態が <i>rolled-back</i></td><td>新しいバージョンが起動しなかったため、以前のバージョンとそのデータベースが復元されました。起動に失敗したときのログは更新ページにあります。サポートに送ってください。</td></tr>
+  <tr><td>オペレーティング システム: 「no supported package manager」</td><td>オペレーティング システムの更新は Debian、Ubuntu（apt）と AlmaLinux、Rocky Linux、RHEL（dnf）でサポートされています。</td></tr>
+  <tr><td>コンソールのバックアップ: 「the backup was made by a newer BackupZit」</td><td>復元する前に、新しいコンソールにバックアップを作成したバージョン以降をインストールしてください。</td></tr>
+  <tr><td>コンソールのバックアップ: 「console backups need network storage」</td><td>SFTP、S3、SMB、Azure、または強化リポジトリのストレージ先を選んでください。エージェントのローカル パスにはコンソールから到達できません。</td></tr>
+  <tr><td>「サインインの失敗が多すぎます」</td><td>誤ったパスワードが繰り返されたため、アドレスがブロックされました: 既定では 30 分、繰り返すとさらに長くなります。管理者は <a href="/settings/security">設定 → サインインとセキュリティ</a> でブロックを解除できます。サーバー上では <code>backupzit-server --unblock-ip all</code> ですべてのブロックを解除できます。アカウントが恒久的にロックされることはありません。</td></tr>
+  <tr><td>2 要素サインイン用の電話を紛失した</td><td>リカバリー コードのいずれかを使います。ない場合は、管理者がユーザーのページで 2 要素をリセットします。最後の管理者は、サーバー上で <code>backupzit-server --set-admin-password</code> を使って自分のパスワードをリセットできます。</td></tr>
+  <tr><td>「your directory account is not in any BackupZit group」</td><td><a href="/settings/ldap">設定 → LDAP / Active Directory</a> で対応付けたグループのいずれかにユーザーを追加するか、さらにグループを対応付けてください。そのページの <i>テスト</i> で、ユーザーに対して見つかったグループを確認できます。</td></tr>
+  <tr><td>API が 401 / 403 を返す</td><td>401: トークンがない、失効している、期限切れ、または所有者が無効化されている。403: トークンのロールが要求に対して低すぎます。</td></tr>
+  <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>アカウント キーが誤っているか、SAS トークンに読み取り、書き込み、削除、一覧表示の権限がないか、期限が切れています。</td></tr>
+  <tr><td>復元した Windows Server 2012 R2 / Windows 8.1 の VM が Hyper-V 第 2 世代で起動しない（「hash was denied (DBX)」）</td><td>Microsoft がセキュア ブート用の古いブートローダーを失効させました。その VM のセキュア ブートをオフにするか、バックアップ前にシステムを更新してください。</td></tr>
+</table>
+
+<h2>仮想マシン、Linux システム、新しいハードウェア</h2>
+<table>
+  <tr><th>状況</th><th>対処</th></tr>
+  <tr><td>Proxmox: 「the guest is running and one of its disks is on storage without snapshot support」</td><td>稼働中のゲストには LVM-thin、ZFS、Ceph RBD、qcow2 のディスクが必要です。ディスクを移動する（<i>Disk Action → Move Storage</i>）か、ゲストを停止した状態でバックアップしてください。</td></tr>
+  <tr><td>Hyper-V: 実行に「crash-consistent」と表示される</td><td>ゲストがチェックポイントの準備をできませんでした。Windows ゲストでは、VM の設定で Hyper-V 統合サービス（<i>Backup (volume shadow copy)</i>）が有効か確認してください。Linux ゲストには <code>hyperv-daemons</code>（RHEL）または <code>linux-cloud-tools</code> / <code>hyperv-daemons</code>（Debian/Ubuntu）をインストールしてください。</td></tr>
+  <tr><td>VMware: 「SSH off」または「SSH to …: connection refused」</td><td>ESXi ホストで SSH を有効にしてください: Host → Actions → Services → Enable Secure Shell（ホストと一緒に起動するよう設定）。復元、および無償ライセンスでのバックアップに必要です。</td></tr>
+  <tr><td>VMware: 「changed block tracking is off and can be enabled … only while the VM is off」</td><td>無償の ESXi ライセンス: VM を一度シャットダウンしてからジョブを実行してください。BackupZit が変更ブロック トラッキングを有効にし、以降のバックアップは変更されたブロックだけを読み取ります。</td></tr>
+  <tr><td>VMware: 「copy the disk on the datastore (needs free space …)」</td><td>稼働中の VM はデータストア上で一時的にコピーされます。そこに（ディスクの使用量分の）空き容量を作るか、VM を停止した状態でバックアップしてください。</td></tr>
+  <tr><td>VMware: 「… is a snapshot delta disk」</td><td>VM に独自のスナップショットがあります。ESXi Host Client で削除または統合してください（Snapshots → Delete all）。</td></tr>
+  <tr><td>VMware: 「the ESXi certificate changed」</td><td>ホストが再インストールされたか、別のマシンがそのアドレスで応答しています。想定どおりであれば、エージェントでホストを削除して再度追加し、新しい証明書をピン留めしてください。</td></tr>
+  <tr><td>VMware: VM ディスクの横に <code>*.replaced-DATE.vmdk</code> ファイルがある</td><td>元の場所に復元した VM の古いディスクです。復元した VM が動作したら、データストア ブラウザーで削除してください。</td></tr>
+  <tr><td>Hyper-V: VM ディスクの横に <code>*.replaced-DATE</code> ファイルがある</td><td>元の場所に復元した VM の古いディスクです。復元した VM が動作したら削除してください。</td></tr>
+  <tr><td>Proxmox のインスタント リカバリー: VM が起動しない、またはハングする</td><td>ディスク サーバーを確認してください: ノードで <code>systemctl status backupzit-instant-ID</code> と <code>journalctl -u backupzit-instant-ID</code>。バックアップ ストレージに到達できる状態を保つ必要があります。リポジトリを読み取れないと、VM のディスク読み取りが止まります。</td></tr>
+  <tr><td>Proxmox のインスタント リカバリー: 「efidisk0 stays on storage backupzit-instant」</td><td>VM の稼働中は QEMU が EFI 変数ストアを移動できません。VM をシャットダウンして <code>qm disk move ID efidisk0 STORAGE --delete 1</code> を実行してください。これはバックアップに依存しません。</td></tr>
+  <tr><td>Proxmox: 「runs on node X; install the BackupZit agent on X」</td><td>ゲストが移行されました。すべてのノードにエージェントをインストールし、各ノードのゲストはそのノードのエージェントでバックアップしてください。</td></tr>
+  <tr><td>Proxmox のバックアップや復元が遅い、ストレージ サーバーで SFTP「connection lost」「message authentication code incorrect」</td><td>Proxmox ホストの Intel e1000e ネットワーク カードの既知の問題です（ログ: 「Detected Hardware Unit Hang」「Reset adapter unexpectedly」）。オフロードを無効にしてください: <code>ethtool -K eno1 tso off gso off gro off</code> を、<code>/etc/network/interfaces</code> のインターフェイスに <code>post-up</code> 行として追加します。</td></tr>
+  <tr><td>ファイルの参照: 「stored on a local path of the agent」</td><td>コンソールが読み取れるのはネットワーク ストレージ上のバックアップだけです。エージェントで <code>backupzit-agent pve ls/extract</code> または <code>image-ls/image-extract</code> を使ってください。</td></tr>
+  <tr><td>Linux システムの復元: 「missing programs …」</td><td>復元を行うマシンに表示されたパッケージをインストールするか、それらを含む BackupZit の Linux リカバリ ISO から起動してください。</td></tr>
+  <tr><td>復元した Linux マシンがネットワークに接続できない</td><td>ネットワーク設定が古い MAC アドレスに結び付いていました（netplan <code>match: macaddress</code>）。<i>別のハードウェア</i> で復元するか、<code>/etc/netplan/</code> の <code>match</code> 行を削除してください。</td></tr>
+  <tr><td>復元した Windows が INACCESSIBLE_BOOT_DEVICE で停止する</td><td><i>異なるハードウェアに復元</i> で再度復元するか、リカバリー ISO から起動して <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code> を実行してください。</td></tr>
+  <tr><td>復元したマシンのコピーが元のエージェントとして表示される</td><td>新しい Proxmox VM への復元では、コピー内のエージェントの登録が自動的に解除されます。それ以外のコピーでは、コピー内の <code>agent.json</code> を削除し、新しいマシンとして登録してください。</td></tr>
+  <tr><td>エージェントの更新が完了しない</td><td><code>C:\ProgramData\backupzit\updates</code> または <code>/var/tmp/backupzit-updates</code> のインストーラーのログを確認してください。0.21 より前のエージェントは一度手動で更新する必要があります。</td></tr>
+  <tr><td>トレイ アイコンが表示されない</td><td>時計の横の <b>^</b> 矢印をクリックして BackupZit のアイコンをタスク バーにドラッグするか、スタート メニューから <i>BackupZit Agent</i> を起動してください。</td></tr>
+</table>
+
+<h2>バックアップが「警告」で終わる</h2>
+<p>一部のファイルを読み取れませんでした — 通常は、VSS が使えないときにアプリケーションがロックしているファイルや、エージェントに権限のないファイルです。一覧は実行ページにあります。それ以外はすべてバックアップされています。</p>
+
+<h2>バックアップが遅い</h2>
+<ul>
+  <li>最初のバックアップはすべてを読み取って送信します。以降は変更されたファイルだけを読み取り、新しいデータだけを送信します。</li>
+  <li>ストレージまでのネットワーク経路（Wi-Fi、VPN、クラウド ストレージの場合はインターネットのアップロード速度）を確認してください。</li>
+  <li>キャッシュ、一時ファイル、不要なメディアを除外してください。</li>
+</ul>
+
+<h2>FAQ</h2>
+<h3>NFS は使えますか？</h3>
+<p>NFS（または SMB）共有を <b>バックアップ</b> するには、<a href="/docs/jobs#nas">NAS / ファイル共有</a> ジョブを作成します。Linux エージェントが実行のたびにエクスポートをマウントします。バックアップを NFS に <b>保存</b> するには、エージェントでエクスポートをマウントし（Linux: <code>/etc/fstab</code>）、<code>/mnt/nfs-backup</code> のような <i>ローカル / マウント済みパス</i> のストレージ先を使います。Windows マシンには SMB のストレージ先が適しています。</p>
+<h3>バックアップを別のストレージに移動できますか？</h3>
+<p>リポジトリ フォルダー（またはバケットのプレフィックス）をそのままコピーし — それ自体で完結しています — 同じリカバリー キーで新しい場所を指すストレージ先を追加してください。</p>
+<h3>ジョブを削除するとバックアップも削除されますか？</h3>
+<p>いいえ。バックアップはストレージに残り、アクティビティやコマンドラインから復元できます。</p>
+<h3>コンソールが停止するとどうなりますか？</h3>
+<p>復旧するまで新しいスケジュール バックアップは開始されず、キューの実行はその後に続行されます。復元はリカバリーシートを使えば、コマンドラインからいつでも可能です。</p>
+<h3>バックアップにはどれくらいの容量が必要ですか？</h3>
+<p>最初のバックアップでは、圧縮後のデータ量とほぼ同じ容量に、保持する日数分の日々の変更が加わります。レポート ページで、ジョブごとの送信量を確認できます。</p>
+{{template "docpager" .}}
+</article></div>{{end}}

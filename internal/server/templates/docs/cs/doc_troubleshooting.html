@@ -1,0 +1,94 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Řešení potíží a časté dotazy</h1>
+
+<h2>Agent se zobrazuje jako offline</h2>
+<ul>
+  <li>Je počítač zapnutý a běží služba? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Dosáhne počítač na konzoli? <code>Test-NetConnection backup-server -Port 8443</code> nebo <code>curl -k https://backup-server:8443/login</code>.</li>
+  <li>Protokol agenta: <code>C:\ProgramData\backupzit\agent.log</code>, v Linuxu <code>/etc/backupzit/agent.log</code> nebo <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch“ znamená, že se certifikát konzole změnil — zaregistrujte agenta znovu.</li>
+</ul>
+
+<h2>Záloha selhala</h2>
+<p>Otevřete běh v Aktivita; zpráva uvádí příčinu. Časté příčiny:</p>
+<table>
+  <tr><th>Zpráva obsahuje</th><th>Řešení</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>Klíč serveru SFTP se změnil nebo byl otisk zadán špatně. Ověřte příkazem <code>ssh-keygen -lf</code> na serveru.</td></tr>
+  <tr><td>permission denied / access denied</td><td>Přihlašovací údaje úložiště nebo oprávnění ke složce. Vyzkoušejte přihlášení klientem SFTP/SMB.</td></tr>
+  <tr><td>no space left / quota</td><td>Úložiště je plné. Zkraťte uchovávání nebo přidejte místo; vypršené zálohy uvolní místo po dalším běhu.</td></tr>
+  <tr><td>repository is locked</td><td>Na stejném úložišti běží jiná operace (např. úklid); běh to zkouší znovu 30 minut. Zastaralé zámky vyprší automaticky.</td></tr>
+  <tr><td>wrong password / recovery key</td><td>Úložiště bylo vytvořeno jiným klíčem — ověřte, že úloha používá správné cílové úložiště.</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>Neměnnost byla požadována u bucketu vytvořeného bez Object Lock. Vytvořte nový bucket s Object Lock.</td></tr>
+</table>
+
+<h2>Další zprávy</h2>
+<table>
+  <tr><th>Situace</th><th>Co dělat</th></tr>
+  <tr><td>„no matching backup disk is connected“</td><td>Připojte jeden z rotujících USB disků (zpráva uvádí požadovaný štítek a které označené disky jsou připojené). Obnova potřebuje přesně ten disk, který je uveden v běhu zálohy.</td></tr>
+  <tr><td>„several backup disks are connected“</td><td>Připojujte vždy jen jeden z rotujících disků.</td></tr>
+  <tr><td>Test obnovy selhal</td><td>Otevřete běh: zpráva uvádí poškozený soubor nebo blok nebo důvod (např. záloha smazaná na úložišti). Spusťte <code>backupzit-agent check --read-data</code> nad úložištěm, zkontrolujte úložiště a spusťte novou zálohu. Pokud byly zálohy smazány na neměnném úložišti, viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>.</td></tr>
+  <tr><td>Záloha označená jako <i>podezřelá</i></td><td>Zkontrolujte počítač kvůli ransomwaru nebo hromadnému mazání (např. vyprázdněná synchronizovaná složka). Pokud je vše v pořádku (např. plánovaná migrace), klikněte na stránce úlohy na <i>Zkontrolováno — obnovit uchovávání</i>.</td></tr>
+  <tr><td>Let's Encrypt: „could not verify … is port 80 … reachable“</td><td>Kontrola HTTP vyžaduje port 80 dostupný z internetu. Pro interní konzole použijte kontrolu DNS přes Cloudflare.</td></tr>
+  <tr><td>Let's Encrypt: „no Cloudflare zone … is accessible with this token“</td><td>Token musí mít oprávnění Zone → DNS → Edit pro zónu, která obsahuje název konzole.</td></tr>
+  <tr><td>„HTTPS port 443: … permission denied“ nebo „address already in use“</td><td>Port používá jiný program, nebo služba nesmí otevírat porty pod 1024 (spusťte ji s <code>CAP_NET_BIND_SERVICE</code>, jak to dělá balíček). Zvolte jiný port v Nastavení → Certifikát.</td></tr>
+  <tr><td>Aktualizace: „updates from the console need the Linux package of the console“</td><td>Konzole nebyla nainstalována z balíčku deb/rpm (například zkušební režim). Aktualizujte ji stejně, jak byla nainstalována.</td></tr>
+  <tr><td>Aktualizace: „the release is not signed with a BackupZit release key“</td><td>Zdroj aktualizací neobsahuje oficiální vydání, nebo byly soubory cestou změněny. Stáhněte je znovu z oficiální adresy.</td></tr>
+  <tr><td>Aktualizace: stav <i>rolled-back</i></td><td>Nová verze se nespustila, proto byla obnovena předchozí verze i její databáze. Protokol neúspěšného startu je na stránce Aktualizace; pošlete ho podpoře.</td></tr>
+  <tr><td>Operační systém: „no supported package manager“</td><td>Aktualizace operačního systému jsou podporované v Debianu, Ubuntu (apt) a AlmaLinuxu, Rocky Linuxu, RHEL (dnf).</td></tr>
+  <tr><td>Záloha konzole: „the backup was made by a newer BackupZit“</td><td>Před obnovou nainstalujte na novou konzoli verzi, která zálohu vytvořila, nebo novější.</td></tr>
+  <tr><td>Záloha konzole: „console backups need network storage“</td><td>Zvolte cíl SFTP, S3, SMB, Azure nebo zabezpečené úložiště; místní cesta agenta není z konzole dostupná.</td></tr>
+  <tr><td>„Příliš mnoho neúspěšných přihlášení“</td><td>Vaše adresa byla zablokována po opakovaně špatných heslech: ve výchozím stavu na 30 minut, při opakovaných blokacích déle. Správce může blokaci zrušit v <a href="/settings/security">Nastavení → Přihlášení a zabezpečení</a>. Na serveru zruší všechny blokace <code>backupzit-server --unblock-ip all</code>. Účty se nikdy nezamykají trvale.</td></tr>
+  <tr><td>Ztracený telefon pro dvoufázové přihlášení</td><td>Použijte jeden z kódů obnovy; jinak správce dvoufázové přihlášení resetuje na stránce vašeho uživatele. Poslední správce si může heslo resetovat na serveru příkazem <code>backupzit-server --set-admin-password</code>.</td></tr>
+  <tr><td>„your directory account is not in any BackupZit group“</td><td>Přidejte uživatele do jedné ze skupin přiřazených v <a href="/settings/ldap">Nastavení → LDAP / Active Directory</a>, nebo přiřaďte více skupin. Pomocí <i>Test</i> tam uvidíte skupiny nalezené pro uživatele.</td></tr>
+  <tr><td>API vrací 401 / 403</td><td>401: token chybí, je odvolaný, vypršel nebo je jeho vlastník zakázán. 403: role tokenu je pro požadavek příliš nízká.</td></tr>
+  <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Špatný klíč účtu, nebo SAS tokenu chybí oprávnění ke čtení, zápisu, mazání či výpisu, nebo vypršel.</td></tr>
+  <tr><td>Obnovený VM s Windows Server 2012 R2 / Windows 8.1 se nespustí v Hyper-V Gen 2 („hash was denied (DBX)“)</td><td>Microsoft odvolal starý zavaděč pro Secure Boot. Vypněte pro tento VM Secure Boot, nebo systém před zálohou aktualizujte.</td></tr>
+</table>
+
+<h2>Virtuální počítače, systémy Linux a nový hardware</h2>
+<table>
+  <tr><th>Situace</th><th>Co dělat</th></tr>
+  <tr><td>Proxmox: „the guest is running and one of its disks is on storage without snapshot support“</td><td>Běžící hosté potřebují disky LVM-thin, ZFS, Ceph RBD nebo qcow2. Přesuňte disk (<i>Disk Action → Move Storage</i>) nebo hosta zálohujte, když je zastavený.</td></tr>
+  <tr><td>Hyper-V: běh hlásí „crash-consistent“</td><td>Host se nedokázal připravit na kontrolní bod. U hostů s Windows ověřte, že integrační služby Hyper-V (<i>Backup (volume shadow copy)</i>) jsou v nastavení VM zapnuté. Do hostů s Linuxem nainstalujte <code>hyperv-daemons</code> (RHEL) nebo <code>linux-cloud-tools</code> / <code>hyperv-daemons</code> (Debian/Ubuntu).</td></tr>
+  <tr><td>VMware: „SSH off“ nebo „SSH to …: connection refused“</td><td>Zapněte SSH na hostiteli ESXi: Host → Actions → Services → Enable Secure Shell (a nastavte spouštění s hostitelem). Potřebují ho obnovy a při bezplatné licenci i zálohy.</td></tr>
+  <tr><td>VMware: „changed block tracking is off and can be enabled … only while the VM is off“</td><td>Bezplatná licence ESXi: jednou VM vypněte a pak spusťte úlohu; BackupZit zapne sledování změněných bloků a další zálohy čtou jen změněné bloky.</td></tr>
+  <tr><td>VMware: „copy the disk on the datastore (needs free space …)“</td><td>Běžící VM se nakrátko kopírují na svém datastoru. Uvolněte tam místo (tolik, kolik disk zabírá), nebo VM zálohujte vypnutý.</td></tr>
+  <tr><td>VMware: „… is a snapshot delta disk“</td><td>VM má vlastní snímky. Smažte je nebo je konsolidujte v ESXi Host Clientu (Snapshots → Delete all).</td></tr>
+  <tr><td>VMware: „the ESXi certificate changed“</td><td>Hostitel byl přeinstalován nebo na jeho adrese odpovídá jiný počítač. Pokud je to očekávané, odeberte hostitele v Agenti a znovu ho přidejte, aby se připnul nový certifikát.</td></tr>
+  <tr><td>VMware: soubory <code>*.replaced-DATE.vmdk</code> vedle disků VM</td><td>Staré disky VM obnoveného na místo. Smažte je v prohlížeči datastoru, jakmile obnovený VM funguje.</td></tr>
+  <tr><td>Hyper-V: soubory <code>*.replaced-DATE</code> vedle disků VM</td><td>Staré disky VM obnoveného na místo. Smažte je, jakmile obnovený VM funguje.</td></tr>
+  <tr><td>Okamžitá obnova v Proxmoxu: VM se nespustí nebo zamrzne</td><td>Zkontrolujte diskový server: <code>systemctl status backupzit-instant-ID</code> a <code>journalctl -u backupzit-instant-ID</code> na uzlu. Úložiště záloh musí zůstat dostupné; když nelze úložiště číst, čtení disků VM se zastaví.</td></tr>
+  <tr><td>Okamžitá obnova v Proxmoxu: „efidisk0 stays on storage backupzit-instant“</td><td>QEMU nemůže přesunout úložiště proměnných EFI, dokud VM běží. Vypněte VM a spusťte <code>qm disk move ID efidisk0 STORAGE --delete 1</code>; nezávisí to na záloze.</td></tr>
+  <tr><td>Proxmox: „runs on node X; install the BackupZit agent on X“</td><td>Host byl migrován. Nainstalujte agenta na každý uzel a hosty každého uzlu zálohujte agentem daného uzlu.</td></tr>
+  <tr><td>Pomalé zálohy nebo obnovy v Proxmoxu, SFTP „connection lost“, „message authentication code incorrect“ na serveru úložiště</td><td>Známý problém síťových karet Intel e1000e v hostitelích Proxmox (protokol: „Detected Hardware Unit Hang“, „Reset adapter unexpectedly“). Vypněte offloading: <code>ethtool -K eno1 tso off gso off gro off</code> a přidejte to jako řádek <code>post-up</code> rozhraní v <code>/etc/network/interfaces</code>.</td></tr>
+  <tr><td>Procházení souborů: „stored on a local path of the agent“</td><td>Konzole umí číst jen zálohy na síťovém úložišti. Použijte <code>backupzit-agent pve ls/extract</code> nebo <code>image-ls/image-extract</code> na agentovi.</td></tr>
+  <tr><td>Obnova systému Linux: „missing programs …“</td><td>Nainstalujte uvedené balíčky na obnovující počítač, nebo nastartujte obnovovací ISO BackupZit pro Linux, které je obsahuje.</td></tr>
+  <tr><td>Obnovený linuxový počítač nemá síť</td><td>Síťová nastavení byla vázaná na starou MAC adresu (netplan <code>match: macaddress</code>). Obnovte s volbou <i>Jiný hardware</i>, nebo odstraňte řádky <code>match</code> v <code>/etc/netplan/</code>.</td></tr>
+  <tr><td>Obnovené Windows se zastaví s INACCESSIBLE_BOOT_DEVICE</td><td>Obnovte znovu s volbou <i>Obnovit na jiný hardware</i>, nebo nastartujte obnovovací ISO a spusťte <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
+  <tr><td>Obnovená kopie počítače se zobrazuje jako původní agent</td><td>Obnovy do nového VM v Proxmoxu agenta v kopii automaticky odregistrují. U jiných kopií odstraňte v kopii <code>agent.json</code> a zaregistrujte ji jako nový počítač.</td></tr>
+  <tr><td>Aktualizace agenta se nedokončí</td><td>Podívejte se do protokolu instalátoru v <code>C:\ProgramData\backupzit\updates</code> nebo <code>/var/tmp/backupzit-updates</code>; agenty starší než 0.21 je třeba jednou aktualizovat ručně.</td></tr>
+  <tr><td>Chybí ikona v oznamovací oblasti</td><td>Klikněte na šipku <b>^</b> vedle hodin a přetáhněte ikonu BackupZit na hlavní panel, nebo spusťte <i>BackupZit Agent</i> z nabídky Start.</td></tr>
+</table>
+
+<h2>Záloha skončí „varováním“</h2>
+<p>Některé soubory nešlo přečíst — obvykle soubory zamčené aplikací, když není k dispozici VSS, nebo soubory, ke kterým agent nemá oprávnění. Seznam je na stránce běhu. Vše ostatní je zálohováno.</p>
+
+<h2>Zálohy jsou pomalé</h2>
+<ul>
+  <li>První záloha čte a odesílá vše; další čtou jen změněné soubory a odesílají jen nová data.</li>
+  <li>Zkontrolujte síťovou cestu k úložišti (Wi-Fi, VPN, rychlost odesílání do internetu u cloudového úložiště).</li>
+  <li>Vylučte mezipaměti, dočasné soubory a média, která nepotřebujete.</li>
+</ul>
+
+<h2>Časté dotazy</h2>
+<h3>Mohu použít NFS?</h3>
+<p>Chcete-li <b>zálohovat</b> sdílenou složku NFS (nebo SMB), vytvořte úlohu <a href="/docs/jobs#nas">NAS / sdílená složka</a>; linuxový agent připojí export pro každý běh. Chcete-li zálohy na NFS <b>ukládat</b>, připojte export na agentovi (Linux: <code>/etc/fstab</code>) a použijte cíl <i>Místní / připojená cesta</i>, např. <code>/mnt/nfs-backup</code>; pro počítače s Windows je lepší volbou cíl SMB.</p>
+<h3>Mohu zálohy přesunout na jiné úložiště?</h3>
+<p>Zkopírujte složku úložiště (nebo prefix bucketu) tak, jak je — je soběstačná — a přidejte cílové úložiště, které ukazuje na nové umístění se stejným klíčem pro obnovu.</p>
+<h3>Smaže smazání úlohy i zálohy?</h3>
+<p>Ne. Zálohy zůstávají na úložišti a lze je obnovit z Aktivita nebo z příkazového řádku.</p>
+<h3>Co se stane, když konzole neběží?</h3>
+<p>Dokud se nevrátí, nezačínají žádné nové plánované zálohy; běhy ve frontě pak pokračují. Obnovy jsou vždy možné z příkazového řádku s listem pro obnovu.</p>
+<h3>Kolik místa budou zálohy potřebovat?</h3>
+<p>Pro první zálohu zhruba velikost dat po kompresi, plus denní změny za každý uchovávaný den. Stránka Sestavy ukazuje, kolik se odeslalo za každou úlohu.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

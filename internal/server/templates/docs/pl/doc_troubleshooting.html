@@ -1,0 +1,94 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Rozwiązywanie problemów i FAQ</h1>
+
+<h2>Agent jest pokazywany jako offline</h2>
+<ul>
+  <li>Czy maszyna jest włączona i usługa działa? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Czy maszyna dociera do konsoli? <code>Test-NetConnection backup-server -Port 8443</code> lub <code>curl -k https://backup-server:8443/login</code>.</li>
+  <li>Dziennik agenta: <code>C:\ProgramData\backupzit\agent.log</code>, w Linuksie <code>/etc/backupzit/agent.log</code> lub <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch” oznacza, że certyfikat konsoli się zmienił — zarejestruj agenta ponownie.</li>
+</ul>
+
+<h2>Kopia się nie powiodła</h2>
+<p>Otwórz uruchomienie w Aktywność; komunikat podaje przyczynę. Częste przyczyny:</p>
+<table>
+  <tr><th>Komunikat zawiera</th><th>Rozwiązanie</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>Klucz serwera SFTP się zmienił lub odcisk wpisano błędnie. Sprawdź poleceniem <code>ssh-keygen -lf</code> na serwerze.</td></tr>
+  <tr><td>permission denied / access denied</td><td>Dane logowania magazynu lub uprawnienia do folderu. Przetestuj logowanie klientem SFTP/SMB.</td></tr>
+  <tr><td>no space left / quota</td><td>Magazyn jest pełny. Skróć przechowywanie lub dodaj miejsce; wygasłe kopie zwalniają miejsce po następnym uruchomieniu.</td></tr>
+  <tr><td>repository is locked</td><td>Inna operacja (np. czyszczenie) działa na tym samym repozytorium; uruchomienie ponawia próby przez 30 minut. Przestarzałe blokady wygasają automatycznie.</td></tr>
+  <tr><td>wrong password / recovery key</td><td>Repozytorium utworzono innym kluczem — sprawdź, czy zadanie używa właściwego magazynu.</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>Zażądano niezmienności dla bucketu utworzonego bez Object Lock. Utwórz nowy bucket z Object Lock.</td></tr>
+</table>
+
+<h2>Inne komunikaty</h2>
+<table>
+  <tr><th>Sytuacja</th><th>Co zrobić</th></tr>
+  <tr><td>„no matching backup disk is connected”</td><td>Podłącz jeden z rotacyjnych dysków USB (komunikat podaje wymaganą etykietę i podłączone dyski z etykietami). Przywracanie wymaga dokładnie tego dysku, który pokazano w uruchomieniu kopii.</td></tr>
+  <tr><td>„several backup disks are connected”</td><td>Podłączaj naraz tylko jeden z rotacyjnych dysków.</td></tr>
+  <tr><td>Test przywracania nie powiódł się</td><td>Otwórz uruchomienie: komunikat podaje uszkodzony plik lub blok albo przyczynę (np. kopia usunięta z magazynu). Uruchom <code>backupzit-agent check --read-data</code> dla repozytorium, sprawdź magazyn i uruchom nową kopię. Jeśli kopie usunięto z niezmiennego magazynu, zobacz <a href="/docs/ransomware">Ochrona przed ransomware</a>.</td></tr>
+  <tr><td>Kopia oznaczona jako <i>podejrzana</i></td><td>Sprawdź maszynę pod kątem ransomware lub masowego usunięcia (np. opróżniony folder synchronizowany). Jeśli wszystko jest w porządku (np. zaplanowana migracja), kliknij <i>Sprawdzono — wznów przechowywanie</i> na stronie zadania.</td></tr>
+  <tr><td>Let's Encrypt: „could not verify … is port 80 … reachable”</td><td>Sprawdzenie HTTP wymaga portu 80 dostępnego z internetu. Dla konsol wewnętrznych użyj sprawdzenia DNS przez Cloudflare.</td></tr>
+  <tr><td>Let's Encrypt: „no Cloudflare zone … is accessible with this token”</td><td>Token musi mieć uprawnienie Zone → DNS → Edit dla strefy zawierającej nazwę konsoli.</td></tr>
+  <tr><td>„HTTPS port 443: … permission denied” lub „address already in use”</td><td>Inny program używa portu albo usługa nie może otwierać portów poniżej 1024 (uruchom ją z <code>CAP_NET_BIND_SERVICE</code>, jak robi to pakiet). Wybierz inny port w Ustawienia → Certyfikat.</td></tr>
+  <tr><td>Aktualizacje: „updates from the console need the Linux package of the console”</td><td>Konsoli nie zainstalowano z pakietu deb/rpm (np. tryb próbny). Aktualizuj ją tak, jak została zainstalowana.</td></tr>
+  <tr><td>Aktualizacje: „the release is not signed with a BackupZit release key”</td><td>Źródło aktualizacji nie zawiera oficjalnego wydania albo pliki zostały zmienione po drodze. Pobierz je ponownie z oficjalnego adresu.</td></tr>
+  <tr><td>Aktualizacje: stan <i>rolled-back</i></td><td>Nowa wersja się nie uruchomiła, więc przywrócono poprzednią i jej bazę danych. Dziennik nieudanego startu jest na stronie Aktualizacje; wyślij go do pomocy technicznej.</td></tr>
+  <tr><td>System operacyjny: „no supported package manager”</td><td>Aktualizacje systemu operacyjnego są obsługiwane w Debianie, Ubuntu (apt) oraz AlmaLinux, Rocky Linux, RHEL (dnf).</td></tr>
+  <tr><td>Kopia konsoli: „the backup was made by a newer BackupZit”</td><td>Przed przywróceniem zainstaluj na nowej konsoli wersję, która utworzyła kopię, lub nowszą.</td></tr>
+  <tr><td>Kopia konsoli: „console backups need network storage”</td><td>Wybierz magazyn SFTP, S3, SMB, Azure lub utwardzone repozytorium; ścieżka lokalna agenta jest niedostępna dla konsoli.</td></tr>
+  <tr><td>„Zbyt wiele nieudanych logowań”</td><td>Twój adres zablokowano po powtarzanych błędnych hasłach: domyślnie na 30 minut, dłużej przy powtarzanych blokadach. Administrator może zdjąć blokadę w <a href="/settings/security">Ustawienia → Logowanie i bezpieczeństwo</a>. Na serwerze <code>backupzit-server --unblock-ip all</code> zdejmuje wszystkie blokady. Konta nigdy nie są blokowane na stałe.</td></tr>
+  <tr><td>Zgubiony telefon do logowania dwuskładnikowego</td><td>Użyj jednego z kodów odzyskiwania; w przeciwnym razie administrator zresetuje logowanie dwuskładnikowe na Twojej stronie użytkownika. Ostatni administrator może zresetować swoje hasło na serwerze poleceniem <code>backupzit-server --set-admin-password</code>.</td></tr>
+  <tr><td>„your directory account is not in any BackupZit group”</td><td>Dodaj użytkownika do jednej z grup przypisanych w <a href="/settings/ldap">Ustawienia → LDAP / Active Directory</a> lub przypisz więcej grup. Użyj tam <i>Test</i>, aby zobaczyć grupy znalezione dla użytkownika.</td></tr>
+  <tr><td>API zwraca 401 / 403</td><td>401: brak tokenu, token odwołany, wygasły lub jego właściciel wyłączony. 403: rola tokenu jest za niska dla żądania.</td></tr>
+  <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Błędny klucz konta albo tokenowi SAS brakuje prawa odczytu, zapisu, usuwania lub listowania, albo wygasł.</td></tr>
+  <tr><td>Przywrócona maszyna z Windows Server 2012 R2 / Windows 8.1 nie uruchamia się w Hyper-V Gen 2 („hash was denied (DBX)”)</td><td>Microsoft unieważnił stary program rozruchowy dla Secure Boot. Wyłącz Secure Boot dla tej maszyny albo zaktualizuj system przed wykonaniem kopii.</td></tr>
+</table>
+
+<h2>Maszyny wirtualne, systemy Linux i nowy sprzęt</h2>
+<table>
+  <tr><th>Sytuacja</th><th>Co zrobić</th></tr>
+  <tr><td>Proxmox: „the guest is running and one of its disks is on storage without snapshot support”</td><td>Działający goście wymagają dysków LVM-thin, ZFS, Ceph RBD lub qcow2. Przenieś dysk (<i>Disk Action → Move Storage</i>) albo kopiuj gościa, gdy jest zatrzymany.</td></tr>
+  <tr><td>Hyper-V: uruchomienie podaje „crash-consistent”</td><td>Gość nie mógł się przygotować do punktu kontrolnego. W gościach Windows sprawdź, czy usługi integracji Hyper-V (<i>Backup (volume shadow copy)</i>) są włączone w ustawieniach maszyny. W gościach Linux zainstaluj <code>hyperv-daemons</code> (RHEL) lub <code>linux-cloud-tools</code> / <code>hyperv-daemons</code> (Debian/Ubuntu).</td></tr>
+  <tr><td>VMware: „SSH off” lub „SSH to …: connection refused”</td><td>Włącz SSH na hoście ESXi: Host → Actions → Services → Enable Secure Shell (i ustaw uruchamianie razem z hostem). Wymagają tego przywracania, a przy darmowej licencji także kopie.</td></tr>
+  <tr><td>VMware: „changed block tracking is off and can be enabled … only while the VM is off”</td><td>Darmowa licencja ESXi: wyłącz raz maszynę, a potem uruchom zadanie; BackupZit włączy śledzenie zmienionych bloków i kolejne kopie będą czytać tylko zmienione bloki.</td></tr>
+  <tr><td>VMware: „copy the disk on the datastore (needs free space …)”</td><td>Działające maszyny są na chwilę kopiowane w swoim datastore. Zwolnij tam miejsce (tyle, ile zajmuje dysk) albo kopiuj maszynę, gdy jest wyłączona.</td></tr>
+  <tr><td>VMware: „… is a snapshot delta disk”</td><td>Maszyna ma własne migawki. Usuń je lub skonsoliduj w kliencie hosta ESXi (Snapshots → Delete all).</td></tr>
+  <tr><td>VMware: „the ESXi certificate changed”</td><td>Host zainstalowano ponownie albo pod jego adresem odpowiada inna maszyna. Jeśli to oczekiwane, usuń host w Agenci i dodaj go ponownie, aby przypiąć nowy certyfikat.</td></tr>
+  <tr><td>VMware: pliki <code>*.replaced-DATE.vmdk</code> obok dysków maszyny</td><td>Stare dyski maszyny przywróconej w miejscu. Usuń je w przeglądarce datastore, gdy przywrócona maszyna działa.</td></tr>
+  <tr><td>Hyper-V: pliki <code>*.replaced-DATE</code> obok dysków maszyny</td><td>Stare dyski maszyny przywróconej w miejscu. Usuń je, gdy przywrócona maszyna działa.</td></tr>
+  <tr><td>Natychmiastowe odzyskiwanie Proxmox: maszyna się nie uruchamia lub zawiesza</td><td>Sprawdź serwer dysków: <code>systemctl status backupzit-instant-ID</code> i <code>journalctl -u backupzit-instant-ID</code> na węźle. Magazyn kopii musi pozostać dostępny; gdy repozytorium nie da się odczytać, odczyty dysku maszyny stają.</td></tr>
+  <tr><td>Natychmiastowe odzyskiwanie Proxmox: „efidisk0 stays on storage backupzit-instant”</td><td>QEMU nie może przenieść magazynu zmiennych EFI, gdy maszyna działa. Wyłącz maszynę i uruchom <code>qm disk move ID efidisk0 STORAGE --delete 1</code>; nie zależy to od kopii.</td></tr>
+  <tr><td>Proxmox: „runs on node X; install the BackupZit agent on X”</td><td>Gość został zmigrowany. Zainstaluj agenta na każdym węźle i kopiuj gości każdego węzła agentem tego węzła.</td></tr>
+  <tr><td>Wolne kopie lub przywracanie w Proxmox, SFTP „connection lost”, „message authentication code incorrect” na serwerze magazynu</td><td>Znany problem kart sieciowych Intel e1000e na hostach Proxmox (dziennik: „Detected Hardware Unit Hang”, „Reset adapter unexpectedly”). Wyłącz offloading: <code>ethtool -K eno1 tso off gso off gro off</code> i dodaj to jako wiersz <code>post-up</code> interfejsu w <code>/etc/network/interfaces</code>.</td></tr>
+  <tr><td>Przeglądanie plików: „stored on a local path of the agent”</td><td>Konsola może czytać tylko kopie w magazynie sieciowym. Użyj <code>backupzit-agent pve ls/extract</code> lub <code>image-ls/image-extract</code> na agencie.</td></tr>
+  <tr><td>Przywracanie systemu Linux: „missing programs …”</td><td>Zainstaluj wymienione pakiety na przywracającej maszynie albo uruchom ISO odzyskiwania Linux BackupZit, które je zawiera.</td></tr>
+  <tr><td>Przywrócona maszyna Linux nie ma sieci</td><td>Ustawienia sieci były powiązane ze starym adresem MAC (netplan <code>match: macaddress</code>). Przywróć z opcją <i>Inny sprzęt</i> albo usuń wiersze <code>match</code> w <code>/etc/netplan/</code>.</td></tr>
+  <tr><td>Przywrócony Windows zatrzymuje się z INACCESSIBLE_BOOT_DEVICE</td><td>Przywróć ponownie z opcją <i>Przywróć na inny sprzęt</i> albo uruchom ISO odzyskiwania i wykonaj <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
+  <tr><td>Przywrócona kopia maszyny pojawia się jako oryginalny agent</td><td>Przywracanie do nowej maszyny Proxmox automatycznie wyrejestrowuje agenta w kopii. W innych kopiach usuń <code>agent.json</code> w kopii i zarejestruj ją jako nową maszynę.</td></tr>
+  <tr><td>Aktualizacja agenta się nie kończy</td><td>Zobacz dziennik instalatora w <code>C:\ProgramData\backupzit\updates</code> lub <code>/var/tmp/backupzit-updates</code>; agentów starszych niż 0.21 trzeba raz zaktualizować ręcznie.</td></tr>
+  <tr><td>Brak ikony w zasobniku</td><td>Kliknij strzałkę <b>^</b> obok zegara i przeciągnij ikonę BackupZit na pasek zadań albo uruchom <i>BackupZit Agent</i> z menu Start.</td></tr>
+</table>
+
+<h2>Kopia kończy się „ostrzeżeniem”</h2>
+<p>Części plików nie udało się odczytać — zwykle plików zablokowanych przez aplikację, gdy VSS nie jest dostępny, lub plików, do których agent nie ma uprawnień. Lista jest na stronie uruchomienia. Wszystko inne zostało skopiowane.</p>
+
+<h2>Kopie są wolne</h2>
+<ul>
+  <li>Pierwsza kopia odczytuje i wysyła wszystko; kolejne odczytują tylko zmienione pliki i wysyłają tylko nowe dane.</li>
+  <li>Sprawdź ścieżkę sieciową do magazynu (Wi-Fi, VPN, prędkość wysyłania do internetu w przypadku magazynu w chmurze).</li>
+  <li>Wyklucz pamięci podręczne, pliki tymczasowe i niepotrzebne multimedia.</li>
+</ul>
+
+<h2>FAQ</h2>
+<h3>Czy mogę użyć NFS?</h3>
+<p>Aby <b>kopiować</b> udział NFS (lub SMB), utwórz zadanie <a href="/docs/jobs#nas">NAS / udział plików</a>; agent Linux montuje eksport przy każdym uruchomieniu. Aby <b>przechowywać</b> kopie na NFS, zamontuj eksport na agencie (Linux: <code>/etc/fstab</code>) i użyj magazynu <i>Ścieżka lokalna / zamontowana</i>, np. <code>/mnt/nfs-backup</code>; dla maszyn Windows lepszym wyborem jest magazyn SMB.</p>
+<h3>Czy mogę przenieść kopie do innego magazynu?</h3>
+<p>Skopiuj folder repozytorium (lub prefiks bucketu) bez zmian — jest samodzielny — i dodaj magazyn wskazujący nowe miejsce z tym samym kluczem odzyskiwania.</p>
+<h3>Czy usunięcie zadania usuwa kopie?</h3>
+<p>Nie. Kopie pozostają w magazynie i można je przywrócić z Aktywność lub z wiersza poleceń.</p>
+<h3>Co się dzieje, gdy konsola nie działa?</h3>
+<p>Do jej powrotu nie startują nowe zaplanowane kopie; uruchomienia w kolejce są potem kontynuowane. Przywracanie jest zawsze możliwe z wiersza poleceń z arkuszem odzyskiwania.</p>
+<h3>Ile miejsca będą potrzebować kopie?</h3>
+<p>Dla pierwszej kopii mniej więcej rozmiar danych po kompresji, plus codzienne zmiany za każdy przechowywany dzień. Strona Raporty pokazuje, ile wysłano dla każdego zadania.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

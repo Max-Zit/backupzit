@@ -1,0 +1,94 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>故障排除和常见问题</h1>
+
+<h2>代理显示为离线</h2>
+<ul>
+  <li>机器是否开机、服务是否在运行？Windows：<code>Get-Service backupzit-agent</code>；Linux：<code>systemctl status backupzit-agent</code>。</li>
+  <li>机器能否访问控制台？<code>Test-NetConnection backup-server -Port 8443</code> 或 <code>curl -k https://backup-server:8443/login</code>。</li>
+  <li>代理日志：<code>C:\ProgramData\backupzit\agent.log</code>，Linux 上为 <code>/etc/backupzit/agent.log</code> 或 <code>journalctl -u backupzit-agent</code>。“fingerprint mismatch” 表示控制台证书已更改 —— 请重新注册代理。</li>
+</ul>
+
+<h2>备份失败</h2>
+<p>在活动中打开该运行；消息会说明原因。常见原因：</p>
+<table>
+  <tr><th>消息包含</th><th>解决方法</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>SFTP 服务器的密钥已更改，或指纹输入错误。在服务器上用 <code>ssh-keygen -lf</code> 检查。</td></tr>
+  <tr><td>permission denied / access denied</td><td>存储凭据或文件夹权限问题。用 SFTP/SMB 客户端测试登录。</td></tr>
+  <tr><td>no space left / quota</td><td>存储已满。缩短保留期或增加空间；过期的备份会在下一次运行后释放空间。</td></tr>
+  <tr><td>repository is locked</td><td>同一存储库上正在运行其他操作（例如清理）；该运行会在 30 分钟内重试。过期的锁会自动失效。</td></tr>
+  <tr><td>wrong password / recovery key</td><td>存储库是用另一个密钥创建的 —— 请检查作业是否使用了正确的存储目标。</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>在未启用 Object Lock 的存储桶上请求了不可变性。请创建启用 Object Lock 的新存储桶。</td></tr>
+</table>
+
+<h2>其他消息</h2>
+<table>
+  <tr><th>情况</th><th>处理方法</th></tr>
+  <tr><td>“no matching backup disk is connected”</td><td>插入一块轮换使用的 USB 磁盘（消息会说明需要的卷标以及已连接了哪些带卷标的磁盘）。还原需要的正是备份运行中显示的那块磁盘。</td></tr>
+  <tr><td>“several backup disks are connected”</td><td>每次只连接一块轮换磁盘。</td></tr>
+  <tr><td>还原测试失败</td><td>打开该运行：消息会指出损坏的文件或数据块，或原因（例如存储上的备份被删除）。对存储库运行 <code>backupzit-agent check --read-data</code>，检查存储，然后启动新的备份。如果不可变存储上的备份被删除，请参见 <a href="/docs/ransomware">勒索软件防护</a>。</td></tr>
+  <tr><td>备份被标记为<i>可疑</i></td><td>检查该机器是否有勒索软件或大规模删除（例如同步文件夹被清空）。如果一切正常（例如计划内的迁移），请在作业页面点击 <i>已检查 — 恢复保留</i>。</td></tr>
+  <tr><td>Let's Encrypt：“could not verify … is port 80 … reachable”</td><td>HTTP 验证要求 80 端口可从互联网访问。内部控制台请使用通过 Cloudflare 的 DNS 验证。</td></tr>
+  <tr><td>Let's Encrypt：“no Cloudflare zone … is accessible with this token”</td><td>令牌必须对包含控制台名称的区域拥有 Zone → DNS → Edit 权限。</td></tr>
+  <tr><td>“HTTPS port 443: … permission denied” 或 “address already in use”</td><td>其他程序占用了该端口，或者服务无法绑定 1024 以下的端口（请像软件包那样以 <code>CAP_NET_BIND_SERVICE</code> 运行它）。在 设置 → 证书 中选择其他端口。</td></tr>
+  <tr><td>更新：“updates from the console need the Linux package of the console”</td><td>控制台不是通过 deb/rpm 软件包安装的（例如评估模式）。请按安装时的方式更新它。</td></tr>
+  <tr><td>更新：“the release is not signed with a BackupZit release key”</td><td>更新源中没有官方发布版本，或文件在传输中被篡改。请从官方地址重新下载。</td></tr>
+  <tr><td>更新：状态为 <i>rolled-back</i></td><td>新版本未能启动，因此已还原之前的版本及其数据库。启动失败的日志在更新页面上；请将其发送给技术支持。</td></tr>
+  <tr><td>操作系统：“no supported package manager”</td><td>操作系统更新支持 Debian、Ubuntu（apt）以及 AlmaLinux、Rocky Linux、RHEL（dnf）。</td></tr>
+  <tr><td>控制台备份：“the backup was made by a newer BackupZit”</td><td>还原之前，请在新控制台上安装生成该备份的版本或更新的版本。</td></tr>
+  <tr><td>控制台备份：“console backups need network storage”</td><td>请选择 SFTP、S3、SMB、Azure 或加固存储库目标；控制台无法访问代理的本地路径。</td></tr>
+  <tr><td>“登录失败次数过多”</td><td>您的地址在多次输错密码后被封锁：默认 30 分钟，重复封锁时更久。管理员可以在 <a href="/settings/security">设置 → 登录与安全</a> 中解除封锁。在服务器上，<code>backupzit-server --unblock-ip all</code> 会解除所有封锁。帐户永远不会被永久锁定。</td></tr>
+  <tr><td>丢失了用于双因素登录的手机</td><td>使用一个恢复代码；否则由管理员在您的用户页面上重置双因素登录。最后一名管理员可以在服务器上用 <code>backupzit-server --set-admin-password</code> 重置自己的密码。</td></tr>
+  <tr><td>“your directory account is not in any BackupZit group”</td><td>将用户加入 <a href="/settings/ldap">设置 → LDAP / Active Directory</a> 中已映射的某个组，或映射更多组。在那里使用 <i>测试</i> 可查看为某个用户找到的组。</td></tr>
+  <tr><td>API 返回 401 / 403</td><td>401：令牌缺失、已撤销、已过期或其所有者已被禁用。403：令牌的角色权限不足以执行该请求。</td></tr>
+  <tr><td>Azure：AuthenticationFailed / AuthorizationPermissionMismatch</td><td>帐户密钥错误，或者 SAS 令牌缺少读取、写入、删除或列出权限，或已过期。</td></tr>
+  <tr><td>还原的 Windows Server 2012 R2 / Windows 8.1 虚拟机无法在 Hyper-V 第 2 代上启动（“hash was denied (DBX)”）</td><td>Microsoft 已为安全启动吊销了旧的引导加载程序。请为该虚拟机关闭安全启动，或在备份前更新系统。</td></tr>
+</table>
+
+<h2>虚拟机、Linux 系统和新硬件</h2>
+<table>
+  <tr><th>情况</th><th>处理方法</th></tr>
+  <tr><td>Proxmox：“the guest is running and one of its disks is on storage without snapshot support”</td><td>运行中的来宾需要 LVM-thin、ZFS、Ceph RBD 或 qcow2 磁盘。移动磁盘（<i>Disk Action → Move Storage</i>），或在来宾停止时备份。</td></tr>
+  <tr><td>Hyper-V：运行显示 “crash-consistent”</td><td>来宾无法为检查点做好准备。在 Windows 来宾中，检查虚拟机设置中的 Hyper-V 集成服务（<i>Backup (volume shadow copy)</i>）是否已启用。在 Linux 来宾中安装 <code>hyperv-daemons</code>（RHEL）或 <code>linux-cloud-tools</code> / <code>hyperv-daemons</code>（Debian/Ubuntu）。</td></tr>
+  <tr><td>VMware：“SSH off” 或 “SSH to …: connection refused”</td><td>在 ESXi 主机上启用 SSH：Host → Actions → Services → Enable Secure Shell（并设置为随主机启动）。还原以及免费许可证下的备份都需要它。</td></tr>
+  <tr><td>VMware：“changed block tracking is off and can be enabled … only while the VM is off”</td><td>免费 ESXi 许可证：关闭虚拟机一次，然后运行作业；BackupZit 会开启更改块跟踪，之后的备份只读取更改的块。</td></tr>
+  <tr><td>VMware：“copy the disk on the datastore (needs free space …)”</td><td>运行中的虚拟机会在其数据存储上短暂复制。请在那里腾出空间（与磁盘实际使用量相同），或在虚拟机关闭时备份。</td></tr>
+  <tr><td>VMware：“… is a snapshot delta disk”</td><td>该虚拟机有自己的快照。请在 ESXi 主机客户端中删除或合并它们（Snapshots → Delete all）。</td></tr>
+  <tr><td>VMware：“the ESXi certificate changed”</td><td>主机已重新安装，或其他机器在其地址上响应。如果这是预期情况，请在 Agent 中删除该主机并重新添加，以固定新证书。</td></tr>
+  <tr><td>VMware：虚拟机磁盘旁出现 <code>*.replaced-DATE.vmdk</code> 文件</td><td>原位还原的虚拟机的旧磁盘。确认还原的虚拟机工作正常后，在数据存储浏览器中删除它们。</td></tr>
+  <tr><td>Hyper-V：虚拟机磁盘旁出现 <code>*.replaced-DATE</code> 文件</td><td>原位还原的虚拟机的旧磁盘。确认还原的虚拟机工作正常后删除它们。</td></tr>
+  <tr><td>Proxmox 即时恢复：虚拟机无法启动或卡住</td><td>检查磁盘服务器：在节点上运行 <code>systemctl status backupzit-instant-ID</code> 和 <code>journalctl -u backupzit-instant-ID</code>。备份存储必须保持可访问；无法读取存储库时，虚拟机的磁盘读取会停滞。</td></tr>
+  <tr><td>Proxmox 即时恢复：“efidisk0 stays on storage backupzit-instant”</td><td>虚拟机运行时 QEMU 无法移动 EFI 变量存储。关闭虚拟机并运行 <code>qm disk move ID efidisk0 STORAGE --delete 1</code>；这不依赖于备份。</td></tr>
+  <tr><td>Proxmox：“runs on node X; install the BackupZit agent on X”</td><td>该来宾已被迁移。在每个节点上安装代理，并用各节点的代理备份该节点的来宾。</td></tr>
+  <tr><td>Proxmox 备份或还原很慢，存储服务器上出现 SFTP “connection lost”、“message authentication code incorrect”</td><td>Proxmox 主机上 Intel e1000e 网卡的已知问题（日志：“Detected Hardware Unit Hang”、“Reset adapter unexpectedly”）。关闭卸载功能：<code>ethtool -K eno1 tso off gso off gro off</code>，并将其作为接口的 <code>post-up</code> 行添加到 <code>/etc/network/interfaces</code> 中。</td></tr>
+  <tr><td>浏览文件：“stored on a local path of the agent”</td><td>控制台只能读取网络存储上的备份。请在代理上使用 <code>backupzit-agent pve ls/extract</code> 或 <code>image-ls/image-extract</code>。</td></tr>
+  <tr><td>Linux 系统还原：“missing programs …”</td><td>在执行还原的机器上安装所列软件包，或从包含这些软件包的 BackupZit Linux 恢复 ISO 启动。</td></tr>
+  <tr><td>还原后的 Linux 机器没有网络</td><td>网络设置绑定到了旧的 MAC 地址（netplan <code>match: macaddress</code>）。使用 <i>不同硬件</i> 还原，或删除 <code>/etc/netplan/</code> 中的 <code>match</code> 行。</td></tr>
+  <tr><td>还原后的 Windows 停在 INACCESSIBLE_BOOT_DEVICE</td><td>使用 <i>还原到不同硬件</i> 重新还原，或从恢复 ISO 启动并运行 <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>。</td></tr>
+  <tr><td>还原的机器副本显示为原来的代理</td><td>还原到新的 Proxmox 虚拟机时会自动取消副本中代理的注册。对于其他副本，请删除副本中的 <code>agent.json</code>，并将其注册为新机器。</td></tr>
+  <tr><td>代理更新无法完成</td><td>查看 <code>C:\ProgramData\backupzit\updates</code> 或 <code>/var/tmp/backupzit-updates</code> 中的安装程序日志；0.21 之前的代理需要手动更新一次。</td></tr>
+  <tr><td>托盘图标不见了</td><td>点击时钟旁边的 <b>^</b> 箭头，把 BackupZit 图标拖到任务栏上，或从开始菜单启动 <i>BackupZit Agent</i>。</td></tr>
+</table>
+
+<h2>备份以“警告”结束</h2>
+<p>有些文件无法读取 —— 通常是在 VSS 不可用时被应用程序锁定的文件，或代理没有权限的文件。列表在运行页面上。其余内容都已备份。</p>
+
+<h2>备份很慢</h2>
+<ul>
+  <li>第一次备份会读取并上传所有内容；之后只读取更改的文件，只上传新数据。</li>
+  <li>检查到存储的网络路径（Wi-Fi、VPN、云存储的互联网上传速度）。</li>
+  <li>排除不需要的缓存、临时文件和媒体文件。</li>
+</ul>
+
+<h2>常见问题</h2>
+<h3>可以使用 NFS 吗？</h3>
+<p>要<b>备份</b> NFS（或 SMB）共享，请创建 <a href="/docs/jobs#nas">NAS / 文件共享</a> 作业；Linux 代理会在每次运行时挂载该导出。要将备份<b>存储</b>到 NFS，请在代理上挂载导出（Linux：<code>/etc/fstab</code>），并使用 <i>本地 / 挂载路径</i> 目标，例如 <code>/mnt/nfs-backup</code>；对于 Windows 机器，SMB 目标是更好的选择。</p>
+<h3>可以把备份移到其他存储吗？</h3>
+<p>按原样复制存储库文件夹（或存储桶前缀）—— 它是自包含的 —— 然后添加一个指向新位置、使用相同恢复密钥的存储目标。</p>
+<h3>删除作业会删除备份吗？</h3>
+<p>不会。备份保留在存储上，仍可从活动或命令行还原。</p>
+<h3>控制台宕机会怎样？</h3>
+<p>在控制台恢复之前不会启动新的计划备份；排队的运行会在之后继续。始终可以凭恢复单从命令行进行还原。</p>
+<h3>备份需要多少空间？</h3>
+<p>第一次备份大约为压缩后的数据大小，再加上每个保留日的每日更改。报告页面会显示每个作业上传了多少数据。</p>
+{{template "docpager" .}}
+</article></div>{{end}}

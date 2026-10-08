@@ -1,0 +1,94 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Sorun giderme ve SSS</h1>
+
+<h2>Bir aracı çevrimdışı görünüyor</h2>
+<ul>
+  <li>Makine açık ve hizmet çalışıyor mu? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Makine konsola ulaşabiliyor mu? <code>Test-NetConnection backup-server -Port 8443</code> veya <code>curl -k https://backup-server:8443/login</code>.</li>
+  <li>Aracı günlüğü: <code>C:\ProgramData\backupzit\agent.log</code>, Linux'ta <code>/etc/backupzit/agent.log</code> veya <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch", konsol sertifikasının değiştiği anlamına gelir — aracıyı yeniden kaydedin.</li>
+</ul>
+
+<h2>Bir yedekleme başarısız oldu</h2>
+<p>Çalıştırmayı Etkinlik'te açın; mesaj nedenini belirtir. Yaygın nedenler:</p>
+<table>
+  <tr><th>Mesajda geçen</th><th>Çözüm</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>SFTP sunucusunun anahtarı değişti veya parmak izi yanlış girildi. Sunucuda <code>ssh-keygen -lf</code> ile denetleyin.</td></tr>
+  <tr><td>permission denied / access denied</td><td>Depolama kimlik bilgileri veya klasör izinleri. Oturum açmayı bir SFTP/SMB istemcisiyle deneyin.</td></tr>
+  <tr><td>no space left / quota</td><td>Depolama dolu. Saklama süresini azaltın veya alan ekleyin; süresi dolan yedekler bir sonraki çalıştırmadan sonra alan açar.</td></tr>
+  <tr><td>repository is locked</td><td>Aynı depoda başka bir işlem (ör. temizleme) çalışıyor; çalıştırma 30 dakika boyunca yeniden dener. Eskimiş kilitler otomatik olarak sona erer.</td></tr>
+  <tr><td>wrong password / recovery key</td><td>Depo farklı bir anahtarla oluşturulmuş — işin doğru depolama hedefini kullandığını denetleyin.</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>Object Lock olmadan oluşturulmuş bir kovada değiştirilemezlik istendi. Object Lock ile yeni bir kova oluşturun.</td></tr>
+</table>
+
+<h2>Diğer mesajlar</h2>
+<table>
+  <tr><th>Durum</th><th>Ne yapmalı</th></tr>
+  <tr><td>"no matching backup disk is connected"</td><td>Dönüşümlü USB disklerden birini takın (mesaj gereken etiketi ve hangi etiketli disklerin takılı olduğunu belirtir). Bir geri yükleme, tam olarak yedek çalıştırmasında gösterilen diske ihtiyaç duyar.</td></tr>
+  <tr><td>"several backup disks are connected"</td><td>Dönüşümlü disklerden aynı anda yalnızca birini takın.</td></tr>
+  <tr><td>Geri yükleme testi başarısız oldu</td><td>Çalıştırmayı açın: mesaj hasarlı dosyayı veya bloğu ya da nedeni belirtir (ör. depolamada silinmiş yedek). Depo üzerinde <code>backupzit-agent check --read-data</code> çalıştırın, depolamayı denetleyin ve yeni bir yedekleme başlatın. Değiştirilemez depolamada yedekler silindiyse bkz. <a href="/docs/ransomware">Fidye yazılımı koruması</a>.</td></tr>
+  <tr><td>Yedek <i>şüpheli</i> olarak işaretlendi</td><td>Makineyi fidye yazılımı veya toplu silme açısından denetleyin (ör. boşaltılmış eşitlenmiş bir klasör). Her şey yolundaysa (ör. planlı bir taşıma), iş sayfasında <i>İncelendi — saklamayı sürdür</i>'e tıklayın.</td></tr>
+  <tr><td>Let's Encrypt: "could not verify … is port 80 … reachable"</td><td>HTTP denetimi, 80 numaralı portun internetten erişilebilir olmasını gerektirir. Dahili konsollar için Cloudflare üzerinden DNS denetimini kullanın.</td></tr>
+  <tr><td>Let's Encrypt: "no Cloudflare zone … is accessible with this token"</td><td>Belirtecin, konsolun adını içeren bölge için Zone → DNS → Edit iznine sahip olması gerekir.</td></tr>
+  <tr><td>"HTTPS port 443: … permission denied" veya "address already in use"</td><td>Portu başka bir program kullanıyor ya da hizmet 1024'ün altındaki portları açamıyor (paketin yaptığı gibi <code>CAP_NET_BIND_SERVICE</code> ile çalıştırın). Ayarlar → Sertifika altında başka bir port seçin.</td></tr>
+  <tr><td>Güncellemeler: "updates from the console need the Linux package of the console"</td><td>Konsol deb/rpm paketinden kurulmamış (örneğin deneme modu). Onu nasıl kurulduysa öyle güncelleyin.</td></tr>
+  <tr><td>Güncellemeler: "the release is not signed with a BackupZit release key"</td><td>Güncelleme kaynağı resmi bir sürüm içermiyor veya dosyalar yolda değiştirilmiş. Resmi adresten yeniden indirin.</td></tr>
+  <tr><td>Güncellemeler: durum <i>rolled-back</i></td><td>Yeni sürüm başlamadı, bu yüzden önceki sürüm ve veritabanı geri yüklendi. Başarısız başlatmanın günlüğü Güncellemeler sayfasındadır; destek ekibine gönderin.</td></tr>
+  <tr><td>İşletim sistemi: "no supported package manager"</td><td>İşletim sistemi güncellemeleri Debian, Ubuntu (apt) ve AlmaLinux, Rocky Linux, RHEL (dnf) üzerinde desteklenir.</td></tr>
+  <tr><td>Konsol yedeği: "the backup was made by a newer BackupZit"</td><td>Geri yüklemeden önce yeni konsola yedeği oluşturan sürümü veya daha yenisini kurun.</td></tr>
+  <tr><td>Konsol yedeği: "console backups need network storage"</td><td>SFTP, S3, SMB, Azure veya güçlendirilmiş depo hedefi seçin; bir aracının yerel yoluna konsoldan erişilemez.</td></tr>
+  <tr><td>"Çok fazla başarısız oturum açma"</td><td>Adresiniz tekrarlanan yanlış parolalardan sonra engellendi: varsayılan olarak 30 dakika, tekrarlanan engellerde daha uzun. Bir yönetici engeli <a href="/settings/security">Ayarlar → Oturum açma ve güvenlik</a> altında kaldırabilir. Sunucuda <code>backupzit-server --unblock-ip all</code> tüm engelleri kaldırır. Hesaplar asla kalıcı olarak kilitlenmez.</td></tr>
+  <tr><td>İki aşamalı oturum açma için telefon kayboldu</td><td>Kurtarma kodlarından birini kullanın; aksi halde bir yönetici kullanıcı sayfanızda iki aşamalı oturum açmayı sıfırlar. Son yönetici parolasını sunucuda <code>backupzit-server --set-admin-password</code> ile sıfırlayabilir.</td></tr>
+  <tr><td>"your directory account is not in any BackupZit group"</td><td>Kullanıcıyı <a href="/settings/ldap">Ayarlar → LDAP / Active Directory</a> altında eşlenen gruplardan birine ekleyin veya daha fazla grup eşleyin. Bir kullanıcı için bulunan grupları görmek için orada <i>Test</i>'i kullanın.</td></tr>
+  <tr><td>API 401 / 403 döndürüyor</td><td>401: belirteç eksik, iptal edilmiş, süresi dolmuş veya sahibi devre dışı. 403: belirtecin rolü istek için çok düşük.</td></tr>
+  <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Yanlış hesap anahtarı veya SAS belirtecinde okuma, yazma, silme ya da listeleme izni eksik veya süresi dolmuş.</td></tr>
+  <tr><td>Geri yüklenen bir Windows Server 2012 R2 / Windows 8.1 VM'si Hyper-V Gen 2'de önyüklenmiyor ("hash was denied (DBX)")</td><td>Microsoft, Secure Boot için eski önyükleyiciyi iptal etti. O VM için Secure Boot'u kapatın veya yedeklemeden önce sistemi güncelleyin.</td></tr>
+</table>
+
+<h2>Sanal makineler, Linux sistemleri ve yeni donanım</h2>
+<table>
+  <tr><th>Durum</th><th>Ne yapmalı</th></tr>
+  <tr><td>Proxmox: "the guest is running and one of its disks is on storage without snapshot support"</td><td>Çalışan konuklar LVM-thin, ZFS, Ceph RBD veya qcow2 diskler gerektirir. Diski taşıyın (<i>Disk Action → Move Storage</i>) veya konuğu durdurulmuşken yedekleyin.</td></tr>
+  <tr><td>Hyper-V: çalıştırma "crash-consistent" diyor</td><td>Konuk denetim noktasına hazırlanamadı. Windows konuklarında, VM ayarlarında Hyper-V tümleştirme hizmetlerinin (<i>Backup (volume shadow copy)</i>) etkin olduğunu denetleyin. Linux konuklarına <code>hyperv-daemons</code> (RHEL) veya <code>linux-cloud-tools</code> / <code>hyperv-daemons</code> (Debian/Ubuntu) kurun.</td></tr>
+  <tr><td>VMware: "SSH off" veya "SSH to …: connection refused"</td><td>ESXi ana bilgisayarında SSH'yi etkinleştirin: Host → Actions → Services → Enable Secure Shell (ve ana bilgisayarla başlayacak şekilde ayarlayın). Geri yüklemeler ve ücretsiz lisansta yedeklemeler bunu gerektirir.</td></tr>
+  <tr><td>VMware: "changed block tracking is off and can be enabled … only while the VM is off"</td><td>Ücretsiz ESXi lisansı: VM'yi bir kez kapatın, sonra işi çalıştırın; BackupZit değişen blok izlemeyi açar ve sonraki yedekler yalnızca değişen blokları okur.</td></tr>
+  <tr><td>VMware: "copy the disk on the datastore (needs free space …)"</td><td>Çalışan VM'ler kısa süreliğine kendi datastore'larında kopyalanır. Orada yer açın (diskin kullandığı kadar) veya VM'yi kapalıyken yedekleyin.</td></tr>
+  <tr><td>VMware: "… is a snapshot delta disk"</td><td>VM'nin kendi anlık görüntüleri var. Bunları ESXi Host Client'ta silin veya birleştirin (Snapshots → Delete all).</td></tr>
+  <tr><td>VMware: "the ESXi certificate changed"</td><td>Ana bilgisayar yeniden kuruldu veya adresinde başka bir makine yanıt veriyor. Bu beklenen bir durumsa, yeni sertifikayı sabitlemek için ana bilgisayarı Aracılar altında kaldırıp yeniden ekleyin.</td></tr>
+  <tr><td>VMware: VM disklerinin yanında <code>*.replaced-DATE.vmdk</code> dosyaları</td><td>Yerinde geri yüklenen bir VM'nin eski diskleri. Geri yüklenen VM çalışınca bunları datastore tarayıcısında silin.</td></tr>
+  <tr><td>Hyper-V: VM disklerinin yanında <code>*.replaced-DATE</code> dosyaları</td><td>Yerinde geri yüklenen bir VM'nin eski diskleri. Geri yüklenen VM çalışınca bunları silin.</td></tr>
+  <tr><td>Proxmox anında kurtarma: VM önyüklenmiyor veya takılıyor</td><td>Disk sunucusunu denetleyin: düğümde <code>systemctl status backupzit-instant-ID</code> ve <code>journalctl -u backupzit-instant-ID</code>. Yedek depolamasının erişilebilir kalması gerekir; depo okunamadığında VM'nin disk okumaları durur.</td></tr>
+  <tr><td>Proxmox anında kurtarma: "efidisk0 stays on storage backupzit-instant"</td><td>QEMU, VM çalışırken EFI değişken deposunu taşıyamaz. VM'yi kapatın ve <code>qm disk move ID efidisk0 STORAGE --delete 1</code> çalıştırın; bu, yedeğe bağlı değildir.</td></tr>
+  <tr><td>Proxmox: "runs on node X; install the BackupZit agent on X"</td><td>Konuk taşınmış. Aracıyı her düğüme kurun ve her düğümün konuklarını o düğümün aracısıyla yedekleyin.</td></tr>
+  <tr><td>Proxmox yedekleri veya geri yüklemeleri yavaş, depolama sunucusunda SFTP "connection lost", "message authentication code incorrect"</td><td>Proxmox ana bilgisayarlarındaki Intel e1000e ağ kartlarının bilinen sorunu (günlük: "Detected Hardware Unit Hang", "Reset adapter unexpectedly"). Offloading'i kapatın: <code>ethtool -K eno1 tso off gso off gro off</code> ve bunu <code>/etc/network/interfaces</code> içinde arabirime <code>post-up</code> satırı olarak ekleyin.</td></tr>
+  <tr><td>Dosyalara göz atma: "stored on a local path of the agent"</td><td>Konsol yalnızca ağ depolamasındaki yedekleri okuyabilir. Aracıda <code>backupzit-agent pve ls/extract</code> veya <code>image-ls/image-extract</code> kullanın.</td></tr>
+  <tr><td>Linux sistemi geri yükleme: "missing programs …"</td><td>Belirtilen paketleri geri yükleme yapan makineye kurun veya bunları içeren BackupZit Linux kurtarma ISO'sundan önyükleyin.</td></tr>
+  <tr><td>Geri yüklenen Linux makinesinin ağı yok</td><td>Ağ ayarları eski MAC adresine bağlıydı (netplan <code>match: macaddress</code>). <i>Farklı donanım</i> ile geri yükleyin veya <code>/etc/netplan/</code> içindeki <code>match</code> satırlarını kaldırın.</td></tr>
+  <tr><td>Geri yüklenen Windows INACCESSIBLE_BOOT_DEVICE ile duruyor</td><td><i>Farklı donanıma geri yükle</i> ile yeniden geri yükleyin veya kurtarma ISO'sundan önyükleyip <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code> çalıştırın.</td></tr>
+  <tr><td>Bir makinenin geri yüklenen kopyası orijinal aracı olarak görünüyor</td><td>Yeni bir Proxmox VM'ye yapılan geri yüklemeler kopyadaki aracının kaydını otomatik olarak siler. Diğer kopyalarda kopyadaki <code>agent.json</code> dosyasını kaldırın ve yeni bir makine olarak kaydedin.</td></tr>
+  <tr><td>Aracı güncellemesi tamamlanmıyor</td><td><code>C:\ProgramData\backupzit\updates</code> veya <code>/var/tmp/backupzit-updates</code> içindeki yükleyici günlüğüne bakın; 0.21'den önceki aracıların bir kez elle güncellenmesi gerekir.</td></tr>
+  <tr><td>Tepsi simgesi yok</td><td>Saatin yanındaki <b>^</b> okuna tıklayıp BackupZit simgesini görev çubuğuna sürükleyin veya Başlat menüsünden <i>BackupZit Agent</i>'ı başlatın.</td></tr>
+</table>
+
+<h2>Bir yedek "uyarı" ile bitiyor</h2>
+<p>Bazı dosyalar okunamadı — genellikle VSS kullanılamazken bir uygulama tarafından kilitlenmiş dosyalar veya aracının izni olmayan dosyalar. Liste çalıştırma sayfasındadır. Diğer her şey yedeklendi.</p>
+
+<h2>Yedekler yavaş</h2>
+<ul>
+  <li>İlk yedek her şeyi okur ve yükler; sonrakiler yalnızca değişen dosyaları okur ve yalnızca yeni verileri yükler.</li>
+  <li>Depolamaya giden ağ yolunu denetleyin (Wi-Fi, VPN, bulut depolama için internet yükleme hızı).</li>
+  <li>İhtiyacınız olmayan önbellekleri, geçici dosyaları ve medyayı hariç tutun.</li>
+</ul>
+
+<h2>SSS</h2>
+<h3>NFS kullanabilir miyim?</h3>
+<p>Bir NFS (veya SMB) paylaşımını <b>yedeklemek</b> için bir <a href="/docs/jobs#nas">NAS / dosya paylaşımı</a> işi oluşturun; bir Linux aracısı her çalıştırmada dışa aktarımı bağlar. Yedekleri NFS üzerinde <b>saklamak</b> için dışa aktarımı aracıya bağlayın (Linux: <code>/etc/fstab</code>) ve <code>/mnt/nfs-backup</code> gibi bir <i>Yerel / bağlanmış yol</i> hedefi kullanın; Windows makineler için SMB hedefi daha iyi bir seçimdir.</p>
+<h3>Yedekleri başka bir depolamaya taşıyabilir miyim?</h3>
+<p>Depo klasörünü (veya kova önekini) olduğu gibi kopyalayın — kendi kendine yeterlidir — ve aynı kurtarma anahtarıyla yeni konumu gösteren bir depolama hedefi ekleyin.</p>
+<h3>Bir işi silmek yedekleri de siler mi?</h3>
+<p>Hayır. Yedekler depolamada kalır ve Etkinlik'ten veya komut satırından geri yüklenebilir.</p>
+<h3>Konsol çalışmazsa ne olur?</h3>
+<p>Konsol geri gelene kadar yeni zamanlanmış yedeklemeler başlamaz; kuyruktaki çalıştırmalar sonra devam eder. Geri yüklemeler kurtarma sayfasıyla komut satırından her zaman mümkündür.</p>
+<h3>Yedekler ne kadar alana ihtiyaç duyacak?</h3>
+<p>İlk yedek için kabaca sıkıştırma sonrası veri boyutu, artı saklanan her gün için günlük değişiklikler. Raporlar sayfası iş başına ne kadar yüklendiğini gösterir.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,94 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Solución de problemas y preguntas frecuentes</h1>
+
+<h2>Un agente aparece sin conexión</h2>
+<ul>
+  <li>¿Está la máquina encendida y el servicio en marcha? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>¿Llega la máquina a la consola? <code>Test-NetConnection backup-server -Port 8443</code> o <code>curl -k https://backup-server:8443/login</code>.</li>
+  <li>Log del agente: <code>C:\ProgramData\backupzit\agent.log</code>, en Linux <code>/etc/backupzit/agent.log</code> o <code>journalctl -u backupzit-agent</code>. «fingerprint mismatch» significa que el certificado de la consola cambió: vuelva a registrar el agente.</li>
+</ul>
+
+<h2>Una copia falló</h2>
+<p>Abra la ejecución en Actividad; el mensaje indica la causa. Causas habituales:</p>
+<table>
+  <tr><th>El mensaje contiene</th><th>Solución</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>La clave del servidor SFTP cambió o la huella se introdujo mal. Compruébelo con <code>ssh-keygen -lf</code> en el servidor.</td></tr>
+  <tr><td>permission denied / access denied</td><td>Credenciales del almacenamiento o permisos de la carpeta. Pruebe el inicio de sesión con un cliente SFTP/SMB.</td></tr>
+  <tr><td>no space left / quota</td><td>El almacenamiento está lleno. Reduzca la retención o añada espacio; las copias caducadas liberan espacio tras la siguiente ejecución.</td></tr>
+  <tr><td>repository is locked</td><td>Otra operación (p. ej. una limpieza) se está ejecutando en el mismo repositorio; la ejecución lo reintenta durante 30 minutos. Los bloqueos obsoletos caducan automáticamente.</td></tr>
+  <tr><td>wrong password / recovery key</td><td>El repositorio se creó con otra clave: compruebe que el trabajo usa el destino de almacenamiento correcto.</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>Se pidió inmutabilidad en un bucket creado sin Object Lock. Cree un bucket nuevo con Object Lock.</td></tr>
+</table>
+
+<h2>Otros mensajes</h2>
+<table>
+  <tr><th>Situación</th><th>Qué hacer</th></tr>
+  <tr><td>«no matching backup disk is connected»</td><td>Conecte uno de los discos USB rotativos (el mensaje indica la etiqueta necesaria y qué discos etiquetados están conectados). Una restauración necesita exactamente el disco que aparece en la ejecución de la copia.</td></tr>
+  <tr><td>«several backup disks are connected»</td><td>Conecte solo uno de los discos rotativos a la vez.</td></tr>
+  <tr><td>Falló la prueba de restauración</td><td>Abra la ejecución: el mensaje indica el archivo o bloque dañado o el motivo (p. ej. copia borrada en el almacenamiento). Ejecute <code>backupzit-agent check --read-data</code> sobre el repositorio, revise el almacenamiento e inicie una copia nueva. Si se borraron copias en almacenamiento inmutable, consulte <a href="/docs/ransomware">Protección contra ransomware</a>.</td></tr>
+  <tr><td>Copia marcada como <i>sospechosa</i></td><td>Revise la máquina en busca de ransomware o de un borrado masivo (p. ej. una carpeta sincronizada vaciada). Si todo está bien (p. ej. una migración planificada), haga clic en <i>Revisado: reanudar la retención</i> en la página del trabajo.</td></tr>
+  <tr><td>Let's Encrypt: «could not verify … is port 80 … reachable»</td><td>La comprobación HTTP necesita el puerto 80 accesible desde Internet. Para consolas internas use la comprobación DNS mediante Cloudflare.</td></tr>
+  <tr><td>Let's Encrypt: «no Cloudflare zone … is accessible with this token»</td><td>El token debe tener el permiso Zone → DNS → Edit para la zona que contiene el nombre de la consola.</td></tr>
+  <tr><td>«HTTPS port 443: … permission denied» o «address already in use»</td><td>Otro programa usa el puerto, o el servicio no puede abrir puertos inferiores a 1024 (ejecútelo con <code>CAP_NET_BIND_SERVICE</code>, como hace el paquete). Elija otro puerto en Configuración → Certificado.</td></tr>
+  <tr><td>Actualizaciones: «updates from the console need the Linux package of the console»</td><td>La consola no se instaló desde el paquete deb/rpm (por ejemplo, en modo de evaluación). Actualícela del mismo modo en que se instaló.</td></tr>
+  <tr><td>Actualizaciones: «the release is not signed with a BackupZit release key»</td><td>El origen de la actualización no contiene una versión oficial, o los archivos se modificaron por el camino. Vuelva a descargarlos desde la dirección oficial.</td></tr>
+  <tr><td>Actualizaciones: estado <i>rolled-back</i></td><td>La versión nueva no arrancó, así que se restauraron la anterior y su base de datos. El log del arranque fallido está en la página Actualizaciones; envíelo al soporte.</td></tr>
+  <tr><td>Sistema operativo: «no supported package manager»</td><td>Las actualizaciones del sistema operativo se admiten en Debian, Ubuntu (apt) y AlmaLinux, Rocky Linux, RHEL (dnf).</td></tr>
+  <tr><td>Copia de la consola: «the backup was made by a newer BackupZit»</td><td>Antes de restaurar, instale en la consola nueva la versión que hizo la copia, u otra más reciente.</td></tr>
+  <tr><td>Copia de la consola: «console backups need network storage»</td><td>Elija un destino SFTP, S3, SMB, Azure o un repositorio reforzado; la consola no puede acceder a una ruta local de un agente.</td></tr>
+  <tr><td>«Demasiados inicios de sesión fallidos»</td><td>Su dirección se bloqueó tras contraseñas erróneas repetidas: por defecto durante 30 minutos, más tiempo si se repiten los bloqueos. Un administrador puede levantar el bloqueo en <a href="/settings/security">Configuración → Inicio de sesión y seguridad</a>. En el servidor, <code>backupzit-server --unblock-ip all</code> levanta todos los bloqueos. Las cuentas nunca se bloquean de forma permanente.</td></tr>
+  <tr><td>Teléfono perdido para el inicio de sesión en dos pasos</td><td>Use uno de los códigos de recuperación; si no, un administrador restablece la verificación en dos pasos en su página de usuario. El último administrador puede restablecer su contraseña en el servidor con <code>backupzit-server --set-admin-password</code>.</td></tr>
+  <tr><td>«your directory account is not in any BackupZit group»</td><td>Añada el usuario a uno de los grupos asignados en <a href="/settings/ldap">Configuración → LDAP / Active Directory</a>, o asigne más grupos. Use <i>Prueba</i> allí para ver los grupos encontrados para un usuario.</td></tr>
+  <tr><td>La API devuelve 401 / 403</td><td>401: token ausente, revocado, caducado o con el propietario deshabilitado. 403: el rol del token es insuficiente para la solicitud.</td></tr>
+  <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Clave de cuenta incorrecta, o al token SAS le falta el permiso de lectura, escritura, borrado o listado, o ha caducado.</td></tr>
+  <tr><td>Una VM restaurada con Windows Server 2012 R2 / Windows 8.1 no arranca en Hyper-V Gen 2 («hash was denied (DBX)»)</td><td>Microsoft revocó el antiguo cargador de arranque para Secure Boot. Desactive Secure Boot en esa VM, o actualice el sistema antes de copiarlo.</td></tr>
+</table>
+
+<h2>Máquinas virtuales, sistemas Linux y hardware nuevo</h2>
+<table>
+  <tr><th>Situación</th><th>Qué hacer</th></tr>
+  <tr><td>Proxmox: «the guest is running and one of its disks is on storage without snapshot support»</td><td>Los invitados en marcha necesitan discos LVM-thin, ZFS, Ceph RBD o qcow2. Mueva el disco (<i>Disk Action → Move Storage</i>) o copie el invitado mientras está detenido.</td></tr>
+  <tr><td>Hyper-V: la ejecución dice «crash-consistent»</td><td>El invitado no pudo prepararse para el punto de control. En invitados Windows compruebe que los servicios de integración de Hyper-V (<i>Backup (volume shadow copy)</i>) están habilitados en la configuración de la VM. En invitados Linux instale <code>hyperv-daemons</code> (RHEL) o <code>linux-cloud-tools</code> / <code>hyperv-daemons</code> (Debian/Ubuntu).</td></tr>
+  <tr><td>VMware: «SSH off» o «SSH to …: connection refused»</td><td>Habilite SSH en el host ESXi: Host → Actions → Services → Enable Secure Shell (y configúrelo para que arranque con el host). Lo necesitan las restauraciones y, con la licencia gratuita, las copias.</td></tr>
+  <tr><td>VMware: «changed block tracking is off and can be enabled … only while the VM is off»</td><td>Licencia gratuita de ESXi: apague la VM una vez y ejecute el trabajo; BackupZit activa el seguimiento de bloques cambiados y las copias posteriores solo leen los bloques cambiados.</td></tr>
+  <tr><td>VMware: «copy the disk on the datastore (needs free space …)»</td><td>Las VM en marcha se copian brevemente en su datastore. Libere espacio allí (tanto como usa el disco) o copie la VM apagada.</td></tr>
+  <tr><td>VMware: «… is a snapshot delta disk»</td><td>La VM tiene instantáneas propias. Elimínelas o consolídelas en el cliente de host ESXi (Snapshots → Delete all).</td></tr>
+  <tr><td>VMware: «the ESXi certificate changed»</td><td>El host se reinstaló u otra máquina responde en su dirección. Si es lo esperado, quite el host en Agentes y vuelva a añadirlo para fijar el certificado nuevo.</td></tr>
+  <tr><td>VMware: archivos <code>*.replaced-DATE.vmdk</code> junto a los discos de la VM</td><td>Los discos antiguos de una VM restaurada en el sitio. Bórrelos en el explorador del datastore cuando la VM restaurada funcione.</td></tr>
+  <tr><td>Hyper-V: archivos <code>*.replaced-DATE</code> junto a los discos de la VM</td><td>Los discos antiguos de una VM restaurada en el sitio. Bórrelos cuando la VM restaurada funcione.</td></tr>
+  <tr><td>Recuperación instantánea de Proxmox: la VM no arranca o se cuelga</td><td>Compruebe el servidor de discos: <code>systemctl status backupzit-instant-ID</code> y <code>journalctl -u backupzit-instant-ID</code> en el nodo. El almacenamiento de copias debe seguir accesible; si no se puede leer el repositorio, las lecturas de disco de la VM se detienen.</td></tr>
+  <tr><td>Recuperación instantánea de Proxmox: «efidisk0 stays on storage backupzit-instant»</td><td>QEMU no puede mover el almacén de variables EFI mientras la VM está en marcha. Apague la VM y ejecute <code>qm disk move ID efidisk0 STORAGE --delete 1</code>; esto no depende de la copia.</td></tr>
+  <tr><td>Proxmox: «runs on node X; install the BackupZit agent on X»</td><td>El invitado se migró. Instale el agente en cada nodo y copie los invitados de cada nodo con el agente de ese nodo.</td></tr>
+  <tr><td>Copias o restauraciones de Proxmox lentas, SFTP «connection lost», «message authentication code incorrect» en el servidor de almacenamiento</td><td>Problema conocido de las tarjetas de red Intel e1000e en hosts Proxmox (log: «Detected Hardware Unit Hang», «Reset adapter unexpectedly»). Desactive el offloading: <code>ethtool -K eno1 tso off gso off gro off</code> y añádalo como línea <code>post-up</code> de la interfaz en <code>/etc/network/interfaces</code>.</td></tr>
+  <tr><td>Examinar archivos: «stored on a local path of the agent»</td><td>La consola solo puede leer copias en almacenamiento de red. Use <code>backupzit-agent pve ls/extract</code> o <code>image-ls/image-extract</code> en el agente.</td></tr>
+  <tr><td>Restauración de sistema Linux: «missing programs …»</td><td>Instale los paquetes indicados en la máquina que restaura, o arranque la ISO de recuperación de Linux de BackupZit, que los incluye.</td></tr>
+  <tr><td>La máquina Linux restaurada no tiene red</td><td>La configuración de red estaba vinculada a la dirección MAC antigua (netplan <code>match: macaddress</code>). Restaure con <i>Hardware distinto</i>, o elimine las líneas <code>match</code> en <code>/etc/netplan/</code>.</td></tr>
+  <tr><td>El Windows restaurado se detiene con INACCESSIBLE_BOOT_DEVICE</td><td>Restaure de nuevo con <i>Restaurar en hardware distinto</i>, o arranque la ISO de recuperación y ejecute <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
+  <tr><td>Una copia restaurada de una máquina aparece como el agente original</td><td>Las restauraciones en una VM nueva de Proxmox dan de baja automáticamente el agente de la copia. En otras copias, elimine <code>agent.json</code> en la copia y regístrela como máquina nueva.</td></tr>
+  <tr><td>La actualización del agente no termina</td><td>Consulte el log del instalador en <code>C:\ProgramData\backupzit\updates</code> o <code>/var/tmp/backupzit-updates</code>; los agentes anteriores a 0.21 deben actualizarse una vez a mano.</td></tr>
+  <tr><td>Falta el icono de la bandeja</td><td>Haga clic en la flecha <b>^</b> junto al reloj y arrastre el icono de BackupZit a la barra de tareas, o inicie <i>BackupZit Agent</i> desde el menú Inicio.</td></tr>
+</table>
+
+<h2>Una copia termina con «advertencia»</h2>
+<p>No se pudieron leer algunos archivos: normalmente archivos bloqueados por una aplicación mientras VSS no está disponible, o archivos para los que el agente no tiene permiso. La lista está en la página de la ejecución. Todo lo demás está copiado.</p>
+
+<h2>Las copias son lentas</h2>
+<ul>
+  <li>La primera copia lee y envía todo; las siguientes solo leen los archivos cambiados y solo envían los datos nuevos.</li>
+  <li>Revise la ruta de red hasta el almacenamiento (Wi-Fi, VPN, velocidad de subida a Internet para almacenamiento en la nube).</li>
+  <li>Excluya cachés, archivos temporales y multimedia que no necesite.</li>
+</ul>
+
+<h2>Preguntas frecuentes</h2>
+<h3>¿Puedo usar NFS?</h3>
+<p>Para <b>copiar</b> un recurso NFS (o SMB), cree un trabajo <a href="/docs/jobs#nas">NAS / recurso compartido</a>; un agente Linux monta el export en cada ejecución. Para <b>guardar</b> copias en NFS, monte el export en el agente (Linux: <code>/etc/fstab</code>) y use un destino <i>Ruta local / montada</i> como <code>/mnt/nfs-backup</code>; para máquinas Windows es mejor un destino SMB.</p>
+<h3>¿Puedo mover las copias a otro almacenamiento?</h3>
+<p>Copie la carpeta del repositorio (o el prefijo del bucket) tal cual —es autónoma— y añada un destino de almacenamiento que apunte a la nueva ubicación con la misma clave de recuperación.</p>
+<h3>¿Eliminar un trabajo elimina las copias?</h3>
+<p>No. Las copias permanecen en el almacenamiento y se pueden restaurar desde Actividad o la línea de comandos.</p>
+<h3>¿Qué pasa si la consola no está disponible?</h3>
+<p>No se inician copias programadas nuevas hasta que vuelva; las ejecuciones en cola continúan después. Las restauraciones siempre son posibles desde la línea de comandos con la hoja de recuperación.</p>
+<h3>¿Cuánto espacio necesitarán las copias?</h3>
+<p>Para la primera copia, aproximadamente el tamaño de los datos tras la compresión, más los cambios diarios de cada día conservado. La página Informes muestra cuánto se envió por trabajo.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

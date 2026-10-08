@@ -1,0 +1,94 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Risoluzione dei problemi e FAQ</h1>
+
+<h2>Un agente risulta offline</h2>
+<ul>
+  <li>La macchina è accesa e il servizio è in esecuzione? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>La macchina raggiunge la console? <code>Test-NetConnection backup-server -Port 8443</code> oppure <code>curl -k https://backup-server:8443/login</code>.</li>
+  <li>Log dell'agente: <code>C:\ProgramData\backupzit\agent.log</code>, su Linux <code>/etc/backupzit/agent.log</code> o <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" significa che il certificato della console è cambiato — registra di nuovo l'agente.</li>
+</ul>
+
+<h2>Un backup non è riuscito</h2>
+<p>Apri l'esecuzione in Attività; il messaggio indica la causa. Cause comuni:</p>
+<table>
+  <tr><th>Il messaggio contiene</th><th>Soluzione</th></tr>
+  <tr><td>host key mismatch / fingerprint</td><td>La chiave del server SFTP è cambiata o l'impronta è stata inserita male. Verifica con <code>ssh-keygen -lf</code> sul server.</td></tr>
+  <tr><td>permission denied / access denied</td><td>Credenziali dello storage o permessi della cartella. Prova l'accesso con un client SFTP/SMB.</td></tr>
+  <tr><td>no space left / quota</td><td>Lo storage è pieno. Riduci la conservazione o aggiungi spazio; i backup scaduti liberano spazio dopo l'esecuzione successiva.</td></tr>
+  <tr><td>repository is locked</td><td>Un'altra operazione (ad es. una pulizia) è in corso sullo stesso repository; l'esecuzione riprova per 30 minuti. I lock obsoleti scadono automaticamente.</td></tr>
+  <tr><td>wrong password / recovery key</td><td>Il repository è stato creato con un'altra chiave — verifica che il job usi la destinazione di archiviazione corretta.</td></tr>
+  <tr><td>bucket has no Object Lock enabled</td><td>È stata richiesta l'immutabilità su un bucket creato senza Object Lock. Crea un nuovo bucket con Object Lock.</td></tr>
+</table>
+
+<h2>Altri messaggi</h2>
+<table>
+  <tr><th>Situazione</th><th>Cosa fare</th></tr>
+  <tr><td>"no matching backup disk is connected"</td><td>Collega uno dei dischi USB a rotazione (il messaggio indica l'etichetta richiesta e quali dischi etichettati sono collegati). Un ripristino richiede esattamente il disco indicato nell'esecuzione del backup.</td></tr>
+  <tr><td>"several backup disks are connected"</td><td>Collega un solo disco a rotazione alla volta.</td></tr>
+  <tr><td>Test di ripristino non riuscito</td><td>Apri l'esecuzione: il messaggio indica il file o blocco danneggiato o il motivo (ad es. backup eliminato sullo storage). Esegui <code>backupzit-agent check --read-data</code> sul repository, controlla lo storage e avvia un nuovo backup. Se sono stati eliminati backup su storage immutabile, vedi <a href="/docs/ransomware">Protezione dal ransomware</a>.</td></tr>
+  <tr><td>Backup contrassegnato come <i>sospetto</i></td><td>Controlla la macchina per ransomware o una cancellazione di massa (ad es. una cartella sincronizzata svuotata). Se è tutto a posto (ad es. una migrazione pianificata), fai clic su <i>Verificato — riprendi la conservazione</i> nella pagina del job.</td></tr>
+  <tr><td>Let's Encrypt: "could not verify … is port 80 … reachable"</td><td>La verifica HTTP richiede la porta 80 raggiungibile da Internet. Per le console interne usa la verifica DNS tramite Cloudflare.</td></tr>
+  <tr><td>Let's Encrypt: "no Cloudflare zone … is accessible with this token"</td><td>Il token deve avere l'autorizzazione Zone → DNS → Edit per la zona che contiene il nome della console.</td></tr>
+  <tr><td>"HTTPS port 443: … permission denied" o "address already in use"</td><td>Un altro programma usa la porta, oppure il servizio non può aprire porte sotto la 1024 (avvialo con <code>CAP_NET_BIND_SERVICE</code>, come fa il pacchetto). Scegli un'altra porta in Impostazioni → Certificato.</td></tr>
+  <tr><td>Aggiornamenti: "updates from the console need the Linux package of the console"</td><td>La console non è stata installata dal pacchetto deb/rpm (ad esempio in modalità di valutazione). Aggiornala nello stesso modo in cui è stata installata.</td></tr>
+  <tr><td>Aggiornamenti: "the release is not signed with a BackupZit release key"</td><td>La sorgente degli aggiornamenti non contiene una release ufficiale, oppure i file sono stati alterati lungo il percorso. Scaricali di nuovo dall'indirizzo ufficiale.</td></tr>
+  <tr><td>Aggiornamenti: stato <i>rolled-back</i></td><td>La nuova versione non si è avviata, quindi sono stati ripristinati la precedente e il suo database. Il log dell'avvio non riuscito è nella pagina Aggiornamenti; invialo al supporto.</td></tr>
+  <tr><td>Sistema operativo: "no supported package manager"</td><td>Gli aggiornamenti del sistema operativo sono supportati su Debian, Ubuntu (apt) e AlmaLinux, Rocky Linux, RHEL (dnf).</td></tr>
+  <tr><td>Backup della console: "the backup was made by a newer BackupZit"</td><td>Prima del ripristino installa sulla nuova console la versione che ha creato il backup, o una più recente.</td></tr>
+  <tr><td>Backup della console: "console backups need network storage"</td><td>Scegli una destinazione SFTP, S3, SMB, Azure o un repository protetto; un percorso locale di un agente non è raggiungibile dalla console.</td></tr>
+  <tr><td>"Troppi accessi non riusciti"</td><td>Il tuo indirizzo è stato bloccato dopo password errate ripetute: per impostazione predefinita per 30 minuti, più a lungo per blocchi ripetuti. Un amministratore può rimuovere il blocco in <a href="/settings/security">Impostazioni → Accesso e sicurezza</a>. Sul server, <code>backupzit-server --unblock-ip all</code> rimuove tutti i blocchi. Gli account non vengono mai bloccati in modo permanente.</td></tr>
+  <tr><td>Telefono perso per l'accesso a due fattori</td><td>Usa uno dei codici di ripristino; altrimenti un amministratore reimposta i due fattori nella tua pagina utente. L'ultimo amministratore può reimpostare la propria password sul server con <code>backupzit-server --set-admin-password</code>.</td></tr>
+  <tr><td>"your directory account is not in any BackupZit group"</td><td>Aggiungi l'utente a uno dei gruppi associati in <a href="/settings/ldap">Impostazioni → LDAP / Active Directory</a>, o associa più gruppi. Usa <i>Test</i> in quella pagina per vedere i gruppi trovati per un utente.</td></tr>
+  <tr><td>L'API restituisce 401 / 403</td><td>401: token mancante, revocato, scaduto o con proprietario disattivato. 403: il ruolo del token è troppo basso per la richiesta.</td></tr>
+  <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Chiave dell'account errata, oppure al token SAS manca l'autorizzazione di lettura, scrittura, eliminazione o elenco, o è scaduto.</td></tr>
+  <tr><td>Una VM ripristinata con Windows Server 2012 R2 / Windows 8.1 non si avvia su Hyper-V Gen 2 ("hash was denied (DBX)")</td><td>Microsoft ha revocato il vecchio boot loader per Secure Boot. Disattiva Secure Boot per quella VM, oppure aggiorna il sistema prima del backup.</td></tr>
+</table>
+
+<h2>Macchine virtuali, sistemi Linux e nuovo hardware</h2>
+<table>
+  <tr><th>Situazione</th><th>Cosa fare</th></tr>
+  <tr><td>Proxmox: "the guest is running and one of its disks is on storage without snapshot support"</td><td>I guest in esecuzione richiedono dischi LVM-thin, ZFS, Ceph RBD o qcow2. Sposta il disco (<i>Disk Action → Move Storage</i>) oppure esegui il backup del guest quando è arrestato.</td></tr>
+  <tr><td>Hyper-V: l'esecuzione indica "crash-consistent"</td><td>Il guest non è riuscito a prepararsi per il checkpoint. Nei guest Windows verifica che i servizi di integrazione Hyper-V (<i>Backup (volume shadow copy)</i>) siano attivi nelle impostazioni della VM. Nei guest Linux installa <code>hyperv-daemons</code> (RHEL) o <code>linux-cloud-tools</code> / <code>hyperv-daemons</code> (Debian/Ubuntu).</td></tr>
+  <tr><td>VMware: "SSH off" o "SSH to …: connection refused"</td><td>Attiva SSH sull'host ESXi: Host → Actions → Services → Enable Secure Shell (e impostalo per avviarsi con l'host). Servono per i ripristini e, con la licenza gratuita, per i backup.</td></tr>
+  <tr><td>VMware: "changed block tracking is off and can be enabled … only while the VM is off"</td><td>Licenza ESXi gratuita: spegni la VM una volta, poi esegui il job; BackupZit attiva il Changed Block Tracking e i backup successivi leggono solo i blocchi modificati.</td></tr>
+  <tr><td>VMware: "copy the disk on the datastore (needs free space …)"</td><td>Le VM accese vengono copiate brevemente sul loro datastore. Libera spazio lì (quanto ne usa il disco), oppure esegui il backup della VM spenta.</td></tr>
+  <tr><td>VMware: "… is a snapshot delta disk"</td><td>La VM ha snapshot propri. Eliminali o consolidali nell'ESXi Host Client (Snapshots → Delete all).</td></tr>
+  <tr><td>VMware: "the ESXi certificate changed"</td><td>L'host è stato reinstallato oppure un'altra macchina risponde al suo indirizzo. Se è previsto, rimuovi l'host in Agenti e aggiungilo di nuovo per fissare il nuovo certificato.</td></tr>
+  <tr><td>VMware: file <code>*.replaced-DATE.vmdk</code> accanto ai dischi della VM</td><td>I vecchi dischi di una VM ripristinata sul posto. Eliminali nel browser del datastore quando la VM ripristinata funziona.</td></tr>
+  <tr><td>Hyper-V: file <code>*.replaced-DATE</code> accanto ai dischi della VM</td><td>I vecchi dischi di una VM ripristinata sul posto. Eliminali quando la VM ripristinata funziona.</td></tr>
+  <tr><td>Ripristino istantaneo Proxmox: la VM non si avvia o si blocca</td><td>Controlla il server dei dischi: <code>systemctl status backupzit-instant-ID</code> e <code>journalctl -u backupzit-instant-ID</code> sul nodo. Lo storage dei backup deve restare raggiungibile; se il repository non può essere letto, le letture del disco della VM si fermano.</td></tr>
+  <tr><td>Ripristino istantaneo Proxmox: "efidisk0 stays on storage backupzit-instant"</td><td>QEMU non può spostare l'archivio delle variabili EFI mentre la VM è accesa. Spegni la VM ed esegui <code>qm disk move ID efidisk0 STORAGE --delete 1</code>; non dipende dal backup.</td></tr>
+  <tr><td>Proxmox: "runs on node X; install the BackupZit agent on X"</td><td>Il guest è stato migrato. Installa l'agente su ogni nodo ed esegui il backup dei guest di ogni nodo con l'agente di quel nodo.</td></tr>
+  <tr><td>Backup o ripristini Proxmox lenti, SFTP "connection lost", "message authentication code incorrect" sul server di archiviazione</td><td>Problema noto delle schede di rete Intel e1000e sugli host Proxmox (log: "Detected Hardware Unit Hang", "Reset adapter unexpectedly"). Disattiva l'offloading: <code>ethtool -K eno1 tso off gso off gro off</code> e aggiungilo come riga <code>post-up</code> dell'interfaccia in <code>/etc/network/interfaces</code>.</td></tr>
+  <tr><td>Sfoglia file: "stored on a local path of the agent"</td><td>La console può leggere solo backup su storage di rete. Usa <code>backupzit-agent pve ls/extract</code> o <code>image-ls/image-extract</code> sull'agente.</td></tr>
+  <tr><td>Ripristino del sistema Linux: "missing programs …"</td><td>Installa i pacchetti indicati sulla macchina che esegue il ripristino, oppure avvia la ISO di ripristino Linux di BackupZit, che li contiene.</td></tr>
+  <tr><td>La macchina Linux ripristinata non ha rete</td><td>Le impostazioni di rete erano legate al vecchio indirizzo MAC (netplan <code>match: macaddress</code>). Ripristina con <i>Hardware diverso</i>, oppure rimuovi le righe <code>match</code> in <code>/etc/netplan/</code>.</td></tr>
+  <tr><td>Il Windows ripristinato si ferma con INACCESSIBLE_BOOT_DEVICE</td><td>Ripristina di nuovo con <i>Ripristina su hardware diverso</i>, oppure avvia la ISO di ripristino ed esegui <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
+  <tr><td>Una copia ripristinata di una macchina compare come l'agente originale</td><td>I ripristini in una nuova VM Proxmox deregistrano automaticamente l'agente nella copia. Per altre copie, rimuovi <code>agent.json</code> nella copia e registrala come nuova macchina.</td></tr>
+  <tr><td>L'aggiornamento dell'agente non termina</td><td>Consulta il log del programma di installazione in <code>C:\ProgramData\backupzit\updates</code> o <code>/var/tmp/backupzit-updates</code>; gli agenti precedenti alla 0.21 vanno aggiornati una volta a mano.</td></tr>
+  <tr><td>Manca l'icona nell'area di notifica</td><td>Fai clic sulla freccia <b>^</b> accanto all'orologio e trascina l'icona di BackupZit sulla barra delle applicazioni, oppure avvia <i>BackupZit Agent</i> dal menu Start.</td></tr>
+</table>
+
+<h2>Un backup termina con "avviso"</h2>
+<p>Alcuni file non sono stati letti — di solito file bloccati da un'applicazione mentre VSS non è disponibile, o file per cui l'agente non ha autorizzazione. L'elenco è nella pagina dell'esecuzione. Tutto il resto è salvato.</p>
+
+<h2>I backup sono lenti</h2>
+<ul>
+  <li>Il primo backup legge e carica tutto; i successivi leggono solo i file modificati e caricano solo i nuovi dati.</li>
+  <li>Controlla il percorso di rete verso lo storage (Wi-Fi, VPN, velocità di upload Internet per lo storage cloud).</li>
+  <li>Escludi cache, file temporanei e contenuti multimediali che non ti servono.</li>
+</ul>
+
+<h2>FAQ</h2>
+<h3>Posso usare NFS?</h3>
+<p>Per eseguire il <b>backup</b> di una condivisione NFS (o SMB), crea un job <a href="/docs/jobs#nas">NAS / condivisione file</a>; un agente Linux monta l'export a ogni esecuzione. Per <b>archiviare</b> i backup su NFS, monta l'export sull'agente (Linux: <code>/etc/fstab</code>) e usa una destinazione <i>Percorso locale / montato</i> come <code>/mnt/nfs-backup</code>; per le macchine Windows una destinazione SMB è la scelta migliore.</p>
+<h3>Posso spostare i backup su un altro storage?</h3>
+<p>Copia la cartella del repository (o il prefisso del bucket) così com'è — è autonoma — e aggiungi una destinazione di archiviazione che punti alla nuova posizione con la stessa chiave di ripristino.</p>
+<h3>Eliminare un job elimina i backup?</h3>
+<p>No. I backup restano sullo storage e sono ripristinabili da Attività o dalla riga di comando.</p>
+<h3>Cosa succede se la console è inattiva?</h3>
+<p>Nessun nuovo backup pianificato parte finché non torna; le esecuzioni in coda proseguono dopo. I ripristini sono sempre possibili da riga di comando con la scheda di ripristino.</p>
+<h3>Quanto spazio serviranno i backup?</h3>
+<p>Per il primo backup, all'incirca la dimensione dei dati dopo la compressione, più le modifiche giornaliere per ogni giorno conservato. La pagina Report mostra quanto è stato caricato per job.</p>
+{{template "docpager" .}}
+</article></div>{{end}}
