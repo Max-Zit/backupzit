@@ -1,0 +1,86 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Zabezpečení a doporučení</h1>
+<p class="lead">Jak BackupZit chrání vaše data a konzoli a co byste měli udělat na své straně.</p>
+
+<h2>Vestavěná ochrana</h2>
+<ul>
+  <li><b>Šifrování u zdroje</b> — AES-256-GCM v agentovi; úložiště vidí jen šifrovaná data. Klíče se odvozují pomocí Argon2id.</li>
+  <li><b>Připnutá spojení</b> — agenti připínají certifikát konzole; připínají se i klíče hostitele SFTP a certifikáty zabezpečených úložišť. Žádnou certifikační autoritu nelze zneužít k vydávání se za ně.</li>
+  <li><b>Důvěryhodný certifikát pro prohlížeče</b> — volitelně nahraný certifikát nebo certifikát Let's Encrypt (TLS 1.2+) na samostatné adrese, obnovovaný automaticky; viz <a href="/docs/install">Instalace serveru</a>.</li>
+  <li><b>Tajemství v klidu</b> — hesla a klíče úložišť, klíče pro obnovu, hesla SMTP/LDAP a dvoufázová tajemství se v databázi šifrují klíčem drženým mimo ni (<code>secrets.key</code>).</li>
+  <li><b>Tajemství agentů</b> — každý agent má vlastní tajemství, uložené na konzoli jen jako hash a na agentovi v souboru, který mohou číst jen správci.</li>
+  <li><b>Webová konzole</b> — relační cookies HttpOnly a SameSite=Strict; ochrana proti cross-site požadavkům a clickjackingu; přísná Content-Security-Policy; hesla hashovaná bcryptem; citlivé stránky se nikdy neukládají do mezipaměti.</li>
+  <li><b>Ochrana proti hrubé síle</b> — adresy, jejichž přihlášení příliš často selže, se blokují: hesla, dvoufázové kódy i tokeny API. Blokace přežijí restart, opakovaní útočníci se blokují déle a správci dostanou e-mail. Viz níže.</li>
+  <li><b>Účty</b> — role s nejmenšími oprávněními, volitelné dvoufázové ověření (TOTP) a přihlášení LDAPS; tokeny API s vlastní, nižší rolí a platností.</li>
+  <li><b>Schválení čtyř očí</b> (volitelné) — mazání nebo zakázání úloh, mazání agentů, hostitelů ESXi, cílových úložišť a uživatelů, zkracování uchovávání, vypnutí schvalování a vše, co by správci mohlo dát druhého schvalovatele (noví schvalovatelé, více práv, reset hesla a dvoufázového přihlášení, změny LDAP a SSO), vyžaduje schválení druhým uživatelem. Viz <a href="/docs/users">Uživatelé, role a LDAP</a>.</li>
+  <li><b>Auditní stopa</b> — přihlášení, neúspěšná přihlášení, změny uživatelů a rolí, úlohy, cílová úložiště, obnovy, zobrazené klíče pro obnovu, změny nastavení a akce API se zaznamenávají do <a href="/audit">protokolu auditu</a>; záznamy jsou zřetězené, takže změny a mazání v databázi se odhalí, a lze je kopírovat na server syslog nebo SIEM (<a href="/docs/users#audit-integrity">Ochrana proti změnám</a>); mazání na zabezpečeném úložišti se zaznamenává na tom serveru.</li>
+  <li><b>Aktualizace konzole</b> — vydání jsou podepsaná klíčem vydání BackupZit (Ed25519). Konzole i služba root, která je instaluje, ověřují podpis, databáze se nejdřív zazálohuje a neúspěšná aktualizace se vrátí zpět.</li>
+  <li><b>Aktualizace agentů</b> — agenti stahují nové verze jen ze své konzole přes připnuté spojení a instalují je jen tehdy, když sedí kontrolní součet SHA-256.</li>
+  <li><b>Místní stavový kanál</b> — aplikace v oznamovací oblasti komunikuje se službou agenta přes místní pojmenovanou rouru (Windows) nebo socket přístupný jen rootovi (Linux). Přihlášení uživatelé počítače mohou číst stav a spouštět zálohovací úlohy tohoto počítače; nic dalšího (úlohy, plány, úložiště a obnovy se spravují jen v konzoli).</li>
+  <li><b>Zálohy hypervizorů</b> — agent na hostiteli Proxmox nebo Hyper-V používá vlastní nástroje hostitele; hesla hypervizoru se pro ně neukládají. U VMware ESXi konzole ukládá heslo hostitele šifrovaně, připíná jeho HTTPS certifikát a SSH klíč hostitele a spojení předává jen proxy agentovi hostitele pro jeho běhy.</li>
+  <li><b>Integrita záloh</b> — každý blok se při obnově ověřuje podle svého hashe SHA-256; automatické testy obnovy a detekce ransomwaru zálohy průběžně hlídají.</li>
+</ul>
+
+<h2>Ochrana proti hrubé síle</h2>
+<p>Nastavuje se v <a href="/settings/security">Nastavení → Přihlášení a zabezpečení</a>. Výchozí hodnoty jsou bezpečné pro většinu instalací:</p>
+<table>
+  <tr><th>Nastavení</th><th>Výchozí</th><th>Význam</th></tr>
+  <tr><td>Neúspěšné pokusy na adresu</td><td>5</td><td>Neúspěšná přihlášení z jedné IP adresy během doby počítání tuto adresu zablokují. Počítají se špatná hesla, špatné dvoufázové kódy a neplatné tokeny API.</td></tr>
+  <tr><td>Doba počítání</td><td>15 minut</td><td>Starší neúspěchy se zapomínají.</td></tr>
+  <tr><td>Blokovat na</td><td>30 minut</td><td>Zablokovaná adresa se nemůže přihlásit, ani se správným heslem. Přihlašovací stránka odpoví „Příliš mnoho neúspěšných přihlášení“ a API odpoví HTTP 429.</td></tr>
+  <tr><td>Opakované útočníky blokovat déle</td><td>zapnuto</td><td>Každá další blokace adresy během dne trvá dvakrát déle: 30 minut, 1 hodina, 2 hodiny, … až 7 dní.</td></tr>
+  <tr><td>Neúspěšné pokusy na uživatelské jméno</td><td>20</td><td>Neúspěchy pro jedno uživatelské jméno, z libovolných adres, pozastaví přihlašování tohoto jména, dokud neuplyne doba počítání. To zastaví hádání rozložené na mnoho adres. Účty se nikdy nezamykají trvale, takže útočník nemůže správce vyřadit.</td></tr>
+  <tr><td>Tyto sítě nikdy neblokovat</td><td>žádné</td><td>Volitelné sítě, např. podsíť správců, které se nikdy neblokují. Limit na uživatelské jméno pro ně stále platí.</td></tr>
+  <tr><td>Reverzní proxy</td><td>žádné</td><td>Pokud konzole běží za nginx, Traefikem nebo jinou proxy, zadejte její adresu: adresa klienta se pak bere z <code>X-Forwarded-For</code> (jinak by všichni klienti vypadali jako proxy) a když proxy posílá <code>X-Forwarded-Proto: https</code>, přihlašovací cookies se označí jako Secure. Obě hlavičky se z jakékoli jiné adresy ignorují, takže je nelze podvrhnout.</td></tr>
+  <tr><td>E-mail při zablokování adresy</td><td>zapnuto</td><td>Posílá se příjemcům z <a href="/settings/email">nastavení e-mailu</a>.</td></tr>
+</table>
+<p>Stejná stránka vypisuje zablokované adresy s důvodem a dobou trvání každé blokace a umožňuje blokaci zrušit. Blokace a jejich zrušení se zaznamenávají do <a href="/audit">protokolu auditu</a>.</p>
+<p>Pokud jste se zablokovali sami, přihlaste se z jiné adresy, nebo na serveru spusťte se stejnými volbami databáze jako služba:</p>
+<pre>backupzit-server --unblock-ip all</pre>
+<p>Chcete-li zrušit jednu blokaci, zadejte místo <code>all</code> adresu.</p>
+
+<h2 id="web-access">Přístup k webové konzoli (veřejná adresa)</h2>
+<p>Agenti se ke konzoli připojují na portu 8443. Chcete-li konzoli nabídnout na veřejné adrese — pro agenty v jiných lokalitách nebo u zákazníků — a přitom webovou konzoli nechat otevírat jen své správce, použijte <b>Nastavení → Přihlášení a zabezpečení → Přístup k webové konzoli</b>:</p>
+<table>
+  <tr><th>Nastavení</th><th>Účinek</th></tr>
+  <tr><td>Povolené adresy</td><td>IP adresy nebo sítě (např. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). Webová konzole, REST API a každá stránka odpovídají jen těmto adresám; ostatní dostanou „not found“, jako by žádná konzole neexistovala. Agenti se ke svému API dostanou vždy (registrace, dotazování, výsledky, stahování, vzdálená instalace). Prázdné: všichni. Konzole odmítne seznam, který neobsahuje vaši vlastní adresu.</td></tr>
+  <tr><td>Port 8443 jen pro agenty</td><td>Webová konzole je pak dostupná jen na webovém portu s důvěryhodným certifikátem (<a href="/docs/install">Nastavení → Certifikát</a>, obvykle 443), takže firewall může otevřít 8443 všem a 443 jen vašim adresám. K dispozici, jakmile webový port běží; měňte to z webového portu, ne z 8443.</td></tr>
+</table>
+<p>Typický firewall pro veřejnou konzoli: 8443 otevřený všem (agenti), 443 a 80 (HTTP kontrola Let's Encrypt) jen z vašich adres, SSH jen z vašich adres nebo vypnuté, vše ostatní zavřené.</p>
+<p>Zablokovali jste se? Na samotném serveru (<code>localhost</code>) konzole odpovídá vždy. Na appliance položka 5 nastavovací nabídky na jeho obrazovce zruší blokace přihlášení a tato omezení.</p>
+
+<h2>Doporučení</h2>
+<h3>Konzole</h3>
+<ul>
+  <li>Držte konzoli ve vnitřní síti; nepublikujte port 8443 do internetu. Pro vzdálenou správu použijte VPN.</li>
+  <li>Používejte dlouhé, jedinečné heslo správce a změňte počáteční.</li>
+  <li>Vyžadujte <b>dvoufázové ověření</b> pro správce (<a href="/settings/security">Nastavení → Přihlášení a zabezpečení</a>).</li>
+  <li>Dejte každé osobě vlastní účet s nejnižší funkční rolí; pro monitoring používejte tokeny API s rolí Čtenář.</li>
+  <li>Zálohujte <code>secrets.key</code> odděleně od databáze (<a href="/docs/install">Instalace serveru</a>).</li>
+  <li>Zvolte v <a href="/settings/security">Nastavení → Přihlášení a zabezpečení</a> vhodnou délku relace (kratší je bezpečnější).</li>
+  <li>Udržujte server aktuální (<code>apt upgrade</code> / <code>dnf upgrade</code>), včetně PostgreSQL.</li>
+</ul>
+<h3>Úložiště</h3>
+<ul>
+  <li>Dejte každému cílovému úložišti vlastní účet s přístupem jen ke složce nebo bucketu záloh.</li>
+  <li>Nepřipojujte úložiště záloh do domény Windows; používejte přihlašovací údaje, které se nikde jinde nepoužívají.</li>
+  <li>Mějte alespoň jednu neměnnou kopii (S3 Object Lock nebo zabezpečené úložiště) a jednu kopii mimo lokalitu.</li>
+</ul>
+<h3>Klíče</h3>
+<ul>
+  <li>Listy pro obnovu uchovávejte offline. Bez nich nelze šifrované zálohy obnovit, pokud se konzole ztratí.</li>
+  <li>Jednou otestujte obnovu z příkazového řádku jen s listem pro obnovu, abyste věděli, že postup funguje.</li>
+  <li>S USB diskem s <code>recovery.json</code> zacházejte jako s klíčem: dokud kód obnovy nevyprší (30 dní), umožňuje počítači připojit se ke konzoli jako agent obnovy. Když potřebujete, vytvořte nový kód, místo abyste uchovávali staré disky.</li>
+  <li>Obnovovací ISO dávají příkazový řádek root / správce každému, kdo z nich nastartuje — jako každé zaváděcí médium. Chraňte servery heslem firmwaru (BIOS/UEFI) a nastavením zabezpečeného spouštění.</li>
+</ul>
+
+<h3>Agenti a hypervizory</h3>
+<ul>
+  <li>Konzole může na agenty instalovat software (aktualizace agentů) a obnovovat na ně data. Chraňte podle toho účty správců: dvoufázové ověření, málo správců.</li>
+  <li>Soubory z disků VM analyzují konzole a agenti při procházení; poškozená nebo škodlivá data souborového systému vedou k chybě, ne k pádu.</li>
+</ul>
+
+<h2>Nahlášení bezpečnostního problému</h2>
+<p>Zranitelnosti hlaste soukromě správcům BackupZit místo otevírání veřejného issue.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,86 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Güvenlik ve en iyi uygulamalar</h1>
+<p class="lead">BackupZit'in verilerinizi ve konsolu nasıl koruduğu ve sizin tarafınızda ne yapmanız gerektiği.</p>
+
+<h2>Yerleşik koruma</h2>
+<ul>
+  <li><b>Kaynakta şifreleme</b> — aracıda AES-256-GCM; depolama yalnızca şifreli veri görür. Anahtarlar Argon2id ile türetilir.</li>
+  <li><b>Sabitlenmiş bağlantılar</b> — aracılar konsol sertifikasını sabitler; SFTP ana bilgisayar anahtarları ve güçlendirilmiş depo sertifikaları da sabitlenir. Hiçbir sertifika yetkilisi onların kılığına girmek için kötüye kullanılamaz.</li>
+  <li><b>Tarayıcılar için güvenilir sertifika</b> — isteğe bağlı olarak ayrı bir adreste yüklenmiş veya Let's Encrypt sertifikası (TLS 1.2+), otomatik yenilenir; bkz. <a href="/docs/install">Sunucuyu kurma</a>.</li>
+  <li><b>Durağan gizli bilgiler</b> — depolama parolaları ve anahtarları, kurtarma anahtarları, SMTP/LDAP parolaları ve iki aşamalı gizli anahtarlar veritabanında, veritabanı dışında tutulan bir anahtarla (<code>secrets.key</code>) şifrelenir.</li>
+  <li><b>Aracı gizli anahtarları</b> — her aracının kendi gizli anahtarı vardır; konsolda yalnızca karma olarak, aracıda ise yalnızca yöneticilerin okuyabildiği bir dosyada saklanır.</li>
+  <li><b>Web konsolu</b> — HttpOnly ve SameSite=Strict oturum çerezleri; siteler arası isteklere ve clickjacking'e karşı koruma; sıkı Content-Security-Policy; bcrypt ile karmalanmış parolalar; hassas sayfalar asla önbelleğe alınmaz.</li>
+  <li><b>Kaba kuvvet koruması</b> — oturum açmada çok sık başarısız olan adresler engellenir: parolalar, iki aşamalı kodlar ve API belirteçleri. Engeller yeniden başlatmalardan sonra da sürer, tekrarlayanlar daha uzun engellenir ve yöneticiler bir e-posta alır. Aşağıya bakın.</li>
+  <li><b>Hesaplar</b> — en az ayrıcalıklı roller, isteğe bağlı iki aşamalı kimlik doğrulama (TOTP) ve LDAPS ile oturum açma; kendi, daha düşük rolü ve süresi olan API belirteçleri.</li>
+  <li><b>Dört göz onayı</b> (isteğe bağlı) — işleri silme veya devre dışı bırakma, aracıları, ESXi ana bilgisayarlarını, depolama hedeflerini ve kullanıcıları silme, saklamayı kısaltma, onayı kapatma ve bir yöneticiye ikinci bir onaylayıcı kazandırabilecek her şey (yeni onaylayıcılar, daha fazla hak, parola ve iki aşamalı sıfırlamalar, LDAP ve SSO değişiklikleri) ikinci bir kullanıcının onayını gerektirir. Bkz. <a href="/docs/users">Kullanıcılar, roller ve LDAP</a>.</li>
+  <li><b>Denetim izi</b> — oturum açmalar, başarısız oturum açmalar, kullanıcı ve rol değişiklikleri, işler, depolama hedefleri, geri yüklemeler, görüntülenen kurtarma anahtarları, ayar değişiklikleri ve API işlemleri <a href="/audit">denetim günlüğüne</a> kaydedilir; girişler zincirlenir, böylece veritabanındaki değişiklik ve silmeler algılanır ve bir syslog sunucusuna veya SIEM'e kopyalanabilir (<a href="/docs/users#audit-integrity">Değişikliklere karşı koruma</a>); güçlendirilmiş bir depodaki silmeler o sunucuda günlüğe yazılır.</li>
+  <li><b>Konsol güncellemeleri</b> — sürümler BackupZit sürüm anahtarıyla (Ed25519) imzalanır. Konsol ve onları kuran root hizmeti imzayı doğrular, veritabanı önce yedeklenir ve başarısız bir güncelleme geri alınır.</li>
+  <li><b>Aracı güncellemeleri</b> — aracılar yeni sürümleri yalnızca sabitlenmiş bağlantı üzerinden kendi konsollarından indirir ve yalnızca SHA-256 sağlama toplamı eşleşirse kurar.</li>
+  <li><b>Yerel durum kanalı</b> — tepsi uygulaması aracı hizmetiyle yerel bir adlandırılmış kanal (Windows) veya yalnızca root'un erişebildiği bir soket (Linux) üzerinden konuşur. Makinede oturum açmış kullanıcılar durumu okuyabilir ve makinenin kendi yedekleme işlerini başlatabilir; başka bir şey yapamaz (işler, zamanlamalar, depolama ve geri yüklemeler yalnızca konsolda yönetilir).</li>
+  <li><b>Hipervizör yedekleri</b> — Proxmox veya Hyper-V ana bilgisayarındaki aracı, ana bilgisayarın kendi araçlarını kullanır; bunlar için hipervizör parolası saklanmaz. VMware ESXi için konsol, ana bilgisayarın parolasını şifreli saklar, HTTPS sertifikasını ve SSH ana bilgisayar anahtarını sabitler ve bağlantıyı yalnızca ana bilgisayarın vekil aracısına, onun çalıştırmaları için verir.</li>
+  <li><b>Yedek bütünlüğü</b> — her parça geri yüklemede SHA-256 karmasıyla doğrulanır; otomatik geri yükleme testleri ve fidye yazılımı algılama yedekleri sürekli izler.</li>
+</ul>
+
+<h2>Kaba kuvvet koruması</h2>
+<p><a href="/settings/security">Ayarlar → Oturum açma ve güvenlik</a> altında yapılandırılır. Varsayılanlar çoğu kurulum için güvenlidir:</p>
+<table>
+  <tr><th>Ayar</th><th>Varsayılan</th><th>Anlamı</th></tr>
+  <tr><td>Adres başına başarısız deneme</td><td>5</td><td>Sayım süresi içinde bir IP adresinden gelen başarısız oturum açmalar o adresi engeller. Yanlış parolalar, yanlış iki aşamalı kodlar ve geçersiz API belirteçleri sayılır.</td></tr>
+  <tr><td>Sayım süresi</td><td>15 dakika</td><td>Daha eski başarısızlıklar unutulur.</td></tr>
+  <tr><td>Engelleme süresi</td><td>30 dakika</td><td>Engellenen bir adres doğru parolayla bile oturum açamaz. Oturum açma sayfası "Çok fazla başarısız oturum açma" yanıtını, API ise HTTP 429 yanıtını verir.</td></tr>
+  <tr><td>Tekrarlayanları daha uzun engelle</td><td>açık</td><td>Bir adresin aynı gün içindeki her yeni engeli iki kat uzun sürer: 30 dakika, 1 saat, 2 saat, … 7 güne kadar.</td></tr>
+  <tr><td>Kullanıcı adı başına başarısız deneme</td><td>20</td><td>Bir kullanıcı adı için herhangi bir adresten gelen başarısızlıklar, sayım süresi geçene kadar o kullanıcı adıyla oturum açmayı duraklatır. Bu, çok sayıda adrese yayılmış tahminleri durdurur. Hesaplar asla kalıcı olarak kilitlenmez; böylece bir saldırgan yöneticiyi dışarıda bırakamaz.</td></tr>
+  <tr><td>Bu ağları asla engelleme</td><td>yok</td><td>Asla engellenmeyen isteğe bağlı ağlar, ör. yöneticilerin alt ağı. Kullanıcı adı başına sınır onlar için de geçerlidir.</td></tr>
+  <tr><td>Ters vekil sunucular</td><td>yok</td><td>Konsol nginx, Traefik veya başka bir vekilin arkasında çalışıyorsa adresini girin: istemci adresi o zaman <code>X-Forwarded-For</code> başlığından alınır (aksi halde tüm istemciler vekil gibi görünür) ve vekil <code>X-Forwarded-Proto: https</code> gönderdiğinde oturum çerezleri Secure olarak işaretlenir. Her iki başlık başka herhangi bir adresten gelirse yok sayılır, bu yüzden taklit edilemez.</td></tr>
+  <tr><td>Bir adres engellendiğinde e-posta</td><td>açık</td><td><a href="/settings/email">E-posta ayarlarındaki</a> alıcılara gönderilir.</td></tr>
+</table>
+<p>Aynı sayfa engellenen adresleri, her engelin nedeni ve süresiyle listeler ve bir engeli kaldırmanıza izin verir. Engeller ve kaldırmalar <a href="/audit">denetim günlüğüne</a> kaydedilir.</p>
+<p>Kendinizi dışarıda bıraktıysanız başka bir adresten oturum açın veya sunucuda, hizmetle aynı veritabanı seçenekleriyle şunu çalıştırın:</p>
+<pre>backupzit-server --unblock-ip all</pre>
+<p>Tek bir engeli kaldırmak için <code>all</code> yerine adresi verin.</p>
+
+<h2 id="web-access">Web konsoluna erişim (genel adres)</h2>
+<p>Aracılar konsola 8443 numaralı porttan bağlanır. Konsolu genel bir adreste sunmak — başka konumlardaki veya müşterilerdeki aracılar için — ve web konsolunu yalnızca yöneticilerinizin açabilmesini sağlamak için <b>Ayarlar → Oturum açma ve güvenlik → Web konsoluna erişim</b>'i kullanın:</p>
+<table>
+  <tr><th>Ayar</th><th>Etkisi</th></tr>
+  <tr><td>İzin verilen adresler</td><td>IP adresleri veya ağlar (ör. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). Web konsolu, REST API ve her sayfa yalnızca bu adreslere yanıt verir; diğerleri sanki konsol yokmuş gibi "not found" alır. Aracılar API'lerine her zaman ulaşır (kayıt, yoklama, sonuçlar, indirmeler, uzaktan kurulum). Boş: herkes. Konsol, kendi adresinizi içermeyen bir listeyi reddeder.</td></tr>
+  <tr><td>8443 portu yalnızca aracılar için</td><td>Web konsolu bu durumda yalnızca güvenilir sertifikalı web portunda olur (<a href="/docs/install">Ayarlar → Sertifika</a>, genellikle 443); böylece bir güvenlik duvarı 8443'ü herkese, 443'ü yalnızca sizin adreslerinize açabilir. Web portu çalışmaya başladığında kullanılabilir; 8443'ten değil, web portundan değiştirin.</td></tr>
+</table>
+<p>Genel bir konsol için tipik güvenlik duvarı: 8443 herkese açık (aracılar), 443 ve 80 (Let's Encrypt HTTP denetimi) yalnızca sizin adreslerinizden, SSH yalnızca sizin adreslerinizden veya kapalı, geri kalan her şey kapalı.</p>
+<p>Dışarıda mı kaldınız? Sunucunun kendisinde (<code>localhost</code>) konsol her zaman yanıt verir. Cihazda (appliance), ekranındaki kurulum menüsünün 5. öğesi oturum açma engellerini ve bu kısıtlamaları kaldırır.</p>
+
+<h2>Öneriler</h2>
+<h3>Konsol</h3>
+<ul>
+  <li>Konsolu dahili bir ağda tutun; 8443 portunu internete açmayın. Uzaktan yönetim için VPN kullanın.</li>
+  <li>Uzun, benzersiz bir yönetici parolası kullanın ve ilk parolayı değiştirin.</li>
+  <li>Yöneticiler için <b>iki aşamalı kimlik doğrulama</b> zorunlu kılın (<a href="/settings/security">Ayarlar → Oturum açma ve güvenlik</a>).</li>
+  <li>Her kişiye işe yarayan en düşük rolle kendi hesabını verin; izleme için Görüntüleyici rollü API belirteçleri kullanın.</li>
+  <li><code>secrets.key</code> dosyasını veritabanından ayrı yedekleyin (<a href="/docs/install">Sunucuyu kurma</a>).</li>
+  <li><a href="/settings/security">Ayarlar → Oturum açma ve güvenlik</a> altında size uygun bir oturum süresi seçin (daha kısa daha güvenlidir).</li>
+  <li>Sunucuyu PostgreSQL dahil güncel tutun (<code>apt upgrade</code> / <code>dnf upgrade</code>).</li>
+</ul>
+<h3>Depolama</h3>
+<ul>
+  <li>Her depolama hedefine yalnızca yedek klasörüne veya kovasına erişimi olan kendi hesabını verin.</li>
+  <li>Yedek depolamasını Windows etki alanına katmayın; başka hiçbir yerde kullanılmayan kimlik bilgileri kullanın.</li>
+  <li>En az bir değiştirilemez kopya (S3 Object Lock veya güçlendirilmiş depo) ve bir tesis dışı kopya tutun.</li>
+</ul>
+<h3>Anahtarlar</h3>
+<ul>
+  <li>Kurtarma sayfalarını çevrimdışı saklayın. Onlar olmadan, konsol kaybolursa şifreli yedekler geri yüklenemez.</li>
+  <li>Prosedürün çalıştığını bilmek için yalnızca kurtarma sayfasıyla komut satırından bir kez geri yükleme deneyin.</li>
+  <li><code>recovery.json</code> içeren bir USB belleğe anahtar gibi davranın: kurtarma kodunun süresi dolana kadar (30 gün) bir makinenin konsola kurtarma aracısı olarak katılmasını sağlar. Eski bellekleri saklamak yerine gerektiğinde yeni bir kod oluşturun.</li>
+  <li>Kurtarma ISO'ları, onlardan önyükleyen herkese root / yönetici komut satırı verir — her önyükleme ortamı gibi. Sunucuları bir ürün yazılımı parolası (BIOS/UEFI) ve güvenli önyükleme ayarlarıyla koruyun.</li>
+</ul>
+
+<h3>Aracılar ve hipervizörler</h3>
+<ul>
+  <li>Konsol aracılara yazılım kurabilir (aracı güncellemeleri) ve onlara veri geri yükleyebilir. Yönetici hesaplarını buna göre koruyun: iki aşamalı kimlik doğrulama, az sayıda yönetici.</li>
+  <li>VM disklerindeki dosyalar, onlara göz attığınızda konsol ve aracılar tarafından ayrıştırılır; hasarlı veya kötü amaçlı dosya sistemi verileri çökme değil, hata üretir.</li>
+</ul>
+
+<h2>Güvenlik sorunu bildirme</h2>
+<p>Lütfen güvenlik açıklarını herkese açık bir kayıt açmak yerine BackupZit geliştiricilerine gizli olarak bildirin.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

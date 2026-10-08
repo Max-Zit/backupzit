@@ -1,0 +1,86 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Segurança e boas práticas</h1>
+<p class="lead">Como o BackupZit protege seus dados e o console, e o que você deve fazer do seu lado.</p>
+
+<h2>Proteções embutidas</h2>
+<ul>
+  <li><b>Criptografia na origem</b> — AES-256-GCM no agente; o armazenamento só vê dados criptografados. As chaves são derivadas com Argon2id.</li>
+  <li><b>Conexões fixadas</b> — os agentes fixam o certificado do console; chaves de host SFTP e certificados de repositórios protegidos também são fixados. Nenhuma autoridade certificadora pode ser usada para se passar por eles.</li>
+  <li><b>Certificado confiável para navegadores</b> — opcionalmente um certificado enviado ou do Let's Encrypt (TLS 1.2+) em um endereço separado, renovado automaticamente; veja <a href="/docs/install">Instalar o servidor</a>.</li>
+  <li><b>Segredos em repouso</b> — senhas e chaves de armazenamento, chaves de recuperação, senhas SMTP/LDAP e segredos de dois fatores são criptografados no banco de dados com uma chave mantida fora dele (<code>secrets.key</code>).</li>
+  <li><b>Segredos dos agentes</b> — cada agente tem seu próprio segredo, armazenado só como hash no console e, no agente, em um arquivo que só administradores podem ler.</li>
+  <li><b>Console web</b> — cookies de sessão HttpOnly e SameSite=Strict; proteção contra requisições entre sites e clickjacking; Content-Security-Policy rígida; senhas com hash bcrypt; páginas sensíveis nunca ficam em cache.</li>
+  <li><b>Proteção contra força bruta</b> — endereços que falham no login vezes demais são bloqueados: senhas, códigos de dois fatores e tokens de API. Os bloqueios sobrevivem a reinicializações, reincidentes ficam bloqueados por mais tempo e os administradores recebem um e-mail. Veja abaixo.</li>
+  <li><b>Contas</b> — funções com privilégio mínimo, autenticação de dois fatores opcional (TOTP) e login LDAPS; tokens de API com função própria, mais baixa, e validade.</li>
+  <li><b>Aprovação a quatro olhos</b> (opcional) — excluir ou desativar tarefas, excluir agentes, hosts ESXi, destinos de armazenamento e usuários, encurtar a retenção, desligar a aprovação e tudo o que poderia dar a um administrador um segundo aprovador (novos aprovadores, mais direitos, redefinição de senha e dois fatores, mudanças em LDAP e SSO) exigem a aprovação de um segundo usuário. Veja <a href="/docs/users">Usuários, funções e LDAP</a>.</li>
+  <li><b>Trilha de auditoria</b> — logins, logins com falha, alterações de usuários e funções, tarefas, destinos de armazenamento, restaurações, chaves de recuperação exibidas, alterações de configuração e ações de API são registrados no <a href="/audit">log de auditoria</a>; as entradas são encadeadas para que alterações e exclusões no banco sejam detectadas, e podem ser copiadas para um servidor syslog ou SIEM (<a href="/docs/users#audit-integrity">Proteção contra alterações</a>); exclusões em um repositório protegido são registradas naquele servidor.</li>
+  <li><b>Atualizações do console</b> — as versões são assinadas com a chave de release do BackupZit (Ed25519). O console e o serviço root que as instala verificam a assinatura, o banco de dados é copiado antes e uma atualização com falha é revertida.</li>
+  <li><b>Atualizações dos agentes</b> — os agentes só baixam novas versões do próprio console pela conexão fixada e só as instalam se o checksum SHA-256 conferir.</li>
+  <li><b>Canal de status local</b> — o aplicativo da bandeja fala com o serviço do agente por um named pipe local (Windows) ou um socket só para root (Linux). Usuários conectados à máquina podem ler o status e iniciar as tarefas de backup da própria máquina; nada mais (tarefas, agendamentos, armazenamento e restaurações só são gerenciados no console).</li>
+  <li><b>Backups de hipervisores</b> — o agente em um host Proxmox ou Hyper-V usa as ferramentas do próprio host; nenhuma senha de hipervisor é armazenada para eles. Para o VMware ESXi o console armazena a senha do host criptografada, fixa o certificado HTTPS e a chave de host SSH dele, e só entrega a conexão ao agente proxy do host para as execuções dele.</li>
+  <li><b>Integridade dos backups</b> — cada bloco é verificado pelo hash SHA-256 na restauração; testes de restauração automáticos e a detecção de ransomware vigiam os backups continuamente.</li>
+</ul>
+
+<h2>Proteção contra força bruta</h2>
+<p>Configure em <a href="/settings/security">Configurações → Login e segurança</a>. Os padrões são seguros para a maioria das instalações:</p>
+<table>
+  <tr><th>Configuração</th><th>Padrão</th><th>Significado</th></tr>
+  <tr><td>Tentativas falhas por endereço</td><td>5</td><td>Logins com falha de um endereço IP dentro do período de contagem bloqueiam esse endereço. Contam senhas erradas, códigos de dois fatores errados e tokens de API inválidos.</td></tr>
+  <tr><td>Período de contagem</td><td>15 minutos</td><td>Falhas mais antigas são esquecidas.</td></tr>
+  <tr><td>Bloquear por</td><td>30 minutos</td><td>Um endereço bloqueado não consegue entrar, nem com a senha certa. A página de login responde "Muitas tentativas de login com falha" e a API responde HTTP 429.</td></tr>
+  <tr><td>Bloquear reincidentes por mais tempo</td><td>ligado</td><td>Cada novo bloqueio de um endereço no mesmo dia dura o dobro: 30 minutos, 1 hora, 2 horas, … até 7 dias.</td></tr>
+  <tr><td>Tentativas falhas por nome de usuário</td><td>20</td><td>Falhas para um nome de usuário, de quaisquer endereços, pausam o login desse nome até passar o período de contagem. Isso barra tentativas espalhadas por muitos endereços. As contas nunca são bloqueadas permanentemente, então um atacante não consegue trancar o administrador do lado de fora.</td></tr>
+  <tr><td>Nunca bloquear estas redes</td><td>nenhuma</td><td>Redes opcionais, por ex. a sub-rede dos administradores, que nunca são bloqueadas. O limite por nome de usuário continua valendo para elas.</td></tr>
+  <tr><td>Proxies reversos</td><td>nenhum</td><td>Se o console roda atrás de nginx, Traefik ou outro proxy, informe o endereço dele: o endereço do cliente passa a ser lido de <code>X-Forwarded-For</code> (senão todos os clientes pareceriam ser o proxy) e, quando o proxy envia <code>X-Forwarded-Proto: https</code>, os cookies de login são marcados como Secure. Os dois cabeçalhos são ignorados vindos de qualquer outro endereço, então não podem ser falsificados.</td></tr>
+  <tr><td>E-mail quando um endereço é bloqueado</td><td>ligado</td><td>Enviado aos destinatários das <a href="/settings/email">configurações de e-mail</a>.</td></tr>
+</table>
+<p>A mesma página lista os endereços bloqueados, com o motivo e a duração de cada bloqueio, e permite remover um bloqueio. Bloqueios e desbloqueios ficam registrados no <a href="/audit">log de auditoria</a>.</p>
+<p>Se você se trancou do lado de fora, entre por outro endereço ou execute isto no servidor com as mesmas opções de banco de dados do serviço:</p>
+<pre>backupzit-server --unblock-ip all</pre>
+<p>Para remover um único bloqueio, informe o endereço em vez de <code>all</code>.</p>
+
+<h2 id="web-access">Acesso ao console web (endereço público)</h2>
+<p>Os agentes se conectam ao console na porta 8443. Para oferecer o console em um endereço público — para agentes em outros locais ou clientes — deixando só seus administradores abrirem o console web, use <b>Configurações → Login e segurança → Acesso ao console web</b>:</p>
+<table>
+  <tr><th>Configuração</th><th>Efeito</th></tr>
+  <tr><td>Endereços permitidos</td><td>Endereços IP ou redes (por ex. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). O console web, a REST API e todas as páginas só respondem a esses endereços; os demais recebem "not found", como se não houvesse console. Os agentes sempre alcançam a API deles (registro, consultas, resultados, downloads, instalação remota). Vazio: todos. O console recusa uma lista que não contenha o seu próprio endereço.</td></tr>
+  <tr><td>Porta 8443 só para agentes</td><td>O console web fica então só na porta web com o certificado confiável (<a href="/docs/install">Configurações → Certificado</a>, normalmente 443), de modo que um firewall pode abrir a 8443 para todos e a 443 só para seus endereços. Disponível quando a porta web estiver ativa; altere-a pela porta web, não pela 8443.</td></tr>
+</table>
+<p>Um firewall típico para um console público: 8443 aberta para todos (agentes), 443 e 80 (verificação HTTP do Let's Encrypt) só a partir dos seus endereços, SSH só a partir dos seus endereços ou desligado, todo o resto fechado.</p>
+<p>Ficou trancado do lado de fora? No próprio servidor (<code>localhost</code>) o console sempre responde. No appliance, o item 5 do menu de configuração na tela dele remove bloqueios de login e essas restrições.</p>
+
+<h2>Recomendações</h2>
+<h3>Console</h3>
+<ul>
+  <li>Mantenha o console em uma rede interna; não publique a porta 8443 na internet. Use VPN para administração remota.</li>
+  <li>Use uma senha de administrador longa e única e troque a inicial.</li>
+  <li>Exija <b>autenticação de dois fatores</b> para administradores (<a href="/settings/security">Configurações → Login e segurança</a>).</li>
+  <li>Dê a cada pessoa sua própria conta com a função mais baixa que funcione; use tokens de API com a função Visualizador para monitoramento.</li>
+  <li>Faça backup do <code>secrets.key</code> separado do banco de dados (<a href="/docs/install">Instalar o servidor</a>).</li>
+  <li>Escolha em <a href="/settings/security">Configurações → Login e segurança</a> uma duração de sessão adequada (mais curta é mais segura).</li>
+  <li>Mantenha o servidor atualizado (<code>apt upgrade</code> / <code>dnf upgrade</code>), incluindo o PostgreSQL.</li>
+</ul>
+<h3>Armazenamento</h3>
+<ul>
+  <li>Dê a cada destino de armazenamento sua própria conta, com acesso só à pasta ou bucket de backup.</li>
+  <li>Não coloque o armazenamento de backup no domínio Windows; use credenciais que não sejam usadas em nenhum outro lugar.</li>
+  <li>Mantenha pelo menos uma cópia imutável (S3 Object Lock ou repositório protegido) e uma cópia externa.</li>
+</ul>
+<h3>Chaves</h3>
+<ul>
+  <li>Guarde as folhas de recuperação offline. Sem elas, backups criptografados não podem ser restaurados se o console for perdido.</li>
+  <li>Teste uma vez uma restauração pela linha de comando só com a folha de recuperação, para saber que o procedimento funciona.</li>
+  <li>Trate um pendrive com <code>recovery.json</code> como uma chave: até o código de recuperação expirar (30 dias), ele permite que uma máquina entre no console como agente de recuperação. Crie um novo código quando precisar, em vez de guardar pendrives antigos.</li>
+  <li>As ISOs de recuperação dão uma linha de comando de root / administrador a quem der boot nelas — como qualquer mídia de boot. Proteja os servidores com senha de firmware (BIOS/UEFI) e configurações de boot seguro.</li>
+</ul>
+
+<h3>Agentes e hipervisores</h3>
+<ul>
+  <li>O console pode instalar software nos agentes (atualizações de agentes) e restaurar dados neles. Proteja as contas de administrador de acordo: autenticação de dois fatores, poucos administradores.</li>
+  <li>Arquivos de discos de VM são analisados pelo console e pelos agentes quando você navega neles; dados de sistema de arquivos danificados ou hostis geram um erro, não uma falha.</li>
+</ul>
+
+<h2>Relatar um problema de segurança</h2>
+<p>Relate vulnerabilidades em particular aos mantenedores do BackupZit, em vez de abrir uma issue pública.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

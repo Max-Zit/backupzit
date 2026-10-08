@@ -1,0 +1,86 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Sécurité et bonnes pratiques</h1>
+<p class="lead">Comment BackupZit protège vos données et la console, et ce que vous devez faire de votre côté.</p>
+
+<h2>Protections intégrées</h2>
+<ul>
+  <li><b>Chiffrement à la source</b> — AES-256-GCM dans l'agent ; le stockage ne voit que des données chiffrées. Les clés sont dérivées avec Argon2id.</li>
+  <li><b>Connexions épinglées</b> — les agents épinglent le certificat de la console ; les clés d'hôte SFTP et les certificats des dépôts renforcés sont aussi épinglés. Aucune autorité de certification ne peut être détournée pour se faire passer pour eux.</li>
+  <li><b>Certificat de confiance pour les navigateurs</b> — en option un certificat téléversé ou Let's Encrypt (TLS 1.2+) sur une adresse séparée, renouvelé automatiquement ; voir <a href="/docs/install">Installer le serveur</a>.</li>
+  <li><b>Secrets au repos</b> — mots de passe et clés de stockage, clés de récupération, mots de passe SMTP/LDAP et secrets de double authentification sont chiffrés dans la base avec une clé conservée hors de celle-ci (<code>secrets.key</code>).</li>
+  <li><b>Secrets des agents</b> — chaque agent a son propre secret, stocké seulement sous forme de hachage sur la console et, sur l'agent, dans un fichier lisible uniquement par les administrateurs.</li>
+  <li><b>Console web</b> — cookies de session HttpOnly et SameSite=Strict ; protection contre les requêtes intersites et le clickjacking ; Content-Security-Policy stricte ; mots de passe hachés avec bcrypt ; les pages sensibles ne sont jamais mises en cache.</li>
+  <li><b>Protection contre la force brute</b> — les adresses qui échouent trop souvent à se connecter sont bloquées : mots de passe, codes à deux facteurs et jetons API. Les blocages survivent aux redémarrages, les récidivistes sont bloqués plus longtemps et les administrateurs reçoivent un e-mail. Voir ci-dessous.</li>
+  <li><b>Comptes</b> — rôles à moindre privilège, authentification à deux facteurs facultative (TOTP) et connexion LDAPS ; jetons API avec leur propre rôle, plus bas, et une expiration.</li>
+  <li><b>Approbation à quatre yeux</b> (facultative) — supprimer ou désactiver des tâches, supprimer des agents, hôtes ESXi, cibles de stockage et utilisateurs, raccourcir la rétention, désactiver l'approbation, et tout ce qui pourrait donner à un administrateur un second approbateur (nouveaux approbateurs, plus de droits, réinitialisations de mot de passe et de double authentification, modifications LDAP et SSO) nécessitent l'approbation d'un second utilisateur. Voir <a href="/docs/users">Utilisateurs, rôles et LDAP</a>.</li>
+  <li><b>Piste d'audit</b> — connexions, échecs de connexion, modifications d'utilisateurs et de rôles, tâches, cibles de stockage, restaurations, clés de récupération affichées, modifications de paramètres et actions API sont enregistrés dans le <a href="/audit">journal d'audit</a> ; les entrées sont chaînées pour que les modifications et suppressions dans la base soient détectées, et peuvent être copiées vers un serveur syslog ou un SIEM (<a href="/docs/users#audit-integrity">Protection contre les modifications</a>) ; les suppressions sur un dépôt renforcé sont journalisées sur ce serveur.</li>
+  <li><b>Mises à jour de la console</b> — les versions sont signées avec la clé de publication BackupZit (Ed25519). La console et le service root qui les installe vérifient tous deux la signature, la base de données est sauvegardée d'abord et une mise à jour ratée est annulée.</li>
+  <li><b>Mises à jour des agents</b> — les agents ne téléchargent de nouvelles versions que depuis leur console via la connexion épinglée et ne les installent que si la somme de contrôle SHA-256 correspond.</li>
+  <li><b>Canal d'état local</b> — l'application de la zone de notification communique avec le service de l'agent via un canal nommé local (Windows) ou un socket réservé à root (Linux). Les utilisateurs connectés de la machine peuvent lire l'état et lancer les tâches de sauvegarde de la machine elle-même ; rien d'autre (tâches, planifications, stockage et restaurations ne se gèrent que dans la console).</li>
+  <li><b>Sauvegardes d'hyperviseurs</b> — l'agent sur un hôte Proxmox ou Hyper-V utilise les outils de l'hôte ; aucun mot de passe d'hyperviseur n'est stocké pour eux. Pour VMware ESXi, la console stocke le mot de passe de l'hôte chiffré, épingle son certificat HTTPS et sa clé d'hôte SSH, et ne transmet la connexion qu'à l'agent proxy de l'hôte pour ses exécutions.</li>
+  <li><b>Intégrité des sauvegardes</b> — chaque bloc est vérifié par son hachage SHA-256 lors de la restauration ; les tests de restauration automatiques et la détection des rançongiciels surveillent les sauvegardes en continu.</li>
+</ul>
+
+<h2>Protection contre la force brute</h2>
+<p>Configurez-la dans <a href="/settings/security">Paramètres → Connexion et sécurité</a>. Les valeurs par défaut conviennent à la plupart des installations :</p>
+<table>
+  <tr><th>Paramètre</th><th>Par défaut</th><th>Signification</th></tr>
+  <tr><td>Échecs par adresse</td><td>5</td><td>Les échecs de connexion depuis une adresse IP pendant la période de comptage bloquent cette adresse. Sont comptés les mauvais mots de passe, les mauvais codes à deux facteurs et les jetons API invalides.</td></tr>
+  <tr><td>Période de comptage</td><td>15 minutes</td><td>Les échecs plus anciens sont oubliés.</td></tr>
+  <tr><td>Bloquer pendant</td><td>30 minutes</td><td>Une adresse bloquée ne peut pas se connecter, même avec le bon mot de passe. La page de connexion répond « Trop d'échecs de connexion » et l'API répond HTTP 429.</td></tr>
+  <tr><td>Bloquer plus longtemps les récidivistes</td><td>activé</td><td>Chaque nouveau blocage d'une adresse dans la journée dure deux fois plus longtemps : 30 minutes, 1 heure, 2 heures, … jusqu'à 7 jours.</td></tr>
+  <tr><td>Échecs par nom d’utilisateur</td><td>20</td><td>Les échecs pour un nom d'utilisateur, depuis n'importe quelle adresse, suspendent la connexion de ce nom d'utilisateur jusqu'à la fin de la période de comptage. Cela stoppe les tentatives réparties sur de nombreuses adresses. Les comptes ne sont jamais verrouillés définitivement, un attaquant ne peut donc pas bloquer l'administrateur.</td></tr>
+  <tr><td>Ne jamais bloquer ces réseaux</td><td>aucun</td><td>Réseaux facultatifs, par ex. le sous-réseau des administrateurs, jamais bloqués. La limite par nom d'utilisateur s'applique toujours à eux.</td></tr>
+  <tr><td>Proxys inverses</td><td>aucun</td><td>Si la console tourne derrière nginx, Traefik ou un autre proxy, saisissez son adresse : l'adresse du client est alors prise dans <code>X-Forwarded-For</code> (sinon tous les clients ressembleraient au proxy) et, quand le proxy envoie <code>X-Forwarded-Proto: https</code>, les cookies de connexion sont marqués Secure. Les deux en-têtes sont ignorés depuis toute autre adresse, ils ne peuvent donc pas être falsifiés.</td></tr>
+  <tr><td>E-mail quand une adresse est bloquée</td><td>activé</td><td>Envoyé aux destinataires des <a href="/settings/email">paramètres e-mail</a>.</td></tr>
+</table>
+<p>La même page liste les adresses bloquées, avec la raison et la durée de chaque blocage, et permet de lever un blocage. Blocages et déblocages sont enregistrés dans le <a href="/audit">journal d'audit</a>.</p>
+<p>Si vous vous êtes bloqué vous-même, connectez-vous depuis une autre adresse, ou exécutez ceci sur le serveur avec les mêmes options de base de données que le service :</p>
+<pre>backupzit-server --unblock-ip all</pre>
+<p>Pour lever un seul blocage, indiquez l'adresse au lieu de <code>all</code>.</p>
+
+<h2 id="web-access">Accès à la console web (adresse publique)</h2>
+<p>Les agents se connectent à la console sur le port 8443. Pour proposer la console sur une adresse publique — pour des agents sur d'autres sites ou chez des clients — tout en ne laissant que vos administrateurs ouvrir la console web, utilisez <b>Paramètres → Connexion et sécurité → Accès à la console web</b> :</p>
+<table>
+  <tr><th>Paramètre</th><th>Effet</th></tr>
+  <tr><td>Adresses autorisées</td><td>Adresses IP ou réseaux (par ex. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). La console web, la REST API et toutes les pages ne répondent qu'à ces adresses ; les autres reçoivent « not found », comme s'il n'y avait pas de console. Les agents atteignent toujours leur API (inscription, interrogation, résultats, téléchargements, installation à distance). Vide : tout le monde. La console refuse une liste qui ne contient pas votre propre adresse.</td></tr>
+  <tr><td>Port 8443 réservé aux agents</td><td>La console web n'est alors disponible que sur le port web avec le certificat de confiance (<a href="/docs/install">Paramètres → Certificat</a>, généralement 443), de sorte qu'un pare-feu peut ouvrir 8443 à tous et 443 uniquement à vos adresses. Disponible une fois le port web actif ; modifiez-le depuis le port web, pas depuis 8443.</td></tr>
+</table>
+<p>Un pare-feu typique pour une console publique : 8443 ouvert à tous (agents), 443 et 80 (vérification HTTP Let's Encrypt) uniquement depuis vos adresses, SSH uniquement depuis vos adresses ou désactivé, tout le reste fermé.</p>
+<p>Bloqué ? Sur le serveur lui-même (<code>localhost</code>), la console répond toujours. Sur l'appliance, l'élément 5 du menu de configuration sur son écran lève les blocages de connexion et ces restrictions.</p>
+
+<h2>Recommandations</h2>
+<h3>Console</h3>
+<ul>
+  <li>Gardez la console sur un réseau interne ; ne publiez pas le port 8443 sur Internet. Utilisez un VPN pour l'administration à distance.</li>
+  <li>Utilisez un mot de passe administrateur long et unique et changez celui d'origine.</li>
+  <li>Exigez l'<b>authentification à deux facteurs</b> pour les administrateurs (<a href="/settings/security">Paramètres → Connexion et sécurité</a>).</li>
+  <li>Donnez à chaque personne son propre compte avec le rôle le plus bas qui fonctionne ; utilisez des jetons API avec le rôle Lecteur pour la supervision.</li>
+  <li>Sauvegardez <code>secrets.key</code> séparément de la base de données (<a href="/docs/install">Installer le serveur</a>).</li>
+  <li>Choisissez une durée de session de connexion adaptée dans <a href="/settings/security">Paramètres → Connexion et sécurité</a> (plus court est plus sûr).</li>
+  <li>Maintenez le serveur à jour (<code>apt upgrade</code> / <code>dnf upgrade</code>), PostgreSQL compris.</li>
+</ul>
+<h3>Stockage</h3>
+<ul>
+  <li>Donnez à chaque cible de stockage son propre compte, avec accès uniquement au dossier ou bucket de sauvegarde.</li>
+  <li>N'intégrez pas le stockage de sauvegarde au domaine Windows ; utilisez des identifiants qui ne servent nulle part ailleurs.</li>
+  <li>Conservez au moins une copie immuable (S3 Object Lock ou dépôt renforcé) et une copie hors site.</li>
+</ul>
+<h3>Clés</h3>
+<ul>
+  <li>Conservez les fiches de récupération hors ligne. Sans elles, les sauvegardes chiffrées ne peuvent pas être restaurées si la console est perdue.</li>
+  <li>Testez une fois une restauration en ligne de commande avec seulement la fiche de récupération, pour savoir que la procédure fonctionne.</li>
+  <li>Traitez une clé USB contenant <code>recovery.json</code> comme une clé : jusqu'à l'expiration du code de récupération (30 jours), elle permet à une machine de rejoindre la console comme agent de récupération. Créez un nouveau code quand vous en avez besoin au lieu de garder d'anciennes clés.</li>
+  <li>Les ISO de récupération donnent une ligne de commande root / administrateur à quiconque démarre dessus — comme tout support de démarrage. Protégez les serveurs avec un mot de passe de micrologiciel (BIOS/UEFI) et des paramètres de démarrage sécurisé.</li>
+</ul>
+
+<h3>Agents et hyperviseurs</h3>
+<ul>
+  <li>La console peut installer des logiciels sur les agents (mises à jour d'agents) et y restaurer des données. Protégez les comptes administrateurs en conséquence : authentification à deux facteurs, peu d'administrateurs.</li>
+  <li>Les fichiers des disques de VM sont analysés par la console et les agents lors de leur parcours ; des données de système de fichiers endommagées ou malveillantes produisent une erreur, pas un plantage.</li>
+</ul>
+
+<h2>Signaler un problème de sécurité</h2>
+<p>Veuillez signaler les vulnérabilités en privé aux mainteneurs de BackupZit plutôt que d'ouvrir un ticket public.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,86 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Beveiliging en aanbevelingen</h1>
+<p class="lead">Hoe BackupZit uw gegevens en de console beschermt, en wat u zelf moet doen.</p>
+
+<h2>Ingebouwde bescherming</h2>
+<ul>
+  <li><b>Versleuteling bij de bron</b> — AES-256-GCM in de agent; de opslag ziet alleen versleutelde gegevens. Sleutels worden afgeleid met Argon2id.</li>
+  <li><b>Gepinde verbindingen</b> — agents pinnen het consolecertificaat; SFTP-hostsleutels en certificaten van geharde repository's worden ook gepind. Geen certificaatautoriteit kan worden misbruikt om zich als hen voor te doen.</li>
+  <li><b>Vertrouwd certificaat voor browsers</b> — optioneel een geüpload of Let's Encrypt-certificaat (TLS 1.2+) op een apart adres, automatisch vernieuwd; zie <a href="/docs/install">De server installeren</a>.</li>
+  <li><b>Geheimen in rust</b> — opslagwachtwoorden en -sleutels, herstelsleutels, SMTP/LDAP-wachtwoorden en tweestapsgeheimen worden in de database versleuteld met een sleutel die erbuiten wordt bewaard (<code>secrets.key</code>).</li>
+  <li><b>Agentgeheimen</b> — elke agent heeft een eigen geheim, op de console alleen als hash opgeslagen en op de agent in een bestand dat alleen beheerders kunnen lezen.</li>
+  <li><b>Webconsole</b> — HttpOnly- en SameSite=Strict-sessiecookies; bescherming tegen cross-site-verzoeken en clickjacking; strikte Content-Security-Policy; wachtwoorden gehasht met bcrypt; gevoelige pagina's worden nooit gecachet.</li>
+  <li><b>Bescherming tegen brute force</b> — adressen die te vaak mislukken bij het aanmelden worden geblokkeerd: wachtwoorden, tweestapscodes en API-tokens. Blokkades overleven herstarts, herhaalde overtreders worden langer geblokkeerd en beheerders krijgen een e-mail. Zie hieronder.</li>
+  <li><b>Accounts</b> — rollen met minimale rechten, optionele tweestapsverificatie (TOTP) en LDAPS-aanmelding; API-tokens met een eigen, lagere rol en vervaldatum.</li>
+  <li><b>Vier-ogengoedkeuring</b> (optioneel) — taken verwijderen of uitschakelen, agents, ESXi-hosts, opslagdoelen en gebruikers verwijderen, het bewaarbeleid inkorten, de goedkeuring uitschakelen en alles wat een beheerder een tweede goedkeurder zou kunnen geven (nieuwe goedkeurders, meer rechten, wachtwoord- en tweestapsresets, wijzigingen in LDAP en SSO) vereisen goedkeuring door een tweede gebruiker. Zie <a href="/docs/users">Gebruikers, rollen en LDAP</a>.</li>
+  <li><b>Audittrail</b> — aanmeldingen, mislukte aanmeldingen, wijzigingen van gebruikers en rollen, taken, opslagdoelen, herstelbewerkingen, getoonde herstelsleutels, instellingswijzigingen en API-acties worden vastgelegd in het <a href="/audit">auditlogboek</a>; items zijn aan elkaar gekoppeld zodat wijzigingen en verwijderingen in de database worden gedetecteerd, en kunnen naar een syslog-server of SIEM worden gekopieerd (<a href="/docs/users#audit-integrity">Bescherming tegen wijzigingen</a>); verwijderingen op een geharde repository worden op die server gelogd.</li>
+  <li><b>Console-updates</b> — releases zijn ondertekend met de releasesleutel van BackupZit (Ed25519). De console en de root-dienst die ze installeert controleren allebei de handtekening, de database wordt eerst geback-upt en een mislukte update wordt teruggedraaid.</li>
+  <li><b>Agent-updates</b> — agents downloaden nieuwe versies alleen van hun console via de gepinde verbinding en installeren ze alleen als de SHA-256-controlesom klopt.</li>
+  <li><b>Lokaal statuskanaal</b> — de tray-app praat met de agentdienst via een lokale named pipe (Windows) of een socket die alleen voor root toegankelijk is (Linux). Aangemelde gebruikers van de machine kunnen de status lezen en de back-uptaken van de eigen machine starten; verder niets (taken, schema's, opslag en herstel worden alleen in de console beheerd).</li>
+  <li><b>Hypervisorback-ups</b> — de agent op een Proxmox- of Hyper-V-host gebruikt de eigen tools van de host; daarvoor worden geen hypervisorwachtwoorden opgeslagen. Voor VMware ESXi slaat de console het wachtwoord van de host versleuteld op, pint zijn HTTPS-certificaat en SSH-hostsleutel, en geeft de verbinding alleen door aan de proxy-agent van de host voor diens runs.</li>
+  <li><b>Integriteit van back-ups</b> — elk blok wordt bij herstel gecontroleerd aan de hand van zijn SHA-256-hash; automatische hersteltests en ransomwaredetectie bewaken de back-ups voortdurend.</li>
+</ul>
+
+<h2>Bescherming tegen brute force</h2>
+<p>Stel het in onder <a href="/settings/security">Instellingen → Aanmelden en beveiliging</a>. De standaardwaarden zijn voor de meeste installaties veilig:</p>
+<table>
+  <tr><th>Instelling</th><th>Standaard</th><th>Betekenis</th></tr>
+  <tr><td>Mislukte pogingen per adres</td><td>5</td><td>Mislukte aanmeldingen vanaf één IP-adres binnen de telperiode blokkeren dat adres. Dit telt verkeerde wachtwoorden, verkeerde tweestapscodes en ongeldige API-tokens.</td></tr>
+  <tr><td>Telperiode</td><td>15 minuten</td><td>Oudere mislukkingen worden vergeten.</td></tr>
+  <tr><td>Blokkeren gedurende</td><td>30 minuten</td><td>Een geblokkeerd adres kan zich niet aanmelden, zelfs niet met het juiste wachtwoord. De aanmeldpagina antwoordt "Te veel mislukte aanmeldingen" en de API antwoordt HTTP 429.</td></tr>
+  <tr><td>Herhaalde overtreders langer blokkeren</td><td>aan</td><td>Elke volgende blokkade van een adres binnen een dag duurt twee keer zo lang: 30 minuten, 1 uur, 2 uur, … tot 7 dagen.</td></tr>
+  <tr><td>Mislukte pogingen per gebruikersnaam</td><td>20</td><td>Mislukkingen voor één gebruikersnaam, vanaf willekeurige adressen, pauzeren het aanmelden voor die gebruikersnaam tot de telperiode voorbij is. Dit stopt raden dat over veel adressen wordt verspreid. Accounts worden nooit permanent vergrendeld, dus een aanvaller kan de beheerder niet buitensluiten.</td></tr>
+  <tr><td>Deze netwerken nooit blokkeren</td><td>geen</td><td>Optionele netwerken, bijv. het subnet van de beheerders, die nooit worden geblokkeerd. De limiet per gebruikersnaam geldt nog steeds voor hen.</td></tr>
+  <tr><td>Reverse proxy's</td><td>geen</td><td>Draait de console achter nginx, Traefik of een andere proxy, voer dan het adres daarvan in: het clientadres wordt dan uit <code>X-Forwarded-For</code> gehaald (anders lijken alle clients op de proxy) en, als de proxy <code>X-Forwarded-Proto: https</code> stuurt, worden de aanmeldcookies als Secure gemarkeerd. Beide headers worden vanaf elk ander adres genegeerd, dus ze kunnen niet worden vervalst.</td></tr>
+  <tr><td>E-mail wanneer een adres wordt geblokkeerd</td><td>aan</td><td>Verzonden naar de ontvangers in de <a href="/settings/email">e-mailinstellingen</a>.</td></tr>
+</table>
+<p>Dezelfde pagina toont de geblokkeerde adressen, met de reden en de duur van elke blokkade, en laat u een blokkade opheffen. Blokkades en opheffingen worden vastgelegd in het <a href="/audit">auditlogboek</a>.</p>
+<p>Hebt u uzelf buitengesloten, meld u dan aan vanaf een ander adres of voer dit uit op de server met dezelfde database-opties als de dienst:</p>
+<pre>backupzit-server --unblock-ip all</pre>
+<p>Om één blokkade op te heffen, geeft u het adres op in plaats van <code>all</code>.</p>
+
+<h2 id="web-access">Toegang tot de webconsole (openbaar adres)</h2>
+<p>Agents maken verbinding met de console op poort 8443. Om de console op een openbaar adres aan te bieden — voor agents op andere locaties of bij klanten — terwijl alleen uw beheerders de webconsole kunnen openen, gebruikt u <b>Instellingen → Aanmelden en beveiliging → Toegang tot de webconsole</b>:</p>
+<table>
+  <tr><th>Instelling</th><th>Effect</th></tr>
+  <tr><td>Toegestane adressen</td><td>IP-adressen of netwerken (bijv. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). De webconsole, de REST API en elke pagina antwoorden alleen deze adressen; andere krijgen "not found", alsof er geen console is. Agents bereiken altijd hun API (registratie, polling, resultaten, downloads, push-installatie). Leeg: iedereen. De console weigert een lijst die uw eigen adres niet bevat.</td></tr>
+  <tr><td>Poort 8443 alleen voor agents</td><td>De webconsole is dan alleen beschikbaar op de webpoort met het vertrouwde certificaat (<a href="/docs/install">Instellingen → Certificaat</a>, meestal 443), zodat een firewall 8443 voor iedereen en 443 alleen voor uw adressen kan openen. Beschikbaar zodra de webpoort draait; wijzig het vanaf de webpoort, niet vanaf 8443.</td></tr>
+</table>
+<p>Een typische firewall voor een openbare console: 8443 open voor iedereen (agents), 443 en 80 (HTTP-controle van Let's Encrypt) alleen vanaf uw adressen, SSH alleen vanaf uw adressen of uit, al het andere dicht.</p>
+<p>Buitengesloten? Op de server zelf (<code>localhost</code>) antwoordt de console altijd. Op de appliance heft item 5 van het setupmenu op het scherm aanmeldblokkades en deze beperkingen op.</p>
+
+<h2>Aanbevelingen</h2>
+<h3>Console</h3>
+<ul>
+  <li>Houd de console op een intern netwerk; publiceer poort 8443 niet op internet. Gebruik een VPN voor beheer op afstand.</li>
+  <li>Gebruik een lang, uniek beheerderswachtwoord en wijzig het oorspronkelijke.</li>
+  <li>Vereis <b>tweestapsverificatie</b> voor beheerders (<a href="/settings/security">Instellingen → Aanmelden en beveiliging</a>).</li>
+  <li>Geef iedereen een eigen account met de laagste rol die werkt; gebruik voor monitoring API-tokens met de rol Kijker.</li>
+  <li>Maak apart van de database een back-up van <code>secrets.key</code> (<a href="/docs/install">De server installeren</a>).</li>
+  <li>Kies onder <a href="/settings/security">Instellingen → Aanmelden en beveiliging</a> een passende sessieduur (korter is veiliger).</li>
+  <li>Houd de server up-to-date (<code>apt upgrade</code> / <code>dnf upgrade</code>), inclusief PostgreSQL.</li>
+</ul>
+<h3>Opslag</h3>
+<ul>
+  <li>Geef elk opslagdoel een eigen account met alleen toegang tot de back-upmap of -bucket.</li>
+  <li>Voeg back-upopslag niet toe aan het Windows-domein; gebruik inloggegevens die nergens anders worden gebruikt.</li>
+  <li>Bewaar minstens één onveranderlijke kopie (S3 Object Lock of geharde repository) en één externe kopie.</li>
+</ul>
+<h3>Sleutels</h3>
+<ul>
+  <li>Bewaar herstelbladen offline. Zonder ze kunnen versleutelde back-ups niet worden hersteld als de console verloren gaat.</li>
+  <li>Test één keer een herstel vanaf de opdrachtregel met alleen het herstelblad, zodat u weet dat de procedure werkt.</li>
+  <li>Behandel een USB-stick met <code>recovery.json</code> als een sleutel: tot de herstelcode verloopt (30 dagen) laat die een machine als herstelagent aan de console deelnemen. Maak een nieuwe code als u er een nodig hebt, in plaats van oude sticks te bewaren.</li>
+  <li>Herstel-ISO's geven iedereen die ervan opstart een root-/beheerdersopdrachtregel — zoals elk opstartmedium. Bescherm servers met een firmwarewachtwoord (BIOS/UEFI) en instellingen voor veilig opstarten.</li>
+</ul>
+
+<h3>Agents en hypervisors</h3>
+<ul>
+  <li>De console kan software op agents installeren (agent-updates) en gegevens erop herstellen. Bescherm de beheerdersaccounts daarom goed: tweestapsverificatie, weinig beheerders.</li>
+  <li>Bestanden van VM-schijven worden bij het bladeren door de console en agents geparseerd; beschadigde of kwaadaardige bestandssysteemgegevens geven een fout, geen crash.</li>
+</ul>
+
+<h2>Een beveiligingsprobleem melden</h2>
+<p>Meld kwetsbaarheden vertrouwelijk aan de beheerders van BackupZit in plaats van een openbaar issue te openen.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

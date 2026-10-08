@@ -1,0 +1,86 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Seguridad y buenas prácticas</h1>
+<p class="lead">Cómo protege BackupZit sus datos y la consola, y qué debe hacer usted por su parte.</p>
+
+<h2>Protección integrada</h2>
+<ul>
+  <li><b>Cifrado en origen</b>: AES-256-GCM en el agente; el almacenamiento solo ve datos cifrados. Las claves se derivan con Argon2id.</li>
+  <li><b>Conexiones fijadas</b>: los agentes fijan el certificado de la consola; las claves de host SFTP y los certificados de los repositorios reforzados también se fijan. Ninguna autoridad de certificación puede usarse para suplantarlos.</li>
+  <li><b>Certificado de confianza para navegadores</b>: opcionalmente un certificado subido o de Let's Encrypt (TLS 1.2+) en una dirección aparte, renovado automáticamente; consulte <a href="/docs/install">Instalar el servidor</a>.</li>
+  <li><b>Secretos en reposo</b>: las contraseñas y claves de almacenamiento, las claves de recuperación, las contraseñas SMTP/LDAP y los secretos de dos pasos se cifran en la base de datos con una clave guardada fuera de ella (<code>secrets.key</code>).</li>
+  <li><b>Secretos de los agentes</b>: cada agente tiene su propio secreto, guardado solo como hash en la consola y, en el agente, en un archivo que solo pueden leer los administradores.</li>
+  <li><b>Consola web</b>: cookies de sesión HttpOnly y SameSite=Strict; protección contra solicitudes entre sitios y clickjacking; Content-Security-Policy estricta; contraseñas con hash bcrypt; las páginas sensibles nunca se almacenan en caché.</li>
+  <li><b>Protección contra fuerza bruta</b>: las direcciones que fallan demasiadas veces al iniciar sesión se bloquean: contraseñas, códigos de dos pasos y tokens de API. Los bloqueos sobreviven a los reinicios, los reincidentes se bloquean más tiempo y los administradores reciben un correo. Vea más abajo.</li>
+  <li><b>Cuentas</b>: roles con mínimo privilegio, verificación en dos pasos opcional (TOTP) e inicio de sesión LDAPS; tokens de API con su propio rol, más bajo, y caducidad.</li>
+  <li><b>Aprobación de cuatro ojos</b> (opcional): eliminar o deshabilitar trabajos, eliminar agentes, hosts ESXi, destinos de almacenamiento y usuarios, acortar la retención, desactivar la aprobación y todo lo que pudiera dar a un administrador un segundo aprobador (nuevos aprobadores, más derechos, restablecer contraseñas y dos pasos, cambios de LDAP y SSO) requieren la aprobación de un segundo usuario. Consulte <a href="/docs/users">Usuarios, roles y LDAP</a>.</li>
+  <li><b>Registro de auditoría</b>: los inicios de sesión, los inicios fallidos, los cambios de usuarios y roles, trabajos, destinos de almacenamiento, restauraciones, claves de recuperación mostradas, cambios de configuración y acciones de API se registran en el <a href="/audit">registro de auditoría</a>; las entradas están encadenadas para detectar cambios y borrados en la base de datos, y pueden copiarse a un servidor syslog o SIEM (<a href="/docs/users#audit-integrity">Protección frente a cambios</a>); los borrados en un repositorio reforzado se registran en ese servidor.</li>
+  <li><b>Actualizaciones de la consola</b>: las versiones se firman con la clave de publicación de BackupZit (Ed25519). La consola y el servicio root que las instala verifican la firma, la base de datos se copia antes y una actualización fallida se revierte.</li>
+  <li><b>Actualizaciones de los agentes</b>: los agentes solo descargan versiones nuevas de su consola por la conexión fijada y solo las instalan si coincide la suma de comprobación SHA-256.</li>
+  <li><b>Canal de estado local</b>: la aplicación de la bandeja habla con el servicio del agente mediante una canalización con nombre local (Windows) o un socket solo para root (Linux). Los usuarios que han iniciado sesión en la máquina pueden leer el estado e iniciar los trabajos de copia de la propia máquina; nada más (trabajos, programaciones, almacenamiento y restauraciones solo se gestionan en la consola).</li>
+  <li><b>Copias de hipervisores</b>: el agente en un host Proxmox o Hyper-V usa las herramientas del propio host; no se guardan contraseñas de hipervisor para ellos. Para VMware ESXi la consola guarda cifrada la contraseña del host, fija su certificado HTTPS y su clave de host SSH, y solo entrega la conexión al agente proxy del host para sus ejecuciones.</li>
+  <li><b>Integridad de las copias</b>: cada fragmento se verifica por su hash SHA-256 al restaurar; las pruebas de restauración automáticas y la detección de ransomware vigilan las copias continuamente.</li>
+</ul>
+
+<h2>Protección contra fuerza bruta</h2>
+<p>Configúrela en <a href="/settings/security">Configuración → Inicio de sesión y seguridad</a>. Los valores predeterminados son seguros para la mayoría de las instalaciones:</p>
+<table>
+  <tr><th>Ajuste</th><th>Predeterminado</th><th>Significado</th></tr>
+  <tr><td>Intentos fallidos por dirección</td><td>5</td><td>Los inicios de sesión fallidos desde una dirección IP dentro del periodo de recuento bloquean esa dirección. Cuentan las contraseñas erróneas, los códigos de dos pasos erróneos y los tokens de API no válidos.</td></tr>
+  <tr><td>Periodo de recuento</td><td>15 minutos</td><td>Los fallos más antiguos se olvidan.</td></tr>
+  <tr><td>Bloquear durante</td><td>30 minutos</td><td>Una dirección bloqueada no puede iniciar sesión, ni siquiera con la contraseña correcta. La página de inicio de sesión responde «Demasiados inicios de sesión fallidos» y la API responde HTTP 429.</td></tr>
+  <tr><td>Bloquear más tiempo a los reincidentes</td><td>activado</td><td>Cada nuevo bloqueo de una dirección en el mismo día dura el doble: 30 minutos, 1 hora, 2 horas… hasta 7 días.</td></tr>
+  <tr><td>Intentos fallidos por nombre de usuario</td><td>20</td><td>Los fallos de un nombre de usuario, desde cualquier dirección, pausan el inicio de sesión de ese nombre hasta que pasa el periodo de recuento. Esto frena los intentos repartidos entre muchas direcciones. Las cuentas nunca se bloquean de forma permanente, así que un atacante no puede dejar fuera al administrador.</td></tr>
+  <tr><td>No bloquear nunca estas redes</td><td>ninguna</td><td>Redes opcionales, p. ej. la subred de los administradores, que nunca se bloquean. El límite por nombre de usuario se sigue aplicando a ellas.</td></tr>
+  <tr><td>Proxies inversos</td><td>ninguno</td><td>Si la consola funciona detrás de nginx, Traefik u otro proxy, introduzca su dirección: la dirección del cliente se toma entonces de <code>X-Forwarded-For</code> (si no, todos los clientes parecerían el proxy) y, cuando el proxy envía <code>X-Forwarded-Proto: https</code>, las cookies de inicio de sesión se marcan como Secure. Ambas cabeceras se ignoran desde cualquier otra dirección, por lo que no se pueden falsificar.</td></tr>
+  <tr><td>Correo cuando se bloquea una dirección</td><td>activado</td><td>Se envía a los destinatarios de la <a href="/settings/email">configuración de correo</a>.</td></tr>
+</table>
+<p>La misma página muestra las direcciones bloqueadas, con el motivo y la duración de cada bloqueo, y permite levantar un bloqueo. Los bloqueos y desbloqueos quedan en el <a href="/audit">registro de auditoría</a>.</p>
+<p>Si se ha bloqueado a sí mismo, inicie sesión desde otra dirección o ejecute esto en el servidor con las mismas opciones de base de datos que el servicio:</p>
+<pre>backupzit-server --unblock-ip all</pre>
+<p>Para levantar un solo bloqueo, indique la dirección en lugar de <code>all</code>.</p>
+
+<h2 id="web-access">Acceso a la consola web (dirección pública)</h2>
+<p>Los agentes se conectan a la consola por el puerto 8443. Para ofrecer la consola en una dirección pública —para agentes de otras sedes o de clientes— y que solo sus administradores puedan abrir la consola web, use <b>Configuración → Inicio de sesión y seguridad → Acceso a la consola web</b>:</p>
+<table>
+  <tr><th>Ajuste</th><th>Efecto</th></tr>
+  <tr><td>Direcciones permitidas</td><td>Direcciones IP o redes (p. ej. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). La consola web, la REST API y todas las páginas solo responden a estas direcciones; las demás reciben «not found», como si no hubiera consola. Los agentes siempre llegan a su API (registro, consultas, resultados, descargas, instalación remota). Vacío: todos. La consola rechaza una lista que no contenga su propia dirección.</td></tr>
+  <tr><td>Puerto 8443 solo para agentes</td><td>La consola web queda entonces solo en el puerto web con el certificado de confianza (<a href="/docs/install">Configuración → Certificado</a>, normalmente 443), de modo que un cortafuegos puede abrir 8443 a todos y 443 solo a sus direcciones. Disponible cuando el puerto web está activo; cámbielo desde el puerto web, no desde 8443.</td></tr>
+</table>
+<p>Un cortafuegos típico para una consola pública: 8443 abierto a todos (agentes), 443 y 80 (comprobación HTTP de Let's Encrypt) solo desde sus direcciones, SSH solo desde sus direcciones o desactivado, todo lo demás cerrado.</p>
+<p>¿Se ha quedado fuera? En el propio servidor (<code>localhost</code>) la consola siempre responde. En el appliance, la opción 5 del menú de configuración en su pantalla levanta los bloqueos de inicio de sesión y estas restricciones.</p>
+
+<h2>Recomendaciones</h2>
+<h3>Consola</h3>
+<ul>
+  <li>Mantenga la consola en una red interna; no publique el puerto 8443 en Internet. Use una VPN para la administración remota.</li>
+  <li>Use una contraseña de administrador larga y única y cambie la inicial.</li>
+  <li>Exija la <b>verificación en dos pasos</b> a los administradores (<a href="/settings/security">Configuración → Inicio de sesión y seguridad</a>).</li>
+  <li>Dé a cada persona su propia cuenta con el rol más bajo que funcione; use tokens de API con el rol Observador para la supervisión.</li>
+  <li>Haga copia de <code>secrets.key</code> aparte de la base de datos (<a href="/docs/install">Instalar el servidor</a>).</li>
+  <li>Elija en <a href="/settings/security">Configuración → Inicio de sesión y seguridad</a> una duración de sesión que le convenga (más corta es más segura).</li>
+  <li>Mantenga el servidor actualizado (<code>apt upgrade</code> / <code>dnf upgrade</code>), incluido PostgreSQL.</li>
+</ul>
+<h3>Almacenamiento</h3>
+<ul>
+  <li>Dé a cada destino de almacenamiento su propia cuenta con acceso solo a la carpeta o bucket de copias.</li>
+  <li>No una el almacenamiento de copias al dominio de Windows; use credenciales que no se usen en ningún otro sitio.</li>
+  <li>Mantenga al menos una copia inmutable (S3 Object Lock o repositorio reforzado) y una copia externa.</li>
+</ul>
+<h3>Claves</h3>
+<ul>
+  <li>Guarde las hojas de recuperación sin conexión. Sin ellas, las copias cifradas no se pueden restaurar si se pierde la consola.</li>
+  <li>Pruebe una vez una restauración por línea de comandos solo con la hoja de recuperación, para saber que el procedimiento funciona.</li>
+  <li>Trate una memoria USB con <code>recovery.json</code> como una llave: hasta que caduque el código de recuperación (30 días), permite que una máquina se una a la consola como agente de recuperación. Cree un código nuevo cuando lo necesite en lugar de guardar memorias antiguas.</li>
+  <li>Las ISO de recuperación dan una línea de comandos de root / administrador a quien arranque con ellas, como cualquier medio de arranque. Proteja los servidores con una contraseña de firmware (BIOS/UEFI) y ajustes de arranque seguro.</li>
+</ul>
+
+<h3>Agentes e hipervisores</h3>
+<ul>
+  <li>La consola puede instalar software en los agentes (actualizaciones de agentes) y restaurar datos en ellos. Proteja en consecuencia las cuentas de administrador: verificación en dos pasos, pocos administradores.</li>
+  <li>La consola y los agentes analizan los archivos de los discos de VM al examinarlos; los datos de sistemas de archivos dañados u hostiles producen un error, no un bloqueo.</li>
+</ul>
+
+<h2>Informar de un problema de seguridad</h2>
+<p>Informe de las vulnerabilidades de forma privada a los mantenedores de BackupZit en lugar de abrir una incidencia pública.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

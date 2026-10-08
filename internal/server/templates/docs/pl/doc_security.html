@@ -1,0 +1,86 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Bezpieczeństwo i dobre praktyki</h1>
+<p class="lead">Jak BackupZit chroni Twoje dane i konsolę oraz co powinieneś zrobić po swojej stronie.</p>
+
+<h2>Wbudowana ochrona</h2>
+<ul>
+  <li><b>Szyfrowanie u źródła</b> — AES-256-GCM w agencie; magazyn widzi tylko zaszyfrowane dane. Klucze są wyprowadzane za pomocą Argon2id.</li>
+  <li><b>Przypięte połączenia</b> — agenci przypinają certyfikat konsoli; klucze hosta SFTP i certyfikaty utwardzonych repozytoriów także są przypinane. Żadnego urzędu certyfikacji nie da się wykorzystać do podszycia się pod nie.</li>
+  <li><b>Zaufany certyfikat dla przeglądarek</b> — opcjonalnie wgrany certyfikat lub certyfikat Let's Encrypt (TLS 1.2+) na osobnym adresie, odnawiany automatycznie; zobacz <a href="/docs/install">Instalacja serwera</a>.</li>
+  <li><b>Sekrety w spoczynku</b> — hasła i klucze magazynów, klucze odzyskiwania, hasła SMTP/LDAP i sekrety uwierzytelniania dwuskładnikowego są szyfrowane w bazie kluczem przechowywanym poza nią (<code>secrets.key</code>).</li>
+  <li><b>Sekrety agentów</b> — każdy agent ma własny sekret, przechowywany w konsoli tylko jako skrót, a na agencie w pliku, który mogą czytać tylko administratorzy.</li>
+  <li><b>Konsola WWW</b> — ciasteczka sesji HttpOnly i SameSite=Strict; ochrona przed żądaniami międzywitrynowymi i clickjackingiem; ścisła Content-Security-Policy; hasła haszowane bcryptem; wrażliwe strony nigdy nie trafiają do pamięci podręcznej.</li>
+  <li><b>Ochrona przed atakami siłowymi</b> — adresy, z których logowanie zbyt często się nie udaje, są blokowane: hasła, kody dwuskładnikowe i tokeny API. Blokady przetrwają restarty, recydywiści są blokowani dłużej, a administratorzy dostają e-mail. Zobacz niżej.</li>
+  <li><b>Konta</b> — role z minimalnymi uprawnieniami, opcjonalne uwierzytelnianie dwuskładnikowe (TOTP) i logowanie LDAPS; tokeny API z własną, niższą rolą i datą ważności.</li>
+  <li><b>Zatwierdzanie na cztery oczy</b> (opcjonalne) — usuwanie lub wyłączanie zadań, usuwanie agentów, hostów ESXi, magazynów i użytkowników, skracanie przechowywania, wyłączanie zatwierdzania oraz wszystko, co mogłoby dać administratorowi drugiego zatwierdzającego (nowi zatwierdzający, więcej uprawnień, reset hasła i dwuskładnikowego logowania, zmiany LDAP i SSO), wymaga zatwierdzenia drugiego użytkownika. Zobacz <a href="/docs/users">Użytkownicy, role i LDAP</a>.</li>
+  <li><b>Ślad audytowy</b> — logowania, nieudane logowania, zmiany użytkowników i ról, zadania, magazyny, przywracania, wyświetlone klucze odzyskiwania, zmiany ustawień i działania API są zapisywane w <a href="/audit">dzienniku audytu</a>; wpisy są powiązane łańcuchem, więc zmiany i usunięcia w bazie są wykrywane, i można je kopiować na serwer syslog lub SIEM (<a href="/docs/users#audit-integrity">Ochrona przed zmianami</a>); usunięcia w utwardzonym repozytorium są logowane na tym serwerze.</li>
+  <li><b>Aktualizacje konsoli</b> — wydania są podpisane kluczem wydań BackupZit (Ed25519). Konsola i instalująca je usługa root sprawdzają podpis, baza jest najpierw kopiowana, a nieudana aktualizacja jest wycofywana.</li>
+  <li><b>Aktualizacje agentów</b> — agenci pobierają nowe wersje tylko ze swojej konsoli przez przypięte połączenie i instalują je tylko wtedy, gdy suma kontrolna SHA-256 się zgadza.</li>
+  <li><b>Lokalny kanał stanu</b> — aplikacja w zasobniku komunikuje się z usługą agenta przez lokalny potok nazwany (Windows) lub gniazdo dostępne tylko dla root (Linux). Zalogowani użytkownicy maszyny mogą czytać stan i uruchamiać zadania kopii tej maszyny; nic więcej (zadania, harmonogramy, magazyny i przywracania zarządza się tylko w konsoli).</li>
+  <li><b>Kopie hiperwizorów</b> — agent na hoście Proxmox lub Hyper-V używa narzędzi samego hosta; nie są dla nich przechowywane hasła hiperwizora. Dla VMware ESXi konsola przechowuje hasło hosta zaszyfrowane, przypina jego certyfikat HTTPS i klucz hosta SSH i przekazuje połączenie tylko agentowi proxy tego hosta na czas jego uruchomień.</li>
+  <li><b>Integralność kopii</b> — każdy blok jest sprawdzany przy przywracaniu po skrócie SHA-256; automatyczne testy przywracania i wykrywanie ransomware stale nadzorują kopie.</li>
+</ul>
+
+<h2>Ochrona przed atakami siłowymi</h2>
+<p>Konfiguruje się ją w <a href="/settings/security">Ustawienia → Logowanie i bezpieczeństwo</a>. Wartości domyślne są bezpieczne dla większości instalacji:</p>
+<table>
+  <tr><th>Ustawienie</th><th>Domyślnie</th><th>Znaczenie</th></tr>
+  <tr><td>Nieudane próby na adres</td><td>5</td><td>Nieudane logowania z jednego adresu IP w okresie liczenia blokują ten adres. Liczą się błędne hasła, błędne kody dwuskładnikowe i nieprawidłowe tokeny API.</td></tr>
+  <tr><td>Okres liczenia</td><td>15 minut</td><td>Starsze nieudane próby są zapominane.</td></tr>
+  <tr><td>Blokuj na</td><td>30 minut</td><td>Zablokowany adres nie może się zalogować, nawet poprawnym hasłem. Strona logowania odpowiada „Zbyt wiele nieudanych logowań”, a API odpowiada HTTP 429.</td></tr>
+  <tr><td>Dłużej blokuj recydywistów</td><td>włączone</td><td>Każda kolejna blokada adresu w ciągu dnia trwa dwa razy dłużej: 30 minut, 1 godzina, 2 godziny, … do 7 dni.</td></tr>
+  <tr><td>Nieudane próby na nazwę użytkownika</td><td>20</td><td>Nieudane próby dla jednej nazwy użytkownika, z dowolnych adresów, wstrzymują logowanie tej nazwy do końca okresu liczenia. To zatrzymuje zgadywanie rozłożone na wiele adresów. Konta nigdy nie są blokowane na stałe, więc atakujący nie może odciąć administratora.</td></tr>
+  <tr><td>Nigdy nie blokuj tych sieci</td><td>brak</td><td>Opcjonalne sieci, np. podsieć administratorów, które nigdy nie są blokowane. Limit na nazwę użytkownika nadal ich dotyczy.</td></tr>
+  <tr><td>Odwrotne serwery proxy</td><td>brak</td><td>Jeśli konsola działa za nginx, Traefikiem lub innym proxy, wpisz jego adres: adres klienta jest wtedy brany z <code>X-Forwarded-For</code> (inaczej wszyscy klienci wyglądaliby jak proxy), a gdy proxy wysyła <code>X-Forwarded-Proto: https</code>, ciasteczka logowania są oznaczane jako Secure. Oba nagłówki są ignorowane z każdego innego adresu, więc nie da się ich sfałszować.</td></tr>
+  <tr><td>E-mail, gdy adres zostanie zablokowany</td><td>włączone</td><td>Wysyłany do odbiorców z <a href="/settings/email">ustawień e-mail</a>.</td></tr>
+</table>
+<p>Ta sama strona wymienia zablokowane adresy z przyczyną i czasem trwania każdej blokady oraz pozwala zdjąć blokadę. Blokady i ich zdjęcia są zapisywane w <a href="/audit">dzienniku audytu</a>.</p>
+<p>Jeśli zablokowałeś samego siebie, zaloguj się z innego adresu albo uruchom na serwerze z tymi samymi opcjami bazy co usługa:</p>
+<pre>backupzit-server --unblock-ip all</pre>
+<p>Aby zdjąć jedną blokadę, podaj adres zamiast <code>all</code>.</p>
+
+<h2 id="web-access">Dostęp do konsoli WWW (adres publiczny)</h2>
+<p>Agenci łączą się z konsolą na porcie 8443. Aby udostępnić konsolę pod publicznym adresem — dla agentów w innych lokalizacjach lub u klientów — i jednocześnie pozwolić otwierać konsolę WWW tylko swoim administratorom, użyj <b>Ustawienia → Logowanie i bezpieczeństwo → Dostęp do konsoli WWW</b>:</p>
+<table>
+  <tr><th>Ustawienie</th><th>Efekt</th></tr>
+  <tr><td>Dozwolone adresy</td><td>Adresy IP lub sieci (np. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). Konsola WWW, REST API i każda strona odpowiadają tylko tym adresom; pozostałe dostają „not found”, jakby konsoli nie było. Agenci zawsze docierają do swojego API (rejestracja, odpytywanie, wyniki, pobieranie, instalacja zdalna). Puste: wszyscy. Konsola odrzuca listę, która nie zawiera Twojego własnego adresu.</td></tr>
+  <tr><td>Port 8443 tylko dla agentów</td><td>Konsola WWW jest wtedy dostępna tylko na porcie WWW z zaufanym certyfikatem (<a href="/docs/install">Ustawienia → Certyfikat</a>, zwykle 443), więc zapora może otworzyć 8443 dla wszystkich, a 443 tylko dla Twoich adresów. Dostępne, gdy port WWW działa; zmieniaj to z portu WWW, nie z 8443.</td></tr>
+</table>
+<p>Typowa zapora dla publicznej konsoli: 8443 otwarty dla wszystkich (agenci), 443 i 80 (sprawdzenie HTTP Let's Encrypt) tylko z Twoich adresów, SSH tylko z Twoich adresów lub wyłączone, wszystko inne zamknięte.</p>
+<p>Odcięty dostęp? Na samym serwerze (<code>localhost</code>) konsola zawsze odpowiada. Na urządzeniu (appliance) pozycja 5 menu konfiguracji na jego ekranie zdejmuje blokady logowania i te ograniczenia.</p>
+
+<h2>Zalecenia</h2>
+<h3>Konsola</h3>
+<ul>
+  <li>Trzymaj konsolę w sieci wewnętrznej; nie publikuj portu 8443 w internecie. Do zdalnej administracji używaj VPN.</li>
+  <li>Używaj długiego, unikalnego hasła administratora i zmień początkowe.</li>
+  <li>Wymagaj <b>uwierzytelniania dwuskładnikowego</b> od administratorów (<a href="/settings/security">Ustawienia → Logowanie i bezpieczeństwo</a>).</li>
+  <li>Daj każdej osobie własne konto z najniższą działającą rolą; do monitoringu używaj tokenów API z rolą Obserwator.</li>
+  <li>Kopiuj <code>secrets.key</code> osobno od bazy danych (<a href="/docs/install">Instalacja serwera</a>).</li>
+  <li>Wybierz w <a href="/settings/security">Ustawienia → Logowanie i bezpieczeństwo</a> odpowiedni czas trwania sesji (krótszy jest bezpieczniejszy).</li>
+  <li>Utrzymuj serwer zaktualizowany (<code>apt upgrade</code> / <code>dnf upgrade</code>), łącznie z PostgreSQL.</li>
+</ul>
+<h3>Magazyny</h3>
+<ul>
+  <li>Daj każdemu magazynowi własne konto z dostępem tylko do folderu lub bucketu kopii.</li>
+  <li>Nie dołączaj magazynu kopii do domeny Windows; używaj danych logowania nieużywanych nigdzie indziej.</li>
+  <li>Utrzymuj co najmniej jedną niezmienną kopię (S3 Object Lock lub utwardzone repozytorium) i jedną kopię poza siedzibą.</li>
+</ul>
+<h3>Klucze</h3>
+<ul>
+  <li>Przechowuj arkusze odzyskiwania offline. Bez nich zaszyfrowanych kopii nie da się przywrócić po utracie konsoli.</li>
+  <li>Przetestuj raz przywracanie z wiersza poleceń tylko z arkuszem odzyskiwania, aby wiedzieć, że procedura działa.</li>
+  <li>Traktuj pendrive z <code>recovery.json</code> jak klucz: dopóki kod odzyskiwania nie wygaśnie (30 dni), pozwala on maszynie dołączyć do konsoli jako agent odzyskiwania. Gdy potrzebujesz, utwórz nowy kod zamiast przechowywać stare pendrive'y.</li>
+  <li>ISO odzyskiwania dają wiersz poleceń root / administratora każdemu, kto z nich uruchomi system — jak każdy nośnik rozruchowy. Chroń serwery hasłem firmware (BIOS/UEFI) i ustawieniami bezpiecznego rozruchu.</li>
+</ul>
+
+<h3>Agenci i hiperwizory</h3>
+<ul>
+  <li>Konsola może instalować oprogramowanie na agentach (aktualizacje agentów) i przywracać na nie dane. Chroń odpowiednio konta administratorów: uwierzytelnianie dwuskładnikowe, niewielu administratorów.</li>
+  <li>Pliki z dysków maszyn wirtualnych są analizowane przez konsolę i agentów podczas przeglądania; uszkodzone lub złośliwe dane systemu plików powodują błąd, a nie awarię.</li>
+</ul>
+
+<h2>Zgłaszanie problemu bezpieczeństwa</h2>
+<p>Zgłaszaj podatności prywatnie opiekunom BackupZit zamiast otwierać publiczne zgłoszenie.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

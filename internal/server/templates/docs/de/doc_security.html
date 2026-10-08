@@ -1,0 +1,86 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Sicherheit &amp; Empfehlungen</h1>
+<p class="lead">Wie BackupZit Ihre Daten und die Konsole schützt und was Sie auf Ihrer Seite tun sollten.</p>
+
+<h2>Eingebauter Schutz</h2>
+<ul>
+  <li><b>Verschlüsselung an der Quelle</b> — AES-256-GCM im Agenten; der Speicher sieht nur verschlüsselte Daten. Schlüssel werden mit Argon2id abgeleitet.</li>
+  <li><b>Gepinnte Verbindungen</b> — Agenten pinnen das Konsolenzertifikat; SFTP-Hostschlüssel und Zertifikate gehärteter Repositories werden ebenfalls gepinnt. Keine Zertifizierungsstelle kann missbraucht werden, um sich als sie auszugeben.</li>
+  <li><b>Vertrauenswürdiges Zertifikat für Browser</b> — optional ein hochgeladenes oder Let's-Encrypt-Zertifikat (TLS 1.2+) auf einer eigenen Adresse, automatisch erneuert; siehe <a href="/docs/install">Server installieren</a>.</li>
+  <li><b>Geheimnisse im Ruhezustand</b> — Speicherpasswörter und -schlüssel, Wiederherstellungsschlüssel, SMTP-/LDAP-Passwörter und Zwei-Faktor-Geheimnisse werden in der Datenbank mit einem außerhalb gehaltenen Schlüssel (<code>secrets.key</code>) verschlüsselt.</li>
+  <li><b>Agentengeheimnisse</b> — jeder Agent hat ein eigenes Geheimnis, auf der Konsole nur als Hash gespeichert und auf dem Agenten in einer Datei, die nur Administratoren lesen können.</li>
+  <li><b>Webkonsole</b> — HttpOnly-, SameSite=Strict-Sitzungscookies; Schutz vor Cross-Site-Anfragen und Clickjacking; strikte Content-Security-Policy; Passwörter mit bcrypt gehasht; sensible Seiten werden nie zwischengespeichert.</li>
+  <li><b>Schutz vor Brute-Force</b> — Adressen, deren Anmeldung zu oft fehlschlägt, werden gesperrt: Passwörter, Zwei-Faktor-Codes und API-Token. Sperren überdauern Neustarts, Wiederholungstäter werden länger gesperrt, und Administratoren erhalten eine E-Mail. Siehe unten.</li>
+  <li><b>Konten</b> — Rollen mit minimalen Rechten, optionale Zwei-Faktor-Authentifizierung (TOTP) und LDAPS-Anmeldung; API-Token mit eigener, niedrigerer Rolle und Ablaufdatum.</li>
+  <li><b>Vier-Augen-Freigabe</b> (optional) — das Löschen oder Deaktivieren von Aufträgen, das Löschen von Agenten, ESXi-Hosts, Speicherzielen und Benutzern, das Verkürzen der Aufbewahrung, das Ausschalten der Freigabe und alles, was einem Administrator einen zweiten Freigebenden verschaffen könnte (neue Freigebende, mehr Rechte, Rücksetzen von Passwort und Zwei-Faktor, Änderungen an LDAP und SSO), brauchen die Freigabe eines zweiten Benutzers. Siehe <a href="/docs/users">Benutzer, Rollen &amp; LDAP</a>.</li>
+  <li><b>Prüfpfad</b> — Anmeldungen, fehlgeschlagene Anmeldungen, Benutzer- und Rollenänderungen, Aufträge, Speicherziele, Wiederherstellungen, angezeigte Wiederherstellungsschlüssel, Einstellungsänderungen und API-Aktionen werden im <a href="/audit">Prüfprotokoll</a> erfasst; Einträge sind verkettet, sodass Änderungen und Löschungen in der Datenbank erkannt werden, und können an einen Syslog-Server oder ein SIEM kopiert werden (<a href="/docs/users#audit-integrity">Schutz vor Änderungen</a>); Löschungen auf einem gehärteten Repository werden auf diesem Server protokolliert.</li>
+  <li><b>Konsolen-Updates</b> — Releases sind mit dem BackupZit-Releaseschlüssel (Ed25519) signiert. Die Konsole und der root-Dienst, der sie installiert, prüfen beide die Signatur, die Datenbank wird vorher gesichert, und ein fehlgeschlagenes Update wird zurückgerollt.</li>
+  <li><b>Agenten-Updates</b> — Agenten laden neue Versionen nur von ihrer Konsole über die gepinnte Verbindung und installieren sie nur, wenn die SHA-256-Prüfsumme stimmt.</li>
+  <li><b>Lokaler Statuskanal</b> — die Tray-App spricht mit dem Agentendienst über eine lokale Named Pipe (Windows) bzw. einen nur für root zugänglichen Socket (Linux). Angemeldete Benutzer der Maschine können den Status lesen und die Sicherungsaufträge der eigenen Maschine starten; sonst nichts (Aufträge, Zeitpläne, Speicher und Wiederherstellungen werden nur in der Konsole verwaltet).</li>
+  <li><b>Hypervisor-Sicherungen</b> — der Agent auf einem Proxmox- oder Hyper-V-Host nutzt die eigenen Werkzeuge des Hosts; dafür werden keine Hypervisor-Passwörter gespeichert. Für VMware ESXi speichert die Konsole das Passwort des Hosts verschlüsselt, pinnt sein HTTPS-Zertifikat und seinen SSH-Hostschlüssel und gibt die Verbindung nur an den Proxy-Agenten des Hosts für dessen Läufe weiter.</li>
+  <li><b>Integrität der Sicherungen</b> — jeder Block wird bei der Wiederherstellung über seinen SHA-256-Hash geprüft; automatische Wiederherstellungstests und die Ransomware-Erkennung überwachen die Sicherungen fortlaufend.</li>
+</ul>
+
+<h2>Schutz vor Brute-Force</h2>
+<p>Konfiguriert unter <a href="/settings/security">Einstellungen → Anmeldung &amp; Sicherheit</a>. Die Standardwerte sind für die meisten Installationen sicher:</p>
+<table>
+  <tr><th>Einstellung</th><th>Standard</th><th>Bedeutung</th></tr>
+  <tr><td>Fehlversuche pro Adresse</td><td>5</td><td>Fehlgeschlagene Anmeldungen von einer IP-Adresse innerhalb des Zählzeitraums sperren diese Adresse. Gezählt werden falsche Passwörter, falsche Zwei-Faktor-Codes und ungültige API-Token.</td></tr>
+  <tr><td>Zählzeitraum</td><td>15 Minuten</td><td>Ältere Fehlversuche werden vergessen.</td></tr>
+  <tr><td>Sperren für</td><td>30 Minuten</td><td>Eine gesperrte Adresse kann sich nicht anmelden, auch nicht mit dem richtigen Passwort. Die Anmeldeseite antwortet „Zu viele fehlgeschlagene Anmeldungen“ und die API mit HTTP 429.</td></tr>
+  <tr><td>Wiederholungstäter länger sperren</td><td>an</td><td>Jede weitere Sperre einer Adresse innerhalb eines Tages dauert doppelt so lange: 30 Minuten, 1 Stunde, 2 Stunden, … bis zu 7 Tage.</td></tr>
+  <tr><td>Fehlversuche pro Benutzername</td><td>20</td><td>Fehlversuche für einen Benutzernamen, von beliebigen Adressen, pausieren die Anmeldung für diesen Benutzernamen, bis der Zählzeitraum vorbei ist. Das stoppt Rateversuche, die über viele Adressen verteilt sind. Konten werden nie dauerhaft gesperrt, sodass ein Angreifer den Administrator nicht aussperren kann.</td></tr>
+  <tr><td>Diese Netzwerke nie sperren</td><td>keine</td><td>Optionale Netzwerke, z. B. das Subnetz der Administratoren, die nie gesperrt werden. Das Limit pro Benutzername gilt für sie trotzdem.</td></tr>
+  <tr><td>Reverse-Proxys</td><td>keine</td><td>Läuft die Konsole hinter nginx, Traefik oder einem anderen Proxy, geben Sie dessen Adresse ein: Die Client-Adresse wird dann aus <code>X-Forwarded-For</code> übernommen (sonst sähen alle Clients wie der Proxy aus), und wenn der Proxy <code>X-Forwarded-Proto: https</code> sendet, werden die Anmelde-Cookies als Secure markiert. Beide Header werden von jeder anderen Adresse ignoriert, sodass sie nicht gefälscht werden können.</td></tr>
+  <tr><td>E-Mail, wenn eine Adresse gesperrt wird</td><td>an</td><td>Wird an die Empfänger aus den <a href="/settings/email">E-Mail-Einstellungen</a> gesendet.</td></tr>
+</table>
+<p>Dieselbe Seite listet die gesperrten Adressen mit Grund und Dauer jeder Sperre auf und erlaubt, eine Sperre aufzuheben. Sperren und Aufhebungen werden im <a href="/audit">Prüfprotokoll</a> erfasst.</p>
+<p>Haben Sie sich selbst ausgesperrt, melden Sie sich von einer anderen Adresse an, oder führen Sie dies auf dem Server mit denselben Datenbankoptionen wie der Dienst aus:</p>
+<pre>backupzit-server --unblock-ip all</pre>
+<p>Um eine einzelne Sperre aufzuheben, geben Sie statt <code>all</code> die Adresse an.</p>
+
+<h2 id="web-access">Zugriff auf die Webkonsole (öffentliche Adresse)</h2>
+<p>Agenten verbinden sich auf Port 8443 mit der Konsole. Um die Konsole unter einer öffentlichen Adresse anzubieten — für Agenten an anderen Standorten oder bei Kunden —, während nur Ihre Administratoren die Webkonsole öffnen können, verwenden Sie <b>Einstellungen → Anmeldung &amp; Sicherheit → Zugriff auf die Webkonsole</b>:</p>
+<table>
+  <tr><th>Einstellung</th><th>Wirkung</th></tr>
+  <tr><td>Erlaubte Adressen</td><td>IP-Adressen oder Netzwerke (z. B. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). Webkonsole, REST API und jede Seite antworten nur diesen Adressen; andere erhalten „not found“, als gäbe es keine Konsole. Agenten erreichen ihre API immer (Registrierung, Abfragen, Ergebnisse, Downloads, Push-Installation). Leer: alle. Die Konsole lehnt eine Liste ab, die Ihre eigene Adresse nicht enthält.</td></tr>
+  <tr><td>Port 8443 nur für Agenten</td><td>Die Webkonsole ist dann nur auf dem Webport mit dem vertrauenswürdigen Zertifikat erreichbar (<a href="/docs/install">Einstellungen → Zertifikat</a>, meist 443), sodass eine Firewall 8443 für alle und 443 nur für Ihre Adressen öffnen kann. Verfügbar, sobald der Webport läuft; ändern Sie es über den Webport, nicht über 8443.</td></tr>
+</table>
+<p>Eine typische Firewall für eine öffentliche Konsole: 8443 offen für alle (Agenten), 443 und 80 (Let's-Encrypt-HTTP-Prüfung) nur von Ihren Adressen, SSH nur von Ihren Adressen oder aus, alles andere geschlossen.</p>
+<p>Ausgesperrt? Auf dem Server selbst (<code>localhost</code>) antwortet die Konsole immer. Auf der Appliance hebt Punkt 5 des Setup-Menüs auf ihrem Bildschirm Anmeldesperren und diese Beschränkungen auf.</p>
+
+<h2>Empfehlungen</h2>
+<h3>Konsole</h3>
+<ul>
+  <li>Betreiben Sie die Konsole in einem internen Netz; veröffentlichen Sie Port 8443 nicht im Internet. Nutzen Sie für die Fernverwaltung ein VPN.</li>
+  <li>Verwenden Sie ein langes, eindeutiges Administratorpasswort und ändern Sie das ursprüngliche.</li>
+  <li>Verlangen Sie <b>Zwei-Faktor-Authentifizierung</b> für Administratoren (<a href="/settings/security">Einstellungen → Anmeldung &amp; Sicherheit</a>).</li>
+  <li>Geben Sie jeder Person ein eigenes Konto mit der niedrigsten funktionierenden Rolle; verwenden Sie für die Überwachung API-Token mit der Rolle Betrachter.</li>
+  <li>Sichern Sie <code>secrets.key</code> getrennt von der Datenbank (<a href="/docs/install">Server installieren</a>).</li>
+  <li>Wählen Sie unter <a href="/settings/security">Einstellungen → Anmeldung &amp; Sicherheit</a> eine passende Sitzungsdauer (kürzer ist sicherer).</li>
+  <li>Halten Sie den Server aktuell (<code>apt upgrade</code> / <code>dnf upgrade</code>), einschließlich PostgreSQL.</li>
+</ul>
+<h3>Speicher</h3>
+<ul>
+  <li>Geben Sie jedem Speicherziel ein eigenes Konto mit Zugriff nur auf den Sicherungsordner bzw. Bucket.</li>
+  <li>Nehmen Sie den Sicherungsspeicher nicht in die Windows-Domäne auf; verwenden Sie Zugangsdaten, die nirgends sonst verwendet werden.</li>
+  <li>Halten Sie mindestens eine unveränderliche Kopie (S3 Object Lock oder gehärtetes Repository) und eine externe Kopie vor.</li>
+</ul>
+<h3>Schlüssel</h3>
+<ul>
+  <li>Bewahren Sie Wiederherstellungsblätter offline auf. Ohne sie können verschlüsselte Sicherungen bei Verlust der Konsole nicht wiederhergestellt werden.</li>
+  <li>Testen Sie einmal eine Wiederherstellung über die Befehlszeile nur mit dem Wiederherstellungsblatt, damit Sie wissen, dass das Verfahren funktioniert.</li>
+  <li>Behandeln Sie einen USB-Stick mit <code>recovery.json</code> wie einen Schlüssel: Bis der Wiederherstellungscode abläuft (30 Tage), lässt er eine Maschine als Wiederherstellungsagent der Konsole beitreten. Erstellen Sie bei Bedarf einen neuen Code, statt alte Sticks aufzubewahren.</li>
+  <li>Wiederherstellungs-ISOs geben jedem, der davon bootet, eine root-/Administrator-Befehlszeile — wie jedes Bootmedium. Schützen Sie Server mit einem Firmware-Passwort (BIOS/UEFI) und sicheren Booteinstellungen.</li>
+</ul>
+
+<h3>Agenten und Hypervisoren</h3>
+<ul>
+  <li>Die Konsole kann Software auf Agenten installieren (Agenten-Updates) und Daten auf sie zurückspielen. Schützen Sie die Administratorkonten entsprechend: Zwei-Faktor-Authentifizierung, wenige Administratoren.</li>
+  <li>Dateien von VM-Festplatten werden beim Durchsuchen von Konsole und Agenten geparst; beschädigte oder bösartige Dateisystemdaten erzeugen einen Fehler, keinen Absturz.</li>
+</ul>
+
+<h2>Sicherheitsproblem melden</h2>
+<p>Bitte melden Sie Schwachstellen vertraulich an die BackupZit-Maintainer, statt ein öffentliches Issue zu eröffnen.</p>
+{{template "docpager" .}}
+</article></div>{{end}}
