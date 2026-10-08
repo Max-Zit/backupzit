@@ -1,0 +1,103 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>代理</h1>
+<p class="lead">每台受保护的机器上都安装一个代理。它作为服务运行，每 30 秒向控制台请求任务，并直接与存储通信。</p>
+
+<h2>支持的系统</h2>
+<ul>
+  <li>Windows 10、11 以及 Windows Server 2016 及更高版本 — <b>Windows 代理</b> MSI。</li>
+  <li>Windows 7 SP1、Windows Server 2008 R2 SP1 和 2012 R2 — <b>Windows 代理 — 旧系统</b> MSI（<code>…-legacy.msi</code>），功能相同，包括 VSS 和磁盘映像。</li>
+  <li>Debian、Ubuntu、AlmaLinux、Rocky Linux（64 位）。</li>
+  <li>Proxmox VE 7 和 8 节点 — Debian 软件包；代理还会备份该节点的虚拟机和容器（参见 <a href="/docs/proxmox">Proxmox VE</a>）。</li>
+  <li>Hyper-V 主机（Windows Server 2016 及更高版本、带 Hyper-V 的 Windows 10/11）：Windows MSI。代理还会备份主机的虚拟机（参见 <a href="/docs/hyperv">Hyper-V</a>）。</li>
+  <li>VMware ESXi 主机 — ESXi 上不安装任何东西：在 <a href="/agents#vmware">VMware ESXi 主机</a> 下添加主机，并选择一个代理作为其代理服务器（参见 <a href="/docs/vmware">VMware ESXi</a>）。</li>
+</ul>
+
+<h2>注册代理</h2>
+<ol>
+  <li>在 <a href="/agents">Agent</a> 页面上点击<b>创建注册令牌</b>。控制台会显示一个<b>注册码</b>（<code>BZ1-…</code>），有效期 7 天，可用于任意数量的机器。它包含供代理使用的控制台地址（带代理端口，通常为 8443，即使页面是通过 Web 端口 443 打开的）、令牌和证书指纹。0.33.6 及以后的代理也可以使用旧版控制台在 Web 端口上生成的注册码进行注册。</li>
+  <li>Windows：运行 MSI，在安装程序要求时粘贴注册码。Linux：运行显示的命令。</li>
+  <li>机器会在一分钟内出现在代理列表中。</li>
+</ol>
+<p>如果安装期间无法连接控制台，代理会保留注册码并不断重试，直到注册成功。升级会保留注册，不会再次询问。在已注册的机器上使用 <code>ENROLLCODE</code> 进行静默安装时，如果注册码属于同一控制台，则保留注册（GPO 或 RMM 可以安全地重复执行）；如果属于其他控制台，则迁移该机器；之前的注册会以 <code>agent.json.replaced-<i>日期</i></code> 保存在 <code>agent.json</code> 旁边，将其改回原名即可让机器以同一代理身份回到旧控制台。</p>
+<h3>Windows 静默安装（GPO、Intune、RMM）</h3>
+<pre>msiexec /i backupzit-agent.msi /qn ENROLLCODE="BZ1-..."</pre>
+<p>旧形式 <code>SERVER="..." TOKEN="..." FINGERPRINT="SHA256:..."</code> 仍然可用。不带这些属性的静默安装会设置服务，服务会等待您在管理员命令提示符中用 <code>backupzit-agent enroll --code "BZ1-..."</code> 进行注册。</p>
+<h3>Linux</h3>
+<pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre>
+
+<h2>从控制台安装代理</h2>
+<p>无需把安装程序复制到每台机器，可以让控制台安装代理：在 <a href="/agents">Agent</a> 页面打开<b>从此处安装到机器</b>，选择 Linux 或 Windows，输入机器地址和管理员帐户。</p>
+<ul>
+  <li><b>Linux</b>（Debian、Ubuntu、AlmaLinux、Rocky Linux；64 位）：控制台通过 <b>SSH</b> 以 root 身份或具有 <code>sudo</code> 权限的用户身份连接（密码也用于 sudo；使用密钥时需要免密码 sudo）。密码或私钥均可。输入机器的 <b>SSH 主机密钥指纹</b>（在机器上运行 <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>），以确保控制台连接的是正确的机器；不输入时，指纹会显示在安装日志中。</li>
+  <li><b>Windows</b>（64 位）：控制台通过 <b>WinRM</b>（端口 5985，消息使用 NTLM 加密；HTTPS 侦听器为 5986）以本地或域管理员身份连接。Windows Server 默认启用 WinRM；在 Windows 10/11 上以管理员身份运行一次 <code>winrm quickconfig</code>。内置 Administrator 以外的本地帐户需要远程管理权限（<code>LocalAccountTokenFilterPolicy</code>）——或使用域帐户。旧系统（Windows 7、Server 2008 R2/2012 R2）会获得 legacy MSI。</li>
+</ul>
+<p>机器通过一个仅对本次安装有效的链接（30 分钟、三次下载）从控制台下载最新的代理软件包，检查其 SHA-256 校验和，安装并注册。安装页面显示每一步；帐户和密码仅用于此目的，不会保存。如果机器已在此控制台注册，则保留注册并更新软件包；控制台不认识的注册（之前移除的代理或其他控制台）会被替换。每次安装都会记录在审计日志中。与任何代理一样，机器必须能访问控制台的代理地址。</p>
+
+<h2>代理状态</h2>
+<ul>
+  <li><b>online</b> — 代理在最近 3 分钟内联系过控制台。</li>
+  <li><b>offline</b> — 机器已关闭、服务已停止或网络被阻止。计划的备份会排队，代理一恢复就开始。</li>
+  <li><b>恢复</b> — 从恢复 ISO（Windows 或 Linux）启动的机器，准备接收磁盘映像或 Linux 系统的还原。恢复代理是临时的；还原完成后请将其移除。</li>
+</ul>
+<p><b>IP 地址</b>列显示代理最近一次报告的机器自身地址。<i>来源地址</i>是其连接到达的地址：在局域网中是同一地址，对于 NAT 后面的机器（例如家里的笔记本电脑）是路由器的公网地址。控制台不会为此查询任何外部服务。</p>
+
+<h2>桌面上的代理（Windows）</h2>
+<p>Windows 代理会在时钟旁显示一个图标（它可能位于隐藏图标的 <b>^</b> 箭头下——将其拖到任务栏上以保持可见）。图标上的圆点表示状态：</p>
+<table>
+  <tr><th>圆点</th><th>含义</th></tr>
+  <tr><td>绿色</td><td>备份正常（或正在等待第一次计划备份）。</td></tr>
+  <tr><td>蓝色</td><td>正在运行备份、还原或还原测试。</td></tr>
+  <tr><td>橙色</td><td>上次备份完成但有警告（无法读取的文件）。</td></tr>
+  <tr><td>红色</td><td>备份作业失败。</td></tr>
+  <tr><td>灰色</td><td>无法连接控制台，或代理服务未运行。</td></tr>
+</table>
+<p>点击图标（或从“开始”菜单打开 <b>BackupZit Agent</b>）可打开状态窗口：保护状态、正在运行的备份进度、上次和下次备份，以及该计算机的所有备份作业和<b>立即备份</b>按钮。右键单击打开菜单：每个作业的 <i>Back up now</i>、<i>Open console in browser</i>、<i>Hide this icon</i>（直到下次登录；备份继续进行）。该窗口需要 Microsoft Edge WebView2，它是 Windows 10 和 11 的一部分；在旧系统上，图标和菜单可用，<i>Open</i> 会在浏览器中显示控制台。</p>
+<p>用户可以通过这种方式启动其计算机的备份；作业、计划和保留只能在控制台中设置。在任何系统上，<code>backupzit-agent status</code>（以管理员或 root 身份）都会打印相同的信息。</p>
+
+<h2>升级</h2>
+<p>当控制台拥有比代理运行版本更新的代理安装程序时，Agent 页面会在其版本旁显示<b>更新到 x.y.z</b>，并在列表下方显示<b>更新所有代理</b>。然后代理会：</p>
+<ol>
+  <li>等到空闲（正在运行的备份绝不会被中断），</li>
+  <li>通过其固定的连接从控制台下载相应的安装程序——Windows 10/11/2016+ 用 MSI，Windows 7/2008 R2/2012 R2 用<i>旧系统</i> MSI，Linux 上用 deb 或 rpm 软件包——并检查其 SHA-256，</li>
+  <li>安装并重启；新版本会在几分钟内出现在列表中。注册和所有设置都会保留。</li>
+</ol>
+<p>控制台提供其 <code>dist</code> 目录中最新的安装程序；服务器软件包附带其自身版本的代理安装程序。通过 <a href="/settings/updates">设置 → 更新</a> 更新控制台后，代理会自动更新（可在那里关闭）。从控制台更新适用于 0.21 及以后版本的代理；更旧的代理需通过在旧版本上安装较新的 MSI / 软件包更新一次（注册会保留）。安装程序日志位于 <code>C:\ProgramData\backupzit\updates</code> 或 <code>/var/tmp/backupzit-updates</code>。</p>
+
+<h2>移除代理</h2>
+<p>Agent 页面上的<b>移除</b>会从控制台删除该代理及其作业。启用<a href="/docs/users">四眼审批</a>时，需要第二个用户先批准。存储上的备份<b>不会</b>被删除。请另行卸载机器上的软件。</p>
+
+<h2 id="duplicate">两台机器使用同一个代理</h2>
+<p>已注册机器的副本会带走其代理和注册：作为新虚拟机还原的虚拟机、<a href="/docs/proxmox">即时恢复</a>、已启动的副本、克隆的磁盘或模板。当副本与原机器同时运行时，两者都以同一个代理身份连接。控制台会在一两分钟内发现，然后：</p>
+<ul>
+  <li>在 Agent 页面上显示<b>两台计算机</b>及两者的名称和地址，并在仪表板的<b>需要关注</b>下列出该代理；</li>
+  <li><b>暂停</b>该代理的备份和还原，以免在错误的机器上运行（否则还原到原始位置可能会覆盖副本而不是原机器）；</li>
+  <li>向管理员发送一次电子邮件，并在审计日志中写入 <code>agent.duplicate</code> 条目。</li>
+</ul>
+<p>停止副本，或者——如果副本需要保留——在副本上将其注册为新机器：<code>backupzit-agent enroll --force --code "BZ1-..."</code>（注册码来自 Agent 页面）。只剩一台机器几分钟后，被暂停的运行就会开始。使用<a href="/docs/linux-system">还原整个系统</a>还原 Linux 系统时，已在还原副本中注销代理，而还原测试在无网络的情况下启动其虚拟机，因此两者都不会导致此情况。</p>
+
+<h2 id="new-address">控制台地址变更时</h2>
+<p>代理通过控制台的证书信任它，证书在 IP 地址或名称变化时保持不变，但代理会连接到注册时使用的地址。变更后，在每台代理机器上（以管理员 / root 身份）运行：</p>
+<pre>backupzit-agent set-server https://192.168.1.20:8443</pre>
+<p>该命令检查控制台是否在新地址上以相同证书响应，保存该地址，代理在其服务重启后使用它（<code>systemctl restart backupzit-agent</code>，或在 Windows 上重启 <i>BackupZit Agent</i> 服务）。从一开始就为控制台使用 DNS 名称可以省去这一步。</p>
+
+<h2>代理的配置保存位置</h2>
+<ul>
+  <li>Windows：<code>C:\ProgramData\backupzit\agent.json</code>（仅 SYSTEM 和 Administrators 可访问）。</li>
+  <li>Linux：<code>/etc/backupzit/agent.json</code>（仅 root）。</li>
+</ul>
+<p>该文件包含代理的机密。任何能读取它的人都可以冒充该代理，因此请保持这些权限。</p>
+
+<h2>代理日志</h2>
+<ul>
+  <li>Windows：<code>C:\ProgramData\backupzit\agent.log</code></li>
+  <li>Linux：<code>/etc/backupzit/agent.log</code> 和 <code>journalctl -u backupzit-agent</code></li>
+  <li>恢复系统会在屏幕上显示日志。</li>
+</ul>
+
+<h2>卸载</h2>
+<p>Windows：<i>设置 → 应用 → BackupZit Agent → 卸载</i>（或 <code>msiexec /x</code>）。Linux：<code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>。然后在控制台中移除该代理。备份保留在存储上。</p>
+<p>在 Windows 上，卸载会将注册搁置（<code>C:\ProgramData\backupzit\agent.json.removed-<i>日期</i></code>），因此再次安装代理时会要求输入注册码。如果安装程序发现早期版本的注册，会提示：将注册码留空以保留它，或粘贴新的注册码重新注册计算机（例如注册到另一个控制台）。</p>
+{{template "docpager" .}}
+</article></div>{{end}}

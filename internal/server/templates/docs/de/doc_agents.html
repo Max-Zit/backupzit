@@ -1,0 +1,103 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Agenten</h1>
+<p class="lead">Auf jedem geschützten Rechner wird ein Agent installiert. Er läuft als Dienst, fragt die Konsole alle 30 Sekunden nach Arbeit und spricht direkt mit dem Speicher.</p>
+
+<h2>Unterstützte Systeme</h2>
+<ul>
+  <li>Windows 10, 11 und Windows Server 2016 und neuer — MSI <b>Windows-Agent</b>.</li>
+  <li>Windows 7 SP1, Windows Server 2008 R2 SP1 und 2012 R2 — MSI <b>Windows-Agent — ältere Systeme</b> (<code>…-legacy.msi</code>), mit denselben Funktionen einschließlich VSS und Festplattenabbildern.</li>
+  <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64 Bit).</li>
+  <li>Proxmox-VE-7- und -8-Knoten — das Debian-Paket; der Agent sichert dann auch die VMs und Container des Knotens (siehe <a href="/docs/proxmox">Proxmox VE</a>).</li>
+  <li>Hyper-V-Hosts (Windows Server 2016 und neuer, Windows 10/11 mit Hyper-V): das Windows-MSI. Der Agent sichert dann auch die VMs des Hosts (siehe <a href="/docs/hyperv">Hyper-V</a>).</li>
+  <li>VMware-ESXi-Hosts — auf ESXi wird nichts installiert: Fügen Sie den Host unter <a href="/agents#vmware">VMware-ESXi-Hosts</a> hinzu und wählen Sie einen Agenten als Proxy (siehe <a href="/docs/vmware">VMware ESXi</a>).</li>
+</ul>
+
+<h2>Agenten registrieren</h2>
+<ol>
+  <li>Klicken Sie auf der Seite <a href="/agents">Agenten</a> auf <b>Registrierungstoken erstellen</b>. Die Konsole zeigt einen <b>Registrierungscode</b> (<code>BZ1-…</code>), 7 Tage gültig und für beliebig viele Rechner nutzbar. Er enthält die Konsolenadresse für Agenten (mit dem Agenten-Port, meist 8443, auch wenn die Seite über den Web-Port 443 geöffnet ist), das Token und den Zertifikat-Fingerabdruck. Agenten ab 0.33.6 registrieren sich auch mit Codes, die ältere Konsolen auf dem Web-Port erstellt haben.</li>
+  <li>Windows: Führen Sie das MSI aus und fügen Sie den Code ein, wenn das Installationsprogramm danach fragt. Linux: Führen Sie den angezeigten Befehl aus.</li>
+  <li>Der Rechner erscheint innerhalb einer Minute in der Agentenliste.</li>
+</ol>
+<p>Ist die Konsole während der Installation nicht erreichbar, behält der Agent den Code und versucht es erneut, bis er sich registrieren kann. Upgrades behalten die Registrierung und fragen nicht erneut. Eine stille Installation mit <code>ENROLLCODE</code> auf einem bereits registrierten Rechner behält die Registrierung, wenn der Code für dieselbe Konsole ist (GPO oder RMM können sie gefahrlos wiederholen), und verschiebt den Rechner, wenn der Code für eine andere Konsole ist; die vorherige Registrierung bleibt als <code>agent.json.replaced-<i>Datum</i></code> neben <code>agent.json</code> erhalten, sodass das Zurückbenennen den Rechner als denselben Agenten zu seiner alten Konsole zurückbringt.</p>
+<h3>Windows, still (GPO, Intune, RMM)</h3>
+<pre>msiexec /i backupzit-agent.msi /qn ENROLLCODE="BZ1-..."</pre>
+<p>Die ältere Form <code>SERVER="..." TOKEN="..." FINGERPRINT="SHA256:..."</code> funktioniert weiterhin. Eine stille Installation ohne diese Eigenschaften richtet den Dienst ein, der wartet, bis Sie ihn mit <code>backupzit-agent enroll --code "BZ1-..."</code> in einer Administrator-Eingabeaufforderung registrieren.</p>
+<h3>Linux</h3>
+<pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre>
+
+<h2>Agenten aus der Konsole installieren</h2>
+<p>Statt Installationsprogramme auf jeden Rechner zu kopieren, lassen Sie die Konsole den Agenten installieren: Öffnen Sie unter <a href="/agents">Agenten</a> <b>Von hier aus auf einem Rechner installieren</b>, wählen Sie Linux oder Windows und geben Sie die Adresse des Rechners und ein Administratorkonto ein.</p>
+<ul>
+  <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64 Bit): Die Konsole verbindet sich über <b>SSH</b> als root oder als Benutzer mit <code>sudo</code>-Rechten (das Passwort wird auch für sudo verwendet; mit einem Schlüssel ist sudo ohne Passwort nötig). Passwort oder privater Schlüssel funktionieren. Geben Sie den <b>SSH-Host-Key-Fingerabdruck</b> des Rechners ein (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> auf dem Rechner), damit die Konsole sicher mit dem richtigen Rechner spricht; ohne ihn wird der Fingerabdruck im Installationsprotokoll angezeigt.</li>
+  <li><b>Windows</b> (64 Bit): Die Konsole verbindet sich über <b>WinRM</b> (Port 5985, Nachrichten mit NTLM verschlüsselt; 5986 für einen HTTPS-Listener) als lokaler oder Domänenadministrator. WinRM ist auf Windows Server standardmäßig aktiv; unter Windows 10/11 führen Sie einmal <code>winrm quickconfig</code> als Administrator aus. Lokale Konten außer dem integrierten Administrator brauchen Remote-Administratorrechte (<code>LocalAccountTokenFilterPolicy</code>) — oder verwenden Sie ein Domänenkonto. Ältere Systeme (Windows 7, Server 2008 R2/2012 R2) erhalten das Legacy-MSI.</li>
+</ul>
+<p>Der Rechner lädt das neueste Agentenpaket über einen Link von der Konsole, der nur für diese Installation gilt (30 Minuten, drei Downloads), prüft seine SHA-256-Prüfsumme, installiert es und registriert sich. Die Installationsseite zeigt jeden Schritt; Konto und Passwort werden nur dafür verwendet und nicht gespeichert. Ist der Rechner bereits bei dieser Konsole registriert, bleibt die Registrierung erhalten und das Paket wird aktualisiert; eine der Konsole unbekannte Registrierung (ein früher entfernter Agent oder eine andere Konsole) wird ersetzt. Jede Installation steht im Audit-Protokoll. Der Rechner muss die Agentenadresse der Konsole erreichen, wie jeder Agent.</p>
+
+<h2>Agentenstatus</h2>
+<ul>
+  <li><b>online</b> — der Agent hat die Konsole in den letzten 3 Minuten kontaktiert.</li>
+  <li><b>offline</b> — der Rechner ist aus, der Dienst gestoppt oder das Netzwerk blockiert. Geplante Sicherungen werden eingereiht und starten, sobald der Agent zurück ist.</li>
+  <li><b>Wiederherstellung</b> — ein von einem Wiederherstellungs-ISO (Windows oder Linux) gestarteter Rechner, bereit für die Wiederherstellung eines Festplattenabbilds oder Linux-Systems. Wiederherstellungsagenten sind vorübergehend; entfernen Sie sie, wenn die Wiederherstellung abgeschlossen ist.</li>
+</ul>
+<p>Die Spalte <b>IP-Adressen</b> listet die eigenen Adressen des Rechners, wie der Agent sie zuletzt gemeldet hat. <i>gesehen von</i> ist die Adresse, von der seine Verbindungen ankommen: im lokalen Netz dieselbe Adresse, bei einem Rechner hinter NAT (z. B. einem Laptop zu Hause) die öffentliche Adresse des Routers. Die Konsole fragt dafür keinen externen Dienst.</p>
+
+<h2>Der Agent auf dem Desktop (Windows)</h2>
+<p>Der Windows-Agent zeigt ein Symbol neben der Uhr (es kann unter dem Pfeil <b>^</b> der ausgeblendeten Symbole liegen — ziehen Sie es auf die Taskleiste, damit es sichtbar bleibt). Der Punkt auf dem Symbol zeigt den Zustand:</p>
+<table>
+  <tr><th>Punkt</th><th>Bedeutung</th></tr>
+  <tr><td>grün</td><td>Sicherungen sind in Ordnung (oder warten auf die erste geplante Sicherung).</td></tr>
+  <tr><td>blau</td><td>Eine Sicherung, Wiederherstellung oder ein Wiederherstellungstest läuft.</td></tr>
+  <tr><td>orange</td><td>Die letzte Sicherung endete mit Warnungen (Dateien, die nicht gelesen werden konnten).</td></tr>
+  <tr><td>rot</td><td>Ein Sicherungsauftrag ist fehlgeschlagen.</td></tr>
+  <tr><td>grau</td><td>Die Konsole ist nicht erreichbar oder der Agentendienst läuft nicht.</td></tr>
+</table>
+<p>Klicken Sie auf das Symbol (oder öffnen Sie <b>BackupZit Agent</b> im Startmenü) für das Statusfenster: Schutzstatus, Fortschritt einer laufenden Sicherung, letzte und nächste Sicherung und alle Sicherungsaufträge des Computers mit <b>Jetzt sichern</b>. Rechtsklick öffnet das Menü: <i>Back up now</i> pro Auftrag, <i>Open console in browser</i>, <i>Hide this icon</i> (bis zur nächsten Anmeldung; Sicherungen laufen weiter). Das Fenster benötigt Microsoft Edge WebView2, das Teil von Windows 10 und 11 ist; auf älteren Systemen funktionieren Symbol und Menü, und <i>Open</i> zeigt die Konsole im Browser.</p>
+<p>Benutzer können so eine Sicherung ihres Computers starten; Aufträge, Zeitpläne und Aufbewahrung werden nur in der Konsole festgelegt. Auf jedem System gibt <code>backupzit-agent status</code> (als Administrator oder root) dieselben Informationen aus.</p>
+
+<h2>Aktualisieren</h2>
+<p>Hat die Konsole ein neueres Agenten-Installationsprogramm als ein Agent ausführt, zeigt die Seite Agenten <b>Aktualisieren auf x.y.z</b> neben seiner Version und <b>Alle Agenten aktualisieren</b> unter der Liste. Der Agent dann:</p>
+<ol>
+  <li>wartet, bis er untätig ist (eine laufende Sicherung wird nie unterbrochen),</li>
+  <li>lädt das passende Installationsprogramm über seine gepinnte Verbindung von der Konsole — das MSI für Windows 10/11/2016+, das MSI <i>ältere Systeme</i> für Windows 7/2008 R2/2012 R2, das deb- oder rpm-Paket unter Linux — und prüft seine SHA-256,</li>
+  <li>installiert es und startet neu; die neue Version erscheint innerhalb weniger Minuten in der Liste. Registrierung und alle Einstellungen bleiben erhalten.</li>
+</ol>
+<p>Die Konsole bietet die neuesten Installationsprogramme in ihrem Verzeichnis <code>dist</code> an; das Serverpaket liefert die Agenten-Installationsprogramme seiner eigenen Version mit. Nachdem die Konsole über <a href="/settings/updates">Einstellungen → Updates</a> aktualisiert wurde, werden die Agenten automatisch aktualisiert (dort abschaltbar). Updates aus der Konsole funktionieren für Agenten ab Version 0.21; ältere Agenten werden einmal aktualisiert, indem das neuere MSI / Paket über das alte installiert wird (die Registrierung bleibt erhalten). Das Protokoll des Installationsprogramms liegt in <code>C:\ProgramData\backupzit\updates</code> oder <code>/var/tmp/backupzit-updates</code>.</p>
+
+<h2>Einen Agenten entfernen</h2>
+<p><b>Entfernen</b> auf der Seite Agenten löscht den Agenten und seine Aufträge aus der Konsole. Mit eingeschalteter <a href="/docs/users">Vier-Augen-Freigabe</a> muss ein zweiter Benutzer zuerst zustimmen. Sicherungen auf dem Speicher werden <b>nicht</b> gelöscht. Deinstallieren Sie die Software auf dem Rechner separat.</p>
+
+<h2 id="duplicate">Zwei Rechner mit einem Agenten</h2>
+<p>Eine Kopie eines registrierten Rechners nimmt ihren Agenten und die Registrierung mit: eine als neue VM wiederhergestellte VM, eine <a href="/docs/proxmox">Sofortwiederherstellung</a>, ein gestartetes Replikat, eine geklonte Festplatte oder Vorlage. Läuft die Kopie neben dem Original, verbinden sich beide als derselbe Agent. Die Konsole bemerkt das innerhalb von ein, zwei Minuten und dann:</p>
+<ul>
+  <li>zeigt sie <b>zwei Rechner</b> mit beiden Namen und Adressen auf der Seite Agenten und den Agenten unter <b>Benötigt Aufmerksamkeit</b> im Dashboard;</li>
+  <li><b>hält</b> sie die Sicherungen und Wiederherstellungen des Agenten an, damit nichts auf dem falschen Rechner läuft (eine Wiederherstellung an den ursprünglichen Ort könnte sonst die Kopie statt des Originals überschreiben);</li>
+  <li>sendet sie den Administratoren einmal eine E-Mail und schreibt einen Eintrag <code>agent.duplicate</code> ins Audit-Protokoll.</li>
+</ul>
+<p>Stoppen Sie die Kopie oder — wenn sie bleiben soll — registrieren Sie sie auf der Kopie als neuen Rechner: <code>backupzit-agent enroll --force --code "BZ1-..."</code> (Code von der Seite Agenten). Die angehaltenen Läufe starten einige Minuten, nachdem nur noch ein Rechner übrig ist. Die Wiederherstellung eines Linux-Systems mit <a href="/docs/linux-system">Ganzes System wiederherstellen</a> hebt die Registrierung in der wiederhergestellten Kopie bereits auf, und Wiederherstellungstests starten ihre VMs ohne Netzwerk, sodass keines von beiden dies verursacht.</p>
+
+<h2 id="new-address">Wenn die Konsole eine neue Adresse bekommt</h2>
+<p>Agenten vertrauen der Konsole anhand ihres Zertifikats, das gleich bleibt, wenn sich IP-Adresse oder Name ändern, aber sie verbinden sich mit der Adresse, mit der sie registriert wurden. Führen Sie nach einer Änderung auf jedem Agentenrechner aus (als Administrator / root):</p>
+<pre>backupzit-agent set-server https://192.168.1.20:8443</pre>
+<p>Der Befehl prüft, dass die Konsole unter der neuen Adresse mit demselben Zertifikat antwortet, speichert sie, und der Agent verwendet sie nach einem Neustart seines Dienstes (<code>systemctl restart backupzit-agent</code> oder unter Windows den Dienst <i>BackupZit Agent</i> neu starten). Ein DNS-Name für die Konsole von Anfang an erspart diesen Schritt.</p>
+
+<h2>Wo der Agent seine Konfiguration speichert</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (nur für SYSTEM und Administratoren zugänglich).</li>
+  <li>Linux: <code>/etc/backupzit/agent.json</code> (nur root).</li>
+</ul>
+<p>Die Datei enthält das Geheimnis des Agenten. Wer sie lesen kann, kann als dieser Agent auftreten, behalten Sie also diese Berechtigungen bei.</p>
+
+<h2>Agentenprotokoll</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
+  <li>Linux: <code>/etc/backupzit/agent.log</code> und <code>journalctl -u backupzit-agent</code></li>
+  <li>Wiederherstellungssysteme zeigen das Protokoll auf ihrem Bildschirm.</li>
+</ul>
+
+<h2>Deinstallieren</h2>
+<p>Windows: <i>Einstellungen → Apps → BackupZit Agent → Deinstallieren</i> (oder <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Entfernen Sie dann den Agenten in der Konsole. Sicherungen bleiben auf dem Speicher.</p>
+<p>Unter Windows legt die Deinstallation die Registrierung beiseite (<code>C:\ProgramData\backupzit\agent.json.removed-<i>Datum</i></code>), sodass eine erneute Installation des Agenten nach einem Registrierungscode fragt. Findet das Installationsprogramm eine Registrierung einer früheren Version, sagt es das: Lassen Sie den Code leer, um sie zu behalten, oder fügen Sie einen neuen Code ein, um den Computer erneut zu registrieren (zum Beispiel bei einer anderen Konsole).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

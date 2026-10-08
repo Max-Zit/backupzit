@@ -1,0 +1,103 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Agenti</h1>
+<p class="lead">Na každý chráněný počítač se instaluje agent. Běží jako služba, každých 30 sekund se ptá konzole na práci a komunikuje přímo s úložištěm.</p>
+
+<h2>Podporované systémy</h2>
+<ul>
+  <li>Windows 10, 11 a Windows Server 2016 a novější — MSI <b>Agent pro Windows</b>.</li>
+  <li>Windows 7 SP1, Windows Server 2008 R2 SP1 a 2012 R2 — MSI <b>Agent pro Windows — starší systémy</b> (<code>…-legacy.msi</code>), se stejnými funkcemi včetně VSS a obrazů disků.</li>
+  <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64bitové).</li>
+  <li>Uzly Proxmox VE 7 a 8 — balíček pro Debian; agent pak zálohuje i VM a kontejnery uzlu (viz <a href="/docs/proxmox">Proxmox VE</a>).</li>
+  <li>Hostitelé Hyper-V (Windows Server 2016 a novější, Windows 10/11 s Hyper-V): MSI pro Windows. Agent pak zálohuje i VM hostitele (viz <a href="/docs/hyperv">Hyper-V</a>).</li>
+  <li>Hostitelé VMware ESXi — na ESXi se nic neinstaluje: přidejte hostitele v části <a href="/agents#vmware">Hostitelé VMware ESXi</a> a zvolte agenta jako proxy (viz <a href="/docs/vmware">VMware ESXi</a>).</li>
+</ul>
+
+<h2>Registrace agentů</h2>
+<ol>
+  <li>Na stránce <a href="/agents">Agenti</a> klikněte na <b>Vytvořit registrační token</b>. Konzole zobrazí <b>registrační kód</b> (<code>BZ1-…</code>), platný 7 dní a použitelný pro libovolný počet počítačů. Obsahuje adresu konzole pro agenty (s portem agentů, obvykle 8443, i když je stránka otevřená na webovém portu 443), token a otisk certifikátu. Agenti od 0.33.6 se registrují i kódy, které starší konzole vytvořily na webovém portu.</li>
+  <li>Windows: spusťte MSI a vložte kód, když o něj instalátor požádá. Linux: spusťte zobrazený příkaz.</li>
+  <li>Počítač se do minuty objeví v seznamu agentů.</li>
+</ol>
+<p>Pokud konzole během instalace není dostupná, agent si kód ponechá a zkouší to znovu, dokud se nezaregistruje. Upgrady registraci zachovávají a znovu se neptají. Tichá instalace s <code>ENROLLCODE</code> na již registrovaném počítači registraci zachová, když je kód pro stejnou konzoli (GPO nebo RMM ji mohou bezpečně opakovat), a přesune počítač, když je kód pro jinou konzoli; předchozí registrace se uchová jako <code>agent.json.replaced-<i>datum</i></code> vedle <code>agent.json</code>, takže jejím přejmenováním zpět se počítač vrátí ke staré konzoli jako tentýž agent.</p>
+<h3>Windows, tiše (GPO, Intune, RMM)</h3>
+<pre>msiexec /i backupzit-agent.msi /qn ENROLLCODE="BZ1-..."</pre>
+<p>Starší forma <code>SERVER="..." TOKEN="..." FINGERPRINT="SHA256:..."</code> stále funguje. Tichá instalace bez těchto vlastností nainstaluje službu, která čeká, dokud ji nezaregistrujete příkazem <code>backupzit-agent enroll --code "BZ1-..."</code> v příkazovém řádku správce.</p>
+<h3>Linux</h3>
+<pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre>
+
+<h2>Instalace agentů z konzole</h2>
+<p>Místo kopírování instalátorů na každý počítač nechte agenta nainstalovat konzoli: na stránce <a href="/agents">Agenti</a> otevřete <b>Nainstalovat na počítač odsud</b>, zvolte Linux nebo Windows a zadejte adresu počítače a účet správce.</p>
+<ul>
+  <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64bitové): konzole se připojí přes <b>SSH</b> jako root nebo jako uživatel s právy <code>sudo</code> (heslo se použije i pro sudo; s klíčem je nutné sudo bez hesla). Funguje heslo i soukromý klíč. Zadejte <b>otisk hostitelského klíče SSH</b> počítače (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> na počítači), aby bylo jisté, že konzole mluví se správným počítačem; bez něj se otisk zobrazí v protokolu instalace.</li>
+  <li><b>Windows</b> (64bitové): konzole se připojí přes <b>WinRM</b> (port 5985, zprávy šifrované pomocí NTLM; 5986 pro naslouchací proces HTTPS) jako místní nebo doménový správce. WinRM je ve Windows Serveru ve výchozím stavu zapnutý; ve Windows 10/11 spusťte jednou <code>winrm quickconfig</code> jako správce. Jiné místní účty než vestavěný Administrator potřebují práva vzdálené správy (<code>LocalAccountTokenFilterPolicy</code>) — nebo použijte doménový účet. Starší systémy (Windows 7, Server 2008 R2/2012 R2) dostanou legacy MSI.</li>
+</ul>
+<p>Počítač stáhne nejnovější balíček agenta z konzole přes odkaz, který platí jen pro tuto instalaci (30 minut, tři stažení), ověří jeho kontrolní součet SHA-256, nainstaluje ho a zaregistruje se. Stránka instalace ukazuje každý krok; účet a heslo se použijí jen k tomu a neukládají se. Pokud je počítač u této konzole už registrován, registrace se zachová a balíček se aktualizuje; registrace, kterou konzole nezná (dříve odebraný agent nebo jiná konzole), se nahradí. Každá instalace je v protokolu auditu. Počítač musí dosáhnout na adresu konzole pro agenty, jako každý agent.</p>
+
+<h2>Stav agenta</h2>
+<ul>
+  <li><b>online</b> — agent kontaktoval konzoli během posledních 3 minut.</li>
+  <li><b>offline</b> — počítač je vypnutý, služba zastavená nebo síť blokovaná. Plánované zálohy se zařadí do fronty a spustí se, jakmile se agent vrátí.</li>
+  <li><b>obnova</b> — počítač spuštěný z ISO pro obnovu (Windows nebo Linux), připravený přijmout obnovu obrazu disku nebo systému Linux. Agenti obnovy jsou dočasní; po dokončení obnovy je odeberte.</li>
+</ul>
+<p>Sloupec <b>IP adresy</b> uvádí vlastní adresy počítače, jak je agent naposledy nahlásil. <i>viděn z</i> je adresa, ze které přicházejí jeho spojení: v místní síti stejná adresa, u počítače za NAT (např. notebooku doma) veřejná adresa routeru. Konzole se kvůli tomu neptá žádné externí služby.</p>
+
+<h2>Agent na ploše (Windows)</h2>
+<p>Agent pro Windows zobrazuje ikonu vedle hodin (může být pod šipkou <b>^</b> skrytých ikon — přetáhněte ji na hlavní panel, aby zůstala vidět). Tečka na ikoně ukazuje stav:</p>
+<table>
+  <tr><th>Tečka</th><th>Význam</th></tr>
+  <tr><td>zelená</td><td>Zálohy jsou v pořádku (nebo čekají na první plánovanou zálohu).</td></tr>
+  <tr><td>modrá</td><td>Probíhá záloha, obnova nebo test obnovy.</td></tr>
+  <tr><td>oranžová</td><td>Poslední záloha skončila s varováními (soubory, které nešlo přečíst).</td></tr>
+  <tr><td>červená</td><td>Úloha zálohování selhala.</td></tr>
+  <tr><td>šedá</td><td>Konzole není dostupná nebo služba agenta neběží.</td></tr>
+</table>
+<p>Klikněte na ikonu (nebo otevřete <b>BackupZit Agent</b> z nabídky Start) pro okno stavu: stav ochrany, průběh běžící zálohy, poslední a příští záloha a všechny úlohy zálohování počítače s tlačítkem <b>Zálohovat nyní</b>. Pravé tlačítko otevře nabídku: <i>Back up now</i> pro každou úlohu, <i>Open console in browser</i>, <i>Hide this icon</i> (do příštího přihlášení; zálohy pokračují). Okno potřebuje Microsoft Edge WebView2, který je součástí Windows 10 a 11; na starších systémech ikona a nabídka fungují a <i>Open</i> zobrazí konzoli v prohlížeči.</p>
+<p>Uživatelé tak mohou spustit zálohu svého počítače; úlohy, plány a uchovávání se nastavují jen v konzoli. Na každém systému vypíše <code>backupzit-agent status</code> (jako správce nebo root) stejné informace.</p>
+
+<h2>Aktualizace</h2>
+<p>Když má konzole novější instalátor agenta, než na jakém agent běží, stránka Agenti zobrazí <b>Aktualizovat na x.y.z</b> vedle jeho verze a <b>Aktualizovat všechny agenty</b> pod seznamem. Agent pak:</p>
+<ol>
+  <li>počká, až bude nečinný (běžící záloha se nikdy nepřeruší),</li>
+  <li>stáhne odpovídající instalátor z konzole přes své připnuté spojení — MSI pro Windows 10/11/2016+, MSI <i>starší systémy</i> pro Windows 7/2008 R2/2012 R2, balíček deb nebo rpm v Linuxu — a ověří jeho SHA-256,</li>
+  <li>nainstaluje ho a restartuje se; nová verze se objeví v seznamu během několika minut. Registrace i všechna nastavení se zachovají.</li>
+</ol>
+<p>Konzole nabízí nejnovější instalátory ze svého adresáře <code>dist</code>; balíček serveru obsahuje instalátory agentů své vlastní verze. Po aktualizaci konzole v <a href="/settings/updates">Nastavení → Aktualizace</a> se agenti aktualizují automaticky (lze tam vypnout). Aktualizace z konzole fungují pro agenty od verze 0.21; starší agenti se jednou aktualizují instalací novějšího MSI / balíčku přes starý (registrace se zachová). Protokol instalátoru je v <code>C:\ProgramData\backupzit\updates</code> nebo <code>/var/tmp/backupzit-updates</code>.</p>
+
+<h2>Odebrání agenta</h2>
+<p><b>Odebrat</b> na stránce Agenti smaže agenta a jeho úlohy z konzole. Se zapnutým <a href="/docs/users">schválením čtyř očí</a> to musí nejprve schválit druhý uživatel. Zálohy na úložišti se <b>nemažou</b>. Software na počítači odinstalujte zvlášť.</p>
+
+<h2 id="duplicate">Dva počítače používající jednoho agenta</h2>
+<p>Kopie registrovaného počítače si s sebou nese svého agenta a registraci: VM obnovená jako nová VM, <a href="/docs/proxmox">okamžitá obnova</a>, spuštěná replika, klonovaný disk nebo šablona. Když kopie běží vedle originálu, oba se připojují jako tentýž agent. Konzole si toho všimne během minuty či dvou a poté:</p>
+<ul>
+  <li>zobrazí <b>dva počítače</b> s oběma názvy a adresami na stránce Agenti a agenta v části <b>Vyžaduje pozornost</b> na řídicím panelu;</li>
+  <li><b>pozdrží</b> zálohy a obnovy agenta, aby nic neběželo na špatném počítači (obnova na původní místo by jinak mohla přepsat kopii místo originálu);</li>
+  <li>jednou pošle e-mail správcům a zapíše záznam <code>agent.duplicate</code> do protokolu auditu.</li>
+</ul>
+<p>Zastavte kopii nebo — pokud má zůstat — ji na kopii zaregistrujte jako nový počítač: <code>backupzit-agent enroll --force --code "BZ1-..."</code> (kód ze stránky Agenti). Pozdržené běhy se spustí pár minut poté, co zůstane jen jeden počítač. Obnova systému Linux pomocí <a href="/docs/linux-system">Obnovit celý systém</a> už v obnovené kopii agenta odregistruje a testy obnovy spouštějí své VM bez sítě, takže ani jedno to nezpůsobí.</p>
+
+<h2 id="new-address">Když konzole dostane novou adresu</h2>
+<p>Agenti důvěřují konzoli podle jejího certifikátu, který zůstává stejný i při změně IP adresy nebo názvu, ale připojují se k adrese, se kterou byli zaregistrováni. Po změně spusťte na každém počítači s agentem (jako správce / root):</p>
+<pre>backupzit-agent set-server https://192.168.1.20:8443</pre>
+<p>Příkaz ověří, že konzole na nové adrese odpovídá se stejným certifikátem, uloží ji a agent ji použije po restartu své služby (<code>systemctl restart backupzit-agent</code>, nebo ve Windows restartujte službu <i>BackupZit Agent</i>). Použití názvu DNS pro konzoli od začátku tento krok ušetří.</p>
+
+<h2>Kde agent uchovává konfiguraci</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (přístupné jen pro SYSTEM a Administrators).</li>
+  <li>Linux: <code>/etc/backupzit/agent.json</code> (jen root).</li>
+</ul>
+<p>Soubor obsahuje tajný údaj agenta. Kdo ho může číst, může vystupovat jako tento agent, proto tato oprávnění zachovejte.</p>
+
+<h2>Protokol agenta</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
+  <li>Linux: <code>/etc/backupzit/agent.log</code> a <code>journalctl -u backupzit-agent</code></li>
+  <li>Systémy pro obnovu vypisují protokol na obrazovku.</li>
+</ul>
+
+<h2>Odinstalace</h2>
+<p>Windows: <i>Nastavení → Aplikace → BackupZit Agent → Odinstalovat</i> (nebo <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Pak agenta odeberte v konzoli. Zálohy zůstanou na úložišti.</p>
+<p>Ve Windows odinstalace odloží registraci stranou (<code>C:\ProgramData\backupzit\agent.json.removed-<i>datum</i></code>), takže nová instalace agenta požádá o registrační kód. Pokud instalátor najde registraci starší verze, oznámí to: nechte kód prázdný, chcete-li ji zachovat, nebo vložte nový kód a počítač znovu zaregistrujte (například u jiné konzole).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

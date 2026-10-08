@@ -1,0 +1,103 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Aracılar</h1>
+<p class="lead">Korunan her makineye bir aracı kurulur. Hizmet olarak çalışır, her 30 saniyede konsoldan iş ister ve depolamayla doğrudan konuşur.</p>
+
+<h2>Desteklenen sistemler</h2>
+<ul>
+  <li>Windows 10, 11 ve Windows Server 2016 ve sonrası — <b>Windows aracısı</b> MSI.</li>
+  <li>Windows 7 SP1, Windows Server 2008 R2 SP1 ve 2012 R2 — <b>Windows aracısı — eski sistemler</b> MSI (<code>…-legacy.msi</code>), VSS ve disk görüntüleri dahil aynı özelliklerle.</li>
+  <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64 bit).</li>
+  <li>Proxmox VE 7 ve 8 düğümleri — Debian paketi; aracı bu durumda düğümün VM'lerini ve kapsayıcılarını da yedekler (bkz. <a href="/docs/proxmox">Proxmox VE</a>).</li>
+  <li>Hyper-V ana bilgisayarları (Windows Server 2016 ve sonrası, Hyper-V'li Windows 10/11): Windows MSI. Aracı bu durumda ana bilgisayarın VM'lerini de yedekler (bkz. <a href="/docs/hyperv">Hyper-V</a>).</li>
+  <li>VMware ESXi ana bilgisayarları — ESXi'ye hiçbir şey kurulmaz: ana bilgisayarı <a href="/agents#vmware">VMware ESXi ana bilgisayarları</a> altında ekleyin ve proxy olarak bir aracı seçin (bkz. <a href="/docs/vmware">VMware ESXi</a>).</li>
+</ul>
+
+<h2>Aracıları kaydetme</h2>
+<ol>
+  <li><a href="/agents">Aracılar</a> sayfasında <b>Kayıt belirteci oluştur</b>'a tıklayın. Konsol 7 gün geçerli ve istenen sayıda makinede kullanılabilen bir <b>kayıt kodu</b> (<code>BZ1-…</code>) gösterir. Kod, aracılar için konsol adresini (sayfa web bağlantı noktası 443'te açık olsa bile aracı bağlantı noktasıyla, genellikle 8443), belirteci ve sertifika parmak izini içerir. 0.33.6'dan itibaren aracılar, eski konsolların web bağlantı noktasında oluşturduğu kodlarla da kaydolur.</li>
+  <li>Windows: MSI'yi çalıştırın ve yükleyici istediğinde kodu yapıştırın. Linux: gösterilen komutu çalıştırın.</li>
+  <li>Makine bir dakika içinde aracı listesinde görünür.</li>
+</ol>
+<p>Kurulum sırasında konsola ulaşılamazsa aracı kodu saklar ve kaydolabilene kadar yeniden dener. Yükseltmeler kaydı korur ve yeniden sormaz. Zaten kayıtlı bir makinede <code>ENROLLCODE</code> ile sessiz kurulum, kod aynı konsol içinse kaydı korur (GPO veya RMM bunu güvenle tekrarlayabilir), kod başka bir konsol içinse makineyi taşır; önceki kayıt <code>agent.json</code> yanında <code>agent.json.replaced-<i>tarih</i></code> olarak saklanır, böylece adını geri değiştirmek makineyi aynı aracı olarak eski konsoluna döndürür.</p>
+<h3>Windows, sessiz (GPO, Intune, RMM)</h3>
+<pre>msiexec /i backupzit-agent.msi /qn ENROLLCODE="BZ1-..."</pre>
+<p>Eski biçim <code>SERVER="..." TOKEN="..." FINGERPRINT="SHA256:..."</code> hâlâ çalışır. Bu özellikler olmadan yapılan sessiz kurulum hizmeti kurar; hizmet, bir yönetici komut isteminde <code>backupzit-agent enroll --code "BZ1-..."</code> ile kaydedene kadar bekler.</p>
+<h3>Linux</h3>
+<pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre>
+
+<h2>Aracıları konsoldan kurma</h2>
+<p>Yükleyicileri her makineye kopyalamak yerine aracıyı konsola kurdurun: <a href="/agents">Aracılar</a> sayfasında <b>Buradan bir makineye kur</b>'u açın, Linux veya Windows'u seçin ve makinenin adresini ve bir yönetici hesabını girin.</p>
+<ul>
+  <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64 bit): konsol <b>SSH</b> üzerinden root olarak veya <code>sudo</code> haklarına sahip bir kullanıcı olarak bağlanır (parola sudo için de kullanılır; anahtarla parolasız sudo gerekir). Parola veya özel anahtar çalışır. Konsolun doğru makineyle konuştuğundan emin olmak için makinenin <b>SSH ana bilgisayar anahtarı parmak izini</b> girin (makinede <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>); girilmezse parmak izi kurulum günlüğünde gösterilir.</li>
+  <li><b>Windows</b> (64 bit): konsol <b>WinRM</b> üzerinden (bağlantı noktası 5985, iletiler NTLM ile şifreli; HTTPS dinleyicisi için 5986) yerel veya etki alanı yöneticisi olarak bağlanır. WinRM, Windows Server'da varsayılan olarak açıktır; Windows 10/11'de bir kez yönetici olarak <code>winrm quickconfig</code> çalıştırın. Yerleşik Administrator dışındaki yerel hesaplar uzaktan yönetici haklarına (<code>LocalAccountTokenFilterPolicy</code>) ihtiyaç duyar — ya da bir etki alanı hesabı kullanın. Eski sistemler (Windows 7, Server 2008 R2/2012 R2) eski MSI'yi alır.</li>
+</ul>
+<p>Makine en yeni aracı paketini konsoldan yalnızca bu kurulum için geçerli bir bağlantıyla (30 dakika, üç indirme) indirir, SHA-256 sağlama toplamını denetler, kurar ve kaydolur. Kurulum sayfası her adımı gösterir; hesap ve parola yalnızca bunun için kullanılır ve saklanmaz. Makine bu konsola zaten kayıtlıysa kayıt korunur ve paket güncellenir; konsolun tanımadığı bir kayıt (daha önce kaldırılmış bir aracı veya başka bir konsol) değiştirilir. Her kurulum denetim günlüğündedir. Makine, her aracı gibi konsolun aracı adresine ulaşabilmelidir.</p>
+
+<h2>Aracı durumu</h2>
+<ul>
+  <li><b>online</b> — aracı son 3 dakika içinde konsolla iletişim kurdu.</li>
+  <li><b>offline</b> — makine kapalı, hizmet durdurulmuş veya ağ engellenmiş. Zamanlanmış yedekler kuyruğa alınır ve aracı geri gelir gelmez başlar.</li>
+  <li><b>kurtarma</b> — bir kurtarma ISO'sundan (Windows veya Linux) başlatılmış, disk görüntüsü veya Linux sistemi geri yüklemesi almaya hazır bir makine. Kurtarma aracıları geçicidir; geri yükleme bitince kaldırın.</li>
+</ul>
+<p><b>IP adresleri</b> sütunu, makinenin kendi adreslerini aracının en son bildirdiği şekilde listeler. <i>görülen adres:</i> bağlantılarının geldiği adrestir: yerel ağda aynı adres, NAT arkasındaki bir makinede (ör. evdeki bir dizüstü) yönlendiricinin genel adresi. Konsol bunun için hiçbir dış hizmete sormaz.</p>
+
+<h2>Masaüstündeki aracı (Windows)</h2>
+<p>Windows aracısı saatin yanında bir simge gösterir (gizli simgelerin <b>^</b> okunun altında olabilir — görünür kalması için görev çubuğuna sürükleyin). Simgedeki nokta durumu gösterir:</p>
+<table>
+  <tr><th>Nokta</th><th>Anlamı</th></tr>
+  <tr><td>yeşil</td><td>Yedekler sorunsuz (veya ilk zamanlanmış yedeği bekliyor).</td></tr>
+  <tr><td>mavi</td><td>Bir yedekleme, geri yükleme veya geri yükleme testi çalışıyor.</td></tr>
+  <tr><td>turuncu</td><td>Son yedek uyarılarla bitti (okunamayan dosyalar).</td></tr>
+  <tr><td>kırmızı</td><td>Bir yedekleme işi başarısız oldu.</td></tr>
+  <tr><td>gri</td><td>Konsola ulaşılamıyor veya aracı hizmeti çalışmıyor.</td></tr>
+</table>
+<p>Durum penceresi için simgeye tıklayın (veya Başlat menüsünden <b>BackupZit Agent</b>'ı açın): koruma durumu, çalışan bir yedeğin ilerlemesi, son ve sonraki yedek ve bilgisayarın tüm yedekleme işleri <b>Şimdi yedekle</b> ile. Sağ tıklama menüyü açar: iş başına <i>Back up now</i>, <i>Open console in browser</i>, <i>Hide this icon</i> (bir sonraki oturum açmaya kadar; yedekler sürer). Pencere, Windows 10 ve 11'in parçası olan Microsoft Edge WebView2'ye ihtiyaç duyar; eski sistemlerde simge ve menü çalışır ve <i>Open</i> konsolu tarayıcıda gösterir.</p>
+<p>Kullanıcılar böylece bilgisayarlarının yedeğini başlatabilir; işler, zamanlamalar ve saklama yalnızca konsolda ayarlanır. Her sistemde <code>backupzit-agent status</code> (yönetici veya root olarak) aynı bilgileri yazdırır.</p>
+
+<h2>Yükseltme</h2>
+<p>Konsolda bir aracının çalıştırdığından daha yeni bir aracı yükleyicisi varsa, Aracılar sayfası sürümünün yanında <b>Şuna güncelle: x.y.z</b> ve listenin altında <b>Tüm aracıları güncelle</b> gösterir. Aracı bu durumda:</p>
+<ol>
+  <li>boşta kalana kadar bekler (çalışan bir yedek asla kesilmez),</li>
+  <li>uygun yükleyiciyi sabitlenmiş bağlantısı üzerinden konsoldan indirir — Windows 10/11/2016+ için MSI, Windows 7/2008 R2/2012 R2 için <i>eski sistemler</i> MSI'si, Linux'ta deb veya rpm paketi — ve SHA-256'sını denetler,</li>
+  <li>kurar ve yeniden başlar; yeni sürüm birkaç dakika içinde listede görünür. Kayıt ve tüm ayarlar korunur.</li>
+</ol>
+<p>Konsol, <code>dist</code> dizinindeki en yeni yükleyicileri sunar; sunucu paketi kendi sürümünün aracı yükleyicilerini içerir. Konsol <a href="/settings/updates">Ayarlar → Güncellemeler</a> üzerinden güncellendikten sonra aracılar otomatik olarak güncellenir (orada kapatılabilir). Konsoldan güncellemeler 0.21 ve sonraki sürüm aracılar için çalışır; daha eski aracılar, yeni MSI / paket eskisinin üzerine kurularak bir kez güncellenir (kayıt korunur). Yükleyici günlüğü <code>C:\ProgramData\backupzit\updates</code> veya <code>/var/tmp/backupzit-updates</code> içindedir.</p>
+
+<h2>Bir aracıyı kaldırma</h2>
+<p>Aracılar sayfasındaki <b>Kaldır</b>, aracıyı ve işlerini konsoldan siler. <a href="/docs/users">Dört göz onayı</a> açıkken önce ikinci bir kullanıcının onaylaması gerekir. Depolamadaki yedekler <b>silinmez</b>. Makinedeki yazılımı ayrıca kaldırın.</p>
+
+<h2 id="duplicate">Tek bir aracıyı kullanan iki makine</h2>
+<p>Kayıtlı bir makinenin kopyası aracısını ve kaydını da taşır: yeni VM olarak geri yüklenmiş bir VM, bir <a href="/docs/proxmox">anında kurtarma</a>, başlatılmış bir replika, klonlanmış bir disk veya şablon. Kopya özgün makinenin yanında çalıştığında, ikisi de aynı aracı olarak bağlanır. Konsol bunu bir iki dakika içinde fark eder ve ardından:</p>
+<ul>
+  <li>Aracılar sayfasında her iki ad ve adresle <b>iki makine</b> gösterir ve aracıyı panoda <b>İlgi gerekiyor</b> altında listeler;</li>
+  <li>aracının yedeklemelerini ve geri yüklemelerini <b>bekletir</b>, böylece hiçbir şey yanlış makinede çalışmaz (aksi halde özgün konuma geri yükleme özgün makine yerine kopyanın üzerine yazabilir);</li>
+  <li>yöneticilere bir kez e-posta gönderir ve denetim günlüğüne bir <code>agent.duplicate</code> kaydı yazar.</li>
+</ul>
+<p>Kopyayı durdurun veya — kalması gerekiyorsa — kopyada yeni bir makine olarak kaydedin: <code>backupzit-agent enroll --force --code "BZ1-..."</code> (kod Aracılar sayfasından). Bekletilen çalıştırmalar, yalnızca bir makine kaldıktan birkaç dakika sonra başlar. Bir Linux sistemini <a href="/docs/linux-system">Tüm sistemi geri yükle</a> ile geri yüklemek, geri yüklenen kopyadaki aracının kaydını zaten siler; geri yükleme testleri de VM'lerini ağsız başlatır, bu yüzden ikisi de buna yol açmaz.</p>
+
+<h2 id="new-address">Konsol yeni bir adres aldığında</h2>
+<p>Aracılar konsola, IP adresi veya adı değiştiğinde aynı kalan sertifikası sayesinde güvenir, ancak kaydedildikleri adrese bağlanırlar. Bir değişiklikten sonra her aracı makinesinde (yönetici / root olarak) çalıştırın:</p>
+<pre>backupzit-agent set-server https://192.168.1.20:8443</pre>
+<p>Komut, konsolun yeni adreste aynı sertifikayla yanıt verdiğini denetler, adresi kaydeder ve aracı, hizmeti yeniden başlatıldıktan sonra onu kullanır (<code>systemctl restart backupzit-agent</code> veya Windows'ta <i>BackupZit Agent</i> hizmetini yeniden başlatın). Konsol için baştan bir DNS adı kullanmak bu adımı gereksiz kılar.</p>
+
+<h2>Aracı yapılandırmasını nerede tutar</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (yalnızca SYSTEM ve Administrators erişebilir).</li>
+  <li>Linux: <code>/etc/backupzit/agent.json</code> (yalnızca root).</li>
+</ul>
+<p>Dosya aracının gizli bilgisini içerir. Onu okuyabilen herkes o aracı gibi davranabilir; bu nedenle bu izinleri koruyun.</p>
+
+<h2>Aracı günlüğü</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
+  <li>Linux: <code>/etc/backupzit/agent.log</code> ve <code>journalctl -u backupzit-agent</code></li>
+  <li>Kurtarma sistemleri günlüğü ekranlarında gösterir.</li>
+</ul>
+
+<h2>Kaldırma</h2>
+<p>Windows: <i>Ayarlar → Uygulamalar → BackupZit Agent → Kaldır</i> (veya <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Ardından aracıyı konsoldan kaldırın. Yedekler depolamada kalır.</p>
+<p>Windows'ta kaldırma işlemi kaydı bir kenara koyar (<code>C:\ProgramData\backupzit\agent.json.removed-<i>tarih</i></code>), bu yüzden aracıyı yeniden kurmak bir kayıt kodu ister. Yükleyici önceki bir sürümün kaydını bulursa bunu söyler: korumak için kodu boş bırakın veya bilgisayarı yeniden kaydetmek için yeni bir kod yapıştırın (örneğin başka bir konsolla).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

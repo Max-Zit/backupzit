@@ -1,9 +1,9 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Komut satırı başvurusu</h1>
-<p class="lead">Ajan komut satırından tek başına da çalışır — betikler için, konsol olmadan geri yükleme için ve acil durumlar için. Genel bakış için <code>backupzit-agent</code> komutunu argümansız, bir komutun seçenekleri için <code>backupzit-agent &lt;command&gt; -h</code> komutunu çalıştırın.</p>
+<p class="lead">Aracı komut satırından tek başına da çalışır — betikler için, konsol olmadan geri yükleme için ve acil durumlar için. Genel bakış için <code>backupzit-agent</code> komutunu argümansız, bir komutun seçenekleri için <code>backupzit-agent &lt;command&gt; -h</code> komutunu çalıştırın.</p>
 
 <h2>Depo ve kimlik bilgileri</h2>
-<p>Her komut <code>--repo</code> (veya <code>BACKUPZIT_REPO</code>) alır. Gizli bilgiler için ortam değişkenlerini tercih edin. Bir ajanın deposu <code>&lt;depolama konumu&gt;/&lt;hostname&gt;_&lt;id&gt;</code> şeklindedir — Etkinlik'te bir çalıştırmanın depo sütununa veya kurtarma sayfasına bakın.</p>
+<p>Her komut <code>--repo</code> (veya <code>BACKUPZIT_REPO</code>) alır. Gizli bilgiler için ortam değişkenlerini tercih edin. Bir aracının deposu <code>&lt;depolama konumu&gt;/&lt;hostname&gt;_&lt;id&gt;</code> şeklindedir — Etkinlik'te bir çalıştırmanın depo sütununa veya kurtarma sayfasına bakın.</p>
 <table>
   <tr><th>Konum</th><th>Kimlik bilgileri</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -51,7 +51,7 @@
   <tr><td><code>prepare-hardware --disk N [--drivers DIR]</code></td><td>Geri yüklenmiş bir Windows diskini farklı donanıma hazırlar (önyükleme sürücüleri, ek sürücüler, önyükleme dosyaları) — geri yükleme seçeneğiyle aynıdır, ör. kurtarma ISO'sundan yinelemek için.</td></tr>
 </table>
 
-<h2>VMware ESXi (herhangi bir ajan proxy olarak; parola <code>BACKUPZIT_VMWARE_PASSWORD</code> içinde)</h2>
+<h2>VMware ESXi (herhangi bir aracı proxy olarak; parola <code>BACKUPZIT_VMWARE_PASSWORD</code> içinde)</h2>
 <table>
   <tr><th>Komut</th><th>Ne yapar</th></tr>
   <tr><td><code>vmware list --host H [--user root]</code></td><td>Ana bilgisayarın VM'lerini, lisans modunu, sertifika ve SSH anahtarı parmak izlerini ve veri depolarını gösterir.</td></tr>
@@ -61,7 +61,7 @@
 </table>
 <p>Ana bilgisayarı <code>--thumbprint SHA256:…</code> ve <code>--ssh-host-key SHA256:…</code> ile sabitleyin (<code>vmware list</code> gösterir).</p>
 
-<h2>Hyper-V (Hyper-V ana bilgisayarındaki ajan, yönetici olarak)</h2>
+<h2>Hyper-V (Hyper-V ana bilgisayarındaki aracı, yönetici olarak)</h2>
 <table>
   <tr><th>Komut</th><th>Ne yapar</th></tr>
   <tr><td><code>hyperv list</code></td><td>Ana bilgisayarın VM'lerini BackupZit numaralarıyla ve geri yüklenen diskler için klasörleri listeler.</td></tr>
@@ -70,7 +70,7 @@
 </table>
 <p><code>pve show</code>, <code>pve ls</code> ve <code>pve extract</code> Hyper-V yedekleriyle de çalışır.</p>
 
-<h2>Proxmox VE (Proxmox ana bilgisayarındaki ajan)</h2>
+<h2>Proxmox VE (Proxmox ana bilgisayarındaki aracı)</h2>
 <table>
   <tr><th>Komut</th><th>Ne yapar</th></tr>
   <tr><td><code>pve list</code></td><td>Kümenin VM'lerini ve kapsayıcılarını ve geri yükleme için kullanılabilen depolamayı listeler.</td></tr>
@@ -85,7 +85,7 @@
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Bir yedekteki VM'nin disklerini bir Unix soketinde NBD üzerinden salt okunur sunar (anında kurtarma tarafından systemd birimi olarak başlatılır).</td></tr>
 </table>
 
-<h2>Microsoft SQL Server (SQL Server makinesindeki ajan)</h2>
+<h2>Microsoft SQL Server (SQL Server makinesindeki aracı)</h2>
 <table>
   <tr><th>Komut</th><th>Ne yapar</th></tr>
   <tr><td><code>sql list [--instance I]</code></td><td>Bir örneğin veritabanlarını kurtarma modeli ve boyutla listeler.</td></tr>
@@ -94,7 +94,7 @@
   <tr><td><code>sql restore --db NAME [--as NEW] [--replace] [--at TIME] SNAPSHOT|latest</code></td><td>Bir veritabanını tam yedekten ve sonrasındaki günlük yedeklerinden, isteğe bağlı olarak belirli bir ana geri yükler. Bkz. <a href="/docs/sql">SQL Server</a>.</td></tr>
 </table>
 
-<h2>PostgreSQL ve MySQL/MariaDB (veritabanı sunucusundaki ajan)</h2>
+<h2>PostgreSQL ve MySQL/MariaDB (veritabanı sunucusundaki aracı)</h2>
 <table>
   <tr><th>Komut</th><th>Ne yapar</th></tr>
   <tr><td><code>pg list [--port P]</code></td><td>Yerel kümenin veritabanları ve WAL arşivlemenin açık olup olmadığı.</td></tr>
@@ -108,10 +108,10 @@
 <h2>Yönetilen mod</h2>
 <table>
   <tr><th>Komut</th><th>Ne yapar</th></tr>
-  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Ajanı Ajanlar sayfasındaki kayıt koduyla bir konsola bağlar (<code>--force</code> mevcut kaydı değiştirir). Eski biçim <code>--server URL --token T --fingerprint F</code> hâlâ çalışır.</td></tr>
-  <tr><td><code>set-server https://address:8443</code></td><td>Kayıtlı bir ajanı konsolun yeni adresine yönlendirir (aynı sertifika); ardından ajan hizmetini yeniden başlatın. Bkz. <a href="/docs/agents#new-address">Ajanlar</a>.</td></tr>
-  <tr><td><code>status</code></td><td>Çalışan ajanın ne yaptığını ve yedekleme işlerini gösterir (Windows tepsi simgesi de aynısını gösterir).</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Ajan hizmetini yönetir (yükleyiciler bunu yapar).</td></tr>
+  <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Aracıyı Aracılar sayfasındaki kayıt koduyla bir konsola bağlar (<code>--force</code> mevcut kaydı değiştirir). Eski biçim <code>--server URL --token T --fingerprint F</code> hâlâ çalışır.</td></tr>
+  <tr><td><code>set-server https://address:8443</code></td><td>Kayıtlı bir aracıyı konsolun yeni adresine yönlendirir (aynı sertifika); ardından aracı hizmetini yeniden başlatın. Bkz. <a href="/docs/agents#new-address">Aracılar</a>.</td></tr>
+  <tr><td><code>status</code></td><td>Çalışan aracının ne yaptığını ve yedekleme işlerini gösterir (Windows tepsi simgesi de aynısını gösterir).</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Aracı hizmetini yönetir (yükleyiciler bunu yapar).</td></tr>
   <tr><td><code>recovery</code></td><td>Kurtarma modu, kurtarma ISO'ları tarafından otomatik başlatılır; herhangi bir canlı Linux sisteminde: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Sürümü yazdırır.</td></tr>
 </table>
@@ -145,8 +145,8 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><th>Seçenek / ortam</th><th>Anlamı</th></tr>
   <tr><td><code>--db</code> / <code>BACKUPZIT_DB</code></td><td>PostgreSQL bağlantı dizesi (zorunlu).</td></tr>
   <tr><td><code>--listen</code> / <code>BACKUPZIT_LISTEN</code></td><td>HTTPS adresi, varsayılan <code>:8443</code>.</td></tr>
-  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>Sertifika, <code>secrets.key</code>, ajan indirmeleri (<code>dist/</code>).</td></tr>
-  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>Ajanların ve e-posta bağlantılarının kullandığı URL.</td></tr>
+  <tr><td><code>--data-dir</code> / <code>BACKUPZIT_DATA_DIR</code></td><td>Sertifika, <code>secrets.key</code>, aracı indirmeleri (<code>dist/</code>).</td></tr>
+  <tr><td><code>--public-url</code> / <code>BACKUPZIT_PUBLIC_URL</code></td><td>Aracıların ve e-posta bağlantılarının kullandığı URL.</td></tr>
   <tr><td><code>--tls-hosts</code> / <code>BACKUPZIT_TLS_HOSTS</code></td><td>Kendinden imzalı sertifika için ek adlar/IP'ler.</td></tr>
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>İlk yönetici parolası (yalnızca ilk başlatmada).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td><code>secrets.key</code> dosyası yerine gizli bilgi anahtarı (base64).</td></tr>

@@ -1,0 +1,103 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Agenti</h1>
+<p class="lead">Su ogni macchina protetta viene installato un agente. Funziona come servizio, chiede lavoro alla console ogni 30 secondi e comunica direttamente con lo storage.</p>
+
+<h2>Sistemi supportati</h2>
+<ul>
+  <li>Windows 10, 11 e Windows Server 2016 e successivi — MSI <b>Agente Windows</b>.</li>
+  <li>Windows 7 SP1, Windows Server 2008 R2 SP1 e 2012 R2 — MSI <b>Agente Windows — sistemi meno recenti</b> (<code>…-legacy.msi</code>), con le stesse funzioni, inclusi VSS e immagini disco.</li>
+  <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64 bit).</li>
+  <li>Nodi Proxmox VE 7 e 8 — il pacchetto Debian; l'agente esegue allora anche il backup delle VM e dei container del nodo (vedete <a href="/docs/proxmox">Proxmox VE</a>).</li>
+  <li>Host Hyper-V (Windows Server 2016 e successivi, Windows 10/11 con Hyper-V): l'MSI Windows. L'agente esegue allora anche il backup delle VM dell'host (vedete <a href="/docs/hyperv">Hyper-V</a>).</li>
+  <li>Host VMware ESXi — su ESXi non si installa nulla: aggiungete l'host in <a href="/agents#vmware">Host VMware ESXi</a> e scegliete un agente come proxy (vedete <a href="/docs/vmware">VMware ESXi</a>).</li>
+</ul>
+
+<h2>Registrare gli agenti</h2>
+<ol>
+  <li>Nella pagina <a href="/agents">Agenti</a> fate clic su <b>Crea token di registrazione</b>. La console mostra un <b>codice di registrazione</b> (<code>BZ1-…</code>), valido 7 giorni e utilizzabile per un numero qualsiasi di macchine. Contiene l'indirizzo della console per gli agenti (con la porta degli agenti, di solito 8443, anche quando la pagina è aperta sulla porta web 443), il token e l'impronta del certificato. Gli agenti dalla 0.33.6 si registrano anche con codici creati da console meno recenti sulla porta web.</li>
+  <li>Windows: eseguite l'MSI e incollate il codice quando l'installer lo chiede. Linux: eseguite il comando mostrato.</li>
+  <li>La macchina compare nell'elenco degli agenti entro un minuto.</li>
+</ol>
+<p>Se durante l'installazione la console non è raggiungibile, l'agente conserva il codice e riprova finché non riesce a registrarsi. Gli aggiornamenti mantengono la registrazione e non la richiedono di nuovo. Un'installazione silenziosa con <code>ENROLLCODE</code> su una macchina già registrata mantiene la registrazione quando il codice è per la stessa console (GPO o RMM possono ripeterla senza rischi), e sposta la macchina quando il codice è per un'altra console; la registrazione precedente viene conservata come <code>agent.json.replaced-<i>data</i></code> accanto a <code>agent.json</code>, quindi rinominandola la macchina torna alla vecchia console come lo stesso agente.</p>
+<h3>Windows, silenziosa (GPO, Intune, RMM)</h3>
+<pre>msiexec /i backupzit-agent.msi /qn ENROLLCODE="BZ1-..."</pre>
+<p>La forma precedente <code>SERVER="..." TOKEN="..." FINGERPRINT="SHA256:..."</code> funziona ancora. Un'installazione silenziosa senza queste proprietà configura il servizio, che attende finché non lo registrate con <code>backupzit-agent enroll --code "BZ1-..."</code> in un prompt da amministratore.</p>
+<h3>Linux</h3>
+<pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre>
+
+<h2>Installare gli agenti dalla console</h2>
+<p>Invece di copiare gli installer su ogni macchina, lasciate che sia la console a installare l'agente: in <a href="/agents">Agenti</a> aprite <b>Installa su una macchina da qui</b>, scegliete Linux o Windows e inserite l'indirizzo della macchina e un account amministratore.</p>
+<ul>
+  <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64 bit): la console si connette via <b>SSH</b> come root, o come utente con diritti <code>sudo</code> (la password viene usata anche per sudo; con una chiave serve sudo senza password). Funzionano sia una password sia una chiave privata. Inserite l'<b>impronta della chiave host SSH</b> della macchina (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> sulla macchina) per essere certi che la console parli con la macchina giusta; senza di essa, l'impronta viene mostrata nel log di installazione.</li>
+  <li><b>Windows</b> (64 bit): la console si connette via <b>WinRM</b> (porta 5985, messaggi cifrati con NTLM; 5986 per un listener HTTPS) come amministratore locale o di dominio. WinRM è attivo per impostazione predefinita su Windows Server; su Windows 10/11 eseguite una volta <code>winrm quickconfig</code> come amministratore. Gli account locali diversi dall'Administrator predefinito hanno bisogno dei diritti di amministrazione remota (<code>LocalAccountTokenFilterPolicy</code>), oppure usate un account di dominio. I sistemi meno recenti (Windows 7, Server 2008 R2/2012 R2) ricevono l'MSI legacy.</li>
+</ul>
+<p>La macchina scarica il pacchetto dell'agente più recente dalla console tramite un link valido solo per questa installazione (30 minuti, tre download), ne verifica il checksum SHA-256, lo installa e si registra. La pagina di installazione mostra ogni passaggio; account e password vengono usati solo per questo e non vengono salvati. Se la macchina è già registrata con questa console, la registrazione viene mantenuta e il pacchetto aggiornato; una registrazione che la console non conosce (un agente rimosso in precedenza, o un'altra console) viene sostituita. Ogni installazione compare nel log di audit. La macchina deve raggiungere l'indirizzo agenti della console, come qualsiasi agente.</p>
+
+<h2>Stato dell'agente</h2>
+<ul>
+  <li><b>online</b> — l'agente ha contattato la console negli ultimi 3 minuti.</li>
+  <li><b>offline</b> — la macchina è spenta, il servizio è fermo o la rete è bloccata. I backup pianificati vengono messi in coda e partono appena l'agente torna.</li>
+  <li><b>ripristino</b> — una macchina avviata da una ISO di ripristino (Windows o Linux), pronta a ricevere il ripristino di un'immagine disco o di un sistema Linux. Gli agenti di ripristino sono temporanei; rimuoveteli quando il ripristino è terminato.</li>
+</ul>
+<p>La colonna <b>Indirizzi IP</b> elenca gli indirizzi propri della macchina come l'agente li ha comunicati l'ultima volta. <i>visto da</i> è l'indirizzo da cui arrivano le sue connessioni: in una rete locale lo stesso indirizzo, per una macchina dietro NAT (ad es. un portatile a casa) l'indirizzo pubblico del router. La console non interroga alcun servizio esterno per questo.</p>
+
+<h2>L'agente sul desktop (Windows)</h2>
+<p>L'agente Windows mostra un'icona accanto all'orologio (può trovarsi sotto la freccia <b>^</b> delle icone nascoste: trascinatela sulla barra delle applicazioni perché resti visibile). Il punto sull'icona indica lo stato:</p>
+<table>
+  <tr><th>Punto</th><th>Significato</th></tr>
+  <tr><td>verde</td><td>I backup sono a posto (o attendono il primo backup pianificato).</td></tr>
+  <tr><td>blu</td><td>È in corso un backup, un ripristino o un test di ripristino.</td></tr>
+  <tr><td>arancione</td><td>L'ultimo backup è terminato con avvisi (file che non è stato possibile leggere).</td></tr>
+  <tr><td>rosso</td><td>Un job di backup non è riuscito.</td></tr>
+  <tr><td>grigio</td><td>La console non è raggiungibile o il servizio dell'agente non è in esecuzione.</td></tr>
+</table>
+<p>Fate clic sull'icona (o aprite <b>BackupZit Agent</b> dal menu Start) per la finestra di stato: stato di protezione, avanzamento di un backup in corso, ultimo e prossimo backup e tutti i job di backup del computer con <b>Esegui backup ora</b>. Il clic destro apre il menu: <i>Back up now</i> per job, <i>Open console in browser</i>, <i>Hide this icon</i> (fino al prossimo accesso; i backup continuano). La finestra richiede Microsoft Edge WebView2, incluso in Windows 10 e 11; sui sistemi meno recenti icona e menu funzionano e <i>Open</i> mostra la console nel browser.</p>
+<p>Gli utenti possono così avviare un backup del proprio computer; job, pianificazioni e conservazione si impostano solo nella console. Su qualsiasi sistema, <code>backupzit-agent status</code> (come amministratore o root) mostra le stesse informazioni.</p>
+
+<h2>Aggiornamento</h2>
+<p>Quando la console ha un installer dell'agente più recente di quello in esecuzione su un agente, la pagina Agenti mostra <b>Aggiorna a x.y.z</b> accanto alla sua versione, e <b>Aggiorna tutti gli agenti</b> sotto l'elenco. L'agente allora:</p>
+<ol>
+  <li>attende di essere inattivo (un backup in corso non viene mai interrotto),</li>
+  <li>scarica l'installer corrispondente dalla console tramite la sua connessione fissata — l'MSI per Windows 10/11/2016+, l'MSI <i>sistemi meno recenti</i> per Windows 7/2008 R2/2012 R2, il pacchetto deb o rpm su Linux — e ne verifica lo SHA-256,</li>
+  <li>lo installa e si riavvia; la nuova versione compare nell'elenco entro pochi minuti. La registrazione e tutte le impostazioni vengono mantenute.</li>
+</ol>
+<p>La console offre gli installer più recenti nella sua directory <code>dist</code>; il pacchetto del server include gli installer degli agenti della propria versione. Dopo l'aggiornamento della console da <a href="/settings/updates">Impostazioni → Aggiornamenti</a>, gli agenti vengono aggiornati automaticamente (disattivabile lì). Gli aggiornamenti dalla console funzionano per gli agenti dalla versione 0.21; gli agenti più vecchi si aggiornano una volta installando l'MSI / pacchetto più recente sopra quello vecchio (la registrazione viene mantenuta). Il log dell'installer si trova in <code>C:\ProgramData\backupzit\updates</code> o <code>/var/tmp/backupzit-updates</code>.</p>
+
+<h2>Rimuovere un agente</h2>
+<p><b>Rimuovi</b> nella pagina Agenti elimina l'agente e i suoi job dalla console. Con l'<a href="/docs/users">approvazione a quattro occhi</a> attiva, un secondo utente deve prima approvare. I backup sullo storage <b>non</b> vengono eliminati. Disinstallate il software sulla macchina separatamente.</p>
+
+<h2 id="duplicate">Due macchine che usano un solo agente</h2>
+<p>Una copia di una macchina registrata porta con sé il suo agente e la registrazione: una VM ripristinata come nuova VM, un <a href="/docs/proxmox">ripristino istantaneo</a>, una replica avviata, un disco o un modello clonato. Quando la copia è in esecuzione accanto all'originale, entrambe si connettono come lo stesso agente. La console se ne accorge entro un paio di minuti e quindi:</p>
+<ul>
+  <li>mostra <b>due macchine</b> con entrambi i nomi e indirizzi nella pagina Agenti, e l'agente in <b>Richiede attenzione</b> nella dashboard;</li>
+  <li><b>trattiene</b> i backup e i ripristini dell'agente, così che nulla venga eseguito sulla macchina sbagliata (un ripristino nella posizione originale potrebbe altrimenti sovrascrivere la copia invece dell'originale);</li>
+  <li>invia una volta un'email agli amministratori e scrive una voce <code>agent.duplicate</code> nel log di audit.</li>
+</ul>
+<p>Fermate la copia oppure, se deve restare, registratela come nuova macchina sulla copia: <code>backupzit-agent enroll --force --code "BZ1-..."</code> (codice dalla pagina Agenti). Le esecuzioni trattenute partono pochi minuti dopo che resta una sola macchina. Il ripristino di un sistema Linux con <a href="/docs/linux-system">Ripristina l'intero sistema</a> annulla già la registrazione dell'agente nella copia ripristinata, e i test di ripristino avviano le loro VM senza rete, quindi nessuno dei due causa questa situazione.</p>
+
+<h2 id="new-address">Quando la console cambia indirizzo</h2>
+<p>Gli agenti si fidano della console tramite il suo certificato, che resta lo stesso quando cambiano l'indirizzo IP o il nome, ma si connettono all'indirizzo con cui sono stati registrati. Dopo una modifica, eseguite su ogni macchina con agente (come amministratore / root):</p>
+<pre>backupzit-agent set-server https://192.168.1.20:8443</pre>
+<p>Il comando verifica che la console risponda al nuovo indirizzo con lo stesso certificato, lo salva, e l'agente lo usa dopo un riavvio del suo servizio (<code>systemctl restart backupzit-agent</code>, o riavviate il servizio <i>BackupZit Agent</i> su Windows). Usare fin dall'inizio un nome DNS per la console evita questo passaggio.</p>
+
+<h2>Dove l'agente conserva la configurazione</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (accessibile solo a SYSTEM e Administrators).</li>
+  <li>Linux: <code>/etc/backupzit/agent.json</code> (solo root).</li>
+</ul>
+<p>Il file contiene il segreto dell'agente. Chiunque possa leggerlo può agire come quell'agente, quindi mantenete questi permessi.</p>
+
+<h2>Log dell'agente</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
+  <li>Linux: <code>/etc/backupzit/agent.log</code> e <code>journalctl -u backupzit-agent</code></li>
+  <li>I sistemi di ripristino mostrano il log sullo schermo.</li>
+</ul>
+
+<h2>Disinstallazione</h2>
+<p>Windows: <i>Impostazioni → App → BackupZit Agent → Disinstalla</i> (o <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Poi rimuovete l'agente nella console. I backup restano sullo storage.</p>
+<p>Su Windows la disinstallazione mette da parte la registrazione (<code>C:\ProgramData\backupzit\agent.json.removed-<i>data</i></code>), quindi reinstallando l'agente viene chiesto un codice di registrazione. Se l'installer trova una registrazione di una versione precedente, lo segnala: lasciate vuoto il codice per mantenerla, o incollate un nuovo codice per registrare di nuovo il computer (ad esempio con un'altra console).</p>
+{{template "docpager" .}}
+</article></div>{{end}}

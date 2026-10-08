@@ -1,0 +1,103 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Agents</h1>
+<p class="lead">Op elke beschermde machine wordt een agent geïnstalleerd. Hij draait als service, vraagt de console elke 30 seconden om werk en communiceert rechtstreeks met de opslag.</p>
+
+<h2>Ondersteunde systemen</h2>
+<ul>
+  <li>Windows 10, 11 en Windows Server 2016 en nieuwer — MSI <b>Windows-agent</b>.</li>
+  <li>Windows 7 SP1, Windows Server 2008 R2 SP1 en 2012 R2 — MSI <b>Windows-agent — oudere systemen</b> (<code>…-legacy.msi</code>), met dezelfde functies inclusief VSS en schijfimages.</li>
+  <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bit).</li>
+  <li>Proxmox VE 7- en 8-knooppunten — het Debian-pakket; de agent maakt dan ook back-ups van de VM's en containers van het knooppunt (zie <a href="/docs/proxmox">Proxmox VE</a>).</li>
+  <li>Hyper-V-hosts (Windows Server 2016 en nieuwer, Windows 10/11 met Hyper-V): de Windows-MSI. De agent maakt dan ook back-ups van de VM's van de host (zie <a href="/docs/hyperv">Hyper-V</a>).</li>
+  <li>VMware ESXi-hosts — op ESXi wordt niets geïnstalleerd: voeg de host toe onder <a href="/agents#vmware">VMware ESXi-hosts</a> en kies een agent als proxy (zie <a href="/docs/vmware">VMware ESXi</a>).</li>
+</ul>
+
+<h2>Agents registreren</h2>
+<ol>
+  <li>Klik op de pagina <a href="/agents">Agents</a> op <b>Registratietoken maken</b>. De console toont een <b>registratiecode</b> (<code>BZ1-…</code>), 7 dagen geldig en bruikbaar voor een willekeurig aantal machines. Hij bevat het consoleadres voor agents (met de agentpoort, meestal 8443, ook als de pagina via webpoort 443 is geopend), het token en de certificaatvingerafdruk. Agents vanaf 0.33.6 registreren zich ook met codes die oudere consoles op de webpoort maakten.</li>
+  <li>Windows: voer de MSI uit en plak de code wanneer het installatieprogramma erom vraagt. Linux: voer de getoonde opdracht uit.</li>
+  <li>De machine verschijnt binnen een minuut in de lijst met agents.</li>
+</ol>
+<p>Als de console tijdens de installatie onbereikbaar is, bewaart de agent de code en probeert hij het opnieuw tot hij zich kan registreren. Upgrades behouden de registratie en vragen niet opnieuw. Een stille installatie met <code>ENROLLCODE</code> op een al geregistreerde machine behoudt de registratie als de code voor dezelfde console is (GPO of RMM kunnen hem veilig herhalen), en verplaatst de machine als de code voor een andere console is; de vorige registratie blijft bewaard als <code>agent.json.replaced-<i>datum</i></code> naast <code>agent.json</code>, zodat terughernoemen de machine als dezelfde agent naar haar oude console terugbrengt.</p>
+<h3>Windows, stil (GPO, Intune, RMM)</h3>
+<pre>msiexec /i backupzit-agent.msi /qn ENROLLCODE="BZ1-..."</pre>
+<p>De oudere vorm <code>SERVER="..." TOKEN="..." FINGERPRINT="SHA256:..."</code> werkt nog steeds. Een stille installatie zonder deze eigenschappen richt de service in, die wacht tot u hem registreert met <code>backupzit-agent enroll --code "BZ1-..."</code> in een beheerdersprompt.</p>
+<h3>Linux</h3>
+<pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
+backupzit-agent enroll --code "BZ1-..."
+systemctl enable --now backupzit-agent</pre>
+
+<h2>Agents installeren vanuit de console</h2>
+<p>In plaats van installatieprogramma's naar elke machine te kopiëren, laat u de console de agent installeren: open op <a href="/agents">Agents</a> <b>Vanaf hier op een machine installeren</b>, kies Linux of Windows en voer het adres van de machine en een beheerdersaccount in.</p>
+<ul>
+  <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64-bit): de console maakt verbinding via <b>SSH</b> als root, of als gebruiker met <code>sudo</code>-rechten (het wachtwoord wordt ook voor sudo gebruikt; met een sleutel is sudo zonder wachtwoord nodig). Een wachtwoord of een privésleutel werkt. Voer de <b>SSH-hostsleutelvingerafdruk</b> van de machine in (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> op de machine) om zeker te zijn dat de console met de juiste machine praat; zonder die wordt de vingerafdruk in het installatielogboek getoond.</li>
+  <li><b>Windows</b> (64-bit): de console maakt verbinding via <b>WinRM</b> (poort 5985, berichten versleuteld met NTLM; 5986 voor een HTTPS-listener) als lokale of domeinbeheerder. WinRM staat standaard aan op Windows Server; voer op Windows 10/11 eenmalig <code>winrm quickconfig</code> uit als beheerder. Andere lokale accounts dan de ingebouwde Administrator hebben externe beheerdersrechten nodig (<code>LocalAccountTokenFilterPolicy</code>) — of gebruik een domeinaccount. Oudere systemen (Windows 7, Server 2008 R2/2012 R2) krijgen de legacy-MSI.</li>
+</ul>
+<p>De machine downloadt het nieuwste agentpakket van de console via een link die alleen voor deze installatie werkt (30 minuten, drie downloads), controleert de SHA-256-controlesom, installeert het en registreert zich. De installatiepagina toont elke stap; account en wachtwoord worden alleen hiervoor gebruikt en niet opgeslagen. Is de machine al bij deze console geregistreerd, dan blijft de registratie behouden en wordt het pakket bijgewerkt; een registratie die de console niet kent (een eerder verwijderde agent, of een andere console) wordt vervangen. Elke installatie staat in het auditlogboek. De machine moet het agentadres van de console kunnen bereiken, zoals elke agent.</p>
+
+<h2>Agentstatus</h2>
+<ul>
+  <li><b>online</b> — de agent heeft de console in de laatste 3 minuten gecontacteerd.</li>
+  <li><b>offline</b> — de machine staat uit, de service is gestopt of het netwerk is geblokkeerd. Geplande back-ups worden in de wachtrij gezet en starten zodra de agent terug is.</li>
+  <li><b>herstel</b> — een machine die is opgestart vanaf een herstel-ISO (Windows of Linux), klaar om een schijfimage of Linux-systeemherstel te ontvangen. Herstelagents zijn tijdelijk; verwijder ze als het herstel klaar is.</li>
+</ul>
+<p>De kolom <b>IP-adressen</b> toont de eigen adressen van de machine zoals de agent ze het laatst meldde. <i>gezien vanaf</i> is het adres waarvandaan zijn verbindingen binnenkomen: op een lokaal netwerk hetzelfde adres, voor een machine achter NAT (bijv. een laptop thuis) het openbare adres van de router. De console vraagt daarvoor geen externe dienst.</p>
+
+<h2>De agent op het bureaublad (Windows)</h2>
+<p>De Windows-agent toont een pictogram naast de klok (het kan onder de pijl <b>^</b> van verborgen pictogrammen staan — sleep het naar de taakbalk zodat het zichtbaar blijft). De stip op het pictogram toont de status:</p>
+<table>
+  <tr><th>Stip</th><th>Betekenis</th></tr>
+  <tr><td>groen</td><td>Back-ups zijn in orde (of wachten op de eerste geplande back-up).</td></tr>
+  <tr><td>blauw</td><td>Er loopt een back-up, herstel of hersteltest.</td></tr>
+  <tr><td>oranje</td><td>De laatste back-up eindigde met waarschuwingen (bestanden die niet gelezen konden worden).</td></tr>
+  <tr><td>rood</td><td>Een back-uptaak is mislukt.</td></tr>
+  <tr><td>grijs</td><td>De console is niet bereikbaar of de agentservice draait niet.</td></tr>
+</table>
+<p>Klik op het pictogram (of open <b>BackupZit Agent</b> in het menu Start) voor het statusvenster: beschermingsstatus, voortgang van een lopende back-up, laatste en volgende back-up, en alle back-uptaken van de computer met <b>Nu back-uppen</b>. Rechtsklik opent het menu: <i>Back up now</i> per taak, <i>Open console in browser</i>, <i>Hide this icon</i> (tot de volgende aanmelding; back-ups gaan door). Het venster heeft Microsoft Edge WebView2 nodig, dat deel uitmaakt van Windows 10 en 11; op oudere systemen werken pictogram en menu en toont <i>Open</i> de console in de browser.</p>
+<p>Gebruikers kunnen zo een back-up van hun computer starten; taken, planningen en bewaring worden alleen in de console ingesteld. Op elk systeem toont <code>backupzit-agent status</code> (als beheerder of root) dezelfde informatie.</p>
+
+<h2>Bijwerken</h2>
+<p>Als de console een nieuwer agentinstallatieprogramma heeft dan een agent draait, toont de pagina Agents <b>Bijwerken naar x.y.z</b> naast zijn versie, en <b>Alle agents bijwerken</b> onder de lijst. De agent dan:</p>
+<ol>
+  <li>wacht tot hij inactief is (een lopende back-up wordt nooit onderbroken),</li>
+  <li>downloadt het passende installatieprogramma van de console via zijn vastgepinde verbinding — de MSI voor Windows 10/11/2016+, de MSI <i>oudere systemen</i> voor Windows 7/2008 R2/2012 R2, het deb- of rpm-pakket op Linux — en controleert de SHA-256,</li>
+  <li>installeert het en start opnieuw; de nieuwe versie verschijnt binnen enkele minuten in de lijst. Registratie en alle instellingen blijven behouden.</li>
+</ol>
+<p>De console biedt de nieuwste installatieprogramma's in haar map <code>dist</code> aan; het serverpakket levert de agentinstallatieprogramma's van zijn eigen versie mee. Nadat de console is bijgewerkt via <a href="/settings/updates">Instellingen → Updates</a>, worden de agents automatisch bijgewerkt (daar uit te schakelen). Updates vanuit de console werken voor agents vanaf versie 0.21; oudere agents worden eenmalig bijgewerkt door de nieuwere MSI / het nieuwere pakket over de oude te installeren (de registratie blijft behouden). Het logboek van het installatieprogramma staat in <code>C:\ProgramData\backupzit\updates</code> of <code>/var/tmp/backupzit-updates</code>.</p>
+
+<h2>Een agent verwijderen</h2>
+<p><b>Verwijderen</b> op de pagina Agents verwijdert de agent en zijn taken uit de console. Met <a href="/docs/users">vier-ogengoedkeuring</a> ingeschakeld moet eerst een tweede gebruiker goedkeuren. Back-ups op de opslag worden <b>niet</b> verwijderd. Verwijder de software op de machine apart.</p>
+
+<h2 id="duplicate">Twee machines die één agent gebruiken</h2>
+<p>Een kopie van een geregistreerde machine neemt haar agent en registratie mee: een VM die als nieuwe VM is hersteld, een <a href="/docs/proxmox">direct herstel</a>, een gestarte replica, een gekloonde schijf of sjabloon. Als de kopie naast het origineel draait, maken beide verbinding als dezelfde agent. De console merkt dit binnen een à twee minuten en dan:</p>
+<ul>
+  <li>toont ze <b>twee machines</b> met beide namen en adressen op de pagina Agents, en de agent onder <b>Vraagt aandacht</b> op het dashboard;</li>
+  <li><b>houdt</b> ze de back-ups en herstelacties van de agent <b>vast</b>, zodat niets op de verkeerde machine draait (een herstel naar de oorspronkelijke locatie zou anders de kopie in plaats van het origineel kunnen overschrijven);</li>
+  <li>mailt ze de beheerders één keer en schrijft ze een item <code>agent.duplicate</code> in het auditlogboek.</li>
+</ul>
+<p>Stop de kopie of — als die moet blijven — registreer haar op de kopie als nieuwe machine: <code>backupzit-agent enroll --force --code "BZ1-..."</code> (code van de pagina Agents). De vastgehouden uitvoeringen starten enkele minuten nadat er nog maar één machine over is. Een Linux-systeem herstellen met <a href="/docs/linux-system">Het hele systeem herstellen</a> heft de registratie in de herstelde kopie al op, en hersteltests starten hun VM's zonder netwerk, dus geen van beide veroorzaakt dit.</p>
+
+<h2 id="new-address">Als de console een nieuw adres krijgt</h2>
+<p>Agents vertrouwen de console op haar certificaat, dat gelijk blijft als haar IP-adres of naam verandert, maar ze verbinden met het adres waarmee ze zijn geregistreerd. Voer na een wijziging op elke agentmachine uit (als beheerder / root):</p>
+<pre>backupzit-agent set-server https://192.168.1.20:8443</pre>
+<p>De opdracht controleert dat de console op het nieuwe adres antwoordt met hetzelfde certificaat, slaat het op, en de agent gebruikt het na een herstart van zijn service (<code>systemctl restart backupzit-agent</code>, of herstart de service <i>BackupZit Agent</i> op Windows). Een DNS-naam voor de console vanaf het begin bespaart deze stap.</p>
+
+<h2>Waar de agent zijn configuratie bewaart</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (alleen toegankelijk voor SYSTEM en Administrators).</li>
+  <li>Linux: <code>/etc/backupzit/agent.json</code> (alleen root).</li>
+</ul>
+<p>Het bestand bevat het geheim van de agent. Wie het kan lezen, kan zich als die agent voordoen, dus behoud deze rechten.</p>
+
+<h2>Agentlogboek</h2>
+<ul>
+  <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
+  <li>Linux: <code>/etc/backupzit/agent.log</code> en <code>journalctl -u backupzit-agent</code></li>
+  <li>Herstelsystemen tonen het logboek op hun scherm.</li>
+</ul>
+
+<h2>Verwijderen van de software</h2>
+<p>Windows: <i>Instellingen → Apps → BackupZit Agent → Verwijderen</i> (of <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Verwijder daarna de agent in de console. Back-ups blijven op de opslag.</p>
+<p>Op Windows zet het verwijderen de registratie opzij (<code>C:\ProgramData\backupzit\agent.json.removed-<i>datum</i></code>), zodat bij een nieuwe installatie van de agent om een registratiecode wordt gevraagd. Vindt het installatieprogramma een registratie van een eerdere versie, dan meldt het dat: laat de code leeg om haar te behouden, of plak een nieuwe code om de computer opnieuw te registreren (bijvoorbeeld bij een andere console).</p>
+{{template "docpager" .}}
+</article></div>{{end}}
