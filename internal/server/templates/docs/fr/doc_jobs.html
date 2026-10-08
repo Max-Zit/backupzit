@@ -1,0 +1,114 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Tâches de sauvegarde et planifications</h1>
+<p class="lead">Une tâche indique quoi sauvegarder sur quel agent, où le stocker, quand l'exécuter et combien de sauvegardes conserver.</p>
+
+<h2>Créer une tâche</h2>
+<ol>
+  <li>Allez dans <a href="/jobs">Tâches de sauvegarde</a> et remplissez <i>Nouvelle tâche de sauvegarde</i>.</li>
+  <li>Choisissez l'<b>agent</b> et la <b>cible de stockage</b>.</li>
+  <li>Choisissez quoi sauvegarder :
+    <ul>
+      <li><b>Fichiers et dossiers</b> — un chemin par ligne tel qu'il apparaît sur l'agent, p. ex. <code>C:\Users</code>, <code>D:\Data</code>, <code>/home</code>, <code>/etc</code>.</li>
+      <li><b>Image disque</b> — un disque entier ou des partitions choisies, restaurable sur un disque vide ou un nouveau matériel. Voir <a href="/docs/images">Images disque</a>.</li>
+      <li><b>Système Linux</b> — tous les systèmes de fichiers et la disposition des disques d'une machine Linux, restaurable sur un disque vide ou comme VM Proxmox. Voir <a href="/docs/linux-system">Sauvegarde du système Linux</a>.</li>
+      <li><b>Machines virtuelles (Proxmox VE, Hyper-V, VMware)</b> — les VM (et conteneurs Proxmox) d'un hôte hyperviseur, sauvegardées sans agent dans les invités : par l'agent de l'hôte Proxmox ou Hyper-V, ou pour VMware ESXi par l'agent proxy de l'hôte (choisissez l'hôte ESXi dans la liste des agents). Voir <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> et <a href="/docs/vmware">VMware ESXi</a>.</li>
+      <li><b>Bases de données</b> — SQL Server, PostgreSQL ou MySQL/MariaDB sur la machine de l'agent, avec sauvegardes des journaux pour restaurer à tout instant. Voir <a href="/docs/sql">Bases de données</a>.</li>
+      <li><b>NAS / partage de fichiers</b> — un partage SMB ou NFS lu par l'agent ; voir <a href="#nas">ci-dessous</a>.</li>
+      <li><b>Microsoft 365</b> — boîtes aux lettres Exchange Online, calendriers, contacts, OneDrive et sites SharePoint, lus via Microsoft Graph par n'importe quel agent ; voir <a href="/docs/m365">Microsoft 365</a>.</li>
+    </ul>
+  </li>
+  <li>Ajoutez éventuellement des <b>exclusions</b>, une par ligne : un motif de nom, valable dans chaque dossier (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), ou un chemin complet, valable pour ce seul fichier ou dossier (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, aussi avec jokers : <code>D:\VMs\*.iso</code>). Sous Windows, les chemins complets ignorent la casse.</li>
+  <li>Définissez <b>Conserver les sauvegardes</b> et la <b>Planification</b>, puis <i>Créer la tâche</i>.</li>
+</ol>
+
+<h2 id="nas">NAS et partages de fichiers (SMB, NFS)</h2>
+<p>Une tâche <b>NAS / partage de fichiers</b> sauvegarde un partage réseau sans rien installer sur le NAS (Synology, QNAP, TrueNAS, un serveur de fichiers Windows …). Choisissez n'importe quel agent qui atteint le partage — il lit le partage et écrit la sauvegarde — et saisissez :</p>
+<ul>
+  <li><b>Partage</b> : <code>smb://nas01/data</code> (éventuellement avec un dossier : <code>smb://nas01/data/Office</code>) ou <code>nfs://nas01/volume1/data</code> (le chemin d'export) ;</li>
+  <li>pour SMB, le compte (utilisateur, domaine facultatif, mot de passe — stocké chiffré) ; vide signifie accès invité. NFS utilise l'accès de la machine de l'agent à l'export (autorisez son adresse sur le NAS) ;</li>
+  <li>les <b>dossiers du partage</b> à sauvegarder, un par ligne (vide : tout le partage), et des exclusions comme <code>#recycle</code>, <code>@eaDir</code> ou <code>.snapshot</code>.</li>
+</ul>
+<p>À chaque exécution, l'agent connecte le partage — les agents Windows via son chemin UNC (<code>\\nas01\data</code>, SMB uniquement), les agents Linux en le montant en lecture seule sous <code>/mnt/backupzit-nas</code> (nécessite <code>cifs-utils</code> pour SMB, <code>nfs-common</code> ou <code>nfs-utils</code> pour NFS ; Proxmox VE a les deux) — puis le déconnecte. Les sauvegardes sont des sauvegardes de fichiers ordinaires : dédupliquées et incrémentielles, avec rétention, tâches de copie, tests de restauration, navigation et restauration de fichiers. <b>Restaurer à l’emplacement d’origine</b> reconnecte le partage en écriture et y réécrit les fichiers ; vous pouvez aussi restaurer dans un dossier sur n'importe quel agent, ou télécharger.</p>
+
+<h2>Fichiers ouverts et verrouillés (VSS)</h2>
+<p>Sous Windows, l'agent utilise le <b>service de cliché instantané de volume</b> : il prend un instantané cohérent du volume à un instant donné et sauvegarde à partir de celui-ci, si bien que les fichiers ouverts (PST Outlook, bases de données, documents en cours d'édition) sont sauvegardés de façon cohérente. Les applications compatibles VSS (par exemple SQL Server) écrivent leurs données sur le disque avant la prise de l'instantané.</p>
+
+<h2>Planifications</h2>
+<table>
+  <tr><th>Option</th><th>Exemple</th></tr>
+  <tr><td><b>À des heures précises</b></td><td>Chaque jour ouvré à 22:00 ; ou à 12:00 et 18:00 tous les jours. Jusqu'à trois fois par jour, les jours cochés.</td></tr>
+  <tr><td><b>Plusieurs fois</b></td><td>Toutes les 2 heures entre 08:00 et 18:00, du lundi au vendredi. Intervalles de 15 minutes à 12 heures.</td></tr>
+  <tr><td><b>Une fois par mois</b></td><td>Le 1er à 23:00.</td></tr>
+  <tr><td><b>Manuellement uniquement</b></td><td>S'exécute seulement quand vous cliquez sur <i>Lancer la sauvegarde maintenant</i>.</td></tr>
+</table>
+<p>Les heures sont dans le fuseau horaire du serveur de la console (sur l'appliance : <a href="/settings/network#timezone">Paramètres → Réseau → Fuseau horaire</a> ou l'élément 9 du menu de configuration ; au départ UTC). Si un agent est hors ligne à l'heure prévue, la sauvegarde attend dans la file et démarre dès que l'agent revient. Toutes les exécutions prévues sont visibles dans le <a href="/calendar">Calendrier</a>.</p>
+
+<h2>Rétention : combien de sauvegardes conserver</h2>
+<p>Un instantané est conservé si <b>une quelconque</b> règle le sélectionne :</p>
+<ul>
+  <li><b>Plus récentes</b> — les N sauvegardes les plus récentes.</li>
+  <li><b>Quotidien</b> — la sauvegarde la plus récente de chacun des N derniers jours ayant des sauvegardes.</li>
+  <li><b>Hebdomadaire</b> — la sauvegarde la plus récente de chacune des N dernières semaines.</li>
+  <li><b>Mensuel</b> — la sauvegarde la plus récente de chacun des N derniers mois.</li>
+</ul>
+<p>Exemple : 3 récentes, 7 quotidiennes, 4 hebdomadaires, 6 mensuelles conservent environ six mois d'historique avec ~20 points de restauration. Après chaque exécution réussie, les instantanés qui ne sont plus sélectionnés sont supprimés (affichés comme <i>expiré</i> dans Activité) et les données qu'aucun instantané n'utilise plus sont effacées du stockage. Que des zéros conserve tout.</p>
+<div class="callout"><p>Grâce à la déduplication, une longue rétention coûte peu : les données inchangées ne sont stockées qu'une fois, quel que soit le nombre d'instantanés qui y font référence.</p></div>
+
+<h2>Tâches de copie de sauvegarde (3-2-1)</h2>
+<p>Une tâche de <b>copie de sauvegarde</b> copie les sauvegardes d'une autre tâche vers une seconde cible de stockage — par exemple des sauvegardes nocturnes vers le NAS du bureau, copiées vers S3 ou un dépôt renforcé hors site. Choisissez <i>Copie de sauvegarde</i> dans le formulaire de tâche, sélectionnez la tâche à copier et le stockage de destination.</p>
+<ul>
+  <li>L'agent de la tâche source effectue la copie ; la machine protégée n'est <b>pas relue</b>.</li>
+  <li>Seules les données qui ne sont pas encore à destination sont transférées, rechiffrées avec la clé de la destination.</li>
+  <li>La planification <b>Après chaque sauvegarde de la tâche source</b> (par défaut) maintient la copie à jour ; toute planification normale fonctionne aussi, p. ex. une fois par nuit pour une ligne internet lente.</li>
+  <li>La copie a sa propre rétention, p. ex. 7 quotidiennes sur le NAS et 12 mensuelles dans le cloud.</li>
+  <li>Les sauvegardes de fichiers et de VM copiées (Proxmox VE, Hyper-V, VMware) se restaurent depuis la page de l'exécution de copie ou l'<a href="/restore">assistant de restauration</a>, comme les originaux — VM entières, fichiers individuels des disques de VM et restauration instantanée Proxmox. Les sauvegardes de VM copiées par un agent antérieur à 0.29 ne peuvent pas être restaurées ainsi ; la prochaine exécution de copie avec un agent plus récent rend sa copie la plus récente restaurable. Les copies d'images disque se restaurent avec l'agent en ligne de commande.</li>
+</ul>
+
+<h2>Modifier une tâche</h2>
+<p>Ouvrez la tâche et dépliez <b>Modifier la tâche</b>. Vous pouvez changer le nom, les dossiers et exclusions (tâches de fichiers), les VM (tâches de VM), la planification, la rétention, la limite de débit, le niveau de compression et les commandes. L'agent, la cible de stockage et le disque d'une tâche d'image restent inchangés, afin que les sauvegardes de la tâche forment une seule chaîne ; pour déplacer une tâche, créez-en une nouvelle — avec une tâche de copie si les anciennes sauvegardes doivent suivre. Les modifications s'appliquent dès l'exécution suivante et sont consignées dans le <a href="/audit">journal d'audit</a>. Avec l'<a href="/docs/users">approbation à quatre yeux</a> activée, une rétention plus courte attend l'approbation d'un second utilisateur ; les autres modifications sont enregistrées immédiatement.</p>
+
+<h2>Réplicas (Proxmox VE)</h2>
+<p>Les tâches de VM Proxmox peuvent maintenir des copies arrêtées et à jour de leurs invités sur un nœud de votre choix, démarrées en un clic si un invité est perdu — voir <a href="/docs/proxmox">Proxmox VE → Réplication</a>.</p>
+
+<h2>Limite de débit</h2>
+<p>Sous <b>Avancé</b> dans le formulaire de tâche, <b>Limiter le débit d’envoi à</b> plafonne la vitesse à laquelle l'agent envoie les données au stockage, en Mo/s — par exemple 10 Mo/s de 08:00 à 18:00, pour que les sauvegardes pendant les heures de travail laissent la ligne du bureau utilisable ; en dehors de la plage, la tâche tourne à pleine vitesse. Les heures sont l'heure locale de l'agent, et une plage peut passer minuit (22:00 à 06:00). La limite s'applique aux sauvegardes et aux tâches de copie (l'envoi vers le second stockage), pas aux restaurations : une restauration tourne toujours à pleine vitesse.</p>
+
+<h2 id="compression">Compression et déduplication</h2>
+<p>Chaque sauvegarde est dédupliquée : les données déjà présentes dans le dépôt — issues de sauvegardes antérieures de la même tâche ou d'autres tâches sur la même cible de stockage — ne sont pas stockées à nouveau. Les nouvelles données sont ensuite compressées avec zstd ; les morceaux qui ne rapetissent pas (vidéo, archives, fichiers chiffrés) sont stockés tels quels. Le chiffrement intervient après la compression.</p>
+<p>Le niveau de compression est un réglage de la tâche (<b>Modifier la tâche → Avancé</b>) :</p>
+<table>
+  <tr><th>Niveau</th><th>Quand l'utiliser</th></tr>
+  <tr><td>Standard (recommandé)</td><td>Bonne compression à grande vitesse ; convient à presque toutes les tâches.</td></tr>
+  <tr><td>Rapide</td><td>Utilise moins de CPU sur les machines chargées ou peu puissantes ; les sauvegardes sont un peu plus grosses.</td></tr>
+  <tr><td>Maximale</td><td>Généralement 5–15 % plus petite que Standard, mais plusieurs fois plus lente à compresser. Pour les liaisons lentes et le stockage cloud payant, quand la machine a du CPU disponible.</td></tr>
+  <tr><td>Désactivé</td><td>Pour des données déjà compressées : économise du CPU sans grossir les sauvegardes.</td></tr>
+</table>
+<p>Le niveau s'applique aux nouvelles données dès l'exécution suivante ; les sauvegardes existantes restent telles quelles, et la restauration n'en dépend jamais. La page de l'exécution montre le résultat : le taux de compression des nouvelles données (p. ex. <i>2.4×</i>) et la part des données lues qui était déjà stockée (déduplication).</p>
+
+<h2>Commandes avant et après la sauvegarde</h2>
+<p>Les administrateurs peuvent faire exécuter par une tâche une commande sur l'agent avant et après chaque sauvegarde — par exemple un dump de base de données, l'arrêt d'un service pour une copie cohérente, ou une notification :</p>
+<pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
+sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, before</pre>
+<ul>
+  <li>Les commandes s'exécutent sous le compte de service de l'agent (root sous Linux, SYSTEM sous Windows) avec <code>sh</code> ou <code>cmd</code> ; plusieurs lignes sont permises. Seuls les <b>Administrateurs</b> peuvent les voir et les modifier — sinon un opérateur de sauvegarde pourrait exécuter n'importe quoi sur chaque machine.</li>
+  <li>Si la commande <b>avant</b> échoue (code de sortie différent de 0) ou dure plus que le délai (30 minutes par défaut), la sauvegarde n'est pas lancée et l'exécution échoue avec la sortie de la commande.</li>
+  <li>La commande <b>après</b> s'exécute aussi quand la sauvegarde a échoué, pour pouvoir redémarrer ce que la première a arrêté. Une commande après la sauvegarde qui échoue transforme l'exécution en avertissement.</li>
+  <li>Les deux reçoivent <code>BACKUPZIT_STAGE</code> (pre ou post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> et, après la sauvegarde, <code>BACKUPZIT_STATUS</code> (success, warning ou failed).</li>
+  <li>Pour les tâches de VM, les commandes s'exécutent sur l'hôte hyperviseur (ou le proxy VMware), pas dans les VM. Les tâches de copie n'ont pas de commandes.</li>
+</ul>
+
+<h2>Exécuter, désactiver, supprimer</h2>
+<ul>
+  <li><b>Lancer la sauvegarde maintenant</b> (<b>Copier maintenant</b> pour les tâches de copie) met la tâche en file immédiatement.</li>
+  <li><b>Tester la restauration</b> restaure un échantillon aléatoire de la sauvegarde la plus récente et le vérifie (voir <a href="/docs/restore">Restauration</a>).</li>
+  <li><b>Désactiver</b> suspend la planification sans perdre la tâche (avec l'approbation à quatre yeux, un second utilisateur doit approuver).</li>
+  <li><b>Supprimer</b> retire la tâche ; les sauvegardes existantes restent sur le stockage et restent restaurables depuis Activité.</li>
+</ul>
+
+<h2>Rétention suspendue</h2>
+<p>Si une sauvegarde de la tâche ressemblait à un rançongiciel ou à une suppression massive, la page de la tâche affiche <i>La rétention est suspendue</i> : aucune sauvegarde n'est supprimée tant que quelqu'un n'a pas vérifié la machine et cliqué sur <i>Examiné — reprendre la rétention</i> (avec l'approbation à quatre yeux, un second utilisateur doit approuver). Voir <a href="/docs/ransomware">Protection contre les rançongiciels</a>.</p>
+
+<h2>Ce que rapporte une exécution de sauvegarde</h2>
+<p>Ouvrez une exécution dans <a href="/runs">Activité</a> : nombre de fichiers, fichiers nouveaux/modifiés, données lues, nouvelles données envoyées (après déduplication et compression, avec le taux de compression et la part déjà stockée — voir <a href="#compression">Compression</a>), durée, et les fichiers qui n'ont pas pu être lus. Une exécution avec des fichiers illisibles se termine avec l'état <b>avertissement</b> — le reste des données est sauvegardé.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,114 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Back-uptaken en planningen</h1>
+<p class="lead">Een taak bepaalt wat er op welke agent wordt geback-upt, waar het wordt opgeslagen, wanneer hij draait en hoeveel back-ups bewaard blijven.</p>
+
+<h2>Een taak maken</h2>
+<ol>
+  <li>Ga naar <a href="/jobs">Back-uptaken</a> en vul <i>Nieuwe back-uptaak</i> in.</li>
+  <li>Kies de <b>agent</b> en het <b>opslagdoel</b>.</li>
+  <li>Kies wat er geback-upt wordt:
+    <ul>
+      <li><b>Bestanden en mappen</b> — één pad per regel zoals de agent het ziet, bijv. <code>C:\Users</code>, <code>D:\Data</code>, <code>/home</code>, <code>/etc</code>.</li>
+      <li><b>Schijfimage</b> — een hele schijf of gekozen partities, te herstellen op een lege schijf of nieuwe hardware. Zie <a href="/docs/images">Schijfimages</a>.</li>
+      <li><b>Linux-systeem</b> — alle bestandssystemen en de schijfindeling van een Linux-machine, te herstellen op een lege schijf of als Proxmox-VM. Zie <a href="/docs/linux-system">Linux-systeemback-up</a>.</li>
+      <li><b>Virtuele machines (Proxmox VE, Hyper-V, VMware)</b> — VM's (en Proxmox-containers) van een hypervisorhost, geback-upt zonder agents in de gasten: door de agent op de Proxmox- of Hyper-V-host, of voor VMware ESXi door de proxyagent van de host (kies de ESXi-host in de agentlijst). Zie <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> en <a href="/docs/vmware">VMware ESXi</a>.</li>
+      <li><b>Databases</b> — SQL Server, PostgreSQL of MySQL/MariaDB op de machine van de agent, met logback-ups voor herstel naar elk tijdstip. Zie <a href="/docs/sql">Databases</a>.</li>
+      <li><b>NAS / bestandsshare</b> — een SMB- of NFS-share die de agent leest; zie <a href="#nas">hieronder</a>.</li>
+      <li><b>Microsoft 365</b> — Exchange Online-postvakken, agenda's, contactpersonen, OneDrive en SharePoint-sites, gelezen via Microsoft Graph door een willekeurige agent; zie <a href="/docs/m365">Microsoft 365</a>.</li>
+    </ul>
+  </li>
+  <li>Voeg optioneel <b>uitsluitingen</b> toe, één per regel: een naampatroon, dat in elke map geldt (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), of een volledig pad, dat alleen voor dat ene bestand of die map geldt (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, ook met jokertekens: <code>D:\VMs\*.iso</code>). Op Windows negeren volledige paden hoofd- en kleine letters.</li>
+  <li>Stel <b>Back-ups bewaren</b> en het <b>Schema</b> in en kies dan <i>Taak maken</i>.</li>
+</ol>
+
+<h2 id="nas">NAS en bestandsshares (SMB, NFS)</h2>
+<p>Een taak <b>NAS / bestandsshare</b> maakt een back-up van een netwerkshare zonder iets op de NAS te installeren (Synology, QNAP, TrueNAS, een Windows-bestandsserver …). Kies een willekeurige agent die de share bereikt — die leest de share en schrijft de back-up — en voer in:</p>
+<ul>
+  <li><b>Share</b>: <code>smb://nas01/data</code> (optioneel met een map: <code>smb://nas01/data/Office</code>) of <code>nfs://nas01/volume1/data</code> (het exportpad);</li>
+  <li>voor SMB het account (gebruiker, optioneel domein, wachtwoord — versleuteld opgeslagen); leeg betekent gasttoegang. NFS gebruikt de toegang van de agentmachine tot de export (sta het adres toe op de NAS);</li>
+  <li>de <b>mappen in de share</b> om te back-uppen, één per regel (leeg: de hele share), en uitsluitingen zoals <code>#recycle</code>, <code>@eaDir</code> of <code>.snapshot</code>.</li>
+</ul>
+<p>Bij elke uitvoering verbindt de agent de share — Windows-agents via het UNC-pad (<code>\\nas01\data</code>, alleen SMB), Linux-agents door hem alleen-lezen te koppelen onder <code>/mnt/backupzit-nas</code> (vereist <code>cifs-utils</code> voor SMB, <code>nfs-common</code> of <code>nfs-utils</code> voor NFS; Proxmox VE heeft beide) — en verbreekt de verbinding daarna. De back-ups zijn gewone bestandsback-ups: gededupliceerd en incrementeel, met bewaring, kopieertaken, hersteltests, bladeren en bestandsherstel. <b>Herstellen op de oorspronkelijke locatie</b> verbindt de share opnieuw, beschrijfbaar, en schrijft de bestanden erop terug; of herstel naar een map op een willekeurige agent, of download.</p>
+
+<h2>Geopende en vergrendelde bestanden (VSS)</h2>
+<p>Op Windows gebruikt de agent de <b>Volume Shadow Copy Service</b>: hij maakt een consistente momentopname van het volume en maakt de back-up daaruit, zodat geopende bestanden (Outlook-PST, databases, documenten die worden bewerkt) consistent worden geback-upt. Toepassingen die VSS ondersteunen (bijvoorbeeld SQL Server) schrijven hun gegevens naar schijf voordat de snapshot wordt gemaakt.</p>
+
+<h2>Schema's</h2>
+<table>
+  <tr><th>Optie</th><th>Voorbeeld</th></tr>
+  <tr><td><b>Op vaste tijden</b></td><td>Elke werkdag om 22:00; of om 12:00 en 18:00 elke dag. Tot drie keer per dag, op de aangevinkte dagen.</td></tr>
+  <tr><td><b>Herhaaldelijk</b></td><td>Elke 2 uur tussen 08:00 en 18:00, maandag–vrijdag. Intervallen van 15 minuten tot 12 uur.</td></tr>
+  <tr><td><b>Eens per maand</b></td><td>Op de 1e om 23:00.</td></tr>
+  <tr><td><b>Alleen handmatig</b></td><td>Draait alleen als u op <i>Back-up nu uitvoeren</i> klikt.</td></tr>
+</table>
+<p>De tijden zijn in de tijdzone van de consoleserver (op de appliance: <a href="/settings/network#timezone">Instellingen → Netwerk → Tijdzone</a> of item 9 van het setupmenu; begint in UTC). Is een agent offline op het geplande tijdstip, dan wacht de back-up in de wachtrij en start hij zodra de agent terug is. Alle geplande uitvoeringen ziet u in de <a href="/calendar">Kalender</a>.</p>
+
+<h2>Bewaring: hoeveel back-ups bewaren</h2>
+<p>Een snapshot wordt bewaard als <b>een willekeurige</b> regel hem selecteert:</p>
+<ul>
+  <li><b>Nieuwste</b> — de nieuwste N back-ups.</li>
+  <li><b>Dagelijks</b> — de nieuwste back-up van elk van de laatste N dagen met back-ups.</li>
+  <li><b>Wekelijks</b> — de nieuwste back-up van elk van de laatste N weken.</li>
+  <li><b>Maandelijks</b> — de nieuwste back-up van elk van de laatste N maanden.</li>
+</ul>
+<p>Voorbeeld: 3 recente, 7 dagelijkse, 4 wekelijkse, 6 maandelijkse bewaren ongeveer een half jaar geschiedenis met ~20 herstelpunten. Na elke geslaagde uitvoering worden snapshots die niet meer geselecteerd zijn verwijderd (getoond als <i>verlopen</i> in Activiteit) en worden gegevens die geen enkele snapshot meer gebruikt van de opslag gewist. Allemaal nullen bewaart alles.</p>
+<div class="callout"><p>Dankzij deduplicatie is lange bewaring goedkoop: ongewijzigde gegevens worden maar één keer opgeslagen, hoeveel snapshots er ook naar verwijzen.</p></div>
+
+<h2>Back-upkopietaken (3-2-1)</h2>
+<p>Een taak voor <b>back-upkopie</b> kopieert de back-ups van een andere taak naar een tweede opslagdoel — bijvoorbeeld nachtelijke back-ups naar de kantoor-NAS, gekopieerd naar S3 of een externe geharde repository. Kies <i>Back-upkopie</i> in het taakformulier, selecteer de te kopiëren taak en de doelopslag.</p>
+<ul>
+  <li>De agent van de brontaak kopieert; de beschermde machine wordt <b>niet opnieuw gelezen</b>.</li>
+  <li>Alleen gegevens die nog niet op het doel staan worden overgedragen, opnieuw versleuteld met de sleutel van het doel.</li>
+  <li>Het schema <b>Na elke back-up van de brontaak</b> (standaard) houdt de kopie actueel; elk normaal schema werkt ook, bijv. één keer per nacht bij een trage internetlijn.</li>
+  <li>De kopie heeft een eigen bewaring, bijv. 7 dagelijkse op de NAS en 12 maandelijkse in de cloud.</li>
+  <li>Gekopieerde bestandsback-ups en VM-back-ups (Proxmox VE, Hyper-V, VMware) worden net als de originelen hersteld vanaf de pagina van de kopieeruitvoering of de <a href="/restore">herstelwizard</a> — hele VM's, losse bestanden van VM-schijven en Proxmox direct herstel. VM-back-ups die een agent ouder dan 0.29 heeft gekopieerd, kunnen zo niet worden hersteld; de volgende kopieeruitvoering met een nieuwere agent maakt de nieuwste kopie herstelbaar. Kopieën van schijfimages worden hersteld met de opdrachtregelagent.</li>
+</ul>
+
+<h2>Een taak wijzigen</h2>
+<p>Open de taak en klap <b>Taak bewerken</b> open. U kunt de naam, mappen en uitsluitingen (bestandstaken), VM's (VM-taken), het schema, de bewaring, de snelheidslimiet, het compressieniveau en de opdrachten wijzigen. De agent, het opslagdoel en de schijf van een imagetaak blijven zoals ze zijn, zodat de back-ups van de taak één keten blijven; om een taak te verplaatsen maakt u een nieuwe — met een kopieertaak als oudere back-ups mee moeten. Wijzigingen gelden vanaf de volgende uitvoering en worden vastgelegd in het <a href="/audit">auditlogboek</a>. Met <a href="/docs/users">vier-ogengoedkeuring</a> ingeschakeld wacht een kortere bewaring op de goedkeuring van een tweede gebruiker; de andere wijzigingen worden direct opgeslagen.</p>
+
+<h2>Replica's (Proxmox VE)</h2>
+<p>Proxmox-VM-taken kunnen gestopte, actuele kopieën van hun gasten bijhouden op een knooppunt naar keuze, die met één klik worden gestart als een gast verloren gaat — zie <a href="/docs/proxmox">Proxmox VE → Replicatie</a>.</p>
+
+<h2>Snelheidslimiet</h2>
+<p>Onder <b>Geavanceerd</b> in het taakformulier begrenst <b>Uploadsnelheid beperken tot</b> hoe snel de agent gegevens naar de opslag stuurt, in MB/s — bijvoorbeeld 10 MB/s van 08:00 tot 18:00, zodat back-ups tijdens werktijd de kantoorlijn bruikbaar laten; buiten het tijdvenster draait de taak op volle snelheid. De uren zijn de lokale tijd van de agent, en een venster mag over middernacht lopen (22:00 tot 06:00). De limiet geldt voor back-ups en kopieertaken (het uploaden naar de tweede opslag), niet voor herstel: een herstel draait altijd op volle snelheid.</p>
+
+<h2 id="compression">Compressie en deduplicatie</h2>
+<p>Elke back-up wordt gededupliceerd: gegevens die al in de repository staan — uit eerdere back-ups van dezelfde taak of uit andere taken op hetzelfde opslagdoel — worden niet opnieuw opgeslagen. Nieuwe gegevens worden daarna gecomprimeerd met zstd; stukken die niet kleiner worden (video, archieven, versleutelde bestanden) worden ongewijzigd opgeslagen. Versleuteling komt na compressie.</p>
+<p>Het compressieniveau is een taakinstelling (<b>Taak bewerken → Geavanceerd</b>):</p>
+<table>
+  <tr><th>Niveau</th><th>Wanneer gebruiken</th></tr>
+  <tr><td>Standaard (aanbevolen)</td><td>Goede compressie bij hoge snelheid; geschikt voor bijna elke taak.</td></tr>
+  <tr><td>Snel</td><td>Gebruikt minder CPU op drukke of zwakke machines; back-ups zijn iets groter.</td></tr>
+  <tr><td>Maximaal</td><td>Meestal 5–15 % kleiner dan standaard, maar meerdere keren trager bij het comprimeren. Voor trage uploadverbindingen en betaalde cloudopslag, als de machine CPU over heeft.</td></tr>
+  <tr><td>Uit</td><td>Voor gegevens die al gecomprimeerd zijn: bespaart CPU zonder back-ups groter te maken.</td></tr>
+</table>
+<p>Het niveau geldt voor nieuwe gegevens vanaf de volgende uitvoering; bestaande back-ups blijven zoals ze zijn, en herstel hangt er nooit van af. De uitvoeringspagina toont het resultaat: de compressieverhouding van de nieuwe gegevens (bijv. <i>2.4×</i>) en hoeveel van de gelezen gegevens al was opgeslagen (deduplicatie).</p>
+
+<h2>Opdrachten voor en na de back-up</h2>
+<p>Beheerders kunnen een taak voor en na elke back-up een opdracht op de agent laten uitvoeren — bijvoorbeeld een databasedump, het stoppen van een service voor een consistente kopie, of een melding:</p>
+<pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
+sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, before</pre>
+<ul>
+  <li>Opdrachten draaien onder het serviceaccount van de agent (root op Linux, SYSTEM op Windows) met <code>sh</code> of <code>cmd</code>; meerdere regels zijn toegestaan. Alleen <b>Beheerders</b> kunnen ze zien en wijzigen — anders zou een back-upoperator alles op elke machine kunnen uitvoeren.</li>
+  <li>Mislukt de opdracht <b>ervoor</b> (afsluitcode niet 0) of duurt ze langer dan de tijdslimiet (standaard 30 minuten), dan draait de back-up niet en mislukt de uitvoering met de uitvoer van de opdracht.</li>
+  <li>De opdracht <b>erna</b> draait ook als de back-up mislukte, zodat ze kan herstarten wat de eerste opdracht stopte. Een mislukte opdracht na de back-up maakt van de uitvoering een waarschuwing.</li>
+  <li>Beide krijgen <code>BACKUPZIT_STAGE</code> (pre of post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> en, na de back-up, <code>BACKUPZIT_STATUS</code> (success, warning of failed).</li>
+  <li>Bij VM-taken draaien de opdrachten op de hypervisorhost (of de VMware-proxy), niet in de VM's. Kopieertaken hebben geen opdrachten.</li>
+</ul>
+
+<h2>Uitvoeren, uitschakelen, verwijderen</h2>
+<ul>
+  <li><b>Back-up nu uitvoeren</b> (<b>Nu kopiëren</b> bij kopieertaken) zet de taak direct in de wachtrij.</li>
+  <li><b>Herstel testen</b> herstelt een willekeurige steekproef van de nieuwste back-up en controleert die (zie <a href="/docs/restore">Herstellen</a>).</li>
+  <li><b>Uitschakelen</b> pauzeert het schema zonder de taak te verliezen (met vier-ogengoedkeuring ingeschakeld moet een tweede gebruiker goedkeuren).</li>
+  <li><b>Verwijderen</b> verwijdert de taak; bestaande back-ups blijven op de opslag en blijven herstelbaar vanuit Activiteit.</li>
+</ul>
+
+<h2>Bewaring gepauzeerd</h2>
+<p>Leek een back-up van de taak op ransomware of massale verwijdering, dan toont de taakpagina <i>Bewaarbeleid is gepauzeerd</i>: er worden geen back-ups verwijderd tot iemand de machine controleert en op <i>Gecontroleerd — bewaarbeleid hervatten</i> klikt (met vier-ogengoedkeuring ingeschakeld moet een tweede gebruiker goedkeuren). Zie <a href="/docs/ransomware">Ransomwarebescherming</a>.</p>
+
+<h2>Wat een back-upuitvoering meldt</h2>
+<p>Open een uitvoering in <a href="/runs">Activiteit</a>: aantal bestanden, nieuwe/gewijzigde bestanden, gelezen gegevens, nieuw geüploade gegevens (na deduplicatie en compressie, met de compressieverhouding en het al opgeslagen deel — zie <a href="#compression">Compressie</a>), duur, en bestanden die niet gelezen konden worden. Een uitvoering met onleesbare bestanden eindigt met status <b>waarschuwing</b> — de rest van de gegevens is geback-upt.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

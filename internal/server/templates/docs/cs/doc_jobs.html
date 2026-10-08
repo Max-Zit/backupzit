@@ -1,0 +1,114 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Úlohy zálohování a plány</h1>
+<p class="lead">Úloha určuje, co se na kterém agentovi zálohuje, kam se to ukládá, kdy běží a kolik záloh se ponechá.</p>
+
+<h2>Vytvoření úlohy</h2>
+<ol>
+  <li>Přejděte do <a href="/jobs">Úlohy zálohování</a> a vyplňte <i>Nová úloha zálohování</i>.</li>
+  <li>Zvolte <b>agenta</b> a <b>cíl úložiště</b>.</li>
+  <li>Zvolte, co zálohovat:
+    <ul>
+      <li><b>Soubory a složky</b> — jedna cesta na řádek, jak ji vidí agent, např. <code>C:\Users</code>, <code>D:\Data</code>, <code>/home</code>, <code>/etc</code>.</li>
+      <li><b>Obraz disku</b> — celý disk nebo vybrané oddíly, obnovitelné na prázdný disk nebo nový hardware. Viz <a href="/docs/images">Obrazy disků</a>.</li>
+      <li><b>Systém Linux</b> — všechny souborové systémy a rozložení disků linuxového počítače, obnovitelné na prázdný disk nebo jako VM v Proxmoxu. Viz <a href="/docs/linux-system">Záloha systému Linux</a>.</li>
+      <li><b>Virtuální počítače (Proxmox VE, Hyper-V, VMware)</b> — VM (a kontejnery Proxmoxu) hostitele hypervizoru, zálohované bez agentů v hostech: agentem na hostiteli Proxmox nebo Hyper-V, nebo u VMware ESXi proxy agentem hostitele (zvolte hostitele ESXi v seznamu agentů). Viz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> a <a href="/docs/vmware">VMware ESXi</a>.</li>
+      <li><b>Databáze</b> — SQL Server, PostgreSQL nebo MySQL/MariaDB na počítači agenta, se zálohami logů pro obnovu k libovolnému okamžiku. Viz <a href="/docs/sql">Databáze</a>.</li>
+      <li><b>NAS / sdílená složka</b> — sdílená složka SMB nebo NFS, kterou čte agent; viz <a href="#nas">níže</a>.</li>
+      <li><b>Microsoft 365</b> — poštovní schránky Exchange Online, kalendáře, kontakty, OneDrive a weby SharePoint, čtené přes Microsoft Graph libovolným agentem; viz <a href="/docs/m365">Microsoft 365</a>.</li>
+    </ul>
+  </li>
+  <li>Volitelně přidejte <b>výjimky</b>, jednu na řádek: vzor názvu, který platí v každé složce (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), nebo úplnou cestu, která platí jen pro daný soubor či složku (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, i se zástupnými znaky: <code>D:\VMs\*.iso</code>). Ve Windows úplné cesty nerozlišují velká a malá písmena.</li>
+  <li>Nastavte <b>Ponechat zálohy</b> a <b>Rozvrh</b>, pak <i>Vytvořit úlohu</i>.</li>
+</ol>
+
+<h2 id="nas">NAS a sdílené složky (SMB, NFS)</h2>
+<p>Úloha <b>NAS / sdílená složka</b> zálohuje síťovou sdílenou složku, aniž by se na NAS cokoli instalovalo (Synology, QNAP, TrueNAS, souborový server Windows …). Zvolte libovolného agenta, který na sdílenou složku dosáhne — čte ji a zapisuje zálohu — a zadejte:</p>
+<ul>
+  <li><b>Sdílená složka</b>: <code>smb://nas01/data</code> (volitelně se složkou: <code>smb://nas01/data/Office</code>) nebo <code>nfs://nas01/volume1/data</code> (cesta exportu);</li>
+  <li>u SMB účet (uživatel, volitelná doména, heslo — uloženo šifrovaně); prázdné znamená přístup hosta. NFS používá přístup počítače agenta k exportu (povolte jeho adresu na NAS);</li>
+  <li><b>složky ve sdílené složce</b>, které se mají zálohovat, jednu na řádek (prázdné: celá sdílená složka), a výjimky jako <code>#recycle</code>, <code>@eaDir</code> nebo <code>.snapshot</code>.</li>
+</ul>
+<p>Při každém běhu agent sdílenou složku připojí — agenti Windows přes cestu UNC (<code>\\nas01\data</code>, jen SMB), agenti Linuxu připojením jen pro čtení pod <code>/mnt/backupzit-nas</code> (vyžaduje <code>cifs-utils</code> pro SMB, <code>nfs-common</code> nebo <code>nfs-utils</code> pro NFS; Proxmox VE má obojí) — a poté ji odpojí. Zálohy jsou běžné zálohy souborů: deduplikované a přírůstkové, s uchováváním, úlohami kopií, testy obnovy, procházením a obnovou souborů. <b>Obnovit do původního umístění</b> znovu připojí sdílenou složku pro zápis a zapíše do ní soubory zpět; nebo obnovte do složky na libovolném agentovi či stáhněte.</p>
+
+<h2>Otevřené a zamčené soubory (VSS)</h2>
+<p>Ve Windows agent používá <b>službu Stínová kopie svazku</b>: pořídí konzistentní snímek svazku k určitému okamžiku a zálohuje z něj, takže otevřené soubory (PST z Outlooku, databáze, právě upravované dokumenty) se zálohují konzistentně. Aplikace podporující VSS (například SQL Server) zapíšou svá data na disk ještě před pořízením snímku.</p>
+
+<h2>Rozvrhy</h2>
+<table>
+  <tr><th>Volba</th><th>Příklad</th></tr>
+  <tr><td><b>V určené časy</b></td><td>Každý pracovní den ve 22:00; nebo ve 12:00 a 18:00 každý den. Až třikrát denně, v zaškrtnuté dny.</td></tr>
+  <tr><td><b>Opakovaně</b></td><td>Každé 2 hodiny mezi 08:00 a 18:00, pondělí–pátek. Intervaly od 15 minut do 12 hodin.</td></tr>
+  <tr><td><b>Jednou měsíčně</b></td><td>1. den ve 23:00.</td></tr>
+  <tr><td><b>Pouze ručně</b></td><td>Běží jen po kliknutí na <i>Spustit zálohu nyní</i>.</td></tr>
+</table>
+<p>Časy jsou v časovém pásmu serveru konzole (na appliance: <a href="/settings/network#timezone">Nastavení → Síť → Časové pásmo</a> nebo položka 9 nabídky nastavení; na začátku UTC). Je-li agent v plánovaný čas offline, záloha čeká ve frontě a spustí se, jakmile se agent vrátí. Všechny plánované běhy uvidíte v <a href="/calendar">Kalendáři</a>.</p>
+
+<h2>Uchovávání: kolik záloh ponechat</h2>
+<p>Snímek se ponechá, pokud jej vybere <b>kterékoli</b> pravidlo:</p>
+<ul>
+  <li><b>Nejnovější</b> — N nejnovějších záloh.</li>
+  <li><b>Denně</b> — nejnovější záloha z každého z posledních N dní, kdy zálohy byly.</li>
+  <li><b>Týdně</b> — nejnovější záloha z každého z posledních N týdnů.</li>
+  <li><b>Měsíčně</b> — nejnovější záloha z každého z posledních N měsíců.</li>
+</ul>
+<p>Příklad: 3 nejnovější, 7 denních, 4 týdenní a 6 měsíčních uchová zhruba půl roku historie s ~20 body obnovy. Po každém úspěšném běhu se snímky, které už nic nevybírá, odstraní (v Aktivitě zobrazeny jako <i>vypršelo</i>) a data, která už žádný snímek nepoužívá, se z úložiště smažou. Samé nuly uchovají vše.</p>
+<div class="callout"><p>Díky deduplikaci je dlouhé uchovávání levné: nezměněná data se uloží jen jednou, bez ohledu na to, kolik snímků na ně odkazuje.</p></div>
+
+<h2>Úlohy kopie zálohy (3-2-1)</h2>
+<p>Úloha <b>kopie zálohy</b> kopíruje zálohy jiné úlohy na druhý cíl úložiště — například noční zálohy na NAS v kanceláři, zkopírované do S3 nebo na externí zabezpečené úložiště. Ve formuláři úlohy zvolte <i>Kopie zálohy</i>, vyberte úlohu ke kopírování a cílové úložiště.</p>
+<ul>
+  <li>Kopíruje agent zdrojové úlohy; chráněný počítač se <b>znovu nečte</b>.</li>
+  <li>Přenášejí se jen data, která v cíli ještě nejsou, znovu zašifrovaná klíčem cíle.</li>
+  <li>Rozvrh <b>Po každé záloze zdrojové úlohy</b> (výchozí) udržuje kopii aktuální; funguje i jakýkoli běžný rozvrh, např. jednou za noc u pomalé internetové linky.</li>
+  <li>Kopie má vlastní uchovávání, např. 7 denních na NAS a 12 měsíčních v cloudu.</li>
+  <li>Zkopírované zálohy souborů a VM (Proxmox VE, Hyper-V, VMware) se obnovují ze stránky běhu kopie nebo z <a href="/restore">průvodce obnovou</a> stejně jako originály — celé VM, jednotlivé soubory z disků VM a okamžitá obnova Proxmoxu. Zálohy VM zkopírované agentem starším než 0.29 tímto způsobem obnovit nelze; další běh kopie s novějším agentem učiní jeho nejnovější kopii obnovitelnou. Kopie obrazů disků se obnovují agentem z příkazového řádku.</li>
+</ul>
+
+<h2>Změna úlohy</h2>
+<p>Otevřete úlohu a rozbalte <b>Upravit úlohu</b>. Můžete změnit název, složky a výjimky (úlohy souborů), VM (úlohy VM), rozvrh, uchovávání, omezení rychlosti, úroveň komprese a příkazy. Agent, cíl úložiště a disk úlohy obrazu zůstávají beze změny, aby zálohy úlohy tvořily jeden řetězec; chcete-li úlohu přesunout, vytvořte novou — s úlohou kopie, pokud mají starší zálohy jít s ní. Změny platí od dalšího běhu a zaznamenávají se do <a href="/audit">protokolu auditu</a>. Se zapnutým <a href="/docs/users">schválením čtyř očí</a> čeká kratší uchovávání na schválení druhým uživatelem; ostatní změny se uloží hned.</p>
+
+<h2>Repliky (Proxmox VE)</h2>
+<p>Úlohy VM v Proxmoxu mohou udržovat zastavené, aktuální kopie svých hostů na uzlu podle vašeho výběru, které se spustí jedním kliknutím, pokud o hosta přijdete — viz <a href="/docs/proxmox">Proxmox VE → Replikace</a>.</p>
+
+<h2>Omezení rychlosti</h2>
+<p>V části <b>Pokročilé</b> formuláře úlohy <b>Omezit rychlost odesílání na</b> omezuje, jak rychle agent posílá data na úložiště, v MB/s — například 10 MB/s od 08:00 do 18:00, aby zálohy v pracovní době nechaly linku kanceláře použitelnou; mimo toto okno běží úloha plnou rychlostí. Hodiny jsou v místním čase agenta a okno může přecházet přes půlnoc (22:00 až 06:00). Omezení platí pro zálohy a úlohy kopií (odesílání na druhé úložiště), ne pro obnovy: obnova běží vždy plnou rychlostí.</p>
+
+<h2 id="compression">Komprese a deduplikace</h2>
+<p>Každá záloha se deduplikuje: data, která už v repozitáři jsou — z dřívějších záloh téže úlohy nebo z jiných úloh na stejném cíli úložiště — se znovu neukládají. Nová data se pak komprimují pomocí zstd; části, které se nezmenší (video, archivy, šifrované soubory), se uloží tak, jak jsou. Šifrování následuje po kompresi.</p>
+<p>Úroveň komprese je nastavení úlohy (<b>Upravit úlohu → Pokročilé</b>):</p>
+<table>
+  <tr><th>Úroveň</th><th>Kdy ji použít</th></tr>
+  <tr><td>Standardní (doporučeno)</td><td>Dobrá komprese při vysoké rychlosti; hodí se téměř pro každou úlohu.</td></tr>
+  <tr><td>Rychlá</td><td>Spotřebuje méně CPU na vytížených nebo slabých počítačích; zálohy jsou o něco větší.</td></tr>
+  <tr><td>Maximální</td><td>Obvykle o 5–15 % menší než standardní, ale komprese je několikrát pomalejší. Pro pomalé odchozí linky a placená cloudová úložiště, když má počítač volné CPU.</td></tr>
+  <tr><td>Vypnuto</td><td>Pro již komprimovaná data: šetří CPU, aniž by zálohy zvětšila.</td></tr>
+</table>
+<p>Úroveň platí pro nová data od dalšího běhu; stávající zálohy zůstanou beze změny a obnova na ní nikdy nezávisí. Stránka běhu ukazuje výsledek: kompresní poměr nových dat (např. <i>2.4×</i>) a jaká část přečtených dat už byla uložena (deduplikace).</p>
+
+<h2>Příkazy před zálohou a po ní</h2>
+<p>Správci mohou nechat úlohu spustit na agentovi příkaz před každou zálohou a po ní — například výpis databáze, zastavení služby kvůli konzistentní kopii nebo oznámení:</p>
+<pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
+sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, before</pre>
+<ul>
+  <li>Příkazy běží pod servisním účtem agenta (root v Linuxu, SYSTEM ve Windows) přes <code>sh</code> nebo <code>cmd</code>; je povoleno více řádků. Vidět a měnit je mohou jen <b>Správci</b> — jinak by operátor záloh mohl spustit cokoli na každém počítači.</li>
+  <li>Pokud příkaz <b>před</b> selže (návratový kód není 0) nebo běží déle než časový limit (výchozí 30 minut), záloha se nespustí a běh selže s výstupem příkazu.</li>
+  <li>Příkaz <b>po</b> běží i tehdy, když záloha selhala, aby mohl znovu spustit to, co první příkaz zastavil. Selhání příkazu po záloze změní běh na varování.</li>
+  <li>Oba dostanou <code>BACKUPZIT_STAGE</code> (pre nebo post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> a po záloze <code>BACKUPZIT_STATUS</code> (success, warning nebo failed).</li>
+  <li>U úloh VM běží příkazy na hostiteli hypervizoru (nebo proxy VMware), ne uvnitř VM. Úlohy kopií příkazy nemají.</li>
+</ul>
+
+<h2>Spuštění, zakázání, smazání</h2>
+<ul>
+  <li><b>Spustit zálohu nyní</b> (<b>Kopírovat nyní</b> u úloh kopií) okamžitě zařadí úlohu do fronty.</li>
+  <li><b>Otestovat obnovu</b> obnoví náhodný vzorek nejnovější zálohy a ověří jej (viz <a href="/docs/restore">Obnova</a>).</li>
+  <li><b>Zakázat</b> pozastaví rozvrh, aniž by se úloha ztratila (se zapnutým schválením čtyř očí to musí schválit druhý uživatel).</li>
+  <li><b>Smazat</b> odstraní úlohu; stávající zálohy zůstanou na úložišti a dají se dál obnovit z Aktivity.</li>
+</ul>
+
+<h2>Pozastavené uchovávání</h2>
+<p>Pokud záloha úlohy vypadala jako ransomware nebo hromadné mazání, stránka úlohy ukazuje <i>Uchovávání je pozastaveno</i>: žádné zálohy se neodstraní, dokud někdo počítač nezkontroluje a neklikne na <i>Zkontrolováno — obnovit uchovávání</i> (se zapnutým schválením čtyř očí to musí schválit druhý uživatel). Viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>.</p>
+
+<h2>Co hlásí běh zálohy</h2>
+<p>Otevřete běh v <a href="/runs">Aktivitě</a>: počet souborů, nové/změněné soubory, přečtená data, nově nahraná data (po deduplikaci a kompresi, s kompresním poměrem a podílem už uložených dat — viz <a href="#compression">Komprese</a>), doba trvání a soubory, které nešlo přečíst. Běh s nečitelnými soubory skončí stavem <b>varování</b> — ostatní data jsou zálohována.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

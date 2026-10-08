@@ -1,0 +1,114 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Sicherungsaufträge und Zeitpläne</h1>
+<p class="lead">Ein Auftrag legt fest, was auf welchem Agenten gesichert wird, wo es gespeichert wird, wann er läuft und wie viele Sicherungen behalten werden.</p>
+
+<h2>Einen Auftrag erstellen</h2>
+<ol>
+  <li>Gehen Sie zu <a href="/jobs">Sicherungsaufträge</a> und füllen Sie <i>Neuer Sicherungsauftrag</i> aus.</li>
+  <li>Wählen Sie den <b>Agenten</b> und das <b>Speicherziel</b>.</li>
+  <li>Wählen Sie, was gesichert wird:
+    <ul>
+      <li><b>Dateien und Ordner</b> — ein Pfad pro Zeile, wie er auf dem Agenten erscheint, z. B. <code>C:\Users</code>, <code>D:\Data</code>, <code>/home</code>, <code>/etc</code>.</li>
+      <li><b>Festplattenabbild</b> — eine ganze Festplatte oder ausgewählte Partitionen, wiederherstellbar auf eine leere Festplatte oder neue Hardware. Siehe <a href="/docs/images">Festplattenabbilder</a>.</li>
+      <li><b>Linux-System</b> — alle Dateisysteme und das Festplattenlayout eines Linux-Rechners, wiederherstellbar auf eine leere Festplatte oder als Proxmox-VM. Siehe <a href="/docs/linux-system">Linux-Systemsicherung</a>.</li>
+      <li><b>Virtuelle Maschinen (Proxmox VE, Hyper-V, VMware)</b> — VMs (und Proxmox-Container) eines Hypervisor-Hosts, gesichert ohne Agenten in den Gästen: durch den Agenten auf dem Proxmox- oder Hyper-V-Host oder bei VMware ESXi durch den Proxy-Agenten des Hosts (wählen Sie den ESXi-Host in der Agentenliste). Siehe <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> und <a href="/docs/vmware">VMware ESXi</a>.</li>
+      <li><b>Datenbanken</b> — SQL Server, PostgreSQL oder MySQL/MariaDB auf dem Rechner des Agenten, mit Log-Sicherungen für Wiederherstellungen zu jedem Zeitpunkt. Siehe <a href="/docs/sql">Datenbanken</a>.</li>
+      <li><b>NAS / Dateifreigabe</b> — eine SMB- oder NFS-Freigabe, die der Agent liest; siehe <a href="#nas">unten</a>.</li>
+      <li><b>Microsoft 365</b> — Exchange-Online-Postfächer, Kalender, Kontakte, OneDrive und SharePoint-Websites, gelesen über Microsoft Graph durch einen beliebigen Agenten; siehe <a href="/docs/m365">Microsoft 365</a>.</li>
+    </ul>
+  </li>
+  <li>Fügen Sie optional <b>Ausschlüsse</b> hinzu, einen pro Zeile: ein Namensmuster, das in jedem Ordner gilt (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), oder ein vollständiger Pfad, der für genau diese Datei oder diesen Ordner gilt (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, auch mit Platzhaltern: <code>D:\VMs\*.iso</code>). Vollständige Pfade ignorieren unter Windows Groß- und Kleinschreibung.</li>
+  <li>Legen Sie <b>Sicherungen behalten</b> und den <b>Zeitplan</b> fest, dann <i>Auftrag erstellen</i>.</li>
+</ol>
+
+<h2 id="nas">NAS und Dateifreigaben (SMB, NFS)</h2>
+<p>Ein Auftrag vom Typ <b>NAS / Dateifreigabe</b> sichert eine Netzwerkfreigabe, ohne etwas auf dem NAS zu installieren (Synology, QNAP, TrueNAS, ein Windows-Dateiserver …). Wählen Sie einen beliebigen Agenten, der die Freigabe erreicht — er liest die Freigabe und schreibt die Sicherung — und geben Sie ein:</p>
+<ul>
+  <li><b>Freigabe</b>: <code>smb://nas01/data</code> (optional mit einem Ordner: <code>smb://nas01/data/Office</code>) oder <code>nfs://nas01/volume1/data</code> (der Exportpfad);</li>
+  <li>bei SMB das Konto (Benutzer, optionale Domäne, Passwort — verschlüsselt gespeichert); leer bedeutet Gastzugriff. NFS nutzt den Zugriff des Agentenrechners auf den Export (erlauben Sie seine Adresse auf dem NAS);</li>
+  <li>die zu sichernden <b>Ordner in der Freigabe</b>, einer pro Zeile (leer: die ganze Freigabe), und Ausschlüsse wie <code>#recycle</code>, <code>@eaDir</code> oder <code>.snapshot</code>.</li>
+</ul>
+<p>Für jeden Lauf verbindet der Agent die Freigabe — Windows-Agenten über ihren UNC-Pfad (<code>\\nas01\data</code>, nur SMB), Linux-Agenten durch schreibgeschütztes Einbinden unterhalb von <code>/mnt/backupzit-nas</code> (benötigt <code>cifs-utils</code> für SMB, <code>nfs-common</code> oder <code>nfs-utils</code> für NFS; Proxmox VE hat beides) — und trennt sie danach. Die Sicherungen sind gewöhnliche Dateisicherungen: dedupliziert und inkrementell, mit Aufbewahrung, Kopieraufträgen, Wiederherstellungstests, Durchsuchen und Dateiwiederherstellung. <b>Am ursprünglichen Ort wiederherstellen</b> verbindet die Freigabe erneut, beschreibbar, und schreibt die Dateien zurück; oder stellen Sie in einen Ordner auf einem beliebigen Agenten wieder her oder laden Sie herunter.</p>
+
+<h2>Geöffnete und gesperrte Dateien (VSS)</h2>
+<p>Unter Windows nutzt der Agent den <b>Volumeschattenkopie-Dienst</b>: Er erstellt einen konsistenten Snapshot des Volumes zu einem Zeitpunkt und sichert daraus, sodass geöffnete Dateien (Outlook-PST, Datenbanken, gerade bearbeitete Dokumente) konsistent gesichert werden. Anwendungen mit VSS-Unterstützung (zum Beispiel SQL Server) schreiben ihre Daten auf die Festplatte, bevor der Snapshot erstellt wird.</p>
+
+<h2>Zeitpläne</h2>
+<table>
+  <tr><th>Option</th><th>Beispiel</th></tr>
+  <tr><td><b>Zu bestimmten Zeiten</b></td><td>Jeden Werktag um 22:00; oder täglich um 12:00 und 18:00. Bis zu dreimal am Tag, an den angehakten Tagen.</td></tr>
+  <tr><td><b>Wiederholt</b></td><td>Alle 2 Stunden zwischen 08:00 und 18:00, Montag–Freitag. Intervalle von 15 Minuten bis 12 Stunden.</td></tr>
+  <tr><td><b>Einmal im Monat</b></td><td>Am 1. um 23:00.</td></tr>
+  <tr><td><b>Nur manuell</b></td><td>Läuft nur, wenn Sie auf <i>Sicherung jetzt ausführen</i> klicken.</td></tr>
+</table>
+<p>Die Zeiten gelten in der Zeitzone des Konsolenservers (auf der Appliance: <a href="/settings/network#timezone">Einstellungen → Netzwerk → Zeitzone</a> oder Punkt 9 des Setup-Menüs; anfangs UTC). Ist ein Agent zur geplanten Zeit offline, wartet die Sicherung in der Warteschlange und startet, sobald der Agent zurück ist. Alle geplanten Läufe sehen Sie im <a href="/calendar">Kalender</a>.</p>
+
+<h2>Aufbewahrung: wie viele Sicherungen behalten werden</h2>
+<p>Ein Snapshot wird behalten, wenn <b>irgendeine</b> Regel ihn auswählt:</p>
+<ul>
+  <li><b>Neueste</b> — die neuesten N Sicherungen.</li>
+  <li><b>Täglich</b> — die neueste Sicherung jedes der letzten N Tage mit Sicherungen.</li>
+  <li><b>Wöchentlich</b> — die neueste Sicherung jeder der letzten N Wochen.</li>
+  <li><b>Monatlich</b> — die neueste Sicherung jedes der letzten N Monate.</li>
+</ul>
+<p>Beispiel: 3 neueste, 7 tägliche, 4 wöchentliche, 6 monatliche behalten etwa ein halbes Jahr Verlauf mit ~20 Wiederherstellungspunkten. Nach jedem erfolgreichen Lauf werden nicht mehr ausgewählte Snapshots entfernt (in Aktivität als <i>abgelaufen</i> angezeigt), und Daten, die kein Snapshot mehr verwendet, werden vom Speicher gelöscht. Lauter Nullen behalten alles.</p>
+<div class="callout"><p>Dank Deduplizierung ist lange Aufbewahrung günstig: Unveränderte Daten werden nur einmal gespeichert, egal wie viele Snapshots darauf verweisen.</p></div>
+
+<h2>Sicherungskopie-Aufträge (3-2-1)</h2>
+<p>Ein Auftrag vom Typ <b>Sicherungskopie</b> kopiert die Sicherungen eines anderen Auftrags auf ein zweites Speicherziel — zum Beispiel nächtliche Sicherungen auf das Büro-NAS, kopiert nach S3 oder in ein externes gehärtetes Repository. Wählen Sie im Auftragsformular <i>Sicherungskopie</i>, den zu kopierenden Auftrag und den Zielspeicher.</p>
+<ul>
+  <li>Der Agent des Quellauftrags kopiert; der geschützte Rechner wird <b>nicht erneut gelesen</b>.</li>
+  <li>Übertragen werden nur Daten, die noch nicht am Ziel sind, neu verschlüsselt mit dem Schlüssel des Ziels.</li>
+  <li>Der Zeitplan <b>Nach jeder Sicherung des Quellauftrags</b> (Standard) hält die Kopie aktuell; jeder normale Zeitplan funktioniert auch, z. B. einmal pro Nacht bei einer langsamen Internetleitung.</li>
+  <li>Die Kopie hat ihre eigene Aufbewahrung, z. B. 7 tägliche auf dem NAS und 12 monatliche in der Cloud.</li>
+  <li>Kopierte Dateisicherungen und VM-Sicherungen (Proxmox VE, Hyper-V, VMware) werden wie die Originale über die Seite des Kopierlaufs oder den <a href="/restore">Wiederherstellungsassistenten</a> wiederhergestellt — ganze VMs, einzelne Dateien von VM-Festplatten und Proxmox-Sofortwiederherstellung. VM-Sicherungen, die ein Agent älter als 0.29 kopiert hat, lassen sich so nicht wiederherstellen; der nächste Kopierlauf mit einem neueren Agenten macht seine neueste Kopie wiederherstellbar. Kopien von Festplattenabbildern werden mit dem Befehlszeilen-Agenten wiederhergestellt.</li>
+</ul>
+
+<h2>Einen Auftrag ändern</h2>
+<p>Öffnen Sie den Auftrag und klappen Sie <b>Auftrag bearbeiten</b> auf. Sie können Name, Ordner und Ausschlüsse (Dateiaufträge), VMs (VM-Aufträge), Zeitplan, Aufbewahrung, Geschwindigkeitsbegrenzung, Komprimierungsstufe und Befehle ändern. Agent, Speicherziel und die Festplatte eines Abbildauftrags bleiben unverändert, damit die Sicherungen des Auftrags eine Kette bleiben; um einen Auftrag zu verschieben, erstellen Sie einen neuen — mit einem Kopierauftrag, falls ältere Sicherungen mitkommen sollen. Änderungen gelten ab dem nächsten Lauf und werden im <a href="/audit">Audit-Protokoll</a> festgehalten. Mit eingeschalteter <a href="/docs/users">Vier-Augen-Freigabe</a> wartet eine kürzere Aufbewahrung auf die Zustimmung eines zweiten Benutzers; die übrigen Änderungen werden sofort gespeichert.</p>
+
+<h2>Replikate (Proxmox VE)</h2>
+<p>Proxmox-VM-Aufträge können gestoppte, aktuelle Kopien ihrer Gäste auf einem Knoten Ihrer Wahl vorhalten, die mit einem Klick gestartet werden, wenn ein Gast verloren geht — siehe <a href="/docs/proxmox">Proxmox VE → Replikation</a>.</p>
+
+<h2>Geschwindigkeitsbegrenzung</h2>
+<p>Unter <b>Erweitert</b> im Auftragsformular begrenzt <b>Upload-Geschwindigkeit begrenzen auf</b>, wie schnell der Agent Daten an den Speicher sendet, in MB/s — zum Beispiel 10 MB/s von 08:00 bis 18:00, damit Sicherungen während der Arbeitszeit die Büroleitung nutzbar lassen; außerhalb des Zeitfensters läuft der Auftrag mit voller Geschwindigkeit. Die Stunden sind die Ortszeit des Agenten, und ein Zeitfenster darf über Mitternacht gehen (22:00 bis 06:00). Die Begrenzung gilt für Sicherungen und Kopieraufträge (das Hochladen auf den zweiten Speicher), nicht für Wiederherstellungen: Eine Wiederherstellung läuft immer mit voller Geschwindigkeit.</p>
+
+<h2 id="compression">Komprimierung und Deduplizierung</h2>
+<p>Jede Sicherung wird dedupliziert: Daten, die bereits im Repository sind — aus früheren Sicherungen desselben Auftrags oder aus anderen Aufträgen auf demselben Speicherziel —, werden nicht erneut gespeichert. Neue Daten werden dann mit zstd komprimiert; Teile, die nicht kleiner werden (Video, Archive, verschlüsselte Dateien), werden unverändert gespeichert. Die Verschlüsselung kommt nach der Komprimierung.</p>
+<p>Die Komprimierungsstufe ist eine Auftragseinstellung (<b>Auftrag bearbeiten → Erweitert</b>):</p>
+<table>
+  <tr><th>Stufe</th><th>Wann verwenden</th></tr>
+  <tr><td>Standard (empfohlen)</td><td>Gute Komprimierung bei hoher Geschwindigkeit; passt für fast jeden Auftrag.</td></tr>
+  <tr><td>Schnell</td><td>Braucht weniger CPU auf ausgelasteten oder schwachen Rechnern; Sicherungen sind etwas größer.</td></tr>
+  <tr><td>Maximal</td><td>Meist 5–15 % kleiner als Standard, aber um ein Mehrfaches langsamer beim Komprimieren. Für langsame Uplinks und kostenpflichtigen Cloud-Speicher, wenn der Rechner CPU übrig hat.</td></tr>
+  <tr><td>Aus</td><td>Für bereits komprimierte Daten: spart CPU, ohne Sicherungen größer zu machen.</td></tr>
+</table>
+<p>Die Stufe gilt für neue Daten ab dem nächsten Lauf; vorhandene Sicherungen bleiben unverändert, und die Wiederherstellung hängt nie davon ab. Die Laufseite zeigt das Ergebnis: das Komprimierungsverhältnis der neuen Daten (z. B. <i>2.4×</i>) und wie viel der gelesenen Daten bereits gespeichert war (Deduplizierung).</p>
+
+<h2>Befehle vor und nach der Sicherung</h2>
+<p>Administratoren können einen Auftrag vor und nach jeder Sicherung einen Befehl auf dem Agenten ausführen lassen — zum Beispiel einen Datenbank-Dump, das Stoppen eines Dienstes für eine konsistente Kopie oder eine Benachrichtigung:</p>
+<pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
+sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, before</pre>
+<ul>
+  <li>Befehle laufen unter dem Dienstkonto des Agenten (root unter Linux, SYSTEM unter Windows) mit <code>sh</code> oder <code>cmd</code>; mehrere Zeilen sind erlaubt. Nur <b>Administratoren</b> können sie sehen und ändern — ein Sicherungsoperator könnte sonst beliebige Befehle auf jedem Rechner ausführen.</li>
+  <li>Schlägt der Befehl <b>davor</b> fehl (Exit-Code ungleich 0) oder läuft er länger als das Zeitlimit (Standard 30 Minuten), wird die Sicherung nicht ausgeführt und der Lauf schlägt mit der Ausgabe des Befehls fehl.</li>
+  <li>Der Befehl <b>danach</b> läuft auch, wenn die Sicherung fehlschlug, damit er wieder starten kann, was der erste Befehl gestoppt hat. Ein fehlschlagender Befehl nach der Sicherung macht den Lauf zu einer Warnung.</li>
+  <li>Beide erhalten <code>BACKUPZIT_STAGE</code> (pre oder post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> und nach der Sicherung <code>BACKUPZIT_STATUS</code> (success, warning oder failed).</li>
+  <li>Bei VM-Aufträgen laufen die Befehle auf dem Hypervisor-Host (oder dem VMware-Proxy), nicht in den VMs. Kopieraufträge haben keine Befehle.</li>
+</ul>
+
+<h2>Ausführen, deaktivieren, löschen</h2>
+<ul>
+  <li><b>Sicherung jetzt ausführen</b> (<b>Jetzt kopieren</b> bei Kopieraufträgen) reiht den Auftrag sofort ein.</li>
+  <li><b>Wiederherstellung testen</b> stellt eine Zufallsstichprobe der neuesten Sicherung wieder her und prüft sie (siehe <a href="/docs/restore">Wiederherstellen</a>).</li>
+  <li><b>Deaktivieren</b> pausiert den Zeitplan, ohne den Auftrag zu verlieren (mit eingeschalteter Vier-Augen-Freigabe muss ein zweiter Benutzer zustimmen).</li>
+  <li><b>Löschen</b> entfernt den Auftrag; vorhandene Sicherungen bleiben auf dem Speicher und sind weiterhin aus Aktivität wiederherstellbar.</li>
+</ul>
+
+<h2>Aufbewahrung pausiert</h2>
+<p>Sah eine Sicherung des Auftrags nach Ransomware oder Massenlöschung aus, zeigt die Auftragsseite <i>Aufbewahrung ist pausiert</i>: Es werden keine Sicherungen entfernt, bis jemand den Rechner prüft und auf <i>Geprüft – Aufbewahrung fortsetzen</i> klickt (mit eingeschalteter Vier-Augen-Freigabe muss ein zweiter Benutzer zustimmen). Siehe <a href="/docs/ransomware">Ransomware-Schutz</a>.</p>
+
+<h2>Was ein Sicherungslauf meldet</h2>
+<p>Öffnen Sie einen Lauf in <a href="/runs">Aktivität</a>: Anzahl der Dateien, neue/geänderte Dateien, gelesene Daten, neu hochgeladene Daten (nach Deduplizierung und Komprimierung, mit dem Komprimierungsverhältnis und dem bereits gespeicherten Anteil — siehe <a href="#compression">Komprimierung</a>), Dauer und Dateien, die nicht gelesen werden konnten. Ein Lauf mit unlesbaren Dateien endet mit dem Status <b>Warnung</b> — die übrigen Daten sind gesichert.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

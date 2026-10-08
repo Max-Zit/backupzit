@@ -1,0 +1,114 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Zadania kopii i harmonogramy</h1>
+<p class="lead">Zadanie określa, co kopiować na którym agencie, gdzie to przechowywać, kiedy uruchamiać i ile kopii zachować.</p>
+
+<h2>Tworzenie zadania</h2>
+<ol>
+  <li>Przejdź do <a href="/jobs">Zadania kopii</a> i wypełnij <i>Nowe zadanie kopii</i>.</li>
+  <li>Wybierz <b>agenta</b> i <b>miejsce docelowe</b>.</li>
+  <li>Wybierz, co kopiować:
+    <ul>
+      <li><b>Pliki i foldery</b> — jedna ścieżka w wierszu, tak jak widzi ją agent, np. <code>C:\Users</code>, <code>D:\Data</code>, <code>/home</code>, <code>/etc</code>.</li>
+      <li><b>Obraz dysku</b> — cały dysk lub wybrane partycje, do przywrócenia na pusty dysk lub nowy sprzęt. Zobacz <a href="/docs/images">Obrazy dysków</a>.</li>
+      <li><b>System Linux</b> — wszystkie systemy plików i układ dysków maszyny Linux, do przywrócenia na pusty dysk lub jako maszyna Proxmox. Zobacz <a href="/docs/linux-system">Kopia systemu Linux</a>.</li>
+      <li><b>Maszyny wirtualne (Proxmox VE, Hyper-V, VMware)</b> — maszyny (i kontenery Proxmox) hosta hipernadzorcy, kopiowane bez agentów w gościach: przez agenta na hoście Proxmox lub Hyper-V albo, dla VMware ESXi, przez agenta proxy hosta (wybierz host ESXi z listy agentów). Zobacz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>.</li>
+      <li><b>Bazy danych</b> — SQL Server, PostgreSQL lub MySQL/MariaDB na maszynie agenta, z kopiami dzienników do przywracania do dowolnej chwili. Zobacz <a href="/docs/sql">Bazy danych</a>.</li>
+      <li><b>NAS / udział plików</b> — udział SMB lub NFS czytany przez agenta; zobacz <a href="#nas">niżej</a>.</li>
+      <li><b>Microsoft 365</b> — skrzynki Exchange Online, kalendarze, kontakty, OneDrive i witryny SharePoint, czytane przez Microsoft Graph przez dowolnego agenta; zobacz <a href="/docs/m365">Microsoft 365</a>.</li>
+    </ul>
+  </li>
+  <li>Opcjonalnie dodaj <b>wykluczenia</b>, po jednym w wierszu: wzorzec nazwy, który działa w każdym folderze (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), lub pełną ścieżkę, która dotyczy tylko tego pliku lub folderu (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, także z symbolami wieloznacznymi: <code>D:\VMs\*.iso</code>). W Windows pełne ścieżki ignorują wielkość liter.</li>
+  <li>Ustaw <b>Zachowuj kopie</b> i <b>Harmonogram</b>, a potem <i>Utwórz zadanie</i>.</li>
+</ol>
+
+<h2 id="nas">NAS i udziały plików (SMB, NFS)</h2>
+<p>Zadanie <b>NAS / udział plików</b> kopiuje udział sieciowy bez instalowania czegokolwiek na NAS (Synology, QNAP, TrueNAS, serwer plików Windows …). Wybierz dowolnego agenta, który ma dostęp do udziału — czyta on udział i zapisuje kopię — i podaj:</p>
+<ul>
+  <li><b>Udział</b>: <code>smb://nas01/data</code> (opcjonalnie z folderem: <code>smb://nas01/data/Office</code>) lub <code>nfs://nas01/volume1/data</code> (ścieżka eksportu);</li>
+  <li>dla SMB konto (użytkownik, opcjonalna domena, hasło — przechowywane zaszyfrowane); puste oznacza dostęp gościa. NFS używa dostępu maszyny agenta do eksportu (zezwól na jej adres na NAS);</li>
+  <li><b>foldery w udziale</b> do skopiowania, po jednym w wierszu (puste: cały udział), oraz wykluczenia, takie jak <code>#recycle</code>, <code>@eaDir</code> lub <code>.snapshot</code>.</li>
+</ul>
+<p>Przy każdym uruchomieniu agent podłącza udział — agenci Windows przez ścieżkę UNC (<code>\\nas01\data</code>, tylko SMB), agenci Linux montując go tylko do odczytu pod <code>/mnt/backupzit-nas</code> (wymaga <code>cifs-utils</code> dla SMB, <code>nfs-common</code> lub <code>nfs-utils</code> dla NFS; Proxmox VE ma oba) — a potem go odłącza. Kopie są zwykłymi kopiami plików: zdeduplikowane i przyrostowe, z retencją, zadaniami kopii kopii, testami przywracania, przeglądaniem i przywracaniem plików. <b>Przywróć do pierwotnej lokalizacji</b> ponownie podłącza udział z prawem zapisu i zapisuje do niego pliki; można też przywrócić do folderu na dowolnym agencie lub pobrać.</p>
+
+<h2>Otwarte i zablokowane pliki (VSS)</h2>
+<p>W Windows agent używa <b>usługi kopiowania woluminów w tle</b>: tworzy spójną migawkę woluminu z danej chwili i kopiuje z niej, więc otwarte pliki (PST Outlooka, bazy danych, edytowane dokumenty) są kopiowane spójnie. Aplikacje obsługujące VSS (na przykład SQL Server) zapisują dane na dysk przed utworzeniem migawki.</p>
+
+<h2>Harmonogramy</h2>
+<table>
+  <tr><th>Opcja</th><th>Przykład</th></tr>
+  <tr><td><b>O określonych godzinach</b></td><td>W każdy dzień roboczy o 22:00; albo o 12:00 i 18:00 codziennie. Do trzech razy dziennie, w zaznaczone dni.</td></tr>
+  <tr><td><b>Wielokrotnie</b></td><td>Co 2 godziny między 08:00 a 18:00, od poniedziałku do piątku. Odstępy od 15 minut do 12 godzin.</td></tr>
+  <tr><td><b>Raz w miesiącu</b></td><td>1. dnia o 23:00.</td></tr>
+  <tr><td><b>Tylko ręcznie</b></td><td>Uruchamia się tylko po kliknięciu <i>Uruchom kopię teraz</i>.</td></tr>
+</table>
+<p>Godziny są w strefie czasowej serwera konsoli (na appliance: <a href="/settings/network#timezone">Ustawienia → Sieć → Strefa czasowa</a> lub pozycja 9 menu konfiguracji; na początku UTC). Jeśli agent jest offline w zaplanowanym czasie, kopia czeka w kolejce i startuje, gdy tylko agent wróci. Wszystkie planowane uruchomienia widać w <a href="/calendar">Kalendarzu</a>.</p>
+
+<h2>Retencja: ile kopii zachować</h2>
+<p>Migawka jest zachowywana, jeśli wybiera ją <b>dowolna</b> reguła:</p>
+<ul>
+  <li><b>Najnowsze</b> — N najnowszych kopii.</li>
+  <li><b>Codziennie</b> — najnowsza kopia z każdego z ostatnich N dni, w których były kopie.</li>
+  <li><b>Co tydzień</b> — najnowsza kopia z każdego z ostatnich N tygodni.</li>
+  <li><b>Co miesiąc</b> — najnowsza kopia z każdego z ostatnich N miesięcy.</li>
+</ul>
+<p>Przykład: 3 najnowsze, 7 dziennych, 4 tygodniowe, 6 miesięcznych zachowuje około pół roku historii z ~20 punktami przywracania. Po każdym udanym uruchomieniu migawki, których już nic nie wybiera, są usuwane (widoczne jako <i>wygasł</i> w Aktywności), a dane nieużywane przez żadną migawkę są kasowane z magazynu. Same zera zachowują wszystko.</p>
+<div class="callout"><p>Dzięki deduplikacji długa retencja jest tania: niezmienione dane są przechowywane tylko raz, niezależnie od tego, ile migawek się do nich odwołuje.</p></div>
+
+<h2>Zadania kopii kopii zapasowej (3-2-1)</h2>
+<p>Zadanie <b>kopii kopii zapasowej</b> kopiuje kopie innego zadania do drugiego miejsca docelowego — na przykład nocne kopie na NAS w biurze, skopiowane do S3 lub zewnętrznego utwardzonego repozytorium. Wybierz <i>Kopia kopii zapasowej</i> w formularzu zadania, zaznacz zadanie do skopiowania i magazyn docelowy.</p>
+<ul>
+  <li>Kopiuje agent zadania źródłowego; chroniona maszyna <b>nie jest ponownie czytana</b>.</li>
+  <li>Przesyłane są tylko dane, których jeszcze nie ma w miejscu docelowym, ponownie szyfrowane kluczem miejsca docelowego.</li>
+  <li>Harmonogram <b>Po każdej kopii zadania źródłowego</b> (domyślny) utrzymuje kopię aktualną; działa też każdy zwykły harmonogram, np. raz na noc przy wolnym łączu internetowym.</li>
+  <li>Kopia ma własną retencję, np. 7 dziennych na NAS i 12 miesięcznych w chmurze.</li>
+  <li>Skopiowane kopie plików i maszyn wirtualnych (Proxmox VE, Hyper-V, VMware) przywraca się ze strony uruchomienia kopii lub z <a href="/restore">kreatora przywracania</a>, jak oryginały — całe maszyny, pojedyncze pliki z dysków maszyn i natychmiastowe odzyskiwanie Proxmox. Kopii maszyn skopiowanych przez agenta starszego niż 0.29 nie da się tak przywrócić; następne uruchomienie kopii z nowszym agentem sprawia, że najnowsza kopia staje się możliwa do przywrócenia. Kopie obrazów dysków przywraca się agentem wiersza poleceń.</li>
+</ul>
+
+<h2>Zmiana zadania</h2>
+<p>Otwórz zadanie i rozwiń <b>Edytuj zadanie</b>. Możesz zmienić nazwę, foldery i wykluczenia (zadania plików), maszyny (zadania maszyn), harmonogram, retencję, limit prędkości, poziom kompresji i polecenia. Agent, miejsce docelowe i dysk zadania obrazu pozostają bez zmian, aby kopie zadania tworzyły jeden łańcuch; aby przenieść zadanie, utwórz nowe — z zadaniem kopii kopii, jeśli starsze kopie mają się przenieść. Zmiany obowiązują od następnego uruchomienia i są zapisywane w <a href="/audit">dzienniku audytu</a>. Przy włączonym <a href="/docs/users">zatwierdzaniu na cztery oczy</a> krótsza retencja czeka na zatwierdzenie przez drugiego użytkownika; pozostałe zmiany są zapisywane od razu.</p>
+
+<h2>Repliki (Proxmox VE)</h2>
+<p>Zadania maszyn Proxmox mogą utrzymywać zatrzymane, aktualne kopie swoich gości na wybranym węźle, uruchamiane jednym kliknięciem, gdy gość zostanie utracony — zobacz <a href="/docs/proxmox">Proxmox VE → Replikacja</a>.</p>
+
+<h2>Limit prędkości</h2>
+<p>W sekcji <b>Zaawansowane</b> formularza zadania <b>Ogranicz prędkość wysyłania do</b> ogranicza, jak szybko agent wysyła dane do magazynu, w MB/s — na przykład 10 MB/s od 08:00 do 18:00, aby kopie w godzinach pracy nie blokowały łącza biura; poza tym przedziałem zadanie działa z pełną prędkością. Godziny są czasem lokalnym agenta, a przedział może przechodzić przez północ (22:00 do 06:00). Limit dotyczy kopii i zadań kopii kopii (wysyłania do drugiego magazynu), a nie przywracania: przywracanie zawsze działa z pełną prędkością.</p>
+
+<h2 id="compression">Kompresja i deduplikacja</h2>
+<p>Każda kopia jest deduplikowana: dane, które już są w repozytorium — z wcześniejszych kopii tego samego zadania lub z innych zadań w tym samym miejscu docelowym — nie są zapisywane ponownie. Nowe dane są następnie kompresowane zstd; fragmenty, które się nie zmniejszają (wideo, archiwa, pliki zaszyfrowane), są zapisywane bez zmian. Szyfrowanie następuje po kompresji.</p>
+<p>Poziom kompresji to ustawienie zadania (<b>Edytuj zadanie → Zaawansowane</b>):</p>
+<table>
+  <tr><th>Poziom</th><th>Kiedy używać</th></tr>
+  <tr><td>Standardowa (zalecane)</td><td>Dobra kompresja przy dużej prędkości; pasuje do prawie każdego zadania.</td></tr>
+  <tr><td>Szybka</td><td>Zużywa mniej CPU na obciążonych lub słabych maszynach; kopie są nieco większe.</td></tr>
+  <tr><td>Maksymalna</td><td>Zwykle o 5–15 % mniejsza niż standardowa, ale kilkakrotnie wolniejsza przy kompresji. Dla wolnych łączy wysyłania i płatnego magazynu w chmurze, gdy maszyna ma zapas CPU.</td></tr>
+  <tr><td>Wyłączone</td><td>Dla danych już skompresowanych: oszczędza CPU bez zwiększania kopii.</td></tr>
+</table>
+<p>Poziom dotyczy nowych danych od następnego uruchomienia; istniejące kopie pozostają bez zmian, a przywracanie nigdy od niego nie zależy. Strona uruchomienia pokazuje wynik: współczynnik kompresji nowych danych (np. <i>2.4×</i>) oraz jaka część odczytanych danych była już zapisana (deduplikacja).</p>
+
+<h2>Polecenia przed kopią i po niej</h2>
+<p>Administratorzy mogą zlecić zadaniu uruchomienie polecenia na agencie przed każdą kopią i po niej — na przykład zrzutu bazy danych, zatrzymania usługi dla spójnej kopii lub powiadomienia:</p>
+<pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
+sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, before</pre>
+<ul>
+  <li>Polecenia działają na koncie usługi agenta (root w Linuksie, SYSTEM w Windows) przez <code>sh</code> lub <code>cmd</code>; dozwolonych jest wiele wierszy. Tylko <b>Administratorzy</b> mogą je widzieć i zmieniać — inaczej operator kopii mógłby uruchomić cokolwiek na każdej maszynie.</li>
+  <li>Jeśli polecenie <b>przed</b> się nie powiedzie (kod wyjścia różny od 0) lub trwa dłużej niż limit czasu (domyślnie 30 minut), kopia nie jest wykonywana, a uruchomienie kończy się błędem z wyjściem polecenia.</li>
+  <li>Polecenie <b>po</b> działa także wtedy, gdy kopia się nie powiodła, aby mogło ponownie uruchomić to, co zatrzymało pierwsze. Nieudane polecenie po kopii zamienia uruchomienie w ostrzeżenie.</li>
+  <li>Oba dostają <code>BACKUPZIT_STAGE</code> (pre lub post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> oraz, po kopii, <code>BACKUPZIT_STATUS</code> (success, warning lub failed).</li>
+  <li>W zadaniach maszyn wirtualnych polecenia działają na hoście hipernadzorcy (lub proxy VMware), a nie w maszynach. Zadania kopii kopii nie mają poleceń.</li>
+</ul>
+
+<h2>Uruchamianie, wyłączanie, usuwanie</h2>
+<ul>
+  <li><b>Uruchom kopię teraz</b> (<b>Kopiuj teraz</b> dla zadań kopii kopii) natychmiast umieszcza zadanie w kolejce.</li>
+  <li><b>Testuj przywracanie</b> przywraca losową próbkę najnowszej kopii i ją weryfikuje (zobacz <a href="/docs/restore">Przywracanie</a>).</li>
+  <li><b>Wyłącz</b> wstrzymuje harmonogram bez utraty zadania (przy włączonym zatwierdzaniu na cztery oczy drugi użytkownik musi to zatwierdzić).</li>
+  <li><b>Usuń</b> usuwa zadanie; istniejące kopie pozostają w magazynie i nadal można je przywrócić z Aktywności.</li>
+</ul>
+
+<h2>Retencja wstrzymana</h2>
+<p>Jeśli kopia zadania wyglądała na ransomware lub masowe usuwanie, strona zadania pokazuje <i>Przechowywanie jest wstrzymane</i>: żadne kopie nie są usuwane, dopóki ktoś nie sprawdzi maszyny i nie kliknie <i>Sprawdzono — wznów przechowywanie</i> (przy włączonym zatwierdzaniu na cztery oczy drugi użytkownik musi to zatwierdzić). Zobacz <a href="/docs/ransomware">Ochrona przed ransomware</a>.</p>
+
+<h2>Co raportuje uruchomienie kopii</h2>
+<p>Otwórz uruchomienie w <a href="/runs">Aktywności</a>: liczba plików, nowe/zmienione pliki, odczytane dane, nowe wysłane dane (po deduplikacji i kompresji, ze współczynnikiem kompresji i częścią już zapisaną — zobacz <a href="#compression">Kompresja</a>), czas trwania oraz pliki, których nie dało się odczytać. Uruchomienie z nieczytelnymi plikami kończy się statusem <b>ostrzeżenie</b> — pozostałe dane są skopiowane.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

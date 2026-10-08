@@ -1,0 +1,114 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Trabajos de copia y programaciones</h1>
+<p class="lead">Un trabajo indica qué copiar en qué agente, dónde guardarlo, cuándo ejecutarse y cuántas copias conservar.</p>
+
+<h2>Crear un trabajo</h2>
+<ol>
+  <li>Vaya a <a href="/jobs">Trabajos de copia</a> y rellene <i>Nuevo trabajo de copia</i>.</li>
+  <li>Elija el <b>agente</b> y el <b>destino de almacenamiento</b>.</li>
+  <li>Elija qué copiar:
+    <ul>
+      <li><b>Archivos y carpetas</b>: una ruta por línea tal como se ve en el agente, p. ej. <code>C:\Users</code>, <code>D:\Data</code>, <code>/home</code>, <code>/etc</code>.</li>
+      <li><b>Imagen de disco</b>: un disco completo o particiones elegidas, restaurable en un disco vacío o hardware nuevo. Consulte <a href="/docs/images">Imágenes de disco</a>.</li>
+      <li><b>Sistema Linux</b>: todos los sistemas de archivos y la disposición de discos de un equipo Linux, restaurable en un disco vacío o como VM de Proxmox. Consulte <a href="/docs/linux-system">Copia del sistema Linux</a>.</li>
+      <li><b>Máquinas virtuales (Proxmox VE, Hyper-V, VMware)</b>: VM (y contenedores de Proxmox) de un host hipervisor, copiadas sin agentes en los invitados: por el agente del host Proxmox o Hyper-V o, en VMware ESXi, por el agente proxy del host (elija el host ESXi en la lista de agentes). Consulte <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> y <a href="/docs/vmware">VMware ESXi</a>.</li>
+      <li><b>Bases de datos</b>: SQL Server, PostgreSQL o MySQL/MariaDB en el equipo del agente, con copias de registros para restaurar a cualquier momento. Consulte <a href="/docs/sql">Bases de datos</a>.</li>
+      <li><b>NAS / recurso compartido</b>: un recurso SMB o NFS que lee el agente; consulte <a href="#nas">más abajo</a>.</li>
+      <li><b>Microsoft 365</b>: buzones de Exchange Online, calendarios, contactos, OneDrive y sitios de SharePoint, leídos mediante Microsoft Graph por cualquier agente; consulte <a href="/docs/m365">Microsoft 365</a>.</li>
+    </ul>
+  </li>
+  <li>Opcionalmente añada <b>exclusiones</b>, una por línea: un patrón de nombre, que se aplica en todas las carpetas (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), o una ruta completa, que se aplica solo a ese archivo o carpeta (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, también con comodines: <code>D:\VMs\*.iso</code>). En Windows las rutas completas no distinguen mayúsculas y minúsculas.</li>
+  <li>Defina <b>Conservar copias</b> y la <b>Programación</b> y luego <i>Crear trabajo</i>.</li>
+</ol>
+
+<h2 id="nas">NAS y recursos compartidos (SMB, NFS)</h2>
+<p>Un trabajo <b>NAS / recurso compartido</b> copia un recurso de red sin instalar nada en el NAS (Synology, QNAP, TrueNAS, un servidor de archivos Windows …). Elija cualquier agente que llegue al recurso —este lo lee y escribe la copia— e introduzca:</p>
+<ul>
+  <li><b>Recurso compartido</b>: <code>smb://nas01/data</code> (opcionalmente con una carpeta: <code>smb://nas01/data/Office</code>) o <code>nfs://nas01/volume1/data</code> (la ruta de exportación);</li>
+  <li>para SMB, la cuenta (usuario, dominio opcional, contraseña, guardada cifrada); vacío significa acceso de invitado. NFS usa el acceso del equipo del agente a la exportación (permita su dirección en el NAS);</li>
+  <li>las <b>carpetas del recurso</b> que se copian, una por línea (vacío: todo el recurso), y exclusiones como <code>#recycle</code>, <code>@eaDir</code> o <code>.snapshot</code>.</li>
+</ul>
+<p>En cada ejecución el agente conecta el recurso —los agentes Windows mediante su ruta UNC (<code>\\nas01\data</code>, solo SMB), los agentes Linux montándolo en solo lectura bajo <code>/mnt/backupzit-nas</code> (requiere <code>cifs-utils</code> para SMB, <code>nfs-common</code> o <code>nfs-utils</code> para NFS; Proxmox VE tiene ambos)— y después lo desconecta. Las copias son copias de archivos normales: deduplicadas e incrementales, con retención, trabajos de copia secundaria, pruebas de restauración, exploración y restauración de archivos. <b>Restaurar en la ubicación original</b> vuelve a conectar el recurso con escritura y escribe los archivos en él; o restaure a una carpeta de cualquier agente, o descargue.</p>
+
+<h2>Archivos abiertos y bloqueados (VSS)</h2>
+<p>En Windows el agente usa el <b>servicio de instantáneas de volumen</b>: toma una instantánea coherente del volumen en un momento dado y copia desde ella, de modo que los archivos abiertos (PST de Outlook, bases de datos, documentos en edición) se copian de forma coherente. Las aplicaciones compatibles con VSS (por ejemplo SQL Server) vuelcan sus datos a disco antes de tomar la instantánea.</p>
+
+<h2>Programaciones</h2>
+<table>
+  <tr><th>Opción</th><th>Ejemplo</th></tr>
+  <tr><td><b>A horas concretas</b></td><td>Cada día laborable a las 22:00; o a las 12:00 y 18:00 todos los días. Hasta tres veces al día, los días marcados.</td></tr>
+  <tr><td><b>Repetidamente</b></td><td>Cada 2 horas entre las 08:00 y las 18:00, de lunes a viernes. Intervalos de 15 minutos a 12 horas.</td></tr>
+  <tr><td><b>Una vez al mes</b></td><td>El día 1 a las 23:00.</td></tr>
+  <tr><td><b>Solo manualmente</b></td><td>Solo se ejecuta cuando hace clic en <i>Ejecutar copia ahora</i>.</td></tr>
+</table>
+<p>Las horas están en la zona horaria del servidor de la consola (en el appliance: <a href="/settings/network#timezone">Configuración → Red → Zona horaria</a> o la opción 9 del menú de configuración; empieza en UTC). Si un agente está desconectado a la hora programada, la copia espera en la cola y comienza en cuanto vuelve el agente. Vea todas las ejecuciones previstas en el <a href="/calendar">Calendario</a>.</p>
+
+<h2>Retención: cuántas copias conservar</h2>
+<p>Una instantánea se conserva si <b>cualquier</b> regla la selecciona:</p>
+<ul>
+  <li><b>Más recientes</b>: las N copias más recientes.</li>
+  <li><b>Diario</b>: la copia más reciente de cada uno de los últimos N días con copias.</li>
+  <li><b>Semanal</b>: la copia más reciente de cada una de las últimas N semanas.</li>
+  <li><b>Mensual</b>: la copia más reciente de cada uno de los últimos N meses.</li>
+</ul>
+<p>Ejemplo: 3 recientes, 7 diarias, 4 semanales y 6 mensuales conservan cerca de medio año de historial con ~20 puntos de restauración. Tras cada ejecución correcta se eliminan las instantáneas que ya no se seleccionan (se muestran como <i>caducado</i> en Actividad) y se borran del almacenamiento los datos que ya no usa ninguna instantánea. Todo a cero lo conserva todo.</p>
+<div class="callout"><p>Gracias a la deduplicación, una retención larga es barata: los datos sin cambios se guardan una sola vez, sin importar cuántas instantáneas los referencien.</p></div>
+
+<h2>Trabajos de copia secundaria (3-2-1)</h2>
+<p>Un trabajo de <b>copia secundaria</b> copia las copias de otro trabajo a un segundo destino de almacenamiento; por ejemplo, copias nocturnas al NAS de la oficina, copiadas a S3 o a un repositorio reforzado externo. Elija <i>Copia secundaria</i> en el formulario del trabajo, seleccione el trabajo que se copia y el almacenamiento de destino.</p>
+<ul>
+  <li>Copia el agente del trabajo de origen; el equipo protegido <b>no se vuelve a leer</b>.</li>
+  <li>Solo se transfieren los datos que aún no están en el destino, recifrados con la clave del destino.</li>
+  <li>La programación <b>Tras cada copia del trabajo de origen</b> (predeterminada) mantiene la copia al día; también sirve cualquier programación normal, p. ej. una vez por noche con una línea de internet lenta.</li>
+  <li>La copia tiene su propia retención, p. ej. 7 diarias en el NAS y 12 mensuales en la nube.</li>
+  <li>Las copias de archivos y de VM copiadas (Proxmox VE, Hyper-V, VMware) se restauran desde la página de la ejecución de copia o desde el <a href="/restore">asistente de restauración</a>, igual que las originales: VM completas, archivos sueltos de discos de VM y recuperación instantánea de Proxmox. Las copias de VM copiadas por un agente anterior a 0.29 no se pueden restaurar así; la siguiente ejecución de copia con un agente más reciente hace restaurable su copia más reciente. Las copias de imágenes de disco se restauran con el agente de línea de comandos.</li>
+</ul>
+
+<h2>Cambiar un trabajo</h2>
+<p>Abra el trabajo y despliegue <b>Editar trabajo</b>. Puede cambiar el nombre, las carpetas y exclusiones (trabajos de archivos), las VM (trabajos de VM), la programación, la retención, el límite de velocidad, el nivel de compresión y los comandos. El agente, el destino de almacenamiento y el disco de un trabajo de imagen no cambian, para que las copias del trabajo sigan siendo una sola cadena; para mover un trabajo, cree uno nuevo, con un trabajo de copia secundaria si deben acompañarlo copias anteriores. Los cambios se aplican desde la siguiente ejecución y quedan en el <a href="/audit">registro de auditoría</a>. Con la <a href="/docs/users">aprobación de cuatro ojos</a> activada, una retención más corta espera la aprobación de un segundo usuario; los demás cambios se guardan enseguida.</p>
+
+<h2>Réplicas (Proxmox VE)</h2>
+<p>Los trabajos de VM de Proxmox pueden mantener copias detenidas y actualizadas de sus invitados en el nodo que elija, que se inician con un clic si se pierde un invitado; consulte <a href="/docs/proxmox">Proxmox VE → Replicación</a>.</p>
+
+<h2>Límite de velocidad</h2>
+<p>En <b>Avanzado</b> del formulario del trabajo, <b>Limitar la velocidad de subida a</b> limita la velocidad con la que el agente envía datos al almacenamiento, en MB/s; por ejemplo 10 MB/s de 08:00 a 18:00, para que las copias en horario laboral dejen usable la línea de la oficina; fuera de esa franja el trabajo va a toda velocidad. Las horas son la hora local del agente, y una franja puede cruzar la medianoche (22:00 a 06:00). El límite se aplica a las copias y a los trabajos de copia secundaria (la subida al segundo almacenamiento), no a las restauraciones: una restauración siempre va a toda velocidad.</p>
+
+<h2 id="compression">Compresión y deduplicación</h2>
+<p>Cada copia se deduplica: los datos que ya están en el repositorio —de copias anteriores del mismo trabajo o de otros trabajos en el mismo destino de almacenamiento— no se vuelven a guardar. Los datos nuevos se comprimen después con zstd; las piezas que no se reducen (vídeo, archivos comprimidos, archivos cifrados) se guardan tal cual. El cifrado va después de la compresión.</p>
+<p>El nivel de compresión es un ajuste del trabajo (<b>Editar trabajo → Avanzado</b>):</p>
+<table>
+  <tr><th>Nivel</th><th>Cuándo usarlo</th></tr>
+  <tr><td>Estándar (recomendado)</td><td>Buena compresión a alta velocidad; sirve para casi cualquier trabajo.</td></tr>
+  <tr><td>Rápida</td><td>Usa menos CPU en equipos ocupados o poco potentes; las copias son algo más grandes.</td></tr>
+  <tr><td>Máxima</td><td>Normalmente un 5–15 % más pequeña que la estándar, pero varias veces más lenta al comprimir. Para enlaces de subida lentos y almacenamiento en la nube de pago, cuando el equipo tiene CPU de sobra.</td></tr>
+  <tr><td>Desactivado</td><td>Para datos ya comprimidos: ahorra CPU sin agrandar las copias.</td></tr>
+</table>
+<p>El nivel se aplica a los datos nuevos desde la siguiente ejecución; las copias existentes no cambian y la restauración nunca depende de él. La página de la ejecución muestra el resultado: la relación de compresión de los datos nuevos (p. ej. <i>2.4×</i>) y qué parte de los datos leídos ya estaba guardada (deduplicación).</p>
+
+<h2>Comandos antes y después de la copia</h2>
+<p>Los administradores pueden hacer que un trabajo ejecute un comando en el agente antes y después de cada copia; por ejemplo, un volcado de base de datos, detener un servicio para obtener una copia coherente o una notificación:</p>
+<pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
+sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, before</pre>
+<ul>
+  <li>Los comandos se ejecutan con la cuenta de servicio del agente (root en Linux, SYSTEM en Windows) mediante <code>sh</code> o <code>cmd</code>; se permiten varias líneas. Solo los <b>Administradores</b> pueden verlos y cambiarlos; de lo contrario, un operador de copias podría ejecutar cualquier cosa en todos los equipos.</li>
+  <li>Si el comando <b>anterior</b> falla (código de salida distinto de 0) o dura más que el límite de tiempo (30 minutos por defecto), la copia no se ejecuta y la ejecución falla con la salida del comando.</li>
+  <li>El comando <b>posterior</b> se ejecuta también cuando la copia falla, para poder reiniciar lo que detuvo el primero. Si el comando posterior falla, la ejecución queda como advertencia.</li>
+  <li>Ambos reciben <code>BACKUPZIT_STAGE</code> (pre o post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> y, después de la copia, <code>BACKUPZIT_STATUS</code> (success, warning o failed).</li>
+  <li>En los trabajos de VM, los comandos se ejecutan en el host hipervisor (o el proxy de VMware), no dentro de las VM. Los trabajos de copia secundaria no tienen comandos.</li>
+</ul>
+
+<h2>Ejecutar, deshabilitar, eliminar</h2>
+<ul>
+  <li><b>Ejecutar copia ahora</b> (<b>Copiar ahora</b> en los trabajos de copia secundaria) pone el trabajo en cola de inmediato.</li>
+  <li><b>Probar restauración</b> restaura una muestra aleatoria de la copia más reciente y la verifica (consulte <a href="/docs/restore">Restauración</a>).</li>
+  <li><b>Deshabilitar</b> pausa la programación sin perder el trabajo (con la aprobación de cuatro ojos activada, debe aprobarlo un segundo usuario).</li>
+  <li><b>Eliminar</b> quita el trabajo; las copias existentes permanecen en el almacenamiento y siguen siendo restaurables desde Actividad.</li>
+</ul>
+
+<h2>Retención en pausa</h2>
+<p>Si una copia del trabajo parecía ransomware o un borrado masivo, la página del trabajo muestra <i>La retención está en pausa</i>: no se elimina ninguna copia hasta que alguien revise el equipo y haga clic en <i>Revisado: reanudar la retención</i> (con la aprobación de cuatro ojos activada, debe aprobarlo un segundo usuario). Consulte <a href="/docs/ransomware">Protección contra ransomware</a>.</p>
+
+<h2>Qué informa una ejecución de copia</h2>
+<p>Abra una ejecución en <a href="/runs">Actividad</a>: número de archivos, archivos nuevos/cambiados, datos leídos, datos nuevos subidos (tras deduplicación y compresión, con la relación de compresión y la parte ya guardada; consulte <a href="#compression">Compresión</a>), duración y los archivos que no se pudieron leer. Una ejecución con archivos ilegibles termina con el estado <b>advertencia</b>: el resto de los datos queda copiado.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

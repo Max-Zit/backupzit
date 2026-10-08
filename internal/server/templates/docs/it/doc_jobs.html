@@ -1,0 +1,114 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Job di backup e pianificazioni</h1>
+<p class="lead">Un job indica cosa salvare su quale agente, dove archiviarlo, quando eseguirlo e quanti backup conservare.</p>
+
+<h2>Creare un job</h2>
+<ol>
+  <li>Andate in <a href="/jobs">Job di backup</a> e compilate <i>Nuovo job di backup</i>.</li>
+  <li>Scegliete l'<b>agente</b> e la <b>destinazione di archiviazione</b>.</li>
+  <li>Scegliete cosa salvare:
+    <ul>
+      <li><b>File e cartelle</b> — un percorso per riga come appare sull'agente, ad es. <code>C:\Users</code>, <code>D:\Data</code>, <code>/home</code>, <code>/etc</code>.</li>
+      <li><b>Immagine disco</b> — un disco intero o partizioni scelte, ripristinabile su un disco vuoto o un nuovo hardware. Vedete <a href="/docs/images">Immagini disco</a>.</li>
+      <li><b>Sistema Linux</b> — tutti i file system e il layout dei dischi di una macchina Linux, ripristinabile su un disco vuoto o come VM Proxmox. Vedete <a href="/docs/linux-system">Backup del sistema Linux</a>.</li>
+      <li><b>Macchine virtuali (Proxmox VE, Hyper-V, VMware)</b> — VM (e container Proxmox) di un host hypervisor, salvate senza agenti nei guest: dall'agente sull'host Proxmox o Hyper-V o, per VMware ESXi, dall'agente proxy dell'host (scegliete l'host ESXi nell'elenco degli agenti). Vedete <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> e <a href="/docs/vmware">VMware ESXi</a>.</li>
+      <li><b>Database</b> — SQL Server, PostgreSQL o MySQL/MariaDB sulla macchina dell'agente, con backup dei log per ripristinare a qualsiasi momento. Vedete <a href="/docs/sql">Database</a>.</li>
+      <li><b>NAS / condivisione file</b> — una condivisione SMB o NFS letta dall'agente; vedete <a href="#nas">sotto</a>.</li>
+      <li><b>Microsoft 365</b> — caselle di Exchange Online, calendari, contatti, OneDrive e siti SharePoint, letti tramite Microsoft Graph da qualsiasi agente; vedete <a href="/docs/m365">Microsoft 365</a>.</li>
+    </ul>
+  </li>
+  <li>Facoltativamente aggiungete <b>esclusioni</b>, una per riga: un modello di nome, valido in ogni cartella (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), o un percorso completo, valido solo per quel file o quella cartella (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, anche con caratteri jolly: <code>D:\VMs\*.iso</code>). Su Windows i percorsi completi ignorano maiuscole e minuscole.</li>
+  <li>Impostate <b>Conserva backup</b> e la <b>Pianificazione</b>, poi <i>Crea job</i>.</li>
+</ol>
+
+<h2 id="nas">NAS e condivisioni di file (SMB, NFS)</h2>
+<p>Un job <b>NAS / condivisione file</b> salva una condivisione di rete senza installare nulla sul NAS (Synology, QNAP, TrueNAS, un file server Windows …). Scegliete qualsiasi agente che raggiunga la condivisione — la legge e scrive il backup — e inserite:</p>
+<ul>
+  <li><b>Condivisione</b>: <code>smb://nas01/data</code> (facoltativamente con una cartella: <code>smb://nas01/data/Office</code>) o <code>nfs://nas01/volume1/data</code> (il percorso di esportazione);</li>
+  <li>per SMB l'account (utente, dominio facoltativo, password — archiviata cifrata); vuoto significa accesso guest. NFS usa l'accesso della macchina dell'agente all'esportazione (consentite il suo indirizzo sul NAS);</li>
+  <li>le <b>cartelle della condivisione</b> da salvare, una per riga (vuoto: l'intera condivisione), ed esclusioni come <code>#recycle</code>, <code>@eaDir</code> o <code>.snapshot</code>.</li>
+</ul>
+<p>A ogni esecuzione l'agente collega la condivisione — gli agenti Windows tramite il percorso UNC (<code>\\nas01\data</code>, solo SMB), gli agenti Linux montandola in sola lettura sotto <code>/mnt/backupzit-nas</code> (servono <code>cifs-utils</code> per SMB, <code>nfs-common</code> o <code>nfs-utils</code> per NFS; Proxmox VE li ha entrambi) — e poi la scollega. I backup sono normali backup di file: deduplicati e incrementali, con conservazione, job di copia, test di ripristino, navigazione e ripristino di file. <b>Ripristina nella posizione originale</b> ricollega la condivisione in scrittura e vi riscrive i file; oppure ripristinate in una cartella su qualsiasi agente, o scaricate.</p>
+
+<h2>File aperti e bloccati (VSS)</h2>
+<p>Su Windows l'agente usa il <b>servizio Copia Shadow del volume</b>: crea uno snapshot coerente del volume in un momento preciso ed esegue il backup da quello, così i file aperti (PST di Outlook, database, documenti in modifica) vengono salvati in modo coerente. Le applicazioni che supportano VSS (ad esempio SQL Server) scrivono i loro dati su disco prima dello snapshot.</p>
+
+<h2>Pianificazioni</h2>
+<table>
+  <tr><th>Opzione</th><th>Esempio</th></tr>
+  <tr><td><b>A orari specifici</b></td><td>Ogni giorno lavorativo alle 22:00; oppure alle 12:00 e alle 18:00 ogni giorno. Fino a tre volte al giorno, nei giorni selezionati.</td></tr>
+  <tr><td><b>Ripetutamente</b></td><td>Ogni 2 ore tra le 08:00 e le 18:00, dal lunedì al venerdì. Intervalli da 15 minuti a 12 ore.</td></tr>
+  <tr><td><b>Una volta al mese</b></td><td>Il giorno 1 alle 23:00.</td></tr>
+  <tr><td><b>Solo manualmente</b></td><td>Viene eseguito solo quando fate clic su <i>Esegui backup ora</i>.</td></tr>
+</table>
+<p>Gli orari sono nel fuso orario del server della console (sull'appliance: <a href="/settings/network#timezone">Impostazioni → Rete → Fuso orario</a> o la voce 9 del menu di configurazione; all'inizio UTC). Se un agente è offline all'orario pianificato, il backup attende in coda e parte appena l'agente torna. Tutte le esecuzioni previste sono nel <a href="/calendar">Calendario</a>.</p>
+
+<h2>Conservazione: quanti backup tenere</h2>
+<p>Uno snapshot viene conservato se <b>una qualsiasi</b> regola lo seleziona:</p>
+<ul>
+  <li><b>Più recenti</b> — gli N backup più recenti.</li>
+  <li><b>Giornaliero</b> — il backup più recente di ciascuno degli ultimi N giorni con backup.</li>
+  <li><b>Settimanale</b> — il backup più recente di ciascuna delle ultime N settimane.</li>
+  <li><b>Mensile</b> — il backup più recente di ciascuno degli ultimi N mesi.</li>
+</ul>
+<p>Esempio: 3 recenti, 7 giornalieri, 4 settimanali, 6 mensili conservano circa sei mesi di storico con ~20 punti di ripristino. Dopo ogni esecuzione riuscita gli snapshot non più selezionati vengono rimossi (mostrati come <i>scaduto</i> in Attività) e i dati non più usati da alcuno snapshot vengono eliminati dallo storage. Tutti zero conserva tutto.</p>
+<div class="callout"><p>Grazie alla deduplicazione una conservazione lunga costa poco: i dati invariati vengono archiviati una sola volta, indipendentemente da quanti snapshot vi facciano riferimento.</p></div>
+
+<h2>Job di copia di backup (3-2-1)</h2>
+<p>Un job di <b>copia di backup</b> copia i backup di un altro job su una seconda destinazione di archiviazione — ad esempio i backup notturni sul NAS dell'ufficio, copiati su S3 o su un repository protetto fuori sede. Scegliete <i>Copia di backup</i> nel modulo del job, selezionate il job da copiare e lo storage di destinazione.</p>
+<ul>
+  <li>La copia la esegue l'agente del job di origine; la macchina protetta <b>non viene riletta</b>.</li>
+  <li>Vengono trasferiti solo i dati non ancora presenti a destinazione, ricifrati con la chiave della destinazione.</li>
+  <li>La pianificazione <b>Dopo ogni backup del job di origine</b> (predefinita) mantiene la copia aggiornata; funziona anche qualsiasi pianificazione normale, ad es. una volta per notte per una linea internet lenta.</li>
+  <li>La copia ha una propria conservazione, ad es. 7 giornalieri sul NAS e 12 mensili nel cloud.</li>
+  <li>I backup di file e di VM copiati (Proxmox VE, Hyper-V, VMware) si ripristinano dalla pagina dell'esecuzione di copia o dalla <a href="/restore">procedura guidata di ripristino</a>, come gli originali — VM intere, singoli file dai dischi delle VM e ripristino istantaneo Proxmox. I backup di VM copiati da un agente precedente alla 0.29 non si possono ripristinare così; la successiva esecuzione di copia con un agente più recente rende ripristinabile la sua copia più recente. Le copie di immagini disco si ripristinano con l'agente da riga di comando.</li>
+</ul>
+
+<h2>Modificare un job</h2>
+<p>Aprite il job ed espandete <b>Modifica job</b>. Potete cambiare nome, cartelle ed esclusioni (job di file), VM (job di VM), pianificazione, conservazione, limite di velocità, livello di compressione e comandi. Agente, destinazione di archiviazione e disco di un job di immagine restano invariati, così i backup del job restano un'unica catena; per spostare un job createne uno nuovo — con un job di copia se devono seguirlo i backup più vecchi. Le modifiche valgono dalla prossima esecuzione e vengono registrate nel <a href="/audit">log di audit</a>. Con l'<a href="/docs/users">approvazione a quattro occhi</a> attiva, una conservazione più breve attende l'approvazione di un secondo utente; le altre modifiche vengono salvate subito.</p>
+
+<h2>Repliche (Proxmox VE)</h2>
+<p>I job di VM Proxmox possono mantenere copie arrestate e aggiornate dei loro guest su un nodo a vostra scelta, avviabili con un clic se un guest va perso — vedete <a href="/docs/proxmox">Proxmox VE → Replica</a>.</p>
+
+<h2>Limite di velocità</h2>
+<p>In <b>Avanzate</b> nel modulo del job, <b>Limita la velocità di invio a</b> limita la velocità con cui l'agente invia i dati allo storage, in MB/s — ad esempio 10 MB/s dalle 08:00 alle 18:00, così i backup durante l'orario di lavoro lasciano utilizzabile la linea dell'ufficio; fuori dalla fascia il job va a piena velocità. Gli orari sono l'ora locale dell'agente e una fascia può attraversare la mezzanotte (dalle 22:00 alle 06:00). Il limite vale per i backup e i job di copia (l'invio al secondo storage), non per i ripristini: un ripristino va sempre a piena velocità.</p>
+
+<h2 id="compression">Compressione e deduplicazione</h2>
+<p>Ogni backup è deduplicato: i dati già presenti nel repository — da backup precedenti dello stesso job o da altri job sulla stessa destinazione di archiviazione — non vengono archiviati di nuovo. I dati nuovi vengono poi compressi con zstd; i pezzi che non si riducono (video, archivi, file cifrati) vengono archiviati così come sono. La cifratura avviene dopo la compressione.</p>
+<p>Il livello di compressione è un'impostazione del job (<b>Modifica job → Avanzate</b>):</p>
+<table>
+  <tr><th>Livello</th><th>Quando usarlo</th></tr>
+  <tr><td>Standard (consigliato)</td><td>Buona compressione ad alta velocità; adatto a quasi tutti i job.</td></tr>
+  <tr><td>Veloce</td><td>Usa meno CPU su macchine cariche o poco potenti; i backup sono leggermente più grandi.</td></tr>
+  <tr><td>Massima</td><td>Di solito il 5–15 % più piccola dello standard, ma più volte più lenta nella compressione. Per collegamenti in uscita lenti e storage cloud a pagamento, quando la macchina ha CPU disponibile.</td></tr>
+  <tr><td>Disattivato</td><td>Per dati già compressi: risparmia CPU senza ingrandire i backup.</td></tr>
+</table>
+<p>Il livello vale per i dati nuovi dalla prossima esecuzione; i backup esistenti restano invariati e il ripristino non ne dipende mai. La pagina dell'esecuzione mostra il risultato: il rapporto di compressione dei dati nuovi (ad es. <i>2.4×</i>) e quanta parte dei dati letti era già archiviata (deduplicazione).</p>
+
+<h2>Comandi prima e dopo il backup</h2>
+<p>Gli amministratori possono far eseguire a un job un comando sull'agente prima e dopo ogni backup — ad esempio un dump del database, l'arresto di un servizio per una copia coerente o una notifica:</p>
+<pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
+sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, before</pre>
+<ul>
+  <li>I comandi vengono eseguiti con l'account di servizio dell'agente (root su Linux, SYSTEM su Windows) tramite <code>sh</code> o <code>cmd</code>; sono ammesse più righe. Solo gli <b>Amministratori</b> possono vederli e modificarli — altrimenti un operatore di backup potrebbe eseguire qualsiasi cosa su ogni macchina.</li>
+  <li>Se il comando <b>prima</b> fallisce (codice di uscita diverso da 0) o dura più del limite di tempo (predefinito 30 minuti), il backup non viene eseguito e l'esecuzione fallisce con l'output del comando.</li>
+  <li>Il comando <b>dopo</b> viene eseguito anche se il backup è fallito, così può riavviare ciò che il primo ha fermato. Se il comando dopo il backup fallisce, l'esecuzione diventa un avviso.</li>
+  <li>Entrambi ricevono <code>BACKUPZIT_STAGE</code> (pre o post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> e, dopo il backup, <code>BACKUPZIT_STATUS</code> (success, warning o failed).</li>
+  <li>Per i job di VM i comandi vengono eseguiti sull'host hypervisor (o sul proxy VMware), non nelle VM. I job di copia non hanno comandi.</li>
+</ul>
+
+<h2>Eseguire, disattivare, eliminare</h2>
+<ul>
+  <li><b>Esegui backup ora</b> (<b>Copia ora</b> per i job di copia) mette subito il job in coda.</li>
+  <li><b>Testa ripristino</b> ripristina un campione casuale del backup più recente e lo verifica (vedete <a href="/docs/restore">Ripristino</a>).</li>
+  <li><b>Disattiva</b> sospende la pianificazione senza perdere il job (con l'approvazione a quattro occhi attiva, un secondo utente deve approvare).</li>
+  <li><b>Elimina</b> rimuove il job; i backup esistenti restano sullo storage e restano ripristinabili da Attività.</li>
+</ul>
+
+<h2>Conservazione sospesa</h2>
+<p>Se un backup del job sembrava ransomware o un'eliminazione di massa, la pagina del job mostra <i>La conservazione è sospesa</i>: nessun backup viene rimosso finché qualcuno non controlla la macchina e fa clic su <i>Verificato — riprendi la conservazione</i> (con l'approvazione a quattro occhi attiva, un secondo utente deve approvare). Vedete <a href="/docs/ransomware">Protezione dal ransomware</a>.</p>
+
+<h2>Cosa riporta un'esecuzione di backup</h2>
+<p>Aprite un'esecuzione in <a href="/runs">Attività</a>: numero di file, file nuovi/modificati, dati letti, nuovi dati caricati (dopo deduplicazione e compressione, con il rapporto di compressione e la quota già archiviata — vedete <a href="#compression">Compressione</a>), durata e i file che non è stato possibile leggere. Un'esecuzione con file illeggibili termina con stato <b>avviso</b> — il resto dei dati è salvato.</p>
+{{template "docpager" .}}
+</article></div>{{end}}
