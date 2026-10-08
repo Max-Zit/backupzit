@@ -1,0 +1,93 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Opslagdoelen</h1>
+<p class="lead">Een opslagdoel is de plek waar agents hun back-ups schrijven. Elke agent gebruikt zijn eigen repository onder de locatie van het doel.</p>
+
+<h2>Een opslagtype kiezen</h2>
+<table>
+  <tr><th>Type</th><th>Geschikt voor</th><th>Opmerkingen</th></tr>
+  <tr><td><b>SFTP</b></td><td>Elke Linux-server of NAS met SSH</td><td>Versleuteld transport; de hostsleutel van de server wordt vastgepind.</td></tr>
+  <tr><td><b>S3-compatibel</b></td><td>Externe / cloudkopieën: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph, Google Cloud Storage</td><td>Ondersteunt onveranderlijkheid met Object Lock.</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>Externe kopieën voor Microsoft-gerichte bedrijven</td><td>Accountsleutel of SAS-token; onveranderlijkheid via het onveranderlijkheidsbeleid op versieniveau van Azure.</td></tr>
+  <tr><td><b>SMB-share</b></td><td>Windows-bestandsservers, Synology/QNAP-NAS</td><td>SMB 2/3; agents melden zich zelf aan, geen stationstoewijzing nodig.</td></tr>
+  <tr><td><b>Geharde repository</b></td><td>Ransomwarebestendige opslag op locatie</td><td>Een Linux-server met <code>backupzit-repo</code>; back-ups kunnen niet worden verwijderd voordat hun onveranderlijkheidsperiode afloopt.</td></tr>
+  <tr><td><b>Roterende USB-schijven</b></td><td>Offline kopieën voor kleine kantoren: twee of meer schijven die wekelijks worden gewisseld</td><td>Gevonden op volumelabel (BZBACKUP1, BZBACKUP2 …), niet op stationsletter.</td></tr>
+  <tr><td><b>Lokaal / gekoppeld pad</b></td><td>Een USB-schijf, tweede schijf of een NFS/iSCSI-volume dat op de agent is gekoppeld</td><td>Pad zoals de agent het ziet, bijv. <code>E:\Backups</code> of <code>/mnt/backup</code>.</td></tr>
+</table>
+<div class="callout tip"><p><b>3-2-1-regel:</b> bewaar 3 kopieën van uw gegevens, op 2 verschillende media, waarvan 1 buiten de deur — bijvoorbeeld één taak naar een lokale NAS en een andere naar S3 of een geharde repository in een ander gebouw.</p></div>
+
+<h2 id="test">De verbinding testen</h2>
+<p>Wanneer een opslagdoel wordt toegevoegd, test de console het meteen met de ingevoerde referenties: ze schrijft een klein bestand, leest het terug en verwijdert het. Op onveranderlijke opslag (S3 met Object Lock, geharde repository) meldt ze zich alleen aan en toont ze de inhoud, zodat er niets vergrendelds achterblijft; bij S3 controleert ze ook of de bucket Object Lock heeft wanneer onveranderlijkheid gevraagd is. Het doel wordt hoe dan ook opgeslagen en het resultaat wordt getoond — een verkeerd wachtwoord, verkeerde hostsleutel, bucket of share blijkt nu en niet pas bij de eerste back-up. <b>Verbinding testen</b> op de pagina Opslag herhaalt de test. De console test vanuit haar eigen netwerk; de agents schrijven de back-ups, dus een doel dat alleen de agents bereiken (een lokale of USB-schijf) wordt door de eerste back-up getest.</p>
+
+<h2>SFTP</h2>
+<p>Locatie: <code>sftp://user@host:22/path</code> (gebruik <code>/~/path</code> voor een pad relatief aan de thuismap van de gebruiker). Voer een wachtwoord of een privésleutel in, en de vingerafdruk van de hostsleutel van de server, die u op de server krijgt met:</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>Maak een aparte gebruiker die alleen in de back-upmap kan schrijven.</p>
+
+<h2>S3-compatibel</h2>
+<p>Voer het endpoint in (bijv. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), de bucket, een optionele map en een toegangssleutel met lees-/schrijftoegang tot die bucket. Vink <i>Onversleuteld HTTP</i> alleen aan voor een lokale MinIO zonder certificaat.</p>
+<h3>Onveranderlijke back-ups (Object Lock)</h3>
+<p>Maak de bucket met <b>Object Lock ingeschakeld</b> en vink <i>Onveranderlijke back-ups … gedurende N dagen</i> aan. Elk bestand dat de agents schrijven wordt N dagen (+1 dag marge) vergrendeld in <b>compliancemodus</b>: niemand — geen aanvaller met de sleutels, niet de eigenaar van de bucket — kan het daarvoor verwijderen of overschrijven. Na elke back-up wordt de vergrendeling verlengd van gegevens die uit oudere back-ups worden hergebruikt, zodat elk herstelpunt gedurende de volledige periode beschermd is.</p>
+<p>Verwijderen (door bewaring of door een aanvaller) voegt alleen een „verwijdermarkering” toe. Voeg een levenscyclusregel toe die <i>niet-actuele versies</i> na één dag laat verlopen, zodat er ruimte vrijkomt zodra de vergrendelingen eindigen. Zie <a href="/docs/ransomware">Ransomwarebescherming</a>.</p>
+
+<h3>Google Cloud Storage</h3>
+<p>Google Cloud Storage werkt als S3-compatibel doel via de <i>interoperabiliteits</i>-API:</p>
+<ol>
+  <li>Open in de Google Cloud-console <i>Cloud Storage → Settings → Interoperability</i> en maak een <b>HMAC-sleutel</b> voor een serviceaccount met de rol <i>Storage Object Admin</i> op de bucket.</li>
+  <li>Voeg een S3-doel toe met endpoint <code>storage.googleapis.com</code>, de bucketnaam, de HMAC-toegangssleutel en het geheim, en regio <code>auto</code>.</li>
+</ol>
+<p>De optie S3 Object Lock is niet beschikbaar op Google Cloud Storage; stel voor onveranderlijkheid in Google Cloud een <i>bewaarbeleid voor de bucket</i> in (en vergrendel het). Verwijderde back-ups blijven dan bestaan tot de bewaarperiode afloopt.</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>Maak in de Azure-portal een <b>opslagaccount</b> (StorageV2, willekeurige redundantie) en een <b>container</b>, bijv. <code>backups</code>.</li>
+  <li>Voeg een doel <i>Azure Blob Storage</i> toe met de accountnaam, container en optionele map.</li>
+  <li>Verifieer met een <b>toegangssleutel</b> (<i>Opslagaccount → Toegangssleutels</i>) of, beperkter, een <b>SAS-token</b> voor de container met lees-, schrijf-, verwijder- en lijstrechten en een geschikte vervaldatum.</li>
+</ol>
+<p>Schakel voor ransomwarebescherming op de container <b>onveranderlijkheid op versieniveau</b> in met een tijdgebaseerd bewaarbeleid; verwijderde of overschreven back-ups blijven dan gedurende die tijd herstelbaar. Het veld endpoint onder <i>Geavanceerd</i> is alleen nodig voor Azure Government/China, Azure Stack Hub of de Azurite-emulator.</p>
+
+<h2>Roterende USB-schijven</h2>
+<p>Schijven die worden losgekoppeld en buiten de deur bewaard, zijn voor kleine kantoren de eenvoudigste bescherming tegen ransomware, brand en diefstal. BackupZit vindt de schijf aan de hand van haar <b>volumelabel</b>, welke stationsletter Windows ook toewijst:</p>
+<ol>
+  <li>Formatteer twee of meer schijven met NTFS (Linux: ext4) en noem ze <code>BZBACKUP1</code>, <code>BZBACKUP2</code>, … (Windows: rechtsklik op het station → Eigenschappen → naam).</li>
+  <li>Voeg een opslagdoel toe van het type <i>Roterende USB- / verwisselbare schijven</i> met het label <code>BZBACKUP*</code>.</li>
+  <li>Maak een back-uptaak ernaartoe — of beter, een taak voor <b>back-upkopie</b> die een NAS- of cloudtaak naar de schijf kopieert.</li>
+  <li>Wissel de schijven regelmatig (bijv. wekelijks) en bewaar de losgekoppelde op een veilige plek.</li>
+</ol>
+<ul>
+  <li>Elke schijf bevat een volledige, onafhankelijke back-up met eigen bewaring; alle schijven zijn versleuteld met de herstelsleutel van het doel.</li>
+  <li>De uitvoering toont welke schijf gebruikt is (<i>Schijf BZBACKUP2</i>). Een herstel vraagt precies om die schijf en vertelt u welke aangesloten is.</li>
+  <li>Is er geen schijf aangesloten, dan mislukt de uitvoering met een duidelijke melding en een waarschuwing — een herinnering om de schijf weer aan te sluiten.</li>
+  <li>Sluit steeds maar één van de schijven aan.</li>
+</ul>
+
+<h2>SMB-share</h2>
+<p>Server, share, optionele map, gebruiker, wachtwoord en (voor domeinaccounts) het domein. Agents maken zelf verbinding met deze referenties, dus het werkt ook voor services die als SYSTEM draaien.</p>
+
+<h2>Geharde repository</h2>
+<p>Installeer het pakket <code>backupzit-repo</code> op een aparte Linux-server en voer daarna op die server uit:</p>
+<pre>backupzit-repo add-key office-console     # shows the access key once
+backupzit-repo fingerprint                # certificate fingerprint</pre>
+<p>Voer het serveradres, de toegangssleutel en de vingerafdruk in de console in. De onveranderlijkheidsperiode wordt op de repositoryserver ingesteld (<code>/etc/backupzit-repo/repo.env</code>) en kan niet vanuit de console of de agents worden gewijzigd. Details in <a href="/docs/ransomware">Ransomwarebescherming</a>.</p>
+
+<h2>Versleuteling en de herstelsleutel</h2>
+<p>Met <i>Back-ups versleutelen</i> (standaard) wordt alles in de repository — bestandsinhoud, bestandsnamen, mapstructuur, snapshotlijsten — versleuteld met <b>AES-256-GCM</b> voordat het de agent verlaat. De opslagaanbieder ziet alleen willekeurige gegevens.</p>
+<p>Wanneer u een versleuteld doel maakt, toont de console een <b>herstelsleutel</b> en biedt ze een <b>herstelblad</b> aan om te downloaden.</p>
+<div class="callout warn"><p><b>Druk het herstelblad af of bewaar het in een wachtwoordmanager, gescheiden van de back-ups.</b> Als de console verloren gaat, hebt u voor herstel alleen de herstelsleutel plus de opslaglocatie en referenties nodig. Zonder de sleutel kan niemand versleutelde back-ups lezen — ook BackupZit-ondersteuning niet.</p></div>
+<p>U kunt de sleutel later opnieuw tonen met <i>Herstelsleutel</i> in de opslaglijst; dit wordt gelogd.</p>
+
+<h2>De opslaglijst</h2>
+<p>De lijst toont per doel het type, de locatie, de versleuteling (met toegang tot de herstelsleutel voor beheerders) en de onveranderlijkheid: de Object Lock-periode voor S3, of <i>ingesteld op de repositoryserver</i> voor geharde repositories. Referenties worden na het opslaan nooit meer getoond en versleuteld bewaard. Alleen beheerders kunnen doelen toevoegen of verwijderen en herstelsleutels zien.</p>
+
+<h2>Opslaggebruik en prognose</h2>
+<p>Na elke back-up (en de bewaring ervan) meldt de agent hoeveel ruimte zijn repository inneemt en — voor lokale en USB-schijven, SFTP-servers (OpenSSH-extensie <code>statvfs</code>) en SMB-shares — de grootte en vrije ruimte van de opslag. Onder <a href="/targets#usage">Opslag → Opslaggebruik</a> toont elk doel:</p>
+<ul>
+  <li>de ruimte die alle repositories erop innemen (één per agent; bij roterende USB-schijven telt elke schijf);</li>
+  <li>bij opslag met bekende grootte hoe vol die is (geel vanaf 75 %, rood vanaf 90 %), met de capaciteit als rode stippellijn in de grafiek;</li>
+  <li>een grafiek van de laatste 90 dagen en, na een week back-ups, de groei per dag (lineaire trend van de laatste 30 dagen), 30 dagen vooruit getekend als stippellijn, en wanneer de opslag vol zal zijn — of, zonder bekende grootte, het verwachte gebruik over 90 dagen.</li>
+</ul>
+<p><b>Vraagt aandacht</b> op het dashboard waarschuwt wanneer een opslagdoel voor 90 % vol is of binnen 30 dagen vol zal zijn. S3 en Azure hebben geen vaste grootte; daar worden alleen de gebruikte ruimte en de groei getoond. De gebruikte ruimte is de opgeslagen (gecomprimeerde, versleutelde, gededupliceerde) data; bestanden die de opslag om andere redenen bewaart (objectversies, andere programma's) worden niet meegeteld.</p>
+
+<h2>Een doel verwijderen</h2>
+<p>Een opslagdoel uit de console verwijderen wist geen gegevens op de opslag. Met <a href="/docs/users">vier-ogengoedkeuring</a> ingeschakeld moet eerst een tweede gebruiker goedkeuren.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

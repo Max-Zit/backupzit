@@ -1,0 +1,93 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Miejsca docelowe</h1>
+<p class="lead">Miejsce docelowe to miejsce, do którego agenci zapisują kopie. Każdy agent używa własnego repozytorium pod lokalizacją miejsca docelowego.</p>
+
+<h2>Wybór typu magazynu</h2>
+<table>
+  <tr><th>Typ</th><th>Dobre dla</th><th>Uwagi</th></tr>
+  <tr><td><b>SFTP</b></td><td>Dowolny serwer Linux lub NAS z SSH</td><td>Szyfrowany transport; klucz hosta serwera jest przypięty.</td></tr>
+  <tr><td><b>Zgodny z S3</b></td><td>Kopie poza siedzibą / w chmurze: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph, Google Cloud Storage</td><td>Obsługuje niezmienność z Object Lock.</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>Kopie poza siedzibą dla firm opartych na Microsoft</td><td>Klucz konta lub token SAS; niezmienność przez zasady niezmienności na poziomie wersji w Azure.</td></tr>
+  <tr><td><b>Udział SMB</b></td><td>Serwery plików Windows, NAS Synology/QNAP</td><td>SMB 2/3; agenci logują się sami, nie trzeba mapować dysków.</td></tr>
+  <tr><td><b>Utwardzone repozytorium</b></td><td>Lokalny magazyn odporny na ransomware</td><td>Serwer Linux z <code>backupzit-repo</code>; kopii nie można usunąć przed upływem okresu niezmienności.</td></tr>
+  <tr><td><b>Rotowane dyski USB</b></td><td>Kopie offline dla małych biur: dwa lub więcej dysków wymienianych co tydzień</td><td>Rozpoznawane po etykiecie woluminu (BZBACKUP1, BZBACKUP2 …), nie po literze dysku.</td></tr>
+  <tr><td><b>Ścieżka lokalna / zamontowana</b></td><td>Dysk USB, drugi dysk lub wolumin NFS/iSCSI zamontowany na agencie</td><td>Ścieżka widziana przez agenta, np. <code>E:\Backups</code> lub <code>/mnt/backup</code>.</td></tr>
+</table>
+<div class="callout tip"><p><b>Zasada 3-2-1:</b> trzymaj 3 kopie danych, na 2 różnych nośnikach, w tym 1 poza siedzibą — na przykład jedno zadanie na lokalny NAS i drugie do S3 lub utwardzonego repozytorium w innym budynku.</p></div>
+
+<h2 id="test">Testowanie połączenia</h2>
+<p>Po dodaniu miejsca docelowego konsola od razu je testuje z podanymi danymi: zapisuje mały plik, odczytuje go i usuwa. Na magazynie niezmiennym (S3 z Object Lock, utwardzone repozytorium) tylko się loguje i wyświetla listę, aby nie zostawić nic zablokowanego; dla S3 sprawdza też, czy bucket ma Object Lock, gdy wymagana jest niezmienność. Miejsce docelowe jest zapisywane w każdym przypadku, a wynik jest pokazywany — błędne hasło, klucz hosta, bucket lub udział wychodzi na jaw teraz, a nie przy pierwszej kopii. <b>Testuj połączenie</b> na stronie Magazyn powtarza test. Konsola testuje ze swojej sieci; kopie zapisują agenci, więc miejsce osiągalne tylko dla agentów (dysk lokalny lub USB) testuje pierwsza kopia.</p>
+
+<h2>SFTP</h2>
+<p>Lokalizacja: <code>sftp://user@host:22/path</code> (użyj <code>/~/path</code> dla ścieżki względnej do katalogu domowego użytkownika). Podaj hasło lub klucz prywatny oraz odcisk klucza hosta serwera, który uzyskasz na serwerze poleceniem:</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>Utwórz osobnego użytkownika, który może zapisywać tylko w folderze kopii.</p>
+
+<h2>Zgodny z S3</h2>
+<p>Podaj punkt końcowy (np. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket, opcjonalny folder i klucz dostępu z prawem odczytu/zapisu do tego bucketu. Zaznacz <i>Nieszyfrowany HTTP</i> tylko dla lokalnego MinIO bez certyfikatu.</p>
+<h3>Niezmienne kopie (Object Lock)</h3>
+<p>Utwórz bucket z <b>włączonym Object Lock</b> i zaznacz <i>Niezmienne kopie … przez N dni</i>. Każdy plik zapisany przez agentów jest blokowany w <b>trybie zgodności</b> na N dni (+1 dzień zapasu): nikt — ani atakujący z kluczami, ani właściciel bucketu — nie może go wcześniej usunąć ani nadpisać. Po każdej kopii blokada danych ponownie użytych ze starszych kopii jest przedłużana, więc każdy punkt przywracania jest chroniony przez cały okres.</p>
+<p>Usunięcie (przez retencję lub atakującego) dodaje tylko „znacznik usunięcia”. Dodaj regułę cyklu życia, która wygasza <i>nieaktualne wersje</i> po jednym dniu, aby miejsce zwalniało się po zakończeniu blokad. Zobacz <a href="/docs/ransomware">Ochrona przed ransomware</a>.</p>
+
+<h3>Google Cloud Storage</h3>
+<p>Google Cloud Storage działa jako miejsce zgodne z S3 przez swoje API <i>interoperacyjności</i>:</p>
+<ol>
+  <li>W konsoli Google Cloud otwórz <i>Cloud Storage → Settings → Interoperability</i> i utwórz <b>klucz HMAC</b> dla konta usługi z rolą <i>Storage Object Admin</i> na buckecie.</li>
+  <li>Dodaj miejsce S3 z punktem końcowym <code>storage.googleapis.com</code>, nazwą bucketu, kluczem dostępu i sekretem HMAC oraz regionem <code>auto</code>.</li>
+</ol>
+<p>Opcja S3 Object Lock nie jest dostępna w Google Cloud Storage; dla niezmienności ustaw w Google Cloud <i>zasadę przechowywania bucketu</i> (i zablokuj ją). Usunięte kopie pozostają wtedy do końca okresu przechowywania.</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>W portalu Azure utwórz <b>konto magazynu</b> (StorageV2, dowolna nadmiarowość) i <b>kontener</b>, np. <code>backups</code>.</li>
+  <li>Dodaj miejsce <i>Azure Blob Storage</i> z nazwą konta, kontenerem i opcjonalnym folderem.</li>
+  <li>Uwierzytelnij się <b>kluczem dostępu</b> (<i>Konto magazynu → Klucze dostępu</i>) lub, bardziej restrykcyjnie, <b>tokenem SAS</b> dla kontenera z uprawnieniami odczytu, zapisu, usuwania i listowania oraz odpowiednią datą wygaśnięcia.</li>
+</ol>
+<p>Dla ochrony przed ransomware włącz na kontenerze <b>niezmienność na poziomie wersji</b> z zasadą przechowywania opartą na czasie; usunięte lub nadpisane kopie pozostają wtedy możliwe do odzyskania przez ten czas. Pole punktu końcowego w sekcji <i>Zaawansowane</i> jest potrzebne tylko dla Azure Government/China, Azure Stack Hub lub emulatora Azurite.</p>
+
+<h2>Rotowane dyski USB</h2>
+<p>Dyski odłączane i wywożone poza siedzibę to najprostsza ochrona małych biur przed ransomware, pożarem i kradzieżą. BackupZit znajduje dysk po jego <b>etykiecie woluminu</b>, niezależnie od litery przydzielonej przez Windows:</p>
+<ol>
+  <li>Sformatuj dwa lub więcej dysków w NTFS (Linux: ext4) i nazwij je <code>BZBACKUP1</code>, <code>BZBACKUP2</code>, … (Windows: prawy przycisk na dysku → Właściwości → nazwa).</li>
+  <li>Dodaj miejsce docelowe typu <i>Rotowane dyski USB / wymienne</i> z etykietą <code>BZBACKUP*</code>.</li>
+  <li>Utwórz zadanie kopii do niego — albo lepiej zadanie <b>kopii kopii</b>, które kopiuje zadanie z NAS lub chmury na dysk.</li>
+  <li>Wymieniaj dyski regularnie (np. co tydzień) i przechowuj odłączony w bezpiecznym miejscu.</li>
+</ol>
+<ul>
+  <li>Każdy dysk zawiera pełną, niezależną kopię z własną retencją; wszystkie dyski są szyfrowane kluczem odzyskiwania miejsca docelowego.</li>
+  <li>Uruchomienie pokazuje, który dysk został użyty (<i>Dysk BZBACKUP2</i>). Przywracanie prosi dokładnie o ten dysk i mówi, który jest podłączony.</li>
+  <li>Gdy żaden dysk nie jest podłączony, uruchomienie kończy się błędem z jasnym komunikatem i alertem — przypomnieniem, by ponownie podłączyć dysk.</li>
+  <li>Podłączaj naraz tylko jeden z dysków.</li>
+</ul>
+
+<h2>Udział SMB</h2>
+<p>Serwer, udział, opcjonalny folder, użytkownik, hasło i (dla kont domenowych) domena. Agenci łączą się sami z tymi danymi, więc działa to także dla usług uruchomionych jako SYSTEM.</p>
+
+<h2>Utwardzone repozytorium</h2>
+<p>Zainstaluj pakiet <code>backupzit-repo</code> na dedykowanym serwerze Linux, a następnie na tym serwerze:</p>
+<pre>backupzit-repo add-key office-console     # shows the access key once
+backupzit-repo fingerprint                # certificate fingerprint</pre>
+<p>Wpisz w konsoli adres serwera, klucz dostępu i odcisk. Okres niezmienności konfiguruje się na serwerze repozytorium (<code>/etc/backupzit-repo/repo.env</code>) i nie można go zmienić z konsoli ani z agentów. Szczegóły w <a href="/docs/ransomware">Ochrona przed ransomware</a>.</p>
+
+<h2>Szyfrowanie i klucz odzyskiwania</h2>
+<p>Przy <i>Szyfruj kopie</i> (domyślnie) wszystko w repozytorium — zawartość i nazwy plików, struktura folderów, listy migawek — jest szyfrowane <b>AES-256-GCM</b>, zanim opuści agenta. Dostawca magazynu widzi tylko losowe dane.</p>
+<p>Gdy tworzysz zaszyfrowane miejsce docelowe, konsola pokazuje <b>klucz odzyskiwania</b> i oferuje <b>arkusz odzyskiwania</b> do pobrania.</p>
+<div class="callout warn"><p><b>Wydrukuj arkusz odzyskiwania lub przechowuj go w menedżerze haseł, oddzielnie od kopii.</b> Jeśli konsola zostanie utracona, do przywrócenia wystarczy klucz odzyskiwania oraz lokalizacja i dane dostępu do magazynu. Bez klucza nikt nie odczyta zaszyfrowanych kopii — także wsparcie BackupZit.</p></div>
+<p>Klucz możesz później ponownie wyświetlić przyciskiem <i>Klucz odzyskiwania</i> na liście magazynów; jest to rejestrowane.</p>
+
+<h2>Lista magazynów</h2>
+<p>Lista pokazuje dla każdego miejsca typ, lokalizację, szyfrowanie (z dostępem do klucza odzyskiwania dla administratorów) i niezmienność: okres Object Lock dla S3 lub <i>ustawione na serwerze repozytorium</i> dla utwardzonych repozytoriów. Dane dostępu nigdy nie są ponownie wyświetlane po zapisaniu i są przechowywane zaszyfrowane. Tylko administratorzy mogą dodawać i usuwać miejsca docelowe oraz widzieć klucze odzyskiwania.</p>
+
+<h2>Użycie magazynu i prognoza</h2>
+<p>Po każdej kopii (i jej retencji) agent zgłasza, ile miejsca zajmuje jego repozytorium, a — dla dysków lokalnych i USB, serwerów SFTP (rozszerzenie <code>statvfs</code> OpenSSH) i udziałów SMB — rozmiar i wolne miejsce magazynu. W <a href="/targets#usage">Magazyn → Użycie magazynu</a> każde miejsce pokazuje:</p>
+<ul>
+  <li>miejsce zajęte przez wszystkie repozytoria na nim (po jednym na agenta; przy rotowanych dyskach USB liczy się każdy dysk);</li>
+  <li>dla magazynu o znanym rozmiarze — stopień zapełnienia (żółty od 75 %, czerwony od 90 %), z pojemnością jako czerwoną przerywaną linią na wykresie;</li>
+  <li>wykres z ostatnich 90 dni i, po tygodniu kopii, przyrost na dzień (trend liniowy z ostatnich 30 dni), narysowany 30 dni naprzód jako linia przerywana, oraz kiedy magazyn się zapełni — lub, bez znanego rozmiaru, oczekiwane użycie za 90 dni.</li>
+</ul>
+<p><b>Wymaga uwagi</b> na pulpicie ostrzega, gdy miejsce docelowe jest zapełnione w 90 % lub zapełni się w ciągu 30 dni. S3 i Azure nie mają stałego rozmiaru; tam pokazywane są tylko zajęte miejsce i jego przyrost. Zajęte miejsce to przechowywane (skompresowane, zaszyfrowane, zdeduplikowane) dane; pliki, które magazyn przechowuje z innych powodów (wersje obiektów, inne programy), nie są liczone.</p>
+
+<h2>Usuwanie miejsca docelowego</h2>
+<p>Usunięcie miejsca docelowego z konsoli nie usuwa żadnych danych z magazynu. Przy włączonym <a href="/docs/users">zatwierdzaniu na cztery oczy</a> drugi użytkownik musi to najpierw zatwierdzić.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

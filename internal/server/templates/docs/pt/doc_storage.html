@@ -1,0 +1,93 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Destinos de armazenamento</h1>
+<p class="lead">Um destino de armazenamento é onde os agentes gravam os seus backups. Cada agente usa o seu próprio repositório sob o local do destino.</p>
+
+<h2>Escolher um tipo de armazenamento</h2>
+<table>
+  <tr><th>Tipo</th><th>Indicado para</th><th>Observações</th></tr>
+  <tr><td><b>SFTP</b></td><td>Qualquer servidor Linux ou NAS com SSH</td><td>Transporte criptografado; a chave de host do servidor é fixada.</td></tr>
+  <tr><td><b>Compatível com S3</b></td><td>Cópias externas / na nuvem: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph, Google Cloud Storage</td><td>Suporta imutabilidade com Object Lock.</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>Cópias externas para empresas centradas na Microsoft</td><td>Chave da conta ou token SAS; imutabilidade pelas políticas de imutabilidade em nível de versão do Azure.</td></tr>
+  <tr><td><b>Compartilhamento SMB</b></td><td>Servidores de arquivos Windows, NAS Synology/QNAP</td><td>SMB 2/3; os agentes fazem login por conta própria, sem mapear unidades.</td></tr>
+  <tr><td><b>Repositório protegido</b></td><td>Armazenamento local à prova de ransomware</td><td>Um servidor Linux com <code>backupzit-repo</code>; os backups não podem ser excluídos antes do fim do seu período de imutabilidade.</td></tr>
+  <tr><td><b>Discos USB em rotação</b></td><td>Cópias offline para pequenos escritórios: dois ou mais discos trocados semanalmente</td><td>Encontrados pelo rótulo do volume (BZBACKUP1, BZBACKUP2 …), não pela letra da unidade.</td></tr>
+  <tr><td><b>Caminho local / montado</b></td><td>Um disco USB, um segundo disco ou um volume NFS/iSCSI montado no agente</td><td>Caminho como o agente o vê, p. ex. <code>E:\Backups</code> ou <code>/mnt/backup</code>.</td></tr>
+</table>
+<div class="callout tip"><p><b>Regra 3-2-1:</b> mantenha 3 cópias dos seus dados, em 2 mídias diferentes, 1 delas fora do local — por exemplo, uma tarefa para um NAS local e outra para S3 ou um repositório protegido noutro edifício.</p></div>
+
+<h2 id="test">Testar a conexão</h2>
+<p>Quando um destino de armazenamento é adicionado, a console testa-o logo com as credenciais informadas: grava um pequeno arquivo, lê-o de volta e remove-o. Em armazenamento imutável (S3 com Object Lock, repositório protegido) apenas faz login e lista, para não deixar nada bloqueado; no S3 também verifica se o bucket tem Object Lock quando a imutabilidade é pedida. O destino é salvo de qualquer forma e o resultado é mostrado — uma senha, chave de host, bucket ou compartilhamento errado aparece agora e não no primeiro backup. <b>Testar conexão</b> na página Armazenamento repete o teste. A console testa a partir da sua própria rede; quem grava os backups são os agentes, por isso um destino que só os agentes alcançam (um disco local ou USB) é testado pelo primeiro backup.</p>
+
+<h2>SFTP</h2>
+<p>Local: <code>sftp://user@host:22/path</code> (use <code>/~/path</code> para um caminho relativo à pasta pessoal do usuário). Informe uma senha ou uma chave privada, e a impressão digital da chave de host do servidor, que obtém no servidor com:</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>Crie um usuário dedicado que só possa gravar na pasta de backups.</p>
+
+<h2>Compatível com S3</h2>
+<p>Informe o endpoint (p. ex. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), o bucket, uma pasta opcional e uma chave de acesso com leitura/gravação nesse bucket. Marque <i>HTTP sem criptografia</i> apenas para um MinIO local sem certificado.</p>
+<h3>Backups imutáveis (Object Lock)</h3>
+<p>Crie o bucket com <b>Object Lock ativado</b> e marque <i>Backups imutáveis … por N dias</i>. Cada arquivo gravado pelos agentes fica bloqueado em <b>modo de conformidade</b> por N dias (+1 dia de margem): ninguém — nem um invasor com as chaves, nem o proprietário do bucket — pode excluí-lo ou sobrescrevê-lo antes disso. Após cada backup, o bloqueio dos dados reutilizados de backups mais antigos é prolongado, de modo que cada ponto de restauração fica protegido durante todo o período.</p>
+<p>Excluir (pela retenção ou por um invasor) só adiciona um «marcador de exclusão». Adicione uma regra de ciclo de vida que expire as <i>versões não atuais</i> após um dia, para liberar espaço quando os bloqueios terminarem. Veja <a href="/docs/ransomware">Proteção contra ransomware</a>.</p>
+
+<h3>Google Cloud Storage</h3>
+<p>O Google Cloud Storage funciona como destino compatível com S3 através da sua API de <i>interoperabilidade</i>:</p>
+<ol>
+  <li>No console do Google Cloud abra <i>Cloud Storage → Settings → Interoperability</i> e crie uma <b>chave HMAC</b> para uma conta de serviço com o papel <i>Storage Object Admin</i> no bucket.</li>
+  <li>Adicione um destino S3 com o endpoint <code>storage.googleapis.com</code>, o nome do bucket, a chave de acesso e o segredo HMAC e a região <code>auto</code>.</li>
+</ol>
+<p>A opção S3 Object Lock não está disponível no Google Cloud Storage; para imutabilidade, defina uma <i>política de retenção do bucket</i> (e bloqueie-a) no Google Cloud. Os backups excluídos permanecem então até ao fim do período de retenção.</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>No portal do Azure crie uma <b>conta de armazenamento</b> (StorageV2, qualquer redundância) e um <b>contêiner</b>, p. ex. <code>backups</code>.</li>
+  <li>Adicione um destino <i>Azure Blob Storage</i> com o nome da conta, o contêiner e uma pasta opcional.</li>
+  <li>Autentique-se com uma <b>chave de acesso</b> (<i>Conta de armazenamento → Chaves de acesso</i>) ou, de forma mais restrita, um <b>token SAS</b> para o contêiner com permissões de leitura, gravação, exclusão e listagem e uma validade adequada.</li>
+</ol>
+<p>Para proteção contra ransomware, ative no contêiner a <b>imutabilidade em nível de versão</b> com uma política de retenção baseada em tempo; os backups excluídos ou sobrescritos continuam recuperáveis durante esse tempo. O campo endpoint em <i>Avançado</i> só é necessário para Azure Government/China, Azure Stack Hub ou o emulador Azurite.</p>
+
+<h2>Discos USB em rotação</h2>
+<p>Discos desconectados e levados para fora do local são a proteção mais simples contra ransomware, incêndio e roubo para pequenos escritórios. O BackupZit encontra o disco pelo seu <b>rótulo de volume</b>, qualquer que seja a letra de unidade atribuída pelo Windows:</p>
+<ol>
+  <li>Formate dois ou mais discos com NTFS (Linux: ext4) e chame-os <code>BZBACKUP1</code>, <code>BZBACKUP2</code>, … (Windows: clique com o botão direito na unidade → Propriedades → nome).</li>
+  <li>Adicione um destino de armazenamento do tipo <i>Discos USB / removíveis em rotação</i> com o rótulo <code>BZBACKUP*</code>.</li>
+  <li>Crie uma tarefa de backup para ele — ou melhor, uma tarefa de <b>cópia de backup</b> que copia uma tarefa de NAS ou nuvem para o disco.</li>
+  <li>Troque os discos regularmente (p. ex. semanalmente) e guarde o desconectado num lugar seguro.</li>
+</ol>
+<ul>
+  <li>Cada disco contém um backup completo e independente com a sua própria retenção; todos os discos são criptografados com a chave de recuperação do destino.</li>
+  <li>A execução mostra qual disco foi usado (<i>Disco BZBACKUP2</i>). Uma restauração pede exatamente esse disco e diz qual está conectado.</li>
+  <li>Quando nenhum disco está conectado, a execução falha com uma mensagem clara e um alerta — um lembrete para voltar a ligar o disco.</li>
+  <li>Conecte apenas um dos discos de cada vez.</li>
+</ul>
+
+<h2>Compartilhamento SMB</h2>
+<p>Servidor, compartilhamento, pasta opcional, usuário, senha e (para contas de domínio) o domínio. Os agentes conectam-se por conta própria com estas credenciais, por isso funciona também para serviços executados como SYSTEM.</p>
+
+<h2>Repositório protegido</h2>
+<p>Instale o pacote <code>backupzit-repo</code> num servidor Linux dedicado e depois, nesse servidor:</p>
+<pre>backupzit-repo add-key office-console     # shows the access key once
+backupzit-repo fingerprint                # certificate fingerprint</pre>
+<p>Informe na console o endereço do servidor, a chave de acesso e a impressão digital. O período de imutabilidade é configurado no servidor do repositório (<code>/etc/backupzit-repo/repo.env</code>) e não pode ser alterado pela console nem pelos agentes. Detalhes em <a href="/docs/ransomware">Proteção contra ransomware</a>.</p>
+
+<h2>Criptografia e a chave de recuperação</h2>
+<p>Com <i>Criptografar backups</i> (o padrão), tudo no repositório — conteúdo e nomes dos arquivos, estrutura de pastas, listas de snapshots — é criptografado com <b>AES-256-GCM</b> antes de sair do agente. O provedor de armazenamento só vê dados aleatórios.</p>
+<p>Quando cria um destino criptografado, a console mostra uma <b>chave de recuperação</b> e oferece uma <b>ficha de recuperação</b> para baixar.</p>
+<div class="callout warn"><p><b>Imprima a ficha de recuperação ou guarde-a num gerenciador de senhas, separada dos backups.</b> Se a console se perder, a chave de recuperação mais o local e as credenciais do armazenamento são tudo o que precisa para restaurar. Sem a chave, ninguém consegue ler os backups criptografados — nem o suporte do BackupZit.</p></div>
+<p>Pode voltar a mostrar a chave mais tarde com <i>Chave de recuperação</i> na lista de armazenamento; isto fica registrado.</p>
+
+<h2>A lista de armazenamento</h2>
+<p>A lista mostra para cada destino o tipo, o local, a criptografia (com acesso à chave de recuperação para administradores) e a imutabilidade: o período de Object Lock no S3, ou <i>definido no servidor do repositório</i> nos repositórios protegidos. As credenciais nunca mais são mostradas depois de salvas e são guardadas criptografadas. Só administradores podem adicionar ou remover destinos e ver chaves de recuperação.</p>
+
+<h2>Uso do armazenamento e previsão</h2>
+<p>Após cada backup (e a sua retenção), o agente informa quanto espaço o seu repositório ocupa e — para discos locais e USB, servidores SFTP (extensão <code>statvfs</code> do OpenSSH) e compartilhamentos SMB — o tamanho e o espaço livre do armazenamento. Em <a href="/targets#usage">Armazenamento → Uso do armazenamento</a> cada destino mostra:</p>
+<ul>
+  <li>o espaço usado por todos os repositórios nele (um por agente; em discos USB em rotação, cada disco conta);</li>
+  <li>em armazenamento de tamanho conhecido, o quanto está cheio (amarelo a partir de 75 %, vermelho a partir de 90 %), com a capacidade como linha vermelha tracejada no gráfico;</li>
+  <li>um gráfico dos últimos 90 dias e, após uma semana de backups, o crescimento por dia (tendência linear dos últimos 30 dias), desenhado 30 dias à frente como linha tracejada, e quando o armazenamento ficará cheio — ou, sem tamanho conhecido, o uso esperado em 90 dias.</li>
+</ul>
+<p><b>Requer atenção</b> no painel avisa quando um destino de armazenamento está 90 % cheio ou ficará cheio em 30 dias. S3 e Azure não têm tamanho fixo; ali só são mostrados o espaço usado e o seu crescimento. O espaço usado são os dados armazenados (comprimidos, criptografados, desduplicados); arquivos que o armazenamento mantém por outras razões (versões de objetos, outros programas) não são contados.</p>
+
+<h2>Remover um destino</h2>
+<p>Remover um destino de armazenamento da console não exclui nenhum dado no armazenamento. Com a <a href="/docs/users">aprovação de quatro olhos</a> ativada, um segundo usuário tem de aprovar primeiro.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

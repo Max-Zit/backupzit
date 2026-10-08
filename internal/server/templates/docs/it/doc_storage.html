@@ -1,0 +1,93 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Destinazioni di archiviazione</h1>
+<p class="lead">Una destinazione di archiviazione è il luogo in cui gli agenti scrivono i loro backup. Ogni agente usa il proprio repository sotto la posizione della destinazione.</p>
+
+<h2>Scegliere un tipo di archiviazione</h2>
+<table>
+  <tr><th>Tipo</th><th>Adatto per</th><th>Note</th></tr>
+  <tr><td><b>SFTP</b></td><td>Qualsiasi server Linux o NAS con SSH</td><td>Trasporto cifrato; la chiave host del server viene fissata.</td></tr>
+  <tr><td><b>Compatibile S3</b></td><td>Copie esterne / cloud: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph, Google Cloud Storage</td><td>Supporta l'immutabilità con Object Lock.</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>Copie esterne per aziende orientate a Microsoft</td><td>Chiave dell'account o token SAS; immutabilità tramite i criteri di immutabilità a livello di versione di Azure.</td></tr>
+  <tr><td><b>Condivisione SMB</b></td><td>File server Windows, NAS Synology/QNAP</td><td>SMB 2/3; gli agenti accedono da soli, non serve mappare unità.</td></tr>
+  <tr><td><b>Repository protetto</b></td><td>Archiviazione locale a prova di ransomware</td><td>Un server Linux con <code>backupzit-repo</code>; i backup non possono essere eliminati prima della fine del loro periodo di immutabilità.</td></tr>
+  <tr><td><b>Dischi USB a rotazione</b></td><td>Copie offline per piccoli uffici: due o più dischi scambiati ogni settimana</td><td>Trovati tramite l'etichetta del volume (BZBACKUP1, BZBACKUP2 …), non la lettera di unità.</td></tr>
+  <tr><td><b>Percorso locale / montato</b></td><td>Un disco USB, un secondo disco o un volume NFS/iSCSI montato sull'agente</td><td>Percorso come lo vede l'agente, ad es. <code>E:\Backups</code> o <code>/mnt/backup</code>.</td></tr>
+</table>
+<div class="callout tip"><p><b>Regola 3-2-1:</b> conservate 3 copie dei dati, su 2 supporti diversi, di cui 1 fuori sede — ad esempio un job verso un NAS locale e un altro verso S3 o un repository protetto in un altro edificio.</p></div>
+
+<h2 id="test">Verificare la connessione</h2>
+<p>Quando si aggiunge una destinazione di archiviazione, la console la verifica subito con le credenziali inserite: scrive un piccolo file, lo rilegge e lo rimuove. Su archiviazione immutabile (S3 con Object Lock, repository protetto) si limita ad accedere ed elencare, così da non lasciare nulla di bloccato; per S3 verifica anche che il bucket abbia Object Lock quando è richiesta l'immutabilità. La destinazione viene salvata in ogni caso e il risultato viene mostrato: una password, chiave host, bucket o condivisione errati emergono subito e non al primo backup. <b>Verifica connessione</b> nella pagina Archiviazione ripete il test. La console esegue il test dalla propria rete; i backup li scrivono gli agenti, quindi una destinazione raggiungibile solo dagli agenti (un disco locale o USB) viene verificata dal primo backup.</p>
+
+<h2>SFTP</h2>
+<p>Posizione: <code>sftp://user@host:22/path</code> (usate <code>/~/path</code> per un percorso relativo alla home dell'utente). Inserite una password o una chiave privata, e l'impronta della chiave host del server, che ottenete sul server con:</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>Create un utente dedicato che possa scrivere solo nella cartella dei backup.</p>
+
+<h2>Compatibile S3</h2>
+<p>Inserite l'endpoint (ad es. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), il bucket, una cartella facoltativa e una chiave di accesso con lettura/scrittura su quel bucket. Selezionate <i>HTTP in chiaro</i> solo per un MinIO locale senza certificato.</p>
+<h3>Backup immutabili (Object Lock)</h3>
+<p>Create il bucket con <b>Object Lock abilitato</b> e selezionate <i>Backup immutabili … per N giorni</i>. Ogni file scritto dagli agenti viene bloccato in <b>modalità compliance</b> per N giorni (+1 giorno di margine): nessuno — né un attaccante con le chiavi, né il proprietario del bucket — può eliminarlo o sovrascriverlo prima. Dopo ogni backup il blocco dei dati riutilizzati da backup precedenti viene esteso, così ogni punto di ripristino resta protetto per l'intero periodo.</p>
+<p>L'eliminazione (dalla conservazione o da un attaccante) aggiunge solo un «marcatore di eliminazione». Aggiungete una regola del ciclo di vita che faccia scadere le <i>versioni non correnti</i> dopo un giorno, così lo spazio si libera quando i blocchi terminano. Vedete <a href="/docs/ransomware">Protezione dal ransomware</a>.</p>
+
+<h3>Google Cloud Storage</h3>
+<p>Google Cloud Storage funziona come destinazione compatibile S3 tramite la sua API di <i>interoperabilità</i>:</p>
+<ol>
+  <li>Nella console Google Cloud aprite <i>Cloud Storage → Settings → Interoperability</i> e create una <b>chiave HMAC</b> per un account di servizio con il ruolo <i>Storage Object Admin</i> sul bucket.</li>
+  <li>Aggiungete una destinazione S3 con endpoint <code>storage.googleapis.com</code>, il nome del bucket, la chiave di accesso e il segreto HMAC e la regione <code>auto</code>.</li>
+</ol>
+<p>L'opzione S3 Object Lock non è disponibile su Google Cloud Storage; per l'immutabilità impostate un <i>criterio di conservazione del bucket</i> (e bloccatelo) in Google Cloud. I backup eliminati restano quindi fino alla fine del periodo di conservazione.</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>Nel portale Azure create un <b>account di archiviazione</b> (StorageV2, qualsiasi ridondanza) e un <b>contenitore</b>, ad es. <code>backups</code>.</li>
+  <li>Aggiungete una destinazione <i>Azure Blob Storage</i> con nome dell'account, contenitore e cartella facoltativa.</li>
+  <li>Autenticatevi con una <b>chiave di accesso</b> (<i>Account di archiviazione → Chiavi di accesso</i>) o, in modo più restrittivo, con un <b>token SAS</b> per il contenitore con permessi di lettura, scrittura, eliminazione ed elenco e una scadenza adeguata.</li>
+</ol>
+<p>Per la protezione dal ransomware abilitate sul contenitore l'<b>immutabilità a livello di versione</b> con un criterio di conservazione basato sul tempo; i backup eliminati o sovrascritti restano così recuperabili per quel periodo. Il campo endpoint in <i>Avanzate</i> serve solo per Azure Government/China, Azure Stack Hub o l'emulatore Azurite.</p>
+
+<h2>Dischi USB a rotazione</h2>
+<p>Dischi scollegati e portati fuori sede sono la protezione più semplice contro ransomware, incendi e furti per i piccoli uffici. BackupZit trova il disco tramite la sua <b>etichetta di volume</b>, qualunque sia la lettera di unità assegnata da Windows:</p>
+<ol>
+  <li>Formattate due o più dischi in NTFS (Linux: ext4) e chiamateli <code>BZBACKUP1</code>, <code>BZBACKUP2</code>, … (Windows: clic destro sull'unità → Proprietà → nome).</li>
+  <li>Aggiungete una destinazione di archiviazione di tipo <i>Dischi USB / rimovibili a rotazione</i> con l'etichetta <code>BZBACKUP*</code>.</li>
+  <li>Create un job di backup verso di essa — o meglio un job di <b>copia di backup</b> che copia un job su NAS o cloud sul disco.</li>
+  <li>Scambiate i dischi regolarmente (ad es. ogni settimana) e conservate quello scollegato in un luogo sicuro.</li>
+</ol>
+<ul>
+  <li>Ogni disco contiene un backup completo e indipendente con la propria conservazione; tutti i dischi sono cifrati con la chiave di ripristino della destinazione.</li>
+  <li>L'esecuzione mostra quale disco è stato usato (<i>Disco BZBACKUP2</i>). Un ripristino chiede esattamente quel disco e vi dice quale è collegato.</li>
+  <li>Se non è collegato alcun disco, l'esecuzione fallisce con un messaggio chiaro e un avviso — un promemoria per ricollegare il disco.</li>
+  <li>Collegate un solo disco alla volta.</li>
+</ul>
+
+<h2>Condivisione SMB</h2>
+<p>Server, condivisione, cartella facoltativa, utente, password e (per gli account di dominio) il dominio. Gli agenti si connettono da soli con queste credenziali, quindi funziona anche per i servizi eseguiti come SYSTEM.</p>
+
+<h2>Repository protetto</h2>
+<p>Installate il pacchetto <code>backupzit-repo</code> su un server Linux dedicato, poi su quel server:</p>
+<pre>backupzit-repo add-key office-console     # shows the access key once
+backupzit-repo fingerprint                # certificate fingerprint</pre>
+<p>Inserite nella console l'indirizzo del server, la chiave di accesso e l'impronta. Il periodo di immutabilità si configura sul server del repository (<code>/etc/backupzit-repo/repo.env</code>) e non può essere modificato dalla console né dagli agenti. Dettagli in <a href="/docs/ransomware">Protezione dal ransomware</a>.</p>
+
+<h2>Cifratura e chiave di ripristino</h2>
+<p>Con <i>Cifra i backup</i> (impostazione predefinita), tutto ciò che è nel repository — contenuto e nomi dei file, struttura delle cartelle, elenchi degli snapshot — viene cifrato con <b>AES-256-GCM</b> prima di lasciare l'agente. Il fornitore dello storage vede solo dati casuali.</p>
+<p>Quando create una destinazione cifrata, la console mostra una <b>chiave di ripristino</b> e offre un <b>foglio di ripristino</b> da scaricare.</p>
+<div class="callout warn"><p><b>Stampate il foglio di ripristino o conservatelo in un gestore di password, separato dai backup.</b> Se la console va persa, la chiave di ripristino più la posizione e le credenziali dello storage sono tutto ciò che serve per ripristinare. Senza la chiave nessuno può leggere i backup cifrati — nemmeno il supporto BackupZit.</p></div>
+<p>Potete mostrare di nuovo la chiave in seguito con <i>Chiave di ripristino</i> nell'elenco degli storage; l'operazione viene registrata.</p>
+
+<h2>L'elenco degli storage</h2>
+<p>L'elenco mostra per ogni destinazione tipo, posizione, cifratura (con accesso alla chiave di ripristino per gli amministratori) e immutabilità: il periodo di Object Lock per S3, o <i>impostata sul server repository</i> per i repository protetti. Le credenziali non vengono mai più mostrate dopo il salvataggio e sono archiviate cifrate. Solo gli amministratori possono aggiungere o rimuovere destinazioni e vedere le chiavi di ripristino.</p>
+
+<h2>Utilizzo dell'archiviazione e previsione</h2>
+<p>Dopo ogni backup (e la relativa conservazione) l'agente riporta quanto spazio occupa il suo repository e — per dischi locali e USB, server SFTP (estensione <code>statvfs</code> di OpenSSH) e condivisioni SMB — la dimensione e lo spazio libero dello storage. In <a href="/targets#usage">Archiviazione → Utilizzo dell'archiviazione</a> ogni destinazione mostra:</p>
+<ul>
+  <li>lo spazio usato da tutti i repository al suo interno (uno per agente; per i dischi USB a rotazione conta ogni disco);</li>
+  <li>per uno storage di dimensione nota, quanto è pieno (giallo dal 75 %, rosso dal 90 %), con la capacità come linea rossa tratteggiata nel grafico;</li>
+  <li>un grafico degli ultimi 90 giorni e, dopo una settimana di backup, la crescita giornaliera (trend lineare degli ultimi 30 giorni), tracciata 30 giorni in avanti come linea tratteggiata, e quando lo storage sarà pieno — oppure, senza dimensione nota, l'utilizzo previsto tra 90 giorni.</li>
+</ul>
+<p><b>Richiede attenzione</b> nella dashboard avvisa quando una destinazione è piena al 90 % o lo sarà entro 30 giorni. S3 e Azure non hanno una dimensione fissa; lì vengono mostrati solo lo spazio usato e la sua crescita. Lo spazio usato corrisponde ai dati archiviati (compressi, cifrati, deduplicati); i file che lo storage conserva per altri motivi (versioni degli oggetti, altri programmi) non vengono contati.</p>
+
+<h2>Rimuovere una destinazione</h2>
+<p>Rimuovere una destinazione di archiviazione dalla console non elimina alcun dato sullo storage. Con l'<a href="/docs/users">approvazione a quattro occhi</a> attiva, un secondo utente deve prima approvare.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

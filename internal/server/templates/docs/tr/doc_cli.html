@@ -15,7 +15,7 @@
   <tr><td><code>usb://LABEL/path</code> (joker karakterler: <code>usb://BZBACKUP*/BackupZit</code>)</td><td>— (bu birim etiketine sahip takılı disk kullanılır)</td></tr>
 </table>
 <p>Şifreli depolar <code>BACKUPZIT_PASSWORD</code> (veya <code>--password</code>) içinde kurtarma anahtarını gerektirir.</p>
-<p><b>Belirli bir andaki görünüm:</b> Object Lock'lu S3'te ve sağlamlaştırılmış bir depoda <code>--as-of 2026-10-01T14:30</code> (veya bir tarih), depoyu o anda olduğu gibi gösterir — salt okunur, yedekler silindikten veya üzerine yazıldıktan sonra kurtarmak için.</p>
+<p><b>Belirli bir andaki görünüm:</b> Object Lock'lu S3'te ve güçlendirilmiş bir depoda <code>--as-of 2026-10-01T14:30</code> (veya bir tarih), depoyu o anda olduğu gibi gösterir — salt okunur, yedekler silindikten veya üzerine yazıldıktan sonra kurtarmak için.</p>
 
 <h2>Dosyalar ve klasörler</h2>
 <table>
@@ -128,7 +128,7 @@ backupzit-agent disks
 backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
 backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
 
-<h2>Sağlamlaştırılmış depo (<code>backupzit-repo</code>)</h2>
+<h2>Güçlendirilmiş depo (<code>backupzit-repo</code>)</h2>
 <table>
   <tr><th>Komut</th><th>Ne yapar</th></tr>
   <tr><td><code>backupzit-repo serve</code></td><td>Hizmeti çalıştırır (bunu systemd yapar).</td></tr>

@@ -1,0 +1,93 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Cíle úložiště</h1>
+<p class="lead">Cíl úložiště je místo, kam agenti zapisují své zálohy. Každý agent používá vlastní repozitář pod umístěním cíle.</p>
+
+<h2>Výběr typu úložiště</h2>
+<table>
+  <tr><th>Typ</th><th>Vhodné pro</th><th>Poznámky</th></tr>
+  <tr><td><b>SFTP</b></td><td>Libovolný linuxový server nebo NAS s SSH</td><td>Šifrovaný přenos; hostitelský klíč serveru je připnutý.</td></tr>
+  <tr><td><b>Kompatibilní s S3</b></td><td>Kopie mimo pracoviště / v cloudu: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph, Google Cloud Storage</td><td>Podporuje neměnnost pomocí Object Lock.</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>Kopie mimo pracoviště pro firmy zaměřené na Microsoft</td><td>Klíč účtu nebo token SAS; neměnnost přes zásady neměnnosti na úrovni verzí v Azure.</td></tr>
+  <tr><td><b>Sdílená složka SMB</b></td><td>Souborové servery Windows, NAS Synology/QNAP</td><td>SMB 2/3; agenti se přihlašují sami, není třeba mapovat jednotky.</td></tr>
+  <tr><td><b>Zabezpečené úložiště</b></td><td>Místní úložiště odolné vůči ransomwaru</td><td>Linuxový server s <code>backupzit-repo</code>; zálohy nelze smazat před koncem jejich doby neměnnosti.</td></tr>
+  <tr><td><b>Rotující disky USB</b></td><td>Offline kopie pro malé kanceláře: dva nebo více disků střídaných jednou týdně</td><td>Hledají se podle jmenovky svazku (BZBACKUP1, BZBACKUP2 …), ne podle písmene jednotky.</td></tr>
+  <tr><td><b>Místní / připojená cesta</b></td><td>Disk USB, druhý disk nebo svazek NFS/iSCSI připojený k agentovi</td><td>Cesta, jak ji vidí agent, např. <code>E:\Backups</code> nebo <code>/mnt/backup</code>.</td></tr>
+</table>
+<div class="callout tip"><p><b>Pravidlo 3-2-1:</b> mějte 3 kopie dat na 2 různých médiích, z toho 1 mimo pracoviště — například jednu úlohu na místní NAS a druhou do S3 nebo na zabezpečené úložiště v jiné budově.</p></div>
+
+<h2 id="test">Test připojení</h2>
+<p>Při přidání cíle úložiště jej konzole hned otestuje se zadanými přihlašovacími údaji: zapíše malý soubor, přečte ho zpět a odstraní. Na neměnném úložišti (S3 s Object Lock, zabezpečené úložiště) se jen přihlásí a vypíše obsah, aby nezůstalo nic uzamčeného; u S3 také ověří, že bucket má Object Lock, pokud je požadována neměnnost. Cíl se uloží v každém případě a výsledek se zobrazí — špatné heslo, hostitelský klíč, bucket nebo sdílená složka se ukáže hned, ne až při první záloze. <b>Otestovat připojení</b> na stránce Úložiště test zopakuje. Konzole testuje ze své sítě; zálohy zapisují agenti, takže cíl dostupný jen agentům (místní disk nebo USB) otestuje první záloha.</p>
+
+<h2>SFTP</h2>
+<p>Umístění: <code>sftp://user@host:22/path</code> (pro cestu relativní k domovskému adresáři uživatele použijte <code>/~/path</code>). Zadejte heslo nebo soukromý klíč a otisk hostitelského klíče serveru, který na serveru získáte příkazem:</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>Vytvořte vyhrazeného uživatele, který smí zapisovat jen do složky záloh.</p>
+
+<h2>Kompatibilní s S3</h2>
+<p>Zadejte koncový bod (např. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket, volitelnou složku a přístupový klíč s právy čtení/zápisu do tohoto bucketu. <i>Nešifrované HTTP</i> zaškrtněte jen pro místní MinIO bez certifikátu.</p>
+<h3>Neměnné zálohy (Object Lock)</h3>
+<p>Vytvořte bucket se <b>zapnutým Object Lock</b> a zaškrtněte <i>Neměnné zálohy … na N dní</i>. Každý soubor, který agenti zapíší, se uzamkne v <b>režimu compliance</b> na N dní (+1 den rezerva): nikdo — ani útočník s klíči, ani vlastník bucketu — jej předtím nesmaže ani nepřepíše. Po každé záloze se prodlouží zámek dat znovu použitých ze starších záloh, takže každý bod obnovy je chráněn po celou dobu.</p>
+<p>Smazání (uchováváním nebo útočníkem) jen přidá „značku smazání“. Přidejte pravidlo životního cyklu, které nechá <i>neaktuální verze</i> vypršet po jednom dni, aby se místo uvolnilo, jakmile zámky skončí. Viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>.</p>
+
+<h3>Google Cloud Storage</h3>
+<p>Google Cloud Storage funguje jako cíl kompatibilní s S3 přes své API pro <i>interoperabilitu</i>:</p>
+<ol>
+  <li>V konzoli Google Cloud otevřete <i>Cloud Storage → Settings → Interoperability</i> a vytvořte <b>klíč HMAC</b> pro servisní účet s rolí <i>Storage Object Admin</i> na bucketu.</li>
+  <li>Přidejte cíl S3 s koncovým bodem <code>storage.googleapis.com</code>, názvem bucketu, přístupovým klíčem a tajným klíčem HMAC a oblastí <code>auto</code>.</li>
+</ol>
+<p>Volba S3 Object Lock není v Google Cloud Storage dostupná; pro neměnnost nastavte v Google Cloud <i>zásadu uchovávání bucketu</i> (a uzamkněte ji). Smazané zálohy pak zůstanou až do konce doby uchovávání.</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>Na portálu Azure vytvořte <b>účet úložiště</b> (StorageV2, libovolná redundance) a <b>kontejner</b>, např. <code>backups</code>.</li>
+  <li>Přidejte cíl <i>Azure Blob Storage</i> s názvem účtu, kontejnerem a volitelnou složkou.</li>
+  <li>Ověřte se <b>přístupovým klíčem</b> (<i>Účet úložiště → Přístupové klíče</i>) nebo, s užšími právy, <b>tokenem SAS</b> pro kontejner s oprávněním ke čtení, zápisu, mazání a výpisu a vhodnou platností.</li>
+</ol>
+<p>Pro ochranu proti ransomwaru zapněte na kontejneru <b>neměnnost na úrovni verzí</b> s časovou zásadou uchovávání; smazané nebo přepsané zálohy pak zůstanou po tuto dobu obnovitelné. Pole koncového bodu v části <i>Pokročilé</i> je potřeba jen pro Azure Government/China, Azure Stack Hub nebo emulátor Azurite.</p>
+
+<h2>Rotující disky USB</h2>
+<p>Disky, které se odpojují a odvážejí mimo pracoviště, jsou pro malé kanceláře nejjednodušší ochranou proti ransomwaru, požáru a krádeži. BackupZit najde disk podle <b>jmenovky svazku</b>, ať mu Windows přidělí jakékoli písmeno:</p>
+<ol>
+  <li>Naformátujte dva nebo více disků na NTFS (Linux: ext4) a pojmenujte je <code>BZBACKUP1</code>, <code>BZBACKUP2</code>, … (Windows: pravé tlačítko na jednotce → Vlastnosti → název).</li>
+  <li>Přidejte cíl úložiště typu <i>Rotující disky USB / vyměnitelné disky</i> se jmenovkou <code>BZBACKUP*</code>.</li>
+  <li>Vytvořte do něj úlohu zálohování — nebo lépe úlohu <b>kopie zálohy</b>, která zkopíruje úlohu z NAS nebo cloudu na disk.</li>
+  <li>Disky pravidelně střídejte (např. jednou týdně) a odpojený uchovávejte na bezpečném místě.</li>
+</ol>
+<ul>
+  <li>Každý disk obsahuje úplnou, nezávislou zálohu s vlastním uchováváním; všechny disky jsou šifrovány klíčem pro obnovení daného cíle.</li>
+  <li>Běh ukazuje, který disk byl použit (<i>Disk BZBACKUP2</i>). Obnova si vyžádá přesně tento disk a řekne vám, který je připojen.</li>
+  <li>Pokud není připojen žádný disk, běh selže s jasnou zprávou a upozorněním — připomínkou, abyste disk znovu připojili.</li>
+  <li>Připojujte vždy jen jeden z disků.</li>
+</ul>
+
+<h2>Sdílená složka SMB</h2>
+<p>Server, sdílená složka, volitelná složka, uživatel, heslo a (u doménových účtů) doména. Agenti se s těmito údaji připojují sami, takže to funguje i pro služby běžící jako SYSTEM.</p>
+
+<h2>Zabezpečené úložiště</h2>
+<p>Nainstalujte balíček <code>backupzit-repo</code> na vyhrazený linuxový server a pak na tomto serveru spusťte:</p>
+<pre>backupzit-repo add-key office-console     # shows the access key once
+backupzit-repo fingerprint                # certificate fingerprint</pre>
+<p>Do konzole zadejte adresu serveru, přístupový klíč a otisk. Doba neměnnosti se nastavuje na serveru repozitáře (<code>/etc/backupzit-repo/repo.env</code>) a z konzole ani z agentů ji nelze změnit. Podrobnosti v <a href="/docs/ransomware">Ochrana proti ransomwaru</a>.</p>
+
+<h2>Šifrování a klíč pro obnovení</h2>
+<p>Se zapnutým <i>Šifrovat zálohy</i> (výchozí) se vše v repozitáři — obsah a názvy souborů, struktura složek, seznamy snímků — zašifruje pomocí <b>AES-256-GCM</b> dřív, než opustí agenta. Poskytovatel úložiště vidí jen náhodná data.</p>
+<p>Když vytvoříte šifrovaný cíl, konzole zobrazí <b>klíč pro obnovení</b> a nabídne ke stažení <b>list pro obnovu</b>.</p>
+<div class="callout warn"><p><b>List pro obnovu vytiskněte nebo uložte do správce hesel, odděleně od záloh.</b> Pokud o konzoli přijdete, k obnově stačí klíč pro obnovení plus umístění a přihlašovací údaje úložiště. Bez klíče šifrované zálohy nikdo nepřečte — ani podpora BackupZit.</p></div>
+<p>Klíč můžete později znovu zobrazit tlačítkem <i>Klíč obnovy</i> v seznamu úložišť; zaznamená se to.</p>
+
+<h2>Seznam úložišť</h2>
+<p>Seznam ukazuje u každého cíle typ, umístění, šifrování (s přístupem ke klíči pro obnovení pro správce) a neměnnost: dobu Object Lock u S3, nebo <i>nastaveno na serveru repozitáře</i> u zabezpečených úložišť. Přihlašovací údaje se po uložení už nikdy nezobrazí a ukládají se šifrovaně. Cíle může přidávat a odebírat a klíče pro obnovení vidět jen správce.</p>
+
+<h2>Využití úložiště a prognóza</h2>
+<p>Po každé záloze (a jejím uchovávání) agent hlásí, kolik místa zabírá jeho repozitář, a — u místních disků a USB, serverů SFTP (rozšíření <code>statvfs</code> OpenSSH) a sdílených složek SMB — velikost a volné místo úložiště. V části <a href="/targets#usage">Úložiště → Využití úložiště</a> každý cíl ukazuje:</p>
+<ul>
+  <li>místo zabrané všemi repozitáři na něm (jeden na agenta; u rotujících disků USB se počítá každý disk);</li>
+  <li>u úložiště se známou velikostí, jak je zaplněné (žlutě od 75 %, červeně od 90 %), s kapacitou jako červenou přerušovanou čárou v grafu;</li>
+  <li>graf posledních 90 dní a po týdnu záloh denní růst (lineární trend posledních 30 dní), vykreslený 30 dní dopředu přerušovanou čárou, a kdy se úložiště zaplní — nebo, bez známé velikosti, očekávané využití za 90 dní.</li>
+</ul>
+<p><b>Vyžaduje pozornost</b> na řídicím panelu varuje, když je cíl úložiště zaplněn z 90 % nebo se zaplní do 30 dní. S3 a Azure nemají pevnou velikost; tam se zobrazuje jen využité místo a jeho růst. Využité místo jsou uložená (komprimovaná, šifrovaná, deduplikovaná) data; soubory, které úložiště drží z jiných důvodů (verze objektů, jiné programy), se nezapočítávají.</p>
+
+<h2>Odebrání cíle</h2>
+<p>Odebrání cíle úložiště z konzole nesmaže na úložišti žádná data. Se zapnutým <a href="/docs/users">schválením čtyř očí</a> to musí nejprve schválit druhý uživatel.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

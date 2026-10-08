@@ -1,0 +1,93 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Cibles de stockage</h1>
+<p class="lead">Une cible de stockage est l'endroit où les agents écrivent leurs sauvegardes. Chaque agent utilise son propre dépôt sous l'emplacement de la cible.</p>
+
+<h2>Choisir un type de stockage</h2>
+<table>
+  <tr><th>Type</th><th>Adapté à</th><th>Remarques</th></tr>
+  <tr><td><b>SFTP</b></td><td>Tout serveur Linux ou NAS avec SSH</td><td>Transport chiffré ; la clé d'hôte du serveur est épinglée.</td></tr>
+  <tr><td><b>Compatible S3</b></td><td>Copies hors site / cloud : AWS S3, Wasabi, Backblaze B2, MinIO, Ceph, Google Cloud Storage</td><td>Prend en charge l'immuabilité avec Object Lock.</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>Copies hors site pour les entreprises tournées vers Microsoft</td><td>Clé de compte ou jeton SAS ; immuabilité via les stratégies d'immuabilité au niveau des versions d'Azure.</td></tr>
+  <tr><td><b>Partage SMB</b></td><td>Serveurs de fichiers Windows, NAS Synology/QNAP</td><td>SMB 2/3 ; les agents se connectent eux-mêmes, aucun lecteur réseau à mapper.</td></tr>
+  <tr><td><b>Dépôt renforcé</b></td><td>Stockage sur site à l'épreuve des rançongiciels</td><td>Un serveur Linux exécutant <code>backupzit-repo</code> ; les sauvegardes ne peuvent pas être supprimées avant la fin de leur période d'immuabilité.</td></tr>
+  <tr><td><b>Disques USB en rotation</b></td><td>Copies hors ligne pour les petits bureaux : deux disques ou plus échangés chaque semaine</td><td>Trouvés par leur nom de volume (BZBACKUP1, BZBACKUP2 …), pas par la lettre de lecteur.</td></tr>
+  <tr><td><b>Chemin local / monté</b></td><td>Un disque USB, un second disque ou un volume NFS/iSCSI monté sur l'agent</td><td>Chemin tel que l'agent le voit, p. ex. <code>E:\Backups</code> ou <code>/mnt/backup</code>.</td></tr>
+</table>
+<div class="callout tip"><p><b>Règle 3-2-1 :</b> conservez 3 copies de vos données, sur 2 supports différents, dont 1 hors site — par exemple une tâche vers un NAS local et une autre vers S3 ou un dépôt renforcé dans un autre bâtiment.</p></div>
+
+<h2 id="test">Tester la connexion</h2>
+<p>Quand une cible de stockage est ajoutée, la console la teste immédiatement avec les identifiants saisis : elle écrit un petit fichier, le relit et le supprime. Sur un stockage immuable (S3 avec Object Lock, dépôt renforcé), elle se contente de se connecter et de lister, pour ne rien laisser de verrouillé ; pour S3, elle vérifie aussi que le bucket a Object Lock lorsque l'immuabilité est demandée. La cible est enregistrée dans tous les cas et le résultat est affiché — un mauvais mot de passe, une mauvaise clé d'hôte, un mauvais bucket ou partage apparaît maintenant et non à la première sauvegarde. <b>Tester la connexion</b> sur la page Stockage refait le test. La console teste depuis son propre réseau ; ce sont les agents qui écrivent les sauvegardes, donc une cible que seuls les agents peuvent atteindre (un disque local ou USB) est testée par la première sauvegarde.</p>
+
+<h2>SFTP</h2>
+<p>Emplacement : <code>sftp://user@host:22/path</code> (utilisez <code>/~/path</code> pour un chemin relatif au répertoire personnel de l'utilisateur). Saisissez un mot de passe ou une clé privée, et l'empreinte de la clé d'hôte du serveur, que vous obtenez sur le serveur avec :</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>Créez un utilisateur dédié qui ne peut écrire que dans le dossier de sauvegarde.</p>
+
+<h2>Compatible S3</h2>
+<p>Saisissez le point de terminaison (p. ex. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), le bucket, un dossier facultatif et une clé d'accès avec droits de lecture/écriture sur ce bucket. Cochez <i>HTTP en clair</i> uniquement pour un MinIO local sans certificat.</p>
+<h3>Sauvegardes immuables (Object Lock)</h3>
+<p>Créez le bucket avec <b>Object Lock activé</b> et cochez <i>Sauvegardes immuables … pendant N jours</i>. Chaque fichier écrit par les agents est verrouillé en <b>mode conformité</b> pendant N jours (+1 jour de marge) : personne — ni un attaquant possédant les clés, ni le propriétaire du bucket — ne peut le supprimer ou l'écraser avant. Après chaque sauvegarde, le verrou des données réutilisées depuis des sauvegardes plus anciennes est prolongé, si bien que chaque point de restauration est protégé pendant toute la période.</p>
+<p>Une suppression (par la rétention ou par un attaquant) ajoute seulement un « marqueur de suppression ». Ajoutez une règle de cycle de vie qui fait expirer les <i>versions non actuelles</i> après un jour, pour libérer l'espace une fois les verrous terminés. Voir <a href="/docs/ransomware">Protection contre les rançongiciels</a>.</p>
+
+<h3>Google Cloud Storage</h3>
+<p>Google Cloud Storage fonctionne comme cible compatible S3 via son API d'<i>interopérabilité</i> :</p>
+<ol>
+  <li>Dans la console Google Cloud, ouvrez <i>Cloud Storage → Settings → Interoperability</i> et créez une <b>clé HMAC</b> pour un compte de service disposant du rôle <i>Storage Object Admin</i> sur le bucket.</li>
+  <li>Ajoutez une cible S3 avec le point de terminaison <code>storage.googleapis.com</code>, le nom du bucket, la clé d'accès et le secret HMAC, et la région <code>auto</code>.</li>
+</ol>
+<p>L'option S3 Object Lock n'est pas disponible sur Google Cloud Storage ; pour l'immuabilité, définissez une <i>règle de conservation du bucket</i> (et verrouillez-la) dans Google Cloud. Les sauvegardes supprimées restent alors jusqu'à la fin de la période de conservation.</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>Dans le portail Azure, créez un <b>compte de stockage</b> (StorageV2, toute redondance) et un <b>conteneur</b>, p. ex. <code>backups</code>.</li>
+  <li>Ajoutez une cible <i>Azure Blob Storage</i> avec le nom du compte, le conteneur et un dossier facultatif.</li>
+  <li>Authentifiez-vous avec une <b>clé d'accès</b> (<i>Compte de stockage → Clés d'accès</i>) ou, de façon plus restreinte, un <b>jeton SAS</b> pour le conteneur avec les droits lecture, écriture, suppression et liste et une expiration adaptée.</li>
+</ol>
+<p>Pour la protection contre les rançongiciels, activez sur le conteneur l'<b>immuabilité au niveau des versions</b> avec une stratégie de rétention temporelle ; les sauvegardes supprimées ou écrasées restent alors récupérables pendant cette durée. Le champ point de terminaison sous <i>Avancé</i> n'est nécessaire que pour Azure Government/China, Azure Stack Hub ou l'émulateur Azurite.</p>
+
+<h2>Disques USB en rotation</h2>
+<p>Des disques déconnectés et emportés hors site sont la protection la plus simple contre les rançongiciels, l'incendie et le vol pour les petits bureaux. BackupZit trouve le disque par son <b>nom de volume</b>, quelle que soit la lettre de lecteur attribuée par Windows :</p>
+<ol>
+  <li>Formatez deux disques ou plus en NTFS (Linux : ext4) et nommez-les <code>BZBACKUP1</code>, <code>BZBACKUP2</code>, … (Windows : clic droit sur le lecteur → Propriétés → nom).</li>
+  <li>Ajoutez une cible de stockage de type <i>Disques USB / amovibles en rotation</i> avec le nom <code>BZBACKUP*</code>.</li>
+  <li>Créez une tâche de sauvegarde vers elle — ou mieux, une tâche de <b>copie de sauvegarde</b> qui copie une tâche NAS ou cloud sur le disque.</li>
+  <li>Échangez les disques régulièrement (p. ex. chaque semaine) et gardez celui qui est déconnecté en lieu sûr.</li>
+</ol>
+<ul>
+  <li>Chaque disque contient une sauvegarde complète et indépendante avec sa propre rétention ; tous les disques sont chiffrés avec la clé de récupération de la cible.</li>
+  <li>L'exécution indique le disque utilisé (<i>Disque BZBACKUP2</i>). Une restauration demande exactement ce disque et vous indique lequel est connecté.</li>
+  <li>Quand aucun disque n'est connecté, l'exécution échoue avec un message clair et une alerte — un rappel de rebrancher le disque.</li>
+  <li>Ne connectez qu'un seul des disques à la fois.</li>
+</ul>
+
+<h2>Partage SMB</h2>
+<p>Serveur, partage, dossier facultatif, utilisateur, mot de passe et (pour les comptes de domaine) le domaine. Les agents se connectent eux-mêmes avec ces identifiants ; cela fonctionne donc aussi pour les services exécutés en tant que SYSTEM.</p>
+
+<h2>Dépôt renforcé</h2>
+<p>Installez le paquet <code>backupzit-repo</code> sur un serveur Linux dédié, puis sur ce serveur :</p>
+<pre>backupzit-repo add-key office-console     # shows the access key once
+backupzit-repo fingerprint                # certificate fingerprint</pre>
+<p>Saisissez l'adresse du serveur, la clé d'accès et l'empreinte dans la console. La période d'immuabilité se configure sur le serveur de dépôt (<code>/etc/backupzit-repo/repo.env</code>) et ne peut être modifiée ni depuis la console ni depuis les agents. Détails dans <a href="/docs/ransomware">Protection contre les rançongiciels</a>.</p>
+
+<h2>Chiffrement et clé de récupération</h2>
+<p>Avec <i>Chiffrer les sauvegardes</i> (par défaut), tout le contenu du dépôt — contenu et noms des fichiers, arborescence, listes d'instantanés — est chiffré en <b>AES-256-GCM</b> avant de quitter l'agent. Le fournisseur de stockage ne voit que des données aléatoires.</p>
+<p>Quand vous créez une cible chiffrée, la console affiche une <b>clé de récupération</b> et propose une <b>fiche de récupération</b> à télécharger.</p>
+<div class="callout warn"><p><b>Imprimez la fiche de récupération ou conservez-la dans un gestionnaire de mots de passe, séparément des sauvegardes.</b> Si la console est perdue, la clé de récupération plus l'emplacement et les identifiants du stockage suffisent pour restaurer. Sans la clé, personne ne peut lire les sauvegardes chiffrées — pas même le support BackupZit.</p></div>
+<p>Vous pouvez réafficher la clé plus tard avec <i>Clé de récupération</i> dans la liste des stockages ; cette action est journalisée.</p>
+
+<h2>La liste des stockages</h2>
+<p>La liste montre pour chaque cible le type, l'emplacement, le chiffrement (avec accès à la clé de récupération pour les administrateurs) et l'immuabilité : la période Object Lock pour S3, ou <i>défini sur le serveur de dépôt</i> pour les dépôts renforcés. Les identifiants ne sont plus jamais affichés après l'enregistrement et sont stockés chiffrés. Seuls les administrateurs peuvent ajouter ou supprimer des cibles et voir les clés de récupération.</p>
+
+<h2>Utilisation du stockage et prévision</h2>
+<p>Après chaque sauvegarde (et sa rétention), l'agent indique l'espace occupé par son dépôt et — pour les disques locaux et USB, les serveurs SFTP (extension <code>statvfs</code> d'OpenSSH) et les partages SMB — la taille et l'espace libre du stockage. Sous <a href="/targets#usage">Stockage → Utilisation du stockage</a>, chaque cible affiche :</p>
+<ul>
+  <li>l'espace utilisé par tous les dépôts qu'elle contient (un par agent ; pour les disques USB en rotation, chaque disque compte) ;</li>
+  <li>pour un stockage de taille connue, son taux de remplissage (jaune dès 75 %, rouge dès 90 %), avec la capacité en ligne rouge pointillée dans le graphique ;</li>
+  <li>un graphique des 90 derniers jours et, après une semaine de sauvegardes, la croissance par jour (tendance linéaire des 30 derniers jours), tracée 30 jours à l'avance en pointillé, et la date où le stockage sera plein — ou, sans taille connue, l'utilisation attendue dans 90 jours.</li>
+</ul>
+<p><b>Nécessite votre attention</b> sur le tableau de bord avertit quand une cible de stockage est pleine à 90 % ou le sera dans les 30 jours. S3 et Azure n'ont pas de taille fixe ; seuls l'espace utilisé et sa croissance y sont affichés. L'espace utilisé correspond aux données stockées (compressées, chiffrées, dédupliquées) ; les fichiers que le stockage conserve pour d'autres raisons (versions d'objets, autres programmes) ne sont pas comptés.</p>
+
+<h2>Supprimer une cible</h2>
+<p>Supprimer une cible de stockage de la console n'efface aucune donnée sur le stockage. Avec l'<a href="/docs/users">approbation à quatre yeux</a> activée, un second utilisateur doit d'abord l'approuver.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

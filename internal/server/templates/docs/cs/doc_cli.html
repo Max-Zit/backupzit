@@ -15,7 +15,7 @@
   <tr><td><code>usb://LABEL/path</code> (zástupné znaky: <code>usb://BZBACKUP*/BackupZit</code>)</td><td>— (použije se připojený disk s touto jmenovkou svazku)</td></tr>
 </table>
 <p>Šifrované repozitáře potřebují klíč pro obnovení v <code>BACKUPZIT_PASSWORD</code> (nebo <code>--password</code>).</p>
-<p><b>Pohled k určitému okamžiku:</b> na S3 s Object Lock a na zabezpečeném repozitáři <code>--as-of 2026-10-01T14:30</code> (nebo datum) ukáže repozitář tak, jak byl v tom okamžiku — jen pro čtení, k obnově poté, co byly zálohy smazány nebo přepsány.</p>
+<p><b>Pohled k určitému okamžiku:</b> na S3 s Object Lock a na zabezpečeném úložišti <code>--as-of 2026-10-01T14:30</code> (nebo datum) ukáže repozitář tak, jak byl v tom okamžiku — jen pro čtení, k obnově poté, co byly zálohy smazány nebo přepsány.</p>
 
 <h2>Soubory a složky</h2>
 <table>
@@ -128,7 +128,7 @@ backupzit-agent disks
 backupzit-agent image-ls --repo usb://BZBACKUP1/BackupZit/pc1_1a2b3c4d --partition 3 latest \Users
 backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --as-of 2026-10-01T14:00</pre>
 
-<h2>Zabezpečený repozitář (<code>backupzit-repo</code>)</h2>
+<h2>Zabezpečené úložiště (<code>backupzit-repo</code>)</h2>
 <table>
   <tr><th>Příkaz</th><th>Co dělá</th></tr>
   <tr><td><code>backupzit-repo serve</code></td><td>Spustí službu (to dělá systemd).</td></tr>

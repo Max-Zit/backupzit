@@ -1,0 +1,93 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Speicherziele</h1>
+<p class="lead">Ein Speicherziel ist der Ort, an den Agenten ihre Sicherungen schreiben. Jeder Agent verwendet sein eigenes Repository unterhalb des Speicherorts des Ziels.</p>
+
+<h2>Einen Speichertyp wählen</h2>
+<table>
+  <tr><th>Typ</th><th>Geeignet für</th><th>Hinweise</th></tr>
+  <tr><td><b>SFTP</b></td><td>Jeden Linux-Server oder NAS mit SSH</td><td>Verschlüsselte Übertragung; der Host-Schlüssel des Servers wird gepinnt.</td></tr>
+  <tr><td><b>S3-kompatibel</b></td><td>Externe / Cloud-Kopien: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph, Google Cloud Storage</td><td>Unterstützt Unveränderlichkeit mit Object Lock.</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>Externe Kopien für Microsoft-orientierte Unternehmen</td><td>Kontoschlüssel oder SAS-Token; Unveränderlichkeit über Azures Unveränderlichkeitsrichtlinien auf Versionsebene.</td></tr>
+  <tr><td><b>SMB-Freigabe</b></td><td>Windows-Dateiserver, Synology-/QNAP-NAS</td><td>SMB 2/3; Agenten melden sich selbst an, keine Laufwerkszuordnung nötig.</td></tr>
+  <tr><td><b>Gehärtetes Repository</b></td><td>Ransomware-sicherer Speicher vor Ort</td><td>Ein Linux-Server mit <code>backupzit-repo</code>; Sicherungen können vor Ablauf ihrer Unveränderlichkeitsfrist nicht gelöscht werden.</td></tr>
+  <tr><td><b>Wechselnde USB-Festplatten</b></td><td>Offline-Kopien für kleine Büros: zwei oder mehr Festplatten, wöchentlich getauscht</td><td>Gefunden über die Volumebezeichnung (BZBACKUP1, BZBACKUP2 …), nicht über den Laufwerksbuchstaben.</td></tr>
+  <tr><td><b>Lokaler / eingebundener Pfad</b></td><td>Eine USB-Festplatte, eine zweite Festplatte oder ein auf dem Agenten eingebundenes NFS-/iSCSI-Volume</td><td>Pfad aus Sicht des Agenten, z. B. <code>E:\Backups</code> oder <code>/mnt/backup</code>.</td></tr>
+</table>
+<div class="callout tip"><p><b>3-2-1-Regel:</b> Halten Sie 3 Kopien Ihrer Daten auf 2 verschiedenen Medien, davon 1 außer Haus — zum Beispiel ein Auftrag auf ein lokales NAS und ein weiterer auf S3 oder ein gehärtetes Repository in einem anderen Gebäude.</p></div>
+
+<h2 id="test">Die Verbindung testen</h2>
+<p>Beim Hinzufügen eines Speicherziels testet die Konsole es sofort mit den eingegebenen Zugangsdaten: Sie schreibt eine kleine Datei, liest sie zurück und entfernt sie. Auf unveränderlichem Speicher (S3 mit Object Lock, gehärtetes Repository) meldet sie sich nur an und listet auf, damit nichts Gesperrtes zurückbleibt; bei S3 prüft sie außerdem, ob der Bucket Object Lock hat, wenn Unveränderlichkeit gewünscht ist. Das Ziel wird in jedem Fall gespeichert, und das Ergebnis wird angezeigt — ein falsches Passwort, Host-Schlüssel, Bucket oder eine falsche Freigabe zeigt sich jetzt und nicht erst bei der ersten Sicherung. <b>Verbindung testen</b> auf der Seite Speicher wiederholt den Test. Die Konsole testet aus ihrem eigenen Netzwerk; die Sicherungen schreiben die Agenten, daher wird ein Ziel, das nur die Agenten erreichen (eine lokale oder USB-Festplatte), von der ersten Sicherung getestet.</p>
+
+<h2>SFTP</h2>
+<p>Ort: <code>sftp://user@host:22/path</code> (verwenden Sie <code>/~/path</code> für einen Pfad relativ zum Home-Verzeichnis des Benutzers). Geben Sie ein Passwort oder einen privaten Schlüssel ein und den Fingerabdruck des Host-Schlüssels des Servers, den Sie auf dem Server erhalten mit:</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>Legen Sie einen eigenen Benutzer an, der nur in den Sicherungsordner schreiben kann.</p>
+
+<h2>S3-kompatibel</h2>
+<p>Geben Sie den Endpunkt (z. B. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), den Bucket, einen optionalen Ordner und einen Zugriffsschlüssel mit Lese-/Schreibzugriff auf diesen Bucket ein. Aktivieren Sie <i>Unverschlüsseltes HTTP</i> nur für ein lokales MinIO ohne Zertifikat.</p>
+<h3>Unveränderliche Sicherungen (Object Lock)</h3>
+<p>Erstellen Sie den Bucket mit <b>aktiviertem Object Lock</b> und aktivieren Sie <i>Unveränderliche Sicherungen … für N Tage</i>. Jede Datei, die die Agenten schreiben, wird für N Tage (+1 Tag Puffer) im <b>Compliance-Modus</b> gesperrt: Niemand — weder ein Angreifer mit den Schlüsseln noch der Bucket-Eigentümer — kann sie vorher löschen oder überschreiben. Nach jeder Sicherung wird die Sperre von Daten, die aus älteren Sicherungen wiederverwendet werden, verlängert, sodass jeder Wiederherstellungspunkt für die volle Frist geschützt ist.</p>
+<p>Löschen (durch Aufbewahrung oder durch einen Angreifer) fügt nur eine „Löschmarkierung“ hinzu. Fügen Sie eine Lebenszyklusregel hinzu, die <i>nicht aktuelle Versionen</i> nach einem Tag ablaufen lässt, damit Platz frei wird, sobald die Sperren enden. Siehe <a href="/docs/ransomware">Ransomware-Schutz</a>.</p>
+
+<h3>Google Cloud Storage</h3>
+<p>Google Cloud Storage funktioniert über seine <i>Interoperabilitäts</i>-API als S3-kompatibles Ziel:</p>
+<ol>
+  <li>Öffnen Sie in der Google Cloud Console <i>Cloud Storage → Settings → Interoperability</i> und erstellen Sie einen <b>HMAC-Schlüssel</b> für ein Dienstkonto mit der Rolle <i>Storage Object Admin</i> auf dem Bucket.</li>
+  <li>Fügen Sie ein S3-Ziel mit dem Endpunkt <code>storage.googleapis.com</code>, dem Bucket-Namen, dem HMAC-Zugriffsschlüssel und -Geheimnis und der Region <code>auto</code> hinzu.</li>
+</ol>
+<p>Die S3-Option Object Lock ist auf Google Cloud Storage nicht verfügbar; für Unveränderlichkeit legen Sie in Google Cloud eine <i>Bucket-Aufbewahrungsrichtlinie</i> fest (und sperren Sie sie). Gelöschte Sicherungen bleiben dann bis zum Ende der Aufbewahrungsfrist erhalten.</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>Erstellen Sie im Azure-Portal ein <b>Speicherkonto</b> (StorageV2, beliebige Redundanz) und einen <b>Container</b>, z. B. <code>backups</code>.</li>
+  <li>Fügen Sie ein Ziel vom Typ <i>Azure Blob Storage</i> mit Kontoname, Container und optionalem Ordner hinzu.</li>
+  <li>Authentifizieren Sie sich mit einem <b>Zugriffsschlüssel</b> (<i>Speicherkonto → Zugriffsschlüssel</i>) oder, stärker eingeschränkt, einem <b>SAS-Token</b> für den Container mit Lese-, Schreib-, Lösch- und Auflistungsrechten und passendem Ablaufdatum.</li>
+</ol>
+<p>Für Ransomware-Schutz aktivieren Sie auf dem Container die <b>Unveränderlichkeit auf Versionsebene</b> mit einer zeitbasierten Aufbewahrungsrichtlinie; gelöschte oder überschriebene Sicherungen bleiben dann für diese Zeit wiederherstellbar. Das Feld Endpunkt unter <i>Erweitert</i> wird nur für Azure Government/China, Azure Stack Hub oder den Azurite-Emulator benötigt.</p>
+
+<h2>Wechselnde USB-Festplatten</h2>
+<p>Festplatten, die getrennt und außer Haus gebracht werden, sind für kleine Büros der einfachste Schutz gegen Ransomware, Feuer und Diebstahl. BackupZit findet die Festplatte über ihre <b>Volumebezeichnung</b>, egal welchen Laufwerksbuchstaben Windows vergibt:</p>
+<ol>
+  <li>Formatieren Sie zwei oder mehr Festplatten mit NTFS (Linux: ext4) und benennen Sie sie <code>BZBACKUP1</code>, <code>BZBACKUP2</code>, … (Windows: Rechtsklick auf das Laufwerk → Eigenschaften → Name).</li>
+  <li>Fügen Sie ein Speicherziel vom Typ <i>Wechselnde USB- / Wechseldatenträger</i> mit der Bezeichnung <code>BZBACKUP*</code> hinzu.</li>
+  <li>Erstellen Sie einen Sicherungsauftrag dorthin — oder besser einen <b>Sicherungskopie</b>-Auftrag, der einen NAS- oder Cloud-Auftrag auf die Festplatte kopiert.</li>
+  <li>Tauschen Sie die Festplatten regelmäßig (z. B. wöchentlich) und bewahren Sie die getrennte an einem sicheren Ort auf.</li>
+</ol>
+<ul>
+  <li>Jede Festplatte enthält eine vollständige, unabhängige Sicherung mit eigener Aufbewahrung; alle Festplatten sind mit dem Wiederherstellungsschlüssel des Ziels verschlüsselt.</li>
+  <li>Der Lauf zeigt, welche Festplatte verwendet wurde (<i>Festplatte BZBACKUP2</i>). Eine Wiederherstellung fragt genau nach dieser Festplatte und sagt Ihnen, welche angeschlossen ist.</li>
+  <li>Ist keine Festplatte angeschlossen, schlägt der Lauf mit einer klaren Meldung und einer Warnung fehl — eine Erinnerung, die Festplatte wieder anzuschließen.</li>
+  <li>Schließen Sie immer nur eine der Festplatten an.</li>
+</ul>
+
+<h2>SMB-Freigabe</h2>
+<p>Server, Freigabe, optionaler Ordner, Benutzer, Passwort und (bei Domänenkonten) die Domäne. Agenten verbinden sich selbst mit diesen Zugangsdaten, daher funktioniert es auch für Dienste, die als SYSTEM laufen.</p>
+
+<h2>Gehärtetes Repository</h2>
+<p>Installieren Sie das Paket <code>backupzit-repo</code> auf einem dedizierten Linux-Server und führen Sie dann auf diesem Server aus:</p>
+<pre>backupzit-repo add-key office-console     # shows the access key once
+backupzit-repo fingerprint                # certificate fingerprint</pre>
+<p>Geben Sie die Serveradresse, den Zugriffsschlüssel und den Fingerabdruck in der Konsole ein. Die Unveränderlichkeitsfrist wird auf dem Repository-Server konfiguriert (<code>/etc/backupzit-repo/repo.env</code>) und kann weder von der Konsole noch von Agenten geändert werden. Details unter <a href="/docs/ransomware">Ransomware-Schutz</a>.</p>
+
+<h2>Verschlüsselung und der Wiederherstellungsschlüssel</h2>
+<p>Mit <i>Sicherungen verschlüsseln</i> (Standard) wird alles im Repository — Dateiinhalte, Dateinamen, Ordnerstruktur, Snapshot-Listen — mit <b>AES-256-GCM</b> verschlüsselt, bevor es den Agenten verlässt. Der Speicheranbieter sieht nur Zufallsdaten.</p>
+<p>Wenn Sie ein verschlüsseltes Ziel erstellen, zeigt die Konsole einen <b>Wiederherstellungsschlüssel</b> und bietet ein <b>Wiederherstellungsblatt</b> zum Download an.</p>
+<div class="callout warn"><p><b>Drucken Sie das Wiederherstellungsblatt aus oder speichern Sie es in einem Passwortmanager, getrennt von den Sicherungen.</b> Geht die Konsole verloren, brauchen Sie zur Wiederherstellung nur den Wiederherstellungsschlüssel sowie Speicherort und Zugangsdaten. Ohne den Schlüssel kann niemand verschlüsselte Sicherungen lesen — auch nicht der BackupZit-Support.</p></div>
+<p>Sie können den Schlüssel später mit <i>Wiederherstellungsschlüssel</i> in der Speicherliste erneut anzeigen; das wird protokolliert.</p>
+
+<h2>Die Speicherliste</h2>
+<p>Die Liste zeigt für jedes Ziel Typ, Ort, Verschlüsselung (mit Zugriff auf den Wiederherstellungsschlüssel für Administratoren) und Unveränderlichkeit: die Object-Lock-Frist bei S3 oder <i>auf dem Repository-Server festgelegt</i> bei gehärteten Repositories. Zugangsdaten werden nach dem Speichern nie wieder angezeigt und verschlüsselt gespeichert. Nur Administratoren können Ziele hinzufügen oder entfernen und Wiederherstellungsschlüssel sehen.</p>
+
+<h2>Speichernutzung und Prognose</h2>
+<p>Nach jeder Sicherung (und ihrer Aufbewahrung) meldet der Agent, wie viel Platz sein Repository belegt, und — bei lokalen und USB-Festplatten, SFTP-Servern (OpenSSH-Erweiterung <code>statvfs</code>) und SMB-Freigaben — Größe und freien Platz des Speichers. Unter <a href="/targets#usage">Speicher → Speichernutzung</a> zeigt jedes Ziel:</p>
+<ul>
+  <li>den von allen Repositories darauf belegten Platz (eines pro Agent; bei wechselnden USB-Festplatten zählt jede Festplatte);</li>
+  <li>bei Speicher mit bekannter Größe, wie voll er ist (gelb ab 75 %, rot ab 90 %), mit der Kapazität als gestrichelte rote Linie im Diagramm;</li>
+  <li>ein Diagramm der letzten 90 Tage und, nach einer Woche Sicherungen, das Wachstum pro Tag (linearer Trend der letzten 30 Tage), 30 Tage im Voraus als gestrichelte Linie gezeichnet, und wann der Speicher voll sein wird — oder, ohne bekannte Größe, die erwartete Nutzung in 90 Tagen.</li>
+</ul>
+<p><b>Benötigt Aufmerksamkeit</b> im Dashboard warnt, wenn ein Speicherziel zu 90 % voll ist oder innerhalb von 30 Tagen voll sein wird. S3 und Azure haben keine feste Größe; dort werden nur der belegte Platz und sein Wachstum angezeigt. Der belegte Platz sind die gespeicherten (komprimierten, verschlüsselten, deduplizierten) Daten; Dateien, die der Speicher aus anderen Gründen aufbewahrt (Objektversionen, andere Programme), werden nicht gezählt.</p>
+
+<h2>Ein Ziel entfernen</h2>
+<p>Das Entfernen eines Speicherziels aus der Konsole löscht keine Daten auf dem Speicher. Mit eingeschalteter <a href="/docs/users">Vier-Augen-Freigabe</a> muss ein zweiter Benutzer zuerst zustimmen.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

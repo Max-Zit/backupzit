@@ -19,7 +19,7 @@
 <ul>
   <li><b>Správcovská konzole</b> (tato webová aplikace) — běží na linuxovém serveru ve vaší síti. Ukládá konfiguraci, plánuje úlohy, sbírá výsledky a zobrazuje sestavy. Nikdy nemusí být dostupná z internetu.</li>
   <li><b>Agenti</b> — malá služba na každém chráněném počítači (MSI pro Windows, deb/rpm pro Linux) a na hostitelích Proxmox a Hyper-V; k hostitelům VMware ESXi se přistupuje přes agenta, který funguje jako proxy. Agenti kontaktují konzoli přes HTTPS, přijímají úlohy a posílají data záloh <i>přímo</i> na úložiště. Ve Windows agent zobrazuje svůj stav vedle hodin.</li>
-  <li><b>Cíle úložiště</b> — kde se zálohy uchovávají: SFTP, objektové úložiště kompatibilní s S3 (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, sdílená složka SMB/NAS, rotující disky USB, místní nebo připojený disk, nebo zabezpečený repozitář BackupZit.</li>
+  <li><b>Cíle úložiště</b> — kde se zálohy uchovávají: SFTP, objektové úložiště kompatibilní s S3 (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, sdílená složka SMB/NAS, rotující disky USB, místní nebo připojený disk, nebo zabezpečené úložiště BackupZit.</li>
 </ul>
 <div class="callout tip"><p>Data záloh nikdy neprocházejí konzolí. Konzole jen koordinuje, takže jí stačí malý virtuální počítač.</p></div>
 

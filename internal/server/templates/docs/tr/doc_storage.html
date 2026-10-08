@@ -1,0 +1,93 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Depolama hedefleri</h1>
+<p class="lead">Depolama hedefi, aracıların yedeklerini yazdığı yerdir. Her aracı, hedefin konumu altındaki kendi deposunu kullanır.</p>
+
+<h2>Depolama türü seçme</h2>
+<table>
+  <tr><th>Tür</th><th>Uygun olduğu durum</th><th>Notlar</th></tr>
+  <tr><td><b>SFTP</b></td><td>SSH'li herhangi bir Linux sunucusu veya NAS</td><td>Şifreli aktarım; sunucunun ana bilgisayar anahtarı sabitlenir.</td></tr>
+  <tr><td><b>S3 uyumlu</b></td><td>Uzak / bulut kopyaları: AWS S3, Wasabi, Backblaze B2, MinIO, Ceph, Google Cloud Storage</td><td>Object Lock ile değiştirilemezliği destekler.</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>Microsoft odaklı şirketler için uzak kopyalar</td><td>Hesap anahtarı veya SAS belirteci; Azure'un sürüm düzeyinde değiştirilemezlik ilkeleriyle değiştirilemezlik.</td></tr>
+  <tr><td><b>SMB paylaşımı</b></td><td>Windows dosya sunucuları, Synology/QNAP NAS</td><td>SMB 2/3; aracılar kendileri oturum açar, sürücü eşlemesi gerekmez.</td></tr>
+  <tr><td><b>Güçlendirilmiş depo</b></td><td>Fidye yazılımına dayanıklı yerinde depolama</td><td><code>backupzit-repo</code> çalıştıran bir Linux sunucusu; yedekler değiştirilemezlik süreleri bitmeden silinemez.</td></tr>
+  <tr><td><b>Dönüşümlü USB diskler</b></td><td>Küçük ofisler için çevrimdışı kopyalar: haftalık değiştirilen iki veya daha fazla disk</td><td>Sürücü harfiyle değil, birim etiketiyle (BZBACKUP1, BZBACKUP2 …) bulunur.</td></tr>
+  <tr><td><b>Yerel / bağlanmış yol</b></td><td>Bir USB disk, ikinci disk veya aracıya bağlanmış bir NFS/iSCSI birimi</td><td>Aracının gördüğü yol, ör. <code>E:\Backups</code> veya <code>/mnt/backup</code>.</td></tr>
+</table>
+<div class="callout tip"><p><b>3-2-1 kuralı:</b> verilerinizin 3 kopyasını, 2 farklı ortamda, 1'i dış konumda tutun — örneğin bir iş yerel NAS'a, diğeri S3'e veya başka bir binadaki güçlendirilmiş depoya.</p></div>
+
+<h2 id="test">Bağlantıyı test etme</h2>
+<p>Bir depolama hedefi eklendiğinde konsol onu girilen kimlik bilgileriyle hemen test eder: küçük bir dosya yazar, geri okur ve kaldırır. Değiştirilemez depolamada (Object Lock'lu S3, güçlendirilmiş depo) yalnızca oturum açar ve listeler, böylece geride kilitli bir şey kalmaz; S3'te değiştirilemezlik istendiğinde bucket'ın Object Lock'u olup olmadığını da denetler. Hedef her durumda kaydedilir ve sonuç gösterilir — yanlış parola, ana bilgisayar anahtarı, bucket veya paylaşım ilk yedekte değil şimdi ortaya çıkar. Depolama sayfasındaki <b>Bağlantıyı test et</b> testi yineler. Konsol kendi ağından test eder; yedekleri aracılar yazar, bu yüzden yalnızca aracıların ulaşabildiği bir hedef (yerel veya USB disk) ilk yedekle test edilir.</p>
+
+<h2>SFTP</h2>
+<p>Konum: <code>sftp://user@host:22/path</code> (kullanıcının ana dizinine göreli bir yol için <code>/~/path</code> kullanın). Bir parola veya özel anahtar ve sunucuda şu komutla alacağınız sunucu ana bilgisayar anahtarı parmak izini girin:</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>Yalnızca yedek klasörüne yazabilen ayrı bir kullanıcı oluşturun.</p>
+
+<h2>S3 uyumlu</h2>
+<p>Uç noktayı (ör. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket'ı, isteğe bağlı bir klasörü ve o bucket'a okuma/yazma erişimi olan bir erişim anahtarını girin. <i>Şifresiz HTTP</i>'yi yalnızca sertifikasız yerel bir MinIO için işaretleyin.</p>
+<h3>Değiştirilemez yedekler (Object Lock)</h3>
+<p>Bucket'ı <b>Object Lock etkin</b> olarak oluşturun ve <i>Değiştirilemez yedekler … N gün</i> seçeneğini işaretleyin. Aracıların yazdığı her dosya N gün (+1 gün pay) boyunca <b>uyumluluk modunda</b> kilitlenir: hiç kimse — ne anahtarlara sahip bir saldırgan ne de bucket sahibi — onu bundan önce silemez veya üzerine yazamaz. Her yedekten sonra eski yedeklerden yeniden kullanılan verilerin kilidi uzatılır; böylece her geri yükleme noktası tüm süre boyunca korunur.</p>
+<p>Silme (saklama veya saldırgan tarafından) yalnızca bir "silme işareti" ekler. Kilitler bittiğinde alan boşalsın diye <i>güncel olmayan sürümleri</i> bir gün sonra sona erdiren bir yaşam döngüsü kuralı ekleyin. Bkz. <a href="/docs/ransomware">Fidye yazılımı koruması</a>.</p>
+
+<h3>Google Cloud Storage</h3>
+<p>Google Cloud Storage, <i>birlikte çalışabilirlik</i> API'si aracılığıyla S3 uyumlu bir hedef olarak çalışır:</p>
+<ol>
+  <li>Google Cloud konsolunda <i>Cloud Storage → Settings → Interoperability</i>'yi açın ve bucket üzerinde <i>Storage Object Admin</i> rolüne sahip bir hizmet hesabı için bir <b>HMAC anahtarı</b> oluşturun.</li>
+  <li><code>storage.googleapis.com</code> uç noktası, bucket adı, HMAC erişim anahtarı ve gizli anahtarı ile <code>auto</code> bölgesiyle bir S3 hedefi ekleyin.</li>
+</ol>
+<p>S3 Object Lock seçeneği Google Cloud Storage'da yoktur; değiştirilemezlik için Google Cloud'da bir <i>bucket saklama ilkesi</i> ayarlayın (ve kilitleyin). Silinen yedekler bu durumda saklama süresi bitene kadar kalır.</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>Azure portalında bir <b>depolama hesabı</b> (StorageV2, herhangi bir yedeklilik) ve bir <b>kapsayıcı</b> oluşturun, ör. <code>backups</code>.</li>
+  <li>Hesap adı, kapsayıcı ve isteğe bağlı klasörle bir <i>Azure Blob Storage</i> hedefi ekleyin.</li>
+  <li>Bir <b>erişim anahtarıyla</b> (<i>Depolama hesabı → Erişim anahtarları</i>) ya da daha kısıtlı olarak kapsayıcı için okuma, yazma, silme ve listeleme izinli ve uygun süreli bir <b>SAS belirteciyle</b> kimlik doğrulayın.</li>
+</ol>
+<p>Fidye yazılımı koruması için kapsayıcıda zamana dayalı bir saklama ilkesiyle <b>sürüm düzeyinde değiştirilemezliği</b> etkinleştirin; silinen veya üzerine yazılan yedekler bu süre boyunca kurtarılabilir kalır. <i>Gelişmiş</i> altındaki uç nokta alanı yalnızca Azure Government/China, Azure Stack Hub veya Azurite öykünücüsü için gerekir.</p>
+
+<h2>Dönüşümlü USB diskler</h2>
+<p>Bağlantısı kesilip dışarı götürülen diskler, küçük ofisler için fidye yazılımına, yangına ve hırsızlığa karşı en basit korumadır. BackupZit, Windows hangi sürücü harfini atarsa atasın diski <b>birim etiketiyle</b> bulur:</p>
+<ol>
+  <li>İki veya daha fazla diski NTFS (Linux: ext4) ile biçimlendirin ve <code>BZBACKUP1</code>, <code>BZBACKUP2</code>, … olarak adlandırın (Windows: sürücüye sağ tıklayın → Özellikler → ad).</li>
+  <li><code>BZBACKUP*</code> etiketiyle <i>Dönüşümlü USB / çıkarılabilir diskler</i> türünde bir depolama hedefi ekleyin.</li>
+  <li>Ona bir yedekleme işi oluşturun — ya da daha iyisi, bir NAS veya bulut işini diske kopyalayan bir <b>yedek kopyalama</b> işi.</li>
+  <li>Diskleri düzenli olarak (ör. haftalık) değiştirin ve bağlantısı kesilmiş olanı güvenli bir yerde saklayın.</li>
+</ol>
+<ul>
+  <li>Her disk, kendi saklama ayarına sahip eksiksiz ve bağımsız bir yedek içerir; tüm diskler hedefin kurtarma anahtarıyla şifrelenir.</li>
+  <li>Çalıştırma hangi diskin kullanıldığını gösterir (<i>Disk BZBACKUP2</i>). Geri yükleme tam olarak o diski ister ve hangisinin bağlı olduğunu söyler.</li>
+  <li>Hiçbir disk bağlı değilse çalıştırma açık bir iletiyle ve bir uyarıyla başarısız olur — diski yeniden takmanız için bir hatırlatma.</li>
+  <li>Disklerden aynı anda yalnızca birini bağlayın.</li>
+</ul>
+
+<h2>SMB paylaşımı</h2>
+<p>Sunucu, paylaşım, isteğe bağlı klasör, kullanıcı, parola ve (etki alanı hesapları için) etki alanı. Aracılar bu kimlik bilgileriyle kendileri bağlanır, bu yüzden SYSTEM olarak çalışan hizmetler için de çalışır.</p>
+
+<h2>Güçlendirilmiş depo</h2>
+<p><code>backupzit-repo</code> paketini ayrı bir Linux sunucusuna kurun, ardından o sunucuda:</p>
+<pre>backupzit-repo add-key office-console     # shows the access key once
+backupzit-repo fingerprint                # certificate fingerprint</pre>
+<p>Sunucu adresini, erişim anahtarını ve parmak izini konsola girin. Değiştirilemezlik süresi depo sunucusunda (<code>/etc/backupzit-repo/repo.env</code>) yapılandırılır ve konsoldan veya aracılardan değiştirilemez. Ayrıntılar <a href="/docs/ransomware">Fidye yazılımı koruması</a>'nda.</p>
+
+<h2>Şifreleme ve kurtarma anahtarı</h2>
+<p><i>Yedekleri şifrele</i> (varsayılan) ile depodaki her şey — dosya içerikleri, dosya adları, klasör yapısı, anlık görüntü listeleri — aracıdan çıkmadan önce <b>AES-256-GCM</b> ile şifrelenir. Depolama sağlayıcısı yalnızca rastgele veri görür.</p>
+<p>Şifreli bir hedef oluşturduğunuzda konsol bir <b>kurtarma anahtarı</b> gösterir ve indirmek için bir <b>kurtarma sayfası</b> sunar.</p>
+<div class="callout warn"><p><b>Kurtarma sayfasını yazdırın veya yedeklerden ayrı olarak bir parola yöneticisinde saklayın.</b> Konsol kaybolursa geri yükleme için kurtarma anahtarı ile depolama konumu ve kimlik bilgileri yeterlidir. Anahtar olmadan şifreli yedekleri kimse okuyamaz — BackupZit desteği dahil.</p></div>
+<p>Anahtarı daha sonra depolama listesindeki <i>Kurtarma anahtarı</i> ile yeniden gösterebilirsiniz; bu günlüğe kaydedilir.</p>
+
+<h2>Depolama listesi</h2>
+<p>Liste her hedefin türünü, konumunu, şifrelemesini (yöneticiler için kurtarma anahtarına erişimle) ve değiştirilemezliğini gösterir: S3 için Object Lock süresi, güçlendirilmiş depolar için <i>depo sunucusunda ayarlanır</i>. Kimlik bilgileri kaydedildikten sonra bir daha asla gösterilmez ve şifreli saklanır. Yalnızca yöneticiler hedef ekleyip kaldırabilir ve kurtarma anahtarlarını görebilir.</p>
+
+<h2>Depolama kullanımı ve tahmin</h2>
+<p>Her yedekten (ve saklama işleminden) sonra aracı, deposunun ne kadar yer kapladığını ve — yerel ve USB diskler, SFTP sunucuları (OpenSSH'nin <code>statvfs</code> uzantısı) ve SMB paylaşımları için — depolamanın boyutunu ve boş alanını bildirir. <a href="/targets#usage">Depolama → Depolama kullanımı</a> altında her hedef şunları gösterir:</p>
+<ul>
+  <li>üzerindeki tüm depoların kullandığı alan (aracı başına bir; dönüşümlü USB disklerde her disk sayılır);</li>
+  <li>boyutu bilinen depolamada ne kadar dolu olduğu (%75'ten itibaren sarı, %90'dan itibaren kırmızı), grafikte kapasite kesikli kırmızı çizgi olarak;</li>
+  <li>son 90 günün grafiği ve bir haftalık yedekten sonra günlük büyüme (son 30 günün doğrusal eğilimi), 30 gün ilerisi kesikli çizgiyle çizilmiş olarak, ve depolamanın ne zaman dolacağı — ya da boyut bilinmiyorsa 90 gün sonraki beklenen kullanım.</li>
+</ul>
+<p>Panodaki <b>İlgi gerekiyor</b>, bir depolama hedefi %90 dolu olduğunda veya 30 gün içinde dolacağında uyarır. S3 ve Azure'un sabit bir boyutu yoktur; orada yalnızca kullanılan alan ve büyümesi gösterilir. Kullanılan alan, saklanan (sıkıştırılmış, şifrelenmiş, tekilleştirilmiş) verilerdir; depolamanın başka nedenlerle tuttuğu dosyalar (nesne sürümleri, diğer programlar) sayılmaz.</p>
+
+<h2>Bir hedefi kaldırma</h2>
+<p>Bir depolama hedefini konsoldan kaldırmak depolamadaki hiçbir veriyi silmez. <a href="/docs/users">Dört göz onayı</a> açıkken önce ikinci bir kullanıcının onaylaması gerekir.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,93 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>存储目标</h1>
+<p class="lead">存储目标是代理写入备份的位置。每个代理在目标位置下使用自己的存储库。</p>
+
+<h2>选择存储类型</h2>
+<table>
+  <tr><th>类型</th><th>适用于</th><th>说明</th></tr>
+  <tr><td><b>SFTP</b></td><td>任何带 SSH 的 Linux 服务器或 NAS</td><td>加密传输；服务器的主机密钥会被固定。</td></tr>
+  <tr><td><b>S3 兼容</b></td><td>异地 / 云副本：AWS S3、Wasabi、Backblaze B2、MinIO、Ceph、Google Cloud Storage</td><td>通过 Object Lock 支持不可变性。</td></tr>
+  <tr><td><b>Azure Blob Storage</b></td><td>以 Microsoft 为中心的公司的异地副本</td><td>帐户密钥或 SAS 令牌；通过 Azure 的版本级不可变策略实现不可变性。</td></tr>
+  <tr><td><b>SMB 共享</b></td><td>Windows 文件服务器、Synology/QNAP NAS</td><td>SMB 2/3；代理自行登录，无需映射驱动器。</td></tr>
+  <tr><td><b>加固存储库</b></td><td>防勒索软件的本地存储</td><td>运行 <code>backupzit-repo</code> 的 Linux 服务器；备份在其不可变期结束前无法删除。</td></tr>
+  <tr><td><b>轮换 USB 磁盘</b></td><td>小型办公室的离线副本：两块或更多磁盘每周轮换</td><td>按卷标（BZBACKUP1、BZBACKUP2 …）识别，而不是按驱动器号。</td></tr>
+  <tr><td><b>本地 / 挂载路径</b></td><td>USB 磁盘、第二块磁盘，或挂载在代理上的 NFS/iSCSI 卷</td><td>代理看到的路径，例如 <code>E:\Backups</code> 或 <code>/mnt/backup</code>。</td></tr>
+</table>
+<div class="callout tip"><p><b>3-2-1 规则：</b>保留 3 份数据副本，存放在 2 种不同介质上，其中 1 份异地存放——例如一个作业备份到本地 NAS，另一个备份到 S3 或另一栋楼中的加固存储库。</p></div>
+
+<h2 id="test">测试连接</h2>
+<p>添加存储目标时，控制台会立即用输入的凭据进行测试：写入一个小文件、读回并删除。在不可变存储（启用 Object Lock 的 S3、加固存储库）上，它只登录并列出内容，以免留下被锁定的数据；对于 S3，在要求不可变性时还会检查存储桶是否启用了 Object Lock。无论结果如何目标都会被保存，并显示测试结果——错误的密码、主机密钥、存储桶或共享会立即暴露，而不是等到第一次备份。存储页面上的<b>测试连接</b>可重复测试。控制台从其自身网络进行测试；备份由代理写入，因此只有代理能访问的目标（本地或 USB 磁盘）由第一次备份来测试。</p>
+
+<h2>SFTP</h2>
+<p>位置：<code>sftp://user@host:22/path</code>（相对于用户主目录的路径请使用 <code>/~/path</code>）。输入密码或私钥，以及服务器的主机密钥指纹，可在服务器上通过以下命令获取：</p>
+<pre>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p>创建一个只能写入备份文件夹的专用用户。</p>
+
+<h2>S3 兼容</h2>
+<p>输入端点（例如 <code>s3.eu-central-1.amazonaws.com</code>、<code>s3.wasabisys.com</code>、<code>10.0.0.5:9000</code>）、存储桶、可选文件夹，以及对该存储桶具有读写权限的访问密钥。仅在本地 MinIO 没有证书时才勾选<i>明文 HTTP</i>。</p>
+<h3>不可变备份（Object Lock）</h3>
+<p>创建存储桶时<b>启用 Object Lock</b>，并勾选<i>不可变备份 … N 天</i>。代理写入的每个文件都会以<b>合规模式</b>锁定 N 天（另加 1 天余量）：在此之前，任何人——无论是持有密钥的攻击者还是存储桶所有者——都无法删除或覆盖它。每次备份后，从旧备份复用的数据的锁定期会被延长，因此每个还原点在整个期限内都受到保护。</p>
+<p>删除（由保留策略或攻击者执行）只会添加一个“删除标记”。请添加一条生命周期规则，让<i>非当前版本</i>在一天后过期，以便锁定结束后释放空间。参见 <a href="/docs/ransomware">勒索软件防护</a>。</p>
+
+<h3>Google Cloud Storage</h3>
+<p>Google Cloud Storage 通过其<i>互操作性</i> API 作为 S3 兼容目标使用：</p>
+<ol>
+  <li>在 Google Cloud 控制台中打开 <i>Cloud Storage → Settings → Interoperability</i>，为在该存储桶上拥有 <i>Storage Object Admin</i> 角色的服务帐号创建 <b>HMAC 密钥</b>。</li>
+  <li>添加 S3 目标，端点为 <code>storage.googleapis.com</code>，填写存储桶名称、HMAC 访问密钥和密钥，区域为 <code>auto</code>。</li>
+</ol>
+<p>Google Cloud Storage 不提供 S3 Object Lock 选项；如需不可变性，请在 Google Cloud 中设置<i>存储桶保留政策</i>（并锁定）。删除的备份将保留到保留期结束。</p>
+
+<h2>Azure Blob Storage</h2>
+<ol>
+  <li>在 Azure 门户中创建一个<b>存储帐户</b>（StorageV2，任意冗余）和一个<b>容器</b>，例如 <code>backups</code>。</li>
+  <li>添加 <i>Azure Blob Storage</i> 目标，填写帐户名、容器和可选文件夹。</li>
+  <li>使用<b>访问密钥</b>（<i>存储帐户 → 访问密钥</i>）进行身份验证，或者使用权限更受限的容器 <b>SAS 令牌</b>，具备读取、写入、删除和列出权限以及合适的有效期。</li>
+</ol>
+<p>如需勒索软件防护，请在容器上启用带有基于时间的保留策略的<b>版本级不可变性</b>；被删除或覆盖的备份在此期间仍可恢复。<i>高级</i>中的端点字段仅用于 Azure Government/China、Azure Stack Hub 或 Azurite 模拟器。</p>
+
+<h2>轮换 USB 磁盘</h2>
+<p>断开连接并带离办公室的磁盘是小型办公室防范勒索软件、火灾和盗窃最简单的方式。BackupZit 通过<b>卷标</b>找到磁盘，无论 Windows 分配了哪个驱动器号：</p>
+<ol>
+  <li>将两块或更多磁盘格式化为 NTFS（Linux：ext4），并命名为 <code>BZBACKUP1</code>、<code>BZBACKUP2</code>、…（Windows：右键单击驱动器 → 属性 → 名称）。</li>
+  <li>添加类型为<i>轮换 USB / 可移动磁盘</i>的存储目标，卷标为 <code>BZBACKUP*</code>。</li>
+  <li>创建一个备份到该目标的备份作业——或者更好的是，创建一个<b>备份复制</b>作业，将 NAS 或云作业复制到磁盘。</li>
+  <li>定期（例如每周）轮换磁盘，并将断开的磁盘存放在安全的地方。</li>
+</ol>
+<ul>
+  <li>每块磁盘都包含完整、独立的备份，有各自的保留策略；所有磁盘都使用该目标的恢复密钥加密。</li>
+  <li>运行记录会显示使用了哪块磁盘（<i>磁盘 BZBACKUP2</i>）。还原时会准确要求这块磁盘，并告诉您当前连接的是哪块。</li>
+  <li>如果没有连接磁盘，运行会失败并显示明确的消息和警报——提醒您重新插入磁盘。</li>
+  <li>一次只连接一块磁盘。</li>
+</ul>
+
+<h2>SMB 共享</h2>
+<p>服务器、共享、可选文件夹、用户、密码以及（域帐户的）域。代理自行使用这些凭据连接，因此对以 SYSTEM 身份运行的服务同样有效。</p>
+
+<h2>加固存储库</h2>
+<p>在专用 Linux 服务器上安装 <code>backupzit-repo</code> 软件包，然后在该服务器上运行：</p>
+<pre>backupzit-repo add-key office-console     # shows the access key once
+backupzit-repo fingerprint                # certificate fingerprint</pre>
+<p>在控制台中输入服务器地址、访问密钥和指纹。不可变期在存储库服务器上配置（<code>/etc/backupzit-repo/repo.env</code>），无法从控制台或代理更改。详情见 <a href="/docs/ransomware">勒索软件防护</a>。</p>
+
+<h2>加密和恢复密钥</h2>
+<p>启用<i>加密备份</i>（默认）时，存储库中的所有内容——文件内容、文件名、文件夹结构、快照列表——在离开代理前都会使用 <b>AES-256-GCM</b> 加密。存储提供商只能看到随机数据。</p>
+<p>创建加密目标时，控制台会显示<b>恢复密钥</b>，并提供<b>恢复单</b>供下载。</p>
+<div class="callout warn"><p><b>请打印恢复单或将其保存在密码管理器中，并与备份分开存放。</b>如果控制台丢失，只需恢复密钥加上存储位置和凭据即可还原。没有密钥，任何人都无法读取加密的备份——包括 BackupZit 支持人员。</p></div>
+<p>以后可以通过存储列表中的<i>恢复密钥</i>再次显示密钥；此操作会被记录。</p>
+
+<h2>存储列表</h2>
+<p>列表显示每个目标的类型、位置、加密情况（管理员可访问恢复密钥）和不可变性：S3 显示 Object Lock 期限，加固存储库显示<i>在存储库服务器上设置</i>。凭据保存后不会再显示，并以加密方式存储。只有管理员可以添加或移除目标以及查看恢复密钥。</p>
+
+<h2>存储使用情况和预测</h2>
+<p>每次备份（及其保留处理）后，代理会报告其存储库占用的空间，并且——对于本地和 USB 磁盘、SFTP 服务器（OpenSSH 的 <code>statvfs</code> 扩展）以及 SMB 共享——报告存储的大小和可用空间。在 <a href="/targets#usage">存储 → 存储使用情况</a> 下，每个目标显示：</p>
+<ul>
+  <li>其上所有存储库占用的空间（每个代理一个；轮换 USB 磁盘按每块磁盘分别计算）；</li>
+  <li>对于大小已知的存储，其使用率（75% 起显示黄色，90% 起显示红色），图表中以红色虚线表示容量；</li>
+  <li>最近 90 天的图表，以及在一周的备份之后，每日增长量（最近 30 天的线性趋势），以虚线向前绘制 30 天，并显示存储何时会满——或者在大小未知时，显示 90 天后的预计用量。</li>
+</ul>
+<p>当存储目标已满 90% 或将在 30 天内用满时，仪表板上的<b>需要关注</b>会发出警告。S3 和 Azure 没有固定大小；那里只显示已用空间及其增长。已用空间是存储的（压缩、加密、去重后的）数据；存储因其他原因保留的文件（对象版本、其他程序）不计算在内。</p>
+
+<h2>移除目标</h2>
+<p>从控制台移除存储目标不会删除存储上的任何数据。启用<a href="/docs/users">四眼审批</a>时，需要第二个用户先批准。</p>
+{{template "docpager" .}}
+</article></div>{{end}}
