@@ -44,3 +44,20 @@ func TestDocTranslationsMatchEnglish(t *testing.T) {
 		}
 	}
 }
+
+// Every console language has every guide page, so no language falls back
+// to English for a page.
+func TestDocTranslationsComplete(t *testing.T) {
+	pages, _ := fs.Glob(templateFS, "templates/doc_*.html")
+	if len(pages) == 0 {
+		t.Fatal("no English guide pages")
+	}
+	for _, l := range languages[1:] {
+		for _, p := range pages {
+			name := path.Base(p)
+			if _, err := fs.Stat(templateFS, path.Join("templates/docs", l.Code, name)); err != nil {
+				t.Errorf("%s has no translation of %s", l.Code, name)
+			}
+		}
+	}
+}
