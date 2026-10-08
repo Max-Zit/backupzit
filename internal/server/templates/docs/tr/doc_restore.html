@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Geri yükleme</h1>
+<p class="lead">Her başarılı yedek geri yüklenebilir: tamamen veya yalnızca seçilen klasörler; aynı makineye, başka bir aracıya veya yeni bir sanal makine olarak.</p>
+
+<h2>Geri yükleme sihirbazı</h2>
+<p>Menüde <a href="/restore"><b>Geri yükle</b></a>'ye tıklayın. Sihirbaz dört soru sorar:</p>
+<ol>
+  <li><b>Ne</b> geri yüklemek istiyorsunuz?
+    <ul>
+      <li>tüm bir sanal makine</li>
+      <li>bir sanal makinedeki dosyalar</li>
+      <li>dosyalar ve klasörler</li>
+      <li>bir disk görüntüsü / çıplak donanım</li>
+      <li>bir disk görüntüsündeki dosyalar</li>
+      <li>bir veritabanı (belirli bir ana)</li>
+      <li>tüm bir Linux sistemi</li>
+      <li>Microsoft 365 postası ve OneDrive (bkz. <a href="/docs/m365">Microsoft 365</a>)</li>
+    </ul>
+    Her seçim, kaç geri yükleme noktası olduğunu gösterir.</li>
+  <li><b>Kaynak</b>: sanal makine (tüm hipervizörler ve işler genelinde) ya da yedekleme işi ve makinesi.</li>
+  <li><b>Geri yükleme noktası</b>: geri yüklenecek yedek; en yenisi önce, durumu, depolaması ve boyutuyla.
+    <ul>
+      <li>Şüpheli olarak işaretlenen yedekler (olası fidye yazılımı) belirtilir.</li>
+      <li>Bir yedek kopyalama işinin ikincil depolamada oluşturduğu kopyalar <i>kopya</i> olarak listelenir (dosya ve VM yedekleri).</li>
+    </ul>
+  </li>
+  <li><b>Seçenekler</b>: nereye ve nasıl geri yükleneceği. Seçeneklerin üstünde seçimlerinizin özeti gösterilir.</li>
+</ol>
+<p>Üstteki adımlar bağlantıdır; böylece önceki herhangi bir adıma dönebilirsiniz. Her adımın kendi adresi vardır; yer imlerine ekleyebilir veya paylaşabilirsiniz.</p>
+<p>Seçenekler, <a href="/runs">Etkinlik</a>'teki bir yedeğin sayfasındakilerle aynıdır; orada doğrudan geri yükleme de başlatabilirsiniz. Sihirbazı yalnızca rolü geri yüklemeye izin veren kullanıcılar görür.</p>
+
+<h2>Bir dosya yedeğinden geri yükleme</h2>
+<ol>
+  <li><a href="/restore">Geri yükleme sihirbazı</a>nda <b>Dosyalar ve klasörler</b>'i, ardından işi ve geri yükleme noktasını seçin. Alternatif olarak yedeği <a href="/runs">Etkinlik</a>'te veya iş sayfasında açın.</li>
+  <li><b>Bu yedekten dosyaları geri yükle</b> altında dosyaları alacak aracıyı seçin. Bu, yedeklenen makineden farklı bir makine olabilir — örneğin yedek bir PC.</li>
+  <li>Nereye olacağını seçin:
+    <ul>
+      <li><b>Bir klasöre geri yükle</b> (önerilir) — ör. <code>D:\Restore</code>. Altında özgün yapı yeniden oluşturulur: <code>D:\Restore\C\Users\ana\Documents\…</code>. Mevcut hiçbir şeye dokunulmaz.</li>
+      <li><b>Özgün konuma geri yükle</b> — dosyaları bulundukları yere geri yazar, güncel sürümlerin <b>üzerine yazar</b>. Bir NAS paylaşımında aracı paylaşımı yazılabilir olarak yeniden bağlar.</li>
+    </ul>
+  </li>
+  <li>İsteğe bağlı olarak satır başına bir tane olmak üzere <b>Yalnızca bu yollar</b> ile sınırlayın, ör. <code>C:\Users\ana\Documents\Contracts</code> — ya da bunları dosya tarayıcısında seçin (aşağıda).</li>
+  <li><b>Geri yüklenen dosyaları doğrula</b> açık kalsın: her dosya geri okunur ve yedekteki sağlama toplamıyla karşılaştırılır.</li>
+  <li><b>Geri yüklemeyi başlat</b>'a tıklayın. İlerleme ve sonuçlar geri yükleme çalıştırmasının sayfasında görünür.</li>
+</ol>
+<p>Dosya zamanları, Windows öznitelikleri (gizli, salt okunur, …) ve Linux'ta sahipler, izinler (setuid bitleri dahil), ACL'ler, genişletilmiş öznitelikler (SELinux etiketleri, dosya yetenekleri), sembolik ve sabit bağlantılar da geri yüklenir. Sahipler yalnızca aracı root/yönetici olarak çalışıyorsa ayarlanır.</p>
+
+<h3 id="browse-files">Dosyalara göz atma, indirme ve seçme</h3>
+<p>Yedekleme çalıştırmasında <b>Dosyalara göz at</b>, yedeklenen klasörleri oldukları gibi gösterir (NAS paylaşımları ve Linux sistem yedekleri için de). Klasörleri açın, dosya ve klasörleri işaretleyin, ardından:</p>
+<ul>
+  <li><b>İndir</b> — tek bir dosya olduğu gibi, birden fazla dosya veya klasör ZIP arşivi olarak doğrudan tarayıcıda iner. İndirmeler denetim günlüğüne kaydedilir.</li>
+  <li><b>Bir aracıda geri yükle</b> — <i>Yalnızca bu yollar</i> ile yapılan bir geri yükleme gibi bir klasöre veya özgün konuma.</li>
+</ul>
+<p>Bir dosyaya işaret eden <b>sembolik bağlantı</b> (ör. <code>/etc/os-release</code>), işaret ettiği dosya yedekteyse o dosya olarak indirilir; klasörlere giden bağlantılar ZIP arşivlerine alınmaz. Aynısı sanal makine yedeklerinden (ext4, XFS) indirilen dosyalar için de geçerlidir. Bir aracıdaki geri yükleme bağlantıları bağlantı olarak yeniden oluşturur.</p>
+<p>Konsol yedeği depolamadan kendisi okur; bu yüzden göz atma ağ depolamasındaki yedekler için çalışır (SFTP, S3, SMB, Azure, güçlendirilmiş depo); bir aracının yerel diski veya USB diski için yollarla geri yükleyin. Geri yükleme rolüne sahip kullanıcılar göz atabilir ve indirebilir.</p>
+
+<div class="callout tip"><p><b>Doğru yedeği bulma:</b> hangi yedeklerin hangi gün çalıştığını görmek için <a href="/calendar">Takvim</a>'i veya iş sayfasındaki geçmişi kullanın.</p></div>
+
+<h2>Bir disk görüntüsünden tek tek dosyaları geri yükleme</h2>
+<p>Görüntü yedeklerinde yedekleme çalıştırmasındaki <b>Dosyalara göz at</b>'a tıklayın. Görüntüdeki NTFS dosya sisteminde doğrudan konsolda gezinebilir, dosya ve klasörleri işaretleyip tüm diski geri yüklemeden herhangi bir aracıya geri yükleyebilirsiniz.</p>
+
+<h2>Bir VM'den tek tek dosyaları geri yükleme (Proxmox VE, Hyper-V, VMware)</h2>
+<p>Bir VM yedekleme çalıştırmasında konuğun yanındaki <b>Dosyalara göz at</b>'a tıklayın. Konsol disklerinin bölümlerini ve LVM birimlerini gösterir ve NTFS, ext4 ve XFS dosya sistemlerine göz atmanızı sağlar. İşaretli dosyaları <b>indirin</b> (birden fazlası ZIP arşivi olarak) veya herhangi bir aracıda geri yükleyin. Bkz. <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> ve <a href="/docs/vmware">VMware ESXi</a>.</p>
+
+<h2>Makinelerin tamamını geri yükleme</h2>
+<ul>
+  <li>Windows disk görüntüleri: bir diske veya çıplak donanıma, farklı donanıma da — <a href="/docs/images">Disk görüntüleri</a>.</li>
+  <li>Linux sistemleri: bir diske veya çıplak donanıma ya da yeni bir Proxmox VM'si olarak — <a href="/docs/linux-system">Linux sistem yedeği</a>.</li>
+  <li>Proxmox VM'leri ve kapsayıcıları: yeni konuk olarak veya yerinde — <a href="/docs/proxmox">Proxmox VE</a>. Proxmox VM'leri yedekten anında da çalışabilir ve çalışırken depolamaya taşınabilir (<a href="/docs/proxmox">anında kurtarma</a>).</li>
+  <li>Veritabanları (SQL Server, PostgreSQL, MySQL/MariaDB): yeni bir adla veya yerinde, belirli bir ana — <a href="/docs/sql">Veritabanları</a>.</li>
+  <li>Hyper-V VM'leri: yeni VM olarak veya yerinde (kimliği ve MAC adreslerini korur) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>VMware ESXi VM'leri: yeni VM olarak veya yerinde (UUID'yi ve MAC adreslerini korur), herhangi bir ESXi ana bilgisayarı ve veri deposunda — <a href="/docs/vmware">VMware ESXi</a>; ayrıca bir Linux proxy aracısı üzerinden yedekten anında, ardından bir veri deposuna kopyalanarak (<a href="/docs/vmware">anında kurtarma</a>).</li>
+</ul>
+<h3 id="recovery-iso">Kurtarma ISO'ları</h3>
+<p>Çıplak donanım geri yüklemeleri makineyi bir kurtarma ISO'sundan başlatır (bir USB bellekte veya bir VM'ye bağlı), bkz. <a href="/recovery">Kurtarma ortamı</a>:</p>
+<ul>
+  <li><b>Linux kurtarma ISO'su</b> — her sürümle yayımlanır (<code>backupzit-recovery-linux.iso</code>); Kurtarma ortamı sayfası ona güncelleme kaynağından bağlantı verir.</li>
+  <li id="winpe"><b>Windows kurtarma ISO'su</b> — Windows PE yeniden dağıtılamaz; bu yüzden herhangi bir Windows 10/11 veya Server PC'de bir kez oluşturulur:
+    <ol>
+      <li>Microsoft'un ücretsiz <b>Windows ADK</b>'sını (<i>Deployment Tools</i> özelliği) ve <b>Windows PE eklentisini</b> kurun.</li>
+      <li>Sürümden <code>build-winpe.ps1</code>'i indirin (aracı paketlerinin yanında) ve aracının kurulu olduğu bir makinenin <code>C:\Program Files\backupzit Agent</code> klasöründen <code>backupzit-agent.exe</code>'yi alın.</li>
+      <li>Yönetici PowerShell'inde: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Depolama veya ağ sürücüleri için <code>-DriverDir C:\Drivers</code> (ör. Proxmox VM'leri için VirtIO), yazmadan bağlanması için <code>-RecoveryJson .\recovery.json</code> ekleyin.</li>
+      <li>İsteğe bağlı olarak ISO'yu konsolun <code>/var/lib/backupzit/dist</code> dizinine kopyalayın; ardından Kurtarma ortamı sayfasında sunulur.</li>
+    </ol></li>
+</ul>
+<p>Konsolda dosyalara göz atma, ağ depolamasındaki yedekler için çalışır (SFTP, S3, SMB, Azure, güçlendirilmiş depo); konsol onları doğrudan okur. Bir aracının yerel diskindeki yedekler için komut satırını kullanın.</p>
+
+<h2>Konsol olmadan geri yükleme</h2>
+<p>Konsolun kendisi kaybolursa, aracısı kurulu herhangi bir makine, depolama hedefinin <b>kurtarma sayfası</b>nı kullanarak doğrudan depolamadan geri yükleyebilir:</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>Bkz. <a href="/docs/cli">Komut satırı başvurusu</a>.</p>
+
+<h2>Otomatik geri yükleme testleri</h2>
+<p>BackupZit, siz hiçbir şey yapmadan yedeklerinizi düzenli olarak sınar: haftalık olarak (<a href="/settings/tests">Ayarlar → Geri yükleme testleri</a> altında yapılandırılabilir) her işin aracısı en yeni yedekten <b>rastgele bir dosya örneğini</b> geçici bir klasöre geri yükler, her baytı saklanan sağlama toplamlarına göre doğrular ve yeniden siler. Disk görüntülerinde rastgele bloklar okunup doğrulanır. Böylece tüm zincir sınanır — depolama erişimi, kimlik bilgileri, şifreleme anahtarı ve veri bütünlüğü.</p>
+<ul>
+  <li>Sonuçlar Etkinlik'te ve iş geçmişinde <i>Geri yükleme testi</i> çalıştırmaları olarak, iş başına ise <a href="/reports">Raporlar</a>'da (<i>Geri yükleme testi</i> sütunu) görünür.</li>
+  <li>Başarısız bir test diğerleri gibi bir hatadır ve e-posta uyarısı tetikler.</li>
+  <li>Bir işin sayfasındaki <b>Geri yüklemeyi test et</b> hemen bir test başlatır.</li>
+  <li>Örnek boyutu depolamadan ne kadar okunacağını sınırlar — indirme ücreti olan bulut depolama için küçük tutun.</li>
+</ul>
+<h3>Proxmox VM'leri için önyükleme testi</h3>
+<p>Okunabilir bloklar bir VM'nin hâlâ açıldığını kanıtlamaz. <b>Proxmox VM yedekleri için önyükleme testi</b> açıkken (Ayarlar → Geri yükleme testleri), bir Proxmox VM işinin geri yükleme testi en yeni yedekteki her VM'yi de işin düğümünde, birbiri ardına, <a href="/docs/proxmox">anında kurtarma</a> ile başlatır: VM yedekten yeni bir kimlikle ve ağ kartları bağlantısız olarak çalışır (özgünüyle çakışmasın diye) ve hemen ardından silinir. VM'nin <b>QEMU konuk aracısı</b> yapılandırılan süre içinde yanıt verirse, yani işletim sistemi açılmışsa test geçer. Konuk aracısı olmayan VM'ler bir dakika çalışmaya devam ederse geçer; çalıştırma sayfası bunları <i>açıldı</i> yerine <i>çalışıyor</i> olarak gösterir.</p>
+<ul>
+  <li>Test sırasında düğümün bir VM daha için boş belleğe ihtiyacı vardır.</li>
+  <li>Testin önyüklemeyi doğrulayabilmesi için VM'lere QEMU konuk aracısını kurun (Linux'ta <code>qemu-guest-agent</code>, Windows'ta VirtIO konuk araçları) ve VM seçeneklerinde etkinleştirin.</li>
+  <li>Çalıştırma sayfası her VM'yi sonucu ve önyüklemenin ne kadar sürdüğüyle listeler.</li>
+</ul>
+<p>Ayrıca zaman zaman (ör. üç ayda bir) gerçek bir klasörü elle geri yükleyin ve birkaç dosyayı açın — bu, acil durumda bunu yapması gerekecek kişileri de eğitir.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

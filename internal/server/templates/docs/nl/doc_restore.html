@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Herstellen</h1>
+<p class="lead">Elke geslaagde back-up kan worden hersteld: volledig of alleen geselecteerde mappen, op dezelfde machine, op een andere agent of als nieuwe virtuele machine.</p>
+
+<h2>De herstelwizard</h2>
+<p>Klik in het menu op <a href="/restore"><b>Herstellen</b></a>. De wizard stelt vier vragen:</p>
+<ol>
+  <li><b>Wat</b> wilt u herstellen?
+    <ul>
+      <li>een volledige virtuele machine</li>
+      <li>bestanden uit een virtuele machine</li>
+      <li>bestanden en mappen</li>
+      <li>een schijfimage / bare metal</li>
+      <li>bestanden uit een schijfimage</li>
+      <li>een database (naar een tijdstip)</li>
+      <li>een volledig Linux-systeem</li>
+      <li>Microsoft 365-e-mail en OneDrive (zie <a href="/docs/m365">Microsoft 365</a>)</li>
+    </ul>
+    Bij elke keuze ziet u hoeveel herstelpunten er zijn.</li>
+  <li><b>Bron</b>: de virtuele machine (over alle hypervisors en taken heen), of de back-uptaak en de machine ervan.</li>
+  <li><b>Herstelpunt</b>: de back-up waaruit u herstelt, de nieuwste eerst, met status, opslag en grootte.
+    <ul>
+      <li>Back-ups die als verdacht zijn gemarkeerd (mogelijke ransomware) zijn aangeduid.</li>
+      <li>Kopieën op secundaire opslag die een back-upkopietaak heeft gemaakt, staan vermeld als <i>kopie</i> (bestands- en VM-back-ups).</li>
+    </ul>
+  </li>
+  <li><b>Opties</b>: waar en hoe u herstelt. Boven de opties staat een samenvatting van uw keuzes.</li>
+</ol>
+<p>De stappen bovenaan zijn links, zodat u naar elke eerdere stap terug kunt. Elke stap heeft een eigen adres, dat u als bladwijzer kunt opslaan of kunt delen.</p>
+<p>De opties zijn dezelfde als op de pagina van een back-up in <a href="/runs">Activiteit</a>, waar u ook direct een herstel kunt starten. Alleen gebruikers met een rol die mag herstellen zien de wizard.</p>
+
+<h2>Herstellen uit een bestandsback-up</h2>
+<ol>
+  <li>Kies <b>Bestanden en mappen</b> in de <a href="/restore">herstelwizard</a>, daarna de taak en het herstelpunt. U kunt de back-up ook openen in <a href="/runs">Activiteit</a> of op de taakpagina.</li>
+  <li>Kies onder <b>Bestanden uit deze back-up herstellen</b> de agent die de bestanden moet ontvangen. Dat kan een andere machine zijn dan de geback-upte — bijvoorbeeld een vervangende pc.</li>
+  <li>Kies waar:
+    <ul>
+      <li><b>Naar een map herstellen</b> (aanbevolen) — bijv. <code>D:\Restore</code>. Daaronder wordt de oorspronkelijke structuur nagebouwd: <code>D:\Restore\C\Users\ana\Documents\…</code>. Niets bestaands wordt aangeraakt.</li>
+      <li><b>Herstellen op de oorspronkelijke locatie</b> — schrijft de bestanden terug waar ze stonden en <b>overschrijft</b> huidige versies. Bij een NAS-share verbindt de agent de share opnieuw, beschrijfbaar.</li>
+    </ul>
+  </li>
+  <li>Beperk optioneel tot <b>Alleen deze paden</b>, één per regel, bijv. <code>C:\Users\ana\Documents\Contracts</code> — of kies ze in de bestandsbrowser (hieronder).</li>
+  <li>Laat <b>Herstelde bestanden controleren</b> aan staan: elk bestand wordt teruggelezen en vergeleken met de controlesom in de back-up.</li>
+  <li>Klik op <b>Herstel starten</b>. Voortgang en resultaten verschijnen op de pagina van de herstelactie.</li>
+</ol>
+<p>Bestandstijden, Windows-kenmerken (verborgen, alleen-lezen, …) en op Linux eigenaren, rechten (inclusief setuid-bits), ACL's, uitgebreide kenmerken (SELinux-labels, bestandscapabilities), symbolische en harde koppelingen worden ook hersteld. Eigenaren worden alleen ingesteld als de agent als root/beheerder draait.</p>
+
+<h3 id="browse-files">Bestanden bladeren, downloaden en kiezen</h3>
+<p>Bij de back-upuitvoering toont <b>Bestanden bladeren</b> de geback-upte mappen zoals ze waren (ook voor NAS-shares en Linux-systeemback-ups). Open mappen, vink bestanden en mappen aan en dan:</p>
+<ul>
+  <li><b>Downloaden</b> — één bestand komt zoals het is, meerdere bestanden of mappen als ZIP-archief, rechtstreeks in de browser. Downloads worden vastgelegd in het auditlogboek.</li>
+  <li><b>Op een agent herstellen</b> — naar een map of naar de oorspronkelijke locatie, zoals een herstel met <i>Alleen deze paden</i>.</li>
+</ul>
+<p>Een <b>symbolische koppeling</b> naar een bestand (bijv. <code>/etc/os-release</code>) wordt gedownload als het bestand waarnaar ze wijst, als dat bestand in de back-up zit; koppelingen naar mappen worden in ZIP-archieven weggelaten. Hetzelfde geldt voor bestanden die uit back-ups van virtuele machines worden gedownload (ext4, XFS). Een herstel op een agent maakt koppelingen opnieuw aan als koppelingen.</p>
+<p>De console leest de back-up zelf van de opslag, dus bladeren werkt voor back-ups op netwerkopslag (SFTP, S3, SMB, Azure, geharde repository); herstel voor een lokale of USB-schijf van een agent met de paden. Gebruikers met een herstelrol mogen bladeren en downloaden.</p>
+
+<div class="callout tip"><p><b>De juiste back-up vinden:</b> gebruik de <a href="/calendar">Kalender</a> om te zien welke back-ups op welke dag draaiden, of de geschiedenis op de taakpagina.</p></div>
+
+<h2>Losse bestanden herstellen uit een schijfimage</h2>
+<p>Klik bij imageback-ups op <b>Bestanden bladeren</b> in de back-upuitvoering. U kunt het NTFS-bestandssysteem in de image direct in de console doorlopen, bestanden en mappen aanvinken en ze op een willekeurige agent herstellen — zonder de hele schijf te herstellen.</p>
+
+<h2>Losse bestanden herstellen uit een VM (Proxmox VE, Hyper-V, VMware)</h2>
+<p>Klik in een VM-back-upuitvoering naast de gast op <b>Bestanden bladeren</b>. De console toont de partities en LVM-volumes van de schijven en laat u NTFS-, ext4- en XFS-bestandssystemen doorbladeren. <b>Download</b> de aangevinkte bestanden (meerdere als ZIP-archief) of herstel ze op een willekeurige agent. Zie <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> en <a href="/docs/vmware">VMware ESXi</a>.</p>
+
+<h2>Hele machines herstellen</h2>
+<ul>
+  <li>Windows-schijfimages: op een schijf of bare metal, ook op andere hardware — <a href="/docs/images">Schijfimages</a>.</li>
+  <li>Linux-systemen: op een schijf of bare metal, of als nieuwe Proxmox-VM — <a href="/docs/linux-system">Linux-systeemback-up</a>.</li>
+  <li>Proxmox-VM's en -containers: als nieuwe gast of ter plaatse — <a href="/docs/proxmox">Proxmox VE</a>. Proxmox-VM's kunnen ook direct vanuit de back-up draaien en tijdens het draaien naar opslag worden verplaatst (<a href="/docs/proxmox">direct herstel</a>).</li>
+  <li>Databases (SQL Server, PostgreSQL, MySQL/MariaDB): onder een nieuwe naam of ter plaatse, naar een tijdstip — <a href="/docs/sql">Databases</a>.</li>
+  <li>Hyper-V-VM's: als nieuwe VM of ter plaatse (behoudt ID en MAC-adressen) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>VMware ESXi-VM's: als nieuwe VM of ter plaatse (behoudt UUID en MAC-adressen), op elke ESXi-host en datastore — <a href="/docs/vmware">VMware ESXi</a>; ook direct vanuit de back-up via een Linux-proxyagent, daarna gekopieerd naar een datastore (<a href="/docs/vmware">direct herstel</a>).</li>
+</ul>
+<h3 id="recovery-iso">Herstel-ISO's</h3>
+<p>Bare-metal-herstel start de machine vanaf een herstel-ISO (op een USB-stick of gekoppeld aan een VM), zie <a href="/recovery">Herstelmedia</a>:</p>
+<ul>
+  <li><b>Linux-herstel-ISO</b> — gepubliceerd bij elke versie (<code>backupzit-recovery-linux.iso</code>); de pagina Herstelmedia linkt ernaar vanuit de updatebron.</li>
+  <li id="winpe"><b>Windows-herstel-ISO</b> — Windows PE mag niet worden herverdeeld, dus wordt hij één keer gebouwd op een willekeurige Windows 10/11- of Server-pc:
+    <ol>
+      <li>Installeer de gratis <b>Windows ADK</b> (onderdeel <i>Deployment Tools</i>) en de <b>Windows PE-invoegtoepassing</b> van Microsoft.</li>
+      <li>Download <code>build-winpe.ps1</code> uit de versie (naast de agentpakketten) en neem <code>backupzit-agent.exe</code> uit <code>C:\Program Files\backupzit Agent</code> van een machine met de agent.</li>
+      <li>In een PowerShell als beheerder: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Voeg <code>-DriverDir C:\Drivers</code> toe voor opslag- of netwerkstuurprogramma's (bijv. VirtIO voor Proxmox-VM's) en <code>-RecoveryJson .\recovery.json</code> zodat hij zonder typen verbinding maakt.</li>
+      <li>Kopieer de ISO optioneel naar de map <code>/var/lib/backupzit/dist</code> van de console; hij wordt dan aangeboden op de pagina Herstelmedia.</li>
+    </ol></li>
+</ul>
+<p>Bestanden bladeren in de console werkt voor back-ups op netwerkopslag (SFTP, S3, SMB, Azure, geharde repository); de console leest ze rechtstreeks. Gebruik voor back-ups op een lokale schijf van een agent de opdrachtregel.</p>
+
+<h2>Herstellen zonder de console</h2>
+<p>Gaat de console zelf verloren, dan kan elke machine met de agent rechtstreeks vanaf de opslag herstellen met het <b>herstelblad</b> van het opslagdoel:</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>Zie <a href="/docs/cli">Opdrachtregelreferentie</a>.</p>
+
+<h2>Automatische hersteltests</h2>
+<p>BackupZit stelt uw back-ups regelmatig op de proef zonder dat u iets hoeft te doen: wekelijks (in te stellen onder <a href="/settings/tests">Instellingen → Hersteltests</a>) herstelt de agent van elke taak een <b>willekeurige steekproef van bestanden</b> uit de nieuwste back-up naar een tijdelijke map, controleert elke byte tegen de opgeslagen controlesommen en verwijdert hem weer. Bij schijfimages worden willekeurige blokken gelezen en gecontroleerd. Zo wordt de hele keten getest — opslagtoegang, referenties, versleutelingssleutel en gegevensintegriteit.</p>
+<ul>
+  <li>De resultaten verschijnen in Activiteit en in de taakgeschiedenis als uitvoeringen van het type <i>Hersteltest</i>, en per taak in <a href="/reports">Rapporten</a> (kolom <i>Hersteltest</i>).</li>
+  <li>Een mislukte test is een fout zoals elke andere en leidt tot een e-mailwaarschuwing.</li>
+  <li><b>Herstel testen</b> op de pagina van een taak start direct een test.</li>
+  <li>De steekproefgrootte bepaalt hoeveel er van de opslag wordt gelezen — houd die klein bij cloudopslag met downloadkosten.</li>
+</ul>
+<h3>Opstarttest voor Proxmox-VM's</h3>
+<p>Leesbare blokken bewijzen niet dat een VM nog opstart. Met <b>Opstarttest voor back-ups van Proxmox-VM's</b> ingeschakeld (Instellingen → Hersteltests) start de hersteltest van een Proxmox-VM-taak ook elke VM uit de nieuwste back-up op het knooppunt van de taak, de een na de ander, met <a href="/docs/proxmox">direct herstel</a>: ze draait vanuit de back-up met een nieuwe ID en losgekoppelde netwerkkaarten (zodat ze niet botst met het origineel) en wordt direct daarna weer verwijderd. De test slaagt wanneer de <b>QEMU-gastagent</b> van de VM binnen de ingestelde tijd antwoordt, wat betekent dat het besturingssysteem is opgestart. VM's zonder gastagent slagen als ze een minuut blijven draaien; de uitvoeringspagina toont ze dan als <i>bezig</i> in plaats van <i>opgestart</i>.</p>
+<ul>
+  <li>Het knooppunt heeft tijdens de test vrij geheugen nodig voor nog een VM.</li>
+  <li>Installeer de QEMU-gastagent in de VM's (<code>qemu-guest-agent</code> op Linux, de VirtIO-gasthulpmiddelen op Windows) en schakel hem in bij de VM-opties, zodat de test het opstarten kan bevestigen.</li>
+  <li>De uitvoeringspagina toont elke VM met het resultaat en hoe lang het opstarten duurde.</li>
+</ul>
+<p>Herstel daarnaast af en toe (bijv. elk kwartaal) een echte map met de hand en open een paar bestanden — zo oefenen ook de mensen die het in een noodgeval moeten doen.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

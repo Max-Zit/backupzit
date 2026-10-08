@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Obnova</h1>
+<p class="lead">Každou úspěšnou zálohu lze obnovit: celou nebo jen vybrané složky, na stejný počítač, na jiného agenta nebo jako nový virtuální počítač.</p>
+
+<h2>Průvodce obnovou</h2>
+<p>Klikněte v nabídce na <a href="/restore"><b>Obnova</b></a>. Průvodce položí čtyři otázky:</p>
+<ol>
+  <li><b>Co</b> chcete obnovit?
+    <ul>
+      <li>celý virtuální počítač</li>
+      <li>soubory z virtuálního počítače</li>
+      <li>soubory a složky</li>
+      <li>obraz disku / bare metal</li>
+      <li>soubory z obrazu disku</li>
+      <li>databázi (k určitému okamžiku)</li>
+      <li>celý systém Linux</li>
+      <li>poštu Microsoft 365 a OneDrive (viz <a href="/docs/m365">Microsoft 365</a>)</li>
+    </ul>
+    U každé volby je vidět, kolik bodů obnovy pro ni existuje.</li>
+  <li><b>Zdroj</b>: virtuální počítač (napříč všemi hypervizory a úlohami), nebo úloha zálohování a její počítač.</li>
+  <li><b>Bod obnovy</b>: záloha, ze které se obnovuje, nejnovější první, se stavem, úložištěm a velikostí.
+    <ul>
+      <li>Zálohy označené jako podezřelé (možný ransomware) jsou zvýrazněné.</li>
+      <li>Kopie na sekundárním úložišti vytvořené úlohou kopie zálohy jsou uvedeny jako <i>kopie</i> (zálohy souborů a VM).</li>
+    </ul>
+  </li>
+  <li><b>Možnosti</b>: kam a jak obnovit. Nad možnostmi se zobrazí shrnutí vaší volby.</li>
+</ol>
+<p>Kroky nahoře jsou odkazy, takže se můžete vrátit k libovolnému předchozímu kroku. Každý krok má vlastní adresu, kterou lze uložit do záložek nebo sdílet.</p>
+<p>Možnosti jsou stejné jako na stránce zálohy v <a href="/runs">Aktivitě</a>, kde lze obnovu spustit i přímo. Průvodce vidí jen uživatelé, jejichž role smí obnovovat.</p>
+
+<h2>Obnova ze zálohy souborů</h2>
+<ol>
+  <li>V <a href="/restore">průvodci obnovou</a> zvolte <b>Soubory a složky</b>, pak úlohu a bod obnovy. Případně otevřete zálohu v <a href="/runs">Aktivitě</a> nebo na stránce úlohy.</li>
+  <li>V části <b>Obnovit soubory z této zálohy</b> zvolte agenta, který má soubory dostat. Může to být jiný počítač než ten zálohovaný — například náhradní PC.</li>
+  <li>Zvolte kam:
+    <ul>
+      <li><b>Obnovit do složky</b> (doporučeno) — např. <code>D:\Restore</code>. Pod ní se znovu vytvoří původní struktura: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nic existujícího se nezmění.</li>
+      <li><b>Obnovit do původního umístění</b> — zapíše soubory tam, kde byly, a <b>přepíše</b> aktuální verze. U sdílené složky NAS ji agent znovu připojí pro zápis.</li>
+    </ul>
+  </li>
+  <li>Volitelně omezte na <b>Jen tyto cesty</b>, jednu na řádek, např. <code>C:\Users\ana\Documents\Contracts</code> — nebo je vyberte v prohlížeči souborů (níže).</li>
+  <li>Ponechte zapnuté <b>Ověřit obnovené soubory</b>: každý soubor se přečte zpět a porovná s kontrolním součtem v záloze.</li>
+  <li>Klikněte na <b>Spustit obnovu</b>. Průběh a výsledky se zobrazí na stránce běhu obnovy.</li>
+</ol>
+<p>Obnovují se také časy souborů, atributy Windows (skrytý, jen pro čtení, …) a v Linuxu vlastníci, oprávnění (včetně bitů setuid), ACL, rozšířené atributy (štítky SELinux, capabilities souborů), symbolické a pevné odkazy. Vlastníci se nastaví jen tehdy, když agent běží jako root/správce.</p>
+
+<h3 id="browse-files">Procházení, stahování a výběr souborů</h3>
+<p>U běhu zálohy <b>Procházet soubory</b> ukáže zálohované složky tak, jak byly (i u sdílených složek NAS a záloh systému Linux). Otevírejte složky, zaškrtněte soubory a složky a pak:</p>
+<ul>
+  <li><b>Stáhnout</b> — jeden soubor přijde tak, jak je, více souborů nebo složek jako archiv ZIP, přímo v prohlížeči. Stahování se zaznamenává do protokolu auditu.</li>
+  <li><b>Obnovit je na agentovi</b> — do složky nebo do původního umístění, jako obnova s <i>Jen tyto cesty</i>.</li>
+</ul>
+<p><b>Symbolický odkaz</b> na soubor (např. <code>/etc/os-release</code>) se stáhne jako soubor, na který ukazuje, pokud je tento soubor v záloze; odkazy na složky se v archivech ZIP vynechávají. Totéž platí pro soubory stažené ze záloh virtuálních počítačů (ext4, XFS). Obnova na agentovi vytvoří odkazy znovu jako odkazy.</p>
+<p>Konzole čte zálohu z úložiště sama, takže procházení funguje pro zálohy na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečené úložiště); u místního disku nebo disku USB agenta obnovujte zadáním cest. Uživatelé s rolí pro obnovu mohou procházet a stahovat.</p>
+
+<div class="callout tip"><p><b>Jak najít správnou zálohu:</b> v <a href="/calendar">Kalendáři</a> uvidíte, které zálohy běžely v který den, nebo použijte historii na stránce úlohy.</p></div>
+
+<h2>Obnova jednotlivých souborů z obrazu disku</h2>
+<p>U záloh obrazů klikněte v běhu zálohy na <b>Procházet soubory</b>. Souborový systém NTFS v obrazu můžete procházet přímo v konzoli, zaškrtnout soubory a složky a obnovit je na libovolného agenta — bez obnovy celého disku.</p>
+
+<h2>Obnova jednotlivých souborů z VM (Proxmox VE, Hyper-V, VMware)</h2>
+<p>V běhu zálohy VM klikněte vedle hosta na <b>Procházet soubory</b>. Konzole zobrazí oddíly a svazky LVM jeho disků a umožní procházet souborové systémy NTFS, ext4 a XFS. Zaškrtnuté soubory <b>stáhněte</b> (více jako archiv ZIP) nebo je obnovte na libovolného agenta. Viz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> a <a href="/docs/vmware">VMware ESXi</a>.</p>
+
+<h2>Obnova celých počítačů</h2>
+<ul>
+  <li>Obrazy disků Windows: na disk nebo bare metal, i na jiný hardware — <a href="/docs/images">Obrazy disků</a>.</li>
+  <li>Systémy Linux: na disk nebo bare metal, nebo jako nový VM v Proxmoxu — <a href="/docs/linux-system">Záloha systému Linux</a>.</li>
+  <li>VM a kontejnery Proxmoxu: jako nový host nebo na místě — <a href="/docs/proxmox">Proxmox VE</a>. VM v Proxmoxu mohou také okamžitě běžet ze zálohy a za běhu se přesunout na úložiště (<a href="/docs/proxmox">okamžitá obnova</a>).</li>
+  <li>Databáze (SQL Server, PostgreSQL, MySQL/MariaDB): pod novým názvem nebo na místě, k určitému okamžiku — <a href="/docs/sql">Databáze</a>.</li>
+  <li>VM Hyper-V: jako nový VM nebo na místě (zachová ID a MAC adresy) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>VM VMware ESXi: jako nový VM nebo na místě (zachová UUID a MAC adresy), na libovolném hostiteli ESXi a datovém úložišti — <a href="/docs/vmware">VMware ESXi</a>; také okamžitě ze zálohy přes linuxového proxy agenta, pak zkopírováno na datové úložiště (<a href="/docs/vmware">okamžitá obnova</a>).</li>
+</ul>
+<h3 id="recovery-iso">ISO pro obnovu</h3>
+<p>Obnovy bare metal spouštějí počítač z ISO pro obnovu (na USB disku nebo připojeného k VM), viz <a href="/recovery">Obnovovací média</a>:</p>
+<ul>
+  <li><b>ISO pro obnovu Linuxu</b> — vydává se s každou verzí (<code>backupzit-recovery-linux.iso</code>); stránka Obnovovací média na něj odkazuje ze zdroje aktualizací.</li>
+  <li id="winpe"><b>ISO pro obnovu Windows</b> — Windows PE se nesmí dále šířit, proto se sestaví jednou na libovolném PC s Windows 10/11 nebo Serverem:
+    <ol>
+      <li>Nainstalujte bezplatný <b>Windows ADK</b> (funkce <i>Deployment Tools</i>) a <b>doplněk Windows PE</b> od Microsoftu.</li>
+      <li>Stáhněte <code>build-winpe.ps1</code> z vydání (vedle balíčků agenta) a vezměte <code>backupzit-agent.exe</code> z <code>C:\Program Files\backupzit Agent</code> počítače s agentem.</li>
+      <li>V PowerShellu jako správce: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Přidejte <code>-DriverDir C:\Drivers</code> pro ovladače úložiště nebo sítě (např. VirtIO pro VM v Proxmoxu) a <code>-RecoveryJson .\recovery.json</code>, aby se připojil bez psaní.</li>
+      <li>Volitelně zkopírujte ISO do adresáře <code>/var/lib/backupzit/dist</code> konzole; pak se nabízí na stránce Obnovovací média.</li>
+    </ol></li>
+</ul>
+<p>Procházení souborů v konzoli funguje pro zálohy na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečené úložiště); konzole je čte přímo. Pro zálohy na místním disku agenta použijte příkazový řádek.</p>
+
+<h2>Obnova bez konzole</h2>
+<p>Pokud přijdete o samotnou konzoli, každý počítač s nainstalovaným agentem může obnovovat přímo z úložiště pomocí <b>listu pro obnovu</b> daného cíle úložiště:</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>Viz <a href="/docs/cli">Referenční příručka příkazového řádku</a>.</p>
+
+<h2>Automatické testy obnovy</h2>
+<p>BackupZit vaše zálohy pravidelně prověřuje, aniž byste museli cokoli dělat: jednou týdně (nastavitelné v <a href="/settings/tests">Nastavení → Testy obnovy</a>) agent každé úlohy obnoví <b>náhodný vzorek souborů</b> z nejnovější zálohy do dočasné složky, ověří každý bajt proti uloženým kontrolním součtům a zase jej smaže. U obrazů disků se čtou a ověřují náhodné bloky. Prověří se tak celý řetězec — přístup k úložišti, přihlašovací údaje, šifrovací klíč i integrita dat.</p>
+<ul>
+  <li>Výsledky se zobrazují v Aktivitě a v historii úlohy jako běhy <i>Test obnovy</i> a pro každou úlohu v <a href="/reports">Sestavách</a> (sloupec <i>Test obnovy</i>).</li>
+  <li>Neúspěšný test je selhání jako každé jiné a vyvolá e-mailové upozornění.</li>
+  <li><b>Otestovat obnovu</b> na stránce úlohy spustí test okamžitě.</li>
+  <li>Velikost vzorku omezuje, kolik se z úložiště čte — u cloudového úložiště s poplatky za stahování ji držte malou.</li>
+</ul>
+<h3>Test spuštění pro VM v Proxmoxu</h3>
+<p>Čitelné bloky nedokazují, že se VM ještě spustí. Se zapnutým <b>Test spuštění pro zálohy VM v Proxmoxu</b> (Nastavení → Testy obnovy) test obnovy úlohy VM v Proxmoxu navíc spustí každý VM z nejnovější zálohy na uzlu úlohy, jeden po druhém, pomocí <a href="/docs/proxmox">okamžité obnovy</a>: běží ze zálohy s novým ID a odpojenými síťovými kartami (aby nekolidoval s originálem) a hned poté se zase smaže. Test projde, když <b>agent hosta QEMU</b> ve VM odpoví v nastaveném čase, což znamená, že operační systém naběhl. VM bez agenta hosta projdou, pokud běží jednu minutu; stránka běhu je pak ukazuje jako <i>běží</i> místo <i>spuštěno</i>.</p>
+<ul>
+  <li>Uzel potřebuje během testu volnou paměť pro jeden další VM.</li>
+  <li>Nainstalujte do VM agenta hosta QEMU (<code>qemu-guest-agent</code> v Linuxu, nástroje hosta VirtIO ve Windows) a zapněte ho v možnostech VM, aby test mohl spuštění potvrdit.</li>
+  <li>Stránka běhu uvádí každý VM s výsledkem a dobou spouštění.</li>
+</ul>
+<p>Kromě toho občas (např. čtvrtletně) obnovte ručně skutečnou složku a otevřete pár souborů — zároveň tím zacvičíte lidi, kteří to budou muset udělat v nouzi.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

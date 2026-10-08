@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Restauración</h1>
+<p class="lead">Cualquier copia correcta se puede restaurar: completa o solo algunas carpetas, en el mismo equipo, en otro agente o como una máquina virtual nueva.</p>
+
+<h2>El asistente de restauración</h2>
+<p>Haga clic en <a href="/restore"><b>Restaurar</b></a> en el menú. El asistente hace cuatro preguntas:</p>
+<ol>
+  <li><b>Qué</b> quiere restaurar:
+    <ul>
+      <li>una máquina virtual completa</li>
+      <li>archivos de una máquina virtual</li>
+      <li>archivos y carpetas</li>
+      <li>una imagen de disco / bare metal</li>
+      <li>archivos de una imagen de disco</li>
+      <li>una base de datos (a un momento concreto)</li>
+      <li>un sistema Linux completo</li>
+      <li>correo de Microsoft 365 y OneDrive (consulte <a href="/docs/m365">Microsoft 365</a>)</li>
+    </ul>
+    Cada opción muestra cuántos puntos de restauración hay.</li>
+  <li><b>Origen</b>: la máquina virtual (en todos los hipervisores y trabajos), o el trabajo de copia y su equipo.</li>
+  <li><b>Punto de restauración</b>: la copia desde la que se restaura, la más reciente primero, con su estado, almacenamiento y tamaño.
+    <ul>
+      <li>Las copias marcadas como sospechosas (posible ransomware) aparecen señaladas.</li>
+      <li>Las copias en almacenamiento secundario hechas por un trabajo de copia secundaria aparecen como <i>copia</i> (copias de archivos y de VM).</li>
+    </ul>
+  </li>
+  <li><b>Opciones</b>: dónde y cómo restaurar. Encima de las opciones se muestra un resumen de lo elegido.</li>
+</ol>
+<p>Los pasos de arriba son enlaces, así que puede volver a cualquier paso anterior. Cada paso tiene su propia dirección, para guardarlo en marcadores o compartirlo.</p>
+<p>Las opciones son las mismas que en la página de una copia en <a href="/runs">Actividad</a>, donde también puede iniciar una restauración directamente. Solo ven el asistente los usuarios cuyo rol permite restaurar.</p>
+
+<h2>Restaurar desde una copia de archivos</h2>
+<ol>
+  <li>Elija <b>Archivos y carpetas</b> en el <a href="/restore">asistente de restauración</a> y luego el trabajo y el punto de restauración. También puede abrir la copia en <a href="/runs">Actividad</a> o en la página del trabajo.</li>
+  <li>En <b>Restaurar archivos de esta copia</b> elija el agente que recibirá los archivos. Puede ser un equipo distinto del copiado, por ejemplo un PC de sustitución.</li>
+  <li>Elija dónde:
+    <ul>
+      <li><b>Restaurar en una carpeta</b> (recomendado): p. ej. <code>D:\Restore</code>. Debajo se recrea la estructura original: <code>D:\Restore\C\Users\ana\Documents\…</code>. No se toca nada existente.</li>
+      <li><b>Restaurar en la ubicación original</b>: escribe los archivos donde estaban, <b>sobrescribiendo</b> las versiones actuales. En un recurso NAS, el agente vuelve a conectar el recurso con escritura.</li>
+    </ul>
+  </li>
+  <li>Opcionalmente limite a <b>Solo estas rutas</b>, una por línea, p. ej. <code>C:\Users\ana\Documents\Contracts</code>, o elíjalas en el explorador de archivos (abajo).</li>
+  <li>Deje activado <b>Verificar archivos restaurados</b>: cada archivo se vuelve a leer y se compara con la suma de comprobación de la copia.</li>
+  <li>Haga clic en <b>Iniciar restauración</b>. El progreso y los resultados aparecen en la página de la ejecución de restauración.</li>
+</ol>
+<p>También se restauran las fechas de los archivos, los atributos de Windows (oculto, solo lectura, …) y, en Linux, propietarios, permisos (incluidos los bits setuid), ACL, atributos extendidos (etiquetas SELinux, capacidades de archivos) y enlaces simbólicos y físicos. Los propietarios solo se establecen si el agente se ejecuta como root/administrador.</p>
+
+<h3 id="browse-files">Explorar, descargar y elegir archivos</h3>
+<p>En la ejecución de copia, <b>Examinar archivos</b> muestra las carpetas copiadas tal como estaban (también para recursos NAS y copias del sistema Linux). Abra carpetas, marque archivos y carpetas y luego:</p>
+<ul>
+  <li><b>Descargar</b>: un archivo llega tal cual, varios archivos o carpetas como archivo ZIP, directamente en el navegador. Las descargas quedan en el registro de auditoría.</li>
+  <li><b>Restaurarlos en un agente</b>: en una carpeta o en la ubicación original, como una restauración con <i>Solo estas rutas</i>.</li>
+</ul>
+<p>Un <b>enlace simbólico</b> a un archivo (p. ej. <code>/etc/os-release</code>) se descarga como el archivo al que apunta, si ese archivo está en la copia; los enlaces a carpetas se omiten en los archivos ZIP. Lo mismo vale para los archivos descargados de copias de máquinas virtuales (ext4, XFS). Una restauración en un agente vuelve a crear los enlaces como enlaces.</p>
+<p>La consola lee la copia directamente del almacenamiento, así que la exploración funciona con copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); para un disco local o USB de un agente, restaure con las rutas. Los usuarios con un rol de restauración pueden explorar y descargar.</p>
+
+<div class="callout tip"><p><b>Encontrar la copia correcta:</b> use el <a href="/calendar">Calendario</a> para ver qué copias se ejecutaron cada día, o el historial de la página del trabajo.</p></div>
+
+<h2>Restaurar archivos sueltos de una imagen de disco</h2>
+<p>En las copias de imagen, haga clic en <b>Examinar archivos</b> en la ejecución de copia. Puede recorrer el sistema de archivos NTFS de la imagen directamente en la consola, marcar archivos y carpetas y restaurarlos en cualquier agente, sin restaurar el disco completo.</p>
+
+<h2>Restaurar archivos sueltos de una VM (Proxmox VE, Hyper-V, VMware)</h2>
+<p>En una ejecución de copia de VM, haga clic en <b>Examinar archivos</b> junto al invitado. La consola muestra las particiones y volúmenes LVM de sus discos y permite explorar sistemas de archivos NTFS, ext4 y XFS. <b>Descargue</b> los archivos marcados (varios como archivo ZIP) o restáurelos en cualquier agente. Consulte <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> y <a href="/docs/vmware">VMware ESXi</a>.</p>
+
+<h2>Restaurar equipos completos</h2>
+<ul>
+  <li>Imágenes de disco de Windows: en un disco o bare metal, también en hardware distinto — <a href="/docs/images">Imágenes de disco</a>.</li>
+  <li>Sistemas Linux: en un disco o bare metal, o como VM nueva de Proxmox — <a href="/docs/linux-system">Copia del sistema Linux</a>.</li>
+  <li>VM y contenedores de Proxmox: como invitado nuevo o en el sitio — <a href="/docs/proxmox">Proxmox VE</a>. Las VM de Proxmox también pueden ejecutarse al instante desde la copia y moverse al almacenamiento mientras funcionan (<a href="/docs/proxmox">recuperación instantánea</a>).</li>
+  <li>Bases de datos (SQL Server, PostgreSQL, MySQL/MariaDB): con un nombre nuevo o en el sitio, a un momento concreto — <a href="/docs/sql">Bases de datos</a>.</li>
+  <li>VM de Hyper-V: como VM nueva o en el sitio (conserva el ID y las direcciones MAC) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>VM de VMware ESXi: como VM nueva o en el sitio (conserva el UUID y las direcciones MAC), en cualquier host ESXi y datastore — <a href="/docs/vmware">VMware ESXi</a>; también al instante desde la copia mediante un agente proxy Linux y después copiada a un datastore (<a href="/docs/vmware">recuperación instantánea</a>).</li>
+</ul>
+<h3 id="recovery-iso">ISO de recuperación</h3>
+<p>Las restauraciones bare metal arrancan el equipo desde una ISO de recuperación (en una memoria USB o conectada a una VM); consulte <a href="/recovery">Medios de recuperación</a>:</p>
+<ul>
+  <li><b>ISO de recuperación de Linux</b>: se publica con cada versión (<code>backupzit-recovery-linux.iso</code>); la página Medios de recuperación la enlaza desde el origen de actualizaciones.</li>
+  <li id="winpe"><b>ISO de recuperación de Windows</b>: Windows PE no se puede redistribuir, así que se genera una vez en cualquier PC con Windows 10/11 o Server:
+    <ol>
+      <li>Instale el <b>Windows ADK</b> gratuito (característica <i>Deployment Tools</i>) y el <b>complemento Windows PE</b> de Microsoft.</li>
+      <li>Descargue <code>build-winpe.ps1</code> de la versión (junto a los paquetes de agente) y tome <code>backupzit-agent.exe</code> de <code>C:\Program Files\backupzit Agent</code> de un equipo con el agente.</li>
+      <li>En un PowerShell de administrador: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Añada <code>-DriverDir C:\Drivers</code> para controladores de almacenamiento o de red (p. ej. VirtIO para VM de Proxmox) y <code>-RecoveryJson .\recovery.json</code> para que se conecte sin escribir nada.</li>
+      <li>Opcionalmente copie la ISO en el directorio <code>/var/lib/backupzit/dist</code> de la consola; entonces se ofrece en la página Medios de recuperación.</li>
+    </ol></li>
+</ul>
+<p>Explorar archivos en la consola funciona con copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); la consola las lee directamente. Para copias en un disco local de un agente, use la línea de comandos.</p>
+
+<h2>Restaurar sin la consola</h2>
+<p>Si se pierde la propia consola, cualquier equipo con el agente instalado puede restaurar directamente desde el almacenamiento con la <b>hoja de recuperación</b> del destino de almacenamiento:</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>Consulte <a href="/docs/cli">Referencia de la línea de comandos</a>.</p>
+
+<h2>Pruebas de restauración automáticas</h2>
+<p>BackupZit pone a prueba sus copias con regularidad sin que tenga que hacer nada: cada semana (configurable en <a href="/settings/tests">Configuración → Pruebas de restauración</a>) el agente de cada trabajo restaura una <b>muestra aleatoria de archivos</b> de la copia más reciente en una carpeta temporal, verifica cada byte con las sumas de comprobación guardadas y vuelve a borrarla. En las imágenes de disco se leen y verifican bloques aleatorios. Así se comprueba toda la cadena: acceso al almacenamiento, credenciales, clave de cifrado e integridad de los datos.</p>
+<ul>
+  <li>Los resultados aparecen en Actividad y en el historial del trabajo como ejecuciones de <i>Prueba de restauración</i>, y por trabajo en <a href="/reports">Informes</a> (columna <i>Prueba de restauración</i>).</li>
+  <li>Una prueba fallida es un fallo como cualquier otro y genera una alerta por correo.</li>
+  <li><b>Probar restauración</b> en la página de un trabajo inicia una prueba de inmediato.</li>
+  <li>El tamaño de la muestra limita cuánto se lee del almacenamiento; manténgalo pequeño en almacenamiento en la nube con cargos por descarga.</li>
+</ul>
+<h3>Prueba de arranque para VM de Proxmox</h3>
+<p>Que los bloques se puedan leer no demuestra que una VM siga arrancando. Con <b>Prueba de arranque para copias de VM de Proxmox</b> activada (Configuración → Pruebas de restauración), la prueba de restauración de un trabajo de VM de Proxmox también arranca cada VM de la copia más reciente en el nodo del trabajo, una tras otra, con <a href="/docs/proxmox">recuperación instantánea</a>: se ejecuta desde la copia con un ID nuevo y las tarjetas de red desconectadas (para no entrar en conflicto con la original) y se borra justo después. La prueba se supera cuando el <b>agente invitado de QEMU</b> de la VM responde dentro del tiempo configurado, lo que significa que el sistema operativo arrancó. Las VM sin agente invitado la superan si siguen en funcionamiento durante un minuto; la página de la ejecución las muestra como <i>en ejecución</i> en lugar de <i>arrancada</i>.</p>
+<ul>
+  <li>El nodo necesita memoria libre para una VM más mientras dura la prueba.</li>
+  <li>Instale el agente invitado de QEMU en las VM (<code>qemu-guest-agent</code> en Linux, las herramientas de invitado VirtIO en Windows) y actívelo en las opciones de la VM, para que la prueba pueda confirmar el arranque.</li>
+  <li>La página de la ejecución lista cada VM con su resultado y cuánto tardó en arrancar.</li>
+</ul>
+<p>Además, restaure de vez en cuando (p. ej. cada trimestre) una carpeta real a mano y abra algunos archivos; así también se entrena a las personas que tendrán que hacerlo en una emergencia.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

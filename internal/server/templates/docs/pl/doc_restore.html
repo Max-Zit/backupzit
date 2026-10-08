@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Przywracanie</h1>
+<p class="lead">Każdą udaną kopię można przywrócić: w całości lub tylko wybrane foldery, na tę samą maszynę, na innego agenta lub jako nową maszynę wirtualną.</p>
+
+<h2>Kreator przywracania</h2>
+<p>Kliknij <a href="/restore"><b>Przywracanie</b></a> w menu. Kreator zadaje cztery pytania:</p>
+<ol>
+  <li><b>Co</b> chcesz przywrócić?
+    <ul>
+      <li>całą maszynę wirtualną</li>
+      <li>pliki z maszyny wirtualnej</li>
+      <li>pliki i foldery</li>
+      <li>obraz dysku / bare metal</li>
+      <li>pliki z obrazu dysku</li>
+      <li>bazę danych (do danej chwili)</li>
+      <li>cały system Linux</li>
+      <li>pocztę Microsoft 365 i OneDrive (zobacz <a href="/docs/m365">Microsoft 365</a>)</li>
+    </ul>
+    Przy każdym wyborze widać, ile jest punktów przywracania.</li>
+  <li><b>Źródło</b>: maszyna wirtualna (we wszystkich hipernadzorcach i zadaniach) albo zadanie kopii i jego maszyna.</li>
+  <li><b>Punkt przywracania</b>: kopia, z której przywracasz, najnowsza na początku, ze statusem, magazynem i rozmiarem.
+    <ul>
+      <li>Kopie oznaczone jako podejrzane (możliwy ransomware) są wyróżnione.</li>
+      <li>Kopie w drugim magazynie wykonane przez zadanie kopii kopii zapasowej są oznaczone jako <i>kopia</i> (kopie plików i maszyn).</li>
+    </ul>
+  </li>
+  <li><b>Opcje</b>: gdzie i jak przywrócić. Nad opcjami widać podsumowanie wyborów.</li>
+</ol>
+<p>Kroki u góry są linkami, więc możesz wrócić do dowolnego wcześniejszego kroku. Każdy krok ma własny adres, który można dodać do zakładek lub udostępnić.</p>
+<p>Opcje są takie same jak na stronie kopii w <a href="/runs">Aktywności</a>, gdzie też można od razu uruchomić przywracanie. Kreator widzą tylko użytkownicy, których rola pozwala przywracać.</p>
+
+<h2>Przywracanie z kopii plików</h2>
+<ol>
+  <li>Wybierz <b>Pliki i foldery</b> w <a href="/restore">kreatorze przywracania</a>, potem zadanie i punkt przywracania. Możesz też otworzyć kopię w <a href="/runs">Aktywności</a> lub na stronie zadania.</li>
+  <li>W sekcji <b>Przywróć pliki z tej kopii</b> wybierz agenta, który ma otrzymać pliki. Może to być inna maszyna niż kopiowana — na przykład zastępczy komputer.</li>
+  <li>Wybierz, gdzie:
+    <ul>
+      <li><b>Przywróć do folderu</b> (zalecane) — np. <code>D:\Restore</code>. Pod nim odtwarzana jest oryginalna struktura: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nic istniejącego nie jest ruszane.</li>
+      <li><b>Przywróć do pierwotnej lokalizacji</b> — zapisuje pliki tam, gdzie były, <b>nadpisując</b> bieżące wersje. W przypadku udziału NAS agent ponownie podłącza udział z prawem zapisu.</li>
+    </ul>
+  </li>
+  <li>Opcjonalnie ogranicz do <b>Tylko te ścieżki</b>, po jednej w wierszu, np. <code>C:\Users\ana\Documents\Contracts</code> — albo wybierz je w przeglądarce plików (niżej).</li>
+  <li>Pozostaw włączone <b>Weryfikuj przywrócone pliki</b>: każdy plik jest odczytywany i porównywany z sumą kontrolną w kopii.</li>
+  <li>Kliknij <b>Rozpocznij przywracanie</b>. Postęp i wyniki pojawiają się na stronie uruchomienia przywracania.</li>
+</ol>
+<p>Przywracane są także czasy plików, atrybuty Windows (ukryty, tylko do odczytu, …), a w Linuksie właściciele, uprawnienia (w tym bity setuid), ACL, atrybuty rozszerzone (etykiety SELinux, capabilities plików), dowiązania symboliczne i twarde. Właściciele są ustawiani tylko wtedy, gdy agent działa jako root/administrator.</p>
+
+<h3 id="browse-files">Przeglądanie, pobieranie i wybieranie plików</h3>
+<p>W uruchomieniu kopii <b>Przeglądaj pliki</b> pokazuje skopiowane foldery tak, jak wyglądały (także dla udziałów NAS i kopii systemu Linux). Otwieraj foldery, zaznacz pliki i foldery, a potem:</p>
+<ul>
+  <li><b>Pobierz</b> — jeden plik przychodzi bez zmian, kilka plików lub folderów jako archiwum ZIP, prosto w przeglądarce. Pobrania są zapisywane w dzienniku audytu.</li>
+  <li><b>Przywróć je na agencie</b> — do folderu lub do pierwotnej lokalizacji, jak przywracanie z <i>Tylko te ścieżki</i>.</li>
+</ul>
+<p><b>Dowiązanie symboliczne</b> do pliku (np. <code>/etc/os-release</code>) jest pobierane jako plik, na który wskazuje, jeśli ten plik jest w kopii; dowiązania do folderów są pomijane w archiwach ZIP. To samo dotyczy plików pobieranych z kopii maszyn wirtualnych (ext4, XFS). Przywracanie na agencie odtwarza dowiązania jako dowiązania.</p>
+<p>Konsola sama czyta kopię z magazynu, więc przeglądanie działa dla kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, utwardzone repozytorium); dla dysku lokalnego lub USB agenta przywracaj z podaniem ścieżek. Użytkownicy z rolą przywracania mogą przeglądać i pobierać.</p>
+
+<div class="callout tip"><p><b>Jak znaleźć właściwą kopię:</b> użyj <a href="/calendar">Kalendarza</a>, aby zobaczyć, które kopie wykonano danego dnia, albo historii na stronie zadania.</p></div>
+
+<h2>Przywracanie pojedynczych plików z obrazu dysku</h2>
+<p>Dla kopii obrazów kliknij <b>Przeglądaj pliki</b> w uruchomieniu kopii. Możesz przeglądać system plików NTFS obrazu bezpośrednio w konsoli, zaznaczać pliki i foldery i przywracać je na dowolnego agenta — bez przywracania całego dysku.</p>
+
+<h2>Przywracanie pojedynczych plików z maszyny wirtualnej (Proxmox VE, Hyper-V, VMware)</h2>
+<p>W uruchomieniu kopii maszyny wirtualnej kliknij <b>Przeglądaj pliki</b> obok gościa. Konsola pokazuje partycje i woluminy LVM jego dysków i pozwala przeglądać systemy plików NTFS, ext4 i XFS. <b>Pobierz</b> zaznaczone pliki (kilka jako archiwum ZIP) lub przywróć je na dowolnym agencie. Zobacz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>.</p>
+
+<h2>Przywracanie całych maszyn</h2>
+<ul>
+  <li>Obrazy dysków Windows: na dysk lub bare metal, także na inny sprzęt — <a href="/docs/images">Obrazy dysków</a>.</li>
+  <li>Systemy Linux: na dysk lub bare metal albo jako nowa maszyna Proxmox — <a href="/docs/linux-system">Kopia systemu Linux</a>.</li>
+  <li>Maszyny wirtualne i kontenery Proxmox: jako nowy gość lub na miejscu — <a href="/docs/proxmox">Proxmox VE</a>. Maszyny Proxmox mogą też działać natychmiast z kopii i być przenoszone do magazynu w trakcie działania (<a href="/docs/proxmox">natychmiastowe odzyskiwanie</a>).</li>
+  <li>Bazy danych (SQL Server, PostgreSQL, MySQL/MariaDB): pod nową nazwą lub na miejscu, do danej chwili — <a href="/docs/sql">Bazy danych</a>.</li>
+  <li>Maszyny wirtualne Hyper-V: jako nowa maszyna lub na miejscu (zachowuje ID i adresy MAC) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>Maszyny wirtualne VMware ESXi: jako nowa maszyna lub na miejscu (zachowuje UUID i adresy MAC), na dowolnym hoście ESXi i magazynie danych — <a href="/docs/vmware">VMware ESXi</a>; także natychmiast z kopii przez linuksowego agenta proxy, a potem kopiowane do magazynu danych (<a href="/docs/vmware">natychmiastowe odzyskiwanie</a>).</li>
+</ul>
+<h3 id="recovery-iso">ISO odzyskiwania</h3>
+<p>Przywracanie bare metal uruchamia maszynę z ISO odzyskiwania (na pendrivie USB lub podłączonego do maszyny wirtualnej), zobacz <a href="/recovery">Nośniki odzyskiwania</a>:</p>
+<ul>
+  <li><b>ISO odzyskiwania Linux</b> — publikowane z każdą wersją (<code>backupzit-recovery-linux.iso</code>); strona Nośniki odzyskiwania linkuje do niego ze źródła aktualizacji.</li>
+  <li id="winpe"><b>ISO odzyskiwania Windows</b> — Windows PE nie może być redystrybuowany, więc buduje się go raz na dowolnym komputerze z Windows 10/11 lub Server:
+    <ol>
+      <li>Zainstaluj bezpłatny <b>Windows ADK</b> (funkcja <i>Deployment Tools</i>) i <b>dodatek Windows PE</b> od Microsoftu.</li>
+      <li>Pobierz <code>build-winpe.ps1</code> z wydania (obok pakietów agenta) i weź <code>backupzit-agent.exe</code> z <code>C:\Program Files\backupzit Agent</code> maszyny z agentem.</li>
+      <li>W PowerShellu jako administrator: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Dodaj <code>-DriverDir C:\Drivers</code> dla sterowników pamięci masowej lub sieci (np. VirtIO dla maszyn Proxmox) i <code>-RecoveryJson .\recovery.json</code>, aby łączył się bez wpisywania.</li>
+      <li>Opcjonalnie skopiuj ISO do katalogu <code>/var/lib/backupzit/dist</code> konsoli; wtedy jest ono oferowane na stronie Nośniki odzyskiwania.</li>
+    </ol></li>
+</ul>
+<p>Przeglądanie plików w konsoli działa dla kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, utwardzone repozytorium); konsola czyta je bezpośrednio. Dla kopii na dysku lokalnym agenta użyj wiersza poleceń.</p>
+
+<h2>Przywracanie bez konsoli</h2>
+<p>Jeśli zostanie utracona sama konsola, każda maszyna z zainstalowanym agentem może przywracać bezpośrednio z magazynu, korzystając z <b>arkusza odzyskiwania</b> miejsca docelowego:</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>Zobacz <a href="/docs/cli">Dokumentacja wiersza poleceń</a>.</p>
+
+<h2>Automatyczne testy przywracania</h2>
+<p>BackupZit regularnie sprawdza Twoje kopie bez Twojego udziału: co tydzień (do ustawienia w <a href="/settings/tests">Ustawienia → Testy przywracania</a>) agent każdego zadania przywraca <b>losową próbkę plików</b> z najnowszej kopii do folderu tymczasowego, weryfikuje każdy bajt z zapisanymi sumami kontrolnymi i ponownie go usuwa. W przypadku obrazów dysków odczytywane i weryfikowane są losowe bloki. Sprawdza to cały łańcuch — dostęp do magazynu, dane dostępu, klucz szyfrowania i integralność danych.</p>
+<ul>
+  <li>Wyniki pojawiają się w Aktywności i historii zadania jako uruchomienia <i>Test przywracania</i>, a dla każdego zadania w <a href="/reports">Raportach</a> (kolumna <i>Test przywracania</i>).</li>
+  <li>Nieudany test jest błędem jak każdy inny i wywołuje alert e-mail.</li>
+  <li><b>Testuj przywracanie</b> na stronie zadania od razu uruchamia test.</li>
+  <li>Rozmiar próbki ogranicza, ile danych jest czytanych z magazynu — przy magazynie w chmurze z opłatami za pobieranie utrzymuj go małym.</li>
+</ul>
+<h3>Test uruchomienia dla maszyn Proxmox</h3>
+<p>Czytelne bloki nie dowodzą, że maszyna wirtualna nadal się uruchomi. Przy włączonym <b>Test uruchomienia dla kopii VM Proxmox</b> (Ustawienia → Testy przywracania) test przywracania zadania maszyn Proxmox uruchamia także każdą maszynę z najnowszej kopii na węźle zadania, jedną po drugiej, z <a href="/docs/proxmox">natychmiastowym odzyskiwaniem</a>: działa ona z kopii z nowym ID i odłączonymi kartami sieciowymi (aby nie kolidować z oryginałem) i zaraz potem jest usuwana. Test kończy się powodzeniem, gdy <b>agent gościa QEMU</b> maszyny odpowie w ustalonym czasie, co oznacza, że system operacyjny się uruchomił. Maszyny bez agenta gościa zaliczają test, jeśli działają przez minutę; strona uruchomienia pokazuje je wtedy jako <i>trwa</i> zamiast <i>uruchomiona</i>.</p>
+<ul>
+  <li>Podczas testu węzeł potrzebuje wolnej pamięci na jeszcze jedną maszynę.</li>
+  <li>Zainstaluj agenta gościa QEMU w maszynach (<code>qemu-guest-agent</code> w Linuksie, narzędzia gościa VirtIO w Windows) i włącz go w opcjach maszyny, aby test mógł potwierdzić uruchomienie.</li>
+  <li>Strona uruchomienia wymienia każdą maszynę z wynikiem i czasem uruchamiania.</li>
+</ul>
+<p>Dodatkowo od czasu do czasu (np. co kwartał) przywróć ręcznie prawdziwy folder i otwórz kilka plików — to także szkoli osoby, które będą musiały to zrobić w sytuacji awaryjnej.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Wiederherstellen</h1>
+<p class="lead">Jede erfolgreiche Sicherung lässt sich wiederherstellen: vollständig oder nur ausgewählte Ordner, auf denselben Rechner, auf einen anderen Agenten oder als neue virtuelle Maschine.</p>
+
+<h2>Der Wiederherstellungsassistent</h2>
+<p>Klicken Sie im Menü auf <a href="/restore"><b>Wiederherstellen</b></a>. Der Assistent stellt vier Fragen:</p>
+<ol>
+  <li><b>Was</b> möchten Sie wiederherstellen?
+    <ul>
+      <li>eine ganze virtuelle Maschine</li>
+      <li>Dateien aus einer virtuellen Maschine</li>
+      <li>Dateien und Ordner</li>
+      <li>ein Festplattenabbild / Bare Metal</li>
+      <li>Dateien aus einem Festplattenabbild</li>
+      <li>eine Datenbank (zu einem Zeitpunkt)</li>
+      <li>ein ganzes Linux-System</li>
+      <li>Microsoft-365-E-Mail und OneDrive (siehe <a href="/docs/m365">Microsoft 365</a>)</li>
+    </ul>
+    Jede Auswahl zeigt, wie viele Wiederherstellungspunkte es dafür gibt.</li>
+  <li><b>Quelle</b>: die virtuelle Maschine (über alle Hypervisoren und Aufträge hinweg) oder der Sicherungsauftrag und sein Rechner.</li>
+  <li><b>Wiederherstellungspunkt</b>: die Sicherung, aus der wiederhergestellt wird, die neueste zuerst, mit Status, Speicher und Größe.
+    <ul>
+      <li>Als verdächtig markierte Sicherungen (mögliche Ransomware) sind gekennzeichnet.</li>
+      <li>Kopien auf sekundärem Speicher, die ein Sicherungskopie-Auftrag erstellt hat, sind als <i>Kopie</i> aufgeführt (Datei- und VM-Sicherungen).</li>
+    </ul>
+  </li>
+  <li><b>Optionen</b>: wohin und wie wiederhergestellt wird. Über den Optionen wird eine Zusammenfassung Ihrer Auswahl angezeigt.</li>
+</ol>
+<p>Die Schritte oben sind Links, sodass Sie zu jedem früheren Schritt zurückkehren können. Jeder Schritt hat seine eigene Adresse, sodass Sie ihn als Lesezeichen speichern oder teilen können.</p>
+<p>Die Optionen sind dieselben wie auf der Seite einer Sicherung in <a href="/runs">Aktivität</a>, wo Sie eine Wiederherstellung auch direkt starten können. Nur Benutzer, deren Rolle wiederherstellen darf, sehen den Assistenten.</p>
+
+<h2>Aus einer Dateisicherung wiederherstellen</h2>
+<ol>
+  <li>Wählen Sie im <a href="/restore">Wiederherstellungsassistenten</a> <b>Dateien und Ordner</b>, dann den Auftrag und den Wiederherstellungspunkt. Alternativ öffnen Sie die Sicherung in <a href="/runs">Aktivität</a> oder auf der Auftragsseite.</li>
+  <li>Wählen Sie unter <b>Dateien aus dieser Sicherung wiederherstellen</b> den Agenten, der die Dateien erhalten soll. Das kann ein anderer Rechner sein als der gesicherte — zum Beispiel ein Ersatz-PC.</li>
+  <li>Wählen Sie, wohin:
+    <ul>
+      <li><b>In einen Ordner wiederherstellen</b> (empfohlen) — z. B. <code>D:\Restore</code>. Darunter wird die ursprüngliche Struktur nachgebildet: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nichts Vorhandenes wird angetastet.</li>
+      <li><b>Am ursprünglichen Ort wiederherstellen</b> — schreibt die Dateien dorthin zurück, wo sie waren, und <b>überschreibt</b> aktuelle Versionen. Bei einer NAS-Freigabe verbindet der Agent die Freigabe erneut, beschreibbar.</li>
+    </ul>
+  </li>
+  <li>Beschränken Sie optional auf <b>Nur diese Pfade</b>, einen pro Zeile, z. B. <code>C:\Users\ana\Documents\Contracts</code> — oder wählen Sie sie im Dateibrowser aus (siehe unten).</li>
+  <li>Lassen Sie <b>Wiederhergestellte Dateien prüfen</b> eingeschaltet: Jede Datei wird zurückgelesen und mit der Prüfsumme in der Sicherung verglichen.</li>
+  <li>Klicken Sie auf <b>Wiederherstellung starten</b>. Fortschritt und Ergebnisse erscheinen auf der Seite des Wiederherstellungslaufs.</li>
+</ol>
+<p>Dateizeiten, Windows-Attribute (versteckt, schreibgeschützt, …) und unter Linux Besitzer, Berechtigungen (einschließlich setuid-Bits), ACLs, erweiterte Attribute (SELinux-Labels, Datei-Capabilities), symbolische und harte Links werden ebenfalls wiederhergestellt. Besitzer werden nur gesetzt, wenn der Agent als root/Administrator läuft.</p>
+
+<h3 id="browse-files">Dateien durchsuchen, herunterladen und auswählen</h3>
+<p>Beim Sicherungslauf zeigt <b>Dateien durchsuchen</b> die gesicherten Ordner so, wie sie waren (auch bei NAS-Freigaben und Linux-Systemsicherungen). Öffnen Sie Ordner, haken Sie Dateien und Ordner an und dann:</p>
+<ul>
+  <li><b>Herunterladen</b> — eine Datei kommt unverändert, mehrere Dateien oder Ordner als ZIP-Archiv, direkt im Browser. Downloads werden im Audit-Protokoll festgehalten.</li>
+  <li><b>Oder auf einem Agenten wiederherstellen</b> — in einen Ordner oder an den ursprünglichen Ort, wie eine Wiederherstellung mit <i>Nur diese Pfade</i>.</li>
+</ul>
+<p>Ein <b>symbolischer Link</b> auf eine Datei (z. B. <code>/etc/os-release</code>) wird als die Datei heruntergeladen, auf die er zeigt, wenn diese in der Sicherung ist; Links auf Ordner werden in ZIP-Archiven ausgelassen. Dasselbe gilt für Dateien, die aus VM-Sicherungen heruntergeladen werden (ext4, XFS). Eine Wiederherstellung auf einem Agenten legt Links wieder als Links an.</p>
+<p>Die Konsole liest die Sicherung selbst vom Speicher, daher funktioniert das Durchsuchen für Sicherungen auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository); bei einer lokalen oder USB-Festplatte eines Agenten stellen Sie mit den Pfaden wieder her. Benutzer mit einer Wiederherstellungsrolle dürfen durchsuchen und herunterladen.</p>
+
+<div class="callout tip"><p><b>Die richtige Sicherung finden:</b> Im <a href="/calendar">Kalender</a> sehen Sie, welche Sicherungen an welchem Tag liefen, oder nutzen Sie den Verlauf auf der Auftragsseite.</p></div>
+
+<h2>Einzelne Dateien aus einem Festplattenabbild wiederherstellen</h2>
+<p>Bei Abbildsicherungen klicken Sie im Sicherungslauf auf <b>Dateien durchsuchen</b>. Sie können das NTFS-Dateisystem im Abbild direkt in der Konsole durchsuchen, Dateien und Ordner anhaken und sie auf einen beliebigen Agenten wiederherstellen — ohne die ganze Festplatte wiederherzustellen.</p>
+
+<h2>Einzelne Dateien aus einer VM wiederherstellen (Proxmox VE, Hyper-V, VMware)</h2>
+<p>Klicken Sie in einem VM-Sicherungslauf neben dem Gast auf <b>Dateien durchsuchen</b>. Die Konsole zeigt die Partitionen und LVM-Volumes seiner Festplatten und lässt Sie NTFS-, ext4- und XFS-Dateisysteme durchsuchen. <b>Laden Sie</b> die angehakten Dateien <b>herunter</b> (mehrere als ZIP-Archiv) oder stellen Sie sie auf einem beliebigen Agenten wieder her. Siehe <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> und <a href="/docs/vmware">VMware ESXi</a>.</p>
+
+<h2>Ganze Rechner wiederherstellen</h2>
+<ul>
+  <li>Windows-Festplattenabbilder: auf eine Festplatte oder Bare Metal, auch auf andere Hardware — <a href="/docs/images">Festplattenabbilder</a>.</li>
+  <li>Linux-Systeme: auf eine Festplatte oder Bare Metal oder als neue Proxmox-VM — <a href="/docs/linux-system">Linux-Systemsicherung</a>.</li>
+  <li>Proxmox-VMs und -Container: als neuer Gast oder an Ort und Stelle — <a href="/docs/proxmox">Proxmox VE</a>. Proxmox-VMs können auch sofort aus der Sicherung laufen und während des Betriebs auf Speicher verschoben werden (<a href="/docs/proxmox">Sofortwiederherstellung</a>).</li>
+  <li>Datenbanken (SQL Server, PostgreSQL, MySQL/MariaDB): unter neuem Namen oder an Ort und Stelle, zu einem Zeitpunkt — <a href="/docs/sql">Datenbanken</a>.</li>
+  <li>Hyper-V-VMs: als neue VM oder an Ort und Stelle (behält ID und MAC-Adressen) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>VMware-ESXi-VMs: als neue VM oder an Ort und Stelle (behält UUID und MAC-Adressen), auf jedem ESXi-Host und Datastore — <a href="/docs/vmware">VMware ESXi</a>; auch sofort aus der Sicherung über einen Linux-Proxy-Agenten, danach auf einen Datastore kopiert (<a href="/docs/vmware">Sofortwiederherstellung</a>).</li>
+</ul>
+<h3 id="recovery-iso">Wiederherstellungs-ISOs</h3>
+<p>Bare-Metal-Wiederherstellungen starten den Rechner von einem Wiederherstellungs-ISO (auf einem USB-Stick oder an eine VM angehängt), siehe <a href="/recovery">Wiederherstellungsmedien</a>:</p>
+<ul>
+  <li><b>Linux-Wiederherstellungs-ISO</b> — wird mit jeder Version veröffentlicht (<code>backupzit-recovery-linux.iso</code>); die Seite Wiederherstellungsmedien verlinkt es aus der Update-Quelle.</li>
+  <li id="winpe"><b>Windows-Wiederherstellungs-ISO</b> — Windows PE darf nicht weitergegeben werden, daher wird es einmal auf einem beliebigen Windows-10/11- oder Server-PC erstellt:
+    <ol>
+      <li>Installieren Sie das kostenlose <b>Windows ADK</b> (Funktion <i>Deployment Tools</i>) und das <b>Windows-PE-Add-on</b> von Microsoft.</li>
+      <li>Laden Sie <code>build-winpe.ps1</code> aus der Version herunter (neben den Agentenpaketen) und nehmen Sie <code>backupzit-agent.exe</code> aus <code>C:\Program Files\backupzit Agent</code> eines Rechners mit dem Agenten.</li>
+      <li>In einer Administrator-PowerShell: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Fügen Sie <code>-DriverDir C:\Drivers</code> für Speicher- oder Netzwerktreiber hinzu (z. B. VirtIO für Proxmox-VMs) und <code>-RecoveryJson .\recovery.json</code>, damit es ohne Eingabe verbindet.</li>
+      <li>Kopieren Sie das ISO optional in das Verzeichnis <code>/var/lib/backupzit/dist</code> der Konsole; es wird dann auf der Seite Wiederherstellungsmedien angeboten.</li>
+    </ol></li>
+</ul>
+<p>Das Durchsuchen von Dateien in der Konsole funktioniert für Sicherungen auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository); die Konsole liest sie direkt. Für Sicherungen auf einer lokalen Festplatte eines Agenten verwenden Sie die Befehlszeile.</p>
+
+<h2>Ohne die Konsole wiederherstellen</h2>
+<p>Geht die Konsole selbst verloren, kann jeder Rechner mit installiertem Agenten mit dem <b>Wiederherstellungsblatt</b> des Speicherziels direkt vom Speicher wiederherstellen:</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>Siehe <a href="/docs/cli">Befehlszeilenreferenz</a>.</p>
+
+<h2>Automatische Wiederherstellungstests</h2>
+<p>BackupZit prüft Ihre Sicherungen regelmäßig, ohne dass Sie etwas tun: Wöchentlich (einstellbar unter <a href="/settings/tests">Einstellungen → Wiederherstellungstests</a>) stellt der Agent jedes Auftrags eine <b>Zufallsstichprobe von Dateien</b> aus der neuesten Sicherung in einen temporären Ordner wieder her, prüft jedes Byte gegen die gespeicherten Prüfsummen und löscht sie wieder. Bei Festplattenabbildern werden zufällige Blöcke gelesen und geprüft. So wird die ganze Kette geprüft — Speicherzugriff, Zugangsdaten, Verschlüsselungsschlüssel und Datenintegrität.</p>
+<ul>
+  <li>Die Ergebnisse erscheinen in Aktivität und im Auftragsverlauf als Läufe vom Typ <i>Wiederherstellungstest</i> und pro Auftrag in <a href="/reports">Berichte</a> (Spalte <i>Wiederherstellungstest</i>).</li>
+  <li>Ein fehlgeschlagener Test ist ein Fehler wie jeder andere und löst eine E-Mail-Warnung aus.</li>
+  <li><b>Wiederherstellung testen</b> auf der Seite eines Auftrags startet sofort einen Test.</li>
+  <li>Die Stichprobengröße begrenzt, wie viel vom Speicher gelesen wird — halten Sie sie bei Cloud-Speicher mit Downloadgebühren klein.</li>
+</ul>
+<h3>Starttest für Proxmox-VMs</h3>
+<p>Lesbare Blöcke beweisen nicht, dass eine VM noch startet. Mit eingeschaltetem <b>Starttest für Proxmox-VM-Sicherungen</b> (Einstellungen → Wiederherstellungstests) startet der Wiederherstellungstest eines Proxmox-VM-Auftrags zusätzlich jede VM der neuesten Sicherung auf dem Knoten des Auftrags, eine nach der anderen, mit <a href="/docs/proxmox">Sofortwiederherstellung</a>: Sie läuft aus der Sicherung mit neuer ID und getrennten Netzwerkkarten (damit sie nicht mit dem Original kollidiert) und wird gleich danach wieder gelöscht. Der Test ist bestanden, wenn der <b>QEMU-Gast-Agent</b> der VM innerhalb der eingestellten Zeit antwortet, also das Betriebssystem gestartet ist. VMs ohne Gast-Agent bestehen, wenn sie eine Minute lang weiterlaufen; die Laufseite zeigt sie dann als <i>läuft</i> statt <i>gestartet</i>.</p>
+<ul>
+  <li>Der Knoten braucht während des Tests freien Speicher für eine weitere VM.</li>
+  <li>Installieren Sie den QEMU-Gast-Agenten in den VMs (<code>qemu-guest-agent</code> unter Linux, die VirtIO-Gastwerkzeuge unter Windows) und aktivieren Sie ihn in den VM-Optionen, damit der Test den Start bestätigen kann.</li>
+  <li>Die Laufseite listet jede VM mit ihrem Ergebnis und der Startdauer auf.</li>
+</ul>
+<p>Stellen Sie zusätzlich ab und zu (z. B. vierteljährlich) einen echten Ordner von Hand wieder her und öffnen Sie ein paar Dateien — das schult auch die Personen, die es im Notfall tun müssen.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

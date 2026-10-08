@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Restauração</h1>
+<p class="lead">Qualquer backup bem-sucedido pode ser restaurado: por completo ou só pastas selecionadas, na mesma máquina, noutro agente ou como nova máquina virtual.</p>
+
+<h2>O assistente de restauração</h2>
+<p>Clique em <a href="/restore"><b>Restaurar</b></a> no menu. O assistente faz quatro perguntas:</p>
+<ol>
+  <li><b>O que</b> quer restaurar?
+    <ul>
+      <li>uma máquina virtual inteira</li>
+      <li>arquivos de uma máquina virtual</li>
+      <li>arquivos e pastas</li>
+      <li>uma imagem de disco / bare metal</li>
+      <li>arquivos de uma imagem de disco</li>
+      <li>um banco de dados (para um momento)</li>
+      <li>um sistema Linux inteiro</li>
+      <li>e-mail do Microsoft 365 e OneDrive (veja <a href="/docs/m365">Microsoft 365</a>)</li>
+    </ul>
+    Cada opção mostra quantos pontos de restauração existem.</li>
+  <li><b>Origem</b>: a máquina virtual (em todos os hipervisores e tarefas), ou a tarefa de backup e a sua máquina.</li>
+  <li><b>Ponto de restauração</b>: o backup a partir do qual restaurar, o mais recente primeiro, com estado, armazenamento e tamanho.
+    <ul>
+      <li>Backups sinalizados como suspeitos (possível ransomware) aparecem marcados.</li>
+      <li>Cópias em armazenamento secundário feitas por uma tarefa de cópia de backup aparecem como <i>cópia</i> (backups de arquivos e de VMs).</li>
+    </ul>
+  </li>
+  <li><b>Opções</b>: onde e como restaurar. Um resumo do que escolheu aparece acima das opções.</li>
+</ol>
+<p>Os passos no topo são links, por isso pode voltar a qualquer passo anterior. Cada passo tem o seu próprio endereço, para o guardar nos favoritos ou partilhar.</p>
+<p>As opções são as mesmas da página de um backup em <a href="/runs">Atividade</a>, onde também pode iniciar uma restauração diretamente. Só os usuários cuja função permite restaurar veem o assistente.</p>
+
+<h2>Restaurar a partir de um backup de arquivos</h2>
+<ol>
+  <li>Escolha <b>Arquivos e pastas</b> no <a href="/restore">assistente de restauração</a> e depois a tarefa e o ponto de restauração. Em alternativa, abra o backup em <a href="/runs">Atividade</a> ou na página da tarefa.</li>
+  <li>Em <b>Restaurar arquivos deste backup</b> escolha o agente que deve receber os arquivos. Pode ser uma máquina diferente da que foi copiada — por exemplo um PC de substituição.</li>
+  <li>Escolha onde:
+    <ul>
+      <li><b>Restaurar em uma pasta</b> (recomendado) — p. ex. <code>D:\Restore</code>. A estrutura original é recriada por baixo: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nada do que existe é tocado.</li>
+      <li><b>Restaurar no local original</b> — grava os arquivos onde estavam, <b>sobrescrevendo</b> as versões atuais. Num compartilhamento NAS o agente volta a conectar o compartilhamento com escrita.</li>
+    </ul>
+  </li>
+  <li>Opcionalmente limite a <b>Somente estes caminhos</b>, um por linha, p. ex. <code>C:\Users\ana\Documents\Contracts</code> — ou escolha-os no navegador de arquivos (abaixo).</li>
+  <li>Mantenha <b>Verificar arquivos restaurados</b> ativado: cada arquivo é lido de volta e comparado com a soma de verificação do backup.</li>
+  <li>Clique em <b>Iniciar restauração</b>. O progresso e os resultados aparecem na página da execução de restauração.</li>
+</ol>
+<p>Também são restaurados os horários dos arquivos, os atributos do Windows (oculto, somente leitura, …) e, no Linux, proprietários, permissões (incluindo bits setuid), ACLs, atributos estendidos (rótulos SELinux, capacidades de arquivo), links simbólicos e físicos. Os proprietários só são definidos quando o agente é executado como root/administrador.</p>
+
+<h3 id="browse-files">Navegar, baixar e escolher arquivos</h3>
+<p>Na execução de backup, <b>Navegar pelos arquivos</b> mostra as pastas copiadas como estavam (também para compartilhamentos NAS e backups de sistema Linux). Abra pastas, marque arquivos e pastas e depois:</p>
+<ul>
+  <li><b>Baixar</b> — um arquivo vem como está, vários arquivos ou pastas como arquivo ZIP, diretamente no navegador. Os downloads ficam registrados no log de auditoria.</li>
+  <li><b>Restaurá-los num agente</b> — numa pasta ou no local original, como uma restauração com <i>Somente estes caminhos</i>.</li>
+</ul>
+<p>Um <b>link simbólico</b> para um arquivo (p. ex. <code>/etc/os-release</code>) é baixado como o arquivo para onde aponta, se esse arquivo estiver no backup; links para pastas são omitidos dos arquivos ZIP. O mesmo vale para arquivos baixados de backups de máquinas virtuais (ext4, XFS). Uma restauração num agente recria os links como links.</p>
+<p>A console lê o backup diretamente do armazenamento, por isso a navegação funciona para backups em armazenamento de rede (SFTP, S3, SMB, Azure, repositório protegido); para um disco local ou USB de um agente, restaure com os caminhos. Usuários com uma função de restauração podem navegar e baixar.</p>
+
+<div class="callout tip"><p><b>Encontrar o backup certo:</b> use o <a href="/calendar">Calendário</a> para ver que backups foram executados em que dia, ou o histórico na página da tarefa.</p></div>
+
+<h2>Restaurar arquivos individuais de uma imagem de disco</h2>
+<p>Em backups de imagem, clique em <b>Navegar pelos arquivos</b> na execução de backup. Pode navegar no sistema de arquivos NTFS da imagem diretamente na console, marcar arquivos e pastas e restaurá-los em qualquer agente — sem restaurar o disco inteiro.</p>
+
+<h2>Restaurar arquivos individuais de uma VM (Proxmox VE, Hyper-V, VMware)</h2>
+<p>Numa execução de backup de VM clique em <b>Navegar pelos arquivos</b> ao lado do convidado. A console mostra as partições e volumes LVM dos seus discos e permite navegar em sistemas de arquivos NTFS, ext4 e XFS. <b>Baixe</b> os arquivos marcados (vários como arquivo ZIP) ou restaure-os em qualquer agente. Veja <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> e <a href="/docs/vmware">VMware ESXi</a>.</p>
+
+<h2>Restaurar máquinas inteiras</h2>
+<ul>
+  <li>Imagens de disco do Windows: num disco ou bare metal, também em hardware diferente — <a href="/docs/images">Imagens de disco</a>.</li>
+  <li>Sistemas Linux: num disco ou bare metal, ou como nova VM do Proxmox — <a href="/docs/linux-system">Backup do sistema Linux</a>.</li>
+  <li>VMs e contêineres do Proxmox: como novo convidado ou no local — <a href="/docs/proxmox">Proxmox VE</a>. As VMs do Proxmox também podem ser executadas instantaneamente a partir do backup e movidas para um armazenamento enquanto funcionam (<a href="/docs/proxmox">recuperação instantânea</a>).</li>
+  <li>Bancos de dados (SQL Server, PostgreSQL, MySQL/MariaDB): com um novo nome ou no local, para um momento — <a href="/docs/sql">Bancos de dados</a>.</li>
+  <li>VMs Hyper-V: como nova VM ou no local (mantém o ID e os endereços MAC) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>VMs VMware ESXi: como nova VM ou no local (mantém o UUID e os endereços MAC), em qualquer host ESXi e datastore — <a href="/docs/vmware">VMware ESXi</a>; também instantaneamente a partir do backup através de um agente proxy Linux, e depois copiada para um datastore (<a href="/docs/vmware">recuperação instantânea</a>).</li>
+</ul>
+<h3 id="recovery-iso">ISOs de recuperação</h3>
+<p>As restaurações bare metal iniciam a máquina a partir de uma ISO de recuperação (num pendrive USB ou anexada a uma VM), veja <a href="/recovery">Mídia de recuperação</a>:</p>
+<ul>
+  <li><b>ISO de recuperação Linux</b> — publicada com cada versão (<code>backupzit-recovery-linux.iso</code>); a página Mídia de recuperação faz link para ela a partir da origem de atualizações.</li>
+  <li id="winpe"><b>ISO de recuperação Windows</b> — o Windows PE não pode ser redistribuído, por isso é gerada uma vez em qualquer PC com Windows 10/11 ou Server:
+    <ol>
+      <li>Instale o <b>Windows ADK</b> gratuito (recurso <i>Deployment Tools</i>) e o <b>complemento Windows PE</b> da Microsoft.</li>
+      <li>Baixe <code>build-winpe.ps1</code> da versão (ao lado dos pacotes do agente) e copie <code>backupzit-agent.exe</code> de <code>C:\Program Files\backupzit Agent</code> numa máquina com o agente.</li>
+      <li>Num PowerShell de administrador: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Adicione <code>-DriverDir C:\Drivers</code> para drivers de armazenamento ou rede (p. ex. VirtIO para VMs do Proxmox) e <code>-RecoveryJson .\recovery.json</code> para que se conecte sem digitar nada.</li>
+      <li>Opcionalmente copie a ISO para o diretório <code>/var/lib/backupzit/dist</code> da console; ela passa então a ser oferecida na página Mídia de recuperação.</li>
+    </ol></li>
+</ul>
+<p>A navegação de arquivos na console funciona para backups em armazenamento de rede (SFTP, S3, SMB, Azure, repositório protegido); a console lê-os diretamente. Para backups num disco local de um agente, use a linha de comandos.</p>
+
+<h2>Restaurar sem a console</h2>
+<p>Se a própria console se perder, qualquer máquina com o agente instalado pode restaurar diretamente do armazenamento usando a <b>ficha de recuperação</b> do destino de armazenamento:</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>Veja <a href="/docs/cli">Referência da linha de comandos</a>.</p>
+
+<h2>Testes de restauração automáticos</h2>
+<p>O BackupZit põe os seus backups à prova regularmente sem que tenha de fazer nada: semanalmente (configurável em <a href="/settings/tests">Configurações → Testes de restauração</a>) o agente de cada tarefa restaura uma <b>amostra aleatória de arquivos</b> do backup mais recente numa pasta temporária, verifica cada byte contra as somas de verificação guardadas e volta a apagá-la. Em imagens de disco, blocos aleatórios são lidos e verificados. Assim se testa toda a cadeia — acesso ao armazenamento, credenciais, chave de criptografia e integridade dos dados.</p>
+<ul>
+  <li>Os resultados aparecem em Atividade e no histórico da tarefa como execuções de <i>Teste de restauração</i>, e por tarefa em <a href="/reports">Relatórios</a> (coluna <i>Teste de restauração</i>).</li>
+  <li>Um teste com falha é uma falha como qualquer outra e gera um alerta por e-mail.</li>
+  <li><b>Testar restauração</b> na página de uma tarefa inicia um teste imediatamente.</li>
+  <li>O tamanho da amostra limita quanto é lido do armazenamento — mantenha-o pequeno em armazenamento em nuvem com taxas de download.</li>
+</ul>
+<h3>Teste de inicialização para VMs do Proxmox</h3>
+<p>Blocos legíveis não provam que uma VM ainda inicia. Com <b>Teste de inicialização para backups de VMs do Proxmox</b> ativado (Configurações → Testes de restauração), o teste de restauração de uma tarefa de VM do Proxmox também inicia cada VM do backup mais recente no nó da tarefa, uma após a outra, com <a href="/docs/proxmox">recuperação instantânea</a>: ela é executada a partir do backup com um novo ID e as placas de rede desconectadas (para não entrar em conflito com a original) e é excluída logo a seguir. O teste passa quando o <b>agente convidado QEMU</b> da VM responde dentro do tempo configurado, o que significa que o sistema operacional iniciou. VMs sem agente convidado passam se continuarem em execução durante um minuto; a página da execução mostra-as como <i>em execução</i> em vez de <i>iniciada</i>.</p>
+<ul>
+  <li>O nó precisa de memória livre para mais uma VM durante o teste.</li>
+  <li>Instale o agente convidado QEMU nas VMs (<code>qemu-guest-agent</code> no Linux, as ferramentas de convidado VirtIO no Windows) e ative-o nas opções da VM, para que o teste possa confirmar a inicialização.</li>
+  <li>A página da execução lista cada VM com o seu resultado e quanto tempo demorou a inicialização.</li>
+</ul>
+<p>Além disso, restaure à mão de vez em quando (p. ex. trimestralmente) uma pasta real e abra alguns arquivos — isto também treina as pessoas que terão de o fazer numa emergência.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

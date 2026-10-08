@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Ripristino</h1>
+<p class="lead">Ogni backup riuscito può essere ripristinato: per intero o solo alcune cartelle, sulla stessa macchina, su un altro agente o come nuova macchina virtuale.</p>
+
+<h2>La procedura guidata di ripristino</h2>
+<p>Fate clic su <a href="/restore"><b>Ripristina</b></a> nel menu. La procedura pone quattro domande:</p>
+<ol>
+  <li><b>Cosa</b> volete ripristinare?
+    <ul>
+      <li>un'intera macchina virtuale</li>
+      <li>file da una macchina virtuale</li>
+      <li>file e cartelle</li>
+      <li>un'immagine disco / bare metal</li>
+      <li>file da un'immagine disco</li>
+      <li>un database (a un momento preciso)</li>
+      <li>un intero sistema Linux</li>
+      <li>posta di Microsoft 365 e OneDrive (vedete <a href="/docs/m365">Microsoft 365</a>)</li>
+    </ul>
+    Ogni scelta mostra quanti punti di ripristino esistono.</li>
+  <li><b>Origine</b>: la macchina virtuale (su tutti gli hypervisor e i job), oppure il job di backup e la sua macchina.</li>
+  <li><b>Punto di ripristino</b>: il backup da cui ripristinare, prima il più recente, con stato, storage e dimensione.
+    <ul>
+      <li>I backup segnalati come sospetti (possibile ransomware) sono contrassegnati.</li>
+      <li>Le copie su uno storage secondario create da un job di copia di backup sono elencate come <i>copia</i> (backup di file e di VM).</li>
+    </ul>
+  </li>
+  <li><b>Opzioni</b>: dove e come ripristinare. Sopra le opzioni viene mostrato un riepilogo delle scelte.</li>
+</ol>
+<p>I passaggi in alto sono link, quindi potete tornare a qualsiasi passaggio precedente. Ogni passaggio ha un proprio indirizzo, così potete aggiungerlo ai preferiti o condividerlo.</p>
+<p>Le opzioni sono le stesse della pagina di un backup in <a href="/runs">Attività</a>, dove potete anche avviare direttamente un ripristino. Vedono la procedura guidata solo gli utenti il cui ruolo consente il ripristino.</p>
+
+<h2>Ripristinare da un backup di file</h2>
+<ol>
+  <li>Scegliete <b>File e cartelle</b> nella <a href="/restore">procedura guidata di ripristino</a>, poi il job e il punto di ripristino. In alternativa aprite il backup in <a href="/runs">Attività</a> o nella pagina del job.</li>
+  <li>In <b>Ripristina file da questo backup</b> scegliete l'agente che riceverà i file. Può essere una macchina diversa da quella salvata — ad esempio un PC sostitutivo.</li>
+  <li>Scegliete dove:
+    <ul>
+      <li><b>Ripristina in una cartella</b> (consigliato) — ad es. <code>D:\Restore</code>. Al suo interno viene ricreata la struttura originale: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nulla di esistente viene toccato.</li>
+      <li><b>Ripristina nella posizione originale</b> — riscrive i file dove si trovavano, <b>sovrascrivendo</b> le versioni attuali. Per una condivisione NAS l'agente ricollega la condivisione in scrittura.</li>
+    </ul>
+  </li>
+  <li>Facoltativamente limitate a <b>Solo questi percorsi</b>, uno per riga, ad es. <code>C:\Users\ana\Documents\Contracts</code> — oppure selezionateli nel browser dei file (sotto).</li>
+  <li>Lasciate attivo <b>Verifica i file ripristinati</b>: ogni file viene riletto e confrontato con il checksum del backup.</li>
+  <li>Fate clic su <b>Avvia ripristino</b>. Avanzamento e risultati compaiono nella pagina dell'esecuzione di ripristino.</li>
+</ol>
+<p>Vengono ripristinati anche gli orari dei file, gli attributi di Windows (nascosto, sola lettura, …) e, su Linux, proprietari, permessi (inclusi i bit setuid), ACL, attributi estesi (etichette SELinux, capability dei file), link simbolici e fisici. I proprietari vengono impostati solo se l'agente è eseguito come root/amministratore.</p>
+
+<h3 id="browse-files">Sfogliare, scaricare e scegliere file</h3>
+<p>Nell'esecuzione di backup, <b>Sfoglia file</b> mostra le cartelle salvate com'erano (anche per condivisioni NAS e backup del sistema Linux). Aprite le cartelle, selezionate file e cartelle, poi:</p>
+<ul>
+  <li><b>Scarica</b> — un file arriva così com'è, più file o cartelle come archivio ZIP, direttamente nel browser. I download vengono registrati nel log di audit.</li>
+  <li><b>Ripristinali su un agente</b> — in una cartella o nella posizione originale, come un ripristino con <i>Solo questi percorsi</i>.</li>
+</ul>
+<p>Un <b>link simbolico</b> a un file (ad es. <code>/etc/os-release</code>) viene scaricato come il file a cui punta, se quel file è nel backup; i link a cartelle vengono esclusi dagli archivi ZIP. Lo stesso vale per i file scaricati dai backup di macchine virtuali (ext4, XFS). Un ripristino su un agente ricrea i link come link.</p>
+<p>La console legge il backup direttamente dallo storage, quindi la navigazione funziona per i backup su storage di rete (SFTP, S3, SMB, Azure, repository protetto); per un disco locale o USB di un agente, ripristinate con i percorsi. Gli utenti con un ruolo di ripristino possono sfogliare e scaricare.</p>
+
+<div class="callout tip"><p><b>Trovare il backup giusto:</b> usate il <a href="/calendar">Calendario</a> per vedere quali backup sono stati eseguiti in quale giorno, o lo storico nella pagina del job.</p></div>
+
+<h2>Ripristinare singoli file da un'immagine disco</h2>
+<p>Per i backup di immagine, fate clic su <b>Sfoglia file</b> nell'esecuzione di backup. Potete navigare il file system NTFS dell'immagine direttamente nella console, selezionare file e cartelle e ripristinarli su qualsiasi agente — senza ripristinare l'intero disco.</p>
+
+<h2>Ripristinare singoli file da una VM (Proxmox VE, Hyper-V, VMware)</h2>
+<p>In un'esecuzione di backup di VM fate clic su <b>Sfoglia file</b> accanto al guest. La console mostra le partizioni e i volumi LVM dei suoi dischi e permette di sfogliare i file system NTFS, ext4 e XFS. <b>Scaricate</b> i file selezionati (più file come archivio ZIP) o ripristinateli su qualsiasi agente. Vedete <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> e <a href="/docs/vmware">VMware ESXi</a>.</p>
+
+<h2>Ripristinare intere macchine</h2>
+<ul>
+  <li>Immagini disco Windows: su un disco o bare metal, anche su hardware diverso — <a href="/docs/images">Immagini disco</a>.</li>
+  <li>Sistemi Linux: su un disco o bare metal, o come nuova VM Proxmox — <a href="/docs/linux-system">Backup del sistema Linux</a>.</li>
+  <li>VM e container Proxmox: come nuovo guest o sul posto — <a href="/docs/proxmox">Proxmox VE</a>. Le VM Proxmox possono anche essere eseguite istantaneamente dal backup e spostate su uno storage mentre sono in funzione (<a href="/docs/proxmox">ripristino istantaneo</a>).</li>
+  <li>Database (SQL Server, PostgreSQL, MySQL/MariaDB): con un nuovo nome o sul posto, a un momento preciso — <a href="/docs/sql">Database</a>.</li>
+  <li>VM Hyper-V: come nuova VM o sul posto (mantiene ID e indirizzi MAC) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>VM VMware ESXi: come nuova VM o sul posto (mantiene UUID e indirizzi MAC), su qualsiasi host ESXi e datastore — <a href="/docs/vmware">VMware ESXi</a>; anche istantaneamente dal backup tramite un agente proxy Linux, poi copiata su un datastore (<a href="/docs/vmware">ripristino istantaneo</a>).</li>
+</ul>
+<h3 id="recovery-iso">ISO di ripristino</h3>
+<p>I ripristini bare metal avviano la macchina da una ISO di ripristino (su una chiavetta USB o collegata a una VM), vedete <a href="/recovery">Supporti di ripristino</a>:</p>
+<ul>
+  <li><b>ISO di ripristino Linux</b> — pubblicata con ogni versione (<code>backupzit-recovery-linux.iso</code>); la pagina Supporti di ripristino la collega dalla fonte degli aggiornamenti.</li>
+  <li id="winpe"><b>ISO di ripristino Windows</b> — Windows PE non può essere ridistribuito, quindi si crea una volta su qualsiasi PC Windows 10/11 o Server:
+    <ol>
+      <li>Installate il <b>Windows ADK</b> gratuito (funzionalità <i>Deployment Tools</i>) e il <b>componente aggiuntivo Windows PE</b> di Microsoft.</li>
+      <li>Scaricate <code>build-winpe.ps1</code> dalla versione (accanto ai pacchetti dell'agente) e prendete <code>backupzit-agent.exe</code> da <code>C:\Program Files\backupzit Agent</code> di una macchina con l'agente.</li>
+      <li>In un PowerShell da amministratore: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Aggiungete <code>-DriverDir C:\Drivers</code> per driver di storage o di rete (ad es. VirtIO per le VM Proxmox) e <code>-RecoveryJson .\recovery.json</code> perché si colleghi senza digitare nulla.</li>
+      <li>Facoltativamente copiate la ISO nella directory <code>/var/lib/backupzit/dist</code> della console; viene allora offerta nella pagina Supporti di ripristino.</li>
+    </ol></li>
+</ul>
+<p>La navigazione dei file nella console funziona per i backup su storage di rete (SFTP, S3, SMB, Azure, repository protetto); la console li legge direttamente. Per i backup su un disco locale di un agente usate la riga di comando.</p>
+
+<h2>Ripristinare senza la console</h2>
+<p>Se la console stessa va persa, qualsiasi macchina con l'agente installato può ripristinare direttamente dallo storage usando il <b>foglio di ripristino</b> della destinazione di archiviazione:</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>Vedete <a href="/docs/cli">Riferimento della riga di comando</a>.</p>
+
+<h2>Test di ripristino automatici</h2>
+<p>BackupZit mette alla prova i vostri backup regolarmente senza che dobbiate fare nulla: ogni settimana (configurabile in <a href="/settings/tests">Impostazioni → Test di ripristino</a>) l'agente di ogni job ripristina un <b>campione casuale di file</b> dal backup più recente in una cartella temporanea, verifica ogni byte rispetto ai checksum memorizzati e lo elimina. Per le immagini disco vengono letti e verificati blocchi casuali. Così si mette alla prova l'intera catena — accesso allo storage, credenziali, chiave di cifratura e integrità dei dati.</p>
+<ul>
+  <li>I risultati compaiono in Attività e nello storico del job come esecuzioni di tipo <i>Test di ripristino</i>, e per job in <a href="/reports">Report</a> (colonna <i>Test di ripristino</i>).</li>
+  <li>Un test fallito è un errore come gli altri e genera un avviso via email.</li>
+  <li><b>Testa ripristino</b> nella pagina di un job avvia subito un test.</li>
+  <li>La dimensione del campione limita quanto viene letto dallo storage — tenetela piccola per uno storage cloud con costi di download.</li>
+</ul>
+<h3>Test di avvio per le VM Proxmox</h3>
+<p>Blocchi leggibili non dimostrano che una VM si avvii ancora. Con <b>Test di avvio per i backup delle VM Proxmox</b> attivo (Impostazioni → Test di ripristino), il test di ripristino di un job di VM Proxmox avvia anche ogni VM del backup più recente sul nodo del job, una dopo l'altra, con il <a href="/docs/proxmox">ripristino istantaneo</a>: viene eseguita dal backup con un nuovo ID e le schede di rete scollegate (così non entra in conflitto con l'originale) e viene eliminata subito dopo. Il test è superato quando l'<b>agente guest QEMU</b> della VM risponde entro il tempo configurato, il che significa che il sistema operativo si è avviato. Le VM senza agente guest superano il test se restano in esecuzione per un minuto; la pagina dell'esecuzione le mostra come <i>in esecuzione</i> invece di <i>avviata</i>.</p>
+<ul>
+  <li>Durante il test il nodo ha bisogno di memoria libera per una VM in più.</li>
+  <li>Installate l'agente guest QEMU nelle VM (<code>qemu-guest-agent</code> su Linux, gli strumenti guest VirtIO su Windows) e abilitatelo nelle opzioni della VM, così il test può confermare l'avvio.</li>
+  <li>La pagina dell'esecuzione elenca ogni VM con il risultato e il tempo impiegato dall'avvio.</li>
+</ul>
+<p>In aggiunta, ripristinate a mano di tanto in tanto (ad es. ogni trimestre) una cartella reale e aprite qualche file — così si addestrano anche le persone che dovranno farlo in caso di emergenza.</p>
+{{template "docpager" .}}
+</article></div>{{end}}

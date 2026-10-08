@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>还原</h1>
+<p class="lead">每个成功的备份都可以还原：完整还原或只还原选定的文件夹，还原到同一台机器、另一个代理，或作为新的虚拟机。</p>
+
+<h2>还原向导</h2>
+<p>点击菜单中的 <a href="/restore"><b>还原</b></a>。向导会问四个问题：</p>
+<ol>
+  <li>要还原<b>什么</b>？
+    <ul>
+      <li>整台虚拟机</li>
+      <li>虚拟机中的文件</li>
+      <li>文件和文件夹</li>
+      <li>磁盘映像 / 裸机</li>
+      <li>磁盘映像中的文件</li>
+      <li>数据库（还原到某一时刻）</li>
+      <li>整个 Linux 系统</li>
+      <li>Microsoft 365 邮件和 OneDrive（参见 <a href="/docs/m365">Microsoft 365</a>）</li>
+    </ul>
+    每个选项都会显示有多少个可用的还原点。</li>
+  <li><b>来源</b>：虚拟机（跨所有虚拟化平台和作业），或备份作业及其机器。</li>
+  <li><b>还原点</b>：要从中还原的备份，最新的在前，显示其状态、存储和大小。
+    <ul>
+      <li>被标记为可疑（可能是勒索软件）的备份会有标识。</li>
+      <li>由备份复制作业在二级存储上创建的副本会列为<i>副本</i>（文件和虚拟机备份）。</li>
+    </ul>
+  </li>
+  <li><b>选项</b>：还原到哪里以及如何还原。选项上方会显示您所选内容的摘要。</li>
+</ol>
+<p>顶部的步骤都是链接，因此可以返回之前的任意步骤。每一步都有自己的地址，可以加入书签或分享。</p>
+<p>这些选项与 <a href="/runs">活动</a> 中备份页面上的选项相同，也可以在那里直接开始还原。只有角色允许还原的用户才能看到向导。</p>
+
+<h2>从文件备份还原</h2>
+<ol>
+  <li>在<a href="/restore">还原向导</a>中选择<b>文件和文件夹</b>，然后选择作业和还原点。也可以在 <a href="/runs">活动</a> 或作业页面中打开该备份。</li>
+  <li>在<b>从此备份还原文件</b>下选择接收文件的代理。它可以是与被备份机器不同的机器——例如替换用的 PC。</li>
+  <li>选择还原位置：
+    <ul>
+      <li><b>还原到文件夹</b>（推荐）——例如 <code>D:\Restore</code>。原始结构会在其下重建：<code>D:\Restore\C\Users\ana\Documents\…</code>。不会改动任何现有内容。</li>
+      <li><b>还原到原位置</b>——将文件写回原处，<b>覆盖</b>当前版本。对于 NAS 共享，代理会以可写方式重新连接共享。</li>
+    </ul>
+  </li>
+  <li>可选择限制为<b>仅这些路径</b>，每行一个，例如 <code>C:\Users\ana\Documents\Contracts</code>——或在文件浏览器中选择（见下文）。</li>
+  <li>保持<b>验证已还原的文件</b>处于开启状态：每个文件都会被读回并与备份中的校验和进行比较。</li>
+  <li>点击<b>开始还原</b>。进度和结果显示在还原运行的页面上。</li>
+</ol>
+<p>文件时间、Windows 属性（隐藏、只读……）以及 Linux 上的所有者、权限（包括 setuid 位）、ACL、扩展属性（SELinux 标签、文件 capabilities）、符号链接和硬链接也会一并还原。只有当代理以 root/管理员身份运行时才会设置所有者。</p>
+
+<h3 id="browse-files">浏览、下载和选择文件</h3>
+<p>在备份运行中，<b>浏览文件</b>会按原样显示备份的文件夹（NAS 共享和 Linux 系统备份也可以）。打开文件夹，勾选文件和文件夹，然后：</p>
+<ul>
+  <li><b>下载</b>——单个文件按原样下载，多个文件或文件夹打包为 ZIP 压缩包，直接在浏览器中下载。下载会记录在审计日志中。</li>
+  <li><b>在代理上还原它们</b>——还原到文件夹或原位置，如同使用<i>仅这些路径</i>的还原。</li>
+</ul>
+<p>指向文件的<b>符号链接</b>（例如 <code>/etc/os-release</code>）在其目标文件位于备份中时，会作为目标文件下载；指向文件夹的链接不会包含在 ZIP 压缩包中。从虚拟机备份（ext4、XFS）下载的文件同样如此。在代理上还原时，链接会重新创建为链接。</p>
+<p>控制台会自行从存储读取备份，因此浏览功能适用于网络存储上的备份（SFTP、S3、SMB、Azure、加固存储库）；对于代理的本地磁盘或 USB 磁盘，请通过路径还原。拥有还原角色的用户可以浏览和下载。</p>
+
+<div class="callout tip"><p><b>找到正确的备份：</b>使用 <a href="/calendar">日历</a> 查看哪天运行了哪些备份，或查看作业页面的历史记录。</p></div>
+
+<h2>从磁盘映像还原单个文件</h2>
+<p>对于映像备份，点击备份运行中的<b>浏览文件</b>。可以直接在控制台中浏览映像内的 NTFS 文件系统，勾选文件和文件夹，并将其还原到任意代理——无需还原整个磁盘。</p>
+
+<h2>从虚拟机还原单个文件（Proxmox VE、Hyper-V、VMware）</h2>
+<p>在虚拟机备份运行中，点击客户机旁的<b>浏览文件</b>。控制台会显示其磁盘的分区和 LVM 卷，并可浏览 NTFS、ext4 和 XFS 文件系统。<b>下载</b>勾选的文件（多个文件打包为 ZIP）或将其还原到任意代理。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。</p>
+
+<h2>还原整台机器</h2>
+<ul>
+  <li>Windows 磁盘映像：还原到磁盘或裸机，也可还原到不同硬件——<a href="/docs/images">磁盘映像</a>。</li>
+  <li>Linux 系统：还原到磁盘或裸机，或作为新的 Proxmox 虚拟机——<a href="/docs/linux-system">Linux 系统备份</a>。</li>
+  <li>Proxmox 虚拟机和容器：作为新客户机或就地还原——<a href="/docs/proxmox">Proxmox VE</a>。Proxmox 虚拟机还可以直接从备份即时运行，并在运行时迁移到存储（<a href="/docs/proxmox">即时恢复</a>）。</li>
+  <li>数据库（SQL Server、PostgreSQL、MySQL/MariaDB）：以新名称或就地还原到某一时刻——<a href="/docs/sql">数据库</a>。</li>
+  <li>Hyper-V 虚拟机：作为新虚拟机或就地还原（保留 ID 和 MAC 地址）——<a href="/docs/hyperv">Hyper-V</a>。</li>
+  <li>VMware ESXi 虚拟机：作为新虚拟机或就地还原（保留 UUID 和 MAC 地址），可还原到任意 ESXi 主机和数据存储——<a href="/docs/vmware">VMware ESXi</a>；也可通过 Linux 代理服务器代理从备份即时运行，然后复制到数据存储（<a href="/docs/vmware">即时恢复</a>）。</li>
+</ul>
+<h3 id="recovery-iso">恢复 ISO</h3>
+<p>裸机还原从恢复 ISO（写入 USB 闪存盘或挂载到虚拟机）启动机器，参见 <a href="/recovery">恢复介质</a>：</p>
+<ul>
+  <li><b>Linux 恢复 ISO</b>——随每个版本发布（<code>backupzit-recovery-linux.iso</code>）；恢复介质页面会从更新源链接到它。</li>
+  <li id="winpe"><b>Windows 恢复 ISO</b>——Windows PE 不允许再分发，因此需要在任意 Windows 10/11 或 Server PC 上构建一次：
+    <ol>
+      <li>从 Microsoft 安装免费的 <b>Windows ADK</b>（功能 <i>Deployment Tools</i>）和 <b>Windows PE 加载项</b>。</li>
+      <li>从发布中下载 <code>build-winpe.ps1</code>（位于代理软件包旁），并从装有代理的机器的 <code>C:\Program Files\backupzit Agent</code> 中取得 <code>backupzit-agent.exe</code>。</li>
+      <li>在管理员 PowerShell 中运行：<code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>。添加 <code>-DriverDir C:\Drivers</code> 以包含存储或网络驱动程序（例如 Proxmox 虚拟机的 VirtIO），添加 <code>-RecoveryJson .\recovery.json</code> 使其无需输入即可连接。</li>
+      <li>可选择将 ISO 复制到控制台的 <code>/var/lib/backupzit/dist</code> 目录；之后它会出现在恢复介质页面上。</li>
+    </ol></li>
+</ul>
+<p>控制台中的文件浏览适用于网络存储上的备份（SFTP、S3、SMB、Azure、加固存储库）；控制台会直接读取它们。对于代理本地磁盘上的备份，请使用命令行。</p>
+
+<h2>不通过控制台还原</h2>
+<p>如果控制台本身丢失，任何安装了代理的机器都可以使用存储目标的<b>恢复单</b>直接从存储还原：</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>参见 <a href="/docs/cli">命令行参考</a>。</p>
+
+<h2>自动还原测试</h2>
+<p>BackupZit 会定期验证您的备份，无需您做任何操作：每周（可在 <a href="/settings/tests">设置 → 还原测试</a> 中配置）每个作业的代理会从最新备份中还原一个<b>随机文件样本</b>到临时文件夹，根据存储的校验和验证每个字节，然后再删除。对于磁盘映像，会读取并验证随机块。这会检验整个链条——存储访问、凭据、加密密钥和数据完整性。</p>
+<ul>
+  <li>结果以<i>还原测试</i>运行的形式显示在“活动”和作业历史中，并按作业显示在 <a href="/reports">报告</a> 中（<i>还原测试</i>列）。</li>
+  <li>测试失败与其他任何故障一样，会触发电子邮件警报。</li>
+  <li>作业页面上的<b>测试还原</b>会立即开始测试。</li>
+  <li>样本大小限制了从存储读取的数据量——对于收取下载费用的云存储，请保持较小的样本。</li>
+</ul>
+<h3>Proxmox 虚拟机的启动测试</h3>
+<p>可读的块并不能证明虚拟机仍能启动。启用<b>Proxmox 虚拟机备份的启动测试</b>（设置 → 还原测试）后，Proxmox 虚拟机作业的还原测试还会通过<a href="/docs/proxmox">即时恢复</a>在作业所在节点上逐个启动最新备份中的每台虚拟机：它以新 ID 从备份运行，网卡处于断开状态（以免与原机器冲突），随后立即被删除。当虚拟机的 <b>QEMU 客户机代理</b>在配置的时间内响应时，即表示操作系统已启动，测试通过。没有客户机代理的虚拟机若持续运行一分钟即视为通过；运行页面会将其显示为<i>运行中</i>而不是<i>已启动</i>。</p>
+<ul>
+  <li>测试运行期间，节点需要有足够的空闲内存再运行一台虚拟机。</li>
+  <li>在虚拟机中安装 QEMU 客户机代理（Linux 上为 <code>qemu-guest-agent</code>，Windows 上为 VirtIO 客户机工具）并在虚拟机选项中启用，以便测试能确认启动。</li>
+  <li>运行页面列出每台虚拟机的结果及启动所用时间。</li>
+</ul>
+<p>此外，请不时（例如每季度）手动还原一个真实的文件夹并打开几个文件——这也能训练那些在紧急情况下需要执行还原的人员。</p>
+{{template "docpager" .}}
+</article></div>{{end}}

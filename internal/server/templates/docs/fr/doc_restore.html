@@ -1,0 +1,113 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Restauration</h1>
+<p class="lead">Chaque sauvegarde réussie peut être restaurée : entièrement ou seulement certains dossiers, sur la même machine, sur un autre agent ou en tant que nouvelle machine virtuelle.</p>
+
+<h2>L'assistant de restauration</h2>
+<p>Cliquez sur <a href="/restore"><b>Restaurer</b></a> dans le menu. L'assistant pose quatre questions :</p>
+<ol>
+  <li><b>Quoi</b> voulez-vous restaurer ?
+    <ul>
+      <li>une machine virtuelle complète</li>
+      <li>des fichiers d'une machine virtuelle</li>
+      <li>des fichiers et dossiers</li>
+      <li>une image disque / bare metal</li>
+      <li>des fichiers d'une image disque</li>
+      <li>une base de données (à un instant précis)</li>
+      <li>un système Linux complet</li>
+      <li>la messagerie Microsoft 365 et OneDrive (voir <a href="/docs/m365">Microsoft 365</a>)</li>
+    </ul>
+    Chaque choix indique combien de points de restauration existent.</li>
+  <li><b>Source</b> : la machine virtuelle (tous hyperviseurs et tâches confondus), ou la tâche de sauvegarde et sa machine.</li>
+  <li><b>Point de restauration</b> : la sauvegarde à partir de laquelle restaurer, la plus récente d'abord, avec son état, son stockage et sa taille.
+    <ul>
+      <li>Les sauvegardes signalées comme suspectes (rançongiciel possible) sont marquées.</li>
+      <li>Les copies sur un stockage secondaire faites par une tâche de copie de sauvegarde sont listées comme <i>copie</i> (sauvegardes de fichiers et de VM).</li>
+    </ul>
+  </li>
+  <li><b>Options</b> : où et comment restaurer. Un résumé de vos choix s'affiche au-dessus des options.</li>
+</ol>
+<p>Les étapes en haut sont des liens, vous pouvez donc revenir à n'importe quelle étape précédente. Chaque étape a sa propre adresse, que vous pouvez mettre en favori ou partager.</p>
+<p>Les options sont les mêmes que sur la page d'une sauvegarde dans <a href="/runs">Activité</a>, où vous pouvez aussi lancer une restauration directement. Seuls les utilisateurs dont le rôle autorise la restauration voient l'assistant.</p>
+
+<h2>Restaurer depuis une sauvegarde de fichiers</h2>
+<ol>
+  <li>Choisissez <b>Fichiers et dossiers</b> dans l'<a href="/restore">assistant de restauration</a>, puis la tâche et le point de restauration. Vous pouvez aussi ouvrir la sauvegarde dans <a href="/runs">Activité</a> ou sur la page de la tâche.</li>
+  <li>Sous <b>Restaurer des fichiers depuis cette sauvegarde</b>, choisissez l'agent qui doit recevoir les fichiers. Ce peut être une autre machine que celle sauvegardée — par exemple un PC de remplacement.</li>
+  <li>Choisissez où :
+    <ul>
+      <li><b>Restaurer dans un dossier</b> (recommandé) — p. ex. <code>D:\Restore</code>. L'arborescence d'origine y est recréée : <code>D:\Restore\C\Users\ana\Documents\…</code>. Rien d'existant n'est touché.</li>
+      <li><b>Restaurer à l’emplacement d’origine</b> — réécrit les fichiers là où ils étaient, en <b>écrasant</b> les versions actuelles. Pour un partage NAS, l'agent reconnecte le partage en écriture.</li>
+    </ul>
+  </li>
+  <li>Limitez éventuellement à <b>Uniquement ces chemins</b>, un par ligne, p. ex. <code>C:\Users\ana\Documents\Contracts</code> — ou sélectionnez-les dans le navigateur de fichiers (ci-dessous).</li>
+  <li>Laissez <b>Vérifier les fichiers restaurés</b> activé : chaque fichier est relu et comparé à la somme de contrôle de la sauvegarde.</li>
+  <li>Cliquez sur <b>Lancer la restauration</b>. La progression et les résultats s'affichent sur la page de l'exécution de restauration.</li>
+</ol>
+<p>Les dates des fichiers, les attributs Windows (caché, lecture seule, …) et, sous Linux, les propriétaires, permissions (y compris les bits setuid), ACL, attributs étendus (étiquettes SELinux, capacités de fichiers), liens symboliques et physiques sont aussi restaurés. Les propriétaires ne sont définis que si l'agent tourne en root/administrateur.</p>
+
+<h3 id="browse-files">Parcourir, télécharger et choisir des fichiers</h3>
+<p>Sur l'exécution de sauvegarde, <b>Parcourir les fichiers</b> montre les dossiers sauvegardés tels qu'ils étaient (aussi pour les partages NAS et les sauvegardes de système Linux). Ouvrez des dossiers, cochez des fichiers et des dossiers, puis :</p>
+<ul>
+  <li><b>Télécharger</b> — un fichier arrive tel quel, plusieurs fichiers ou dossiers sous forme d'archive ZIP, directement dans le navigateur. Les téléchargements sont consignés dans le journal d'audit.</li>
+  <li><b>Les restaurer sur un agent</b> — dans un dossier ou à l'emplacement d'origine, comme une restauration avec <i>Uniquement ces chemins</i>.</li>
+</ul>
+<p>Un <b>lien symbolique</b> vers un fichier (p. ex. <code>/etc/os-release</code>) est téléchargé comme le fichier vers lequel il pointe, si ce fichier est dans la sauvegarde ; les liens vers des dossiers sont omis des archives ZIP. Il en va de même pour les fichiers téléchargés depuis des sauvegardes de machines virtuelles (ext4, XFS). Une restauration sur un agent recrée les liens en tant que liens.</p>
+<p>La console lit elle-même la sauvegarde depuis le stockage ; la navigation fonctionne donc pour les sauvegardes sur un stockage réseau (SFTP, S3, SMB, Azure, dépôt renforcé) ; pour un disque local ou USB d'un agent, restaurez avec les chemins. Les utilisateurs disposant d'un rôle de restauration peuvent parcourir et télécharger.</p>
+
+<div class="callout tip"><p><b>Trouver la bonne sauvegarde :</b> utilisez le <a href="/calendar">Calendrier</a> pour voir quelles sauvegardes se sont exécutées quel jour, ou l'historique de la page de la tâche.</p></div>
+
+<h2>Restaurer des fichiers individuels depuis une image disque</h2>
+<p>Pour les sauvegardes d'image, cliquez sur <b>Parcourir les fichiers</b> dans l'exécution de sauvegarde. Vous pouvez parcourir le système de fichiers NTFS de l'image directement dans la console, cocher des fichiers et dossiers et les restaurer sur n'importe quel agent — sans restaurer le disque entier.</p>
+
+<h2>Restaurer des fichiers individuels depuis une VM (Proxmox VE, Hyper-V, VMware)</h2>
+<p>Dans une exécution de sauvegarde de VM, cliquez sur <b>Parcourir les fichiers</b> à côté de l'invité. La console affiche les partitions et volumes LVM de ses disques et permet de parcourir les systèmes de fichiers NTFS, ext4 et XFS. <b>Téléchargez</b> les fichiers cochés (plusieurs sous forme d'archive ZIP) ou restaurez-les sur n'importe quel agent. Voir <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> et <a href="/docs/vmware">VMware ESXi</a>.</p>
+
+<h2>Restaurer des machines entières</h2>
+<ul>
+  <li>Images disque Windows : sur un disque ou en bare metal, aussi sur un matériel différent — <a href="/docs/images">Images disque</a>.</li>
+  <li>Systèmes Linux : sur un disque ou en bare metal, ou comme nouvelle VM Proxmox — <a href="/docs/linux-system">Sauvegarde du système Linux</a>.</li>
+  <li>VM et conteneurs Proxmox : comme nouvel invité ou sur place — <a href="/docs/proxmox">Proxmox VE</a>. Les VM Proxmox peuvent aussi tourner instantanément depuis la sauvegarde et être déplacées vers un stockage pendant qu'elles tournent (<a href="/docs/proxmox">restauration instantanée</a>).</li>
+  <li>Bases de données (SQL Server, PostgreSQL, MySQL/MariaDB) : sous un nouveau nom ou sur place, à un instant précis — <a href="/docs/sql">Bases de données</a>.</li>
+  <li>VM Hyper-V : comme nouvelle VM ou sur place (conserve l'ID et les adresses MAC) — <a href="/docs/hyperv">Hyper-V</a>.</li>
+  <li>VM VMware ESXi : comme nouvelle VM ou sur place (conserve l'UUID et les adresses MAC), sur n'importe quel hôte ESXi et datastore — <a href="/docs/vmware">VMware ESXi</a> ; aussi instantanément depuis la sauvegarde via un agent proxy Linux, puis copiée sur un datastore (<a href="/docs/vmware">restauration instantanée</a>).</li>
+</ul>
+<h3 id="recovery-iso">ISO de récupération</h3>
+<p>Les restaurations bare metal démarrent la machine depuis une ISO de récupération (sur une clé USB ou attachée à une VM), voir <a href="/recovery">Supports de récupération</a> :</p>
+<ul>
+  <li><b>ISO de récupération Linux</b> — publiée avec chaque version (<code>backupzit-recovery-linux.iso</code>) ; la page Supports de récupération la lie depuis la source de mise à jour.</li>
+  <li id="winpe"><b>ISO de récupération Windows</b> — Windows PE ne peut pas être redistribué ; elle se construit donc une fois sur n'importe quel PC Windows 10/11 ou Server :
+    <ol>
+      <li>Installez le <b>Windows ADK</b> gratuit (fonction <i>Deployment Tools</i>) et le <b>module complémentaire Windows PE</b> de Microsoft.</li>
+      <li>Téléchargez <code>build-winpe.ps1</code> depuis la version (à côté des paquets d'agent) et prenez <code>backupzit-agent.exe</code> dans <code>C:\Program Files\backupzit Agent</code> d'une machine dotée de l'agent.</li>
+      <li>Dans un PowerShell administrateur : <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Ajoutez <code>-DriverDir C:\Drivers</code> pour des pilotes de stockage ou de réseau (p. ex. VirtIO pour les VM Proxmox) et <code>-RecoveryJson .\recovery.json</code> pour qu'elle se connecte sans saisie.</li>
+      <li>Copiez éventuellement l'ISO dans le répertoire <code>/var/lib/backupzit/dist</code> de la console ; elle est alors proposée sur la page Supports de récupération.</li>
+    </ol></li>
+</ul>
+<p>La navigation dans les fichiers depuis la console fonctionne pour les sauvegardes sur un stockage réseau (SFTP, S3, SMB, Azure, dépôt renforcé) ; la console les lit directement. Pour les sauvegardes sur un disque local d'un agent, utilisez la ligne de commande.</p>
+
+<h2>Restaurer sans la console</h2>
+<p>Si la console elle-même est perdue, n'importe quelle machine dotée de l'agent peut restaurer directement depuis le stockage à l'aide de la <b>fiche de récupération</b> de la cible de stockage :</p>
+<pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
+set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
+backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
+<p>Voir <a href="/docs/cli">Référence de la ligne de commande</a>.</p>
+
+<h2>Tests de restauration automatiques</h2>
+<p>BackupZit éprouve vos sauvegardes régulièrement sans que vous ayez à intervenir : chaque semaine (réglable sous <a href="/settings/tests">Paramètres → Tests de restauration</a>), l'agent de chaque tâche restaure un <b>échantillon aléatoire de fichiers</b> de la sauvegarde la plus récente dans un dossier temporaire, vérifie chaque octet par rapport aux sommes de contrôle enregistrées, puis le supprime. Pour les images disque, des blocs aléatoires sont lus et vérifiés. Cela met à l'épreuve toute la chaîne — accès au stockage, identifiants, clé de chiffrement et intégrité des données.</p>
+<ul>
+  <li>Les résultats apparaissent dans Activité et l'historique de la tâche comme exécutions <i>Test de restauration</i>, et par tâche dans <a href="/reports">Rapports</a> (colonne <i>Test de restauration</i>).</li>
+  <li>Un test échoué est un échec comme un autre et déclenche une alerte par e-mail.</li>
+  <li><b>Tester la restauration</b> sur la page d'une tâche lance un test immédiatement.</li>
+  <li>La taille de l'échantillon limite la quantité lue depuis le stockage — gardez-la petite pour un stockage cloud avec frais de téléchargement.</li>
+</ul>
+<h3>Test de démarrage pour les VM Proxmox</h3>
+<p>Des blocs lisibles ne prouvent pas qu'une VM démarre encore. Avec <b>Test de démarrage pour les sauvegardes de VM Proxmox</b> activé (Paramètres → Tests de restauration), le test de restauration d'une tâche de VM Proxmox démarre aussi chaque VM de la sauvegarde la plus récente sur le nœud de la tâche, l'une après l'autre, avec la <a href="/docs/proxmox">restauration instantanée</a> : elle tourne depuis la sauvegarde avec un nouvel ID, cartes réseau déconnectées (pour ne pas entrer en conflit avec l'original), puis est supprimée juste après. Le test réussit quand l'<b>agent invité QEMU</b> de la VM répond dans le délai configuré, ce qui signifie que le système d'exploitation a démarré. Les VM sans agent invité réussissent si elles continuent de tourner pendant une minute ; la page de l'exécution les affiche alors comme <i>en cours</i> plutôt que <i>démarrée</i>.</p>
+<ul>
+  <li>Le nœud a besoin de mémoire libre pour une VM de plus pendant le test.</li>
+  <li>Installez l'agent invité QEMU dans les VM (<code>qemu-guest-agent</code> sous Linux, les outils invités VirtIO sous Windows) et activez-le dans les options de la VM, pour que le test puisse confirmer le démarrage.</li>
+  <li>La page de l'exécution liste chaque VM avec son résultat et la durée du démarrage.</li>
+</ul>
+<p>En plus, restaurez de temps en temps (p. ex. chaque trimestre) un vrai dossier à la main et ouvrez quelques fichiers — cela entraîne aussi les personnes qui devront le faire en cas d'urgence.</p>
+{{template "docpager" .}}
+</article></div>{{end}}
