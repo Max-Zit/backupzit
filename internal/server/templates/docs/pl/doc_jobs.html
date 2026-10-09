@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>Jeśli polecenie <b>przed</b> się nie powiedzie (kod wyjścia różny od 0) lub trwa dłużej niż limit czasu (domyślnie 30 minut), kopia nie jest wykonywana, a uruchomienie kończy się błędem z wyjściem polecenia.</li>
   <li>Polecenie <b>po</b> działa także wtedy, gdy kopia się nie powiodła, aby mogło ponownie uruchomić to, co zatrzymało pierwsze. Nieudane polecenie po kopii zamienia uruchomienie w ostrzeżenie.</li>
   <li>Oba dostają <code>BACKUPZIT_STAGE</code> (pre lub post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> oraz, po kopii, <code>BACKUPZIT_STATUS</code> (success, warning lub failed).</li>
+  <li>Strona uruchomienia pokazuje wynik i wyjście każdego polecenia, także gdy się powiodło.</li>
   <li>W zadaniach maszyn wirtualnych polecenia działają na hoście hipernadzorcy (lub proxy VMware), a nie w maszynach. Zadania kopii kopii nie mają poleceń.</li>
 </ul>
 

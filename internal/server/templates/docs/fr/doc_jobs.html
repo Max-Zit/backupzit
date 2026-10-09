@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>Si la commande <b>avant</b> échoue (code de sortie différent de 0) ou dure plus que le délai (30 minutes par défaut), la sauvegarde n'est pas lancée et l'exécution échoue avec la sortie de la commande.</li>
   <li>La commande <b>après</b> s'exécute aussi quand la sauvegarde a échoué, pour pouvoir redémarrer ce que la première a arrêté. Une commande après la sauvegarde qui échoue transforme l'exécution en avertissement.</li>
   <li>Les deux reçoivent <code>BACKUPZIT_STAGE</code> (pre ou post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> et, après la sauvegarde, <code>BACKUPZIT_STATUS</code> (success, warning ou failed).</li>
+  <li>La page de l'exécution affiche le résultat et la sortie de chaque commande, même en cas de succès.</li>
   <li>Pour les tâches de VM, les commandes s'exécutent sur l'hôte hyperviseur (ou le proxy VMware), pas dans les VM. Les tâches de copie n'ont pas de commandes.</li>
 </ul>
 

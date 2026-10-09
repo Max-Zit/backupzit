@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>Si el comando <b>anterior</b> falla (código de salida distinto de 0) o dura más que el límite de tiempo (30 minutos por defecto), la copia no se ejecuta y la ejecución falla con la salida del comando.</li>
   <li>El comando <b>posterior</b> se ejecuta también cuando la copia falla, para poder reiniciar lo que detuvo el primero. Si el comando posterior falla, la ejecución queda como advertencia.</li>
   <li>Ambos reciben <code>BACKUPZIT_STAGE</code> (pre o post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> y, después de la copia, <code>BACKUPZIT_STATUS</code> (success, warning o failed).</li>
+  <li>La página de la ejecución muestra el resultado y la salida de cada comando, también cuando tuvo éxito.</li>
   <li>En los trabajos de VM, los comandos se ejecutan en el host hipervisor (o el proxy de VMware), no dentro de las VM. Los trabajos de copia secundaria no tienen comandos.</li>
 </ul>
 

@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Önceki</b> komut başarısız olursa (çıkış kodu 0 değil) veya zaman sınırından (varsayılan 30 dakika) uzun sürerse yedek çalıştırılmaz ve çalıştırma komutun çıktısıyla başarısız olur.</li>
   <li><b>Sonraki</b> komut yedek başarısız olduğunda da çalışır; böylece ilk komutun durdurduğunu yeniden başlatabilir. Yedekten sonraki komutun başarısız olması çalıştırmayı uyarıya dönüştürür.</li>
   <li>İkisi de <code>BACKUPZIT_STAGE</code> (pre veya post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> ve yedekten sonra <code>BACKUPZIT_STATUS</code> (success, warning veya failed) alır.</li>
+  <li>Çalıştırma sayfası her komutun sonucunu ve çıktısını, başarılı olduğunda da gösterir.</li>
   <li>VM işlerinde komutlar VM'lerin içinde değil, hipervizör ana bilgisayarında (veya VMware proxy'sinde) çalışır. Kopyalama işlerinin komutu yoktur.</li>
 </ul>
 

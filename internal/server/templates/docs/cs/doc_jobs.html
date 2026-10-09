@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>Pokud příkaz <b>před</b> selže (návratový kód není 0) nebo běží déle než časový limit (výchozí 30 minut), záloha se nespustí a běh selže s výstupem příkazu.</li>
   <li>Příkaz <b>po</b> běží i tehdy, když záloha selhala, aby mohl znovu spustit to, co první příkaz zastavil. Selhání příkazu po záloze změní běh na varování.</li>
   <li>Oba dostanou <code>BACKUPZIT_STAGE</code> (pre nebo post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> a po záloze <code>BACKUPZIT_STATUS</code> (success, warning nebo failed).</li>
+  <li>Stránka běhu ukazuje výsledek a výstup každého příkazu, i když uspěl.</li>
   <li>U úloh VM běží příkazy na hostiteli hypervizoru (nebo proxy VMware), ne uvnitř VM. Úlohy kopií příkazy nemají.</li>
 </ul>
 

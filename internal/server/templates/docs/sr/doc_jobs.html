@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, pre<
   <li>Ako komanda <b>pre</b> ne uspe (izlazni kod nije 0) ili traje duže od vremenskog ograničenja (podrazumevano 30 minuta), bekap se ne pokreće, a pokretanje ne uspeva sa izlazom komande.</li>
   <li>Komanda <b>posle</b> se izvršava i kada bekap nije uspeo, da bi mogla ponovo da pokrene ono što je prva komanda zaustavila. Neuspela komanda posle bekapa pretvara pokretanje u upozorenje.</li>
   <li>Obe dobijaju <code>BACKUPZIT_STAGE</code> (pre ili post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> i, posle bekapa, <code>BACKUPZIT_STATUS</code> (success, warning ili failed).</li>
+  <li>Stranica pokretanja prikazuje ishod i izlaz svake komande, i kada je uspela.</li>
   <li>Za VM poslove komande se izvršavaju na hipervizor hostu (ili VMware proxy-ju), ne u virtuelnim mašinama. Poslovi kopiranja nemaju komande.</li>
 </ul>
 

@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>Mislukt de opdracht <b>ervoor</b> (afsluitcode niet 0) of duurt ze langer dan de tijdslimiet (standaard 30 minuten), dan draait de back-up niet en mislukt de uitvoering met de uitvoer van de opdracht.</li>
   <li>De opdracht <b>erna</b> draait ook als de back-up mislukte, zodat ze kan herstarten wat de eerste opdracht stopte. Een mislukte opdracht na de back-up maakt van de uitvoering een waarschuwing.</li>
   <li>Beide krijgen <code>BACKUPZIT_STAGE</code> (pre of post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> en, na de back-up, <code>BACKUPZIT_STATUS</code> (success, warning of failed).</li>
+  <li>De uitvoeringspagina toont het resultaat en de uitvoer van elke opdracht, ook als die geslaagd is.</li>
   <li>Bij VM-taken draaien de opdrachten op de hypervisorhost (of de VMware-proxy), niet in de VM's. Kopieertaken hebben geen opdrachten.</li>
 </ul>
 

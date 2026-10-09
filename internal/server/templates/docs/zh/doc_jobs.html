@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>如果<b>之前</b>的命令失败（退出代码不为 0）或运行时间超过时间限制（默认 30 分钟），则不运行备份，运行会失败并显示命令的输出。</li>
   <li><b>之后</b>的命令在备份失败时也会运行，以便重新启动第一个命令停止的内容。备份后的命令失败会使运行变为警告。</li>
   <li>两者都会获得 <code>BACKUPZIT_STAGE</code>（pre 或 post）、<code>BACKUPZIT_JOB</code>、<code>BACKUPZIT_JOB_ID</code>、<code>BACKUPZIT_RUN_ID</code>，备份后还有 <code>BACKUPZIT_STATUS</code>（success、warning 或 failed）。</li>
+  <li>运行页面会显示每个命令的结果和输出，命令成功时也会显示。</li>
   <li>对于虚拟机作业，命令在虚拟化主机（或 VMware 代理服务器）上运行，而不是在虚拟机内运行。复制作业没有命令。</li>
 </ul>
 

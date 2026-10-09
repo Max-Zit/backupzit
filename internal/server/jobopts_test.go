@@ -37,7 +37,7 @@ func TestJobEditAndCommands(t *testing.T) {
 	os.WriteFile(filepath.Join(src, "a.txt"), []byte("a"), 0o644)
 	statusFile := filepath.Join(t.TempDir(), "status.txt")
 
-	pre := "echo dump > \"" + filepath.Join(src, "dump.sql") + "\""
+	pre := "echo dump > \"" + filepath.Join(src, "dump.sql") + "\"\necho prepared the dump"
 	post := "echo $BACKUPZIT_STATUS > \"" + statusFile + "\""
 	if runtime.GOOS == "windows" {
 		post = "echo %BACKUPZIT_STATUS%> \"" + statusFile + "\""
@@ -68,6 +68,10 @@ func TestJobEditAndCommands(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(statusFile); strings.TrimSpace(string(b)) != "success" {
 		t.Errorf("command after the backup wrote %q", b)
+	}
+	// The run page shows the commands and their output also when they succeed.
+	if _, _, body := admin.do("GET", fmt.Sprintf("/runs/%d", runID), nil); !strings.Contains(body, "Before the backup") || !strings.Contains(body, "prepared the dump") || !strings.Contains(body, "After the backup") {
+		t.Error("run page lacks the output of the commands")
 	}
 
 	// Compression: the run shows the ratio; with "off" new data is stored

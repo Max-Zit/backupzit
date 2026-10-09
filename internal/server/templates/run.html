@@ -177,6 +177,15 @@
 {{end}}
 
 {{with .Data.Run}}
+{{with .CommandResults}}
+<div class="panel">
+  <h2>{{T "Commands before and after the backup"}}</h2>
+  {{range .}}
+  <h3>{{if eq .Stage "pre"}}{{T "Before the backup"}}{{else}}{{T "After the backup"}}{{end}} {{if .Error}}<span class="badge failed"><i></i>{{T "failed"}}</span> <span class="small muted">{{.Error}}</span>{{else}}<span class="badge success"><i></i>{{T "succeeded"}}</span>{{end}}</h3>
+  {{if .Output}}<pre>{{.Output}}</pre>{{else}}<p class="muted small">{{T "The command wrote no output."}}</p>{{end}}
+  {{end}}
+</div>
+{{end}}
 {{if .Errors}}
 <div class="panel">
   <h2>{{T "Errors and warnings ("}}{{len .Errors}})</h2>

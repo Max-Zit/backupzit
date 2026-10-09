@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>前</b>のコマンドが失敗した場合（終了コードが 0 以外）、または時間制限（既定 30 分）を超えた場合、バックアップは実行されず、コマンドの出力とともに実行が失敗します。</li>
   <li><b>後</b>のコマンドはバックアップが失敗した場合にも実行されるため、最初のコマンドが停止したものを再開できます。バックアップ後のコマンドが失敗すると、実行は警告になります。</li>
   <li>どちらも <code>BACKUPZIT_STAGE</code>（pre または post）、<code>BACKUPZIT_JOB</code>、<code>BACKUPZIT_JOB_ID</code>、<code>BACKUPZIT_RUN_ID</code> を受け取り、バックアップ後には <code>BACKUPZIT_STATUS</code>（success、warning、failed）も受け取ります。</li>
+  <li>実行ページには、成功した場合も含め、各コマンドの結果と出力が表示されます。</li>
   <li>VM ジョブでは、コマンドは VM 内ではなくハイパーバイザー ホスト（または VMware プロキシ）で実行されます。コピー ジョブにはコマンドがありません。</li>
 </ul>
 

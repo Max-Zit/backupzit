@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>If the command <b>before</b> fails (exit code not 0) or runs longer than the time limit (default 30 minutes), the backup does not run and the run fails with the command's output.</li>
   <li>The command <b>after</b> runs also when the backup failed, so it can restart what the first command stopped. A failing command after the backup turns the run into a warning.</li>
   <li>Both get <code>BACKUPZIT_STAGE</code> (pre or post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> and, after the backup, <code>BACKUPZIT_STATUS</code> (success, warning or failed).</li>
+  <li>The run page shows the result and the output of each command, also when it succeeded.</li>
   <li>For VM jobs the commands run on the hypervisor host (or the VMware proxy), not inside the VMs. Copy jobs have no commands.</li>
 </ul>
 

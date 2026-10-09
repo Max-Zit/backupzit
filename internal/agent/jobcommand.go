@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/max-zit/backupzit/internal/api"
 )
@@ -74,12 +75,32 @@ func (a *Agent) jobCommand(ctx context.Context, run api.Run, stage, command, sta
 
 // commandOutput is the end of a command's output as run errors.
 func commandOutput(out []byte) []string {
-	s := strings.TrimSpace(string(out))
+	s := tailOutput(out)
 	if s == "" {
 		return nil
 	}
-	if len(s) > 2000 {
-		s = "…" + s[len(s)-2000:]
-	}
 	return []string{"command output: " + s}
+}
+
+// commandResult reports a command's outcome and output to the console, so
+// the run page shows the output also when the command succeeded.
+func commandResult(stage string, out []byte, err error) api.CommandResult {
+	c := api.CommandResult{Stage: stage, Output: tailOutput(out)}
+	if err != nil {
+		c.Error = err.Error()
+	}
+	return c
+}
+
+// tailOutput is the end of a command's output, at most 2000 characters.
+func tailOutput(out []byte) string {
+	s := strings.TrimSpace(string(out))
+	if len(s) > 2000 {
+		i := len(s) - 2000
+		for i < len(s) && !utf8.RuneStart(s[i]) {
+			i++ // do not cut a character in half
+		}
+		s = "…" + s[i:]
+	}
+	return s
 }

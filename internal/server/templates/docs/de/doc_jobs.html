@@ -94,6 +94,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>Schlägt der Befehl <b>davor</b> fehl (Exit-Code ungleich 0) oder läuft er länger als das Zeitlimit (Standard 30 Minuten), wird die Sicherung nicht ausgeführt und der Lauf schlägt mit der Ausgabe des Befehls fehl.</li>
   <li>Der Befehl <b>danach</b> läuft auch, wenn die Sicherung fehlschlug, damit er wieder starten kann, was der erste Befehl gestoppt hat. Ein fehlschlagender Befehl nach der Sicherung macht den Lauf zu einer Warnung.</li>
   <li>Beide erhalten <code>BACKUPZIT_STAGE</code> (pre oder post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> und nach der Sicherung <code>BACKUPZIT_STATUS</code> (success, warning oder failed).</li>
+  <li>Die Laufseite zeigt Ergebnis und Ausgabe jedes Befehls, auch wenn er erfolgreich war.</li>
   <li>Bei VM-Aufträgen laufen die Befehle auf dem Hypervisor-Host (oder dem VMware-Proxy), nicht in den VMs. Kopieraufträge haben keine Befehle.</li>
 </ul>
 

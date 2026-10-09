@@ -278,6 +278,9 @@ type RunResult struct {
 	// RepoURL is the actual repository location when the run was given a
 	// pattern (rotating USB disks: the label of the disk used).
 	RepoURL string `json:"repo_url,omitempty"`
+	// Commands is the outcome and output of the commands the job runs
+	// before and after the backup.
+	Commands []CommandResult `json:"commands,omitempty"`
 	// RepoBytes is the space the repository takes after a backup and its
 	// retention; StorageTotal and StorageFree the capacity of the storage
 	// holding it, when it can tell (disks, SFTP, SMB).
@@ -426,4 +429,12 @@ type SQLRestore struct {
 	StopAt   time.Time `json:"stop_at,omitempty"` // zero: as far as LogSnapshots reach
 	// LogSnapshots are the log backups after the full backup, oldest first.
 	LogSnapshots []string `json:"log_snapshots,omitempty"`
+}
+
+// CommandResult is the outcome of a command run before ("pre") or after
+// ("post") a backup.
+type CommandResult struct {
+	Stage  string `json:"stage"`
+	Error  string `json:"error,omitempty"` // empty: the command succeeded
+	Output string `json:"output,omitempty"`
 }

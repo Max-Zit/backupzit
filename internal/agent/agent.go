@@ -309,8 +309,11 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		}))
 	}
 	kind := run.Kind
+	var commands []api.CommandResult
 	if run.PreCommand != "" && backupKind(run.Kind) {
-		if out, err := a.jobCommand(ctx, run, "pre", run.PreCommand, ""); err != nil {
+		out, err := a.jobCommand(ctx, run, "pre", run.PreCommand, "")
+		commands = append(commands, commandResult("pre", out, err))
+		if err != nil {
 			res = api.RunResult{Status: api.StatusFailed, Message: "The command before the backup failed (" + err.Error() + "); the backup did not run", Errors: commandOutput(out)}
 			kind = "" // skip the backup
 		}
@@ -370,7 +373,9 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 	if run.PostCommand != "" && backupKind(run.Kind) {
 		// Runs also after failures, e.g. to restart services the command
 		// before the backup stopped.
-		if out, err := a.jobCommand(ctx, run, "post", run.PostCommand, res.Status); err != nil {
+		out, err := a.jobCommand(ctx, run, "post", run.PostCommand, res.Status)
+		commands = append(commands, commandResult("post", out, err))
+		if err != nil {
 			if res.Status == api.StatusSuccess {
 				res.Status = api.StatusWarning
 			}
@@ -378,6 +383,7 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 			res.Errors = append(res.Errors, commandOutput(out)...)
 		}
 	}
+	res.Commands = commands
 	if strings.HasPrefix(run.Repository.URL, "usb://") && res.Status != api.StatusFailed && (run.Kind == api.KindBackup || run.Kind == api.KindImageBackup || run.Kind == api.KindVMBackup || run.Kind == api.KindSystemBackup || run.Kind == api.KindCopy) {
 		// Record which of the rotating disks holds this backup.
 		if _, loc, err := backend.ResolveUSB(run.Repository.URL); err == nil {
