@@ -57,7 +57,7 @@
 <div class="callout tip"><p><b>Finding the right backup:</b> use the <a href="/calendar">Calendar</a> to see which backups ran on which day, or the job page's history.</p></div>
 
 <h2>Restore single files from a disk image</h2>
-<p>For image backups, click <b>Browse files</b> on the backup run. You can navigate the NTFS file system inside the image directly in the console, tick files and folders, and restore them to any agent — without restoring the whole disk.</p>
+<p>For image backups, click <b>Browse files</b> on the backup run. You can navigate the NTFS file system inside the image directly in the console, tick files and folders, and restore them to any agent — without restoring the whole disk. Restored into a folder, the files get the same layout as from a file backup: the drive letter becomes the first folder (<code>D:RestoreCUsers…</code>).</p>
 
 <h2>Restore single files from a VM (Proxmox VE, Hyper-V, VMware)</h2>
 <p>In a VM backup run click <b>Browse files</b> next to the guest. The console shows the partitions and LVM volumes of its disks and lets you browse NTFS, ext4 and XFS file systems. <b>Download</b> the ticked files (several as a ZIP archive) or restore them on any agent. See <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> and <a href="/docs/vmware">VMware ESXi</a>.</p>

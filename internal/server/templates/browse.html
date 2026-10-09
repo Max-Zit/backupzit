@@ -32,7 +32,7 @@
       <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
     </label>
     <label class="check"><input type="radio" name="mode" value="folder" checked> {{T "Restore into a folder"}}</label>
-    <label>{{T "Folder"}} <small>{{T "the path inside the partition is recreated below it, e.g. D:\\Restore\\Users\\ana\\..."}}</small><input name="target" placeholder="{{T "C:\\Restore"}}"></label>
+    <label>{{T "Folder"}} <small>{{T "the original path structure is recreated below it, e.g. D:\\Restore\\C\\Users\\..."}}</small><input name="target" placeholder="{{T "C:\\Restore"}}"></label>
     <label class="check"><input type="radio" name="mode" value="original"> {{T "Restore to the original location (overwrites existing files)"}}</label>
     <div><button>{{T "Restore"}}</button></div>
   </div>

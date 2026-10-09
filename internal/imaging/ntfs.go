@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/max-zit/backupzit/internal/repo"
 	ntfs "www.velocidex.com/golang/go-ntfs/parser"
@@ -402,9 +403,10 @@ func OpenSnapshotVolume(ctx context.Context, r *repo.Repository, sn *repo.Snapsh
 	return nil, nil, fmt.Errorf("image has no partition %d", part)
 }
 
-// DestFunc maps paths inside a partition to restore targets: below target
-// (keeping the folder structure), or to the partition's original drive
-// when target is empty.
+// DestFunc maps paths inside a partition to restore targets: below target,
+// or to the partition's original drive when target is empty. Below a target
+// the drive letter becomes the first folder (D:\Restore\C\Users\...), as
+// with file backups; a partition without a drive letter keeps its paths.
 func DestFunc(p *repo.PartitionImage, target string) (func(string) string, error) {
 	if target == "" {
 		if len(p.MountPoints) == 0 {
@@ -415,8 +417,14 @@ func DestFunc(p *repo.PartitionImage, target string) (func(string) string, error
 			return filepath.Join(root, filepath.FromSlash(strings.ReplaceAll(path, `\`, "/")))
 		}, nil
 	}
+	base := target
+	if len(p.MountPoints) > 0 {
+		if m := p.MountPoints[0]; len(m) >= 2 && m[1] == ':' && unicode.IsLetter(rune(m[0])) {
+			base = filepath.Join(target, strings.ToUpper(m[:1]))
+		}
+	}
 	return func(path string) string {
-		return filepath.Join(target, filepath.FromSlash(strings.ReplaceAll(path, `\`, "/")))
+		return filepath.Join(base, filepath.FromSlash(strings.ReplaceAll(path, `\`, "/")))
 	}, nil
 }
 
