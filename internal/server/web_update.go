@@ -23,6 +23,16 @@ import (
 
 const settingUpdates = "updates"
 
+// settingUpdateCheck keeps the time and error of the last release check, so
+// the Updates page still shows it after the console restarted (for example
+// after installing an update).
+const settingUpdateCheck = "update_check"
+
+type updateCheck struct {
+	Time time.Time `json:"time"`
+	Err  string    `json:"err,omitempty"`
+}
+
 // DefaultUpdateSource is where official releases are published: the assets
 // of the newest GitHub release (manifest.json, its signature, the packages).
 const DefaultUpdateSource = "https://github.com/Max-Zit/backupzit/releases/latest/download"
@@ -55,6 +65,10 @@ type updater struct {
 func (s *Server) StartUpdates(ctx context.Context, dataDir string) {
 	s.upd = &updater{dir: filepath.Join(dataDir, "update"), helper: updateHelperInstalled()}
 	os.MkdirAll(s.upd.dir, 0o750)
+	var last updateCheck
+	if s.store.GetSetting(ctx, settingUpdateCheck, &last) == nil {
+		s.upd.checked, s.upd.checkErr = last.Time, last.Err
+	}
 	s.reportUpdateResult(ctx)
 	// The helper writes its result after the new version has started (or
 	// after the rollback), so look for it again for a while.
@@ -134,10 +148,17 @@ func (s *Server) checkUpdates(ctx context.Context) error {
 			err = fmt.Errorf("the update source has no manifest.json (%s): check the address", strings.TrimRight(cfg.Source, "/")+"/manifest.json")
 		}
 	}
-	u.mu.Lock()
-	u.checked = time.Now()
+	last := updateCheck{Time: time.Now()}
 	if err != nil {
-		u.checkErr = err.Error()
+		last.Err = err.Error()
+	}
+	if serr := s.store.SetSetting(ctx, settingUpdateCheck, last); serr != nil {
+		s.log.Error("save update check", "err", serr)
+	}
+	u.mu.Lock()
+	u.checked = last.Time
+	if err != nil {
+		u.checkErr = last.Err
 		u.mu.Unlock()
 		return err
 	}
