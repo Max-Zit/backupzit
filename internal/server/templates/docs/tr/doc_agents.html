@@ -39,7 +39,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li><b>online</b> — aracı son 3 dakika içinde konsolla iletişim kurdu.</li>
   <li><b>offline</b> — makine kapalı, hizmet durdurulmuş veya ağ engellenmiş. Zamanlanmış yedekler kuyruğa alınır ve aracı geri gelir gelmez başlar.</li>
-  <li><b>kurtarma</b> — bir kurtarma ISO'sundan (Windows veya Linux) başlatılmış, disk görüntüsü veya Linux sistemi geri yüklemesi almaya hazır bir makine. Kurtarma aracıları geçicidir; geri yükleme bitince kaldırın.</li>
+  <li><b>kurtarma</b> — bir kurtarma ISO'sundan (Windows veya Linux) başlatılmış, disk görüntüsü veya Linux sistemi geri yüklemesi almaya hazır bir makine. Kurtarma aracıları geçicidir; geri yükleme bitince kaldırın. Aksi halde son çevrimiçi olmalarından bir hafta sonra otomatik olarak kaldırılırlar.</li>
 </ul>
 <p><b>IP adresleri</b> sütunu, makinenin kendi adreslerini aracının en son bildirdiği şekilde listeler. <i>görülen adres:</i> bağlantılarının geldiği adrestir: yerel ağda aynı adres, NAT arkasındaki bir makinede (ör. evdeki bir dizüstü) yönlendiricinin genel adresi. Konsol bunun için hiçbir dış hizmete sormaz.</p>
 

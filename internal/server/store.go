@@ -982,3 +982,20 @@ func (r Run) CommandResults() []api.CommandResult {
 	}
 	return c
 }
+
+// RecoveryAgentTTL is how long an agent started from recovery media stays in
+// the list after it was last online: it only existed for one restore.
+const RecoveryAgentTTL = 7 * 24 * time.Hour
+
+// RemoveStaleRecoveryAgents deletes recovery agents that have been offline
+// longer than RecoveryAgentTTL and have no run queued or in progress. It
+// returns their host names.
+func (s *Store) RemoveStaleRecoveryAgents(ctx context.Context, now time.Time) ([]string, error) {
+	rows, err := s.db.Query(ctx, `DELETE FROM agents a WHERE a.recovery AND COALESCE(a.last_seen_at, a.enrolled_at) < $1
+		AND NOT EXISTS (SELECT 1 FROM runs r WHERE r.agent_id=a.id AND r.status IN ('queued','running'))
+		RETURNING a.hostname`, now.Add(-RecoveryAgentTTL))
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[string])
+}

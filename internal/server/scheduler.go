@@ -82,6 +82,16 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 	} else if n > 0 {
 		s.log.Warn("marked runs of unresponsive agents as failed", "count", n)
 	}
+	if names, err := s.store.RemoveStaleRecoveryAgents(ctx, now); err != nil {
+		s.log.Error("remove old recovery agents", "err", err)
+	} else {
+		for _, n := range names {
+			s.log.Info("removed recovery agent offline for a week", "host", n)
+			if _, err := s.store.AppendAudit(ctx, "", "agent.delete", "recovery agent "+n+" removed automatically after a week offline", ""); err != nil {
+				s.log.Error("audit log", "err", err)
+			}
+		}
+	}
 
 	jobs, err := s.store.ListJobs(ctx)
 	if err != nil {

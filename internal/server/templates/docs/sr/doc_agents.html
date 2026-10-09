@@ -39,7 +39,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li><b>na mreži</b> — agent se javio konzoli u poslednja 3 minuta.</li>
   <li><b>van mreže</b> — mašina je ugašena, servis je zaustavljen ili je mreža blokirana. Zakazani bekapi se stavljaju u red i počinju čim se agent vrati.</li>
-  <li><b>oporavak</b> — mašina pokrenuta sa ISO-a za oporavak (Windows ili Linux), spremna da primi sliku diska ili vraćanje Linux sistema. Agenti za oporavak su privremeni; uklonite ih kada je vraćanje završeno.</li>
+  <li><b>oporavak</b> — mašina pokrenuta sa ISO-a za oporavak (Windows ili Linux), spremna da primi sliku diska ili vraćanje Linux sistema. Agenti za oporavak su privremeni; uklonite ih kada je vraćanje završeno. U suprotnom se sami uklanjaju nedelju dana posle poslednjeg javljanja.</li>
 </ul>
 <p>Kolona <b>IP adrese</b> navodi sopstvene adrese mašine kako ih je agent poslednji put prijavio. <i>Viđen sa</i> je adresa sa koje stižu njegove veze: na lokalnoj mreži ista adresa, a za mašinu iza NAT-a (npr. laptop kod kuće) javna adresa rutera. Konzola za to ne pita nijedan spoljni servis.</p>
 

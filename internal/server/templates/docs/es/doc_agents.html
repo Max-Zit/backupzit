@@ -39,7 +39,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li><b>online</b> — el agente contactó con la consola en los últimos 3 minutos.</li>
   <li><b>offline</b> — el equipo está apagado, el servicio detenido o la red bloqueada. Las copias programadas se ponen en cola y comienzan en cuanto vuelve el agente.</li>
-  <li><b>recuperación</b> — un equipo arrancado desde una ISO de recuperación (Windows o Linux), listo para recibir la restauración de una imagen de disco o de un sistema Linux. Los agentes de recuperación son temporales; elimínelos cuando termine la restauración.</li>
+  <li><b>recuperación</b> — un equipo arrancado desde una ISO de recuperación (Windows o Linux), listo para recibir la restauración de una imagen de disco o de un sistema Linux. Los agentes de recuperación son temporales; elimínelos cuando termine la restauración. Si no, se quitan automáticamente una semana después de su última conexión.</li>
 </ul>
 <p>La columna <b>Direcciones IP</b> muestra las direcciones propias del equipo tal como el agente las informó por última vez. <i>visto desde</i> es la dirección desde la que llegan sus conexiones: en una red local la misma dirección, para un equipo detrás de NAT (p. ej. un portátil en casa) la dirección pública del router. La consola no consulta ningún servicio externo para ello.</p>
 

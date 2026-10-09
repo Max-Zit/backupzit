@@ -39,7 +39,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li><b>online</b> — l'agente ha contattato la console negli ultimi 3 minuti.</li>
   <li><b>offline</b> — la macchina è spenta, il servizio è fermo o la rete è bloccata. I backup pianificati vengono messi in coda e partono appena l'agente torna.</li>
-  <li><b>ripristino</b> — una macchina avviata da una ISO di ripristino (Windows o Linux), pronta a ricevere il ripristino di un'immagine disco o di un sistema Linux. Gli agenti di ripristino sono temporanei; rimuoveteli quando il ripristino è terminato.</li>
+  <li><b>ripristino</b> — una macchina avviata da una ISO di ripristino (Windows o Linux), pronta a ricevere il ripristino di un'immagine disco o di un sistema Linux. Gli agenti di ripristino sono temporanei; rimuoveteli quando il ripristino è terminato. Altrimenti vengono rimossi automaticamente una settimana dopo l'ultimo contatto.</li>
 </ul>
 <p>La colonna <b>Indirizzi IP</b> elenca gli indirizzi propri della macchina come l'agente li ha comunicati l'ultima volta. <i>visto da</i> è l'indirizzo da cui arrivano le sue connessioni: in una rete locale lo stesso indirizzo, per una macchina dietro NAT (ad es. un portatile a casa) l'indirizzo pubblico del router. La console non interroga alcun servizio esterno per questo.</p>
 

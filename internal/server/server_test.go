@@ -574,6 +574,17 @@ func TestRecovery(t *testing.T) {
 	if !strings.Contains(string(b), agents[0].Hostname) {
 		t.Error("recovery page does not list the recovery agent")
 	}
+
+	// The scheduler removes it after a week offline, not before.
+	sched := server.NewScheduler(e.store, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	sched.Tick(ctx, time.Now().Add(6*24*time.Hour))
+	if a, _ := e.store.ListAgents(ctx); len(a) != 1 {
+		t.Fatal("recovery agent removed after 6 days")
+	}
+	sched.Tick(ctx, time.Now().Add(8*24*time.Hour))
+	if a, _ := e.store.ListAgents(ctx); len(a) != 0 {
+		t.Errorf("recovery agent kept after 8 days: %+v", a)
+	}
 }
 
 func TestRetentionJob(t *testing.T) {

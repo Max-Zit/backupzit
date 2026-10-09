@@ -39,7 +39,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li><b>online</b> — l'agent a contacté la console au cours des 3 dernières minutes.</li>
   <li><b>offline</b> — la machine est éteinte, le service arrêté ou le réseau bloqué. Les sauvegardes planifiées sont mises en file d'attente et démarrent dès que l'agent revient.</li>
-  <li><b>récupération</b> — une machine démarrée depuis une ISO de récupération (Windows ou Linux), prête à recevoir la restauration d'une image disque ou d'un système Linux. Les agents de récupération sont temporaires ; supprimez-les une fois la restauration terminée.</li>
+  <li><b>récupération</b> — une machine démarrée depuis une ISO de récupération (Windows ou Linux), prête à recevoir la restauration d'une image disque ou d'un système Linux. Les agents de récupération sont temporaires ; supprimez-les une fois la restauration terminée. Sinon, ils sont supprimés automatiquement une semaine après leur dernière connexion.</li>
 </ul>
 <p>La colonne <b>Adresses IP</b> liste les adresses propres de la machine telles que l'agent les a signalées en dernier. <i>vu depuis</i> est l'adresse d'où arrivent ses connexions : sur un réseau local la même adresse, pour une machine derrière un NAT (p. ex. un portable à la maison) l'adresse publique du routeur. La console n'interroge aucun service externe pour cela.</p>
 

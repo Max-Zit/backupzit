@@ -39,7 +39,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li><b>online</b> — de agent heeft de console in de laatste 3 minuten gecontacteerd.</li>
   <li><b>offline</b> — de machine staat uit, de service is gestopt of het netwerk is geblokkeerd. Geplande back-ups worden in de wachtrij gezet en starten zodra de agent terug is.</li>
-  <li><b>herstel</b> — een machine die is opgestart vanaf een herstel-ISO (Windows of Linux), klaar om een schijfimage of Linux-systeemherstel te ontvangen. Herstelagents zijn tijdelijk; verwijder ze als het herstel klaar is.</li>
+  <li><b>herstel</b> — een machine die is opgestart vanaf een herstel-ISO (Windows of Linux), klaar om een schijfimage of Linux-systeemherstel te ontvangen. Herstelagents zijn tijdelijk; verwijder ze als het herstel klaar is. Anders worden ze een week na hun laatste contact automatisch verwijderd.</li>
 </ul>
 <p>De kolom <b>IP-adressen</b> toont de eigen adressen van de machine zoals de agent ze het laatst meldde. <i>gezien vanaf</i> is het adres waarvandaan zijn verbindingen binnenkomen: op een lokaal netwerk hetzelfde adres, voor een machine achter NAT (bijv. een laptop thuis) het openbare adres van de router. De console vraagt daarvoor geen externe dienst.</p>
 
