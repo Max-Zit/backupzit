@@ -188,9 +188,12 @@ func (s *Server) needsApproval(w http.ResponseWriter, r *http.Request, back, act
 		return true
 	}
 	s.audit(r, "approval.request", "%s: %s", a.Title(), objectName)
-	s.mailAdmins(ctx, "BackupZit: approval needed — "+a.Title(),
-		fmt.Sprintf("%s requested: %s (%s).\n\nAnother user must approve or reject it in the console under Approvals:\n%s/approvals\n\nThe request expires after 7 days.",
-			me.Username, a.Title(), objectName, s.PublicURL))
+	s.mailAdmins(ctx, func(l *language) (string, string) {
+		return "BackupZit: " + l.T("approval needed — %s", l.T(a.Title())),
+			l.T("%s requested: %s (%s).", me.Username, l.T(a.Title()), objectName) + "\n\n" +
+				l.T("Another user must approve or reject it in the console under Approvals:") + "\n" + s.PublicURL + "/approvals\n\n" +
+				l.T("The request expires after 7 days.")
+	})
 	redirectMsg(w, r, back, "Waiting for approval: another user must approve this change under Approvals.")
 	return true
 }

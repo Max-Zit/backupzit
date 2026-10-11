@@ -69,6 +69,9 @@
       <label>{{T "From"}} <input name="from" value="{{.From}}" placeholder="{{T "backup@company.com"}}"></label>
       <label>{{T "To"}} <small>{{T "one or more addresses, separated by commas"}}</small><input name="to" value="{{join .To ", "}}" placeholder="{{T "it@company.com"}}"></label>
     </div>
+    <label>{{T "Language of emails, chat messages and reports"}}
+      <select name="language" class="narrow">{{$cur := .Language}}{{if not $cur}}{{$cur = lang}}{{end}}{{range languages}}<option value="{{.Code}}" {{if eq .Code $cur}}selected{{end}} lang="{{.Code}}">{{.Name}}</option>{{end}}</select>
+    </label>
     <fieldset class="sched">
       <legend>{{T "Send an email when a backup or restore"}}</legend>
       <div class="choice">

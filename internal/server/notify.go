@@ -39,6 +39,9 @@ type EmailSettings struct {
 	// DailyReport sends a summary of the last 24 hours at DailyHour.
 	DailyReport bool `json:"daily_report"`
 	DailyHour   int  `json:"daily_hour"`
+	// Language of emails, chat messages and reports (a console language
+	// code; empty: English).
+	Language string `json:"language,omitempty"`
 }
 
 const settingEmail = "email"
@@ -226,16 +229,17 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 		n.log.Error("load email settings", "err", err)
 		return
 	}
-	n.runAlerts(ctx, e, n.store.chatSettings(ctx))
+	l := notifyLanguage(e)
+	n.runAlerts(ctx, l, e, n.store.chatSettings(ctx))
 	if e.Enabled {
-		n.scheduledReports(ctx, e, now)
+		n.scheduledReports(ctx, l, e, now)
 	}
 	if e.Enabled && e.DailyReport && now.Hour() == e.DailyHour {
 		var last string
 		n.store.GetSetting(ctx, settingDailySent, &last)
 		today := now.Format("2006-01-02")
 		if last != today {
-			if err := n.dailyReport(ctx, e, now); err != nil {
+			if err := n.dailyReport(ctx, l, e, now); err != nil {
 				n.log.Error("daily report", "err", err)
 			} else {
 				n.store.SetSetting(ctx, settingDailySent, today)
@@ -244,7 +248,7 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 	}
 }
 
-func (n *Notifier) runAlerts(ctx context.Context, e EmailSettings, chat ChatSettings) {
+func (n *Notifier) runAlerts(ctx context.Context, l *language, e EmailSettings, chat ChatSettings) {
 	rows, err := n.store.db.Query(ctx, `SELECT id FROM runs WHERE NOT notified AND finished_at IS NOT NULL ORDER BY finished_at LIMIT 50`)
 	if err != nil {
 		n.log.Error("pending notifications", "err", err)
@@ -260,7 +264,7 @@ func (n *Notifier) runAlerts(ctx context.Context, e EmailSettings, chat ChatSett
 			continue
 		}
 		if e.Enabled && (wants(e, run.Status) || (run.Anomaly != "" && e.OnFailure)) {
-			subject, body := n.runMessage(run)
+			subject, body := n.runMessage(l, run)
 			if err := n.send(ctx, e, subject, body); err != nil {
 				// Leave unhandled to retry on the next pass; stop to avoid
 				// hammering a broken mail server.
@@ -275,7 +279,7 @@ func (n *Notifier) runAlerts(ctx context.Context, e EmailSettings, chat ChatSett
 			if !c.wantsStatus(run.Status, run.Anomaly != "") {
 				continue
 			}
-			if err := n.sendChat(ctx, c, run); err != nil {
+			if err := n.sendChat(ctx, l, c, run); err != nil {
 				n.log.Warn("send chat notification", "run", id, "channel", c.Name, "err", err)
 			}
 		}
@@ -291,44 +295,47 @@ func kindName(k string) string {
 	}[k]
 }
 
-func (n *Notifier) runMessage(r Run) (string, string) {
+func (n *Notifier) runMessage(l *language, r Run) (string, string) {
 	job := ""
 	if r.JobName != nil {
 		job = " \"" + *r.JobName + "\""
 	}
-	subject := fmt.Sprintf("[BackupZit] %s %s%s on %s", strings.ToUpper(r.Status), kindName(r.Kind), job, r.Hostname)
+	kind := l.T(kindName(r.Kind))
+	status := strings.ToUpper(l.T(r.Status))
+	subject := "[BackupZit] " + l.T("%s %s%s on %s", status, kind, job, r.Hostname)
 	var b strings.Builder
 	if r.Anomaly != "" {
-		subject = fmt.Sprintf("[BackupZit] SUSPICIOUS %s%s on %s — possible ransomware or mass deletion", kindName(r.Kind), job, r.Hostname)
-		fmt.Fprintf(&b, "WARNING: this backup looks unusual: %s.\n\nCheck the machine for ransomware or accidental mass deletion. Retention of this job is paused, so older backups are kept until you review it in the console.\n\n", r.Anomaly)
+		subject = "[BackupZit] " + l.T("SUSPICIOUS %s%s on %s — possible ransomware or mass deletion", kind, job, r.Hostname)
+		b.WriteString(l.T("WARNING: this backup looks unusual: %s.", r.Anomaly) + "\n\n")
+		b.WriteString(l.T("Check the machine for ransomware or accidental mass deletion. Retention of this job is paused, so older backups are kept until you review it in the console.") + "\n\n")
 	}
-	fmt.Fprintf(&b, "%s%s on %s finished with status %s.\n\n", kindName(r.Kind), job, r.Hostname, strings.ToUpper(r.Status))
+	b.WriteString(l.T("%s%s on %s finished with status %s.", kind, job, r.Hostname, status) + "\n\n")
 	if r.StartedAt != nil {
-		fmt.Fprintf(&b, "Started:  %s\n", r.StartedAt.Local().Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&b, "%s %s\n", l.T("Started:"), r.StartedAt.Local().Format("2006-01-02 15:04:05"))
 	}
 	if r.FinishedAt != nil {
-		fmt.Fprintf(&b, "Finished: %s (%s)\n", r.FinishedAt.Local().Format("2006-01-02 15:04:05"), r.Duration())
+		fmt.Fprintf(&b, "%s %s (%s)\n", l.T("Finished:"), r.FinishedAt.Local().Format("2006-01-02 15:04:05"), r.Duration())
 	}
 	if r.Message != "" {
-		fmt.Fprintf(&b, "Message:  %s\n", r.Message)
+		fmt.Fprintf(&b, "%s %s\n", l.T("Message:"), r.Message)
 	}
 	if len(r.Errors) > 0 {
-		fmt.Fprintf(&b, "\n%d errors:\n", len(r.Errors))
+		b.WriteString("\n" + l.T("Errors (%d):", len(r.Errors)) + "\n")
 		for i, e := range r.Errors {
 			if i == 20 {
-				fmt.Fprintf(&b, "  ... and %d more\n", len(r.Errors)-20)
+				b.WriteString("  " + l.T("... and %d more", len(r.Errors)-20) + "\n")
 				break
 			}
 			fmt.Fprintf(&b, "  %s\n", e)
 		}
 	}
 	if u := n.publicURL(); u != "" {
-		fmt.Fprintf(&b, "\nDetails: %s/runs/%d\n", u, r.ID)
+		fmt.Fprintf(&b, "\n%s %s/runs/%d\n", l.T("Details:"), u, r.ID)
 	}
 	return subject, b.String()
 }
 
-func (n *Notifier) dailyReport(ctx context.Context, e EmailSettings, now time.Time) error {
+func (n *Notifier) dailyReport(ctx context.Context, l *language, e EmailSettings, now time.Time) error {
 	runs, err := n.store.ListRuns(ctx, RunFilter{Limit: 1000})
 	if err != nil {
 		return err
@@ -355,31 +362,45 @@ func (n *Notifier) dailyReport(ctx context.Context, e EmailSettings, now time.Ti
 			offline = append(offline, a.Hostname)
 		}
 	}
-	state := "OK"
-	if count[api.StatusFailed] > 0 || len(offline) > 0 {
-		state = "ATTENTION"
-	} else if count[api.StatusWarning] > 0 {
-		state = "WARNINGS"
-	}
-	subject := fmt.Sprintf("[BackupZit] Daily report %s: %s", now.Format("2006-01-02"), state)
+	state := reportState(l, count[api.StatusFailed] > 0 || len(offline) > 0, count[api.StatusWarning] > 0)
+	subject := "[BackupZit] " + l.T("Daily report %s: %s", now.Format("2006-01-02"), state)
 	var b strings.Builder
-	fmt.Fprintf(&b, "Last 24 hours: %d successful, %d with warnings, %d failed, %d queued/running.\n",
-		count[api.StatusSuccess], count[api.StatusWarning], count[api.StatusFailed], count[api.StatusQueued]+count[api.StatusRunning])
+	b.WriteString(l.T("Last 24 hours: %d successful, %d with warnings, %d failed, %d queued or running.",
+		count[api.StatusSuccess], count[api.StatusWarning], count[api.StatusFailed], count[api.StatusQueued]+count[api.StatusRunning]) + "\n")
 	if len(problems) > 0 {
-		b.WriteString("\nProblems:\n")
+		b.WriteString("\n" + l.T("Problems:") + "\n")
 		for _, r := range problems {
 			job := ""
 			if r.JobName != nil {
 				job = " \"" + *r.JobName + "\""
 			}
-			fmt.Fprintf(&b, "  %-7s %s%s on %s: %s\n", strings.ToUpper(r.Status), kindName(r.Kind), job, r.Hostname, r.Message)
+			fmt.Fprintf(&b, "  %-7s %s\n", strings.ToUpper(l.T(r.Status)), l.T("%s%s on %s: %s", l.T(kindName(r.Kind)), job, r.Hostname, r.Message))
 		}
 	}
 	if len(offline) > 0 {
-		fmt.Fprintf(&b, "\nAgents not seen in the last minutes: %s\n", strings.Join(offline, ", "))
+		b.WriteString("\n" + l.T("Agents not seen in the last minutes: %s", strings.Join(offline, ", ")) + "\n")
 	}
 	if u := n.publicURL(); u != "" {
-		fmt.Fprintf(&b, "\nConsole: %s\n", u)
+		fmt.Fprintf(&b, "\n%s %s\n", l.T("Console:"), u)
 	}
 	return n.send(ctx, e, subject, b.String())
+}
+
+// reportState is the one-word state in report subjects.
+func reportState(l *language, attention, warnings bool) string {
+	switch {
+	case attention:
+		return l.T("ATTENTION")
+	case warnings:
+		return l.T("WARNINGS")
+	}
+	return l.T("OK")
+}
+
+// notifyLanguage is the language of emails, chat messages and reports.
+func notifyLanguage(e EmailSettings) *language {
+	if l := languageByCode(e.Language); l != nil {
+		return l
+	}
+	return languages[0]
 }

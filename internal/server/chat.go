@@ -101,12 +101,12 @@ type webhookEvent struct {
 var chatClient = &http.Client{Timeout: 20 * time.Second}
 
 // sendChat posts a run result to a channel.
-func (n *Notifier) sendChat(ctx context.Context, c ChatChannel, r Run) error {
+func (n *Notifier) sendChat(ctx context.Context, l *language, c ChatChannel, r Run) error {
 	link := ""
 	if u := n.publicURL(); u != "" {
 		link = fmt.Sprintf("%s/runs/%d", u, r.ID)
 	}
-	title, _ := n.runMessage(r)
+	title, _ := n.runMessage(l, r)
 	title = strings.TrimPrefix(title, "[BackupZit] ")
 	var body []byte
 	switch c.Kind {
@@ -120,10 +120,10 @@ func (n *Notifier) sendChat(ctx context.Context, c ChatChannel, r Run) error {
 			text += "\n" + slackEscape(r.Message)
 		}
 		if r.Anomaly != "" {
-			text += "\n*Unusual backup:* " + slackEscape(r.Anomaly) + " — retention of the job is paused."
+			text += "\n*" + slackEscape(l.T("Unusual backup:")) + "* " + slackEscape(l.T("%s — retention of the job is paused.", r.Anomaly))
 		}
 		if link != "" {
-			text += fmt.Sprintf("\n<%s|Open in BackupZit>", link)
+			text += fmt.Sprintf("\n<%s|%s>", link, slackEscape(l.T("Open in BackupZit")))
 		}
 		body, _ = json.Marshal(map[string]any{"text": text})
 	case "teams":
@@ -133,11 +133,11 @@ func (n *Notifier) sendChat(ctx context.Context, c ChatChannel, r Run) error {
 			items = append(items, map[string]any{"type": "TextBlock", "text": r.Message, "wrap": true})
 		}
 		if r.Anomaly != "" {
-			items = append(items, map[string]any{"type": "TextBlock", "text": "Unusual backup: " + r.Anomaly + " — retention of the job is paused.", "wrap": true, "color": "Attention"})
+			items = append(items, map[string]any{"type": "TextBlock", "text": l.T("Unusual backup:") + " " + l.T("%s — retention of the job is paused.", r.Anomaly), "wrap": true, "color": "Attention"})
 		}
 		card := map[string]any{"type": "AdaptiveCard", "$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "version": "1.4", "body": items}
 		if link != "" {
-			card["actions"] = []any{map[string]any{"type": "Action.OpenUrl", "title": "Open in BackupZit", "url": link}}
+			card["actions"] = []any{map[string]any{"type": "Action.OpenUrl", "title": l.T("Open in BackupZit"), "url": link}}
 		}
 		body, _ = json.Marshal(map[string]any{"type": "message", "attachments": []any{map[string]any{"contentType": "application/vnd.microsoft.card.adaptive", "content": card}}})
 	default:
@@ -223,13 +223,16 @@ func (s *Server) handleSettingsChat(w http.ResponseWriter, r *http.Request, _ st
 			if n == nil {
 				n = NewNotifier(s.store, s.log, func() string { return s.PublicURL })
 			}
+			var es EmailSettings
+			s.store.GetSetting(ctx, settingEmail, &es)
+			l := notifyLanguage(es)
 			now := time.Now()
 			name := "Test"
 			test := Run{ID: 0, Kind: api.KindBackup, Status: api.StatusSuccess, Hostname: "backupzit", JobName: &name, StartedAt: &now, FinishedAt: &now,
-				Message: "This is a test message from BackupZit: the channel is configured correctly."}
+				Message: l.T("This is a test message from BackupZit: the channel is configured correctly.")}
 			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
-			if err := n.sendChat(ctx, c, test); err != nil {
+			if err := n.sendChat(ctx, l, c, test); err != nil {
 				redirectErr(w, r, back, fmt.Errorf("test message failed: %w", err))
 				return
 			}

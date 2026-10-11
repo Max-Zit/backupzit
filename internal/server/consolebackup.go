@@ -219,8 +219,10 @@ func (s *Server) BackupConsole(ctx context.Context) error {
 	detail := "backup " + cfg.LastSnapshot
 	if err != nil {
 		detail = "failed: " + err.Error()
-		s.mailAdmins(ctx, "[BackupZit] Backup of the console failed",
-			"The daily backup of the BackupZit console failed:\n\n"+err.Error()+"\n\nCheck Settings → Console backup.\n")
+		s.mailAdmins(ctx, func(l *language) (string, string) {
+			return "[BackupZit] " + l.T("Backup of the console failed"),
+				l.T("The daily backup of the BackupZit console failed:") + "\n\n" + err.Error() + "\n\n" + l.T("Check Settings → Console backup.") + "\n"
+		})
 	}
 	s.store.AppendAudit(ctx, "", "console.backup", detail, "")
 	return err

@@ -70,6 +70,10 @@ func (s *Server) emailFromForm(r *http.Request) (EmailSettings, error) {
 		OnSuccess:   r.FormValue("on_success") == "on",
 		DailyReport: r.FormValue("daily_report") == "on",
 		DailyHour:   hour,
+		Language:    r.FormValue("language"),
+	}
+	if languageByCode(e.Language) == nil {
+		e.Language = ""
 	}
 	if e.Password == "" && e.Username == old.Username {
 		e.Password = old.Password
@@ -103,8 +107,9 @@ func (s *Server) handleSettingsEmail(w http.ResponseWriter, r *http.Request, _ s
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 		defer cancel()
-		body := "This is a test message from backupzit.\n\nEmail notifications are configured correctly."
-		if err := sendMail(ctx, e, "[BackupZit] Test message", body); err != nil {
+		l := notifyLanguage(e)
+		body := l.T("This is a test message from BackupZit.") + "\n\n" + l.T("Email notifications are configured correctly.")
+		if err := sendMail(ctx, e, "[BackupZit] "+l.T("Test message"), body); err != nil {
 			redirectErr(w, r, "/settings/email", errors.New("test email failed: "+err.Error()))
 			return
 		}

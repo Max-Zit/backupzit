@@ -78,7 +78,7 @@ func TestChatNotifications(t *testing.T) {
 	n.Pass(ctx, time.Date(2026, 10, 2, 10, 1, 0, 0, time.Local)) // not sent twice
 
 	mu.Lock()
-	defer mu.Unlock()
+
 	var slack struct{ Text string }
 	if len(bodies["/slack"]) == 1 {
 		json.Unmarshal([]byte(bodies["/slack"][0]), &slack)
@@ -105,4 +105,24 @@ func TestChatNotifications(t *testing.T) {
 	if len(bodies["/broken"]) != 1 {
 		t.Errorf("broken channel called %d times", len(bodies["/broken"]))
 	}
+	mu.Unlock()
+
+	// Notifications use the language chosen in the email settings.
+	if _, loc, _ := admin.do("POST", "/settings/email", url.Values{"action": {"save"}, "language": {"sr"}, "port": {"587"}, "security": {"starttls"}}); strings.Contains(loc, "err=") {
+		t.Fatalf("save email settings: %s", loc)
+	}
+	var es server.EmailSettings
+	e.store.GetSetting(ctx, "email", &es)
+	if es.Language != "sr" {
+		t.Fatalf("language %q stored", es.Language)
+	}
+	runID, _ = e.store.QueueBackup(ctx, jobID, "manual")
+	e.store.ClaimRun(ctx, agents[0].ID)
+	e.store.FinishRun(ctx, agents[0].ID, runID, api.RunResult{Status: api.StatusFailed, Message: "disk full"})
+	n.Pass(ctx, time.Date(2026, 10, 2, 11, 0, 0, 0, time.Local))
+	mu.Lock()
+	if len(bodies["/teams"]) != 2 || !strings.Contains(bodies["/teams"][1], "Otvori u BackupZit-u") || !strings.Contains(bodies["/teams"][1], `\"docs\" na `) {
+		t.Errorf("teams in Serbian: %v", bodies["/teams"][1:])
+	}
+	mu.Unlock()
 }

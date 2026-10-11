@@ -26,9 +26,11 @@ func (s *Server) StartWeb(ctx context.Context, dataDir string) {
 			s.warnExpiringCert(ctx)
 			if err := s.web.renewIfNeeded(ctx); err != nil {
 				s.log.Error("renew Let's Encrypt certificate", "err", err)
-				s.mailAdmins(ctx, "[BackupZit] Certificate renewal failed",
-					"BackupZit could not renew the Let's Encrypt certificate of the console:\n\n"+err.Error()+
-						"\n\nThe current certificate stays in use until it expires. Check Settings → Certificate.\n")
+				s.mailAdmins(ctx, func(l *language) (string, string) {
+					return "[BackupZit] " + l.T("Certificate renewal failed"),
+						l.T("BackupZit could not renew the Let's Encrypt certificate of the console:") + "\n\n" + err.Error() +
+							"\n\n" + l.T("The current certificate stays in use until it expires. Check Settings → Certificate.") + "\n"
+				})
 			}
 			select {
 			case <-ctx.Done():
@@ -51,11 +53,13 @@ func (s *Server) certSettings(ctx context.Context) CertSettings {
 }
 
 // mailAdmins emails the notification recipients, if email is set up.
-func (s *Server) mailAdmins(ctx context.Context, subject, body string) {
+// msg builds the subject and body in the language of the notifications.
+func (s *Server) mailAdmins(ctx context.Context, msg func(l *language) (subject, body string)) {
 	var e EmailSettings
 	if err := s.store.GetSetting(ctx, settingEmail, &e); err != nil || !e.Enabled || e.Host == "" || len(e.To) == 0 {
 		return
 	}
+	subject, body := msg(notifyLanguage(e))
 	if err := sendMail(ctx, e, subject, body); err != nil {
 		s.log.Error("email", "subject", subject, "err", err)
 	}
@@ -197,7 +201,9 @@ func (s *Server) warnExpiringCert(ctx context.Context) {
 	if c.Mode != "upload" || info == nil || info.DaysLeft() >= 21 {
 		return
 	}
-	s.mailAdmins(ctx, "[BackupZit] Console certificate expires in "+strconv.Itoa(info.DaysLeft())+" days",
-		fmt.Sprintf("The certificate of %s (issued by %s) expires on %s.\n\nUpload a new one under Settings → Certificate.\n",
-			c.Hostname, info.Issuer, info.NotAfter.Format("2006-01-02")))
+	s.mailAdmins(ctx, func(l *language) (string, string) {
+		return "[BackupZit] " + l.T("Console certificate expires in %d days", info.DaysLeft()),
+			l.T("The certificate of %s (issued by %s) expires on %s.", c.Hostname, info.Issuer, info.NotAfter.Format("2006-01-02")) +
+				"\n\n" + l.T("Upload a new one under Settings → Certificate.") + "\n"
+	})
 }

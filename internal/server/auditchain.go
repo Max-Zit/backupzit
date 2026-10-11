@@ -311,8 +311,11 @@ func (s *Server) StartAuditChain(ctx context.Context, dataDir string) {
 			s.auditState.Store(&res)
 			if !res.OK {
 				s.log.Error("audit log integrity check failed", "problem", res.Problem)
-				s.mailAdmins(ctx, "[BackupZit] The audit log was changed",
-					"The integrity check of the audit log failed: "+res.Problem+".\n\nSomebody with access to the database changed or deleted audit entries. Check the server and its database access.\n")
+				s.mailAdmins(ctx, func(l *language) (string, string) {
+					return "[BackupZit] " + l.T("The audit log was changed"),
+						l.T("The integrity check of the audit log failed: %s.", res.Problem) + "\n\n" +
+							l.T("Somebody with access to the database changed or deleted audit entries. Check the server and its database access.") + "\n"
+				})
 			}
 			// Daily checkpoint to the syslog copy.
 			if res.OK && res.Entries > 0 {

@@ -144,12 +144,14 @@ func (s *Server) agentDuplicate(ctx context.Context, a Agent, instance, host str
 		if _, err := s.store.AppendAudit(ctx, "", "agent.duplicate", fmt.Sprintf("agent %s is used by two machines: %v; runs are held", a.Hostname, m), ip); err != nil {
 			s.log.Error("audit log", "err", err)
 		}
-		go s.mailAdmins(context.WithoutCancel(ctx), "[BackupZit] Two machines use one agent: "+strings.Join(m, ", "),
-			fmt.Sprintf("Two machines are connected to the console as the agent %q right now: %v.\n\n"+
-				"This happens when a copy of the machine runs (a VM restored as a new VM, an instant recovery, a started replica or a cloned disk). "+
-				"Backups and restores of this agent are held so they cannot run on the wrong machine.\n\n"+
-				"Stop the copy, or enroll it as a new machine there: backupzit-agent enroll --force --code \"BZ1-...\" (Agents page). "+
-				"The runs continue a few minutes after only one machine is left.\n", a.Hostname, m))
+		go s.mailAdmins(context.WithoutCancel(ctx), func(l *language) (string, string) {
+			return "[BackupZit] " + l.T("Two machines use one agent: %s", strings.Join(m, ", ")),
+				l.T("Two machines are connected to the console as the agent %q right now: %v.", a.Hostname, m) + "\n\n" +
+					l.T("This happens when a copy of the machine runs (a VM restored as a new VM, an instant recovery, a started replica or a cloned disk).") + " " +
+					l.T("Backups and restores of this agent are held so they cannot run on the wrong machine.") + "\n\n" +
+					l.T("Stop the copy, or enroll it as a new machine there: %s (Agents page).", `backupzit-agent enroll --force --code "BZ1-..."`) + " " +
+					l.T("The runs continue a few minutes after only one machine is left.") + "\n"
+		})
 	}
 	return dup
 }

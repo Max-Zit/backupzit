@@ -174,8 +174,11 @@ func (s *Server) checkUpdates(ctx context.Context) error {
 	}
 	u.mu.Unlock()
 	if announce {
-		s.mailAdmins(ctx, "[BackupZit] Version "+m.Version+" is available",
-			fmt.Sprintf("BackupZit %s is available (installed: %s).\n\n%s\n\nInstall it under Settings → Updates.\n", m.Version, s.Version, m.Notes))
+		s.mailAdmins(ctx, func(l *language) (string, string) {
+			return "[BackupZit] " + l.T("Version %s is available", m.Version),
+				l.T("BackupZit %s is available (installed: %s).", m.Version, s.Version) + "\n\n" + m.Notes +
+					"\n\n" + l.T("Install it under Settings → Updates.") + "\n"
+		})
 	}
 	return nil
 }
@@ -198,7 +201,9 @@ func (s *Server) reportUpdateResult(ctx context.Context) {
 		s.log.Error("audit log", "err", err)
 	}
 	if res.Status != "installed" {
-		s.mailAdmins(ctx, "[BackupZit] Console update to "+res.Version+" "+res.Status, res.Message+"\n")
+		s.mailAdmins(ctx, func(l *language) (string, string) {
+			return "[BackupZit] " + l.T("Console update to %s: %s", res.Version, res.Status), res.Message + "\n"
+		})
 		return
 	}
 	if s.updateSettings(ctx).AutoAgents {

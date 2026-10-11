@@ -368,19 +368,15 @@ func (s *Server) notifyBlock(ip string, until time.Time, strikes int, reason str
 	if !s.guard.settings(ctx).Notify {
 		return
 	}
-	var e EmailSettings
-	if err := s.store.GetSetting(ctx, settingEmail, &e); err != nil || !e.Enabled || e.Host == "" || len(e.To) == 0 {
-		return
-	}
-	body := fmt.Sprintf("BackupZit blocked the address %s after repeated failed sign-ins to the console.\n\n"+
-		"Reason:        %s\nBlocked until: %s\nBlock number:  %d (repeated blocks last longer)\n\n"+
-		"If this was you or a colleague, lift the block under Settings → Sign-in & security.\n"+
-		"Otherwise someone is trying to guess passwords: make sure the console is not reachable from the internet "+
-		"and that every account has a strong password and two-factor authentication.\n",
-		ip, reason, until.Local().Format("2006-01-02 15:04:05"), strikes)
-	if err := sendMail(ctx, e, "[BackupZit] Sign-in blocked for "+ip, body); err != nil {
-		s.log.Error("email about blocked address", "err", err)
-	}
+	s.mailAdmins(ctx, func(l *language) (string, string) {
+		return "[BackupZit] " + l.T("Sign-in blocked for %s", ip),
+			l.T("BackupZit blocked the address %s after repeated failed sign-ins to the console.", ip) + "\n\n" +
+				l.T("Reason:") + " " + reason + "\n" +
+				l.T("Blocked until:") + " " + until.Local().Format("2006-01-02 15:04:05") + "\n" +
+				l.T("Block number: %d (repeated blocks last longer)", strikes) + "\n\n" +
+				l.T("If this was you or a colleague, lift the block under Settings → Sign-in & security.") + "\n" +
+				l.T("Otherwise someone is trying to guess passwords: make sure the console is not reachable from the internet and that every account has a strong password and two-factor authentication.") + "\n"
+	})
 }
 
 func (s *Server) handleSettingsLoginProtection(w http.ResponseWriter, r *http.Request, user string) {

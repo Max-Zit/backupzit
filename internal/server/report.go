@@ -309,14 +309,27 @@ func deref(p *string) string {
 }
 
 // Scope describes the report's filters for titles.
-func (rep *Report) Scope() string {
+func (rep *Report) Scope() string { return rep.ScopeIn(languages[0]) }
+
+// ScopeIn is Scope in a language.
+func (rep *Report) ScopeIn(l *language) string {
 	switch {
 	case rep.JobName != "":
-		return "job " + rep.JobName
+		return l.T("job %s", rep.JobName)
 	case rep.AgentName != "":
-		return "agent " + rep.AgentName
+		return l.T("agent %s", rep.AgentName)
 	}
-	return "all agents"
+	return l.T("all agents")
+}
+
+// periodText is the report period with numeric dates, the same in every
+// language (the console page shows Period.Label).
+func (rep *Report) periodText() string {
+	last := rep.Period.To.AddDate(0, 0, -1)
+	if rep.Period.From.Equal(last) {
+		return rep.Period.From.Format("2006-01-02")
+	}
+	return rep.Period.From.Format("2006-01-02") + " – " + last.Format("2006-01-02")
 }
 
 // CSV lists every backup run of the report.
@@ -355,38 +368,42 @@ func csvSafe(s string) string {
 }
 
 // Text renders the report for email.
-func (rep *Report) Text(consoleURL string) string {
+func (rep *Report) Text(l *language, consoleURL string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "BackupZit report: %s (%s)\n\n", rep.Period.Label, rep.Scope())
-	fmt.Fprintf(&b, "Backups:       %d (success %d, warnings %d, failed %d)\n", rep.Backups, rep.Success, rep.Warning, rep.Failed)
-	fmt.Fprintf(&b, "Success rate:  %.1f %%\n", rep.SuccessRate)
-	fmt.Fprintf(&b, "Data read:     %s\nUploaded:      %s\nRestores:      %d\n\n", humanBytes(rep.BytesRead), humanBytes(rep.BytesStored), rep.Restores)
+	b.WriteString(l.T("BackupZit report: %s (%s)", rep.periodText(), rep.ScopeIn(l)) + "\n\n")
+	b.WriteString(l.T("Backups: %d (successful %d, with warnings %d, failed %d)", rep.Backups, rep.Success, rep.Warning, rep.Failed) + "\n")
+	b.WriteString(l.T("Success rate: %.1f %%", rep.SuccessRate) + "\n")
+	b.WriteString(l.T("Data read: %s", humanBytes(rep.BytesRead)) + "\n")
+	b.WriteString(l.T("Uploaded: %s", humanBytes(rep.BytesStored)) + "\n")
+	b.WriteString(l.T("Restores: %d", rep.Restores) + "\n\n")
 	if len(rep.Jobs) > 0 {
-		b.WriteString("Jobs\n----\n")
+		title := l.T("Jobs")
+		b.WriteString(title + "\n" + strings.Repeat("-", len([]rune(title))) + "\n")
 		for _, j := range rep.Jobs {
-			last := "never"
+			last := l.T("never")
 			if j.LastSuccess != nil {
 				last = j.LastSuccess.Local().Format("2006-01-02 15:04")
 			}
-			fmt.Fprintf(&b, "%-28s %-20s runs %3d  ok %3d  warn %3d  failed %3d  last good: %s\n",
-				trunc(j.Name, 28), trunc(j.Hostname, 20), j.Runs, j.Success, j.Warning, j.Failed, last)
+			fmt.Fprintf(&b, "%-28s %-20s %s\n", trunc(j.Name, 28), trunc(j.Hostname, 20),
+				l.T("runs %d, successful %d, with warnings %d, failed %d, last good: %s", j.Runs, j.Success, j.Warning, j.Failed, last))
 		}
 		b.WriteString("\n")
 	}
 	if len(rep.Problems) > 0 {
-		b.WriteString("Problems\n--------\n")
+		title := l.T("Problems")
+		b.WriteString(title + "\n" + strings.Repeat("-", len([]rune(title))) + "\n")
 		for i, r := range rep.Problems {
 			if i == 30 {
-				fmt.Fprintf(&b, "... and %d more (see the attached CSV)\n", len(rep.Problems)-30)
+				b.WriteString(l.T("... and %d more (see the attached CSV)", len(rep.Problems)-30) + "\n")
 				break
 			}
-			fmt.Fprintf(&b, "#%d %s %s %s on %s: %s\n", r.ID, r.QueuedAt.Local().Format("2006-01-02 15:04"), strings.ToUpper(r.Status),
+			fmt.Fprintf(&b, "#%d %s %s %s %s: %s\n", r.ID, r.QueuedAt.Local().Format("2006-01-02 15:04"), strings.ToUpper(l.T(r.Status)),
 				deref(r.JobName), r.Hostname, trunc(r.Message, 200))
 		}
 		b.WriteString("\n")
 	}
 	if consoleURL != "" {
-		fmt.Fprintf(&b, "Console: %s/reports\n", strings.TrimRight(consoleURL, "/"))
+		fmt.Fprintf(&b, "%s %s/reports\n", l.T("Console:"), strings.TrimRight(consoleURL, "/"))
 	}
 	return b.String()
 }
@@ -399,14 +416,8 @@ func trunc(s string, n int) string {
 	return s
 }
 
-func (rep *Report) Subject() string {
-	state := "OK"
-	if rep.Failed > 0 {
-		state = "ATTENTION"
-	} else if rep.Warning > 0 {
-		state = "WARNINGS"
-	}
-	return fmt.Sprintf("[BackupZit] Report %s (%s): %s", rep.Period.Label, rep.Scope(), state)
+func (rep *Report) Subject(l *language) string {
+	return "[BackupZit] " + l.T("Report %s (%s): %s", rep.periodText(), rep.ScopeIn(l), reportState(l, rep.Failed > 0, rep.Warning > 0))
 }
 
 func (rep *Report) FileName() string {
@@ -494,7 +505,7 @@ func (s *Server) handleReportEmail(w http.ResponseWriter, r *http.Request, _ str
 		redirectErr(w, r, back, err)
 		return
 	}
-	if err := sendMailWith(r.Context(), e, rep.Subject(), rep.Text(s.consoleURL()),
+	if err := sendMailWith(r.Context(), e, rep.Subject(notifyLanguage(e)), rep.Text(notifyLanguage(e), s.consoleURL()),
 		[]attachment{{Name: rep.FileName(), ContentType: "text/csv; charset=utf-8", Data: rep.CSV()}}); err != nil {
 		redirectErr(w, r, back, fmt.Errorf("send report: %w", err))
 		return
@@ -622,7 +633,7 @@ func (s *Server) handleReportScheduleDelete(w http.ResponseWriter, r *http.Reque
 }
 
 // scheduledReports sends reports whose period has completed.
-func (n *Notifier) scheduledReports(ctx context.Context, e EmailSettings, now time.Time) {
+func (n *Notifier) scheduledReports(ctx context.Context, l *language, e EmailSettings, now time.Time) {
 	list, err := n.store.ListReportSchedules(ctx)
 	if err != nil {
 		n.log.Error("report schedules", "err", err)
@@ -649,7 +660,7 @@ func (n *Notifier) scheduledReports(ctx context.Context, e EmailSettings, now ti
 		if len(rs.Recipients) > 0 {
 			to.To = rs.Recipients
 		}
-		if err := n.sendWith(ctx, to, rep.Subject(), rep.Text(n.publicURL()),
+		if err := n.sendWith(ctx, to, rep.Subject(l), rep.Text(l, n.publicURL()),
 			[]attachment{{Name: rep.FileName(), ContentType: "text/csv; charset=utf-8", Data: rep.CSV()}}); err != nil {
 			n.log.Error("send scheduled report", "report", rs.Name, "err", err)
 			continue

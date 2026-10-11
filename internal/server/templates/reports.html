@@ -29,7 +29,7 @@
 {{with .Data.Report}}
 <div class="report-title">
   <h2>{{.Period.Label}}</h2>
-  <span class="muted">{{.Scope}} {{T "· generated"}} {{ts .Generated}}</span>
+  <span class="muted">{{reportscope .}} {{T "· generated"}} {{ts .Generated}}</span>
 </div>
 
 <div class="grid">
