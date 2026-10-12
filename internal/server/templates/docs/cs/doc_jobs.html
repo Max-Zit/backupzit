@@ -107,7 +107,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 </ul>
 
 <h2>Zastavení běhu</h2>
-<p>Čekající nebo běžící zálohu, kopii či obnovu lze zastavit tlačítkem <b>Zrušit</b> nebo <b>Zastavit běh</b> na stránce běhu, případně <b>Zastavit běh č. …</b> na stránce úlohy. Čekající běh se zruší hned; běžící agent zastaví během několika sekund — ukončí se i příkaz před zálohou, příkaz po záloze se přesto spustí. Běh se označí jako neúspěšný („Cancelled by“ a jméno uživatele) a zapíše se do auditního protokolu; e-mail o chybě se neposílá. Záloha přerušená v půlce se pro obnovu nepoužije. Aktualizace agenta zastavit nelze.</p>
+<p>Čekající nebo běžící zálohu, kopii či obnovu lze zastavit tlačítkem <b>Zrušit</b> nebo <b>Zastavit běh</b> na stránce běhu, případně <b>Zastavit běh č. …</b> na stránce úlohy. Čekající běh se zruší hned; běžící agent zastaví během několika sekund — ukončí se i příkaz před zálohou, příkaz po záloze se přesto spustí. Běh dostane stav <b>zrušeno</b> (zpráva „Cancelled by“ a jméno uživatele): v sestavách se nepočítá jako chyba, neposílá e-mail o chybě a zapíše se do auditního protokolu. Záloha přerušená v půlce se pro obnovu nepoužije. Aktualizace agenta zastavit nelze.</p>
 <p><b>Časový limit běhu (hodiny)</b> v části <b>Pokročilé</b> formuláře úlohy zastaví zálohu nebo kopii úlohy, která běží déle, a označí ji jako neúspěšnou; v tomto případě se oznámení o chybě pošle. Prázdné nebo 0 znamená bez limitu. Pokud agent zastavení do 10 minut nepotvrdí, konzole běh označí jako neúspěšný sama.</p>
 
 <h2>Pozastavené uchovávání</h2>

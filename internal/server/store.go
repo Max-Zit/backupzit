@@ -887,7 +887,9 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	if len(res.Details) > 0 {
 		details = res.Details
 	}
-	ct, err := s.db.Exec(ctx, `UPDATE runs SET status=$3, finished_at=now(), stats=$4, errors=$5,
+	// A run a user cancelled ends as "cancelled" (the agent reports failed).
+	ct, err := s.db.Exec(ctx, `UPDATE runs SET status=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' AND cancel_by<>'' THEN 'cancelled' ELSE $3 END,
+		finished_at=now(), stats=$4, errors=$5,
 		message=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_reason ELSE $6 END,
 		notified=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_by<>'' ELSE notified END,
 		snapshot_id=CASE WHEN kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') THEN $7 ELSE snapshot_id END, details=$8, commands=$9

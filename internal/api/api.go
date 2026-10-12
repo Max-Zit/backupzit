@@ -244,6 +244,9 @@ const (
 	StatusSuccess = "success"
 	StatusWarning = "warning" // finished, but some files had errors
 	StatusFailed  = "failed"
+	// StatusCancelled: a user cancelled the run in the console (set by the
+	// console; agents report failed).
+	StatusCancelled = "cancelled"
 )
 
 // NASShare is a network share backed up through an agent, without

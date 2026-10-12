@@ -25,7 +25,7 @@ var errNotCancellable = errors.New("the run has already finished")
 // the run was still waiting (and so is finished now).
 func (s *Store) CancelRun(ctx context.Context, id int64, by, reason string) (queued bool, err error) {
 	// A cancel by a user sends no failure alert; the time limit does.
-	ct, err := s.db.Exec(ctx, `UPDATE runs SET status='failed', finished_at=now(), message=$2, cancel_reason=$2, cancel_by=$3, cancel_at=now(), notified=($3<>'')
+	ct, err := s.db.Exec(ctx, `UPDATE runs SET status=CASE WHEN $3<>'' THEN 'cancelled' ELSE 'failed' END, finished_at=now(), message=$2, cancel_reason=$2, cancel_by=$3, cancel_at=now(), notified=($3<>'')
 		WHERE id=$1 AND status='queued'`, id, reason, by)
 	if err != nil {
 		return false, err
@@ -108,7 +108,7 @@ func (s *Store) enforceTimeLimits(ctx context.Context, now time.Time) ([]Run, er
 	}
 	// The agent did not stop the run (it may hang in an operation that
 	// cannot be interrupted): fail it so the job can run again.
-	_, err = s.db.Exec(ctx, `UPDATE runs SET status='failed', finished_at=now(), notified=(cancel_by<>''),
+	_, err = s.db.Exec(ctx, `UPDATE runs SET status=CASE WHEN cancel_by<>'' THEN 'cancelled' ELSE 'failed' END, finished_at=now(), notified=(cancel_by<>''),
 		message=cancel_reason || ' (the agent did not confirm the stop)'
 		WHERE status='running' AND cancel_reason IS NOT NULL AND cancel_at < now() - make_interval(secs => $1)`, cancelGrace.Seconds())
 	return stopped, err

@@ -62,7 +62,7 @@ func TestCancelRuns(t *testing.T) {
 		t.Fatalf("cancel queued: %s", loc)
 	}
 	r, _ := e.store.GetRun(ctx, runID)
-	if r.Status != "failed" || r.Message != "Cancelled by admin" {
+	if r.Status != "cancelled" || r.Message != "Cancelled by admin" {
 		t.Fatalf("queued run after cancel: %s %q", r.Status, r.Message)
 	}
 	if _, loc, _ := admin.do("POST", fmt.Sprintf("/runs/%d/cancel", runID), nil); !strings.Contains(loc, "err=") {
@@ -94,7 +94,7 @@ func TestCancelRuns(t *testing.T) {
 		t.Errorf("stopping took %v", d)
 	}
 	r, _ = e.store.GetRun(ctx, runID)
-	if r.Status != "failed" || r.Message != "Cancelled by admin" {
+	if r.Status != "cancelled" || r.Message != "Cancelled by admin" {
 		t.Errorf("running run after cancel: %s %q", r.Status, r.Message)
 	}
 	if b, err := os.ReadFile(postFile); err != nil || strings.TrimSpace(string(b)) != "failed" {
