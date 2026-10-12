@@ -65,6 +65,9 @@ func TestCancelRuns(t *testing.T) {
 	if r.Status != "cancelled" || r.Message != "Cancelled by admin" {
 		t.Fatalf("queued run after cancel: %s %q", r.Status, r.Message)
 	}
+	if _, _, body := admin.do("GET", "/runs", nil); !strings.Contains(body, `class="badge cancelled"`) || strings.Contains(body, `queued</span> <span class="muted"`) {
+		t.Error("activity list does not show the run as cancelled")
+	}
 	if _, loc, _ := admin.do("POST", fmt.Sprintf("/runs/%d/cancel", runID), nil); !strings.Contains(loc, "err=") {
 		t.Error("finished run cancelled again")
 	}
