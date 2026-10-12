@@ -70,6 +70,9 @@ type PollResponse struct {
 	// Status is sent when the agent asks for it (WantStatus), for the tray
 	// app on the machine.
 	Status *AgentStatus `json:"status,omitempty"`
+	// Cancel lists running runs of the agent to stop (cancelled in the
+	// console or over their job's time limit).
+	Cancel []int64 `json:"cancel,omitempty"`
 }
 
 // Run kinds.
@@ -111,6 +114,8 @@ const (
 	KindVMReplicaStart = "vm-replica-start"
 	// KindAgentUpdate installs a newer agent version from the console.
 	KindAgentUpdate = "agent-update"
+	// KindAgentLog sends the agent's log to the console (PathRunsPrefix+id+"/log").
+	KindAgentLog = "agent-log"
 )
 
 // Run is a unit of work assigned to an agent.
@@ -262,6 +267,10 @@ type M365Source struct {
 	Calendar   bool     `json:"calendar,omitempty"`
 	SharePoint bool     `json:"sharepoint,omitempty"`
 	Sites      []string `json:"sites,omitempty"`
+	// ExcludeUsers and ExcludeSites are skipped when every account or site
+	// is backed up.
+	ExcludeUsers []string `json:"exclude_users,omitempty"`
+	ExcludeSites []string `json:"exclude_sites,omitempty"`
 }
 
 // RunResult is reported by the agent when a run finishes.
@@ -437,4 +446,9 @@ type CommandResult struct {
 	Stage  string `json:"stage"`
 	Error  string `json:"error,omitempty"` // empty: the command succeeded
 	Output string `json:"output,omitempty"`
+}
+
+// AgentLog is the log an agent sends for a KindAgentLog run.
+type AgentLog struct {
+	Text string `json:"text"`
 }

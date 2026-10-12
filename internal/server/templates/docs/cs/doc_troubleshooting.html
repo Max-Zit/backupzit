@@ -5,7 +5,7 @@
 <ul>
   <li>Je počítač zapnutý a běží služba? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
   <li>Dosáhne počítač na konzoli? <code>Test-NetConnection backup-server -Port 8443</code> nebo <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Protokol agenta: <code>C:\ProgramData\backupzit\agent.log</code>, v Linuxu <code>/etc/backupzit/agent.log</code> nebo <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch“ znamená, že se certifikát konzole změnil — zaregistrujte agenta znovu.</li>
+  <li>Protokol agenta: <code>C:\ProgramData\backupzit\agent.log</code>, v Linuxu <code>/var/log/backupzit/agent.log</code> nebo <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch“ znamená, že se certifikát konzole změnil — zaregistrujte agenta znovu.</li>
 </ul>
 
 <h2>Záloha selhala</h2>
@@ -78,6 +78,22 @@
   <li>Zkontrolujte síťovou cestu k úložišti (Wi-Fi, VPN, rychlost odesílání do internetu u cloudového úložiště).</li>
   <li>Vylučte mezipaměti, dočasné soubory a média, která nepotřebujete.</li>
 </ul>
+
+<h2 id="logs">Protokoly</h2>
+<p>Když něco nefunguje, tyto protokoly ukazují, co se stalo:</p>
+<table>
+  <tr><th>Co</th><th>Kde</th></tr>
+  <tr><td>Konzole (server)</td><td><code>journalctl -u backupzit-server</code> a soubor <code>/var/lib/backupzit/logs/server.log</code> (až 4 soubory po 10 MB). Poslední řádky jsou v <a href="/settings/diagnostics">Nastavení → Diagnostika</a>.</td></tr>
+  <tr><td>Agent ve Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Agent v Linuxu</td><td><code>/var/log/backupzit/agent.log</code> a <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Libovolný agent, z konzole</td><td><b>Získat protokol</b> na stránce <a href="/agents">Agenti</a>: agent pošle konec svého protokolu a nejnovější protokoly instalace; přečtete nebo stáhnete je na stránce běhu (uchovávají se 30 dní; agenti 0.38.0 nebo novější).</td></tr>
+  <tr><td>Jedna záloha nebo obnova</td><td>její stránka v části <a href="/runs">Aktivita</a>: zpráva, chyby, statistiky a výstup příkazů před zálohou a po ní</td></tr>
+  <tr><td>Aktualizace agentů</td><td>protokoly instalace v <code>C:\ProgramData\backupzit\updates</code> (Windows) nebo <code>/var/tmp/backupzit-updates</code> (Linux); <b>Získat protokol</b> je obsahuje</td></tr>
+  <tr><td>Aktualizace konzole</td><td><code>journalctl -u backupzit-update</code>; předchozí verze a výpis databáze zůstávají v <code>/var/lib/backupzit-update</code></td></tr>
+  <tr><td>Zabezpečené úložiště</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>Kdo co změnil</td><td><a href="/audit">auditní protokol</a>, který lze posílat i na server syslog</td></tr>
+</table>
+<p>Pro žádost o podporu dá <b>Stáhnout diagnostiku</b> v <a href="/settings/diagnostics">Nastavení → Diagnostika</a> zip s protokolem konzole, verzemi, agenty, úlohami, neúspěšnými běhy za posledních 30 dní a auditním protokolem — bez hesel, klíčů a přístupových údajů k úložištím. Systém pro obnovu vypisuje svůj protokol na obrazovku.</p>
 
 <h2>Časté dotazy</h2>
 <h3>Mohu použít NFS?</h3>

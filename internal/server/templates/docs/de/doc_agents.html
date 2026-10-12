@@ -92,8 +92,10 @@ systemctl enable --now backupzit-agent</pre>
 <h2>Agentenprotokoll</h2>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
-  <li>Linux: <code>/etc/backupzit/agent.log</code> und <code>journalctl -u backupzit-agent</code></li>
+  <li>Linux: <code>/var/log/backupzit/agent.log</code> und <code>journalctl -u backupzit-agent</code></li>
   <li>Wiederherstellungssysteme zeigen das Protokoll auf ihrem Bildschirm.</li>
+  <li>Das Protokoll umfasst bis zu 4 Dateien zu 10 MB (<code>agent.log</code> und <code>agent.log.1</code> bis <code>.3</code>); ältere Einträge werden gelöscht.</li>
+  <li><b>Protokoll holen</b> auf der Seite Agenten holt das Ende des Protokolls in die Konsole — siehe <a href="/docs/troubleshooting#logs">Protokolle</a>.</li>
 </ul>
 
 <h2>Deinstallieren</h2>

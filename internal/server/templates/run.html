@@ -1,6 +1,7 @@
 {{define "content"}}
 {{with .Data.Run}}
 <h1>{{kindtitle .Kind}} #{{.ID}} {{template "status" .Status}}</h1>
+{{if and (or (eq .Status "queued") (eq .Status "running")) (ne .Kind "agent-update")}}{{if .CancelReason}}<div class="callout warn"><p><b>{{T "Stopping:"}}</b> {{deref .CancelReason}}. {{T "The agent stops the run within a few seconds."}}</p></div>{{else if $.Me.Can "run"}}<div class="actions"><form method="post" action="/runs/{{.ID}}/cancel" class="inline" data-confirm="{{T "Stop this run? A backup stopped halfway is not used for restores."}}"><button class="danger">{{template "icon" "stop"}}{{if eq .Status "queued"}}{{T "Cancel"}}{{else}}{{T "Stop run"}}{{end}}</button></form></div>{{end}}{{end}}
 {{if .Anomaly}}<div class="callout warn"><p><b>{{T "Suspicious backup — possible ransomware or mass deletion:"}}</b> {{.Anomaly}}.</p><p>{{T "Check the machine. Retention of the job is paused so older backups are kept; resume it on the"}} <a href="/jobs/{{.JobID}}">{{T "job page"}}</a> {{T "after review."}}</p></div>{{end}}
 <div class="panel" {{if or (eq .Status "queued") (eq .Status "running")}}data-autorefresh{{end}}>
   <dl class="kv">
@@ -11,7 +12,7 @@
     <dt>{{T "Started"}}</dt><dd>{{ts .StartedAt}}</dd>
     <dt>{{T "Finished"}}</dt><dd>{{ts .FinishedAt}}</dd>
     {{if .StartedAt}}<dt>{{T "Duration"}}</dt><dd>{{.Duration}}</dd>{{end}}
-    <dt>{{T "Repository"}}</dt><dd class="mono">{{.RepoURL}}</dd>
+    {{if .RepoURL}}<dt>{{T "Repository"}}</dt><dd class="mono">{{.RepoURL}}</dd>{{end}}
     {{if .SnapshotID}}<dt>{{T "Snapshot"}}</dt><dd class="mono">{{.SnapshotID}}</dd>{{end}}
     {{if eq .Kind "backup"}}
       <dt>{{T "Paths"}}</dt><dd class="mono">{{join .Paths "\n"}}</dd>
@@ -47,6 +48,7 @@
       <dt>{{T "From"}}</dt><dd>{{T "partition"}} {{index .ImagePartitions 0}} {{T "of image"}} {{short .SnapshotID}}</dd>
       <dt>{{T "Paths"}}</dt><dd class="mono">{{join .Paths "\n"}}</dd>
       <dt>{{T "Restore to"}}</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}{{T "original location"}}{{end}}</dd>
+    {{else if or (eq .Kind "agent-log") (eq .Kind "agent-update")}}
     {{else if eq .Kind "image-restore"}}
       <dt>{{T "Target disk"}}</dt><dd>{{if .TargetDisk}}{{T "Disk"}} {{deref2 .TargetDisk}}{{end}}{{if .KeepOffline}} {{T "(left offline)"}}{{end}}</dd>
       {{if .NewHardware}}<dt>{{T "New hardware"}}</dt><dd>{{T "prepared for different hardware"}}{{if .DriverPath}}{{T ", drivers from"}} <span class="mono">{{.DriverPath}}</span>{{end}}</dd>{{end}}
@@ -173,6 +175,15 @@
   <div class="stat"><b>{{.Dirs}}</b><span>{{T "folders"}}</span></div>
   <div class="stat"><b>{{bytes .Bytes}}</b><span>{{T "restored"}}</span></div>
   <div class="stat"><b>{{.FilesVerified}}</b><span>{{T "files verified"}}</span></div>
+</div>
+{{end}}
+
+{{with .Data.AgentLog}}
+<div class="panel">
+  <h2>{{T "Log of the agent"}}</h2>
+  <p><a class="btn" href="/runs/{{$.Data.Run.ID}}/log">{{template "icon" "download"}}{{T "Download the log"}}</a> <small class="muted">{{T "the end of the agent's log file and the newest installer logs; kept for 30 days"}}</small></p>
+  <p class="muted small">{{T "The last 200 lines:"}}</p>
+  <pre class="mono small scroll">{{.}}</pre>
 </div>
 {{end}}
 

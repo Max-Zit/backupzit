@@ -20,6 +20,13 @@
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Viewer</td><td>One run with message, errors and statistics</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Viewer</td><td>The <a href="/docs/monitoring">report</a> for a period: totals, success rate and per-job details</td></tr>
   <tr><td><code>GET /api/v1/targets</code></td><td>Viewer</td><td>Storage targets (without credentials)</td></tr>
+  <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Viewer</td><td>One agent</td></tr>
+  <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Backup operator</td><td>Asks the agent for its log: <code>{"run_id": 124}</code>; read it with the next endpoint once the agent has sent it (agents 0.38.0 or newer)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Backup operator</td><td>The log an agent sent: <code>{"log": "..."}</code>, or 404 until it arrives</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Restore operator</td><td>Cancels a queued run or stops a running one: <code>{"state": "cancelled"}</code> or <code>"stopping"</code>; 409 if it has finished</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Backup operator</td><td>Turns the job's schedule on or off; with four-eyes approval on, disabling works only in the console (409)</td></tr>
+  <tr><td><code>GET /api/v1/storage</code></td><td>Viewer</td><td>Space used per storage target, the capacity and free space when known, the growth per day and the days until full</td></tr>
+  <tr><td><code>GET /api/v1/metrics</code></td><td>Viewer</td><td>Metrics in the Prometheus text format (see below)</td></tr>
 </table>
 <p>Periods: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, or <code>custom</code> with <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Errors return <code>{"error": "..."}</code> with 400 (bad request), 401 (missing, invalid or expired token), 403 (role too low), 404 or 409.</p>
@@ -35,5 +42,15 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Use <code>-k</code> / <code>-SkipCertificateCheck</code> only with the console's self-signed certificate on a trusted network, or install the console certificate on the monitoring host.</p>
 <h3>Monitoring check</h3>
 <p>Poll <code>/api/v1/status</code> every few minutes and alert when <code>ok</code> is false. For per-job checks use <code>/api/v1/jobs</code> and alert when <code>last_status</code> is <code>failed</code> or <code>last_finished</code> is older than expected.</p>
+<h3>Prometheus and Grafana</h3>
+<p><code>/api/v1/metrics</code> returns the state in the Prometheus text format: agents online, active runs, failures and warnings of the last 24 hours, suspicious backups, and per agent, job and storage target <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 success, 1 warning, 2 failed), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> and <code>backupzit_storage_free_bytes</code>. A scrape job with a Viewer token:</p>
+<pre>- job_name: backupzit
+  scheme: https
+  metrics_path: /api/v1/metrics
+  authorization:
+    credentials: bzt_...
+  static_configs:
+    - targets: ['backup.example.local:8443']</pre>
+<p>Alert, for example, when <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (no good backup for two days).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

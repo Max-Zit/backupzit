@@ -50,6 +50,17 @@ func DefaultConfigPath() string {
 	return "/etc/backupzit/agent.json"
 }
 
+// LogPath is the agent's log file for a configuration file: on Linux with
+// the default configuration /var/log/backupzit/agent.log, otherwise
+// agent.log next to the configuration (C:\ProgramData\backupzit on
+// Windows). Rotated files end in .1 to .3.
+func LogPath(cfgPath string) string {
+	if runtime.GOOS != "windows" && cfgPath == DefaultConfigPath() {
+		return "/var/log/backupzit/agent.log"
+	}
+	return filepath.Join(filepath.Dir(cfgPath), "agent.log")
+}
+
 func LoadConfig(path string) (*Config, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -201,6 +212,10 @@ type Agent struct {
 
 	mu   sync.Mutex
 	busy bool
+	// LogPath is the agent's log file, sent to the console on request.
+	LogPath string
+	// cancels stops a running run when the console cancels it.
+	cancels map[int64]context.CancelFunc
 	// inventoryAt is when the disk inventory was last sent.
 	inventoryAt time.Time
 	wg          sync.WaitGroup
@@ -247,6 +262,15 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 		a.inventoryAt = time.Now()
 		a.mu.Unlock()
 	}
+	for _, id := range resp.Cancel {
+		a.mu.Lock()
+		stop := a.cancels[id]
+		a.mu.Unlock()
+		if stop != nil {
+			a.log.Info("run cancelled in the console", "run", id)
+			stop()
+		}
+	}
 	if resp.Run != nil {
 		a.mu.Lock()
 		a.busy = true
@@ -274,10 +298,16 @@ func (a *Agent) Wait() { a.wg.Wait() }
 // continues as a heartbeat.
 func (a *Agent) Run(ctx context.Context) {
 	a.log.Info("agent started", "server", a.client.cfg.ServerURL, "version", a.version)
+	failed := 0
 	for {
 		iv, err := a.PollOnce(ctx)
-		if err != nil && ctx.Err() == nil {
+		switch {
+		case err != nil && ctx.Err() == nil:
 			a.log.Warn("poll failed", "err", err)
+			failed++
+		case err == nil && failed > 0:
+			a.log.Info("connected to the console again", "failed_polls", failed)
+			failed = 0
 		}
 		a.mu.Lock()
 		if a.busy && iv > 15*time.Second {
@@ -297,6 +327,22 @@ func (a *Agent) Run(ctx context.Context) {
 func (a *Agent) execute(ctx context.Context, run api.Run) {
 	a.log.Info("run started", "run", run.ID, "kind", run.Kind, "job", run.JobName)
 	a.runStarted(run)
+	// The console can cancel the run; the command after the backup still runs
+	// (with the agent's context), e.g. to restart services stopped before.
+	parent := ctx
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
+	a.mu.Lock()
+	if a.cancels == nil {
+		a.cancels = map[int64]context.CancelFunc{}
+	}
+	a.cancels[run.ID] = stop
+	a.mu.Unlock()
+	defer func() {
+		a.mu.Lock()
+		delete(a.cancels, run.ID)
+		a.mu.Unlock()
+	}()
 	var res api.RunResult
 	var after func() // runs once the result is reported
 	if run.Limit != nil {
@@ -341,6 +387,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res = a.vmFileRestore(ctx, run)
 	case api.KindAgentUpdate:
 		res, after = a.selfUpdate(ctx, run)
+	case api.KindAgentLog:
+		res = a.sendLog(ctx, run)
 	case api.KindVMBackup:
 		res = a.vmBackup(ctx, run)
 	case api.KindVMRestore:
@@ -373,7 +421,7 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 	if run.PostCommand != "" && backupKind(run.Kind) {
 		// Runs also after failures, e.g. to restart services the command
 		// before the backup stopped.
-		out, err := a.jobCommand(ctx, run, "post", run.PostCommand, res.Status)
+		out, err := a.jobCommand(parent, run, "post", run.PostCommand, res.Status)
 		commands = append(commands, commandResult("post", out, err))
 		if err != nil {
 			if res.Status == api.StatusSuccess {

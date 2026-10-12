@@ -5,7 +5,7 @@
 <ul>
   <li>La machine est-elle allumée et le service tourne-t-il ? Windows : <code>Get-Service backupzit-agent</code> ; Linux : <code>systemctl status backupzit-agent</code>.</li>
   <li>La machine atteint-elle la console ? <code>Test-NetConnection backup-server -Port 8443</code> ou <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Journal de l'agent : <code>C:\ProgramData\backupzit\agent.log</code>, sous Linux <code>/etc/backupzit/agent.log</code> ou <code>journalctl -u backupzit-agent</code>. « fingerprint mismatch » signifie que le certificat de la console a changé — inscrivez à nouveau l'agent.</li>
+  <li>Journal de l'agent : <code>C:\ProgramData\backupzit\agent.log</code>, sous Linux <code>/var/log/backupzit/agent.log</code> ou <code>journalctl -u backupzit-agent</code>. « fingerprint mismatch » signifie que le certificat de la console a changé — inscrivez à nouveau l'agent.</li>
 </ul>
 
 <h2>Une sauvegarde a échoué</h2>
@@ -78,6 +78,22 @@
   <li>Vérifiez le chemin réseau vers le stockage (Wi-Fi, VPN, débit montant Internet pour un stockage cloud).</li>
   <li>Excluez les caches, fichiers temporaires et médias dont vous n'avez pas besoin.</li>
 </ul>
+
+<h2 id="logs">Journaux</h2>
+<p>Quand quelque chose ne fonctionne pas, ces journaux montrent ce qui s'est passé :</p>
+<table>
+  <tr><th>Quoi</th><th>Où</th></tr>
+  <tr><td>Console (serveur)</td><td><code>journalctl -u backupzit-server</code> et le fichier <code>/var/lib/backupzit/logs/server.log</code> (jusqu'à 4 fichiers de 10 Mo). Les dernières lignes sont dans <a href="/settings/diagnostics">Paramètres → Diagnostic</a>.</td></tr>
+  <tr><td>Agent sous Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Agent sous Linux</td><td><code>/var/log/backupzit/agent.log</code> et <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Tout agent, depuis la console</td><td><b>Obtenir le journal</b> sur la page <a href="/agents">Agents</a> : l'agent envoie la fin de son journal et ses journaux d'installation les plus récents ; à lire ou télécharger sur la page de l'exécution (conservés 30 jours ; agents 0.38.0 ou plus récents).</td></tr>
+  <tr><td>Une sauvegarde ou restauration</td><td>sa page dans <a href="/runs">Activité</a> : message, erreurs, statistiques et sortie des commandes avant et après la sauvegarde</td></tr>
+  <tr><td>Mises à jour des agents</td><td>journaux d'installation dans <code>C:\ProgramData\backupzit\updates</code> (Windows) ou <code>/var/tmp/backupzit-updates</code> (Linux) ; <b>Obtenir le journal</b> les inclut</td></tr>
+  <tr><td>Mises à jour de la console</td><td><code>journalctl -u backupzit-update</code> ; la version précédente et un dump de la base sont conservés dans <code>/var/lib/backupzit-update</code></td></tr>
+  <tr><td>Dépôt renforcé</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>Qui a modifié quoi</td><td>le <a href="/audit">journal d'audit</a>, qui peut aussi être envoyé à un serveur syslog</td></tr>
+</table>
+<p>Pour une demande d'assistance, <b>Télécharger le diagnostic</b> dans <a href="/settings/diagnostics">Paramètres → Diagnostic</a> fournit un zip avec le journal de la console, les versions, les agents, les tâches, les exécutions en échec des 30 derniers jours et le journal d'audit — sans mots de passe, clés ni identifiants de stockage. Un système de récupération affiche son journal à l'écran.</p>
 
 <h2>FAQ</h2>
 <h3>Puis-je utiliser NFS ?</h3>

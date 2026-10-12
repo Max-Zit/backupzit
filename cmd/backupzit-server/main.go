@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/logfile"
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/server"
 	"github.com/max-zit/backupzit/internal/tlsutil"
@@ -78,6 +80,17 @@ func run() error {
 
 	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
 		return err
+	}
+	// The log also goes to a rotated file in the data directory, for the
+	// diagnostics download in the console (the journal keeps its own copy).
+	logPath := filepath.Join(*dataDir, "logs", "server.log")
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o700); err == nil {
+		if lf, err := logfile.Open(logPath); err == nil {
+			defer lf.Close()
+			log = slog.New(slog.NewTextHandler(io.MultiWriter(os.Stdout, lf), nil))
+		} else {
+			log.Warn("log file", "err", err)
+		}
 	}
 	if *devDB {
 		pg, url, err := startEmbeddedDB(*dataDir)
@@ -156,6 +169,7 @@ func run() error {
 	}
 	srv.InitialPasswordFile = filepath.Join(*dataDir, "initial-admin-password.txt")
 	srv.Version = version
+	srv.LogFile = logPath
 	os.MkdirAll(srv.DistDir, 0o755)
 
 	srv.Notifier = server.NewNotifier(store, log, func() string { return srv.PublicURL })

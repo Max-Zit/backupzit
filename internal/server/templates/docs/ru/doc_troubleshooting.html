@@ -5,7 +5,7 @@
 <ul>
   <li>Включена ли машина и работает ли служба? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
   <li>Доступна ли консоль с машины? <code>Test-NetConnection backup-server -Port 8443</code> или <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Журнал агента: <code>C:\ProgramData\backupzit\agent.log</code>, в Linux <code>/etc/backupzit/agent.log</code> или <code>journalctl -u backupzit-agent</code>. «fingerprint mismatch» означает, что сертификат консоли изменился — зарегистрируйте агента заново.</li>
+  <li>Журнал агента: <code>C:\ProgramData\backupzit\agent.log</code>, в Linux <code>/var/log/backupzit/agent.log</code> или <code>journalctl -u backupzit-agent</code>. «fingerprint mismatch» означает, что сертификат консоли изменился — зарегистрируйте агента заново.</li>
 </ul>
 
 <h2>Копирование завершилось ошибкой</h2>
@@ -78,6 +78,22 @@
   <li>Проверьте сетевой путь до хранилища (Wi-Fi, VPN, скорость отдачи в интернет для облачного хранилища).</li>
   <li>Исключите кеши, временные файлы и ненужные медиафайлы.</li>
 </ul>
+
+<h2 id="logs">Журналы</h2>
+<p>Когда что-то не работает, эти журналы показывают, что произошло:</p>
+<table>
+  <tr><th>Что</th><th>Где</th></tr>
+  <tr><td>Консоль (сервер)</td><td><code>journalctl -u backupzit-server</code> и файл <code>/var/lib/backupzit/logs/server.log</code> (до 4 файлов по 10 МБ). Последние строки — в разделе <a href="/settings/diagnostics">Настройки → Диагностика</a>.</td></tr>
+  <tr><td>Агент в Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Агент в Linux</td><td><code>/var/log/backupzit/agent.log</code> и <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Любой агент, из консоли</td><td><b>Получить журнал</b> на странице <a href="/agents">Агенты</a>: агент отправляет конец своего журнала и последние журналы установки; их можно прочитать или скачать на странице запуска (хранятся 30 дней; агенты 0.38.0 и новее).</td></tr>
+  <tr><td>Одно копирование или восстановление</td><td>его страница в разделе <a href="/runs">Активность</a>: сообщение, ошибки, статистика и вывод команд до и после копирования</td></tr>
+  <tr><td>Обновления агентов</td><td>журналы установки в <code>C:\ProgramData\backupzit\updates</code> (Windows) или <code>/var/tmp/backupzit-updates</code> (Linux); <b>Получить журнал</b> включает их</td></tr>
+  <tr><td>Обновления консоли</td><td><code>journalctl -u backupzit-update</code>; предыдущая версия и дамп базы данных хранятся в <code>/var/lib/backupzit-update</code></td></tr>
+  <tr><td>Защищённый репозиторий</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>Кто что изменил</td><td><a href="/audit">журнал аудита</a>, который можно также отправлять на сервер syslog</td></tr>
+</table>
+<p>Для обращения в поддержку <b>Скачать диагностику</b> в разделе <a href="/settings/diagnostics">Настройки → Диагностика</a> даёт zip с журналом консоли, версиями, агентами, заданиями, неудачными запусками за последние 30 дней и журналом аудита — без паролей, ключей и учётных данных хранилищ. Система восстановления выводит свой журнал на экран.</p>
 
 <h2>Вопросы и ответы</h2>
 <h3>Можно ли использовать NFS?</h3>

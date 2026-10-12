@@ -20,6 +20,13 @@
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Observador</td><td>Una ejecución con mensaje, errores y estadísticas</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Observador</td><td>El <a href="/docs/monitoring">informe</a> de un periodo: totales, tasa de éxito y detalles por trabajo</td></tr>
   <tr><td><code>GET /api/v1/targets</code></td><td>Observador</td><td>Destinos de almacenamiento (sin credenciales)</td></tr>
+  <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Observador</td><td>Un agente</td></tr>
+  <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Operador de copias</td><td>Pide su registro al agente: <code>{"run_id": 124}</code>; se lee con el siguiente punto cuando el agente lo haya enviado (agentes 0.38.0 o posteriores)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Operador de copias</td><td>El registro enviado por el agente: <code>{"log": "..."}</code>, o 404 hasta que llegue</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Operador de restauración</td><td>Cancela una ejecución en cola o detiene una en curso: <code>{"state": "cancelled"}</code> o <code>"stopping"</code>; 409 si ya terminó</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Operador de copias</td><td>Activa o desactiva la programación del trabajo; con la aprobación de cuatro ojos, desactivar solo es posible en la consola (409)</td></tr>
+  <tr><td><code>GET /api/v1/storage</code></td><td>Observador</td><td>Espacio usado por destino de almacenamiento, capacidad y espacio libre si se conocen, crecimiento diario y días hasta llenarse</td></tr>
+  <tr><td><code>GET /api/v1/metrics</code></td><td>Observador</td><td>Métricas en el formato de texto de Prometheus (ver abajo)</td></tr>
 </table>
 <p>Periodos: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, o <code>custom</code> con <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Los errores devuelven <code>{"error": "..."}</code> con 400 (solicitud incorrecta), 401 (token ausente, no válido o caducado), 403 (rol insuficiente), 404 o 409.</p>
@@ -35,5 +42,15 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Use <code>-k</code> / <code>-SkipCertificateCheck</code> solo con el certificado autofirmado de la consola en una red de confianza, o instale el certificado de la consola en el host de supervisión.</p>
 <h3>Comprobación de supervisión</h3>
 <p>Consulte <code>/api/v1/status</code> cada pocos minutos y genere una alerta cuando <code>ok</code> sea false. Para comprobar cada trabajo use <code>/api/v1/jobs</code> y alerte cuando <code>last_status</code> sea <code>failed</code> o <code>last_finished</code> sea más antiguo de lo esperado.</p>
+<h3>Prometheus y Grafana</h3>
+<p><code>/api/v1/metrics</code> devuelve el estado en el formato de texto de Prometheus: agentes en línea, ejecuciones activas, fallos y advertencias de las últimas 24 horas, copias sospechosas y, por agente, trabajo y destino, <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 correcto, 1 advertencia, 2 fallo), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> y <code>backupzit_storage_free_bytes</code>. Un trabajo de recolección con un token de Observador:</p>
+<pre>- job_name: backupzit
+  scheme: https
+  metrics_path: /api/v1/metrics
+  authorization:
+    credentials: bzt_...
+  static_configs:
+    - targets: ['backup.example.local:8443']</pre>
+<p>Alerte, por ejemplo, cuando <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (dos días sin una copia correcta).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

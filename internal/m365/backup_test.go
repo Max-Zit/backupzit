@@ -552,3 +552,31 @@ func TestLivePIM(t *testing.T) {
 		t.Errorf("incremental: %+v", s2)
 	}
 }
+
+func TestBackupExcludes(t *testing.T) {
+	newFakeGraph(t)
+	ctx := context.Background()
+	r := newRepo(t)
+	c := NewClient(Credentials{Tenant: "contoso.test", Client: "app", Secret: "s3cret"})
+	// All accounts and sites except the excluded ones (matched without case
+	// and trailing slash).
+	res, err := Backup(ctx, r, c, Options{Mail: true, SharePoint: true, ExcludeUsers: []string{"ANA@contoso.test"},
+		ExcludeSites: []string{"https://contoso.sharepoint.com/sites/Sales/"}})
+	if err == nil {
+		t.Fatalf("backup with everything excluded: %+v", res)
+	}
+	res, err = Backup(ctx, r, c, Options{Mail: true, SharePoint: true, ExcludeSites: []string{"https://contoso.sharepoint.com/sites/sales"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(res.Accounts, ",") != "Ana@contoso.test" || len(res.Sites) != 0 {
+		t.Fatalf("accounts %v sites %v", res.Accounts, res.Sites)
+	}
+	res, err = Backup(ctx, r, c, Options{Mail: true, SharePoint: true, ExcludeUsers: []string{"ana@contoso.test"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accounts) != 0 || strings.Join(res.Sites, ",") != "https://contoso.sharepoint.com/sites/sales" {
+		t.Fatalf("accounts %v sites %v", res.Accounts, res.Sites)
+	}
+}

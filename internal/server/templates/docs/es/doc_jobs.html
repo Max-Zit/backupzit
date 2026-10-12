@@ -41,7 +41,7 @@
   <tr><td><b>Una vez al mes</b></td><td>El día 1 a las 23:00.</td></tr>
   <tr><td><b>Solo manualmente</b></td><td>Solo se ejecuta cuando hace clic en <i>Ejecutar copia ahora</i>.</td></tr>
 </table>
-<p>Las horas están en la zona horaria del servidor de la consola (en el appliance: <a href="/settings/network#timezone">Configuración → Red → Zona horaria</a> o la opción 9 del menú de configuración; empieza en UTC). Si un agente está desconectado a la hora programada, la copia espera en la cola y comienza en cuanto vuelve el agente. Vea todas las ejecuciones previstas en el <a href="/calendar">Calendario</a>.</p>
+<p>Las horas están en la zona horaria del servidor de la consola (en el appliance: <a href="/settings/network#timezone">Configuración → Red → Zona horaria</a> o la opción 9 del menú de configuración; empieza en UTC). Si un agente está desconectado a la hora programada, la copia espera en la cola y comienza en cuanto vuelve el agente. Vea todas las ejecuciones previstas en el <a href="/calendar">Calendario</a>. La fecha y hora actuales de la consola se muestran abajo a la izquierda, debajo de la zona horaria.</p>
 
 <h2>Retención: cuántas copias conservar</h2>
 <p>Una instantánea se conserva si <b>cualquier</b> regla la selecciona:</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Cambiar un trabajo</h2>
-<p>Abra el trabajo y despliegue <b>Editar trabajo</b>. Puede cambiar el nombre, las carpetas y exclusiones (trabajos de archivos), las VM (trabajos de VM), la programación, la retención, el límite de velocidad, el nivel de compresión y los comandos. El agente, el destino de almacenamiento y el disco de un trabajo de imagen no cambian, para que las copias del trabajo sigan siendo una sola cadena; para mover un trabajo, cree uno nuevo, con un trabajo de copia secundaria si deben acompañarlo copias anteriores. Los cambios se aplican desde la siguiente ejecución y quedan en el <a href="/audit">registro de auditoría</a>. Con la <a href="/docs/users">aprobación de cuatro ojos</a> activada, una retención más corta espera la aprobación de un segundo usuario; los demás cambios se guardan enseguida.</p>
+<p>Abra el trabajo y haga clic en <b>Editar</b>; el formulario se abre en una página propia que no se recarga mientras se ejecuta una copia. Puede cambiar el nombre, las carpetas y exclusiones (trabajos de archivos), las VM (trabajos de VM), la programación, la retención, el límite de velocidad, el nivel de compresión y los comandos. El agente, el destino de almacenamiento y el disco de un trabajo de imagen no cambian, para que las copias del trabajo sigan siendo una sola cadena; para mover un trabajo, cree uno nuevo, con un trabajo de copia secundaria si deben acompañarlo copias anteriores. Los cambios se aplican desde la siguiente ejecución y quedan en el <a href="/audit">registro de auditoría</a>. Con la <a href="/docs/users">aprobación de cuatro ojos</a> activada, una retención más corta espera la aprobación de un segundo usuario; los demás cambios se guardan enseguida.</p>
 
 <h2>Réplicas (Proxmox VE)</h2>
 <p>Los trabajos de VM de Proxmox pueden mantener copias detenidas y actualizadas de sus invitados en el nodo que elija, que se inician con un clic si se pierde un invitado; consulte <a href="/docs/proxmox">Proxmox VE → Replicación</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Compresión y deduplicación</h2>
 <p>Cada copia se deduplica: los datos que ya están en el repositorio —de copias anteriores del mismo trabajo o de otros trabajos en el mismo destino de almacenamiento— no se vuelven a guardar. Los datos nuevos se comprimen después con zstd; las piezas que no se reducen (vídeo, archivos comprimidos, archivos cifrados) se guardan tal cual. El cifrado va después de la compresión.</p>
-<p>El nivel de compresión es un ajuste del trabajo (<b>Editar trabajo → Avanzado</b>):</p>
+<p>El nivel de compresión es un ajuste del trabajo (<b>Editar → Avanzado</b>):</p>
 <table>
   <tr><th>Nivel</th><th>Cuándo usarlo</th></tr>
   <tr><td>Estándar (recomendado)</td><td>Buena compresión a alta velocidad; sirve para casi cualquier trabajo.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Deshabilitar</b> pausa la programación sin perder el trabajo (con la aprobación de cuatro ojos activada, debe aprobarlo un segundo usuario).</li>
   <li><b>Eliminar</b> quita el trabajo; las copias existentes permanecen en el almacenamiento y siguen siendo restaurables desde Actividad.</li>
 </ul>
+
+<h2>Detener una ejecución</h2>
+<p>Una copia, duplicado o restauración en cola o en curso se puede detener con <b>Cancelar</b> o <b>Detener la ejecución</b> en la página de la ejecución, o con <b>Detener la ejecución n.º …</b> en la página del trabajo. Una ejecución en cola se cancela al instante; una en curso la detiene el agente en segundos — también se termina el comando previo a la copia, y el comando posterior se ejecuta igualmente. La ejecución se marca como fallida («Cancelled by» y el nombre del usuario) y se registra en el registro de auditoría; no se envía correo de fallo. Una copia interrumpida a medias no se usa para restaurar. Las actualizaciones del agente no se pueden detener.</p>
+<p><b>Límite de tiempo de una ejecución (horas)</b>, en <b>Avanzado</b> del formulario del trabajo, detiene una copia o duplicado del trabajo que tarde más y lo marca como fallido; en este caso sí se envía la notificación de fallo. Vacío o 0 significa sin límite. Si el agente no confirma la detención en 10 minutos, la consola marca la ejecución como fallida.</p>
 
 <h2>Retención en pausa</h2>
 <p>Si una copia del trabajo parecía ransomware o un borrado masivo, la página del trabajo muestra <i>La retención está en pausa</i>: no se elimina ninguna copia hasta que alguien revise el equipo y haga clic en <i>Revisado: reanudar la retención</i> (con la aprobación de cuatro ojos activada, debe aprobarlo un segundo usuario). Consulte <a href="/docs/ransomware">Protección contra ransomware</a>.</p>

@@ -92,8 +92,10 @@ systemctl enable --now backupzit-agent</pre>
 <h2>Log dell'agente</h2>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
-  <li>Linux: <code>/etc/backupzit/agent.log</code> e <code>journalctl -u backupzit-agent</code></li>
+  <li>Linux: <code>/var/log/backupzit/agent.log</code> e <code>journalctl -u backupzit-agent</code></li>
   <li>I sistemi di ripristino mostrano il log sullo schermo.</li>
+  <li>Il log conserva fino a 4 file da 10 MB (<code>agent.log</code> e da <code>agent.log.1</code> a <code>.3</code>); le voci più vecchie vengono eliminate.</li>
+  <li><b>Ottieni log</b> nella pagina Agent porta la fine del log nella console — vedi <a href="/docs/troubleshooting#logs">Log</a>.</li>
 </ul>
 
 <h2>Disinstallazione</h2>

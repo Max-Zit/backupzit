@@ -92,8 +92,10 @@ systemctl enable --now backupzit-agent</pre>
 <h2>代理日志</h2>
 <ul>
   <li>Windows：<code>C:\ProgramData\backupzit\agent.log</code></li>
-  <li>Linux：<code>/etc/backupzit/agent.log</code> 和 <code>journalctl -u backupzit-agent</code></li>
+  <li>Linux：<code>/var/log/backupzit/agent.log</code> 和 <code>journalctl -u backupzit-agent</code></li>
   <li>恢复系统会在屏幕上显示日志。</li>
+  <li>日志最多保留 4 个 10 MB 的文件（<code>agent.log</code> 和 <code>agent.log.1</code> 至 <code>.3</code>）；更早的记录会被删除。</li>
+  <li>“代理”页面上的 <b>获取日志</b> 会将日志末尾取回控制台——见 <a href="/docs/troubleshooting#logs">日志</a>。</li>
 </ul>
 
 <h2>卸载</h2>

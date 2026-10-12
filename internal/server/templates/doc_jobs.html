@@ -41,7 +41,7 @@
   <tr><td><b>Once a month</b></td><td>On the 1st at 23:00.</td></tr>
   <tr><td><b>Manually only</b></td><td>Runs only when you click <i>Run backup now</i>.</td></tr>
 </table>
-<p>Times are in the console server's time zone (on the appliance: <a href="/settings/network#timezone">Settings → Network → Time zone</a> or item 9 of the setup menu; it starts in UTC). If an agent is offline at the scheduled time, the backup waits in the queue and starts as soon as the agent is back. See all planned runs in the <a href="/calendar">Calendar</a>.</p>
+<p>Times are in the console server's time zone (on the appliance: <a href="/settings/network#timezone">Settings → Network → Time zone</a> or item 9 of the setup menu; it starts in UTC). If an agent is offline at the scheduled time, the backup waits in the queue and starts as soon as the agent is back. See all planned runs in the <a href="/calendar">Calendar</a>. The current date and time of the console are shown at the bottom left, below the time zone.</p>
 
 <h2>Retention: how many backups to keep</h2>
 <p>A snapshot is kept if <b>any</b> rule selects it:</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Changing a job</h2>
-<p>Open the job and expand <b>Edit job</b>. You can change the name, the folders and exclusions (file jobs), the VMs (VM jobs), the schedule, the retention, the speed limit, the compression level and the commands. The agent, the storage target and the disk of an image job stay as they are, so the job's backups remain one chain; to move a job, create a new one — with a copy job if older backups should come along. Changes apply from the next run and are recorded in the <a href="/audit">audit log</a>. With <a href="/docs/users">four-eyes approval</a> on, a shorter retention waits for a second user's approval; the other changes are saved at once.</p>
+<p>Open the job and click <b>Edit</b>; the form opens on a page of its own that does not reload while a backup runs. You can change the name, the folders and exclusions (file jobs), the VMs (VM jobs), the schedule, the retention, the speed limit, the compression level and the commands. The agent, the storage target and the disk of an image job stay as they are, so the job's backups remain one chain; to move a job, create a new one — with a copy job if older backups should come along. Changes apply from the next run and are recorded in the <a href="/audit">audit log</a>. With <a href="/docs/users">four-eyes approval</a> on, a shorter retention waits for a second user's approval; the other changes are saved at once.</p>
 
 <h2>Replicas (Proxmox VE)</h2>
 <p>Proxmox VM jobs can keep stopped, up-to-date copies of their guests on a node of your choice, started with one click if a guest is lost — see <a href="/docs/proxmox">Proxmox VE → Replication</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Compression and deduplication</h2>
 <p>Every backup is deduplicated: data that is already in the repository — from earlier backups of the same job, or from other jobs on the same storage target — is not stored again. New data is then compressed with zstd; pieces that do not get smaller (video, archives, encrypted files) are stored as they are. Encryption comes after compression.</p>
-<p>The compression level is a job setting (<b>Edit job → Advanced</b>):</p>
+<p>The compression level is a job setting (<b>Edit → Advanced</b>):</p>
 <table>
   <tr><th>Level</th><th>When to use it</th></tr>
   <tr><td>Standard (recommended)</td><td>Good compression at high speed; fits almost every job.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Disable</b> pauses the schedule without losing the job (with four-eyes approval on, a second user has to approve it).</li>
   <li><b>Delete</b> removes the job; existing backups stay on the storage and remain restorable from Activity.</li>
 </ul>
+
+<h2>Stopping a run</h2>
+<p>A queued or running backup, copy or restore can be stopped with <b>Cancel</b> or <b>Stop run</b> on the run page, or <b>Stop run #…</b> on the job page. A waiting run is cancelled at once; a running one is stopped by the agent within seconds — the command before the backup is ended too, the command after the backup still runs. The run is marked as failed ("Cancelled by" and the user's name) and recorded in the audit log; no failure email is sent for it. A backup stopped halfway is not used for restores. Agent updates cannot be stopped.</p>
+<p><b>Time limit of a run (hours)</b> under <b>Advanced</b> in the job form stops a backup or copy of the job that runs longer and marks it as failed; this one does send the failure notification. Empty or 0 means no limit. If the agent does not confirm a stop within 10 minutes, the console marks the run as failed itself.</p>
 
 <h2>Retention paused</h2>
 <p>If a backup of the job looked like ransomware or mass deletion, the job page shows <i>Retention is paused</i>: no backups are removed until someone checks the machine and clicks <i>Reviewed — resume retention</i> (with four-eyes approval on, a second user has to approve it). See <a href="/docs/ransomware">Ransomware protection</a>.</p>

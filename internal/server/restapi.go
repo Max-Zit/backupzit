@@ -358,6 +358,23 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 		}
 		return toAPIRunJSON(x), nil
 	}))
+	mux.HandleFunc("POST /api/v1/runs/{id}/cancel", s.api(PermRun, func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := pathInt(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		queued, err := s.cancelRun(r, id)
+		if errors.Is(err, errNotCancellable) {
+			return nil, apiErr(http.StatusConflict, "%s", err.Error())
+		} else if err != nil {
+			return nil, err
+		}
+		state := "stopping"
+		if queued {
+			state = "cancelled"
+		}
+		return map[string]any{"run_id": id, "state": state}, nil
+	}))
 	mux.HandleFunc("GET /api/v1/report", s.api(PermView, func(w http.ResponseWriter, r *http.Request) (any, error) {
 		rep, err := s.reportFromRequest(r)
 		if err != nil {
@@ -385,6 +402,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 		}
 		return out, err
 	}))
+	s.registerAPIMore(mux)
 }
 
 // ---- token management pages (My account)

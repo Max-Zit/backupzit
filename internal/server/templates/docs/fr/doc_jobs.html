@@ -41,7 +41,7 @@
   <tr><td><b>Une fois par mois</b></td><td>Le 1er à 23:00.</td></tr>
   <tr><td><b>Manuellement uniquement</b></td><td>S'exécute seulement quand vous cliquez sur <i>Lancer la sauvegarde maintenant</i>.</td></tr>
 </table>
-<p>Les heures sont dans le fuseau horaire du serveur de la console (sur l'appliance : <a href="/settings/network#timezone">Paramètres → Réseau → Fuseau horaire</a> ou l'élément 9 du menu de configuration ; au départ UTC). Si un agent est hors ligne à l'heure prévue, la sauvegarde attend dans la file et démarre dès que l'agent revient. Toutes les exécutions prévues sont visibles dans le <a href="/calendar">Calendrier</a>.</p>
+<p>Les heures sont dans le fuseau horaire du serveur de la console (sur l'appliance : <a href="/settings/network#timezone">Paramètres → Réseau → Fuseau horaire</a> ou l'élément 9 du menu de configuration ; au départ UTC). Si un agent est hors ligne à l'heure prévue, la sauvegarde attend dans la file et démarre dès que l'agent revient. Toutes les exécutions prévues sont visibles dans le <a href="/calendar">Calendrier</a>. La date et l'heure actuelles de la console s'affichent en bas à gauche, sous le fuseau horaire.</p>
 
 <h2>Rétention : combien de sauvegardes conserver</h2>
 <p>Un instantané est conservé si <b>une quelconque</b> règle le sélectionne :</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Modifier une tâche</h2>
-<p>Ouvrez la tâche et dépliez <b>Modifier la tâche</b>. Vous pouvez changer le nom, les dossiers et exclusions (tâches de fichiers), les VM (tâches de VM), la planification, la rétention, la limite de débit, le niveau de compression et les commandes. L'agent, la cible de stockage et le disque d'une tâche d'image restent inchangés, afin que les sauvegardes de la tâche forment une seule chaîne ; pour déplacer une tâche, créez-en une nouvelle — avec une tâche de copie si les anciennes sauvegardes doivent suivre. Les modifications s'appliquent dès l'exécution suivante et sont consignées dans le <a href="/audit">journal d'audit</a>. Avec l'<a href="/docs/users">approbation à quatre yeux</a> activée, une rétention plus courte attend l'approbation d'un second utilisateur ; les autres modifications sont enregistrées immédiatement.</p>
+<p>Ouvrez la tâche et cliquez sur <b>Modifier</b> ; le formulaire s'ouvre sur une page à part, qui ne se recharge pas pendant une sauvegarde. Vous pouvez changer le nom, les dossiers et exclusions (tâches de fichiers), les VM (tâches de VM), la planification, la rétention, la limite de débit, le niveau de compression et les commandes. L'agent, la cible de stockage et le disque d'une tâche d'image restent inchangés, afin que les sauvegardes de la tâche forment une seule chaîne ; pour déplacer une tâche, créez-en une nouvelle — avec une tâche de copie si les anciennes sauvegardes doivent suivre. Les modifications s'appliquent dès l'exécution suivante et sont consignées dans le <a href="/audit">journal d'audit</a>. Avec l'<a href="/docs/users">approbation à quatre yeux</a> activée, une rétention plus courte attend l'approbation d'un second utilisateur ; les autres modifications sont enregistrées immédiatement.</p>
 
 <h2>Réplicas (Proxmox VE)</h2>
 <p>Les tâches de VM Proxmox peuvent maintenir des copies arrêtées et à jour de leurs invités sur un nœud de votre choix, démarrées en un clic si un invité est perdu — voir <a href="/docs/proxmox">Proxmox VE → Réplication</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Compression et déduplication</h2>
 <p>Chaque sauvegarde est dédupliquée : les données déjà présentes dans le dépôt — issues de sauvegardes antérieures de la même tâche ou d'autres tâches sur la même cible de stockage — ne sont pas stockées à nouveau. Les nouvelles données sont ensuite compressées avec zstd ; les morceaux qui ne rapetissent pas (vidéo, archives, fichiers chiffrés) sont stockés tels quels. Le chiffrement intervient après la compression.</p>
-<p>Le niveau de compression est un réglage de la tâche (<b>Modifier la tâche → Avancé</b>) :</p>
+<p>Le niveau de compression est un réglage de la tâche (<b>Modifier → Avancé</b>) :</p>
 <table>
   <tr><th>Niveau</th><th>Quand l'utiliser</th></tr>
   <tr><td>Standard (recommandé)</td><td>Bonne compression à grande vitesse ; convient à presque toutes les tâches.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Désactiver</b> suspend la planification sans perdre la tâche (avec l'approbation à quatre yeux, un second utilisateur doit approuver).</li>
   <li><b>Supprimer</b> retire la tâche ; les sauvegardes existantes restent sur le stockage et restent restaurables depuis Activité.</li>
 </ul>
+
+<h2>Arrêter une exécution</h2>
+<p>Une sauvegarde, copie ou restauration en attente ou en cours peut être arrêtée avec <b>Annuler</b> ou <b>Arrêter l'exécution</b> sur la page de l'exécution, ou <b>Arrêter l'exécution n°…</b> sur la page de la tâche. Une exécution en attente est annulée aussitôt ; une exécution en cours est arrêtée par l'agent en quelques secondes — la commande avant la sauvegarde est aussi interrompue, la commande après la sauvegarde s'exécute quand même. L'exécution est marquée en échec (« Cancelled by » et le nom de l'utilisateur) et consignée dans le journal d'audit ; aucun e-mail d'échec n'est envoyé. Une sauvegarde interrompue n'est pas utilisée pour les restaurations. Les mises à jour d'agent ne peuvent pas être arrêtées.</p>
+<p><b>Durée maximale d'une exécution (heures)</b>, sous <b>Avancé</b> dans le formulaire de la tâche, arrête une sauvegarde ou copie de la tâche qui dure plus longtemps et la marque en échec ; dans ce cas, la notification d'échec est envoyée. Vide ou 0 signifie aucune limite. Si l'agent ne confirme pas l'arrêt sous 10 minutes, la console marque elle-même l'exécution en échec.</p>
 
 <h2>Rétention suspendue</h2>
 <p>Si une sauvegarde de la tâche ressemblait à un rançongiciel ou à une suppression massive, la page de la tâche affiche <i>La rétention est suspendue</i> : aucune sauvegarde n'est supprimée tant que quelqu'un n'a pas vérifié la machine et cliqué sur <i>Examiné — reprendre la rétention</i> (avec l'approbation à quatre yeux, un second utilisateur doit approuver). Voir <a href="/docs/ransomware">Protection contre les rançongiciels</a>.</p>

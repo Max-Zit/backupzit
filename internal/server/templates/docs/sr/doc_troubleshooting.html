@@ -5,7 +5,7 @@
 <ul>
   <li>Da li je mašina uključena i da li servis radi? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
   <li>Da li mašina dolazi do konzole? <code>Test-NetConnection backup-server -Port 8443</code> ili <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Log agenta: <code>C:\ProgramData\backupzit\agent.log</code>, na Linuxu <code>/etc/backupzit/agent.log</code> ili <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch” znači da se sertifikat konzole promenio — ponovo prijavite agenta.</li>
+  <li>Log agenta: <code>C:\ProgramData\backupzit\agent.log</code>, na Linuxu <code>/var/log/backupzit/agent.log</code> ili <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch” znači da se sertifikat konzole promenio — ponovo prijavite agenta.</li>
 </ul>
 
 <h2>Bekap nije uspeo</h2>
@@ -78,6 +78,22 @@
   <li>Proverite mrežnu putanju do skladišta (Wi-Fi, VPN, brzina slanja na internet za cloud skladište).</li>
   <li>Izuzmite keševe, privremene fajlove i medije koji vam ne trebaju.</li>
 </ul>
+
+<h2 id="logs">Logovi</h2>
+<p>Kada nešto ne radi, ovi logovi pokazuju šta se desilo:</p>
+<table>
+  <tr><th>Šta</th><th>Gde</th></tr>
+  <tr><td>Konzola (server)</td><td><code>journalctl -u backupzit-server</code> i fajl <code>/var/lib/backupzit/logs/server.log</code> (do 4 fajla od 10 MB). Poslednji redovi su pod <a href="/settings/diagnostics">Podešavanja → Dijagnostika</a>.</td></tr>
+  <tr><td>Agent na Windowsu</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Agent na Linuxu</td><td><code>/var/log/backupzit/agent.log</code> i <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Bilo koji agent, iz konzole</td><td><b>Preuzmi log</b> na stranici <a href="/agents">Agenti</a>: agent šalje kraj svog loga i najnovije logove instalacije; čitaju se ili preuzimaju na stranici run-a (čuvaju se 30 dana; agenti 0.38.0 ili noviji).</td></tr>
+  <tr><td>Jedan backup ili restore</td><td>njegova stranica pod <a href="/runs">Aktivnost</a>: poruka, greške, statistika i izlaz komandi pre i posle backup-a</td></tr>
+  <tr><td>Ažuriranja agenata</td><td>logovi instalacije u <code>C:\ProgramData\backupzit\updates</code> (Windows) ili <code>/var/tmp/backupzit-updates</code> (Linux); <b>Preuzmi log</b> ih uključuje</td></tr>
+  <tr><td>Ažuriranja konzole</td><td><code>journalctl -u backupzit-update</code>; prethodna verzija i dump baze čuvaju se u <code>/var/lib/backupzit-update</code></td></tr>
+  <tr><td>Hardened repozitorijum</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>Ko je šta menjao</td><td><a href="/audit">audit log</a>, koji može da se šalje i na syslog server</td></tr>
+</table>
+<p>Za zahtev podršci, <b>Preuzmi dijagnostiku</b> pod <a href="/settings/diagnostics">Podešavanja → Dijagnostika</a> daje zip sa logom konzole, verzijama, agentima, poslovima, neuspelim run-ovima iz poslednjih 30 dana i audit logom — bez lozinki, ključeva i pristupnih podataka za skladišta. Sistem za oporavak ispisuje svoj log na ekranu.</p>
 
 <h2>Česta pitanja</h2>
 <h3>Mogu li da koristim NFS?</h3>

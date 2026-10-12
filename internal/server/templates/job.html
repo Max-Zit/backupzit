@@ -5,6 +5,8 @@
 <div class="actions">
   {{if $.Me.Can "run"}}<form method="post" action="/jobs/{{.ID}}/run" class="inline"><button>{{if eq .Kind "copy"}}{{T "Copy now"}}{{else}}{{T "Run backup now"}}{{end}}</button></form>
   <form method="post" action="/jobs/{{.ID}}/test" class="inline"><button class="secondary">{{template "icon" "check"}}{{T "Test restore"}}</button></form>{{end}}
+  {{if $.Me.Can "run"}}{{range $.Data.Active}}{{if not .CancelReason}}<form method="post" action="/runs/{{.ID}}/cancel" class="inline" data-confirm="{{T "Stop this run? A backup stopped halfway is not used for restores."}}"><button class="danger">{{template "icon" "stop"}}{{if eq .Status "queued"}}{{T "Cancel queued run #%d" .ID}}{{else}}{{T "Stop run #%d" .ID}}{{end}}</button></form>{{end}}{{end}}{{end}}
+  {{if $.Me.Can "jobs"}}<a class="btn secondary-link" href="/jobs/{{.ID}}/edit">{{template "icon" "edit"}}{{T "Edit"}}</a>{{end}}
   {{if .Enabled}}
   {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/disable" class="inline"><button class="secondary">{{T "Disable"}}</button></form>{{end}}
   {{else}}
@@ -45,6 +47,7 @@
     <dt>{{T "Restore points"}}</dt><dd>{{.Points}}</dd>{{end}}
     {{if .Options.ReplicaAgentID}}<dt>{{T "Replicas"}}</dt><dd>{{T "kept up to date after each backup"}}{{if .Options.ReplicaStorage}}{{T ", on storage"}} {{.Options.ReplicaStorage}}{{end}}</dd>{{end}}
     {{if .Options.LimitMBps}}<dt>{{T "Speed limit"}}</dt><dd>{{.Options.LimitText}}</dd>{{end}}
+    {{if .Options.MaxHours}}<dt>{{T "Time limit"}}</dt><dd>{{T "stopped after %d h" .Options.MaxHours}}</dd>{{end}}
     {{with .Options.Compression}}<dt>{{T "Compression"}}</dt><dd>{{if eq . "off"}}{{T "off"}}{{else if eq . "fast"}}{{T "fast"}}{{else}}{{T "maximum"}}{{end}}</dd>{{end}}
     {{if .Options.HasCommands}}<dt>{{T "Commands"}}</dt><dd>{{if $.Me.Can "settings"}}{{if .Options.PreCommand}}{{T "before:"}} <span class="mono">{{.Options.PreCommand}}</span><br>{{end}}{{if .Options.PostCommand}}{{T "after:"}} <span class="mono">{{.Options.PostCommand}}</span>{{end}}{{else}}{{T "runs commands before or after the backup"}}{{end}}</dd>{{end}}
   </dl>
@@ -83,32 +86,6 @@
     </tr>{{end}}
   </table></div>
 </div>
-{{end}}
-{{if $.Me.Can "jobs"}}
-<details class="panel" id="edit">
-  <summary><b>{{T "Edit job"}}</b> <span class="muted small">{{T "name,"}} {{if or (eq .Kind "files") (eq .Kind "nas")}}{{T "paths,"}} {{else if eq .Kind "m365"}}{{T "accounts,"}} {{else if eq .Kind "vm"}}{{T "VMs,"}} {{end}}{{T "schedule, retention, speed limit"}}{{if and ($.Me.Can "settings") (ne .Kind "copy")}}{{T ", commands"}}{{end}}</span></summary>
-  <form method="post" action="/jobs/{{.ID}}/edit" class="stack mt">
-    <label>{{T "Name"}} <input name="name" required value="{{.Name}}"></label>
-    {{if eq .Kind "files"}}
-    <label>{{T "Folders and files to back up"}} <small>{{T "one path per line"}}</small><textarea name="paths" required>{{join .Paths "\n"}}</textarea></label>
-    <label>{{T "Exclude"}} <small>{{T "one per line: a name pattern (*.tmp, node_modules) or a full path (C:\\Data\\Temp, /srv/cache)"}}</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
-    {{else if eq .Kind "system"}}
-    <label>{{T "Exclude"}} <small>{{T "one per line: a name pattern (*.tmp, node_modules) or a full path (C:\\Data\\Temp, /srv/cache)"}}</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
-    {{else if eq .Kind "sql"}}{{template "job_sql" $.Data.Form}}
-    {{else if eq .Kind "nas"}}{{template "job_nas" $.Data.Form}}
-    {{else if eq .Kind "m365"}}{{template "job_m365" $.Data.Form}}
-    {{else if eq .Kind "vm"}}{{$sel := .Paths}}
-    <label class="check"><input type="radio" name="vm_mode" value="all" {{if eq (join .Paths ",") "*"}}checked{{end}}> {{T "All VMs on the host"}} <small>{{T "VMs created later are included automatically"}}</small></label>
-    <label class="check"><input type="radio" name="vm_mode" value="selected" {{if ne (join .Paths ",") "*"}}checked{{end}}> {{T "Only these:"}}</label>
-    <div class="disks">{{range $.Data.Guests}}<label class="check"><input type="checkbox" name="vms" value="{{.VMID}}" {{if has $sel (print .VMID)}}checked{{end}}> {{.Name}}{{if lt .VMID 1000000000}} ({{.VMID}}){{end}}{{if eq .Type "lxc"}} <small>{{T "container"}}</small>{{end}}</label>{{else}}<p class="muted">{{T "The host has not reported its VMs yet."}}</p>{{end}}</div>
-    {{else if eq .Kind "image"}}
-    <p class="muted small">{{T "The disk and partitions of an image job cannot be changed; create a new job for another disk."}}</p>
-    {{end}}
-    {{template "job_common" $.Data.Form}}
-    <p class="muted small">{{T "The agent and the storage cannot be changed: backups stay where they are. To move a job, create a new one (and a copy job to bring older backups along)."}}</p>
-    <div><button>{{T "Save changes"}}</button></div>
-  </form>
-</details>
 {{end}}
 {{end}}
 <div class="panel">

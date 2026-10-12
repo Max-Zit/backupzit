@@ -41,7 +41,7 @@
   <tr><td><b>Eens per maand</b></td><td>Op de 1e om 23:00.</td></tr>
   <tr><td><b>Alleen handmatig</b></td><td>Draait alleen als u op <i>Back-up nu uitvoeren</i> klikt.</td></tr>
 </table>
-<p>De tijden zijn in de tijdzone van de consoleserver (op de appliance: <a href="/settings/network#timezone">Instellingen → Netwerk → Tijdzone</a> of item 9 van het setupmenu; begint in UTC). Is een agent offline op het geplande tijdstip, dan wacht de back-up in de wachtrij en start hij zodra de agent terug is. Alle geplande uitvoeringen ziet u in de <a href="/calendar">Kalender</a>.</p>
+<p>De tijden zijn in de tijdzone van de consoleserver (op de appliance: <a href="/settings/network#timezone">Instellingen → Netwerk → Tijdzone</a> of item 9 van het setupmenu; begint in UTC). Is een agent offline op het geplande tijdstip, dan wacht de back-up in de wachtrij en start hij zodra de agent terug is. Alle geplande uitvoeringen ziet u in de <a href="/calendar">Kalender</a>. De huidige datum en tijd van de console staan linksonder, onder de tijdzone.</p>
 
 <h2>Bewaring: hoeveel back-ups bewaren</h2>
 <p>Een snapshot wordt bewaard als <b>een willekeurige</b> regel hem selecteert:</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Een taak wijzigen</h2>
-<p>Open de taak en klap <b>Taak bewerken</b> open. U kunt de naam, mappen en uitsluitingen (bestandstaken), VM's (VM-taken), het schema, de bewaring, de snelheidslimiet, het compressieniveau en de opdrachten wijzigen. De agent, het opslagdoel en de schijf van een imagetaak blijven zoals ze zijn, zodat de back-ups van de taak één keten blijven; om een taak te verplaatsen maakt u een nieuwe — met een kopieertaak als oudere back-ups mee moeten. Wijzigingen gelden vanaf de volgende uitvoering en worden vastgelegd in het <a href="/audit">auditlogboek</a>. Met <a href="/docs/users">vier-ogengoedkeuring</a> ingeschakeld wacht een kortere bewaring op de goedkeuring van een tweede gebruiker; de andere wijzigingen worden direct opgeslagen.</p>
+<p>Open de taak en klik op <b>Bewerken</b>; het formulier opent op een eigen pagina die niet herlaadt terwijl een back-up loopt. U kunt de naam, mappen en uitsluitingen (bestandstaken), VM's (VM-taken), het schema, de bewaring, de snelheidslimiet, het compressieniveau en de opdrachten wijzigen. De agent, het opslagdoel en de schijf van een imagetaak blijven zoals ze zijn, zodat de back-ups van de taak één keten blijven; om een taak te verplaatsen maakt u een nieuwe — met een kopieertaak als oudere back-ups mee moeten. Wijzigingen gelden vanaf de volgende uitvoering en worden vastgelegd in het <a href="/audit">auditlogboek</a>. Met <a href="/docs/users">vier-ogengoedkeuring</a> ingeschakeld wacht een kortere bewaring op de goedkeuring van een tweede gebruiker; de andere wijzigingen worden direct opgeslagen.</p>
 
 <h2>Replica's (Proxmox VE)</h2>
 <p>Proxmox-VM-taken kunnen gestopte, actuele kopieën van hun gasten bijhouden op een knooppunt naar keuze, die met één klik worden gestart als een gast verloren gaat — zie <a href="/docs/proxmox">Proxmox VE → Replicatie</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Compressie en deduplicatie</h2>
 <p>Elke back-up wordt gededupliceerd: gegevens die al in de repository staan — uit eerdere back-ups van dezelfde taak of uit andere taken op hetzelfde opslagdoel — worden niet opnieuw opgeslagen. Nieuwe gegevens worden daarna gecomprimeerd met zstd; stukken die niet kleiner worden (video, archieven, versleutelde bestanden) worden ongewijzigd opgeslagen. Versleuteling komt na compressie.</p>
-<p>Het compressieniveau is een taakinstelling (<b>Taak bewerken → Geavanceerd</b>):</p>
+<p>Het compressieniveau is een taakinstelling (<b>Bewerken → Geavanceerd</b>):</p>
 <table>
   <tr><th>Niveau</th><th>Wanneer gebruiken</th></tr>
   <tr><td>Standaard (aanbevolen)</td><td>Goede compressie bij hoge snelheid; geschikt voor bijna elke taak.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Uitschakelen</b> pauzeert het schema zonder de taak te verliezen (met vier-ogengoedkeuring ingeschakeld moet een tweede gebruiker goedkeuren).</li>
   <li><b>Verwijderen</b> verwijdert de taak; bestaande back-ups blijven op de opslag en blijven herstelbaar vanuit Activiteit.</li>
 </ul>
+
+<h2>Een uitvoering stoppen</h2>
+<p>Een wachtende of lopende back-up, kopie of herstelactie kan worden gestopt met <b>Annuleren</b> of <b>Uitvoering stoppen</b> op de pagina van de uitvoering, of met <b>Uitvoering #… stoppen</b> op de pagina van de taak. Een wachtende uitvoering wordt meteen geannuleerd; een lopende stopt de agent binnen enkele seconden — ook de opdracht vóór de back-up wordt beëindigd, de opdracht na de back-up draait toch. De uitvoering wordt als mislukt gemarkeerd ("Cancelled by" en de gebruikersnaam) en vastgelegd in het auditlogboek; er wordt geen foutmail verstuurd. Een halverwege gestopte back-up wordt niet gebruikt om te herstellen. Agentupdates kunnen niet worden gestopt.</p>
+<p><b>Tijdslimiet van een uitvoering (uren)</b> onder <b>Geavanceerd</b> in het taakformulier stopt een back-up of kopie van de taak die langer duurt en markeert die als mislukt; dan wordt de foutmelding wel verstuurd. Leeg of 0 betekent geen limiet. Bevestigt de agent het stoppen niet binnen 10 minuten, dan markeert de console de uitvoering zelf als mislukt.</p>
 
 <h2>Bewaring gepauzeerd</h2>
 <p>Leek een back-up van de taak op ransomware of massale verwijdering, dan toont de taakpagina <i>Bewaarbeleid is gepauzeerd</i>: er worden geen back-ups verwijderd tot iemand de machine controleert en op <i>Gecontroleerd — bewaarbeleid hervatten</i> klikt (met vier-ogengoedkeuring ingeschakeld moet een tweede gebruiker goedkeuren). Zie <a href="/docs/ransomware">Ransomwarebescherming</a>.</p>

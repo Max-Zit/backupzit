@@ -92,8 +92,10 @@ systemctl enable --now backupzit-agent</pre>
 <h2>Log agenta</h2>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
-  <li>Linux: <code>/etc/backupzit/agent.log</code> i <code>journalctl -u backupzit-agent</code></li>
+  <li>Linux: <code>/var/log/backupzit/agent.log</code> i <code>journalctl -u backupzit-agent</code></li>
   <li>Sistemi za oporavak ispisuju log na svom ekranu.</li>
+  <li>Log čuva do 4 fajla od 10 MB (<code>agent.log</code> i <code>agent.log.1</code> do <code>.3</code>); stariji zapisi se brišu.</li>
+  <li><b>Preuzmi log</b> na stranici Agenti donosi kraj loga u konzolu — vidi <a href="/docs/troubleshooting#logs">Logovi</a>.</li>
 </ul>
 
 <h2>Deinstalacija</h2>

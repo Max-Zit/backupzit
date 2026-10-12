@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -81,6 +82,19 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 		s.log.Error("fail stale runs", "err", err)
 	} else if n > 0 {
 		s.log.Warn("marked runs of unresponsive agents as failed", "count", n)
+	}
+	if stopped, err := s.store.enforceTimeLimits(ctx, now); err != nil {
+		s.log.Error("job time limits", "err", err)
+	} else {
+		for _, r := range stopped {
+			s.log.Warn("stopping a run over its job's time limit", "run", r.ID, "job", deref(r.JobName))
+			if _, err := s.store.AppendAudit(ctx, "", "run.cancel", fmt.Sprintf("run %d stopped: over the job's time limit", r.ID), ""); err != nil {
+				s.log.Error("audit log", "err", err)
+			}
+		}
+	}
+	if err := s.store.pruneAgentLogs(ctx); err != nil {
+		s.log.Error("prune agent logs", "err", err)
 	}
 	if names, err := s.store.RemoveStaleRecoveryAgents(ctx, now); err != nil {
 		s.log.Error("remove old recovery agents", "err", err)

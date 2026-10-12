@@ -92,8 +92,10 @@ systemctl enable --now backupzit-agent</pre>
 <h2>エージェントのログ</h2>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
-  <li>Linux: <code>/etc/backupzit/agent.log</code> と <code>journalctl -u backupzit-agent</code></li>
+  <li>Linux: <code>/var/log/backupzit/agent.log</code> と <code>journalctl -u backupzit-agent</code></li>
   <li>復旧システムでは画面にログが表示されます。</li>
+  <li>ログは 10 MB のファイルを最大 4 つ保持します（<code>agent.log</code> と <code>agent.log.1</code>～<code>.3</code>）。それより古い記録は削除されます。</li>
+  <li>エージェント ページの <b>ログを取得</b> で、ログの末尾をコンソールに取り込めます — <a href="/docs/troubleshooting#logs">ログ</a> を参照してください。</li>
 </ul>
 
 <h2>アンインストール</h2>

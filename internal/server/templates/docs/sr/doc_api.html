@@ -20,6 +20,13 @@
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Posmatrač</td><td>Jedno pokretanje sa porukom, greškama i statistikom</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Posmatrač</td><td><a href="/docs/monitoring">Izveštaj</a> za period: zbirovi, procenat uspešnosti i detalji po poslu</td></tr>
   <tr><td><code>GET /api/v1/targets</code></td><td>Posmatrač</td><td>Skladišta (bez pristupnih podataka)</td></tr>
+  <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Posmatrač</td><td>Jedan agent</td></tr>
+  <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Operater bekapa</td><td>Traži od agenta njegov log: <code>{"run_id": 124}</code>; čita se sledećom tačkom kada ga agent pošalje (agenti 0.38.0 ili noviji)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Operater bekapa</td><td>Log koji je agent poslao: <code>{"log": "..."}</code>, ili 404 dok ne stigne</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Operater vraćanja</td><td>Otkazuje run koji čeka ili zaustavlja run koji radi: <code>{"state": "cancelled"}</code> ili <code>"stopping"</code>; 409 ako je završen</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Operater bekapa</td><td>Uključuje ili isključuje raspored posla; kada su uključena četiri oka, isključivanje radi samo u konzoli (409)</td></tr>
+  <tr><td><code>GET /api/v1/storage</code></td><td>Posmatrač</td><td>Zauzeće po skladištu, kapacitet i slobodan prostor kada su poznati, rast po danu i broj dana do popunjenosti</td></tr>
+  <tr><td><code>GET /api/v1/metrics</code></td><td>Posmatrač</td><td>Metrike u Prometheus tekstualnom formatu (vidi ispod)</td></tr>
 </table>
 <p>Periodi: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, ili <code>custom</code> sa <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Greške vraćaju <code>{"error": "..."}</code> sa 400 (loš zahtev), 401 (token nedostaje, neispravan je ili je istekao), 403 (preniska uloga), 404 ili 409.</p>
@@ -35,5 +42,15 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Koristite <code>-k</code> / <code>-SkipCertificateCheck</code> samo sa samopotpisanim sertifikatom konzole u pouzdanoj mreži, ili instalirajte sertifikat konzole na host za nadzor.</p>
 <h3>Provera za nadzor</h3>
 <p>Proveravajte <code>/api/v1/status</code> na svakih nekoliko minuta i uzbunite kada je <code>ok</code> false. Za proveru po poslu koristite <code>/api/v1/jobs</code> i uzbunite kada je <code>last_status</code> <code>failed</code> ili je <code>last_finished</code> stariji nego što se očekuje.</p>
+<h3>Prometheus i Grafana</h3>
+<p><code>/api/v1/metrics</code> vraća stanje u Prometheus tekstualnom formatu: agenti na mreži, aktivni run-ovi, greške i upozorenja u poslednja 24 sata, sumnjivi backup-i, a po agentu, poslu i skladištu <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 uspeh, 1 upozorenje, 2 greška), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> i <code>backupzit_storage_free_bytes</code>. Scrape posao sa tokenom uloge Posmatrač:</p>
+<pre>- job_name: backupzit
+  scheme: https
+  metrics_path: /api/v1/metrics
+  authorization:
+    credentials: bzt_...
+  static_configs:
+    - targets: ['backup.example.local:8443']</pre>
+<p>Alarm, na primer, kada je <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (nema dobrog backup-a dva dana).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

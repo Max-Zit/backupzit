@@ -41,7 +41,7 @@
   <tr><td><b>Einmal im Monat</b></td><td>Am 1. um 23:00.</td></tr>
   <tr><td><b>Nur manuell</b></td><td>Läuft nur, wenn Sie auf <i>Sicherung jetzt ausführen</i> klicken.</td></tr>
 </table>
-<p>Die Zeiten gelten in der Zeitzone des Konsolenservers (auf der Appliance: <a href="/settings/network#timezone">Einstellungen → Netzwerk → Zeitzone</a> oder Punkt 9 des Setup-Menüs; anfangs UTC). Ist ein Agent zur geplanten Zeit offline, wartet die Sicherung in der Warteschlange und startet, sobald der Agent zurück ist. Alle geplanten Läufe sehen Sie im <a href="/calendar">Kalender</a>.</p>
+<p>Die Zeiten gelten in der Zeitzone des Konsolenservers (auf der Appliance: <a href="/settings/network#timezone">Einstellungen → Netzwerk → Zeitzone</a> oder Punkt 9 des Setup-Menüs; anfangs UTC). Ist ein Agent zur geplanten Zeit offline, wartet die Sicherung in der Warteschlange und startet, sobald der Agent zurück ist. Alle geplanten Läufe sehen Sie im <a href="/calendar">Kalender</a>. Datum und Uhrzeit der Konsole stehen unten links unter der Zeitzone.</p>
 
 <h2>Aufbewahrung: wie viele Sicherungen behalten werden</h2>
 <p>Ein Snapshot wird behalten, wenn <b>irgendeine</b> Regel ihn auswählt:</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Einen Auftrag ändern</h2>
-<p>Öffnen Sie den Auftrag und klappen Sie <b>Auftrag bearbeiten</b> auf. Sie können Name, Ordner und Ausschlüsse (Dateiaufträge), VMs (VM-Aufträge), Zeitplan, Aufbewahrung, Geschwindigkeitsbegrenzung, Komprimierungsstufe und Befehle ändern. Agent, Speicherziel und die Festplatte eines Abbildauftrags bleiben unverändert, damit die Sicherungen des Auftrags eine Kette bleiben; um einen Auftrag zu verschieben, erstellen Sie einen neuen — mit einem Kopierauftrag, falls ältere Sicherungen mitkommen sollen. Änderungen gelten ab dem nächsten Lauf und werden im <a href="/audit">Audit-Protokoll</a> festgehalten. Mit eingeschalteter <a href="/docs/users">Vier-Augen-Freigabe</a> wartet eine kürzere Aufbewahrung auf die Zustimmung eines zweiten Benutzers; die übrigen Änderungen werden sofort gespeichert.</p>
+<p>Öffnen Sie den Auftrag und klicken Sie auf <b>Bearbeiten</b>; das Formular öffnet sich auf einer eigenen Seite, die während einer Sicherung nicht neu lädt. Sie können Name, Ordner und Ausschlüsse (Dateiaufträge), VMs (VM-Aufträge), Zeitplan, Aufbewahrung, Geschwindigkeitsbegrenzung, Komprimierungsstufe und Befehle ändern. Agent, Speicherziel und die Festplatte eines Abbildauftrags bleiben unverändert, damit die Sicherungen des Auftrags eine Kette bleiben; um einen Auftrag zu verschieben, erstellen Sie einen neuen — mit einem Kopierauftrag, falls ältere Sicherungen mitkommen sollen. Änderungen gelten ab dem nächsten Lauf und werden im <a href="/audit">Audit-Protokoll</a> festgehalten. Mit eingeschalteter <a href="/docs/users">Vier-Augen-Freigabe</a> wartet eine kürzere Aufbewahrung auf die Zustimmung eines zweiten Benutzers; die übrigen Änderungen werden sofort gespeichert.</p>
 
 <h2>Replikate (Proxmox VE)</h2>
 <p>Proxmox-VM-Aufträge können gestoppte, aktuelle Kopien ihrer Gäste auf einem Knoten Ihrer Wahl vorhalten, die mit einem Klick gestartet werden, wenn ein Gast verloren geht — siehe <a href="/docs/proxmox">Proxmox VE → Replikation</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Komprimierung und Deduplizierung</h2>
 <p>Jede Sicherung wird dedupliziert: Daten, die bereits im Repository sind — aus früheren Sicherungen desselben Auftrags oder aus anderen Aufträgen auf demselben Speicherziel —, werden nicht erneut gespeichert. Neue Daten werden dann mit zstd komprimiert; Teile, die nicht kleiner werden (Video, Archive, verschlüsselte Dateien), werden unverändert gespeichert. Die Verschlüsselung kommt nach der Komprimierung.</p>
-<p>Die Komprimierungsstufe ist eine Auftragseinstellung (<b>Auftrag bearbeiten → Erweitert</b>):</p>
+<p>Die Komprimierungsstufe ist eine Auftragseinstellung (<b>Bearbeiten → Erweitert</b>):</p>
 <table>
   <tr><th>Stufe</th><th>Wann verwenden</th></tr>
   <tr><td>Standard (empfohlen)</td><td>Gute Komprimierung bei hoher Geschwindigkeit; passt für fast jeden Auftrag.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Deaktivieren</b> pausiert den Zeitplan, ohne den Auftrag zu verlieren (mit eingeschalteter Vier-Augen-Freigabe muss ein zweiter Benutzer zustimmen).</li>
   <li><b>Löschen</b> entfernt den Auftrag; vorhandene Sicherungen bleiben auf dem Speicher und sind weiterhin aus Aktivität wiederherstellbar.</li>
 </ul>
+
+<h2>Einen Lauf anhalten</h2>
+<p>Eine wartende oder laufende Sicherung, Kopie oder Wiederherstellung lässt sich mit <b>Abbrechen</b> oder <b>Lauf anhalten</b> auf der Seite des Laufs anhalten, oder mit <b>Lauf #… anhalten</b> auf der Seite des Auftrags. Ein wartender Lauf wird sofort abgebrochen; einen laufenden hält der Agent innerhalb von Sekunden an — auch der Befehl vor der Sicherung wird beendet, der Befehl danach läuft trotzdem. Der Lauf wird als fehlgeschlagen markiert („Cancelled by“ und der Benutzername) und im Audit-Protokoll vermerkt; dafür wird keine Fehler-E-Mail gesendet. Eine halb fertige Sicherung wird nicht für Wiederherstellungen verwendet. Agenten-Updates lassen sich nicht anhalten.</p>
+<p><b>Zeitlimit eines Laufs (Stunden)</b> unter <b>Erweitert</b> im Auftragsformular hält eine Sicherung oder Kopie des Auftrags an, die länger läuft, und markiert sie als fehlgeschlagen; dafür wird die Fehlerbenachrichtigung gesendet. Leer oder 0 bedeutet kein Limit. Bestätigt der Agent das Anhalten nicht innerhalb von 10 Minuten, markiert die Konsole den Lauf selbst als fehlgeschlagen.</p>
 
 <h2>Aufbewahrung pausiert</h2>
 <p>Sah eine Sicherung des Auftrags nach Ransomware oder Massenlöschung aus, zeigt die Auftragsseite <i>Aufbewahrung ist pausiert</i>: Es werden keine Sicherungen entfernt, bis jemand den Rechner prüft und auf <i>Geprüft – Aufbewahrung fortsetzen</i> klickt (mit eingeschalteter Vier-Augen-Freigabe muss ein zweiter Benutzer zustimmen). Siehe <a href="/docs/ransomware">Ransomware-Schutz</a>.</p>

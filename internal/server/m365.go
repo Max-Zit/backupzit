@@ -53,36 +53,41 @@ func (s *Store) checkM365Job(j *Job) error {
 	if o.M365NoMail && o.M365NoOneDrive && !o.M365Calendar && !o.M365SharePoint {
 		return errors.New("choose what to back up: mail, OneDrive, calendars and contacts or SharePoint")
 	}
-	sites := []string{}
-	if o.M365SharePoint {
-		for _, raw := range o.M365Sites {
-			raw = strings.TrimRight(strings.TrimSpace(raw), "/")
-			u, err := url.Parse(raw)
-			if err != nil || u.Scheme != "https" || !validAddress(u.Host) || u.RawQuery != "" || u.Fragment != "" {
-				return fmt.Errorf("%q is not a SharePoint site address (https://contoso.sharepoint.com/sites/sales)", raw)
-			}
-			if !slices.Contains(sites, raw) {
-				sites = append(sites, raw)
-			}
-		}
+	accounts := !(o.M365NoMail && o.M365NoOneDrive && !o.M365Calendar)
+	if accounts && o.m365PickNone.users {
+		return errors.New("tick at least one account, or choose all accounts")
 	}
-	o.M365Sites = sites
-	if len(o.M365Sites) == 0 {
+	if o.M365SharePoint && o.m365PickNone.sites {
+		return errors.New("tick at least one SharePoint site, or choose all sites")
+	}
+	var err error
+	if o.M365Sites, err = m365SiteList(o.M365Sites); err != nil {
+		return err
+	}
+	if o.M365ExcludeSites, err = m365SiteList(o.M365ExcludeSites); err != nil {
+		return err
+	}
+	if !o.M365SharePoint {
 		o.M365Sites = nil
 	}
-	users := []string{}
-	for _, p := range j.Paths {
-		p = strings.ToLower(strings.TrimSpace(p))
-		if p == "" || slices.Contains(users, p) {
-			continue
-		}
-		if !upnRE.MatchString(p) {
-			return fmt.Errorf("%q is not an account address (user@contoso.com)", p)
-		}
-		users = append(users, p)
+	if !o.M365SharePoint || len(o.M365Sites) > 0 {
+		o.M365ExcludeSites = nil // exclusions apply to "all sites" only
 	}
-	if o.M365NoMail && o.M365NoOneDrive && !o.M365Calendar {
+	users, err := m365UserList(j.Paths)
+	if err != nil {
+		return err
+	}
+	if o.M365ExcludeUsers, err = m365UserList(o.M365ExcludeUsers); err != nil {
+		return err
+	}
+	if !accounts {
 		users = []string{} // SharePoint only: no accounts
+	}
+	if !accounts || len(users) > 0 {
+		o.M365ExcludeUsers = nil
+	}
+	if len(o.M365ExcludeUsers) == 0 {
+		o.M365ExcludeUsers = nil
 	}
 	j.Paths, j.Excludes, j.ImageDisk, j.ImagePartitions = users, nil, nil, nil
 	if !strings.HasPrefix(o.M365Secret, secretPrefix) {
@@ -147,7 +152,7 @@ func (s *Server) addM365(ctx context.Context, run *Run, ar *api.Run) error {
 	}
 	o := j.Options
 	ar.M365 = &api.M365Source{Tenant: o.M365Tenant, Client: o.M365Client, Secret: secret, Mail: !o.M365NoMail, OneDrive: !o.M365NoOneDrive,
-		Calendar: o.M365Calendar, SharePoint: o.M365SharePoint, Sites: o.M365Sites}
+		Calendar: o.M365Calendar, SharePoint: o.M365SharePoint, Sites: o.M365Sites, ExcludeUsers: o.M365ExcludeUsers, ExcludeSites: o.M365ExcludeSites}
 	return nil
 }
 
@@ -157,6 +162,9 @@ const minM365PIMVersion = "0.35.0"
 
 // m365MinVersion is the oldest agent that can run a job with these options.
 func m365MinVersion(o JobOptions) string {
+	if len(o.M365ExcludeUsers) > 0 || len(o.M365ExcludeSites) > 0 {
+		return minM365ExcludeVersion
+	}
 	if o.M365Calendar || o.M365SharePoint {
 		return minM365PIMVersion
 	}
@@ -432,3 +440,52 @@ func (s *Server) handleM365Directory(w http.ResponseWriter, r *http.Request, _ s
 	}
 	writeJSON(w, http.StatusOK, out)
 }
+
+// m365SiteList checks and normalizes SharePoint site addresses (nil when
+// empty).
+func m365SiteList(in []string) ([]string, error) {
+	var sites []string
+	for _, raw := range in {
+		raw = strings.TrimRight(strings.TrimSpace(raw), "/")
+		if raw == "" {
+			continue
+		}
+		u, err := url.Parse(raw)
+		if err != nil || u.Scheme != "https" || !validAddress(u.Host) || u.RawQuery != "" || u.Fragment != "" {
+			return nil, fmt.Errorf("%q is not a SharePoint site address (https://contoso.sharepoint.com/sites/sales)", raw)
+		}
+		if !slices.Contains(sites, raw) {
+			sites = append(sites, raw)
+		}
+	}
+	return sites, nil
+}
+
+// m365UserList checks and normalizes account addresses.
+func m365UserList(in []string) ([]string, error) {
+	users := []string{}
+	for _, p := range in {
+		p = strings.ToLower(strings.TrimSpace(p))
+		if p == "" || slices.Contains(users, p) {
+			continue
+		}
+		if !upnRE.MatchString(p) {
+			return nil, fmt.Errorf("%q is not an account address (user@contoso.com)", p)
+		}
+		users = append(users, p)
+	}
+	return users, nil
+}
+
+// m365FormUsers are the accounts ticked in a job form (none when all
+// accounts are backed up).
+func m365FormUsers(r *http.Request) []string {
+	if r.FormValue("m365_users_mode") == "all" {
+		return nil
+	}
+	return lines(r.FormValue("m365_users"))
+}
+
+// minM365ExcludeVersion is the first agent version that skips excluded
+// accounts and sites.
+const minM365ExcludeVersion = "0.38.0"

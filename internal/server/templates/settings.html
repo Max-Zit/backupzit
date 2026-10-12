@@ -390,6 +390,22 @@
 </div>
 {{end}}
 {{end}}{{end}}
+{{if eq .Data.Tab "diagnostics"}}{{with .Data.Diag}}
+<div class="panel">
+  <h2>{{T "Diagnostics"}}</h2>
+  <p>{{T "For troubleshooting or a support request, download a zip with the console's log, its version, the agents, the jobs, the failed runs of the last 30 days and the audit log. It holds no passwords, keys or storage credentials."}}</p>
+  <p><a class="btn" href="/settings/diagnostics/bundle">{{template "icon" "download"}}{{T "Download diagnostics"}}</a></p>
+  <h3>{{T "Where the logs are"}}</h3>
+  <ul>
+    <li>{{T "Console:"}} {{if .LogFile}}<code>{{.LogFile}}</code> {{T "and"}} {{end}}<code>journalctl -u backupzit-server</code></li>
+    <li>{{T "Agents:"}} {{T "the button Get log on the Agents page, or on the machine"}} <code>C:\ProgramData\backupzit\agent.log</code> (Windows), <code>/var/log/backupzit/agent.log</code> {{T "and"}} <code>journalctl -u backupzit-agent</code> (Linux)</li>
+    <li>{{T "Each backup and restore:"}} {{T "its page under Activity (messages, errors, command output)"}}</li>
+    <li>{{T "Who changed what:"}} <a href="/audit">{{T "Audit log"}}</a></li>
+  </ul>
+  <p><a href="/docs/troubleshooting#logs">{{T "More in the guide"}}</a></p>
+  {{with .LogTail}}<h3>{{T "The last lines of the console's log"}}</h3><pre class="mono small scroll">{{.}}</pre>{{end}}
+</div>
+{{end}}{{end}}
 {{if eq .Data.Tab "console"}}{{with .Data.ConsoleBackup}}
 <div class="panel" id="console-backup">
   <h2>{{template "icon" "storage"}} {{T "Backup of the console"}}</h2>

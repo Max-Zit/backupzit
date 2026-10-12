@@ -20,6 +20,13 @@
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>閲覧者</td><td>メッセージ、エラー、統計を含む 1 件の実行</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>閲覧者</td><td>期間の<a href="/docs/monitoring">レポート</a>: 合計、成功率、ジョブごとの詳細</td></tr>
   <tr><td><code>GET /api/v1/targets</code></td><td>閲覧者</td><td>ストレージ先（資格情報を除く）</td></tr>
+  <tr><td><code>GET /api/v1/agents/{id}</code></td><td>閲覧者</td><td>1 つのエージェント</td></tr>
+  <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>バックアップ オペレーター</td><td>エージェントにログを要求します: <code>{"run_id": 124}</code>。エージェントが送信したら次のエンドポイントで読み取ります（エージェント 0.38.0 以降）</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>バックアップ オペレーター</td><td>エージェントが送信したログ: <code>{"log": "..."}</code>。届くまでは 404</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>復元オペレーター</td><td>待機中の実行をキャンセルするか、実行中のものを停止します: <code>{"state": "cancelled"}</code> または <code>"stopping"</code>。終了済みなら 409</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>バックアップ オペレーター</td><td>ジョブのスケジュールをオンまたはオフにします。4 つの目の承認がオンの場合、無効化はコンソールでのみ可能です（409）</td></tr>
+  <tr><td><code>GET /api/v1/storage</code></td><td>閲覧者</td><td>ストレージ先ごとの使用容量、分かる場合は容量と空き容量、1 日あたりの増加量、満杯までの日数</td></tr>
+  <tr><td><code>GET /api/v1/metrics</code></td><td>閲覧者</td><td>Prometheus テキスト形式のメトリクス（下記参照）</td></tr>
 </table>
 <p>期間: <code>today</code>、<code>yesterday</code>、<code>last7</code>、<code>last30</code>、<code>last90</code>、<code>thisweek</code>、<code>lastweek</code>、<code>thismonth</code>、<code>lastmonth</code>、または <code>custom</code> と <code>from=2026-09-01&amp;to=2026-09-30</code>。</p>
 <p>エラーは <code>{"error": "..."}</code> を返し、ステータスは 400（不正なリクエスト）、401（トークンがない、無効、または期限切れ）、403（ロールの権限不足）、404、409 です。</p>
@@ -35,5 +42,15 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p><code>-k</code> / <code>-SkipCertificateCheck</code> は、信頼できるネットワークでコンソールの自己署名証明書を使う場合にのみ使用するか、監視ホストにコンソールの証明書をインストールしてください。</p>
 <h3>監視チェック</h3>
 <p>数分ごとに <code>/api/v1/status</code> をポーリングし、<code>ok</code> が false のときにアラートを出します。ジョブ単位のチェックには <code>/api/v1/jobs</code> を使い、<code>last_status</code> が <code>failed</code> のとき、または <code>last_finished</code> が想定より古いときにアラートを出します。</p>
+<h3>Prometheus と Grafana</h3>
+<p><code>/api/v1/metrics</code> は状態を Prometheus テキスト形式で返します: オンラインのエージェント、実行中のジョブ、過去 24 時間の失敗と警告、疑わしいバックアップ、さらにエージェント、ジョブ、ストレージ先ごとの <code>backupzit_agent_online</code>、<code>backupzit_job_last_status</code>（0 成功、1 警告、2 失敗）、<code>backupzit_job_last_success_timestamp_seconds</code>、<code>backupzit_storage_used_bytes</code>、<code>backupzit_storage_free_bytes</code>。閲覧者トークンを使うスクレイプ ジョブ:</p>
+<pre>- job_name: backupzit
+  scheme: https
+  metrics_path: /api/v1/metrics
+  authorization:
+    credentials: bzt_...
+  static_configs:
+    - targets: ['backup.example.local:8443']</pre>
+<p>たとえば <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code>（2 日間正常なバックアップがない）のときに通知します。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

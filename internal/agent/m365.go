@@ -34,17 +34,19 @@ func (a *Agent) m365Backup(ctx context.Context, run api.Run) api.RunResult {
 	}
 	c := m365.NewClient(m365.Credentials{Tenant: src.Tenant, Client: src.Client, Secret: src.Secret})
 	res, err := m365.Backup(ctx, r, c, m365.Options{
-		Users:      run.Paths,
-		Mail:       src.Mail,
-		OneDrive:   src.OneDrive,
-		Calendar:   src.Calendar,
-		SharePoint: src.SharePoint,
-		Sites:      src.Sites,
-		Parent:     parent,
-		Hostname:   "m365-" + src.Tenant,
-		Version:    a.version,
-		Tags:       []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
-		Progress:   func(s *repo.SnapshotStats) { a.progress(s.BytesRead, 0, s.Files) },
+		Users:        run.Paths,
+		Mail:         src.Mail,
+		OneDrive:     src.OneDrive,
+		Calendar:     src.Calendar,
+		SharePoint:   src.SharePoint,
+		Sites:        src.Sites,
+		ExcludeUsers: src.ExcludeUsers,
+		ExcludeSites: src.ExcludeSites,
+		Parent:       parent,
+		Hostname:     "m365-" + src.Tenant,
+		Version:      a.version,
+		Tags:         []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
+		Progress:     func(s *repo.SnapshotStats) { a.progress(s.BytesRead, 0, s.Files) },
 	})
 	if err != nil {
 		return failed(fmt.Errorf("Microsoft 365: %w", err))

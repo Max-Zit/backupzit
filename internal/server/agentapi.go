@@ -112,6 +112,8 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 				s.log.Info("run assigned", "run", run.ID, "kind", run.Kind, "agent", a.Hostname)
 			}
 		}
+	} else {
+		resp.Cancel = s.store.cancelRequests(r.Context(), a.ID)
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -120,6 +122,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	if run.Kind == api.KindAgentUpdate {
 		ar := &api.Run{ID: run.ID, Kind: run.Kind}
 		return ar, s.addUpdate(run, ar)
+	}
+	if run.Kind == api.KindAgentLog {
+		return &api.Run{ID: run.ID, Kind: run.Kind}, nil
 	}
 	if run.Kind == api.KindVMReplicaStart { // needs no storage
 		ar := &api.Run{ID: run.ID, Kind: run.Kind}

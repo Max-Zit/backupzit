@@ -92,8 +92,10 @@ systemctl enable --now backupzit-agent</pre>
 <h2>Agentlogboek</h2>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
-  <li>Linux: <code>/etc/backupzit/agent.log</code> en <code>journalctl -u backupzit-agent</code></li>
+  <li>Linux: <code>/var/log/backupzit/agent.log</code> en <code>journalctl -u backupzit-agent</code></li>
   <li>Herstelsystemen tonen het logboek op hun scherm.</li>
+  <li>Het logboek bewaart tot 4 bestanden van 10 MB (<code>agent.log</code> en <code>agent.log.1</code> tot <code>.3</code>); oudere regels worden verwijderd.</li>
+  <li><b>Logboek ophalen</b> op de pagina Agents haalt het einde van het logboek naar de console — zie <a href="/docs/troubleshooting#logs">Logboeken</a>.</li>
 </ul>
 
 <h2>Verwijderen van de software</h2>

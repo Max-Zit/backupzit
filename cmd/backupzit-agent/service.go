@@ -17,6 +17,7 @@ import (
 	"github.com/kardianos/service"
 	"github.com/max-zit/backupzit/internal/agent"
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/logfile"
 )
 
 const serviceName = "backupzit-agent"
@@ -124,6 +125,7 @@ func (p *program) Start(s service.Service) error {
 					agent.MarkEnrolled()
 				}
 				ag := agent.New(cfg, logger, version)
+				ag.LogPath = agent.LogPath(p.cfgPath)
 				go ag.ServeLocal(ctx)
 				if !service.Interactive() {
 					agent.StartTrayInSessions(logger)
@@ -167,9 +169,15 @@ func (p *program) Stop(s service.Service) error {
 
 func newLogger(cfgPath string) *slog.Logger {
 	var w io.Writer = os.Stdout
-	os.MkdirAll(filepath.Dir(cfgPath), 0o700)
-	logPath := filepath.Join(filepath.Dir(cfgPath), "agent.log")
-	if f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
+	logPath := agent.LogPath(cfgPath)
+	os.MkdirAll(filepath.Dir(logPath), 0o700)
+	// Agents up to 0.37 wrote the log next to the configuration in /etc.
+	if old := filepath.Join(filepath.Dir(cfgPath), "agent.log"); old != logPath {
+		if _, err := os.Stat(logPath); os.IsNotExist(err) {
+			os.Rename(old, logPath)
+		}
+	}
+	if f, err := logfile.Open(logPath); err == nil {
 		// Interactive runs and systemd (journal) also get the log on stdout;
 		// the Windows service only writes the file.
 		if service.Interactive() || runtime.GOOS != "windows" {

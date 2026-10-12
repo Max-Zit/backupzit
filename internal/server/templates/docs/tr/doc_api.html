@@ -20,6 +20,13 @@
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Görüntüleyici</td><td>Mesaj, hatalar ve istatistiklerle tek bir çalıştırma</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Görüntüleyici</td><td>Bir dönemin <a href="/docs/monitoring">raporu</a>: toplamlar, başarı oranı ve iş başına ayrıntılar</td></tr>
   <tr><td><code>GET /api/v1/targets</code></td><td>Görüntüleyici</td><td>Depolama hedefleri (kimlik bilgileri olmadan)</td></tr>
+  <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Görüntüleyici</td><td>Tek bir ajan</td></tr>
+  <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Yedekleme operatörü</td><td>Ajandan günlüğünü ister: <code>{"run_id": 124}</code>; ajan gönderdikten sonra sonraki uç noktayla okunur (ajan 0.38.0 veya daha yenisi)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Yedekleme operatörü</td><td>Ajanın gönderdiği günlük: <code>{"log": "..."}</code> veya gelene kadar 404</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Geri yükleme operatörü</td><td>Bekleyen bir çalıştırmayı iptal eder veya çalışanı durdurur: <code>{"state": "cancelled"}</code> veya <code>"stopping"</code>; bittiyse 409</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Yedekleme operatörü</td><td>İşin zamanlamasını açar veya kapatır; dört göz onayı açıkken devre dışı bırakma yalnızca konsolda yapılabilir (409)</td></tr>
+  <tr><td><code>GET /api/v1/storage</code></td><td>Görüntüleyici</td><td>Depolama hedefi başına kullanılan alan, biliniyorsa kapasite ve boş alan, günlük büyüme ve dolmasına kalan gün</td></tr>
+  <tr><td><code>GET /api/v1/metrics</code></td><td>Görüntüleyici</td><td>Prometheus metin biçiminde metrikler (aşağıya bakın)</td></tr>
 </table>
 <p>Dönemler: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> veya <code>from=2026-09-01&amp;to=2026-09-30</code> ile <code>custom</code>.</p>
 <p>Hatalar <code>{"error": "..."}</code> döndürür: 400 (hatalı istek), 401 (belirteç eksik, geçersiz veya süresi dolmuş), 403 (rol yetersiz), 404 veya 409.</p>
@@ -35,5 +42,15 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p><code>-k</code> / <code>-SkipCertificateCheck</code> seçeneğini yalnızca güvenilir bir ağda konsolun kendinden imzalı sertifikasıyla kullanın veya konsol sertifikasını izleme sunucusuna yükleyin.</p>
 <h3>İzleme denetimi</h3>
 <p><code>/api/v1/status</code> adresini birkaç dakikada bir sorgulayın ve <code>ok</code> false olduğunda uyarı verin. İş bazında denetim için <code>/api/v1/jobs</code> kullanın ve <code>last_status</code> <code>failed</code> olduğunda veya <code>last_finished</code> beklenenden eski olduğunda uyarı verin.</p>
+<h3>Prometheus ve Grafana</h3>
+<p><code>/api/v1/metrics</code> durumu Prometheus metin biçiminde döndürür: çevrimiçi ajanlar, etkin çalıştırmalar, son 24 saatin hataları ve uyarıları, şüpheli yedekler ve ajan, iş ve depolama hedefi başına <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 başarılı, 1 uyarı, 2 başarısız), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> ve <code>backupzit_storage_free_bytes</code>. Görüntüleyici belirteciyle bir scrape işi:</p>
+<pre>- job_name: backupzit
+  scheme: https
+  metrics_path: /api/v1/metrics
+  authorization:
+    credentials: bzt_...
+  static_configs:
+    - targets: ['backup.example.local:8443']</pre>
+<p>Örneğin <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> olduğunda (iki gündür iyi yedek yok) uyarı verin.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

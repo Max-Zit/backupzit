@@ -72,6 +72,9 @@ type Server struct {
 	DistDir      string
 	PollInterval int
 	Version      string
+	// LogFile is the server's rotated log file ("" when it logs to stdout
+	// only).
+	LogFile string
 
 	pages map[string]map[string]*template.Template // language -> page -> template
 	// Notifier is triggered when a run finishes (optional).
@@ -95,6 +98,13 @@ func New(store *Store, log *slog.Logger) (*Server, error) {
 var funcs = template.FuncMap{
 	// zone names the console server's time zone, e.g. "CEST, UTC+02:00".
 	"zone": func() string { return time.Now().Format("MST, UTC-07:00") },
+	// clock is the console server's current time for the sidebar clock;
+	// app.js keeps it ticking (data-ms: Unix ms, data-off: zone offset in s).
+	"clock": func() map[string]any {
+		now := time.Now()
+		_, off := now.Zone()
+		return map[string]any{"Text": now.Format("2006-01-02 15:04:05"), "MS": now.UnixMilli(), "Off": off}
+	},
 	"ago": func(t any) string {
 		var tm time.Time
 		switch v := t.(type) {
@@ -332,6 +342,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET "+api.PathDownloadPrefix+"{file}", s.agentAuth(s.handleAgentDownload))
 	mux.HandleFunc("POST "+api.PathJobRunPrefix+"{id}/run", s.agentAuth(s.handleAgentJobRun))
 	mux.HandleFunc("POST "+api.PathRunsPrefix+"{id}/finish", s.agentAuth(s.handleRunFinish))
+	mux.HandleFunc("POST "+api.PathRunsPrefix+"{id}/log", s.agentAuth(s.handleAgentLogUpload))
 
 	// UI
 	static, _ := fs.Sub(staticFS, "static")
@@ -353,6 +364,8 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /agents/install/{id}", s.ui(PermAgents, s.handleDeployPage))
 	mux.HandleFunc("POST /agents/{id}/delete", s.ui(PermAgents, s.handleAgentDelete))
 	mux.HandleFunc("POST /agents/{id}/update", s.ui(PermAgents, s.handleAgentUpdate))
+	mux.HandleFunc("POST /agents/{id}/log", s.ui(PermAgents, s.handleAgentLogRequest))
+	mux.HandleFunc("GET /runs/{id}/log", s.ui(PermAgents, s.handleAgentLogDownload))
 	mux.HandleFunc("POST /agents/update-all", s.ui(PermAgents, s.handleAgentUpdateAll))
 	mux.HandleFunc("POST /vmware", s.ui(PermAgents, s.handleVMwareCreate))
 	mux.HandleFunc("POST /vmware/{id}/refresh", s.ui(PermAgents, s.handleVMwareRefresh))
@@ -373,6 +386,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(PermJobs, s.handleJobEnable(true)))
 	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
 	mux.HandleFunc("POST /jobs/{id}/delete", s.ui(PermJobs, s.handleJobDelete))
+	mux.HandleFunc("GET /jobs/{id}/edit", s.ui(PermJobs, s.handleJobEditPage))
 	mux.HandleFunc("POST /jobs/{id}/edit", s.ui(PermJobs, s.handleJobEdit))
 	mux.HandleFunc("POST /jobs/m365-directory", s.ui(PermJobs, s.handleM365Directory))
 	mux.HandleFunc("POST /jobs/{id}/replica-start", s.ui(PermRestore, s.handleReplicaStart))
@@ -380,6 +394,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /runs", s.ui(PermView, s.handleRuns))
 	mux.HandleFunc("GET /runs/{id}", s.ui(PermView, s.handleRun))
 	mux.HandleFunc("POST /runs/{id}/restore", s.ui(PermRestore, s.handleRestore))
+	mux.HandleFunc("POST /runs/{id}/cancel", s.ui(PermRun, s.handleRunCancel))
 	mux.HandleFunc("GET /runs/{id}/files", s.ui(PermRestore, s.handleFileBrowse))
 	mux.HandleFunc("POST /runs/{id}/files-download", s.ui(PermRestore, s.handleFileDownload))
 	mux.HandleFunc("POST /runs/{id}/files-pick-restore", s.ui(PermRestore, s.handleFilePickRestore))
@@ -421,6 +436,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /recovery", s.ui(PermView, s.handleRecovery))
 	mux.HandleFunc("GET /settings", s.ui(PermSettings, s.handleSettings))
 	mux.HandleFunc("GET /settings/{tab}", s.ui(PermSettings, s.handleSettings))
+	mux.HandleFunc("GET /settings/diagnostics/bundle", s.ui(PermSettings, s.handleDiagnosticsBundle))
 	mux.HandleFunc("POST /settings/email", s.ui(PermSettings, s.handleSettingsEmail))
 	mux.HandleFunc("POST /settings/chat", s.ui(PermSettings, s.handleSettingsChat))
 	mux.HandleFunc("POST /settings/sessions", s.ui(PermSettings, s.handleSettingsSessions))
@@ -962,7 +978,7 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		job.Paths, job.Excludes = lines(r.FormValue("sql_databases")), nil
 	}
 	if job.Kind == JobM365 {
-		job.Paths, job.Excludes = lines(r.FormValue("m365_users")), nil
+		job.Paths, job.Excludes = m365FormUsers(r), nil
 	}
 	if job.Kind == JobCopy {
 		job.SourceJobID = optionalID(r.FormValue("source_job"))
@@ -1026,7 +1042,7 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 		return
 	}
 	data := map[string]any{"Job": j, "Runs": runs, "Coverage": s.coverageMap(r.Context())[j.ID], "Protected": nil, "ProtectedSQL": nil, "ProtectedRun": nil,
-		"Form": s.jobForm(r, j, true, nil), "Guests": s.jobGuests(r.Context(), j), "Replicas": s.jobReplicas(r.Context(), j)}
+		"Replicas": s.jobReplicas(r.Context(), j), "Active": activeRuns(runs)}
 	if pr, err := s.store.newestBackup(r.Context(), j.ID); err == nil && pr != nil {
 		data["ProtectedRun"] = pr
 		if d := vmDetails(*pr); d != nil {
@@ -1037,6 +1053,26 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 		}
 	}
 	s.render(w, r, "job", pageData{Title: j.Name, Nav: "jobs", User: user, Data: data})
+}
+
+// handleJobEditPage serves GET /jobs/{id}/edit. It is a page of its own so
+// it does not reload while a run of the job is active.
+func (s *Server) handleJobEditPage(w http.ResponseWriter, r *http.Request, user string) {
+	id, err := pathID(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	j, err := s.store.GetJob(r.Context(), id)
+	if errors.Is(err, ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	} else if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	data := map[string]any{"Job": j, "Form": s.jobForm(r, j, true, nil), "Guests": s.jobGuests(r.Context(), j)}
+	s.render(w, r, "jobedit", pageData{Title: j.Name, Nav: "jobs", User: user, Data: data})
 }
 
 func (s *Server) handleJobRun(w http.ResponseWriter, r *http.Request, _ string) {
@@ -1144,6 +1180,11 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		"Instant": runInstant(run), "InstantStorage": s.instantStorage(r.Context(), run), "BootTests": bootTests(run)} {
 		data[k] = v
 	}
+	if run.Kind == api.KindAgentLog {
+		if text, err := s.store.AgentLog(r.Context(), run.ID); err == nil && text != "" {
+			data["AgentLog"] = logTail(text, 200)
+		}
+	}
 	s.render(w, r, "run", pageData{Title: requestLanguage(r).T("Run #%d", run.ID), Nav: "runs", User: user, Data: data})
 }
 
@@ -1238,5 +1279,5 @@ func Shutdown(srv *http.Server) {
 
 // kindTitleEN names a run kind for people (English).
 func kindTitleEN(k string) string {
-	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
+	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
 }

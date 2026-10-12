@@ -5,7 +5,7 @@
 <ul>
   <li>Ist die Maschine eingeschaltet und läuft der Dienst? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
   <li>Erreicht die Maschine die Konsole? <code>Test-NetConnection backup-server -Port 8443</code> oder <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Agentenprotokoll: <code>C:\ProgramData\backupzit\agent.log</code>, unter Linux <code>/etc/backupzit/agent.log</code> oder <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch“ bedeutet, dass sich das Konsolenzertifikat geändert hat — registrieren Sie den Agenten erneut.</li>
+  <li>Agentenprotokoll: <code>C:\ProgramData\backupzit\agent.log</code>, unter Linux <code>/var/log/backupzit/agent.log</code> oder <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch“ bedeutet, dass sich das Konsolenzertifikat geändert hat — registrieren Sie den Agenten erneut.</li>
 </ul>
 
 <h2>Eine Sicherung ist fehlgeschlagen</h2>
@@ -78,6 +78,22 @@
   <li>Prüfen Sie den Netzwerkweg zum Speicher (WLAN, VPN, Upload-Geschwindigkeit ins Internet bei Cloud-Speicher).</li>
   <li>Schließen Sie Caches, temporäre Dateien und nicht benötigte Medien aus.</li>
 </ul>
+
+<h2 id="logs">Protokolle</h2>
+<p>Wenn etwas nicht funktioniert, zeigen diese Protokolle, was passiert ist:</p>
+<table>
+  <tr><th>Was</th><th>Wo</th></tr>
+  <tr><td>Konsole (Server)</td><td><code>journalctl -u backupzit-server</code> und die Datei <code>/var/lib/backupzit/logs/server.log</code> (bis zu 4 Dateien zu 10 MB). Die letzten Zeilen stehen unter <a href="/settings/diagnostics">Einstellungen → Diagnose</a>.</td></tr>
+  <tr><td>Agent unter Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Agent unter Linux</td><td><code>/var/log/backupzit/agent.log</code> und <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Jeder Agent, aus der Konsole</td><td><b>Protokoll holen</b> auf der Seite <a href="/agents">Agenten</a>: Der Agent sendet das Ende seines Protokolls und die neuesten Installer-Protokolle; lesen oder herunterladen auf der Seite des Laufs (30 Tage aufbewahrt; Agenten ab 0.38.0).</td></tr>
+  <tr><td>Eine Sicherung oder Wiederherstellung</td><td>ihre Seite unter <a href="/runs">Aktivität</a>: Meldung, Fehler, Statistik und Ausgabe der Befehle vor und nach der Sicherung</td></tr>
+  <tr><td>Agenten-Updates</td><td>Installer-Protokolle in <code>C:\ProgramData\backupzit\updates</code> (Windows) oder <code>/var/tmp/backupzit-updates</code> (Linux); <b>Protokoll holen</b> enthält sie</td></tr>
+  <tr><td>Konsolen-Updates</td><td><code>journalctl -u backupzit-update</code>; die vorige Version und ein Datenbank-Dump liegen in <code>/var/lib/backupzit-update</code></td></tr>
+  <tr><td>Gehärtetes Repository</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>Wer was geändert hat</td><td>das <a href="/audit">Audit-Protokoll</a>, das auch an einen Syslog-Server gehen kann</td></tr>
+</table>
+<p>Für eine Supportanfrage liefert <b>Diagnose herunterladen</b> unter <a href="/settings/diagnostics">Einstellungen → Diagnose</a> ein ZIP mit Konsolenprotokoll, Versionen, Agenten, Aufträgen, fehlgeschlagenen Läufen der letzten 30 Tage und Audit-Protokoll — ohne Passwörter, Schlüssel oder Speicher-Zugangsdaten. Ein Wiederherstellungssystem zeigt sein Protokoll auf dem Bildschirm.</p>
 
 <h2>FAQ</h2>
 <h3>Kann ich NFS verwenden?</h3>

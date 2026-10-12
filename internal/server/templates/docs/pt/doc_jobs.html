@@ -41,7 +41,7 @@
   <tr><td><b>Uma vez por mês</b></td><td>No dia 1 às 23:00.</td></tr>
   <tr><td><b>Somente manualmente</b></td><td>Só é executada quando clica em <i>Executar backup agora</i>.</td></tr>
 </table>
-<p>Os horários estão no fuso horário do servidor da console (no appliance: <a href="/settings/network#timezone">Configurações → Rede → Fuso horário</a> ou o item 9 do menu de configuração; começa em UTC). Se um agente estiver offline no horário agendado, o backup espera na fila e começa assim que o agente voltar. Veja todas as execuções planejadas no <a href="/calendar">Calendário</a>.</p>
+<p>Os horários estão no fuso horário do servidor da console (no appliance: <a href="/settings/network#timezone">Configurações → Rede → Fuso horário</a> ou o item 9 do menu de configuração; começa em UTC). Se um agente estiver offline no horário agendado, o backup espera na fila e começa assim que o agente voltar. Veja todas as execuções planejadas no <a href="/calendar">Calendário</a>. A data e a hora atuais do console aparecem no canto inferior esquerdo, abaixo do fuso horário.</p>
 
 <h2>Retenção: quantos backups manter</h2>
 <p>Um snapshot é mantido se <b>qualquer</b> regra o selecionar:</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Alterar uma tarefa</h2>
-<p>Abra a tarefa e expanda <b>Editar tarefa</b>. Pode alterar o nome, as pastas e exclusões (tarefas de arquivos), as VMs (tarefas de VM), o agendamento, a retenção, o limite de velocidade, o nível de compressão e os comandos. O agente, o destino de armazenamento e o disco de uma tarefa de imagem ficam como estão, para que os backups da tarefa continuem numa só cadeia; para mudar uma tarefa de lugar, crie uma nova — com uma tarefa de cópia se os backups antigos tiverem de vir junto. As alterações valem a partir da próxima execução e ficam registradas no <a href="/audit">log de auditoria</a>. Com a <a href="/docs/users">aprovação de quatro olhos</a> ativada, uma retenção mais curta aguarda a aprovação de um segundo usuário; as outras alterações são salvas de imediato.</p>
+<p>Abra a tarefa e clique em <b>Editar</b>; o formulário abre numa página própria, que não recarrega enquanto um backup é executado. Pode alterar o nome, as pastas e exclusões (tarefas de arquivos), as VMs (tarefas de VM), o agendamento, a retenção, o limite de velocidade, o nível de compressão e os comandos. O agente, o destino de armazenamento e o disco de uma tarefa de imagem ficam como estão, para que os backups da tarefa continuem numa só cadeia; para mudar uma tarefa de lugar, crie uma nova — com uma tarefa de cópia se os backups antigos tiverem de vir junto. As alterações valem a partir da próxima execução e ficam registradas no <a href="/audit">log de auditoria</a>. Com a <a href="/docs/users">aprovação de quatro olhos</a> ativada, uma retenção mais curta aguarda a aprovação de um segundo usuário; as outras alterações são salvas de imediato.</p>
 
 <h2>Réplicas (Proxmox VE)</h2>
 <p>As tarefas de VM do Proxmox podem manter cópias paradas e atualizadas dos seus convidados num nó à sua escolha, iniciadas com um clique se um convidado se perder — veja <a href="/docs/proxmox">Proxmox VE → Replicação</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Compressão e desduplicação</h2>
 <p>Cada backup é desduplicado: dados que já estão no repositório — de backups anteriores da mesma tarefa ou de outras tarefas no mesmo destino de armazenamento — não são guardados de novo. Os dados novos são depois comprimidos com zstd; pedaços que não ficam menores (vídeo, arquivos compactados, arquivos criptografados) são guardados como estão. A criptografia vem depois da compressão.</p>
-<p>O nível de compressão é uma configuração da tarefa (<b>Editar tarefa → Avançado</b>):</p>
+<p>O nível de compressão é uma configuração da tarefa (<b>Editar → Avançado</b>):</p>
 <table>
   <tr><th>Nível</th><th>Quando usar</th></tr>
   <tr><td>Padrão (recomendado)</td><td>Boa compressão a alta velocidade; serve para quase todas as tarefas.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Desativar</b> pausa o agendamento sem perder a tarefa (com a aprovação de quatro olhos ativada, um segundo usuário tem de aprovar).</li>
   <li><b>Excluir</b> remove a tarefa; os backups existentes permanecem no armazenamento e continuam restauráveis a partir de Atividade.</li>
 </ul>
+
+<h2>Parar uma execução</h2>
+<p>Um backup, cópia ou restauração na fila ou em execução pode ser parado com <b>Cancelar</b> ou <b>Parar a execução</b> na página da execução, ou com <b>Parar a execução nº …</b> na página da tarefa. Uma execução na fila é cancelada na hora; uma em andamento é parada pelo agente em segundos — o comando antes do backup também é encerrado, e o comando depois do backup é executado mesmo assim. A execução é marcada como falha ("Cancelled by" e o nome do usuário) e registrada no log de auditoria; nenhum e-mail de falha é enviado. Um backup interrompido no meio não é usado para restaurações. Atualizações do agente não podem ser paradas.</p>
+<p><b>Limite de tempo de uma execução (horas)</b>, em <b>Avançado</b> no formulário da tarefa, para um backup ou cópia da tarefa que demorar mais e o marca como falha; neste caso a notificação de falha é enviada. Vazio ou 0 significa sem limite. Se o agente não confirmar a parada em 10 minutos, o console marca a execução como falha.</p>
 
 <h2>Retenção pausada</h2>
 <p>Se um backup da tarefa pareceu ransomware ou exclusão em massa, a página da tarefa mostra <i>A retenção está pausada</i>: nenhum backup é removido até alguém verificar a máquina e clicar em <i>Revisado — retomar a retenção</i> (com a aprovação de quatro olhos ativada, um segundo usuário tem de aprovar). Veja <a href="/docs/ransomware">Proteção contra ransomware</a>.</p>

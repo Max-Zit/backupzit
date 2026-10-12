@@ -41,7 +41,7 @@
   <tr><td><b>Una volta al mese</b></td><td>Il giorno 1 alle 23:00.</td></tr>
   <tr><td><b>Solo manualmente</b></td><td>Viene eseguito solo quando fate clic su <i>Esegui backup ora</i>.</td></tr>
 </table>
-<p>Gli orari sono nel fuso orario del server della console (sull'appliance: <a href="/settings/network#timezone">Impostazioni → Rete → Fuso orario</a> o la voce 9 del menu di configurazione; all'inizio UTC). Se un agente è offline all'orario pianificato, il backup attende in coda e parte appena l'agente torna. Tutte le esecuzioni previste sono nel <a href="/calendar">Calendario</a>.</p>
+<p>Gli orari sono nel fuso orario del server della console (sull'appliance: <a href="/settings/network#timezone">Impostazioni → Rete → Fuso orario</a> o la voce 9 del menu di configurazione; all'inizio UTC). Se un agente è offline all'orario pianificato, il backup attende in coda e parte appena l'agente torna. Tutte le esecuzioni previste sono nel <a href="/calendar">Calendario</a>. La data e l'ora attuali della console sono mostrate in basso a sinistra, sotto il fuso orario.</p>
 
 <h2>Conservazione: quanti backup tenere</h2>
 <p>Uno snapshot viene conservato se <b>una qualsiasi</b> regola lo seleziona:</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Modificare un job</h2>
-<p>Aprite il job ed espandete <b>Modifica job</b>. Potete cambiare nome, cartelle ed esclusioni (job di file), VM (job di VM), pianificazione, conservazione, limite di velocità, livello di compressione e comandi. Agente, destinazione di archiviazione e disco di un job di immagine restano invariati, così i backup del job restano un'unica catena; per spostare un job createne uno nuovo — con un job di copia se devono seguirlo i backup più vecchi. Le modifiche valgono dalla prossima esecuzione e vengono registrate nel <a href="/audit">log di audit</a>. Con l'<a href="/docs/users">approvazione a quattro occhi</a> attiva, una conservazione più breve attende l'approvazione di un secondo utente; le altre modifiche vengono salvate subito.</p>
+<p>Aprite il job e fate clic su <b>Modifica</b>; il modulo si apre in una pagina a sé, che non si ricarica mentre un backup è in corso. Potete cambiare nome, cartelle ed esclusioni (job di file), VM (job di VM), pianificazione, conservazione, limite di velocità, livello di compressione e comandi. Agente, destinazione di archiviazione e disco di un job di immagine restano invariati, così i backup del job restano un'unica catena; per spostare un job createne uno nuovo — con un job di copia se devono seguirlo i backup più vecchi. Le modifiche valgono dalla prossima esecuzione e vengono registrate nel <a href="/audit">log di audit</a>. Con l'<a href="/docs/users">approvazione a quattro occhi</a> attiva, una conservazione più breve attende l'approvazione di un secondo utente; le altre modifiche vengono salvate subito.</p>
 
 <h2>Repliche (Proxmox VE)</h2>
 <p>I job di VM Proxmox possono mantenere copie arrestate e aggiornate dei loro guest su un nodo a vostra scelta, avviabili con un clic se un guest va perso — vedete <a href="/docs/proxmox">Proxmox VE → Replica</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Compressione e deduplicazione</h2>
 <p>Ogni backup è deduplicato: i dati già presenti nel repository — da backup precedenti dello stesso job o da altri job sulla stessa destinazione di archiviazione — non vengono archiviati di nuovo. I dati nuovi vengono poi compressi con zstd; i pezzi che non si riducono (video, archivi, file cifrati) vengono archiviati così come sono. La cifratura avviene dopo la compressione.</p>
-<p>Il livello di compressione è un'impostazione del job (<b>Modifica job → Avanzate</b>):</p>
+<p>Il livello di compressione è un'impostazione del job (<b>Modifica → Avanzate</b>):</p>
 <table>
   <tr><th>Livello</th><th>Quando usarlo</th></tr>
   <tr><td>Standard (consigliato)</td><td>Buona compressione ad alta velocità; adatto a quasi tutti i job.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Disattiva</b> sospende la pianificazione senza perdere il job (con l'approvazione a quattro occhi attiva, un secondo utente deve approvare).</li>
   <li><b>Elimina</b> rimuove il job; i backup esistenti restano sullo storage e restano ripristinabili da Attività.</li>
 </ul>
+
+<h2>Fermare un'esecuzione</h2>
+<p>Un backup, una copia o un ripristino in coda o in corso si può fermare con <b>Annulla</b> o <b>Ferma l'esecuzione</b> nella pagina dell'esecuzione, oppure con <b>Ferma l'esecuzione n. …</b> nella pagina del job. Un'esecuzione in coda viene annullata subito; una in corso viene fermata dall'agent entro pochi secondi — viene terminato anche il comando prima del backup, mentre il comando dopo il backup viene eseguito comunque. L'esecuzione viene segnata come non riuscita («Cancelled by» e il nome dell'utente) e registrata nel log di audit; non viene inviata alcuna e-mail di errore. Un backup interrotto a metà non viene usato per i ripristini. Gli aggiornamenti dell'agent non si possono fermare.</p>
+<p><b>Limite di tempo di un'esecuzione (ore)</b>, in <b>Avanzate</b> nel modulo del job, ferma un backup o una copia del job che dura di più e lo segna come non riuscito; in questo caso la notifica di errore viene inviata. Vuoto o 0 significa nessun limite. Se l'agent non conferma l'arresto entro 10 minuti, la console segna da sé l'esecuzione come non riuscita.</p>
 
 <h2>Conservazione sospesa</h2>
 <p>Se un backup del job sembrava ransomware o un'eliminazione di massa, la pagina del job mostra <i>La conservazione è sospesa</i>: nessun backup viene rimosso finché qualcuno non controlla la macchina e fa clic su <i>Verificato — riprendi la conservazione</i> (con l'approvazione a quattro occhi attiva, un secondo utente deve approvare). Vedete <a href="/docs/ransomware">Protezione dal ransomware</a>.</p>

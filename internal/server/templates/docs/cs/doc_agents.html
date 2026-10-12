@@ -92,8 +92,10 @@ systemctl enable --now backupzit-agent</pre>
 <h2>Protokol agenta</h2>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
-  <li>Linux: <code>/etc/backupzit/agent.log</code> a <code>journalctl -u backupzit-agent</code></li>
+  <li>Linux: <code>/var/log/backupzit/agent.log</code> a <code>journalctl -u backupzit-agent</code></li>
   <li>Systémy pro obnovu vypisují protokol na obrazovku.</li>
+  <li>Protokol uchovává až 4 soubory po 10 MB (<code>agent.log</code> a <code>agent.log.1</code> až <code>.3</code>); starší záznamy se mažou.</li>
+  <li><b>Získat protokol</b> na stránce Agenti přenese konec protokolu do konzole — viz <a href="/docs/troubleshooting#logs">Protokoly</a>.</li>
 </ul>
 
 <h2>Odinstalace</h2>

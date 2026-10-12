@@ -290,6 +290,28 @@ func TestM365Job(t *testing.T) {
 	if ar, err := e.srv.APIRun(ctx, rid3); err != nil || ar.M365.Secret != "app-secret-value" || ar.M365.OneDrive {
 		t.Errorf("after edit: %+v %v", ar.M365, err)
 	}
+
+	// "All accounts" with exclusions: the ticked list is ignored, and new
+	// accounts are included.
+	edit.Set("m365_users_mode", "all")
+	edit.Set("m365_users_exclude", "Bob@contoso.test\nbob@contoso.test")
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/jobs/%d/edit", id), edit); !strings.Contains(loc, "msg=") {
+		msg, _ := url.QueryUnescape(loc)
+		t.Fatalf("edit all: %s", msg)
+	}
+	j, _ := e.store.GetJob(ctx, id)
+	if len(j.Paths) != 0 || strings.Join(j.Options.M365ExcludeUsers, ",") != "bob@contoso.test" {
+		t.Errorf("all accounts: %v except %v", j.Paths, j.Options.M365ExcludeUsers)
+	}
+	if _, _, body := admin.do("GET", fmt.Sprintf("/jobs/%d/edit", id), nil); !strings.Contains(body, `name="m365_users_mode" value="all" checked`) || !strings.Contains(body, "bob@contoso.test</textarea>") {
+		t.Error("edit page does not show all accounts with the exclusion")
+	}
+	// "Only these" with nothing ticked is refused.
+	edit.Set("m365_users_mode", "list")
+	edit.Set("m365_users", "")
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/jobs/%d/edit", id), edit); !strings.Contains(loc, "err=") {
+		t.Error("empty account list accepted")
+	}
 }
 
 // Missing application permissions are named when the job is saved.
@@ -449,7 +471,7 @@ func TestM365Directory(t *testing.T) {
 		t.Errorf("stored secret sent to another tenant: %v", d)
 	}
 	// The form offers the list.
-	if _, _, body := admin.do("GET", fmt.Sprintf("/jobs/%d", id), nil); !strings.Contains(body, "data-m365-load") {
+	if _, _, body := admin.do("GET", fmt.Sprintf("/jobs/%d/edit", id), nil); !strings.Contains(body, "data-m365-load") {
 		t.Error("job form lacks the picker")
 	}
 }

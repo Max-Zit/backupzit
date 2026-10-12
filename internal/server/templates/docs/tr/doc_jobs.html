@@ -41,7 +41,7 @@
   <tr><td><b>Ayda bir</b></td><td>Ayın 1'inde 23:00'te.</td></tr>
   <tr><td><b>Yalnızca elle</b></td><td>Yalnızca <i>Yedeklemeyi şimdi çalıştır</i>'a tıkladığınızda çalışır.</td></tr>
 </table>
-<p>Saatler konsol sunucusunun saat dilimindedir (appliance'ta: <a href="/settings/network#timezone">Ayarlar → Ağ → Saat dilimi</a> veya kurulum menüsünün 9. öğesi; başlangıçta UTC). Bir aracı zamanlanan saatte çevrimdışıysa yedek kuyrukta bekler ve aracı geri gelir gelmez başlar. Planlanan tüm çalıştırmaları <a href="/calendar">Takvim</a>'de görün.</p>
+<p>Saatler konsol sunucusunun saat dilimindedir (appliance'ta: <a href="/settings/network#timezone">Ayarlar → Ağ → Saat dilimi</a> veya kurulum menüsünün 9. öğesi; başlangıçta UTC). Bir aracı zamanlanan saatte çevrimdışıysa yedek kuyrukta bekler ve aracı geri gelir gelmez başlar. Planlanan tüm çalıştırmaları <a href="/calendar">Takvim</a>'de görün. Konsolun güncel tarihi ve saati sol altta, saat diliminin altında gösterilir.</p>
 
 <h2>Saklama: kaç yedek tutulur</h2>
 <p>Bir anlık görüntü, <b>herhangi bir</b> kural onu seçerse tutulur:</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Bir işi değiştirme</h2>
-<p>İşi açın ve <b>İşi düzenle</b>'yi genişletin. Adı, klasörleri ve hariç tutmaları (dosya işleri), VM'leri (VM işleri), zamanlamayı, saklamayı, hız sınırını, sıkıştırma düzeyini ve komutları değiştirebilirsiniz. Aracı, depolama hedefi ve bir görüntü işinin diski olduğu gibi kalır; böylece işin yedekleri tek bir zincir olarak kalır. Bir işi taşımak için yeni bir iş oluşturun — eski yedeklerin de gelmesi gerekiyorsa bir kopyalama işiyle. Değişiklikler sonraki çalıştırmadan itibaren geçerlidir ve <a href="/audit">denetim günlüğü</a>ne kaydedilir. <a href="/docs/users">Dört göz onayı</a> açıkken daha kısa bir saklama, ikinci bir kullanıcının onayını bekler; diğer değişiklikler hemen kaydedilir.</p>
+<p>İşi açın ve <b>Düzenle</b>'ye tıklayın; form, yedekleme sürerken yenilenmeyen ayrı bir sayfada açılır. Adı, klasörleri ve hariç tutmaları (dosya işleri), VM'leri (VM işleri), zamanlamayı, saklamayı, hız sınırını, sıkıştırma düzeyini ve komutları değiştirebilirsiniz. Aracı, depolama hedefi ve bir görüntü işinin diski olduğu gibi kalır; böylece işin yedekleri tek bir zincir olarak kalır. Bir işi taşımak için yeni bir iş oluşturun — eski yedeklerin de gelmesi gerekiyorsa bir kopyalama işiyle. Değişiklikler sonraki çalıştırmadan itibaren geçerlidir ve <a href="/audit">denetim günlüğü</a>ne kaydedilir. <a href="/docs/users">Dört göz onayı</a> açıkken daha kısa bir saklama, ikinci bir kullanıcının onayını bekler; diğer değişiklikler hemen kaydedilir.</p>
 
 <h2>Replikalar (Proxmox VE)</h2>
 <p>Proxmox VM işleri, konuklarının durdurulmuş ve güncel kopyalarını seçtiğiniz bir düğümde tutabilir; bir konuk kaybolursa tek tıkla başlatılır — bkz. <a href="/docs/proxmox">Proxmox VE → Replikasyon</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Sıkıştırma ve tekilleştirme</h2>
 <p>Her yedek tekilleştirilir: depoda zaten bulunan veriler — aynı işin önceki yedeklerinden veya aynı depolama hedefindeki diğer işlerden — yeniden saklanmaz. Yeni veriler ardından zstd ile sıkıştırılır; küçülmeyen parçalar (video, arşivler, şifreli dosyalar) olduğu gibi saklanır. Şifreleme sıkıştırmadan sonra gelir.</p>
-<p>Sıkıştırma düzeyi bir iş ayarıdır (<b>İşi düzenle → Gelişmiş</b>):</p>
+<p>Sıkıştırma düzeyi bir iş ayarıdır (<b>Düzenle → Gelişmiş</b>):</p>
 <table>
   <tr><th>Düzey</th><th>Ne zaman kullanılır</th></tr>
   <tr><td>Standart (önerilir)</td><td>Yüksek hızda iyi sıkıştırma; hemen her işe uygundur.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Devre dışı bırak</b>, işi kaybetmeden zamanlamayı duraklatır (dört göz onayı açıkken ikinci bir kullanıcının onaylaması gerekir).</li>
   <li><b>Sil</b> işi kaldırır; mevcut yedekler depolamada kalır ve Etkinlik'ten geri yüklenebilir olmayı sürdürür.</li>
 </ul>
+
+<h2>Bir çalıştırmayı durdurma</h2>
+<p>Bekleyen veya çalışan bir yedekleme, kopya ya da geri yükleme, çalıştırma sayfasındaki <b>İptal</b> veya <b>Çalıştırmayı durdur</b> ya da iş sayfasındaki <b>#… çalıştırmasını durdur</b> ile durdurulabilir. Bekleyen bir çalıştırma hemen iptal edilir; çalışan bir çalıştırmayı ajan birkaç saniye içinde durdurur — yedekleme öncesi komut da sonlandırılır, yedekleme sonrası komut yine de çalışır. Çalıştırma başarısız olarak işaretlenir ("Cancelled by" ve kullanıcının adı) ve denetim günlüğüne kaydedilir; bunun için hata e-postası gönderilmez. Yarıda kesilen bir yedek geri yükleme için kullanılmaz. Ajan güncellemeleri durdurulamaz.</p>
+<p>İş formunda <b>Gelişmiş</b> altındaki <b>Bir çalıştırmanın süre sınırı (saat)</b>, daha uzun süren bir yedeklemeyi veya kopyayı durdurur ve başarısız olarak işaretler; bu durumda hata bildirimi gönderilir. Boş veya 0 sınır yok demektir. Ajan durdurmayı 10 dakika içinde onaylamazsa konsol çalıştırmayı kendisi başarısız olarak işaretler.</p>
 
 <h2>Saklama duraklatıldı</h2>
 <p>İşin bir yedeği fidye yazılımına veya toplu silmeye benziyorsa iş sayfası <i>Saklama duraklatıldı</i> gösterir: biri makineyi denetleyip <i>İncelendi — saklamayı sürdür</i>'e tıklayana kadar hiçbir yedek kaldırılmaz (dört göz onayı açıkken ikinci bir kullanıcının onaylaması gerekir). Bkz. <a href="/docs/ransomware">Fidye yazılımı koruması</a>.</p>

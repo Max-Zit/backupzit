@@ -41,7 +41,7 @@
   <tr><td><b>Raz w miesiącu</b></td><td>1. dnia o 23:00.</td></tr>
   <tr><td><b>Tylko ręcznie</b></td><td>Uruchamia się tylko po kliknięciu <i>Uruchom kopię teraz</i>.</td></tr>
 </table>
-<p>Godziny są w strefie czasowej serwera konsoli (na appliance: <a href="/settings/network#timezone">Ustawienia → Sieć → Strefa czasowa</a> lub pozycja 9 menu konfiguracji; na początku UTC). Jeśli agent jest offline w zaplanowanym czasie, kopia czeka w kolejce i startuje, gdy tylko agent wróci. Wszystkie planowane uruchomienia widać w <a href="/calendar">Kalendarzu</a>.</p>
+<p>Godziny są w strefie czasowej serwera konsoli (na appliance: <a href="/settings/network#timezone">Ustawienia → Sieć → Strefa czasowa</a> lub pozycja 9 menu konfiguracji; na początku UTC). Jeśli agent jest offline w zaplanowanym czasie, kopia czeka w kolejce i startuje, gdy tylko agent wróci. Wszystkie planowane uruchomienia widać w <a href="/calendar">Kalendarzu</a>. Bieżąca data i godzina konsoli są widoczne w lewym dolnym rogu, pod strefą czasową.</p>
 
 <h2>Retencja: ile kopii zachować</h2>
 <p>Migawka jest zachowywana, jeśli wybiera ją <b>dowolna</b> reguła:</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Zmiana zadania</h2>
-<p>Otwórz zadanie i rozwiń <b>Edytuj zadanie</b>. Możesz zmienić nazwę, foldery i wykluczenia (zadania plików), maszyny (zadania maszyn), harmonogram, retencję, limit prędkości, poziom kompresji i polecenia. Agent, miejsce docelowe i dysk zadania obrazu pozostają bez zmian, aby kopie zadania tworzyły jeden łańcuch; aby przenieść zadanie, utwórz nowe — z zadaniem kopii kopii, jeśli starsze kopie mają się przenieść. Zmiany obowiązują od następnego uruchomienia i są zapisywane w <a href="/audit">dzienniku audytu</a>. Przy włączonym <a href="/docs/users">zatwierdzaniu na cztery oczy</a> krótsza retencja czeka na zatwierdzenie przez drugiego użytkownika; pozostałe zmiany są zapisywane od razu.</p>
+<p>Otwórz zadanie i kliknij <b>Edytuj</b>; formularz otwiera się na osobnej stronie, która nie odświeża się podczas kopii. Możesz zmienić nazwę, foldery i wykluczenia (zadania plików), maszyny (zadania maszyn), harmonogram, retencję, limit prędkości, poziom kompresji i polecenia. Agent, miejsce docelowe i dysk zadania obrazu pozostają bez zmian, aby kopie zadania tworzyły jeden łańcuch; aby przenieść zadanie, utwórz nowe — z zadaniem kopii kopii, jeśli starsze kopie mają się przenieść. Zmiany obowiązują od następnego uruchomienia i są zapisywane w <a href="/audit">dzienniku audytu</a>. Przy włączonym <a href="/docs/users">zatwierdzaniu na cztery oczy</a> krótsza retencja czeka na zatwierdzenie przez drugiego użytkownika; pozostałe zmiany są zapisywane od razu.</p>
 
 <h2>Repliki (Proxmox VE)</h2>
 <p>Zadania maszyn Proxmox mogą utrzymywać zatrzymane, aktualne kopie swoich gości na wybranym węźle, uruchamiane jednym kliknięciem, gdy gość zostanie utracony — zobacz <a href="/docs/proxmox">Proxmox VE → Replikacja</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Kompresja i deduplikacja</h2>
 <p>Każda kopia jest deduplikowana: dane, które już są w repozytorium — z wcześniejszych kopii tego samego zadania lub z innych zadań w tym samym miejscu docelowym — nie są zapisywane ponownie. Nowe dane są następnie kompresowane zstd; fragmenty, które się nie zmniejszają (wideo, archiwa, pliki zaszyfrowane), są zapisywane bez zmian. Szyfrowanie następuje po kompresji.</p>
-<p>Poziom kompresji to ustawienie zadania (<b>Edytuj zadanie → Zaawansowane</b>):</p>
+<p>Poziom kompresji to ustawienie zadania (<b>Edytuj → Zaawansowane</b>):</p>
 <table>
   <tr><th>Poziom</th><th>Kiedy używać</th></tr>
   <tr><td>Standardowa (zalecane)</td><td>Dobra kompresja przy dużej prędkości; pasuje do prawie każdego zadania.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Wyłącz</b> wstrzymuje harmonogram bez utraty zadania (przy włączonym zatwierdzaniu na cztery oczy drugi użytkownik musi to zatwierdzić).</li>
   <li><b>Usuń</b> usuwa zadanie; istniejące kopie pozostają w magazynie i nadal można je przywrócić z Aktywności.</li>
 </ul>
+
+<h2>Zatrzymywanie uruchomienia</h2>
+<p>Oczekującą lub trwającą kopię, kopiowanie lub odtwarzanie można zatrzymać przyciskiem <b>Anuluj</b> lub <b>Zatrzymaj uruchomienie</b> na stronie uruchomienia albo <b>Zatrzymaj uruchomienie #…</b> na stronie zadania. Oczekujące uruchomienie jest anulowane od razu; trwające agent zatrzymuje w ciągu kilku sekund — kończone jest też polecenie przed kopią, a polecenie po kopii i tak się wykonuje. Uruchomienie jest oznaczane jako nieudane („Cancelled by” i nazwa użytkownika) i zapisywane w dzienniku audytu; e-mail o błędzie nie jest wysyłany. Kopia przerwana w połowie nie jest używana do odtwarzania. Aktualizacji agenta nie można zatrzymać.</p>
+<p><b>Limit czasu uruchomienia (godziny)</b> w sekcji <b>Zaawansowane</b> formularza zadania zatrzymuje kopię lub kopiowanie zadania, które trwa dłużej, i oznacza je jako nieudane; w tym przypadku powiadomienie o błędzie jest wysyłane. Puste lub 0 oznacza brak limitu. Jeśli agent nie potwierdzi zatrzymania w ciągu 10 minut, konsola sama oznacza uruchomienie jako nieudane.</p>
 
 <h2>Retencja wstrzymana</h2>
 <p>Jeśli kopia zadania wyglądała na ransomware lub masowe usuwanie, strona zadania pokazuje <i>Przechowywanie jest wstrzymane</i>: żadne kopie nie są usuwane, dopóki ktoś nie sprawdzi maszyny i nie kliknie <i>Sprawdzono — wznów przechowywanie</i> (przy włączonym zatwierdzaniu na cztery oczy drugi użytkownik musi to zatwierdzić). Zobacz <a href="/docs/ransomware">Ochrona przed ransomware</a>.</p>

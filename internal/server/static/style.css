@@ -64,6 +64,7 @@ p { margin: 0 0 12px; }
 .mono, code, pre { font-family: var(--mono); font-size: 12.5px; }
 code { background: var(--panel-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; }
 pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin: 0 0 10px; }
+pre.scroll { max-height: 480px; overflow-y: auto; }
 .nowrap { white-space: nowrap; }
 .mt { margin-top: 18px; }
 

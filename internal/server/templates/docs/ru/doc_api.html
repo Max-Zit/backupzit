@@ -20,6 +20,13 @@
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Наблюдатель</td><td>Один запуск с сообщением, ошибками и статистикой</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Наблюдатель</td><td><a href="/docs/monitoring">Отчёт</a> за период: итоги, доля успешных и сведения по каждому заданию</td></tr>
   <tr><td><code>GET /api/v1/targets</code></td><td>Наблюдатель</td><td>Хранилища (без учётных данных)</td></tr>
+  <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Наблюдатель</td><td>Один агент</td></tr>
+  <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Оператор копирования</td><td>Запрашивает у агента журнал: <code>{"run_id": 124}</code>; прочитайте его следующей точкой, когда агент его отправит (агенты 0.38.0 и новее)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Оператор копирования</td><td>Журнал, отправленный агентом: <code>{"log": "..."}</code>, или 404, пока он не пришёл</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Оператор восстановления</td><td>Отменяет запуск в очереди или останавливает выполняющийся: <code>{"state": "cancelled"}</code> или <code>"stopping"</code>; 409, если он завершён</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Оператор копирования</td><td>Включает или выключает расписание задания; при одобрении «четыре глаза» отключить можно только в консоли (409)</td></tr>
+  <tr><td><code>GET /api/v1/storage</code></td><td>Наблюдатель</td><td>Занятое место по хранилищам, ёмкость и свободное место, если известны, рост в день и дни до заполнения</td></tr>
+  <tr><td><code>GET /api/v1/metrics</code></td><td>Наблюдатель</td><td>Метрики в текстовом формате Prometheus (см. ниже)</td></tr>
 </table>
 <p>Периоды: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> или <code>custom</code> с <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Ошибки возвращают <code>{"error": "..."}</code> с кодом 400 (неверный запрос), 401 (токен отсутствует, недействителен или истёк), 403 (недостаточная роль), 404 или 409.</p>
@@ -35,5 +42,15 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Используйте <code>-k</code> / <code>-SkipCertificateCheck</code> только с самоподписанным сертификатом консоли в доверенной сети или установите сертификат консоли на хост мониторинга.</p>
 <h3>Проверка мониторинга</h3>
 <p>Опрашивайте <code>/api/v1/status</code> каждые несколько минут и поднимайте тревогу, когда <code>ok</code> равно false. Для проверки отдельных заданий используйте <code>/api/v1/jobs</code> и поднимайте тревогу, когда <code>last_status</code> равно <code>failed</code> или <code>last_finished</code> старше ожидаемого.</p>
+<h3>Prometheus и Grafana</h3>
+<p><code>/api/v1/metrics</code> возвращает состояние в текстовом формате Prometheus: агенты в сети, активные запуски, ошибки и предупреждения за последние 24 часа, подозрительные копии, а по агентам, заданиям и хранилищам — <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 успех, 1 предупреждение, 2 ошибка), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> и <code>backupzit_storage_free_bytes</code>. Задание сбора с токеном Наблюдателя:</p>
+<pre>- job_name: backupzit
+  scheme: https
+  metrics_path: /api/v1/metrics
+  authorization:
+    credentials: bzt_...
+  static_configs:
+    - targets: ['backup.example.local:8443']</pre>
+<p>Оповещайте, например, когда <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (два дня без удачной копии).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -92,8 +92,10 @@ systemctl enable --now backupzit-agent</pre>
 <h2>Журнал агента</h2>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
-  <li>Linux: <code>/etc/backupzit/agent.log</code> и <code>journalctl -u backupzit-agent</code></li>
+  <li>Linux: <code>/var/log/backupzit/agent.log</code> и <code>journalctl -u backupzit-agent</code></li>
   <li>Системы восстановления выводят журнал на экран.</li>
+  <li>Журнал хранит до 4 файлов по 10 МБ (<code>agent.log</code> и <code>agent.log.1</code>–<code>.3</code>); более старые записи удаляются.</li>
+  <li><b>Получить журнал</b> на странице «Агенты» передаёт конец журнала в консоль — см. <a href="/docs/troubleshooting#logs">Журналы</a>.</li>
 </ul>
 
 <h2>Удаление программы</h2>

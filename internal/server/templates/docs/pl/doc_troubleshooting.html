@@ -5,7 +5,7 @@
 <ul>
   <li>Czy maszyna jest włączona i usługa działa? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
   <li>Czy maszyna dociera do konsoli? <code>Test-NetConnection backup-server -Port 8443</code> lub <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Dziennik agenta: <code>C:\ProgramData\backupzit\agent.log</code>, w Linuksie <code>/etc/backupzit/agent.log</code> lub <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch” oznacza, że certyfikat konsoli się zmienił — zarejestruj agenta ponownie.</li>
+  <li>Dziennik agenta: <code>C:\ProgramData\backupzit\agent.log</code>, w Linuksie <code>/var/log/backupzit/agent.log</code> lub <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch” oznacza, że certyfikat konsoli się zmienił — zarejestruj agenta ponownie.</li>
 </ul>
 
 <h2>Kopia się nie powiodła</h2>
@@ -78,6 +78,22 @@
   <li>Sprawdź ścieżkę sieciową do magazynu (Wi-Fi, VPN, prędkość wysyłania do internetu w przypadku magazynu w chmurze).</li>
   <li>Wyklucz pamięci podręczne, pliki tymczasowe i niepotrzebne multimedia.</li>
 </ul>
+
+<h2 id="logs">Dzienniki</h2>
+<p>Gdy coś nie działa, te dzienniki pokazują, co się stało:</p>
+<table>
+  <tr><th>Co</th><th>Gdzie</th></tr>
+  <tr><td>Konsola (serwer)</td><td><code>journalctl -u backupzit-server</code> i plik <code>/var/lib/backupzit/logs/server.log</code> (do 4 plików po 10 MB). Ostatnie wiersze są w <a href="/settings/diagnostics">Ustawienia → Diagnostyka</a>.</td></tr>
+  <tr><td>Agent w Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Agent w Linux</td><td><code>/var/log/backupzit/agent.log</code> i <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Dowolny agent, z konsoli</td><td><b>Pobierz dziennik</b> na stronie <a href="/agents">Agenci</a>: agent wysyła koniec swojego dziennika i najnowsze dzienniki instalatora; można je przeczytać lub pobrać na stronie uruchomienia (przechowywane 30 dni; agenci 0.38.0 lub nowsi).</td></tr>
+  <tr><td>Jedna kopia lub odtworzenie</td><td>jej strona w sekcji <a href="/runs">Aktywność</a>: komunikat, błędy, statystyki i wyjście poleceń przed kopią i po niej</td></tr>
+  <tr><td>Aktualizacje agentów</td><td>dzienniki instalatora w <code>C:\ProgramData\backupzit\updates</code> (Windows) lub <code>/var/tmp/backupzit-updates</code> (Linux); <b>Pobierz dziennik</b> je zawiera</td></tr>
+  <tr><td>Aktualizacje konsoli</td><td><code>journalctl -u backupzit-update</code>; poprzednia wersja i zrzut bazy danych są w <code>/var/lib/backupzit-update</code></td></tr>
+  <tr><td>Wzmocnione repozytorium</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>Kto co zmienił</td><td><a href="/audit">dziennik audytu</a>, który można też wysyłać do serwera syslog</td></tr>
+</table>
+<p>Do zgłoszenia do wsparcia <b>Pobierz diagnostykę</b> w <a href="/settings/diagnostics">Ustawienia → Diagnostyka</a> tworzy zip z dziennikiem konsoli, wersjami, agentami, zadaniami, nieudanymi uruchomieniami z ostatnich 30 dni i dziennikiem audytu — bez haseł, kluczy i danych dostępowych do magazynów. System odzyskiwania wyświetla swój dziennik na ekranie.</p>
 
 <h2>FAQ</h2>
 <h3>Czy mogę użyć NFS?</h3>

@@ -5,7 +5,7 @@
 <ul>
   <li>La macchina è accesa e il servizio è in esecuzione? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
   <li>La macchina raggiunge la console? <code>Test-NetConnection backup-server -Port 8443</code> oppure <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Log dell'agente: <code>C:\ProgramData\backupzit\agent.log</code>, su Linux <code>/etc/backupzit/agent.log</code> o <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" significa che il certificato della console è cambiato — registra di nuovo l'agente.</li>
+  <li>Log dell'agente: <code>C:\ProgramData\backupzit\agent.log</code>, su Linux <code>/var/log/backupzit/agent.log</code> o <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" significa che il certificato della console è cambiato — registra di nuovo l'agente.</li>
 </ul>
 
 <h2>Un backup non è riuscito</h2>
@@ -78,6 +78,22 @@
   <li>Controlla il percorso di rete verso lo storage (Wi-Fi, VPN, velocità di upload Internet per lo storage cloud).</li>
   <li>Escludi cache, file temporanei e contenuti multimediali che non ti servono.</li>
 </ul>
+
+<h2 id="logs">Log</h2>
+<p>Quando qualcosa non funziona, questi log mostrano cosa è successo:</p>
+<table>
+  <tr><th>Cosa</th><th>Dove</th></tr>
+  <tr><td>Console (server)</td><td><code>journalctl -u backupzit-server</code> e il file <code>/var/lib/backupzit/logs/server.log</code> (fino a 4 file da 10 MB). Le ultime righe sono in <a href="/settings/diagnostics">Impostazioni → Diagnostica</a>.</td></tr>
+  <tr><td>Agent su Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Agent su Linux</td><td><code>/var/log/backupzit/agent.log</code> e <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Qualsiasi agent, dalla console</td><td><b>Ottieni log</b> nella pagina <a href="/agents">Agent</a>: l'agent invia la fine del suo log e i log di installazione più recenti; si leggono o scaricano nella pagina dell'esecuzione (conservati 30 giorni; agent 0.38.0 o successivi).</td></tr>
+  <tr><td>Un backup o un ripristino</td><td>la sua pagina in <a href="/runs">Attività</a>: messaggio, errori, statistiche e output dei comandi prima e dopo il backup</td></tr>
+  <tr><td>Aggiornamenti degli agent</td><td>log di installazione in <code>C:\ProgramData\backupzit\updates</code> (Windows) o <code>/var/tmp/backupzit-updates</code> (Linux); <b>Ottieni log</b> li include</td></tr>
+  <tr><td>Aggiornamenti della console</td><td><code>journalctl -u backupzit-update</code>; la versione precedente e un dump del database sono conservati in <code>/var/lib/backupzit-update</code></td></tr>
+  <tr><td>Repository protetto</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>Chi ha cambiato cosa</td><td>il <a href="/audit">log di audit</a>, che può anche essere inviato a un server syslog</td></tr>
+</table>
+<p>Per una richiesta di supporto, <b>Scarica la diagnostica</b> in <a href="/settings/diagnostics">Impostazioni → Diagnostica</a> fornisce uno zip con il log della console, le versioni, gli agent, i job, le esecuzioni non riuscite degli ultimi 30 giorni e il log di audit — senza password, chiavi o credenziali di archiviazione. Un sistema di ripristino mostra il suo log sullo schermo.</p>
 
 <h2>FAQ</h2>
 <h3>Posso usare NFS?</h3>

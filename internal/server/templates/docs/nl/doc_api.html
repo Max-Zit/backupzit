@@ -20,6 +20,13 @@
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Kijker</td><td>Eén run met melding, fouten en statistieken</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Kijker</td><td>Het <a href="/docs/monitoring">rapport</a> voor een periode: totalen, slagingspercentage en details per taak</td></tr>
   <tr><td><code>GET /api/v1/targets</code></td><td>Kijker</td><td>Opslagdoelen (zonder inloggegevens)</td></tr>
+  <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Kijker</td><td>Eén agent</td></tr>
+  <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Back-upoperator</td><td>Vraagt de agent om zijn logboek: <code>{"run_id": 124}</code>; lees het met het volgende endpoint zodra de agent het heeft gestuurd (agents 0.38.0 of nieuwer)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Back-upoperator</td><td>Het logboek dat de agent stuurde: <code>{"log": "..."}</code>, of 404 tot het binnen is</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Herstelmedewerker</td><td>Annuleert een wachtende uitvoering of stopt een lopende: <code>{"state": "cancelled"}</code> of <code>"stopping"</code>; 409 als ze klaar is</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Back-upoperator</td><td>Zet het schema van de taak aan of uit; met vier-ogengoedkeuring kan uitschakelen alleen in de console (409)</td></tr>
+  <tr><td><code>GET /api/v1/storage</code></td><td>Kijker</td><td>Gebruikte ruimte per opslagdoel, capaciteit en vrije ruimte indien bekend, groei per dag en dagen tot vol</td></tr>
+  <tr><td><code>GET /api/v1/metrics</code></td><td>Kijker</td><td>Metrics in het Prometheus-tekstformaat (zie hieronder)</td></tr>
 </table>
 <p>Perioden: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, of <code>custom</code> met <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Fouten geven <code>{"error": "..."}</code> terug met 400 (ongeldig verzoek), 401 (token ontbreekt, ongeldig of verlopen), 403 (rol te laag), 404 of 409.</p>
@@ -35,5 +42,15 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Gebruik <code>-k</code> / <code>-SkipCertificateCheck</code> alleen met het zelfondertekende certificaat van de console op een vertrouwd netwerk, of installeer het consolecertificaat op de monitoringhost.</p>
 <h3>Monitoringcontrole</h3>
 <p>Vraag <code>/api/v1/status</code> om de paar minuten op en geef een melding als <code>ok</code> false is. Voor controles per taak gebruikt u <code>/api/v1/jobs</code> en meldt u wanneer <code>last_status</code> <code>failed</code> is of <code>last_finished</code> ouder is dan verwacht.</p>
+<h3>Prometheus en Grafana</h3>
+<p><code>/api/v1/metrics</code> geeft de toestand in het Prometheus-tekstformaat: agents online, actieve uitvoeringen, fouten en waarschuwingen van de laatste 24 uur, verdachte back-ups en per agent, taak en opslagdoel <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 geslaagd, 1 waarschuwing, 2 mislukt), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> en <code>backupzit_storage_free_bytes</code>. Een scrape-job met een Kijker-token:</p>
+<pre>- job_name: backupzit
+  scheme: https
+  metrics_path: /api/v1/metrics
+  authorization:
+    credentials: bzt_...
+  static_configs:
+    - targets: ['backup.example.local:8443']</pre>
+<p>Alarmeer bijvoorbeeld wanneer <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (twee dagen geen goede back-up).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

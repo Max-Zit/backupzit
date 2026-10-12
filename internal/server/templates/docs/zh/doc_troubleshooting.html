@@ -5,7 +5,7 @@
 <ul>
   <li>机器是否开机、服务是否在运行？Windows：<code>Get-Service backupzit-agent</code>；Linux：<code>systemctl status backupzit-agent</code>。</li>
   <li>机器能否访问控制台？<code>Test-NetConnection backup-server -Port 8443</code> 或 <code>curl -k https://backup-server:8443/login</code>。</li>
-  <li>代理日志：<code>C:\ProgramData\backupzit\agent.log</code>，Linux 上为 <code>/etc/backupzit/agent.log</code> 或 <code>journalctl -u backupzit-agent</code>。“fingerprint mismatch” 表示控制台证书已更改 —— 请重新注册代理。</li>
+  <li>代理日志：<code>C:\ProgramData\backupzit\agent.log</code>，Linux 上为 <code>/var/log/backupzit/agent.log</code> 或 <code>journalctl -u backupzit-agent</code>。“fingerprint mismatch” 表示控制台证书已更改 —— 请重新注册代理。</li>
 </ul>
 
 <h2>备份失败</h2>
@@ -78,6 +78,22 @@
   <li>检查到存储的网络路径（Wi-Fi、VPN、云存储的互联网上传速度）。</li>
   <li>排除不需要的缓存、临时文件和媒体文件。</li>
 </ul>
+
+<h2 id="logs">日志</h2>
+<p>出现问题时，这些日志会显示发生了什么：</p>
+<table>
+  <tr><th>内容</th><th>位置</th></tr>
+  <tr><td>控制台（服务器）</td><td><code>journalctl -u backupzit-server</code> 以及文件 <code>/var/lib/backupzit/logs/server.log</code>（最多 4 个 10 MB 的文件）。最后几行显示在 <a href="/settings/diagnostics">设置 → 诊断</a> 中。</td></tr>
+  <tr><td>Windows 上的代理</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Linux 上的代理</td><td><code>/var/log/backupzit/agent.log</code> 和 <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>任意代理，从控制台</td><td><a href="/agents">代理</a> 页面上的 <b>获取日志</b>：代理发送其日志的末尾和最新的安装程序日志；可在运行页面中阅读或下载（保留 30 天；需要代理 0.38.0 或更高版本）。</td></tr>
+  <tr><td>单次备份或还原</td><td><a href="/runs">活动</a> 中对应的页面：消息、错误、统计信息以及备份前后命令的输出</td></tr>
+  <tr><td>代理更新</td><td><code>C:\ProgramData\backupzit\updates</code>（Windows）或 <code>/var/tmp/backupzit-updates</code>（Linux）中的安装程序日志；<b>获取日志</b> 也包含它们</td></tr>
+  <tr><td>控制台更新</td><td><code>journalctl -u backupzit-update</code>；上一个版本和数据库转储保存在 <code>/var/lib/backupzit-update</code></td></tr>
+  <tr><td>加固存储库</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>谁更改了什么</td><td><a href="/audit">审计日志</a>，也可以发送到 syslog 服务器</td></tr>
+</table>
+<p>如需支持，<a href="/settings/diagnostics">设置 → 诊断</a> 中的 <b>下载诊断信息</b> 会生成一个 zip，其中包含控制台日志、版本、代理、作业、最近 30 天失败的运行和审计日志——不含密码、密钥或存储凭据。恢复系统会在屏幕上显示其日志。</p>
 
 <h2>常见问题</h2>
 <h3>可以使用 NFS 吗？</h3>

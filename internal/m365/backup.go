@@ -57,6 +57,10 @@ type Options struct {
 	// none means every site of the tenant).
 	SharePoint bool
 	Sites      []string
+	// ExcludeUsers and ExcludeSites are skipped when every account or site
+	// is backed up (addresses; matched without case).
+	ExcludeUsers []string
+	ExcludeSites []string
 	// Parent is the previous backup of the same job (nil: full backup).
 	Parent   *repo.Snapshot
 	Hostname string
@@ -112,7 +116,11 @@ func Backup(ctx context.Context, r *repo.Repository, c *Client, opts Options) (*
 		if err != nil {
 			return nil, fmt.Errorf("list the accounts: %w", err)
 		}
-		accounts = us
+		for _, u := range us {
+			if !listed(opts.ExcludeUsers, u.UserPrincipalName) && (u.Mail == "" || !listed(opts.ExcludeUsers, u.Mail)) {
+				accounts = append(accounts, u)
+			}
+		}
 	default:
 		for _, name := range opts.Users {
 			u, err := c.User(ctx, name)
@@ -669,4 +677,17 @@ func uniqueName(used map[string]bool, name string) string {
 			return c
 		}
 	}
+}
+
+// listed reports whether an address or site URL is in a list (without
+// case and trailing slashes).
+func listed(list []string, s string) bool {
+	norm := func(x string) string { return strings.TrimRight(strings.ToLower(strings.TrimSpace(x)), "/") }
+	s = norm(s)
+	for _, x := range list {
+		if norm(x) == s {
+			return true
+		}
+	}
+	return false
 }

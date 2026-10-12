@@ -5,7 +5,7 @@
 <ul>
   <li>Staat de machine aan en draait de dienst? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
   <li>Kan de machine de console bereiken? <code>Test-NetConnection backup-server -Port 8443</code> of <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Agentlogboek: <code>C:\ProgramData\backupzit\agent.log</code>, op Linux <code>/etc/backupzit/agent.log</code> of <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" betekent dat het consolecertificaat is gewijzigd — registreer de agent opnieuw.</li>
+  <li>Agentlogboek: <code>C:\ProgramData\backupzit\agent.log</code>, op Linux <code>/var/log/backupzit/agent.log</code> of <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" betekent dat het consolecertificaat is gewijzigd — registreer de agent opnieuw.</li>
 </ul>
 
 <h2>Een back-up is mislukt</h2>
@@ -78,6 +78,22 @@
   <li>Controleer het netwerkpad naar de opslag (wifi, VPN, uploadsnelheid naar internet bij cloudopslag).</li>
   <li>Sluit caches, tijdelijke bestanden en media uit die u niet nodig hebt.</li>
 </ul>
+
+<h2 id="logs">Logboeken</h2>
+<p>Als iets niet werkt, laten deze logboeken zien wat er gebeurde:</p>
+<table>
+  <tr><th>Wat</th><th>Waar</th></tr>
+  <tr><td>Console (server)</td><td><code>journalctl -u backupzit-server</code> en het bestand <code>/var/lib/backupzit/logs/server.log</code> (tot 4 bestanden van 10 MB). De laatste regels staan onder <a href="/settings/diagnostics">Instellingen → Diagnose</a>.</td></tr>
+  <tr><td>Agent op Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Agent op Linux</td><td><code>/var/log/backupzit/agent.log</code> en <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Elke agent, vanuit de console</td><td><b>Logboek ophalen</b> op de pagina <a href="/agents">Agents</a>: de agent stuurt het einde van zijn logboek en de nieuwste installatielogboeken; lees of download ze op de pagina van de uitvoering (30 dagen bewaard; agents 0.38.0 of nieuwer).</td></tr>
+  <tr><td>Eén back-up of herstelactie</td><td>de pagina onder <a href="/runs">Activiteit</a>: melding, fouten, statistieken en uitvoer van de opdrachten voor en na de back-up</td></tr>
+  <tr><td>Agentupdates</td><td>installatielogboeken in <code>C:\ProgramData\backupzit\updates</code> (Windows) of <code>/var/tmp/backupzit-updates</code> (Linux); <b>Logboek ophalen</b> neemt ze mee</td></tr>
+  <tr><td>Console-updates</td><td><code>journalctl -u backupzit-update</code>; de vorige versie en een databasedump blijven in <code>/var/lib/backupzit-update</code></td></tr>
+  <tr><td>Geharde repository</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>Wie wat heeft gewijzigd</td><td>het <a href="/audit">auditlogboek</a>, dat ook naar een syslogserver kan gaan</td></tr>
+</table>
+<p>Voor een supportaanvraag geeft <b>Diagnose downloaden</b> onder <a href="/settings/diagnostics">Instellingen → Diagnose</a> een zip met het consolelogboek, de versies, de agents, de taken, de mislukte uitvoeringen van de laatste 30 dagen en het auditlogboek — zonder wachtwoorden, sleutels of opslaggegevens. Een herstelsysteem toont zijn logboek op het scherm.</p>
 
 <h2>Veelgestelde vragen</h2>
 <h3>Kan ik NFS gebruiken?</h3>

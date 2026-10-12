@@ -20,6 +20,13 @@
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>Čtenář</td><td>Jeden běh se zprávou, chybami a statistikou</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>Čtenář</td><td><a href="/docs/monitoring">Přehled</a> za období: součty, úspěšnost a podrobnosti podle úloh</td></tr>
   <tr><td><code>GET /api/v1/targets</code></td><td>Čtenář</td><td>Cílová úložiště (bez přihlašovacích údajů)</td></tr>
+  <tr><td><code>GET /api/v1/agents/{id}</code></td><td>Čtenář</td><td>Jeden agent</td></tr>
+  <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>Operátor záloh</td><td>Požádá agenta o protokol: <code>{"run_id": 124}</code>; přečtěte ho dalším bodem, jakmile ho agent pošle (agenti 0.38.0 nebo novější)</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>Operátor záloh</td><td>Protokol, který agent poslal: <code>{"log": "..."}</code>, nebo 404, dokud nedorazí</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Operátor obnovy</td><td>Zruší čekající běh nebo zastaví běžící: <code>{"state": "cancelled"}</code> nebo <code>"stopping"</code>; 409, pokud skončil</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Operátor záloh</td><td>Zapne nebo vypne plán úlohy; se schvalováním čtyř očí lze vypnout jen v konzoli (409)</td></tr>
+  <tr><td><code>GET /api/v1/storage</code></td><td>Čtenář</td><td>Obsazené místo podle úložiště, kapacita a volné místo, pokud jsou známy, denní růst a dny do zaplnění</td></tr>
+  <tr><td><code>GET /api/v1/metrics</code></td><td>Čtenář</td><td>Metriky v textovém formátu Prometheus (viz níže)</td></tr>
 </table>
 <p>Období: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> nebo <code>custom</code> s <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Chyby vracejí <code>{"error": "..."}</code> s kódem 400 (chybný požadavek), 401 (token chybí, je neplatný nebo vypršel), 403 (příliš nízká role), 404 nebo 409.</p>
@@ -35,5 +42,15 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p><code>-k</code> / <code>-SkipCertificateCheck</code> používejte jen s certifikátem konzole podepsaným sám sebou v důvěryhodné síti, nebo certifikát konzole nainstalujte na monitorovací hostitel.</p>
 <h3>Kontrola v monitoringu</h3>
 <p>Dotazujte se na <code>/api/v1/status</code> každých pár minut a upozorněte, když je <code>ok</code> false. Pro kontrolu jednotlivých úloh použijte <code>/api/v1/jobs</code> a upozorněte, když je <code>last_status</code> <code>failed</code> nebo je <code>last_finished</code> starší, než se čeká.</p>
+<h3>Prometheus a Grafana</h3>
+<p><code>/api/v1/metrics</code> vrací stav v textovém formátu Prometheus: agenti online, aktivní běhy, chyby a varování za posledních 24 hodin, podezřelé zálohy a pro každého agenta, úlohu a úložiště <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 úspěch, 1 varování, 2 chyba), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> a <code>backupzit_storage_free_bytes</code>. Úloha scrape s tokenem Čtenář:</p>
+<pre>- job_name: backupzit
+  scheme: https
+  metrics_path: /api/v1/metrics
+  authorization:
+    credentials: bzt_...
+  static_configs:
+    - targets: ['backup.example.local:8443']</pre>
+<p>Upozorněte například, když <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (dva dny bez dobré zálohy).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

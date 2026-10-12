@@ -41,7 +41,7 @@
   <tr><td><b>Jednou měsíčně</b></td><td>1. den ve 23:00.</td></tr>
   <tr><td><b>Pouze ručně</b></td><td>Běží jen po kliknutí na <i>Spustit zálohu nyní</i>.</td></tr>
 </table>
-<p>Časy jsou v časovém pásmu serveru konzole (na appliance: <a href="/settings/network#timezone">Nastavení → Síť → Časové pásmo</a> nebo položka 9 nabídky nastavení; na začátku UTC). Je-li agent v plánovaný čas offline, záloha čeká ve frontě a spustí se, jakmile se agent vrátí. Všechny plánované běhy uvidíte v <a href="/calendar">Kalendáři</a>.</p>
+<p>Časy jsou v časovém pásmu serveru konzole (na appliance: <a href="/settings/network#timezone">Nastavení → Síť → Časové pásmo</a> nebo položka 9 nabídky nastavení; na začátku UTC). Je-li agent v plánovaný čas offline, záloha čeká ve frontě a spustí se, jakmile se agent vrátí. Všechny plánované běhy uvidíte v <a href="/calendar">Kalendáři</a>. Aktuální datum a čas konzole se zobrazují vlevo dole pod časovým pásmem.</p>
 
 <h2>Uchovávání: kolik záloh ponechat</h2>
 <p>Snímek se ponechá, pokud jej vybere <b>kterékoli</b> pravidlo:</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Změna úlohy</h2>
-<p>Otevřete úlohu a rozbalte <b>Upravit úlohu</b>. Můžete změnit název, složky a výjimky (úlohy souborů), VM (úlohy VM), rozvrh, uchovávání, omezení rychlosti, úroveň komprese a příkazy. Agent, cíl úložiště a disk úlohy obrazu zůstávají beze změny, aby zálohy úlohy tvořily jeden řetězec; chcete-li úlohu přesunout, vytvořte novou — s úlohou kopie, pokud mají starší zálohy jít s ní. Změny platí od dalšího běhu a zaznamenávají se do <a href="/audit">protokolu auditu</a>. Se zapnutým <a href="/docs/users">schválením čtyř očí</a> čeká kratší uchovávání na schválení druhým uživatelem; ostatní změny se uloží hned.</p>
+<p>Otevřete úlohu a klikněte na <b>Upravit</b>; formulář se otevře na samostatné stránce, která se během zálohy neobnovuje. Můžete změnit název, složky a výjimky (úlohy souborů), VM (úlohy VM), rozvrh, uchovávání, omezení rychlosti, úroveň komprese a příkazy. Agent, cíl úložiště a disk úlohy obrazu zůstávají beze změny, aby zálohy úlohy tvořily jeden řetězec; chcete-li úlohu přesunout, vytvořte novou — s úlohou kopie, pokud mají starší zálohy jít s ní. Změny platí od dalšího běhu a zaznamenávají se do <a href="/audit">protokolu auditu</a>. Se zapnutým <a href="/docs/users">schválením čtyř očí</a> čeká kratší uchovávání na schválení druhým uživatelem; ostatní změny se uloží hned.</p>
 
 <h2>Repliky (Proxmox VE)</h2>
 <p>Úlohy VM v Proxmoxu mohou udržovat zastavené, aktuální kopie svých hostů na uzlu podle vašeho výběru, které se spustí jedním kliknutím, pokud o hosta přijdete — viz <a href="/docs/proxmox">Proxmox VE → Replikace</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Komprese a deduplikace</h2>
 <p>Každá záloha se deduplikuje: data, která už v repozitáři jsou — z dřívějších záloh téže úlohy nebo z jiných úloh na stejném cíli úložiště — se znovu neukládají. Nová data se pak komprimují pomocí zstd; části, které se nezmenší (video, archivy, šifrované soubory), se uloží tak, jak jsou. Šifrování následuje po kompresi.</p>
-<p>Úroveň komprese je nastavení úlohy (<b>Upravit úlohu → Pokročilé</b>):</p>
+<p>Úroveň komprese je nastavení úlohy (<b>Upravit → Pokročilé</b>):</p>
 <table>
   <tr><th>Úroveň</th><th>Kdy ji použít</th></tr>
   <tr><td>Standardní (doporučeno)</td><td>Dobrá komprese při vysoké rychlosti; hodí se téměř pro každou úlohu.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Zakázat</b> pozastaví rozvrh, aniž by se úloha ztratila (se zapnutým schválením čtyř očí to musí schválit druhý uživatel).</li>
   <li><b>Smazat</b> odstraní úlohu; stávající zálohy zůstanou na úložišti a dají se dál obnovit z Aktivity.</li>
 </ul>
+
+<h2>Zastavení běhu</h2>
+<p>Čekající nebo běžící zálohu, kopii či obnovu lze zastavit tlačítkem <b>Zrušit</b> nebo <b>Zastavit běh</b> na stránce běhu, případně <b>Zastavit běh č. …</b> na stránce úlohy. Čekající běh se zruší hned; běžící agent zastaví během několika sekund — ukončí se i příkaz před zálohou, příkaz po záloze se přesto spustí. Běh se označí jako neúspěšný („Cancelled by“ a jméno uživatele) a zapíše se do auditního protokolu; e-mail o chybě se neposílá. Záloha přerušená v půlce se pro obnovu nepoužije. Aktualizace agenta zastavit nelze.</p>
+<p><b>Časový limit běhu (hodiny)</b> v části <b>Pokročilé</b> formuláře úlohy zastaví zálohu nebo kopii úlohy, která běží déle, a označí ji jako neúspěšnou; v tomto případě se oznámení o chybě pošle. Prázdné nebo 0 znamená bez limitu. Pokud agent zastavení do 10 minut nepotvrdí, konzole běh označí jako neúspěšný sama.</p>
 
 <h2>Pozastavené uchovávání</h2>
 <p>Pokud záloha úlohy vypadala jako ransomware nebo hromadné mazání, stránka úlohy ukazuje <i>Uchovávání je pozastaveno</i>: žádné zálohy se neodstraní, dokud někdo počítač nezkontroluje a neklikne na <i>Zkontrolováno — obnovit uchovávání</i> (se zapnutým schválením čtyř očí to musí schválit druhý uživatel). Viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>.</p>

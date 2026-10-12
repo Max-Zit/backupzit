@@ -5,7 +5,7 @@
 <ul>
   <li>Is the machine on and the service running? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
   <li>Can the machine reach the console? <code>Test-NetConnection backup-server -Port 8443</code> or <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Agent log: <code>C:\ProgramData\backupzit\agent.log</code>, on Linux <code>/etc/backupzit/agent.log</code> or <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" means the console certificate changed — enroll the agent again.</li>
+  <li>Agent log: <code>C:\ProgramData\backupzit\agent.log</code>, on Linux <code>/var/log/backupzit/agent.log</code> or <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" means the console certificate changed — enroll the agent again.</li>
 </ul>
 
 <h2>A backup failed</h2>
@@ -78,6 +78,22 @@
   <li>Check the network path to the storage (Wi-Fi, VPN, internet upload speed for cloud storage).</li>
   <li>Exclude caches, temporary files and media you do not need.</li>
 </ul>
+
+<h2 id="logs">Logs</h2>
+<p>When something does not work, these logs show what happened:</p>
+<table>
+  <tr><th>What</th><th>Where</th></tr>
+  <tr><td>Console (server)</td><td><code>journalctl -u backupzit-server</code> and the file <code>/var/lib/backupzit/logs/server.log</code> (up to 4 files of 10 MB). The last lines are under <a href="/settings/diagnostics">Settings → Diagnostics</a>.</td></tr>
+  <tr><td>Agent on Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Agent on Linux</td><td><code>/var/log/backupzit/agent.log</code> and <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Any agent, from the console</td><td><b>Get log</b> on the <a href="/agents">Agents</a> page: the agent sends the end of its log and its newest installer logs; read or download them on the run page (kept 30 days; agents 0.38.0 or newer).</td></tr>
+  <tr><td>One backup or restore</td><td>its page under <a href="/runs">Activity</a>: message, errors, statistics and the output of the commands before and after the backup</td></tr>
+  <tr><td>Agent updates</td><td>installer logs in <code>C:\ProgramData\backupzit\updates</code> (Windows) or <code>/var/tmp/backupzit-updates</code> (Linux); <b>Get log</b> includes them</td></tr>
+  <tr><td>Console updates</td><td><code>journalctl -u backupzit-update</code>; the previous version and a database dump are kept in <code>/var/lib/backupzit-update</code></td></tr>
+  <tr><td>Hardened repository</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>Who changed what</td><td>the <a href="/audit">audit log</a>, which can also be sent to a syslog server</td></tr>
+</table>
+<p>For a support request, <b>Download diagnostics</b> under <a href="/settings/diagnostics">Settings → Diagnostics</a> gives a zip with the console log, the versions, the agents, the jobs, the failed runs of the last 30 days and the audit log — without passwords, keys or storage credentials. A recovery system prints its log on its screen.</p>
 
 <h2>FAQ</h2>
 <h3>Can I use NFS?</h3>

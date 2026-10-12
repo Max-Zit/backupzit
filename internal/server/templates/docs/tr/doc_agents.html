@@ -92,8 +92,10 @@ systemctl enable --now backupzit-agent</pre>
 <h2>Aracı günlüğü</h2>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
-  <li>Linux: <code>/etc/backupzit/agent.log</code> ve <code>journalctl -u backupzit-agent</code></li>
+  <li>Linux: <code>/var/log/backupzit/agent.log</code> ve <code>journalctl -u backupzit-agent</code></li>
   <li>Kurtarma sistemleri günlüğü ekranlarında gösterir.</li>
+  <li>Günlük en fazla 4 adet 10 MB dosya tutar (<code>agent.log</code> ve <code>agent.log.1</code> ile <code>.3</code> arası); daha eski kayıtlar silinir.</li>
+  <li>Ajanlar sayfasındaki <b>Günlüğü al</b>, günlüğün sonunu konsola getirir — bkz. <a href="/docs/troubleshooting#logs">Günlükler</a>.</li>
 </ul>
 
 <h2>Kaldırma</h2>

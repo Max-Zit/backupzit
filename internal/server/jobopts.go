@@ -57,8 +57,17 @@ type JobOptions struct {
 	M365Calendar   bool     `json:"m365_calendar,omitempty"`
 	M365SharePoint bool     `json:"m365_sharepoint,omitempty"`
 	M365Sites      []string `json:"m365_sites,omitempty"`
+	// M365ExcludeUsers and M365ExcludeSites are skipped when every account
+	// or site is backed up (Paths or M365Sites empty).
+	M365ExcludeUsers []string `json:"m365_exclude_users,omitempty"`
+	M365ExcludeSites []string `json:"m365_exclude_sites,omitempty"`
+	// m365PickNone notes a form that chose "only these" without ticking any
+	// account or site (not stored).
+	m365PickNone struct{ users, sites bool }
 	// Compression of new data: "" (default), "off", "fast" or "max".
 	Compression string `json:"compression,omitempty"`
+	// MaxHours stops a backup or copy that runs longer (0 = no limit).
+	MaxHours int `json:"max_hours,omitempty"`
 }
 
 func (o JobOptions) Validate() error {
@@ -93,6 +102,9 @@ func (o JobOptions) Validate() error {
 	case repo.CompressionDefault, repo.CompressionOff, repo.CompressionFast, repo.CompressionMax:
 	default:
 		return errors.New("unknown compression level")
+	}
+	if o.MaxHours < 0 || o.MaxHours > 720 {
+		return errors.New("the time limit of a run is between 1 and 720 hours (0 for none)")
 	}
 	if o.CommandMinutes < 0 || o.CommandMinutes > 1440 {
 		return errors.New("the command time limit is between 1 and 1440 minutes")
@@ -225,7 +237,7 @@ func newJobForm(j Job, edit, canCommands bool) jobForm {
 // optionsFromForm reads the speed limit and commands of a job form. Users
 // who may not change commands keep the job's current ones.
 func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptions {
-	o := JobOptions{LimitMBps: atoiDefault(r.FormValue("limit_mbps"))}
+	o := JobOptions{LimitMBps: atoiDefault(r.FormValue("limit_mbps")), MaxHours: atoiDefault(r.FormValue("max_hours"))}
 	if o.LimitMBps > 0 && r.FormValue("limit_window") == "on" {
 		o.LimitFrom, o.LimitTo = atoiDefault(r.FormValue("limit_from")), atoiDefault(r.FormValue("limit_to"))
 		if o.LimitTo == 24 {
@@ -270,7 +282,20 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 		o.M365NoOneDrive = r.FormValue("m365_onedrive") != "on"
 		o.M365Calendar = r.FormValue("m365_calendar") == "on"
 		o.M365SharePoint = r.FormValue("m365_sharepoint") == "on"
-		o.M365Sites = lines(r.FormValue("m365_sites"))
+		// "all" backs up every site, also later ones, except the excluded;
+		// "list" only the ticked ones. Forms without the choice: an empty
+		// list means all.
+		if r.FormValue("m365_sites_mode") == "all" {
+			o.M365ExcludeSites = lines(r.FormValue("m365_sites_exclude"))
+		} else {
+			o.M365Sites = lines(r.FormValue("m365_sites"))
+			o.m365PickNone.sites = r.FormValue("m365_sites_mode") == "list" && len(o.M365Sites) == 0
+		}
+		if r.FormValue("m365_users_mode") == "all" {
+			o.M365ExcludeUsers = lines(r.FormValue("m365_users_exclude"))
+		} else {
+			o.m365PickNone.users = r.FormValue("m365_users_mode") == "list" && len(lines(r.FormValue("m365_users"))) == 0
+		}
 		// An empty secret keeps the stored one for the same app.
 		if o.M365Secret == "" && strings.EqualFold(o.M365Tenant, old.M365Tenant) && strings.EqualFold(o.M365Client, old.M365Client) {
 			o.M365Secret = old.M365Secret
@@ -278,6 +303,7 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	} else {
 		o.M365Tenant, o.M365Client, o.M365Secret, o.M365NoMail, o.M365NoOneDrive = old.M365Tenant, old.M365Client, old.M365Secret, old.M365NoMail, old.M365NoOneDrive
 		o.M365Calendar, o.M365SharePoint, o.M365Sites = old.M365Calendar, old.M365SharePoint, old.M365Sites
+		o.M365ExcludeUsers, o.M365ExcludeSites = old.M365ExcludeUsers, old.M365ExcludeSites
 	}
 	return o
 }
@@ -313,7 +339,7 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 	}
 	sched, err := scheduleFromForm(r)
 	if err != nil {
-		redirectErr(w, r, back+"#edit", err)
+		redirectErr(w, r, back+"/edit", err)
 		return
 	}
 	j := old
@@ -329,7 +355,7 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 	case JobNAS:
 		j.Paths, j.Excludes = lines(r.FormValue("paths")), lines(r.FormValue("excludes"))
 	case JobM365:
-		j.Paths = lines(r.FormValue("m365_users"))
+		j.Paths = m365FormUsers(r)
 	case JobVM:
 		if r.FormValue("vm_mode") == "all" {
 			j.Paths = []string{"*"}
@@ -346,11 +372,11 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 	}
 	note, err := s.m365Precheck(r.Context(), requestLanguage(r), j)
 	if err != nil {
-		redirectErr(w, r, back+"#edit", err)
+		redirectErr(w, r, back+"/edit", err)
 		return
 	}
 	if err := s.store.UpdateJob(r.Context(), j); err != nil {
-		redirectErr(w, r, back+"#edit", err)
+		redirectErr(w, r, back+"/edit", err)
 		return
 	}
 	s.audit(r, "job.update", "#%d %s%s", id, j.Name, commandsAudit(old.Options, j.Options))

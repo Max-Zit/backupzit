@@ -20,6 +20,13 @@
   <tr><td><code>GET /api/v1/runs/{id}</code></td><td>查看者</td><td>单次运行及其消息、错误和统计信息</td></tr>
   <tr><td><code>GET /api/v1/report?period=&amp;from=&amp;to=&amp;agent=&amp;job=</code></td><td>查看者</td><td>某个时段的<a href="/docs/monitoring">报告</a>：合计、成功率和每个作业的详情</td></tr>
   <tr><td><code>GET /api/v1/targets</code></td><td>查看者</td><td>存储目标（不含凭据）</td></tr>
+  <tr><td><code>GET /api/v1/agents/{id}</code></td><td>查看者</td><td>单个代理</td></tr>
+  <tr><td><code>POST /api/v1/agents/{id}/log</code></td><td>备份操作员</td><td>请求代理发送其日志：<code>{"run_id": 124}</code>；代理发送后用下一个端点读取（需要代理 0.38.0 或更高版本）</td></tr>
+  <tr><td><code>GET /api/v1/runs/{id}/log</code></td><td>备份操作员</td><td>代理发送的日志：<code>{"log": "..."}</code>，到达之前返回 404</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>还原操作员</td><td>取消排队中的运行或停止正在进行的运行：<code>{"state": "cancelled"}</code> 或 <code>"stopping"</code>；已结束则返回 409</td></tr>
+  <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>备份操作员</td><td>开启或关闭作业的计划；启用四眼审批时只能在控制台中禁用（409）</td></tr>
+  <tr><td><code>GET /api/v1/storage</code></td><td>查看者</td><td>每个存储目标的已用空间，已知时还有容量和可用空间、每日增长和预计用满的天数</td></tr>
+  <tr><td><code>GET /api/v1/metrics</code></td><td>查看者</td><td>Prometheus 文本格式的指标（见下文）</td></tr>
 </table>
 <p>时段：<code>today</code>、<code>yesterday</code>、<code>last7</code>、<code>last30</code>、<code>last90</code>、<code>thisweek</code>、<code>lastweek</code>、<code>thismonth</code>、<code>lastmonth</code>，或 <code>custom</code> 加 <code>from=2026-09-01&amp;to=2026-09-30</code>。</p>
 <p>错误返回 <code>{"error": "..."}</code>，状态码为 400（请求有误）、401（令牌缺失、无效或已过期）、403（角色权限不足）、404 或 409。</p>
@@ -35,5 +42,15 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>仅在可信网络中针对控制台的自签名证书使用 <code>-k</code> / <code>-SkipCertificateCheck</code>，或者在监控主机上安装控制台证书。</p>
 <h3>监控检查</h3>
 <p>每隔几分钟轮询一次 <code>/api/v1/status</code>，当 <code>ok</code> 为 false 时发出警报。若要按作业检查，请使用 <code>/api/v1/jobs</code>，当 <code>last_status</code> 为 <code>failed</code> 或 <code>last_finished</code> 早于预期时发出警报。</p>
+<h3>Prometheus 和 Grafana</h3>
+<p><code>/api/v1/metrics</code> 以 Prometheus 文本格式返回状态：在线代理、活动运行、最近 24 小时的失败和警告、可疑备份，以及每个代理、作业和存储目标的 <code>backupzit_agent_online</code>、<code>backupzit_job_last_status</code>（0 成功，1 警告，2 失败）、<code>backupzit_job_last_success_timestamp_seconds</code>、<code>backupzit_storage_used_bytes</code> 和 <code>backupzit_storage_free_bytes</code>。使用查看者令牌的抓取作业：</p>
+<pre>- job_name: backupzit
+  scheme: https
+  metrics_path: /api/v1/metrics
+  authorization:
+    credentials: bzt_...
+  static_configs:
+    - targets: ['backup.example.local:8443']</pre>
+<p>例如当 <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code>（两天没有成功备份）时告警。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -84,7 +84,11 @@ func (b *backup) sharePoint(ctx context.Context, ptree *repo.Tree) (repo.Node, [
 			}
 			return repo.Node{}, nil, fmt.Errorf("list the SharePoint sites: %w", err)
 		}
-		sites = all
+		for _, s := range all {
+			if !listed(b.opts.ExcludeSites, s.WebURL) {
+				sites = append(sites, s)
+			}
+		}
 	} else {
 		for _, raw := range b.opts.Sites {
 			s, err := b.c.SiteByURL(ctx, raw)

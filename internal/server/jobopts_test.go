@@ -54,8 +54,12 @@ func TestJobEditAndCommands(t *testing.T) {
 	if o := j.Options; o.LimitMBps != 50 || o.LimitFrom != 8 || o.LimitTo != 18 || o.PreCommand != pre || o.PostCommand != post || o.CommandMinutes != 5 {
 		t.Fatalf("options not stored: %+v", o)
 	}
-	if _, _, body := admin.do("GET", fmt.Sprintf("/jobs/%d", j.ID), nil); !strings.Contains(body, "50 MB/s from 08:00 to 18:00") || !strings.Contains(body, "Edit job") || !strings.Contains(body, "dump.sql") {
-		t.Error("job page lacks options or the edit form")
+	if _, _, body := admin.do("GET", fmt.Sprintf("/jobs/%d", j.ID), nil); !strings.Contains(body, "50 MB/s from 08:00 to 18:00") || !strings.Contains(body, fmt.Sprintf(`href="/jobs/%d/edit"`, j.ID)) || strings.Contains(body, `name="pre_command"`) {
+		t.Error("job page lacks options or the Edit button, or holds the form")
+	}
+	// The form is a page of its own, so it does not reload during a run.
+	if _, _, body := admin.do("GET", fmt.Sprintf("/jobs/%d/edit", j.ID), nil); !strings.Contains(body, "Edit job") || !strings.Contains(body, "dump.sql") || strings.Contains(body, "data-autorefresh") {
+		t.Error("edit page lacks the form")
 	}
 
 	// The commands run around the backup; the file the command before
@@ -137,7 +141,7 @@ func TestJobEditAndCommands(t *testing.T) {
 		j.Options.HasCommands() || !strings.Contains(j.Schedule, "21:30") {
 		t.Fatalf("job after edit: %+v", j)
 	}
-	if _, _, body := admin.do("GET", fmt.Sprintf("/jobs/%d", j.ID), nil); !strings.Contains(body, `value="21:30"`) || !strings.Contains(body, `value="14"`) {
+	if _, _, body := admin.do("GET", fmt.Sprintf("/jobs/%d/edit", j.ID), nil); !strings.Contains(body, `value="21:30"`) || !strings.Contains(body, `value="14"`) {
 		t.Error("edit form not filled with the job's settings")
 	}
 	if _, loc, _ := admin.do("POST", fmt.Sprintf("/jobs/%d/edit", j.ID), url.Values{"name": {"x"}, "paths": {""}, "sched_kind": {"manual"}}); !strings.Contains(loc, "err=") {
@@ -151,7 +155,7 @@ func TestJobEditAndCommands(t *testing.T) {
 	}
 	op := newClient(t, e)
 	op.login("ana", "ana-password-1")
-	if _, _, body := op.do("GET", fmt.Sprintf("/jobs/%d", j.ID), nil); strings.Contains(body, "echo admin") || !strings.Contains(body, "Only administrators can see and change them") {
+	if _, _, body := op.do("GET", fmt.Sprintf("/jobs/%d/edit", j.ID), nil); strings.Contains(body, "echo admin") || !strings.Contains(body, "Only administrators can see and change them") {
 		t.Error("operator sees the commands")
 	}
 	op.do("POST", fmt.Sprintf("/jobs/%d/edit", j.ID), url.Values{"name": {"renamed"}, "paths": {src}, "sched_kind": {"manual"}, "pre_command": {"rm -rf /"}})

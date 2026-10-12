@@ -788,6 +788,8 @@ type Run struct {
 	// Commands is the outcome and output of the commands run before and
 	// after the backup (JSON list of api.CommandResult).
 	Commands json.RawMessage
+	// CancelReason is set while a cancel of the running run is pending.
+	CancelReason *string
 }
 
 // Duration returns how long the run took (or has been running).
@@ -804,7 +806,7 @@ func (r Run) Duration() time.Duration {
 
 const runCols = `r.id, r.agent_id, a.hostname, r.job_id, j.name, r.kind, r.status, r.trigger, r.repo_url,
 	r.target_id, r.paths, r.excludes, r.snapshot_id, r.restore_target, r.restore_verify, r.queued_at, r.started_at, r.finished_at,
-	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url, r.anomaly, r.anomaly_ack, r.vm_restore, r.new_hardware, r.driver_path, r.system_restore, r.commands`
+	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url, r.anomaly, r.anomaly_ack, r.vm_restore, r.new_hardware, r.driver_path, r.system_restore, r.commands, r.cancel_reason`
 
 const runFrom = ` FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id`
 
@@ -813,7 +815,7 @@ func scanRun(row pgx.Row) (Run, error) {
 	err := row.Scan(&r.ID, &r.AgentID, &r.Hostname, &r.JobID, &r.JobName, &r.Kind, &r.Status,
 		&r.Trigger, &r.RepoURL, &r.TargetID, &r.Paths, &r.Excludes, &r.SnapshotID, &r.RestoreTarget, &r.RestoreVerify,
 		&r.QueuedAt, &r.StartedAt, &r.FinishedAt, &r.Stats, &r.Errors, &r.Message,
-		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL, &r.Anomaly, &r.AnomalyAck, &r.VMRestore, &r.NewHardware, &r.DriverPath, &r.SystemRestore, &r.Commands)
+		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL, &r.Anomaly, &r.AnomalyAck, &r.VMRestore, &r.NewHardware, &r.DriverPath, &r.SystemRestore, &r.Commands, &r.CancelReason)
 	return r, err
 }
 
@@ -885,7 +887,9 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	if len(res.Details) > 0 {
 		details = res.Details
 	}
-	ct, err := s.db.Exec(ctx, `UPDATE runs SET status=$3, finished_at=now(), stats=$4, errors=$5, message=$6,
+	ct, err := s.db.Exec(ctx, `UPDATE runs SET status=$3, finished_at=now(), stats=$4, errors=$5,
+		message=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_reason ELSE $6 END,
+		notified=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_by<>'' ELSE notified END,
 		snapshot_id=CASE WHEN kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') THEN $7 ELSE snapshot_id END, details=$8, commands=$9
 		WHERE id=$2 AND agent_id=$1 AND status='running'`,
 		agentID, runID, res.Status, stats, res.Errors, res.Message, res.SnapshotID, details, commands)

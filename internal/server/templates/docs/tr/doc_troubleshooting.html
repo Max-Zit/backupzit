@@ -5,7 +5,7 @@
 <ul>
   <li>Makine açık ve hizmet çalışıyor mu? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
   <li>Makine konsola ulaşabiliyor mu? <code>Test-NetConnection backup-server -Port 8443</code> veya <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Aracı günlüğü: <code>C:\ProgramData\backupzit\agent.log</code>, Linux'ta <code>/etc/backupzit/agent.log</code> veya <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch", konsol sertifikasının değiştiği anlamına gelir — aracıyı yeniden kaydedin.</li>
+  <li>Aracı günlüğü: <code>C:\ProgramData\backupzit\agent.log</code>, Linux'ta <code>/var/log/backupzit/agent.log</code> veya <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch", konsol sertifikasının değiştiği anlamına gelir — aracıyı yeniden kaydedin.</li>
 </ul>
 
 <h2>Bir yedekleme başarısız oldu</h2>
@@ -78,6 +78,22 @@
   <li>Depolamaya giden ağ yolunu denetleyin (Wi-Fi, VPN, bulut depolama için internet yükleme hızı).</li>
   <li>İhtiyacınız olmayan önbellekleri, geçici dosyaları ve medyayı hariç tutun.</li>
 </ul>
+
+<h2 id="logs">Günlükler</h2>
+<p>Bir şey çalışmadığında bu günlükler ne olduğunu gösterir:</p>
+<table>
+  <tr><th>Ne</th><th>Nerede</th></tr>
+  <tr><td>Konsol (sunucu)</td><td><code>journalctl -u backupzit-server</code> ve <code>/var/lib/backupzit/logs/server.log</code> dosyası (en fazla 4 adet 10 MB dosya). Son satırlar <a href="/settings/diagnostics">Ayarlar → Tanılama</a> altındadır.</td></tr>
+  <tr><td>Windows'ta ajan</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
+  <tr><td>Linux'ta ajan</td><td><code>/var/log/backupzit/agent.log</code> ve <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Herhangi bir ajan, konsoldan</td><td><a href="/agents">Ajanlar</a> sayfasındaki <b>Günlüğü al</b>: ajan günlüğünün sonunu ve en yeni yükleyici günlüklerini gönderir; çalıştırma sayfasında okunur veya indirilir (30 gün saklanır; ajan 0.38.0 veya daha yenisi).</td></tr>
+  <tr><td>Tek bir yedekleme veya geri yükleme</td><td><a href="/runs">Etkinlik</a> altındaki sayfası: mesaj, hatalar, istatistikler ve yedekleme öncesi ve sonrası komutların çıktısı</td></tr>
+  <tr><td>Ajan güncellemeleri</td><td><code>C:\ProgramData\backupzit\updates</code> (Windows) veya <code>/var/tmp/backupzit-updates</code> (Linux) içindeki yükleyici günlükleri; <b>Günlüğü al</b> bunları da içerir</td></tr>
+  <tr><td>Konsol güncellemeleri</td><td><code>journalctl -u backupzit-update</code>; önceki sürüm ve bir veritabanı dökümü <code>/var/lib/backupzit-update</code> içinde tutulur</td></tr>
+  <tr><td>Güçlendirilmiş depo</td><td><code>journalctl -u backupzit-repo</code></td></tr>
+  <tr><td>Kim neyi değiştirdi</td><td>bir syslog sunucusuna da gönderilebilen <a href="/audit">denetim günlüğü</a></td></tr>
+</table>
+<p>Destek talebi için <a href="/settings/diagnostics">Ayarlar → Tanılama</a> altındaki <b>Tanılamayı indir</b>, konsol günlüğü, sürümler, ajanlar, işler, son 30 günün başarısız çalıştırmaları ve denetim günlüğünü içeren bir zip verir — parola, anahtar veya depolama kimlik bilgisi olmadan. Bir kurtarma sistemi günlüğünü ekranda gösterir.</p>
 
 <h2>SSS</h2>
 <h3>NFS kullanabilir miyim?</h3>

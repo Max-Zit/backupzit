@@ -41,7 +41,7 @@
   <tr><td><b>Jednom mesečno</b></td><td>Prvog u mesecu u 23:00.</td></tr>
   <tr><td><b>Samo ručno</b></td><td>Pokreće se samo kada kliknete <i>Pokreni bekap sada</i>.</td></tr>
 </table>
-<p>Vremena su u vremenskoj zoni servera konzole (na uređaju: <a href="/settings/network#timezone">Podešavanja → Mreža → Vremenska zona</a> ili stavka 9 menija za podešavanje; počinje u UTC-u). Ako je agent van mreže u zakazano vreme, bekap čeka u redu i počinje čim se agent vrati. Sva planirana pokretanja vidite u <a href="/calendar">Kalendaru</a>.</p>
+<p>Vremena su u vremenskoj zoni servera konzole (na uređaju: <a href="/settings/network#timezone">Podešavanja → Mreža → Vremenska zona</a> ili stavka 9 menija za podešavanje; počinje u UTC-u). Ako je agent van mreže u zakazano vreme, bekap čeka u redu i počinje čim se agent vrati. Sva planirana pokretanja vidite u <a href="/calendar">Kalendaru</a>. Trenutni datum i vreme konzole prikazani su dole levo, ispod vremenske zone.</p>
 
 <h2>Retencija: koliko bekapa se čuva</h2>
 <p>Snimak se zadržava ako ga izabere <b>bilo koje</b> pravilo:</p>
@@ -65,7 +65,7 @@
 </ul>
 
 <h2>Izmena posla</h2>
-<p>Otvorite posao i raširite <b>Izmeni posao</b>. Možete promeniti ime, foldere i izuzetke (poslovi fajlova), virtuelne mašine (VM poslovi), raspored, retenciju, ograničenje brzine, nivo kompresije i komande. Agent, skladište i disk posla za sliku diska ostaju isti, da bi bekapi posla ostali jedan lanac; da biste premestili posao, napravite nov — sa poslom kopije ako treba preneti i starije bekape. Izmene važe od sledećeg pokretanja i upisuju se u <a href="/audit">audit log</a>. Uz uključeno <a href="/docs/users">odobrenje „četiri oka”</a>, kraća retencija čeka odobrenje drugog korisnika; ostale izmene se čuvaju odmah.</p>
+<p>Otvorite posao i kliknite <b>Izmeni</b>; forma se otvara na posebnoj stranici koja se ne osvežava dok backup radi. Možete promeniti ime, foldere i izuzetke (poslovi fajlova), virtuelne mašine (VM poslovi), raspored, retenciju, ograničenje brzine, nivo kompresije i komande. Agent, skladište i disk posla za sliku diska ostaju isti, da bi bekapi posla ostali jedan lanac; da biste premestili posao, napravite nov — sa poslom kopije ako treba preneti i starije bekape. Izmene važe od sledećeg pokretanja i upisuju se u <a href="/audit">audit log</a>. Uz uključeno <a href="/docs/users">odobrenje „četiri oka”</a>, kraća retencija čeka odobrenje drugog korisnika; ostale izmene se čuvaju odmah.</p>
 
 <h2>Replike (Proxmox VE)</h2>
 <p>Proxmox VM poslovi mogu da drže ugašene, ažurne kopije svojih gostiju na čvoru po izboru, koje se pokreću jednim klikom ako se gost izgubi — vidi <a href="/docs/proxmox">Proxmox VE → Replikacija</a>.</p>
@@ -75,7 +75,7 @@
 
 <h2 id="compression">Kompresija i deduplikacija</h2>
 <p>Svaki bekap je dedupliciran: podaci koji su već u repozitorijumu — iz ranijih bekapa istog posla ili iz drugih poslova na istom skladištu — ne čuvaju se ponovo. Novi podaci se zatim kompresuju algoritmom zstd; delovi koji se ne smanje (video, arhive, šifrovani fajlovi) čuvaju se kakvi jesu. Šifrovanje dolazi posle kompresije.</p>
-<p>Nivo kompresije je podešavanje posla (<b>Izmeni posao → Napredno</b>):</p>
+<p>Nivo kompresije je podešavanje posla (<b>Izmeni → Napredno</b>):</p>
 <table>
   <tr><th>Nivo</th><th>Kada ga koristiti</th></tr>
   <tr><td>Standardna (preporučeno)</td><td>Dobra kompresija uz veliku brzinu; odgovara skoro svakom poslu.</td></tr>
@@ -105,6 +105,10 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, pre<
   <li><b>Onemogući</b> pauzira raspored bez gubitka posla (uz uključeno odobrenje „četiri oka”, drugi korisnik mora to da odobri).</li>
   <li><b>Obriši</b> uklanja posao; postojeći bekapi ostaju na skladištu i mogu da se vrate iz Aktivnosti.</li>
 </ul>
+
+<h2>Zaustavljanje run-a</h2>
+<p>Backup, kopija ili restore koji čeka ili radi može da se zaustavi dugmetom <b>Otkaži</b> ili <b>Zaustavi</b> na stranici run-a, ili <b>Zaustavi run #…</b> na stranici posla. Run koji čeka otkazuje se odmah; run koji radi agent zaustavlja za nekoliko sekundi — prekida se i komanda pre backup-a, a komanda posle backup-a se ipak izvršava. Run se označava kao neuspeo („Cancelled by“ i ime korisnika) i beleži u audit logu; za njega se ne šalje mejl o grešci. Backup prekinut na pola ne koristi se za restore. Ažuriranja agenta ne mogu da se zaustave.</p>
+<p><b>Najduže trajanje run-a (sati)</b> pod <b>Napredno</b> u formi posla zaustavlja backup ili kopiju koja traje duže i označava je kao neuspelu; za to se šalje obaveštenje o grešci. Prazno ili 0 znači bez ograničenja. Ako agent ne potvrdi zaustavljanje za 10 minuta, konzola sama označava run kao neuspeo.</p>
 
 <h2>Pauzirano čuvanje</h2>
 <p>Ako je neki bekap posla ličio na ransomware ili masovno brisanje, stranica posla prikazuje <i>Čuvanje je pauzirano</i>: nijedan bekap se ne briše dok neko ne proveri mašinu i ne klikne <i>Pregledano — nastavi čuvanje</i> (uz uključeno odobrenje „četiri oka”, drugi korisnik mora to da odobri). Vidi <a href="/docs/ransomware">Zaštita od ransomware-a</a>.</p>

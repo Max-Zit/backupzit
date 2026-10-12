@@ -77,6 +77,7 @@
         </div>
       </div>
       <small class="muted">{{T "For example 10 MB/s from 08:00 to 18:00 keeps the office line usable during working hours; outside the window the backup runs at full speed. Times are the agent's local time."}}</small>
+      <label class="mt">{{T "Time limit of a run (hours)"}} <small>{{T "a backup or copy that runs longer is stopped and marked as failed; empty or 0 for no limit"}}</small><input type="number" name="max_hours" min="0" max="720" value="{{if .J.Options.MaxHours}}{{.J.Options.MaxHours}}{{end}}" class="narrow"></label>
       <label class="mt">{{T "Compression"}} <small>{{T "of new data; existing backups stay as they are"}}</small>
         <select name="compression">
           <option value="" {{if eq .J.Options.Compression ""}}selected{{end}}>{{T "Standard (recommended)"}}</option>
@@ -156,14 +157,23 @@
   <label class="check"><input type="checkbox" name="m365_calendar" {{if $o.M365Calendar}}checked{{end}}> {{T "Calendars and contacts"}} <small>{{T "events as .ics, contacts as .vcf files; needs Calendars.Read and Contacts.Read"}}</small></label>
   <label class="check"><input type="checkbox" name="m365_sharepoint" {{if $o.M365SharePoint}}checked{{end}}> {{T "SharePoint sites"}} <small>{{T "all document libraries of the sites; needs Sites.Read.All"}}</small></label>
 </div>
-<label>{{T "Accounts"}} <small>{{T "one address per line, e.g. ana@contoso.com; empty: every account with a mailbox or OneDrive, also accounts added later"}}</small>
-  <textarea name="m365_users">{{if eq .J.Kind "m365"}}{{join .J.Paths "\n"}}{{end}}</textarea>
-</label>
-<div class="m365-pick" data-m365-pick data-job="{{.J.ID}}" data-loading="{{T "Reading the accounts and sites of the tenant…"}}" data-accounts="{{T "Accounts"}}" data-sites="{{T "SharePoint sites"}}" data-filter="{{T "Filter"}}" data-all-hint="{{T "Nothing ticked: all, also those added later."}}" data-empty="{{T "None found."}}">
-  <button type="button" class="secondary" data-m365-load>{{T "Choose from the list"}}</button> <small class="muted">{{T "reads the accounts and SharePoint sites of the tenant with the app above; tick the ones to back up"}}</small>
+{{$users := ""}}{{if eq .J.Kind "m365"}}{{$users = join .J.Paths "\n"}}{{end}}
+<fieldset class="sched" data-m365-group="users">
+  <legend>{{T "Accounts"}}</legend>
+  <label class="check"><input type="radio" name="m365_users_mode" value="all" {{if not $users}}checked{{end}}> {{T "All accounts with a mailbox or OneDrive"}} <small>{{T "accounts added later are included automatically"}}</small></label>
+  <label data-m365-mode="all">{{T "Except"}} <small>{{T "one address per line; these accounts are not backed up"}}</small><textarea name="m365_users_exclude">{{join $o.M365ExcludeUsers "\n"}}</textarea></label>
+  <label class="check"><input type="radio" name="m365_users_mode" value="list" {{if $users}}checked{{end}}> {{T "Only these accounts"}}</label>
+  <label data-m365-mode="list">{{T "Accounts"}} <small>{{T "one address per line, e.g. ana@contoso.com"}}</small><textarea name="m365_users">{{$users}}</textarea></label>
+</fieldset>
+<fieldset class="sched" data-m365-group="sites">
+  <legend>{{T "SharePoint sites"}}</legend>
+  <label class="check"><input type="radio" name="m365_sites_mode" value="all" {{if not $o.M365Sites}}checked{{end}}> {{T "All sites of the tenant"}} <small>{{T "sites added later are included automatically"}}</small></label>
+  <label data-m365-mode="all">{{T "Except"}} <small>{{T "one site address per line; these sites are not backed up"}}</small><textarea name="m365_sites_exclude">{{join $o.M365ExcludeSites "\n"}}</textarea></label>
+  <label class="check"><input type="radio" name="m365_sites_mode" value="list" {{if $o.M365Sites}}checked{{end}}> {{T "Only these sites"}}</label>
+  <label data-m365-mode="list">{{T "SharePoint sites"}} <small>{{T "one site address per line, e.g. https://contoso.sharepoint.com/sites/sales"}}</small><textarea name="m365_sites">{{join $o.M365Sites "\n"}}</textarea></label>
+</fieldset>
+<div class="m365-pick" data-m365-pick data-job="{{.J.ID}}" data-loading="{{T "Reading the accounts and sites of the tenant…"}}" data-accounts="{{T "Accounts"}}" data-sites="{{T "SharePoint sites"}}" data-filter="{{T "Filter"}}" data-hint-all="{{T "All are backed up, also those added later. Untick the ones to leave out."}}" data-hint-list="{{T "Only the ticked ones are backed up."}}" data-select-all="{{T "Select all"}}" data-select-none="{{T "Select none"}}" data-empty="{{T "None found."}}">
+  <button type="button" class="secondary" data-m365-load>{{T "Choose from the list"}}</button> <small class="muted">{{T "reads the accounts and SharePoint sites of the tenant with the app above"}}</small>
   <div data-m365-list hidden></div>
 </div>
-<label>{{T "SharePoint sites"}} <small>{{T "one site address per line, e.g. https://contoso.sharepoint.com/sites/sales; empty: every site of the tenant, also sites added later"}}</small>
-  <textarea name="m365_sites">{{join $o.M365Sites "\n"}}</textarea>
-</label>
 {{end}}
