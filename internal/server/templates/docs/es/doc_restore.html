@@ -54,15 +54,6 @@
 <p>Un <b>enlace simbólico</b> a un archivo (p. ej. <code>/etc/os-release</code>) se descarga como el archivo al que apunta, si ese archivo está en la copia; los enlaces a carpetas se omiten en los archivos ZIP. Lo mismo vale para los archivos descargados de copias de máquinas virtuales (ext4, XFS). Una restauración en un agente vuelve a crear los enlaces como enlaces.</p>
 <p>La consola lee la copia directamente del almacenamiento, así que la exploración funciona con copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); para un disco local o USB de un agente, restaure con las rutas. Los usuarios con un rol de restauración pueden explorar y descargar.</p>
 
-<h3 id="search">Buscar en las copias</h3>
-<p>¿No sabe qué copia contiene un archivo? Abra <a href="/search">Buscar en las copias</a> y escriba parte del nombre (<code>oferta</code>) o un patrón como <code>*.xlsx</code> u <code>oferta*2025*</code>; para copias de Microsoft 365, parte del asunto de un correo. No importan mayúsculas ni minúsculas. Puede limitar la búsqueda a un trabajo.</p>
-<ul>
-  <li>Se buscan todas las copias de archivos, recursos NAS, sistemas Linux y Microsoft 365 en almacenamiento de red, en todas las fechas que aún se conservan.</li>
-  <li>Cada resultado muestra el trabajo, el agente, la ruta completa, el tamaño y la fecha de la copia más reciente. En <b>Versiones</b> aparece cada versión distinta; las copias en las que el archivo no cambió se agrupan en una línea.</li>
-  <li><b>Abrir</b> muestra la carpeta en esa copia, donde descarga el archivo o lo restaura en un agente.</li>
-</ul>
-<p>No se buscan imágenes de disco ni copias de VM. La consola no puede leer copias en un disco local o USB de un agente; se cuentan como omitidas. La búsqueda también está disponible en la <a href="/docs/api">API REST</a> (<code>/api/v1/search</code>).</p>
-
 <div class="callout tip"><p><b>Encontrar la copia correcta:</b> use el <a href="/calendar">Calendario</a> para ver qué copias se ejecutaron cada día, o el historial de la página del trabajo.</p></div>
 
 <h2>Restaurar archivos sueltos de una imagen de disco</h2>

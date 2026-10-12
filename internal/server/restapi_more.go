@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -142,22 +141,6 @@ func (s *Server) registerAPIMore(mux *http.ServeMux) {
 			out = append(out, x)
 		}
 		return out, nil
-	}))
-	mux.HandleFunc("GET /api/v1/search", s.api(PermRestore, func(w http.ResponseWriter, r *http.Request) (any, error) {
-		jobID, _ := strconv.ParseInt(r.URL.Query().Get("job"), 10, 64)
-		res, err := s.searchBackups(r.Context(), r.URL.Query().Get("q"), jobID)
-		if err != nil {
-			return nil, apiErr(http.StatusBadRequest, "%s", err.Error())
-		}
-		hits := []map[string]any{}
-		for _, h := range res.Hits {
-			vs := []map[string]any{}
-			for _, v := range h.Versions {
-				vs = append(vs, map[string]any{"run_id": v.Run, "backup_at": v.At, "size": v.Size, "modified": v.ModTime, "backups": v.Count, "oldest_backup_at": v.Oldest})
-			}
-			hits = append(hits, map[string]any{"job_id": h.JobID, "job": h.Job, "agent": h.Agent, "name": h.Name, "path": h.Display, "folder": h.Dir, "is_dir": h.IsDir, "versions": vs})
-		}
-		return map[string]any{"results": hits, "backups_searched": res.Backups, "backups_skipped": res.Skipped, "partial": res.Partial, "truncated": res.TooMany}, nil
 	}))
 	mux.HandleFunc("GET /api/v1/metrics", s.metrics)
 }

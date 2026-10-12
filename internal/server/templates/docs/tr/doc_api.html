@@ -26,7 +26,6 @@
   <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Geri yükleme operatörü</td><td>Bekleyen bir çalıştırmayı iptal eder veya çalışanı durdurur: <code>{"state": "cancelled"}</code> veya <code>"stopping"</code>; bittiyse 409</td></tr>
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Yedekleme operatörü</td><td>İşin zamanlamasını açar veya kapatır; dört göz onayı açıkken devre dışı bırakma yalnızca konsolda yapılabilir (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Görüntüleyici</td><td>Depolama hedefi başına kullanılan alan, biliniyorsa kapasite ve boş alan, günlük büyüme ve dolmasına kalan gün</td></tr>
-  <tr><td><code>GET /api/v1/search?q=&amp;job=</code></td><td>Geri yükleme operatörü</td><td>Yedeklerde bir dosya, klasör veya e-posta konusu arar (bkz. <a href="/docs/restore#search">Yedeklerde ara</a>): her sonuç sürümleriyle, ayrıca <code>backups_searched</code>, <code>backups_skipped</code>, <code>partial</code> ve <code>truncated</code></td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Görüntüleyici</td><td>Prometheus metin biçiminde metrikler (aşağıya bakın)</td></tr>
 </table>
 <p>Dönemler: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> veya <code>from=2026-09-01&amp;to=2026-09-30</code> ile <code>custom</code>.</p>

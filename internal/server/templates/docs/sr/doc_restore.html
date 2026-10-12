@@ -54,15 +54,6 @@
 <p><b>Simbolički link</b> ka fajlu (npr. <code>/etc/os-release</code>) preuzima se kao fajl na koji pokazuje, ako je taj fajl u bekapu; linkovi ka folderima se izostavljaju iz ZIP arhiva. Isto važi za fajlove preuzete iz bekapa virtuelnih mašina (ext4, XFS). Vraćanje na agenta ponovo pravi linkove kao linkove.</p>
 <p>Konzola sama čita bekap sa skladišta, pa pregled radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); za lokalni ili USB disk agenta vratite pomoću putanja. Korisnici sa ulogom za vraćanje mogu da pregledaju i preuzimaju.</p>
 
-<h3 id="search">Pretraga bekapa</h3>
-<p>Ne znate u kom bekapu je neki fajl? Otvorite <a href="/search">Pretraga backup-a</a> i upišite deo naziva (<code>ponuda</code>) ili šablon kao <code>*.xlsx</code> ili <code>ponuda*2025*</code>; za Microsoft 365 bekape upišite deo naslova mejla. Velika i mala slova nisu bitna. Pretragu možete ograničiti na jedan posao.</p>
-<ul>
-  <li>Pretražuju se svi bekapi fajlova, NAS deljenih foldera, Linux sistema i Microsoft 365 na mrežnim skladištima, za sve datume koji se još čuvaju.</li>
-  <li>Svaki pogodak prikazuje posao, agenta, punu putanju, veličinu i datum najnovijeg bekapa. Pod <b>Verzije</b> navedena je svaka različita verzija; bekapi u kojima se fajl nije menjao spojeni su u jedan red.</li>
-  <li><b>Otvori</b> prikazuje folder u tom bekapu, gde fajl preuzimate ili ga vraćate na agenta.</li>
-</ul>
-<p>Slike diskova i bekapi VM-ova se ne pretražuju. Bekape na lokalnom ili USB disku agenta konzola ne može da pročita i broje se kao preskočeni. Pretraga je dostupna i kroz <a href="/docs/api">REST API</a> (<code>/api/v1/search</code>).</p>
-
 <div class="callout tip"><p><b>Kako naći pravi bekap:</b> u <a href="/calendar">Kalendaru</a> vidite koji bekapi su radili kog dana, ili pogledajte istoriju na stranici posla.</p></div>
 
 <h2>Vraćanje pojedinačnih fajlova iz slike diska</h2>

@@ -54,15 +54,6 @@
 <p>Een <b>symbolische koppeling</b> naar een bestand (bijv. <code>/etc/os-release</code>) wordt gedownload als het bestand waarnaar ze wijst, als dat bestand in de back-up zit; koppelingen naar mappen worden in ZIP-archieven weggelaten. Hetzelfde geldt voor bestanden die uit back-ups van virtuele machines worden gedownload (ext4, XFS). Een herstel op een agent maakt koppelingen opnieuw aan als koppelingen.</p>
 <p>De console leest de back-up zelf van de opslag, dus bladeren werkt voor back-ups op netwerkopslag (SFTP, S3, SMB, Azure, geharde repository); herstel voor een lokale of USB-schijf van een agent met de paden. Gebruikers met een herstelrol mogen bladeren en downloaden.</p>
 
-<h3 id="search">Back-ups doorzoeken</h3>
-<p>Weet u niet in welke back-up een bestand staat? Open <a href="/search">Back-ups doorzoeken</a> en typ een deel van de naam (<code>offerte</code>) of een patroon zoals <code>*.xlsx</code> of <code>offerte*2025*</code>; voor Microsoft 365-back-ups een deel van het onderwerp van een e-mail. Hoofdletters en kleine letters maken niet uit. U kunt de zoekopdracht tot één taak beperken.</p>
-<ul>
-  <li>Alle back-ups van bestanden, NAS-shares, Linux-systemen en Microsoft 365 op netwerkopslag worden doorzocht, over alle datums die nog bewaard worden.</li>
-  <li>Elk resultaat toont de taak, de agent, het volledige pad, de grootte en de datum van de nieuwste back-up. Onder <b>Versies</b> staat elke andere versie; back-ups waarin het bestand niet veranderde, staan samen op één regel.</li>
-  <li><b>Openen</b> toont de map in die back-up, waar u het bestand downloadt of op een agent herstelt.</li>
-</ul>
-<p>Schijfimages en VM-back-ups worden niet doorzocht. Back-ups op een lokale of USB-schijf van een agent kan de console niet lezen; die tellen als overgeslagen. De zoekfunctie is ook beschikbaar in de <a href="/docs/api">REST API</a> (<code>/api/v1/search</code>).</p>
-
 <div class="callout tip"><p><b>De juiste back-up vinden:</b> gebruik de <a href="/calendar">Kalender</a> om te zien welke back-ups op welke dag draaiden, of de geschiedenis op de taakpagina.</p></div>
 
 <h2>Losse bestanden herstellen uit een schijfimage</h2>

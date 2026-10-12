@@ -42,8 +42,7 @@ const sessionCookie = "bz_session"
 
 // Server is the management console.
 type Server struct {
-	seen  seenURL   // the address users open the console with (ConsoleURL)
-	trees treeCache // folder names read by searches
+	seen  seenURL // the address users open the console with (ConsoleURL)
 	store *Store
 	// dups finds agent enrollments used by two machines at once.
 	dups *dupTracker
@@ -400,7 +399,6 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /jobs/m365-directory", s.ui(PermJobs, s.handleM365Directory))
 	mux.HandleFunc("POST /jobs/{id}/replica-start", s.ui(PermRestore, s.handleReplicaStart))
 	mux.HandleFunc("GET /restore", s.ui(PermRestore, s.handleRestoreWizard))
-	mux.HandleFunc("GET /search", s.ui(PermRestore, s.handleSearch))
 	mux.HandleFunc("GET /runs", s.ui(PermView, s.handleRuns))
 	mux.HandleFunc("GET /runs/{id}", s.ui(PermView, s.handleRun))
 	mux.HandleFunc("POST /runs/{id}/restore", s.ui(PermRestore, s.handleRestore))

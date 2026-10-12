@@ -54,15 +54,6 @@
 <p><b>Dowiązanie symboliczne</b> do pliku (np. <code>/etc/os-release</code>) jest pobierane jako plik, na który wskazuje, jeśli ten plik jest w kopii; dowiązania do folderów są pomijane w archiwach ZIP. To samo dotyczy plików pobieranych z kopii maszyn wirtualnych (ext4, XFS). Przywracanie na agencie odtwarza dowiązania jako dowiązania.</p>
 <p>Konsola sama czyta kopię z magazynu, więc przeglądanie działa dla kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, utwardzone repozytorium); dla dysku lokalnego lub USB agenta przywracaj z podaniem ścieżek. Użytkownicy z rolą przywracania mogą przeglądać i pobierać.</p>
 
-<h3 id="search">Przeszukaj kopie</h3>
-<p>Nie wiesz, w której kopii jest plik? Otwórz <a href="/search">Przeszukaj kopie</a> i wpisz część nazwy (<code>oferta</code>) lub wzorzec, np. <code>*.xlsx</code> albo <code>oferta*2025*</code>; dla kopii Microsoft 365 część tematu wiadomości. Wielkość liter nie ma znaczenia. Wyszukiwanie można ograniczyć do jednego zadania.</p>
-<ul>
-  <li>Przeszukiwane są wszystkie kopie plików, udziałów NAS, systemów Linux i Microsoft 365 w magazynach sieciowych, ze wszystkich dat, które są jeszcze przechowywane.</li>
-  <li>Każdy wynik pokazuje zadanie, agenta, pełną ścieżkę, rozmiar i datę najnowszej kopii. W <b>Wersje</b> jest każda inna wersja; kopie, w których plik się nie zmienił, są połączone w jeden wiersz.</li>
-  <li><b>Otwórz</b> pokazuje folder w tej kopii, gdzie pobierzesz plik lub odtworzysz go na agencie.</li>
-</ul>
-<p>Obrazy dysków i kopie maszyn wirtualnych nie są przeszukiwane. Kopii na lokalnym lub USB dysku agenta konsola nie może odczytać; są liczone jako pominięte. Wyszukiwanie jest też dostępne w <a href="/docs/api">REST API</a> (<code>/api/v1/search</code>).</p>
-
 <div class="callout tip"><p><b>Jak znaleźć właściwą kopię:</b> użyj <a href="/calendar">Kalendarza</a>, aby zobaczyć, które kopie wykonano danego dnia, albo historii na stronie zadania.</p></div>
 
 <h2>Przywracanie pojedynczych plików z obrazu dysku</h2>

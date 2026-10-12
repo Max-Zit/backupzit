@@ -26,7 +26,6 @@
   <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Operator przywracania</td><td>Anuluje oczekujące uruchomienie lub zatrzymuje trwające: <code>{"state": "cancelled"}</code> lub <code>"stopping"</code>; 409, jeśli już się zakończyło</td></tr>
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Operator kopii</td><td>Włącza lub wyłącza harmonogram zadania; przy zasadzie czterech oczu wyłączenie jest możliwe tylko w konsoli (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Obserwator</td><td>Zajęte miejsce na magazyn, pojemność i wolne miejsce, jeśli są znane, przyrost dzienny i dni do zapełnienia</td></tr>
-  <tr><td><code>GET /api/v1/search?q=&amp;job=</code></td><td>Operator przywracania</td><td>Przeszukuje kopie w poszukiwaniu pliku, folderu lub tematu wiadomości (zob. <a href="/docs/restore#search">Przeszukaj kopie</a>): każdy wynik z wersjami, plus <code>backups_searched</code>, <code>backups_skipped</code>, <code>partial</code> i <code>truncated</code></td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Obserwator</td><td>Metryki w formacie tekstowym Prometheus (patrz niżej)</td></tr>
 </table>
 <p>Okresy: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> lub <code>custom</code> z <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>

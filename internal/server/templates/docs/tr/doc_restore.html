@@ -54,15 +54,6 @@
 <p>Bir dosyaya işaret eden <b>sembolik bağlantı</b> (ör. <code>/etc/os-release</code>), işaret ettiği dosya yedekteyse o dosya olarak indirilir; klasörlere giden bağlantılar ZIP arşivlerine alınmaz. Aynısı sanal makine yedeklerinden (ext4, XFS) indirilen dosyalar için de geçerlidir. Bir aracıdaki geri yükleme bağlantıları bağlantı olarak yeniden oluşturur.</p>
 <p>Konsol yedeği depolamadan kendisi okur; bu yüzden göz atma ağ depolamasındaki yedekler için çalışır (SFTP, S3, SMB, Azure, güçlendirilmiş depo); bir aracının yerel diski veya USB diski için yollarla geri yükleyin. Geri yükleme rolüne sahip kullanıcılar göz atabilir ve indirebilir.</p>
 
-<h3 id="search">Yedeklerde ara</h3>
-<p>Bir dosyanın hangi yedekte olduğunu bilmiyor musunuz? <a href="/search">Yedeklerde ara</a> sayfasını açın ve adın bir kısmını (<code>teklif</code>) ya da <code>*.xlsx</code> veya <code>teklif*2025*</code> gibi bir desen yazın; Microsoft 365 yedeklerinde bir e-posta konusunun bir kısmını yazın. Büyük/küçük harf fark etmez. Aramayı tek bir işle sınırlayabilirsiniz.</p>
-<ul>
-  <li>Ağ depolamadaki tüm dosya, NAS paylaşımı, Linux sistemi ve Microsoft 365 yedekleri, hâlâ saklanan tüm tarihlerde aranır.</li>
-  <li>Her sonuç işi, ajanı, tam yolu, boyutu ve en yeni yedeğin tarihini gösterir. <b>Sürümler</b> altında her farklı sürüm listelenir; dosyanın değişmediği yedekler tek satırda birleştirilir.</li>
-  <li><b>Aç</b>, o yedekteki klasörü gösterir; dosyayı oradan indirir veya bir ajana geri yüklersiniz.</li>
-</ul>
-<p>Disk görüntüleri ve VM yedekleri aranmaz. Bir ajanın yerel veya USB diskindeki yedekleri konsol okuyamaz; bunlar atlanmış sayılır. Arama <a href="/docs/api">REST API</a> üzerinden de kullanılabilir (<code>/api/v1/search</code>).</p>
-
 <div class="callout tip"><p><b>Doğru yedeği bulma:</b> hangi yedeklerin hangi gün çalıştığını görmek için <a href="/calendar">Takvim</a>'i veya iş sayfasındaki geçmişi kullanın.</p></div>
 
 <h2>Bir disk görüntüsünden tek tek dosyaları geri yükleme</h2>

@@ -54,15 +54,6 @@
 <p><b>Symbolický odkaz</b> na soubor (např. <code>/etc/os-release</code>) se stáhne jako soubor, na který ukazuje, pokud je tento soubor v záloze; odkazy na složky se v archivech ZIP vynechávají. Totéž platí pro soubory stažené ze záloh virtuálních počítačů (ext4, XFS). Obnova na agentovi vytvoří odkazy znovu jako odkazy.</p>
 <p>Konzole čte zálohu z úložiště sama, takže procházení funguje pro zálohy na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečené úložiště); u místního disku nebo disku USB agenta obnovujte zadáním cest. Uživatelé s rolí pro obnovu mohou procházet a stahovat.</p>
 
-<h3 id="search">Hledat v zálohách</h3>
-<p>Nevíte, ve které záloze soubor je? Otevřete <a href="/search">Hledat v zálohách</a> a napište část názvu (<code>nabidka</code>) nebo vzor jako <code>*.xlsx</code> či <code>nabidka*2025*</code>; u záloh Microsoft 365 část předmětu e-mailu. Na velikosti písmen nezáleží. Hledání můžete omezit na jednu úlohu.</p>
-<ul>
-  <li>Prohledají se všechny zálohy souborů, sdílených složek NAS, systémů Linux a Microsoft 365 na síťovém úložišti, ze všech dat, která se ještě uchovávají.</li>
-  <li>Každý výsledek ukazuje úlohu, agenta, úplnou cestu, velikost a datum nejnovější zálohy. V <b>Verze</b> je každá odlišná verze; zálohy, ve kterých se soubor nezměnil, jsou spojeny do jednoho řádku.</li>
-  <li><b>Otevřít</b> zobrazí složku v dané záloze, kde soubor stáhnete nebo obnovíte na agenta.</li>
-</ul>
-<p>Obrazy disků a zálohy VM se neprohledávají. Zálohy na lokálním nebo USB disku agenta konzole přečíst nemůže; počítají se jako přeskočené. Hledání je dostupné i v <a href="/docs/api">REST API</a> (<code>/api/v1/search</code>).</p>
-
 <div class="callout tip"><p><b>Jak najít správnou zálohu:</b> v <a href="/calendar">Kalendáři</a> uvidíte, které zálohy běžely v který den, nebo použijte historii na stránce úlohy.</p></div>
 
 <h2>Obnova jednotlivých souborů z obrazu disku</h2>
