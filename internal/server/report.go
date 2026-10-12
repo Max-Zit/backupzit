@@ -513,7 +513,7 @@ func (s *Server) handleReportEmail(w http.ResponseWriter, r *http.Request, _ str
 	redirectMsg(w, r, back, "Report sent to "+strings.Join(e.To, ", ")+".")
 }
 
-func (s *Server) consoleURL() string { return s.PublicURL }
+func (s *Server) consoleURL() string { return s.ConsoleURL() }
 
 func checkAddrs(list []string) error {
 	for _, a := range list {

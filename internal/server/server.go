@@ -42,6 +42,7 @@ const sessionCookie = "bz_session"
 
 // Server is the management console.
 type Server struct {
+	seen  seenURL // the address users open the console with (ConsoleURL)
 	store *Store
 	// dups finds agent enrollments used by two machines at once.
 	dups *dupTracker
@@ -546,6 +547,9 @@ func sameOrigin(r *http.Request) bool {
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d pageData) {
+	if d.User != "" {
+		s.noteConsoleURL(r)
+	}
 	lang := requestLanguage(r)
 	t, ok := s.pages[lang.Code][page]
 	if page == "login" {

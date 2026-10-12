@@ -221,7 +221,7 @@ func (s *Server) handleSettingsChat(w http.ResponseWriter, r *http.Request, _ st
 		case "test":
 			n := s.Notifier
 			if n == nil {
-				n = NewNotifier(s.store, s.log, func() string { return s.PublicURL })
+				n = NewNotifier(s.store, s.log, s.ConsoleURL)
 			}
 			var es EmailSettings
 			s.store.GetSetting(ctx, settingEmail, &es)

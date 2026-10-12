@@ -582,7 +582,7 @@ func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, user, new
 	}
 	s.render(w, r, "account", pageData{Title: "My account", Nav: "account", User: user, Data: map[string]any{
 		"U": me, "Role": role, "Perms": AllPerms, "MinPassword": MinPasswordLength, "Tokens": tokens, "TokenRoles": roles,
-		"NewToken": newToken, "APIURL": s.PublicURL}})
+		"NewToken": newToken, "APIURL": s.ConsoleURL()}})
 }
 
 func (s *Server) handleAccountPassword(w http.ResponseWriter, r *http.Request, _ string) {

@@ -172,7 +172,7 @@ func run() error {
 	srv.LogFile = logPath
 	os.MkdirAll(srv.DistDir, 0o755)
 
-	srv.Notifier = server.NewNotifier(store, log, func() string { return srv.PublicURL })
+	srv.Notifier = server.NewNotifier(store, log, srv.ConsoleURL)
 	srv.StartWeb(ctx, *dataDir)
 	srv.StartUpdates(ctx, *dataDir)
 	srv.StartConsoleBackup(ctx, *dataDir)
