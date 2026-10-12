@@ -567,6 +567,15 @@ systemctl start backupzit-server</pre></li>
     <label>{{T "Random blocks per disk image test"}} <small>{{T "1 MiB each"}}</small><input type="number" name="blocks" min="1" max="100000" value="{{.Blocks}}"></label>
     <label class="check"><input type="checkbox" name="boot_vms" {{if .BootVMs}}checked{{end}}> {{T "Boot test for Proxmox VM backups"}} <small>{{T "each VM is also started from the backup with its network cards disconnected, BackupZit waits until its QEMU guest agent answers, then deletes it again. Needs free memory on the node for one VM at a time; VMs without the guest agent pass when they keep running for a minute."}}</small></label>
     <label>{{T "Wait for each VM to boot up to (minutes)"}} <input type="number" name="boot_minutes" min="1" max="60" value="{{.BootMinutes}}"></label>
+    <h3>{{T "Check of all stored data"}}</h3>
+    <p class="muted small">{{T "An agent reads every piece of data in each backup repository and verifies it. This finds damage on the storage (a failing disk, bit rot) that a restore test of a few files can miss. It reads as much as the repository holds, so it takes a while; run it when the storage is quiet."}}</p>
+    <label>{{T "Check the stored data"}}
+      <select name="check_every" class="narrow">
+        <option value="monthly" {{if eq .CheckEvery "monthly"}}selected{{end}}>{{T "monthly"}}</option>
+        <option value="quarterly" {{if eq .CheckEvery "quarterly"}}selected{{end}}>{{T "every three months"}}</option>
+        <option value="off" {{if eq .CheckEvery "off"}}selected{{end}}>{{T "never"}}</option>
+      </select></label>
+    <label class="check"><input type="checkbox" name="check_cloud" {{if .CheckCloud}}checked{{end}}> {{T "Also on cloud storage (S3, Azure)"}} <small>{{T "downloads all data each time, which the provider may charge for"}}</small></label>
     <div><button>{{T "Save restore test settings"}}</button></div>
   </form>
 </div>

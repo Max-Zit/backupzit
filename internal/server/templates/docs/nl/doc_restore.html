@@ -108,6 +108,8 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Installeer de QEMU-gastagent in de VM's (<code>qemu-guest-agent</code> op Linux, de VirtIO-gasthulpmiddelen op Windows) en schakel hem in bij de VM-opties, zodat de test het opstarten kan bevestigen.</li>
   <li>De uitvoeringspagina toont elke VM met het resultaat en hoe lang het opstarten duurde.</li>
 </ul>
+<h3 id="data-check">Controle van alle opgeslagen gegevens</h3>
+<p>Hersteltests lezen een steekproef. Daarnaast leest een agent <b>alle</b> gegevens van elke repository, controleert ze tegen hun controlesom en controleert of de mappen en gegevens van elke back-up aanwezig zijn — standaard maandelijks (Instellingen → Hersteltests: <b>Opgeslagen gegevens controleren</b>: maandelijks, elke drie maanden of nooit). Zo vindt u schade aan de opslag zelf, zoals een falende schijf in een NAS of bitrot, voordat u de back-up nodig hebt. Elke repository wordt één keer gecontroleerd (de taken van één agent op één opslag delen haar), door de agent die erin schrijft. De controle leest alles wat de repository bevat; op cloudopslag (S3, Azure) draait ze daarom alleen met <b>Ook op cloudopslag</b>. Problemen laten de uitvoering <i>Gegevenscontrole</i> mislukken en sturen een foutmelding; <b>Gegevens controleren</b> op de pagina van een taak start meteen een controle. Vereist agents 0.39.0 of nieuwer.</p>
 <p>Herstel daarnaast af en toe (bijv. elk kwartaal) een echte map met de hand en open een paar bestanden — zo oefenen ook de mensen die het in een noodgeval moeten doen.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

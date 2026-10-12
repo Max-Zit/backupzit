@@ -252,6 +252,13 @@ func (s *Server) metricsText(ctx context.Context, now time.Time) (string, error)
 			fmt.Fprintf(&b, "backupzit_job_last_success_timestamp_seconds{%s} %d\n", labels(j), t.Unix())
 		}
 	}
+	cov, _ := s.store.jobCoverage(ctx)
+	metric("backupzit_job_rpo_met", "1 if the job's newest good backup is within its RPO, 0 if not (jobs with an RPO).", "gauge")
+	for _, j := range jobs {
+		if st := rpoState(j, cov[j.ID], now); st.Hours > 0 && j.Enabled {
+			fmt.Fprintf(&b, "backupzit_job_rpo_met{%s,rpo_hours=\"%d\"} %d\n", labels(j), st.Hours, boolInt(!st.Missed))
+		}
+	}
 	metric("backupzit_storage_used_bytes", "Space the repositories take on a storage target.", "gauge")
 	for _, t := range targets {
 		if u := usage[t.ID]; u != nil {

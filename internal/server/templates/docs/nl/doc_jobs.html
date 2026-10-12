@@ -43,6 +43,9 @@
 </table>
 <p>De tijden zijn in de tijdzone van de consoleserver (op de appliance: <a href="/settings/network#timezone">Instellingen → Netwerk → Tijdzone</a> of item 9 van het setupmenu; begint in UTC). Is een agent offline op het geplande tijdstip, dan wacht de back-up in de wachtrij en start hij zodra de agent terug is. Alle geplande uitvoeringen ziet u in de <a href="/calendar">Kalender</a>. De huidige datum en tijd van de console staan linksonder, onder de tijdzone.</p>
 
+<h2 id="rpo">Herstelpuntdoel (RPO)</h2>
+<p>Het RPO bepaalt hoe oud de nieuwste goede back-up van een taak mag worden, in uren — bijvoorbeeld 26 voor een dagelijkse back-up (een dag plus wat speling). U stelt het in het taakformulier in onder <b>Herstelpuntdoel (RPO), uren</b>. Het dashboard toont hoeveel taken <b>binnen RPO</b> zijn en noemt elke taak die het heeft gemist; de taakpagina toont de toestand. Een melding (e-mail en chat, zoals bij een fout) gaat één keer uit wanneer een taak haar RPO mist, en pas opnieuw nadat ze het tussendoor heeft gehaald. Anders dan de status van de laatste uitvoering vangt het RPO ook een per ongeluk verwijderd schema, een agent die dagen offline is en een back-up die steeds mislukt.</p>
+
 <h2>Bewaring: hoeveel back-ups bewaren</h2>
 <p>Een snapshot wordt bewaard als <b>een willekeurige</b> regel hem selecteert:</p>
 <ul>

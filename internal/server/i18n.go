@@ -200,6 +200,7 @@ func langFuncs(l *language) template.FuncMap {
 		"usagechart":  func(u *TargetUsage) template.HTML { return usageChart(l, u) },
 		"reportsched": func(rs ReportSchedule) string { return rs.DescribeIn(l) },
 		"reportscope": func(rep *Report) string { return rep.ScopeIn(l) },
+		"rpotext":     func(st RPOState) string { return rpoText(l, st) },
 		"vmsel":       func(paths []string) string { return describeVMSelection(l, paths) },
 		"imagesel":    func(disk *int, parts []int) string { return describeImageSelection(l, disk, parts) },
 	}

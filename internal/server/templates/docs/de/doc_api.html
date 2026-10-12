@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Verwenden Sie <code>-k</code> / <code>-SkipCertificateCheck</code> nur mit dem selbstsignierten Zertifikat der Konsole in einem vertrauenswürdigen Netz, oder installieren Sie das Konsolenzertifikat auf dem Überwachungshost.</p>
 <h3>Überwachungsprüfung</h3>
 <p>Fragen Sie <code>/api/v1/status</code> alle paar Minuten ab und alarmieren Sie, wenn <code>ok</code> false ist. Für Prüfungen pro Auftrag verwenden Sie <code>/api/v1/jobs</code> und alarmieren, wenn <code>last_status</code> <code>failed</code> ist oder <code>last_finished</code> älter als erwartet ist.</p>
+<p>Aufträge mit RPO liefern zusätzlich <code>rpo_hours</code>, <code>rpo_met</code> und <code>last_good_backup</code>; Agenten liefern <code>max_runs</code> (gleichzeitige Aufträge). Die Metrik <code>backupzit_job_rpo_met</code> ist 1 für einen Auftrag im RPO und 0 für einen, der es verfehlt hat.</p>
 <h3>Prometheus und Grafana</h3>
 <p><code>/api/v1/metrics</code> liefert den Zustand im Prometheus-Textformat: Agenten online, aktive Läufe, Fehler und Warnungen der letzten 24 Stunden, verdächtige Sicherungen sowie je Agent, Auftrag und Speicherziel <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 Erfolg, 1 Warnung, 2 Fehler), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> und <code>backupzit_storage_free_bytes</code>. Ein Scrape-Job mit einem Betrachter-Token:</p>
 <pre>- job_name: backupzit

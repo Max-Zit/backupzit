@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Use <code>-k</code> / <code>-SkipCertificateCheck</code> solo con el certificado autofirmado de la consola en una red de confianza, o instale el certificado de la consola en el host de supervisión.</p>
 <h3>Comprobación de supervisión</h3>
 <p>Consulte <code>/api/v1/status</code> cada pocos minutos y genere una alerta cuando <code>ok</code> sea false. Para comprobar cada trabajo use <code>/api/v1/jobs</code> y alerte cuando <code>last_status</code> sea <code>failed</code> o <code>last_finished</code> sea más antiguo de lo esperado.</p>
+<p>Los trabajos con RPO devuelven también <code>rpo_hours</code>, <code>rpo_met</code> y <code>last_good_backup</code>; los agentes devuelven <code>max_runs</code> (trabajos a la vez). La métrica <code>backupzit_job_rpo_met</code> vale 1 para un trabajo dentro de su RPO y 0 para uno que lo incumplió.</p>
 <h3>Prometheus y Grafana</h3>
 <p><code>/api/v1/metrics</code> devuelve el estado en el formato de texto de Prometheus: agentes en línea, ejecuciones activas, fallos y advertencias de las últimas 24 horas, copias sospechosas y, por agente, trabajo y destino, <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 correcto, 1 advertencia, 2 fallo), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> y <code>backupzit_storage_free_bytes</code>. Un trabajo de recolección con un token de Observador:</p>
 <pre>- job_name: backupzit

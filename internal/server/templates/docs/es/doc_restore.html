@@ -108,6 +108,8 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Instale el agente invitado de QEMU en las VM (<code>qemu-guest-agent</code> en Linux, las herramientas de invitado VirtIO en Windows) y actívelo en las opciones de la VM, para que la prueba pueda confirmar el arranque.</li>
   <li>La página de la ejecución lista cada VM con su resultado y cuánto tardó en arrancar.</li>
 </ul>
+<h3 id="data-check">Verificación de todos los datos guardados</h3>
+<p>Las pruebas de restauración leen una muestra. Además, un agente lee <b>todos</b> los datos de cada repositorio, los verifica con su suma de comprobación y comprueba que las carpetas y datos de cada copia estén presentes — una vez al mes por defecto (Configuración → Pruebas de restauración: <b>Verificar los datos guardados</b>: mensual, cada tres meses o nunca). Así se detectan daños en el propio almacenamiento, como un disco que falla en un NAS o la degradación de datos, antes de necesitar la copia. Cada repositorio se verifica una vez (los trabajos de un agente en un almacenamiento lo comparten), por el agente que escribe en él. La verificación lee todo lo que contiene el repositorio; en almacenamiento en la nube (S3, Azure) solo se ejecuta con <b>También en almacenamiento en la nube</b>. Los problemas hacen fallar la ejecución <i>Verificación de datos</i> y envían una notificación de fallo; <b>Verificar datos</b> en la página de un trabajo inicia una verificación al momento. Requiere agentes 0.39.0 o posteriores.</p>
 <p>Además, restaure de vez en cuando (p. ej. cada trimestre) una carpeta real a mano y abra algunos archivos; así también se entrena a las personas que tendrán que hacerlo en una emergencia.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

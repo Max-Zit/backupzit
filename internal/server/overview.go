@@ -156,6 +156,10 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 			continue
 		}
 		link := fmt.Sprintf("/jobs/%d", j.ID)
+		if st := rpoState(j, cov[j.ID], now); st.Missed {
+			out = append(out, Attention{"failed", j.Name, l.T("RPO missed: %s", rpoText(l, st)), link})
+			continue
+		}
 		if j.LastStatus != nil && *j.LastStatus == api.StatusFailed {
 			out = append(out, Attention{"failed", j.Name, l.T("the last run failed"), link})
 			continue

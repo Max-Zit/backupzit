@@ -108,6 +108,8 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Install the QEMU guest agent in the VMs (<code>qemu-guest-agent</code> on Linux, the VirtIO guest tools on Windows) and enable it in the VM options, so the test can confirm the boot.</li>
   <li>The run page lists each VM with its result and how long the boot took.</li>
 </ul>
+<h3 id="data-check">Check of all stored data</h3>
+<p>Restore tests read a sample. On top of that, an agent reads <b>every</b> piece of data in each repository, verifies it against its checksum and checks that every backup's folders and data are present — monthly by default (Settings → Restore tests: <b>Check the stored data</b>: monthly, every three months or never). This finds damage on the storage itself, such as a failing disk in a NAS or bit rot, before you need the backup. Each repository is checked once (the jobs of one agent on one storage share it), by the agent that writes it. The check reads as much as the repository holds, so on cloud storage (S3, Azure) it runs only with <b>Also on cloud storage</b> on. Problems make the <i>Data check</i> run fail and send a failure notification; <b>Check data</b> on a job's page starts a check at once. Needs agents 0.39.0 or newer.</p>
 <p>Additionally, restore a real folder by hand from time to time (e.g. quarterly) and open a few files — it also trains the people who will need to do it in an emergency.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

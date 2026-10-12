@@ -43,6 +43,9 @@
 </table>
 <p>Les heures sont dans le fuseau horaire du serveur de la console (sur l'appliance : <a href="/settings/network#timezone">Paramètres → Réseau → Fuseau horaire</a> ou l'élément 9 du menu de configuration ; au départ UTC). Si un agent est hors ligne à l'heure prévue, la sauvegarde attend dans la file et démarre dès que l'agent revient. Toutes les exécutions prévues sont visibles dans le <a href="/calendar">Calendrier</a>. La date et l'heure actuelles de la console s'affichent en bas à gauche, sous le fuseau horaire.</p>
 
+<h2 id="rpo">Objectif de point de récupération (RPO)</h2>
+<p>Le RPO indique l'âge maximal de la dernière bonne sauvegarde d'une tâche, en heures — par exemple 26 pour une sauvegarde quotidienne (un jour plus une marge). Il se règle dans le formulaire de la tâche sous <b>Objectif de point de récupération (RPO), heures</b>. Le tableau de bord indique combien de tâches sont <b>dans le RPO</b> et liste chaque tâche qui l'a dépassé ; la page de la tâche affiche son état. Une notification (e-mail et chat, comme pour un échec) est envoyée une fois quand une tâche dépasse son RPO, puis à nouveau seulement après l'avoir respecté entre-temps. Contrairement à l'état de la dernière exécution, le RPO détecte aussi une planification supprimée par erreur, un agent hors ligne depuis des jours et une sauvegarde qui échoue sans cesse.</p>
+
 <h2>Rétention : combien de sauvegardes conserver</h2>
 <p>Un instantané est conservé si <b>une quelconque</b> règle le sélectionne :</p>
 <ul>

@@ -63,6 +63,7 @@
         <label>{{T "At"}} <input type="time" name="sched_month_time" value="{{.MonthTime}}"></label>
       </div>
     </fieldset>
+    <label>{{T "Recovery point objective (RPO), hours"}} <small>{{T "the newest good backup should never be older; the dashboard and a notification tell you when it is. Empty or 0: no RPO. Example: 26 for a daily backup"}}</small><input type="number" name="rpo_hours" min="0" max="8760" value="{{if .J.Options.RPOHours}}{{.J.Options.RPOHours}}{{end}}" class="narrow"></label>
     <details class="sched" {{if or .J.Options.LimitMBps .J.Options.HasCommands .J.Options.Compression}}open{{end}}>
       <summary>{{T "Advanced: speed limit, compression"}}{{if and .CanCommands (ne .J.Kind "copy")}}{{T ", commands before and after the backup"}}{{end}}</summary>
       <div class="row">

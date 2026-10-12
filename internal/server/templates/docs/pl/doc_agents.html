@@ -56,6 +56,9 @@ systemctl enable --now backupzit-agent</pre>
 <p>Kliknij ikonę (lub otwórz <b>BackupZit Agent</b> z menu Start), aby zobaczyć okno stanu: stan ochrony, postęp trwającej kopii, ostatnia i następna kopia oraz wszystkie zadania kopii komputera z przyciskiem <b>Utwórz kopię teraz</b>. Prawy przycisk otwiera menu: <i>Back up now</i> dla każdego zadania, <i>Open console in browser</i>, <i>Hide this icon</i> (do następnego logowania; kopie trwają dalej). Okno wymaga Microsoft Edge WebView2, który jest częścią Windows 10 i 11; w starszych systemach ikona i menu działają, a <i>Open</i> pokazuje konsolę w przeglądarce.</p>
 <p>Użytkownicy mogą w ten sposób uruchomić kopię swojego komputera; zadania, harmonogramy i retencję ustawia się tylko w konsoli. W każdym systemie <code>backupzit-agent status</code> (jako administrator lub root) wyświetla te same informacje.</p>
 
+<h2 id="parallel">Kilka zadań naraz</h2>
+<p>Domyślnie agent wykonuje jedno zadanie naraz; pozostałe czekają w kolejce. W kolumnie <b>Zadania naraz</b> na stronie Agenci możesz pozwolić na maksymalnie 8 — przydatne dla agentów kopiujących wiele rzeczy, np. agenta proxy dla ESXi, Proxmox, Microsoft 365 lub udziałów NAS. Dwa uruchomienia tego samego zadania nigdy nie działają jednocześnie, a aktualizacje agenta czekają, aż będzie wolny. Uruchomienia równoległe dzielą procesor, dyski i sieć maszyny; zwiększaj liczbę stopniowo. W Windows migawki VSS są tworzone jedna po drugiej. Wymaga agentów 0.39.0 lub nowszych.</p>
+
 <h2>Aktualizacja</h2>
 <p>Gdy konsola ma nowszy instalator agenta niż ten, który działa na agencie, strona Agenci pokazuje <b>Zaktualizuj do x.y.z</b> obok jego wersji oraz <b>Zaktualizuj wszystkich agentów</b> pod listą. Agent wtedy:</p>
 <ol>

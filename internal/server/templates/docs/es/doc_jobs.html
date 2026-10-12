@@ -43,6 +43,9 @@
 </table>
 <p>Las horas están en la zona horaria del servidor de la consola (en el appliance: <a href="/settings/network#timezone">Configuración → Red → Zona horaria</a> o la opción 9 del menú de configuración; empieza en UTC). Si un agente está desconectado a la hora programada, la copia espera en la cola y comienza en cuanto vuelve el agente. Vea todas las ejecuciones previstas en el <a href="/calendar">Calendario</a>. La fecha y hora actuales de la consola se muestran abajo a la izquierda, debajo de la zona horaria.</p>
 
+<h2 id="rpo">Objetivo de punto de recuperación (RPO)</h2>
+<p>El RPO indica cuánto puede envejecer la copia buena más reciente de un trabajo, en horas — por ejemplo 26 para una copia diaria (un día más algo de margen). Se configura en el formulario del trabajo en <b>Objetivo de punto de recuperación (RPO), horas</b>. El panel muestra cuántos trabajos están <b>dentro del RPO</b> y lista cada trabajo que lo incumplió; la página del trabajo muestra su estado. Una notificación (correo y chat, como un fallo) se envía una vez cuando un trabajo incumple su RPO, y de nuevo solo después de haberlo cumplido entretanto. A diferencia del estado de la última ejecución, el RPO también detecta una programación eliminada por error, un agente sin conexión durante días y una copia que falla una y otra vez.</p>
+
 <h2>Retención: cuántas copias conservar</h2>
 <p>Una instantánea se conserva si <b>cualquier</b> regla la selecciona:</p>
 <ul>

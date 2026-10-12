@@ -96,8 +96,14 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 	// Runs wait while two machines use this enrollment (a running copy);
 	// only agent updates go out, after which agents tell themselves apart.
 	held := s.agentDuplicate(r.Context(), a, req.Instance, req.Hostname, req.IPs, remoteIP(r))
-	if !req.Busy {
-		run, err := s.store.claimRun(r.Context(), a.ID, held)
+	// A busy agent may take another run if it can run several at once
+	// (MaxRuns); agent updates wait until it is idle.
+	free := !req.Busy || (req.Parallel && req.Running < max(a.MaxRuns, 1) && !held)
+	if req.Busy {
+		resp.Cancel = s.store.cancelRequests(r.Context(), a.ID)
+	}
+	if free {
+		run, err := s.store.claimRunIdle(r.Context(), a.ID, held, !req.Busy)
 		if err != nil {
 			s.log.Error("claim run", "err", err)
 			writeAPIError(w, http.StatusInternalServerError, "database error")
@@ -112,8 +118,6 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 				s.log.Info("run assigned", "run", run.ID, "kind", run.Kind, "agent", a.Hostname)
 			}
 		}
-	} else {
-		resp.Cancel = s.store.cancelRequests(r.Context(), a.ID)
 	}
 	writeJSON(w, http.StatusOK, resp)
 }

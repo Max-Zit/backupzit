@@ -108,6 +108,8 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Instalirajte QEMU guest agent u virtuelne mašine (<code>qemu-guest-agent</code> na Linuxu, VirtIO guest tools na Windowsu) i uključite ga u opcijama VM-a, da bi test mogao da potvrdi pokretanje.</li>
   <li>Stranica pokretanja navodi svaku VM sa rezultatom i trajanjem pokretanja.</li>
 </ul>
+<h3 id="data-check">Provera svih sačuvanih podataka</h3>
+<p>Test restore čita uzorak. Pored toga, agent čita <b>svaki</b> deo podataka u svakom repozitorijumu, proverava ga prema kontrolnom zbiru i proverava da su folderi i podaci svakog backup-a na mestu — podrazumevano jednom mesečno (Podešavanja → Restore testovi: <b>Proveravaj sačuvane podatke</b>: mesečno, na svaka tri meseca ili nikad). Tako se otkriva oštećenje samog skladišta, na primer disk koji otkazuje u NAS-u ili propadanje podataka, pre nego što vam backup zatreba. Svaki repozitorijum se proverava jednom (poslovi jednog agenta na jednom skladištu ga dele), i to agent koji u njega piše. Provera čita onoliko koliko repozitorijum sadrži, pa na cloud skladištu (S3, Azure) radi samo ako je uključeno <b>I na cloud skladištima</b>. Pronađeni problemi obaraju run <i>Provera podataka</i> i šalju obaveštenje o grešci; <b>Proveri podatke</b> na stranici posla odmah pokreće proveru. Traži agente 0.39.0 ili novije.</p>
 <p>Pored toga, s vremena na vreme (npr. jednom u tromesečju) ručno vratite pravi folder i otvorite nekoliko fajlova — tako se uvežbavaju i ljudi koji će to morati da urade u hitnom slučaju.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

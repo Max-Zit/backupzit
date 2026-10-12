@@ -47,6 +47,10 @@ type PollRequest struct {
 	// Busy is true while the agent is executing a run; the server then
 	// assigns no new work.
 	Busy bool `json:"busy"`
+	// Running is how many runs are in progress; Parallel tells that the agent
+	// can run several at once (0.39.0 and newer).
+	Running  int  `json:"running,omitempty"`
+	Parallel bool `json:"parallel,omitempty"`
 	// WantStatus asks for the job summary shown by the tray app.
 	WantStatus bool `json:"want_status,omitempty"`
 	// IPs are the agent's own network addresses (no loopback).
@@ -116,6 +120,8 @@ const (
 	KindAgentUpdate = "agent-update"
 	// KindAgentLog sends the agent's log to the console (PathRunsPrefix+id+"/log").
 	KindAgentLog = "agent-log"
+	// KindRepoCheck reads all data of a repository and verifies it.
+	KindRepoCheck = "repo-check"
 )
 
 // Run is a unit of work assigned to an agent.

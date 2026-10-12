@@ -231,6 +231,7 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 	}
 	l := notifyLanguage(e)
 	n.runAlerts(ctx, l, e, n.store.chatSettings(ctx))
+	n.rpoAlerts(ctx, l, e, n.store.chatSettings(ctx), now)
 	if e.Enabled {
 		n.scheduledReports(ctx, l, e, now)
 	}
@@ -290,7 +291,7 @@ func (n *Notifier) runAlerts(ctx context.Context, l *language, e EmailSettings, 
 func kindName(k string) string {
 	return map[string]string{
 		api.KindBackup: "Backup", api.KindRestore: "Restore", api.KindImageBackup: "Image backup",
-		api.KindImageRestore: "Image restore", api.KindImageFileRestore: "File restore from image", api.KindVMBackup: "VM backup", api.KindVMRestore: "VM restore", api.KindAgentUpdate: "Agent update", api.KindAgentLog: "Agent log", api.KindSystemBackup: "System backup", api.KindSystemRestore: "System restore", api.KindVMFileRestore: "File restore from VM", api.KindVMInstant: "Instant VM recovery", api.KindVMInstantFinish: "Instant recovery finish", api.KindVMInstantDiscard: "Instant recovery discard", api.KindVMReplica: "Replication", api.KindVMReplicaStart: "Replica start", api.KindSQLBackup: "Database backup", api.KindSQLLog: "Database log backup", api.KindSQLRestore: "Database restore",
+		api.KindImageRestore: "Image restore", api.KindImageFileRestore: "File restore from image", api.KindVMBackup: "VM backup", api.KindVMRestore: "VM restore", api.KindAgentUpdate: "Agent update", api.KindAgentLog: "Agent log", api.KindRepoCheck: "Data check", api.KindSystemBackup: "System backup", api.KindSystemRestore: "System restore", api.KindVMFileRestore: "File restore from VM", api.KindVMInstant: "Instant VM recovery", api.KindVMInstantFinish: "Instant recovery finish", api.KindVMInstantDiscard: "Instant recovery discard", api.KindVMReplica: "Replication", api.KindVMReplicaStart: "Replica start", api.KindSQLBackup: "Database backup", api.KindSQLLog: "Database log backup", api.KindSQLRestore: "Database restore",
 		api.KindCopy: "Backup copy", api.KindVerify: "Restore test",
 	}[k]
 }

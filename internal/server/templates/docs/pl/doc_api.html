@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Używaj <code>-k</code> / <code>-SkipCertificateCheck</code> tylko z certyfikatem samopodpisanym konsoli w zaufanej sieci albo zainstaluj certyfikat konsoli na hoście monitoringu.</p>
 <h3>Sprawdzanie w monitoringu</h3>
 <p>Odpytuj <code>/api/v1/status</code> co kilka minut i alarmuj, gdy <code>ok</code> ma wartość false. Do sprawdzania poszczególnych zadań użyj <code>/api/v1/jobs</code> i alarmuj, gdy <code>last_status</code> to <code>failed</code> albo <code>last_finished</code> jest starszy niż oczekiwano.</p>
+<p>Zadania z RPO zwracają też <code>rpo_hours</code>, <code>rpo_met</code> i <code>last_good_backup</code>; agenci zwracają <code>max_runs</code> (zadania naraz). Metryka <code>backupzit_job_rpo_met</code> wynosi 1 dla zadania w ramach RPO i 0 dla zadania, które go przekroczyło.</p>
 <h3>Prometheus i Grafana</h3>
 <p><code>/api/v1/metrics</code> zwraca stan w formacie tekstowym Prometheus: agenci online, aktywne uruchomienia, błędy i ostrzeżenia z ostatnich 24 godzin, podejrzane kopie oraz dla każdego agenta, zadania i magazynu <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 sukces, 1 ostrzeżenie, 2 błąd), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> i <code>backupzit_storage_free_bytes</code>. Zadanie scrape z tokenem Obserwatora:</p>
 <pre>- job_name: backupzit

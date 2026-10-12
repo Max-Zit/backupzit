@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Koristite <code>-k</code> / <code>-SkipCertificateCheck</code> samo sa samopotpisanim sertifikatom konzole u pouzdanoj mreži, ili instalirajte sertifikat konzole na host za nadzor.</p>
 <h3>Provera za nadzor</h3>
 <p>Proveravajte <code>/api/v1/status</code> na svakih nekoliko minuta i uzbunite kada je <code>ok</code> false. Za proveru po poslu koristite <code>/api/v1/jobs</code> i uzbunite kada je <code>last_status</code> <code>failed</code> ili je <code>last_finished</code> stariji nego što se očekuje.</p>
+<p>Poslovi sa RPO-om vraćaju i <code>rpo_hours</code>, <code>rpo_met</code> i <code>last_good_backup</code>; agenti vraćaju <code>max_runs</code> (poslova istovremeno). Metrika <code>backupzit_job_rpo_met</code> je 1 za posao u okviru RPO-a i 0 za posao koji ga je prekoračio.</p>
 <h3>Prometheus i Grafana</h3>
 <p><code>/api/v1/metrics</code> vraća stanje u Prometheus tekstualnom formatu: agenti na mreži, aktivni run-ovi, greške i upozorenja u poslednja 24 sata, sumnjivi backup-i, a po agentu, poslu i skladištu <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 uspeh, 1 upozorenje, 2 greška), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> i <code>backupzit_storage_free_bytes</code>. Scrape posao sa tokenom uloge Posmatrač:</p>
 <pre>- job_name: backupzit

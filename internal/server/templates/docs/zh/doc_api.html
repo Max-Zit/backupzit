@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>仅在可信网络中针对控制台的自签名证书使用 <code>-k</code> / <code>-SkipCertificateCheck</code>，或者在监控主机上安装控制台证书。</p>
 <h3>监控检查</h3>
 <p>每隔几分钟轮询一次 <code>/api/v1/status</code>，当 <code>ok</code> 为 false 时发出警报。若要按作业检查，请使用 <code>/api/v1/jobs</code>，当 <code>last_status</code> 为 <code>failed</code> 或 <code>last_finished</code> 早于预期时发出警报。</p>
+<p>设置了 RPO 的作业还会返回 <code>rpo_hours</code>、<code>rpo_met</code> 和 <code>last_good_backup</code>；代理会返回 <code>max_runs</code>（同时作业数）。指标 <code>backupzit_job_rpo_met</code> 对符合 RPO 的作业为 1，对未达成的作业为 0。</p>
 <h3>Prometheus 和 Grafana</h3>
 <p><code>/api/v1/metrics</code> 以 Prometheus 文本格式返回状态：在线代理、活动运行、最近 24 小时的失败和警告、可疑备份，以及每个代理、作业和存储目标的 <code>backupzit_agent_online</code>、<code>backupzit_job_last_status</code>（0 成功，1 警告，2 失败）、<code>backupzit_job_last_success_timestamp_seconds</code>、<code>backupzit_storage_used_bytes</code> 和 <code>backupzit_storage_free_bytes</code>。使用查看者令牌的抓取作业：</p>
 <pre>- job_name: backupzit

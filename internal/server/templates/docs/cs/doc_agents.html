@@ -56,6 +56,9 @@ systemctl enable --now backupzit-agent</pre>
 <p>Klikněte na ikonu (nebo otevřete <b>BackupZit Agent</b> z nabídky Start) pro okno stavu: stav ochrany, průběh běžící zálohy, poslední a příští záloha a všechny úlohy zálohování počítače s tlačítkem <b>Zálohovat nyní</b>. Pravé tlačítko otevře nabídku: <i>Back up now</i> pro každou úlohu, <i>Open console in browser</i>, <i>Hide this icon</i> (do příštího přihlášení; zálohy pokračují). Okno potřebuje Microsoft Edge WebView2, který je součástí Windows 10 a 11; na starších systémech ikona a nabídka fungují a <i>Open</i> zobrazí konzoli v prohlížeči.</p>
 <p>Uživatelé tak mohou spustit zálohu svého počítače; úlohy, plány a uchovávání se nastavují jen v konzoli. Na každém systému vypíše <code>backupzit-agent status</code> (jako správce nebo root) stejné informace.</p>
 
+<h2 id="parallel">Více úloh současně</h2>
+<p>Agent ve výchozím stavu spouští jednu úlohu najednou; ostatní čekají ve frontě. Ve sloupci <b>Úloh současně</b> na stránce Agenti můžete povolit až 8 — užitečné pro agenty, kteří zálohují více věcí, například proxy agenta pro ESXi, Proxmox, Microsoft 365 nebo sdílené složky NAS. Dva běhy stejné úlohy nikdy neběží současně a aktualizace agenta čekají, až bude volný. Souběžné běhy sdílejí procesor, disky a síť počítače; zvyšujte počet postupně. Ve Windows se snímky VSS vytvářejí jeden po druhém. Vyžaduje agenty 0.39.0 nebo novější.</p>
+
 <h2>Aktualizace</h2>
 <p>Když má konzole novější instalátor agenta, než na jakém agent běží, stránka Agenti zobrazí <b>Aktualizovat na x.y.z</b> vedle jeho verze a <b>Aktualizovat všechny agenty</b> pod seznamem. Agent pak:</p>
 <ol>

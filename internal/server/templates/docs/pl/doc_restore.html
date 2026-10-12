@@ -108,6 +108,8 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Zainstaluj agenta gościa QEMU w maszynach (<code>qemu-guest-agent</code> w Linuksie, narzędzia gościa VirtIO w Windows) i włącz go w opcjach maszyny, aby test mógł potwierdzić uruchomienie.</li>
   <li>Strona uruchomienia wymienia każdą maszynę z wynikiem i czasem uruchamiania.</li>
 </ul>
+<h3 id="data-check">Sprawdzenie wszystkich zapisanych danych</h3>
+<p>Testy odtwarzania czytają próbkę. Dodatkowo agent odczytuje <b>wszystkie</b> dane każdego repozytorium, weryfikuje je z sumą kontrolną i sprawdza, czy foldery i dane każdej kopii są na miejscu — domyślnie raz w miesiącu (Ustawienia → Testy odtwarzania: <b>Sprawdzaj zapisane dane</b>: co miesiąc, co trzy miesiące lub nigdy). Wykrywa to uszkodzenia samego magazynu, np. awarię dysku w NAS lub degradację danych, zanim kopia będzie potrzebna. Każde repozytorium jest sprawdzane raz (zadania jednego agenta w jednym magazynie je współdzielą), przez agenta, który do niego zapisuje. Sprawdzenie odczytuje całą zawartość repozytorium, więc w chmurze (S3, Azure) działa tylko z opcją <b>Także w chmurze</b>. Problemy kończą uruchomienie <i>Sprawdzenie danych</i> błędem i wysyłają powiadomienie; <b>Sprawdź dane</b> na stronie zadania od razu uruchamia sprawdzenie. Wymaga agentów 0.39.0 lub nowszych.</p>
 <p>Dodatkowo od czasu do czasu (np. co kwartał) przywróć ręcznie prawdziwy folder i otwórz kilka plików — to także szkoli osoby, które będą musiały to zrobić w sytuacji awaryjnej.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

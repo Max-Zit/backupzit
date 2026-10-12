@@ -108,6 +108,8 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Installieren Sie den QEMU-Gast-Agenten in den VMs (<code>qemu-guest-agent</code> unter Linux, die VirtIO-Gastwerkzeuge unter Windows) und aktivieren Sie ihn in den VM-Optionen, damit der Test den Start bestätigen kann.</li>
   <li>Die Laufseite listet jede VM mit ihrem Ergebnis und der Startdauer auf.</li>
 </ul>
+<h3 id="data-check">Prüfung aller gespeicherten Daten</h3>
+<p>Wiederherstellungstests lesen eine Stichprobe. Zusätzlich liest ein Agent <b>alle</b> Daten jedes Repositorys, prüft sie gegen ihre Prüfsumme und kontrolliert, dass Ordner und Daten jeder Sicherung vorhanden sind — standardmäßig monatlich (Einstellungen → Wiederherstellungstests: <b>Gespeicherte Daten prüfen</b>: monatlich, alle drei Monate oder nie). So werden Schäden am Speicher selbst gefunden, etwa eine ausfallende Festplatte im NAS oder schleichender Datenverfall, bevor Sie die Sicherung brauchen. Jedes Repository wird einmal geprüft (die Aufträge eines Agenten auf einem Speicher teilen es), vom Agenten, der hineinschreibt. Die Prüfung liest so viel, wie das Repository enthält; auf Cloud-Speicher (S3, Azure) läuft sie daher nur mit <b>Auch auf Cloud-Speicher</b>. Probleme lassen den Lauf <i>Datenprüfung</i> fehlschlagen und senden eine Fehlerbenachrichtigung; <b>Daten prüfen</b> auf der Auftragsseite startet sofort eine Prüfung. Benötigt Agenten ab 0.39.0.</p>
 <p>Stellen Sie zusätzlich ab und zu (z. B. vierteljährlich) einen echten Ordner von Hand wieder her und öffnen Sie ein paar Dateien — das schult auch die Personen, die es im Notfall tun müssen.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

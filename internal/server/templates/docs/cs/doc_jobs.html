@@ -43,6 +43,9 @@
 </table>
 <p>Časy jsou v časovém pásmu serveru konzole (na appliance: <a href="/settings/network#timezone">Nastavení → Síť → Časové pásmo</a> nebo položka 9 nabídky nastavení; na začátku UTC). Je-li agent v plánovaný čas offline, záloha čeká ve frontě a spustí se, jakmile se agent vrátí. Všechny plánované běhy uvidíte v <a href="/calendar">Kalendáři</a>. Aktuální datum a čas konzole se zobrazují vlevo dole pod časovým pásmem.</p>
 
+<h2 id="rpo">Cíl bodu obnovy (RPO)</h2>
+<p>RPO určuje, jak stará smí být nejnovější dobrá záloha úlohy, v hodinách — například 26 pro denní zálohu (den plus rezerva). Nastavuje se ve formuláři úlohy v poli <b>Cíl bodu obnovy (RPO), hodiny</b>. Přehled ukazuje, kolik úloh je <b>v rámci RPO</b>, a vypíše každou úlohu, která ho nesplnila; stránka úlohy ukazuje stav. Oznámení (e-mail a chat, jako u chyby) odejde jednou, když úloha RPO nesplní, a znovu až poté, co ho mezitím splnila. Na rozdíl od stavu posledního běhu RPO zachytí i omylem odebraný plán, agenta, který je dny offline, a zálohu, která stále selhává.</p>
+
 <h2>Uchovávání: kolik záloh ponechat</h2>
 <p>Snímek se ponechá, pokud jej vybere <b>kterékoli</b> pravidlo:</p>
 <ul>

@@ -150,4 +150,9 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 	} else if len(ids) > 0 {
 		s.log.Info("queued restore tests", "runs", ids)
 	}
+	if ids, err := s.store.queueDueRepoChecks(ctx, now); err != nil {
+		s.log.Error("queue data checks", "err", err)
+	} else if len(ids) > 0 {
+		s.log.Info("queued checks of the stored data", "runs", ids)
+	}
 }

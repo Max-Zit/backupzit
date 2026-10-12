@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p><code>-k</code> / <code>-SkipCertificateCheck</code> は、信頼できるネットワークでコンソールの自己署名証明書を使う場合にのみ使用するか、監視ホストにコンソールの証明書をインストールしてください。</p>
 <h3>監視チェック</h3>
 <p>数分ごとに <code>/api/v1/status</code> をポーリングし、<code>ok</code> が false のときにアラートを出します。ジョブ単位のチェックには <code>/api/v1/jobs</code> を使い、<code>last_status</code> が <code>failed</code> のとき、または <code>last_finished</code> が想定より古いときにアラートを出します。</p>
+<p>RPO を設定したジョブは <code>rpo_hours</code>、<code>rpo_met</code>、<code>last_good_backup</code> も返し、エージェントは <code>max_runs</code>（同時ジョブ数）を返します。メトリクス <code>backupzit_job_rpo_met</code> は RPO 内のジョブで 1、達成できなかったジョブで 0 です。</p>
 <h3>Prometheus と Grafana</h3>
 <p><code>/api/v1/metrics</code> は状態を Prometheus テキスト形式で返します: オンラインのエージェント、実行中のジョブ、過去 24 時間の失敗と警告、疑わしいバックアップ、さらにエージェント、ジョブ、ストレージ先ごとの <code>backupzit_agent_online</code>、<code>backupzit_job_last_status</code>（0 成功、1 警告、2 失敗）、<code>backupzit_job_last_success_timestamp_seconds</code>、<code>backupzit_storage_used_bytes</code>、<code>backupzit_storage_free_bytes</code>。閲覧者トークンを使うスクレイプ ジョブ:</p>
 <pre>- job_name: backupzit

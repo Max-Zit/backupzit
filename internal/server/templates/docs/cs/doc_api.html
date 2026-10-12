@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p><code>-k</code> / <code>-SkipCertificateCheck</code> používejte jen s certifikátem konzole podepsaným sám sebou v důvěryhodné síti, nebo certifikát konzole nainstalujte na monitorovací hostitel.</p>
 <h3>Kontrola v monitoringu</h3>
 <p>Dotazujte se na <code>/api/v1/status</code> každých pár minut a upozorněte, když je <code>ok</code> false. Pro kontrolu jednotlivých úloh použijte <code>/api/v1/jobs</code> a upozorněte, když je <code>last_status</code> <code>failed</code> nebo je <code>last_finished</code> starší, než se čeká.</p>
+<p>Úlohy s RPO vracejí také <code>rpo_hours</code>, <code>rpo_met</code> a <code>last_good_backup</code>; agenti vracejí <code>max_runs</code> (úloh současně). Metrika <code>backupzit_job_rpo_met</code> je 1 pro úlohu v rámci RPO a 0 pro úlohu, která ho nesplnila.</p>
 <h3>Prometheus a Grafana</h3>
 <p><code>/api/v1/metrics</code> vrací stav v textovém formátu Prometheus: agenti online, aktivní běhy, chyby a varování za posledních 24 hodin, podezřelé zálohy a pro každého agenta, úlohu a úložiště <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 úspěch, 1 varování, 2 chyba), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> a <code>backupzit_storage_free_bytes</code>. Úloha scrape s tokenem Čtenář:</p>
 <pre>- job_name: backupzit

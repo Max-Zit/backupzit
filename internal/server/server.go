@@ -215,6 +215,8 @@ var funcs = template.FuncMap{
 	"kindtitle":    kindTitleEN,
 	"everyChoices": everyChoices, "minutesText": minutesText, "jobkind": jobKindTitle,
 	"has": func(list []string, v string) bool { return slices.Contains(list, v) },
+	// list makes a slice of its arguments, e.g. for option lists.
+	"list": func(v ...int) []int { return v },
 	"hours": func() []int {
 		h := make([]int, 24)
 		for i := range h {
@@ -365,6 +367,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /agents/install/{id}", s.ui(PermAgents, s.handleDeployPage))
 	mux.HandleFunc("POST /agents/{id}/delete", s.ui(PermAgents, s.handleAgentDelete))
 	mux.HandleFunc("POST /agents/{id}/update", s.ui(PermAgents, s.handleAgentUpdate))
+	mux.HandleFunc("POST /agents/{id}/max-runs", s.ui(PermAgents, s.handleAgentMaxRuns))
 	mux.HandleFunc("POST /agents/{id}/log", s.ui(PermAgents, s.handleAgentLogRequest))
 	mux.HandleFunc("GET /runs/{id}/log", s.ui(PermAgents, s.handleAgentLogDownload))
 	mux.HandleFunc("POST /agents/update-all", s.ui(PermAgents, s.handleAgentUpdateAll))
@@ -383,6 +386,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /jobs/{id}", s.ui(PermView, s.handleJob))
 	mux.HandleFunc("POST /jobs/{id}/run", s.ui(PermRun, s.handleJobRun))
 	mux.HandleFunc("POST /jobs/{id}/test", s.ui(PermRun, s.handleJobTest))
+	mux.HandleFunc("POST /jobs/{id}/check", s.ui(PermRun, s.handleJobCheck))
 	mux.HandleFunc("POST /jobs/{id}/release-hold", s.ui(PermJobs, s.handleJobReleaseHold))
 	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(PermJobs, s.handleJobEnable(true)))
 	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
@@ -720,7 +724,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request, user st
 	}
 	instant, _ := s.store.RunningInstantVMs(r.Context())
 	s.render(w, r, "dashboard", pageData{Title: "Dashboard", Nav: "dashboard", User: user,
-		Data: map[string]any{"Summary": sum, "Runs": runs, "Instant": instant, "Attention": s.attention(r.Context(), time.Now(), requestLanguage(r)), "Protection": s.protection(r.Context())}})
+		Data: map[string]any{"Summary": sum, "Runs": runs, "Instant": instant, "Attention": s.attention(r.Context(), time.Now(), requestLanguage(r)), "Protection": s.protection(r.Context()), "RPO": s.rpoSummary(r.Context(), time.Now())}})
 }
 
 // ---- agents
@@ -1046,7 +1050,7 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 		return
 	}
 	data := map[string]any{"Job": j, "Runs": runs, "Coverage": s.coverageMap(r.Context())[j.ID], "Protected": nil, "ProtectedSQL": nil, "ProtectedRun": nil,
-		"Replicas": s.jobReplicas(r.Context(), j), "Active": activeRuns(runs)}
+		"Replicas": s.jobReplicas(r.Context(), j), "Active": activeRuns(runs), "RPO": rpoState(j, s.coverageMap(r.Context())[j.ID], time.Now())}
 	if pr, err := s.store.newestBackup(r.Context(), j.ID); err == nil && pr != nil {
 		data["ProtectedRun"] = pr
 		if d := vmDetails(*pr); d != nil {
@@ -1283,5 +1287,5 @@ func Shutdown(srv *http.Server) {
 
 // kindTitleEN names a run kind for people (English).
 func kindTitleEN(k string) string {
-	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
+	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
 }

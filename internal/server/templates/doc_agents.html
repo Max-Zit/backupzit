@@ -56,6 +56,9 @@ systemctl enable --now backupzit-agent</pre>
 <p>Click the icon (or open <b>BackupZit Agent</b> from the Start menu) for the status window: protection state, progress of a running backup, last and next backup, and all backup jobs of the computer with <b>Back up now</b>. Right-click for the menu: <i>Back up now</i> per job, <i>Open console in browser</i>, <i>Hide this icon</i> (until the next sign-in; backups continue). The window needs Microsoft Edge WebView2, which is part of Windows 10 and 11; on older systems the icon and menu work and <i>Open</i> shows the console in the browser.</p>
 <p>Users can start a backup of their computer this way; the jobs, schedules and retention are set only in the console. On any system, <code>backupzit-agent status</code> (as administrator or root) prints the same information.</p>
 
+<h2 id="parallel">Several jobs at once</h2>
+<p>An agent runs one job at a time by default; the others wait in the queue. In the column <b>Jobs at once</b> on the Agents page you can allow up to 8 — useful for agents that back up several things, such as a proxy agent for ESXi, Proxmox, Microsoft 365 or NAS shares. Two runs of the same job never run at once, and agent updates wait until the agent is idle. Runs at the same time share the machine's CPU, disks and network, so raise the number step by step. On Windows, VSS snapshots are created one after the other. Needs agents 0.39.0 or newer.</p>
+
 <h2>Upgrading</h2>
 <p>When the console has a newer agent installer than an agent runs, the Agents page shows <b>Update to x.y.z</b> next to its version, and <b>Update all agents</b> below the list. The agent then:</p>
 <ol>

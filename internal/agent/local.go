@@ -18,8 +18,11 @@ const trayActive = 2 * time.Minute
 
 // localState is what the tray app sees.
 type localState struct {
-	mu      sync.Mutex
-	st      localipc.Status
+	mu sync.Mutex
+	st localipc.Status
+	// running are the runs in progress; st.Current is one of them (the
+	// tray shows one).
+	running map[int64]*localipc.Run
 	askedAt time.Time // last status request from the tray
 	pollNow chan struct{}
 }
@@ -64,32 +67,49 @@ func (a *Agent) recordPoll(err error, st *api.AgentStatus) {
 func (a *Agent) runStarted(run api.Run) {
 	ls := a.local()
 	ls.mu.Lock()
-	ls.st.Current = &localipc.Run{ID: run.ID, Kind: run.Kind, Job: run.JobName, Started: time.Now()}
+	r := &localipc.Run{ID: run.ID, Kind: run.Kind, Job: run.JobName, Started: time.Now()}
+	if ls.running == nil {
+		ls.running = map[int64]*localipc.Run{}
+	}
+	ls.running[run.ID] = r
+	if ls.st.Current == nil {
+		ls.st.Current = r
+	}
 	ls.mu.Unlock()
 }
 
-func (a *Agent) runFinished(res api.RunResult) {
+func (a *Agent) runFinished(id int64, res api.RunResult) {
 	ls := a.local()
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
-	if ls.st.Current == nil {
+	cur := ls.running[id]
+	if cur == nil {
 		return
 	}
-	r := *ls.st.Current
+	delete(ls.running, id)
+	r := *cur
 	now := time.Now()
 	r.Finished, r.Status, r.Message = &now, res.Status, res.Message
 	if r.Message == "" && len(res.Errors) > 0 {
 		r.Message = res.Errors[0]
 	}
-	ls.st.Current, ls.st.Last = nil, &r
+	ls.st.Last = &r
+	if ls.st.Current == cur {
+		ls.st.Current = nil
+		for _, o := range ls.running { // another run still in progress
+			if ls.st.Current == nil || o.Started.Before(ls.st.Current.Started) {
+				ls.st.Current = o
+			}
+		}
+	}
 	ls.st.JobsAt = nil // refresh the job list at the next poll
 }
 
-// progress records how far the current run is.
-func (a *Agent) progress(done, total, files uint64) {
+// progress records how far the run of ctx is.
+func (a *Agent) progress(ctx context.Context, done, total, files uint64) {
 	ls := a.local()
 	ls.mu.Lock()
-	if c := ls.st.Current; c != nil {
+	if c := ls.running[runIDOf(ctx)]; c != nil {
 		c.Done, c.Total, c.Files = done, total, files
 	}
 	ls.mu.Unlock()
@@ -143,4 +163,16 @@ func (a *Agent) pollSoon() {
 	case a.local().pollNow <- struct{}{}:
 	default:
 	}
+}
+
+type runIDKey struct{}
+
+// withRunID marks ctx as belonging to a run, for progress reports.
+func withRunID(ctx context.Context, id int64) context.Context {
+	return context.WithValue(ctx, runIDKey{}, id)
+}
+
+func runIDOf(ctx context.Context) int64 {
+	id, _ := ctx.Value(runIDKey{}).(int64)
+	return id
 }

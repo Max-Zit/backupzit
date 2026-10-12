@@ -34,13 +34,14 @@ sudo systemctl enable --now backupzit-agent</pre>
 <div class="panel">
   {{if .Data.Agents}}
   <div class="table-wrap"><table>
-    <tr><th>{{T "Hostname"}}</th><th>{{T "OS"}}</th><th>{{T "IP addresses"}}</th><th>{{T "Version"}}</th><th>{{T "Status"}}</th><th>{{T "Last seen"}}</th><th>{{T "Enrolled"}}</th><th></th></tr>
+    <tr><th>{{T "Hostname"}}</th><th>{{T "OS"}}</th><th>{{T "IP addresses"}}</th><th>{{T "Version"}}</th><th title="{{T "How many backups and restores the agent runs at the same time"}}">{{T "Jobs at once"}}</th><th>{{T "Status"}}</th><th>{{T "Last seen"}}</th><th>{{T "Enrolled"}}</th><th></th></tr>
     {{range .Data.Agents}}
     <tr>
       <td>{{.Hostname}}{{if .Recovery}} <span class="badge">{{T "recovery"}}</span>{{end}}{{$label := .HypervisorLabel}}{{with .PVE}} <span class="badge info-badge" title="{{T "Backs up the VMs of this hypervisor host without agents in the guests"}}">{{$label}} · {{len .Guests}} {{if eq $label "Hyper-V"}}{{N (len .Guests) "VM" "VMs (count)"}}{{else}}{{N (len .Guests) "guest" "guests"}}{{end}}</span>{{end}}</td>
       <td>{{.OS}}/{{.Arch}}</td>
       <td class="nowrap">{{range $i, $ip := .LocalIPs}}{{if $i}}<br>{{end}}<span class="mono small">{{$ip}}</span>{{else}}<span class="muted">—</span>{{end}}{{with .RemoteAddr}}<div class="muted small" title="{{T "address the agent connects from — its public address if it is behind NAT"}}">{{T "seen from"}} {{.}}</div>{{end}}</td>
       <td><span class="mono">{{.Version}}</span>{{$id := .ID}}{{$u := index $.Data.Updates .ID}}{{if $u.Version}}{{with $u}}<br>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{$id}}/update" class="inline"><button class="link small" title="Installs {{.File}} on the machine; the agent restarts">{{T "Update to"}} {{.Version}}</button></form>{{else}}<span class="muted small">{{.Version}} {{T "available"}}</span>{{end}}{{end}}{{end}}</td>
+      <td>{{if and ($.Me.Can "agents") (not .Recovery) .Parallel}}<form method="post" action="/agents/{{.ID}}/max-runs" class="inline"><select name="max_runs" data-autosubmit aria-label="{{T "Jobs at once"}}">{{$m := .MaxRuns}}{{range $n := list 1 2 3 4 6 8}}<option value="{{$n}}" {{if eq $n $m}}selected{{end}}>{{$n}}</option>{{end}}</select><noscript><button class="link">OK</button></noscript></form>{{else}}{{.MaxRuns}}{{end}}</td>
       <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}{{with (index $.Data.Duplicates .ID).Machines}}<br><span class="badge failed" title="{{join . ", "}}"><i></i>{{T "two machines"}}</span> <span class="muted small">{{join . ", "}} — {{T "runs are held"}} · <a href="/docs/agents#duplicate">{{T "help"}}</a></span>{{end}}</td>
       <td>{{ago .LastSeen}}</td>
       <td>{{ts .EnrolledAt}}</td>

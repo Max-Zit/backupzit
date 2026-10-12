@@ -37,6 +37,7 @@
   <div class="stat info"><div class="si">{{template "icon" "play"}}</div><b>{{.Running}}</b><span>{{T "queued / running"}}</span></div>
   <div class="stat ok"><div class="si">{{template "icon" "activity"}}</div><b>{{.Runs24h}}</b><span>{{T "runs in 24 h"}}</span></div>
   <div class="stat {{if .Failed24h}}bad{{else}}ok{{end}}"><div class="si">{{template "icon" "alert"}}</div><b>{{.Failed24h}}</b><span>{{T "failed in 24 h"}}</span></div>
+  {{with $.Data.RPO}}<div class="stat {{if lt .Met .Jobs}}bad{{else}}ok{{end}}" title="{{T "Jobs whose newest good backup is younger than their recovery point objective"}}"><div class="si">{{template "icon" "clock"}}</div><b>{{.Met}} / {{.Jobs}}</b><span>{{T "jobs within RPO"}}</span></div>{{end}}
   <div class="stat {{if .Suspicious}}bad{{else}}ok{{end}}"><div class="si">{{template "icon" "shield"}}</div><b>{{.Suspicious}}</b><span>{{T "suspicious backups to review"}}</span></div>
   <div class="stat {{if .Warning24h}}warn{{else}}ok{{end}}"><div class="si">{{template "icon" "warn"}}</div><b>{{.Warning24h}}</b><span>{{T "warnings in 24 h"}}</span></div>
 </div>

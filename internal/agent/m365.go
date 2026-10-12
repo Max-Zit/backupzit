@@ -46,7 +46,7 @@ func (a *Agent) m365Backup(ctx context.Context, run api.Run) api.RunResult {
 		Hostname:     "m365-" + src.Tenant,
 		Version:      a.version,
 		Tags:         []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
-		Progress:     func(s *repo.SnapshotStats) { a.progress(s.BytesRead, 0, s.Files) },
+		Progress:     func(s *repo.SnapshotStats) { a.progress(ctx, s.BytesRead, 0, s.Files) },
 	})
 	if err != nil {
 		return failed(fmt.Errorf("Microsoft 365: %w", err))

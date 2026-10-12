@@ -193,6 +193,7 @@ type apiAgent struct {
 	LocalIPs []string   `json:"local_ips"`
 	SeenFrom string     `json:"seen_from"`
 	Enrolled time.Time  `json:"enrolled"`
+	MaxRuns  int        `json:"max_runs"`
 }
 
 type apiJob struct {
@@ -210,6 +211,11 @@ type apiJob struct {
 	LastFinished *time.Time `json:"last_finished"`
 	Paths        []string   `json:"paths,omitempty"`
 	SourceJobID  *int64     `json:"source_job_id,omitempty"`
+	// RPO: the objective in hours, whether it is met and the newest good
+	// backup.
+	RPOHours       int        `json:"rpo_hours,omitempty"`
+	RPOMet         *bool      `json:"rpo_met,omitempty"`
+	LastGoodBackup *time.Time `json:"last_good_backup,omitempty"`
 }
 
 type apiRun struct {
@@ -234,7 +240,7 @@ type apiRun struct {
 }
 
 func toAPIAgent(a Agent) apiAgent {
-	return apiAgent{a.ID, a.Hostname, a.OS + "/" + a.Arch, a.Version, a.Online(), a.LastSeen, a.Recovery, a.LocalIPs, a.RemoteAddr, a.EnrolledAt}
+	return apiAgent{a.ID, a.Hostname, a.OS + "/" + a.Arch, a.Version, a.Online(), a.LastSeen, a.Recovery, a.LocalIPs, a.RemoteAddr, a.EnrolledAt, max(a.MaxRuns, 1)}
 }
 
 func toAPIJob(j Job) apiJob {
@@ -282,9 +288,10 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 	}))
 	mux.HandleFunc("GET /api/v1/jobs", s.api(PermView, func(w http.ResponseWriter, r *http.Request) (any, error) {
 		list, err := s.store.ListJobs(r.Context())
+		cov := s.coverageMap(r.Context())
 		out := []apiJob{}
 		for _, j := range list {
-			out = append(out, toAPIJob(j))
+			out = append(out, withRPO(toAPIJob(j), j, cov[j.ID]))
 		}
 		return out, err
 	}))
@@ -297,7 +304,7 @@ func (s *Server) registerAPI(mux *http.ServeMux) {
 		if err != nil {
 			return nil, err
 		}
-		return toAPIJob(j), nil
+		return withRPO(toAPIJob(j), j, s.coverageMap(r.Context())[j.ID]), nil
 	}))
 	mux.HandleFunc("POST /api/v1/jobs/{id}/run", s.api(PermRun, func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathInt(r, "id")
@@ -436,4 +443,15 @@ func (s *Server) handleTokenDelete(w http.ResponseWriter, r *http.Request, _ str
 		back = "/users"
 	}
 	redirectMsg(w, r, back, "API token revoked.")
+}
+
+// withRPO adds the RPO standing of a job.
+func withRPO(x apiJob, j Job, c *JobCoverage) apiJob {
+	st := rpoState(j, c, time.Now())
+	x.LastGoodBackup = st.LastGood
+	if st.Hours > 0 {
+		met := !st.Missed
+		x.RPOHours, x.RPOMet = st.Hours, &met
+	}
+	return x
 }

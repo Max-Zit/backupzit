@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Gebruik <code>-k</code> / <code>-SkipCertificateCheck</code> alleen met het zelfondertekende certificaat van de console op een vertrouwd netwerk, of installeer het consolecertificaat op de monitoringhost.</p>
 <h3>Monitoringcontrole</h3>
 <p>Vraag <code>/api/v1/status</code> om de paar minuten op en geef een melding als <code>ok</code> false is. Voor controles per taak gebruikt u <code>/api/v1/jobs</code> en meldt u wanneer <code>last_status</code> <code>failed</code> is of <code>last_finished</code> ouder is dan verwacht.</p>
+<p>Taken met een RPO geven ook <code>rpo_hours</code>, <code>rpo_met</code> en <code>last_good_backup</code>; agents geven <code>max_runs</code> (taken tegelijk). De metric <code>backupzit_job_rpo_met</code> is 1 voor een taak binnen haar RPO en 0 voor een taak die het heeft gemist.</p>
 <h3>Prometheus en Grafana</h3>
 <p><code>/api/v1/metrics</code> geeft de toestand in het Prometheus-tekstformaat: agents online, actieve uitvoeringen, fouten en waarschuwingen van de laatste 24 uur, verdachte back-ups en per agent, taak en opslagdoel <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 geslaagd, 1 waarschuwing, 2 mislukt), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> en <code>backupzit_storage_free_bytes</code>. Een scrape-job met een Kijker-token:</p>
 <pre>- job_name: backupzit

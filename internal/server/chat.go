@@ -151,6 +151,43 @@ func (n *Notifier) sendChat(ctx context.Context, l *language, c ChatChannel, r R
 	return postChat(ctx, c, body)
 }
 
+// sendChatText posts a message that is not about one run (e.g. a missed
+// RPO): a title, a line of text and a console path to link; webhooks get
+// event as JSON (with "url").
+func (n *Notifier) sendChatText(ctx context.Context, l *language, c ChatChannel, title, text, path string, event map[string]any) error {
+	link := ""
+	if u := n.publicURL(); u != "" {
+		link = u + path
+	}
+	var body []byte
+	switch c.Kind {
+	case "slack":
+		msg := ":warning: *" + slackEscape(title) + "*\n" + slackEscape(text)
+		if link != "" {
+			msg += fmt.Sprintf("\n<%s|%s>", link, slackEscape(l.T("Open in BackupZit")))
+		}
+		body, _ = json.Marshal(map[string]any{"text": msg})
+	case "teams":
+		card := map[string]any{"type": "AdaptiveCard", "$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "version": "1.4",
+			"body": []any{map[string]any{"type": "TextBlock", "text": title, "weight": "Bolder", "wrap": true, "color": "Attention"},
+				map[string]any{"type": "TextBlock", "text": text, "wrap": true}}}
+		if link != "" {
+			card["actions"] = []any{map[string]any{"type": "Action.OpenUrl", "title": l.T("Open in BackupZit"), "url": link}}
+		}
+		body, _ = json.Marshal(map[string]any{"type": "message", "attachments": []any{map[string]any{"contentType": "application/vnd.microsoft.card.adaptive", "content": card}}})
+	default:
+		ev := map[string]any{}
+		for k, v := range event {
+			ev[k] = v
+		}
+		if link != "" {
+			ev["url"] = link
+		}
+		body, _ = json.Marshal(ev)
+	}
+	return postChat(ctx, c, body)
+}
+
 func postChat(ctx context.Context, c ChatChannel, body []byte) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL, bytes.NewReader(body))
 	if err != nil {

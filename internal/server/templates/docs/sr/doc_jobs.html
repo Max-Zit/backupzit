@@ -43,6 +43,9 @@
 </table>
 <p>Vremena su u vremenskoj zoni servera konzole (na uređaju: <a href="/settings/network#timezone">Podešavanja → Mreža → Vremenska zona</a> ili stavka 9 menija za podešavanje; počinje u UTC-u). Ako je agent van mreže u zakazano vreme, bekap čeka u redu i počinje čim se agent vrati. Sva planirana pokretanja vidite u <a href="/calendar">Kalendaru</a>. Trenutni datum i vreme konzole prikazani su dole levo, ispod vremenske zone.</p>
 
+<h2 id="rpo">Ciljna tačka oporavka (RPO)</h2>
+<p>RPO kaže koliko star sme da bude najnoviji dobar backup posla, u satima — na primer 26 za dnevni backup (dan plus malo rezerve). Podešava se u formi posla pod <b>Ciljna tačka oporavka (RPO), sati</b>. Dashboard prikazuje koliko je poslova <b>u okviru RPO-a</b> i navodi svaki posao koji ga je prekoračio, a stranica posla prikazuje stanje. Obaveštenje (mejl i chat, kao kod greške) stiže jednom kada posao prekorači RPO, i ponovo tek ako ga je u međuvremenu ispunio. Za razliku od statusa poslednjeg izvršavanja, RPO hvata i greškom uklonjen raspored, agenta koji danima nije na mreži i backup koji stalno pada.</p>
+
 <h2>Retencija: koliko bekapa se čuva</h2>
 <p>Snimak se zadržava ako ga izabere <b>bilo koje</b> pravilo:</p>
 <ul>

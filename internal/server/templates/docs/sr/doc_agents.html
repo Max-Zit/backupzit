@@ -56,6 +56,9 @@ systemctl enable --now backupzit-agent</pre>
 <p>Kliknite ikonu (ili otvorite <b>BackupZit Agent</b> iz Start menija) za prozor sa stanjem: stanje zaštite, napredak bekapa koji je u toku, poslednji i sledeći bekap, i svi poslovi bekapa tog računara sa dugmetom <b>Napravi bekap sada</b>. Desni klik otvara meni: <i>Napravi bekap sada</i> po poslu, <i>Otvori konzolu u pregledaču</i>, <i>Sakrij ovu ikonu</i> (do sledeće prijave; bekapi se nastavljaju). Prozoru je potreban Microsoft Edge WebView2, koji je deo Windowsa 10 i 11; na starijim sistemima ikona i meni rade, a <i>Otvori</i> prikazuje konzolu u pregledaču.</p>
 <p>Korisnici ovako mogu da pokrenu bekap svog računara; poslovi, rasporedi i čuvanje se podešavaju samo u konzoli. Na bilo kom sistemu, <code>backupzit-agent status</code> (kao administrator ili root) ispisuje iste informacije.</p>
 
+<h2 id="parallel">Više poslova istovremeno</h2>
+<p>Agent podrazumevano izvršava jedan posao u isto vreme; ostali čekaju u redu. U koloni <b>Poslova istovremeno</b> na stranici Agenti možete dozvoliti do 8 — korisno za agente koji backup-uju više stvari, na primer proxy agenta za ESXi, Proxmox, Microsoft 365 ili NAS deljene foldere. Dva izvršavanja istog posla nikad ne idu istovremeno, a ažuriranje agenta čeka da agent bude slobodan. Poslovi koji rade istovremeno dele procesor, diskove i mrežu mašine, pa broj povećavajte postepeno. Na Windowsu se VSS snapshot-i prave jedan za drugim. Traži agente 0.39.0 ili novije.</p>
+
 <h2>Nadogradnja</h2>
 <p>Kada konzola ima noviju instalaciju agenta od one koju agent koristi, stranica Agenti pored njegove verzije prikazuje <b>Ažuriraj na x.y.z</b>, a ispod liste <b>Ažuriraj sve agente</b>. Agent tada:</p>
 <ol>

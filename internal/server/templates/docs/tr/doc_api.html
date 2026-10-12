@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p><code>-k</code> / <code>-SkipCertificateCheck</code> seçeneğini yalnızca güvenilir bir ağda konsolun kendinden imzalı sertifikasıyla kullanın veya konsol sertifikasını izleme sunucusuna yükleyin.</p>
 <h3>İzleme denetimi</h3>
 <p><code>/api/v1/status</code> adresini birkaç dakikada bir sorgulayın ve <code>ok</code> false olduğunda uyarı verin. İş bazında denetim için <code>/api/v1/jobs</code> kullanın ve <code>last_status</code> <code>failed</code> olduğunda veya <code>last_finished</code> beklenenden eski olduğunda uyarı verin.</p>
+<p>RPO'su olan işler ayrıca <code>rpo_hours</code>, <code>rpo_met</code> ve <code>last_good_backup</code> döndürür; ajanlar <code>max_runs</code> (aynı anda iş) döndürür. <code>backupzit_job_rpo_met</code> metriği RPO içindeki bir iş için 1, hedefi kaçıran bir iş için 0'dır.</p>
 <h3>Prometheus ve Grafana</h3>
 <p><code>/api/v1/metrics</code> durumu Prometheus metin biçiminde döndürür: çevrimiçi ajanlar, etkin çalıştırmalar, son 24 saatin hataları ve uyarıları, şüpheli yedekler ve ajan, iş ve depolama hedefi başına <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 başarılı, 1 uyarı, 2 başarısız), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> ve <code>backupzit_storage_free_bytes</code>. Görüntüleyici belirteciyle bir scrape işi:</p>
 <pre>- job_name: backupzit

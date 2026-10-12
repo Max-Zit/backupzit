@@ -325,6 +325,8 @@ type Agent struct {
 	InventoryAt *time.Time
 	// Recovery agents run from boot media to restore a machine.
 	Recovery bool
+	// MaxRuns is how many runs the agent may execute at once.
+	MaxRuns int
 	// LocalIPs are reported by the agent; RemoteAddr is the address its
 	// requests come from (the public address when it is behind NAT).
 	LocalIPs   []string
@@ -347,11 +349,11 @@ func (a Agent) Online() bool {
 	return a.LastSeen != nil && time.Since(*a.LastSeen) < 3*time.Minute
 }
 
-const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor`
+const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, max_runs`
 
 func scanAgent(r pgx.Row, extra ...any) (Agent, error) {
 	var a Agent
-	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor}, extra...)
+	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.MaxRuns}, extra...)
 	err := r.Scan(dest...)
 	return a, err
 }
@@ -851,11 +853,18 @@ func (s *Store) ClaimRun(ctx context.Context, agentID int64) (*Run, error) {
 // claimRun hands out the next queued run; onlyUpdate limits it to agent
 // updates (an agent whose other runs are held).
 func (s *Store) claimRun(ctx context.Context, agentID int64, onlyUpdate bool) (*Run, error) {
+	return s.claimRunIdle(ctx, agentID, onlyUpdate, true)
+}
+
+// claimRunIdle is claimRun for an agent that is idle or already runs
+// something (then no agent update, which restarts the agent).
+func (s *Store) claimRunIdle(ctx context.Context, agentID int64, onlyUpdate, idle bool) (*Run, error) {
 	var id int64
 	err := s.db.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
 		WHERE id = (SELECT id FROM runs WHERE agent_id=$1 AND status='queued' AND (NOT $2 OR kind='agent-update')
-			ORDER BY kind='verify', queued_at LIMIT 1 FOR UPDATE SKIP LOCKED)
-		RETURNING id`, agentID, onlyUpdate).Scan(&id)
+			AND ($3 OR kind<>'agent-update')
+			ORDER BY kind IN ('verify','repo-check'), queued_at LIMIT 1 FOR UPDATE SKIP LOCKED)
+		RETURNING id`, agentID, onlyUpdate, idle).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -1005,3 +1014,22 @@ func (s *Store) RemoveStaleRecoveryAgents(ctx context.Context, now time.Time) ([
 	}
 	return pgx.CollectRows(rows, pgx.RowTo[string])
 }
+
+// minParallelVersion is the first agent version that runs several runs at
+// once.
+const minParallelVersion = "0.39.0"
+
+// SetAgentMaxRuns sets how many runs an agent may execute at once (1–8).
+func (s *Store) SetAgentMaxRuns(ctx context.Context, id int64, n int) error {
+	if n < 1 || n > 8 {
+		return errors.New("an agent runs 1 to 8 jobs at once")
+	}
+	ct, err := s.db.Exec(ctx, `UPDATE agents SET max_runs=$2 WHERE id=$1`, id, n)
+	if err == nil && ct.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return err
+}
+
+// Parallel reports whether the agent can run several runs at once.
+func (a Agent) Parallel() bool { return !agentOlder(a, minParallelVersion) }

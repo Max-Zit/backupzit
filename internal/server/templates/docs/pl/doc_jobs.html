@@ -43,6 +43,9 @@
 </table>
 <p>Godziny są w strefie czasowej serwera konsoli (na appliance: <a href="/settings/network#timezone">Ustawienia → Sieć → Strefa czasowa</a> lub pozycja 9 menu konfiguracji; na początku UTC). Jeśli agent jest offline w zaplanowanym czasie, kopia czeka w kolejce i startuje, gdy tylko agent wróci. Wszystkie planowane uruchomienia widać w <a href="/calendar">Kalendarzu</a>. Bieżąca data i godzina konsoli są widoczne w lewym dolnym rogu, pod strefą czasową.</p>
 
+<h2 id="rpo">Cel punktu odtwarzania (RPO)</h2>
+<p>RPO określa, jak stara może być najnowsza dobra kopia zadania, w godzinach — na przykład 26 dla kopii codziennej (doba plus zapas). Ustawia się go w formularzu zadania w polu <b>Cel punktu odtwarzania (RPO), godziny</b>. Pulpit pokazuje, ile zadań jest <b>w ramach RPO</b>, i wymienia każde zadanie, które go przekroczyło; strona zadania pokazuje stan. Powiadomienie (e-mail i czat, jak przy błędzie) wysyłane jest raz, gdy zadanie przekroczy RPO, i ponownie dopiero po tym, jak w międzyczasie je spełniło. W przeciwieństwie do stanu ostatniego uruchomienia RPO wychwytuje też przypadkowo usunięty harmonogram, agenta offline od wielu dni i kopię, która ciągle się nie udaje.</p>
+
 <h2>Retencja: ile kopii zachować</h2>
 <p>Migawka jest zachowywana, jeśli wybiera ją <b>dowolna</b> reguła:</p>
 <ul>

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -60,7 +61,13 @@ func (s *Set) Close() error {
 // Create snapshots every local volume that contains one of paths. Volumes
 // that cannot be snapshotted (network shares, FAT, missing privileges) are
 // reported through onErr and backed up live.
+// createMu serializes creating snapshots: Windows creates one snapshot set
+// at a time, and an agent may run several backups at once.
+var createMu sync.Mutex
+
 func Create(paths []string, timeout time.Duration, onErr ErrorHandler) (*Set, error) {
+	createMu.Lock()
+	defer createMu.Unlock()
 	s := &Set{snaps: map[string]string{}}
 	seen := map[string]bool{}
 	for _, p := range paths {
@@ -88,6 +95,8 @@ func Create(paths []string, timeout time.Duration, onErr ErrorHandler) (*Set, er
 // (`\\?\Volume{...}\`), as used for image backups. Volumes that cannot be
 // snapshotted are reported through onErr.
 func CreateVolumes(volumes []string, timeout time.Duration, onErr ErrorHandler) *Set {
+	createMu.Lock()
+	defer createMu.Unlock()
 	s := &Set{snaps: map[string]string{}}
 	for _, v := range volumes {
 		key := strings.ToLower(v)

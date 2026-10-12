@@ -56,6 +56,9 @@ systemctl enable --now backupzit-agent</pre>
 <p>Klik op het pictogram (of open <b>BackupZit Agent</b> in het menu Start) voor het statusvenster: beschermingsstatus, voortgang van een lopende back-up, laatste en volgende back-up, en alle back-uptaken van de computer met <b>Nu back-uppen</b>. Rechtsklik opent het menu: <i>Back up now</i> per taak, <i>Open console in browser</i>, <i>Hide this icon</i> (tot de volgende aanmelding; back-ups gaan door). Het venster heeft Microsoft Edge WebView2 nodig, dat deel uitmaakt van Windows 10 en 11; op oudere systemen werken pictogram en menu en toont <i>Open</i> de console in de browser.</p>
 <p>Gebruikers kunnen zo een back-up van hun computer starten; taken, planningen en bewaring worden alleen in de console ingesteld. Op elk systeem toont <code>backupzit-agent status</code> (als beheerder of root) dezelfde informatie.</p>
 
+<h2 id="parallel">Meerdere taken tegelijk</h2>
+<p>Standaard voert een agent één taak tegelijk uit; de andere wachten in de wachtrij. In de kolom <b>Taken tegelijk</b> op de pagina Agents kunt u er tot 8 toestaan — handig voor agents die meerdere dingen back-uppen, zoals een proxy-agent voor ESXi, Proxmox, Microsoft 365 of NAS-shares. Twee uitvoeringen van dezelfde taak lopen nooit tegelijk, en agentupdates wachten tot de agent vrij is. Gelijktijdige uitvoeringen delen de CPU, schijven en het netwerk van de machine; verhoog het aantal stap voor stap. Op Windows worden VSS-snapshots na elkaar gemaakt. Vereist agents 0.39.0 of nieuwer.</p>
+
 <h2>Bijwerken</h2>
 <p>Als de console een nieuwer agentinstallatieprogramma heeft dan een agent draait, toont de pagina Agents <b>Bijwerken naar x.y.z</b> naast zijn versie, en <b>Alle agents bijwerken</b> onder de lijst. De agent dan:</p>
 <ol>

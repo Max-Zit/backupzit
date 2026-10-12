@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -87,4 +88,25 @@ func (s *Server) handleAgentUpdateAll(w http.ResponseWriter, r *http.Request, _ 
 	}
 	s.audit(r, "agent.update", "%d agents", n)
 	redirectMsg(w, r, "/agents", fmt.Sprintf("Updates queued for %d agents.", n))
+}
+
+// handleAgentMaxRuns serves POST /agents/{id}/max-runs.
+func (s *Server) handleAgentMaxRuns(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	n, _ := strconv.Atoi(r.FormValue("max_runs"))
+	a, err := s.store.GetAgent(r.Context(), id)
+	if err != nil {
+		redirectErr(w, r, "/agents", errors.New("unknown agent"))
+		return
+	}
+	if !a.Parallel() && n > 1 {
+		redirectErr(w, r, "/agents", fmt.Errorf("the agent on %s (%s) runs one job at a time; update it to %s or newer", a.Hostname, a.Version, minParallelVersion))
+		return
+	}
+	if err := s.store.SetAgentMaxRuns(r.Context(), id, n); err != nil {
+		redirectErr(w, r, "/agents", err)
+		return
+	}
+	s.audit(r, "agent.max_runs", "%s: %d at once", a.Hostname, n)
+	redirectMsg(w, r, "/agents", "Settings saved.")
 }

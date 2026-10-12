@@ -48,7 +48,7 @@ func (a *Agent) systemBackup(ctx context.Context, run api.Run) api.RunResult {
 	sn, err := sysbackup.Backup(ctx, r, sysbackup.BackupOptions{
 		Excludes: run.Excludes, Version: a.version,
 		Tags:     []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
-		Progress: func(_ string, s *repo.SnapshotStats) { a.progress(s.BytesRead, 0, s.Files) },
+		Progress: func(_ string, s *repo.SnapshotStats) { a.progress(ctx, s.BytesRead, 0, s.Files) },
 	})
 	if err != nil {
 		return failed(err)
@@ -124,7 +124,7 @@ func (a *Agent) systemRestore(ctx context.Context, run api.Run) api.RunResult {
 	res, err := sysbackup.Restore(ctx, r, sn, sysbackup.RestoreOptions{Target: target, NewHardware: newHW, DisableAgent: vmid > 0,
 		Log: func(s string) { a.log.Info("system restore", "run", run.ID, "step", s) },
 		Progress: func(_ string, s *restorer.Stats) {
-			a.progress(s.Bytes, 0, s.Files)
+			a.progress(ctx, s.Bytes, 0, s.Files)
 			if time.Since(lastLog) > time.Minute {
 				lastLog = time.Now()
 				a.log.Info("system restore", "run", run.ID, "files", s.Files)

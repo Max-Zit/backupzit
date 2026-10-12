@@ -210,8 +210,10 @@ type Agent struct {
 	// InventoryInterval is how often disks are reported (default 15 min).
 	InventoryInterval time.Duration
 
-	mu   sync.Mutex
-	busy bool
+	mu sync.Mutex
+	// running counts the runs in progress (the console may hand out several
+	// at once when the agent allows it).
+	running int
 	// LogPath is the agent's log file, sent to the console on request.
 	LogPath string
 	// cancels stops a running run when the console cancels it.
@@ -236,12 +238,12 @@ func New(cfg *Config, log *slog.Logger, version string) *Agent {
 // It returns the server's requested poll interval.
 func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	a.mu.Lock()
-	busy := a.busy
+	busy, running := a.running > 0, a.running
 	invAt := a.inventoryAt
 	a.mu.Unlock()
 	host, osName, arch := hostInfo(a.version)
 	var resp api.PollResponse
-	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, IPs: localIPs(), Instance: a.instance}
+	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, Running: running, Parallel: true, IPs: localIPs(), Instance: a.instance}
 	req.WantStatus = a.wantStatus()
 	invEvery := a.InventoryInterval
 	if invEvery <= 0 {
@@ -273,16 +275,18 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	}
 	if resp.Run != nil {
 		a.mu.Lock()
-		a.busy = true
+		a.running++
 		a.mu.Unlock()
 		a.wg.Add(1)
 		go func(run api.Run) {
 			defer a.wg.Done()
 			a.execute(ctx, run)
 			a.mu.Lock()
-			a.busy = false
+			a.running--
 			a.mu.Unlock()
 		}(*resp.Run)
+		// Ask again at once: the console may hand out another run.
+		a.pollSoon()
 	}
 	iv := time.Duration(resp.PollIntervalSec) * time.Second
 	if iv <= 0 {
@@ -310,7 +314,7 @@ func (a *Agent) Run(ctx context.Context) {
 			failed = 0
 		}
 		a.mu.Lock()
-		if a.busy && iv > 15*time.Second {
+		if a.running > 0 && iv > 15*time.Second {
 			iv = 15 * time.Second
 		}
 		a.mu.Unlock()
@@ -325,6 +329,7 @@ func (a *Agent) Run(ctx context.Context) {
 }
 
 func (a *Agent) execute(ctx context.Context, run api.Run) {
+	ctx = withRunID(ctx, run.ID)
 	a.log.Info("run started", "run", run.ID, "kind", run.Kind, "job", run.JobName)
 	a.runStarted(run)
 	// The console can cancel the run; the command after the backup still runs
@@ -389,6 +394,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res, after = a.selfUpdate(ctx, run)
 	case api.KindAgentLog:
 		res = a.sendLog(ctx, run)
+	case api.KindRepoCheck:
+		res = a.repoCheck(ctx, run)
 	case api.KindVMBackup:
 		res = a.vmBackup(ctx, run)
 	case api.KindVMRestore:
@@ -440,7 +447,7 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		}
 	}
 	a.log.Info("run finished", "run", run.ID, "status", res.Status, "message", res.Message, "errors", len(res.Errors))
-	a.runFinished(res)
+	a.runFinished(run.ID, res)
 	// Report with a fresh context: the result must reach the server even
 	// when the agent is shutting down. Retry for a while on network errors.
 	for i := 0; i < 20; i++ {
@@ -541,7 +548,7 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 		Version:  a.version,
 		Tags:     []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
 		VSS:      useVSS,
-		Progress: func(_ string, s *repo.SnapshotStats) { a.progress(s.BytesRead, 0, s.Files) },
+		Progress: func(_ string, s *repo.SnapshotStats) { a.progress(ctx, s.BytesRead, 0, s.Files) },
 	})
 	if err != nil {
 		return failed(err)

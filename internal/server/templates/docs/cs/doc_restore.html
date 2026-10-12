@@ -108,6 +108,8 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Nainstalujte do VM agenta hosta QEMU (<code>qemu-guest-agent</code> v Linuxu, nástroje hosta VirtIO ve Windows) a zapněte ho v možnostech VM, aby test mohl spuštění potvrdit.</li>
   <li>Stránka běhu uvádí každý VM s výsledkem a dobou spouštění.</li>
 </ul>
+<h3 id="data-check">Kontrola všech uložených dat</h3>
+<p>Testy obnovy čtou vzorek. Navíc agent přečte <b>všechna</b> data každého úložiště, ověří je proti kontrolnímu součtu a zkontroluje, že složky a data každé zálohy jsou na místě — ve výchozím stavu jednou měsíčně (Nastavení → Testy obnovy: <b>Kontrolovat uložená data</b>: měsíčně, každé tři měsíce nebo nikdy). Tak se odhalí poškození samotného úložiště, například selhávající disk v NAS nebo degradace dat, dřív než zálohu budete potřebovat. Každé úložiště se kontroluje jednou (úlohy jednoho agenta na jednom úložišti ho sdílejí), a to agentem, který do něj zapisuje. Kontrola čte vše, co úložiště obsahuje, proto na cloudovém úložišti (S3, Azure) běží jen se zapnutou volbou <b>I na cloudovém úložišti</b>. Problémy způsobí selhání běhu <i>Kontrola dat</i> a pošlou oznámení o chybě; <b>Ověřit data</b> na stránce úlohy spustí kontrolu hned. Vyžaduje agenty 0.39.0 nebo novější.</p>
 <p>Kromě toho občas (např. čtvrtletně) obnovte ručně skutečnou složku a otevřete pár souborů — zároveň tím zacvičíte lidi, kteří to budou muset udělat v nouzi.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

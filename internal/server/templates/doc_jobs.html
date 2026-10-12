@@ -43,6 +43,9 @@
 </table>
 <p>Times are in the console server's time zone (on the appliance: <a href="/settings/network#timezone">Settings → Network → Time zone</a> or item 9 of the setup menu; it starts in UTC). If an agent is offline at the scheduled time, the backup waits in the queue and starts as soon as the agent is back. See all planned runs in the <a href="/calendar">Calendar</a>. The current date and time of the console are shown at the bottom left, below the time zone.</p>
 
+<h2 id="rpo">Recovery point objective (RPO)</h2>
+<p>The RPO says how old the newest good backup of a job may get, in hours — for example 26 for a daily backup (a day plus some slack). Set it in the job form under <b>Recovery point objective (RPO), hours</b>. The dashboard shows how many jobs are <b>within RPO</b> and lists every job that missed it, and the job page shows its state. A notification (email and chat, like a failure) goes out once when a job misses its RPO, and again only after it met it in between. Unlike the status of the last run, the RPO also catches a schedule removed by mistake, an agent offline for days and a backup that keeps failing.</p>
+
 <h2>Retention: how many backups to keep</h2>
 <p>A snapshot is kept if <b>any</b> rule selects it:</p>
 <ul>

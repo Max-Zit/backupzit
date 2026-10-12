@@ -75,7 +75,7 @@ func (a *Agent) vmReplica(ctx context.Context, run api.Run) api.RunResult {
 		a.log.Info("replicating", "run", run.ID, "vmid", g.VMID, "replica", st.ReplicaVMID)
 		res, err := pve.Replicate(ctx, r, sn, pve.ReplicaOptions{VMID: g.VMID, ReplicaVMID: st.ReplicaVMID, Storage: run.Replica.Storage, Prev: prev,
 			Log:      func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) },
-			Progress: func(done, total uint64) { a.progress(done, total, 0) }})
+			Progress: func(done, total uint64) { a.progress(ctx, done, total, 0) }})
 		e := replicaEntry{}
 		if res != nil {
 			e.ReplicaResult = *res

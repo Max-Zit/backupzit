@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Используйте <code>-k</code> / <code>-SkipCertificateCheck</code> только с самоподписанным сертификатом консоли в доверенной сети или установите сертификат консоли на хост мониторинга.</p>
 <h3>Проверка мониторинга</h3>
 <p>Опрашивайте <code>/api/v1/status</code> каждые несколько минут и поднимайте тревогу, когда <code>ok</code> равно false. Для проверки отдельных заданий используйте <code>/api/v1/jobs</code> и поднимайте тревогу, когда <code>last_status</code> равно <code>failed</code> или <code>last_finished</code> старше ожидаемого.</p>
+<p>Задания с RPO возвращают также <code>rpo_hours</code>, <code>rpo_met</code> и <code>last_good_backup</code>; агенты возвращают <code>max_runs</code> (заданий одновременно). Метрика <code>backupzit_job_rpo_met</code> равна 1 для задания в пределах RPO и 0 для задания, нарушившего его.</p>
 <h3>Prometheus и Grafana</h3>
 <p><code>/api/v1/metrics</code> возвращает состояние в текстовом формате Prometheus: агенты в сети, активные запуски, ошибки и предупреждения за последние 24 часа, подозрительные копии, а по агентам, заданиям и хранилищам — <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 успех, 1 предупреждение, 2 ошибка), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> и <code>backupzit_storage_free_bytes</code>. Задание сбора с токеном Наблюдателя:</p>
 <pre>- job_name: backupzit

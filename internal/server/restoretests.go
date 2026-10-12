@@ -28,9 +28,14 @@ type RestoreTestSettings struct {
 	// and waits up to BootMinutes for their guest agent.
 	BootVMs     bool `json:"boot_vms"`
 	BootMinutes int  `json:"boot_minutes"`
+	// CheckEvery reads all stored data of every repository: "off",
+	// "monthly" or "quarterly"; CheckCloud includes S3 and Azure targets
+	// (downloading everything costs there).
+	CheckEvery string `json:"check_every"`
+	CheckCloud bool   `json:"check_cloud"`
 }
 
-var defaultRestoreTests = RestoreTestSettings{Enabled: true, Every: "weekly", Files: 10, MaxMB: 100, Blocks: 100, BootMinutes: 5}
+var defaultRestoreTests = RestoreTestSettings{Enabled: true, Every: "weekly", Files: 10, MaxMB: 100, Blocks: 100, BootMinutes: 5, CheckEvery: "monthly"}
 
 func (x RestoreTestSettings) Validate() error {
 	if x.Every != "weekly" && x.Every != "monthly" {
@@ -38,6 +43,9 @@ func (x RestoreTestSettings) Validate() error {
 	}
 	if x.Files < 1 || x.Files > 1000 || x.MaxMB < 1 || x.MaxMB > 100000 || x.Blocks < 1 || x.Blocks > 100000 {
 		return errors.New("sample sizes are out of range")
+	}
+	if x.CheckEvery != "off" && x.CheckEvery != "monthly" && x.CheckEvery != "quarterly" {
+		return errors.New("choose how often the stored data is checked")
 	}
 	if x.BootMinutes < 1 || x.BootMinutes > 60 {
 		return errors.New("the boot test waits between 1 and 60 minutes")
@@ -140,7 +148,12 @@ func (s *Server) handleSettingsRestoreTests(w http.ResponseWriter, r *http.Reque
 	atoi := func(k string) int { n, _ := strconv.Atoi(r.FormValue(k)); return n }
 	x := RestoreTestSettings{Enabled: r.FormValue("enabled") == "on", Every: r.FormValue("every"),
 		Files: atoi("files"), MaxMB: atoi("max_mb"), Blocks: atoi("blocks"),
-		BootVMs: r.FormValue("boot_vms") == "on", BootMinutes: atoi("boot_minutes")}
+		BootVMs: r.FormValue("boot_vms") == "on", BootMinutes: atoi("boot_minutes"),
+		CheckEvery: r.FormValue("check_every"), CheckCloud: r.FormValue("check_cloud") == "on"}
+	if r.FormValue("check_every") == "" { // a form without the data check keeps it
+		cur := s.store.restoreTestSettings(r.Context())
+		x.CheckEvery, x.CheckCloud = cur.CheckEvery, cur.CheckCloud
+	}
 	if err := x.Validate(); err != nil {
 		redirectErr(w, r, "/settings/tests", err)
 		return

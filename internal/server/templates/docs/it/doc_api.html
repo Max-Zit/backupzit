@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>Usa <code>-k</code> / <code>-SkipCertificateCheck</code> solo con il certificato autofirmato della console in una rete fidata, oppure installa il certificato della console sull'host di monitoraggio.</p>
 <h3>Controllo di monitoraggio</h3>
 <p>Interroga <code>/api/v1/status</code> ogni pochi minuti e genera un avviso quando <code>ok</code> è false. Per controlli per singolo job usa <code>/api/v1/jobs</code> e avvisa quando <code>last_status</code> è <code>failed</code> o <code>last_finished</code> è più vecchio del previsto.</p>
+<p>I job con un RPO restituiscono anche <code>rpo_hours</code>, <code>rpo_met</code> e <code>last_good_backup</code>; gli agent restituiscono <code>max_runs</code> (job contemporanei). La metrica <code>backupzit_job_rpo_met</code> vale 1 per un job entro il suo RPO e 0 per uno che lo ha mancato.</p>
 <h3>Prometheus e Grafana</h3>
 <p><code>/api/v1/metrics</code> restituisce lo stato nel formato testo di Prometheus: agent online, esecuzioni attive, errori e avvisi delle ultime 24 ore, backup sospetti e, per agent, job e destinazione, <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 riuscito, 1 avviso, 2 errore), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> e <code>backupzit_storage_free_bytes</code>. Un job di scrape con un token Visualizzatore:</p>
 <pre>- job_name: backupzit

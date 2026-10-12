@@ -36,7 +36,7 @@ func (a *Agent) sqlBackup(ctx context.Context, run api.Run) api.RunResult {
 		kind = "log"
 	}
 	logf := func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) }
-	prog := func(_ string, s *repo.SnapshotStats) { a.progress(s.BytesRead, 0, s.Files) }
+	prog := func(_ string, s *repo.SnapshotStats) { a.progress(ctx, s.BytesRead, 0, s.Files) }
 	tags := []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}
 	var sn *repo.Snapshot
 	var problems []string

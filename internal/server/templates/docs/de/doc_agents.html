@@ -56,6 +56,9 @@ systemctl enable --now backupzit-agent</pre>
 <p>Klicken Sie auf das Symbol (oder öffnen Sie <b>BackupZit Agent</b> im Startmenü) für das Statusfenster: Schutzstatus, Fortschritt einer laufenden Sicherung, letzte und nächste Sicherung und alle Sicherungsaufträge des Computers mit <b>Jetzt sichern</b>. Rechtsklick öffnet das Menü: <i>Back up now</i> pro Auftrag, <i>Open console in browser</i>, <i>Hide this icon</i> (bis zur nächsten Anmeldung; Sicherungen laufen weiter). Das Fenster benötigt Microsoft Edge WebView2, das Teil von Windows 10 und 11 ist; auf älteren Systemen funktionieren Symbol und Menü, und <i>Open</i> zeigt die Konsole im Browser.</p>
 <p>Benutzer können so eine Sicherung ihres Computers starten; Aufträge, Zeitpläne und Aufbewahrung werden nur in der Konsole festgelegt. Auf jedem System gibt <code>backupzit-agent status</code> (als Administrator oder root) dieselben Informationen aus.</p>
 
+<h2 id="parallel">Mehrere Aufträge gleichzeitig</h2>
+<p>Ein Agent führt standardmäßig einen Auftrag nach dem anderen aus; die übrigen warten. In der Spalte <b>Gleichzeitige Aufträge</b> auf der Seite Agenten können Sie bis zu 8 erlauben — nützlich für Agenten, die mehreres sichern, etwa einen Proxy-Agenten für ESXi, Proxmox, Microsoft 365 oder NAS-Freigaben. Zwei Läufe desselben Auftrags laufen nie gleichzeitig, und Agenten-Updates warten, bis der Agent frei ist. Gleichzeitige Läufe teilen sich CPU, Festplatten und Netzwerk des Rechners; erhöhen Sie die Zahl schrittweise. Unter Windows werden VSS-Snapshots nacheinander erstellt. Benötigt Agenten ab 0.39.0.</p>
+
 <h2>Aktualisieren</h2>
 <p>Hat die Konsole ein neueres Agenten-Installationsprogramm als ein Agent ausführt, zeigt die Seite Agenten <b>Aktualisieren auf x.y.z</b> neben seiner Version und <b>Alle Agenten aktualisieren</b> unter der Liste. Der Agent dann:</p>
 <ol>

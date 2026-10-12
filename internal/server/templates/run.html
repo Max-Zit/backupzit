@@ -48,7 +48,7 @@
       <dt>{{T "From"}}</dt><dd>{{T "partition"}} {{index .ImagePartitions 0}} {{T "of image"}} {{short .SnapshotID}}</dd>
       <dt>{{T "Paths"}}</dt><dd class="mono">{{join .Paths "\n"}}</dd>
       <dt>{{T "Restore to"}}</dt><dd class="mono">{{if .RestoreTarget}}{{.RestoreTarget}}{{else}}{{T "original location"}}{{end}}</dd>
-    {{else if or (eq .Kind "agent-log") (eq .Kind "agent-update")}}
+    {{else if or (eq .Kind "agent-log") (eq .Kind "agent-update") (eq .Kind "repo-check")}}
     {{else if eq .Kind "image-restore"}}
       <dt>{{T "Target disk"}}</dt><dd>{{if .TargetDisk}}{{T "Disk"}} {{deref2 .TargetDisk}}{{end}}{{if .KeepOffline}} {{T "(left offline)"}}{{end}}</dd>
       {{if .NewHardware}}<dt>{{T "New hardware"}}</dt><dd>{{T "prepared for different hardware"}}{{if .DriverPath}}{{T ", drivers from"}} <span class="mono">{{.DriverPath}}</span>{{end}}</dd>{{end}}

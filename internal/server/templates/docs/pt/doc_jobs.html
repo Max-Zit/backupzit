@@ -43,6 +43,9 @@
 </table>
 <p>Os horários estão no fuso horário do servidor da console (no appliance: <a href="/settings/network#timezone">Configurações → Rede → Fuso horário</a> ou o item 9 do menu de configuração; começa em UTC). Se um agente estiver offline no horário agendado, o backup espera na fila e começa assim que o agente voltar. Veja todas as execuções planejadas no <a href="/calendar">Calendário</a>. A data e a hora atuais do console aparecem no canto inferior esquerdo, abaixo do fuso horário.</p>
 
+<h2 id="rpo">Objetivo de ponto de recuperação (RPO)</h2>
+<p>O RPO diz quão antigo o backup bom mais recente de uma tarefa pode ficar, em horas — por exemplo 26 para um backup diário (um dia mais uma folga). Ele é definido no formulário da tarefa em <b>Objetivo de ponto de recuperação (RPO), horas</b>. O painel mostra quantas tarefas estão <b>dentro do RPO</b> e lista cada tarefa que não o cumpriu; a página da tarefa mostra o estado. Uma notificação (e-mail e chat, como uma falha) é enviada uma vez quando uma tarefa não cumpre seu RPO, e de novo só depois de tê-lo cumprido nesse meio-tempo. Diferente do status da última execução, o RPO também detecta um agendamento removido por engano, um agente offline há dias e um backup que falha repetidamente.</p>
+
 <h2>Retenção: quantos backups manter</h2>
 <p>Um snapshot é mantido se <b>qualquer</b> regra o selecionar:</p>
 <ul>

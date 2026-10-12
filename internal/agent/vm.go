@@ -95,7 +95,7 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	var lastLog time.Time
 	tags := []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}
 	prog := func(done, total uint64) {
-		a.progress(done, total, 0)
+		a.progress(ctx, done, total, 0)
 		if time.Since(lastLog) > time.Minute {
 			lastLog = time.Now()
 			a.log.Info("vm backup", "run", run.ID, "done", done, "total", total)
@@ -234,7 +234,7 @@ func (a *Agent) vmwareRestore(ctx context.Context, run api.Run, r *repo.Reposito
 	var written uint64
 	res, err := c.Restore(ctx, r, sn, vmware.RestoreOptions{
 		VMID: o.VMID, AsNew: o.NewVMID != 0, Name: o.Name, Datastore: o.Storage, Overwrite: o.Overwrite, Start: o.Start,
-		Progress: func(done, total uint64) { written = done; a.progress(done, total, 0) },
+		Progress: func(done, total uint64) { written = done; a.progress(ctx, done, total, 0) },
 		Log:      func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) },
 	})
 	if err != nil {

@@ -108,6 +108,8 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Installate l'agente guest QEMU nelle VM (<code>qemu-guest-agent</code> su Linux, gli strumenti guest VirtIO su Windows) e abilitatelo nelle opzioni della VM, così il test può confermare l'avvio.</li>
   <li>La pagina dell'esecuzione elenca ogni VM con il risultato e il tempo impiegato dall'avvio.</li>
 </ul>
+<h3 id="data-check">Verifica di tutti i dati archiviati</h3>
+<p>I test di ripristino leggono un campione. Inoltre un agent legge <b>tutti</b> i dati di ogni repository, li verifica con il loro checksum e controlla che cartelle e dati di ogni backup siano presenti — una volta al mese per impostazione predefinita (Impostazioni → Test di ripristino: <b>Verifica i dati archiviati</b>: mensile, ogni tre mesi o mai). Così si trovano danni sull'archiviazione stessa, come un disco che si guasta in un NAS o il degrado dei dati, prima che serva il backup. Ogni repository viene verificato una volta (i job di un agent su un'archiviazione lo condividono), dall'agent che vi scrive. La verifica legge tutto ciò che il repository contiene; sull'archiviazione cloud (S3, Azure) parte quindi solo con <b>Anche sull'archiviazione cloud</b>. I problemi fanno fallire l'esecuzione <i>Verifica dei dati</i> e inviano una notifica di errore; <b>Verifica i dati</b> nella pagina di un job avvia subito una verifica. Richiede agent 0.39.0 o successivi.</p>
 <p>In aggiunta, ripristinate a mano di tanto in tanto (ad es. ogni trimestre) una cartella reale e aprite qualche file — così si addestrano anche le persone che dovranno farlo in caso di emergenza.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

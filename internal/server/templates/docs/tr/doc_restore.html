@@ -108,6 +108,8 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Testin önyüklemeyi doğrulayabilmesi için VM'lere QEMU konuk aracısını kurun (Linux'ta <code>qemu-guest-agent</code>, Windows'ta VirtIO konuk araçları) ve VM seçeneklerinde etkinleştirin.</li>
   <li>Çalıştırma sayfası her VM'yi sonucu ve önyüklemenin ne kadar sürdüğüyle listeler.</li>
 </ul>
+<h3 id="data-check">Tüm depolanan verilerin denetimi</h3>
+<p>Geri yükleme testleri bir örneği okur. Buna ek olarak bir ajan her depodaki <b>tüm</b> verileri okur, sağlama toplamına göre doğrular ve her yedeğin klasörlerinin ve verilerinin yerinde olduğunu denetler — varsayılan olarak ayda bir (Ayarlar → Geri yükleme testleri: <b>Depolanan verileri denetle</b>: aylık, üç ayda bir veya asla). Böylece NAS'ta arızalanan bir disk veya veri bozulması gibi depolamanın kendisindeki hasarlar, yedeğe ihtiyaç duymadan önce bulunur. Her depo bir kez denetlenir (bir depolamadaki bir ajanın işleri onu paylaşır), ona yazan ajan tarafından. Denetim deponun içerdiği her şeyi okur; bu nedenle bulut depolamada (S3, Azure) yalnızca <b>Bulut depolamada da</b> açıkken çalışır. Sorunlar <i>Veri denetimi</i> çalıştırmasını başarısız yapar ve hata bildirimi gönderir; bir işin sayfasındaki <b>Verileri denetle</b> hemen bir denetim başlatır. Ajan 0.39.0 veya daha yenisi gerekir.</p>
 <p>Ayrıca zaman zaman (ör. üç ayda bir) gerçek bir klasörü elle geri yükleyin ve birkaç dosyayı açın — bu, acil durumda bunu yapması gerekecek kişileri de eğitir.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

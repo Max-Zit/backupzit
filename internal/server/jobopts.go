@@ -68,6 +68,9 @@ type JobOptions struct {
 	Compression string `json:"compression,omitempty"`
 	// MaxHours stops a backup or copy that runs longer (0 = no limit).
 	MaxHours int `json:"max_hours,omitempty"`
+	// RPOHours is the recovery point objective: the newest good backup
+	// should not be older (0 = none).
+	RPOHours int `json:"rpo_hours,omitempty"`
 }
 
 func (o JobOptions) Validate() error {
@@ -102,6 +105,9 @@ func (o JobOptions) Validate() error {
 	case repo.CompressionDefault, repo.CompressionOff, repo.CompressionFast, repo.CompressionMax:
 	default:
 		return errors.New("unknown compression level")
+	}
+	if o.RPOHours < 0 || o.RPOHours > 8760 {
+		return errors.New("the RPO is between 1 and 8760 hours (0 for none)")
 	}
 	if o.MaxHours < 0 || o.MaxHours > 720 {
 		return errors.New("the time limit of a run is between 1 and 720 hours (0 for none)")
@@ -237,7 +243,7 @@ func newJobForm(j Job, edit, canCommands bool) jobForm {
 // optionsFromForm reads the speed limit and commands of a job form. Users
 // who may not change commands keep the job's current ones.
 func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptions {
-	o := JobOptions{LimitMBps: atoiDefault(r.FormValue("limit_mbps")), MaxHours: atoiDefault(r.FormValue("max_hours"))}
+	o := JobOptions{LimitMBps: atoiDefault(r.FormValue("limit_mbps")), MaxHours: atoiDefault(r.FormValue("max_hours")), RPOHours: atoiDefault(r.FormValue("rpo_hours"))}
 	if o.LimitMBps > 0 && r.FormValue("limit_window") == "on" {
 		o.LimitFrom, o.LimitTo = atoiDefault(r.FormValue("limit_from")), atoiDefault(r.FormValue("limit_to"))
 		if o.LimitTo == 24 {

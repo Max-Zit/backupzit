@@ -56,6 +56,9 @@ systemctl enable --now backupzit-agent</pre>
 <p>Durum penceresi için simgeye tıklayın (veya Başlat menüsünden <b>BackupZit Agent</b>'ı açın): koruma durumu, çalışan bir yedeğin ilerlemesi, son ve sonraki yedek ve bilgisayarın tüm yedekleme işleri <b>Şimdi yedekle</b> ile. Sağ tıklama menüyü açar: iş başına <i>Back up now</i>, <i>Open console in browser</i>, <i>Hide this icon</i> (bir sonraki oturum açmaya kadar; yedekler sürer). Pencere, Windows 10 ve 11'in parçası olan Microsoft Edge WebView2'ye ihtiyaç duyar; eski sistemlerde simge ve menü çalışır ve <i>Open</i> konsolu tarayıcıda gösterir.</p>
 <p>Kullanıcılar böylece bilgisayarlarının yedeğini başlatabilir; işler, zamanlamalar ve saklama yalnızca konsolda ayarlanır. Her sistemde <code>backupzit-agent status</code> (yönetici veya root olarak) aynı bilgileri yazdırır.</p>
 
+<h2 id="parallel">Aynı anda birden çok iş</h2>
+<p>Bir ajan varsayılan olarak aynı anda tek iş çalıştırır; diğerleri kuyrukta bekler. Ajanlar sayfasındaki <b>Aynı anda iş</b> sütununda en fazla 8'e izin verebilirsiniz — ESXi, Proxmox, Microsoft 365 veya NAS paylaşımları için bir proxy ajanı gibi birden çok şeyi yedekleyen ajanlarda kullanışlıdır. Aynı işin iki çalıştırması hiçbir zaman aynı anda yürümez ve ajan güncellemeleri ajan boşalana kadar bekler. Eşzamanlı çalıştırmalar makinenin işlemcisini, disklerini ve ağını paylaşır; sayıyı adım adım artırın. Windows'ta VSS anlık görüntüleri birbiri ardına oluşturulur. Ajan 0.39.0 veya daha yenisi gerekir.</p>
+
 <h2>Yükseltme</h2>
 <p>Konsolda bir aracının çalıştırdığından daha yeni bir aracı yükleyicisi varsa, Aracılar sayfası sürümünün yanında <b>Şuna güncelle: x.y.z</b> ve listenin altında <b>Tüm aracıları güncelle</b> gösterir. Aracı bu durumda:</p>
 <ol>

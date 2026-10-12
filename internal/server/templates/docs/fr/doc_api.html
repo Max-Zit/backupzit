@@ -42,6 +42,7 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
 <p>N'utilisez <code>-k</code> / <code>-SkipCertificateCheck</code> qu'avec le certificat auto-signé de la console sur un réseau de confiance, ou installez le certificat de la console sur l'hôte de supervision.</p>
 <h3>Contrôle de supervision</h3>
 <p>Interrogez <code>/api/v1/status</code> toutes les quelques minutes et alertez lorsque <code>ok</code> vaut false. Pour un contrôle par tâche, utilisez <code>/api/v1/jobs</code> et alertez lorsque <code>last_status</code> vaut <code>failed</code> ou que <code>last_finished</code> est plus ancien que prévu.</p>
+<p>Les tâches avec un RPO renvoient aussi <code>rpo_hours</code>, <code>rpo_met</code> et <code>last_good_backup</code> ; les agents renvoient <code>max_runs</code> (tâches simultanées). La métrique <code>backupzit_job_rpo_met</code> vaut 1 pour une tâche dans son RPO et 0 pour une tâche qui l'a dépassé.</p>
 <h3>Prometheus et Grafana</h3>
 <p><code>/api/v1/metrics</code> renvoie l'état au format texte Prometheus : agents en ligne, exécutions actives, échecs et avertissements des dernières 24 heures, sauvegardes suspectes et, par agent, tâche et cible de stockage, <code>backupzit_agent_online</code>, <code>backupzit_job_last_status</code> (0 succès, 1 avertissement, 2 échec), <code>backupzit_job_last_success_timestamp_seconds</code>, <code>backupzit_storage_used_bytes</code> et <code>backupzit_storage_free_bytes</code>. Un job de collecte avec un jeton Lecteur :</p>
 <pre>- job_name: backupzit
