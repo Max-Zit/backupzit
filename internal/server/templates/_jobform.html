@@ -18,9 +18,15 @@
           <option value="interval" {{if eq .S.Kind "interval"}}selected{{end}}>{{T "Repeatedly, every few hours or minutes"}}</option>
           <option value="monthly" {{if eq .S.Kind "monthly"}}selected{{end}}>{{T "Once a month"}}</option>
           {{if or (not .Edit) (eq .J.Kind "copy")}}<option value="after" {{if not .Edit}}data-jobkind-opt="copy"{{end}} {{if eq .S.Kind "after"}}selected{{end}}>{{T "After each backup of the source job"}}</option>{{end}}
+          {{if .ChainJobs}}<option value="chain" {{if eq .S.Kind "chain"}}selected{{end}}>{{T "After another job"}}</option>{{end}}
           <option value="manual" {{if eq .S.Kind "manual"}}selected{{end}}>{{T "Manually only"}}</option>
         </select>
       </label>
+      {{if .ChainJobs}}<div data-sched="chain" {{if ne .S.Kind "chain"}}hidden{{end}} class="row">
+        <label>{{T "Start after the job"}} <small>{{T "e.g. first the database, then the file server"}}</small>{{$a := .S.AfterJob}}
+          <select name="sched_after_job">{{range .ChainJobs}}<option value="{{.ID}}" {{if eq .ID $a}}selected{{end}}>{{.Name}} ({{.Hostname}})</option>{{end}}</select></label>
+        <label class="check"><input type="checkbox" name="sched_after_any" {{if .S.AfterAny}}checked{{end}}> {{T "also when that job failed"}}</label>
+      </div>{{end}}
 
       <div data-sched="daily" {{if ne .S.Kind "daily"}}hidden{{end}}>
         <label>{{T "At"}} <small>{{T "add up to three times a day"}}</small></label>
@@ -63,6 +69,14 @@
         <label>{{T "At"}} <input type="time" name="sched_month_time" value="{{.MonthTime}}"></label>
       </div>
     </fieldset>
+    <div class="row">
+      <label class="check"><input type="checkbox" name="window" {{if .J.Options.Window}}checked{{end}}> {{T "Backup window: start only between"}}</label>
+      {{$wf := .J.Options.WindowFrom}}{{$wt := .J.Options.WindowTo}}{{if not .J.Options.Window}}{{$wf = 22}}{{$wt = 6}}{{end}}
+      <select name="window_from" class="narrow" aria-label="{{T "from"}}">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $wf}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
+      <span>{{T "and"}}</span>
+      <select name="window_to" class="narrow" aria-label="{{T "to"}}">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $wt}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
+    </div>
+    <p class="muted small">{{T "Scheduled and chained runs that could not start within the window (e.g. because the night's jobs took longer) are cancelled when it closes, so they do not start during working hours. Starting a job by hand ignores the window."}}</p>
     <label>{{T "Recovery point objective (RPO), hours"}} <small>{{T "the newest good backup should never be older; the dashboard and a notification tell you when it is. Empty or 0: no RPO. Example: 26 for a daily backup"}}</small><input type="number" name="rpo_hours" min="0" max="8760" value="{{if .J.Options.RPOHours}}{{.J.Options.RPOHours}}{{end}}" class="narrow"></label>
     <details class="sched" {{if or .J.Options.LimitMBps .J.Options.HasCommands .J.Options.Compression}}open{{end}}>
       <summary>{{T "Advanced: speed limit, compression"}}{{if and .CanCommands (ne .J.Kind "copy")}}{{T ", commands before and after the backup"}}{{end}}</summary>

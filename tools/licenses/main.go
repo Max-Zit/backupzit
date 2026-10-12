@@ -23,6 +23,12 @@ var adapted = []struct{ file, project, license string }{
 	{"internal/vss/vss_windows.go", "restic (https://github.com/restic/restic)", "BSD 2-Clause License"},
 }
 
+// embedded lists other files built into the programs with their license.
+var embedded = []struct{ name, license, file string }{
+	{"DejaVu Sans fonts (internal/server/fonts, used in PDF reports)", "Bitstream Vera / DejaVu font license", "internal/server/fonts/LICENSE-DejaVu.txt"},
+	{"Droid Sans Fallback font (internal/server/fonts, used in PDF reports)", "Apache License 2.0", "internal/server/fonts/LICENSE-DroidSansFallback.txt"},
+}
+
 type module struct {
 	Path, Version, Dir string
 }
@@ -81,6 +87,13 @@ func main() {
 			lines = append(lines, strings.TrimPrefix(strings.TrimPrefix(l, "//"), " "))
 		}
 		fmt.Fprintf(&b2, "%s\n%s (in %s) — %s\n%s\n\n%s\n\n", strings.Repeat("=", 78), f.project, f.file, f.license, strings.Repeat("=", 78), strings.TrimSpace(strings.Join(lines, "\n")))
+	}
+	for _, f := range embedded {
+		text, err := os.ReadFile(f.file)
+		if err != nil {
+			fail("%v", err)
+		}
+		fmt.Fprintf(&b2, "%s\n%s — %s\n%s\n\n%s\n\n", strings.Repeat("=", 78), f.name, f.license, strings.Repeat("=", 78), strings.TrimSpace(string(text)))
 	}
 	b.WriteString(b2.String())
 	if len(bad) > 0 {

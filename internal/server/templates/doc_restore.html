@@ -54,6 +54,15 @@
 <p>A <b>symbolic link</b> to a file (e.g. <code>/etc/os-release</code>) is downloaded as the file it points to, when that file is in the backup; links to folders are left out of ZIP archives. The same applies to files downloaded from virtual machine backups (ext4, XFS). A restore on an agent recreates links as links.</p>
 <p>The console reads the backup from the storage itself, so browsing works for backups on network storage (SFTP, S3, SMB, Azure, hardened repository); for a local disk or a USB disk of an agent, restore with the paths. Users with a restore role may browse and download.</p>
 
+<h3 id="search">Search backups</h3>
+<p>Don't know which backup holds a file? Open <a href="/search">Search backups</a> and type part of the name (<code>ponuda</code>) or a pattern like <code>*.xlsx</code> or <code>ponuda*2025*</code>; for Microsoft 365 backups type part of a mail subject. Upper and lower case do not matter. You can limit the search to one job.</p>
+<ul>
+  <li>Every file backup, NAS share, Linux system and Microsoft 365 backup on network storage is searched, in all dates that are still kept.</li>
+  <li>Each hit shows the job, the agent, the full path, the size and the date of the newest backup. Under <b>Versions</b> every different version is listed; backups in which the file did not change are combined into one line.</li>
+  <li><b>Open</b> shows the folder in that backup, where you download the file or restore it on an agent.</li>
+</ul>
+<p>Disk images and VM backups are not searched. Backups on a local or USB disk of an agent cannot be read by the console and are counted as skipped. The search is also available in the <a href="/docs/api">REST API</a> (<code>/api/v1/search</code>).</p>
+
 <div class="callout tip"><p><b>Finding the right backup:</b> use the <a href="/calendar">Calendar</a> to see which backups ran on which day, or the job page's history.</p></div>
 
 <h2>Restore single files from a disk image</h2>

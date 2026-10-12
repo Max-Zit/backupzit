@@ -54,6 +54,15 @@
 <p>Un <b>link simbolico</b> a un file (ad es. <code>/etc/os-release</code>) viene scaricato come il file a cui punta, se quel file è nel backup; i link a cartelle vengono esclusi dagli archivi ZIP. Lo stesso vale per i file scaricati dai backup di macchine virtuali (ext4, XFS). Un ripristino su un agente ricrea i link come link.</p>
 <p>La console legge il backup direttamente dallo storage, quindi la navigazione funziona per i backup su storage di rete (SFTP, S3, SMB, Azure, repository protetto); per un disco locale o USB di un agente, ripristinate con i percorsi. Gli utenti con un ruolo di ripristino possono sfogliare e scaricare.</p>
 
+<h3 id="search">Cerca nei backup</h3>
+<p>Non sai quale backup contiene un file? Apri <a href="/search">Cerca nei backup</a> e scrivi parte del nome (<code>offerta</code>) o un modello come <code>*.xlsx</code> o <code>offerta*2025*</code>; per i backup di Microsoft 365, parte dell'oggetto di un'e-mail. Maiuscole e minuscole non contano. Puoi limitare la ricerca a un job.</p>
+<ul>
+  <li>Vengono esaminati tutti i backup di file, condivisioni NAS, sistemi Linux e Microsoft 365 su archiviazione di rete, in tutte le date ancora conservate.</li>
+  <li>Ogni risultato mostra il job, l'agent, il percorso completo, la dimensione e la data del backup più recente. In <b>Versioni</b> è elencata ogni versione diversa; i backup in cui il file non è cambiato sono riuniti in una riga.</li>
+  <li><b>Apri</b> mostra la cartella in quel backup, dove scarichi il file o lo ripristini su un agent.</li>
+</ul>
+<p>Immagini disco e backup di VM non vengono esaminati. La console non può leggere i backup su un disco locale o USB di un agent; vengono contati come saltati. La ricerca è disponibile anche nella <a href="/docs/api">REST API</a> (<code>/api/v1/search</code>).</p>
+
 <div class="callout tip"><p><b>Trovare il backup giusto:</b> usate il <a href="/calendar">Calendario</a> per vedere quali backup sono stati eseguiti in quale giorno, o lo storico nella pagina del job.</p></div>
 
 <h2>Ripristinare singoli file da un'immagine disco</h2>

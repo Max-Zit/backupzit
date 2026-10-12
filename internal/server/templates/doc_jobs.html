@@ -40,8 +40,12 @@
   <tr><td><b>Repeatedly</b></td><td>Every 2 hours between 08:00 and 18:00, Monday–Friday. Intervals from 15 minutes to 12 hours.</td></tr>
   <tr><td><b>Once a month</b></td><td>On the 1st at 23:00.</td></tr>
   <tr><td><b>Manually only</b></td><td>Runs only when you click <i>Run backup now</i>.</td></tr>
+  <tr><td><b>After another job</b></td><td>First the database, then the file server: the job starts as soon as the chosen job has finished successfully — or after any result, with <i>also when that job failed</i>. Chains can be longer (A → B → C); a job cannot run after itself or in a circle.</td></tr>
 </table>
 <p>Times are in the console server's time zone (on the appliance: <a href="/settings/network#timezone">Settings → Network → Time zone</a> or item 9 of the setup menu; it starts in UTC). If an agent is offline at the scheduled time, the backup waits in the queue and starts as soon as the agent is back. See all planned runs in the <a href="/calendar">Calendar</a>. The current date and time of the console are shown at the bottom left, below the time zone.</p>
+
+<h2 id="window">Backup window</h2>
+<p>With <b>Backup window: start only between</b> in the job form (e.g. 22 to 6), scheduled and chained runs of the job start only inside the window. A run still waiting when the window closes — for example because the night's jobs took longer — is cancelled, so it does not load the network and the machines during working hours. A run that has already started continues; to stop long runs use the time limit of a run (below). Starting the job by hand ignores the window. Daily and monthly schedule times must lie inside the window.</p>
 
 <h2 id="rpo">Recovery point objective (RPO)</h2>
 <p>The RPO says how old the newest good backup of a job may get, in hours — for example 26 for a daily backup (a day plus some slack). Set it in the job form under <b>Recovery point objective (RPO), hours</b>. The dashboard shows how many jobs are <b>within RPO</b> and lists every job that missed it, and the job page shows its state. A notification (email and chat, like a failure) goes out once when a job misses its RPO, and again only after it met it in between. Unlike the status of the last run, the RPO also catches a schedule removed by mistake, an agent offline for days and a backup that keeps failing.</p>

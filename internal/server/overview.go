@@ -165,7 +165,7 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 			continue
 		}
 		sc, err := ParseSchedule(j.Schedule)
-		if err != nil || sc.IsManual() || sc.Kind == SchedAfter {
+		if err != nil || sc.IsManual() || sc.Kind == SchedAfter || sc.Kind == SchedChain {
 			continue
 		}
 		// Overdue: no success since the scheduled run before the last one

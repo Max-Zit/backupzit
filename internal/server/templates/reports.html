@@ -3,6 +3,7 @@
   <h1>{{T "Reports"}}</h1>
   {{with .Data.Report}}
   <div class="actions noprint">
+    <a class="btn secondary-link" href="/reports/pdf?{{$.Data.Query}}">{{template "icon" "download"}}{{T "PDF"}}</a>
     <a class="btn secondary-link" href="/reports/csv?{{$.Data.Query}}">{{template "icon" "download"}}{{T "CSV"}}</a>
     <button type="button" class="secondary" data-print>{{template "icon" "print"}}{{T "Print / PDF"}}</button>
   </div>

@@ -54,6 +54,15 @@
 <p>Um <b>link simbólico</b> para um arquivo (p. ex. <code>/etc/os-release</code>) é baixado como o arquivo para onde aponta, se esse arquivo estiver no backup; links para pastas são omitidos dos arquivos ZIP. O mesmo vale para arquivos baixados de backups de máquinas virtuais (ext4, XFS). Uma restauração num agente recria os links como links.</p>
 <p>A console lê o backup diretamente do armazenamento, por isso a navegação funciona para backups em armazenamento de rede (SFTP, S3, SMB, Azure, repositório protegido); para um disco local ou USB de um agente, restaure com os caminhos. Usuários com uma função de restauração podem navegar e baixar.</p>
 
+<h3 id="search">Pesquisar backups</h3>
+<p>Não sabe qual backup contém um arquivo? Abra <a href="/search">Pesquisar backups</a> e digite parte do nome (<code>proposta</code>) ou um padrão como <code>*.xlsx</code> ou <code>proposta*2025*</code>; para backups do Microsoft 365, parte do assunto de um e-mail. Maiúsculas e minúsculas não importam. Você pode limitar a pesquisa a uma tarefa.</p>
+<ul>
+  <li>São pesquisados todos os backups de arquivos, compartilhamentos NAS, sistemas Linux e Microsoft 365 em armazenamento de rede, em todas as datas ainda mantidas.</li>
+  <li>Cada resultado mostra a tarefa, o agente, o caminho completo, o tamanho e a data do backup mais recente. Em <b>Versões</b> aparece cada versão diferente; os backups em que o arquivo não mudou são agrupados em uma linha.</li>
+  <li><b>Abrir</b> mostra a pasta nesse backup, onde você baixa o arquivo ou o restaura em um agente.</li>
+</ul>
+<p>Imagens de disco e backups de VM não são pesquisados. O console não consegue ler backups em um disco local ou USB de um agente; eles são contados como ignorados. A pesquisa também está disponível na <a href="/docs/api">API REST</a> (<code>/api/v1/search</code>).</p>
+
 <div class="callout tip"><p><b>Encontrar o backup certo:</b> use o <a href="/calendar">Calendário</a> para ver que backups foram executados em que dia, ou o histórico na página da tarefa.</p></div>
 
 <h2>Restaurar arquivos individuais de uma imagem de disco</h2>

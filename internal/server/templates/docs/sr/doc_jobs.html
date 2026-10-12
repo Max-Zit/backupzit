@@ -40,8 +40,12 @@
   <tr><td><b>Više puta</b></td><td>Na svaka 2 sata između 08:00 i 18:00, od ponedeljka do petka. Intervali od 15 minuta do 12 sati.</td></tr>
   <tr><td><b>Jednom mesečno</b></td><td>Prvog u mesecu u 23:00.</td></tr>
   <tr><td><b>Samo ručno</b></td><td>Pokreće se samo kada kliknete <i>Pokreni bekap sada</i>.</td></tr>
+  <tr><td><b>Posle drugog posla</b></td><td>Prvo baza, pa fajl server: posao počinje čim izabrani posao uspešno završi — ili posle bilo kog ishoda, uz <i>i kada taj posao nije uspeo</i>. Lanci mogu biti duži (A → B → C); posao ne može da se pokreće posle samog sebe niti u krug.</td></tr>
 </table>
 <p>Vremena su u vremenskoj zoni servera konzole (na uređaju: <a href="/settings/network#timezone">Podešavanja → Mreža → Vremenska zona</a> ili stavka 9 menija za podešavanje; počinje u UTC-u). Ako je agent van mreže u zakazano vreme, bekap čeka u redu i počinje čim se agent vrati. Sva planirana pokretanja vidite u <a href="/calendar">Kalendaru</a>. Trenutni datum i vreme konzole prikazani su dole levo, ispod vremenske zone.</p>
+
+<h2 id="window">Prozor za bekap</h2>
+<p>Uz <b>Prozor za backup: počni samo između</b> u formi posla (npr. od 22 do 6), zakazana i ulančana pokretanja posla počinju samo unutar prozora. Pokretanje koje još čeka kada se prozor zatvori — na primer jer su noćni poslovi trajali duže — otkazuje se, da ne bi opterećivalo mrežu i mašine tokom radnog vremena. Pokretanje koje je već počelo nastavlja; da biste zaustavili duga pokretanja, koristite vremensko ograničenje pokretanja (niže). Ručno pokretanje posla ignoriše prozor. Vremena dnevnog i mesečnog rasporeda moraju biti unutar prozora.</p>
 
 <h2 id="rpo">Ciljna tačka oporavka (RPO)</h2>
 <p>RPO kaže koliko star sme da bude najnoviji dobar backup posla, u satima — na primer 26 za dnevni backup (dan plus malo rezerve). Podešava se u formi posla pod <b>Ciljna tačka oporavka (RPO), sati</b>. Dashboard prikazuje koliko je poslova <b>u okviru RPO-a</b> i navodi svaki posao koji ga je prekoračio, a stranica posla prikazuje stanje. Obaveštenje (mejl i chat, kao kod greške) stiže jednom kada posao prekorači RPO, i ponovo tek ako ga je u međuvremenu ispunio. Za razliku od statusa poslednjeg izvršavanja, RPO hvata i greškom uklonjen raspored, agenta koji danima nije na mreži i backup koji stalno pada.</p>

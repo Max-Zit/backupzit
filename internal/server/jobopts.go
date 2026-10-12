@@ -71,6 +71,12 @@ type JobOptions struct {
 	// RPOHours is the recovery point objective: the newest good backup
 	// should not be older (0 = none).
 	RPOHours int `json:"rpo_hours,omitempty"`
+	// Window limits when scheduled and chained runs may start: from
+	// WindowFrom to WindowTo o'clock (console time; may span midnight).
+	// Runs that could not start in time are cancelled when it closes.
+	Window     bool `json:"window,omitempty"`
+	WindowFrom int  `json:"window_from,omitempty"`
+	WindowTo   int  `json:"window_to,omitempty"`
 }
 
 func (o JobOptions) Validate() error {
@@ -105,6 +111,9 @@ func (o JobOptions) Validate() error {
 	case repo.CompressionDefault, repo.CompressionOff, repo.CompressionFast, repo.CompressionMax:
 	default:
 		return errors.New("unknown compression level")
+	}
+	if o.Window && (o.WindowFrom < 0 || o.WindowFrom > 23 || o.WindowTo < 0 || o.WindowTo > 23 || o.WindowFrom == o.WindowTo) {
+		return errors.New("the backup window needs a start and a different end hour")
 	}
 	if o.RPOHours < 0 || o.RPOHours > 8760 {
 		return errors.New("the RPO is between 1 and 8760 hours (0 for none)")
@@ -190,6 +199,8 @@ type jobForm struct {
 	LimitTo     int
 	// ReplicaAgents are the Proxmox nodes replicas can go to.
 	ReplicaAgents []pveAgent
+	// ChainJobs are the jobs this one can run after.
+	ChainJobs []Job
 }
 
 // newJobForm prepares the form for job j (a new job: defaults).
@@ -243,7 +254,8 @@ func newJobForm(j Job, edit, canCommands bool) jobForm {
 // optionsFromForm reads the speed limit and commands of a job form. Users
 // who may not change commands keep the job's current ones.
 func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptions {
-	o := JobOptions{LimitMBps: atoiDefault(r.FormValue("limit_mbps")), MaxHours: atoiDefault(r.FormValue("max_hours")), RPOHours: atoiDefault(r.FormValue("rpo_hours"))}
+	o := JobOptions{LimitMBps: atoiDefault(r.FormValue("limit_mbps")), MaxHours: atoiDefault(r.FormValue("max_hours")), RPOHours: atoiDefault(r.FormValue("rpo_hours")),
+		Window: r.FormValue("window") == "on", WindowFrom: atoiDefault(r.FormValue("window_from")), WindowTo: atoiDefault(r.FormValue("window_to"))}
 	if o.LimitMBps > 0 && r.FormValue("limit_window") == "on" {
 		o.LimitFrom, o.LimitTo = atoiDefault(r.FormValue("limit_from")), atoiDefault(r.FormValue("limit_to"))
 		if o.LimitTo == 24 {
@@ -421,5 +433,25 @@ func (s *Server) jobForm(r *http.Request, j Job, edit bool, agents []Agent) jobF
 		agents, _ = s.store.ListAgents(r.Context())
 	}
 	f.ReplicaAgents = pveAgents(agents)
+	if jobs, err := s.store.ListJobs(r.Context()); err == nil {
+		f.ChainJobs = chainTargets(jobs, j.ID)
+	}
 	return f
+}
+
+// inWindow reports whether hour h (0–23) lies in the job's backup window
+// (always true without one).
+func (o JobOptions) inWindow(h int) bool {
+	if !o.Window {
+		return true
+	}
+	if o.WindowFrom < o.WindowTo {
+		return h >= o.WindowFrom && h < o.WindowTo
+	}
+	return h >= o.WindowFrom || h < o.WindowTo
+}
+
+// WindowText is e.g. "22:00–06:00".
+func (o JobOptions) WindowText() string {
+	return fmt.Sprintf("%02d:00–%02d:00", o.WindowFrom, o.WindowTo)
 }

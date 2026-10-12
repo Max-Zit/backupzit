@@ -26,6 +26,7 @@
   <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Restore operator</td><td>Cancels a queued run or stops a running one: <code>{"state": "cancelled"}</code> or <code>"stopping"</code>; 409 if it has finished</td></tr>
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Backup operator</td><td>Turns the job's schedule on or off; with four-eyes approval on, disabling works only in the console (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Viewer</td><td>Space used per storage target, the capacity and free space when known, the growth per day and the days until full</td></tr>
+  <tr><td><code>GET /api/v1/search?q=&amp;job=</code></td><td>Restore operator</td><td>Searches the backups for a file, folder or mail subject (see <a href="/docs/restore#search">Search backups</a>): each hit with its versions, plus <code>backups_searched</code>, <code>backups_skipped</code>, <code>partial</code> and <code>truncated</code></td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Viewer</td><td>Metrics in the Prometheus text format (see below)</td></tr>
 </table>
 <p>Periods: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, or <code>custom</code> with <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>

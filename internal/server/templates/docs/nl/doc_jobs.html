@@ -40,8 +40,12 @@
   <tr><td><b>Herhaaldelijk</b></td><td>Elke 2 uur tussen 08:00 en 18:00, maandag–vrijdag. Intervallen van 15 minuten tot 12 uur.</td></tr>
   <tr><td><b>Eens per maand</b></td><td>Op de 1e om 23:00.</td></tr>
   <tr><td><b>Alleen handmatig</b></td><td>Draait alleen als u op <i>Back-up nu uitvoeren</i> klikt.</td></tr>
+  <tr><td><b>Na een andere taak</b></td><td>Eerst de database, dan de bestandsserver: de taak start zodra de gekozen taak geslaagd is — of na elk resultaat, met <i>ook als die taak mislukte</i>. Ketens kunnen langer zijn (A → B → C); een taak kan niet na zichzelf of in een kring draaien.</td></tr>
 </table>
 <p>De tijden zijn in de tijdzone van de consoleserver (op de appliance: <a href="/settings/network#timezone">Instellingen → Netwerk → Tijdzone</a> of item 9 van het setupmenu; begint in UTC). Is een agent offline op het geplande tijdstip, dan wacht de back-up in de wachtrij en start hij zodra de agent terug is. Alle geplande uitvoeringen ziet u in de <a href="/calendar">Kalender</a>. De huidige datum en tijd van de console staan linksonder, onder de tijdzone.</p>
+
+<h2 id="window">Back-upvenster</h2>
+<p>Met <b>Back-upvenster: alleen starten tussen</b> in het taakformulier (bijv. 22 tot 6) starten geplande en gekoppelde uitvoeringen van de taak alleen binnen het venster. Een uitvoering die nog wacht als het venster sluit — bijvoorbeeld omdat de nachtelijke taken langer duurden — wordt geannuleerd, zodat ze het netwerk en de machines niet belast tijdens werktijd. Een uitvoering die al gestart is, loopt door; gebruik de tijdslimiet van een uitvoering (hieronder) om lange uitvoeringen te stoppen. Handmatig starten negeert het venster. Tijden van dagelijkse en maandelijkse planningen moeten binnen het venster liggen.</p>
 
 <h2 id="rpo">Herstelpuntdoel (RPO)</h2>
 <p>Het RPO bepaalt hoe oud de nieuwste goede back-up van een taak mag worden, in uren — bijvoorbeeld 26 voor een dagelijkse back-up (een dag plus wat speling). U stelt het in het taakformulier in onder <b>Herstelpuntdoel (RPO), uren</b>. Het dashboard toont hoeveel taken <b>binnen RPO</b> zijn en noemt elke taak die het heeft gemist; de taakpagina toont de toestand. Een melding (e-mail en chat, zoals bij een fout) gaat één keer uit wanneer een taak haar RPO mist, en pas opnieuw nadat ze het tussendoor heeft gehaald. Anders dan de status van de laatste uitvoering vangt het RPO ook een per ongeluk verwijderd schema, een agent die dagen offline is en een back-up die steeds mislukt.</p>

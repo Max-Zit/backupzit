@@ -40,8 +40,12 @@
   <tr><td><b>Opakovaně</b></td><td>Každé 2 hodiny mezi 08:00 a 18:00, pondělí–pátek. Intervaly od 15 minut do 12 hodin.</td></tr>
   <tr><td><b>Jednou měsíčně</b></td><td>1. den ve 23:00.</td></tr>
   <tr><td><b>Pouze ručně</b></td><td>Běží jen po kliknutí na <i>Spustit zálohu nyní</i>.</td></tr>
+  <tr><td><b>Po jiné úloze</b></td><td>Nejdřív databáze, pak souborový server: úloha se spustí, jakmile zvolená úloha úspěšně skončí — nebo po jakémkoli výsledku, se zaškrtnutým <i>i když tato úloha selhala</i>. Řetězy mohou být delší (A → B → C); úloha se nemůže spouštět po sobě samé ani v kruhu.</td></tr>
 </table>
 <p>Časy jsou v časovém pásmu serveru konzole (na appliance: <a href="/settings/network#timezone">Nastavení → Síť → Časové pásmo</a> nebo položka 9 nabídky nastavení; na začátku UTC). Je-li agent v plánovaný čas offline, záloha čeká ve frontě a spustí se, jakmile se agent vrátí. Všechny plánované běhy uvidíte v <a href="/calendar">Kalendáři</a>. Aktuální datum a čas konzole se zobrazují vlevo dole pod časovým pásmem.</p>
+
+<h2 id="window">Okno zálohování</h2>
+<p>S volbou <b>Okno zálohování: spouštět jen mezi</b> ve formuláři úlohy (např. 22 až 6) se plánované a řetězené běhy úlohy spouštějí jen uvnitř okna. Běh, který při zavření okna ještě čeká — například protože noční úlohy trvaly déle —, se zruší, aby nezatěžoval síť a stroje během pracovní doby. Běh, který už začal, pokračuje; dlouhé běhy zastavíte časovým limitem běhu (níže). Ruční spuštění úlohy okno ignoruje. Časy denních a měsíčních plánů musí ležet uvnitř okna.</p>
 
 <h2 id="rpo">Cíl bodu obnovy (RPO)</h2>
 <p>RPO určuje, jak stará smí být nejnovější dobrá záloha úlohy, v hodinách — například 26 pro denní zálohu (den plus rezerva). Nastavuje se ve formuláři úlohy v poli <b>Cíl bodu obnovy (RPO), hodiny</b>. Přehled ukazuje, kolik úloh je <b>v rámci RPO</b>, a vypíše každou úlohu, která ho nesplnila; stránka úlohy ukazuje stav. Oznámení (e-mail a chat, jako u chyby) odejde jednou, když úloha RPO nesplní, a znovu až poté, co ho mezitím splnila. Na rozdíl od stavu posledního běhu RPO zachytí i omylem odebraný plán, agenta, který je dny offline, a zálohu, která stále selhává.</p>

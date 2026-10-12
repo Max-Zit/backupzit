@@ -40,8 +40,12 @@
   <tr><td><b>Wielokrotnie</b></td><td>Co 2 godziny między 08:00 a 18:00, od poniedziałku do piątku. Odstępy od 15 minut do 12 godzin.</td></tr>
   <tr><td><b>Raz w miesiącu</b></td><td>1. dnia o 23:00.</td></tr>
   <tr><td><b>Tylko ręcznie</b></td><td>Uruchamia się tylko po kliknięciu <i>Uruchom kopię teraz</i>.</td></tr>
+  <tr><td><b>Po innym zadaniu</b></td><td>Najpierw baza danych, potem serwer plików: zadanie startuje, gdy tylko wybrane zadanie zakończy się powodzeniem — lub po dowolnym wyniku, z <i>także gdy to zadanie się nie powiodło</i>. Łańcuchy mogą być dłuższe (A → B → C); zadanie nie może uruchamiać się po sobie samym ani w kółko.</td></tr>
 </table>
 <p>Godziny są w strefie czasowej serwera konsoli (na appliance: <a href="/settings/network#timezone">Ustawienia → Sieć → Strefa czasowa</a> lub pozycja 9 menu konfiguracji; na początku UTC). Jeśli agent jest offline w zaplanowanym czasie, kopia czeka w kolejce i startuje, gdy tylko agent wróci. Wszystkie planowane uruchomienia widać w <a href="/calendar">Kalendarzu</a>. Bieżąca data i godzina konsoli są widoczne w lewym dolnym rogu, pod strefą czasową.</p>
+
+<h2 id="window">Okno kopii</h2>
+<p>Z opcją <b>Okno kopii: uruchamiaj tylko między</b> w formularzu zadania (np. od 22 do 6) zaplanowane i łańcuchowe uruchomienia zadania startują tylko w oknie. Uruchomienie, które wciąż czeka, gdy okno się zamyka — na przykład bo nocne zadania trwały dłużej — jest anulowane, aby nie obciążało sieci i maszyn w godzinach pracy. Uruchomienie, które już wystartowało, trwa dalej; aby zatrzymać długie uruchomienia, użyj limitu czasu uruchomienia (niżej). Ręczne uruchomienie zadania ignoruje okno. Godziny harmonogramów dziennych i miesięcznych muszą mieścić się w oknie.</p>
 
 <h2 id="rpo">Cel punktu odtwarzania (RPO)</h2>
 <p>RPO określa, jak stara może być najnowsza dobra kopia zadania, w godzinach — na przykład 26 dla kopii codziennej (doba plus zapas). Ustawia się go w formularzu zadania w polu <b>Cel punktu odtwarzania (RPO), godziny</b>. Pulpit pokazuje, ile zadań jest <b>w ramach RPO</b>, i wymienia każde zadanie, które go przekroczyło; strona zadania pokazuje stan. Powiadomienie (e-mail i czat, jak przy błędzie) wysyłane jest raz, gdy zadanie przekroczy RPO, i ponownie dopiero po tym, jak w międzyczasie je spełniło. W przeciwieństwie do stanu ostatniego uruchomienia RPO wychwytuje też przypadkowo usunięty harmonogram, agenta offline od wielu dni i kopię, która ciągle się nie udaje.</p>

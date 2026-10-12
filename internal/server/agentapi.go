@@ -274,6 +274,7 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("run finished", "run", id, "status", res.Status, "agent", a.Hostname)
+	s.chainAfterRun(r.Context(), id)
 	if res.Status != api.StatusFailed {
 		if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && isBackupKind(run.Kind) {
 			if ids, err := s.store.QueueCopiesAfter(r.Context(), *run.JobID); err != nil {

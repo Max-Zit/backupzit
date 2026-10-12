@@ -54,6 +54,15 @@
 <p>Ein <b>symbolischer Link</b> auf eine Datei (z. B. <code>/etc/os-release</code>) wird als die Datei heruntergeladen, auf die er zeigt, wenn diese in der Sicherung ist; Links auf Ordner werden in ZIP-Archiven ausgelassen. Dasselbe gilt für Dateien, die aus VM-Sicherungen heruntergeladen werden (ext4, XFS). Eine Wiederherstellung auf einem Agenten legt Links wieder als Links an.</p>
 <p>Die Konsole liest die Sicherung selbst vom Speicher, daher funktioniert das Durchsuchen für Sicherungen auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository); bei einer lokalen oder USB-Festplatte eines Agenten stellen Sie mit den Pfaden wieder her. Benutzer mit einer Wiederherstellungsrolle dürfen durchsuchen und herunterladen.</p>
 
+<h3 id="search">Sicherungen durchsuchen</h3>
+<p>Sie wissen nicht, in welcher Sicherung eine Datei liegt? Öffnen Sie <a href="/search">Sicherungen durchsuchen</a> und geben Sie einen Teil des Namens (<code>angebot</code>) oder ein Muster wie <code>*.xlsx</code> oder <code>angebot*2025*</code> ein; bei Microsoft-365-Sicherungen einen Teil eines E-Mail-Betreffs. Groß- und Kleinschreibung spielt keine Rolle. Die Suche lässt sich auf einen Auftrag beschränken.</p>
+<ul>
+  <li>Durchsucht werden alle Datei-, NAS-Freigabe-, Linux-System- und Microsoft-365-Sicherungen auf Netzwerkspeicher, über alle noch aufbewahrten Daten.</li>
+  <li>Jeder Treffer zeigt Auftrag, Agent, vollständigen Pfad, Größe und Datum der neuesten Sicherung. Unter <b>Versionen</b> steht jede unterschiedliche Version; Sicherungen, in denen sich die Datei nicht änderte, sind in einer Zeile zusammengefasst.</li>
+  <li><b>Öffnen</b> zeigt den Ordner in dieser Sicherung, wo Sie die Datei herunterladen oder auf einem Agenten wiederherstellen.</li>
+</ul>
+<p>Festplatten-Images und VM-Sicherungen werden nicht durchsucht. Sicherungen auf einer lokalen oder USB-Festplatte eines Agenten kann die Konsole nicht lesen; sie werden als übersprungen gezählt. Die Suche gibt es auch in der <a href="/docs/api">REST-API</a> (<code>/api/v1/search</code>).</p>
+
 <div class="callout tip"><p><b>Die richtige Sicherung finden:</b> Im <a href="/calendar">Kalender</a> sehen Sie, welche Sicherungen an welchem Tag liefen, oder nutzen Sie den Verlauf auf der Auftragsseite.</p></div>
 
 <h2>Einzelne Dateien aus einem Festplattenabbild wiederherstellen</h2>

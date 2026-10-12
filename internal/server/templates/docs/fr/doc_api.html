@@ -26,6 +26,7 @@
   <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Opérateur de restauration</td><td>Annule une exécution en attente ou arrête une exécution en cours : <code>{"state": "cancelled"}</code> ou <code>"stopping"</code> ; 409 si elle est terminée</td></tr>
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Opérateur de sauvegarde</td><td>Active ou désactive la planification de la tâche ; avec l'approbation à quatre yeux, la désactivation ne se fait que dans la console (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Lecteur</td><td>Espace utilisé par cible de stockage, capacité et espace libre si connus, croissance par jour et jours avant saturation</td></tr>
+  <tr><td><code>GET /api/v1/search?q=&amp;job=</code></td><td>Opérateur de restauration</td><td>Recherche dans les sauvegardes un fichier, un dossier ou un objet d'e-mail (voir <a href="/docs/restore#search">Rechercher dans les sauvegardes</a>) : chaque résultat avec ses versions, plus <code>backups_searched</code>, <code>backups_skipped</code>, <code>partial</code> et <code>truncated</code></td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Lecteur</td><td>Métriques au format texte Prometheus (voir plus bas)</td></tr>
 </table>
 <p>Périodes : <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, ou <code>custom</code> avec <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>

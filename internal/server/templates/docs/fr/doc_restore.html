@@ -54,6 +54,15 @@
 <p>Un <b>lien symbolique</b> vers un fichier (p. ex. <code>/etc/os-release</code>) est téléchargé comme le fichier vers lequel il pointe, si ce fichier est dans la sauvegarde ; les liens vers des dossiers sont omis des archives ZIP. Il en va de même pour les fichiers téléchargés depuis des sauvegardes de machines virtuelles (ext4, XFS). Une restauration sur un agent recrée les liens en tant que liens.</p>
 <p>La console lit elle-même la sauvegarde depuis le stockage ; la navigation fonctionne donc pour les sauvegardes sur un stockage réseau (SFTP, S3, SMB, Azure, dépôt renforcé) ; pour un disque local ou USB d'un agent, restaurez avec les chemins. Les utilisateurs disposant d'un rôle de restauration peuvent parcourir et télécharger.</p>
 
+<h3 id="search">Rechercher dans les sauvegardes</h3>
+<p>Vous ne savez pas quelle sauvegarde contient un fichier ? Ouvrez <a href="/search">Rechercher dans les sauvegardes</a> et saisissez une partie du nom (<code>offre</code>) ou un motif comme <code>*.xlsx</code> ou <code>offre*2025*</code> ; pour les sauvegardes Microsoft 365, une partie de l'objet d'un e-mail. Majuscules et minuscules sont indifférentes. Vous pouvez limiter la recherche à une tâche.</p>
+<ul>
+  <li>Toutes les sauvegardes de fichiers, partages NAS, systèmes Linux et Microsoft 365 sur stockage réseau sont parcourues, à toutes les dates encore conservées.</li>
+  <li>Chaque résultat indique la tâche, l'agent, le chemin complet, la taille et la date de la dernière sauvegarde. Sous <b>Versions</b> figure chaque version différente ; les sauvegardes où le fichier n'a pas changé sont regroupées sur une ligne.</li>
+  <li><b>Ouvrir</b> affiche le dossier dans cette sauvegarde, où vous téléchargez le fichier ou le restaurez sur un agent.</li>
+</ul>
+<p>Les images disque et les sauvegardes de VM ne sont pas parcourues. La console ne peut pas lire les sauvegardes sur un disque local ou USB d'un agent ; elles sont comptées comme ignorées. La recherche est aussi disponible dans l'<a href="/docs/api">API REST</a> (<code>/api/v1/search</code>).</p>
+
 <div class="callout tip"><p><b>Trouver la bonne sauvegarde :</b> utilisez le <a href="/calendar">Calendrier</a> pour voir quelles sauvegardes se sont exécutées quel jour, ou l'historique de la page de la tâche.</p></div>
 
 <h2>Restaurer des fichiers individuels depuis une image disque</h2>

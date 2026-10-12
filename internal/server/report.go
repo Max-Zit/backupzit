@@ -506,7 +506,7 @@ func (s *Server) handleReportEmail(w http.ResponseWriter, r *http.Request, _ str
 		return
 	}
 	if err := sendMailWith(r.Context(), e, rep.Subject(notifyLanguage(e)), rep.Text(notifyLanguage(e), s.consoleURL()),
-		[]attachment{{Name: rep.FileName(), ContentType: "text/csv; charset=utf-8", Data: rep.CSV()}}); err != nil {
+		reportAttachments(rep, notifyLanguage(e), s.consoleURL())); err != nil {
 		redirectErr(w, r, back, fmt.Errorf("send report: %w", err))
 		return
 	}
@@ -661,7 +661,7 @@ func (n *Notifier) scheduledReports(ctx context.Context, l *language, e EmailSet
 			to.To = rs.Recipients
 		}
 		if err := n.sendWith(ctx, to, rep.Subject(l), rep.Text(l, n.publicURL()),
-			[]attachment{{Name: rep.FileName(), ContentType: "text/csv; charset=utf-8", Data: rep.CSV()}}); err != nil {
+			reportAttachments(rep, l, n.publicURL())); err != nil {
 			n.log.Error("send scheduled report", "report", rs.Name, "err", err)
 			continue
 		}

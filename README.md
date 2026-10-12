@@ -50,9 +50,10 @@ BackupZit backs up Windows and Linux machines (files or whole disks), Proxmox VE
 - Tamper-evident audit log.
 
 **Management:**
-- Schedules and retention per job.
+- Schedules, job chains (run B after A), backup windows, RPO and retention per job.
+- Search for a file or mail across all backups and dates.
 - Email, Slack, Teams and webhook notifications.
-- Reports (CSV, emailed on a schedule) and a calendar of runs.
+- Reports (PDF and CSV, emailed on a schedule) and a calendar of runs.
 - Roles (Administrator, Backup operator, Restore operator, Viewer).
 - LDAP / Active Directory and single sign-on (SAML, OpenID Connect).
 - Two-factor sign-in and a REST API.

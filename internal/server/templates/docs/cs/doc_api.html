@@ -26,6 +26,7 @@
   <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Operátor obnovy</td><td>Zruší čekající běh nebo zastaví běžící: <code>{"state": "cancelled"}</code> nebo <code>"stopping"</code>; 409, pokud skončil</td></tr>
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Operátor záloh</td><td>Zapne nebo vypne plán úlohy; se schvalováním čtyř očí lze vypnout jen v konzoli (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Čtenář</td><td>Obsazené místo podle úložiště, kapacita a volné místo, pokud jsou známy, denní růst a dny do zaplnění</td></tr>
+  <tr><td><code>GET /api/v1/search?q=&amp;job=</code></td><td>Operátor obnovy</td><td>Hledá v zálohách soubor, složku nebo předmět e-mailu (viz <a href="/docs/restore#search">Hledat v zálohách</a>): každý výsledek s jeho verzemi, navíc <code>backups_searched</code>, <code>backups_skipped</code>, <code>partial</code> a <code>truncated</code></td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Čtenář</td><td>Metriky v textovém formátu Prometheus (viz níže)</td></tr>
 </table>
 <p>Období: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> nebo <code>custom</code> s <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>

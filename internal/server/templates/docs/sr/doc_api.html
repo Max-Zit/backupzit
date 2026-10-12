@@ -26,6 +26,7 @@
   <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Operater vraćanja</td><td>Otkazuje run koji čeka ili zaustavlja run koji radi: <code>{"state": "cancelled"}</code> ili <code>"stopping"</code>; 409 ako je završen</td></tr>
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Operater bekapa</td><td>Uključuje ili isključuje raspored posla; kada su uključena četiri oka, isključivanje radi samo u konzoli (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Posmatrač</td><td>Zauzeće po skladištu, kapacitet i slobodan prostor kada su poznati, rast po danu i broj dana do popunjenosti</td></tr>
+  <tr><td><code>GET /api/v1/search?q=&amp;job=</code></td><td>Operater vraćanja</td><td>Pretražuje bekape za fajl, folder ili naslov mejla (vidi <a href="/docs/restore#search">Pretraga bekapa</a>): svaki pogodak sa verzijama, plus <code>backups_searched</code>, <code>backups_skipped</code>, <code>partial</code> i <code>truncated</code></td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Posmatrač</td><td>Metrike u Prometheus tekstualnom formatu (vidi ispod)</td></tr>
 </table>
 <p>Periodi: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, ili <code>custom</code> sa <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>

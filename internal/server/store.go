@@ -537,6 +537,18 @@ func (s *Store) checkJob(ctx context.Context, j *Job) error {
 	if sc.Kind == SchedAfter && j.Kind != JobCopy {
 		return errors.New("\"after each backup\" is only available for copy jobs")
 	}
+	if sc.Kind == SchedChain {
+		if err := s.checkChain(ctx, j.ID, sc.AfterJob); err != nil {
+			return err
+		}
+	}
+	if j.Options.Window && (sc.Kind == SchedDaily || sc.Kind == SchedMonthly) {
+		for _, t := range sc.Times {
+			if h, _, err := parseHM(t); err == nil && !j.Options.inWindow(h) {
+				return fmt.Errorf("the start time %s is outside the backup window %s", t, j.Options.WindowText())
+			}
+		}
+	}
 	j.Schedule = sc.Encode()
 	if j.Kind == JobVM && j.VMwareHostID != nil {
 		if h, err := s.GetVMwareHost(ctx, *j.VMwareHostID); err == nil && h.ProxyAgentID != nil {
@@ -861,10 +873,10 @@ func (s *Store) claimRun(ctx context.Context, agentID int64, onlyUpdate bool) (*
 func (s *Store) claimRunIdle(ctx context.Context, agentID int64, onlyUpdate, idle bool) (*Run, error) {
 	var id int64
 	err := s.db.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
-		WHERE id = (SELECT id FROM runs WHERE agent_id=$1 AND status='queued' AND (NOT $2 OR kind='agent-update')
-			AND ($3 OR kind<>'agent-update')
-			ORDER BY kind IN ('verify','repo-check'), queued_at LIMIT 1 FOR UPDATE SKIP LOCKED)
-		RETURNING id`, agentID, onlyUpdate, idle).Scan(&id)
+		WHERE id = (SELECT r.id FROM runs r LEFT JOIN jobs j ON j.id=r.job_id WHERE r.agent_id=$1 AND r.status='queued' AND (NOT $2 OR r.kind='agent-update')
+			AND ($3 OR r.kind<>'agent-update') AND NOT `+windowClosed(4)+`
+			ORDER BY r.kind IN ('verify','repo-check'), r.queued_at LIMIT 1 FOR UPDATE OF r SKIP LOCKED)
+		RETURNING id`, agentID, onlyUpdate, idle, time.Now().Hour()).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}

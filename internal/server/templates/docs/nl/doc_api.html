@@ -26,6 +26,7 @@
   <tr><td><code>POST /api/v1/runs/{id}/cancel</code></td><td>Herstelmedewerker</td><td>Annuleert een wachtende uitvoering of stopt een lopende: <code>{"state": "cancelled"}</code> of <code>"stopping"</code>; 409 als ze klaar is</td></tr>
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Back-upoperator</td><td>Zet het schema van de taak aan of uit; met vier-ogengoedkeuring kan uitschakelen alleen in de console (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Kijker</td><td>Gebruikte ruimte per opslagdoel, capaciteit en vrije ruimte indien bekend, groei per dag en dagen tot vol</td></tr>
+  <tr><td><code>GET /api/v1/search?q=&amp;job=</code></td><td>Herstelmedewerker</td><td>Doorzoekt de back-ups naar een bestand, map of e-mailonderwerp (zie <a href="/docs/restore#search">Back-ups doorzoeken</a>): elk resultaat met zijn versies, plus <code>backups_searched</code>, <code>backups_skipped</code>, <code>partial</code> en <code>truncated</code></td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Kijker</td><td>Metrics in het Prometheus-tekstformaat (zie hieronder)</td></tr>
 </table>
 <p>Perioden: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, of <code>custom</code> met <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>

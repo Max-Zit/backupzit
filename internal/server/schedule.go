@@ -17,6 +17,7 @@ const (
 	SchedInterval = "interval" // every N minutes, optionally within a time window
 	SchedMonthly  = "monthly"  // on a day of the month at a fixed time
 	SchedAfter    = "after"    // copy jobs: after each backup of the source job
+	SchedChain    = "chain"    // after another job finished (a chain: database, then files)
 )
 
 // Schedule is a human-friendly backup schedule. It is stored as JSON in
@@ -35,6 +36,10 @@ type Schedule struct {
 	ToHour   int `json:"to_hour,omitempty"`
 	// DayOfMonth for SchedMonthly (1..28).
 	DayOfMonth int `json:"day_of_month,omitempty"`
+	// AfterJob is the job a SchedChain job follows; AfterAny starts it also
+	// when that job failed.
+	AfterJob int64 `json:"after_job,omitempty"`
+	AfterAny bool  `json:"after_any,omitempty"`
 
 	// cron holds a raw cron expression for schedules created before the
 	// friendly format existed.
@@ -131,6 +136,12 @@ func (s *Schedule) Validate() error {
 		return nil
 	case SchedAfter:
 		s.Days, s.Times = nil, nil
+		return nil
+	case SchedChain:
+		s.Days, s.Times = nil, nil
+		if s.AfterJob <= 0 {
+			return errors.New("choose the job to run after")
+		}
 		return nil
 	case SchedDaily:
 		if len(s.Times) == 0 {
@@ -290,6 +301,11 @@ func (s Schedule) DescribeIn(l *language) string {
 		return l.T("Monthly on day %d at %s", s.DayOfMonth, s.Times[0])
 	case SchedAfter:
 		return l.T("After each backup of the source job")
+	case SchedChain:
+		if s.AfterAny {
+			return l.T("After another job finished")
+		}
+		return l.T("After another job succeeded")
 	}
 	return l.T("Manual only")
 }

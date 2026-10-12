@@ -96,6 +96,11 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 	if err := s.store.pruneAgentLogs(ctx); err != nil {
 		s.log.Error("prune agent logs", "err", err)
 	}
+	if n, err := s.store.expireWindowRuns(ctx, now); err != nil {
+		s.log.Error("expire runs outside their backup window", "err", err)
+	} else if n > 0 {
+		s.log.Warn("runs not started within their backup window were cancelled", "count", n)
+	}
 	if names, err := s.store.RemoveStaleRecoveryAgents(ctx, now); err != nil {
 		s.log.Error("remove old recovery agents", "err", err)
 	} else {

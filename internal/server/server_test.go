@@ -1004,6 +1004,10 @@ func TestReportsCalendarDocs(t *testing.T) {
 	if resp.StatusCode != 200 || strings.Count(body, "\n") != 3 || !strings.Contains(body, "'=Nightly docs") {
 		t.Fatalf("csv: %d %q", resp.StatusCode, body)
 	}
+	resp, body = do("GET", "/reports/pdf?period=last30", nil)
+	if resp.StatusCode != 200 || !strings.HasPrefix(body, "%PDF") || resp.Header.Get("Content-Type") != "application/pdf" || len(body) < 2000 {
+		t.Fatalf("pdf: %d %s %d", resp.StatusCode, resp.Header.Get("Content-Type"), len(body))
+	}
 	resp, body = do("GET", "/calendar", nil)
 	if resp.StatusCode != 200 || !strings.Contains(body, "=Nightly docs") || !strings.Contains(body, "22:00") {
 		t.Fatalf("calendar: %d", resp.StatusCode)

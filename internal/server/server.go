@@ -42,7 +42,8 @@ const sessionCookie = "bz_session"
 
 // Server is the management console.
 type Server struct {
-	seen  seenURL // the address users open the console with (ConsoleURL)
+	seen  seenURL   // the address users open the console with (ConsoleURL)
+	trees treeCache // folder names read by searches
 	store *Store
 	// dups finds agent enrollments used by two machines at once.
 	dups *dupTracker
@@ -276,6 +277,9 @@ func scheduleFromForm(r *http.Request) (string, error) {
 	case SchedMonthly:
 		sc.DayOfMonth, _ = strconv.Atoi(r.FormValue("sched_dom"))
 		sc.Times = []string{r.FormValue("sched_month_time")}
+	case SchedChain:
+		sc.AfterJob, _ = strconv.ParseInt(r.FormValue("sched_after_job"), 10, 64)
+		sc.AfterAny = r.FormValue("sched_after_any") == "on"
 	}
 	if err := sc.Validate(); err != nil {
 		return "", err
@@ -396,6 +400,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /jobs/m365-directory", s.ui(PermJobs, s.handleM365Directory))
 	mux.HandleFunc("POST /jobs/{id}/replica-start", s.ui(PermRestore, s.handleReplicaStart))
 	mux.HandleFunc("GET /restore", s.ui(PermRestore, s.handleRestoreWizard))
+	mux.HandleFunc("GET /search", s.ui(PermRestore, s.handleSearch))
 	mux.HandleFunc("GET /runs", s.ui(PermView, s.handleRuns))
 	mux.HandleFunc("GET /runs/{id}", s.ui(PermView, s.handleRun))
 	mux.HandleFunc("POST /runs/{id}/restore", s.ui(PermRestore, s.handleRestore))
@@ -412,6 +417,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /downloads/{file}", s.ui(PermView, s.handleDownload))
 	mux.HandleFunc("GET /reports", s.ui(PermView, s.handleReports))
 	mux.HandleFunc("GET /reports/csv", s.ui(PermView, s.handleReportCSV))
+	mux.HandleFunc("GET /reports/pdf", s.ui(PermView, s.handleReportPDF))
 	mux.HandleFunc("POST /reports/email", s.ui(PermJobs, s.handleReportEmail))
 	mux.HandleFunc("POST /reports/schedules", s.ui(PermJobs, s.handleReportScheduleCreate))
 	mux.HandleFunc("POST /reports/schedules/{id}/delete", s.ui(PermJobs, s.handleReportScheduleDelete))
@@ -1050,7 +1056,7 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 		return
 	}
 	data := map[string]any{"Job": j, "Runs": runs, "Coverage": s.coverageMap(r.Context())[j.ID], "Protected": nil, "ProtectedSQL": nil, "ProtectedRun": nil,
-		"Replicas": s.jobReplicas(r.Context(), j), "Active": activeRuns(runs), "RPO": rpoState(j, s.coverageMap(r.Context())[j.ID], time.Now())}
+		"Replicas": s.jobReplicas(r.Context(), j), "Active": activeRuns(runs), "RPO": rpoState(j, s.coverageMap(r.Context())[j.ID], time.Now()), "AfterJob": s.afterJob(r.Context(), j)}
 	if pr, err := s.store.newestBackup(r.Context(), j.ID); err == nil && pr != nil {
 		data["ProtectedRun"] = pr
 		if d := vmDetails(*pr); d != nil {
