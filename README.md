@@ -1,6 +1,11 @@
-# BackupZit
+# BackupZit — open-source, self-hosted backup software
 
-**Self-hosted backup for servers, workstations, virtual machines, databases and Microsoft 365, managed from one web console.**
+[![Latest release](https://img.shields.io/github/v/release/Max-Zit/backupzit?label=release)](https://github.com/Max-Zit/backupzit/releases/latest)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPLv3-blue)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/Max-Zit/backupzit/total)](https://github.com/Max-Zit/backupzit/releases)
+[![Website](https://img.shields.io/badge/website-max--zit.github.io%2Fbackupzit-4f46e5)](https://max-zit.github.io/backupzit/)
+
+**Self-hosted backup for servers, workstations, virtual machines, databases and Microsoft 365, managed from one web console.** A free, open-source alternative to commercial backup products such as Veeam Backup & Replication or NAKIVO for Windows, Linux, Proxmox VE, VMware ESXi and Hyper-V.
 
 BackupZit backs up Windows and Linux machines (files or whole disks), Proxmox VE, Hyper-V and VMware ESXi virtual machines, SQL Server, PostgreSQL and MySQL/MariaDB databases, NAS shares and Microsoft 365. It stores the backups deduplicated, compressed and encrypted on storage you choose, and restores anything from a single file to a whole machine on new hardware.
 
@@ -8,7 +13,7 @@ BackupZit backs up Windows and Linux machines (files or whole disks), Proxmox VE
 - **Free and open source** under the AGPLv3. [MaxZit](https://github.com/Max-Zit) offers commercial support.
 - The console is available in 14 languages: English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Czech, Serbian, Turkish, Russian, Chinese and Japanese.
 
-**Download:** [latest release](https://github.com/Max-Zit/backupzit/releases/latest) · **Install:** [quick start](#installation) · **Guide:** built into the console under *Documentation*
+**Download:** [latest release](https://github.com/Max-Zit/backupzit/releases/latest) · **Install:** [quick start](#installation) · **Website:** [max-zit.github.io/backupzit](https://max-zit.github.io/backupzit/) ([srpski](https://max-zit.github.io/backupzit/sr/)) · **Guide:** built into the console under *Documentation*
 
 ---
 
@@ -23,6 +28,7 @@ BackupZit backs up Windows and Linux machines (files or whole disks), Proxmox VE
 - [Supported systems](#supported-systems)
 - [Agent CLI (standalone)](#agent-cli-standalone)
 - [Repository format](#repository-format-v1)
+- [FAQ](#faq)
 - [Development](#development) · [License](#license)
 
 ## What it can back up
@@ -391,6 +397,32 @@ snapshots/<id>         one JSON document per backup run
   parent snapshot; changed files are re-read but only new chunks are uploaded.
   Every snapshot is a full, independent restore point.
 
+## FAQ
+
+**Is BackupZit free?**
+Yes. It is free and open source under the GNU AGPLv3, with no limits on machines, VMs or storage. [MaxZit](https://github.com/Max-Zit) offers optional commercial support.
+
+**How do I back up Proxmox VE virtual machines?**
+Install the agent on a Proxmox node and create a *Proxmox VE* job: VMs and containers are backed up agentless with changed blocks only, can be restored as new guests and started directly from the backup (instant recovery).
+
+**Can it back up VMware ESXi with the free ESXi license?**
+Yes, through a proxy agent; changed block tracking keeps incremental backups small, and VMs can be restored as new VMs, in place, or started over NFS (instant recovery).
+
+**How do I back up Hyper-V?**
+Install the Windows agent on the Hyper-V host and create a *Hyper-V* job; VMs are backed up agentless with resilient change tracking.
+
+**Can I restore a whole Windows or Linux server onto new hardware (bare-metal recovery)?**
+Yes. Boot the Windows recovery ISO (built with `build-winpe.ps1`) or the Linux recovery ISO, pick the backup in the console and restore the disks; drivers for different hardware are handled.
+
+**Does BackupZit back up Microsoft 365?**
+Yes: Exchange Online mail (.eml), calendars, contacts, OneDrive and SharePoint through Microsoft Graph with read-only application permissions.
+
+**Where are backups stored, and are they safe from ransomware?**
+On SFTP/NAS, S3-compatible storage, SMB, Azure Blob Storage, USB or local disks, encrypted with AES-256 and deduplicated. Immutable backups (S3 Object Lock or the write-once hardened repository), detection of ransomware-like changes and automatic restore tests protect them.
+
+**Does it need the cloud or internet access?**
+No. The console runs on your own server in your own network; nothing has to be exposed to the internet.
+
 ## Development
 
 ```
@@ -413,3 +445,7 @@ without it no update can be published to existing consoles.
 GNU Affero General Public License v3.0 — see [LICENSE](LICENSE). BackupZit is free to install and use; MaxZit offers commercial support.
 
 Third-party components keep their own licenses (MIT, BSD, Apache 2.0, ISC, MPL 2.0, zlib, public domain — all compatible with the AGPL). Their texts are in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt), which every package installs; regenerate it with `go run ./tools/licenses > THIRD_PARTY_LICENSES.txt` (it fails on a license that is not known to be compatible). `internal/vss/vss_windows.go` is adapted from restic under the BSD 2-Clause License; its header keeps the original copyright.
+
+The appliance images and the Linux recovery ISO also contain Debian packages under their own licenses (GPL and others); where to get their source code is in [SOURCE-CODE.txt](packaging/appliance/SOURCE-CODE.txt), which is included in every image and attached to every release.
+
+Veeam, NAKIVO, VMware, ESXi, Hyper-V, Microsoft 365, SQL Server and Proxmox are trademarks of their respective owners; BackupZit is not affiliated with them.

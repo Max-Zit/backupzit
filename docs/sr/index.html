@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="sr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BackupZit — besplatan bekap softver otvorenog koda za Windows, Linux, Proxmox, VMware, Hyper-V i Microsoft 365</title>
+<meta name="description" content="BackupZit je besplatan bekap softver otvorenog koda koji radi na vašem serveru: bekap Windows i Linux računara, Proxmox VE, VMware ESXi i Hyper-V virtuelnih mašina, SQL Server, PostgreSQL i MySQL baza, NAS deljenih foldera i Microsoft 365, uz deduplikaciju, enkripciju, zaštitu od ransomware-a i vraćanje celog sistema.">
+<meta name="keywords" content="bekap softver, backup softver, besplatan bekap, bekap servera, Proxmox bekap, VMware bekap, Hyper-V bekap, Microsoft 365 bekap, bekap baze podataka, zaštita od ransomware-a, alternativa za Veeam, BackupZit">
+<link rel="canonical" href="https://max-zit.github.io/backupzit/sr/">
+<link rel="alternate" hreflang="en" href="https://max-zit.github.io/backupzit/">
+<link rel="alternate" hreflang="sr" href="https://max-zit.github.io/backupzit/sr/">
+<link rel="alternate" hreflang="x-default" href="https://max-zit.github.io/backupzit/">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="BackupZit">
+<meta property="og:title" content="BackupZit — bekap softver otvorenog koda na vašem serveru">
+<meta property="og:description" content="Bekap servera, računara, Proxmox, VMware i Hyper-V virtuelnih mašina, baza i Microsoft 365 iz jedne web konzole na vašem serveru. Besplatno, pod AGPLv3 licencom.">
+<meta property="og:url" content="https://max-zit.github.io/backupzit/sr/">
+<meta property="og:image" content="https://max-zit.github.io/backupzit/og.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:locale" content="sr_RS">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://max-zit.github.io/backupzit/og.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "BackupZit",
+      "inLanguage": "sr",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Bekap i oporavak podataka",
+      "operatingSystem": "Linux, Windows",
+      "description": "Besplatan bekap softver otvorenog koda za Windows i Linux računare, Proxmox VE, VMware ESXi i Hyper-V virtuelne mašine, SQL Server, PostgreSQL i MySQL baze, NAS deljene foldere i Microsoft 365, koji radi na vašem serveru.",
+      "url": "https://max-zit.github.io/backupzit/sr/",
+      "downloadUrl": "https://github.com/Max-Zit/backupzit/releases/latest",
+      "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "image": "https://max-zit.github.io/backupzit/og.png",
+      "author": { "@type": "Organization", "name": "MaxZit", "url": "https://github.com/Max-Zit" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Da li je BackupZit besplatan?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Da. BackupZit je besplatan i otvorenog koda pod licencom GNU AGPLv3, bez ograničenja broja računara, virtuelnih mašina ili prostora. MaxZit nudi opcionu komercijalnu podršku." } },
+        { "@type": "Question", "name": "Da li BackupZit pravi bekap Proxmox, VMware i Hyper-V virtuelnih mašina?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Da. Proxmox VE mašine i kontejneri, VMware ESXi i Hyper-V mašine se bekapuju bez agenta, samo izmenjeni blokovi, i vraćaju kao nove mašine. Proxmox i VMware mašine mogu i da se pokrenu direktno iz bekapa (instant recovery)." } },
+        { "@type": "Question", "name": "Gde se čuvaju bekapi?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Na skladištu koje izaberete: SFTP server i NAS, S3 skladište (AWS, Wasabi, Backblaze B2, MinIO), SMB deljeni folderi, Azure Blob Storage, rotirajući USB diskovi, lokalni diskovi ili BackupZit ojačani repozitorijum. Bekapi su deduplicirani, kompresovani i šifrovani AES-256." } },
+        { "@type": "Question", "name": "Da li BackupZit štiti od ransomware-a?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Bekapi mogu biti nepromenljivi (S3 Object Lock ili ojačani repozitorijum), sumnjivi bekapi koji liče na ransomware ili masovno brisanje se otkrivaju i čuvanje se automatski pauzira, a automatski testovi vraćanja proveravaju da se bekapi zaista mogu vratiti." } }
+      ]
+    }
+  ]
+}
+</script>
+<style>
+:root { --bg: #ffffff; --fg: #0f172a; --muted: #475569; --card: #f8fafc; --line: #e2e8f0; --accent: #4f46e5; --accent-soft: #eef2ff; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0b1020; --fg: #e2e8f0; --muted: #94a3b8; --card: #111833; --line: #1f2a4a; --accent: #818cf8; --accent-soft: #1e1b4b; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+header.hero { background: linear-gradient(120deg, #1e1b4b, #4f46e5); color: #fff; padding: 56px 0 64px; }
+header.hero a { color: #fff; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 40px; font-size: 15px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; text-decoration: none; }
+.brand img { width: 32px; height: 32px; }
+h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0 0 16px; }
+.lead { font-size: 19px; max-width: 760px; opacity: .95; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.btn { display: inline-block; padding: 12px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; }
+.btn.primary { background: #fff; color: #312e81 !important; }
+.btn.ghost { border: 1px solid rgba(255,255,255,.6); }
+section { padding: 48px 0 8px; }
+h2 { font-size: 28px; margin: 0 0 16px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.card h3 { margin: 0 0 6px; font-size: 18px; }
+.card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+ul.ticks { padding-left: 20px; }
+pre { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-size: 14.5px; }
+details { border-bottom: 1px solid var(--line); padding: 12px 0; }
+summary { cursor: pointer; font-weight: 600; }
+footer { margin-top: 56px; padding: 28px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="top">
+      <a class="brand" href="./"><img src="../favicon.svg" alt="" width="32" height="32"> BackupZit</a>
+      <nav><a href="https://github.com/Max-Zit/backupzit">GitHub</a> · <a href="../" hreflang="en">English</a></nav>
+    </div>
+    <h1>Bekap softver otvorenog koda za servere, računare, virtuelne mašine i Microsoft 365 — na vašem serveru</h1>
+    <p class="lead">BackupZit pravi bekap Windows i Linux računara, Proxmox VE, VMware ESXi i Hyper-V virtuelnih mašina, SQL Server, PostgreSQL i MySQL baza, NAS deljenih foldera i Microsoft 365 — sve iz jedne web konzole koja radi na vašem serveru. Besplatno, pod AGPLv3 licencom, a konzola je i na srpskom jeziku.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Max-Zit/backupzit/releases/latest">Preuzmite najnoviju verziju</a>
+      <a class="btn ghost" href="https://github.com/Max-Zit/backupzit#installation">Uputstvo za instalaciju</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+<section>
+  <h2>Šta BackupZit bekapuje</h2>
+  <div class="grid">
+    <div class="card"><h3>Fajlovi na Windows-u i Linux-u</h3><p>Inkrementalni bekap fajlova, na Windows-u iz VSS snimka, pa su i otvoreni fajlovi ispravni. Pojedinačni fajlovi se preuzimaju iz browsera.</p></div>
+    <div class="card"><h3>Celi diskovi i ceo sistem</h3><p>Slike diskova Windows računara i servera i bekap celog Linux sistema, vraćanje sa recovery ISO-a — i na drugačiji hardver.</p></div>
+    <div class="card"><h3>Proxmox VE bekap</h3><p>Bekap Proxmox mašina i kontejnera bez agenta, samo izmenjeni blokovi, instant recovery, replikacija i automatski testovi pokretanja.</p></div>
+    <div class="card"><h3>VMware ESXi bekap</h3><p>VMware bekap bez agenta uz praćenje izmenjenih blokova, vraćanje kao nova mašina ili na isto mesto, instant recovery preko NFS-a.</p></div>
+    <div class="card"><h3>Hyper-V bekap</h3><p>Bekap Hyper-V mašina bez agenta, vraćanje na isti ili drugi Hyper-V host.</p></div>
+    <div class="card"><h3>Baze podataka</h3><p>SQL Server, PostgreSQL i MySQL/MariaDB njihovim alatima, bekap logova i vraćanje jedne baze na bilo koji trenutak.</p></div>
+    <div class="card"><h3>NAS deljeni folderi</h3><p>SMB i NFS folderi koje čita bilo koji agent — na NAS-u ništa ne treba instalirati.</p></div>
+    <div class="card"><h3>Microsoft 365 bekap</h3><p>Exchange Online pošta, kalendari i kontakti, OneDrive i SharePoint preko Microsoft Graph-a, samo sa pravima čitanja.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Zašto BackupZit</h2>
+  <ul class="ticks">
+    <li><b>Vaš server, vaša mreža</b> — nema cloud servisa, ništa ne mora da bude izloženo internetu.</li>
+    <li><b>Zaštita od ransomware-a</b> — nepromenljivi bekapi (S3 Object Lock ili ojačani repozitorijum), otkrivanje sumnjivih bekapa, automatski testovi vraćanja i audit log otporan na izmene.</li>
+    <li><b>Deduplikacija, kompresija i AES-256 enkripcija</b> na bilo kom skladištu: SFTP, S3 (AWS, Wasabi, Backblaze B2, MinIO), SMB, Azure, rotirajući USB diskovi; kopije bekapa za pravilo 3-2-1.</li>
+    <li><b>Jednostavno održavanje</b> — rasporedi, lanci poslova i prozor za bekap, RPO upozorenja, PDF izveštaji, obaveštenja emailom, Slack i Teams, REST API, uloge, LDAP/Active Directory i jedinstvena prijava (SSO).</li>
+    <li><b>Besplatno i otvorenog koda</b> pod AGPLv3, uz opcionu komercijalnu podršku firme MaxZit — alternativa komercijalnim rešenjima kao što su Veeam Backup &amp; Replication ili NAKIVO.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Instalacija za nekoliko minuta</h2>
+  <p>Uvezite gotov appliance (<a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova">OVA</a> za VMware, <a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2">qcow2</a> za Proxmox/KVM, <a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip">VHDX</a> za Hyper-V), pokrenite <a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.iso">appliance ISO</a> ili instalirajte na postojeći Debian, Ubuntu, AlmaLinux ili Rocky Linux server:</p>
+  <pre><code>curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh</code></pre>
+  <p>Zatim otvorite <code>https://&lt;server&gt;:8443</code>, prijavite se i dodajte agente: MSI za Windows, deb/rpm pakete za Linux. Konzoli treba 2 vCPU, 2–4 GB RAM-a i disk od 16–20 GB.</p>
+</section>
+
+<section>
+  <h2>Česta pitanja</h2>
+  <details><summary>Da li je BackupZit besplatan?</summary><p>Da. BackupZit je besplatan i otvorenog koda pod licencom GNU AGPLv3, bez ograničenja broja računara, virtuelnih mašina ili prostora. MaxZit nudi opcionu komercijalnu podršku.</p></details>
+  <details><summary>Da li BackupZit pravi bekap Proxmox, VMware i Hyper-V virtuelnih mašina?</summary><p>Da. Proxmox VE mašine i kontejneri, VMware ESXi i Hyper-V mašine se bekapuju bez agenta, samo izmenjeni blokovi, i vraćaju kao nove mašine. Proxmox i VMware mašine mogu i da se pokrenu direktno iz bekapa (instant recovery).</p></details>
+  <details><summary>Gde se čuvaju bekapi?</summary><p>Na skladištu koje izaberete: SFTP server i NAS, S3 skladište (AWS, Wasabi, Backblaze B2, MinIO), SMB deljeni folderi, Azure Blob Storage, rotirajući USB diskovi, lokalni diskovi ili BackupZit ojačani repozitorijum. Bekapi su deduplicirani, kompresovani i šifrovani AES-256.</p></details>
+  <details><summary>Da li BackupZit štiti od ransomware-a?</summary><p>Bekapi mogu biti nepromenljivi (S3 Object Lock ili ojačani repozitorijum), sumnjivi bekapi koji liče na ransomware ili masovno brisanje se otkrivaju i čuvanje se automatski pauzira, a automatski testovi vraćanja proveravaju da se bekapi zaista mogu vratiti.</p></details>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>BackupZit razvija <a href="https://github.com/Max-Zit">MaxZit</a> · Izvorni kod na <a href="https://github.com/Max-Zit/backupzit">GitHub-u</a> · Licenca: <a href="https://github.com/Max-Zit/backupzit/blob/main/LICENSE">GNU AGPLv3</a></p>
+    <p>Veeam, NAKIVO, VMware, ESXi, Hyper-V, Microsoft 365, SQL Server i Proxmox su zaštitni znaci njihovih vlasnika; BackupZit nije povezan sa njima.</p>
+  </div>
+</footer>
+</body>
+</html>

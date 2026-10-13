@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BackupZit — open-source self-hosted backup for Windows, Linux, Proxmox, VMware, Hyper-V and Microsoft 365</title>
+<meta name="description" content="BackupZit is free, open-source backup software you run on your own server: back up Windows and Linux machines, Proxmox VE, VMware ESXi and Hyper-V VMs, SQL Server, PostgreSQL, MySQL, NAS shares and Microsoft 365, with deduplication, encryption, immutable storage and bare-metal recovery.">
+<meta name="keywords" content="backup software, open source backup, self-hosted backup, Proxmox backup, VMware ESXi backup, Hyper-V backup, Windows backup, Linux backup, Microsoft 365 backup, SQL Server backup, bare metal recovery, Veeam alternative, NAKIVO alternative, ransomware protection, immutable backup">
+<link rel="canonical" href="https://max-zit.github.io/backupzit/">
+<link rel="alternate" hreflang="en" href="https://max-zit.github.io/backupzit/">
+<link rel="alternate" hreflang="sr" href="https://max-zit.github.io/backupzit/sr/">
+<link rel="alternate" hreflang="x-default" href="https://max-zit.github.io/backupzit/">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="BackupZit">
+<meta property="og:title" content="BackupZit — open-source self-hosted backup">
+<meta property="og:description" content="Back up servers, PCs, Proxmox, VMware and Hyper-V VMs, databases and Microsoft 365 from one web console on your own server. Free under the AGPLv3.">
+<meta property="og:url" content="https://max-zit.github.io/backupzit/">
+<meta property="og:image" content="https://max-zit.github.io/backupzit/og.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="BackupZit — open-source self-hosted backup">
+<meta name="twitter:description" content="Back up servers, PCs, Proxmox, VMware and Hyper-V VMs, databases and Microsoft 365 from one web console on your own server.">
+<meta name="twitter:image" content="https://max-zit.github.io/backupzit/og.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "BackupZit",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "Backup and recovery",
+      "operatingSystem": "Linux, Windows",
+      "description": "Free, open-source, self-hosted backup software for Windows and Linux machines, Proxmox VE, VMware ESXi and Hyper-V virtual machines, SQL Server, PostgreSQL and MySQL databases, NAS shares and Microsoft 365.",
+      "url": "https://max-zit.github.io/backupzit/",
+      "downloadUrl": "https://github.com/Max-Zit/backupzit/releases/latest",
+      "softwareHelp": "https://github.com/Max-Zit/backupzit#readme",
+      "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "image": "https://max-zit.github.io/backupzit/og.png",
+      "author": { "@id": "https://github.com/Max-Zit#org" },
+      "codeRepository": "https://github.com/Max-Zit/backupzit"
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://github.com/Max-Zit#org",
+      "name": "MaxZit",
+      "url": "https://github.com/Max-Zit"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Is BackupZit free?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. BackupZit is free and open source under the GNU AGPLv3, with no limits on machines, VMs or storage. MaxZit offers optional commercial support." } },
+        { "@type": "Question", "name": "Can BackupZit back up Proxmox VE, VMware ESXi and Hyper-V virtual machines?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Proxmox VE VMs and containers, VMware ESXi VMs and Hyper-V VMs are backed up agentless with changed-block tracking, and can be restored as new VMs. Proxmox and VMware VMs can also start directly from the backup (instant recovery)." } },
+        { "@type": "Question", "name": "Where are the backups stored?",
+          "acceptedAnswer": { "@type": "Answer", "text": "On storage you choose: SFTP servers and NAS, S3-compatible storage (AWS, Wasabi, Backblaze B2, MinIO), SMB shares, Azure Blob Storage, rotating USB disks, local disks or the BackupZit hardened repository. Backups are deduplicated, compressed and encrypted with AES-256." } },
+        { "@type": "Question", "name": "Does BackupZit protect against ransomware?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Backups can be immutable (S3 Object Lock or the write-once hardened repository), suspicious backups that look like ransomware or mass deletion are detected and retention pauses automatically, and restore tests check that backups can really be restored." } },
+        { "@type": "Question", "name": "Does BackupZit need the cloud or an internet connection?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No. Every organization runs its own console in its own network; there is no cloud service and nothing has to be exposed to the internet." } }
+      ]
+    }
+  ]
+}
+</script>
+<style>
+:root { --bg: #ffffff; --fg: #0f172a; --muted: #475569; --card: #f8fafc; --line: #e2e8f0; --accent: #4f46e5; --accent-soft: #eef2ff; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0b1020; --fg: #e2e8f0; --muted: #94a3b8; --card: #111833; --line: #1f2a4a; --accent: #818cf8; --accent-soft: #1e1b4b; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+header.hero { background: linear-gradient(120deg, #1e1b4b, #4f46e5); color: #fff; padding: 56px 0 64px; }
+header.hero a { color: #fff; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 40px; font-size: 15px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; text-decoration: none; }
+.brand img { width: 32px; height: 32px; }
+h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0 0 16px; }
+.lead { font-size: 19px; max-width: 760px; opacity: .95; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.btn { display: inline-block; padding: 12px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; }
+.btn.primary { background: #fff; color: #312e81 !important; }
+.btn.ghost { border: 1px solid rgba(255,255,255,.6); }
+section { padding: 48px 0 8px; }
+h2 { font-size: 28px; margin: 0 0 16px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.card h3 { margin: 0 0 6px; font-size: 18px; }
+.card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+ul.ticks { padding-left: 20px; }
+pre { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-size: 14.5px; }
+details { border-bottom: 1px solid var(--line); padding: 12px 0; }
+summary { cursor: pointer; font-weight: 600; }
+footer { margin-top: 56px; padding: 28px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.tag { display: inline-block; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 2px 12px; font-size: 14px; margin: 0 6px 6px 0; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="top">
+      <a class="brand" href="./"><img src="favicon.svg" alt="" width="32" height="32"> BackupZit</a>
+      <nav><a href="https://github.com/Max-Zit/backupzit">GitHub</a> · <a href="sr/" hreflang="sr">Srpski</a></nav>
+    </div>
+    <h1>Open-source, self-hosted backup for servers, PCs, virtual machines and Microsoft 365</h1>
+    <p class="lead">BackupZit backs up Windows and Linux machines, Proxmox VE, VMware ESXi and Hyper-V virtual machines, SQL Server, PostgreSQL and MySQL databases, NAS shares and Microsoft 365 — managed from one web console that runs on your own server. Free under the AGPLv3.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Max-Zit/backupzit/releases/latest">Download the latest release</a>
+      <a class="btn ghost" href="https://github.com/Max-Zit/backupzit#installation">Installation guide</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+<section>
+  <h2>What BackupZit backs up</h2>
+  <div class="grid">
+    <div class="card"><h3>Windows and Linux files</h3><p>Incremental file backup, from a VSS snapshot on Windows, so open files are consistent. Restore single files from the browser.</p></div>
+    <div class="card"><h3>Whole disks and bare metal</h3><p>Disk images of Windows PCs and servers and full Linux system backups, restored from a recovery ISO — also onto different hardware.</p></div>
+    <div class="card"><h3>Proxmox VE backup</h3><p>Agentless backup of Proxmox VMs and containers with changed blocks only, instant recovery, replication and automatic boot tests.</p></div>
+    <div class="card"><h3>VMware ESXi backup</h3><p>Agentless VMware backup with changed block tracking through a proxy agent, restore as a new VM or in place, instant recovery over NFS.</p></div>
+    <div class="card"><h3>Hyper-V backup</h3><p>Agentless Hyper-V VM backup with resilient change tracking, restored to the same or another Hyper-V host.</p></div>
+    <div class="card"><h3>Databases</h3><p>SQL Server, PostgreSQL and MySQL/MariaDB with their native tools, log backups and point-in-time restore of a single database.</p></div>
+    <div class="card"><h3>NAS shares</h3><p>SMB and NFS shares read by any agent — nothing has to be installed on the NAS.</p></div>
+    <div class="card"><h3>Microsoft 365 backup</h3><p>Exchange Online mail, calendars and contacts, OneDrive and SharePoint through Microsoft Graph with read-only permissions.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Why BackupZit</h2>
+  <ul class="ticks">
+    <li><b>Your own server, your own network</b> — no cloud service, nothing exposed to the internet.</li>
+    <li><b>Ransomware protection</b> — immutable backups (S3 Object Lock or the write-once hardened repository), detection of suspicious backups, automatic restore tests and a tamper-evident audit log.</li>
+    <li><b>Deduplication, compression and AES-256 encryption</b> on any storage: SFTP, S3-compatible (AWS, Wasabi, Backblaze B2, MinIO), SMB, Azure Blob Storage, rotating USB disks and local disks; backup copy jobs for the 3-2-1 rule.</li>
+    <li><b>Easy to run</b> — schedules, job chains and backup windows, RPO alerts, PDF reports, email, Slack and Teams notifications, REST API and Prometheus metrics, roles, LDAP/Active Directory and single sign-on (SAML, OpenID Connect).</li>
+    <li><b>14 languages</b> — English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Czech, Serbian, Turkish, Russian, Chinese and Japanese.</li>
+    <li><b>Free and open source</b> under the AGPLv3, with optional commercial support from MaxZit — a self-hosted alternative to commercial products such as Veeam Backup &amp; Replication or NAKIVO.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Install in minutes</h2>
+  <p>Import the ready-made appliance (<a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova">OVA</a> for VMware, <a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2">qcow2</a> for Proxmox/KVM, <a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip">VHDX</a> for Hyper-V), boot the <a href="https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.iso">appliance ISO</a>, or install on an existing Debian, Ubuntu, AlmaLinux or Rocky Linux server:</p>
+  <pre><code>curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh</code></pre>
+  <p>Then open <code>https://&lt;server&gt;:8443</code>, sign in and add agents: an MSI for Windows, deb/rpm packages for Linux. Requirements: 2 vCPU, 2–4 GB RAM and a 16–20 GB disk for the console.</p>
+</section>
+
+<section>
+  <h2>Frequently asked questions</h2>
+  <details><summary>Is BackupZit free?</summary><p>Yes. BackupZit is free and open source under the GNU AGPLv3, with no limits on machines, VMs or storage. MaxZit offers optional commercial support.</p></details>
+  <details><summary>Can BackupZit back up Proxmox VE, VMware ESXi and Hyper-V virtual machines?</summary><p>Yes. Proxmox VE VMs and containers, VMware ESXi VMs and Hyper-V VMs are backed up agentless with changed-block tracking, and can be restored as new VMs. Proxmox and VMware VMs can also start directly from the backup (instant recovery).</p></details>
+  <details><summary>Where are the backups stored?</summary><p>On storage you choose: SFTP servers and NAS, S3-compatible storage (AWS, Wasabi, Backblaze B2, MinIO), SMB shares, Azure Blob Storage, rotating USB disks, local disks or the BackupZit hardened repository. Backups are deduplicated, compressed and encrypted with AES-256.</p></details>
+  <details><summary>Does BackupZit protect against ransomware?</summary><p>Backups can be immutable (S3 Object Lock or the write-once hardened repository), suspicious backups that look like ransomware or mass deletion are detected and retention pauses automatically, and restore tests check that backups can really be restored.</p></details>
+  <details><summary>Does BackupZit need the cloud or an internet connection?</summary><p>No. Every organization runs its own console in its own network; there is no cloud service and nothing has to be exposed to the internet.</p></details>
+</section>
+
+<section>
+  <p><span class="tag">backup software</span><span class="tag">Proxmox backup</span><span class="tag">VMware backup</span><span class="tag">Hyper-V backup</span><span class="tag">Microsoft 365 backup</span><span class="tag">bare-metal recovery</span><span class="tag">disaster recovery</span><span class="tag">self-hosted</span><span class="tag">open source</span></p>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>BackupZit is developed by <a href="https://github.com/Max-Zit">MaxZit</a> · Source code on <a href="https://github.com/Max-Zit/backupzit">GitHub</a> · License: <a href="https://github.com/Max-Zit/backupzit/blob/main/LICENSE">GNU AGPLv3</a> · <a href="https://github.com/Max-Zit/backupzit/blob/main/packaging/appliance/SOURCE-CODE.txt">Source code of the appliance images</a></p>
+    <p>Veeam, NAKIVO, VMware, ESXi, Hyper-V, Microsoft 365, SQL Server and Proxmox are trademarks of their respective owners; BackupZit is not affiliated with them.</p>
+  </div>
+</footer>
+</body>
+</html>
