@@ -63,7 +63,10 @@ sudo systemctl enable --now backupzit-agent</pre>
     <tr>
       <td><b>{{.Name}}</b><br><span class="mono small">{{.Address}}</span>{{with .Version}} <span class="muted small">{{T "ESXi"}} {{.}}</span>{{end}}</td>
       <td>{{with .Inv}}{{len .Guests}}{{else}}—{{end}}</td>
-      <td class="small">{{T .Mode}}{{if not .SSHOK}}<br><span class="badge warning"><i></i>{{T "SSH off"}}</span>{{end}}</td>
+      <td class="small">{{T .Mode}}{{if and .UsesSSH (not .SSHOK)}}<br><span class="badge warning"><i></i>{{T "SSH off"}}</span>{{end}}
+        {{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/method" class="inline"><select name="method" data-autosubmit aria-label="{{T "How the host is changed"}}">
+          <option value="" {{if eq .Method ""}}selected{{end}}>{{T "Automatic"}}</option><option value="ssh" {{if eq .Method "ssh"}}selected{{end}}>{{T "Always SSH"}}</option><option value="api" {{if eq .Method "api"}}selected{{end}}>{{T "Always vSphere API"}}</option></select>
+          <button class="link small">{{T "Save"}}</button></form>{{end}}</td>
       <td>{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/proxy" class="inline">
           <select name="proxy_agent_id" data-autosubmit>{{if not .ProxyAgentID}}<option value="">{{T "— choose —"}}</option>{{end}}{{$p := .ProxyAgentID}}{{range $.Data.Agents}}<option value="{{.ID}}" {{if and $p (eq .ID (deref64 $p))}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
           <button class="link small">{{T "Save"}}</button></form>{{else}}{{with .ProxyName}}{{.}}{{else}}—{{end}}{{end}}</td>
@@ -90,7 +93,9 @@ sudo systemctl enable --now backupzit-agent</pre>
           <select name="proxy_agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
         </label>
       </div>
-      <p class="muted small">{{T "The console connects once to check the address and password, and pins the host's certificate and SSH key. Hosts with the free ESXi license need"}} <b>{{T "SSH enabled"}}</b> {{T "(Host → Actions → Services → Enable Secure Shell); restores always use SSH."}}</p>
+      <label>{{T "How the host is changed"}} <small>{{T "Automatic: the vSphere API on licensed hosts (no SSH needed), SSH on the free license, whose API is read-only"}}</small>
+        <select name="method"><option value="">{{T "Automatic"}}</option><option value="ssh">{{T "Always SSH"}}</option><option value="api">{{T "Always vSphere API"}}</option></select></label>
+      <p class="muted small">{{T "The console connects once to check the address and password, and pins the host's certificate and SSH key. Hosts with the free ESXi license need"}} <b>{{T "SSH enabled"}}</b> {{T "(Host → Actions → Services → Enable Secure Shell) for snapshots and restores."}}</p>
       <div><button>{{T "Add ESXi host"}}</button></div>
     </form>
   </details>

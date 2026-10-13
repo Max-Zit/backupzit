@@ -11,6 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/max-zit/backupzit/internal/vmware"
 )
 
 // handleVMwareCreate adds an ESXi host: the connection is checked first and
@@ -21,6 +23,7 @@ func (s *Server) handleVMwareCreate(w http.ResponseWriter, r *http.Request, _ st
 		Address:  strings.TrimSpace(r.FormValue("address")),
 		Username: strings.TrimSpace(r.FormValue("username")),
 		Password: r.FormValue("password"),
+		Method:   vmwareMethod(r.FormValue("method")),
 	}
 	if h.Name == "" {
 		h.Name = h.Address
@@ -55,7 +58,9 @@ func (s *Server) handleVMwareCreate(w http.ResponseWriter, r *http.Request, _ st
 	}
 	s.audit(r, "vmware.create", "%s (%s), certificate %s", h.Name, h.Address, h.Thumbprint)
 	msg := fmt.Sprintf("ESXi host %s added (ESXi %s). Its certificate %s is pinned.", h.Name, h.Version, h.Thumbprint)
-	if sshErr != nil {
+	if c.Method() == vmware.MethodAPI {
+		msg += " It is licensed: backups and restores use the vSphere API, SSH is not needed."
+	} else if sshErr != nil {
 		msg += " SSH is not reachable: enable it on the host (Host → Actions → Services → Enable Secure Shell) — restores and backups on the free license need it."
 	}
 	if h.ProxyAgentID == nil {
@@ -76,6 +81,46 @@ func (s *Server) handleVMwareRefresh(w http.ResponseWriter, r *http.Request, _ s
 		return
 	}
 	redirectMsg(w, r, "/agents#vmware", "VM list of "+h.Name+" refreshed.")
+}
+
+// vmwareMethod accepts the methods of the host form.
+func vmwareMethod(m string) string {
+	if m == vmware.MethodSSH || m == vmware.MethodAPI {
+		return m
+	}
+	return vmware.MethodAuto
+}
+
+// handleVMwareMethod serves POST /vmware/{id}/method: how the host is
+// changed (automatic, always SSH, always the API); checked at once.
+func (s *Server) handleVMwareMethod(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	h, err := s.store.GetVMwareHost(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	h.Method = vmwareMethod(r.FormValue("method"))
+	_, c, sshErr, err := probeVMware(r.Context(), h)
+	if err != nil {
+		redirectErr(w, r, "/agents#vmware", fmt.Errorf("%s: %v", h.Name, err))
+		return
+	}
+	if err := s.store.UpdateVMwareMethod(r.Context(), id, h.Method, c.APIWrites, sshErr == nil); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.audit(r, "vmware.method", "%s: %q, now %s", h.Name, h.Method, c.Method())
+	l := requestLanguage(r)
+	if sshErr != nil {
+		redirectErr(w, r, "/agents#vmware", errors.New(l.T("%s now uses SSH, but SSH is not reachable: %v", h.Name, sshErr)))
+		return
+	}
+	if c.Method() == vmware.MethodAPI {
+		redirectMsg(w, r, "/agents#vmware", l.T("%s: backups and restores now use the vSphere API.", h.Name))
+		return
+	}
+	redirectMsg(w, r, "/agents#vmware", l.T("%s: backups and restores now use SSH.", h.Name))
 }
 
 func (s *Server) handleVMwareProxy(w http.ResponseWriter, r *http.Request, _ string) {

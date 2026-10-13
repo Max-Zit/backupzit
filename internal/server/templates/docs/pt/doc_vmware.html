@@ -6,8 +6,8 @@
 <ul>
   <li><b>ESXi 6.7, 7 ou 8</b>, conectado diretamente. Hosts gerenciados pelo vCenter são adicionados um a um com seu próprio endereço; o vCenter em si ainda não é suportado.</li>
   <li><b>Um usuário com direitos de administrador no host</b>, normalmente <code>root</code>.</li>
-  <li><b>SSH ativado no host:</b> Host → Actions → Services → Enable Secure Shell. Restaurações sempre precisam dele. Hosts com a licença gratuita do ESXi também precisam dele para snapshots, porque a API deles é somente leitura.</li>
-  <li><b>Um agente proxy:</b> qualquer agente Windows ou Linux que alcance o host nas portas 443 e 22. Os dados do backup passam por ele, então coloque-o em uma rede rápida, perto do host e do armazenamento.</li>
+  <li><b>SSH ativado nos hosts com licença gratuita:</b> Host → Actions → Services → Enable Secure Shell. A licença gratuita do ESXi deixa a API somente leitura, então snapshots e restaurações passam por SSH. Hosts licenciados são alterados pela API do vSphere e não precisam de SSH.</li>
+  <li><b>Um agente proxy:</b> qualquer agente Windows ou Linux que alcance o host na porta 443 (e na 22 quando o SSH é usado). Os dados do backup passam por ele, então coloque-o em uma rede rápida, perto do host e do armazenamento.</li>
   <li><b>Espaço livre no datastore da VM</b> enquanto uma VM ligada é copiada. O BackupZit copia o disco ali por um momento (veja abaixo). A cópia é thin, então precisa de tanto espaço quanto o disco realmente usa.</li>
 </ul>
 
@@ -19,9 +19,10 @@
 </ol>
 <p>A senha é armazenada criptografada, como todos os outros segredos. A lista de VMs é atualizada a cada 10 minutos, ou na hora com <i>Atualizar</i>. A tabela mostra o modo de cada host:</p>
 <ul>
-  <li><b>vSphere API:</b> hosts licenciados.</li>
-  <li><b>Licença gratuita:</b> snapshots e restaurações passam por SSH.</li>
+  <li><b>API do vSphere (host licenciado, SSH desnecessário):</b> snapshots, cópias de discos, restaurações e recuperação instantânea passam pela API.</li>
+  <li><b>licença gratuita: snapshots e restaurações por SSH:</b> a API do host é somente leitura, então essas etapas passam por SSH.</li>
 </ul>
+<p>Com <b>Automático</b> o console escolhe sozinho, então um host que receber uma licença depois passa para a API sem outra configuração. <b>Como o host é alterado</b>, na linha do host (e ao adicioná-lo), pode forçar <b>Sempre SSH</b> ou <b>Sempre a API do vSphere</b>; a mudança é verificada na hora. Backups anteriores e seus pontos de restauração não dependem do método.</p>
 
 <h2>Tarefas de backup</h2>
 <p>Em <a href="/jobs">Tarefas de backup</a>, escolha o host ESXi (listado em <i>Hosts VMware ESXi</i> na lista de agentes) e <b>Máquinas virtuais</b>. Faça backup de todas as VMs do host (VMs criadas depois são incluídas automaticamente) ou marque algumas. A tarefa roda no agente proxy do host. Se você trocar o proxy, as tarefas existentes acompanham.</p>
@@ -66,7 +67,7 @@
 <p>Escolha <b>Instantaneamente, rodando a partir do backup</b> para iniciar uma VM em segundos, sem copiar seus discos antes. O agente proxy do host — ele precisa ser um agente <b>Linux</b> — serve os discos da VM direto do backup via NFS; o host monta isso como o datastore <code>backupzit-&lt;agent&gt;</code> e roda a VM a partir dele. As alterações que a VM faz ficam no agente (<code>/var/lib/backupzit/instant-esxi</code>, que precisa de espaço livre para elas); o backup em si nunca é alterado, e a retenção o mantém enquanto a VM roda a partir dele. Se a VM original ainda existir, a VM instantânea recebe um novo UUID e novos endereços MAC.</p>
 <p>Na página da execução, quando a VM estiver funcionando como deve:</p>
 <ul>
-  <li><b>Concluir</b> a copia para um datastore do host: a VM é desligada (pelo VMware Tools, se estiver rodando), seus discos são copiados thin com <code>vmkfstools</code>, ela é registrada a partir do datastore e iniciada de novo. A licença gratuita do ESXi não tem Storage vMotion, então isso exige uma breve parada que cresce com o tamanho dos discos. Se a cópia falhar, a VM continua rodando a partir do backup.</li>
+  <li><b>Concluir</b> a copia para um datastore do host: a VM é desligada (pelo VMware Tools, se estiver rodando), seus discos são copiados thin (pela API em hosts licenciados, com <code>vmkfstools</code> por SSH na licença gratuita), ela é registrada a partir do datastore e iniciada de novo. Um host independente não tem Storage vMotion, então isso exige uma breve parada que cresce com o tamanho dos discos. Se a cópia falhar, a VM continua rodando a partir do backup.</li>
   <li><b>Descartar</b> para e exclui a VM com todas as suas alterações.</li>
 </ul>
 <p>O agente responde NFS na porta 2049 (e o registra no rpcbind da máquina na porta 111, ou responde ele mesmo na porta 111) apenas para o endereço do host ESXi; abra essas portas do host para o agente se houver um firewall no meio. Quando a última VM instantânea é concluída ou descartada, o datastore é removido e o servidor NFS para.</p>

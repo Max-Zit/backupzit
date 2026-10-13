@@ -82,7 +82,7 @@ func TestVMwareHosts(t *testing.T) {
 	}
 	h := hosts[0]
 	inv := h.Inv()
-	if h.Thumbprint == "" || h.Password != simPass || inv == nil || len(inv.Guests) == 0 || h.SSHOK || h.ProxyAgentID == nil || *h.ProxyAgentID != proxy.ID {
+	if h.Thumbprint == "" || h.Password != simPass || inv == nil || len(inv.Guests) == 0 || !h.SSHOK || h.UsesSSH() || h.ProxyAgentID == nil || *h.ProxyAgentID != proxy.ID {
 		t.Fatalf("host: %+v", h)
 	}
 	var stored string
@@ -90,8 +90,24 @@ func TestVMwareHosts(t *testing.T) {
 	if stored == simPass {
 		t.Error("ESXi password stored in plaintext")
 	}
-	if _, _, body := admin.do("GET", "/agents", nil); !strings.Contains(body, "esxi1") || !strings.Contains(body, "SSH off") {
-		t.Error("agents page lacks the ESXi host")
+	if _, _, body := admin.do("GET", "/agents", nil); !strings.Contains(body, "esxi1") || !strings.Contains(body, "SSH not needed") || strings.Contains(body, "SSH off") {
+		t.Error("agents page lacks the ESXi host on the API")
+	}
+	// Forcing SSH is checked at once: the simulator has no SSH.
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/method", h.ID), url.Values{"method": {"ssh"}}); !strings.Contains(loc, "err=") || !strings.Contains(loc, "SSH") {
+		t.Errorf("method ssh: %s", loc)
+	}
+	if h2, _ := e.store.GetVMwareHost(ctx, h.ID); h2.Method != "ssh" || h2.SSHOK || !h2.UsesSSH() {
+		t.Errorf("after choosing SSH: %+v", h2)
+	}
+	if _, _, body := admin.do("GET", "/agents", nil); !strings.Contains(body, "SSH off") {
+		t.Error("agents page does not warn that SSH is off")
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/method", h.ID), url.Values{"method": {""}}); !strings.Contains(loc, "msg=") {
+		t.Errorf("method automatic: %s", loc)
+	}
+	if h2, _ := e.store.GetVMwareHost(ctx, h.ID); h2.Method != "" || h2.UsesSSH() {
+		t.Errorf("after automatic: %+v", h2)
 	}
 
 	// A VM job on the host runs on the proxy agent.

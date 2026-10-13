@@ -6,8 +6,8 @@
 <ul>
   <li><b>ESXi 6.7, 7 or 8</b>, connected directly. Hosts managed by vCenter are added one by one with their own address; vCenter itself is not supported yet.</li>
   <li><b>A user with administrator rights on the host</b>, usually <code>root</code>.</li>
-  <li><b>SSH enabled on the host:</b> Host → Actions → Services → Enable Secure Shell. Restores always need it. Hosts with the free ESXi license also need it for snapshots, because their API is read-only.</li>
-  <li><b>A proxy agent:</b> any Windows or Linux agent that reaches the host on ports 443 and 22. The backup data flows through it, so put it on a fast network close to the host and the storage.</li>
+  <li><b>SSH enabled on hosts with the free license:</b> Host → Actions → Services → Enable Secure Shell. The free ESXi license makes the API read-only, so snapshots and restores go over SSH. Licensed hosts are changed through the vSphere API and need no SSH.</li>
+  <li><b>A proxy agent:</b> any Windows or Linux agent that reaches the host on port 443 (and 22 when SSH is used). The backup data flows through it, so put it on a fast network close to the host and the storage.</li>
   <li><b>Free space on the VM's datastore</b> while a running VM is backed up. BackupZit copies the disk there for a moment (see below). The copy is thin, so it needs as much space as the disk actually uses.</li>
 </ul>
 
@@ -19,9 +19,10 @@
 </ol>
 <p>The password is stored encrypted, like all other secrets. The VM list is refreshed every 10 minutes, or immediately with <i>Refresh</i>. The table shows each host's mode:</p>
 <ul>
-  <li><b>vSphere API:</b> licensed hosts.</li>
-  <li><b>Free license:</b> snapshots and restores go over SSH.</li>
+  <li><b>vSphere API (licensed host, SSH not needed):</b> snapshots, disk copies, restores and instant recovery go through the API.</li>
+  <li><b>free license: snapshots and restores over SSH:</b> the host's API is read-only, so these steps go over SSH.</li>
 </ul>
+<p>The console chooses by itself with <b>Automatic</b>, so a host that gets a license later switches to the API without further setup. <b>How the host is changed</b> in the host's row (and when adding it) can force <b>Always SSH</b> or <b>Always vSphere API</b>; the change is checked at once. Earlier backups and their restore points are not affected by the method.</p>
 
 <h2>Backup jobs</h2>
 <p>In <a href="/jobs">Backup jobs</a>, choose the ESXi host (listed under <i>VMware ESXi hosts</i> in the agent list) and <b>Virtual machines</b>. Back up all VMs of the host (VMs created later are included automatically) or tick individual ones. The job runs on the host's proxy agent. If you change the proxy, the existing jobs follow.</p>
@@ -66,7 +67,7 @@
 <p>Choose <b>Instantly, running from the backup</b> to start a VM within seconds, without copying its disks first. The host's proxy agent — it must be a <b>Linux</b> agent — serves the VM's disks straight from the backup over NFS; the host mounts that as the datastore <code>backupzit-&lt;agent&gt;</code> and runs the VM from it. Changes the VM makes are kept on the agent (<code>/var/lib/backupzit/instant-esxi</code>, so it needs free space for them); the backup itself is never changed, and retention keeps it while the VM runs from it. If the original VM still exists, the instant VM gets a new UUID and new MAC addresses.</p>
 <p>On the run's page, when the VM works as it should:</p>
 <ul>
-  <li><b>Finish</b> copies it to a datastore of the host: the VM is shut down (through VMware Tools if they run), its disks are copied thin with <code>vmkfstools</code>, it is registered from the datastore and started again. The free ESXi license has no Storage vMotion, so this needs a short downtime that grows with the disk size. If the copy fails, the VM keeps running from the backup.</li>
+  <li><b>Finish</b> copies it to a datastore of the host: the VM is shut down (through VMware Tools if they run), its disks are copied thin (through the API on licensed hosts, with <code>vmkfstools</code> over SSH on the free license), it is registered from the datastore and started again. A standalone host has no Storage vMotion, so this needs a short downtime that grows with the disk size. If the copy fails, the VM keeps running from the backup.</li>
   <li><b>Discard</b> stops and deletes the VM with all its changes.</li>
 </ul>
 <p>The agent answers NFS on port 2049 (and registers it with the machine's rpcbind on port 111, or answers port 111 itself) only for the ESXi host's address; open these ports from the host to the agent if a firewall is in between. When the last instant VM is finished or discarded, the datastore is removed and the NFS server stops.</p>

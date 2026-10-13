@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/max-zit/backupzit/internal/repo"
 )
@@ -144,119 +142,91 @@ func InstantDatastore(agentHost string) string {
 // InstantStart mounts the agent's NFS export as datastore ds (unless
 // mounted), registers the VM in dir and starts it.
 func (c *Client) InstantStart(ctx context.Context, ds, nfsHost, dir, name string, start bool) (string, []string, error) {
-	if err := c.CheckSSH(ctx); err != nil {
+	if err := c.needSSH(ctx); err != nil {
 		return "", nil, err
 	}
-	if !c.exists(ctx, "/vmfs/volumes/"+ds) {
-		if _, err := c.run(ctx, "esxcli storage nfs add -H "+sq(nfsHost)+" -s /backupzit -v "+sq(ds)); err != nil {
+	if !c.datastoreExists(ctx, ds) {
+		if err := c.mountNFS(ctx, ds, nfsHost); err != nil {
 			return "", nil, fmt.Errorf("mount the backup as datastore %s: %w", ds, err)
 		}
 	}
-	vmx := "/vmfs/volumes/" + ds + "/" + dir + "/" + dir + ".vmx"
-	out, err := c.run(ctx, "vim-cmd solo/registervm "+sq(vmx)+" "+sq(name))
+	moid, err := c.registerVM(ctx, dsPath{DS: ds, Path: dir + "/" + dir + ".vmx"}, name)
 	if err != nil {
 		return "", nil, fmt.Errorf("register VM: %w", err)
 	}
-	moid := strings.TrimSpace(lastLines(out, 1))
-	if _, err := strconv.Atoi(moid); err != nil {
-		return "", nil, fmt.Errorf("register VM: unexpected answer %q", out)
-	}
 	var notes []string
 	if start {
-		if _, err := c.run(ctx, "vim-cmd vmsvc/power.on "+sq(moid)); err != nil {
+		if err := c.powerOn(ctx, moid); err != nil {
 			notes = append(notes, "the VM could not be started: "+err.Error())
 		}
 	}
 	return moid, notes, nil
 }
 
-// powerOff stops a VM (no error if it is off).
-func (c *Client) powerOff(ctx context.Context, moid string) {
-	if out, _ := c.run(ctx, "vim-cmd vmsvc/power.getstate "+sq(moid)); strings.Contains(out, "Powered on") {
-		c.run(ctx, "vim-cmd vmsvc/power.off "+sq(moid))
-	}
-}
-
 // InstantFinish shuts the VM down, copies its disks and configuration from
 // the NFS datastore to datastore target and registers it from there; it is
 // started again if it was running.
 func (c *Client) InstantFinish(ctx context.Context, ds, dir, moid, target string, log func(string, ...any)) (string, error) {
-	if err := c.CheckSSH(ctx); err != nil {
+	if err := c.needSSH(ctx); err != nil {
 		return "", err
 	}
-	if !c.exists(ctx, "/vmfs/volumes/"+target) {
+	if !c.datastoreExists(ctx, target) {
 		return "", fmt.Errorf("datastore %s not found", target)
 	}
-	state, _ := c.run(ctx, "vim-cmd vmsvc/power.getstate "+sq(moid))
-	wasOn := strings.Contains(state, "Powered on")
-	src := "/vmfs/volumes/" + ds + "/" + dir
+	wasOn := c.powerState(ctx, moid) == "poweredOn"
 	dstDir := dir
-	for i := 2; c.exists(ctx, "/vmfs/volumes/"+target+"/"+dstDir); i++ {
+	for i := 2; c.exists(ctx, target, dstDir); i++ {
 		dstDir = fmt.Sprintf("%s_%d", dir, i)
 	}
-	dst := "/vmfs/volumes/" + target + "/" + dstDir
 	// Shut down cleanly through VMware Tools if possible.
 	if wasOn {
 		log("shutting the VM down for the copy")
-		if _, err := c.run(ctx, "vim-cmd vmsvc/power.shutdown "+sq(moid)); err == nil {
-			for i := 0; i < 60; i++ {
-				if out, _ := c.run(ctx, "vim-cmd vmsvc/power.getstate "+sq(moid)); strings.Contains(out, "Powered off") {
-					break
-				}
-				time.Sleep(5 * time.Second)
-			}
-		}
-		c.powerOff(ctx, moid)
+		c.shutdown(ctx, moid)
 	}
-	if _, err := c.run(ctx, "mkdir "+sq(dst)); err != nil {
+	if err := c.mkdir(ctx, target, dstDir); err != nil {
 		return "", err
 	}
 	// On failure the VM keeps running from the backup as before.
 	copied := false
 	defer func() {
 		if !copied {
-			c.run(context.Background(), "rm -rf "+sq(dst))
+			c.removeDir(context.Background(), target, dstDir)
 			if wasOn {
-				c.run(context.Background(), "vim-cmd vmsvc/power.on "+sq(moid))
+				c.powerOn(context.Background(), moid)
 			}
 		}
 	}()
-	out, err := c.run(ctx, "ls "+sq(src))
+	files, err := c.listDir(ctx, ds, dir)
 	if err != nil {
 		return "", err
 	}
-	for _, f := range strings.Fields(out) {
+	for _, f := range files {
+		src, dst := dsPath{DS: ds, Path: dir + "/" + f}, dsPath{DS: target, Path: dstDir + "/" + f}
 		switch {
 		case strings.HasSuffix(f, "-flat.vmdk"), strings.HasSuffix(f, "-ctk.vmdk"), strings.HasSuffix(f, "-delta.vmdk"), strings.HasSuffix(f, "-sesparse.vmdk"),
 			strings.HasSuffix(f, ".vswp"), strings.HasSuffix(f, ".log"), strings.HasSuffix(f, ".lck"):
 		case strings.HasSuffix(f, ".vmdk"):
 			log("copying disk", "file", f)
-			if _, err := c.run(ctx, "vmkfstools -i "+sq(src+"/"+f)+" -d thin "+sq(dst+"/"+f)); err != nil {
+			if err := c.copyDisk(ctx, src, dst); err != nil {
 				return "", fmt.Errorf("copy %s: %w", f, err)
 			}
 		case strings.HasSuffix(f, ".vmx"), strings.HasSuffix(f, ".nvram"), strings.HasSuffix(f, ".vmsd"), strings.HasSuffix(f, ".vmxf"):
-			if _, err := c.run(ctx, "cp "+sq(src+"/"+f)+" "+sq(dst+"/")); err != nil {
+			if err := c.copyFile(ctx, src, dst); err != nil {
 				return "", err
 			}
 		}
 	}
-	name, _ := c.run(ctx, "vim-cmd vmsvc/get.summary "+sq(moid)+" | grep -m1 ' name = ' | cut -d'\"' -f2")
-	name = strings.TrimSpace(name)
-	if _, err := c.run(ctx, "vim-cmd vmsvc/unregister "+sq(moid)); err != nil {
+	name := c.vmName(ctx, moid)
+	if err := c.unregisterVM(ctx, moid); err != nil {
 		return "", fmt.Errorf("unregister the instant VM: %w", err)
 	}
 	copied = true
-	args := sq(dst + "/" + dir + ".vmx")
-	if name != "" {
-		args += " " + sq(name)
-	}
-	out, err = c.run(ctx, "vim-cmd solo/registervm "+args)
+	newID, err := c.registerVM(ctx, dsPath{DS: target, Path: dstDir + "/" + dir + ".vmx"}, name)
 	if err != nil {
 		return "", fmt.Errorf("register VM on %s: %w", target, err)
 	}
-	newID := strings.TrimSpace(lastLines(out, 1))
 	if wasOn {
-		c.run(ctx, "vim-cmd vmsvc/power.on "+sq(newID))
+		c.powerOn(ctx, newID)
 	}
 	return newID, nil
 }
@@ -264,11 +234,11 @@ func (c *Client) InstantFinish(ctx context.Context, ds, dir, moid, target string
 // InstantDiscard stops and unregisters the VM; its files are on the NFS
 // export and go with it.
 func (c *Client) InstantDiscard(ctx context.Context, moid string) error {
-	if err := c.CheckSSH(ctx); err != nil {
+	if err := c.needSSH(ctx); err != nil {
 		return err
 	}
 	c.powerOff(ctx, moid)
-	if _, err := c.run(ctx, "vim-cmd vmsvc/unregister "+sq(moid)); err != nil && !strings.Contains(err.Error(), "not found") {
+	if err := c.unregisterVM(ctx, moid); err != nil && !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "ManagedObjectNotFound") {
 		return err
 	}
 	return nil
@@ -276,11 +246,10 @@ func (c *Client) InstantDiscard(ctx context.Context, moid string) error {
 
 // InstantUnmount removes the NFS datastore.
 func (c *Client) InstantUnmount(ctx context.Context, ds string) error {
-	if !c.exists(ctx, "/vmfs/volumes/"+ds) {
+	if !c.datastoreExists(ctx, ds) {
 		return nil
 	}
-	_, err := c.run(ctx, "esxcli storage nfs remove -v "+sq(ds))
-	return err
+	return c.unmountNFS(ctx, ds)
 }
 
 // VMExists reports whether a VM with this instance UUID is registered.

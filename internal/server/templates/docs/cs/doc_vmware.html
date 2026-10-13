@@ -6,8 +6,8 @@
 <ul>
   <li><b>ESXi 6.7, 7 nebo 8</b>, připojený přímo. Hostitelé spravovaní vCenterem se přidávají jednotlivě s vlastní adresou; samotný vCenter zatím není podporován.</li>
   <li><b>Uživatel s právy správce na hostiteli</b>, obvykle <code>root</code>.</li>
-  <li><b>SSH zapnuté na hostiteli:</b> Host → Actions → Services → Enable Secure Shell. Obnova ho potřebuje vždy. Hostitelé s bezplatnou licencí ESXi ho potřebují i pro snímky, protože jejich API je jen pro čtení.</li>
-  <li><b>Proxy agent:</b> libovolný agent pro Windows nebo Linux, který dosáhne na hostitele na portech 443 a 22. Data záloh tečou přes něj, proto ho umístěte do rychlé sítě blízko hostitele a úložiště.</li>
+  <li><b>SSH zapnuté na hostitelích s bezplatnou licencí:</b> Host → Actions → Services → Enable Secure Shell. Bezplatná licence ESXi dělá API jen pro čtení, takže snímky a obnovy jdou přes SSH. Licencovaní hostitelé se mění přes vSphere API a SSH nepotřebují.</li>
+  <li><b>Proxy agent:</b> libovolný agent pro Windows nebo Linux, který dosáhne na hostitele na portu 443 (a 22, když se používá SSH). Data záloh tečou přes něj, proto ho umístěte do rychlé sítě blízko hostitele a úložiště.</li>
   <li><b>Volné místo na datastoru VM</b> při zálohování běžícího VM. BackupZit tam disk na chvíli zkopíruje (viz níže). Kopie je thin, takže potřebuje tolik místa, kolik disk skutečně zabírá.</li>
 </ul>
 
@@ -19,9 +19,10 @@
 </ol>
 <p>Heslo se ukládá šifrovaně, jako všechna ostatní tajemství. Seznam VM se obnovuje každých 10 minut, nebo hned tlačítkem <i>Obnovit</i>. Tabulka ukazuje režim každého hostitele:</p>
 <ul>
-  <li><b>vSphere API:</b> licencovaní hostitelé.</li>
-  <li><b>Bezplatná licence:</b> snímky a obnovy jdou přes SSH.</li>
+  <li><b>vSphere API (licencovaný hostitel, SSH není potřeba):</b> snímky, kopie disků, obnovy i okamžitá obnova jdou přes API.</li>
+  <li><b>bezplatná licence: snímky a obnovy přes SSH:</b> API hostitele je jen pro čtení, takže tyto kroky jdou přes SSH.</li>
 </ul>
+<p>S volbou <b>Automaticky</b> konzole vybírá sama, takže hostitel, který později dostane licenci, přejde na API bez dalšího nastavování. <b>Jak se hostitel mění</b> v řádku hostitele (a při přidání) může vynutit <b>Vždy SSH</b> nebo <b>Vždy vSphere API</b>; změna se hned ověří. Dřívější zálohy a jejich body obnovy na způsobu nezávisí.</p>
 
 <h2>Úlohy zálohování</h2>
 <p>V <a href="/jobs">Úlohy zálohování</a> zvolte hostitele ESXi (uvedeného v části <i>Hostitelé VMware ESXi</i> v seznamu agentů) a <b>Virtuální počítače</b>. Zálohujte všechny VM hostitele (VM vytvořené později se zahrnou automaticky) nebo zaškrtněte jednotlivé. Úloha běží na proxy agentovi hostitele. Pokud proxy změníte, existující úlohy ho následují.</p>
@@ -66,7 +67,7 @@
 <p>Zvolte <b>Okamžitě, běží ze zálohy</b> a VM se spustí během několika sekund, aniž by se nejdřív kopírovaly jeho disky. Proxy agent hostitele — musí to být agent pro <b>Linux</b> — poskytuje disky VM přímo ze zálohy přes NFS; hostitel to připojí jako datastore <code>backupzit-&lt;agent&gt;</code> a spustí z něj VM. Změny, které VM provede, se ukládají na agentovi (<code>/var/lib/backupzit/instant-esxi</code>, takže pro ně potřebuje volné místo); samotná záloha se nikdy nemění a uchovávání ji drží, dokud z ní VM běží. Pokud původní VM stále existuje, okamžitý VM dostane nové UUID a nové MAC adresy.</p>
 <p>Na stránce běhu, když VM funguje, jak má:</p>
 <ul>
-  <li><b>Dokončit</b> ho zkopíruje na datastore hostitele: VM se vypne (přes VMware Tools, pokud běží), jeho disky se zkopírují jako thin pomocí <code>vmkfstools</code>, zaregistruje se z datastoru a znovu spustí. Bezplatná licence ESXi nemá Storage vMotion, takže je potřeba krátký výpadek, který roste s velikostí disků. Pokud kopírování selže, VM dál běží ze zálohy.</li>
+  <li><b>Dokončit</b> ho zkopíruje na datastore hostitele: VM se vypne (přes VMware Tools, pokud běží), jeho disky se zkopírují jako thin (přes API na licencovaných hostitelích, pomocí <code>vmkfstools</code> přes SSH u bezplatné licence), zaregistruje se z datastoru a znovu spustí. Samostatný hostitel nemá Storage vMotion, takže je potřeba krátký výpadek, který roste s velikostí disků. Pokud kopírování selže, VM dál běží ze zálohy.</li>
   <li><b>Zahodit</b> zastaví a smaže VM se všemi jeho změnami.</li>
 </ul>
 <p>Agent odpovídá na NFS na portu 2049 (a registruje ho v rpcbind počítače na portu 111, nebo sám odpovídá na portu 111) jen pro adresu hostitele ESXi; pokud je mezi nimi firewall, otevřete tyto porty od hostitele k agentovi. Když se poslední okamžitý VM dokončí nebo zahodí, datastore se odstraní a server NFS se zastaví.</p>

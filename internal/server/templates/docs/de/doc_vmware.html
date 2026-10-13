@@ -6,8 +6,8 @@
 <ul>
   <li><b>ESXi 6.7, 7 oder 8</b>, direkt verbunden. Von vCenter verwaltete Hosts werden einzeln mit ihrer eigenen Adresse hinzugefügt; vCenter selbst wird noch nicht unterstützt.</li>
   <li><b>Ein Benutzer mit Administratorrechten auf dem Host</b>, meist <code>root</code>.</li>
-  <li><b>SSH auf dem Host aktiviert:</b> Host → Actions → Services → Enable Secure Shell. Wiederherstellungen brauchen es immer. Hosts mit der kostenlosen ESXi-Lizenz brauchen es auch für Snapshots, weil ihre API nur lesend ist.</li>
-  <li><b>Ein Proxy-Agent:</b> ein beliebiger Windows- oder Linux-Agent, der den Host auf den Ports 443 und 22 erreicht. Die Sicherungsdaten fließen durch ihn, stellen Sie ihn also in ein schnelles Netz nahe am Host und am Speicher.</li>
+  <li><b>SSH auf Hosts mit der kostenlosen Lizenz aktiviert:</b> Host → Actions → Services → Enable Secure Shell. Die kostenlose ESXi-Lizenz macht die API nur lesbar, daher laufen Snapshots und Wiederherstellungen über SSH. Lizenzierte Hosts werden über die vSphere-API geändert und brauchen kein SSH.</li>
+  <li><b>Ein Proxy-Agent:</b> ein beliebiger Windows- oder Linux-Agent, der den Host auf Port 443 erreicht (und 22, wenn SSH verwendet wird). Die Sicherungsdaten fließen durch ihn, stellen Sie ihn also in ein schnelles Netz nahe am Host und am Speicher.</li>
   <li><b>Freier Platz auf dem Datastore der VM</b>, während eine laufende VM gesichert wird. BackupZit kopiert die Festplatte dort kurz (siehe unten). Die Kopie ist thin, sie braucht also so viel Platz, wie die Festplatte tatsächlich belegt.</li>
 </ul>
 
@@ -19,9 +19,10 @@
 </ol>
 <p>Das Passwort wird wie alle anderen Geheimnisse verschlüsselt gespeichert. Die VM-Liste wird alle 10 Minuten aktualisiert oder sofort mit <i>Aktualisieren</i>. Die Tabelle zeigt den Modus jedes Hosts:</p>
 <ul>
-  <li><b>vSphere API:</b> lizenzierte Hosts.</li>
-  <li><b>Kostenlose Lizenz:</b> Snapshots und Wiederherstellungen laufen über SSH.</li>
+  <li><b>vSphere-API (lizenzierter Host, kein SSH nötig):</b> Snapshots, Festplattenkopien, Wiederherstellungen und Instant Recovery laufen über die API.</li>
+  <li><b>kostenlose Lizenz: Snapshots und Wiederherstellungen über SSH:</b> Die API des Hosts ist nur lesbar, daher laufen diese Schritte über SSH.</li>
 </ul>
+<p>Mit <b>Automatisch</b> wählt die Konsole selbst, sodass ein Host, der später eine Lizenz erhält, ohne weitere Einrichtung zur API wechselt. <b>Wie der Host geändert wird</b> in der Zeile des Hosts (und beim Hinzufügen) kann <b>Immer SSH</b> oder <b>Immer vSphere-API</b> erzwingen; die Änderung wird sofort geprüft. Frühere Sicherungen und ihre Wiederherstellungspunkte hängen nicht von der Methode ab.</p>
 
 <h2>Sicherungsaufträge</h2>
 <p>Wählen Sie unter <a href="/jobs">Sicherungsaufträge</a> den ESXi-Host (in der Agentenliste unter <i>VMware-ESXi-Hosts</i> aufgeführt) und <b>Virtuelle Maschinen</b>. Sichern Sie alle VMs des Hosts (später erstellte VMs werden automatisch einbezogen) oder markieren Sie einzelne. Der Auftrag läuft auf dem Proxy-Agenten des Hosts. Wenn Sie den Proxy ändern, folgen die vorhandenen Aufträge.</p>
@@ -66,7 +67,7 @@
 <p>Wählen Sie <b>Sofort, aus der Sicherung laufend</b>, um eine VM innerhalb von Sekunden zu starten, ohne vorher ihre Festplatten zu kopieren. Der Proxy-Agent des Hosts — es muss ein <b>Linux</b>-Agent sein — stellt die Festplatten der VM direkt aus der Sicherung über NFS bereit; der Host bindet das als Datastore <code>backupzit-&lt;agent&gt;</code> ein und führt die VM davon aus. Änderungen der VM werden auf dem Agenten gehalten (<code>/var/lib/backupzit/instant-esxi</code>, dafür braucht er freien Platz); die Sicherung selbst wird nie verändert, und die Aufbewahrung behält sie, solange die VM daraus läuft. Existiert die Original-VM noch, erhält die sofortige VM eine neue UUID und neue MAC-Adressen.</p>
 <p>Auf der Laufseite, wenn die VM wie gewünscht funktioniert:</p>
 <ul>
-  <li><b>Abschließen</b> kopiert sie auf einen Datastore des Hosts: Die VM wird heruntergefahren (über VMware Tools, falls diese laufen), ihre Festplatten werden mit <code>vmkfstools</code> thin kopiert, sie wird vom Datastore registriert und wieder gestartet. Die kostenlose ESXi-Lizenz hat kein Storage vMotion, daher ist eine kurze Ausfallzeit nötig, die mit der Festplattengröße wächst. Schlägt das Kopieren fehl, läuft die VM weiter aus der Sicherung.</li>
+  <li><b>Abschließen</b> kopiert sie auf einen Datastore des Hosts: Die VM wird heruntergefahren (über VMware Tools, falls diese laufen), ihre Festplatten werden thin kopiert (über die API auf lizenzierten Hosts, mit <code>vmkfstools</code> über SSH bei der kostenlosen Lizenz), sie wird vom Datastore registriert und wieder gestartet. Ein einzelner Host hat kein Storage vMotion, daher ist eine kurze Ausfallzeit nötig, die mit der Festplattengröße wächst. Schlägt das Kopieren fehl, läuft die VM weiter aus der Sicherung.</li>
   <li><b>Verwerfen</b> stoppt und löscht die VM mit allen ihren Änderungen.</li>
 </ul>
 <p>Der Agent beantwortet NFS auf Port 2049 (und registriert es beim rpcbind der Maschine auf Port 111 oder beantwortet Port 111 selbst) nur für die Adresse des ESXi-Hosts; öffnen Sie diese Ports vom Host zum Agenten, falls eine Firewall dazwischen ist. Wenn die letzte sofortige VM abgeschlossen oder verworfen ist, wird der Datastore entfernt und der NFS-Server beendet.</p>

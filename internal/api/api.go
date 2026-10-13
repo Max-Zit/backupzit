@@ -386,6 +386,8 @@ type VMwareHost struct {
 	Password   string `json:"password"`
 	Thumbprint string `json:"thumbprint"`
 	SSHHostKey string `json:"ssh_host_key,omitempty"`
+	// Method: "" automatic, "ssh" or "api" (see vmware.Conn).
+	Method string `json:"method,omitempty"`
 }
 
 // SpeedLimit caps the upload speed, between FromHour and ToHour o'clock

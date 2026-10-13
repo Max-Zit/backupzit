@@ -6,8 +6,8 @@
 <ul>
   <li><b>ESXi 6.7, 7 of 8</b>, rechtstreeks verbonden. Hosts die door vCenter worden beheerd, voegt u een voor een toe met hun eigen adres; vCenter zelf wordt nog niet ondersteund.</li>
   <li><b>Een gebruiker met beheerdersrechten op de host</b>, meestal <code>root</code>.</li>
-  <li><b>SSH ingeschakeld op de host:</b> Host → Actions → Services → Enable Secure Shell. Herstelbewerkingen hebben het altijd nodig. Hosts met de gratis ESXi-licentie hebben het ook nodig voor snapshots, omdat hun API alleen-lezen is.</li>
-  <li><b>Een proxy-agent:</b> een willekeurige Windows- of Linux-agent die de host bereikt op de poorten 443 en 22. De back-upgegevens lopen erdoorheen, zet hem dus op een snel netwerk dicht bij de host en de opslag.</li>
+  <li><b>SSH ingeschakeld op hosts met de gratis licentie:</b> Host → Actions → Services → Enable Secure Shell. De gratis ESXi-licentie maakt de API alleen-lezen, dus snapshots en herstelbewerkingen lopen via SSH. Gelicentieerde hosts worden via de vSphere-API gewijzigd en hebben geen SSH nodig.</li>
+  <li><b>Een proxy-agent:</b> een willekeurige Windows- of Linux-agent die de host bereikt op poort 443 (en 22 als SSH wordt gebruikt). De back-upgegevens lopen erdoorheen, zet hem dus op een snel netwerk dicht bij de host en de opslag.</li>
   <li><b>Vrije ruimte op de datastore van de VM</b> terwijl een draaiende VM wordt geback-upt. BackupZit kopieert de schijf daar even (zie hieronder). De kopie is thin, dus hij heeft zoveel ruimte nodig als de schijf werkelijk gebruikt.</li>
 </ul>
 
@@ -19,9 +19,10 @@
 </ol>
 <p>Het wachtwoord wordt versleuteld opgeslagen, zoals alle andere geheimen. De VM-lijst wordt elke 10 minuten vernieuwd, of direct met <i>Vernieuwen</i>. De tabel toont de modus van elke host:</p>
 <ul>
-  <li><b>vSphere API:</b> gelicentieerde hosts.</li>
-  <li><b>Gratis licentie:</b> snapshots en herstelbewerkingen lopen via SSH.</li>
+  <li><b>vSphere-API (gelicentieerde host, geen SSH nodig):</b> snapshots, schijfkopieën, herstel en direct herstel lopen via de API.</li>
+  <li><b>gratis licentie: snapshots en herstel via SSH:</b> de API van de host is alleen-lezen, dus deze stappen lopen via SSH.</li>
 </ul>
+<p>Met <b>Automatisch</b> kiest de console zelf, dus een host die later een licentie krijgt, schakelt zonder verdere instellingen over op de API. <b>Hoe de host wordt gewijzigd</b> in de rij van de host (en bij het toevoegen) kan <b>Altijd SSH</b> of <b>Altijd de vSphere-API</b> afdwingen; de wijziging wordt meteen gecontroleerd. Eerdere back-ups en hun herstelpunten hangen niet af van de methode.</p>
 
 <h2>Back-uptaken</h2>
 <p>Kies in <a href="/jobs">Back-uptaken</a> de ESXi-host (vermeld onder <i>VMware ESXi-hosts</i> in de agentlijst) en <b>Virtuele machines</b>. Maak een back-up van alle VM's van de host (later gemaakte VM's worden automatisch opgenomen) of vink er enkele aan. De taak draait op de proxy-agent van de host. Als u de proxy wijzigt, volgen de bestaande taken.</p>
@@ -66,7 +67,7 @@
 <p>Kies <b>Direct, draaiend vanuit de back-up</b> om een VM binnen enkele seconden te starten, zonder eerst zijn schijven te kopiëren. De proxy-agent van de host — dat moet een <b>Linux</b>-agent zijn — biedt de schijven van de VM rechtstreeks vanuit de back-up aan via NFS; de host koppelt dat als datastore <code>backupzit-&lt;agent&gt;</code> en draait de VM daarvandaan. Wijzigingen die de VM maakt, worden op de agent bewaard (<code>/var/lib/backupzit/instant-esxi</code>, die daarvoor vrije ruimte nodig heeft); de back-up zelf wordt nooit gewijzigd, en het bewaarbeleid houdt hem vast zolang de VM ervan draait. Als de originele VM nog bestaat, krijgt de directe VM een nieuwe UUID en nieuwe MAC-adressen.</p>
 <p>Op de runpagina, wanneer de VM werkt zoals het hoort:</p>
 <ul>
-  <li><b>Voltooien</b> kopieert hem naar een datastore van de host: de VM wordt afgesloten (via VMware Tools als die draaien), zijn schijven worden thin gekopieerd met <code>vmkfstools</code>, hij wordt vanaf de datastore geregistreerd en weer gestart. De gratis ESXi-licentie heeft geen Storage vMotion, dus dit vraagt een korte onderbreking die met de schijfgrootte toeneemt. Mislukt het kopiëren, dan blijft de VM vanuit de back-up draaien.</li>
+  <li><b>Voltooien</b> kopieert hem naar een datastore van de host: de VM wordt afgesloten (via VMware Tools als die draaien), zijn schijven worden thin gekopieerd (via de API op gelicentieerde hosts, met <code>vmkfstools</code> via SSH bij de gratis licentie), hij wordt vanaf de datastore geregistreerd en weer gestart. Een losse host heeft geen Storage vMotion, dus dit vraagt een korte onderbreking die met de schijfgrootte toeneemt. Mislukt het kopiëren, dan blijft de VM vanuit de back-up draaien.</li>
   <li><b>Verwerpen</b> stopt en verwijdert de VM met al zijn wijzigingen.</li>
 </ul>
 <p>De agent beantwoordt NFS op poort 2049 (en registreert het bij de rpcbind van de machine op poort 111, of beantwoordt poort 111 zelf) alleen voor het adres van de ESXi-host; open deze poorten van de host naar de agent als er een firewall tussen zit. Wanneer de laatste directe VM is voltooid of verworpen, wordt de datastore verwijderd en stopt de NFS-server.</p>

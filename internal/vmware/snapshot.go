@@ -74,7 +74,7 @@ func (c *Client) leftovers(ctx context.Context, vm types.ManagedObjectReference)
 // createSnapshot takes a snapshot without memory; quiesce asks VMware Tools
 // to flush the guest's file systems and applications first.
 func (c *Client) createSnapshot(ctx context.Context, vm VM, name string, quiesce bool) (*snapshot, error) {
-	if c.APIWrites {
+	if c.useAPI {
 		task, err := object.NewVirtualMachine(c.vim, vm.Ref).CreateSnapshot(ctx, name, "BackupZit backup in progress", false, quiesce)
 		if err != nil {
 			return nil, err
@@ -104,7 +104,7 @@ func (c *Client) createSnapshot(ctx context.Context, vm VM, name string, quiesce
 
 // removeSnapshot deletes a snapshot and merges its changes into the disks.
 func (c *Client) removeSnapshot(ctx context.Context, vm VM, s snapshot) error {
-	if c.APIWrites {
+	if c.useAPI {
 		res, err := methods.RemoveSnapshot_Task(ctx, c.vim, &types.RemoveSnapshot_Task{This: s.Ref, RemoveChildren: false, Consolidate: types.NewBool(true)})
 		if err != nil {
 			return err
@@ -132,7 +132,7 @@ func (c *Client) enableCBT(ctx context.Context, vm VM) (string, error) {
 	if vm.CBT {
 		return "", nil
 	}
-	if c.APIWrites {
+	if c.useAPI {
 		task, err := object.NewVirtualMachine(c.vim, vm.Ref).Reconfigure(ctx, types.VirtualMachineConfigSpec{ChangeTrackingEnabled: types.NewBool(true)})
 		if err != nil {
 			return "", err

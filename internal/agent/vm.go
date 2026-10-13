@@ -218,7 +218,7 @@ func (a *Agent) hypervRestore(ctx context.Context, run api.Run, r *repo.Reposito
 }
 
 func vmwareConnect(ctx context.Context, h *api.VMwareHost) (*vmware.Client, error) {
-	return vmware.Connect(ctx, vmware.Conn{Host: h.Address, User: h.User, Password: h.Password, Thumbprint: h.Thumbprint, SSHHostKey: h.SSHHostKey})
+	return vmware.Connect(ctx, vmware.Conn{Host: h.Address, User: h.User, Password: h.Password, Thumbprint: h.Thumbprint, SSHHostKey: h.SSHHostKey, Method: h.Method})
 }
 
 // vmwareRestore restores a VM onto an ESXi host: NewVMID -1 creates a copy

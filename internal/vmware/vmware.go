@@ -43,6 +43,9 @@ type Conn struct {
 	SSHHostKey string `json:"ssh_host_key,omitempty"`
 	// SSHPort defaults to 22.
 	SSHPort int `json:"ssh_port,omitempty"`
+	// Method chooses how the host is changed: "" (automatic: the API on
+	// licensed hosts, SSH on the free license), "ssh" or "api".
+	Method string `json:"method,omitempty"`
 }
 
 // Client is a connection to one ESXi host.
@@ -60,6 +63,8 @@ type Client struct {
 	// APIWrites is false on hosts with the free license, whose API is
 	// read-only; snapshots and VM changes then go through SSH.
 	APIWrites bool
+	// useAPI: changes go through the API, otherwise through SSH.
+	useAPI bool
 
 	sshMu sync.Mutex
 	ssh   *ssh.Client
@@ -131,6 +136,10 @@ func Connect(ctx context.Context, conn Conn) (*Client, error) {
 	}
 	c.find.SetDatacenter(c.dc)
 	c.APIWrites = apiWritable(ctx, vc)
+	if err := c.chooseMethod(); err != nil {
+		c.Logout()
+		return nil, err
+	}
 	return c, nil
 }
 

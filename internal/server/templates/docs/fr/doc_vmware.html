@@ -6,8 +6,8 @@
 <ul>
   <li><b>ESXi 6.7, 7 ou 8</b>, connecté directement. Les hôtes gérés par vCenter s'ajoutent un par un avec leur propre adresse ; vCenter lui-même n'est pas encore pris en charge.</li>
   <li><b>Un utilisateur disposant des droits d'administrateur sur l'hôte</b>, généralement <code>root</code>.</li>
-  <li><b>SSH activé sur l'hôte :</b> Host → Actions → Services → Enable Secure Shell. Les restaurations en ont toujours besoin. Les hôtes sous licence ESXi gratuite en ont aussi besoin pour les instantanés, car leur API est en lecture seule.</li>
-  <li><b>Un agent proxy :</b> tout agent Windows ou Linux qui atteint l'hôte sur les ports 443 et 22. Les données de sauvegarde passent par lui ; placez-le donc sur un réseau rapide, proche de l'hôte et du stockage.</li>
+  <li><b>SSH activé sur les hôtes sous licence gratuite :</b> Host → Actions → Services → Enable Secure Shell. La licence ESXi gratuite rend l'API en lecture seule, donc les instantanés et les restaurations passent par SSH. Les hôtes sous licence sont modifiés via l'API vSphere et n'ont pas besoin de SSH.</li>
+  <li><b>Un agent proxy :</b> tout agent Windows ou Linux qui atteint l'hôte sur le port 443 (et 22 quand SSH est utilisé). Les données de sauvegarde passent par lui ; placez-le donc sur un réseau rapide, proche de l'hôte et du stockage.</li>
   <li><b>De l'espace libre sur le datastore de la VM</b> pendant la sauvegarde d'une VM en marche. BackupZit y copie brièvement le disque (voir ci-dessous). La copie est thin, elle a donc besoin d'autant d'espace que le disque en utilise réellement.</li>
 </ul>
 
@@ -19,9 +19,10 @@
 </ol>
 <p>Le mot de passe est stocké chiffré, comme tous les autres secrets. La liste des VM est actualisée toutes les 10 minutes, ou immédiatement avec <i>Actualiser</i>. Le tableau indique le mode de chaque hôte :</p>
 <ul>
-  <li><b>vSphere API :</b> hôtes sous licence.</li>
-  <li><b>Licence gratuite :</b> les instantanés et les restaurations passent par SSH.</li>
+  <li><b>API vSphere (hôte sous licence, SSH inutile) :</b> les instantanés, copies de disques, restaurations et restaurations instantanées passent par l'API.</li>
+  <li><b>licence gratuite : instantanés et restaurations via SSH :</b> l'API de l'hôte est en lecture seule, donc ces étapes passent par SSH.</li>
 </ul>
+<p>Avec <b>Automatique</b>, la console choisit elle-même : un hôte qui reçoit plus tard une licence passe à l'API sans autre configuration. <b>Comment l'hôte est modifié</b>, dans la ligne de l'hôte (et à l'ajout), peut imposer <b>Toujours SSH</b> ou <b>Toujours l'API vSphere</b> ; le changement est vérifié aussitôt. Les sauvegardes antérieures et leurs points de restauration ne dépendent pas de la méthode.</p>
 
 <h2>Tâches de sauvegarde</h2>
 <p>Dans <a href="/jobs">Tâches de sauvegarde</a>, choisissez l'hôte ESXi (listé sous <i>Hôtes VMware ESXi</i> dans la liste des agents) et <b>Machines virtuelles</b>. Sauvegardez toutes les VM de l'hôte (les VM créées plus tard sont incluses automatiquement) ou cochez-en certaines. La tâche s'exécute sur l'agent proxy de l'hôte. Si vous changez de proxy, les tâches existantes suivent.</p>
@@ -66,7 +67,7 @@
 <p>Choisissez <b>Instantanément, en s’exécutant depuis la sauvegarde</b> pour démarrer une VM en quelques secondes, sans copier d'abord ses disques. L'agent proxy de l'hôte — il doit s'agir d'un agent <b>Linux</b> — sert les disques de la VM directement depuis la sauvegarde via NFS ; l'hôte les monte comme datastore <code>backupzit-&lt;agent&gt;</code> et exécute la VM depuis celui-ci. Les modifications faites par la VM sont conservées sur l'agent (<code>/var/lib/backupzit/instant-esxi</code>, qui a donc besoin d'espace libre) ; la sauvegarde elle-même n'est jamais modifiée, et la rétention la conserve tant que la VM tourne depuis elle. Si la VM d'origine existe encore, la VM instantanée reçoit un nouvel UUID et de nouvelles adresses MAC.</p>
 <p>Sur la page de l'exécution, lorsque la VM fonctionne comme prévu :</p>
 <ul>
-  <li><b>Terminer</b> la copie sur un datastore de l'hôte : la VM est arrêtée (via VMware Tools s'ils tournent), ses disques sont copiés en thin avec <code>vmkfstools</code>, elle est enregistrée depuis le datastore et redémarrée. La licence ESXi gratuite n'a pas de Storage vMotion, cela nécessite donc une courte interruption qui augmente avec la taille des disques. Si la copie échoue, la VM continue de tourner depuis la sauvegarde.</li>
+  <li><b>Terminer</b> la copie sur un datastore de l'hôte : la VM est arrêtée (via VMware Tools s'ils tournent), ses disques sont copiés en thin (via l'API sur les hôtes sous licence, avec <code>vmkfstools</code> via SSH sous licence gratuite), elle est enregistrée depuis le datastore et redémarrée. Un hôte autonome n'a pas de Storage vMotion, cela nécessite donc une courte interruption qui augmente avec la taille des disques. Si la copie échoue, la VM continue de tourner depuis la sauvegarde.</li>
   <li><b>Abandonner</b> arrête et supprime la VM avec toutes ses modifications.</li>
 </ul>
 <p>L'agent répond en NFS sur le port 2049 (et l'enregistre auprès du rpcbind de la machine sur le port 111, ou répond lui-même sur le port 111) uniquement pour l'adresse de l'hôte ESXi ; ouvrez ces ports de l'hôte vers l'agent si un pare-feu se trouve entre les deux. Lorsque la dernière VM instantanée est terminée ou abandonnée, le datastore est supprimé et le serveur NFS s'arrête.</p>

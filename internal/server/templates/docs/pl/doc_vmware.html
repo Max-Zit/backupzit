@@ -6,8 +6,8 @@
 <ul>
   <li><b>ESXi 6.7, 7 lub 8</b>, podłączony bezpośrednio. Hosty zarządzane przez vCenter dodaje się pojedynczo z ich własnym adresem; sam vCenter nie jest jeszcze obsługiwany.</li>
   <li><b>Użytkownik z prawami administratora na hoście</b>, zwykle <code>root</code>.</li>
-  <li><b>SSH włączone na hoście:</b> Host → Actions → Services → Enable Secure Shell. Przywracanie zawsze go wymaga. Hosty z darmową licencją ESXi potrzebują go także do migawek, bo ich API jest tylko do odczytu.</li>
-  <li><b>Agent proxy:</b> dowolny agent Windows lub Linux, który łączy się z hostem na portach 443 i 22. Dane kopii przechodzą przez niego, więc umieść go w szybkiej sieci blisko hosta i magazynu.</li>
+  <li><b>SSH włączone na hostach z darmową licencją:</b> Host → Actions → Services → Enable Secure Shell. Darmowa licencja ESXi udostępnia API tylko do odczytu, więc migawki i przywracanie odbywają się przez SSH. Hosty licencjonowane są zmieniane przez API vSphere i nie potrzebują SSH.</li>
+  <li><b>Agent proxy:</b> dowolny agent Windows lub Linux, który łączy się z hostem na porcie 443 (i 22, gdy używane jest SSH). Dane kopii przechodzą przez niego, więc umieść go w szybkiej sieci blisko hosta i magazynu.</li>
   <li><b>Wolne miejsce w datastore maszyny</b> podczas kopiowania działającej maszyny. BackupZit kopiuje tam na chwilę dysk (zobacz niżej). Kopia jest thin, więc potrzebuje tyle miejsca, ile dysk faktycznie zajmuje.</li>
 </ul>
 
@@ -19,9 +19,10 @@
 </ol>
 <p>Hasło jest przechowywane w postaci zaszyfrowanej, jak wszystkie inne sekrety. Lista maszyn jest odświeżana co 10 minut lub od razu przyciskiem <i>Odśwież</i>. Tabela pokazuje tryb każdego hosta:</p>
 <ul>
-  <li><b>vSphere API:</b> hosty licencjonowane.</li>
-  <li><b>Darmowa licencja:</b> migawki i przywracanie odbywają się przez SSH.</li>
+  <li><b>API vSphere (licencjonowany host, SSH niepotrzebne):</b> migawki, kopie dysków, przywracanie i natychmiastowe odtwarzanie odbywają się przez API.</li>
+  <li><b>darmowa licencja: migawki i przywracanie przez SSH:</b> API hosta jest tylko do odczytu, więc te kroki odbywają się przez SSH.</li>
 </ul>
+<p>Przy <b>Automatycznie</b> konsola wybiera sama, więc host, który później dostanie licencję, przechodzi na API bez dodatkowej konfiguracji. <b>Sposób zmian na hoście</b> w wierszu hosta (i przy dodawaniu) może wymusić <b>Zawsze SSH</b> lub <b>Zawsze API vSphere</b>; zmiana jest od razu sprawdzana. Wcześniejsze kopie i ich punkty przywracania nie zależą od sposobu.</p>
 
 <h2>Zadania kopii</h2>
 <p>W <a href="/jobs">Zadania kopii</a> wybierz host ESXi (wymieniony w <i>Hosty VMware ESXi</i> na liście agentów) i <b>Maszyny wirtualne</b>. Kopiuj wszystkie maszyny hosta (maszyny utworzone później są dołączane automatycznie) albo zaznacz wybrane. Zadanie działa na agencie proxy hosta. Jeśli zmienisz proxy, istniejące zadania podążą za nim.</p>
@@ -66,7 +67,7 @@
 <p>Wybierz <b>Natychmiast, działając z kopii</b>, aby uruchomić maszynę w kilka sekund, bez wcześniejszego kopiowania dysków. Agent proxy hosta — musi to być agent <b>Linux</b> — udostępnia dyski maszyny wprost z kopii przez NFS; host montuje to jako datastore <code>backupzit-&lt;agent&gt;</code> i uruchamia z niego maszynę. Zmiany wprowadzane przez maszynę są przechowywane na agencie (<code>/var/lib/backupzit/instant-esxi</code>, który potrzebuje na nie wolnego miejsca); sama kopia nigdy się nie zmienia, a przechowywanie zachowuje ją, dopóki maszyna z niej działa. Jeśli oryginalna maszyna nadal istnieje, natychmiastowa maszyna dostaje nowy UUID i nowe adresy MAC.</p>
 <p>Na stronie uruchomienia, gdy maszyna działa jak należy:</p>
 <ul>
-  <li><b>Zakończ</b> kopiuje ją do datastore hosta: maszyna jest wyłączana (przez VMware Tools, jeśli działają), jej dyski są kopiowane jako thin poleceniem <code>vmkfstools</code>, jest rejestrowana z datastore i uruchamiana ponownie. Darmowa licencja ESXi nie ma Storage vMotion, więc wymaga to krótkiej przerwy rosnącej z rozmiarem dysków. Jeśli kopiowanie się nie powiedzie, maszyna nadal działa z kopii.</li>
+  <li><b>Zakończ</b> kopiuje ją do datastore hosta: maszyna jest wyłączana (przez VMware Tools, jeśli działają), jej dyski są kopiowane jako thin (przez API na hostach licencjonowanych, poleceniem <code>vmkfstools</code> przez SSH przy darmowej licencji), jest rejestrowana z datastore i uruchamiana ponownie. Samodzielny host nie ma Storage vMotion, więc wymaga to krótkiej przerwy rosnącej z rozmiarem dysków. Jeśli kopiowanie się nie powiedzie, maszyna nadal działa z kopii.</li>
   <li><b>Odrzuć</b> zatrzymuje i usuwa maszynę ze wszystkimi zmianami.</li>
 </ul>
 <p>Agent odpowiada na NFS na porcie 2049 (i rejestruje go w rpcbind maszyny na porcie 111 albo sam odpowiada na porcie 111) tylko dla adresu hosta ESXi; jeśli po drodze jest zapora, otwórz te porty od hosta do agenta. Gdy ostatnia natychmiastowa maszyna zostanie zakończona lub odrzucona, datastore jest usuwany, a serwer NFS się zatrzymuje.</p>

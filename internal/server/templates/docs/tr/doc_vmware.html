@@ -6,8 +6,8 @@
 <ul>
   <li>Doğrudan bağlı <b>ESXi 6.7, 7 veya 8</b>. vCenter tarafından yönetilen ana bilgisayarlar kendi adresleriyle tek tek eklenir; vCenter'ın kendisi henüz desteklenmez.</li>
   <li><b>Ana bilgisayarda yönetici haklarına sahip bir kullanıcı</b>, genellikle <code>root</code>.</li>
-  <li><b>Ana bilgisayarda SSH etkin:</b> Host → Actions → Services → Enable Secure Shell. Geri yüklemeler her zaman gerektirir. Ücretsiz ESXi lisanslı ana bilgisayarlar, API'leri salt okunur olduğu için anlık görüntüler için de gerektirir.</li>
-  <li><b>Bir vekil aracı:</b> ana bilgisayara 443 ve 22 numaralı bağlantı noktalarından ulaşan herhangi bir Windows veya Linux aracısı. Yedek verileri onun üzerinden akar; bu yüzden onu ana bilgisayara ve depolamaya yakın, hızlı bir ağa koyun.</li>
+  <li><b>Ücretsiz lisanslı ana bilgisayarlarda SSH etkin:</b> Host → Actions → Services → Enable Secure Shell. Ücretsiz ESXi lisansı API'yi salt okunur yapar; bu yüzden anlık görüntüler ve geri yüklemeler SSH üzerinden yapılır. Lisanslı ana bilgisayarlar vSphere API üzerinden değiştirilir ve SSH gerektirmez.</li>
+  <li><b>Bir vekil aracı:</b> ana bilgisayara 443 numaralı bağlantı noktasından (SSH kullanıldığında 22'den de) ulaşan herhangi bir Windows veya Linux aracısı. Yedek verileri onun üzerinden akar; bu yüzden onu ana bilgisayara ve depolamaya yakın, hızlı bir ağa koyun.</li>
   <li>Çalışan bir VM yedeklenirken <b>VM'nin datastore'unda boş alan</b>. BackupZit diski kısa süreliğine oraya kopyalar (aşağıya bakın). Kopya thin olduğundan diskin gerçekten kullandığı kadar alan gerekir.</li>
 </ul>
 
@@ -19,9 +19,10 @@
 </ol>
 <p>Parola, diğer tüm gizli bilgiler gibi şifreli saklanır. VM listesi her 10 dakikada bir veya <i>Yenile</i> ile hemen yenilenir. Tablo her ana bilgisayarın modunu gösterir:</p>
 <ul>
-  <li><b>vSphere API:</b> lisanslı ana bilgisayarlar.</li>
-  <li><b>Ücretsiz lisans:</b> anlık görüntüler ve geri yüklemeler SSH üzerinden yapılır.</li>
+  <li><b>vSphere API (lisanslı ana bilgisayar, SSH gerekmez):</b> anlık görüntüler, disk kopyaları, geri yüklemeler ve anında kurtarma API üzerinden yapılır.</li>
+  <li><b>ücretsiz lisans: anlık görüntüler ve geri yüklemeler SSH üzerinden:</b> ana bilgisayarın API'si salt okunurdur; bu yüzden bu adımlar SSH üzerinden yapılır.</li>
 </ul>
+<p><b>Otomatik</b> ile konsol kendisi seçer; böylece sonradan lisans alan bir ana bilgisayar ek ayar yapmadan API'ye geçer. Ana bilgisayarın satırındaki (ve eklerken) <b>Ana bilgisayarın nasıl değiştirildiği</b>, <b>Her zaman SSH</b> veya <b>Her zaman vSphere API</b> seçeneğini zorlayabilir; değişiklik hemen denetlenir. Önceki yedekler ve geri yükleme noktaları yönteme bağlı değildir.</p>
 
 <h2>Yedekleme işleri</h2>
 <p><a href="/jobs">Yedekleme işleri</a> içinde ESXi ana bilgisayarını (aracı listesinde <i>VMware ESXi ana bilgisayarları</i> altında listelenir) ve <b>Sanal makineler</b>'i seçin. Ana bilgisayarın tüm VM'lerini yedekleyin (sonradan oluşturulan VM'ler otomatik dahil edilir) veya tek tek işaretleyin. İş, ana bilgisayarın vekil aracısında çalışır. Vekili değiştirirseniz mevcut işler de onu izler.</p>
@@ -66,7 +67,7 @@
 <p>Bir VM'yi önce disklerini kopyalamadan saniyeler içinde başlatmak için <b>Anında, yedekten çalışarak</b>'ı seçin. Ana bilgisayarın vekil aracısı — bir <b>Linux</b> aracısı olmalıdır — VM'nin disklerini doğrudan yedekten NFS ile sunar; ana bilgisayar bunu <code>backupzit-&lt;agent&gt;</code> datastore'u olarak bağlar ve VM'yi oradan çalıştırır. VM'nin yaptığı değişiklikler aracıda tutulur (<code>/var/lib/backupzit/instant-esxi</code>; bunlar için boş alan gerekir); yedeğin kendisi asla değiştirilmez ve VM ondan çalıştığı sürece saklama kuralı onu korur. Orijinal VM hâlâ varsa, anında VM yeni bir UUID ve yeni MAC adresleri alır.</p>
 <p>Çalıştırma sayfasında, VM olması gerektiği gibi çalıştığında:</p>
 <ul>
-  <li><b>Tamamla</b>, onu ana bilgisayarın bir datastore'una kopyalar: VM kapatılır (çalışıyorsa VMware Tools üzerinden), diskleri <code>vmkfstools</code> ile thin olarak kopyalanır, datastore'dan kaydedilir ve yeniden başlatılır. Ücretsiz ESXi lisansında Storage vMotion olmadığından bu, disk boyutuyla artan kısa bir kesinti gerektirir. Kopyalama başarısız olursa VM yedekten çalışmaya devam eder.</li>
+  <li><b>Tamamla</b>, onu ana bilgisayarın bir datastore'una kopyalar: VM kapatılır (çalışıyorsa VMware Tools üzerinden), diskleri thin olarak kopyalanır (lisanslı ana bilgisayarlarda API ile, ücretsiz lisansta SSH üzerinden <code>vmkfstools</code> ile), datastore'dan kaydedilir ve yeniden başlatılır. Tek başına bir ana bilgisayarda Storage vMotion olmadığından bu, disk boyutuyla artan kısa bir kesinti gerektirir. Kopyalama başarısız olursa VM yedekten çalışmaya devam eder.</li>
   <li><b>At</b>, VM'yi tüm değişiklikleriyle birlikte durdurur ve siler.</li>
 </ul>
 <p>Aracı, NFS'e 2049 numaralı bağlantı noktasında yalnızca ESXi ana bilgisayarının adresi için yanıt verir (ve bunu makinenin 111 numaralı bağlantı noktasındaki rpcbind'ine kaydeder ya da 111'i kendisi yanıtlar); arada bir güvenlik duvarı varsa bu bağlantı noktalarını ana bilgisayardan aracıya açın. Son anında VM tamamlandığında veya atıldığında datastore kaldırılır ve NFS sunucusu durur.</p>

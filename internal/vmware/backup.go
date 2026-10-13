@@ -231,12 +231,12 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 			defer func() {
 				for _, p := range plans {
 					if p.clone != nil {
-						c.run(context.Background(), "vmkfstools -U "+sq(p.clone.local()))
+						c.deleteDisk(context.Background(), *p.clone)
 					}
 				}
 				for _, p := range plans {
 					if p.clone != nil { // the directory goes once it is empty
-						c.run(context.Background(), "rmdir "+sq("/vmfs/volumes/"+p.clone.DS+"/"+tmpDir)+" 2>/dev/null; true")
+						c.removeDirIfEmpty(context.Background(), p.clone.DS, tmpDir)
 					}
 				}
 			}()
@@ -303,9 +303,13 @@ func (c *Client) cloneDisk(ctx context.Context, v VM, p *diskPlan) error {
 		return err
 	}
 	dst := dsPath{DS: src.DS, Path: fmt.Sprintf("%s/%s-%s.vmdk", tmpDir, strings.ToLower(v.UUID), strings.ReplaceAll(p.disk.Key, ":", "-"))}
-	dir := "/vmfs/volumes/" + dst.DS + "/" + tmpDir
-	c.run(ctx, "vmkfstools -U "+sq(dst.local())+" 2>/dev/null")
-	if _, err := c.run(ctx, "mkdir -p "+sq(dir)+" && vmkfstools -i "+sq(src.local())+" -d thin "+sq(dst.local())); err != nil {
+	if c.exists(ctx, dst.DS, dst.Path) {
+		c.deleteDisk(ctx, dst) // left behind by an interrupted backup
+	}
+	if err := c.mkdir(ctx, dst.DS, tmpDir); err != nil {
+		return fmt.Errorf("create %s on datastore %s: %w", tmpDir, dst.DS, err)
+	}
+	if err := c.copyDisk(ctx, src, dst); err != nil {
 		return fmt.Errorf("copy the disk on the datastore (needs free space for its used blocks): %w", err)
 	}
 	p.clone = &dst

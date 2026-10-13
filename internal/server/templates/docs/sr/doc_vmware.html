@@ -6,8 +6,8 @@
 <ul>
   <li><b>ESXi 6.7, 7 ili 8</b>, povezan direktno. Hostovi kojima upravlja vCenter dodaju se jedan po jedan, sa sopstvenom adresom; sam vCenter još nije podržan.</li>
   <li><b>Korisnik sa administratorskim pravima na hostu</b>, obično <code>root</code>.</li>
-  <li><b>SSH uključen na hostu:</b> Host → Actions → Services → Enable Secure Shell. Vraćanja ga uvek traže. Hostovima sa besplatnom ESXi licencom treba i za snimke, jer je njihov API samo za čitanje.</li>
-  <li><b>Proxy agent:</b> bilo koji Windows ili Linux agent koji dolazi do hosta na portovima 443 i 22. Podaci bekapa prolaze kroz njega, pa ga postavite na brzu mrežu blizu hosta i skladišta.</li>
+  <li><b>SSH uključen na hostovima sa besplatnom licencom:</b> Host → Actions → Services → Enable Secure Shell. Besplatna ESXi licenca drži API samo za čitanje, pa snimci i vraćanja idu preko SSH-a. Licencirani hostovi se menjaju preko vSphere API-ja i ne treba im SSH.</li>
+  <li><b>Proxy agent:</b> bilo koji Windows ili Linux agent koji dolazi do hosta na portu 443 (i 22 kada se koristi SSH). Podaci bekapa prolaze kroz njega, pa ga postavite na brzu mrežu blizu hosta i skladišta.</li>
   <li><b>Slobodan prostor na datastore-u VM-a</b> dok se pravi bekap VM-a koja radi. BackupZit tamo na trenutak kopira disk (vidi dole). Kopija je thin, pa joj treba onoliko prostora koliko disk zaista koristi.</li>
 </ul>
 
@@ -19,9 +19,10 @@
 </ol>
 <p>Lozinka se čuva šifrovana, kao i sve druge tajne. Lista virtuelnih mašina se osvežava svakih 10 minuta, ili odmah dugmetom <i>Osveži</i>. Tabela prikazuje režim svakog hosta:</p>
 <ul>
-  <li><b>vSphere API:</b> licencirani hostovi.</li>
-  <li><b>Besplatna licenca:</b> snimci i vraćanja idu preko SSH-a.</li>
+  <li><b>vSphere API (licenciran host, SSH nije potreban):</b> snimci, kopije diskova, vraćanja i instant recovery idu preko API-ja.</li>
+  <li><b>besplatna licenca: snimci i vraćanja preko SSH-a:</b> API hosta je samo za čitanje, pa ovi koraci idu preko SSH-a.</li>
 </ul>
+<p>Sa <b>Automatski</b> konzola sama bira, pa host koji kasnije dobije licencu prelazi na API bez dodatnog podešavanja. <b>Kako se host menja</b> u redu hosta (i pri dodavanju) može da nametne <b>Uvek SSH</b> ili <b>Uvek vSphere API</b>; promena se odmah proverava. Raniji bekapi i njihove tačke vraćanja ne zavise od načina.</p>
 
 <h2>Poslovi bekapa</h2>
 <p>U <a href="/jobs">Poslovi bekapa</a> izaberite ESXi host (naveden pod <i>VMware ESXi hostovi</i> u listi agenata) i <b>Virtuelne mašine</b>. Čuvajte sve virtuelne mašine hosta (virtuelne mašine napravljene kasnije uključuju se automatski) ili označite pojedinačne. Posao radi na proxy agentu hosta. Ako promenite proxy, postojeći poslovi ga prate.</p>
@@ -66,7 +67,7 @@
 <p>Izaberite <b>Odmah, pokrenut iz bekapa</b> da biste pokrenuli VM za nekoliko sekundi, bez prethodnog kopiranja diskova. Proxy agent hosta — mora da bude <b>Linux</b> agent — servira diskove VM-a direktno iz bekapa preko NFS-a; host to montira kao datastore <code>backupzit-&lt;agent&gt;</code> i pokreće VM sa njega. Izmene koje VM napravi čuvaju se na agentu (<code>/var/lib/backupzit/instant-esxi</code>, pa mu treba slobodnog prostora za njih); sam bekap se nikad ne menja, a retencija ga čuva dok VM radi iz njega. Ako originalna VM i dalje postoji, instant VM dobija nov UUID i nove MAC adrese.</p>
 <p>Na stranici pokretanja, kada VM radi kako treba:</p>
 <ul>
-  <li><b>Završi</b> je kopira na datastore hosta: VM se gasi (preko VMware Tools-a ako rade), njeni diskovi se kopiraju kao thin pomoću <code>vmkfstools</code>, registruje se sa datastore-a i ponovo pokreće. Besplatna ESXi licenca nema Storage vMotion, pa ovo traži kratak prekid koji raste sa veličinom diska. Ako kopiranje ne uspe, VM nastavlja da radi iz bekapa.</li>
+  <li><b>Završi</b> je kopira na datastore hosta: VM se gasi (preko VMware Tools-a ako rade), njeni diskovi se kopiraju kao thin (preko API-ja na licenciranim hostovima, pomoću <code>vmkfstools</code> preko SSH-a na besplatnoj licenci), registruje se sa datastore-a i ponovo pokreće. Samostalan host nema Storage vMotion, pa ovo traži kratak prekid koji raste sa veličinom diska. Ako kopiranje ne uspe, VM nastavlja da radi iz bekapa.</li>
   <li><b>Odbaci VM</b> zaustavlja i briše VM sa svim njenim izmenama.</li>
 </ul>
 <p>Agent odgovara na NFS na portu 2049 (i registruje ga u rpcbind-u mašine na portu 111, ili sam odgovara na portu 111) samo za adresu ESXi hosta; otvorite ove portove od hosta ka agentu ako je između njih firewall. Kada se poslednja instant VM završi ili odbaci, datastore se uklanja, a NFS server zaustavlja.</p>

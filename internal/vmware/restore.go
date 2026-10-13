@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"path"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -72,7 +71,7 @@ func (c *Client) Restore(ctx context.Context, r *repo.Repository, sn *repo.Snaps
 			return nil, fmt.Errorf("disk %s has no data in the backup", d.Key)
 		}
 	}
-	if err := c.CheckSSH(ctx); err != nil {
+	if err := c.needSSH(ctx); err != nil {
 		return nil, err
 	}
 	vms, err := c.VMs(ctx)
@@ -130,6 +129,11 @@ func adapterFor(key string) string {
 // writeDisk creates a thin disk of the image's size at p and writes the
 // image's data into it.
 func (c *Client) writeDisk(ctx context.Context, r *repo.Repository, img *repo.DiskImage, p dsPath, key string, progress func(uint64)) error {
+	if c.useAPI {
+		return c.uploadDisk(ctx, func(tmp dsPath) error {
+			return c.uploadSparse(ctx, r, img, tmp, adapterFor(key), progress)
+		}, p, adapterFor(key))
+	}
 	if _, err := c.run(ctx, fmt.Sprintf("vmkfstools -c %d -d thin -a %s %s", img.Size, adapterFor(key), sq(p.local()))); err != nil {
 		return fmt.Errorf("create disk: %w", err)
 	}
@@ -148,12 +152,6 @@ func (c *Client) writeDisk(ctx context.Context, r *repo.Repository, img *repo.Di
 	return w.Close()
 }
 
-// exists reports whether a path exists on the host.
-func (c *Client) exists(ctx context.Context, local string) bool {
-	_, err := c.run(ctx, "test -e "+sq(local))
-	return err == nil
-}
-
 func (c *Client) restoreNew(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, g *repo.Guest, cfg guestConfig, name string,
 	opts RestoreOptions, progress func(uint64)) (*RestoreResult, error) {
 	orig, err := parseDSPath(cfg.VM.VMX)
@@ -165,18 +163,18 @@ func (c *Client) restoreNew(ctx context.Context, r *repo.Repository, sn *repo.Sn
 		ds = orig.DS
 	}
 	dir := badNameChars.ReplaceAllString(name, "_")
-	for i := 2; c.exists(ctx, "/vmfs/volumes/"+ds+"/"+dir); i++ {
+	for i := 2; c.exists(ctx, ds, dir); i++ {
 		dir = fmt.Sprintf("%s_%d", badNameChars.ReplaceAllString(name, "_"), i)
 	}
 	vmxPath := dsPath{DS: ds, Path: dir + "/" + dir + ".vmx"}
 	res := &RestoreResult{Name: name, VMX: vmxPath.String()}
-	if _, err := c.run(ctx, "mkdir "+sq("/vmfs/volumes/"+ds+"/"+dir)); err != nil {
+	if err := c.mkdir(ctx, ds, dir); err != nil {
 		return nil, err
 	}
 	cleanup := true
 	defer func() {
 		if cleanup {
-			c.run(context.Background(), "rm -rf "+sq("/vmfs/volumes/"+ds+"/"+dir))
+			c.removeDir(context.Background(), ds, dir)
 		}
 	}()
 	v := parseVMX([]byte(cfg.VMX))
@@ -221,17 +219,14 @@ func (c *Client) restoreNew(ctx context.Context, r *repo.Repository, sn *repo.Sn
 	if err := c.put(ctx, vmxPath, v.Bytes()); err != nil {
 		return nil, fmt.Errorf("write configuration: %w", err)
 	}
-	out, err := c.run(ctx, "vim-cmd solo/registervm "+sq(vmxPath.local())+" "+sq(name))
+	moid, err := c.registerVM(ctx, vmxPath, name)
 	if err != nil {
 		return nil, fmt.Errorf("register VM: %w", err)
 	}
-	res.MoID = strings.TrimSpace(lastLines(out, 1))
-	if _, err := strconv.Atoi(res.MoID); err != nil {
-		return nil, fmt.Errorf("register VM: unexpected answer %q", out)
-	}
+	res.MoID = moid
 	cleanup = false
 	if opts.Start {
-		if _, err := c.run(ctx, "vim-cmd vmsvc/power.on "+sq(res.MoID)); err != nil {
+		if err := c.powerOn(ctx, res.MoID); err != nil {
 			res.Notes = append(res.Notes, "the VM could not be started: "+err.Error())
 		}
 	}
@@ -323,13 +318,13 @@ func (c *Client) restoreInPlace(ctx context.Context, r *repo.Repository, sn *rep
 	}
 	opts.Log("turning the VM off", "name", vm.Name)
 	if vm.Power != "poweredOff" {
-		if _, err := c.run(ctx, "vim-cmd vmsvc/power.off "+sq(vm.MoID)); err != nil {
+		if err := c.powerOff(ctx, vm.MoID); err != nil {
 			return nil, fmt.Errorf("turn off: %w", err)
 		}
 	}
 	if vm.Snapshots {
 		opts.Log("deleting the VM's snapshots")
-		if _, err := c.run(ctx, "vim-cmd vmsvc/snapshot.removeall "+sq(vm.MoID)); err != nil {
+		if err := c.removeAllSnapshots(ctx, vm.MoID); err != nil {
 			return nil, fmt.Errorf("delete snapshots: %w", err)
 		}
 		var err error
@@ -348,7 +343,7 @@ func (c *Client) restoreInPlace(ctx context.Context, r *repo.Repository, sn *rep
 		}
 		old := p.join(strings.TrimSuffix(path.Base(p.Path), ".vmdk") + ".replaced-" + stamp + ".vmdk")
 		opts.Log("restoring disk", "key", d.Key, "file", p.String())
-		if _, err := c.run(ctx, "vmkfstools -E "+sq(p.local())+" "+sq(old.local())); err != nil {
+		if err := c.moveDisk(ctx, p, old); err != nil {
 			return nil, fmt.Errorf("%s: keep the old disk: %w", d.Key, err)
 		}
 		img := sn.Images[d.Image]
@@ -371,13 +366,13 @@ func (c *Client) restoreInPlace(ctx context.Context, r *repo.Repository, sn *rep
 			}
 			if changed {
 				if err := c.put(ctx, vp, now.Bytes()); err == nil {
-					c.run(ctx, "vim-cmd vmsvc/reload "+sq(vm.MoID))
+					c.reloadVM(ctx, vm.MoID)
 				}
 			}
 		}
 	}
 	if opts.Start {
-		if _, err := c.run(ctx, "vim-cmd vmsvc/power.on "+sq(vm.MoID)); err != nil {
+		if err := c.powerOn(ctx, vm.MoID); err != nil {
 			res.Notes = append(res.Notes, "the VM could not be started: "+err.Error())
 		}
 	}
