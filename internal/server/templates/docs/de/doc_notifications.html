@@ -21,6 +21,16 @@
   <li><b>Erfolge</b> — jeder erfolgreiche Lauf (meist zu viel; besser den Tagesbericht verwenden).</li>
   <li><b>Tagesbericht</b> — zur gewählten Stunde: Läufe der letzten 24 Stunden, Probleme und Agenten offline. Der Betreff beginnt mit <i>OK</i>, <i>WARNINGS</i> oder <i>ATTENTION</i>, sodass Mailregeln sie sortieren können.</li>
 </ul>
+<p>Ist <b>Fehler</b> eingeschaltet, wird auch ein Auftrag gemeldet, der sein Wiederherstellungspunktziel (RPO) verfehlt — einmal, und erneut erst, nachdem er es zwischenzeitlich wieder eingehalten hat. Von einem Benutzer gestoppte Läufe (Status <i>abgebrochen</i>) senden keine Fehler-E-Mail; ein durch das Zeitlimit gestoppter Lauf schon.</p>
+<p>Unabhängig von diesen Optionen erhalten die Empfänger der Benachrichtigungen auch eine E-Mail, wenn:</p>
+<ul>
+  <li>eine Änderung auf die Freigabe durch einen zweiten Benutzer wartet (Vier-Augen-Prinzip);</li>
+  <li>zwei Rechner eine Agentenregistrierung verwenden;</li>
+  <li>das Audit-Protokoll verändert wurde;</li>
+  <li>die Sicherung der Konsole selbst fehlgeschlagen ist;</li>
+  <li>die Erneuerung des HTTPS-Zertifikats für Browser fehlgeschlagen ist;</li>
+  <li>eine Adresse nach zu vielen fehlgeschlagenen Anmeldungen gesperrt wurde (abschaltbar beim Brute-Force-Schutz).</li>
+</ul>
 <p>Für wöchentliche oder monatliche Zusammenfassungen verwenden Sie <a href="/docs/monitoring">geplante Berichte</a>; sie werden mit denselben Mail-Einstellungen gesendet und haben eigene Empfänger. Betreffzeilen beginnen mit <code>[BackupZit]</code>, sodass Mailregeln sie sortieren können. Das SMTP-Passwort wird verschlüsselt gespeichert. Links in E-Mails, Chat-Nachrichten und Berichten führen zur Konsole unter der Adresse, mit der Sie sie im Browser öffnen (oder der mit <code>--public-url</code> gesetzten).</p>
 
 <h2>Slack, Microsoft Teams und Webhooks</h2>

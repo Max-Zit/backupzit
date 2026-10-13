@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Başlarken</h1>
-<p class="lead">BackupZit; Windows ve Linux makineleri, Proxmox VE, Hyper-V ve VMware ESXi sanal makinelerini, veritabanlarını (SQL Server, PostgreSQL, MySQL/MariaDB) ve NAS paylaşımlarını — dosyaları, tüm diskleri ve tüm sistemleri — kendi ağınızda çalışan tek bir web konsolundan korur.</p>
+<p class="lead">BackupZit; Windows ve Linux makineleri, Proxmox VE, Hyper-V ve VMware ESXi sanal makinelerini, veritabanlarını (SQL Server, PostgreSQL, MySQL/MariaDB), NAS paylaşımlarını ve Microsoft 365'i — dosyaları, tüm diskleri, tüm sistemleri ve posta kutularını — kendi ağınızda çalışan tek bir web konsolundan korur.</p>
 
 <h2>BackupZit neleri korur</h2>
 <table>
@@ -13,6 +13,7 @@
   <tr><td>NAS ve dosya paylaşımları (SMB, NFS)</td><td>NAS'ta yazılım yok: herhangi bir makinedeki aracı paylaşımı okur. <a href="/docs/jobs">Yedekleme işleri</a></td><td>Dosya ve klasörler paylaşıma geri, bir klasöre veya indirme olarak.</td></tr>
   <tr><td>Veritabanları: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Veritabanı makinesinde aracı; sunucunun kendi araçları, tam ve günlük yedekleri. <a href="/docs/sql">Veritabanları</a></td><td>Tek bir veritabanı yeni bir adla veya yerinde, günlük yedeklerinin kapsadığı herhangi bir ana.</td></tr>
   <tr><td>Proxmox VE VM'leri ve kapsayıcıları</td><td>Proxmox ana bilgisayarında aracı, <b>konukların içinde aracı yok</b>; Proxmox anlık görüntülerinden, yalnızca değişen bloklar yüklenir. <a href="/docs/proxmox">Proxmox VE</a></td><td>Tüm konuk yeni olarak veya yerinde, herhangi bir düğüm ve depolamada; VM'ler yedekten anında (anında kurtarma, VMware ESXi'de de); VM disklerinden tek tek dosyalar (NTFS, ext4, XFS, LVM) indirme olarak veya bir aracıya.</td></tr>
+  <tr><td>Microsoft 365</td><td>İnternet erişimi olan herhangi bir aracı, Exchange Online postalarını, takvimleri ve kişileri, OneDrive ve SharePoint'i Microsoft Graph üzerinden salt okuma izinleriyle okur; kiracıya hiçbir şey kurulmaz. <a href="/docs/m365">Microsoft 365</a></td><td>İletilere (.eml) ve dosyalara göz atma ve indirme ya da bir aracıdaki klasöre geri yükleme.</td></tr>
 </table>
 
 <h2>BackupZit nasıl çalışır</h2>
@@ -38,18 +39,18 @@
 <h2>Bir bakışta konsol</h2>
 <table>
   <tr><th>Sayfa</th><th>Ne işe yarar</th></tr>
-  <tr><td><a href="/">Pano</a></td><td>Bir bakışta durum: neyin korunduğu, neyin ilgi gerektirdiği, çevrimiçi aracılar, son 24 saatteki hatalar, şüpheli yedekler, son etkinlik.</td></tr>
+  <tr><td><a href="/">Pano</a></td><td>Bir bakışta durum: neyin korunduğu, kaç işin RPO'su içinde olduğu, neyin ilgi gerektirdiği, çevrimiçi aracılar, son 24 saatteki hatalar, şüpheli yedekler, son etkinlik.</td></tr>
   <tr><td><a href="/jobs">Yedekleme işleri</a></td><td>Dosya, NAS paylaşımı, disk görüntüsü, Linux sistemi, sanal makine, veritabanı ve yedek kopyalama işleri: oluşturma, düzenleme, çalıştırma, geri yükleme testi, devre dışı bırakma, silme. Liste her işin türünü, koruduğu VM'leri veya veritabanlarını, sonraki çalıştırmayı, son sonucu ve geri yükleme noktası sayısını gösterir; türe göre filtreleyin veya arayın. Bir işin sayfası en yeni yedeğindeki VM'leri veya veritabanlarını geri yükleme bağlantılarıyla listeler.</td></tr>
   <tr><td><a href="/restore">Geri yükle</a></td><td>Geri yükleme sihirbazı: neyin geri yükleneceğini (VM, dosyalar, disk görüntüsü, veritabanı, Linux sistemi), kaynağı, geri yükleme noktasını ve seçenekleri seçin. Bkz. <a href="/docs/restore">Geri yükleme</a>.</td></tr>
-  <tr><td><a href="/runs">Etkinlik</a></td><td>Her yedekleme, kopya, geri yükleme testi ve geri yükleme; ayrıntılar, istatistikler ve hatalarla. Geri yüklemeler ve dosyalara göz atma buradan da başlatılabilir.</td></tr>
+  <tr><td><a href="/runs">Etkinlik</a></td><td>Her yedekleme, kopya, geri yükleme testi ve geri yükleme; ayrıntılar, istatistikler ve hatalarla. Geri yüklemeler ve dosyalara göz atma buradan da başlatılabilir; kuyruktaki veya çalışan çalıştırmalar tek tek ya da hepsi birden durdurulabilir.</td></tr>
   <tr><td><a href="/calendar">Takvim</a></td><td>Geçmiş günlerde neyin çalıştığı ve gelecekte neyin zamanlandığı.</td></tr>
-  <tr><td><a href="/reports">Raporlar</a></td><td>Herhangi bir dönem için başarı oranları ve veri hacimleri, CSV dışa aktarma, e-postayla gönderilen ve zamanlanmış raporlar.</td></tr>
+  <tr><td><a href="/reports">Raporlar</a></td><td>Herhangi bir dönem için başarı oranları ve veri hacimleri, PDF ve CSV dışa aktarma, e-postayla gönderilen ve zamanlanmış raporlar.</td></tr>
   <tr><td><a href="/agents">Aracılar</a></td><td>IP adresleri ve sürümleriyle korunan makineler, kayıt kodları, yükleyiciler ve aracı güncellemeleri.</td></tr>
   <tr><td><a href="/targets">Depolama</a></td><td>Yedeklerin nerede saklandığı, şifreleme ve kurtarma anahtarları, değiştirilemezlik, tahminiyle birlikte kullanılan alan.</td></tr>
   <tr><td><a href="/recovery">Kurtarma ortamı</a></td><td>Kurtarma ISO'ları (disk görüntüleri için Windows, Linux sistemleri için Linux) ve bare metal geri yüklemeler için kurtarma kodları.</td></tr>
   <tr><td><a href="/approvals">Onaylar</a></td><td>Dört göz onayı açıkken gösterilir: ikinci bir kullanıcıyı bekleyen değişiklikler. Bkz. <a href="/docs/users">Kullanıcılar, roller ve LDAP</a>.</td></tr>
   <tr><td><a href="/users">Kullanıcılar</a></td><td>Hesaplar, roller, tüm kullanıcıların API belirteçleri, denetim günlüğü.</td></tr>
-  <tr><td><a href="/settings/email">Ayarlar</a></td><td>E-posta bildirimleri; Slack, Teams ve webhook'lar; oturum açma oturumları, iki faktör ilkesi, kaba kuvvet koruması, dört göz onayı ve saklanan gizli bilgiler; geri yükleme testleri; tarayıcılar için HTTPS sertifikası; appliance'ta ağı (adres, sunucu adı, SSH — bkz. <a href="/docs/install#setup-menu">Kurulum</a>); BackupZit ve işletim sistemi güncellemeleri; konsolun kendi yedeği; LDAP / Active Directory; SAML veya OpenID Connect ile çoklu oturum açma.</td></tr>
+  <tr><td><a href="/settings/email">Ayarlar</a></td><td>E-posta bildirimleri; Slack, Teams ve webhook'lar; oturum açma oturumları, iki faktör ilkesi, kaba kuvvet koruması, dört göz onayı ve saklanan gizli bilgiler; geri yükleme testleri; tarayıcılar için HTTPS sertifikası; appliance'ta ağı (adres, sunucu adı, SSH — bkz. <a href="/docs/install#setup-menu">Kurulum</a>); BackupZit ve işletim sistemi güncellemeleri; konsolun kendi yedeği; LDAP / Active Directory; SAML veya OpenID Connect ile çoklu oturum açma; tanılama: konsol günlüğü ve destek talepleri için bir zip.</td></tr>
   <tr><td><a href="/account">Hesabım</a> (adınız, sağ üstte)</td><td>Profiliniz ve rolünüz, parola, iki faktörlü kimlik doğrulama, API belirteçleri.</td></tr>
   <tr><td><a href="/docs">Belgeler</a></td><td>Bu kılavuz.</td></tr>
 </table>
@@ -63,6 +64,7 @@
 <p>Her yedekleme bir <i>anlık görüntü</i> oluşturur: verilerin o andaki eksiksiz, göz atılabilir bir resmi. Dosyalar değişken boyutlu parçalara, diskler bloklara bölünür ve her parça yalnızca bir kez saklanır; böylece ikinci ve sonraki yedekler yalnızca değişeni yükler — yine de her anlık görüntü tek başına geri yüklenebilir. Yönetilecek bir "tam/artımlı zincir" yoktur.</p>
 <h3>Depolar</h3>
 <p>Her aracı, depolama hedefi konumunun altındaki kendi <i>deposuna</i> yazar (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Bir depo kendi kendine yeterlidir: konum, depolama kimlik bilgileri ve kurtarma anahtarıyla, konsol ortadan kalksa bile geri yüklenebilir.</p>
+<p>Microsoft 365 yedekleri kiracı başına (<code>m365-&lt;tenant&gt;</code>), VMware ESXi yedekleri ana bilgisayar başına tutulur; böylece onları okuyan aracı baştan başlamadan değiştirilebilir.</p>
 <h3>Saklama</h3>
 <p>Her iş belirli sayıda son, günlük, haftalık ve aylık yedeği tutar. Daha eski anlık görüntüler her çalıştırmadan sonra kaldırılır ve kullandıkları alan boşaltılır.</p>
 <h3>BackupZit sizin için neleri denetler</h3>
@@ -70,6 +72,8 @@
   <li><b>Geri yükleme testleri</b> — her işin en yeni yedeği haftalık olarak kısmen geri yüklenir ve doğrulanır (<a href="/docs/restore">Geri yükleme</a>).</li>
   <li><b>Fidye yazılımı algılama</b> — olağandışı yedekler (toplu değişiklikler, şifrelenmiş veriler, toplu silme, veri hacminde ani sıçramalar) işaretlenir ve saklama duraklatılır (<a href="/docs/ransomware">Fidye yazılımı koruması</a>).</li>
   <li><b>Uyarılar ve raporlar</b> — hatalar için e-postalar ve günlük özet; yönetim için zamanlanmış raporlar (<a href="/docs/notifications">E-posta bildirimleri</a>, <a href="/docs/monitoring">İzleme</a>).</li>
+  <li><b>Kurtarma noktası hedefleri</b> — en yeni iyi yedeği RPO'sundan eski hâle gelen bir iş panoda listelenir ve bir kez e-posta ve sohbetle bildirilir (<a href="/docs/jobs#rpo">Yedekleme işleri</a>).</li>
+  <li><b>Veri denetimleri</b> — ayda bir her depo tamamen okunur ve doğrulanır; böylece depolamanın kendisindeki hasar bulunur (<a href="/docs/restore#data-check">Geri yükleme</a>).</li>
 </ul>
 
 <h2>Lisans ve destek</h2>

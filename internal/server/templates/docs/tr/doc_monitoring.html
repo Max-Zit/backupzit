@@ -5,6 +5,7 @@
 <h2>Pano</h2>
 <p>İlk kartlar neyin korunduğunu sayar: <b>makineler</b> (dosya, görüntü ve sistem yedekleri), <b>VM'ler</b>, <b>veritabanları</b> ve <b>NAS paylaşımları</b> (bir tane olduğunda gösterilir), her biri başarılı bir yedekle. <b>İlgi gerekiyor</b> bakılması gerekenleri listeler: son çalıştırması başarısız olan işler, zamanlamasını kaçıran işler (sondan bir önceki zamanlanmış çalıştırmadan bu yana başarı yok — hafta sonları ve zamanlamanın zaman pencereleri dikkate alınır), 15 dakikadır bağlanmamış aracılar, %90 dolu olan veya 30 gün içinde dolacak depolama hedefleri (bkz. <a href="/docs/storage">Depolama hedefleri</a>) ve ikinci bir kullanıcının onayını bekleyen değişiklikler. Hiçbir şey listelenmiyorsa her şey yolundadır.</p>
 <p>Diğer kartlar çevrimiçi aracıları, yedekleme işlerini, depolama hedeflerini, kuyruktaki ve çalışan çalıştırmaları, son 24 saatteki çalıştırmaları, hataları ve uyarıları ve <b>incelenecek şüpheli yedek</b>leri (olası fidye yazılımı, bkz. <a href="/docs/ransomware">Fidye yazılımı koruması</a>) gösterir. Yeşil sorun yok, sarı bakılmalı, kırmızı müdahale gerekiyor demektir. Altında en son etkinlik yer alır.</p>
+<p><b>RPO içindeki işler</b> kartı, en yeni iyi yedeği kurtarma noktası hedefinden yeni olan işleri sayar (bkz. <a href="/docs/jobs#rpo">Yedekleme işleri</a>); hedefi kaçıran bir iş <b>İlgi gerekiyor</b> altında da listelenir. Bu liste ayrıca <code>admin</code> hesabı hâlâ oluşturulan ilk parolayı kullanıyorsa ve iki makine aynı aracı kaydını kullanıyorsa uyarır (bkz. <a href="/docs/agents">Aracılar</a>). Bir yedekten çalışan VM'ler (anında kurtarma) tamamlanana veya atılana kadar kartların üstünde gösterilir.</p>
 
 <h2>Etkinlik</h2>
 <p>Her çalıştırma, en yenisi önce. Ayrıntılar için bir çalıştırmaya tıklayın: neyin işlendiği, istatistikler, dosya başına hatalar ve — yedekler için — geri yükleme seçenekleri. Süren çalıştırmalar otomatik yenilenir. Zamanlanmış çalıştırmalar bir saat simgesi gösterir.</p>
@@ -23,6 +24,8 @@
   <tr><td>copy</td><td>Yedek kopyalama işi: başka bir işin yedekleri ikinci bir depolamaya kopyalanır.</td></tr>
   <tr><td>verify</td><td>Otomatik veya elle başlatılan <a href="/docs/restore">geri yükleme testi</a>.</td></tr>
   <tr><td>restore, image-restore, image-file-restore</td><td>Dosyaların, bütün bir diskin veya bir görüntüdeki dosyaların geri yüklenmesi.</td></tr>
+  <tr><td>repo-check</td><td>Veri denetimi: bir aracı bir depodaki tüm verileri okur ve doğrular (bkz. <a href="/docs/restore#data-check">Geri yükleme</a>).</td></tr>
+  <tr><td>agent-log</td><td>Bir aracının istek üzerine gönderdiği günlük (Aracılar sayfasında <b>Günlüğü al</b>).</td></tr>
 </table>
 <h3>Durum</h3>
 <table>
@@ -34,6 +37,7 @@
   <tr><td>{{template "status" "failed"}}</td><td>Tamamlanmadı — depolamaya ulaşılamıyor, kimlik bilgileri yanlış, disk dolu, USB disk bağlı değil, geri yükleme testi hasarlı veri buldu… Mesaj nedenini açıklar.</td></tr>
   <tr><td><span class="badge">süresi doldu</span></td><td>Anlık görüntü, işin saklama kuralı tarafından kaldırıldı.</td></tr>
   <tr><td><span class="badge failed"><i></i>şüpheli</span></td><td>Yedek fidye yazılımı veya toplu silme gibi görünüyor; işin saklama kuralı incelenene kadar duraklatıldı. İncelendikten sonra sarı.</td></tr>
+  <tr><td>{{template "status" "cancelled"}}</td><td>Bir kullanıcı tarafından tek tek veya <b>Kuyruktaki ve çalışan her şeyi iptal et</b> ile durduruldu. Hata sayılmaz ve hata e-postası göndermez; süre sınırıyla durdurulan bir çalıştırma ise başarısız olur.</td></tr>
 </table>
 
 <h2>Takvim</h2>
@@ -64,6 +68,6 @@
   <li><b>Haftalık</b> — her pazartesi, önceki hafta hakkında.</li>
   <li><b>Aylık</b> — ayın 1'inde, önceki ay hakkında (müşteriler veya yönetim için ideal).</li>
 </ul>
-<p>Saati, kapsamı (tüm aracılar, bir aracı veya bir iş) ve alıcıları (boş = bildirim alıcıları) seçin. Tüm çalıştırmaları içeren CSV eklenir. E-posta <a href="/settings/email">Ayarlar → E-posta bildirimleri</a> altında yapılandırılmış olmalıdır. Zamanlanmış rapor oluşturmak ve kaldırmak için Yedekleme operatörü veya Yönetici rolü gerekir.</p>
+<p>Saati, kapsamı (tüm aracılar, bir aracı veya bir iş) ve alıcıları (boş = bildirim alıcıları) seçin. PDF raporu ve tüm çalıştırmaları içeren CSV eklenir. E-posta <a href="/settings/email">Ayarlar → E-posta bildirimleri</a> altında yapılandırılmış olmalıdır. Zamanlanmış rapor oluşturmak ve kaldırmak için Yedekleme operatörü veya Yönetici rolü gerekir.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -5,6 +5,7 @@
 <h2>Dashboard</h2>
 <p>De eerste kaarten tellen wat beschermd is: <b>machines</b> (bestands-, image- en systeemback-ups), <b>VM's</b>, <b>databases</b> en <b>NAS-shares</b> (getoond zodra er een is), elk met een geslaagde back-up. <b>Vraagt aandacht</b> toont waar u naar moet kijken: taken waarvan de laatste run mislukte, taken die hun schema hebben gemist (geen succes sinds de voorlaatste geplande run — weekenden en tijdvensters van het schema worden meegerekend), agents die al 15 minuten geen verbinding hebben gemaakt, opslagdoelen die voor 90 % vol zijn of binnen 30 dagen vol zullen zijn (zie <a href="/docs/storage">Opslagdoelen</a>), en wijzigingen die wachten op goedkeuring door een tweede gebruiker. Als er niets wordt vermeld, is alles in orde.</p>
 <p>De andere kaarten tonen agents online, back-uptaken, opslagdoelen, runs in de wachtrij en actieve runs, runs, fouten en waarschuwingen van de laatste 24 uur, en <b>verdachte back-ups om te controleren</b> (mogelijk ransomware, zie <a href="/docs/ransomware">Bescherming tegen ransomware</a>). Groen betekent in orde, geel vraagt om een blik, rood vraagt om actie. Daaronder staat de meest recente activiteit.</p>
+<p>De kaart <b>taken binnen RPO</b> telt de taken waarvan de nieuwste goede back-up jonger is dan hun herstelpuntdoel (zie <a href="/docs/jobs#rpo">Back-uptaken</a>); een taak die het heeft gemist, staat ook onder <b>Vraagt aandacht</b>. Die lijst waarschuwt ook als het account <code>admin</code> nog zijn gegenereerde beginwachtwoord heeft en als twee machines één agentregistratie gebruiken (zie <a href="/docs/agents">Agents</a>). VM's die vanuit een back-up draaien (direct herstel) worden boven de kaarten getoond tot ze zijn afgerond of verworpen.</p>
 
 <h2>Activiteit</h2>
 <p>Elke run, nieuwste eerst. Klik op een run voor details: wat er is verwerkt, statistieken, fouten per bestand en — bij back-ups — de herstelopties. Actieve runs vernieuwen automatisch. Geplande runs tonen een klokpictogram.</p>
@@ -23,6 +24,8 @@
   <tr><td>copy</td><td>Back-upkopietaak: back-ups van een andere taak gekopieerd naar een tweede opslag.</td></tr>
   <tr><td>verify</td><td>Automatische of handmatige <a href="/docs/restore">hersteltest</a>.</td></tr>
   <tr><td>restore, image-restore, image-file-restore</td><td>Herstel van bestanden, een hele schijf, of bestanden uit een image.</td></tr>
+  <tr><td>repo-check</td><td>Gegevenscontrole: een agent leest alle gegevens van een repository en controleert ze (zie <a href="/docs/restore#data-check">Herstellen</a>).</td></tr>
+  <tr><td>agent-log</td><td>Het logboek dat een agent op verzoek heeft gestuurd (<b>Logboek ophalen</b> op de pagina Agents).</td></tr>
 </table>
 <h3>Status</h3>
 <table>
@@ -34,6 +37,7 @@
   <tr><td>{{template "status" "failed"}}</td><td>Niet voltooid — opslag onbereikbaar, verkeerde inloggegevens, schijf vol, USB-schijf niet aangesloten, hersteltest vond beschadigde gegevens… De melding legt uit waarom.</td></tr>
   <tr><td><span class="badge">verlopen</span></td><td>De snapshot is door het bewaarbeleid van de taak verwijderd.</td></tr>
   <tr><td><span class="badge failed"><i></i>verdacht</span></td><td>De back-up lijkt op ransomware of massaal verwijderen; het bewaarbeleid van de taak is gepauzeerd tot hij is gecontroleerd. Geel na controle.</td></tr>
+  <tr><td>{{template "status" "cancelled"}}</td><td>Gestopt door een gebruiker, afzonderlijk of met <b>Alles wachtend en actief annuleren</b>. Telt niet als fout en stuurt geen foutmail; een uitvoering die door de tijdslimiet is gestopt, is wel mislukt.</td></tr>
 </table>
 
 <h2>Kalender</h2>
@@ -64,6 +68,6 @@
   <li><b>Wekelijks</b> — elke maandag, over de vorige week.</li>
   <li><b>Maandelijks</b> — op de 1e, over de vorige maand (ideaal voor klanten of management).</li>
 </ul>
-<p>Kies het uur, het bereik (alle agents, één agent of één taak) en de ontvangers (leeg = de ontvangers van de meldingen). De CSV met alle runs wordt bijgevoegd. E-mail moet zijn ingesteld onder <a href="/settings/email">Instellingen → E-mailmeldingen</a>. Geplande rapporten maken en verwijderen vereist de rol Back-upoperator of Beheerder.</p>
+<p>Kies het uur, het bereik (alle agents, één agent of één taak) en de ontvangers (leeg = de ontvangers van de meldingen). Het PDF-rapport en de CSV met alle runs worden bijgevoegd. E-mail moet zijn ingesteld onder <a href="/settings/email">Instellingen → E-mailmeldingen</a>. Geplande rapporten maken en verwijderen vereist de rol Back-upoperator of Beheerder.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

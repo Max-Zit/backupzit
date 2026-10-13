@@ -5,6 +5,7 @@
 <h2>Pulpit</h2>
 <p>Pierwsze karty liczą, co jest chronione: <b>maszyny</b> (kopie plików, obrazów i systemów), <b>maszyny wirtualne</b>, <b>bazy danych</b> i <b>udziały NAS</b> (pokazywane, gdy jest choć jeden), każde z udaną kopią. <b>Wymaga uwagi</b> wymienia, czemu się przyjrzeć: zadania, których ostatnie uruchomienie się nie powiodło, zadania, które opuściły harmonogram (brak sukcesu od przedostatniego zaplanowanego uruchomienia — weekendy i okna czasowe harmonogramu są brane pod uwagę), agentów, którzy nie łączyli się od 15 minut, magazyny zapełnione w 90 % lub takie, które zapełnią się w ciągu 30 dni (zobacz <a href="/docs/storage">Magazyny docelowe</a>), oraz zmiany czekające na zatwierdzenie przez drugiego użytkownika. Gdy nic nie jest wymienione, wszystko jest w porządku.</p>
 <p>Pozostałe karty pokazują agentów online, zadania kopii, magazyny, uruchomienia w kolejce i w toku, uruchomienia, błędy i ostrzeżenia z ostatnich 24 godzin oraz <b>podejrzanych kopii do sprawdzenia</b> (możliwy ransomware, zobacz <a href="/docs/ransomware">Ochrona przed ransomware</a>). Zielony oznacza porządek, żółty — trzeba spojrzeć, czerwony — trzeba działać. Poniżej jest najnowsza aktywność.</p>
+<p>Karta <b>zadań w ramach RPO</b> liczy zadania, których najnowsza dobra kopia jest młodsza niż ich cel punktu odtwarzania (zob. <a href="/docs/jobs#rpo">Zadania kopii</a>); zadanie, które go nie dotrzymało, jest też wymienione w <b>Wymaga uwagi</b>. Ta lista ostrzega także, gdy konto <code>admin</code> wciąż ma wygenerowane hasło początkowe i gdy dwie maszyny używają jednej rejestracji agenta (zob. <a href="/docs/agents">Agenci</a>). Maszyny wirtualne działające z kopii (natychmiastowe odtwarzanie) są pokazywane nad kartami, dopóki nie zostaną zakończone lub odrzucone.</p>
 
 <h2>Aktywność</h2>
 <p>Każde uruchomienie, od najnowszego. Kliknij uruchomienie, aby zobaczyć szczegóły: co zostało przetworzone, statystykę, błędy dla każdego pliku i — przy kopiach — opcje przywracania. Uruchomienia w toku odświeżają się automatycznie. Zaplanowane uruchomienia mają ikonę zegara.</p>
@@ -23,6 +24,8 @@
   <tr><td>copy</td><td>Zadanie kopii wtórnej: kopie innego zadania skopiowane do drugiego magazynu.</td></tr>
   <tr><td>verify</td><td>Automatyczny lub ręczny <a href="/docs/restore">test przywracania</a>.</td></tr>
   <tr><td>restore, image-restore, image-file-restore</td><td>Przywracanie plików, całego dysku lub plików z obrazu.</td></tr>
+  <tr><td>repo-check</td><td>Sprawdzenie danych: agent odczytuje wszystkie dane repozytorium i je weryfikuje (zob. <a href="/docs/restore#data-check">Przywracanie</a>).</td></tr>
+  <tr><td>agent-log</td><td>Dziennik wysłany przez agenta na żądanie (<b>Pobierz dziennik</b> na stronie Agenci).</td></tr>
 </table>
 <h3>Stan</h3>
 <table>
@@ -34,6 +37,7 @@
   <tr><td>{{template "status" "failed"}}</td><td>Niezakończone — magazyn nieosiągalny, błędne dane logowania, pełny dysk, niepodłączony dysk USB, test przywracania wykrył uszkodzone dane… Komunikat wyjaśnia przyczynę.</td></tr>
   <tr><td><span class="badge">wygasł</span></td><td>Migawka została usunięta przez przechowywanie zadania.</td></tr>
   <tr><td><span class="badge failed"><i></i>podejrzana</span></td><td>Kopia wygląda na ransomware lub masowe usunięcie; przechowywanie zadania jest wstrzymane do czasu sprawdzenia. Po sprawdzeniu żółta.</td></tr>
+  <tr><td>{{template "status" "cancelled"}}</td><td>Zatrzymane przez użytkownika, pojedynczo lub przyciskiem <b>Anuluj wszystkie oczekujące i trwające</b>. Nie liczy się jako błąd i nie wysyła e-maila o błędzie; uruchomienie zatrzymane przez limit czasu kończy się natomiast błędem.</td></tr>
 </table>
 
 <h2>Kalendarz</h2>
@@ -64,6 +68,6 @@
   <li><b>Co tydzień</b> — w każdy poniedziałek, o poprzednim tygodniu.</li>
   <li><b>Co miesiąc</b> — pierwszego dnia, o poprzednim miesiącu (idealne dla klientów lub kierownictwa).</li>
 </ul>
-<p>Wybierz godzinę, zakres (wszyscy agenci, jeden agent lub jedno zadanie) i odbiorców (puste = odbiorcy powiadomień). W załączniku jest CSV ze wszystkimi uruchomieniami. E-mail musi być skonfigurowany w <a href="/settings/email">Ustawienia → Powiadomienia e-mail</a>. Tworzenie i usuwanie zaplanowanych raportów wymaga roli Operator kopii lub Administrator.</p>
+<p>Wybierz godzinę, zakres (wszyscy agenci, jeden agent lub jedno zadanie) i odbiorców (puste = odbiorcy powiadomień). W załącznikach są raport PDF i CSV ze wszystkimi uruchomieniami. E-mail musi być skonfigurowany w <a href="/settings/email">Ustawienia → Powiadomienia e-mail</a>. Tworzenie i usuwanie zaplanowanych raportów wymaga roli Operator kopii lub Administrator.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>Entro un minuto il nodo compare nella pagina Agenti con il badge <b>Proxmox VE · N guests</b>.</li>
-  <li>In <a href="/jobs">Job di backup</a> seleziona quell'agente e scegli <b>Macchine virtuali (Proxmox VE, Hyper-V, VMware)</b>. Esegui il backup di <b>tutti i guest del nodo</b> (i guest creati in seguito sono inclusi automaticamente) oppure selezionane alcuni.</li>
+  <li>In <a href="/jobs">Job di backup</a> seleziona quell'agente e scegli <b>Macchine virtuali (Proxmox VE, Hyper-V, VMware)</b>. Poi scegli <b>Tutte le VM (e i container) dell’host</b> (i guest creati in seguito sono inclusi automaticamente) oppure selezionane alcuni.</li>
 </ol>
 <p>L'agente usa gli strumenti propri del nodo (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); nella console non viene memorizzato alcun token API né password.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Le opzioni del repository sono le stesse di tutti i comandi (vedi <a href="/docs/cli">Riferimento della riga di comando</a>). La riga di comando funziona senza la console, ad esempio per ripristinare un intero nodo dopo un disastro.</p>
 
 <h2>Cluster</h2>
-<p>Installa l'agente su ogni nodo. Un job salva i guest in esecuzione sul nodo del suo agente; un guest elencato in un job e migrato su un altro nodo viene segnalato come avviso con il nome di quel nodo — salva ogni nodo con un proprio job, oppure usa <i>tutti i guest del nodo</i> su ogni nodo, così i guest migrati sono sempre coperti.</p>
+<p>Installa l'agente su ogni nodo. Un job salva i guest in esecuzione sul nodo del suo agente; un guest elencato in un job e migrato su un altro nodo viene segnalato come avviso con il nome di quel nodo — salva ogni nodo con un proprio job, oppure usa <i>Tutte le VM (e i container) dell’host</i> su ogni nodo, così i guest migrati sono sempre coperti.</p>
 
 <h2>Ripristinare singoli file</h2>
 <p>Nella tabella dei guest di un'esecuzione di backup di VM fai clic su <b>Sfoglia file</b>. La console legge il disco direttamente dal backup — nulla viene ripristinato prima — e mostra le sue partizioni e i volumi logici LVM; si possono sfogliare NTFS (Windows), ext2/3/4 e XFS (Linux), anche dentro LVM. Seleziona file e cartelle e:</p>

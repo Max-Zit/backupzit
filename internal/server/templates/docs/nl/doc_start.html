@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Aan de slag</h1>
-<p class="lead">BackupZit beschermt Windows- en Linux-machines, virtuele machines op Proxmox VE, Hyper-V en VMware ESXi, databases (SQL Server, PostgreSQL, MySQL/MariaDB) en NAS-shares — bestanden, hele schijven en hele systemen — vanuit één webconsole die in uw eigen netwerk draait.</p>
+<p class="lead">BackupZit beschermt Windows- en Linux-machines, virtuele machines op Proxmox VE, Hyper-V en VMware ESXi, databases (SQL Server, PostgreSQL, MySQL/MariaDB), NAS-shares en Microsoft 365 — bestanden, hele schijven, hele systemen en postvakken — vanuit één webconsole die in uw eigen netwerk draait.</p>
 
 <h2>Wat BackupZit beschermt</h2>
 <table>
@@ -13,6 +13,7 @@
   <tr><td>NAS en bestandsshares (SMB, NFS)</td><td>Geen software op de NAS: een agent op een willekeurige machine leest de share. <a href="/docs/jobs">Back-uptaken</a></td><td>Bestanden en mappen terug op de share, in een map of als download.</td></tr>
   <tr><td>Databases: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent op de databasemachine; de eigen hulpmiddelen van de server, volledige en logback-ups. <a href="/docs/sql">Databases</a></td><td>Eén database onder een nieuwe naam of ter plaatse, naar elk tijdstip dat de logback-ups dekken.</td></tr>
   <tr><td>Proxmox VE-VM's en -containers</td><td>Agent op de Proxmox-host, <b>geen agent in de gasten</b>; vanuit Proxmox-snapshots, alleen gewijzigde blokken worden geüpload. <a href="/docs/proxmox">Proxmox VE</a></td><td>Hele gast als nieuwe of ter plaatse, op elk knooppunt en elke opslag; VM's direct vanuit de back-up (direct herstel, ook op VMware ESXi); losse bestanden van VM-schijven (NTFS, ext4, XFS, LVM) als download of naar een agent.</td></tr>
+  <tr><td>Microsoft 365</td><td>Elke agent met internettoegang leest Exchange Online-mail, agenda's en contactpersonen, OneDrive en SharePoint via Microsoft Graph met alleen-lezenrechten; in de tenant wordt niets geïnstalleerd. <a href="/docs/m365">Microsoft 365</a></td><td>Berichten (.eml) en bestanden bekijken en downloaden, of herstellen in een map op een agent.</td></tr>
 </table>
 
 <h2>Hoe BackupZit werkt</h2>
@@ -38,18 +39,18 @@
 <h2>De console in één oogopslag</h2>
 <table>
   <tr><th>Pagina</th><th>Waarvoor</th></tr>
-  <tr><td><a href="/">Dashboard</a></td><td>De status in één oogopslag: wat beschermd is, wat aandacht vraagt, agents online, fouten in de laatste 24 uur, verdachte back-ups, recente activiteit.</td></tr>
+  <tr><td><a href="/">Dashboard</a></td><td>De status in één oogopslag: wat beschermd is, hoeveel taken binnen hun RPO blijven, wat aandacht vraagt, agents online, fouten in de laatste 24 uur, verdachte back-ups, recente activiteit.</td></tr>
   <tr><td><a href="/jobs">Back-uptaken</a></td><td>Taken voor bestanden, NAS-shares, schijfimages, Linux-systemen, virtuele machines, databases en back-upkopieën: maken, bewerken, uitvoeren, herstel testen, uitschakelen, verwijderen. De lijst toont per taak het type, de beschermde VM's of databases, de volgende uitvoering, het laatste resultaat en het aantal herstelpunten; filter op type of zoek. De pagina van een taak toont de VM's of databases van de nieuwste back-up met links om ze te herstellen.</td></tr>
   <tr><td><a href="/restore">Herstellen</a></td><td>Herstelwizard: kies wat u herstelt (VM, bestanden, schijfimage, database, Linux-systeem), de bron, het herstelpunt en de opties. Zie <a href="/docs/restore">Herstellen</a>.</td></tr>
-  <tr><td><a href="/runs">Activiteit</a></td><td>Elke back-up, kopie, hersteltest en elk herstel met details, statistieken en fouten. Herstel en het bladeren door bestanden kunnen ook hier worden gestart.</td></tr>
+  <tr><td><a href="/runs">Activiteit</a></td><td>Elke back-up, kopie, hersteltest en elk herstel met details, statistieken en fouten. Herstel en het bladeren door bestanden kunnen ook hier worden gestart, en wachtende of actieve uitvoeringen gestopt — een voor een of allemaal tegelijk.</td></tr>
   <tr><td><a href="/calendar">Kalender</a></td><td>Wat er op vorige dagen draaide en wat in de toekomst gepland staat.</td></tr>
-  <tr><td><a href="/reports">Rapporten</a></td><td>Succespercentages en gegevensvolumes voor elke periode, CSV-export, gemailde en geplande rapporten.</td></tr>
+  <tr><td><a href="/reports">Rapporten</a></td><td>Succespercentages en gegevensvolumes voor elke periode, PDF- en CSV-export, gemailde en geplande rapporten.</td></tr>
   <tr><td><a href="/agents">Agents</a></td><td>Beschermde machines met IP-adressen en versies, registratiecodes, installatieprogramma's en agentupdates.</td></tr>
   <tr><td><a href="/targets">Opslag</a></td><td>Waar back-ups worden opgeslagen, versleuteling en herstelsleutels, onveranderlijkheid, gebruikte ruimte met prognose.</td></tr>
   <tr><td><a href="/recovery">Herstelmedia</a></td><td>Herstel-ISO's (Windows voor schijfimages, Linux voor Linux-systemen) en herstelcodes voor bare-metal-herstel.</td></tr>
   <tr><td><a href="/approvals">Goedkeuringen</a></td><td>Getoond als vier-ogengoedkeuring aan staat: wijzigingen die op een tweede gebruiker wachten. Zie <a href="/docs/users">Gebruikers, rollen en LDAP</a>.</td></tr>
   <tr><td><a href="/users">Gebruikers</a></td><td>Accounts, rollen, API-tokens van alle gebruikers, auditlogboek.</td></tr>
-  <tr><td><a href="/settings/email">Instellingen</a></td><td>E-mailmeldingen; Slack, Teams en webhooks; aanmeldsessies, tweefactorbeleid, bescherming tegen brute force, vier-ogengoedkeuring en opgeslagen geheimen; hersteltests; het HTTPS-certificaat voor browsers; op de appliance het netwerk (adres, servernaam, SSH — zie <a href="/docs/install#setup-menu">Installatie</a>); updates van BackupZit en het besturingssysteem; back-up van de console zelf; LDAP / Active Directory; eenmalige aanmelding met SAML of OpenID Connect.</td></tr>
+  <tr><td><a href="/settings/email">Instellingen</a></td><td>E-mailmeldingen; Slack, Teams en webhooks; aanmeldsessies, tweefactorbeleid, bescherming tegen brute force, vier-ogengoedkeuring en opgeslagen geheimen; hersteltests; het HTTPS-certificaat voor browsers; op de appliance het netwerk (adres, servernaam, SSH — zie <a href="/docs/install#setup-menu">Installatie</a>); updates van BackupZit en het besturingssysteem; back-up van de console zelf; LDAP / Active Directory; eenmalige aanmelding met SAML of OpenID Connect; diagnose: het consolelogboek en een zip voor supportverzoeken.</td></tr>
   <tr><td><a href="/account">Mijn account</a> (uw naam, rechtsboven)</td><td>Uw profiel en rol, wachtwoord, tweefactorauthenticatie, API-tokens.</td></tr>
   <tr><td><a href="/docs">Documentatie</a></td><td>Deze handleiding.</td></tr>
 </table>
@@ -63,6 +64,7 @@
 <p>Elke back-up maakt een <i>snapshot</i>: een volledig, doorzoekbaar beeld van de gegevens op dat moment. Bestanden worden in stukken van variabele grootte gesplitst en schijven in blokken, en elk stuk wordt maar één keer opgeslagen, zodat de tweede en latere back-ups alleen uploaden wat veranderd is — en toch kan elke snapshot op zichzelf worden hersteld. Er is geen „volledige/incrementele keten” om te beheren.</p>
 <h3>Repositories</h3>
 <p>Elke agent schrijft in zijn eigen <i>repository</i> onder de locatie van het opslagdoel (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Een repository is op zichzelf staand: met de locatie, de opslagreferenties en de herstelsleutel kan hij worden hersteld, zelfs als de console weg is.</p>
+<p>Microsoft 365-back-ups worden per tenant bewaard (<code>m365-&lt;tenant&gt;</code>) en VMware ESXi-back-ups per host, zodat de agent die ze leest kan worden vervangen zonder opnieuw te beginnen.</p>
 <h3>Bewaring</h3>
 <p>Elke taak bewaart een aantal recente, dagelijkse, wekelijkse en maandelijkse back-ups. Oudere snapshots worden na elke uitvoering verwijderd en de ruimte die ze gebruikten komt vrij.</p>
 <h3>Wat BackupZit voor u controleert</h3>
@@ -70,6 +72,8 @@
   <li><b>Hersteltests</b> — de nieuwste back-up van elke taak wordt wekelijks gedeeltelijk hersteld en gecontroleerd (<a href="/docs/restore">Herstellen</a>).</li>
   <li><b>Ransomwaredetectie</b> — ongebruikelijke back-ups (massale wijzigingen, versleutelde gegevens, massale verwijdering, plotselinge sprongen in het gegevensvolume) worden gemarkeerd en de bewaring wordt gepauzeerd (<a href="/docs/ransomware">Ransomwarebescherming</a>).</li>
   <li><b>Waarschuwingen en rapporten</b> — e-mails bij fouten en een dagelijks overzicht; geplande rapporten voor het management (<a href="/docs/notifications">E-mailmeldingen</a>, <a href="/docs/monitoring">Monitoring</a>).</li>
+  <li><b>Herstelpuntdoelen</b> — een taak waarvan de nieuwste goede back-up ouder wordt dan zijn RPO, verschijnt op het dashboard en wordt één keer per e-mail en chat gemeld (<a href="/docs/jobs#rpo">Back-uptaken</a>).</li>
+  <li><b>Gegevenscontroles</b> — eens per maand wordt elke repository volledig gelezen en gecontroleerd; zo wordt schade aan de opslag zelf gevonden (<a href="/docs/restore#data-check">Herstellen</a>).</li>
 </ul>
 
 <h2>Licentie en ondersteuning</h2>

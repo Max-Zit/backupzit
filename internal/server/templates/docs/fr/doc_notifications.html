@@ -21,6 +21,16 @@
   <li><b>Réussites</b> — chaque exécution réussie (souvent trop ; préférez le rapport quotidien).</li>
   <li><b>Rapport quotidien</b> — à l'heure choisie : exécutions des dernières 24 heures, problèmes et agents hors ligne. L'objet commence par <i>OK</i>, <i>WARNINGS</i> ou <i>ATTENTION</i>, afin que les règles de messagerie puissent les trier.</li>
 </ul>
+<p>Avec <b>Échecs</b> activé, une tâche qui manque son objectif de point de récupération (RPO) est aussi signalée — une fois, puis à nouveau seulement après l'avoir respecté entre-temps. Les exécutions arrêtées par un utilisateur (statut <i>annulée</i>) n'envoient pas d'e-mail d'échec ; une exécution arrêtée par sa durée maximale, si.</p>
+<p>Indépendamment de ces options, les destinataires des notifications reçoivent aussi un e-mail quand :</p>
+<ul>
+  <li>une modification attend l'approbation d'un second utilisateur (principe des quatre yeux) ;</li>
+  <li>deux machines utilisent une même inscription d'agent ;</li>
+  <li>le journal d'audit a été modifié ;</li>
+  <li>la sauvegarde de la console elle-même a échoué ;</li>
+  <li>le renouvellement du certificat HTTPS pour les navigateurs a échoué ;</li>
+  <li>une adresse a été bloquée après trop de connexions échouées (désactivable dans la protection contre la force brute).</li>
+</ul>
 <p>Pour des résumés hebdomadaires ou mensuels, utilisez les <a href="/docs/monitoring">rapports planifiés</a> ; ils sont envoyés avec les mêmes paramètres de messagerie et ont leurs propres destinataires. Les objets commencent par <code>[BackupZit]</code> afin que les règles de messagerie puissent les trier. Le mot de passe SMTP est stocké chiffré. Les liens des e-mails, messages de chat et rapports mènent à la console à l'adresse avec laquelle vous l'ouvrez dans le navigateur (ou celle définie avec <code>--public-url</code>).</p>
 
 <h2>Slack, Microsoft Teams et webhooks</h2>

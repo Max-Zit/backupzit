@@ -21,6 +21,16 @@
   <li><b>Éxitos</b>: cada ejecución correcta (normalmente demasiado; mejor el informe diario).</li>
   <li><b>Informe diario</b>: a la hora elegida: ejecuciones de las últimas 24 horas, problemas y agentes sin conexión. El asunto empieza por <i>OK</i>, <i>WARNINGS</i> o <i>ATTENTION</i>, para que las reglas de correo puedan clasificarlos.</li>
 </ul>
+<p>Con <b>Fallos</b> activado, también se notifica un trabajo que incumple su objetivo de punto de recuperación (RPO): una vez, y de nuevo solo después de haberlo cumplido entretanto. Las ejecuciones detenidas por un usuario (estado <i>cancelada</i>) no envían correo de fallo; una ejecución detenida por su límite de tiempo, sí.</p>
+<p>Independientemente de estas opciones, los destinatarios de las notificaciones también reciben un correo cuando:</p>
+<ul>
+  <li>un cambio espera la aprobación de un segundo usuario (principio de los cuatro ojos);</li>
+  <li>dos equipos usan un mismo registro de agente;</li>
+  <li>se modificó el registro de auditoría;</li>
+  <li>falló la copia de la propia consola;</li>
+  <li>falló la renovación del certificado HTTPS para navegadores;</li>
+  <li>se bloqueó una dirección tras demasiados inicios de sesión fallidos (se puede desactivar en la protección contra fuerza bruta).</li>
+</ul>
 <p>Para resúmenes semanales o mensuales use los <a href="/docs/monitoring">informes programados</a>; se envían con la misma configuración de correo y tienen sus propios destinatarios. Los asuntos empiezan por <code>[BackupZit]</code> para que las reglas de correo puedan clasificarlos. La contraseña SMTP se guarda cifrada. Los enlaces de los correos, mensajes de chat e informes llevan a la consola en la dirección con la que la abre en el navegador (o la definida con <code>--public-url</code>).</p>
 
 <h2>Slack, Microsoft Teams y webhooks</h2>

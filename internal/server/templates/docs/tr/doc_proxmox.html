@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>Bir dakika içinde düğüm Aracılar sayfasında <b>Proxmox VE · N guests</b> rozetiyle görünür.</li>
-  <li><a href="/jobs">Yedekleme işleri</a> içinde bu aracıyı seçin ve <b>Sanal makineler (Proxmox VE, Hyper-V, VMware)</b>'ı seçin. <b>Düğümün tüm konuklarını</b> yedekleyin (sonradan oluşturulan konuklar otomatik dahil edilir) veya tek tek işaretleyin.</li>
+  <li><a href="/jobs">Yedekleme işleri</a> içinde bu aracıyı seçin ve <b>Sanal makineler (Proxmox VE, Hyper-V, VMware)</b>'ı seçin. Sonra <b>Ana bilgisayardaki tüm VM'ler (ve kapsayıcılar)</b> seçeneğini seçin (sonradan oluşturulan konuklar otomatik dahil edilir) veya tek tek işaretleyin.</li>
 </ol>
 <p>Aracı düğümün kendi araçlarını kullanır (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); konsolda hiçbir API belirteci veya parola saklanmaz.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Depo seçenekleri tüm komutlardakiyle aynıdır (bkz. <a href="/docs/cli">Komut satırı başvurusu</a>). Komut satırı konsol olmadan da çalışır; örneğin bir felaketten sonra bütün bir düğümü geri yüklemek için.</p>
 
 <h2>Kümeler</h2>
-<p>Aracıyı her düğüme kurun. Bir iş, aracısının düğümünde çalışan konukları yedekler; bir işte listelenen ve başka bir düğüme taşınmış bir konuk, o düğümün adıyla uyarı olarak bildirilir — her düğümü kendi işiyle yedekleyin veya her düğümde <i>düğümün tüm konukları</i>'nı kullanın; böylece taşınan konuklar her zaman kapsanır.</p>
+<p>Aracıyı her düğüme kurun. Bir iş, aracısının düğümünde çalışan konukları yedekler; bir işte listelenen ve başka bir düğüme taşınmış bir konuk, o düğümün adıyla uyarı olarak bildirilir — her düğümü kendi işiyle yedekleyin veya her düğümde <i>Ana bilgisayardaki tüm VM'ler (ve kapsayıcılar)</i> seçeneğini kullanın; böylece taşınan konuklar her zaman kapsanır.</p>
 
 <h2>Tek tek dosyaları geri yükleme</h2>
 <p>Bir VM yedeği çalıştırmasının konuk tablosunda <b>Dosyalara göz at</b>'a tıklayın. Konsol diski doğrudan yedekten okur — önce hiçbir şey geri yüklenmez — ve bölümlerini ve LVM mantıksal birimlerini gösterir; NTFS (Windows), ext2/3/4 ve XFS'e (Linux), LVM içinde de göz atılabilir. Dosya ve klasörleri işaretleyip:</p>

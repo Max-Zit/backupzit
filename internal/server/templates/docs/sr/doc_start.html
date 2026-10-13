@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Prvi koraci</h1>
-<p class="lead">BackupZit štiti Windows i Linux mašine, Proxmox VE, Hyper-V i VMware ESXi virtuelne mašine, baze podataka (SQL Server, PostgreSQL, MySQL/MariaDB) i NAS deljene foldere — fajlove, cele diskove i cele sisteme — iz jedne web konzole koja radi na vašoj mreži.</p>
+<p class="lead">BackupZit štiti Windows i Linux mašine, Proxmox VE, Hyper-V i VMware ESXi virtuelne mašine, baze podataka (SQL Server, PostgreSQL, MySQL/MariaDB), NAS deljene foldere i Microsoft 365 — fajlove, cele diskove, cele sisteme i poštanska sanduča — iz jedne web konzole koja radi na vašoj mreži.</p>
 
 <h2>Šta BackupZit štiti</h2>
 <table>
@@ -13,6 +13,7 @@
   <tr><td>NAS i deljeni folderi (SMB, NFS)</td><td>Bez softvera na NAS-u: agent na bilo kojoj mašini čita deljeni folder. <a href="/docs/jobs">Poslovi bekapa</a></td><td>Fajlovi i folderi nazad na deljeni folder, u neki folder ili kao preuzimanje.</td></tr>
   <tr><td>Baze podataka: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent na mašini sa bazom; alati samog servera baze, pun bekap i bekap logova. <a href="/docs/sql">Baze podataka</a></td><td>Jedna baza pod novim imenom ili na mestu originala, u bilo koji trenutak koji pokrivaju bekapi logova.</td></tr>
   <tr><td>Proxmox VE virtuelne mašine i kontejneri</td><td>Agent na Proxmox hostu, <b>bez agenta u gostima</b>; iz Proxmox snimaka, šalju se samo promenjeni blokovi. <a href="/docs/proxmox">Proxmox VE</a></td><td>Ceo gost kao nov ili na mestu originala, na bilo kom čvoru i skladištu; VM odmah iz bekapa (instant recovery, i na VMware ESXi); pojedinačni fajlovi sa diskova VM-a (NTFS, ext4, XFS, LVM) preuzimanjem ili na agenta.</td></tr>
+  <tr><td>Microsoft 365</td><td>Bilo koji agent sa pristupom internetu čita Exchange Online poštu, kalendare i kontakte, OneDrive i SharePoint preko Microsoft Graph-a, samo sa pravima čitanja; u tenantu se ništa ne instalira. <a href="/docs/m365">Microsoft 365</a></td><td>Pregled i preuzimanje poruka (.eml) i fajlova, ili vraćanje u folder na agentu.</td></tr>
 </table>
 
 <h2>Kako BackupZit radi</h2>
@@ -38,18 +39,18 @@
 <h2>Konzola na prvi pogled</h2>
 <table>
   <tr><th>Stranica</th><th>Čemu služi</th></tr>
-  <tr><td><a href="/">Kontrolna tabla</a></td><td>Stanje na prvi pogled: šta je zaštićeno, šta zahteva pažnju, agenti na mreži, neuspesi u poslednja 24 sata, sumnjivi bekapi, skorašnja aktivnost.</td></tr>
+  <tr><td><a href="/">Kontrolna tabla</a></td><td>Stanje na prvi pogled: šta je zaštićeno, koliko poslova je u okviru svog RPO-a, šta zahteva pažnju, agenti na mreži, neuspesi u poslednja 24 sata, sumnjivi bekapi, skorašnja aktivnost.</td></tr>
   <tr><td><a href="/jobs">Poslovi bekapa</a></td><td>Poslovi za fajlove, NAS deljene foldere, slike diskova, Linux sisteme, virtuelne mašine, baze podataka i kopije bekapa: pravljenje, izmena, pokretanje, test vraćanja, isključivanje, brisanje. Lista prikazuje tip svakog posla, virtuelne mašine ili baze koje štiti, sledeće pokretanje, poslednji rezultat i broj tačaka vraćanja; može da se filtrira po tipu ili pretražuje. Stranica posla navodi virtuelne mašine ili baze iz najnovijeg bekapa, sa linkovima za njihovo vraćanje.</td></tr>
   <tr><td><a href="/restore">Vraćanje</a></td><td>Čarobnjak za vraćanje: izaberite šta se vraća (VM, fajlovi, slika diska, baza, Linux sistem), izvor, tačku vraćanja i opcije. Vidi <a href="/docs/restore">Vraćanje</a>.</td></tr>
-  <tr><td><a href="/runs">Aktivnost</a></td><td>Svaki bekap, kopija, test vraćanja i vraćanje sa detaljima, statistikom i greškama. Odavde mogu da se pokrenu i vraćanja i pregled fajlova.</td></tr>
+  <tr><td><a href="/runs">Aktivnost</a></td><td>Svaki bekap, kopija, test vraćanja i vraćanje sa detaljima, statistikom i greškama. Odavde mogu da se pokrenu i vraćanja i pregled fajlova, i da se zaustave izvršavanja na čekanju ili u toku — jedno po jedno ili sva odjednom.</td></tr>
   <tr><td><a href="/calendar">Kalendar</a></td><td>Šta je radilo prethodnih dana i šta je zakazano za ubuduće.</td></tr>
-  <tr><td><a href="/reports">Izveštaji</a></td><td>Procenat uspešnosti i količina podataka za bilo koji period, izvoz u CSV, izveštaji poslati emailom i po rasporedu.</td></tr>
+  <tr><td><a href="/reports">Izveštaji</a></td><td>Procenat uspešnosti i količina podataka za bilo koji period, izvoz u PDF i CSV, izveštaji poslati emailom i po rasporedu.</td></tr>
   <tr><td><a href="/agents">Agenti</a></td><td>Zaštićene mašine sa IP adresama i verzijama, kodovi za registraciju, instalacije i nadogradnje agenata.</td></tr>
   <tr><td><a href="/targets">Skladište</a></td><td>Gde se bekapi čuvaju, šifrovanje i ključevi za oporavak, nepromenljivost, zauzet prostor sa prognozom.</td></tr>
   <tr><td><a href="/recovery">Medijum za oporavak</a></td><td>ISO-i za oporavak (Windows za slike diskova, Linux za Linux sisteme) i kodovi za oporavak za vraćanje na „goli metal“.</td></tr>
   <tr><td><a href="/approvals">Odobrenja</a></td><td>Vidljivo kada je uključeno odobrenje „četiri oka”: izmene koje čekaju drugog korisnika. Vidi <a href="/docs/users">Korisnici, uloge i LDAP</a>.</td></tr>
   <tr><td><a href="/users">Korisnici</a></td><td>Nalozi, uloge, API tokeni svih korisnika, audit log.</td></tr>
-  <tr><td><a href="/settings/email">Podešavanja</a></td><td>Email obaveštenja; Slack, Teams i webhook-ovi; sesije prijave, pravilo za dvofaktorsku prijavu, zaštita od pogađanja lozinki, odobrenje „četiri oka” i sačuvane tajne; testovi vraćanja; HTTPS sertifikat za pregledače; na uređaju njegova mreža (adresa, ime servera, SSH — vidi <a href="/docs/install#setup-menu">Instalacija</a>); nadogradnje BackupZit-a i operativnog sistema; bekap same konzole; LDAP / Active Directory; jedinstvena prijava preko SAML-a ili OpenID Connect-a.</td></tr>
+  <tr><td><a href="/settings/email">Podešavanja</a></td><td>Email obaveštenja; Slack, Teams i webhook-ovi; sesije prijave, pravilo za dvofaktorsku prijavu, zaštita od pogađanja lozinki, odobrenje „četiri oka” i sačuvane tajne; testovi vraćanja; HTTPS sertifikat za pregledače; na uređaju njegova mreža (adresa, ime servera, SSH — vidi <a href="/docs/install#setup-menu">Instalacija</a>); nadogradnje BackupZit-a i operativnog sistema; bekap same konzole; LDAP / Active Directory; jedinstvena prijava preko SAML-a ili OpenID Connect-a; dijagnostika: log konzole i zip za zahteve podršci.</td></tr>
   <tr><td><a href="/account">Moj nalog</a> (vaše ime, gore desno)</td><td>Vaš profil i uloga, lozinka, dvofaktorska prijava, API tokeni.</td></tr>
   <tr><td><a href="/docs">Dokumentacija</a></td><td>Ovo uputstvo.</td></tr>
 </table>
@@ -63,6 +64,7 @@
 <p>Svaki bekap pravi <i>snimak</i>: potpunu sliku podataka u tom trenutku, koju možete da pregledate. Fajlovi se dele na delove promenljive veličine, a diskovi na blokove, i svaki deo se čuva samo jednom, pa drugi i kasniji bekapi šalju samo ono što se promenilo — a ipak svaki snimak može da se vrati samostalno. Nema „lanca punih i inkrementalnih bekapa“ o kome treba voditi računa.</p>
 <h3>Repozitorijumi</h3>
 <p>Svaki agent piše u svoj <i>repozitorijum</i> ispod lokacije skladišta (<code>&lt;lokacija&gt;/&lt;ime-hosta&gt;_&lt;id&gt;</code>). Repozitorijum je samostalan: sa lokacijom, pristupnim podacima za skladište i ključem za oporavak može da se vrati i ako konzole više nema.</p>
+<p>Microsoft 365 bekapi se čuvaju po tenantu (<code>m365-&lt;tenant&gt;</code>), a VMware ESXi bekapi po hostu, pa agent koji ih čita može da se zameni bez počinjanja ispočetka.</p>
 <h3>Čuvanje (retencija)</h3>
 <p>Svaki posao čuva određeni broj najnovijih, dnevnih, nedeljnih i mesečnih bekapa. Stariji snimci se brišu posle svakog pokretanja, a prostor koji su zauzimali se oslobađa.</p>
 <h3>Šta BackupZit proverava umesto vas</h3>
@@ -70,6 +72,8 @@
   <li><b>Testovi vraćanja</b> — najnoviji bekap svakog posla se jednom nedeljno delimično vrati i proveri (<a href="/docs/restore">Vraćanje</a>).</li>
   <li><b>Otkrivanje ransomware-a</b> — neobični bekapi (masovne izmene, šifrovani podaci, masovno brisanje, nagli skokovi količine podataka) se označavaju, a čuvanje se pauzira (<a href="/docs/ransomware">Zaštita od ransomware-a</a>).</li>
   <li><b>Upozorenja i izveštaji</b> — emailovi za neuspehe i dnevni pregled; izveštaji po rasporedu za rukovodstvo (<a href="/docs/notifications">Email obaveštenja</a>, <a href="/docs/monitoring">Praćenje</a>).</li>
+  <li><b>Ciljne tačke oporavka</b> — posao čiji najnoviji dobar bekap postane stariji od njegovog RPO-a prikazuje se na kontrolnoj tabli i prijavljuje jednom emailom i u čet (<a href="/docs/jobs#rpo">Poslovi bekapa</a>).</li>
+  <li><b>Provere podataka</b> — jednom mesečno svaki repozitorijum se pročita ceo i proveri, što otkriva oštećenja na samom skladištu (<a href="/docs/restore#data-check">Vraćanje</a>).</li>
 </ul>
 
 <h2>Licenca i podrška</h2>

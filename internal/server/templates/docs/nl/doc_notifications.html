@@ -21,6 +21,16 @@
   <li><b>Geslaagd</b> — elke geslaagde run (meestal te veel; gebruik liever het dagrapport).</li>
   <li><b>Dagrapport</b> — op het gekozen uur: runs van de laatste 24 uur, problemen en offline agents. Het onderwerp begint met <i>OK</i>, <i>WARNINGS</i> of <i>ATTENTION</i>, zodat mailregels ze kunnen sorteren.</li>
 </ul>
+<p>Met <b>Fouten</b> aan wordt ook een taak gemeld die zijn herstelpuntdoel (RPO) mist — één keer, en opnieuw pas nadat het tussendoor weer werd gehaald. Uitvoeringen die een gebruiker heeft gestopt (status <i>geannuleerd</i>) sturen geen foutmail; een uitvoering die door de tijdslimiet is gestopt wel.</p>
+<p>Los van deze opties krijgen de ontvangers van meldingen ook een e-mail wanneer:</p>
+<ul>
+  <li>een wijziging wacht op goedkeuring door een tweede gebruiker (vier-ogenprincipe);</li>
+  <li>twee machines één agentregistratie gebruiken;</li>
+  <li>het auditlogboek is gewijzigd;</li>
+  <li>de back-up van de console zelf is mislukt;</li>
+  <li>het vernieuwen van het HTTPS-certificaat voor browsers is mislukt;</li>
+  <li>een adres is geblokkeerd na te veel mislukte aanmeldingen (uit te zetten bij de brute-forcebeveiliging).</li>
+</ul>
 <p>Voor wekelijkse of maandelijkse overzichten gebruikt u <a href="/docs/monitoring">geplande rapporten</a>; die worden met dezelfde mailinstellingen verzonden en hebben hun eigen ontvangers. Onderwerpen beginnen met <code>[BackupZit]</code>, zodat mailregels ze kunnen sorteren. Het SMTP-wachtwoord wordt versleuteld opgeslagen. Links in e-mails, chatberichten en rapporten gaan naar de console op het adres waarmee u die in de browser opent (of het adres ingesteld met <code>--public-url</code>).</p>
 
 <h2>Slack, Microsoft Teams en webhooks</h2>

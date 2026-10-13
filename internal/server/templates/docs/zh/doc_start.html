@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>入门</h1>
-<p class="lead">BackupZit 通过一个运行在您自己网络中的 Web 控制台，保护 Windows 和 Linux 机器、Proxmox VE、Hyper-V 和 VMware ESXi 虚拟机、数据库（SQL Server、PostgreSQL、MySQL/MariaDB）以及 NAS 共享——文件、整个磁盘和整个系统。</p>
+<p class="lead">BackupZit 通过一个运行在您自己网络中的 Web 控制台，保护 Windows 和 Linux 机器、Proxmox VE、Hyper-V 和 VMware ESXi 虚拟机、数据库（SQL Server、PostgreSQL、MySQL/MariaDB）、NAS 共享以及 Microsoft 365——文件、整个磁盘、整个系统和邮箱。</p>
 
 <h2>BackupZit 保护什么</h2>
 <table>
@@ -13,6 +13,7 @@
   <tr><td>NAS 和文件共享（SMB、NFS）</td><td>NAS 上无需软件：任意机器上的代理读取共享。<a href="/docs/jobs">备份作业</a></td><td>文件和文件夹还原回共享、某个文件夹或作为下载。</td></tr>
   <tr><td>数据库：SQL Server、PostgreSQL、MySQL/MariaDB</td><td>数据库机器上的代理；使用服务器自带工具，完整备份和日志备份。<a href="/docs/sql">数据库</a></td><td>单个数据库以新名称或就地还原，可还原到日志备份覆盖的任意时刻。</td></tr>
   <tr><td>Proxmox VE 虚拟机和容器</td><td>Proxmox 主机上的代理，<b>客户机内无需代理</b>；基于 Proxmox 快照，只上传更改的块。<a href="/docs/proxmox">Proxmox VE</a></td><td>整个客户机作为新客户机或就地还原，可还原到任意节点和存储；直接从备份即时启动虚拟机（即时恢复，也支持 VMware ESXi）；从虚拟机磁盘（NTFS、ext4、XFS、LVM）提取单个文件，可下载或发送到代理。</td></tr>
+  <tr><td>Microsoft 365</td><td>任何可访问互联网的代理通过 Microsoft Graph 以只读权限读取 Exchange Online 邮件、日历和联系人、OneDrive 和 SharePoint；租户中无需安装任何内容。<a href="/docs/m365">Microsoft 365</a></td><td>浏览并下载邮件（.eml）和文件，或将其还原到代理上的文件夹。</td></tr>
 </table>
 
 <h2>BackupZit 的工作方式</h2>
@@ -38,18 +39,18 @@
 <h2>控制台一览</h2>
 <table>
   <tr><th>页面</th><th>用途</th></tr>
-  <tr><td><a href="/">仪表板</a></td><td>一目了然的健康状况：哪些受到保护、哪些需要关注、在线代理、过去 24 小时的故障、可疑备份、最近活动。</td></tr>
+  <tr><td><a href="/">仪表板</a></td><td>一目了然的健康状况：哪些受到保护、多少作业符合其 RPO、哪些需要关注、在线代理、过去 24 小时的故障、可疑备份、最近活动。</td></tr>
   <tr><td><a href="/jobs">备份作业</a></td><td>文件、NAS 共享、磁盘映像、Linux 系统、虚拟机、数据库和备份复制作业：创建、编辑、运行、测试还原、禁用、删除。列表显示每个作业的类型、所保护的虚拟机或数据库、下次运行、上次结果和还原点数量；可按类型筛选或搜索。作业页面列出其最新备份中的虚拟机或数据库，并提供还原链接。</td></tr>
   <tr><td><a href="/restore">还原</a></td><td>还原向导：选择要还原的内容（虚拟机、文件、磁盘映像、数据库、Linux 系统）、来源、还原点和选项。参见 <a href="/docs/restore">还原</a>。</td></tr>
-  <tr><td><a href="/runs">活动</a></td><td>每次备份、复制、还原测试和还原，包含详细信息、统计和错误。也可以在这里启动还原和浏览文件。</td></tr>
+  <tr><td><a href="/runs">活动</a></td><td>每次备份、复制、还原测试和还原，包含详细信息、统计和错误。也可以在这里启动还原和浏览文件，并停止排队或运行中的运行——逐个或一次全部停止。</td></tr>
   <tr><td><a href="/calendar">日历</a></td><td>过去几天运行了什么，以及将来计划运行什么。</td></tr>
-  <tr><td><a href="/reports">报告</a></td><td>任意时间段的成功率和数据量、CSV 导出、通过电子邮件发送的报告和计划报告。</td></tr>
+  <tr><td><a href="/reports">报告</a></td><td>任意时间段的成功率和数据量、PDF 和 CSV 导出、通过电子邮件发送的报告和计划报告。</td></tr>
   <tr><td><a href="/agents">Agent</a></td><td>受保护的机器及其 IP 地址和版本、注册码、安装程序和代理更新。</td></tr>
   <tr><td><a href="/targets">存储</a></td><td>备份的存储位置、加密和恢复密钥、不可变性、已用空间及其预测。</td></tr>
   <tr><td><a href="/recovery">恢复介质</a></td><td>恢复 ISO（Windows 用于磁盘映像，Linux 用于 Linux 系统）以及用于裸机还原的恢复码。</td></tr>
   <tr><td><a href="/approvals">审批</a></td><td>启用四眼审批时显示：等待第二个用户处理的更改。参见 <a href="/docs/users">用户、角色和 LDAP</a>。</td></tr>
   <tr><td><a href="/users">用户</a></td><td>所有用户的帐户、角色、API 令牌，审计日志。</td></tr>
-  <tr><td><a href="/settings/email">设置</a></td><td>电子邮件通知；Slack、Teams 和 Webhook；登录会话、双因素策略、暴力破解防护、四眼审批和存储的机密；还原测试；浏览器使用的 HTTPS 证书；设备上的网络（地址、服务器名称、SSH——参见 <a href="/docs/install#setup-menu">安装</a>）；BackupZit 和操作系统更新；控制台自身的备份；LDAP / Active Directory；使用 SAML 或 OpenID Connect 的单点登录。</td></tr>
+  <tr><td><a href="/settings/email">设置</a></td><td>电子邮件通知；Slack、Teams 和 Webhook；登录会话、双因素策略、暴力破解防护、四眼审批和存储的机密；还原测试；浏览器使用的 HTTPS 证书；设备上的网络（地址、服务器名称、SSH——参见 <a href="/docs/install#setup-menu">安装</a>）；BackupZit 和操作系统更新；控制台自身的备份；LDAP / Active Directory；使用 SAML 或 OpenID Connect 的单点登录；诊断：控制台日志和用于支持请求的 zip。</td></tr>
   <tr><td><a href="/account">我的帐户</a>（右上角您的名字）</td><td>您的个人资料和角色、密码、双因素身份验证、API 令牌。</td></tr>
   <tr><td><a href="/docs">文档</a></td><td>本指南。</td></tr>
 </table>
@@ -63,6 +64,7 @@
 <p>每次备份都会创建一个<i>快照</i>：数据在该时刻的完整、可浏览的映像。文件被拆分为大小可变的块，磁盘被拆分为块，每一块只存储一次，因此第二次及以后的备份只上传更改的内容——但每个快照都可以单独还原。无需管理“完整/增量链”。</p>
 <h3>存储库</h3>
 <p>每个代理写入存储目标位置下自己的<i>存储库</i>（<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>）。存储库是自包含的：有了位置、存储凭据和恢复密钥，即使控制台已不存在也能还原。</p>
+<p>Microsoft 365 备份按租户保存（<code>m365-&lt;tenant&gt;</code>），VMware ESXi 备份按主机保存，因此可以更换读取它们的代理而无需从头开始。</p>
 <h3>保留</h3>
 <p>每个作业保留一定数量的最近、每日、每周和每月备份。较旧的快照在每次运行后删除，其占用的空间随之释放。</p>
 <h3>BackupZit 为您检查的内容</h3>
@@ -70,6 +72,8 @@
   <li><b>还原测试</b>——每个作业的最新备份每周会被部分还原并验证（<a href="/docs/restore">还原</a>）。</li>
   <li><b>勒索软件检测</b>——异常备份（大规模更改、加密数据、大规模删除、数据量突然激增）会被标记，并暂停保留清理（<a href="/docs/ransomware">勒索软件防护</a>）。</li>
   <li><b>警报和报告</b>——故障时发送电子邮件并提供每日摘要；为管理层提供计划报告（<a href="/docs/notifications">电子邮件通知</a>、<a href="/docs/monitoring">监控</a>）。</li>
+  <li><b>恢复点目标</b>——最新正常备份超过其 RPO 的作业会显示在仪表板上，并通过电子邮件和聊天通知一次（<a href="/docs/jobs#rpo">备份作业</a>）。</li>
+  <li><b>数据检查</b>——每月一次完整读取并验证每个存储库，从而发现存储本身的损坏（<a href="/docs/restore#data-check">还原</a>）。</li>
 </ul>
 
 <h2>许可证和支持</h2>

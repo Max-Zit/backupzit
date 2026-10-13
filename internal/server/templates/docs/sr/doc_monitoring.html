@@ -5,6 +5,7 @@
 <h2>Kontrolna tabla</h2>
 <p>Prve kartice broje šta je zaštićeno: <b>mašine</b> (bekapi fajlova, slika i sistema), <b>virtuelne mašine</b>, <b>baze podataka</b> i <b>NAS deljeni folderi</b> (prikazuju se kada postoji bar jedan), svaki sa uspešnim bekapom. <b>Zahteva pažnju</b> navodi šta treba pogledati: poslove čije poslednje pokretanje nije uspelo, poslove koji su propustili raspored (nema uspeha od zakazanog pokretanja pre poslednjeg — vikendi i vremenski prozori rasporeda se uzimaju u obzir), agente koji se nisu javili 15 minuta, skladišta koja su 90 % puna ili će se popuniti u narednih 30 dana (vidi <a href="/docs/storage">Skladišta</a>), i izmene koje čekaju odobrenje drugog korisnika. Kada ništa nije navedeno, sve je u redu.</p>
 <p>Ostale kartice prikazuju agente na mreži, poslove bekapa, skladišta, pokretanja u redu i u toku, pokretanja, neuspehe i upozorenja u poslednja 24 sata, i <b>sumnjive bekape za pregled</b> (mogući ransomware, vidi <a href="/docs/ransomware">Zaštita od ransomware-a</a>). Zeleno znači u redu, žuto da treba pogledati, crveno da treba reagovati. Ispod je najskorija aktivnost.</p>
+<p>Kartica <b>poslova u okviru RPO-a</b> broji poslove čiji je najnoviji dobar bekap mlađi od njihove ciljne tačke oporavka (vidi <a href="/docs/jobs#rpo">Poslovi bekapa</a>); posao koji ju je propustio navodi se i pod <b>Zahteva pažnju</b>. Ta lista upozorava i kada nalog <code>admin</code> još ima generisanu početnu lozinku i kada dve mašine koriste istu registraciju agenta (vidi <a href="/docs/agents">Agenti</a>). Virtuelne mašine koje rade iz bekapa (instant recovery) prikazuju se iznad kartica dok se ne završe ili odbace.</p>
 
 <h2>Aktivnost</h2>
 <p>Svako pokretanje, od najnovijeg. Kliknite pokretanje za detalje: šta je obrađeno, statistika, greške po fajlu, i — za bekape — opcije vraćanja. Pokretanja u toku se automatski osvežavaju. Zakazana pokretanja imaju ikonu sata.</p>
@@ -23,6 +24,8 @@
   <tr><td>copy</td><td>Posao kopije bekapa: bekapi drugog posla kopirani na drugo skladište.</td></tr>
   <tr><td>verify</td><td>Automatski ili ručni <a href="/docs/restore">test vraćanja</a>.</td></tr>
   <tr><td>restore, image-restore, image-file-restore</td><td>Vraćanja fajlova, celog diska, ili fajlova iz slike.</td></tr>
+  <tr><td>repo-check</td><td>Provera podataka: agent čita svaki deo podataka u repozitorijumu i proverava ga (vidi <a href="/docs/restore#data-check">Vraćanje</a>).</td></tr>
+  <tr><td>agent-log</td><td>Log koji je agent poslao na zahtev (<b>Preuzmi log</b> na stranici Agenti).</td></tr>
 </table>
 <h3>Status</h3>
 <table>
@@ -34,6 +37,7 @@
   <tr><td>{{template "status" "failed"}}</td><td>Nije završeno — skladište nedostupno, pogrešni pristupni podaci, pun disk, USB disk nije priključen, test vraćanja je našao oštećene podatke… Poruka objašnjava zašto.</td></tr>
   <tr><td><span class="badge">isteklo</span></td><td>Snimak je obrisala retencija posla.</td></tr>
   <tr><td><span class="badge failed"><i></i>sumnjivo</span></td><td>Bekap liči na ransomware ili masovno brisanje; retencija posla je pauzirana dok se ne pregleda. Posle pregleda je žut.</td></tr>
+  <tr><td>{{template "status" "cancelled"}}</td><td>Zaustavio ga je korisnik, pojedinačno ili sa <b>Otkaži sve na čekanju i pokrenute</b>. Ne računa se kao neuspeh i ne šalje email o neuspehu; izvršavanje zaustavljeno zbog vremenskog ograničenja je umesto toga neuspešno.</td></tr>
 </table>
 
 <h2>Kalendar</h2>
@@ -64,6 +68,6 @@
   <li><b>Nedeljni</b> — svakog ponedeljka, o prethodnoj nedelji.</li>
   <li><b>Mesečni</b> — prvog u mesecu, o prethodnom mesecu (idealno za klijente ili rukovodstvo).</li>
 </ul>
-<p>Izaberite sat, obuhvat (svi agenti, jedan agent ili jedan posao) i primaoce (prazno = primaoci obaveštenja). CSV sa svim pokretanjima je u prilogu. Email mora da bude podešen u <a href="/settings/email">Podešavanja → Email obaveštenja</a>. Pravljenje i uklanjanje zakazanih izveštaja traži ulogu operatera bekapa ili administratora.</p>
+<p>Izaberite sat, obuhvat (svi agenti, jedan agent ili jedan posao) i primaoce (prazno = primaoci obaveštenja). PDF izveštaj i CSV sa svim pokretanjima su u prilogu. Email mora da bude podešen u <a href="/settings/email">Podešavanja → Email obaveštenja</a>. Pravljenje i uklanjanje zakazanih izveštaja traži ulogu operatera bekapa ili administratora.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

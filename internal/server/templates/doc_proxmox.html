@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>Within a minute the node appears on the Agents page with the badge <b>Proxmox VE · N guests</b>.</li>
-  <li>In <a href="/jobs">Backup jobs</a> select that agent and choose <b>Virtual machines (Proxmox VE, Hyper-V, VMware)</b>. Back up <b>all guests of the node</b> (guests created later are included automatically) or tick individual ones.</li>
+  <li>In <a href="/jobs">Backup jobs</a> select that agent and choose <b>Virtual machines (Proxmox VE, Hyper-V, VMware)</b>. Then choose <b>All VMs (and containers) on the host</b> (guests created later are included automatically) or tick individual ones.</li>
 </ol>
 <p>The agent uses the node's own tools (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); no API token or password is stored in the console.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>The repository options are the same as for all commands (see <a href="/docs/cli">Command line reference</a>). The command line works without the console, for example to restore a whole node after a disaster.</p>
 
 <h2>Clusters</h2>
-<p>Install the agent on every node. A job backs up the guests running on its agent's node; a guest listed in a job that has been migrated to another node is reported as a warning naming that node — back up each node with its own job, or use <i>all guests of the node</i> on every node so migrated guests are always covered.</p>
+<p>Install the agent on every node. A job backs up the guests running on its agent's node; a guest listed in a job that has been migrated to another node is reported as a warning naming that node — back up each node with its own job, or use <i>All VMs (and containers) on the host</i> on every node so migrated guests are always covered.</p>
 
 <h2>Restoring single files</h2>
 <p>In the guest table of a VM backup run click <b>Browse files</b>. The console reads the disk directly from the backup — nothing is restored first — and shows its partitions and LVM logical volumes; NTFS (Windows), ext2/3/4 and XFS (Linux) can be browsed, also inside LVM. Tick files and folders and:</p>

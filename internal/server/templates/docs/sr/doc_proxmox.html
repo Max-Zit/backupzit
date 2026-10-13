@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>Za minut se čvor pojavljuje na stranici Agenti sa oznakom <b>Proxmox VE · N gostiju</b>.</li>
-  <li>U <a href="/jobs">Poslovi bekapa</a> izaberite tog agenta i <b>Virtuelne mašine (Proxmox VE, Hyper-V, VMware)</b>. Čuvajte <b>sve goste čvora</b> (gosti napravljeni kasnije uključuju se automatski) ili označite pojedinačne.</li>
+  <li>U <a href="/jobs">Poslovi bekapa</a> izaberite tog agenta i <b>Virtuelne mašine (Proxmox VE, Hyper-V, VMware)</b>. Zatim izaberite <b>Svi VM-ovi (i kontejneri) na hostu</b> (gosti napravljeni kasnije uključuju se automatski) ili označite pojedinačne.</li>
 </ol>
 <p>Agent koristi sopstvene alate čvora (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); u konzoli se ne čuvaju API token ni lozinka.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Opcije repozitorijuma su iste kao za sve komande (vidi <a href="/docs/cli">Komandna linija</a>). Komandna linija radi bez konzole, na primer za vraćanje celog čvora posle katastrofe.</p>
 
 <h2>Klasteri</h2>
-<p>Instalirajte agenta na svaki čvor. Posao pravi bekap gostiju koji rade na čvoru njegovog agenta; gost naveden u poslu koji je migriran na drugi čvor prijavljuje se kao upozorenje sa imenom tog čvora — pravite bekap svakog čvora sopstvenim poslom, ili koristite <i>sve goste čvora</i> na svakom čvoru, da migrirani gosti uvek budu pokriveni.</p>
+<p>Instalirajte agenta na svaki čvor. Posao pravi bekap gostiju koji rade na čvoru njegovog agenta; gost naveden u poslu koji je migriran na drugi čvor prijavljuje se kao upozorenje sa imenom tog čvora — pravite bekap svakog čvora sopstvenim poslom, ili koristite <i>Svi VM-ovi (i kontejneri) na hostu</i> na svakom čvoru, da migrirani gosti uvek budu pokriveni.</p>
 
 <h2>Vraćanje pojedinačnih fajlova</h2>
 <p>U tabeli gostiju pokretanja VM bekapa kliknite <b>Pregledaj fajlove</b>. Konzola čita disk direktno iz bekapa — ništa se prvo ne vraća — i prikazuje njegove particije i LVM logičke volumene; mogu da se pregledaju NTFS (Windows), ext2/3/4 i XFS (Linux), i unutar LVM-a. Označite fajlove i foldere i:</p>

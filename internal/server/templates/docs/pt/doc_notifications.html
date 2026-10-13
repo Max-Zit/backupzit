@@ -21,6 +21,16 @@
   <li><b>Sucessos</b> — toda execução bem-sucedida (geralmente demais; prefira o relatório diário).</li>
   <li><b>Relatório diário</b> — no horário escolhido: execuções das últimas 24 horas, problemas e agentes offline. O assunto começa com <i>OK</i>, <i>WARNINGS</i> ou <i>ATTENTION</i>, para que regras de e-mail possam classificá-los.</li>
 </ul>
+<p>Com <b>Falhas</b> ativado, uma tarefa que perde o seu objetivo de ponto de recuperação (RPO) também é informada — uma vez, e de novo só depois de tê-lo cumprido nesse meio-tempo. Execuções paradas por um usuário (status <i>cancelada</i>) não enviam e-mail de falha; uma execução parada pelo limite de tempo envia.</p>
+<p>Independentemente dessas opções, os destinatários das notificações também recebem um e-mail quando:</p>
+<ul>
+  <li>uma alteração aguarda a aprovação de um segundo usuário (aprovação a quatro olhos);</li>
+  <li>duas máquinas usam o mesmo registro de agente;</li>
+  <li>o log de auditoria foi alterado;</li>
+  <li>o backup do próprio console falhou;</li>
+  <li>a renovação do certificado HTTPS para navegadores falhou;</li>
+  <li>um endereço foi bloqueado após muitas tentativas de login falhas (pode ser desligado na proteção contra força bruta).</li>
+</ul>
 <p>Para resumos semanais ou mensais use <a href="/docs/monitoring">relatórios agendados</a>; eles são enviados com as mesmas configurações de e-mail e têm seus próprios destinatários. Os assuntos começam com <code>[BackupZit]</code> para que regras de e-mail possam classificá-los. A senha SMTP é armazenada criptografada. Os links em e-mails, mensagens de chat e relatórios levam ao console no endereço com que você o abre no navegador (ou no definido com <code>--public-url</code>).</p>
 
 <h2>Slack, Microsoft Teams e webhooks</h2>

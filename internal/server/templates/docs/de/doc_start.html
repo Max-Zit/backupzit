@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Erste Schritte</h1>
-<p class="lead">BackupZit schützt Windows- und Linux-Rechner, virtuelle Maschinen unter Proxmox VE, Hyper-V und VMware ESXi, Datenbanken (SQL Server, PostgreSQL, MySQL/MariaDB) und NAS-Freigaben — Dateien, ganze Festplatten und ganze Systeme — aus einer Webkonsole, die in Ihrem eigenen Netzwerk läuft.</p>
+<p class="lead">BackupZit schützt Windows- und Linux-Rechner, virtuelle Maschinen unter Proxmox VE, Hyper-V und VMware ESXi, Datenbanken (SQL Server, PostgreSQL, MySQL/MariaDB), NAS-Freigaben und Microsoft 365 — Dateien, ganze Festplatten, ganze Systeme und Postfächer — aus einer Webkonsole, die in Ihrem eigenen Netzwerk läuft.</p>
 
 <h2>Was BackupZit schützt</h2>
 <table>
@@ -13,6 +13,7 @@
   <tr><td>NAS und Dateifreigaben (SMB, NFS)</td><td>Keine Software auf dem NAS: Ein Agent auf einem beliebigen Rechner liest die Freigabe. <a href="/docs/jobs">Sicherungsaufträge</a></td><td>Dateien und Ordner zurück auf die Freigabe, in einen Ordner oder als Download.</td></tr>
   <tr><td>Datenbanken: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent auf dem Datenbankrechner; die eigenen Werkzeuge des Servers, Voll- und Log-Sicherungen. <a href="/docs/sql">Datenbanken</a></td><td>Eine einzelne Datenbank unter neuem Namen oder an Ort und Stelle, zu jedem Zeitpunkt, den die Log-Sicherungen abdecken.</td></tr>
   <tr><td>Proxmox-VE-VMs und -Container</td><td>Agent auf dem Proxmox-Host, <b>kein Agent in den Gästen</b>; aus Proxmox-Snapshots, nur geänderte Blöcke werden hochgeladen. <a href="/docs/proxmox">Proxmox VE</a></td><td>Ganzer Gast als neuer oder an Ort und Stelle, auf jedem Knoten und Speicher; VMs sofort aus der Sicherung (Sofortwiederherstellung, auch auf VMware ESXi); einzelne Dateien von VM-Festplatten (NTFS, ext4, XFS, LVM) als Download oder auf einen Agenten.</td></tr>
+  <tr><td>Microsoft 365</td><td>Ein beliebiger Agent mit Internetzugang liest Exchange-Online-Mails, Kalender und Kontakte, OneDrive und SharePoint über Microsoft Graph mit reinen Leserechten; im Tenant wird nichts installiert. <a href="/docs/m365">Microsoft 365</a></td><td>Nachrichten (.eml) und Dateien durchsuchen und herunterladen oder in einen Ordner auf einem Agenten wiederherstellen.</td></tr>
 </table>
 
 <h2>Wie BackupZit funktioniert</h2>
@@ -38,18 +39,18 @@
 <h2>Die Konsole im Überblick</h2>
 <table>
   <tr><th>Seite</th><th>Wofür sie da ist</th></tr>
-  <tr><td><a href="/">Dashboard</a></td><td>Zustand auf einen Blick: was geschützt ist, was Aufmerksamkeit braucht, Agenten online, Fehler der letzten 24 Stunden, verdächtige Sicherungen, letzte Aktivität.</td></tr>
+  <tr><td><a href="/">Dashboard</a></td><td>Zustand auf einen Blick: was geschützt ist, wie viele Aufträge ihr RPO einhalten, was Aufmerksamkeit braucht, Agenten online, Fehler der letzten 24 Stunden, verdächtige Sicherungen, letzte Aktivität.</td></tr>
   <tr><td><a href="/jobs">Sicherungsaufträge</a></td><td>Aufträge für Dateien, NAS-Freigaben, Festplattenabbilder, Linux-Systeme, virtuelle Maschinen, Datenbanken und Sicherungskopien: erstellen, bearbeiten, ausführen, Wiederherstellung testen, deaktivieren, löschen. Die Liste zeigt Typ, geschützte VMs oder Datenbanken, nächsten Lauf, letztes Ergebnis und Anzahl der Wiederherstellungspunkte jedes Auftrags; filtern Sie nach Typ oder durchsuchen Sie sie. Die Seite eines Auftrags listet die VMs oder Datenbanken seiner neuesten Sicherung mit Links zur Wiederherstellung.</td></tr>
   <tr><td><a href="/restore">Wiederherstellen</a></td><td>Wiederherstellungsassistent: Wählen Sie, was wiederhergestellt wird (VM, Dateien, Festplattenabbild, Datenbank, Linux-System), die Quelle, den Wiederherstellungspunkt und die Optionen. Siehe <a href="/docs/restore">Wiederherstellen</a>.</td></tr>
-  <tr><td><a href="/runs">Aktivität</a></td><td>Jede Sicherung, Kopie, jeder Wiederherstellungstest und jede Wiederherstellung mit Details, Statistiken und Fehlern. Wiederherstellungen und das Durchsuchen von Dateien können auch hier gestartet werden.</td></tr>
+  <tr><td><a href="/runs">Aktivität</a></td><td>Jede Sicherung, Kopie, jeder Wiederherstellungstest und jede Wiederherstellung mit Details, Statistiken und Fehlern. Wiederherstellungen und das Durchsuchen von Dateien können auch hier gestartet und wartende oder laufende Läufe gestoppt werden — einzeln oder alle auf einmal.</td></tr>
   <tr><td><a href="/calendar">Kalender</a></td><td>Was an vergangenen Tagen lief und was künftig geplant ist.</td></tr>
-  <tr><td><a href="/reports">Berichte</a></td><td>Erfolgsquoten und Datenmengen für beliebige Zeiträume, CSV-Export, per E-Mail gesendete und geplante Berichte.</td></tr>
+  <tr><td><a href="/reports">Berichte</a></td><td>Erfolgsquoten und Datenmengen für beliebige Zeiträume, PDF- und CSV-Export, per E-Mail gesendete und geplante Berichte.</td></tr>
   <tr><td><a href="/agents">Agenten</a></td><td>Geschützte Rechner mit IP-Adressen und Versionen, Registrierungscodes, Installationsprogramme und Agenten-Updates.</td></tr>
   <tr><td><a href="/targets">Speicher</a></td><td>Wo Sicherungen gespeichert werden, Verschlüsselung und Wiederherstellungsschlüssel, Unveränderlichkeit, belegter Platz mit Prognose.</td></tr>
   <tr><td><a href="/recovery">Wiederherstellungsmedien</a></td><td>Wiederherstellungs-ISOs (Windows für Festplattenabbilder, Linux für Linux-Systeme) und Wiederherstellungscodes für Bare-Metal-Wiederherstellungen.</td></tr>
   <tr><td><a href="/approvals">Freigaben</a></td><td>Wird angezeigt, wenn die Vier-Augen-Freigabe aktiv ist: Änderungen, die auf einen zweiten Benutzer warten. Siehe <a href="/docs/users">Benutzer, Rollen und LDAP</a>.</td></tr>
   <tr><td><a href="/users">Benutzer</a></td><td>Konten, Rollen, API-Tokens aller Benutzer, Audit-Protokoll.</td></tr>
-  <tr><td><a href="/settings/email">Einstellungen</a></td><td>E-Mail-Benachrichtigungen; Slack, Teams und Webhooks; Anmeldesitzungen, Zwei-Faktor-Richtlinie, Brute-Force-Schutz, Vier-Augen-Freigabe und gespeicherte Geheimnisse; Wiederherstellungstests; das HTTPS-Zertifikat für Browser; auf der Appliance ihr Netzwerk (Adresse, Servername, SSH — siehe <a href="/docs/install#setup-menu">Installation</a>); Updates von BackupZit und dem Betriebssystem; Sicherung der Konsole selbst; LDAP / Active Directory; Single Sign-On mit SAML oder OpenID Connect.</td></tr>
+  <tr><td><a href="/settings/email">Einstellungen</a></td><td>E-Mail-Benachrichtigungen; Slack, Teams und Webhooks; Anmeldesitzungen, Zwei-Faktor-Richtlinie, Brute-Force-Schutz, Vier-Augen-Freigabe und gespeicherte Geheimnisse; Wiederherstellungstests; das HTTPS-Zertifikat für Browser; auf der Appliance ihr Netzwerk (Adresse, Servername, SSH — siehe <a href="/docs/install#setup-menu">Installation</a>); Updates von BackupZit und dem Betriebssystem; Sicherung der Konsole selbst; LDAP / Active Directory; Single Sign-On mit SAML oder OpenID Connect; Diagnose: das Konsolenprotokoll und ein ZIP für Supportanfragen.</td></tr>
   <tr><td><a href="/account">Mein Konto</a> (Ihr Name oben rechts)</td><td>Ihr Profil und Ihre Rolle, Passwort, Zwei-Faktor-Authentifizierung, API-Tokens.</td></tr>
   <tr><td><a href="/docs">Dokumentation</a></td><td>Diese Anleitung.</td></tr>
 </table>
@@ -63,6 +64,7 @@
 <p>Jede Sicherung erstellt einen <i>Snapshot</i>: ein vollständiges, durchsuchbares Bild der Daten zu diesem Zeitpunkt. Dateien werden in Blöcke variabler Größe und Festplatten in Blöcke zerlegt, und jedes Stück wird nur einmal gespeichert, sodass die zweite und alle späteren Sicherungen nur Geändertes hochladen — und doch lässt sich jeder Snapshot für sich wiederherstellen. Es gibt keine „Voll- und inkrementelle Kette“ zu verwalten.</p>
 <h3>Repositories</h3>
 <p>Jeder Agent schreibt in sein eigenes <i>Repository</i> unterhalb des Speicherziels (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Ein Repository ist in sich geschlossen: Mit dem Ort, den Speicherzugangsdaten und dem Wiederherstellungsschlüssel lässt es sich wiederherstellen, auch wenn die Konsole weg ist.</p>
+<p>Microsoft-365-Sicherungen liegen pro Tenant (<code>m365-&lt;tenant&gt;</code>) und VMware-ESXi-Sicherungen pro Host, sodass der Agent, der sie liest, ersetzt werden kann, ohne von vorn zu beginnen.</p>
 <h3>Aufbewahrung</h3>
 <p>Jeder Auftrag behält eine Anzahl aktueller, täglicher, wöchentlicher und monatlicher Sicherungen. Ältere Snapshots werden nach jedem Lauf entfernt und ihr Platz freigegeben.</p>
 <h3>Was BackupZit für Sie prüft</h3>
@@ -70,6 +72,8 @@
   <li><b>Wiederherstellungstests</b> — die neueste Sicherung jedes Auftrags wird wöchentlich teilweise wiederhergestellt und überprüft (<a href="/docs/restore">Wiederherstellen</a>).</li>
   <li><b>Ransomware-Erkennung</b> — ungewöhnliche Sicherungen (Massenänderungen, verschlüsselte Daten, Massenlöschung, plötzliche Sprünge der Datenmenge) werden markiert und die Aufbewahrung pausiert (<a href="/docs/ransomware">Ransomware-Schutz</a>).</li>
   <li><b>Warnungen und Berichte</b> — E-Mails bei Fehlern und eine tägliche Zusammenfassung; geplante Berichte für die Geschäftsleitung (<a href="/docs/notifications">E-Mail-Benachrichtigungen</a>, <a href="/docs/monitoring">Überwachung</a>).</li>
+  <li><b>Wiederherstellungspunktziele</b> — ein Auftrag, dessen neueste gute Sicherung älter als sein RPO wird, erscheint im Dashboard und wird einmal per E-Mail und Chat gemeldet (<a href="/docs/jobs#rpo">Sicherungsaufträge</a>).</li>
+  <li><b>Datenprüfungen</b> — einmal im Monat wird jedes Repository vollständig gelesen und geprüft; so werden Schäden am Speicher selbst gefunden (<a href="/docs/restore#data-check">Wiederherstellung</a>).</li>
 </ul>
 
 <h2>Lizenz und Support</h2>

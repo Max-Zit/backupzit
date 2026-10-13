@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>En menos de un minuto el nodo aparece en la página Agentes con la etiqueta <b>Proxmox VE · N guests</b>.</li>
-  <li>En <a href="/jobs">Trabajos de copia</a> seleccione ese agente y elija <b>Máquinas virtuales (Proxmox VE, Hyper-V, VMware)</b>. Copie <b>todos los invitados del nodo</b> (los invitados creados más tarde se incluyen automáticamente) o marque algunos.</li>
+  <li>En <a href="/jobs">Trabajos de copia</a> seleccione ese agente y elija <b>Máquinas virtuales (Proxmox VE, Hyper-V, VMware)</b>. Luego elija <b>Todas las VM (y contenedores) del host</b> (los invitados creados más tarde se incluyen automáticamente) o marque algunos.</li>
 </ol>
 <p>El agente usa las herramientas propias del nodo (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); en la consola no se guarda ningún token de API ni contraseña.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Las opciones del repositorio son las mismas que en todos los comandos (consulte <a href="/docs/cli">Referencia de la línea de comandos</a>). La línea de comandos funciona sin la consola, por ejemplo para restaurar un nodo completo tras un desastre.</p>
 
 <h2>Clústeres</h2>
-<p>Instale el agente en cada nodo. Un trabajo copia los invitados que se ejecutan en el nodo de su agente; un invitado incluido en un trabajo que se haya migrado a otro nodo se notifica como advertencia con el nombre de ese nodo: copie cada nodo con su propio trabajo, o use <i>todos los invitados del nodo</i> en cada nodo para que los invitados migrados queden siempre cubiertos.</p>
+<p>Instale el agente en cada nodo. Un trabajo copia los invitados que se ejecutan en el nodo de su agente; un invitado incluido en un trabajo que se haya migrado a otro nodo se notifica como advertencia con el nombre de ese nodo: copie cada nodo con su propio trabajo, o use <i>Todas las VM (y contenedores) del host</i> en cada nodo para que los invitados migrados queden siempre cubiertos.</p>
 
 <h2>Restaurar archivos sueltos</h2>
 <p>En la tabla de invitados de una ejecución de copia de VM, haga clic en <b>Examinar archivos</b>. La consola lee el disco directamente de la copia —no se restaura nada antes— y muestra sus particiones y volúmenes lógicos LVM; se pueden examinar NTFS (Windows), ext2/3/4 y XFS (Linux), también dentro de LVM. Marque archivos y carpetas y:</p>

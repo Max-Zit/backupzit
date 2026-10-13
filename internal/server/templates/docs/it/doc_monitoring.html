@@ -5,6 +5,7 @@
 <h2>Dashboard</h2>
 <p>Le prime schede contano ciò che è protetto: <b>macchine</b> (backup di file, immagini e sistemi), <b>VM</b>, <b>database</b> e <b>condivisioni NAS</b> (mostrate appena ce n'è una), ciascuna con un backup riuscito. <b>Richiede attenzione</b> elenca cosa controllare: job la cui ultima esecuzione non è riuscita, job che hanno saltato la pianificazione (nessun successo dalla penultima esecuzione pianificata — fine settimana e finestre orarie della pianificazione sono considerati), agenti che non si collegano da 15 minuti, destinazioni di archiviazione piene al 90 % o che lo saranno entro 30 giorni (vedi <a href="/docs/storage">Destinazioni di archiviazione</a>) e modifiche in attesa dell'approvazione di un secondo utente. Se non c'è nulla in elenco, va tutto bene.</p>
 <p>Le altre schede mostrano agenti online, job di backup, destinazioni di archiviazione, esecuzioni in coda e in corso, esecuzioni, errori e avvisi delle ultime 24 ore e i <b>backup sospetti da esaminare</b> (possibile ransomware, vedi <a href="/docs/ransomware">Protezione dal ransomware</a>). Verde significa tutto bene, giallo da controllare, rosso da intervenire. Sotto c'è l'attività più recente.</p>
+<p>La scheda <b>job entro l'RPO</b> conta i job il cui backup valido più recente è più giovane del loro obiettivo del punto di ripristino (vedi <a href="/docs/jobs#rpo">Job di backup</a>); un job che l'ha mancato compare anche in <b>Richiede attenzione</b>. Quell'elenco avvisa anche quando l'account <code>admin</code> ha ancora la password iniziale generata e quando due macchine usano la stessa registrazione dell'agente (vedi <a href="/docs/agents">Agenti</a>). Le VM in esecuzione da un backup (ripristino istantaneo) sono mostrate sopra le schede finché non vengono completate o scartate.</p>
 
 <h2>Attività</h2>
 <p>Ogni esecuzione, dalla più recente. Fai clic su un'esecuzione per i dettagli: cosa è stato elaborato, statistiche, errori per file e — per i backup — le opzioni di ripristino. Le esecuzioni in corso si aggiornano automaticamente. Le esecuzioni pianificate mostrano un'icona a forma di orologio.</p>
@@ -23,6 +24,8 @@
   <tr><td>copy</td><td>Job di copia dei backup: backup di un altro job copiati su un secondo storage.</td></tr>
   <tr><td>verify</td><td><a href="/docs/restore">Test di ripristino</a> automatico o manuale.</td></tr>
   <tr><td>restore, image-restore, image-file-restore</td><td>Ripristini di file, di un intero disco o di file da un'immagine.</td></tr>
+  <tr><td>repo-check</td><td>Verifica dei dati: un agente legge tutti i dati di un repository e li verifica (vedi <a href="/docs/restore#data-check">Ripristino</a>).</td></tr>
+  <tr><td>agent-log</td><td>Il log inviato da un agente su richiesta (<b>Ottieni log</b> nella pagina Agenti).</td></tr>
 </table>
 <h3>Stato</h3>
 <table>
@@ -34,6 +37,7 @@
   <tr><td>{{template "status" "failed"}}</td><td>Non completata — storage irraggiungibile, credenziali errate, disco pieno, disco USB non collegato, il test di ripristino ha trovato dati danneggiati… Il messaggio spiega il motivo.</td></tr>
   <tr><td><span class="badge">scaduto</span></td><td>Lo snapshot è stato rimosso dalla conservazione del job.</td></tr>
   <tr><td><span class="badge failed"><i></i>sospetto</span></td><td>Il backup sembra ransomware o una cancellazione di massa; la conservazione del job è sospesa finché non viene esaminato. Giallo dopo l'esame.</td></tr>
+  <tr><td>{{template "status" "cancelled"}}</td><td>Fermata da un utente, singolarmente o con <b>Annulla tutto ciò che è in coda o in corso</b>. Non conta come errore e non invia e-mail di errore; un'esecuzione fermata dal limite di tempo risulta invece non riuscita.</td></tr>
 </table>
 
 <h2>Calendario</h2>
@@ -64,6 +68,6 @@
   <li><b>Settimanale</b> — ogni lunedì, sulla settimana precedente.</li>
   <li><b>Mensile</b> — il 1° del mese, sul mese precedente (ideale per clienti o direzione).</li>
 </ul>
-<p>Scegli l'ora, l'ambito (tutti gli agenti, un agente o un job) e i destinatari (vuoto = i destinatari delle notifiche). Il CSV con tutte le esecuzioni è allegato. L'e-mail deve essere configurata in <a href="/settings/email">Impostazioni → Notifiche e-mail</a>. Creare e rimuovere report pianificati richiede il ruolo Operatore di backup o Amministratore.</p>
+<p>Scegli l'ora, l'ambito (tutti gli agenti, un agente o un job) e i destinatari (vuoto = i destinatari delle notifiche). Il report PDF e il CSV con tutte le esecuzioni sono allegati. L'e-mail deve essere configurata in <a href="/settings/email">Impostazioni → Notifiche e-mail</a>. Creare e rimuovere report pianificati richiede il ruolo Operatore di backup o Amministratore.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

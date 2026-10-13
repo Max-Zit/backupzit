@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>Innerhalb einer Minute erscheint der Knoten auf der Seite Agenten mit dem Kennzeichen <b>Proxmox VE · N guests</b>.</li>
-  <li>Wählen Sie unter <a href="/jobs">Sicherungsaufträge</a> diesen Agenten und <b>Virtuelle Maschinen (Proxmox VE, Hyper-V, VMware)</b>. Sichern Sie <b>alle Gäste des Knotens</b> (später erstellte Gäste werden automatisch einbezogen) oder markieren Sie einzelne.</li>
+  <li>Wählen Sie unter <a href="/jobs">Sicherungsaufträge</a> diesen Agenten und <b>Virtuelle Maschinen (Proxmox VE, Hyper-V, VMware)</b>. Wählen Sie dann <b>Alle VMs (und Container) auf dem Host</b> (später erstellte Gäste werden automatisch einbezogen) oder markieren Sie einzelne.</li>
 </ol>
 <p>Der Agent verwendet die eigenen Werkzeuge des Knotens (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); in der Konsole wird weder API-Token noch Passwort gespeichert.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Die Repository-Optionen sind dieselben wie bei allen Befehlen (siehe <a href="/docs/cli">Befehlszeilenreferenz</a>). Die Befehlszeile funktioniert ohne Konsole, zum Beispiel um nach einem Desaster einen ganzen Knoten wiederherzustellen.</p>
 
 <h2>Cluster</h2>
-<p>Installieren Sie den Agenten auf jedem Knoten. Ein Auftrag sichert die Gäste, die auf dem Knoten seines Agenten laufen; ein in einem Auftrag aufgeführter Gast, der auf einen anderen Knoten migriert wurde, wird als Warnung mit dem Namen dieses Knotens gemeldet — sichern Sie jeden Knoten mit einem eigenen Auftrag, oder verwenden Sie <i>alle Gäste des Knotens</i> auf jedem Knoten, damit migrierte Gäste immer abgedeckt sind.</p>
+<p>Installieren Sie den Agenten auf jedem Knoten. Ein Auftrag sichert die Gäste, die auf dem Knoten seines Agenten laufen; ein in einem Auftrag aufgeführter Gast, der auf einen anderen Knoten migriert wurde, wird als Warnung mit dem Namen dieses Knotens gemeldet — sichern Sie jeden Knoten mit einem eigenen Auftrag, oder verwenden Sie <i>Alle VMs (und Container) auf dem Host</i> auf jedem Knoten, damit migrierte Gäste immer abgedeckt sind.</p>
 
 <h2>Einzelne Dateien wiederherstellen</h2>
 <p>Klicken Sie in der Gasttabelle eines VM-Sicherungslaufs auf <b>Dateien durchsuchen</b>. Die Konsole liest die Festplatte direkt aus der Sicherung — nichts wird vorher wiederhergestellt — und zeigt ihre Partitionen und logischen LVM-Volumes; NTFS (Windows), ext2/3/4 und XFS (Linux) können durchsucht werden, auch innerhalb von LVM. Markieren Sie Dateien und Ordner und:</p>

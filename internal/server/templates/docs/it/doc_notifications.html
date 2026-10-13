@@ -21,6 +21,16 @@
   <li><b>Successi</b> — ogni esecuzione riuscita (di solito troppo; meglio il report giornaliero).</li>
   <li><b>Report giornaliero</b> — all'ora scelta: esecuzioni delle ultime 24 ore, problemi e agenti offline. L'oggetto inizia con <i>OK</i>, <i>WARNINGS</i> o <i>ATTENTION</i>, così le regole di posta possono smistarli.</li>
 </ul>
+<p>Con <b>Errori</b> attivo, viene segnalato anche un job che manca il suo obiettivo del punto di ripristino (RPO) — una volta, e di nuovo solo dopo averlo rispettato nel frattempo. Le esecuzioni fermate da un utente (stato <i>annullata</i>) non inviano e-mail di errore; un'esecuzione fermata dal limite di tempo sì.</p>
+<p>Indipendentemente da queste opzioni, i destinatari delle notifiche ricevono un'e-mail anche quando:</p>
+<ul>
+  <li>una modifica attende l'approvazione di un secondo utente (principio dei quattro occhi);</li>
+  <li>due macchine usano la stessa registrazione dell'agente;</li>
+  <li>il log di audit è stato modificato;</li>
+  <li>il backup della console stessa non è riuscito;</li>
+  <li>il rinnovo del certificato HTTPS per i browser non è riuscito;</li>
+  <li>un indirizzo è stato bloccato dopo troppi accessi falliti (disattivabile nella protezione da forza bruta).</li>
+</ul>
 <p>Per riepiloghi settimanali o mensili usa i <a href="/docs/monitoring">report pianificati</a>; vengono inviati con le stesse impostazioni di posta e hanno destinatari propri. Gli oggetti iniziano con <code>[BackupZit]</code>, così le regole di posta possono smistarli. La password SMTP è memorizzata cifrata. I link in e-mail, messaggi chat e report portano alla console all'indirizzo con cui la apri nel browser (o a quello impostato con <code>--public-url</code>).</p>
 
 <h2>Slack, Microsoft Teams e webhook</h2>

@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Prise en main</h1>
-<p class="lead">BackupZit protège les machines Windows et Linux, les machines virtuelles Proxmox VE, Hyper-V et VMware ESXi, les bases de données (SQL Server, PostgreSQL, MySQL/MariaDB) et les partages NAS — fichiers, disques entiers et systèmes entiers — depuis une console web qui tourne sur votre propre réseau.</p>
+<p class="lead">BackupZit protège les machines Windows et Linux, les machines virtuelles Proxmox VE, Hyper-V et VMware ESXi, les bases de données (SQL Server, PostgreSQL, MySQL/MariaDB), les partages NAS et Microsoft 365 — fichiers, disques entiers, systèmes entiers et boîtes aux lettres — depuis une console web qui tourne sur votre propre réseau.</p>
 
 <h2>Ce que BackupZit protège</h2>
 <table>
@@ -13,6 +13,7 @@
   <tr><td>NAS et partages de fichiers (SMB, NFS)</td><td>Aucun logiciel sur le NAS : un agent sur n'importe quelle machine lit le partage. <a href="/docs/jobs">Tâches de sauvegarde</a></td><td>Fichiers et dossiers de retour sur le partage, dans un dossier ou en téléchargement.</td></tr>
   <tr><td>Bases de données : SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent sur la machine de base de données ; les outils propres du serveur, sauvegardes complètes et de journaux. <a href="/docs/sql">Bases de données</a></td><td>Une base individuelle sous un nouveau nom ou sur place, à tout instant couvert par les sauvegardes de journaux.</td></tr>
   <tr><td>VM et conteneurs Proxmox VE</td><td>Agent sur l'hôte Proxmox, <b>aucun agent dans les invités</b> ; depuis les instantanés Proxmox, seuls les blocs modifiés sont envoyés. <a href="/docs/proxmox">Proxmox VE</a></td><td>Invité entier comme nouveau ou sur place, sur n'importe quel nœud et stockage ; VM instantanément depuis la sauvegarde (restauration instantanée, aussi sur VMware ESXi) ; fichiers individuels des disques de VM (NTFS, ext4, XFS, LVM) en téléchargement ou vers un agent.</td></tr>
+  <tr><td>Microsoft 365</td><td>N'importe quel agent ayant accès à Internet lit les e-mails, calendriers et contacts Exchange Online, OneDrive et SharePoint via Microsoft Graph avec des droits en lecture seule ; rien n'est installé dans le tenant. <a href="/docs/m365">Microsoft 365</a></td><td>Parcourir et télécharger les messages (.eml) et fichiers, ou les restaurer dans un dossier sur un agent.</td></tr>
 </table>
 
 <h2>Comment fonctionne BackupZit</h2>
@@ -38,18 +39,18 @@
 <h2>La console en un coup d'œil</h2>
 <table>
   <tr><th>Page</th><th>À quoi elle sert</th></tr>
-  <tr><td><a href="/">Tableau de bord</a></td><td>L'état d'un coup d'œil : ce qui est protégé, ce qui nécessite votre attention, agents en ligne, échecs des dernières 24 heures, sauvegardes suspectes, activité récente.</td></tr>
+  <tr><td><a href="/">Tableau de bord</a></td><td>L'état d'un coup d'œil : ce qui est protégé, combien de tâches respectent leur RPO, ce qui nécessite votre attention, agents en ligne, échecs des dernières 24 heures, sauvegardes suspectes, activité récente.</td></tr>
   <tr><td><a href="/jobs">Tâches de sauvegarde</a></td><td>Tâches de fichiers, partage NAS, image disque, système Linux, machine virtuelle, base de données et copie de sauvegarde : créer, modifier, exécuter, tester la restauration, désactiver, supprimer. La liste montre le type de chaque tâche, les VM ou bases qu'elle protège, la prochaine exécution, le dernier résultat et le nombre de points de restauration ; filtrez par type ou recherchez. La page d'une tâche liste les VM ou bases de sa sauvegarde la plus récente avec des liens pour les restaurer.</td></tr>
   <tr><td><a href="/restore">Restaurer</a></td><td>Assistant de restauration : choisissez quoi restaurer (VM, fichiers, image disque, base de données, système Linux), la source, le point de restauration et les options. Voir <a href="/docs/restore">Restauration</a>.</td></tr>
-  <tr><td><a href="/runs">Activité</a></td><td>Chaque sauvegarde, copie, test de restauration et restauration avec détails, statistiques et erreurs. Les restaurations et la navigation dans les fichiers peuvent aussi être lancées ici.</td></tr>
+  <tr><td><a href="/runs">Activité</a></td><td>Chaque sauvegarde, copie, test de restauration et restauration avec détails, statistiques et erreurs. Les restaurations et la navigation dans les fichiers peuvent aussi être lancées ici, et les exécutions en attente ou en cours arrêtées — une par une ou toutes à la fois.</td></tr>
   <tr><td><a href="/calendar">Calendrier</a></td><td>Ce qui s'est exécuté les jours passés et ce qui est planifié à l'avenir.</td></tr>
-  <tr><td><a href="/reports">Rapports</a></td><td>Taux de réussite et volumes de données pour n'importe quelle période, export CSV, rapports envoyés par e-mail et planifiés.</td></tr>
+  <tr><td><a href="/reports">Rapports</a></td><td>Taux de réussite et volumes de données pour n'importe quelle période, export PDF et CSV, rapports envoyés par e-mail et planifiés.</td></tr>
   <tr><td><a href="/agents">Agents</a></td><td>Machines protégées avec adresses IP et versions, codes d'inscription, installateurs et mises à jour des agents.</td></tr>
   <tr><td><a href="/targets">Stockage</a></td><td>Où les sauvegardes sont stockées, chiffrement et clés de récupération, immuabilité, espace utilisé avec sa prévision.</td></tr>
   <tr><td><a href="/recovery">Supports de récupération</a></td><td>ISO de récupération (Windows pour les images disque, Linux pour les systèmes Linux) et codes de récupération pour les restaurations bare metal.</td></tr>
   <tr><td><a href="/approvals">Approbations</a></td><td>Affichée quand l'approbation à quatre yeux est active : modifications qui attendent un second utilisateur. Voir <a href="/docs/users">Utilisateurs, rôles et LDAP</a>.</td></tr>
   <tr><td><a href="/users">Utilisateurs</a></td><td>Comptes, rôles, jetons API de tous les utilisateurs, journal d'audit.</td></tr>
-  <tr><td><a href="/settings/email">Paramètres</a></td><td>Notifications par e-mail ; Slack, Teams et webhooks ; sessions de connexion, politique à deux facteurs, protection contre la force brute, approbation à quatre yeux et secrets enregistrés ; tests de restauration ; le certificat HTTPS pour les navigateurs ; sur l'appliance son réseau (adresse, nom du serveur, SSH — voir <a href="/docs/install#setup-menu">Installation</a>) ; mises à jour de BackupZit et du système d'exploitation ; sauvegarde de la console elle-même ; LDAP / Active Directory ; authentification unique avec SAML ou OpenID Connect.</td></tr>
+  <tr><td><a href="/settings/email">Paramètres</a></td><td>Notifications par e-mail ; Slack, Teams et webhooks ; sessions de connexion, politique à deux facteurs, protection contre la force brute, approbation à quatre yeux et secrets enregistrés ; tests de restauration ; le certificat HTTPS pour les navigateurs ; sur l'appliance son réseau (adresse, nom du serveur, SSH — voir <a href="/docs/install#setup-menu">Installation</a>) ; mises à jour de BackupZit et du système d'exploitation ; sauvegarde de la console elle-même ; LDAP / Active Directory ; authentification unique avec SAML ou OpenID Connect ; diagnostic : le journal de la console et un zip pour les demandes de support.</td></tr>
   <tr><td><a href="/account">Mon compte</a> (votre nom, en haut à droite)</td><td>Votre profil et votre rôle, mot de passe, authentification à deux facteurs, jetons API.</td></tr>
   <tr><td><a href="/docs">Documentation</a></td><td>Ce guide.</td></tr>
 </table>
@@ -63,6 +64,7 @@
 <p>Chaque sauvegarde crée un <i>instantané</i> : une image complète et consultable des données à ce moment. Les fichiers sont découpés en morceaux de taille variable et les disques en blocs, et chaque morceau n'est stocké qu'une fois ; la deuxième sauvegarde et les suivantes n'envoient donc que ce qui a changé — et pourtant chaque instantané peut être restauré seul. Il n'y a pas de « chaîne complète/incrémentale » à gérer.</p>
 <h3>Dépôts</h3>
 <p>Chaque agent écrit dans son propre <i>dépôt</i> sous l'emplacement de la cible de stockage (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Un dépôt est autonome : avec l'emplacement, les identifiants du stockage et la clé de récupération, il peut être restauré même si la console a disparu.</p>
+<p>Les sauvegardes Microsoft 365 sont conservées par tenant (<code>m365-&lt;tenant&gt;</code>) et les sauvegardes VMware ESXi par hôte, si bien que l'agent qui les lit peut être remplacé sans tout recommencer.</p>
 <h3>Rétention</h3>
 <p>Chaque tâche conserve un certain nombre de sauvegardes récentes, quotidiennes, hebdomadaires et mensuelles. Les instantanés plus anciens sont supprimés après chaque exécution et l'espace qu'ils occupaient est libéré.</p>
 <h3>Ce que BackupZit vérifie pour vous</h3>
@@ -70,6 +72,8 @@
   <li><b>Tests de restauration</b> — la sauvegarde la plus récente de chaque tâche est partiellement restaurée et vérifiée chaque semaine (<a href="/docs/restore">Restauration</a>).</li>
   <li><b>Détection des rançongiciels</b> — les sauvegardes inhabituelles (modifications massives, données chiffrées, suppression massive, sauts soudains du volume de données) sont signalées et la rétention est suspendue (<a href="/docs/ransomware">Protection contre les rançongiciels</a>).</li>
   <li><b>Alertes et rapports</b> — e-mails en cas d'échec et résumé quotidien ; rapports planifiés pour la direction (<a href="/docs/notifications">Notifications par e-mail</a>, <a href="/docs/monitoring">Supervision</a>).</li>
+  <li><b>Objectifs de point de récupération</b> — une tâche dont la dernière bonne sauvegarde devient plus ancienne que son RPO apparaît sur le tableau de bord et est signalée une fois par e-mail et chat (<a href="/docs/jobs#rpo">Tâches de sauvegarde</a>).</li>
+  <li><b>Vérifications des données</b> — une fois par mois, chaque dépôt est lu entièrement et vérifié, ce qui détecte les dommages sur le stockage lui-même (<a href="/docs/restore#data-check">Restauration</a>).</li>
 </ul>
 
 <h2>Licence et support</h2>

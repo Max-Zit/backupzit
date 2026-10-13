@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>W ciągu minuty węzeł pojawia się na stronie Agenci z oznaczeniem <b>Proxmox VE · N guests</b>.</li>
-  <li>W <a href="/jobs">Zadania kopii</a> wybierz tego agenta i <b>Maszyny wirtualne (Proxmox VE, Hyper-V, VMware)</b>. Kopiuj <b>wszystkich gości węzła</b> (goście utworzeni później są dołączani automatycznie) albo zaznacz wybranych.</li>
+  <li>W <a href="/jobs">Zadania kopii</a> wybierz tego agenta i <b>Maszyny wirtualne (Proxmox VE, Hyper-V, VMware)</b>. Następnie wybierz <b>Wszystkie VM (i kontenery) na hoście</b> (goście utworzeni później są dołączani automatycznie) albo zaznacz wybranych.</li>
 </ol>
 <p>Agent używa własnych narzędzi węzła (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); w konsoli nie jest przechowywany żaden token API ani hasło.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Opcje repozytorium są takie same jak dla wszystkich poleceń (zobacz <a href="/docs/cli">Wiersz poleceń — dokumentacja</a>). Wiersz poleceń działa bez konsoli, na przykład do przywrócenia całego węzła po awarii.</p>
 
 <h2>Klastry</h2>
-<p>Zainstaluj agenta na każdym węźle. Zadanie kopiuje gości działających na węźle jego agenta; gość wymieniony w zadaniu, który został zmigrowany na inny węzeł, jest zgłaszany jako ostrzeżenie z nazwą tego węzła — kopiuj każdy węzeł osobnym zadaniem albo użyj <i>wszystkich gości węzła</i> na każdym węźle, aby zmigrowani goście byli zawsze objęci.</p>
+<p>Zainstaluj agenta na każdym węźle. Zadanie kopiuje gości działających na węźle jego agenta; gość wymieniony w zadaniu, który został zmigrowany na inny węzeł, jest zgłaszany jako ostrzeżenie z nazwą tego węzła — kopiuj każdy węzeł osobnym zadaniem albo użyj opcji <i>Wszystkie VM (i kontenery) na hoście</i> na każdym węźle, aby zmigrowani goście byli zawsze objęci.</p>
 
 <h2>Przywracanie pojedynczych plików</h2>
 <p>W tabeli gości uruchomienia kopii maszyny kliknij <b>Przeglądaj pliki</b>. Konsola odczytuje dysk bezpośrednio z kopii — nic nie jest najpierw przywracane — i pokazuje jego partycje oraz woluminy logiczne LVM; można przeglądać NTFS (Windows), ext2/3/4 i XFS (Linux), także wewnątrz LVM. Zaznacz pliki i foldery, a następnie:</p>

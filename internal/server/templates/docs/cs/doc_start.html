@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Začínáme</h1>
-<p class="lead">BackupZit chrání počítače s Windows a Linuxem, virtuální počítače Proxmox VE, Hyper-V a VMware ESXi, databáze (SQL Server, PostgreSQL, MySQL/MariaDB) a sdílené složky NAS — soubory, celé disky i celé systémy — z jedné webové konzole, která běží ve vaší vlastní síti.</p>
+<p class="lead">BackupZit chrání počítače s Windows a Linuxem, virtuální počítače Proxmox VE, Hyper-V a VMware ESXi, databáze (SQL Server, PostgreSQL, MySQL/MariaDB), sdílené složky NAS a Microsoft 365 — soubory, celé disky, celé systémy i poštovní schránky — z jedné webové konzole, která běží ve vaší vlastní síti.</p>
 
 <h2>Co BackupZit chrání</h2>
 <table>
@@ -13,6 +13,7 @@
   <tr><td>NAS a sdílené složky (SMB, NFS)</td><td>Na NAS žádný software: sdílenou složku čte agent na libovolném počítači. <a href="/docs/jobs">Úlohy zálohování</a></td><td>Soubory a složky zpět do sdílené složky, do složky nebo ke stažení.</td></tr>
   <tr><td>Databáze: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent na databázovém počítači; vlastní nástroje serveru, úplné zálohy a zálohy logů. <a href="/docs/sql">Databáze</a></td><td>Jednotlivá databáze pod novým názvem nebo na místě, k libovolnému okamžiku pokrytému zálohami logů.</td></tr>
   <tr><td>VM a kontejnery Proxmox VE</td><td>Agent na hostiteli Proxmox, <b>žádný agent uvnitř hostů</b>; ze snímků Proxmoxu, nahrávají se jen změněné bloky. <a href="/docs/proxmox">Proxmox VE</a></td><td>Celý host jako nový nebo na místě, na libovolném uzlu a úložišti; VM okamžitě ze zálohy (okamžitá obnova, i na VMware ESXi); jednotlivé soubory z disků VM (NTFS, ext4, XFS, LVM) ke stažení nebo na agenta.</td></tr>
+  <tr><td>Microsoft 365</td><td>Libovolný agent s přístupem k internetu čte poštu, kalendáře a kontakty Exchange Online, OneDrive a SharePoint přes Microsoft Graph s oprávněními jen pro čtení; v tenantu se nic neinstaluje. <a href="/docs/m365">Microsoft 365</a></td><td>Procházení a stahování zpráv (.eml) a souborů nebo jejich obnovení do složky na agentovi.</td></tr>
 </table>
 
 <h2>Jak BackupZit funguje</h2>
@@ -38,18 +39,18 @@
 <h2>Konzole v kostce</h2>
 <table>
   <tr><th>Stránka</th><th>K čemu slouží</th></tr>
-  <tr><td><a href="/">Přehled</a></td><td>Stav na první pohled: co je chráněno, co vyžaduje pozornost, agenti online, selhání za posledních 24 hodin, podezřelé zálohy, nedávná aktivita.</td></tr>
+  <tr><td><a href="/">Přehled</a></td><td>Stav na první pohled: co je chráněno, kolik úloh dodržuje své RPO, co vyžaduje pozornost, agenti online, selhání za posledních 24 hodin, podezřelé zálohy, nedávná aktivita.</td></tr>
   <tr><td><a href="/jobs">Úlohy zálohování</a></td><td>Úlohy pro soubory, sdílené složky NAS, obrazy disků, systémy Linux, virtuální počítače, databáze a kopie záloh: vytvořit, upravit, spustit, otestovat obnovu, zakázat, smazat. Seznam ukazuje u každé úlohy typ, chráněné VM nebo databáze, příští běh, poslední výsledek a počet bodů obnovy; filtrujte podle typu nebo vyhledávejte. Stránka úlohy uvádí VM nebo databáze z její nejnovější zálohy s odkazy na jejich obnovu.</td></tr>
   <tr><td><a href="/restore">Obnova</a></td><td>Průvodce obnovou: zvolte, co obnovit (VM, soubory, obraz disku, databázi, systém Linux), zdroj, bod obnovy a volby. Viz <a href="/docs/restore">Obnova</a>.</td></tr>
-  <tr><td><a href="/runs">Aktivita</a></td><td>Každá záloha, kopie, test obnovy a obnova s podrobnostmi, statistikami a chybami. Odtud lze také spustit obnovy a procházení souborů.</td></tr>
+  <tr><td><a href="/runs">Aktivita</a></td><td>Každá záloha, kopie, test obnovy a obnova s podrobnostmi, statistikami a chybami. Odtud lze také spustit obnovy a procházení souborů a zastavit čekající nebo běžící běhy — jednotlivě nebo všechny najednou.</td></tr>
   <tr><td><a href="/calendar">Kalendář</a></td><td>Co běželo v minulých dnech a co je naplánováno do budoucna.</td></tr>
-  <tr><td><a href="/reports">Sestavy</a></td><td>Míry úspěšnosti a objemy dat za libovolné období, export CSV, sestavy zasílané e-mailem a plánované.</td></tr>
+  <tr><td><a href="/reports">Sestavy</a></td><td>Míry úspěšnosti a objemy dat za libovolné období, export PDF a CSV, sestavy zasílané e-mailem a plánované.</td></tr>
   <tr><td><a href="/agents">Agenti</a></td><td>Chráněné počítače s IP adresami a verzemi, registrační kódy, instalátory a aktualizace agentů.</td></tr>
   <tr><td><a href="/targets">Úložiště</a></td><td>Kde jsou zálohy uloženy, šifrování a klíče pro obnovení, neměnnost, využité místo s prognózou.</td></tr>
   <tr><td><a href="/recovery">Obnovovací média</a></td><td>ISO pro obnovu (Windows pro obrazy disků, Linux pro systémy Linux) a kódy pro obnovu bare metal.</td></tr>
   <tr><td><a href="/approvals">Schválení</a></td><td>Zobrazuje se, když je zapnuté schválení čtyř očí: změny čekající na druhého uživatele. Viz <a href="/docs/users">Uživatelé, role a LDAP</a>.</td></tr>
   <tr><td><a href="/users">Uživatelé</a></td><td>Účty, role, tokeny API všech uživatelů, protokol auditu.</td></tr>
-  <tr><td><a href="/settings/email">Nastavení</a></td><td>E-mailová oznámení; Slack, Teams a webhooky; přihlašovací relace, zásady dvoufaktorového ověření, ochrana proti hrubé síle, schválení čtyř očí a uložené tajné údaje; testy obnovy; certifikát HTTPS pro prohlížeče; na appliance její síť (adresa, název serveru, SSH — viz <a href="/docs/install#setup-menu">Instalace</a>); aktualizace BackupZit a operačního systému; záloha samotné konzole; LDAP / Active Directory; jednotné přihlašování přes SAML nebo OpenID Connect.</td></tr>
+  <tr><td><a href="/settings/email">Nastavení</a></td><td>E-mailová oznámení; Slack, Teams a webhooky; přihlašovací relace, zásady dvoufaktorového ověření, ochrana proti hrubé síle, schválení čtyř očí a uložené tajné údaje; testy obnovy; certifikát HTTPS pro prohlížeče; na appliance její síť (adresa, název serveru, SSH — viz <a href="/docs/install#setup-menu">Instalace</a>); aktualizace BackupZit a operačního systému; záloha samotné konzole; LDAP / Active Directory; jednotné přihlašování přes SAML nebo OpenID Connect; diagnostika: protokol konzole a zip pro žádosti o podporu.</td></tr>
   <tr><td><a href="/account">Můj účet</a> (vaše jméno, vpravo nahoře)</td><td>Váš profil a role, heslo, dvoufaktorové ověření, tokeny API.</td></tr>
   <tr><td><a href="/docs">Dokumentace</a></td><td>Tato příručka.</td></tr>
 </table>
@@ -63,6 +64,7 @@
 <p>Každá záloha vytvoří <i>snímek</i>: úplný, procházitelný obraz dat v daném okamžiku. Soubory se dělí na části proměnné velikosti a disky na bloky a každá část se uloží jen jednou, takže druhá a další zálohy nahrávají jen to, co se změnilo — a přesto lze každý snímek obnovit samostatně. Žádný „řetězec úplná/přírůstková“ se nespravuje.</p>
 <h3>Repozitáře</h3>
 <p>Každý agent zapisuje do vlastního <i>repozitáře</i> pod umístěním cíle úložiště (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Repozitář je soběstačný: s umístěním, přihlašovacími údaji k úložišti a klíčem pro obnovení jej lze obnovit, i když konzole už neexistuje.</p>
+<p>Zálohy Microsoft 365 se ukládají podle tenantu (<code>m365-&lt;tenant&gt;</code>) a zálohy VMware ESXi podle hostitele, takže agenta, který je čte, lze vyměnit bez začínání od začátku.</p>
 <h3>Uchovávání</h3>
 <p>Každá úloha uchovává určitý počet nedávných, denních, týdenních a měsíčních záloh. Starší snímky se po každém běhu odstraní a uvolní se místo, které zabíraly.</p>
 <h3>Co BackupZit kontroluje za vás</h3>
@@ -70,6 +72,8 @@
   <li><b>Testy obnovy</b> — nejnovější záloha každé úlohy se jednou týdně částečně obnoví a ověří (<a href="/docs/restore">Obnova</a>).</li>
   <li><b>Detekce ransomwaru</b> — neobvyklé zálohy (hromadné změny, šifrovaná data, hromadné mazání, náhlé skoky objemu dat) se označí a uchovávání se pozastaví (<a href="/docs/ransomware">Ochrana proti ransomwaru</a>).</li>
   <li><b>Upozornění a sestavy</b> — e-maily při selhání a denní souhrn; plánované sestavy pro vedení (<a href="/docs/notifications">E-mailová oznámení</a>, <a href="/docs/monitoring">Monitorování</a>).</li>
+  <li><b>Cíle bodu obnovy</b> — úloha, jejíž nejnovější dobrá záloha je starší než její RPO, se zobrazí v přehledu a jednou se ohlásí e-mailem a v chatu (<a href="/docs/jobs#rpo">Úlohy zálohování</a>).</li>
+  <li><b>Kontroly dat</b> — jednou měsíčně se každý repozitář celý přečte a ověří, což odhalí poškození samotného úložiště (<a href="/docs/restore#data-check">Obnova</a>).</li>
 </ul>
 
 <h2>Licence a podpora</h2>

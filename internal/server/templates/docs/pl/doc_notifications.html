@@ -21,6 +21,16 @@
   <li><b>Sukcesy</b> — każde udane uruchomienie (zwykle za dużo; lepiej raport dzienny).</li>
   <li><b>Raport dzienny</b> — o wybranej godzinie: uruchomienia z ostatnich 24 godzin, problemy i agenci offline. Temat zaczyna się od <i>OK</i>, <i>WARNINGS</i> lub <i>ATTENTION</i>, więc reguły poczty mogą je sortować.</li>
 </ul>
+<p>Gdy włączone są <b>Błędy</b>, zgłaszane jest też zadanie, które nie dotrzymało celu punktu odtwarzania (RPO) — raz, a ponownie dopiero po tym, jak w międzyczasie go dotrzymało. Uruchomienia zatrzymane przez użytkownika (status <i>anulowano</i>) nie wysyłają e-maila o błędzie; uruchomienie zatrzymane przez limit czasu wysyła.</p>
+<p>Niezależnie od tych opcji odbiorcy powiadomień dostają też e-mail, gdy:</p>
+<ul>
+  <li>zmiana czeka na zatwierdzenie przez drugiego użytkownika (zasada czterech oczu);</li>
+  <li>dwie maszyny używają jednej rejestracji agenta;</li>
+  <li>dziennik audytu został zmieniony;</li>
+  <li>kopia samej konsoli się nie powiodła;</li>
+  <li>odnowienie certyfikatu HTTPS dla przeglądarek się nie powiodło;</li>
+  <li>adres został zablokowany po zbyt wielu nieudanych logowaniach (można to wyłączyć w ochronie przed atakami siłowymi).</li>
+</ul>
 <p>Do podsumowań tygodniowych lub miesięcznych używaj <a href="/docs/monitoring">raportów zaplanowanych</a>; są wysyłane z tymi samymi ustawieniami poczty i mają własnych odbiorców. Tematy zaczynają się od <code>[BackupZit]</code>, więc reguły poczty mogą je sortować. Hasło SMTP jest przechowywane w postaci zaszyfrowanej. Linki w e-mailach, wiadomościach czatu i raportach prowadzą do konsoli pod adresem, z którego otwierasz ją w przeglądarce (lub ustawionym przez <code>--public-url</code>).</p>
 
 <h2>Slack, Microsoft Teams i webhooki</h2>

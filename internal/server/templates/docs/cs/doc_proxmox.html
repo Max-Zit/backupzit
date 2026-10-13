@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>Do minuty se uzel objeví na stránce Agenti se štítkem <b>Proxmox VE · N guests</b>.</li>
-  <li>V <a href="/jobs">Úlohy zálohování</a> vyberte tohoto agenta a zvolte <b>Virtuální počítače (Proxmox VE, Hyper-V, VMware)</b>. Zálohujte <b>všechny hosty uzlu</b> (hosté vytvoření později se zahrnou automaticky) nebo zaškrtněte jednotlivé.</li>
+  <li>V <a href="/jobs">Úlohy zálohování</a> vyberte tohoto agenta a zvolte <b>Virtuální počítače (Proxmox VE, Hyper-V, VMware)</b>. Potom zvolte <b>Všechny VM (a kontejnery) na hostiteli</b> (hosté vytvoření později se zahrnou automaticky) nebo zaškrtněte jednotlivé.</li>
 </ol>
 <p>Agent používá vlastní nástroje uzlu (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); v konzoli se neukládá žádný API token ani heslo.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Volby úložiště jsou stejné jako u všech příkazů (viz <a href="/docs/cli">Příkazový řádek — reference</a>). Příkazový řádek funguje bez konzole, například pro obnovu celého uzlu po havárii.</p>
 
 <h2>Clustery</h2>
-<p>Nainstalujte agenta na každý uzel. Úloha zálohuje hosty běžící na uzlu svého agenta; host uvedený v úloze, který byl migrován na jiný uzel, se ohlásí jako varování s názvem toho uzlu — zálohujte každý uzel vlastní úlohou, nebo na každém uzlu použijte <i>všechny hosty uzlu</i>, aby byli migrovaní hosté vždy pokryti.</p>
+<p>Nainstalujte agenta na každý uzel. Úloha zálohuje hosty běžící na uzlu svého agenta; host uvedený v úloze, který byl migrován na jiný uzel, se ohlásí jako varování s názvem toho uzlu — zálohujte každý uzel vlastní úlohou, nebo na každém uzlu použijte <i>Všechny VM (a kontejnery) na hostiteli</i>, aby byli migrovaní hosté vždy pokryti.</p>
 
 <h2>Obnova jednotlivých souborů</h2>
 <p>V tabulce hostů běhu zálohy VM klikněte na <b>Procházet soubory</b>. Konzole čte disk přímo ze zálohy — nic se předem neobnovuje — a ukáže jeho oddíly a logické svazky LVM; procházet lze NTFS (Windows), ext2/3/4 a XFS (Linux), i uvnitř LVM. Zaškrtněte soubory a složky a:</p>

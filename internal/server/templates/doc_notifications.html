@@ -21,6 +21,16 @@
   <li><b>Successes</b> — every successful run (usually too much; prefer the daily report).</li>
   <li><b>Daily report</b> — at the chosen hour: runs of the last 24 hours, problems and offline agents. Subject starts with <i>OK</i>, <i>WARNINGS</i> or <i>ATTENTION</i>, so mail rules can sort them.</li>
 </ul>
+<p>With <b>Failures</b> on, a job that misses its recovery point objective (RPO) is reported too — once, and again only after it met it in between. Runs stopped by a user (status <i>cancelled</i>) send no failure email; a run stopped by its time limit does.</p>
+<p>Independent of these options, the notification recipients also get an email when:</p>
+<ul>
+  <li>a change waits for approval by a second user (four-eyes approval);</li>
+  <li>two machines use one agent enrollment;</li>
+  <li>the audit log was changed;</li>
+  <li>the backup of the console itself failed;</li>
+  <li>renewing the HTTPS certificate for browsers failed;</li>
+  <li>an address was blocked after too many failed sign-ins (can be turned off under brute-force protection).</li>
+</ul>
 <p>For weekly or monthly summaries use <a href="/docs/monitoring">scheduled reports</a>; they are sent with the same mail settings and have their own recipients. Subjects start with <code>[BackupZit]</code> so mail rules can sort them. The SMTP password is stored encrypted. Links in emails, chat messages and reports lead to the console at the address you open it with in the browser (or the address set with <code>--public-url</code>).</p>
 
 <h2>Slack, Microsoft Teams and webhooks</h2>

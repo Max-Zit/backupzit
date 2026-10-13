@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Primeiros passos</h1>
-<p class="lead">O BackupZit protege máquinas Windows e Linux, máquinas virtuais Proxmox VE, Hyper-V e VMware ESXi, bancos de dados (SQL Server, PostgreSQL, MySQL/MariaDB) e compartilhamentos NAS — arquivos, discos inteiros e sistemas inteiros — a partir de uma console web que funciona na sua própria rede.</p>
+<p class="lead">O BackupZit protege máquinas Windows e Linux, máquinas virtuais Proxmox VE, Hyper-V e VMware ESXi, bancos de dados (SQL Server, PostgreSQL, MySQL/MariaDB), compartilhamentos NAS e Microsoft 365 — arquivos, discos inteiros, sistemas inteiros e caixas de correio — a partir de uma console web que funciona na sua própria rede.</p>
 
 <h2>O que o BackupZit protege</h2>
 <table>
@@ -13,6 +13,7 @@
   <tr><td>NAS e compartilhamentos de arquivos (SMB, NFS)</td><td>Nenhum software no NAS: um agente em qualquer máquina lê o compartilhamento. <a href="/docs/jobs">Tarefas de backup</a></td><td>Arquivos e pastas de volta ao compartilhamento, para uma pasta ou como download.</td></tr>
   <tr><td>Bancos de dados: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agente na máquina do banco de dados; as ferramentas do próprio servidor, backups completos e de log. <a href="/docs/sql">Bancos de dados</a></td><td>Um banco individual com um novo nome ou no local, em qualquer momento coberto pelos backups de log.</td></tr>
   <tr><td>VMs e contêineres Proxmox VE</td><td>Agente no host Proxmox, <b>nenhum agente dentro dos convidados</b>; a partir de snapshots do Proxmox, só os blocos alterados são enviados. <a href="/docs/proxmox">Proxmox VE</a></td><td>Convidado inteiro como novo ou no local, em qualquer nó e armazenamento; VMs instantaneamente a partir do backup (recuperação instantânea, também no VMware ESXi); arquivos individuais dos discos da VM (NTFS, ext4, XFS, LVM) por download ou para um agente.</td></tr>
+  <tr><td>Microsoft 365</td><td>Qualquer agente com acesso à internet lê e-mails, calendários e contatos do Exchange Online, OneDrive e SharePoint pelo Microsoft Graph com permissões somente leitura; nada é instalado no tenant. <a href="/docs/m365">Microsoft 365</a></td><td>Navegar e baixar mensagens (.eml) e arquivos, ou restaurá-los em uma pasta de um agente.</td></tr>
 </table>
 
 <h2>Como o BackupZit funciona</h2>
@@ -38,18 +39,18 @@
 <h2>A console num relance</h2>
 <table>
   <tr><th>Página</th><th>Para que serve</th></tr>
-  <tr><td><a href="/">Painel</a></td><td>O estado num relance: o que está protegido, o que requer atenção, agentes online, falhas nas últimas 24 horas, backups suspeitos, atividade recente.</td></tr>
+  <tr><td><a href="/">Painel</a></td><td>O estado num relance: o que está protegido, quantas tarefas cumprem o seu RPO, o que requer atenção, agentes online, falhas nas últimas 24 horas, backups suspeitos, atividade recente.</td></tr>
   <tr><td><a href="/jobs">Tarefas de backup</a></td><td>Tarefas de arquivos, compartilhamentos NAS, imagens de disco, sistemas Linux, máquinas virtuais, bancos de dados e cópias de backup: criar, editar, executar, testar restauração, desativar, excluir. A lista mostra o tipo de cada tarefa, as VMs ou bancos que protege, a próxima execução, o último resultado e o número de pontos de restauração; filtre por tipo ou pesquise. A página de uma tarefa lista as VMs ou bancos do seu backup mais recente com links para restaurá-los.</td></tr>
   <tr><td><a href="/restore">Restaurar</a></td><td>Assistente de restauração: escolha o que restaurar (VM, arquivos, imagem de disco, banco de dados, sistema Linux), a origem, o ponto de restauração e as opções. Veja <a href="/docs/restore">Restauração</a>.</td></tr>
-  <tr><td><a href="/runs">Atividade</a></td><td>Cada backup, cópia, teste de restauração e restauração com detalhes, estatísticas e erros. Restaurações e navegação de arquivos também podem ser iniciadas aqui.</td></tr>
+  <tr><td><a href="/runs">Atividade</a></td><td>Cada backup, cópia, teste de restauração e restauração com detalhes, estatísticas e erros. Restaurações e navegação de arquivos também podem ser iniciadas aqui, e execuções na fila ou em andamento paradas — uma a uma ou todas de uma vez.</td></tr>
   <tr><td><a href="/calendar">Calendário</a></td><td>O que foi executado nos dias passados e o que está agendado para o futuro.</td></tr>
-  <tr><td><a href="/reports">Relatórios</a></td><td>Taxas de sucesso e volumes de dados para qualquer período, exportação CSV, relatórios enviados por e-mail e agendados.</td></tr>
+  <tr><td><a href="/reports">Relatórios</a></td><td>Taxas de sucesso e volumes de dados para qualquer período, exportação PDF e CSV, relatórios enviados por e-mail e agendados.</td></tr>
   <tr><td><a href="/agents">Agentes</a></td><td>Máquinas protegidas com endereços IP e versões, códigos de registro, instaladores e atualizações de agentes.</td></tr>
   <tr><td><a href="/targets">Armazenamento</a></td><td>Onde os backups são guardados, criptografia e chaves de recuperação, imutabilidade, espaço usado com a sua previsão.</td></tr>
   <tr><td><a href="/recovery">Mídia de recuperação</a></td><td>ISOs de recuperação (Windows para imagens de disco, Linux para sistemas Linux) e códigos de recuperação para restaurações bare metal.</td></tr>
   <tr><td><a href="/approvals">Aprovações</a></td><td>Aparece quando a aprovação de quatro olhos está ativa: alterações que aguardam um segundo usuário. Veja <a href="/docs/users">Usuários, funções e LDAP</a>.</td></tr>
   <tr><td><a href="/users">Usuários</a></td><td>Contas, funções, tokens de API de todos os usuários, log de auditoria.</td></tr>
-  <tr><td><a href="/settings/email">Configurações</a></td><td>Notificações por e-mail; Slack, Teams e webhooks; sessões de login, política de dois fatores, proteção contra força bruta, aprovação de quatro olhos e segredos guardados; testes de restauração; o certificado HTTPS para navegadores; no appliance, a sua rede (endereço, nome do servidor, SSH — veja <a href="/docs/install#setup-menu">Instalação</a>); atualizações do BackupZit e do sistema operacional; backup da própria console; LDAP / Active Directory; logon único com SAML ou OpenID Connect.</td></tr>
+  <tr><td><a href="/settings/email">Configurações</a></td><td>Notificações por e-mail; Slack, Teams e webhooks; sessões de login, política de dois fatores, proteção contra força bruta, aprovação de quatro olhos e segredos guardados; testes de restauração; o certificado HTTPS para navegadores; no appliance, a sua rede (endereço, nome do servidor, SSH — veja <a href="/docs/install#setup-menu">Instalação</a>); atualizações do BackupZit e do sistema operacional; backup da própria console; LDAP / Active Directory; logon único com SAML ou OpenID Connect; diagnóstico: o log do console e um zip para pedidos de suporte.</td></tr>
   <tr><td><a href="/account">Minha conta</a> (o seu nome, no canto superior direito)</td><td>O seu perfil e função, senha, autenticação de dois fatores, tokens de API.</td></tr>
   <tr><td><a href="/docs">Documentação</a></td><td>Este guia.</td></tr>
 </table>
@@ -63,6 +64,7 @@
 <p>Cada backup cria um <i>snapshot</i>: uma imagem completa e navegável dos dados naquele momento. Os arquivos são divididos em pedaços de tamanho variável e os discos em blocos, e cada pedaço é guardado só uma vez, de modo que o segundo backup e os seguintes só enviam o que mudou — e mesmo assim cada snapshot pode ser restaurado sozinho. Não há nenhuma «cadeia completa/incremental» para gerenciar.</p>
 <h3>Repositórios</h3>
 <p>Cada agente grava no seu próprio <i>repositório</i> sob o local do destino de armazenamento (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). Um repositório é autossuficiente: com o local, as credenciais do armazenamento e a chave de recuperação, pode ser restaurado mesmo que a console já não exista.</p>
+<p>Os backups do Microsoft 365 são guardados por tenant (<code>m365-&lt;tenant&gt;</code>) e os do VMware ESXi por host, então o agente que os lê pode ser substituído sem recomeçar do zero.</p>
 <h3>Retenção</h3>
 <p>Cada tarefa mantém um número de backups recentes, diários, semanais e mensais. Os snapshots mais antigos são removidos após cada execução e o espaço que usavam é liberado.</p>
 <h3>O que o BackupZit verifica por você</h3>
@@ -70,6 +72,8 @@
   <li><b>Testes de restauração</b> — o backup mais recente de cada tarefa é parcialmente restaurado e verificado semanalmente (<a href="/docs/restore">Restauração</a>).</li>
   <li><b>Detecção de ransomware</b> — backups incomuns (alterações em massa, dados criptografados, exclusão em massa, saltos súbitos do volume de dados) são sinalizados e a retenção é pausada (<a href="/docs/ransomware">Proteção contra ransomware</a>).</li>
   <li><b>Alertas e relatórios</b> — e-mails em caso de falha e um resumo diário; relatórios agendados para a gestão (<a href="/docs/notifications">Notificações por e-mail</a>, <a href="/docs/monitoring">Monitoramento</a>).</li>
+  <li><b>Objetivos de ponto de recuperação</b> — uma tarefa cujo backup bom mais recente fica mais antigo que o seu RPO aparece no painel e é informada uma vez por e-mail e chat (<a href="/docs/jobs#rpo">Tarefas de backup</a>).</li>
+  <li><b>Verificações de dados</b> — uma vez por mês cada repositório é lido por completo e verificado, o que encontra danos no próprio armazenamento (<a href="/docs/restore#data-check">Restauração</a>).</li>
 </ul>
 
 <h2>Licença e suporte</h2>

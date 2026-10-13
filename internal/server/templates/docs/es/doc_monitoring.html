@@ -5,6 +5,7 @@
 <h2>Panel</h2>
 <p>Las primeras tarjetas cuentan lo que está protegido: <b>máquinas</b> (copias de archivos, imágenes y sistemas), <b>VM</b>, <b>bases de datos</b> y <b>recursos NAS</b> (se muestran en cuanto hay uno), cada uno con una copia correcta. <b>Requiere atención</b> muestra lo que hay que revisar: trabajos cuya última ejecución falló, trabajos que no cumplieron su programación (sin éxito desde la penúltima ejecución programada; se tienen en cuenta los fines de semana y las ventanas horarias de la programación), agentes que llevan 15 minutos sin conectarse, destinos de almacenamiento llenos al 90 % o que se llenarán en 30 días (consulte <a href="/docs/storage">Destinos de almacenamiento</a>) y cambios pendientes de la aprobación de un segundo usuario. Si no aparece nada, todo está bien.</p>
 <p>Las demás tarjetas muestran los agentes en línea, los trabajos de copia, los destinos de almacenamiento, las ejecuciones en cola y en curso, las ejecuciones, fallos y advertencias de las últimas 24 horas, y las <b>copias sospechosas por revisar</b> (posible ransomware, consulte <a href="/docs/ransomware">Protección contra ransomware</a>). Verde significa bien, amarillo que hay que mirar, rojo que hay que actuar. Debajo está la actividad más reciente.</p>
+<p>La tarjeta <b>trabajos dentro del RPO</b> cuenta los trabajos cuya copia buena más reciente es más nueva que su objetivo de punto de recuperación (vea <a href="/docs/jobs#rpo">Trabajos de copia</a>); un trabajo que lo incumplió aparece también en <b>Requiere atención</b>. Esa lista avisa además cuando la cuenta <code>admin</code> conserva su contraseña inicial generada y cuando dos equipos usan un mismo registro de agente (vea <a href="/docs/agents">Agentes</a>). Las VM que se ejecutan desde una copia (recuperación instantánea) se muestran sobre las tarjetas hasta que se finalizan o descartan.</p>
 
 <h2>Actividad</h2>
 <p>Todas las ejecuciones, las más recientes primero. Haga clic en una ejecución para ver los detalles: qué se procesó, estadísticas, errores por archivo y, en las copias, las opciones de restauración. Las ejecuciones en curso se actualizan solas. Las ejecuciones programadas muestran un icono de reloj.</p>
@@ -23,6 +24,8 @@
   <tr><td>copy</td><td>Trabajo de copia secundaria: copias de otro trabajo copiadas a un segundo almacenamiento.</td></tr>
   <tr><td>verify</td><td><a href="/docs/restore">Prueba de restauración</a> automática o manual.</td></tr>
   <tr><td>restore, image-restore, image-file-restore</td><td>Restauraciones de archivos, de un disco completo o de archivos de una imagen.</td></tr>
+  <tr><td>repo-check</td><td>Verificación de datos: un agente lee todos los datos de un repositorio y los verifica (vea <a href="/docs/restore#data-check">Restauración</a>).</td></tr>
+  <tr><td>agent-log</td><td>El registro que un agente envió a petición (<b>Obtener registro</b> en la página Agentes).</td></tr>
 </table>
 <h3>Estado</h3>
 <table>
@@ -34,6 +37,7 @@
   <tr><td>{{template "status" "failed"}}</td><td>No se completó: almacenamiento inaccesible, credenciales erróneas, disco lleno, disco USB no conectado, la prueba de restauración encontró datos dañados… El mensaje explica el motivo.</td></tr>
   <tr><td><span class="badge">caducado</span></td><td>La retención del trabajo eliminó la instantánea.</td></tr>
   <tr><td><span class="badge failed"><i></i>sospechosa</span></td><td>La copia parece ransomware o un borrado masivo; la retención del trabajo queda en pausa hasta que se revise. Amarilla una vez revisada.</td></tr>
+  <tr><td>{{template "status" "cancelled"}}</td><td>Detenida por un usuario, sola o con <b>Cancelar todo lo que está en cola o en curso</b>. No cuenta como fallo ni envía correo de fallo; una ejecución detenida por su límite de tiempo, en cambio, falla.</td></tr>
 </table>
 
 <h2>Calendario</h2>
@@ -64,6 +68,6 @@
   <li><b>Semanal</b>: cada lunes, sobre la semana anterior.</li>
   <li><b>Mensual</b>: el día 1, sobre el mes anterior (ideal para clientes o la dirección).</li>
 </ul>
-<p>Elija la hora, el alcance (todos los agentes, un agente o un trabajo) y los destinatarios (vacío = los destinatarios de las notificaciones). Se adjunta el CSV con todas las ejecuciones. El correo debe estar configurado en <a href="/settings/email">Configuración → Notificaciones por correo</a>. Crear y eliminar informes programados requiere el rol Operador de copias o Administrador.</p>
+<p>Elija la hora, el alcance (todos los agentes, un agente o un trabajo) y los destinatarios (vacío = los destinatarios de las notificaciones). Se adjuntan el informe PDF y el CSV con todas las ejecuciones. El correo debe estar configurado en <a href="/settings/email">Configuración → Notificaciones por correo</a>. Crear y eliminar informes programados requiere el rol Operador de copias o Administrador.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

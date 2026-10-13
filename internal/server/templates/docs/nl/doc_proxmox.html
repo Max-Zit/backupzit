@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>Binnen een minuut verschijnt de node op de pagina Agents met het label <b>Proxmox VE · N guests</b>.</li>
-  <li>Selecteer in <a href="/jobs">Back-uptaken</a> die agent en kies <b>Virtuele machines (Proxmox VE, Hyper-V, VMware)</b>. Maak een back-up van <b>alle gasten van de node</b> (later aangemaakte gasten worden automatisch opgenomen) of vink er enkele aan.</li>
+  <li>Selecteer in <a href="/jobs">Back-uptaken</a> die agent en kies <b>Virtuele machines (Proxmox VE, Hyper-V, VMware)</b>. Kies daarna <b>Alle VM's (en containers) op de host</b> (later aangemaakte gasten worden automatisch opgenomen) of vink er enkele aan.</li>
 </ol>
 <p>De agent gebruikt de eigen tools van de node (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); er wordt geen API-token of wachtwoord in de console opgeslagen.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>De repository-opties zijn dezelfde als bij alle opdrachten (zie <a href="/docs/cli">Opdrachtregelreferentie</a>). De opdrachtregel werkt zonder de console, bijvoorbeeld om na een ramp een hele node te herstellen.</p>
 
 <h2>Clusters</h2>
-<p>Installeer de agent op elke node. Een taak maakt een back-up van de gasten die op de node van zijn agent draaien; een gast in een taak die naar een andere node is gemigreerd, wordt gemeld als waarschuwing met de naam van die node — maak van elke node een back-up met een eigen taak, of gebruik <i>alle gasten van de node</i> op elke node, zodat gemigreerde gasten altijd gedekt zijn.</p>
+<p>Installeer de agent op elke node. Een taak maakt een back-up van de gasten die op de node van zijn agent draaien; een gast in een taak die naar een andere node is gemigreerd, wordt gemeld als waarschuwing met de naam van die node — maak van elke node een back-up met een eigen taak, of gebruik <i>Alle VM's (en containers) op de host</i> op elke node, zodat gemigreerde gasten altijd gedekt zijn.</p>
 
 <h2>Losse bestanden herstellen</h2>
 <p>Klik in de gastentabel van een VM-back-uprun op <b>Bestanden bladeren</b>. De console leest de schijf rechtstreeks uit de back-up — er wordt vooraf niets hersteld — en toont de partities en logische LVM-volumes; NTFS (Windows), ext2/3/4 en XFS (Linux) kunnen worden gebladerd, ook binnen LVM. Vink bestanden en mappen aan en:</p>

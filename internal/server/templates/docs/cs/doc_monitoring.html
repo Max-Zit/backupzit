@@ -5,6 +5,7 @@
 <h2>Přehled</h2>
 <p>První karty počítají, co je chráněné: <b>počítače</b> (zálohy souborů, obrazů a systémů), <b>VM</b>, <b>databáze</b> a <b>sdílené složky NAS</b> (zobrazí se, jakmile nějaká existuje), každé s úspěšnou zálohou. <b>Vyžaduje pozornost</b> vypisuje, na co se podívat: úlohy, jejichž poslední běh selhal, úlohy, které vynechaly plán (žádný úspěch od předposledního plánovaného běhu — víkendy a časová okna plánu se berou v úvahu), agenty, kteří se 15 minut nepřipojili, cílová úložiště zaplněná na 90 % nebo taková, která se zaplní do 30 dní (viz <a href="/docs/storage">Cílová úložiště</a>), a změny čekající na schválení druhým uživatelem. Když není nic uvedeno, vše je v pořádku.</p>
 <p>Ostatní karty ukazují agenty online, úlohy zálohování, cílová úložiště, běhy ve frontě a probíhající, běhy, chyby a varování za posledních 24 hodin a <b>podezřelé zálohy ke kontrole</b> (možný ransomware, viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>). Zelená znamená v pořádku, žlutá je třeba se podívat, červená je třeba jednat. Pod nimi je nejnovější aktivita.</p>
+<p>Karta <b>úloh v rámci RPO</b> počítá úlohy, jejichž nejnovější dobrá záloha je mladší než jejich cíl bodu obnovy (viz <a href="/docs/jobs#rpo">Úlohy zálohování</a>); úloha, která ho nedodržela, je uvedena i v <b>Vyžaduje pozornost</b>. Tento seznam také upozorní, když účet <code>admin</code> má stále vygenerované počáteční heslo a když dva počítače používají jednu registraci agenta (viz <a href="/docs/agents">Agenti</a>). VM spuštěné ze zálohy (okamžitá obnova) se zobrazují nad kartami, dokud nejsou dokončeny nebo zahozeny.</p>
 
 <h2>Aktivita</h2>
 <p>Každý běh, nejnovější první. Klikněte na běh pro podrobnosti: co bylo zpracováno, statistika, chyby podle souborů a — u záloh — možnosti obnovy. Probíhající běhy se obnovují automaticky. Plánované běhy mají ikonu hodin.</p>
@@ -23,6 +24,8 @@
   <tr><td>copy</td><td>Úloha kopírování záloh: zálohy jiné úlohy zkopírované na druhé úložiště.</td></tr>
   <tr><td>verify</td><td>Automatický nebo ruční <a href="/docs/restore">test obnovy</a>.</td></tr>
   <tr><td>restore, image-restore, image-file-restore</td><td>Obnovy souborů, celého disku nebo souborů z obrazu.</td></tr>
+  <tr><td>repo-check</td><td>Kontrola dat: agent přečte všechna data repozitáře a ověří je (viz <a href="/docs/restore#data-check">Obnova</a>).</td></tr>
+  <tr><td>agent-log</td><td>Protokol, který agent poslal na vyžádání (<b>Získat protokol</b> na stránce Agenti).</td></tr>
 </table>
 <h3>Stav</h3>
 <table>
@@ -34,6 +37,7 @@
   <tr><td>{{template "status" "failed"}}</td><td>Nedokončeno — úložiště nedostupné, chybné přihlašovací údaje, plný disk, nepřipojený USB disk, test obnovy našel poškozená data… Zpráva vysvětluje proč.</td></tr>
   <tr><td><span class="badge">vypršelo</span></td><td>Snímek odstranilo uchovávání úlohy.</td></tr>
   <tr><td><span class="badge failed"><i></i>podezřelá</span></td><td>Záloha vypadá jako ransomware nebo hromadné mazání; uchovávání úlohy je pozastavené, dokud se nezkontroluje. Po kontrole žlutá.</td></tr>
+  <tr><td>{{template "status" "cancelled"}}</td><td>Zastaveno uživatelem, jednotlivě nebo pomocí <b>Zrušit vše čekající a běžící</b>. Nepočítá se jako selhání a neposílá e-mail o selhání; běh zastavený časovým limitem je naopak neúspěšný.</td></tr>
 </table>
 
 <h2>Kalendář</h2>
@@ -64,6 +68,6 @@
   <li><b>Týdně</b> — každé pondělí, o předchozím týdnu.</li>
   <li><b>Měsíčně</b> — prvního dne, o předchozím měsíci (ideální pro zákazníky nebo vedení).</li>
 </ul>
-<p>Zvolte hodinu, rozsah (všichni agenti, jeden agent nebo jedna úloha) a příjemce (prázdné = příjemci oznámení). CSV se všemi běhy je v příloze. E-mail musí být nastaven v <a href="/settings/email">Nastavení → E-mailová oznámení</a>. Vytváření a odebírání plánovaných sestav vyžaduje roli Operátor záloh nebo Správce.</p>
+<p>Zvolte hodinu, rozsah (všichni agenti, jeden agent nebo jedna úloha) a příjemce (prázdné = příjemci oznámení). V příloze je sestava PDF a CSV se všemi běhy. E-mail musí být nastaven v <a href="/settings/email">Nastavení → E-mailová oznámení</a>. Vytváření a odebírání plánovaných sestav vyžaduje roli Operátor záloh nebo Správce.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Getting started</h1>
-<p class="lead">BackupZit protects Windows and Linux machines, Proxmox VE, Hyper-V and VMware ESXi virtual machines, databases (SQL Server, PostgreSQL, MySQL/MariaDB) and NAS shares — files, whole disks and whole systems — from one web console that runs on your own network.</p>
+<p class="lead">BackupZit protects Windows and Linux machines, Proxmox VE, Hyper-V and VMware ESXi virtual machines, databases (SQL Server, PostgreSQL, MySQL/MariaDB), NAS shares and Microsoft 365 — files, whole disks, whole systems and mailboxes — from one web console that runs on your own network.</p>
 
 <h2>What BackupZit protects</h2>
 <table>
@@ -13,6 +13,7 @@
   <tr><td>NAS and file shares (SMB, NFS)</td><td>No software on the NAS: an agent on any machine reads the share. <a href="/docs/jobs">Backup jobs</a></td><td>Files and folders back onto the share, into a folder or as a download.</td></tr>
   <tr><td>Databases: SQL Server, PostgreSQL, MySQL/MariaDB</td><td>Agent on the database machine; the server's own tools, full and log backups. <a href="/docs/sql">Databases</a></td><td>A single database under a new name or in place, to any point in time covered by log backups.</td></tr>
   <tr><td>Proxmox VE VMs and containers</td><td>Agent on the Proxmox host, <b>no agent inside the guests</b>; from Proxmox snapshots, only changed blocks uploaded. <a href="/docs/proxmox">Proxmox VE</a></td><td>Whole guest as new or in place, on any node and storage; VMs instantly from the backup (instant recovery, also on VMware ESXi); single files from VM disks (NTFS, ext4, XFS, LVM) by download or to an agent.</td></tr>
+  <tr><td>Microsoft 365</td><td>Any agent with internet access reads Exchange Online mail, calendars and contacts, OneDrive and SharePoint through Microsoft Graph with read-only permissions; nothing is installed in the tenant. <a href="/docs/m365">Microsoft 365</a></td><td>Browse and download messages (.eml) and files, or restore them into a folder on an agent.</td></tr>
 </table>
 
 <h2>How BackupZit works</h2>
@@ -38,18 +39,18 @@
 <h2>The console at a glance</h2>
 <table>
   <tr><th>Page</th><th>What it is for</th></tr>
-  <tr><td><a href="/">Dashboard</a></td><td>Health at a glance: what is protected, what needs attention, agents online, failures in the last 24 hours, suspicious backups, recent activity.</td></tr>
+  <tr><td><a href="/">Dashboard</a></td><td>Health at a glance: what is protected, how many jobs are within their RPO, what needs attention, agents online, failures in the last 24 hours, suspicious backups, recent activity.</td></tr>
   <tr><td><a href="/jobs">Backup jobs</a></td><td>File, NAS share, disk image, Linux system, virtual machine, database and backup copy jobs: create, edit, run, test restore, disable, delete. The list shows each job's type, the VMs or databases it protects, the next run, the last result and the number of restore points; filter it by type or search it. A job's page lists the VMs or databases of its newest backup with links to restore them.</td></tr>
   <tr><td><a href="/restore">Restore</a></td><td>Restore wizard: choose what to restore (VM, files, disk image, database, Linux system), the source, the restore point and the options. See <a href="/docs/restore">Restoring</a>.</td></tr>
-  <tr><td><a href="/runs">Activity</a></td><td>Every backup, copy, restore test and restore with details, statistics and errors. Restores and file browsing can also be started here.</td></tr>
+  <tr><td><a href="/runs">Activity</a></td><td>Every backup, copy, restore test and restore with details, statistics and errors. Restores and file browsing can also be started here, and queued or running runs stopped — one by one or all at once.</td></tr>
   <tr><td><a href="/calendar">Calendar</a></td><td>What ran on past days and what is scheduled to run in the future.</td></tr>
-  <tr><td><a href="/reports">Reports</a></td><td>Success rates and data volumes for any period, CSV export, emailed and scheduled reports.</td></tr>
+  <tr><td><a href="/reports">Reports</a></td><td>Success rates and data volumes for any period, PDF and CSV export, emailed and scheduled reports.</td></tr>
   <tr><td><a href="/agents">Agents</a></td><td>Protected machines with IP addresses and versions, enrollment codes, installers and agent updates.</td></tr>
   <tr><td><a href="/targets">Storage</a></td><td>Where backups are stored, encryption and recovery keys, immutability, used space with its forecast.</td></tr>
   <tr><td><a href="/recovery">Recovery media</a></td><td>Recovery ISOs (Windows for disk images, Linux for Linux systems) and recovery codes for bare-metal restores.</td></tr>
   <tr><td><a href="/approvals">Approvals</a></td><td>Shown when four-eyes approval is on: changes that wait for a second user. See <a href="/docs/users">Users, roles &amp; LDAP</a>.</td></tr>
   <tr><td><a href="/users">Users</a></td><td>Accounts, roles, API tokens of all users, audit log.</td></tr>
-  <tr><td><a href="/settings/email">Settings</a></td><td>Email notifications; Slack, Teams and webhooks; sign-in sessions, two-factor policy, brute-force protection, four-eyes approval and stored secrets; restore tests; the HTTPS certificate for browsers; on the appliance its network (address, server name, SSH — see <a href="/docs/install#setup-menu">Install</a>); updates of BackupZit and the operating system; backup of the console itself; LDAP / Active Directory; single sign-on with SAML or OpenID Connect.</td></tr>
+  <tr><td><a href="/settings/email">Settings</a></td><td>Email notifications; Slack, Teams and webhooks; sign-in sessions, two-factor policy, brute-force protection, four-eyes approval and stored secrets; restore tests; the HTTPS certificate for browsers; on the appliance its network (address, server name, SSH — see <a href="/docs/install#setup-menu">Install</a>); updates of BackupZit and the operating system; backup of the console itself; LDAP / Active Directory; single sign-on with SAML or OpenID Connect; diagnostics: the console log and a zip for support requests.</td></tr>
   <tr><td><a href="/account">My account</a> (your name, top right)</td><td>Your profile and role, password, two-factor authentication, API tokens.</td></tr>
   <tr><td><a href="/docs">Documentation</a></td><td>This guide.</td></tr>
 </table>
@@ -63,6 +64,7 @@
 <p>Every backup creates a <i>snapshot</i>: a complete, browsable picture of the data at that moment. Files are split into variable-size chunks and disks into blocks, and each piece is stored only once, so the second and later backups only upload what changed — yet every snapshot can be restored on its own. There is no "full vs. incremental chain" to manage.</p>
 <h3>Repositories</h3>
 <p>Each agent writes into its own <i>repository</i> below the storage target location (<code>&lt;location&gt;/&lt;hostname&gt;_&lt;id&gt;</code>). A repository is self-contained: with the location, the storage credentials and the recovery key, it can be restored even if the console is gone.</p>
+<p>Microsoft 365 backups are kept per tenant (<code>m365-&lt;tenant&gt;</code>) and VMware ESXi backups per host, so the agent that reads them can be replaced without starting over.</p>
 <h3>Retention</h3>
 <p>Each job keeps a number of recent, daily, weekly and monthly backups. Older snapshots are removed after each run and the space they used is freed.</p>
 <h3>What BackupZit checks for you</h3>
@@ -70,6 +72,8 @@
   <li><b>Restore tests</b> — every job's newest backup is partly restored and verified weekly (<a href="/docs/restore">Restoring</a>).</li>
   <li><b>Ransomware detection</b> — unusual backups (mass changes, encrypted data, mass deletion, sudden data volume jumps) are flagged and retention is paused (<a href="/docs/ransomware">Ransomware protection</a>).</li>
   <li><b>Alerts and reports</b> — emails for failures and a daily summary; scheduled reports for management (<a href="/docs/notifications">Email notifications</a>, <a href="/docs/monitoring">Monitoring</a>).</li>
+  <li><b>Recovery point objectives</b> — a job whose newest good backup gets older than its RPO is listed on the dashboard and reported once by email and chat (<a href="/docs/jobs#rpo">Backup jobs</a>).</li>
+  <li><b>Data checks</b> — once a month every repository is read completely and verified, which finds damage on the storage itself (<a href="/docs/restore#data-check">Restoring</a>).</li>
 </ul>
 
 <h2>License and support</h2>

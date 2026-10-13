@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>En moins d'une minute, le nœud apparaît sur la page Agents avec le badge <b>Proxmox VE · N guests</b>.</li>
-  <li>Dans <a href="/jobs">Tâches de sauvegarde</a>, sélectionnez cet agent et choisissez <b>Machines virtuelles (Proxmox VE, Hyper-V, VMware)</b>. Sauvegardez <b>tous les invités du nœud</b> (les invités créés plus tard sont inclus automatiquement) ou cochez-en certains.</li>
+  <li>Dans <a href="/jobs">Tâches de sauvegarde</a>, sélectionnez cet agent et choisissez <b>Machines virtuelles (Proxmox VE, Hyper-V, VMware)</b>. Choisissez ensuite <b>Toutes les VM (et conteneurs) de l’hôte</b> (les invités créés plus tard sont inclus automatiquement) ou cochez-en certains.</li>
 </ol>
 <p>L'agent utilise les outils propres au nœud (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph) ; aucun jeton d'API ni mot de passe n'est stocké dans la console.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>Les options du dépôt sont les mêmes que pour toutes les commandes (voir <a href="/docs/cli">Référence de la ligne de commande</a>). La ligne de commande fonctionne sans la console, par exemple pour restaurer un nœud entier après un sinistre.</p>
 
 <h2>Clusters</h2>
-<p>Installez l'agent sur chaque nœud. Une tâche sauvegarde les invités qui tournent sur le nœud de son agent ; un invité listé dans une tâche et migré vers un autre nœud est signalé par un avertissement nommant ce nœud — sauvegardez chaque nœud avec sa propre tâche, ou utilisez <i>tous les invités du nœud</i> sur chaque nœud pour que les invités migrés soient toujours couverts.</p>
+<p>Installez l'agent sur chaque nœud. Une tâche sauvegarde les invités qui tournent sur le nœud de son agent ; un invité listé dans une tâche et migré vers un autre nœud est signalé par un avertissement nommant ce nœud — sauvegardez chaque nœud avec sa propre tâche, ou utilisez <i>Toutes les VM (et conteneurs) de l’hôte</i> sur chaque nœud pour que les invités migrés soient toujours couverts.</p>
 
 <h2>Restaurer des fichiers individuels</h2>
 <p>Dans le tableau des invités d'une exécution de sauvegarde de VM, cliquez sur <b>Parcourir les fichiers</b>. La console lit le disque directement depuis la sauvegarde — rien n'est restauré au préalable — et affiche ses partitions et volumes logiques LVM ; NTFS (Windows), ext2/3/4 et XFS (Linux) peuvent être parcourus, y compris dans LVM. Cochez des fichiers et dossiers, puis :</p>

@@ -21,6 +21,16 @@
   <li><b>Úspěchy</b> — každý úspěšný běh (obvykle příliš mnoho; lepší je denní zpráva).</li>
   <li><b>Denní zpráva</b> — ve zvolenou hodinu: běhy za posledních 24 hodin, problémy a agenti offline. Předmět začíná <i>OK</i>, <i>WARNINGS</i> nebo <i>ATTENTION</i>, takže je pravidla pošty mohou třídit.</li>
 </ul>
+<p>Při zapnutých <b>Chybách</b> se ohlásí i úloha, která nedodrží svůj cíl bodu obnovy (RPO) — jednou a znovu až poté, co ho mezitím dodržela. Běhy zastavené uživatelem (stav <i>zrušeno</i>) neposílají e-mail o selhání; běh zastavený časovým limitem ano.</p>
+<p>Nezávisle na těchto volbách dostanou příjemci oznámení e-mail také, když:</p>
+<ul>
+  <li>změna čeká na schválení druhým uživatelem (princip čtyř očí);</li>
+  <li>dva počítače používají jednu registraci agenta;</li>
+  <li>byl změněn protokol auditu;</li>
+  <li>selhala záloha samotné konzole;</li>
+  <li>selhalo obnovení certifikátu HTTPS pro prohlížeče;</li>
+  <li>byla zablokována adresa po příliš mnoha neúspěšných přihlášeních (lze vypnout v ochraně proti útokům hrubou silou).</li>
+</ul>
 <p>Pro týdenní nebo měsíční souhrny použijte <a href="/docs/monitoring">plánované přehledy</a>; odesílají se se stejným nastavením pošty a mají vlastní příjemce. Předměty začínají <code>[BackupZit]</code>, takže je pravidla pošty mohou třídit. Heslo SMTP se ukládá šifrovaně. Odkazy v e-mailech, zprávách do chatu a sestavách vedou na konzoli na adrese, kterou ji otevíráte v prohlížeči (nebo na adrese nastavené přes <code>--public-url</code>).</p>
 
 <h2>Slack, Microsoft Teams a webhooky</h2>

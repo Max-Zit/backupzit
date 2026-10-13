@@ -9,7 +9,7 @@
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre></li>
   <li>Em até um minuto o nó aparece na página Agentes com o selo <b>Proxmox VE · N guests</b>.</li>
-  <li>Em <a href="/jobs">Tarefas de backup</a> selecione esse agente e escolha <b>Máquinas virtuais (Proxmox VE, Hyper-V, VMware)</b>. Faça backup de <b>todos os convidados do nó</b> (convidados criados depois são incluídos automaticamente) ou marque alguns.</li>
+  <li>Em <a href="/jobs">Tarefas de backup</a> selecione esse agente e escolha <b>Máquinas virtuais (Proxmox VE, Hyper-V, VMware)</b>. Depois escolha <b>Todas as VMs (e contêineres) do host</b> (convidados criados depois são incluídos automaticamente) ou marque alguns.</li>
 </ol>
 <p>O agente usa as ferramentas do próprio nó (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); nenhum token de API ou senha é armazenado no console.</p>
 
@@ -77,7 +77,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 <p>As opções de repositório são as mesmas de todos os comandos (veja <a href="/docs/cli">Referência da linha de comando</a>). A linha de comando funciona sem o console, por exemplo para restaurar um nó inteiro após um desastre.</p>
 
 <h2>Clusters</h2>
-<p>Instale o agente em cada nó. Uma tarefa faz backup dos convidados que rodam no nó do seu agente; um convidado listado em uma tarefa e migrado para outro nó é informado como aviso com o nome desse nó — faça backup de cada nó com sua própria tarefa, ou use <i>todos os convidados do nó</i> em cada nó para que convidados migrados estejam sempre cobertos.</p>
+<p>Instale o agente em cada nó. Uma tarefa faz backup dos convidados que rodam no nó do seu agente; um convidado listado em uma tarefa e migrado para outro nó é informado como aviso com o nome desse nó — faça backup de cada nó com sua própria tarefa, ou use <i>Todas as VMs (e contêineres) do host</i> em cada nó para que convidados migrados estejam sempre cobertos.</p>
 
 <h2>Restaurar arquivos avulsos</h2>
 <p>Na tabela de convidados de uma execução de backup de VM, clique em <b>Navegar pelos arquivos</b>. O console lê o disco diretamente do backup — nada é restaurado antes — e mostra suas partições e volumes lógicos LVM; NTFS (Windows), ext2/3/4 e XFS (Linux) podem ser navegados, também dentro de LVM. Marque arquivos e pastas e:</p>
