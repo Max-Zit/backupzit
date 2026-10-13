@@ -9,6 +9,11 @@ install -m 0644 backupzit-firstboot.service /etc/systemd/system/backupzit-firstb
 systemctl enable backupzit-firstboot.service
 # Automatic security updates (BackupZit shows their status under Settings → Updates).
 printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n' > /etc/apt/apt.conf.d/20auto-upgrades
+# Where to get the source code of the GPL software, and the exact Debian
+# packages of this installation.
+mkdir -p /usr/share/doc/backupzit
+install -m 0644 SOURCE-CODE.txt /usr/share/doc/backupzit/SOURCE-CODE.txt
+dpkg-query -W -f '${Package} ${Version}\n' > /usr/share/doc/backupzit/debian-packages.txt
 # The administrator chooses its own password at the first sign-in.
 chage -d 0 bzadmin
 usermod -aG sudo bzadmin

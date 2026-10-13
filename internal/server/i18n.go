@@ -281,7 +281,12 @@ func (s *Server) handleLanguage(w http.ResponseWriter, r *http.Request) {
 }
 
 // localPath tells whether p is a path on this console, safe to redirect to.
-// Browsers read "/\host" like "//host", another site.
+// Browsers read "/\host" like "//host", another site, and drop tabs and
+// line breaks ("/<tab>/host" is "//host" too), so control characters are
+// refused.
 func localPath(p string) bool {
-	return strings.HasPrefix(p, "/") && !strings.HasPrefix(p, "//") && !strings.ContainsAny(p, "\\\r\n")
+	if !strings.HasPrefix(p, "/") || strings.HasPrefix(p, "//") || strings.Contains(p, `\`) {
+		return false
+	}
+	return !strings.ContainsFunc(p, func(r rune) bool { return r < 0x20 || r == 0x7f })
 }

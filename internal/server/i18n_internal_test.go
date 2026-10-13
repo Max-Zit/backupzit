@@ -135,7 +135,8 @@ func TestCatalogs(t *testing.T) {
 }
 
 func TestLocalPathAndNames(t *testing.T) {
-	for p, want := range map[string]bool{"/jobs?q=1": true, "/": true, "": false, "//evil.example": false, `/\evil.example`: false, "https://evil.example": false, "/x\r\nSet-Cookie: a=b": false} {
+	for p, want := range map[string]bool{"/jobs?q=1": true, "/": true, "": false, "//evil.example": false, `/\evil.example`: false, "https://evil.example": false, "/x\r\nSet-Cookie: a=b": false,
+		"/\t/evil.example": false, "/x\x00": false, "/docs/jobs#rpo": true} {
 		if localPath(p) != want {
 			t.Errorf("localPath(%q) = %v", p, !want)
 		}

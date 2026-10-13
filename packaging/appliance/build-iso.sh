@@ -33,7 +33,9 @@ chmod -R u+w "$WORK/iso"
 
 # BackupZit files on the ISO (copied into the new system by the preseed).
 mkdir -p "$WORK/iso/backupzit"
-cp "$DEB" "$HERE/install.sh" "$HERE/backupzit-firstboot" "$HERE/backupzit-firstboot.service" "$WORK/iso/backupzit/"
+cp "$DEB" "$HERE/install.sh" "$HERE/backupzit-firstboot" "$HERE/backupzit-firstboot.service" "$HERE/SOURCE-CODE.txt" "$WORK/iso/backupzit/"
+# Where to get the source code of the GPL software on the ISO.
+cp "$HERE/SOURCE-CODE.txt" "$WORK/iso/"
 # IMAGE=1 builds the installer for VM images: marked for install.sh, and the
 # installer powers off instead of restarting.
 PRESEED="$HERE/preseed.cfg"

@@ -65,6 +65,13 @@ mkdir -p config/includes.chroot/usr/local/bin config/includes.chroot/etc/systemd
          config/includes.chroot/etc/systemd/system/getty@tty1.service.d config/includes.chroot/etc/profile.d config/hooks/live
 install -m 0755 "$AGENT" config/includes.chroot/usr/local/bin/backupzit-agent
 install -m 0755 "$SRC/bz-recovery-start" config/includes.chroot/usr/local/bin/bz-recovery-start
+# Where to get the source code of the GPL software, in the live system and on
+# the ISO (the hook below lists the exact Debian packages).
+SOURCES="$SRC/../appliance/SOURCE-CODE.txt"
+[ -f "$SOURCES" ] || SOURCES="$SRC/SOURCE-CODE.txt"
+mkdir -p config/includes.chroot/usr/share/doc/backupzit config/includes.binary
+install -m 0644 "$SOURCES" config/includes.chroot/usr/share/doc/backupzit/SOURCE-CODE.txt
+install -m 0644 "$SOURCES" config/includes.binary/SOURCE-CODE.txt
 cat > config/includes.chroot/etc/systemd/network/80-dhcp.network <<'NET'
 [Match]
 Name=en* eth*
@@ -89,6 +96,7 @@ cat > config/hooks/live/0100-backupzit.hook.chroot <<'HOOK'
 set -e
 systemctl enable systemd-networkd
 echo "BackupZit recovery @VERSION@" > /etc/backupzit-recovery
+dpkg-query -W -f '${Package} ${Version}\n' > /usr/share/doc/backupzit/debian-packages.txt
 HOOK
 sed -i "s/@VERSION@/$VERSION/" config/hooks/live/0100-backupzit.hook.chroot
 

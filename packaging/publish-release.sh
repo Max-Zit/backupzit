@@ -33,6 +33,9 @@ gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber packaging/insta
 # PE cannot be redistributed), and the Linux recovery ISO when built
 # (packaging/linux-recovery/build-iso.sh, on a Debian/Proxmox host).
 gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber packaging/winpe/build-winpe.ps1
+# Where to get the source code of the GPL software in the appliance images
+# and the recovery ISO (written offer).
+gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber packaging/appliance/SOURCE-CODE.txt
 if [ -f "dist/backupzit-recovery-linux-$VERSION.iso" ]; then
     cp "dist/backupzit-recovery-linux-$VERSION.iso" "dist/backupzit-recovery-linux.iso"
     gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber dist/backupzit-recovery-linux.iso

@@ -1,0 +1,39 @@
+BackupZit — source code of the software in this image
+=====================================================
+
+The BackupZit appliance images (ISO, OVA, qcow2, VHDX) and the BackupZit
+Linux recovery ISO contain BackupZit and a Debian GNU/Linux system.
+
+BackupZit
+---------
+BackupZit is free software under the GNU Affero General Public License v3.
+Its complete source code, for every release, is at
+
+    https://github.com/Max-Zit/backupzit   (tag v<version>)
+
+The licenses of the libraries and fonts built into BackupZit are listed in
+THIRD_PARTY_LICENSES.txt in that repository.
+
+Debian GNU/Linux
+----------------
+The operating system consists of unmodified Debian packages. Many of them
+(for example the Linux kernel, the GNU C library and coreutils) are licensed
+under the GNU General Public License or the GNU Lesser General Public
+License; the license of each package is in /usr/share/doc/<package>/copyright.
+
+The exact packages and versions of this image are listed in
+/usr/share/doc/backupzit/debian-packages.txt. Their source code is
+available from Debian:
+
+    https://deb.debian.org/debian/pool/          (current versions)
+    https://snapshot.debian.org/                 (every version ever published)
+
+or with "apt-get source <package>=<version>" on a Debian system.
+
+Written offer
+-------------
+For at least three years after we last distribute an image, MaxZit will give
+anyone who asks the complete corresponding source code of every program in
+it that is licensed under the GNU GPL or LGPL, on a physical medium or as a
+download, for no more than the cost of providing it. Ask through
+https://github.com/Max-Zit/backupzit/issues and name the image and version.
