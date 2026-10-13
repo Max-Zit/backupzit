@@ -1,6 +1,13 @@
 {{define "content"}}
 <h1>{{T "Activity"}}</h1>
+{{if and ($.Me.Can "run") $.Data.Cancellable}}{{$n := len $.Data.Cancellable}}
+<form method="post" action="/runs/cancel-all" class="panel inline-form noprint" data-confirm="{{T "Cancel the runs listed now as queued or running (%d)? Only these runs are cancelled: runs scheduled later today or on other days start as planned." $n}}">
+  {{range $.Data.Cancellable}}<input type="hidden" name="id" value="{{.ID}}">{{end}}
+  <span>{{T "Queued or running now: %d" $n}}</span>
+  <button class="danger">{{template "icon" "stop"}}{{T "Cancel all queued and running"}}</button>
+</form>
+{{end}}
 <div class="panel">
-  {{template "runtable" .Data}}
+  {{template "runtable" .Data.Runs}}
 </div>
 {{end}}

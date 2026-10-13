@@ -115,6 +115,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>Parar uma execução</h2>
 <p>Um backup, cópia ou restauração na fila ou em execução pode ser parado com <b>Cancelar</b> ou <b>Parar a execução</b> na página da execução, ou com <b>Parar a execução nº …</b> na página da tarefa. Uma execução na fila é cancelada na hora; uma em andamento é parada pelo agente em segundos — o comando antes do backup também é encerrado, e o comando depois do backup é executado mesmo assim. A execução recebe o status <b>cancelada</b> (mensagem "Cancelled by" e o nome do usuário): não conta como falha nos relatórios, não envia e-mail de falha e é registrada no log de auditoria. Um backup interrompido no meio não é usado para restaurações. Atualizações do agente não podem ser paradas.</p>
+<p>Para parar tudo de uma vez, use <b>Cancelar tudo na fila e em andamento</b> no topo de <a href="/runs">Atividade</a> e confirme. Somente as execuções listadas como na fila ou em andamento naquele momento são canceladas (as em andamento param em segundos); execuções agendadas para mais tarde hoje ou outros dias, e tarefas encadeadas, começam como planejado.</p>
 <p><b>Limite de tempo de uma execução (horas)</b>, em <b>Avançado</b> no formulário da tarefa, para um backup ou cópia da tarefa que demorar mais e o marca como falha; neste caso a notificação de falha é enviada. Vazio ou 0 significa sem limite. Se o agente não confirmar a parada em 10 minutos, o console marca a execução como falha.</p>
 
 <h2>Retenção pausada</h2>

@@ -37,7 +37,11 @@ document.addEventListener("click", function (e) {
 // Auto-refresh pages with active runs.
 document.addEventListener("DOMContentLoaded", function () {
   if (document.querySelector("[data-autorefresh]")) {
-    setTimeout(function () { location.reload(); }, 5000);
+    var timer = setTimeout(function () { location.reload(); }, 5000);
+    // A reload must not interrupt a form being sent (e.g. after a confirm).
+    document.addEventListener("submit", function (e) {
+      if (!e.defaultPrevented) clearTimeout(timer);
+    });
   }
 });
 

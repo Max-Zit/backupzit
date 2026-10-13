@@ -403,6 +403,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /runs/{id}", s.ui(PermView, s.handleRun))
 	mux.HandleFunc("POST /runs/{id}/restore", s.ui(PermRestore, s.handleRestore))
 	mux.HandleFunc("POST /runs/{id}/cancel", s.ui(PermRun, s.handleRunCancel))
+	mux.HandleFunc("POST /runs/cancel-all", s.ui(PermRun, s.handleRunsCancelAll))
 	mux.HandleFunc("GET /runs/{id}/files", s.ui(PermRestore, s.handleFileBrowse))
 	mux.HandleFunc("POST /runs/{id}/files-download", s.ui(PermRestore, s.handleFileDownload))
 	mux.HandleFunc("POST /runs/{id}/files-pick-restore", s.ui(PermRestore, s.handleFilePickRestore))
@@ -1145,7 +1146,7 @@ func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request, user string)
 		s.serverError(w, err)
 		return
 	}
-	s.render(w, r, "runs", pageData{Title: "Activity", Nav: "runs", User: user, Data: runs})
+	s.render(w, r, "runs", pageData{Title: "Activity", Nav: "runs", User: user, Data: map[string]any{"Runs": runs, "Cancellable": cancellableRuns(runs)}})
 }
 
 func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) {

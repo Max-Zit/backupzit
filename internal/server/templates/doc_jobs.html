@@ -115,6 +115,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>Stopping a run</h2>
 <p>A queued or running backup, copy or restore can be stopped with <b>Cancel</b> or <b>Stop run</b> on the run page, or <b>Stop run #…</b> on the job page. A waiting run is cancelled at once; a running one is stopped by the agent within seconds — the command before the backup is ended too, the command after the backup still runs. The run gets the status <b>cancelled</b> (message "Cancelled by" and the user's name): it does not count as a failure in reports, sends no failure email and is recorded in the audit log. A backup stopped halfway is not used for restores. Agent updates cannot be stopped.</p>
+<p>To stop everything at once, use <b>Cancel all queued and running</b> at the top of <a href="/runs">Activity</a> and confirm. Only the runs listed as queued or running at that moment are cancelled (running ones stop within seconds); runs scheduled later today or on other days, and chained jobs, start as planned.</p>
 <p><b>Time limit of a run (hours)</b> under <b>Advanced</b> in the job form stops a backup or copy of the job that runs longer and marks it as failed; this one does send the failure notification. Empty or 0 means no limit. If the agent does not confirm a stop within 10 minutes, the console marks the run as failed itself.</p>
 
 <h2>Retention paused</h2>

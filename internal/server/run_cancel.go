@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -148,6 +149,55 @@ func activeRuns(runs []Run) []Run {
 	var out []Run
 	for _, r := range runs {
 		if (r.Status == "queued" || r.Status == "running") && r.Kind != "agent-update" {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// maxCancelAll limits the runs one "cancel all" request may name.
+const maxCancelAll = 500
+
+// handleRunsCancelAll serves POST /runs/cancel-all: cancels the queued and
+// running runs that were listed on the Activity page when the user confirmed
+// (their ids are in the form), not runs queued since or scheduled later.
+func (s *Server) handleRunsCancelAll(w http.ResponseWriter, r *http.Request, _ string) {
+	const back = "/runs"
+	r.ParseForm()
+	ids := r.Form["id"]
+	if len(ids) == 0 || len(ids) > maxCancelAll {
+		redirectErr(w, r, back, errors.New("there are no queued or running runs to cancel"))
+		return
+	}
+	var cancelled, stopping, done int
+	for _, v := range ids {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			continue
+		}
+		queued, err := s.cancelRun(r, id)
+		switch {
+		case err != nil:
+			done++ // finished meanwhile, already stopping, or an agent update
+		case queued:
+			cancelled++
+		default:
+			stopping++
+		}
+	}
+	l := requestLanguage(r)
+	msg := l.T("Cancelled queued runs: %d. Running runs that stop within a few seconds: %d.", cancelled, stopping)
+	if done > 0 {
+		msg += " " + l.T("Not cancelled (finished meanwhile or cannot be stopped): %d.", done)
+	}
+	redirectMsg(w, r, back, msg)
+}
+
+// cancellableRuns are the active runs not already being stopped.
+func cancellableRuns(runs []Run) []Run {
+	var out []Run
+	for _, r := range activeRuns(runs) {
+		if r.CancelReason == nil || *r.CancelReason == "" {
 			out = append(out, r)
 		}
 	}

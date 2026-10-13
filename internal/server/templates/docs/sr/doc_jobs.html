@@ -115,6 +115,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, pre<
 
 <h2>Zaustavljanje run-a</h2>
 <p>Backup, kopija ili restore koji čeka ili radi može da se zaustavi dugmetom <b>Otkaži</b> ili <b>Zaustavi</b> na stranici run-a, ili <b>Zaustavi run #…</b> na stranici posla. Run koji čeka otkazuje se odmah; run koji radi agent zaustavlja za nekoliko sekundi — prekida se i komanda pre backup-a, a komanda posle backup-a se ipak izvršava. Run dobija status <b>otkazano</b> (poruka „Cancelled by“ i ime korisnika): ne računa se kao greška u izveštajima, ne šalje mejl o grešci i beleži se u audit logu. Backup prekinut na pola ne koristi se za restore. Ažuriranja agenta ne mogu da se zaustave.</p>
+<p>Da zaustavite sve odjednom, kliknite <b>Otkaži sve na čekanju i pokrenute</b> na vrhu stranice <a href="/runs">Aktivnost</a> i potvrdite. Otkazuju se samo izvršavanja koja su u tom trenutku na listi kao na čekanju ili pokrenuta (pokrenuta se zaustavljaju za nekoliko sekundi); izvršavanja zakazana kasnije danas ili drugih dana, kao i ulančani poslovi, počinju po planu.</p>
 <p><b>Najduže trajanje run-a (sati)</b> pod <b>Napredno</b> u formi posla zaustavlja backup ili kopiju koja traje duže i označava je kao neuspelu; za to se šalje obaveštenje o grešci. Prazno ili 0 znači bez ograničenja. Ako agent ne potvrdi zaustavljanje za 10 minuta, konzola sama označava run kao neuspeo.</p>
 
 <h2>Pauzirano čuvanje</h2>

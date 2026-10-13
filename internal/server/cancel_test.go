@@ -133,6 +133,64 @@ func TestCancelRuns(t *testing.T) {
 	if code, _ := apiCall(t, e, tok, "POST", fmt.Sprintf("/api/v1/runs/%d/cancel", runID)); code != 409 {
 		t.Errorf("API cancel of a finished run: %d", code)
 	}
+
+	// "Cancel all" on the Activity page cancels the runs listed there — one
+	// running, one queued — but not a run queued after the page was shown.
+	newJob := func(name string) int64 {
+		admin.do("POST", "/jobs", url.Values{"name": {name}, "kind": {"files"}, "agent_id": {fmt.Sprint(agents[0].ID)},
+			"target_id": {fmt.Sprint(target)}, "paths": {src}, "sched_kind": {"manual"}, "keep_last": {"5"}})
+		jobs, _ := e.store.ListJobs(ctx)
+		for _, x := range jobs {
+			if x.Name == name {
+				return x.ID
+			}
+		}
+		t.Fatalf("job %s not created", name)
+		return 0
+	}
+	running, _ := e.store.QueueBackup(ctx, j.ID, "manual")
+	if _, err := ag.PollOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(500 * time.Millisecond)
+	queued, _ := e.store.QueueBackup(ctx, newJob("second"), "manual")
+	_, _, body := admin.do("GET", "/runs", nil)
+	ids := regexp.MustCompile(`<input type="hidden" name="id" value="(\d+)">`).FindAllStringSubmatch(body, -1)
+	if !strings.Contains(body, `action="/runs/cancel-all"`) || len(ids) != 2 || !strings.Contains(body, "runs scheduled later today") {
+		t.Fatalf("activity page: cancel all form with %d runs", len(ids))
+	}
+	later, _ := e.store.QueueBackup(ctx, newJob("later"), "manual")
+	form := url.Values{}
+	for _, m := range ids {
+		form.Add("id", m[1])
+	}
+	if _, loc, _ := admin.do("POST", "/runs/cancel-all", form); !strings.Contains(loc, "msg=") || !strings.Contains(loc, "1") {
+		t.Fatalf("cancel all: %s", loc)
+	}
+	if r, _ := e.store.GetRun(ctx, queued); r.Status != "cancelled" {
+		t.Errorf("queued run after cancel all: %s", r.Status)
+	}
+	if r, _ := e.store.GetRun(ctx, later); r.Status != "queued" {
+		t.Errorf("run queued after the page was shown: %s", r.Status)
+	}
+	if _, err := ag.PollOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	ag.Wait()
+	if r, _ := e.store.GetRun(ctx, running); r.Status != "cancelled" || r.Message != "Cancelled by admin" {
+		t.Errorf("running run after cancel all: %s %q", r.Status, r.Message)
+	}
+	if _, loc, _ := admin.do("POST", "/runs/cancel-all", nil); !strings.Contains(loc, "err=") {
+		t.Errorf("cancel all without runs: %s", loc)
+	}
+	viewer := newClient(t, e)
+	admin.do("POST", "/users", url.Values{"username": {"vera"}, "password": {"viewer-pass-123"}, "password2": {"viewer-pass-123"}, "role": {"viewer"}})
+	viewer.login("vera", "viewer-pass-123")
+	if code, _, body := viewer.do("POST", "/runs/cancel-all", url.Values{"id": {fmt.Sprint(later)}}); code != 403 {
+		t.Errorf("viewer cancel all: %d", code)
+	} else if _, _, body = viewer.do("GET", "/runs", nil); strings.Contains(body, "cancel-all") {
+		t.Error("viewer sees the cancel all button")
+	}
 }
 
 // apiToken creates an API token with a role for the signed-in client.
