@@ -1917,5 +1917,6 @@
   "— a NAS (SMB), an SFTP server, S3 or Azure storage, or a hardened repository.": "— bir NAS (SMB), SFTP sunucusu, S3 veya Azure depolama ya da güçlendirilmiş depo.",
   "— choose —": "— seçin —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— bu sunucu kaybolursa komut satırı aracısıyla geri yüklemek için yalnızca anahtar ve depolama konumu gerekir.",
-  "— the user cannot sign in; open sessions end immediately": "— kullanıcı oturum açamaz; açık oturumlar hemen sona erer"
+  "— the user cannot sign in; open sessions end immediately": "— kullanıcı oturum açamaz; açık oturumlar hemen sona erer",
+  "— vCenter": "— vCenter"
 }

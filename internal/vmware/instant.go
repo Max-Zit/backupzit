@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/max-zit/backupzit/internal/repo"
@@ -185,9 +187,16 @@ func (c *Client) InstantFinish(ctx context.Context, ds, dir, moid, target string
 			return "", err
 		}
 		ref := d.Reference()
-		t, err := object.NewVirtualMachine(c.vim, vmRef(moid)).Relocate(ctx, types.VirtualMachineRelocateSpec{Datastore: &ref}, types.VirtualMachineMovePriorityHighPriority)
+		vm := object.NewVirtualMachine(c.vim, vmRef(moid))
+		t, err := vm.Relocate(ctx, types.VirtualMachineRelocateSpec{Datastore: &ref}, types.VirtualMachineMovePriorityHighPriority)
 		if err := c.wait(ctx, t, err); err != nil {
 			return "", fmt.Errorf("Storage vMotion to %s: %w", target, err)
+		}
+		// Storage vMotion leaves the output files of serial and parallel
+		// ports where they were; point them into the VM's new folder so
+		// nothing uses the backup's datastore any more.
+		if err := c.movePortFiles(ctx, vm, ds); err != nil {
+			log("serial or parallel port files could not be moved", "err", err)
 		}
 		return moid, nil
 	}
@@ -247,6 +256,45 @@ func (c *Client) InstantFinish(ctx context.Context, ds, dir, moid, target string
 		c.powerOn(ctx, newID)
 	}
 	return newID, nil
+}
+
+// movePortFiles points file-backed serial and parallel ports that write to
+// datastore ds into the folder of the VM's configuration file.
+func (c *Client) movePortFiles(ctx context.Context, vm *object.VirtualMachine, ds string) error {
+	var m mo.VirtualMachine
+	if err := vm.Properties(ctx, vm.Reference(), []string{"config.hardware.device", "config.files.vmPathName"}, &m); err != nil {
+		return err
+	}
+	vmx, err := parseDSPath(m.Config.Files.VmPathName)
+	if err != nil {
+		return err
+	}
+	var changes []types.BaseVirtualDeviceConfigSpec
+	fix := func(dev types.BaseVirtualDevice, b *types.VirtualDeviceFileBackingInfo) {
+		p, err := parseDSPath(b.FileName)
+		if err != nil || p.DS != ds {
+			return
+		}
+		b.FileName, b.Datastore = vmx.join(path.Base(p.Path)).String(), nil
+		changes = append(changes, &types.VirtualDeviceConfigSpec{Operation: types.VirtualDeviceConfigSpecOperationEdit, Device: dev})
+	}
+	for _, d := range m.Config.Hardware.Device {
+		switch x := d.(type) {
+		case *types.VirtualSerialPort:
+			if b, ok := x.Backing.(*types.VirtualSerialPortFileBackingInfo); ok {
+				fix(x, &b.VirtualDeviceFileBackingInfo)
+			}
+		case *types.VirtualParallelPort:
+			if b, ok := x.Backing.(*types.VirtualParallelPortFileBackingInfo); ok {
+				fix(x, &b.VirtualDeviceFileBackingInfo)
+			}
+		}
+	}
+	if len(changes) == 0 {
+		return nil
+	}
+	t, err := vm.Reconfigure(ctx, types.VirtualMachineConfigSpec{DeviceChange: changes})
+	return c.wait(ctx, t, err)
 }
 
 // InstantDiscard stops and unregisters the VM; its files are on the NFS

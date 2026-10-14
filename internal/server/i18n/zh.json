@@ -1917,5 +1917,6 @@
   "— a NAS (SMB), an SFTP server, S3 or Azure storage, or a hardened repository.": "— NAS (SMB)、SFTP 服务器、S3 或 Azure 存储，或加固存储库。",
   "— choose —": "— 请选择 —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— 如果此服务器丢失，只需密钥和存储位置即可使用命令行代理进行还原。",
-  "— the user cannot sign in; open sessions end immediately": "— 该用户无法登录；已打开的会话会立即结束"
+  "— the user cannot sign in; open sessions end immediately": "— 该用户无法登录；已打开的会话会立即结束",
+  "— vCenter": "— vCenter"
 }

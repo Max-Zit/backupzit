@@ -431,18 +431,20 @@ func (c *Client) mountNFS(ctx context.Context, ds, nfsHost, node string) error {
 	return err
 }
 
-// unmountNFS removes the NFS datastore ds (from every host that has it).
+// unmountNFS removes the NFS datastore ds (from every host that has it,
+// also when the NFS server is gone and the datastore is inaccessible).
 func (c *Client) unmountNFS(ctx context.Context, ds string) error {
 	if c.useAPI {
 		d, err := c.find.Datastore(ctx, ds)
 		if err != nil {
 			return nil // not mounted
 		}
-		hosts, err := d.AttachedHosts(ctx)
-		if err != nil {
+		var m mo.Datastore
+		if err := d.Properties(ctx, d.Reference(), []string{"host"}, &m); err != nil {
 			return err
 		}
-		for _, h := range hosts {
+		for _, hm := range m.Host {
+			h := object.NewHostSystem(c.vim, hm.Key)
 			dss, err := h.ConfigManager().DatastoreSystem(ctx)
 			if err != nil {
 				return err

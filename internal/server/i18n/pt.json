@@ -1917,5 +1917,6 @@
   "— a NAS (SMB), an SFTP server, S3 or Azure storage, or a hardened repository.": "— um NAS (SMB), um servidor SFTP, armazenamento S3 ou Azure, ou um repositório reforçado.",
   "— choose —": "— escolher —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— se este servidor for perdido, a chave e o local do armazenamento são tudo de que você precisa para restaurar com o agente de linha de comando.",
-  "— the user cannot sign in; open sessions end immediately": "— o usuário não pode fazer login; sessões abertas terminam imediatamente"
+  "— the user cannot sign in; open sessions end immediately": "— o usuário não pode fazer login; sessões abertas terminam imediatamente",
+  "— vCenter": "— vCenter"
 }

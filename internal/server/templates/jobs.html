@@ -35,7 +35,7 @@
     <label>{{T "Name"}} <input name="name" required placeholder="{{T "Documents nightly"}}"></label>
     <div class="row">
       <label data-notkind="copy">{{T "Agent"}}
-        <select name="agent_id" id="agent_sel" required>{{if .Data.VMwareHosts}}<optgroup label="Agents">{{end}}{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}{{if .Data.VMwareHosts}}</optgroup><optgroup label="VMware ESXi hosts (backed up through their proxy agent)">{{range .Data.VMwareHosts}}<option value="vmware:{{.ID}}">{{.Name}} {{T "— ESXi"}}</option>{{end}}</optgroup>{{end}}</select>
+        <select name="agent_id" id="agent_sel" required>{{if .Data.VMwareHosts}}<optgroup label="Agents">{{end}}{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}{{if .Data.VMwareHosts}}</optgroup><optgroup label="VMware ESXi hosts (backed up through their proxy agent)">{{range .Data.VMwareHosts}}<option value="vmware:{{.ID}}">{{.Name}} {{if .IsVCenter}}{{T "— vCenter"}}{{else}}{{T "— ESXi"}}{{end}}</option>{{end}}</optgroup>{{end}}</select>
       </label>
       <label>{{T "Storage target"}} <small data-jobkind="copy" hidden>{{T "where the copies go — a different target than the source job's"}}</small>
         <select name="target_id" required>{{range .Data.Targets}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>

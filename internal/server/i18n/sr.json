@@ -1917,5 +1917,6 @@
   "— a NAS (SMB), an SFTP server, S3 or Azure storage, or a hardened repository.": "— NAS (SMB), SFTP server, S3 ili Azure skladište, ili ojačani repozitorijum.",
   "— choose —": "— izaberite —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— ako se ovaj server izgubi, ključ i lokacija skladišta su sve što vam treba za vraćanje agentom iz komandne linije.",
-  "— the user cannot sign in; open sessions end immediately": "— korisnik ne može da se prijavi; otvorene sesije se odmah završavaju"
+  "— the user cannot sign in; open sessions end immediately": "— korisnik ne može da se prijavi; otvorene sesije se odmah završavaju",
+  "— vCenter": "— vCenter"
 }
