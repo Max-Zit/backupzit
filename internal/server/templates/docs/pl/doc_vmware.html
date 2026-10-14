@@ -32,7 +32,7 @@
   <li>Natychmiastowe odtwarzanie uruchamia maszynę na wybranym hoście; <b>Zakończ</b> przenosi ją do datastore przez <b>Storage vMotion w trakcie pracy</b>, bez przestoju.</li>
   <li>vCenter z kilkoma centrami danych nie może jeszcze zostać dodany; hosty pozostałych centrów danych dodaj bezpośrednio.</li>
 </ul>
-<p>Nie dodawaj tego samego hosta ESXi bezpośrednio i jednocześnie przez vCenter: każde połączenie ma własne repozytorium, więc jego maszyny byłyby kopiowane dwa razy.</p>
+<p>Nie dodawaj tego samego hosta ESXi bezpośrednio i jednocześnie przez vCenter: każde połączenie ma własne repozytorium, więc jego maszyny byłyby kopiowane dwa razy. Jeśli host, którego kopie BackupZit wykonuje bezpośrednio, zostanie później dodany do vCenter, zaakceptuj jego nowy certyfikat na stronie Agenci; jego zadania nadal działają — vCenter nadaje maszynom utworzonym na samodzielnym hoście nowy identyfikator, a BackupZit przy następnym odświeżeniu przenosi na niego zadania.</p>
 
 <h2>Zadania kopii</h2>
 <p>W <a href="/jobs">Zadania kopii</a> wybierz host ESXi (wymieniony w <i>Hosty VMware ESXi</i> na liście agentów) i <b>Maszyny wirtualne</b>. Kopiuj wszystkie maszyny hosta (maszyny utworzone później są dołączane automatycznie) albo zaznacz wybrane. Zadanie działa na agencie proxy hosta. Jeśli zmienisz proxy, istniejące zadania podążą za nim.</p>

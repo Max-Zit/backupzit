@@ -32,7 +32,7 @@
   <li>La restauration instantanée démarre la VM sur l'hôte choisi ; <b>Terminer</b> la déplace vers un datastore avec <b>Storage vMotion pendant qu'elle tourne</b>, sans interruption.</li>
   <li>Un vCenter comportant plusieurs datacenters ne peut pas encore être ajouté ; ajoutez directement les hôtes des autres datacenters.</li>
 </ul>
-<p>N'ajoutez pas le même hôte ESXi à la fois directement et via vCenter : chaque connexion a son propre dépôt, ses VM seraient donc sauvegardées deux fois.</p>
+<p>N'ajoutez pas le même hôte ESXi à la fois directement et via vCenter : chaque connexion a son propre dépôt, ses VM seraient donc sauvegardées deux fois. Si un hôte que BackupZit sauvegarde directement est ensuite ajouté à vCenter, acceptez son nouveau certificat sur la page Agents ; ses tâches continuent de fonctionner — vCenter attribue un nouvel ID aux VM créées sur l'hôte autonome, et BackupZit y bascule les tâches à la prochaine actualisation.</p>
 
 <h2>Tâches de sauvegarde</h2>
 <p>Dans <a href="/jobs">Tâches de sauvegarde</a>, choisissez l'hôte ESXi (listé sous <i>Hôtes VMware ESXi</i> dans la liste des agents) et <b>Machines virtuelles</b>. Sauvegardez toutes les VM de l'hôte (les VM créées plus tard sont incluses automatiquement) ou cochez-en certaines. La tâche s'exécute sur l'agent proxy de l'hôte. Si vous changez de proxy, les tâches existantes suivent.</p>

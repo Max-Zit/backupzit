@@ -32,7 +32,7 @@
   <li>Il ripristino istantaneo avvia la VM sull'host scelto; <b>Completa</b> la sposta su un datastore con <b>Storage vMotion mentre continua a funzionare</b>, senza fermo.</li>
   <li>Un vCenter con più datacenter non può ancora essere aggiunto; aggiungi direttamente gli host degli altri datacenter.</li>
 </ul>
-<p>Non aggiungere lo stesso host ESXi sia direttamente sia tramite vCenter: ogni connessione ha il proprio repository, quindi le sue VM verrebbero salvate due volte.</p>
+<p>Non aggiungere lo stesso host ESXi sia direttamente sia tramite vCenter: ogni connessione ha il proprio repository, quindi le sue VM verrebbero salvate due volte. Se un host di cui BackupZit esegue il backup direttamente viene poi aggiunto a vCenter, accetta il suo nuovo certificato nella pagina Agenti; i suoi job continuano a funzionare: vCenter assegna un nuovo ID alle VM create sull'host autonomo e BackupZit sposta i job su di esso al successivo aggiornamento.</p>
 
 <h2>Job di backup</h2>
 <p>In <a href="/jobs">Job di backup</a>, scegli l'host ESXi (elencato sotto <i>Host VMware ESXi</i> nell'elenco degli agenti) e <b>Macchine virtuali</b>. Esegui il backup di tutte le VM dell'host (le VM create in seguito sono incluse automaticamente) o selezionane alcune. Il job viene eseguito sull'agente proxy dell'host. Se cambi il proxy, i job esistenti lo seguono.</p>

@@ -247,7 +247,68 @@ func (s *Store) RefreshVMwareHost(ctx context.Context, h VMwareHost) error {
 	if sshErr != nil {
 		msg = "SSH: " + sshErr.Error()
 	}
-	return s.saveVMwareInventory(ctx, h.ID, inv, c.Version, c.APIWrites, sshErr == nil, c.SSHHostKey, msg)
+	if err := s.saveVMwareInventory(ctx, h.ID, inv, c.Version, c.APIWrites, sshErr == nil, c.SSHHostKey, msg); err != nil {
+		return err
+	}
+	return s.renumberVMwareJobs(ctx, h.ID, inv)
+}
+
+// renumberVMwareJobs moves the jobs of a host to the current numbers of
+// VMs that got a new one (vCenter gives VMs made on a standalone ESXi
+// host an instance UUID when it takes the host over).
+func (s *Store) renumberVMwareJobs(ctx context.Context, hostID int64, invJSON []byte) error {
+	var inv pve.Inventory
+	if json.Unmarshal(invJSON, &inv) != nil {
+		return nil
+	}
+	moved := map[string]string{}
+	for _, g := range inv.Guests {
+		if g.FormerVMID != 0 {
+			moved[strconv.Itoa(g.FormerVMID)] = strconv.Itoa(g.VMID)
+		}
+	}
+	if len(moved) == 0 {
+		return nil
+	}
+	rows, err := s.db.Query(ctx, `SELECT id, paths, excludes FROM jobs WHERE vmware_host_id=$1`, hostID)
+	if err != nil {
+		return err
+	}
+	type job struct {
+		id              int64
+		paths, excludes []string
+	}
+	var jobs []job
+	for rows.Next() {
+		var j job
+		if err := rows.Scan(&j.id, &j.paths, &j.excludes); err != nil {
+			rows.Close()
+			return err
+		}
+		jobs = append(jobs, j)
+	}
+	rows.Close()
+	renumber := func(ids []string) ([]string, bool) {
+		out, changed := make([]string, len(ids)), false
+		for i, id := range ids {
+			out[i] = id
+			if n, ok := moved[id]; ok {
+				out[i], changed = n, true
+			}
+		}
+		return out, changed
+	}
+	for _, j := range jobs {
+		p, c1 := renumber(j.paths)
+		x, c2 := renumber(j.excludes)
+		if !c1 && !c2 {
+			continue
+		}
+		if _, err := s.db.Exec(ctx, `UPDATE jobs SET paths=$2, excludes=$3 WHERE id=$1`, j.id, p, x); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // vmwareHostOfJob returns the host of a VMware VM job, or nil.

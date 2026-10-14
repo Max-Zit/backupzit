@@ -32,7 +32,7 @@
   <li>Anında kurtarma VM'yi seçilen ana bilgisayarda başlatır; <b>Tamamla</b>, onu <b>çalışırken Storage vMotion ile</b> kesintisiz olarak bir datastore'a taşır.</li>
   <li>Birden çok veri merkezi olan bir vCenter henüz eklenemez; diğer veri merkezlerinin ana bilgisayarlarını doğrudan ekleyin.</li>
 </ul>
-<p>Aynı ESXi ana bilgisayarını hem doğrudan hem vCenter üzerinden eklemeyin: her bağlantının kendi deposu vardır, bu yüzden VM'leri iki kez yedeklenir.</p>
+<p>Aynı ESXi ana bilgisayarını hem doğrudan hem vCenter üzerinden eklemeyin: her bağlantının kendi deposu vardır, bu yüzden VM'leri iki kez yedeklenir. BackupZit'in doğrudan yedeklediği bir ana bilgisayar daha sonra vCenter'a eklenirse, yeni sertifikasını Aracılar sayfasında kabul edin; işleri çalışmaya devam eder — vCenter bağımsız ana bilgisayarda oluşturulan VM'lere yeni bir kimlik verir ve BackupZit bir sonraki yenilemede işleri ona taşır.</p>
 
 <h2>Yedekleme işleri</h2>
 <p><a href="/jobs">Yedekleme işleri</a> içinde ESXi ana bilgisayarını (aracı listesinde <i>VMware ESXi ana bilgisayarları</i> altında listelenir) ve <b>Sanal makineler</b>'i seçin. Ana bilgisayarın tüm VM'lerini yedekleyin (sonradan oluşturulan VM'ler otomatik dahil edilir) veya tek tek işaretleyin. İş, ana bilgisayarın vekil aracısında çalışır. Vekili değiştirirseniz mevcut işler de onu izler.</p>

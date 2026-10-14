@@ -32,7 +32,7 @@
   <li>Okamžitá obnova spustí VM na zvoleném hostiteli; <b>Dokončit</b> ho přesune na datastore pomocí <b>Storage vMotion za běhu</b>, bez výpadku.</li>
   <li>vCenter s více datacentry zatím přidat nelze; hostitele ostatních datacenter přidejte přímo.</li>
 </ul>
-<p>Nepřidávejte stejného hostitele ESXi přímo a zároveň přes vCenter: každé připojení má vlastní repozitář, takže by se jeho VM zálohovaly dvakrát.</p>
+<p>Nepřidávejte stejného hostitele ESXi přímo a zároveň přes vCenter: každé připojení má vlastní repozitář, takže by se jeho VM zálohovaly dvakrát. Pokud se hostitel, kterého BackupZit zálohuje přímo, později přidá do vCenter, přijměte jeho nový certifikát na stránce Agenti; jeho úlohy dál fungují — vCenter dá VM vytvořeným na samostatném hostiteli nové ID a BackupZit na něj úlohy při příštím obnovení převede.</p>
 
 <h2>Úlohy zálohování</h2>
 <p>V <a href="/jobs">Úlohy zálohování</a> zvolte hostitele ESXi (uvedeného v části <i>Hostitelé VMware ESXi</i> v seznamu agentů) a <b>Virtuální počítače</b>. Zálohujte všechny VM hostitele (VM vytvořené později se zahrnou automaticky) nebo zaškrtněte jednotlivé. Úloha běží na proxy agentovi hostitele. Pokud proxy změníte, existující úlohy ho následují.</p>

@@ -77,14 +77,17 @@ type Guest struct {
 	VMID int `json:"vmid"`
 	// ID is the hypervisor's own identifier when it is not a number
 	// (Hyper-V VM GUID); VMID is then derived from it.
-	ID       string `json:"id,omitempty"`
-	Name     string `json:"name"`
-	Type     string `json:"type"` // qemu | lxc
-	Node     string `json:"node"`
-	Status   string `json:"status"`
-	MaxDisk  uint64 `json:"maxdisk"`
-	MaxMem   uint64 `json:"maxmem"`
-	Template bool   `json:"template,omitempty"`
+	ID string `json:"id,omitempty"`
+	// FormerVMID is an earlier number of the same VM (VMware: before
+	// vCenter gave it an instance UUID); jobs still naming it are updated.
+	FormerVMID int    `json:"former_vmid,omitempty"`
+	Name       string `json:"name"`
+	Type       string `json:"type"` // qemu | lxc
+	Node       string `json:"node"`
+	Status     string `json:"status"`
+	MaxDisk    uint64 `json:"maxdisk"`
+	MaxMem     uint64 `json:"maxmem"`
+	Template   bool   `json:"template,omitempty"`
 }
 
 // Inventory is what a node agent reports to the console.

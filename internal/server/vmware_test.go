@@ -619,6 +619,24 @@ func TestVCenterConnection(t *testing.T) {
 	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/method", hosts[0].ID), url.Values{"method": {"ssh"}}); !strings.Contains(loc, "err=") {
 		t.Errorf("SSH accepted for vCenter: %s", loc)
 	}
+	// Jobs naming a VM by its number from before vCenter (BIOS UUID) are
+	// renumbered when the host is refreshed.
+	g := hosts[0].Inv().Guests[0]
+	if g.FormerVMID == 0 {
+		t.Fatalf("guest %+v without a former number", g)
+	}
+	hid := hosts[0].ID
+	targetID, _ := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	jid, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobVM, AgentID: agents[0].ID, TargetID: targetID, Name: "old ids",
+		Paths: []string{fmt.Sprint(g.FormerVMID)}, Enabled: true, VMwareHostID: &hid})
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin.do("POST", fmt.Sprintf("/vmware/%d/refresh", hid), nil)
+	if j, _ := e.store.GetJob(ctx, jid); len(j.Paths) != 1 || j.Paths[0] != fmt.Sprint(g.VMID) {
+		t.Errorf("job VMs %v, want %d", j.Paths, g.VMID)
+	}
+
 	// A changed certificate is refused; the admin accepts the one shown.
 	id, real := hosts[0].ID, hosts[0].Thumbprint
 	e.store.UpdateVMwareThumbprint(ctx, id, "SHA256:"+strings.Repeat("A", 43))

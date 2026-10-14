@@ -55,6 +55,13 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 	for _, v := range vms {
 		byID[v.VMID] = v
 	}
+	// Jobs made before vCenter took the host over name VMs by their
+	// BIOS UUID.
+	for _, v := range vms {
+		if _, taken := byID[v.BIOSVMID]; v.BIOSVMID != 0 && !taken {
+			byID[v.BIOSVMID] = v
+		}
+	}
 	var sel []VM
 	if opts.VMIDs == nil {
 		excl := map[int]bool{}
@@ -62,7 +69,7 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 			excl[id] = true
 		}
 		for _, v := range vms {
-			if !excl[v.VMID] {
+			if !excl[v.VMID] && !(v.BIOSVMID != 0 && excl[v.BIOSVMID]) {
 				sel = append(sel, v)
 			}
 		}

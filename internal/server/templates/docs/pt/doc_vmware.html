@@ -32,7 +32,7 @@
   <li>A recuperação instantânea inicia a VM no host escolhido; <b>Concluir</b> a move para um datastore com <b>Storage vMotion enquanto ela continua rodando</b>, sem parada.</li>
   <li>Um vCenter com vários datacenters ainda não pode ser adicionado; adicione diretamente os hosts dos outros datacenters.</li>
 </ul>
-<p>Não adicione o mesmo host ESXi diretamente e também pelo vCenter: cada conexão tem seu próprio repositório, então suas VMs seriam copiadas duas vezes.</p>
+<p>Não adicione o mesmo host ESXi diretamente e também pelo vCenter: cada conexão tem seu próprio repositório, então suas VMs seriam copiadas duas vezes. Se um host do qual o BackupZit faz backup diretamente for depois adicionado ao vCenter, aceite o seu novo certificado na página Agentes; os seus trabalhos continuam funcionando — o vCenter dá um novo ID às VMs criadas no host independente, e o BackupZit passa os trabalhos para ele na próxima atualização.</p>
 
 <h2>Tarefas de backup</h2>
 <p>Em <a href="/jobs">Tarefas de backup</a>, escolha o host ESXi (listado em <i>Hosts VMware ESXi</i> na lista de agentes) e <b>Máquinas virtuais</b>. Faça backup de todas as VMs do host (VMs criadas depois são incluídas automaticamente) ou marque algumas. A tarefa roda no agente proxy do host. Se você trocar o proxy, as tarefas existentes acompanham.</p>

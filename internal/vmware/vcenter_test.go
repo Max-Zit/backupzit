@@ -46,6 +46,10 @@ func TestVCenterSimulator(t *testing.T) {
 		if v.Host == "" {
 			t.Errorf("VM %s without its host", v.Name)
 		}
+		// The simulator's VMs have an instance and a BIOS UUID.
+		if v.BIOSVMID == 0 || v.BIOSVMID == v.VMID {
+			t.Errorf("VM %s: former number %d (number %d)", v.Name, v.BIOSVMID, v.VMID)
+		}
 	}
 	inv, err := c.Inventory(ctx, "vc1")
 	if err != nil {

@@ -32,7 +32,7 @@
   <li>Direct herstel start de VM op de gekozen host; <b>Voltooien</b> verplaatst hem met <b>Storage vMotion terwijl hij blijft draaien</b> naar een datastore, zonder onderbreking.</li>
   <li>Een vCenter met meerdere datacenters kan nog niet worden toegevoegd; voeg de hosts van de andere datacenters rechtstreeks toe.</li>
 </ul>
-<p>Voeg dezelfde ESXi-host niet zowel rechtstreeks als via vCenter toe: elke verbinding heeft een eigen repository, dus zijn VM's zouden twee keer worden geback-upt.</p>
+<p>Voeg dezelfde ESXi-host niet zowel rechtstreeks als via vCenter toe: elke verbinding heeft een eigen repository, dus zijn VM's zouden twee keer worden geback-upt. Wordt een host waarvan BackupZit rechtstreeks back-ups maakt later aan vCenter toegevoegd, accepteer dan zijn nieuwe certificaat op de pagina Agents; zijn taken blijven werken — vCenter geeft VM's die op de zelfstandige host zijn gemaakt een nieuwe ID, en BackupZit zet de taken bij de volgende vernieuwing daarop over.</p>
 
 <h2>Back-uptaken</h2>
 <p>Kies in <a href="/jobs">Back-uptaken</a> de ESXi-host (vermeld onder <i>VMware ESXi-hosts</i> in de agentlijst) en <b>Virtuele machines</b>. Maak een back-up van alle VM's van de host (later gemaakte VM's worden automatisch opgenomen) of vink er enkele aan. De taak draait op de proxy-agent van de host. Als u de proxy wijzigt, volgen de bestaande taken.</p>

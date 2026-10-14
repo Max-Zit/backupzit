@@ -32,7 +32,7 @@
   <li>Instant recovery starts the VM on the chosen host; <b>Finish</b> moves it to a datastore with <b>Storage vMotion while it keeps running</b>, without downtime.</li>
   <li>A vCenter with several datacenters cannot be added yet; add the hosts of the other datacenters directly.</li>
 </ul>
-<p>Do not add the same ESXi host both directly and through vCenter: each connection has its own repository, so its VMs would be backed up twice.</p>
+<p>Do not add the same ESXi host both directly and through vCenter: each connection has its own repository, so its VMs would be backed up twice. If a host that BackupZit backs up directly is later added to vCenter, accept its new certificate on the Agents page; its jobs keep working — vCenter gives VMs that were created on the standalone host a new ID, and BackupZit moves the jobs to it at the next refresh.</p>
 
 <h2>Backup jobs</h2>
 <p>In <a href="/jobs">Backup jobs</a>, choose the ESXi host (listed under <i>VMware ESXi hosts</i> in the agent list) and <b>Virtual machines</b>. Back up all VMs of the host (VMs created later are included automatically) or tick individual ones. The job runs on the host's proxy agent. If you change the proxy, the existing jobs follow.</p>

@@ -17,20 +17,23 @@ import (
 
 // VM describes a virtual machine.
 type VM struct {
-	Ref      types.ManagedObjectReference `json:"-"`
-	MoID     string                       `json:"moid"`
-	UUID     string                       `json:"uuid"` // instance UUID
-	VMID     int                          `json:"vmid"`
-	Name     string                       `json:"name"`
-	GuestID  string                       `json:"guest_id"`
-	Power    string                       `json:"power"` // poweredOn, poweredOff, suspended
-	CPUs     int32                        `json:"cpus"`
-	MemoryMB int32                        `json:"memory_mb"`
-	Firmware string                       `json:"firmware"`
-	VMX      string                       `json:"vmx"` // [datastore] dir/name.vmx
-	CBT      bool                         `json:"cbt"`
-	Tools    bool                         `json:"tools"` // VMware Tools running
-	Template bool                         `json:"template,omitempty"`
+	Ref  types.ManagedObjectReference `json:"-"`
+	MoID string                       `json:"moid"`
+	UUID string                       `json:"uuid"` // instance UUID
+	VMID int                          `json:"vmid"`
+	// BIOSVMID is the number the VM had before vCenter gave it an
+	// instance UUID (VMs created on a standalone ESXi host); 0 if the same.
+	BIOSVMID int    `json:"bios_vmid,omitempty"`
+	Name     string `json:"name"`
+	GuestID  string `json:"guest_id"`
+	Power    string `json:"power"` // poweredOn, poweredOff, suspended
+	CPUs     int32  `json:"cpus"`
+	MemoryMB int32  `json:"memory_mb"`
+	Firmware string `json:"firmware"`
+	VMX      string `json:"vmx"` // [datastore] dir/name.vmx
+	CBT      bool   `json:"cbt"`
+	Tools    bool   `json:"tools"` // VMware Tools running
+	Template bool   `json:"template,omitempty"`
 	// Snapshots is true when the VM has snapshots of its own.
 	Snapshots bool `json:"snapshots,omitempty"`
 	// Host is the ESXi host the VM is registered on (vCenter).
@@ -90,6 +93,11 @@ func vmFromMO(m mo.VirtualMachine) VM {
 		v.Disks, v.NICs = devices(m.Config.Hardware.Device)
 	}
 	v.VMID = VMIDFor(v.UUID)
+	if m.Config != nil && m.Config.InstanceUuid != "" && m.Config.Uuid != "" {
+		if id := VMIDFor(m.Config.Uuid); id != v.VMID {
+			v.BIOSVMID = id
+		}
+	}
 	if m.Runtime.Host != nil {
 		v.Host = m.Runtime.Host.Value // replaced by the host's name in VMs
 	}
@@ -307,7 +315,7 @@ func (c *Client) Inventory(ctx context.Context, host string) (*pve.Inventory, er
 		if c.VCenter && v.Host != "" {
 			node = v.Host
 		}
-		inv.Guests = append(inv.Guests, pve.Guest{VMID: v.VMID, ID: v.UUID, Name: v.Name, Type: "vm", Node: node,
+		inv.Guests = append(inv.Guests, pve.Guest{VMID: v.VMID, FormerVMID: v.BIOSVMID, ID: v.UUID, Name: v.Name, Type: "vm", Node: node,
 			Status: status, MaxDisk: v.DiskSize(), MaxMem: uint64(v.MemoryMB) << 20, Template: v.Template})
 	}
 	for _, d := range dss {

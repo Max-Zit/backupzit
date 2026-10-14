@@ -32,7 +32,7 @@
   <li>Instant recovery pokreće VM na izabranom hostu; <b>Završi</b> ga premešta na datastore pomoću <b>Storage vMotion-a dok radi</b>, bez prekida.</li>
   <li>vCenter sa više datacentara još ne može da se doda; hostove ostalih datacentara dodajte direktno.</li>
 </ul>
-<p>Isti ESXi host nemojte dodati i direktno i preko vCenter-a: svaka veza ima svoj repozitorijum, pa bi se njegovi VM-ovi bekapovali dva puta.</p>
+<p>Isti ESXi host nemojte dodati i direktno i preko vCenter-a: svaka veza ima svoj repozitorijum, pa bi se njegovi VM-ovi bekapovali dva puta. Ako se host koji BackupZit bekapuje direktno kasnije doda u vCenter, prihvatite njegov novi sertifikat na strani Agenti; njegovi poslovi nastavljaju da rade — vCenter VM-ovima napravljenim na samostalnom hostu dodeli novi ID, a BackupZit pri sledećem osvežavanju prebaci poslove na njega.</p>
 
 <h2>Poslovi bekapa</h2>
 <p>U <a href="/jobs">Poslovi bekapa</a> izaberite ESXi host (naveden pod <i>VMware ESXi hostovi</i> u listi agenata) i <b>Virtuelne mašine</b>. Čuvajte sve virtuelne mašine hosta (virtuelne mašine napravljene kasnije uključuju se automatski) ili označite pojedinačne. Posao radi na proxy agentu hosta. Ako promenite proxy, postojeći poslovi ga prate.</p>

@@ -32,7 +32,7 @@
   <li>Instant Recovery startet die VM auf dem gewählten Host; <b>Abschließen</b> verschiebt sie mit <b>Storage vMotion, während sie weiterläuft</b>, ohne Ausfallzeit auf einen Datastore.</li>
   <li>Ein vCenter mit mehreren Datacentern kann noch nicht hinzugefügt werden; fügen Sie die Hosts der anderen Datacenter direkt hinzu.</li>
 </ul>
-<p>Fügen Sie denselben ESXi-Host nicht direkt und zusätzlich über vCenter hinzu: Jede Verbindung hat ihr eigenes Repository, seine VMs würden also doppelt gesichert.</p>
+<p>Fügen Sie denselben ESXi-Host nicht direkt und zusätzlich über vCenter hinzu: Jede Verbindung hat ihr eigenes Repository, seine VMs würden also doppelt gesichert. Wird ein Host, den BackupZit direkt sichert, später zu vCenter hinzugefügt, akzeptieren Sie sein neues Zertifikat auf der Seite Agenten; seine Jobs laufen weiter — vCenter gibt VMs, die auf dem eigenständigen Host erstellt wurden, eine neue ID, und BackupZit stellt die Jobs bei der nächsten Aktualisierung darauf um.</p>
 
 <h2>Sicherungsaufträge</h2>
 <p>Wählen Sie unter <a href="/jobs">Sicherungsaufträge</a> den ESXi-Host (in der Agentenliste unter <i>VMware-ESXi-Hosts</i> aufgeführt) und <b>Virtuelle Maschinen</b>. Sichern Sie alle VMs des Hosts (später erstellte VMs werden automatisch einbezogen) oder markieren Sie einzelne. Der Auftrag läuft auf dem Proxy-Agenten des Hosts. Wenn Sie den Proxy ändern, folgen die vorhandenen Aufträge.</p>
