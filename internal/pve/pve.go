@@ -140,7 +140,8 @@ func GetInventory(ctx context.Context) (*Inventory, error) {
 	}
 	if st, err := readStorage(); err == nil {
 		for _, s := range st {
-			if s.usable(inv.Node) && (s.has("images") || s.has("rootdir")) {
+			// The instant recovery storage only holds temporary overlays.
+			if s.ID != InstantStorage && s.usable(inv.Node) && (s.has("images") || s.has("rootdir")) {
 				inv.Storage = append(inv.Storage, s.ID)
 			}
 		}

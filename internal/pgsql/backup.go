@@ -40,8 +40,6 @@ type BackupOptions struct {
 	Progress func(path string, s *repo.SnapshotStats)
 }
 
-var lsnRe = regexp.MustCompile(`write-ahead log (start|end) point: ([0-9A-F]+/[0-9A-F]+)`)
-
 // BackupToRepo backs up the cluster (full: pg_basebackup plus a pg_dump of
 // each database; log: the WAL segments archived since the last run) into a
 // snapshot of r. It returns the snapshot (nil if there was nothing to store)

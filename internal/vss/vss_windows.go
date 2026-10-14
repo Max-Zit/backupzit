@@ -893,29 +893,6 @@ func HasSufficientPrivilegesForVSS() error {
 	return err
 }
 
-// getVolumeNameForVolumeMountPoint add trailing backslash to input parameter
-// and calls the equivalent windows api.
-func getVolumeNameForVolumeMountPoint(mountPoint string) (string, error) {
-	if mountPoint != "" && mountPoint[len(mountPoint)-1] != filepath.Separator {
-		mountPoint += string(filepath.Separator)
-	}
-
-	mountPointPointer, err := syscall.UTF16PtrFromString(mountPoint)
-	if err != nil {
-		return mountPoint, err
-	}
-
-	// A reasonable size for the buffer to accommodate the largest possible
-	// volume GUID path is 50 characters.
-	volumeNameBuffer := make([]uint16, 50)
-	if err := windows.GetVolumeNameForVolumeMountPoint(
-		mountPointPointer, &volumeNameBuffer[0], 50); err != nil {
-		return mountPoint, err
-	}
-
-	return syscall.UTF16ToString(volumeNameBuffer), nil
-}
-
 // newVssSnapshot creates a new vss snapshot. If creating the snapshots doesn't
 // finish within the timeout an error is returned.
 func newVssSnapshot(provider string,

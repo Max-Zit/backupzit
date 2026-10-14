@@ -22,6 +22,9 @@ type Entry struct {
 	IsDir   bool      `json:"is_dir"`
 	Size    int64     `json:"size"`
 	ModTime time.Time `json:"mtime"`
+	// Perm holds the Unix permissions where the file system has them
+	// (ext4, XFS); 0 when unknown (NTFS).
+	Perm fs.FileMode `json:"-"`
 }
 
 // FS is a read-only file system inside a backed up disk.
@@ -133,7 +136,7 @@ func (f *ioFS) List(dir string) ([]Entry, error) {
 		}
 		e := Entry{Name: d.Name(), Path: path.Join(dir, d.Name()), IsDir: d.IsDir()}
 		if fi, err := d.Info(); err == nil {
-			e.Size, e.ModTime = fi.Size(), fi.ModTime()
+			e.Size, e.ModTime, e.Perm = fi.Size(), fi.ModTime(), fi.Mode().Perm()
 			if fi.Mode()&fs.ModeSymlink != 0 {
 				e.IsDir = false
 				e.Size = 0
@@ -205,7 +208,7 @@ func (f *ioFS) Stat(p string) (Entry, error) {
 	if err != nil {
 		return Entry{}, err
 	}
-	return Entry{Name: path.Base(p), Path: p, IsDir: fi.IsDir(), Size: fi.Size(), ModTime: fi.ModTime()}, nil
+	return Entry{Name: path.Base(p), Path: p, IsDir: fi.IsDir(), Size: fi.Size(), ModTime: fi.ModTime(), Perm: fi.Mode().Perm()}, nil
 }
 
 func (f *ioFS) ReadFile(p string) (io.Reader, int64, error) {

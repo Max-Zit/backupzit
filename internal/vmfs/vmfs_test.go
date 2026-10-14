@@ -2,10 +2,14 @@ package vmfs
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"io"
 	"io/fs"
+	"os"
 	"path"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -214,5 +218,32 @@ func TestSymlinks(t *testing.T) {
 	}
 	if _, _, err := f.ReadFile("/srv/loop1"); err == nil || !strings.Contains(err.Error(), "too many levels") {
 		t.Errorf("loop: %v", err)
+	}
+}
+
+// Restored guest files keep their permissions, so secrets stay private.
+func TestExtractKeepsPermissions(t *testing.T) {
+	f := &ioFS{fsys: fstest.MapFS{
+		"etc/shadow":           {Data: []byte("root:x"), Mode: 0o640},
+		"etc/hostname":         {Data: []byte("vm"), Mode: 0o644},
+		"root/.ssh/id_ed25519": {Data: []byte("key"), Mode: 0o600},
+		"root":                 {Mode: fs.ModeDir | 0o700},
+		"root/.ssh":            {Mode: fs.ModeDir | 0o700},
+		"usr/local/bin/tool":   {Data: []byte("#!/bin/sh"), Mode: 0o755},
+	}}
+	dir := t.TempDir()
+	st, err := Extract(context.Background(), f, []string{"/etc", "/root", "/usr/local/bin/tool"}, dir)
+	if err != nil || len(st.Errors) > 0 {
+		t.Fatal(err, st.Errors)
+	}
+	if runtime.GOOS == "windows" {
+		return // no Unix permissions
+	}
+	for p, want := range map[string]fs.FileMode{"etc/shadow": 0o640, "etc/hostname": 0o644, "root": 0o700,
+		"root/.ssh": 0o700, "root/.ssh/id_ed25519": 0o600, "usr/local/bin/tool": 0o755} {
+		fi, err := os.Stat(filepath.Join(dir, p))
+		if err != nil || fi.Mode().Perm() != want {
+			t.Errorf("%s: %v %v, want %v", p, fi.Mode().Perm(), err, want)
+		}
 	}
 }

@@ -15,7 +15,7 @@
 <ol>
   <li>Öffnen Sie <a href="/agents#vmware">Agenten → VMware-ESXi-Hosts</a> → <i>ESXi-Host hinzufügen</i>.</li>
   <li>Geben Sie Adresse, Benutzer, Passwort und Proxy-Agenten ein.</li>
-  <li>Die Konsole verbindet sich einmal, um sie zu prüfen. Sie liest die VM-Liste und die Lizenz und <b>pinnt das HTTPS-Zertifikat und den SSH-Hostschlüssel des Hosts</b>. Wird der Host später durch eine andere Maschine mit derselben Adresse ersetzt, verweigert BackupZit die Verbindung, statt ihr das Passwort zu senden.</li>
+  <li>Die Konsole verbindet sich einmal, um sie zu prüfen. Sie liest die VM-Liste und die Lizenz und <b>pinnt das HTTPS-Zertifikat und den SSH-Hostschlüssel des Hosts</b>. Wird der Host später durch eine andere Maschine mit derselben Adresse ersetzt, verweigert BackupZit die Verbindung, statt ihr das Passwort zu senden. Ändert sich das Zertifikat aus einem bekannten Grund — der Host wurde neu installiert, hat ein neues Zertifikat erhalten oder wurde zu vCenter hinzugefügt (das die Zertifikate seiner Hosts ersetzt) —, zeigt der Host auf der Seite Agenten den neuen Fingerabdruck mit der Schaltfläche <b>Neues Zertifikat akzeptieren</b>. Vergleichen Sie den Fingerabdruck vor dem Akzeptieren mit dem Host.</li>
 </ol>
 <p>Das Passwort wird wie alle anderen Geheimnisse verschlüsselt gespeichert. Die VM-Liste wird alle 10 Minuten aktualisiert oder sofort mit <i>Aktualisieren</i>. Die Tabelle zeigt den Modus jedes Hosts:</p>
 <ul>

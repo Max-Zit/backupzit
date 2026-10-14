@@ -15,7 +15,7 @@
 <ol>
   <li>Otwórz <a href="/agents#vmware">Agenci → Hosty VMware ESXi</a> → <i>Dodaj host ESXi</i>.</li>
   <li>Wpisz adres, użytkownika, hasło i agenta proxy.</li>
-  <li>Konsola łączy się raz, aby je sprawdzić. Odczytuje listę maszyn i licencję oraz <b>przypina certyfikat HTTPS i klucz hosta SSH</b>. Jeśli host zostanie później zastąpiony inną maszyną o tym samym adresie, BackupZit odmówi połączenia zamiast wysłać jej hasło.</li>
+  <li>Konsola łączy się raz, aby je sprawdzić. Odczytuje listę maszyn i licencję oraz <b>przypina certyfikat HTTPS i klucz hosta SSH</b>. Jeśli host zostanie później zastąpiony inną maszyną o tym samym adresie, BackupZit odmówi połączenia zamiast wysłać jej hasło. Jeśli certyfikat zmieni się z znanego powodu — host został ponownie zainstalowany, otrzymał nowy certyfikat lub został dodany do vCenter (który zastępuje certyfikaty swoich hostów) — na stronie Agenci host pokazuje nowy odcisk z przyciskiem <b>Zaakceptuj nowy certyfikat</b>. Przed akceptacją porównaj odcisk z hostem.</li>
 </ol>
 <p>Hasło jest przechowywane w postaci zaszyfrowanej, jak wszystkie inne sekrety. Lista maszyn jest odświeżana co 10 minut lub od razu przyciskiem <i>Odśwież</i>. Tabela pokazuje tryb każdego hosta:</p>
 <ul>

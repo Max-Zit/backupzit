@@ -38,10 +38,9 @@ var version = "dev"
 const maxJobItems = 12
 
 type tray struct {
-	mu      sync.Mutex
-	sum     Summary
-	icon    string
-	lastRun int64
+	mu   sync.Mutex
+	sum  Summary
+	icon string
 
 	status   *systray.MenuItem
 	detail   *systray.MenuItem

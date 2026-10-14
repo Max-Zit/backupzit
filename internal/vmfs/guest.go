@@ -82,6 +82,9 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 			if err := os.MkdirAll(dst, 0o755); err != nil {
 				return err
 			}
+			if e.Perm != 0 {
+				os.Chmod(dst, e.Perm) // e.g. /root or ~/.ssh stay private
+			}
 			st.Dirs++
 			children, err := fsys.List(e.Path)
 			if err != nil {
@@ -129,7 +132,14 @@ func extractFile(fsys FS, e Entry, dst string) (int64, error) {
 		return 0, err
 	}
 	tmp := dst + ".bzpart"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	// Keep the file's permissions from the guest, so restored secrets
+	// (/etc/shadow, private keys) do not become readable for everyone;
+	// without them, only the owner may read the file.
+	perm := e.Perm
+	if perm == 0 {
+		perm = 0o600
+	}
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return 0, err
 	}
@@ -141,6 +151,7 @@ func extractFile(fsys FS, e Entry, dst string) (int64, error) {
 		os.Remove(tmp)
 		return n, err
 	}
+	os.Chmod(tmp, perm)
 	os.Remove(dst)
 	if err := os.Rename(tmp, dst); err != nil {
 		os.Remove(tmp)

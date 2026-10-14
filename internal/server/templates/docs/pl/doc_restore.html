@@ -60,7 +60,7 @@
 <p>Dla kopii obrazów kliknij <b>Przeglądaj pliki</b> w uruchomieniu kopii. Możesz przeglądać system plików NTFS obrazu bezpośrednio w konsoli, zaznaczać pliki i foldery i przywracać je na dowolnego agenta — bez przywracania całego dysku. Przy przywracaniu do folderu pliki dostają ten sam układ co z kopii plików: litera dysku staje się pierwszym folderem (<code>D:RestoreCUsers…</code>).</p>
 
 <h2>Przywracanie pojedynczych plików z maszyny wirtualnej (Proxmox VE, Hyper-V, VMware)</h2>
-<p>W uruchomieniu kopii maszyny wirtualnej kliknij <b>Przeglądaj pliki</b> obok gościa. Konsola pokazuje partycje i woluminy LVM jego dysków i pozwala przeglądać systemy plików NTFS, ext4 i XFS. <b>Pobierz</b> zaznaczone pliki (kilka jako archiwum ZIP) lub przywróć je na dowolnym agencie. Zobacz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>.</p>
+<p>W uruchomieniu kopii maszyny wirtualnej kliknij <b>Przeglądaj pliki</b> obok gościa. Konsola pokazuje partycje i woluminy LVM jego dysków i pozwala przeglądać systemy plików NTFS, ext4 i XFS. <b>Pobierz</b> zaznaczone pliki (kilka jako archiwum ZIP) lub przywróć je na dowolnym agencie. Zobacz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>. Pliki przywrócone na agencie zachowują uprawnienia Unix, które miały w maszynie wirtualnej (ext4, XFS), więc przywrócone sekrety, takie jak <code>/etc/shadow</code>, pozostają prywatne; pliki z woluminów NTFS w Linuksie może czytać tylko ich właściciel.</p>
 
 <h2>Przywracanie całych maszyn</h2>
 <ul>

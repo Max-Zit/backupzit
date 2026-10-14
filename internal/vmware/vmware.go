@@ -116,7 +116,7 @@ func Connect(ctx context.Context, conn Conn) (*Client, error) {
 		fp := Fingerprint(cs.PeerCertificates[0].Raw)
 		c.Thumbprint = fp
 		if conn.Thumbprint != "" && fp != conn.Thumbprint {
-			return fmt.Errorf("the ESXi certificate changed (%s, expected %s); if the host was reinstalled, confirm the new certificate", fp, conn.Thumbprint)
+			return fmt.Errorf("the host's certificate changed (%s, expected %s); if the host was reinstalled, got a new certificate or was added to vCenter, accept the new certificate on the Agents page", fp, conn.Thumbprint)
 		}
 		return nil
 	}

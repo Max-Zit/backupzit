@@ -118,8 +118,7 @@ func (pipeAddr) String() string  { return PipeName }
 // are not supported (the requests are tiny).
 type pipeConn struct {
 	*os.File
-	h      windows.Handle
-	server bool
+	h windows.Handle
 }
 
 func (c *pipeConn) Close() error {

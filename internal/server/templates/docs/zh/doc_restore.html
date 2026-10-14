@@ -60,7 +60,7 @@
 <p>对于映像备份，点击备份运行中的<b>浏览文件</b>。可以直接在控制台中浏览映像内的 NTFS 文件系统，勾选文件和文件夹，并将其还原到任意代理——无需还原整个磁盘。 还原到文件夹时，文件的目录结构与文件备份相同：驱动器号成为第一级文件夹（<code>D:RestoreCUsers…</code>）。</p>
 
 <h2>从虚拟机还原单个文件（Proxmox VE、Hyper-V、VMware）</h2>
-<p>在虚拟机备份运行中，点击客户机旁的<b>浏览文件</b>。控制台会显示其磁盘的分区和 LVM 卷，并可浏览 NTFS、ext4 和 XFS 文件系统。<b>下载</b>勾选的文件（多个文件打包为 ZIP）或将其还原到任意代理。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。</p>
+<p>在虚拟机备份运行中，点击客户机旁的<b>浏览文件</b>。控制台会显示其磁盘的分区和 LVM 卷，并可浏览 NTFS、ext4 和 XFS 文件系统。<b>下载</b>勾选的文件（多个文件打包为 ZIP）或将其还原到任意代理。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。 恢复到代理上的文件会保留其在虚拟机中的 Unix 权限（ext4、XFS），因此恢复的机密文件（如 <code>/etc/shadow</code>）仍然是私有的；在 Linux 上，来自 NTFS 卷的文件只有其所有者可以读取。</p>
 
 <h2>还原整台机器</h2>
 <ul>

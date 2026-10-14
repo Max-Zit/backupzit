@@ -128,13 +128,3 @@ func (s *Store) QueueImageRestore(ctx context.Context, backupRunID, agentID int6
 		agentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, targetDisk, keepOffline, o.NewHardware, strings.TrimSpace(o.DriverPath), []int{o.Image}).Scan(&id)
 	return id, err
 }
-
-// systemDiskOf returns the number of the agent's system disk, or -1.
-func systemDiskOf(disks []imaging.Disk) int {
-	for _, d := range disks {
-		if d.System {
-			return d.Number
-		}
-	}
-	return -1
-}

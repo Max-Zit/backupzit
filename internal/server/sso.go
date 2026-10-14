@@ -503,7 +503,7 @@ func (s *Server) ssoSignIn(w http.ResponseWriter, r *http.Request, c SSOSettings
 		s.ssoFailed(w, r, errors.New("this account is disabled"))
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: ssoCookie, Value: "", Path: "/login/sso", MaxAge: -1})
+	http.SetCookie(w, &http.Cookie{Name: ssoCookie, Value: "", Path: "/login/sso", MaxAge: -1, HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteLaxMode})
 	s.startSession(w, r, u, "single sign-on")
 }
 

@@ -15,7 +15,7 @@
 <ol>
   <li>Open <a href="/agents#vmware">Agents → VMware ESXi hosts</a> → <i>Add an ESXi host</i>.</li>
   <li>Enter the address, the user, the password and the proxy agent.</li>
-  <li>The console connects once to check them. It reads the VM list and the license, and <b>pins the host's HTTPS certificate and SSH host key</b>. If the host is later replaced by another machine with the same address, BackupZit refuses to connect instead of sending it the password.</li>
+  <li>The console connects once to check them. It reads the VM list and the license, and <b>pins the host's HTTPS certificate and SSH host key</b>. If the host is later replaced by another machine with the same address, BackupZit refuses to connect instead of sending it the password. If the certificate changes for a reason you know — the host was reinstalled, got a new certificate, or was added to vCenter (which replaces the certificates of its hosts) — the host shows the new fingerprint with an <b>Accept the new certificate</b> button on the Agents page. Compare the fingerprint with the host before accepting it.</li>
 </ol>
 <p>The password is stored encrypted, like all other secrets. The VM list is refreshed every 10 minutes, or immediately with <i>Refresh</i>. The table shows each host's mode:</p>
 <ul>

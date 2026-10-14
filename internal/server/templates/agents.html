@@ -75,6 +75,7 @@ sudo systemctl enable --now backupzit-agent</pre>
         <form method="post" action="/vmware/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove %v and its backup jobs? Backups on storage stay." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
     </tr>
     {{with .LastError}}<tr><td colspan="6" class="small muted wrap-any">{{.}}</td></tr>{{end}}
+    {{if and ($.Me.Can "agents") .NewCertificate}}<tr><td colspan="6" class="small"><form method="post" action="/vmware/{{.ID}}/certificate" class="inline" data-confirm="{{T "Accept the new certificate %v of %v? Only do this if you know why it changed: the host was reinstalled, got a new certificate or was added to vCenter." .NewCertificate .Name}}"><input type="hidden" name="thumbprint" value="{{.NewCertificate}}"><button>{{T "Accept the new certificate"}}</button></form> <span class="mono">{{.NewCertificate}}</span></td></tr>{{end}}
     {{end}}
   </table></div>
   {{else}}<p class="muted">{{T "No ESXi host added yet."}}</p>{{end}}

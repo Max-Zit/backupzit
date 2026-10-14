@@ -60,7 +60,7 @@
 <p>U záloh obrazů klikněte v běhu zálohy na <b>Procházet soubory</b>. Souborový systém NTFS v obrazu můžete procházet přímo v konzoli, zaškrtnout soubory a složky a obnovit je na libovolného agenta — bez obnovy celého disku. Při obnově do složky mají soubory stejné uspořádání jako ze zálohy souborů: písmeno jednotky se stane první složkou (<code>D:RestoreCUsers…</code>).</p>
 
 <h2>Obnova jednotlivých souborů z VM (Proxmox VE, Hyper-V, VMware)</h2>
-<p>V běhu zálohy VM klikněte vedle hosta na <b>Procházet soubory</b>. Konzole zobrazí oddíly a svazky LVM jeho disků a umožní procházet souborové systémy NTFS, ext4 a XFS. Zaškrtnuté soubory <b>stáhněte</b> (více jako archiv ZIP) nebo je obnovte na libovolného agenta. Viz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> a <a href="/docs/vmware">VMware ESXi</a>.</p>
+<p>V běhu zálohy VM klikněte vedle hosta na <b>Procházet soubory</b>. Konzole zobrazí oddíly a svazky LVM jeho disků a umožní procházet souborové systémy NTFS, ext4 a XFS. Zaškrtnuté soubory <b>stáhněte</b> (více jako archiv ZIP) nebo je obnovte na libovolného agenta. Viz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> a <a href="/docs/vmware">VMware ESXi</a>. Soubory obnovené na agentovi si ponechají unixová oprávnění, která měly ve VM (ext4, XFS), takže obnovená tajemství jako <code>/etc/shadow</code> zůstanou soukromá; soubory ze svazků NTFS může v Linuxu číst jen jejich vlastník.</p>
 
 <h2>Obnova celých počítačů</h2>
 <ul>

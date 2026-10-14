@@ -60,7 +60,7 @@
 <p>Em backups de imagem, clique em <b>Navegar pelos arquivos</b> na execução de backup. Pode navegar no sistema de arquivos NTFS da imagem diretamente na console, marcar arquivos e pastas e restaurá-los em qualquer agente — sem restaurar o disco inteiro. Restaurados numa pasta, os arquivos ficam com a mesma estrutura de um backup de arquivos: a letra da unidade passa a ser a primeira pasta (<code>D:RestoreCUsers…</code>).</p>
 
 <h2>Restaurar arquivos individuais de uma VM (Proxmox VE, Hyper-V, VMware)</h2>
-<p>Numa execução de backup de VM clique em <b>Navegar pelos arquivos</b> ao lado do convidado. A console mostra as partições e volumes LVM dos seus discos e permite navegar em sistemas de arquivos NTFS, ext4 e XFS. <b>Baixe</b> os arquivos marcados (vários como arquivo ZIP) ou restaure-os em qualquer agente. Veja <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> e <a href="/docs/vmware">VMware ESXi</a>.</p>
+<p>Numa execução de backup de VM clique em <b>Navegar pelos arquivos</b> ao lado do convidado. A console mostra as partições e volumes LVM dos seus discos e permite navegar em sistemas de arquivos NTFS, ext4 e XFS. <b>Baixe</b> os arquivos marcados (vários como arquivo ZIP) ou restaure-os em qualquer agente. Veja <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> e <a href="/docs/vmware">VMware ESXi</a>. Os arquivos restaurados em um agente mantêm as permissões Unix que tinham na VM (ext4, XFS), então segredos restaurados como <code>/etc/shadow</code> continuam privados; no Linux, arquivos de volumes NTFS só podem ser lidos pelo proprietário.</p>
 
 <h2>Restaurar máquinas inteiras</h2>
 <ul>

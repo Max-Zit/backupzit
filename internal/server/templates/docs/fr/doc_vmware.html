@@ -15,7 +15,7 @@
 <ol>
   <li>Ouvrez <a href="/agents#vmware">Agents → Hôtes VMware ESXi</a> → <i>Ajouter un hôte ESXi</i>.</li>
   <li>Saisissez l'adresse, l'utilisateur, le mot de passe et l'agent proxy.</li>
-  <li>La console se connecte une fois pour les vérifier. Elle lit la liste des VM et la licence, et <b>épingle le certificat HTTPS et la clé d'hôte SSH de l'hôte</b>. Si l'hôte est plus tard remplacé par une autre machine à la même adresse, BackupZit refuse de se connecter au lieu de lui envoyer le mot de passe.</li>
+  <li>La console se connecte une fois pour les vérifier. Elle lit la liste des VM et la licence, et <b>épingle le certificat HTTPS et la clé d'hôte SSH de l'hôte</b>. Si l'hôte est plus tard remplacé par une autre machine à la même adresse, BackupZit refuse de se connecter au lieu de lui envoyer le mot de passe. Si le certificat change pour une raison connue — l'hôte a été réinstallé, a reçu un nouveau certificat ou a été ajouté à vCenter (qui remplace les certificats de ses hôtes) —, l'hôte affiche la nouvelle empreinte avec un bouton <b>Accepter le nouveau certificat</b> sur la page Agents. Comparez l'empreinte avec celle de l'hôte avant de l'accepter.</li>
 </ol>
 <p>Le mot de passe est stocké chiffré, comme tous les autres secrets. La liste des VM est actualisée toutes les 10 minutes, ou immédiatement avec <i>Actualiser</i>. Le tableau indique le mode de chaque hôte :</p>
 <ul>

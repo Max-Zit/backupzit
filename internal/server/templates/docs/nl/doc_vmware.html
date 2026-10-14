@@ -15,7 +15,7 @@
 <ol>
   <li>Open <a href="/agents#vmware">Agents → VMware ESXi-hosts</a> → <i>Een ESXi-host toevoegen</i>.</li>
   <li>Voer het adres, de gebruiker, het wachtwoord en de proxy-agent in.</li>
-  <li>De console maakt één keer verbinding om ze te controleren. Hij leest de VM-lijst en de licentie, en <b>pint het HTTPS-certificaat en de SSH-hostsleutel van de host</b>. Als de host later wordt vervangen door een andere machine met hetzelfde adres, weigert BackupZit verbinding te maken in plaats van die het wachtwoord te sturen.</li>
+  <li>De console maakt één keer verbinding om ze te controleren. Hij leest de VM-lijst en de licentie, en <b>pint het HTTPS-certificaat en de SSH-hostsleutel van de host</b>. Als de host later wordt vervangen door een andere machine met hetzelfde adres, weigert BackupZit verbinding te maken in plaats van die het wachtwoord te sturen. Wijzigt het certificaat om een bekende reden — de host is opnieuw geïnstalleerd, heeft een nieuw certificaat gekregen of is aan vCenter toegevoegd (dat de certificaten van zijn hosts vervangt) —, dan toont de host op de pagina Agents de nieuwe vingerafdruk met een knop <b>Nieuw certificaat accepteren</b>. Vergelijk de vingerafdruk met de host voordat u hem accepteert.</li>
 </ol>
 <p>Het wachtwoord wordt versleuteld opgeslagen, zoals alle andere geheimen. De VM-lijst wordt elke 10 minuten vernieuwd, of direct met <i>Vernieuwen</i>. De tabel toont de modus van elke host:</p>
 <ul>

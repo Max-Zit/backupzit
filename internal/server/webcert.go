@@ -68,9 +68,7 @@ func (c CertSettings) Validate() error {
 	}
 	// Uploaded certificates may also be for an IP address (networks
 	// without internal DNS); Let's Encrypt needs a public DNS name.
-	if ip := net.ParseIP(c.Hostname); ip != nil && c.Mode == "upload" {
-		c.Hostname = ip.String()
-	} else if !hostnameRe.MatchString(c.Hostname) {
+	if isIP := net.ParseIP(c.Hostname) != nil; !(isIP && c.Mode == "upload") && !hostnameRe.MatchString(c.Hostname) {
 		if c.Mode == "upload" {
 			return errors.New("enter the DNS name or IP address browsers use for the console, e.g. backup.example.com")
 		}

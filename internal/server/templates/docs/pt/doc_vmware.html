@@ -15,7 +15,7 @@
 <ol>
   <li>Abra <a href="/agents#vmware">Agentes → Hosts VMware ESXi</a> → <i>Adicionar um host ESXi</i>.</li>
   <li>Informe o endereço, o usuário, a senha e o agente proxy.</li>
-  <li>O console se conecta uma vez para verificá-los. Ele lê a lista de VMs e a licença, e <b>fixa o certificado HTTPS e a chave de host SSH do host</b>. Se mais tarde o host for substituído por outra máquina com o mesmo endereço, o BackupZit se recusa a conectar em vez de enviar a senha a ela.</li>
+  <li>O console se conecta uma vez para verificá-los. Ele lê a lista de VMs e a licença, e <b>fixa o certificado HTTPS e a chave de host SSH do host</b>. Se mais tarde o host for substituído por outra máquina com o mesmo endereço, o BackupZit se recusa a conectar em vez de enviar a senha a ela. Se o certificado mudar por um motivo conhecido — o host foi reinstalado, recebeu um novo certificado ou foi adicionado ao vCenter (que substitui os certificados dos seus hosts) —, o host mostra a nova impressão digital com um botão <b>Aceitar o novo certificado</b> na página Agentes. Compare a impressão digital com a do host antes de aceitá-la.</li>
 </ol>
 <p>A senha é armazenada criptografada, como todos os outros segredos. A lista de VMs é atualizada a cada 10 minutos, ou na hora com <i>Atualizar</i>. A tabela mostra o modo de cada host:</p>
 <ul>

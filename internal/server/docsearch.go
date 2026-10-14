@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -72,7 +73,7 @@ func (s *Server) docSections(lang string) []docSection {
 					return
 				}
 				idx = append(idx, docSection{Slug: p.Slug, Page: p.Title, Heading: heading, Anchor: anchor,
-					text: text, lower: strings.ToLower(text), lowerHead: strings.ToLower(heading + " " + p.Title)})
+					text: text, lower: foldCase(text), lowerHead: foldCase(heading + " " + p.Title)})
 			}
 			start, heading, anchor := 0, "", ""
 			for _, c := range cuts {
@@ -94,7 +95,7 @@ func (s *Server) docSections(lang string) []docSection {
 // searchDocs finds the sections containing all words of q.
 func (s *Server) searchDocs(lang, q string) []docHit {
 	var terms []string
-	for _, w := range strings.Fields(strings.ToLower(q)) {
+	for _, w := range strings.Fields(foldCase(q)) {
 		if utf8.RuneCountInString(w) >= 2 && len(terms) < 8 {
 			terms = append(terms, w)
 		}
@@ -124,53 +125,69 @@ func (s *Server) searchDocs(lang, q string) []docHit {
 	return hits
 }
 
-// snippet cuts about 220 characters around the first match and marks the
-// words; everything else is escaped.
+// foldCase lowercases s letter by letter, so it has as many letters as s
+// (strings.ToLower turns the Turkish İ into two). Search texts and terms
+// use it, and snippet can cut both at the same letter.
+func foldCase(s string) string { return strings.Map(unicode.ToLower, s) }
+
+// snippet cuts about 220 letters around the first match and marks the
+// words; everything else is escaped. lower is foldCase(text).
 func snippet(text, lower string, terms []string) template.HTML {
-	first := len(lower)
+	tr, lr := []rune(text), []rune(lower)
+	if len(lr) != len(tr) {
+		lr = []rune(foldCase(text))
+	}
+	rterms := make([][]rune, 0, len(terms))
 	for _, t := range terms {
-		if i := strings.Index(lower, t); i >= 0 && i < first {
-			first = i
+		rterms = append(rterms, []rune(t))
+	}
+	hasAt := func(i int, t []rune) bool {
+		if i+len(t) > len(lr) {
+			return false
+		}
+		for k, r := range t {
+			if lr[i+k] != r {
+				return false
+			}
+		}
+		return true
+	}
+	first := -1
+	for i := range lr {
+		for _, t := range rterms {
+			if hasAt(i, t) {
+				first = i
+				break
+			}
+		}
+		if first >= 0 {
+			break
 		}
 	}
-	if first == len(lower) {
+	if first < 0 {
 		first = 0
 	}
-	start, end := first-80, first+140
-	if start < 0 {
-		start = 0
-	}
-	if end > len(text) {
-		end = len(text)
-	}
-	for start > 0 && !utf8.RuneStart(text[start]) {
-		start--
-	}
-	for end < len(text) && !utf8.RuneStart(text[end]) {
-		end++
-	}
-	part, lpart := text[start:end], lower[start:end]
+	start, end := max(first-80, 0), min(first+140, len(tr))
 	var b strings.Builder
 	if start > 0 {
 		b.WriteString("… ")
 	}
-	for i := 0; i < len(part); {
+	for i := start; i < end; {
 		matched := 0
-		for _, t := range terms {
-			if strings.HasPrefix(lpart[i:], t) && len(t) > matched {
+		for _, t := range rterms {
+			if len(t) > matched && hasAt(i, t) {
 				matched = len(t)
 			}
 		}
 		if matched > 0 {
-			b.WriteString("<mark>" + template.HTMLEscapeString(part[i:i+matched]) + "</mark>")
+			b.WriteString("<mark>" + template.HTMLEscapeString(string(tr[i:i+matched])) + "</mark>")
 			i += matched
 			continue
 		}
-		_, n := utf8.DecodeRuneInString(part[i:])
-		b.WriteString(template.HTMLEscapeString(part[i : i+n]))
-		i += n
+		b.WriteString(template.HTMLEscapeString(string(tr[i])))
+		i++
 	}
-	if end < len(text) {
+	if end < len(tr) {
 		b.WriteString(" …")
 	}
 	return template.HTML(b.String())

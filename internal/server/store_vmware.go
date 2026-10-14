@@ -54,6 +54,19 @@ func (h VMwareHost) Inv() *pve.Inventory {
 }
 
 // IsVCenter reports whether the connection is a vCenter Server.
+// certChangedRe finds the certificate a host presents instead of the
+// pinned one in its last error.
+var certChangedRe = regexp.MustCompile(`certificate changed \((SHA256:[A-Za-z0-9+/=]{43,44}), expected`)
+
+// NewCertificate is the fingerprint of a changed certificate the host
+// presented at the last check ("" if the pinned one still matches).
+func (h VMwareHost) NewCertificate() string {
+	if m := certChangedRe.FindStringSubmatch(h.LastError); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
 func (h VMwareHost) IsVCenter() bool {
 	inv := h.Inv()
 	return inv != nil && strings.HasPrefix(inv.Version, "vCenter")
@@ -177,6 +190,12 @@ func (s *Store) UpdateVMwareMethod(ctx context.Context, id int64, method string,
 }
 
 // UpdateVMwareProxy changes the agent that works for the host.
+// UpdateVMwareThumbprint pins a new certificate of a host.
+func (s *Store) UpdateVMwareThumbprint(ctx context.Context, id int64, thumbprint string) error {
+	_, err := s.db.Exec(ctx, `UPDATE vmware_hosts SET thumbprint=$2 WHERE id=$1`, id, thumbprint)
+	return err
+}
+
 func (s *Store) UpdateVMwareProxy(ctx context.Context, id, agentID int64) error {
 	_, err := s.db.Exec(ctx, `UPDATE vmware_hosts SET proxy_agent_id=$2 WHERE id=$1`, id, agentID)
 	if err == nil {

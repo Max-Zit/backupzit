@@ -619,4 +619,25 @@ func TestVCenterConnection(t *testing.T) {
 	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/method", hosts[0].ID), url.Values{"method": {"ssh"}}); !strings.Contains(loc, "err=") {
 		t.Errorf("SSH accepted for vCenter: %s", loc)
 	}
+	// A changed certificate is refused; the admin accepts the one shown.
+	id, real := hosts[0].ID, hosts[0].Thumbprint
+	e.store.UpdateVMwareThumbprint(ctx, id, "SHA256:"+strings.Repeat("A", 43))
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/refresh", id), nil); !strings.Contains(loc, "err=") {
+		t.Fatalf("changed certificate accepted: %s", loc)
+	}
+	if h, _ := e.store.GetVMwareHost(ctx, id); h.NewCertificate() != real {
+		t.Fatalf("new certificate %q, want %q (%s)", h.NewCertificate(), real, h.LastError)
+	}
+	if _, _, body := admin.do("GET", "/agents", nil); !strings.Contains(body, fmt.Sprintf(`action="/vmware/%d/certificate"`, id)) {
+		t.Error("agents page offers no way to accept the new certificate")
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/certificate", id), url.Values{"thumbprint": {"SHA256:" + strings.Repeat("B", 43)}}); !strings.Contains(loc, "err=") {
+		t.Errorf("other fingerprint accepted: %s", loc)
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/certificate", id), url.Values{"thumbprint": {real}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("accept certificate: %s", loc)
+	}
+	if h, _ := e.store.GetVMwareHost(ctx, id); h.Thumbprint != real || h.LastError != "" || h.NewCertificate() != "" {
+		t.Errorf("after accepting: %q %q", h.Thumbprint, h.LastError)
+	}
 }

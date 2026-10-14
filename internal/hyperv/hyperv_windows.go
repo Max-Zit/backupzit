@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/max-zit/backupzit/internal/pve"
 	"golang.org/x/sys/windows/svc/mgr"
@@ -194,13 +193,6 @@ func storageFolders(ctx context.Context, vms []vmInfo) []string {
 		}
 	}
 	return out
-}
-
-func waitGone(ctx context.Context, d time.Duration) {
-	select {
-	case <-ctx.Done():
-	case <-time.After(d):
-	}
 }
 
 var errNoDisks = errors.New("the VM has no virtual hard disks")

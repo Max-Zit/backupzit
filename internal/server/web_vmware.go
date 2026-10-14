@@ -126,6 +126,37 @@ func (s *Server) handleVMwareMethod(w http.ResponseWriter, r *http.Request, _ st
 	redirectMsg(w, r, "/agents#vmware", l.T("%s: backups and restores now use SSH.", h.Name))
 }
 
+// handleVMwareCertificate serves POST /vmware/{id}/certificate: an admin
+// accepts the new certificate a host presented (after a reinstall, a
+// renewed certificate or when vCenter took the host over). Only the
+// fingerprint that was shown is accepted, and it is checked at once.
+func (s *Server) handleVMwareCertificate(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	h, err := s.store.GetVMwareHost(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	l := requestLanguage(r)
+	fp := r.FormValue("thumbprint")
+	if fp == "" || fp != h.NewCertificate() {
+		redirectErr(w, r, "/agents#vmware", errors.New(l.T("The certificate of %s changed again: refresh it and check the new fingerprint.", h.Name)))
+		return
+	}
+	old := h.Thumbprint
+	h.Thumbprint = fp
+	if err := s.store.RefreshVMwareHost(r.Context(), h); err != nil {
+		redirectErr(w, r, "/agents#vmware", fmt.Errorf("%s: %v", h.Name, err))
+		return
+	}
+	if err := s.store.UpdateVMwareThumbprint(r.Context(), id, fp); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.audit(r, "vmware.certificate", "%s: certificate %s accepted (was %s)", h.Name, fp, old)
+	redirectMsg(w, r, "/agents#vmware", l.T("%s: the new certificate %s is pinned.", h.Name, fp))
+}
+
 func (s *Server) handleVMwareProxy(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
 	h, err := s.store.GetVMwareHost(r.Context(), id)

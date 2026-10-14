@@ -15,7 +15,7 @@
 <ol>
   <li>Otvorite <a href="/agents#vmware">Agenti → VMware ESXi hostovi</a> → <i>Dodajte ESXi host</i>.</li>
   <li>Unesite adresu, korisnika, lozinku i proxy agenta.</li>
-  <li>Konzola se jednom povezuje da ih proveri. Čita listu virtuelnih mašina i licencu, i <b>pamti HTTPS sertifikat i SSH ključ hosta</b>. Ako se host kasnije zameni drugom mašinom sa istom adresom, BackupZit odbija da se poveže umesto da joj pošalje lozinku.</li>
+  <li>Konzola se jednom povezuje da ih proveri. Čita listu virtuelnih mašina i licencu, i <b>pamti HTTPS sertifikat i SSH ključ hosta</b>. Ako se host kasnije zameni drugom mašinom sa istom adresom, BackupZit odbija da se poveže umesto da joj pošalje lozinku. Ako se sertifikat promeni iz poznatog razloga — host je ponovo instaliran, dobio je novi sertifikat ili je dodat u vCenter (koji zameni sertifikate svojih hostova) — na strani Agenti host prikazuje novi otisak i dugme <b>Prihvati novi sertifikat</b>. Pre prihvatanja uporedite otisak sa onim na hostu.</li>
 </ol>
 <p>Lozinka se čuva šifrovana, kao i sve druge tajne. Lista virtuelnih mašina se osvežava svakih 10 minuta, ili odmah dugmetom <i>Osveži</i>. Tabela prikazuje režim svakog hosta:</p>
 <ul>

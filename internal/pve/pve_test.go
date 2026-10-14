@@ -1,6 +1,10 @@
 package pve
 
 import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -136,5 +140,31 @@ func TestBootTestConfig(t *testing.T) {
 	want := "name: x\nnet0: virtio=AA:BB:CC:DD:EE:FF,bridge=vmbr0,link_down=1\nnet1: e1000=AA:BB:CC:DD:EE:00,bridge=vmbr1,link_down=1\n"
 	if got != want {
 		t.Errorf("isolateConfig:\n%s", got)
+	}
+}
+
+// The instant recovery storage is not offered for restores and replicas.
+func TestInventorySkipsInstantStorage(t *testing.T) {
+	oldDir, oldCmd := ConfigDir, command
+	defer func() { ConfigDir, command = oldDir, oldCmd }()
+	ConfigDir = t.TempDir()
+	cfg := "dir: local\n\tpath /var/lib/vz\n\tcontent iso,images,rootdir\n\n" +
+		"lvmthin: local-lvm\n\tthinpool data\n\tvgname pve\n\tcontent rootdir,images\n\n" +
+		"dir: " + InstantStorage + "\n\tpath /var/lib/backupzit-instant\n\tcontent images\n"
+	if err := os.WriteFile(filepath.Join(ConfigDir, "storage.cfg"), []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	command = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		if name == "pvesh" {
+			return []byte("[]"), nil
+		}
+		return nil, errors.New("not here")
+	}
+	inv, err := GetInventory(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(inv.Storage, ",") != "local,local-lvm" && strings.Join(inv.Storage, ",") != "local-lvm,local" {
+		t.Errorf("storages %v", inv.Storage)
 	}
 }

@@ -378,6 +378,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /vmware/{id}/refresh", s.ui(PermAgents, s.handleVMwareRefresh))
 	mux.HandleFunc("POST /vmware/{id}/proxy", s.ui(PermAgents, s.handleVMwareProxy))
 	mux.HandleFunc("POST /vmware/{id}/method", s.ui(PermAgents, s.handleVMwareMethod))
+	mux.HandleFunc("POST /vmware/{id}/certificate", s.ui(PermAgents, s.handleVMwareCertificate))
 	mux.HandleFunc("POST /vmware/{id}/delete", s.ui(PermAgents, s.handleVMwareDelete))
 	mux.HandleFunc("GET /targets", s.ui(PermView, s.handleTargets))
 	mux.HandleFunc("POST /targets", s.ui(PermStorage, s.handleTargetCreate))
@@ -711,7 +712,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request, _ string) 
 	if c, err := r.Cookie(sessionCookie); err == nil {
 		s.store.Logout(r.Context(), c.Value)
 	}
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1})
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteStrictMode})
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
@@ -1103,20 +1104,20 @@ func (s *Server) handleJobEnable(enabled bool) func(http.ResponseWriter, *http.R
 	return func(w http.ResponseWriter, r *http.Request, _ string) {
 		id, _ := pathID(r)
 		back := fmt.Sprintf("/jobs/%d", id)
-		if !enabled {
-			// A disabled job silently stops backing up.
-			name := fmt.Sprintf("#%d", id)
-			if j, err := s.store.GetJob(r.Context(), id); err == nil {
-				name = j.Name
-			}
-			if s.needsApproval(w, r, back, "job.disable", id, name, nil) {
-				return
-			}
+		j, err := s.store.GetJob(r.Context(), id)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		// A disabled job silently stops backing up.
+		if !enabled && s.needsApproval(w, r, back, "job.disable", id, j.Name, nil) {
+			return
 		}
 		if err := s.store.SetJobEnabled(r.Context(), id, enabled); err != nil {
 			redirectErr(w, r, back, err)
 			return
 		}
+		s.audit(r, map[bool]string{true: "job.enable", false: "job.disable"}[enabled], "job %d %s", id, j.Name)
 		redirectMsg(w, r, back, map[bool]string{true: "Job enabled.", false: "Job disabled."}[enabled])
 	}
 }

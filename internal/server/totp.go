@@ -275,7 +275,7 @@ func (s *Server) handleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "login2fa", pageData{Title: "Two-factor authentication", Error: "Invalid code. Try the current code from your app."})
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: mfaCookie, Value: "", Path: "/login", MaxAge: -1})
+	http.SetCookie(w, &http.Cookie{Name: mfaCookie, Value: "", Path: "/login", MaxAge: -1, HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteStrictMode})
 	detail := "two-factor"
 	if usedRecovery {
 		detail = "two-factor with a recovery code"

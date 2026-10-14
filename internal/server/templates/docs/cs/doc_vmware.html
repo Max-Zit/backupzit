@@ -15,7 +15,7 @@
 <ol>
   <li>Otevřete <a href="/agents#vmware">Agenti → Hostitelé VMware ESXi</a> → <i>Přidat hostitele ESXi</i>.</li>
   <li>Zadejte adresu, uživatele, heslo a proxy agenta.</li>
-  <li>Konzole se jednou připojí, aby je ověřila. Načte seznam VM a licenci a <b>připne HTTPS certifikát a SSH klíč hostitele</b>. Pokud bude hostitel později nahrazen jiným počítačem se stejnou adresou, BackupZit odmítne připojení místo toho, aby mu poslal heslo.</li>
+  <li>Konzole se jednou připojí, aby je ověřila. Načte seznam VM a licenci a <b>připne HTTPS certifikát a SSH klíč hostitele</b>. Pokud bude hostitel později nahrazen jiným počítačem se stejnou adresou, BackupZit odmítne připojení místo toho, aby mu poslal heslo. Pokud se certifikát změní ze známého důvodu — hostitel byl přeinstalován, dostal nový certifikát nebo byl přidán do vCenter (který certifikáty svých hostitelů nahrazuje) —, zobrazí hostitel na stránce Agenti nový otisk s tlačítkem <b>Přijmout nový certifikát</b>. Před přijetím otisk porovnejte s hostitelem.</li>
 </ol>
 <p>Heslo se ukládá šifrovaně, jako všechna ostatní tajemství. Seznam VM se obnovuje každých 10 minut, nebo hned tlačítkem <i>Obnovit</i>. Tabulka ukazuje režim každého hostitele:</p>
 <ul>

@@ -336,7 +336,9 @@ func (v *Volume) extractFile(e Entry, target string) (int64, error) {
 		return 0, err
 	}
 	tmp := target + ".bzpart"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	// NTFS has no Unix permissions: only the owner may read restored
+	// files on Linux (on Windows the target folder's ACL applies).
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return 0, err
 	}
