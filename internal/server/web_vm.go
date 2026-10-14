@@ -54,7 +54,7 @@ func (s *Server) handleVMRestore(w http.ResponseWriter, r *http.Request, runID i
 		return
 	}
 	o := api.VMRestore{VMID: vmid, Name: r.FormValue("name"), Storage: r.FormValue("storage"),
-		Start: r.FormValue("start") == "on"}
+		Start: r.FormValue("start") == "on", Node: strings.TrimSpace(r.FormValue("node"))}
 	switch r.FormValue("id_mode") {
 	case "original":
 		o.Overwrite = r.FormValue("overwrite") == "on"

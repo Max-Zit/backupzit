@@ -79,15 +79,17 @@ page data; .Data holds the keys built by restoreFormData. */}}
   <label class="check"><input type="radio" name="id_mode" value="next" checked> {{T "As a new VM next to the original"}} <small>{{T "new name (default: original name + \"-restored-\" and the date), new UUID and MAC addresses"}}</small></label>
   <label class="check"><input type="radio" name="id_mode" value="original"> {{T "In place of the original VM"}} <small>{{T "or recreate it if it was deleted"}}</small></label>
   <label class="check"><input type="checkbox" name="overwrite"> {{T "If the original VM still exists,"}} <b>{{T "turn it off and replace its disks"}}</b> {{T "with the backup"}} <small>{{T "it keeps its UUID, network adapters and MAC addresses; the old disks are kept renamed ("}}<code>.replaced-…</code>)</small></label>
-  <label class="check"><input type="radio" name="id_mode" value="instant"> {{T "Instantly, running from the backup"}} <small>{{T "starts in seconds from a datastore the host's Linux proxy agent serves over NFS; then finish (copy the disks to a datastore, with a short shutdown) or discard it on the run page"}}</small></label>
+  <label class="check"><input type="radio" name="id_mode" value="instant"> {{T "Instantly, running from the backup"}} <small>{{T "starts in seconds from a datastore the host's Linux proxy agent serves over NFS; then finish (move it to a datastore: with Storage vMotion on vCenter, with a short shutdown on a single host) or discard it on the run page"}}</small></label>
   <div class="row">
     <label>{{T "Name"}} <small>{{T "optional"}}</small><input name="name" maxlength="80"></label>
     <label>{{T "Datastore"}}
       <select name="storage"><option value="">{{T "Original datastore"}}</option>{{range .Data.VMwareHosts}}{{$h := .}}{{with .Inv}}<optgroup label="{{$h.Name}}">{{range .Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}{{end}}</select>
     </label>
   </div>
+  {{range .Data.VMwareHosts}}{{if .IsVCenter}}{{with .Inv}}<label>{{T "ESXi host"}} <small>{{T "vCenter: where the VM runs; default: the host of the original VM"}}</small>
+    <select name="node"><option value="">{{T "Host of the original VM"}}</option>{{range .Hosts}}<option value="{{.}}">{{.}}</option>{{end}}</select></label>{{end}}{{end}}{{end}}
   <label class="check"><input type="checkbox" name="start"> {{T "Start the VM after the restore"}}</label>
-  <p class="muted small">{{T "Disks are restored thin; only blocks with data are written. The proxy agent of the host writes them over SSH, which must be enabled on the host."}}</p>
+  <p class="muted small">{{T "Disks are restored thin; only blocks with data are written: through the vSphere API on licensed hosts and vCenter, over SSH (which must then be enabled) on the free license."}}</p>
   <div><button>{{T "Restore VM"}}</button></div>
 </form>
 {{else}}<p class="muted">{{T "No VMware ESXi host with a proxy agent is set up. Add one under"}} <a href="/agents#vmware">{{T "Agents → VMware ESXi hosts"}}</a>.</p>{{end}}

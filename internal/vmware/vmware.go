@@ -1,5 +1,5 @@
 // Package vmware backs up and restores virtual machines of VMware ESXi
-// hosts without agents in the guests. Any BackupZit agent can act as the
+// hosts, standalone or through vCenter Server, without agents in the guests. Any BackupZit agent can act as the
 // proxy: it talks to the host's vSphere API (inventory, changed block
 // tracking, snapshots on licensed hosts), reads virtual disks over HTTPS
 // from the datastore and uses SSH for the operations the free ESXi license
@@ -43,6 +43,9 @@ type Conn struct {
 	SSHHostKey string `json:"ssh_host_key,omitempty"`
 	// SSHPort defaults to 22.
 	SSHPort int `json:"ssh_port,omitempty"`
+	// Datacenter selects the datacenter of a vCenter with several (default:
+	// the only one).
+	Datacenter string `json:"datacenter,omitempty"`
 	// Method chooses how the host is changed: "" (automatic: the API on
 	// licensed hosts, SSH on the free license), "ssh" or "api".
 	Method string `json:"method,omitempty"`
@@ -65,6 +68,8 @@ type Client struct {
 	APIWrites bool
 	// useAPI: changes go through the API, otherwise through SSH.
 	useAPI bool
+	// VCenter is true when connected to vCenter Server instead of a host.
+	VCenter bool
 
 	sshMu sync.Mutex
 	ssh   *ssh.Client
@@ -125,22 +130,50 @@ func Connect(ctx context.Context, conn Conn) (*Client, error) {
 	}
 	c.vim = vc
 	c.Version = vc.ServiceContent.About.Version
-	if vc.ServiceContent.About.ApiType != "HostAgent" {
+	switch vc.ServiceContent.About.ApiType {
+	case "HostAgent":
+	case "VirtualCenter":
+		c.VCenter = true
+	default:
 		c.Logout()
-		return nil, errors.New("connect BackupZit to the ESXi host itself; vCenter is not supported yet")
+		return nil, fmt.Errorf("%s is neither an ESXi host nor vCenter Server (%s)", conn.Host, vc.ServiceContent.About.ApiType)
 	}
 	c.find = find.NewFinder(vc, true)
-	if c.dc, err = c.find.DefaultDatacenter(ctx); err != nil {
+	if c.dc, err = c.datacenter(ctx); err != nil {
 		c.Logout()
 		return nil, err
 	}
 	c.find.SetDatacenter(c.dc)
-	c.APIWrites = apiWritable(ctx, vc)
+	// vCenter changes everything through the API; its license covers that.
+	c.APIWrites = c.VCenter || apiWritable(ctx, vc)
 	if err := c.chooseMethod(); err != nil {
 		c.Logout()
 		return nil, err
 	}
 	return c, nil
+}
+
+// datacenter picks the datacenter: the host's own, or the one of a vCenter
+// (named in Conn.Datacenter when there are several).
+func (c *Client) datacenter(ctx context.Context) (*object.Datacenter, error) {
+	if !c.VCenter || c.conn.Datacenter != "" {
+		if c.conn.Datacenter != "" {
+			return c.find.Datacenter(ctx, c.conn.Datacenter)
+		}
+		return c.find.DefaultDatacenter(ctx)
+	}
+	dcs, err := c.find.DatacenterList(ctx, "*")
+	if err != nil {
+		return nil, fmt.Errorf("vCenter has no datacenter: %w", err)
+	}
+	if len(dcs) > 1 {
+		var names []string
+		for _, d := range dcs {
+			names = append(names, d.Name())
+		}
+		return nil, fmt.Errorf("vCenter has several datacenters (%s); add it once per datacenter", strings.Join(names, ", "))
+	}
+	return dcs[0], nil
 }
 
 // apiWritable reports whether the host's license allows API changes: the

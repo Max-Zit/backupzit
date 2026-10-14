@@ -4,7 +4,7 @@
 
 <h2>Prérequis</h2>
 <ul>
-  <li><b>ESXi 6.7, 7 ou 8</b>, connecté directement. Les hôtes gérés par vCenter s'ajoutent un par un avec leur propre adresse ; vCenter lui-même n'est pas encore pris en charge.</li>
+  <li><b>ESXi 6.7, 7 ou 8</b> connecté directement, ou <b>vCenter Server 7 ou 8</b> avec ses hôtes ESXi (voir <a href="#vcenter">vCenter Server</a>).</li>
   <li><b>Un utilisateur disposant des droits d'administrateur sur l'hôte</b>, généralement <code>root</code>.</li>
   <li><b>SSH activé sur les hôtes sous licence gratuite :</b> Host → Actions → Services → Enable Secure Shell. La licence ESXi gratuite rend l'API en lecture seule, donc les instantanés et les restaurations passent par SSH. Les hôtes sous licence sont modifiés via l'API vSphere et n'ont pas besoin de SSH.</li>
   <li><b>Un agent proxy :</b> tout agent Windows ou Linux qui atteint l'hôte sur le port 443 (et 22 quand SSH est utilisé). Les données de sauvegarde passent par lui ; placez-le donc sur un réseau rapide, proche de l'hôte et du stockage.</li>
@@ -23,6 +23,16 @@
   <li><b>licence gratuite : instantanés et restaurations via SSH :</b> l'API de l'hôte est en lecture seule, donc ces étapes passent par SSH.</li>
 </ul>
 <p>Avec <b>Automatique</b>, la console choisit elle-même : un hôte qui reçoit plus tard une licence passe à l'API sans autre configuration. <b>Comment l'hôte est modifié</b>, dans la ligne de l'hôte (et à l'ajout), peut imposer <b>Toujours SSH</b> ou <b>Toujours l'API vSphere</b> ; le changement est vérifié aussitôt. Les sauvegardes antérieures et leurs points de restauration ne dépendent pas de la méthode.</p>
+
+<h2 id="vcenter">vCenter Server</h2>
+<p>Ajoutez un vCenter Server comme un hôte : son adresse, <code>administrator@vsphere.local</code> (ou un utilisateur ayant le rôle Administrator) et un agent proxy. BackupZit voit alors les VM de tous les hôtes ESXi et clusters du datacenter par cette seule connexion ; rien n'est modifié via SSH et aucun mot de passe d'hôte n'est nécessaire.</p>
+<ul>
+  <li>Une VM déplacée vers un autre hôte avec vMotion continue d'être sauvegardée : les VM sont reconnues par leur UUID d'instance, pas par leur hôte.</li>
+  <li>Une restauration peut choisir l'<b>hôte ESXi</b> qui exécute la VM (par défaut : l'hôte de la VM d'origine) et le datastore.</li>
+  <li>La restauration instantanée démarre la VM sur l'hôte choisi ; <b>Terminer</b> la déplace vers un datastore avec <b>Storage vMotion pendant qu'elle tourne</b>, sans interruption.</li>
+  <li>Un vCenter comportant plusieurs datacenters ne peut pas encore être ajouté ; ajoutez directement les hôtes des autres datacenters.</li>
+</ul>
+<p>N'ajoutez pas le même hôte ESXi à la fois directement et via vCenter : chaque connexion a son propre dépôt, ses VM seraient donc sauvegardées deux fois.</p>
 
 <h2>Tâches de sauvegarde</h2>
 <p>Dans <a href="/jobs">Tâches de sauvegarde</a>, choisissez l'hôte ESXi (listé sous <i>Hôtes VMware ESXi</i> dans la liste des agents) et <b>Machines virtuelles</b>. Sauvegardez toutes les VM de l'hôte (les VM créées plus tard sont incluses automatiquement) ou cochez-en certaines. La tâche s'exécute sur l'agent proxy de l'hôte. Si vous changez de proxy, les tâches existantes suivent.</p>
@@ -84,7 +94,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 
 <h2>Pas encore inclus</h2>
 <ul>
-  <li><b>vCenter.</b> Ajoutez chaque hôte ESXi directement.</li>
+  <li><b>vCenter avec plusieurs datacenters.</b> Seul un vCenter avec un datacenter peut être ajouté ; ajoutez directement les hôtes des autres.</li>
   <li><b>Les VM ayant leurs propres instantanés.</b> Leurs disques sont des deltas ; supprimez ou consolidez d'abord les instantanés.</li>
   <li><b>Certains types de disques.</b> Les mappages de périphériques bruts (RDM) et les disques indépendants.</li>
   <li><b>La restauration instantanée via un agent proxy Windows.</b> La restauration instantanée nécessite un agent proxy Linux.</li>

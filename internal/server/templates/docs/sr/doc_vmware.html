@@ -4,7 +4,7 @@
 
 <h2>Zahtevi</h2>
 <ul>
-  <li><b>ESXi 6.7, 7 ili 8</b>, povezan direktno. Hostovi kojima upravlja vCenter dodaju se jedan po jedan, sa sopstvenom adresom; sam vCenter još nije podržan.</li>
+  <li><b>ESXi 6.7, 7 ili 8</b> povezan direktno, ili <b>vCenter Server 7 ili 8</b> sa svojim ESXi hostovima (vidi <a href="#vcenter">vCenter Server</a>).</li>
   <li><b>Korisnik sa administratorskim pravima na hostu</b>, obično <code>root</code>.</li>
   <li><b>SSH uključen na hostovima sa besplatnom licencom:</b> Host → Actions → Services → Enable Secure Shell. Besplatna ESXi licenca drži API samo za čitanje, pa snimci i vraćanja idu preko SSH-a. Licencirani hostovi se menjaju preko vSphere API-ja i ne treba im SSH.</li>
   <li><b>Proxy agent:</b> bilo koji Windows ili Linux agent koji dolazi do hosta na portu 443 (i 22 kada se koristi SSH). Podaci bekapa prolaze kroz njega, pa ga postavite na brzu mrežu blizu hosta i skladišta.</li>
@@ -23,6 +23,16 @@
   <li><b>besplatna licenca: snimci i vraćanja preko SSH-a:</b> API hosta je samo za čitanje, pa ovi koraci idu preko SSH-a.</li>
 </ul>
 <p>Sa <b>Automatski</b> konzola sama bira, pa host koji kasnije dobije licencu prelazi na API bez dodatnog podešavanja. <b>Kako se host menja</b> u redu hosta (i pri dodavanju) može da nametne <b>Uvek SSH</b> ili <b>Uvek vSphere API</b>; promena se odmah proverava. Raniji bekapi i njihove tačke vraćanja ne zavise od načina.</p>
+
+<h2 id="vcenter">vCenter Server</h2>
+<p>vCenter Server dodajte kao host: njegovu adresu, <code>administrator@vsphere.local</code> (ili korisnika sa ulogom Administrator) i proxy agenta. BackupZit tada kroz tu jednu vezu vidi VM-ove svih ESXi hostova i klastera datacentra; ništa se ne menja preko SSH-a i nije potrebna lozinka nijednog hosta.</p>
+<ul>
+  <li>VM premešten vMotion-om na drugi host i dalje se bekapuje: VM-ovi se prepoznaju po instance UUID-u, ne po hostu.</li>
+  <li>Pri vraćanju možete izabrati <b>ESXi host</b> na kome VM radi (podrazumevano: host originalne VM) i datastore.</li>
+  <li>Instant recovery pokreće VM na izabranom hostu; <b>Završi</b> ga premešta na datastore pomoću <b>Storage vMotion-a dok radi</b>, bez prekida.</li>
+  <li>vCenter sa više datacentara još ne može da se doda; hostove ostalih datacentara dodajte direktno.</li>
+</ul>
+<p>Isti ESXi host nemojte dodati i direktno i preko vCenter-a: svaka veza ima svoj repozitorijum, pa bi se njegovi VM-ovi bekapovali dva puta.</p>
 
 <h2>Poslovi bekapa</h2>
 <p>U <a href="/jobs">Poslovi bekapa</a> izaberite ESXi host (naveden pod <i>VMware ESXi hostovi</i> u listi agenata) i <b>Virtuelne mašine</b>. Čuvajte sve virtuelne mašine hosta (virtuelne mašine napravljene kasnije uključuju se automatski) ili označite pojedinačne. Posao radi na proxy agentu hosta. Ako promenite proxy, postojeći poslovi ga prate.</p>
@@ -84,7 +94,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 
 <h2>Još nije uključeno</h2>
 <ul>
-  <li><b>vCenter.</b> Svaki ESXi host dodajte direktno.</li>
+  <li><b>vCenter sa više datacentara.</b> Može da se doda samo vCenter sa jednim datacentrom; hostove ostalih dodajte direktno.</li>
   <li><b>Virtuelne mašine sa sopstvenim snimcima.</b> Njihovi diskovi su delte; prvo obrišite ili konsolidujte snimke.</li>
   <li><b>Neke vrste diskova.</b> Raw device mappings (RDM) i nezavisni diskovi.</li>
   <li><b>Instant recovery preko Windows proxy agenta.</b> Instant recovery traži Linux proxy agenta.</li>

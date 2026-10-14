@@ -267,7 +267,8 @@ func (a *Agent) vmwareInstant(ctx context.Context, run api.Run) api.RunResult {
 	if run.Kind != api.KindVMInstant {
 		var cfg *esxiInstant
 		for _, x := range loadESXiInstants() {
-			if x.MoID == strconv.Itoa(o.InstantVMID) {
+			// By the run that started it (vCenter VM IDs are not numbers).
+			if (o.InstantRun != 0 && x.Run == o.InstantRun) || x.MoID == strconv.Itoa(o.InstantVMID) {
 				x := x
 				cfg = &x
 			}
@@ -337,9 +338,31 @@ func (a *Agent) vmwareInstant(ctx context.Context, run api.Run) api.RunResult {
 		os.RemoveAll(esxiPath("export", dir))
 		return failed(err)
 	}
+	// The NFS client is the ESXi host: the connection itself, or on vCenter
+	// the host the VM is started on.
+	esxAddr, node := strings.Split(run.VMware.Address, ":")[0], run.VMware.Name
+	allow := []string{esxAddr}
+	if c.VCenter {
+		hs, err := c.Hosts(ctx)
+		if err != nil {
+			os.RemoveAll(esxiPath("export", dir))
+			return failed(err)
+		}
+		var h *vmware.Host
+		for i := range hs {
+			if hs[i].Connected && len(hs[i].Addresses) > 0 && (o.Node == "" || strings.EqualFold(hs[i].Name, o.Node)) {
+				h = &hs[i]
+				break
+			}
+		}
+		if h == nil {
+			os.RemoveAll(esxiPath("export", dir))
+			return failed(fmt.Errorf("no connected ESXi host %q in vCenter", o.Node))
+		}
+		node, allow, esxAddr = h.Name, h.Addresses, h.Addresses[0]
+	}
 	cfg := esxiInstant{Dir: dir, Name: name, Snapshot: sn.ID.String(), VMID: o.VMID, Repo: run.Repository, Disks: plan.Disks,
-		Allow: []string{strings.Split(run.VMware.Address, ":")[0]}, Host: run.VMware.Name,
-		Datastore: vmware.InstantDatastore(hostnameShort()), Run: run.ID}
+		Allow: allow, Host: node, Datastore: vmware.InstantDatastore(hostnameShort()), Run: run.ID}
 	if err := saveESXiInstant(cfg); err != nil {
 		return failed(err)
 	}
@@ -350,12 +373,12 @@ func (a *Agent) vmwareInstant(ctx context.Context, run api.Run) api.RunResult {
 	if err := startESXiNFS(ctx); err != nil {
 		return fail(err)
 	}
-	ip, err := localAddrTo(run.VMware.Address)
+	ip, err := localAddrTo(esxAddr)
 	if err != nil {
-		return fail(fmt.Errorf("no route to %s: %w", run.VMware.Address, err))
+		return fail(fmt.Errorf("no route to %s: %w", esxAddr, err))
 	}
 	logf("starting instant VM on ESXi", "name", name, "datastore", cfg.Datastore, "nfs", ip)
-	moid, notes, err := c.InstantStart(ctx, cfg.Datastore, ip, dir, name, true)
+	moid, notes, err := c.InstantStart(ctx, cfg.Datastore, ip, dir, name, node, true)
 	if err != nil {
 		return fail(err)
 	}
@@ -364,7 +387,7 @@ func (a *Agent) vmwareInstant(ctx context.Context, run api.Run) api.RunResult {
 		return failed(err)
 	}
 	notes = append(plan.Notes, notes...)
-	msg := fmt.Sprintf("VM %q runs from the backup on %s (datastore %s, served by this agent)", name, run.VMware.Name, cfg.Datastore)
+	msg := fmt.Sprintf("VM %q runs from the backup on %s (datastore %s, served by this agent)", name, node, cfg.Datastore)
 	if len(notes) > 0 {
 		msg += ". " + strings.Join(notes, "; ")
 	}
@@ -372,8 +395,8 @@ func (a *Agent) vmwareInstant(ctx context.Context, run api.Run) api.RunResult {
 	for _, d := range plan.Disks {
 		disks = append(disks, "["+cfg.Datastore+"] "+dir+"/"+strings.TrimSuffix(d.Flat, "-flat.vmdk")+".vmdk")
 	}
-	id, _ := strconv.Atoi(moid)
-	details, _ := json.Marshal(map[string]any{"instant_vmid": id, "node": run.VMware.Name, "name": name, "state": "running", "disks": disks, "platform": "vmware"})
+	id, _ := strconv.Atoi(strings.TrimPrefix(moid, "vm-"))
+	details, _ := json.Marshal(map[string]any{"instant_vmid": id, "node": node, "name": name, "state": "running", "disks": disks, "platform": "vmware"})
 	return api.RunResult{Status: api.StatusSuccess, Message: msg, Details: details}
 }
 

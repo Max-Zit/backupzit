@@ -4,7 +4,7 @@
 
 <h2>Vereisten</h2>
 <ul>
-  <li><b>ESXi 6.7, 7 of 8</b>, rechtstreeks verbonden. Hosts die door vCenter worden beheerd, voegt u een voor een toe met hun eigen adres; vCenter zelf wordt nog niet ondersteund.</li>
+  <li><b>ESXi 6.7, 7 of 8</b> rechtstreeks verbonden, of <b>vCenter Server 7 of 8</b> met zijn ESXi-hosts (zie <a href="#vcenter">vCenter Server</a>).</li>
   <li><b>Een gebruiker met beheerdersrechten op de host</b>, meestal <code>root</code>.</li>
   <li><b>SSH ingeschakeld op hosts met de gratis licentie:</b> Host → Actions → Services → Enable Secure Shell. De gratis ESXi-licentie maakt de API alleen-lezen, dus snapshots en herstelbewerkingen lopen via SSH. Gelicentieerde hosts worden via de vSphere-API gewijzigd en hebben geen SSH nodig.</li>
   <li><b>Een proxy-agent:</b> een willekeurige Windows- of Linux-agent die de host bereikt op poort 443 (en 22 als SSH wordt gebruikt). De back-upgegevens lopen erdoorheen, zet hem dus op een snel netwerk dicht bij de host en de opslag.</li>
@@ -23,6 +23,16 @@
   <li><b>gratis licentie: snapshots en herstel via SSH:</b> de API van de host is alleen-lezen, dus deze stappen lopen via SSH.</li>
 </ul>
 <p>Met <b>Automatisch</b> kiest de console zelf, dus een host die later een licentie krijgt, schakelt zonder verdere instellingen over op de API. <b>Hoe de host wordt gewijzigd</b> in de rij van de host (en bij het toevoegen) kan <b>Altijd SSH</b> of <b>Altijd de vSphere-API</b> afdwingen; de wijziging wordt meteen gecontroleerd. Eerdere back-ups en hun herstelpunten hangen niet af van de methode.</p>
+
+<h2 id="vcenter">vCenter Server</h2>
+<p>Voeg een vCenter Server toe zoals een host: het adres, <code>administrator@vsphere.local</code> (of een gebruiker met de rol Administrator) en een proxy-agent. BackupZit ziet dan de VM's van alle ESXi-hosts en clusters van het datacenter via deze ene verbinding; er wordt niets via SSH gewijzigd en geen hostwachtwoord is nodig.</p>
+<ul>
+  <li>Een VM die met vMotion naar een andere host is verplaatst, wordt verder geback-upt: VM's worden herkend aan hun instance-UUID, niet aan hun host.</li>
+  <li>Bij herstel kunt u de <b>ESXi-host</b> kiezen waarop de VM draait (standaard: de host van de oorspronkelijke VM) en de datastore.</li>
+  <li>Direct herstel start de VM op de gekozen host; <b>Voltooien</b> verplaatst hem met <b>Storage vMotion terwijl hij blijft draaien</b> naar een datastore, zonder onderbreking.</li>
+  <li>Een vCenter met meerdere datacenters kan nog niet worden toegevoegd; voeg de hosts van de andere datacenters rechtstreeks toe.</li>
+</ul>
+<p>Voeg dezelfde ESXi-host niet zowel rechtstreeks als via vCenter toe: elke verbinding heeft een eigen repository, dus zijn VM's zouden twee keer worden geback-upt.</p>
 
 <h2>Back-uptaken</h2>
 <p>Kies in <a href="/jobs">Back-uptaken</a> de ESXi-host (vermeld onder <i>VMware ESXi-hosts</i> in de agentlijst) en <b>Virtuele machines</b>. Maak een back-up van alle VM's van de host (later gemaakte VM's worden automatisch opgenomen) of vink er enkele aan. De taak draait op de proxy-agent van de host. Als u de proxy wijzigt, volgen de bestaande taken.</p>
@@ -84,7 +94,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 
 <h2>Nog niet inbegrepen</h2>
 <ul>
-  <li><b>vCenter.</b> Voeg elke ESXi-host rechtstreeks toe.</li>
+  <li><b>vCenter met meerdere datacenters.</b> Alleen een vCenter met één datacenter kan worden toegevoegd; voeg de hosts van de andere rechtstreeks toe.</li>
   <li><b>VM's met eigen snapshots.</b> Hun schijven zijn delta's; verwijder of consolideer de snapshots eerst.</li>
   <li><b>Sommige schijftypen.</b> Raw device mappings (RDM) en onafhankelijke schijven.</li>
   <li><b>Direct herstel via een Windows-proxy-agent.</b> Direct herstel vereist een Linux-proxy-agent.</li>

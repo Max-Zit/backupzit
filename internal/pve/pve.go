@@ -96,6 +96,8 @@ type Inventory struct {
 	Version  string   `json:"version,omitempty"`
 	Guests   []Guest  `json:"guests"`
 	Storage  []string `json:"storage"` // storages usable for guest disks on this node
+	// Hosts are the ESXi hosts of a vCenter, where VMs can be restored.
+	Hosts []string `json:"hosts,omitempty"`
 }
 
 // LocalNode returns the Proxmox node name of this machine.

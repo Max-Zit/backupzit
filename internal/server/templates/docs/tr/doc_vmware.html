@@ -4,7 +4,7 @@
 
 <h2>Gereksinimler</h2>
 <ul>
-  <li>Doğrudan bağlı <b>ESXi 6.7, 7 veya 8</b>. vCenter tarafından yönetilen ana bilgisayarlar kendi adresleriyle tek tek eklenir; vCenter'ın kendisi henüz desteklenmez.</li>
+  <li>Doğrudan bağlı <b>ESXi 6.7, 7 veya 8</b> ya da ESXi ana bilgisayarlarıyla birlikte <b>vCenter Server 7 veya 8</b> (bkz. <a href="#vcenter">vCenter Server</a>).</li>
   <li><b>Ana bilgisayarda yönetici haklarına sahip bir kullanıcı</b>, genellikle <code>root</code>.</li>
   <li><b>Ücretsiz lisanslı ana bilgisayarlarda SSH etkin:</b> Host → Actions → Services → Enable Secure Shell. Ücretsiz ESXi lisansı API'yi salt okunur yapar; bu yüzden anlık görüntüler ve geri yüklemeler SSH üzerinden yapılır. Lisanslı ana bilgisayarlar vSphere API üzerinden değiştirilir ve SSH gerektirmez.</li>
   <li><b>Bir vekil aracı:</b> ana bilgisayara 443 numaralı bağlantı noktasından (SSH kullanıldığında 22'den de) ulaşan herhangi bir Windows veya Linux aracısı. Yedek verileri onun üzerinden akar; bu yüzden onu ana bilgisayara ve depolamaya yakın, hızlı bir ağa koyun.</li>
@@ -23,6 +23,16 @@
   <li><b>ücretsiz lisans: anlık görüntüler ve geri yüklemeler SSH üzerinden:</b> ana bilgisayarın API'si salt okunurdur; bu yüzden bu adımlar SSH üzerinden yapılır.</li>
 </ul>
 <p><b>Otomatik</b> ile konsol kendisi seçer; böylece sonradan lisans alan bir ana bilgisayar ek ayar yapmadan API'ye geçer. Ana bilgisayarın satırındaki (ve eklerken) <b>Ana bilgisayarın nasıl değiştirildiği</b>, <b>Her zaman SSH</b> veya <b>Her zaman vSphere API</b> seçeneğini zorlayabilir; değişiklik hemen denetlenir. Önceki yedekler ve geri yükleme noktaları yönteme bağlı değildir.</p>
+
+<h2 id="vcenter">vCenter Server</h2>
+<p>vCenter Server'ı bir ana bilgisayar gibi ekleyin: adresi, <code>administrator@vsphere.local</code> (veya Administrator rolüne sahip bir kullanıcı) ve bir vekil aracı. BackupZit bu tek bağlantı üzerinden veri merkezinin tüm ESXi ana bilgisayarlarının ve kümelerinin VM'lerini görür; SSH üzerinden hiçbir şey değiştirilmez ve hiçbir ana bilgisayar parolası gerekmez.</p>
+<ul>
+  <li>vMotion ile başka bir ana bilgisayara taşınan VM yedeklenmeye devam eder: VM'ler ana bilgisayarlarına göre değil, örnek UUID'lerine göre tanınır.</li>
+  <li>Geri yüklemede VM'yi çalıştıracak <b>ESXi ana bilgisayarı</b> (varsayılan: özgün VM'nin ana bilgisayarı) ve datastore seçilebilir.</li>
+  <li>Anında kurtarma VM'yi seçilen ana bilgisayarda başlatır; <b>Tamamla</b>, onu <b>çalışırken Storage vMotion ile</b> kesintisiz olarak bir datastore'a taşır.</li>
+  <li>Birden çok veri merkezi olan bir vCenter henüz eklenemez; diğer veri merkezlerinin ana bilgisayarlarını doğrudan ekleyin.</li>
+</ul>
+<p>Aynı ESXi ana bilgisayarını hem doğrudan hem vCenter üzerinden eklemeyin: her bağlantının kendi deposu vardır, bu yüzden VM'leri iki kez yedeklenir.</p>
 
 <h2>Yedekleme işleri</h2>
 <p><a href="/jobs">Yedekleme işleri</a> içinde ESXi ana bilgisayarını (aracı listesinde <i>VMware ESXi ana bilgisayarları</i> altında listelenir) ve <b>Sanal makineler</b>'i seçin. Ana bilgisayarın tüm VM'lerini yedekleyin (sonradan oluşturulan VM'ler otomatik dahil edilir) veya tek tek işaretleyin. İş, ana bilgisayarın vekil aracısında çalışır. Vekili değiştirirseniz mevcut işler de onu izler.</p>
@@ -84,7 +94,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 
 <h2>Henüz dahil olmayanlar</h2>
 <ul>
-  <li><b>vCenter.</b> Her ESXi ana bilgisayarını doğrudan ekleyin.</li>
+  <li><b>Birden çok veri merkezi olan vCenter.</b> Yalnızca tek veri merkezli bir vCenter eklenebilir; diğerlerinin ana bilgisayarlarını doğrudan ekleyin.</li>
   <li><b>Kendi anlık görüntüleri olan VM'ler.</b> Diskleri deltadır; önce anlık görüntüleri silin veya birleştirin.</li>
   <li><b>Bazı disk türleri.</b> Ham aygıt eşlemeleri (RDM) ve bağımsız diskler.</li>
   <li><b>Windows vekil aracısı üzerinden anında kurtarma.</b> Anında kurtarma bir Linux vekil aracısı gerektirir.</li>

@@ -179,7 +179,10 @@ func (s *Store) QueueVMwareInstant(ctx context.Context, backupRunID, hostID int6
 	if len(o.Name) > 80 || badVMName.MatchString(o.Name) {
 		return 0, errors.New(`the VM name has at most 80 characters and none of / \ : * ? " < > | %`)
 	}
-	o = api.VMRestore{VMID: o.VMID, NewVMID: -1, Name: o.Name, Start: true}
+	if err := checkVMwareNode(h, o.Node); err != nil {
+		return 0, err
+	}
+	o = api.VMRestore{VMID: o.VMID, NewVMID: -1, Name: o.Name, Start: true, Node: o.Node}
 	opts, _ := json.Marshal(o)
 	var id int64
 	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, snapshot_id, vm_restore, vmware_host_id)

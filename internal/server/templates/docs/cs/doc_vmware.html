@@ -4,7 +4,7 @@
 
 <h2>Požadavky</h2>
 <ul>
-  <li><b>ESXi 6.7, 7 nebo 8</b>, připojený přímo. Hostitelé spravovaní vCenterem se přidávají jednotlivě s vlastní adresou; samotný vCenter zatím není podporován.</li>
+  <li><b>ESXi 6.7, 7 nebo 8</b> připojený přímo, nebo <b>vCenter Server 7 nebo 8</b> s jeho hostiteli ESXi (viz <a href="#vcenter">vCenter Server</a>).</li>
   <li><b>Uživatel s právy správce na hostiteli</b>, obvykle <code>root</code>.</li>
   <li><b>SSH zapnuté na hostitelích s bezplatnou licencí:</b> Host → Actions → Services → Enable Secure Shell. Bezplatná licence ESXi dělá API jen pro čtení, takže snímky a obnovy jdou přes SSH. Licencovaní hostitelé se mění přes vSphere API a SSH nepotřebují.</li>
   <li><b>Proxy agent:</b> libovolný agent pro Windows nebo Linux, který dosáhne na hostitele na portu 443 (a 22, když se používá SSH). Data záloh tečou přes něj, proto ho umístěte do rychlé sítě blízko hostitele a úložiště.</li>
@@ -23,6 +23,16 @@
   <li><b>bezplatná licence: snímky a obnovy přes SSH:</b> API hostitele je jen pro čtení, takže tyto kroky jdou přes SSH.</li>
 </ul>
 <p>S volbou <b>Automaticky</b> konzole vybírá sama, takže hostitel, který později dostane licenci, přejde na API bez dalšího nastavování. <b>Jak se hostitel mění</b> v řádku hostitele (a při přidání) může vynutit <b>Vždy SSH</b> nebo <b>Vždy vSphere API</b>; změna se hned ověří. Dřívější zálohy a jejich body obnovy na způsobu nezávisí.</p>
+
+<h2 id="vcenter">vCenter Server</h2>
+<p>vCenter Server přidejte jako hostitele: jeho adresu, <code>administrator@vsphere.local</code> (nebo uživatele s rolí Administrator) a proxy agenta. BackupZit pak přes toto jediné připojení vidí VM všech hostitelů ESXi a clusterů datacentra; přes SSH se nic nemění a není potřeba heslo žádného hostitele.</p>
+<ul>
+  <li>VM přesunutý pomocí vMotion na jiného hostitele se dál zálohuje: VM se poznávají podle UUID instance, ne podle hostitele.</li>
+  <li>Při obnově lze zvolit <b>hostitele ESXi</b>, na kterém VM poběží (výchozí: hostitel původního VM), a datastore.</li>
+  <li>Okamžitá obnova spustí VM na zvoleném hostiteli; <b>Dokončit</b> ho přesune na datastore pomocí <b>Storage vMotion za běhu</b>, bez výpadku.</li>
+  <li>vCenter s více datacentry zatím přidat nelze; hostitele ostatních datacenter přidejte přímo.</li>
+</ul>
+<p>Nepřidávejte stejného hostitele ESXi přímo a zároveň přes vCenter: každé připojení má vlastní repozitář, takže by se jeho VM zálohovaly dvakrát.</p>
 
 <h2>Úlohy zálohování</h2>
 <p>V <a href="/jobs">Úlohy zálohování</a> zvolte hostitele ESXi (uvedeného v části <i>Hostitelé VMware ESXi</i> v seznamu agentů) a <b>Virtuální počítače</b>. Zálohujte všechny VM hostitele (VM vytvořené později se zahrnou automaticky) nebo zaškrtněte jednotlivé. Úloha běží na proxy agentovi hostitele. Pokud proxy změníte, existující úlohy ho následují.</p>
@@ -84,7 +94,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 
 <h2>Zatím nezahrnuto</h2>
 <ul>
-  <li><b>vCenter.</b> Přidejte každého hostitele ESXi přímo.</li>
+  <li><b>vCenter s více datacentry.</b> Přidat lze jen vCenter s jedním datacentrem; hostitele ostatních přidejte přímo.</li>
   <li><b>VM s vlastními snímky.</b> Jejich disky jsou delty; snímky nejdřív smažte nebo konsolidujte.</li>
   <li><b>Některé typy disků.</b> Raw device mapping (RDM) a nezávislé disky.</li>
   <li><b>Okamžitá obnova přes proxy agenta pro Windows.</b> Okamžitá obnova potřebuje proxy agenta pro Linux.</li>

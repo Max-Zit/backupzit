@@ -4,7 +4,7 @@
 
 <h2>Requisitos</h2>
 <ul>
-  <li><b>ESXi 6.7, 7 u 8</b>, conectado directamente. Los hosts gestionados por vCenter se añaden uno a uno con su propia dirección; vCenter en sí aún no es compatible.</li>
+  <li><b>ESXi 6.7, 7 u 8</b> conectado directamente, o <b>vCenter Server 7 u 8</b> con sus hosts ESXi (vea <a href="#vcenter">vCenter Server</a>).</li>
   <li><b>Un usuario con derechos de administrador en el host</b>, normalmente <code>root</code>.</li>
   <li><b>SSH habilitado en los hosts con licencia gratuita:</b> Host → Actions → Services → Enable Secure Shell. La licencia gratuita de ESXi deja la API en solo lectura, así que las instantáneas y restauraciones van por SSH. Los hosts con licencia se modifican mediante la API de vSphere y no necesitan SSH.</li>
   <li><b>Un agente proxy:</b> cualquier agente Windows o Linux que llegue al host por el puerto 443 (y el 22 cuando se usa SSH). Los datos de copia pasan por él, así que colóquelo en una red rápida cerca del host y del almacenamiento.</li>
@@ -23,6 +23,16 @@
   <li><b>licencia gratuita: instantáneas y restauraciones por SSH:</b> la API del host es de solo lectura, así que estos pasos van por SSH.</li>
 </ul>
 <p>Con <b>Automático</b> la consola elige sola, así que un host que reciba una licencia más tarde pasa a la API sin más configuración. <b>Cómo se modifica el host</b>, en la fila del host (y al añadirlo), puede forzar <b>Siempre SSH</b> o <b>Siempre la API de vSphere</b>; el cambio se comprueba al instante. Las copias anteriores y sus puntos de restauración no dependen del método.</p>
+
+<h2 id="vcenter">vCenter Server</h2>
+<p>Añada un vCenter Server como un host: su dirección, <code>administrator@vsphere.local</code> (o un usuario con el rol Administrator) y un agente proxy. BackupZit ve entonces las VM de todos los hosts ESXi y clústeres del datacenter a través de esta única conexión; no se cambia nada por SSH y no hace falta la contraseña de ningún host.</p>
+<ul>
+  <li>Una VM movida a otro host con vMotion se sigue copiando: las VM se reconocen por su UUID de instancia, no por su host.</li>
+  <li>Una restauración puede elegir el <b>host ESXi</b> que ejecuta la VM (por defecto: el host de la VM original) y el datastore.</li>
+  <li>La recuperación instantánea arranca la VM en el host elegido; <b>Finalizar</b> la mueve a un datastore con <b>Storage vMotion mientras sigue funcionando</b>, sin interrupción.</li>
+  <li>Todavía no se puede añadir un vCenter con varios datacenters; añada directamente los hosts de los demás datacenters.</li>
+</ul>
+<p>No añada el mismo host ESXi directamente y además a través de vCenter: cada conexión tiene su propio repositorio, así que sus VM se copiarían dos veces.</p>
 
 <h2>Trabajos de copia</h2>
 <p>En <a href="/jobs">Trabajos de copia</a>, elija el host ESXi (aparece en <i>Hosts VMware ESXi</i> en la lista de agentes) y <b>Máquinas virtuales</b>. Copie todas las VM del host (las VM creadas más tarde se incluyen automáticamente) o marque algunas. El trabajo se ejecuta en el agente proxy del host. Si cambia el proxy, los trabajos existentes lo siguen.</p>
@@ -84,7 +94,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 
 <h2>Aún no incluido</h2>
 <ul>
-  <li><b>vCenter.</b> Añada cada host ESXi directamente.</li>
+  <li><b>vCenter con varios datacenters.</b> Solo se puede añadir un vCenter con un datacenter; añada directamente los hosts de los demás.</li>
   <li><b>VM con instantáneas propias.</b> Sus discos son deltas; elimine o consolide primero las instantáneas.</li>
   <li><b>Algunos tipos de disco.</b> Asignaciones de dispositivos sin formato (RDM) y discos independientes.</li>
   <li><b>Recuperación instantánea mediante un agente proxy Windows.</b> La recuperación instantánea necesita un agente proxy Linux.</li>

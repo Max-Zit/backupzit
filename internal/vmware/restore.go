@@ -23,6 +23,9 @@ type RestoreOptions struct {
 	AsNew     bool
 	Name      string
 	Datastore string // default: the original datastore
+	// Node is the ESXi host on vCenter (default: the original VM's host,
+	// else the first connected host).
+	Node      string
 	Overwrite bool
 	Start     bool
 	Progress  func(done, total uint64)
@@ -219,7 +222,14 @@ func (c *Client) restoreNew(ctx context.Context, r *repo.Repository, sn *repo.Sn
 	if err := c.put(ctx, vmxPath, v.Bytes()); err != nil {
 		return nil, fmt.Errorf("write configuration: %w", err)
 	}
-	moid, err := c.registerVM(ctx, vmxPath, name)
+	node := opts.Node
+	if node == "" && c.VCenter {
+		node = cfg.Node
+		if _, _, err := c.hostAndPool(ctx, node); err != nil {
+			node = ""
+		}
+	}
+	moid, err := c.registerVM(ctx, vmxPath, name, node)
 	if err != nil {
 		return nil, fmt.Errorf("register VM: %w", err)
 	}

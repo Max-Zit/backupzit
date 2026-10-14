@@ -233,7 +233,7 @@ func (a *Agent) vmwareRestore(ctx context.Context, run api.Run, r *repo.Reposito
 	defer c.Logout()
 	var written uint64
 	res, err := c.Restore(ctx, r, sn, vmware.RestoreOptions{
-		VMID: o.VMID, AsNew: o.NewVMID != 0, Name: o.Name, Datastore: o.Storage, Overwrite: o.Overwrite, Start: o.Start,
+		VMID: o.VMID, AsNew: o.NewVMID != 0, Name: o.Name, Datastore: o.Storage, Node: o.Node, Overwrite: o.Overwrite, Start: o.Start,
 		Progress: func(done, total uint64) { written = done; a.progress(ctx, done, total, 0) },
 		Log:      func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) },
 	})

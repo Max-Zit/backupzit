@@ -38,6 +38,13 @@ func (c *Client) Method() string {
 
 // chooseMethod decides between the API and SSH after connecting.
 func (c *Client) chooseMethod() error {
+	if c.VCenter {
+		if c.conn.Method == MethodSSH {
+			return errors.New("vCenter is changed through the vSphere API only; choose Automatic")
+		}
+		c.useAPI = true
+		return nil
+	}
 	switch c.conn.Method {
 	case MethodSSH:
 		c.useAPI = false
@@ -229,24 +236,46 @@ func (c *Client) moveDisk(ctx context.Context, src, dst dsPath) error {
 	return err
 }
 
-// hostAndPool are the host and the resource pool new VMs are placed in.
-func (c *Client) hostAndPool(ctx context.Context) (*object.HostSystem, *object.ResourcePool, error) {
-	h, err := c.find.DefaultHostSystem(ctx)
-	if err != nil {
-		return nil, nil, err
+// hostAndPool are the host and the resource pool new VMs are placed in:
+// the ESXi host itself, or on vCenter the host named node (default: the
+// first connected host).
+func (c *Client) hostAndPool(ctx context.Context, node string) (*object.HostSystem, *object.ResourcePool, error) {
+	var h *object.HostSystem
+	if !c.VCenter {
+		var err error
+		if h, err = c.find.DefaultHostSystem(ctx); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		hs, err := c.Hosts(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, x := range hs {
+			if x.Connected && (node == "" || strings.EqualFold(x.Name, node)) {
+				h = object.NewHostSystem(c.vim, x.Ref)
+				break
+			}
+		}
+		if h == nil {
+			if node != "" {
+				return nil, nil, fmt.Errorf("ESXi host %s is not connected to vCenter", node)
+			}
+			return nil, nil, errors.New("vCenter has no connected ESXi host")
+		}
 	}
 	p, err := h.ResourcePool(ctx)
 	return h, p, err
 }
 
 // registerVM adds the VM of a .vmx file to the inventory and returns its ID.
-func (c *Client) registerVM(ctx context.Context, vmx dsPath, name string) (string, error) {
+func (c *Client) registerVM(ctx context.Context, vmx dsPath, name, node string) (string, error) {
 	if c.useAPI {
 		folders, err := c.dc.Folders(ctx)
 		if err != nil {
 			return "", err
 		}
-		h, pool, err := c.hostAndPool(ctx)
+		h, pool, err := c.hostAndPool(ctx, node)
 		if err != nil {
 			return "", err
 		}
@@ -382,10 +411,11 @@ func (c *Client) vmName(ctx context.Context, moid string) string {
 	return strings.TrimSpace(out)
 }
 
-// mountNFS mounts an NFS export (path /backupzit) of nfsHost as datastore ds.
-func (c *Client) mountNFS(ctx context.Context, ds, nfsHost string) error {
+// mountNFS mounts an NFS export (path /backupzit) of nfsHost as datastore ds
+// on the host (node on vCenter).
+func (c *Client) mountNFS(ctx context.Context, ds, nfsHost, node string) error {
 	if c.useAPI {
-		h, _, err := c.hostAndPool(ctx)
+		h, _, err := c.hostAndPool(ctx, node)
 		if err != nil {
 			return err
 		}
@@ -401,22 +431,27 @@ func (c *Client) mountNFS(ctx context.Context, ds, nfsHost string) error {
 	return err
 }
 
-// unmountNFS removes the NFS datastore ds.
+// unmountNFS removes the NFS datastore ds (from every host that has it).
 func (c *Client) unmountNFS(ctx context.Context, ds string) error {
 	if c.useAPI {
-		h, _, err := c.hostAndPool(ctx)
-		if err != nil {
-			return err
-		}
-		dss, err := h.ConfigManager().DatastoreSystem(ctx)
-		if err != nil {
-			return err
-		}
 		d, err := c.find.Datastore(ctx, ds)
 		if err != nil {
 			return nil // not mounted
 		}
-		return dss.Remove(ctx, d)
+		hosts, err := d.AttachedHosts(ctx)
+		if err != nil {
+			return err
+		}
+		for _, h := range hosts {
+			dss, err := h.ConfigManager().DatastoreSystem(ctx)
+			if err != nil {
+				return err
+			}
+			if err := dss.Remove(ctx, d); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	_, err := c.run(ctx, "esxcli storage nfs remove -v "+sq(ds))
 	return err

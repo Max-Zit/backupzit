@@ -581,3 +581,42 @@ func TestInstantRecovery(t *testing.T) {
 		t.Error("boot test settings not shown")
 	}
 }
+
+// TestVCenterConnection adds a (simulated) vCenter Server: it is recognised,
+// listed with its ESXi hosts and has no SSH/API choice.
+func TestVCenterConnection(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	model := simulator.VPX()
+	defer model.Remove()
+	if err := model.Create(); err != nil {
+		t.Fatal(err)
+	}
+	model.Service.TLS = new(tls.Config)
+	sim := model.Service.NewServer()
+	defer sim.Close()
+	pw, _ := sim.URL.User.Password()
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	if _, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test"); err != nil {
+		t.Fatal(err)
+	}
+	agents, _ := e.store.ListAgents(ctx)
+	admin := newClient(t, e)
+	admin.login("admin", "admin-pass-123")
+	_, loc, _ := admin.do("POST", "/vmware", url.Values{"name": {"vc1"}, "address": {sim.URL.Host}, "username": {sim.URL.User.Username()},
+		"password": {pw}, "proxy_agent_id": {fmt.Sprint(agents[0].ID)}})
+	if !strings.Contains(loc, "msg=vCenter+Server+vc1+added") {
+		t.Fatalf("add vCenter: %s", loc)
+	}
+	hosts, _ := e.store.ListVMwareHosts(ctx)
+	if len(hosts) != 1 || !hosts[0].IsVCenter() || hosts[0].UsesSSH() || len(hosts[0].Inv().Hosts) == 0 {
+		t.Fatalf("vCenter: %+v", hosts)
+	}
+	_, _, body := admin.do("GET", "/agents", nil)
+	if !strings.Contains(body, "vCenter Server (vSphere API)") || strings.Contains(body, fmt.Sprintf(`action="/vmware/%d/method"`, hosts[0].ID)) {
+		t.Error("agents page: vCenter mode or a method choice")
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/method", hosts[0].ID), url.Values{"method": {"ssh"}}); !strings.Contains(loc, "err=") {
+		t.Errorf("SSH accepted for vCenter: %s", loc)
+	}
+}

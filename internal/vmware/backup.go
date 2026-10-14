@@ -32,6 +32,8 @@ type guestConfig struct {
 	VMX   string `json:"vmx"`
 	NVRAM []byte `json:"nvram,omitempty"`
 	Host  string `json:"host"`
+	// Node is the ESXi host the VM ran on (vCenter).
+	Node string `json:"node,omitempty"`
 }
 
 // Backup snapshots the selected VMs and stores their disks and
@@ -149,7 +151,7 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 	if err != nil {
 		return nil, nil, fmt.Errorf("read configuration: %w", err)
 	}
-	cfg := guestConfig{VM: v, VMX: string(vmxData), Host: c.conn.Host}
+	cfg := guestConfig{VM: v, VMX: string(vmxData), Host: c.conn.Host, Node: v.Host}
 	nv := parseVMX(vmxData).Get("nvram")
 	if nv == "" {
 		nv = strings.TrimSuffix(path.Base(vmxPath.Path), ".vmx") + ".nvram"
@@ -160,7 +162,11 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 		}
 	}
 
-	g := &repo.Guest{Platform: "vmware", Type: "vm", VMID: v.VMID, ID: v.UUID, Name: v.Name, Node: c.conn.Host, Running: v.Power == "poweredOn"}
+	node := c.conn.Host
+	if c.VCenter && v.Host != "" {
+		node = v.Host
+	}
+	g := &repo.Guest{Platform: "vmware", Type: "vm", VMID: v.VMID, ID: v.UUID, Name: v.Name, Node: node, Running: v.Power == "poweredOn"}
 	var plans []diskPlan
 	if v.Template {
 		g.Consistency = "template, disks read directly"

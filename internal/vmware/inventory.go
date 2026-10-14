@@ -32,9 +32,11 @@ type VM struct {
 	Tools    bool                         `json:"tools"` // VMware Tools running
 	Template bool                         `json:"template,omitempty"`
 	// Snapshots is true when the VM has snapshots of its own.
-	Snapshots bool   `json:"snapshots,omitempty"`
-	Disks     []Disk `json:"disks"`
-	NICs      []NIC  `json:"nics"`
+	Snapshots bool `json:"snapshots,omitempty"`
+	// Host is the ESXi host the VM is registered on (vCenter).
+	Host  string `json:"host,omitempty"`
+	Disks []Disk `json:"disks"`
+	NICs  []NIC  `json:"nics"`
 }
 
 // Disk is a virtual disk of a VM.
@@ -68,7 +70,7 @@ func (v VM) DiskSize() uint64 {
 
 var vmProps = []string{"name", "config.instanceUuid", "config.uuid", "config.guestId", "config.hardware.numCPU", "config.hardware.memoryMB",
 	"config.firmware", "config.changeTrackingEnabled", "config.template", "config.hardware.device", "summary.config.vmPathName",
-	"runtime.powerState", "guest.toolsRunningStatus", "snapshot"}
+	"runtime.powerState", "guest.toolsRunningStatus", "snapshot", "runtime.host"}
 
 func vmFromMO(m mo.VirtualMachine) VM {
 	v := VM{Ref: m.Self, MoID: m.Self.Value, Name: m.Name, Power: string(m.Runtime.PowerState),
@@ -88,6 +90,9 @@ func vmFromMO(m mo.VirtualMachine) VM {
 		v.Disks, v.NICs = devices(m.Config.Hardware.Device)
 	}
 	v.VMID = VMIDFor(v.UUID)
+	if m.Runtime.Host != nil {
+		v.Host = m.Runtime.Host.Value // replaced by the host's name in VMs
+	}
 	return v
 }
 
@@ -143,7 +148,7 @@ func devices(devs object.VirtualDeviceList) ([]Disk, []NIC) {
 // VMs lists the virtual machines of the host.
 func (c *Client) VMs(ctx context.Context) ([]VM, error) {
 	m := view.NewManager(c.vim)
-	v, err := m.CreateContainerView(ctx, c.vim.ServiceContent.RootFolder, []string{"VirtualMachine"}, true)
+	v, err := m.CreateContainerView(ctx, c.dc.Reference(), []string{"VirtualMachine"}, true)
 	if err != nil {
 		return nil, err
 	}
@@ -152,9 +157,15 @@ func (c *Client) VMs(ctx context.Context) ([]VM, error) {
 	if err := v.Retrieve(ctx, []string{"VirtualMachine"}, vmProps, &mos); err != nil {
 		return nil, err
 	}
+	names, err := c.hostNames(ctx)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]VM, 0, len(mos))
 	for _, x := range mos {
-		out = append(out, vmFromMO(x))
+		v := vmFromMO(x)
+		v.Host = names[v.Host]
+		out = append(out, v)
 	}
 	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
 	return out, nil
@@ -166,7 +177,61 @@ func (c *Client) vm(ctx context.Context, ref types.ManagedObjectReference) (VM, 
 	if err := property.DefaultCollector(c.vim).RetrieveOne(ctx, ref, vmProps, &m); err != nil {
 		return VM{}, err
 	}
-	return vmFromMO(m), nil
+	v := vmFromMO(m)
+	if names, err := c.hostNames(ctx); err == nil {
+		v.Host = names[v.Host]
+	}
+	return v, nil
+}
+
+// Host is an ESXi host of the connection (one, or all of a vCenter).
+type Host struct {
+	Ref       types.ManagedObjectReference
+	Name      string
+	Connected bool
+	// Addresses are the IP addresses of the host's VMkernel adapters.
+	Addresses []string
+}
+
+// Hosts lists the ESXi hosts of the datacenter.
+func (c *Client) Hosts(ctx context.Context) ([]Host, error) {
+	m := view.NewManager(c.vim)
+	v, err := m.CreateContainerView(ctx, c.dc.Reference(), []string{"HostSystem"}, true)
+	if err != nil {
+		return nil, err
+	}
+	defer v.Destroy(ctx)
+	var hs []mo.HostSystem
+	if err := v.Retrieve(ctx, []string{"HostSystem"}, []string{"name", "runtime.connectionState", "config.network.vnic"}, &hs); err != nil {
+		return nil, err
+	}
+	var out []Host
+	for _, h := range hs {
+		x := Host{Ref: h.Self, Name: h.Name, Connected: h.Runtime.ConnectionState == types.HostSystemConnectionStateConnected}
+		if h.Config != nil && h.Config.Network != nil {
+			for _, n := range h.Config.Network.Vnic {
+				if n.Spec.Ip != nil && n.Spec.Ip.IpAddress != "" {
+					x.Addresses = append(x.Addresses, n.Spec.Ip.IpAddress)
+				}
+			}
+		}
+		out = append(out, x)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+// hostNames maps host object IDs to names.
+func (c *Client) hostNames(ctx context.Context) (map[string]string, error) {
+	hs, err := c.Hosts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	names := map[string]string{}
+	for _, h := range hs {
+		names[h.Ref.Value] = h.Name
+	}
+	return names, nil
 }
 
 // Datastores lists the datastores of the host with free space.
@@ -221,12 +286,28 @@ func (c *Client) Inventory(ctx context.Context, host string) (*pve.Inventory, er
 		return nil, err
 	}
 	inv := &pve.Inventory{Platform: "vmware", Node: host, Version: "ESXi " + c.Version}
+	if c.VCenter {
+		inv.Version = "vCenter " + c.Version
+		hs, err := c.Hosts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, h := range hs {
+			if h.Connected {
+				inv.Hosts = append(inv.Hosts, h.Name)
+			}
+		}
+	}
 	for _, v := range vms {
 		status := "stopped"
 		if v.Power == "poweredOn" {
 			status = "running"
 		}
-		inv.Guests = append(inv.Guests, pve.Guest{VMID: v.VMID, ID: v.UUID, Name: v.Name, Type: "vm", Node: host,
+		node := host
+		if c.VCenter && v.Host != "" {
+			node = v.Host
+		}
+		inv.Guests = append(inv.Guests, pve.Guest{VMID: v.VMID, ID: v.UUID, Name: v.Name, Type: "vm", Node: node,
 			Status: status, MaxDisk: v.DiskSize(), MaxMem: uint64(v.MemoryMB) << 20, Template: v.Template})
 	}
 	for _, d := range dss {

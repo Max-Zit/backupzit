@@ -321,6 +321,9 @@ type VMRestore struct {
 	Storage   string `json:"storage,omitempty"` // "" = original storage
 	Overwrite bool   `json:"overwrite,omitempty"`
 	Start     bool   `json:"start,omitempty"`
+	// Node is the ESXi host to restore to when the VMware connection is a
+	// vCenter ("" = the original VM's host or the first connected one).
+	Node string `json:"node,omitempty"`
 	// Instant recovery finish/discard: the guest started from the backup
 	// and the vm-instant run that started it.
 	InstantVMID int   `json:"instant_vmid,omitempty"`

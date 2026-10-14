@@ -53,9 +53,33 @@ func (h VMwareHost) Inv() *pve.Inventory {
 	return &inv
 }
 
+// IsVCenter reports whether the connection is a vCenter Server.
+func (h VMwareHost) IsVCenter() bool {
+	inv := h.Inv()
+	return inv != nil && strings.HasPrefix(inv.Version, "vCenter")
+}
+
+// checkVMwareNode accepts an ESXi host of a vCenter connection as restore
+// target ("" = the original VM's host).
+func checkVMwareNode(h VMwareHost, node string) error {
+	if node == "" {
+		return nil
+	}
+	if inv := h.Inv(); inv != nil && h.IsVCenter() {
+		for _, n := range inv.Hosts {
+			if n == node {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("ESXi host %q is not part of %s", node, h.Name)
+}
+
 // Mode describes how the host is used.
 func (h VMwareHost) Mode() string {
 	switch {
+	case h.IsVCenter():
+		return "vCenter Server (vSphere API)"
 	case h.Method == vmware.MethodSSH:
 		return "SSH (chosen for this host)"
 	case h.APIWrites:
@@ -299,6 +323,9 @@ func (s *Store) QueueVMwareRestore(ctx context.Context, backupRunID, hostID int6
 		if !ok {
 			return 0, fmt.Errorf("datastore %q is not available on %s", o.Storage, h.Name)
 		}
+	}
+	if err := checkVMwareNode(h, o.Node); err != nil {
+		return 0, err
 	}
 	opts, _ := json.Marshal(o)
 	var id int64

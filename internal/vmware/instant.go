@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
+
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
@@ -140,17 +143,18 @@ func InstantDatastore(agentHost string) string {
 }
 
 // InstantStart mounts the agent's NFS export as datastore ds (unless
-// mounted), registers the VM in dir and starts it.
-func (c *Client) InstantStart(ctx context.Context, ds, nfsHost, dir, name string, start bool) (string, []string, error) {
+// mounted), registers the VM in dir and starts it; on vCenter on the ESXi
+// host node (default: the first connected host).
+func (c *Client) InstantStart(ctx context.Context, ds, nfsHost, dir, name, node string, start bool) (string, []string, error) {
 	if err := c.needSSH(ctx); err != nil {
 		return "", nil, err
 	}
 	if !c.datastoreExists(ctx, ds) {
-		if err := c.mountNFS(ctx, ds, nfsHost); err != nil {
+		if err := c.mountNFS(ctx, ds, nfsHost, node); err != nil {
 			return "", nil, fmt.Errorf("mount the backup as datastore %s: %w", ds, err)
 		}
 	}
-	moid, err := c.registerVM(ctx, dsPath{DS: ds, Path: dir + "/" + dir + ".vmx"}, name)
+	moid, err := c.registerVM(ctx, dsPath{DS: ds, Path: dir + "/" + dir + ".vmx"}, name, node)
 	if err != nil {
 		return "", nil, fmt.Errorf("register VM: %w", err)
 	}
@@ -172,6 +176,20 @@ func (c *Client) InstantFinish(ctx context.Context, ds, dir, moid, target string
 	}
 	if !c.datastoreExists(ctx, target) {
 		return "", fmt.Errorf("datastore %s not found", target)
+	}
+	if c.VCenter {
+		// vCenter moves the running VM with Storage vMotion: no downtime.
+		log("moving the VM to the datastore with Storage vMotion", "datastore", target)
+		d, err := c.find.Datastore(ctx, target)
+		if err != nil {
+			return "", err
+		}
+		ref := d.Reference()
+		t, err := object.NewVirtualMachine(c.vim, vmRef(moid)).Relocate(ctx, types.VirtualMachineRelocateSpec{Datastore: &ref}, types.VirtualMachineMovePriorityHighPriority)
+		if err := c.wait(ctx, t, err); err != nil {
+			return "", fmt.Errorf("Storage vMotion to %s: %w", target, err)
+		}
+		return moid, nil
 	}
 	wasOn := c.powerState(ctx, moid) == "poweredOn"
 	dstDir := dir
@@ -221,7 +239,7 @@ func (c *Client) InstantFinish(ctx context.Context, ds, dir, moid, target string
 		return "", fmt.Errorf("unregister the instant VM: %w", err)
 	}
 	copied = true
-	newID, err := c.registerVM(ctx, dsPath{DS: target, Path: dstDir + "/" + dir + ".vmx"}, name)
+	newID, err := c.registerVM(ctx, dsPath{DS: target, Path: dstDir + "/" + dir + ".vmx"}, name, "")
 	if err != nil {
 		return "", fmt.Errorf("register VM on %s: %w", target, err)
 	}

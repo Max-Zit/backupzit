@@ -58,6 +58,9 @@ func (s *Server) handleVMwareCreate(w http.ResponseWriter, r *http.Request, _ st
 	}
 	s.audit(r, "vmware.create", "%s (%s), certificate %s", h.Name, h.Address, h.Thumbprint)
 	msg := fmt.Sprintf("ESXi host %s added (ESXi %s). Its certificate %s is pinned.", h.Name, h.Version, h.Thumbprint)
+	if c.VCenter {
+		msg = fmt.Sprintf("vCenter Server %s added (vCenter %s). Its certificate %s is pinned.", h.Name, h.Version, h.Thumbprint)
+	}
 	if c.Method() == vmware.MethodAPI {
 		msg += " It is licensed: backups and restores use the vSphere API, SSH is not needed."
 	} else if sshErr != nil {

@@ -4,7 +4,7 @@
 
 <h2>要求</h2>
 <ul>
-  <li><b>ESXi 6.7、7 或 8</b>，直接连接。由 vCenter 管理的主机需使用各自的地址逐台添加；暂不支持 vCenter 本身。</li>
+  <li>直接连接的 <b>ESXi 6.7、7 或 8</b>，或带有其 ESXi 主机的 <b>vCenter Server 7 或 8</b>（参见<a href="#vcenter">vCenter Server</a>）。</li>
   <li><b>在主机上拥有管理员权限的用户</b>，通常为 <code>root</code>。</li>
   <li><b>使用免费许可证的主机需启用 SSH：</b> Host → Actions → Services → Enable Secure Shell。免费 ESXi 许可证使 API 只读，因此快照和还原通过 SSH 进行。有许可证的主机通过 vSphere API 更改，无需 SSH。</li>
   <li><b>代理（proxy）代理程序：</b> 任何能通过 443 端口（使用 SSH 时还需 22 端口）访问主机的 Windows 或 Linux 代理。备份数据会经过它，因此请将其放在靠近主机和存储的快速网络中。</li>
@@ -23,6 +23,16 @@
   <li><b>免费许可证：快照和还原通过 SSH：</b> 主机的 API 是只读的，因此这些步骤通过 SSH 进行。</li>
 </ul>
 <p>选择<b>自动</b>时由控制台自行选择，因此之后获得许可证的主机无需额外设置即可改用 API。主机所在行（以及添加时）的<b>主机的更改方式</b>可以强制为<b>始终使用 SSH</b>或<b>始终使用 vSphere API</b>；更改会立即检查。以前的备份及其还原点不受方式影响。</p>
+
+<h2 id="vcenter">vCenter Server</h2>
+<p>像添加主机一样添加 vCenter Server：填写其地址、<code>administrator@vsphere.local</code>（或具有 Administrator 角色的用户）和一个代理。之后 BackupZit 通过这一个连接即可看到数据中心内所有 ESXi 主机和集群的虚拟机；不会通过 SSH 进行任何更改，也不需要任何主机的密码。</p>
+<ul>
+  <li>通过 vMotion 迁移到其他主机的虚拟机会继续被备份：虚拟机按实例 UUID 识别，而不是按主机。</li>
+  <li>还原时可以选择运行虚拟机的 <b>ESXi 主机</b>（默认：原虚拟机所在主机）和数据存储。</li>
+  <li>即时恢复会在所选主机上启动虚拟机；<b>完成</b> 会在虚拟机继续运行时通过 <b>Storage vMotion</b> 将其迁移到数据存储，无需停机。</li>
+  <li>暂时无法添加包含多个数据中心的 vCenter；请直接添加其他数据中心的主机。</li>
+</ul>
+<p>不要将同一台 ESXi 主机既直接添加又通过 vCenter 添加：每个连接都有自己的存储库，其虚拟机会被备份两次。</p>
 
 <h2>备份作业</h2>
 <p>在 <a href="/jobs">备份作业</a> 中，选择 ESXi 主机（在代理列表的 <i>VMware ESXi 主机</i> 下列出）和 <b>虚拟机</b>。备份主机的所有虚拟机（以后创建的虚拟机会自动包含）或勾选单个虚拟机。作业在主机的代理（proxy）上运行。如果更换代理，现有作业会随之更改。</p>
@@ -84,7 +94,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 
 <h2>尚未包含</h2>
 <ul>
-  <li><b>vCenter。</b> 请直接添加每台 ESXi 主机。</li>
+  <li><b>包含多个数据中心的 vCenter。</b> 只能添加只有一个数据中心的 vCenter；其他数据中心的主机请直接添加。</li>
   <li><b>自带快照的虚拟机。</b> 其磁盘是增量磁盘；请先删除或合并快照。</li>
   <li><b>某些磁盘类型。</b> 裸设备映射（RDM）和独立磁盘。</li>
   <li><b>通过 Windows 代理（proxy）进行即时恢复。</b> 即时恢复需要 Linux 代理（proxy）。</li>

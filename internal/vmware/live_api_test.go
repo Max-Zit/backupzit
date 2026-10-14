@@ -24,7 +24,11 @@ func TestLiveAPIBackupRestore(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
 	defer cancel()
-	c, err := Connect(ctx, Conn{Host: host, User: "root", Password: os.Getenv("BACKUPZIT_TEST_ESXI_PASSWORD"), Method: MethodAPI})
+	user := os.Getenv("BACKUPZIT_TEST_ESXI_USER")
+	if user == "" {
+		user = "root"
+	}
+	c, err := Connect(ctx, Conn{Host: host, User: user, Password: os.Getenv("BACKUPZIT_TEST_ESXI_PASSWORD"), Method: MethodAPI})
 	if err != nil {
 		t.Fatal(err)
 	}
