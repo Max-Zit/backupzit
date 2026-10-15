@@ -38,4 +38,8 @@ if [ -n "${PREPARE:-}" ]; then
     exit 0
 fi
 gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber "$WORK"/*
+# The asset list shows a label: the VHDX is for generation 1 VMs.
+id=$(gh api "repos/Max-Zit/backupzit/releases/tags/v$VERSION" --jq '.assets[] | select(.name == "backupzit-appliance-vhdx.zip") | .id')
+[ -n "$id" ] && gh api -X PATCH "repos/Max-Zit/backupzit/releases/assets/$id" -f name=backupzit-appliance-vhdx.zip \
+    -f "label=backupzit-appliance-vhdx.zip (Hyper-V, generation 1)" >/dev/null
 echo "uploaded the images of $VERSION"
