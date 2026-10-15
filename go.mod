@@ -20,7 +20,7 @@ require (
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	github.com/johannesboyne/gofakes3 v1.2.0
 	github.com/kardianos/service v1.3.0
-	github.com/klauspost/compress v1.20.1
+	github.com/klauspost/compress v1.20.3
 	github.com/letsencrypt/pebble/v2 v2.10.1
 	github.com/masahiro331/go-ext4-filesystem v0.0.0-20260423010602-fe51f5b5e52b
 	github.com/masahiro331/go-xfs-filesystem v0.0.0-20260422061116-d21e5e4481bb
