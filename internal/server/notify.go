@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"mime"
 	"net"
+	"net/mail"
 	"net/smtp"
 	"strconv"
 	"strings"
@@ -118,6 +119,13 @@ func sendMail(ctx context.Context, e EmailSettings, subject, body string) error 
 }
 
 func sendMailWith(ctx context.Context, e EmailSettings, subject, body string, atts []attachment) error {
+	// Addresses go into message headers: whatever path they came from,
+	// line breaks there would let them add headers of their own.
+	for _, a := range append([]string{e.From}, e.To...) {
+		if _, err := mail.ParseAddress(a); err != nil || strings.ContainsAny(a, "\r\n<>,") {
+			return fmt.Errorf("invalid email address %q", a)
+		}
+	}
 	addr := net.JoinHostPort(e.Host, strconv.Itoa(e.Port))
 	d := net.Dialer{Timeout: 20 * time.Second}
 	var conn net.Conn
