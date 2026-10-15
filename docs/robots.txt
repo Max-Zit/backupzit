@@ -1,4 +1,2 @@
 User-agent: *
 Allow: /
-
-Sitemap: https://max-zit.github.io/backupzit/sitemap.xml

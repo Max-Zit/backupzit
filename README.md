@@ -3,7 +3,7 @@
 [![Latest release](https://img.shields.io/github/v/release/Max-Zit/backupzit?label=release)](https://github.com/Max-Zit/backupzit/releases/latest)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPLv3-blue)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/Max-Zit/backupzit/total)](https://github.com/Max-Zit/backupzit/releases)
-[![Website](https://img.shields.io/badge/website-max--zit.github.io%2Fbackupzit-4f46e5)](https://max-zit.github.io/backupzit/)
+[![Website](https://img.shields.io/badge/website-backupzit.com-4f46e5)](https://backupzit.com/)
 [![CI](https://github.com/Max-Zit/backupzit/actions/workflows/ci.yml/badge.svg)](https://github.com/Max-Zit/backupzit/actions/workflows/ci.yml)
 [![Security scan](https://github.com/Max-Zit/backupzit/actions/workflows/security.yml/badge.svg)](https://github.com/Max-Zit/backupzit/actions/workflows/security.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Max-Zit/backupzit/badge)](https://scorecard.dev/viewer/?uri=github.com/Max-Zit/backupzit)
@@ -17,7 +17,7 @@ BackupZit backs up Windows and Linux machines (files or whole disks), Proxmox VE
 - **Free and open source** under the AGPLv3. [MaxZit](https://github.com/Max-Zit) offers commercial support.
 - The console is available in 14 languages: English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Czech, Serbian, Turkish, Russian, Chinese and Japanese.
 
-**Download:** [latest release](https://github.com/Max-Zit/backupzit/releases/latest) · **Install:** [quick start](#installation) · **Website:** [max-zit.github.io/backupzit](https://max-zit.github.io/backupzit/) ([srpski](https://max-zit.github.io/backupzit/sr/)) · **Guide:** built into the console under *Documentation*
+**Download:** [latest release](https://github.com/Max-Zit/backupzit/releases/latest) · **Install:** [quick start](#installation) · **Website:** [backupzit.com](https://backupzit.com/) (14 languages) · **Guide:** built into the console under *Documentation*
 
 ---
 
@@ -43,7 +43,7 @@ BackupZit backs up Windows and Linux machines (files or whole disks), Proxmox VE
 | **Whole disks** (Windows) | disk images of one, several or all disks, changed blocks only | bare metal from the recovery ISO, also onto different hardware; single files from the image |
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
 | **Proxmox VE** VMs and containers | agentless, changed blocks only | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
-| **VMware ESXi** VMs | agentless through a proxy agent, changed block tracking | new VM or in place, instant recovery over NFS |
+| **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent, changed block tracking | new VM or in place, instant recovery over NFS |
 | **Hyper-V** VMs | agentless, resilient change tracking | new VM on the same or another Hyper-V host |
 | **Databases** | SQL Server, PostgreSQL, MySQL/MariaDB with native tools; log backups | a single database to any point in time, under a new name or in place |
 | **NAS shares** | SMB or NFS share read by any agent, nothing installed on the NAS | into a folder or back onto the share |
@@ -287,10 +287,10 @@ Without internet access, upload the release files on the same page. Updating wit
 | Console | Debian 12+, Ubuntu 22.04+, AlmaLinux / Rocky Linux 9+ (x86-64), PostgreSQL 13+; or the ready-made appliance |
 | Windows agent | Windows 10, 11, Server 2016 and newer (MSI); Windows 7 SP1, Server 2008 R2 SP1, 2012 R2 (legacy MSI) |
 | Linux agent | Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bit), Proxmox VE 7 and 8 |
-| Hypervisors | Proxmox VE 7/8, Hyper-V (Windows Server 2016+, Windows 10/11), VMware ESXi 6.7, 7, 8 (also with the free license) |
+| Hypervisors | Proxmox VE 7/8, Hyper-V (Windows Server 2016+, Windows 10/11), VMware ESXi 6.7, 7, 8 (also with the free license), vCenter Server 7, 8 |
 | Microsoft 365 | any tenant with an app registration (application permissions, read-only) |
 
-**Planned:** vCenter, instant recovery for Hyper-V, restore directly into Microsoft 365 mailboxes, Teams chats.
+**Planned:** instant recovery for Hyper-V, restore directly into Microsoft 365 mailboxes, Teams chats.
 
 ## Agent CLI (standalone)
 
