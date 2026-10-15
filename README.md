@@ -4,6 +4,10 @@
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPLv3-blue)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/Max-Zit/backupzit/total)](https://github.com/Max-Zit/backupzit/releases)
 [![Website](https://img.shields.io/badge/website-max--zit.github.io%2Fbackupzit-4f46e5)](https://max-zit.github.io/backupzit/)
+[![CI](https://github.com/Max-Zit/backupzit/actions/workflows/ci.yml/badge.svg)](https://github.com/Max-Zit/backupzit/actions/workflows/ci.yml)
+[![Security scan](https://github.com/Max-Zit/backupzit/actions/workflows/security.yml/badge.svg)](https://github.com/Max-Zit/backupzit/actions/workflows/security.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Max-Zit/backupzit/badge)](https://scorecard.dev/viewer/?uri=github.com/Max-Zit/backupzit)
+[![Go Report Card](https://goreportcard.com/badge/github.com/max-zit/backupzit)](https://goreportcard.com/report/github.com/max-zit/backupzit)
 
 **Self-hosted backup for servers, workstations, virtual machines, databases and Microsoft 365, managed from one web console.** A free, open-source alternative to commercial backup products such as Veeam Backup & Replication or NAKIVO for Windows, Linux, Proxmox VE, VMware ESXi and Hyper-V.
 

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and help
+    url: https://github.com/Max-Zit/backupzit/discussions/categories/q-a
+    about: Ask how to set something up or share your experience in Discussions.
+  - name: Report a security vulnerability
+    url: https://github.com/Max-Zit/backupzit/security/advisories/new
+    about: Please report security problems privately.
+  - name: Commercial support
+    url: https://github.com/Max-Zit
+    about: MaxZit offers paid support for BackupZit.

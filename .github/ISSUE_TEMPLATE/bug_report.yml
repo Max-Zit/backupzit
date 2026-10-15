@@ -1,0 +1,54 @@
+name: Bug report
+description: Something does not work as described in the guide
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Security problems** must not be reported here — use [Report a vulnerability](https://github.com/Max-Zit/backupzit/security/advisories/new) instead.
+  - type: input
+    id: version
+    attributes:
+      label: BackupZit version
+      description: Console version (bottom of the sidebar) and, if relevant, the agent version (Agents page).
+      placeholder: "console 0.42.3, agent 0.42.3"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Console / web interface
+        - Files and folders backup
+        - Disk image / bare-metal restore
+        - Linux system backup
+        - Proxmox VE
+        - Hyper-V
+        - VMware ESXi / vCenter
+        - SQL Server / PostgreSQL / MySQL
+        - Microsoft 365
+        - NAS shares
+        - Storage (SFTP, S3, SMB, Azure, hardened repository)
+        - Appliance / installation / updates
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead? Include the message of the failed run if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Console host (appliance, Debian/Ubuntu package, …), agent operating systems, storage type.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Settings → Diagnostics shows the console log; Agents → Get log fetches an agent log. Remove passwords and host names you do not want to share.
+      render: text
