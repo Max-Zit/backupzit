@@ -6,13 +6,13 @@ toolchain go1.27.2
 
 require (
 	fyne.io/systray v1.12.2
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.2
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.3
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.8.2
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/crewjam/saml v0.5.1
 	github.com/fergusstrange/embedded-postgres v1.34.0
 	github.com/go-git/go-billy/v5 v5.9.2
-	github.com/go-ldap/ldap/v3 v3.4.14
+	github.com/go-ldap/ldap/v3 v3.4.15
 	github.com/go-ole/go-ole v1.3.0
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/hirochachacha/go-smb2 v1.1.0
@@ -32,16 +32,16 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/vmware/govmomi v0.56.0
 	github.com/willscott/go-nfs v0.0.4
-	golang.org/x/crypto v0.57.0
+	golang.org/x/crypto v0.58.0
 	golang.org/x/oauth2 v0.37.0
-	golang.org/x/sys v0.48.0
-	golang.org/x/term v0.46.0
+	golang.org/x/sys v0.49.0
+	golang.org/x/term v0.47.0
 	rsc.io/qr v0.2.0
 	www.velocidex.com/golang/go-ntfs v0.2.1
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.13.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/storage/internal v0.1.0 // indirect
 	github.com/Azure/go-ntlmssp v0.1.2-0.20260824092057-1c8077778c2c // indirect
 	github.com/ChrisTrenkamp/goxpath v0.0.0-20210404020558-97928f7e12b6 // indirect
@@ -106,9 +106,9 @@ require (
 	golang.org/x/exp v0.0.0-20260813180055-c1d0aacb2297 // indirect
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/tools v0.51.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
