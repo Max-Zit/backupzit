@@ -35,8 +35,12 @@ if [ -f /var/lib/backupzit/.appliance-ready ] || [ -x /usr/local/sbin/backupzit-
     # admin's password is changed).
     install -m 0755 $a/backupzit-appliance-boot /usr/local/sbin/backupzit-appliance-boot
     install -m 0644 $a/backupzit-appliance-boot.service /etc/systemd/system/backupzit-appliance-boot.service
+    install -m 0644 $a/backupzit-dns.path /etc/systemd/system/backupzit-dns.path
+    install -m 0644 $a/backupzit-dns.service /etc/systemd/system/backupzit-dns.service
     systemctl daemon-reload 2>/dev/null || true
     systemctl enable backupzit-appliance-boot.service >/dev/null 2>&1 || true
+    systemctl enable --now backupzit-dns.path >/dev/null 2>&1 || true
+    /usr/local/sbin/backupzit-appliance-boot dns >/dev/null 2>&1 || true
     if [ -f /var/lib/backupzit/.appliance-ready ]; then
         /usr/local/sbin/backupzit-appliance-boot >/dev/null 2>&1 || true
     fi

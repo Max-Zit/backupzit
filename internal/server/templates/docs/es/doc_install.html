@@ -59,7 +59,7 @@
 <p>Cuando bzadmin inicia sesión en la propia pantalla del servidor (no por SSH), se abre un menú:</p>
 <table>
   <tr><th>Opción</th><th>Qué hace</th></tr>
-  <tr><td>1 Network</td><td>DHCP o una dirección estática con longitud de prefijo (p. ej. <code>192.168.1.20/24</code>), puerta de enlace y hasta tres servidores DNS.</td></tr>
+  <tr><td>1 Network</td><td>DHCP o una dirección estática con longitud de prefijo (p. ej. <code>192.168.1.20/24</code>), puerta de enlace y hasta tres servidores DNS. Con DHCP, los servidores DNS los proporciona el servidor DHCP, salvo que introduzca los suyos.</td></tr>
   <tr><td>2 Server name</td><td>El nombre de host (letras, dígitos y -).</td></tr>
   <tr><td>3 SSH</td><td>Activa o desactiva el servidor SSH y cambia su puerto. No se pueden usar los puertos de la consola (80, 443, 8443), de PostgreSQL (5432) ni de la recuperación instantánea (111, 2049).</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Para una contraseña olvidada de la consola web; también levanta los bloqueos de inicio de sesión. Después la pantalla deja de mostrar la contraseña inicial generada (también a partir del siguiente arranque, una vez cambiada la contraseña de admin en la consola web).</td></tr>

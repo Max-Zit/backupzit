@@ -2,7 +2,8 @@
 # Runs at every start of the BackupZit appliance (as root):
 #  - grows the root file system when the VM disk was enlarged,
 #  - writes the login screen text (/etc/issue).
-# "backupzit-appliance-boot issue" only rewrites the screen text.
+# "backupzit-appliance-boot issue" only rewrites the screen text;
+# "backupzit-appliance-boot dns" writes the DNS servers (see sync_dns).
 
 log() { echo "backupzit-appliance-boot: $*"; }
 
@@ -82,10 +83,38 @@ BackupZit backup appliance - \n
 ISSUE
 }
 
+# sync_dns keeps /etc/resolv.conf pointing at the DNS servers of the
+# network the appliance is in. systemd-networkd gets them by DHCP but only
+# hands them to systemd-resolved, which the appliance does not use; without
+# this, the servers of the network where the image was built would stay.
+# DNS servers set in the network settings come first. Runs at every start
+# and whenever networkd renews a lease (backupzit-dns.path).
+sync_dns() {
+    if [ -L /etc/resolv.conf ] && readlink /etc/resolv.conf | grep -q systemd; then
+        return 0 # systemd-resolved does it
+    fi
+    files=$(ls /etc/systemd/network/*.network 2>/dev/null) || return 0
+    [ -n "$files" ] || return 0
+    servers=$(sed -n 's/^DNS=//p' $files | tr ' ' '\n')
+    if [ -z "$servers" ]; then
+        grep -qs '^DHCP=\(yes\|ipv4\|true\)' $files || return 0
+        servers=$(cat /run/systemd/netif/leases/* 2>/dev/null | sed -n 's/^DNS=//p' | tr ' ' '\n')
+    fi
+    servers=$(printf '%s\n' "$servers" | awk 'NF && !seen[$0]++' | head -3)
+    [ -n "$servers" ] || return 0
+    new=$(echo "# Written by BackupZit: DNS servers of the network settings or the DHCP lease."
+        for s in $servers; do echo "nameserver $s"; done)
+    [ "$new" = "$(cat /etc/resolv.conf 2>/dev/null)" ] && return 0
+    printf '%s\n' "$new" > /etc/resolv.conf.bz && mv /etc/resolv.conf.bz /etc/resolv.conf
+    log "DNS servers: $(echo $servers)"
+}
+
 case "$1" in
 issue) write_issue ;;
+dns) sync_dns ;;
 *)
     grow_root || log "growing the root file system failed"
+    sync_dns
     write_issue
     ;;
 esac

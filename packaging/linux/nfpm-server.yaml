@@ -42,6 +42,10 @@ contents:
     dst: /usr/share/backupzit/appliance/backupzit-appliance-boot
     file_info:
       mode: 0755
+  - src: ./packaging/appliance/backupzit-dns.path
+    dst: /usr/share/backupzit/appliance/backupzit-dns.path
+  - src: ./packaging/appliance/backupzit-dns.service
+    dst: /usr/share/backupzit/appliance/backupzit-dns.service
   - src: ./packaging/appliance/backupzit-appliance-boot.service
     dst: /usr/share/backupzit/appliance/backupzit-appliance-boot.service
   - src: ./packaging/linux/server.env

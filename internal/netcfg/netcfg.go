@@ -252,6 +252,11 @@ func (s *System) Apply(ctx context.Context, c Config, check bool) error {
 	if err := s.activate(ctx); err != nil {
 		return err
 	}
+	if c.DHCP {
+		// DNS servers of the lease (or of the settings) into resolv.conf;
+		// later lease changes are followed by backupzit-dns.path.
+		s.Run(ctx, DNSSync, "dns")
+	}
 	if !check || c.DHCP || c.Gateway == "" {
 		return nil
 	}
@@ -274,6 +279,9 @@ func (s *System) Apply(ctx context.Context, c Config, check bool) error {
 	s.activate(ctx)
 	return fmt.Errorf("the gateway %s did not answer with the new settings; the previous network settings were restored", c.Gateway)
 }
+
+// DNSSync writes the DNS servers of the DHCP lease on the appliance.
+const DNSSync = "/usr/local/sbin/backupzit-appliance-boot"
 
 // writeResolv sets the DNS servers, unless systemd-resolved manages
 // /etc/resolv.conf (it then takes them from the network file).

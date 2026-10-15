@@ -59,7 +59,7 @@
 <p>Quando o bzadmin faz login na própria tela do servidor (não por SSH), abre-se um menu:</p>
 <table>
   <tr><th>Item</th><th>O que faz</th></tr>
-  <tr><td>1 Network</td><td>DHCP ou um endereço estático com comprimento de prefixo (p. ex. <code>192.168.1.20/24</code>), gateway e até três servidores DNS.</td></tr>
+  <tr><td>1 Network</td><td>DHCP ou um endereço estático com comprimento de prefixo (p. ex. <code>192.168.1.20/24</code>), gateway e até três servidores DNS. Com DHCP, os servidores DNS vêm do servidor DHCP, a menos que você informe os seus.</td></tr>
   <tr><td>2 Server name</td><td>O nome do host (letras, dígitos e -).</td></tr>
   <tr><td>3 SSH</td><td>Liga ou desliga o servidor SSH e altera a sua porta. As portas da console (80, 443, 8443), do PostgreSQL (5432) e da recuperação instantânea (111, 2049) não podem ser usadas.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Para uma senha esquecida da console web; também remove bloqueios de login. Depois a tela deixa de mostrar a senha inicial gerada (o mesmo acontece a partir do arranque seguinte, depois de a senha de admin ser alterada na console web).</td></tr>

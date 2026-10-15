@@ -1,0 +1,9 @@
+[Unit]
+Description=BackupZit appliance: follow the DNS servers of the DHCP lease
+
+[Path]
+PathChanged=/run/systemd/netif/leases
+Unit=backupzit-dns.service
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+[Unit]
+Description=BackupZit appliance: write the DNS servers of the DHCP lease
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/backupzit-appliance-boot dns

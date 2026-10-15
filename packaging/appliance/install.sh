@@ -26,6 +26,9 @@ if [ -f IMAGE ]; then
     printf '[Match]\nName=en* eth*\n\n[Network]\nDHCP=yes\n' > /etc/systemd/network/50-dhcp.network
     printf 'auto lo\niface lo inet loopback\n' > /etc/network/interfaces
     systemctl enable systemd-networkd systemd-networkd-wait-online
+    # No DNS servers of the network the image was built in: they come from
+    # the DHCP lease at the first start (backupzit-dns.path).
+    echo '# Filled in by BackupZit from the DHCP lease.' > /etc/resolv.conf
     rm -f /etc/ssh/ssh_host_*
     truncate -s 0 /etc/machine-id
     rm -f /var/lib/dbus/machine-id

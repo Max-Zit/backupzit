@@ -59,7 +59,7 @@
 <p>Wenn sich bzadmin am eigenen Bildschirm des Servers anmeldet (nicht über SSH), öffnet sich ein Menü:</p>
 <table>
   <tr><th>Punkt</th><th>Was er tut</th></tr>
-  <tr><td>1 Network</td><td>DHCP oder eine statische Adresse mit Präfixlänge (z. B. <code>192.168.1.20/24</code>), Gateway und bis zu drei DNS-Server.</td></tr>
+  <tr><td>1 Network</td><td>DHCP oder eine statische Adresse mit Präfixlänge (z. B. <code>192.168.1.20/24</code>), Gateway und bis zu drei DNS-Server. Mit DHCP kommen die DNS-Server vom DHCP-Server, sofern Sie keine eigenen eintragen.</td></tr>
   <tr><td>2 Server name</td><td>Der Hostname (Buchstaben, Ziffern und -).</td></tr>
   <tr><td>3 SSH</td><td>SSH-Server ein- oder ausschalten und seinen Port ändern. Die Ports der Konsole (80, 443, 8443), von PostgreSQL (5432) und der Sofortwiederherstellung (111, 2049) können nicht verwendet werden.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Bei einem vergessenen Webkonsolen-Passwort; hebt auch Anmeldesperren auf. Danach zeigt der Bildschirm das erzeugte Anfangspasswort nicht mehr an (ebenso ab dem nächsten Start, sobald das Passwort von admin in der Webkonsole geändert wurde).</td></tr>

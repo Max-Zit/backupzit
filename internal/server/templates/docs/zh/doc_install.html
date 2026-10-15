@@ -59,7 +59,7 @@
 <p>当 bzadmin 在服务器自身屏幕上（而非通过 SSH）登录时，会打开一个菜单：</p>
 <table>
   <tr><th>项目</th><th>作用</th></tr>
-  <tr><td>1 Network</td><td>DHCP 或带前缀长度的静态地址（例如 <code>192.168.1.20/24</code>）、网关以及最多三个 DNS 服务器。</td></tr>
+  <tr><td>1 Network</td><td>DHCP 或带前缀长度的静态地址（例如 <code>192.168.1.20/24</code>）、网关以及最多三个 DNS 服务器。 使用 DHCP 时，DNS 服务器由 DHCP 服务器提供，除非您自行填写。</td></tr>
   <tr><td>2 Server name</td><td>主机名（字母、数字和 -）。</td></tr>
   <tr><td>3 SSH</td><td>开启或关闭 SSH 服务器并更改其端口。不能使用控制台（80、443、8443）、PostgreSQL（5432）和即时恢复（111、2049）的端口。</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>用于忘记的 Web 控制台密码；同时解除登录封锁。之后屏幕不再显示生成的初始密码（在 Web 控制台中更改 admin 密码后，从下次启动起也是如此）。</td></tr>

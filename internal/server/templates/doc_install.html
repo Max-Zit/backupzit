@@ -59,7 +59,7 @@
 <p>When bzadmin signs in on the server's own screen (not over SSH), a menu opens:</p>
 <table>
   <tr><th>Item</th><th>What it does</th></tr>
-  <tr><td>1 Network</td><td>DHCP or a static address with prefix length (e.g. <code>192.168.1.20/24</code>), gateway and up to three DNS servers.</td></tr>
+  <tr><td>1 Network</td><td>DHCP or a static address with prefix length (e.g. <code>192.168.1.20/24</code>), gateway and up to three DNS servers. With DHCP the DNS servers come from the DHCP server, unless you enter your own.</td></tr>
   <tr><td>2 Server name</td><td>The host name (letters, digits and -).</td></tr>
   <tr><td>3 SSH</td><td>Switch the SSH server on or off and change its port. The ports of the console (80, 443, 8443), PostgreSQL (5432) and instant recovery (111, 2049) cannot be used.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>For a forgotten web console password; also lifts sign-in blocks. The screen then stops showing the generated initial password (it also does once admin's password is changed in the web console, from the next start).</td></tr>
