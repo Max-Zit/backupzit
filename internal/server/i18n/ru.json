@@ -916,6 +916,7 @@
   "Replicas": "Реплики",
   "Replication": "Репликация",
   "Report %s (%s): %s": "Отчёт %s (%s): %s",
+  "Report a bug": "Сообщить об ошибке",
   "Reports": "Отчёты",
   "Reports are emailed automatically with the CSV attached once each period is complete. Email must be configured under": "Отчёты автоматически отправляются по почте с вложенным CSV по окончании каждого периода. Почта должна быть настроена в разделе",
   "Repository": "Репозиторий",

@@ -916,6 +916,7 @@
   "Replicas": "レプリカ",
   "Replication": "レプリケーション",
   "Report %s (%s): %s": "レポート %s (%s): %s",
+  "Report a bug": "不具合を報告",
   "Reports": "レポート",
   "Reports are emailed automatically with the CSV attached once each period is complete. Email must be configured under": "各期間が終了すると、レポートは CSV を添付して自動でメール送信されます。メールは次の場所で設定する必要があります:",
   "Repository": "リポジトリ",

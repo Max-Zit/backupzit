@@ -916,6 +916,7 @@
   "Replicas": "Replikalar",
   "Replication": "Çoğaltma",
   "Report %s (%s): %s": "Rapor %s (%s): %s",
+  "Report a bug": "Hata bildir",
   "Reports": "Raporlar",
   "Reports are emailed automatically with the CSV attached once each period is complete. Email must be configured under": "Raporlar, her dönem tamamlandığında CSV ekiyle otomatik olarak e-postayla gönderilir. E-posta şurada yapılandırılmış olmalıdır:",
   "Repository": "Depo",

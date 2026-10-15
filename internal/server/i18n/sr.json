@@ -916,6 +916,7 @@
   "Replicas": "Replike",
   "Replication": "Replikacija",
   "Report %s (%s): %s": "Izveštaj %s (%s): %s",
+  "Report a bug": "Prijavi grešku",
   "Reports": "Izveštaji",
   "Reports are emailed automatically with the CSV attached once each period is complete. Email must be configured under": "Izveštaji se šalju emailom automatski sa CSV prilogom po završetku svakog perioda. Email mora biti podešen pod",
   "Repository": "Repozitorijum",

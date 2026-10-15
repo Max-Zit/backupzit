@@ -916,6 +916,7 @@
   "Replicas": "Repliki",
   "Replication": "Replikacja",
   "Report %s (%s): %s": "Raport %s (%s): %s",
+  "Report a bug": "Zgłoś błąd",
   "Reports": "Raporty",
   "Reports are emailed automatically with the CSV attached once each period is complete. Email must be configured under": "Raporty są wysyłane e-mailem automatycznie z załączonym CSV po zakończeniu każdego okresu. E-mail musi być skonfigurowany w",
   "Repository": "Repozytorium",

@@ -916,6 +916,7 @@
   "Replicas": "副本",
   "Replication": "复制",
   "Report %s (%s): %s": "报告 %s（%s）：%s",
+  "Report a bug": "报告错误",
   "Reports": "报告",
   "Reports are emailed automatically with the CSV attached once each period is complete. Email must be configured under": "每个周期结束后，报告会自动通过电子邮件发送，并附带 CSV。必须先在此处配置电子邮件：",
   "Repository": "存储库",

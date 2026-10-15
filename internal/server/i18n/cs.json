@@ -916,6 +916,7 @@
   "Replicas": "Repliky",
   "Replication": "Replikace",
   "Report %s (%s): %s": "Sestava %s (%s): %s",
+  "Report a bug": "Nahlásit chybu",
   "Reports": "Sestavy",
   "Reports are emailed automatically with the CSV attached once each period is complete. Email must be configured under": "Sestavy se po skončení každého období automaticky odesílají e-mailem s přiloženým CSV. E-mail musí být nastaven v",
   "Repository": "Úložiště záloh",
