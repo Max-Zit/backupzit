@@ -743,8 +743,6 @@ func copyFile(src, dst string) error {
 	return os.WriteFile(dst, b, 0o755)
 }
 
-func shq(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
-
 func human(b uint64) string {
 	const unit = 1024
 	if b < unit {

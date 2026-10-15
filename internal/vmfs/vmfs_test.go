@@ -230,8 +230,10 @@ func TestExtractKeepsPermissions(t *testing.T) {
 		"root":                 {Mode: fs.ModeDir | 0o700},
 		"root/.ssh":            {Mode: fs.ModeDir | 0o700},
 		"usr/local/bin/tool":   {Data: []byte("#!/bin/sh"), Mode: 0o755},
+		"etc":                  {Mode: fs.ModeDir | 0o555}, // a read-only folder with files
 	}}
 	dir := t.TempDir()
+	t.Cleanup(func() { os.Chmod(filepath.Join(dir, "etc"), 0o755) }) // so the folder can be removed
 	st, err := Extract(context.Background(), f, []string{"/etc", "/root", "/usr/local/bin/tool"}, dir)
 	if err != nil || len(st.Errors) > 0 {
 		t.Fatal(err, st.Errors)
@@ -240,7 +242,7 @@ func TestExtractKeepsPermissions(t *testing.T) {
 		return // no Unix permissions
 	}
 	for p, want := range map[string]fs.FileMode{"etc/shadow": 0o640, "etc/hostname": 0o644, "root": 0o700,
-		"root/.ssh": 0o700, "root/.ssh/id_ed25519": 0o600, "usr/local/bin/tool": 0o755} {
+		"root/.ssh": 0o700, "root/.ssh/id_ed25519": 0o600, "usr/local/bin/tool": 0o755, "etc": 0o555} {
 		fi, err := os.Stat(filepath.Join(dir, p))
 		if err != nil || fi.Mode().Perm() != want {
 			t.Errorf("%s: %v %v, want %v", p, fi.Mode().Perm(), err, want)

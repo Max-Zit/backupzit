@@ -82,8 +82,11 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 			if err := os.MkdirAll(dst, 0o755); err != nil {
 				return err
 			}
+			// The folder's own permissions (e.g. /root or ~/.ssh stay
+			// private) once its contents are written: a read-only folder
+			// would refuse them.
 			if e.Perm != 0 {
-				os.Chmod(dst, e.Perm) // e.g. /root or ~/.ssh stay private
+				defer os.Chmod(dst, e.Perm)
 			}
 			st.Dirs++
 			children, err := fsys.List(e.Path)

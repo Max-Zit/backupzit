@@ -200,6 +200,8 @@ func summarize(st *localipc.Status, callErr error, now time.Time) Summary {
 
 // tooltip is the short text shown on hover (Windows limits it to 127
 // characters).
+//
+//lint:ignore U1000 used by the Windows tray
 func (s Summary) tooltip() string {
 	t := "BackupZit — " + s.Headline
 	if s.State == "running" && s.Percent >= 0 {

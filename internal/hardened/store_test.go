@@ -15,7 +15,7 @@ func TestStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := s.CheckImmutable(); err != nil {
-		t.Fatal(err)
+		t.Skip(err) // needs root (CAP_LINUX_IMMUTABLE), e.g. not on CI runners
 	}
 	now := time.Now()
 	s.now = func() time.Time { return now }
