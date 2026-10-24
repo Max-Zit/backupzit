@@ -1,18 +1,18 @@
 #!/bin/sh
 # Keeps the appliance images (ISO, OVA, QCOW2, VHDX zip) only in the newest
-# KEEP releases on GitHub (default 5) and deletes them from older releases;
+# KEEP releases on GitHub (default 8) and deletes them from older releases;
 # the programs, installers and the recovery ISO of every release stay.
 # The documentation links to releases/latest/download, so nothing points at
 # the images of an old release. publish-images.sh runs it after an upload.
 #
 #   ./prune-images.sh            delete
 #   DRY_RUN=1 ./prune-images.sh  only list what would be deleted
-#   KEEP=8 ./prune-images.sh     keep the images of the newest 8 releases
+#   KEEP=10 ./prune-images.sh    keep the images of the newest 10 releases
 #
 # Needs the GitHub CLI (gh), logged in with rights to the repository.
 set -eu
 REPO=Max-Zit/backupzit
-KEEP=${KEEP:-5}
+KEEP=${KEEP:-8}
 IMAGES='backupzit-appliance.iso backupzit-appliance.ova backupzit-appliance.qcow2 backupzit-appliance-vhdx.zip'
 freed=0
 n=0
