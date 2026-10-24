@@ -7,6 +7,8 @@
 #
 # Files: backupzit-appliance.iso, .ova, .qcow2, backupzit-appliance-vhdx.zip
 # (GitHub limits release files to 2 GiB, the VHDX is larger) and SHA256SUMS.
+# Afterwards prune-images.sh removes the images from releases older than the
+# newest 5 (KEEP=n to change it).
 # Needs the GitHub CLI (gh), logged in with rights to the repository.
 set -eu
 VERSION=${1:?usage: publish-images.sh <version> <directory with the build output>}
@@ -43,3 +45,6 @@ id=$(gh api "repos/Max-Zit/backupzit/releases/tags/v$VERSION" --jq '.assets[] | 
 [ -n "$id" ] && gh api -X PATCH "repos/Max-Zit/backupzit/releases/assets/$id" -f name=backupzit-appliance-vhdx.zip \
     -f "label=backupzit-appliance-vhdx.zip (Hyper-V, generation 1)" >/dev/null
 echo "uploaded the images of $VERSION"
+# Keep the images only in the newest releases (KEEP, default 5): about 5 GB
+# per release would otherwise pile up on GitHub.
+sh "$(dirname "$0")/prune-images.sh"
