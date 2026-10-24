@@ -394,6 +394,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res, after = a.selfUpdate(ctx, run)
 	case api.KindAgentLog:
 		res = a.sendLog(ctx, run)
+	case api.KindAgentUninstall:
+		res, after = a.uninstall()
 	case api.KindRepoCheck:
 		res = a.repoCheck(ctx, run)
 	case api.KindVMBackup:

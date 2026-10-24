@@ -221,7 +221,7 @@ func (s *Server) executeApproval(ctx context.Context, a Approval) error {
 	case "job.release_hold":
 		return s.store.releaseRetentionHold(ctx, id)
 	case "agent.delete":
-		return s.store.DeleteAgent(ctx, id)
+		return s.executeAgentDelete(ctx, a, "")
 	case "vmware.delete":
 		return s.store.DeleteVMwareHost(ctx, id)
 	case "storage.delete":

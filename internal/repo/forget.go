@@ -92,3 +92,34 @@ func ApplyPolicy(sns []*Snapshot, p RetentionPolicy, loc *time.Location) (keep, 
 func (r *Repository) RemoveSnapshot(ctx context.Context, id ID) error {
 	return r.be.Remove(ctx, "snapshots/"+id.String())
 }
+
+// RetentionRemove selects the snapshots a policy removes. For SQL Server
+// jobs the policy counts full backups only; transaction log backups are
+// kept as long as they belong to a kept full backup (point-in-time
+// restores need the full backup and every log after it).
+func RetentionRemove(sns []*Snapshot, p RetentionPolicy) []*Snapshot {
+	var fulls, logs []*Snapshot
+	for _, sn := range sns {
+		if sn.SQL != nil && sn.SQL.Kind == "log" {
+			logs = append(logs, sn)
+		} else {
+			fulls = append(fulls, sn)
+		}
+	}
+	keep, remove := ApplyPolicy(fulls, p, time.Local)
+	if len(logs) == 0 {
+		return remove
+	}
+	var oldest time.Time
+	for _, sn := range keep {
+		if oldest.IsZero() || sn.Time.Before(oldest) {
+			oldest = sn.Time
+		}
+	}
+	for _, sn := range logs {
+		if !oldest.IsZero() && sn.Time.Before(oldest) {
+			remove = append(remove, sn)
+		}
+	}
+	return remove
+}

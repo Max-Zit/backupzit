@@ -45,7 +45,7 @@ sudo systemctl enable --now backupzit-agent</pre>
       <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}{{with (index $.Data.Duplicates .ID).Machines}}<br><span class="badge failed" title="{{join . ", "}}"><i></i>{{T "two machines"}}</span> <span class="muted small">{{join . ", "}} — {{T "runs are held"}} · <a href="/docs/agents#duplicate">{{T "help"}}</a></span>{{end}}</td>
       <td>{{ago .LastSeen}}</td>
       <td>{{ts .EnrolledAt}}</td>
-      <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/log" class="inline"><button class="link">{{T "Get log"}}</button></form> <form method="post" action="/agents/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove agent %v and its jobs? Backups on storage stay." .Hostname}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
+      <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/log" class="inline"><button class="link">{{T "Get log"}}</button></form> <a href="/agents/remove/{{.ID}}">{{T "Remove"}}</a>{{end}}</td>
     </tr>
     {{end}}
   </table></div>

@@ -261,6 +261,26 @@ func (s *SFTP) Remove(_ context.Context, name string) error {
 	return wrapNotFound(name, s.client.Remove(s.p(name)))
 }
 
+// RemoveDirs removes the empty folders below the repository and the
+// repository folder (see DirRemover).
+func (s *SFTP) RemoveDirs(_ context.Context) error {
+	var walk func(rel string)
+	walk = func(rel string) {
+		entries, err := s.client.ReadDir(s.p(rel))
+		if err != nil {
+			return
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				walk(path.Join(rel, e.Name()))
+			}
+		}
+		s.client.RemoveDirectory(s.p(rel))
+	}
+	walk("")
+	return nil
+}
+
 func (s *SFTP) Close() error {
 	s.client.Close()
 	return s.conn.Close()

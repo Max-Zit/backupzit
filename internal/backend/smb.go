@@ -207,6 +207,31 @@ func (s *SMB) Remove(_ context.Context, name string) error {
 	return smbNotFound(name, s.share.Remove(s.p(name)))
 }
 
+// RemoveDirs removes the empty folders below the repository and the
+// repository folder (see DirRemover).
+func (s *SMB) RemoveDirs(_ context.Context) (err error) {
+	defer func() { // go-smb2 directory listings, see List
+		if p := recover(); p != nil {
+			err = fmt.Errorf("smb: invalid directory listing from server: %v", p)
+		}
+	}()
+	var walk func(rel string)
+	walk = func(rel string) {
+		entries, err := s.share.ReadDir(s.p(rel))
+		if err != nil {
+			return
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				walk(path.Join(rel, e.Name()))
+			}
+		}
+		s.share.Remove(s.p(rel))
+	}
+	walk("")
+	return nil
+}
+
 func (s *SMB) Close() error {
 	s.share.Umount()
 	s.session.Logoff()

@@ -26,6 +26,26 @@ func OpenLocal(dir string) (*Local, error) {
 	return &Local{root: abs}, nil
 }
 
+// RemoveDirs removes the empty folders below the repository and the
+// repository folder (see DirRemover).
+func (l *Local) RemoveDirs(_ context.Context) error {
+	var walk func(dir string)
+	walk = func(dir string) {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				walk(filepath.Join(dir, e.Name()))
+			}
+		}
+		os.Remove(dir)
+	}
+	walk(l.root)
+	return nil
+}
+
 func (l *Local) path(name string) string {
 	return filepath.Join(l.root, filepath.FromSlash(name))
 }

@@ -79,8 +79,10 @@ type Server struct {
 
 	pages map[string]map[string]*template.Template // language -> page -> template
 	// Notifier is triggered when a run finishes (optional).
-	Notifier  *Notifier
-	cache     *repoCache
+	Notifier *Notifier
+	cache    *repoCache
+	// cleanups are running deletions of a removed agent's backups.
+	cleanups  sync.WaitGroup
 	sessCache sessionCache
 	clock     func() time.Time // replaceable in tests
 }
@@ -368,6 +370,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /agents/token", s.ui(PermAgents, s.handleAgentToken))
 	mux.HandleFunc("POST /agents/install", s.ui(PermAgents, s.handleDeployStart))
 	mux.HandleFunc("GET /agents/install/{id}", s.ui(PermAgents, s.handleDeployPage))
+	mux.HandleFunc("GET /agents/remove/{id}", s.ui(PermAgents, s.handleAgentRemovePage))
 	mux.HandleFunc("POST /agents/{id}/delete", s.ui(PermAgents, s.handleAgentDelete))
 	mux.HandleFunc("POST /agents/{id}/update", s.ui(PermAgents, s.handleAgentUpdate))
 	mux.HandleFunc("POST /agents/{id}/max-runs", s.ui(PermAgents, s.handleAgentMaxRuns))
@@ -773,24 +776,6 @@ func (s *Server) handleAgentToken(w http.ResponseWriter, r *http.Request, user s
 	pub := s.publicURL(r)
 	s.agentsPage(w, r, user, &enrollInfo{Token: tok, Expires: exp, ServerURL: pub, Fingerprint: s.CertFingerprint,
 		Code: api.EncodeEnrollCode(pub, tok, s.CertFingerprint)})
-}
-
-func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, _ string) {
-	id, _ := pathID(r)
-	a, err := s.store.GetAgent(r.Context(), id)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	if s.needsApproval(w, r, "/agents", "agent.delete", id, a.Hostname, nil) {
-		return
-	}
-	if err := s.store.DeleteAgent(r.Context(), id); err != nil {
-		redirectErr(w, r, "/agents", err)
-		return
-	}
-	s.audit(r, "agent.delete", "agent %d", id)
-	redirectMsg(w, r, "/agents", "Agent removed. Its backups remain on the storage target.")
 }
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request, _ string) {

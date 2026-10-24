@@ -43,6 +43,14 @@ type Backend interface {
 	Close() error
 }
 
+// DirRemover is implemented by storage with real folders (SFTP, SMB, local
+// disks): it removes the empty folders of a repository once all its
+// objects were deleted, the repository folder itself included. Folders
+// that still hold files stay.
+type DirRemover interface {
+	RemoveDirs(ctx context.Context) error
+}
+
 // Retainer is implemented by storage that can make objects immutable
 // (S3 Object Lock).
 type Retainer interface {

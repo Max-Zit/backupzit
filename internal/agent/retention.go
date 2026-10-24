@@ -142,33 +142,8 @@ func (a *Agent) keepImmutable(ctx context.Context, r *repo.Repository, snapshotI
 	return err
 }
 
-// retentionRemove selects the snapshots a policy removes. For SQL Server
-// jobs the policy counts full backups only; transaction log backups are
-// kept as long as they belong to a kept full backup (point-in-time
-// restores need the full backup and every log after it).
+// retentionRemove selects the snapshots a policy removes (see
+// repo.RetentionRemove).
 func retentionRemove(sns []*repo.Snapshot, p repo.RetentionPolicy) []*repo.Snapshot {
-	var fulls, logs []*repo.Snapshot
-	for _, sn := range sns {
-		if sn.SQL != nil && sn.SQL.Kind == "log" {
-			logs = append(logs, sn)
-		} else {
-			fulls = append(fulls, sn)
-		}
-	}
-	keep, remove := repo.ApplyPolicy(fulls, p, time.Local)
-	if len(logs) == 0 {
-		return remove
-	}
-	var oldest time.Time
-	for _, sn := range keep {
-		if oldest.IsZero() || sn.Time.Before(oldest) {
-			oldest = sn.Time
-		}
-	}
-	for _, sn := range logs {
-		if !oldest.IsZero() && sn.Time.Before(oldest) {
-			remove = append(remove, sn)
-		}
-	}
-	return remove
+	return repo.RetentionRemove(sns, p)
 }

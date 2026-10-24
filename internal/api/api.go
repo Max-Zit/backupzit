@@ -118,6 +118,9 @@ const (
 	KindVMReplicaStart = "vm-replica-start"
 	// KindAgentUpdate installs a newer agent version from the console.
 	KindAgentUpdate = "agent-update"
+	// KindAgentUninstall removes the agent from its machine (when the agent
+	// is removed in the console); it reports first, then uninstalls.
+	KindAgentUninstall = "agent-uninstall"
 	// KindAgentLog sends the agent's log to the console (PathRunsPrefix+id+"/log").
 	KindAgentLog = "agent-log"
 	// KindRepoCheck reads all data of a repository and verifies it.

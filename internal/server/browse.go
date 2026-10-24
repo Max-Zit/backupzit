@@ -43,6 +43,16 @@ func newRepoCache() *repoCache {
 	return &repoCache{repos: map[string]*cachedRepo{}, vols: map[string]*cachedVolume{}}
 }
 
+// drop forgets a repository (before it is changed outside the cache).
+func (c *repoCache) drop(url string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if cr, ok := c.repos[url]; ok {
+		cr.r.Close()
+		delete(c.repos, url)
+	}
+}
+
 func (c *repoCache) expire() {
 	for k, v := range c.vols {
 		if time.Since(v.used) > cacheTTL {

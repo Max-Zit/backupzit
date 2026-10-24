@@ -127,7 +127,7 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		ar := &api.Run{ID: run.ID, Kind: run.Kind}
 		return ar, s.addUpdate(run, ar)
 	}
-	if run.Kind == api.KindAgentLog {
+	if run.Kind == api.KindAgentLog || run.Kind == api.KindAgentUninstall {
 		return &api.Run{ID: run.ID, Kind: run.Kind}, nil
 	}
 	if run.Kind == api.KindVMReplicaStart { // needs no storage
@@ -274,6 +274,11 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("run finished", "run", id, "status", res.Status, "agent", a.Hostname)
+	if run, err := s.store.GetRun(r.Context(), id); err == nil && run.Kind == api.KindAgentUninstall {
+		s.agentUninstalled(context.WithoutCancel(r.Context()), a, id, res)
+		writeJSON(w, http.StatusOK, struct{}{})
+		return
+	}
 	s.chainAfterRun(r.Context(), id)
 	if res.Status != api.StatusFailed {
 		if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && isBackupKind(run.Kind) {
