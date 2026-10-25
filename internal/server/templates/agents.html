@@ -56,7 +56,7 @@ sudo systemctl enable --now backupzit-agent</pre>
 {{with .Data.Removed}}
 <div class="panel" id="removed">
   <h2>{{T "Removed agents with kept backups"}}</h2>
-  <p class="muted small">{{T "Their backups stay in Activity and can be restored to any agent. When the computer gets the agent again, connect them: the new agent then shows them and continues in the same repositories."}}</p>
+  <p class="muted small">{{T "Their backups stay in Activity and can be restored to any agent. When the computer has an agent again, connect them: the agent then shows them, and a newly installed agent continues in the same repositories."}}</p>
   <div class="table-wrap"><table>
     <tr><th>{{T "Computer"}}</th><th>{{T "Removed"}}</th><th>{{T "Backups"}}</th><th></th></tr>
     {{range .}}<tr>

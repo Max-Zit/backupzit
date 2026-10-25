@@ -12,24 +12,9 @@ import (
 	"github.com/max-zit/backupzit/internal/pve"
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/restorer"
+	"github.com/max-zit/backupzit/internal/runinfo"
 	"github.com/max-zit/backupzit/internal/sysbackup"
 )
-
-// systemSummary is the run detail of a system backup shown in the console.
-type systemSummary struct {
-	OS          string          `json:"os"`
-	UEFI        bool            `json:"uefi"`
-	Disks       []systemDiskSum `json:"disks"`
-	FileSystems []repo.SystemFS `json:"file_systems"`
-	VGs         []string        `json:"vgs,omitempty"`
-}
-
-type systemDiskSum struct {
-	Name  string `json:"name"`
-	Size  uint64 `json:"size"`
-	Table string `json:"table"`
-	Parts int    `json:"partitions"`
-}
 
 func (a *Agent) systemBackup(ctx context.Context, run api.Run) api.RunResult {
 	if runtime.GOOS != "linux" {
@@ -54,15 +39,8 @@ func (a *Agent) systemBackup(ctx context.Context, run api.Run) api.RunResult {
 		return failed(err)
 	}
 	lay := sn.System
-	sum := systemSummary{OS: lay.OS, UEFI: lay.UEFI, FileSystems: lay.FileSystems}
-	for _, d := range lay.Disks {
-		sum.Disks = append(sum.Disks, systemDiskSum{Name: d.Name, Size: d.Size, Table: d.Table, Parts: len(d.Partitions)})
-	}
-	for _, v := range lay.VGs {
-		sum.VGs = append(sum.VGs, v.Name)
-	}
 	stats, _ := json.Marshal(sn.Stats)
-	details, _ := json.Marshal(map[string]any{"system": sum})
+	details := runinfo.System(sn)
 	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: details, Errors: sn.Stats.Errors,
 		Message: fmt.Sprintf("%s: %d file systems, %d files", lay.OS, len(lay.FileSystems), sn.Stats.Files)}
 	if len(sn.Stats.Errors) > 0 {

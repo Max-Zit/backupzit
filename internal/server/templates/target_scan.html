@@ -1,0 +1,39 @@
+{{define "content"}}
+{{$t := .Data.Target}}
+<h1>{{T "Find backups on %v" $t.Name}}</h1>
+<div class="panel">
+  <p class="mono small muted wrap-any">{{$t.URL}}</p>
+  {{if .Data.Error}}
+  <div class="callout warn"><p>{{T "The storage could not be searched:"}} {{.Data.Error}}</p></div>
+  {{else}}
+  {{with .Data.Result}}
+  <p>{{T "Repositories on this storage that the console does not know, e.g. of agents removed earlier or made by another console. Added backups appear under removed agents and in Activity; they can be restored to any agent or connected to the agent of that computer."}}</p>
+  {{if .Unknown}}
+  <form method="post" action="/targets/{{$t.ID}}/import">
+    <div class="table-wrap"><table>
+      <tr><th></th><th>{{T "Folder"}}</th><th>{{T "Computer"}}</th><th>{{T "Jobs"}}</th><th>{{T "Backups"}}</th><th>{{T "From"}}</th><th>{{T "To"}}</th></tr>
+      {{range .Unknown}}
+      <tr>
+        <td>{{if and (not .Error) .Backups}}<input type="checkbox" name="dir" value="{{.Dir}}" checked aria-label="{{.Dir}}">{{end}}</td>
+        <td class="mono">{{.Dir}}</td>
+        {{if .Error}}<td colspan="5"><span class="badge warning"><i></i>{{T "cannot be read"}}</span> {{T .Error}}{{if eq .Error "encrypted with another recovery key"}} — <span class="muted">{{T "add the storage again with the recovery key these backups were made with"}}</span>{{end}}</td>
+        {{else}}
+        <td>{{range $i, $h := .Hosts}}{{if $i}}, {{end}}{{$h}}{{else}}—{{end}}</td>
+        <td>{{range $i, $j := .Jobs}}{{if $i}}, {{end}}{{$j}}{{else}}—{{end}}</td>
+        <td>{{.Backups}}</td>
+        <td class="nowrap">{{if .Backups}}{{ts .Oldest}}{{end}}</td>
+        <td class="nowrap">{{if .Backups}}{{ts .Newest}}{{end}}</td>
+        {{end}}
+      </tr>
+      {{end}}
+    </table></div>
+    <div class="actions"><button>{{T "Add the selected backups"}}</button> <a class="btn secondary-link" href="/targets">{{T "Cancel"}}</a></div>
+  </form>
+  {{else}}
+  <p class="muted">{{T "No unknown backups found."}}</p>
+  {{end}}
+  {{if .Known}}<p class="muted small">{{T "Repositories on this storage already in the console: %d." .Known}}</p>{{end}}
+  {{end}}
+  {{end}}
+</div>
+{{end}}

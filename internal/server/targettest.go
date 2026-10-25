@@ -11,8 +11,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/max-zit/backupzit/internal/backend"
 )
 
 // targetTestTimeout bounds a connection test (tests shorten it).
@@ -29,28 +27,11 @@ func testTarget(ctx context.Context, t Target) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, targetTestTimeout)
 	defer cancel()
-	opts := backend.Options{
-		SFTPPassword: t.SFTPPassword, SFTPHostKey: t.SFTPHostKey,
-		S3AccessKey: t.S3AccessKey, S3SecretKey: t.S3SecretKey, S3Region: t.S3Region, S3LockDays: t.S3LockDays,
-		SMBPassword: t.SMBPassword, SMBDomain: t.SMBDomain,
-		HardenedKey: t.HardenedKey, HardenedFingerprint: t.HardenedFingerprint,
-		AzureKey: t.AzureKey, AzureSAS: t.AzureSAS,
-	}
-	if t.SFTPKey != "" {
-		f, err := os.CreateTemp("", "bz-test-key-*")
-		if err != nil {
-			return "", err
-		}
-		defer os.Remove(f.Name())
-		f.WriteString(t.SFTPKey)
-		f.Close()
-		opts.SFTPKeyFile = f.Name()
-	}
-	be, err := backend.Open(ctx, t.URL, opts)
+	be, done, err := openTargetBackend(ctx, t, t.URL)
 	if err != nil {
 		return "", fmt.Errorf("connect: %w", err)
 	}
-	defer be.Close()
+	defer done()
 	if t.S3LockDays > 0 || t.Kind == "hardened" {
 		if _, err := be.List(ctx, "keys"); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return "", fmt.Errorf("list: %w", err)

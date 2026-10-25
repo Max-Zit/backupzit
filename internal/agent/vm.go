@@ -12,6 +12,7 @@ import (
 	"github.com/max-zit/backupzit/internal/hyperv"
 	"github.com/max-zit/backupzit/internal/pve"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/runinfo"
 	"github.com/max-zit/backupzit/internal/vmware"
 )
 
@@ -48,18 +49,6 @@ func parseVMIDs(ss []string) ([]int, error) {
 		ids = append(ids, id)
 	}
 	return ids, nil
-}
-
-// vmGuestSummary is the run detail shown in the console.
-type vmGuestSummary struct {
-	VMID        int    `json:"vmid"`
-	Type        string `json:"type"`
-	Name        string `json:"name"`
-	Consistency string `json:"consistency"`
-	Platform    string `json:"platform,omitempty"`
-	Disks       int    `json:"disks"`
-	Size        uint64 `json:"size"`
-	Stored      uint64 `json:"stored"` // bytes with data
 }
 
 func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
@@ -119,7 +108,7 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 		return failed(err)
 	}
 	stats, _ := json.Marshal(sn.Stats)
-	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: vmGuestDetails(sn), Errors: sn.Stats.Errors,
+	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors,
 		Message: fmt.Sprintf("Backed up %d guests", len(sn.Guests))}
 	if len(sn.Guests) == 1 {
 		res.Message = "Backed up 1 guest"
@@ -250,22 +239,4 @@ func (a *Agent) vmwareRestore(ctx context.Context, run api.Run, r *repo.Reposito
 	details, _ := json.Marshal(res)
 	stats, _ := json.Marshal(map[string]uint64{"bytes": written})
 	return api.RunResult{Status: api.StatusSuccess, Message: msg, Details: details, Stats: stats}
-}
-
-// vmGuestDetails are the run details listing the guests in a VM backup,
-// for the console's restore forms.
-func vmGuestDetails(sn *repo.Snapshot) json.RawMessage {
-	var sum []vmGuestSummary
-	for _, g := range sn.Guests {
-		s := vmGuestSummary{VMID: g.VMID, Type: g.Type, Name: g.Name, Consistency: g.Consistency, Disks: len(g.Disks), Platform: g.Platform}
-		for _, d := range g.Disks {
-			s.Size += d.Size
-			if d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {
-				s.Stored += sn.Images[d.Image].Partitions[0].StoredBytes
-			}
-		}
-		sum = append(sum, s)
-	}
-	details, _ := json.Marshal(map[string]any{"guests": sum})
-	return details
 }

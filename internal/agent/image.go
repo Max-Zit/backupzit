@@ -9,6 +9,7 @@ import (
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/runinfo"
 )
 
 // inventoryInterval is how often the disk inventory is reported.
@@ -58,13 +59,7 @@ func (a *Agent) imageBackup(ctx context.Context, run api.Run) api.RunResult {
 		return failed(err)
 	}
 	stats, _ := json.Marshal(sn.Stats)
-	// One disk: its layout (as before); several: the list.
-	var details []byte
-	if len(sn.Images) == 1 {
-		details, _ = json.Marshal(sn.Images[0])
-	} else {
-		details, _ = json.Marshal(sn.Images)
-	}
+	details := runinfo.Image(sn)
 	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: details, Errors: sn.Stats.Errors}
 	if len(sn.VSSVolumes) > 0 {
 		res.Message = "Read from VSS snapshot of " + strings.Join(sn.VSSVolumes, ", ")

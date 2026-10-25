@@ -390,6 +390,8 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /targets", s.ui(PermStorage, s.handleTargetCreate))
 	mux.HandleFunc("POST /targets/{id}/delete", s.ui(PermStorage, s.handleTargetDelete))
 	mux.HandleFunc("POST /targets/{id}/test", s.ui(PermStorage, s.handleTargetTest))
+	mux.HandleFunc("GET /targets/{id}/scan", s.ui(PermStorage, s.handleTargetScan))
+	mux.HandleFunc("POST /targets/{id}/import", s.ui(PermStorage, s.handleTargetImport))
 	mux.HandleFunc("POST /targets/{id}/recovery-key", s.ui(PermStorage, s.handleRecoveryKey))
 	mux.HandleFunc("POST /targets/{id}/recovery-sheet", s.ui(PermStorage, s.handleRecoverySheet))
 	mux.HandleFunc("GET /jobs", s.ui(PermView, s.handleJobs))
@@ -877,6 +879,14 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 		t.URL = u
 		t.SMBPassword = r.FormValue("smb_password")
 		t.SMBDomain = r.FormValue("smb_domain")
+	}
+	if k := r.FormValue("recovery_key"); t.Encrypted && strings.TrimSpace(k) != "" {
+		key, err := parseRecoveryKey(k)
+		if err != nil {
+			redirectErr(w, r, "/targets", err)
+			return
+		}
+		t.RecoveryKey = key
 	}
 	id, err := s.store.CreateTarget(r.Context(), t)
 	if err != nil {

@@ -172,7 +172,11 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 			}
 			if selected {
 				rs.stats.Dirs++
-				rs.applyMeta(dst, n, len(comps) > 1)
+				// A volume root ("C") keeps the attributes of the folder: C:\ is
+				// hidden and system, which would hide everything restored below it.
+				if len(comps) > 1 || runtime.GOOS != "windows" {
+					rs.applyMeta(dst, n, len(comps) > 1)
+				}
 			}
 		case repo.NodeFile:
 			if !selected {

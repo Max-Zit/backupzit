@@ -9,6 +9,7 @@ import (
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/runinfo"
 )
 
 // copyRun copies the snapshots of the source job from run.Source into
@@ -59,7 +60,7 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 		res.SnapshotID = copied[len(copied)-1].ID.String()
 		if last := copied[len(copied)-1]; len(last.Guests) > 0 {
 			// Copies of VM backups can be restored like the originals.
-			res.Details = vmGuestDetails(last)
+			res.Details = runinfo.Guests(last)
 		}
 	}
 	res.Message = fmt.Sprintf("Copied %s (%d already copied); %s new data uploaded", count(st.Snapshots, "backup", "backups"), st.Skipped, humanSize(st.BytesStored))

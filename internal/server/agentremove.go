@@ -53,7 +53,7 @@ func (x agentRepo) Local() bool { return x.TargetKind == "local" || x.TargetKind
 // copy jobs made on other storage are not included).
 func (s *Store) agentRepos(ctx context.Context, agentID int64) ([]agentRepo, error) {
 	rows, err := s.db.Query(ctx, `SELECT r.target_id, t.name, t.kind, r.repo_url,
-			COALESCE(array_agg(DISTINCT j.name) FILTER (WHERE j.name IS NOT NULL), '{}'),
+			COALESCE(array_agg(DISTINCT COALESCE(j.name, NULLIF(r.job_name,''))) FILTER (WHERE COALESCE(j.name, NULLIF(r.job_name,'')) IS NOT NULL), '{}'),
 			count(*) FILTER (WHERE r.status IN ('success','warning') AND r.snapshot_id<>'' AND NOT r.expired)
 		FROM runs r JOIN storage_targets t ON t.id=r.target_id LEFT JOIN jobs j ON j.id=r.job_id
 		WHERE r.agent_id=$1 AND r.repo_url<>'' AND r.kind IN ('backup','image-backup','vm-backup','system-backup','sql-backup','sql-log')
@@ -121,8 +121,18 @@ func (s *Store) listRemovedAgents(ctx context.Context) ([]removedAgent, error) {
 		var x removedAgent
 		a, err := scanAgent(r, &x.Backups, &x.Successor)
 		x.Agent = a
+		if !a.ownRepo() {
+			x.Successor = 0
+		}
 		return x, err
 	})
+}
+
+// ownRepo reports whether the agent's repository folder is an agent's
+// (backups found on storage can also be of a VMware connection or a
+// Microsoft 365 tenant, which no agent continues).
+func (a Agent) ownRepo() bool {
+	return !strings.HasPrefix(a.RepoDir, "esxi-") && !strings.HasPrefix(a.RepoDir, "m365-")
 }
 
 // agentAny returns an agent, also a removed one.
@@ -131,37 +141,46 @@ func (s *Store) agentAny(ctx context.Context, id int64) (Agent, error) {
 	return a, notFound(err)
 }
 
-// adoptBackups gives the backups of a removed agent to a current agent:
-// its history moves over and the current agent's jobs continue in the
-// removed agent's repositories (deduplicated against the old backups).
-func (s *Store) adoptBackups(ctx context.Context, agentID, removedID int64) error {
+// adoptBackups gives the backups of a removed agent to a current agent: its
+// history moves over. A current agent without backups of its own (just
+// reinstalled) also takes over the removed agent's repositories, so its jobs
+// continue there, deduplicated against the old backups; one with backups
+// keeps its repositories (moved reports which).
+func (s *Store) adoptBackups(ctx context.Context, agentID, removedID int64) (moved bool, err error) {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer tx.Rollback(ctx)
 	var dir string
 	if err := tx.QueryRow(ctx, `SELECT repo_dir FROM agents WHERE id=$1 AND removed_at IS NOT NULL`, removedID).Scan(&dir); err != nil {
-		return notFound(err)
+		return false, notFound(err)
 	}
-	// Repository folders are unique: the removed agent gives its folder up first.
-	if _, err := tx.Exec(ctx, `UPDATE agents SET repo_dir=repo_dir || '.adopted-' || id WHERE id=$1`, removedID); err != nil {
-		return err
+	var own bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM agents WHERE id=$1 AND removed_at IS NULL),
+		EXISTS(SELECT 1 FROM runs WHERE agent_id=$1 AND snapshot_id<>'')`, agentID).Scan(&moved, &own); err != nil {
+		return false, err
 	}
-	tag, err := tx.Exec(ctx, `UPDATE agents SET repo_dir=$2 WHERE id=$1 AND removed_at IS NULL`, agentID, dir)
-	if err != nil {
-		return err
+	if !moved {
+		return false, ErrNotFound
 	}
-	if tag.RowsAffected() != 1 {
-		return ErrNotFound
+	moved = !own
+	if moved {
+		// Repository folders are unique: the removed agent gives its folder up first.
+		if _, err := tx.Exec(ctx, `UPDATE agents SET repo_dir=repo_dir || '.adopted-' || id WHERE id=$1`, removedID); err != nil {
+			return false, err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE agents SET repo_dir=$2 WHERE id=$1`, agentID, dir); err != nil {
+			return false, err
+		}
 	}
 	if _, err := tx.Exec(ctx, `UPDATE runs SET agent_id=$1 WHERE agent_id=$2`, agentID, removedID); err != nil {
-		return err
+		return false, err
 	}
 	if _, err := tx.Exec(ctx, `DELETE FROM agents WHERE id=$1`, removedID); err != nil {
-		return err
+		return false, err
 	}
-	return tx.Commit(ctx)
+	return moved, tx.Commit(ctx)
 }
 
 func (s *Store) setAgentRemoval(ctx context.Context, agentID, runID int64, backups, by string) error {
@@ -211,15 +230,20 @@ func (s *Server) handleAgentAdopt(w http.ResponseWriter, r *http.Request, user s
 	}
 	old, err := s.store.agentAny(r.Context(), formID(r, "removed"))
 	l := requestLanguage(r)
-	if err != nil || old.RemovedAt == nil || !strings.EqualFold(old.Hostname, a.Hostname) {
+	if err != nil || old.RemovedAt == nil || !strings.EqualFold(old.Hostname, a.Hostname) || !old.ownRepo() {
 		redirectErr(w, r, "/agents", errors.New(l.T("These backups cannot be connected to this agent.")))
 		return
 	}
-	if err := s.store.adoptBackups(r.Context(), a.ID, old.ID); err != nil {
+	moved, err := s.store.adoptBackups(r.Context(), a.ID, old.ID)
+	if err != nil {
 		redirectErr(w, r, "/agents", err)
 		return
 	}
 	s.audit(r, "agent.adopt", "%s (agent %d) took over the backups of removed agent %d", a.Hostname, a.ID, old.ID)
+	if !moved {
+		redirectMsg(w, r, "/agents", l.T("The backups of the removed agent %s are connected: they appear under it. Its jobs keep their own repositories, as it already has backups.", a.Hostname))
+		return
+	}
 	redirectMsg(w, r, "/agents", l.T("The backups of the removed agent %s are connected: they appear under it, and its jobs continue in the same repositories.", a.Hostname))
 }
 

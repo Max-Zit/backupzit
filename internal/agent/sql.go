@@ -13,6 +13,7 @@ import (
 	"github.com/max-zit/backupzit/internal/mysqldb"
 	"github.com/max-zit/backupzit/internal/pgsql"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/runinfo"
 )
 
 // sqlBackup backs up SQL Server databases (full, or transaction logs).
@@ -79,7 +80,7 @@ func (a *Agent) sqlBackup(ctx context.Context, run api.Run) api.RunResult {
 		return res
 	}
 	stats, _ := json.Marshal(sn.Stats)
-	details, _ := json.Marshal(map[string]any{"sql": sn.SQL})
+	details := runinfo.SQL(sn)
 	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: details, Errors: problems}
 	var size uint64
 	dbs := 0

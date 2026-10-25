@@ -1007,6 +1007,20 @@ func NewRecoveryKey() string {
 	return strings.Join(parts, "-")
 }
 
+// parseRecoveryKey accepts a recovery key as written down (any case,
+// with or without dashes and spaces) and formats it like NewRecoveryKey.
+func parseRecoveryKey(s string) (string, error) {
+	s = strings.ToUpper(strings.NewReplacer("-", "", " ", "").Replace(strings.TrimSpace(s)))
+	if b, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(s); err != nil || len(b) != 20 {
+		return "", errors.New("the recovery key has 32 letters and digits in groups of four, e.g. K7QM-2XRD-…")
+	}
+	var parts []string
+	for i := 0; i < len(s); i += 4 {
+		parts = append(parts, s[i:i+4])
+	}
+	return strings.Join(parts, "-"), nil
+}
+
 // CommandResults are the commands run before and after the backup.
 func (r Run) CommandResults() []api.CommandResult {
 	var c []api.CommandResult

@@ -224,7 +224,12 @@ func (h *Hardened) Size(ctx context.Context, name string) (int64, error) {
 
 func (h *Hardened) List(ctx context.Context, dir string) ([]string, error) {
 	var names []string
-	if err := h.getJSON(ctx, h.path("list", h.name(dir)), &names); err != nil {
+	// The whole location is listed by its own name ("prefix/" is refused).
+	name := h.name(dir)
+	if dir == "" {
+		name = h.prefix
+	}
+	if err := h.getJSON(ctx, h.path("list", name), &names); err != nil {
 		return nil, fmt.Errorf("list %s: %w", dir, err)
 	}
 	out := make([]string, 0, len(names))

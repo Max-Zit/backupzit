@@ -9,7 +9,7 @@
       <td class="strong">{{.Name}}</td><td><span class="badge">{{.Kind}}</span></td><td class="mono">{{.URL}}</td>
       <td>{{if .Encrypted}}{{T "AES-256"}} {{if $.Me.Can "storage"}}<form method="post" action="/targets/{{.ID}}/recovery-key" class="inline"><button class="link">{{T "Recovery key"}}</button></form>{{end}}{{else}}<span class="muted">{{T "none"}}</span>{{end}}</td>
       <td>{{if .S3LockDays}}{{days .S3LockDays}} {{T "(Object Lock)"}}{{else if eq .Kind "hardened"}}{{T "set on the repository server"}}{{else}}<span class="muted">{{T "none"}}</span>{{end}}</td>
-      <td>{{if $.Me.Can "storage"}}{{if and (ne .Kind "local") (ne .Kind "usb")}}<form method="post" action="/targets/{{.ID}}/test" class="inline"><button class="link">{{T "Test connection"}}</button></form> · {{end}}<form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove storage target %v? Data on the storage is not deleted." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
+      <td>{{if $.Me.Can "storage"}}{{if and (ne .Kind "local") (ne .Kind "usb")}}<form method="post" action="/targets/{{.ID}}/test" class="inline"><button class="link">{{T "Test connection"}}</button></form> · <a href="/targets/{{.ID}}/scan">{{T "Find backups"}}</a> · {{end}}<form method="post" action="/targets/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove storage target %v? Data on the storage is not deleted." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
     </tr>
     {{end}}
   </table></div>
@@ -140,6 +140,7 @@
     <label data-kind="sftp">{{T "Private key (optional, instead of password)"}} <textarea name="sftp_key" placeholder="{{T "-----BEGIN OPENSSH PRIVATE KEY-----"}}"></textarea></label>
     <label data-kind="local" hidden>{{T "Path on the agent"}} <small>{{T "e.g. D:\\Backups or /mnt/backup"}}</small><input name="url" disabled></label>
     <label class="check"><input type="checkbox" name="encrypted" checked> {{T "Encrypt backups (AES-256)"}} <small>{{T "recommended — a recovery key is created; without it encrypted backups cannot be read"}}</small></label>
+    <label>{{T "Existing recovery key (optional)"}} <small>{{T "only to read backups made earlier with this key, e.g. after reinstalling the console; empty creates a new key"}}</small><input name="recovery_key" autocomplete="off" placeholder="K7QM-2XRD-…"></label>
     <div><button>{{T "Add target"}}</button></div>
   </form>
 </div>{{end}}
