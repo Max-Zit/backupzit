@@ -243,7 +243,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	a.mu.Unlock()
 	host, osName, arch := hostInfo(a.version)
 	var resp api.PollResponse
-	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, Running: running, Parallel: true, IPs: localIPs(), Instance: a.instance}
+	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, Running: running, Parallel: true, IPs: localIPs(), Instance: a.instance, Progress: a.runProgress()}
 	req.WantStatus = a.wantStatus()
 	invEvery := a.InventoryInterval
 	if invEvery <= 0 {

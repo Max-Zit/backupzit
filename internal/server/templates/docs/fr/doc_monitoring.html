@@ -9,6 +9,7 @@
 
 <h2>Activité</h2>
 <p>Chaque exécution, la plus récente en premier. Cliquez sur une exécution pour les détails : ce qui a été traité, les statistiques, les erreurs par fichier et — pour les sauvegardes — les options de restauration. Les exécutions en cours s'actualisent automatiquement. Les exécutions planifiées affichent une icône d'horloge.</p>
+<p>Une sauvegarde en cours indique son avancement sous son statut, sur le tableau de bord, la page de la tâche, dans Activité et sur la page de l’exécution : une barre avec le pourcentage, les données traitées (sur le total lorsqu’il est connu, p. ex. pour les images disque et les VM) et le nombre de fichiers. Les sauvegardes de fichiers ne connaissent pas leur taille à l’avance ; leur pourcentage est estimé d’après le nombre de fichiers de la sauvegarde précédente de la tâche et marqué de ≈. Dès que la sauvegarde compte plus de fichiers que celle-ci, seuls les données et le nombre de fichiers sont affichés. L’agent transmet l’avancement à chaque interrogation (toutes les 15 secondes ou plus souvent pendant une exécution).</p>
 <h3>Types d'exécution</h3>
 <table>
   <tr><th>Type</th><th>De quoi il s'agit</th></tr>

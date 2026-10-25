@@ -82,7 +82,9 @@ type Server struct {
 	Notifier *Notifier
 	cache    *repoCache
 	// cleanups are running deletions of a removed agent's backups.
-	cleanups  sync.WaitGroup
+	cleanups sync.WaitGroup
+	// live is the progress of running runs reported by the agents.
+	live      liveProgress
 	sessCache sessionCache
 	clock     func() time.Time // replaceable in tests
 }
@@ -372,6 +374,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /agents/install/{id}", s.ui(PermAgents, s.handleDeployPage))
 	mux.HandleFunc("GET /agents/remove/{id}", s.ui(PermAgents, s.handleAgentRemovePage))
 	mux.HandleFunc("POST /agents/{id}/delete", s.ui(PermAgents, s.handleAgentDelete))
+	mux.HandleFunc("POST /agents/{id}/adopt", s.ui(PermAgents, s.handleAgentAdopt))
 	mux.HandleFunc("POST /agents/{id}/update", s.ui(PermAgents, s.handleAgentUpdate))
 	mux.HandleFunc("POST /agents/{id}/max-runs", s.ui(PermAgents, s.handleAgentMaxRuns))
 	mux.HandleFunc("POST /agents/{id}/log", s.ui(PermAgents, s.handleAgentLogRequest))
@@ -734,7 +737,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request, user st
 	}
 	instant, _ := s.store.RunningInstantVMs(r.Context())
 	s.render(w, r, "dashboard", pageData{Title: "Dashboard", Nav: "dashboard", User: user,
-		Data: map[string]any{"Summary": sum, "Runs": runs, "Instant": instant, "Attention": s.attention(r.Context(), time.Now(), requestLanguage(r)), "Protection": s.protection(r.Context()), "RPO": s.rpoSummary(r.Context(), time.Now())}})
+		Data: map[string]any{"Summary": sum, "Runs": s.withProgress(r.Context(), runs), "Instant": instant, "Attention": s.attention(r.Context(), time.Now(), requestLanguage(r)), "Protection": s.protection(r.Context()), "RPO": s.rpoSummary(r.Context(), time.Now())}})
 }
 
 // ---- agents
@@ -753,13 +756,14 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		s.serverError(w, err)
 		return
 	}
+	removed, _ := s.store.listRemovedAgents(r.Context())
 	hosts, err := s.store.ListVMwareHosts(r.Context())
 	if err != nil {
 		s.serverError(w, err)
 		return
 	}
 	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
-		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts, "Duplicates": s.dups.current(s.clock()),
+		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts, "Duplicates": s.dups.current(s.clock()), "Removed": removed,
 	}})
 }
 
@@ -1041,7 +1045,7 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 		s.serverError(w, err)
 		return
 	}
-	data := map[string]any{"Job": j, "Runs": runs, "Coverage": s.coverageMap(r.Context())[j.ID], "Protected": nil, "ProtectedSQL": nil, "ProtectedRun": nil,
+	data := map[string]any{"Job": j, "Runs": s.withProgress(r.Context(), runs), "Coverage": s.coverageMap(r.Context())[j.ID], "Protected": nil, "ProtectedSQL": nil, "ProtectedRun": nil,
 		"Replicas": s.jobReplicas(r.Context(), j), "Active": activeRuns(runs), "RPO": rpoState(j, s.coverageMap(r.Context())[j.ID], time.Now()), "AfterJob": s.afterJob(r.Context(), j)}
 	if pr, err := s.store.newestBackup(r.Context(), j.ID); err == nil && pr != nil {
 		data["ProtectedRun"] = pr
@@ -1128,12 +1132,12 @@ func (s *Server) handleJobDelete(w http.ResponseWriter, r *http.Request, _ strin
 // ---- runs
 
 func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request, user string) {
-	runs, err := s.store.ListRuns(r.Context(), RunFilter{Limit: 200})
+	runs, err := s.store.ListRuns(r.Context(), RunFilter{AgentID: formID(r, "agent"), Limit: 200})
 	if err != nil {
 		s.serverError(w, err)
 		return
 	}
-	s.render(w, r, "runs", pageData{Title: "Activity", Nav: "runs", User: user, Data: map[string]any{"Runs": runs, "Cancellable": cancellableRuns(runs)}})
+	s.render(w, r, "runs", pageData{Title: "Activity", Nav: "runs", User: user, Data: map[string]any{"Runs": s.withProgress(r.Context(), runs), "Cancellable": cancellableRuns(runs)}})
 }
 
 func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) {
@@ -1150,6 +1154,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		s.serverError(w, err)
 		return
 	}
+	run = s.withProgress(r.Context(), []Run{run})[0]
 	var backupStats *repo.SnapshotStats
 	var restoreStats *restorer.Stats
 	var copyStats *CopyRunStats

@@ -69,6 +69,101 @@ func (s *Store) agentRepos(ctx context.Context, agentID int64) ([]agentRepo, err
 	})
 }
 
+// softRemoveAgent keeps a removed agent as history of its backups: queued
+// runs are dropped, its jobs deleted (runs keep the job's name) and it can
+// no longer sign in.
+func (s *Store) softRemoveAgent(ctx context.Context, id int64) error {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	for _, q := range []string{
+		`UPDATE runs r SET job_name=j.name FROM jobs j WHERE r.job_id=j.id AND r.agent_id=$1`,
+		`DELETE FROM runs WHERE agent_id=$1 AND status='queued'`,
+		`UPDATE runs SET status='failed', message='The agent was removed.', finished_at=now() WHERE agent_id=$1 AND status='running'`,
+		`UPDATE vmware_hosts SET proxy_agent_id=NULL WHERE proxy_agent_id=$1`,
+		`DELETE FROM jobs WHERE agent_id=$1`,
+		`DELETE FROM agent_removals WHERE agent_id=$1`,
+		`UPDATE agents SET removed_at=now() WHERE id=$1`,
+	} {
+		if _, err := tx.Exec(ctx, q, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// expireSnapshots marks the runs of deleted backups.
+func (s *Store) expireSnapshots(ctx context.Context, agentID int64, ids []string) {
+	s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE agent_id=$1 AND snapshot_id = ANY($2)`, agentID, ids)
+}
+
+// removedAgent is a removed agent kept for its backups.
+type removedAgent struct {
+	Agent
+	Backups int
+	// Successor is the current agent with the same name, which can take
+	// over the backups (0 if none).
+	Successor int64
+}
+
+// listRemovedAgents lists the removed agents kept for their backups.
+func (s *Store) listRemovedAgents(ctx context.Context) ([]removedAgent, error) {
+	rows, err := s.db.Query(ctx, `SELECT `+agentCols+`,
+			(SELECT count(*) FROM runs r WHERE r.agent_id=agents.id AND r.status IN ('success','warning') AND r.snapshot_id<>'' AND NOT r.expired),
+			COALESCE((SELECT n.id FROM agents n WHERE n.removed_at IS NULL AND lower(n.hostname)=lower(agents.hostname) ORDER BY n.enrolled_at DESC LIMIT 1), 0)
+		FROM agents WHERE removed_at IS NOT NULL ORDER BY hostname, removed_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (removedAgent, error) {
+		var x removedAgent
+		a, err := scanAgent(r, &x.Backups, &x.Successor)
+		x.Agent = a
+		return x, err
+	})
+}
+
+// agentAny returns an agent, also a removed one.
+func (s *Store) agentAny(ctx context.Context, id int64) (Agent, error) {
+	a, err := scanAgent(s.db.QueryRow(ctx, `SELECT `+agentCols+` FROM agents WHERE id=$1`, id))
+	return a, notFound(err)
+}
+
+// adoptBackups gives the backups of a removed agent to a current agent:
+// its history moves over and the current agent's jobs continue in the
+// removed agent's repositories (deduplicated against the old backups).
+func (s *Store) adoptBackups(ctx context.Context, agentID, removedID int64) error {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var dir string
+	if err := tx.QueryRow(ctx, `SELECT repo_dir FROM agents WHERE id=$1 AND removed_at IS NOT NULL`, removedID).Scan(&dir); err != nil {
+		return notFound(err)
+	}
+	// Repository folders are unique: the removed agent gives its folder up first.
+	if _, err := tx.Exec(ctx, `UPDATE agents SET repo_dir=repo_dir || '.adopted-' || id WHERE id=$1`, removedID); err != nil {
+		return err
+	}
+	tag, err := tx.Exec(ctx, `UPDATE agents SET repo_dir=$2 WHERE id=$1 AND removed_at IS NULL`, agentID, dir)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return ErrNotFound
+	}
+	if _, err := tx.Exec(ctx, `UPDATE runs SET agent_id=$1 WHERE agent_id=$2`, agentID, removedID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM agents WHERE id=$1`, removedID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *Store) setAgentRemoval(ctx context.Context, agentID, runID int64, backups, by string) error {
 	_, err := s.db.Exec(ctx, `INSERT INTO agent_removals(agent_id, run_id, backups, requested_by) VALUES($1,$2,$3,$4)
 		ON CONFLICT (agent_id) DO UPDATE SET run_id=$2, backups=$3, requested_by=$4, requested_at=now()`, agentID, runID, backups, by)
@@ -101,7 +196,31 @@ func (s *Store) queueAgentUninstall(ctx context.Context, agentID int64) (int64, 
 // recovery system, and a version that knows the command.
 func canUninstall(a Agent) bool {
 	v, ok := parseVersion(a.Version)
-	return ok && a.Online() && !a.Recovery && !versionLess(v, [3]int{0, 42, 7})
+	return ok && a.RemovedAt == nil && a.Online() && !a.Recovery && !versionLess(v, [3]int{0, 42, 7})
+}
+
+// handleAgentAdopt serves POST /agents/{id}/adopt: the agent of a
+// reinstalled computer takes over the backups of the removed agent with
+// the same name.
+func (s *Server) handleAgentAdopt(w http.ResponseWriter, r *http.Request, user string) {
+	id, _ := pathID(r)
+	a, err := s.store.GetAgent(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	old, err := s.store.agentAny(r.Context(), formID(r, "removed"))
+	l := requestLanguage(r)
+	if err != nil || old.RemovedAt == nil || !strings.EqualFold(old.Hostname, a.Hostname) {
+		redirectErr(w, r, "/agents", errors.New(l.T("These backups cannot be connected to this agent.")))
+		return
+	}
+	if err := s.store.adoptBackups(r.Context(), a.ID, old.ID); err != nil {
+		redirectErr(w, r, "/agents", err)
+		return
+	}
+	s.audit(r, "agent.adopt", "%s (agent %d) took over the backups of removed agent %d", a.Hostname, a.ID, old.ID)
+	redirectMsg(w, r, "/agents", l.T("The backups of the removed agent %s are connected: they appear under it, and its jobs continue in the same repositories.", a.Hostname))
 }
 
 // agentRemoveData is the remove dialog.
@@ -116,7 +235,7 @@ type agentRemoveData struct {
 
 func (s *Server) handleAgentRemovePage(w http.ResponseWriter, r *http.Request, user string) {
 	id, _ := pathID(r)
-	a, err := s.store.GetAgent(r.Context(), id)
+	a, err := s.store.agentAny(r.Context(), id)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -153,7 +272,7 @@ func (s *Server) handleAgentRemovePage(w http.ResponseWriter, r *http.Request, u
 // to its backups.
 func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, user string) {
 	id, _ := pathID(r)
-	a, err := s.store.GetAgent(r.Context(), id)
+	a, err := s.store.agentAny(r.Context(), id)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -164,7 +283,7 @@ func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, user 
 		o.Backups = removeKeepBackups
 	}
 	l := requestLanguage(r)
-	if !o.valid() {
+	if !o.valid() || (a.RemovedAt != nil && o.Backups == removeKeepBackups) {
 		redirectErr(w, r, back, errors.New(l.T("Choose what happens to the backups.")))
 		return
 	}
@@ -207,17 +326,25 @@ func (s *Server) startAgentRemoval(ctx context.Context, a Agent, o removalOpts, 
 	case o.Uninstall:
 		return "Agent removed. It was not online, so it is still installed on the computer: uninstall it there.", nil
 	}
-	return "Agent removed. Its backups remain on the storage target.", nil
+	return "Agent removed. Its backups stay in Activity and can be restored to another agent.", nil
 }
 
-// completeAgentRemoval deletes the agent (with its jobs and history) and
-// starts the clean-up of its backups in the background.
+// completeAgentRemoval removes the agent and starts the clean-up of its
+// backups in the background. An agent whose backups are kept (all or the
+// newest) stays as history: its backups remain in Activity, can be
+// restored to other agents and connected to a reinstalled computer. Its
+// jobs are deleted and it can no longer sign in.
 func (s *Server) completeAgentRemoval(ctx context.Context, a Agent, backups, by, remote string) error {
 	repos, err := s.store.agentRepos(ctx, a.ID)
 	if err != nil {
 		return err
 	}
-	if err := s.store.DeleteAgent(ctx, a.ID); err != nil {
+	if backups == removeAllBackups || len(repos) == 0 {
+		err = s.store.DeleteAgent(ctx, a.ID)
+	} else {
+		err = s.store.softRemoveAgent(ctx, a.ID)
+	}
+	if err != nil {
 		return err
 	}
 	s.store.AppendAudit(ctx, by, "agent.delete", fmt.Sprintf("%s (agent %d), backups: %s", a.Hostname, a.ID, backups), remote)
@@ -230,7 +357,10 @@ func (s *Server) completeAgentRemoval(ctx context.Context, a Agent, backups, by,
 		cctx, cancel := context.WithTimeout(context.Background(), 12*time.Hour)
 		defer cancel()
 		for _, x := range repos {
-			detail := s.cleanupRepo(cctx, x, backups)
+			detail, removed := s.cleanupRepo(cctx, x, backups)
+			if len(removed) > 0 {
+				s.store.expireSnapshots(cctx, a.ID, removed)
+			}
 			s.store.AppendAudit(cctx, by, "agent.backups", fmt.Sprintf("%s, %s on %s: %s", a.Hostname, x.URL, x.TargetName, detail), remote)
 			s.log.Info("backups of a removed agent", "agent", a.Hostname, "repo", x.URL, "result", detail)
 		}
@@ -257,16 +387,16 @@ func (s *Server) agentUninstalled(ctx context.Context, a Agent, runID int64, res
 
 // cleanupRepo deletes backups of a removed agent in one repository and
 // describes the outcome.
-func (s *Server) cleanupRepo(ctx context.Context, x agentRepo, mode string) string {
+func (s *Server) cleanupRepo(ctx context.Context, x agentRepo, mode string) (string, []string) {
 	if x.Local() {
-		return "not deleted: the storage is a disk of the agent's computer"
+		return "not deleted: the storage is a disk of the agent's computer", nil
 	}
 	t, err := s.store.GetTarget(ctx, x.TargetID)
 	if err != nil {
-		return "not deleted: the storage target was removed"
+		return "not deleted: the storage target was removed", nil
 	}
 	if t.SFTPKey != "" {
-		return "not deleted: the console cannot use SSH key sign-in to the storage; delete the folder there"
+		return "not deleted: the console cannot use SSH key sign-in to the storage; delete the folder there", nil
 	}
 	s.cache.drop(x.URL)
 	be, err := backend.Open(ctx, x.URL, backend.Options{
@@ -277,15 +407,15 @@ func (s *Server) cleanupRepo(ctx context.Context, x agentRepo, mode string) stri
 		AzureKey: t.AzureKey, AzureSAS: t.AzureSAS,
 	})
 	if err != nil {
-		return "not deleted: " + err.Error()
+		return "not deleted: " + err.Error(), nil
 	}
 	defer be.Close()
 	if mode == removeAllBackups {
-		return deleteRepository(ctx, be)
+		return deleteRepository(ctx, be), nil
 	}
 	r, err := repo.Open(ctx, be, repo.Password(t.RecoveryKey))
 	if err != nil {
-		return "not deleted: " + err.Error()
+		return "not deleted: " + err.Error(), nil
 	}
 	return keepNewestBackups(ctx, r)
 }
@@ -317,16 +447,16 @@ func deleteRepository(ctx context.Context, be backend.Backend) string {
 }
 
 // keepNewestBackups keeps the newest backup of each job (with the database
-// logs it needs) and frees the space of the others.
-func keepNewestBackups(ctx context.Context, r *repo.Repository) string {
+// logs it needs), frees the space of the others and returns their IDs.
+func keepNewestBackups(ctx context.Context, r *repo.Repository) (string, []string) {
 	lock, err := r.Lock(ctx, true, 2*time.Minute)
 	if err != nil {
-		return "not deleted: " + err.Error()
+		return "not deleted: " + err.Error(), nil
 	}
 	defer lock.Unlock()
 	sns, err := r.ListSnapshots(ctx)
 	if err != nil {
-		return "not deleted: " + err.Error()
+		return "not deleted: " + err.Error(), nil
 	}
 	groups := map[string][]*repo.Snapshot{}
 	for _, sn := range sns {
@@ -342,22 +472,24 @@ func keepNewestBackups(ctx context.Context, r *repo.Repository) string {
 		groups[key] = append(groups[key], sn)
 	}
 	var removed int
+	var ids []string
 	for _, g := range groups {
 		for _, sn := range repo.RetentionRemove(g, repo.RetentionPolicy{KeepLast: 1}) {
 			if err := r.RemoveSnapshot(ctx, sn.ID); err != nil {
-				return fmt.Sprintf("stopped after %d backups: %v", removed, err)
+				return fmt.Sprintf("stopped after %d backups: %v", removed, err), ids
 			}
 			removed++
+			ids = append(ids, sn.ID.String())
 		}
 	}
 	if removed == 0 {
-		return "nothing to delete: only the newest backups were left"
+		return "nothing to delete: only the newest backups were left", nil
 	}
 	st, err := r.Prune(ctx, repo.PruneOptions{})
 	if err != nil {
-		return fmt.Sprintf("deleted %d older backups; freeing the space failed: %v", removed, err)
+		return fmt.Sprintf("deleted %d older backups; freeing the space failed: %v", removed, err), ids
 	}
-	return fmt.Sprintf("kept the newest backup of each job, deleted %d older backups, freed %s", removed, humanBytes(st.BytesFreed))
+	return fmt.Sprintf("kept the newest backup of each job, deleted %d older backups, freed %s", removed, humanBytes(st.BytesFreed)), ids
 }
 
 // executeAgentDelete carries out an approved removal.

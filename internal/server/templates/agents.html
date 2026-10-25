@@ -53,6 +53,22 @@ sudo systemctl enable --now backupzit-agent</pre>
   {{else}}<p class="muted">{{T "No agents enrolled yet."}}</p>{{end}}
 </div>
 
+{{with .Data.Removed}}
+<div class="panel" id="removed">
+  <h2>{{T "Removed agents with kept backups"}}</h2>
+  <p class="muted small">{{T "Their backups stay in Activity and can be restored to any agent. When the computer gets the agent again, connect them: the new agent then shows them and continues in the same repositories."}}</p>
+  <div class="table-wrap"><table>
+    <tr><th>{{T "Computer"}}</th><th>{{T "Removed"}}</th><th>{{T "Backups"}}</th><th></th></tr>
+    {{range .}}<tr>
+      <td>{{.Hostname}} <span class="muted small">{{.OS}}</span></td>
+      <td>{{ts .RemovedAt}}</td>
+      <td><a href="/runs?agent={{.ID}}">{{.Backups}}</a></td>
+      <td class="nowrap">{{if $.Me.Can "agents"}}{{if .Successor}}<form method="post" action="/agents/{{.Successor}}/adopt" class="inline" data-confirm="{{T "Connect the backups of the removed %v to the current agent with that name?" .Hostname}}"><input type="hidden" name="removed" value="{{.ID}}"><button class="link">{{T "Connect to the current agent"}}</button></form> {{end}}<a href="/agents/remove/{{.ID}}">{{T "Delete backups"}}</a>{{end}}</td>
+    </tr>{{end}}
+  </table></div>
+</div>
+{{end}}
+
 <div class="panel" id="vmware">
   <h2>{{T "VMware ESXi hosts"}}</h2>
   <p class="muted">{{T "Nothing is installed on ESXi: an agent on any machine in the network works as its"}} <b>{{T "proxy"}}</b>{{T ". It snapshots the VMs, reads their disks from the host and writes the backups to the storage. Choose an agent close to the ESXi host and the storage, ideally on the same fast network."}}</p>

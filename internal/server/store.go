@@ -333,6 +333,8 @@ type Agent struct {
 	RemoteAddr string
 	// Hypervisor is the Proxmox VE inventory of an agent on a Proxmox node.
 	Hypervisor json.RawMessage
+	// RemovedAt is set for removed agents kept for their backups.
+	RemovedAt *time.Time
 }
 
 // Disks decodes the reported disk inventory.
@@ -349,11 +351,11 @@ func (a Agent) Online() bool {
 	return a.LastSeen != nil && time.Since(*a.LastSeen) < 3*time.Minute
 }
 
-const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, max_runs`
+const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, max_runs, removed_at`
 
 func scanAgent(r pgx.Row, extra ...any) (Agent, error) {
 	var a Agent
-	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.MaxRuns}, extra...)
+	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.MaxRuns, &a.RemovedAt}, extra...)
 	err := r.Scan(dest...)
 	return a, err
 }
@@ -361,7 +363,7 @@ func scanAgent(r pgx.Row, extra ...any) (Agent, error) {
 // AuthenticateAgent checks "uuid:secret" credentials.
 func (s *Store) AuthenticateAgent(ctx context.Context, uuid, secret string) (Agent, error) {
 	var hash []byte
-	a, err := scanAgent(s.db.QueryRow(ctx, `SELECT `+agentCols+`, secret_hash FROM agents WHERE uuid=$1`, uuid), &hash)
+	a, err := scanAgent(s.db.QueryRow(ctx, `SELECT `+agentCols+`, secret_hash FROM agents WHERE uuid=$1 AND removed_at IS NULL`, uuid), &hash)
 	if err != nil {
 		return Agent{}, errors.New("unknown agent")
 	}
@@ -403,7 +405,7 @@ func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest, r
 }
 
 func (s *Store) ListAgents(ctx context.Context) ([]Agent, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+agentCols+` FROM agents ORDER BY hostname`)
+	rows, err := s.db.Query(ctx, `SELECT `+agentCols+` FROM agents WHERE removed_at IS NULL ORDER BY hostname`)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +413,7 @@ func (s *Store) ListAgents(ctx context.Context) ([]Agent, error) {
 }
 
 func (s *Store) GetAgent(ctx context.Context, id int64) (Agent, error) {
-	a, err := scanAgent(s.db.QueryRow(ctx, `SELECT `+agentCols+` FROM agents WHERE id=$1`, id))
+	a, err := scanAgent(s.db.QueryRow(ctx, `SELECT `+agentCols+` FROM agents WHERE id=$1 AND removed_at IS NULL`, id))
 	return a, notFound(err)
 }
 
@@ -759,9 +761,13 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 }
 
 type Run struct {
-	ID              int64
-	AgentID         int64
-	Hostname        string
+	ID       int64
+	AgentID  int64
+	Hostname string
+	// AgentRemoved marks runs of a removed agent kept for its backups.
+	AgentRemoved bool
+	// Progress is set for running runs whose agent reports it.
+	Progress        *runProgress
 	JobID           *int64
 	JobName         *string
 	Kind            string
@@ -818,7 +824,7 @@ func (r Run) Duration() time.Duration {
 	return end.Sub(*r.StartedAt).Round(time.Second)
 }
 
-const runCols = `r.id, r.agent_id, a.hostname, r.job_id, j.name, r.kind, r.status, r.trigger, r.repo_url,
+const runCols = `r.id, r.agent_id, a.hostname, a.removed_at IS NOT NULL, r.job_id, COALESCE(j.name, NULLIF(r.job_name,'')), r.kind, r.status, r.trigger, r.repo_url,
 	r.target_id, r.paths, r.excludes, r.snapshot_id, r.restore_target, r.restore_verify, r.queued_at, r.started_at, r.finished_at,
 	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url, r.anomaly, r.anomaly_ack, r.vm_restore, r.new_hardware, r.driver_path, r.system_restore, r.commands, r.cancel_reason`
 
@@ -826,7 +832,7 @@ const runFrom = ` FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j 
 
 func scanRun(row pgx.Row) (Run, error) {
 	var r Run
-	err := row.Scan(&r.ID, &r.AgentID, &r.Hostname, &r.JobID, &r.JobName, &r.Kind, &r.Status,
+	err := row.Scan(&r.ID, &r.AgentID, &r.Hostname, &r.AgentRemoved, &r.JobID, &r.JobName, &r.Kind, &r.Status,
 		&r.Trigger, &r.RepoURL, &r.TargetID, &r.Paths, &r.Excludes, &r.SnapshotID, &r.RestoreTarget, &r.RestoreVerify,
 		&r.QueuedAt, &r.StartedAt, &r.FinishedAt, &r.Stats, &r.Errors, &r.Message,
 		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL, &r.Anomaly, &r.AnomalyAck, &r.VMRestore, &r.NewHardware, &r.DriverPath, &r.SystemRestore, &r.Commands, &r.CancelReason)
@@ -973,8 +979,8 @@ type Summary struct {
 func (s *Store) Summary(ctx context.Context) (Summary, error) {
 	var x Summary
 	err := s.db.QueryRow(ctx, `SELECT
-		(SELECT count(*) FROM agents),
-		(SELECT count(*) FROM agents WHERE last_seen_at > now() - interval '3 minutes'),
+		(SELECT count(*) FROM agents WHERE removed_at IS NULL),
+		(SELECT count(*) FROM agents WHERE removed_at IS NULL AND last_seen_at > now() - interval '3 minutes'),
 		(SELECT count(*) FROM jobs),
 		(SELECT count(*) FROM storage_targets),
 		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours'),

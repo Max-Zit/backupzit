@@ -115,6 +115,20 @@ func (a *Agent) progress(ctx context.Context, done, total, files uint64) {
 	ls.mu.Unlock()
 }
 
+// runProgress is the progress of the runs in progress, for the console.
+func (a *Agent) runProgress() []api.RunProgress {
+	ls := a.local()
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	var out []api.RunProgress
+	for id, r := range ls.running {
+		if r.Done > 0 || r.Total > 0 || r.Files > 0 {
+			out = append(out, api.RunProgress{RunID: id, Done: r.Done, Total: r.Total, Files: r.Files})
+		}
+	}
+	return out
+}
+
 // ServeLocal answers the tray app until ctx ends.
 func (a *Agent) ServeLocal(ctx context.Context) {
 	l, err := localipc.Listen()

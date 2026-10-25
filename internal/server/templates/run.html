@@ -5,11 +5,12 @@
 {{if .Anomaly}}<div class="callout warn"><p><b>{{T "Suspicious backup — possible ransomware or mass deletion:"}}</b> {{.Anomaly}}.</p><p>{{T "Check the machine. Retention of the job is paused so older backups are kept; resume it on the"}} <a href="/jobs/{{.JobID}}">{{T "job page"}}</a> {{T "after review."}}</p></div>{{end}}
 <div class="panel" {{if or (eq .Status "queued") (eq .Status "running")}}data-autorefresh{{end}}>
   <dl class="kv">
-    <dt>{{T "Agent"}}</dt><dd>{{.Hostname}}</dd>
+    <dt>{{T "Agent"}}</dt><dd>{{.Hostname}}{{if .AgentRemoved}} <span class="badge">{{T "removed"}}</span>{{end}}</dd>
     {{if .JobID}}<dt>{{T "Job"}}</dt><dd><a href="/jobs/{{.JobID}}">{{deref .JobName}}</a></dd>{{end}}
     <dt>{{T "Trigger"}}</dt><dd>{{T .Trigger}}</dd>
     <dt>{{T "Queued"}}</dt><dd>{{ts .QueuedAt}}</dd>
     <dt>{{T "Started"}}</dt><dd>{{ts .StartedAt}}</dd>
+    {{with .Progress}}<dt>{{T "Progress"}}</dt><dd><div class="runprog">{{if ge .Percent 0}}<progress max="100" value="{{.Percent}}"></progress> <b>{{if .Estimated}}≈{{end}}{{.Percent}}%</b> {{end}}<span class="muted">{{if .Total}}{{.Done}} / {{.Total}}{{else}}{{.Done}}{{end}}{{if .Files}} · {{T "%d files" .Files}}{{end}}</span></div></dd>{{end}}
     <dt>{{T "Finished"}}</dt><dd>{{ts .FinishedAt}}</dd>
     {{if .StartedAt}}<dt>{{T "Duration"}}</dt><dd>{{.Duration}}</dd>{{end}}
     {{if .RepoURL}}<dt>{{T "Repository"}}</dt><dd class="mono">{{.RepoURL}}</dd>{{end}}

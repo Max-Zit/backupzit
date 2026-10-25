@@ -87,6 +87,9 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusInternalServerError, "database error")
 		return
 	}
+	if len(req.Progress) > 0 {
+		s.live.set(a.ID, req.Progress, s.clock())
+	}
 	resp := api.PollResponse{PollIntervalSec: s.PollInterval}
 	if req.WantStatus {
 		if st, err := s.agentStatus(r.Context(), a.ID); err == nil {

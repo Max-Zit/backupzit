@@ -126,6 +126,9 @@ func (s *Server) wizardEntries(ctx context.Context) (map[string][]wizardEntry, e
 		// by machine.
 		var j Job
 		src := restoreSource{Key: "agent:" + strconv.FormatInt(run.AgentID, 10), Title: run.Hostname, Detail: "backups of a deleted job"}
+		if run.JobID == nil && run.JobName != nil { // job of a removed agent
+			src = restoreSource{Key: "agent:" + strconv.FormatInt(run.AgentID, 10) + ":" + *run.JobName, Title: *run.JobName, Detail: run.Hostname + " (removed agent)"}
+		}
 		if run.JobID != nil {
 			j = jobByID[*run.JobID]
 			src = restoreSource{Key: "job:" + strconv.FormatInt(*run.JobID, 10), Title: deref(run.JobName), Detail: run.Hostname}

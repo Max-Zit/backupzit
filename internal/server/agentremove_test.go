@@ -96,7 +96,7 @@ func newRemoveEnv(t *testing.T, version string) *removeEnv {
 			t.Fatal(err)
 		}
 		r.Close()
-		if err := e.store.FinishRun(ctx, a.ID, runID, api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String()}); err != nil {
+		if err := e.store.FinishRun(ctx, a.ID, runID, api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: json.RawMessage(`{"files":10}`)}); err != nil {
 			t.Fatal(err)
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -265,4 +265,68 @@ func TestAgentRemoveFourEyes(t *testing.T) {
 		t.Fatal("agent not removed after approval")
 	}
 	x.waitSnapshots(t, 1)
+}
+
+// Kept backups of a removed agent stay in Activity, and the agent of the
+// reinstalled computer (same name) takes them over and continues in the
+// same repository.
+func TestAgentRemoveKeepsHistoryAndAdopt(t *testing.T) {
+	x := newRemoveEnv(t, "test")
+	ctx := x.e.ctx
+	old, _ := x.e.store.ListAgents(ctx)
+	oldRepoDir := old[0].RepoDir
+	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"backups": {"keep"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("remove: %s", loc)
+	}
+	if x.agentExists() {
+		t.Fatal("removed agent still listed")
+	}
+	if code := x.call("POST", api.PathPoll, api.PollRequest{Hostname: "PC-17", Version: "test"}, nil); code != http.StatusUnauthorized {
+		t.Errorf("removed agent may still sign in: %d", code)
+	}
+	if jobs, _ := x.e.store.ListJobs(ctx); len(jobs) != 0 {
+		t.Errorf("jobs of the removed agent remain: %d", len(jobs))
+	}
+	_, _, page := x.admin.do("GET", fmt.Sprintf("/runs?agent=%d", x.agentID), nil)
+	if strings.Count(page, ">removed<") < 3 || !strings.Contains(page, "Docs") {
+		t.Errorf("Activity does not show the kept backups with their job")
+	}
+	_, _, page = x.admin.do("GET", "/agents", nil)
+	if !strings.Contains(page, "Removed agents with kept backups") || strings.Contains(page, "Connect to the current agent") {
+		t.Errorf("agents page: removed section or an early connect button")
+	}
+	// The computer gets the agent again.
+	token, _, _ := x.e.store.CreateEnrollmentToken(ctx, time.Hour)
+	cfg, err := agent.Enroll(ctx, x.e.ts.URL, token, x.e.fp, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest("POST", x.e.ts.URL+api.PathPoll, strings.NewReader(`{"hostname":"PC-17","version":"test"}`))
+	req.Header.Set("Authorization", "Bearer "+cfg.AgentUUID+":"+cfg.Secret)
+	if resp, err := x.e.ts.Client().Do(req); err == nil {
+		resp.Body.Close()
+	}
+	agents, _ := x.e.store.ListAgents(ctx)
+	if len(agents) != 1 || agents[0].Hostname != x.host {
+		t.Fatalf("new agent: %+v", agents)
+	}
+	newID := agents[0].ID
+	_, _, page = x.admin.do("GET", "/agents", nil)
+	if !strings.Contains(page, fmt.Sprintf(`action="/agents/%d/adopt"`, newID)) {
+		t.Fatal("no connect button for the reinstalled computer")
+	}
+	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/adopt", newID), url.Values{"removed": {fmt.Sprint(x.agentID)}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("adopt: %s", loc)
+	}
+	a, _ := x.e.store.GetAgent(ctx, newID)
+	if a.RepoDir != oldRepoDir {
+		t.Errorf("repo dir %q, want the old %q", a.RepoDir, oldRepoDir)
+	}
+	runs, _ := x.e.store.ListRuns(ctx, server.RunFilter{AgentID: newID})
+	if len(runs) < 3 || runs[0].AgentRemoved {
+		t.Errorf("history not moved: %d runs", len(runs))
+	}
+	if _, _, page := x.admin.do("GET", "/agents", nil); strings.Contains(page, "Removed agents with kept backups") {
+		t.Error("removed agent still listed after connecting")
+	}
 }

@@ -39,6 +39,14 @@ type EnrollResponse struct {
 }
 
 // PollRequest is the agent heartbeat.
+// RunProgress is how far a running run is, reported with each poll.
+type RunProgress struct {
+	RunID int64  `json:"run_id"`
+	Done  uint64 `json:"done,omitempty"`  // bytes processed
+	Total uint64 `json:"total,omitempty"` // bytes in all, 0 if not known
+	Files uint64 `json:"files,omitempty"` // files processed
+}
+
 type PollRequest struct {
 	Hostname string `json:"hostname"`
 	OS       string `json:"os"`
@@ -55,6 +63,8 @@ type PollRequest struct {
 	WantStatus bool `json:"want_status,omitempty"`
 	// IPs are the agent's own network addresses (no loopback).
 	IPs []string `json:"ips,omitempty"`
+	// Progress tells how far the running runs are (0.42.8 and newer).
+	Progress []RunProgress `json:"progress,omitempty"`
 	// Instance is random per agent process. Two instances polling at the
 	// same time mean two machines use one enrollment (a cloned or restored
 	// copy of the machine is running).

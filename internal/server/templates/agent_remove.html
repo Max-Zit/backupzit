@@ -5,12 +5,16 @@
 <div class="panel"><div class="flash">{{template "icon" "clock"}}<span>{{T "The agent is uninstalling itself. It is removed here as soon as it reports; if it does not come back, remove it below without uninstalling."}}</span></div></div>
 {{end}}
 <form method="post" action="/agents/{{$a.ID}}/delete" class="panel" data-confirm="{{T "Remove agent %v now?" $a.Hostname}}">
+  {{if $a.RemovedAt}}
+  <p class="muted">{{T "This agent was removed on %v; its backups were kept. Choose here what to delete now." (ts $a.RemovedAt)}}</p>
+  {{else}}
   <h2>{{T "The agent on the computer"}}</h2>
   {{if .Data.CanUninstall}}
   <label class="check"><input type="checkbox" name="uninstall" checked> {{T "Uninstall the agent from the computer"}}</label>
   <p class="muted small">{{T "The agent reports to the console, then uninstalls itself (Windows: its MSI, as in Settings → Apps; Linux: the deb or rpm package). After that it is removed here."}}</p>
   {{else}}
   <p class="muted">{{if $a.Recovery}}{{T "This is a recovery system; it has nothing to uninstall."}}{{else if not $a.Online}}{{T "The agent is offline, so it cannot uninstall itself: it is removed here only. Uninstall it on the computer (Windows: Settings → Apps → BackupZit Agent; Linux: remove the backupzit-agent package)."}}{{else}}{{T "This agent version cannot uninstall itself (update it first, or uninstall it on the computer)."}}{{end}}</p>
+  {{end}}
   {{end}}
 
   <h2 class="mt">{{T "Its backups"}}</h2>
@@ -22,8 +26,8 @@
   {{else}}
   <p class="muted">{{T "This agent has no backups on storage."}}</p>
   {{end}}
-  <label class="check"><input type="radio" name="backups" value="keep" checked> <b>{{T "Keep all backups"}}</b> <small>{{T "they stay on the storage and can still be restored (Activity, command line)"}}</small></label>
-  <label class="check"><input type="radio" name="backups" value="last"> <b>{{T "Keep only the newest backup of each job"}}</b> <small>{{T "each backup is complete (deduplicated), so the newest one restores everything as of its date; database jobs keep the logs that belong to it"}}</small></label>
+  {{if not $a.RemovedAt}}<label class="check"><input type="radio" name="backups" value="keep" checked> <b>{{T "Keep all backups"}}</b> <small>{{T "they stay in Activity and on the storage and can be restored to any agent"}}</small></label>{{end}}
+  <label class="check"><input type="radio" name="backups" value="last" {{if $a.RemovedAt}}checked{{end}}> <b>{{T "Keep only the newest backup of each job"}}</b> <small>{{T "each backup is complete (deduplicated), so the newest one restores everything as of its date; database jobs keep the logs that belong to it"}}</small></label>
   <label class="check"><input type="radio" name="backups" value="all"> <b>{{T "Delete all backups of this agent"}}</b> <small>{{T "cannot be undone"}}</small></label>
   {{with .Data.ProxyJobs}}<div class="flash err mt">{{template "icon" "warn"}}<span>{{T "This agent also backs up other systems; deleting its backups deletes theirs too:"}} {{range $i, $j := .}}{{if $i}}, {{end}}{{$j}}{{end}}</span></div>{{end}}
   {{with .Data.Immutable}}<p class="muted small">{{T "Immutable storage keeps locked data until its lock expires, also when it is deleted:"}} {{range $i, $j := .}}{{if $i}}, {{end}}{{$j}}{{end}}</p>{{end}}

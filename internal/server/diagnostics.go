@@ -78,7 +78,7 @@ func (s *Server) diagInfo(ctx context.Context, w io.Writer, now time.Time) error
 	fmt.Fprintf(w, "BackupZit console %s\nCreated: %s\nHost: %s (%s/%s, %s)\nPublic URL: %s\nTime zone: %s\nDatabase: %s, %s\nLog file: %s\n\n",
 		s.Version, now.Format(time.RFC3339), host, runtime.GOOS, runtime.GOARCH, runtime.Version(), s.PublicURL, now.Format("MST -07:00"), pg, dbSize, s.LogFile)
 	fmt.Fprintf(w, "Agents: %d\nJobs: %d (enabled %d)\nStorage targets: %d\nRuns in the last 24 hours: %d (failed %d)\nRunning or queued: %d\n\n",
-		count(`SELECT count(*) FROM agents`), count(`SELECT count(*) FROM jobs`), count(`SELECT count(*) FROM jobs WHERE enabled`),
+		count(`SELECT count(*) FROM agents WHERE removed_at IS NULL`), count(`SELECT count(*) FROM jobs`), count(`SELECT count(*) FROM jobs WHERE enabled`),
 		count(`SELECT count(*) FROM storage_targets`), count(`SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours'`),
 		count(`SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='failed'`),
 		count(`SELECT count(*) FROM runs WHERE status IN ('queued','running')`))
