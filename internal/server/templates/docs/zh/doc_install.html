@@ -143,6 +143,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 
 <h2>更新 BackupZit</h2>
 <p>默认情况下，控制台从 GitHub 上的 BackupZit 官方发布获取更新（<code>https://github.com/Max-Zit/backupzit/releases</code>）。在 <a href="/settings/updates">设置 → 更新</a> 下，您可以改为输入另一个<b>更新源</b>——您自己的 HTTPS 镜像或服务器上的文件夹。无论来源如何，每个版本都必须带有有效的 BackupZit 签名。控制台每天检查新版本，有可用版本时会向管理员发送电子邮件。要安装它，请点击<b>安装</b>：</p>
+<p><b>候选版本：</b>每个版本都会先作为<i>预发布版</i>发布并测试，之后才以相同的文件成为正式版本。更新源 <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> 始终包含最新的候选版本——请仅在测试控制台上使用，因为候选版本仍可能被修正后的版本替换。使用默认更新源的控制台只会获得已批准的版本。</p>
 <ol>
   <li>控制台检查版本签名和软件包校验和，并等待没有正在运行的备份或还原。</li>
   <li>系统服务（<code>backupzit-update</code>，以 root 身份运行）使用 BackupZit 内置的发布密钥再次检查签名。即使控制台被入侵，也无法让其他软件包被安装。</li>

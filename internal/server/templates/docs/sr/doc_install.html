@@ -143,6 +143,7 @@ backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
 
 <h2>Ažuriranje BackupZit-a</h2>
 <p>Podrazumevano konzola uzima ažuriranja iz zvaničnih BackupZit izdanja na GitHub-u (<code>https://github.com/Max-Zit/backupzit/releases</code>). U <a href="/settings/updates">Podešavanja → Ažuriranja</a> možete umesto toga uneti drugi <b>izvor ažuriranja</b> — svoj HTTPS mirror ili folder na serveru. Bez obzira na izvor, svako izdanje mora da ima ispravan BackupZit potpis. Konzola svakog dana proverava ima li novih izdanja i šalje email administratorima kada se pojavi novo. Za instalaciju kliknite <b>Instaliraj</b>:</p>
+<p><b>Kandidati za izdanje:</b> svaka verzija se prvo objavljuje kao <i>pre-release</i> i testira; tek onda postaje zvanično izdanje, sa istim fajlovima. Izvor ažuriranja <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> uvek sadrži najnovijeg kandidata — koristite ga samo na test konzoli, jer kandidata još može da zameni ispravljeni. Konzole sa podrazumevanim izvorom dobijaju samo odobrena izdanja.</p>
 <ol>
   <li>Konzola proverava potpis izdanja i kontrolni zbir paketa, i čeka da se ne izvršava nijedan bekap ni vraćanje.</li>
   <li>Sistemski servis (<code>backupzit-update</code>, radi kao root) ponovo proverava potpis ključevima za izdanja ugrađenim u BackupZit. Ni kompromitovana konzola ne može da instalira neki drugi paket.</li>

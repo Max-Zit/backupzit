@@ -143,6 +143,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 
 <h2>Aktualizacja BackupZit</h2>
 <p>Domyślnie konsola pobiera aktualizacje z oficjalnych wydań BackupZit na GitHubie (<code>https://github.com/Max-Zit/backupzit/releases</code>). W <a href="/settings/updates">Ustawienia → Aktualizacje</a> możesz zamiast tego podać inne <b>źródło aktualizacji</b> — własny serwer lustrzany HTTPS lub folder na serwerze. Niezależnie od źródła każde wydanie musi mieć ważny podpis BackupZit. Konsola codziennie sprawdza nowe wydania i wysyła e-mail do administratorów, gdy jakieś jest dostępne. Aby je zainstalować, kliknij <b>Zainstaluj</b>:</p>
+<p><b>Wersje kandydujące:</b> każda wersja jest najpierw publikowana jako <i>pre-release</i> i testowana; dopiero potem staje się oficjalnym wydaniem, z tymi samymi plikami. Źródło aktualizacji <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> zawiera zawsze najnowszego kandydata — używaj go tylko na konsoli testowej, bo kandydata może jeszcze zastąpić poprawiony. Konsole z domyślnym źródłem otrzymują tylko zatwierdzone wydania.</p>
 <ol>
   <li>Konsola sprawdza podpis wydania i sumę kontrolną pakietu oraz czeka, aż nie będzie trwała żadna kopia ani przywracanie.</li>
   <li>Usługa systemowa (<code>backupzit-update</code>, działająca jako root) ponownie sprawdza podpis kluczami wydań wbudowanymi w BackupZit. Nawet przejęta konsola nie może zlecić instalacji innego pakietu.</li>

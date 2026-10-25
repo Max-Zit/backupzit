@@ -143,6 +143,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 
 <h2>Atualizar o BackupZit</h2>
 <p>Por padrão a console obtém as atualizações das versões oficiais do BackupZit no GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Em <a href="/settings/updates">Configurações → Atualizações</a> pode indicar outra <b>origem de atualizações</b> — o seu próprio espelho HTTPS ou uma pasta no servidor. Seja qual for a origem, cada versão tem de ter uma assinatura válida do BackupZit. A console verifica diariamente se há novas versões e envia um e-mail aos administradores quando há uma disponível. Para instalá-la, clique em <b>Instalar</b>:</p>
+<p><b>Versões candidatas:</b> cada versão é publicada primeiro como <i>pré-lançamento</i> e testada; só depois se torna a versão oficial, com os mesmos arquivos. A fonte de atualizações <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> contém sempre a candidata mais recente — use-a apenas num console de teste, pois uma candidata ainda pode ser substituída por uma corrigida. Consoles com a fonte padrão recebem apenas versões aprovadas.</p>
 <ol>
   <li>A console verifica a assinatura da versão e a soma de verificação do pacote, e espera até não haver nenhum backup ou restauração em curso.</li>
   <li>Um serviço do sistema (<code>backupzit-update</code>, executado como root) volta a verificar a assinatura com as chaves de publicação incorporadas no BackupZit. Nem mesmo uma console comprometida consegue fazer instalar outro pacote.</li>

@@ -143,6 +143,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 
 <h2>Aktualizace BackupZit</h2>
 <p>Ve výchozím stavu konzole stahuje aktualizace z oficiálních vydání BackupZit na GitHubu (<code>https://github.com/Max-Zit/backupzit/releases</code>). V <a href="/settings/updates">Nastavení → Aktualizace</a> můžete místo toho zadat jiný <b>zdroj aktualizací</b> — vlastní zrcadlo HTTPS nebo složku na serveru. Ať je zdroj jakýkoli, každé vydání musí mít platný podpis BackupZit. Konzole denně kontroluje nová vydání a pošle správcům e-mail, když je některé k dispozici. Pro instalaci klikněte na <b>Instalovat</b>:</p>
+<p><b>Kandidáti na vydání:</b> každá verze se nejprve zveřejní jako <i>předběžné vydání</i> a otestuje; teprve potom se stane oficiálním vydáním se stejnými soubory. Zdroj aktualizací <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> obsahuje vždy nejnovějšího kandidáta — používejte jej jen na testovací konzoli, protože kandidáta může ještě nahradit opravený. Konzole s výchozím zdrojem dostávají jen schválená vydání.</p>
 <ol>
   <li>Konzole ověří podpis vydání a kontrolní součet balíčku a počká, až neběží žádná záloha ani obnova.</li>
   <li>Systémová služba (<code>backupzit-update</code>, běží jako root) ověří podpis znovu pomocí klíčů vydání zabudovaných v BackupZit. Ani kompromitovaná konzole tak nemůže nechat nainstalovat jiný balíček.</li>

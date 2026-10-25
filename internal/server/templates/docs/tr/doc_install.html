@@ -143,6 +143,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 
 <h2>BackupZit'i güncelleme</h2>
 <p>Varsayılan olarak konsol güncellemeleri GitHub'daki resmi BackupZit sürümlerinden alır (<code>https://github.com/Max-Zit/backupzit/releases</code>). <a href="/settings/updates">Ayarlar → Güncellemeler</a> altında bunun yerine başka bir <b>güncelleme kaynağı</b> girebilirsiniz — kendi HTTPS yansınız veya sunucudaki bir klasör. Kaynak ne olursa olsun, her sürüm geçerli bir BackupZit imzası taşımalıdır. Konsol her gün yeni sürümleri denetler ve biri kullanılabilir olduğunda yöneticilere e-posta gönderir. Kurmak için <b>Kur</b>'a tıklayın:</p>
+<p><b>Sürüm adayları:</b> her sürüm önce <i>ön sürüm</i> olarak yayımlanır ve test edilir; ancak bundan sonra aynı dosyalarla resmi sürüm olur. <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> güncelleme kaynağı her zaman en yeni adayı içerir; bir aday hâlâ düzeltilmiş bir adayla değiştirilebileceği için bunu yalnızca bir test konsolunda kullanın. Varsayılan kaynağı kullanan konsollar yalnızca onaylanmış sürümleri alır.</p>
 <ol>
   <li>Konsol sürüm imzasını ve paket sağlama toplamını denetler ve hiçbir yedekleme veya geri yükleme çalışmayana kadar bekler.</li>
   <li>Bir sistem hizmeti (<code>backupzit-update</code>, root olarak çalışır) imzayı BackupZit'e gömülü sürüm anahtarlarıyla yeniden denetler. Ele geçirilmiş bir konsol bile başka bir paketin kurulmasını sağlayamaz.</li>

@@ -143,6 +143,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 
 <h2>BackupZit の更新</h2>
 <p>既定では、コンソールは GitHub 上の BackupZit 公式リリース（<code>https://github.com/Max-Zit/backupzit/releases</code>）から更新を取得します。<a href="/settings/updates">設定 → 更新</a>で、代わりに別の<b>更新ソース</b>（独自の HTTPS ミラーまたはサーバー上のフォルダー）を指定できます。ソースが何であれ、すべてのリリースには有効な BackupZit 署名が必要です。コンソールは毎日新しいリリースを確認し、利用可能になると管理者にメールを送ります。インストールするには<b>インストール</b>をクリックします:</p>
+<p><b>リリース候補:</b> 各バージョンはまず<i>プレリリース</i>として公開され、テストされます。その後に初めて、同じファイルのまま正式リリースになります。更新元 <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> には常に最新の候補が入っています。候補は修正版に置き換えられることがあるため、テスト用コンソールでのみ使用してください。既定の更新元を使うコンソールには承認済みのリリースのみが届きます。</p>
 <ol>
   <li>コンソールはリリースの署名とパッケージのチェックサムを確認し、バックアップや復元が実行されていない状態になるまで待ちます。</li>
   <li>システム サービス（<code>backupzit-update</code>、root として実行）が、BackupZit に組み込まれたリリース キーで署名を再確認します。コンソールが侵害されても、他のパッケージをインストールさせることはできません。</li>

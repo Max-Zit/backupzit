@@ -18,7 +18,7 @@ freed=0
 n=0
 # Newest first (by creation time, drafts excluded).
 gh api --paginate "repos/$REPO/releases?per_page=100" \
-    --jq '[.[] | select(.draft | not)] | sort_by(.created_at) | reverse | .[] | .tag_name' > /tmp/bz-releases.$$
+    --jq '[.[] | select((.draft | not) and (.tag_name | startswith("v")))] | sort_by(.created_at) | reverse | .[] | .tag_name' > /tmp/bz-releases.$$
 trap 'rm -f /tmp/bz-releases.$$' EXIT
 while read -r tag; do
     n=$((n + 1))

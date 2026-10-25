@@ -143,6 +143,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 
 <h2>BackupZit bijwerken</h2>
 <p>Standaard haalt de console updates uit de officiële BackupZit-versies op GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Onder <a href="/settings/updates">Instellingen → Updates</a> kunt u in plaats daarvan een andere <b>updatebron</b> invoeren — uw eigen HTTPS-mirror of een map op de server. Welke bron ook, elke versie moet een geldige BackupZit-handtekening dragen. De console controleert dagelijks op nieuwe versies en mailt de beheerders als er een beschikbaar is. Klik op <b>Installeren</b> om hem te installeren:</p>
+<p><b>Releasekandidaten:</b> elke versie wordt eerst als <i>pre-release</i> gepubliceerd en getest; pas daarna wordt ze de officiële release, met dezelfde bestanden. De updatebron <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> bevat altijd de nieuwste kandidaat — gebruik die alleen op een testconsole, want een kandidaat kan nog door een verbeterde worden vervangen. Consoles met de standaardbron krijgen alleen goedgekeurde releases.</p>
 <ol>
   <li>De console controleert de handtekening van de versie en de controlesom van het pakket, en wacht tot er geen back-up of herstel loopt.</li>
   <li>Een systeemservice (<code>backupzit-update</code>, draait als root) controleert de handtekening opnieuw met de releasesleutels die in BackupZit zijn ingebouwd. Zelfs een gecompromitteerde console kan zo geen ander pakket laten installeren.</li>
