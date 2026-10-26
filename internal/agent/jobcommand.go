@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/winenc"
 )
 
 // backupKind reports whether runs of kind are backups (commands before and
@@ -30,7 +31,8 @@ func backupKind(kind string) bool {
 // jobCommand runs a command configured for the job before ("pre") or after
 // ("post") the backup. It is written into a script (cmd on Windows, sh
 // elsewhere) so that several lines and any quoting work. It returns the
-// combined output.
+// combined output (in UTF-8; Windows programs write in the console code
+// page).
 func (a *Agent) jobCommand(ctx context.Context, run api.Run, stage, command, status string) ([]byte, error) {
 	timeout := time.Duration(run.CommandSeconds) * time.Second
 	if timeout <= 0 {
@@ -60,6 +62,7 @@ func (a *Agent) jobCommand(ctx context.Context, run api.Run, stage, command, sta
 	cmd.WaitDelay = 5 * time.Second
 	a.log.Info("job command", "run", run.ID, "stage", stage)
 	err = cmd.Run()
+	out = *bytes.NewBufferString(winenc.Text(out.Bytes()))
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return out.Bytes(), fmt.Errorf("stopped after %s", timeout)
 	}

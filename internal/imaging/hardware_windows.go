@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/max-zit/backupzit/internal/winenc"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
@@ -265,7 +266,7 @@ func run(ctx context.Context, name string, args ...string) (string, error) {
 	cctx, cancel := context.WithTimeout(ctx, 20*time.Minute)
 	defer cancel()
 	out, err := exec.CommandContext(cctx, name, args...).CombinedOutput()
-	return string(out), err
+	return winenc.Text(out), err
 }
 
 // RecoveryDriverDirs returns driver folders shipped with the recovery
