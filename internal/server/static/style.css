@@ -10,16 +10,28 @@
   --radius: 12px; --radius-sm: 8px;
   --font: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
   --mono: "Cascadia Mono", "JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
 }
+/* Dark follows the system unless the user picked a theme (data-theme, set by app.js). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0b1020; --panel: #121829; --panel-2: #0f1524; --text: #e2e8f0; --muted: #8b97ad; --line: #1f2940; --line-2: #2b3755;
     --accent: #818cf8; --accent-2: #6366f1; --accent-soft: #1e1b4b; --accent-text: #0b1020;
     --side: #080c18; --side-text: #cbd5e1; --side-muted: #5b6886; --side-hover: #141b2e; --side-on: #24215a;
     --ok: #34d399; --ok-bg: #062f24; --warn: #fbbf24; --warn-bg: #33250a;
     --bad: #f87171; --bad-bg: #3a1214; --info: #93c5fd; --info-bg: #13244b;
     --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 10px 30px rgba(0, 0, 0, .45);
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1020; --panel: #121829; --panel-2: #0f1524; --text: #e2e8f0; --muted: #8b97ad; --line: #1f2940; --line-2: #2b3755;
+  --accent: #818cf8; --accent-2: #6366f1; --accent-soft: #1e1b4b; --accent-text: #0b1020;
+  --side: #080c18; --side-text: #cbd5e1; --side-muted: #5b6886; --side-hover: #141b2e; --side-on: #24215a;
+  --ok: #34d399; --ok-bg: #062f24; --warn: #fbbf24; --warn-bg: #33250a;
+  --bad: #f87171; --bad-bg: #3a1214; --info: #93c5fd; --info-bg: #13244b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 10px 30px rgba(0, 0, 0, .45);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -158,7 +170,8 @@ details[open] summary { margin-bottom: 10px; }
 /* ---- buttons */
 button, .btn { font: inherit; font-weight: 600; font-size: 13.5px; padding: 9px 16px; border-radius: var(--radius-sm); border: 1px solid transparent; background: var(--accent); color: var(--accent-text); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background .15s, box-shadow .15s, transform .05s; box-shadow: 0 1px 2px rgba(79, 70, 229, .25); line-height: 1.3; }
 button:hover, .btn:hover { background: var(--accent-2); text-decoration: none; }
-@media (prefers-color-scheme: dark) { button:hover, .btn:hover { background: #a5b4fc; } }
+@media (prefers-color-scheme: dark) { :where(:root:not([data-theme="light"])) button:hover, :where(:root:not([data-theme="light"])) .btn:hover { background: #a5b4fc; } }
+:where(:root[data-theme="dark"]) button:hover, :where(:root[data-theme="dark"]) .btn:hover { background: #a5b4fc; }
 button:active { transform: translateY(1px); }
 button.secondary, a.btn.secondary-link { background: var(--panel); color: var(--text); border-color: var(--line-2); box-shadow: var(--shadow); }
 button.secondary:hover, a.btn.secondary-link:hover { background: var(--panel-2); border-color: var(--accent); }
@@ -318,7 +331,8 @@ kbd { font-family: var(--mono); font-size: 12px; border: 1px solid var(--line-2)
 .badge.role-admin { background: #ede9fe; color: #6d28d9; border-color: transparent; }
 .badge.role-operator { background: var(--info-bg); color: var(--info); border-color: transparent; }
 .badge.role-restore { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
-@media (prefers-color-scheme: dark) { .badge.role-admin { background: #2e1065; color: #c4b5fd; } }
+@media (prefers-color-scheme: dark) { :where(:root:not([data-theme="light"])) .badge.role-admin { background: #2e1065; color: #c4b5fd; } }
+:where(:root[data-theme="dark"]) .badge.role-admin { background: #2e1065; color: #c4b5fd; }
 table.roles td, table.roles th { padding: 7px 8px; font-size: 12.5px; }
 .center { text-align: center; }
 .yes { color: var(--ok); font-weight: 700; } .no { color: var(--line-2); }
@@ -429,7 +443,8 @@ table.pick td .btn { padding: 6px 12px; }
 .langs { display: flex; gap: 2px; margin-right: 6px; }
 .langs select { width: auto; min-width: 0; padding: 3px 26px 3px 8px; font-size: 12.5px; background-color: transparent; color: var(--muted); border-color: var(--line); }
 .langs button { padding: 3px 8px; font-size: 12px; }
-.login-langs { display: flex; justify-content: center; margin-top: 12px; }
+.login-langs { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 12px; }
+.iconbtn.theme { color: var(--muted); margin-right: 6px; }
 
 /* storage usage */
 .usage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }

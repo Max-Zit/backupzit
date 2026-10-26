@@ -1,3 +1,20 @@
+// Light or dark theme: the system's unless the user picked one with the
+// moon button (remembered in this browser).
+(function () {
+  var root = document.documentElement;
+  var t = null;
+  try { t = localStorage.getItem("bz-theme"); } catch (e) { /* private mode */ }
+  if (t === "light" || t === "dark") root.setAttribute("data-theme", t);
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("[data-theme-toggle]")) return;
+    var cur = root.getAttribute("data-theme") ||
+      (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    var next = cur === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("bz-theme", next); } catch (e) { /* private mode */ }
+  });
+})();
+
 // Confirmation for destructive actions: <form data-confirm="Really?">
 document.addEventListener("submit", function (e) {
   var msg = e.target.getAttribute("data-confirm");

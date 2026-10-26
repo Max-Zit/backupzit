@@ -687,6 +687,7 @@
   "Let's Encrypt": "Let's Encrypt",
   "Let's Encrypt sends expiry notices here": "Let's Encrypt отправляет сюда уведомления об истечении срока",
   "Lift all blocks?": "Снять все блокировки?",
+  "Light or dark theme": "Светлая или тёмная тема",
   "Limit the upload speed to (MB/s)": "Ограничить скорость отправки до (МБ/с)",
   "Linux": "Linux",
   "Linux agent — AlmaLinux / Rocky Linux": "Агент Linux — AlmaLinux / Rocky Linux",

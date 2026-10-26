@@ -687,6 +687,7 @@
   "Let's Encrypt": "Let's Encrypt",
   "Let's Encrypt sends expiry notices here": "Let's Encrypt の期限通知の送信先",
   "Lift all blocks?": "すべてのブロックを解除しますか？",
+  "Light or dark theme": "ライトまたはダークテーマ",
   "Limit the upload speed to (MB/s)": "アップロード速度の上限（MB/s）",
   "Linux": "Linux",
   "Linux agent — AlmaLinux / Rocky Linux": "Linux エージェント — AlmaLinux / Rocky Linux",
