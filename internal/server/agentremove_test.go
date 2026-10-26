@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -120,6 +121,9 @@ func (x *removeEnv) snapshots(t *testing.T) int {
 	}
 	defer r.Close()
 	sns, err := r.ListSnapshots(ctx)
+	if errors.Is(err, backend.ErrNotFound) {
+		return -2 // a snapshot was deleted while listing: the clean-up is running
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
