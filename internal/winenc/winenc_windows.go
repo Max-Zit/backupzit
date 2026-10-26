@@ -1,6 +1,7 @@
 package winenc
 
 import (
+	"math"
 	"unicode/utf16"
 
 	"golang.org/x/sys/windows"
@@ -18,6 +19,9 @@ func fromCodePage(b []byte) string {
 func decode(cp uint32, b []byte) string {
 	if len(b) == 0 {
 		return ""
+	}
+	if len(b) > math.MaxInt32 {
+		return string(b)
 	}
 	n, err := windows.MultiByteToWideChar(cp, 0, &b[0], int32(len(b)), nil, 0)
 	if err != nil || n <= 0 {
