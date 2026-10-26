@@ -26,7 +26,12 @@ done
 mkdir -p bin/linux/agents
 cp dist/backupzit-agent_${VERSION}_*.deb dist/backupzit-agent-${VERSION}-*.rpm bin/linux/agents/
 cp dist/backupzit-repo_${VERSION}_*.deb dist/backupzit-repo-${VERSION}-*.rpm bin/linux/agents/
-cp dist/backupzit-agent-${VERSION}-x64*.msi bin/linux/agents/ 2>/dev/null || echo "note: no MSI for $VERSION in dist/ (build it on Windows first)"
+# Without them Windows agents cannot be updated from the console: stop,
+# unless NO_MSI=1 (e.g. a quick Linux-only test build).
+if ! cp dist/backupzit-agent-${VERSION}-x64*.msi bin/linux/agents/ 2>/dev/null; then
+    [ -n "${NO_MSI:-}" ] || { echo "no MSI for $VERSION in dist/: build it first (packaging/windows/build-msi.ps1 -Version $VERSION, and -Legacy)" >&2; exit 1; }
+    echo "note: no MSI for $VERSION (NO_MSI set)"
+fi
 for fmt in deb rpm; do
     $NFPM package --config packaging/linux/nfpm-server.yaml --packager "$fmt" --target dist/
 done
