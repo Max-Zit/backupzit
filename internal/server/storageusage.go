@@ -133,7 +133,8 @@ func growth(days []UsagePoint, n int) (float64, bool) {
 	var sx, sy, sxx, sxy float64
 	x0 := pts[0].Day
 	for _, p := range pts {
-		x := p.Day.Sub(x0).Hours() / 24
+		// Whole days: a day with a daylight saving change has 23 or 25 hours.
+		x := math.Round(p.Day.Sub(x0).Hours() / 24)
 		y := float64(p.Bytes)
 		sx, sy, sxx, sxy = sx+x, sy+y, sxx+x*x, sxy+x*y
 	}
