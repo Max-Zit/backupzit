@@ -164,10 +164,17 @@ func TestAgentRemoveKeepNewest(t *testing.T) {
 		t.Fatal("agent not removed")
 	}
 	x.waitSnapshots(t, 1)
-	log, _ := x.e.store.ListAudit(x.e.ctx, 20)
+	// The result is logged when the whole clean-up has finished.
+	var log []server.AuditEntry
 	found := false
-	for _, a := range log {
-		found = found || (a.Action == "agent.backups" && strings.Contains(a.Detail, "deleted 2 older backups"))
+	for i := 0; i < 100 && !found; i++ {
+		log, _ = x.e.store.ListAudit(x.e.ctx, 20)
+		for _, a := range log {
+			found = found || (a.Action == "agent.backups" && strings.Contains(a.Detail, "deleted 2 older backups"))
+		}
+		if !found {
+			time.Sleep(100 * time.Millisecond)
+		}
 	}
 	if !found {
 		t.Errorf("audit log has no clean-up result: %+v", log)
