@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/max-zit/backupzit/internal/backend"
 )
 
 // targetTestTimeout bounds a connection test (tests shorten it).
@@ -63,6 +65,8 @@ func targetTestMessage(l *language, name, ok string, err error) (string, error) 
 	if err != nil {
 		hint := ""
 		switch m := strings.ToLower(err.Error()); {
+		case errors.Is(err, backend.ErrClockSkew):
+			hint = " " + l.T("(the clock of the console differs from the storage's: turn on time synchronization on the console)")
 		case strings.Contains(m, "ssh_fx_failure") || strings.Contains(m, "no space") || strings.Contains(m, "quota"):
 			hint = " " + l.T("(the storage may be full or over its quota)")
 		case strings.Contains(m, "unable to authenticate") || strings.Contains(m, "access denied") || strings.Contains(m, "accessdenied") ||

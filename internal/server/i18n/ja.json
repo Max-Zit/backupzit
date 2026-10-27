@@ -48,6 +48,7 @@
   "(recovery)": "（リカバリ）",
   "(separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets.": "（別の場所に保管するとさらに安全です）。キーがないと、データベースを復元した後に保存済みの認証情報を読み取れず、再入力が必要になります。バックアップ自体はリカバリ シートで引き続き読み取れます。",
   "(signed)": "（署名済み）",
+  "(the clock of the console differs from the storage's: turn on time synchronization on the console)": "（コンソールの時計がストレージの時計とずれています。コンソールで時刻同期を有効にしてください）",
   "(the server presented another key or certificate than the one entered)": "（サーバーが入力したものと異なる鍵または証明書を提示しました）",
   "(the storage may be full or over its quota)": "（ストレージが満杯か、クォータを超えている可能性があります）",
   "(whole cluster and each database)": "（クラスター全体と各データベース）",

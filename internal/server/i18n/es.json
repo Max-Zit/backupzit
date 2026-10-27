@@ -48,6 +48,7 @@
   "(recovery)": "(recuperación)",
   "(separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets.": "(por separado es aún mejor). Sin la clave, las credenciales guardadas no se pueden leer tras restaurar la base de datos: habría que volver a introducirlas; sus copias de seguridad siguen siendo legibles con las hojas de recuperación.",
   "(signed)": "(firmado)",
+  "(the clock of the console differs from the storage's: turn on time synchronization on the console)": "(el reloj de la consola difiere del del almacenamiento: active la sincronización de la hora en la consola)",
   "(the server presented another key or certificate than the one entered)": "(el servidor presentó otra clave o certificado distinto del introducido)",
   "(the storage may be full or over its quota)": "(puede que el almacenamiento esté lleno o haya superado su cuota)",
   "(whole cluster and each database)": "(todo el clúster y cada base de datos)",

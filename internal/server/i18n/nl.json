@@ -48,6 +48,7 @@
   "(recovery)": "(herstel)",
   "(separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets.": "(apart ervan is nog beter). Zonder de sleutel kunnen de opgeslagen inloggegevens na het herstellen van de database niet worden gelezen — ze moeten dan opnieuw worden ingevoerd; uw back-ups zelf blijven leesbaar met de herstelbladen.",
   "(signed)": "(ondertekend)",
+  "(the clock of the console differs from the storage's: turn on time synchronization on the console)": "(de klok van de console wijkt af van die van de opslag: schakel tijdsynchronisatie in op de console)",
   "(the server presented another key or certificate than the one entered)": "(de server toonde een andere sleutel of een ander certificaat dan ingevoerd)",
   "(the storage may be full or over its quota)": "(de opslag is mogelijk vol of over het quotum)",
   "(whole cluster and each database)": "(hele cluster en elke database)",

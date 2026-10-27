@@ -18,6 +18,7 @@
   <tr><td>repository is locked</td><td>Ein anderer Vorgang (z. B. Bereinigung) läuft auf demselben Repository; der Lauf versucht es 30 Minuten lang erneut. Veraltete Sperren laufen automatisch ab.</td></tr>
   <tr><td>wrong password / recovery key</td><td>Das Repository wurde mit einem anderen Schlüssel angelegt — prüfen Sie, ob der Auftrag das richtige Speicherziel verwendet.</td></tr>
   <tr><td>bucket has no Object Lock enabled</td><td>Unveränderlichkeit wurde für einen Bucket ohne Object Lock angefordert. Erstellen Sie einen neuen Bucket mit Object Lock.</td></tr>
+  <tr><td>S3 / Azure: "the clock of this computer differs from the storage's by more than 15 minutes" (<i>RequestTimeTooSkewed</i>, <i>Request date header too old</i>)</td><td>Cloud-Speicher signiert jede Anfrage mit der Uhrzeit und lehnt sie ab, wenn die Uhr um mehr als etwa 15 Minuten abweicht. Korrigieren Sie die Zeit des im Lauf genannten Computers (der Agent; bei <i>Verbindung testen</i> die Konsole) und schalten Sie die Zeitsynchronisierung ein: Windows-Einstellungen → Zeit und Sprache → Uhrzeit automatisch festlegen; Linux <code>timedatectl set-ntp true</code> oder chrony. Virtuelle Maschinen können nach längerem Ausschalten oder über eine Zeitumstellung hinweg eine falsche Zeit haben.</td></tr>
 </table>
 
 <h2>Andere Meldungen</h2>

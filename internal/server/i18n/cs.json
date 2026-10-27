@@ -48,6 +48,7 @@
   "(recovery)": "(obnova)",
   "(separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets.": "(odděleně je to ještě lepší). Bez klíče nelze uložené přihlašovací údaje po obnovení databáze přečíst — musely by se zadat znovu; samotné zálohy zůstávají čitelné pomocí listů pro obnovu.",
   "(signed)": "(podepsáno)",
+  "(the clock of the console differs from the storage's: turn on time synchronization on the console)": "(hodiny konzole se liší od hodin úložiště: zapněte na konzoli synchronizaci času)",
   "(the server presented another key or certificate than the one entered)": "(server předložil jiný klíč nebo certifikát, než byl zadán)",
   "(the storage may be full or over its quota)": "(úložiště může být plné nebo překročilo kvótu)",
   "(whole cluster and each database)": "(celý cluster a každá databáze)",

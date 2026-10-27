@@ -72,7 +72,7 @@ func OpenS3(ctx context.Context, u *url.URL, opts Options) (*S3, error) {
 	}
 	ok, err := client.BucketExists(ctx, bucket)
 	if err != nil {
-		return nil, fmt.Errorf("s3: access bucket %q at %s: %w", bucket, u.Host, err)
+		return nil, fmt.Errorf("s3: access bucket %q at %s: %w", bucket, u.Host, withClockHint(err))
 	}
 	if !ok {
 		return nil, fmt.Errorf("s3: bucket %q does not exist at %s", bucket, u.Host)
@@ -145,7 +145,7 @@ func s3NotFound(name string, err error) error {
 	case "NoSuchKey", "NotFound", "NoSuchVersion":
 		return fmt.Errorf("%s: %w", name, ErrNotFound)
 	}
-	return err
+	return withClockHint(err)
 }
 
 // getOpts returns options selecting the version for name in a
@@ -179,7 +179,7 @@ func (s *S3) Save(ctx context.Context, name string, data []byte) error {
 		opts.SendContentMd5 = true // required for PUTs with Object Lock
 	}
 	if _, err := s.client.PutObject(ctx, s.bucket, s.key(name), bytes.NewReader(data), int64(len(data)), opts); err != nil {
-		return fmt.Errorf("s3 put %s: %w", name, err)
+		return fmt.Errorf("s3 put %s: %w", name, withClockHint(err))
 	}
 	if s.lockDays > 0 && !opts.RetainUntilDate.IsZero() {
 		retainCache.Store(s.cacheKey(name), opts.RetainUntilDate)
@@ -268,7 +268,7 @@ func (s *S3) List(ctx context.Context, dir string) ([]string, error) {
 	}
 	for obj := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
 		if obj.Err != nil {
-			return nil, fmt.Errorf("s3 list %s: %w", dir, obj.Err)
+			return nil, fmt.Errorf("s3 list %s: %w", dir, withClockHint(obj.Err))
 		}
 		out = append(out, trim(obj.Key))
 	}

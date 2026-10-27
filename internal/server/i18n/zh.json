@@ -48,6 +48,7 @@
   "(recovery)": "（恢复）",
   "(separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets.": "（与其分开保存更好）。没有该密钥，恢复数据库后无法读取已保存的凭据——需要重新输入；备份本身仍可通过恢复单读取。",
   "(signed)": "（已签名）",
+  "(the clock of the console differs from the storage's: turn on time synchronization on the console)": "（控制台的时钟与存储的时钟不一致：请在控制台上开启时间同步）",
   "(the server presented another key or certificate than the one entered)": "（服务器提供的密钥或证书与输入的不同）",
   "(the storage may be full or over its quota)": "（存储可能已满或超出配额）",
   "(whole cluster and each database)": "（整个集群及每个数据库）",

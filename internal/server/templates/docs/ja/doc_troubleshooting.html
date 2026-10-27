@@ -18,6 +18,7 @@
   <tr><td>repository is locked</td><td>同じリポジトリで別の処理（例: クリーンアップ）が実行中です。実行は 30 分間再試行します。古いロックは自動的に解除されます。</td></tr>
   <tr><td>wrong password / recovery key</td><td>リポジトリが別のキーで作成されています — ジョブが正しいストレージ先を使っているか確認してください。</td></tr>
   <tr><td>bucket has no Object Lock enabled</td><td>Object Lock なしで作成されたバケットに変更不可が要求されました。Object Lock を有効にした新しいバケットを作成してください。</td></tr>
+  <tr><td>S3 / Azure: "the clock of this computer differs from the storage's by more than 15 minutes"（<i>RequestTimeTooSkewed</i>、<i>Request date header too old</i>）</td><td>クラウド ストレージは各リクエストに時刻で署名し、時計が約 15 分以上ずれていると拒否します。実行に表示されたコンピューター（エージェント。<i>接続テスト</i>の場合はコンソール）の時刻を修正し、時刻同期を有効にしてください: Windows の設定 → 時刻と言語 → 時刻を自動的に設定する、Linux では <code>timedatectl set-ntp true</code> または chrony。仮想マシンは長期間停止した後や夏時間の切り替え後に時刻がずれることがあります。</td></tr>
 </table>
 
 <h2>その他のメッセージ</h2>

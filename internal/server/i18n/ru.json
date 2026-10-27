@@ -48,6 +48,7 @@
   "(recovery)": "(восстановление)",
   "(separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets.": "(отдельно от неё ещё лучше). Без ключа сохранённые учётные данные нельзя прочитать после восстановления базы данных — их пришлось бы ввести заново; сами резервные копии остаются читаемыми с помощью листов восстановления.",
   "(signed)": "(подписано)",
+  "(the clock of the console differs from the storage's: turn on time synchronization on the console)": "(часы консоли расходятся с часами хранилища: включите синхронизацию времени на консоли)",
   "(the server presented another key or certificate than the one entered)": "(сервер предъявил другой ключ или сертификат, чем введённый)",
   "(the storage may be full or over its quota)": "(хранилище может быть заполнено или превышена квота)",
   "(whole cluster and each database)": "(весь кластер и каждая база данных)",

@@ -48,6 +48,7 @@
   "(recovery)": "(oporavak)",
   "(separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets.": "(odvojeno od nje je još bolje). Bez ključa sačuvani pristupni podaci ne mogu da se pročitaju posle vraćanja baze — morali bi ponovo da se unesu; sami bekapi ostaju čitljivi pomoću listova za oporavak.",
   "(signed)": "(potpisano)",
+  "(the clock of the console differs from the storage's: turn on time synchronization on the console)": "(sat konzole odstupa od sata storage-a: uključite sinhronizaciju vremena na konzoli)",
   "(the server presented another key or certificate than the one entered)": "(server je pokazao drugi ključ ili sertifikat od unetog)",
   "(the storage may be full or over its quota)": "(skladište je možda puno ili je prekoračena kvota)",
   "(whole cluster and each database)": "(ceo klaster i svaka baza)",

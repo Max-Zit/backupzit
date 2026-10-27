@@ -18,6 +18,7 @@
   <tr><td>repository is locked</td><td>Inna operacja (np. czyszczenie) działa na tym samym repozytorium; uruchomienie ponawia próby przez 30 minut. Przestarzałe blokady wygasają automatycznie.</td></tr>
   <tr><td>wrong password / recovery key</td><td>Repozytorium utworzono innym kluczem — sprawdź, czy zadanie używa właściwego magazynu.</td></tr>
   <tr><td>bucket has no Object Lock enabled</td><td>Zażądano niezmienności dla bucketu utworzonego bez Object Lock. Utwórz nowy bucket z Object Lock.</td></tr>
+  <tr><td>S3 / Azure: "the clock of this computer differs from the storage's by more than 15 minutes" (<i>RequestTimeTooSkewed</i>, <i>Request date header too old</i>)</td><td>Magazyn w chmurze podpisuje każde żądanie czasem i odrzuca je, gdy zegar odbiega o więcej niż około 15 minut. Popraw czas na komputerze wskazanym w uruchomieniu (agent; przy <i>Testuj połączenie</i> konsola) i włącz synchronizację czasu: Ustawienia Windows → Czas i język → Ustaw czas automatycznie; Linux <code>timedatectl set-ntp true</code> lub chrony. Maszyny wirtualne mogą mieć zły czas po długim wyłączeniu lub po zmianie czasu letniego/zimowego.</td></tr>
 </table>
 
 <h2>Inne komunikaty</h2>

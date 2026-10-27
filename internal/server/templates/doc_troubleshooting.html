@@ -18,6 +18,7 @@
   <tr><td>repository is locked</td><td>Another operation (e.g. cleanup) is running on the same repository; the run retries for 30 minutes. Stale locks expire automatically.</td></tr>
   <tr><td>wrong password / recovery key</td><td>The repository was created with a different key — check that the job uses the right storage target.</td></tr>
   <tr><td>bucket has no Object Lock enabled</td><td>Immutability was requested on a bucket created without Object Lock. Create a new bucket with Object Lock.</td></tr>
+  <tr><td>S3 / Azure: "the clock of this computer differs from the storage's by more than 15 minutes" (<i>RequestTimeTooSkewed</i>, <i>Request date header too old</i>)</td><td>Cloud storage signs every request with the time and refuses it when the clock is more than about 15 minutes off. Correct the time of the computer named in the run (the agent; for <i>Test connection</i> the console) and turn on time synchronization: Windows Settings → Time &amp; language → Set time automatically; Linux <code>timedatectl set-ntp true</code> or chrony. Virtual machines may get a wrong time after being off for a long time or across a daylight saving change.</td></tr>
 </table>
 
 <h2>Other messages</h2>

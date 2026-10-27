@@ -18,6 +18,7 @@
   <tr><td>repository is locked</td><td>Een andere bewerking (bijv. opschonen) draait op dezelfde repository; de run probeert het 30 minuten lang opnieuw. Verouderde vergrendelingen verlopen automatisch.</td></tr>
   <tr><td>wrong password / recovery key</td><td>De repository is met een andere sleutel aangemaakt — controleer of de taak het juiste opslagdoel gebruikt.</td></tr>
   <tr><td>bucket has no Object Lock enabled</td><td>Er is onveranderlijkheid gevraagd voor een bucket zonder Object Lock. Maak een nieuwe bucket met Object Lock.</td></tr>
+  <tr><td>S3 / Azure: "the clock of this computer differs from the storage's by more than 15 minutes" (<i>RequestTimeTooSkewed</i>, <i>Request date header too old</i>)</td><td>Cloudopslag ondertekent elk verzoek met de tijd en weigert het als de klok meer dan ongeveer 15 minuten afwijkt. Corrigeer de tijd van de computer die in de uitvoering wordt genoemd (de agent; bij <i>Verbinding testen</i> de console) en schakel tijdsynchronisatie in: Windows-instellingen → Tijd en taal → Tijd automatisch instellen; Linux <code>timedatectl set-ntp true</code> of chrony. Virtuele machines kunnen een verkeerde tijd hebben na lang uitstaan of na een overgang naar zomer- of wintertijd.</td></tr>
 </table>
 
 <h2>Andere meldingen</h2>

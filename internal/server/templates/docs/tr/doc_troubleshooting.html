@@ -18,6 +18,7 @@
   <tr><td>repository is locked</td><td>Aynı depoda başka bir işlem (ör. temizleme) çalışıyor; çalıştırma 30 dakika boyunca yeniden dener. Eskimiş kilitler otomatik olarak sona erer.</td></tr>
   <tr><td>wrong password / recovery key</td><td>Depo farklı bir anahtarla oluşturulmuş — işin doğru depolama hedefini kullandığını denetleyin.</td></tr>
   <tr><td>bucket has no Object Lock enabled</td><td>Object Lock olmadan oluşturulmuş bir kovada değiştirilemezlik istendi. Object Lock ile yeni bir kova oluşturun.</td></tr>
+  <tr><td>S3 / Azure: "the clock of this computer differs from the storage's by more than 15 minutes" (<i>RequestTimeTooSkewed</i>, <i>Request date header too old</i>)</td><td>Bulut depolama her isteği saatle imzalar ve saat yaklaşık 15 dakikadan fazla saparsa isteği reddeder. Çalıştırmada adı geçen bilgisayarın saatini düzeltin (aracı; <i>Bağlantıyı test et</i> için konsol) ve saat eşitlemesini açın: Windows Ayarlar → Saat ve dil → Saati otomatik olarak ayarla; Linux <code>timedatectl set-ntp true</code> veya chrony. Sanal makineler uzun süre kapalı kaldıktan sonra veya yaz/kış saati değişiminde yanlış saate sahip olabilir.</td></tr>
 </table>
 
 <h2>Diğer mesajlar</h2>

@@ -79,6 +79,9 @@ func OpenAzure(ctx context.Context, u *url.URL, opts Options) (*Azure, error) {
 func shortAzureErr(err error) error {
 	var re *azcore.ResponseError
 	if errors.As(err, &re) {
+		if errors.Is(withClockHint(err), ErrClockSkew) {
+			return fmt.Errorf("%s (HTTP %d) (%w)", re.ErrorCode, re.StatusCode, ErrClockSkew)
+		}
 		return fmt.Errorf("%s (HTTP %d)", re.ErrorCode, re.StatusCode)
 	}
 	return err

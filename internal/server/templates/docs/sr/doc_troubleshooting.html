@@ -18,6 +18,7 @@
   <tr><td>repository is locked</td><td>Druga operacija (npr. čišćenje) radi na istom repozitorijumu; pokretanje pokušava ponovo 30 minuta. Zastarela zaključavanja ističu automatski.</td></tr>
   <tr><td>wrong password / recovery key</td><td>Repozitorijum je napravljen drugim ključem — proverite da posao koristi pravo skladište.</td></tr>
   <tr><td>bucket has no Object Lock enabled</td><td>Nepromenljivost je zatražena na bucket-u napravljenom bez Object Lock-a. Napravite nov bucket sa Object Lock-om.</td></tr>
+  <tr><td>S3 / Azure: "the clock of this computer differs from the storage's by more than 15 minutes" (<i>RequestTimeTooSkewed</i>, <i>Request date header too old</i>)</td><td>Cloud storage potpisuje svaki zahtev vremenom i odbija ga kada sat odstupa više od oko 15 minuta. Ispravite vreme na računaru navedenom u pokretanju (agent; za <i>Testiraj vezu</i> konzola) i uključite sinhronizaciju vremena: Windows Podešavanja → Vreme i jezik → Automatski podesi vreme; Linux <code>timedatectl set-ntp true</code> ili chrony. Virtuelne mašine mogu da dobiju pogrešno vreme posle dužeg gašenja ili prelaska na letnje/zimsko računanje vremena.</td></tr>
 </table>
 
 <h2>Ostale poruke</h2>

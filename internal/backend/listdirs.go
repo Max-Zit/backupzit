@@ -119,7 +119,7 @@ func (s *S3) ListDirs(ctx context.Context, dir string) ([]string, error) {
 	}
 	for obj := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{Prefix: prefix}) {
 		if obj.Err != nil {
-			return nil, fmt.Errorf("s3 list %s: %w", dir, obj.Err)
+			return nil, fmt.Errorf("s3 list %s: %w", dir, withClockHint(obj.Err))
 		}
 		add(obj.Key[len(prefix):])
 	}

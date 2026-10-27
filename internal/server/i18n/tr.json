@@ -48,6 +48,7 @@
   "(recovery)": "(kurtarma)",
   "(separately from it is even better). Without the key, the stored credentials cannot be read after restoring the database — they would have to be entered again; your backups themselves stay readable with the recovery sheets.": "(ondan ayrı tutmak daha da iyidir). Anahtar olmadan, veritabanı geri yüklendikten sonra saklanan kimlik bilgileri okunamaz — yeniden girilmeleri gerekir; yedeklerin kendisi kurtarma sayfalarıyla okunabilir kalır.",
   "(signed)": "(imzalı)",
+  "(the clock of the console differs from the storage's: turn on time synchronization on the console)": "(konsolun saati depolama alanının saatinden farklı: konsolda saat eşitlemesini açın)",
   "(the server presented another key or certificate than the one entered)": "(sunucu girilenden farklı bir anahtar veya sertifika sundu)",
   "(the storage may be full or over its quota)": "(depolama dolu olabilir veya kotası aşılmış olabilir)",
   "(whole cluster and each database)": "(tüm küme ve her veritabanı)",
