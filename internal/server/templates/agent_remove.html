@@ -33,6 +33,7 @@
   {{with .Data.Immutable}}<p class="muted small">{{T "Immutable storage keeps locked data until its lock expires, also when it is deleted:"}} {{range $i, $j := .}}{{if $i}}, {{end}}{{$j}}{{end}}</p>{{end}}
   <p class="muted small">{{T "Copies made by copy jobs on other storage are kept. Backups on a disk of the computer itself cannot be deleted from the console."}}</p>
   <label class="mt">{{T "To delete backups, type the name of the computer"}} <input name="confirm" autocomplete="off" placeholder="{{$a.Hostname}}"></label>
+  {{template "reauth" $.Me}}
   <div class="mt"><button class="danger">{{T "Remove the agent"}}</button> <a href="/agents" class="btn secondary-link">{{T "Cancel"}}</a></div>
 </form>
 {{end}}

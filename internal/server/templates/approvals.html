@@ -25,7 +25,7 @@
         {{if eq .RequestedBy $.User}}
         <form method="post" action="/approvals/{{.ID}}/cancel" class="inline"><button class="link">{{T "Cancel request"}}</button></form>
         {{else if canDecide $.Me .}}
-        <form method="post" action="/approvals/{{.ID}}/approve" class="inline" data-confirm="{{T "Approve and carry out this change now?"}}"><button class="danger">{{T "Approve"}}</button></form>
+        <form method="post" action="/approvals/{{.ID}}/approve" class="inline" data-confirm="{{T "Approve and carry out this change now?"}}">{{if .DeletesBackups}}{{template "reauth" $.Me}} {{end}}<button class="danger">{{T "Approve"}}</button></form>
         <form method="post" action="/approvals/{{.ID}}/reject" class="inline"><button class="secondary">{{T "Reject"}}</button></form>
         {{else}}<span class="muted small">{{T "another user with the right role, whose account existed before the request, decides"}}</span>{{end}}
       </td>

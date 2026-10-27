@@ -315,6 +315,12 @@ func (s *Server) handleAgentDelete(w http.ResponseWriter, r *http.Request, user 
 		redirectErr(w, r, back, errors.New(l.T("Type the name of the computer, %s, to delete its backups.", a.Hostname)))
 		return
 	}
+	if o.Backups != removeKeepBackups {
+		if err := s.confirmIdentity(r); err != nil {
+			redirectErr(w, r, back, errors.New(l.T(err.Error())))
+			return
+		}
+	}
 	if s.needsApproval(w, r, "/agents", "agent.delete", id, a.Hostname, o) {
 		return
 	}

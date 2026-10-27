@@ -50,6 +50,16 @@ var approvalActions = map[string]approvalAction{
 }
 
 // Approval is a change waiting for (or decided by) a second user.
+// DeletesBackups reports whether carrying out the request deletes backups
+// (the approver then confirms their identity, like the requester).
+func (a Approval) DeletesBackups() bool {
+	if a.Action != "agent.delete" {
+		return false
+	}
+	var o removalOpts
+	return json.Unmarshal(a.Payload, &o) == nil && o.Backups != "" && o.Backups != removeKeepBackups
+}
+
 type Approval struct {
 	ID          int64
 	Action      string
@@ -293,6 +303,12 @@ func (s *Server) handleApprovalDecision(w http.ResponseWriter, r *http.Request, 
 		if !canDecide(me, a) {
 			redirectErr(w, r, "/approvals", errors.New("a different user with the right role, whose account existed before the request, must decide"))
 			return
+		}
+		if a.DeletesBackups() {
+			if err := s.confirmIdentity(r); err != nil {
+				redirectErr(w, r, "/approvals", err)
+				return
+			}
 		}
 		// Claim the request first so two approvers cannot run it twice.
 		if err := s.store.decideApproval(ctx, id, "approved", me.Username, ""); err != nil {

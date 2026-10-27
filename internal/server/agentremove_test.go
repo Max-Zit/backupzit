@@ -157,7 +157,7 @@ func TestAgentRemoveKeepNewest(t *testing.T) {
 	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"backups": {"last"}}); !strings.Contains(loc, "err=") || !x.agentExists() {
 		t.Fatalf("deleted backups without the name typed: %s", loc)
 	}
-	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"backups": {"last"}, "confirm": {x.host}}); !strings.Contains(loc, "msg=") {
+	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"backups": {"last"}, "confirm": {x.host}, "reauth_password": {"admin-pass-123"}}); !strings.Contains(loc, "msg=") {
 		t.Fatalf("remove: %s", loc)
 	}
 	if x.agentExists() {
@@ -183,7 +183,7 @@ func TestAgentRemoveKeepNewest(t *testing.T) {
 
 func TestAgentRemoveAllBackups(t *testing.T) {
 	x := newRemoveEnv(t, "test")
-	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"backups": {"all"}, "confirm": {strings.ToLower(x.host)}}); !strings.Contains(loc, "msg=") {
+	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"backups": {"all"}, "confirm": {strings.ToLower(x.host)}, "reauth_password": {"admin-pass-123"}}); !strings.Contains(loc, "msg=") {
 		t.Fatalf("remove: %s", loc)
 	}
 	x.waitSnapshots(t, -1)
@@ -207,7 +207,7 @@ func TestAgentRemoveUninstall(t *testing.T) {
 	if !strings.Contains(page, `name="uninstall" checked`) {
 		t.Fatal("no uninstall option for an online agent")
 	}
-	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"uninstall": {"on"}, "backups": {"last"}, "confirm": {x.host}}); !strings.Contains(loc, "msg=") {
+	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"uninstall": {"on"}, "backups": {"last"}, "confirm": {x.host}, "reauth_password": {"admin-pass-123"}}); !strings.Contains(loc, "msg=") {
 		t.Fatalf("remove: %s", loc)
 	}
 	if !x.agentExists() {
@@ -230,7 +230,7 @@ func TestAgentRemoveUninstall(t *testing.T) {
 // A failed uninstall keeps the agent and its backups.
 func TestAgentRemoveUninstallFails(t *testing.T) {
 	x := newRemoveEnv(t, "0.42.7")
-	x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"uninstall": {"on"}, "backups": {"all"}, "confirm": {x.host}})
+	x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"uninstall": {"on"}, "backups": {"all"}, "confirm": {x.host}, "reauth_password": {"admin-pass-123"}})
 	var pr api.PollResponse
 	x.call("POST", api.PathPoll, api.PollRequest{Hostname: "PC-17", OS: "Windows 11", Arch: "amd64", Version: "0.42.7"}, &pr)
 	if pr.Run == nil || pr.Run.Kind != api.KindAgentUninstall {
@@ -259,7 +259,7 @@ func TestAgentRemoveFourEyes(t *testing.T) {
 	if _, loc, _ := x.admin.do("POST", "/settings/four-eyes", url.Values{"four_eyes": {"on"}}); !strings.Contains(loc, "msg=") {
 		t.Fatalf("four-eyes: %s", loc)
 	}
-	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"backups": {"last"}, "confirm": {x.host}}); !strings.Contains(loc, "msg=Waiting") {
+	if _, loc, _ := x.admin.do("POST", fmt.Sprintf("/agents/%d/delete", x.agentID), url.Values{"backups": {"last"}, "confirm": {x.host}, "reauth_password": {"admin-pass-123"}}); !strings.Contains(loc, "msg=Waiting") {
 		t.Fatalf("not held: %s", loc)
 	}
 	if !x.agentExists() || x.snapshots(t) != 3 {
@@ -269,7 +269,10 @@ func TestAgentRemoveFourEyes(t *testing.T) {
 	x.e.pool.QueryRow(x.e.ctx, `SELECT id FROM approvals WHERE status='pending' ORDER BY id DESC LIMIT 1`).Scan(&id)
 	admin2 := newClient(t, x.e)
 	admin2.login("admin2", pw)
-	if _, loc, _ := admin2.do("POST", fmt.Sprintf("/approvals/%d/approve", id), url.Values{}); !strings.Contains(loc, "msg=") {
+	if _, loc, _ := admin2.do("POST", fmt.Sprintf("/approvals/%d/approve", id), url.Values{}); !strings.Contains(loc, "err=") || !x.agentExists() {
+		t.Fatalf("approved without confirming the approver: %s", loc)
+	}
+	if _, loc, _ := admin2.do("POST", fmt.Sprintf("/approvals/%d/approve", id), url.Values{"reauth_password": {pw}}); !strings.Contains(loc, "msg=") {
 		t.Fatalf("approve: %s", loc)
 	}
 	if x.agentExists() {
