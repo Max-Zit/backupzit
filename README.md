@@ -286,8 +286,8 @@ Without internet access, upload the release files on the same page. Updating wit
 |---|---|
 | Console | Debian 12+, Ubuntu 22.04+, AlmaLinux / Rocky Linux 9+ (x86-64), PostgreSQL 13+; or the ready-made appliance |
 | Windows agent | Windows 10, 11, Server 2016 and newer (MSI); Windows 7 SP1, Server 2008 R2 SP1, 2012 R2 (legacy MSI) |
-| Linux agent | Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bit), Proxmox VE 7 and 8 |
-| Hypervisors | Proxmox VE 7/8, Hyper-V (Windows Server 2016+, Windows 10/11), VMware ESXi 6.7, 7, 8 (also with the free license), vCenter Server 7, 8 |
+| Linux agent | Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bit), Proxmox VE 7, 8 and 9 |
+| Hypervisors | Proxmox VE 7/8/9, Hyper-V (Windows Server 2016+, Windows 10/11), VMware ESXi 6.7, 7, 8 (also with the free license), vCenter Server 7, 8 |
 | Microsoft 365 | any tenant with an app registration (application permissions, read-only) |
 
 **Planned:** instant recovery for Hyper-V, restore directly into Microsoft 365 mailboxes, Teams chats.
