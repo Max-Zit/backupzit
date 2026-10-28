@@ -50,10 +50,17 @@ if [ -f /var/lib/backupzit/.appliance-ready ] || [ -x /usr/local/sbin/backupzit-
     fi
     if [ -d /etc/ssh/sshd_config.d ]; then
         install -m 0644 $a/sshd-backupzit.conf /etc/ssh/sshd_config.d/50-backupzit.conf
+        # Inside the installer (no host keys yet) sshd -t fails anyway: take
+        # the file out only when it is what makes the check fail.
         if sshd -t 2>/dev/null; then
             systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
         else
-            rm -f /etc/ssh/sshd_config.d/50-backupzit.conf
+            mv /etc/ssh/sshd_config.d/50-backupzit.conf /etc/ssh/50-backupzit.conf.off
+            if sshd -t 2>/dev/null; then
+                rm -f /etc/ssh/50-backupzit.conf.off
+            else
+                mv /etc/ssh/50-backupzit.conf.off /etc/ssh/sshd_config.d/50-backupzit.conf
+            fi
         fi
     fi
 fi
