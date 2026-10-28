@@ -47,6 +47,7 @@
   <tr><td>Poort 8443 alleen voor agents</td><td>De webconsole is dan alleen beschikbaar op de webpoort met het vertrouwde certificaat (<a href="/docs/install">Instellingen → Certificaat</a>, meestal 443), zodat een firewall 8443 voor iedereen en 443 alleen voor uw adressen kan openen. Beschikbaar zodra de webpoort draait; wijzig het vanaf de webpoort, niet vanaf 8443.</td></tr>
 </table>
 <p>Een typische firewall voor een openbare console: 8443 open voor iedereen (agents), 443 en 80 (HTTP-controle van Let's Encrypt) alleen vanaf uw adressen, SSH alleen vanaf uw adressen of uit, al het andere dicht.</p>
+<p>De appliance beantwoordt geen ICMP-timestampverzoeken, die zijn klok aan iedereen in het netwerk zouden verraden (een bevinding van netwerkscanners); hij gebruikt daarvoor een eigen kleine nftables-tabel en laat andere firewallregels ongemoeid.</p>
 <p>Buitengesloten? Op de server zelf (<code>localhost</code>) antwoordt de console altijd. Op de appliance heft item 5 van het setupmenu op het scherm aanmeldblokkades en deze beperkingen op.</p>
 
 <h2>Aanbevelingen</h2>

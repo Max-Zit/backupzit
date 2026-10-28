@@ -255,8 +255,31 @@ function renderVMPicker() {
   });
 }
 
+// ---- Proxmox host configuration (files job on a Proxmox VE node)
+
+function syncPVEHostHint() {
+  var hint = document.getElementById("pvehost-hint");
+  var agentSel = document.getElementById("agent_sel");
+  if (!hint || !agentSel) return;
+  var opt = agentSel.options[agentSel.selectedIndex];
+  hint.hidden = !(opt && opt.hasAttribute("data-pvehost"));
+}
+
+document.addEventListener("click", function (e) {
+  if (e.target.id !== "pvehost-fill") return;
+  var form = e.target.closest("form");
+  var agentSel = document.getElementById("agent_sel");
+  var paths = form && form.querySelector("textarea[name=paths]");
+  if (!paths || !agentSel) return;
+  paths.value = "/etc\n/var/lib/pve-cluster\n/root";
+  var name = form.querySelector("input[name=name]");
+  if (name && !name.value) name.value = e.target.getAttribute("data-name") + " " + agentSel.options[agentSel.selectedIndex].text;
+  paths.focus();
+});
+
 document.addEventListener("change", function (e) {
   if (e.target.hasAttribute && e.target.hasAttribute("data-kindsel")) syncJobKind();
+  if (e.target.id === "agent_sel") syncPVEHostHint();
   if (e.target.id === "agent_sel") renderDiskPicker();
   if (e.target.id === "agent_sel") renderVMPicker();
   if (e.target.name === "vms") { var s = document.querySelector("input[name=vm_mode][value=selected]"); if (s) s.checked = true; }
@@ -266,6 +289,7 @@ document.addEventListener("change", function (e) {
 document.addEventListener("DOMContentLoaded", function () {
   renderDiskPicker();
   renderVMPicker();
+  syncPVEHostHint();
   syncJobKind();
   renderRestoreDisks();
 });

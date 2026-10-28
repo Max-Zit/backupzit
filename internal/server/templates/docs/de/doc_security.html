@@ -47,6 +47,7 @@
   <tr><td>Port 8443 nur für Agenten</td><td>Die Webkonsole ist dann nur auf dem Webport mit dem vertrauenswürdigen Zertifikat erreichbar (<a href="/docs/install">Einstellungen → Zertifikat</a>, meist 443), sodass eine Firewall 8443 für alle und 443 nur für Ihre Adressen öffnen kann. Verfügbar, sobald der Webport läuft; ändern Sie es über den Webport, nicht über 8443.</td></tr>
 </table>
 <p>Eine typische Firewall für eine öffentliche Konsole: 8443 offen für alle (Agenten), 443 und 80 (Let's-Encrypt-HTTP-Prüfung) nur von Ihren Adressen, SSH nur von Ihren Adressen oder aus, alles andere geschlossen.</p>
+<p>Die Appliance beantwortet keine ICMP-Timestamp-Anfragen, die jedem im Netzwerk ihre Uhrzeit verraten würden (ein Befund von Netzwerkscannern); sie verwendet dafür eine eigene kleine nftables-Tabelle und lässt andere Firewall-Regeln unverändert.</p>
 <p>Ausgesperrt? Auf dem Server selbst (<code>localhost</code>) antwortet die Konsole immer. Auf der Appliance hebt Punkt 5 des Setup-Menüs auf ihrem Bildschirm Anmeldesperren und diese Beschränkungen auf.</p>
 
 <h2>Empfehlungen</h2>

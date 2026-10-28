@@ -33,7 +33,7 @@ func (a *Agent) systemBackup(ctx context.Context, run api.Run) api.RunResult {
 	sn, err := sysbackup.Backup(ctx, r, sysbackup.BackupOptions{
 		Excludes: run.Excludes, Version: a.version,
 		Tags:     []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
-		Progress: func(_ string, s *repo.SnapshotStats) { a.progress(ctx, s.BytesRead, 0, s.Files) },
+		Progress: func(_ string, s *repo.SnapshotStats) { a.progressScanned(ctx, s.BytesRead, 0, s.Files, s.Bytes) },
 	})
 	if err != nil {
 		return failed(err)

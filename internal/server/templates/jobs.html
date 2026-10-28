@@ -35,7 +35,7 @@
     <label>{{T "Name"}} <input name="name" required placeholder="{{T "Documents nightly"}}"></label>
     <div class="row">
       <label data-notkind="copy">{{T "Agent"}}
-        <select name="agent_id" id="agent_sel" required>{{if .Data.VMwareHosts}}<optgroup label="Agents">{{end}}{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}{{if .Data.VMwareHosts}}</optgroup><optgroup label="VMware ESXi hosts (backed up through their proxy agent)">{{range .Data.VMwareHosts}}<option value="vmware:{{.ID}}">{{.Name}} {{if .IsVCenter}}{{T "— vCenter"}}{{else}}{{T "— ESXi"}}{{end}}</option>{{end}}</optgroup>{{end}}</select>
+        <select name="agent_id" id="agent_sel" required>{{if .Data.VMwareHosts}}<optgroup label="Agents">{{end}}{{range .Data.Agents}}<option value="{{.ID}}"{{if and .PVE (eq .HypervisorLabel "Proxmox VE")}} data-pvehost{{end}}>{{.Hostname}}</option>{{end}}{{if .Data.VMwareHosts}}</optgroup><optgroup label="VMware ESXi hosts (backed up through their proxy agent)">{{range .Data.VMwareHosts}}<option value="vmware:{{.ID}}">{{.Name}} {{if .IsVCenter}}{{T "— vCenter"}}{{else}}{{T "— ESXi"}}{{end}}</option>{{end}}</optgroup>{{end}}</select>
       </label>
       <label>{{T "Storage target"}} <small data-jobkind="copy" hidden>{{T "where the copies go — a different target than the source job's"}}</small>
         <select name="target_id" required>{{range .Data.Targets}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
@@ -52,6 +52,7 @@
       {{if .Data.SourceJobs}}<label class="check"><input type="radio" name="kind" value="copy" data-kindsel> {{T "Backup copy"}} <small>{{T "copy the backups of another job to a second storage (3-2-1)"}}</small></label>{{end}}
     </div>
     <div data-jobkind="files" class="stack">
+      <p class="callout tip" id="pvehost-hint" hidden>{{T "This agent is a Proxmox VE node: back up its configuration (storage, network, users, firewall, settings of the guests) with this job too."}} <button type="button" class="link" id="pvehost-fill" data-name="{{T "Proxmox host configuration"}}">{{T "Fill in the host configuration"}}</button> · <a href="/docs/proxmox#host">{{T "help"}}</a></p>
       <label>{{T "Folders and files to back up"}} <small>{{T "one path per line, as seen on the agent, e.g. C:\\Users or /home"}}</small>
         <textarea name="paths" required></textarea>
       </label>

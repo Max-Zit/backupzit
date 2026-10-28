@@ -111,6 +111,7 @@ type vmBackupDetails struct {
 		Disks       int    `json:"disks"`
 		Size        uint64 `json:"size"`
 		Stored      uint64 `json:"stored"`
+		Changed     int    `json:"changed"`
 	} `json:"guests"`
 }
 

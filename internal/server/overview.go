@@ -189,12 +189,20 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 	}
 	agents, _ := s.store.ListAgents(ctx)
 	dups := s.dups.current(s.clock())
+	skew := s.clocks.skewed(now)
 	for _, a := range agents {
 		if a.Recovery {
 			continue
 		}
 		if d, ok := dups[a.ID]; ok {
 			out = append(out, Attention{"failed", a.Hostname, l.T("two machines use this agent (%s); its backups and restores are held — stop the copy or enroll it as a new machine", strings.Join(d.Machines, ", ")), "/agents"})
+		}
+		if d, ok := skew[a.ID]; ok {
+			sev := "warning"
+			if d >= 10*time.Minute || d <= -10*time.Minute {
+				sev = "failed"
+			}
+			out = append(out, Attention{sev, a.Hostname, skewText(l, d), "/agents"})
 		}
 		if a.LastSeen == nil || now.Sub(*a.LastSeen) > 15*time.Minute {
 			seen := l.T("agent never connected")

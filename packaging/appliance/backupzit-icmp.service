@@ -1,0 +1,14 @@
+[Unit]
+Description=BackupZit appliance: no ICMP timestamp answers
+# After nftables.service: its /etc/nftables.conf starts with "flush ruleset".
+After=network-pre.target nftables.service
+ConditionPathExists=/usr/sbin/nft
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /usr/share/backupzit/appliance/icmp-timestamp.nft
+ExecStop=/usr/sbin/nft delete table inet backupzit_icmp
+
+[Install]
+WantedBy=multi-user.target

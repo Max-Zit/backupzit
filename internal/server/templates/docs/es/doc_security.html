@@ -47,6 +47,7 @@
   <tr><td>Puerto 8443 solo para agentes</td><td>La consola web queda entonces solo en el puerto web con el certificado de confianza (<a href="/docs/install">Configuración → Certificado</a>, normalmente 443), de modo que un cortafuegos puede abrir 8443 a todos y 443 solo a sus direcciones. Disponible cuando el puerto web está activo; cámbielo desde el puerto web, no desde 8443.</td></tr>
 </table>
 <p>Un cortafuegos típico para una consola pública: 8443 abierto a todos (agentes), 443 y 80 (comprobación HTTP de Let's Encrypt) solo desde sus direcciones, SSH solo desde sus direcciones o desactivado, todo lo demás cerrado.</p>
+<p>El appliance no responde a las solicitudes ICMP timestamp, que revelarían su hora a cualquiera en la red (un hallazgo de los escáneres de red); usa para ello su propia tabla pequeña de nftables y no toca las demás reglas del cortafuegos.</p>
 <p>¿Se ha quedado fuera? En el propio servidor (<code>localhost</code>) la consola siempre responde. En el appliance, la opción 5 del menú de configuración en su pantalla levanta los bloqueos de inicio de sesión y estas restricciones.</p>
 
 <h2>Recomendaciones</h2>

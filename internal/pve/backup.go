@@ -94,6 +94,17 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 			opts.Progress(done, max(total, done))
 		}
 	}
+	// Changed block tracking: the bitmaps of the previous backups are
+	// dropped only once this backup is saved.
+	prev := previousDisks(ctx, r)
+	var trackers []*tracker
+	saved := false
+	defer func() {
+		for _, t := range trackers {
+			t.finish(saved)
+		}
+	}()
+	var bytesRead uint64
 
 	start := time.Now()
 	before := r.Stats()
@@ -105,9 +116,16 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	}
 	for _, g := range guests {
 		opts.Log("backing up guest", "vmid", g.VMID, "name", g.Name)
-		gi, warns, err := backupGuest(ctx, r, stores, g, sn, progress)
+		gi, trk, warns, err := backupGuest(ctx, r, stores, g, sn, guestRun{prev: prev, progress: progress, read: &bytesRead, log: opts.Log})
 		for _, w := range warns {
 			addErr(guestLabel(g), errors.New(w))
+		}
+		if trk != nil {
+			if err != nil {
+				trk.finish(false)
+			} else {
+				trackers = append(trackers, trk)
+			}
 		}
 		if err != nil {
 			if ctx.Err() != nil {
@@ -125,8 +143,8 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	}
 	for _, img := range sn.Images {
 		stats.Bytes += img.Partitions[0].StoredBytes
-		stats.BytesRead += img.Size
 	}
+	stats.BytesRead = bytesRead
 
 	treeID, err := r.SaveTree(ctx, &repo.Tree{})
 	if err != nil {
@@ -144,7 +162,16 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	if _, err := r.SaveSnapshot(ctx, sn); err != nil {
 		return nil, fmt.Errorf("save snapshot: %w", err)
 	}
+	saved = true
 	return sn, nil
+}
+
+// guestRun is what backupGuest needs from the whole backup.
+type guestRun struct {
+	prev     map[string]diskimg.Previous
+	progress func(uint64) // bytes done (read or taken from the previous backup)
+	read     *uint64      // bytes actually read
+	log      func(string, ...any)
 }
 
 func guestLabel(g Guest) string {
@@ -172,14 +199,22 @@ func snapshotCapable(st storage, volname string) bool {
 	return false
 }
 
-func backupGuest(ctx context.Context, r *repo.Repository, stores map[string]storage, g Guest, sn *repo.Snapshot, progress func(uint64)) (*repo.Guest, []string, error) {
+func backupGuest(ctx context.Context, r *repo.Repository, stores map[string]storage, g Guest, sn *repo.Snapshot, run guestRun) (*repo.Guest, *tracker, []string, error) {
+	gi, trk, warns, err := backupGuestDisks(ctx, r, stores, g, sn, run)
+	if trk != nil && trk.started {
+		trk.stopServer()
+	}
+	return gi, trk, warns, err
+}
+
+func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string]storage, g Guest, sn *repo.Snapshot, run guestRun) (gi *repo.Guest, trk *tracker, warns []string, err error) {
 	cfgPath, err := configPath(g.Type, g.VMID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	raw, err := os.ReadFile(cfgPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	conf := string(raw)
 	disks, warns := configDisks(g.Type, conf)
@@ -190,24 +225,24 @@ func backupGuest(ctx context.Context, r *repo.Repository, stores map[string]stor
 		sid, vol, _ := strings.Cut(d.Volume, ":")
 		st, ok := stores[sid]
 		if !ok {
-			return nil, warns, fmt.Errorf("%s: unknown storage %q", d.Key, sid)
+			return nil, nil, warns, fmt.Errorf("%s: unknown storage %q", d.Key, sid)
 		}
 		if !snapshotCapable(st, vol) {
 			if d.CloudInit {
 				continue
 			}
 			if volumeFormat(vol) == "subvol" {
-				return nil, warns, fmt.Errorf("%s: ZFS subvolumes of containers are not supported yet", d.Key)
+				return nil, nil, warns, fmt.Errorf("%s: ZFS subvolumes of containers are not supported yet", d.Key)
 			}
 			useSnap = false
 		}
 	}
 	if !useSnap && running {
-		return nil, warns, errors.New("the guest is running and one of its disks is on storage without snapshot support (" +
+		return nil, nil, warns, errors.New("the guest is running and one of its disks is on storage without snapshot support (" +
 			"supported: LVM-thin, ZFS, Ceph RBD, qcow2 files); stop it during the backup or move the disk")
 	}
 
-	gi := &repo.Guest{
+	gi = &repo.Guest{
 		Platform: "proxmox", Type: g.Type, VMID: g.VMID, Name: g.Name, Node: g.Node, Running: running,
 		Config: cleanConfig(conf),
 	}
@@ -225,9 +260,25 @@ func backupGuest(ctx context.Context, r *repo.Repository, stores map[string]stor
 			args = append(args, "--vmstate", "0")
 		}
 		frozen := running && g.Type == "qemu" && agentRunning(ctx, g.VMID)
-		if _, err := command(ctx, guestTool(g.Type), args...); err != nil {
-			return nil, warns, fmt.Errorf("create snapshot: %w", err)
+		if running && g.Type == "qemu" {
+			// Changed block tracking starts just before the snapshot.
+			var keys []string
+			for _, d := range disks {
+				sid, vol, _ := strings.Cut(d.Volume, ":")
+				if !d.CloudInit && cbtStorage(stores[sid], vol) {
+					keys = append(keys, d.Key)
+				}
+			}
+			var terr error
+			if trk, terr = startTracking(ctx, g.VMID, keys, run.log); terr != nil {
+				run.log("no changed block tracking for this VM; its disks are read completely", "vmid", g.VMID, "err", terr)
+				trk = nil
+			}
 		}
+		if _, err := command(ctx, guestTool(g.Type), args...); err != nil {
+			return nil, trk, warns, fmt.Errorf("create snapshot: %w", err)
+		}
+		trk.verify(ctx)
 		defer func() {
 			cctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 			defer cancel()
@@ -266,22 +317,50 @@ func backupGuest(ctx context.Context, r *repo.Repository, stores map[string]stor
 			src, err = openLive(ctx, st, vol, d.Volume)
 		}
 		if err != nil {
-			return nil, warns, fmt.Errorf("%s (%s): %w", d.Key, d.Volume, err)
+			return nil, trk, warns, fmt.Errorf("%s (%s): %w", d.Key, d.Volume, err)
 		}
-		img, err := imageDisk(ctx, r, src, len(sn.Images), fmt.Sprintf("%s/%d %s %s", g.Type, g.VMID, d.Key, d.Volume), progress)
+		model := fmt.Sprintf("%s/%d %s %s", g.Type, g.VMID, d.Key, d.Volume)
+		img, err := run.imageGuestDisk(ctx, r, src, len(sn.Images), model, trk, d.Key, run.prev[fmt.Sprintf("%d/%s", g.VMID, d.Key)])
 		src.close()
 		if err != nil {
-			return nil, warns, fmt.Errorf("%s (%s): %w", d.Key, d.Volume, err)
+			return nil, trk, warns, fmt.Errorf("%s (%s): %w", d.Key, d.Volume, err)
 		}
 		sn.Images = append(sn.Images, img)
-		gi.Disks = append(gi.Disks, repo.GuestDisk{
+		gd := repo.GuestDisk{
 			Key: d.Key, Volume: d.Volume, Storage: sid, Format: volumeFormat(vol), Size: img.Size, Image: len(sn.Images) - 1,
-		})
+		}
+		if trk.tracking(d.Key) {
+			gd.ChangeID = trk.name
+		}
+		gi.Disks = append(gi.Disks, gd)
 	}
 	if len(gi.Disks) == 0 {
 		warns = append(warns, "has no disks to back up; only the configuration was saved")
 	}
-	return gi, warns, nil
+	return gi, trk, warns, nil
+}
+
+// imageGuestDisk stores a disk: only the areas changed since the previous
+// backup when its bitmap is still there, otherwise the whole disk.
+func (run guestRun) imageGuestDisk(ctx context.Context, r *repo.Repository, src *source, number int, model string, trk *tracker, key string, prev diskimg.Previous) (repo.DiskImage, error) {
+	read := func(n uint64) { *run.read += n; run.progress(n) }
+	if trk.tracking(key) && prev.Image != nil && prev.ChangeID != "" {
+		areas, size, err := trk.changes(ctx, key, prev.ChangeID)
+		if err == nil {
+			img, n, err := imageDiskAreas(ctx, r, src, size, areas, prev.Image, number, model, read)
+			if err == nil {
+				run.progress(size - min(n, size)) // the rest came from the previous backup
+				return img, nil
+			}
+			if ctx.Err() != nil {
+				return img, err
+			}
+			run.log("changed blocks could not be used; the disk is read completely", "disk", model, "err", err)
+		} else {
+			run.log("no changed blocks for this disk; it is read completely", "disk", model, "err", err)
+		}
+	}
+	return imageDisk(ctx, r, src, number, model, read)
 }
 
 // cleanConfig keeps the main configuration section without the snapshot
@@ -504,6 +583,27 @@ func imageDisk(ctx context.Context, r *repo.Repository, src *source, number int,
 		return repo.DiskImage{}, fmt.Errorf("%s is empty", src.path)
 	}
 	return diskimg.Store(ctx, r, f, size, number, model, "snapshot", progress)
+}
+
+// imageDiskAreas stores a disk reading only areas; the rest comes from
+// prev. It returns how many bytes it read.
+func imageDiskAreas(ctx context.Context, r *repo.Repository, src *source, size uint64, areas []diskimg.Area, prev *repo.DiskImage,
+	number int, model string, progress func(uint64)) (repo.DiskImage, uint64, error) {
+	f, err := os.Open(src.path)
+	if err != nil {
+		return repo.DiskImage{}, 0, err
+	}
+	defer f.Close()
+	end, err := f.Seek(0, io.SeekEnd)
+	if err != nil {
+		return repo.DiskImage{}, 0, err
+	}
+	if uint64(end) != size {
+		return repo.DiskImage{}, 0, fmt.Errorf("the snapshot has %d bytes, the running disk %d", end, size)
+	}
+	var n uint64
+	img, err := diskimg.StoreAreas(ctx, r, f, size, areas, prev, number, model, "snapshot", func(k uint64) { n += k; progress(k) })
+	return img, n, err
 }
 
 // configuredSize sums the disk sizes in a guest's configuration.

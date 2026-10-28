@@ -52,8 +52,9 @@ func (p *liveProgress) get(agentID, runID int64) (api.RunProgress, bool) {
 type runProgress struct {
 	// Percent is 0–100, or -1 when the size is not known yet.
 	Percent int
-	// Estimated marks a percentage estimated from the files of the job's
-	// previous backup (file backups do not know their size in advance); none once the files exceed that count.
+	// Estimated marks a percentage estimated from the files and the size of
+	// the job's previous backup (file backups do not know their size in
+	// advance); none once both are exceeded.
 	Estimated bool
 	Done      string // bytes processed
 	Total     string // "" if unknown
@@ -76,12 +77,11 @@ func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
 		case x.Total > 0:
 			p.Total = humanBytes(x.Total)
 			p.Percent = int(min(x.Done*100/x.Total, 100))
-		case x.Files > 0 && runs[i].JobID != nil:
-			// Past the previous count the estimate means nothing: no percentage.
-			if all := s.store.lastBackupFiles(ctx, *runs[i].JobID, runs[i].ID); all > 0 && x.Files < all {
-				p.FilesAll = all
-				p.Percent = int(min(x.Files*100/all, 99))
-				p.Estimated = true
+		case x.Files > 0 && runs[i].JobID != nil && (runs[i].Kind == api.KindBackup || runs[i].Kind == api.KindSystemBackup):
+			files, bytes := s.store.lastBackupSize(ctx, *runs[i].JobID, runs[i].ID)
+			p.FilesAll = files
+			if pc, ok := estimatePercent(x.Files, files, x.Scanned, bytes); ok {
+				p.Percent, p.Estimated = pc, true
 			}
 		}
 		runs[i].Progress = p
@@ -89,17 +89,48 @@ func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
 	return runs
 }
 
-// lastBackupFiles is the number of files of the job's newest successful
-// backup before run (0 if none).
-func (s *Store) lastBackupFiles(ctx context.Context, jobID, runID int64) uint64 {
+// estimatePercent estimates a file backup from the previous one: the share
+// of its files and of its size processed so far, averaged (many small
+// files and a few big ones both count). A measure already past the
+// previous backup counts as done; when both are past it, there is no
+// estimate (the data grew a lot).
+func estimatePercent(files, prevFiles, scanned, prevBytes uint64) (int, bool) {
+	var parts []float64
+	past := 0
+	add := func(done, prev uint64) {
+		if prev == 0 || done == 0 {
+			return
+		}
+		f := float64(done) / float64(prev)
+		if f >= 1 {
+			f, past = 1, past+1
+		}
+		parts = append(parts, f)
+	}
+	add(files, prevFiles)
+	add(scanned, prevBytes)
+	if len(parts) == 0 || past == len(parts) {
+		return 0, false
+	}
+	sum := 0.0
+	for _, f := range parts {
+		sum += f
+	}
+	return min(int(sum*100/float64(len(parts))), 99), true
+}
+
+// lastBackupSize is the number of files and their size of the job's newest
+// successful backup before run (0 if none).
+func (s *Store) lastBackupSize(ctx context.Context, jobID, runID int64) (files, bytes uint64) {
 	var stats json.RawMessage
 	if s.db.QueryRow(ctx, `SELECT stats FROM runs WHERE job_id=$1 AND id<>$2 AND status IN ('success','warning') AND stats IS NOT NULL
 		ORDER BY finished_at DESC LIMIT 1`, jobID, runID).Scan(&stats) != nil {
-		return 0
+		return 0, 0
 	}
 	var st struct {
 		Files uint64 `json:"files"`
+		Bytes uint64 `json:"bytes"`
 	}
 	json.Unmarshal(stats, &st)
-	return st.Files
+	return st.Files, st.Bytes
 }

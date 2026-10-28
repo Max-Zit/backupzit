@@ -47,6 +47,7 @@
   <tr><td>Port 8443 tylko dla agentów</td><td>Konsola WWW jest wtedy dostępna tylko na porcie WWW z zaufanym certyfikatem (<a href="/docs/install">Ustawienia → Certyfikat</a>, zwykle 443), więc zapora może otworzyć 8443 dla wszystkich, a 443 tylko dla Twoich adresów. Dostępne, gdy port WWW działa; zmieniaj to z portu WWW, nie z 8443.</td></tr>
 </table>
 <p>Typowa zapora dla publicznej konsoli: 8443 otwarty dla wszystkich (agenci), 443 i 80 (sprawdzenie HTTP Let's Encrypt) tylko z Twoich adresów, SSH tylko z Twoich adresów lub wyłączone, wszystko inne zamknięte.</p>
+<p>Appliance nie odpowiada na żądania ICMP timestamp, które zdradzałyby jego zegar każdemu w sieci (wynik skanerów sieci); używa do tego własnej małej tabeli nftables i nie zmienia innych reguł zapory.</p>
 <p>Odcięty dostęp? Na samym serwerze (<code>localhost</code>) konsola zawsze odpowiada. Na urządzeniu (appliance) pozycja 5 menu konfiguracji na jego ekranie zdejmuje blokady logowania i te ograniczenia.</p>
 
 <h2>Zalecenia</h2>

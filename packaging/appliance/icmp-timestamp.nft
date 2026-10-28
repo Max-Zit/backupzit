@@ -1,0 +1,16 @@
+#!/usr/sbin/nft -f
+# BackupZit appliance: no answers to ICMP timestamp requests, which tell
+# the system clock to anyone on the network (scanners report it). Its own
+# table, so other firewall rules stay as they are.
+table inet backupzit_icmp
+delete table inet backupzit_icmp
+table inet backupzit_icmp {
+	chain input {
+		type filter hook input priority 0; policy accept;
+		icmp type timestamp-request drop
+	}
+	chain output {
+		type filter hook output priority 0; policy accept;
+		icmp type timestamp-reply drop
+	}
+}

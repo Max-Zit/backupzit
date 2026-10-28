@@ -45,6 +45,10 @@ type RunProgress struct {
 	Done  uint64 `json:"done,omitempty"`  // bytes processed
 	Total uint64 `json:"total,omitempty"` // bytes in all, 0 if not known
 	Files uint64 `json:"files,omitempty"` // files processed
+	// Scanned is the size of the files processed so far, changed or not
+	// (file backups, 0.44.0 and newer); with the previous backup's size it
+	// gives a better estimate than the file count alone.
+	Scanned uint64 `json:"scanned,omitempty"`
 }
 
 type PollRequest struct {
@@ -75,6 +79,9 @@ type PollRequest struct {
 	// Hypervisor is the Proxmox VE inventory (JSON pve.Inventory) of an agent
 	// on a Proxmox node, sent like Disks.
 	Hypervisor json.RawMessage `json:"hypervisor,omitempty"`
+	// Time is the agent's clock in unix milliseconds when it sent the poll
+	// (0.44.0 and newer); the console warns when it is off.
+	Time int64 `json:"time,omitempty"`
 }
 
 // PollResponse returns work for the agent.
@@ -135,7 +142,32 @@ const (
 	KindAgentLog = "agent-log"
 	// KindRepoCheck reads all data of a repository and verifies it.
 	KindRepoCheck = "repo-check"
+	// KindRepoScan lists the repositories and their backups on a local or
+	// USB disk of the agent (Details: RepoScan), 0.44.0 and newer.
+	KindRepoScan = "repo-scan"
 )
+
+// RepoScan is the result of a repo-scan run.
+type RepoScan struct {
+	// Base is the storage location searched; for rotating USB disks with
+	// the label of the disk found.
+	Base  string      `json:"base"`
+	Repos []FoundRepo `json:"repos"`
+}
+
+// FoundRepo is a repository found by a repo-scan run.
+type FoundRepo struct {
+	Dir       string          `json:"dir"`
+	Error     string          `json:"error,omitempty"`
+	Snapshots []FoundSnapshot `json:"snapshots,omitempty"`
+}
+
+// FoundSnapshot is a backup of a found repository: its ID and the
+// snapshot as stored (repo.Snapshot).
+type FoundSnapshot struct {
+	ID       string          `json:"id"`
+	Snapshot json.RawMessage `json:"snapshot"`
+}
 
 // Run is a unit of work assigned to an agent.
 type Run struct {

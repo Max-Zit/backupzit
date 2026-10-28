@@ -31,6 +31,9 @@ type GuestSummary struct {
 	Disks       int    `json:"disks"`
 	Size        uint64 `json:"size"`
 	Stored      uint64 `json:"stored"` // bytes with data
+	// Changed is the number of disks of which only the blocks changed
+	// since the previous backup were read (changed block tracking).
+	Changed int `json:"changed,omitempty"`
 }
 
 // Guests lists the guests of a VM backup.
@@ -41,7 +44,11 @@ func Guests(sn *repo.Snapshot) json.RawMessage {
 		for _, d := range g.Disks {
 			s.Size += d.Size
 			if d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {
-				s.Stored += sn.Images[d.Image].Partitions[0].StoredBytes
+				p := sn.Images[d.Image].Partitions[0]
+				s.Stored += p.StoredBytes
+				if p.Method == "changed-blocks" {
+					s.Changed++
+				}
 			}
 		}
 		sum = append(sum, s)

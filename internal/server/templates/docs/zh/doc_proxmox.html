@@ -17,7 +17,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ol>
   <li>创建一个临时 Proxmox 快照（<code>backupzit_…</code>，会在 <i>Snapshots</i> 下显示几秒到几分钟）。来宾继续运行。</li>
   <li>如果虚拟机中运行着 <b>QEMU 来宾代理</b>（并在虚拟机选项中启用），Proxmox 会为快照冻结文件系统 —— 此时备份具有应用一致性。没有它，备份只具有崩溃一致性，相当于断电。请在 Linux 虚拟机中安装 <code>qemu-guest-agent</code>，在 Windows 虚拟机中安装 VirtIO 来宾工具。</li>
-  <li>每块磁盘以 1 MiB 块从快照读取。空块不会存储，存储库中已有的块不会再次上传，因此首次备份之后只传输更改的数据。</li>
+  <li>每块磁盘以 1 MiB 块从快照读取。空块不会存储，存储库中已有的块不会再次上传，因此首次备份之后只传输更改的数据。  运行中的虚拟机，如果磁盘位于 LVM-thin、ZFS、Ceph RBD 或 qcow2 文件上，还会使用<b>更改块跟踪</b>（QEMU 脏位图）：从第二次备份起，只读取上次备份之后写入的区域，只需几秒而不是几分钟。虚拟机停止、重启或迁移到其他节点后，下一次备份会完整读取一次其磁盘；运行页面会显示哪些磁盘只读取了更改的块。</li>
   <li>快照被删除。来宾配置（CPU、内存、网络、磁盘）随备份一起存储。</li>
 </ol>
 <p>运行页面列出每个来宾、其磁盘以及捕获方式。还原测试会像检查磁盘映像一样检查虚拟机备份的随机块；开启 <a href="/docs/restore">启动测试</a> 后，还会在与网络隔离的情况下从备份启动每台虚拟机，以证明它能够启动。</p>
@@ -87,7 +87,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
 </ul>
 <p>在命令行中：<code>backupzit-agent pve ls --vmid 100 latest /etc</code> 和 <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>；<code>--volume</code> 选择分区或逻辑卷（不带路径的 <code>pve ls</code> 会列出它们）。在控制台中浏览要求备份位于网络存储上（SFTP、S3、SMB、Azure、加固存储库）。</p>
 
-<h2 id="host">备份主机配置</h2><p>虚拟机和容器只是 Proxmox 节点的一半：存储定义、网络、用户、防火墙、证书以及每台虚拟机和容器的设置都在节点的配置中。可在节点代理上使用普通的文件作业备份它，路径为 <code>/etc</code>（包含 <code>/etc/pve</code>、网络和 <code>/etc/hosts</code>）和 <code>/var/lib/pve-cluster</code>（配置数据库 <code>config.db</code>），例如每天一次。若要在节点运行时获得完全一致的数据库副本，请添加备份前命令 <code>sqlite3 /var/lib/pve-cluster/config.db ".backup /root/pve-config.db"</code>（软件包 <code>sqlite3</code>）以及路径 <code>/root/pve-config.db</code>。</p><p>重建故障节点：使用相同的主机名和地址安装相同版本的 Proxmox VE，安装代理，将 <code>/etc/network/interfaces</code> 和 <code>/etc/hosts</code> 恢复到原位置，然后停止集群服务（<code>systemctl stop pve-cluster</code>），将 <code>config.db</code> 恢复到 <code>/var/lib/pve-cluster</code>，重新启动服务并恢复虚拟机和容器。在集群中，请将重新安装的节点重新加入集群，而不是恢复 <code>config.db</code>。</p>
+<h2 id="host">备份主机配置</h2><p>虚拟机和容器只是 Proxmox 节点的一半：存储定义、网络、用户、防火墙、证书以及每个虚拟机和容器的设置都在节点的配置中。请在节点的代理上用普通的文件作业备份它：在<a href="/jobs">备份作业</a>中选择节点的代理和<b>文件和文件夹</b>，然后点击<b>填入主机配置</b>。它会填入路径 <code>/etc</code>（包括 <code>/etc/pve</code>、网络和 <code>/etc/hosts</code>）、<code>/var/lib/pve-cluster</code>（配置数据库 <code>config.db</code>）和 <code>/root</code>；例如每天运行该作业。节点运行时数据库会变化，因此代理会先为它做一份一致的副本，备份中以 <code>/var/lib/backupzit/pve-config/config.db</code> 的形式包含该副本；不需要额外的软件包。</p><p>重建发生故障的节点：使用相同的主机名和地址安装相同版本的 Proxmox VE，安装代理，将 <code>/etc/network/interfaces</code> 和 <code>/etc/hosts</code> 恢复到原位置，然后停止集群服务（<code>systemctl stop pve-cluster</code>），如果 <code>/var/lib/pve-cluster</code> 中有 <code>config.db-wal</code> 和 <code>config.db-shm</code>，将其删除，再将一致的副本从 <code>/var/lib/backupzit/pve-config</code> 恢复到 <code>/var/lib/pve-cluster</code>（<code>config.db</code>，如果备份中有 <code>config.db-wal</code> 也一并恢复），重新启动服务并恢复虚拟机和容器。在集群中，请将重新安装的节点重新加入集群，而不是恢复 <code>config.db</code>。</p>
 <h2>尚未包含</h2>
 <ul>
   <li>XCP-ng 主机。Hyper-V 和 VMware ESXi：参见 <a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。</li>

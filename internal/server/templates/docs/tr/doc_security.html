@@ -47,6 +47,7 @@
   <tr><td>8443 portu yalnızca aracılar için</td><td>Web konsolu bu durumda yalnızca güvenilir sertifikalı web portunda olur (<a href="/docs/install">Ayarlar → Sertifika</a>, genellikle 443); böylece bir güvenlik duvarı 8443'ü herkese, 443'ü yalnızca sizin adreslerinize açabilir. Web portu çalışmaya başladığında kullanılabilir; 8443'ten değil, web portundan değiştirin.</td></tr>
 </table>
 <p>Genel bir konsol için tipik güvenlik duvarı: 8443 herkese açık (aracılar), 443 ve 80 (Let's Encrypt HTTP denetimi) yalnızca sizin adreslerinizden, SSH yalnızca sizin adreslerinizden veya kapalı, geri kalan her şey kapalı.</p>
+<p>Appliance, saatini ağdaki herkese bildirecek ICMP timestamp isteklerini yanıtlamaz (ağ tarayıcılarının bir bulgusu); bunun için kendi küçük nftables tablosunu kullanır ve diğer güvenlik duvarı kurallarına dokunmaz.</p>
 <p>Dışarıda mı kaldınız? Sunucunun kendisinde (<code>localhost</code>) konsol her zaman yanıt verir. Cihazda (appliance), ekranındaki kurulum menüsünün 5. öğesi oturum açma engellerini ve bu kısıtlamaları kaldırır.</p>
 
 <h2>Öneriler</h2>

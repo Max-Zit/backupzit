@@ -254,6 +254,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 		req.Disks = a.diskInventory()
 		req.Hypervisor = a.hypervisorInventory(ctx)
 	}
+	req.Time = time.Now().UnixMilli()
 	err := a.client.post(ctx, api.PathPoll, req, &resp, true)
 	a.recordPoll(err, resp.Status)
 	if err != nil {
@@ -398,6 +399,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res, after = a.uninstall()
 	case api.KindRepoCheck:
 		res = a.repoCheck(ctx, run)
+	case api.KindRepoScan:
+		res = a.repoScan(ctx, run)
 	case api.KindVMBackup:
 		res = a.vmBackup(ctx, run)
 	case api.KindVMRestore:
@@ -529,7 +532,7 @@ func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
 			return a.backupPaths(ctx, run, paths, false)
 		})
 	}
-	return a.backupPaths(ctx, run, run.Paths, a.VSS)
+	return a.backupPaths(ctx, run, a.withPVEConfigCopy(run.Paths), a.VSS)
 }
 
 // backupPaths backs up local paths (or those of a mounted NAS share).
@@ -550,7 +553,7 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 		Version:  a.version,
 		Tags:     []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)},
 		VSS:      useVSS,
-		Progress: func(_ string, s *repo.SnapshotStats) { a.progress(ctx, s.BytesRead, 0, s.Files) },
+		Progress: func(_ string, s *repo.SnapshotStats) { a.progressScanned(ctx, s.BytesRead, 0, s.Files, s.Bytes) },
 	})
 	if err != nil {
 		return failed(err)
@@ -589,10 +592,19 @@ func (a *Agent) restore(ctx context.Context, run api.Run) api.RunResult {
 	if err != nil {
 		return failed(err)
 	}
+	// The size is known when the whole backup is restored; a part shows
+	// the bytes and files restored so far.
+	var total uint64
+	if len(run.Includes) == 0 {
+		total = sn.Stats.Bytes
+	}
 	st, err := restorer.Run(ctx, r, sn, restorer.Options{
 		Target:  run.RestoreTarget,
 		Include: run.Includes,
 		Verify:  run.Verify,
+		Progress: func(_ string, s *restorer.Stats) {
+			a.progress(ctx, s.Bytes, max(total, s.Bytes), s.Files)
+		},
 	})
 	if err != nil {
 		return failed(err)

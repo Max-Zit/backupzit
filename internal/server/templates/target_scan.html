@@ -3,13 +3,25 @@
 <h1>{{T "Find backups on %v" $t.Name}}</h1>
 <div class="panel">
   <p class="mono small muted wrap-any">{{$t.URL}}</p>
+  {{if .Data.Local}}{{with .Data.Run}}<p class="muted small">{{T "Searched by the agent on %s" .Hostname}} · <a href="/runs/{{.ID}}">{{T "run"}} #{{.ID}}</a> · <a href="/targets/{{$t.ID}}/scan">{{T "search again"}}</a></p>{{end}}{{end}}
   {{if .Data.Error}}
   <div class="callout warn"><p>{{T "The storage could not be searched:"}} {{.Data.Error}}</p></div>
+  {{else if and .Data.Local (not .Data.Run)}}
+  <p>{{T "A local or USB disk is only reachable by the agent of the computer it is connected to. Choose that agent: it searches the disk and reads the backups on it."}}</p>
+  {{if .Data.Agents}}
+  <form method="post" action="/targets/{{$t.ID}}/scan" class="row">
+    <label>{{T "Agent"}} <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}{{if not .Online}} ({{T "offline"}}){{end}}</option>{{end}}</select></label>
+    <div class="actions"><button>{{T "Search the disk"}}</button> <a class="btn secondary-link" href="/targets">{{T "Cancel"}}</a></div>
+  </form>
+  {{else}}<p class="muted">{{T "No agents yet."}}</p>{{end}}
+  {{else if and .Data.Local (or (eq .Data.Run.Status "queued") (eq .Data.Run.Status "running"))}}
+  <div class="callout tip" data-autorefresh><p>{{T "The agent on %s is searching the disk; this page reloads by itself." .Data.Run.Hostname}}</p></div>
   {{else}}
   {{with .Data.Result}}
   <p>{{T "Repositories on this storage that the console does not know, e.g. of agents removed earlier or made by another console. Added backups appear under removed agents and in Activity; they can be restored to any agent or connected to the agent of that computer."}}</p>
   {{if .Unknown}}
   <form method="post" action="/targets/{{$t.ID}}/import">
+    {{with $.Data.Run}}<input type="hidden" name="run" value="{{.ID}}">{{end}}
     <div class="table-wrap"><table>
       <tr><th></th><th>{{T "Folder"}}</th><th>{{T "Computer"}}</th><th>{{T "Jobs"}}</th><th>{{T "Backups"}}</th><th>{{T "From"}}</th><th>{{T "To"}}</th></tr>
       {{range .Unknown}}

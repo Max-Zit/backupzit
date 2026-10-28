@@ -37,7 +37,11 @@ if [ -f /var/lib/backupzit/.appliance-ready ] || [ -x /usr/local/sbin/backupzit-
     install -m 0644 $a/backupzit-appliance-boot.service /etc/systemd/system/backupzit-appliance-boot.service
     install -m 0644 $a/backupzit-dns.path /etc/systemd/system/backupzit-dns.path
     install -m 0644 $a/backupzit-dns.service /etc/systemd/system/backupzit-dns.service
+    # No ICMP timestamp answers (with nftables, part of new images).
+    install -m 0644 $a/backupzit-icmp.service /etc/systemd/system/backupzit-icmp.service
     systemctl daemon-reload 2>/dev/null || true
+    systemctl enable backupzit-icmp.service >/dev/null 2>&1 || true
+    systemctl restart backupzit-icmp.service >/dev/null 2>&1 || true
     systemctl enable backupzit-appliance-boot.service >/dev/null 2>&1 || true
     systemctl enable --now backupzit-dns.path >/dev/null 2>&1 || true
     /usr/local/sbin/backupzit-appliance-boot dns >/dev/null 2>&1 || true

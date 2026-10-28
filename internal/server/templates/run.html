@@ -100,7 +100,7 @@
     <div class="table-wrap"><table>
       <tr><th>{{T "ID"}}</th><th>{{T "Name"}}</th><th>{{T "Type"}}</th><th>{{T "Disks"}}</th><th>{{T "With data"}}</th><th>{{T "Captured"}}</th><th></th></tr>
       {{range .Data.VM.Guests}}
-      <tr><td>{{if or (eq .Platform "hyperv") (eq .Platform "vmware")}}—{{else}}{{.VMID}}{{end}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}{{T "container"}}{{else}}{{T "VM"}}{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}</td></tr>
+      <tr><td>{{if or (eq .Platform "hyperv") (eq .Platform "vmware")}}—{{else}}{{.VMID}}{{end}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}{{T "container"}}{{else}}{{T "VM"}}{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}{{if .Changed}}<br><span class="muted">{{T "changed blocks only: %d of %d disks" .Changed .Disks}}</span>{{end}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}</td></tr>
       {{end}}
     </table></div>
   </div>
@@ -124,7 +124,7 @@
         <td>{{bytes .Length}}</td>
         <td>{{join .MountPoints " "}}{{if .Label}} “{{.Label}}”{{end}} <span class="muted">{{partkind .GPTType .MBRType}}</span></td>
         <td>{{.FileSystem}}</td>
-        <td>{{if .Included}}{{if eq .Source "vss"}}{{T "VSS snapshot"}}{{else}}{{T "live"}}{{end}}, {{if eq .Method "used-blocks"}}{{T "used blocks"}}{{else}}{{T "all blocks"}}{{end}}{{else}}<span class="muted">{{T "layout only"}}</span>{{end}}</td>
+        <td>{{if .Included}}{{if eq .Source "vss"}}{{T "VSS snapshot"}}{{else}}{{T "live"}}{{end}}, {{if eq .Method "used-blocks"}}{{T "used blocks"}}{{else if eq .Method "changed-blocks"}}{{T "changed blocks"}}{{else}}{{T "all blocks"}}{{end}}{{else}}<span class="muted">{{T "layout only"}}</span>{{end}}</td>
         <td>{{if .Included}}{{bytes .StoredBytes}}{{end}}</td>
         <td>{{if and .Included (eq .FileSystem "NTFS") $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/browse?part={{partref $img.Index .Number}}">{{T "Browse files"}}</a>{{end}}</td>
       </tr>

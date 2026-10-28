@@ -58,6 +58,7 @@ type Run struct {
 	Files    uint64     `json:"files,omitempty"`
 	Done     uint64     `json:"done,omitempty"`
 	Total    uint64     `json:"total,omitempty"`
+	Scanned  uint64     `json:"scanned,omitempty"` // size of the files processed (file backups)
 }
 
 // Job is a backup job of this machine.

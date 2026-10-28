@@ -40,6 +40,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>online</b> — o agente contactou a console nos últimos 3 minutos.</li>
   <li><b>offline</b> — a máquina está desligada, o serviço parado ou a rede bloqueada. Os backups agendados ficam em fila e começam assim que o agente voltar.</li>
   <li><b>recuperação</b> — uma máquina iniciada a partir de uma ISO de recuperação (Windows ou Linux), pronta para receber a restauração de uma imagem de disco ou de um sistema Linux. Os agentes de recuperação são temporários; remova-os quando a restauração terminar. Caso contrário, são removidos automaticamente uma semana depois do último contato.</li>
+  <li><b>relógio desajustado</b> — o relógio do computador difere do do console em 2 minutos ou mais (agentes 0.44.0 e mais recentes informam a hora a cada consulta); o painel também avisa. Ative a sincronização de hora nesse computador: a partir de 15 minutos, os armazenamentos S3 e Azure recusam os backups dele (veja <a href="/docs/troubleshooting#clock">Solução de problemas</a>). Se todos os agentes mostrarem isso, o relógio errado é o do próprio console.</li>
 </ul>
 <p>A coluna <b>Endereços IP</b> lista os endereços próprios da máquina conforme o agente os informou por último. <i>visto de</i> é o endereço de onde chegam as suas conexões: numa rede local o mesmo endereço, numa máquina atrás de NAT (p. ex. um notebook em casa) o endereço público do roteador. A console não consulta nenhum serviço externo para isso.</p>
 

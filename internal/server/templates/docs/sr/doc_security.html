@@ -47,6 +47,7 @@
   <tr><td>Port 8443 samo za agente</td><td>Web konzola je tada samo na web portu sa pouzdanim sertifikatom (<a href="/docs/install">Podešavanja → Sertifikat</a>, obično 443), pa firewall može da otvori 8443 svima, a 443 samo vašim adresama. Dostupno kada web port radi; menja se sa web porta, ne sa 8443.</td></tr>
 </table>
 <p>Tipičan firewall za javnu konzolu: 8443 otvoren svima (agenti), 443 i 80 (Let's Encrypt HTTP provera) samo sa vaših adresa, SSH samo sa vaših adresa ili isključen, sve ostalo zatvoreno.</p>
+<p>Appliance ne odgovara na ICMP timestamp zahteve, koji bi svakome u mreži otkrili njegov sat (nalaz mrežnih skenera); koristi svoju malu nftables tabelu i ne dira ostala firewall pravila.</p>
 <p>Zaključani ste? Na samom serveru (<code>localhost</code>) konzola uvek odgovara. Na appliance-u, stavka 5 menija za podešavanje na njegovom ekranu skida blokade prijave i ova ograničenja.</p>
 
 <h2>Preporuke</h2>

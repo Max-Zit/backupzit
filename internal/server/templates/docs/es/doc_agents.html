@@ -40,6 +40,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>online</b> — el agente contactó con la consola en los últimos 3 minutos.</li>
   <li><b>offline</b> — el equipo está apagado, el servicio detenido o la red bloqueada. Las copias programadas se ponen en cola y comienzan en cuanto vuelve el agente.</li>
   <li><b>recuperación</b> — un equipo arrancado desde una ISO de recuperación (Windows o Linux), listo para recibir la restauración de una imagen de disco o de un sistema Linux. Los agentes de recuperación son temporales; elimínelos cuando termine la restauración. Si no, se quitan automáticamente una semana después de su última conexión.</li>
+  <li><b>reloj desviado</b> — el reloj del equipo difiere del de la consola en 2 minutos o más (los agentes 0.44.0 y posteriores informan de su hora en cada consulta); el panel también avisa. Active la sincronización de hora en ese equipo: a partir de 15 minutos, los almacenamientos S3 y Azure rechazan sus copias (vea <a href="/docs/troubleshooting#clock">Solución de problemas</a>). Si lo muestran todos los agentes, el reloj incorrecto es el de la propia consola.</li>
 </ul>
 <p>La columna <b>Direcciones IP</b> muestra las direcciones propias del equipo tal como el agente las informó por última vez. <i>visto desde</i> es la dirección desde la que llegan sus conexiones: en una red local la misma dirección, para un equipo detrás de NAT (p. ej. un portátil en casa) la dirección pública del router. La consola no consulta ningún servicio externo para ello.</p>
 

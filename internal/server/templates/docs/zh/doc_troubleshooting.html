@@ -18,7 +18,7 @@
   <tr><td>repository is locked</td><td>同一存储库上正在运行其他操作（例如清理）；该运行会在 30 分钟内重试。过期的锁会自动失效。</td></tr>
   <tr><td>wrong password / recovery key</td><td>存储库是用另一个密钥创建的 —— 请检查作业是否使用了正确的存储目标。</td></tr>
   <tr><td>bucket has no Object Lock enabled</td><td>在未启用 Object Lock 的存储桶上请求了不可变性。请创建启用 Object Lock 的新存储桶。</td></tr>
-  <tr><td>S3 / Azure："the clock of this computer differs from the storage's by more than 15 minutes"（<i>RequestTimeTooSkewed</i>、<i>Request date header too old</i>）</td><td>云存储会用时间签名每个请求，时钟偏差超过约 15 分钟时会拒绝请求。请校正运行中所列计算机的时间（代理；对于<i>测试连接</i>则为控制台），并开启时间同步：Windows 设置 → 时间和语言 → 自动设置时间；Linux 使用 <code>timedatectl set-ntp true</code> 或 chrony。虚拟机在长时间关机后或夏令时切换后可能时间不正确。</td></tr>
+  <tr id="clock"><td>S3 / Azure："the clock of this computer differs from the storage's by more than 15 minutes"（<i>RequestTimeTooSkewed</i>、<i>Request date header too old</i>）</td><td>云存储会用时间签名每个请求，时钟偏差超过约 15 分钟时会拒绝请求。请校正运行中所列计算机的时间（代理；对于<i>测试连接</i>则为控制台），并开启时间同步：Windows 设置 → 时间和语言 → 自动设置时间；Linux 使用 <code>timedatectl set-ntp true</code> 或 chrony。虚拟机在长时间关机后或夏令时切换后可能时间不正确。</td></tr>
 </table>
 
 <h2>其他消息</h2>

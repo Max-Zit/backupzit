@@ -107,10 +107,16 @@ func (a *Agent) runFinished(id int64, res api.RunResult) {
 
 // progress records how far the run of ctx is.
 func (a *Agent) progress(ctx context.Context, done, total, files uint64) {
+	a.progressScanned(ctx, done, total, files, 0)
+}
+
+// progressScanned also records the size of the files processed so far
+// (file backups).
+func (a *Agent) progressScanned(ctx context.Context, done, total, files, scanned uint64) {
 	ls := a.local()
 	ls.mu.Lock()
 	if c := ls.running[runIDOf(ctx)]; c != nil {
-		c.Done, c.Total, c.Files = done, total, files
+		c.Done, c.Total, c.Files, c.Scanned = done, total, files, scanned
 	}
 	ls.mu.Unlock()
 }
@@ -123,7 +129,7 @@ func (a *Agent) runProgress() []api.RunProgress {
 	var out []api.RunProgress
 	for id, r := range ls.running {
 		if r.Done > 0 || r.Total > 0 || r.Files > 0 {
-			out = append(out, api.RunProgress{RunID: id, Done: r.Done, Total: r.Total, Files: r.Files})
+			out = append(out, api.RunProgress{RunID: id, Done: r.Done, Total: r.Total, Files: r.Files, Scanned: r.Scanned})
 		}
 	}
 	return out

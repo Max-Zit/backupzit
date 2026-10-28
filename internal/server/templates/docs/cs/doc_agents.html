@@ -40,6 +40,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>online</b> — agent kontaktoval konzoli během posledních 3 minut.</li>
   <li><b>offline</b> — počítač je vypnutý, služba zastavená nebo síť blokovaná. Plánované zálohy se zařadí do fronty a spustí se, jakmile se agent vrátí.</li>
   <li><b>obnova</b> — počítač spuštěný z ISO pro obnovu (Windows nebo Linux), připravený přijmout obnovu obrazu disku nebo systému Linux. Agenti obnovy jsou dočasní; po dokončení obnovy je odeberte. Jinak se odeberou automaticky týden po posledním spojení.</li>
+  <li><b>hodiny nesouhlasí</b> — hodiny počítače se od hodin konzole liší o 2 minuty nebo více (agenti 0.44.0 a novější hlásí svůj čas při každém dotazu); upozorní i nástěnka. Zapněte na tomto počítači synchronizaci času: od 15 minut odmítají úložiště S3 a Azure jeho zálohy (viz <a href="/docs/troubleshooting#clock">Řešení problémů</a>). Pokud to ukazují všichni agenti, chybné jsou hodiny samotné konzole.</li>
 </ul>
 <p>Sloupec <b>IP adresy</b> uvádí vlastní adresy počítače, jak je agent naposledy nahlásil. <i>viděn z</i> je adresa, ze které přicházejí jeho spojení: v místní síti stejná adresa, u počítače za NAT (např. notebooku doma) veřejná adresa routeru. Konzole se kvůli tomu neptá žádné externí služby.</p>
 

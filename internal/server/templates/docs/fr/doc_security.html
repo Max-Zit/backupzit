@@ -47,6 +47,7 @@
   <tr><td>Port 8443 réservé aux agents</td><td>La console web n'est alors disponible que sur le port web avec le certificat de confiance (<a href="/docs/install">Paramètres → Certificat</a>, généralement 443), de sorte qu'un pare-feu peut ouvrir 8443 à tous et 443 uniquement à vos adresses. Disponible une fois le port web actif ; modifiez-le depuis le port web, pas depuis 8443.</td></tr>
 </table>
 <p>Un pare-feu typique pour une console publique : 8443 ouvert à tous (agents), 443 et 80 (vérification HTTP Let's Encrypt) uniquement depuis vos adresses, SSH uniquement depuis vos adresses ou désactivé, tout le reste fermé.</p>
+<p>L’appliance ne répond pas aux requêtes ICMP timestamp, qui donneraient son heure à n’importe qui sur le réseau (un constat des scanners réseau) ; elle utilise pour cela sa propre petite table nftables et ne touche pas aux autres règles de pare-feu.</p>
 <p>Bloqué ? Sur le serveur lui-même (<code>localhost</code>), la console répond toujours. Sur l'appliance, l'élément 5 du menu de configuration sur son écran lève les blocages de connexion et ces restrictions.</p>
 
 <h2>Recommandations</h2>

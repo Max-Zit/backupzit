@@ -47,6 +47,7 @@
   <tr><td>Port 8443 jen pro agenty</td><td>Webová konzole je pak dostupná jen na webovém portu s důvěryhodným certifikátem (<a href="/docs/install">Nastavení → Certifikát</a>, obvykle 443), takže firewall může otevřít 8443 všem a 443 jen vašim adresám. K dispozici, jakmile webový port běží; měňte to z webového portu, ne z 8443.</td></tr>
 </table>
 <p>Typický firewall pro veřejnou konzoli: 8443 otevřený všem (agenti), 443 a 80 (HTTP kontrola Let's Encrypt) jen z vašich adres, SSH jen z vašich adres nebo vypnuté, vše ostatní zavřené.</p>
+<p>Appliance neodpovídá na požadavky ICMP timestamp, které by komukoli v síti prozradily jeho čas (nález síťových skenerů); používá k tomu vlastní malou tabulku nftables a ostatní pravidla firewallu nemění.</p>
 <p>Zablokovali jste se? Na samotném serveru (<code>localhost</code>) konzole odpovídá vždy. Na appliance položka 5 nastavovací nabídky na jeho obrazovce zruší blokace přihlášení a tato omezení.</p>
 
 <h2>Doporučení</h2>

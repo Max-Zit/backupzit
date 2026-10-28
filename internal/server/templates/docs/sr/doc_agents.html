@@ -40,6 +40,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>na mreži</b> — agent se javio konzoli u poslednja 3 minuta.</li>
   <li><b>van mreže</b> — mašina je ugašena, servis je zaustavljen ili je mreža blokirana. Zakazani bekapi se stavljaju u red i počinju čim se agent vrati.</li>
   <li><b>oporavak</b> — mašina pokrenuta sa ISO-a za oporavak (Windows ili Linux), spremna da primi sliku diska ili vraćanje Linux sistema. Agenti za oporavak su privremeni; uklonite ih kada je vraćanje završeno. U suprotnom se sami uklanjaju nedelju dana posle poslednjeg javljanja.</li>
+  <li><b>sat odstupa</b> — sat računara se razlikuje od sata konzole za 2 minuta ili više (agenti 0.44.0 i noviji šalju svoje vreme pri svakom javljanju); upozorava i kontrolna tabla. Uključite sinhronizaciju vremena na tom računaru: od 15 minuta razlike S3 i Azure storage odbijaju njegove backup-e (pogledajte <a href="/docs/troubleshooting#clock">Rešavanje problema</a>). Ako to pokazuju svi agenti, pogrešan je sat same konzole.</li>
 </ul>
 <p>Kolona <b>IP adrese</b> navodi sopstvene adrese mašine kako ih je agent poslednji put prijavio. <i>Viđen sa</i> je adresa sa koje stižu njegove veze: na lokalnoj mreži ista adresa, a za mašinu iza NAT-a (npr. laptop kod kuće) javna adresa rutera. Konzola za to ne pita nijedan spoljni servis.</p>
 

@@ -3,12 +3,17 @@
 # signed files, now the newest release that consoles with the default
 # update source install.
 #
-#   ./packaging/promote-release.sh 0.43.0
+#   ./packaging/promote-release.sh 0.43.0 [release.key notes.md]
 #
+# With a key and a notes file the release gets these notes first, in the
+# signed manifest too (packaging/release-notes.sh).
 # Afterwards merge the tested commit into main (git merge --ff-only vVERSION).
 set -eu
-VERSION=${1:?usage: promote-release.sh <version>}
+VERSION=${1:?usage: promote-release.sh <version> [release.key notes.md]}
 gh release view "v$VERSION" --repo Max-Zit/backupzit --json isPrerelease --jq .isPrerelease | grep -q true ||
     { echo "v$VERSION is not a release candidate" >&2; exit 1; }
+if [ -n "${3:-}" ]; then
+    sh "$(dirname "$0")/release-notes.sh" "$VERSION" "$2" "$3"
+fi
 gh release edit "v$VERSION" --repo Max-Zit/backupzit --prerelease=false --latest
 echo "v$VERSION is the official release"

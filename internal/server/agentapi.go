@@ -90,6 +90,7 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 	if len(req.Progress) > 0 {
 		s.live.set(a.ID, req.Progress, s.clock())
 	}
+	s.clocks.seen(a.ID, req.Time, s.clock())
 	resp := api.PollResponse{PollIntervalSec: s.PollInterval}
 	if req.WantStatus {
 		if st, err := s.agentStatus(r.Context(), a.ID); err == nil {
@@ -153,6 +154,8 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		ar.JobName = *run.JobName
 	}
 	switch run.Kind {
+	case api.KindRepoScan:
+		ar.Repository = targetRepository(t, t.URL)
 	case api.KindBackup:
 		s.addRetention(ctx, run, ar)
 		ar.Paths, ar.Excludes = run.Paths, run.Excludes

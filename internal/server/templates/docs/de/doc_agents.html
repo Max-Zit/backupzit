@@ -40,6 +40,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>online</b> — der Agent hat die Konsole in den letzten 3 Minuten kontaktiert.</li>
   <li><b>offline</b> — der Rechner ist aus, der Dienst gestoppt oder das Netzwerk blockiert. Geplante Sicherungen werden eingereiht und starten, sobald der Agent zurück ist.</li>
   <li><b>Wiederherstellung</b> — ein von einem Wiederherstellungs-ISO (Windows oder Linux) gestarteter Rechner, bereit für die Wiederherstellung eines Festplattenabbilds oder Linux-Systems. Wiederherstellungsagenten sind vorübergehend; entfernen Sie sie, wenn die Wiederherstellung abgeschlossen ist. Andernfalls werden sie eine Woche nach ihrer letzten Verbindung automatisch entfernt.</li>
+  <li><b>Uhr weicht ab</b> — die Uhr des Computers weicht um 2 Minuten oder mehr von der der Konsole ab (Agenten ab 0.44.0 melden ihre Zeit bei jeder Abfrage); auch das Dashboard warnt. Schalten Sie auf diesem Computer die Zeitsynchronisierung ein: Ab 15 Minuten lehnen S3- und Azure-Speicher seine Sicherungen ab (siehe <a href="/docs/troubleshooting#clock">Fehlerbehebung</a>). Zeigen es alle Agenten, ist die Uhr der Konsole selbst falsch.</li>
 </ul>
 <p>Die Spalte <b>IP-Adressen</b> listet die eigenen Adressen des Rechners, wie der Agent sie zuletzt gemeldet hat. <i>gesehen von</i> ist die Adresse, von der seine Verbindungen ankommen: im lokalen Netz dieselbe Adresse, bei einem Rechner hinter NAT (z. B. einem Laptop zu Hause) die öffentliche Adresse des Routers. Die Konsole fragt dafür keinen externen Dienst.</p>
 

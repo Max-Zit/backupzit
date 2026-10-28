@@ -9,7 +9,7 @@
 
 <h2>Activity</h2>
 <p>Every run, newest first. Click a run for details: what was processed, statistics, errors per file, and — for backups — the restore options. Runs in progress refresh automatically. Scheduled runs show a clock icon.</p>
-<p>A running backup shows how far it has got under its status, on the dashboard, the job page, in Activity and on the run page: a bar with the percentage, the data processed (of the total when known, e.g. for disk images and VMs) and the number of files. File backups do not know their size in advance; their percentage is estimated from the number of files of the job's previous backup and marked with ≈. Once the backup has more files than that one, only the data and the file count are shown. The agent reports the progress with each poll (every 15 seconds or more often while a run is in progress).</p>
+<p>A running backup shows how far it has got under its status, on the dashboard, the job page, in Activity and on the run page: a bar with the percentage, the data processed (of the total when known, e.g. for disk images and VMs) and the number of files. File backups do not know their size in advance; their percentage is estimated from the files and the size of the job's previous backup and marked with ≈. When the backup has grown past both, only the data and the file count are shown. Restores show their progress the same way; a restore of a whole backup shows the percentage of its size. The agent reports the progress with each poll (every 15 seconds or more often while a run is in progress).</p>
 <h3>Run types</h3>
 <table>
   <tr><th>Type</th><th>What it is</th></tr>

@@ -40,6 +40,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>online</b> — de agent heeft de console in de laatste 3 minuten gecontacteerd.</li>
   <li><b>offline</b> — de machine staat uit, de service is gestopt of het netwerk is geblokkeerd. Geplande back-ups worden in de wachtrij gezet en starten zodra de agent terug is.</li>
   <li><b>herstel</b> — een machine die is opgestart vanaf een herstel-ISO (Windows of Linux), klaar om een schijfimage of Linux-systeemherstel te ontvangen. Herstelagents zijn tijdelijk; verwijder ze als het herstel klaar is. Anders worden ze een week na hun laatste contact automatisch verwijderd.</li>
+  <li><b>klok wijkt af</b> — de klok van de computer wijkt 2 minuten of meer af van die van de console (agents vanaf 0.44.0 melden hun tijd bij elke poll); ook het dashboard waarschuwt. Zet op die computer tijdsynchronisatie aan: vanaf 15 minuten weigeren S3- en Azure-opslag zijn back-ups (zie <a href="/docs/troubleshooting#clock">Probleemoplossing</a>). Tonen alle agents het, dan is de klok van de console zelf fout.</li>
 </ul>
 <p>De kolom <b>IP-adressen</b> toont de eigen adressen van de machine zoals de agent ze het laatst meldde. <i>gezien vanaf</i> is het adres waarvandaan zijn verbindingen binnenkomen: op een lokaal netwerk hetzelfde adres, voor een machine achter NAT (bijv. een laptop thuis) het openbare adres van de router. De console vraagt daarvoor geen externe dienst.</p>
 

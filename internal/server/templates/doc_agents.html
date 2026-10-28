@@ -40,6 +40,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>online</b> — the agent contacted the console in the last 3 minutes.</li>
   <li><b>offline</b> — the machine is off, the service is stopped or the network is blocked. Scheduled backups are queued and start as soon as the agent comes back.</li>
   <li><b>recovery</b> — a machine booted from a recovery ISO (Windows or Linux), ready to receive a disk image or Linux system restore. Recovery agents are temporary; remove them when the restore is done. Otherwise they are removed automatically a week after they were last online.</li>
+  <li><b>clock off</b> — the computer's clock differs from the console's by 2 minutes or more (agents 0.44.0 and newer report their time with every poll); the dashboard warns too. Turn on time synchronization on that computer: from 15 minutes on, S3 and Azure storage refuse its backups (see <a href="/docs/troubleshooting#clock">Troubleshooting</a>). If every agent shows it, the console's own clock is wrong.</li>
 </ul>
 <p>The <b>IP addresses</b> column lists the machine's own addresses as the agent last reported them. <i>Seen from</i> is the address its connections arrive from: on a local network the same address, for a machine behind NAT (e.g. a laptop at home) the router's public address. The console does not ask any external service for it.</p>
 

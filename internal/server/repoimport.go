@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -147,7 +148,7 @@ func sortedKeys(m map[string]bool) []string {
 // readRepoSnapshots lists the backups of a repository on a target.
 func readRepoSnapshots(ctx context.Context, t Target, dir string) ([]*repo.Snapshot, error) {
 	r, closeRepo, err := openRepository(ctx, targetRepository(t, repoURL(t, Agent{RepoDir: dir})), false)
-	if errors.Is(err, repo.ErrWrongPassword) {
+	if errors.Is(err, repo.ErrWrongPassword) || errors.Is(err, repo.ErrPasswordRequired) {
 		return nil, errors.New("encrypted with another recovery key")
 	}
 	if err != nil {
@@ -159,8 +160,9 @@ func readRepoSnapshots(ctx context.Context, t Target, dir string) ([]*repo.Snaps
 
 // knownRepoDirs reports whether a repository folder on t belongs to a
 // current agent or a VMware connection or is used by a run on t (a removed
-// agent's folder on another storage can still be added).
-func (s *Store) knownRepoDirs(ctx context.Context, t Target) (func(string) bool, error) {
+// agent's folder on another storage can still be added). bases are other
+// locations of t's folders (the disk found for rotating USB disks).
+func (s *Store) knownRepoDirs(ctx context.Context, t Target, bases ...string) (func(string) bool, error) {
 	dirs, urls := map[string]bool{}, map[string]bool{}
 	rows, err := s.db.Query(ctx, `SELECT repo_dir FROM agents WHERE removed_at IS NULL UNION SELECT repo_dir FROM vmware_hosts
 		UNION SELECT DISTINCT repo_url FROM runs WHERE target_id=$1 AND repo_url<>''`, t.ID)
@@ -178,7 +180,17 @@ func (s *Store) knownRepoDirs(ctx context.Context, t Target) (func(string) bool,
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	return func(d string) bool { return dirs[d] || urls[repoURL(t, Agent{RepoDir: d})] }, nil
+	return func(d string) bool {
+		if dirs[d] || urls[repoURL(t, Agent{RepoDir: d})] {
+			return true
+		}
+		for _, b := range bases {
+			if urls[repoURL(Target{Kind: t.Kind, URL: b}, Agent{RepoDir: d})] {
+				return true
+			}
+		}
+		return false
+	}, nil
 }
 
 // snapshotGroup are the backups of one job in a repository.
@@ -289,8 +301,9 @@ func importedRun(sn *repo.Snapshot) (kind string, details json.RawMessage, messa
 // importRepo records the backups of a repository found on t as the history
 // of a removed agent named after the backed up computer: they appear in
 // Activity and the restore wizard, and can be connected to the agent of
-// that computer. Backups already recorded are skipped.
-func (s *Store) importRepo(ctx context.Context, t Target, dir string, sns []*repo.Snapshot) (agentID int64, added int, err error) {
+// that computer. Backups already recorded are skipped. base is the
+// location the folder is in (t.URL, or the disk found for USB disks).
+func (s *Store) importRepo(ctx context.Context, t Target, base, dir string, sns []*repo.Snapshot) (agentID int64, added int, err error) {
 	hosts := map[string]int{}
 	host := ""
 	for _, sn := range sns {
@@ -319,7 +332,7 @@ func (s *Store) importRepo(ctx context.Context, t Target, dir string, sns []*rep
 	if err != nil {
 		return 0, 0, err
 	}
-	url := repoURL(t, Agent{RepoDir: dir})
+	url := repoURL(Target{Kind: t.Kind, URL: base}, Agent{RepoDir: dir})
 	have := map[string]bool{}
 	rows, err := tx.Query(ctx, `SELECT snapshot_id FROM runs WHERE repo_url=$1 AND snapshot_id<>''`, url)
 	if err != nil {
@@ -375,8 +388,34 @@ func (s *Server) handleTargetScan(w http.ResponseWriter, r *http.Request, user s
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), scanTimeout)
 	defer cancel()
-	res, err := s.scanTarget(ctx, t)
-	data := map[string]any{"Target": t, "Result": res, "Error": ""}
+	data := map[string]any{"Target": t, "Error": ""}
+	var res scanResult
+	if localTarget(t) {
+		// Searched by an agent: choose it, wait for its run, then the result.
+		data["Local"] = true
+		run, ok := s.store.repoScanRun(ctx, t, r.URL.Query().Get("run"))
+		switch {
+		case !ok:
+			agents, err := s.store.scanAgents(ctx, t)
+			if err != nil {
+				s.serverError(w, err)
+				return
+			}
+			data["Agents"] = agents
+		case run.Status == "queued" || run.Status == "running":
+			data["Run"] = run
+		case run.Status != api.StatusSuccess:
+			data["Run"] = run
+			err = errors.New(run.Message)
+		default:
+			data["Run"] = run
+			res, err = s.scanFromRun(ctx, t, run)
+			data["Result"] = res
+		}
+	} else {
+		res, err = s.scanTarget(ctx, t)
+		data["Result"] = res
+	}
 	if err != nil {
 		data["Error"] = requestLanguage(r).T(err.Error())
 	}
@@ -400,7 +439,23 @@ func (s *Server) handleTargetImport(w http.ResponseWriter, r *http.Request, user
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), scanTimeout)
 	defer cancel()
-	known, err := s.store.knownRepoDirs(ctx, t)
+	// Local and USB disks: the backups the agent's search found.
+	base, found := t.URL, map[string][]*repo.Snapshot(nil)
+	if localTarget(t) {
+		run, ok := s.store.repoScanRun(ctx, t, r.FormValue("run"))
+		if !ok || run.Status != api.StatusSuccess {
+			redirectErr(w, r, back, errors.New(l.T("Search the disk again.")))
+			return
+		}
+		scan, sns, err := foundSnapshots(run)
+		if err != nil {
+			redirectErr(w, r, back, err)
+			return
+		}
+		back += "?run=" + strconv.FormatInt(run.ID, 10)
+		base, found = scan.Base, sns
+	}
+	known, err := s.store.knownRepoDirs(ctx, t, base)
 	if err != nil {
 		s.serverError(w, err)
 		return
@@ -410,13 +465,19 @@ func (s *Server) handleTargetImport(w http.ResponseWriter, r *http.Request, user
 		if d == "" || d == consoleRepoDir || strings.ContainsAny(d, `/\`) || d == "." || d == ".." || known(d) {
 			continue
 		}
-		sns, err := readRepoSnapshots(ctx, t, d)
+		var sns []*repo.Snapshot
+		var err error
+		if found != nil {
+			sns = found[d]
+		} else {
+			sns, err = readRepoSnapshots(ctx, t, d)
+		}
 		if err == nil && len(sns) == 0 {
 			continue
 		}
 		var n int
 		if err == nil {
-			_, n, err = s.store.importRepo(ctx, t, d, sns)
+			_, n, err = s.store.importRepo(ctx, t, base, d, sns)
 		}
 		if err != nil {
 			redirectErr(w, r, back, fmt.Errorf("%s: %w", d, err))

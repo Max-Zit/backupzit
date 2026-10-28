@@ -198,6 +198,7 @@ func langFuncs(l *language) template.FuncMap {
 		"retention":   func(p repo.RetentionPolicy) string { return retentionText(l, p) },
 		"minutesText": func(m int) string { return minutesTextIn(l, m) },
 		"usagechart":  func(u *TargetUsage) template.HTML { return usageChart(l, u) },
+		"skew":        func(d time.Duration) string { return skewShort(l, d) },
 		"reportsched": func(rs ReportSchedule) string { return rs.DescribeIn(l) },
 		"reportscope": func(rep *Report) string { return rep.ScopeIn(l) },
 		"rpotext":     func(st RPOState) string { return rpoText(l, st) },

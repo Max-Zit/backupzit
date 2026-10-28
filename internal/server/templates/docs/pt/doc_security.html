@@ -47,6 +47,7 @@
   <tr><td>Porta 8443 só para agentes</td><td>O console web fica então só na porta web com o certificado confiável (<a href="/docs/install">Configurações → Certificado</a>, normalmente 443), de modo que um firewall pode abrir a 8443 para todos e a 443 só para seus endereços. Disponível quando a porta web estiver ativa; altere-a pela porta web, não pela 8443.</td></tr>
 </table>
 <p>Um firewall típico para um console público: 8443 aberta para todos (agentes), 443 e 80 (verificação HTTP do Let's Encrypt) só a partir dos seus endereços, SSH só a partir dos seus endereços ou desligado, todo o resto fechado.</p>
+<p>O appliance não responde a solicitações ICMP timestamp, que revelariam o relógio dele a qualquer um na rede (um achado de scanners de rede); ele usa para isso a própria pequena tabela nftables e não mexe nas outras regras de firewall.</p>
 <p>Ficou trancado do lado de fora? No próprio servidor (<code>localhost</code>) o console sempre responde. No appliance, o item 5 do menu de configuração na tela dele remove bloqueios de login e essas restrições.</p>
 
 <h2>Recomendações</h2>

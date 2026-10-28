@@ -31,6 +31,7 @@ type GuestDisk struct {
 	// Image is the index of the disk's data in Snapshot.Images.
 	Image int `json:"image"`
 	// ChangeID is the changed block tracking position of the disk at the
-	// backup (VMware); the next backup reads only what changed since.
+	// backup (VMware change ID, Hyper-V RCT, Proxmox QEMU dirty bitmap);
+	// the next backup reads only what changed since.
 	ChangeID string `json:"change_id,omitempty"`
 }

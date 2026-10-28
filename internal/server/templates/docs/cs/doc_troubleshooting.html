@@ -18,7 +18,7 @@
   <tr><td>repository is locked</td><td>Na stejném úložišti běží jiná operace (např. úklid); běh to zkouší znovu 30 minut. Zastaralé zámky vyprší automaticky.</td></tr>
   <tr><td>wrong password / recovery key</td><td>Úložiště bylo vytvořeno jiným klíčem — ověřte, že úloha používá správné cílové úložiště.</td></tr>
   <tr><td>bucket has no Object Lock enabled</td><td>Neměnnost byla požadována u bucketu vytvořeného bez Object Lock. Vytvořte nový bucket s Object Lock.</td></tr>
-  <tr><td>S3 / Azure: "the clock of this computer differs from the storage's by more than 15 minutes" (<i>RequestTimeTooSkewed</i>, <i>Request date header too old</i>)</td><td>Cloudové úložiště podepisuje každý požadavek časem a odmítne ho, když se hodiny liší o více než asi 15 minut. Opravte čas počítače uvedeného v běhu (agent; u <i>Otestovat připojení</i> konzole) a zapněte synchronizaci času: Nastavení Windows → Čas a jazyk → Nastavit čas automaticky; Linux <code>timedatectl set-ntp true</code> nebo chrony. Virtuální počítače mohou mít špatný čas po dlouhém vypnutí nebo po změně letního/zimního času.</td></tr>
+  <tr id="clock"><td>S3 / Azure: "the clock of this computer differs from the storage's by more than 15 minutes" (<i>RequestTimeTooSkewed</i>, <i>Request date header too old</i>)</td><td>Cloudové úložiště podepisuje každý požadavek časem a odmítne ho, když se hodiny liší o více než asi 15 minut. Opravte čas počítače uvedeného v běhu (agent; u <i>Otestovat připojení</i> konzole) a zapněte synchronizaci času: Nastavení Windows → Čas a jazyk → Nastavit čas automaticky; Linux <code>timedatectl set-ntp true</code> nebo chrony. Virtuální počítače mohou mít špatný čas po dlouhém vypnutí nebo po změně letního/zimního času.</td></tr>
 </table>
 
 <h2>Další zprávy</h2>

@@ -84,7 +84,9 @@ type Server struct {
 	// cleanups are running deletions of a removed agent's backups.
 	cleanups sync.WaitGroup
 	// live is the progress of running runs reported by the agents.
-	live      liveProgress
+	live liveProgress
+	// clocks is how far the agents' clocks are off.
+	clocks    clockTracker
 	sessCache sessionCache
 	clock     func() time.Time // replaceable in tests
 }
@@ -217,6 +219,7 @@ var funcs = template.FuncMap{
 		return imaging.Partition{GPTType: gpt, MBRType: mbr}.Kind()
 	},
 	"kindtitle":    kindTitleEN,
+	"skew":         func(d time.Duration) string { return skewShort(languageByCode("en"), d) },
 	"everyChoices": everyChoices, "minutesText": minutesText, "jobkind": jobKindTitle,
 	"has": func(list []string, v string) bool { return slices.Contains(list, v) },
 	// list makes a slice of its arguments, e.g. for option lists.
@@ -391,6 +394,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /targets/{id}/delete", s.ui(PermStorage, s.handleTargetDelete))
 	mux.HandleFunc("POST /targets/{id}/test", s.ui(PermStorage, s.handleTargetTest))
 	mux.HandleFunc("GET /targets/{id}/scan", s.ui(PermStorage, s.handleTargetScan))
+	mux.HandleFunc("POST /targets/{id}/scan", s.ui(PermStorage, s.handleTargetScanStart))
 	mux.HandleFunc("POST /targets/{id}/import", s.ui(PermStorage, s.handleTargetImport))
 	mux.HandleFunc("POST /targets/{id}/recovery-key", s.ui(PermStorage, s.handleRecoveryKey))
 	mux.HandleFunc("POST /targets/{id}/recovery-sheet", s.ui(PermStorage, s.handleRecoverySheet))
@@ -494,6 +498,7 @@ func securityHeaders(h http.Handler) http.Handler {
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
 		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+		w.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		h.ServeHTTP(w, r)
 	})
@@ -765,7 +770,7 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		return
 	}
 	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
-		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts, "Duplicates": s.dups.current(s.clock()), "Removed": removed,
+		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts, "Duplicates": s.dups.current(s.clock()), "ClockSkew": s.clocks.skewed(s.clock()), "Removed": removed,
 	}})
 }
 
@@ -1294,5 +1299,5 @@ func Shutdown(srv *http.Server) {
 
 // kindTitleEN names a run kind for people (English).
 func kindTitleEN(k string) string {
-	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
+	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "repo-scan": "Find backups", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
 }
