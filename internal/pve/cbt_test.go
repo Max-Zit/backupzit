@@ -17,11 +17,12 @@ import (
 
 // fakeMonitor is a VM's QEMU monitor: disks with their bitmaps.
 type fakeMonitor struct {
-	devs    []blockDevice
-	bitmaps map[string][]string // bitmap node → names
-	log     []string
-	nbdOn   bool
-	exports map[string][]string // export → bitmaps
+	devs     []blockDevice
+	bitmaps  map[string][]string // bitmap node → names
+	disabled map[string]bool     // bitmaps that no longer record
+	log      []string
+	nbdOn    bool
+	exports  map[string][]string // export → bitmaps
 	// graphChange moves scsi0 to a new node (a snapshot as volume chain).
 	graphChange bool
 }
@@ -62,10 +63,21 @@ func (m *fakeMonitor) run(c qmpCmd) (any, error) {
 			act := x.(map[string]any)
 			data := act["data"].(map[string]any)
 			node := data["node"].(string)
-			if act["type"] != "block-dirty-bitmap-add" || m.rootOf(node) < 0 || data["persistent"] != false {
+			switch {
+			case act["type"] == "block-dirty-bitmap-add" && m.rootOf(node) >= 0 && data["persistent"] == false:
+				m.bitmaps[node] = append(m.bitmaps[node], data["name"].(string))
+				if data["disabled"] == true {
+					m.disabled[data["name"].(string)] = true
+				}
+			case act["type"] == "block-dirty-bitmap-merge" && slices.Contains(m.bitmaps[node], data["target"].(string)):
+				for _, b := range data["bitmaps"].([]any) {
+					if !slices.Contains(m.bitmaps[node], b.(string)) {
+						return nil, fmt.Errorf("Dirty bitmap '%s' not found", b)
+					}
+				}
+			default:
 				return nil, errors.New("bad transaction")
 			}
-			m.bitmaps[node] = append(m.bitmaps[node], data["name"].(string))
 		}
 		if m.graphChange {
 			m.devs[0].Device, m.devs[0].Inserted.NodeName = "", "#block99"
@@ -95,6 +107,9 @@ func (m *fakeMonitor) run(c qmpCmd) (any, error) {
 		}
 		var bs []string
 		for _, b := range a["bitmaps"].([]any) {
+			if !m.disabled[b.(string)] {
+				return nil, fmt.Errorf("Enabled bitmap '%s' incompatible with readonly export", b)
+			}
 			bs = append(bs, b.(string))
 		}
 		m.exports[a["name"].(string)] = bs
@@ -121,7 +136,7 @@ func newFakeMonitor(t *testing.T) *fakeMonitor {
 		}{NodeName: node}
 		return x
 	}
-	m := &fakeMonitor{bitmaps: map[string][]string{}, exports: map[string][]string{},
+	m := &fakeMonitor{bitmaps: map[string][]string{}, exports: map[string][]string{}, disabled: map[string]bool{},
 		devs: []blockDevice{
 			{Device: "drive-scsi0", QDev: "scsi0", Inserted: inserted("#block123")},                               // Proxmox VE 8 (-drive)
 			{Device: "", QDev: "/machine/peripheral/virtio1/virtio-backend", Inserted: inserted("drive-virtio1")}, // Proxmox VE 9 (-blockdev)

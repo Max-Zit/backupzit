@@ -241,15 +241,26 @@ func (t *tracker) changes(ctx context.Context, key, prev string) ([]diskimg.Area
 		}
 		t.started = true
 	}
+	// QEMU exports only bitmaps that no longer record: a stopped copy of
+	// the previous bitmap is read, the bitmap itself stays as it is (still
+	// the base if this backup fails).
 	id := bitmapPrefix + key
+	read := fmt.Sprintf("bzread-%s-%d", key, time.Now().UnixNano())
+	if _, err := qmpOne(ctx, t.vmid, "transaction", map[string]any{"actions": []map[string]any{
+		{"type": "block-dirty-bitmap-add", "data": map[string]any{"node": td.bitmapNode, "name": read, "persistent": false, "disabled": true}},
+		{"type": "block-dirty-bitmap-merge", "data": map[string]any{"node": td.bitmapNode, "target": read, "bitmaps": []string{prev}}},
+	}}); err != nil {
+		return nil, 0, err
+	}
+	defer qmpOne(context.WithoutCancel(ctx), t.vmid, "block-dirty-bitmap-remove", map[string]any{"node": td.bitmapNode, "name": read})
 	if _, err := qmpOne(ctx, t.vmid, "block-export-add", map[string]any{"type": "nbd", "id": id, "node-name": td.exportNode,
-		"name": id, "writable": false, "bitmaps": []string{prev}}); err != nil {
+		"name": id, "writable": false, "bitmaps": []string{read}}); err != nil {
 		return nil, 0, err
 	}
 	defer qmpOne(context.WithoutCancel(ctx), t.vmid, "block-export-del", map[string]any{"id": id, "mode": "hard"})
 	cctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	areas, size, err := dirtyAreas(cctx, "unix:"+t.sock, id, prev)
+	areas, size, err := dirtyAreas(cctx, "unix:"+t.sock, id, read)
 	if err != nil {
 		return nil, 0, err
 	}

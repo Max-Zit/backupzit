@@ -219,7 +219,7 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 	conf := string(raw)
 	disks, warns := configDisks(g.Type, conf)
 
-	running := g.Status == "running"
+	running := guestRunning(ctx, g)
 	useSnap := !g.Template
 	for _, d := range disks {
 		sid, vol, _ := strings.Cut(d.Volume, ":")
@@ -380,6 +380,19 @@ func cleanConfig(conf string) string {
 	return b.String()
 }
 
+// guestRunning asks the guest's own tool whether it runs: the cluster
+// resource list is a cache that lags for some seconds, e.g. right after a
+// migration or a resume from hibernation.
+func guestRunning(ctx context.Context, g Guest) bool {
+	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	out, err := command(cctx, guestTool(g.Type), "status", strconv.Itoa(g.VMID))
+	if err != nil {
+		return g.Status == "running"
+	}
+	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(string(out)), "status:")) == "running"
+}
+
 func agentRunning(ctx context.Context, vmid int) bool {
 	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -536,12 +549,7 @@ func nbdConnect(ctx context.Context, file, format, snap string) (*source, error)
 		if _, err := os.Stat(sys + "/pid"); err == nil {
 			continue // in use
 		}
-		args := []string{"--read-only", "--force-share", "--format", format, "--connect", dev}
-		if snap != "" {
-			args = append(args, "--load-snapshot", snap)
-		}
-		args = append(args, file)
-		if _, err := command(ctx, "qemu-nbd", args...); err != nil {
+		if _, err := command(ctx, "qemu-nbd", nbdArgs(ctx, file, format, snap, dev)...); err != nil {
 			if strings.Contains(err.Error(), "busy") || strings.Contains(err.Error(), "in use") {
 				continue
 			}
@@ -564,6 +572,21 @@ func nbdConnect(ctx context.Context, file, format, snap string) (*source, error)
 		}
 	}
 	return nil, errors.New("no free /dev/nbd device")
+}
+
+// nbdArgs are the qemu-nbd arguments to export file read-only while the VM
+// may have it open. qemu-nbd of QEMU 11 (Proxmox VE 9) has no
+// --force-share any more; the image options turn the file lock off instead.
+func nbdArgs(ctx context.Context, file, format, snap, dev string) []string {
+	args := []string{"--read-only", "--connect", dev}
+	if snap != "" {
+		args = append(args, "--load-snapshot", snap)
+	}
+	if help, _ := command(ctx, "qemu-nbd", "--help"); strings.Contains(string(help), "--force-share") {
+		return append(args, "--force-share", "--format", format, file)
+	}
+	opts := "driver=" + format + ",file.driver=file,file.filename=" + strings.ReplaceAll(file, ",", ",,") + ",file.locking=off"
+	return append(args, "--image-opts", opts)
 }
 
 // imageDisk stores a disk block by block. All-zero blocks are recorded as
