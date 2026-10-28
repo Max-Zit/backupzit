@@ -447,7 +447,7 @@ func (s *Server) handleTargetImport(w http.ResponseWriter, r *http.Request, user
 			redirectErr(w, r, back, errors.New(l.T("Search the disk again.")))
 			return
 		}
-		scan, sns, err := foundSnapshots(run)
+		scan, sns, err := foundSnapshots(t, run)
 		if err != nil {
 			redirectErr(w, r, back, err)
 			return

@@ -6,7 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"path"
 	"strconv"
+	"strings"
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/repo"
@@ -72,14 +75,37 @@ func (s *Store) repoScanRun(ctx context.Context, t Target, id string) (Run, bool
 	return run, true
 }
 
-// foundSnapshots are the backups of each repository a search found.
-func foundSnapshots(run Run) (api.RepoScan, map[string][]*repo.Snapshot, error) {
+// scanBase checks the location an agent reports for its search of t: the
+// target's own path, or for rotating USB disks the same path on a disk
+// whose label matches the target's pattern. Imported backups point there.
+func scanBase(t Target, base string) bool {
+	if t.Kind != "usb" {
+		return base == t.URL
+	}
+	want, err1 := url.Parse(t.URL)
+	got, err2 := url.Parse(base)
+	if err1 != nil || err2 != nil || got.Scheme != "usb" || got.Host == "" || strings.Trim(got.Path, "/") != strings.Trim(want.Path, "/") ||
+		got.RawQuery != "" || got.User != nil || strings.ContainsAny(got.Host, `/\`) {
+		return false
+	}
+	ok, _ := path.Match(strings.ToUpper(want.Host), strings.ToUpper(got.Host))
+	return ok
+}
+
+// foundSnapshots are the backups of each repository a search of t found.
+func foundSnapshots(t Target, run Run) (api.RepoScan, map[string][]*repo.Snapshot, error) {
 	var scan api.RepoScan
 	if err := json.Unmarshal(run.Details, &scan); err != nil {
 		return scan, nil, errors.New("the agent sent no result")
 	}
+	if !scanBase(t, scan.Base) {
+		return scan, nil, errors.New("the agent searched another location than this storage")
+	}
 	out := map[string][]*repo.Snapshot{}
 	for _, f := range scan.Repos {
+		if f.Dir == "" || f.Dir == "." || f.Dir == ".." || strings.ContainsAny(f.Dir, `/\`) {
+			continue
+		}
 		var sns []*repo.Snapshot
 		for _, x := range f.Snapshots {
 			id, err := repo.ParseID(x.ID)
@@ -101,7 +127,7 @@ func foundSnapshots(run Run) (api.RepoScan, map[string][]*repo.Snapshot, error) 
 // scanFromRun is what the search run found, as for network storage.
 func (s *Server) scanFromRun(ctx context.Context, t Target, run Run) (scanResult, error) {
 	var res scanResult
-	scan, sns, err := foundSnapshots(run)
+	scan, sns, err := foundSnapshots(t, run)
 	if err != nil {
 		return res, err
 	}
@@ -110,7 +136,7 @@ func (s *Server) scanFromRun(ctx context.Context, t Target, run Run) (scanResult
 		return res, err
 	}
 	for _, d := range scan.Repos {
-		if d.Dir == consoleRepoDir {
+		if _, listed := sns[d.Dir]; !listed || d.Dir == consoleRepoDir {
 			continue
 		}
 		if known(d.Dir) {
