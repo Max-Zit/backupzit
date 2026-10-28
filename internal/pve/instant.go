@@ -95,7 +95,8 @@ func InstantStart(ctx context.Context, sn *repo.Snapshot, opts InstantOptions) (
 	}
 	clone := false
 	for _, x := range inv.Guests {
-		if x.VMID == target {
+		// An ID from nextid is free; the cluster list can still show a guest just removed.
+		if x.VMID == target && opts.NewVMID >= 0 {
 			return nil, fmt.Errorf("guest %d exists; instant recovery creates a new guest", target)
 		}
 		clone = clone || x.VMID == g.VMID

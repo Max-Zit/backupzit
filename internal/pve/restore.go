@@ -105,7 +105,8 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 
 	// An existing guest with the target ID.
 	for _, x := range inv.Guests {
-		if x.VMID != target {
+		// An ID from nextid is free; the cluster list can still show a guest just removed.
+		if x.VMID != target || opts.NewVMID < 0 {
 			continue
 		}
 		if !opts.Overwrite {
