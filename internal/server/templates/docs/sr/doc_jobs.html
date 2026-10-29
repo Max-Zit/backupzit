@@ -21,6 +21,10 @@
   <li>Podesite <b>Čuvaj bekape</b> i <b>Raspored</b>, zatim <i>Napravi posao</i>.</li>
 </ol>
 
+<h2 id="users">Folderi svih korisnika</h2>
+<p>Ispod putanja, <b>Za svakog korisnika računara</b> dodaje <i>Radnu površinu</i>, <i>Dokumente</i>, <i>Preuzimanja</i>, <i>Slike</i> ili <i>Ceo korisnički profil</i>. Upisuju se kao <code>{users}/Documents</code>, a agent pri svakom backupu ponovo pronalazi foldere: <code>C:\Users\&lt;ime&gt;\Documents</code> na Windows-u (i folder koji je OneDrive premestio, <code>…\OneDrive\Documents</code>), <code>/home/&lt;ime&gt;/Documents</code> i <code>/root/Documents</code> na Linux-u, <code>/Users/&lt;ime&gt;/Documents</code> na macOS-u. Korisnici dodati kasnije ulaze u backup bez izmene posla; sistemski profili (Default, Public) se preskaču. Iza <code>{users}</code> može da stoji bilo koji folder, npr. <code>{users}/AppData/Roaming/Thunderbird</code>.</p>
+<p>Putanje mogu da sadrže i zamenske znakove <code>*</code> (bilo koji znakovi unutar imena jednog foldera) i <code>?</code> (jedan znak): <code>D:\Projekti\*\Dokumentacija</code>, <code>/srv/sites/*/uploads</code>. Velika i mala slova se poštuju kako su upisana. Putanja sa <code>{users}</code> ili zamenskim znakom koja na nekom računaru ne pronađe ništa nije greška: backup javi <i>Nothing matched …</i> i ne uspeva samo kada ne ostane ništa za backup. Potreban je agent 0.45.0 ili noviji. Ceo profil uključuje i keš; izuzmite ga punim putanjama kao <code>C:\Users\*\AppData\Local\Temp</code>.</p>
+
 <h2 id="nas">NAS i deljeni folderi (SMB, NFS)</h2>
 <p>Posao <b>NAS / deljeni folder</b> pravi bekap mrežnog deljenog foldera bez instaliranja bilo čega na NAS (Synology, QNAP, TrueNAS, Windows fajl server …). Izaberite bilo kog agenta koji dolazi do deljenog foldera — on ga čita i upisuje bekap — i unesite:</p>
 <ul>

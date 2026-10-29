@@ -21,6 +21,10 @@
   <li><b>Yedekleri sakla</b> ve <b>Zamanlama</b> ayarlarını yapın, ardından <i>İş oluştur</i>.</li>
 </ol>
 
+<h2 id="users">Her kullanıcının klasörleri</h2>
+<p>Yolların altında <b>Bilgisayarın her kullanıcısı için</b>; <i>Masaüstü</i>, <i>Belgeler</i>, <i>İndirilenler</i>, <i>Resimler</i> veya <i>Tüm kullanıcı profili</i> ekler. Bunlar <code>{users}/Documents</code> olarak yazılır ve aracı klasörleri her yedeklemede yeniden bulur: Windows'ta <code>C:\Users\&lt;ad&gt;\Documents</code> (OneDrive'ın taşıdığı klasör de, <code>…\OneDrive\Documents</code>), Linux'ta <code>/home/&lt;ad&gt;/Documents</code> ve <code>/root/Documents</code>, macOS'ta <code>/Users/&lt;ad&gt;/Documents</code>. Sonradan eklenen kullanıcılar işi değiştirmeden yedeklenir; sistem profilleri (Default, Public) atlanır. <code>{users}</code> sonrasına herhangi bir klasör gelebilir, ör. <code>{users}/AppData/Roaming/Thunderbird</code>.</p>
+<p>Yollar ayrıca <code>*</code> (bir klasör adı içinde herhangi karakterler) ve <code>?</code> (tek karakter) joker karakterlerini içerebilir: <code>D:\Projeler\*\Belgeler</code>, <code>/srv/sites/*/uploads</code>. Büyük ve küçük harfler yazıldığı gibi dikkate alınır. Bir bilgisayarda hiçbir şey bulmayan <code>{users}</code> veya joker yolu hata değildir: çalışma <i>Nothing matched …</i> bildirir ve yalnızca yedeklenecek hiçbir şey kalmadığında başarısız olur. Aracı 0.45.0 veya daha yenisi gerekir. Tüm profil önbellekleri de içerir; bunları <code>C:\Users\*\AppData\Local\Temp</code> gibi tam yollarla hariç tutun.</p>
+
 <h2 id="nas">NAS ve dosya paylaşımları (SMB, NFS)</h2>
 <p>Bir <b>NAS / dosya paylaşımı</b> işi, NAS'a (Synology, QNAP, TrueNAS, bir Windows dosya sunucusu …) hiçbir şey kurmadan bir ağ paylaşımını yedekler. Paylaşıma ulaşan herhangi bir aracıyı seçin — paylaşımı o okur ve yedeği yazar — ve şunları girin:</p>
 <ul>

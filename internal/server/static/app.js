@@ -265,6 +265,19 @@ function syncPVEHostHint() {
   hint.hidden = !(opt && opt.hasAttribute("data-pvehost"));
 }
 
+// User folder buttons add {users}/… to the paths (once).
+document.addEventListener("click", function (e) {
+  var p = e.target.getAttribute && e.target.getAttribute("data-userpath");
+  if (!p) return;
+  var form = e.target.closest("form");
+  var paths = form && form.querySelector("textarea[name=paths]");
+  if (!paths) return;
+  var have = paths.value.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+  if (have.indexOf(p) < 0) have.push(p);
+  paths.value = have.join("\n");
+  paths.focus();
+});
+
 document.addEventListener("click", function (e) {
   if (e.target.id !== "pvehost-fill") return;
   var form = e.target.closest("form");

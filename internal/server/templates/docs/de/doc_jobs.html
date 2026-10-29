@@ -21,6 +21,10 @@
   <li>Legen Sie <b>Sicherungen behalten</b> und den <b>Zeitplan</b> fest, dann <i>Auftrag erstellen</i>.</li>
 </ol>
 
+<h2 id="users">Ordner aller Benutzer</h2>
+<p>Unter den Pfaden fügt <b>Für jeden Benutzer des Computers</b> <i>Desktop</i>, <i>Dokumente</i>, <i>Downloads</i>, <i>Bilder</i> oder das <i>ganze Benutzerprofil</i> hinzu. Sie werden als <code>{users}/Documents</code> eingetragen, und der Agent sucht die Ordner bei jeder Sicherung neu: <code>C:\Users\&lt;Name&gt;\Documents</code> unter Windows (auch ein von OneDrive verschobener Ordner, <code>…\OneDrive\Documents</code>), <code>/home/&lt;Name&gt;/Documents</code> und <code>/root/Documents</code> unter Linux, <code>/Users/&lt;Name&gt;/Documents</code> unter macOS. Später hinzugekommene Benutzer werden ohne Änderung des Auftrags gesichert; Systemprofile (Default, Public) werden ausgelassen. Nach <code>{users}</code> kann jeder Ordner stehen, z. B. <code>{users}/AppData/Roaming/Thunderbird</code>.</p>
+<p>Pfade können auch die Platzhalter <code>*</code> (beliebige Zeichen innerhalb eines Ordnernamens) und <code>?</code> (ein Zeichen) enthalten: <code>D:\Projekte\*\Dokumentation</code>, <code>/srv/sites/*/uploads</code>. Groß- und Kleinschreibung gilt wie eingetragen. Ein Pfad mit <code>{users}</code> oder Platzhaltern, der auf einem Computer nichts findet, ist kein Fehler: der Lauf meldet <i>Nothing matched …</i> und schlägt nur fehl, wenn gar nichts zu sichern bleibt. Dafür ist Agent 0.45.0 oder neuer nötig. Das ganze Profil enthält auch Caches; schließen Sie sie mit vollständigen Pfaden wie <code>C:\Users\*\AppData\Local\Temp</code> aus.</p>
+
 <h2 id="nas">NAS und Dateifreigaben (SMB, NFS)</h2>
 <p>Ein Auftrag vom Typ <b>NAS / Dateifreigabe</b> sichert eine Netzwerkfreigabe, ohne etwas auf dem NAS zu installieren (Synology, QNAP, TrueNAS, ein Windows-Dateiserver …). Wählen Sie einen beliebigen Agenten, der die Freigabe erreicht — er liest die Freigabe und schreibt die Sicherung — und geben Sie ein:</p>
 <ul>

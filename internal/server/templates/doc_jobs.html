@@ -21,6 +21,10 @@
   <li>Set <b>Keep backups</b> and the <b>Schedule</b>, then <i>Create job</i>.</li>
 </ol>
 
+<h2 id="users">Folders of every user</h2>
+<p>Below the paths, <b>For every user of the computer</b> adds <i>Desktop</i>, <i>Documents</i>, <i>Downloads</i>, <i>Pictures</i> or the <i>Whole user profile</i>. They are written as <code>{users}/Documents</code>, and the agent finds the folders anew at each backup: <code>C:\Users\&lt;name&gt;\Documents</code> on Windows (also a folder that OneDrive moved, <code>…\OneDrive\Documents</code>), <code>/home/&lt;name&gt;/Documents</code> and <code>/root/Documents</code> on Linux, <code>/Users/&lt;name&gt;/Documents</code> on macOS. Users added later are backed up without changing the job; system profiles (Default, Public) are left out. Any folder can follow <code>{users}</code>, e.g. <code>{users}/AppData/Roaming/Thunderbird</code>.</p>
+<p>Paths can also hold the wildcards <code>*</code> (any characters within one folder name) and <code>?</code> (one character): <code>D:\Projects\*\Documentation</code>, <code>/srv/sites/*/uploads</code>. Upper and lower case count as written. A <code>{users}</code> or wildcard path that finds nothing on a computer is no error: the run reports <i>Nothing matched …</i>, and fails only when nothing at all is left to back up. This needs agent 0.45.0 or newer. The whole profile includes caches; exclude them with full paths such as <code>C:\Users\*\AppData\Local\Temp</code>.</p>
+
 <h2 id="nas">NAS and file shares (SMB, NFS)</h2>
 <p>A <b>NAS / file share</b> job backs up a network share without installing anything on the NAS (Synology, QNAP, TrueNAS, a Windows file server …). Choose any agent that reaches the share — it reads the share and writes the backup — and enter:</p>
 <ul>

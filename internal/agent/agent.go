@@ -25,6 +25,7 @@ import (
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/archiver"
 	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/fsutil"
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/restorer"
 	"github.com/max-zit/backupzit/internal/tlsutil"
@@ -529,14 +530,25 @@ func (a *Agent) backup(ctx context.Context, run api.Run) api.RunResult {
 	}
 	if run.NAS != nil {
 		return a.withNAS(ctx, run, false, func(paths []string) api.RunResult {
-			return a.backupPaths(ctx, run, paths, false)
+			return a.backupPaths(ctx, run, paths, false, "")
 		})
 	}
-	return a.backupPaths(ctx, run, a.withPVEConfigCopy(run.Paths), a.VSS)
+	// {users} and wildcards become the folders that exist now, so new users
+	// and new folders are included without editing the job.
+	paths, unmatched := fsutil.ExpandSources(run.Paths)
+	note := ""
+	if len(unmatched) > 0 {
+		note = "Nothing matched " + strings.Join(unmatched, ", ") + "."
+	}
+	if len(paths) == 0 {
+		return api.RunResult{Status: api.StatusFailed, Message: "Nothing to back up: no folder or file matches " + strings.Join(unmatched, ", ")}
+	}
+	return a.backupPaths(ctx, run, a.withPVEConfigCopy(paths), a.VSS, note)
 }
 
-// backupPaths backs up local paths (or those of a mounted NAS share).
-func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, useVSS bool) api.RunResult {
+// backupPaths backs up local paths (or those of a mounted NAS share). note
+// is added to the message of the result.
+func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, useVSS bool, note string) api.RunResult {
 	r, closeRepo, err := a.openRepo(ctx, run.Repository, true)
 	if err != nil {
 		return failed(fmt.Errorf("open repository: %w", err))
@@ -567,6 +579,7 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 		res.Status = api.StatusWarning
 		res.Message = strings.TrimSpace(fmt.Sprintf("%d files or folders could not be read. %s", len(sn.Stats.Errors), res.Message))
 	}
+	res.Message = strings.TrimSpace(res.Message + " " + note)
 	lock.Unlock() // retention needs an exclusive lock
 	return a.withRetention(ctx, r, run, res)
 }

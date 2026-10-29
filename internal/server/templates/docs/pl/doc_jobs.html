@@ -21,6 +21,10 @@
   <li>Ustaw <b>Zachowuj kopie</b> i <b>Harmonogram</b>, a potem <i>Utwórz zadanie</i>.</li>
 </ol>
 
+<h2 id="users">Foldery każdego użytkownika</h2>
+<p>Pod ścieżkami opcja <b>Dla każdego użytkownika komputera</b> dodaje <i>Pulpit</i>, <i>Dokumenty</i>, <i>Pobrane</i>, <i>Obrazy</i> lub <i>Cały profil użytkownika</i>. Zapisuje się je jako <code>{users}/Documents</code>, a agent przy każdej kopii odnajduje foldery na nowo: <code>C:\Users\&lt;nazwa&gt;\Documents</code> w Windows (także folder przeniesiony przez OneDrive, <code>…\OneDrive\Documents</code>), <code>/home/&lt;nazwa&gt;/Documents</code> i <code>/root/Documents</code> w Linuksie, <code>/Users/&lt;nazwa&gt;/Documents</code> w macOS. Użytkownicy dodani później trafiają do kopii bez zmiany zadania; profile systemowe (Default, Public) są pomijane. Po <code>{users}</code> może stać dowolny folder, np. <code>{users}/AppData/Roaming/Thunderbird</code>.</p>
+<p>Ścieżki mogą też zawierać symbole wieloznaczne <code>*</code> (dowolne znaki w nazwie jednego folderu) i <code>?</code> (jeden znak): <code>D:\Projekty\*\Dokumentacja</code>, <code>/srv/sites/*/uploads</code>. Wielkość liter liczy się tak, jak wpisano. Ścieżka z <code>{users}</code> lub symbolami wieloznacznymi, która na danym komputerze nic nie znajduje, nie jest błędem: przebieg zgłasza <i>Nothing matched …</i> i kończy się błędem tylko wtedy, gdy nie zostaje nic do skopiowania. Wymaga agenta 0.45.0 lub nowszego. Cały profil zawiera też pamięć podręczną; wyklucz ją pełnymi ścieżkami, np. <code>C:\Users\*\AppData\Local\Temp</code>.</p>
+
 <h2 id="nas">NAS i udziały plików (SMB, NFS)</h2>
 <p>Zadanie <b>NAS / udział plików</b> kopiuje udział sieciowy bez instalowania czegokolwiek na NAS (Synology, QNAP, TrueNAS, serwer plików Windows …). Wybierz dowolnego agenta, który ma dostęp do udziału — czyta on udział i zapisuje kopię — i podaj:</p>
 <ul>

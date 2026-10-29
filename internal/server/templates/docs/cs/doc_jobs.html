@@ -21,6 +21,10 @@
   <li>Nastavte <b>Ponechat zálohy</b> a <b>Rozvrh</b>, pak <i>Vytvořit úlohu</i>.</li>
 </ol>
 
+<h2 id="users">Složky všech uživatelů</h2>
+<p>Pod cestami přidá <b>Pro každého uživatele počítače</b> <i>Plochu</i>, <i>Dokumenty</i>, <i>Stažené soubory</i>, <i>Obrázky</i> nebo <i>Celý uživatelský profil</i>. Zapisují se jako <code>{users}/Documents</code> a agent složky při každé záloze najde znovu: <code>C:\Users\&lt;jméno&gt;\Documents</code> ve Windows (i složku přesunutou službou OneDrive, <code>…\OneDrive\Documents</code>), <code>/home/&lt;jméno&gt;/Documents</code> a <code>/root/Documents</code> v Linuxu, <code>/Users/&lt;jméno&gt;/Documents</code> v macOS. Později přidaní uživatelé se zálohují bez změny úlohy; systémové profily (Default, Public) se vynechávají. Za <code>{users}</code> může následovat libovolná složka, např. <code>{users}/AppData/Roaming/Thunderbird</code>.</p>
+<p>Cesty mohou obsahovat i zástupné znaky <code>*</code> (libovolné znaky v názvu jedné složky) a <code>?</code> (jeden znak): <code>D:\Projekty\*\Dokumentace</code>, <code>/srv/sites/*/uploads</code>. Velká a malá písmena platí tak, jak jsou zapsána. Cesta s <code>{users}</code> nebo zástupnými znaky, která na některém počítači nic nenajde, není chyba: běh ohlásí <i>Nothing matched …</i> a selže jen tehdy, když nezbude nic k zálohování. Vyžaduje agenta 0.45.0 nebo novějšího. Celý profil obsahuje i mezipaměti; vylučte je úplnými cestami jako <code>C:\Users\*\AppData\Local\Temp</code>.</p>
+
 <h2 id="nas">NAS a sdílené složky (SMB, NFS)</h2>
 <p>Úloha <b>NAS / sdílená složka</b> zálohuje síťovou sdílenou složku, aniž by se na NAS cokoli instalovalo (Synology, QNAP, TrueNAS, souborový server Windows …). Zvolte libovolného agenta, který na sdílenou složku dosáhne — čte ji a zapisuje zálohu — a zadejte:</p>
 <ul>

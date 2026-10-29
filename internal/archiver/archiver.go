@@ -99,7 +99,7 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 	opts.Paths = abs
 
 	if opts.Parent == nil && !opts.NoParent {
-		p, err := findParent(ctx, r, opts.Hostname, abs)
+		p, err := findParent(ctx, r, opts.Hostname, abs, opts.Tags)
 		if err != nil {
 			return nil, err
 		}
@@ -203,7 +203,11 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 	return sn, nil
 }
 
-func findParent(ctx context.Context, r *repo.Repository, host string, paths []string) (*repo.Snapshot, error) {
+// The parent is the newest snapshot of the host with the same paths; else
+// the newest of the same job (tag job:N), whose paths changed because a
+// {users} or wildcard source now finds other folders. Unchanged files are
+// found by their path in either.
+func findParent(ctx context.Context, r *repo.Repository, host string, paths, tags []string) (*repo.Snapshot, error) {
 	sns, err := r.ListSnapshots(ctx)
 	if err != nil {
 		return nil, err
@@ -212,6 +216,16 @@ func findParent(ctx context.Context, r *repo.Repository, host string, paths []st
 		sn := sns[i]
 		if sn.Hostname == host && equalStrings(sn.Paths, paths) {
 			return sn, nil
+		}
+	}
+	for _, t := range tags {
+		if !strings.HasPrefix(t, "job:") || t == "job:0" {
+			continue
+		}
+		for i := len(sns) - 1; i >= 0; i-- {
+			if sn := sns[i]; sn.Hostname == host && slices.Contains(sn.Tags, t) {
+				return sn, nil
+			}
 		}
 	}
 	return nil, nil

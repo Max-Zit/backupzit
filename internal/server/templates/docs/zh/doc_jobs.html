@@ -21,6 +21,10 @@
   <li>设置<b>保留备份</b>和<b>计划</b>，然后点击<i>创建作业</i>。</li>
 </ol>
 
+<h2 id="users">每个用户的文件夹</h2>
+<p>在路径下方，<b>计算机的每个用户</b> 可添加 <i>桌面</i>、<i>文档</i>、<i>下载</i>、<i>图片</i> 或 <i>整个用户配置文件</i>。它们写作 <code>{users}/Documents</code>，代理在每次备份时重新查找这些文件夹：Windows 上为 <code>C:\Users\&lt;名称&gt;\Documents</code>（以及 OneDrive 移动后的文件夹 <code>…\OneDrive\Documents</code>），Linux 上为 <code>/home/&lt;名称&gt;/Documents</code> 和 <code>/root/Documents</code>，macOS 上为 <code>/Users/&lt;名称&gt;/Documents</code>。之后新增的用户无需修改作业即可备份；系统配置文件（Default、Public）会被跳过。<code>{users}</code> 后可接任何文件夹，例如 <code>{users}/AppData/Roaming/Thunderbird</code>。</p>
+<p>路径中还可以使用通配符 <code>*</code>（一个文件夹名称内的任意字符）和 <code>?</code>（一个字符）：<code>D:\Projects\*\Docs</code>、<code>/srv/sites/*/uploads</code>。大小写按所写内容匹配。在某台计算机上找不到任何内容的 <code>{users}</code> 或通配符路径不算错误：运行会报告 <i>Nothing matched …</i>，只有在完全没有可备份内容时才会失败。需要代理 0.45.0 或更高版本。整个配置文件也包含缓存；可使用完整路径排除，例如 <code>C:\Users\*\AppData\Local\Temp</code>。</p>
+
 <h2 id="nas">NAS 和文件共享（SMB、NFS）</h2>
 <p><b>NAS / 文件共享</b>作业备份网络共享，无需在 NAS（Synology、QNAP、TrueNAS、Windows 文件服务器……）上安装任何东西。选择任意一个能访问该共享的代理——由它读取共享并写入备份——然后输入：</p>
 <ul>

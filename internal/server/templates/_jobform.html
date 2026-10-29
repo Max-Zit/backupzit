@@ -192,3 +192,4 @@
   <div data-m365-list hidden></div>
 </div>
 {{end}}
+{{define "userfolders"}}<p class="small muted userfolders">{{T "For every user of the computer:"}} <button type="button" class="link" data-userpath="{users}/Desktop">{{T "Desktop"}}</button> · <button type="button" class="link" data-userpath="{users}/Documents">{{T "Documents"}}</button> · <button type="button" class="link" data-userpath="{users}/Downloads">{{T "Downloads"}}</button> · <button type="button" class="link" data-userpath="{users}/Pictures">{{T "Pictures"}}</button> · <button type="button" class="link" data-userpath="{users}">{{T "Whole user profile"}}</button> · <a href="/docs/jobs#users">{{T "help"}}</a></p>{{end}}

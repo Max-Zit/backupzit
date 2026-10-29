@@ -21,6 +21,10 @@
   <li>Définissez <b>Conserver les sauvegardes</b> et la <b>Planification</b>, puis <i>Créer la tâche</i>.</li>
 </ol>
 
+<h2 id="users">Dossiers de chaque utilisateur</h2>
+<p>Sous les chemins, <b>Pour chaque utilisateur de l'ordinateur</b> ajoute <i>Bureau</i>, <i>Documents</i>, <i>Téléchargements</i>, <i>Images</i> ou le <i>Profil utilisateur complet</i>. Ils s'écrivent <code>{users}/Documents</code>, et l'agent retrouve les dossiers à chaque sauvegarde : <code>C:\Users\&lt;nom&gt;\Documents</code> sous Windows (aussi un dossier déplacé par OneDrive, <code>…\OneDrive\Documents</code>), <code>/home/&lt;nom&gt;/Documents</code> et <code>/root/Documents</code> sous Linux, <code>/Users/&lt;nom&gt;/Documents</code> sous macOS. Les utilisateurs ajoutés plus tard sont sauvegardés sans modifier la tâche ; les profils système (Default, Public) sont ignorés. N'importe quel dossier peut suivre <code>{users}</code>, p. ex. <code>{users}/AppData/Roaming/Thunderbird</code>.</p>
+<p>Les chemins peuvent aussi contenir les jokers <code>*</code> (n'importe quels caractères dans un nom de dossier) et <code>?</code> (un caractère) : <code>D:\Projets\*\Documentation</code>, <code>/srv/sites/*/uploads</code>. Majuscules et minuscules comptent telles qu'écrites. Un chemin <code>{users}</code> ou avec jokers qui ne trouve rien sur un ordinateur n'est pas une erreur : l'exécution indique <i>Nothing matched …</i> et n'échoue que s'il ne reste rien à sauvegarder. Il faut l'agent 0.45.0 ou plus récent. Le profil complet contient aussi des caches ; excluez-les par des chemins complets comme <code>C:\Users\*\AppData\Local\Temp</code>.</p>
+
 <h2 id="nas">NAS et partages de fichiers (SMB, NFS)</h2>
 <p>Une tâche <b>NAS / partage de fichiers</b> sauvegarde un partage réseau sans rien installer sur le NAS (Synology, QNAP, TrueNAS, un serveur de fichiers Windows …). Choisissez n'importe quel agent qui atteint le partage — il lit le partage et écrit la sauvegarde — et saisissez :</p>
 <ul>

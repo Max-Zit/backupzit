@@ -21,6 +21,10 @@
   <li>Stel <b>Back-ups bewaren</b> en het <b>Schema</b> in en kies dan <i>Taak maken</i>.</li>
 </ol>
 
+<h2 id="users">Mappen van elke gebruiker</h2>
+<p>Onder de paden voegt <b>Voor elke gebruiker van de computer</b> <i>Bureaublad</i>, <i>Documenten</i>, <i>Downloads</i>, <i>Afbeeldingen</i> of het <i>Volledige gebruikersprofiel</i> toe. Ze worden geschreven als <code>{users}/Documents</code> en de agent zoekt de mappen bij elke back-up opnieuw: <code>C:\Users\&lt;naam&gt;\Documents</code> op Windows (ook een map die OneDrive verplaatst heeft, <code>…\OneDrive\Documents</code>), <code>/home/&lt;naam&gt;/Documents</code> en <code>/root/Documents</code> op Linux, <code>/Users/&lt;naam&gt;/Documents</code> op macOS. Later toegevoegde gebruikers worden zonder wijziging van de taak geback-upt; systeemprofielen (Default, Public) worden overgeslagen. Na <code>{users}</code> kan elke map staan, bijv. <code>{users}/AppData/Roaming/Thunderbird</code>.</p>
+<p>Paden kunnen ook de jokertekens <code>*</code> (willekeurige tekens binnen één mapnaam) en <code>?</code> (één teken) bevatten: <code>D:\Projecten\*\Documentatie</code>, <code>/srv/sites/*/uploads</code>. Hoofd- en kleine letters tellen zoals geschreven. Een pad met <code>{users}</code> of jokertekens dat op een computer niets vindt, is geen fout: de run meldt <i>Nothing matched …</i> en mislukt alleen als er helemaal niets te back-uppen overblijft. Hiervoor is agent 0.45.0 of nieuwer nodig. Het volledige profiel bevat ook caches; sluit ze uit met volledige paden zoals <code>C:\Users\*\AppData\Local\Temp</code>.</p>
+
 <h2 id="nas">NAS en bestandsshares (SMB, NFS)</h2>
 <p>Een taak <b>NAS / bestandsshare</b> maakt een back-up van een netwerkshare zonder iets op de NAS te installeren (Synology, QNAP, TrueNAS, een Windows-bestandsserver …). Kies een willekeurige agent die de share bereikt — die leest de share en schrijft de back-up — en voer in:</p>
 <ul>

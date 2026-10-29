@@ -21,6 +21,10 @@
   <li>Defina <b>Manter backups</b> e o <b>Agendamento</b> e depois <i>Criar tarefa</i>.</li>
 </ol>
 
+<h2 id="users">Pastas de cada usuário</h2>
+<p>Abaixo dos caminhos, <b>Para cada usuário do computador</b> adiciona <i>Área de Trabalho</i>, <i>Documentos</i>, <i>Downloads</i>, <i>Imagens</i> ou o <i>Perfil de usuário inteiro</i>. Eles são escritos como <code>{users}/Documents</code> e o agente encontra as pastas de novo a cada backup: <code>C:\Users\&lt;nome&gt;\Documents</code> no Windows (também uma pasta movida pelo OneDrive, <code>…\OneDrive\Documents</code>), <code>/home/&lt;nome&gt;/Documents</code> e <code>/root/Documents</code> no Linux, <code>/Users/&lt;nome&gt;/Documents</code> no macOS. Usuários adicionados depois entram no backup sem alterar o job; perfis do sistema (Default, Public) ficam de fora. Qualquer pasta pode seguir <code>{users}</code>, por ex. <code>{users}/AppData/Roaming/Thunderbird</code>.</p>
+<p>Os caminhos também podem conter os curingas <code>*</code> (quaisquer caracteres no nome de uma pasta) e <code>?</code> (um caractere): <code>D:\Projetos\*\Documentacao</code>, <code>/srv/sites/*/uploads</code>. Maiúsculas e minúsculas valem como escritas. Um caminho com <code>{users}</code> ou curingas que não encontra nada em um computador não é erro: a execução informa <i>Nothing matched …</i> e só falha quando não sobra nada para o backup. Requer o agente 0.45.0 ou mais recente. O perfil inteiro inclui caches; exclua-os com caminhos completos como <code>C:\Users\*\AppData\Local\Temp</code>.</p>
+
 <h2 id="nas">NAS e compartilhamentos de arquivos (SMB, NFS)</h2>
 <p>Uma tarefa <b>NAS / compartilhamento de arquivos</b> faz backup de um compartilhamento de rede sem instalar nada no NAS (Synology, QNAP, TrueNAS, um servidor de arquivos Windows …). Escolha qualquer agente que alcance o compartilhamento — ele lê o compartilhamento e grava o backup — e informe:</p>
 <ul>

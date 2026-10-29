@@ -21,6 +21,10 @@
   <li><b>バックアップの保持</b>と<b>スケジュール</b>を設定し、<i>ジョブを作成</i>します。</li>
 </ol>
 
+<h2 id="users">すべてのユーザーのフォルダー</h2>
+<p>パスの下にある <b>コンピューターのすべてのユーザー</b> で、<i>デスクトップ</i>、<i>ドキュメント</i>、<i>ダウンロード</i>、<i>ピクチャ</i>、または <i>ユーザー プロファイル全体</i> を追加できます。これらは <code>{users}/Documents</code> のように書かれ、エージェントはバックアップのたびにフォルダーを探し直します。Windows では <code>C:\Users\&lt;名前&gt;\Documents</code>（OneDrive が移動したフォルダー <code>…\OneDrive\Documents</code> も含む）、Linux では <code>/home/&lt;名前&gt;/Documents</code> と <code>/root/Documents</code>、macOS では <code>/Users/&lt;名前&gt;/Documents</code> です。後から追加されたユーザーもジョブを変更せずにバックアップされます。システム プロファイル（Default、Public）は除外されます。<code>{users}</code> の後には任意のフォルダーを指定できます（例: <code>{users}/AppData/Roaming/Thunderbird</code>）。</p>
+<p>パスにはワイルドカード <code>*</code>（1 つのフォルダー名内の任意の文字）と <code>?</code>（1 文字）も使えます: <code>D:\Projects\*\Docs</code>、<code>/srv/sites/*/uploads</code>。大文字と小文字は書いたとおりに区別されます。あるコンピューターで何も見つからない <code>{users}</code> やワイルドカードのパスはエラーではありません。実行結果に <i>Nothing matched …</i> と表示され、バックアップ対象がまったく残らない場合にのみ失敗します。エージェント 0.45.0 以降が必要です。プロファイル全体にはキャッシュも含まれます。<code>C:\Users\*\AppData\Local\Temp</code> のような完全パスで除外してください。</p>
+
 <h2 id="nas">NAS とファイル共有（SMB、NFS）</h2>
 <p><b>NAS / ファイル共有</b>ジョブは、NAS（Synology、QNAP、TrueNAS、Windows ファイル サーバーなど）に何もインストールせずにネットワーク共有をバックアップします。共有に到達できる任意のエージェントを選び（そのエージェントが共有を読み取ってバックアップを書き込みます）、次を入力します:</p>
 <ul>

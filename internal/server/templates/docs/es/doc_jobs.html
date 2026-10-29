@@ -21,6 +21,10 @@
   <li>Defina <b>Conservar copias</b> y la <b>Programación</b> y luego <i>Crear trabajo</i>.</li>
 </ol>
 
+<h2 id="users">Carpetas de cada usuario</h2>
+<p>Debajo de las rutas, <b>Para cada usuario del equipo</b> añade <i>Escritorio</i>, <i>Documentos</i>, <i>Descargas</i>, <i>Imágenes</i> o el <i>Perfil de usuario completo</i>. Se escriben como <code>{users}/Documents</code> y el agente vuelve a encontrar las carpetas en cada copia: <code>C:\Users\&lt;nombre&gt;\Documents</code> en Windows (también una carpeta que OneDrive movió, <code>…\OneDrive\Documents</code>), <code>/home/&lt;nombre&gt;/Documents</code> y <code>/root/Documents</code> en Linux, <code>/Users/&lt;nombre&gt;/Documents</code> en macOS. Los usuarios añadidos después se copian sin cambiar el trabajo; los perfiles del sistema (Default, Public) se omiten. Detrás de <code>{users}</code> puede ir cualquier carpeta, p. ej. <code>{users}/AppData/Roaming/Thunderbird</code>.</p>
+<p>Las rutas también pueden llevar los comodines <code>*</code> (cualquier carácter dentro del nombre de una carpeta) y <code>?</code> (un carácter): <code>D:\Proyectos\*\Documentacion</code>, <code>/srv/sites/*/uploads</code>. Mayúsculas y minúsculas cuentan tal como se escriben. Una ruta con <code>{users}</code> o comodines que no encuentra nada en un equipo no es un error: la ejecución indica <i>Nothing matched …</i> y solo falla si no queda nada que copiar. Requiere el agente 0.45.0 o posterior. El perfil completo incluye cachés; exclúyalas con rutas completas como <code>C:\Users\*\AppData\Local\Temp</code>.</p>
+
 <h2 id="nas">NAS y recursos compartidos (SMB, NFS)</h2>
 <p>Un trabajo <b>NAS / recurso compartido</b> copia un recurso de red sin instalar nada en el NAS (Synology, QNAP, TrueNAS, un servidor de archivos Windows …). Elija cualquier agente que llegue al recurso —este lo lee y escribe la copia— e introduzca:</p>
 <ul>

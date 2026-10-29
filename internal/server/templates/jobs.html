@@ -56,6 +56,7 @@
       <label>{{T "Folders and files to back up"}} <small>{{T "one path per line, as seen on the agent, e.g. C:\\Users or /home"}}</small>
         <textarea name="paths" required></textarea>
       </label>
+      {{template "userfolders"}}
       <label>{{T "Exclude"}} <small>{{T "one per line: a name pattern (*.tmp, node_modules) or a full path (C:\\Data\\Temp, /srv/cache)"}}</small>
         <textarea name="excludes"></textarea>
       </label>
