@@ -54,13 +54,8 @@ func (g JobGroup) Matches(a Agent) bool {
 	if a.Recovery || a.RemovedAt != nil {
 		return false
 	}
-	if g.Scope == GroupAgents {
-		return slices.Contains(g.AgentIDs, a.ID)
-	}
-	if slices.Contains(g.ExcludeIDs, a.ID) {
-		return false
-	}
-	// Disk images are made of Windows computers, system backups of Linux ones.
+	// Disk images are made of Windows computers, system backups of Linux
+	// ones, also when the agents are chosen.
 	switch g.Kind {
 	case JobImage:
 		if agentPlatform(a) != GroupWindows {
@@ -70,6 +65,12 @@ func (g JobGroup) Matches(a Agent) bool {
 		if agentPlatform(a) != GroupLinux {
 			return false
 		}
+	}
+	if g.Scope == GroupAgents {
+		return slices.Contains(g.AgentIDs, a.ID)
+	}
+	if slices.Contains(g.ExcludeIDs, a.ID) {
+		return false
 	}
 	switch g.Scope {
 	case GroupAll:

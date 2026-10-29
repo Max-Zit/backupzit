@@ -50,6 +50,11 @@ func TestGroupKinds(t *testing.T) {
 	if !img.Matches(win) || img.Matches(lin) || sys.Matches(win) || !sys.Matches(lin) {
 		t.Fatal("kind does not limit the operating system")
 	}
+	chosenImg := JobGroup{Kind: JobImage, Scope: GroupAgents, AgentIDs: []int64{win.ID, lin.ID}}
+	chosenSys := JobGroup{Kind: JobSystem, Scope: GroupAgents, AgentIDs: []int64{win.ID, lin.ID}}
+	if !chosenImg.Matches(win) || chosenImg.Matches(lin) || chosenSys.Matches(win) || !chosenSys.Matches(lin) {
+		t.Fatal("kind does not limit the operating system of chosen agents")
+	}
 	if m := img.member(win.ID); m.Kind != JobImage || m.ImageDisk == nil || *m.ImageDisk != -1 {
 		t.Fatalf("image member: %+v", m)
 	}
