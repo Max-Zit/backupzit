@@ -199,6 +199,7 @@ func langFuncs(l *language) template.FuncMap {
 		"minutesText": func(m int) string { return minutesTextIn(l, m) },
 		"usagechart":  func(u *TargetUsage) template.HTML { return usageChart(l, u) },
 		"skew":        func(d time.Duration) string { return skewShort(l, d) },
+		"groupscope":  func(scope string) string { return l.T(groupScopeTitle(scope)) },
 		"reportsched": func(rs ReportSchedule) string { return rs.DescribeIn(l) },
 		"reportscope": func(rep *Report) string { return rep.ScopeIn(l) },
 		"rpotext":     func(st RPOState) string { return rpoText(l, st) },

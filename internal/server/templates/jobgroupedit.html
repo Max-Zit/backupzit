@@ -1,0 +1,25 @@
+{{define "content"}}
+{{with .Data.Group}}{{$g := .}}
+<p class="muted"><a href="/job-groups/{{.ID}}">← {{.Name}}</a></p>
+<h1>{{T "Edit job"}}</h1>
+<div class="panel">
+  <form method="post" action="/job-groups/{{.ID}}/edit" class="stack">
+    <label>{{T "Name"}} <input name="name" required value="{{.Name}}"></label>
+    <label>{{T "Agents"}}
+      <select name="scope" id="group_scope">
+        {{range $s := .Scopes}}<option value="{{$s}}" {{if eq $s $g.Scope}}selected{{end}}>{{groupscope $s}}</option>{{end}}
+      </select>
+    </label>
+    <fieldset class="checks"><legend>{{T "Chosen agents"}} <small class="muted" data-scope-hint="agents">{{T "back up only these"}}</small><small class="muted" data-scope-hint="others">{{T "leave the checked agents out"}}</small></legend>
+      {{range $.Data.Agents}}{{if not .Recovery}}<label class="check"><input type="checkbox" name="{{if eq $g.Scope "agents"}}group_agents{{else}}group_exclude{{end}}" data-groupbox value="{{.ID}}" {{if or (and (eq $g.Scope "agents") (hasID $g.AgentIDs .ID)) (and (ne $g.Scope "agents") (hasID $g.ExcludeIDs .ID))}}checked{{end}}> {{.Hostname}} <small class="muted">{{.OS}}</small></label>{{end}}{{end}}
+    </fieldset>
+    <label>{{T "Folders and files to back up"}} <small>{{T "one path per line"}}</small><textarea name="paths" required>{{join .Paths "\n"}}</textarea></label>
+    {{template "userfolders"}}
+    <label>{{T "Exclude"}} <small>{{T "one per line: a name pattern (*.tmp, node_modules) or a full path (C:\\Data\\Temp, /srv/cache)"}}</small><textarea name="excludes">{{join .Excludes "\n"}}</textarea></label>
+    {{template "job_common" $.Data.Form}}
+    <p class="muted small">{{T "The storage cannot be changed: backups stay where they are."}}</p>
+    <div class="actions"><button>{{T "Save changes"}}</button> <a class="btn secondary-link" href="/job-groups/{{.ID}}">{{T "Cancel"}}</a></div>
+  </form>
+</div>
+{{end}}
+{{end}}

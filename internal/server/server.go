@@ -175,6 +175,7 @@ var funcs = template.FuncMap{
 		}
 		return "?"
 	},
+	"derefID": derefID,
 	"deref": func(p *string) string {
 		if p == nil {
 			return ""
@@ -220,10 +221,12 @@ var funcs = template.FuncMap{
 	},
 	"kindtitle":    kindTitleEN,
 	"skew":         func(d time.Duration) string { return skewShort(languageByCode("en"), d) },
+	"groupscope":   groupScopeTitle,
 	"everyChoices": everyChoices, "minutesText": minutesText, "jobkind": jobKindTitle,
 	"has": func(list []string, v string) bool { return slices.Contains(list, v) },
 	// list makes a slice of its arguments, e.g. for option lists.
-	"list": func(v ...int) []int { return v },
+	"list":  func(v ...int) []int { return v },
+	"hasID": func(ids []int64, id int64) bool { return slices.Contains(ids, id) },
 	"hours": func() []int {
 		h := make([]int, 24)
 		for i := range h {
@@ -400,6 +403,13 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /targets/{id}/recovery-sheet", s.ui(PermStorage, s.handleRecoverySheet))
 	mux.HandleFunc("GET /jobs", s.ui(PermView, s.handleJobs))
 	mux.HandleFunc("POST /jobs", s.ui(PermJobs, s.handleJobCreate))
+	mux.HandleFunc("GET /job-groups/{id}", s.ui(PermView, s.handleGroup))
+	mux.HandleFunc("GET /job-groups/{id}/edit", s.ui(PermJobs, s.handleGroupEditPage))
+	mux.HandleFunc("POST /job-groups/{id}/edit", s.ui(PermJobs, s.handleGroupEdit))
+	mux.HandleFunc("POST /job-groups/{id}/run", s.ui(PermRun, s.handleGroupRun))
+	mux.HandleFunc("POST /job-groups/{id}/enable", s.ui(PermJobs, s.handleGroupEnable(true)))
+	mux.HandleFunc("POST /job-groups/{id}/disable", s.ui(PermJobs, s.handleGroupEnable(false)))
+	mux.HandleFunc("POST /job-groups/{id}/delete", s.ui(PermJobs, s.handleGroupDelete))
 	mux.HandleFunc("GET /jobs/{id}", s.ui(PermView, s.handleJob))
 	mux.HandleFunc("POST /jobs/{id}/run", s.ui(PermRun, s.handleJobRun))
 	mux.HandleFunc("POST /jobs/{id}/test", s.ui(PermRun, s.handleJobTest))
@@ -940,6 +950,11 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 		s.serverError(w, err)
 		return
 	}
+	groups, err := s.store.ListJobGroups(ctx)
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
 	agents, err := s.store.ListAgents(ctx)
 	if err != nil {
 		s.serverError(w, err)
@@ -971,7 +986,8 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 	s.render(w, r, "jobs", pageData{Title: "Backup jobs", Nav: "jobs", User: user,
 		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents), "SourceJobs": sourceJobs(jobs),
 			"PVE": vmInv, "VMwareHosts": usable, "Form": s.jobForm(r, Job{}, false, agents),
-			"Coverage": s.coverageMap(ctx), "JobKinds": jobKindCounts(jobs), "FailedJobs": failedJobs(jobs)}})
+			"Coverage": s.coverageMap(ctx), "JobKinds": jobKindCounts(jobs), "FailedJobs": failedJobs(jobs),
+			"Groups": groups, "GroupCounts": groupCounts(jobs)}})
 }
 
 func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
@@ -979,6 +995,10 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 	sched, err := scheduleFromForm(r)
 	if err != nil {
 		redirectErr(w, r, "/jobs", err)
+		return
+	}
+	if strings.HasPrefix(r.FormValue("agent_id"), "group:") {
+		s.handleGroupCreate(w, r, sched)
 		return
 	}
 	job := Job{
@@ -1090,6 +1110,9 @@ func (s *Server) handleJobEditPage(w http.ResponseWriter, r *http.Request, user 
 		s.serverError(w, err)
 		return
 	}
+	if s.memberOfGroup(w, r, j) {
+		return
+	}
 	data := map[string]any{"Job": j, "Form": s.jobForm(r, j, true, nil), "Guests": s.jobGuests(r.Context(), j)}
 	s.render(w, r, "jobedit", pageData{Title: j.Name, Nav: "jobs", User: user, Data: data})
 }
@@ -1131,6 +1154,9 @@ func (s *Server) handleJobDelete(w http.ResponseWriter, r *http.Request, _ strin
 	j, err := s.store.GetJob(r.Context(), id)
 	if err != nil {
 		http.NotFound(w, r)
+		return
+	}
+	if s.memberOfGroup(w, r, j) {
 		return
 	}
 	if s.needsApproval(w, r, fmt.Sprintf("/jobs/%d", id), "job.delete", id, j.Name, nil) {

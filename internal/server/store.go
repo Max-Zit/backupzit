@@ -452,7 +452,10 @@ type Job struct {
 	VMwareHostID   *int64
 	VMwareHostName *string
 	// Options: speed limit, commands before and after the backup.
-	Options   JobOptions
+	Options JobOptions
+	// Group jobs: the group this job is the member of for its agent.
+	GroupID   *int64
+	GroupName *string
 	CreatedAt time.Time
 	// Last run summary
 	LastStatus   *string
@@ -624,9 +627,9 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 		return 0, err
 	}
 	var id int64
-	err := s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at, kind, image_disk, image_partitions, retention, source_job_id, vmware_host_id, options)
-		VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
-		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled, j.Kind, j.ImageDisk, j.ImagePartitions, j.Retention, j.SourceJobID, j.VMwareHostID, j.Options).Scan(&id)
+	err := s.db.QueryRow(ctx, `INSERT INTO jobs(agent_id, target_id, name, paths, excludes, schedule, enabled, last_scheduled_at, kind, image_disk, image_partitions, retention, source_job_id, vmware_host_id, options, group_id)
+		VALUES($1,$2,$3,$4,$5,$6,$7,now(),$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
+		j.AgentID, j.TargetID, j.Name, j.Paths, j.Excludes, j.Schedule, j.Enabled, j.Kind, j.ImageDisk, j.ImagePartitions, j.Retention, j.SourceJobID, j.VMwareHostID, j.Options, j.GroupID).Scan(&id)
 	return id, err
 }
 
@@ -635,14 +638,16 @@ const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.retention, j.
 	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') ORDER BY r.queued_at DESC LIMIT 1),
 	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') ORDER BY r.queued_at DESC LIMIT 1),
 	j.source_job_id, (SELECT sj.name FROM jobs sj WHERE sj.id=j.source_job_id), j.retention_hold,
-	j.vmware_host_id, (SELECT vh.name FROM vmware_hosts vh WHERE vh.id=j.vmware_host_id), j.options`
+	j.vmware_host_id, (SELECT vh.name FROM vmware_hosts vh WHERE vh.id=j.vmware_host_id), j.options,
+	j.group_id, (SELECT g.name FROM job_groups g WHERE g.id=j.group_id)`
 
 const jobFrom = ` FROM jobs j JOIN agents a ON a.id=j.agent_id JOIN storage_targets st ON st.id=j.target_id`
 
 func scanJob(r pgx.Row) (Job, error) {
 	var j Job
 	err := r.Scan(&j.ID, &j.Kind, &j.ImageDisk, &j.ImagePartitions, &j.Retention, &j.AgentID, &j.Hostname, &j.TargetID, &j.TargetName, &j.Name,
-		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished, &j.SourceJobID, &j.SourceJobName, &j.RetentionHold, &j.VMwareHostID, &j.VMwareHostName, &j.Options)
+		&j.Paths, &j.Excludes, &j.Schedule, &j.Enabled, &j.LastSched, &j.CreatedAt, &j.LastStatus, &j.LastFinished, &j.SourceJobID, &j.SourceJobName, &j.RetentionHold, &j.VMwareHostID, &j.VMwareHostName, &j.Options,
+		&j.GroupID, &j.GroupName)
 	return j, err
 }
 

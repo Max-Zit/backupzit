@@ -355,6 +355,9 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 		redirectErr(w, r, back, err)
 		return
 	}
+	if s.memberOfGroup(w, r, old) {
+		return
+	}
 	sched, err := scheduleFromForm(r)
 	if err != nil {
 		redirectErr(w, r, back+"/edit", err)

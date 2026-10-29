@@ -2,18 +2,19 @@
 {{with .Data.Job}}
 {{if .RetentionHold}}<div class="callout warn"><p><b>{{T "Retention is paused"}}</b> {{T "because a recent backup of this job looked like ransomware or mass deletion (see the history below). Older backups are kept. Check the machine; when everything is fine, resume retention."}}</p>{{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/release-hold" data-confirm="{{T "Mark the suspicious backups as reviewed and resume retention?"}}"><button class="secondary">{{T "Reviewed — resume retention"}}</button></form>{{end}}</div>{{end}}
 <h1>{{.Name}} {{if not .Enabled}}<span class="badge">{{T "disabled"}}</span>{{end}}</h1>
+{{if .GroupID}}<p class="callout tip">{{T "Part of the job for several agents"}} <a href="/job-groups/{{derefID .GroupID}}">{{deref .GroupName}}</a>: {{T "its folders, schedule and retention are changed there."}}</p>{{end}}
 <div class="actions">
   {{if $.Me.Can "run"}}<form method="post" action="/jobs/{{.ID}}/run" class="inline"><button>{{if eq .Kind "copy"}}{{T "Copy now"}}{{else}}{{T "Run backup now"}}{{end}}</button></form>
   <form method="post" action="/jobs/{{.ID}}/test" class="inline"><button class="secondary">{{template "icon" "check"}}{{T "Test restore"}}</button></form>
   <form method="post" action="/jobs/{{.ID}}/check" class="inline" data-confirm="{{T "Read and verify all data of this job's storage? It reads everything the repository holds and can take a long time."}}"><button class="secondary" title="{{T "Reads and verifies all data of the job's repository"}}">{{template "icon" "shield"}}{{T "Check data"}}</button></form>{{end}}
   {{if $.Me.Can "run"}}{{range $.Data.Active}}{{if not .CancelReason}}<form method="post" action="/runs/{{.ID}}/cancel" class="inline" data-confirm="{{T "Stop this run? A backup stopped halfway is not used for restores."}}"><button class="danger">{{template "icon" "stop"}}{{if eq .Status "queued"}}{{T "Cancel queued run #%d" .ID}}{{else}}{{T "Stop run #%d" .ID}}{{end}}</button></form>{{end}}{{end}}{{end}}
-  {{if $.Me.Can "jobs"}}<a class="btn secondary-link" href="/jobs/{{.ID}}/edit">{{template "icon" "edit"}}{{T "Edit"}}</a>{{end}}
+  {{if and ($.Me.Can "jobs") (not .GroupID)}}<a class="btn secondary-link" href="/jobs/{{.ID}}/edit">{{template "icon" "edit"}}{{T "Edit"}}</a>{{end}}
   {{if .Enabled}}
   {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/disable" class="inline"><button class="secondary">{{T "Disable"}}</button></form>{{end}}
   {{else}}
   {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/enable" class="inline"><button class="secondary">{{T "Enable"}}</button></form>{{end}}
   {{end}}
-  {{if $.Me.Can "jobs"}}<form method="post" action="/jobs/{{.ID}}/delete" class="inline" data-confirm="{{T "Delete job %v? Existing backups stay on the storage." .Name}}"><button class="danger">{{T "Delete"}}</button></form>{{end}}
+  {{if and ($.Me.Can "jobs") (not .GroupID)}}<form method="post" action="/jobs/{{.ID}}/delete" class="inline" data-confirm="{{T "Delete job %v? Existing backups stay on the storage." .Name}}"><button class="danger">{{T "Delete"}}</button></form>{{end}}
 </div>
 <div class="panel">
   <dl class="kv">

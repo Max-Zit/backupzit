@@ -1,5 +1,18 @@
 {{define "content"}}
 <h1>{{T "Backup jobs"}}</h1>
+{{if .Data.Groups}}<div class="panel">
+  <h2>{{T "Jobs for several agents"}}</h2>
+  <div class="table-wrap"><table>
+    <tr><th>{{T "Job"}}</th><th>{{T "Agents"}}</th><th>{{T "Backs up"}}</th><th>{{T "Storage"}}</th><th>{{T "Schedule"}}</th></tr>
+    {{range .Data.Groups}}<tr>
+      <td><a href="/job-groups/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">{{T "disabled"}}</span>{{end}}</td>
+      <td>{{groupscope .Scope}} <span class="muted small">{{index $.Data.GroupCounts .ID}} {{T "agents"}}</span></td>
+      <td class="mono small">{{join .Paths ", "}}</td>
+      <td>{{.TargetName}}</td>
+      <td>{{schedule .Schedule}}</td>
+    </tr>{{end}}
+  </table></div>
+</div>{{end}}
 <div class="panel">
   {{if .Data.Jobs}}
   <div class="filterbar" data-filter-table="jobs-table">
@@ -14,7 +27,7 @@
     <tr><th>{{T "Job"}}</th><th>{{T "Agent"}}</th><th>{{T "Backs up"}}</th><th>{{T "Storage"}}</th><th>{{T "Schedule"}}</th><th>{{T "Next run"}}</th><th>{{T "Last result"}}</th></tr>
     {{range .Data.Jobs}}{{$c := index $.Data.Coverage .ID}}
     <tr data-kind="{{.Kind}}{{if .LastStatus}}{{if eq (deref .LastStatus) "failed"}} failed{{end}}{{end}}">
-      <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">{{T "disabled"}}</span>{{end}}<br><span class="badge kind-badge kind-{{.Kind}}">{{jobkind .Kind}}</span></td>
+      <td><a href="/jobs/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">{{T "disabled"}}</span>{{end}}<br><span class="badge kind-badge kind-{{.Kind}}">{{jobkind .Kind}}</span>{{if .GroupID}} <a class="badge info-badge" href="/job-groups/{{derefID .GroupID}}" title="{{T "Part of the job for several agents"}}">{{T "several agents"}}</a>{{end}}</td>
       <td class="nowrap">{{if .VMwareHostName}}{{deref .VMwareHostName}} <span class="muted small">{{T "ESXi, via"}} {{.Hostname}}</span>{{else}}{{.Hostname}}{{end}}</td>
       <td>{{if eq .Kind "copy"}}<span class="badge info-badge">{{T "copy"}}</span> {{T "of"}} {{deref .SourceJobName}}{{else if eq .Kind "image"}}{{imagesel .ImageDisk .ImagePartitions}}{{else if eq .Kind "vm"}}{{if and $c $c.Count}}<span title="{{vmsel .Paths}}">{{coverage $c}}</span>{{else}}{{vmsel .Paths}}{{end}}{{else if eq .Kind "nas"}}<span class="mono">{{.Options.NASText}}</span>{{with .Paths}}: <span class="mono">{{join . ", "}}</span>{{end}}{{else if eq .Kind "m365"}}{{T "Microsoft 365"}} {{range $i, $p := .Options.M365Items}}{{if $i}} + {{end}}{{T $p}}{{end}}:{{if .Options.M365Accounts}} {{if .Paths}}<span class="mono">{{join .Paths ", "}}</span>{{else}}{{T "all accounts"}}{{end}}{{end}}{{if .Options.M365SharePoint}}{{if .Options.M365Accounts}};{{end}} SharePoint {{if .Options.M365Sites}}<span class="mono">{{join .Options.M365Sites ", "}}</span>{{else}}{{T "all sites"}}{{end}}{{end}}{{else if eq .Kind "system"}}{{T "Whole Linux system"}}{{else if eq .Kind "sql"}}{{if eq .Options.SQLEngine "postgres"}}{{T "PostgreSQL"}}{{else if eq .Options.SQLEngine "mysql"}}{{T "MySQL/MariaDB"}}{{else}}{{T "SQL Server"}}{{with .Options.SQLInstance}} {{.}}{{end}}{{end}}: {{if and $c $c.Count}}{{coverage $c}}{{else if .Paths}}{{join .Paths ", "}}{{else}}{{T "all databases"}}{{end}}{{else}}<span class="mono">{{join .Paths ", "}}</span>{{end}}</td>
       <td>{{.TargetName}}</td>
@@ -35,12 +48,14 @@
     <label>{{T "Name"}} <input name="name" required placeholder="{{T "Documents nightly"}}"></label>
     <div class="row">
       <label data-notkind="copy">{{T "Agent"}}
-        <select name="agent_id" id="agent_sel" required>{{if .Data.VMwareHosts}}<optgroup label="Agents">{{end}}{{range .Data.Agents}}<option value="{{.ID}}"{{if and .PVE (eq .HypervisorLabel "Proxmox VE")}} data-pvehost{{end}}>{{.Hostname}}</option>{{end}}{{if .Data.VMwareHosts}}</optgroup><optgroup label="VMware ESXi hosts (backed up through their proxy agent)">{{range .Data.VMwareHosts}}<option value="vmware:{{.ID}}">{{.Name}} {{if .IsVCenter}}{{T "— vCenter"}}{{else}}{{T "— ESXi"}}{{end}}</option>{{end}}</optgroup>{{end}}</select>
+        <select name="agent_id" id="agent_sel" required>{{if .Data.VMwareHosts}}<optgroup label="Agents">{{end}}{{range .Data.Agents}}<option value="{{.ID}}"{{if and .PVE (eq .HypervisorLabel "Proxmox VE")}} data-pvehost{{end}}>{{.Hostname}}</option>{{end}}{{if .Data.VMwareHosts}}</optgroup><optgroup label="VMware ESXi hosts (backed up through their proxy agent)">{{range .Data.VMwareHosts}}<option value="vmware:{{.ID}}">{{.Name}} {{if .IsVCenter}}{{T "— vCenter"}}{{else}}{{T "— ESXi"}}{{end}}</option>{{end}}</optgroup>{{end}}<optgroup label="{{T "Several agents (files and folders)"}}"><option value="group:all" data-group>{{T "All agents"}}</option><option value="group:windows" data-group>{{T "All Windows agents"}}</option><option value="group:linux" data-group>{{T "All Linux agents"}}</option><option value="group:macos" data-group>{{T "All macOS agents"}}</option><option value="group:agents" data-group>{{T "Choose agents…"}}</option></optgroup></select>
       </label>
       <label>{{T "Storage target"}} <small data-jobkind="copy" hidden>{{T "where the copies go — a different target than the source job's"}}</small>
         <select name="target_id" required>{{range .Data.Targets}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
       </label>
     </div>
+    <fieldset class="checks" id="group-agents" hidden><legend>{{T "Agents"}}</legend>{{range .Data.Agents}}{{if not .Recovery}}<label class="check"><input type="checkbox" name="group_agents" value="{{.ID}}"> {{.Hostname}} <small class="muted">{{.OS}}</small></label>{{end}}{{end}}</fieldset>
+    <p class="callout tip" id="group-hint" hidden>{{T "One job for several agents: each agent backs up these folders to its own repository on the storage, with its own history and restores. Agents added later join automatically."}} <a href="/docs/jobs#groups">{{T "help"}}</a></p>
     <div class="choice">
       <label class="check"><input type="radio" name="kind" value="files" checked data-kindsel> {{T "Files and folders"}}</label>
       <label class="check"><input type="radio" name="kind" value="nas" data-kindsel> {{T "NAS / file share"}} <small>{{T "an SMB or NFS share read through the selected agent, without software on the NAS"}}</small></label>

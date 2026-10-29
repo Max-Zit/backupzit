@@ -112,6 +112,10 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 		}
 	}
 
+	// Agents that joined since: members of the group jobs that cover them.
+	if err := s.store.syncGroups(ctx); err != nil {
+		s.log.Error("group jobs", "err", err)
+	}
 	jobs, err := s.store.ListJobs(ctx)
 	if err != nil {
 		s.log.Error("list jobs", "err", err)

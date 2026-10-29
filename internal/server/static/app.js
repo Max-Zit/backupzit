@@ -265,6 +265,35 @@ function syncPVEHostHint() {
   hint.hidden = !(opt && opt.hasAttribute("data-pvehost"));
 }
 
+// A job for several agents backs up files and folders: show the agent
+// choice and leave out the other kinds.
+function syncGroupChoice() {
+  var sel = document.getElementById("agent_sel");
+  if (!sel) return;
+  var opt = sel.options[sel.selectedIndex];
+  var group = !!(opt && opt.hasAttribute("data-group"));
+  var box = document.getElementById("group-agents"), hint = document.getElementById("group-hint");
+  if (box) box.hidden = !(group && sel.value === "group:agents");
+  if (hint) hint.hidden = !group;
+  var form = sel.closest("form");
+  if (!form) return;
+  form.querySelectorAll("input[name=kind]").forEach(function (k) {
+    var lbl = k.closest("label");
+    if (lbl) lbl.hidden = group && k.value !== "files";
+    if (group && k.value === "files" && !k.checked) { k.checked = true; syncJobKind(); }
+  });
+}
+
+// Edit page of a job for several agents: the checked agents are the ones
+// backed up ("agents") or the ones left out (all of an operating system).
+function syncGroupScope() {
+  var sel = document.getElementById("group_scope");
+  if (!sel) return;
+  var chosen = sel.value === "agents";
+  document.querySelectorAll("[data-groupbox]").forEach(function (b) { b.name = chosen ? "group_agents" : "group_exclude"; });
+  document.querySelectorAll("[data-scope-hint]").forEach(function (h) { h.hidden = (h.getAttribute("data-scope-hint") === "agents") !== chosen; });
+}
+
 // User folder buttons add {users}/… to the paths (once).
 document.addEventListener("click", function (e) {
   var p = e.target.getAttribute && e.target.getAttribute("data-userpath");
@@ -293,6 +322,8 @@ document.addEventListener("click", function (e) {
 document.addEventListener("change", function (e) {
   if (e.target.hasAttribute && e.target.hasAttribute("data-kindsel")) syncJobKind();
   if (e.target.id === "agent_sel") syncPVEHostHint();
+  if (e.target.id === "agent_sel") syncGroupChoice();
+  if (e.target.id === "group_scope") syncGroupScope();
   if (e.target.id === "agent_sel") renderDiskPicker();
   if (e.target.id === "agent_sel") renderVMPicker();
   if (e.target.name === "vms") { var s = document.querySelector("input[name=vm_mode][value=selected]"); if (s) s.checked = true; }
@@ -304,6 +335,8 @@ document.addEventListener("DOMContentLoaded", function () {
   renderVMPicker();
   syncPVEHostHint();
   syncJobKind();
+  syncGroupChoice();
+  syncGroupScope();
   renderRestoreDisks();
 });
 

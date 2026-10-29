@@ -1,0 +1,36 @@
+{{define "content"}}
+{{with .Data.Group}}
+<p class="muted"><a href="/jobs">← {{T "Backup jobs"}}</a></p>
+<h1>{{.Name}} {{if not .Enabled}}<span class="badge">{{T "disabled"}}</span>{{end}}</h1>
+<div class="actions">
+  {{if $.Me.Can "run"}}<form method="post" action="/job-groups/{{.ID}}/run" class="inline"><button>{{T "Run backup now on all agents"}}</button></form>{{end}}
+  {{if $.Me.Can "jobs"}}<a class="btn secondary-link" href="/job-groups/{{.ID}}/edit">{{template "icon" "edit"}}{{T "Edit"}}</a>
+  {{if .Enabled}}<form method="post" action="/job-groups/{{.ID}}/disable" class="inline"><button class="secondary">{{T "Disable"}}</button></form>
+  {{else}}<form method="post" action="/job-groups/{{.ID}}/enable" class="inline"><button class="secondary">{{T "Enable"}}</button></form>{{end}}
+  <form method="post" action="/job-groups/{{.ID}}/delete" class="inline" data-confirm="{{T "Delete job %v and its jobs on all agents? Existing backups stay on the storage." .Name}}"><button class="danger">{{T "Delete"}}</button></form>{{end}}
+</div>
+<div class="panel">
+  <dl class="kv">
+    <dt>{{T "Agents"}}</dt><dd>{{groupscope .Scope}}</dd>
+    <dt>{{T "Backs up"}}</dt><dd class="mono">{{range .Paths}}{{.}}<br>{{end}}</dd>
+    {{if .Excludes}}<dt>{{T "Exclude"}}</dt><dd class="mono">{{range .Excludes}}{{.}}<br>{{end}}</dd>{{end}}
+    <dt>{{T "Storage"}}</dt><dd>{{.TargetName}} <span class="muted small">{{T "each agent in its own repository"}}</span></dd>
+    <dt>{{T "Schedule"}}</dt><dd>{{schedule .Schedule}}</dd>
+  </dl>
+</div>
+{{end}}
+<div class="panel">
+  <h2>{{T "Agents"}} <small class="muted">{{len .Data.Rows}} · {{T "last run OK"}} {{.Data.OK}}{{if .Data.Failed}} · <span class="bad">{{T "failed"}} {{.Data.Failed}}</span>{{end}}</small></h2>
+  {{if .Data.Rows}}<div class="table-wrap"><table>
+    <tr><th>{{T "Agent"}}</th><th>{{T "Last result"}}</th><th>{{T "Next run"}}</th><th></th></tr>
+    {{range .Data.Rows}}<tr>
+      <td class="nowrap"><a href="/agents/{{.Agent.ID}}">{{.Agent.Hostname}}</a> <span class="muted small">{{.Agent.OS}}</span></td>
+      {{if .Job}}{{with .Job}}<td class="nowrap">{{if .LastStatus}}{{template "status" (deref .LastStatus)}} <span class="muted small">{{ago .LastFinished}}</span>{{else}}<span class="muted">{{T "never ran"}}</span>{{end}}{{if not .Enabled}} <span class="badge">{{T "disabled"}}</span>{{end}}</td>
+      <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
+      <td><a href="/jobs/{{.ID}}">{{T "history and restores"}}</a></td>{{end}}
+      {{else}}<td colspan="3" class="muted">{{T "not included:"}} {{T .Issue}}</td>{{end}}
+    </tr>{{end}}
+  </table></div>
+  {{else}}<p class="muted">{{T "No agent matches this job yet. Agents that enroll later join automatically."}}</p>{{end}}
+</div>
+{{end}}

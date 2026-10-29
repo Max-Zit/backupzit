@@ -47,6 +47,9 @@ var approvalActions = map[string]approvalAction{
 	"settings.ldap":    {"Change LDAP sign-in", PermSettings},
 	"settings.sso":     {"Change single sign-on", PermSettings},
 	"job.disable":      {"Disable backup job", PermJobs},
+	"group.delete":     {"Delete backup job for several agents", PermJobs},
+	"group.disable":    {"Disable backup job for several agents", PermJobs},
+	"group.update":     {"Change backup job for several agents (fewer agents or shorter retention)", PermJobs},
 }
 
 // Approval is a change waiting for (or decided by) a second user.
@@ -230,6 +233,20 @@ func (s *Server) executeApproval(ctx context.Context, a Approval) error {
 		return s.store.UpdateJob(ctx, j)
 	case "job.release_hold":
 		return s.store.releaseRetentionHold(ctx, id)
+	case "group.delete":
+		return s.store.DeleteJobGroup(ctx, id)
+	case "group.disable":
+		return s.store.SetJobGroupEnabled(ctx, id, false)
+	case "group.update":
+		var g JobGroup
+		if err := json.Unmarshal(a.Payload, &g); err != nil {
+			return err
+		}
+		g.ID = id
+		if err := s.store.UpdateJobGroup(ctx, g); err != nil {
+			return err
+		}
+		return s.store.syncGroups(ctx)
 	case "agent.delete":
 		return s.executeAgentDelete(ctx, a, "")
 	case "vmware.delete":
