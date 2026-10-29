@@ -12,7 +12,7 @@
 <div class="panel">
   <dl class="kv">
     <dt>{{T "Agents"}}</dt><dd>{{groupscope .Scope}}</dd>
-    <dt>{{T "Backs up"}}</dt><dd class="mono">{{range .Paths}}{{.}}<br>{{end}}</dd>
+    <dt>{{T "Backs up"}}</dt><dd>{{if eq .Kind "image"}}{{T "Disk image"}} — {{T "all internal disks of every Windows agent"}}{{else if eq .Kind "system"}}{{T "Linux system"}} — {{T "every Linux agent"}}{{else}}<span class="mono">{{range .Paths}}{{.}}<br>{{end}}</span>{{end}}</dd>
     {{if .Excludes}}<dt>{{T "Exclude"}}</dt><dd class="mono">{{range .Excludes}}{{.}}<br>{{end}}</dd>{{end}}
     <dt>{{T "Storage"}}</dt><dd>{{.TargetName}} <span class="muted small">{{T "each agent in its own repository"}}</span></dd>
     <dt>{{T "Schedule"}}</dt><dd>{{schedule .Schedule}}</dd>

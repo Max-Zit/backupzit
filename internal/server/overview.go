@@ -188,6 +188,18 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 		out = append(out, Attention{"warning", "admin", l.T("still has the generated initial password — change it under Account"), "/account"})
 	}
 	agents, _ := s.store.ListAgents(ctx)
+	if bare := unprotectedAgents(agents, jobs, now); len(bare) > 0 {
+		var names []string
+		for _, a := range bare {
+			names = append(names, a.Hostname)
+		}
+		shown := names
+		if len(shown) > 5 {
+			shown = append(shown[:5:5], "…")
+		}
+		out = append(out, Attention{"warning", l.T("Agents without backup"),
+			l.T("%d agents are in no enabled backup job: %s", len(names), strings.Join(shown, ", ")), "/jobs"})
+	}
 	dups := s.dups.current(s.clock())
 	skew := s.clocks.skewed(now)
 	for _, a := range agents {
@@ -363,4 +375,25 @@ func previousRun(sc Schedule, now time.Time, n int) (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return times[len(times)-n], true
+}
+
+// unprotectedAgents lists the agents that no enabled job backs up (as the
+// agent of the job or as the proxy of a VMware job). Recovery agents and
+// agents enrolled in the last hour (a job for several agents adds them
+// within a minute) are left out.
+func unprotectedAgents(agents []Agent, jobs []Job, now time.Time) []Agent {
+	covered := map[int64]bool{}
+	for _, j := range jobs {
+		if j.Enabled {
+			covered[j.AgentID] = true
+		}
+	}
+	var out []Agent
+	for _, a := range agents {
+		if a.Recovery || covered[a.ID] || now.Sub(a.EnrolledAt) < time.Hour {
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
 }

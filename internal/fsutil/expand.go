@@ -157,7 +157,11 @@ func expandUsers(src string) []string {
 func glob(pattern string) []string {
 	var matches []string
 	if strings.ContainsAny(pattern, "*?") {
-		matches, _ = filepath.Glob(pattern)
+		if goos == "windows" {
+			matches = globFold(pattern)
+		} else {
+			matches, _ = filepath.Glob(pattern)
+		}
 	} else if _, err := os.Lstat(pattern); err == nil {
 		matches = []string{pattern}
 	}
@@ -169,4 +173,33 @@ func glob(pattern string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// globFold is filepath.Glob without regard to upper and lower case, as
+// Windows treats names: C:\users\*\desktop finds C:\Users\Ana\Desktop.
+// Matches carry the names as they are on disk.
+func globFold(pattern string) []string {
+	vol := filepath.VolumeName(pattern)
+	parts := strings.FieldsFunc(pattern[len(vol):], func(r rune) bool { return r == '\\' || r == '/' })
+	cur := []string{vol + string(filepath.Separator)}
+	if !filepath.IsAbs(pattern) {
+		cur = []string{"."}
+	}
+	for _, part := range parts {
+		var next []string
+		for _, dir := range cur {
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				continue
+			}
+			pat := strings.ToLower(part)
+			for _, e := range entries {
+				if ok, err := filepath.Match(pat, strings.ToLower(e.Name())); err == nil && ok {
+					next = append(next, filepath.Join(dir, e.Name()))
+				}
+			}
+		}
+		cur = next
+	}
+	return cur
 }

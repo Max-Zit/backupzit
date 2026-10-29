@@ -779,8 +779,15 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		s.serverError(w, err)
 		return
 	}
+	unprotected := map[int64]bool{}
+	if jobs, err := s.store.ListJobs(r.Context()); err == nil {
+		for _, a := range unprotectedAgents(agents, jobs, s.clock()) {
+			unprotected[a.ID] = true
+		}
+	}
 	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
 		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts, "Duplicates": s.dups.current(s.clock()), "ClockSkew": s.clocks.skewed(s.clock()), "Removed": removed,
+		"Unprotected": unprotected,
 	}})
 }
 

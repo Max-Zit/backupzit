@@ -7,7 +7,7 @@
     {{range .Data.Groups}}<tr>
       <td><a href="/job-groups/{{.ID}}" class="strong">{{.Name}}</a>{{if not .Enabled}} <span class="badge">{{T "disabled"}}</span>{{end}}</td>
       <td>{{groupscope .Scope}} <span class="muted small">{{index $.Data.GroupCounts .ID}} {{T "agents"}}</span></td>
-      <td class="mono small">{{join .Paths ", "}}</td>
+      <td>{{if eq .Kind "files"}}<span class="mono small">{{join .Paths ", "}}</span>{{else}}<span class="badge kind-badge kind-{{.Kind}}">{{jobkind .Kind}}</span>{{if eq .Kind "image"}} <span class="muted small">{{T "all internal disks"}}</span>{{end}}{{end}}</td>
       <td>{{.TargetName}}</td>
       <td>{{schedule .Schedule}}</td>
     </tr>{{end}}
@@ -83,8 +83,9 @@
       <p class="muted">{{T "The agent of that job copies new backups from its storage to the storage target selected above. Only data that is not there yet is transferred, and the copy keeps its own retention below — for example 7 daily on the NAS and 12 monthly in the cloud."}}</p>
     </div>
     <div data-jobkind="image" hidden>
-      <label>{{T "Disks of the selected agent"}} <small>{{T "tick a whole disk or only some partitions"}}</small></label>
-      <div id="disk-picker" class="disks" data-all="{{T "All disks"}}" data-all-hint="{{T "every internal disk of the machine in one backup, also disks added later, from one VSS snapshot; USB and SD disks and mounted VHD files are left out"}}"><p class="muted">{{T "Select an agent."}}</p></div>
+      <p class="muted" id="group-image-note" hidden>{{T "Disk image"}} — {{T "all internal disks of every Windows agent"}}</p>
+      <label data-single-agent>{{T "Disks of the selected agent"}} <small>{{T "tick a whole disk or only some partitions"}}</small></label>
+      <div id="disk-picker" class="disks" data-single-agent data-all="{{T "All disks"}}" data-all-hint="{{T "every internal disk of the machine in one backup, also disks added later, from one VSS snapshot; USB and SD disks and mounted VHD files are left out"}}"><p class="muted">{{T "Select an agent."}}</p></div>
     </div>
     <div data-jobkind="sql" hidden class="stack">{{template "job_sql" .Data.Form}}</div>
     <div data-jobkind="nas" hidden class="stack">{{template "job_nas" .Data.Form}}</div>

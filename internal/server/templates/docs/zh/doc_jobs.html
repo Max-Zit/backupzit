@@ -23,10 +23,11 @@
 
 <h2 id="users">每个用户的文件夹</h2>
 <p>在路径下方，<b>计算机的每个用户</b> 可添加 <i>桌面</i>、<i>文档</i>、<i>下载</i>、<i>图片</i> 或 <i>整个用户配置文件</i>。它们写作 <code>{users}/Documents</code>，代理在每次备份时重新查找这些文件夹：Windows 上为 <code>C:\Users\&lt;名称&gt;\Documents</code>（以及 OneDrive 移动后的文件夹 <code>…\OneDrive\Documents</code>），Linux 上为 <code>/home/&lt;名称&gt;/Documents</code> 和 <code>/root/Documents</code>，macOS 上为 <code>/Users/&lt;名称&gt;/Documents</code>。之后新增的用户无需修改作业即可备份；系统配置文件（Default、Public）会被跳过。<code>{users}</code> 后可接任何文件夹，例如 <code>{users}/AppData/Roaming/Thunderbird</code>。</p>
-<p>路径中还可以使用通配符 <code>*</code>（一个文件夹名称内的任意字符）和 <code>?</code>（一个字符）：<code>D:\Projects\*\Docs</code>、<code>/srv/sites/*/uploads</code>。大小写按所写内容匹配。在某台计算机上找不到任何内容的 <code>{users}</code> 或通配符路径不算错误：运行会报告 <i>Nothing matched …</i>，只有在完全没有可备份内容时才会失败。需要代理 0.45.0 或更高版本。整个配置文件也包含缓存；可使用完整路径排除，例如 <code>C:\Users\*\AppData\Local\Temp</code>。</p>
+<p>路径中还可以使用通配符 <code>*</code>（一个文件夹名称内的任意字符）和 <code>?</code>（一个字符）：<code>D:\Projects\*\Docs</code>、<code>/srv/sites/*/uploads</code>。在 Windows 上不区分大小写；在 Linux 和 macOS 上按所写内容匹配。在某台计算机上找不到任何内容的 <code>{users}</code> 或通配符路径不算错误：运行会报告 <i>Nothing matched …</i>，只有在完全没有可备份内容时才会失败。需要代理 0.45.0 或更高版本。整个配置文件也包含缓存；可使用完整路径排除，例如 <code>C:\Users\*\AppData\Local\Temp</code>。</p>
 
 <h2 id="groups">一个作业用于多个代理</h2>
 <p>要在许多计算机上备份相同的文件夹，请在 <b>代理</b> 下选择 <i>多个代理</i> 中的一项：<i>所有代理</i>、<i>所有 Windows 代理</i>、<i>所有 Linux 代理</i>、<i>所有 macOS 代理</i> 或 <i>选择代理…</i>（然后勾选）。此类作业备份文件和文件夹；配合 <code>{users}</code> 路径（例如 <code>{users}/Documents</code>），一个作业即可覆盖公司所有人的文档。之后注册的代理会在一分钟内自动加入作业（<i>选择代理…</i> 时仅限勾选的代理）。</p>
+<p>多代理作业也可以是 <b>磁盘映像</b> 作业——为其覆盖的每个 Windows 代理的所有内部磁盘创建映像（不能选择分区，因为每台计算机的分区各不相同）——或为其覆盖的每个 Linux 代理创建 <b>Linux 系统</b> 作业。其他操作系统的代理会被自动排除，选择 <i>所有代理</i> 时也是如此。</p>
 <p>每个代理备份到存储目标上自己的存储库，拥有各自的历史记录、还原和保留期，与单代理作业相同。作业页面在 <i>多代理作业</i> 下列出该作业；其页面显示每个代理及其最近结果，<i>立即在所有代理上运行备份</i> 会启动所有代理。单个代理的作业带有 <i>多个代理</i> 标记：打开它可查看历史记录和还原，或停用它以暂停该计算机。文件夹、计划和保留期在多代理作业中更改，并适用于其所有代理；在那里也可以排除代理。排除代理或删除作业会保留其备份在存储上。启用四眼审批时，排除代理、缩短保留期、停用和删除需等待第二位用户。</p>
 <p>暂时无法运行该作业的代理会列出原因，例如对 <code>{users}</code> 和通配符而言早于 0.45.0 的代理；更新后即会加入。许多计划相同的代理会同时开始；<a href="#window">备份时间窗口</a> 或每个作业不同的时间可分散存储负载。</p>
 

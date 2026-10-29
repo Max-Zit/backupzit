@@ -99,3 +99,15 @@ func TestIsPattern(t *testing.T) {
 		}
 	}
 }
+
+// On Windows a wildcard ignores upper and lower case, like the file system.
+func TestExpandWildcardsFoldCase(t *testing.T) {
+	root := t.TempDir()
+	mkdirs(t, root, "Ana/Desktop", "Marko/DESKTOP", "Data/Proj1/Docs")
+	setProfiles(t, "windows", root)
+	got, _ := ExpandSources([]string{filepath.Join(root, "*", "desktop"), filepath.Join(root, "data", "PROJ*", "docs")})
+	want := []string{"Ana/Desktop", "Marko/DESKTOP", "Data/Proj1/Docs"}
+	if r := rel(t, root, got); !slices.Equal(r, want) {
+		t.Fatalf("paths = %v, want %v", r, want)
+	}
+}

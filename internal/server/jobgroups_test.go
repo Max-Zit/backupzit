@@ -45,11 +45,11 @@ func TestJobGroups(t *testing.T) {
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
 
-	// Only files jobs can be for several agents.
+	// Database jobs cannot be for several agents.
 	_, loc, _ := admin.do("POST", "/jobs", url.Values{"name": {"x"}, "agent_id": {"group:all"}, "target_id": {fmt.Sprint(target)},
-		"kind": {"image"}, "sched_kind": {"manual"}})
+		"kind": {"sql"}, "sched_kind": {"manual"}})
 	if !strings.Contains(loc, "err=") {
-		t.Fatalf("image job for several agents accepted: %s", loc)
+		t.Fatalf("database job for several agents accepted: %s", loc)
 	}
 	_, loc, _ = admin.do("POST", "/jobs", url.Values{"name": {"Documents of everyone"}, "agent_id": {"group:all"}, "target_id": {fmt.Sprint(target)},
 		"kind": {"files"}, "paths": {"{users}/Documents\n{users}/Desktop"}, "keep_last": {"7"}, "sched_kind": {"manual"}})

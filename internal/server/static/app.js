@@ -265,8 +265,8 @@ function syncPVEHostHint() {
   hint.hidden = !(opt && opt.hasAttribute("data-pvehost"));
 }
 
-// A job for several agents backs up files and folders: show the agent
-// choice and leave out the other kinds.
+// A job for several agents backs up files and folders, disk images or Linux
+// systems: show the agent choice and leave out the other kinds.
 function syncGroupChoice() {
   var sel = document.getElementById("agent_sel");
   if (!sel) return;
@@ -275,13 +275,20 @@ function syncGroupChoice() {
   var box = document.getElementById("group-agents"), hint = document.getElementById("group-hint");
   if (box) box.hidden = !(group && sel.value === "group:agents");
   if (hint) hint.hidden = !group;
+  var note = document.getElementById("group-image-note");
+  if (note) note.hidden = !group;
+  document.querySelectorAll("[data-single-agent]").forEach(function (n) { n.hidden = group; });
   var form = sel.closest("form");
   if (!form) return;
   form.querySelectorAll("input[name=kind]").forEach(function (k) {
     var lbl = k.closest("label");
-    if (lbl) lbl.hidden = group && k.value !== "files";
-    if (group && k.value === "files" && !k.checked) { k.checked = true; syncJobKind(); }
+    if (lbl) lbl.hidden = group && ["files", "image", "system"].indexOf(k.value) < 0;
   });
+  var cur = form.querySelector("input[name=kind]:checked");
+  if (group && cur && ["files", "image", "system"].indexOf(cur.value) < 0) {
+    form.querySelector("input[name=kind][value=files]").checked = true;
+    syncJobKind();
+  }
 }
 
 // Edit page of a job for several agents: the checked agents are the ones

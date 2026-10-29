@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/max-zit/backupzit/internal/imaging"
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
@@ -22,6 +23,7 @@ import (
 // any job, and agents that join later are added by the scheduler.
 type JobGroup struct {
 	ID         int64
+	Kind       string // JobFiles, JobImage (all internal disks, Windows) or JobSystem (Linux)
 	Name       string
 	Scope      string // GroupAgents, GroupAll, GroupWindows, GroupLinux, GroupMacOS
 	AgentIDs   []int64
@@ -58,6 +60,17 @@ func (g JobGroup) Matches(a Agent) bool {
 	if slices.Contains(g.ExcludeIDs, a.ID) {
 		return false
 	}
+	// Disk images are made of Windows computers, system backups of Linux ones.
+	switch g.Kind {
+	case JobImage:
+		if agentPlatform(a) != GroupWindows {
+			return false
+		}
+	case JobSystem:
+		if agentPlatform(a) != GroupLinux {
+			return false
+		}
+	}
 	switch g.Scope {
 	case GroupAll:
 		return true
@@ -85,8 +98,13 @@ func agentPlatform(a Agent) string {
 
 // member is the job of the group for one agent.
 func (g JobGroup) member(agentID int64) Job {
-	return Job{Kind: JobFiles, AgentID: agentID, TargetID: g.TargetID, Name: g.Name, Paths: g.Paths, Excludes: g.Excludes,
+	j := Job{Kind: g.Kind, AgentID: agentID, TargetID: g.TargetID, Name: g.Name, Paths: g.Paths, Excludes: g.Excludes,
 		Schedule: g.Schedule, Retention: g.Retention, Options: g.Options, Enabled: g.Enabled, GroupID: &g.ID}
+	if g.Kind == JobImage {
+		all := imaging.AllDisks
+		j.ImageDisk = &all
+	}
+	return j
 }
 
 // sameSettings reports whether a member job already has the group's settings.
@@ -106,6 +124,25 @@ func (g *JobGroup) check() error {
 	if g.Scope == GroupAgents && len(g.AgentIDs) == 0 {
 		return errors.New("choose at least one agent")
 	}
+	switch g.Kind {
+	case "", JobFiles:
+		g.Kind = JobFiles
+		if len(g.Paths) == 0 {
+			return errors.New("enter at least one folder")
+		}
+	case JobImage:
+		if g.Scope == GroupLinux || g.Scope == GroupMacOS {
+			return errors.New("disk images are made of Windows computers; choose all agents, all Windows agents or chosen agents")
+		}
+		g.Paths, g.Excludes = []string{}, []string{}
+	case JobSystem:
+		if g.Scope == GroupWindows || g.Scope == GroupMacOS {
+			return errors.New("Linux system backups are made of Linux computers; choose all agents, all Linux agents or chosen agents")
+		}
+		g.Paths = []string{"/"}
+	default:
+		return errors.New("a job for several agents backs up files and folders, disk images or Linux systems")
+	}
 	if g.Scope == GroupAgents {
 		g.ExcludeIDs = nil
 	} else {
@@ -117,22 +154,19 @@ func (g *JobGroup) check() error {
 	if g.ExcludeIDs == nil {
 		g.ExcludeIDs = []int64{}
 	}
-	if len(g.Paths) == 0 {
-		return errors.New("enter at least one folder")
-	}
 	if g.Excludes == nil {
 		g.Excludes = []string{}
 	}
 	return g.Options.Validate()
 }
 
-const groupCols = `g.id, g.name, g.scope, g.agent_ids, g.exclude_ids, g.target_id, st.name, g.paths, g.excludes, g.schedule, g.retention, g.options, g.enabled, g.created_at`
+const groupCols = `g.id, g.kind, g.name, g.scope, g.agent_ids, g.exclude_ids, g.target_id, st.name, g.paths, g.excludes, g.schedule, g.retention, g.options, g.enabled, g.created_at`
 
 const groupFrom = ` FROM job_groups g JOIN storage_targets st ON st.id=g.target_id`
 
 func scanGroup(r pgx.Row) (JobGroup, error) {
 	var g JobGroup
-	err := r.Scan(&g.ID, &g.Name, &g.Scope, &g.AgentIDs, &g.ExcludeIDs, &g.TargetID, &g.TargetName, &g.Paths, &g.Excludes,
+	err := r.Scan(&g.ID, &g.Kind, &g.Name, &g.Scope, &g.AgentIDs, &g.ExcludeIDs, &g.TargetID, &g.TargetName, &g.Paths, &g.Excludes,
 		&g.Schedule, &g.Retention, &g.Options, &g.Enabled, &g.CreatedAt)
 	return g, err
 }
@@ -158,9 +192,9 @@ func (s *Store) CreateJobGroup(ctx context.Context, g JobGroup) (int64, error) {
 		return 0, errors.New("unknown storage target")
 	}
 	var id int64
-	err := s.db.QueryRow(ctx, `INSERT INTO job_groups(name, scope, agent_ids, exclude_ids, target_id, paths, excludes, schedule, retention, options, enabled)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true) RETURNING id`,
-		g.Name, g.Scope, g.AgentIDs, g.ExcludeIDs, g.TargetID, g.Paths, g.Excludes, g.Schedule, g.Retention, g.Options).Scan(&id)
+	err := s.db.QueryRow(ctx, `INSERT INTO job_groups(name, scope, agent_ids, exclude_ids, target_id, paths, excludes, schedule, retention, options, enabled, kind)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true,$11) RETURNING id`,
+		g.Name, g.Scope, g.AgentIDs, g.ExcludeIDs, g.TargetID, g.Paths, g.Excludes, g.Schedule, g.Retention, g.Options, g.Kind).Scan(&id)
 	return id, err
 }
 
@@ -332,11 +366,12 @@ func formIDs(r *http.Request, name string) []int64 {
 
 // handleGroupCreate creates a group job from the new job form.
 func (s *Server) handleGroupCreate(w http.ResponseWriter, r *http.Request, sched string) {
-	if k := r.FormValue("kind"); k != JobFiles {
-		redirectErr(w, r, "/jobs", errors.New("a job for several agents backs up files and folders; choose one agent for the other kinds"))
+	k := r.FormValue("kind")
+	if k != JobFiles && k != JobImage && k != JobSystem {
+		redirectErr(w, r, "/jobs", errors.New("a job for several agents backs up files and folders, disk images or Linux systems; choose one agent for the other kinds"))
 		return
 	}
-	g := groupFromForm(r, JobGroup{TargetID: formID(r, "target_id"), Schedule: sched, Retention: retentionFromForm(r),
+	g := groupFromForm(r, JobGroup{Kind: k, TargetID: formID(r, "target_id"), Schedule: sched, Retention: retentionFromForm(r),
 		Options: optionsFromForm(r, JobOptions{}, canCommands(r))})
 	id, err := s.store.CreateJobGroup(r.Context(), g)
 	if err != nil {
