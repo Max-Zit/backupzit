@@ -58,18 +58,29 @@ func (g JobGroup) Matches(a Agent) bool {
 	if slices.Contains(g.ExcludeIDs, a.ID) {
 		return false
 	}
-	os := strings.ToLower(a.OS)
 	switch g.Scope {
 	case GroupAll:
 		return true
-	case GroupWindows:
-		return os == "windows"
-	case GroupLinux:
-		return os == "linux"
-	case GroupMacOS:
-		return os == "darwin"
+	case GroupWindows, GroupLinux, GroupMacOS:
+		return agentPlatform(a) == g.Scope
 	}
 	return false
+}
+
+// agentPlatform is GroupWindows, GroupLinux or GroupMacOS for the
+// operating system an agent reports: "Windows 11 Pro (build …)", the
+// PRETTY_NAME of a Linux distribution ("Ubuntu 24.04.1 LTS") or "darwin".
+func agentPlatform(a Agent) string {
+	os := strings.ToLower(a.OS)
+	switch {
+	case os == "":
+		return ""
+	case strings.Contains(os, "windows"):
+		return GroupWindows
+	case strings.Contains(os, "darwin"), strings.Contains(os, "macos"), strings.Contains(os, "mac os"):
+		return GroupMacOS
+	}
+	return GroupLinux
 }
 
 // member is the job of the group for one agent.
