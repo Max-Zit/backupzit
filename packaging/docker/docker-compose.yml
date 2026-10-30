@@ -3,7 +3,7 @@
 #   1. Put this file and .env (from .env.example) into a folder.
 #   2. docker compose up -d
 #   3. Open https://<this host>:8443 and sign in as admin with the first password:
-#      docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt
+#      docker compose exec backupzit backupzit-server --initial-password
 #
 # Update: docker compose pull && docker compose up -d
 # Guide: https://github.com/Max-Zit/backupzit (Documentation → Installation → Docker)

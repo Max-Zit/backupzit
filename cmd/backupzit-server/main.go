@@ -60,6 +60,7 @@ func run() error {
 	applyUpdate := flag.Bool("apply-update", false, "install an update requested in the web console (run by the backupzit-update service as root) and exit")
 	setup := flag.Bool("setup", false, "the text menu of the appliance (network, server name, admin password); run as root")
 	healthcheck := flag.Bool("healthcheck", false, "container image: exit 0 when the console answers on its listen address (used by HEALTHCHECK)")
+	showInitial := flag.Bool("initial-password", false, "print the generated first password of user 'admin' (while it is still in use) and exit")
 	restorePre := flag.String("restore-pre-upgrade", "", "container image: load the copy of the console made before an update (a folder in <data-dir>/pre-upgrade) and exit; run it with the image of the version the copy was made from")
 	flag.Parse()
 
@@ -69,6 +70,14 @@ func run() error {
 	}
 	if *healthcheck {
 		return checkHealth(*listen)
+	}
+	if *showInitial {
+		b, err := os.ReadFile(filepath.Join(*dataDir, "initial-admin-password.txt"))
+		if err != nil {
+			return errors.New("no generated first password (it was changed, or BACKUPZIT_ADMIN_PASSWORD was set)")
+		}
+		fmt.Print(string(b))
+		return nil
 	}
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -193,6 +202,11 @@ func run() error {
 	srv.CertFingerprint = server.CertFingerprint(cert)
 	srv.PublicURL = strings.TrimRight(*publicURL, "/")
 	srv.DistDir = filepath.Join(*dataDir, "dist")
+	if server.InContainer() {
+		if err := server.SyncDist("/usr/share/backupzit/dist", srv.DistDir); err != nil {
+			log.Warn("agent installers of the image", "err", err)
+		}
+	}
 	if _, port, err := net.SplitHostPort(*listen); err == nil {
 		srv.AgentPort = port
 	}

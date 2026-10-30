@@ -107,7 +107,7 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <h2 id="docker">5. Docker</h2>
 <p>コンソールはコンテナー イメージ <code>ghcr.io/max-zit/backupzit</code> としても提供されます。ほかの方法と同じ署名済みサーバー パッケージから作られ、Docker Compose で PostgreSQL と一緒に動かします。<a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml と .env.example</a> をフォルダーにダウンロードし、<code>.env.example</code> を <code>.env</code> にコピーして、データベースのパスワード（英数字）とコンソールのアドレスを設定してから:</p>
 <pre>docker compose up -d
-docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+docker compose exec backupzit backupzit-server --initial-password</pre>
 <p><code>https://&lt;ホスト&gt;:8443</code> を開き、そのパスワードで <code>admin</code> としてサインインします。データベースとコンソールのデータ（シークレット キー、証明書、エージェントのインストーラー）はボリューム <code>db</code> と <code>data</code> にあります。両方をバックアップするか、<a href="#console-backup">コンソールのバックアップ</a>を使ってください。エージェントはいつもどおりコンピューターにインストールし、ホストのポート 8443 に接続します。ローカル ディスクをバックアップ先にする場合は、ホストのフォルダーをコンテナーにマウントし（ファイル内のコメント参照）、コンテナー内のパスを使います。</p>
 <p><b>更新:</b> コンソールは新しいバージョンを確認し、Settings → Updates に、ファイルのあるフォルダーで実行するコマンドとともに表示します: <code>docker compose pull</code> と <code>docker compose up -d</code>（タグ <code>latest</code> は正式版、<code>testing</code> はリリース候補に追従します。1 つのバージョンにとどめるには <code>.env</code> で <code>BACKUPZIT_TAG</code> を設定します）。新しいバージョンがデータベースを変更する前に、コンソールのコピーをデータ ボリュームの <code>pre-upgrade</code> に保存します（最新 3 つ）。戻すには: <code>BACKUPZIT_TAG</code> を前のバージョンにし、コピーのフォルダーを指定して <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;フォルダー&gt;</code> を実行してから <code>docker compose up -d</code> を実行します。エージェントはこれまでどおりコンソールから更新します。コンテナーではアプライアンスの設定（ネットワーク、OS の更新、SSH）は表示されません。それらは Docker ホストの管理対象です。</p>
 

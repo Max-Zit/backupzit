@@ -117,3 +117,19 @@ func TestUpdatesPageInContainer(t *testing.T) {
 		t.Fatalf("updates page in a container: %d", code)
 	}
 }
+
+// The agent installers of the image reach the data volume once.
+func TestSyncDist(t *testing.T) {
+	src, dst := t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(src, "backupzit-agent_0.46.1_amd64.deb"), []byte("new"), 0o644)
+	os.WriteFile(filepath.Join(dst, "backupzit-agent_0.45.3_amd64.deb"), []byte("old"), 0o644)
+	if err := server.SyncDist(src, filepath.Join(dst)); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dst, "backupzit-agent_0.46.1_amd64.deb")); string(b) != "new" {
+		t.Fatal("installer of the image not copied")
+	}
+	if _, err := os.Stat(filepath.Join(dst, "backupzit-agent_0.45.3_amd64.deb")); err != nil {
+		t.Fatal("older installer removed")
+	}
+}

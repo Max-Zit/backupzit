@@ -124,3 +124,38 @@ func pruneDirs(dir string, n int) {
 		os.RemoveAll(filepath.Join(dir, names[i]))
 	}
 }
+
+// SyncDist copies the agent installers that come with the image into the
+// data volume, where the console offers them for new agents and updates.
+func SyncDist(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if !e.Type().IsRegular() {
+			continue
+		}
+		target := filepath.Join(dst, e.Name())
+		if fi, err := os.Stat(target); err == nil && fi.Size() > 0 {
+			if info, err := e.Info(); err == nil && info.Size() == fi.Size() {
+				continue // already there (installers carry their version in the name)
+			}
+		}
+		b, err := os.ReadFile(filepath.Join(src, e.Name()))
+		if err != nil {
+			return err
+		}
+		tmp := target + ".tmp"
+		if err := os.WriteFile(tmp, b, 0o644); err != nil {
+			return err
+		}
+		if err := os.Rename(tmp, target); err != nil {
+			return err
+		}
+	}
+	return nil
+}

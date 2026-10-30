@@ -107,7 +107,7 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <h2 id="docker">5. Docker</h2>
 <p>控制台也提供容器镜像 <code>ghcr.io/max-zit/backupzit</code>，由与其他方式相同的已签名服务器软件包构建，并通过 Docker Compose 与 PostgreSQL 一起运行。将 <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml 和 .env.example</a> 下载到一个文件夹，把 <code>.env.example</code> 复制为 <code>.env</code>，设置数据库密码（字母和数字）和控制台地址，然后：</p>
 <pre>docker compose up -d
-docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+docker compose exec backupzit backupzit-server --initial-password</pre>
 <p>打开 <code>https://&lt;主机&gt;:8443</code>，使用该密码以 <code>admin</code> 登录。数据库和控制台数据（密钥、证书、代理安装程序）位于卷 <code>db</code> 和 <code>data</code> 中；请备份两者，或使用 <a href="#console-backup">控制台备份</a>。代理照常安装在计算机上，并连接到主机的 8443 端口。若使用本地磁盘作为存储目标，请将主机文件夹挂载到容器中（见文件中的注释），并使用容器内的路径。</p>
 <p><b>更新：</b>控制台会检查新版本，并在 Settings → Updates 下显示，附带在该文件所在文件夹中运行的命令：<code>docker compose pull</code> 和 <code>docker compose up -d</code>（标签 <code>latest</code> 跟随正式版本，<code>testing</code> 跟随候选版本；在 <code>.env</code> 中设置 <code>BACKUPZIT_TAG</code> 可固定在某一版本）。新版本修改数据库之前，会在数据卷的 <code>pre-upgrade</code> 中保留控制台副本（最近三个）。如需回退：将 <code>BACKUPZIT_TAG</code> 设为上一版本，使用副本文件夹运行 <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;文件夹&gt;</code>，然后运行 <code>docker compose up -d</code>。代理仍照常从控制台更新。在容器中不显示设备的设置（网络、操作系统更新、SSH）：这些属于 Docker 主机。</p>
 
