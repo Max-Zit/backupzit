@@ -6,12 +6,13 @@
 #
 # with backupzit-server_<VERSION>_amd64.deb in this folder. The image holds
 # only the console (a static program), CA certificates and time zones — no
-# shell or system tools — and runs as an unprivileged user.
+# shell or system tools — and runs as the unprivileged user 10001 (the
+# same user as the first images, so existing data volumes stay writable).
 FROM debian:bookworm-slim AS package
 ARG VERSION
 COPY backupzit-server_${VERSION}_amd64.deb /tmp/server.deb
 RUN dpkg-deb -x /tmp/server.deb /pkg \
- && install -d -m 0700 -o 65532 -g 65532 /pkg/var/lib/backupzit
+ && install -d -m 0700 -o 10001 -g 10001 /pkg/var/lib/backupzit
 
 FROM gcr.io/distroless/static-debian12:nonroot
 ARG VERSION
@@ -25,11 +26,12 @@ LABEL org.opencontainers.image.title="BackupZit" \
 COPY --from=package /pkg/usr/bin/backupzit-server /usr/bin/backupzit-server
 COPY --from=package /pkg/usr/share/backupzit/dist /usr/share/backupzit/dist
 COPY --from=package /pkg/usr/share/doc/backupzit-server /usr/share/doc/backupzit-server
-COPY --from=package --chown=65532:65532 /pkg/var/lib/backupzit /var/lib/backupzit
+COPY --from=package --chown=10001:10001 /pkg/var/lib/backupzit /var/lib/backupzit
 ENV BACKUPZIT_CONTAINER=docker \
     BACKUPZIT_DATA_DIR=/var/lib/backupzit \
-    BACKUPZIT_LISTEN=:8443
-USER 65532:65532
+    BACKUPZIT_LISTEN=:8443 \
+    HOME=/var/lib/backupzit
+USER 10001:10001
 WORKDIR /var/lib/backupzit
 VOLUME /var/lib/backupzit
 EXPOSE 8443
