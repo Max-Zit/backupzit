@@ -35,6 +35,9 @@ jobs:
       IMAGE: ghcr.io/max-zit/backupzit
       GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Sign in to ghcr.io
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
       - name: Version and channel
         id: v
         env:
@@ -78,9 +81,6 @@ jobs:
           gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" -D packaging/docker \
             -p manifest.json -p manifest.json.sig -p "$deb"
           go run ./tools/release verify -dir packaging/docker -file "$deb"
-
-      - name: Sign in to ghcr.io
-        run: echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
 
       - name: Build and push
         if: steps.v.outputs.retag != 'true'
