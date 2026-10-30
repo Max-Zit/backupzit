@@ -16,6 +16,7 @@
   <tr><td><b>2. Appliance-ISO</b></td><td>Eine neue VM oder ein physischer Server, unbeaufsichtigte Installation</td><td>Internetzugang während der Installation (Debian-Pakete)</td></tr>
   <tr><td><b>3. Installationsskript</b></td><td>Ein vorhandener Debian-, Ubuntu-, AlmaLinux- oder Rocky-Linux-Server</td><td>root und Internetzugang</td></tr>
   <tr><td><b>4. Pakete von Hand</b></td><td>Eigene PostgreSQL, Konfigurationsmanagement, kein Internetzugang</td><td>das Serverpaket aus der Version</td></tr>
+  <tr><td><b>5. Docker</b> (Container-Image)</td><td>Ein vorhandener Docker-Host, NAS oder Homelab</td><td>Docker mit Compose-Plugin; Internetzugang zum Laden des Images</td></tr>
 </table>
 
 <h2>Downloads</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>Die Konsole gibt es auch als Container-Image, <code>ghcr.io/max-zit/backupzit</code>, gebaut aus demselben signierten Serverpaket wie die anderen Wege und mit PostgreSQL über Docker Compose betrieben. Laden Sie <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml und .env.example</a> in einen Ordner, kopieren Sie <code>.env.example</code> nach <code>.env</code>, setzen Sie ein Datenbankpasswort (Buchstaben und Ziffern) und die Adresse der Konsole, dann:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p>Öffnen Sie <code>https://&lt;Host&gt;:8443</code> und melden Sie sich als <code>admin</code> mit diesem Passwort an. Datenbank und Daten der Konsole (Geheimnisschlüssel, Zertifikat, Agent-Installer) liegen in den Volumes <code>db</code> und <code>data</code>; sichern Sie beide oder nutzen Sie <a href="#console-backup">die Sicherung der Konsole</a>. Agenten werden wie gewohnt auf den Computern installiert und verbinden sich mit Port 8443 des Hosts. Für ein lokales Laufwerk als Ziel binden Sie einen Ordner des Hosts in den Container ein (siehe Kommentar in der Datei) und verwenden den Pfad im Container.</p>
+<p><b>Updates:</b> Die Konsole prüft auf neue Versionen und zeigt sie unter Settings → Updates mit den Befehlen, die im Ordner der Datei auszuführen sind: <code>docker compose pull</code> und <code>docker compose up -d</code> (das Tag <code>latest</code> folgt den offiziellen Versionen, <code>testing</code> den Release-Kandidaten; setzen Sie <code>BACKUPZIT_TAG</code> in <code>.env</code>, um bei einer Version zu bleiben). Bevor eine neue Version die Datenbank ändert, legt sie eine Kopie der Konsole in <code>pre-upgrade</code> im Daten-Volume ab (die letzten drei). Zurück: <code>BACKUPZIT_TAG</code> auf die vorherige Version setzen, <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;Ordner&gt;</code> mit dem Ordner der Kopie ausführen, dann <code>docker compose up -d</code>. Agenten werden wie immer aus der Konsole aktualisiert. Im Container werden die Einstellungen der Appliance (Netzwerk, Betriebssystem-Updates, SSH) nicht angezeigt: sie gehören zum Docker-Host.</p>
+
 <h2 id="first">Erste Anmeldung</h2>
 <p>Öffnen Sie <code>https://&lt;server&gt;:8443</code>. Der anfängliche Administrator ist <b>admin</b>; das Passwort steht in <code>/var/lib/backupzit/initial-admin-password.txt</code> (oder setzen Sie <code>BACKUPZIT_ADMIN_PASSWORD</code> vor dem ersten Start). Ändern Sie es nach der Anmeldung. Ein vergessenes Passwort setzen Sie auf dem Server so zurück:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </ul>
 <p>Diese Aufgaben laufen über denselben root-Dienst wie Konsolen-Updates. Sie werden im Audit-Protokoll festgehalten, und die Ausgabe der letzten Aufgabe wird auf der Seite angezeigt.</p>
 
-<h2>Die Konsole selbst sichern</h2>
+<h2 id="console-backup">Die Konsole selbst sichern</h2>
 <p>Sicherungen auf Ihrem Speicher bleiben mithilfe der Wiederherstellungsblätter auch ohne die Konsole lesbar. Um nach dem Verlust ihres Servers auch die Konsole selbst zurückzubekommen, schalten Sie <a href="/settings/console">Einstellungen → Konsolensicherung</a> ein. Das umfasst Aufträge, Zeitpläne, Agenten, Benutzer, Einstellungen, Laufverlauf und gespeicherte Zugangsdaten. Die Konsole sichert sich dann täglich auf ein Netzwerk-Speicherziel, in den Ordner <code>backupzit-console</code>.</p>
 <p>Eine Konsolensicherung enthält:</p>
 <ul>

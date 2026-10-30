@@ -16,6 +16,7 @@
   <tr><td><b>2. アプライアンス ISO</b></td><td>新しい VM または物理サーバー、無人インストール</td><td>インストール中のインターネット アクセス（Debian パッケージ）</td></tr>
   <tr><td><b>3. インストール スクリプト</b></td><td>既存の Debian、Ubuntu、AlmaLinux、Rocky Linux サーバー</td><td>root とインターネット アクセス</td></tr>
   <tr><td><b>4. パッケージを手動で</b></td><td>独自の PostgreSQL、構成管理、インターネット アクセスなし</td><td>リリースのサーバー パッケージ</td></tr>
+  <tr><td><b>5. Docker</b>（コンテナー イメージ）</td><td>既存の Docker ホスト、NAS、ホームラボ</td><td>compose プラグイン付きの Docker、イメージ取得のためのインターネット接続</td></tr>
 </table>
 
 <h2>ダウンロード</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>コンソールはコンテナー イメージ <code>ghcr.io/max-zit/backupzit</code> としても提供されます。ほかの方法と同じ署名済みサーバー パッケージから作られ、Docker Compose で PostgreSQL と一緒に動かします。<a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml と .env.example</a> をフォルダーにダウンロードし、<code>.env.example</code> を <code>.env</code> にコピーして、データベースのパスワード（英数字）とコンソールのアドレスを設定してから:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p><code>https://&lt;ホスト&gt;:8443</code> を開き、そのパスワードで <code>admin</code> としてサインインします。データベースとコンソールのデータ（シークレット キー、証明書、エージェントのインストーラー）はボリューム <code>db</code> と <code>data</code> にあります。両方をバックアップするか、<a href="#console-backup">コンソールのバックアップ</a>を使ってください。エージェントはいつもどおりコンピューターにインストールし、ホストのポート 8443 に接続します。ローカル ディスクをバックアップ先にする場合は、ホストのフォルダーをコンテナーにマウントし（ファイル内のコメント参照）、コンテナー内のパスを使います。</p>
+<p><b>更新:</b> コンソールは新しいバージョンを確認し、Settings → Updates に、ファイルのあるフォルダーで実行するコマンドとともに表示します: <code>docker compose pull</code> と <code>docker compose up -d</code>（タグ <code>latest</code> は正式版、<code>testing</code> はリリース候補に追従します。1 つのバージョンにとどめるには <code>.env</code> で <code>BACKUPZIT_TAG</code> を設定します）。新しいバージョンがデータベースを変更する前に、コンソールのコピーをデータ ボリュームの <code>pre-upgrade</code> に保存します（最新 3 つ）。戻すには: <code>BACKUPZIT_TAG</code> を前のバージョンにし、コピーのフォルダーを指定して <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;フォルダー&gt;</code> を実行してから <code>docker compose up -d</code> を実行します。エージェントはこれまでどおりコンソールから更新します。コンテナーではアプライアンスの設定（ネットワーク、OS の更新、SSH）は表示されません。それらは Docker ホストの管理対象です。</p>
+
 <h2 id="first">初回サインイン</h2>
 <p><code>https://&lt;server&gt;:8443</code> を開きます。初期管理者は <b>admin</b> で、パスワードは <code>/var/lib/backupzit/initial-admin-password.txt</code> にあります（または初回起動前に <code>BACKUPZIT_ADMIN_PASSWORD</code> を設定）。サインイン後に変更してください。忘れたパスワードをサーバーでリセットするには:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </ul>
 <p>これらのタスクは、コンソールの更新と同じ root サービスを通じて実行されます。監査ログに記録され、最後のタスクの出力がページに表示されます。</p>
 
-<h2>コンソール自体のバックアップ</h2>
+<h2 id="console-backup">コンソール自体のバックアップ</h2>
 <p>ストレージ上のバックアップは、復旧シートを使えばコンソールなしでも読み取れます。サーバーを失った後にコンソール自体も取り戻すには、<a href="/settings/console">設定 → コンソールのバックアップ</a>をオンにしてください。対象にはジョブ、スケジュール、エージェント、ユーザー、設定、実行履歴、保存された資格情報が含まれます。コンソールは毎日、ネットワーク ストレージ ターゲットの <code>backupzit-console</code> フォルダーに自分自身をバックアップします。</p>
 <p>コンソールのバックアップには次が含まれます:</p>
 <ul>

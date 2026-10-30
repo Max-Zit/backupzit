@@ -16,6 +16,7 @@
   <tr><td><b>2. Appliance-ISO</b></td><td>Een nieuwe VM of een fysieke server, onbeheerde installatie</td><td>internettoegang tijdens de installatie (Debian-pakketten)</td></tr>
   <tr><td><b>3. Installatiescript</b></td><td>Een bestaande Debian-, Ubuntu-, AlmaLinux- of Rocky Linux-server</td><td>root en internettoegang</td></tr>
   <tr><td><b>4. Pakketten met de hand</b></td><td>Uw eigen PostgreSQL, configuratiebeheer, geen internettoegang</td><td>het serverpakket uit de versie</td></tr>
+  <tr><td><b>5. Docker</b> (containerimage)</td><td>Een Docker-host, NAS of homelab die u al gebruikt</td><td>Docker met de compose-plugin; internettoegang om het image te downloaden</td></tr>
 </table>
 
 <h2>Downloads</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>De console is ook beschikbaar als containerimage, <code>ghcr.io/max-zit/backupzit</code>, gebouwd uit hetzelfde ondertekende serverpakket als de andere manieren en samen met PostgreSQL gedraaid via Docker Compose. Download <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml en .env.example</a> naar een map, kopieer <code>.env.example</code> naar <code>.env</code>, stel een databasewachtwoord (letters en cijfers) en het adres van de console in, en dan:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p>Open <code>https://&lt;host&gt;:8443</code> en meld u aan als <code>admin</code> met dat wachtwoord. De database en de gegevens van de console (geheimensleutel, certificaat, agentinstallers) staan in de volumes <code>db</code> en <code>data</code>; maak van beide een back-up of gebruik <a href="#console-backup">de back-up van de console</a>. Agents installeert u zoals gewoonlijk op de computers; ze verbinden met poort 8443 van de host. Voor een lokale schijf als doel koppelt u een map van de host in de container (zie de opmerking in het bestand) en gebruikt u het pad in de container.</p>
+<p><b>Updates:</b> de console controleert op nieuwe versies en toont ze onder Settings → Updates met de commando's die u in de map van het bestand uitvoert: <code>docker compose pull</code> en <code>docker compose up -d</code> (de tag <code>latest</code> volgt de officiële versies, <code>testing</code> de releasekandidaten; zet <code>BACKUPZIT_TAG</code> in <code>.env</code> om op één versie te blijven). Voordat een nieuwe versie de database wijzigt, bewaart ze een kopie van de console in <code>pre-upgrade</code> in het datavolume (de laatste drie). Terug: zet <code>BACKUPZIT_TAG</code> op de vorige versie, voer <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;map&gt;</code> uit met de map van de kopie, daarna <code>docker compose up -d</code>. Agents worden zoals altijd vanuit de console bijgewerkt. In de container worden de instellingen van de appliance (netwerk, updates van het besturingssysteem, SSH) niet getoond: die horen bij de Docker-host.</p>
+
 <h2 id="first">Eerste aanmelding</h2>
 <p>Open <code>https://&lt;server&gt;:8443</code>. De initiële beheerder is <b>admin</b>; het wachtwoord staat in <code>/var/lib/backupzit/initial-admin-password.txt</code> (of stel <code>BACKUPZIT_ADMIN_PASSWORD</code> in vóór de eerste start). Wijzig het na het aanmelden. Een vergeten wachtwoord stelt u op de server zo opnieuw in:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </ul>
 <p>Deze taken lopen via dezelfde root-service als console-updates. Ze worden vastgelegd in het auditlogboek, en de uitvoer van de laatste taak wordt op de pagina getoond.</p>
 
-<h2>Een back-up van de console zelf maken</h2>
+<h2 id="console-backup">Een back-up van de console zelf maken</h2>
 <p>Back-ups op uw opslag blijven zonder de console leesbaar met de herstelbladen. Om ook de console zelf terug te krijgen na verlies van haar server, schakelt u <a href="/settings/console">Instellingen → Consoleback-up</a> in. Dat omvat taken, schema's, agents, gebruikers, instellingen, uitvoeringsgeschiedenis en opgeslagen referenties. De console maakt dan dagelijks een back-up van zichzelf naar een netwerkopslagdoel, in de map <code>backupzit-console</code>.</p>
 <p>Een consoleback-up bevat:</p>
 <ul>

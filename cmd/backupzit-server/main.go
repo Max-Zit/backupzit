@@ -59,6 +59,7 @@ func run() error {
 	restoreSnapshot := flag.String("snapshot", "latest", "with --restore-console: backup to restore")
 	applyUpdate := flag.Bool("apply-update", false, "install an update requested in the web console (run by the backupzit-update service as root) and exit")
 	setup := flag.Bool("setup", false, "the text menu of the appliance (network, server name, admin password); run as root")
+	restorePre := flag.String("restore-pre-upgrade", "", "container image: load the copy of the console made before an update (a folder in <data-dir>/pre-upgrade) and exit; run it with the image of the version the copy was made from")
 	flag.Parse()
 
 	if *showVersion {
@@ -76,6 +77,17 @@ func run() error {
 	}
 	if *restoreConsole {
 		return runRestoreConsole(ctx, *dbURL, *dataDir, *restoreRepo, *restoreSnapshot)
+	}
+	if *restorePre != "" {
+		dir := *restorePre
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(*dataDir, server.PreUpgradeDir, dir)
+		}
+		if err := server.RestorePreUpgrade(ctx, *dbURL, *dataDir, dir, func(format string, args ...any) { fmt.Printf(format+"\n", args...) }); err != nil {
+			return err
+		}
+		fmt.Println("console restored from the copy; start the container again")
+		return nil
 	}
 
 	if err := os.MkdirAll(*dataDir, 0o700); err != nil {
@@ -103,6 +115,19 @@ func run() error {
 	}
 	if *dbURL == "" {
 		return errors.New("database URL required (--db or BACKUPZIT_DB)")
+	}
+	var updatedFrom string
+	if server.InContainer() {
+		// A new image updates the database on its first start: keep a copy
+		// of the console from before, for going back to the previous image.
+		dir, from, err := server.PreUpgradeCopy(ctx, *dbURL, *dataDir, version)
+		if err != nil {
+			return err
+		}
+		if dir != "" {
+			log.Info("copy of the console made before this version changes the database", "dir", dir, "from", from)
+			updatedFrom = from
+		}
 	}
 	pool, err := server.OpenDB(ctx, *dbURL)
 	if err != nil {
@@ -169,6 +194,7 @@ func run() error {
 	}
 	srv.InitialPasswordFile = filepath.Join(*dataDir, "initial-admin-password.txt")
 	srv.Version = version
+	srv.UpdatedFrom = updatedFrom
 	srv.LogFile = logPath
 	os.MkdirAll(srv.DistDir, 0o755)
 

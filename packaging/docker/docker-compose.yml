@@ -1,0 +1,54 @@
+# BackupZit console with its PostgreSQL database.
+#
+#   1. Put this file and .env (from .env.example) into a folder.
+#   2. docker compose up -d
+#   3. Open https://<this host>:8443 and sign in as admin with the first password:
+#      docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt
+#
+# Update: docker compose pull && docker compose up -d
+# Guide: https://github.com/Max-Zit/backupzit (Documentation → Installation → Docker)
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: backupzit
+      POSTGRES_DB: backupzit
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U backupzit -d backupzit"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  backupzit:
+    image: ghcr.io/max-zit/backupzit:${BACKUPZIT_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      BACKUPZIT_DB: postgres://backupzit:${DB_PASSWORD}@db:5432/backupzit?sslmode=disable
+      # The address agents use to reach the console, e.g. https://backup.example.com:8443
+      BACKUPZIT_PUBLIC_URL: ${PUBLIC_URL:-}
+      # Names and addresses for the console's own certificate, e.g. backup.example.com,192.168.1.20
+      BACKUPZIT_TLS_HOSTS: ${TLS_HOSTS:-}
+      TZ: ${TZ:-UTC}
+    ports:
+      - "8443:8443"
+      # For a trusted certificate (Let's Encrypt) set up under Settings → Certificate:
+      # - "80:80"
+      # - "443:443"
+    sysctls:
+      # Lets the console (not root in the container) use ports 80 and 443.
+      net.ipv4.ip_unprivileged_port_start: "0"
+    volumes:
+      - data:/var/lib/backupzit
+    # Local disk targets: mount a host folder and use its path in the console, e.g.
+    # - /srv/backups:/backups
+
+volumes:
+  db:
+  data:

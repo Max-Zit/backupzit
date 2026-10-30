@@ -76,6 +76,9 @@ type Server struct {
 	// LogFile is the server's rotated log file ("" when it logs to stdout
 	// only).
 	LogFile string
+	// UpdatedFrom is the version this console ran before a new container
+	// image started on it ("" otherwise).
+	UpdatedFrom string
 
 	pages map[string]map[string]*template.Template // language -> page -> template
 	// Notifier is triggered when a run finishes (optional).

@@ -63,8 +63,11 @@ type updater struct {
 
 // StartUpdates prepares self-update and checks for releases daily.
 func (s *Server) StartUpdates(ctx context.Context, dataDir string) {
-	s.upd = &updater{dir: filepath.Join(dataDir, "update"), helper: updateHelperInstalled()}
+	s.upd = &updater{dir: filepath.Join(dataDir, "update"), helper: updateHelperInstalled() && !InContainer()}
 	os.MkdirAll(s.upd.dir, 0o750)
+	if s.UpdatedFrom != "" {
+		s.containerUpdated(ctx, s.UpdatedFrom)
+	}
 	var last updateCheck
 	if s.store.GetSetting(ctx, settingUpdateCheck, &last) == nil {
 		s.upd.checked, s.upd.checkErr = last.Time, last.Err
@@ -207,18 +210,24 @@ func (s *Server) reportUpdateResult(ctx context.Context) {
 		return
 	}
 	if s.updateSettings(ctx).AutoAgents {
-		agents, err := s.store.ListAgents(ctx)
-		if err != nil {
-			return
-		}
-		n := 0
-		for id, u := range s.availableUpdates(agents) {
-			if _, err := s.store.QueueAgentUpdate(ctx, id, u); err == nil {
-				n++
-			}
-		}
-		s.log.Info("console updated; agent updates queued", "version", res.Version, "agents", n)
+		s.updateAgentsAfterConsole(ctx, res.Version)
 	}
+}
+
+// updateAgentsAfterConsole queues the agent packages of the new console for
+// every agent that is older.
+func (s *Server) updateAgentsAfterConsole(ctx context.Context, version string) {
+	agents, err := s.store.ListAgents(ctx)
+	if err != nil {
+		return
+	}
+	n := 0
+	for id, u := range s.availableUpdates(agents) {
+		if _, err := s.store.QueueAgentUpdate(ctx, id, u); err == nil {
+			n++
+		}
+	}
+	s.log.Info("console updated; agent updates queued", "version", version, "agents", n)
 }
 
 // updatePage is what the Updates tab shows.
@@ -227,6 +236,7 @@ type updatePage struct {
 	DefaultSource string
 	Version       string
 	Helper        bool
+	Container     bool // updated by pulling a new image
 	Checked       time.Time
 	CheckErr      string
 	Available     *update.Manifest
@@ -235,7 +245,7 @@ type updatePage struct {
 }
 
 func (s *Server) updatePageData(ctx context.Context) updatePage {
-	p := updatePage{Version: s.Version, DefaultSource: DefaultUpdateSource, Settings: s.updateSettings(ctx)}
+	p := updatePage{Version: s.Version, DefaultSource: DefaultUpdateSource, Settings: s.updateSettings(ctx), Container: InContainer()}
 	if s.upd == nil {
 		return p
 	}

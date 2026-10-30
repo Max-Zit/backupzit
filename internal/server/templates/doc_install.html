@@ -16,6 +16,7 @@
   <tr><td><b>2. Appliance ISO</b></td><td>A new VM or a physical server, unattended installation</td><td>internet access during the installation (Debian packages)</td></tr>
   <tr><td><b>3. Install script</b></td><td>An existing Debian, Ubuntu, AlmaLinux or Rocky Linux server</td><td>root and internet access</td></tr>
   <tr><td><b>4. Packages by hand</b></td><td>Your own PostgreSQL, configuration management, no internet access</td><td>the server package from the release</td></tr>
+  <tr><td><b>5. Docker</b> (container image)</td><td>A Docker host, NAS or homelab you already run</td><td>Docker with the compose plugin; internet access to pull the image</td></tr>
 </table>
 
 <h2>Downloads</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>The console is also available as a container image, <code>ghcr.io/max-zit/backupzit</code>, built from the same signed server package as the other ways and run together with PostgreSQL by Docker Compose. Download <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml and .env.example</a> into a folder, copy <code>.env.example</code> to <code>.env</code>, set a database password (letters and digits) and the console's address, then:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p>Open <code>https://&lt;host&gt;:8443</code> and sign in as <code>admin</code> with that password. The database and the console's data (secrets key, certificate, agent installers) live in the volumes <code>db</code> and <code>data</code>; back up both, or use <a href="#console-backup">the console backup</a>. Agents are installed on the computers as usual and connect to the host's port 8443. For a local disk target, mount a host folder into the container (see the comment in the file) and use the path inside the container.</p>
+<p><b>Updates:</b> the console checks for new versions and shows them under Settings → Updates with the commands to run in the folder of the file: <code>docker compose pull</code> and <code>docker compose up -d</code> (the tag <code>latest</code> follows the official releases, <code>testing</code> the release candidates; set <code>BACKUPZIT_TAG</code> in <code>.env</code> to stay on one version). Before a new version changes the database, it keeps a copy of the console in <code>pre-upgrade</code> in the data volume (the last three). To go back: set <code>BACKUPZIT_TAG</code> to the previous version, run <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;folder&gt;</code> with the folder of the copy, then <code>docker compose up -d</code>. Agents are updated from the console as always. In the container, the settings of the appliance (network, operating system updates, SSH) are not shown: they belong to the Docker host.</p>
+
 <h2 id="first">First sign-in</h2>
 <p>Open <code>https://&lt;server&gt;:8443</code>. The initial administrator is <b>admin</b>; the password is in <code>/var/lib/backupzit/initial-admin-password.txt</code> (or set <code>BACKUPZIT_ADMIN_PASSWORD</code> before the first start). Change it after signing in. To reset a forgotten password on the server:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </ul>
 <p>These tasks run through the same root service as console updates. They are recorded in the audit log, and the output of the last task is shown on the page.</p>
 
-<h2>Backing up the console itself</h2>
+<h2 id="console-backup">Backing up the console itself</h2>
 <p>Backups on your storage stay readable without the console, using the recovery sheets. To also get back the console itself after losing its server, switch on <a href="/settings/console">Settings → Console backup</a>. That includes jobs, schedules, agents, users, settings, run history and stored credentials. The console then backs itself up every day to a network storage target, into the folder <code>backupzit-console</code>.</p>
 <p>A console backup holds:</p>
 <ul>

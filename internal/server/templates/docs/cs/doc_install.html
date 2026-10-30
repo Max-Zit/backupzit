@@ -16,6 +16,7 @@
   <tr><td><b>2. ISO appliance</b></td><td>Nový VM nebo fyzický server, bezobslužná instalace</td><td>přístup k internetu během instalace (balíčky Debianu)</td></tr>
   <tr><td><b>3. Instalační skript</b></td><td>Existující server s Debianem, Ubuntu, AlmaLinuxem nebo Rocky Linuxem</td><td>root a přístup k internetu</td></tr>
   <tr><td><b>4. Balíčky ručně</b></td><td>Vlastní PostgreSQL, správa konfigurace, bez přístupu k internetu</td><td>balíček serveru z vydání</td></tr>
+  <tr><td><b>5. Docker</b> (obraz kontejneru)</td><td>Docker host, NAS nebo homelab, který už provozujete</td><td>Docker s pluginem compose; přístup k internetu pro stažení obrazu</td></tr>
 </table>
 
 <h2>Ke stažení</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>Konzole je k dispozici i jako obraz kontejneru, <code>ghcr.io/max-zit/backupzit</code>, sestavený ze stejného podepsaného serverového balíčku jako ostatní způsoby a spouštěný spolu s PostgreSQL přes Docker Compose. Stáhněte <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml a .env.example</a> do složky, zkopírujte <code>.env.example</code> do <code>.env</code>, nastavte heslo databáze (písmena a číslice) a adresu konzole a pak:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p>Otevřete <code>https://&lt;host&gt;:8443</code> a přihlaste se jako <code>admin</code> tímto heslem. Databáze a data konzole (klíč tajemství, certifikát, instalátory agentů) jsou ve svazcích <code>db</code> a <code>data</code>; zálohujte oba, nebo použijte <a href="#console-backup">zálohu konzole</a>. Agenty instalujete na počítače jako obvykle; připojují se k portu 8443 hostitele. Pro místní disk jako cíl připojte do kontejneru složku hostitele (viz komentář v souboru) a použijte cestu uvnitř kontejneru.</p>
+<p><b>Aktualizace:</b> konzole hledá nové verze a ukazuje je v Settings → Updates s příkazy ke spuštění ve složce souboru: <code>docker compose pull</code> a <code>docker compose up -d</code> (značka <code>latest</code> sleduje oficiální verze, <code>testing</code> kandidáty; nastavte <code>BACKUPZIT_TAG</code> v <code>.env</code>, chcete-li zůstat u jedné verze). Než nová verze změní databázi, uloží kopii konzole do <code>pre-upgrade</code> ve svazku dat (poslední tři). Návrat: nastavte <code>BACKUPZIT_TAG</code> na předchozí verzi, spusťte <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;složka&gt;</code> se složkou kopie, pak <code>docker compose up -d</code>. Agenty se aktualizují z konzole jako vždy. V kontejneru se nezobrazují nastavení appliance (síť, aktualizace systému, SSH): patří Docker hostiteli.</p>
+
 <h2 id="first">První přihlášení</h2>
 <p>Otevřete <code>https://&lt;server&gt;:8443</code>. Počátečním správcem je <b>admin</b>; heslo je v <code>/var/lib/backupzit/initial-admin-password.txt</code> (nebo před prvním spuštěním nastavte <code>BACKUPZIT_ADMIN_PASSWORD</code>). Po přihlášení ho změňte. Zapomenuté heslo obnovíte na serveru takto:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </ul>
 <p>Tyto úlohy běží přes stejnou službu root jako aktualizace konzole. Zaznamenávají se do protokolu auditu a výstup poslední úlohy se zobrazí na stránce.</p>
 
-<h2>Záloha samotné konzole</h2>
+<h2 id="console-backup">Záloha samotné konzole</h2>
 <p>Zálohy na vašem úložišti zůstávají čitelné i bez konzole díky listům pro obnovu. Chcete-li po ztrátě serveru získat zpět i samotnou konzoli, zapněte <a href="/settings/console">Nastavení → Záloha konzole</a>. To zahrnuje úlohy, rozvrhy, agenty, uživatele, nastavení, historii běhů a uložené přihlašovací údaje. Konzole se pak denně zálohuje na síťový cíl úložiště do složky <code>backupzit-console</code>.</p>
 <p>Záloha konzole obsahuje:</p>
 <ul>

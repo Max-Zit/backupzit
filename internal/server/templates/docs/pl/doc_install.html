@@ -16,6 +16,7 @@
   <tr><td><b>2. ISO appliance</b></td><td>Nowa maszyna wirtualna lub serwer fizyczny, instalacja bez nadzoru</td><td>dostęp do internetu podczas instalacji (pakiety Debiana)</td></tr>
   <tr><td><b>3. Skrypt instalacyjny</b></td><td>Istniejący serwer Debian, Ubuntu, AlmaLinux lub Rocky Linux</td><td>root i dostęp do internetu</td></tr>
   <tr><td><b>4. Pakiety ręcznie</b></td><td>Własny PostgreSQL, zarządzanie konfiguracją, brak dostępu do internetu</td><td>pakiet serwera z wydania</td></tr>
+  <tr><td><b>5. Docker</b> (obraz kontenera)</td><td>Posiadany już host Docker, NAS lub homelab</td><td>Docker z wtyczką compose; dostęp do Internetu do pobrania obrazu</td></tr>
 </table>
 
 <h2>Pliki do pobrania</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>Konsola jest też dostępna jako obraz kontenera, <code>ghcr.io/max-zit/backupzit</code>, zbudowany z tego samego podpisanego pakietu serwera co pozostałe sposoby i uruchamiany razem z PostgreSQL przez Docker Compose. Pobierz <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml i .env.example</a> do folderu, skopiuj <code>.env.example</code> do <code>.env</code>, ustaw hasło bazy (litery i cyfry) i adres konsoli, a potem:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p>Otwórz <code>https://&lt;host&gt;:8443</code> i zaloguj się jako <code>admin</code> tym hasłem. Baza i dane konsoli (klucz sekretów, certyfikat, instalatory agentów) są w woluminach <code>db</code> i <code>data</code>; rób kopię obu lub użyj <a href="#console-backup">kopii konsoli</a>. Agenty instaluje się na komputerach jak zwykle; łączą się z portem 8443 hosta. Dla dysku lokalnego jako miejsca docelowego zamontuj folder hosta w kontenerze (patrz komentarz w pliku) i użyj ścieżki wewnątrz kontenera.</p>
+<p><b>Aktualizacje:</b> konsola sprawdza nowe wersje i pokazuje je w Settings → Updates razem z poleceniami do uruchomienia w folderze pliku: <code>docker compose pull</code> i <code>docker compose up -d</code> (tag <code>latest</code> śledzi wersje oficjalne, <code>testing</code> kandydatów; ustaw <code>BACKUPZIT_TAG</code> w <code>.env</code>, aby zostać przy jednej wersji). Zanim nowa wersja zmieni bazę, zachowuje kopię konsoli w <code>pre-upgrade</code> w woluminie danych (trzy ostatnie). Aby wrócić: ustaw <code>BACKUPZIT_TAG</code> na poprzednią wersję, uruchom <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;folder&gt;</code> z folderem kopii, potem <code>docker compose up -d</code>. Agenty aktualizuje się z konsoli jak zawsze. W kontenerze nie są pokazywane ustawienia appliance (sieć, aktualizacje systemu, SSH): należą do hosta Docker.</p>
+
 <h2 id="first">Pierwsze logowanie</h2>
 <p>Otwórz <code>https://&lt;server&gt;:8443</code>. Początkowym administratorem jest <b>admin</b>; hasło jest w <code>/var/lib/backupzit/initial-admin-password.txt</code> (lub ustaw <code>BACKUPZIT_ADMIN_PASSWORD</code> przed pierwszym uruchomieniem). Zmień je po zalogowaniu. Aby zresetować zapomniane hasło na serwerze:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </ul>
 <p>Te operacje przechodzą przez tę samą usługę root co aktualizacje konsoli. Są zapisywane w dzienniku audytu, a wynik ostatniej operacji jest pokazywany na stronie.</p>
 
-<h2>Kopia samej konsoli</h2>
+<h2 id="console-backup">Kopia samej konsoli</h2>
 <p>Kopie w Twoim magazynie pozostają czytelne bez konsoli dzięki arkuszom odzyskiwania. Aby po utracie serwera odzyskać także samą konsolę, włącz <a href="/settings/console">Ustawienia → Kopia konsoli</a>. Obejmuje to zadania, harmonogramy, agentów, użytkowników, ustawienia, historię uruchomień i zapisane dane dostępu. Konsola codziennie tworzy wtedy własną kopię w sieciowym miejscu docelowym, w folderze <code>backupzit-console</code>.</p>
 <p>Kopia konsoli zawiera:</p>
 <ul>

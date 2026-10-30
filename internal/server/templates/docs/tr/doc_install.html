@@ -16,6 +16,7 @@
   <tr><td><b>2. Appliance ISO'su</b></td><td>Yeni bir VM veya fiziksel sunucu, gözetimsiz kurulum</td><td>kurulum sırasında internet erişimi (Debian paketleri)</td></tr>
   <tr><td><b>3. Kurulum betiği</b></td><td>Mevcut bir Debian, Ubuntu, AlmaLinux veya Rocky Linux sunucusu</td><td>root ve internet erişimi</td></tr>
   <tr><td><b>4. Paketleri elle kurma</b></td><td>Kendi PostgreSQL'iniz, yapılandırma yönetimi, internet erişimi yok</td><td>sürümdeki sunucu paketi</td></tr>
+  <tr><td><b>5. Docker</b> (konteyner imajı)</td><td>Zaten kullandığınız bir Docker sunucusu, NAS veya homelab</td><td>compose eklentili Docker; imajı indirmek için internet erişimi</td></tr>
 </table>
 
 <h2>İndirmeler</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>Konsol, diğer yollarla aynı imzalı sunucu paketinden oluşturulan ve Docker Compose ile PostgreSQL ile birlikte çalışan bir konteyner imajı olarak da sunulur: <code>ghcr.io/max-zit/backupzit</code>. <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml ve .env.example</a> dosyalarını bir klasöre indirin, <code>.env.example</code> dosyasını <code>.env</code> olarak kopyalayın, bir veritabanı parolası (harf ve rakam) ve konsolun adresini girin, ardından:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p><code>https://&lt;host&gt;:8443</code> adresini açın ve bu parolayla <code>admin</code> olarak oturum açın. Veritabanı ve konsol verileri (gizli anahtar, sertifika, aracı yükleyicileri) <code>db</code> ve <code>data</code> birimlerindedir; ikisini de yedekleyin veya <a href="#console-backup">konsol yedeğini</a> kullanın. Aracılar bilgisayarlara her zamanki gibi kurulur ve sunucunun 8443 portuna bağlanır. Yerel disk hedefi için sunucudaki bir klasörü konteynere bağlayın (dosyadaki açıklamaya bakın) ve konteyner içindeki yolu kullanın.</p>
+<p><b>Güncellemeler:</b> konsol yeni sürümleri kontrol eder ve bunları Settings → Updates altında, dosyanın klasöründe çalıştırılacak komutlarla gösterir: <code>docker compose pull</code> ve <code>docker compose up -d</code> (<code>latest</code> etiketi resmi sürümleri, <code>testing</code> aday sürümleri izler; tek bir sürümde kalmak için <code>.env</code> içinde <code>BACKUPZIT_TAG</code> ayarlayın). Yeni bir sürüm veritabanını değiştirmeden önce konsolun bir kopyasını veri birimindeki <code>pre-upgrade</code> klasöründe saklar (son üç tane). Geri dönmek için: <code>BACKUPZIT_TAG</code> değerini önceki sürüme ayarlayın, kopyanın klasörüyle <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;klasör&gt;</code> çalıştırın, ardından <code>docker compose up -d</code>. Aracılar her zamanki gibi konsoldan güncellenir. Konteynerde appliance ayarları (ağ, işletim sistemi güncellemeleri, SSH) gösterilmez: bunlar Docker sunucusuna aittir.</p>
+
 <h2 id="first">İlk oturum açma</h2>
 <p><code>https://&lt;server&gt;:8443</code> adresini açın. İlk yönetici <b>admin</b>'dir; parola <code>/var/lib/backupzit/initial-admin-password.txt</code> dosyasındadır (veya ilk açılıştan önce <code>BACKUPZIT_ADMIN_PASSWORD</code> ayarlayın). Oturum açtıktan sonra değiştirin. Unutulan bir parolayı sunucuda sıfırlamak için:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </ul>
 <p>Bu görevler konsol güncellemeleriyle aynı root hizmeti üzerinden çalışır. Denetim günlüğüne kaydedilir ve son görevin çıktısı sayfada gösterilir.</p>
 
-<h2>Konsolun kendisini yedekleme</h2>
+<h2 id="console-backup">Konsolun kendisini yedekleme</h2>
 <p>Depolamanızdaki yedekler, kurtarma sayfaları sayesinde konsol olmadan da okunabilir kalır. Sunucusu kaybolduktan sonra konsolun kendisini de geri almak için <a href="/settings/console">Ayarlar → Konsol yedeği</a>'ni açın. Bu; işleri, zamanlamaları, aracıları, kullanıcıları, ayarları, çalıştırma geçmişini ve saklanan kimlik bilgilerini kapsar. Konsol bundan sonra her gün kendini bir ağ depolama hedefine, <code>backupzit-console</code> klasörüne yedekler.</p>
 <p>Bir konsol yedeği şunları içerir:</p>
 <ul>

@@ -16,6 +16,7 @@
   <tr><td><b>2. ISO del appliance</b></td><td>Una VM nueva o un servidor físico, instalación desatendida</td><td>acceso a internet durante la instalación (paquetes de Debian)</td></tr>
   <tr><td><b>3. Script de instalación</b></td><td>Un servidor Debian, Ubuntu, AlmaLinux o Rocky Linux existente</td><td>root y acceso a internet</td></tr>
   <tr><td><b>4. Paquetes a mano</b></td><td>Su propio PostgreSQL, gestión de configuración, sin acceso a internet</td><td>el paquete del servidor de la versión</td></tr>
+  <tr><td><b>5. Docker</b> (imagen de contenedor)</td><td>Un host Docker, NAS o homelab que ya tiene</td><td>Docker con el plugin compose; acceso a Internet para descargar la imagen</td></tr>
 </table>
 
 <h2>Descargas</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>La consola también está disponible como imagen de contenedor, <code>ghcr.io/max-zit/backupzit</code>, construida con el mismo paquete de servidor firmado que las otras formas y ejecutada junto con PostgreSQL mediante Docker Compose. Descargue <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml y .env.example</a> en una carpeta, copie <code>.env.example</code> a <code>.env</code>, ponga una contraseña de base de datos (letras y dígitos) y la dirección de la consola, y luego:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p>Abra <code>https://&lt;host&gt;:8443</code> e inicie sesión como <code>admin</code> con esa contraseña. La base de datos y los datos de la consola (clave de secretos, certificado, instaladores de agentes) están en los volúmenes <code>db</code> y <code>data</code>; haga copia de ambos o use <a href="#console-backup">la copia de la consola</a>. Los agentes se instalan en los equipos como siempre y se conectan al puerto 8443 del host. Para un destino en disco local, monte una carpeta del host en el contenedor (vea el comentario del archivo) y use la ruta dentro del contenedor.</p>
+<p><b>Actualizaciones:</b> la consola busca nuevas versiones y las muestra en Settings → Updates con los comandos que hay que ejecutar en la carpeta del archivo: <code>docker compose pull</code> y <code>docker compose up -d</code> (la etiqueta <code>latest</code> sigue las versiones oficiales, <code>testing</code> las candidatas; ponga <code>BACKUPZIT_TAG</code> en <code>.env</code> para quedarse en una versión). Antes de que una nueva versión cambie la base de datos, guarda una copia de la consola en <code>pre-upgrade</code> del volumen de datos (las tres últimas). Para volver: ponga <code>BACKUPZIT_TAG</code> en la versión anterior, ejecute <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;carpeta&gt;</code> con la carpeta de la copia y luego <code>docker compose up -d</code>. Los agentes se actualizan desde la consola como siempre. En el contenedor no se muestran los ajustes del appliance (red, actualizaciones del sistema, SSH): pertenecen al host Docker.</p>
+
 <h2 id="first">Primer inicio de sesión</h2>
 <p>Abra <code>https://&lt;server&gt;:8443</code>. El administrador inicial es <b>admin</b>; la contraseña está en <code>/var/lib/backupzit/initial-admin-password.txt</code> (o defina <code>BACKUPZIT_ADMIN_PASSWORD</code> antes del primer arranque). Cámbiela después de iniciar sesión. Para restablecer una contraseña olvidada en el servidor:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </ul>
 <p>Estas tareas se ejecutan mediante el mismo servicio root que las actualizaciones de la consola. Quedan en el registro de auditoría y la salida de la última tarea se muestra en la página.</p>
 
-<h2>Copiar la propia consola</h2>
+<h2 id="console-backup">Copiar la propia consola</h2>
 <p>Las copias de su almacenamiento siguen siendo legibles sin la consola, gracias a las hojas de recuperación. Para recuperar también la propia consola tras perder su servidor, active <a href="/settings/console">Configuración → Copia de la consola</a>. Esto incluye trabajos, programaciones, agentes, usuarios, configuración, historial de ejecuciones y credenciales guardadas. La consola se copia entonces a sí misma cada día en un destino de almacenamiento de red, en la carpeta <code>backupzit-console</code>.</p>
 <p>Una copia de la consola contiene:</p>
 <ul>

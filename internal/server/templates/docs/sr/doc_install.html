@@ -16,6 +16,7 @@
   <tr><td><b>2. ISO uređaja</b></td><td>Nova VM ili fizički server, instalacija bez pitanja</td><td>pristup internetu tokom instalacije (Debian paketi)</td></tr>
   <tr><td><b>3. Instalacioni skript</b></td><td>Postojeći Debian, Ubuntu, AlmaLinux ili Rocky Linux server</td><td>root i pristup internetu</td></tr>
   <tr><td><b>4. Paketi ručno</b></td><td>Sopstveni PostgreSQL, upravljanje konfiguracijom, bez pristupa internetu</td><td>serverski paket iz izdanja</td></tr>
+  <tr><td><b>5. Docker</b> (container image)</td><td>Docker host, NAS ili homelab koji već imate</td><td>Docker sa compose dodatkom; pristup internetu za preuzimanje image-a</td></tr>
 </table>
 
 <h2>Preuzimanja</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>Konzola postoji i kao container image, <code>ghcr.io/max-zit/backupzit</code>, napravljen od istog potpisanog serverskog paketa kao ostali načini, a pokreće se zajedno sa PostgreSQL-om preko Docker Compose-a. Preuzmite <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml i .env.example</a> u jedan folder, kopirajte <code>.env.example</code> u <code>.env</code>, upišite lozinku baze (slova i cifre) i adresu konzole, pa:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p>Otvorite <code>https://&lt;host&gt;:8443</code> i prijavite se kao <code>admin</code> tom lozinkom. Baza i podaci konzole (ključ za tajne, sertifikat, instalacije agenata) su u volumenima <code>db</code> i <code>data</code>; pravite backup oba ili koristite <a href="#console-backup">backup konzole</a>. Agenti se instaliraju na računare kao i obično i povezuju na port 8443 hosta. Za lokalni disk kao skladište montirajte folder hosta u kontejner (vidi komentar u fajlu) i koristite putanju unutar kontejnera.</p>
+<p><b>Ažuriranja:</b> konzola proverava nove verzije i prikazuje ih pod Settings → Updates sa komandama koje se pokreću u folderu fajla: <code>docker compose pull</code> i <code>docker compose up -d</code> (oznaka <code>latest</code> prati zvanična izdanja, <code>testing</code> kandidate; postavite <code>BACKUPZIT_TAG</code> u <code>.env</code> da ostanete na jednoj verziji). Pre nego što nova verzija promeni bazu, čuva kopiju konzole u <code>pre-upgrade</code> u volumenu podataka (poslednje tri). Za povratak: postavite <code>BACKUPZIT_TAG</code> na prethodnu verziju, pokrenite <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;folder&gt;</code> sa folderom kopije, pa <code>docker compose up -d</code>. Agenti se ažuriraju iz konzole kao i uvek. U kontejneru se ne prikazuju podešavanja appliance-a (mreža, ažuriranja operativnog sistema, SSH): ona pripadaju Docker hostu.</p>
+
 <h2 id="first">Prva prijava</h2>
 <p>Otvorite <code>https://&lt;server&gt;:8443</code>. Početni administrator je <b>admin</b>; lozinka je u <code>/var/lib/backupzit/initial-admin-password.txt</code> (ili postavite <code>BACKUPZIT_ADMIN_PASSWORD</code> pre prvog pokretanja). Promenite je posle prijave. Zaboravljenu lozinku resetujete na serveru:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
 </ul>
 <p>Ovi zadaci rade preko istog root servisa kao ažuriranja konzole. Upisuju se u audit log, a izlaz poslednjeg zadatka se prikazuje na stranici.</p>
 
-<h2>Bekap same konzole</h2>
+<h2 id="console-backup">Bekap same konzole</h2>
 <p>Bekapi na vašem skladištu ostaju čitljivi i bez konzole, pomoću listova za oporavak. Da biste posle gubitka servera vratili i samu konzolu, uključite <a href="/settings/console">Podešavanja → Bekap konzole</a>. To obuhvata poslove, rasporede, agente, korisnike, podešavanja, istoriju pokretanja i sačuvane pristupne podatke. Konzola tada svakog dana pravi svoj bekap na mrežno skladište, u folder <code>backupzit-console</code>.</p>
 <p>Bekap konzole sadrži:</p>
 <ul>

@@ -16,6 +16,7 @@
   <tr><td><b>2. ISO do appliance</b></td><td>Uma nova VM ou um servidor físico, instalação sem interação</td><td>acesso à internet durante a instalação (pacotes Debian)</td></tr>
   <tr><td><b>3. Script de instalação</b></td><td>Um servidor Debian, Ubuntu, AlmaLinux ou Rocky Linux existente</td><td>root e acesso à internet</td></tr>
   <tr><td><b>4. Pacotes à mão</b></td><td>O seu próprio PostgreSQL, gestão de configuração, sem acesso à internet</td><td>o pacote do servidor da versão</td></tr>
+  <tr><td><b>5. Docker</b> (imagem de contêiner)</td><td>Um host Docker, NAS ou homelab que você já usa</td><td>Docker com o plugin compose; acesso à Internet para baixar a imagem</td></tr>
 </table>
 
 <h2>Downloads</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>O console também está disponível como imagem de contêiner, <code>ghcr.io/max-zit/backupzit</code>, construída com o mesmo pacote de servidor assinado das outras formas e executada junto com o PostgreSQL pelo Docker Compose. Baixe <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml e .env.example</a> para uma pasta, copie <code>.env.example</code> para <code>.env</code>, defina uma senha do banco (letras e dígitos) e o endereço do console, depois:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p>Abra <code>https://&lt;host&gt;:8443</code> e entre como <code>admin</code> com essa senha. O banco e os dados do console (chave de segredos, certificado, instaladores dos agentes) ficam nos volumes <code>db</code> e <code>data</code>; faça backup de ambos ou use <a href="#console-backup">o backup do console</a>. Os agentes são instalados nos computadores como sempre e conectam-se à porta 8443 do host. Para um destino em disco local, monte uma pasta do host no contêiner (veja o comentário no arquivo) e use o caminho dentro do contêiner.</p>
+<p><b>Atualizações:</b> o console verifica novas versões e as mostra em Settings → Updates com os comandos a executar na pasta do arquivo: <code>docker compose pull</code> e <code>docker compose up -d</code> (a tag <code>latest</code> segue as versões oficiais, <code>testing</code> as candidatas; defina <code>BACKUPZIT_TAG</code> no <code>.env</code> para ficar em uma versão). Antes de uma nova versão alterar o banco, ela guarda uma cópia do console em <code>pre-upgrade</code> no volume de dados (as três últimas). Para voltar: defina <code>BACKUPZIT_TAG</code> na versão anterior, execute <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;pasta&gt;</code> com a pasta da cópia e depois <code>docker compose up -d</code>. Os agentes são atualizados pelo console como sempre. No contêiner, as configurações do appliance (rede, atualizações do sistema, SSH) não aparecem: pertencem ao host Docker.</p>
+
 <h2 id="first">Primeiro login</h2>
 <p>Abra <code>https://&lt;server&gt;:8443</code>. O administrador inicial é <b>admin</b>; a senha está em <code>/var/lib/backupzit/initial-admin-password.txt</code> (ou defina <code>BACKUPZIT_ADMIN_PASSWORD</code> antes do primeiro arranque). Altere-a depois de fazer login. Para redefinir uma senha esquecida no servidor:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </ul>
 <p>Estas tarefas passam pelo mesmo serviço root que as atualizações da console. Ficam registradas no log de auditoria, e a saída da última tarefa aparece na página.</p>
 
-<h2>Fazer backup da própria console</h2>
+<h2 id="console-backup">Fazer backup da própria console</h2>
 <p>Os backups no seu armazenamento continuam legíveis sem a console, graças às fichas de recuperação. Para recuperar também a própria console depois de perder o seu servidor, ative <a href="/settings/console">Configurações → Backup do console</a>. Isso inclui tarefas, agendamentos, agentes, usuários, configurações, histórico de execuções e credenciais guardadas. A console passa então a fazer backup de si mesma diariamente para um destino de armazenamento de rede, na pasta <code>backupzit-console</code>.</p>
 <p>Um backup da console contém:</p>
 <ul>

@@ -4,6 +4,7 @@
 //	release keygen -out DIR                  # once; keep DIR/release.key secret
 //	release sign -key KEY -version X -dir dist [-notes FILE]
 //	release notes -key KEY -dir DIR -notes FILE  # new notes, signed again
+//	release verify -dir DIR -file NAME            # signature and checksum of a released file
 //
 // sign writes DIR/manifest.json and manifest.json.sig listing the server,
 // agent and repository packages of version X found in the directory.
@@ -37,9 +38,50 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: release keygen|sign|notes [options]")
+		return errors.New("usage: release keygen|sign|notes|verify [options]")
 	}
 	switch args[0] {
+	case "verify":
+		// Used before a released package is built into the container
+		// image: the manifest must carry a release key's signature and
+		// list the file with this size and checksum.
+		fs := flag.NewFlagSet("verify", flag.ExitOnError)
+		dir := fs.String("dir", ".", "directory with manifest.json, manifest.json.sig and the file")
+		name := fs.String("file", "", "file to check, e.g. backupzit-server_0.46.0_amd64.deb")
+		fs.Parse(args[1:])
+		raw, err := os.ReadFile(filepath.Join(*dir, "manifest.json"))
+		if err != nil {
+			return err
+		}
+		sig, err := os.ReadFile(filepath.Join(*dir, "manifest.json.sig"))
+		if err != nil {
+			return err
+		}
+		m, err := update.Verify(raw, string(sig), nil)
+		if err != nil {
+			return err
+		}
+		for _, f := range m.Files {
+			if f.Name != *name {
+				continue
+			}
+			fh, err := os.Open(filepath.Join(*dir, f.Name))
+			if err != nil {
+				return err
+			}
+			h := sha256.New()
+			n, err := io.Copy(h, fh)
+			fh.Close()
+			if err != nil {
+				return err
+			}
+			if n != f.Size || hex.EncodeToString(h.Sum(nil)) != f.SHA256 {
+				return fmt.Errorf("%s does not match the signed manifest of %s", f.Name, m.Version)
+			}
+			fmt.Printf("%s: signed release %s, checksum OK\n", f.Name, m.Version)
+			return nil
+		}
+		return fmt.Errorf("%s is not in the signed manifest of %s", *name, m.Version)
 	case "keygen":
 		fs := flag.NewFlagSet("keygen", flag.ExitOnError)
 		out := fs.String("out", ".", "directory for release.key and release.pub")

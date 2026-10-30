@@ -16,6 +16,7 @@
   <tr><td><b>2. ISO appliance</b></td><td>Новая ВМ или физический сервер, автоматическая установка</td><td>доступ в интернет во время установки (пакеты Debian)</td></tr>
   <tr><td><b>3. Сценарий установки</b></td><td>Существующий сервер Debian, Ubuntu, AlmaLinux или Rocky Linux</td><td>root и доступ в интернет</td></tr>
   <tr><td><b>4. Пакеты вручную</b></td><td>Собственный PostgreSQL, управление конфигурацией, без доступа в интернет</td><td>пакет сервера из выпуска</td></tr>
+  <tr><td><b>5. Docker</b> (образ контейнера)</td><td>Уже работающий Docker-хост, NAS или homelab</td><td>Docker с плагином compose; доступ в интернет для загрузки образа</td></tr>
 </table>
 
 <h2>Загрузки</h2>
@@ -103,6 +104,13 @@ BACKUPZIT_PUBLIC_URL=https://backup.example.local:8443
 BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>systemctl start backupzit-server</pre>
 
+<h2 id="docker">5. Docker</h2>
+<p>Консоль доступна и как образ контейнера, <code>ghcr.io/max-zit/backupzit</code>, собранный из того же подписанного серверного пакета, что и другие способы, и запускаемый вместе с PostgreSQL через Docker Compose. Скачайте <a href="https://github.com/Max-Zit/backupzit/tree/main/packaging/docker">docker-compose.yml и .env.example</a> в папку, скопируйте <code>.env.example</code> в <code>.env</code>, задайте пароль базы данных (буквы и цифры) и адрес консоли, затем:</p>
+<pre>docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt</pre>
+<p>Откройте <code>https://&lt;хост&gt;:8443</code> и войдите как <code>admin</code> с этим паролем. База данных и данные консоли (ключ секретов, сертификат, установщики агентов) хранятся в томах <code>db</code> и <code>data</code>; делайте резервную копию обоих или используйте <a href="#console-backup">резервную копию консоли</a>. Агенты устанавливаются на компьютеры как обычно и подключаются к порту 8443 хоста. Для локального диска как хранилища подключите папку хоста в контейнер (см. комментарий в файле) и используйте путь внутри контейнера.</p>
+<p><b>Обновления:</b> консоль проверяет новые версии и показывает их в Settings → Updates вместе с командами для запуска в папке файла: <code>docker compose pull</code> и <code>docker compose up -d</code> (тег <code>latest</code> следует официальным версиям, <code>testing</code> — кандидатам; задайте <code>BACKUPZIT_TAG</code> в <code>.env</code>, чтобы остаться на одной версии). Прежде чем новая версия изменит базу данных, она сохраняет копию консоли в <code>pre-upgrade</code> в томе данных (последние три). Чтобы вернуться: задайте <code>BACKUPZIT_TAG</code> предыдущей версии, выполните <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;папка&gt;</code> с папкой копии, затем <code>docker compose up -d</code>. Агенты обновляются из консоли как всегда. В контейнере настройки appliance (сеть, обновления ОС, SSH) не показываются: они относятся к Docker-хосту.</p>
+
 <h2 id="first">Первый вход</h2>
 <p>Откройте <code>https://&lt;server&gt;:8443</code>. Начальный администратор — <b>admin</b>; пароль находится в <code>/var/lib/backupzit/initial-admin-password.txt</code> (или задайте <code>BACKUPZIT_ADMIN_PASSWORD</code> до первого запуска). Смените его после входа. Чтобы сбросить забытый пароль на сервере:</p>
 <pre>set -a; . /etc/backupzit/server.env; set +a
@@ -164,7 +172,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 </ul>
 <p>Эти задачи выполняются через ту же службу root, что и обновления консоли. Они записываются в журнал аудита, а вывод последней задачи показывается на странице.</p>
 
-<h2>Резервная копия самой консоли</h2>
+<h2 id="console-backup">Резервная копия самой консоли</h2>
 <p>Копии в вашем хранилище остаются читаемыми без консоли благодаря листам восстановления. Чтобы после потери сервера вернуть и саму консоль, включите <a href="/settings/console">Настройки → Резервная копия консоли</a>. Это включает задания, расписания, агентов, пользователей, настройки, историю запусков и сохранённые учётные данные. Тогда консоль ежедневно копирует себя в сетевое место хранения, в папку <code>backupzit-console</code>.</p>
 <p>Резервная копия консоли содержит:</p>
 <ul>

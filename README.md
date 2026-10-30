@@ -93,7 +93,7 @@ BackupZit backs up Windows and Linux machines (files or whole disks), Proxmox VE
 
 ## Installation
 
-Choose one of four ways. The first one is the fastest.
+Choose one of five ways. The first one is the fastest.
 
 | Way | Best for | Needs |
 |---|---|---|
@@ -101,6 +101,7 @@ Choose one of four ways. The first one is the fastest.
 | **2. Appliance ISO** | a new VM or a physical server, unattended | internet access during installation |
 | **3. Install script** | an existing Debian, Ubuntu, AlmaLinux or Rocky Linux server | root and internet access |
 | **4. Packages by hand** | your own PostgreSQL, configuration management, offline servers | the server package from the release |
+| **5. Docker** | a Docker host, NAS or homelab you already run | Docker with the compose plugin |
 
 **Requirements:**
 - A VM or server with 2 vCPU, 2–4 GB RAM and a 16–20 GB disk.
@@ -229,6 +230,17 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'
 ```
 backupzit-server --dev-embedded-db --data-dir ./bzdata --dev-http 127.0.0.1:8080
 ```
+
+### 5. Docker
+
+The console is also published as a container image, `ghcr.io/max-zit/backupzit`, built from the same signed server package. Put [docker-compose.yml and .env.example](packaging/docker) into a folder, copy `.env.example` to `.env`, set the database password and the console's address, then:
+
+```
+docker compose up -d
+docker compose exec backupzit cat /var/lib/backupzit/initial-admin-password.txt
+```
+
+Open `https://<host>:8443` and sign in as `admin`. To update: `docker compose pull && docker compose up -d` — the console shows when a new version is available, and keeps a copy of itself before the new version changes the database. Tags: `latest` (official releases), `testing` (release candidates) or a version. Details are in the guide under *Installation → Docker*.
 
 ## First steps
 

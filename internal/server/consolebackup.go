@@ -361,13 +361,22 @@ func RestoreConsole(ctx context.Context, dbURL, dataDir string, r *repo.Reposito
 	if root == "" {
 		return nil, errors.New("the backup holds no console data")
 	}
+	if err := restoreConsoleRoot(ctx, dbURL, dataDir, root, logf); err != nil {
+		return nil, err
+	}
+	return sn, nil
+}
+
+// restoreConsoleRoot loads an exported console (meta.json, db/, files/)
+// into the database and the data directory.
+func restoreConsoleRoot(ctx context.Context, dbURL, dataDir, root string, logf func(string, ...any)) error {
 	var meta consoleMeta
 	b, err := os.ReadFile(filepath.Join(root, "meta.json"))
 	if err != nil || json.Unmarshal(b, &meta) != nil {
-		return nil, errors.New("the console backup is damaged (meta.json)")
+		return errors.New("the console backup is damaged (meta.json)")
 	}
 	if err := importConsoleDB(ctx, dbURL, root, meta, logf); err != nil {
-		return nil, err
+		return err
 	}
 	for _, name := range consoleFiles {
 		data, err := os.ReadFile(filepath.Join(root, "files", filepath.FromSlash(name)))
@@ -375,7 +384,7 @@ func RestoreConsole(ctx context.Context, dbURL, dataDir string, r *repo.Reposito
 			continue
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 		dst := filepath.Join(dataDir, filepath.FromSlash(name))
 		os.MkdirAll(filepath.Dir(dst), 0o700)
@@ -384,12 +393,12 @@ func RestoreConsole(ctx context.Context, dbURL, dataDir string, r *repo.Reposito
 			mode = 0o644
 		}
 		if err := os.WriteFile(dst, data, mode); err != nil {
-			return nil, err
+			return err
 		}
 		matchOwner(dst, dataDir)
 		logf("restored %s", name)
 	}
-	return sn, nil
+	return nil
 }
 
 // importConsoleDB replaces the database's contents with the backup.
