@@ -378,6 +378,10 @@ func restoreConsoleRoot(ctx context.Context, dbURL, dataDir, root string, logf f
 	if err := importConsoleDB(ctx, dbURL, root, meta, logf); err != nil {
 		return err
 	}
+	// The audit chain is now the one of the backup: the head kept next to
+	// the secrets key belongs to the replaced database and would report
+	// its newer entries as deleted. The next entry sets it again.
+	os.Remove(filepath.Join(dataDir, "audit-head.json"))
 	for _, name := range consoleFiles {
 		data, err := os.ReadFile(filepath.Join(root, "files", filepath.FromSlash(name)))
 		if errors.Is(err, fs.ErrNotExist) {

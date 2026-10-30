@@ -74,8 +74,12 @@ func TestPreUpgradeCopy(t *testing.T) {
 	store.UseSecretKey(key)
 	store.CreateTarget(ctx, server.Target{Name: "after", Kind: "local", URL: t.TempDir()})
 	pool.Close()
+	os.WriteFile(filepath.Join(data, "audit-head.json"), []byte(`{"id":99,"hash":"x"}`), 0o600)
 	if err := server.RestorePreUpgrade(ctx, url, data, copyDir, t.Logf); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(data, "audit-head.json")); err == nil {
+		t.Fatal("the audit head of the replaced database was kept (false 'entries deleted' alarm)")
 	}
 	pool, _ = server.OpenDB(ctx, url)
 	defer pool.Close()

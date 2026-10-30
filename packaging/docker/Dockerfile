@@ -35,5 +35,5 @@ WORKDIR /var/lib/backupzit
 VOLUME /var/lib/backupzit
 EXPOSE 8443
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
-  CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8443"]
+  CMD ["/usr/bin/backupzit-server", "--healthcheck"]
 ENTRYPOINT ["/usr/local/bin/backupzit-entrypoint"]

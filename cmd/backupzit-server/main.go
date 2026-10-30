@@ -59,12 +59,16 @@ func run() error {
 	restoreSnapshot := flag.String("snapshot", "latest", "with --restore-console: backup to restore")
 	applyUpdate := flag.Bool("apply-update", false, "install an update requested in the web console (run by the backupzit-update service as root) and exit")
 	setup := flag.Bool("setup", false, "the text menu of the appliance (network, server name, admin password); run as root")
+	healthcheck := flag.Bool("healthcheck", false, "container image: exit 0 when the console answers on its listen address (used by HEALTHCHECK)")
 	restorePre := flag.String("restore-pre-upgrade", "", "container image: load the copy of the console made before an update (a folder in <data-dir>/pre-upgrade) and exit; run it with the image of the version the copy was made from")
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Println("backupzit-server", version)
 		return nil
+	}
+	if *healthcheck {
+		return checkHealth(*listen)
 	}
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -344,4 +348,27 @@ func forgetChangedInitialPassword(ctx context.Context, store *server.Store, data
 			log.Info("the initial admin password was changed; its file was removed", "file", p)
 		}
 	}
+}
+
+// checkHealth asks the console on this host for its sign-in page, as a
+// complete TLS client (a bare TCP probe would fill the log with handshake
+// errors).
+func checkHealth(listen string) error {
+	_, port, err := net.SplitHostPort(listen)
+	if err != nil {
+		return err
+	}
+	c := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
+		// The console's own certificate; only the local port is checked.
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+	}}
+	resp, err := c.Get("https://127.0.0.1:" + port + "/login")
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("console answered %s", resp.Status)
+	}
+	return nil
 }
