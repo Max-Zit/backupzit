@@ -43,7 +43,14 @@ cd "$OUTDIR"
 echo "converting $SRC..."
 qemu-img convert -c -O qcow2 "$SRC" "$NAME.qcow2"
 qemu-img convert -O vhdx -o subformat=dynamic "$SRC" "$NAME.vhdx"
-qemu-img convert -O vmdk -o subformat=streamOptimized,adapter_type=lsilogic "$SRC" "$NAME-disk1.vmdk"
+# Not qemu-img: its stream-optimized VMDKs lack the trailing grain tables,
+# directory and footer, and VMware Workstation rejects them ("SHA digest
+# ... does not match manifest"). vmdkstream is built from tools/vmdkstream
+# (GOOS=linux go build -o packaging/appliance/vmdkstream ./tools/vmdkstream)
+# and checks its result like VMware reads it.
+"$HERE/vmdkstream" -adapter lsilogic "$SRC" "$NAME-disk1.vmdk"
+[ "$("$HERE/vmdkstream" -verify "$NAME-disk1.vmdk")" = "$(sha256sum < "$SRC" | cut -d' ' -f1)" ] ||
+    { echo "the VMDK does not hold the same disk" >&2; exit 1; }
 
 CAP=$((DISK_GB * 1024 * 1024 * 1024))
 SIZE=$(stat -c %s "$NAME-disk1.vmdk")
