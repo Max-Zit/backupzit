@@ -63,13 +63,31 @@
 </ul>
 
 <h2 id="cluster">Failovercluster</h2>
-<p>Für die VMs eines Hyper-V-Failoverclusters installieren Sie den Agenten auf jedem Knoten und legen einen Job für den Cluster an: Wählen Sie unter <a href="/jobs">Backup jobs</a> in der Agentenliste den Cluster unter <i>Hyper-V failover clusters</i> (er erscheint, sobald die Agenten seiner Knoten ihn melden) und alle geclusterten VMs oder ausgewählte.</p>
+<p>Die VMs eines Hyper-V-Failoverclusters werden mit <b>einem Job für den ganzen Cluster</b> gesichert. Drei Schritte:</p>
+<h3>1. Den Agenten auf jedem Knoten installieren</h3>
+<p>Installieren Sie den Windows-Agenten auf <b>jedem Knoten</b> des Clusters (nicht in den VMs). Eine VM sichert immer der Agent des Knotens, auf dem sie gerade läuft: Nur dort funktionieren die Prüfpunkte und die Änderungsverfolgung von Hyper-V. Solange eine VM auf einem Knoten ohne Agenten läuft, wird sie nicht gesichert; sobald sie auf einen Knoten mit Agenten wechselt, wieder.</p>
+<h3>2. Die Konsole erkennt den Cluster selbst</h3>
+<p>Für den Cluster muss weder in BackupZit noch in Windows etwas eingerichtet werden. Jeder Agent (Version 0.47.0 oder neuer) meldet den Failovercluster seines Knotens und welche VMs geclustert sind. Etwa eine Minute nach der Installation oder Aktualisierung der Agenten:</p>
 <ul>
-  <li>Jeder Knoten sichert die geclusterten VMs, die gerade auf ihm laufen; ein Knoten ohne solche VMs ist sofort fertig. Nicht geclusterte VMs bleiben bei den Jobs ihres Knotens.</li>
-  <li>Alle Knoten schreiben in ein Repository des Clusters auf dem Speicher. Wechselt eine VM auf einen anderen Knoten (Live-Migration oder Failover), läuft ihr Verlauf dort weiter, und Resilient Change Tracking liest weiterhin nur die geänderten Blöcke.</li>
-  <li>Knoten, die später zum Cluster kommen, erhalten den Job automatisch; die Seite <a href="/agents">Agents</a> kennzeichnet jeden Knoten mit seinem Cluster.</li>
+  <li>kennzeichnet die Seite <a href="/agents">Agents</a> jeden Knoten mit <i>cluster NAME</i>;</li>
+  <li>erscheint der Cluster im Job-Formular (nächster Schritt), mit der Zahl seiner Knoten.</li>
 </ul>
-<p><b>Wiederherstellen</b> auf einem Knoten des Clusters:</p>
+<p>Später zum Cluster hinzugefügte Knoten werden ebenso erkannt und kommen automatisch zum Job, sobald ihr Agent installiert ist.</p>
+<h3>3. Den Job für den Cluster anlegen</h3>
+<ol>
+  <li>Öffnen Sie <a href="/jobs">Backup jobs</a> und das Formular <i>New backup job</i>.</li>
+  <li>Öffnen Sie die Liste <b>Agent</b> und gehen Sie an ihr Ende: Wählen Sie unter <i>Hyper-V failover clusters (virtual machines)</i> den Cluster, z. B. <i>HVC01 — 2 nodes</i>. Wählen Sie den Cluster, nicht einen einzelnen Knoten.</li>
+  <li>Die Art ist auf <i>Virtual machines</i> gesetzt. Wählen Sie <i>All clustered VMs</i> (auch später zum Cluster hinzugefügte VMs) oder <i>Only these</i>; bei jeder VM steht der Knoten, auf dem sie gerade läuft.</li>
+  <li>Wählen Sie das Speicherziel, den Zeitplan und wie viele Sicherungen bleiben, und klicken Sie auf <i>Create job</i>.</li>
+</ol>
+<p>Die Seite des Jobs zeigt jeden Knoten mit seinem letzten Ergebnis; <i>Run backup now on all agents</i> startet alle. Ein Knoten, auf dem gerade keine VM des Jobs läuft, meldet <i>None of the job's VMs runs on this node now</i> – das ist ein Erfolg.</p>
+<p>Früher angelegte VM-Jobs einzelner Knoten: Deaktivieren oder löschen Sie sie nach der ersten Sicherung des Cluster-Jobs, sonst werden die geclusterten VMs doppelt gesichert; ihre Sicherungen bleiben auf dem Speicher. Nicht geclusterte VMs (sie gehören zu einem Knoten) gehören nicht zum Cluster-Job; sichern Sie sie mit einem Job dieses Knotens.</p>
+<h3>Wie es funktioniert</h3>
+<ul>
+  <li>Jeder Knoten sichert die geclusterten VMs, die gerade auf ihm laufen, alle in <b>ein Repository des Clusters</b> auf dem Speicher.</li>
+  <li>Wechselt eine VM auf einen anderen Knoten (Live-Migration oder Failover), läuft ihr Verlauf dort weiter, und Resilient Change Tracking liest weiterhin nur die geänderten Blöcke: Es gibt keine neue Vollsicherung.</li>
+</ul>
+<h3>Wiederherstellen</h3>
 <ul>
   <li><i>Anstelle des Originals</i> läuft auf dem Knoten, dem die VM gerade gehört (die Konsole wählt ihn). Die VM wird über den Cluster gestoppt und gestartet, damit der Cluster das Stoppen nicht für einen Ausfall hält.</li>
   <li><i>Als neue VM</i>: Wählen Sie einen Ordner auf einem Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). Auch die Konfiguration der VM kommt dorthin, und die VM wird dem Cluster als Rolle hinzugefügt.</li>

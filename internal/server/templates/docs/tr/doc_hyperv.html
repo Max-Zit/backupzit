@@ -63,13 +63,31 @@
 </ul>
 
 <h2 id="cluster">Yük devretme kümeleri</h2>
-<p>Bir Hyper-V yük devretme kümesinin VM'leri için ajanı her düğüme kurun ve küme için tek bir iş oluşturun: <a href="/jobs">Backup jobs</a> sayfasında ajan listesinde <i>Hyper-V failover clusters</i> altından kümeyi seçin (düğümlerinin ajanları bildirir bildirmez görünür) ve kümedeki tüm VM'leri ya da seçtiklerinizi işaretleyin.</p>
+<p>Bir Hyper-V yük devretme kümesinin VM'leri <b>tüm küme için tek bir işle</b> yedeklenir. Üç adım:</p>
+<h3>1. Ajanı her düğüme kurun</h3>
+<p>Windows ajanını kümenin <b>her düğümüne</b> kurun (VM'lerin içine değil). Bir VM'yi her zaman o anda üzerinde çalıştığı düğümün ajanı yedekler: Hyper-V'nin denetim noktaları ve değişiklik izleme yalnızca orada çalışır. Bir VM ajanı olmayan bir düğümde çalıştığı sürece yedeklenmez; ajanı olan bir düğüme geçer geçmez yeniden yedeklenir.</p>
+<h3>2. Konsol kümeyi kendisi tanır</h3>
+<p>Küme için ne BackupZit'te ne de Windows'ta bir şey ayarlamak gerekmez. Her ajan (0.47.0 veya daha yeni sürüm) düğümünün yük devretme kümesini ve hangi VM'lerin kümede olduğunu bildirir. Ajanlar kurulduktan veya güncellendikten yaklaşık bir dakika sonra:</p>
 <ul>
-  <li>Her düğüm o anda üzerinde çalışan küme VM'lerini yedekler; hiçbirini çalıştırmayan düğüm hemen biter. Küme dışındaki VM'ler kendi düğümlerinin işlerinde kalır.</li>
-  <li>Tüm düğümler depolamada kümenin tek deposuna yazar. Bir VM başka bir düğüme geçtiğinde (canlı geçiş veya yük devretme) geçmişi orada sürer ve Resilient Change Tracking yine yalnızca değişen blokları okur.</li>
-  <li>Kümeye sonradan katılan düğümler işi otomatik alır; <a href="/agents">Agents</a> sayfası her düğümün kümesini gösterir.</li>
+  <li><a href="/agents">Agents</a> sayfası her düğümü <i>cluster ADI</i> ile işaretler;</li>
+  <li>küme, düğüm sayısıyla birlikte iş formunda (sonraki adım) görünür.</li>
 </ul>
-<p>Kümenin bir düğümüne <b>geri yükleme</b>:</p>
+<p>Kümeye sonradan eklenen düğümler de aynı şekilde tanınır ve ajanları kurulur kurulmaz işe otomatik katılır.</p>
+<h3>3. Küme için işi oluşturun</h3>
+<ol>
+  <li><a href="/jobs">Backup jobs</a> sayfasını ve <i>New backup job</i> formunu açın.</li>
+  <li><b>Agent</b> listesini açıp sonuna gidin: <i>Hyper-V failover clusters (virtual machines)</i> altında kümeyi seçin, ör. <i>HVC01 — 2 nodes</i>. Tek bir düğümü değil, kümeyi seçin.</li>
+  <li>Tür <i>Virtual machines</i> olarak ayarlanır. <i>All clustered VMs</i> (kümeye sonradan eklenen VM'ler dahil) veya <i>Only these</i> seçin; her VM'nin yanında şu anda çalıştığı düğüm görünür.</li>
+  <li>Depolamayı, zamanlamayı ve kaç yedeğin saklanacağını seçip <i>Create job</i> düğmesine tıklayın.</li>
+</ol>
+<p>İşin sayfası her düğümü son sonucuyla gösterir; <i>Run backup now on all agents</i> hepsini başlatır. O anda işin hiçbir VM'sini çalıştırmayan düğüm <i>None of the job's VMs runs on this node now</i> bildirir; bu bir başarıdır.</p>
+<p>Daha önce tek düğümler için oluşturulmuş VM işleri: küme işinin ilk yedeğinden sonra bunları devre dışı bırakın veya silin, yoksa küme VM'leri iki kez yedeklenir; yedekleri depolamada kalır. Kümede olmayan VM'ler (bir düğüme ait) küme işine dahil değildir; onları o düğümün bir işiyle yedekleyin.</p>
+<h3>Nasıl çalışır</h3>
+<ul>
+  <li>Her düğüm o anda üzerinde çalışan küme VM'lerini yedekler, hepsi depolamadaki <b>kümenin tek deposuna</b>.</li>
+  <li>Bir VM başka bir düğüme geçtiğinde (canlı geçiş veya yük devretme) geçmişi orada sürer ve Resilient Change Tracking yine yalnızca değişen blokları okur: yeni tam yedek alınmaz.</li>
+</ul>
+<h3>Geri yükleme</h3>
 <ul>
   <li><i>Özgün VM'nin yerine</i> VM'nin o an bulunduğu düğümde çalışır (konsol seçer). VM küme üzerinden durdurulup başlatılır, böylece küme durdurmayı arıza saymaz.</li>
   <li><i>Yeni VM olarak</i>: bir Cluster Shared Volume üzerinde klasör seçin (<code>C:\ClusterStorage\…</code>). VM'nin yapılandırması da oraya gider ve VM kümeye rol olarak eklenir.</li>

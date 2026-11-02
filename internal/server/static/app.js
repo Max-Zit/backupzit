@@ -281,6 +281,8 @@ function syncGroupChoice() {
   if (chint) chint.hidden = !cluster;
   var nhint = document.getElementById("hvnode-hint");
   if (nhint) nhint.hidden = !(opt && opt.hasAttribute("data-hvnode"));
+  document.querySelectorAll("[data-hostonly]").forEach(function (n) { n.hidden = cluster; });
+  document.querySelectorAll("[data-clusteronly]").forEach(function (n) { n.hidden = !cluster; });
   var note = document.getElementById("group-image-note");
   if (note) note.hidden = !group;
   document.querySelectorAll("[data-single-agent]").forEach(function (n) { n.hidden = group || cluster; });

@@ -63,13 +63,31 @@
 </ul>
 
 <h2 id="cluster">Clustery s převzetím služeb</h2>
-<p>Pro virtuální počítače clusteru Hyper-V s převzetím služeb nainstalujte agenta na každý uzel a vytvořte jednu úlohu pro cluster: na stránce <a href="/jobs">Backup jobs</a> zvolte v seznamu agentů cluster ve skupině <i>Hyper-V failover clusters</i> (objeví se, jakmile ho agenti jeho uzlů nahlásí) a vyberte všechny počítače clusteru nebo jen některé.</p>
+<p>Virtuální počítače clusteru Hyper-V s převzetím služeb se zálohují <b>jednou úlohou pro celý cluster</b>. Tři kroky:</p>
+<h3>1. Nainstalujte agenta na každý uzel</h3>
+<p>Nainstalujte agenta pro Windows na <b>každý uzel</b> clusteru (ne do virtuálních počítačů). Počítač vždy zálohuje agent uzlu, na kterém právě běží: kontrolní body a sledování změn Hyper-V fungují jen tam. Dokud počítač běží na uzlu bez agenta, nezálohuje se; jakmile přejde na uzel s agentem, zálohuje se znovu.</p>
+<h3>2. Konzole rozpozná cluster sama</h3>
+<p>Pro cluster není třeba nic nastavovat, ani v BackupZit, ani ve Windows. Každý agent (verze 0.47.0 nebo novější) hlásí cluster svého uzlu a které počítače jsou v clusteru. Zhruba minutu po instalaci nebo aktualizaci agentů:</p>
 <ul>
-  <li>Každý uzel zálohuje počítače clusteru, které na něm právě běží; uzel bez nich skončí hned. Počítače mimo cluster zůstávají v úlohách svého uzlu.</li>
-  <li>Všechny uzly zapisují do jednoho repozitáře clusteru na úložišti. Když se počítač přesune na jiný uzel (živá migrace nebo převzetí služeb), jeho historie pokračuje tam a Resilient Change Tracking dál čte jen změněné bloky.</li>
-  <li>Uzly přidané do clusteru později dostanou úlohu automaticky; stránka <a href="/agents">Agents</a> označí každý uzel jeho clusterem.</li>
+  <li>stránka <a href="/agents">Agents</a> označí každý uzel jako <i>cluster NÁZEV</i>;</li>
+  <li>cluster se objeví ve formuláři úlohy (další krok) s počtem svých uzlů.</li>
 </ul>
-<p><b>Obnovení</b> na uzel clusteru:</p>
+<p>Uzly přidané do clusteru později se rozpoznají stejně a připojí se k úloze automaticky, jakmile se na ně nainstaluje agent.</p>
+<h3>3. Vytvořte úlohu pro cluster</h3>
+<ol>
+  <li>Otevřete <a href="/jobs">Backup jobs</a> a formulář <i>New backup job</i>.</li>
+  <li>Otevřete seznam <b>Agent</b> a přejděte na jeho konec: ve skupině <i>Hyper-V failover clusters (virtual machines)</i> zvolte cluster, např. <i>HVC01 — 2 nodes</i>. Zvolte cluster, ne jednotlivý uzel.</li>
+  <li>Druh je nastaven na <i>Virtual machines</i>. Zvolte <i>All clustered VMs</i> (i počítače přidané do clusteru později) nebo <i>Only these</i>; u každého počítače je uzel, na kterém teď běží.</li>
+  <li>Zvolte úložiště, plán a počet uchovávaných záloh a klikněte na <i>Create job</i>.</li>
+</ol>
+<p>Stránka úlohy ukazuje každý uzel s posledním výsledkem; <i>Run backup now on all agents</i> spustí všechny. Uzel, na kterém v tu chvíli neběží žádný počítač úlohy, hlásí <i>None of the job's VMs runs on this node now</i> — to je úspěch.</p>
+<p>Úlohy virtuálních počítačů vytvořené dříve pro jednotlivé uzly: po první záloze úlohy clusteru je vypněte nebo smažte, jinak se počítače clusteru zálohují dvakrát; jejich zálohy zůstávají na úložišti. Počítače mimo cluster (patří jednomu uzlu) do úlohy clusteru nepatří; zálohujte je úlohou toho uzlu.</p>
+<h3>Jak to funguje</h3>
+<ul>
+  <li>Každý uzel zálohuje počítače clusteru, které na něm právě běží, všechny do <b>jednoho repozitáře clusteru</b> na úložišti.</li>
+  <li>Když se počítač přesune na jiný uzel (živá migrace nebo převzetí služeb), jeho historie pokračuje tam a Resilient Change Tracking dál čte jen změněné bloky: žádná nová úplná záloha.</li>
+</ul>
+<h3>Obnovení</h3>
 <ul>
   <li><i>Na místo originálu</i> probíhá na uzlu, který počítač právě vlastní (konzole ho vybere). Počítač se zastaví a spustí přes cluster, aby cluster zastavení nepovažoval za poruchu.</li>
   <li><i>Jako nový počítač</i>: zvolte složku na Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). Tam jde i konfigurace počítače a počítač se přidá do clusteru jako role.</li>

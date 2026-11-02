@@ -63,13 +63,31 @@
 </ul>
 
 <h2 id="cluster">Clusters de failover</h2>
-<p>Para as VMs de um cluster de failover Hyper-V, instale o agente em cada nó e crie um único job para o cluster: em <a href="/jobs">Backup jobs</a> escolha o cluster em <i>Hyper-V failover clusters</i> na lista de agentes (ele aparece assim que os agentes dos nós o informam) e selecione todas as VMs do cluster ou algumas.</p>
+<p>As VMs de um cluster de failover Hyper-V são copiadas com <b>um único job para o cluster inteiro</b>. Três passos:</p>
+<h3>1. Instalar o agente em cada nó</h3>
+<p>Instale o agente Windows em <b>cada nó</b> do cluster (não dentro das VMs). Uma VM é sempre copiada pelo agente do nó em que está rodando naquele momento: os checkpoints e o rastreamento de alterações do Hyper-V só funcionam ali. Enquanto uma VM roda em um nó sem agente, ela não é copiada; volta a ser assim que passa para um nó com o agente.</p>
+<h3>2. O console reconhece o cluster sozinho</h3>
+<p>Nada precisa ser configurado para o cluster, nem no BackupZit nem no Windows. Cada agente (versão 0.47.0 ou mais nova) informa o cluster de failover do seu nó e quais VMs estão no cluster. Cerca de um minuto depois de instalar ou atualizar os agentes:</p>
 <ul>
-  <li>Cada nó faz backup das VMs do cluster que executa naquele momento; um nó que não executa nenhuma termina de imediato. VMs fora do cluster continuam nos jobs do seu nó.</li>
-  <li>Todos os nós gravam em um repositório do cluster no armazenamento. Quando uma VM passa para outro nó (migração ao vivo ou failover), seu histórico continua lá e o Resilient Change Tracking continua lendo só os blocos alterados.</li>
-  <li>Nós que entram no cluster depois recebem o job automaticamente; a página <a href="/agents">Agents</a> indica o cluster de cada nó.</li>
+  <li>a página <a href="/agents">Agents</a> marca cada nó com <i>cluster NOME</i>;</li>
+  <li>o cluster aparece no formulário do job (próximo passo), com o número de nós.</li>
 </ul>
-<p><b>Restauração</b> em um nó do cluster:</p>
+<p>Nós adicionados depois ao cluster são reconhecidos da mesma forma e entram no job automaticamente assim que o agente é instalado.</p>
+<h3>3. Criar o job para o cluster</h3>
+<ol>
+  <li>Abra <a href="/jobs">Backup jobs</a> e o formulário <i>New backup job</i>.</li>
+  <li>Abra a lista <b>Agent</b> e vá até o fim: em <i>Hyper-V failover clusters (virtual machines)</i> escolha o cluster, por ex. <i>HVC01 — 2 nodes</i>. Escolha o cluster, não um nó isolado.</li>
+  <li>O tipo fica em <i>Virtual machines</i>. Escolha <i>All clustered VMs</i> (também VMs adicionadas depois ao cluster) ou <i>Only these</i>; cada VM mostra o nó em que roda agora.</li>
+  <li>Escolha o armazenamento, o agendamento e quantos backups manter, e clique em <i>Create job</i>.</li>
+</ol>
+<p>A página do job mostra cada nó com o último resultado; <i>Run backup now on all agents</i> inicia todos. Um nó que naquele momento não roda nenhuma VM do job informa <i>None of the job's VMs runs on this node now</i>, o que é um sucesso.</p>
+<p>Jobs de VM criados antes para nós isolados: desative-os ou exclua-os após o primeiro backup do job do cluster; caso contrário, as VMs do cluster são copiadas duas vezes. Os backups deles continuam no armazenamento. VMs fora do cluster (pertencem a um nó) não fazem parte do job do cluster; copie-as com um job desse nó.</p>
+<h3>Como funciona</h3>
+<ul>
+  <li>Cada nó copia as VMs do cluster que roda naquele momento, todas em <b>um repositório do cluster</b> no armazenamento.</li>
+  <li>Quando uma VM passa para outro nó (migração ao vivo ou failover), seu histórico continua lá e o Resilient Change Tracking continua lendo só os blocos alterados: não há novo backup completo.</li>
+</ul>
+<h3>Restauração</h3>
 <ul>
   <li><i>No lugar do original</i> roda no nó que tem a VM naquele momento (o console o escolhe). A VM é parada e iniciada pelo cluster, para que ele não tome a parada por uma falha.</li>
   <li><i>Como nova VM</i>: escolha uma pasta em um Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). A configuração da VM também vai para lá e a VM é adicionada ao cluster como função.</li>

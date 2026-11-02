@@ -63,13 +63,31 @@
 </ul>
 
 <h2 id="cluster">Cluster di failover</h2>
-<p>Per le VM di un cluster di failover Hyper-V installa l'agente su ogni nodo e crea un unico job per il cluster: in <a href="/jobs">Backup jobs</a> scegli il cluster sotto <i>Hyper-V failover clusters</i> nell'elenco degli agenti (compare non appena gli agenti dei suoi nodi lo segnalano) e seleziona tutte le VM del cluster o alcune.</p>
+<p>Le VM di un cluster di failover Hyper-V si salvano con <b>un unico job per tutto il cluster</b>. Tre passaggi:</p>
+<h3>1. Installare l'agente su ogni nodo</h3>
+<p>Installa l'agente Windows su <b>ogni nodo</b> del cluster (non dentro le VM). Una VM viene sempre salvata dall'agente del nodo su cui è in esecuzione in quel momento: i checkpoint e il tracciamento delle modifiche di Hyper-V funzionano solo lì. Finché una VM gira su un nodo senza agente non viene salvata; torna a esserlo appena passa a un nodo con l'agente.</p>
+<h3>2. La console riconosce il cluster da sola</h3>
+<p>Per il cluster non va configurato nulla, né in BackupZit né in Windows. Ogni agente (versione 0.47.0 o successiva) segnala il cluster di failover del suo nodo e quali VM sono in cluster. Circa un minuto dopo l'installazione o l'aggiornamento degli agenti:</p>
 <ul>
-  <li>Ogni nodo esegue il backup delle VM del cluster che sta eseguendo in quel momento; un nodo che non ne esegue nessuna termina subito. Le VM fuori dal cluster restano nei job del loro nodo.</li>
-  <li>Tutti i nodi scrivono in un unico repository del cluster sullo storage. Quando una VM passa a un altro nodo (migrazione live o failover), la sua cronologia continua lì e Resilient Change Tracking legge ancora solo i blocchi modificati.</li>
-  <li>I nodi aggiunti in seguito al cluster ricevono il job automaticamente; la pagina <a href="/agents">Agents</a> indica il cluster di ogni nodo.</li>
+  <li>la pagina <a href="/agents">Agents</a> contrassegna ogni nodo con <i>cluster NOME</i>;</li>
+  <li>il cluster compare nel modulo del job (passo successivo), con il numero dei suoi nodi.</li>
 </ul>
-<p><b>Ripristino</b> su un nodo del cluster:</p>
+<p>I nodi aggiunti in seguito al cluster vengono riconosciuti allo stesso modo ed entrano nel job automaticamente appena il loro agente è installato.</p>
+<h3>3. Creare il job per il cluster</h3>
+<ol>
+  <li>Apri <a href="/jobs">Backup jobs</a> e il modulo <i>New backup job</i>.</li>
+  <li>Apri l'elenco <b>Agent</b> e vai in fondo: sotto <i>Hyper-V failover clusters (virtual machines)</i> scegli il cluster, ad es. <i>HVC01 — 2 nodes</i>. Scegli il cluster, non un singolo nodo.</li>
+  <li>Il tipo è impostato su <i>Virtual machines</i>. Scegli <i>All clustered VMs</i> (anche le VM aggiunte in seguito al cluster) oppure <i>Only these</i>; accanto a ogni VM c'è il nodo su cui è in esecuzione ora.</li>
+  <li>Scegli lo storage, la pianificazione e quanti backup conservare, poi fai clic su <i>Create job</i>.</li>
+</ol>
+<p>La pagina del job mostra ogni nodo con il suo ultimo risultato; <i>Run backup now on all agents</i> li avvia tutti. Un nodo che in quel momento non esegue nessuna VM del job segnala <i>None of the job's VMs runs on this node now</i>: è un successo.</p>
+<p>Job di VM creati prima per singoli nodi: disattivali o eliminali dopo il primo backup del job del cluster, altrimenti le VM del cluster vengono salvate due volte; i loro backup restano sullo storage. Le VM fuori dal cluster (appartengono a un nodo) non fanno parte del job del cluster; salvale con un job di quel nodo.</p>
+<h3>Come funziona</h3>
+<ul>
+  <li>Ogni nodo salva le VM del cluster che sta eseguendo in quel momento, tutte in <b>un unico repository del cluster</b> sullo storage.</li>
+  <li>Quando una VM passa a un altro nodo (migrazione live o failover), la sua cronologia continua lì e Resilient Change Tracking legge ancora solo i blocchi modificati: nessun nuovo backup completo.</li>
+</ul>
+<h3>Ripristino</h3>
 <ul>
   <li><i>Al posto dell'originale</i> viene eseguito sul nodo che possiede la VM in quel momento (la console lo sceglie). La VM viene arrestata e avviata tramite il cluster, così il cluster non scambia l'arresto per un guasto.</li>
   <li><i>Come nuova VM</i>: scegli una cartella su un Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). Anche la configurazione della VM va lì e la VM viene aggiunta al cluster come ruolo.</li>

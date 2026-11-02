@@ -63,13 +63,31 @@
 </ul>
 
 <h2 id="cluster">Failover klasteri</h2>
-<p>Za VM-ove Hyper-V failover klastera instalirajte agenta na svaki čvor i napravite jedan posao za klaster: na stranici <a href="/jobs">Backup jobs</a> u listi agenata izaberite klaster pod <i>Hyper-V failover clusters</i> (pojavljuje se čim ga agenti njegovih čvorova prijave) i odaberite sve klasterske VM-ove ili izabrane.</p>
+<p>VM-ovi Hyper-V failover klastera backup-uju se <b>jednim poslom za ceo klaster</b>. Tri koraka:</p>
+<h3>1. Instalirajte agenta na svaki čvor</h3>
+<p>Instalirajte Windows agenta na <b>svaki čvor</b> klastera (ne u VM-ove). VM uvek backup-uje agent čvora na kom VM u tom trenutku radi: Hyper-V checkpoint-i i praćenje promena rade samo tamo. Dok VM radi na čvoru bez agenta, ne backup-uje se; ponovo se backup-uje čim pređe na čvor sa agentom.</p>
+<h3>2. Konzola sama prepoznaje klaster</h3>
+<p>Za klaster ne treba ništa podešavati ni u BackupZit-u ni u Windows-u. Svaki agent (verzija 0.47.0 ili novija) javlja failover klaster svog čvora i koji VM-ovi su u klasteru. Oko minut posle instalacije ili ažuriranja agenata:</p>
 <ul>
-  <li>Svaki čvor backup-uje klasterske VM-ove koji u tom trenutku rade na njemu; čvor na kom ne radi nijedan odmah završava. VM-ovi koji nisu u klasteru ostaju u poslovima svog čvora.</li>
-  <li>Svi čvorovi pišu u jedan repozitorijum klastera na storage-u. Kada VM pređe na drugi čvor (live migration ili failover), njegova istorija se nastavlja tamo, a Resilient Change Tracking i dalje čita samo promenjene blokove.</li>
-  <li>Čvorovi koji se kasnije priključe klasteru automatski dobijaju posao; stranica <a href="/agents">Agents</a> označava svaki čvor njegovim klasterom.</li>
+  <li>stranica <a href="/agents">Agents</a> označava svaki čvor sa <i>cluster IME</i>;</li>
+  <li>klaster se pojavljuje u formi za posao (sledeći korak), sa brojem svojih čvorova.</li>
 </ul>
-<p><b>Vraćanje</b> na čvor klastera:</p>
+<p>Čvorovi dodati u klaster kasnije prepoznaju se isto tako i sami ulaze u posao čim se na njih instalira agent.</p>
+<h3>3. Napravite posao za klaster</h3>
+<ol>
+  <li>Otvorite <a href="/jobs">Backup jobs</a> i formu <i>New backup job</i>.</li>
+  <li>Otvorite listu <b>Agent</b> i idite na njen kraj: pod <i>Hyper-V failover clusters (virtual machines)</i> izaberite klaster, npr. <i>HVC01 — 2 nodes</i>. Birajte klaster, ne pojedinačni čvor.</li>
+  <li>Vrsta posla je postavljena na <i>Virtual machines</i>. Izaberite <i>All clustered VMs</i> (i VM-ovi kasnije dodati u klaster) ili <i>Only these</i>; uz svaki VM piše čvor na kom sada radi.</li>
+  <li>Izaberite storage, raspored i koliko backup-a da se čuva, pa kliknite <i>Create job</i>.</li>
+</ol>
+<p>Stranica posla prikazuje svaki čvor sa poslednjim rezultatom; <i>Run backup now on all agents</i> pokreće sve. Čvor na kom u tom trenutku ne radi nijedan VM posla javlja <i>None of the job's VMs runs on this node now</i>, što je uspeh.</p>
+<p>VM poslovi ranije napravljeni za pojedinačne čvorove: isključite ih ili obrišite posle prvog backup-a posla klastera, inače se klasterski VM-ovi backup-uju dva puta; njihovi backup-i ostaju na storage-u. VM-ovi koji nisu u klasteru (pripadaju jednom čvoru) nisu deo posla klastera; backup-ujte ih poslom tog čvora.</p>
+<h3>Kako radi</h3>
+<ul>
+  <li>Svaki čvor backup-uje klasterske VM-ove koji u tom trenutku rade na njemu, sve u <b>jedan repozitorijum klastera</b> na storage-u.</li>
+  <li>Kada VM pređe na drugi čvor (live migration ili failover), njegova istorija se nastavlja tamo, a Resilient Change Tracking i dalje čita samo promenjene blokove: nema novog punog backup-a.</li>
+</ul>
+<h3>Vraćanje</h3>
 <ul>
   <li><i>Na mesto originala</i> se izvršava na čvoru na kom VM trenutno radi (konzola ga bira). VM se gasi i pali preko klastera, pa klaster gašenje ne smatra kvarom.</li>
   <li><i>Kao novi VM</i>: izaberite folder na Cluster Shared Volume-u (<code>C:\ClusterStorage\…</code>). Tamo ide i konfiguracija VM-a, a VM se dodaje u klaster kao rola.</li>

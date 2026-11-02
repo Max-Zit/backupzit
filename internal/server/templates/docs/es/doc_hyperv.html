@@ -63,13 +63,31 @@
 </ul>
 
 <h2 id="cluster">Clústeres de conmutación por error</h2>
-<p>Para las VM de un clúster de conmutación por error de Hyper-V, instale el agente en cada nodo y cree un único trabajo para el clúster: en <a href="/jobs">Backup jobs</a> elija el clúster en <i>Hyper-V failover clusters</i> de la lista de agentes (aparece en cuanto los agentes de sus nodos lo comunican) y seleccione todas las VM del clúster o algunas.</p>
+<p>Las VM de un clúster de conmutación por error de Hyper-V se copian con <b>un solo trabajo para todo el clúster</b>. Tres pasos:</p>
+<h3>1. Instalar el agente en cada nodo</h3>
+<p>Instale el agente de Windows en <b>cada nodo</b> del clúster (no dentro de las VM). Una VM siempre la copia el agente del nodo en el que se ejecuta en ese momento: los puntos de control y el seguimiento de cambios de Hyper-V solo funcionan allí. Mientras una VM se ejecuta en un nodo sin agente, no se copia; vuelve a copiarse en cuanto pasa a un nodo con agente.</p>
+<h3>2. La consola reconoce el clúster sola</h3>
+<p>No hay que configurar nada para el clúster, ni en BackupZit ni en Windows. Cada agente (versión 0.47.0 o posterior) informa del clúster de conmutación por error de su nodo y de qué VM están en el clúster. Aproximadamente un minuto después de instalar o actualizar los agentes:</p>
 <ul>
-  <li>Cada nodo copia las VM del clúster que ejecuta en ese momento; un nodo que no ejecuta ninguna termina enseguida. Las VM que no están en el clúster siguen en los trabajos de su nodo.</li>
-  <li>Todos los nodos escriben en un repositorio del clúster en el almacenamiento. Cuando una VM pasa a otro nodo (migración en vivo o conmutación por error), su historial continúa allí y Resilient Change Tracking sigue leyendo solo los bloques cambiados.</li>
-  <li>Los nodos que se unen después al clúster reciben el trabajo automáticamente; la página <a href="/agents">Agents</a> marca cada nodo con su clúster.</li>
+  <li>la página <a href="/agents">Agents</a> marca cada nodo con <i>cluster NOMBRE</i>;</li>
+  <li>el clúster aparece en el formulario de trabajo (paso siguiente), con el número de sus nodos.</li>
 </ul>
-<p><b>Restauración</b> en un nodo del clúster:</p>
+<p>Los nodos añadidos más tarde al clúster se reconocen igual y se unen al trabajo automáticamente en cuanto se instala su agente.</p>
+<h3>3. Crear el trabajo para el clúster</h3>
+<ol>
+  <li>Abra <a href="/jobs">Backup jobs</a> y el formulario <i>New backup job</i>.</li>
+  <li>Abra la lista <b>Agent</b> y vaya al final: en <i>Hyper-V failover clusters (virtual machines)</i> elija el clúster, p. ej. <i>HVC01 — 2 nodes</i>. Elija el clúster, no un nodo suelto.</li>
+  <li>El tipo queda en <i>Virtual machines</i>. Elija <i>All clustered VMs</i> (también las VM añadidas después al clúster) u <i>Only these</i>; cada VM muestra el nodo en el que se ejecuta ahora.</li>
+  <li>Elija el almacenamiento, la programación y cuántas copias conservar, y haga clic en <i>Create job</i>.</li>
+</ol>
+<p>La página del trabajo muestra cada nodo con su último resultado; <i>Run backup now on all agents</i> los inicia todos. Un nodo que en ese momento no ejecuta ninguna VM del trabajo informa <i>None of the job's VMs runs on this node now</i>, lo cual es un éxito.</p>
+<p>Trabajos de VM creados antes para nodos sueltos: desactívelos o elimínelos tras la primera copia del trabajo del clúster; si no, las VM del clúster se copian dos veces. Sus copias siguen en el almacenamiento. Las VM que no están en el clúster (pertenecen a un nodo) no forman parte del trabajo del clúster; cópielas con un trabajo de ese nodo.</p>
+<h3>Cómo funciona</h3>
+<ul>
+  <li>Cada nodo copia las VM del clúster que ejecuta en ese momento, todas en <b>un repositorio del clúster</b> en el almacenamiento.</li>
+  <li>Cuando una VM pasa a otro nodo (migración en vivo o conmutación por error), su historial continúa allí y Resilient Change Tracking sigue leyendo solo los bloques cambiados: no hay una nueva copia completa.</li>
+</ul>
+<h3>Restauración</h3>
 <ul>
   <li><i>En lugar del original</i> se ejecuta en el nodo que tiene la VM en ese momento (la consola lo elige). La VM se detiene y se inicia a través del clúster, para que este no tome la parada por un fallo.</li>
   <li><i>Como VM nueva</i>: elija una carpeta en un Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). La configuración de la VM también va allí y la VM se añade al clúster como rol.</li>

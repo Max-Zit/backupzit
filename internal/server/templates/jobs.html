@@ -99,7 +99,7 @@
       </label>
     </div>
     <div data-jobkind="vm" hidden class="stack">
-      <label class="check"><input type="radio" name="vm_mode" value="all" checked> {{T "All VMs (and containers) on the host"}} <small>{{T "VMs created later are included automatically"}}</small></label>
+      <label class="check"><input type="radio" name="vm_mode" value="all" checked> <span data-hostonly>{{T "All VMs (and containers) on the host"}} <small>{{T "VMs created later are included automatically"}}</small></span><span data-clusteronly hidden>{{T "All clustered VMs"}} <small>{{T "VMs added to the cluster later are included automatically"}}</small></span></label>
       <label class="check"><input type="radio" name="vm_mode" value="selected"> {{T "Only these:"}}</label>
       <div id="vm-picker" class="disks"><p class="muted">{{T "Select the agent on the Proxmox or Hyper-V host, or a VMware ESXi host."}}</p></div>
       <p class="muted small">{{T "Each VM is captured from a snapshot (Proxmox, VMware) or production checkpoint (Hyper-V) while it keeps running; file systems are frozen first when the guest tools run in the VM. Only changed blocks are uploaded after the first backup; on VMware only changed blocks are even read."}}</p>

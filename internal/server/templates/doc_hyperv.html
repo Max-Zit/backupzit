@@ -63,13 +63,31 @@
 </ul>
 
 <h2 id="cluster">Failover clusters</h2>
-<p>For the VMs of a Hyper-V failover cluster, install the agent on every node and create one job for the cluster: on <a href="/jobs">Backup jobs</a> choose the cluster under <i>Hyper-V failover clusters</i> in the agent list (it appears as soon as the agents of its nodes report it) and pick all clustered VMs or chosen ones.</p>
+<p>The VMs of a Hyper-V failover cluster are backed up with <b>one job for the whole cluster</b>. Three steps:</p>
+<h3>1. Install the agent on every node</h3>
+<p>Install the Windows agent on <b>every node</b> of the cluster (not inside the VMs). A VM is always backed up by the agent of the node it runs on at that moment: Hyper-V's checkpoints and change tracking work only there. While a VM runs on a node without the agent, it is not backed up; it is again as soon as it moves to a node with the agent.</p>
+<h3>2. The console recognises the cluster by itself</h3>
+<p>Nothing has to be set up for the cluster in BackupZit or in Windows. Each agent (version 0.47.0 or newer) reports the failover cluster of its node and which VMs are clustered. About a minute after the agents are installed or updated:</p>
 <ul>
-  <li>Each node backs up the clustered VMs it runs at that moment; a node that runs none of them finishes at once. VMs that are not clustered stay with jobs of their node.</li>
-  <li>All nodes write into one repository of the cluster on the storage. When a VM moves to another node (live migration or failover), its history continues there, and Resilient Change Tracking still reads only the changed blocks.</li>
-  <li>Nodes that join the cluster later get the job automatically; the <a href="/agents">Agents</a> page marks each node with its cluster.</li>
+  <li>the <a href="/agents">Agents</a> page marks each node with <i>cluster NAME</i>;</li>
+  <li>the cluster appears in the job form (next step), with the number of its nodes.</li>
 </ul>
-<p><b>Restoring</b> on a node of the cluster:</p>
+<p>Nodes added to the cluster later are recognised the same way and join the job automatically once their agent is installed.</p>
+<h3>3. Create the job for the cluster</h3>
+<ol>
+  <li>Open <a href="/jobs">Backup jobs</a> and the form <i>New backup job</i>.</li>
+  <li>Open the <b>Agent</b> list and go to its end: under <i>Hyper-V failover clusters (virtual machines)</i> choose the cluster, e.g. <i>HVC01 — 2 nodes</i>. Choose the cluster, not a single node.</li>
+  <li>The kind is set to <i>Virtual machines</i>. Choose <i>All clustered VMs</i> (also VMs added to the cluster later) or <i>Only these</i>; each VM shows the node it runs on now.</li>
+  <li>Choose the storage target, the schedule and how many backups to keep, and click <i>Create job</i>.</li>
+</ol>
+<p>The job's page lists every node with its last result; <i>Run backup now on all agents</i> starts them all. A node that runs none of the job's VMs at that moment reports <i>None of the job's VMs runs on this node now</i>, which is a success.</p>
+<p>VM jobs created earlier for single nodes: disable or delete them after the first backup of the cluster job, otherwise the clustered VMs are backed up twice; their backups stay on the storage. VMs that are not clustered (they belong to one node) are not part of the cluster job; back them up with a job of that node.</p>
+<h3>How it works</h3>
+<ul>
+  <li>Each node backs up the clustered VMs it runs at that moment, all into <b>one repository of the cluster</b> on the storage.</li>
+  <li>When a VM moves to another node (live migration or failover), its history continues there and Resilient Change Tracking still reads only the changed blocks: there is no new full backup.</li>
+</ul>
+<h3>Restoring</h3>
 <ul>
   <li><i>In place</i> runs on the node that owns the VM now (the console picks it). The VM is stopped and started through the cluster, so the cluster does not take the stop for a failure.</li>
   <li><i>As a new VM</i>: choose a folder on a Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). The VM's configuration goes there too, and the VM is added to the cluster as a role.</li>

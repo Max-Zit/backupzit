@@ -63,13 +63,31 @@
 </ul>
 
 <h2 id="cluster">Failoverclusters</h2>
-<p>Installeer voor de VM's van een Hyper-V-failovercluster de agent op elk knooppunt en maak één taak voor het cluster: kies op <a href="/jobs">Backup jobs</a> in de agentlijst het cluster onder <i>Hyper-V failover clusters</i> (het verschijnt zodra de agents van de knooppunten het melden) en selecteer alle geclusterde VM's of enkele.</p>
+<p>De VM's van een Hyper-V-failovercluster worden geback-upt met <b>één taak voor het hele cluster</b>. Drie stappen:</p>
+<h3>1. Installeer de agent op elk knooppunt</h3>
+<p>Installeer de Windows-agent op <b>elk knooppunt</b> van het cluster (niet in de VM's). Een VM wordt altijd geback-upt door de agent van het knooppunt waar hij op dat moment draait: de controlepunten en het bijhouden van wijzigingen van Hyper-V werken alleen daar. Zolang een VM op een knooppunt zonder agent draait, wordt hij niet geback-upt; zodra hij naar een knooppunt met agent gaat, weer wel.</p>
+<h3>2. De console herkent het cluster zelf</h3>
+<p>Voor het cluster hoeft niets te worden ingesteld, niet in BackupZit en niet in Windows. Elke agent (versie 0.47.0 of nieuwer) meldt het failovercluster van zijn knooppunt en welke VM's geclusterd zijn. Ongeveer een minuut na het installeren of bijwerken van de agents:</p>
 <ul>
-  <li>Elk knooppunt maakt een back-up van de geclusterde VM's die het op dat moment draait; een knooppunt zonder zulke VM's is meteen klaar. VM's buiten het cluster blijven bij de taken van hun knooppunt.</li>
-  <li>Alle knooppunten schrijven naar één repository van het cluster op de opslag. Verhuist een VM naar een ander knooppunt (livemigratie of failover), dan loopt de geschiedenis daar door en leest Resilient Change Tracking nog steeds alleen de gewijzigde blokken.</li>
-  <li>Knooppunten die later bij het cluster komen, krijgen de taak automatisch; de pagina <a href="/agents">Agents</a> toont het cluster van elk knooppunt.</li>
+  <li>markeert de pagina <a href="/agents">Agents</a> elk knooppunt met <i>cluster NAAM</i>;</li>
+  <li>verschijnt het cluster in het taakformulier (volgende stap), met het aantal knooppunten.</li>
 </ul>
-<p><b>Herstellen</b> op een knooppunt van het cluster:</p>
+<p>Knooppunten die later aan het cluster worden toegevoegd, worden op dezelfde manier herkend en doen automatisch mee zodra hun agent is geïnstalleerd.</p>
+<h3>3. Maak de taak voor het cluster</h3>
+<ol>
+  <li>Open <a href="/jobs">Backup jobs</a> en het formulier <i>New backup job</i>.</li>
+  <li>Open de lijst <b>Agent</b> en ga naar het einde: kies onder <i>Hyper-V failover clusters (virtual machines)</i> het cluster, bijv. <i>HVC01 — 2 nodes</i>. Kies het cluster, niet één knooppunt.</li>
+  <li>De soort staat op <i>Virtual machines</i>. Kies <i>All clustered VMs</i> (ook VM's die later aan het cluster worden toegevoegd) of <i>Only these</i>; bij elke VM staat het knooppunt waar hij nu draait.</li>
+  <li>Kies de opslag, het schema en hoeveel back-ups bewaard blijven, en klik op <i>Create job</i>.</li>
+</ol>
+<p>De pagina van de taak toont elk knooppunt met zijn laatste resultaat; <i>Run backup now on all agents</i> start ze allemaal. Een knooppunt waarop op dat moment geen VM van de taak draait, meldt <i>None of the job's VMs runs on this node now</i>; dat is een succes.</p>
+<p>VM-taken die eerder voor losse knooppunten zijn gemaakt: schakel ze uit of verwijder ze na de eerste back-up van de clustertaak, anders worden de geclusterde VM's dubbel geback-upt; hun back-ups blijven op de opslag. VM's buiten het cluster (ze horen bij één knooppunt) horen niet bij de clustertaak; maak er een back-up van met een taak van dat knooppunt.</p>
+<h3>Hoe het werkt</h3>
+<ul>
+  <li>Elk knooppunt maakt een back-up van de geclusterde VM's die het op dat moment draait, allemaal in <b>één repository van het cluster</b> op de opslag.</li>
+  <li>Verhuist een VM naar een ander knooppunt (livemigratie of failover), dan loopt de geschiedenis daar door en leest Resilient Change Tracking nog steeds alleen de gewijzigde blokken: er komt geen nieuwe volledige back-up.</li>
+</ul>
+<h3>Herstellen</h3>
 <ul>
   <li><i>In plaats van het origineel</i> draait op het knooppunt dat de VM op dat moment heeft (de console kiest het). De VM wordt via het cluster gestopt en gestart, zodat het cluster het stoppen niet als storing ziet.</li>
   <li><i>Als nieuwe VM</i>: kies een map op een Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). Ook de configuratie van de VM komt daar, en de VM wordt als rol aan het cluster toegevoegd.</li>

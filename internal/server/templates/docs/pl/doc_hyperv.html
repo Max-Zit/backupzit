@@ -63,13 +63,31 @@
 </ul>
 
 <h2 id="cluster">Klastry pracy awaryjnej</h2>
-<p>Dla maszyn wirtualnych klastra pracy awaryjnej Hyper-V zainstaluj agenta na każdym węźle i utwórz jedno zadanie dla klastra: na stronie <a href="/jobs">Backup jobs</a> wybierz klaster w grupie <i>Hyper-V failover clusters</i> na liście agentów (pojawia się, gdy tylko agenci jego węzłów go zgłoszą) i zaznacz wszystkie maszyny klastra albo wybrane.</p>
+<p>Maszyny wirtualne klastra pracy awaryjnej Hyper-V są kopiowane <b>jednym zadaniem dla całego klastra</b>. Trzy kroki:</p>
+<h3>1. Zainstaluj agenta na każdym węźle</h3>
+<p>Zainstaluj agenta Windows na <b>każdym węźle</b> klastra (nie w maszynach wirtualnych). Maszynę zawsze kopiuje agent węzła, na którym w danej chwili działa: punkty kontrolne i śledzenie zmian Hyper-V działają tylko tam. Dopóki maszyna działa na węźle bez agenta, nie jest kopiowana; jest znowu, gdy tylko przejdzie na węzeł z agentem.</p>
+<h3>2. Konsola sama rozpoznaje klaster</h3>
+<p>Dla klastra nie trzeba nic konfigurować ani w BackupZit, ani w Windows. Każdy agent (wersja 0.47.0 lub nowsza) zgłasza klaster pracy awaryjnej swojego węzła i które maszyny są w klastrze. Mniej więcej minutę po instalacji lub aktualizacji agentów:</p>
 <ul>
-  <li>Każdy węzeł tworzy kopie maszyn klastra, które w danej chwili na nim działają; węzeł bez takich maszyn kończy od razu. Maszyny spoza klastra pozostają w zadaniach swojego węzła.</li>
-  <li>Wszystkie węzły zapisują do jednego repozytorium klastra na magazynie. Gdy maszyna przejdzie na inny węzeł (migracja na żywo lub przełączenie awaryjne), jej historia jest tam kontynuowana, a Resilient Change Tracking nadal czyta tylko zmienione bloki.</li>
-  <li>Węzły dołączone później do klastra otrzymują zadanie automatycznie; strona <a href="/agents">Agents</a> oznacza każdy węzeł jego klastrem.</li>
+  <li>strona <a href="/agents">Agents</a> oznacza każdy węzeł jako <i>cluster NAZWA</i>;</li>
+  <li>klaster pojawia się w formularzu zadania (następny krok), z liczbą węzłów.</li>
 </ul>
-<p><b>Przywracanie</b> na węźle klastra:</p>
+<p>Węzły dodane później do klastra są rozpoznawane tak samo i dołączają do zadania automatycznie, gdy tylko zostanie na nich zainstalowany agent.</p>
+<h3>3. Utwórz zadanie dla klastra</h3>
+<ol>
+  <li>Otwórz <a href="/jobs">Backup jobs</a> i formularz <i>New backup job</i>.</li>
+  <li>Otwórz listę <b>Agent</b> i przejdź na jej koniec: w grupie <i>Hyper-V failover clusters (virtual machines)</i> wybierz klaster, np. <i>HVC01 — 2 nodes</i>. Wybierz klaster, nie pojedynczy węzeł.</li>
+  <li>Rodzaj jest ustawiony na <i>Virtual machines</i>. Wybierz <i>All clustered VMs</i> (także maszyny dodane później do klastra) albo <i>Only these</i>; przy każdej maszynie widać węzeł, na którym teraz działa.</li>
+  <li>Wybierz magazyn, harmonogram i liczbę zachowywanych kopii, a potem kliknij <i>Create job</i>.</li>
+</ol>
+<p>Strona zadania pokazuje każdy węzeł z ostatnim wynikiem; <i>Run backup now on all agents</i> uruchamia wszystkie. Węzeł, na którym w tej chwili nie działa żadna maszyna zadania, zgłasza <i>None of the job's VMs runs on this node now</i> — to sukces.</p>
+<p>Zadania maszyn wirtualnych utworzone wcześniej dla pojedynczych węzłów: wyłącz je lub usuń po pierwszej kopii zadania klastra, inaczej maszyny klastra będą kopiowane dwa razy; ich kopie pozostają w magazynie. Maszyny spoza klastra (należą do jednego węzła) nie wchodzą do zadania klastra; kopiuj je zadaniem tego węzła.</p>
+<h3>Jak to działa</h3>
+<ul>
+  <li>Każdy węzeł kopiuje maszyny klastra, które w danej chwili na nim działają, wszystkie do <b>jednego repozytorium klastra</b> w magazynie.</li>
+  <li>Gdy maszyna przejdzie na inny węzeł (migracja na żywo lub przełączenie awaryjne), jej historia jest tam kontynuowana, a Resilient Change Tracking nadal czyta tylko zmienione bloki: nie ma nowej pełnej kopii.</li>
+</ul>
+<h3>Przywracanie</h3>
 <ul>
   <li><i>W miejsce oryginału</i> odbywa się na węźle, który w tej chwili ma maszynę (konsola go wybiera). Maszyna jest zatrzymywana i uruchamiana przez klaster, aby nie uznał zatrzymania za awarię.</li>
   <li><i>Jako nowa maszyna</i>: wybierz folder na Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). Trafia tam też konfiguracja maszyny, a maszyna zostaje dodana do klastra jako rola.</li>
