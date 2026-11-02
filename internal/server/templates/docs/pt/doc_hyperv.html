@@ -62,6 +62,18 @@
   <li>Toda VM restaurada recebe um novo ID de geração, para que controladores de domínio do Active Directory detectem a restauração com segurança.</li>
 </ul>
 
+<h2 id="cluster">Clusters de failover</h2>
+<p>Para as VMs de um cluster de failover Hyper-V, instale o agente em cada nó e crie um único job para o cluster: em <a href="/jobs">Backup jobs</a> escolha o cluster em <i>Hyper-V failover clusters</i> na lista de agentes (ele aparece assim que os agentes dos nós o informam) e selecione todas as VMs do cluster ou algumas.</p>
+<ul>
+  <li>Cada nó faz backup das VMs do cluster que executa naquele momento; um nó que não executa nenhuma termina de imediato. VMs fora do cluster continuam nos jobs do seu nó.</li>
+  <li>Todos os nós gravam em um repositório do cluster no armazenamento. Quando uma VM passa para outro nó (migração ao vivo ou failover), seu histórico continua lá e o Resilient Change Tracking continua lendo só os blocos alterados.</li>
+  <li>Nós que entram no cluster depois recebem o job automaticamente; a página <a href="/agents">Agents</a> indica o cluster de cada nó.</li>
+</ul>
+<p><b>Restauração</b> em um nó do cluster:</p>
+<ul>
+  <li><i>No lugar do original</i> roda no nó que tem a VM naquele momento (o console o escolhe). A VM é parada e iniciada pelo cluster, para que ele não tome a parada por uma falha.</li>
+  <li><i>Como nova VM</i>: escolha uma pasta em um Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). A configuração da VM também vai para lá e a VM é adicionada ao cluster como função.</li>
+</ul>
 <h2>Restaurar arquivos avulsos</h2>
 <p>Na tabela de VMs da execução, clique em <b>Navegar pelos arquivos</b> para ver as partições e volumes dos discos da VM. Você pode navegar em NTFS, ext2/3/4 e XFS, também dentro de LVM. A partir dali pode baixar arquivos ou restaurá-los em qualquer agente. Funciona exatamente como no <a href="/docs/proxmox">Proxmox VE</a>.</p>
 

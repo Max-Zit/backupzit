@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/max-zit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/pve"
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
@@ -45,14 +46,22 @@ const (
 	GroupWindows = "windows"
 	GroupLinux   = "linux"
 	GroupMacOS   = "macos"
+	// GroupHVCluster: the nodes of the Hyper-V failover cluster named in
+	// Options.HVCluster (a VM job; each node backs up the clustered VMs it
+	// owns, all into one repository of the cluster).
+	GroupHVCluster = "hvcluster"
 )
 
-var groupScopes = []string{GroupAgents, GroupAll, GroupWindows, GroupLinux, GroupMacOS}
+var groupScopes = []string{GroupAgents, GroupAll, GroupWindows, GroupLinux, GroupMacOS, GroupHVCluster}
 
 // Matches reports whether the group backs up agent a.
 func (g JobGroup) Matches(a Agent) bool {
 	if a.Recovery || a.RemovedAt != nil {
 		return false
+	}
+	if g.Scope == GroupHVCluster || g.Kind == JobVM {
+		return g.Scope == GroupHVCluster && g.Kind == JobVM && g.Options.HVCluster != "" &&
+			strings.EqualFold(a.HVCluster(), g.Options.HVCluster) && !slices.Contains(g.ExcludeIDs, a.ID)
 	}
 	// Disk images are made of Windows computers, system backups of Linux
 	// ones, also when the agents are chosen.
@@ -125,7 +134,25 @@ func (g *JobGroup) check() error {
 	if g.Scope == GroupAgents && len(g.AgentIDs) == 0 {
 		return errors.New("choose at least one agent")
 	}
+	if (g.Scope == GroupHVCluster) != (g.Kind == JobVM) {
+		return errors.New("a job for a Hyper-V cluster backs up its virtual machines; for the other kinds choose agents")
+	}
 	switch g.Kind {
+	case JobVM:
+		if g.Options.HVCluster == "" {
+			return errors.New("choose the Hyper-V cluster")
+		}
+		if len(g.Paths) == 0 {
+			return errors.New("choose the virtual machines to back up, or all of them")
+		}
+		if !(len(g.Paths) == 1 && g.Paths[0] == "*") {
+			for _, v := range g.Paths {
+				if n, err := strconv.Atoi(v); err != nil || n < 100 {
+					return fmt.Errorf("invalid guest ID %q", v)
+				}
+			}
+		}
+		g.Excludes = []string{}
 	case "", JobFiles:
 		g.Kind = JobFiles
 		if len(g.Paths) == 0 {
@@ -350,8 +377,17 @@ func groupFromForm(r *http.Request, g JobGroup) JobGroup {
 		g.Scope = v
 	}
 	g.AgentIDs, g.ExcludeIDs = formIDs(r, "group_agents"), formIDs(r, "group_exclude")
+	if c, ok := strings.CutPrefix(r.FormValue("agent_id"), "hvcluster:"); ok {
+		g.Scope, g.Options.HVCluster = GroupHVCluster, c
+	}
 	g.Name = r.FormValue("name")
 	g.Paths, g.Excludes = lines(r.FormValue("paths")), lines(r.FormValue("excludes"))
+	if g.Kind == JobVM {
+		g.Paths, g.Excludes = r.Form["vms"], nil
+		if r.FormValue("vm_mode") == "all" {
+			g.Paths = []string{"*"}
+		}
+	}
 	return g
 }
 
@@ -368,7 +404,9 @@ func formIDs(r *http.Request, name string) []int64 {
 // handleGroupCreate creates a group job from the new job form.
 func (s *Server) handleGroupCreate(w http.ResponseWriter, r *http.Request, sched string) {
 	k := r.FormValue("kind")
-	if k != JobFiles && k != JobImage && k != JobSystem {
+	if strings.HasPrefix(r.FormValue("agent_id"), "hvcluster:") {
+		k = JobVM
+	} else if k != JobFiles && k != JobImage && k != JobSystem {
 		redirectErr(w, r, "/jobs", errors.New("a job for several agents backs up files and folders, disk images or Linux systems; choose one agent for the other kinds"))
 		return
 	}
@@ -440,7 +478,31 @@ func (s *Server) handleGroupEditPage(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 	s.render(w, r, "jobgroupedit", pageData{Title: g.Name, Nav: "jobs", User: user,
-		Data: map[string]any{"Group": g, "Agents": agents, "Form": s.jobForm(r, g.member(0), true, nil)}})
+		Data: map[string]any{"Group": g, "Agents": agents, "Form": s.jobForm(r, g.member(0), true, nil),
+			"ClusterGuests": clusterGuests(g, agents)}})
+}
+
+// clusterGuests are the VMs offered on the edit page of a cluster job: the
+// clustered VMs of its cluster, and the chosen ones no node reports now
+// (so saving keeps them).
+func clusterGuests(g JobGroup, agents []Agent) []pve.Guest {
+	if g.Kind != JobVM {
+		return nil
+	}
+	var gs []pve.Guest
+	for _, c := range hvClusters(agents) {
+		if strings.EqualFold(c.Name, g.Options.HVCluster) {
+			gs = c.Guests
+		}
+	}
+	for _, p := range g.Paths {
+		n, err := strconv.Atoi(p)
+		if err != nil || slices.ContainsFunc(gs, func(x pve.Guest) bool { return x.VMID == n }) {
+			continue
+		}
+		gs = append(gs, pve.Guest{VMID: n, Name: fmt.Sprintf("VM %d", n), Node: "not in the cluster now"})
+	}
+	return gs
 }
 
 func (s *Server) handleGroupEdit(w http.ResponseWriter, r *http.Request, _ string) {
@@ -570,6 +632,8 @@ func sameJSON(a, b any) bool {
 // by the templates).
 func groupScopeTitle(scope string) string {
 	switch scope {
+	case GroupHVCluster:
+		return "All nodes of the Hyper-V cluster"
 	case GroupAll:
 		return "All agents"
 	case GroupWindows:

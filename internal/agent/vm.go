@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -102,7 +103,10 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	} else if isPVE {
 		sn, err = pve.Backup(ctx, r, pve.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf})
 	} else {
-		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf})
+		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Cluster: run.HVCluster != "", Version: a.version, Tags: tags, Progress: prog, Log: logf})
+	}
+	if errors.Is(err, hyperv.ErrNoneHere) {
+		return api.RunResult{Status: api.StatusSuccess, Message: "None of the job's VMs runs on this node now; the other nodes of cluster " + run.HVCluster + " back them up"}
 	}
 	if err != nil {
 		return failed(err)
@@ -185,7 +189,7 @@ func (a *Agent) vmRestore(ctx context.Context, run api.Run) api.RunResult {
 func (a *Agent) hypervRestore(ctx context.Context, run api.Run, r *repo.Repository, sn *repo.Snapshot) api.RunResult {
 	o := run.VMRestore
 	res, err := hyperv.Restore(ctx, r, sn, hyperv.RestoreOptions{
-		VMID: o.VMID, AsNew: o.NewVMID != 0, Name: o.Name, Folder: o.Storage, Overwrite: o.Overwrite, Start: o.Start,
+		VMID: o.VMID, AsNew: o.NewVMID != 0, Name: o.Name, Folder: o.Storage, Overwrite: o.Overwrite, Start: o.Start, Cluster: o.HVCluster,
 		Log: func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) },
 	})
 	if err != nil {

@@ -130,9 +130,9 @@ func (s *Store) listRemovedAgents(ctx context.Context) ([]removedAgent, error) {
 
 // ownRepo reports whether the agent's repository folder is an agent's
 // (backups found on storage can also be of a VMware connection or a
-// Microsoft 365 tenant, which no agent continues).
+// Microsoft 365 tenant or a Hyper-V cluster, which no agent continues).
 func (a Agent) ownRepo() bool {
-	return !strings.HasPrefix(a.RepoDir, "esxi-") && !strings.HasPrefix(a.RepoDir, "m365-")
+	return !strings.HasPrefix(a.RepoDir, "esxi-") && !strings.HasPrefix(a.RepoDir, "m365-") && !strings.HasPrefix(a.RepoDir, "hvcluster-")
 }
 
 // agentAny returns an agent, also a removed one.

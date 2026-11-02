@@ -23,6 +23,7 @@ func GetInventory(context.Context) (*pve.Inventory, error) { return nil, errUnsu
 type BackupOptions struct {
 	VMIDs    []int
 	Exclude  []int
+	Cluster  bool
 	Hostname string
 	Version  string
 	Tags     []string
@@ -41,6 +42,7 @@ type RestoreOptions struct {
 	Folder    string
 	Overwrite bool
 	Start     bool
+	Cluster   bool
 	Progress  func(done, total uint64)
 	Log       func(msg string, args ...any)
 }

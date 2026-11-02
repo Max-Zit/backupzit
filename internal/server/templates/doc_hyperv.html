@@ -62,6 +62,18 @@
   <li>Every restored VM gets a new generation ID, so Active Directory domain controllers detect the restore safely.</li>
 </ul>
 
+<h2 id="cluster">Failover clusters</h2>
+<p>For the VMs of a Hyper-V failover cluster, install the agent on every node and create one job for the cluster: on <a href="/jobs">Backup jobs</a> choose the cluster under <i>Hyper-V failover clusters</i> in the agent list (it appears as soon as the agents of its nodes report it) and pick all clustered VMs or chosen ones.</p>
+<ul>
+  <li>Each node backs up the clustered VMs it runs at that moment; a node that runs none of them finishes at once. VMs that are not clustered stay with jobs of their node.</li>
+  <li>All nodes write into one repository of the cluster on the storage. When a VM moves to another node (live migration or failover), its history continues there, and Resilient Change Tracking still reads only the changed blocks.</li>
+  <li>Nodes that join the cluster later get the job automatically; the <a href="/agents">Agents</a> page marks each node with its cluster.</li>
+</ul>
+<p><b>Restoring</b> on a node of the cluster:</p>
+<ul>
+  <li><i>In place</i> runs on the node that owns the VM now (the console picks it). The VM is stopped and started through the cluster, so the cluster does not take the stop for a failure.</li>
+  <li><i>As a new VM</i>: choose a folder on a Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). The VM's configuration goes there too, and the VM is added to the cluster as a role.</li>
+</ul>
 <h2>Restoring single files</h2>
 <p>In the VM table of the run, click <b>Browse files</b> to see the partitions and volumes on the VM's disks. You can browse NTFS, ext2/3/4 and XFS, also inside LVM. From there you can download files or restore them to any agent. It works exactly as for <a href="/docs/proxmox">Proxmox VE</a>.</p>
 

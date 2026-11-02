@@ -62,6 +62,18 @@
   <li>Elke herstelde VM krijgt een nieuwe generatie-ID, zodat Active Directory-domeincontrollers het herstel veilig detecteren.</li>
 </ul>
 
+<h2 id="cluster">Failoverclusters</h2>
+<p>Installeer voor de VM's van een Hyper-V-failovercluster de agent op elk knooppunt en maak één taak voor het cluster: kies op <a href="/jobs">Backup jobs</a> in de agentlijst het cluster onder <i>Hyper-V failover clusters</i> (het verschijnt zodra de agents van de knooppunten het melden) en selecteer alle geclusterde VM's of enkele.</p>
+<ul>
+  <li>Elk knooppunt maakt een back-up van de geclusterde VM's die het op dat moment draait; een knooppunt zonder zulke VM's is meteen klaar. VM's buiten het cluster blijven bij de taken van hun knooppunt.</li>
+  <li>Alle knooppunten schrijven naar één repository van het cluster op de opslag. Verhuist een VM naar een ander knooppunt (livemigratie of failover), dan loopt de geschiedenis daar door en leest Resilient Change Tracking nog steeds alleen de gewijzigde blokken.</li>
+  <li>Knooppunten die later bij het cluster komen, krijgen de taak automatisch; de pagina <a href="/agents">Agents</a> toont het cluster van elk knooppunt.</li>
+</ul>
+<p><b>Herstellen</b> op een knooppunt van het cluster:</p>
+<ul>
+  <li><i>In plaats van het origineel</i> draait op het knooppunt dat de VM op dat moment heeft (de console kiest het). De VM wordt via het cluster gestopt en gestart, zodat het cluster het stoppen niet als storing ziet.</li>
+  <li><i>Als nieuwe VM</i>: kies een map op een Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). Ook de configuratie van de VM komt daar, en de VM wordt als rol aan het cluster toegevoegd.</li>
+</ul>
 <h2>Losse bestanden herstellen</h2>
 <p>Klik in de VM-tabel van de run op <b>Bestanden bladeren</b> om de partities en volumes op de schijven van de VM te zien. U kunt NTFS, ext2/3/4 en XFS bladeren, ook binnen LVM. Van daaruit kunt u bestanden downloaden of naar elke agent herstellen. Het werkt precies zoals bij <a href="/docs/proxmox">Proxmox VE</a>.</p>
 

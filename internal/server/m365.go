@@ -113,6 +113,10 @@ func (s *Store) jobRepoDir(ctx context.Context, j Job, a Agent) (string, error) 
 	switch {
 	case j.Kind == JobM365:
 		return m365RepoDir(j.Options.M365Tenant), nil
+	case j.Kind == JobVM && j.Options.HVCluster != "":
+		// All nodes of a Hyper-V cluster share one repository, so a VM's
+		// history and change tracking continue when it moves.
+		return hvClusterRepoDir(j.Options.HVCluster), nil
 	case j.VMwareHostID != nil:
 		// A VMware host has its own repository, independent of its proxy.
 		h, err := s.GetVMwareHost(ctx, *j.VMwareHostID)
@@ -489,3 +493,9 @@ func m365FormUsers(r *http.Request) []string {
 // minM365ExcludeVersion is the first agent version that skips excluded
 // accounts and sites.
 const minM365ExcludeVersion = "0.38.0"
+
+// hvClusterRepoDir is the repository of a Hyper-V failover cluster's jobs
+// below a target, shared by its nodes.
+func hvClusterRepoDir(cluster string) string {
+	return "hvcluster-" + strings.NewReplacer(".", "-", "/", "-", `\`, "-", " ", "-").Replace(strings.ToLower(cluster))
+}

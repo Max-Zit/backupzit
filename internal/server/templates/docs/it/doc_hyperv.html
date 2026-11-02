@@ -62,6 +62,18 @@
   <li>Ogni VM ripristinata riceve un nuovo ID di generazione, così i controller di dominio Active Directory rilevano il ripristino in sicurezza.</li>
 </ul>
 
+<h2 id="cluster">Cluster di failover</h2>
+<p>Per le VM di un cluster di failover Hyper-V installa l'agente su ogni nodo e crea un unico job per il cluster: in <a href="/jobs">Backup jobs</a> scegli il cluster sotto <i>Hyper-V failover clusters</i> nell'elenco degli agenti (compare non appena gli agenti dei suoi nodi lo segnalano) e seleziona tutte le VM del cluster o alcune.</p>
+<ul>
+  <li>Ogni nodo esegue il backup delle VM del cluster che sta eseguendo in quel momento; un nodo che non ne esegue nessuna termina subito. Le VM fuori dal cluster restano nei job del loro nodo.</li>
+  <li>Tutti i nodi scrivono in un unico repository del cluster sullo storage. Quando una VM passa a un altro nodo (migrazione live o failover), la sua cronologia continua lì e Resilient Change Tracking legge ancora solo i blocchi modificati.</li>
+  <li>I nodi aggiunti in seguito al cluster ricevono il job automaticamente; la pagina <a href="/agents">Agents</a> indica il cluster di ogni nodo.</li>
+</ul>
+<p><b>Ripristino</b> su un nodo del cluster:</p>
+<ul>
+  <li><i>Al posto dell'originale</i> viene eseguito sul nodo che possiede la VM in quel momento (la console lo sceglie). La VM viene arrestata e avviata tramite il cluster, così il cluster non scambia l'arresto per un guasto.</li>
+  <li><i>Come nuova VM</i>: scegli una cartella su un Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). Anche la configurazione della VM va lì e la VM viene aggiunta al cluster come ruolo.</li>
+</ul>
 <h2>Ripristinare singoli file</h2>
 <p>Nella tabella delle VM dell'esecuzione, fai clic su <b>Sfoglia file</b> per vedere partizioni e volumi sui dischi della VM. Puoi sfogliare NTFS, ext2/3/4 e XFS, anche dentro LVM. Da lì puoi scaricare file o ripristinarli su qualsiasi agente. Funziona esattamente come per <a href="/docs/proxmox">Proxmox VE</a>.</p>
 

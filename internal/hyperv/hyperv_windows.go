@@ -70,6 +70,7 @@ type vmInfo struct {
 	Disks      []vmDisk `json:"disks"`
 	DiskSize   uint64   `json:"disksize"`
 	Checkpoint string   `json:"checkpointtype"`
+	Clustered  bool     `json:"clustered"`
 }
 
 type vmNIC struct {
@@ -98,7 +99,7 @@ const psVMInfo = `[pscustomobject]@{
  secureboot=$(if ($vm.Generation -eq 2) { "$((Get-VMFirmware -VM $vm).SecureBoot)" } else { "" });
  template=$(if ($vm.Generation -eq 2) { "$((Get-VMFirmware -VM $vm).SecureBootTemplate)" } else { "" });
  tpm=$(try { [bool](Get-VMSecurity -VM $vm).TpmEnabled } catch { $false });
- notes="$($vm.Notes)"; checkpointtype="$($vm.CheckpointType)";
+ notes="$($vm.Notes)"; checkpointtype="$($vm.CheckpointType)"; clustered=[bool]$vm.IsClustered;
  nics=@(Get-VMNetworkAdapter -VM $vm | ForEach-Object { [pscustomobject]@{ switch="$($_.SwitchName)"; mac=$_.MacAddress; dynamicmac=$_.DynamicMacAddressEnabled; vlan=[int](Get-VMNetworkAdapterVlan -VMNetworkAdapter $_).AccessVlanId } });
  disks=@(Get-VMHardDiskDrive -VM $vm | ForEach-Object { [pscustomobject]@{ type="$($_.ControllerType)"; num=$_.ControllerNumber; loc=$_.ControllerLocation; path=$_.Path; size=$(try { (Get-VHD -Path $_.Path).Size } catch { 0 }) } });
  disksize=[uint64]((Get-VMHardDiskDrive -VM $vm | ForEach-Object { try { (Get-VHD -Path $_.Path).Size } catch { 0 } } | Measure-Object -Sum).Sum)
@@ -156,6 +157,7 @@ func GetInventory(ctx context.Context) (*pve.Inventory, error) {
 	if v, err := ps(ctx, `"Hyper-V on $((Get-CimInstance Win32_OperatingSystem).Caption)"`); err == nil {
 		inv.Version = strings.TrimSpace(string(v))
 	}
+	inv.ClusterName = clusterName(ctx)
 	for _, vm := range vms {
 		status := "stopped"
 		switch vm.State {
@@ -165,7 +167,7 @@ func GetInventory(ctx context.Context) (*pve.Inventory, error) {
 			status = strings.ToLower(vm.State)
 		}
 		inv.Guests = append(inv.Guests, pve.Guest{VMID: VMIDFor(vm.ID), ID: vm.ID, Name: vm.Name, Type: "vm", Node: host,
-			Status: status, MaxDisk: vm.DiskSize, MaxMem: vm.Memory})
+			Status: status, MaxDisk: vm.DiskSize, MaxMem: vm.Memory, Clustered: vm.Clustered})
 	}
 	sort.Slice(inv.Guests, func(i, j int) bool { return strings.ToLower(inv.Guests[i].Name) < strings.ToLower(inv.Guests[j].Name) })
 	inv.Storage = storageFolders(ctx, vms)
@@ -187,6 +189,12 @@ func storageFolders(ctx context.Context, vms []vmInfo) []string {
 	if v, err := ps(ctx, `(Get-VMHost).VirtualHardDiskPath`); err == nil {
 		add(string(v))
 	}
+	// Cluster Shared Volumes, where VMs of a failover cluster keep their disks.
+	if v, err := ps(ctx, `if (Get-Command Get-ClusterSharedVolume -ErrorAction SilentlyContinue) { Get-ClusterSharedVolume -ErrorAction SilentlyContinue | ForEach-Object { $_.SharedVolumeInfo.FriendlyVolumeName } }`); err == nil {
+		for _, p := range strings.Split(string(v), "\n") {
+			add(p)
+		}
+	}
 	for _, vm := range vms {
 		for _, d := range vm.Disks {
 			add(filepath.Dir(d.Path))
@@ -196,3 +204,12 @@ func storageFolders(ctx context.Context, vms []vmInfo) []string {
 }
 
 var errNoDisks = errors.New("the VM has no virtual hard disks")
+
+// clusterName is the failover cluster this host is a node of, or "".
+func clusterName(ctx context.Context) string {
+	v, err := ps(ctx, `if (Get-Command Get-Cluster -ErrorAction SilentlyContinue) { try { (Get-Cluster -ErrorAction Stop).Name } catch { "" } }`)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(v))
+}

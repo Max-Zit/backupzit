@@ -46,6 +46,8 @@ func TestUIWalk(t *testing.T) {
 		`{"platform":"hyperv","node":"HV1","guests":[{"vmid":1934519093,"id":"cca3c658-bf70-4f80-859c-dd61d115b66f","name":"File Server","type":"vm","node":"HV1","status":"running"}],"storage":["D:\\VMs"]}`)
 	pve := enroll("pve1", "Debian GNU/Linux 12", `{"node":"pve1","guests":[{"vmid":100,"name":"web","type":"vm","node":"pve1","status":"running"}],"storage":["local-lvm"]}`)
 	lin := enroll("web1", "Debian GNU/Linux 12", "")
+	enroll("hvc1", "Windows Server 2022", `{"platform":"hyperv","node":"hvc1","cluster_name":"HVC","guests":[{"vmid":1000000011,"id":"a1","name":"app","type":"vm","node":"hvc1","status":"running","clustered":true}],"storage":["C:/ClusterStorage/Volume1"]}`)
+	enroll("hvc2", "Windows Server 2022", `{"platform":"hyperv","node":"hvc2","cluster_name":"HVC","guests":[{"vmid":1000000012,"id":"a2","name":"sql","type":"vm","node":"hvc2","status":"running","clustered":true}],"storage":["C:/ClusterStorage/Volume1"]}`)
 
 	files := []server.Job{
 		{Kind: server.JobFiles, AgentID: win.ID, Name: "docs", Paths: []string{`C:\Data`, `{users}\Documents`}, Excludes: []string{"*.tmp"}, Schedule: "0 22 * * 1-5"},
@@ -72,6 +74,10 @@ func TestUIWalk(t *testing.T) {
 	offsite, _ := e.store.CreateTarget(ctx, server.Target{Name: "offsite", Kind: "local", URL: t.TempDir()})
 	if _, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobCopy, SourceJobID: &first, TargetID: offsite, Name: "docs offsite", Enabled: true}); err != nil {
 		t.Fatalf("copy job: %v", err)
+	}
+	if _, err := e.store.CreateJobGroup(ctx, server.JobGroup{Kind: server.JobVM, Name: "cluster VMs", Scope: server.GroupHVCluster, TargetID: target,
+		Paths: []string{"1000000012"}, Schedule: "0 23 * * *", Options: server.JobOptions{HVCluster: "HVC"}}); err != nil {
+		t.Fatalf("cluster job: %v", err)
 	}
 
 	c := newClient(t, e)

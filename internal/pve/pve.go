@@ -88,17 +88,22 @@ type Guest struct {
 	MaxDisk    uint64 `json:"maxdisk"`
 	MaxMem     uint64 `json:"maxmem"`
 	Template   bool   `json:"template,omitempty"`
+	// Clustered marks a Hyper-V VM that is a role of a failover cluster: it
+	// moves between the nodes.
+	Clustered bool `json:"clustered,omitempty"`
 }
 
 // Inventory is what a node agent reports to the console.
 type Inventory struct {
 	// Platform is "proxmox" (also when empty) or "hyperv".
-	Platform string   `json:"platform,omitempty"`
-	Node     string   `json:"node"`
-	Cluster  bool     `json:"cluster,omitempty"`
-	Version  string   `json:"version,omitempty"`
-	Guests   []Guest  `json:"guests"`
-	Storage  []string `json:"storage"` // storages usable for guest disks on this node
+	Platform string `json:"platform,omitempty"`
+	Node     string `json:"node"`
+	Cluster  bool   `json:"cluster,omitempty"`
+	// ClusterName is the Hyper-V failover cluster this host is a node of.
+	ClusterName string   `json:"cluster_name,omitempty"`
+	Version     string   `json:"version,omitempty"`
+	Guests      []Guest  `json:"guests"`
+	Storage     []string `json:"storage"` // storages usable for guest disks on this node
 	// Hosts are the ESXi hosts of a vCenter, where VMs can be restored.
 	Hosts []string `json:"hosts,omitempty"`
 }

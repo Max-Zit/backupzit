@@ -202,6 +202,11 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	case api.KindVMBackup:
 		s.addRetention(ctx, run, ar)
 		ar.VMs, ar.VMExclude = run.Paths, run.Excludes
+		if run.JobID != nil {
+			if j, err := s.store.GetJob(ctx, *run.JobID); err == nil {
+				ar.HVCluster = j.Options.HVCluster
+			}
+		}
 		if err := s.addVMware(ctx, run, ar); err != nil {
 			return nil, err
 		}

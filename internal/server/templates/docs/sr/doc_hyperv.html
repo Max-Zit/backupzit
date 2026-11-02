@@ -62,6 +62,18 @@
   <li>Svaka vraćena VM dobija nov generation ID, pa Active Directory kontroleri domena bezbedno prepoznaju vraćanje.</li>
 </ul>
 
+<h2 id="cluster">Failover klasteri</h2>
+<p>Za VM-ove Hyper-V failover klastera instalirajte agenta na svaki čvor i napravite jedan posao za klaster: na stranici <a href="/jobs">Backup jobs</a> u listi agenata izaberite klaster pod <i>Hyper-V failover clusters</i> (pojavljuje se čim ga agenti njegovih čvorova prijave) i odaberite sve klasterske VM-ove ili izabrane.</p>
+<ul>
+  <li>Svaki čvor backup-uje klasterske VM-ove koji u tom trenutku rade na njemu; čvor na kom ne radi nijedan odmah završava. VM-ovi koji nisu u klasteru ostaju u poslovima svog čvora.</li>
+  <li>Svi čvorovi pišu u jedan repozitorijum klastera na storage-u. Kada VM pređe na drugi čvor (live migration ili failover), njegova istorija se nastavlja tamo, a Resilient Change Tracking i dalje čita samo promenjene blokove.</li>
+  <li>Čvorovi koji se kasnije priključe klasteru automatski dobijaju posao; stranica <a href="/agents">Agents</a> označava svaki čvor njegovim klasterom.</li>
+</ul>
+<p><b>Vraćanje</b> na čvor klastera:</p>
+<ul>
+  <li><i>Na mesto originala</i> se izvršava na čvoru na kom VM trenutno radi (konzola ga bira). VM se gasi i pali preko klastera, pa klaster gašenje ne smatra kvarom.</li>
+  <li><i>Kao novi VM</i>: izaberite folder na Cluster Shared Volume-u (<code>C:\ClusterStorage\…</code>). Tamo ide i konfiguracija VM-a, a VM se dodaje u klaster kao rola.</li>
+</ul>
 <h2>Vraćanje pojedinačnih fajlova</h2>
 <p>U tabeli virtuelnih mašina pokretanja kliknite <b>Pregledaj fajlove</b> da biste videli particije i volumene na diskovima VM-a. Možete da pregledate NTFS, ext2/3/4 i XFS, i unutar LVM-a. Odatle fajlove možete da preuzmete ili vratite na bilo kog agenta. Radi isto kao za <a href="/docs/proxmox">Proxmox VE</a>.</p>
 

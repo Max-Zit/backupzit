@@ -250,7 +250,7 @@ function renderVMPicker() {
     l.appendChild(cb);
     var kind = g.type === "lxc" ? "container" : "VM";
     var label = g.id ? (g.name || g.id) : g.vmid + "  " + (g.name || "");
-    l.appendChild(document.createTextNode(" " + label + "  (" + kind + ", " + fmtBytes(g.maxdisk || 0) + ", " + g.status + ")"));
+    l.appendChild(document.createTextNode(" " + label + "  (" + kind + ", " + fmtBytes(g.maxdisk || 0) + ", " + g.status + (agentSel.value.indexOf("hvcluster:") === 0 ? ", " + g.node : "") + ")"));
     box.appendChild(l);
   });
 }
@@ -272,21 +272,28 @@ function syncGroupChoice() {
   if (!sel) return;
   var opt = sel.options[sel.selectedIndex];
   var group = !!(opt && opt.hasAttribute("data-group"));
+  // A Hyper-V cluster is backed up with a virtual machines job only.
+  var cluster = !!(opt && opt.hasAttribute("data-hvcluster"));
   var box = document.getElementById("group-agents"), hint = document.getElementById("group-hint");
   if (box) box.hidden = !(group && sel.value === "group:agents");
   if (hint) hint.hidden = !group;
+  var chint = document.getElementById("hvcluster-hint");
+  if (chint) chint.hidden = !cluster;
+  var nhint = document.getElementById("hvnode-hint");
+  if (nhint) nhint.hidden = !(opt && opt.hasAttribute("data-hvnode"));
   var note = document.getElementById("group-image-note");
   if (note) note.hidden = !group;
-  document.querySelectorAll("[data-single-agent]").forEach(function (n) { n.hidden = group; });
+  document.querySelectorAll("[data-single-agent]").forEach(function (n) { n.hidden = group || cluster; });
   var form = sel.closest("form");
   if (!form) return;
+  var allowed = cluster ? ["vm"] : group ? ["files", "image", "system"] : null;
   form.querySelectorAll("input[name=kind]").forEach(function (k) {
     var lbl = k.closest("label");
-    if (lbl) lbl.hidden = group && ["files", "image", "system"].indexOf(k.value) < 0;
+    if (lbl) lbl.hidden = !!allowed && allowed.indexOf(k.value) < 0;
   });
   var cur = form.querySelector("input[name=kind]:checked");
-  if (group && cur && ["files", "image", "system"].indexOf(cur.value) < 0) {
-    form.querySelector("input[name=kind][value=files]").checked = true;
+  if (allowed && cur && allowed.indexOf(cur.value) < 0) {
+    form.querySelector("input[name=kind][value=" + allowed[0] + "]").checked = true;
     syncJobKind();
   }
 }

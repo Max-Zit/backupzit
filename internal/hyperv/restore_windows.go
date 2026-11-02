@@ -30,8 +30,13 @@ type RestoreOptions struct {
 	// off and removed; its disk files are renamed, not deleted.
 	Overwrite bool
 	Start     bool
-	Progress  func(done, total uint64)
-	Log       func(msg string, args ...any)
+	// Cluster: this host is a node of a failover cluster. A clustered VM is
+	// stopped and started through the cluster, and a VM restored as new or
+	// recreated becomes a cluster role (its folder must be on a Cluster
+	// Shared Volume).
+	Cluster  bool
+	Progress func(done, total uint64)
+	Log      func(msg string, args ...any)
 }
 
 // RestoreResult describes the restored VM.
@@ -87,11 +92,27 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	if !opts.AsNew && existing == nil {
 		existing = findByName(ctx, cfg.Name)
 	}
+	if opts.Cluster && !opts.AsNew && existing == nil {
+		// The VM may run on another node: restoring it here would create a
+		// second VM with its name next to the cluster's.
+		if out, err := ps(ctx, `$r = `+psClusterResource(g.ID)+`; if ($r) { "$($r.OwnerNode)" }`); err == nil && strings.TrimSpace(string(out)) != "" {
+			return nil, fmt.Errorf("VM %q runs on node %s of the cluster now; restore it in place there, or restore it as a new VM", cfg.Name, strings.TrimSpace(string(out)))
+		}
+	}
+	clustered := existing != nil && existing.Clustered
 	if !opts.AsNew && existing != nil {
 		if !opts.Overwrite {
 			return nil, fmt.Errorf("VM %q still exists; restore it as a new VM or choose to replace it", existing.Name)
 		}
 		opts.Log("restoring in place", "name", existing.Name)
+		if clustered {
+			// Turned off through Hyper-V, the cluster would take it for a
+			// failure and start it again. Only the VM resource: with its
+			// configuration resource offline the VM is unregistered here.
+			if _, err := ps(ctx, `$r = `+psClusterResource(existing.ID)+`; if (-not $r) { throw 'the cluster role of the VM was not found' }; Stop-ClusterResource -Name $r.Name | Out-Null`); err != nil {
+				return nil, fmt.Errorf("stop the VM's cluster role: %w", err)
+			}
+		}
 		out, err := ps(ctx, `$vm = Get-VM -Id `+psq(existing.ID)+`; Stop-VM -VM $vm -TurnOff -Force -ErrorAction SilentlyContinue; `+
 			`Get-VMSnapshot -VM $vm | Remove-VMSnapshot -IncludeAllChildSnapshots -ErrorAction SilentlyContinue; $t = 0; `+
 			`while ("$((Get-VM -Id `+psq(existing.ID)+`).Status)" -match 'Merg' -and $t -lt 3600) { Start-Sleep 2; $t += 2 }; `+
@@ -187,7 +208,13 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		fmt.Fprintf(&s, `$vm = Get-VM -Id %s; `, psq(existing.ID))
 		gen = existing.Generation
 	} else {
-		fmt.Fprintf(&s, `$vm = New-VM -Name %s -Generation %d -MemoryStartupBytes %d -NoVHD; `, psq(name), gen, max(cfg.Memory, 512<<20))
+		path := ""
+		if opts.Cluster {
+			// A cluster role needs the VM's configuration on shared storage
+			// too: it goes next to the disks.
+			path = " -Path " + psq(folder)
+		}
+		fmt.Fprintf(&s, `$vm = New-VM -Name %s -Generation %d -MemoryStartupBytes %d -NoVHD%s; `, psq(name), gen, max(cfg.Memory, 512<<20), path)
 		// Windows turns automatic checkpoints on for new VMs; every start
 		// would then leave an .avhdx next to the restored disk.
 		s.WriteString(`if ((Get-Command Set-VM).Parameters.ContainsKey('AutomaticCheckpointsEnabled')) { Set-VM -VM $vm -AutomaticCheckpointsEnabled $false }; `)
@@ -207,15 +234,21 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		if inPlace {
 			break // the existing adapters stay
 		}
-		fmt.Fprintf(&s, `$sw = Get-VMSwitch -Name %s -ErrorAction SilentlyContinue; `, psq(n.Switch))
+		// An adapter that was not connected stays so (Get-VMSwitch rejects an
+		// empty name).
+		if n.Switch == "" {
+			s.WriteString(`$sw = $null; `)
+		} else {
+			fmt.Fprintf(&s, `$sw = Get-VMSwitch -Name %s -ErrorAction SilentlyContinue; `, psq(n.Switch))
+		}
 		mac := ""
 		// A restore in place keeps the MAC address (also a dynamically assigned
 		// one), so the guest keeps its network identity; copies get new ones.
 		if !clone && n.MAC != "" {
 			mac = ` -StaticMacAddress ` + psq(n.MAC)
 		}
-		fmt.Fprintf(&s, `if ($sw) { $nic = Add-VMNetworkAdapter -VM $vm -Name 'Network Adapter %d' -SwitchName %s%s -Passthru } else { $nic = Add-VMNetworkAdapter -VM $vm -Name 'Network Adapter %d'%s -Passthru; 'NOSWITCH:' + %s }; `,
-			i+1, psq(n.Switch), mac, i+1, mac, psq(n.Switch))
+		fmt.Fprintf(&s, `if ($sw) { $nic = Add-VMNetworkAdapter -VM $vm -Name 'Network Adapter %d' -SwitchName %s%s -Passthru } else { $nic = Add-VMNetworkAdapter -VM $vm -Name 'Network Adapter %d'%s -Passthru; if (%s) { 'NOSWITCH:' + %s } }; `,
+			i+1, psq(n.Switch), mac, i+1, mac, psq(n.Switch), psq(n.Switch))
 		if n.VLAN > 0 {
 			fmt.Fprintf(&s, `Set-VMNetworkAdapterVlan -VMNetworkAdapter $nic -Access -VlanId %d; `, n.VLAN)
 		}
@@ -268,7 +301,25 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	ok = true
 	res.Name, res.NewMACs = name, clone
-	if opts.Start {
+	if opts.Cluster && !clustered {
+		if _, err := ps(ctx, `Add-ClusterVirtualMachineRole -VMId `+psq(res.ID)+` | Out-Null`); err != nil {
+			res.Notes = append(res.Notes, "VM restored on this node but not added to the cluster (are its files on a Cluster Shared Volume?): "+err.Error())
+		} else {
+			clustered = true
+			res.Notes = append(res.Notes, "VM added to the cluster as a role")
+		}
+	}
+	if opts.Start && clustered {
+		if _, err := ps(ctx, `$r = `+psClusterResource(res.ID)+`; if (-not $r) { throw 'the VM is no cluster role' }; `+
+			// Right after Add-ClusterVirtualMachineRole the role may still be
+			// settling and go offline again: start it until the VM is online.
+			`for ($i = 0; $i -lt 10; $i++) { Start-ClusterGroup -Name $r.OwnerGroup.Name -Wait 60 | Out-Null; if ((Get-ClusterResource -Name $r.Name).State -eq 'Online') { break }; Start-Sleep 3 }; `+
+			`if ((Get-ClusterResource -Name $r.Name).State -ne 'Online') { throw 'the cluster role did not come online' }`); err != nil {
+			res.Notes = append(res.Notes, "VM restored but its cluster role could not be started: "+err.Error())
+		} else {
+			res.Started = true
+		}
+	} else if opts.Start {
 		if _, err := ps(ctx, `Start-VM -VM (Get-VM -Id `+psq(res.ID)+`)`); err != nil {
 			res.Notes = append(res.Notes, "VM restored but could not be started: "+err.Error())
 		} else {
@@ -311,4 +362,12 @@ func findByName(ctx context.Context, name string) *vmInfo {
 		return nil
 	}
 	return vm
+}
+
+// psClusterResource is the PowerShell expression for the cluster resource
+// of the VM with GUID id ($null when the VM is no cluster role). Not
+// Select-Object -First: stopping the pipeline of the cluster cmdlets ends
+// the whole script silently, as if it had succeeded.
+func psClusterResource(id string) string {
+	return `@(Get-ClusterResource -ErrorAction SilentlyContinue | Where-Object { $_.ResourceType.Name -eq 'Virtual Machine' -and (Get-ClusterParameter -InputObject $_ -Name VmID -ErrorAction SilentlyContinue).Value -eq ` + psq(id) + ` })[0]`
 }

@@ -62,6 +62,18 @@
   <li>Chaque VM restaurée reçoit un nouvel ID de génération, afin que les contrôleurs de domaine Active Directory détectent la restauration en toute sécurité.</li>
 </ul>
 
+<h2 id="cluster">Clusters de basculement</h2>
+<p>Pour les VM d'un cluster de basculement Hyper-V, installez l'agent sur chaque nœud et créez une seule tâche pour le cluster : dans <a href="/jobs">Backup jobs</a>, choisissez le cluster sous <i>Hyper-V failover clusters</i> dans la liste des agents (il apparaît dès que les agents de ses nœuds le signalent) et sélectionnez toutes les VM du cluster ou certaines.</p>
+<ul>
+  <li>Chaque nœud sauvegarde les VM du cluster qu'il exécute à ce moment ; un nœud qui n'en exécute aucune termine aussitôt. Les VM hors cluster restent dans les tâches de leur nœud.</li>
+  <li>Tous les nœuds écrivent dans un même dépôt du cluster sur le stockage. Quand une VM passe sur un autre nœud (migration à chaud ou basculement), son historique continue là-bas et Resilient Change Tracking ne lit toujours que les blocs modifiés.</li>
+  <li>Les nœuds ajoutés plus tard au cluster reçoivent la tâche automatiquement ; la page <a href="/agents">Agents</a> indique le cluster de chaque nœud.</li>
+</ul>
+<p><b>Restauration</b> sur un nœud du cluster :</p>
+<ul>
+  <li><i>À la place de l'original</i> s'exécute sur le nœud qui possède la VM à ce moment (la console le choisit). La VM est arrêtée et démarrée par le cluster, pour qu'il ne prenne pas l'arrêt pour une panne.</li>
+  <li><i>Comme nouvelle VM</i> : choisissez un dossier sur un Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). La configuration de la VM y va aussi et la VM est ajoutée au cluster comme rôle.</li>
+</ul>
 <h2>Restaurer des fichiers individuels</h2>
 <p>Dans le tableau des VM de l'exécution, cliquez sur <b>Parcourir les fichiers</b> pour voir les partitions et volumes des disques de la VM. Vous pouvez parcourir NTFS, ext2/3/4 et XFS, y compris dans LVM. De là, vous pouvez télécharger des fichiers ou les restaurer sur n'importe quel agent. Cela fonctionne exactement comme pour <a href="/docs/proxmox">Proxmox VE</a>.</p>
 

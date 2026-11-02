@@ -31,6 +31,10 @@ type JobOptions struct {
 	// node of this agent, on ReplicaStorage ("" = original storage).
 	ReplicaAgentID int64  `json:"replica_agent,omitempty"`
 	ReplicaStorage string `json:"replica_storage,omitempty"`
+	// HVCluster: VM jobs of a Hyper-V failover cluster (members of a job for
+	// the cluster) back up its clustered VMs on whichever node owns them, into
+	// one repository of the cluster. Set when the job is created.
+	HVCluster string `json:"hv_cluster,omitempty"`
 	// SQL Server jobs: the instance ("" = default), whether system
 	// databases are included when all are backed up, and how often the
 	// transaction logs are backed up (minutes, 0 = never).
@@ -323,6 +327,7 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 		o.M365Calendar, o.M365SharePoint, o.M365Sites = old.M365Calendar, old.M365SharePoint, old.M365Sites
 		o.M365ExcludeUsers, o.M365ExcludeSites = old.M365ExcludeUsers, old.M365ExcludeSites
 	}
+	o.HVCluster = old.HVCluster
 	return o
 }
 

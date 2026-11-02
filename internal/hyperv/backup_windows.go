@@ -17,8 +17,12 @@ import (
 // BackupOptions select the VMs to back up.
 type BackupOptions struct {
 	// VMIDs lists VMs by their BackupZit number (VMIDFor); nil means all.
-	VMIDs    []int
-	Exclude  []int
+	VMIDs   []int
+	Exclude []int
+	// Cluster: this host is a node of a failover cluster and the job is the
+	// cluster's. "All" means its clustered VMs, and selected VMs owned by
+	// another node are left to that node (ErrNoneHere when none is here).
+	Cluster  bool
 	Hostname string
 	Version  string
 	Tags     []string
@@ -45,28 +49,22 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	for _, vm := range vms {
 		byID[VMIDFor(vm.ID)] = vm
 	}
+	here := make([]hostVM, 0, len(vms))
+	for _, vm := range vms {
+		here = append(here, hostVM{ID: VMIDFor(vm.ID), Clustered: vm.Clustered})
+	}
+	ids, missing := pick(here, opts.VMIDs, opts.Exclude, opts.Cluster)
+	for _, id := range missing {
+		addErr(fmt.Sprintf("VM %d", id), errors.New("does not exist on this host (any more)"))
+	}
 	var sel []vmInfo
-	if opts.VMIDs == nil {
-		excl := map[int]bool{}
-		for _, id := range opts.Exclude {
-			excl[id] = true
-		}
-		for _, vm := range vms {
-			if !excl[VMIDFor(vm.ID)] {
-				sel = append(sel, vm)
-			}
-		}
-	} else {
-		for _, id := range opts.VMIDs {
-			vm, ok := byID[id]
-			if !ok {
-				addErr(fmt.Sprintf("VM %d", id), errors.New("does not exist on this host (any more)"))
-				continue
-			}
-			sel = append(sel, vm)
-		}
+	for _, id := range ids {
+		sel = append(sel, byID[id])
 	}
 	if len(sel) == 0 && len(stats.Errors) == 0 {
+		if opts.Cluster {
+			return nil, ErrNoneHere
+		}
 		return nil, errors.New("no virtual machines on this Hyper-V host")
 	}
 	prev, err := diskimg.PreviousDisks(ctx, r, "hyperv")

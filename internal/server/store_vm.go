@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -35,6 +36,15 @@ func (a Agent) Platform() string {
 		return "proxmox"
 	}
 	return inv.Platform
+}
+
+// HVCluster is the Hyper-V failover cluster the agent's host is a node of,
+// or "".
+func (a Agent) HVCluster() string {
+	if inv := a.PVE(); inv != nil && inv.Platform == "hyperv" {
+		return inv.ClusterName
+	}
+	return ""
 }
 
 // HypervisorLabel names the hypervisor of the agent's machine.
@@ -218,4 +228,44 @@ func platformLabel(p string) string {
 		return "VMware ESXi"
 	}
 	return "Proxmox VE"
+}
+
+// HVClusterInfo is a Hyper-V failover cluster seen through its nodes' agents.
+type HVClusterInfo struct {
+	Name   string
+	Nodes  []Agent
+	Guests []pve.Guest // clustered VMs, wherever they run now
+}
+
+// hvClusters lists the Hyper-V failover clusters of the agents, by name.
+func hvClusters(agents []Agent) []HVClusterInfo {
+	byName := map[string]*HVClusterInfo{}
+	var names []string
+	for _, a := range agents {
+		c := a.HVCluster()
+		if c == "" || a.Recovery || a.RemovedAt != nil {
+			continue
+		}
+		key := strings.ToLower(c)
+		ci := byName[key]
+		if ci == nil {
+			ci = &HVClusterInfo{Name: c, Guests: []pve.Guest{}}
+			byName[key] = ci
+			names = append(names, key)
+		}
+		ci.Nodes = append(ci.Nodes, a)
+		for _, g := range a.PVE().Guests {
+			if g.Clustered && !slices.ContainsFunc(ci.Guests, func(x pve.Guest) bool { return x.VMID == g.VMID }) {
+				ci.Guests = append(ci.Guests, g)
+			}
+		}
+	}
+	slices.Sort(names)
+	out := make([]HVClusterInfo, 0, len(names))
+	for _, n := range names {
+		ci := byName[n]
+		slices.SortFunc(ci.Guests, func(a, b pve.Guest) int { return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)) })
+		out = append(out, *ci)
+	}
+	return out
 }

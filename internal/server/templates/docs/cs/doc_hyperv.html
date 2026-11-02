@@ -62,6 +62,18 @@
   <li>Každý obnovený VM dostane nové ID generace, aby řadiče domény Active Directory obnovu bezpečně rozpoznaly.</li>
 </ul>
 
+<h2 id="cluster">Clustery s převzetím služeb</h2>
+<p>Pro virtuální počítače clusteru Hyper-V s převzetím služeb nainstalujte agenta na každý uzel a vytvořte jednu úlohu pro cluster: na stránce <a href="/jobs">Backup jobs</a> zvolte v seznamu agentů cluster ve skupině <i>Hyper-V failover clusters</i> (objeví se, jakmile ho agenti jeho uzlů nahlásí) a vyberte všechny počítače clusteru nebo jen některé.</p>
+<ul>
+  <li>Každý uzel zálohuje počítače clusteru, které na něm právě běží; uzel bez nich skončí hned. Počítače mimo cluster zůstávají v úlohách svého uzlu.</li>
+  <li>Všechny uzly zapisují do jednoho repozitáře clusteru na úložišti. Když se počítač přesune na jiný uzel (živá migrace nebo převzetí služeb), jeho historie pokračuje tam a Resilient Change Tracking dál čte jen změněné bloky.</li>
+  <li>Uzly přidané do clusteru později dostanou úlohu automaticky; stránka <a href="/agents">Agents</a> označí každý uzel jeho clusterem.</li>
+</ul>
+<p><b>Obnovení</b> na uzel clusteru:</p>
+<ul>
+  <li><i>Na místo originálu</i> probíhá na uzlu, který počítač právě vlastní (konzole ho vybere). Počítač se zastaví a spustí přes cluster, aby cluster zastavení nepovažoval za poruchu.</li>
+  <li><i>Jako nový počítač</i>: zvolte složku na Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). Tam jde i konfigurace počítače a počítač se přidá do clusteru jako role.</li>
+</ul>
 <h2>Obnova jednotlivých souborů</h2>
 <p>V tabulce VM v běhu klikněte na <b>Procházet soubory</b> a uvidíte oddíly a svazky na discích VM. Procházet lze NTFS, ext2/3/4 a XFS, i uvnitř LVM. Odtud můžete soubory stáhnout nebo je obnovit na libovolného agenta. Funguje to přesně jako u <a href="/docs/proxmox">Proxmox VE</a>.</p>
 

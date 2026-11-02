@@ -62,6 +62,18 @@
   <li>Każda przywrócona maszyna otrzymuje nowy identyfikator generacji, aby kontrolery domeny Active Directory bezpiecznie wykryły przywrócenie.</li>
 </ul>
 
+<h2 id="cluster">Klastry pracy awaryjnej</h2>
+<p>Dla maszyn wirtualnych klastra pracy awaryjnej Hyper-V zainstaluj agenta na każdym węźle i utwórz jedno zadanie dla klastra: na stronie <a href="/jobs">Backup jobs</a> wybierz klaster w grupie <i>Hyper-V failover clusters</i> na liście agentów (pojawia się, gdy tylko agenci jego węzłów go zgłoszą) i zaznacz wszystkie maszyny klastra albo wybrane.</p>
+<ul>
+  <li>Każdy węzeł tworzy kopie maszyn klastra, które w danej chwili na nim działają; węzeł bez takich maszyn kończy od razu. Maszyny spoza klastra pozostają w zadaniach swojego węzła.</li>
+  <li>Wszystkie węzły zapisują do jednego repozytorium klastra na magazynie. Gdy maszyna przejdzie na inny węzeł (migracja na żywo lub przełączenie awaryjne), jej historia jest tam kontynuowana, a Resilient Change Tracking nadal czyta tylko zmienione bloki.</li>
+  <li>Węzły dołączone później do klastra otrzymują zadanie automatycznie; strona <a href="/agents">Agents</a> oznacza każdy węzeł jego klastrem.</li>
+</ul>
+<p><b>Przywracanie</b> na węźle klastra:</p>
+<ul>
+  <li><i>W miejsce oryginału</i> odbywa się na węźle, który w tej chwili ma maszynę (konsola go wybiera). Maszyna jest zatrzymywana i uruchamiana przez klaster, aby nie uznał zatrzymania za awarię.</li>
+  <li><i>Jako nowa maszyna</i>: wybierz folder na Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). Trafia tam też konfiguracja maszyny, a maszyna zostaje dodana do klastra jako rola.</li>
+</ul>
 <h2>Przywracanie pojedynczych plików</h2>
 <p>W tabeli maszyn uruchomienia kliknij <b>Przeglądaj pliki</b>, aby zobaczyć partycje i woluminy na dyskach maszyny. Możesz przeglądać NTFS, ext2/3/4 i XFS, także wewnątrz LVM. Stamtąd pobierzesz pliki lub przywrócisz je na dowolnego agenta. Działa to dokładnie tak jak w <a href="/docs/proxmox">Proxmox VE</a>.</p>
 

@@ -62,6 +62,18 @@
   <li>Jede wiederhergestellte VM erhält eine neue Generations-ID, sodass Active-Directory-Domänencontroller die Wiederherstellung sicher erkennen.</li>
 </ul>
 
+<h2 id="cluster">Failovercluster</h2>
+<p>Für die VMs eines Hyper-V-Failoverclusters installieren Sie den Agenten auf jedem Knoten und legen einen Job für den Cluster an: Wählen Sie unter <a href="/jobs">Backup jobs</a> in der Agentenliste den Cluster unter <i>Hyper-V failover clusters</i> (er erscheint, sobald die Agenten seiner Knoten ihn melden) und alle geclusterten VMs oder ausgewählte.</p>
+<ul>
+  <li>Jeder Knoten sichert die geclusterten VMs, die gerade auf ihm laufen; ein Knoten ohne solche VMs ist sofort fertig. Nicht geclusterte VMs bleiben bei den Jobs ihres Knotens.</li>
+  <li>Alle Knoten schreiben in ein Repository des Clusters auf dem Speicher. Wechselt eine VM auf einen anderen Knoten (Live-Migration oder Failover), läuft ihr Verlauf dort weiter, und Resilient Change Tracking liest weiterhin nur die geänderten Blöcke.</li>
+  <li>Knoten, die später zum Cluster kommen, erhalten den Job automatisch; die Seite <a href="/agents">Agents</a> kennzeichnet jeden Knoten mit seinem Cluster.</li>
+</ul>
+<p><b>Wiederherstellen</b> auf einem Knoten des Clusters:</p>
+<ul>
+  <li><i>Anstelle des Originals</i> läuft auf dem Knoten, dem die VM gerade gehört (die Konsole wählt ihn). Die VM wird über den Cluster gestoppt und gestartet, damit der Cluster das Stoppen nicht für einen Ausfall hält.</li>
+  <li><i>Als neue VM</i>: Wählen Sie einen Ordner auf einem Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). Auch die Konfiguration der VM kommt dorthin, und die VM wird dem Cluster als Rolle hinzugefügt.</li>
+</ul>
 <h2>Einzelne Dateien wiederherstellen</h2>
 <p>Klicken Sie in der VM-Tabelle des Laufs auf <b>Dateien durchsuchen</b>, um die Partitionen und Volumes auf den Festplatten der VM zu sehen. Sie können NTFS, ext2/3/4 und XFS durchsuchen, auch innerhalb von LVM. Von dort laden Sie Dateien herunter oder stellen sie auf einem beliebigen Agenten wieder her. Es funktioniert genau wie bei <a href="/docs/proxmox">Proxmox VE</a>.</p>
 

@@ -62,6 +62,18 @@
   <li>Cada VM restaurada recibe un nuevo ID de generación, para que los controladores de dominio de Active Directory detecten la restauración de forma segura.</li>
 </ul>
 
+<h2 id="cluster">Clústeres de conmutación por error</h2>
+<p>Para las VM de un clúster de conmutación por error de Hyper-V, instale el agente en cada nodo y cree un único trabajo para el clúster: en <a href="/jobs">Backup jobs</a> elija el clúster en <i>Hyper-V failover clusters</i> de la lista de agentes (aparece en cuanto los agentes de sus nodos lo comunican) y seleccione todas las VM del clúster o algunas.</p>
+<ul>
+  <li>Cada nodo copia las VM del clúster que ejecuta en ese momento; un nodo que no ejecuta ninguna termina enseguida. Las VM que no están en el clúster siguen en los trabajos de su nodo.</li>
+  <li>Todos los nodos escriben en un repositorio del clúster en el almacenamiento. Cuando una VM pasa a otro nodo (migración en vivo o conmutación por error), su historial continúa allí y Resilient Change Tracking sigue leyendo solo los bloques cambiados.</li>
+  <li>Los nodos que se unen después al clúster reciben el trabajo automáticamente; la página <a href="/agents">Agents</a> marca cada nodo con su clúster.</li>
+</ul>
+<p><b>Restauración</b> en un nodo del clúster:</p>
+<ul>
+  <li><i>En lugar del original</i> se ejecuta en el nodo que tiene la VM en ese momento (la consola lo elige). La VM se detiene y se inicia a través del clúster, para que este no tome la parada por un fallo.</li>
+  <li><i>Como VM nueva</i>: elija una carpeta en un Cluster Shared Volume (<code>C:\ClusterStorage\…</code>). La configuración de la VM también va allí y la VM se añade al clúster como rol.</li>
+</ul>
 <h2>Restaurar archivos sueltos</h2>
 <p>En la tabla de VM de la ejecución, haga clic en <b>Examinar archivos</b> para ver las particiones y volúmenes de los discos de la VM. Puede examinar NTFS, ext2/3/4 y XFS, también dentro de LVM. Desde ahí puede descargar archivos o restaurarlos en cualquier agente. Funciona exactamente igual que con <a href="/docs/proxmox">Proxmox VE</a>.</p>
 

@@ -62,6 +62,18 @@
   <li>Her geri yüklenen VM yeni bir nesil kimliği alır; böylece Active Directory etki alanı denetleyicileri geri yüklemeyi güvenle algılar.</li>
 </ul>
 
+<h2 id="cluster">Yük devretme kümeleri</h2>
+<p>Bir Hyper-V yük devretme kümesinin VM'leri için ajanı her düğüme kurun ve küme için tek bir iş oluşturun: <a href="/jobs">Backup jobs</a> sayfasında ajan listesinde <i>Hyper-V failover clusters</i> altından kümeyi seçin (düğümlerinin ajanları bildirir bildirmez görünür) ve kümedeki tüm VM'leri ya da seçtiklerinizi işaretleyin.</p>
+<ul>
+  <li>Her düğüm o anda üzerinde çalışan küme VM'lerini yedekler; hiçbirini çalıştırmayan düğüm hemen biter. Küme dışındaki VM'ler kendi düğümlerinin işlerinde kalır.</li>
+  <li>Tüm düğümler depolamada kümenin tek deposuna yazar. Bir VM başka bir düğüme geçtiğinde (canlı geçiş veya yük devretme) geçmişi orada sürer ve Resilient Change Tracking yine yalnızca değişen blokları okur.</li>
+  <li>Kümeye sonradan katılan düğümler işi otomatik alır; <a href="/agents">Agents</a> sayfası her düğümün kümesini gösterir.</li>
+</ul>
+<p>Kümenin bir düğümüne <b>geri yükleme</b>:</p>
+<ul>
+  <li><i>Özgün VM'nin yerine</i> VM'nin o an bulunduğu düğümde çalışır (konsol seçer). VM küme üzerinden durdurulup başlatılır, böylece küme durdurmayı arıza saymaz.</li>
+  <li><i>Yeni VM olarak</i>: bir Cluster Shared Volume üzerinde klasör seçin (<code>C:\ClusterStorage\…</code>). VM'nin yapılandırması da oraya gider ve VM kümeye rol olarak eklenir.</li>
+</ul>
 <h2>Tek tek dosyaları geri yükleme</h2>
 <p>Çalıştırmanın VM tablosunda <b>Dosyalara göz at</b>'a tıklayarak VM disklerindeki bölümleri ve birimleri görün. NTFS, ext2/3/4 ve XFS'e, LVM içinde de göz atabilirsiniz. Oradan dosyaları indirebilir veya herhangi bir aracıya geri yükleyebilirsiniz. <a href="/docs/proxmox">Proxmox VE</a>'deki gibi çalışır.</p>
 

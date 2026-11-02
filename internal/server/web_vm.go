@@ -95,7 +95,9 @@ func (s *Server) handleVMRestore(w http.ResponseWriter, r *http.Request, runID i
 	if hid := formID(r, "vmware_host_id"); hid > 0 {
 		rid, err = s.store.QueueVMwareRestore(r.Context(), runID, hid, o)
 	} else {
-		rid, err = s.store.QueueVMRestore(r.Context(), runID, formID(r, "agent_id"), o)
+		agentID := formID(r, "agent_id")
+		agentID, o.HVCluster = s.clusterRestoreAgent(r.Context(), agentID, vmid, o.NewVMID == 0)
+		rid, err = s.store.QueueVMRestore(r.Context(), runID, agentID, o)
 	}
 	if err != nil {
 		redirectErr(w, r, back, err)
@@ -220,4 +222,34 @@ func (s *Server) jobGuests(ctx context.Context, j Job) []pve.Guest {
 		return nil
 	}
 	return a.LocalGuests()
+}
+
+// clusterRestoreAgent adjusts a Hyper-V restore to a node of a failover
+// cluster: it runs as a cluster restore, and a restore in place runs on the
+// node that owns the VM now (the one chosen may not see it).
+func (s *Server) clusterRestoreAgent(ctx context.Context, agentID int64, vmid int, inPlace bool) (int64, bool) {
+	a, err := s.store.GetAgent(ctx, agentID)
+	if err != nil || a.HVCluster() == "" {
+		return agentID, false
+	}
+	if !inPlace {
+		return agentID, true
+	}
+	agents, err := s.store.ListAgents(ctx)
+	if err != nil {
+		return agentID, true
+	}
+	for _, c := range hvClusters(agents) {
+		if !strings.EqualFold(c.Name, a.HVCluster()) {
+			continue
+		}
+		for _, n := range c.Nodes {
+			for _, g := range n.PVE().Guests {
+				if g.VMID == vmid && g.Node == n.PVE().Node {
+					return n.ID, true
+				}
+			}
+		}
+	}
+	return agentID, true
 }

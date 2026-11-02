@@ -981,6 +981,10 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 		return
 	}
 	vmInv := pveInventories(agents)
+	clusters := hvClusters(agents)
+	for _, c := range clusters {
+		vmInv["hvcluster:"+c.Name] = c.Guests
+	}
 	var usable []VMwareHost
 	for _, h := range hosts {
 		if h.ProxyAgentID == nil {
@@ -995,7 +999,7 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 	}
 	s.render(w, r, "jobs", pageData{Title: "Backup jobs", Nav: "jobs", User: user,
 		Data: map[string]any{"Jobs": jobs, "Agents": agents, "Targets": targets, "Inventory": inventories(agents), "SourceJobs": sourceJobs(jobs),
-			"PVE": vmInv, "VMwareHosts": usable, "Form": s.jobForm(r, Job{}, false, agents),
+			"PVE": vmInv, "VMwareHosts": usable, "HVClusters": clusters, "Form": s.jobForm(r, Job{}, false, agents),
 			"Coverage": s.coverageMap(ctx), "JobKinds": jobKindCounts(jobs), "FailedJobs": failedJobs(jobs),
 			"Groups": groups, "GroupCounts": groupCounts(jobs)}})
 }
@@ -1007,7 +1011,7 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		redirectErr(w, r, "/jobs", err)
 		return
 	}
-	if strings.HasPrefix(r.FormValue("agent_id"), "group:") {
+	if a := r.FormValue("agent_id"); strings.HasPrefix(a, "group:") || strings.HasPrefix(a, "hvcluster:") {
 		s.handleGroupCreate(w, r, sched)
 		return
 	}
