@@ -17,12 +17,33 @@ BackupZit backs up Windows and Linux machines (files or whole disks), Proxmox VE
 - **Free and open source** under the AGPLv3. [MaxZit](https://github.com/Max-Zit) offers commercial support.
 - The console is available in 14 languages: English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Czech, Serbian, Turkish, Russian, Chinese and Japanese.
 
-**Download:** [latest release](https://github.com/Max-Zit/backupzit/releases/latest) · **Install:** [quick start](#installation) · **Website:** [backupzit.com](https://backupzit.com/) (14 languages) · **Guide:** built into the console under *Documentation*
+**Download:** [latest release](https://github.com/Max-Zit/backupzit/releases/latest) · **Install:** [quick start](#quick-start) · **Website:** [backupzit.com](https://backupzit.com/) (14 languages) · **Step-by-step guides:** [backupzit.com/guides](https://backupzit.com/guides/) · **Questions:** [Discussions](https://github.com/Max-Zit/backupzit/discussions)
+
+[![A backup job in the BackupZit console](.github/readme/2-backup-job.jpg)](.github/readme/2-backup-job.jpg)
+
+| | | |
+|---|---|---|
+| [![A finished backup with restore options](.github/readme/3-backup-run.jpg)](.github/readme/3-backup-run.jpg) | [![Calendar of backup runs](.github/readme/4-calendar.jpg)](.github/readme/4-calendar.jpg) | [![The built-in guide, here for Proxmox VE](.github/readme/5-guide-proxmox.jpg)](.github/readme/5-guide-proxmox.jpg) |
+| A finished backup: what was read, what was new, restore right from here | Calendar of runs | The built-in guide in 14 languages |
+
+## Quick start
+
+The console runs on a small Linux VM (2 vCPU, 2–4 GB RAM, 20 GB disk). The fastest ways:
+
+- **VM image:** import [backupzit-appliance.ova](https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.ova) (VMware), [.qcow2](https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance.qcow2) (Proxmox/KVM) or [.vhdx](https://github.com/Max-Zit/backupzit/releases/latest/download/backupzit-appliance-vhdx.zip) (Hyper-V) and start it; its screen shows the address and the initial password.
+- **Existing Linux server** (Debian 12+, Ubuntu 22.04+, AlmaLinux/Rocky 9+), as root:
+  ```
+  curl -fsSL https://github.com/Max-Zit/backupzit/releases/latest/download/install.sh | sudo sh
+  ```
+- **Docker:** see [Docker](#5-docker).
+
+Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an agent and create a job — [first steps](#first-steps). All five ways are described under [Installation](#installation).
 
 ---
 
 ## Contents
 
+- [Quick start](#quick-start)
 - [What it can back up](#what-it-can-back-up)
 - [How it works](#how-it-works)
 - [Installation](#installation)
@@ -32,7 +53,10 @@ BackupZit backs up Windows and Linux machines (files or whole disks), Proxmox VE
 - [Supported systems](#supported-systems)
 - [Agent CLI (standalone)](#agent-cli-standalone)
 - [Repository format](#repository-format-v1)
+- [Guides](#guides)
+- [Project status and limits](#project-status-and-limits)
 - [FAQ](#faq)
+- [Community and support](#community-and-support)
 - [Development](#development) · [License](#license)
 
 ## What it can back up
@@ -413,6 +437,30 @@ snapshots/<id>         one JSON document per backup run
   parent snapshot; changed files are re-read but only new chunks are uploaded.
   Every snapshot is a full, independent restore point.
 
+## Guides
+
+Step-by-step guides on [backupzit.com/guides](https://backupzit.com/guides/), each in all 14 languages:
+
+- [Proxmox VE VM backup](https://backupzit.com/guides/proxmox-vm-backup/)
+- [VMware ESXi backup, also with the free license](https://backupzit.com/guides/vmware-esxi-backup/)
+- [Free Hyper-V backup](https://backupzit.com/guides/hyper-v-backup/)
+- [Microsoft 365 backup on your own server](https://backupzit.com/guides/microsoft-365-backup/)
+- [Bare-metal restore of a Windows server](https://backupzit.com/guides/windows-bare-metal-restore/)
+- [3-2-1 backup with immutable copies](https://backupzit.com/guides/3-2-1-immutable-backup/)
+
+The complete reference is the guide built into the console (*Documentation*).
+
+## Project status and limits
+
+BackupZit is a young project: the first public release was 4 October 2026, and new versions come out often. Every release is tested in a lab with Proxmox VE, VMware ESXi, Hyper-V, Windows and Linux machines before it is published; release candidates are offered on a separate *testing* update channel first. Please [report](https://github.com/Max-Zit/backupzit/issues/new/choose) anything that does not work for you.
+
+Not supported yet (see *Not yet included* in each chapter of the built-in guide):
+- macOS — there is no agent for Mac computers.
+- Proxmox VE: container disks on ZFS subvolumes; raw disks on directory/NFS/CIFS storage and thick LVM only while the guest is stopped.
+- VMware: a vCenter with several datacenters (add the hosts of the others directly), raw device mappings and independent disks, VMs with snapshots of their own, instant recovery through a Windows proxy agent.
+- Hyper-V: shared VHDX, VHD Set and pass-through disks.
+- XCP-ng.
+
 ## FAQ
 
 **Is BackupZit free?**
@@ -438,6 +486,16 @@ On SFTP/NAS, S3-compatible storage, SMB, Azure Blob Storage, USB or local disks,
 
 **Does it need the cloud or internet access?**
 No. The console runs on your own server in your own network; nothing has to be exposed to the internet.
+
+## Community and support
+
+- **Questions and ideas:** [GitHub Discussions](https://github.com/Max-Zit/backupzit/discussions).
+- **Bugs:** [open an issue](https://github.com/Max-Zit/backupzit/issues/new/choose) — the console's *Report a bug* link fills in the version for you.
+- **Security problems:** report them privately, see [SECURITY.md](SECURITY.md).
+- **Contributing:** see [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Commercial support** (in English): [plans on the MaxZit portal](https://portal.maxzit.com/plans).
+
+If BackupZit is useful to you, a ⭐ on GitHub helps other administrators find it.
 
 ## Development
 
