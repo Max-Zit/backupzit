@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
 // Sidebar clock: the console server's time, ticking every second. It counts
 // from the server time at page load, so a wrong PC clock does not matter.
 document.addEventListener("DOMContentLoaded", function () {
-  var el = document.getElementById("clock");
+  var el = document.getElementById("sideclock");
   if (!el) return;
   var delta = Number(el.getAttribute("data-ms")) - Date.now();
   var off = Number(el.getAttribute("data-off")) * 1000;

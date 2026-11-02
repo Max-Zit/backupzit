@@ -23,7 +23,6 @@
     {{end}}
     {{template "job_common" $.Data.Form}}
     <p class="muted small">{{T "The agent and the storage cannot be changed: backups stay where they are. To move a job, create a new one (and a copy job to bring older backups along)."}}</p>
-  </form>
     <div class="actions"><button>{{T "Save changes"}}</button> <a class="btn secondary-link" href="/jobs/{{.ID}}">{{T "Cancel"}}</a></div>
   </form>
 </div>
