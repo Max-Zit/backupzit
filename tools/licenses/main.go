@@ -27,6 +27,7 @@ var adapted = []struct{ file, project, license string }{
 var embedded = []struct{ name, license, file string }{
 	{"DejaVu Sans fonts (internal/server/fonts, used in PDF reports)", "Bitstream Vera / DejaVu font license", "internal/server/fonts/LICENSE-DejaVu.txt"},
 	{"Droid Sans Fallback font (internal/server/fonts, used in PDF reports)", "Apache License 2.0", "internal/server/fonts/LICENSE-DroidSansFallback.txt"},
+	{"Feather icons (https://feathericons.com; the console's menu and button icons are drawn after them)", "MIT License", "tools/licenses/feather.txt"},
 }
 
 type module struct {
