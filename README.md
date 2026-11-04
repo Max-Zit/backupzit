@@ -53,6 +53,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 - [Supported systems](#supported-systems)
 - [Agent CLI (standalone)](#agent-cli-standalone)
 - [Repository format](#repository-format-v1)
+- [How it compares](#how-it-compares)
 - [Guides](#guides)
 - [Project status and limits](#project-status-and-limits)
 - [FAQ](#faq)
@@ -68,7 +69,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
 | **Proxmox VE** VMs and containers | agentless, changed blocks only | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
 | **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent, changed block tracking | new VM or in place, instant recovery over NFS |
-| **Hyper-V** VMs | agentless, resilient change tracking | new VM on the same or another Hyper-V host |
+| **Hyper-V** VMs, also **failover clusters** | agentless, resilient change tracking; a clustered VM keeps its history when it moves to another node | new VM on the same or another Hyper-V host, also onto a Cluster Shared Volume as a cluster role |
 | **Databases** | SQL Server, PostgreSQL, MySQL/MariaDB with native tools; log backups | a single database to any point in time, under a new name or in place |
 | **NAS shares** | SMB or NFS share read by any agent, nothing installed on the NAS | into a folder or back onto the share |
 | **Microsoft 365** | Exchange Online mail (.eml), calendars (.ics), contacts (.vcf), OneDrive and SharePoint through Microsoft Graph, read-only permissions | browse and download, or restore into a folder |
@@ -194,7 +195,7 @@ Options go after `sh -s --`:
 
 | Option | Effect |
 |---|---|
-| `--version 0.35.2` | install this release instead of the newest |
+| `--version 0.46.5` | install this release instead of the newest |
 | `--db postgres://user:pw@host:5432/db` | use an existing PostgreSQL database |
 | `--hosts backup.example.local,10.0.0.10` | names and addresses for the console's certificate |
 | `--no-auto-updates` | leave automatic security updates as they are |
@@ -323,7 +324,7 @@ Without internet access, upload the release files on the same page. Updating wit
 | Console | Debian 12+, Ubuntu 22.04+, AlmaLinux / Rocky Linux 9+ (x86-64), PostgreSQL 13+; or the ready-made appliance |
 | Windows agent | Windows 10, 11, Server 2016 and newer (MSI); Windows 7 SP1, Server 2008 R2 SP1, 2012 R2 (legacy MSI) |
 | Linux agent | Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bit), Proxmox VE 7, 8 and 9 |
-| Hypervisors | Proxmox VE 7/8/9, Hyper-V (Windows Server 2016+, Windows 10/11), VMware ESXi 6.7, 7, 8 (also with the free license), vCenter Server 7, 8 |
+| Hypervisors | Proxmox VE 7/8/9, Hyper-V (Windows Server 2016+ including failover clusters, Windows 10/11), VMware ESXi 6.7, 7, 8 (also with the free license), vCenter Server 7, 8 |
 | Microsoft 365 | any tenant with an app registration (application permissions, read-only) |
 
 **Planned:** instant recovery for Hyper-V, restore directly into Microsoft 365 mailboxes, Teams chats.
@@ -437,6 +438,22 @@ snapshots/<id>         one JSON document per backup run
   parent snapshot; changed files are re-read but only new chunks are uploaded.
   Every snapshot is a full, independent restore point.
 
+## How it compares
+
+BackupZit is meant for organizations that want one free backup product for a mixed environment, on their own server. A short, honest comparison:
+
+| | BackupZit | Veeam Backup & Replication, NAKIVO | Proxmox Backup Server |
+|---|---|---|---|
+| License | AGPLv3, free without limits on machines or storage | commercial; Veeam Community Edition is free for up to 10 workloads | AGPLv3, free |
+| What it backs up | Windows and Linux machines, Proxmox VE, VMware ESXi, Hyper-V, SQL Server, PostgreSQL, MySQL, NAS shares, Microsoft 365 | a very wide range of platforms and applications | Proxmox VE VMs and containers, Linux hosts |
+| Maturity | young project (first release October 2026) | established for many years, certified support | established, backed by Proxmox |
+
+Where the others are the better choice:
+- **Veeam or NAKIVO** if you need their wider range of platforms and applications, a long track record or certified vendor support.
+- **Proxmox Backup Server** if you run only Proxmox VE and Linux: it is built into Proxmox and very efficient there.
+
+Where BackupZit fits: Windows servers and PCs with bare-metal recovery, VMs on Proxmox VE, VMware ESXi and Hyper-V side by side, databases and Microsoft 365 — in one console, with no license limits, and running on a small Linux VM.
+
 ## Guides
 
 Step-by-step guides on [backupzit.com/guides](https://backupzit.com/guides/), each in all 14 languages:
@@ -473,7 +490,7 @@ Install the agent on a Proxmox node and create a *Proxmox VE* job: VMs and conta
 Yes, through a proxy agent; changed block tracking keeps incremental backups small, and VMs can be restored as new VMs, in place, or started over NFS (instant recovery).
 
 **How do I back up Hyper-V?**
-Install the Windows agent on the Hyper-V host and create a *Hyper-V* job; VMs are backed up agentless with resilient change tracking.
+Install the Windows agent on the Hyper-V host and create a *Hyper-V* job; VMs are backed up agentless with resilient change tracking. For a failover cluster, install the agent on every node and choose the cluster: one job covers all clustered VMs, wherever they run.
 
 **Can I restore a whole Windows or Linux server onto new hardware (bare-metal recovery)?**
 Yes. Boot the Windows recovery ISO (built with `build-winpe.ps1`) or the Linux recovery ISO, pick the backup in the console and restore the disks; drivers for different hardware are handled.
