@@ -1,0 +1,18 @@
+# Reviewed Gitleaks false positives: the words "BEGIN PRIVATE KEY" in the
+# translated help text of the certificate form, and fixed keys of tests.
+d8dde563a15875939ee33681ddc93b0ca6b4a2c4:internal/server/m365.go:generic-api-key:25
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/cs.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/ja.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/fr.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/de.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/ru.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/pl.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/it.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/zh.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/nl.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/tr.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/es.json:private-key:63
+9489118d2649bb2ffa88a2480d1b85e309a9e0ff:internal/server/i18n/pt.json:private-key:63
+035f87a4fdf235838592eb9ff7a2f0e018719b92:internal/server/i18n/sr.json:private-key:62
+a192e3cdbbb6836ce4e6f3d89f07f9df476d72c4:internal/server/totp_test.go:generic-api-key:10
+bc8eb5f7491fe36247878f72078589409854a0bb:internal/e2e/crypto_test.go:generic-api-key:17

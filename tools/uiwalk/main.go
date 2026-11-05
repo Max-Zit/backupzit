@@ -53,6 +53,7 @@ func main() {
 	base := flag.String("url", "", "console address, e.g. https://192.168.101.154:8443")
 	user := flag.String("user", "admin", "user name (password from BZ_PASSWORD)")
 	save := flag.Bool("save", false, "send every edit page back unchanged and compare")
+	lang := flag.String("lang", "", "walk the pages in this language (e.g. sr); the choice is a cookie of this session only")
 	flag.Parse()
 	pw := os.Getenv("BZ_PASSWORD")
 	if *base == "" || pw == "" {
@@ -62,12 +63,15 @@ func main() {
 	jar, _ := cookiejar.New(nil)
 	c := &client{base: strings.TrimRight(*base, "/"), c: &http.Client{Jar: jar,
 		// Lab consoles have self-signed certificates.
-		Transport:     &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}, // #nosec G402 -- lab consoles with self-signed certificates
+		Transport:     &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}}, // #nosec G402 -- lab consoles with self-signed certificates
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	// One sign-in only: failed sign-ins lock the address out.
 	if _, loc, _ := c.Do("POST", "/login", url.Values{"username": {*user}, "password": {pw}}); loc != "/" {
 		fmt.Fprintln(os.Stderr, "uiwalk: sign-in failed")
 		os.Exit(1)
+	}
+	if *lang != "" {
+		c.Do("POST", "/lang", url.Values{"lang": {*lang}, "back": {"/"}})
 	}
 	r := uicheck.Walk(c, uicheck.Options{RoundTrip: *save, Skip: []string{"m365_tenant"}})
 	for _, p := range r.Problems {

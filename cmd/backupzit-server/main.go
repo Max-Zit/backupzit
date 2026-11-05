@@ -374,7 +374,7 @@ func checkHealth(listen string) error {
 	}
 	c := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
 		// The console's own certificate; only the local port is checked.
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // #nosec G402 -- health check of our own service on this machine
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, // #nosec G402 -- health check of our own service on this machine
 	}}
 	resp, err := c.Get("https://127.0.0.1:" + port + "/login")
 	if err != nil {

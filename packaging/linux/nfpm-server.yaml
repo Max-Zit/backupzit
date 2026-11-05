@@ -36,6 +36,8 @@ contents:
     dst: /usr/share/backupzit/appliance/sudoers-backupzit-setup
   - src: ./packaging/appliance/sshd-backupzit.conf
     dst: /usr/share/backupzit/appliance/sshd-backupzit.conf
+  - src: ./packaging/appliance/modprobe-backupzit.conf
+    dst: /usr/share/backupzit/appliance/modprobe-backupzit.conf
   - src: ./packaging/appliance/sysctl-backupzit.conf
     dst: /usr/share/backupzit/appliance/sysctl-backupzit.conf
   - src: ./packaging/appliance/icmp-timestamp.nft

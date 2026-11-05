@@ -23,12 +23,15 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl try-restart backupzit-server.service >/dev/null 2>&1 || true
 fi
 # The BackupZit appliance (not other servers): the setup menu on its screen
-# and hardened SSH settings.
+# and hardened SSH, kernel and PostgreSQL settings.
 if [ -f /var/lib/backupzit/.appliance-ready ] || [ -x /usr/local/sbin/backupzit-firstboot ]; then
     a=/usr/share/backupzit/appliance
     install -m 0644 $a/backupzit-menu.sh /etc/profile.d/backupzit-menu.sh
     install -m 0440 $a/sudoers-backupzit-setup /etc/sudoers.d/backupzit-setup
     install -m 0644 $a/sysctl-backupzit.conf /etc/sysctl.d/90-backupzit-console.conf
+    install -m 0644 $a/modprobe-backupzit.conf /etc/modprobe.d/60-backupzit.conf
+    # PostgreSQL settings are not for everyone to read (Lynis DBS-1828).
+    chmod o-rwx /etc/postgresql/*/main/*.conf 2>/dev/null || true
     sysctl -q -p /etc/sysctl.d/90-backupzit-console.conf 2>/dev/null || true
     # At every start: grow the root file system to an enlarged disk, and
     # write the login screen (it shows the initial password only until

@@ -166,6 +166,8 @@ The appliance gets its address by DHCP. On the VM's own screen, sign in as `bzad
 - the time zone (e.g. `Europe/Belgrade`; the appliance starts in UTC),
 - SSH on or off.
 
+The appliance is Debian with BackupZit and PostgreSQL, hardened SSH (no root sign-in, no forwarding, strong ciphers), hardened kernel settings and no answers to ICMP timestamp requests; each release image is checked with Trivy, Lynis, testssl.sh and Nuclei (see [SECURITY.md](SECURITY.md)).
+
 ### 2. Appliance ISO
 
 1. Create a VM or use a server with 2 vCPU, 2–4 GB RAM and a 16 GB or larger disk.

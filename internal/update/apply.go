@@ -194,7 +194,7 @@ func (a *Applier) healthy(ctx context.Context) error {
 		return nil
 	}
 	cl := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}} // #nosec G402 -- local check of our own service
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}}} // #nosec G402 -- local check of our own service
 	deadline := time.Now().Add(a.HealthWait)
 	var last error
 	for time.Now().Before(deadline) {

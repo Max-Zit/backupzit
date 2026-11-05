@@ -119,7 +119,7 @@ func PinnedConfig(fingerprint string) *tls.Config {
 // FetchFingerprint connects to host:port and returns the fingerprint of the
 // certificate it presents, for confirmation by a human.
 func FetchFingerprint(ctx context.Context, addr string) (string, error) {
-	d := tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true}} // #nosec G402 -- fingerprint is shown to the operator
+	d := tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}} // #nosec G402 -- fingerprint is shown to the operator
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return "", err
