@@ -132,6 +132,7 @@ jobs:
                    repo:FuzzDecodeBlob vmware:FuzzParseVMX vmware:FuzzParseDSPath update:FuzzVerify update:FuzzNewer \
                    fsutil:FuzzParseSnapshotPath netcfg:FuzzParseNetworkFile vmfs:FuzzParseLVMConfig vmfs:FuzzVolumes \
                    hardened:FuzzValidName server:FuzzParseSchedule server:FuzzLocalPath server:FuzzParseSSOState \
-                   server:FuzzParseMFAToken server:FuzzParseIdPMetadata server:FuzzParseKeyPair; do
+                   server:FuzzParseMFAToken server:FuzzParseIdPMetadata server:FuzzParseKeyPair \
+                   server:FuzzParseRecoveryKey; do
             go test "./internal/${t%%:*}" -run '^$' -fuzz "^${t##*:}\$" -fuzztime 20s
           done

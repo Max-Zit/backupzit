@@ -1019,9 +1019,13 @@ func NewRecoveryKey() string {
 // with or without dashes and spaces) and formats it like NewRecoveryKey.
 func parseRecoveryKey(s string) (string, error) {
 	s = strings.ToUpper(strings.NewReplacer("-", "", " ", "").Replace(strings.TrimSpace(s)))
-	if b, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(s); err != nil || len(b) != 20 {
+	// The decoder skips line breaks: rebuild the key from its bytes, so the
+	// groups below are always 8 x 4 letters.
+	b, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(s)
+	if err != nil || len(b) != 20 {
 		return "", errors.New("the recovery key has 32 letters and digits in groups of four, e.g. K7QM-2XRD-…")
 	}
+	s = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b)
 	var parts []string
 	for i := 0; i < len(s); i += 4 {
 		parts = append(parts, s[i:i+4])

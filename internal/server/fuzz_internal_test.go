@@ -93,3 +93,21 @@ func FuzzParseKeyPair(f *testing.F) {
 		_, _ = parseKeyPair(cert, key, "backup.example", time.Now())
 	})
 }
+
+// Recovery keys are typed or pasted into the storage form.
+func FuzzParseRecoveryKey(f *testing.F) {
+	f.Add("K7QM-2XRD-AAAA-BBBB-CCCC-DDDD-EEEE-FFFF")
+	f.Add("K7QM2XRDAAAABBBBCCCCDDDD\r\nEEEEFFFF\r\n\n")
+	f.Fuzz(func(t *testing.T, s string) {
+		k, err := parseRecoveryKey(s)
+		if err != nil {
+			return
+		}
+		if len(k) != 39 {
+			t.Fatalf("%q gave key %q", s, k)
+		}
+		if k2, err := parseRecoveryKey(k); err != nil || k2 != k {
+			t.Fatalf("key %q does not parse to itself: %q %v", k, k2, err)
+		}
+	})
+}
