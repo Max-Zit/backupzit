@@ -71,7 +71,7 @@
 </table>
 <p>The same network, server name, SSH and time zone settings are under <b>Settings → Network</b> in the web console (administrators only). There, a static address whose gateway does not answer within half a minute is undone automatically, so a typo cannot cut the appliance off the network; if the console still cannot be reached, use the menu on the server's screen, which works even with SSH off.</p>
 <p>Agents remember the console's certificate, not its address. If they reach the console by its IP address and the address changes, point them at the new one with <code>backupzit-agent set-server</code> (see <a href="/docs/agents#new-address">Agents</a>), or use a DNS name from the start. With DHCP, reserve the appliance's address in the DHCP server so it does not change.</p>
-<p>The appliance's SSH server offers only AES-GCM/CTR ciphers and SHA-2 MACs (no chacha20-poly1305 or 64-bit MACs, which vulnerability scanners report as weak).</p>
+<p>The appliance's SSH server offers only AES-GCM/CTR ciphers and SHA-2 MACs (no chacha20-poly1305 or 64-bit MACs, which vulnerability scanners report as weak). It allows no tunnels (port, agent or X11 forwarding) through the appliance and three password tries per connection.</p>
 
 <h2>3. Install script</h2>
 <p>On an existing server with <b>Debian 12+, Ubuntu 22.04+, AlmaLinux or Rocky Linux 9+</b> (x86-64), as root:</p>

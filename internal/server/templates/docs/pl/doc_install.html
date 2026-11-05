@@ -71,7 +71,7 @@
 </table>
 <p>Te same ustawienia sieci, nazwy serwera, SSH i strefy czasowej są w konsoli WWW w <b>Ustawienia → Sieć</b> (tylko administratorzy). Tam adres statyczny, którego brama nie odpowie w ciągu pół minuty, jest automatycznie cofany, więc literówka nie odetnie appliance od sieci; jeśli konsola nadal jest nieosiągalna, użyj menu na ekranie serwera, które działa nawet przy wyłączonym SSH.</p>
 <p>Agenci zapamiętują certyfikat konsoli, a nie jej adres. Jeśli łączą się z konsolą po adresie IP i ten adres się zmieni, skieruj ich na nowy poleceniem <code>backupzit-agent set-server</code> (zobacz <a href="/docs/agents#new-address">Agenci</a>) albo od początku używaj nazwy DNS. Przy DHCP zarezerwuj adres appliance w serwerze DHCP, aby się nie zmieniał.</p>
-<p>Serwer SSH appliance oferuje tylko szyfry AES-GCM/CTR i MAC SHA-2 (bez chacha20-poly1305 i 64-bitowych MAC, które skanery podatności zgłaszają jako słabe).</p>
+<p>Serwer SSH appliance oferuje tylko szyfry AES-GCM/CTR i MAC SHA-2 (bez chacha20-poly1305 i 64-bitowych MAC, które skanery podatności zgłaszają jako słabe). Nie pozwala na tunele (przekierowanie portów, agenta ani X11) przez appliance i dopuszcza trzy próby hasła na połączenie.</p>
 
 <h2>3. Skrypt instalacyjny</h2>
 <p>Na istniejącym serwerze z <b>Debianem 12+, Ubuntu 22.04+, AlmaLinux lub Rocky Linux 9+</b> (x86-64), jako root:</p>

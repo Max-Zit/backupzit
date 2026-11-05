@@ -71,7 +71,7 @@
 </table>
 <p>As mesmas configurações de rede, nome do servidor, SSH e fuso horário estão em <b>Configurações → Rede</b> na console web (só administradores). Aí, um endereço estático cujo gateway não responde em meio minuto é desfeito automaticamente, para que um erro de digitação não deixe o appliance sem rede; se mesmo assim não conseguir alcançar a console, use o menu na tela do servidor, que funciona mesmo com o SSH desligado.</p>
 <p>Os agentes lembram-se do certificado da console, não do seu endereço. Se alcançam a console pelo endereço IP e este muda, aponte-os para o novo com <code>backupzit-agent set-server</code> (veja <a href="/docs/agents#new-address">Agentes</a>), ou use um nome DNS desde o início. Com DHCP, reserve o endereço do appliance no servidor DHCP para que não mude.</p>
-<p>O servidor SSH do appliance só oferece cifras AES-GCM/CTR e MACs SHA-2 (nada de chacha20-poly1305 nem MACs de 64 bits, que os scanners de vulnerabilidades apontam como fracos).</p>
+<p>O servidor SSH do appliance só oferece cifras AES-GCM/CTR e MACs SHA-2 (nada de chacha20-poly1305 nem MACs de 64 bits, que os scanners de vulnerabilidades apontam como fracos). Não permite túneis (encaminhamento de portas, de agente ou X11) através do appliance e aceita três tentativas de senha por conexão.</p>
 
 <h2>3. Script de instalação</h2>
 <p>Num servidor existente com <b>Debian 12+, Ubuntu 22.04+, AlmaLinux ou Rocky Linux 9+</b> (x86-64), como root:</p>

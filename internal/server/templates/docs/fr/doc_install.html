@@ -71,7 +71,7 @@
 </table>
 <p>Les mêmes réglages de réseau, nom du serveur, SSH et fuseau horaire se trouvent sous <b>Paramètres → Réseau</b> dans la console web (administrateurs uniquement). Là, une adresse statique dont la passerelle ne répond pas dans la demi-minute est annulée automatiquement, si bien qu'une faute de frappe ne peut pas couper l'appliance du réseau ; si la console reste injoignable, utilisez le menu sur l'écran du serveur, qui fonctionne même avec SSH désactivé.</p>
 <p>Les agents mémorisent le certificat de la console, pas son adresse. S'ils joignent la console par son adresse IP et que celle-ci change, dirigez-les vers la nouvelle avec <code>backupzit-agent set-server</code> (voir <a href="/docs/agents#new-address">Agents</a>), ou utilisez dès le départ un nom DNS. Avec DHCP, réservez l'adresse de l'appliance dans le serveur DHCP pour qu'elle ne change pas.</p>
-<p>Le serveur SSH de l'appliance n'offre que les chiffrements AES-GCM/CTR et les MAC SHA-2 (ni chacha20-poly1305 ni MAC 64 bits, que les scanners de vulnérabilités signalent comme faibles).</p>
+<p>Le serveur SSH de l'appliance n'offre que les chiffrements AES-GCM/CTR et les MAC SHA-2 (ni chacha20-poly1305 ni MAC 64 bits, que les scanners de vulnérabilités signalent comme faibles). Il n'autorise aucun tunnel (redirection de ports, d'agent ou X11) à travers l'appliance et accepte trois essais de mot de passe par connexion.</p>
 
 <h2>3. Script d'installation</h2>
 <p>Sur un serveur existant avec <b>Debian 12+, Ubuntu 22.04+, AlmaLinux ou Rocky Linux 9+</b> (x86-64), en root :</p>

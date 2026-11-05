@@ -71,7 +71,7 @@
 </table>
 <p>Ista podešavanja mreže, imena servera, SSH-a i vremenske zone su u web konzoli pod <b>Podešavanja → Mreža</b> (samo za administratore). Tamo se statička adresa čiji gateway ne odgovori za pola minuta automatski poništava, pa greška u kucanju ne može da odseče uređaj od mreže; ako konzola ipak nije dostupna, koristite meni na ekranu servera, koji radi i sa isključenim SSH-om.</p>
 <p>Agenti pamte sertifikat konzole, a ne njenu adresu. Ako se konzoli javljaju preko IP adrese, a adresa se promeni, usmerite ih na novu komandom <code>backupzit-agent set-server</code> (vidi <a href="/docs/agents#new-address">Agenti</a>), ili od početka koristite DNS ime. Uz DHCP, rezervišite adresu uređaja u DHCP serveru da se ne bi menjala.</p>
-<p>SSH server uređaja nudi samo AES-GCM/CTR šifre i SHA-2 MAC-ove (bez chacha20-poly1305 i 64-bitnih MAC-ova, koje skeneri ranjivosti prijavljuju kao slabe).</p>
+<p>SSH server uređaja nudi samo AES-GCM/CTR šifre i SHA-2 MAC-ove (bez chacha20-poly1305 i 64-bitnih MAC-ova, koje skeneri ranjivosti prijavljuju kao slabe). Ne dozvoljava tunele (prosleđivanje portova, agenta ili X11) kroz uređaj i dozvoljava tri pokušaja lozinke po vezi.</p>
 
 <h2>3. Instalacioni skript</h2>
 <p>Na postojećem serveru sa <b>Debian 12+, Ubuntu 22.04+, AlmaLinux ili Rocky Linux 9+</b> (x86-64), kao root:</p>

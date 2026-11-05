@@ -71,7 +71,7 @@
 </table>
 <p>Aynı ağ, sunucu adı, SSH ve saat dilimi ayarları web konsolunda <b>Ayarlar → Ağ</b> altındadır (yalnızca yöneticiler). Orada, ağ geçidi yarım dakika içinde yanıt vermeyen statik bir adres otomatik olarak geri alınır; böylece bir yazım hatası appliance'ı ağdan koparamaz. Konsola yine de ulaşılamıyorsa, SSH kapalıyken bile çalışan sunucu ekranındaki menüyü kullanın.</p>
 <p>Aracılar konsolun adresini değil sertifikasını hatırlar. Konsola IP adresiyle ulaşıyorlarsa ve adres değişirse, onları <code>backupzit-agent set-server</code> ile yeni adrese yönlendirin (bkz. <a href="/docs/agents#new-address">Aracılar</a>) ya da baştan bir DNS adı kullanın. DHCP ile, değişmemesi için appliance'ın adresini DHCP sunucusunda ayırın.</p>
-<p>Appliance'ın SSH sunucusu yalnızca AES-GCM/CTR şifrelerini ve SHA-2 MAC'lerini sunar (güvenlik açığı tarayıcılarının zayıf olarak bildirdiği chacha20-poly1305 ve 64 bit MAC'ler yoktur).</p>
+<p>Appliance'ın SSH sunucusu yalnızca AES-GCM/CTR şifrelerini ve SHA-2 MAC'lerini sunar (güvenlik açığı tarayıcılarının zayıf olarak bildirdiği chacha20-poly1305 ve 64 bit MAC'ler yoktur). Appliance üzerinden tünele (port, ajan veya X11 yönlendirmesi) izin vermez ve bağlantı başına üç parola denemesi tanır.</p>
 
 <h2>3. Kurulum betiği</h2>
 <p><b>Debian 12+, Ubuntu 22.04+, AlmaLinux veya Rocky Linux 9+</b> (x86-64) çalıştıran mevcut bir sunucuda, root olarak:</p>

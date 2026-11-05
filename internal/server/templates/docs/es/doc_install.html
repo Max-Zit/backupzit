@@ -71,7 +71,7 @@
 </table>
 <p>Los mismos ajustes de red, nombre del servidor, SSH y zona horaria están en <b>Configuración → Red</b> en la consola web (solo administradores). Allí, una dirección estática cuya puerta de enlace no responde en medio minuto se deshace automáticamente, para que un error tipográfico no deje el appliance sin red; si aun así no se puede llegar a la consola, use el menú de la pantalla del servidor, que funciona incluso con SSH desactivado.</p>
 <p>Los agentes recuerdan el certificado de la consola, no su dirección. Si llegan a la consola por su dirección IP y esta cambia, apúntelos a la nueva con <code>backupzit-agent set-server</code> (consulte <a href="/docs/agents#new-address">Agentes</a>), o use un nombre DNS desde el principio. Con DHCP, reserve la dirección del appliance en el servidor DHCP para que no cambie.</p>
-<p>El servidor SSH del appliance solo ofrece cifrados AES-GCM/CTR y MAC SHA-2 (ni chacha20-poly1305 ni MAC de 64 bits, que los escáneres de vulnerabilidades señalan como débiles).</p>
+<p>El servidor SSH del appliance solo ofrece cifrados AES-GCM/CTR y MAC SHA-2 (ni chacha20-poly1305 ni MAC de 64 bits, que los escáneres de vulnerabilidades señalan como débiles). No permite túneles (reenvío de puertos, de agente ni X11) a través del appliance y admite tres intentos de contraseña por conexión.</p>
 
 <h2>3. Script de instalación</h2>
 <p>En un servidor existente con <b>Debian 12+, Ubuntu 22.04+, AlmaLinux o Rocky Linux 9+</b> (x86-64), como root:</p>

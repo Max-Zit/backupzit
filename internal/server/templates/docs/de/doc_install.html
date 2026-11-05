@@ -71,7 +71,7 @@
 </table>
 <p>Dieselben Einstellungen für Netzwerk, Servername, SSH und Zeitzone finden Sie in der Webkonsole unter <b>Einstellungen → Netzwerk</b> (nur Administratoren). Dort wird eine statische Adresse, deren Gateway nicht innerhalb einer halben Minute antwortet, automatisch zurückgenommen, sodass ein Tippfehler die Appliance nicht vom Netzwerk trennen kann; ist die Konsole trotzdem nicht erreichbar, verwenden Sie das Menü auf dem Bildschirm des Servers, das auch bei ausgeschaltetem SSH funktioniert.</p>
 <p>Agenten merken sich das Zertifikat der Konsole, nicht ihre Adresse. Erreichen sie die Konsole über ihre IP-Adresse und ändert sich die Adresse, richten Sie sie mit <code>backupzit-agent set-server</code> auf die neue aus (siehe <a href="/docs/agents#new-address">Agenten</a>) oder verwenden Sie von Anfang an einen DNS-Namen. Bei DHCP reservieren Sie die Adresse der Appliance im DHCP-Server, damit sie sich nicht ändert.</p>
-<p>Der SSH-Server der Appliance bietet nur AES-GCM/CTR-Chiffren und SHA-2-MACs an (kein chacha20-poly1305 und keine 64-Bit-MACs, die Schwachstellenscanner als schwach melden).</p>
+<p>Der SSH-Server der Appliance bietet nur AES-GCM/CTR-Chiffren und SHA-2-MACs an (kein chacha20-poly1305 und keine 64-Bit-MACs, die Schwachstellenscanner als schwach melden). Er erlaubt keine Tunnel (Port-, Agent- oder X11-Weiterleitung) durch die Appliance und drei Passwortversuche pro Verbindung.</p>
 
 <h2>3. Installationsskript</h2>
 <p>Auf einem vorhandenen Server mit <b>Debian 12+, Ubuntu 22.04+, AlmaLinux oder Rocky Linux 9+</b> (x86-64), als root:</p>

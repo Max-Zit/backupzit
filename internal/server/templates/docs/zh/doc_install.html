@@ -71,7 +71,7 @@
 </table>
 <p>相同的网络、服务器名称、SSH 和时区设置也位于 Web 控制台的<b>设置 → 网络</b>下（仅管理员）。在那里，如果静态地址的网关在半分钟内没有响应，设置会自动撤销，因此输入错误不会使设备断网；如果仍无法访问控制台，请使用服务器屏幕上的菜单，即使关闭了 SSH 也能使用。</p>
 <p>代理记住的是控制台的证书，而不是其地址。如果代理通过 IP 地址访问控制台且地址发生变化，请使用 <code>backupzit-agent set-server</code> 将其指向新地址（参见 <a href="/docs/agents#new-address">Agent</a>），或从一开始就使用 DNS 名称。使用 DHCP 时，请在 DHCP 服务器中为设备保留地址，使其不会变化。</p>
-<p>设备的 SSH 服务器仅提供 AES-GCM/CTR 加密算法和 SHA-2 MAC（不提供漏洞扫描器报告为弱的 chacha20-poly1305 和 64 位 MAC）。</p>
+<p>设备的 SSH 服务器仅提供 AES-GCM/CTR 加密算法和 SHA-2 MAC（不提供漏洞扫描器报告为弱的 chacha20-poly1305 和 64 位 MAC）。 它不允许通过设备建立隧道（端口、代理或 X11 转发），每个连接最多尝试三次密码。</p>
 
 <h2>3. 安装脚本</h2>
 <p>在运行 <b>Debian 12+、Ubuntu 22.04+、AlmaLinux 或 Rocky Linux 9+</b>（x86-64）的现有服务器上，以 root 身份运行：</p>

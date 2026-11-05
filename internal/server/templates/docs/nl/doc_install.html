@@ -71,7 +71,7 @@
 </table>
 <p>Dezelfde instellingen voor netwerk, servernaam, SSH en tijdzone staan onder <b>Instellingen → Netwerk</b> in de webconsole (alleen beheerders). Daar wordt een statisch adres waarvan de gateway niet binnen een halve minuut antwoordt automatisch teruggedraaid, zodat een typefout de appliance niet van het netwerk kan afsnijden; is de console toch niet bereikbaar, gebruik dan het menu op het scherm van de server, dat ook werkt met SSH uitgeschakeld.</p>
 <p>Agents onthouden het certificaat van de console, niet haar adres. Bereiken ze de console via haar IP-adres en verandert dat adres, wijs ze dan naar het nieuwe met <code>backupzit-agent set-server</code> (zie <a href="/docs/agents#new-address">Agents</a>), of gebruik vanaf het begin een DNS-naam. Reserveer bij DHCP het adres van de appliance in de DHCP-server zodat het niet verandert.</p>
-<p>De SSH-server van de appliance biedt alleen AES-GCM/CTR-cijfers en SHA-2-MAC's aan (geen chacha20-poly1305 en geen 64-bits MAC's, die kwetsbaarheidsscanners als zwak melden).</p>
+<p>De SSH-server van de appliance biedt alleen AES-GCM/CTR-cijfers en SHA-2-MAC's aan (geen chacha20-poly1305 en geen 64-bits MAC's, die kwetsbaarheidsscanners als zwak melden). Hij staat geen tunnels (port-, agent- of X11-forwarding) door de appliance toe en drie wachtwoordpogingen per verbinding.</p>
 
 <h2>3. Installatiescript</h2>
 <p>Op een bestaande server met <b>Debian 12+, Ubuntu 22.04+, AlmaLinux of Rocky Linux 9+</b> (x86-64), als root:</p>

@@ -71,7 +71,7 @@
 </table>
 <p>Stejná nastavení sítě, názvu serveru, SSH a časového pásma jsou ve webové konzoli v části <b>Nastavení → Síť</b> (jen správci). Tam se statická adresa, jejíž brána neodpoví do půl minuty, automaticky vrátí, takže překlep nemůže appliance odříznout od sítě; pokud konzole přesto není dostupná, použijte nabídku na obrazovce serveru, která funguje i s vypnutým SSH.</p>
 <p>Agenti si pamatují certifikát konzole, ne její adresu. Pokud konzoli dosahují přes IP adresu a ta se změní, nasměrujte je na novou příkazem <code>backupzit-agent set-server</code> (viz <a href="/docs/agents#new-address">Agenti</a>), nebo od začátku používejte název DNS. S DHCP si adresu appliance v serveru DHCP rezervujte, aby se neměnila.</p>
-<p>Server SSH appliance nabízí jen šifry AES-GCM/CTR a MAC SHA-2 (žádné chacha20-poly1305 ani 64bitové MAC, které skenery zranitelností hlásí jako slabé).</p>
+<p>Server SSH appliance nabízí jen šifry AES-GCM/CTR a MAC SHA-2 (žádné chacha20-poly1305 ani 64bitové MAC, které skenery zranitelností hlásí jako slabé). Nepovoluje žádné tunely (přesměrování portů, agenta ani X11) přes appliance a dovolí tři pokusy o heslo na jedno spojení.</p>
 
 <h2>3. Instalační skript</h2>
 <p>Na existujícím serveru s <b>Debianem 12+, Ubuntu 22.04+, AlmaLinuxem nebo Rocky Linuxem 9+</b> (x86-64), jako root:</p>
