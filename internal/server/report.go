@@ -147,7 +147,7 @@ func isBackupKind(k string) bool {
 // ListRunsBetween returns runs queued in [from, to), newest first.
 func (s *Store) ListRunsBetween(ctx context.Context, from, to time.Time, agentID, jobID int64) ([]Run, error) {
 	rows, err := s.db.Query(ctx, `SELECT `+runCols+runFrom+` WHERE r.queued_at >= $1 AND r.queued_at < $2
-		AND ($3=0 OR r.agent_id=$3) AND ($4=0 OR r.job_id=$4) ORDER BY r.queued_at DESC LIMIT 50000`, from, to, agentID, jobID)
+		AND ($3::bigint=0 OR r.agent_id=$3) AND ($4::bigint=0 OR r.job_id=$4) ORDER BY r.queued_at DESC LIMIT 50000`, from, to, agentID, jobID)
 	if err != nil {
 		return nil, err
 	}

@@ -64,7 +64,7 @@ func (s *Store) CreateAPIToken(ctx context.Context, owner User, name, role strin
 
 func (s *Store) ListAPITokens(ctx context.Context, userID int64) ([]APIToken, error) {
 	rows, err := s.db.Query(ctx, `SELECT t.id, t.user_id, u.username, t.name, t.role, t.created_at, t.last_used_at, t.expires_at
-		FROM api_tokens t JOIN users u ON u.id=t.user_id WHERE ($1=0 OR t.user_id=$1) ORDER BY t.created_at DESC`, userID)
+		FROM api_tokens t JOIN users u ON u.id=t.user_id WHERE ($1::bigint=0 OR t.user_id=$1) ORDER BY t.created_at DESC`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (s *Store) ListAPITokens(ctx context.Context, userID int64) ([]APIToken, er
 }
 
 func (s *Store) DeleteAPIToken(ctx context.Context, id, userID int64) error {
-	ct, err := s.db.Exec(ctx, `DELETE FROM api_tokens WHERE id=$1 AND ($2=0 OR user_id=$2)`, id, userID)
+	ct, err := s.db.Exec(ctx, `DELETE FROM api_tokens WHERE id=$1 AND ($2::bigint=0 OR user_id=$2)`, id, userID)
 	if err == nil && ct.RowsAffected() == 0 {
 		return ErrNotFound
 	}
