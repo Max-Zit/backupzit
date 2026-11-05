@@ -69,7 +69,7 @@ func InstantPrepare(sn *repo.Snapshot, vmid int, dir, name string, asNew bool) (
 		if d.Image < 0 || d.Image >= len(sn.Images) {
 			return nil, fmt.Errorf("disk %s has no data in the backup", d.Key)
 		}
-		size := int64(sn.Images[d.Image].Size)
+		size := int64(sn.Images[d.Image].Size) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 		file := base + ".vmdk"
 		if i > 0 {
 			file = fmt.Sprintf("%s_%d.vmdk", base, i)
@@ -78,12 +78,12 @@ func InstantPrepare(sn *repo.Snapshot, vmid int, dir, name string, asNew bool) (
 		if err := os.WriteFile(filepath.Join(dir, file), descriptor(flat, size, adapterFor(d.Key)), 0o600); err != nil {
 			return nil, err
 		}
-		f, err := os.OpenFile(filepath.Join(dir, flat), os.O_RDWR|os.O_CREATE, 0o600)
+		f, err := os.OpenFile(filepath.Join(dir, flat), os.O_RDWR|os.O_CREATE, 0o600) // #nosec G304 -- the agent's instant recovery working file
 		if err != nil {
 			return nil, err
 		}
 		err = f.Truncate(size)
-		f.Close()
+		_ = f.Close()
 		if err != nil {
 			return nil, err
 		}
@@ -217,9 +217,9 @@ func (c *Client) InstantFinish(ctx context.Context, ds, dir, moid, target string
 	copied := false
 	defer func() {
 		if !copied {
-			c.removeDir(context.Background(), target, dstDir)
+			_ = c.removeDir(context.Background(), target, dstDir)
 			if wasOn {
-				c.powerOn(context.Background(), moid)
+				_ = c.powerOn(context.Background(), moid)
 			}
 		}
 	}()
@@ -253,7 +253,7 @@ func (c *Client) InstantFinish(ctx context.Context, ds, dir, moid, target string
 		return "", fmt.Errorf("register VM on %s: %w", target, err)
 	}
 	if wasOn {
-		c.powerOn(ctx, newID)
+		_ = c.powerOn(ctx, newID)
 	}
 	return newID, nil
 }
@@ -303,7 +303,7 @@ func (c *Client) InstantDiscard(ctx context.Context, moid string) error {
 	if err := c.needSSH(ctx); err != nil {
 		return err
 	}
-	c.powerOff(ctx, moid)
+	_ = c.powerOff(ctx, moid)
 	if err := c.unregisterVM(ctx, moid); err != nil && !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "ManagedObjectNotFound") {
 		return err
 	}

@@ -160,5 +160,5 @@ func (s *Store) recordUSBDisk(ctx context.Context, runID int64, actual string) {
 	if ok, _ := path.Match(strings.ToUpper(want.Host), strings.ToUpper(got.Host)); !ok {
 		return
 	}
-	s.db.Exec(ctx, `UPDATE runs SET repo_url=$2 WHERE id=$1`, runID, got.String())
+	_, _ = s.db.Exec(ctx, `UPDATE runs SET repo_url=$2 WHERE id=$1`, runID, got.String())
 }

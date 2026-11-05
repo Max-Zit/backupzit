@@ -101,7 +101,7 @@ func stableCopy(dir string, files ...string) error {
 		for i, f := range files {
 			dst := filepath.Join(dir, filepath.Base(f))
 			if !before[i].ok {
-				os.Remove(dst) // no stale write-ahead log next to the new copy
+				_ = os.Remove(dst) // no stale write-ahead log next to the new copy
 				continue
 			}
 			if err := os.Rename(dst+".tmp", dst); err != nil {
@@ -114,17 +114,17 @@ func stableCopy(dir string, files ...string) error {
 }
 
 func copyFile(src, dst string) error {
-	in, err := os.Open(src)
+	in, err := os.Open(src) // #nosec G304 -- the agent's own configuration, update or work file
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) // #nosec G304 -- the agent's own configuration, update or work file
 	if err != nil {
 		return err
 	}
 	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
+		_ = out.Close()
 		return err
 	}
 	return out.Close()

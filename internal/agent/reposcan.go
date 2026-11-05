@@ -36,7 +36,7 @@ func (a *Agent) repoScan(ctx context.Context, run api.Run) api.RunResult {
 		return failed(fmt.Errorf("open storage: %w", err))
 	}
 	dirs, err := backend.RepositoryDirs(ctx, be)
-	be.Close()
+	_ = be.Close()
 	if err != nil {
 		return failed(fmt.Errorf("list: %w", err))
 	}

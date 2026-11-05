@@ -30,7 +30,7 @@ const renewBefore = 30 * 24 * time.Hour
 // accountKey loads or creates the ACME account key.
 func (w *webTLS) accountKey() (crypto.Signer, error) {
 	p := filepath.Join(w.dir, "acme-account.key")
-	if b, err := os.ReadFile(p); err == nil {
+	if b, err := os.ReadFile(p); err == nil { // #nosec G304 -- file of the console's own data or installer directory, not named by a request
 		blk, _ := pem.Decode(b)
 		if blk == nil {
 			return nil, errors.New("invalid ACME account key")

@@ -69,5 +69,5 @@ func markdownHTML(src string) template.HTML {
 	}
 	flush()
 	closeList()
-	return template.HTML(b.String())
+	return template.HTML(b.String()) // #nosec G203 -- every value is HTML-escaped before it is added
 }

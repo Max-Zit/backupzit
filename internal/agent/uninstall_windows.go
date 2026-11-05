@@ -20,7 +20,7 @@ func uninstallerCommand() (func() error, error) {
 		return nil, err
 	}
 	return func() error {
-		cmd := exec.Command("msiexec.exe", "/x", code, "/qn", "/norestart")
+		cmd := exec.Command("msiexec.exe", "/x", code, "/qn", "/norestart") // #nosec G204 -- script built by the agent from fixed text and its own paths
 		const detachedProcess, newProcessGroup = 0x00000008, 0x00000200
 		cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: detachedProcess | newProcessGroup}
 		if err := cmd.Start(); err != nil {
@@ -37,14 +37,14 @@ func agentProductCode() (string, error) {
 			continue
 		}
 		names, _ := k.ReadSubKeyNames(-1)
-		k.Close()
+		_ = k.Close()
 		for _, n := range names {
 			sk, err := registry.OpenKey(registry.LOCAL_MACHINE, root+`\`+n, registry.QUERY_VALUE)
 			if err != nil {
 				continue
 			}
 			name, _, _ := sk.GetStringValue("DisplayName")
-			sk.Close()
+			_ = sk.Close()
 			if strings.HasPrefix(name, "BackupZit Agent") && msiProductCode.MatchString(n) {
 				return n, nil
 			}

@@ -290,7 +290,7 @@ func (w *webTLS) apply(cfg CertSettings) error {
 func closeServer(hs *http.Server) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	hs.Shutdown(ctx)
+	_ = hs.Shutdown(ctx)
 }
 
 // serveHTTP answers ACME HTTP-01 challenges and redirects everything else
@@ -305,7 +305,7 @@ func (w *webTLS) serveHTTP(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 		rw.Header().Set("Content-Type", "text/plain")
-		rw.Write([]byte(ka))
+		_, _ = rw.Write([]byte(ka))
 		return
 	}
 	w.mu.Lock()
@@ -319,7 +319,7 @@ func (w *webTLS) serveHTTP(rw http.ResponseWriter, r *http.Request) {
 		http.Error(rw, "use HTTPS: "+target, http.StatusBadRequest)
 		return
 	}
-	http.Redirect(rw, r, target+r.URL.RequestURI(), http.StatusMovedPermanently)
+	http.Redirect(rw, r, target+r.URL.RequestURI(), http.StatusMovedPermanently) // #nosec G710 -- redirect to the configured host name, not to the request's Host
 }
 
 // status returns the current trusted certificate and the last error.

@@ -84,7 +84,7 @@ func Fingerprint(der []byte) string {
 // VMIDFor derives the BackupZit number of a VM from its instance UUID.
 func VMIDFor(uuid string) int {
 	h := fnv.New32a()
-	h.Write([]byte("vmware:" + strings.ToLower(uuid)))
+	_, _ = h.Write([]byte("vmware:" + strings.ToLower(uuid)))
 	return 1_000_000_000 + int(h.Sum32()%1_000_000_000)
 }
 
@@ -196,11 +196,11 @@ func (c *Client) Logout() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if c.vim != nil {
-		session.NewManager(c.vim).Logout(ctx)
+		_ = session.NewManager(c.vim).Logout(ctx)
 	}
 	c.sshMu.Lock()
 	if c.ssh != nil {
-		c.ssh.Close()
+		_ = c.ssh.Close()
 		c.ssh = nil
 	}
 	c.sshMu.Unlock()
@@ -269,8 +269,8 @@ func (c *Client) run(ctx context.Context, cmd string) (string, error) {
 	go func() {
 		select {
 		case <-ctx.Done():
-			s.Signal(ssh.SIGKILL)
-			s.Close()
+			_ = s.Signal(ssh.SIGKILL)
+			_ = s.Close()
 		case <-done:
 		}
 	}()

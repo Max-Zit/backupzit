@@ -189,7 +189,7 @@ func startTracking(ctx context.Context, vmid int, keys []string, log func(string
 			"data": map[string]any{"node": node, "name": t.name, "persistent": false}})
 	}
 	if len(stale) > 0 {
-		qmp(ctx, vmid, stale...)
+		_, _ = qmp(ctx, vmid, stale...)
 	}
 	if len(add) == 0 {
 		return nil, errors.New("no disks with changed block tracking")
@@ -234,7 +234,7 @@ func (t *tracker) changes(ctx context.Context, key, prev string) ([]diskimg.Area
 			return nil, 0, err
 		}
 		t.sock = fmt.Sprintf("%s/nbd-%d.sock", dir, t.vmid)
-		os.Remove(t.sock)
+		_ = os.Remove(t.sock)
 		if _, err := qmpOne(ctx, t.vmid, "nbd-server-start", map[string]any{
 			"addr": map[string]any{"type": "unix", "data": map[string]any{"path": t.sock}}}); err != nil {
 			return nil, 0, err // e.g. a migration uses QEMU's NBD server now
@@ -340,8 +340,8 @@ func (t *tracker) stopServer() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	qmpOne(ctx, t.vmid, "nbd-server-stop", nil)
-	os.Remove(t.sock)
+	_, _ = qmpOne(ctx, t.vmid, "nbd-server-stop", nil)
+	_ = os.Remove(t.sock)
 	t.started = false
 }
 
@@ -372,7 +372,7 @@ func (t *tracker) verify(ctx context.Context) {
 	for k, td := range t.disks {
 		if err != nil || !has[k] {
 			t.log("changed block tracking stopped for a disk: the snapshot changed its block nodes", "vmid", t.vmid, "disk", k, "err", err)
-			qmpOne(ctx, t.vmid, "block-dirty-bitmap-remove", map[string]any{"node": td.bitmapNode, "name": t.name})
+			_, _ = qmpOne(ctx, t.vmid, "block-dirty-bitmap-remove", map[string]any{"node": td.bitmapNode, "name": t.name})
 			delete(t.disks, k)
 		}
 	}

@@ -43,7 +43,7 @@ func cmdPVE(ctx context.Context, args []string) error {
 		rf := addRepoFlags(fs)
 		ids := fs.String("vmid", "", "comma-separated guest IDs (default: all guests on this node)")
 		excl := fs.String("exclude", "", "comma-separated guest IDs to skip when backing up all guests")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		var sel []int
 		if *ids != "" {
 			s, err := parseInts(*ids)
@@ -88,7 +88,7 @@ func cmdPVE(ctx context.Context, args []string) error {
 	case "show":
 		fs := flag.NewFlagSet("pve show", flag.ExitOnError)
 		rf := addRepoFlags(fs)
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		if fs.NArg() != 1 {
 			return errors.New("usage: backupzit-agent pve show [options] <snapshot-id|latest>")
 		}
@@ -122,7 +122,7 @@ func cmdPVE(ctx context.Context, args []string) error {
 			fmt.Fprintln(os.Stderr, "Usage: backupzit-agent pve restore [options] --vmid N <snapshot-id|latest>")
 			fs.PrintDefaults()
 		}
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		if fs.NArg() != 1 || *vmid == 0 {
 			fs.Usage()
 			return errors.New("snapshot and --vmid are required")
@@ -189,7 +189,7 @@ func cmdPVEFiles(ctx context.Context, cmd string, args []string) error {
 		fmt.Fprintf(os.Stderr, "Usage: backupzit-agent pve %s [options] --vmid N <snapshot-id|latest> [path ...]\n", cmd)
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() < 1 || *vmid == 0 || (cmd == "extract" && (*target == "" || fs.NArg() < 2)) {
 		fs.Usage()
 		return errors.New("snapshot and --vmid are required (extract: also --target and paths)")
@@ -212,9 +212,9 @@ func cmdPVEFiles(ctx context.Context, cmd string, args []string) error {
 		return err
 	}
 	if cmd == "ls" && fs.NArg() == 1 && *volume == "" {
-		fmt.Printf("guest %d disk %s (%s):\n", *vmid, d.Key, humanBytes(uint64(size)))
+		fmt.Printf("guest %d disk %s (%s):\n", *vmid, d.Key, humanBytes(uint64(size))) // #nosec G115 -- sizes for display, not negative
 		for _, v := range vols {
-			fmt.Printf("  %-22s %10s  %-5s %s %s\n", v.ID, humanBytes(uint64(v.Size)), v.FS, v.Name, v.Label)
+			fmt.Printf("  %-22s %10s  %-5s %s %s\n", v.ID, humanBytes(uint64(v.Size)), v.FS, v.Name, v.Label) // #nosec G115 -- sizes for display, not negative
 		}
 	}
 	v, err := vmfs.FindVolume(vols, *volume)
@@ -250,7 +250,7 @@ func cmdPVEFiles(ctx context.Context, cmd string, args []string) error {
 		if e.IsDir {
 			kind = "<DIR>"
 		}
-		fmt.Printf("  %s %10s  %s  %s\n", kind, humanBytes(uint64(e.Size)), e.ModTime.Local().Format("2006-01-02 15:04"), e.Name)
+		fmt.Printf("  %s %10s  %s  %s\n", kind, humanBytes(uint64(e.Size)), e.ModTime.Local().Format("2006-01-02 15:04"), e.Name) // #nosec G115 -- sizes for display, not negative
 	}
 	return nil
 }

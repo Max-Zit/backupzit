@@ -25,7 +25,7 @@ func cmdNBDServe(ctx context.Context, args []string) error {
 	snapshot := fs.String("snapshot", "latest", "backup")
 	vmid := fs.Int("vmid", 0, "VM in the backup")
 	socket := fs.String("socket", "", "unix socket to listen on")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if *vmid == 0 || *socket == "" {
 		return errors.New("usage: backupzit-agent nbd-serve --repo R --snapshot ID --vmid N --socket PATH")
 	}
@@ -58,17 +58,17 @@ func cmdNBDServe(ctx context.Context, args []string) error {
 	if len(exports) == 0 {
 		return fmt.Errorf("VM %d is not in backup %s", *vmid, sn.ID.Short())
 	}
-	os.Remove(*socket)
+	_ = os.Remove(*socket)
 	l, err := net.Listen("unix", *socket)
 	if err != nil {
 		return err
 	}
-	os.Chmod(*socket, 0o600)
+	_ = os.Chmod(*socket, 0o600)
 	srv := nbd.NewServer(exports...)
 	srv.Log = func(format string, a ...any) { fmt.Fprintf(os.Stderr, format+"\n", a...) }
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGTERM)
 	defer stop()
-	go func() { <-ctx.Done(); l.Close() }()
+	go func() { <-ctx.Done(); _ = l.Close() }()
 	fmt.Printf("serving %d disks of VM %d from backup %s on %s\n", len(exports), *vmid, sn.ID.Short(), *socket)
 	return srv.Serve(l)
 }
@@ -83,7 +83,7 @@ func cmdPVEInstant(ctx context.Context, sub string, args []string) error {
 		newVMID := fs.Int("new-vmid", -1, "ID of the instant VM (-1: next free)")
 		name := fs.String("name", "", "name of the VM")
 		start := fs.Bool("start", true, "start the VM")
-		fs.Parse(args)
+		_ = fs.Parse(args)
 		if fs.NArg() != 1 || *vmid == 0 {
 			return errors.New("usage: backupzit-agent pve instant --repo R --vmid N [--new-vmid N] [--name X] SNAPSHOT|latest")
 		}
@@ -92,7 +92,7 @@ func cmdPVEInstant(ctx context.Context, sub string, args []string) error {
 			return err
 		}
 		sn, err := r.LoadSnapshot(ctx, fs.Arg(0))
-		r.Close()
+		_ = r.Close()
 		if err != nil {
 			return err
 		}
@@ -132,7 +132,7 @@ func cmdPVEInstant(ctx context.Context, sub string, args []string) error {
 		fs := flag.NewFlagSet("pve instant-finish", flag.ExitOnError)
 		vmid := fs.Int("vmid", 0, "instant VM")
 		storage := fs.String("storage", "", "storage for the disks")
-		fs.Parse(args)
+		_ = fs.Parse(args)
 		if *vmid == 0 || *storage == "" {
 			return errors.New("usage: backupzit-agent pve instant-finish --vmid N --storage S")
 		}
@@ -148,7 +148,7 @@ func cmdPVEInstant(ctx context.Context, sub string, args []string) error {
 	case "instant-discard":
 		fs := flag.NewFlagSet("pve instant-discard", flag.ExitOnError)
 		vmid := fs.Int("vmid", 0, "instant VM")
-		fs.Parse(args)
+		_ = fs.Parse(args)
 		if *vmid == 0 {
 			return errors.New("usage: backupzit-agent pve instant-discard --vmid N")
 		}

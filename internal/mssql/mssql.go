@@ -47,7 +47,7 @@ func Open(ctx context.Context, instance string) (*Server, error) {
 			db.SetMaxOpenConns(1) // one session: SET options and USE stick
 			return &Server{db: db, Instance: instance}, nil
 		}
-		db.Close()
+		_ = db.Close()
 		errs = append(errs, host+": "+err.Error())
 	}
 	name := instance
@@ -96,7 +96,7 @@ func (s *Server) Databases(ctx context.Context) ([]Database, error) {
 		if err := rows.Scan(&d.Name, &d.Recovery, &d.State, &size); err != nil {
 			return nil, err
 		}
-		d.Size, d.System = uint64(size.Int64), IsSystem(d.Name)
+		d.Size, d.System = uint64(size.Int64), IsSystem(d.Name) // #nosec G115 -- file sizes and counts are not negative
 		out = append(out, d)
 	}
 	return out, rows.Err()
@@ -106,7 +106,7 @@ func (s *Server) Databases(ctx context.Context) ([]Database, error) {
 // account can write there, and the agent can read it.
 func (s *Server) BackupDir(ctx context.Context) (string, error) {
 	var dir sql.NullString
-	s.db.QueryRowContext(ctx, `SELECT CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS nvarchar(4000))`).Scan(&dir)
+	_ = s.db.QueryRowContext(ctx, `SELECT CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS nvarchar(4000))`).Scan(&dir)
 	if !dir.Valid || dir.String == "" {
 		// Before SQL Server 2019: from the instance's registry settings.
 		var name string
@@ -131,7 +131,7 @@ type SetInfo struct {
 // database name to file. copyOnly leaves the backup chain of other tools
 // untouched (full backups only).
 func (s *Server) Backup(ctx context.Context, name, kind, file string, copyOnly bool) (*SetInfo, error) {
-	stmt := "BACKUP DATABASE " + quote(name) + " TO DISK = @p1 WITH INIT, FORMAT, CHECKSUM"
+	stmt := "BACKUP DATABASE " + quote(name) + " TO DISK = @p1 WITH INIT, FORMAT, CHECKSUM" // #nosec G202 -- identifier quoted by quote(); values are query parameters
 	if kind == "log" {
 		stmt = "BACKUP LOG " + quote(name) + " TO DISK = @p1 WITH INIT, FORMAT, CHECKSUM"
 	} else if copyOnly {
@@ -152,7 +152,7 @@ func (s *Server) Backup(ctx context.Context, name, kind, file string, copyOnly b
 	if err != nil {
 		return nil, fmt.Errorf("read the backup history: %w", err)
 	}
-	info.CheckpointLSN, info.DatabaseLSN, info.Size = ckp.String, dbl.String, uint64(size.Int64)
+	info.CheckpointLSN, info.DatabaseLSN, info.Size = ckp.String, dbl.String, uint64(size.Int64) // #nosec G115 -- file sizes and counts are not negative
 	// msdb keeps the server's local time without a zone.
 	info.Start, info.Finish = localTime(start), localTime(finish)
 	return &info, nil
@@ -189,7 +189,7 @@ func (s *Server) Restore(ctx context.Context, o RestoreOptions) error {
 		return errors.New("invalid database name")
 	}
 	var exists int
-	s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sys.databases WHERE name = @p1`, o.Target).Scan(&exists)
+	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sys.databases WHERE name = @p1`, o.Target).Scan(&exists)
 	if exists > 0 && !o.Replace {
 		return fmt.Errorf("database %s exists; restore under another name or choose to replace it", o.Target)
 	}
@@ -224,7 +224,7 @@ func (s *Server) Restore(ctx context.Context, o RestoreOptions) error {
 		with = append(with, "REPLACE")
 		if exists > 0 {
 			o.Log("disconnecting users", "database", o.Target)
-			s.db.ExecContext(ctx, "ALTER DATABASE "+quote(o.Target)+" SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
+			_, _ = s.db.ExecContext(ctx, "ALTER DATABASE "+quote(o.Target)+" SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
 		}
 	}
 	with = append(with, "NORECOVERY", "CHECKSUM")
@@ -234,7 +234,7 @@ func (s *Server) Restore(ctx context.Context, o RestoreOptions) error {
 	}
 	for _, lf := range o.Logs {
 		o.Log("restoring log backup", "database", o.Target, "file", filepath.Base(lf))
-		stmt := "RESTORE LOG " + quote(o.Target) + " FROM DISK = @p1 WITH NORECOVERY"
+		stmt := "RESTORE LOG " + quote(o.Target) + " FROM DISK = @p1 WITH NORECOVERY" // #nosec G202 -- identifier quoted by quote(); values are query parameters
 		largs := []any{lf}
 		if !o.StopAt.IsZero() {
 			stmt += ", STOPAT = @p2"
@@ -247,7 +247,7 @@ func (s *Server) Restore(ctx context.Context, o RestoreOptions) error {
 	if _, err := s.db.ExecContext(ctx, "RESTORE DATABASE "+quote(o.Target)+" WITH RECOVERY"); err != nil {
 		return err
 	}
-	s.db.ExecContext(ctx, "ALTER DATABASE "+quote(o.Target)+" SET MULTI_USER")
+	_, _ = s.db.ExecContext(ctx, "ALTER DATABASE "+quote(o.Target)+" SET MULTI_USER")
 	return nil
 }
 
@@ -268,7 +268,7 @@ func (s *Server) fileList(ctx context.Context, file string) ([]backupFile, strin
 			ptrs[i] = &vals[i]
 		}
 		if err := rows.Scan(ptrs...); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, "", err
 		}
 		var f backupFile
@@ -285,7 +285,7 @@ func (s *Server) fileList(ctx context.Context, file string) ([]backupFile, strin
 		}
 		out = append(out, f)
 	}
-	rows.Close()
+	_ = rows.Close()
 	name, err := s.headerName(ctx, file)
 	if err != nil {
 		return nil, "", err
@@ -321,7 +321,7 @@ func (s *Server) headerName(ctx context.Context, file string) (string, error) {
 
 func (s *Server) defaultDirs(ctx context.Context) (data, log string, err error) {
 	var d, l sql.NullString
-	s.db.QueryRowContext(ctx, `SELECT CAST(SERVERPROPERTY('InstanceDefaultDataPath') AS nvarchar(4000)), CAST(SERVERPROPERTY('InstanceDefaultLogPath') AS nvarchar(4000))`).Scan(&d, &l)
+	_ = s.db.QueryRowContext(ctx, `SELECT CAST(SERVERPROPERTY('InstanceDefaultDataPath') AS nvarchar(4000)), CAST(SERVERPROPERTY('InstanceDefaultLogPath') AS nvarchar(4000))`).Scan(&d, &l)
 	if !d.Valid || d.String == "" {
 		// Older versions: next to master's files.
 		if err := s.db.QueryRowContext(ctx, `SELECT physical_name FROM sys.master_files WHERE database_id = 1 AND type = 0`).Scan(&d); err != nil {

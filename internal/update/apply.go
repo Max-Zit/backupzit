@@ -48,7 +48,7 @@ type Applier struct {
 }
 
 func runCmd(ctx context.Context, name string, args ...string) ([]byte, error) {
-	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
+	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput() // #nosec G204 -- fixed program; arguments are separate values, no shell
 	if err != nil {
 		return out, fmt.Errorf("%s %s: %w: %s", name, strings.Join(args, " "), err, strings.TrimSpace(string(out)))
 	}
@@ -75,11 +75,11 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
-		os.Remove(reqPath)
+		_ = os.Remove(reqPath)
 		return a.finish(&Result{Status: "failed", From: a.CurrentVersion, Message: "invalid update request: " + err.Error()})
 	}
 	// The request is consumed in any case, so a bad one does not loop.
-	os.Remove(reqPath)
+	_ = os.Remove(reqPath)
 	if req.Action == ActionNetwork || req.Action == ActionSSH || req.Action == ActionTimeZone {
 		return a.netAction(ctx, req)
 	}
@@ -118,11 +118,11 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 		return a.finish(res)
 	}
 	if err := CheckFile(pkg, *f); err != nil {
-		os.Remove(pkg)
+		_ = os.Remove(pkg)
 		res.Status, res.Message = "failed", err.Error()
 		return a.finish(res)
 	}
-	os.Remove(filepath.Join(a.Dir, f.Name))
+	_ = os.Remove(filepath.Join(a.Dir, f.Name))
 
 	stamp := time.Now().UTC().Format("20060102-150405")
 	dump := filepath.Join(a.Work, fmt.Sprintf("db-before-%s-%s.dump", m.Version, stamp))
@@ -155,7 +155,7 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 		// The appliance's login screen reflects the restarted console (it
 		// shows the initial password only while that is still valid).
 		if _, err := os.Stat(filepath.Join(a.Root, "/usr/local/sbin/backupzit-appliance-boot")); err == nil {
-			a.Run(ctx, "/usr/local/sbin/backupzit-appliance-boot", "issue")
+			_, _ = a.Run(ctx, "/usr/local/sbin/backupzit-appliance-boot", "issue")
 		}
 		return a.finish(res)
 	}
@@ -164,7 +164,7 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 	logs, _ := a.Run(ctx, "journalctl", "-u", a.Service, "-n", "15", "--no-pager")
 	_, err1 := a.Run(ctx, "systemctl", "stop", a.Service)
 	err2 := copyRegular(prev, a.Binary)
-	os.Chmod(a.Binary, 0o755)
+	_ = os.Chmod(a.Binary, 0o755) // #nosec G302 -- executable program
 	_, err3 := a.Run(ctx, "pg_restore", "--clean", "--if-exists", "--no-owner", "--dbname="+a.DBURL, dump)
 	_, err4 := a.Run(ctx, "systemctl", "start", a.Service)
 	res.Status = "rolled-back"
@@ -194,14 +194,14 @@ func (a *Applier) healthy(ctx context.Context) error {
 		return nil
 	}
 	cl := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}} // local check of our own service
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}} // #nosec G402 -- local check of our own service
 	deadline := time.Now().Add(a.HealthWait)
 	var last error
 	for time.Now().Before(deadline) {
 		resp, err := cl.Get(a.HealthURL)
 		if err == nil {
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				return nil
 			}
@@ -228,14 +228,14 @@ func (a *Applier) prune() {
 		})
 		for i, f := range files {
 			if i >= 3 {
-				os.Remove(f)
+				_ = os.Remove(f)
 			}
 		}
 	}
 	pkgs, _ := filepath.Glob(filepath.Join(a.Work, "*.deb"))
 	rpms, _ := filepath.Glob(filepath.Join(a.Work, "*.rpm"))
 	for _, p := range append(pkgs, rpms...) {
-		os.Remove(p)
+		_ = os.Remove(p)
 	}
 }
 
@@ -248,19 +248,19 @@ func copyRegular(src, dst string) error {
 	if !fi.Mode().IsRegular() {
 		return fmt.Errorf("%s is not a regular file", src)
 	}
-	in, err := os.Open(src)
+	in, err := os.Open(src) // #nosec G304 -- files of our own update or package directory
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 	tmp := dst + ".tmp"
-	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- files of our own update or package directory
 	if err != nil {
 		return err
 	}
 	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		os.Remove(tmp)
+		_ = out.Close()
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := out.Close(); err != nil {

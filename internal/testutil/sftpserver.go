@@ -92,13 +92,13 @@ func (s *SFTPServer) URL(path string) string {
 func (s *SFTPServer) serve(nc net.Conn, cfg *ssh.ServerConfig) {
 	_, chans, reqs, err := ssh.NewServerConn(nc, cfg)
 	if err != nil {
-		nc.Close()
+		_ = nc.Close()
 		return
 	}
 	go ssh.DiscardRequests(reqs)
 	for nch := range chans {
 		if nch.ChannelType() != "session" {
-			nch.Reject(ssh.UnknownChannelType, "unsupported")
+			_ = nch.Reject(ssh.UnknownChannelType, "unsupported")
 			continue
 		}
 		ch, chReqs, err := nch.Accept()
@@ -108,14 +108,14 @@ func (s *SFTPServer) serve(nc net.Conn, cfg *ssh.ServerConfig) {
 		go func() {
 			for req := range chReqs {
 				ok := req.Type == "subsystem" && len(req.Payload) > 4 && string(req.Payload[4:]) == "sftp"
-				req.Reply(ok, nil)
+				_ = req.Reply(ok, nil)
 				if ok {
 					srv := sftp.NewRequestServer(ch, s.handlers)
 					if err := srv.Serve(); err != nil && err != io.EOF {
 						_ = err
 					}
-					srv.Close()
-					ch.Close()
+					_ = srv.Close()
+					_ = ch.Close()
 				}
 			}
 		}()

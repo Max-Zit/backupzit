@@ -76,7 +76,7 @@ func main() {
 		if err == nil {
 			h := sha256.New()
 			err = verify(bufio.NewReaderSize(f, 4<<20), h)
-			f.Close()
+			_ = f.Close()
 			if err == nil {
 				fmt.Printf("%x\n", h.Sum(nil))
 				return
@@ -96,7 +96,7 @@ func main() {
 }
 
 func convert(src, dst, adapter string) error {
-	in, err := os.Open(src)
+	in, err := os.Open(src) // #nosec G304 -- path from the command line of a development tool
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func convert(src, dst, adapter string) error {
 	if _, err := in.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
-	out, err := os.Create(dst)
+	out, err := os.Create(dst) // #nosec G304 -- path from the command line of a development tool
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func convert(src, dst, adapter string) error {
 		err = cerr
 	}
 	if err != nil {
-		os.Remove(dst)
+		_ = os.Remove(dst)
 	}
 	return err
 }
@@ -173,14 +173,14 @@ func write(w io.Writer, r io.Reader, size int64, name, adapter string) error {
 		if !zero(buf) {
 			zbuf.Reset()
 			zw.Reset(&zbuf)
-			zw.Write(buf)
+			_, _ = zw.Write(buf)
 			if err := zw.Close(); err != nil {
 				return err
 			}
-			gt[g%gtEntries] = uint32(o.sector())
+			gt[g%gtEntries] = uint32(o.sector()) // #nosec G115 -- fields of a file format, within its limits
 			m := make([]byte, 12, 12+zbuf.Len())
 			binary.LittleEndian.PutUint64(m[0:], g*grainSize)
-			binary.LittleEndian.PutUint32(m[8:], uint32(zbuf.Len()))
+			binary.LittleEndian.PutUint32(m[8:], uint32(zbuf.Len())) // #nosec G115 -- fields of a file format, within its limits
 			if err := o.padded(append(m, zbuf.Bytes()...)); err != nil {
 				return err
 			}
@@ -191,7 +191,7 @@ func write(w io.Writer, r io.Reader, size int64, name, adapter string) error {
 			if err := o.marker(gtEntries*4/sector, markerGT); err != nil {
 				return err
 			}
-			gd[g/gtEntries] = uint32(o.sector())
+			gd[g/gtEntries] = uint32(o.sector()) // #nosec G115 -- fields of a file format, within its limits
 			if err := o.struct_(gt); err != nil {
 				return err
 			}
@@ -283,7 +283,7 @@ func (o *out) padded(b []byte) error {
 
 func (o *out) struct_(v any) error {
 	var b bytes.Buffer
-	binary.Write(&b, binary.LittleEndian, v)
+	_ = binary.Write(&b, binary.LittleEndian, v)
 	return o.padded(b.Bytes())
 }
 
@@ -309,12 +309,12 @@ func verify(r io.Reader, disk io.Writer) error {
 		return fmt.Errorf("header: %w", err)
 	}
 	var h header
-	binary.Read(bytes.NewReader(sec), binary.LittleEndian, &h)
+	_ = binary.Read(bytes.NewReader(sec), binary.LittleEndian, &h)
 	if h.Magic != magic || h.Version != 3 || h.Flags&(flagComp|flagMarkers) != flagComp|flagMarkers ||
 		h.GDOffset != gdAtEnd || h.CompressAlgorithm != 1 || h.GrainSize == 0 || h.NumGTEsPerGT == 0 ||
 		h.DescriptorOffset != 1 || h.OverHead < 1+h.DescriptorSize {
 		return fmt.Errorf("not a stream-optimized header with the grain directory at the end "+
-			"(version %d, flags %#x, gdOffset %d, compression %d)", h.Version, h.Flags, int64(h.GDOffset), h.CompressAlgorithm)
+			"(version %d, flags %#x, gdOffset %d, compression %d)", h.Version, h.Flags, int64(h.GDOffset), h.CompressAlgorithm) // #nosec G115 -- fields of a file format, within its limits
 	}
 	desc := make([]byte, h.DescriptorSize*sector)
 	if err := read(desc); err != nil {
@@ -323,7 +323,7 @@ func verify(r io.Reader, disk io.Writer) error {
 	if !bytes.Contains(desc, []byte(`createType="streamOptimized"`)) {
 		return errors.New(`descriptor without createType="streamOptimized"`)
 	}
-	if _, err := io.CopyN(io.Discard, r, int64(h.OverHead-1-h.DescriptorSize)*sector); err != nil {
+	if _, err := io.CopyN(io.Discard, r, int64(h.OverHead-1-h.DescriptorSize)*sector); err != nil { // #nosec G115 -- fields of a file format, within its limits
 		return err
 	}
 	grainBytes := h.GrainSize * sector
@@ -408,7 +408,7 @@ func verify(r io.Reader, disk io.Writer) error {
 			gd, gdAt = meta, pos
 		case markerFooter:
 			var f header
-			binary.Read(bytes.NewReader(meta), binary.LittleEndian, &f)
+			_ = binary.Read(bytes.NewReader(meta), binary.LittleEndian, &f)
 			footer = &f
 		default:
 			return fmt.Errorf("unknown marker type %d at sector %d", kind, pos-1)

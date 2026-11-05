@@ -199,7 +199,7 @@ func inUse(dev string) (string, error) {
 	var tree struct {
 		BlockDevices []lsblkDev `json:"blockdevices"`
 	}
-	json.Unmarshal(out, &tree)
+	_ = json.Unmarshal(out, &tree)
 	var find func(d lsblkDev) string
 	find = func(d lsblkDev) string {
 		if m := d.mounts(); len(m) > 0 {
@@ -234,18 +234,18 @@ func (j *restoreJob) plan(size uint64) error {
 			last = p
 		}
 	}
-	avail := int64(size) - int64(last.Start) - 1<<20 // keep 1 MiB for the backup GPT
+	avail := int64(size) - int64(last.Start) - 1<<20 // #nosec G115 -- keep 1 MiB for the backup GPT
 	need := last.Size
-	if avail < int64(need)-64<<20 {
+	if avail < int64(need)-64<<20 { // #nosec G115 -- disk sizes are below 2^63
 		minimum := j.minimumSize(last)
-		if avail < int64(minimum) {
+		if avail < int64(minimum) { // #nosec G115 -- disk sizes are below 2^63
 			return fmt.Errorf("target is too small: %s needed, %s available", human(last.Start+minimum+1<<20), human(size))
 		}
-		j.res.Notes = append(j.res.Notes, fmt.Sprintf("partition %d shrunk from %s to %s to fit the target", last.Number, human(last.Size), human(uint64(avail))))
-	} else if avail > int64(need)+64<<20 {
-		j.res.Notes = append(j.res.Notes, fmt.Sprintf("partition %d grown from %s to %s to use the target", last.Number, human(last.Size), human(uint64(avail))))
+		j.res.Notes = append(j.res.Notes, fmt.Sprintf("partition %d shrunk from %s to %s to fit the target", last.Number, human(last.Size), human(uint64(avail)))) // #nosec G115 -- disk sizes are below 2^63
+	} else if avail > int64(need)+64<<20 { // #nosec G115 -- disk sizes are below 2^63
+		j.res.Notes = append(j.res.Notes, fmt.Sprintf("partition %d grown from %s to %s to use the target", last.Number, human(last.Size), human(uint64(avail)))) // #nosec G115 -- disk sizes are below 2^63
 	}
-	j.sizes[last.Number] = uint64(avail) &^ (1<<20 - 1)
+	j.sizes[last.Number] = uint64(avail) &^ (1<<20 - 1) // #nosec G115 -- disk sizes are below 2^63
 	return nil
 }
 
@@ -291,7 +291,7 @@ func (j *restoreJob) partDev(n int) string {
 
 func (j *restoreJob) partition() error {
 	nums := j.partNumbers()
-	j.run("wipefs", "-a", j.dev)
+	_, _ = j.run("wipefs", "-a", j.dev)
 	if j.disk.Table == "gpt" {
 		if _, err := j.run("sgdisk", "--zap-all", j.dev); err != nil {
 			return err
@@ -345,23 +345,23 @@ func (j *restoreJob) partition() error {
 		if err != nil {
 			return err
 		}
-		f.WriteString(b.String())
-		f.Close()
+		_, _ = f.WriteString(b.String())
+		_ = f.Close()
 		defer os.Remove(f.Name())
 		in, err := os.Open(f.Name())
 		if err != nil {
 			return err
 		}
-		cmd := exec.CommandContext(j.ctx, "sfdisk", "--wipe", "always", j.dev)
+		cmd := exec.CommandContext(j.ctx, "sfdisk", "--wipe", "always", j.dev) // #nosec G204 -- fixed program; arguments are separate values, no shell
 		cmd.Stdin = in
 		out, err := cmd.CombinedOutput()
-		in.Close()
+		_ = in.Close()
 		if err != nil {
 			return fmt.Errorf("sfdisk: %w: %s", err, strings.TrimSpace(string(out)))
 		}
 	}
-	j.run("partprobe", j.dev)
-	j.run("udevadm", "settle")
+	_, _ = j.run("partprobe", j.dev)
+	_, _ = j.run("udevadm", "settle")
 	for _, n := range nums {
 		if err := waitDev(j.ctx, j.partDev(n)); err != nil {
 			return err
@@ -430,17 +430,17 @@ func (j *restoreJob) bootCode() error {
 		for _, id := range p.Raw {
 			data, err := j.r.LoadBlob(j.ctx, repo.DataBlob, id)
 			if err != nil {
-				pf.Close()
+				_ = pf.Close()
 				return err
 			}
 			if _, err := pf.WriteAt(data, off); err != nil {
-				pf.Close()
+				_ = pf.Close()
 				return err
 			}
 			off += int64(len(data))
 		}
-		pf.Sync()
-		pf.Close()
+		_ = pf.Sync()
+		_ = pf.Close()
 	}
 	return nil
 }
@@ -463,8 +463,8 @@ func (j *restoreJob) lvm() error {
 		if err != nil {
 			return err
 		}
-		cfg.WriteString(vg.Config)
-		cfg.Close()
+		_, _ = cfg.WriteString(vg.Config)
+		_ = cfg.Close()
 		defer os.Remove(cfg.Name())
 		for _, n := range j.partNumbers() {
 			p := j.parts[n]
@@ -483,7 +483,7 @@ func (j *restoreJob) lvm() error {
 		}
 		j.vgs = append(j.vgs, vg.Name)
 	}
-	j.run("udevadm", "settle")
+	_, _ = j.run("udevadm", "settle")
 	return nil
 }
 
@@ -568,7 +568,7 @@ func (j *restoreJob) mount() error {
 			continue
 		}
 		mp := filepath.Join(j.mnt, fs.MountPoint)
-		if err := os.MkdirAll(mp, 0o755); err != nil {
+		if err := os.MkdirAll(mp, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 			return err
 		}
 		if _, err := j.run("mount", "-t", fs.Type, dev, mp); err != nil {
@@ -649,12 +649,12 @@ func (j *restoreJob) bootloader() error {
 		}
 		if boot == "" {
 			boot = filepath.Join(efi, "BOOT")
-			os.MkdirAll(boot, 0o755)
+			_ = os.MkdirAll(boot, 0o755) // #nosec G301 -- folder of restored or copied files, like the original
 		}
 		files, _ := os.ReadDir(dir)
 		for _, f := range files {
 			if f.Type().IsRegular() {
-				copyFile(filepath.Join(dir, f.Name()), filepath.Join(boot, f.Name()))
+				_ = copyFile(filepath.Join(dir, f.Name()), filepath.Join(boot, f.Name()))
 			}
 		}
 		if err := copyFile(loader, filepath.Join(boot, "BOOTX64.EFI")); err != nil {
@@ -677,7 +677,7 @@ func (j *restoreJob) rebuildInitramfs() {
 	var binds []string
 	for _, d := range []string{"dev", "proc", "sys", "run"} {
 		p := filepath.Join(j.mnt, d)
-		os.MkdirAll(p, 0o755)
+		_ = os.MkdirAll(p, 0o755) // #nosec G301 -- folder of restored or copied files, like the original
 		if _, err := j.run("mount", "--rbind", "/"+d, p); err == nil {
 			binds = append(binds, p)
 		}
@@ -688,7 +688,7 @@ func (j *restoreJob) rebuildInitramfs() {
 		j.res.Notes = append(j.res.Notes, "initramfs rebuilt with all drivers (dracut)")
 	}
 	for i := len(binds) - 1; i >= 0; i-- {
-		j.run("umount", "-R", binds[i])
+		_, _ = j.run("umount", "-R", binds[i])
 	}
 }
 
@@ -697,21 +697,21 @@ func (j *restoreJob) cleanup() {
 	defer cancel()
 	j.ctx = ctx
 	if len(j.mounts) > 0 {
-		j.run("sync")
+		_, _ = j.run("sync")
 	}
 	for i := len(j.mounts) - 1; i >= 0; i-- {
 		if _, err := j.run("umount", j.mounts[i]); err != nil {
-			j.run("umount", "-l", j.mounts[i])
+			_, _ = j.run("umount", "-l", j.mounts[i])
 		}
 	}
 	if j.mnt != "" {
-		os.Remove(j.mnt) // empty once everything is unmounted
+		_ = os.Remove(j.mnt) // empty once everything is unmounted
 	}
 	for _, vg := range j.vgs {
-		j.run("vgchange", "-an", vg)
+		_, _ = j.run("vgchange", "-an", vg)
 	}
 	if j.loop != "" {
-		j.run("losetup", "-d", j.loop)
+		_, _ = j.run("losetup", "-d", j.loop)
 	}
 }
 
@@ -736,11 +736,11 @@ func findFileFold(dir, name string) string {
 }
 
 func copyFile(src, dst string) error {
-	b, err := os.ReadFile(src)
+	b, err := os.ReadFile(src) // #nosec G304 -- system files read for the backup or written to the restored system
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, b, 0o755)
+	return os.WriteFile(dst, b, 0o755) // #nosec G306 G703 -- executable of the restored system
 }
 
 func human(b uint64) string {
@@ -762,7 +762,7 @@ func human(b uint64) string {
 func (j *restoreJob) adaptNetwork() {
 	files, _ := filepath.Glob(filepath.Join(j.mnt, "etc/netplan/*.yaml"))
 	for _, f := range files {
-		b, err := os.ReadFile(f)
+		b, err := os.ReadFile(f) // #nosec G304 -- system files read for the backup or written to the restored system
 		if err != nil {
 			continue
 		}
@@ -784,7 +784,7 @@ func (j *restoreJob) adaptNetwork() {
 		}
 		if changed {
 			fi, _ := os.Stat(f)
-			os.WriteFile(f, []byte(strings.Join(out, "\n")), fi.Mode().Perm())
+			_ = os.WriteFile(f, []byte(strings.Join(out, "\n")), fi.Mode().Perm()) // #nosec G703 -- file of the restored system below its mount point
 			j.res.Notes = append(j.res.Notes, fmt.Sprintf("%s: network settings now apply to any wired interface instead of the old MAC address", strings.TrimPrefix(f, j.mnt)))
 		}
 	}

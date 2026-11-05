@@ -27,26 +27,26 @@ type Overlay struct {
 
 // OpenOverlay opens (or creates) the change files of a disk.
 func OpenOverlay(base io.ReaderAt, size int64, dataPath, mapPath string) (*Overlay, error) {
-	data, err := os.OpenFile(dataPath, os.O_RDWR|os.O_CREATE, 0o600)
+	data, err := os.OpenFile(dataPath, os.O_RDWR|os.O_CREATE, 0o600) // #nosec G304 -- journal and overlay files the agent creates for the instant recovery
 	if err != nil {
 		return nil, err
 	}
 	if fi, _ := data.Stat(); fi.Size() != size {
 		if err := data.Truncate(size); err != nil {
-			data.Close()
+			_ = data.Close()
 			return nil, err
 		}
 	}
-	bm, err := os.OpenFile(mapPath, os.O_RDWR|os.O_CREATE, 0o600)
+	bm, err := os.OpenFile(mapPath, os.O_RDWR|os.O_CREATE, 0o600) // #nosec G304 -- journal and overlay files the agent creates for the instant recovery
 	if err != nil {
-		data.Close()
+		_ = data.Close()
 		return nil, err
 	}
 	n := (size/blockSize + 8) / 8
 	bits := make([]byte, n)
 	if _, err := bm.ReadAt(bits, 0); err != nil && err != io.EOF {
-		data.Close()
-		bm.Close()
+		_ = data.Close()
+		_ = bm.Close()
 		return nil, err
 	}
 	return &Overlay{base: base, size: size, data: data, bm: bm, bits: bits}, nil
@@ -140,6 +140,6 @@ func (o *Overlay) Sync() error {
 
 // Close closes the change files.
 func (o *Overlay) Close() error {
-	o.data.Close()
+	_ = o.data.Close()
 	return o.bm.Close()
 }

@@ -88,12 +88,12 @@ func (s *Store) storageUsage(ctx context.Context, now time.Time) (map[int64]*Tar
 			for ; i < len(reps) && reps[i].at.Before(end); i++ {
 				latest[reps[i].repo] = reps[i].bytes
 				if reps[i].total != nil && *reps[i].total > 0 {
-					u.Total, u.Free = uint64(*reps[i].total), uint64(*reps[i].free)
+					u.Total, u.Free = uint64(*reps[i].total), uint64(*reps[i].free) // #nosec G115 -- sizes and counts for display and statistics, not negative
 				}
 			}
 			var sum uint64
 			for _, b := range latest {
-				sum += uint64(b)
+				sum += uint64(b) // #nosec G115 -- sizes and counts for display and statistics, not negative
 			}
 			u.Days = append(u.Days, UsagePoint{day, sum})
 		}
@@ -218,5 +218,5 @@ func usageChart(l *language, u *TargetUsage) template.HTML {
 		label(n, u.Days[last].Day.AddDate(0, 0, future), "end")
 	}
 	b.WriteString(`</svg>`)
-	return template.HTML(b.String())
+	return template.HTML(b.String()) // #nosec G203 -- every value is HTML-escaped before it is added
 }

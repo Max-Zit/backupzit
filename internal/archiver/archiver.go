@@ -467,7 +467,7 @@ type repoError struct{ err error }
 func (e *repoError) Error() string { return e.err.Error() }
 
 func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n *repo.Node, parent *repo.Node) error {
-	size := uint64(fi.Size())
+	size := uint64(fi.Size()) // #nosec G115 -- file sizes and counts are not negative
 	n.Size = size
 	a.stats.Files++
 	a.stats.Bytes += size

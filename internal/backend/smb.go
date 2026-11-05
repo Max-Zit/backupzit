@@ -62,13 +62,13 @@ func OpenSMB(ctx context.Context, u *url.URL, opts Options) (*SMB, error) {
 	dialer := &smb2.Dialer{Initiator: &smb2.NTLMInitiator{User: user, Password: opts.SMBPassword, Domain: domain}}
 	session, err := dialer.DialContext(ctx, conn)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, fmt.Errorf("smb: login as %s: %w", user, err)
 	}
 	share, err := session.Mount(fmt.Sprintf(`\\%s\%s`, u.Hostname(), shareName))
 	if err != nil {
-		session.Logoff()
-		conn.Close()
+		_ = session.Logoff()
+		_ = conn.Close()
 		return nil, fmt.Errorf("smb: open share %q: %w", shareName, err)
 	}
 	return &SMB{conn: conn, session: session, share: share, root: root,
@@ -101,27 +101,27 @@ func (s *SMB) Save(_ context.Context, name string, data []byte) error {
 		return fmt.Errorf("smb create %s: %w", tmp, err)
 	}
 	if _, err := f.Write(data); err != nil {
-		f.Close()
-		s.share.Remove(tmp)
+		_ = f.Close()
+		_ = s.share.Remove(tmp)
 		return fmt.Errorf("smb write %s: %w", tmp, err)
 	}
 	if err := f.Sync(); err != nil {
-		f.Close()
-		s.share.Remove(tmp)
+		_ = f.Close()
+		_ = s.share.Remove(tmp)
 		return fmt.Errorf("smb flush %s: %w", tmp, err)
 	}
 	if err := f.Close(); err != nil {
-		s.share.Remove(tmp)
+		_ = s.share.Remove(tmp)
 		return err
 	}
 	if err := s.share.Rename(tmp, p); err != nil {
 		// SMB rename does not replace. Names are content addressed (or
 		// rewritten whole), so an existing target holds equivalent data.
 		if _, statErr := s.share.Stat(p); statErr == nil {
-			s.share.Remove(tmp)
+			_ = s.share.Remove(tmp)
 			return nil
 		}
-		s.share.Remove(tmp)
+		_ = s.share.Remove(tmp)
 		return fmt.Errorf("smb rename %s: %w", p, err)
 	}
 	return nil
@@ -226,14 +226,14 @@ func (s *SMB) RemoveDirs(_ context.Context) (err error) {
 				walk(path.Join(rel, e.Name()))
 			}
 		}
-		s.share.Remove(s.p(rel))
+		_ = s.share.Remove(s.p(rel))
 	}
 	walk("")
 	return nil
 }
 
 func (s *SMB) Close() error {
-	s.share.Umount()
-	s.session.Logoff()
+	_ = s.share.Umount()
+	_ = s.session.Logoff()
 	return s.conn.Close()
 }

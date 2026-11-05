@@ -22,7 +22,7 @@ func listVolumes() ([]Volume, error) {
 			continue // network shares, CD-ROMs
 		}
 		label := make([]uint16, windows.MAX_PATH+1)
-		if err := windows.GetVolumeInformation(p, &label[0], uint32(len(label)), nil, nil, nil, nil, 0); err != nil {
+		if err := windows.GetVolumeInformation(p, &label[0], uint32(len(label)), nil, nil, nil, nil, 0); err != nil { // #nosec G115 -- length of a small buffer for a Windows API call
 			continue // e.g. empty card reader
 		}
 		out = append(out, Volume{Label: windows.UTF16ToString(label), Path: root})

@@ -159,7 +159,7 @@ func (rf *repoFlags) open(ctx context.Context) (*repo.Repository, error) {
 	}
 	r, err := repo.Open(ctx, be, repo.Password(rf.password))
 	if err != nil {
-		be.Close()
+		_ = be.Close()
 		return nil, err
 	}
 	return r, nil
@@ -252,14 +252,14 @@ func run(ctx context.Context, args []string) error {
 func cmdInit(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	rf := addRepoFlags(fs)
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	be, err := rf.backend(ctx)
 	if err != nil {
 		return err
 	}
 	r, err := repo.Init(ctx, be, repo.Password(rf.password))
 	if err != nil {
-		be.Close()
+		_ = be.Close()
 		return err
 	}
 	defer r.Close()
@@ -280,7 +280,7 @@ func cmdBackup(ctx context.Context, args []string) error {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent backup [options] <path>...")
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() == 0 {
 		fs.Usage()
 		return errors.New("no paths given")
@@ -337,7 +337,7 @@ func cmdBackup(ctx context.Context, args []string) error {
 func cmdSnapshots(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("snapshots", flag.ExitOnError)
 	rf := addRepoFlags(fs)
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	r, err := rf.open(ctx)
 	if err != nil {
 		return err
@@ -353,7 +353,7 @@ func cmdSnapshots(ctx context.Context, args []string) error {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%d\t%s\t%s\n", sn.ID.Short(), sn.Time.Local().Format("2006-01-02 15:04:05"),
 			sn.Hostname, sn.Stats.Files, humanBytes(sn.Stats.Bytes), strings.Join(sn.Paths, ", "))
 	}
-	tw.Flush()
+	_ = tw.Flush()
 	fmt.Printf("%d snapshots\n", len(sns))
 	return nil
 }
@@ -365,7 +365,7 @@ func cmdLs(ctx context.Context, args []string) error {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent ls [options] <snapshot-id|latest>")
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() != 1 {
 		fs.Usage()
 		return errors.New("snapshot id required")
@@ -418,7 +418,7 @@ func cmdRestore(ctx context.Context, args []string) error {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent restore [options] <snapshot-id|latest>")
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() != 1 {
 		fs.Usage()
 		return errors.New("snapshot id required")
@@ -458,7 +458,7 @@ func cmdCheck(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("check", flag.ExitOnError)
 	rf := addRepoFlags(fs)
 	readData := fs.Bool("read-data", false, "download and verify all data (slow)")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	r, err := rf.open(ctx)
 	if err != nil {
 		return err

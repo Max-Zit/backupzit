@@ -47,7 +47,7 @@ func (s *Store) scanAgents(ctx context.Context, t Target) ([]Agent, error) {
 		return nil, err
 	}
 	var last int64
-	s.db.QueryRow(ctx, `SELECT agent_id FROM runs WHERE target_id=$1 AND kind<>'repo-scan' ORDER BY queued_at DESC LIMIT 1`, t.ID).Scan(&last)
+	_ = s.db.QueryRow(ctx, `SELECT agent_id FROM runs WHERE target_id=$1 AND kind<>'repo-scan' ORDER BY queued_at DESC LIMIT 1`, t.ID).Scan(&last)
 	var out []Agent
 	for _, a := range agents {
 		if a.Recovery {

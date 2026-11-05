@@ -19,7 +19,7 @@ import (
 func cmdDisks(args []string) error {
 	fs := flag.NewFlagSet("disks", flag.ExitOnError)
 	asJSON := fs.Bool("json", false, "print JSON")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	disks, err := imaging.ListDisks()
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func cmdImageBackup(ctx context.Context, args []string) error {
 	parts := fs.String("partitions", "", "comma-separated partition numbers (default: all)")
 	noVSS := fs.Bool("no-vss", false, "read volumes live instead of from VSS snapshots")
 	allDisks := fs.Bool("all-disks", false, "image every internal disk (not USB/SD disks or mounted VHDs) into one snapshot")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if *allDisks {
 		*disk = imaging.AllDisks
 	} else if *disk < 0 {
@@ -144,7 +144,7 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent image-restore [options] <snapshot-id|latest>")
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() != 1 || *target < 0 {
 		fs.Usage()
 		return errors.New("snapshot and --target-disk are required")
@@ -206,7 +206,7 @@ func cmdImageLs(ctx context.Context, args []string) error {
 		fmt.Fprintln(os.Stderr, `Usage: backupzit-agent image-ls [options] --partition N <snapshot|latest> [\path]`)
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() < 1 || *part < 0 {
 		fs.Usage()
 		return errors.New("snapshot and --partition are required")
@@ -230,7 +230,7 @@ func cmdImageLs(ctx context.Context, args []string) error {
 	}
 	for _, e := range entries {
 		kind := "f"
-		size := humanBytes(uint64(e.Size))
+		size := humanBytes(uint64(e.Size)) // #nosec G115 -- sizes for display, not negative
 		if e.IsDir {
 			kind, size = "d", ""
 		}
@@ -249,7 +249,7 @@ func cmdImageExtract(ctx context.Context, args []string) error {
 		fmt.Fprintln(os.Stderr, `Usage: backupzit-agent image-extract [options] --partition N --target DIR <snapshot|latest> \path [\path...]`)
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() < 2 || *part < 0 || *target == "" {
 		fs.Usage()
 		return errors.New("snapshot, paths, --partition and --target are required")
@@ -286,7 +286,7 @@ func cmdPrepareHardware(ctx context.Context, args []string) error {
 	disk := fs.Int("disk", -1, "disk number with the restored Windows (see: backupzit-agent disks)")
 	var drivers multiFlag
 	fs.Var(&drivers, "drivers", "folder with drivers (.inf) to add (repeatable)")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if *disk < 0 {
 		fs.Usage()
 		return errors.New("--disk is required")

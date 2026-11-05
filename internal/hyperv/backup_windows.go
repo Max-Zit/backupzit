@@ -221,7 +221,7 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 	} else {
 		sel := `$vm = Get-VM -Id ` + psq(vm.ID) + `; `
 		// Remove checkpoints left behind by an interrupted backup.
-		ps(ctx, sel+`Get-VMSnapshot -VM $vm | Where-Object Name -like '`+snapPrefix+`*' | Remove-VMSnapshot`)
+		_, _ = ps(ctx, sel+`Get-VMSnapshot -VM $vm | Where-Object Name -like '`+snapPrefix+`*' | Remove-VMSnapshot`)
 		name := snapPrefix + strconv.FormatInt(time.Now().Unix(), 10)
 		ci, consistency, withRCT, w, err := takeCheckpoint(ctx, vm, name)
 		warns = append(warns, w...)

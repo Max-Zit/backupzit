@@ -90,7 +90,7 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 	if err != nil {
 		return nil, err
 	}
-	b, err := os.ReadFile(p)
+	b, err := os.ReadFile(p) // #nosec G304 -- Proxmox VE configuration files and the agent's work files
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 		if err != nil {
 			return res, fmt.Errorf("%s: %w", d.Key, err)
 		}
-		f, err := os.OpenFile(path, os.O_WRONLY, 0)
+		f, err := os.OpenFile(path, os.O_WRONLY, 0) // #nosec G304 -- Proxmox VE configuration files and the agent's work files
 		if err != nil {
 			cleanup()
 			return res, err
@@ -185,7 +185,7 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 		if err == nil {
 			err = f.Sync()
 		}
-		f.Close()
+		_ = f.Close()
 		cleanup()
 		if err != nil {
 			return res, fmt.Errorf("%s: %w", d.Key, err)
@@ -205,7 +205,7 @@ func markReplica(g *repo.Guest, vmid int, sn *repo.Snapshot) error {
 	if err != nil {
 		return err
 	}
-	b, err := os.ReadFile(p)
+	b, err := os.ReadFile(p) // #nosec G304 -- Proxmox VE configuration files and the agent's work files
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func markReplica(g *repo.Guest, vmid int, sn *repo.Snapshot) error {
 		}
 		out.WriteString(l)
 	}
-	return os.WriteFile(p, []byte(out.String()), 0o640)
+	return os.WriteFile(p, []byte(out.String()), 0o640) // #nosec G306 -- Proxmox guest configuration, 0640 as Proxmox writes it
 }
 
 // StartReplica starts a replica (failover).
@@ -228,7 +228,7 @@ func StartReplica(ctx context.Context, replicaVMID, vmid int) error {
 		if err != nil {
 			continue
 		}
-		b, err := os.ReadFile(p)
+		b, err := os.ReadFile(p) // #nosec G304 -- Proxmox VE configuration files and the agent's work files
 		if err != nil {
 			return err
 		}

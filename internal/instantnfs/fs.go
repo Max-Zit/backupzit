@@ -62,7 +62,7 @@ func (f *FS) Forget(dir string) {
 	defer f.mu.Unlock()
 	for k, o := range f.disks {
 		if strings.HasPrefix(k, dir) {
-			o.Close()
+			_ = o.Close()
 			delete(f.disks, k)
 		}
 	}

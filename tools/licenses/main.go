@@ -100,7 +100,7 @@ func main() {
 	if len(bad) > 0 {
 		fail("licenses not known to be AGPLv3-compatible, check by hand: %s", strings.Join(bad, ", "))
 	}
-	os.Stdout.WriteString(b.String())
+	_, _ = os.Stdout.WriteString(b.String())
 }
 
 func licenseText(dir string) (string, string) {
@@ -108,7 +108,7 @@ func licenseText(dir string) (string, string) {
 	for _, e := range entries {
 		n := strings.ToLower(e.Name())
 		if strings.HasPrefix(n, "license") || strings.HasPrefix(n, "licence") || strings.HasPrefix(n, "copying") || strings.HasPrefix(n, "unlicense") {
-			if b, err := os.ReadFile(filepath.Join(dir, e.Name())); err == nil {
+			if b, err := os.ReadFile(filepath.Join(dir, e.Name())); err == nil { // #nosec G304 -- path from the command line of a development tool
 				return string(b), e.Name()
 			}
 		}

@@ -23,7 +23,7 @@ func snapshotVolume(volume string, timeout time.Duration, onErr ErrorHandler) (s
 	return snap.GetSnapshotDeviceObject(), func() error {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED) // S_FALSE if already initialized
+		_ = ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED) // S_FALSE if already initialized
 		return snap.Delete()
 	}, nil
 }

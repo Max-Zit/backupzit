@@ -53,7 +53,7 @@ func (s *Server) handleDiagnosticsBundle(w http.ResponseWriter, r *http.Request,
 	if s.LogFile != "" {
 		add("server.log", func(w io.Writer) error {
 			b, err := logfile.Tail(s.LogFile, logfile.DefaultKeep, diagLogMax)
-			w.Write(b)
+			_, _ = w.Write(b)
 			return err
 		})
 	}
@@ -67,14 +67,14 @@ func (s *Server) handleDiagnosticsBundle(w http.ResponseWriter, r *http.Request,
 func (s *Server) diagInfo(ctx context.Context, w io.Writer, now time.Time) error {
 	host, _ := os.Hostname()
 	var pg, dbSize string
-	s.store.db.QueryRow(ctx, `SELECT version(), pg_size_pretty(pg_database_size(current_database()))`).Scan(&pg, &dbSize)
+	_ = s.store.db.QueryRow(ctx, `SELECT version(), pg_size_pretty(pg_database_size(current_database()))`).Scan(&pg, &dbSize)
 	count := func(q string) int {
 		var n int
-		s.store.db.QueryRow(ctx, q).Scan(&n)
+		_ = s.store.db.QueryRow(ctx, q).Scan(&n)
 		return n
 	}
 	var upd updateCheck
-	s.store.GetSetting(ctx, settingUpdateCheck, &upd)
+	_ = s.store.GetSetting(ctx, settingUpdateCheck, &upd)
 	fmt.Fprintf(w, "BackupZit console %s\nCreated: %s\nHost: %s (%s/%s, %s)\nPublic URL: %s\nTime zone: %s\nDatabase: %s, %s\nLog file: %s\n\n",
 		s.Version, now.Format(time.RFC3339), host, runtime.GOOS, runtime.GOARCH, runtime.Version(), s.PublicURL, now.Format("MST -07:00"), pg, dbSize, s.LogFile)
 	fmt.Fprintf(w, "Agents: %d\nJobs: %d (enabled %d)\nStorage targets: %d\nRuns in the last 24 hours: %d (failed %d)\nRunning or queued: %d\n\n",
@@ -92,13 +92,13 @@ func (s *Server) diagAgents(ctx context.Context, w io.Writer) error {
 		return err
 	}
 	c := csv.NewWriter(w)
-	c.Write([]string{"id", "hostname", "os", "arch", "version", "online", "last_seen", "enrolled", "recovery", "local_ips"})
+	_ = c.Write([]string{"id", "hostname", "os", "arch", "version", "online", "last_seen", "enrolled", "recovery", "local_ips"})
 	for _, a := range agents {
 		seen := ""
 		if a.LastSeen != nil {
 			seen = a.LastSeen.Format(time.RFC3339)
 		}
-		c.Write([]string{fmt.Sprint(a.ID), a.Hostname, a.OS, a.Arch, a.Version, fmt.Sprint(a.Online()), seen, a.EnrolledAt.Format(time.RFC3339),
+		_ = c.Write([]string{fmt.Sprint(a.ID), a.Hostname, a.OS, a.Arch, a.Version, fmt.Sprint(a.Online()), seen, a.EnrolledAt.Format(time.RFC3339),
 			fmt.Sprint(a.Recovery), strings.Join(a.LocalIPs, " ")})
 	}
 	c.Flush()
@@ -117,9 +117,9 @@ func (s *Server) diagJobs(ctx context.Context, w io.Writer) error {
 		}
 	}
 	c := csv.NewWriter(w)
-	c.Write([]string{"id", "name", "kind", "agent", "target", "target_kind", "enabled", "schedule", "time_limit_h", "speed_limit_mbps", "retention_hold"})
+	_ = c.Write([]string{"id", "name", "kind", "agent", "target", "target_kind", "enabled", "schedule", "time_limit_h", "speed_limit_mbps", "retention_hold"})
 	for _, j := range jobs {
-		c.Write([]string{fmt.Sprint(j.ID), j.Name, j.Kind, j.Hostname, j.TargetName, targets[j.TargetID], fmt.Sprint(j.Enabled), j.Schedule,
+		_ = c.Write([]string{fmt.Sprint(j.ID), j.Name, j.Kind, j.Hostname, j.TargetName, targets[j.TargetID], fmt.Sprint(j.Enabled), j.Schedule,
 			fmt.Sprint(j.Options.MaxHours), fmt.Sprint(j.Options.LimitMBps), fmt.Sprint(j.RetentionHold)})
 	}
 	c.Flush()
@@ -139,7 +139,7 @@ func (s *Server) diagProblems(ctx context.Context, w io.Writer) error {
 	}
 	defer rows.Close()
 	c := csv.NewWriter(w)
-	c.Write([]string{"run", "kind", "status", "agent", "job", "queued", "started", "finished", "message", "errors"})
+	_ = c.Write([]string{"run", "kind", "status", "agent", "job", "queued", "started", "finished", "message", "errors"})
 	ts := func(t *time.Time) string {
 		if t == nil {
 			return ""
@@ -154,7 +154,7 @@ func (s *Server) diagProblems(ctx context.Context, w io.Writer) error {
 		if err := rows.Scan(&id, &kind, &status, &host, &job, &queued, &started, &finished, &msg, &errs); err != nil {
 			return err
 		}
-		c.Write([]string{fmt.Sprint(id), kind, status, host, job, queued.Format(time.RFC3339), ts(started), ts(finished), msg, errs})
+		_ = c.Write([]string{fmt.Sprint(id), kind, status, host, job, queued.Format(time.RFC3339), ts(started), ts(finished), msg, errs})
 	}
 	c.Flush()
 	if err := c.Error(); err != nil {
@@ -169,9 +169,9 @@ func (s *Server) diagAudit(ctx context.Context, w io.Writer) error {
 		return err
 	}
 	c := csv.NewWriter(w)
-	c.Write([]string{"id", "time", "user", "action", "detail", "address"})
+	_ = c.Write([]string{"id", "time", "user", "action", "detail", "address"})
 	for _, e := range entries {
-		c.Write([]string{fmt.Sprint(e.ID), e.At.Format(time.RFC3339), e.Username, e.Action, e.Detail, e.Remote})
+		_ = c.Write([]string{fmt.Sprint(e.ID), e.At.Format(time.RFC3339), e.Username, e.Action, e.Detail, e.Remote})
 	}
 	c.Flush()
 	return c.Error()

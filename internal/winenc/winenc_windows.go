@@ -23,12 +23,12 @@ func decode(cp uint32, b []byte) string {
 	if len(b) > math.MaxInt32 {
 		return string(b)
 	}
-	n, err := windows.MultiByteToWideChar(cp, 0, &b[0], int32(len(b)), nil, 0)
+	n, err := windows.MultiByteToWideChar(cp, 0, &b[0], int32(len(b)), nil, 0) // #nosec G115 -- length of a small buffer for a Windows API call
 	if err != nil || n <= 0 {
 		return string(b)
 	}
 	w := make([]uint16, n)
-	if n, err = windows.MultiByteToWideChar(cp, 0, &b[0], int32(len(b)), &w[0], n); err != nil {
+	if n, err = windows.MultiByteToWideChar(cp, 0, &b[0], int32(len(b)), &w[0], n); err != nil { // #nosec G115 -- length of a small buffer for a Windows API call
 		return string(b)
 	}
 	return string(utf16.Decode(w[:n]))

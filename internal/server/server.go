@@ -644,7 +644,7 @@ func redirectFlash(w http.ResponseWriter, r *http.Request, to, kind, text string
 	if frag != "" {
 		frag = "#" + frag
 	}
-	http.Redirect(w, r, to+sep+v.Encode()+frag, http.StatusSeeOther)
+	http.Redirect(w, r, to+sep+v.Encode()+frag, http.StatusSeeOther) // #nosec G710 -- callers pass fixed paths or paths checked by localPath
 }
 
 // flashKey signs redirect messages; it changes on every start, which only
@@ -726,7 +726,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	if u.TwoFactor {
 		// Failure counters are reset only after the second factor.
-		http.SetCookie(w, &http.Cookie{Name: mfaCookie, Value: mfaToken(u.ID, s.clock().Add(5*time.Minute)), Path: "/login",
+		http.SetCookie(w, &http.Cookie{Name: mfaCookie, Value: mfaToken(u.ID, s.clock().Add(5*time.Minute)), Path: "/login", // #nosec G124 -- Secure is set when the console is reached over HTTPS (guard.Secure); HttpOnly and SameSite are set
 			HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteStrictMode, MaxAge: 300})
 		http.Redirect(w, r, "/login/2fa", http.StatusSeeOther)
 		return
@@ -736,9 +736,9 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request, _ string) {
 	if c, err := r.Cookie(sessionCookie); err == nil {
-		s.store.Logout(r.Context(), c.Value)
+		_ = s.store.Logout(r.Context(), c.Value)
 	}
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteStrictMode})
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteStrictMode}) // #nosec G124 -- Secure is set when the console is reached over HTTPS (guard.Secure); HttpOnly and SameSite are set
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
@@ -1005,7 +1005,7 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request, user string)
 }
 
 func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ string) {
-	r.ParseForm()
+	_ = r.ParseForm()
 	sched, err := scheduleFromForm(r)
 	if err != nil {
 		redirectErr(w, r, "/jobs", err)
@@ -1217,16 +1217,16 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 	if len(run.Stats) > 0 {
 		if isBackupKind(run.Kind) {
 			backupStats = &repo.SnapshotStats{}
-			json.Unmarshal(run.Stats, backupStats)
+			_ = json.Unmarshal(run.Stats, backupStats)
 		} else if run.Kind == api.KindVerify {
 			testStats = &restorer.SampleStats{}
-			json.Unmarshal(run.Stats, testStats)
+			_ = json.Unmarshal(run.Stats, testStats)
 		} else if run.Kind == api.KindCopy {
 			copyStats = &CopyRunStats{}
-			json.Unmarshal(run.Stats, copyStats)
+			_ = json.Unmarshal(run.Stats, copyStats)
 		} else if run.Kind == api.KindRestore || run.Kind == api.KindImageFileRestore {
 			restoreStats = &restorer.Stats{}
-			json.Unmarshal(run.Stats, restoreStats)
+			_ = json.Unmarshal(run.Stats, restoreStats)
 		}
 	}
 	data, err := s.restoreFormData(r.Context(), run)
@@ -1334,7 +1334,7 @@ func humanBytes(b uint64) string {
 func Shutdown(srv *http.Server) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	srv.Shutdown(ctx)
+	_ = srv.Shutdown(ctx)
 }
 
 // kindTitleEN names a run kind for people (English).

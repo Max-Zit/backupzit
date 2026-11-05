@@ -190,7 +190,7 @@ func snippet(text, lower string, terms []string) template.HTML {
 	if end < len(tr) {
 		b.WriteString(" …")
 	}
-	return template.HTML(b.String())
+	return template.HTML(b.String()) // #nosec G203 -- every value is HTML-escaped before it is added
 }
 
 func (s *Server) handleDocsSearch(w http.ResponseWriter, r *http.Request, user string) {

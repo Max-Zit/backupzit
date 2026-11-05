@@ -12,7 +12,7 @@ const fsImmutableFL = 0x00000010 // FS_IMMUTABLE_FL, "chattr +i"
 // is set nobody, not even root, can modify, rename or delete the file
 // without clearing it first, which needs CAP_LINUX_IMMUTABLE.
 func setImmutable(path string, on bool) error {
-	f, err := os.Open(path)
+	f, err := os.Open(path) // #nosec G304 -- object path checked by ValidName
 	if err != nil {
 		return err
 	}

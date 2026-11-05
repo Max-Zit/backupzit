@@ -22,7 +22,7 @@ func cmdSQL(ctx context.Context, args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("sql list", flag.ExitOnError)
 		inst := fs.String("instance", "", "instance name (default instance if empty), e.g. SQLEXPRESS")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		srv, err := mssql.Open(ctx, *inst)
 		if err != nil {
 			return err
@@ -49,7 +49,7 @@ func cmdSQL(ctx context.Context, args []string) error {
 		system := fs.Bool("system", false, "also back up master, model and msdb")
 		logs := fs.Bool("log", false, "back up the transaction logs instead of full backups")
 		copyOnly := fs.Bool("copy-only", false, "full backups that do not affect other backup tools (no log backups possible after them)")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		r, err := rf.open(ctx)
 		if err != nil {
 			return err
@@ -85,7 +85,7 @@ func cmdSQL(ctx context.Context, args []string) error {
 	case "show":
 		fs := flag.NewFlagSet("sql show", flag.ExitOnError)
 		rf := addRepoFlags(fs)
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		r, err := rf.open(ctx)
 		if err != nil {
 			return err
@@ -113,7 +113,7 @@ func cmdSQL(ctx context.Context, args []string) error {
 		target := fs.String("as", "", "name of the restored database (default: the original name)")
 		replace := fs.Bool("replace", false, "overwrite an existing database with that name")
 		at := fs.String("at", "", `point in time, "2006-01-02 15:04:05" (local time; needs log backups)`)
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		if *db == "" || fs.NArg() != 1 {
 			return errors.New(`usage: backupzit-agent sql restore --repo R --db NAME [--as NEW] [--replace] [--at "YYYY-MM-DD HH:MM:SS"] FULL-SNAPSHOT|latest`)
 		}

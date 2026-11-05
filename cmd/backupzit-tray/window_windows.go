@@ -52,9 +52,9 @@ func (s *statusWindow) show(t *tray) {
 		h := s.hwnd
 		s.mu.Unlock()
 		if r, _, _ := procIsIconic.Call(h); r != 0 {
-			procShowWindow.Call(h, 9) // SW_RESTORE
+			_, _, _ = procShowWindow.Call(h, 9) // SW_RESTORE
 		}
-		procSetForeground.Call(h)
+		_, _, _ = procSetForeground.Call(h)
 		return
 	}
 	s.mu.Unlock()
@@ -83,10 +83,10 @@ func (s *statusWindow) run(t *tray, ready chan<- bool) {
 	hwnd := uintptr(w.Window())
 	setWindowIcon(hwnd)
 	w.SetSize(720, 480, webview2.HintMin)
-	w.Bind("bzStatus", func() Summary { return t.summary() })
-	w.Bind("bzRun", func(id float64) string { return t.runJob(int64(id)) })
-	w.Bind("bzConsole", func() { t.openConsole() })
-	w.Bind("bzVersion", func() string { return version })
+	_ = w.Bind("bzStatus", func() Summary { return t.summary() })
+	_ = w.Bind("bzRun", func(id float64) string { return t.runJob(int64(id)) })
+	_ = w.Bind("bzConsole", func() { t.openConsole() })
+	_ = w.Bind("bzVersion", func() string { return version })
 	w.SetHtml(uiHTML)
 	s.mu.Lock()
 	s.w, s.hwnd = w, hwnd
@@ -116,7 +116,7 @@ func (s *statusWindow) close() {
 	h := s.hwnd
 	s.mu.Unlock()
 	if h != 0 {
-		procPostMessage.Call(h, 0x0010, 0, 0) // WM_CLOSE
+		_, _, _ = procPostMessage.Call(h, 0x0010, 0, 0) // WM_CLOSE
 	}
 }
 
@@ -124,17 +124,17 @@ func (s *statusWindow) close() {
 // taskbar.
 func setWindowIcon(hwnd uintptr) {
 	dir := filepath.Join(os.Getenv("LOCALAPPDATA"), "BackupZit")
-	os.MkdirAll(dir, 0o700)
+	_ = os.MkdirAll(dir, 0o700) // #nosec G703 -- icon file in the user's own profile
 	p := filepath.Join(dir, "backupzit.ico")
-	if err := os.WriteFile(p, appIcon, 0o600); err != nil {
+	if err := os.WriteFile(p, appIcon, 0o600); err != nil { // #nosec G703 -- icon file in the user's own profile
 		return
 	}
 	path, _ := windows.UTF16PtrFromString(p)
 	const imageIcon, lrLoadFromFile, wmSetIcon = 1, 0x10, 0x0080
 	for i, size := range []uintptr{16, 32} {
-		h, _, _ := procLoadImage.Call(0, uintptr(unsafe.Pointer(path)), imageIcon, size, size, lrLoadFromFile)
+		h, _, _ := procLoadImage.Call(0, uintptr(unsafe.Pointer(path)), imageIcon, size, size, lrLoadFromFile) // #nosec G103 -- pointer passed to a Windows API call
 		if h != 0 {
-			procSendMessage.Call(hwnd, wmSetIcon, uintptr(i), h) // ICON_SMALL for 16, ICON_BIG for 32
+			_, _, _ = procSendMessage.Call(hwnd, wmSetIcon, uintptr(i), h) // ICON_SMALL for 16, ICON_BIG for 32
 		}
 	}
 }

@@ -248,7 +248,7 @@ func imagePartition(ctx context.Context, r *repo.Repository, disk *os.File, p Pa
 	pi.Blocks = (p.Length + BlockSize - 1) / BlockSize
 
 	// Choose where to read from: shadow copy, live volume, or raw disk.
-	var src io.ReaderAt = io.NewSectionReader(disk, int64(p.Offset), int64(p.Length))
+	var src io.ReaderAt = io.NewSectionReader(disk, int64(p.Offset), int64(p.Length)) // #nosec G115 -- length of a small buffer for a Windows API call
 	pi.Source = "live"
 	var volH windows.Handle
 	if dev, ok := snaps.Device(p.VolumeGUIDPath); ok {
@@ -260,7 +260,7 @@ func imagePartition(ctx context.Context, r *repo.Repository, disk *os.File, p Pa
 		}
 	}
 	if volH != 0 {
-		ioctl(volH, fsctlAllowExtendedDasdIO, nil, 0)
+		_, _ = ioctl(volH, fsctlAllowExtendedDasdIO, nil, 0)
 		f := os.NewFile(uintptr(volH), "volume")
 		defer f.Close()
 		src = f
@@ -358,7 +358,7 @@ func usedBlocks(vol windows.Handle, p Partition, ntfs bool) ([]bool, error) {
 func ioctlPartial(h windows.Handle, code uint32, in []byte, outSize int) ([]byte, error) {
 	out := make([]byte, outSize)
 	var n uint32
-	err := windows.DeviceIoControl(h, code, &in[0], uint32(len(in)), &out[0], uint32(outSize), &n, nil)
+	err := windows.DeviceIoControl(h, code, &in[0], uint32(len(in)), &out[0], uint32(outSize), &n, nil) // #nosec G115 -- length of a small buffer for a Windows API call
 	if err != nil && !errors.Is(err, windows.ERROR_MORE_DATA) {
 		return nil, err
 	}

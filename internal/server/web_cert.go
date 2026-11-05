@@ -82,7 +82,7 @@ func (s *Server) handleSettingsCertificate(w http.ResponseWriter, r *http.Reques
 		redirectErr(w, r, back, errors.New("the certificate cannot be changed in this mode"))
 		return
 	}
-	r.ParseMultipartForm(4 << 20)
+	_ = r.ParseMultipartForm(4 << 20)
 	old := s.certSettings(r.Context())
 	port, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("port")))
 	c := CertSettings{
@@ -129,13 +129,13 @@ func (s *Server) handleSettingsCertificate(w http.ResponseWriter, r *http.Reques
 		// Port 80 must already answer for the HTTP challenge.
 		if c.Challenge == "http" {
 			if err := s.web.apply(CertSettings{Mode: "acme", Hostname: c.Hostname, Port: c.Port, RedirectHTTP: true}); err != nil {
-				s.web.apply(old)
+				_ = s.web.apply(old)
 				redirectErr(w, r, back, err)
 				return
 			}
 		}
 		if err := s.web.obtainACME(r.Context(), c, nil); err != nil {
-			s.web.apply(old)
+			_ = s.web.apply(old)
 			s.web.setErr(err.Error())
 			redirectErr(w, r, back, err)
 			return
@@ -175,7 +175,7 @@ func (s *Server) handleCertificateRenew(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	s.web.setErr("")
-	s.web.apply(c)
+	_ = s.web.apply(c)
 	s.audit(r, "settings.certificate", "renewed Let's Encrypt certificate for %s", c.Hostname)
 	redirectMsg(w, r, back, "Certificate renewed.")
 }

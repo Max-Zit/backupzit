@@ -48,7 +48,7 @@ func NewPartitionReader(ctx context.Context, r *repo.Repository, p *repo.Partiti
 	if err != nil {
 		return nil, err
 	}
-	return &PartitionReader{ctx: ctx, r: r, p: p, ids: ids, size: int64(p.Length),
+	return &PartitionReader{ctx: ctx, r: r, p: p, ids: ids, size: int64(p.Length), // #nosec G115 -- disk offsets, sizes and partition numbers are within range
 		cache: map[uint64]*list.Element{}, lru: list.New(), max: 64}, nil
 }
 
@@ -93,7 +93,7 @@ func (pr *PartitionReader) ReadAt(b []byte, off int64) (int, error) {
 	bs := int64(pr.p.BlockSize)
 	n := 0
 	for n < len(b) && off < pr.size {
-		idx := uint64(off / bs)
+		idx := uint64(off / bs) // #nosec G115 -- disk offsets, sizes and partition numbers are within range
 		inner := off % bs
 		data, err := pr.block(idx)
 		if err != nil {
@@ -275,7 +275,7 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 		}
 		target := dest(e.Path)
 		if e.IsDir {
-			if err := os.MkdirAll(target, 0o755); err != nil {
+			if err := os.MkdirAll(target, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 				st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
 				return nil
 			}
@@ -291,7 +291,7 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 			}
 			st.Dirs++
 			if !e.ModTime.IsZero() {
-				os.Chtimes(target, e.ModTime, e.ModTime)
+				_ = os.Chtimes(target, e.ModTime, e.ModTime)
 			}
 			return nil
 		}
@@ -301,7 +301,7 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 			return nil
 		}
 		st.Files++
-		st.Bytes += uint64(n)
+		st.Bytes += uint64(n) // #nosec G115 -- disk offsets, sizes and partition numbers are within range
 		if progress != nil {
 			progress(st)
 		}
@@ -332,13 +332,13 @@ func (v *Volume) extractFile(e Entry, target string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 		return 0, err
 	}
 	tmp := target + ".bzpart"
 	// NTFS has no Unix permissions: only the owner may read restored
 	// files on Linux (on Windows the target folder's ACL applies).
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
 	if err != nil {
 		return 0, err
 	}
@@ -351,15 +351,15 @@ func (v *Volume) extractFile(e Entry, target string) (int64, error) {
 		v.mu.Unlock()
 		if n > 0 {
 			if _, err := f.Write(buf[:n]); err != nil {
-				f.Close()
-				os.Remove(tmp)
+				_ = f.Close()
+				_ = os.Remove(tmp)
 				return 0, err
 			}
 			off += int64(n)
 		}
 		if rerr != nil && rerr != io.EOF {
-			f.Close()
-			os.Remove(tmp)
+			_ = f.Close()
+			_ = os.Remove(tmp)
 			return 0, rerr
 		}
 		if n == 0 {
@@ -367,20 +367,20 @@ func (v *Volume) extractFile(e Entry, target string) (int64, error) {
 		}
 	}
 	if err := f.Close(); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return 0, err
 	}
 	if off != e.Size {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return 0, fmt.Errorf("read %d of %d bytes", off, e.Size)
 	}
-	os.Remove(target)
+	_ = os.Remove(target)
 	if err := os.Rename(tmp, target); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return 0, err
 	}
 	if !e.ModTime.IsZero() {
-		os.Chtimes(target, e.ModTime, e.ModTime)
+		_ = os.Chtimes(target, e.ModTime, e.ModTime)
 	}
 	return off, nil
 }

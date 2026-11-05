@@ -73,7 +73,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		return nil, problems, err
 	}
 	stage := filepath.Join(dir, fmt.Sprintf("backupzit-%d", time.Now().UnixNano()))
-	if err := os.MkdirAll(stage, 0o755); err != nil {
+	if err := os.MkdirAll(stage, 0o755); err != nil { // #nosec G301 -- SQL Server's service account writes the backup into it
 		return nil, problems, err
 	}
 	defer os.RemoveAll(stage)
@@ -184,7 +184,7 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 		return 0, err
 	}
 	stage := filepath.Join(dir, fmt.Sprintf("backupzit-restore-%d", time.Now().UnixNano()))
-	if err := os.MkdirAll(stage, 0o755); err != nil {
+	if err := os.MkdirAll(stage, 0o755); err != nil { // #nosec G301 -- SQL Server's service account writes the backup into it
 		return 0, err
 	}
 	defer os.RemoveAll(stage)
@@ -228,7 +228,7 @@ func findDB(sn *repo.Snapshot, name string) *repo.SQLDatabase {
 // original path).
 func findFile(dir, base string) (string, error) {
 	var found string
-	filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && strings.EqualFold(d.Name(), base) {
 			found = p
 			return filepath.SkipAll

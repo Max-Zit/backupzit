@@ -111,7 +111,7 @@ func OpenSFTP(ctx context.Context, u *url.URL, opts Options) (*SFTP, error) {
 	}
 	c, chans, reqs, err := ssh.NewClientConn(nc, host, cfg)
 	if err != nil {
-		nc.Close()
+		_ = nc.Close()
 		return nil, fmt.Errorf("sftp: ssh handshake: %w", err)
 	}
 	conn := ssh.NewClient(c, chans, reqs)
@@ -119,7 +119,7 @@ func OpenSFTP(ctx context.Context, u *url.URL, opts Options) (*SFTP, error) {
 		sftp.UseConcurrentWrites(true),
 		sftp.MaxConcurrentRequestsPerFile(64))
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, fmt.Errorf("sftp: start subsystem: %w", err)
 	}
 
@@ -163,12 +163,12 @@ func (s *SFTP) Save(_ context.Context, name string, data []byte) error {
 		return fmt.Errorf("sftp create %s: %w", tmp, err)
 	}
 	if _, err := f.Write(data); err != nil {
-		f.Close()
-		s.client.Remove(tmp)
+		_ = f.Close()
+		_ = s.client.Remove(tmp)
 		return fmt.Errorf("sftp write %s: %w", tmp, err)
 	}
 	if err := f.Close(); err != nil {
-		s.client.Remove(tmp)
+		_ = s.client.Remove(tmp)
 		return fmt.Errorf("sftp close %s: %w", tmp, err)
 	}
 	if err := s.client.PosixRename(tmp, p); err != nil {
@@ -177,10 +177,10 @@ func (s *SFTP) Save(_ context.Context, name string, data []byte) error {
 			if _, statErr := s.client.Stat(p); statErr == nil {
 				// Names are content addressed (or rewritten whole), so an
 				// existing target holds equivalent data.
-				s.client.Remove(tmp)
+				_ = s.client.Remove(tmp)
 				return nil
 			}
-			s.client.Remove(tmp)
+			_ = s.client.Remove(tmp)
 			return fmt.Errorf("sftp rename %s: %w", p, err2)
 		}
 	}
@@ -275,13 +275,13 @@ func (s *SFTP) RemoveDirs(_ context.Context) error {
 				walk(path.Join(rel, e.Name()))
 			}
 		}
-		s.client.RemoveDirectory(s.p(rel))
+		_ = s.client.RemoveDirectory(s.p(rel))
 	}
 	walk("")
 	return nil
 }
 
 func (s *SFTP) Close() error {
-	s.client.Close()
+	_ = s.client.Close()
 	return s.conn.Close()
 }

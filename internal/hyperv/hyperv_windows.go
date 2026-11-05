@@ -38,7 +38,7 @@ func Available() bool {
 	if err != nil {
 		return false
 	}
-	s.Close()
+	_ = s.Close()
 	return true
 }
 
@@ -46,7 +46,7 @@ func Available() bool {
 // (Hyper-V itself identifies VMs by GUID).
 func VMIDFor(guid string) int {
 	h := fnv.New32a()
-	h.Write([]byte(strings.ToLower(guid)))
+	_, _ = h.Write([]byte(strings.ToLower(guid)))
 	return 1_000_000_000 + int(h.Sum32()%1_000_000_000)
 }
 

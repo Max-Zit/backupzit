@@ -264,12 +264,12 @@ func (s *Store) upsertDirectoryUser(ctx context.Context, source, username, displ
 
 // newSession creates a session for an authenticated user.
 func (s *Store) newSession(ctx context.Context, userID int64, ttl time.Duration) (string, error) {
-	s.db.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now()`)
+	_, _ = s.db.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now()`)
 	tok := randomToken(32)
 	_, err := s.db.Exec(ctx, `INSERT INTO sessions(token_hash, user_id, expires_at) VALUES($1,$2,$3)`,
 		hashToken(tok), userID, time.Now().Add(ttl))
 	if err == nil {
-		s.db.Exec(ctx, `UPDATE users SET last_login_at=now() WHERE id=$1`, userID)
+		_, _ = s.db.Exec(ctx, `UPDATE users SET last_login_at=now() WHERE id=$1`, userID)
 	}
 	return tok, err
 }
@@ -329,7 +329,7 @@ func (s *Server) authenticate(ctx context.Context, username, password string) (U
 		}
 		return lu, nil
 	}
-	bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
+	_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 	return User{}, errBadLogin
 }
 
@@ -387,7 +387,7 @@ func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request, user string
 		return
 	}
 	var ls LDAPSettings
-	s.store.GetSetting(r.Context(), settingLDAP, &ls)
+	_ = s.store.GetSetting(r.Context(), settingLDAP, &ls)
 	tokens, err := s.store.ListAPITokens(r.Context(), 0)
 	if err != nil {
 		s.serverError(w, err)

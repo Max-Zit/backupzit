@@ -15,7 +15,7 @@ var procGetConsoleProcessList = windows.NewLazySystemDLL("kernel32.dll").NewProc
 // can read the message instead of seeing a window flash and close.
 func pauseIfStandalone() {
 	var ids [2]uint32
-	n, _, _ := procGetConsoleProcessList.Call(uintptr(unsafe.Pointer(&ids[0])), 2)
+	n, _, _ := procGetConsoleProcessList.Call(uintptr(unsafe.Pointer(&ids[0])), 2) // #nosec G103 -- pointer passed to a Windows API call
 	if n != 1 {
 		return
 	}
@@ -23,5 +23,5 @@ func pauseIfStandalone() {
 	fmt.Fprintln(os.Stderr, "To protect this computer, download and run the MSI installer from the")
 	fmt.Fprintln(os.Stderr, "Agents page of your BackupZit console.")
 	fmt.Fprint(os.Stderr, "\nPress Enter to close this window.")
-	fmt.Scanln()
+	_, _ = fmt.Scanln()
 }

@@ -134,17 +134,17 @@ func exportConsole(ctx context.Context, pool *pgxpool.Pool, dataDir, version, di
 	if meta.Tables, err = tablesInLoadOrder(ctx, tx); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(dir, "db"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "db"), 0o700); err != nil { // #nosec G703 -- fixed names below the console's data directory or the unpacked console backup
 		return err
 	}
 	for _, t := range meta.Tables {
-		f, err := os.OpenFile(filepath.Join(dir, "db", t+".csv"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+		f, err := os.OpenFile(filepath.Join(dir, "db", t+".csv"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 G703 -- fixed names below the console's data directory or the unpacked console backup
 		if err != nil {
 			return err
 		}
 		order := ""
 		var hasID bool
-		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name=$1 AND column_name='id')`, t).Scan(&hasID)
+		_ = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name=$1 AND column_name='id')`, t).Scan(&hasID)
 		if hasID {
 			order = " ORDER BY id"
 		}
@@ -157,7 +157,7 @@ func exportConsole(ctx context.Context, pool *pgxpool.Pool, dataDir, version, di
 		}
 	}
 	for _, name := range consoleFiles {
-		b, err := os.ReadFile(filepath.Join(dataDir, filepath.FromSlash(name)))
+		b, err := os.ReadFile(filepath.Join(dataDir, filepath.FromSlash(name))) // #nosec G304 -- fixed names below the console's data directory or the unpacked console backup
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
@@ -165,13 +165,13 @@ func exportConsole(ctx context.Context, pool *pgxpool.Pool, dataDir, version, di
 			return err
 		}
 		p := filepath.Join(dir, "files", filepath.FromSlash(name))
-		os.MkdirAll(filepath.Dir(p), 0o700)
-		if err := os.WriteFile(p, b, 0o600); err != nil {
+		_ = os.MkdirAll(filepath.Dir(p), 0o700)           // #nosec G703 -- fixed names below the console's data directory or the unpacked console backup
+		if err := os.WriteFile(p, b, 0o600); err != nil { // #nosec G703 -- fixed names below the console's data directory or the unpacked console backup
 			return err
 		}
 	}
 	mb, _ := json.MarshalIndent(meta, "", "  ")
-	return os.WriteFile(filepath.Join(dir, "meta.json"), mb, 0o600)
+	return os.WriteFile(filepath.Join(dir, "meta.json"), mb, 0o600) // #nosec G703 -- fixed names below the console's data directory or the unpacked console backup
 }
 
 // ---- backup to a storage target
@@ -194,7 +194,7 @@ type ConsoleBackupSettings struct {
 
 func (s *Server) consoleBackupSettings(ctx context.Context) ConsoleBackupSettings {
 	c := ConsoleBackupSettings{Hour: 2, Keep: 14}
-	s.store.GetSetting(ctx, settingConsoleBackup, &c)
+	_ = s.store.GetSetting(ctx, settingConsoleBackup, &c)
 	if c.Keep < 1 {
 		c.Keep = 14
 	}
@@ -224,7 +224,7 @@ func (s *Server) BackupConsole(ctx context.Context) error {
 				l.T("The daily backup of the BackupZit console failed:") + "\n\n" + err.Error() + "\n\n" + l.T("Check Settings → Console backup.") + "\n"
 		})
 	}
-	s.store.AppendAudit(ctx, "", "console.backup", detail, "")
+	_, _ = s.store.AppendAudit(ctx, "", "console.backup", detail, "")
 	return err
 }
 
@@ -246,7 +246,7 @@ func (s *Server) backupConsole(ctx context.Context, cfg *ConsoleBackupSettings) 
 	}
 	defer closeRepo()
 	stage := filepath.Join(s.dataDir, "console-backup")
-	os.RemoveAll(stage)
+	_ = os.RemoveAll(stage)
 	if err := os.MkdirAll(stage, 0o700); err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (s *Server) backupConsole(ctx context.Context, cfg *ConsoleBackupSettings) 
 		return err
 	}
 	sn, err := archiver.Run(ctx, r, archiver.Options{Paths: []string{stage}, Hostname: "backupzit-console", Version: s.Version, Tags: []string{consoleTag}})
-	lock.Unlock()
+	_ = lock.Unlock()
 	if err != nil {
 		return err
 	}
@@ -352,7 +352,7 @@ func RestoreConsole(ctx context.Context, dbURL, dataDir string, r *repo.Reposito
 	}
 	// The files lie below the original staging path; find meta.json.
 	var root string
-	filepath.WalkDir(tmp, func(p string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(tmp, func(p string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && d.Name() == "meta.json" && root == "" {
 			root = filepath.Dir(p)
 		}
@@ -371,7 +371,7 @@ func RestoreConsole(ctx context.Context, dbURL, dataDir string, r *repo.Reposito
 // into the database and the data directory.
 func restoreConsoleRoot(ctx context.Context, dbURL, dataDir, root string, logf func(string, ...any)) error {
 	var meta consoleMeta
-	b, err := os.ReadFile(filepath.Join(root, "meta.json"))
+	b, err := os.ReadFile(filepath.Join(root, "meta.json")) // #nosec G304 -- fixed names below the console's data directory or the unpacked console backup
 	if err != nil || json.Unmarshal(b, &meta) != nil {
 		return errors.New("the console backup is damaged (meta.json)")
 	}
@@ -381,9 +381,9 @@ func restoreConsoleRoot(ctx context.Context, dbURL, dataDir, root string, logf f
 	// The audit chain is now the one of the backup: the head kept next to
 	// the secrets key belongs to the replaced database and would report
 	// its newer entries as deleted. The next entry sets it again.
-	os.Remove(filepath.Join(dataDir, "audit-head.json"))
+	_ = os.Remove(filepath.Join(dataDir, "audit-head.json"))
 	for _, name := range consoleFiles {
-		data, err := os.ReadFile(filepath.Join(root, "files", filepath.FromSlash(name)))
+		data, err := os.ReadFile(filepath.Join(root, "files", filepath.FromSlash(name))) // #nosec G304 -- fixed names below the console's data directory or the unpacked console backup
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
@@ -391,12 +391,12 @@ func restoreConsoleRoot(ctx context.Context, dbURL, dataDir, root string, logf f
 			return err
 		}
 		dst := filepath.Join(dataDir, filepath.FromSlash(name))
-		os.MkdirAll(filepath.Dir(dst), 0o700)
+		_ = os.MkdirAll(filepath.Dir(dst), 0o700)
 		mode := os.FileMode(0o600)
 		if strings.HasSuffix(name, "cert.pem") {
 			mode = 0o644
 		}
-		if err := os.WriteFile(dst, data, mode); err != nil {
+		if err := os.WriteFile(dst, data, mode); err != nil { // #nosec G703 -- fixed names below the console's data directory or the unpacked console backup
 			return err
 		}
 		matchOwner(dst, dataDir)
@@ -453,18 +453,18 @@ func importConsoleDB(ctx context.Context, dbURL, root string, meta consoleMeta, 
 		if !tableName.MatchString(t) {
 			return fmt.Errorf("the console backup is damaged (table %q)", t)
 		}
-		f, err := os.Open(filepath.Join(root, "db", t+".csv"))
+		f, err := os.Open(filepath.Join(root, "db", t+".csv")) // #nosec G304 -- fixed names below the console's data directory or the unpacked console backup
 		if err != nil {
 			return fmt.Errorf("backup of table %s: %w", t, err)
 		}
 		header, _ := readLine(f)
-		f.Seek(0, io.SeekStart)
+		_, _ = f.Seek(0, io.SeekStart)
 		cols := strings.Split(strings.TrimSpace(header), ",")
 		for i, c := range cols {
 			cols[i] = quoteIdent(strings.Trim(c, `"`))
 		}
 		_, err = conn.Conn().PgConn().CopyFrom(ctx, f, "COPY "+quoteIdent(t)+" ("+strings.Join(cols, ",")+") FROM STDIN WITH (FORMAT csv, HEADER true)")
-		f.Close()
+		_ = f.Close()
 		if err != nil {
 			return fmt.Errorf("load table %s: %w", t, err)
 		}
@@ -533,10 +533,10 @@ func openRepository(ctx context.Context, rs api.Repository, create bool) (*repo.
 		if err != nil {
 			return nil, nil, err
 		}
-		f.Write([]byte(rs.SFTPKey))
-		f.Close()
+		_, _ = f.Write([]byte(rs.SFTPKey))
+		_ = f.Close()
 		opts.SFTPKeyFile = f.Name()
-		cleanup = func() { os.Remove(f.Name()) }
+		cleanup = func() { _ = os.Remove(f.Name()) }
 	}
 	be, err := backend.Open(ctx, rs.URL, opts)
 	if err != nil {
@@ -548,11 +548,11 @@ func openRepository(ctx context.Context, rs api.Repository, create bool) (*repo.
 		r, err = repo.Init(ctx, be, repo.Password(rs.Password))
 	}
 	if err != nil {
-		be.Close()
+		_ = be.Close()
 		cleanup()
 		return nil, nil, err
 	}
-	return r, func() { r.Close(); cleanup() }, nil
+	return r, func() { _ = r.Close(); cleanup() }, nil
 }
 
 // StartConsoleBackup runs the daily backup of the console.

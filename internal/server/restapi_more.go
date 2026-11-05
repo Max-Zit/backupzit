@@ -161,7 +161,7 @@ func (s *Server) metrics(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(text))
+	_, _ = w.Write([]byte(text))
 }
 
 // metricsWriter holds back the JSON body of a successful api() call, so

@@ -154,7 +154,7 @@ func summarize(st *localipc.Status, callErr error, now time.Time) Summary {
 		s.Headline = name
 		switch {
 		case c.Total > 0:
-			s.Percent = int(c.Done * 100 / c.Total)
+			s.Percent = int(c.Done * 100 / c.Total) // #nosec G115 -- progress percentage, done <= total
 			s.Detail = fmt.Sprintf("%d%% · %s of %s read · started %s", s.Percent, humanBytes(c.Done), humanBytes(c.Total), when(c.Started, now))
 		case c.Files > 0 && c.Done > 0:
 			s.Detail = fmt.Sprintf("%d files · %s read · started %s", c.Files, humanBytes(c.Done), when(c.Started, now))

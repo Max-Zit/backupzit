@@ -84,7 +84,7 @@ func (s *Store) AppendAudit(ctx context.Context, user, action, detail, remote st
 		b, _ := json.Marshal(auditHead{ID: e.ID, Hash: e.Hash})
 		tmp := s.auditHeadFile + ".tmp"
 		if os.WriteFile(tmp, b, 0o600) == nil {
-			os.Rename(tmp, s.auditHeadFile)
+			_ = os.Rename(tmp, s.auditHeadFile)
 		}
 	}
 	if s.auditSink != nil {
@@ -205,7 +205,7 @@ func (x *syslogSender) send(line string) error {
 		return nil
 	}
 	if x.conn != nil && x.cfg.Protocol != "udp" && !streamOpen(x.conn) {
-		x.conn.Close() // the server closed it: a write would be lost
+		_ = x.conn.Close() // the server closed it: a write would be lost
 		x.conn = nil
 	}
 	if x.conn == nil {
@@ -232,9 +232,9 @@ func (x *syslogSender) send(line string) error {
 	if x.cfg.Protocol != "udp" {
 		msg = fmt.Sprintf("%d %s", len(line), line) // octet counting (RFC 6587)
 	}
-	x.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	_ = x.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 	if _, err := x.conn.Write([]byte(msg)); err != nil {
-		x.conn.Close()
+		_ = x.conn.Close()
 		x.conn = nil
 		return err
 	}
@@ -245,9 +245,9 @@ func (x *syslogSender) send(line string) error {
 // open. Syslog servers never send, so a read that times out means open; a
 // write to a connection the server closed would succeed and be lost.
 func streamOpen(c net.Conn) bool {
-	c.SetReadDeadline(time.Now().Add(time.Millisecond))
+	_ = c.SetReadDeadline(time.Now().Add(time.Millisecond))
 	_, err := c.Read(make([]byte, 1))
-	c.SetReadDeadline(time.Time{})
+	_ = c.SetReadDeadline(time.Time{})
 	var ne net.Error
 	return errors.As(err, &ne) && ne.Timeout()
 }
@@ -255,7 +255,7 @@ func streamOpen(c net.Conn) bool {
 func (x *syslogSender) configure(c AuditSyslog) {
 	x.mu.Lock()
 	if x.conn != nil && x.cfg != c {
-		x.conn.Close()
+		_ = x.conn.Close()
 		x.conn = nil
 	}
 	x.cfg = c
@@ -296,7 +296,7 @@ func (s *Server) StartAuditChain(ctx context.Context, dataDir string) {
 	host := hostname()
 	s.syslog = &syslogSender{q: make(chan AuditEntry, 1000), log: s.log.Warn}
 	var c AuditSyslog
-	s.store.GetSetting(ctx, settingAuditSyslog, &c)
+	_ = s.store.GetSetting(ctx, settingAuditSyslog, &c)
 	s.syslog.configure(c)
 	s.store.auditSink = func(e AuditEntry) {
 		select {
@@ -332,7 +332,7 @@ func (s *Server) StartAuditChain(ctx context.Context, dataDir string) {
 
 func (s *Store) auditHeadHash(ctx context.Context) string {
 	var h string
-	s.db.QueryRow(ctx, `SELECT hash FROM audit_log WHERE hash <> '' ORDER BY id DESC LIMIT 1`).Scan(&h)
+	_ = s.db.QueryRow(ctx, `SELECT hash FROM audit_log WHERE hash <> '' ORDER BY id DESC LIMIT 1`).Scan(&h)
 	return h
 }
 
@@ -377,7 +377,7 @@ func (s *Server) handleSettingsAuditSyslog(w http.ResponseWriter, r *http.Reques
 func (s *Server) auditSyslogSettings(ctx context.Context) AuditSyslog {
 	var c AuditSyslog
 	if s.store != nil {
-		s.store.GetSetting(ctx, settingAuditSyslog, &c)
+		_ = s.store.GetSetting(ctx, settingAuditSyslog, &c)
 	}
 	return c
 }

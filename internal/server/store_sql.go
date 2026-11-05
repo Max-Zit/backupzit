@@ -77,7 +77,7 @@ func (s *Store) queueDueSQLLogs(ctx context.Context, now time.Time) ([]int64, er
 	var queued []int64
 	for _, d := range list {
 		var last time.Time
-		s.db.QueryRow(ctx, `SELECT coalesce(max(coalesce(started_at, queued_at)), 'epoch') FROM runs WHERE job_id=$1 AND kind IN ('sql-backup','sql-log')`, d.job).Scan(&last)
+		_ = s.db.QueryRow(ctx, `SELECT coalesce(max(coalesce(started_at, queued_at)), 'epoch') FROM runs WHERE job_id=$1 AND kind IN ('sql-backup','sql-log')`, d.job).Scan(&last)
 		if now.Sub(last) < time.Duration(d.minutes)*time.Minute {
 			continue
 		}

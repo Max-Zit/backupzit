@@ -185,7 +185,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		c, cancel := bg()
 		defer cancel()
 		for _, v := range allocated {
-			command(c, "pvesm", "free", v)
+			_, _ = command(c, "pvesm", "free", v)
 		}
 	}()
 	newVol := map[string]string{} // disk key -> new volume ID
@@ -216,17 +216,17 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		dir = "lxc"
 	}
 	cfgFile := filepath.Join(ConfigDir, "nodes", inv.Node, dir, strconv.Itoa(target)+".conf")
-	f, err := os.OpenFile(cfgFile, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o640)
+	f, err := os.OpenFile(cfgFile, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o640) // #nosec G302 G304 -- Proxmox guest configuration, 0640 as Proxmox writes it
 	if err != nil {
 		return nil, fmt.Errorf("create configuration: %w", err)
 	}
 	if _, err := f.WriteString(conf); err != nil {
-		f.Close()
-		os.Remove(cfgFile)
+		_ = f.Close()
+		_ = os.Remove(cfgFile)
 		return nil, fmt.Errorf("write configuration: %w", err)
 	}
 	if err := f.Close(); err != nil {
-		os.Remove(cfgFile)
+		_ = os.Remove(cfgFile)
 		return nil, fmt.Errorf("write configuration: %w", err)
 	}
 	ok = true // the disks now belong to the guest
@@ -282,7 +282,7 @@ func writeDisk(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, d rep
 	defer cleanup()
 	// Thin and new file volumes read as zeros; thick LVM may hold old data.
 	writeZeros := st.Type == "lvm" || st.Type == "iscsidirect" || st.Type == "iscsi"
-	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	f, err := os.OpenFile(path, os.O_WRONLY, 0) // #nosec G304 -- Proxmox VE configuration files and the agent's work files
 	if err != nil {
 		return err
 	}
@@ -413,9 +413,9 @@ func volumeDevice(ctx context.Context, st storage, volid string) (path string, c
 			return "", nil, err
 		}
 		path = strings.TrimSpace(string(out))
-		cleanup = func() { c, cancel := bg(); defer cancel(); command(c, "rbd", "unmap", path) }
+		cleanup = func() { c, cancel := bg(); defer cancel(); _, _ = command(c, "rbd", "unmap", path) }
 	case "lvm", "lvmthin":
-		command(ctx, "lvchange", "-ay", st.Props["vgname"]+"/"+vol)
+		_, _ = command(ctx, "lvchange", "-ay", st.Props["vgname"]+"/"+vol)
 		fallthrough
 	default:
 		if path, err = volumePath(ctx, volid); err != nil {

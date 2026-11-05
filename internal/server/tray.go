@@ -31,7 +31,7 @@ func (s *Server) agentStatus(ctx context.Context, agentID int64) (*api.AgentStat
 		var status, msg string
 		var finished *time.Time
 		var active bool
-		s.store.db.QueryRow(ctx, `SELECT COALESCE(l.status, ''), l.finished_at, COALESCE(l.message, ''),
+		_ = s.store.db.QueryRow(ctx, `SELECT COALESCE(l.status, ''), l.finished_at, COALESCE(l.message, ''),
 			EXISTS (SELECT 1 FROM runs WHERE job_id=$1 AND kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') AND status IN ('queued','running'))
 			FROM (SELECT 1) one LEFT JOIN LATERAL (SELECT status, finished_at, message FROM runs WHERE job_id=$1
 				AND kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') AND status NOT IN ('queued','running')

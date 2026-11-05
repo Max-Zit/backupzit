@@ -212,7 +212,7 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	raw, err := os.ReadFile(cfgPath)
+	raw, err := os.ReadFile(cfgPath) // #nosec G304 -- Proxmox VE configuration files and the agent's work files
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -251,7 +251,7 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		// Remove snapshots left behind by an interrupted backup.
 		for _, n := range snapshotNames(conf) {
 			if strings.HasPrefix(n, snapPrefix) {
-				command(ctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), n, "--force")
+				_, _ = command(ctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), n, "--force")
 			}
 		}
 		snap = snapPrefix + strconv.FormatInt(time.Now().Unix(), 10)
@@ -283,7 +283,7 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 			cctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 			defer cancel()
 			if _, err := command(cctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap); err != nil {
-				command(cctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap, "--force")
+				_, _ = command(cctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap, "--force")
 			}
 		}()
 		switch {
@@ -426,7 +426,7 @@ func openSnapshot(ctx context.Context, st storage, vol, volid, snap string) (*so
 			return nil, err
 		}
 		s := &source{path: "/dev/" + vg + "/" + lv}
-		s.cleanup = append(s.cleanup, func() { c, cancel := bg(); defer cancel(); command(c, "lvchange", "-an", vg+"/"+lv) })
+		s.cleanup = append(s.cleanup, func() { c, cancel := bg(); defer cancel(); _, _ = command(c, "lvchange", "-an", vg+"/"+lv) })
 		if err := waitPath(ctx, s.path); err != nil {
 			s.close()
 			return nil, err
@@ -444,9 +444,9 @@ func openSnapshot(ctx context.Context, st storage, vol, volid, snap string) (*so
 			defer cancel()
 			f := strings.Fields(string(prev))
 			if len(f) == 2 && f[1] == "local" {
-				command(c, "zfs", "set", "snapdev="+f[0], ds)
+				_, _ = command(c, "zfs", "set", "snapdev="+f[0], ds)
 			} else {
-				command(c, "zfs", "inherit", "snapdev", ds)
+				_, _ = command(c, "zfs", "inherit", "snapdev", ds)
 			}
 		})
 		if err := waitPath(ctx, s.path); err != nil {
@@ -463,7 +463,7 @@ func openSnapshot(ctx context.Context, st storage, vol, volid, snap string) (*so
 		}
 		dev := strings.TrimSpace(string(out))
 		s := &source{path: dev}
-		s.cleanup = append(s.cleanup, func() { c, cancel := bg(); defer cancel(); command(c, "rbd", "unmap", dev) })
+		s.cleanup = append(s.cleanup, func() { c, cancel := bg(); defer cancel(); _, _ = command(c, "rbd", "unmap", dev) })
 		return s, nil
 	default: // file based: qcow2 internal snapshot
 		file, err := volumePath(ctx, volid)
@@ -479,7 +479,7 @@ func openLive(ctx context.Context, st storage, vol, volid string) (*source, erro
 	switch st.Type {
 	case "lvmthin", "lvm":
 		vg := st.Props["vgname"]
-		command(ctx, "lvchange", "-ay", vg+"/"+vol)
+		_, _ = command(ctx, "lvchange", "-ay", vg+"/"+vol)
 	case "rbd":
 		args := append([]string{"map", "--read-only"}, rbdArgs(st)...)
 		args = append(args, rbdImage(st, vol))
@@ -489,7 +489,7 @@ func openLive(ctx context.Context, st storage, vol, volid string) (*source, erro
 		}
 		dev := strings.TrimSpace(string(out))
 		s := &source{path: dev}
-		s.cleanup = append(s.cleanup, func() { c, cancel := bg(); defer cancel(); command(c, "rbd", "unmap", dev) })
+		s.cleanup = append(s.cleanup, func() { c, cancel := bg(); defer cancel(); _, _ = command(c, "rbd", "unmap", dev) })
 		return s, nil
 	}
 	p, err := volumePath(ctx, volid)
@@ -539,7 +539,7 @@ func rbdArgs(st storage) []string {
 // nbdConnect exposes an image file (optionally an internal snapshot of it)
 // as a read-only /dev/nbdN device with qemu-nbd.
 func nbdConnect(ctx context.Context, file, format, snap string) (*source, error) {
-	command(ctx, "modprobe", "nbd", "max_part=0")
+	_, _ = command(ctx, "modprobe", "nbd", "max_part=0")
 	for i := 0; i < 64; i++ {
 		dev := fmt.Sprintf("/dev/nbd%d", i)
 		sys := fmt.Sprintf("/sys/block/nbd%d", i)
@@ -556,11 +556,11 @@ func nbdConnect(ctx context.Context, file, format, snap string) (*source, error)
 			return nil, err
 		}
 		s := &source{path: dev}
-		s.cleanup = append(s.cleanup, func() { c, cancel := bg(); defer cancel(); command(c, "qemu-nbd", "--disconnect", dev) })
+		s.cleanup = append(s.cleanup, func() { c, cancel := bg(); defer cancel(); _, _ = command(c, "qemu-nbd", "--disconnect", dev) })
 		// Wait until the kernel sees the size.
 		deadline := time.Now().Add(15 * time.Second)
 		for {
-			b, _ := os.ReadFile(sys + "/size")
+			b, _ := os.ReadFile(sys + "/size") // #nosec G304 -- Proxmox VE configuration files and the agent's work files
 			if n, _ := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64); n > 0 {
 				return s, nil
 			}
@@ -601,7 +601,7 @@ func imageDisk(ctx context.Context, r *repo.Repository, src *source, number int,
 	if err != nil {
 		return repo.DiskImage{}, fmt.Errorf("size of %s: %w", src.path, err)
 	}
-	size := uint64(end)
+	size := uint64(end) // #nosec G115 -- disk sizes are below 2^63
 	if size == 0 {
 		return repo.DiskImage{}, fmt.Errorf("%s is empty", src.path)
 	}
@@ -621,7 +621,7 @@ func imageDiskAreas(ctx context.Context, r *repo.Repository, src *source, size u
 	if err != nil {
 		return repo.DiskImage{}, 0, err
 	}
-	if uint64(end) != size {
+	if uint64(end) != size { // #nosec G115 -- disk sizes are below 2^63
 		return repo.DiskImage{}, 0, fmt.Errorf("the snapshot has %d bytes, the running disk %d", end, size)
 	}
 	var n uint64
@@ -635,7 +635,7 @@ func configuredSize(g Guest) uint64 {
 	if err != nil {
 		return g.MaxDisk
 	}
-	b, err := os.ReadFile(p)
+	b, err := os.ReadFile(p) // #nosec G304 -- Proxmox VE configuration files and the agent's work files
 	if err != nil {
 		return g.MaxDisk
 	}

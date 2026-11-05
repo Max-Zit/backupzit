@@ -185,7 +185,7 @@ func (s *Server) agentPackage(format string) (path, sum string, err error) {
 	}
 	sort.Slice(cands, func(i, j int) bool { return cands[i].mod.After(cands[j].mod) })
 	path = filepath.Join(s.DistDir, cands[0].name)
-	fh, err := os.Open(path)
+	fh, err := os.Open(path) // #nosec G304 -- file of the console's own data or installer directory, not named by a request
 	if err != nil {
 		return "", "", err
 	}

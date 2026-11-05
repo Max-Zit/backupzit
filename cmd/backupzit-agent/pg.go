@@ -22,7 +22,7 @@ func cmdPG(ctx context.Context, args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("pg list", flag.ExitOnError)
 		port := fs.Int("port", 5432, "PostgreSQL port")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		s, err := pgsql.Open(ctx, *port)
 		if err != nil {
 			return err
@@ -48,7 +48,7 @@ func cmdPG(ctx context.Context, args []string) error {
 		dbs := fs.String("db", "", "comma-separated databases to dump (default: all)")
 		wal := fs.Bool("wal", false, "store the archived WAL instead of a full backup")
 		pitr := fs.Bool("pitr", false, "full backup: set up WAL archiving for point-in-time recovery")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		r, err := rf.open(ctx)
 		if err != nil {
 			return err
@@ -93,7 +93,7 @@ func cmdPG(ctx context.Context, args []string) error {
 		replace := fs.Bool("replace", false, "replace an existing database with that name")
 		at := fs.String("at", "", `point in time, "2006-01-02 15:04:05" (local time; needs archived WAL)`)
 		latest := fs.Bool("latest", false, "replay all archived WAL after the full backup")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		if *db == "" || fs.NArg() != 1 {
 			return errors.New(`usage: backupzit-agent pg restore --repo R --db NAME [--as NEW] [--replace] [--at "YYYY-MM-DD HH:MM:SS" | --latest] FULL-SNAPSHOT|latest`)
 		}

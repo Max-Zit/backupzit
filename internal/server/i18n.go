@@ -264,7 +264,7 @@ func (s *Server) handleLanguage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if l := languageByCode(r.FormValue("lang")); l != nil {
-		http.SetCookie(w, &http.Cookie{Name: langCookie, Value: l.Code, Path: "/", MaxAge: 5 * 365 * 24 * 3600, HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: s.guard.Secure(r)})
+		http.SetCookie(w, &http.Cookie{Name: langCookie, Value: l.Code, Path: "/", MaxAge: 5 * 365 * 24 * 3600, HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: s.guard.Secure(r)}) // #nosec G124 -- language choice, not sensitive
 	}
 	back := r.FormValue("back")
 	if back == "" {

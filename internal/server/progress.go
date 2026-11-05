@@ -72,7 +72,7 @@ func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
 		if !ok || (x.Done == 0 && x.Total == 0 && x.Files == 0) {
 			continue
 		}
-		p := &runProgress{Percent: -1, Done: humanBytes(x.Done), Files: int(x.Files)}
+		p := &runProgress{Percent: -1, Done: humanBytes(x.Done), Files: int(x.Files)} // #nosec G115 -- sizes and counts for display and statistics, not negative
 		switch {
 		case x.Total > 0:
 			p.Total = humanBytes(x.Total)
@@ -131,6 +131,6 @@ func (s *Store) lastBackupSize(ctx context.Context, jobID, runID int64) (files, 
 		Files uint64 `json:"files"`
 		Bytes uint64 `json:"bytes"`
 	}
-	json.Unmarshal(stats, &st)
+	_ = json.Unmarshal(stats, &st)
 	return st.Files, st.Bytes
 }

@@ -44,7 +44,7 @@ func (l *File) open() error {
 	}
 	st, err := f.Stat()
 	if err != nil {
-		f.Close()
+		_ = f.Close()
 		return err
 	}
 	l.f, l.size = f, st.Size()
@@ -68,15 +68,15 @@ func (l *File) Write(p []byte) (int, error) {
 }
 
 func (l *File) rotate() error {
-	l.f.Close()
-	os.Remove(fmt.Sprintf("%s.%d", l.Path, l.Keep))
+	_ = l.f.Close()
+	_ = os.Remove(fmt.Sprintf("%s.%d", l.Path, l.Keep))
 	for i := l.Keep - 1; i >= 1; i-- {
-		os.Rename(fmt.Sprintf("%s.%d", l.Path, i), fmt.Sprintf("%s.%d", l.Path, i+1))
+		_ = os.Rename(fmt.Sprintf("%s.%d", l.Path, i), fmt.Sprintf("%s.%d", l.Path, i+1))
 	}
 	if l.Keep > 0 {
-		os.Rename(l.Path, l.Path+".1")
+		_ = os.Rename(l.Path, l.Path+".1")
 	} else {
-		os.Remove(l.Path)
+		_ = os.Remove(l.Path)
 	}
 	return l.open()
 }
@@ -123,7 +123,7 @@ func Tail(path string, keep int, max int64) ([]byte, error) {
 }
 
 func tailFile(path string, max int64) ([]byte, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) // #nosec G304 -- the program's own log file
 	if err != nil {
 		return nil, err
 	}

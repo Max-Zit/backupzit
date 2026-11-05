@@ -37,7 +37,7 @@ var ConfigDir = "/etc/pve"
 
 // command runs a program and returns its standard output; tests replace it.
 var command = func(ctx context.Context, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- fixed program; arguments are separate values, no shell
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -413,7 +413,7 @@ func waitPath(ctx context.Context, p string) error {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("%s did not appear", p)
 		}
-		command(ctx, "udevadm", "settle", "--timeout=5")
+		_, _ = command(ctx, "udevadm", "settle", "--timeout=5")
 		select {
 		case <-ctx.Done():
 			return ctx.Err()

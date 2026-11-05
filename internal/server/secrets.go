@@ -93,7 +93,7 @@ func LoadOrCreateSecretKey(dir string) ([]byte, bool, error) {
 		return k, false, nil
 	}
 	p := filepath.Join(dir, SecretKeyFile)
-	b, err := os.ReadFile(p)
+	b, err := os.ReadFile(p) // #nosec G304 -- file of the console's own data or installer directory, not named by a request
 	if err == nil {
 		k, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(b)))
 		if err != nil || len(k) != 32 {

@@ -341,7 +341,7 @@ type Agent struct {
 func (a Agent) Disks() []imaging.Disk {
 	var d []imaging.Disk
 	if len(a.Inventory) > 0 {
-		json.Unmarshal(a.Inventory, &d)
+		_ = json.Unmarshal(a.Inventory, &d)
 	}
 	return d
 }
@@ -947,10 +947,10 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	if res.RepoBytes > 0 {
 		var total, free any
 		if res.StorageTotal > 0 {
-			total, free = int64(res.StorageTotal), int64(res.StorageFree)
+			total, free = int64(res.StorageTotal), int64(res.StorageFree) // #nosec G115 -- sizes and counts for display and statistics, not negative
 		}
 		if _, err := s.db.Exec(ctx, `UPDATE runs SET repo_bytes=$2, storage_total=$3, storage_free=$4 WHERE id=$1`,
-			runID, int64(res.RepoBytes), total, free); err != nil {
+			runID, int64(res.RepoBytes), total, free); err != nil { // #nosec G115 -- sizes and counts for display and statistics, not negative
 			return err
 		}
 	}
@@ -1033,7 +1033,7 @@ func parseRecoveryKey(s string) (string, error) {
 func (r Run) CommandResults() []api.CommandResult {
 	var c []api.CommandResult
 	if len(r.Commands) > 0 {
-		json.Unmarshal(r.Commands, &c)
+		_ = json.Unmarshal(r.Commands, &c)
 	}
 	return c
 }

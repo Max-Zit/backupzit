@@ -53,8 +53,9 @@ func StartInstantServer(ctx context.Context, rs api.Repository, snapshotID strin
 		return err
 	}
 	unit := pve.InstantUnit(vmid)
-	exec.CommandContext(ctx, "systemctl", "stop", unit).Run()
-	exec.CommandContext(ctx, "systemctl", "reset-failed", unit).Run()
+	_ = exec.CommandContext(ctx, "systemctl", "stop", unit).Run()         // #nosec G204 -- fixed program; arguments are separate values, no shell
+	_ = exec.CommandContext(ctx, "systemctl", "reset-failed", unit).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
+	// #nosec G204 -- fixed program; arguments are separate values, no shell
 	out, err := exec.CommandContext(ctx, "systemd-run", "--unit", unit, "--description", "BackupZit instant recovery of VM "+strconv.Itoa(vmid),
 		"--property=EnvironmentFile="+envFile, "--property=Restart=on-failure",
 		exe, "nbd-serve", "--snapshot", snapshotID, "--vmid", strconv.Itoa(srcVMID), "--socket", socket).CombinedOutput()

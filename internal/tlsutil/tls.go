@@ -77,7 +77,7 @@ func createSelfSigned(certPath, keyPath string, hosts []string) error {
 	if err := os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: kb}), 0o600); err != nil {
 		return err
 	}
-	return os.WriteFile(certPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o644)
+	return os.WriteFile(certPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o644) // #nosec G306 -- public certificate
 }
 
 // CertFingerprint returns "SHA256:<base64>" of the leaf certificate, which
@@ -103,7 +103,7 @@ var ErrFingerprintMismatch = errors.New("server certificate fingerprint mismatch
 func PinnedConfig(fingerprint string) *tls.Config {
 	return &tls.Config{
 		MinVersion:         tls.VersionTLS12,
-		InsecureSkipVerify: true, // verified by VerifyConnection below
+		InsecureSkipVerify: true, // #nosec G402 -- verified by VerifyConnection below
 		VerifyConnection: func(cs tls.ConnectionState) error {
 			if len(cs.PeerCertificates) == 0 {
 				return errors.New("server presented no certificate")
@@ -119,7 +119,7 @@ func PinnedConfig(fingerprint string) *tls.Config {
 // FetchFingerprint connects to host:port and returns the fingerprint of the
 // certificate it presents, for confirmation by a human.
 func FetchFingerprint(ctx context.Context, addr string) (string, error) {
-	d := tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true}} // fingerprint is shown to the operator
+	d := tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true}} // #nosec G402 -- fingerprint is shown to the operator
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return "", err

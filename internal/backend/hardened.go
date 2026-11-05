@@ -133,7 +133,7 @@ func (h *Hardened) do(ctx context.Context, method, path string, body []byte, hdr
 
 func statusError(resp *http.Response) error {
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	switch resp.StatusCode {
 	case http.StatusUnauthorized:
 		return errors.New("access key rejected")
@@ -166,7 +166,7 @@ func (h *Hardened) Save(ctx context.Context, name string, data []byte) error {
 	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("save %s: %w", name, statusError(resp))
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return nil
 }
 
@@ -212,7 +212,7 @@ func (h *Hardened) Size(ctx context.Context, name string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	switch resp.StatusCode {
 	case http.StatusOK:
 		return resp.ContentLength, nil
@@ -256,7 +256,7 @@ func (h *Hardened) Remove(ctx context.Context, name string) error {
 		}
 		return fmt.Errorf("remove %s: %w", name, err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return nil
 }
 
@@ -285,7 +285,7 @@ func (h *Hardened) KeepLocked(ctx context.Context, names []string) (int, error) 
 			Extended int `json:"extended"`
 		}
 		err = json.NewDecoder(resp.Body).Decode(&kr)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			return total, err
 		}

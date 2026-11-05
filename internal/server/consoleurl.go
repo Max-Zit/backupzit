@@ -26,7 +26,7 @@ func (s *Server) ConsoleURL() string {
 	s.seen.mu.Lock()
 	defer s.seen.mu.Unlock()
 	if s.seen.url == "" && s.store != nil {
-		s.store.GetSetting(context.Background(), settingConsoleURL, &s.seen.url)
+		_ = s.store.GetSetting(context.Background(), settingConsoleURL, &s.seen.url)
 	}
 	return s.seen.url
 }

@@ -36,11 +36,11 @@ func Serve(ctx context.Context, h *Handler, logf func(string, ...any)) error {
 	if err := register(); err != nil {
 		logf("no rpcbind (%v); answering portmapper requests on port 111", err)
 		if err := servePortmap(ctx); err != nil {
-			l.Close()
+			_ = l.Close()
 			return fmt.Errorf("portmapper: %w", err)
 		}
 	}
-	go func() { <-ctx.Done(); l.Close() }()
+	go func() { <-ctx.Done(); _ = l.Close() }()
 	err = nfs.Serve(&filtered{Listener: l, h: h, logf: logf}, h)
 	if ctx.Err() != nil {
 		return nil
@@ -51,7 +51,7 @@ func Serve(ctx context.Context, h *Handler, logf func(string, ...any)) error {
 // Unregister removes the services from rpcbind.
 func Unregister() {
 	for _, p := range []uint32{progNFS, progMount} {
-		pmapCall(2, p, 3, 0) // UNSET
+		_ = pmapCall(2, p, 3, 0) // UNSET
 	}
 }
 
@@ -71,7 +71,7 @@ func (f *filtered) Accept() (net.Conn, error) {
 			return c, nil
 		}
 		f.logf("refused NFS connection from %s", c.RemoteAddr())
-		c.Close()
+		_ = c.Close()
 	}
 }
 
@@ -92,13 +92,13 @@ func pmapCall(proc, prog, vers, port uint32) error {
 	}
 	defer c.Close()
 	var b bytes.Buffer
-	for _, v := range []uint32{uint32(time.Now().UnixNano()), 0, 2, progPortmap, 2, proc, 0, 0, 0, 0, prog, vers, 6, port} {
-		binary.Write(&b, binary.BigEndian, v)
+	for _, v := range []uint32{uint32(time.Now().UnixNano()), 0, 2, progPortmap, 2, proc, 0, 0, 0, 0, prog, vers, 6, port} { // #nosec G115 -- RPC record lengths are small; the xid wraps by design
+		_ = binary.Write(&b, binary.BigEndian, v)
 	}
 	if _, err := c.Write(b.Bytes()); err != nil {
 		return err
 	}
-	c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
 	resp := make([]byte, 64)
 	n, err := c.Read(resp)
 	if err != nil {
@@ -118,12 +118,12 @@ func servePortmap(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	tl, err := net.Listen("tcp", ":111")
+	tl, err := net.Listen("tcp", ":111") // #nosec G102 -- the hypervisor mounts the instant recovery export over the network; it runs only during an instant recovery
 	if err != nil {
-		uc.Close()
+		_ = uc.Close()
 		return err
 	}
-	go func() { <-ctx.Done(); uc.Close(); tl.Close() }()
+	go func() { <-ctx.Done(); _ = uc.Close(); _ = tl.Close() }()
 	go func() {
 		buf := make([]byte, 1500)
 		for {
@@ -132,7 +132,7 @@ func servePortmap(ctx context.Context) error {
 				return
 			}
 			if r := pmapReply(buf[:n]); r != nil {
-				uc.WriteTo(r, addr)
+				_, _ = uc.WriteTo(r, addr)
 			}
 		}
 	}()
@@ -144,7 +144,7 @@ func servePortmap(ctx context.Context) error {
 			}
 			go func(c net.Conn) {
 				defer c.Close()
-				c.SetDeadline(time.Now().Add(30 * time.Second))
+				_ = c.SetDeadline(time.Now().Add(30 * time.Second))
 				for {
 					var mark [4]byte
 					if _, err := io.ReadFull(c, mark[:]); err != nil {
@@ -162,8 +162,8 @@ func servePortmap(ctx context.Context) error {
 					if r == nil {
 						return
 					}
-					binary.BigEndian.PutUint32(mark[:], uint32(len(r))|0x80000000)
-					c.Write(append(mark[:], r...))
+					binary.BigEndian.PutUint32(mark[:], uint32(len(r))|0x80000000) // #nosec G115 -- RPC record lengths are small; the xid wraps by design
+					_, _ = c.Write(append(mark[:], r...))
 				}
 			}(c)
 		}
@@ -192,7 +192,7 @@ func pmapReply(req []byte) []byte {
 	}
 	var out bytes.Buffer
 	for _, v := range []uint32{xid, 1, 0, 0, 0, 0} {
-		binary.Write(&out, binary.BigEndian, v)
+		_ = binary.Write(&out, binary.BigEndian, v)
 	}
 	switch proc {
 	case 0: // NULL
@@ -205,9 +205,9 @@ func pmapReply(req []byte) []byte {
 		if (p == progNFS || p == progMount) && vers == 3 && proto == 6 {
 			port = Port
 		}
-		binary.Write(&out, binary.BigEndian, port)
+		_ = binary.Write(&out, binary.BigEndian, port)
 	default:
-		binary.Write(&out, binary.BigEndian, uint32(0))
+		_ = binary.Write(&out, binary.BigEndian, uint32(0))
 	}
 	return out.Bytes()
 }

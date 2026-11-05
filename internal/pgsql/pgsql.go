@@ -27,15 +27,15 @@ const BaseDir = "/var/lib/backupzit-pg"
 
 // workDir creates a directory below BaseDir owned by postgres.
 func workDir(ctx context.Context, name string) (string, error) {
-	if err := os.MkdirAll(BaseDir, 0o711); err != nil {
+	if err := os.MkdirAll(BaseDir, 0o711); err != nil { // #nosec G301 -- postgres must traverse it
 		return "", err
 	}
-	os.Chmod(BaseDir, 0o711)
+	_ = os.Chmod(BaseDir, 0o711) // #nosec G302 -- a directory needs the x bit
 	d := filepath.Join(BaseDir, name)
 	if err := os.MkdirAll(d, 0o700); err != nil {
 		return "", err
 	}
-	if out, err := exec.CommandContext(ctx, "chown", "postgres:", d).CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(ctx, "chown", "postgres:", d).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
 		return "", fmt.Errorf("chown %s: %v: %s", d, err, out)
 	}
 	return d, nil
@@ -61,7 +61,7 @@ type Database struct {
 // asPostgres runs a command as the postgres account (in /, which it can
 // read) and returns its standard output.
 func asPostgres(ctx context.Context, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "runuser", append([]string{"-u", "postgres", "--", name}, args...)...)
+	cmd := exec.CommandContext(ctx, "runuser", append([]string{"-u", "postgres", "--", name}, args...)...) // #nosec G204 -- fixed program; arguments are separate values, no shell
 	cmd.Dir = "/"
 	cmd.Env = append(os.Environ(), "LC_ALL=C", "PGCONNECT_TIMEOUT=20")
 	var out, errb bytes.Buffer

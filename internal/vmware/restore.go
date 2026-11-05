@@ -149,7 +149,7 @@ func (c *Client) writeDisk(ctx context.Context, r *repo.Repository, img *repo.Di
 		return err
 	}
 	if err := diskimg.Write(ctx, r, img, w, false, progress); err != nil {
-		w.Close()
+		_ = w.Close()
 		return err
 	}
 	return w.Close()
@@ -177,7 +177,7 @@ func (c *Client) restoreNew(ctx context.Context, r *repo.Repository, sn *repo.Sn
 	cleanup := true
 	defer func() {
 		if cleanup {
-			c.removeDir(context.Background(), ds, dir)
+			_ = c.removeDir(context.Background(), ds, dir)
 		}
 	}()
 	v := parseVMX([]byte(cfg.VMX))
@@ -376,7 +376,7 @@ func (c *Client) restoreInPlace(ctx context.Context, r *repo.Repository, sn *rep
 			}
 			if changed {
 				if err := c.put(ctx, vp, now.Bytes()); err == nil {
-					c.reloadVM(ctx, vm.MoID)
+					_ = c.reloadVM(ctx, vm.MoID)
 				}
 			}
 		}

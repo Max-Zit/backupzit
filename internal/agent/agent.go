@@ -63,7 +63,7 @@ func LogPath(cfgPath string) string {
 }
 
 func LoadConfig(path string) (*Config, error) {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) // #nosec G304 -- the agent's own configuration, update or work file
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (c *Config) Save(path string) error {
 			MarkEnrolled()
 		}
 	}()
-	b, err := json.MarshalIndent(c, "", "  ")
+	b, err := json.MarshalIndent(c, "", "  ") // #nosec G117 -- the agent's configuration file, written with mode 0600
 	if err != nil {
 		return err
 	}
@@ -486,10 +486,10 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 		if err != nil {
 			return nil, nil, err
 		}
-		f.Write([]byte(rs.SFTPKey))
-		f.Close()
+		_, _ = f.Write([]byte(rs.SFTPKey))
+		_ = f.Close()
 		opts.SFTPKeyFile = f.Name()
-		cleanup = func() { os.Remove(f.Name()) }
+		cleanup = func() { _ = os.Remove(f.Name()) }
 	}
 	be, err := backend.Open(ctx, rs.URL, opts)
 	if err != nil {
@@ -503,7 +503,7 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 		r, err = repo.Init(ctx, be, repo.Password(rs.Password))
 	}
 	if err != nil {
-		be.Close()
+		_ = be.Close()
 		cleanup()
 		return nil, nil, err
 	}
@@ -512,7 +512,7 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 			a.log.Warn("compression level ignored", "err", err)
 		}
 	}
-	return r, func() { r.Close(); cleanup() }, nil
+	return r, func() { _ = r.Close(); cleanup() }, nil
 }
 
 func failed(err error) api.RunResult {
@@ -580,7 +580,7 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 		res.Message = strings.TrimSpace(fmt.Sprintf("%d files or folders could not be read. %s", len(sn.Stats.Errors), res.Message))
 	}
 	res.Message = strings.TrimSpace(res.Message + " " + note)
-	lock.Unlock() // retention needs an exclusive lock
+	_ = lock.Unlock() // retention needs an exclusive lock
 	return a.withRetention(ctx, r, run, res)
 }
 
@@ -682,7 +682,7 @@ func TryPendingEnrollment(ctx context.Context, cfgPath, version string) (bool, e
 	}
 	var p pendingEnrollment
 	if err := json.Unmarshal(b, &p); err != nil {
-		os.Remove(pendingPath(cfgPath))
+		_ = os.Remove(pendingPath(cfgPath))
 		return false, err
 	}
 	cfg, err := Enroll(ctx, p.Server, p.Token, p.Fingerprint, version)
@@ -692,7 +692,7 @@ func TryPendingEnrollment(ctx context.Context, cfgPath, version string) (bool, e
 	if err := cfg.Save(cfgPath); err != nil {
 		return false, err
 	}
-	os.Remove(pendingPath(cfgPath))
+	_ = os.Remove(pendingPath(cfgPath))
 	return true, nil
 }
 
@@ -725,7 +725,7 @@ func ProbeServer(ctx context.Context, serverURL, fingerprint string) error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return nil
 }
 

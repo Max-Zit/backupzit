@@ -45,7 +45,7 @@ func cmdVMware(ctx context.Context, args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("vmware list", flag.ExitOnError)
 		vf := addVMwareFlags(fs)
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		c, err := vf.connect(ctx)
 		if err != nil {
 			return err
@@ -83,7 +83,7 @@ func cmdVMware(ctx context.Context, args []string) error {
 		vf := addVMwareFlags(fs)
 		rf := addRepoFlags(fs)
 		ids := fs.String("vmid", "", "comma-separated VMIDs from 'vmware list' (default: all VMs)")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		var sel []int
 		if *ids != "" {
 			s, err := parseInts(*ids)
@@ -133,7 +133,7 @@ func cmdVMware(ctx context.Context, args []string) error {
 		ds := fs.String("datastore", "", "datastore for the restored VM (default: the original one)")
 		overwrite := fs.Bool("overwrite", false, "replace the disks of the original VM if it still exists (old disks are kept renamed)")
 		start := fs.Bool("start", false, "start the VM after the restore")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		if fs.NArg() != 1 || *vmid == 0 {
 			return errors.New("usage: backupzit-agent vmware restore --host ESXI [options] --vmid N <snapshot-id|latest>")
 		}

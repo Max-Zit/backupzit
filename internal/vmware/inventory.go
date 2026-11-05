@@ -125,7 +125,7 @@ func devices(devs object.VirtualDeviceList) ([]Disk, []NIC) {
 	for _, d := range devs {
 		switch x := d.(type) {
 		case *types.VirtualDisk:
-			disk := Disk{DevKey: x.Key, Capacity: uint64(x.CapacityInBytes)}
+			disk := Disk{DevKey: x.Key, Capacity: uint64(x.CapacityInBytes)} // #nosec G115 -- disk and datastore sizes from vSphere are within range
 			if x.UnitNumber != nil {
 				disk.Key = fmt.Sprintf("%s:%d", ctrl[x.ControllerKey], *x.UnitNumber)
 			}
@@ -257,7 +257,7 @@ func (c *Client) Datastores(ctx context.Context) ([]Datastore, error) {
 		if !m.Summary.Accessible {
 			continue
 		}
-		out = append(out, Datastore{Name: m.Summary.Name, Type: m.Summary.Type, Capacity: uint64(m.Summary.Capacity), Free: uint64(m.Summary.FreeSpace)})
+		out = append(out, Datastore{Name: m.Summary.Name, Type: m.Summary.Type, Capacity: uint64(m.Summary.Capacity), Free: uint64(m.Summary.FreeSpace)}) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 	}
 	return out, nil
 }
@@ -316,7 +316,7 @@ func (c *Client) Inventory(ctx context.Context, host string) (*pve.Inventory, er
 			node = v.Host
 		}
 		inv.Guests = append(inv.Guests, pve.Guest{VMID: v.VMID, FormerVMID: v.BIOSVMID, ID: v.UUID, Name: v.Name, Type: "vm", Node: node,
-			Status: status, MaxDisk: v.DiskSize(), MaxMem: uint64(v.MemoryMB) << 20, Template: v.Template})
+			Status: status, MaxDisk: v.DiskSize(), MaxMem: uint64(v.MemoryMB) << 20, Template: v.Template}) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 	}
 	for _, d := range dss {
 		inv.Storage = append(inv.Storage, d.Name)

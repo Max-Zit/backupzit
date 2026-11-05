@@ -95,7 +95,7 @@ func (n *Notifier) rpoAlerts(ctx context.Context, l *language, e EmailSettings, 
 		return
 	}
 	sent := map[string]bool{}
-	n.store.GetSetting(ctx, settingRPOAlerts, &sent)
+	_ = n.store.GetSetting(ctx, settingRPOAlerts, &sent)
 	next := map[string]bool{}
 	for _, j := range jobs {
 		st := rpoState(j, cov[j.ID], now)
@@ -133,7 +133,7 @@ func (n *Notifier) rpoAlerts(ctx context.Context, l *language, e EmailSettings, 
 		n.log.Warn("job missed its RPO", "job", j.Name, "rpo_hours", st.Hours)
 	}
 	if b1, _ := json.Marshal(sent); string(b1) != mustJSON(next) {
-		n.store.SetSetting(ctx, settingRPOAlerts, next)
+		_ = n.store.SetSetting(ctx, settingRPOAlerts, next)
 	}
 }
 

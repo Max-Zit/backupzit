@@ -72,7 +72,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		}
 		// Close the current segment so recent changes are archived.
 		before := time.Now()
-		s.Query(ctx, "", "SELECT pg_switch_wal()")
+		_, _ = s.Query(ctx, "", "SELECT pg_switch_wal()")
 		waitArchived(ctx, s, before)
 		dir := filepath.Join(stage, "wal")
 		if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -90,7 +90,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 				return nil, nil, err
 			}
 			if fi, err := e.Info(); err == nil {
-				size += uint64(fi.Size())
+				size += uint64(fi.Size()) // #nosec G115 -- file sizes and counts are not negative
 			}
 			stored = append(stored, filepath.Join(WALSpool, n))
 			if IsSegment(n) {
@@ -132,10 +132,10 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		first, _ := s.WALFileName(ctx, startLSN)
 		last, _ := s.WALFileName(ctx, endLSN)
 		var csize uint64
-		filepath.WalkDir(cdir, func(_ string, d fs.DirEntry, err error) error {
+		_ = filepath.WalkDir(cdir, func(_ string, d fs.DirEntry, err error) error {
 			if err == nil && !d.IsDir() {
 				if fi, err := d.Info(); err == nil {
-					csize += uint64(fi.Size())
+					csize += uint64(fi.Size()) // #nosec G115 -- file sizes and counts are not negative
 				}
 			}
 			return nil
@@ -144,7 +144,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			FirstLSN: first, LastLSN: last, Start: start, Finish: time.Now()})
 		gfile := filepath.Join(stage, "globals.sql")
 		if out, err := asPostgres(ctx, s.bin("pg_dumpall"), "-p", strconv.Itoa(s.Port), "--globals-only"); err == nil {
-			os.WriteFile(gfile, out, 0o600)
+			_ = os.WriteFile(gfile, out, 0o600)
 			meta.Databases = append(meta.Databases, repo.SQLDatabase{Name: Globals, File: gfile, Size: uint64(len(out)), Start: time.Now(), Finish: time.Now()})
 		} else {
 			problems = append(problems, "roles were not saved: "+err.Error())
@@ -154,8 +154,8 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			return nil, problems, err
 		}
 		ddir := filepath.Join(stage, "dumps")
-		os.MkdirAll(ddir, 0o700)
-		exec.CommandContext(ctx, "chown", "postgres:", ddir).Run()
+		_ = os.MkdirAll(ddir, 0o700)
+		_ = exec.CommandContext(ctx, "chown", "postgres:", ddir).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 		for _, d := range dbs {
 			if len(o.Databases) > 0 && !containsFold(o.Databases, d.Name) {
 				continue
@@ -170,7 +170,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			fi, _ := os.Stat(f)
 			var size uint64
 			if fi != nil {
-				size = uint64(fi.Size())
+				size = uint64(fi.Size()) // #nosec G115 -- file sizes and counts are not negative
 			}
 			meta.Databases = append(meta.Databases, repo.SQLDatabase{Name: d.Name, File: f, Size: size, FirstLSN: first, LastLSN: last, Start: t0, Finish: time.Now()})
 		}
@@ -189,7 +189,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		return nil, problems, err
 	}
 	for _, f := range stored {
-		os.Remove(f)
+		_ = os.Remove(f)
 	}
 	return sn, problems, nil
 }
@@ -197,7 +197,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 // basebackupLSNs reads the WAL range of a tar-format base backup from its
 // backup_manifest.
 func basebackupLSNs(dir string) (start, end string) {
-	b, err := os.ReadFile(filepath.Join(dir, "backup_manifest"))
+	b, err := os.ReadFile(filepath.Join(dir, "backup_manifest")) // #nosec G304 -- PostgreSQL files and dumps in the agent's working folder
 	if err != nil {
 		return "", ""
 	}
@@ -272,7 +272,7 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 	keep := false
 	defer func() {
 		if !keep {
-			os.RemoveAll(work)
+			_ = os.RemoveAll(work)
 		}
 	}()
 	res := &RestoreResult{Database: o.Database}
@@ -303,7 +303,7 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 			return nil, err
 		}
 		walDir := filepath.Join(work, "wal")
-		os.MkdirAll(walDir, 0o700)
+		_ = os.MkdirAll(walDir, 0o700)
 		next := NextSegment(cl.LastLSN)
 		for _, sn := range wals {
 			w := find(sn, WAL)
@@ -323,7 +323,7 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 			}
 			entries, _ := os.ReadDir(got)
 			for _, e := range entries {
-				os.Rename(filepath.Join(got, e.Name()), filepath.Join(walDir, e.Name()))
+				_ = os.Rename(filepath.Join(got, e.Name()), filepath.Join(walDir, e.Name()))
 			}
 			res.WALFiles++
 			next = NextSegment(w.LastLSN)
@@ -346,15 +346,15 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 		}
 		defer inst.stop(context.Background())
 		dump = filepath.Join(work, "pitr.dump")
-		os.WriteFile(dump, nil, 0o600)
-		exec.CommandContext(ctx, "chown", "postgres:", dump).Run()
+		_ = os.WriteFile(dump, nil, 0o600)
+		_ = exec.CommandContext(ctx, "chown", "postgres:", dump).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 		o.Log("pg_dump from the recovered instance", "database", o.Database)
 		if _, err := asPostgres(ctx, inst.bin("pg_dump"), "-h", inst.Socket, "-p", strconv.Itoa(inst.Port), "-Fc", "-Z", "0", "-f", dump, o.Database); err != nil {
 			return nil, err
 		}
 	}
 	// pg_restore runs as postgres: give it the restored files.
-	exec.CommandContext(ctx, "chown", "-R", "postgres:", work).Run()
+	_ = exec.CommandContext(ctx, "chown", "-R", "postgres:", work).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 	if err := s.restoreDump(ctx, dump, o); err != nil {
 		return nil, err
 	}
@@ -378,7 +378,7 @@ func (s *Server) restoreDump(ctx context.Context, dump string, o RestoreOptions)
 			return fmt.Errorf("database %s exists; restore under another name or choose to replace it", target)
 		}
 		o.Log("dropping the existing database", "database", target)
-		s.Query(ctx, "", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = "+lit+" AND pid <> pg_backend_pid()")
+		_, _ = s.Query(ctx, "", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = "+lit+" AND pid <> pg_backend_pid()")
 		if _, err := s.Query(ctx, "", "DROP DATABASE "+q); err != nil {
 			return err
 		}
@@ -407,7 +407,7 @@ func (i *instance) bin(name string) string {
 }
 
 func (i *instance) stop(ctx context.Context) {
-	asPostgres(ctx, i.bin("pg_ctl"), "-D", i.DataDir, "-m", "fast", "-w", "stop")
+	_, _ = asPostgres(ctx, i.bin("pg_ctl"), "-D", i.DataDir, "-m", "fast", "-w", "stop")
 }
 
 // startRecovered unpacks a tar base backup into work/data and starts it on
@@ -417,11 +417,11 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 	if err := os.MkdirAll(data, 0o700); err != nil {
 		return nil, err
 	}
-	if out, err := exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "base.tar"), "-C", data).CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "base.tar"), "-C", data).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
 		return nil, fmt.Errorf("unpack base.tar: %v: %s", err, out)
 	}
 	if _, err := os.Stat(filepath.Join(base, "pg_wal.tar")); err == nil {
-		exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "pg_wal.tar"), "-C", filepath.Join(data, "pg_wal")).Run()
+		_ = exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "pg_wal.tar"), "-C", filepath.Join(data, "pg_wal")).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 	}
 	port, err := freePort()
 	if err != nil {
@@ -435,17 +435,17 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 		conf += "recovery_target_time = '" + stopAt.Format("2006-01-02 15:04:05-07:00") + "'\n"
 	}
 	if _, err := os.Stat(filepath.Join(data, "postgresql.conf")); err != nil {
-		os.WriteFile(filepath.Join(data, "postgresql.conf"), []byte("# written by BackupZit for a restored cluster\n"), 0o600)
+		_ = os.WriteFile(filepath.Join(data, "postgresql.conf"), []byte("# written by BackupZit for a restored cluster\n"), 0o600)
 	}
-	os.WriteFile(filepath.Join(data, "postgresql.auto.conf"), []byte(conf), 0o600)
-	os.WriteFile(filepath.Join(data, "pg_hba.conf"), []byte("local all all peer\n"), 0o600)
-	os.WriteFile(filepath.Join(data, "pg_ident.conf"), nil, 0o600)
-	os.WriteFile(filepath.Join(data, "recovery.signal"), nil, 0o600)
-	os.Remove(filepath.Join(data, "postmaster.pid"))
+	_ = os.WriteFile(filepath.Join(data, "postgresql.auto.conf"), []byte(conf), 0o600)
+	_ = os.WriteFile(filepath.Join(data, "pg_hba.conf"), []byte("local all all peer\n"), 0o600)
+	_ = os.WriteFile(filepath.Join(data, "pg_ident.conf"), nil, 0o600)
+	_ = os.WriteFile(filepath.Join(data, "recovery.signal"), nil, 0o600)
+	_ = os.Remove(filepath.Join(data, "postmaster.pid"))
 	for _, d := range []string{work, walDir} {
-		os.Chmod(d, 0o700)
+		_ = os.Chmod(d, 0o700) // #nosec G302 -- a directory needs the x bit
 	}
-	if out, err := exec.CommandContext(ctx, "chown", "-R", "postgres:", work).CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(ctx, "chown", "-R", "postgres:", work).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
 		return nil, fmt.Errorf("chown: %v: %s", err, out)
 	}
 	if bindir == "" {
@@ -454,7 +454,7 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 	inst := &instance{DataDir: data, Socket: work, BinDir: bindir, Port: port}
 	log("starting the recovered cluster", "port", port)
 	if _, err := asPostgres(ctx, inst.bin("pg_ctl"), "-D", data, "-l", filepath.Join(work, "postgres.log"), "-w", "-t", "3600", "start"); err != nil {
-		b, _ := os.ReadFile(filepath.Join(work, "postgres.log"))
+		b, _ := os.ReadFile(filepath.Join(work, "postgres.log")) // #nosec G304 -- PostgreSQL files and dumps in the agent's working folder
 		return nil, fmt.Errorf("the recovered cluster did not start: %s", lastLines(strings.TrimSpace(string(b)), 4))
 	}
 	// Wait for the end of recovery (promotion).
@@ -488,7 +488,7 @@ func freePort() (int, error) {
 	for p := 54330; p < 54400; p++ {
 		l, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(p))
 		if err == nil {
-			l.Close()
+			_ = l.Close()
 			if _, err := os.Stat(fmt.Sprintf("/tmp/.s.PGSQL.%d", p)); err != nil {
 				return p, nil
 			}
@@ -530,9 +530,9 @@ func safeName(s string) string {
 }
 
 func copyFile(src, dst string) error {
-	b, err := os.ReadFile(src)
+	b, err := os.ReadFile(src) // #nosec G304 -- PostgreSQL files and dumps in the agent's working folder
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, b, 0o600)
+	return os.WriteFile(dst, b, 0o600) // #nosec G703 -- dump file in the agent's working folder
 }

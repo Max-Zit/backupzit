@@ -68,15 +68,15 @@ func attachVHD(file string, readOnly bool) (*attachedDisk, error) {
 		// OPEN_VIRTUAL_DISK_PARAMETERS version 2: GetInfoOnly, ReadOnly, ResiliencyGuid.
 		params := make([]byte, 28)
 		binary.LittleEndian.PutUint32(params[0:], 2)
-		binary.LittleEndian.PutUint32(params[8:], 1) // ReadOnly
-		r, _, _ = procOpenVirtualDisk.Call(uintptr(unsafe.Pointer(&st)), uintptr(unsafe.Pointer(p)), virtualDiskAccessNone, 0,
-			uintptr(unsafe.Pointer(&params[0])), uintptr(unsafe.Pointer(&h)))
+		binary.LittleEndian.PutUint32(params[8:], 1)                                                                           // ReadOnly
+		r, _, _ = procOpenVirtualDisk.Call(uintptr(unsafe.Pointer(&st)), uintptr(unsafe.Pointer(p)), virtualDiskAccessNone, 0, // #nosec G103 -- structure passed to the Virtual Disk API
+			uintptr(unsafe.Pointer(&params[0])), uintptr(unsafe.Pointer(&h))) // #nosec G103 -- structure passed to the Virtual Disk API
 	} else {
 		params := make([]byte, 8) // version 1, RWDepth 1
 		binary.LittleEndian.PutUint32(params[0:], 1)
 		binary.LittleEndian.PutUint32(params[4:], 1)
-		r, _, _ = procOpenVirtualDisk.Call(uintptr(unsafe.Pointer(&st)), uintptr(unsafe.Pointer(p)), virtualDiskAccessAll, 0,
-			uintptr(unsafe.Pointer(&params[0])), uintptr(unsafe.Pointer(&h)))
+		r, _, _ = procOpenVirtualDisk.Call(uintptr(unsafe.Pointer(&st)), uintptr(unsafe.Pointer(p)), virtualDiskAccessAll, 0, // #nosec G103 -- structure passed to the Virtual Disk API
+			uintptr(unsafe.Pointer(&params[0])), uintptr(unsafe.Pointer(&h))) // #nosec G103 -- structure passed to the Virtual Disk API
 	}
 	if err := callErr(r); err != nil {
 		return nil, fmt.Errorf("open %s: %w", file, err)
@@ -85,33 +85,33 @@ func attachVHD(file string, readOnly bool) (*attachedDisk, error) {
 	ok := false
 	defer func() {
 		if !ok {
-			windows.CloseHandle(h)
+			_ = windows.CloseHandle(h)
 		}
 	}()
 	flags := uintptr(attachFlagNoDriveLetter)
 	if readOnly {
 		flags |= attachFlagReadOnly
 	}
-	ap := []uint32{1, 0} // ATTACH_VIRTUAL_DISK_PARAMETERS version 1
-	r, _, _ = procAttachVirtualDisk.Call(uintptr(h), 0, flags, 0, uintptr(unsafe.Pointer(&ap[0])), 0)
+	ap := []uint32{1, 0}                                                                              // ATTACH_VIRTUAL_DISK_PARAMETERS version 1
+	r, _, _ = procAttachVirtualDisk.Call(uintptr(h), 0, flags, 0, uintptr(unsafe.Pointer(&ap[0])), 0) // #nosec G103 -- structure passed to the Virtual Disk API
 	if err := callErr(r); err != nil {
 		return nil, fmt.Errorf("attach %s: %w", file, err)
 	}
 	buf := make([]uint16, 260)
-	n := uint32(len(buf) * 2)
-	r, _, _ = procGetVirtualDiskPhysPath.Call(uintptr(h), uintptr(unsafe.Pointer(&n)), uintptr(unsafe.Pointer(&buf[0])))
+	n := uint32(len(buf) * 2)                                                                                            // #nosec G115 -- length of a small buffer for a Windows API call
+	r, _, _ = procGetVirtualDiskPhysPath.Call(uintptr(h), uintptr(unsafe.Pointer(&n)), uintptr(unsafe.Pointer(&buf[0]))) // #nosec G103 -- structure passed to the Virtual Disk API
 	if err := callErr(r); err != nil {
-		procDetachVirtualDisk.Call(uintptr(h), 0, 0)
+		_, _, _ = procDetachVirtualDisk.Call(uintptr(h), 0, 0)
 		return nil, fmt.Errorf("disk path of %s: %w", file, err)
 	}
 	d.path = windows.UTF16ToString(buf)
 	// GET_VIRTUAL_DISK_INFO with Version SIZE: VirtualSize at offset 8.
 	info := make([]byte, 32)
 	binary.LittleEndian.PutUint32(info[0:], getVirtualDiskInfoSize)
-	isz := uint32(len(info))
-	r, _, _ = procGetVirtualDiskInfo.Call(uintptr(h), uintptr(unsafe.Pointer(&isz)), uintptr(unsafe.Pointer(&info[0])), 0)
+	isz := uint32(len(info))                                                                                               // #nosec G115 -- length of a small buffer for a Windows API call
+	r, _, _ = procGetVirtualDiskInfo.Call(uintptr(h), uintptr(unsafe.Pointer(&isz)), uintptr(unsafe.Pointer(&info[0])), 0) // #nosec G103 -- structure passed to the Virtual Disk API
 	if err := callErr(r); err != nil {
-		procDetachVirtualDisk.Call(uintptr(h), 0, 0)
+		_, _, _ = procDetachVirtualDisk.Call(uintptr(h), 0, 0)
 		return nil, fmt.Errorf("size of %s: %w", file, err)
 	}
 	d.size = binary.LittleEndian.Uint64(info[8:])
@@ -120,8 +120,8 @@ func attachVHD(file string, readOnly bool) (*attachedDisk, error) {
 }
 
 func (d *attachedDisk) close() {
-	procDetachVirtualDisk.Call(uintptr(d.h), 0, 0)
-	windows.CloseHandle(d.h)
+	_, _, _ = procDetachVirtualDisk.Call(uintptr(d.h), 0, 0)
+	_ = windows.CloseHandle(d.h)
 }
 
 // openForWrite opens the attached disk for raw writes and takes it offline,
@@ -138,8 +138,8 @@ func (d *attachedDisk) openForWrite() (*os.File, error) {
 	binary.LittleEndian.PutUint64(in[8:16], diskAttributeOffline)
 	binary.LittleEndian.PutUint64(in[16:24], diskAttributeOffline)
 	var ret uint32
-	if err := windows.DeviceIoControl(h, ioctlDiskSetDiskAttributes, &in[0], uint32(len(in)), nil, 0, &ret, nil); err != nil {
-		windows.CloseHandle(h)
+	if err := windows.DeviceIoControl(h, ioctlDiskSetDiskAttributes, &in[0], uint32(len(in)), nil, 0, &ret, nil); err != nil { // #nosec G115 -- length of a small buffer for a Windows API call
+		_ = windows.CloseHandle(h)
 		return nil, fmt.Errorf("take disk offline: %w", err)
 	}
 	return os.NewFile(uintptr(h), d.path), nil
@@ -156,8 +156,8 @@ const getVirtualDiskInfoChangeTrackingState = 15
 func (d *attachedDisk) rctState() (bool, string, error) {
 	info := make([]byte, 1024)
 	binary.LittleEndian.PutUint32(info[0:], getVirtualDiskInfoChangeTrackingState)
-	isz := uint32(len(info))
-	r, _, _ := procGetVirtualDiskInfo.Call(uintptr(d.h), uintptr(unsafe.Pointer(&isz)), uintptr(unsafe.Pointer(&info[0])), 0)
+	isz := uint32(len(info))                                                                                                  // #nosec G115 -- length of a small buffer for a Windows API call
+	r, _, _ := procGetVirtualDiskInfo.Call(uintptr(d.h), uintptr(unsafe.Pointer(&isz)), uintptr(unsafe.Pointer(&info[0])), 0) // #nosec G103 -- structure passed to the Virtual Disk API
 	if err := callErr(r); err != nil {
 		return false, "", err
 	}
@@ -190,8 +190,8 @@ func (d *attachedDisk) rctChanges(since string) ([][2]uint64, error) {
 	for off < d.size {
 		count := uint32(batch)
 		var processed uint64
-		r, _, _ := procQueryChangesVirtualDisk.Call(uintptr(d.h), uintptr(unsafe.Pointer(id)), uintptr(off), uintptr(d.size-off), 0,
-			uintptr(unsafe.Pointer(&ranges[0])), uintptr(unsafe.Pointer(&count)), uintptr(unsafe.Pointer(&processed)))
+		r, _, _ := procQueryChangesVirtualDisk.Call(uintptr(d.h), uintptr(unsafe.Pointer(id)), uintptr(off), uintptr(d.size-off), 0, // #nosec G103 -- structure passed to the Virtual Disk API
+			uintptr(unsafe.Pointer(&ranges[0])), uintptr(unsafe.Pointer(&count)), uintptr(unsafe.Pointer(&processed))) // #nosec G103 -- structure passed to the Virtual Disk API
 		if err := callErr(r); err != nil {
 			return nil, err
 		}

@@ -34,7 +34,7 @@ func mountNAS(ctx context.Context, s nasShare, cred *api.NASShare, writable bool
 		return "", nil, err
 	}
 	if mounted(dir) {
-		exec.CommandContext(ctx, "umount", dir).Run() // left over from an interrupted run
+		_ = exec.CommandContext(ctx, "umount", dir).Run() // #nosec G204 -- left over from an interrupted run
 	}
 	mode := "ro"
 	if writable {
@@ -58,19 +58,19 @@ func mountNAS(ctx context.Context, s nasShare, cred *api.NASShare, writable bool
 			if cred.Domain != "" {
 				fmt.Fprintf(f, "domain=%s\n", cred.Domain)
 			}
-			f.Close()
+			_ = f.Close()
 			opts += ",credentials=" + f.Name()
 		}
 		args = []string{"-t", "cifs", "//" + s.Host + "/" + s.Share, dir, "-o", opts}
 	case "nfs":
 		args = []string{"-t", "nfs", s.Host + ":" + s.Share, dir, "-o", mode + ",nolock"}
 	}
-	if out, err := exec.CommandContext(ctx, "mount", args...).CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(ctx, "mount", args...).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
 		return "", nil, fmt.Errorf("mount: %s", strings.TrimSpace(string(out)))
 	}
 	unmount := func() {
-		if err := exec.Command("umount", dir).Run(); err != nil {
-			exec.Command("umount", "-l", dir).Run()
+		if err := exec.Command("umount", dir).Run(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
+			_ = exec.Command("umount", "-l", dir).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 		}
 	}
 	root := dir

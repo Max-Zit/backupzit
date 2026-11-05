@@ -105,11 +105,11 @@ func (c *Client) removeDir(ctx context.Context, ds, dir string) error {
 func (c *Client) removeDirIfEmpty(ctx context.Context, ds, dir string) {
 	if c.useAPI {
 		if files, err := c.listDir(ctx, ds, dir); err == nil && len(files) == 0 {
-			c.removeDir(ctx, ds, dir)
+			_ = c.removeDir(ctx, ds, dir)
 		}
 		return
 	}
-	c.run(ctx, "rmdir "+sq("/vmfs/volumes/"+ds+"/"+dir)+" 2>/dev/null; true")
+	_, _ = c.run(ctx, "rmdir "+sq("/vmfs/volumes/"+ds+"/"+dir)+" 2>/dev/null; true")
 }
 
 // exists reports whether a file or directory exists on a datastore.
@@ -120,7 +120,7 @@ func (c *Client) exists(ctx context.Context, ds, p string) bool {
 			return false
 		}
 		found := false
-		c.vim.Do(ctx, req, func(resp *http.Response) error {
+		_ = c.vim.Do(ctx, req, func(resp *http.Response) error {
 			found = resp.StatusCode == http.StatusOK
 			return nil
 		})
@@ -375,7 +375,7 @@ func (c *Client) shutdown(ctx context.Context, moid string) {
 			time.Sleep(5 * time.Second)
 		}
 	}
-	c.powerOff(ctx, moid)
+	_ = c.powerOff(ctx, moid)
 }
 
 // removeAllSnapshots deletes all snapshots of a VM.
@@ -465,14 +465,14 @@ func (c *Client) uploadDisk(ctx context.Context, upload func(dsPath) error, p ds
 	tmp := p.join(strings.TrimSuffix(path.Base(p.Path), ".vmdk") + "-bzupload.vmdk")
 	fm := object.NewFileManager(c.vim)
 	if t, err := fm.DeleteDatastoreFile(ctx, tmp.String(), c.dc); err == nil {
-		t.Wait(ctx)
+		_ = t.Wait(ctx)
 	}
 	if err := upload(tmp); err != nil {
 		return err
 	}
 	defer func() {
 		if t, err := fm.DeleteDatastoreFile(context.Background(), tmp.String(), c.dc); err == nil {
-			t.Wait(context.Background())
+			_ = t.Wait(context.Background())
 		}
 	}()
 	t, err := object.NewVirtualDiskManager(c.vim).CopyVirtualDisk(ctx, tmp.String(), c.dc, p.String(), c.dc, thinSpec(adapter), false)

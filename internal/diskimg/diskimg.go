@@ -89,7 +89,7 @@ func Write(ctx context.Context, r *repo.Repository, img *repo.DiskImage, w io.Wr
 		n := min(uint64(p.BlockSize), p.Length-off)
 		if id.IsNull() {
 			if writeZeros {
-				if _, err := w.WriteAt(zeroBlock[:n], int64(off)); err != nil {
+				if _, err := w.WriteAt(zeroBlock[:n], int64(off)); err != nil { // #nosec G115 -- disk offsets are below 2^63
 					return err
 				}
 			}
@@ -103,7 +103,7 @@ func Write(ctx context.Context, r *repo.Repository, img *repo.DiskImage, w io.Wr
 		if uint64(len(b)) != n {
 			return fmt.Errorf("block %d has %d bytes, expected %d", i, len(b), n)
 		}
-		if _, err := w.WriteAt(b, int64(off)); err != nil {
+		if _, err := w.WriteAt(b, int64(off)); err != nil { // #nosec G115 -- disk offsets are below 2^63
 			return fmt.Errorf("write block %d: %w", i, err)
 		}
 		progress(n)
@@ -293,7 +293,7 @@ func WriteChanges(ctx context.Context, r *repo.Repository, img, prev *repo.DiskI
 				return written, fmt.Errorf("block %d has %d bytes, expected %d", i, len(b), n)
 			}
 		}
-		if _, err := w.WriteAt(b, int64(off)); err != nil {
+		if _, err := w.WriteAt(b, int64(off)); err != nil { // #nosec G115 -- disk offsets are below 2^63
 			return written, fmt.Errorf("write block %d: %w", i, err)
 		}
 		written += n

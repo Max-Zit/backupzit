@@ -72,7 +72,7 @@ func (a *Agent) m365Backup(ctx context.Context, run api.Run) api.RunResult {
 		out.Status = api.StatusWarning
 		out.Message = fmt.Sprintf("%d messages, files or folders could not be read. %s", len(sn.Stats.Errors), out.Message)
 	}
-	lock.Unlock() // retention needs an exclusive lock
+	_ = lock.Unlock() // retention needs an exclusive lock
 	return a.withRetention(ctx, r, run, out)
 }
 

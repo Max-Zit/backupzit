@@ -120,7 +120,7 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	if len(sn.Stats.Errors) > 0 {
 		res.Status = api.StatusWarning
 	}
-	lock.Unlock() // retention needs an exclusive lock
+	_ = lock.Unlock() // retention needs an exclusive lock
 	return a.withRetention(ctx, r, run, res)
 }
 

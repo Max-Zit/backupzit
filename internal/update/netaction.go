@@ -60,7 +60,7 @@ func (a *Applier) netAction(ctx context.Context, req Request) (*Result, error) {
 		return nil, err
 	}
 	if req.Action == ActionTimeZone && res.Status == "done" {
-		a.Run(ctx, "systemctl", "restart", "backupzit-server")
+		_, _ = a.Run(ctx, "systemctl", "restart", "backupzit-server")
 	}
 	return nil, nil
 }

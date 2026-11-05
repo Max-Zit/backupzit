@@ -65,7 +65,7 @@ func (s *Server) downloads() []download {
 		if !ok {
 			continue
 		}
-		d := download{Name: e.Name(), Size: humanBytes(uint64(fi.Size())), Title: title, Desc: desc, Primary: primary, order: order, mod: fi.ModTime()}
+		d := download{Name: e.Name(), Size: humanBytes(uint64(fi.Size())), Title: title, Desc: desc, Primary: primary, order: order, mod: fi.ModTime()} // #nosec G115 -- sizes and counts for display and statistics, not negative
 		key := title + desc
 		if old, ok := newest[key]; !ok || d.mod.After(old.mod) {
 			newest[key] = d
@@ -200,7 +200,7 @@ func (s *Server) fileSHA256(path string) (string, error) {
 	if v, ok := s.shaCache.Load(key); ok {
 		return v.(string), nil
 	}
-	f, err := os.Open(path)
+	f, err := os.Open(path) // #nosec G304 -- file of the console's own data or installer directory, not named by a request
 	if err != nil {
 		return "", err
 	}

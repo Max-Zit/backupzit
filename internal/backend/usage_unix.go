@@ -9,5 +9,5 @@ func diskUsage(dir string) (Usage, error) {
 	if err := unix.Statfs(dir, &st); err != nil {
 		return Usage{}, err
 	}
-	return Usage{Total: uint64(st.Blocks) * uint64(st.Bsize), Free: uint64(st.Bavail) * uint64(st.Bsize)}, nil
+	return Usage{Total: uint64(st.Blocks) * uint64(st.Bsize), Free: uint64(st.Bavail) * uint64(st.Bsize)}, nil // #nosec G115 -- file sizes and counts are not negative
 }

@@ -41,7 +41,7 @@ func findRecoveryConfig() (recoveryConfig, string) {
 		}
 	}
 	for _, p := range candidates {
-		b, err := os.ReadFile(p)
+		b, err := os.ReadFile(p) // #nosec G304 -- file named on the command line by the administrator
 		if err != nil {
 			continue
 		}
@@ -68,7 +68,7 @@ func cmdRecovery(ctx context.Context, args []string) error {
 	fs.StringVar(&c.Server, "server", "", "server URL")
 	fs.StringVar(&c.Token, "token", "", "recovery/enrollment token")
 	fs.StringVar(&c.Fingerprint, "fingerprint", "", "server certificate fingerprint")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	fmt.Println("==============================================")
 	fmt.Println(" BackupZit recovery environment  " + version)

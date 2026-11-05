@@ -171,14 +171,14 @@ func (c *Client) enableCBT(ctx context.Context, vm VM) (string, error) {
 func (c *Client) changedAreas(ctx context.Context, vm VM, s snapshot, d Disk, changeID string) ([]diskimg.Area, error) {
 	var areas []diskimg.Area
 	var off int64
-	for off < int64(d.Capacity) {
+	for off < int64(d.Capacity) { // #nosec G115 -- disk and datastore sizes from vSphere are within range
 		res, err := methods.QueryChangedDiskAreas(ctx, c.vim, &types.QueryChangedDiskAreas{
 			This: vm.Ref, Snapshot: &s.Ref, DeviceKey: d.DevKey, StartOffset: off, ChangeId: changeID})
 		if err != nil {
 			return nil, err
 		}
 		for _, a := range res.Returnval.ChangedArea {
-			areas = append(areas, diskimg.Area{Offset: uint64(a.Start), Length: uint64(a.Length)})
+			areas = append(areas, diskimg.Area{Offset: uint64(a.Start), Length: uint64(a.Length)}) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 		}
 		next := res.Returnval.StartOffset + res.Returnval.Length
 		if next <= off {

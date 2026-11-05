@@ -62,7 +62,7 @@ func main() {
 	jar, _ := cookiejar.New(nil)
 	c := &client{base: strings.TrimRight(*base, "/"), c: &http.Client{Jar: jar,
 		// Lab consoles have self-signed certificates.
-		Transport:     &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}, //nolint:gosec
+		Transport:     &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}, // #nosec G402 -- lab consoles with self-signed certificates
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	// One sign-in only: failed sign-ins lock the address out.
 	if _, loc, _ := c.Do("POST", "/login", url.Values{"username": {*user}, "password": {pw}}); loc != "/" {

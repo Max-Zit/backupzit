@@ -56,7 +56,7 @@ type System struct {
 
 // Default is the real system.
 var Default = &System{Run: func(ctx context.Context, name string, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
+	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput() // #nosec G204 -- fixed program; arguments are separate values, no shell
 	if err != nil {
 		return string(out), fmt.Errorf("%s: %v: %s", name, err, strings.TrimSpace(string(out)))
 	}
@@ -212,7 +212,7 @@ func (s *System) Current(ctx context.Context) (*Status, error) {
 }
 
 func resolvers(path string) []string {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) // #nosec G304 -- the appliance's network configuration file
 	if err != nil {
 		return nil
 	}
@@ -235,10 +235,10 @@ func (s *System) Apply(ctx context.Context, c Config, check bool) error {
 	}
 	old, oldErr := os.ReadFile(s.path(NetworkFile))
 	oldResolv, _ := os.ReadFile(s.path("/etc/resolv.conf"))
-	if err := os.MkdirAll(filepath.Dir(s.path(NetworkFile)), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path(NetworkFile)), 0o755); err != nil { // #nosec G301 -- system directory
 		return err
 	}
-	if err := os.WriteFile(s.path(NetworkFile), []byte(networkFile(c)), 0o644); err != nil {
+	if err := os.WriteFile(s.path(NetworkFile), []byte(networkFile(c)), 0o644); err != nil { // #nosec G306 -- system configuration file, readable by all like the distribution's
 		return err
 	}
 	if !c.DHCP {
@@ -255,7 +255,7 @@ func (s *System) Apply(ctx context.Context, c Config, check bool) error {
 	if c.DHCP {
 		// DNS servers of the lease (or of the settings) into resolv.conf;
 		// later lease changes are followed by backupzit-dns.path.
-		s.Run(ctx, DNSSync, "dns")
+		_, _ = s.Run(ctx, DNSSync, "dns")
 	}
 	if !check || c.DHCP || c.Gateway == "" {
 		return nil
@@ -269,14 +269,14 @@ func (s *System) Apply(ctx context.Context, c Config, check bool) error {
 	}
 	// Undo: the previous file (or DHCP), the previous resolvers.
 	if oldErr == nil {
-		os.WriteFile(s.path(NetworkFile), old, 0o644)
+		_ = os.WriteFile(s.path(NetworkFile), old, 0o644) // #nosec G306 G703 -- system configuration file, readable by all like the distribution's
 	} else {
-		os.WriteFile(s.path(NetworkFile), []byte(networkFile(Config{DHCP: true})), 0o644)
+		_ = os.WriteFile(s.path(NetworkFile), []byte(networkFile(Config{DHCP: true})), 0o644) // #nosec G306 -- system configuration file, readable by all like the distribution's
 	}
 	if oldResolv != nil {
-		os.WriteFile(s.path("/etc/resolv.conf"), oldResolv, 0o644)
+		_ = os.WriteFile(s.path("/etc/resolv.conf"), oldResolv, 0o644) // #nosec G306 G703 -- system configuration file, readable by all like the distribution's
 	}
-	s.activate(ctx)
+	_ = s.activate(ctx)
 	return fmt.Errorf("the gateway %s did not answer with the new settings; the previous network settings were restored", c.Gateway)
 }
 
@@ -294,12 +294,12 @@ func (s *System) writeResolv(dns []string) {
 	for _, d := range dns {
 		fmt.Fprintf(&b, "nameserver %s\n", d)
 	}
-	os.WriteFile(s.path("/etc/resolv.conf"), []byte(b.String()), 0o644)
+	_ = os.WriteFile(s.path("/etc/resolv.conf"), []byte(b.String()), 0o644) // #nosec G306 -- system configuration file, readable by all like the distribution's
 }
 
 // SetHostname renames the server.
 func (s *System) SetHostname(ctx context.Context, name string) error {
-	if err := os.WriteFile(s.path("/etc/hostname"), []byte(name+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(s.path("/etc/hostname"), []byte(name+"\n"), 0o644); err != nil { // #nosec G306 -- system configuration file, readable by all like the distribution's
 		return err
 	}
 	hosts, _ := os.ReadFile(s.path("/etc/hosts"))
@@ -314,7 +314,7 @@ func (s *System) SetHostname(ctx context.Context, name string) error {
 	if !found {
 		out = append(out, "127.0.1.1\t"+name)
 	}
-	if err := os.WriteFile(s.path("/etc/hosts"), []byte(strings.Join(out, "\n")+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(s.path("/etc/hosts"), []byte(strings.Join(out, "\n")+"\n"), 0o644); err != nil { // #nosec G306 G703 -- system configuration file, readable by all like the distribution's
 		return err
 	}
 	_, err := s.Run(ctx, "hostname", name)
@@ -325,13 +325,13 @@ func (s *System) SetHostname(ctx context.Context, name string) error {
 // Installations from the ISO used ifupdown: it is switched off for good.
 func (s *System) activate(ctx context.Context) error {
 	if b, err := os.ReadFile(s.path("/etc/network/interfaces")); err == nil && strings.Contains(string(b), "iface e") {
-		os.WriteFile(s.path("/etc/network/interfaces"), []byte("auto lo\niface lo inet loopback\n"), 0o644)
-		s.Run(ctx, "systemctl", "disable", "networking.service")
+		_ = os.WriteFile(s.path("/etc/network/interfaces"), []byte("auto lo\niface lo inet loopback\n"), 0o644) // #nosec G306 -- system configuration file, readable by all like the distribution's
+		_, _ = s.Run(ctx, "systemctl", "disable", "networking.service")
 	}
-	s.Run(ctx, "systemctl", "enable", "systemd-networkd.service")
+	_, _ = s.Run(ctx, "systemctl", "enable", "systemd-networkd.service")
 	// Old addresses go away with the restart only if they are flushed.
 	if st, err := s.Current(ctx); err == nil && st.Interface != "" {
-		s.Run(ctx, "ip", "-4", "addr", "flush", "dev", st.Interface, "scope", "global")
+		_, _ = s.Run(ctx, "ip", "-4", "addr", "flush", "dev", st.Interface, "scope", "global")
 	}
 	_, err := s.Run(ctx, "systemctl", "restart", "systemd-networkd.service")
 	return err

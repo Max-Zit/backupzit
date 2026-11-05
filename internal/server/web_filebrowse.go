@@ -205,7 +205,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 		http.NotFound(w, r)
 		return
 	}
-	r.ParseForm()
+	_ = r.ParseForm()
 	dir := strings.Join(snapshotComps(r.FormValue("path")), "/")
 	sel := r.Form["sel"]
 	if len(sel) == 0 {
@@ -244,7 +244,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 				w.Header().Set("Content-Type", "application/octet-stream")
 				w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(cp.Name))
 				w.Header().Set("Content-Length", strconv.FormatUint(cp.Size, 10))
-				writeFile(w, &cp)
+				_ = writeFile(w, &cp)
 				return
 			}
 		}
@@ -252,7 +252,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 			w.Header().Set("Content-Type", "application/octet-stream")
 			w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(n.Name))
 			w.Header().Set("Content-Length", strconv.FormatUint(n.Size, 10))
-			writeFile(w, n)
+			_ = writeFile(w, n)
 			return
 		}
 	}
@@ -276,7 +276,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 				return nil
 			}
 			if len(t.Nodes) == 0 {
-				zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: n.ModTime})
+				_, _ = zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: n.ModTime})
 			}
 			for i := range t.Nodes {
 				if err := add(path.Join(rel, t.Nodes[i].Name), append(append([]string{}, comps...), t.Nodes[i].Name), &t.Nodes[i]); err != nil {
@@ -321,7 +321,7 @@ func (s *Server) handleFilePickRestore(w http.ResponseWriter, r *http.Request, _
 		http.NotFound(w, r)
 		return
 	}
-	r.ParseForm()
+	_ = r.ParseForm()
 	dir := strings.Join(snapshotComps(r.FormValue("path")), "/")
 	back := fileBack(run, dir)
 	sel := r.Form["sel"]

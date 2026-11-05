@@ -15,6 +15,7 @@ import (
 // output is UTF-8: in the console code page, VM names and paths with e.g.
 // Japanese letters would be garbled or lost.
 var ps = func(ctx context.Context, script string) ([]byte, error) {
+	// #nosec G204 -- PowerShell script built by the agent; values are quoted with psq
 	cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
 		"[Console]::OutputEncoding=New-Object System.Text.UTF8Encoding $false; $ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; "+script)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}

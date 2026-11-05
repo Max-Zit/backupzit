@@ -214,7 +214,7 @@ func run() error {
 	srv.Version = version
 	srv.UpdatedFrom = updatedFrom
 	srv.LogFile = logPath
-	os.MkdirAll(srv.DistDir, 0o755)
+	_ = os.MkdirAll(srv.DistDir, 0o755) // #nosec G301 -- public agent installers
 
 	srv.Notifier = server.NewNotifier(store, log, srv.ConsoleURL)
 	srv.StartWeb(ctx, *dataDir)
@@ -274,7 +274,7 @@ func ensureAdmin(ctx context.Context, store *server.Store, dataDir string, log *
 	}
 	if generated {
 		p := filepath.Join(dataDir, "initial-admin-password.txt")
-		if err := os.WriteFile(p, []byte(pw+"\n"), 0o600); err != nil {
+		if err := os.WriteFile(p, []byte(pw+"\n"), 0o600); err != nil { // #nosec G703 -- file in the console's data directory
 			return err
 		}
 		log.Warn("created user 'admin' with a generated password", "password_file", p)
@@ -336,7 +336,7 @@ func runRestoreConsole(ctx context.Context, dbURL, dataDir, repoURL, snapshot st
 	}
 	r, err := repo.Open(ctx, be, repo.Password(os.Getenv("BACKUPZIT_PASSWORD")))
 	if err != nil {
-		be.Close()
+		_ = be.Close()
 		return fmt.Errorf("open repository (recovery key in BACKUPZIT_PASSWORD): %w", err)
 	}
 	defer r.Close()
@@ -353,7 +353,7 @@ func runRestoreConsole(ctx context.Context, dbURL, dataDir, repoURL, snapshot st
 // that kept the file), so the appliance screen stops showing it.
 func forgetChangedInitialPassword(ctx context.Context, store *server.Store, dataDir string, log *slog.Logger) {
 	p := filepath.Join(dataDir, "initial-admin-password.txt")
-	b, err := os.ReadFile(p)
+	b, err := os.ReadFile(p) // #nosec G304 -- file named on the command line by the administrator
 	if err != nil {
 		return
 	}
@@ -374,13 +374,13 @@ func checkHealth(listen string) error {
 	}
 	c := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
 		// The console's own certificate; only the local port is checked.
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // #nosec G402 -- health check of our own service on this machine
 	}}
 	resp, err := c.Get("https://127.0.0.1:" + port + "/login")
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("console answered %s", resp.Status)
 	}

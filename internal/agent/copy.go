@@ -67,8 +67,8 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	if len(sns) == 0 {
 		res.Message = "The source job has no backups yet"
 	}
-	srcLock.Unlock()
-	dstLock.Unlock()
+	_ = srcLock.Unlock()
+	_ = dstLock.Unlock()
 	for _, sn := range copied {
 		if err := a.keepImmutable(ctx, dst, sn.ID.String()); err != nil {
 			res.Status = api.StatusWarning

@@ -106,7 +106,7 @@ func (m *Manifest) Find(kind, format, arch string) (File, bool) {
 
 // CheckFile verifies a downloaded file against its manifest entry.
 func CheckFile(p string, f File) error {
-	fh, err := os.Open(p)
+	fh, err := os.Open(p) // #nosec G304 -- files of our own update or package directory
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (s Source) Open(ctx context.Context, name string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	if !remote {
-		return os.Open(p)
+		return os.Open(p) // #nosec G304 -- files of our own update or package directory
 	}
 	hc := s.HTTP
 	if hc == nil {
@@ -171,7 +171,7 @@ func (s Source) Open(ctx context.Context, name string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("%s: %s", p, resp.Status)
 	}
 	return resp.Body, nil
@@ -210,20 +210,20 @@ func (s Source) Download(ctx context.Context, f File, dst string) error {
 	}
 	defer rc.Close()
 	tmp := dst + ".part"
-	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o640)
+	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o640) // #nosec G302 G304 -- package file, readable by the service group
 	if err != nil {
 		return err
 	}
 	if _, err := io.Copy(out, rc); err != nil {
-		out.Close()
-		os.Remove(tmp)
+		_ = out.Close()
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := out.Close(); err != nil {
 		return err
 	}
 	if err := CheckFile(tmp, f); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return err
 	}
 	return os.Rename(tmp, dst)
@@ -295,7 +295,7 @@ func WriteJSON(p string, v any, mode os.FileMode) error {
 
 // ReadJSON reads a JSON file into v.
 func ReadJSON(p string, v any) error {
-	b, err := os.ReadFile(p)
+	b, err := os.ReadFile(p) // #nosec G304 -- files of our own update or package directory
 	if err != nil {
 		return err
 	}

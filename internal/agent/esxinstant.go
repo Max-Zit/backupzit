@@ -55,7 +55,7 @@ func loadESXiInstants() []esxiInstant {
 	files, _ := filepath.Glob(esxiPath("vms", "*.json"))
 	var out []esxiInstant
 	for _, f := range files {
-		b, err := os.ReadFile(f)
+		b, err := os.ReadFile(f) // #nosec G304 -- the agent's own configuration, update or work file
 		if err != nil {
 			continue
 		}
@@ -80,9 +80,9 @@ func saveESXiInstant(c esxiInstant) error {
 }
 
 func removeESXiInstant(c esxiInstant) {
-	os.Remove(esxiPath("vms", c.Dir+".json"))
-	os.RemoveAll(esxiPath("vms", c.Dir))
-	os.RemoveAll(esxiPath("export", c.Dir))
+	_ = os.Remove(esxiPath("vms", c.Dir+".json"))
+	_ = os.RemoveAll(esxiPath("vms", c.Dir))
+	_ = os.RemoveAll(esxiPath("export", c.Dir))
 }
 
 // ServeESXiInstant runs the NFS server of the instant VMs (the
@@ -221,7 +221,8 @@ func startESXiNFS(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		exec.CommandContext(ctx, "systemctl", "reset-failed", esxiInstantUnit).Run()
+		_ = exec.CommandContext(ctx, "systemctl", "reset-failed", esxiInstantUnit).Run()
+		// #nosec G204 -- fixed program; arguments are separate values, no shell
 		out, err := exec.CommandContext(ctx, "systemd-run", "--unit", esxiInstantUnit, "--description", "BackupZit instant recovery NFS server for VMware ESXi",
 			"--property=Restart=on-failure", exe, "esxi-nfs-serve").CombinedOutput()
 		if err != nil {
@@ -230,7 +231,7 @@ func startESXiNFS(ctx context.Context) error {
 	}
 	for i := 0; i < 50; i++ {
 		if c, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", instantnfs.Port), time.Second); err == nil {
-			c.Close()
+			_ = c.Close()
 			return nil
 		}
 		time.Sleep(200 * time.Millisecond)
@@ -294,7 +295,7 @@ func (a *Agent) vmwareInstant(ctx context.Context, run api.Run) api.RunResult {
 			if err := c.InstantUnmount(ctx, cfg.Datastore); err != nil {
 				msg += "; the datastore " + cfg.Datastore + " could not be removed: " + err.Error()
 			}
-			exec.CommandContext(ctx, "systemctl", "stop", esxiInstantUnit).Run()
+			_ = exec.CommandContext(ctx, "systemctl", "stop", esxiInstantUnit).Run()
 		}
 		return api.RunResult{Status: api.StatusSuccess, Message: msg}
 	}
@@ -335,7 +336,7 @@ func (a *Agent) vmwareInstant(ctx context.Context, run api.Run) api.RunResult {
 	}
 	plan, err := vmware.InstantPrepare(sn, o.VMID, esxiPath("export", dir), name, asNew)
 	if err != nil {
-		os.RemoveAll(esxiPath("export", dir))
+		_ = os.RemoveAll(esxiPath("export", dir))
 		return failed(err)
 	}
 	// The NFS client is the ESXi host: the connection itself, or on vCenter
@@ -345,7 +346,7 @@ func (a *Agent) vmwareInstant(ctx context.Context, run api.Run) api.RunResult {
 	if c.VCenter {
 		hs, err := c.Hosts(ctx)
 		if err != nil {
-			os.RemoveAll(esxiPath("export", dir))
+			_ = os.RemoveAll(esxiPath("export", dir))
 			return failed(err)
 		}
 		var h *vmware.Host
@@ -356,7 +357,7 @@ func (a *Agent) vmwareInstant(ctx context.Context, run api.Run) api.RunResult {
 			}
 		}
 		if h == nil {
-			os.RemoveAll(esxiPath("export", dir))
+			_ = os.RemoveAll(esxiPath("export", dir))
 			return failed(fmt.Errorf("no connected ESXi host %q in vCenter", o.Node))
 		}
 		node, allow, esxAddr = h.Name, h.Addresses, h.Addresses[0]

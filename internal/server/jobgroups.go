@@ -322,7 +322,7 @@ func (s *Store) syncGroups(ctx context.Context) error {
 		if !c.Added {
 			what = "removed (its backups stay)"
 		}
-		s.AppendAudit(ctx, "", "group.member", fmt.Sprintf("group job %s: %s %s", c.Group, c.Agent, what), "")
+		_, _ = s.AppendAudit(ctx, "", "group.member", fmt.Sprintf("group job %s: %s %s", c.Group, c.Agent, what), "")
 	}
 	return err
 }
@@ -511,7 +511,7 @@ func (s *Server) handleGroupEdit(w http.ResponseWriter, r *http.Request, _ strin
 		return
 	}
 	back := fmt.Sprintf("/job-groups/%d", old.ID)
-	r.ParseForm()
+	_ = r.ParseForm()
 	sched, err := scheduleFromForm(r)
 	if err != nil {
 		redirectErr(w, r, back+"/edit", err)

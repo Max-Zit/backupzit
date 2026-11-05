@@ -101,9 +101,9 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	defer func() {
 		if !opts.KeepOffline {
-			setDiskOffline(dh, false)
+			_ = setDiskOffline(dh, false)
 		}
-		ioctl(dh, ioctlDiskUpdateProperties, nil, 0)
+		_, _ = ioctl(dh, ioctlDiskUpdateProperties, nil, 0)
 	}()
 
 	if err := writeLayout(dh, img, target.Size); err != nil {
@@ -144,7 +144,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			if err != nil {
 				return st, fmt.Errorf("partition %d block %d: %w", p.Number, b, err)
 			}
-			if _, err := f.WriteAt(data, int64(p.Offset)+int64(b)*int64(p.BlockSize)); err != nil {
+			if _, err := f.WriteAt(data, int64(p.Offset)+int64(b)*int64(p.BlockSize)); err != nil { // #nosec G115 -- length of a small buffer for a Windows API call
 				return st, fmt.Errorf("partition %d block %d: write: %w", p.Number, b, err)
 			}
 			st.BytesWritten += uint64(len(data))
@@ -168,11 +168,11 @@ func lockVolume(guidPath string) (windows.Handle, error) {
 		return 0, err
 	}
 	if _, err := ioctl(h, fsctlLockVolume, nil, 0); err != nil {
-		windows.CloseHandle(h)
+		_ = windows.CloseHandle(h)
 		return 0, err
 	}
 	if _, err := ioctl(h, fsctlDismountVolume, nil, 0); err != nil {
-		windows.CloseHandle(h)
+		_ = windows.CloseHandle(h)
 		return 0, err
 	}
 	return h, nil
@@ -247,8 +247,8 @@ func writeLayout(h windows.Handle, img *repo.DiskImage, diskSize uint64) error {
 		}
 		binary.LittleEndian.PutUint64(e[8:16], p.Offset)
 		binary.LittleEndian.PutUint64(e[16:24], p.Length)
-		binary.LittleEndian.PutUint32(e[24:28], uint32(p.Number))
-		e[28] = 1 // RewritePartition
+		binary.LittleEndian.PutUint32(e[24:28], uint32(p.Number)) // #nosec G115 -- length of a small buffer for a Windows API call
+		e[28] = 1                                                 // RewritePartition
 		u := e[32:]
 		if img.Style == StyleGPT {
 			t, err := guidBytes(p.GPTType)
@@ -271,8 +271,8 @@ func writeLayout(h windows.Handle, img *repo.DiskImage, diskSize uint64) error {
 			if p.Bootable {
 				u[1] = 1
 			}
-			u[2] = 1 // RecognizedPartition
-			binary.LittleEndian.PutUint32(u[4:8], uint32(p.Offset/sector))
+			u[2] = 1                                                       // RecognizedPartition
+			binary.LittleEndian.PutUint32(u[4:8], uint32(p.Offset/sector)) // #nosec G115 -- length of a small buffer for a Windows API call
 		}
 	}
 	if _, err := ioctl(h, ioctlDiskSetDriveLayoutEx, lay, 0); err != nil {

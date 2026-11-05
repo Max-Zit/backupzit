@@ -85,7 +85,7 @@ func Call(ctx context.Context, req Request) (*Response, error) {
 	}
 	defer c.Close()
 	if dl, ok := ctx.Deadline(); ok {
-		c.SetDeadline(dl)
+		_ = c.SetDeadline(dl)
 	}
 	if err := json.NewEncoder(c).Encode(req); err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func Call(ctx context.Context, req Request) (*Response, error) {
 
 // Serve answers requests on l until ctx ends.
 func Serve(ctx context.Context, l net.Listener, handle func(context.Context, Request) Response) {
-	go func() { <-ctx.Done(); l.Close() }()
+	go func() { <-ctx.Done(); _ = l.Close() }()
 	for {
 		c, err := l.Accept()
 		if err != nil {
@@ -114,13 +114,13 @@ func Serve(ctx context.Context, l net.Listener, handle func(context.Context, Req
 		}
 		go func(c net.Conn) {
 			defer c.Close()
-			c.SetDeadline(time.Now().Add(30 * time.Second))
+			_ = c.SetDeadline(time.Now().Add(30 * time.Second))
 			var req Request
 			if err := json.NewDecoder(bufio.NewReader(c)).Decode(&req); err != nil {
 				return
 			}
 			resp := handle(ctx, req)
-			json.NewEncoder(c).Encode(resp)
+			_ = json.NewEncoder(c).Encode(resp)
 		}(c)
 	}
 }

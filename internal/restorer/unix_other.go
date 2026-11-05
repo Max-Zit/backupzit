@@ -75,7 +75,7 @@ func makeSpecial(dst string, n *repo.Node) error {
 		} else {
 			mode |= unix.S_IFBLK
 		}
-		return unix.Mknod(dst, mode, int(n.Unix.Rdev))
+		return unix.Mknod(dst, mode, int(n.Unix.Rdev)) // #nosec G115 -- device number as stored in the snapshot
 	}
 	return errors.New("not a special file")
 }

@@ -23,7 +23,7 @@ func listVolumes() ([]Volume, error) {
 				}
 			}
 		}
-		f.Close()
+		_ = f.Close()
 	}
 	entries, err := os.ReadDir("/dev/disk/by-label")
 	if err != nil {

@@ -37,7 +37,7 @@ type SampleStats struct {
 func SampleVerify(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, o SampleOptions) (*SampleStats, error) {
 	start := time.Now()
 	st := &SampleStats{}
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec G404 -- random sample of files to verify, not security relevant
 	if len(sn.Images) > 0 {
 		var blocks []repo.ID
 		for _, img := range sn.Images {
@@ -126,10 +126,10 @@ func SampleVerify(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, o 
 	if err != nil {
 		return st, err
 	}
-	st.Files = int(rs.FilesVerified)
+	st.Files = int(rs.FilesVerified) // #nosec G115 -- file sizes and counts are not negative
 	st.Bytes = rs.Bytes
 	st.Errors = rs.Errors
-	if int(rs.FilesVerified) < len(include) && len(rs.Errors) == 0 {
+	if int(rs.FilesVerified) < len(include) && len(rs.Errors) == 0 { // #nosec G115 -- file sizes and counts are not negative
 		st.Errors = append(st.Errors, fmt.Sprintf("only %d of %d files could be verified", rs.FilesVerified, len(include)))
 	}
 	st.Duration = time.Since(start)

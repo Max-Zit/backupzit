@@ -159,5 +159,5 @@ func (k *Keys) Remove(name string) error {
 	if content != "" {
 		content += "\n"
 	}
-	return os.WriteFile(k.path, []byte(content), 0o600)
+	return os.WriteFile(k.path, []byte(content), 0o600) // #nosec G703 -- key file of the repository server's own configuration
 }

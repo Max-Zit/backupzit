@@ -96,7 +96,7 @@ func (s *Store) softRemoveAgent(ctx context.Context, id int64) error {
 
 // expireSnapshots marks the runs of deleted backups.
 func (s *Store) expireSnapshots(ctx context.Context, agentID int64, ids []string) {
-	s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE agent_id=$1 AND snapshot_id = ANY($2)`, agentID, ids)
+	_, _ = s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE agent_id=$1 AND snapshot_id = ANY($2)`, agentID, ids)
 }
 
 // removedAgent is a removed agent kept for its backups.
@@ -196,7 +196,7 @@ func (s *Store) agentRemoval(ctx context.Context, agentID int64) (runID int64, b
 }
 
 func (s *Store) clearAgentRemoval(ctx context.Context, agentID int64) {
-	s.db.Exec(ctx, `DELETE FROM agent_removals WHERE agent_id=$1`, agentID)
+	_, _ = s.db.Exec(ctx, `DELETE FROM agent_removals WHERE agent_id=$1`, agentID)
 }
 
 func (s *Store) queueAgentUninstall(ctx context.Context, agentID int64) (int64, error) {
@@ -344,7 +344,7 @@ func (s *Server) startAgentRemoval(ctx context.Context, a Agent, o removalOpts, 
 		if err := s.store.setAgentRemoval(ctx, a.ID, rid, o.Backups, by); err != nil {
 			return "", err
 		}
-		s.store.AppendAudit(ctx, by, "agent.uninstall", fmt.Sprintf("%s (agent %d), backups: %s", a.Hostname, a.ID, o.Backups), remote)
+		_, _ = s.store.AppendAudit(ctx, by, "agent.uninstall", fmt.Sprintf("%s (agent %d), backups: %s", a.Hostname, a.ID, o.Backups), remote)
 		return "The agent uninstalls itself from the computer and is then removed here.", nil
 	}
 	if err := s.completeAgentRemoval(ctx, a, o.Backups, by, remote); err != nil {
@@ -377,12 +377,12 @@ func (s *Server) completeAgentRemoval(ctx context.Context, a Agent, backups, by,
 	if err != nil {
 		return err
 	}
-	s.store.AppendAudit(ctx, by, "agent.delete", fmt.Sprintf("%s (agent %d), backups: %s", a.Hostname, a.ID, backups), remote)
+	_, _ = s.store.AppendAudit(ctx, by, "agent.delete", fmt.Sprintf("%s (agent %d), backups: %s", a.Hostname, a.ID, backups), remote)
 	if backups == removeKeepBackups || len(repos) == 0 {
 		return nil
 	}
 	s.cleanups.Add(1)
-	go func() {
+	go func() { // #nosec G118 -- background work that outlives the request on purpose
 		defer s.cleanups.Done()
 		cctx, cancel := context.WithTimeout(context.Background(), 12*time.Hour)
 		defer cancel()
@@ -391,7 +391,7 @@ func (s *Server) completeAgentRemoval(ctx context.Context, a Agent, backups, by,
 			if len(removed) > 0 {
 				s.store.expireSnapshots(cctx, a.ID, removed)
 			}
-			s.store.AppendAudit(cctx, by, "agent.backups", fmt.Sprintf("%s, %s on %s: %s", a.Hostname, x.URL, x.TargetName, detail), remote)
+			_, _ = s.store.AppendAudit(cctx, by, "agent.backups", fmt.Sprintf("%s, %s on %s: %s", a.Hostname, x.URL, x.TargetName, detail), remote)
 			s.log.Info("backups of a removed agent", "agent", a.Hostname, "repo", x.URL, "result", detail)
 		}
 	}()
@@ -407,7 +407,7 @@ func (s *Server) agentUninstalled(ctx context.Context, a Agent, runID int64, res
 	}
 	if res.Status == api.StatusFailed {
 		s.store.clearAgentRemoval(ctx, a.ID)
-		s.store.AppendAudit(ctx, by, "agent.uninstall", fmt.Sprintf("%s: uninstall failed (%s); the agent was not removed", a.Hostname, res.Message), "")
+		_, _ = s.store.AppendAudit(ctx, by, "agent.uninstall", fmt.Sprintf("%s: uninstall failed (%s); the agent was not removed", a.Hostname, res.Message), "")
 		return
 	}
 	if err := s.completeAgentRemoval(ctx, a, backups, by, ""); err != nil {
@@ -468,7 +468,7 @@ func deleteRepository(ctx context.Context, be backend.Backend) string {
 		}
 	}
 	if dr, ok := be.(backend.DirRemover); ok && failed == 0 {
-		dr.RemoveDirs(ctx)
+		_ = dr.RemoveDirs(ctx)
 	}
 	if failed > 0 {
 		return fmt.Sprintf("deleted %d of %d files; %d could not be deleted (immutable storage keeps them until the lock expires): %v", len(names)-failed, len(names), failed, first)

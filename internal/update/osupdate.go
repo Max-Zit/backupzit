@@ -108,13 +108,13 @@ func (a *Applier) osAction(ctx context.Context, req Request) (*Result, error) {
 	}
 	res.Finished = time.Now().UTC()
 	a.logf("%s: %s %s", req.Action, res.Status, res.Message)
-	WriteJSON(filepath.Join(a.Dir, "os-status.json"), st, 0o644)
+	_ = WriteJSON(filepath.Join(a.Dir, "os-status.json"), st, 0o644)
 	werr := WriteJSON(filepath.Join(a.Dir, "os-result.json"), res, 0o644)
 	if req.Action == ActionReboot && res.Status == "done" {
 		_, err := a.Run(ctx, "systemctl", "reboot")
 		if err != nil {
 			res.Status, res.Message = "failed", err.Error()
-			WriteJSON(filepath.Join(a.Dir, "os-result.json"), res, 0o644)
+			_ = WriteJSON(filepath.Join(a.Dir, "os-result.json"), res, 0o644)
 		}
 	}
 	return nil, werr
@@ -204,7 +204,7 @@ func (s *aptSystem) setAuto(ctx context.Context, on bool) error {
 	}
 	// The package's default configuration installs only security updates.
 	conf := fmt.Sprintf("// Managed by BackupZit (Settings → Updates)\nAPT::Periodic::Update-Package-Lists \"%s\";\nAPT::Periodic::Unattended-Upgrade \"%s\";\n", v, v)
-	return os.WriteFile(a.root(autoUpgradesFile), []byte(conf), 0o644)
+	return os.WriteFile(a.root(autoUpgradesFile), []byte(conf), 0o644) // #nosec G306 -- system configuration for automatic updates, readable by all like the distribution's
 }
 
 func (s *aptSystem) upgrade(ctx context.Context) (string, error) {
@@ -286,7 +286,7 @@ func (s *dnfSystem) setAuto(ctx context.Context, on bool) error {
 	}
 	set("upgrade_type", "security")
 	set("apply_updates", "yes")
-	if err := os.WriteFile(a.root(dnfAutoConf), []byte(conf), 0o644); err != nil {
+	if err := os.WriteFile(a.root(dnfAutoConf), []byte(conf), 0o644); err != nil { // #nosec G306 G703 -- system configuration for automatic updates, readable by all like the distribution's
 		return err
 	}
 	_, err = a.Run(ctx, "systemctl", "enable", "--now", "dnf-automatic.timer")

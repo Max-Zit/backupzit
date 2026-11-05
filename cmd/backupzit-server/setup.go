@@ -135,12 +135,12 @@ func (m *setupMenu) yes(prompt string) bool {
 
 func (m *setupMenu) pause() {
 	fmt.Print("\n  Press Enter to continue.")
-	m.in.ReadString('\n')
+	_, _ = m.in.ReadString('\n')
 }
 
 func (m *setupMenu) run(ctx context.Context, what string, name string, args ...string) {
 	fmt.Printf("\n  %s...\n", what)
-	if out, err := exec.CommandContext(ctx, name, args...).CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(ctx, name, args...).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
 		fmt.Printf("  Failed: %v %s\n", err, strings.TrimSpace(string(out)))
 	} else {
 		fmt.Println("  Done.")
@@ -262,8 +262,8 @@ func (m *setupMenu) password(ctx context.Context) {
 			fmt.Println("\n  Failed: " + err.Error())
 		} else {
 			// The screen no longer shows the generated initial password.
-			os.Remove("/var/lib/backupzit/initial-admin-password.txt")
-			exec.CommandContext(ctx, "/usr/local/sbin/backupzit-appliance-boot", "issue").Run()
+			_ = os.Remove("/var/lib/backupzit/initial-admin-password.txt")
+			_ = exec.CommandContext(ctx, "/usr/local/sbin/backupzit-appliance-boot", "issue").Run()
 			fmt.Println("\n  The password of \"admin\" was changed and sign-in blocks were lifted.")
 		}
 	}

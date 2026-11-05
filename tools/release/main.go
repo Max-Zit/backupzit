@@ -48,7 +48,7 @@ func run(args []string) error {
 		fs := flag.NewFlagSet("verify", flag.ExitOnError)
 		dir := fs.String("dir", ".", "directory with manifest.json, manifest.json.sig and the file")
 		name := fs.String("file", "", "file to check, e.g. backupzit-server_0.46.0_amd64.deb")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		raw, err := os.ReadFile(filepath.Join(*dir, "manifest.json"))
 		if err != nil {
 			return err
@@ -71,7 +71,7 @@ func run(args []string) error {
 			}
 			h := sha256.New()
 			n, err := io.Copy(h, fh)
-			fh.Close()
+			_ = fh.Close()
 			if err != nil {
 				return err
 			}
@@ -85,7 +85,7 @@ func run(args []string) error {
 	case "keygen":
 		fs := flag.NewFlagSet("keygen", flag.ExitOnError)
 		out := fs.String("out", ".", "directory for release.key and release.pub")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		p := filepath.Join(*out, "release.key")
 		if _, err := os.Stat(p); err == nil {
 			return fmt.Errorf("%s exists; refusing to overwrite the release key", p)
@@ -101,7 +101,7 @@ func run(args []string) error {
 			return err
 		}
 		pubB64 := base64.StdEncoding.EncodeToString(pub)
-		if err := os.WriteFile(filepath.Join(*out, "release.pub"), []byte(pubB64+"\n"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(*out, "release.pub"), []byte(pubB64+"\n"), 0o644); err != nil { // #nosec G306 -- output file of a development tool, not secret
 			return err
 		}
 		fmt.Println("public key (add to update.TrustedKeys):", pubB64)
@@ -113,7 +113,7 @@ func run(args []string) error {
 		keyPath := fs.String("key", "", "release.key")
 		dir := fs.String("dir", "", "directory with manifest.json")
 		notes := fs.String("notes", "", "file with the new release notes")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		if *keyPath == "" || *dir == "" || *notes == "" {
 			return errors.New("-key, -dir and -notes are required")
 		}
@@ -148,7 +148,7 @@ func run(args []string) error {
 		version := fs.String("version", "", "release version, e.g. 0.28.0")
 		dir := fs.String("dir", "dist", "directory with the packages; manifest is written there")
 		notes := fs.String("notes", "", "file with release notes")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		if *keyPath == "" || *version == "" {
 			return errors.New("-key and -version are required")
 		}
@@ -192,13 +192,13 @@ func run(args []string) error {
 			default:
 				continue
 			}
-			fh, err := os.Open(filepath.Join(*dir, name))
+			fh, err := os.Open(filepath.Join(*dir, name)) // #nosec G304 -- path from the command line of a development tool
 			if err != nil {
 				return err
 			}
 			h := sha256.New()
 			f.Size, err = io.Copy(h, fh)
-			fh.Close()
+			_ = fh.Close()
 			if err != nil {
 				return err
 			}
@@ -218,7 +218,7 @@ func run(args []string) error {
 }
 
 func loadKey(path string) (ed25519.PrivateKey, error) {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) // #nosec G304 -- path from the command line of a development tool
 	if err != nil {
 		return nil, err
 	}
@@ -233,8 +233,8 @@ func loadKey(path string) (ed25519.PrivateKey, error) {
 func writeManifest(dir string, m update.Manifest, key ed25519.PrivateKey) error {
 	raw, _ := json.MarshalIndent(m, "", "  ")
 	raw = append(raw, '\n')
-	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), raw, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), raw, 0o644); err != nil { // #nosec G306 -- output file of a development tool, not secret
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "manifest.json.sig"), []byte(update.Sign(raw, key)+"\n"), 0o644)
+	return os.WriteFile(filepath.Join(dir, "manifest.json.sig"), []byte(update.Sign(raw, key)+"\n"), 0o644) // #nosec G306 -- output file of a development tool, not secret
 }

@@ -60,17 +60,17 @@ func (l *pipeListener) loop(h windows.Handle) {
 		err := windows.ConnectNamedPipe(h, nil)
 		select {
 		case <-l.done:
-			windows.CloseHandle(h)
+			_ = windows.CloseHandle(h)
 			return
 		default:
 		}
 		if err != nil && !errors.Is(err, windows.ERROR_PIPE_CONNECTED) {
-			windows.CloseHandle(h)
+			_ = windows.CloseHandle(h)
 		} else {
 			select {
 			case l.conns <- &pipeConn{File: os.NewFile(uintptr(h), PipeName), h: h}:
 			case <-l.done:
-				windows.CloseHandle(h)
+				_ = windows.CloseHandle(h)
 				return
 			}
 		}
@@ -101,7 +101,7 @@ func (l *pipeListener) Close() error {
 		close(l.done)
 		// Unblock ConnectNamedPipe with a connection of our own.
 		if c, err := openPipe(); err == nil {
-			c.Close()
+			_ = c.Close()
 		}
 	})
 	return nil
@@ -122,7 +122,7 @@ type pipeConn struct {
 }
 
 func (c *pipeConn) Close() error {
-	windows.FlushFileBuffers(c.h)
+	_ = windows.FlushFileBuffers(c.h)
 	return c.File.Close()
 }
 func (c *pipeConn) LocalAddr() net.Addr                { return pipeAddr{} }

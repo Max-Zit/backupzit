@@ -113,14 +113,14 @@ func (r *Repository) tryLock(ctx context.Context, exclusive bool, host string) (
 	// Two clients may have checked at the same time; re-check now that our
 	// lock is visible and back off if there is a conflict.
 	if c, err := r.conflicting(ctx, exclusive, l.name); err != nil || c != "" {
-		r.be.Remove(ctx, l.name)
+		_ = r.be.Remove(ctx, l.name)
 		if err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("%w: %s", ErrLocked, c)
 	}
 	l.done.Add(1)
-	go l.refresh()
+	go l.refresh() // #nosec G118 -- background work that outlives the request on purpose
 	return l, nil
 }
 
@@ -140,7 +140,7 @@ func (l *Lock) refresh() {
 		case <-t.C:
 			l.info.Time = time.Now().UTC()
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-			l.write(ctx)
+			_ = l.write(ctx)
 			cancel()
 		}
 	}

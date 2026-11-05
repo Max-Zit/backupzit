@@ -68,16 +68,16 @@ func main() {
 		}
 		sc, err := sftp.NewClient(c)
 		check(err)
-		src, err := os.Open(local)
+		src, err := os.Open(local) // #nosec G304 -- path from the command line of a development tool
 		check(err)
-		sc.MkdirAll(path.Dir(remote))
+		_ = sc.MkdirAll(path.Dir(remote))
 		dst, err := sc.Create(remote)
 		check(err)
 		_, err = io.Copy(dst, src)
 		check(err)
-		dst.Close()
-		src.Close()
-		sc.Close()
+		_ = dst.Close()
+		_ = src.Close()
+		_ = sc.Close()
 	}
 
 	cmd := strings.Join(flag.Args(), " ")

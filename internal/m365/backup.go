@@ -437,7 +437,7 @@ func (b *backup) files(ctx context.Context, at string, items []item, ptree *repo
 		n := repo.Node{Name: it.name, Type: repo.NodeFile, Mode: 0o644, ModTime: it.mtime.UTC()}
 		if ptree != nil {
 			if p := ptree.Find(it.name); p != nil && p.Type == repo.NodeFile && p.ModTime.Equal(n.ModTime) &&
-				(!it.sized || p.Size == uint64(it.size)) && b.allKnown(p.Content) {
+				(!it.sized || p.Size == uint64(it.size)) && b.allKnown(p.Content) { // #nosec G115 -- file sizes and counts are not negative
 				n.Content, n.Size = p.Content, p.Size
 				nodes[i], ok[i] = n, true
 				b.count(func(s *repo.SnapshotStats) { s.Files++; s.FilesSkipped++; s.Bytes += n.Size })

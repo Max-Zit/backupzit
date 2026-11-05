@@ -225,7 +225,7 @@ func newVssErrorIfResultNotOK(text string, hresult HRESULT) error {
 
 // Error implements the error interface.
 func (e *vssError) Error() string {
-	return fmt.Sprintf("VSS error: %s: %s (%#x)", e.text, e.hresult.Str(), uint32(e.hresult))
+	return fmt.Sprintf("VSS error: %s: %s (%#x)", e.text, e.hresult.Str(), uint32(e.hresult)) // #nosec G115 -- length of a small buffer for a Windows API call
 }
 
 // Unwrap returns the underlying HRESULT error
@@ -353,13 +353,13 @@ type IVssBackupComponentsVTable struct {
 
 // getVTable returns the vtable for IVssBackupComponents.
 func (vss *IVssBackupComponents) getVTable() *IVssBackupComponentsVTable {
-	return (*IVssBackupComponentsVTable)(unsafe.Pointer(vss.RawVTable))
+	return (*IVssBackupComponentsVTable)(unsafe.Pointer(vss.RawVTable)) // #nosec G103 -- COM call through the VSS interface's vtable
 }
 
 // AbortBackup calls the equivalent VSS api.
 func (vss *IVssBackupComponents) AbortBackup() error {
 	result, _, _ := syscall.Syscall(vss.getVTable().abortBackup, 1,
-		uintptr(unsafe.Pointer(vss)), 0, 0)
+		uintptr(unsafe.Pointer(vss)), 0, 0) // #nosec G103 -- COM call through the VSS interface's vtable
 
 	return newVssErrorIfResultNotOK("AbortBackup() failed", HRESULT(result))
 }
@@ -367,7 +367,7 @@ func (vss *IVssBackupComponents) AbortBackup() error {
 // InitializeForBackup calls the equivalent VSS api.
 func (vss *IVssBackupComponents) InitializeForBackup() error {
 	result, _, _ := syscall.Syscall(vss.getVTable().initializeForBackup, 2,
-		uintptr(unsafe.Pointer(vss)), 0, 0)
+		uintptr(unsafe.Pointer(vss)), 0, 0) // #nosec G103 -- COM call through the VSS interface's vtable
 
 	return newVssErrorIfResultNotOK("InitializeForBackup() failed", HRESULT(result))
 }
@@ -375,7 +375,7 @@ func (vss *IVssBackupComponents) InitializeForBackup() error {
 // SetContext calls the equivalent VSS api.
 func (vss *IVssBackupComponents) SetContext(context VssContext) error {
 	result, _, _ := syscall.Syscall(vss.getVTable().setContext, 2,
-		uintptr(unsafe.Pointer(vss)), uintptr(context), 0)
+		uintptr(unsafe.Pointer(vss)), uintptr(context), 0) // #nosec G103 -- COM call through the VSS interface's vtable
 
 	return newVssErrorIfResultNotOK("SetContext() failed", HRESULT(result))
 }
@@ -384,7 +384,7 @@ func (vss *IVssBackupComponents) SetContext(context VssContext) error {
 func (vss *IVssBackupComponents) GatherWriterMetadata() (*IVSSAsync, error) {
 	var oleIUnknown *ole.IUnknown
 	result, _, _ := syscall.Syscall(vss.getVTable().gatherWriterMetadata, 2,
-		uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&oleIUnknown)), 0)
+		uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&oleIUnknown)), 0) // #nosec G103 -- COM call through the VSS interface's vtable
 
 	err := newVssErrorIfResultNotOK("GatherWriterMetadata() failed", HRESULT(result))
 	return vss.convertToVSSAsync(oleIUnknown, err)
@@ -403,7 +403,7 @@ func (vss *IVssBackupComponents) convertToVSSAsync(
 		return nil, err
 	}
 
-	iVssAsync := (*IVSSAsync)(unsafe.Pointer(comInterface))
+	iVssAsync := (*IVSSAsync)(unsafe.Pointer(comInterface)) // #nosec G103 -- COM call through the VSS interface's vtable
 	return iVssAsync, nil
 }
 
@@ -418,16 +418,16 @@ func (vss *IVssBackupComponents) IsVolumeSupported(providerID *ole.GUID, volumeN
 	var result uintptr
 
 	if runtime.GOARCH == "386" {
-		id := (*[4]uintptr)(unsafe.Pointer(providerID))
+		id := (*[4]uintptr)(unsafe.Pointer(providerID)) // #nosec G103 -- COM call through the VSS interface's vtable
 
 		result, _, _ = syscall.Syscall9(vss.getVTable().isVolumeSupported, 7,
-			uintptr(unsafe.Pointer(vss)), id[0], id[1], id[2], id[3],
-			uintptr(unsafe.Pointer(volumeNamePointer)), uintptr(unsafe.Pointer(&isSupportedRaw)), 0,
+			uintptr(unsafe.Pointer(vss)), id[0], id[1], id[2], id[3], // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(unsafe.Pointer(volumeNamePointer)), uintptr(unsafe.Pointer(&isSupportedRaw)), 0, // #nosec G103 -- COM call through the VSS interface's vtable
 			0)
 	} else {
 		result, _, _ = syscall.Syscall6(vss.getVTable().isVolumeSupported, 4,
-			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(providerID)),
-			uintptr(unsafe.Pointer(volumeNamePointer)), uintptr(unsafe.Pointer(&isSupportedRaw)), 0,
+			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(providerID)), // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(unsafe.Pointer(volumeNamePointer)), uintptr(unsafe.Pointer(&isSupportedRaw)), 0, // #nosec G103 -- COM call through the VSS interface's vtable
 			0)
 	}
 
@@ -445,7 +445,7 @@ func (vss *IVssBackupComponents) IsVolumeSupported(providerID *ole.GUID, volumeN
 func (vss *IVssBackupComponents) StartSnapshotSet() (ole.GUID, error) {
 	var snapshotSetID ole.GUID
 	result, _, _ := syscall.Syscall(vss.getVTable().startSnapshotSet, 2,
-		uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&snapshotSetID)), 0,
+		uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&snapshotSetID)), 0, // #nosec G103 -- COM call through the VSS interface's vtable
 	)
 
 	return snapshotSetID, newVssErrorIfResultNotOK("StartSnapshotSet() failed", HRESULT(result))
@@ -461,15 +461,15 @@ func (vss *IVssBackupComponents) AddToSnapshotSet(volumeName string, providerID 
 	var result uintptr
 
 	if runtime.GOARCH == "386" {
-		id := (*[4]uintptr)(unsafe.Pointer(providerID))
+		id := (*[4]uintptr)(unsafe.Pointer(providerID)) // #nosec G103 -- COM call through the VSS interface's vtable
 
 		result, _, _ = syscall.Syscall9(vss.getVTable().addToSnapshotSet, 7,
-			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(volumeNamePointer)),
-			id[0], id[1], id[2], id[3], uintptr(unsafe.Pointer(idSnapshot)), 0, 0)
+			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(volumeNamePointer)), // #nosec G103 -- COM call through the VSS interface's vtable
+			id[0], id[1], id[2], id[3], uintptr(unsafe.Pointer(idSnapshot)), 0, 0) // #nosec G103 -- COM call through the VSS interface's vtable
 	} else {
 		result, _, _ = syscall.Syscall6(vss.getVTable().addToSnapshotSet, 4,
-			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(volumeNamePointer)),
-			uintptr(unsafe.Pointer(providerID)), uintptr(unsafe.Pointer(idSnapshot)), 0, 0)
+			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(volumeNamePointer)), // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(unsafe.Pointer(providerID)), uintptr(unsafe.Pointer(idSnapshot)), 0, 0) // #nosec G103 -- COM call through the VSS interface's vtable
 	}
 
 	return newVssErrorIfResultNotOK("AddToSnapshotSet() failed", HRESULT(result))
@@ -479,7 +479,7 @@ func (vss *IVssBackupComponents) AddToSnapshotSet(volumeName string, providerID 
 func (vss *IVssBackupComponents) PrepareForBackup() (*IVSSAsync, error) {
 	var oleIUnknown *ole.IUnknown
 	result, _, _ := syscall.Syscall(vss.getVTable().prepareForBackup, 2,
-		uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&oleIUnknown)), 0)
+		uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&oleIUnknown)), 0) // #nosec G103 -- COM call through the VSS interface's vtable
 
 	err := newVssErrorIfResultNotOK("PrepareForBackup() failed", HRESULT(result))
 	return vss.convertToVSSAsync(oleIUnknown, err)
@@ -503,7 +503,7 @@ func (vss *IVssBackupComponents) SetBackupState(selectComponents bool,
 	partialFileSupportVal := apiBoolToInt(partialFileSupport)
 
 	result, _, _ := syscall.Syscall6(vss.getVTable().setBackupState, 5,
-		uintptr(unsafe.Pointer(vss)), uintptr(selectComponentsVal),
+		uintptr(unsafe.Pointer(vss)), uintptr(selectComponentsVal), // #nosec G103 -- COM call through the VSS interface's vtable
 		uintptr(backupBootableSystemStateVal), uintptr(backupType), uintptr(partialFileSupportVal),
 		0)
 
@@ -513,8 +513,8 @@ func (vss *IVssBackupComponents) SetBackupState(selectComponents bool,
 // DoSnapshotSet calls the equivalent VSS api.
 func (vss *IVssBackupComponents) DoSnapshotSet() (*IVSSAsync, error) {
 	var oleIUnknown *ole.IUnknown
-	result, _, _ := syscall.Syscall(vss.getVTable().doSnapshotSet, 2, uintptr(unsafe.Pointer(vss)),
-		uintptr(unsafe.Pointer(&oleIUnknown)), 0)
+	result, _, _ := syscall.Syscall(vss.getVTable().doSnapshotSet, 2, uintptr(unsafe.Pointer(vss)), // #nosec G103 -- COM call through the VSS interface's vtable
+		uintptr(unsafe.Pointer(&oleIUnknown)), 0) // #nosec G103 -- COM call through the VSS interface's vtable
 
 	err := newVssErrorIfResultNotOK("DoSnapshotSet() failed", HRESULT(result))
 	return vss.convertToVSSAsync(oleIUnknown, err)
@@ -527,18 +527,18 @@ func (vss *IVssBackupComponents) DeleteSnapshots(snapshotID ole.GUID) (int32, ol
 	var result uintptr
 
 	if runtime.GOARCH == "386" {
-		id := (*[4]uintptr)(unsafe.Pointer(&snapshotID))
+		id := (*[4]uintptr)(unsafe.Pointer(&snapshotID)) // #nosec G103 -- COM call through the VSS interface's vtable
 
 		result, _, _ = syscall.Syscall9(vss.getVTable().deleteSnapshots, 9,
-			uintptr(unsafe.Pointer(vss)), id[0], id[1], id[2], id[3],
-			uintptr(VSS_OBJECT_SNAPSHOT), uintptr(1), uintptr(unsafe.Pointer(&deletedSnapshots)),
-			uintptr(unsafe.Pointer(&nondeletedSnapshotID)),
+			uintptr(unsafe.Pointer(vss)), id[0], id[1], id[2], id[3], // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(VSS_OBJECT_SNAPSHOT), uintptr(1), uintptr(unsafe.Pointer(&deletedSnapshots)), // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(unsafe.Pointer(&nondeletedSnapshotID)), // #nosec G103 -- COM call through the VSS interface's vtable
 		)
 	} else {
 		result, _, _ = syscall.Syscall6(vss.getVTable().deleteSnapshots, 6,
-			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&snapshotID)),
-			uintptr(VSS_OBJECT_SNAPSHOT), uintptr(1), uintptr(unsafe.Pointer(&deletedSnapshots)),
-			uintptr(unsafe.Pointer(&nondeletedSnapshotID)))
+			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&snapshotID)), // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(VSS_OBJECT_SNAPSHOT), uintptr(1), uintptr(unsafe.Pointer(&deletedSnapshots)), // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(unsafe.Pointer(&nondeletedSnapshotID))) // #nosec G103 -- COM call through the VSS interface's vtable
 	}
 
 	err := newVssErrorIfResultNotOK("DeleteSnapshots() failed", HRESULT(result))
@@ -551,15 +551,15 @@ func (vss *IVssBackupComponents) GetSnapshotProperties(snapshotID ole.GUID,
 	var result uintptr
 
 	if runtime.GOARCH == "386" {
-		id := (*[4]uintptr)(unsafe.Pointer(&snapshotID))
+		id := (*[4]uintptr)(unsafe.Pointer(&snapshotID)) // #nosec G103 -- COM call through the VSS interface's vtable
 
 		result, _, _ = syscall.Syscall6(vss.getVTable().getSnapshotProperties, 6,
-			uintptr(unsafe.Pointer(vss)), id[0], id[1], id[2], id[3],
-			uintptr(unsafe.Pointer(properties)))
+			uintptr(unsafe.Pointer(vss)), id[0], id[1], id[2], id[3], // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(unsafe.Pointer(properties))) // #nosec G103 -- COM call through the VSS interface's vtable
 	} else {
 		result, _, _ = syscall.Syscall(vss.getVTable().getSnapshotProperties, 3,
-			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&snapshotID)),
-			uintptr(unsafe.Pointer(properties)))
+			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&snapshotID)), // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(unsafe.Pointer(properties))) // #nosec G103 -- COM call through the VSS interface's vtable
 	}
 
 	return newVssErrorIfResultNotOK("GetSnapshotProperties() failed", HRESULT(result))
@@ -572,15 +572,15 @@ func vssFreeSnapshotProperties(properties *vssSnapshotProperties) error {
 		return err
 	}
 	// this function always succeeds and returns no value
-	_, _, _ = proc.Call(uintptr(unsafe.Pointer(properties)))
+	_, _, _ = proc.Call(uintptr(unsafe.Pointer(properties))) // #nosec G103 -- COM call through the VSS interface's vtable
 	return nil
 }
 
 // BackupComplete calls the equivalent VSS api.
 func (vss *IVssBackupComponents) BackupComplete() (*IVSSAsync, error) {
 	var oleIUnknown *ole.IUnknown
-	result, _, _ := syscall.Syscall(vss.getVTable().backupComplete, 2, uintptr(unsafe.Pointer(vss)),
-		uintptr(unsafe.Pointer(&oleIUnknown)), 0)
+	result, _, _ := syscall.Syscall(vss.getVTable().backupComplete, 2, uintptr(unsafe.Pointer(vss)), // #nosec G103 -- COM call through the VSS interface's vtable
+		uintptr(unsafe.Pointer(&oleIUnknown)), 0) // #nosec G103 -- COM call through the VSS interface's vtable
 
 	err := newVssErrorIfResultNotOK("BackupComplete() failed", HRESULT(result))
 	return vss.convertToVSSAsync(oleIUnknown, err)
@@ -616,9 +616,9 @@ type VssProviderProperties struct {
 }
 
 func vssFreeProviderProperties(p *VssProviderProperties) {
-	ole.CoTaskMemFree(uintptr(unsafe.Pointer(p.providerName)))
+	ole.CoTaskMemFree(uintptr(unsafe.Pointer(p.providerName))) // #nosec G103 -- COM call through the VSS interface's vtable
 	p.providerName = nil
-	ole.CoTaskMemFree(uintptr(unsafe.Pointer(p.providerVersion)))
+	ole.CoTaskMemFree(uintptr(unsafe.Pointer(p.providerVersion))) // #nosec G103 -- COM call through the VSS interface's vtable
 	p.providerVersion = nil
 }
 
@@ -653,19 +653,19 @@ const (
 
 // getVTable returns the vtable for IVSSAsync.
 func (vssAsync *IVSSAsync) getVTable() *IVSSAsyncVTable {
-	return (*IVSSAsyncVTable)(unsafe.Pointer(vssAsync.RawVTable))
+	return (*IVSSAsyncVTable)(unsafe.Pointer(vssAsync.RawVTable)) // #nosec G103 -- COM call through the VSS interface's vtable
 }
 
 // Cancel calls the equivalent VSS api.
 func (vssAsync *IVSSAsync) Cancel() HRESULT {
 	result, _, _ := syscall.Syscall(vssAsync.getVTable().cancel, 1,
-		uintptr(unsafe.Pointer(vssAsync)), 0, 0)
+		uintptr(unsafe.Pointer(vssAsync)), 0, 0) // #nosec G103 -- COM call through the VSS interface's vtable
 	return HRESULT(result)
 }
 
 // Wait calls the equivalent VSS api.
 func (vssAsync *IVSSAsync) Wait(millis uint32) HRESULT {
-	result, _, _ := syscall.Syscall(vssAsync.getVTable().wait, 2, uintptr(unsafe.Pointer(vssAsync)),
+	result, _, _ := syscall.Syscall(vssAsync.getVTable().wait, 2, uintptr(unsafe.Pointer(vssAsync)), // #nosec G103 -- COM call through the VSS interface's vtable
 		uintptr(millis), 0)
 	return HRESULT(result)
 }
@@ -674,7 +674,7 @@ func (vssAsync *IVSSAsync) Wait(millis uint32) HRESULT {
 func (vssAsync *IVSSAsync) QueryStatus() (HRESULT, uint32) {
 	var state uint32 = 0
 	result, _, _ := syscall.Syscall(vssAsync.getVTable().queryStatus, 3,
-		uintptr(unsafe.Pointer(vssAsync)), uintptr(unsafe.Pointer(&state)), 0)
+		uintptr(unsafe.Pointer(vssAsync)), uintptr(unsafe.Pointer(&state)), 0) // #nosec G103 -- COM call through the VSS interface's vtable
 	return HRESULT(result), state
 }
 
@@ -686,7 +686,7 @@ func (vssAsync *IVSSAsync) WaitUntilAsyncFinished(timeout time.Duration) error {
 		timeout = maxTimeout
 	}
 
-	hresult := vssAsync.Wait(uint32(timeout.Milliseconds()))
+	hresult := vssAsync.Wait(uint32(timeout.Milliseconds())) // #nosec G115 -- length of a small buffer for a Windows API call
 	err := newVssErrorIfResultNotOK("Wait() failed", hresult)
 	if err != nil {
 		vssAsync.Cancel()
@@ -742,7 +742,7 @@ type IVSSAdminVTable struct {
 
 // getVTable returns the vtable for IVSSAdmin.
 func (vssAdmin *IVSSAdmin) getVTable() *IVSSAdminVTable {
-	return (*IVSSAdminVTable)(unsafe.Pointer(vssAdmin.RawVTable))
+	return (*IVSSAdminVTable)(unsafe.Pointer(vssAdmin.RawVTable)) // #nosec G103 -- COM call through the VSS interface's vtable
 }
 
 // QueryProviders calls the equivalent VSS api.
@@ -750,7 +750,7 @@ func (vssAdmin *IVSSAdmin) QueryProviders() (*IVssEnumObject, error) {
 	var enum *IVssEnumObject
 
 	result, _, _ := syscall.Syscall(vssAdmin.getVTable().queryProviders, 2,
-		uintptr(unsafe.Pointer(vssAdmin)), uintptr(unsafe.Pointer(&enum)), 0)
+		uintptr(unsafe.Pointer(vssAdmin)), uintptr(unsafe.Pointer(&enum)), 0) // #nosec G103 -- COM call through the VSS interface's vtable
 
 	return enum, newVssErrorIfResultNotOK("QueryProviders() failed", HRESULT(result))
 }
@@ -772,15 +772,15 @@ type IVssEnumObjectVTable struct {
 
 // getVTable returns the vtable for IVssEnumObject.
 func (vssEnum *IVssEnumObject) getVTable() *IVssEnumObjectVTable {
-	return (*IVssEnumObjectVTable)(unsafe.Pointer(vssEnum.RawVTable))
+	return (*IVssEnumObjectVTable)(unsafe.Pointer(vssEnum.RawVTable)) // #nosec G103 -- COM call through the VSS interface's vtable
 }
 
 // Next calls the equivalent VSS api.
 func (vssEnum *IVssEnumObject) Next(count uint, props unsafe.Pointer) (uint, error) {
 	var fetched uint32
 	result, _, _ := syscall.Syscall6(vssEnum.getVTable().next, 4,
-		uintptr(unsafe.Pointer(vssEnum)), uintptr(count), uintptr(props),
-		uintptr(unsafe.Pointer(&fetched)), 0, 0)
+		uintptr(unsafe.Pointer(vssEnum)), uintptr(count), uintptr(props), // #nosec G103 -- COM call through the VSS interface's vtable
+		uintptr(unsafe.Pointer(&fetched)), 0, 0) // #nosec G103 -- COM call through the VSS interface's vtable
 	if HRESULT(result) == S_FALSE {
 		return uint(fetched), nil
 	}
@@ -855,7 +855,7 @@ func initializeVssCOMInterface() (*ole.IUnknown, error) {
 		6,    // RPC_C_AUTHN_LEVEL_PKT_PRIVACY
 		3,    // RPC_C_IMP_LEVEL_IMPERSONATE
 		0x20, // EOAC_STATIC_CLOAKING
-	); err != nil && !(isOleError(err) && uint32(err.(*ole.OleError).Code()) == rpcETooLate) {
+	); err != nil && !(isOleError(err) && uint32(err.(*ole.OleError).Code()) == rpcETooLate) { // #nosec G115 -- length of a small buffer for a Windows API call
 		// TODO warn for expected event logs for VSS IVssWriterCallback failure
 		return nil, newVssError(
 			"Failed to initialize security for VSS request",
@@ -863,7 +863,7 @@ func initializeVssCOMInterface() (*ole.IUnknown, error) {
 	}
 
 	var oleIUnknown *ole.IUnknown
-	result, _, _ := vssInstance.Call(uintptr(unsafe.Pointer(&oleIUnknown)))
+	result, _, _ := vssInstance.Call(uintptr(unsafe.Pointer(&oleIUnknown))) // #nosec G103 -- COM call through the VSS interface's vtable
 	hresult := HRESULT(result)
 
 	switch hresult {
@@ -941,7 +941,7 @@ func newVssSnapshot(provider string,
 		BackupComplete();
 	*/
 
-	iVssBackupComponents := (*IVssBackupComponents)(unsafe.Pointer(comInterface))
+	iVssBackupComponents := (*IVssBackupComponents)(unsafe.Pointer(comInterface)) // #nosec G103 -- COM call through the VSS interface's vtable
 
 	providerID, err := getProviderID(provider)
 	if err != nil {
@@ -1052,7 +1052,7 @@ func newVssSnapshot(provider string,
 		// After calling PrepareForBackup one needs to call AbortBackup() before releasing the VSS
 		// instance for proper cleanup.
 		// It is not necessary to call BackupComplete before releasing the VSS instance afterwards.
-		iVssBackupComponents.AbortBackup()
+		_ = iVssBackupComponents.AbortBackup()
 		iVssBackupComponents.Release()
 		return vssSnapshot{}, err
 	}
@@ -1151,7 +1151,7 @@ func getProviderID(provider string) (*ole.GUID, error) {
 	}
 	defer comInterface.Release()
 
-	vssAdmin := (*IVSSAdmin)(unsafe.Pointer(comInterface))
+	vssAdmin := (*IVSSAdmin)(unsafe.Pointer(comInterface)) // #nosec G103 -- COM call through the VSS interface's vtable
 
 	enum, err := vssAdmin.QueryProviders()
 	if err != nil {
@@ -1166,7 +1166,7 @@ func getProviderID(provider string) (*ole.GUID, error) {
 		provider   VssProviderProperties
 	}
 	for {
-		count, err := enum.Next(1, unsafe.Pointer(&props))
+		count, err := enum.Next(1, unsafe.Pointer(&props)) // #nosec G103 -- COM call through the VSS interface's vtable
 		if err != nil {
 			return nil, err
 		}
@@ -1245,8 +1245,8 @@ func queryInterface(oleIUnknown *ole.IUnknown, guid *ole.GUID) (*interface{}, er
 	var ivss *interface{}
 
 	result, _, _ := syscall.Syscall(oleIUnknown.VTable().QueryInterface, 3,
-		uintptr(unsafe.Pointer(oleIUnknown)), uintptr(unsafe.Pointer(guid)),
-		uintptr(unsafe.Pointer(&ivss)))
+		uintptr(unsafe.Pointer(oleIUnknown)), uintptr(unsafe.Pointer(guid)), // #nosec G103 -- COM call through the VSS interface's vtable
+		uintptr(unsafe.Pointer(&ivss))) // #nosec G103 -- COM call through the VSS interface's vtable
 	if result != 0 {
 		return nil, newVssError("QueryInterface failed", HRESULT(result))
 	}

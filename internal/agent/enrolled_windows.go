@@ -11,7 +11,7 @@ func MarkEnrolled() {
 		return
 	}
 	defer k.Close()
-	k.SetDWordValue("Enrolled", 1)
+	_ = k.SetDWordValue("Enrolled", 1)
 }
 
 // UnmarkEnrolled removes the installer's mark (uninstall), so the next
@@ -22,5 +22,5 @@ func UnmarkEnrolled() {
 		return
 	}
 	defer k.Close()
-	k.DeleteValue("Enrolled")
+	_ = k.DeleteValue("Enrolled")
 }

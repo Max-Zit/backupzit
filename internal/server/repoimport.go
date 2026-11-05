@@ -39,17 +39,17 @@ func openTargetBackend(ctx context.Context, t Target, url string) (backend.Backe
 		if err != nil {
 			return nil, nil, err
 		}
-		f.WriteString(t.SFTPKey)
-		f.Close()
+		_, _ = f.WriteString(t.SFTPKey)
+		_ = f.Close()
 		opts.SFTPKeyFile = f.Name()
-		cleanup = func() { os.Remove(f.Name()) }
+		cleanup = func() { _ = os.Remove(f.Name()) }
 	}
 	be, err := backend.Open(ctx, url, opts)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	return be, func() { be.Close(); cleanup() }, nil
+	return be, func() { _ = be.Close(); cleanup() }, nil
 }
 
 // foundRepo is a repository on a storage target that the console does not
@@ -340,7 +340,7 @@ func (s *Store) importRepo(ctx context.Context, t Target, base, dir string, sns 
 	}
 	for rows.Next() {
 		var id string
-		rows.Scan(&id)
+		_ = rows.Scan(&id)
 		have[id] = true
 	}
 	rows.Close()
@@ -429,7 +429,7 @@ func (s *Server) handleTargetImport(w http.ResponseWriter, r *http.Request, user
 		http.NotFound(w, r)
 		return
 	}
-	r.ParseForm()
+	_ = r.ParseForm()
 	l := requestLanguage(r)
 	back := fmt.Sprintf("/targets/%d/scan", t.ID)
 	dirs := r.Form["dir"]

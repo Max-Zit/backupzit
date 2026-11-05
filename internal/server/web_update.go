@@ -64,7 +64,7 @@ type updater struct {
 // StartUpdates prepares self-update and checks for releases daily.
 func (s *Server) StartUpdates(ctx context.Context, dataDir string) {
 	s.upd = &updater{dir: filepath.Join(dataDir, "update"), helper: updateHelperInstalled() && !InContainer()}
-	os.MkdirAll(s.upd.dir, 0o750)
+	_ = os.MkdirAll(s.upd.dir, 0o750)
 	if s.UpdatedFrom != "" {
 		s.containerUpdated(ctx, s.UpdatedFrom)
 	}
@@ -92,9 +92,9 @@ func (s *Server) StartUpdates(ctx context.Context, dataDir string) {
 		case <-time.After(time.Minute):
 		}
 		for {
-			s.checkUpdates(ctx)
+			_ = s.checkUpdates(ctx)
 			if s.upd.helper { // refresh the operating system status daily
-				s.requestOS(ctx, update.ActionOSStatus, false, "")
+				_ = s.requestOS(ctx, update.ActionOSStatus, false, "")
 			}
 			select {
 			case <-ctx.Done():
@@ -127,7 +127,7 @@ func packageFormat() string {
 
 func (s *Server) updateSettings(ctx context.Context) UpdateSettings {
 	u := UpdateSettings{Notify: true, AutoAgents: true}
-	s.store.GetSetting(ctx, settingUpdates, &u)
+	_ = s.store.GetSetting(ctx, settingUpdates, &u)
 	if u.Source == "" {
 		u.Source = DefaultUpdateSource
 	}
@@ -194,11 +194,11 @@ func (s *Server) reportUpdateResult(ctx context.Context) {
 		return
 	}
 	var seen time.Time
-	s.store.GetSetting(ctx, "update_result_seen", &seen)
+	_ = s.store.GetSetting(ctx, "update_result_seen", &seen)
 	if !res.Finished.After(seen) {
 		return
 	}
-	s.store.SetSetting(ctx, "update_result_seen", res.Finished)
+	_ = s.store.SetSetting(ctx, "update_result_seen", res.Finished)
 	detail := fmt.Sprintf("%s → %s: %s", res.From, res.Version, res.Status)
 	if _, err := s.store.AppendAudit(ctx, "", "update.result", detail+": "+res.Message, ""); err != nil {
 		s.log.Error("audit log", "err", err)
@@ -317,7 +317,7 @@ func (s *Server) stageUpdate(ctx context.Context, m *update.Manifest, raw []byte
 		return fmt.Errorf("the release has no %s package of the console", packageFormat())
 	}
 	var running int
-	s.store.db.QueryRow(ctx, `SELECT count(*) FROM runs WHERE status='running'`).Scan(&running)
+	_ = s.store.db.QueryRow(ctx, `SELECT count(*) FROM runs WHERE status='running'`).Scan(&running)
 	if running > 0 {
 		return fmt.Errorf("%d backups or restores are running; install the update when they have finished", running)
 	}
@@ -391,17 +391,17 @@ func (s *Server) handleUpdateUpload(w http.ResponseWriter, r *http.Request, user
 			return errors.New("the server package is missing")
 		}
 		defer in.Close()
-		out, err := os.OpenFile(dst+".part", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o640)
+		out, err := os.OpenFile(dst+".part", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o640) // #nosec G302 G304 -- package file, readable by the service group
 		if err != nil {
 			return err
 		}
 		if _, err := io.Copy(out, in); err != nil {
-			out.Close()
+			_ = out.Close()
 			return err
 		}
-		out.Close()
+		_ = out.Close()
 		if err := update.CheckFile(dst+".part", f); err != nil {
-			os.Remove(dst + ".part")
+			_ = os.Remove(dst + ".part")
 			return err
 		}
 		return os.Rename(dst+".part", dst)
@@ -450,7 +450,7 @@ func (s *Server) requestOS(ctx context.Context, action string, enable bool, user
 	}
 	if action == update.ActionReboot {
 		var running int
-		s.store.db.QueryRow(ctx, `SELECT count(*) FROM runs WHERE status='running'`).Scan(&running)
+		_ = s.store.db.QueryRow(ctx, `SELECT count(*) FROM runs WHERE status='running'`).Scan(&running)
 		if running > 0 {
 			return fmt.Errorf("%d backups or restores are running; restart the server when they have finished", running)
 		}

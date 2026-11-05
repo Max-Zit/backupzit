@@ -143,7 +143,7 @@ func (s *Server) handleAgentLogDownload(w http.ResponseWriter, r *http.Request, 
 	name := fmt.Sprintf("backupzit-agent-%s-%s.log", safeFileName(run.Hostname), when.Format("20060102-1504"))
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
-	w.Write([]byte(text))
+	_, _ = w.Write([]byte(text))
 }
 
 // safeFileName keeps letters, digits, dots and dashes of a name.

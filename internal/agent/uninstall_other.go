@@ -16,16 +16,16 @@ import (
 // normal package removal) until the package is purged.
 func uninstallerCommand() (func() error, error) {
 	script := uninstallScript(func(name string) bool { _, err := exec.LookPath(name); return err == nil },
-		func(pkg string) bool { return exec.Command("dpkg", "-s", pkg).Run() == nil })
+		func(pkg string) bool { return exec.Command("dpkg", "-s", pkg).Run() == nil }) // #nosec G204 -- script built by the agent from fixed text and its own paths
 	if script == "" {
 		return nil, errors.New("the agent was not installed from a deb or rpm package; uninstall it by hand")
 	}
 	return func() error {
 		if _, err := exec.LookPath("systemd-run"); err == nil {
 			unit := "backupzit-agent-uninstall-" + strconv.FormatInt(time.Now().Unix(), 10)
-			return exec.Command("systemd-run", "--unit", unit, "--collect", "--quiet", "/bin/sh", "-c", script).Run()
+			return exec.Command("systemd-run", "--unit", unit, "--collect", "--quiet", "/bin/sh", "-c", script).Run() // #nosec G204 -- script built by the agent from fixed text and its own paths
 		}
-		cmd := exec.Command("/bin/sh", "-c", script)
+		cmd := exec.Command("/bin/sh", "-c", script) // #nosec G204 -- script built by the agent from fixed text and its own paths
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 		if err := cmd.Start(); err != nil {
 			return err

@@ -42,7 +42,7 @@ func lvmVolumes(pv Volume) ([]Volume, error) {
 	p += 16
 	var text string
 	for ; binary.LittleEndian.Uint64(b[p:]) != 0; p += 16 {
-		mdaOff := int64(binary.LittleEndian.Uint64(b[p:]))
+		mdaOff := int64(binary.LittleEndian.Uint64(b[p:])) // #nosec G115 -- a value from a damaged disk that does not fit makes the following read fail
 		t, err := readMetadata(pv.r, mdaOff)
 		if err == nil {
 			text = t
@@ -126,9 +126,9 @@ func readMetadata(r io.ReaderAt, mdaOff int64) (string, error) {
 	if string(h[4:20]) != " LVM2 x[5A%r0N*>" {
 		return "", fmt.Errorf("bad metadata header")
 	}
-	size := int64(binary.LittleEndian.Uint64(h[32:]))
-	off := int64(binary.LittleEndian.Uint64(h[40:]))
-	n := int64(binary.LittleEndian.Uint64(h[48:]))
+	size := int64(binary.LittleEndian.Uint64(h[32:])) // #nosec G115 -- a value from a damaged disk that does not fit makes the following read fail
+	off := int64(binary.LittleEndian.Uint64(h[40:]))  // #nosec G115 -- a value from a damaged disk that does not fit makes the following read fail
+	n := int64(binary.LittleEndian.Uint64(h[48:]))    // #nosec G115 -- a value from a damaged disk that does not fit makes the following read fail
 	if n <= 0 || n > 16<<20 {
 		return "", fmt.Errorf("no metadata")
 	}

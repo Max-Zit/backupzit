@@ -38,7 +38,7 @@ const versionFile = "version"
 // none was needed (same version, or a new installation).
 func PreUpgradeCopy(ctx context.Context, dbURL, dataDir, version string) (dir, from string, err error) {
 	vf := filepath.Join(dataDir, versionFile)
-	prev, rerr := os.ReadFile(vf)
+	prev, rerr := os.ReadFile(vf) // #nosec G304 -- files of the console's data directory
 	from = strings.TrimSpace(string(prev))
 	if rerr == nil && from == version {
 		return "", "", nil
@@ -59,11 +59,11 @@ func PreUpgradeCopy(ctx context.Context, dbURL, dataDir, version string) (dir, f
 		from = "unknown"
 	}
 	dir = filepath.Join(dataDir, PreUpgradeDir, time.Now().UTC().Format("20060102-150405")+"-from-"+safeName(from))
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil { // #nosec G703 -- files of the console's data directory
 		return "", "", err
 	}
 	if err := exportConsole(ctx, pool, dataDir, from, dir); err != nil {
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir) // #nosec G703 -- files of the console's data directory
 		return "", "", fmt.Errorf("copy of the console before the update: %w", err)
 	}
 	pruneDirs(filepath.Join(dataDir, PreUpgradeDir), keepPreUpgrade)
@@ -85,7 +85,7 @@ func (s *Server) containerUpdated(ctx context.Context, from string) {
 // RestorePreUpgrade loads a copy made by PreUpgradeCopy (run it with the
 // image of the version the copy was made from).
 func RestorePreUpgrade(ctx context.Context, dbURL, dataDir, dir string, logf func(string, ...any)) error {
-	b, err := os.ReadFile(filepath.Join(dir, "meta.json"))
+	b, err := os.ReadFile(filepath.Join(dir, "meta.json")) // #nosec G304 -- files of the console's data directory
 	var meta consoleMeta
 	if err != nil || json.Unmarshal(b, &meta) != nil {
 		return errors.New("not a copy of the console (meta.json missing or damaged)")
@@ -121,7 +121,7 @@ func pruneDirs(dir string, n int) {
 	}
 	sort.Strings(names)
 	for i := 0; i < len(names)-n; i++ {
-		os.RemoveAll(filepath.Join(dir, names[i]))
+		_ = os.RemoveAll(filepath.Join(dir, names[i]))
 	}
 }
 
@@ -132,7 +132,7 @@ func SyncDist(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(dst, 0o755); err != nil {
+	if err := os.MkdirAll(dst, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 		return err
 	}
 	for _, e := range entries {
@@ -145,12 +145,12 @@ func SyncDist(src, dst string) error {
 				continue // already there (installers carry their version in the name)
 			}
 		}
-		b, err := os.ReadFile(filepath.Join(src, e.Name()))
+		b, err := os.ReadFile(filepath.Join(src, e.Name())) // #nosec G304 -- files of the console's data directory
 		if err != nil {
 			return err
 		}
 		tmp := target + ".tmp"
-		if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		if err := os.WriteFile(tmp, b, 0o644); err != nil { // #nosec G306 G703 -- version file, not secret
 			return err
 		}
 		if err := os.Rename(tmp, target); err != nil {

@@ -40,7 +40,7 @@ func (l *Local) RemoveDirs(_ context.Context) error {
 				walk(filepath.Join(dir, e.Name()))
 			}
 		}
-		os.Remove(dir)
+		_ = os.Remove(dir)
 	}
 	walk(l.root)
 	return nil
@@ -58,26 +58,26 @@ func (l *Local) Save(_ context.Context, name string, data []byte) error {
 		return err
 	}
 	tmp := p + ".tmp-" + randSuffix()
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) // #nosec G304 -- temporary file next to the object in the local repository
 	if err != nil {
 		return err
 	}
 	if _, err := f.Write(data); err != nil {
-		f.Close()
-		os.Remove(tmp)
+		_ = f.Close()
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := f.Sync(); err != nil {
-		f.Close()
-		os.Remove(tmp)
+		_ = f.Close()
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := f.Close(); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := os.Rename(tmp, p); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return err
 	}
 	return nil

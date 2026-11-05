@@ -23,7 +23,7 @@ const agentKey ctxKey = 1
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 func writeAPIError(w http.ResponseWriter, code int, msg string) {
@@ -116,7 +116,7 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 		if run != nil {
 			ar, err := s.toAPIRun(r.Context(), run)
 			if err != nil {
-				s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()})
+				_ = s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()})
 			} else {
 				resp.Run = ar
 				s.log.Info("run assigned", "run", run.ID, "kind", run.Kind, "agent", a.Hostname)
@@ -306,7 +306,7 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if s.Notifier != nil {
-		go func() {
+		go func() { // #nosec G118 -- background work that outlives the request on purpose
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 			s.Notifier.Pass(ctx, time.Now())

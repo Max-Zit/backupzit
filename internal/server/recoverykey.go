@@ -97,7 +97,7 @@ func (s *Server) handleRecoverySheet(w http.ResponseWriter, r *http.Request, use
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="backupzit-recovery-sheet.txt"`)
 	w.Header().Set("Cache-Control", "no-store")
-	w.Write([]byte(recoverySheet(t, time.Now())))
+	_, _ = w.Write([]byte(recoverySheet(t, time.Now())))
 }
 
 func days(n int) string {

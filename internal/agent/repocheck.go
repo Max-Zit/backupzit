@@ -26,7 +26,7 @@ func (a *Agent) repoCheck(ctx context.Context, run api.Run) api.RunResult {
 	}
 	defer lock.Unlock()
 	res, err := checker.Run(ctx, r, checker.Options{ReadData: true, Progress: func(done, total int) {
-		a.progress(ctx, uint64(done), uint64(total), 0)
+		a.progress(ctx, uint64(done), uint64(total), 0) // #nosec G115 -- counts and sizes for display, not negative
 	}})
 	if err != nil {
 		return failed(fmt.Errorf("check: %w", err))

@@ -181,18 +181,18 @@ func (c *Client) openWriter(ctx context.Context, file dsPath) (*diskWriter, erro
 	}
 	stdin, err := s.StdinPipe()
 	if err != nil {
-		s.Close()
+		_ = s.Close()
 		return nil, err
 	}
 	out := &bytes.Buffer{}
 	s.Stdout, s.Stderr = out, out
 	if err := s.Start("python3 -c " + sq(writerScript) + " " + sq(file.local())); err != nil {
-		s.Close()
+		_ = s.Close()
 		return nil, err
 	}
 	go func() {
 		<-ctx.Done()
-		s.Close()
+		_ = s.Close()
 	}()
 	return &diskWriter{w: bufio.NewWriterSize(stdin, 4<<20), stdin: stdin, out: out,
 		wait: func() error { defer s.Close(); return s.Wait() }}, nil
@@ -208,8 +208,8 @@ func (w *diskWriter) WriteAt(b []byte, off int64) (int, error) {
 	for len(b) > 0 {
 		n := min(len(b), 4<<20)
 		var h [12]byte
-		binary.LittleEndian.PutUint64(h[:8], uint64(off))
-		binary.LittleEndian.PutUint32(h[8:], uint32(n))
+		binary.LittleEndian.PutUint64(h[:8], uint64(off)) // #nosec G115 -- disk and datastore sizes from vSphere are within range
+		binary.LittleEndian.PutUint32(h[8:], uint32(n))   // #nosec G115 -- disk and datastore sizes from vSphere are within range
 		if _, err := w.w.Write(h[:]); err != nil {
 			w.err = err
 			return 0, err
@@ -229,11 +229,11 @@ func (w *diskWriter) Close() error {
 	defer w.mu.Unlock()
 	var h [12]byte
 	binary.LittleEndian.PutUint64(h[:8], 0)
-	w.w.Write(h[:])
+	_, _ = w.w.Write(h[:])
 	if err := w.w.Flush(); err != nil && w.err == nil {
 		w.err = err
 	}
-	w.stdin.Close()
+	_ = w.stdin.Close()
 	err := w.wait()
 	if w.err != nil {
 		return w.err

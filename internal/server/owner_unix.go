@@ -14,6 +14,6 @@ func matchOwner(path, dir string) {
 		return
 	}
 	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
-		os.Chown(path, int(st.Uid), int(st.Gid))
+		_ = os.Chown(path, int(st.Uid), int(st.Gid))
 	}
 }

@@ -18,7 +18,7 @@ func fixOwner(paths ...string) {
 			continue
 		}
 		if st, ok := fi.Sys().(*syscall.Stat_t); ok {
-			os.Chown(p, int(st.Uid), int(st.Gid))
+			_ = os.Chown(p, int(st.Uid), int(st.Gid))
 		}
 	}
 }

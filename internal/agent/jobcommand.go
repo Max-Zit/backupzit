@@ -50,9 +50,9 @@ func (a *Agent) jobCommand(ctx context.Context, run api.Run, stage, command, sta
 		return nil, err
 	}
 	defer os.Remove(f.Name())
-	f.WriteString(command)
-	f.Close()
-	cmd := exec.CommandContext(ctx, shell, append(args, f.Name())...)
+	_, _ = f.WriteString(command)
+	_ = f.Close()
+	cmd := exec.CommandContext(ctx, shell, append(args, f.Name())...) // #nosec G204 -- the job's command, set by an administrator with the Settings permission
 	cmd.Dir = filepath.Dir(f.Name())
 	cmd.Env = append(os.Environ(), "BACKUPZIT_STAGE="+stage, "BACKUPZIT_JOB="+run.JobName,
 		"BACKUPZIT_JOB_ID="+strconv.FormatInt(run.JobID, 10), "BACKUPZIT_RUN_ID="+strconv.FormatInt(run.ID, 10), "BACKUPZIT_STATUS="+status)

@@ -141,11 +141,11 @@ func (s *Store) Save(name string, r io.Reader) error {
 	defer os.Remove(tmp) // no-op after the rename
 	h := sha256.New()
 	if _, err := io.Copy(io.MultiWriter(f, h), r); err != nil {
-		f.Close()
+		_ = f.Close()
 		return err
 	}
 	if err := f.Sync(); err != nil {
-		f.Close()
+		_ = f.Close()
 		return err
 	}
 	if err := f.Close(); err != nil {
@@ -199,7 +199,7 @@ func (s *Store) retainLocked(p string, until time.Time) error {
 }
 
 func sameContent(p string, sum []byte) (bool, error) {
-	f, err := os.Open(p)
+	f, err := os.Open(p) // #nosec G304 -- object path checked by ValidName
 	if err != nil {
 		return false, err
 	}
@@ -376,10 +376,10 @@ func (s *Store) Sweep() (removed int, err error) {
 			return removed, err
 		}
 	}
-	filepath.WalkDir(s.root, func(p string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(s.root, func(p string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && strings.HasPrefix(d.Name(), ".tmp-") {
 			if fi, err := d.Info(); err == nil && now.Sub(fi.ModTime()) > 24*time.Hour {
-				os.Remove(p)
+				_ = os.Remove(p) // #nosec G122 -- the repository server's own storage directory; clients cannot create links in it
 			}
 		}
 		return nil
@@ -463,7 +463,7 @@ func (s *Store) logSignature() string {
 // ("backupzit-repo undelete" while the service runs).
 func (s *Store) reloadLogLocked() {
 	if s.logSignature() != s.logSig {
-		s.loadLogLocked()
+		_ = s.loadLogLocked()
 	}
 }
 

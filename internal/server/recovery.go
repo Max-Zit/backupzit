@@ -93,5 +93,5 @@ func (s *Server) handleRecoveryJSON(w http.ResponseWriter, r *http.Request, _ st
 	}, "", "  ")
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", `attachment; filename="recovery.json"`)
-	w.Write(b)
+	_, _ = w.Write(b)
 }

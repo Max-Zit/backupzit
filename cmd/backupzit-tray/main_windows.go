@@ -62,7 +62,7 @@ func main() {
 	showEvent, _ := windows.CreateEvent(nil, 0, 0, windows.StringToUTF16Ptr(`Local\BackupZitTrayShow`))
 	m, err := windows.CreateMutex(nil, false, windows.StringToUTF16Ptr(`Local\BackupZitTray`))
 	if err == windows.ERROR_ALREADY_EXISTS {
-		windows.SetEvent(showEvent)
+		_ = windows.SetEvent(showEvent)
 		return
 	}
 	defer windows.CloseHandle(m)
@@ -254,5 +254,5 @@ func openURL(u string) {
 	if !strings.HasPrefix(u, "https://") && !strings.HasPrefix(u, "http://") {
 		return
 	}
-	windows.ShellExecute(0, windows.StringToUTF16Ptr("open"), windows.StringToUTF16Ptr(u), nil, nil, windows.SW_SHOWNORMAL)
+	_ = windows.ShellExecute(0, windows.StringToUTF16Ptr("open"), windows.StringToUTF16Ptr(u), nil, nil, windows.SW_SHOWNORMAL)
 }

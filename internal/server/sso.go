@@ -146,7 +146,7 @@ func (s *Server) ssoSettings(ctx context.Context) SSOSettings {
 	if s.store == nil {
 		return c
 	}
-	s.store.GetSetting(ctx, settingSSO, &c)
+	_ = s.store.GetSetting(ctx, settingSSO, &c)
 	return c
 }
 
@@ -203,7 +203,7 @@ func (s *Server) setSSOCookie(w http.ResponseWriter, r *http.Request, v string) 
 	if s.guard.Secure(r) {
 		ss = http.SameSiteNoneMode
 	}
-	http.SetCookie(w, &http.Cookie{Name: ssoCookie, Value: v, Path: "/login/sso", MaxAge: 600, HttpOnly: true,
+	http.SetCookie(w, &http.Cookie{Name: ssoCookie, Value: v, Path: "/login/sso", MaxAge: 600, HttpOnly: true, // #nosec G124 -- Secure is set when the console is reached over HTTPS (guard.Secure); HttpOnly and SameSite are set
 		Secure: s.guard.Secure(r), SameSite: ss})
 }
 
@@ -473,7 +473,7 @@ func (s *Server) handleSAMLMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/samlmetadata+xml")
-	w.Write(b.Bytes())
+	_, _ = w.Write(b.Bytes())
 }
 
 // ssoSignIn creates or updates the user and starts the session.
@@ -503,7 +503,7 @@ func (s *Server) ssoSignIn(w http.ResponseWriter, r *http.Request, c SSOSettings
 		s.ssoFailed(w, r, errors.New("this account is disabled"))
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: ssoCookie, Value: "", Path: "/login/sso", MaxAge: -1, HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: ssoCookie, Value: "", Path: "/login/sso", MaxAge: -1, HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteLaxMode}) // #nosec G124 -- Secure is set when the console is reached over HTTPS (guard.Secure); HttpOnly and SameSite are set
 	s.startSession(w, r, u, "single sign-on")
 }
 

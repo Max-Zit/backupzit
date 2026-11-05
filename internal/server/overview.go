@@ -93,14 +93,14 @@ func (s *Store) jobCoverage(ctx context.Context) (map[int64]*JobCoverage, error)
 			Bytes     uint64 `json:"bytes"`
 			BytesRead uint64 `json:"bytes_read"`
 		}
-		json.Unmarshal(stats, &st)
+		_ = json.Unmarshal(stats, &st)
 		c.Size = max(st.Bytes, st.BytesRead)
 		var d struct {
 			Guests []struct {
 				Name string `json:"name"`
 			} `json:"guests"`
 		}
-		json.Unmarshal(details, &d)
+		_ = json.Unmarshal(details, &d)
 		for _, g := range d.Guests {
 			c.Unit, c.Items = "VM", append(c.Items, g.Name)
 		}

@@ -21,7 +21,7 @@ func cmdSystemBackup(ctx context.Context, args []string) error {
 	rf := addRepoFlags(fs)
 	var excludes multiFlag
 	fs.Var(&excludes, "exclude", "name pattern to exclude (repeatable)")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	r, err := rf.open(ctx)
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func printLayout(l *repo.SystemLayout) {
 func cmdSystemShow(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("system-show", flag.ExitOnError)
 	rf := addRepoFlags(fs)
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() != 1 {
 		return errors.New("usage: backupzit-agent system-show [options] <snapshot-id|latest>")
 	}
@@ -110,7 +110,7 @@ func cmdSystemRestore(ctx context.Context, args []string) error {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent system-restore [options] --target DEVICE <snapshot-id|latest>")
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() != 1 || *target == "" {
 		fs.Usage()
 		return errors.New("snapshot and --target are required")

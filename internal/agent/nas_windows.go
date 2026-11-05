@@ -40,7 +40,7 @@ func mountNAS(ctx context.Context, s nasShare, cred *api.NASShare, writable bool
 		return "", nil, err
 	}
 	// A connection left by an interrupted run may hold other credentials.
-	procWNetCancelConnection2.Call(uintptr(unsafe.Pointer(remote)), 0, 1)
+	_, _, _ = procWNetCancelConnection2.Call(uintptr(unsafe.Pointer(remote)), 0, 1) // #nosec G103 -- structure passed to the WNet API
 	nr := netResource{Type: resourceTypeDisk, RemoteName: remote}
 	var user, pass *uint16
 	if cred.User != "" {
@@ -55,10 +55,10 @@ func mountNAS(ctx context.Context, s nasShare, cred *api.NASShare, writable bool
 			return "", nil, err
 		}
 	}
-	if r, _, _ := procWNetAddConnection2W.Call(uintptr(unsafe.Pointer(&nr)), uintptr(unsafe.Pointer(pass)), uintptr(unsafe.Pointer(user)), 0); r != 0 {
+	if r, _, _ := procWNetAddConnection2W.Call(uintptr(unsafe.Pointer(&nr)), uintptr(unsafe.Pointer(pass)), uintptr(unsafe.Pointer(user)), 0); r != 0 { // #nosec G103 -- structure passed to the WNet API
 		return "", nil, fmt.Errorf("connect %s: %w", unc, windows.Errno(r))
 	}
-	unmount := func() { procWNetCancelConnection2.Call(uintptr(unsafe.Pointer(remote)), 0, 1) }
+	unmount := func() { _, _, _ = procWNetCancelConnection2.Call(uintptr(unsafe.Pointer(remote)), 0, 1) } // #nosec G103 -- structure passed to the WNet API
 	root := unc
 	if s.Sub != "" {
 		root = filepath.Join(unc, filepath.FromSlash(s.Sub))

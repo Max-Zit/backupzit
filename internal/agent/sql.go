@@ -109,7 +109,7 @@ func (a *Agent) sqlBackup(ctx context.Context, run api.Run) api.RunResult {
 	if kind == "log" {
 		return res
 	}
-	lock.Unlock() // retention needs an exclusive lock
+	_ = lock.Unlock() // retention needs an exclusive lock
 	return a.withRetention(ctx, r, run, res)
 }
 

@@ -240,7 +240,7 @@ func probeVMware(ctx context.Context, h VMwareHost) (inv []byte, c *vmware.Clien
 func (s *Store) RefreshVMwareHost(ctx context.Context, h VMwareHost) error {
 	inv, c, sshErr, err := probeVMware(ctx, h)
 	if err != nil {
-		s.saveVMwareInventory(ctx, h.ID, nil, "", h.APIWrites, h.SSHOK, "", err.Error())
+		_ = s.saveVMwareInventory(ctx, h.ID, nil, "", h.APIWrites, h.SSHOK, "", err.Error())
 		return err
 	}
 	msg := ""

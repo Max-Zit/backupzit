@@ -67,7 +67,7 @@ func (a *Agent) imageBackup(ctx context.Context, run api.Run) api.RunResult {
 	if len(sn.Stats.Errors) > 0 {
 		res.Status = api.StatusWarning
 	}
-	lock.Unlock() // retention needs an exclusive lock
+	_ = lock.Unlock() // retention needs an exclusive lock
 	return a.withRetention(ctx, r, run, res)
 }
 
@@ -154,7 +154,7 @@ func (a *Agent) imageFileRestore(ctx context.Context, run api.Run) api.RunResult
 	}
 	stats, _ := json.Marshal(st)
 	res := api.RunResult{Status: api.StatusSuccess, Stats: stats, Errors: st.Errors,
-		Message: fmt.Sprintf("Restored %s and %s from the image", count(int(st.Files), "file", "files"), count(int(st.Dirs), "folder", "folders"))}
+		Message: fmt.Sprintf("Restored %s and %s from the image", count(int(st.Files), "file", "files"), count(int(st.Dirs), "folder", "folders"))} // #nosec G115 -- counts and sizes for display, not negative
 	if len(st.Errors) > 0 {
 		res.Status = api.StatusWarning
 	}

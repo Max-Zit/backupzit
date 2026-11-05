@@ -86,13 +86,13 @@ func (a Approval) Expires() time.Time { return a.RequestedAt.Add(approvalTTL) }
 // Policy is the requested retention of a job.retention request.
 func (a Approval) Policy() repo.RetentionPolicy {
 	var p repo.RetentionPolicy
-	json.Unmarshal(a.Payload, &p)
+	_ = json.Unmarshal(a.Payload, &p)
 	return p
 }
 
 func (s *Store) fourEyes(ctx context.Context) bool {
 	var on bool
-	s.GetSetting(ctx, settingFourEyes, &on)
+	_ = s.GetSetting(ctx, settingFourEyes, &on)
 	return on
 }
 
@@ -106,7 +106,7 @@ func scanApproval(r pgx.CollectableRow) (Approval, error) {
 
 // expireApprovals marks requests older than approvalTTL as expired.
 func (s *Store) expireApprovals(ctx context.Context) {
-	s.db.Exec(ctx, `UPDATE approvals SET status='expired', decided_at=now() WHERE status='pending' AND requested_at < $1`, time.Now().Add(-approvalTTL))
+	_, _ = s.db.Exec(ctx, `UPDATE approvals SET status='expired', decided_at=now() WHERE status='pending' AND requested_at < $1`, time.Now().Add(-approvalTTL))
 }
 
 // ListApprovals returns the pending requests and the newest 50 decided ones.
@@ -130,7 +130,7 @@ func (s *Store) ListApprovals(ctx context.Context) (pending, decided []Approval,
 // PendingApprovals counts the requests waiting for a decision.
 func (s *Store) PendingApprovals(ctx context.Context) int {
 	var n int
-	s.db.QueryRow(ctx, `SELECT count(*) FROM approvals WHERE status='pending' AND requested_at >= $1`, time.Now().Add(-approvalTTL)).Scan(&n)
+	_ = s.db.QueryRow(ctx, `SELECT count(*) FROM approvals WHERE status='pending' AND requested_at >= $1`, time.Now().Add(-approvalTTL)).Scan(&n)
 	return n
 }
 
@@ -333,7 +333,7 @@ func (s *Server) handleApprovalDecision(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 		if err := s.executeApproval(ctx, a); err != nil {
-			s.store.db.Exec(ctx, `UPDATE approvals SET status='failed', note=$2 WHERE id=$1`, id, err.Error())
+			_, _ = s.store.db.Exec(ctx, `UPDATE approvals SET status='failed', note=$2 WHERE id=$1`, id, err.Error())
 			s.audit(r, "approval.failed", "%s: %s: %v", a.Title(), a.ObjectName, err)
 			redirectErr(w, r, "/approvals", fmt.Errorf("approved, but the change failed: %w", err))
 			return

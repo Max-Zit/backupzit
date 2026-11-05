@@ -169,7 +169,7 @@ func (s *Server) handleSettingsRestoreTests(w http.ResponseWriter, r *http.Reque
 // addVerifyParams sets the sample size of a restore test run.
 func (s *Server) addVerifyParams(ctx context.Context, ar *api.Run) {
 	x := s.store.restoreTestSettings(ctx)
-	ar.VerifyFiles, ar.VerifyMaxBytes, ar.VerifyBlocks = x.Files, uint64(x.MaxMB)<<20, x.Blocks
+	ar.VerifyFiles, ar.VerifyMaxBytes, ar.VerifyBlocks = x.Files, uint64(x.MaxMB)<<20, x.Blocks // #nosec G115 -- sizes and counts for display and statistics, not negative
 	if x.BootVMs {
 		ar.VerifyBootSeconds = x.BootMinutes * 60
 	}
@@ -183,6 +183,6 @@ func bootTests(run Run) []pve.BootResult {
 	var d struct {
 		Boot []pve.BootResult `json:"boot"`
 	}
-	json.Unmarshal(run.Details, &d)
+	_ = json.Unmarshal(run.Details, &d)
 	return d.Boot
 }

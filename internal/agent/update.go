@@ -60,11 +60,11 @@ func (a *Agent) selfUpdate(ctx context.Context, run api.Run) (api.RunResult, fun
 	// Keep only the newest download.
 	if old, _ := filepath.Glob(filepath.Join(dir, "backupzit-agent*")); old != nil {
 		for _, f := range old {
-			os.Remove(f)
+			_ = os.Remove(f)
 		}
 	}
 	path := filepath.Join(dir, name)
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- the agent's own configuration, update or work file
 	if err != nil {
 		return failed(err), nil
 	}
@@ -74,16 +74,16 @@ func (a *Agent) selfUpdate(ctx context.Context, run api.Run) (api.RunResult, fun
 		err = cerr
 	}
 	if err != nil {
-		os.Remove(path)
+		_ = os.Remove(path)
 		return failed(fmt.Errorf("download %s: %w", name, err)), nil
 	}
 	if got := hex.EncodeToString(h.Sum(nil)); !strings.EqualFold(got, run.UpdateSHA256) {
-		os.Remove(path)
+		_ = os.Remove(path)
 		return failed(fmt.Errorf("installer %s is damaged or was changed (SHA-256 %s, expected %s)", name, got, run.UpdateSHA256)), nil
 	}
 	install, err := installerCommand(path)
 	if err != nil {
-		os.Remove(path)
+		_ = os.Remove(path)
 		return failed(err), nil
 	}
 	res := api.RunResult{Status: api.StatusSuccess,

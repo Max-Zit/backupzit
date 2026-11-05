@@ -213,7 +213,7 @@ func (s *Server) jobReplicas(ctx context.Context, j Job) []ReplicaView {
 	}
 	var guests []pve.Guest
 	var agentID int64
-	s.store.db.QueryRow(ctx, `SELECT agent_id FROM runs WHERE job_id=$1 AND kind='vm-replica' ORDER BY id DESC LIMIT 1`, j.ID).Scan(&agentID)
+	_ = s.store.db.QueryRow(ctx, `SELECT agent_id FROM runs WHERE job_id=$1 AND kind='vm-replica' ORDER BY id DESC LIMIT 1`, j.ID).Scan(&agentID)
 	if a, err := s.store.GetAgent(ctx, agentID); err == nil {
 		guests = a.LocalGuests()
 	}

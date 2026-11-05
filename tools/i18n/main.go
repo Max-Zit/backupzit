@@ -27,13 +27,13 @@ func main() {
 	switch os.Args[1] {
 	case "wrap":
 		for _, f := range os.Args[2:] {
-			b, err := os.ReadFile(f)
+			b, err := os.ReadFile(f) // #nosec G304 G703 -- path from the command line of a development tool
 			if err != nil {
 				fail("%v", err)
 			}
 			out := wrap(string(b))
 			if out != string(b) {
-				if err := os.WriteFile(f, []byte(out), 0o644); err != nil {
+				if err := os.WriteFile(f, []byte(out), 0o644); err != nil { // #nosec G306 G703 -- output file of a development tool, not secret
 					fail("%v", err)
 				}
 			}
@@ -65,7 +65,7 @@ func main() {
 			cat = map[string]string{}
 		}
 		for _, f := range os.Args[3:] {
-			b, err := os.ReadFile(f)
+			b, err := os.ReadFile(f) // #nosec G304 G703 -- path from the command line of a development tool
 			if err != nil {
 				fail("%v", err)
 			}
@@ -98,7 +98,7 @@ func main() {
 		if err := enc.Encode(cat); err != nil {
 			fail("%v", err)
 		}
-		if err := os.WriteFile(filepath.Join("internal", "server", "i18n", os.Args[2]+".json"), out.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join("internal", "server", "i18n", os.Args[2]+".json"), out.Bytes(), 0o644); err != nil { // #nosec G306 G703 -- output file of a development tool, not secret
 			fail("%v", err)
 		}
 		fmt.Fprintf(os.Stderr, "%s: %d texts\n", os.Args[2], len(cat))
@@ -106,7 +106,7 @@ func main() {
 		if len(os.Args) < 3 {
 			fail("usage: i18n missing LANG")
 		}
-		b, err := os.ReadFile(filepath.Join("internal", "server", "i18n", os.Args[2]+".json"))
+		b, err := os.ReadFile(filepath.Join("internal", "server", "i18n", os.Args[2]+".json")) // #nosec G703 -- path from the command line of a development tool
 		if err != nil {
 			fail("%v", err)
 		}
@@ -134,7 +134,7 @@ func keys() []string {
 	files, _ := filepath.Glob(filepath.Join("internal", "server", "templates", "*.html"))
 	seen := map[string]bool{}
 	for _, f := range files {
-		b, _ := os.ReadFile(f)
+		b, _ := os.ReadFile(f) // #nosec G304 -- path from the command line of a development tool
 		for _, m := range tCall.FindAllStringSubmatch(string(b), -1) {
 			if s, err := strconv.Unquote(m[1]); err == nil {
 				seen[s] = true
@@ -261,7 +261,7 @@ func fail(format string, a ...any) {
 
 // readCatalog loads internal/server/i18n/LANG.json (nil if missing).
 func readCatalog(lang string) map[string]string {
-	b, err := os.ReadFile(filepath.Join("internal", "server", "i18n", lang+".json"))
+	b, err := os.ReadFile(filepath.Join("internal", "server", "i18n", lang+".json")) // #nosec G304 G703 -- path from the command line of a development tool
 	if err != nil {
 		return nil
 	}

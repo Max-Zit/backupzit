@@ -35,7 +35,7 @@ type Handler struct {
 
 // NewHandler serves fs; keyFile and journalFile keep the handles.
 func NewHandler(fs *FS, root, keyFile, journalFile string) (*Handler, error) {
-	key, err := os.ReadFile(keyFile)
+	key, err := os.ReadFile(keyFile) // #nosec G304 -- journal and overlay files the agent creates for the instant recovery
 	if err != nil || len(key) != 32 {
 		key = make([]byte, 32)
 		rand.Read(key)
@@ -44,7 +44,7 @@ func NewHandler(fs *FS, root, keyFile, journalFile string) (*Handler, error) {
 		}
 	}
 	h := &Handler{fs: fs, root: root, key: key, paths: map[string][]string{}}
-	if f, err := os.Open(journalFile); err == nil {
+	if f, err := os.Open(journalFile); err == nil { // #nosec G304 -- journal and overlay files the agent creates for the instant recovery
 		sc := bufio.NewScanner(f)
 		sc.Buffer(make([]byte, 64<<10), 1<<20)
 		for sc.Scan() {
@@ -52,9 +52,9 @@ func NewHandler(fs *FS, root, keyFile, journalFile string) (*Handler, error) {
 				h.paths[k] = splitPath(p)
 			}
 		}
-		f.Close()
+		_ = f.Close()
 	}
-	if h.journal, err = os.OpenFile(journalFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err != nil {
+	if h.journal, err = os.OpenFile(journalFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err != nil { // #nosec G304 -- journal and overlay files the agent creates for the instant recovery
 		return nil, err
 	}
 	return h, nil
@@ -109,7 +109,7 @@ func (h *Handler) ToHandle(_ billy.Filesystem, path []string) []byte {
 	h.mu.Lock()
 	if _, ok := h.paths[k]; !ok {
 		h.paths[k] = append([]string{}, path...)
-		h.journal.WriteString(k + "\t" + p + "\n")
+		_, _ = h.journal.WriteString(k + "\t" + p + "\n")
 	}
 	h.mu.Unlock()
 	return sum

@@ -65,7 +65,7 @@ func (d lsblkDev) mounts() []string {
 
 var command = func(ctx context.Context, name string, args ...string) ([]byte, error) {
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- fixed program; arguments are separate values, no shell
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
@@ -223,12 +223,12 @@ func partitionInfo(p lsblkDev) (repo.SystemPartition, error) {
 	if err != nil {
 		return repo.SystemPartition{}, fmt.Errorf("start of %s: %w", p.Name, err)
 	}
-	return repo.SystemPartition{Number: int(num), Start: uint64(start) * 512, Size: p.Size, Type: strings.ToLower(p.PartType),
+	return repo.SystemPartition{Number: int(num), Start: uint64(start) * 512, Size: p.Size, Type: strings.ToLower(p.PartType), // #nosec G115 -- disk sizes are below 2^63
 		UUID: strings.ToLower(p.PartUUID), Name: p.PartLabel, Flags: p.PartFlags}, nil
 }
 
 func readInt(p string) (int64, error) {
-	b, err := os.ReadFile(p)
+	b, err := os.ReadFile(p) // #nosec G304 -- system files read for the backup or written to the restored system
 	if err != nil {
 		return 0, err
 	}
@@ -236,7 +236,7 @@ func readInt(p string) (int64, error) {
 }
 
 func readBlocks(dev string, off int64, n uint64) ([]byte, error) {
-	f, err := os.Open(dev)
+	f, err := os.Open(dev) // #nosec G304 -- system files read for the backup or written to the restored system
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +341,7 @@ func vgConfig(ctx context.Context, vg string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	tmp.Close()
+	_ = tmp.Close()
 	defer os.Remove(tmp.Name())
 	if _, err := command(ctx, "vgcfgbackup", "-f", tmp.Name(), vg); err != nil {
 		return "", err

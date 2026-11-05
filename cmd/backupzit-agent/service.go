@@ -32,7 +32,7 @@ func cmdEnroll(ctx context.Context, args []string) error {
 	ifNot := fs.Bool("if-not-enrolled", false, "do nothing if the agent is already enrolled (used by installers)")
 	code := fs.String("code", "", "enrollment code from the console (BZ1-...), instead of --server/--token/--fingerprint")
 	pending := fs.Bool("pending-ok", false, "if the console cannot be reached now, keep the code and let the service retry (used by installers)")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if *code != "" {
 		s, t, f, err := api.DecodeEnrollCode(*code)
 		if err != nil {
@@ -62,10 +62,10 @@ func cmdEnroll(ctx context.Context, args []string) error {
 	cfg, err := agent.Enroll(ctx, *server, *token, *fp, version)
 	if err != nil {
 		// Installers run enroll without a console; keep the reason on disk.
-		os.MkdirAll(filepath.Dir(*cfgPath), 0o700)
+		_ = os.MkdirAll(filepath.Dir(*cfgPath), 0o700)
 		if f, ferr := os.OpenFile(filepath.Join(filepath.Dir(*cfgPath), "enroll-error.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); ferr == nil {
 			fmt.Fprintf(f, "%s enroll with %s failed: %v\n", time.Now().Format(time.RFC3339), *server, err)
-			f.Close()
+			_ = f.Close()
 		}
 		if *pending && !strings.Contains(err.Error(), "invalid or expired enrollment token") {
 			if perr := agent.SavePendingEnrollment(*cfgPath, *server, *token, *fp); perr == nil {
@@ -170,11 +170,11 @@ func (p *program) Stop(s service.Service) error {
 func newLogger(cfgPath string) *slog.Logger {
 	var w io.Writer = os.Stdout
 	logPath := agent.LogPath(cfgPath)
-	os.MkdirAll(filepath.Dir(logPath), 0o700)
+	_ = os.MkdirAll(filepath.Dir(logPath), 0o700)
 	// Agents up to 0.37 wrote the log next to the configuration in /etc.
 	if old := filepath.Join(filepath.Dir(cfgPath), "agent.log"); old != logPath {
 		if _, err := os.Stat(logPath); os.IsNotExist(err) {
-			os.Rename(old, logPath)
+			_ = os.Rename(old, logPath)
 		}
 	}
 	if f, err := logfile.Open(logPath); err == nil {
@@ -218,7 +218,7 @@ func cmdService(args []string) error {
 	action := args[0]
 	fs := flag.NewFlagSet("service", flag.ExitOnError)
 	cfgPath := fs.String("config", agent.DefaultConfigPath(), "agent configuration file")
-	fs.Parse(args[1:])
+	_ = fs.Parse(args[1:])
 	svc, _, err := newService(*cfgPath)
 	if err != nil {
 		return err
@@ -254,7 +254,7 @@ func cmdService(args []string) error {
 func cmdSetServer(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("set-server", flag.ExitOnError)
 	cfgPath := fs.String("config", agent.DefaultConfigPath(), "agent configuration file")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() != 1 {
 		return errors.New("usage: backupzit-agent set-server https://new-address:8443")
 	}
@@ -285,7 +285,7 @@ func cmdSetServer(ctx context.Context, args []string) error {
 func cmdForget(args []string) error {
 	fs := flag.NewFlagSet("forget", flag.ExitOnError)
 	cfgPath := fs.String("config", agent.DefaultConfigPath(), "agent configuration file")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	agent.UnmarkEnrolled()
 	if _, err := os.Stat(*cfgPath); err != nil {
 		return nil

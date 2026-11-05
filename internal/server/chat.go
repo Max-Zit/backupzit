@@ -76,7 +76,7 @@ func (c ChatChannel) wantsStatus(status string, anomaly bool) bool {
 
 func (s *Store) chatSettings(ctx context.Context) ChatSettings {
 	var c ChatSettings
-	s.GetSetting(ctx, settingChat, &c)
+	_ = s.GetSetting(ctx, settingChat, &c)
 	return c
 }
 
@@ -261,7 +261,7 @@ func (s *Server) handleSettingsChat(w http.ResponseWriter, r *http.Request, _ st
 				n = NewNotifier(s.store, s.log, s.ConsoleURL)
 			}
 			var es EmailSettings
-			s.store.GetSetting(ctx, settingEmail, &es)
+			_ = s.store.GetSetting(ctx, settingEmail, &es)
 			l := notifyLanguage(es)
 			now := time.Now()
 			name := "Test"

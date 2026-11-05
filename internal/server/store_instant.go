@@ -206,7 +206,7 @@ func (s *Store) QueueInstantEnd(ctx context.Context, instantRunID int64, finish 
 		return 0, fmt.Errorf("VM %d was already %s", d.InstantVMID, d.State)
 	}
 	var busy bool
-	s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM runs WHERE kind IN ('vm-instant-finish','vm-instant-discard')
+	_ = s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM runs WHERE kind IN ('vm-instant-finish','vm-instant-discard')
 		AND status IN ('queued','running') AND (vm_restore->>'instant_run')::bigint=$1)`, instantRunID).Scan(&busy)
 	if busy {
 		return 0, errors.New("finishing or discarding this VM is already queued")

@@ -16,7 +16,7 @@ func installerCommand(path string) (func() error, error) {
 	}
 	return func() error {
 		logFile := strings.TrimSuffix(path, filepath.Ext(path)) + ".log"
-		cmd := exec.Command("msiexec.exe", "/i", path, "/qn", "/norestart", "/l*v", logFile)
+		cmd := exec.Command("msiexec.exe", "/i", path, "/qn", "/norestart", "/l*v", logFile) // #nosec G204 -- script and package built by the agent from fixed text and its verified update
 		const detachedProcess, newProcessGroup = 0x00000008, 0x00000200
 		cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: detachedProcess | newProcessGroup}
 		if err := cmd.Start(); err != nil {

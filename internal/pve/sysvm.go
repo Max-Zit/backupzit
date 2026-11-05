@@ -85,14 +85,14 @@ func CreateSystemVM(ctx context.Context, o SystemVMOptions) (int, string, error)
 	}
 	if st.Type == "lvm" || st.Type == "lvmthin" {
 		_, vol, _ := strings.Cut(string(m[1]), ":")
-		command(ctx, "lvchange", "-ay", st.Props["vgname"]+"/"+vol)
+		_, _ = command(ctx, "lvchange", "-ay", st.Props["vgname"]+"/"+vol)
 	}
 	return o.VMID, path, nil
 }
 
 // DestroyVM removes a VM created for a restore that failed.
 func DestroyVM(ctx context.Context, vmid int) {
-	command(ctx, "qm", "destroy", strconv.Itoa(vmid), "--purge")
+	_, _ = command(ctx, "qm", "destroy", strconv.Itoa(vmid), "--purge")
 }
 
 // StartVM starts a VM.

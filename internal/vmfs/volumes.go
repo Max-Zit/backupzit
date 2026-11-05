@@ -74,7 +74,7 @@ func looksLikeFS(head []byte) bool {
 
 func gptPartitions(disk io.ReaderAt, head []byte) ([]Volume, error) {
 	h := head[512:]
-	entriesLBA := int64(binary.LittleEndian.Uint64(h[72:]))
+	entriesLBA := int64(binary.LittleEndian.Uint64(h[72:])) // #nosec G115 -- a value from a damaged disk that does not fit makes the following read fail
 	count := int(binary.LittleEndian.Uint32(h[80:]))
 	esize := int(binary.LittleEndian.Uint32(h[84:]))
 	if esize < 128 || count > 1024 {
@@ -90,8 +90,8 @@ func gptPartitions(disk io.ReaderAt, head []byte) ([]Volume, error) {
 		if bytes.Equal(e[:16], make([]byte, 16)) {
 			continue
 		}
-		first := int64(binary.LittleEndian.Uint64(e[32:]))
-		last := int64(binary.LittleEndian.Uint64(e[40:]))
+		first := int64(binary.LittleEndian.Uint64(e[32:])) // #nosec G115 -- a value from a damaged disk that does not fit makes the following read fail
+		last := int64(binary.LittleEndian.Uint64(e[40:]))  // #nosec G115 -- a value from a damaged disk that does not fit makes the following read fail
 		name := utf16z(e[56:128])
 		v := Volume{ID: fmt.Sprintf("p%d", i+1), Offset: first * 512, Size: (last - first + 1) * 512, Label: name}
 		v.Name = fmt.Sprintf("Partition %d", i+1)

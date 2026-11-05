@@ -54,7 +54,7 @@ func (s *Server) handleVMwareCreate(w http.ResponseWriter, r *http.Request, _ st
 		return
 	}
 	if sshErr != nil {
-		s.store.saveVMwareInventory(r.Context(), id, nil, "", h.APIWrites, false, "", "SSH: "+sshErr.Error())
+		_ = s.store.saveVMwareInventory(r.Context(), id, nil, "", h.APIWrites, false, "", "SSH: "+sshErr.Error())
 	}
 	s.audit(r, "vmware.create", "%s (%s), certificate %s", h.Name, h.Address, h.Thumbprint)
 	msg := fmt.Sprintf("ESXi host %s added (ESXi %s). Its certificate %s is pinned.", h.Name, h.Version, h.Thumbprint)
@@ -218,7 +218,7 @@ func (s *Store) refreshVMware(ctx context.Context, now time.Time) {
 			}
 			if h.InventoryAt == nil || now.Sub(*h.InventoryAt) >= 10*time.Minute {
 				vmwareTried.Store(h.ID, now)
-				s.RefreshVMwareHost(ctx, h)
+				_ = s.RefreshVMwareHost(ctx, h)
 			}
 		}
 	}()

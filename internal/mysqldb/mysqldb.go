@@ -51,7 +51,7 @@ func pick(names ...string) string {
 }
 
 func run(ctx context.Context, stdin io.Reader, stdout io.Writer, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- fixed program; arguments are separate values, no shell
 	cmd.Dir = "/"
 	cmd.Env = append(os.Environ(), "LC_ALL=C")
 	var errb bytes.Buffer
@@ -119,7 +119,7 @@ var posRe = regexp.MustCompile(`(?:MASTER_LOG_FILE|SOURCE_LOG_FILE)='([^']+)',\s
 // dump writes a mysqldump of db (without CREATE DATABASE, so it can be
 // loaded under any name) and returns the binary log position it matches.
 func (s *Server) dump(ctx context.Context, db, file string) (string, error) {
-	f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) // #nosec G304 -- database files and dumps in the agent's working folder
 	if err != nil {
 		return "", err
 	}
@@ -132,18 +132,18 @@ func (s *Server) dump(ctx context.Context, db, file string) (string, error) {
 		}
 	}
 	err = run(ctx, nil, f, s.tool["dump"], append(args, "--", db)...)
-	f.Close()
+	_ = f.Close()
 	if err != nil && s.LogBin && !s.MariaDB && strings.Contains(err.Error(), "source-data") {
 		// MySQL before 8.0.26.
-		f, _ = os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+		f, _ = os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) // #nosec G304 -- database files and dumps in the agent's working folder
 		args[len(args)-1] = "--master-data=2"
 		err = run(ctx, nil, f, s.tool["dump"], append(args, "--", db)...)
-		f.Close()
+		_ = f.Close()
 	}
 	if err != nil || !s.LogBin {
 		return "", err
 	}
-	h, err := os.Open(file)
+	h, err := os.Open(file) // #nosec G304 -- database files and dumps in the agent's working folder
 	if err != nil {
 		return "", err
 	}
@@ -214,7 +214,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			files = files[:len(files)-1] // the newest one is still being written
 		}
 		dir := filepath.Join(stage, "binlog")
-		os.MkdirAll(dir, 0o700)
+		_ = os.MkdirAll(dir, 0o700)
 		var stored []string
 		var size uint64
 		for _, f := range files {
@@ -227,7 +227,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			}
 			fi, _ := os.Stat(src)
 			if fi != nil {
-				size += uint64(fi.Size())
+				size += uint64(fi.Size()) // #nosec G115 -- file sizes and counts are not negative
 			}
 			stored = append(stored, f)
 		}
@@ -267,7 +267,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			fi, _ := os.Stat(f)
 			var size uint64
 			if fi != nil {
-				size = uint64(fi.Size())
+				size = uint64(fi.Size()) // #nosec G115 -- file sizes and counts are not negative
 			}
 			meta.Databases = append(meta.Databases, repo.SQLDatabase{Name: db, File: f, Size: size, FirstLSN: pos, LastLSN: pos, Start: t0, Finish: time.Now()})
 		}
@@ -398,12 +398,12 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 		return 0, err
 	}
 	o.Log("loading the dump", "database", target)
-	f, err := os.Open(dump)
+	f, err := os.Open(dump) // #nosec G304 -- database files and dumps in the agent's working folder
 	if err != nil {
 		return 0, err
 	}
 	err = run(ctx, f, io.Discard, s.tool["client"], "--default-character-set=utf8mb4", target)
-	f.Close()
+	_ = f.Close()
 	if err != nil {
 		return 0, fmt.Errorf("load the dump into %s: %w", target, err)
 	}
@@ -435,7 +435,7 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 		errc <- err
 	}()
 	err = run(ctx, io.MultiReader(strings.NewReader("SET SESSION sql_log_bin = 0;\n"), pr), io.Discard, s.tool["client"], "--default-character-set=utf8mb4")
-	pr.Close()
+	_ = pr.Close()
 	if berr := <-errc; berr != nil && err == nil {
 		err = berr
 	}
@@ -476,17 +476,17 @@ func safeName(s string) string {
 }
 
 func copyFile(src, dst string) error {
-	in, err := os.Open(src)
+	in, err := os.Open(src) // #nosec G304 -- database files and dumps in the agent's working folder
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) // #nosec G304 -- database files and dumps in the agent's working folder
 	if err != nil {
 		return err
 	}
 	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
+		_ = out.Close()
 		return err
 	}
 	return out.Close()

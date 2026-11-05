@@ -46,7 +46,7 @@ func (a *Agent) systemBackup(ctx context.Context, run api.Run) api.RunResult {
 	if len(sn.Stats.Errors) > 0 {
 		res.Status = api.StatusWarning
 	}
-	lock.Unlock()
+	_ = lock.Unlock()
 	return a.withRetention(ctx, r, run, res)
 }
 

@@ -35,9 +35,9 @@ func installerCommand(path string) (func() error, error) {
 	return func() error {
 		if _, err := exec.LookPath("systemd-run"); err == nil {
 			unit := "backupzit-agent-update-" + strconv.FormatInt(time.Now().Unix(), 10)
-			return exec.Command("systemd-run", "--unit", unit, "--collect", "--quiet", "/bin/sh", "-c", script).Run()
+			return exec.Command("systemd-run", "--unit", unit, "--collect", "--quiet", "/bin/sh", "-c", script).Run() // #nosec G204 -- script and package built by the agent from fixed text and its verified update
 		}
-		cmd := exec.Command("/bin/sh", "-c", script)
+		cmd := exec.Command("/bin/sh", "-c", script) // #nosec G204 -- script and package built by the agent from fixed text and its verified update
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 		if err := cmd.Start(); err != nil {
 			return err

@@ -49,12 +49,12 @@ func (s *SMTPServer) Messages() []Mail {
 }
 
 // Close stops the server.
-func (s *SMTPServer) Close() { s.ln.Close() }
+func (s *SMTPServer) Close() { _ = s.ln.Close() }
 
 func (s *SMTPServer) serve(c net.Conn) {
 	defer c.Close()
 	r := bufio.NewReader(c)
-	say := func(l string) { c.Write([]byte(l + "\r\n")) }
+	say := func(l string) { _, _ = c.Write([]byte(l + "\r\n")) }
 	say("220 test ESMTP")
 	var m Mail
 	for {

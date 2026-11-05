@@ -106,7 +106,7 @@ func (s *Store) checkNewUser(ctx context.Context, u *User, password string) (str
 		return "", errors.New("choose a role")
 	}
 	var exists bool
-	s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE lower(username)=lower($1))`, u.Username).Scan(&exists)
+	_ = s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE lower(username)=lower($1))`, u.Username).Scan(&exists)
 	if exists {
 		return "", errors.New("a user with that name already exists")
 	}

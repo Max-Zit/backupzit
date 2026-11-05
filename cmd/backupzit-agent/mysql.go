@@ -38,7 +38,7 @@ func cmdMySQL(ctx context.Context, args []string) error {
 		rf := addRepoFlags(fs)
 		dbs := fs.String("db", "", "comma-separated databases (default: all user databases)")
 		binlog := fs.Bool("binlog", false, "store the binary logs closed since the last run instead of dumps")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		r, err := rf.open(ctx)
 		if err != nil {
 			return err
@@ -86,7 +86,7 @@ func cmdMySQL(ctx context.Context, args []string) error {
 		replace := fs.Bool("replace", false, "replace an existing database with that name")
 		at := fs.String("at", "", `point in time, "2006-01-02 15:04:05" (local time; needs the binary logs)`)
 		latest := fs.Bool("latest", false, "replay all stored binary logs after the dump")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		if *db == "" || fs.NArg() != 1 {
 			return errors.New(`usage: backupzit-agent mysql restore --repo R --db NAME [--as NEW] [--replace] [--at "YYYY-MM-DD HH:MM:SS" | --latest] FULL-SNAPSHOT|latest`)
 		}

@@ -193,7 +193,7 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 		// Remove snapshots left behind by an interrupted backup.
 		if old, err := c.leftovers(ctx, v.Ref); err == nil {
 			for _, s := range old {
-				c.removeSnapshot(ctx, v, s)
+				_ = c.removeSnapshot(ctx, v, s)
 			}
 		}
 		name := snapPrefix + strconv.FormatInt(time.Now().Unix(), 10)
@@ -244,7 +244,7 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 			defer func() {
 				for _, p := range plans {
 					if p.clone != nil {
-						c.deleteDisk(context.Background(), *p.clone)
+						_ = c.deleteDisk(context.Background(), *p.clone)
 					}
 				}
 				for _, p := range plans {
@@ -317,7 +317,7 @@ func (c *Client) cloneDisk(ctx context.Context, v VM, p *diskPlan) error {
 	}
 	dst := dsPath{DS: src.DS, Path: fmt.Sprintf("%s/%s-%s.vmdk", tmpDir, strings.ToLower(v.UUID), strings.ReplaceAll(p.disk.Key, ":", "-"))}
 	if c.exists(ctx, dst.DS, dst.Path) {
-		c.deleteDisk(ctx, dst) // left behind by an interrupted backup
+		_ = c.deleteDisk(ctx, dst) // left behind by an interrupted backup
 	}
 	if err := c.mkdir(ctx, dst.DS, tmpDir); err != nil {
 		return fmt.Errorf("create %s on datastore %s: %w", tmpDir, dst.DS, err)

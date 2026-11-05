@@ -53,9 +53,9 @@ func DirtyAreas(ctx context.Context, addr, export, bitmap string) ([]Area, uint6
 	}
 	defer c.Close()
 	if dl, ok := ctx.Deadline(); ok {
-		c.SetDeadline(dl)
+		_ = c.SetDeadline(dl)
 	} else {
-		c.SetDeadline(time.Now().Add(10 * time.Minute))
+		_ = c.SetDeadline(time.Now().Add(10 * time.Minute))
 	}
 	cl := &blockClient{r: bufio.NewReader(c), w: c}
 	ctxName := "qemu:dirty-bitmap:" + bitmap
@@ -82,7 +82,7 @@ func DirtyAreas(ctx context.Context, addr, export, bitmap string) ([]Area, uint6
 		}
 		off += covered
 	}
-	cl.write(uint32(requestMagic), uint16(0), uint16(cmdDisc), uint64(0), uint64(0), uint32(0))
+	_ = cl.write(uint32(requestMagic), uint16(0), uint16(cmdDisc), uint64(0), uint64(0), uint32(0))
 	return areas, size, nil
 }
 
@@ -111,7 +111,7 @@ func (c *blockClient) read(v ...any) error {
 }
 
 func (c *blockClient) option(opt uint32, data []byte) error {
-	return c.write(uint64(optMagic), opt, uint32(len(data)), data)
+	return c.write(uint64(optMagic), opt, uint32(len(data)), data) // #nosec G115 -- NBD fields: names and replies are short, export sizes not negative
 }
 
 // optReply reads one reply to option opt.
@@ -164,10 +164,10 @@ func (c *blockClient) handshake(export, metaContext string) (size uint64, ctxID 
 	}
 	// The dirty bitmap as metadata context.
 	var b []byte
-	b = binary.BigEndian.AppendUint32(b, uint32(len(export)))
+	b = binary.BigEndian.AppendUint32(b, uint32(len(export))) // #nosec G115 -- NBD fields: names and replies are short, export sizes not negative
 	b = append(b, export...)
 	b = binary.BigEndian.AppendUint32(b, 1)
-	b = binary.BigEndian.AppendUint32(b, uint32(len(metaContext)))
+	b = binary.BigEndian.AppendUint32(b, uint32(len(metaContext))) // #nosec G115 -- NBD fields: names and replies are short, export sizes not negative
 	b = append(b, metaContext...)
 	if err := c.option(optSetMetaContext, b); err != nil {
 		return 0, 0, err
@@ -189,7 +189,7 @@ func (c *blockClient) handshake(export, metaContext string) (size uint64, ctxID 
 		return 0, 0, fmt.Errorf("the server has no %s", metaContext)
 	}
 	// Open the export.
-	b = binary.BigEndian.AppendUint32(nil, uint32(len(export)))
+	b = binary.BigEndian.AppendUint32(nil, uint32(len(export))) // #nosec G115 -- NBD fields: names and replies are short, export sizes not negative
 	b = append(b, export...)
 	b = binary.BigEndian.AppendUint16(b, 0) // no extra information requests
 	if err := c.option(optGo, b); err != nil {

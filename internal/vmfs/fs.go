@@ -236,7 +236,7 @@ type closingReader struct{ f fs.File }
 func (c *closingReader) Read(b []byte) (int, error) {
 	n, err := c.f.Read(b)
 	if err != nil {
-		c.f.Close()
+		_ = c.f.Close()
 	}
 	return n, err
 }

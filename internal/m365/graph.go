@@ -152,7 +152,7 @@ func tokenRoles(tok string) []string {
 	var claims struct {
 		Roles []string `json:"roles"`
 	}
-	json.Unmarshal(b, &claims)
+	_ = json.Unmarshal(b, &claims)
 	return claims.Roles
 }
 
@@ -202,7 +202,7 @@ func (c *Client) do(ctx context.Context, path string) (*http.Response, error) {
 			return resp, nil
 		}
 		gerr := readError(resp)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		retry := resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500
 		if resp.StatusCode == http.StatusUnauthorized && try == 0 {
 			c.mu.Lock()
@@ -245,7 +245,7 @@ func readError(resp *http.Response) error {
 		} `json:"error"`
 	}
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
-	json.Unmarshal(b, &body)
+	_ = json.Unmarshal(b, &body)
 	e := &Error{Status: resp.StatusCode, Code: body.Error.Code, Message: body.Error.Message}
 	if e.Message == "" {
 		e.Message = http.StatusText(resp.StatusCode)

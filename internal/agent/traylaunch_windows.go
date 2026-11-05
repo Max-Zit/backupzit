@@ -32,8 +32,8 @@ func StartTrayInSessions(log *slog.Logger) {
 	if err := windows.WTSEnumerateSessions(0, 0, 1, &sessions, &count); err != nil {
 		return
 	}
-	defer windows.WTSFreeMemory(uintptr(unsafe.Pointer(sessions)))
-	for _, s := range unsafe.Slice(sessions, count) {
+	defer windows.WTSFreeMemory(uintptr(unsafe.Pointer(sessions))) // #nosec G103 -- pointer passed to a Windows API call
+	for _, s := range unsafe.Slice(sessions, count) {              // #nosec G103 -- pointer passed to a Windows API call
 		if s.State != windows.WTSActive && s.State != windows.WTSDisconnected {
 			continue
 		}
@@ -89,7 +89,7 @@ func startInSession(session uint32, exe string) error {
 	if err != nil {
 		return err
 	}
-	windows.CloseHandle(pi.Thread)
-	windows.CloseHandle(pi.Process)
+	_ = windows.CloseHandle(pi.Thread)
+	_ = windows.CloseHandle(pi.Process)
 	return nil
 }

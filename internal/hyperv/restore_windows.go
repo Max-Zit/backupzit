@@ -146,7 +146,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	if inPlace {
 		dir = folder // next to the original disks
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 		return nil, fmt.Errorf("create %s: %w", dir, err)
 	}
 
@@ -165,7 +165,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	defer func() {
 		if !ok {
 			for _, f := range created {
-				os.Remove(f)
+				_ = os.Remove(f)
 			}
 		}
 	}()
@@ -283,7 +283,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	out, err := ps(ctx, s.String())
 	if err != nil {
 		if !inPlace {
-			ps(context.Background(), `Get-VM -Name `+psq(name)+` -ErrorAction SilentlyContinue | Remove-VM -Force`)
+			_, _ = ps(context.Background(), `Get-VM -Name `+psq(name)+` -ErrorAction SilentlyContinue | Remove-VM -Force`)
 		}
 		return nil, fmt.Errorf("create the VM: %w", err)
 	}

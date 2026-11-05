@@ -110,12 +110,12 @@ func (l LDAPSettings) connect(ctx context.Context) (*ldap.Conn, error) {
 	conn.SetTimeout(15 * time.Second)
 	if u.Scheme == "ldap" && l.StartTLS {
 		if err := conn.StartTLS(l.tlsConfig(host)); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return nil, fmt.Errorf("StartTLS: %w", err)
 		}
 	}
 	if err := conn.Bind(l.BindDN, l.BindPassword); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, fmt.Errorf("bind as %s: %w", l.BindDN, err)
 	}
 	return conn, nil
@@ -305,7 +305,7 @@ func (l LDAPSettings) Test(ctx context.Context, username, password string) (stri
 		}
 		return fmt.Sprintf("Found %s; role %s (password not checked).", res.DN, roleTitle(res.Role)), nil
 	}
-	conn.Close()
+	_ = conn.Close()
 	res, err := l.Authenticate(ctx, username, password)
 	if err != nil {
 		return "", err
@@ -328,7 +328,7 @@ type ldapPage struct {
 
 func ldapForPage(ctx context.Context, st *Store) ldapPage {
 	var l LDAPSettings
-	st.GetSetting(ctx, settingLDAP, &l)
+	_ = st.GetSetting(ctx, settingLDAP, &l)
 	if l.UserFilter == "" {
 		l.UserFilter = adUserFilter
 	}

@@ -84,7 +84,7 @@ func main() {
 	for _, s := range []int{16, 20, 24, 32, 40, 48, 64, 256} {
 		imgs = append(imgs, render(s))
 	}
-	must(os.WriteFile(filepath.Join(dir, "backupzit.ico"), encodeICO(imgs), 0o644))
+	must(os.WriteFile(filepath.Join(dir, "backupzit.ico"), encodeICO(imgs), 0o644)) // #nosec G306 G703 -- output file of a development tool, not secret
 	if len(os.Args) > 2 {
 		writeTrayIcons(os.Args[2])
 	}
@@ -100,8 +100,8 @@ func main() {
 		blend(img, render(40), 440, 9)
 	}))
 	var big bytes.Buffer
-	png.Encode(&big, render(256))
-	must(os.WriteFile(filepath.Join(dir, "backupzit-256.png"), big.Bytes(), 0o644))
+	_ = png.Encode(&big, render(256))
+	must(os.WriteFile(filepath.Join(dir, "backupzit-256.png"), big.Bytes(), 0o644)) // #nosec G306 G703 -- output file of a development tool, not secret
 }
 
 func must(err error) {
@@ -144,10 +144,10 @@ func writeBMP(path string, w, h int, draw func(*image.NRGBA)) error {
 	var b bytes.Buffer
 	size := 54 + row*h
 	b.WriteString("BM")
-	binary.Write(&b, binary.LittleEndian, []uint32{uint32(size), 0, 54, 40})
-	binary.Write(&b, binary.LittleEndian, []int32{int32(w), int32(h)})
-	binary.Write(&b, binary.LittleEndian, []uint16{1, 24})
-	binary.Write(&b, binary.LittleEndian, []uint32{0, uint32(row * h), 2835, 2835, 0, 0})
+	_ = binary.Write(&b, binary.LittleEndian, []uint32{uint32(size), 0, 54, 40}) // #nosec G115 -- fields of a file format, within its limits
+	_ = binary.Write(&b, binary.LittleEndian, []int32{int32(w), int32(h)})       // #nosec G115 -- fields of a file format, within its limits
+	_ = binary.Write(&b, binary.LittleEndian, []uint16{1, 24})
+	_ = binary.Write(&b, binary.LittleEndian, []uint32{0, uint32(row * h), 2835, 2835, 0, 0}) // #nosec G115 -- fields of a file format, within its limits
 	for y := h - 1; y >= 0; y-- {
 		line := make([]byte, row)
 		for x := 0; x < w; x++ {
@@ -156,7 +156,7 @@ func writeBMP(path string, w, h int, draw func(*image.NRGBA)) error {
 		}
 		b.Write(line)
 	}
-	return os.WriteFile(path, b.Bytes(), 0o644)
+	return os.WriteFile(path, b.Bytes(), 0o644) // #nosec G306 G703 -- output file of a development tool, not secret
 }
 
 // encodeICO builds an ICO with PNG-compressed entries (Windows Vista and
@@ -165,23 +165,23 @@ func encodeICO(imgs []*image.NRGBA) []byte {
 	var pngs [][]byte
 	for _, im := range imgs {
 		var b bytes.Buffer
-		png.Encode(&b, im)
+		_ = png.Encode(&b, im)
 		pngs = append(pngs, b.Bytes())
 	}
 	var ico bytes.Buffer
-	binary.Write(&ico, binary.LittleEndian, [3]uint16{0, 1, uint16(len(imgs))})
+	_ = binary.Write(&ico, binary.LittleEndian, [3]uint16{0, 1, uint16(len(imgs))}) // #nosec G115 -- fields of a file format, within its limits
 	off := 6 + 16*len(imgs)
 	for i, im := range imgs {
 		s := im.Bounds().Dx()
-		dim := uint8(s)
+		dim := uint8(s) // #nosec G115 -- fields of a file format, within its limits
 		if s >= 256 {
 			dim = 0
 		}
-		binary.Write(&ico, binary.LittleEndian, struct {
+		_ = binary.Write(&ico, binary.LittleEndian, struct {
 			W, H, Colors, Reserved uint8
 			Planes, BPP            uint16
 			Size, Offset           uint32
-		}{dim, dim, 0, 0, 1, 32, uint32(len(pngs[i])), uint32(off)})
+		}{dim, dim, 0, 0, 1, 32, uint32(len(pngs[i])), uint32(off)}) // #nosec G115 -- fields of a file format, within its limits
 		off += len(pngs[i])
 	}
 	for _, p := range pngs {
@@ -200,13 +200,13 @@ func writeTrayIcons(dir string) {
 		"error":   {0xdc, 0x26, 0x26, 0xff},
 		"offline": {0x6b, 0x72, 0x80, 0xff},
 	}
-	must(os.MkdirAll(dir, 0o755))
+	must(os.MkdirAll(dir, 0o755)) // #nosec G301 G703 -- output folder of a development tool
 	for name, c := range states {
 		var imgs []*image.NRGBA
 		for _, s := range []int{16, 20, 24, 32, 40, 48} {
 			imgs = append(imgs, badge(render(s), c))
 		}
-		must(os.WriteFile(filepath.Join(dir, "tray-"+name+".ico"), encodeICO(imgs), 0o644))
+		must(os.WriteFile(filepath.Join(dir, "tray-"+name+".ico"), encodeICO(imgs), 0o644)) // #nosec G306 G703 -- output file of a development tool, not secret
 	}
 }
 

@@ -79,7 +79,7 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 		}
 		dst := filepath.Join(target, filepath.FromSlash(strings.TrimPrefix(e.Path, "/")))
 		if e.IsDir {
-			if err := os.MkdirAll(dst, 0o755); err != nil {
+			if err := os.MkdirAll(dst, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 				return err
 			}
 			// The folder's own permissions (e.g. /root or ~/.ssh stay
@@ -107,7 +107,7 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 			return nil
 		}
 		st.Files++
-		st.Bytes += uint64(n)
+		st.Bytes += uint64(n) // #nosec G115 -- a value from a damaged disk that does not fit makes the following read fail
 		return nil
 	}
 	for _, p := range paths {
@@ -131,7 +131,7 @@ func extractFile(fsys FS, e Entry, dst string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 		return 0, err
 	}
 	tmp := dst + ".bzpart"
@@ -142,7 +142,7 @@ func extractFile(fsys FS, e Entry, dst string) (int64, error) {
 	if perm == 0 {
 		perm = 0o600
 	}
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
 	if err != nil {
 		return 0, err
 	}
@@ -151,17 +151,17 @@ func extractFile(fsys FS, e Entry, dst string) (int64, error) {
 		err = cerr
 	}
 	if err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return n, err
 	}
-	os.Chmod(tmp, perm)
-	os.Remove(dst)
+	_ = os.Chmod(tmp, perm)
+	_ = os.Remove(dst)
 	if err := os.Rename(tmp, dst); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return n, err
 	}
 	if !e.ModTime.IsZero() {
-		os.Chtimes(dst, e.ModTime, e.ModTime)
+		_ = os.Chtimes(dst, e.ModTime, e.ModTime)
 	}
 	return n, nil
 }

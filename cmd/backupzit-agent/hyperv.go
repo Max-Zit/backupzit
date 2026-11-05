@@ -24,7 +24,7 @@ func cmdHyperV(ctx context.Context, args []string) error {
 		fs := flag.NewFlagSet("hyperv rct", flag.ExitOnError)
 		disk := fs.String("disk", "", "VHDX file")
 		since := fs.String("since", "", "change tracking ID to compare with")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		on, id, changed, n, err := hyperv.RCTInfo(*disk, *since)
 		if err != nil {
 			return err
@@ -50,7 +50,7 @@ func cmdHyperV(ctx context.Context, args []string) error {
 		fs := flag.NewFlagSet("hyperv backup", flag.ExitOnError)
 		rf := addRepoFlags(fs)
 		ids := fs.String("vmid", "", "comma-separated VMIDs from 'hyperv list' (default: all VMs)")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		var sel []int
 		if *ids != "" {
 			s, err := parseInts(*ids)
@@ -94,7 +94,7 @@ func cmdHyperV(ctx context.Context, args []string) error {
 		folder := fs.String("folder", "", "folder for the virtual disks (default: the host's default)")
 		overwrite := fs.Bool("overwrite", false, "replace the original VM if it still exists (its disk files are renamed, not deleted)")
 		start := fs.Bool("start", false, "start the VM after the restore")
-		fs.Parse(args[1:])
+		_ = fs.Parse(args[1:])
 		if fs.NArg() != 1 || *vmid == 0 {
 			return errors.New("usage: backupzit-agent hyperv restore [options] --vmid N <snapshot-id|latest>")
 		}

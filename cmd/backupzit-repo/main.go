@@ -104,7 +104,7 @@ func cmdServe(args []string) error {
 	listen := fs.String("listen", envOr("BACKUPZIT_REPO_LISTEN", ":8500"), "listen address")
 	lockDays := fs.Int("lock-days", atoi(envOr("BACKUPZIT_REPO_LOCK_DAYS", "30")), "immutability period in days for every stored file")
 	hosts := fs.String("tls-hosts", os.Getenv("BACKUPZIT_REPO_TLS_HOSTS"), "comma-separated names/IPs for the self-signed certificate")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 	store, err := hardened.OpenStore(c.data, *lockDays)
@@ -152,7 +152,7 @@ func cmdServe(args []string) error {
 		<-ctx.Done()
 		sctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		srv.Shutdown(sctx)
+		_ = srv.Shutdown(sctx)
 	}()
 	log.Info("BackupZit hardened repository listening", "addr", *listen, "data", c.data,
 		"lock_days", *lockDays, "fingerprint", tlsutil.CertFingerprint(cert), "version", version)
@@ -166,7 +166,7 @@ func cmdAddKey(args []string) error {
 	fs := flag.NewFlagSet("add-key", flag.ExitOnError)
 	var c config
 	c.flags(fs)
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() != 1 {
 		return errors.New("usage: backupzit-repo add-key <name>")
 	}
@@ -189,7 +189,7 @@ func cmdKeys(args []string) error {
 	fs := flag.NewFlagSet("keys", flag.ExitOnError)
 	var c config
 	c.flags(fs)
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	names, err := c.keys().Names()
 	if err != nil {
 		return err
@@ -207,7 +207,7 @@ func cmdRemoveKey(args []string) error {
 	fs := flag.NewFlagSet("remove-key", flag.ExitOnError)
 	var c config
 	c.flags(fs)
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if fs.NArg() != 1 {
 		return errors.New("usage: backupzit-repo remove-key <name>")
 	}
@@ -224,7 +224,7 @@ func cmdFingerprint(args []string) error {
 	var c config
 	c.flags(fs)
 	hosts := fs.String("tls-hosts", os.Getenv("BACKUPZIT_REPO_TLS_HOSTS"), "names/IPs for a new certificate")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	cert, err := tlsutil.LoadOrCreateCert(c.configDir, splitList(*hosts))
 	if err != nil {
 		return err
@@ -238,7 +238,7 @@ func cmdStatus(args []string) error {
 	fs := flag.NewFlagSet("status", flag.ExitOnError)
 	var c config
 	c.flags(fs)
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	store, err := hardened.OpenStore(c.data, 1)
 	if err != nil {
 		return err
@@ -257,7 +257,7 @@ func cmdUndelete(args []string) error {
 	var c config
 	c.flags(fs)
 	since := fs.String("since", "", "restore files deleted at or after this time (e.g. 2026-10-01T14:30)")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if *since == "" {
 		return errors.New("--since is required")
 	}

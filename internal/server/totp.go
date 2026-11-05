@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- TOTP (RFC 6238) uses HMAC-SHA1
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/base64"
@@ -40,7 +40,7 @@ func totpCode(secret string, counter int64) (string, error) {
 		return "", err
 	}
 	var msg [8]byte
-	binary.BigEndian.PutUint64(msg[:], uint64(counter))
+	binary.BigEndian.PutUint64(msg[:], uint64(counter)) // #nosec G115 -- the TOTP time step is positive
 	m := hmac.New(sha1.New, key)
 	m.Write(msg[:])
 	sum := m.Sum(nil)
@@ -275,7 +275,7 @@ func (s *Server) handleLogin2FA(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "login2fa", pageData{Title: "Two-factor authentication", Error: "Invalid code. Try the current code from your app."})
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: mfaCookie, Value: "", Path: "/login", MaxAge: -1, HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteStrictMode})
+	http.SetCookie(w, &http.Cookie{Name: mfaCookie, Value: "", Path: "/login", MaxAge: -1, HttpOnly: true, Secure: s.guard.Secure(r), SameSite: http.SameSiteStrictMode}) // #nosec G124 -- Secure is set when the console is reached over HTTPS (guard.Secure); HttpOnly and SameSite are set
 	detail := "two-factor"
 	if usedRecovery {
 		detail = "two-factor with a recovery code"
@@ -293,7 +293,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u User, ho
 		return
 	}
 	s.auditAs(r, u.Username, "login", u.Source+", role "+u.Role+", "+how)
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure is set when the console is reached over HTTPS (guard.Secure); HttpOnly and SameSite are set
 		Name: sessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: s.guard.Secure(r),
 		SameSite: http.SameSiteStrictMode, MaxAge: int(sess.Lifetime().Seconds()),
 	})

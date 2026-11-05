@@ -115,7 +115,7 @@ func (s *Server) vmBrowseParams(r *http.Request) (vmBrowseParams, error) {
 	if err != nil {
 		return vmBrowseParams{}, err
 	}
-	r.ParseForm()
+	_ = r.ParseForm()
 	p := vmBrowseParams{run: run, disk: r.FormValue("disk"), volume: r.FormValue("vol"), dir: vmfs.Clean(r.FormValue("path"))}
 	p.vmid, err = strconv.Atoi(r.FormValue("vmid"))
 	if err != nil {
@@ -226,7 +226,7 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 			w.Header().Set("Content-Type", "application/octet-stream")
 			w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(vmfs.Base(sel[0])))
 			w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
-			io.Copy(w, rd)
+			_, _ = io.Copy(w, rd)
 			return
 		}
 	}
@@ -251,7 +251,7 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 				return nil
 			}
 			if len(children) == 0 {
-				zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: e.ModTime})
+				_, _ = zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: e.ModTime})
 			}
 			for _, ch := range children {
 				if err := add(ch); err != nil {

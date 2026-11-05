@@ -352,7 +352,7 @@ func canCommands(r *http.Request) bool { return currentUser(r).Can(string(PermSe
 
 // handleJobEdit serves POST /jobs/{id}/edit.
 func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string) {
-	r.ParseForm()
+	_ = r.ParseForm()
 	id, _ := pathID(r)
 	back := fmt.Sprintf("/jobs/%d", id)
 	old, err := s.store.GetJob(r.Context(), id)

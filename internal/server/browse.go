@@ -48,7 +48,7 @@ func (c *repoCache) drop(url string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if cr, ok := c.repos[url]; ok {
-		cr.r.Close()
+		_ = cr.r.Close()
 		delete(c.repos, url)
 	}
 }
@@ -61,7 +61,7 @@ func (c *repoCache) expire() {
 	}
 	for k, r := range c.repos {
 		if time.Since(r.used) > cacheTTL {
-			r.r.Close()
+			_ = r.r.Close()
 			delete(c.repos, k)
 		}
 	}
@@ -94,7 +94,7 @@ func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repos
 	}
 	r, err := repo.Open(context.WithoutCancel(ctx), be, repo.Password(t.RecoveryKey))
 	if err != nil {
-		be.Close()
+		_ = be.Close()
 		return nil, fmt.Errorf("open repository: %w", err)
 	}
 	c.repos[url] = &cachedRepo{r: r, used: time.Now()}
@@ -215,7 +215,7 @@ func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request, user strin
 
 func (s *Server) handleFilesRestore(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
-	r.ParseForm()
+	_ = r.ParseForm()
 	part, _ := strconv.Atoi(r.FormValue("part"))
 	back := fmt.Sprintf("/runs/%d/browse?", id) + url.Values{"part": {strconv.Itoa(part)}, "path": {r.FormValue("path")}}.Encode()
 	paths := r.Form["sel"]

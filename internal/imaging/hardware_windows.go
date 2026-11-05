@@ -170,7 +170,7 @@ func letterFor(volumeGUIDPath string) (string, func(), error) {
 	vol, _ := windows.UTF16PtrFromString(volumeGUIDPath)
 	buf := make([]uint16, 1024)
 	var n uint32
-	if err := windows.GetVolumePathNamesForVolumeName(vol, &buf[0], uint32(len(buf)), &n); err == nil {
+	if err := windows.GetVolumePathNamesForVolumeName(vol, &buf[0], uint32(len(buf)), &n); err == nil { // #nosec G115 -- length of a small buffer for a Windows API call
 		for _, name := range strings.Split(windows.UTF16ToString(buf[:n]), "\x00") {
 			if len(name) == 3 && name[1] == ':' {
 				return name[:2], func() {}, nil
@@ -190,7 +190,7 @@ func letterFor(volumeGUIDPath string) (string, func(), error) {
 		if err := windows.SetVolumeMountPoint(mpp, vol); err != nil {
 			continue
 		}
-		return mp[:2], func() { windows.DeleteVolumeMountPoint(mpp) }, nil
+		return mp[:2], func() { _ = windows.DeleteVolumeMountPoint(mpp) }, nil
 	}
 	return "", func() {}, errors.New("no free drive letter")
 }
@@ -201,7 +201,7 @@ const offlineHive = `BZ_OFFLINE_SYSTEM`
 // of the known disk controller drivers to boot start.
 func enableBootDrivers(ctx context.Context, win string) ([]string, error) {
 	hive := win + `\Windows\System32\config\SYSTEM`
-	run(ctx, "reg.exe", "unload", `HKLM\`+offlineHive) // leftover from an interrupted run
+	_, _ = run(ctx, "reg.exe", "unload", `HKLM\`+offlineHive) // leftover from an interrupted run
 	if out, err := run(ctx, "reg.exe", "load", `HKLM\`+offlineHive, hive); err != nil {
 		return nil, fmt.Errorf("load %s: %s", hive, strings.TrimSpace(out))
 	}
@@ -218,7 +218,7 @@ func enableBootDrivers(ctx context.Context, win string) ([]string, error) {
 		return nil, err
 	}
 	cur, _, err := sel.GetIntegerValue("Current")
-	sel.Close()
+	_ = sel.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +235,7 @@ func enableBootDrivers(ctx context.Context, win string) ([]string, error) {
 				changed = true
 			}
 		}
-		k.Close()
+		_ = k.Close()
 		// Windows 8 and newer disable unused drivers per control set here.
 		if registry.DeleteKey(registry.LOCAL_MACHINE, services+`\`+name+`\StartOverride`) == nil {
 			changed = true
@@ -252,7 +252,7 @@ var dismAddedRe = regexp.MustCompile(`(?i)installing\s+\d+\s+of\s+\d+`)
 // addDrivers adds all drivers below dir to the offline Windows image.
 func addDrivers(ctx context.Context, win, dir string) (int, error) {
 	scratch := filepath.Join(os.TempDir(), "bz-dism")
-	os.MkdirAll(scratch, 0o700)
+	_ = os.MkdirAll(scratch, 0o700)
 	out, err := runRetry(ctx, "dism.exe", "/Image:"+win+`\`, "/Add-Driver", "/Driver:"+dir, "/Recurse", "/ScratchDir:"+scratch)
 	n := len(dismAddedRe.FindAllString(out, -1))
 	if err != nil {
@@ -265,7 +265,7 @@ func addDrivers(ctx context.Context, win, dir string) (int, error) {
 func run(ctx context.Context, name string, args ...string) (string, error) {
 	cctx, cancel := context.WithTimeout(ctx, 20*time.Minute)
 	defer cancel()
-	out, err := exec.CommandContext(cctx, name, args...).CombinedOutput()
+	out, err := exec.CommandContext(cctx, name, args...).CombinedOutput() // #nosec G204 -- fixed program; arguments are separate values, no shell
 	return winenc.Text(out), err
 }
 
@@ -275,7 +275,7 @@ func RecoveryDriverDirs() []string {
 	var dirs []string
 	if sd := os.Getenv("SystemDrive"); sd != "" {
 		d := filepath.Join(sd+`\`, "BackupZit", "drivers")
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
+		if fi, err := os.Stat(d); err == nil && fi.IsDir() { // #nosec G703 -- driver folder named by the administrator
 			dirs = append(dirs, d)
 		}
 	}

@@ -59,7 +59,7 @@ func newSparseLayout(size uint64, grains []uint64, adapter string) *sparseLayout
 
 // Size is the length of the VMDK file in bytes.
 func (l *sparseLayout) Size() int64 {
-	return int64(l.overhead*512) + int64(len(l.grains))*sparseGrainBytes
+	return int64(l.overhead*512) + int64(len(l.grains))*sparseGrainBytes // #nosec G115 -- disk and datastore sizes from vSphere are within range
 }
 
 // metadata returns everything before the first grain.
@@ -83,13 +83,13 @@ func (l *sparseLayout) metadata() []byte {
 	// Grain tables: entry = sector of the grain, 0 = not allocated.
 	gts := make([]uint32, l.gtCount*sparseGTEs)
 	for i, g := range l.grains {
-		gts[g] = uint32(l.overhead + uint64(i)*sparseGrainSectors)
+		gts[g] = uint32(l.overhead + uint64(i)*sparseGrainSectors) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 	}
 	write := func(gd uint64) {
 		gtStart := gd + l.gdSectors
 		for t := uint64(0); t < l.gtCount; t++ {
 			at := gtStart + t*sparseGTEs*4/512
-			binary.LittleEndian.PutUint32(b[gd*512+t*4:], uint32(at))
+			binary.LittleEndian.PutUint32(b[gd*512+t*4:], uint32(at)) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 			for e := uint64(0); e < sparseGTEs; e++ {
 				binary.LittleEndian.PutUint32(b[at*512+e*4:], gts[t*sparseGTEs+e])
 			}
@@ -147,7 +147,7 @@ func (s *sparseReader) Read(b []byte) (int, error) {
 			break
 		}
 		for s.block < len(s.ids) && s.ids[s.block].IsNull() {
-			off := uint64(s.block) * uint64(s.p.BlockSize)
+			off := uint64(s.block) * uint64(s.p.BlockSize) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 			s.progress(min(uint64(s.p.BlockSize), s.p.Length-off))
 			s.block++
 		}
@@ -163,7 +163,7 @@ func (s *sparseReader) Read(b []byte) (int, error) {
 		if err != nil {
 			return 0, fmt.Errorf("block %d: %w", i, err)
 		}
-		off := uint64(i) * uint64(s.p.BlockSize)
+		off := uint64(i) * uint64(s.p.BlockSize) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 		n := min(uint64(s.p.BlockSize), s.p.Length-off)
 		if uint64(len(data)) != n {
 			return 0, fmt.Errorf("block %d has %d bytes, expected %d", i, len(data), n)

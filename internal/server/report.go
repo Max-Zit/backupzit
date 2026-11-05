@@ -213,7 +213,7 @@ func (s *Store) BuildReport(ctx context.Context, p Period, agentID, jobID int64)
 		rep.Backups++
 		var st runStats
 		if len(r.Stats) > 0 {
-			json.Unmarshal(r.Stats, &st)
+			_ = json.Unmarshal(r.Stats, &st)
 		}
 		rep.BytesRead += st.BytesRead
 		rep.BytesStored += st.BytesStored
@@ -336,12 +336,12 @@ func (rep *Report) periodText() string {
 func (rep *Report) CSV() []byte {
 	var b bytes.Buffer
 	w := csv.NewWriter(&b)
-	w.Write([]string{"run", "type", "agent", "job", "status", "queued", "started", "finished", "duration_s", "files", "size_bytes", "read_bytes", "uploaded_bytes", "message"})
+	_ = w.Write([]string{"run", "type", "agent", "job", "status", "queued", "started", "finished", "duration_s", "files", "size_bytes", "read_bytes", "uploaded_bytes", "message"})
 	for i := len(rep.Runs) - 1; i >= 0; i-- {
 		r := rep.Runs[i]
 		var st runStats
 		if len(r.Stats) > 0 {
-			json.Unmarshal(r.Stats, &st)
+			_ = json.Unmarshal(r.Stats, &st)
 		}
 		ts := func(t *time.Time) string {
 			if t == nil {
@@ -349,7 +349,7 @@ func (rep *Report) CSV() []byte {
 			}
 			return t.Local().Format("2006-01-02 15:04:05")
 		}
-		w.Write([]string{strconv.FormatInt(r.ID, 10), r.Kind, r.Hostname, csvSafe(deref(r.JobName)), r.Status,
+		_ = w.Write([]string{strconv.FormatInt(r.ID, 10), r.Kind, r.Hostname, csvSafe(deref(r.JobName)), r.Status,
 			r.QueuedAt.Local().Format("2006-01-02 15:04:05"), ts(r.StartedAt), ts(r.FinishedAt),
 			strconv.Itoa(int(r.Duration().Seconds())), strconv.FormatUint(st.Files, 10), strconv.FormatUint(st.Bytes, 10),
 			strconv.FormatUint(st.BytesRead, 10), strconv.FormatUint(st.BytesStored, 10), csvSafe(r.Message)})
@@ -482,11 +482,11 @@ func (s *Server) handleReportCSV(w http.ResponseWriter, r *http.Request, _ strin
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+rep.FileName()+`"`)
-	w.Write(rep.CSV())
+	_, _ = w.Write(rep.CSV())
 }
 
 func (s *Server) handleReportEmail(w http.ResponseWriter, r *http.Request, _ string) {
-	r.ParseForm()
+	_ = r.ParseForm()
 	back := "/reports?" + r.PostForm.Encode()
 	rep, err := s.reportFromRequest(r)
 	if err != nil {
@@ -665,7 +665,7 @@ func (n *Notifier) scheduledReports(ctx context.Context, l *language, e EmailSet
 			n.log.Error("send scheduled report", "report", rs.Name, "err", err)
 			continue
 		}
-		n.store.db.Exec(ctx, `UPDATE report_schedules SET last_period=$2 WHERE id=$1`, rs.ID, key)
+		_, _ = n.store.db.Exec(ctx, `UPDATE report_schedules SET last_period=$2 WHERE id=$1`, rs.ID, key)
 		n.log.Info("scheduled report sent", "report", rs.Name, "period", p.Label)
 	}
 }

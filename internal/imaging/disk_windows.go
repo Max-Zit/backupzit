@@ -49,7 +49,7 @@ func ioctl(h windows.Handle, code uint32, in []byte, outSize int) ([]byte, error
 		if outSize > 0 {
 			outPtr = &out[0]
 		}
-		err := windows.DeviceIoControl(h, code, inPtr, uint32(len(in)), outPtr, uint32(outSize), &n, nil)
+		err := windows.DeviceIoControl(h, code, inPtr, uint32(len(in)), outPtr, uint32(outSize), &n, nil) // #nosec G115 -- length of a small buffer for a Windows API call
 		if err == windows.ERROR_INSUFFICIENT_BUFFER || err == windows.ERROR_MORE_DATA {
 			if outSize >= 64<<20 {
 				return nil, err
@@ -122,7 +122,7 @@ func ListDisks() ([]Disk, error) {
 			continue
 		}
 		d, err := readDisk(h, n)
-		windows.CloseHandle(h)
+		_ = windows.CloseHandle(h)
 		if err != nil {
 			return nil, fmt.Errorf("disk %d: %w", n, err)
 		}
@@ -205,7 +205,7 @@ func readDisk(h windows.Handle, n int) (Disk, error) {
 			p.GPTType = guidString(u[0:16])
 			p.GPTID = guidString(u[16:32])
 			p.GPTAttributes = binary.LittleEndian.Uint64(u[32:40])
-			p.Name = syscall.UTF16ToString((*[36]uint16)(unsafe.Pointer(&u[40]))[:])
+			p.Name = syscall.UTF16ToString((*[36]uint16)(unsafe.Pointer(&u[40]))[:]) // #nosec G103 -- pointer passed to a Windows API call
 		}
 		if p.Length == 0 {
 			continue
@@ -262,7 +262,7 @@ type volumeInfo struct {
 
 func listVolumes() ([]volumeInfo, error) {
 	buf := make([]uint16, windows.MAX_PATH)
-	fh, err := windows.FindFirstVolume(&buf[0], uint32(len(buf)))
+	fh, err := windows.FindFirstVolume(&buf[0], uint32(len(buf))) // #nosec G115 -- length of a small buffer for a Windows API call
 	if err != nil {
 		return nil, fmt.Errorf("enumerate volumes: %w", err)
 	}
@@ -273,7 +273,7 @@ func listVolumes() ([]volumeInfo, error) {
 		if v, ok := describeVolume(guidPath); ok {
 			out = append(out, v)
 		}
-		if err := windows.FindNextVolume(fh, &buf[0], uint32(len(buf))); err != nil {
+		if err := windows.FindNextVolume(fh, &buf[0], uint32(len(buf))); err != nil { // #nosec G115 -- length of a small buffer for a Windows API call
 			break
 		}
 	}
@@ -292,7 +292,7 @@ func describeVolume(guidPath string) (volumeInfo, bool) {
 		}
 	}
 	ext, err := ioctl(h, ioctlVolumeGetVolumeDiskExtents, nil, 256)
-	windows.CloseHandle(h)
+	_ = windows.CloseHandle(h)
 	if err != nil || len(ext) < 32 || binary.LittleEndian.Uint32(ext[0:4]) != 1 {
 		return v, false // spanned/dynamic volumes are not supported
 	}
@@ -302,7 +302,7 @@ func describeVolume(guidPath string) (volumeInfo, bool) {
 	names := make([]uint16, 1024)
 	var n uint32
 	gp, _ := windows.UTF16PtrFromString(guidPath)
-	if windows.GetVolumePathNamesForVolumeName(gp, &names[0], uint32(len(names)), &n) == nil {
+	if windows.GetVolumePathNamesForVolumeName(gp, &names[0], uint32(len(names)), &n) == nil { // #nosec G115 -- length of a small buffer for a Windows API call
 		start := 0
 		for i := 0; i < int(n); i++ {
 			if names[i] == 0 {
@@ -315,7 +315,7 @@ func describeVolume(guidPath string) (volumeInfo, bool) {
 	}
 	label := make([]uint16, windows.MAX_PATH+1)
 	fs := make([]uint16, windows.MAX_PATH+1)
-	if windows.GetVolumeInformation(gp, &label[0], uint32(len(label)), nil, nil, nil, &fs[0], uint32(len(fs))) == nil {
+	if windows.GetVolumeInformation(gp, &label[0], uint32(len(label)), nil, nil, nil, &fs[0], uint32(len(fs))) == nil { // #nosec G115 -- length of a small buffer for a Windows API call
 		v.label = windows.UTF16ToString(label)
 		v.fs = windows.UTF16ToString(fs)
 	}

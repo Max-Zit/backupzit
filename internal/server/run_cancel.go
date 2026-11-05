@@ -163,7 +163,7 @@ const maxCancelAll = 500
 // (their ids are in the form), not runs queued since or scheduled later.
 func (s *Server) handleRunsCancelAll(w http.ResponseWriter, r *http.Request, _ string) {
 	const back = "/runs"
-	r.ParseForm()
+	_ = r.ParseForm()
 	ids := r.Form["id"]
 	if len(ids) == 0 || len(ids) > maxCancelAll {
 		redirectErr(w, r, back, errors.New("there are no queued or running runs to cancel"))

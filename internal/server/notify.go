@@ -138,10 +138,10 @@ func sendMailWith(ctx context.Context, e EmailSettings, subject, body string, at
 	if err != nil {
 		return fmt.Errorf("connect to %s: %w", addr, err)
 	}
-	conn.SetDeadline(time.Now().Add(60 * time.Second))
+	_ = conn.SetDeadline(time.Now().Add(60 * time.Second))
 	c, err := smtp.NewClient(conn, e.Host)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return fmt.Errorf("smtp: %w", err)
 	}
 	defer c.Close()
@@ -245,13 +245,13 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 	}
 	if e.Enabled && e.DailyReport && now.Hour() == e.DailyHour {
 		var last string
-		n.store.GetSetting(ctx, settingDailySent, &last)
+		_ = n.store.GetSetting(ctx, settingDailySent, &last)
 		today := now.Format("2006-01-02")
 		if last != today {
 			if err := n.dailyReport(ctx, l, e, now); err != nil {
 				n.log.Error("daily report", "err", err)
 			} else {
-				n.store.SetSetting(ctx, settingDailySent, today)
+				_ = n.store.SetSetting(ctx, settingDailySent, today)
 			}
 		}
 	}
@@ -292,7 +292,7 @@ func (n *Notifier) runAlerts(ctx context.Context, l *language, e EmailSettings, 
 				n.log.Warn("send chat notification", "run", id, "channel", c.Name, "err", err)
 			}
 		}
-		n.store.db.Exec(ctx, `UPDATE runs SET notified=true WHERE id=$1`, id)
+		_, _ = n.store.db.Exec(ctx, `UPDATE runs SET notified=true WHERE id=$1`, id)
 	}
 }
 

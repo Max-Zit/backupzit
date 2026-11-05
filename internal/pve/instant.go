@@ -108,7 +108,7 @@ func InstantStart(ctx context.Context, sn *repo.Snapshot, opts InstantOptions) (
 		return nil, err
 	}
 	sock := InstantSocket(target)
-	os.Remove(sock)
+	_ = os.Remove(sock)
 	opts.Log("starting the disk server", "vmid", target, "socket", sock)
 	if err := opts.ServeCommand(ctx, target, sock); err != nil {
 		return nil, fmt.Errorf("start the disk server: %w", err)
@@ -116,7 +116,7 @@ func InstantStart(ctx context.Context, sn *repo.Snapshot, opts InstantOptions) (
 	ok := false
 	defer func() {
 		if !ok {
-			command(context.Background(), "systemctl", "stop", InstantUnit(target))
+			_, _ = command(context.Background(), "systemctl", "stop", InstantUnit(target))
 		}
 	}()
 	for i := 0; i < 100; i++ {
@@ -130,12 +130,12 @@ func InstantStart(ctx context.Context, sn *repo.Snapshot, opts InstantOptions) (
 	}
 	res := &RestoreResult{VMID: target, Type: g.Type, Name: g.Name, Node: inv.Node}
 	dir := filepath.Join(instantDir, "images", strconv.Itoa(target))
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 		return nil, err
 	}
 	defer func() {
 		if !ok {
-			os.RemoveAll(dir)
+			_ = os.RemoveAll(dir)
 		}
 	}()
 	newVol := map[string]string{}
@@ -179,7 +179,7 @@ func InstantStart(ctx context.Context, sn *repo.Snapshot, opts InstantOptions) (
 		conf = isolateConfig(conf)
 	}
 	cfgFile := filepath.Join(ConfigDir, "nodes", inv.Node, "qemu-server", strconv.Itoa(target)+".conf")
-	if err := os.WriteFile(cfgFile, []byte(conf), 0o640); err != nil {
+	if err := os.WriteFile(cfgFile, []byte(conf), 0o640); err != nil { // #nosec G306 -- Proxmox guest configuration, 0640 as Proxmox writes it
 		return nil, fmt.Errorf("create configuration: %w", err)
 	}
 	ok = true
@@ -215,7 +215,7 @@ func InstantFinish(ctx context.Context, vmid int, storage string, log func(strin
 	if err != nil {
 		return nil, fmt.Errorf("guest %d: %w", vmid, err)
 	}
-	conf, err := os.ReadFile(p)
+	conf, err := os.ReadFile(p) // #nosec G304 -- Proxmox VE configuration files and the agent's work files
 	if err != nil {
 		return nil, fmt.Errorf("guest %d: %w", vmid, err)
 	}
@@ -249,13 +249,13 @@ func InstantFinish(ctx context.Context, vmid int, storage string, log func(strin
 	if moved == 0 && kept == 0 {
 		return nil, fmt.Errorf("guest %d has no disks running from a backup", vmid)
 	}
-	command(ctx, "systemctl", "stop", InstantUnit(vmid))
-	os.Remove(InstantSocket(vmid))
+	_, _ = command(ctx, "systemctl", "stop", InstantUnit(vmid))
+	_ = os.Remove(InstantSocket(vmid))
 	for _, f := range []string{".env", ".key"} {
-		os.Remove(filepath.Join(InstantRunDir, strconv.Itoa(vmid)+f))
+		_ = os.Remove(filepath.Join(InstantRunDir, strconv.Itoa(vmid)+f))
 	}
 	if kept == 0 {
-		os.RemoveAll(filepath.Join(instantDir, "images", strconv.Itoa(vmid)))
+		_ = os.RemoveAll(filepath.Join(instantDir, "images", strconv.Itoa(vmid)))
 	}
 	return notes, nil
 }
@@ -266,23 +266,23 @@ func InstantDiscard(ctx context.Context, vmid int) error {
 	if err != nil {
 		return fmt.Errorf("guest %d: %w", vmid, err)
 	}
-	conf, err := os.ReadFile(p)
+	conf, err := os.ReadFile(p) // #nosec G304 -- Proxmox VE configuration files and the agent's work files
 	if err != nil {
 		return fmt.Errorf("guest %d: %w", vmid, err)
 	}
 	if !strings.Contains(string(conf), InstantStorage+":") {
 		return fmt.Errorf("guest %d does not run from a backup", vmid)
 	}
-	command(ctx, "qm", "stop", strconv.Itoa(vmid))
+	_, _ = command(ctx, "qm", "stop", strconv.Itoa(vmid))
 	if _, err := command(ctx, "qm", "destroy", strconv.Itoa(vmid), "--purge", "1"); err != nil {
 		return err
 	}
-	command(ctx, "systemctl", "stop", InstantUnit(vmid))
-	os.Remove(InstantSocket(vmid))
+	_, _ = command(ctx, "systemctl", "stop", InstantUnit(vmid))
+	_ = os.Remove(InstantSocket(vmid))
 	for _, f := range []string{".env", ".key"} {
-		os.Remove(filepath.Join(InstantRunDir, strconv.Itoa(vmid)+f))
+		_ = os.Remove(filepath.Join(InstantRunDir, strconv.Itoa(vmid)+f))
 	}
-	os.RemoveAll(filepath.Join(instantDir, "images", strconv.Itoa(vmid)))
+	_ = os.RemoveAll(filepath.Join(instantDir, "images", strconv.Itoa(vmid)))
 	return nil
 }
 

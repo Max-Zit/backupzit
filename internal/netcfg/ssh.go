@@ -68,28 +68,28 @@ func (s *System) ApplySSH(ctx context.Context, c SSHConfig) error {
 	old, oldErr := os.ReadFile(s.path(SSHPortFile))
 	restore := func() {
 		if oldErr == nil {
-			os.WriteFile(s.path(SSHPortFile), old, 0o644)
+			_ = os.WriteFile(s.path(SSHPortFile), old, 0o644) // #nosec G306 G703 -- system configuration file, readable by all like the distribution's
 		} else {
-			os.Remove(s.path(SSHPortFile))
+			_ = os.Remove(s.path(SSHPortFile))
 		}
 	}
 	if c.Port == 22 {
-		os.Remove(s.path(SSHPortFile))
+		_ = os.Remove(s.path(SSHPortFile))
 	} else {
-		if err := os.WriteFile(s.path(SSHPortFile), []byte(fmt.Sprintf("# Set by BackupZit (appliance menu or Settings → Network).\nPort %d\n", c.Port)), 0o644); err != nil {
+		if err := os.WriteFile(s.path(SSHPortFile), []byte(fmt.Sprintf("# Set by BackupZit (appliance menu or Settings → Network).\nPort %d\n", c.Port)), 0o644); err != nil { // #nosec G306 -- system configuration file, readable by all like the distribution's
 			return err
 		}
 	}
 	// sshd -t needs its privilege separation directory, which exists only
 	// while the SSH server runs.
-	os.MkdirAll(s.path("/run/sshd"), 0o755)
+	_ = os.MkdirAll(s.path("/run/sshd"), 0o755) // #nosec G301 -- system directory
 	if out, err := s.Run(ctx, "sshd", "-t"); err != nil {
 		restore()
 		return fmt.Errorf("the SSH server refused the setting, nothing was changed: %s", strings.TrimSpace(out+" "+err.Error()))
 	}
 	// Debian 13 can start SSH through ssh.socket, which listens on the port
 	// itself; BackupZit runs the service directly so the port applies.
-	s.Run(ctx, "systemctl", "disable", "--now", "ssh.socket")
+	_, _ = s.Run(ctx, "systemctl", "disable", "--now", "ssh.socket")
 	if !c.Enabled {
 		_, err := s.Run(ctx, "systemctl", "disable", "--now", unit+".service")
 		return err
@@ -98,7 +98,7 @@ func (s *System) ApplySSH(ctx context.Context, c SSHConfig) error {
 		return err
 	}
 	// After repeated failures systemd refuses restarts for a while.
-	s.Run(ctx, "systemctl", "reset-failed", unit+".service")
+	_, _ = s.Run(ctx, "systemctl", "reset-failed", unit+".service")
 	_, err := s.Run(ctx, "systemctl", "restart", unit+".service")
 	return err
 }
