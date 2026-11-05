@@ -1,12 +1,11 @@
+# Weekly security checks: new vulnerabilities in unchanged code. On every
+# push the same checks run as jobs of ci.yml.
 name: Security scan
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
   schedule:
     - cron: "17 4 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -28,19 +27,27 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           govulncheck -format sarif ./... > govulncheck.sarif
       - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        if: always()
         with:
           sarif_file: govulncheck.sarif
           category: govulncheck
 
-  staticcheck:
-    name: staticcheck
+  checks:
+    name: staticcheck and gosec (Linux and Windows)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - name: staticcheck (correctness checks)
+      - name: staticcheck
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@v0.8.2
-          staticcheck -checks "all,-ST1000,-ST1003,-ST1005,-ST1013,-ST1020,-ST1021,-ST1022,-S1011,-S1017,-SA1019" ./...
+          checks="all,-ST1000,-ST1003,-ST1005,-ST1013,-ST1020,-ST1021,-ST1022,-S1011,-S1017,-SA1019"
+          staticcheck -checks "$checks" ./...
+          GOOS=windows staticcheck -checks "$checks" ./...
+      - name: gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.30.0
+          gosec -quiet ./...
+          GOOS=windows gosec -quiet ./...
