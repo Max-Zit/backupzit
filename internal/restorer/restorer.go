@@ -70,7 +70,7 @@ func Run(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Option
 			return nil, err
 		}
 		rs.opts.Target = abs
-		if err := os.MkdirAll(abs, 0o755); err != nil {
+		if err := os.MkdirAll(abs, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 			return nil, err
 		}
 	}
@@ -139,6 +139,10 @@ func (rs *restorer) addError(p string, err error) {
 }
 
 func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []string) error {
+	// A folder never holds two entries of one name. A tampered snapshot
+	// could pair a symlink with a folder of the same name, so that the
+	// folder's files are written where the link points: skip duplicates.
+	seen := make(map[string]bool, len(t.Nodes))
 	for i := range t.Nodes {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -148,6 +152,15 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 			rs.addError(strings.Join(prefix, "/")+"/"+n.Name, errors.New("invalid name in snapshot, skipped"))
 			continue
 		}
+		key := n.Name
+		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+			key = strings.ToLower(key) // case-insensitive file systems
+		}
+		if seen[key] {
+			rs.addError(strings.Join(prefix, "/")+"/"+n.Name, errors.New("duplicate name in snapshot, skipped"))
+			continue
+		}
+		seen[key] = true
 		comps := append(append([]string(nil), prefix...), n.Name)
 		selected, descend := rs.match(comps)
 		if !selected && !descend {
@@ -157,7 +170,7 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 		switch n.Type {
 		case repo.NodeDir:
 			// Volume roots ("C") map to "C:\" which already exists.
-			if err := os.MkdirAll(dst, 0o755); err != nil {
+			if err := os.MkdirAll(dst, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 				rs.addError(dst, err)
 				continue
 			}
@@ -251,12 +264,12 @@ func validName(n string) bool {
 }
 
 func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 		return err
 	}
 	fsutil.ClearReadOnly(dst)
 	tmp := dst + ".bzpart"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
 	if err != nil {
 		return err
 	}
@@ -264,28 +277,28 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 	for _, id := range n.Content {
 		data, err := rs.r.LoadBlob(ctx, repo.DataBlob, id)
 		if err != nil {
-			f.Close()
-			os.Remove(tmp)
+			_ = f.Close()
+			_ = os.Remove(tmp)
 			// Missing/corrupt repository data: report but keep restoring others.
 			return fmt.Errorf("blob %s: %w", id.Short(), err)
 		}
 		if _, err := f.Write(data); err != nil {
-			f.Close()
-			os.Remove(tmp)
+			_ = f.Close()
+			_ = os.Remove(tmp)
 			return err
 		}
 		written += uint64(len(data))
 	}
 	if err := f.Close(); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return err
 	}
 	if written != n.Size {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return fmt.Errorf("restored %d bytes, snapshot says %d", written, n.Size)
 	}
 	if err := os.Rename(tmp, dst); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return err
 	}
 	rs.stats.Files++
@@ -321,7 +334,7 @@ func (rs *restorer) applyMeta(dst string, n *repo.Node, setTimes bool) {
 // lengths and compares their hashes and the total size. It does not depend
 // on the repository's chunker, so it also works for copied snapshots.
 func (rs *restorer) verifyFile(p string, n *repo.Node) error {
-	f, err := os.Open(p)
+	f, err := os.Open(p) // #nosec G304 -- file in the restore target chosen by the administrator
 	if err != nil {
 		return err
 	}
@@ -342,7 +355,7 @@ func (rs *restorer) verifyFile(p string, n *repo.Node) error {
 		if repo.Hash(b) != id {
 			return fmt.Errorf("content differs at chunk %d", i)
 		}
-		size += uint64(l)
+		size += uint64(l) // #nosec G115 -- file sizes and counts are not negative
 	}
 	if extra, _ := f.Read(make([]byte, 1)); extra > 0 || size != n.Size {
 		return fmt.Errorf("size differs (%d bytes restored, %d expected)", size, n.Size)

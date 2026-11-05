@@ -27,10 +27,18 @@ func SnapshotComponents(p string) ([]string, error) {
 	var comps []string
 	switch {
 	case vol == "":
-	case len(vol) == 2 && vol[1] == ':':
+	case len(vol) == 2 && vol[1] == ':' && ('a' <= vol[0]|0x20 && vol[0]|0x20 <= 'z'):
 		comps = append(comps, strings.ToUpper(vol[:1]))
 	case strings.HasPrefix(vol, `\\`):
 		parts := strings.Split(strings.Trim(vol, `\`), `\`)
+		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+			return nil, errors.New("incomplete UNC path " + vol)
+		}
+		for _, p := range parts {
+			if p == "." || p == ".." || p == "?" { // \\.\ and \\?\ are device paths
+				return nil, errors.New("unsupported path " + vol)
+			}
+		}
 		comps = append(comps, "UNC")
 		comps = append(comps, parts...)
 	default:

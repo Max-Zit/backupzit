@@ -29,6 +29,11 @@ const packTrailerLen = 4
 // maxPackHeader bounds header reads from corrupt/hostile packs.
 const maxPackHeader = 64 << 20
 
+// maxBlobRaw bounds the decompressed size of one blob. Data blobs are at
+// most 8 MiB (chunker) and disk blocks 1 MiB; trees of very large folders
+// and block maps are the biggest blobs.
+const maxBlobRaw = 1 << 30
+
 type packBuilder struct {
 	buf   []byte
 	blobs []PackedBlob
@@ -38,9 +43,9 @@ func (p *packBuilder) add(t BlobType, id ID, stored []byte, rawLen int) {
 	p.blobs = append(p.blobs, PackedBlob{
 		Type:   t,
 		ID:     id,
-		Offset: uint32(len(p.buf)),
-		Length: uint32(len(stored)),
-		Raw:    uint32(rawLen),
+		Offset: uint32(len(p.buf)),  // #nosec G115 -- a pack holds a few hundred MiB at most, far below 4 GiB
+		Length: uint32(len(stored)), // #nosec G115 -- a pack holds a few hundred MiB at most, far below 4 GiB
+		Raw:    uint32(rawLen),      // #nosec G115 -- a pack holds a few hundred MiB at most, far below 4 GiB
 	})
 	p.buf = append(p.buf, stored...)
 }
@@ -55,7 +60,7 @@ func (p *packBuilder) finish(seal func([]byte) []byte) ([]byte, ID, []PackedBlob
 	}
 	hdr = seal(hdr)
 	out := append(p.buf, hdr...)
-	out = binary.LittleEndian.AppendUint32(out, uint32(len(hdr)))
+	out = binary.LittleEndian.AppendUint32(out, uint32(len(hdr))) // #nosec G115 -- a pack holds a few hundred MiB at most, far below 4 GiB
 	return out, Hash(out), p.blobs, nil
 }
 

@@ -179,7 +179,10 @@ func newRepository(be backend.Backend, cfg Config, polStr string, key []byte) (*
 	if err != nil {
 		return nil, err
 	}
-	dec, err := zstd.NewReader(nil, zstd.WithDecoderConcurrency(0))
+	// The decoder's memory is bounded: a damaged or tampered pack (in an
+	// unencrypted repository nothing authenticates it) must not make a blob
+	// expand into all the memory of the machine.
+	dec, err := zstd.NewReader(nil, zstd.WithDecoderConcurrency(0), zstd.WithDecoderMaxMemory(maxBlobRaw), zstd.WithDecoderMaxWindow(32<<20))
 	if err != nil {
 		return nil, err
 	}
@@ -341,9 +344,22 @@ func (r *Repository) decodeBlob(id ID, t BlobType, stored []byte, raw uint32) ([
 		return nil, fmt.Errorf("%s blob %s: %w", t, id.Short(), err)
 	}
 	if raw > 0 {
-		data, err = r.dec.DecodeAll(data, make([]byte, 0, raw))
+		if raw > maxBlobRaw {
+			return nil, fmt.Errorf("%s blob %s: invalid size %d", t, id.Short(), raw)
+		}
+		// A frame that announces another size than the index is not decoded:
+		// the decoder would reserve memory for the announced size.
+		var h zstd.Header
+		if h.Decode(data) == nil && h.HasFCS && h.FrameContentSize != uint64(raw) {
+			return nil, fmt.Errorf("%s blob %s: size does not match the index", t, id.Short())
+		}
+		// The size comes from the index; reserve at most 16 MiB up front.
+		data, err = r.dec.DecodeAll(data, make([]byte, 0, min(raw, 16<<20)))
 		if err != nil {
 			return nil, fmt.Errorf("%s blob %s: decompress: %w", t, id.Short(), err)
+		}
+		if len(data) != int(raw) {
+			return nil, fmt.Errorf("%s blob %s: size does not match the index", t, id.Short())
 		}
 	}
 	if Hash(data) != id {
@@ -544,7 +560,7 @@ func (r *Repository) LoadTree(ctx context.Context, id ID) (*Tree, error) {
 
 // Close releases resources. It does not flush.
 func (r *Repository) Close() error {
-	r.enc.Close()
+	_ = r.enc.Close()
 	r.dec.Close()
 	return r.be.Close()
 }

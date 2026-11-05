@@ -117,7 +117,7 @@ func (c conn) write(v ...any) error {
 }
 
 func (c conn) optReply(opt, typ uint32, data []byte) error {
-	if err := c.write(uint64(replyMagicOpt), opt, typ, uint32(len(data))); err != nil {
+	if err := c.write(uint64(replyMagicOpt), opt, typ, uint32(len(data))); err != nil { // #nosec G115 -- NBD fields: names and replies are short, export sizes not negative
 		return err
 	}
 	_, err := c.rw.Write(data)
@@ -155,16 +155,16 @@ func (s *Server) handle(nc net.Conn) error {
 			if !ok {
 				return fmt.Errorf("unknown export %q", data)
 			}
-			if err := c.write(uint64(e.Size), uint16(tflagHasFlags|tflagReadOnly|tflagSendFlush|tflagMultiConn)); err != nil {
+			if err := c.write(uint64(e.Size), uint16(tflagHasFlags|tflagReadOnly|tflagSendFlush|tflagMultiConn)); err != nil { // #nosec G115 -- NBD fields: names and replies are short, export sizes not negative
 				return err
 			}
 			if clientFlags&clientNoZeroes == 0 {
-				nc.Write(make([]byte, 124))
+				_, _ = nc.Write(make([]byte, 124))
 			}
 			return s.transmit(nc, e)
 		case optInfo, optGo:
 			if len(data) < 4 {
-				c.optReply(hdr.Option, repErrUnknown, nil)
+				_ = c.optReply(hdr.Option, repErrUnknown, nil)
 				continue
 			}
 			nl := binary.BigEndian.Uint32(data)
@@ -173,12 +173,12 @@ func (s *Server) handle(nc net.Conn) error {
 			}
 			e, ok := s.export(string(data[4 : 4+nl]))
 			if !ok {
-				c.optReply(hdr.Option, repErrUnknown, []byte("unknown export"))
+				_ = c.optReply(hdr.Option, repErrUnknown, []byte("unknown export"))
 				continue
 			}
 			info := make([]byte, 12)
 			binary.BigEndian.PutUint16(info[0:], infoExport)
-			binary.BigEndian.PutUint64(info[2:], uint64(e.Size))
+			binary.BigEndian.PutUint64(info[2:], uint64(e.Size)) // #nosec G115 -- NBD fields: names and replies are short, export sizes not negative
 			binary.BigEndian.PutUint16(info[10:], tflagHasFlags|tflagReadOnly|tflagSendFlush|tflagMultiConn)
 			if err := c.optReply(hdr.Option, repInfo, info); err != nil {
 				return err
@@ -193,14 +193,14 @@ func (s *Server) handle(nc net.Conn) error {
 			s.mu.Lock()
 			for name := range s.exports {
 				b := make([]byte, 4+len(name))
-				binary.BigEndian.PutUint32(b, uint32(len(name)))
+				binary.BigEndian.PutUint32(b, uint32(len(name))) // #nosec G115 -- NBD fields: names and replies are short, export sizes not negative
 				copy(b[4:], name)
-				c.optReply(hdr.Option, repServer, b)
+				_ = c.optReply(hdr.Option, repServer, b)
 			}
 			s.mu.Unlock()
-			c.optReply(hdr.Option, repAck, nil)
+			_ = c.optReply(hdr.Option, repAck, nil)
 		case optAbort:
-			c.optReply(hdr.Option, repAck, nil)
+			_ = c.optReply(hdr.Option, repAck, nil)
 			return nil
 		default:
 			// Structured replies, metadata contexts, TLS: not offered.
@@ -262,7 +262,8 @@ func (s *Server) transmit(nc net.Conn, e Export) error {
 		}
 		switch req.Type {
 		case cmdRead:
-			if req.Length > maxRequest || req.Offset+uint64(req.Length) > uint64(e.Size) {
+			// Offset and length are checked separately: their sum could wrap.
+			if req.Length > maxRequest || req.Offset > uint64(e.Size) || uint64(req.Length) > uint64(e.Size)-req.Offset { // #nosec G115 -- export sizes are not negative
 				if err := reply(errInval, req.Handle, nil); err != nil {
 					return err
 				}
@@ -273,12 +274,12 @@ func (s *Server) transmit(nc net.Conn, e Export) error {
 			go func(off uint64, n uint32, handle uint64) {
 				defer func() { <-sem; wg.Done() }()
 				buf := make([]byte, n)
-				if _, err := e.Data.ReadAt(buf, int64(off)); err != nil && !errors.Is(err, io.EOF) {
+				if _, err := e.Data.ReadAt(buf, int64(off)); err != nil && !errors.Is(err, io.EOF) { // #nosec G115 -- NBD fields: names and replies are short, export sizes not negative
 					s.logf("nbd read at %d: %v", off, err)
-					reply(errIO, handle, nil)
+					_ = reply(errIO, handle, nil)
 					return
 				}
-				reply(0, handle, buf)
+				_ = reply(0, handle, buf)
 			}(req.Offset, req.Length, req.Handle)
 		case cmdWrite:
 			// Discard the payload; the export is read-only.
