@@ -27,6 +27,8 @@
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Back-upoperator</td><td>Zet het schema van de taak aan of uit; met vier-ogengoedkeuring kan uitschakelen alleen in de console (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Kijker</td><td>Gebruikte ruimte per opslagdoel, capaciteit en vrije ruimte indien bekend, groei per dag en dagen tot vol</td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Kijker</td><td>Metrics in het Prometheus-tekstformaat (zie hieronder)</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/restore</code></td><td>Herstelmedewerker</td><td>Herstelt bestanden van een back-up met een agent: body <code>{"target": "D:/Restore"}</code> of <code>{"original": true}</code>, optioneel <code>"paths"</code>, <code>"agent_id"</code> en <code>"verify": true</code>; geeft <code>{"run_id": 125}</code></td></tr>
+  <tr><td><code>GET /api/v1/openapi.json</code></td><td>geen token</td><td>De OpenAPI 3-specificatie van deze API, voor tools en clientgeneratoren (ook in de repository: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Perioden: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, of <code>custom</code> met <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Fouten geven <code>{"error": "..."}</code> terug met 400 (ongeldig verzoek), 401 (token ontbreekt, ongeldig of verlopen), 403 (rol te laag), 404 of 409.</p>

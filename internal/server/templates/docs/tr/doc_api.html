@@ -27,6 +27,8 @@
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Yedekleme operatörü</td><td>İşin zamanlamasını açar veya kapatır; dört göz onayı açıkken devre dışı bırakma yalnızca konsolda yapılabilir (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Görüntüleyici</td><td>Depolama hedefi başına kullanılan alan, biliniyorsa kapasite ve boş alan, günlük büyüme ve dolmasına kalan gün</td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Görüntüleyici</td><td>Prometheus metin biçiminde metrikler (aşağıya bakın)</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/restore</code></td><td>Geri yükleme operatörü</td><td>Bir yedeğin dosyalarını bir ajanla geri yükler: gövde <code>{"target": "D:/Restore"}</code> veya <code>{"original": true}</code>, isteğe bağlı <code>"paths"</code>, <code>"agent_id"</code> ve <code>"verify": true</code>; <code>{"run_id": 125}</code> döndürür</td></tr>
+  <tr><td><code>GET /api/v1/openapi.json</code></td><td>belirteç yok</td><td>Bu API'nin OpenAPI 3 belirtimi, araçlar ve istemci üreticileri için (depoda da: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Dönemler: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> veya <code>from=2026-09-01&amp;to=2026-09-30</code> ile <code>custom</code>.</p>
 <p>Hatalar <code>{"error": "..."}</code> döndürür: 400 (hatalı istek), 401 (belirteç eksik, geçersiz veya süresi dolmuş), 403 (rol yetersiz), 404 veya 409.</p>

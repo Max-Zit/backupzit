@@ -143,6 +143,8 @@ func (s *Server) registerAPIMore(mux *http.ServeMux) {
 		return out, nil
 	}))
 	mux.HandleFunc("GET /api/v1/metrics", s.metrics)
+	s.registerAPIRestore(mux)
+	mux.HandleFunc("GET /api/v1/openapi.json", s.handleOpenAPI)
 }
 
 // metrics serves GET /api/v1/metrics in the Prometheus text format (with

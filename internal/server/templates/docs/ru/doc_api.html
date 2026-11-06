@@ -27,6 +27,8 @@
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Оператор копирования</td><td>Включает или выключает расписание задания; при одобрении «четыре глаза» отключить можно только в консоли (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Наблюдатель</td><td>Занятое место по хранилищам, ёмкость и свободное место, если известны, рост в день и дни до заполнения</td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Наблюдатель</td><td>Метрики в текстовом формате Prometheus (см. ниже)</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/restore</code></td><td>Оператор восстановления</td><td>Восстанавливает файлы резервной копии через агента: тело <code>{"target": "D:/Restore"}</code> или <code>{"original": true}</code>, по желанию <code>"paths"</code>, <code>"agent_id"</code> и <code>"verify": true</code>; возвращает <code>{"run_id": 125}</code></td></tr>
+  <tr><td><code>GET /api/v1/openapi.json</code></td><td>без токена</td><td>Спецификация OpenAPI 3 этого API для инструментов и генераторов клиентов (также в репозитории: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Периоды: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> или <code>custom</code> с <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Ошибки возвращают <code>{"error": "..."}</code> с кодом 400 (неверный запрос), 401 (токен отсутствует, недействителен или истёк), 403 (недостаточная роль), 404 или 409.</p>

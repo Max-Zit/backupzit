@@ -90,7 +90,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 - Reports (PDF and CSV, emailed on a schedule) and a calendar of runs.
 - Roles (Administrator, Backup operator, Restore operator, Viewer).
 - LDAP / Active Directory and single sign-on (SAML, OpenID Connect).
-- Two-factor sign-in and a REST API.
+- Two-factor sign-in and a REST API with an OpenAPI specification ([openapi.json](internal/server/openapi.json)): status, agents, jobs, runs, restores, reports, storage and Prometheus metrics; webhooks for finished runs.
 - Signed self-updates of the console and of the agents.
 - A backup of the console itself.
 

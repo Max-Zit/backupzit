@@ -27,6 +27,8 @@
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Operatore di backup</td><td>Attiva o disattiva la pianificazione del job; con l'approvazione a quattro occhi la disattivazione è possibile solo nella console (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Visualizzatore</td><td>Spazio usato per destinazione di archiviazione, capacità e spazio libero se noti, crescita giornaliera e giorni prima del riempimento</td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Visualizzatore</td><td>Metriche nel formato testo di Prometheus (vedi sotto)</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/restore</code></td><td>Operatore di ripristino</td><td>Ripristina file di un backup con un agente: corpo <code>{"target": "D:/Restore"}</code> o <code>{"original": true}</code>, facoltativi <code>"paths"</code>, <code>"agent_id"</code> e <code>"verify": true</code>; restituisce <code>{"run_id": 125}</code></td></tr>
+  <tr><td><code>GET /api/v1/openapi.json</code></td><td>nessun token</td><td>La specifica OpenAPI 3 di questa API, per strumenti e generatori di client (anche nel repository: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Periodi: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, oppure <code>custom</code> con <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Gli errori restituiscono <code>{"error": "..."}</code> con 400 (richiesta non valida), 401 (token mancante, non valido o scaduto), 403 (ruolo insufficiente), 404 o 409.</p>

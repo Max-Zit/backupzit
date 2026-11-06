@@ -27,6 +27,8 @@
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>バックアップ オペレーター</td><td>ジョブのスケジュールをオンまたはオフにします。4 つの目の承認がオンの場合、無効化はコンソールでのみ可能です（409）</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>閲覧者</td><td>ストレージ先ごとの使用容量、分かる場合は容量と空き容量、1 日あたりの増加量、満杯までの日数</td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>閲覧者</td><td>Prometheus テキスト形式のメトリクス（下記参照）</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/restore</code></td><td>復元オペレーター</td><td>エージェントでバックアップのファイルを復元します。本文は <code>{"target": "D:/Restore"}</code> または <code>{"original": true}</code>、任意で <code>"paths"</code>、<code>"agent_id"</code>、<code>"verify": true</code>。<code>{"run_id": 125}</code> を返します</td></tr>
+  <tr><td><code>GET /api/v1/openapi.json</code></td><td>トークン不要</td><td>この API の OpenAPI 3 仕様（ツールやクライアント生成用。リポジトリの <code>internal/server/openapi.json</code> にもあります）</td></tr>
 </table>
 <p>期間: <code>today</code>、<code>yesterday</code>、<code>last7</code>、<code>last30</code>、<code>last90</code>、<code>thisweek</code>、<code>lastweek</code>、<code>thismonth</code>、<code>lastmonth</code>、または <code>custom</code> と <code>from=2026-09-01&amp;to=2026-09-30</code>。</p>
 <p>エラーは <code>{"error": "..."}</code> を返し、ステータスは 400（不正なリクエスト）、401（トークンがない、無効、または期限切れ）、403（ロールの権限不足）、404、409 です。</p>

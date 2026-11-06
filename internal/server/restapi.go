@@ -237,6 +237,8 @@ type apiRun struct {
 	Stats      json.RawMessage `json:"stats,omitempty"`
 	Suspicious string          `json:"suspicious,omitempty"`
 	Expired    bool            `json:"expired"`
+	// Commands: outcome and output of the commands before and after a backup.
+	Commands json.RawMessage `json:"commands,omitempty"`
 }
 
 func toAPIAgent(a Agent) apiAgent {
@@ -259,7 +261,7 @@ func toAPIRunJSON(r Run) apiRun {
 	return apiRun{ID: r.ID, Kind: r.Kind, Status: r.Status, Trigger: r.Trigger, AgentID: r.AgentID, Agent: r.Hostname,
 		JobID: r.JobID, Job: deref(r.JobName), QueuedAt: r.QueuedAt, StartedAt: r.StartedAt, FinishedAt: r.FinishedAt,
 		DurationS: int(r.Duration().Seconds()), Snapshot: r.SnapshotID, Message: r.Message, Errors: r.Errors,
-		Stats: r.Stats, Suspicious: r.Anomaly, Expired: r.Expired}
+		Stats: r.Stats, Suspicious: r.Anomaly, Expired: r.Expired, Commands: r.Commands}
 }
 
 func pathInt(r *http.Request, name string) (int64, error) {

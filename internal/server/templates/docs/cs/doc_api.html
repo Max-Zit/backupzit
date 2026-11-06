@@ -27,6 +27,8 @@
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Operátor záloh</td><td>Zapne nebo vypne plán úlohy; se schvalováním čtyř očí lze vypnout jen v konzoli (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Čtenář</td><td>Obsazené místo podle úložiště, kapacita a volné místo, pokud jsou známy, denní růst a dny do zaplnění</td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Čtenář</td><td>Metriky v textovém formátu Prometheus (viz níže)</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/restore</code></td><td>Operátor obnovy</td><td>Obnoví soubory zálohy pomocí agenta: tělo <code>{"target": "D:/Restore"}</code> nebo <code>{"original": true}</code>, volitelně <code>"paths"</code>, <code>"agent_id"</code> a <code>"verify": true</code>; vrací <code>{"run_id": 125}</code></td></tr>
+  <tr><td><code>GET /api/v1/openapi.json</code></td><td>bez tokenu</td><td>Specifikace OpenAPI 3 tohoto API pro nástroje a generátory klientů (také v repozitáři: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Období: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> nebo <code>custom</code> s <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Chyby vracejí <code>{"error": "..."}</code> s kódem 400 (chybný požadavek), 401 (token chybí, je neplatný nebo vypršel), 403 (příliš nízká role), 404 nebo 409.</p>

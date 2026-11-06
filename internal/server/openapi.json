@@ -1,0 +1,1349 @@
+{
+  "components": {
+    "parameters": {
+      "ID": {
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "format": "int64",
+          "type": "integer"
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Invalid request"
+      },
+      "Blocked": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Address blocked after failed sign-ins"
+      },
+      "Conflict": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Not possible now (e.g. a run of the job is already active)"
+      },
+      "Enabled": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "format": "int64",
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "description": "Changed"
+      },
+      "NotFound": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Not found"
+      },
+      "Queued": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "run_id": {
+                  "format": "int64",
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "description": "Queued"
+      },
+      "Unauthorized": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Missing, invalid or expired token"
+      }
+    },
+    "schemas": {
+      "Agent": {
+        "properties": {
+          "enrolled": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "last_seen": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "local_ips": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "max_runs": {
+            "type": "integer"
+          },
+          "online": {
+            "type": "boolean"
+          },
+          "os": {
+            "type": "string"
+          },
+          "recovery": {
+            "description": "Started from recovery media",
+            "type": "boolean"
+          },
+          "seen_from": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Error": {
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "Job": {
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "agent_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "example": "files",
+            "type": "string"
+          },
+          "last_finished": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "last_good_backup": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_status": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "next_run": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "rpo_hours": {
+            "type": "integer"
+          },
+          "rpo_met": {
+            "type": "boolean"
+          },
+          "schedule": {
+            "description": "In words",
+            "type": "string"
+          },
+          "source_job_id": {
+            "description": "Copy jobs",
+            "format": "int64",
+            "type": "integer"
+          },
+          "target": {
+            "type": "string"
+          },
+          "target_id": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Report": {
+        "properties": {
+          "backups": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "from": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "jobs": {
+            "items": {
+              "properties": {
+                "agent": {
+                  "type": "string"
+                },
+                "failed": {
+                  "type": "integer"
+                },
+                "job": {
+                  "type": "string"
+                },
+                "job_id": {
+                  "format": "int64",
+                  "nullable": true,
+                  "type": "integer"
+                },
+                "last_good_backup": {
+                  "format": "date-time",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "last_status": {
+                  "type": "string"
+                },
+                "restore_test": {
+                  "type": "string"
+                },
+                "restore_test_at": {
+                  "format": "date-time",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "runs": {
+                  "type": "integer"
+                },
+                "success": {
+                  "type": "integer"
+                },
+                "success_rate": {
+                  "type": "number"
+                },
+                "uploaded_bytes": {
+                  "format": "int64",
+                  "type": "integer"
+                },
+                "warning": {
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "label": {
+            "type": "string"
+          },
+          "read_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "restore_tests": {
+            "type": "integer"
+          },
+          "restore_tests_failed": {
+            "type": "integer"
+          },
+          "restores": {
+            "type": "integer"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "success": {
+            "type": "integer"
+          },
+          "success_rate": {
+            "type": "number"
+          },
+          "suspicious": {
+            "type": "integer"
+          },
+          "to": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "uploaded_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "warning": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "RestoreRequest": {
+        "description": "Give either target or original: true.",
+        "properties": {
+          "agent_id": {
+            "description": "Agent that writes the files; default: the agent that was backed up",
+            "format": "int64",
+            "type": "integer"
+          },
+          "original": {
+            "description": "Restore to the original location instead of a folder (overwrites the files there)",
+            "type": "boolean"
+          },
+          "paths": {
+            "description": "Files and folders to restore, as backed up; empty = everything",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "target": {
+            "description": "Folder on the agent to restore into",
+            "example": "D:\\Restore",
+            "type": "string"
+          },
+          "verify": {
+            "description": "Compare every restored file with the backup",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "Run": {
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "agent_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "commands": {
+            "description": "Commands before and after the backup with their output",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "duration_s": {
+            "type": "integer"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "expired": {
+            "description": "Removed by the retention policy",
+            "type": "boolean"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "job": {
+            "type": "string"
+          },
+          "job_id": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "kind": {
+            "description": "backup, restore, image-backup, vm-backup, verify (restore test), copy, sql-backup …",
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "queued_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "snapshot": {
+            "description": "ID of the backup a backup run made",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "stats": {
+            "additionalProperties": true,
+            "description": "Backups: files, bytes (size of the source), bytes_read, bytes_added, bytes_stored (uploaded) …",
+            "type": "object"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "suspicious": {
+            "description": "Why the backup looks like ransomware or mass deletion",
+            "type": "string"
+          },
+          "trigger": {
+            "example": "schedule",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RunStatus": {
+        "enum": [
+          "queued",
+          "running",
+          "success",
+          "warning",
+          "failed",
+          "cancelled"
+        ],
+        "type": "string"
+      },
+      "Status": {
+        "properties": {
+          "active_runs": {
+            "type": "integer"
+          },
+          "agents": {
+            "type": "integer"
+          },
+          "agents_online": {
+            "type": "integer"
+          },
+          "failed_24h": {
+            "type": "integer"
+          },
+          "jobs": {
+            "type": "integer"
+          },
+          "ok": {
+            "description": "No failures in 24 h, nothing suspicious unreviewed, every agent online",
+            "type": "boolean"
+          },
+          "runs_24h": {
+            "type": "integer"
+          },
+          "storage_targets": {
+            "type": "integer"
+          },
+          "suspicious_unreviewed": {
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          },
+          "warnings_24h": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "StorageUsage": {
+        "properties": {
+          "free_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "full_in_days": {
+            "type": "integer"
+          },
+          "growth_bytes_per_day": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "integer"
+          },
+          "target_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "total_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "used_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "used_percent": {
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "Target": {
+        "properties": {
+          "encrypted": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "immutable_days": {
+            "type": "integer"
+          },
+          "kind": {
+            "example": "sftp",
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "token": {
+        "bearerFormat": "bzt_…",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "REST API of the BackupZit console. Create a token under My account → API tokens and send it as `Authorization: Bearer bzt_…`. The token's role decides what it may do (viewer < restore operator < operator < administrator). Every action done with a token is in the audit log. Five requests with an invalid token block the address for a while (HTTP 429). The console serves this file at /api/v1/openapi.json; `info.x-backupzit-version` is the console's version.",
+    "license": {
+      "name": "AGPL-3.0-or-later",
+      "url": "https://www.gnu.org/licenses/agpl-3.0.html"
+    },
+    "title": "BackupZit REST API",
+    "version": "1"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api/v1/agents": {
+      "get": {
+        "description": "Role: viewer.",
+        "operationId": "listAgents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Agent"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Agents"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "List agents",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{id}": {
+      "get": {
+        "description": "Role: viewer.",
+        "operationId": "getAgent",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            },
+            "description": "Agent"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "One agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{id}/log": {
+      "post": {
+        "description": "Role: operator. Queues an agent-log run; read the log with GET /api/v1/runs/{id}/log when it has finished.",
+        "operationId": "requestAgentLog",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Queued"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "summary": "Ask the agent for its log file",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/jobs": {
+      "get": {
+        "description": "Role: viewer.",
+        "operationId": "listJobs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Job"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Jobs"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "List backup jobs",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}": {
+      "get": {
+        "description": "Role: viewer.",
+        "operationId": "getJob",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Job"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "One job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/disable": {
+      "post": {
+        "description": "Role: operator. Refused (409) when four-eyes approval is on: then a second user approves it in the console.",
+        "operationId": "disableJob",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Enabled"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "summary": "Disable a job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/enable": {
+      "post": {
+        "description": "Role: operator.",
+        "operationId": "enableJob",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Enabled"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Enable a job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/run": {
+      "post": {
+        "description": "Role: restore operator. The backup is queued and starts when the agent is online.",
+        "operationId": "runJob",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Queued"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "summary": "Start a backup now",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/jobs/{id}/test": {
+      "post": {
+        "description": "Role: restore operator. The agent of the job restores a random sample of the newest backup and verifies it.",
+        "operationId": "testJob",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Queued"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "summary": "Start a restore test now",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "description": "Role: viewer.",
+        "operationId": "getMetrics",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Prometheus exposition format"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Metrics in the Prometheus text format",
+        "tags": [
+          "status"
+        ]
+      }
+    },
+    "/api/v1/openapi.json": {
+      "get": {
+        "operationId": "getOpenAPI",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "OpenAPI document"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "security": [],
+        "summary": "This specification",
+        "tags": [
+          "status"
+        ]
+      }
+    },
+    "/api/v1/report": {
+      "get": {
+        "description": "Role: viewer.",
+        "operationId": "getReport",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "default": "last7",
+              "enum": [
+                "today",
+                "yesterday",
+                "last7",
+                "last30",
+                "thisweek",
+                "lastweek",
+                "thismonth",
+                "lastmonth",
+                "last90",
+                "custom"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "With period=custom",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "With period=custom",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "job",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            },
+            "description": "Report"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Backup report for a period",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/runs": {
+      "get": {
+        "description": "Role: viewer.",
+        "operationId": "listRuns",
+        "parameters": [
+          {
+            "description": "Only runs of this job",
+            "in": "query",
+            "name": "job",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only runs of this agent",
+            "in": "query",
+            "name": "agent",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "$ref": "#/components/schemas/RunStatus"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Run"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Runs"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "List runs (backups, restores, tests …), newest first",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}": {
+      "get": {
+        "description": "Role: viewer. The result, errors, statistics and the output of the commands before and after a backup.",
+        "operationId": "getRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "Run"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "One run with its result",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}/cancel": {
+      "post": {
+        "description": "Role: restore operator.",
+        "operationId": "cancelRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "run_id": {
+                      "format": "int64",
+                      "type": "integer"
+                    },
+                    "state": {
+                      "enum": [
+                        "cancelled",
+                        "stopping"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Cancelled (queued) or stopping (running)"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "summary": "Cancel a queued or running run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}/log": {
+      "get": {
+        "description": "Role: operator. Only for runs started with POST /api/v1/agents/{id}/log; the result of other runs is in GET /api/v1/runs/{id}.",
+        "operationId": "getAgentLog",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "agent": {
+                      "type": "string"
+                    },
+                    "log": {
+                      "type": "string"
+                    },
+                    "run_id": {
+                      "format": "int64",
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Log text"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "summary": "Agent log file sent by an agent-log run",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/runs/{id}/restore": {
+      "post": {
+        "description": "Role: restore operator. {id} is a successful backup run (files, Linux system, Microsoft 365 or a copy of file backups). An agent writes the files into a folder or back to where they were backed up from. Disk images, VMs and databases are restored in the console.",
+        "operationId": "restoreFiles",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Queued"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        },
+        "summary": "Restore files of a backup",
+        "tags": [
+          "restore"
+        ]
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "description": "Role: viewer.",
+        "operationId": "getStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            },
+            "description": "Health summary"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/Blocked"
+          }
+        },
+        "summary": "Overall health",
+        "tags": [
+          "status"
+        ]
+      }
+    },
+    "/api/v1/storage": {
+      "get": {
+        "description": "Role: viewer.",
+        "operationId": "getStorageUsage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StorageUsage"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Usage"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Used and free space and growth per storage target",
+        "tags": [
+          "storage"
+        ]
+      }
+    },
+    "/api/v1/targets": {
+      "get": {
+        "description": "Role: viewer.",
+        "operationId": "listTargets",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Target"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Targets"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "summary": "Storage targets (without credentials)",
+        "tags": [
+          "storage"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "token": []
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://{console}:8443",
+      "variables": {
+        "console": {
+          "default": "backup.example"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "description": "Health, metrics and this specification",
+      "name": "status"
+    },
+    {
+      "description": "Computers with the BackupZit agent",
+      "name": "agents"
+    },
+    {
+      "description": "Backup jobs: start backups and restore tests, enable and disable",
+      "name": "jobs"
+    },
+    {
+      "description": "Backups, restores, tests and other runs with their results",
+      "name": "runs"
+    },
+    {
+      "description": "Restore files from backups",
+      "name": "restore"
+    },
+    {
+      "description": "Storage targets and their space",
+      "name": "storage"
+    },
+    {
+      "description": "Backup reports for a period",
+      "name": "reports"
+    }
+  ]
+}

@@ -27,6 +27,8 @@
   <tr><td><code>POST /api/v1/jobs/{id}/enable</code>, <code>/disable</code></td><td>Sicherungsoperator</td><td>Schaltet den Zeitplan des Auftrags ein oder aus; mit Vier-Augen-Freigabe geht das Deaktivieren nur in der Konsole (409)</td></tr>
   <tr><td><code>GET /api/v1/storage</code></td><td>Betrachter</td><td>Belegter Platz je Speicherziel, Kapazität und freier Platz, sofern bekannt, Wachstum pro Tag und Tage bis voll</td></tr>
   <tr><td><code>GET /api/v1/metrics</code></td><td>Betrachter</td><td>Metriken im Prometheus-Textformat (siehe unten)</td></tr>
+  <tr><td><code>POST /api/v1/runs/{id}/restore</code></td><td>Wiederherstellungsoperator</td><td>Stellt Dateien einer Sicherung mit einem Agenten wieder her: Body <code>{"target": "D:/Restore"}</code> oder <code>{"original": true}</code>, optional <code>"paths"</code>, <code>"agent_id"</code> und <code>"verify": true</code>; liefert <code>{"run_id": 125}</code></td></tr>
+  <tr><td><code>GET /api/v1/openapi.json</code></td><td>kein Token</td><td>Die OpenAPI-3-Spezifikation dieser API für Werkzeuge und Client-Generatoren (auch im Repository: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Zeiträume: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> oder <code>custom</code> mit <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
 <p>Fehler liefern <code>{"error": "..."}</code> mit 400 (ungültige Anfrage), 401 (Token fehlt, ist ungültig oder abgelaufen), 403 (Rolle zu niedrig), 404 oder 409.</p>
