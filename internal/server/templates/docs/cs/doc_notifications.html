@@ -42,9 +42,12 @@
 </ul>
 <p>JSON webhooku:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
- "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1", "agent_id": 3,
  "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
- "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+ "finished_at": "2026-10-04T22:04:41+02:00", "duration_s": 278, "files": 4, "bytes": 85899345920,
+ "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
+ "url": "https://backup.example/runs/412"}</pre>
+<p><code>duration_s</code> je doba běhu v sekundách. U záloh jsou <code>files</code> a <code>bytes</code> velikost zálohovaných dat, <code>bytes_read</code> kolik se z nich přečetlo a <code>bytes_stored</code> kolik se nahrálo na úložiště; <code>snapshot</code> je ID nové zálohy.</p>
 <p>Zprávy se odesílají jednou za běh, i když je e-mail vypnutý. Kanál, který selže (špatná URL, nedostupná služba), se zapíše do protokolu konzole a nezdržuje ostatní. URL webhooků se ukládají šifrovaně.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

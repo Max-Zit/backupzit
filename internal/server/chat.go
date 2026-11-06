@@ -91,11 +91,20 @@ type webhookEvent struct {
 	Job        string     `json:"job,omitempty"`
 	JobID      *int64     `json:"job_id,omitempty"`
 	Agent      string     `json:"agent"`
+	AgentID    int64      `json:"agent_id"`
 	Message    string     `json:"message,omitempty"`
 	Errors     []string   `json:"errors,omitempty"`
 	StartedAt  *time.Time `json:"started_at,omitempty"`
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
-	URL        string     `json:"url,omitempty"`
+	// How long the run took and, for backups, the files and bytes of the
+	// source, the bytes read from it and the bytes uploaded to the storage.
+	DurationS   int    `json:"duration_s"`
+	Files       uint64 `json:"files,omitempty"`
+	Bytes       uint64 `json:"bytes,omitempty"`
+	BytesRead   uint64 `json:"bytes_read,omitempty"`
+	BytesStored uint64 `json:"bytes_stored,omitempty"`
+	Snapshot    string `json:"snapshot,omitempty"`
+	URL         string `json:"url,omitempty"`
 }
 
 var chatClient = &http.Client{Timeout: 20 * time.Second}
@@ -145,6 +154,11 @@ func (n *Notifier) sendChat(ctx context.Context, l *language, c ChatChannel, r R
 			JobID: r.JobID, Agent: r.Hostname, Message: r.Message, Errors: r.Errors, StartedAt: r.StartedAt, FinishedAt: r.FinishedAt, URL: link}
 		if r.JobName != nil {
 			ev.Job = *r.JobName
+		}
+		ev.AgentID, ev.DurationS, ev.Snapshot = r.AgentID, int(r.Duration().Seconds()), r.SnapshotID
+		var st runStats
+		if len(r.Stats) > 0 && json.Unmarshal(r.Stats, &st) == nil {
+			ev.Files, ev.Bytes, ev.BytesRead, ev.BytesStored = st.Files, st.Bytes, st.BytesRead, st.BytesStored
 		}
 		body, _ = json.Marshal(ev)
 	}

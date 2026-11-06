@@ -72,7 +72,7 @@ func TestChatNotifications(t *testing.T) {
 	jobID, _ := e.store.CreateJob(ctx, server.Job{AgentID: agents[0].ID, TargetID: target, Name: "docs", Paths: []string{t.TempDir()}})
 	runID, _ := e.store.QueueBackup(ctx, jobID, "manual")
 	e.store.ClaimRun(ctx, agents[0].ID)
-	e.store.FinishRun(ctx, agents[0].ID, runID, api.RunResult{Status: api.StatusFailed, Message: "disk <full>"})
+	e.store.FinishRun(ctx, agents[0].ID, runID, api.RunResult{Status: api.StatusFailed, Message: "disk <full>", Stats: json.RawMessage(`{"files":12,"bytes":4096,"bytes_read":2048,"bytes_stored":1024}`)})
 	n := server.NewNotifier(e.store, slog.New(slog.NewTextHandler(io.Discard, nil)), func() string { return "https://backup.example" })
 	n.Pass(ctx, time.Date(2026, 10, 2, 10, 0, 0, 0, time.Local))
 	n.Pass(ctx, time.Date(2026, 10, 2, 10, 1, 0, 0, time.Local)) // not sent twice
@@ -94,7 +94,8 @@ func TestChatNotifications(t *testing.T) {
 	}
 	var ev map[string]any
 	json.Unmarshal([]byte(bodies["/hook"][0]), &ev)
-	if ev["event"] != "run.finished" || ev["status"] != "failed" || ev["job"] != "docs" || ev["kind"] != "backup" {
+	if ev["event"] != "run.finished" || ev["status"] != "failed" || ev["job"] != "docs" || ev["kind"] != "backup" ||
+		ev["files"] != 12.0 || ev["bytes"] != 4096.0 || ev["bytes_read"] != 2048.0 || ev["bytes_stored"] != 1024.0 || ev["agent_id"] == nil || ev["duration_s"] == nil {
 		t.Errorf("webhook event: %v", ev)
 	}
 	m := hmac.New(sha256.New, []byte("s3cret"))

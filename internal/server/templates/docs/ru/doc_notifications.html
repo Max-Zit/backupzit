@@ -42,9 +42,12 @@
 </ul>
 <p>JSON вебхука:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
- "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1", "agent_id": 3,
  "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
- "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+ "finished_at": "2026-10-04T22:04:41+02:00", "duration_s": 278, "files": 4, "bytes": 85899345920,
+ "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
+ "url": "https://backup.example/runs/412"}</pre>
+<p><code>duration_s</code> — длительность запуска в секундах. Для резервных копий <code>files</code> и <code>bytes</code> — размер копируемых данных, <code>bytes_read</code> — сколько из них прочитано, <code>bytes_stored</code> — сколько загружено в хранилище; <code>snapshot</code> — ID новой копии.</p>
 <p>Сообщения отправляются один раз за запуск, даже когда почта выключена. Неработающий канал (неверный URL, сервис недоступен) записывается в журнал консоли и не задерживает остальные. URL вебхуков хранятся в зашифрованном виде.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

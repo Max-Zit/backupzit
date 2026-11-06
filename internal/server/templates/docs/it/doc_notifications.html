@@ -42,9 +42,12 @@
 </ul>
 <p>Il JSON di un webhook:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
- "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1", "agent_id": 3,
  "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
- "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+ "finished_at": "2026-10-04T22:04:41+02:00", "duration_s": 278, "files": 4, "bytes": 85899345920,
+ "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
+ "url": "https://backup.example/runs/412"}</pre>
+<p><code>duration_s</code> è la durata dell'esecuzione in secondi. Per i backup, <code>files</code> e <code>bytes</code> sono la dimensione dei dati salvati, <code>bytes_read</code> quanto è stato letto e <code>bytes_stored</code> quanto è stato caricato sullo storage; <code>snapshot</code> è l'ID del nuovo backup.</p>
 <p>I messaggi vengono inviati una volta per esecuzione, anche quando l'e-mail è disattivata. Un canale che non funziona (URL errato, servizio non disponibile) viene annotato nel log della console e non blocca gli altri. Gli URL dei webhook sono memorizzati cifrati.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

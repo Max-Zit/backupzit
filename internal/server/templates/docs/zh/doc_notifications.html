@@ -42,9 +42,12 @@
 </ul>
 <p>Webhook 的 JSON：</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
- "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1", "agent_id": 3,
  "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
- "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+ "finished_at": "2026-10-04T22:04:41+02:00", "duration_s": 278, "files": 4, "bytes": 85899345920,
+ "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
+ "url": "https://backup.example/runs/412"}</pre>
+<p><code>duration_s</code> 是运行耗时（秒）。对于备份，<code>files</code> 和 <code>bytes</code> 是被备份数据的大小，<code>bytes_read</code> 是读取的量，<code>bytes_stored</code> 是上传到存储的量；<code>snapshot</code> 是新备份的 ID。</p>
 <p>每次运行只发送一次消息，即使关闭了电子邮件也会发送。出错的通道（URL 错误、服务不可用）会记录在控制台日志中，不会耽误其他通道。Webhook URL 加密存储。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

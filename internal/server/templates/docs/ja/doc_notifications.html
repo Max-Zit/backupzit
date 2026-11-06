@@ -42,9 +42,12 @@
 </ul>
 <p>Webhook の JSON:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
- "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1", "agent_id": 3,
  "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
- "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+ "finished_at": "2026-10-04T22:04:41+02:00", "duration_s": 278, "files": 4, "bytes": 85899345920,
+ "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
+ "url": "https://backup.example/runs/412"}</pre>
+<p><code>duration_s</code> は実行にかかった秒数です。バックアップでは、<code>files</code> と <code>bytes</code> がバックアップ対象のサイズ、<code>bytes_read</code> が読み取った量、<code>bytes_stored</code> がストレージにアップロードした量です。<code>snapshot</code> は新しいバックアップの ID です。</p>
 <p>メッセージは実行ごとに 1 回、メールがオフでも送信されます。失敗したチャネル（URL の誤り、サービス停止）はコンソールのログに記録され、ほかのチャネルを妨げません。Webhook の URL は暗号化して保存されます。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

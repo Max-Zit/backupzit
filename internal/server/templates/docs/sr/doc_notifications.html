@@ -42,9 +42,12 @@
 </ul>
 <p>JSON webhook-a:</p>
 <pre>{"event": "run.finished", "run_id": 412, "kind": "vm-backup", "kind_title": "VM backup",
- "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1",
+ "status": "failed", "suspicious": "", "job": "Proxmox VMs", "job_id": 7, "agent": "pve1", "agent_id": 3,
  "message": "…", "errors": ["…"], "started_at": "2026-10-04T22:00:03+02:00",
- "finished_at": "2026-10-04T22:04:41+02:00", "url": "https://backup.example/runs/412"}</pre>
+ "finished_at": "2026-10-04T22:04:41+02:00", "duration_s": 278, "files": 4, "bytes": 85899345920,
+ "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
+ "url": "https://backup.example/runs/412"}</pre>
+<p><code>duration_s</code> je trajanje pokretanja u sekundama. Kod backup-a su <code>files</code> i <code>bytes</code> veličina onoga što je bekapovano, <code>bytes_read</code> koliko je pročitano, a <code>bytes_stored</code> koliko je poslato na storage; <code>snapshot</code> je ID novog backup-a.</p>
 <p>Poruke se šalju jednom po pokretanju, i kada je email isključen. Kanal koji ne radi (pogrešan URL, servis nedostupan) beleži se u logu konzole i ne zadržava ostale. URL-ovi webhook-ova se čuvaju šifrovani.</p>
 {{template "docpager" .}}
 </article></div>{{end}}
