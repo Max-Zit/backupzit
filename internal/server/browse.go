@@ -125,16 +125,12 @@ func (s *Server) imageVolume(ctx context.Context, run Run, part int) (*imaging.V
 	if t.SFTPKey != "" {
 		return nil, nil, errors.New("browsing storage that uses SSH key authentication is not supported yet")
 	}
-	r, err := s.cache.repo(ctx, t, run.RepoURL)
-	if err != nil {
-		return nil, nil, err
-	}
-	sn, err := r.LoadSnapshot(ctx, run.SnapshotID)
-	if err != nil {
-		return nil, nil, err
-	}
-	p, v, err := imaging.OpenSnapshotVolume(context.WithoutCancel(ctx), r, sn, part)
-	if err != nil {
+	var p *repo.PartitionImage
+	var v *imaging.Volume
+	if err := s.openRunSnapshot(ctx, t, run, func(r *repo.Repository, sn *repo.Snapshot) (err error) {
+		p, v, err = imaging.OpenSnapshotVolume(context.WithoutCancel(ctx), r, sn, part)
+		return err
+	}); err != nil {
 		return nil, nil, err
 	}
 	s.cache.mu.Lock()
@@ -261,4 +257,27 @@ func (s *Store) QueueImageFileRestore(ctx context.Context, backupRunID, agentID 
 		VALUES($1,$2,'image-file-restore','manual',$3,$4,$5,$6,$7,$8) RETURNING id`,
 		agentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, clean, target, []int{part}).Scan(&id)
 	return id, err
+}
+
+// openRunSnapshot opens the snapshot of a run from the cached repository and
+// runs use on it. When that fails, the cached repository may predate the
+// backup (new packs, or packs repacked by retention since): it is opened
+// again and use runs once more.
+func (s *Server) openRunSnapshot(ctx context.Context, t Target, run Run, use func(*repo.Repository, *repo.Snapshot) error) error {
+	try := func() error {
+		r, err := s.cache.repo(ctx, t, run.RepoURL)
+		if err != nil {
+			return err
+		}
+		sn, err := r.LoadSnapshot(context.WithoutCancel(ctx), run.SnapshotID)
+		if err != nil {
+			return err
+		}
+		return use(r, sn)
+	}
+	if err := try(); err == nil {
+		return nil
+	}
+	s.cache.drop(run.RepoURL)
+	return try()
 }

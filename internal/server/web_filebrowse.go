@@ -51,11 +51,13 @@ func (s *Server) fileSnapshot(ctx context.Context, run Run) (*repo.Repository, *
 	if t.SFTPKey != "" {
 		return nil, nil, errors.New("browsing storage that uses SSH key authentication is not supported yet")
 	}
-	r, err := s.cache.repo(ctx, t, run.RepoURL)
-	if err != nil {
-		return nil, nil, err
-	}
-	sn, err := r.LoadSnapshot(context.WithoutCancel(ctx), run.SnapshotID)
+	var r *repo.Repository
+	var sn *repo.Snapshot
+	err = s.openRunSnapshot(ctx, t, run, func(r2 *repo.Repository, s2 *repo.Snapshot) error {
+		r, sn = r2, s2
+		_, err := r2.LoadTree(ctx, s2.Tree)
+		return err
+	})
 	return r, sn, err
 }
 
@@ -231,6 +233,14 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 		}
 		return nil
 	}
+	// Find every ticked entry before anything is sent: a read error must
+	// show as a message, not as an empty archive.
+	for _, sp := range sel {
+		if _, _, err := lookupNode(ctx, repoR, sn.Tree, snapshotComps(sp)); err != nil {
+			redirectErr(w, r, fileBack(run, dir), err)
+			return
+		}
+	}
 	if len(sel) == 1 {
 		if _, n, err := lookupNode(ctx, repoR, sn.Tree, snapshotComps(sel[0])); err == nil && n != nil && n.Type == repo.NodeSymlink {
 			name := n.Name
@@ -273,7 +283,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 			}
 			t, err := repoR.LoadTree(ctx, *n.Subtree)
 			if err != nil {
-				return nil
+				return err // a cut archive fails in the browser instead of looking complete
 			}
 			if len(t.Nodes) == 0 {
 				_, _ = zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: n.ModTime})

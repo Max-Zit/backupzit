@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/vmfs"
 )
 
@@ -58,17 +59,16 @@ func (s *Server) vmDisk(ctx context.Context, run Run, vmid int, disk string) (*c
 	if t.SFTPKey != "" {
 		return nil, errors.New("browsing storage that uses SSH key authentication is not supported yet")
 	}
-	r, err := s.cache.repo(ctx, t, run.RepoURL)
-	if err != nil {
-		return nil, err
-	}
 	bg := context.WithoutCancel(ctx)
-	sn, err := r.LoadSnapshot(bg, run.SnapshotID)
-	if err != nil {
-		return nil, err
-	}
-	rd, size, d, err := vmfs.GuestDisk(bg, r, sn, vmid, disk)
-	if err != nil {
+	var sn *repo.Snapshot
+	var rd io.ReaderAt
+	var size int64
+	var d *repo.GuestDisk
+	if err := s.openRunSnapshot(ctx, t, run, func(r *repo.Repository, s2 *repo.Snapshot) (err error) {
+		sn = s2
+		rd, size, d, err = vmfs.GuestDisk(bg, r, s2, vmid, disk)
+		return err
+	}); err != nil {
 		return nil, err
 	}
 	vols, err := vmfs.Volumes(rd, size)
