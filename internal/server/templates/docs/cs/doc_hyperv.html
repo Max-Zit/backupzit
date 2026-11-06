@@ -30,6 +30,7 @@
 </ol>
 <p>Vypnuté VM se čtou přímo, bez kontrolního bodu. Na hostitelích starších než Windows Server 2016 (bez kontrolních bodů pro obnovu) se použije produkční kontrolní bod a každá záloha čte celé disky.</p>
 <p id="appconsistent"><b>Jen aplikačně konzistentní.</b> Pro Active Directory, SQL Server, Exchange a jiné databáze zaškrtněte v úloze <i>Vyžadovat aplikačně konzistentní kontrolní body</i> (také v úloze pro cluster). Běžící VM se pak zálohuje jen z kontrolního bodu, který host připravil pomocí VSS; pokud to selže, VM se nezálohuje a běh selže (s upozorněním) místo pořízení kontrolního bodu konzistentního jen při pádu. Ostatní VM úlohy se zálohují dál a lze je z tohoto běhu obnovit. Zkontrolujte integrační službu <i>Backup (volume shadow copy)</i> v nastavení VM a VSS uvnitř hosta (<code>vssadmin list writers</code>). Vyžaduje agenty 0.48.0 nebo novější; u starších agentů běh selže s výzvou k aktualizaci.</p>
+<p id="vtpm"><b>vTPM a BitLocker.</b> U VM 2. generace s virtuálním TPM záloha uchová i vTPM (soubor stavu hosta a ochranu klíče). Při obnově jako nový VM na stejném hostiteli nebo na hostiteli s certifikátem guardianu původního hostitele dostane VM svůj vTPM zpět a BitLocker nežádá klíč pro obnovení. Na jiných hostitelích dostane VM nový prázdný vTPM a obnova to uvede; tomu předejdete importem certifikátu <i>UntrustedGuardian</i> původního hostitele. Obnova přes existující VM jeho vTPM zachová. Stíněné VM (Host Guardian Service) nejsou podporovány. Klíče pro obnovení BitLockeru si přesto uschovejte.</p>
 <p>Příklad z testovací laboratoře: linuxový VM s diskem 3 GB. První záloha přečetla 3 GB. Další, po 64 MB nových dat, přečetla 96 MB.</p>
 <p>Ve Windows 10/11 vytváří Hyper-V při startu VM automatický kontrolní bod, pokud tato volba není v nastavení VM vypnutá. BackupZit si s takovými kontrolními body poradí, ale u serverů je vhodné automatické kontrolní body vypnout (nastavení VM → Kontrolní body).</p>
 
@@ -87,6 +88,7 @@
 <ul>
   <li>Každý uzel zálohuje počítače clusteru, které na něm právě běží, všechny do <b>jednoho repozitáře clusteru</b> na úložišti.</li>
   <li>Když se počítač přesune na jiný uzel (živá migrace nebo převzetí služeb), jeho historie pokračuje tam a Resilient Change Tracking dál čte jen změněné bloky: žádná nová úplná záloha.</li>
+  <li>VM, který se přesune během zálohování, se i tak zálohuje celý. Uzel, na který se přesunul, odstraní kontrolní bod zálohy během několika minut, jakmile záloha dočte data; běh uvádí, že se VM přesunul.</li>
 </ul>
 <h3>Obnovení</h3>
 <ul>

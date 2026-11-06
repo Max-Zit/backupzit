@@ -30,6 +30,7 @@
 </ol>
 <p>Ausgeschaltete VMs werden direkt gelesen, ohne Prüfpunkt. Auf Hosts älter als Windows Server 2016 (keine Wiederherstellungsprüfpunkte) wird ein Produktionsprüfpunkt verwendet, und jede Sicherung liest die ganzen Festplatten.</p>
 <p id="appconsistent"><b>Nur anwendungskonsistent.</b> Für Active Directory, SQL Server, Exchange und andere Datenbanken aktivieren Sie im Job <i>Anwendungskonsistente Prüfpunkte verlangen</i> (auch im Job für einen Cluster). Eine laufende VM wird dann nur aus einem Prüfpunkt gesichert, den der Gast mit VSS vorbereitet hat; schlägt das fehl, wird die VM nicht gesichert und der Lauf schlägt fehl (mit Benachrichtigung), statt einen absturzkonsistenten Prüfpunkt zu nehmen. Die anderen VMs des Jobs werden weiter gesichert und lassen sich aus diesem Lauf wiederherstellen. Prüfen Sie den Integrationsdienst <i>Backup (volume shadow copy)</i> in den VM-Einstellungen und VSS im Gast (<code>vssadmin list writers</code>). Benötigt Agenten 0.48.0 oder neuer; bei älteren Agenten schlägt der Lauf mit der Aufforderung zur Aktualisierung fehl.</p>
+<p id="vtpm"><b>vTPM und BitLocker.</b> Bei VMs der Generation 2 mit virtuellem TPM speichert die Sicherung auch das vTPM (die Gaststatusdatei und die Schlüsselschutzvorrichtung). Als neue VM auf demselben Host wiederhergestellt, oder auf einem Host mit dem Guardian-Zertifikat des ursprünglichen Hosts, erhält die VM ihr vTPM zurück und BitLocker fragt nicht nach dem Wiederherstellungsschlüssel. Auf anderen Hosts erhält die VM ein neues, leeres vTPM, und die Wiederherstellung meldet das; importieren Sie dort vorher das Zertifikat <i>UntrustedGuardian</i> des ursprünglichen Hosts. Eine Wiederherstellung über die vorhandene VM behält deren vTPM. Abgeschirmte VMs (Host Guardian Service) werden nicht unterstützt. Bewahren Sie die BitLocker-Wiederherstellungsschlüssel trotzdem auf.</p>
 <p>Beispiel aus dem Testlabor: eine Linux-VM mit einer 3-GB-Festplatte. Die erste Sicherung las 3 GB. Die nächste, nach 64 MB neuen Daten, las 96 MB.</p>
 <p>Unter Windows 10/11 erstellt Hyper-V beim Start einer VM einen automatischen Prüfpunkt, sofern diese Option in den VM-Einstellungen nicht ausgeschaltet ist. BackupZit kommt mit solchen Prüfpunkten zurecht, aber bei Servern sollten Sie automatische Prüfpunkte ausschalten (VM-Einstellungen → Prüfpunkte).</p>
 
@@ -87,6 +88,7 @@
 <ul>
   <li>Jeder Knoten sichert die geclusterten VMs, die gerade auf ihm laufen, alle in <b>ein Repository des Clusters</b> auf dem Speicher.</li>
   <li>Wechselt eine VM auf einen anderen Knoten (Live-Migration oder Failover), läuft ihr Verlauf dort weiter, und Resilient Change Tracking liest weiterhin nur die geänderten Blöcke: Es gibt keine neue Vollsicherung.</li>
+  <li>Eine VM, die während ihrer Sicherung verschoben wird, wird trotzdem vollständig gesichert. Der Knoten, auf den sie gewechselt ist, entfernt den Prüfpunkt der Sicherung innerhalb weniger Minuten, sobald die Sicherung fertig gelesen hat; der Lauf meldet, dass die VM verschoben wurde.</li>
 </ul>
 <h3>Wiederherstellen</h3>
 <ul>

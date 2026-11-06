@@ -30,6 +30,7 @@
 </ol>
 <p>Las VM apagadas se leen directamente, sin punto de control. En hosts anteriores a Windows Server 2016 (sin puntos de control de recuperación) se usa un punto de control de producción y cada copia lee los discos completos.</p>
 <p id="appconsistent"><b>Solo coherente con la aplicación.</b> Para Active Directory, SQL Server, Exchange y otras bases de datos, marque <i>Exigir puntos de control coherentes con la aplicación</i> en la tarea (también en una tarea para un clúster). Una VM en ejecución solo se copia entonces desde un punto de control que el invitado preparó con VSS; si eso falla, la VM no se copia y la ejecución falla (con una notificación) en lugar de tomar un punto de control coherente ante bloqueos. Las demás VM de la tarea se siguen copiando y pueden restaurarse desde esa ejecución. Compruebe el servicio de integración <i>Backup (volume shadow copy)</i> en la configuración de la VM y VSS dentro del invitado (<code>vssadmin list writers</code>). Requiere agentes 0.48.0 o posteriores; con agentes anteriores la ejecución falla pidiendo actualizarlos.</p>
+<p id="vtpm"><b>vTPM y BitLocker.</b> En las VM de generación 2 con TPM virtual, la copia también guarda el vTPM (el archivo de estado del invitado y su protector de claves). Restaurada como VM nueva en el mismo host, o en un host con el certificado guardián del host original, la VM recupera su vTPM y BitLocker no pide la clave de recuperación. En otros hosts la VM recibe un vTPM nuevo y vacío, y la restauración lo indica; para evitarlo, importe antes allí el certificado <i>UntrustedGuardian</i> del host original. Restaurar sobre la VM existente conserva su vTPM. Las VM blindadas (Host Guardian Service) no son compatibles. Guarde de todos modos las claves de recuperación de BitLocker.</p>
 <p>Ejemplo del laboratorio de pruebas: una VM Linux con un disco de 3 GB. La primera copia leyó 3 GB. La siguiente, tras 64 MB de datos nuevos, leyó 96 MB.</p>
 <p>En Windows 10/11, Hyper-V crea un punto de control automático al iniciar una VM, salvo que esa opción esté desactivada en la configuración de la VM. BackupZit gestiona esos puntos de control, pero en servidores conviene desactivar los puntos de control automáticos (configuración de la VM → Puntos de control).</p>
 
@@ -87,6 +88,7 @@
 <ul>
   <li>Cada nodo copia las VM del clúster que ejecuta en ese momento, todas en <b>un repositorio del clúster</b> en el almacenamiento.</li>
   <li>Cuando una VM pasa a otro nodo (migración en vivo o conmutación por error), su historial continúa allí y Resilient Change Tracking sigue leyendo solo los bloques cambiados: no hay una nueva copia completa.</li>
+  <li>Una VM que se mueve mientras se copia se sigue copiando por completo. El nodo al que se movió elimina el punto de control de la copia en pocos minutos, cuando la copia ha terminado de leer; la ejecución indica que la VM se movió.</li>
 </ul>
 <h3>Restauración</h3>
 <ul>

@@ -30,6 +30,7 @@
 </ol>
 <p>Wyłączone maszyny są odczytywane bezpośrednio, bez punktu kontrolnego. Na hostach starszych niż Windows Server 2016 (bez punktów kontrolnych odzyskiwania) używany jest produkcyjny punkt kontrolny, a każda kopia odczytuje całe dyski.</p>
 <p id="appconsistent"><b>Tylko spójne z aplikacjami.</b> Dla Active Directory, SQL Server, Exchange i innych baz danych zaznacz w zadaniu <i>Wymagaj punktów kontrolnych spójnych z aplikacjami</i> (także w zadaniu dla klastra). Działająca maszyna wirtualna jest wtedy kopiowana tylko z punktu kontrolnego przygotowanego przez gościa za pomocą VSS; jeśli to się nie uda, maszyna nie jest kopiowana, a zadanie kończy się błędem (z powiadomieniem) zamiast tworzenia punktu kontrolnego spójnego awaryjnie. Pozostałe maszyny zadania są nadal kopiowane i można je przywrócić z tego uruchomienia. Sprawdź usługę integracji <i>Backup (volume shadow copy)</i> w ustawieniach maszyny i VSS w systemie gościa (<code>vssadmin list writers</code>). Wymaga agentów 0.48.0 lub nowszych; przy starszych agentach zadanie kończy się błędem z prośbą o aktualizację.</p>
+<p id="vtpm"><b>vTPM i BitLocker.</b> Dla maszyn 2. generacji z wirtualnym TPM kopia zachowuje także vTPM (plik stanu gościa i ochronę klucza). Przywrócona jako nowa maszyna na tym samym hoście lub na hoście z certyfikatem guardian oryginalnego hosta, maszyna odzyskuje swój vTPM, a BitLocker nie prosi o klucz odzyskiwania. Na innych hostach maszyna dostaje nowy, pusty vTPM i przywracanie to zgłasza; aby tego uniknąć, najpierw zaimportuj tam certyfikat <i>UntrustedGuardian</i> oryginalnego hosta. Przywrócenie na istniejącą maszynę zachowuje jej vTPM. Maszyny chronione (Host Guardian Service) nie są obsługiwane. Mimo to przechowuj klucze odzyskiwania BitLockera.</p>
 <p>Przykład z laboratorium testowego: maszyna Linux z dyskiem 3 GB. Pierwsza kopia odczytała 3 GB. Następna, po 64 MB nowych danych, odczytała 96 MB.</p>
 <p>W Windows 10/11 Hyper-V tworzy automatyczny punkt kontrolny przy starcie maszyny, chyba że ta opcja jest wyłączona w ustawieniach maszyny. BackupZit radzi sobie z takimi punktami, ale na serwerach warto wyłączyć automatyczne punkty kontrolne (ustawienia maszyny → Punkty kontrolne).</p>
 
@@ -87,6 +88,7 @@
 <ul>
   <li>Każdy węzeł kopiuje maszyny klastra, które w danej chwili na nim działają, wszystkie do <b>jednego repozytorium klastra</b> w magazynie.</li>
   <li>Gdy maszyna przejdzie na inny węzeł (migracja na żywo lub przełączenie awaryjne), jej historia jest tam kontynuowana, a Resilient Change Tracking nadal czyta tylko zmienione bloki: nie ma nowej pełnej kopii.</li>
+  <li>Maszyna wirtualna przeniesiona w trakcie kopii jest i tak kopiowana w całości. Węzeł, na który się przeniosła, usuwa punkt kontrolny kopii w ciągu kilku minut, gdy kopia skończy odczyt; zadanie informuje, że maszyna została przeniesiona.</li>
 </ul>
 <h3>Przywracanie</h3>
 <ul>

@@ -52,25 +52,30 @@ func VMIDFor(guid string) int {
 
 // vmInfo is what PowerShell reports about a VM.
 type vmInfo struct {
-	ID         string   `json:"id"`
-	Name       string   `json:"name"`
-	State      string   `json:"state"`
-	Generation int      `json:"generation"`
-	Version    string   `json:"version"`
-	CPU        int      `json:"cpu"`
-	Memory     uint64   `json:"memory"`
-	Dynamic    bool     `json:"dynamic"`
-	MemMin     uint64   `json:"memmin"`
-	MemMax     uint64   `json:"memmax"`
-	SecureBoot string   `json:"secureboot"`
-	Template   string   `json:"template"`
-	TPM        bool     `json:"tpm"`
-	Notes      string   `json:"notes"`
-	NICs       []vmNIC  `json:"nics"`
-	Disks      []vmDisk `json:"disks"`
-	DiskSize   uint64   `json:"disksize"`
-	Checkpoint string   `json:"checkpointtype"`
-	Clustered  bool     `json:"clustered"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	State      string `json:"state"`
+	Generation int    `json:"generation"`
+	Version    string `json:"version"`
+	CPU        int    `json:"cpu"`
+	Memory     uint64 `json:"memory"`
+	Dynamic    bool   `json:"dynamic"`
+	MemMin     uint64 `json:"memmin"`
+	MemMax     uint64 `json:"memmax"`
+	SecureBoot string `json:"secureboot"`
+	Template   string `json:"template"`
+	TPM        bool   `json:"tpm"`
+	// GuestState (blob ID) and KeyProtector (base64) hold the vTPM: the VM's
+	// guest state file and the key protector that unlocks it on hosts with
+	// the same guardian. Set by backups of Generation 2 VMs with a TPM.
+	GuestState   string   `json:"gueststate,omitempty"`
+	KeyProtector string   `json:"keyprotector,omitempty"`
+	Notes        string   `json:"notes"`
+	NICs         []vmNIC  `json:"nics"`
+	Disks        []vmDisk `json:"disks"`
+	DiskSize     uint64   `json:"disksize"`
+	Checkpoint   string   `json:"checkpointtype"`
+	Clustered    bool     `json:"clustered"`
 }
 
 type vmNIC struct {

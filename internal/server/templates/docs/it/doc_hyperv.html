@@ -30,6 +30,7 @@
 </ol>
 <p>Le VM spente vengono lette direttamente, senza checkpoint. Sugli host precedenti a Windows Server 2016 (senza checkpoint di ripristino) si usa un checkpoint di produzione e ogni backup legge i dischi interi.</p>
 <p id="appconsistent"><b>Solo coerente con le applicazioni.</b> Per Active Directory, SQL Server, Exchange e altri database, spunta <i>Richiedi checkpoint coerenti con le applicazioni</i> nel job (anche in un job per un cluster). Una VM in esecuzione viene allora salvata solo da un checkpoint preparato dal guest con VSS; se fallisce, la VM non viene salvata e l'esecuzione fallisce (con una notifica) invece di creare un checkpoint coerente con l'arresto anomalo. Le altre VM del job vengono comunque salvate e si possono ripristinare da quell'esecuzione. Controlla il servizio di integrazione <i>Backup (volume shadow copy)</i> nelle impostazioni della VM e VSS nel guest (<code>vssadmin list writers</code>). Richiede agenti 0.48.0 o successivi; con agenti più vecchi l'esecuzione fallisce chiedendo di aggiornarli.</p>
+<p id="vtpm"><b>vTPM e BitLocker.</b> Per le VM di generazione 2 con TPM virtuale il backup conserva anche il vTPM (il file di stato guest e la protezione della chiave). Ripristinata come nuova VM sullo stesso host, o su un host con il certificato guardian dell'host originale, la VM riottiene il suo vTPM e BitLocker non chiede la chiave di ripristino. Su altri host la VM riceve un vTPM nuovo e vuoto e il ripristino lo segnala; per evitarlo importa prima lì il certificato <i>UntrustedGuardian</i> dell'host originale. Il ripristino sopra la VM esistente ne conserva il vTPM. Le VM schermate (Host Guardian Service) non sono supportate. Conserva comunque le chiavi di ripristino di BitLocker.</p>
 <p>Esempio dal laboratorio di test: una VM Linux con un disco da 3 GB. Il primo backup ha letto 3 GB. Il successivo, dopo 64 MB di nuovi dati, ha letto 96 MB.</p>
 <p>Su Windows 10/11 Hyper-V crea un checkpoint automatico all'avvio di una VM, a meno che l'opzione non sia disattivata nelle impostazioni della VM. BackupZit gestisce questi checkpoint, ma per i server conviene disattivare i checkpoint automatici (impostazioni della VM → Checkpoint).</p>
 
@@ -87,6 +88,7 @@
 <ul>
   <li>Ogni nodo salva le VM del cluster che sta eseguendo in quel momento, tutte in <b>un unico repository del cluster</b> sullo storage.</li>
   <li>Quando una VM passa a un altro nodo (migrazione live o failover), la sua cronologia continua lì e Resilient Change Tracking legge ancora solo i blocchi modificati: nessun nuovo backup completo.</li>
+  <li>Una VM spostata durante il backup viene comunque salvata per intero. Il nodo su cui è stata spostata rimuove il checkpoint del backup entro pochi minuti, quando il backup ha finito di leggere; l'esecuzione segnala che la VM è stata spostata.</li>
 </ul>
 <h3>Ripristino</h3>
 <ul>

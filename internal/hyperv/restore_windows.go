@@ -260,6 +260,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		fmt.Fprintf(&s, `Add-VMHardDiskDrive -VM $vm -ControllerType %s -ControllerNumber %d -ControllerLocation %d -Path %s; `,
 			d.disk.Type, d.disk.Number, d.disk.Location, psq(d.path))
 	}
+	tpmFinish := ""
 	if gen == 2 && !inPlace {
 		sb := "Off"
 		if strings.EqualFold(cfg.SecureBoot, "On") {
@@ -270,7 +271,13 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			fmt.Fprintf(&s, `Set-VMFirmware -VM $vm -SecureBootTemplate %s; `, psq(cfg.Template))
 		}
 		if cfg.TPM {
-			s.WriteString(`Set-VMKeyProtector -VM $vm -NewLocalKeyProtector; Enable-VMTPM -VM $vm; `)
+			setup, finish, cleanup, err := tpmRestoreScript(ctx, r, cfg, dir)
+			defer cleanup()
+			if err != nil {
+				return nil, err
+			}
+			s.WriteString(setup)
+			tpmFinish = finish
 		}
 	}
 	if gen == 2 {
@@ -279,6 +286,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	if cfg.Checkpoint != "" {
 		fmt.Fprintf(&s, `Set-VM -VM $vm -CheckpointType %s; `, psq(cfg.Checkpoint))
 	}
+	s.WriteString(tpmFinish)
 	fmt.Fprintf(&s, `Set-VM -VM $vm -Notes %s; 'ID:' + $vm.Id.Guid`, psq(strings.TrimSpace(cfg.Notes+"\nRestored by BackupZit from the backup of "+sn.Time.Local().Format("2006-01-02 15:04"))))
 	out, err := ps(ctx, s.String())
 	if err != nil {
@@ -292,6 +300,8 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		switch {
 		case strings.HasPrefix(line, "ID:"):
 			res.ID = strings.TrimPrefix(line, "ID:")
+		case strings.HasPrefix(line, "TPM:"):
+			res.Notes = append(res.Notes, tpmNote(line))
 		case strings.HasPrefix(line, "NOSWITCH:"):
 			res.Notes = append(res.Notes, fmt.Sprintf("virtual switch %q does not exist on this host; the network adapter is not connected", strings.TrimPrefix(line, "NOSWITCH:")))
 		}
@@ -301,7 +311,9 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	ok = true
 	res.Name, res.NewMACs = name, clone
-	if opts.Cluster && !clustered {
+	// Only a VM that was clustered, or whose files are on a Cluster Shared
+	// Volume, becomes a role: a role on a local disk could not fail over.
+	if opts.Cluster && !clustered && (cfg.Clustered || onCSV(dir)) {
 		if _, err := ps(ctx, `Add-ClusterVirtualMachineRole -VMId `+psq(res.ID)+` | Out-Null`); err != nil {
 			res.Notes = append(res.Notes, "VM restored on this node but not added to the cluster (are its files on a Cluster Shared Volume?): "+err.Error())
 		} else {

@@ -291,6 +291,14 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 		}
 		g.Disks = append(g.Disks, gd)
 	}
+	if vm.Generation == 2 && vm.TPM {
+		if err := saveTPM(ctx, r, &vm); err != nil {
+			warns = append(warns, "vTPM state not saved ("+lastLine(err.Error())+"); a restored VM gets a new, empty vTPM")
+		} else {
+			cfg, _ := json.Marshal(vm)
+			g.Config = string(cfg)
+		}
+	}
 	return g, warns, nil
 }
 
