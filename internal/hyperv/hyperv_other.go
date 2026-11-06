@@ -27,8 +27,10 @@ type BackupOptions struct {
 	Hostname string
 	Version  string
 	Tags     []string
-	Progress func(done, total uint64)
-	Log      func(msg string, args ...any)
+	// RequireAppConsistent: no crash-consistent fallback (see ErrNotAppConsistent).
+	RequireAppConsistent bool
+	Progress             func(done, total uint64)
+	Log                  func(msg string, args ...any)
 }
 
 func Backup(context.Context, *repo.Repository, BackupOptions) (*repo.Snapshot, error) {

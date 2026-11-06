@@ -70,10 +70,12 @@ func restoreTypeByKey(k string) (restoreType, bool) {
 	return restoreType{}, false
 }
 
-// ListRestorePoints returns the successful, not expired backups, newest first.
+// ListRestorePoints returns the successful, not expired backups, newest first,
+// and failed VM backups that still hold VMs (jobs requiring application-
+// consistent checkpoints keep the VMs that had one).
 func (s *Store) ListRestorePoints(ctx context.Context) ([]Run, error) {
 	rows, err := s.db.Query(ctx, `SELECT `+runCols+runFrom+` WHERE r.kind = ANY($1) AND COALESCE(r.snapshot_id,'') <> ''
-		AND NOT r.expired AND r.status IN ('success','warning') ORDER BY r.queued_at DESC LIMIT 5000`,
+		AND NOT r.expired AND (r.status IN ('success','warning') OR (r.status='failed' AND r.kind='vm-backup')) ORDER BY r.queued_at DESC LIMIT 5000`,
 		[]string{api.KindBackup, api.KindImageBackup, api.KindVMBackup, api.KindSystemBackup, api.KindCopy, api.KindSQLBackup})
 	if err != nil {
 		return nil, err

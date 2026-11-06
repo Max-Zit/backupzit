@@ -29,6 +29,7 @@
   <li>Konfiguracija VM-a se čuva uz bekap: generacija, CPU, memorija, mrežni adapteri (switch, VLAN, MAC adresa), kontroleri diskova, secure boot i TPM.</li>
 </ol>
 <p>Ugašene virtuelne mašine se čitaju direktno, bez checkpoint-a. Na hostovima starijim od Windows Servera 2016 (nema recovery checkpoint-a) koristi se production checkpoint i svaki bekap čita cele diskove.</p>
+<p id="appconsistent"><b>Samo application-consistent.</b> Za Active Directory, SQL Server, Exchange i druge baze podataka uključite u poslu <i>Zahtevaj application-consistent checkpoint-e</i> (i u poslu za klaster). Pokrenut VM se tada bekapuje samo iz checkpoint-a koji je gost pripremio preko VSS-a; ako to ne uspe, VM se ne bekapuje i pokretanje pada (uz obaveštenje), umesto da se napravi crash-consistent checkpoint. Ostali VM-ovi posla se i dalje bekapuju i mogu da se vrate iz tog pokretanja. Proverite integration service <i>Backup (volume shadow copy)</i> u podešavanjima VM-a i VSS u gostu (<code>vssadmin list writers</code>). Potrebni su agenti 0.48.0 ili noviji; kod starijih agenata pokretanje pada uz poruku da ih treba ažurirati.</p>
 <p>Primer iz test laboratorije: Linux VM sa diskom od 3 GB. Prvi bekap je pročitao 3 GB. Sledeći, posle 64 MB novih podataka, pročitao je 96 MB.</p>
 <p>Na Windowsu 10/11 Hyper-V pravi automatski checkpoint kada se VM pokrene, osim ako ta opcija nije isključena u podešavanjima VM-a. BackupZit radi i sa takvim checkpoint-ima, ali na serverima ćete želeti da automatske checkpoint-e isključite (podešavanja VM-a → Checkpoints).</p>
 

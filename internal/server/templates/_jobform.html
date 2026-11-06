@@ -78,6 +78,9 @@
     </div>
     <p class="muted small">{{T "Scheduled and chained runs that could not start within the window (e.g. because the night's jobs took longer) are cancelled when it closes, so they do not start during working hours. Starting a job by hand ignores the window."}}</p>
     <label>{{T "Recovery point objective (RPO), hours"}} <small>{{T "the newest good backup should never be older; the dashboard and a notification tell you when it is. Empty or 0: no RPO. Example: 26 for a daily backup"}}</small><input type="number" name="rpo_hours" min="0" max="8760" value="{{if .J.Options.RPOHours}}{{.J.Options.RPOHours}}{{end}}" class="narrow"></label>
+    {{if or (not .Edit) (and (eq .J.Kind "vm") (not .J.VMwareHostID))}}
+    <label class="check" {{if not .Edit}}data-jobkind="vm" hidden{{end}}><input type="checkbox" name="app_consistent" {{if .J.Options.AppConsistent}}checked{{end}}> {{T "Require application-consistent checkpoints"}} <small>{{T "Hyper-V: back up a running VM only from a checkpoint made with VSS inside the guest (Active Directory, SQL Server, Exchange). If that is not possible, the VM is not backed up and the run fails instead of taking a crash-consistent checkpoint; the other VMs of the job are still backed up."}}</small></label>
+    {{end}}
     <details class="sched" {{if or .J.Options.LimitMBps .J.Options.HasCommands .J.Options.Compression}}open{{end}}>
       <summary>{{T "Advanced: speed limit, compression"}}{{if and .CanCommands (ne .J.Kind "copy")}}{{T ", commands before and after the backup"}}{{end}}</summary>
       <div class="row">

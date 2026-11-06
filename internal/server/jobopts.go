@@ -35,6 +35,10 @@ type JobOptions struct {
 	// the cluster) back up its clustered VMs on whichever node owns them, into
 	// one repository of the cluster. Set when the job is created.
 	HVCluster string `json:"hv_cluster,omitempty"`
+	// AppConsistent: Hyper-V VM jobs back up a running VM only from an
+	// application-consistent checkpoint (VSS in the guest); when that fails
+	// the VM is skipped and the run fails, without a crash-consistent copy.
+	AppConsistent bool `json:"app_consistent,omitempty"`
 	// SQL Server jobs: the instance ("" = default), whether system
 	// databases are included when all are backed up, and how often the
 	// transaction logs are backed up (minutes, 0 = never).
@@ -282,6 +286,7 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	o.SQLInstance = strings.TrimSpace(r.FormValue("sql_instance"))
 	o.SQLSystem = r.FormValue("sql_system") == "on"
 	o.SQLLogMinutes = atoiDefault(r.FormValue("sql_log_minutes"))
+	o.AppConsistent = r.FormValue("app_consistent") == "on"
 	if r.FormValue("replicate") == "on" {
 		o.ReplicaAgentID, o.ReplicaStorage = formID(r, "replica_agent"), r.FormValue("replica_storage")
 	}

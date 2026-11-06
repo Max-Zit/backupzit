@@ -103,10 +103,19 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	} else if isPVE {
 		sn, err = pve.Backup(ctx, r, pve.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf})
 	} else {
-		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Cluster: run.HVCluster != "", Version: a.version, Tags: tags, Progress: prog, Log: logf})
+		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Cluster: run.HVCluster != "", RequireAppConsistent: run.AppConsistent,
+			Version: a.version, Tags: tags, Progress: prog, Log: logf})
 	}
 	if errors.Is(err, hyperv.ErrNoneHere) {
 		return api.RunResult{Status: api.StatusSuccess, Message: "None of the job's VMs runs on this node now; the other nodes of cluster " + run.HVCluster + " back them up"}
+	}
+	if errors.Is(err, hyperv.ErrNotAppConsistent) && sn != nil {
+		// The job requires application-consistent checkpoints: the run
+		// fails, but the VMs that had one are kept and can be restored.
+		// No retention after a failed run.
+		stats, _ := json.Marshal(sn.Stats)
+		return api.RunResult{Status: api.StatusFailed, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors,
+			Message: fmt.Sprintf("%v; the other %d VMs were backed up", err, len(sn.Guests))}
 	}
 	if err != nil {
 		return failed(err)

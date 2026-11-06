@@ -26,8 +26,10 @@ type BackupOptions struct {
 	Hostname string
 	Version  string
 	Tags     []string
-	Progress func(done, total uint64)
-	Log      func(msg string, args ...any)
+	// RequireAppConsistent: no crash-consistent fallback (see ErrNotAppConsistent).
+	RequireAppConsistent bool
+	Progress             func(done, total uint64)
+	Log                  func(msg string, args ...any)
 }
 
 // Backup checkpoints the selected VMs and stores their disks and settings
@@ -84,15 +86,19 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	start := time.Now()
 	before := r.Stats()
 	sn := &repo.Snapshot{Time: start.UTC(), Hostname: opts.Hostname, Tags: append([]string{"hyperv"}, opts.Tags...), ProgramVersion: opts.Version}
+	notApp := 0
 	for _, vm := range sel {
 		opts.Log("backing up VM", "name", vm.Name, "id", vm.ID)
-		g, warns, err := backupVM(ctx, r, vm, sn, prev, progress)
+		g, warns, err := backupVM(ctx, r, vm, sn, prev, progress, opts.RequireAppConsistent)
 		for _, w := range warns {
 			addErr(vm.Name, errors.New(w))
 		}
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
+			}
+			if errors.Is(err, ErrNotAppConsistent) {
+				notApp++
 			}
 			addErr(vm.Name, err)
 			continue
@@ -102,7 +108,11 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 		stats.Files++
 	}
 	if len(sn.Guests) == 0 {
-		return nil, fmt.Errorf("no VM could be backed up: %s", strings.Join(stats.Errors, "; "))
+		err := fmt.Errorf("no VM could be backed up: %s", strings.Join(stats.Errors, "; "))
+		if notApp > 0 {
+			err = fmt.Errorf("%w: %v", ErrNotAppConsistent, err)
+		}
+		return nil, err
 	}
 	for _, img := range sn.Images {
 		stats.Bytes += img.Partitions[0].StoredBytes
@@ -122,6 +132,9 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	sn.Tree, sn.Stats = treeID, stats
 	if _, err := r.SaveSnapshot(ctx, sn); err != nil {
 		return nil, fmt.Errorf("save snapshot: %w", err)
+	}
+	if notApp > 0 {
+		return sn, fmt.Errorf("%w for %d of %d VMs; they were not backed up", ErrNotAppConsistent, notApp, len(sel))
 	}
 	return sn, nil
 }
@@ -166,10 +179,16 @@ try { Rename-VMSnapshot -VMSnapshot $s -NewName $name } catch { Remove-VMSnapsho
 // takeCheckpoint creates the backup's checkpoint: a recovery checkpoint
 // (application-consistent, else crash-consistent) where Hyper-V supports
 // them, otherwise a production checkpoint. rct reports whether the disks
-// track changes.
-func takeCheckpoint(ctx context.Context, vm vmInfo, name string) (ci checkpointInfo, consistency string, rct bool, warns []string, err error) {
+// track changes. With requireApp only application-consistent checkpoints
+// count: anything else is removed and ErrNotAppConsistent returned.
+func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp bool) (ci checkpointInfo, consistency string, rct bool, warns []string, err error) {
 	vars := `$id = ` + psq(vm.ID) + `; $name = ` + psq(name) + `; `
-	for _, level := range []string{"1", "2"} {
+	levels := []string{"1", "2"}
+	if requireApp {
+		levels = levels[:1]
+	}
+	var appErr error
+	for _, level := range levels {
 		out, err := ps(ctx, vars+`$level = `+level+"\n"+recoveryScript)
 		if err == nil && json.Unmarshal(out, &ci) == nil && len(ci.Disks) > 0 {
 			if level == "1" {
@@ -180,9 +199,12 @@ func takeCheckpoint(ctx context.Context, vm vmInfo, name string) (ci checkpointI
 		if err == nil {
 			err = errors.New("no disks in the recovery checkpoint")
 		}
-		if level == "1" {
+		switch {
+		case level == "1" && requireApp:
+			appErr = err
+		case level == "1":
 			warns = append(warns, "application-consistent checkpoint failed ("+lastLine(err.Error())+"), took a crash-consistent one")
-		} else {
+		default:
 			warns = append(warns[:0], "recovery checkpoints are not available ("+lastLine(err.Error())+"); every backup reads the whole disks")
 		}
 	}
@@ -191,6 +213,9 @@ func takeCheckpoint(ctx context.Context, vm vmInfo, name string) (ci checkpointI
 	out, err := ps(ctx, sel+`Checkpoint-VM -VM $vm -SnapshotName `+psq(name)+`; $s = Get-VMSnapshot -VM $vm -Name `+psq(name)+
 		`; [pscustomobject]@{ type="$($s.SnapshotType)"; state="$($s.State)"; disks=@(Get-VMHardDiskDrive -VMSnapshot $s | ForEach-Object { [pscustomobject]@{ type="$($_.ControllerType)"; num=$_.ControllerNumber; loc=$_.ControllerLocation; path=$_.Path } }) } | ConvertTo-Json -Depth 4 -Compress`)
 	if err != nil {
+		if requireApp {
+			return ci, "", false, warns, fmt.Errorf("%w (%s)", ErrNotAppConsistent, lastLine(err.Error()))
+		}
 		return ci, "", false, warns, fmt.Errorf("create checkpoint: %w", err)
 	}
 	if err := json.Unmarshal(out, &ci); err != nil || len(ci.Disks) == 0 {
@@ -199,6 +224,14 @@ func takeCheckpoint(ctx context.Context, vm vmInfo, name string) (ci checkpointI
 	consistency = "standard checkpoint, crash-consistent (no backup integration in the guest)"
 	if strings.EqualFold(ci.Type, "Production") || strings.EqualFold(ci.State, "Off") {
 		consistency = "production checkpoint (VSS or file system freeze inside the guest)"
+	} else if requireApp {
+		// Hyper-V fell back to a standard checkpoint: not what the job wants.
+		_, _ = ps(ctx, sel+`Get-VMSnapshot -VM $vm -Name `+psq(name)+` | Remove-VMSnapshot`)
+		why := "only a crash-consistent checkpoint was possible"
+		if appErr != nil {
+			why = lastLine(appErr.Error())
+		}
+		return ci, "", false, warns, fmt.Errorf("%w (%s); check the Backup (volume shadow copy) integration service and VSS inside the guest", ErrNotAppConsistent, why)
 	}
 	return ci, consistency, false, warns, nil
 }
@@ -208,7 +241,7 @@ func lastLine(s string) string {
 	return strings.TrimSpace(l[len(l)-1])
 }
 
-func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64)) (_ *repo.Guest, warns []string, _ error) {
+func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), requireApp bool) (_ *repo.Guest, warns []string, _ error) {
 	if len(vm.Disks) == 0 {
 		return nil, nil, errNoDisks
 	}
@@ -223,7 +256,7 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 		// Remove checkpoints left behind by an interrupted backup.
 		_, _ = ps(ctx, sel+`Get-VMSnapshot -VM $vm | Where-Object Name -like '`+snapPrefix+`*' | Remove-VMSnapshot`)
 		name := snapPrefix + strconv.FormatInt(time.Now().Unix(), 10)
-		ci, consistency, withRCT, w, err := takeCheckpoint(ctx, vm, name)
+		ci, consistency, withRCT, w, err := takeCheckpoint(ctx, vm, name, requireApp)
 		warns = append(warns, w...)
 		if err != nil {
 			return nil, warns, err

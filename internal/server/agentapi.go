@@ -205,6 +205,12 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		if run.JobID != nil {
 			if j, err := s.store.GetJob(ctx, *run.JobID); err == nil {
 				ar.HVCluster = j.Options.HVCluster
+				if j.Options.AppConsistent {
+					if a, err := s.store.GetAgent(ctx, run.AgentID); err == nil && strings.Count(a.Version, ".") == 2 && update.Newer(minAppConsistentVersion, a.Version) {
+						return nil, fmt.Errorf("the agent on %s (%s) cannot require application-consistent checkpoints yet; update it to %s or newer (Agents page)", a.Hostname, a.Version, minAppConsistentVersion)
+					}
+					ar.AppConsistent = true
+				}
 			}
 		}
 		if err := s.addVMware(ctx, run, ar); err != nil {
@@ -352,3 +358,7 @@ func remoteIP(r *http.Request) string {
 
 // minAllDisksVersion is the first agent that images all disks in one job.
 const minAllDisksVersion = "0.33.7"
+
+// minAppConsistentVersion is the first agent that honours AppConsistent;
+// older agents would quietly fall back to crash-consistent checkpoints.
+const minAppConsistentVersion = "0.48.0"

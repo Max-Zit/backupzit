@@ -6,6 +6,11 @@ import "errors"
 // VMs runs on this node now: the other nodes back them up.
 var ErrNoneHere = errors.New("none of the job's VMs runs on this node now")
 
+// ErrNotAppConsistent is returned by Backup with RequireAppConsistent when
+// a running VM could not get an application-consistent checkpoint: it was
+// not backed up (the snapshot, if any, holds the other VMs).
+var ErrNotAppConsistent = errors.New("no application-consistent checkpoint")
+
 // pick chooses the VMs to back up from those on this host (by VMIDFor
 // number) for a job selecting ids (nil = all) without excl. On a cluster
 // node (cluster set) "all" means the clustered VMs only, and selected VMs
