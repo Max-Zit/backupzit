@@ -253,3 +253,28 @@ func (a *Agent) vmwareRestore(ctx context.Context, run api.Run, r *repo.Reposito
 	stats, _ := json.Marshal(map[string]uint64{"bytes": written})
 	return api.RunResult{Status: api.StatusSuccess, Message: msg, Details: details, Stats: stats}
 }
+
+// checkpointCleanupEvery is how often an idle agent on a Hyper-V host looks
+// for backup checkpoints left on VMs that moved here during a backup.
+const checkpointCleanupEvery = 2 * time.Minute
+
+// cleanupCheckpoints removes such checkpoints (see hyperv.CleanupCheckpoints);
+// PollOnce calls it only while no run is active.
+func (a *Agent) cleanupCheckpoints(ctx context.Context) {
+	a.mu.Lock()
+	due := time.Since(a.checkpointsAt) > checkpointCleanupEvery
+	if due {
+		a.checkpointsAt = time.Now()
+	}
+	a.mu.Unlock()
+	if !due || !hyperv.Available() {
+		return
+	}
+	cctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if done, err := hyperv.CleanupCheckpoints(cctx); err != nil {
+		a.log.Warn("remove leftover checkpoints", "err", err)
+	} else if len(done) > 0 {
+		a.log.Info("removed leftover backup checkpoints", "checkpoints", done)
+	}
+}

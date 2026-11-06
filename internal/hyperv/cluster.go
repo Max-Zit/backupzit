@@ -48,3 +48,9 @@ type hostVM struct {
 	ID        int
 	Clustered bool
 }
+
+// notAppErr reads like its message but is ErrNotAppConsistent for errors.Is.
+type notAppErr struct{ msg string }
+
+func (e notAppErr) Error() string { return e.msg }
+func (e notAppErr) Unwrap() error { return ErrNotAppConsistent }

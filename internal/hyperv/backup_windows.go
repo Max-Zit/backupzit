@@ -110,7 +110,7 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	if len(sn.Guests) == 0 {
 		err := fmt.Errorf("no VM could be backed up: %s", strings.Join(stats.Errors, "; "))
 		if notApp > 0 {
-			err = fmt.Errorf("%w: %v", ErrNotAppConsistent, err)
+			err = notAppErr{err.Error()}
 		}
 		return nil, err
 	}
@@ -259,13 +259,27 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 		ci, consistency, withRCT, w, err := takeCheckpoint(ctx, vm, name, requireApp)
 		warns = append(warns, w...)
 		if err != nil {
+			if vmGone(err) {
+				return nil, nil, errors.New("the VM moved to another node before its checkpoint (live migration); it was not backed up in this run - the node that runs it now backs it up in its next run")
+			}
 			return nil, warns, err
 		}
 		defer func() {
 			c, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 			defer cancel()
-			if _, err := ps(c, sel+`Get-VMSnapshot -VM $vm -Name `+psq(name)+` | Remove-VMSnapshot`); err != nil {
+			out, err := ps(c, `$vm = Get-VM -Id `+psq(vm.ID)+` -ErrorAction SilentlyContinue; if (-not $vm) { 'moved' } else { Get-VMSnapshot -VM $vm -Name `+psq(name)+` -ErrorAction Stop | Remove-VMSnapshot -ErrorAction Stop }`)
+			switch {
+			case err != nil:
 				warns = append(warns, "remove checkpoint "+name+": "+lastLine(err.Error()))
+			case strings.TrimSpace(string(out)) == "moved":
+				// Live-migrated to another node during the backup: that node's
+				// agent removes the checkpoint once this marker says the
+				// backup has finished reading (CleanupCheckpoints).
+				if m := doneMarker(vm, name); m == "" || os.WriteFile(m, nil, 0o600) != nil {
+					warns = append(warns, "the VM moved to another node during the backup; remove its checkpoint "+name+" there (Hyper-V Manager → Checkpoints)")
+				} else {
+					warns = append(warns, "the VM moved to another node during the backup; the agent there removes its checkpoint "+name)
+				}
 			}
 		}()
 		disks, g.Consistency, rct = ci.Disks, consistency, withRCT

@@ -20,6 +20,8 @@ func VMIDFor(string) int { return 0 }
 
 func GetInventory(context.Context) (*pve.Inventory, error) { return nil, errUnsupported }
 
+func CleanupCheckpoints(context.Context) ([]string, error) { return nil, errUnsupported }
+
 type BackupOptions struct {
 	VMIDs    []int
 	Exclude  []int

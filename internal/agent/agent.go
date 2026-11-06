@@ -229,6 +229,9 @@ type Agent struct {
 	// instance identifies this agent process; the console sees two
 	// machines using one enrollment (a clone) by two live instances.
 	instance string
+
+	// checkpointsAt: last look for leftover Hyper-V backup checkpoints.
+	checkpointsAt time.Time
 }
 
 func New(cfg *Config, log *slog.Logger, version string) *Agent {
@@ -251,6 +254,9 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 		invEvery = inventoryInterval
 	}
 	sendInventory := !busy && time.Since(invAt) > invEvery
+	if !busy {
+		a.cleanupCheckpoints(ctx)
+	}
 	if sendInventory {
 		req.Disks = a.diskInventory()
 		req.Hypervisor = a.hypervisorInventory(ctx)

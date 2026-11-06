@@ -1,0 +1,77 @@
+package hyperv
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+// doneMarker is the file that tells the node a VM moved to that its backup
+// checkpoint name is no longer read: next to the VM's first disk, which on
+// a cluster lies on a Cluster Shared Volume every node sees. "" when the VM
+// has no disk path.
+func doneMarker(vm vmInfo, name string) string {
+	if len(vm.Disks) == 0 || vm.Disks[0].Path == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(vm.Disks[0].Path), ".backupzit-"+name+".done")
+}
+
+// staleCheckpointAge is when a BackupZit checkpoint without a marker counts
+// as left behind (a backup interrupted by a crash or power loss).
+const staleCheckpointAge = 24 * time.Hour
+
+// CleanupCheckpoints removes BackupZit checkpoints of VMs on this host that
+// no backup reads any more: those whose backup finished on another node
+// after the VM was live-migrated here (marker file), and those older than a
+// day. Call it only while this agent runs no backup. It returns the removed
+// checkpoints as "VM/checkpoint".
+func CleanupCheckpoints(ctx context.Context) ([]string, error) {
+	out, err := ps(ctx, `@(Get-VM | ForEach-Object { $vm = $_; Get-VMSnapshot -VM $vm -ErrorAction SilentlyContinue | Where-Object Name -like '`+snapPrefix+`*' | ForEach-Object {
+ [pscustomobject]@{ id = $vm.Id.Guid; vm = $vm.Name; name = $_.Name; age = [int]((Get-Date) - $_.CreationTime).TotalSeconds;
+  disk = "$(@(Get-VMHardDiskDrive -VM $vm)[0].Path)" } } }) | ConvertTo-Json -Compress`)
+	if err != nil {
+		return nil, err
+	}
+	var cps []struct {
+		ID, VM, Name, Disk string
+		Age                int
+	}
+	if len(out) > 0 && out[0] == '{' {
+		out = append(append([]byte{'['}, out...), ']')
+	}
+	if err := json.Unmarshal(out, &cps); err != nil {
+		return nil, err
+	}
+	var removed []string
+	var errs []error
+	for _, c := range cps {
+		marker := ""
+		if c.Disk != "" {
+			marker = filepath.Join(filepath.Dir(c.Disk), ".backupzit-"+c.Name+".done")
+		}
+		_, statErr := os.Stat(marker)
+		if (marker == "" || statErr != nil) && time.Duration(c.Age)*time.Second < staleCheckpointAge {
+			continue // maybe still read by a backup on another node
+		}
+		if _, err := ps(ctx, `Get-VMSnapshot -VM (Get-VM -Id `+psq(c.ID)+`) -Name `+psq(c.Name)+` -ErrorAction Stop | Remove-VMSnapshot -ErrorAction Stop`); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if marker != "" {
+			_ = os.Remove(marker)
+		}
+		removed = append(removed, c.VM+"/"+c.Name)
+	}
+	return removed, errors.Join(errs...)
+}
+
+// vmGone reports whether PowerShell failed because the VM is no longer on
+// this host (moved to another node of the cluster).
+func vmGone(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "unable to find a virtual machine with id")
+}
