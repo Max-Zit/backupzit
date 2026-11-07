@@ -12,6 +12,12 @@ set -eu
 VERSION=${1:?usage: promote-release.sh <version> [release.key notes.md]}
 gh release view "v$VERSION" --repo Max-Zit/backupzit --json isPrerelease --jq .isPrerelease | grep -q true ||
     { echo "v$VERSION is not a release candidate" >&2; exit 1; }
+# The website, the README and the console's Recovery page link to
+# releases/latest/download/backupzit-recovery-linux.iso, so an official
+# release without it breaks those links (0.47.1 to 0.47.3 shipped without).
+gh release view "v$VERSION" --repo Max-Zit/backupzit --json assets --jq '.assets[].name' |
+    grep -qx "backupzit-recovery-linux.iso" ||
+    { echo "v$VERSION has no backupzit-recovery-linux.iso: build it (packaging/linux-recovery/build-iso.sh) and upload it first" >&2; exit 1; }
 if [ -n "${3:-}" ]; then
     sh "$(dirname "$0")/release-notes.sh" "$VERSION" "$2" "$3"
 fi

@@ -46,6 +46,8 @@ gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber packaging/appli
 if [ -f "dist/backupzit-recovery-linux-$VERSION.iso" ]; then
     cp "dist/backupzit-recovery-linux-$VERSION.iso" "dist/backupzit-recovery-linux.iso"
     gh release upload "v$VERSION" --repo Max-Zit/backupzit --clobber dist/backupzit-recovery-linux.iso
+else
+    echo "warning: no dist/backupzit-recovery-linux-$VERSION.iso; upload it before promote-release.sh (it refuses without it)" >&2
 fi
 if [ -n "${CANDIDATE:-}" ]; then
     # The testing channel holds exactly the candidate's signed files.
