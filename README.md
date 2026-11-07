@@ -64,30 +64,35 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 
 | What | How | Restore |
 |---|---|---|
-| **Files and folders** (Windows, Linux) | incremental, from a VSS snapshot on Windows | single files from the browser (download), into a folder or to the original location |
+| **Files and folders** (Windows, Linux) | incremental, from a VSS snapshot on Windows; `{users}` paths (e.g. the Documents of every user) and wildcards; one job can cover several or all agents | single files from the browser (download), into a folder or to the original location |
 | **Whole disks** (Windows) | disk images of one, several or all disks, changed blocks only | bare metal from the recovery ISO, also onto different hardware; single files from the image |
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
-| **Proxmox VE** VMs and containers | agentless, changed blocks only | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
+| **Proxmox VE** VMs and containers | agentless, changed blocks only; the node's own configuration (`/etc/pve`, `config.db`) with a files job | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
 | **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent, changed block tracking | new VM or in place, instant recovery over NFS |
 | **Hyper-V** VMs, also **failover clusters** | agentless, resilient change tracking; a clustered VM keeps its history when it moves to another node | new VM on the same or another Hyper-V host, also onto a Cluster Shared Volume as a cluster role |
 | **Databases** | SQL Server, PostgreSQL, MySQL/MariaDB with native tools; log backups | a single database to any point in time, under a new name or in place |
 | **NAS shares** | SMB or NFS share read by any agent, nothing installed on the NAS | into a folder or back onto the share |
 | **Microsoft 365** | Exchange Online mail (.eml), calendars (.ics), contacts (.vcf), OneDrive and SharePoint through Microsoft Graph, read-only permissions | browse and download, or restore into a folder |
 
-**Storage:** SFTP, S3-compatible storage (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud Storage), SMB shares, Azure Blob Storage, rotating USB disks, local disks, and the **BackupZit hardened repository** (a write-once Linux server). Backup copy jobs keep a second copy elsewhere (3-2-1).
+**Storage:** SFTP, S3-compatible storage (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud Storage), SMB shares, Azure Blob Storage, rotating USB disks, local disks, and the **BackupZit hardened repository** (a write-once Linux server). Backup copy jobs keep a second copy elsewhere (3-2-1). *Find backups* adds backups that are already on a storage target (for example after a reinstall of the console), so they can be restored.
 
 **Protection against ransomware and mistakes:**
 - AES-256 encryption with a recovery key.
 - Immutable backups: S3 Object Lock or the hardened repository.
 - Detection of backups that look like ransomware or mass deletion; retention pauses automatically.
-- Automatic restore tests.
+- Automatic restore tests, and a check (monthly by default) that reads and verifies all stored data.
+- Deleting the backups of a removed agent asks for your password (or two-factor code), so a stolen browser session is not enough.
 - Optional four-eyes approval for destructive changes.
 - Tamper-evident audit log.
 
 **Management:**
 - Schedules, job chains (run B after A), backup windows, RPO and retention per job.
 - Email, Slack, Teams and webhook notifications.
-- Reports (PDF and CSV, emailed on a schedule) and a calendar of runs.
+- Reports (PDF and CSV, emailed on a schedule) and a calendar of runs; each run shows its compression ratio and how much data was already stored.
+- The dashboard warns about computers without a backup job, agents whose clock is off, and two machines using one agent (for example a cloned VM).
+- A Windows tray icon with the backup status and *Back up now*.
+- Removing an agent can also uninstall it from the computer, keeping or deleting its backups.
+- A diagnostics zip for support requests (without passwords or keys), and a light and dark theme.
 - Roles (Administrator, Backup operator, Restore operator, Viewer).
 - LDAP / Active Directory and single sign-on (SAML, OpenID Connect).
 - Two-factor sign-in and a REST API with an OpenAPI specification ([openapi.json](internal/server/openapi.json)): status, agents, jobs, runs, restores, reports, storage and Prometheus metrics; webhooks for finished runs.
@@ -197,7 +202,7 @@ Options go after `sh -s --`:
 
 | Option | Effect |
 |---|---|
-| `--version 0.46.5` | install this release instead of the newest |
+| `--version 0.47.3` | install this release instead of the newest |
 | `--db postgres://user:pw@host:5432/db` | use an existing PostgreSQL database |
 | `--hosts backup.example.local,10.0.0.10` | names and addresses for the console's certificate |
 | `--no-auto-updates` | leave automatic security updates as they are |
