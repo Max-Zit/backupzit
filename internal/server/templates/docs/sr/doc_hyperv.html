@@ -100,6 +100,7 @@
 
 <h2>Komandna linija</h2>
 <p>Pokrenite ih na Hyper-V hostu, kao administrator:</p>
+<p id="cli-restore-lock">Hyper-V vraćanje iz komandne linije preuzima deljenu blokadu repozitorijuma pre izbora snimka i zadržava je do završetka vraćanja. Čeka da se završi održavanje sa isključivom blokadom; ako ne može da preuzme blokadu, završava se greškom bez izmena VM-a.</p>
 <pre>backupzit-agent hyperv list
 backupzit-agent hyperv backup  --repo ... [--vmid N,N]
 backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>

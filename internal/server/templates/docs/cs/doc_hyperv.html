@@ -100,6 +100,7 @@
 
 <h2>Příkazový řádek</h2>
 <p>Spouštějte na hostiteli Hyper-V jako správce:</p>
+<p id="cli-restore-lock">Obnova Hyper-V z příkazového řádku získá sdílený zámek úložiště před výběrem snímku a drží jej až do dokončení obnovy. Čeká na dokončení údržby s výhradním zámkem; pokud zámek nezíská, skončí chybou bez změny virtuálního počítače.</p>
 <pre>backupzit-agent hyperv list
 backupzit-agent hyperv backup  --repo ... [--vmid N,N]
 backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>

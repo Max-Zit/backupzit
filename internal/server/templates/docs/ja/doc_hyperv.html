@@ -100,6 +100,7 @@
 
 <h2>コマンドライン</h2>
 <p>Hyper-V ホストで管理者として実行します:</p>
+<p id="cli-restore-lock">コマンドラインからの Hyper-V 復元は、スナップショットを選択する前にリポジトリの共有ロックを取得し、復元が終了するまで保持します。競合する排他メンテナンスの終了を待ち、ロックを取得できない場合は VM を変更せずにエラーで終了します。</p>
 <pre>backupzit-agent hyperv list
 backupzit-agent hyperv backup  --repo ... [--vmid N,N]
 backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>

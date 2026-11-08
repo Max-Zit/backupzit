@@ -100,6 +100,7 @@
 
 <h2>命令行</h2>
 <p>以管理员身份在 Hyper-V 主机上运行：</p>
+<p id="cli-restore-lock">命令行 Hyper-V 恢复会在选择快照之前获取仓库的共享锁，并持有该锁直到恢复结束。它会等待存在冲突的独占维护操作结束；如果无法获取锁，则会报错退出，而不会修改虚拟机。</p>
 <pre>backupzit-agent hyperv list
 backupzit-agent hyperv backup  --repo ... [--vmid N,N]
 backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>

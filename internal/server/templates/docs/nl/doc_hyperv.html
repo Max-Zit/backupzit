@@ -100,6 +100,7 @@
 
 <h2>Opdrachtregel</h2>
 <p>Voer dit uit op de Hyper-V-host, als beheerder:</p>
+<p id="cli-restore-lock">Hyper-V-herstel via de opdrachtregel neemt een gedeeld repositoryslot voordat de snapshot wordt geselecteerd en houdt dit vast tot het herstel is afgelopen. Het wacht op conflicterend onderhoud met een exclusief slot; als het slot niet kan worden verkregen, stopt het met een fout zonder de VM te wijzigen.</p>
 <pre>backupzit-agent hyperv list
 backupzit-agent hyperv backup  --repo ... [--vmid N,N]
 backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
