@@ -62,6 +62,7 @@
 
 <h2>SMB share</h2>
 <p>Server, share, optional folder, user, password and (for domain accounts) the domain. Agents connect with these credentials themselves, so it works for services running as SYSTEM.</p>
+<p id="smb-replacement">SMB accounts must be allowed to replace existing repository files by renaming a temporary file, as well as create, read and delete files. This keeps lock refreshes visible atomically. A failed replacement is reported as a write error; the previous file is kept. If a repository lock cannot be read, maintenance stops rather than assuming it is absent.</p>
 
 <h2>Hardened repository</h2>
 <p>Install the <code>backupzit-repo</code> package on a dedicated Linux server, then on that server:</p>

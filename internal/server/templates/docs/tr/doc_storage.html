@@ -62,6 +62,7 @@
 
 <h2>SMB paylaşımı</h2>
 <p>Sunucu, paylaşım, isteğe bağlı klasör, kullanıcı, parola ve (etki alanı hesapları için) etki alanı. Aracılar bu kimlik bilgileriyle kendileri bağlanır, bu yüzden SYSTEM olarak çalışan hizmetler için de çalışır.</p>
+<p id="smb-replacement">SMB hesabı dosya oluşturma, okuma ve silmenin yanı sıra geçici bir dosyayı yeniden adlandırarak mevcut depo dosyalarını değiştirebilmelidir. Böylece kilit yenilemeleri atomik olarak görünür kalır. Değiştirme başarısız olursa yazma hatası bildirilir ve önceki dosya korunur. Depo kilidi okunamıyorsa bakım, kilidin bulunmadığını varsaymak yerine durur.</p>
 
 <h2>Güçlendirilmiş depo</h2>
 <p><code>backupzit-repo</code> paketini ayrı bir Linux sunucusuna kurun, ardından o sunucuda:</p>

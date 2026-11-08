@@ -62,6 +62,7 @@
 
 <h2>SMB-share</h2>
 <p>Server, share, optionele map, gebruiker, wachtwoord en (voor domeinaccounts) het domein. Agents maken zelf verbinding met deze referenties, dus het werkt ook voor services die als SYSTEM draaien.</p>
+<p id="smb-replacement">Het SMB-account moet bestaande repositorybestanden kunnen vervangen door een tijdelijk bestand te hernoemen, naast bestanden maken, lezen en verwijderen. Hierdoor blijven slotvernieuwingen atomair zichtbaar. Als vervangen mislukt, wordt een schrijffout gemeld en blijft het vorige bestand behouden. Als een repositoryslot niet kan worden gelezen, stopt het onderhoud in plaats van aan te nemen dat het slot ontbreekt.</p>
 
 <h2>Geharde repository</h2>
 <p>Installeer het pakket <code>backupzit-repo</code> op een aparte Linux-server en voer daarna op die server uit:</p>

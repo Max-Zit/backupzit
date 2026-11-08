@@ -62,6 +62,7 @@
 
 <h2>Udział SMB</h2>
 <p>Serwer, udział, opcjonalny folder, użytkownik, hasło i (dla kont domenowych) domena. Agenci łączą się sami z tymi danymi, więc działa to także dla usług uruchomionych jako SYSTEM.</p>
+<p id="smb-replacement">Konto SMB musi móc zastępować istniejące pliki repozytorium przez zmianę nazwy pliku tymczasowego, a także tworzyć, odczytywać i usuwać pliki. Dzięki temu odświeżanie blokad jest widoczne atomowo. Nieudane zastąpienie jest zgłaszane jako błąd zapisu, a poprzedni plik zostaje zachowany. Jeśli nie można odczytać blokady repozytorium, konserwacja zostaje zatrzymana zamiast zakładać brak blokady.</p>
 
 <h2>Utwardzone repozytorium</h2>
 <p>Zainstaluj pakiet <code>backupzit-repo</code> na dedykowanym serwerze Linux, a następnie na tym serwerze:</p>
