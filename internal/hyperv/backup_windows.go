@@ -2,11 +2,12 @@ package hyperv
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -245,6 +246,11 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 	if len(vm.Disks) == 0 {
 		return nil, nil, errNoDisks
 	}
+	unlock, err := lockVM(ctx, vm.ID, true)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer unlock()
 	cfg, _ := json.Marshal(vm)
 	g := &repo.Guest{Platform: "hyperv", Type: "vm", VMID: VMIDFor(vm.ID), ID: vm.ID, Name: vm.Name, Running: vm.State != "Off", Config: string(cfg)}
 	disks := vm.Disks
@@ -252,10 +258,13 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 	if vm.State == "Off" {
 		g.Consistency = "VM was off, disks read directly"
 	} else {
-		sel := `$vm = Get-VM -Id ` + psq(vm.ID) + `; `
-		// Remove checkpoints left behind by an interrupted backup.
-		_, _ = ps(ctx, sel+`Get-VMSnapshot -VM $vm | Where-Object Name -like '`+snapPrefix+`*' | Remove-VMSnapshot`)
-		name := snapPrefix + strconv.FormatInt(time.Now().Unix(), 10)
+		// A prefixed checkpoint may still belong to another process or to a
+		// backup reading after live migration. Only remove our own checkpoint.
+		var nonce [16]byte
+		if _, err := rand.Read(nonce[:]); err != nil {
+			return nil, nil, fmt.Errorf("name checkpoint: %w", err)
+		}
+		name := snapPrefix + hex.EncodeToString(nonce[:])
 		ci, consistency, withRCT, w, err := takeCheckpoint(ctx, vm, name, requireApp)
 		warns = append(warns, w...)
 		if err != nil {

@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 // doneMarker is the file that tells the node a VM moved to that its backup
@@ -21,25 +20,19 @@ func doneMarker(vm vmInfo, name string) string {
 	return filepath.Join(filepath.Dir(vm.Disks[0].Path), ".backupzit-"+name+".done")
 }
 
-// staleCheckpointAge is when a BackupZit checkpoint without a marker counts
-// as left behind (a backup interrupted by a crash or power loss).
-const staleCheckpointAge = 24 * time.Hour
-
 // CleanupCheckpoints removes BackupZit checkpoints of VMs on this host that
-// no backup reads any more: those whose backup finished on another node
-// after the VM was live-migrated here (marker file), and those older than a
-// day. Call it only while this agent runs no backup. It returns the removed
-// checkpoints as "VM/checkpoint".
+// have a completion marker from their backup on another node. Age alone is
+// not proof that a backup stopped reading. Checkpoints without a marker are
+// left for the operator to inspect. Busy local VMs are skipped.
 func CleanupCheckpoints(ctx context.Context) ([]string, error) {
 	out, err := ps(ctx, `@(Get-VM | ForEach-Object { $vm = $_; Get-VMSnapshot -VM $vm -ErrorAction SilentlyContinue | Where-Object Name -like '`+snapPrefix+`*' | ForEach-Object {
- [pscustomobject]@{ id = $vm.Id.Guid; vm = $vm.Name; name = $_.Name; age = [int]((Get-Date) - $_.CreationTime).TotalSeconds;
+ [pscustomobject]@{ id = $vm.Id.Guid; vm = $vm.Name; name = $_.Name;
   disk = "$(@(Get-VMHardDiskDrive -VM $vm)[0].Path)" } } }) | ConvertTo-Json -Compress`)
 	if err != nil {
 		return nil, err
 	}
 	var cps []struct {
 		ID, VM, Name, Disk string
-		Age                int
 	}
 	if len(out) > 0 && out[0] == '{' {
 		out = append(append([]byte{'['}, out...), ']')
@@ -50,22 +43,33 @@ func CleanupCheckpoints(ctx context.Context) ([]string, error) {
 	var removed []string
 	var errs []error
 	for _, c := range cps {
+		unlock, err := lockVM(ctx, c.ID, false)
+		if errors.Is(err, errVMBusy) {
+			continue
+		}
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
 		marker := ""
 		if c.Disk != "" {
 			marker = filepath.Join(filepath.Dir(c.Disk), ".backupzit-"+c.Name+".done")
 		}
 		_, statErr := os.Stat(marker)
-		if (marker == "" || statErr != nil) && time.Duration(c.Age)*time.Second < staleCheckpointAge {
+		if marker == "" || statErr != nil {
+			unlock()
 			continue // maybe still read by a backup on another node
 		}
 		if _, err := ps(ctx, `Get-VMSnapshot -VM (Get-VM -Id `+psq(c.ID)+`) -Name `+psq(c.Name)+` -ErrorAction Stop | Remove-VMSnapshot -ErrorAction Stop`); err != nil {
 			errs = append(errs, err)
+			unlock()
 			continue
 		}
 		if marker != "" {
 			_ = os.Remove(marker)
 		}
 		removed = append(removed, c.VM+"/"+c.Name)
+		unlock()
 	}
 	return removed, errors.Join(errs...)
 }
