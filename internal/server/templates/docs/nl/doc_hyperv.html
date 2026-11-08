@@ -49,7 +49,7 @@
   <li>verwisselt de schijven voor de herstelde.</li>
 </ul>
 <p>De VM behoudt zijn ID, netwerkadapters en MAC-adressen, zodat taken, monitoring en het netwerk van de gast blijven werken.</p>
-<p>De oude schijfbestanden worden niet verwijderd; ze worden hernoemd naar <code>….replaced-DATE</code>. Verwijder ze zodra de herstelde VM werkt.</p>
+<p id="restore-staging">Voordat de oorspronkelijke VM wordt gestopt of controlepunten worden samengevoegd, reconstrueert BackupZit alle schijven in een unieke submap <code>backupzit-restore-*</code> van de gekozen schijfmap (standaard de oorspronkelijke map). Voorbereidingsfouten laten de VM ongewijzigd. Oude schijven behouden hun paden; verwijder ze pas na controle van de herstelde VM. Een fout na het begin van de omschakeling kan handmatig herstel vereisen: de gereconstrueerde schijven blijven bewaard, de fout vermeldt hun map en instellingen en controlepunten worden niet automatisch teruggezet.</p>
 <p>Bestaat de originele VM niet meer, dan wordt hij opnieuw gemaakt, met een nieuwe Hyper-V-ID.</p>
 
 <h3>Opties</h3>

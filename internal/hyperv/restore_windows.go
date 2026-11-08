@@ -26,8 +26,8 @@ type RestoreOptions struct {
 	Name  string
 	// Folder for the new virtual disks ("" = the host's default).
 	Folder string
-	// Overwrite replaces the original VM if it still exists: it is turned
-	// off and removed; its disk files are renamed, not deleted.
+	// Overwrite replaces the disks of the original VM if it still exists.
+	// Disks are reconstructed before stopping it; old disk files are retained.
 	Overwrite bool
 	Start     bool
 	// Cluster: this host is a node of a failover cluster. A clustered VM is
@@ -104,35 +104,24 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		if !opts.Overwrite {
 			return nil, fmt.Errorf("VM %q still exists; restore it as a new VM or choose to replace it", existing.Name)
 		}
-		opts.Log("restoring in place", "name", existing.Name)
-		if clustered {
-			// Turned off through Hyper-V, the cluster would take it for a
-			// failure and start it again. Only the VM resource: with its
-			// configuration resource offline the VM is unregistered here.
-			if _, err := ps(ctx, `$r = `+psClusterResource(existing.ID)+`; if (-not $r) { throw 'the cluster role of the VM was not found' }; Stop-ClusterResource -Name $r.Name | Out-Null`); err != nil {
-				return nil, fmt.Errorf("stop the VM's cluster role: %w", err)
-			}
-		}
-		out, err := ps(ctx, `$vm = Get-VM -Id `+psq(existing.ID)+`; Stop-VM -VM $vm -TurnOff -Force -ErrorAction SilentlyContinue; `+
-			`Get-VMSnapshot -VM $vm | Remove-VMSnapshot -IncludeAllChildSnapshots -ErrorAction SilentlyContinue; $t = 0; `+
-			`while ("$((Get-VM -Id `+psq(existing.ID)+`).Status)" -match 'Merg' -and $t -lt 3600) { Start-Sleep 2; $t += 2 }; `+
-			`$p = @(Get-VMHardDiskDrive -VM $vm | ForEach-Object { $_.Path }); Get-VMHardDiskDrive -VM $vm | Remove-VMHardDiskDrive; $p -join "`+"`n"+`"`)
-		if err != nil {
-			return nil, fmt.Errorf("prepare the existing VM: %w", err)
-		}
-		stamp := time.Now().Format("20060102-150405")
-		for _, p := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-			if p = strings.TrimSpace(p); p == "" {
-				continue
-			}
-			if opts.Folder == "" {
-				opts.Folder = dirOf(p)
-			}
-			if err := os.Rename(p, p+".replaced-"+stamp); err == nil {
-				res.Notes = append(res.Notes, fmt.Sprintf("old disk kept as %s.replaced-%s - delete it when the restored VM works", p, stamp))
-			}
+		if strings.TrimSpace(opts.Folder) == "" && len(existing.Disks) > 0 {
+			opts.Folder = dirOf(existing.Disks[0].Path)
 		}
 		inPlace, name, clone = true, existing.Name, false
+	}
+	// Validate every reference before allocating files or touching the VM.
+	if len(g.Disks) == 0 {
+		return nil, errNoDisks
+	}
+	seen := make(map[string]bool)
+	for _, d := range g.Disks {
+		if d.Image < 0 || d.Image >= len(sn.Images) {
+			return nil, fmt.Errorf("%s: disk image missing in the backup", d.Key)
+		}
+		if !diskKeyRe.MatchString(d.Key) || seen[d.Key] || d.Size == 0 || d.Size != sn.Images[d.Image].Size {
+			return nil, fmt.Errorf("%s: invalid or duplicate disk in the backup", d.Key)
+		}
+		seen[d.Key] = true
 	}
 	folder := strings.TrimSpace(opts.Folder)
 	if folder == "" {
@@ -144,10 +133,17 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	dir := filepath.Join(folder, strings.TrimSpace(unsafeName.ReplaceAllString(name, "_")))
 	if inPlace {
-		dir = folder // next to the original disks
+		dir = folder
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 		return nil, fmt.Errorf("create %s: %w", dir, err)
+	}
+	if inPlace {
+		var err error
+		dir, err = os.MkdirTemp(folder, "backupzit-restore-")
+		if err != nil {
+			return nil, fmt.Errorf("create staging directory: %w", err)
+		}
 	}
 
 	var total, done uint64
@@ -162,10 +158,16 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	var created []string
 	ok := false
+	cutover := false
 	defer func() {
-		if !ok {
+		// After cutover starts a PowerShell failure can leave a new disk
+		// attached. Keep the reconstructed files for operator recovery.
+		if !ok && !cutover {
 			for _, f := range created {
 				_ = os.Remove(f)
+			}
+			if inPlace {
+				_ = os.Remove(dir) // only remove our now-empty staging directory
 			}
 		}
 	}()
@@ -189,16 +191,48 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			file = filepath.Join(dir, strings.ReplaceAll(d.Key, ":", "-")+"-"+strconv.FormatInt(time.Now().Unix(), 10)+".vhdx")
 		}
 		opts.Log("writing disk", "key", d.Key, "file", file)
+		if inPlace {
+			created = append(created, file) // our unique directory, including partial New-VHD failures
+		}
 		if _, err := ps(ctx, `New-VHD -Path `+psq(file)+` -SizeBytes `+strconv.FormatUint(d.Size, 10)+` -Dynamic | Out-Null`); err != nil {
 			return nil, fmt.Errorf("create %s: %w", file, err)
 		}
-		created = append(created, file)
+		if !inPlace {
+			created = append(created, file)
+		}
 		if err := writeVHD(ctx, r, &sn.Images[d.Image], file, progress); err != nil {
 			return nil, fmt.Errorf("%s: %w", d.Key, err)
 		}
 		disks = append(disks, placed{vd, file})
 		res.Disks = append(res.Disks, d.Key+" -> "+file)
 		res.Bytes += d.Size
+	}
+	// No repository reads or VHD reconstruction remain when we stop the VM.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if inPlace {
+		opts.Log("restoring in place", "name", existing.Name)
+		cutover = true
+		if clustered {
+			// Stop only the VM resource, leaving its configuration registered.
+			if _, err := ps(ctx, `$r = `+psClusterResource(existing.ID)+`; if (-not $r) { throw 'the cluster role of the VM was not found' }; Stop-ClusterResource -Name $r.Name | Out-Null`); err != nil {
+				return nil, fmt.Errorf("stop the VM's cluster role (restored disks retained in %s): %w", dir, err)
+			}
+		}
+		out, err := ps(ctx, `$vm = Get-VM -Id `+psq(existing.ID)+`; if ($vm.State -ne 'Off') { Stop-VM -VM $vm -TurnOff -Force }; `+
+			`Get-VMSnapshot -VM $vm | Remove-VMSnapshot -IncludeAllChildSnapshots; $t = 0; `+
+			`while ("$((Get-VM -Id `+psq(existing.ID)+`).Status)" -match 'Merg' -and $t -lt 3600) { Start-Sleep 2; $t += 2 }; `+
+			`if ($t -ge 3600) { throw 'checkpoint merge timed out' }; `+
+			`$p = @(Get-VMHardDiskDrive -VM $vm | ForEach-Object { $_.Path }); Get-VMHardDiskDrive -VM $vm | Remove-VMHardDiskDrive; $p -join "`+"`n"+`"`)
+		if err != nil {
+			return nil, fmt.Errorf("prepare the existing VM (restored disks retained in %s; inspect VM attachments before retrying): %w", dir, err)
+		}
+		for _, p := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			if p = strings.TrimSpace(p); p != "" {
+				res.Notes = append(res.Notes, fmt.Sprintf("old disk kept at %s - delete it when the restored VM works", p))
+			}
+		}
 	}
 
 	// Create the VM (or update the existing one) with the backed up settings.
@@ -292,6 +326,8 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	if err != nil {
 		if !inPlace {
 			_, _ = ps(context.Background(), `Get-VM -Name `+psq(name)+` -ErrorAction SilentlyContinue | Remove-VM -Force`)
+		} else {
+			return nil, fmt.Errorf("update the VM (restored disks retained in %s; original disk files kept at their paths; inspect VM attachments before retrying): %w", dir, err)
 		}
 		return nil, fmt.Errorf("create the VM: %w", err)
 	}

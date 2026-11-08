@@ -49,7 +49,7 @@
   <li>zamienia jej dyski na przywrócone.</li>
 </ul>
 <p>Maszyna zachowuje swój identyfikator, karty sieciowe i adresy MAC, więc zadania, monitoring i sieć gościa nadal działają.</p>
-<p>Stare pliki dysków nie są usuwane; zmienia się ich nazwę na <code>….replaced-DATE</code>. Usuń je, gdy przywrócona maszyna działa.</p>
+<p id="restore-staging">Przed zatrzymaniem oryginalnej VM lub scaleniem jej punktów kontrolnych BackupZit odtwarza wszystkie dyski w unikalnym podfolderze <code>backupzit-restore-*</code> wybranego folderu dysków (domyślnie oryginalnego). Błędy przygotowania pozostawiają VM bez zmian. Stare dyski zachowują ścieżki; usuń je dopiero po sprawdzeniu odtworzonej VM. Błąd po rozpoczęciu przełączenia może wymagać ręcznej naprawy: odtworzone dyski są zachowane, błąd podaje ich folder, a ustawienia i punkty kontrolne nie są automatycznie przywracane.</p>
 <p>Jeśli oryginalna maszyna już nie istnieje, jest tworzona ponownie, z nowym identyfikatorem Hyper-V.</p>
 
 <h3>Opcje</h3>

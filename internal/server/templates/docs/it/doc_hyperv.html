@@ -49,7 +49,7 @@
   <li>sostituisce i suoi dischi con quelli ripristinati.</li>
 </ul>
 <p>La VM mantiene ID, schede di rete e indirizzi MAC, quindi job, monitoraggio e rete del guest continuano a funzionare.</p>
-<p>I vecchi file disco non vengono eliminati; vengono rinominati in <code>….replaced-DATE</code>. Eliminali quando la VM ripristinata funziona.</p>
+<p id="restore-staging">Prima di arrestare la VM originale o unire i suoi checkpoint, BackupZit ricostruisce tutti i dischi in una sottocartella univoca <code>backupzit-restore-*</code> della cartella scelta (quella originale dei dischi per impostazione predefinita). Gli errori di preparazione lasciano la VM invariata. I vecchi dischi mantengono i percorsi; eliminarli solo dopo aver verificato la VM ripristinata. Un errore dopo l’inizio della sostituzione può richiedere il recupero manuale: i dischi ricostruiti vengono conservati, l’errore indica la cartella e impostazioni e checkpoint non vengono ripristinati automaticamente.</p>
 <p>Se la VM originale non esiste più, viene ricreata, con un nuovo ID Hyper-V.</p>
 
 <h3>Opzioni</h3>

@@ -49,7 +49,7 @@
   <li>vymění jeho disky za obnovené.</li>
 </ul>
 <p>VM si ponechá své ID, síťové adaptéry a MAC adresy, takže úlohy, monitoring i síť hosta dál fungují.</p>
-<p>Staré soubory disků se nemažou; přejmenují se na <code>….replaced-DATE</code>. Smažte je, jakmile obnovený VM funguje.</p>
+<p id="restore-staging">Před zastavením původní VM nebo sloučením jejích kontrolních bodů BackupZit obnoví všechny disky v jedinečné podsložce <code>backupzit-restore-*</code> vybrané složky disků (ve výchozím stavu původní složky). Chyba přípravy ponechá VM beze změn. Staré soubory disků zůstávají na původních cestách; odstraňte je až po ověření obnovené VM. Chyba po zahájení přepnutí může vyžadovat ruční obnovu: nové disky zůstanou zachovány, chyba uvede jejich složku a nastavení ani kontrolní body se automaticky nevracejí.</p>
 <p>Pokud původní VM už neexistuje, vytvoří se znovu, s novým ID Hyper-V.</p>
 
 <h3>Možnosti</h3>
