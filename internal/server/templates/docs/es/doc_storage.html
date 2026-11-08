@@ -62,6 +62,7 @@
 
 <h2>Recurso SMB</h2>
 <p>Servidor, recurso, carpeta opcional, usuario, contraseña y (para cuentas de dominio) el dominio. Los agentes se conectan por sí mismos con estas credenciales, así que funciona también con servicios que se ejecutan como SYSTEM.</p>
+<p id="smb-replacement">La cuenta SMB debe poder sustituir archivos existentes del repositorio mediante el cambio de nombre de un archivo temporal, además de crear, leer y eliminar archivos. Así, las renovaciones del bloqueo son visibles de forma atómica. Si la sustitución falla, se informa de un error de escritura y se conserva el archivo anterior. Si no se puede leer un bloqueo del repositorio, el mantenimiento se detiene en lugar de suponer que no existe.</p>
 
 <h2>Repositorio reforzado</h2>
 <p>Instale el paquete <code>backupzit-repo</code> en un servidor Linux dedicado y luego, en ese servidor:</p>

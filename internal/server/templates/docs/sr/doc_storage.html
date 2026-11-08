@@ -62,6 +62,7 @@
 
 <h2>SMB deljeni folder</h2>
 <p>Server, deljeni folder, opcioni folder, korisnik, lozinka i (za naloge domena) domen. Agenti se sami povezuju sa ovim podacima, pa radi i za servise koji rade kao SYSTEM.</p>
+<p id="smb-replacement">SMB nalog mora da može da zameni postojeće datoteke repozitorijuma preimenovanjem privremene datoteke, kao i da kreira, čita i briše datoteke. Tako osvežavanje blokada ostaje atomski vidljivo. Neuspešna zamena prijavljuje grešku pri pisanju, a prethodna datoteka ostaje sačuvana. Ako blokada repozitorijuma ne može da se pročita, održavanje se zaustavlja umesto da pretpostavi da blokada ne postoji.</p>
 
 <h2>Ojačani repozitorijum</h2>
 <p>Instalirajte paket <code>backupzit-repo</code> na poseban Linux server, zatim na tom serveru:</p>

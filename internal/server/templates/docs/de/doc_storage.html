@@ -62,6 +62,7 @@
 
 <h2>SMB-Freigabe</h2>
 <p>Server, Freigabe, optionaler Ordner, Benutzer, Passwort und (bei Domänenkonten) die Domäne. Agenten verbinden sich selbst mit diesen Zugangsdaten, daher funktioniert es auch für Dienste, die als SYSTEM laufen.</p>
+<p id="smb-replacement">Das SMB-Konto muss vorhandene Repository-Dateien durch Umbenennen einer temporären Datei ersetzen dürfen und Dateien erstellen, lesen und löschen können. So bleiben Sperren bei ihrer Aktualisierung atomar sichtbar. Ein fehlgeschlagenes Ersetzen wird als Schreibfehler gemeldet; die bisherige Datei bleibt erhalten. Kann eine Repository-Sperre nicht gelesen werden, wird die Wartung angehalten, statt die Sperre als nicht vorhanden zu betrachten.</p>
 
 <h2>Gehärtetes Repository</h2>
 <p>Installieren Sie das Paket <code>backupzit-repo</code> auf einem dedizierten Linux-Server und führen Sie dann auf diesem Server aus:</p>

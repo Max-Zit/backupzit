@@ -62,6 +62,7 @@
 
 <h2>Partage SMB</h2>
 <p>Serveur, partage, dossier facultatif, utilisateur, mot de passe et (pour les comptes de domaine) le domaine. Les agents se connectent eux-mêmes avec ces identifiants ; cela fonctionne donc aussi pour les services exécutés en tant que SYSTEM.</p>
+<p id="smb-replacement">Le compte SMB doit pouvoir remplacer les fichiers existants du dépôt par renommage d’un fichier temporaire, en plus de créer, lire et supprimer des fichiers. Le rafraîchissement des verrous reste ainsi visible de manière atomique. Un échec du remplacement est signalé comme une erreur d’écriture ; le fichier précédent est conservé. Si un verrou du dépôt ne peut pas être lu, la maintenance s’arrête au lieu de le considérer comme absent.</p>
 
 <h2>Dépôt renforcé</h2>
 <p>Installez le paquet <code>backupzit-repo</code> sur un serveur Linux dédié, puis sur ce serveur :</p>
