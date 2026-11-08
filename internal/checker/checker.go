@@ -120,6 +120,22 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 	}
 	for _, sn := range sns {
 		walk(sn.Tree, "snapshot "+sn.ID.Short())
+		for _, g := range sn.Guests {
+			ids, err := g.StateBlobs()
+			if err != nil {
+				errf("snapshot %s guest %d: %v", sn.ID.Short(), g.VMID, err)
+				continue
+			}
+			for _, id := range ids {
+				if seenData[id] {
+					continue
+				}
+				seenData[id] = true
+				if !r.Index().Has(repo.BlobHandle{Type: repo.DataBlob, ID: id}) {
+					errf("snapshot %s guest %d: state blob %s missing", sn.ID.Short(), g.VMID, id.Short())
+				}
+			}
+		}
 		for _, img := range sn.Images {
 			where := fmt.Sprintf("snapshot %s disk %d", sn.ID.Short(), img.Number)
 			if !seenData[img.Head] {
