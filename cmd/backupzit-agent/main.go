@@ -109,10 +109,15 @@ func (m *multiFlag) String() string     { return strings.Join(*m, ",") }
 func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }
 
 type repoFlags struct {
-	location string
-	password string
-	opts     backend.Options
-	asOf     string
+	location       string
+	password       string
+	opts           backend.Options
+	asOf           string
+	vmBlockSizeKiB int
+}
+
+func (rf *repoFlags) addVMBlockSizeFlag(fs *flag.FlagSet) {
+	fs.IntVar(&rf.vmBlockSizeKiB, "block-size-kib", 0, "VM disk deduplication block size: 256, 512 or 1024 KiB (default 1024); changing size reads each disk in full once")
 }
 
 func addRepoFlags(fs *flag.FlagSet) *repoFlags {
@@ -153,6 +158,9 @@ func (rf *repoFlags) backend(ctx context.Context) (backend.Backend, error) {
 }
 
 func (rf *repoFlags) open(ctx context.Context) (*repo.Repository, error) {
+	if err := repo.ValidateVMBlockSizeKiB(rf.vmBlockSizeKiB); err != nil {
+		return nil, err
+	}
 	be, err := rf.backend(ctx)
 	if err != nil {
 		return nil, err
@@ -160,6 +168,10 @@ func (rf *repoFlags) open(ctx context.Context) (*repo.Repository, error) {
 	r, err := repo.Open(ctx, be, repo.Password(rf.password))
 	if err != nil {
 		_ = be.Close()
+		return nil, err
+	}
+	if err := r.SetVMBlockSizeKiB(rf.vmBlockSizeKiB); err != nil {
+		_ = r.Close()
 		return nil, err
 	}
 	return r, nil

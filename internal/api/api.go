@@ -63,6 +63,8 @@ type PollRequest struct {
 	// can run several at once (0.39.0 and newer).
 	Running  int  `json:"running,omitempty"`
 	Parallel bool `json:"parallel,omitempty"`
+	// ConfigurableVMBlocks means the agent honors Repository.VMBlockSizeKiB.
+	ConfigurableVMBlocks bool `json:"configurable_vm_blocks,omitempty"`
 	// WantStatus asks for the job summary shown by the tray app.
 	WantStatus bool `json:"want_status,omitempty"`
 	// IPs are the agent's own network addresses (no loopback).
@@ -293,6 +295,12 @@ type Repository struct {
 	Password string `json:"password,omitempty"`
 	// Compression of new data: "" (default), "off", "fast" or "max" (job option).
 	Compression string `json:"compression,omitempty"`
+	// VMBlockSizeKiB applies to new virtual disk images only (0 = 1024).
+	VMBlockSizeKiB int `json:"vm_block_size_kib,omitempty"`
+	// NeedsVMBlocks is server-side only: the job uses, or once used, a
+	// block size other than 1 MiB, so only agents with
+	// ConfigurableVMBlocks may run it.
+	NeedsVMBlocks bool `json:"-"`
 }
 
 // Run statuses.

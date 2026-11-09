@@ -2084,5 +2084,12 @@
   "— choose —": "— 選択 —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— このサーバーが失われても、コマンドラインエージェントで復元するにはキーとストレージの場所だけがあれば十分です。",
   "— the user cannot sign in; open sessions end immediately": "— このユーザーはサインインできません。開いているセッションはすぐに終了します",
-  "— vCenter": "— vCenter"
+  "— vCenter": "— vCenter",
+  "1 MiB (default)": "1 MiB（既定）",
+  "256 KiB": "256 KiB",
+  "512 KiB": "512 KiB",
+  "Smaller blocks may save space but increase metadata. Changing size reads each disk in full once; existing backups remain restorable. Update agents before choosing a smaller size.": "小さいブロックは容量を節約できる場合がありますが、メタデータは増加します。サイズを変更すると各ディスクを一度全体読み取りします。既存のバックアップは引き続き復元できます。小さいサイズを選ぶ前にエージェントを更新してください。",
+  "VM block size must be 256, 512 or 1024 KiB": "VMブロックサイズは256、512、1024 KiBのいずれかです",
+  "VM deduplication block size": "VM重複排除ブロックサイズ",
+  "update the agent to use configurable VM block sizes": "VMブロックサイズを選ぶにはエージェントを更新してください"
 }

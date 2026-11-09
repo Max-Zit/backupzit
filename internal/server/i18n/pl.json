@@ -2084,5 +2084,12 @@
   "— choose —": "— wybierz —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— jeśli ten serwer zostanie utracony, do przywrócenia agentem wiersza poleceń wystarczą klucz i lokalizacja magazynu.",
   "— the user cannot sign in; open sessions end immediately": "— użytkownik nie może się zalogować; otwarte sesje kończą się natychmiast",
-  "— vCenter": "— vCenter"
+  "— vCenter": "— vCenter",
+  "1 MiB (default)": "1 MiB (domyślnie)",
+  "256 KiB": "256 KiB",
+  "512 KiB": "512 KiB",
+  "Smaller blocks may save space but increase metadata. Changing size reads each disk in full once; existing backups remain restorable. Update agents before choosing a smaller size.": "Mniejsze bloki mogą oszczędzać miejsce, ale zwiększają metadane. Zmiana rozmiaru powoduje jednorazowy odczyt całego dysku; istniejące kopie nadal można przywracać. Zaktualizuj agentów przed wybraniem mniejszego rozmiaru.",
+  "VM block size must be 256, 512 or 1024 KiB": "Rozmiar bloków maszyn wirtualnych musi wynosić 256, 512 lub 1024 KiB",
+  "VM deduplication block size": "Rozmiar bloków deduplikacji maszyn wirtualnych",
+  "update the agent to use configurable VM block sizes": "Zaktualizuj agenta, aby wybrać rozmiar bloków maszyn wirtualnych"
 }

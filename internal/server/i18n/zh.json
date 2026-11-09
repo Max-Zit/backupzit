@@ -2084,5 +2084,12 @@
   "— choose —": "— 请选择 —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— 如果此服务器丢失，只需密钥和存储位置即可使用命令行代理进行还原。",
   "— the user cannot sign in; open sessions end immediately": "— 该用户无法登录；已打开的会话会立即结束",
-  "— vCenter": "— vCenter"
+  "— vCenter": "— vCenter",
+  "1 MiB (default)": "1 MiB（默认）",
+  "256 KiB": "256 KiB",
+  "512 KiB": "512 KiB",
+  "Smaller blocks may save space but increase metadata. Changing size reads each disk in full once; existing backups remain restorable. Update agents before choosing a smaller size.": "较小的块可能节省空间，但会增加元数据。更改大小后，每个磁盘都会完整读取一次；现有备份仍可还原。选择较小的大小之前，请更新代理。",
+  "VM block size must be 256, 512 or 1024 KiB": "虚拟机块大小必须为 256、512 或 1024 KiB",
+  "VM deduplication block size": "虚拟机重复数据删除块大小",
+  "update the agent to use configurable VM block sizes": "请更新代理以选择虚拟机块大小"
 }

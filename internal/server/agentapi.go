@@ -115,6 +115,9 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 		}
 		if run != nil {
 			ar, err := s.toAPIRun(r.Context(), run)
+			if err == nil && ar.Repository.NeedsVMBlocks && !req.ConfigurableVMBlocks {
+				err = errors.New("update the agent to use configurable VM block sizes")
+			}
 			if err != nil {
 				_ = s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()})
 			} else {

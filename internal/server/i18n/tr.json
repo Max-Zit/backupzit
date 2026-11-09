@@ -2084,5 +2084,12 @@
   "— choose —": "— seçin —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— bu sunucu kaybolursa komut satırı aracısıyla geri yüklemek için yalnızca anahtar ve depolama konumu gerekir.",
   "— the user cannot sign in; open sessions end immediately": "— kullanıcı oturum açamaz; açık oturumlar hemen sona erer",
-  "— vCenter": "— vCenter"
+  "— vCenter": "— vCenter",
+  "1 MiB (default)": "1 MiB (varsayılan)",
+  "256 KiB": "256 KiB",
+  "512 KiB": "512 KiB",
+  "Smaller blocks may save space but increase metadata. Changing size reads each disk in full once; existing backups remain restorable. Update agents before choosing a smaller size.": "Küçük bloklar alan kazandırabilir ancak meta veriyi artırır. Boyut değişince her disk bir kez tamamen okunur; mevcut yedekler geri yüklenebilir. Daha küçük bir boyut seçmeden önce ajanları güncelleyin.",
+  "VM block size must be 256, 512 or 1024 KiB": "VM blok boyutu 256, 512 veya 1024 KiB olmalıdır",
+  "VM deduplication block size": "VM tekilleştirme blok boyutu",
+  "update the agent to use configurable VM block sizes": "VM blok boyutunu seçebilmek için ajanı güncelleyin"
 }

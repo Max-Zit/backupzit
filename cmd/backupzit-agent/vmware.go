@@ -82,6 +82,7 @@ func cmdVMware(ctx context.Context, args []string) error {
 		fs := flag.NewFlagSet("vmware backup", flag.ExitOnError)
 		vf := addVMwareFlags(fs)
 		rf := addRepoFlags(fs)
+		rf.addVMBlockSizeFlag(fs)
 		ids := fs.String("vmid", "", "comma-separated VMIDs from 'vmware list' (default: all VMs)")
 		_ = fs.Parse(args[1:])
 		var sel []int

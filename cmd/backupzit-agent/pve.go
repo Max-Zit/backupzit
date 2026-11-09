@@ -41,6 +41,7 @@ func cmdPVE(ctx context.Context, args []string) error {
 	case "backup":
 		fs := flag.NewFlagSet("pve backup", flag.ExitOnError)
 		rf := addRepoFlags(fs)
+		rf.addVMBlockSizeFlag(fs)
 		ids := fs.String("vmid", "", "comma-separated guest IDs (default: all guests on this node)")
 		excl := fs.String("exclude", "", "comma-separated guest IDs to skip when backing up all guests")
 		_ = fs.Parse(args[1:])

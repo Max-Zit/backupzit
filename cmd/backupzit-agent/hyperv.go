@@ -49,6 +49,7 @@ func cmdHyperV(ctx context.Context, args []string) error {
 	case "backup":
 		fs := flag.NewFlagSet("hyperv backup", flag.ExitOnError)
 		rf := addRepoFlags(fs)
+		rf.addVMBlockSizeFlag(fs)
 		ids := fs.String("vmid", "", "comma-separated VMIDs from 'hyperv list' (default: all VMs)")
 		_ = fs.Parse(args[1:])
 		var sel []int

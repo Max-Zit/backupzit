@@ -38,6 +38,7 @@
     <dt>{{T "Log backups"}}</dt><dd>{{if .Options.SQLLogMinutes}}{{T "every"}} {{.Options.SQLLogMinutes}} {{T "minutes (point-in-time restore)"}}{{else}}{{T "off — databases are restored to the time of a full backup"}}{{end}}</dd>
     {{else if eq .Kind "vm"}}
     <dt>{{T "Backs up"}}</dt><dd>{{vmsel .Paths}} <span class="muted">{{T "(hypervisor host)"}}</span></dd>
+      <dt>{{T "VM deduplication block size"}}</dt><dd>{{if eq .Options.VMBlockSizeKiB 256}}{{T "256 KiB"}}{{else if eq .Options.VMBlockSizeKiB 512}}{{T "512 KiB"}}{{else}}{{T "1 MiB (default)"}}{{end}}</dd>
     {{else}}
     <dt>{{T "Paths"}}</dt><dd class="mono">{{join .Paths "\n"}}</dd>
     <dt>{{T "Excludes"}}</dt><dd class="mono">{{if .Excludes}}{{join .Excludes ", "}}{{else}}—{{end}}</dd>
