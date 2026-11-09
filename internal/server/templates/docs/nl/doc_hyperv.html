@@ -114,5 +114,8 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 <ul>
   <li><b>Sommige schijftypen.</b> Gedeelde VHDX, VHD Sets en pass-through-schijven worden niet geback-upt.</li>
 </ul>
+<h2 id="rct-diagnostics">Volledige schijflezingen onderzoeken</h2>
+<p>Het agentlogboek (Agents → Logboek ophalen) en de CLI-uitvoer melden per schijf <code>hyperv disk read</code> met <code>vm_id</code>, <code>disk</code>, <code>mode</code> (full of incremental), <code>reason</code> en <code>disk_bytes</code>. Na geslaagd lezen voegt <code>hyperv disk read complete</code> de waarde <code>bytes_read</code> toe: gelezen bronbytes in hele back-upblokken, niet overgedragen bytes na deduplicatie. De eerste back-up, een uitgeschakelde VM of ontbrekende wijzigingsregistratie kunnen normaal volledig lezen vereisen. RCT-API-fouten staan in <code>error</code> en leiden veilig tot volledig lezen; alleen deze terugval veroorzaakt geen mislukte back-up of waarschuwing. Een vervangen schijf kan een RCT-queryfout veroorzaken, maar de fout bewijst geen vervanging. Redencodes:</p>
+<p><code>rct_not_requested</code> · <code>rct_state_failed</code> · <code>rct_disabled</code> · <code>no_previous_backup</code> · <code>disk_size_changed</code> · <code>previous_id_missing</code> · <code>rct_query_failed</code> · <code>rct_changes</code></p>
 {{template "docpager" .}}
 </article></div>{{end}}

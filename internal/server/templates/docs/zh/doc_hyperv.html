@@ -114,5 +114,8 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 <ul>
   <li><b>某些磁盘类型。</b> 共享 VHDX、VHD Set 和直通（pass-through）磁盘不会备份。</li>
 </ul>
+<h2 id="rct-diagnostics">诊断完整磁盘读取</h2>
+<p>代理日志（代理 → 获取日志）和 CLI 输出会为每个磁盘记录 <code>hyperv disk read</code>，包含 <code>vm_id</code>、<code>disk</code>、<code>mode</code>（full 或 incremental）、<code>reason</code> 和 <code>disk_bytes</code>。成功读取后，<code>hyperv disk read complete</code> 会添加 <code>bytes_read</code>：按完整备份块从源读取的字节数，而非去重后的传输量。首次备份、已关闭的虚拟机或不可用的跟踪都可能正常需要完整读取。RCT API 错误会记录在 <code>error</code> 中，并安全地回退到完整读取；仅此回退不会导致备份失败或添加警告。更换磁盘可能导致 RCT 查询错误，但该错误不能证明发生了更换。原因代码：</p>
+<p><code>rct_not_requested</code> · <code>rct_state_failed</code> · <code>rct_disabled</code> · <code>no_previous_backup</code> · <code>disk_size_changed</code> · <code>previous_id_missing</code> · <code>rct_query_failed</code> · <code>rct_changes</code></p>
 {{template "docpager" .}}
 </article></div>{{end}}

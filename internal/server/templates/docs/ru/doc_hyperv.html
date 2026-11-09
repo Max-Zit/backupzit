@@ -114,5 +114,8 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 <ul>
   <li><b>Некоторые типы дисков.</b> Общие VHDX, VHD Set и проходные (pass-through) диски не копируются.</li>
 </ul>
+<h2 id="rct-diagnostics">Диагностика полного чтения дисков</h2>
+<p>Журнал агента (Агенты → Получить журнал) и вывод CLI записывают для каждого диска <code>hyperv disk read</code> с полями <code>vm_id</code>, <code>disk</code>, <code>mode</code> (full или incremental), <code>reason</code> и <code>disk_bytes</code>. После успешного чтения запись <code>hyperv disk read complete</code> добавляет <code>bytes_read</code>: байты, прочитанные из источника целыми блоками резервного копирования, а не переданные после дедупликации. Первая копия, выключенная ВМ или недоступное отслеживание могут штатно требовать полного чтения. Ошибки API RCT указаны в <code>error</code> и вызывают безопасное полное чтение; само переключение не приводит к сбою копирования или предупреждению. Замена диска может вызвать ошибку запроса RCT, но ошибка не доказывает замену. Коды причин:</p>
+<p><code>rct_not_requested</code> · <code>rct_state_failed</code> · <code>rct_disabled</code> · <code>no_previous_backup</code> · <code>disk_size_changed</code> · <code>previous_id_missing</code> · <code>rct_query_failed</code> · <code>rct_changes</code></p>
 {{template "docpager" .}}
 </article></div>{{end}}

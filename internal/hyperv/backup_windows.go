@@ -89,7 +89,7 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	notApp := 0
 	for _, vm := range sel {
 		opts.Log("backing up VM", "name", vm.Name, "id", vm.ID)
-		g, warns, err := backupVM(ctx, r, vm, sn, prev, progress, opts.RequireAppConsistent)
+		g, warns, err := backupVM(ctx, r, vm, sn, prev, progress, opts.RequireAppConsistent, opts.Log)
 		for _, w := range warns {
 			addErr(vm.Name, errors.New(w))
 		}
@@ -241,7 +241,7 @@ func lastLine(s string) string {
 	return strings.TrimSpace(l[len(l)-1])
 }
 
-func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), requireApp bool) (_ *repo.Guest, warns []string, _ error) {
+func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), requireApp bool, log func(string, ...any)) (_ *repo.Guest, warns []string, _ error) {
 	if len(vm.Disks) == 0 {
 		return nil, nil, errNoDisks
 	}
@@ -285,7 +285,7 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 		disks, g.Consistency, rct = ci.Disks, consistency, withRCT
 	}
 	for _, d := range disks {
-		gd, err := backupDisk(ctx, r, vm, d, rct, prev, sn, progress)
+		gd, err := backupDisk(ctx, r, vm, d, rct, prev, sn, progress, log)
 		if err != nil {
 			return nil, warns, fmt.Errorf("%s: %w", d.key(), err)
 		}
@@ -304,28 +304,18 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 
 // backupDisk stores one disk; with change tracking only what changed since
 // the previous backup is read.
-func backupDisk(ctx context.Context, r *repo.Repository, vm vmInfo, d vmDisk, rct bool, prev map[string]diskimg.Previous, sn *repo.Snapshot, progress func(uint64)) (repo.GuestDisk, error) {
+func backupDisk(ctx context.Context, r *repo.Repository, vm vmInfo, d vmDisk, rct bool, prev map[string]diskimg.Previous, sn *repo.Snapshot, progress func(uint64), log func(string, ...any)) (repo.GuestDisk, error) {
 	ad, err := attachVHD(d.Path, true)
 	if err != nil {
 		return repo.GuestDisk{}, err
 	}
 	defer ad.close()
-	areas := []diskimg.Area{{Offset: 0, Length: ad.size}}
-	var base *repo.DiskImage
-	method, changeID := "whole disk", ""
-	if rct {
-		if on, id, err := ad.rctState(); err == nil && on {
-			changeID = id
-			if pd, ok := prev[diskimg.PreviousKey(vm.ID, d.key())]; ok && pd.Image.Size == ad.size && pd.ChangeID != "" {
-				if ranges, err := ad.rctChanges(pd.ChangeID); err == nil {
-					areas, base, method = areas[:0], pd.Image, "changed blocks"
-					for _, rg := range ranges {
-						areas = append(areas, diskimg.Area{Offset: rg[0], Length: rg[1]})
-					}
-				}
-			}
-		}
+	var previous *diskimg.Previous
+	if pd, ok := prev[diskimg.PreviousKey(vm.ID, d.key())]; ok {
+		previous = &pd
 	}
+	plan := planDiskRead(ad.size, rct, previous, ad)
+	plan.log(log, vm.ID, d.key(), ad.size)
 	f, err := os.Open(ad.path)
 	if err != nil {
 		return repo.GuestDisk{}, err
@@ -335,13 +325,22 @@ func backupDisk(ctx context.Context, r *repo.Repository, vm vmInfo, d vmDisk, rc
 	if vm.State == "Off" {
 		src = "offline"
 	}
-	img, err := diskimg.StoreAreas(ctx, r, f, ad.size, areas, base, len(sn.Images), fmt.Sprintf("hyperv %s %s %s (%s)", vm.Name, d.key(), d.Path, method), src, progress)
+	var bytesRead uint64
+	img, err := diskimg.StoreAreas(ctx, r, f, ad.size, plan.areas, plan.base, len(sn.Images), fmt.Sprintf("hyperv %s %s %s (%s)", vm.Name, d.key(), d.Path, plan.method), src, func(n uint64) {
+		bytesRead += n
+		if progress != nil {
+			progress(n)
+		}
+	})
 	if err != nil {
 		return repo.GuestDisk{}, err
 	}
+	if log != nil {
+		log("hyperv disk read complete", "vm_id", vm.ID, "disk", d.key(), "mode", plan.mode(), "reason", plan.reason, "disk_bytes", ad.size, "bytes_read", bytesRead)
+	}
 	sn.Images = append(sn.Images, img)
 	return repo.GuestDisk{Key: d.key(), Volume: d.Path, Storage: dirOf(d.Path), Format: formatOf(d.Path),
-		Size: img.Size, Image: len(sn.Images) - 1, ChangeID: changeID}, nil
+		Size: img.Size, Image: len(sn.Images) - 1, ChangeID: plan.changeID}, nil
 }
 
 func dirOf(p string) string {

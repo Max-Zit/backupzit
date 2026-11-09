@@ -114,5 +114,8 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 <ul>
   <li><b>一部のディスクの種類。</b> 共有 VHDX、VHD セット、パススルー ディスクはバックアップされません。</li>
 </ul>
+<h2 id="rct-diagnostics">ディスク全体の読み取りを調べる</h2>
+<p>エージェントのログ（エージェント → ログを取得）と CLI 出力には、各ディスクの <code>hyperv disk read</code> が記録されます。フィールドは <code>vm_id</code>、<code>disk</code>、<code>mode</code>（full または incremental）、<code>reason</code>、<code>disk_bytes</code> です。読み取り成功後の <code>hyperv disk read complete</code> には <code>bytes_read</code> が追加されます。これはバックアップのブロック単位で読み取った元データ量で、重複排除後の転送量ではありません。初回バックアップ、停止した VM、追跡が利用できない場合は通常でも全体を読み取ります。RCT API のエラーは <code>error</code> に記録され、安全のため全体読み取りに切り替わります。切り替えだけでバックアップが失敗したり警告が追加されたりはしません。ディスク交換で RCT クエリエラーが発生することはありますが、エラーだけで交換を断定することはできません。理由コード：</p>
+<p><code>rct_not_requested</code> · <code>rct_state_failed</code> · <code>rct_disabled</code> · <code>no_previous_backup</code> · <code>disk_size_changed</code> · <code>previous_id_missing</code> · <code>rct_query_failed</code> · <code>rct_changes</code></p>
 {{template "docpager" .}}
 </article></div>{{end}}

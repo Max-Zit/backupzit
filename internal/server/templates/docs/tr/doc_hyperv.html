@@ -114,5 +114,8 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 <ul>
   <li><b>Bazı disk türleri.</b> Paylaşılan VHDX, VHD Set ve doğrudan geçişli (pass-through) diskler yedeklenmez.</li>
 </ul>
+<h2 id="rct-diagnostics">Tam disk okumalarını tanılama</h2>
+<p>Aracı günlüğü (Aracılar → Günlüğü al) ve CLI çıktısı her disk için <code>hyperv disk read</code> kaydını; <code>vm_id</code>, <code>disk</code>, <code>mode</code> (full veya incremental), <code>reason</code> ve <code>disk_bytes</code> alanlarıyla gösterir. Başarılı okumadan sonra <code>hyperv disk read complete</code>, <code>bytes_read</code> alanını ekler: tekilleştirmeden sonra aktarılan değil, kaynaktan tam yedek blokları halinde okunan bayt sayısıdır. İlk yedek, kapalı VM veya kullanılamayan izleme normal olarak tam okuma gerektirebilir. RCT API hataları <code>error</code> alanında görünür ve güvenli tam okumaya geçilir; yalnızca bu geçiş yedeği başarısız yapmaz veya uyarı eklemez. Değiştirilmiş bir disk RCT sorgu hatasına neden olabilir, ancak hata değişikliği kanıtlamaz. Neden kodları:</p>
+<p><code>rct_not_requested</code> · <code>rct_state_failed</code> · <code>rct_disabled</code> · <code>no_previous_backup</code> · <code>disk_size_changed</code> · <code>previous_id_missing</code> · <code>rct_query_failed</code> · <code>rct_changes</code></p>
 {{template "docpager" .}}
 </article></div>{{end}}
