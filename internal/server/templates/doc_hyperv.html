@@ -101,6 +101,7 @@
 
 <h2>Command line</h2>
 <p>Run these on the Hyper-V host, as administrator:</p>
+<p id="cli-restore-lock">The command-line Hyper-V restore takes a shared repository lock before selecting the snapshot and holds it until restoration finishes. It waits for conflicting exclusive maintenance and fails without modifying the VM if it cannot acquire the lock.</p>
 <pre>backupzit-agent hyperv list
 backupzit-agent hyperv backup  --repo ... [--vmid N,N]
 backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>

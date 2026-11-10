@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/hyperv"
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 // cmdHyperV handles: hyperv list|backup|restore (agent on a Hyper-V host).
@@ -103,24 +104,38 @@ func cmdHyperV(ctx context.Context, args []string) error {
 			return err
 		}
 		defer r.Close()
-		sn, err := r.LoadSnapshot(ctx, fs.Arg(0))
-		if err != nil {
-			return err
-		}
-		res, err := hyperv.Restore(ctx, r, sn, hyperv.RestoreOptions{VMID: *vmid, AsNew: *asNew, Name: *name, Folder: *folder,
-			Overwrite: *overwrite, Start: *start, Progress: progressPrinter("written"),
-			Log: func(msg string, kv ...any) { fmt.Println(append([]any{" ", msg}, kv...)...) }})
-		if err != nil {
-			return err
-		}
-		fmt.Printf("restored VM %q (%s) on %s\n", res.Name, res.ID, res.Host)
-		for _, d := range res.Disks {
-			fmt.Println("  disk", d)
-		}
-		for _, n := range res.Notes {
-			fmt.Println("  note:", n)
-		}
-		return nil
+		return withHyperVRestoreSnapshot(ctx, r, fs.Arg(0), func(sn *repo.Snapshot) error {
+			res, err := hyperv.Restore(ctx, r, sn, hyperv.RestoreOptions{VMID: *vmid, AsNew: *asNew, Name: *name, Folder: *folder,
+				Overwrite: *overwrite, Start: *start, Progress: progressPrinter("written"),
+				Log: func(msg string, kv ...any) { fmt.Println(append([]any{" ", msg}, kv...)...) }})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("restored VM %q (%s) on %s\n", res.Name, res.ID, res.Host)
+			for _, d := range res.Disks {
+				fmt.Println("  disk", d)
+			}
+			for _, n := range res.Notes {
+				fmt.Println("  note:", n)
+			}
+			return nil
+		})
 	}
 	return fmt.Errorf("unknown hyperv command %q", args[0])
+}
+
+// withHyperVRestoreSnapshot holds a shared repository lock from snapshot
+// selection through the last restore read.
+func withHyperVRestoreSnapshot(ctx context.Context, r *repo.Repository, ref string, restore func(*repo.Snapshot) error) error {
+	lock, err := r.Lock(ctx, false, time.Minute)
+	if err != nil {
+		return err
+	}
+	defer lock.Unlock()
+
+	sn, err := r.LoadSnapshot(ctx, ref)
+	if err != nil {
+		return err
+	}
+	return restore(sn)
 }

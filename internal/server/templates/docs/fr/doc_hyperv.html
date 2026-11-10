@@ -101,6 +101,7 @@
 
 <h2>Ligne de commande</h2>
 <p>Exécutez ces commandes sur l'hôte Hyper-V, en tant qu'administrateur :</p>
+<p id="cli-restore-lock">La restauration Hyper-V en ligne de commande prend un verrou partagé du dépôt avant de sélectionner le point de restauration et le conserve jusqu’à la fin. Elle attend la fin des opérations de maintenance exclusives incompatibles ; si elle ne peut pas obtenir le verrou, elle échoue sans modifier la VM.</p>
 <pre>backupzit-agent hyperv list
 backupzit-agent hyperv backup  --repo ... [--vmid N,N]
 backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>

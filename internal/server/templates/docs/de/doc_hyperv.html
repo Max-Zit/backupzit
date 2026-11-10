@@ -101,6 +101,7 @@
 
 <h2>Befehlszeile</h2>
 <p>Führen Sie dies auf dem Hyper-V-Host als Administrator aus:</p>
+<p id="cli-restore-lock">Die Hyper-V-Wiederherstellung über die Befehlszeile erwirbt vor der Auswahl des Snapshots eine gemeinsame Repository-Sperre und hält sie bis zum Ende der Wiederherstellung. Sie wartet auf kollidierende Wartungsarbeiten mit exklusiver Sperre. Kann die Sperre nicht erworben werden, schlägt sie fehl, ohne die VM zu verändern.</p>
 <pre>backupzit-agent hyperv list
 backupzit-agent hyperv backup  --repo ... [--vmid N,N]
 backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>

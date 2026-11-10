@@ -101,6 +101,7 @@
 
 <h2>Línea de comandos</h2>
 <p>Ejecute esto en el host Hyper-V, como administrador:</p>
+<p id="cli-restore-lock">La restauración de Hyper-V desde la línea de comandos adquiere un bloqueo compartido del repositorio antes de seleccionar la instantánea y lo mantiene hasta finalizar. Espera a que termine el mantenimiento con bloqueo exclusivo; si no puede adquirir el bloqueo, falla sin modificar la VM.</p>
 <pre>backupzit-agent hyperv list
 backupzit-agent hyperv backup  --repo ... [--vmid N,N]
 backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>

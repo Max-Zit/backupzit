@@ -101,6 +101,7 @@
 
 <h2>Wiersz poleceń</h2>
 <p>Uruchom na hoście Hyper-V jako administrator:</p>
+<p id="cli-restore-lock">Przywracanie Hyper-V z wiersza poleceń uzyskuje współdzieloną blokadę repozytorium przed wybraniem migawki i utrzymuje ją do końca przywracania. Czeka na zakończenie kolidujących operacji konserwacji z blokadą wyłączną; jeśli nie może uzyskać blokady, kończy się błędem bez zmiany maszyny wirtualnej.</p>
 <pre>backupzit-agent hyperv list
 backupzit-agent hyperv backup  --repo ... [--vmid N,N]
 backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--folder D:\VMs] [--overwrite] [--start] SNAPSHOT|latest</pre>
