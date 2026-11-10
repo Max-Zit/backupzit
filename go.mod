@@ -8,6 +8,7 @@ require (
 	fyne.io/systray v1.12.2
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.3
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.8.2
+	github.com/beevik/etree v1.7.0
 	github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/crewjam/saml v0.5.1
@@ -50,7 +51,6 @@ require (
 	github.com/Velocidex/ordereddict v0.0.0-20230909174157-2aa49cc5d11d // indirect
 	github.com/Velocidex/yaml/v2 v2.2.8 // indirect
 	github.com/apache/arrow-go/v18 v18.7.0 // indirect
-	github.com/beevik/etree v1.7.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudsoda/sddl v0.0.0-20261105185302-1c8f96799263 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
