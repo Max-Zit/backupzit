@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hirochachacha/go-smb2"
+	"github.com/cloudsoda/go-smb2"
 )
 
 // SMB stores the repository on a Windows/Samba share using SMB2/3 with
@@ -60,7 +60,7 @@ func OpenSMB(ctx context.Context, u *url.URL, opts Options) (*SMB, error) {
 		return nil, fmt.Errorf("smb: connect %s: %w", host, err)
 	}
 	dialer := &smb2.Dialer{Initiator: &smb2.NTLMInitiator{User: user, Password: opts.SMBPassword, Domain: domain}}
-	session, err := dialer.DialContext(ctx, conn)
+	session, err := dialer.DialConn(ctx, conn, u.Hostname())
 	if err != nil {
 		_ = conn.Close()
 		return nil, fmt.Errorf("smb: login as %s: %w", user, err)
@@ -114,13 +114,9 @@ func (s *SMB) Save(_ context.Context, name string, data []byte) error {
 		_ = s.share.Remove(tmp)
 		return err
 	}
+	// Rename uses SMB ReplaceIfExists: readers see the old or new complete
+	// object. Never delete the destination first (locks must stay visible).
 	if err := s.share.Rename(tmp, p); err != nil {
-		// SMB rename does not replace. Names are content addressed (or
-		// rewritten whole), so an existing target holds equivalent data.
-		if _, statErr := s.share.Stat(p); statErr == nil {
-			_ = s.share.Remove(tmp)
-			return nil
-		}
 		_ = s.share.Remove(tmp)
 		return fmt.Errorf("smb rename %s: %w", p, err)
 	}
@@ -169,9 +165,8 @@ func (s *SMB) Size(_ context.Context, name string) (int64, error) {
 }
 
 func (s *SMB) List(_ context.Context, dir string) (out []string, err error) {
-	// go-smb2 can panic on malformed directory listings from a hostile
-	// server (GO-2026-5051, no fixed version); fail the call instead of
-	// crashing the agent.
+	// Fail malformed directory listings instead of letting an unexpected
+	// panic in the SMB client crash the agent.
 	defer func() {
 		if p := recover(); p != nil {
 			out, err = nil, fmt.Errorf("smb: invalid directory listing from server: %v", p)

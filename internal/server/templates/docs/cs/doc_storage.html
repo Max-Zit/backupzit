@@ -62,6 +62,7 @@
 
 <h2>Sdílená složka SMB</h2>
 <p>Server, sdílená složka, volitelná složka, uživatel, heslo a (u doménových účtů) doména. Agenti se s těmito údaji připojují sami, takže to funguje i pro služby běžící jako SYSTEM.</p>
+<p id="smb-replacement">Účet SMB musí mít kromě vytváření, čtení a mazání souborů také právo nahrazovat existující soubory úložiště přejmenováním dočasného souboru. Obnovení zámku je tak viditelné atomicky. Neúspěšné nahrazení se hlásí jako chyba zápisu a původní soubor zůstane zachován. Pokud zámek úložiště nelze přečíst, údržba se zastaví místo předpokladu, že zámek neexistuje.</p>
 
 <h2>Zabezpečené úložiště</h2>
 <p>Nainstalujte balíček <code>backupzit-repo</code> na vyhrazený linuxový server a pak na tomto serveru spusťte:</p>

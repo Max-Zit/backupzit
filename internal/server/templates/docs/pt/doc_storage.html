@@ -62,6 +62,7 @@
 
 <h2>Compartilhamento SMB</h2>
 <p>Servidor, compartilhamento, pasta opcional, usuário, senha e (para contas de domínio) o domínio. Os agentes conectam-se por conta própria com estas credenciais, por isso funciona também para serviços executados como SYSTEM.</p>
+<p id="smb-replacement">A conta SMB deve poder substituir ficheiros existentes do repositório renomeando um ficheiro temporário, além de criar, ler e eliminar ficheiros. Assim, as renovações dos bloqueios ficam visíveis de forma atómica. Se a substituição falhar, é comunicado um erro de escrita e o ficheiro anterior é preservado. Se não for possível ler um bloqueio do repositório, a manutenção para em vez de assumir que o bloqueio não existe.</p>
 
 <h2>Repositório protegido</h2>
 <p>Instale o pacote <code>backupzit-repo</code> num servidor Linux dedicado e depois, nesse servidor:</p>

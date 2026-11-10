@@ -133,6 +133,6 @@ jobs:
                    fsutil:FuzzParseSnapshotPath netcfg:FuzzParseNetworkFile vmfs:FuzzParseLVMConfig vmfs:FuzzVolumes \
                    hardened:FuzzValidName server:FuzzParseSchedule server:FuzzLocalPath server:FuzzParseSSOState \
                    server:FuzzParseMFAToken server:FuzzParseIdPMetadata server:FuzzParseKeyPair \
-                   server:FuzzParseRecoveryKey; do
+                   server:FuzzParseRecoveryKey server:FuzzCheckSAMLResponse; do
             go test "./internal/${t%%:*}" -run '^$' -fuzz "^${t##*:}\$" -fuzztime 20s
           done
