@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/max-zit/backupzit/internal/backend"
 )
 
 // Repository locks prevent prune from deleting data that a concurrent
@@ -75,7 +77,10 @@ func (r *Repository) conflicting(ctx context.Context, exclusive bool, ignore str
 		}
 		b, err := r.be.Load(ctx, n)
 		if err != nil {
-			continue // removed meanwhile
+			if errors.Is(err, backend.ErrNotFound) {
+				continue // removed meanwhile
+			}
+			return "", fmt.Errorf("read repository lock %s: %w", n, err)
 		}
 		var lf lockFile
 		if json.Unmarshal(b, &lf) != nil {
