@@ -76,6 +76,19 @@ func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHand
 		if err := walk(sn.Tree); err != nil {
 			return nil, fmt.Errorf("snapshot %s: %w", sn.ID.Short(), err)
 		}
+		for _, g := range sn.Guests {
+			ids, err := g.StateBlobs()
+			if err != nil {
+				return nil, fmt.Errorf("snapshot %s guest %d: %w", sn.ID.Short(), g.VMID, err)
+			}
+			for _, id := range ids {
+				h := BlobHandle{Type: DataBlob, ID: id}
+				if !r.idx.Has(h) {
+					return nil, fmt.Errorf("snapshot %s guest %d: state blob %s missing", sn.ID.Short(), g.VMID, id.Short())
+				}
+				used[h] = true
+			}
+		}
 		if sys := sn.System; sys != nil {
 			for _, d := range sys.Disks {
 				if !d.Head.IsNull() {

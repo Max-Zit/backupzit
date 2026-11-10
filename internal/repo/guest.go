@@ -1,5 +1,10 @@
 package repo
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // Guest is a virtual machine or container backed up from a hypervisor
 // without an agent inside it. Its disks are stored as DiskImages of the
 // snapshot (one whole-disk partition each), so retention, prune, copy and
@@ -19,6 +24,34 @@ type Guest struct {
 	// Config is the guest configuration as stored by the hypervisor.
 	Config string      `json:"config"`
 	Disks  []GuestDisk `json:"disks"`
+}
+
+// StateBlobs returns additional data blobs referenced by the guest's
+// configuration, rather than by its disk images. Keep this reader compatible
+// with existing snapshots: Hyper-V 0.48 stores its VMGS ID inside Config.
+// Invalid references must not be ignored, or maintenance could discard state
+// needed to restore a retained guest.
+func (g Guest) StateBlobs() ([]ID, error) {
+	if g.Platform != "hyperv" || g.Config == "" {
+		return nil, nil
+	}
+	var cfg struct {
+		GuestState string `json:"gueststate"`
+	}
+	if err := json.Unmarshal([]byte(g.Config), &cfg); err != nil {
+		return nil, fmt.Errorf("read Hyper-V guest state reference: %w", err)
+	}
+	if cfg.GuestState == "" {
+		return nil, nil // older backups, or a VM whose state was not saved
+	}
+	id, err := ParseID(cfg.GuestState)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Hyper-V guest state blob: %w", err)
+	}
+	if id.IsNull() {
+		return nil, fmt.Errorf("invalid Hyper-V guest state blob: null ID")
+	}
+	return []ID{id}, nil
 }
 
 // GuestDisk is one disk (or container volume) of a guest.
