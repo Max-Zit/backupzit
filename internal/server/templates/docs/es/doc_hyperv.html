@@ -116,5 +116,8 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 <ul>
   <li><b>Algunos tipos de disco.</b> No se copian los VHDX compartidos, los VHD Set ni los discos de paso (pass-through).</li>
 </ul>
+<h2 id="rct-diagnostics">Diagnosticar lecturas completas</h2>
+<p>El registro del agente (Agentes → Obtener registro) y la salida CLI muestran <code>hyperv disk read</code> por disco con <code>vm_id</code>, <code>disk</code>, <code>mode</code> (full o incremental), <code>reason</code> y <code>disk_bytes</code>. Tras una lectura correcta, <code>hyperv disk read complete</code> añade <code>bytes_read</code>: bytes leídos del origen en bloques completos, no los transferidos tras la deduplicación. La primera copia, una VM apagada o el seguimiento no disponible pueden requerir normalmente una lectura completa. Los errores de la API RCT aparecen en <code>error</code> y provocan una lectura completa segura; esto por sí solo no hace fallar la copia ni añade una advertencia. Un disco sustituido puede causar un error de consulta RCT, pero el error no demuestra la sustitución. Códigos de motivo:</p>
+<p><code>rct_not_requested</code> · <code>rct_state_failed</code> · <code>rct_disabled</code> · <code>no_previous_backup</code> · <code>disk_size_changed</code> · <code>previous_id_missing</code> · <code>rct_query_failed</code> · <code>rct_changes</code></p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -116,5 +116,8 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 <ul>
   <li><b>Alcuni tipi di disco.</b> VHDX condivisi, VHD Set e dischi pass-through non vengono salvati.</li>
 </ul>
+<h2 id="rct-diagnostics">Diagnosi delle letture complete</h2>
+<p>Il registro dell’agente (Agenti → Ottieni registro) e l’output CLI riportano <code>hyperv disk read</code> per ogni disco con <code>vm_id</code>, <code>disk</code>, <code>mode</code> (full o incremental), <code>reason</code> e <code>disk_bytes</code>. Dopo una lettura riuscita, <code>hyperv disk read complete</code> aggiunge <code>bytes_read</code>: byte letti dalla sorgente in blocchi interi, non trasferiti dopo la deduplicazione. Il primo backup, una VM spenta o il tracciamento non disponibile possono richiedere normalmente una lettura completa. Gli errori dell’API RCT compaiono in <code>error</code> e causano una lettura completa sicura; questo da solo non fa fallire il backup né aggiunge un avviso. Un disco sostituito può causare un errore di query RCT, ma l’errore non prova la sostituzione. Codici motivo:</p>
+<p><code>rct_not_requested</code> · <code>rct_state_failed</code> · <code>rct_disabled</code> · <code>no_previous_backup</code> · <code>disk_size_changed</code> · <code>previous_id_missing</code> · <code>rct_query_failed</code> · <code>rct_changes</code></p>
 {{template "docpager" .}}
 </article></div>{{end}}

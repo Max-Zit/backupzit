@@ -116,5 +116,8 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 <ul>
   <li><b>Některé typy disků.</b> Sdílené VHDX, VHD Set a průchozí (pass-through) disky se nezálohují.</li>
 </ul>
+<h2 id="rct-diagnostics">Diagnostika úplného čtení disků</h2>
+<p>Protokol agenta (Agenti → Získat protokol) a výstup CLI zaznamenávají pro každý disk <code>hyperv disk read</code> s poli <code>vm_id</code>, <code>disk</code>, <code>mode</code> (full nebo incremental), <code>reason</code> a <code>disk_bytes</code>. Po úspěšném čtení přidá <code>hyperv disk read complete</code> pole <code>bytes_read</code>: bajty přečtené ze zdroje v celých zálohovacích blocích, nikoli data přenesená po deduplikaci. První záloha, vypnutá VM nebo nedostupné sledování mohou běžně vyžadovat úplné čtení. Chyba API RCT se uvede v <code>error</code> a bezpečně vede k úplnému čtení; samotný tento postup nezpůsobí selhání ani varování. Výměna disku může vyvolat chybu dotazu RCT, ale chyba výměnu neprokazuje. Kódy důvodů:</p>
+<p><code>rct_not_requested</code> · <code>rct_state_failed</code> · <code>rct_disabled</code> · <code>no_previous_backup</code> · <code>disk_size_changed</code> · <code>previous_id_missing</code> · <code>rct_query_failed</code> · <code>rct_changes</code></p>
 {{template "docpager" .}}
 </article></div>{{end}}

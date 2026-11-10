@@ -116,5 +116,8 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 <ul>
   <li><b>Einige Festplattentypen.</b> Freigegebene VHDX (Shared VHDX), VHD-Sets und Pass-Through-Festplatten werden nicht gesichert.</li>
 </ul>
+<h2 id="rct-diagnostics">Vollständige Datenträgerlesevorgänge untersuchen</h2>
+<p>Das Agentenprotokoll (Agenten → Protokoll abrufen) und die CLI-Ausgabe melden je Datenträger <code>hyperv disk read</code> mit <code>vm_id</code>, <code>disk</code>, <code>mode</code> (full oder incremental), <code>reason</code> und <code>disk_bytes</code>. Nach erfolgreichem Lesen ergänzt <code>hyperv disk read complete</code> den Wert <code>bytes_read</code>: gelesene Quelldaten in ganzen Sicherungsblöcken, nicht übertragene Daten nach Deduplizierung. Die erste Sicherung, eine ausgeschaltete VM oder fehlende Änderungsverfolgung können vollständiges Lesen erfordern. RCT-API-Fehler erscheinen als <code>error</code> und führen sicher zum vollständigen Lesen; allein dadurch scheitert die Sicherung nicht und erhält keine Warnung. Ein ersetzter Datenträger kann einen RCT-Abfragefehler verursachen, aber dieser Fehler beweist keinen Austausch. Grundcodes:</p>
+<p><code>rct_not_requested</code> · <code>rct_state_failed</code> · <code>rct_disabled</code> · <code>no_previous_backup</code> · <code>disk_size_changed</code> · <code>previous_id_missing</code> · <code>rct_query_failed</code> · <code>rct_changes</code></p>
 {{template "docpager" .}}
 </article></div>{{end}}

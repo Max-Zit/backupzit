@@ -116,5 +116,8 @@ backupzit-agent hyperv restore --repo ... --vmid N [--new] [--name NAME] [--fold
 <ul>
   <li><b>Neke vrste diskova.</b> Shared VHDX, VHD Set i pass-through diskovi se ne čuvaju.</li>
 </ul>
+<h2 id="rct-diagnostics">Dijagnostika čitanja celog diska</h2>
+<p>Dnevnik agenta (Agenti → Preuzmi dnevnik) i CLI izlaz beleže <code>hyperv disk read</code> za svaki disk, sa poljima <code>vm_id</code>, <code>disk</code>, <code>mode</code> (full ili incremental), <code>reason</code> i <code>disk_bytes</code>. Posle uspešnog čitanja, <code>hyperv disk read complete</code> dodaje <code>bytes_read</code>: izvorne bajtove pročitane u celim blokovima bekapa, a ne prenete posle deduplikacije. Prvi bekap, ugašen VM ili nedostupno praćenje mogu uobičajeno zahtevati potpuno čitanje. Greške RCT API-ja navedene su u <code>error</code> i dovode do bezbednog čitanja celog diska; sam ovaj postupak ne izaziva neuspeh bekapa niti upozorenje. Zamenjen disk može izazvati grešku RCT upita, ali greška ne dokazuje zamenu. Kodovi razloga:</p>
+<p><code>rct_not_requested</code> · <code>rct_state_failed</code> · <code>rct_disabled</code> · <code>no_previous_backup</code> · <code>disk_size_changed</code> · <code>previous_id_missing</code> · <code>rct_query_failed</code> · <code>rct_changes</code></p>
 {{template "docpager" .}}
 </article></div>{{end}}
