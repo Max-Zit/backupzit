@@ -202,7 +202,7 @@ Options go after `sh -s --`:
 
 | Option | Effect |
 |---|---|
-| `--version 0.47.3` | install this release instead of the newest |
+| `--version 0.47.4` | install this release instead of the newest |
 | `--db postgres://user:pw@host:5432/db` | use an existing PostgreSQL database |
 | `--hosts backup.example.local,10.0.0.10` | names and addresses for the console's certificate |
 | `--no-auto-updates` | leave automatic security updates as they are |
