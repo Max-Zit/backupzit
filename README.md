@@ -69,7 +69,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
 | **Proxmox VE** VMs and containers | agentless, changed blocks only; the node's own configuration (`/etc/pve`, `config.db`) with a files job | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
 | **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent, changed block tracking | new VM or in place, instant recovery over NFS |
-| **Hyper-V** VMs, also **failover clusters** | agentless, resilient change tracking; a clustered VM keeps its history when it moves to another node | new VM on the same or another Hyper-V host, also onto a Cluster Shared Volume as a cluster role |
+| **Hyper-V** VMs, also **failover clusters** | agentless, resilient change tracking; optionally application-consistent only (VSS in the guest, for AD and SQL Server); a clustered VM keeps its history when it moves to another node, also during a backup | new VM on the same or another Hyper-V host, also onto a Cluster Shared Volume as a cluster role; the vTPM (BitLocker) is kept |
 | **Databases** | SQL Server, PostgreSQL, MySQL/MariaDB with native tools; log backups | a single database to any point in time, under a new name or in place |
 | **NAS shares** | SMB or NFS share read by any agent, nothing installed on the NAS | into a folder or back onto the share |
 | **Microsoft 365** | Exchange Online mail (.eml), calendars (.ics), contacts (.vcf), OneDrive and SharePoint through Microsoft Graph, read-only permissions | browse and download, or restore into a folder |
@@ -95,7 +95,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 - A diagnostics zip for support requests (without passwords or keys), and a light and dark theme.
 - Roles (Administrator, Backup operator, Restore operator, Viewer).
 - LDAP / Active Directory and single sign-on (SAML, OpenID Connect).
-- Two-factor sign-in and a REST API with an OpenAPI specification ([openapi.json](internal/server/openapi.json)): status, agents, jobs, runs, restores, reports, storage and Prometheus metrics; webhooks for finished runs.
+- Two-factor sign-in and a REST API with an OpenAPI specification ([openapi.json](internal/server/openapi.json)): status, agents, jobs, runs, restores (also starting a file restore), reports, storage and Prometheus metrics; webhooks for finished runs.
 - Signed self-updates of the console and of the agents.
 - A backup of the console itself.
 
@@ -202,7 +202,7 @@ Options go after `sh -s --`:
 
 | Option | Effect |
 |---|---|
-| `--version 0.47.4` | install this release instead of the newest |
+| `--version 0.48.2` | install this release instead of the newest |
 | `--db postgres://user:pw@host:5432/db` | use an existing PostgreSQL database |
 | `--hosts backup.example.local,10.0.0.10` | names and addresses for the console's certificate |
 | `--no-auto-updates` | leave automatic security updates as they are |
