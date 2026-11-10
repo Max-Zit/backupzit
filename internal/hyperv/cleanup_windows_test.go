@@ -11,13 +11,13 @@ import (
 )
 
 func TestCleanupCheckpointOwnership(t *testing.T) {
-	for _, scenario := range []string{"old-without-marker", "completed", "busy", "remove-error"} {
+	for _, scenario := range []string{"fresh-without-marker", "old-without-marker", "completed", "busy", "remove-error"} {
 		t.Run(scenario, func(t *testing.T) {
 			id := testVMGUID(t)
 			disk := filepath.Join(t.TempDir(), "disk.vhdx")
 			name := "backupzit_owned"
 			marker := doneMarker(vmInfo{Disks: []vmDisk{{Path: disk}}}, name)
-			if scenario != "old-without-marker" {
+			if !strings.HasSuffix(scenario, "-without-marker") {
 				if err := os.WriteFile(marker, nil, 0o600); err != nil {
 					t.Fatal(err)
 				}
@@ -28,6 +28,10 @@ func TestCleanupCheckpointOwnership(t *testing.T) {
 			}
 			original := ps
 			defer func() { ps = original }()
+			age := 999999 // older than staleCheckpointAge
+			if scenario == "fresh-without-marker" {
+				age = 60
+			}
 			deletes := 0
 			failure := errors.New("injected checkpoint deletion failure")
 			ps = func(_ context.Context, script string) ([]byte, error) {
@@ -41,7 +45,7 @@ func TestCleanupCheckpointOwnership(t *testing.T) {
 					}
 					return nil, nil
 				}
-				return json.Marshal([]map[string]any{{"id": id, "vm": "test", "name": name, "disk": disk, "age": 999999}})
+				return json.Marshal([]map[string]any{{"id": id, "vm": "test", "name": name, "disk": disk, "age": age}})
 			}
 			removed, err := CleanupCheckpoints(context.Background())
 			switch scenario {
@@ -51,6 +55,10 @@ func TestCleanupCheckpointOwnership(t *testing.T) {
 				}
 				if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
 					t.Fatal("completion marker not removed")
+				}
+			case "old-without-marker":
+				if err != nil || deletes != 1 || len(removed) != 1 {
+					t.Fatalf("stale checkpoint kept: deleted=%d removed=%v err=%v", deletes, removed, err)
 				}
 			case "remove-error":
 				if !errors.Is(err, failure) || len(removed) != 0 {
