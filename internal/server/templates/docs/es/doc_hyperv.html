@@ -50,7 +50,7 @@
   <li>cambia sus discos por los restaurados.</li>
 </ul>
 <p>La VM conserva su ID, sus adaptadores de red y sus direcciones MAC, así que los trabajos, la supervisión y la red del invitado siguen funcionando.</p>
-<p>Los archivos de disco antiguos no se borran; se renombran a <code>….replaced-DATE</code>. Bórrelos cuando la VM restaurada funcione.</p>
+<p id="restore-staging">Antes de detener la VM original o fusionar sus puntos de control, BackupZit reconstruye todos los discos en una subcarpeta única <code>backupzit-restore-*</code> de la carpeta elegida (la original de los discos por defecto). Los fallos de preparación dejan la VM intacta. Los discos antiguos conservan sus rutas; elimínelos solo después de comprobar la VM restaurada. Un error tras iniciar el cambio puede requerir recuperación manual: se conservan los discos reconstruidos, el error indica su carpeta y no se revierten automáticamente la configuración ni los puntos de control.</p>
 <p>Si la VM original ya no existe, se vuelve a crear, con un ID de Hyper-V nuevo.</p>
 
 <h3>Opciones</h3>

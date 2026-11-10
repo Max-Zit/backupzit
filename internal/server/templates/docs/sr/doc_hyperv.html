@@ -50,7 +50,7 @@
   <li>menja njene diskove vraćenim.</li>
 </ul>
 <p>VM zadržava ID, mrežne adaptere i MAC adrese, pa poslovi, nadzor i mreža gosta nastavljaju da rade.</p>
-<p>Stari fajlovi diskova se ne brišu; preimenuju se u <code>….replaced-DATUM</code>. Obrišite ih kada vraćena VM proradi.</p>
+<p id="restore-staging">Pre zaustavljanja originalnog VM-a ili spajanja njegovih checkpoint-a, BackupZit rekonstruiše sve diskove u jedinstvenom poddirektorijumu <code>backupzit-restore-*</code> izabranog direktorijuma diskova (podrazumevano originalnog). Greške pripreme ostavljaju VM neizmenjen. Stari diskovi zadržavaju putanje; obrišite ih tek posle provere vraćenog VM-a. Greška nakon početka zamene može zahtevati ručni oporavak: rekonstruisani diskovi ostaju sačuvani, greška navodi njihov direktorijum, a podešavanja i checkpoint-i se ne vraćaju automatski.</p>
 <p>Ako originalna VM više ne postoji, ponovo se pravi, sa novim Hyper-V ID-jem.</p>
 
 <h3>Opcije</h3>

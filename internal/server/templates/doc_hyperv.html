@@ -50,7 +50,7 @@
   <li>swaps its disks for the restored ones.</li>
 </ul>
 <p>The VM keeps its ID, network adapters and MAC addresses, so jobs, monitoring and the guest's network keep working.</p>
-<p>The old disk files are not deleted; they are renamed to <code>….replaced-DATE</code>. Delete them once the restored VM works.</p>
+<p id="restore-staging">Before stopping the original VM or merging its checkpoints, BackupZit reconstructs every disk in a unique <code>backupzit-restore-*</code> subfolder of the selected disk folder (the original disk folder by default). Preparation failures leave the VM unchanged. After the swap, old disk files keep their paths; delete them only after verifying the restored VM. Once cutover starts, an error may require manual recovery: reconstructed disks are retained, their folder is reported in the error, and there is no automatic rollback of VM settings or checkpoints.</p>
 <p>If the original VM no longer exists, it is created again, with a new Hyper-V ID.</p>
 
 <h3>Options</h3>

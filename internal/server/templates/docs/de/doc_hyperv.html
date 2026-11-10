@@ -50,7 +50,7 @@
   <li>tauscht ihre Festplatten gegen die wiederhergestellten.</li>
 </ul>
 <p>Die VM behält ihre ID, Netzwerkadapter und MAC-Adressen, sodass Aufträge, Überwachung und das Netzwerk des Gasts weiter funktionieren.</p>
-<p>Die alten Festplattendateien werden nicht gelöscht, sondern in <code>….replaced-DATE</code> umbenannt. Löschen Sie sie, sobald die wiederhergestellte VM funktioniert.</p>
+<p id="restore-staging">Vor dem Stoppen der ursprünglichen VM oder dem Zusammenführen ihrer Prüfpunkte stellt BackupZit alle Datenträger in einem eindeutigen Unterordner <code>backupzit-restore-*</code> des gewählten Datenträgerordners wieder her (standardmäßig des ursprünglichen Ordners). Fehler bei der Vorbereitung lassen die VM unverändert. Alte Datenträger behalten ihre Pfade; löschen Sie sie erst nach Prüfung der wiederhergestellten VM. Fehler nach Beginn der Umschaltung können manuelle Wiederherstellung erfordern: Neue Datenträger bleiben erhalten, ihr Ordner steht in der Fehlermeldung, und Einstellungen sowie Prüfpunkte werden nicht automatisch zurückgesetzt.</p>
 <p>Existiert die Original-VM nicht mehr, wird sie neu erstellt, mit einer neuen Hyper-V-ID.</p>
 
 <h3>Optionen</h3>

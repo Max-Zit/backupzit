@@ -50,7 +50,7 @@
   <li>remplace ses disques par les disques restaurés.</li>
 </ul>
 <p>La VM conserve son ID, ses cartes réseau et ses adresses MAC, donc les tâches, la supervision et le réseau de l'invité continuent de fonctionner.</p>
-<p>Les anciens fichiers de disque ne sont pas supprimés ; ils sont renommés en <code>….replaced-DATE</code>. Supprimez-les une fois que la VM restaurée fonctionne.</p>
+<p id="restore-staging">Avant d’arrêter la VM d’origine ou de fusionner ses points de contrôle, BackupZit reconstruit tous les disques dans un sous-dossier unique <code>backupzit-restore-*</code> du dossier choisi (celui des disques d’origine par défaut). Un échec de préparation laisse la VM inchangée. Après le remplacement, les anciens fichiers gardent leur chemin ; ne les supprimez qu’après avoir vérifié la VM restaurée. Après le début de la bascule, une erreur peut nécessiter une récupération manuelle : les disques reconstruits sont conservés, leur dossier figure dans l’erreur, et les paramètres et points de contrôle ne sont pas rétablis automatiquement.</p>
 <p>Si la VM d'origine n'existe plus, elle est recréée, avec un nouvel ID Hyper-V.</p>
 
 <h3>Options</h3>

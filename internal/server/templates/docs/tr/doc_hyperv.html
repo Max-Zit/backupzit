@@ -50,7 +50,7 @@
   <li>disklerini geri yüklenenlerle değiştirir.</li>
 </ul>
 <p>VM kimliğini, ağ bağdaştırıcılarını ve MAC adreslerini korur; böylece işler, izleme ve konuğun ağı çalışmaya devam eder.</p>
-<p>Eski disk dosyaları silinmez; <code>….replaced-DATE</code> olarak yeniden adlandırılır. Geri yüklenen VM çalışınca bunları silin.</p>
+<p id="restore-staging">Özgün VM durdurulmadan veya denetim noktaları birleştirilmeden önce BackupZit, tüm diskleri seçilen disk klasörünün (varsayılan olarak özgün klasörün) benzersiz bir <code>backupzit-restore-*</code> alt klasöründe yeniden oluşturur. Hazırlık hataları VM’yi değiştirmez. Eski disklerin yolları korunur; yalnızca geri yüklenen VM doğrulandıktan sonra silin. Geçiş başladıktan sonraki bir hata elle kurtarma gerektirebilir: yeniden oluşturulan diskler korunur, hata klasörlerini belirtir ve ayarlar veya denetim noktaları otomatik olarak geri alınmaz.</p>
 <p>Orijinal VM artık yoksa, yeni bir Hyper-V kimliğiyle yeniden oluşturulur.</p>
 
 <h3>Seçenekler</h3>
