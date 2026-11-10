@@ -4853,7 +4853,7 @@ freely, subject to the following restrictions:
    distribution.
 
 ==============================================================================
-github.com/klauspost/compress v1.20.1 — Apache License 2.0
+github.com/klauspost/compress v1.20.3 — Apache License 2.0
 ==============================================================================
 
 Copyright (c) 2012 The Go Authors. All rights reserved.
