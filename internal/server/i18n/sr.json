@@ -2084,5 +2084,12 @@
   "— choose —": "— izaberite —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— ako se ovaj server izgubi, ključ i lokacija skladišta su sve što vam treba za vraćanje agentom iz komandne linije.",
   "— the user cannot sign in; open sessions end immediately": "— korisnik ne može da se prijavi; otvorene sesije se odmah završavaju",
-  "— vCenter": "— vCenter"
+  "— vCenter": "— vCenter",
+  "1 MiB (default)": "1 MiB (podrazumevano)",
+  "256 KiB": "256 KiB",
+  "512 KiB": "512 KiB",
+  "Smaller blocks may save space but increase metadata. Changing size reads each disk in full once; existing backups remain restorable. Update agents before choosing a smaller size.": "Manji blokovi mogu uštedeti prostor, ali povećavaju metapodatke. Posle promene veličine svaki disk se jednom čita u celosti; postojeći bekapi se i dalje mogu vratiti. Ažurirajte agente pre izbora manje veličine.",
+  "VM block size must be 256, 512 or 1024 KiB": "Veličina blokova VM mora biti 256, 512 ili 1024 KiB",
+  "VM deduplication block size": "Veličina blokova deduplikacije VM",
+  "update the agent to use configurable VM block sizes": "Ažurirajte agenta da biste birali veličinu blokova VM"
 }

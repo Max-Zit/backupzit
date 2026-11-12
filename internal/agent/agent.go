@@ -249,6 +249,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	var resp api.PollResponse
 	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, Running: running, Parallel: true, IPs: localIPs(), Instance: a.instance, Progress: a.runProgress()}
 	req.WantStatus = a.wantStatus()
+	req.ConfigurableVMBlocks = true
 	invEvery := a.InventoryInterval
 	if invEvery <= 0 {
 		invEvery = inventoryInterval
@@ -517,6 +518,11 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 		if err := r.SetCompression(rs.Compression); err != nil {
 			a.log.Warn("compression level ignored", "err", err)
 		}
+	}
+	if err := r.SetVMBlockSizeKiB(rs.VMBlockSizeKiB); err != nil {
+		_ = r.Close()
+		cleanup()
+		return nil, nil, err
 	}
 	return r, func() { _ = r.Close(); cleanup() }, nil
 }

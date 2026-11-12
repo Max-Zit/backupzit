@@ -2084,5 +2084,12 @@
   "— choose —": "— kiezen —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— als deze server verloren gaat, hebt u alleen de sleutel en de opslaglocatie nodig om met de opdrachtregelagent te herstellen.",
   "— the user cannot sign in; open sessions end immediately": "— de gebruiker kan zich niet aanmelden; open sessies eindigen direct",
-  "— vCenter": "— vCenter"
+  "— vCenter": "— vCenter",
+  "1 MiB (default)": "1 MiB (standaard)",
+  "256 KiB": "256 KiB",
+  "512 KiB": "512 KiB",
+  "Smaller blocks may save space but increase metadata. Changing size reads each disk in full once; existing backups remain restorable. Update agents before choosing a smaller size.": "Kleinere blokken kunnen ruimte besparen, maar vergroten de metadata. Bij een andere grootte wordt elke schijf eenmaal volledig gelezen; bestaande back-ups blijven herstelbaar. Werk de agents bij voordat u een kleinere grootte kiest.",
+  "VM block size must be 256, 512 or 1024 KiB": "De VM-blokgrootte moet 256, 512 of 1024 KiB zijn",
+  "VM deduplication block size": "Blokgrootte voor VM-deduplicatie",
+  "update the agent to use configurable VM block sizes": "Werk de agent bij om de VM-blokgrootte te kunnen kiezen"
 }

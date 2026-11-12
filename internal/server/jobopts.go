@@ -74,6 +74,13 @@ type JobOptions struct {
 	m365PickNone struct{ users, sites bool }
 	// Compression of new data: "" (default), "off", "fast" or "max".
 	Compression string `json:"compression,omitempty"`
+	// VMBlockSizeKiB is the block size of new VM disk images (0 = 1024).
+	VMBlockSizeKiB int `json:"vm_block_size_kib,omitempty"`
+	// VMBlocksCustom stays set once a size other than 1 MiB was chosen:
+	// the repository may then hold such images, which agents without
+	// configurable block sizes cannot use as a base, even after the job
+	// returns to 1 MiB.
+	VMBlocksCustom bool `json:"vm_blocks_custom,omitempty"`
 	// MaxHours stops a backup or copy that runs longer (0 = no limit).
 	MaxHours int `json:"max_hours,omitempty"`
 	// RPOHours is the recovery point objective: the newest good backup
@@ -120,6 +127,9 @@ func (o JobOptions) Validate() error {
 	default:
 		return errors.New("unknown compression level")
 	}
+	if err := repo.ValidateVMBlockSizeKiB(o.VMBlockSizeKiB); err != nil {
+		return err
+	}
 	if o.Window && (o.WindowFrom < 0 || o.WindowFrom > 23 || o.WindowTo < 0 || o.WindowTo > 23 || o.WindowFrom == o.WindowTo) {
 		return errors.New("the backup window needs a start and a different end hour")
 	}
@@ -156,6 +166,10 @@ func (o JobOptions) apply(ar *api.Run, kind string) {
 		ar.Limit = &api.SpeedLimit{BytesPerSec: int64(o.LimitMBps) << 20, FromHour: o.LimitFrom, ToHour: o.LimitTo}
 	}
 	ar.Repository.Compression = o.Compression
+	if kind == api.KindVMBackup {
+		ar.Repository.VMBlockSizeKiB = o.VMBlockSizeKiB
+		ar.Repository.NeedsVMBlocks = o.VMBlocksCustom || (o.VMBlockSizeKiB != 0 && o.VMBlockSizeKiB != 1024)
+	}
 	if kind != api.KindCopy && o.HasCommands() {
 		min := o.CommandMinutes
 		if min == 0 {
@@ -291,6 +305,17 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 		o.ReplicaAgentID, o.ReplicaStorage = formID(r, "replica_agent"), r.FormValue("replica_storage")
 	}
 	o.Compression = r.FormValue("compression")
+	// Preserve the setting for clients that omit the new field. Malformed
+	// values must not silently become the default through atoiDefault.
+	o.VMBlockSizeKiB = old.VMBlockSizeKiB
+	if values, ok := r.Form["vm_block_size_kib"]; ok && len(values) > 0 {
+		var err error
+		o.VMBlockSizeKiB, err = strconv.Atoi(values[0])
+		if err != nil {
+			o.VMBlockSizeKiB = -1 // rejected by Validate
+		}
+	}
+	o.VMBlocksCustom = old.VMBlocksCustom || (o.VMBlockSizeKiB > 0 && o.VMBlockSizeKiB != 1024)
 	o.NASURL = strings.TrimSpace(r.FormValue("nas_url"))
 	o.NASUser = strings.TrimSpace(r.FormValue("nas_user"))
 	o.NASDomain = strings.TrimSpace(r.FormValue("nas_domain"))

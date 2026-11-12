@@ -81,7 +81,7 @@
     {{if or (not .Edit) (and (eq .J.Kind "vm") (not .J.VMwareHostID))}}
     <label class="check" {{if not .Edit}}data-jobkind="vm" hidden{{end}}><input type="checkbox" name="app_consistent" {{if .J.Options.AppConsistent}}checked{{end}}> {{T "Require application-consistent checkpoints"}} <small>{{T "Hyper-V: back up a running VM only from a checkpoint made with VSS inside the guest (Active Directory, SQL Server, Exchange). If that is not possible, the VM is not backed up and the run fails instead of taking a crash-consistent checkpoint; the other VMs of the job are still backed up."}}</small></label>
     {{end}}
-    <details class="sched" {{if or .J.Options.LimitMBps .J.Options.HasCommands .J.Options.Compression}}open{{end}}>
+    <details class="sched" {{if or .J.Options.LimitMBps .J.Options.HasCommands .J.Options.Compression .J.Options.VMBlockSizeKiB}}open{{end}}>
       <summary>{{T "Advanced: speed limit, compression"}}{{if and .CanCommands (ne .J.Kind "copy")}}{{T ", commands before and after the backup"}}{{end}}</summary>
       <div class="row">
         <label>{{T "Limit the upload speed to (MB/s)"}} <small>{{T "0 or empty: no limit"}}</small><input type="number" name="limit_mbps" min="0" max="100000" value="{{if .J.Options.LimitMBps}}{{.J.Options.LimitMBps}}{{end}}"></label>
@@ -103,6 +103,16 @@
           <option value="max" {{if eq .J.Options.Compression "max"}}selected{{end}}>{{T "Maximum — smallest, several times slower; for slow uplinks and cloud storage"}}</option>
           <option value="off" {{if eq .J.Options.Compression "off"}}selected{{end}}>{{T "Off — for data that is already compressed (video, archives)"}}</option>
         </select></label>
+      {{if or (not .Edit) (eq .J.Kind "vm")}}
+      <label class="mt" {{if not .Edit}}data-jobkind="vm" hidden{{end}}>{{T "VM deduplication block size"}}
+        <select name="vm_block_size_kib">
+          <option value="256" {{if eq .J.Options.VMBlockSizeKiB 256}}selected{{end}}>{{T "256 KiB"}}</option>
+          <option value="512" {{if eq .J.Options.VMBlockSizeKiB 512}}selected{{end}}>{{T "512 KiB"}}</option>
+          <option value="0" {{if or (eq .J.Options.VMBlockSizeKiB 0) (eq .J.Options.VMBlockSizeKiB 1024)}}selected{{end}}>{{T "1 MiB (default)"}}</option>
+        </select>
+        <small>{{T "Smaller blocks may save space but increase metadata. Changing size reads each disk in full once; existing backups remain restorable. Update agents before choosing a smaller size."}}</small>
+      </label>
+      {{end}}
       {{if and .ReplicaAgents (or (not .Edit) (and (eq .J.Kind "vm") (not .J.VMwareHostID)))}}{{$ra := .J.Options.ReplicaAgentID}}{{$rs := .J.Options.ReplicaStorage}}
       <div {{if not .Edit}}data-jobkind="vm" hidden{{end}} class="stack">
         <label class="check"><input type="checkbox" name="replicate" {{if $ra}}checked{{end}}> {{T "Keep replicas of the VMs"}} <small>{{T "Proxmox VE: after each backup, a stopped copy of every guest on the chosen node is brought up to date (only changed blocks are written). If a guest is lost, start its replica from the job page instead of restoring."}}</small></label>

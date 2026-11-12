@@ -2084,5 +2084,12 @@
   "— choose —": "— vyberte —",
   "— if this server is lost, the key and the storage location are all you need to restore with the command line agent.": "— pokud o tento server přijdete, k obnově agentem příkazové řádky stačí klíč a umístění úložiště.",
   "— the user cannot sign in; open sessions end immediately": "— uživatel se nemůže přihlásit; otevřené relace okamžitě končí",
-  "— vCenter": "— vCenter"
+  "— vCenter": "— vCenter",
+  "1 MiB (default)": "1 MiB (výchozí)",
+  "256 KiB": "256 KiB",
+  "512 KiB": "512 KiB",
+  "Smaller blocks may save space but increase metadata. Changing size reads each disk in full once; existing backups remain restorable. Update agents before choosing a smaller size.": "Menší bloky mohou šetřit místo, ale zvětšují metadata. Po změně velikosti se každý disk jednou přečte celý; stávající zálohy lze nadále obnovit. Před výběrem menší velikosti aktualizujte agenty.",
+  "VM block size must be 256, 512 or 1024 KiB": "Velikost bloků VM musí být 256, 512 nebo 1024 KiB",
+  "VM deduplication block size": "Velikost bloků deduplikace VM",
+  "update the agent to use configurable VM block sizes": "Pro výběr velikosti bloků VM aktualizujte agenta"
 }
