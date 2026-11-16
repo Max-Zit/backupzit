@@ -131,7 +131,7 @@ jobs:
           for t in api:FuzzDecodeEnrollCode repo:FuzzParsePackHeader repo:FuzzDecodeIndexFile repo:FuzzParseID \
                    repo:FuzzDecodeBlob vmware:FuzzParseVMX vmware:FuzzParseDSPath update:FuzzVerify update:FuzzNewer \
                    fsutil:FuzzParseSnapshotPath netcfg:FuzzParseNetworkFile vmfs:FuzzParseLVMConfig vmfs:FuzzVolumes \
-                   hardened:FuzzValidName server:FuzzParseSchedule server:FuzzLocalPath server:FuzzParseSSOState \
+                   hardened:FuzzValidName hardened:FuzzParseKeyLine server:FuzzParseSchedule server:FuzzLocalPath server:FuzzParseSSOState \
                    server:FuzzParseMFAToken server:FuzzParseIdPMetadata server:FuzzParseKeyPair \
                    server:FuzzParseRecoveryKey server:FuzzCheckSAMLResponse; do
             go test "./internal/${t%%:*}" -run '^$' -fuzz "^${t##*:}\$" -fuzztime 20s

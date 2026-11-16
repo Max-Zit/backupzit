@@ -99,7 +99,7 @@ func (a *Agent) withRetention(ctx context.Context, r *repo.Repository, run api.R
 	if res.Status == api.StatusFailed {
 		return res
 	}
-	if err := a.keepImmutable(ctx, r, res.SnapshotID); err != nil {
+	if err := a.keepImmutable(ctx, r, run, res.SnapshotID); err != nil {
 		a.log.Warn("extend immutability", "run", run.ID, "err", err)
 		res.Status = api.StatusWarning
 		res.Message = strings.TrimSpace(res.Message + " Could not extend immutability of reused data: " + err.Error())
@@ -120,10 +120,15 @@ func (a *Agent) withRetention(ctx context.Context, r *repo.Repository, run api.R
 	return res
 }
 
-// keepImmutable extends the object lock of all data the new snapshot
-// reuses (no-op on storage without object lock).
-func (a *Agent) keepImmutable(ctx context.Context, r *repo.Repository, snapshotID string) error {
-	if snapshotID == "" {
+// keepImmutable extends the object lock of all data that the job's restore
+// points still need (no-op on storage without object lock): the new
+// snapshot and every older snapshot of the job that the retention policy
+// keeps. Extending only the new snapshot would let data used only by older
+// kept snapshots (e.g. monthly ones) lose its lock after the lock period
+// although the policy still keeps them. Backends extend only locks that end
+// within the lock period, so data locked far enough ahead costs one check.
+func (a *Agent) keepImmutable(ctx context.Context, r *repo.Repository, run api.Run, snapshotID string) error {
+	if ret, ok := r.Backend().(backend.Retainer); !ok || ret.LockDays() <= 0 {
 		return nil
 	}
 	lock, err := r.Lock(ctx, false, lockWait)
@@ -131,15 +136,63 @@ func (a *Agent) keepImmutable(ctx context.Context, r *repo.Repository, snapshotI
 		return err
 	}
 	defer lock.Unlock()
-	sn, err := r.LoadSnapshot(ctx, snapshotID)
-	if err != nil {
+	var mine []*repo.Snapshot
+	if run.JobID != 0 {
+		all, err := r.ListSnapshots(ctx)
+		if err != nil {
+			return err
+		}
+		for _, sn := range all {
+			if hasTag(sn, jobTag(run.JobID)) {
+				mine = append(mine, sn)
+			}
+		}
+	}
+	sns, err := keepSet(mine, run, snapshotID, func() (*repo.Snapshot, error) { return r.LoadSnapshot(ctx, snapshotID) })
+	if err != nil || len(sns) == 0 {
 		return err
 	}
-	n, err := r.KeepImmutable(ctx, sn)
+	n, err := r.KeepImmutable(ctx, sns...)
 	if n > 0 {
-		a.log.Info("extended immutability", "snapshot", sn.ID.Short(), "objects", n)
+		a.log.Info("extended immutability", "run", run.ID, "snapshots", len(sns), "objects", n)
 	}
 	return err
+}
+
+// keepSet returns the snapshots whose data must stay locked: those of the
+// job (mine) that its retention policy keeps, all of them without a policy,
+// plus the snapshot just written (snapshotID, read with load when it is not
+// among mine). Snapshots a VM runs from (run.KeepSnapshots) are always kept.
+func keepSet(mine []*repo.Snapshot, run api.Run, snapshotID string, load func() (*repo.Snapshot, error)) ([]*repo.Snapshot, error) {
+	drop := map[repo.ID]bool{}
+	if run.Retention != nil && !run.Retention.Empty() {
+		for _, sn := range retentionRemove(mine, *run.Retention) {
+			drop[sn.ID] = true
+		}
+	}
+	pinned := map[string]bool{snapshotID: snapshotID != ""}
+	for _, id := range run.KeepSnapshots {
+		pinned[id] = true
+	}
+	var out []*repo.Snapshot
+	found := snapshotID == ""
+	for _, sn := range mine {
+		id := sn.ID.String()
+		if id == snapshotID {
+			found = true
+		}
+		if pinned[id] || !drop[sn.ID] {
+			out = append(out, sn)
+		}
+	}
+	if !found {
+		sn, err := load()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, sn)
+	}
+	return out, nil
 }
 
 // retentionRemove selects the snapshots a policy removes (see

@@ -69,12 +69,7 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	}
 	_ = srcLock.Unlock()
 	_ = dstLock.Unlock()
-	for _, sn := range copied {
-		if err := a.keepImmutable(ctx, dst, sn.ID.String()); err != nil {
-			res.Status = api.StatusWarning
-			res.Message += ". Could not extend immutability: " + err.Error()
-			break
-		}
-	}
+	// withRetention extends the locks of every copy the job keeps, the ones
+	// just copied included (they carry the job's tag).
 	return a.withRetention(ctx, dst, run, res)
 }

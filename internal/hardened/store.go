@@ -25,6 +25,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -126,30 +127,39 @@ func (s *Store) visibleLocked(name string, asOf int64) bool {
 // Save stores a new file. Saving an existing file succeeds only if the
 // content is identical (a retried upload); lock files may be replaced.
 func (s *Store) Save(name string, r io.Reader) error {
+	_, err := s.SaveCreated(name, r)
+	return err
+}
+
+// SaveCreated is Save that also reports whether a new file was stored (and
+// now takes disk space), rather than identical content found already there.
+// The file and its directory are synced before it returns, so a confirmed
+// upload survives a power loss.
+func (s *Store) SaveCreated(name string, r io.Reader) (bool, error) {
 	if !ValidName(name) {
-		return ErrInvalidName
+		return false, ErrInvalidName
 	}
 	p := s.path(name)
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
-		return err
+		return false, err
 	}
 	f, err := os.CreateTemp(filepath.Dir(p), ".tmp-*")
 	if err != nil {
-		return err
+		return false, err
 	}
 	tmp := f.Name()
 	defer os.Remove(tmp) // no-op after the rename
 	h := sha256.New()
 	if _, err := io.Copy(io.MultiWriter(f, h), r); err != nil {
 		_ = f.Close()
-		return err
+		return false, err
 	}
 	if err := f.Sync(); err != nil {
 		_ = f.Close()
-		return err
+		return false, err
 	}
 	if err := f.Close(); err != nil {
-		return err
+		return false, err
 	}
 
 	s.mu.Lock()
@@ -159,30 +169,46 @@ func (s *Store) Save(name string, r io.Reader) error {
 	if _, err := os.Lstat(p); err == nil && !lock {
 		same, err := sameContent(p, h.Sum(nil))
 		if err != nil {
-			return err
+			return false, err
 		}
 		if !same {
-			return ErrExists
+			return false, ErrExists
 		}
 		if _, hidden := s.deleted[name]; hidden {
 			// Written again after a delete: make it visible and protect it again.
 			delete(s.deleted, name)
 			if err := s.appendLogLocked("U", 0, name); err != nil {
-				return err
+				return false, err
 			}
-			return s.retainLocked(p, s.now().Add(s.period()))
+			return false, s.retainLocked(p, s.now().Add(s.period()))
 		}
-		return nil
+		return false, nil
 	}
 	if err := os.Rename(tmp, p); err != nil {
-		return err
+		return false, err
+	}
+	if err := syncDir(filepath.Dir(p)); err != nil {
+		return true, err
 	}
 	if lock {
-		return nil
+		return true, nil
 	}
 	// One extra day keeps a file retained for the full period after a long
 	// backup that reuses it (see Keep).
-	return s.retainLocked(p, s.now().Add(s.period()+24*time.Hour))
+	return true, s.retainLocked(p, s.now().Add(s.period()+24*time.Hour))
+}
+
+// syncDir makes a rename in dir durable.
+func syncDir(dir string) error {
+	d, err := os.Open(dir) // #nosec G304 -- directory of a name checked by ValidName
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	if err := d.Sync(); err != nil && runtime.GOOS != "windows" {
+		return err // Windows (development, tests) cannot sync a directory
+	}
+	return nil
 }
 
 func (s *Store) period() time.Duration { return time.Duration(s.lockDays) * 24 * time.Hour }
@@ -531,4 +557,41 @@ func (s *Store) writeLogLocked() error {
 	}
 	s.logSig = s.logSignature()
 	return nil
+}
+
+// Usage returns the disk space used below prefix ("" for the whole store):
+// visible and hidden (still retained) files and unfinished uploads.
+func (s *Store) Usage(prefix string) (int64, error) {
+	dir := s.root
+	if prefix != "" {
+		if !ValidName(prefix) {
+			return 0, ErrInvalidName
+		}
+		dir = s.path(prefix)
+	}
+	var n int64
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == metaDir && p != dir {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		fi, err := d.Info()
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
+		n += fi.Size()
+		return nil
+	})
+	return n, err
 }

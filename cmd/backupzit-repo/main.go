@@ -29,8 +29,11 @@ func usage() {
 
 Usage:
   backupzit-repo serve                 run the service (systemd does this)
-  backupzit-repo add-key <name>        create an access key for a BackupZit console / agents
-  backupzit-repo keys                  list access keys
+  backupzit-repo add-key <name> [--path PATH] [--quota SIZE] [--daily SIZE] [--rate N]
+                                       create an access key for a BackupZit console / agents,
+                                       optionally bound to one repository path and limited
+  backupzit-repo set-key <name> [...]  change the path and limits of a key ('none' clears one)
+  backupzit-repo keys                  list access keys with their limits
   backupzit-repo remove-key <name>     revoke an access key
   backupzit-repo fingerprint           show the TLS certificate fingerprint clients pin
   backupzit-repo status                show stored and deleted (still retained) data
@@ -40,6 +43,9 @@ Usage:
 Common flags (or environment variables):
   --data DIR         storage directory (BACKUPZIT_REPO_DATA, default /srv/backupzit)
   --config-dir DIR   keys and certificate (BACKUPZIT_REPO_CONFIG, default /etc/backupzit-repo)
+
+serve also reads BACKUPZIT_REPO_METRICS_TOKEN: with it, GET /metrics (Prometheus) answers
+requests carrying "Authorization: Bearer <token>".
 `)
 }
 
@@ -73,6 +79,8 @@ func main() {
 		err = cmdServe(args)
 	case "add-key":
 		err = cmdAddKey(args)
+	case "set-key":
+		err = cmdSetKey(args)
 	case "keys":
 		err = cmdKeys(args)
 	case "remove-key":
@@ -104,6 +112,7 @@ func cmdServe(args []string) error {
 	listen := fs.String("listen", envOr("BACKUPZIT_REPO_LISTEN", ":8500"), "listen address")
 	lockDays := fs.Int("lock-days", atoi(envOr("BACKUPZIT_REPO_LOCK_DAYS", "30")), "immutability period in days for every stored file")
 	hosts := fs.String("tls-hosts", os.Getenv("BACKUPZIT_REPO_TLS_HOSTS"), "comma-separated names/IPs for the self-signed certificate")
+	metricsToken := os.Getenv("BACKUPZIT_REPO_METRICS_TOKEN")
 	_ = fs.Parse(args)
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
@@ -124,7 +133,7 @@ func cmdServe(args []string) error {
 	}
 	srv := &http.Server{
 		Addr:              *listen,
-		Handler:           (&hardened.Server{Store: store, Keys: keys, Log: log, Version: version}).Handler(),
+		Handler:           (&hardened.Server{Store: store, Keys: keys, Log: log, Version: version, MetricsToken: metricsToken}).Handler(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12, CipherSuites: tlsutil.ServerCipherSuites},
 		ReadHeaderTimeout: 30 * time.Second,
 		ReadTimeout:       30 * time.Minute, // one upload of up to 4 GiB
@@ -155,33 +164,152 @@ func cmdServe(args []string) error {
 		_ = srv.Shutdown(sctx)
 	}()
 	log.Info("BackupZit hardened repository listening", "addr", *listen, "data", c.data,
-		"lock_days", *lockDays, "fingerprint", tlsutil.CertFingerprint(cert), "version", version)
+		"lock_days", *lockDays, "fingerprint", tlsutil.CertFingerprint(cert), "version", version, "metrics", metricsToken != "")
 	if err := srv.ListenAndServeTLS("", ""); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
 }
 
+// limitFlags are the options of add-key and set-key.
+type limitFlags struct {
+	path, quota, daily string
+	rate               int
+}
+
+func (l *limitFlags) define(fs *flag.FlagSet) {
+	fs.StringVar(&l.path, "path", "", "bind the key to this repository path (the path of hardened://host/PATH); other paths do not exist for the key")
+	fs.StringVar(&l.quota, "quota", "", "most data stored below the path, e.g. 500G or 2T (deleted but retained files count)")
+	fs.StringVar(&l.daily, "daily", "", "most new data uploaded per day (UTC), e.g. 100G")
+	fs.IntVar(&l.rate, "rate", 0, "most write requests per minute (uploads, deletes, retention requests)")
+}
+
+// apply sets the limits given on the command line ("none" or 0 clears one).
+func (l *limitFlags) apply(fs *flag.FlagSet, lim *hardened.Limits) error {
+	var err error
+	fs.Visit(func(f *flag.Flag) {
+		if err != nil {
+			return
+		}
+		switch f.Name {
+		case "path":
+			lim.Path = strings.Trim(l.path, "/")
+			if lim.Path == "none" {
+				lim.Path = ""
+			}
+		case "quota":
+			lim.Quota, err = sizeFlag(l.quota)
+		case "daily":
+			lim.Daily, err = sizeFlag(l.daily)
+		case "rate":
+			lim.Rate = l.rate
+		}
+	})
+	if err != nil {
+		return err
+	}
+	return lim.Check()
+}
+
+func sizeFlag(s string) (int64, error) {
+	if s == "" || s == "none" {
+		return 0, nil
+	}
+	return hardened.ParseSize(s)
+}
+
+// parseArgs parses flags before and after the positional arguments
+// ("add-key office-pc --path office/pc1" and "add-key --path ... office-pc").
+func parseArgs(fs *flag.FlagSet, args []string) []string {
+	_ = fs.Parse(args)
+	var pos []string
+	for fs.NArg() > 0 {
+		pos = append(pos, fs.Arg(0))
+		_ = fs.Parse(fs.Args()[1:])
+	}
+	return pos
+}
+
+func describe(l hardened.Limits) string {
+	var s []string
+	if l.Path != "" {
+		s = append(s, "path "+l.Path)
+	}
+	if l.Quota > 0 {
+		s = append(s, "quota "+human(l.Quota))
+	}
+	if l.Daily > 0 {
+		s = append(s, human(l.Daily)+" per day")
+	}
+	if l.Rate > 0 {
+		s = append(s, fmt.Sprintf("%d writes per minute", l.Rate))
+	}
+	if len(s) == 0 {
+		return "no limits"
+	}
+	return strings.Join(s, ", ")
+}
+
 func cmdAddKey(args []string) error {
 	fs := flag.NewFlagSet("add-key", flag.ExitOnError)
 	var c config
 	c.flags(fs)
-	_ = fs.Parse(args)
-	if fs.NArg() != 1 {
-		return errors.New("usage: backupzit-repo add-key <name>")
+	var lf limitFlags
+	lf.define(fs)
+	pos := parseArgs(fs, args)
+	if len(pos) != 1 {
+		return errors.New("usage: backupzit-repo add-key <name> [--path PATH] [--quota SIZE] [--daily SIZE] [--rate N]")
+	}
+	var lim hardened.Limits
+	if err := lf.apply(fs, &lim); err != nil {
+		return err
 	}
 	if err := os.MkdirAll(c.configDir, 0o700); err != nil {
 		return err
 	}
-	token, err := c.keys().Add(fs.Arg(0))
+	token, err := c.keys().AddWithLimits(pos[0], lim)
 	if err != nil {
 		return err
 	}
 	fixOwner(filepath.Join(c.configDir, "keys"))
-	fmt.Printf("Access key %q created. It is shown only once:\n\n  %s\n\n", fs.Arg(0), token)
+	fmt.Printf("Access key %q created (%s). It is shown only once:\n\n  %s\n\n", pos[0], describe(lim), token)
 	if cert, err := tls.LoadX509KeyPair(filepath.Join(c.configDir, "cert.pem"), filepath.Join(c.configDir, "key.pem")); err == nil {
 		fmt.Printf("Certificate fingerprint: %s\n", tlsutil.CertFingerprint(cert))
 	}
+	return nil
+}
+
+func cmdSetKey(args []string) error {
+	fs := flag.NewFlagSet("set-key", flag.ExitOnError)
+	var c config
+	c.flags(fs)
+	var lf limitFlags
+	lf.define(fs)
+	pos := parseArgs(fs, args)
+	if len(pos) != 1 || fs.NFlag() == 0 {
+		return errors.New("usage: backupzit-repo set-key <name> [--path PATH|none] [--quota SIZE|none] [--daily SIZE|none] [--rate N]")
+	}
+	keys, err := c.keys().List()
+	if err != nil {
+		return err
+	}
+	var lim *hardened.Limits
+	for _, k := range keys {
+		if k.Name == pos[0] {
+			lim = &k.Limits
+		}
+	}
+	if lim == nil {
+		return fmt.Errorf("no key named %q", pos[0])
+	}
+	if err := lf.apply(fs, lim); err != nil {
+		return err
+	}
+	if err := c.keys().SetLimits(pos[0], *lim); err != nil {
+		return err
+	}
+	fixOwner(filepath.Join(c.configDir, "keys"))
+	fmt.Printf("Access key %q: %s.\n", pos[0], describe(*lim))
 	return nil
 }
 
@@ -190,14 +318,14 @@ func cmdKeys(args []string) error {
 	var c config
 	c.flags(fs)
 	_ = fs.Parse(args)
-	names, err := c.keys().Names()
+	keys, err := c.keys().List()
 	if err != nil {
 		return err
 	}
-	for _, n := range names {
-		fmt.Println(n)
+	for _, k := range keys {
+		fmt.Printf("%s\t%s\n", k.Name, describe(k.Limits))
 	}
-	if len(names) == 0 {
+	if len(keys) == 0 {
 		fmt.Println("no access keys")
 	}
 	return nil

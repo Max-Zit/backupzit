@@ -92,8 +92,9 @@ func (h *Hardened) path(kind, name string) string {
 
 func (h *Hardened) do(ctx context.Context, method, path string, body []byte, hdr map[string]string) (*http.Response, error) {
 	var lastErr error
+	waits := 0
 	for attempt := 0; attempt < 3; attempt++ {
-		if attempt > 0 {
+		if attempt > 0 && lastErr != nil {
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -122,13 +123,40 @@ func (h *Hardened) do(ctx context.Context, method, path string, body []byte, hdr
 			lastErr = err
 			continue
 		}
-		if resp.StatusCode >= 500 {
+		if resp.StatusCode == http.StatusTooManyRequests && waits < maxRateWaits {
+			// Rate limit of the access key: wait as told and try again
+			// without using up an attempt.
+			wait := retryAfter(resp.Header.Get("Retry-After"))
+			_ = statusError(resp)
+			waits++
+			attempt--
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(wait):
+			}
+			continue
+		}
+		// 507 is the key's quota or daily limit: repeating does not help.
+		if resp.StatusCode >= 500 && resp.StatusCode != http.StatusInsufficientStorage {
 			lastErr = statusError(resp)
 			continue
 		}
 		return resp, nil
 	}
 	return nil, lastErr
+}
+
+// maxRateWaits bounds how often one request waits for a rate limit.
+const maxRateWaits = 30
+
+// retryAfter reads a Retry-After header in seconds (1 s to 1 min).
+func retryAfter(v string) time.Duration {
+	n, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil || n < 1 {
+		n = 5
+	}
+	return time.Duration(min(n, 60)) * time.Second
 }
 
 func statusError(resp *http.Response) error {
