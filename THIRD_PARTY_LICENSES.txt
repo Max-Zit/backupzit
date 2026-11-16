@@ -208,7 +208,7 @@ Apache License
    limitations under the License.
 
 ==============================================================================
-github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.3 — MIT License
+github.com/Azure/azure-sdk-for-go/sdk/azcore v1.24.0 — MIT License
 ==============================================================================
 
 MIT License
@@ -260,7 +260,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE
 
 ==============================================================================
-github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.8.2 — MIT License
+github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.8.3 — MIT License
 ==============================================================================
 
 MIT License
@@ -1069,7 +1069,7 @@ Copyright: 2013 Google Inc. All Rights Reserved
 Distributed under MIT License.
 
 ==============================================================================
-github.com/beevik/etree v1.7.0 — BSD License
+github.com/beevik/etree v1.8.1 — BSD License
 ==============================================================================
 
 Copyright 2015-2024 Brett Vickers. All rights reserved.
@@ -3467,7 +3467,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ==============================================================================
-github.com/jackc/pgx/v5 v5.11.0 — MIT License
+github.com/jackc/pgx/v5 v5.12.0 — MIT License
 ==============================================================================
 
 Copyright (c) 2013-2021 Jack Christensen
@@ -3494,7 +3494,7 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ==============================================================================
-github.com/jackc/puddle/v2 v2.2.2 — MIT License
+github.com/jackc/puddle/v2 v2.2.3 — MIT License
 ==============================================================================
 
 Copyright (c) 2018 Jack Christensen
@@ -7900,7 +7900,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ==============================================================================
-go.yaml.in/yaml/v3 v3.0.5 — Apache License 2.0
+go.yaml.in/yaml/v3 v3.0.6 — Apache License 2.0
 ==============================================================================
 
 This project is covered by two different licenses: MIT and Apache.
