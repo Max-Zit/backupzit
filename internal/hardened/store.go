@@ -84,10 +84,10 @@ func (s *Store) CheckImmutable() error {
 		return err
 	}
 	defer os.Remove(p)
-	if err := setImmutable(p, true); err != nil {
+	if err := setImmutableAttr(p, true); err != nil {
 		return fmt.Errorf("%w (the service needs CAP_LINUX_IMMUTABLE and a filesystem with the immutable attribute, e.g. ext4, XFS or btrfs)", err)
 	}
-	return setImmutable(p, false)
+	return setImmutableAttr(p, false)
 }
 
 // ValidName reports whether name is an acceptable slash-separated path:
@@ -215,13 +215,13 @@ func (s *Store) period() time.Duration { return time.Duration(s.lockDays) * 24 *
 
 // retainLocked sets the retain-until time (mtime) and the immutable flag.
 func (s *Store) retainLocked(p string, until time.Time) error {
-	if err := setImmutable(p, false); err != nil {
+	if err := setImmutableAttr(p, false); err != nil {
 		return err
 	}
 	if err := os.Chtimes(p, s.now(), until); err != nil {
 		return err
 	}
-	return setImmutable(p, true)
+	return setImmutableAttr(p, true)
 }
 
 func sameContent(p string, sum []byte) (bool, error) {
@@ -326,7 +326,7 @@ func (s *Store) Remove(name string) error {
 		s.deleted[name] = now.Unix()
 		return s.appendLogLocked("D", now.Unix(), name)
 	}
-	if err := setImmutable(p, false); err != nil {
+	if err := setImmutableAttr(p, false); err != nil {
 		return err
 	}
 	return os.Remove(p)
@@ -387,7 +387,7 @@ func (s *Store) Sweep() (removed int, err error) {
 		if err != nil || now.Before(fi.ModTime()) {
 			continue
 		}
-		if err := setImmutable(p, false); err != nil {
+		if err := setImmutableAttr(p, false); err != nil {
 			return removed, err
 		}
 		if err := os.Remove(p); err != nil {
@@ -595,3 +595,7 @@ func (s *Store) Usage(prefix string) (int64, error) {
 	})
 	return n, err
 }
+
+// setImmutableAttr sets the immutable attribute; tests on machines without
+// CAP_LINUX_IMMUTABLE (CI runners) replace it with a no-op.
+var setImmutableAttr = setImmutable

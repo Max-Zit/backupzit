@@ -24,6 +24,13 @@ func newTestServer(t *testing.T) *testServer {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if store.CheckImmutable() != nil {
+		// No CAP_LINUX_IMMUTABLE (e.g. CI runners): the limits do not depend
+		// on the attribute.
+		prev := setImmutableAttr
+		setImmutableAttr = func(string, bool) error { return nil }
+		t.Cleanup(func() { setImmutableAttr = prev })
+	}
 	srv := &Server{Store: store, Keys: NewKeys(t.TempDir() + "/keys"), Log: slog.New(slog.NewTextHandler(io.Discard, nil)), MetricsToken: "metrics-secret"}
 	return &testServer{t: t, srv: srv, h: srv.Handler()}
 }
