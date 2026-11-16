@@ -9,6 +9,7 @@
   <li>Selecteer in <a href="/jobs">Back-uptaken</a> die agent en kies <b>Virtuele machines (Proxmox VE, Hyper-V, VMware)</b>. Kies daarna:
     <ul>
       <li><b>Alle VM's (en containers) op de host</b>, wat ook later gemaakte VM's omvat;</li>
+      <li><b>Alle VM's op de host behalve de aangevinkte</b>, bijv. zonder de VM van de BackupZit-console; later gemaakte VM's worden ook meegenomen;</li>
       <li>afzonderlijke VM's, door ze aan te vinken.</li>
     </ul>
   </li>
@@ -35,6 +36,9 @@
 <p id="vtpm-integrity">De integriteitscontrole van de repository controleert ook de opgeslagen gaststatus. Controleer na het bijwerken bestaande repositories en kopieën; een update kan een al verwijderde gaststatus niet herstellen. Gebruik een intacte kopie of maak een nieuwe back-up als deze ontbreekt.</p>
 <p>Voorbeeld uit het testlab: een Linux-VM met een schijf van 3 GB. De eerste back-up las 3 GB. De volgende, na 64 MB nieuwe gegevens, las 96 MB.</p>
 <p>Op Windows 10/11 maakt Hyper-V een automatisch controlepunt wanneer een VM start, tenzij die optie in de VM-instellingen is uitgeschakeld. BackupZit kan met zulke controlepunten omgaan, maar voor servers wilt u automatische controlepunten uitschakelen (VM-instellingen → Controlepunten).</p>
+
+<h2 id="exclude-disks">Schijven weglaten</h2>
+<p id="exclude-disks-1">Dataschijven die op een andere manier worden geback-upt kunnen worden weggelaten: vermeld ze in de taak onder <b>Schijven uitsluiten</b>, één per regel, als bestandsnaampatroon (<code>*-data.vhdx</code>) of volledig pad (<code>D:\VMs\SQL01\data.vhdx</code>); hoofdletters maken niet uit. De pagina van de uitvoering toont de uitgesloten schijven van elke VM. Een als nieuwe VM teruggezette VM krijgt alleen de geback-upte schijven; bij terugzetten op dezelfde plek blijven de uitgesloten schijven ongewijzigd gekoppeld. Een VM waarvan alle schijven zijn uitgesloten, wordt niet geback-upt. Agents ouder dan 0.49 kunnen geen schijven uitsluiten, dus de console start zo’n taak niet op hen.</p>
 
 <h2>Een VM herstellen</h2>
 <p>Open de run van de VM-back-up (vanaf de taakpagina of <a href="/runs">Activiteit</a>) en gebruik <b>Een Hyper-V-VM herstellen</b>.</p>

@@ -29,6 +29,7 @@
   <li>Adicione o destino S3 e marque <b>Backups imutáveis por N dias</b>. Escolha N pelo menos tão longo quanto a maior retenção que você precisa proteger, por ex. 30.</li>
 </ol>
 <p>Cada ponto de restauração fica bloqueado por pelo menos N dias após sua criação; dados compartilhados com backups mais novos são prorrogados automaticamente.</p>
+<p id="lock-retained">Após cada cópia, o agente prolonga o bloqueio de todos os dados que a retenção da tarefa ainda guarda, e não só dos dados que a nova cópia reutiliza: uma cópia mensal guardada durante um ano fica bloqueada nesse ano. Isto aplica-se ao S3 Object Lock e ao repositório reforçado. Se encurtar a retenção para libertar espaço, o espaço só volta quando os bloqueios existentes terminarem, até um período e meio de bloqueio depois.</p>
 
 <h2>Repositório protegido</h2>
 <p>Um servidor Linux dedicado executando <code>backupzit-repo</code>:</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>Após a configuração, <b>desative o SSH e outros acessos remotos</b> no servidor do repositório e proteja o acesso ao console local / iDRAC / iLO / hipervisor. A proteção é tão forte quanto a conta root dessa máquina.</p></div>
+<p id="hardened-keys-limit">Associe cada chave de acesso a um caminho do repositório e limite-a (consulte <a href="/docs/storage">Destinos de armazenamento</a>), para que um computador comprometido não possa ler nem encher as cópias de outros computadores.</p>
+<p id="hardened-metrics">Para monitorização, defina <code>BACKUPZIT_REPO_METRICS_TOKEN</code> em <code>repo.env</code>. O servidor oferece então métricas Prometheus por chave de acesso em <code>https://&lt;server&gt;:8500/metrics</code> (cabeçalho <code>Authorization: Bearer &lt;token&gt;</code>): ficheiros e bytes novos, bytes novos de hoje, eliminações, pedidos de retenção, pedidos recusados por motivo (path, quota, daily, rate) e espaço usado. Estes números vêm do servidor, por isso um computador comprometido não os pode falsificar: crie alertas, por exemplo, para um salto súbito de eliminações ou de dados novos.</p>
 
 <h2>Recuperação após um ataque</h2>
 <p>Se um atacante excluiu ou sobrescreveu backups, leia o armazenamento <b>como ele era antes do ataque</b> — é somente leitura e não altera nada:</p>

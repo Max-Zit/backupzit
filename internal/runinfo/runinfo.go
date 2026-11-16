@@ -34,6 +34,8 @@ type GuestSummary struct {
 	// Changed is the number of disks of which only the blocks changed
 	// since the previous backup were read (changed block tracking).
 	Changed int `json:"changed,omitempty"`
+	// Excluded are the disk files the job left out of the backup.
+	Excluded []string `json:"excluded,omitempty"`
 }
 
 // Guests lists the guests of a VM backup.
@@ -41,6 +43,9 @@ func Guests(sn *repo.Snapshot) json.RawMessage {
 	var sum []GuestSummary
 	for _, g := range sn.Guests {
 		s := GuestSummary{VMID: g.VMID, Type: g.Type, Name: g.Name, Consistency: g.Consistency, Disks: len(g.Disks), Platform: g.Platform}
+		for _, d := range g.ExcludedDisks {
+			s.Excluded = append(s.Excluded, d.Path)
+		}
 		for _, d := range g.Disks {
 			s.Size += d.Size
 			if d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {

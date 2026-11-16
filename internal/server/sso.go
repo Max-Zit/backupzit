@@ -19,6 +19,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,6 +48,9 @@ type SSOSettings struct {
 	Issuer       string `json:"issuer,omitempty"`
 	ClientID     string `json:"client_id,omitempty"`
 	ClientSecret string `json:"client_secret,omitempty"`
+	// Scopes are requested in addition to openid, profile, email (and
+	// groups when the provider offers it), separated by spaces.
+	Scopes string `json:"scopes,omitempty"`
 	// SAML: the identity provider's metadata, by URL or pasted.
 	MetadataURL string `json:"metadata_url,omitempty"`
 	MetadataXML string `json:"metadata_xml,omitempty"`
@@ -229,6 +233,13 @@ func (c SSOSettings) cacheKey() string {
 }
 
 func (s *Server) oidcConfig(ctx context.Context, c SSOSettings, r *http.Request) (*oauth2.Config, *oidc.IDTokenVerifier, error) {
+	oc, v, _, err := s.oidcProvider(ctx, c, r)
+	return oc, v, err
+}
+
+// oidcProvider is oidcConfig that also returns the provider (for its
+// userinfo endpoint).
+func (s *Server) oidcProvider(ctx context.Context, c SSOSettings, r *http.Request) (*oauth2.Config, *oidc.IDTokenVerifier, *oidc.Provider, error) {
 	ssoProviders.mu.Lock()
 	defer ssoProviders.mu.Unlock()
 	if ssoProviders.key != c.cacheKey() || ssoProviders.provider == nil {
@@ -236,15 +247,39 @@ func (s *Server) oidcConfig(ctx context.Context, c SSOSettings, r *http.Request)
 		defer cancel()
 		p, err := oidc.NewProvider(oidc.ClientContext(pctx, c.httpClient()), strings.TrimRight(c.Issuer, "/"))
 		if err != nil {
-			return nil, nil, fmt.Errorf("identity provider %s: %w", c.Issuer, err)
+			return nil, nil, nil, fmt.Errorf("identity provider %s: %w", c.Issuer, err)
 		}
 		ssoProviders.key, ssoProviders.provider = c.cacheKey(), p
 	}
 	p := ssoProviders.provider
-	scopes := []string{oidc.ScopeOpenID, "profile", "email"}
+	var disc struct {
+		Scopes []string `json:"scopes_supported"`
+	}
+	_ = p.Claims(&disc)
 	return &oauth2.Config{ClientID: c.ClientID, ClientSecret: c.ClientSecret, Endpoint: p.Endpoint(),
-			RedirectURL: s.baseURL(r) + "/login/sso/callback", Scopes: scopes},
-		p.Verifier(&oidc.Config{ClientID: c.ClientID}), nil
+			RedirectURL: s.baseURL(r) + "/login/sso/callback", Scopes: oidcScopes(c, disc.Scopes)},
+		p.Verifier(&oidc.Config{ClientID: c.ClientID}), p, nil
+}
+
+// oidcScopes are the scopes a sign-in requests: openid, profile and email,
+// "groups" when the provider lists it in scopes_supported (Authelia,
+// Keycloak, authentik and others send group claims only for it; providers
+// such as Entra ID can refuse an unknown scope, so it is not requested
+// blindly), and the configured additional scopes.
+func oidcScopes(c SSOSettings, supported []string) []string {
+	scopes := []string{oidc.ScopeOpenID, "profile", "email"}
+	add := func(sc string) {
+		if sc != "" && !slices.Contains(scopes, sc) {
+			scopes = append(scopes, sc)
+		}
+	}
+	if slices.Contains(supported, "groups") {
+		add("groups")
+	}
+	for _, sc := range strings.Fields(c.Scopes) {
+		add(sc)
+	}
+	return scopes
 }
 
 // serviceProvider is the console as a SAML service provider.
@@ -353,7 +388,7 @@ func (s *Server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		s.ssoFailed(w, r, fmt.Errorf("the identity provider refused the sign-in: %s %s", e, r.FormValue("error_description")))
 		return
 	}
-	oc, verifier, err := s.oidcConfig(r.Context(), c, r)
+	oc, verifier, provider, err := s.oidcProvider(r.Context(), c, r)
 	if err != nil {
 		s.ssoFailed(w, r, err)
 		return
@@ -379,8 +414,38 @@ func (s *Server) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := firstString(claims, c.UsernameClaim, "preferred_username", "upn", "email", "sub")
-	groups := stringList(claims[orDefault(c.GroupsClaim, "groups")])
+	groupsClaim := orDefault(c.GroupsClaim, "groups")
+	groups := stringList(claims[groupsClaim])
+	if _, inToken := claims[groupsClaim]; !inToken && provider.UserInfoEndpoint() != "" {
+		// Providers such as Authelia put the groups only into the userinfo
+		// response by default.
+		groups = s.oidcUserInfoGroups(r.Context(), c, provider, tok, idt.Subject, groupsClaim)
+	}
 	s.ssoSignIn(w, r, c, name, firstString(claims, "name"), firstString(claims, "email"), groups)
+}
+
+// oidcUserInfoGroups reads the groups claim from the userinfo endpoint. The
+// response must be about the same subject as the ID token (OpenID Connect
+// Core 5.3.2). A failure leaves the user without groups (the default role,
+// if any, then applies) and is logged.
+func (s *Server) oidcUserInfoGroups(ctx context.Context, c SSOSettings, p *oidc.Provider, tok *oauth2.Token, sub, claim string) []string {
+	ctx, cancel := context.WithTimeout(oidc.ClientContext(ctx, c.httpClient()), 15*time.Second)
+	defer cancel()
+	ui, err := p.UserInfo(ctx, oauth2.StaticTokenSource(tok))
+	if err != nil {
+		s.log.Warn("single sign-on: userinfo request failed", "err", err)
+		return nil
+	}
+	if ui.Subject != sub {
+		s.log.Warn("single sign-on: userinfo is about another subject; groups ignored")
+		return nil
+	}
+	var claims map[string]any
+	if err := ui.Claims(&claims); err != nil {
+		s.log.Warn("single sign-on: userinfo claims", "err", err)
+		return nil
+	}
+	return stringList(claims[claim])
 }
 
 func (s *Server) handleSAMLACS(w http.ResponseWriter, r *http.Request) {
@@ -629,7 +694,7 @@ func (s *Server) handleSettingsSSO(w http.ResponseWriter, r *http.Request, user 
 	const back = "/settings/sso"
 	old := s.ssoSettings(r.Context())
 	t := func(k string) string { return strings.TrimSpace(r.FormValue(k)) }
-	c := SSOSettings{Protocol: t("protocol"), Label: t("label"), Issuer: t("issuer"), ClientID: t("client_id"), ClientSecret: r.FormValue("client_secret"),
+	c := SSOSettings{Protocol: t("protocol"), Label: t("label"), Issuer: t("issuer"), ClientID: t("client_id"), ClientSecret: r.FormValue("client_secret"), Scopes: t("scopes"),
 		MetadataURL: t("metadata_url"), MetadataXML: t("metadata_xml"), CACert: t("ca_cert"), UsernameClaim: t("username_claim"), GroupsClaim: t("groups_claim"),
 		AdminGroup: t("admin_group"), OperatorGroup: t("operator_group"), RestoreGroup: t("restore_group"), ViewerGroup: t("viewer_group"),
 		DefaultRole: t("default_role"), SPKey: old.SPKey, SPCert: old.SPCert}

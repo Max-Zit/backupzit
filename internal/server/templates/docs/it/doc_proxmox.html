@@ -11,6 +11,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Entro un minuto il nodo compare nella pagina Agenti con il badge <b>Proxmox VE · N guests</b>.</li>
   <li>In <a href="/jobs">Job di backup</a> seleziona quell'agente e scegli <b>Macchine virtuali (Proxmox VE, Hyper-V, VMware)</b>. Poi scegli <b>Tutte le VM (e i container) dell’host</b> (i guest creati in seguito sono inclusi automaticamente) oppure selezionane alcuni.</li>
 </ol>
+<p id="pve-except">Per escludere singoli guest, ad es. la VM della console BackupZit, scegliere <b>Tutte le VM (e i container) dell’host tranne quelle selezionate</b> e selezionarli.</p>
 <p>L'agente usa gli strumenti propri del nodo (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); nella console non viene memorizzato alcun token API né password.</p>
 
 <h2>Come viene salvato un guest</h2>

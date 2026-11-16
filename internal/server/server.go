@@ -200,10 +200,12 @@ var funcs = template.FuncMap{
 	},
 	"schedule": DescribeSchedule,
 	"imagesel": DescribeImageSelection,
-	"vmsel":    DescribeVMSelection,
-	"bytes64":  func(n int64) string { return humanBytes(uint64(n)) },
-	"upper":    strings.ToUpper,
-	"seq":      func(n int) []int { return make([]int, n) },
+	"vmsel": func(paths []string, exclude ...[]string) string {
+		return describeVMSelection(languages[0], paths, exclude...)
+	},
+	"bytes64": func(n int64) string { return humanBytes(uint64(n)) },
+	"upper":   strings.ToUpper,
+	"seq":     func(n int) []int { return make([]int, n) },
 	"deref64": func(p *int64) int64 {
 		if p == nil {
 			return 0
@@ -922,11 +924,11 @@ func (s *Server) handleTargetCreate(w http.ResponseWriter, r *http.Request, _ st
 	// Test it right away, so a typo shows now and not at the first backup.
 	if saved, err := s.store.GetTarget(r.Context(), id); err == nil && saved.Kind != "local" && saved.Kind != "usb" {
 		l := requestLanguage(r)
-		ok, terr := testTarget(r.Context(), saved)
+		ok, note, terr := testTargetLock(r.Context(), saved)
 		if msg, terr := targetTestMessage(l, saved.Name, ok, terr); terr != nil {
 			redirectErr(w, r, "/targets", fmt.Errorf("%s %w", l.T("Storage target added."), terr))
 		} else {
-			redirectMsg(w, r, "/targets", l.T("Storage target added.")+" "+msg)
+			redirectMsg(w, r, "/targets", l.T("Storage target added.")+" "+msg+note.text(l))
 		}
 		return
 	}
@@ -1046,12 +1048,7 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request, _ strin
 		}
 	}
 	if job.Kind == JobVM {
-		job.Excludes = nil
-		if r.FormValue("vm_mode") == "all" {
-			job.Paths = []string{"*"}
-		} else {
-			job.Paths = r.Form["vms"]
-		}
+		job.Paths, job.Excludes = vmFormSelection(r)
 	}
 	if job.Kind == JobImage {
 		if d, err := strconv.Atoi(r.FormValue("image_disk")); err == nil {

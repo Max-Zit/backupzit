@@ -134,12 +134,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><th>Komanda</th><th>Šta radi</th></tr>
   <tr><td><code>backupzit-repo serve</code></td><td>Pokreće servis (to radi systemd).</td></tr>
   <tr><td><code>backupzit-repo add-key NAME</code></td><td>Pravi pristupni ključ (prikazuje se jednom).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME --path PATH --quota SIZE --daily SIZE --rate N</code></td><td>Pristupni ključ vezan za jednu putanju repozitorijuma i ograničen (vidite <a href="/docs/storage">Storage destinacije</a>).</td></tr>
+  <tr><td><code>backupzit-repo set-key NAME --quota SIZE</code></td><td>Menja putanju ili ograničenja ključa; <code>none</code> uklanja jedno.</td></tr>
   <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Navodi / opoziva pristupne ključeve.</td></tr>
   <tr><td><code>backupzit-repo fingerprint</code></td><td>Otisak sertifikata za konzolu.</td></tr>
   <tr><td><code>backupzit-repo status</code></td><td>Sačuvani i sakriveni (obrisani, još zadržani) podaci.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Ponovo čini vidljivim fajlove obrisane od TIME.</td></tr>
 </table>
 <p>Konfiguracija: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> uključuje Prometheus metrike po pristupnom ključu na <code>/metrics</code> (zaglavlje <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Server za upravljanje (<code>backupzit-server</code>)</h2>
 <table>

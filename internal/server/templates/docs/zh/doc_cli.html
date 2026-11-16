@@ -134,12 +134,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><th>命令</th><th>作用</th></tr>
   <tr><td><code>backupzit-repo serve</code></td><td>运行服务（由 systemd 负责）。</td></tr>
   <tr><td><code>backupzit-repo add-key NAME</code></td><td>创建访问密钥（只显示一次）。</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME --path PATH --quota SIZE --daily SIZE --rate N</code></td><td>绑定到存储库一个路径并受限制的访问密钥（参见<a href="/docs/storage">存储目标</a>）。</td></tr>
+  <tr><td><code>backupzit-repo set-key NAME --quota SIZE</code></td><td>修改密钥的路径或限制；<code>none</code> 表示取消某项限制。</td></tr>
   <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>列出 / 吊销访问密钥。</td></tr>
   <tr><td><code>backupzit-repo fingerprint</code></td><td>供控制台使用的证书指纹。</td></tr>
   <tr><td><code>backupzit-repo status</code></td><td>已存储和隐藏（已删除、仍保留）的数据。</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>使自 TIME 以来删除的文件重新可见。</td></tr>
 </table>
 <p>配置：<code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>、<code>BACKUPZIT_REPO_DATA</code>、<code>BACKUPZIT_REPO_LISTEN</code>、<code>BACKUPZIT_REPO_TLS_HOSTS</code>。</p>
+<p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> 会在 <code>/metrics</code> 上按访问密钥启用 Prometheus 指标（请求头 <code>Authorization: Bearer &lt;token&gt;</code>）。</p>
 
 <h2>管理服务器（<code>backupzit-server</code>）</h2>
 <table>

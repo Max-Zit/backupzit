@@ -27,6 +27,7 @@
 <p>输入端点（例如 <code>s3.eu-central-1.amazonaws.com</code>、<code>s3.wasabisys.com</code>、<code>10.0.0.5:9000</code>）、存储桶、可选文件夹，以及对该存储桶具有读写权限的访问密钥。仅在本地 MinIO 没有证书时才勾选<i>明文 HTTP</i>。</p>
 <h3>不可变备份（Object Lock）</h3>
 <p>创建存储桶时<b>启用 Object Lock</b>，并勾选<i>不可变备份 … N 天</i>。代理写入的每个文件都会以<b>合规模式</b>锁定 N 天（另加 1 天余量）：在此之前，任何人——无论是持有密钥的攻击者还是存储桶所有者——都无法删除或覆盖它。每次备份后，从旧备份复用的数据的锁定期会被延长，因此每个还原点在整个期限内都受到保护。</p>
+<p id="s3-default-retention">还要为存储桶设置至少 N 天、<b>合规模式</b>的<b>默认保留</b>（AWS：<i>Object Lock → Default retention</i>；MinIO：<code>mc retention set --default COMPLIANCE 30d</code>）。这样存储桶会自行锁定每个新对象，即使被入侵的计算机写入时未加锁。若默认保留缺失或短于 N 天，目标的连接测试会发出警告。</p>
 <p>删除（由保留策略或攻击者执行）只会添加一个“删除标记”。请添加一条生命周期规则，让<i>非当前版本</i>在一天后过期，以便锁定结束后释放空间。参见 <a href="/docs/ransomware">勒索软件防护</a>。</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # shows the access key once
 backupzit-repo fingerprint                # certificate fingerprint</pre>
 <p>在控制台中输入服务器地址、访问密钥和指纹。不可变期在存储库服务器上配置（<code>/etc/backupzit-repo/repo.env</code>），无法从控制台或代理更改。详情见 <a href="/docs/ransomware">勒索软件防护</a>。</p>
+<p id="hardened-key-limits">访问密钥可以绑定到存储库的一个路径并加以限制。为每台计算机配置自己的存储目标和密钥，这样被入侵的计算机只能访问它自己的备份：</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # 修改限制；none 表示取消
+backupzit-repo keys                           # 密钥及其限制</pre>
+<p id="hardened-key-limits-2">使用 <code>--path</code> 后，对该密钥而言 <code>hardened://server/office/pc-anna</code> 之外的内容都不存在。<code>--quota</code> 限制该路径下存储的数据（已删除但仍在保留期内的文件也计入），<code>--daily</code> 限制每天（UTC）的新数据，<code>--rate</code> 限制每分钟的写入请求。限制只会拒绝新的上传，备份随之失败并给出提示；它从不删除或缩短任何内容，读取和还原也从不受限。不带选项时密钥没有限制，因此不会意外阻止较大的首次备份。</p>
 
 <h2>加密和恢复密钥</h2>
 <p>启用<i>加密备份</i>（默认）时，存储库中的所有内容——文件内容、文件名、文件夹结构、快照列表——在离开代理前都会使用 <b>AES-256-GCM</b> 加密。存储提供商只能看到随机数据。</p>

@@ -27,6 +27,7 @@
 <p>Enter the endpoint (e.g. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket, optional folder and an access key with read/write access to that bucket. Tick <i>Plain HTTP</i> only for a local MinIO without a certificate.</p>
 <h3>Immutable backups (Object Lock)</h3>
 <p>Create the bucket with <b>Object Lock enabled</b> and tick <i>Immutable backups … for N days</i>. Every file the agents write is locked in <b>compliance mode</b> for N days (+1 day margin): nobody — not an attacker with the keys, not the bucket owner — can delete or overwrite it before then. After each backup, data reused from older backups gets its lock extended, so every restore point is protected for the full period.</p>
+<p id="s3-default-retention">Also give the bucket a <b>default retention</b> in <b>compliance mode</b> of at least N days (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). The bucket then locks every new object itself, even one that a compromised computer writes without a lock. The connection test of the target warns when the default retention is missing or shorter than N days.</p>
 <p>Deleting (by retention or by an attacker) only adds a "delete marker". Add a lifecycle rule that expires <i>noncurrent versions</i> after one day, so space is freed once locks end. See <a href="/docs/ransomware">Ransomware protection</a>.</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # shows the access key once
 backupzit-repo fingerprint                # certificate fingerprint</pre>
 <p>Enter the server address, the access key and the fingerprint in the console. The immutability period is configured on the repository server (<code>/etc/backupzit-repo/repo.env</code>) and cannot be changed from the console or agents. Details in <a href="/docs/ransomware">Ransomware protection</a>.</p>
+<p id="hardened-key-limits">An access key can be bound to one repository path and limited. Give every computer its own storage target and key, so that a compromised computer reaches only its own backups:</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # change a limit; none removes it
+backupzit-repo keys                           # keys and their limits</pre>
+<p id="hardened-key-limits-2">With <code>--path</code>, nothing outside <code>hardened://server/office/pc-anna</code> exists for the key. <code>--quota</code> limits the data stored below the path (deleted files count while they are retained), <code>--daily</code> the new data per day (UTC), <code>--rate</code> the write requests per minute. A limit only refuses new uploads, and the backup then fails with a message; it never deletes or shortens anything, and reading and restoring are never limited. Without options a key has no limits, so a large first backup is not blocked by accident.</p>
 
 <h2>Encryption and the recovery key</h2>
 <p>With <i>Encrypt backups</i> (the default), everything in the repository — file contents, file names, folder structure, snapshot lists — is encrypted with <b>AES-256-GCM</b> before it leaves the agent. The storage provider sees only random data.</p>

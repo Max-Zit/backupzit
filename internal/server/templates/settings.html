@@ -515,6 +515,7 @@ systemctl start backupzit-server</pre></li>
         <label>{{T "Client ID"}}<input name="client_id" value="{{.ClientID}}" class="mono"></label>
         <label>{{T "Client secret"}} <small>{{if .HasSecret}}{{T "stored — leave empty to keep it"}}{{end}}</small><input name="client_secret" type="password" autocomplete="new-password"></label>
       </div>
+      <label>{{T "Additional scopes"}} <small>{{T "optional, separated by spaces; openid, profile and email are always requested, groups when the identity provider offers it"}}</small><input name="scopes" value="{{.Scopes}}" class="mono" placeholder="offline_access"></label>
     </fieldset>
     <fieldset>
       <legend>{{T "SAML 2.0"}}</legend>

@@ -342,7 +342,9 @@ document.addEventListener("change", function (e) {
   if (e.target.id === "group_scope") syncGroupScope();
   if (e.target.id === "agent_sel") renderDiskPicker();
   if (e.target.id === "agent_sel") renderVMPicker();
-  if (e.target.name === "vms") { var s = document.querySelector("input[name=vm_mode][value=selected]"); if (s) s.checked = true; }
+  // Ticking a VM while "All VMs" is chosen means "only these"; with "all
+  // except" the ticked VMs are the exceptions.
+  if (e.target.name === "vms") { var all = document.querySelector("input[name=vm_mode][value=all]"), s = document.querySelector("input[name=vm_mode][value=selected]"); if (all && all.checked && s) s.checked = true; }
   if (e.target.name === "image_disk") syncDiskChoice();
   if (e.target.id === "restore_agent") renderRestoreDisks();
 });

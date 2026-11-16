@@ -134,12 +134,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><th>Komut</th><th>Ne yapar</th></tr>
   <tr><td><code>backupzit-repo serve</code></td><td>Hizmeti çalıştırır (bunu systemd yapar).</td></tr>
   <tr><td><code>backupzit-repo add-key NAME</code></td><td>Bir erişim anahtarı oluşturur (bir kez gösterilir).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME --path PATH --quota SIZE --daily SIZE --rate N</code></td><td>Tek bir depo yoluna bağlı ve sınırlanmış erişim anahtarı (bkz. <a href="/docs/storage">Depolama hedefleri</a>).</td></tr>
+  <tr><td><code>backupzit-repo set-key NAME --quota SIZE</code></td><td>Bir anahtarın yolunu veya sınırlarını değiştirir; <code>none</code> birini kaldırır.</td></tr>
   <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Erişim anahtarlarını listele / iptal et.</td></tr>
   <tr><td><code>backupzit-repo fingerprint</code></td><td>Konsol için sertifika parmak izi.</td></tr>
   <tr><td><code>backupzit-repo status</code></td><td>Saklanan ve gizli (silinmiş, hâlâ tutulan) veriler.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>TIME'dan beri silinen dosyaları yeniden görünür yapar.</td></tr>
 </table>
 <p>Yapılandırma: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code>, <code>/metrics</code> adresinde erişim anahtarı başına Prometheus metriklerini açar (başlık <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Yönetim sunucusu (<code>backupzit-server</code>)</h2>
 <table>

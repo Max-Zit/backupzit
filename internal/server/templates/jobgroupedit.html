@@ -7,9 +7,11 @@
     <label>{{T "Name"}} <input name="name" required value="{{.Name}}"></label>
     {{if eq .Kind "vm"}}<input type="hidden" name="scope" value="hvcluster">
     <p>{{T "Hyper-V cluster"}}: <b>{{.Options.HVCluster}}</b> <small class="muted">{{T "all its nodes; nodes added to the cluster later join automatically"}}</small></p>
-    <label class="check"><input type="radio" name="vm_mode" value="all" {{if eq (join .Paths ",") "*"}}checked{{end}}> {{T "All clustered VMs"}} <small>{{T "VMs added to the cluster later are included automatically"}}</small></label>
-    <label class="check"><input type="radio" name="vm_mode" value="selected" {{if ne (join .Paths ",") "*"}}checked{{end}}> {{T "Only these:"}}</label>
-    <div class="disks">{{range $.Data.ClusterGuests}}<label class="check"><input type="checkbox" name="vms" value="{{.VMID}}" {{if has $g.Paths (printf "%d" .VMID)}}checked{{end}}> {{.Name}} <small class="muted">{{.Node}}</small></label>{{end}}</div>
+    {{$all := eq (join .Paths ",") "*"}}{{$sel := .Paths}}{{if $all}}{{$sel = .Excludes}}{{end}}
+    <label class="check"><input type="radio" name="vm_mode" value="all" {{if and $all (not .Excludes)}}checked{{end}}> {{T "All clustered VMs"}} <small>{{T "VMs added to the cluster later are included automatically"}}</small></label>
+    <label class="check"><input type="radio" name="vm_mode" value="except" {{if and $all .Excludes}}checked{{end}}> {{T "All clustered VMs except the ticked ones"}} <small>{{T "VMs added to the cluster later are included automatically"}}</small></label>
+    <label class="check"><input type="radio" name="vm_mode" value="selected" {{if not $all}}checked{{end}}> {{T "Only these:"}}</label>
+    <div class="disks">{{range $.Data.ClusterGuests}}<label class="check"><input type="checkbox" name="vms" value="{{.VMID}}" {{if has $sel (printf "%d" .VMID)}}checked{{end}}> {{.Name}} <small class="muted">{{.Node}}</small></label>{{end}}</div>
     {{else}}
     <label>{{T "Agents"}}
       <select name="scope" id="group_scope">

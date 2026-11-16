@@ -383,10 +383,7 @@ func groupFromForm(r *http.Request, g JobGroup) JobGroup {
 	g.Name = r.FormValue("name")
 	g.Paths, g.Excludes = lines(r.FormValue("paths")), lines(r.FormValue("excludes"))
 	if g.Kind == JobVM {
-		g.Paths, g.Excludes = r.Form["vms"], nil
-		if r.FormValue("vm_mode") == "all" {
-			g.Paths = []string{"*"}
-		}
+		g.Paths, g.Excludes = vmFormSelection(r)
 	}
 	return g
 }

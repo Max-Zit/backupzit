@@ -9,6 +9,7 @@
   <li>En <a href="/jobs">Trabajos de copia</a> seleccione ese agente y elija <b>Máquinas virtuales (Proxmox VE, Hyper-V, VMware)</b>. Después elija:
     <ul>
       <li><b>Todas las VM (y contenedores) del host</b>, lo que incluye también las VM creadas más tarde;</li>
+      <li><b>Todas las VM del host excepto las marcadas</b>, p. ej., sin la VM de la consola de BackupZit; las VM creadas más tarde también se incluyen;</li>
       <li>VM concretas, marcándolas.</li>
     </ul>
   </li>
@@ -35,6 +36,9 @@
 <p id="vtpm-integrity">La comprobación de integridad del repositorio también verifica el estado guardado del invitado. Después de actualizar, compruebe los repositorios y las copias existentes; una actualización no puede recuperar un estado del invitado que ya se haya eliminado. Si falta, utilice una copia intacta o cree una nueva copia de seguridad.</p>
 <p>Ejemplo del laboratorio de pruebas: una VM Linux con un disco de 3 GB. La primera copia leyó 3 GB. La siguiente, tras 64 MB de datos nuevos, leyó 96 MB.</p>
 <p>En Windows 10/11, Hyper-V crea un punto de control automático al iniciar una VM, salvo que esa opción esté desactivada en la configuración de la VM. BackupZit gestiona esos puntos de control, pero en servidores conviene desactivar los puntos de control automáticos (configuración de la VM → Puntos de control).</p>
+
+<h2 id="exclude-disks">Dejar fuera discos</h2>
+<p id="exclude-disks-1">Los discos de datos que se copian de otra forma pueden dejarse fuera: indíquelos en la tarea en <b>Excluir discos</b>, uno por línea, como patrón de nombre de archivo (<code>*-data.vhdx</code>) o ruta completa (<code>D:\VMs\SQL01\data.vhdx</code>); no se distinguen mayúsculas y minúsculas. La página de la ejecución muestra los discos excluidos de cada VM. Una VM restaurada como VM nueva recibe solo los discos copiados; una restauración en el mismo lugar deja los discos excluidos conectados sin cambios. Una VM con todos sus discos excluidos no se copia. Los agentes anteriores a 0.49 no pueden excluir discos, así que la consola no inicia una tarea así en ellos.</p>
 
 <h2>Restaurar una VM</h2>
 <p>Abra la ejecución de la copia de VM (desde la página del trabajo o <a href="/runs">Actividad</a>) y use <b>Restaurar una VM de Hyper-V</b>.</p>

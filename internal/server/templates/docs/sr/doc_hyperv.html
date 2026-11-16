@@ -9,6 +9,7 @@
   <li>U <a href="/jobs">Poslovi bekapa</a> izaberite tog agenta i <b>Virtuelne mašine (Proxmox VE, Hyper-V, VMware)</b>. Zatim izaberite:
     <ul>
       <li><b>Svi VM-ovi (i kontejneri) na hostu</b>, što obuhvata i virtuelne mašine napravljene kasnije;</li>
+      <li><b>Sve VM na hostu osim označenih</b>, npr. bez VM-a BackupZit konzole; VM napravljene kasnije su takođe obuhvaćene;</li>
       <li>pojedinačne virtuelne mašine, označavanjem.</li>
     </ul>
   </li>
@@ -35,6 +36,9 @@
 <p id="vtpm-integrity">Provera integriteta repozitorijuma proverava i sačuvano stanje gosta. Posle ažuriranja proverite postojeće repozitorijume i kopije; ažuriranje ne može da vrati stanje gosta koje je već obrisano. Ako nedostaje, upotrebite neoštećenu kopiju ili napravite novu rezervnu kopiju.</p>
 <p>Primer iz test laboratorije: Linux VM sa diskom od 3 GB. Prvi bekap je pročitao 3 GB. Sledeći, posle 64 MB novih podataka, pročitao je 96 MB.</p>
 <p>Na Windowsu 10/11 Hyper-V pravi automatski checkpoint kada se VM pokrene, osim ako ta opcija nije isključena u podešavanjima VM-a. BackupZit radi i sa takvim checkpoint-ima, ali na serverima ćete želeti da automatske checkpoint-e isključite (podešavanja VM-a → Checkpoints).</p>
+
+<h2 id="exclude-disks">Izostavljanje diskova</h2>
+<p id="exclude-disks-1">Diskovi sa podacima koji se bekapuju na drugi način mogu da se izostave: navedite ih u poslu pod <b>Izuzmi diskove</b>, jedan po liniji, kao šablon imena fajla (<code>*-data.vhdx</code>) ili punu putanju (<code>D:\VMs\SQL01\data.vhdx</code>); velika i mala slova nisu bitna. Stranica run-a prikazuje izuzete diskove svake VM. VM vraćena kao nova VM dobija samo bekapovane diskove; vraćanje na isto mesto ostavlja izuzete diskove priključene i nepromenjene. VM čiji su svi diskovi izuzeti se ne bekapuje. Agenti stariji od 0.49 ne mogu da izuzmu diskove, pa konzola na njima ne pokreće takav posao.</p>
 
 <h2>Vraćanje VM-a</h2>
 <p>Otvorite pokretanje VM bekapa (sa stranice posla ili iz <a href="/runs">Aktivnosti</a>) i koristite <b>Vraćanje Hyper-V VM-a</b>.</p>

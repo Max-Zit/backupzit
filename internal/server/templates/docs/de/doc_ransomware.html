@@ -29,6 +29,7 @@
   <li>Fügen Sie das S3-Ziel hinzu und aktivieren Sie <b>Unveränderliche Sicherungen für N Tage</b>. Wählen Sie N mindestens so lang wie die längste Aufbewahrung, die geschützt sein soll, z. B. 30.</li>
 </ol>
 <p>Jeder Wiederherstellungspunkt bleibt mindestens N Tage nach seiner Erstellung gesperrt; Daten, die mit neueren Sicherungen geteilt werden, werden automatisch verlängert.</p>
+<p id="lock-retained">Nach jeder Sicherung verlängert der Agent die Sperre aller Daten, die die Aufbewahrung des Auftrags noch behält, nicht nur der Daten, die die neue Sicherung wiederverwendet: Eine ein Jahr lang behaltene Monatssicherung bleibt dieses Jahr über gesperrt. Das gilt für S3 Object Lock und für das gehärtete Repository. Wenn Sie die Aufbewahrung verkürzen, um Platz zu schaffen, wird der Platz erst frei, wenn die bestehenden Sperren enden, bis zu anderthalb Sperrzeiträume später.</p>
 
 <h2>Gehärtetes Repository</h2>
 <p>Ein eigener Linux-Server mit <code>backupzit-repo</code>:</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>Nach der Einrichtung <b>deaktivieren Sie SSH und anderen Fernzugriff</b> auf dem Repository-Server und schützen Sie den Zugang zu seiner lokalen Konsole / iDRAC / iLO / zum Hypervisor. Der Schutz ist nur so stark wie das root-Konto dieser Maschine.</p></div>
+<p id="hardened-keys-limit">Binden Sie jeden Zugriffsschlüssel an einen Repository-Pfad und begrenzen Sie ihn (siehe <a href="/docs/storage">Speicherziele</a>), damit ein kompromittierter Computer die Sicherungen anderer Computer weder lesen noch füllen kann.</p>
+<p id="hardened-metrics">Für die Überwachung setzen Sie <code>BACKUPZIT_REPO_METRICS_TOKEN</code> in <code>repo.env</code>. Der Server bietet dann Prometheus-Metriken pro Zugriffsschlüssel unter <code>https://&lt;server&gt;:8500/metrics</code> an (Header <code>Authorization: Bearer &lt;token&gt;</code>): neue Dateien und Bytes, neue Bytes heute, Löschungen, Aufbewahrungsanfragen, abgelehnte Anfragen nach Grund (path, quota, daily, rate) und belegten Platz. Diese Zahlen stammen vom Server, ein kompromittierter Computer kann sie also nicht fälschen: Alarmieren Sie zum Beispiel bei einem plötzlichen Anstieg der Löschungen oder neuen Daten.</p>
 
 <h2>Wiederherstellung nach einem Angriff</h2>
 <p>Hat ein Angreifer Sicherungen gelöscht oder überschrieben, lesen Sie den Speicher <b>so, wie er vor dem Angriff war</b> — das ist nur lesend und ändert nichts:</p>

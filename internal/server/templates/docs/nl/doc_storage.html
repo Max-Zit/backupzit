@@ -27,6 +27,7 @@
 <p>Voer het endpoint in (bijv. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), de bucket, een optionele map en een toegangssleutel met lees-/schrijftoegang tot die bucket. Vink <i>Onversleuteld HTTP</i> alleen aan voor een lokale MinIO zonder certificaat.</p>
 <h3>Onveranderlijke back-ups (Object Lock)</h3>
 <p>Maak de bucket met <b>Object Lock ingeschakeld</b> en vink <i>Onveranderlijke back-ups … gedurende N dagen</i> aan. Elk bestand dat de agents schrijven wordt N dagen (+1 dag marge) vergrendeld in <b>compliancemodus</b>: niemand — geen aanvaller met de sleutels, niet de eigenaar van de bucket — kan het daarvoor verwijderen of overschrijven. Na elke back-up wordt de vergrendeling verlengd van gegevens die uit oudere back-ups worden hergebruikt, zodat elk herstelpunt gedurende de volledige periode beschermd is.</p>
+<p id="s3-default-retention">Geef de bucket ook een <b>standaardbewaring</b> in <b>compliancemodus</b> van minstens N dagen (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). De bucket vergrendelt dan zelf elk nieuw object, ook een object dat een gecompromitteerde computer zonder vergrendeling schrijft. De verbindingstest van het doel waarschuwt als de standaardbewaring ontbreekt of korter is dan N dagen.</p>
 <p>Verwijderen (door bewaring of door een aanvaller) voegt alleen een „verwijdermarkering” toe. Voeg een levenscyclusregel toe die <i>niet-actuele versies</i> na één dag laat verlopen, zodat er ruimte vrijkomt zodra de vergrendelingen eindigen. Zie <a href="/docs/ransomware">Ransomwarebescherming</a>.</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # shows the access key once
 backupzit-repo fingerprint                # certificate fingerprint</pre>
 <p>Voer het serveradres, de toegangssleutel en de vingerafdruk in de console in. De onveranderlijkheidsperiode wordt op de repositoryserver ingesteld (<code>/etc/backupzit-repo/repo.env</code>) en kan niet vanuit de console of de agents worden gewijzigd. Details in <a href="/docs/ransomware">Ransomwarebescherming</a>.</p>
+<p id="hardened-key-limits">Een toegangssleutel kan aan één repositorypad worden gebonden en worden beperkt. Geef elke computer een eigen opslagdoel en sleutel, zodat een gecompromitteerde computer alleen zijn eigen back-ups bereikt:</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # limiet wijzigen; none verwijdert hem
+backupzit-repo keys                           # sleutels en hun limieten</pre>
+<p id="hardened-key-limits-2">Met <code>--path</code> bestaat er voor de sleutel niets buiten <code>hardened://server/office/pc-anna</code>. <code>--quota</code> beperkt de gegevens onder het pad (verwijderde bestanden tellen mee zolang ze worden bewaard), <code>--daily</code> de nieuwe gegevens per dag (UTC), <code>--rate</code> de schrijfverzoeken per minuut. Een limiet weigert alleen nieuwe uploads, en de back-up mislukt dan met een melding; hij verwijdert of verkort nooit iets, en lezen en terugzetten zijn nooit beperkt. Zonder opties heeft een sleutel geen limieten, zodat een grote eerste back-up niet per ongeluk wordt geblokkeerd.</p>
 
 <h2>Versleuteling en de herstelsleutel</h2>
 <p>Met <i>Back-ups versleutelen</i> (standaard) wordt alles in de repository — bestandsinhoud, bestandsnamen, mapstructuur, snapshotlijsten — versleuteld met <b>AES-256-GCM</b> voordat het de agent verlaat. De opslagaanbieder ziet alleen willekeurige gegevens.</p>

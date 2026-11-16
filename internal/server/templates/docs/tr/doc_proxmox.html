@@ -11,6 +11,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Bir dakika içinde düğüm Aracılar sayfasında <b>Proxmox VE · N guests</b> rozetiyle görünür.</li>
   <li><a href="/jobs">Yedekleme işleri</a> içinde bu aracıyı seçin ve <b>Sanal makineler (Proxmox VE, Hyper-V, VMware)</b>'ı seçin. Sonra <b>Ana bilgisayardaki tüm VM'ler (ve kapsayıcılar)</b> seçeneğini seçin (sonradan oluşturulan konuklar otomatik dahil edilir) veya tek tek işaretleyin.</li>
 </ol>
+<p id="pve-except">Tek tek konukları, ör. BackupZit konsolunun VM'ini dışarıda bırakmak için <b>İşaretlenenler dışında konaktaki tüm VM'ler (ve kapsayıcılar)</b> seçeneğini seçin ve onları işaretleyin.</p>
 <p>Aracı düğümün kendi araçlarını kullanır (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); konsolda hiçbir API belirteci veya parola saklanmaz.</p>
 
 <h2>Bir konuk nasıl yedeklenir</h2>

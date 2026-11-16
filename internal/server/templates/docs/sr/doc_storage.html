@@ -27,6 +27,7 @@
 <p>Unesite endpoint (npr. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket, opcioni folder i pristupni ključ sa pravom čitanja i pisanja za taj bucket. <i>Običan HTTP</i> označite samo za lokalni MinIO bez sertifikata.</p>
 <h3>Nepromenljivi bekapi (Object Lock)</h3>
 <p>Napravite bucket sa <b>uključenim Object Lock-om</b> i označite <i>Nepromenljivi bekapi … na N dana</i>. Svaki fajl koji agenti upišu zaključava se u <b>compliance režimu</b> na N dana (+1 dan rezerve): niko — ni napadač sa ključevima, ni vlasnik bucketa — ne može da ga obriše ili prepiše pre toga. Posle svakog bekapa podacima koji se ponovo koriste iz starijih bekapa produžava se zaključavanje, pa je svaka tačka vraćanja zaštićena ceo period.</p>
+<p id="s3-default-retention">Bucketu dajte i <b>podrazumevano zadržavanje</b> u <b>compliance režimu</b> od najmanje N dana (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Bucket tada sam zaključava svaki nov objekat, čak i onaj koji kompromitovan računar upiše bez zaključavanja. Test veze destinacije upozorava kada podrazumevano zadržavanje nedostaje ili je kraće od N dana.</p>
 <p>Brisanje (retencijom ili od strane napadača) samo dodaje „oznaku brisanja“. Dodajte lifecycle pravilo koje briše <i>prethodne verzije</i> (noncurrent versions) posle jednog dana, da bi se prostor oslobodio kada zaključavanja isteknu. Vidi <a href="/docs/ransomware">Zaštita od ransomware-a</a>.</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # jednom prikazuje pristupni ključ
 backupzit-repo fingerprint                # otisak sertifikata</pre>
 <p>U konzolu unesite adresu servera, pristupni ključ i otisak. Period nepromenljivosti se podešava na serveru repozitorijuma (<code>/etc/backupzit-repo/repo.env</code>) i ne može da se promeni iz konzole ni sa agenata. Detalji su u <a href="/docs/ransomware">Zaštita od ransomware-a</a>.</p>
+<p id="hardened-key-limits">Pristupni ključ može da se veže za jednu putanju repozitorijuma i ograniči. Dajte svakom računaru sopstvenu storage destinaciju i ključ, tako da kompromitovan računar dolazi samo do svojih bekapa:</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # menja ograničenje; none ga uklanja
+backupzit-repo keys                           # ključevi i njihova ograničenja</pre>
+<p id="hardened-key-limits-2">Sa <code>--path</code> za ključ ne postoji ništa van <code>hardened://server/office/pc-anna</code>. <code>--quota</code> ograničava podatke sačuvane ispod putanje (obrisani fajlovi se računaju dok se zadržavaju), <code>--daily</code> nove podatke po danu (UTC), <code>--rate</code> zahteve za upis u minuti. Ograničenje samo odbija nova slanja, pa se bekap tada završava greškom sa porukom; nikad ništa ne briše niti skraćuje, a čitanje i vraćanje nikad nisu ograničeni. Bez opcija ključ nema ograničenja, pa veliki prvi bekap nije slučajno blokiran.</p>
 
 <h2>Šifrovanje i ključ za oporavak</h2>
 <p>Uz <i>Šifruj bekape</i> (podrazumevano), sve u repozitorijumu — sadržaj fajlova, imena fajlova, struktura foldera, liste snimaka — šifruje se sa <b>AES-256-GCM</b> pre nego što napusti agenta. Pružalac skladišta vidi samo nasumične podatke.</p>

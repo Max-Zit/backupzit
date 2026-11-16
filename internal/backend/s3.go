@@ -340,3 +340,40 @@ func (s *S3) KeepLocked(ctx context.Context, names []string) (int, error) {
 	}
 	return extended, nil
 }
+
+// DefaultRetention returns the bucket's default Object Lock retention
+// (mode "COMPLIANCE" or "GOVERNANCE", and days), "" when the bucket has
+// none. With a default retention in compliance mode, objects are locked by
+// the bucket itself, even when a client (e.g. a compromised agent) writes
+// them without a retention of its own.
+func (s *S3) DefaultRetention(ctx context.Context) (mode string, days int, err error) {
+	enabled, m, validity, unit, err := s.client.GetObjectLockConfig(ctx, s.bucket)
+	if err != nil {
+		return "", 0, err
+	}
+	if enabled != "Enabled" || m == nil || validity == nil || unit == nil {
+		return "", 0, nil
+	}
+	days = int(*validity)
+	if *unit == minio.Years {
+		days *= 365
+	}
+	return string(*m), days, nil
+}
+
+// DefaultRetentionOf returns the default Object Lock retention of b when it
+// is (or wraps) an S3 bucket; ok is false for other storage.
+func DefaultRetentionOf(ctx context.Context, b Backend) (mode string, days int, ok bool, err error) {
+	for b != nil {
+		if s, is := b.(*S3); is {
+			mode, days, err = s.DefaultRetention(ctx)
+			return mode, days, true, err
+		}
+		w, is := b.(interface{ Unwrap() Backend })
+		if !is {
+			break
+		}
+		b = w.Unwrap()
+	}
+	return "", 0, false, nil
+}

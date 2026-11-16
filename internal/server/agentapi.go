@@ -211,6 +211,12 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 					}
 					ar.AppConsistent = true
 				}
+				if len(j.Options.ExcludeDisks) > 0 {
+					if a, err := s.store.GetAgent(ctx, run.AgentID); err == nil && strings.Count(a.Version, ".") == 2 && update.Newer(minExcludeDisksVersion, a.Version) {
+						return nil, fmt.Errorf("the agent on %s (%s) cannot exclude disks yet and would back up every disk; update it to %s or newer (Agents page)", a.Hostname, a.Version, minExcludeDisksVersion)
+					}
+					ar.VMExcludeDisks = j.Options.ExcludeDisks
+				}
 			}
 		}
 		if err := s.addVMware(ctx, run, ar); err != nil {
@@ -362,3 +368,7 @@ const minAllDisksVersion = "0.33.7"
 // minAppConsistentVersion is the first agent that honours AppConsistent;
 // older agents would quietly fall back to crash-consistent checkpoints.
 const minAppConsistentVersion = "0.48.0"
+
+// minExcludeDisksVersion is the first agent that honours VMExcludeDisks;
+// older ones would silently back up the excluded disks.
+const minExcludeDisksVersion = "0.49.0"

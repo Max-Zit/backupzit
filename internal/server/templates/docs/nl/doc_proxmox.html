@@ -11,6 +11,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Binnen een minuut verschijnt de node op de pagina Agents met het label <b>Proxmox VE · N guests</b>.</li>
   <li>Selecteer in <a href="/jobs">Back-uptaken</a> die agent en kies <b>Virtuele machines (Proxmox VE, Hyper-V, VMware)</b>. Kies daarna <b>Alle VM's (en containers) op de host</b> (later aangemaakte gasten worden automatisch opgenomen) of vink er enkele aan.</li>
 </ol>
+<p id="pve-except">Om losse gasten weg te laten, bijv. de VM van de BackupZit-console, kiest u <b>Alle VM's (en containers) op de host behalve de aangevinkte</b> en vinkt u ze aan.</p>
 <p>De agent gebruikt de eigen tools van de node (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); er wordt geen API-token of wachtwoord in de console opgeslagen.</p>
 
 <h2>Hoe een gast wordt geback-upt</h2>

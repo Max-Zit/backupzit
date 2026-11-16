@@ -11,6 +11,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Innerhalb einer Minute erscheint der Knoten auf der Seite Agenten mit dem Kennzeichen <b>Proxmox VE · N guests</b>.</li>
   <li>Wählen Sie unter <a href="/jobs">Sicherungsaufträge</a> diesen Agenten und <b>Virtuelle Maschinen (Proxmox VE, Hyper-V, VMware)</b>. Wählen Sie dann <b>Alle VMs (und Container) auf dem Host</b> (später erstellte Gäste werden automatisch einbezogen) oder markieren Sie einzelne.</li>
 </ol>
+<p id="pve-except">Um einzelne Gäste auszulassen, z. B. die VM der BackupZit-Konsole, wählen Sie <b>Alle VMs (und Container) auf dem Host außer den angehakten</b> und haken Sie sie an.</p>
 <p>Der Agent verwendet die eigenen Werkzeuge des Knotens (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); in der Konsole wird weder API-Token noch Passwort gespeichert.</p>
 
 <h2>Wie ein Gast gesichert wird</h2>

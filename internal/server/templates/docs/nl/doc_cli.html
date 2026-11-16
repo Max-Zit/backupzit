@@ -134,12 +134,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><th>Opdracht</th><th>Wat het doet</th></tr>
   <tr><td><code>backupzit-repo serve</code></td><td>Draait de service (systemd doet dit).</td></tr>
   <tr><td><code>backupzit-repo add-key NAME</code></td><td>Maakt een toegangssleutel (één keer getoond).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME --path PATH --quota SIZE --daily SIZE --rate N</code></td><td>Toegangssleutel, gebonden aan één repositorypad en beperkt (zie <a href="/docs/storage">Opslagdoelen</a>).</td></tr>
+  <tr><td><code>backupzit-repo set-key NAME --quota SIZE</code></td><td>Wijzigt het pad of de limieten van een sleutel; <code>none</code> verwijdert er een.</td></tr>
   <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Toegangssleutels tonen / intrekken.</td></tr>
   <tr><td><code>backupzit-repo fingerprint</code></td><td>Certificaatvingerafdruk voor de console.</td></tr>
   <tr><td><code>backupzit-repo status</code></td><td>Opgeslagen en verborgen (verwijderde, nog bewaarde) gegevens.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Maakt bestanden die sinds TIME zijn verwijderd weer zichtbaar.</td></tr>
 </table>
 <p>Configuratie: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> zet Prometheus-metrieken per toegangssleutel aan op <code>/metrics</code> (header <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Beheerserver (<code>backupzit-server</code>)</h2>
 <table>

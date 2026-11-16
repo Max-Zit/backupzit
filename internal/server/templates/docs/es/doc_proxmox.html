@@ -11,6 +11,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>En menos de un minuto el nodo aparece en la página Agentes con la etiqueta <b>Proxmox VE · N guests</b>.</li>
   <li>En <a href="/jobs">Trabajos de copia</a> seleccione ese agente y elija <b>Máquinas virtuales (Proxmox VE, Hyper-V, VMware)</b>. Luego elija <b>Todas las VM (y contenedores) del host</b> (los invitados creados más tarde se incluyen automáticamente) o marque algunos.</li>
 </ol>
+<p id="pve-except">Para dejar fuera invitados concretos, p. ej., la VM de la consola de BackupZit, elija <b>Todas las VM (y contenedores) del host excepto las marcadas</b> y márquelos.</p>
 <p>El agente usa las herramientas propias del nodo (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); en la consola no se guarda ningún token de API ni contraseña.</p>
 
 <h2>Cómo se copia un invitado</h2>

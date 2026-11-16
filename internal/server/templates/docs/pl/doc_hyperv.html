@@ -9,6 +9,7 @@
   <li>W <a href="/jobs">Zadania kopii</a> wybierz tego agenta i <b>Maszyny wirtualne (Proxmox VE, Hyper-V, VMware)</b>. Następnie wybierz:
     <ul>
       <li><b>Wszystkie VM (i kontenery) na hoście</b>, co obejmuje też maszyny utworzone później;</li>
+      <li><b>Wszystkie maszyny wirtualne na hoście oprócz zaznaczonych</b>, np. bez maszyny konsoli BackupZit; maszyny utworzone później też są uwzględniane;</li>
       <li>pojedyncze maszyny, zaznaczając je.</li>
     </ul>
   </li>
@@ -35,6 +36,9 @@
 <p id="vtpm-integrity">Kontrola integralności repozytorium sprawdza również zapisany stan gościa. Po aktualizacji sprawdź istniejące repozytoria i kopie; aktualizacja nie odtworzy wcześniej usuniętego stanu gościa. Jeśli go brakuje, użyj nienaruszonej kopii lub utwórz nową kopię zapasową.</p>
 <p>Przykład z laboratorium testowego: maszyna Linux z dyskiem 3 GB. Pierwsza kopia odczytała 3 GB. Następna, po 64 MB nowych danych, odczytała 96 MB.</p>
 <p>W Windows 10/11 Hyper-V tworzy automatyczny punkt kontrolny przy starcie maszyny, chyba że ta opcja jest wyłączona w ustawieniach maszyny. BackupZit radzi sobie z takimi punktami, ale na serwerach warto wyłączyć automatyczne punkty kontrolne (ustawienia maszyny → Punkty kontrolne).</p>
+
+<h2 id="exclude-disks">Pomijanie dysków</h2>
+<p id="exclude-disks-1">Dyski z danymi kopiowane w inny sposób można pominąć: wpisz je w zadaniu w polu <b>Wyklucz dyski</b>, jeden w wierszu, jako wzorzec nazwy pliku (<code>*-data.vhdx</code>) lub pełną ścieżkę (<code>D:\VMs\SQL01\data.vhdx</code>); wielkość liter nie ma znaczenia. Strona uruchomienia pokazuje wykluczone dyski każdej maszyny. Maszyna odtworzona jako nowa otrzymuje tylko skopiowane dyski; odtworzenie w miejscu pozostawia wykluczone dyski podłączone bez zmian. Maszyna, której wszystkie dyski są wykluczone, nie jest kopiowana. Agenci starsi niż 0.49 nie potrafią wykluczać dysków, więc konsola nie uruchamia na nich takiego zadania.</p>
 
 <h2>Przywracanie maszyny</h2>
 <p>Otwórz uruchomienie kopii maszyny (ze strony zadania lub z <a href="/runs">Aktywność</a>) i użyj <b>Przywróć VM Hyper-V</b>.</p>

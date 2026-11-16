@@ -24,6 +24,9 @@ type Guest struct {
 	// Config is the guest configuration as stored by the hypervisor.
 	Config string      `json:"config"`
 	Disks  []GuestDisk `json:"disks"`
+	// ExcludedDisks are disks of the guest left out of the backup by the
+	// job (e.g. data disks backed up another way): not restored.
+	ExcludedDisks []ExcludedDisk `json:"excluded_disks,omitempty"`
 }
 
 // StateBlobs returns additional data blobs referenced by the guest's
@@ -67,4 +70,10 @@ type GuestDisk struct {
 	// backup (VMware change ID, Hyper-V RCT, Proxmox QEMU dirty bitmap);
 	// the next backup reads only what changed since.
 	ChangeID string `json:"change_id,omitempty"`
+}
+
+// ExcludedDisk is a disk a job left out of a VM backup.
+type ExcludedDisk struct {
+	Key  string `json:"key"`  // controller location, e.g. scsi0:1
+	Path string `json:"path"` // disk file on the host
 }

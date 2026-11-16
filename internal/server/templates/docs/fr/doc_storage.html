@@ -27,6 +27,7 @@
 <p>Saisissez le point de terminaison (p. ex. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), le bucket, un dossier facultatif et une clé d'accès avec droits de lecture/écriture sur ce bucket. Cochez <i>HTTP en clair</i> uniquement pour un MinIO local sans certificat.</p>
 <h3>Sauvegardes immuables (Object Lock)</h3>
 <p>Créez le bucket avec <b>Object Lock activé</b> et cochez <i>Sauvegardes immuables … pendant N jours</i>. Chaque fichier écrit par les agents est verrouillé en <b>mode conformité</b> pendant N jours (+1 jour de marge) : personne — ni un attaquant possédant les clés, ni le propriétaire du bucket — ne peut le supprimer ou l'écraser avant. Après chaque sauvegarde, le verrou des données réutilisées depuis des sauvegardes plus anciennes est prolongé, si bien que chaque point de restauration est protégé pendant toute la période.</p>
+<p id="s3-default-retention">Donnez aussi au bucket une <b>rétention par défaut</b> en <b>mode conformité</b> d’au moins N jours (AWS : <i>Object Lock → Default retention</i> ; MinIO : <code>mc retention set --default COMPLIANCE 30d</code>). Le bucket verrouille alors lui-même chaque nouvel objet, même celui qu’un ordinateur compromis écrit sans verrou. Le test de connexion de la cible avertit lorsque la rétention par défaut manque ou est inférieure à N jours.</p>
 <p>Une suppression (par la rétention ou par un attaquant) ajoute seulement un « marqueur de suppression ». Ajoutez une règle de cycle de vie qui fait expirer les <i>versions non actuelles</i> après un jour, pour libérer l'espace une fois les verrous terminés. Voir <a href="/docs/ransomware">Protection contre les rançongiciels</a>.</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # shows the access key once
 backupzit-repo fingerprint                # certificate fingerprint</pre>
 <p>Saisissez l'adresse du serveur, la clé d'accès et l'empreinte dans la console. La période d'immuabilité se configure sur le serveur de dépôt (<code>/etc/backupzit-repo/repo.env</code>) et ne peut être modifiée ni depuis la console ni depuis les agents. Détails dans <a href="/docs/ransomware">Protection contre les rançongiciels</a>.</p>
+<p id="hardened-key-limits">Une clé d’accès peut être liée à un chemin du dépôt et limitée. Donnez à chaque ordinateur sa propre cible de stockage et sa propre clé, afin qu’un ordinateur compromis n’atteigne que ses propres sauvegardes :</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # modifie une limite ; none la supprime
+backupzit-repo keys                           # clés et leurs limites</pre>
+<p id="hardened-key-limits-2">Avec <code>--path</code>, rien en dehors de <code>hardened://server/office/pc-anna</code> n’existe pour la clé. <code>--quota</code> limite les données stockées sous le chemin (les fichiers supprimés comptent tant qu’ils sont conservés), <code>--daily</code> les nouvelles données par jour (UTC), <code>--rate</code> les requêtes d’écriture par minute. Une limite refuse seulement les nouveaux envois, et la sauvegarde échoue alors avec un message ; elle ne supprime ni ne raccourcit jamais rien, et la lecture et la restauration ne sont jamais limitées. Sans options, une clé n’a pas de limite, de sorte qu’une grande première sauvegarde n’est pas bloquée par accident.</p>
 
 <h2>Chiffrement et clé de récupération</h2>
 <p>Avec <i>Chiffrer les sauvegardes</i> (par défaut), tout le contenu du dépôt — contenu et noms des fichiers, arborescence, listes d'instantanés — est chiffré en <b>AES-256-GCM</b> avant de quitter l'agent. Le fournisseur de stockage ne voit que des données aléatoires.</p>

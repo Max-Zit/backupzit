@@ -134,12 +134,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><th>Command</th><th>What it does</th></tr>
   <tr><td><code>backupzit-repo serve</code></td><td>Run the service (systemd does this).</td></tr>
   <tr><td><code>backupzit-repo add-key NAME</code></td><td>Create an access key (shown once).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME --path PATH --quota SIZE --daily SIZE --rate N</code></td><td>Access key bound to one repository path and limited (see <a href="/docs/storage">Storage targets</a>).</td></tr>
+  <tr><td><code>backupzit-repo set-key NAME --quota SIZE</code></td><td>Change the path or the limits of a key; <code>none</code> removes one.</td></tr>
   <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>List / revoke access keys.</td></tr>
   <tr><td><code>backupzit-repo fingerprint</code></td><td>Certificate fingerprint for the console.</td></tr>
   <tr><td><code>backupzit-repo status</code></td><td>Stored and hidden (deleted, still retained) data.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Make files deleted since TIME visible again.</td></tr>
 </table>
 <p>Configuration: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> turns on Prometheus metrics per access key at <code>/metrics</code> (header <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Management server (<code>backupzit-server</code>)</h2>
 <table>

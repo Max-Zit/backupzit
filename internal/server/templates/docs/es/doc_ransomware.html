@@ -29,6 +29,7 @@
   <li>Añada el destino S3 y marque <b>Copias inmutables durante N días</b>. Elija N al menos tan largo como la retención más larga que necesite proteger, p. ej., 30.</li>
 </ol>
 <p>Cada punto de restauración permanece bloqueado al menos N días tras su creación; los datos compartidos con copias más recientes se prolongan automáticamente.</p>
+<p id="lock-retained">Después de cada copia, el agente prolonga el bloqueo de todos los datos que la retención de la tarea aún conserva, no solo de los que reutiliza la copia nueva: una copia mensual conservada un año permanece bloqueada ese año. Esto se aplica a S3 Object Lock y al repositorio reforzado. Si acorta la retención para liberar espacio, el espacio vuelve solo cuando terminan los bloqueos existentes, hasta un período y medio de bloqueo después.</p>
 
 <h2>Repositorio reforzado</h2>
 <p>Un servidor Linux dedicado que ejecuta <code>backupzit-repo</code>:</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>Tras la configuración, <b>desactive SSH y cualquier otro acceso remoto</b> en el servidor del repositorio y proteja el acceso a su consola local / iDRAC / iLO / hipervisor. La protección es tan fuerte como la cuenta root de esa máquina.</p></div>
+<p id="hardened-keys-limit">Vincule cada clave de acceso a una ruta del repositorio y limítela (consulte <a href="/docs/storage">Destinos de almacenamiento</a>), para que un equipo comprometido no pueda leer ni llenar las copias de otros equipos.</p>
+<p id="hardened-metrics">Para la supervisión, configure <code>BACKUPZIT_REPO_METRICS_TOKEN</code> en <code>repo.env</code>. El servidor ofrece entonces métricas de Prometheus por clave de acceso en <code>https://&lt;server&gt;:8500/metrics</code> (cabecera <code>Authorization: Bearer &lt;token&gt;</code>): archivos y bytes nuevos, bytes nuevos de hoy, eliminaciones, solicitudes de retención, solicitudes rechazadas por motivo (path, quota, daily, rate) y espacio usado. Estas cifras vienen del servidor, así que un equipo comprometido no puede falsearlas: alerte, por ejemplo, ante un salto repentino de eliminaciones o datos nuevos.</p>
 
 <h2>Recuperarse tras un ataque</h2>
 <p>Si un atacante borró o sobrescribió copias, lea el almacenamiento <b>tal como estaba antes del ataque</b>: es solo lectura y no cambia nada:</p>

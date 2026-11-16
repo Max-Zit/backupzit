@@ -134,12 +134,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><th>コマンド</th><th>機能</th></tr>
   <tr><td><code>backupzit-repo serve</code></td><td>サービスを実行します（systemd が行います）。</td></tr>
   <tr><td><code>backupzit-repo add-key NAME</code></td><td>アクセス キーを作成します（一度だけ表示）。</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME --path PATH --quota SIZE --daily SIZE --rate N</code></td><td>リポジトリの 1 つのパスに限定し制限を付けたアクセス キー (<a href="/docs/storage">保存先</a> を参照)。</td></tr>
+  <tr><td><code>backupzit-repo set-key NAME --quota SIZE</code></td><td>キーのパスまたは制限を変更します。<code>none</code> で解除します。</td></tr>
   <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>アクセス キーの一覧表示 / 失効。</td></tr>
   <tr><td><code>backupzit-repo fingerprint</code></td><td>コンソール用の証明書フィンガープリント。</td></tr>
   <tr><td><code>backupzit-repo status</code></td><td>保存済みのデータと非表示（削除済みだが保持中）のデータ。</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>TIME 以降に削除されたファイルを再び表示可能にします。</td></tr>
 </table>
 <p>構成: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>、<code>BACKUPZIT_REPO_DATA</code>、<code>BACKUPZIT_REPO_LISTEN</code>、<code>BACKUPZIT_REPO_TLS_HOSTS</code>。</p>
+<p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> を設定すると、<code>/metrics</code> でアクセス キーごとの Prometheus メトリクスが有効になります (ヘッダー <code>Authorization: Bearer &lt;token&gt;</code>)。</p>
 
 <h2>管理サーバー（<code>backupzit-server</code>）</h2>
 <table>

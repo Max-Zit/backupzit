@@ -29,6 +29,7 @@
   <li>添加 S3 目标并勾选 <b>N 天内不可变备份</b>。N 至少应与您需要保护的最长保留期一样长，例如 30。</li>
 </ol>
 <p>每个还原点在创建后至少锁定 N 天；与较新备份共享的数据会自动延长锁定期。</p>
+<p id="lock-retained">每次备份后，代理会延长作业保留策略仍保留的所有数据的锁定，而不仅是新备份复用的数据：保留一年的月度备份在这一年内都保持锁定。这适用于 S3 Object Lock 和加固存储库。缩短保留期以释放空间时，空间要等现有锁定到期后才会释放，最多晚一个半锁定期。</p>
 
 <h2>加固存储库</h2>
 <p>一台运行 <code>backupzit-repo</code> 的专用 Linux 服务器：</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>设置完成后，请在存储库服务器上<b>禁用 SSH 和其他远程访问</b>，并保护其本地控制台 / iDRAC / iLO / 虚拟化管理程序的访问。防护强度取决于该机器 root 帐户的安全性。</p></div>
+<p id="hardened-keys-limit">将每个访问密钥绑定到存储库的一个路径并加以限制（参见<a href="/docs/storage">存储目标</a>），这样被入侵的计算机既无法读取也无法填满其他计算机的备份。</p>
+<p id="hardened-metrics">如需监控，请在 <code>repo.env</code> 中设置 <code>BACKUPZIT_REPO_METRICS_TOKEN</code>。服务器随后在 <code>https://&lt;server&gt;:8500/metrics</code>（请求头 <code>Authorization: Bearer &lt;token&gt;</code>）按访问密钥提供 Prometheus 指标：新文件和字节数、今日新字节数、删除次数、保留请求、按原因（path、quota、daily、rate）统计的被拒请求以及已用空间。这些数字来自服务器，被入侵的计算机无法伪造：例如可在删除次数或新数据突然激增时发出告警。</p>
 
 <h2>遭受攻击后的恢复</h2>
 <p>如果攻击者删除或覆盖了备份，请读取<b>攻击前状态</b>的存储 —— 这是只读操作，不会更改任何内容：</p>

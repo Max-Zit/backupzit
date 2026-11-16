@@ -39,6 +39,9 @@ type JobOptions struct {
 	// application-consistent checkpoint (VSS in the guest); when that fails
 	// the VM is skipped and the run fails, without a crash-consistent copy.
 	AppConsistent bool `json:"app_consistent,omitempty"`
+	// ExcludeDisks: Hyper-V VM jobs leave these disk files out (name
+	// patterns such as *-data.vhdx, or full paths).
+	ExcludeDisks []string `json:"exclude_disks,omitempty"`
 	// SQL Server jobs: the instance ("" = default), whether system
 	// databases are included when all are backed up, and how often the
 	// transaction logs are backed up (minutes, 0 = never).
@@ -287,6 +290,7 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	o.SQLSystem = r.FormValue("sql_system") == "on"
 	o.SQLLogMinutes = atoiDefault(r.FormValue("sql_log_minutes"))
 	o.AppConsistent = r.FormValue("app_consistent") == "on"
+	o.ExcludeDisks = lines(r.FormValue("exclude_disks"))
 	if r.FormValue("replicate") == "on" {
 		o.ReplicaAgentID, o.ReplicaStorage = formID(r, "replica_agent"), r.FormValue("replica_storage")
 	}
@@ -388,11 +392,7 @@ func (s *Server) handleJobEdit(w http.ResponseWriter, r *http.Request, _ string)
 	case JobM365:
 		j.Paths = m365FormUsers(r)
 	case JobVM:
-		if r.FormValue("vm_mode") == "all" {
-			j.Paths = []string{"*"}
-		} else {
-			j.Paths = r.Form["vms"]
-		}
+		j.Paths, j.Excludes = vmFormSelection(r)
 	}
 	// With four-eyes approval a shorter retention waits for a second user;
 	// the other changes are saved now.

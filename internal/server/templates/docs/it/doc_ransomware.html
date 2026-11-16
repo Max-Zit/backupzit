@@ -29,6 +29,7 @@
   <li>Aggiungi la destinazione S3 e seleziona <b>Backup immutabili per N giorni</b>. Scegli N almeno pari alla conservazione più lunga che vuoi proteggere, ad es. 30.</li>
 </ol>
 <p>Ogni punto di ripristino resta bloccato per almeno N giorni dalla sua creazione; i dati condivisi con backup più recenti vengono prorogati automaticamente.</p>
+<p id="lock-retained">Dopo ogni backup l’agente prolunga il blocco di tutti i dati che la conservazione del job mantiene ancora, non solo di quelli che il nuovo backup riutilizza: un backup mensile conservato per un anno resta bloccato per quell’anno. Vale per S3 Object Lock e per il repository protetto. Se si accorcia la conservazione per liberare spazio, lo spazio torna disponibile solo alla fine dei blocchi esistenti, fino a un periodo di blocco e mezzo dopo.</p>
 
 <h2>Repository protetto</h2>
 <p>Un server Linux dedicato che esegue <code>backupzit-repo</code>:</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>Dopo la configurazione <b>disattiva SSH e ogni altro accesso remoto</b> sul server del repository e proteggi l'accesso alla sua console locale / iDRAC / iLO / hypervisor. La protezione è forte quanto l'account root di quella macchina.</p></div>
+<p id="hardened-keys-limit">Legare ogni chiave di accesso a un percorso del repository e limitarla (vedere <a href="/docs/storage">Destinazioni di archiviazione</a>), così un computer compromesso non può né leggere né riempire i backup di altri computer.</p>
+<p id="hardened-metrics">Per il monitoraggio impostare <code>BACKUPZIT_REPO_METRICS_TOKEN</code> in <code>repo.env</code>. Il server offre allora metriche Prometheus per chiave di accesso su <code>https://&lt;server&gt;:8500/metrics</code> (intestazione <code>Authorization: Bearer &lt;token&gt;</code>): nuovi file e byte, nuovi byte di oggi, eliminazioni, richieste di conservazione, richieste rifiutate per motivo (path, quota, daily, rate) e spazio utilizzato. Questi numeri provengono dal server, quindi un computer compromesso non può falsificarli: impostare un avviso, ad esempio, su un salto improvviso di eliminazioni o di nuovi dati.</p>
 
 <h2>Ripristino dopo un attacco</h2>
 <p>Se un aggressore ha eliminato o sovrascritto dei backup, leggi l'archiviazione <b>com'era prima dell'attacco</b> — è in sola lettura e non modifica nulla:</p>

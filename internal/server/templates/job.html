@@ -37,7 +37,8 @@
     <dt>{{T "Backs up"}}</dt><dd>{{if eq .Options.SQLEngine "postgres"}}{{T "PostgreSQL"}}{{if .Options.SQLInstance}} {{T "on port"}} {{.Options.SQLInstance}}{{end}} {{T "(whole cluster and each database)"}}{{else if eq .Options.SQLEngine "mysql"}}{{T "MySQL/MariaDB"}}{{else}}{{T "SQL Server"}} {{if .Options.SQLInstance}}{{T "instance"}} {{.Options.SQLInstance}}{{else}}{{T "default instance"}}{{end}}{{end}}: {{if .Paths}}{{join .Paths ", "}}{{else}}{{T "all user databases"}}{{if .Options.SQLSystem}} {{T "and the system databases"}}{{end}}{{end}}</dd>
     <dt>{{T "Log backups"}}</dt><dd>{{if .Options.SQLLogMinutes}}{{T "every"}} {{.Options.SQLLogMinutes}} {{T "minutes (point-in-time restore)"}}{{else}}{{T "off — databases are restored to the time of a full backup"}}{{end}}</dd>
     {{else if eq .Kind "vm"}}
-    <dt>{{T "Backs up"}}</dt><dd>{{vmsel .Paths}} <span class="muted">{{T "(hypervisor host)"}}</span></dd>
+    <dt>{{T "Backs up"}}</dt><dd>{{vmsel .Paths .Excludes}} <span class="muted">{{T "(hypervisor host)"}}</span></dd>
+    {{if .Options.ExcludeDisks}}<dt>{{T "Excluded disks"}}</dt><dd class="mono">{{join .Options.ExcludeDisks ", "}}</dd>{{end}}
     {{else}}
     <dt>{{T "Paths"}}</dt><dd class="mono">{{join .Paths "\n"}}</dd>
     <dt>{{T "Excludes"}}</dt><dd class="mono">{{if .Excludes}}{{join .Excludes ", "}}{{else}}—{{end}}</dd>

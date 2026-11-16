@@ -9,6 +9,7 @@
   <li>Dans <a href="/jobs">Tâches de sauvegarde</a>, sélectionnez cet agent et choisissez <b>Machines virtuelles (Proxmox VE, Hyper-V, VMware)</b>. Choisissez ensuite :
     <ul>
       <li><b>Toutes les VM (et conteneurs) de l’hôte</b>, ce qui couvre aussi les VM créées plus tard ;</li>
+      <li><b>Toutes les VM de l’hôte sauf celles cochées</b>, p. ex. sans la VM de la console BackupZit ; les VM créées plus tard sont aussi incluses ;</li>
       <li>des VM individuelles, en les cochant.</li>
     </ul>
   </li>
@@ -35,6 +36,9 @@
 <p id="vtpm-integrity">Le contrôle d’intégrité du dépôt vérifie aussi l’état sauvegardé de l’invité. Après la mise à jour, vérifiez les dépôts et copies existants ; une mise à jour ne peut pas récupérer un état de l’invité déjà supprimé. S’il manque, utilisez une copie intacte ou effectuez une nouvelle sauvegarde.</p>
 <p>Exemple du laboratoire de test : une VM Linux avec un disque de 3 Go. La première sauvegarde a lu 3 Go. La suivante, après 64 Mo de nouvelles données, a lu 96 Mo.</p>
 <p>Sous Windows 10/11, Hyper-V crée un point de contrôle automatique au démarrage d'une VM, sauf si cette option est désactivée dans les paramètres de la VM. BackupZit gère ces points de contrôle, mais pour des serveurs vous voudrez désactiver les points de contrôle automatiques (paramètres de la VM → Points de contrôle).</p>
+
+<h2 id="exclude-disks">Exclure des disques</h2>
+<p id="exclude-disks-1">Les disques de données sauvegardés autrement peuvent être exclus : indiquez-les dans la tâche sous <b>Exclure des disques</b>, un par ligne, sous forme de modèle de nom de fichier (<code>*-data.vhdx</code>) ou de chemin complet (<code>D:\VMs\SQL01\data.vhdx</code>) ; la casse n’a pas d’importance. La page de l’exécution affiche les disques exclus de chaque VM. Une VM restaurée comme nouvelle VM ne reçoit que les disques sauvegardés ; une restauration sur place laisse les disques exclus attachés sans changement. Une VM dont tous les disques sont exclus n’est pas sauvegardée. Les agents antérieurs à 0.49 ne savent pas exclure de disques : la console ne lance donc pas une telle tâche sur eux.</p>
 
 <h2>Restaurer une VM</h2>
 <p>Ouvrez l'exécution de la sauvegarde de VM (depuis la page de la tâche ou <a href="/runs">Activité</a>) et utilisez <b>Restaurer une VM Hyper-V</b>.</p>

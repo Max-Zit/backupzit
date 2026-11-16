@@ -27,6 +27,7 @@
 <p>エンドポイント（例: <code>s3.eu-central-1.amazonaws.com</code>、<code>s3.wasabisys.com</code>、<code>10.0.0.5:9000</code>）、バケット、任意のフォルダー、そのバケットへの読み書き権限を持つアクセス キーを入力します。<i>平文 HTTP</i> は、証明書のないローカル MinIO の場合にのみオンにしてください。</p>
 <h3>不変バックアップ（Object Lock）</h3>
 <p>バケットを <b>Object Lock を有効にして</b>作成し、<i>変更不可のバックアップ … N 日間</i>をオンにします。エージェントが書き込む各ファイルは <b>コンプライアンス モード</b>で N 日間（+1 日の余裕）ロックされます。その間は、キーを持つ攻撃者もバケットの所有者も、誰も削除や上書きができません。各バックアップの後、古いバックアップから再利用されたデータのロックが延長されるため、すべての復元ポイントが全期間保護されます。</p>
+<p id="s3-default-retention">バケットには、<b>コンプライアンス モード</b>で少なくとも N 日の<b>既定の保持期間</b>も設定してください (AWS: <i>Object Lock → Default retention</i>、MinIO: <code>mc retention set --default COMPLIANCE 30d</code>)。これにより、侵害されたコンピューターがロックなしで書き込んだオブジェクトも含め、バケット自身がすべての新しいオブジェクトをロックします。既定の保持期間がない場合や N 日より短い場合は、保存先の接続テストで警告されます。</p>
 <p>削除（保持処理または攻撃者による）は「削除マーカー」を追加するだけです。ロックの終了後に領域が解放されるよう、<i>最新でないバージョン</i>を 1 日後に期限切れにするライフサイクル ルールを追加してください。<a href="/docs/ransomware">ランサムウェア対策</a>を参照してください。</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # shows the access key once
 backupzit-repo fingerprint                # certificate fingerprint</pre>
 <p>サーバーのアドレス、アクセス キー、フィンガープリントをコンソールに入力します。不変期間はリポジトリ サーバー（<code>/etc/backupzit-repo/repo.env</code>）で設定し、コンソールやエージェントからは変更できません。詳細は<a href="/docs/ransomware">ランサムウェア対策</a>を参照してください。</p>
+<p id="hardened-key-limits">アクセス キーはリポジトリの 1 つのパスに限定し、制限を付けられます。侵害されたコンピューターが自分のバックアップにしか届かないよう、コンピューターごとに専用の保存先とキーを用意してください:</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # 制限を変更 (none で解除)
+backupzit-repo keys                           # キーとその制限</pre>
+<p id="hardened-key-limits-2"><code>--path</code> を付けると、そのキーには <code>hardened://server/office/pc-anna</code> 以外のものは存在しません。<code>--quota</code> はパス配下に保存されるデータ (削除されても保持中のファイルを含む)、<code>--daily</code> は 1 日 (UTC) あたりの新しいデータ、<code>--rate</code> は 1 分あたりの書き込み要求を制限します。制限は新しいアップロードを拒否するだけで、バックアップはメッセージ付きで失敗します。何かを削除したり短縮したりすることはなく、読み取りと復元は制限されません。オプションなしのキーには制限がないため、大きな最初のバックアップが誤ってブロックされることはありません。</p>
 
 <h2>暗号化と回復キー</h2>
 <p><i>バックアップを暗号化</i>（既定）では、リポジトリ内のすべて（ファイルの内容、ファイル名、フォルダー構造、スナップショットの一覧）がエージェントを出る前に <b>AES-256-GCM</b> で暗号化されます。ストレージ プロバイダーにはランダムなデータしか見えません。</p>

@@ -29,6 +29,7 @@
   <li>S3 hedefini ekleyin ve <b>N gün boyunca değiştirilemez yedekler</b> seçeneğini işaretleyin. N'yi korunmasını istediğiniz en uzun saklama süresi kadar seçin, ör. 30.</li>
 </ol>
 <p>Her geri yükleme noktası oluşturulduktan sonra en az N gün kilitli kalır; daha yeni yedeklerle paylaşılan verilerin süresi otomatik olarak uzatılır.</p>
+<p id="lock-retained">Her yedeklemeden sonra aracı, yalnızca yeni yedeğin yeniden kullandığı verinin değil, işin saklama politikasının hâlâ tuttuğu tüm verinin kilidini uzatır: bir yıl saklanan aylık bir yedek o yıl boyunca kilitli kalır. Bu, S3 Object Lock ve güçlendirilmiş depo için geçerlidir. Yer açmak için saklama süresini kısaltırsanız, alan ancak mevcut kilitler bitince, en geç bir buçuk kilit süresi sonra geri gelir.</p>
 
 <h2>Güçlendirilmiş depo</h2>
 <p><code>backupzit-repo</code> çalıştıran özel bir Linux sunucusu:</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>Kurulumdan sonra depo sunucusunda <b>SSH'yi ve diğer uzaktan erişimleri kapatın</b>, yerel konsoluna / iDRAC / iLO / hipervizör erişimine de koruma koyun. Koruma, o makinenin root hesabı kadar güçlüdür.</p></div>
+<p id="hardened-keys-limit">Ele geçirilmiş bir bilgisayarın diğer bilgisayarların yedeklerini ne okuyabilmesi ne de doldurabilmesi için her erişim anahtarını tek bir depo yoluna bağlayın ve sınırlayın (bkz. <a href="/docs/storage">Depolama hedefleri</a>).</p>
+<p id="hardened-metrics">İzleme için <code>repo.env</code> içinde <code>BACKUPZIT_REPO_METRICS_TOKEN</code> ayarlayın. Sunucu bu durumda <code>https://&lt;server&gt;:8500/metrics</code> adresinde (başlık <code>Authorization: Bearer &lt;token&gt;</code>) erişim anahtarı başına Prometheus metrikleri sunar: yeni dosyalar ve baytlar, bugünkü yeni baytlar, silmeler, saklama istekleri, nedene göre reddedilen istekler (path, quota, daily, rate) ve kullanılan alan. Bu sayılar sunucudan gelir, bu yüzden ele geçirilmiş bir bilgisayar onları sahteleyemez: örneğin silmelerde veya yeni veride ani bir sıçramada uyarı verin.</p>
 
 <h2>Saldırıdan sonra kurtarma</h2>
 <p>Bir saldırgan yedekleri sildiyse veya üzerine yazdıysa, depolamayı <b>saldırıdan önceki haliyle</b> okuyun — bu salt okunurdur ve hiçbir şeyi değiştirmez:</p>

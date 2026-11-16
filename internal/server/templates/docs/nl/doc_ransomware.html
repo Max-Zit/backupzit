@@ -29,6 +29,7 @@
   <li>Voeg het S3-doel toe en vink <b>Onveranderlijke back-ups gedurende N dagen</b> aan. Kies N minstens zo lang als de langste bewaartermijn die u beschermd wilt hebben, bijv. 30.</li>
 </ol>
 <p>Elk herstelpunt blijft minstens N dagen na het aanmaken vergrendeld; gegevens die gedeeld worden met nieuwere back-ups worden automatisch verlengd.</p>
+<p id="lock-retained">Na elke back-up verlengt de agent de vergrendeling van alle gegevens die de bewaring van de taak nog behoudt, niet alleen van de gegevens die de nieuwe back-up hergebruikt: een maandelijkse back-up die een jaar wordt bewaard, blijft dat jaar vergrendeld. Dit geldt voor S3 Object Lock en voor de geharde repository. Als u de bewaring verkort om ruimte vrij te maken, komt de ruimte pas terug als de bestaande vergrendelingen aflopen, tot anderhalve vergrendelingsperiode later.</p>
 
 <h2>Geharde repository</h2>
 <p>Een aparte Linux-server met <code>backupzit-repo</code>:</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p><b>Schakel na de installatie SSH en andere externe toegang uit</b> op de repositoryserver en bescherm de toegang tot de lokale console / iDRAC / iLO / hypervisor. De bescherming is maar zo sterk als het root-account van die machine.</p></div>
+<p id="hardened-keys-limit">Bind elke toegangssleutel aan één repositorypad en beperk hem (zie <a href="/docs/storage">Opslagdoelen</a>), zodat een gecompromitteerde computer de back-ups van andere computers niet kan lezen of vullen.</p>
+<p id="hardened-metrics">Voor monitoring stelt u <code>BACKUPZIT_REPO_METRICS_TOKEN</code> in <code>repo.env</code> in. De server biedt dan Prometheus-metrieken per toegangssleutel op <code>https://&lt;server&gt;:8500/metrics</code> (header <code>Authorization: Bearer &lt;token&gt;</code>): nieuwe bestanden en bytes, nieuwe bytes vandaag, verwijderingen, bewaarverzoeken, geweigerde verzoeken per reden (path, quota, daily, rate) en gebruikte ruimte. Deze cijfers komen van de server, dus een gecompromitteerde computer kan ze niet vervalsen: waarschuw bijvoorbeeld bij een plotselinge sprong in verwijderingen of nieuwe gegevens.</p>
 
 <h2>Herstellen na een aanval</h2>
 <p>Als een aanvaller back-ups heeft verwijderd of overschreven, lees de opslag dan <b>zoals hij vóór de aanval was</b> — dat is alleen-lezen en verandert niets:</p>

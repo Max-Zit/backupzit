@@ -27,6 +27,7 @@
 <p>Podaj punkt końcowy (np. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket, opcjonalny folder i klucz dostępu z prawem odczytu/zapisu do tego bucketu. Zaznacz <i>Nieszyfrowany HTTP</i> tylko dla lokalnego MinIO bez certyfikatu.</p>
 <h3>Niezmienne kopie (Object Lock)</h3>
 <p>Utwórz bucket z <b>włączonym Object Lock</b> i zaznacz <i>Niezmienne kopie … przez N dni</i>. Każdy plik zapisany przez agentów jest blokowany w <b>trybie zgodności</b> na N dni (+1 dzień zapasu): nikt — ani atakujący z kluczami, ani właściciel bucketu — nie może go wcześniej usunąć ani nadpisać. Po każdej kopii blokada danych ponownie użytych ze starszych kopii jest przedłużana, więc każdy punkt przywracania jest chroniony przez cały okres.</p>
+<p id="s3-default-retention">Ustaw też dla bucketu <b>domyślną retencję</b> w <b>trybie zgodności</b> na co najmniej N dni (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Bucket sam blokuje wtedy każdy nowy obiekt, nawet taki, który przejęty komputer zapisze bez blokady. Test połączenia miejsca docelowego ostrzega, gdy domyślnej retencji brak lub jest krótsza niż N dni.</p>
 <p>Usunięcie (przez retencję lub atakującego) dodaje tylko „znacznik usunięcia”. Dodaj regułę cyklu życia, która wygasza <i>nieaktualne wersje</i> po jednym dniu, aby miejsce zwalniało się po zakończeniu blokad. Zobacz <a href="/docs/ransomware">Ochrona przed ransomware</a>.</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # shows the access key once
 backupzit-repo fingerprint                # certificate fingerprint</pre>
 <p>Wpisz w konsoli adres serwera, klucz dostępu i odcisk. Okres niezmienności konfiguruje się na serwerze repozytorium (<code>/etc/backupzit-repo/repo.env</code>) i nie można go zmienić z konsoli ani z agentów. Szczegóły w <a href="/docs/ransomware">Ochrona przed ransomware</a>.</p>
+<p id="hardened-key-limits">Klucz dostępu można powiązać z jedną ścieżką repozytorium i ograniczyć. Daj każdemu komputerowi własne miejsce docelowe i klucz, aby przejęty komputer docierał tylko do własnych kopii:</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # zmienia limit; none go usuwa
+backupzit-repo keys                           # klucze i ich limity</pre>
+<p id="hardened-key-limits-2">Z <code>--path</code> dla klucza nie istnieje nic poza <code>hardened://server/office/pc-anna</code>. <code>--quota</code> ogranicza dane zapisane pod ścieżką (usunięte pliki liczą się, dopóki są przechowywane), <code>--daily</code> nowe dane na dzień (UTC), <code>--rate</code> żądania zapisu na minutę. Limit tylko odrzuca nowe wysyłki, a kopia kończy się wtedy błędem z komunikatem; nigdy niczego nie usuwa ani nie skraca, a odczyt i odtwarzanie nigdy nie są ograniczane. Bez opcji klucz nie ma limitów, więc duża pierwsza kopia nie zostanie przypadkiem zablokowana.</p>
 
 <h2>Szyfrowanie i klucz odzyskiwania</h2>
 <p>Przy <i>Szyfruj kopie</i> (domyślnie) wszystko w repozytorium — zawartość i nazwy plików, struktura folderów, listy migawek — jest szyfrowane <b>AES-256-GCM</b>, zanim opuści agenta. Dostawca magazynu widzi tylko losowe dane.</p>

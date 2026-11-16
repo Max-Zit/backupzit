@@ -9,6 +9,7 @@
   <li>In <a href="/jobs">Backup jobs</a> select that agent and choose <b>Virtual machines (Proxmox VE, Hyper-V, VMware)</b>. Then pick one:
     <ul>
       <li><b>All VMs (and containers) on the host</b>, which also covers VMs created later;</li>
+      <li><b>All VMs on the host except the ticked ones</b>, e.g. without the VM of the BackupZit console; VMs created later are included too;</li>
       <li>individual VMs, by ticking them.</li>
     </ul>
   </li>
@@ -35,6 +36,9 @@
 <p id="vtpm-integrity">The repository integrity check also verifies the saved guest state. After updating, check existing repositories and copies; an update cannot recover guest state that was already deleted. Use an intact copy or make a new backup if it is missing.</p>
 <p>Example from the test lab: a Linux VM with a 3 GB disk. The first backup read 3 GB. The next one, after 64 MB of new data, read 96 MB.</p>
 <p>On Windows 10/11, Hyper-V takes an automatic checkpoint when a VM starts, unless that option is turned off in the VM's settings. BackupZit handles such checkpoints, but for servers you will want to turn automatic checkpoints off (VM settings → Checkpoints).</p>
+
+<h2 id="exclude-disks">Leaving out disks</h2>
+<p id="exclude-disks-1">Data disks that are backed up another way can be left out: list them under <b>Exclude disks</b> in the job, one per line, as a file name pattern (<code>*-data.vhdx</code>) or a full path (<code>D:\VMs\SQL01\data.vhdx</code>); case does not matter. The run page shows the excluded disks of each VM. A VM restored as a new VM gets only the backed-up disks; a restore in place leaves the excluded disks attached unchanged. A VM whose disks are all excluded is not backed up. Agents older than 0.49 cannot exclude disks, so the console does not start such a job on them.</p>
 
 <h2>Restoring a VM</h2>
 <p>Open the VM backup run (from the job page or <a href="/runs">Activity</a>) and use <b>Restore a Hyper-V VM</b>.</p>

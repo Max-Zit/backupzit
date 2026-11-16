@@ -27,6 +27,7 @@
 <p>Zadejte koncový bod (např. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket, volitelnou složku a přístupový klíč s právy čtení/zápisu do tohoto bucketu. <i>Nešifrované HTTP</i> zaškrtněte jen pro místní MinIO bez certifikátu.</p>
 <h3>Neměnné zálohy (Object Lock)</h3>
 <p>Vytvořte bucket se <b>zapnutým Object Lock</b> a zaškrtněte <i>Neměnné zálohy … na N dní</i>. Každý soubor, který agenti zapíší, se uzamkne v <b>režimu compliance</b> na N dní (+1 den rezerva): nikdo — ani útočník s klíči, ani vlastník bucketu — jej předtím nesmaže ani nepřepíše. Po každé záloze se prodlouží zámek dat znovu použitých ze starších záloh, takže každý bod obnovy je chráněn po celou dobu.</p>
+<p id="s3-default-retention">Nastavte bucketu také <b>výchozí uchování</b> v <b>režimu compliance</b> alespoň na N dní (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Bucket pak sám zamkne každý nový objekt, i ten, který napadený počítač zapíše bez zámku. Test připojení cíle upozorní, když výchozí uchování chybí nebo je kratší než N dní.</p>
 <p>Smazání (uchováváním nebo útočníkem) jen přidá „značku smazání“. Přidejte pravidlo životního cyklu, které nechá <i>neaktuální verze</i> vypršet po jednom dni, aby se místo uvolnilo, jakmile zámky skončí. Viz <a href="/docs/ransomware">Ochrana proti ransomwaru</a>.</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # shows the access key once
 backupzit-repo fingerprint                # certificate fingerprint</pre>
 <p>Do konzole zadejte adresu serveru, přístupový klíč a otisk. Doba neměnnosti se nastavuje na serveru repozitáře (<code>/etc/backupzit-repo/repo.env</code>) a z konzole ani z agentů ji nelze změnit. Podrobnosti v <a href="/docs/ransomware">Ochrana proti ransomwaru</a>.</p>
+<p id="hardened-key-limits">Přístupový klíč lze svázat s jednou cestou repozitáře a omezit. Dejte každému počítači vlastní cíl úložiště a klíč, aby napadený počítač dosáhl jen na své vlastní zálohy:</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # změní limit; none jej odstraní
+backupzit-repo keys                           # klíče a jejich limity</pre>
+<p id="hardened-key-limits-2">S <code>--path</code> pro klíč neexistuje nic mimo <code>hardened://server/office/pc-anna</code>. <code>--quota</code> omezuje data uložená pod cestou (smazané soubory se počítají, dokud jsou uchovávány), <code>--daily</code> nová data za den (UTC), <code>--rate</code> požadavky na zápis za minutu. Limit jen odmítá nová nahrání a záloha pak selže se zprávou; nikdy nic nemaže ani nezkracuje a čtení i obnova nejsou nikdy omezeny. Bez voleb nemá klíč žádné limity, takže velká první záloha se omylem nezablokuje.</p>
 
 <h2>Šifrování a klíč pro obnovení</h2>
 <p>Se zapnutým <i>Šifrovat zálohy</i> (výchozí) se vše v repozitáři — obsah a názvy souborů, struktura složek, seznamy snímků — zašifruje pomocí <b>AES-256-GCM</b> dřív, než opustí agenta. Poskytovatel úložiště vidí jen náhodná data.</p>

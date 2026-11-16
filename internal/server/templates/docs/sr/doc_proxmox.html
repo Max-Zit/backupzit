@@ -11,6 +11,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Za minut se čvor pojavljuje na stranici Agenti sa oznakom <b>Proxmox VE · N gostiju</b>.</li>
   <li>U <a href="/jobs">Poslovi bekapa</a> izaberite tog agenta i <b>Virtuelne mašine (Proxmox VE, Hyper-V, VMware)</b>. Zatim izaberite <b>Svi VM-ovi (i kontejneri) na hostu</b> (gosti napravljeni kasnije uključuju se automatski) ili označite pojedinačne.</li>
 </ol>
+<p id="pve-except">Da biste izostavili pojedine goste, npr. VM BackupZit konzole, izaberite <b>Sve VM (i kontejneri) na hostu osim označenih</b> i označite ih.</p>
 <p>Agent koristi sopstvene alate čvora (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); u konzoli se ne čuvaju API token ni lozinka.</p>
 
 <h2>Kako se pravi bekap gosta</h2>

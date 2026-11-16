@@ -11,6 +11,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>1 分以内に、ノードが <b>Proxmox VE · N guests</b> のバッジ付きでエージェント ページに表示されます。</li>
   <li><a href="/jobs">バックアップ ジョブ</a> でそのエージェントを選び、<b>仮想マシン（Proxmox VE、Hyper-V、VMware）</b> を選びます。次に <b>ホスト上のすべての VM（およびコンテナー）</b>（後から作成したゲストも自動的に含まれます）を選ぶか、個別にチェックします。</li>
 </ol>
+<p id="pve-except">BackupZit コンソールの VM など一部のゲストを除外するには、<b>チェックしたもの以外のホスト上のすべての VM (およびコンテナー)</b> を選び、それらにチェックを付けます。</p>
 <p>エージェントはノード自身のツール（<code>qm</code>、<code>pct</code>、<code>pvesm</code>、LVM、ZFS、Ceph）を使います。コンソールには API トークンもパスワードも保存されません。</p>
 
 <h2>ゲストのバックアップ方法</h2>

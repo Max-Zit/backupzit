@@ -9,6 +9,7 @@
   <li><a href="/jobs">Yedekleme işleri</a> içinde bu aracıyı seçin ve <b>Sanal makineler (Proxmox VE, Hyper-V, VMware)</b>'ı seçin. Sonra birini seçin:
     <ul>
       <li>sonradan oluşturulan VM'leri de kapsayan <b>Ana bilgisayardaki tüm VM'ler (ve kapsayıcılar)</b>;</li>
+      <li><b>İşaretlenenler dışında konaktaki tüm VM'ler</b>, ör. BackupZit konsolunun VM'i olmadan; sonradan oluşturulan VM'ler de dahildir;</li>
       <li>işaretleyerek tek tek VM'ler.</li>
     </ul>
   </li>
@@ -35,6 +36,9 @@
 <p id="vtpm-integrity">Depo bütünlüğü denetimi, kaydedilen konuk durumunu da doğrular. Güncellemeden sonra mevcut depoları ve kopyaları denetleyin; bir güncelleme, daha önce silinmiş konuk durumunu geri getiremez. Eksikse sağlam bir kopya kullanın veya yeni bir yedek oluşturun.</p>
 <p>Test laboratuvarından örnek: 3 GB diskli bir Linux VM. İlk yedek 3 GB okudu. Sonraki, 64 MB yeni veriden sonra, 96 MB okudu.</p>
 <p>Windows 10/11'de Hyper-V, VM ayarlarında bu seçenek kapatılmadıkça bir VM başladığında otomatik denetim noktası alır. BackupZit bu denetim noktalarını işler, ancak sunucular için otomatik denetim noktalarını kapatmanız iyi olur (VM ayarları → Denetim noktaları).</p>
+
+<h2 id="exclude-disks">Diskleri dışarıda bırakma</h2>
+<p id="exclude-disks-1">Başka bir yolla yedeklenen veri diskleri dışarıda bırakılabilir: bunları işte <b>Diskleri hariç tut</b> altına, her satıra bir tane, dosya adı kalıbı (<code>*-data.vhdx</code>) veya tam yol (<code>D:\VMs\SQL01\data.vhdx</code>) olarak yazın; büyük/küçük harf önemli değildir. Çalıştırma sayfası her VM'in hariç tutulan disklerini gösterir. Yeni VM olarak geri yüklenen bir VM yalnızca yedeklenen diskleri alır; yerinde geri yükleme hariç tutulan diskleri değiştirmeden bağlı bırakır. Tüm diskleri hariç tutulan bir VM yedeklenmez. 0.49'dan eski aracılar disk hariç tutamaz; bu yüzden konsol böyle bir işi onlarda başlatmaz.</p>
 
 <h2>Bir VM'yi geri yükleme</h2>
 <p>VM yedeği çalıştırmasını açın (iş sayfasından veya <a href="/runs">Etkinlik</a>'ten) ve <b>Bir Hyper-V VM'sini geri yükle</b>'yi kullanın.</p>

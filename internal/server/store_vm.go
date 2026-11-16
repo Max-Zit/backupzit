@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -98,8 +99,13 @@ func checkVMSelection(a Agent, vms, exclude []string) error {
 // DescribeVMSelection renders the guests of a VM job.
 func DescribeVMSelection(vms []string) string { return describeVMSelection(languages[0], vms) }
 
-func describeVMSelection(l *language, vms []string) string {
+// describeVMSelection renders the guests of a VM job; exclude (optional)
+// are the guests an "all VMs" job skips.
+func describeVMSelection(l *language, vms []string, exclude ...[]string) string {
 	if len(vms) == 1 && vms[0] == "*" {
+		if len(exclude) > 0 && len(exclude[0]) > 0 {
+			return l.T("All VMs (and containers) on the host except %d", len(exclude[0]))
+		}
 		return l.T("All VMs (and containers) on the host")
 	}
 	for _, v := range vms {
@@ -113,15 +119,16 @@ func describeVMSelection(l *language, vms []string) string {
 // vmBackupDetails is the run detail reported by the agent.
 type vmBackupDetails struct {
 	Guests []struct {
-		VMID        int    `json:"vmid"`
-		Type        string `json:"type"`
-		Name        string `json:"name"`
-		Consistency string `json:"consistency"`
-		Platform    string `json:"platform"`
-		Disks       int    `json:"disks"`
-		Size        uint64 `json:"size"`
-		Stored      uint64 `json:"stored"`
-		Changed     int    `json:"changed"`
+		VMID        int      `json:"vmid"`
+		Type        string   `json:"type"`
+		Name        string   `json:"name"`
+		Consistency string   `json:"consistency"`
+		Platform    string   `json:"platform"`
+		Disks       int      `json:"disks"`
+		Size        uint64   `json:"size"`
+		Stored      uint64   `json:"stored"`
+		Changed     int      `json:"changed"`
+		Excluded    []string `json:"excluded"`
 	} `json:"guests"`
 }
 
@@ -268,4 +275,17 @@ func hvClusters(agents []Agent) []HVClusterInfo {
 		out = append(out, *ci)
 	}
 	return out
+}
+
+// vmFormSelection reads the guests of a VM job form: vm_mode "all" (every
+// guest, also later ones), "except" (every guest but the ticked ones) or
+// "selected" (only the ticked ones).
+func vmFormSelection(r *http.Request) (paths, excludes []string) {
+	switch r.FormValue("vm_mode") {
+	case "all":
+		return []string{"*"}, nil
+	case "except":
+		return []string{"*"}, r.Form["vms"]
+	}
+	return r.Form["vms"], nil
 }

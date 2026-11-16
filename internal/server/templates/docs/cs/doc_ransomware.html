@@ -29,6 +29,7 @@
   <li>Přidejte cíl S3 a zaškrtněte <b>Neměnné zálohy na N dní</b>. Zvolte N alespoň tak dlouhé jako nejdelší uchovávání, které chcete chránit, např. 30.</li>
 </ol>
 <p>Každý bod obnovy zůstane zamčený alespoň N dní od vytvoření; data sdílená s novějšími zálohami se prodlužují automaticky.</p>
+<p id="lock-retained">Po každé záloze agent prodlouží zámek všech dat, která uchování úlohy stále drží, nejen dat, která nová záloha znovu používá: měsíční záloha uchovávaná rok zůstane po ten rok zamčená. Platí to pro S3 Object Lock i pro zabezpečený repozitář. Když zkrátíte uchování, abyste uvolnili místo, místo se vrátí až po skončení stávajících zámků, nejvýše o jeden a půl doby zámku později.</p>
 
 <h2>Zabezpečené úložiště</h2>
 <p>Samostatný linuxový server s <code>backupzit-repo</code>:</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>Po nastavení <b>vypněte SSH a jiný vzdálený přístup</b> na serveru úložiště a chraňte přístup k jeho místní konzoli / iDRAC / iLO / hypervizoru. Ochrana je jen tak silná jako účet root tohoto počítače.</p></div>
+<p id="hardened-keys-limit">Svažte každý přístupový klíč s jednou cestou repozitáře a omezte jej (viz <a href="/docs/storage">Cíle úložiště</a>), aby napadený počítač nemohl zálohy jiných počítačů číst ani zaplnit.</p>
+<p id="hardened-metrics">Pro monitorování nastavte <code>BACKUPZIT_REPO_METRICS_TOKEN</code> v <code>repo.env</code>. Server pak nabízí metriky Prometheus pro každý přístupový klíč na <code>https://&lt;server&gt;:8500/metrics</code> (hlavička <code>Authorization: Bearer &lt;token&gt;</code>): nové soubory a bajty, nové bajty dnes, mazání, požadavky na uchování, odmítnuté požadavky podle důvodu (path, quota, daily, rate) a obsazené místo. Tato čísla pocházejí ze serveru, takže je napadený počítač nemůže zfalšovat: nastavte upozornění např. na náhlý skok mazání nebo nových dat.</p>
 
 <h2>Obnova po útoku</h2>
 <p>Pokud útočník smazal nebo přepsal zálohy, čtěte úložiště <b>ve stavu před útokem</b> — je to jen pro čtení a nic nemění:</p>

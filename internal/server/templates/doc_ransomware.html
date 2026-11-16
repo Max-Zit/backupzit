@@ -29,6 +29,7 @@
   <li>Add the S3 target and tick <b>Immutable backups for N days</b>. Choose N at least as long as your longest retention you need protected, e.g. 30.</li>
 </ol>
 <p>Each restore point stays locked for at least N days after it was created; data shared with newer backups is extended automatically.</p>
+<p id="lock-retained">After every backup the agent extends the lock of all data that the job's retention still keeps, not only of the data the new backup reuses: a monthly backup kept for a year stays locked for that year. This applies to S3 Object Lock and to the hardened repository. When you shorten the retention to free space, the space comes back only when the existing locks end, up to one and a half lock periods later.</p>
 
 <h2>Hardened repository</h2>
 <p>A dedicated Linux server running <code>backupzit-repo</code>:</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>After setup, <b>disable SSH and other remote access</b> on the repository server and protect its local console / iDRAC / iLO / hypervisor access. The protection is only as strong as that machine's root account.</p></div>
+<p id="hardened-keys-limit">Bind each access key to one repository path and limit it (see <a href="/docs/storage">Storage targets</a>), so a compromised computer can neither read nor fill the backups of other computers.</p>
+<p id="hardened-metrics">For monitoring set <code>BACKUPZIT_REPO_METRICS_TOKEN</code> in <code>repo.env</code>. The server then offers Prometheus metrics per access key at <code>https://&lt;server&gt;:8500/metrics</code> (header <code>Authorization: Bearer &lt;token&gt;</code>): new files and bytes, new bytes today, deletes, retention requests, refused requests by reason (path, quota, daily, rate) and used space. These numbers come from the server, so a compromised computer cannot fake them: alert, for example, on a sudden jump in deletes or new data.</p>
 
 <h2>Recovering after an attack</h2>
 <p>If an attacker deleted or overwrote backups, read the storage <b>as it was before the attack</b> — this is read-only and changes nothing:</p>

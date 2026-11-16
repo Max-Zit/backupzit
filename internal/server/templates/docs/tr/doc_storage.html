@@ -27,6 +27,7 @@
 <p>Uç noktayı (ör. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket'ı, isteğe bağlı bir klasörü ve o bucket'a okuma/yazma erişimi olan bir erişim anahtarını girin. <i>Şifresiz HTTP</i>'yi yalnızca sertifikasız yerel bir MinIO için işaretleyin.</p>
 <h3>Değiştirilemez yedekler (Object Lock)</h3>
 <p>Bucket'ı <b>Object Lock etkin</b> olarak oluşturun ve <i>Değiştirilemez yedekler … N gün</i> seçeneğini işaretleyin. Aracıların yazdığı her dosya N gün (+1 gün pay) boyunca <b>uyumluluk modunda</b> kilitlenir: hiç kimse — ne anahtarlara sahip bir saldırgan ne de bucket sahibi — onu bundan önce silemez veya üzerine yazamaz. Her yedekten sonra eski yedeklerden yeniden kullanılan verilerin kilidi uzatılır; böylece her geri yükleme noktası tüm süre boyunca korunur.</p>
+<p id="s3-default-retention">Bucket'a ayrıca <b>uyumluluk modunda</b> en az N günlük bir <b>varsayılan saklama süresi</b> verin (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Bucket böylece her yeni nesneyi, ele geçirilmiş bir bilgisayarın kilitsiz yazdığı nesneyi bile, kendisi kilitler. Hedefin bağlantı testi, varsayılan saklama süresi yoksa veya N günden kısaysa uyarır.</p>
 <p>Silme (saklama veya saldırgan tarafından) yalnızca bir "silme işareti" ekler. Kilitler bittiğinde alan boşalsın diye <i>güncel olmayan sürümleri</i> bir gün sonra sona erdiren bir yaşam döngüsü kuralı ekleyin. Bkz. <a href="/docs/ransomware">Fidye yazılımı koruması</a>.</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # shows the access key once
 backupzit-repo fingerprint                # certificate fingerprint</pre>
 <p>Sunucu adresini, erişim anahtarını ve parmak izini konsola girin. Değiştirilemezlik süresi depo sunucusunda (<code>/etc/backupzit-repo/repo.env</code>) yapılandırılır ve konsoldan veya aracılardan değiştirilemez. Ayrıntılar <a href="/docs/ransomware">Fidye yazılımı koruması</a>'nda.</p>
+<p id="hardened-key-limits">Bir erişim anahtarı tek bir depo yoluna bağlanabilir ve sınırlanabilir. Ele geçirilmiş bir bilgisayar yalnızca kendi yedeklerine ulaşabilsin diye her bilgisayara kendi depolama hedefini ve anahtarını verin:</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # bir sınırı değiştirir; none kaldırır
+backupzit-repo keys                           # anahtarlar ve sınırları</pre>
+<p id="hardened-key-limits-2"><code>--path</code> ile anahtar için <code>hardened://server/office/pc-anna</code> dışında hiçbir şey yoktur. <code>--quota</code> yolun altında saklanan veriyi (silinen dosyalar saklandıkları sürece sayılır), <code>--daily</code> günlük yeni veriyi (UTC), <code>--rate</code> dakikadaki yazma isteklerini sınırlar. Bir sınır yalnızca yeni yüklemeleri reddeder ve yedekleme bir mesajla başarısız olur; hiçbir şeyi silmez veya kısaltmaz, okuma ve geri yükleme asla sınırlanmaz. Seçenek olmadan anahtarın sınırı yoktur, böylece büyük bir ilk yedekleme yanlışlıkla engellenmez.</p>
 
 <h2>Şifreleme ve kurtarma anahtarı</h2>
 <p><i>Yedekleri şifrele</i> (varsayılan) ile depodaki her şey — dosya içerikleri, dosya adları, klasör yapısı, anlık görüntü listeleri — aracıdan çıkmadan önce <b>AES-256-GCM</b> ile şifrelenir. Depolama sağlayıcısı yalnızca rastgele veri görür.</p>

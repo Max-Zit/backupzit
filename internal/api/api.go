@@ -252,6 +252,9 @@ type Run struct {
 	// AppConsistent: Hyper-V only takes application-consistent checkpoints
 	// of running VMs; a VM without one is skipped and the run fails.
 	AppConsistent bool `json:"app_consistent,omitempty"`
+	// VMExcludeDisks are Hyper-V disk files left out of a VM backup: name
+	// patterns (*-data.vhdx) or full paths, case-insensitive.
+	VMExcludeDisks []string `json:"vm_exclude_disks,omitempty"`
 	// VMware: the ESXi host a vm-backup or vm-restore runs against (the
 	// agent acts as proxy). Nil for Proxmox and Hyper-V, where the agent
 	// runs on the hypervisor itself.

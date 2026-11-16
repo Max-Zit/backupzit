@@ -11,6 +11,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>一分钟内，该节点会出现在代理页面上，并带有 <b>Proxmox VE · N guests</b> 标记。</li>
   <li>在 <a href="/jobs">备份作业</a> 中选择该代理并选择 <b>虚拟机（Proxmox VE、Hyper-V、VMware）</b>。然后选择<b>主机上的所有虚拟机（及容器）</b>（以后创建的来宾会自动包含）或勾选单个来宾。</li>
 </ol>
+<p id="pve-except">如需排除个别虚拟机，例如 BackupZit 控制台所在的虚拟机，请选择<b>主机上除勾选项外的所有虚拟机（及容器）</b>并勾选它们。</p>
 <p>代理使用节点自身的工具（<code>qm</code>、<code>pct</code>、<code>pvesm</code>、LVM、ZFS、Ceph）；控制台中不存储任何 API 令牌或密码。</p>
 
 <h2>来宾如何备份</h2>

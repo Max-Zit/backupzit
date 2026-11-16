@@ -69,7 +69,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
 | **Proxmox VE** VMs and containers | agentless, changed blocks only; the node's own configuration (`/etc/pve`, `config.db`) with a files job | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
 | **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent, changed block tracking | new VM or in place, instant recovery over NFS |
-| **Hyper-V** VMs, also **failover clusters** | agentless, resilient change tracking; optionally application-consistent only (VSS in the guest, for AD and SQL Server); a clustered VM keeps its history when it moves to another node, also during a backup | new VM on the same or another Hyper-V host, also onto a Cluster Shared Volume as a cluster role; the vTPM (BitLocker) is kept |
+| **Hyper-V** VMs, also **failover clusters** | agentless, resilient change tracking; optionally application-consistent only (VSS in the guest, for AD and SQL Server); all VMs except chosen ones; data disks can be left out; a clustered VM keeps its history when it moves to another node, also during a backup | new VM on the same or another Hyper-V host, also onto a Cluster Shared Volume as a cluster role; the vTPM (BitLocker) is kept |
 | **Databases** | SQL Server, PostgreSQL, MySQL/MariaDB with native tools; log backups | a single database to any point in time, under a new name or in place |
 | **NAS shares** | SMB or NFS share read by any agent, nothing installed on the NAS | into a folder or back onto the share |
 | **Microsoft 365** | Exchange Online mail (.eml), calendars (.ics), contacts (.vcf), OneDrive and SharePoint through Microsoft Graph, read-only permissions | browse and download, or restore into a folder |
@@ -202,7 +202,7 @@ Options go after `sh -s --`:
 
 | Option | Effect |
 |---|---|
-| `--version 0.48.2` | install this release instead of the newest |
+| `--version 0.49.0` | install this release instead of the newest |
 | `--db postgres://user:pw@host:5432/db` | use an existing PostgreSQL database |
 | `--hosts backup.example.local,10.0.0.10` | names and addresses for the console's certificate |
 | `--no-auto-updates` | leave automatic security updates as they are |
@@ -370,9 +370,13 @@ Create the bucket with Object Lock enabled (e.g. `mc mb --with-lock`, or the
 on the storage target (CLI: `--s3-lock-days N`). Every object except repository
 lock files is written in **compliance mode** for N days (+1 day margin): nobody,
 not even an attacker holding the storage keys or the bucket owner, can delete or
-overwrite it before then. After each backup the agent extends the lock of older
-data the new backup reuses (deduplication), so every restore point stays fully
-protected for N days.
+overwrite it before then. After each backup the agent extends the lock of all data
+that the job's retention still keeps (also old data the new backup reuses through
+deduplication), so every kept restore point stays locked, e.g. a monthly backup
+kept for a year. Also give the bucket a default retention in compliance mode of at
+least N days (`mc retention set --default COMPLIANCE 30d`): the bucket then locks
+new objects itself, even ones a compromised computer writes without a lock. The
+console's connection test warns when it is missing.
 
 Deleting (retention, prune, an attacker) only adds delete markers. Add a lifecycle
 rule that expires noncurrent versions (e.g. `mc ilm rule add --noncurrent-expire-days 1
@@ -409,6 +413,14 @@ address, access key and fingerprint.
   only **hide** files until their period ends; then they are removed.
   `backupzit-repo status` shows hidden data, `backupzit-repo undelete --since TIME`
   brings it back, and `--as-of TIME` on the agent CLI reads the state before.
+- Access keys can be **bound to one repository path** and limited, so a
+  compromised computer reaches only its own backups and cannot fill the disk:
+  `backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G
+  --rate 600` (change with `set-key`). Limits only refuse new uploads; they never
+  delete anything and never slow down restores.
+- With `BACKUPZIT_REPO_METRICS_TOKEN` set, `https://<server>:8500/metrics` serves
+  Prometheus metrics per access key (new data, deletes, refused requests, used
+  space), measured by the server rather than reported by the agents.
 - After setup, disable SSH and other remote access to the server and protect its
   console (iDRAC/iLO/hypervisor) — the immutability is only as strong as the
   root account of that machine.

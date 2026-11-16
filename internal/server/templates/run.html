@@ -34,7 +34,7 @@
     {{else if eq .Kind "system-restore"}}
       {{with $.Data.SystemRestore}}<dt>{{T "Restore to"}}</dt><dd>{{if eq .Mode "pve-vm"}}{{T "new Proxmox VM"}}{{if gt .VMID 0}} {{.VMID}}{{end}} {{T "on storage"}} {{.Storage}}{{if .Start}}{{T ", started afterwards"}}{{end}}{{else}}{{T "disk"}} <span class="mono">{{.Device}}</span>{{if .NewHardware}}{{T ", adapted to new hardware"}}{{end}}{{end}}</dd>{{end}}
     {{else if eq .Kind "vm-backup"}}
-      <dt>{{T "Backs up"}}</dt><dd>{{vmsel .Paths}}</dd>
+      <dt>{{T "Backs up"}}</dt><dd>{{vmsel .Paths .Excludes}}</dd>
     {{else if eq .Kind "vm-restore"}}
       {{with $.Data.VMRestore}}<dt>{{T "Guest"}}</dt><dd>{{if ge .VMID 1000000000}}{{T "VM"}}{{else}}{{.VMID}}{{end}} {{T "from backup"}} {{short $.Data.Run.SnapshotID}} <span class="muted small">{{T "(name in the message below)"}}</span></dd>
       <dt>{{T "Restored as"}}</dt><dd>{{if eq .NewVMID 0}}{{T "original ID"}}{{if .Overwrite}}{{T ", replacing the existing guest"}}{{end}}{{else if lt .NewVMID 0}}{{T "next free ID"}}{{else}}{{T "ID"}} {{.NewVMID}}{{end}}{{if .Name}}{{T ", name"}} {{.Name}}{{end}}</dd>
@@ -100,7 +100,7 @@
     <div class="table-wrap"><table>
       <tr><th>{{T "ID"}}</th><th>{{T "Name"}}</th><th>{{T "Type"}}</th><th>{{T "Disks"}}</th><th>{{T "With data"}}</th><th>{{T "Captured"}}</th><th></th></tr>
       {{range .Data.VM.Guests}}
-      <tr><td>{{if or (eq .Platform "hyperv") (eq .Platform "vmware")}}—{{else}}{{.VMID}}{{end}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}{{T "container"}}{{else}}{{T "VM"}}{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}{{if .Changed}}<br><span class="muted">{{T "changed blocks only: %d of %d disks" .Changed .Disks}}</span>{{end}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}</td></tr>
+      <tr><td>{{if or (eq .Platform "hyperv") (eq .Platform "vmware")}}—{{else}}{{.VMID}}{{end}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}{{T "container"}}{{else}}{{T "VM"}}{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}{{if .Changed}}<br><span class="muted">{{T "changed blocks only: %d of %d disks" .Changed .Disks}}</span>{{end}}{{if .Excluded}}<br><span class="muted">{{T "excluded by the job:"}} <span class="mono">{{join .Excluded ", "}}</span></span>{{end}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}</td></tr>
       {{end}}
     </table></div>
   </div>

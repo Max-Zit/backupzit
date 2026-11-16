@@ -11,6 +11,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>W ciągu minuty węzeł pojawia się na stronie Agenci z oznaczeniem <b>Proxmox VE · N guests</b>.</li>
   <li>W <a href="/jobs">Zadania kopii</a> wybierz tego agenta i <b>Maszyny wirtualne (Proxmox VE, Hyper-V, VMware)</b>. Następnie wybierz <b>Wszystkie VM (i kontenery) na hoście</b> (goście utworzeni później są dołączani automatycznie) albo zaznacz wybranych.</li>
 </ol>
+<p id="pve-except">Aby pominąć pojedyncze maszyny goście, np. maszynę konsoli BackupZit, wybierz <b>Wszystkie maszyny wirtualne (i kontenery) na hoście oprócz zaznaczonych</b> i zaznacz je.</p>
 <p>Agent używa własnych narzędzi węzła (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); w konsoli nie jest przechowywany żaden token API ani hasło.</p>
 
 <h2>Jak kopiowany jest gość</h2>

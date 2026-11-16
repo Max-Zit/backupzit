@@ -29,6 +29,7 @@
   <li>Dodajte S3 skladište i označite <b>Nepromenljivi bekapi na N dana</b>. Izaberite N bar onoliko dugo koliko je najduža retencija koju želite da zaštitite, npr. 30.</li>
 </ol>
 <p>Svaka tačka vraćanja ostaje zaključana bar N dana posle nastanka; podacima zajedničkim sa novijim bekapima rok se automatski produžava.</p>
+<p id="lock-retained">Posle svakog bekapa agent produžava zaključavanje svih podataka koje retention posla još čuva, a ne samo podataka koje novi bekap ponovo koristi: mesečni bekap koji se čuva godinu dana ostaje zaključan tu godinu. To važi za S3 Object Lock i za hardened repozitorijum. Kada skratite retention da biste oslobodili prostor, prostor se vraća tek kad postojeća zaključavanja isteknu, najviše jedan i po period zaključavanja kasnije.</p>
 
 <h2>Ojačani repozitorijum</h2>
 <p>Poseban Linux server sa <code>backupzit-repo</code>:</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>Posle podešavanja <b>isključite SSH i drugi udaljeni pristup</b> na serveru repozitorijuma i zaštitite pristup njegovoj lokalnoj konzoli / iDRAC-u / iLO-u / hipervizoru. Zaštita je jaka onoliko koliko i root nalog te mašine.</p></div>
+<p id="hardened-keys-limit">Vežite svaki pristupni ključ za jednu putanju repozitorijuma i ograničite ga (vidite <a href="/docs/storage">Storage destinacije</a>), tako da kompromitovan računar ne može ni da čita ni da napuni bekape drugih računara.</p>
+<p id="hardened-metrics">Za nadzor podesite <code>BACKUPZIT_REPO_METRICS_TOKEN</code> u <code>repo.env</code>. Server tada nudi Prometheus metrike po pristupnom ključu na <code>https://&lt;server&gt;:8500/metrics</code> (zaglavlje <code>Authorization: Bearer &lt;token&gt;</code>): nove fajlove i bajtove, nove bajtove danas, brisanja, zahteve za zadržavanje, odbijene zahteve po razlogu (path, quota, daily, rate) i zauzet prostor. Ovi brojevi dolaze sa servera, pa kompromitovan računar ne može da ih lažira: dižite alarm, na primer, na nagli skok brisanja ili novih podataka.</p>
 
 <h2>Oporavak posle napada</h2>
 <p>Ako je napadač obrisao ili prepisao bekape, čitajte skladište <b>onakvo kakvo je bilo pre napada</b> — to je samo čitanje i ništa ne menja:</p>

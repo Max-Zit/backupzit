@@ -27,6 +27,7 @@
 <p>Informe o endpoint (p. ex. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), o bucket, uma pasta opcional e uma chave de acesso com leitura/gravação nesse bucket. Marque <i>HTTP sem criptografia</i> apenas para um MinIO local sem certificado.</p>
 <h3>Backups imutáveis (Object Lock)</h3>
 <p>Crie o bucket com <b>Object Lock ativado</b> e marque <i>Backups imutáveis … por N dias</i>. Cada arquivo gravado pelos agentes fica bloqueado em <b>modo de conformidade</b> por N dias (+1 dia de margem): ninguém — nem um invasor com as chaves, nem o proprietário do bucket — pode excluí-lo ou sobrescrevê-lo antes disso. Após cada backup, o bloqueio dos dados reutilizados de backups mais antigos é prolongado, de modo que cada ponto de restauração fica protegido durante todo o período.</p>
+<p id="s3-default-retention">Dê também ao bucket uma <b>retenção predefinida</b> em <b>modo de conformidade</b> de pelo menos N dias (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). O bucket bloqueia então por si cada objeto novo, mesmo um que um computador comprometido escreva sem bloqueio. O teste de ligação do destino avisa quando a retenção predefinida falta ou é inferior a N dias.</p>
 <p>Excluir (pela retenção ou por um invasor) só adiciona um «marcador de exclusão». Adicione uma regra de ciclo de vida que expire as <i>versões não atuais</i> após um dia, para liberar espaço quando os bloqueios terminarem. Veja <a href="/docs/ransomware">Proteção contra ransomware</a>.</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # shows the access key once
 backupzit-repo fingerprint                # certificate fingerprint</pre>
 <p>Informe na console o endereço do servidor, a chave de acesso e a impressão digital. O período de imutabilidade é configurado no servidor do repositório (<code>/etc/backupzit-repo/repo.env</code>) e não pode ser alterado pela console nem pelos agentes. Detalhes em <a href="/docs/ransomware">Proteção contra ransomware</a>.</p>
+<p id="hardened-key-limits">Uma chave de acesso pode ser associada a um caminho do repositório e limitada. Dê a cada computador o seu próprio destino de armazenamento e a sua própria chave, para que um computador comprometido só alcance as suas próprias cópias:</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # altera um limite; none remove-o
+backupzit-repo keys                           # chaves e os seus limites</pre>
+<p id="hardened-key-limits-2">Com <code>--path</code>, nada fora de <code>hardened://server/office/pc-anna</code> existe para a chave. <code>--quota</code> limita os dados guardados abaixo do caminho (os ficheiros eliminados contam enquanto são retidos), <code>--daily</code> os dados novos por dia (UTC), <code>--rate</code> os pedidos de escrita por minuto. Um limite apenas recusa novos envios, e a cópia falha então com uma mensagem; nunca elimina nem encurta nada, e a leitura e a restauração nunca são limitadas. Sem opções uma chave não tem limites, para que uma primeira cópia grande não seja bloqueada por engano.</p>
 
 <h2>Criptografia e a chave de recuperação</h2>
 <p>Com <i>Criptografar backups</i> (o padrão), tudo no repositório — conteúdo e nomes dos arquivos, estrutura de pastas, listas de snapshots — é criptografado com <b>AES-256-GCM</b> antes de sair do agente. O provedor de armazenamento só vê dados aleatórios.</p>

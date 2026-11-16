@@ -9,6 +9,7 @@
   <li>Em <a href="/jobs">Tarefas de backup</a> selecione esse agente e escolha <b>Máquinas virtuais (Proxmox VE, Hyper-V, VMware)</b>. Depois escolha:
     <ul>
       <li><b>Todas as VMs (e contêineres) do host</b>, o que também cobre VMs criadas depois;</li>
+      <li><b>Todas as VMs do host exceto as marcadas</b>, p. ex. sem a VM da consola BackupZit; as VMs criadas mais tarde também são incluídas;</li>
       <li>VMs individuais, marcando-as.</li>
     </ul>
   </li>
@@ -35,6 +36,9 @@
 <p id="vtpm-integrity">A verificação de integridade do repositório também verifica o estado guardado do convidado. Após a atualização, verifique os repositórios e as cópias existentes; uma atualização não pode recuperar um estado do convidado que já tenha sido eliminado. Se estiver em falta, utilize uma cópia intacta ou crie uma nova cópia de segurança.</p>
 <p>Exemplo do laboratório de testes: uma VM Linux com um disco de 3 GB. O primeiro backup leu 3 GB. O seguinte, após 64 MB de dados novos, leu 96 MB.</p>
 <p>No Windows 10/11, o Hyper-V cria um ponto de verificação automático quando uma VM inicia, a menos que essa opção esteja desligada nas configurações da VM. O BackupZit lida com esses pontos de verificação, mas em servidores é melhor desligar os pontos de verificação automáticos (configurações da VM → Pontos de verificação).</p>
+
+<h2 id="exclude-disks">Deixar discos de fora</h2>
+<p id="exclude-disks-1">Os discos de dados copiados de outra forma podem ficar de fora: indique-os na tarefa em <b>Excluir discos</b>, um por linha, como padrão de nome de ficheiro (<code>*-data.vhdx</code>) ou caminho completo (<code>D:\VMs\SQL01\data.vhdx</code>); maiúsculas e minúsculas não contam. A página da execução mostra os discos excluídos de cada VM. Uma VM restaurada como nova VM recebe apenas os discos copiados; uma restauração no mesmo lugar deixa os discos excluídos ligados sem alterações. Uma VM com todos os discos excluídos não é copiada. Os agentes anteriores à 0.49 não conseguem excluir discos, por isso a consola não inicia essa tarefa neles.</p>
 
 <h2>Restaurar uma VM</h2>
 <p>Abra a execução do backup da VM (pela página da tarefa ou <a href="/runs">Atividade</a>) e use <b>Restaurar uma VM Hyper-V</b>.</p>

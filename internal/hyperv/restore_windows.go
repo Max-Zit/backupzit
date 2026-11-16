@@ -123,6 +123,13 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		}
 		seen[d.Key] = true
 	}
+	for _, d := range g.ExcludedDisks {
+		if inPlace {
+			res.Notes = append(res.Notes, fmt.Sprintf("disk %s (%s) was excluded from the backup: it stays attached unchanged", d.Key, d.Path))
+		} else {
+			res.Notes = append(res.Notes, fmt.Sprintf("disk %s (%s) was excluded from the backup and is not restored: attach it again or restore it from its own backup", d.Key, d.Path))
+		}
+	}
 	folder := strings.TrimSpace(opts.Folder)
 	if folder == "" {
 		out, err := ps(ctx, `(Get-VMHost).VirtualHardDiskPath`)
@@ -224,7 +231,9 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			`Get-VMSnapshot -VM $vm | Remove-VMSnapshot -IncludeAllChildSnapshots; $t = 0; `+
 			`while ("$((Get-VM -Id `+psq(existing.ID)+`).Status)" -match 'Merg' -and $t -lt 3600) { Start-Sleep 2; $t += 2 }; `+
 			`if ($t -ge 3600) { throw 'checkpoint merge timed out' }; `+
-			`$p = @(Get-VMHardDiskDrive -VM $vm | ForEach-Object { $_.Path }); Get-VMHardDiskDrive -VM $vm | Remove-VMHardDiskDrive; $p -join "`+"`n"+`"`)
+			// Disks the job excluded from the backup stay attached as they are.
+			`$keep = @(`+keepList(g.ExcludedDisks)+`); $d = @(Get-VMHardDiskDrive -VM $vm | Where-Object { $keep -notcontains ("$($_.ControllerType)".ToLower() + $_.ControllerNumber + ':' + $_.ControllerLocation) }); `+
+			`$p = @($d | ForEach-Object { $_.Path }); $d | Remove-VMHardDiskDrive; $p -join "`+"`n"+`"`)
 		if err != nil {
 			return nil, fmt.Errorf("prepare the existing VM (restored disks retained in %s; inspect VM attachments before retrying): %w", dir, err)
 		}
@@ -418,4 +427,16 @@ func findByName(ctx context.Context, name string) *vmInfo {
 // the whole script silently, as if it had succeeded.
 func psClusterResource(id string) string {
 	return `@(Get-ClusterResource -ErrorAction SilentlyContinue | Where-Object { $_.ResourceType.Name -eq 'Virtual Machine' -and (Get-ClusterParameter -InputObject $_ -Name VmID -ErrorAction SilentlyContinue).Value -eq ` + psq(id) + ` })[0]`
+}
+
+// keepList is a PowerShell array body of the controller locations of the
+// disks a backup excluded ('scsi0:1','ide0:1'); only valid keys are listed.
+func keepList(ds []repo.ExcludedDisk) string {
+	var s []string
+	for _, d := range ds {
+		if k := strings.ToLower(d.Key); diskKeyRe.MatchString(k) {
+			s = append(s, "'"+k+"'")
+		}
+	}
+	return strings.Join(s, ",")
 }

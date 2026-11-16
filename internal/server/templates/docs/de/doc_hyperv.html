@@ -9,6 +9,7 @@
   <li>Wählen Sie unter <a href="/jobs">Sicherungsaufträge</a> diesen Agenten und <b>Virtuelle Maschinen (Proxmox VE, Hyper-V, VMware)</b>. Wählen Sie dann eines:
     <ul>
       <li><b>Alle VMs (und Container) auf dem Host</b>, was auch später erstellte VMs abdeckt;</li>
+      <li><b>Alle VMs auf dem Host außer den angehakten</b>, z. B. ohne die VM der BackupZit-Konsole; später erstellte VMs sind ebenfalls enthalten;</li>
       <li>einzelne VMs, indem Sie sie markieren.</li>
     </ul>
   </li>
@@ -35,6 +36,9 @@
 <p id="vtpm-integrity">Die Integritätsprüfung des Repositorys prüft auch den gespeicherten Gastzustand. Prüfen Sie nach dem Update vorhandene Repositorys und Kopien; ein Update kann bereits gelöschten Gastzustand nicht wiederherstellen. Verwenden Sie bei fehlendem Zustand eine intakte Kopie oder erstellen Sie eine neue Sicherung.</p>
 <p>Beispiel aus dem Testlabor: eine Linux-VM mit einer 3-GB-Festplatte. Die erste Sicherung las 3 GB. Die nächste, nach 64 MB neuen Daten, las 96 MB.</p>
 <p>Unter Windows 10/11 erstellt Hyper-V beim Start einer VM einen automatischen Prüfpunkt, sofern diese Option in den VM-Einstellungen nicht ausgeschaltet ist. BackupZit kommt mit solchen Prüfpunkten zurecht, aber bei Servern sollten Sie automatische Prüfpunkte ausschalten (VM-Einstellungen → Prüfpunkte).</p>
+
+<h2 id="exclude-disks">Datenträger auslassen</h2>
+<p id="exclude-disks-1">Datenträger mit Daten, die anders gesichert werden, können ausgelassen werden: Tragen Sie sie im Auftrag unter <b>Datenträger ausschließen</b> ein, einen pro Zeile, als Dateinamenmuster (<code>*-data.vhdx</code>) oder vollständigen Pfad (<code>D:\VMs\SQL01\data.vhdx</code>); Groß- und Kleinschreibung spielt keine Rolle. Die Seite des Laufs zeigt die ausgeschlossenen Datenträger jeder VM. Eine als neue VM wiederhergestellte VM erhält nur die gesicherten Datenträger; eine Wiederherstellung am ursprünglichen Ort lässt die ausgeschlossenen Datenträger unverändert angeschlossen. Eine VM, deren Datenträger alle ausgeschlossen sind, wird nicht gesichert. Agenten älter als 0.49 können keine Datenträger ausschließen; die Konsole startet einen solchen Auftrag daher nicht auf ihnen.</p>
 
 <h2>Eine VM wiederherstellen</h2>
 <p>Öffnen Sie den Lauf der VM-Sicherung (über die Auftragsseite oder <a href="/runs">Aktivität</a>) und verwenden Sie <b>Eine Hyper-V-VM wiederherstellen</b>.</p>

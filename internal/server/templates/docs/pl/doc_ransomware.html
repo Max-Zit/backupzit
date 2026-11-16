@@ -29,6 +29,7 @@
   <li>Dodaj magazyn S3 i zaznacz <b>Niezmienne kopie przez N dni</b>. Wybierz N co najmniej tak długie, jak najdłuższe przechowywanie, które chcesz chronić, np. 30.</li>
 </ol>
 <p>Każdy punkt przywracania pozostaje zablokowany co najmniej N dni od utworzenia; dane współdzielone z nowszymi kopiami są przedłużane automatycznie.</p>
+<p id="lock-retained">Po każdej kopii agent przedłuża blokadę wszystkich danych, które retencja zadania nadal przechowuje, a nie tylko danych ponownie używanych przez nową kopię: kopia miesięczna przechowywana przez rok pozostaje zablokowana przez ten rok. Dotyczy to S3 Object Lock i repozytorium utwardzonego. Gdy skrócisz retencję, aby zwolnić miejsce, miejsce wraca dopiero po zakończeniu istniejących blokad, najpóźniej półtora okresu blokady później.</p>
 
 <h2>Utwardzone repozytorium</h2>
 <p>Osobny serwer Linux z <code>backupzit-repo</code>:</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>Po konfiguracji <b>wyłącz SSH i inny zdalny dostęp</b> na serwerze repozytorium i zabezpiecz dostęp do jego lokalnej konsoli / iDRAC / iLO / hiperwizora. Ochrona jest tak silna jak konto root tej maszyny.</p></div>
+<p id="hardened-keys-limit">Powiąż każdy klucz dostępu z jedną ścieżką repozytorium i ogranicz go (zobacz <a href="/docs/storage">Miejsca docelowe</a>), aby przejęty komputer nie mógł ani czytać, ani zapełniać kopii innych komputerów.</p>
+<p id="hardened-metrics">Do monitorowania ustaw <code>BACKUPZIT_REPO_METRICS_TOKEN</code> w <code>repo.env</code>. Serwer udostępnia wtedy metryki Prometheus dla każdego klucza pod <code>https://&lt;server&gt;:8500/metrics</code> (nagłówek <code>Authorization: Bearer &lt;token&gt;</code>): nowe pliki i bajty, nowe bajty dzisiaj, usunięcia, żądania retencji, odrzucone żądania według przyczyny (path, quota, daily, rate) i zajęte miejsce. Te liczby pochodzą z serwera, więc przejęty komputer nie może ich sfałszować: ustaw alert np. na nagły skok usunięć lub nowych danych.</p>
 
 <h2>Odzyskiwanie po ataku</h2>
 <p>Jeśli atakujący usunął lub nadpisał kopie, odczytaj magazyn <b>w stanie sprzed ataku</b> — to tylko odczyt i niczego nie zmienia:</p>

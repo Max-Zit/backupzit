@@ -134,12 +134,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><th>Commande</th><th>Ce qu'elle fait</th></tr>
   <tr><td><code>backupzit-repo serve</code></td><td>Lance le service (systemd s'en charge).</td></tr>
   <tr><td><code>backupzit-repo add-key NAME</code></td><td>Crée une clé d'accès (affichée une fois).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME --path PATH --quota SIZE --daily SIZE --rate N</code></td><td>Clé d’accès liée à un chemin du dépôt et limitée (voir <a href="/docs/storage">Cibles de stockage</a>).</td></tr>
+  <tr><td><code>backupzit-repo set-key NAME --quota SIZE</code></td><td>Modifie le chemin ou les limites d’une clé ; <code>none</code> en supprime une.</td></tr>
   <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Lister / révoquer les clés d'accès.</td></tr>
   <tr><td><code>backupzit-repo fingerprint</code></td><td>Empreinte du certificat pour la console.</td></tr>
   <tr><td><code>backupzit-repo status</code></td><td>Données stockées et masquées (supprimées, encore conservées).</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Rend à nouveau visibles les fichiers supprimés depuis TIME.</td></tr>
 </table>
 <p>Configuration : <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> active des métriques Prometheus par clé d’accès sur <code>/metrics</code> (en-tête <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Serveur de gestion (<code>backupzit-server</code>)</h2>
 <table>

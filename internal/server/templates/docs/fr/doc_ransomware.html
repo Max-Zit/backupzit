@@ -29,6 +29,7 @@
   <li>Ajoutez la cible S3 et cochez <b>Sauvegardes immuables pendant N jours</b>. Choisissez N au moins aussi long que la plus longue rétention à protéger, par ex. 30.</li>
 </ol>
 <p>Chaque point de restauration reste verrouillé au moins N jours après sa création ; les données partagées avec des sauvegardes plus récentes sont prolongées automatiquement.</p>
+<p id="lock-retained">Après chaque sauvegarde, l’agent prolonge le verrou de toutes les données que la rétention de la tâche conserve encore, pas seulement des données que la nouvelle sauvegarde réutilise : une sauvegarde mensuelle conservée un an reste verrouillée pendant cette année. Cela vaut pour S3 Object Lock et pour le dépôt renforcé. Si vous raccourcissez la rétention pour libérer de l’espace, celui-ci ne revient qu’à la fin des verrous existants, jusqu’à une fois et demie la période de verrouillage plus tard.</p>
 
 <h2>Dépôt renforcé</h2>
 <p>Un serveur Linux dédié exécutant <code>backupzit-repo</code> :</p>
@@ -44,6 +45,8 @@ systemctl start backupzit-repo
 backupzit-repo add-key office-console
 backupzit-repo fingerprint</pre>
 <div class="callout warn"><p>Après la configuration, <b>désactivez SSH et tout autre accès distant</b> sur le serveur du dépôt et protégez l'accès à sa console locale / iDRAC / iLO / hyperviseur. La protection n'est pas plus forte que le compte root de cette machine.</p></div>
+<p id="hardened-keys-limit">Liez chaque clé d’accès à un chemin du dépôt et limitez-la (voir <a href="/docs/storage">Cibles de stockage</a>), afin qu’un ordinateur compromis ne puisse ni lire ni remplir les sauvegardes des autres ordinateurs.</p>
+<p id="hardened-metrics">Pour la supervision, définissez <code>BACKUPZIT_REPO_METRICS_TOKEN</code> dans <code>repo.env</code>. Le serveur propose alors des métriques Prometheus par clé d’accès sur <code>https://&lt;server&gt;:8500/metrics</code> (en-tête <code>Authorization: Bearer &lt;token&gt;</code>) : nouveaux fichiers et octets, nouveaux octets du jour, suppressions, demandes de rétention, requêtes refusées par motif (path, quota, daily, rate) et espace utilisé. Ces chiffres viennent du serveur, un ordinateur compromis ne peut donc pas les falsifier : alertez par exemple sur un saut soudain des suppressions ou des nouvelles données.</p>
 
 <h2>Récupérer après une attaque</h2>
 <p>Si un attaquant a supprimé ou écrasé des sauvegardes, lisez le stockage <b>tel qu'il était avant l'attaque</b> — en lecture seule, sans rien modifier :</p>

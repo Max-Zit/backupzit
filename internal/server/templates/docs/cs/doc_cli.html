@@ -134,12 +134,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><th>Příkaz</th><th>Co dělá</th></tr>
   <tr><td><code>backupzit-repo serve</code></td><td>Spustí službu (to dělá systemd).</td></tr>
   <tr><td><code>backupzit-repo add-key NAME</code></td><td>Vytvoří přístupový klíč (zobrazí se jednou).</td></tr>
+  <tr><td><code>backupzit-repo add-key NAME --path PATH --quota SIZE --daily SIZE --rate N</code></td><td>Přístupový klíč svázaný s jednou cestou repozitáře a omezený (viz <a href="/docs/storage">Cíle úložiště</a>).</td></tr>
+  <tr><td><code>backupzit-repo set-key NAME --quota SIZE</code></td><td>Změní cestu nebo limity klíče; <code>none</code> jeden odstraní.</td></tr>
   <tr><td><code>backupzit-repo keys</code> / <code>remove-key NAME</code></td><td>Vypsat / odvolat přístupové klíče.</td></tr>
   <tr><td><code>backupzit-repo fingerprint</code></td><td>Otisk certifikátu pro konzoli.</td></tr>
   <tr><td><code>backupzit-repo status</code></td><td>Uložená a skrytá (smazaná, ještě uchovávaná) data.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Znovu zviditelní soubory smazané od TIME.</td></tr>
 </table>
 <p>Konfigurace: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> zapne metriky Prometheus pro každý přístupový klíč na <code>/metrics</code> (hlavička <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Správcovský server (<code>backupzit-server</code>)</h2>
 <table>

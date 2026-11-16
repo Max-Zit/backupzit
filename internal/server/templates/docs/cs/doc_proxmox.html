@@ -11,6 +11,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Do minuty se uzel objeví na stránce Agenti se štítkem <b>Proxmox VE · N guests</b>.</li>
   <li>V <a href="/jobs">Úlohy zálohování</a> vyberte tohoto agenta a zvolte <b>Virtuální počítače (Proxmox VE, Hyper-V, VMware)</b>. Potom zvolte <b>Všechny VM (a kontejnery) na hostiteli</b> (hosté vytvoření později se zahrnou automaticky) nebo zaškrtněte jednotlivé.</li>
 </ol>
+<p id="pve-except">Chcete-li vynechat jednotlivé hosty, např. VM konzole BackupZit, zvolte <b>Všechny VM (a kontejnery) na hostiteli kromě zaškrtnutých</b> a zaškrtněte je.</p>
 <p>Agent používá vlastní nástroje uzlu (<code>qm</code>, <code>pct</code>, <code>pvesm</code>, LVM, ZFS, Ceph); v konzoli se neukládá žádný API token ani heslo.</p>
 
 <h2>Jak se host zálohuje</h2>

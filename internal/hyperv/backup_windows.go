@@ -29,8 +29,10 @@ type BackupOptions struct {
 	Tags     []string
 	// RequireAppConsistent: no crash-consistent fallback (see ErrNotAppConsistent).
 	RequireAppConsistent bool
-	Progress             func(done, total uint64)
-	Log                  func(msg string, args ...any)
+	// ExcludeDisks are disk files left out (see DiskExcluded).
+	ExcludeDisks []string
+	Progress     func(done, total uint64)
+	Log          func(msg string, args ...any)
 }
 
 // Backup checkpoints the selected VMs and stores their disks and settings
@@ -90,7 +92,7 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	notApp := 0
 	for _, vm := range sel {
 		opts.Log("backing up VM", "name", vm.Name, "id", vm.ID)
-		g, warns, err := backupVM(ctx, r, vm, sn, prev, progress, opts.RequireAppConsistent, opts.Log)
+		g, warns, err := backupVM(ctx, r, vm, sn, prev, progress, opts.RequireAppConsistent, opts.ExcludeDisks, opts.Log)
 		for _, w := range warns {
 			addErr(vm.Name, errors.New(w))
 		}
@@ -242,9 +244,20 @@ func lastLine(s string) string {
 	return strings.TrimSpace(l[len(l)-1])
 }
 
-func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), requireApp bool, log func(string, ...any)) (_ *repo.Guest, warns []string, _ error) {
+func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), requireApp bool, excludeDisks []string, log func(string, ...any)) (_ *repo.Guest, warns []string, _ error) {
 	if len(vm.Disks) == 0 {
 		return nil, nil, errNoDisks
+	}
+	// Disks the job leaves out, by controller location (a checkpoint reports
+	// the same locations with other file names).
+	excluded := map[string]string{}
+	for _, d := range vm.Disks {
+		if DiskExcluded(excludeDisks, d.Path) {
+			excluded[d.key()] = d.Path
+		}
+	}
+	if len(excluded) == len(vm.Disks) {
+		return nil, nil, errors.New("every disk of the VM is excluded by the job (Exclude disks); the VM was not backed up")
 	}
 	unlock, err := lockVM(ctx, vm.ID, true)
 	if err != nil {
@@ -293,7 +306,16 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 		}()
 		disks, g.Consistency, rct = ci.Disks, consistency, withRCT
 	}
+	for _, d := range vm.Disks {
+		if p, ok := excluded[d.key()]; ok {
+			g.ExcludedDisks = append(g.ExcludedDisks, repo.ExcludedDisk{Key: d.key(), Path: p})
+			log("disk excluded by the job", "vm", vm.Name, "disk", d.key(), "path", p)
+		}
+	}
 	for _, d := range disks {
+		if _, ok := excluded[d.key()]; ok {
+			continue
+		}
 		gd, err := backupDisk(ctx, r, vm, d, rct, prev, sn, progress, log)
 		if err != nil {
 			return nil, warns, fmt.Errorf("%s: %w", d.key(), err)

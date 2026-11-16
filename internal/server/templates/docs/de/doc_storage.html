@@ -27,6 +27,7 @@
 <p>Geben Sie den Endpunkt (z. B. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), den Bucket, einen optionalen Ordner und einen Zugriffsschlüssel mit Lese-/Schreibzugriff auf diesen Bucket ein. Aktivieren Sie <i>Unverschlüsseltes HTTP</i> nur für ein lokales MinIO ohne Zertifikat.</p>
 <h3>Unveränderliche Sicherungen (Object Lock)</h3>
 <p>Erstellen Sie den Bucket mit <b>aktiviertem Object Lock</b> und aktivieren Sie <i>Unveränderliche Sicherungen … für N Tage</i>. Jede Datei, die die Agenten schreiben, wird für N Tage (+1 Tag Puffer) im <b>Compliance-Modus</b> gesperrt: Niemand — weder ein Angreifer mit den Schlüsseln noch der Bucket-Eigentümer — kann sie vorher löschen oder überschreiben. Nach jeder Sicherung wird die Sperre von Daten, die aus älteren Sicherungen wiederverwendet werden, verlängert, sodass jeder Wiederherstellungspunkt für die volle Frist geschützt ist.</p>
+<p id="s3-default-retention">Geben Sie dem Bucket außerdem eine <b>Standard-Aufbewahrung</b> im <b>Compliance-Modus</b> von mindestens N Tagen (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Der Bucket sperrt dann jedes neue Objekt selbst, auch eines, das ein kompromittierter Computer ohne Sperre schreibt. Der Verbindungstest des Ziels warnt, wenn die Standard-Aufbewahrung fehlt oder kürzer als N Tage ist.</p>
 <p>Löschen (durch Aufbewahrung oder durch einen Angreifer) fügt nur eine „Löschmarkierung“ hinzu. Fügen Sie eine Lebenszyklusregel hinzu, die <i>nicht aktuelle Versionen</i> nach einem Tag ablaufen lässt, damit Platz frei wird, sobald die Sperren enden. Siehe <a href="/docs/ransomware">Ransomware-Schutz</a>.</p>
 
 <h3>Google Cloud Storage</h3>
@@ -69,6 +70,11 @@
 <pre>backupzit-repo add-key office-console     # shows the access key once
 backupzit-repo fingerprint                # certificate fingerprint</pre>
 <p>Geben Sie die Serveradresse, den Zugriffsschlüssel und den Fingerabdruck in der Konsole ein. Die Unveränderlichkeitsfrist wird auf dem Repository-Server konfiguriert (<code>/etc/backupzit-repo/repo.env</code>) und kann weder von der Konsole noch von Agenten geändert werden. Details unter <a href="/docs/ransomware">Ransomware-Schutz</a>.</p>
+<p id="hardened-key-limits">Ein Zugriffsschlüssel kann an einen Repository-Pfad gebunden und begrenzt werden. Geben Sie jedem Computer ein eigenes Speicherziel und einen eigenen Schlüssel, damit ein kompromittierter Computer nur seine eigenen Sicherungen erreicht:</p>
+<pre>backupzit-repo add-key pc-anna --path office/pc-anna --quota 500G --daily 100G --rate 600
+backupzit-repo set-key pc-anna --quota 1T     # Limit ändern; none entfernt es
+backupzit-repo keys                           # Schlüssel und ihre Limits</pre>
+<p id="hardened-key-limits-2">Mit <code>--path</code> existiert für den Schlüssel nichts außerhalb von <code>hardened://server/office/pc-anna</code>. <code>--quota</code> begrenzt die unter dem Pfad gespeicherten Daten (gelöschte Dateien zählen, solange sie aufbewahrt werden), <code>--daily</code> die neuen Daten pro Tag (UTC), <code>--rate</code> die Schreibanfragen pro Minute. Ein Limit lehnt nur neue Uploads ab, die Sicherung schlägt dann mit einer Meldung fehl; es löscht oder verkürzt nie etwas, und Lesen und Wiederherstellen sind nie begrenzt. Ohne Optionen hat ein Schlüssel keine Limits, sodass eine große erste Sicherung nicht versehentlich blockiert wird.</p>
 
 <h2>Verschlüsselung und der Wiederherstellungsschlüssel</h2>
 <p>Mit <i>Sicherungen verschlüsseln</i> (Standard) wird alles im Repository — Dateiinhalte, Dateinamen, Ordnerstruktur, Snapshot-Listen — mit <b>AES-256-GCM</b> verschlüsselt, bevor es den Agenten verlässt. Der Speicheranbieter sieht nur Zufallsdaten.</p>

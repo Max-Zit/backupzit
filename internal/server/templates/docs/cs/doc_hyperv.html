@@ -9,6 +9,7 @@
   <li>V <a href="/jobs">Úlohy zálohování</a> vyberte tohoto agenta a zvolte <b>Virtuální počítače (Proxmox VE, Hyper-V, VMware)</b>. Pak zvolte:
     <ul>
       <li><b>Všechny VM (a kontejnery) na hostiteli</b>, což zahrnuje i později vytvořené VM;</li>
+      <li><b>Všechny VM na hostiteli kromě zaškrtnutých</b>, např. bez VM konzole BackupZit; později vytvořené VM jsou také zahrnuty;</li>
       <li>jednotlivé VM jejich zaškrtnutím.</li>
     </ul>
   </li>
@@ -35,6 +36,9 @@
 <p id="vtpm-integrity">Kontrola integrity úložiště ověřuje také uložený stav hosta. Po aktualizaci zkontrolujte existující úložiště a jejich kopie; aktualizace nemůže obnovit již odstraněný stav hosta. Pokud chybí, použijte nepoškozenou kopii nebo vytvořte novou zálohu.</p>
 <p>Příklad z testovací laboratoře: linuxový VM s diskem 3 GB. První záloha přečetla 3 GB. Další, po 64 MB nových dat, přečetla 96 MB.</p>
 <p>Ve Windows 10/11 vytváří Hyper-V při startu VM automatický kontrolní bod, pokud tato volba není v nastavení VM vypnutá. BackupZit si s takovými kontrolními body poradí, ale u serverů je vhodné automatické kontrolní body vypnout (nastavení VM → Kontrolní body).</p>
+
+<h2 id="exclude-disks">Vynechání disků</h2>
+<p id="exclude-disks-1">Datové disky zálohované jinak lze vynechat: uveďte je v úloze pod <b>Vyloučit disky</b>, jeden na řádek, jako vzor názvu souboru (<code>*-data.vhdx</code>) nebo úplnou cestu (<code>D:\VMs\SQL01\data.vhdx</code>); na velikosti písmen nezáleží. Stránka běhu ukazuje vyloučené disky každé VM. VM obnovená jako nová VM dostane jen zálohované disky; obnovení na místě ponechá vyloučené disky připojené beze změny. VM, jejíž disky jsou všechny vyloučené, se nezálohuje. Agenti starší než 0.49 disky vylučovat neumějí, proto na nich konzole takovou úlohu nespustí.</p>
 
 <h2>Obnova VM</h2>
 <p>Otevřete běh zálohy VM (ze stránky úlohy nebo z <a href="/runs">Aktivita</a>) a použijte <b>Obnovit VM Hyper-V</b>.</p>
