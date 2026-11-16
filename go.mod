@@ -11,10 +11,10 @@ require (
 	github.com/beevik/etree v1.8.1
 	github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/crewjam/saml v0.5.1
+	github.com/crewjam/saml v0.6.3
 	github.com/fergusstrange/embedded-postgres v1.34.0
 	github.com/go-git/go-billy/v5 v5.9.2
-	github.com/go-jose/go-jose/v4 v4.1.6
+	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/go-ldap/ldap/v3 v3.4.15
 	github.com/go-ole/go-ole v1.3.0
 	github.com/go-pdf/fpdf v0.9.0
@@ -22,7 +22,7 @@ require (
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	github.com/johannesboyne/gofakes3 v1.2.0
 	github.com/kardianos/service v1.3.0
-	github.com/klauspost/compress v1.20.3
+	github.com/klauspost/compress v1.20.4
 	github.com/letsencrypt/pebble/v2 v2.10.1
 	github.com/masahiro331/go-ext4-filesystem v0.0.0-20260423010602-fe51f5b5e52b
 	github.com/masahiro331/go-xfs-filesystem v0.0.0-20260422061116-d21e5e4481bb
@@ -36,8 +36,8 @@ require (
 	github.com/willscott/go-nfs v0.0.4
 	golang.org/x/crypto v0.58.0
 	golang.org/x/net v0.62.0
-	golang.org/x/oauth2 v0.37.0
-	golang.org/x/sys v0.49.0
+	golang.org/x/oauth2 v0.38.0
+	golang.org/x/sys v0.50.0
 	golang.org/x/term v0.47.0
 	rsc.io/qr v0.2.0
 	www.velocidex.com/golang/go-ntfs v0.2.1
@@ -85,7 +85,6 @@ require (
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40 // indirect
 	github.com/masterzen/simplexml v0.0.0-20190410153822-31eea3082786 // indirect
-	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
 	github.com/miekg/dns v1.1.62 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
