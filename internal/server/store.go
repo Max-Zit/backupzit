@@ -335,6 +335,11 @@ type Agent struct {
 	Hypervisor json.RawMessage
 	// RemovedAt is set for removed agents kept for their backups.
 	RemovedAt *time.Time
+	// DisplayName is the name shown in the console, set by its users (empty:
+	// the host name). Tags are free labels for finding agents. The agent
+	// never sets either.
+	DisplayName string
+	Tags        []string
 }
 
 // Disks decodes the reported disk inventory.
@@ -351,11 +356,11 @@ func (a Agent) Online() bool {
 	return a.LastSeen != nil && time.Since(*a.LastSeen) < 3*time.Minute
 }
 
-const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, max_runs, removed_at`
+const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, max_runs, removed_at, display_name, tags`
 
 func scanAgent(r pgx.Row, extra ...any) (Agent, error) {
 	var a Agent
-	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.MaxRuns, &a.RemovedAt}, extra...)
+	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.MaxRuns, &a.RemovedAt, &a.DisplayName, &a.Tags}, extra...)
 	err := r.Scan(dest...)
 	return a, err
 }
@@ -633,7 +638,7 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 	return id, err
 }
 
-const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.retention, j.agent_id, a.hostname, j.target_id, st.name, j.name, j.paths, j.excludes,
+const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.retention, j.agent_id, ` + agentNameSQL + `, j.target_id, st.name, j.name, j.paths, j.excludes,
 	j.schedule, j.enabled, j.last_scheduled_at, j.created_at,
 	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') ORDER BY r.queued_at DESC LIMIT 1),
 	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') ORDER BY r.queued_at DESC LIMIT 1),
@@ -769,9 +774,12 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 }
 
 type Run struct {
-	ID       int64
-	AgentID  int64
-	Hostname string
+	ID      int64
+	AgentID int64
+	// Hostname is the name shown for the agent (its display name, else the
+	// host name); ReportedHost is the host name the computer reports.
+	Hostname     string
+	ReportedHost string
 	// AgentRemoved marks runs of a removed agent kept for its backups.
 	AgentRemoved bool
 	// Progress is set for running runs whose agent reports it.
@@ -832,9 +840,9 @@ func (r Run) Duration() time.Duration {
 	return end.Sub(*r.StartedAt).Round(time.Second)
 }
 
-const runCols = `r.id, r.agent_id, a.hostname, a.removed_at IS NOT NULL, r.job_id, COALESCE(j.name, NULLIF(r.job_name,'')), r.kind, r.status, r.trigger, r.repo_url,
+const runCols = `r.id, r.agent_id, ` + agentNameSQL + `, a.removed_at IS NOT NULL, r.job_id, COALESCE(j.name, NULLIF(r.job_name,'')), r.kind, r.status, r.trigger, r.repo_url,
 	r.target_id, r.paths, r.excludes, r.snapshot_id, r.restore_target, r.restore_verify, r.queued_at, r.started_at, r.finished_at,
-	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url, r.anomaly, r.anomaly_ack, r.vm_restore, r.new_hardware, r.driver_path, r.system_restore, r.commands, r.cancel_reason`
+	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url, r.anomaly, r.anomaly_ack, r.vm_restore, r.new_hardware, r.driver_path, r.system_restore, r.commands, r.cancel_reason, a.hostname`
 
 const runFrom = ` FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id`
 
@@ -843,7 +851,7 @@ func scanRun(row pgx.Row) (Run, error) {
 	err := row.Scan(&r.ID, &r.AgentID, &r.Hostname, &r.AgentRemoved, &r.JobID, &r.JobName, &r.Kind, &r.Status,
 		&r.Trigger, &r.RepoURL, &r.TargetID, &r.Paths, &r.Excludes, &r.SnapshotID, &r.RestoreTarget, &r.RestoreVerify,
 		&r.QueuedAt, &r.StartedAt, &r.FinishedAt, &r.Stats, &r.Errors, &r.Message,
-		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL, &r.Anomaly, &r.AnomalyAck, &r.VMRestore, &r.NewHardware, &r.DriverPath, &r.SystemRestore, &r.Commands, &r.CancelReason)
+		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL, &r.Anomaly, &r.AnomalyAck, &r.VMRestore, &r.NewHardware, &r.DriverPath, &r.SystemRestore, &r.Commands, &r.CancelReason, &r.ReportedHost)
 	return r, err
 }
 

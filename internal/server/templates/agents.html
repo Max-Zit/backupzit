@@ -32,12 +32,13 @@ sudo systemctl enable --now backupzit-agent</pre>
 {{end}}
 
 <div class="panel">
+  {{with .Data.AllTags}}<p class="small">{{T "Tags:"}} {{range .}}<a class="badge{{if eq . $.Data.Tag}} info-badge{{end}}" href="/agents?tag={{.}}">{{.}}</a> {{end}}{{if $.Data.Tag}}<a href="/agents">{{T "show all agents"}}</a>{{end}}</p>{{end}}
   {{if .Data.Agents}}
   <div class="table-wrap"><table>
-    <tr><th>{{T "Hostname"}}</th><th>{{T "OS"}}</th><th>{{T "IP addresses"}}</th><th>{{T "Version"}}</th><th title="{{T "How many backups and restores the agent runs at the same time"}}">{{T "Jobs at once"}}</th><th>{{T "Status"}}</th><th>{{T "Last seen"}}</th><th>{{T "Enrolled"}}</th><th></th></tr>
+    <tr><th>{{T "Agent"}}</th><th>{{T "OS"}}</th><th>{{T "IP addresses"}}</th><th>{{T "Version"}}</th><th title="{{T "How many backups and restores the agent runs at the same time"}}">{{T "Jobs at once"}}</th><th>{{T "Status"}}</th><th>{{T "Last seen"}}</th><th>{{T "Enrolled"}}</th><th></th></tr>
     {{range .Data.Agents}}
     <tr>
-      <td>{{.Hostname}}{{if .Recovery}} <span class="badge">{{T "recovery"}}</span>{{end}}{{$label := .HypervisorLabel}}{{with .PVE}} <span class="badge info-badge" title="{{T "Backs up the VMs of this hypervisor host without agents in the guests"}}">{{$label}} · {{len .Guests}} {{if eq $label "Hyper-V"}}{{N (len .Guests) "VM" "VMs (count)"}}{{else}}{{N (len .Guests) "guest" "guests"}}{{end}}</span>{{if .ClusterName}} <span class="badge" title="{{T "Node of a Hyper-V failover cluster; back up its VMs with a job for the cluster"}}">{{T "cluster %s" .ClusterName}}</span>{{end}}{{end}}</td>
+      <td><a href="/agents/{{.ID}}" class="strong">{{.Name}}</a>{{if .DisplayName}} <span class="muted small mono" title="{{T "Host name reported by the computer"}}">{{.Hostname}}</span>{{end}}{{range .Tags}} <a class="badge" href="/agents?tag={{.}}">{{.}}</a>{{end}}{{if .Recovery}} <span class="badge">{{T "recovery"}}</span>{{end}}{{$label := .HypervisorLabel}}{{with .PVE}} <span class="badge info-badge" title="{{T "Backs up the VMs of this hypervisor host without agents in the guests"}}">{{$label}} · {{len .Guests}} {{if eq $label "Hyper-V"}}{{N (len .Guests) "VM" "VMs (count)"}}{{else}}{{N (len .Guests) "guest" "guests"}}{{end}}</span>{{if .ClusterName}} <span class="badge" title="{{T "Node of a Hyper-V failover cluster; back up its VMs with a job for the cluster"}}">{{T "cluster %s" .ClusterName}}</span>{{end}}{{end}}</td>
       <td>{{.OS}}/{{.Arch}}</td>
       <td class="nowrap">{{range $i, $ip := .LocalIPs}}{{if $i}}<br>{{end}}<span class="mono small">{{$ip}}</span>{{else}}<span class="muted">—</span>{{end}}{{with .RemoteAddr}}<div class="muted small" title="{{T "address the agent connects from — its public address if it is behind NAT"}}">{{T "seen from"}} {{.}}</div>{{end}}</td>
       <td><span class="mono">{{.Version}}</span>{{$id := .ID}}{{$u := index $.Data.Updates .ID}}{{if $u.Version}}{{with $u}}<br>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{$id}}/update" class="inline"><button class="link small" title="Installs {{.File}} on the machine; the agent restarts">{{T "Update to"}} {{.Version}}</button></form>{{else}}<span class="muted small">{{.Version}} {{T "available"}}</span>{{end}}{{end}}{{end}}</td>
@@ -84,7 +85,7 @@ sudo systemctl enable --now backupzit-agent</pre>
           <option value="" {{if eq .Method ""}}selected{{end}}>{{T "Automatic"}}</option><option value="ssh" {{if eq .Method "ssh"}}selected{{end}}>{{T "Always SSH"}}</option><option value="api" {{if eq .Method "api"}}selected{{end}}>{{T "Always vSphere API"}}</option></select>
           <button class="link small">{{T "Save"}}</button></form>{{end}}</td>
       <td>{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/proxy" class="inline">
-          <select name="proxy_agent_id" data-autosubmit>{{if not .ProxyAgentID}}<option value="">{{T "— choose —"}}</option>{{end}}{{$p := .ProxyAgentID}}{{range $.Data.Agents}}<option value="{{.ID}}" {{if and $p (eq .ID (deref64 $p))}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+          <select name="proxy_agent_id" data-autosubmit>{{if not .ProxyAgentID}}<option value="">{{T "— choose —"}}</option>{{end}}{{$p := .ProxyAgentID}}{{range $.Data.Agents}}<option value="{{.ID}}" {{if and $p (eq .ID (deref64 $p))}}selected{{end}}>{{.Label}}</option>{{end}}</select>
           <button class="link small">{{T "Save"}}</button></form>{{else}}{{with .ProxyName}}{{.}}{{else}}—{{end}}{{end}}</td>
       <td class="nowrap small">{{ago .InventoryAt}}{{with .LastError}}<br><span class="badge failed" title="{{.}}"><i></i>{{T "error"}}</span>{{end}}</td>
       <td class="nowrap">{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/refresh" class="inline"><button class="link">{{T "Refresh"}}</button></form>
@@ -107,7 +108,7 @@ sudo systemctl enable --now backupzit-agent</pre>
         <label>{{T "User"}} <small>{{T "root on an ESXi host; on vCenter administrator@vsphere.local or a user with the Administrator role"}}</small><input name="username" value="root" required></label>
         <label>{{T "Password"}} <small>{{T "stored encrypted"}}</small><input name="password" type="password" autocomplete="new-password" required></label>
         <label>{{T "Proxy agent"}}
-          <select name="proxy_agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
+          <select name="proxy_agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Label}}</option>{{end}}</select>
         </label>
       </div>
       <label>{{T "How the host is changed"}} <small>{{T "Automatic: the vSphere API on licensed hosts and vCenter (no SSH needed), SSH on the free license, whose API is read-only"}}</small>

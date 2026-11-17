@@ -114,7 +114,7 @@ func (h VMwareHost) apiHost() *api.VMwareHost {
 
 const ctxVMware = "vmware_hosts.password"
 
-const vmwareCols = `h.id, h.name, h.address, h.username, h.password, h.thumbprint, h.ssh_host_key, h.method, h.proxy_agent_id, a.hostname, h.repo_dir,
+const vmwareCols = `h.id, h.name, h.address, h.username, h.password, h.thumbprint, h.ssh_host_key, h.method, h.proxy_agent_id, ` + agentNameSQL + `, h.repo_dir,
 	h.inventory, h.inventory_at, h.version, h.api_writes, h.ssh_ok, h.last_error, h.created_at`
 
 const vmwareFrom = ` FROM vmware_hosts h LEFT JOIN agents a ON a.id=h.proxy_agent_id AND a.removed_at IS NULL`

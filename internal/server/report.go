@@ -170,7 +170,7 @@ func (s *Store) BuildReport(ctx context.Context, p Period, agentID, jobID int64)
 	rep := &Report{Period: p, Generated: time.Now(), Runs: runs}
 	if agentID != 0 {
 		if a, err := s.GetAgent(ctx, agentID); err == nil {
-			rep.AgentName = a.Hostname
+			rep.AgentName = a.Name()
 		}
 	}
 	if jobID != 0 {
@@ -562,7 +562,7 @@ func (rs ReportSchedule) DescribeIn(l *language) string {
 }
 
 func (s *Store) ListReportSchedules(ctx context.Context) ([]ReportSchedule, error) {
-	rows, err := s.db.Query(ctx, `SELECT rs.id, rs.name, rs.frequency, rs.agent_id, rs.job_id, a.hostname, j.name, rs.recipients, rs.hour, rs.last_period
+	rows, err := s.db.Query(ctx, `SELECT rs.id, rs.name, rs.frequency, rs.agent_id, rs.job_id, `+agentNameSQL+`, j.name, rs.recipients, rs.hour, rs.last_period
 		FROM report_schedules rs LEFT JOIN agents a ON a.id=rs.agent_id LEFT JOIN jobs j ON j.id=rs.job_id ORDER BY rs.name`)
 	if err != nil {
 		return nil, err

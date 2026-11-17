@@ -183,17 +183,21 @@ func (s *Server) api(perm Perm, h apiHandler) http.HandlerFunc {
 // JSON shapes (stable field names, independent of internal structs).
 
 type apiAgent struct {
-	ID       int64      `json:"id"`
-	Hostname string     `json:"hostname"`
-	OS       string     `json:"os"`
-	Version  string     `json:"version"`
-	Online   bool       `json:"online"`
-	LastSeen *time.Time `json:"last_seen"`
-	Recovery bool       `json:"recovery"`
-	LocalIPs []string   `json:"local_ips"`
-	SeenFrom string     `json:"seen_from"`
-	Enrolled time.Time  `json:"enrolled"`
-	MaxRuns  int        `json:"max_runs"`
+	ID       int64  `json:"id"`
+	Hostname string `json:"hostname"`
+	// Name is the name shown in the console (display name, else hostname).
+	Name        string     `json:"name"`
+	DisplayName string     `json:"display_name"`
+	Tags        []string   `json:"tags"`
+	OS          string     `json:"os"`
+	Version     string     `json:"version"`
+	Online      bool       `json:"online"`
+	LastSeen    *time.Time `json:"last_seen"`
+	Recovery    bool       `json:"recovery"`
+	LocalIPs    []string   `json:"local_ips"`
+	SeenFrom    string     `json:"seen_from"`
+	Enrolled    time.Time  `json:"enrolled"`
+	MaxRuns     int        `json:"max_runs"`
 }
 
 type apiJob struct {
@@ -242,7 +246,12 @@ type apiRun struct {
 }
 
 func toAPIAgent(a Agent) apiAgent {
-	return apiAgent{a.ID, a.Hostname, a.OS + "/" + a.Arch, a.Version, a.Online(), a.LastSeen, a.Recovery, a.LocalIPs, a.RemoteAddr, a.EnrolledAt, max(a.MaxRuns, 1)}
+	tags := a.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	return apiAgent{ID: a.ID, Hostname: a.Hostname, Name: a.Name(), DisplayName: a.DisplayName, Tags: tags, OS: a.OS + "/" + a.Arch, Version: a.Version, Online: a.Online(),
+		LastSeen: a.LastSeen, Recovery: a.Recovery, LocalIPs: a.LocalIPs, SeenFrom: a.RemoteAddr, Enrolled: a.EnrolledAt, MaxRuns: max(a.MaxRuns, 1)}
 }
 
 func toAPIJob(j Job) apiJob {

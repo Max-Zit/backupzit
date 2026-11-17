@@ -191,7 +191,7 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 	if bare := unprotectedAgents(agents, jobs, now); len(bare) > 0 {
 		var names []string
 		for _, a := range bare {
-			names = append(names, a.Hostname)
+			names = append(names, a.Name())
 		}
 		shown := names
 		if len(shown) > 5 {
@@ -207,21 +207,21 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 			continue
 		}
 		if d, ok := dups[a.ID]; ok {
-			out = append(out, Attention{"failed", a.Hostname, l.T("two machines use this agent (%s); its backups and restores are held — stop the copy or enroll it as a new machine", strings.Join(d.Machines, ", ")), "/agents"})
+			out = append(out, Attention{"failed", a.Name(), l.T("two machines use this agent (%s); its backups and restores are held — stop the copy or enroll it as a new machine", strings.Join(d.Machines, ", ")), "/agents"})
 		}
 		if d, ok := skew[a.ID]; ok {
 			sev := "warning"
 			if d >= 10*time.Minute || d <= -10*time.Minute {
 				sev = "failed"
 			}
-			out = append(out, Attention{sev, a.Hostname, skewText(l, d), "/agents"})
+			out = append(out, Attention{sev, a.Name(), skewText(l, d), "/agents"})
 		}
 		if a.LastSeen == nil || now.Sub(*a.LastSeen) > 15*time.Minute {
 			seen := l.T("agent never connected")
 			if a.LastSeen != nil {
 				seen = l.T("agent offline for %s", humanAge(l, now.Sub(*a.LastSeen)))
 			}
-			out = append(out, Attention{"warning", a.Hostname, seen, "/agents"})
+			out = append(out, Attention{"warning", a.Name(), seen, "/agents"})
 		}
 	}
 	if usage, err := s.store.storageUsage(ctx, now); err == nil && len(usage) > 0 {

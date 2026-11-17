@@ -6,7 +6,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
 <form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack">
   {{template "restore_back" .}}
   <label>{{T "Restore on agent"}}
-    <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+    <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Label}}</option>{{end}}</select>
   </label>
   <label class="check"><input type="radio" name="mode" value="folder" checked> {{T "Restore into a folder"}}</label>
   <label>{{T "Folder"}} <small>{{T "the original path structure is recreated below it, e.g. D:\\Restore\\C\\Users\\..."}}</small><input name="target" placeholder="{{T "C:\\Restore"}}"></label>
@@ -51,7 +51,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
   <input type="hidden" name="kind" value="system"><input type="hidden" name="mode" value="disk">
   <div class="row">
     <label>{{T "On agent"}} <small>{{T "a Linux machine with an empty disk, or the new machine booted from the Linux recovery ISO"}}</small>
-      <select name="disk_agent_id">{{range .Data.LinuxAgents}}<option value="{{.ID}}">{{.Hostname}}{{if .Recovery}} {{T "(recovery)"}}{{end}}</option>{{end}}</select>
+      <select name="disk_agent_id">{{range .Data.LinuxAgents}}<option value="{{.ID}}">{{.Label}}{{if .Recovery}} {{T "(recovery)"}}{{end}}</option>{{end}}</select>
     </label>
     <label>{{T "Target disk"}}<input name="device" placeholder="{{T "/dev/sdb"}}" required></label>
   </div>
@@ -156,7 +156,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
   {{template "restore_back" .}}
   <input type="hidden" name="kind" value="image">
   <label>{{T "Restore on agent"}}
-    <select name="agent_id" id="restore_agent">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}{{if .Recovery}} {{T "(recovery)"}}{{end}}</option>{{end}}</select>
+    <select name="agent_id" id="restore_agent">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Label}}{{if .Recovery}} {{T "(recovery)"}}{{end}}</option>{{end}}</select>
   </label>
   {{if gt (len .Data.Image) 1}}
   <label>{{T "Disk of the backup"}} <small>{{T "this backup holds several disks; restore them one by one, each onto its own disk"}}</small>
@@ -183,7 +183,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
       <select name="database">{{range $d.SQLPoints}}<option value="{{.Name}}" {{if eq .Name $d.SelectedDB}}selected{{end}}>{{if eq .Name "(cluster)"}}{{T "Whole PostgreSQL cluster — as a separate instance on a free port"}}{{else}}{{.Name}}{{end}}</option>{{end}}</select>
     </label>
     <label>{{T "Restore on"}}
-      <select name="agent_id">{{range $d.WindowsAgents}}<option value="{{.ID}}" {{if eq .ID $d.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+      <select name="agent_id">{{range $d.WindowsAgents}}<option value="{{.ID}}" {{if eq .ID $d.Run.AgentID}}selected{{end}}>{{.Label}}</option>{{end}}</select>
     </label>
     {{if ne $d.SQL.Engine "mysql"}}<label>{{if eq $d.SQL.Engine "postgres"}}{{T "Port"}} <small>{{T "of the PostgreSQL server to restore into; empty: 5432"}}</small>{{else}}{{T "Instance"}} <small>{{T "empty: default instance"}}</small>{{end}}<input name="instance" value="{{$d.SQLInstance}}"></label>{{end}}
   </div>

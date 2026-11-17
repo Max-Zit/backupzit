@@ -29,7 +29,7 @@
   <h3 class="mt">{{T "Or restore them on an agent"}}</h3>
   <div class="stack">
     <label>{{T "Restore on agent"}}
-      <select name="agent_id">{{range .Data.Agents}}{{if not .Recovery}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}{{end}}</select>
+      <select name="agent_id">{{range .Data.Agents}}{{if not .Recovery}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Label}}</option>{{end}}{{end}}</select>
     </label>
     <label class="check"><input type="radio" name="mode" value="folder" checked> {{T "Restore into a folder"}}</label>
     <label>{{T "Folder"}} <small>{{T "the original path structure is recreated below it, e.g. D:\\Restore\\C\\Users\\..."}}</small><input name="target" placeholder="{{T "/srv/restore or D:\\Restore"}}"></label>

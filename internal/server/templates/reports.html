@@ -19,7 +19,7 @@
   <label data-custom>{{T "From"}} <input type="date" name="from" value="{{.Data.Q.Get "from"}}"></label>
   <label data-custom>{{T "To"}} <input type="date" name="to" value="{{.Data.Q.Get "to"}}"></label>
   <label>{{T "Agent"}}
-    <select name="agent"><option value="">{{T "All agents"}}</option>{{range .Data.Agents}}<option value="{{.ID}}" {{if eq (printf "%d" .ID) ($.Data.Q.Get "agent")}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+    <select name="agent"><option value="">{{T "All agents"}}</option>{{range .Data.Agents}}<option value="{{.ID}}" {{if eq (printf "%d" .ID) ($.Data.Q.Get "agent")}}selected{{end}}>{{.Label}}</option>{{end}}</select>
   </label>
   <label>{{T "Job"}}
     <select name="job"><option value="">{{T "All jobs"}}</option>{{range .Data.Jobs}}<option value="{{.ID}}" {{if eq (printf "%d" .ID) ($.Data.Q.Get "job")}}selected{{end}}>{{.Name}} ({{.Hostname}})</option>{{end}}</select>
@@ -141,7 +141,7 @@
         </label>
       </div>
       <div class="row">
-        <label>{{T "Agent"}} <select name="agent"><option value="">{{T "All agents"}}</option>{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select></label>
+        <label>{{T "Agent"}} <select name="agent"><option value="">{{T "All agents"}}</option>{{range .Data.Agents}}<option value="{{.ID}}">{{.Label}}</option>{{end}}</select></label>
         <label>{{T "Job"}} <select name="job"><option value="">{{T "All jobs"}}</option>{{range .Data.Jobs}}<option value="{{.ID}}">{{.Name}} ({{.Hostname}})</option>{{end}}</select></label>
       </div>
       <div class="row">

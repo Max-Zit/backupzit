@@ -1,6 +1,6 @@
 {{define "content"}}
 {{$a := .Data.Agent}}
-<h1>{{T "Remove agent %v" $a.Hostname}}</h1>
+<h1>{{T "Remove agent %v" $a.Label}}</h1>
 {{if .Data.Pending}}
 <div class="panel"><div class="flash">{{template "icon" "clock"}}<span>{{T "The agent is uninstalling itself. It is removed here as soon as it reports; if it does not come back, remove it below without uninstalling."}}</span></div></div>
 {{end}}
