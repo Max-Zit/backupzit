@@ -86,7 +86,7 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 	if size == 0 {
 		return repo.DiskImage{}, errors.New("disk is empty")
 	}
-	blockSize := uint64(r.VMBlockSizeKiB()) << 10
+	blockSize := uint64(r.VMBlockSizeKiB()) << 10 // #nosec G115 -- validated: 256, 512 or 1024 KiB
 	// A changed-block map is only meaningful with its original block size.
 	// Re-read the whole disk once when the job switches size, even if the
 	// hypervisor supplied only dirty ranges. Never treat the rest as zeros.
@@ -169,7 +169,7 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 		if err := ctx.Err(); err != nil {
 			return img, err
 		}
-		if _, err := f.ReadAt(buf[:n], int64(start)); err != nil && !(errors.Is(err, io.EOF) && j == p.Blocks) {
+		if _, err := f.ReadAt(buf[:n], int64(start)); err != nil && !(errors.Is(err, io.EOF) && j == p.Blocks) { // #nosec G115 -- disk sizes are below 2^63
 			return img, fmt.Errorf("read at %d: %w", start, err)
 		}
 		if i == 0 && refreshHead {
