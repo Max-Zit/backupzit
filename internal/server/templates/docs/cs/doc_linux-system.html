@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Záloha systému Linux a P2V</h1>
 <p class="lead">Úloha <b>Systém Linux</b> zálohuje celý linuxový počítač, aby ho šlo znovu vytvořit na prázdném disku — tentýž počítač po selhání disku, nový hardware nebo virtuální počítač v Proxmox VE (z fyzického na virtuální, P2V).</p>
+<p>Testováno s Debianem, Ubuntu 22.04 a Rocky Linux 9 (totéž platí pro AlmaLinux a RHEL 9). Na Ubuntu 22.04 a systémech podobných RHEL 9 vyžadují zálohy systému Linux agenta 0.50.0 nebo novějšího.</p>
 
 <h2>Co se zálohuje</h2>
 <ul>
@@ -10,12 +11,12 @@
 <p>Stejně jako Relax-and-Recover BackupZit nekopíruje běžící disk blok po bloku: Linux nemá vestavěný snímek běžícího disku, takže surová kopie by byla nekonzistentní. Každý soubor se přečte celý a rozložení zajistí, že obnovený disk bude znovu zaváděcí. Databáze je třeba před zálohou vyexportovat nebo zálohovat jejich vlastními nástroji.</p>
 <p>Jednotlivé soubory a složky se ze zálohy systému obnovují jako z kterékoli zálohy souborů (<b>Obnovit soubory z této zálohy</b> na stránce běhu).</p>
 <h3>Zatím nepodporováno</h3>
-<p>Šifrované disky (LUKS), softwarový RAID (mdadm), btrfs a systémy rozložené na více disků. Úloha to jasně ohlásí, místo aby vytvořila neúplnou zálohu.</p>
+<p>Šifrované disky (LUKS), softwarový RAID (mdadm) a btrfs: úloha to jasně ohlásí, místo aby vytvořila neúplnou zálohu. Systémy rozložené na více disků se zálohují, ale obnova celého systému znovu vytvoří jeden disk (na příkazovém řádku se volí pomocí <code>--disk</code>); disky MBR s logickými oddíly nelze obnovit jako celek. Pole <b>Vyloučit</b> v úloze vynechá cesty, stejně jako <code>--exclude</code> na příkazovém řádku.</p>
 
 <h2>Obnova celého systému</h2>
 <p>Otevřete běh zálohy systému (stránka úlohy nebo <a href="/runs">Aktivita</a>) a použijte <b>Obnovit celý systém</b>:</p>
 <h3>Jako nový VM v Proxmoxu</h3>
-<p>Zvolte uzel Proxmoxu (práci odvede jeho agent BackupZit), úložiště, ID VM, název, paměť a jádra. BackupZit vytvoří VM se stejným firmwarem jako originál (UEFI/OVMF nebo BIOS), s diskem a síťovou kartou VirtIO SCSI, znovu vytvoří disk, obnoví všechny soubory a může VM spustit. Protože VM je kopie, která může běžet vedle originálu:</p>
+<p>Zvolte uzel Proxmoxu (práci odvede jeho agent BackupZit), úložiště, ID VM, název, paměť (výchozí 2048 MiB), jádra (výchozí 2) a síťový most (výchozí <code>vmbr0</code>). BackupZit vytvoří VM se stejným firmwarem jako originál (UEFI/OVMF nebo BIOS), s diskem a síťovou kartou VirtIO SCSI, znovu vytvoří disk, obnoví všechny soubory a může VM spustit. Protože VM je kopie, která může běžet vedle originálu:</p>
 <ul>
   <li>síťová nastavení vázaná na staré MAC adresy (běžná v cloudových obrazech: netplan <code>match: macaddress</code>) se upraví tak, aby platila pro libovolné kabelové rozhraní,</li>
   <li>agent BackupZit v kopii se odregistruje, aby se nehlásil jako původní počítač.</li>

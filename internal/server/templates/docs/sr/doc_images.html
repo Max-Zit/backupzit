@@ -16,15 +16,15 @@
 <h2>Vraćanje slike na disk</h2>
 <p>Na pokretanju bekapa slike koristite <b>Vrati ovu sliku na disk</b>:</p>
 <ul>
-  <li><b>Vrati na agenta</b> — mašina na kojoj je ciljni disk. To može da bude mašina koja radi i ima slobodan disk, ili mašina pokrenuta sa ISO-a za oporavak.</li>
-  <li><b>Ciljni disk</b> — mora da bude bar onoliki koliki je zauzet deo originala. <b>Svi podaci na njemu se brišu.</b></li>
+  <li><b>Vrati na agenta</b> — Windows mašina na kojoj je ciljni disk. To može da bude mašina koja radi i ima slobodan disk, ili mašina pokrenuta sa ISO-a za oporavak; disk sa kog Windows radi ne može da se izabere, pa je za vraćanje sistemskog diska mašine potreban ISO za oporavak.</li>
+  <li><b>Ciljni disk</b> — mora da dopire bar do kraja poslednje particije originalnog diska (particije se ponovo prave u originalnim veličinama, ne smanjuju se) i da ima istu veličinu sektora (512 ili 4096 bajtova). <b>Svi podaci na njemu se brišu.</b></li>
   <li><b>Posle toga ostavi disk offline</b> — označite ovo kada je originalni disk u istoj mašini, da Windows ne bi promenio ID-jeve diska kopije.</li>
 </ul>
 <p>Podržani su GPT i MBR diskovi, EFI i BIOS pokretanje. Raspored particija i ID-jevi se ponovo prave, pa se vraćeni disk pokreće kao ranije.</p>
 
 <h2>Oporavak na „goli metal“ pomoću ISO-a za oporavak</h2>
 <ol>
-  <li>Na stranici <a href="/recovery">Medijum za oporavak</a> preuzmite (Windows) ISO za oporavak. Narežite ga na USB stik (Rufus, režim „DD image“ ili „ISO“) ili ga zakačite na virtuelnu mašinu.</li>
+  <li>Jednom napravite Windows ISO za oporavak (vidi <a href="/docs/restore#recovery-iso">ISO-i za oporavak</a>; Windows PE ne sme dalje da se distribuira), ili ga preuzmite sa stranice <a href="/recovery">Medijum za oporavak</a> ako je kopiran u konzolu. Upišite ga na USB stik (Rufus u režimu <b>ISO</b>, da biste mogli da dodate folder naveden ispod) ili ga zakačite na virtuelnu mašinu.</li>
   <li>Po želji napravite <b>kod za oporavak</b> i preuzmite <code>recovery.json</code>; kopirajte ga u folder <code>backupzit</code> na stiku, da se mašina poveže bez kucanja.</li>
   <li>Pokrenite mašinu koju vraćate sa stika. Ona pokreće agenta u režimu oporavka i povezuje se na konzolu (ili traži adresu servera i kod za oporavak).</li>
   <li>Mašina se pojavljuje kao agent <span class="badge">oporavak</span> sa svojim diskovima.</li>

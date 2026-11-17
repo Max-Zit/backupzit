@@ -97,6 +97,6 @@ backupzit-repo keys                           # klucze i ich limity</pre>
 <p><b>Wymaga uwagi</b> na pulpicie ostrzega, gdy miejsce docelowe jest zapełnione w 90 % lub zapełni się w ciągu 30 dni. S3 i Azure nie mają stałego rozmiaru; tam pokazywane są tylko zajęte miejsce i jego przyrost. Zajęte miejsce to przechowywane (skompresowane, zaszyfrowane, zdeduplikowane) dane; pliki, które magazyn przechowuje z innych powodów (wersje obiektów, inne programy), nie są liczone.</p>
 
 <h2>Usuwanie miejsca docelowego</h2>
-<p>Usunięcie miejsca docelowego z konsoli nie usuwa żadnych danych z magazynu. Przy włączonym <a href="/docs/users">zatwierdzaniu na cztery oczy</a> drugi użytkownik musi to najpierw zatwierdzić.</p>
+<p>Miejsca docelowego, którego nadal używają zadania, nie można usunąć. Usunięcie miejsca docelowego z konsoli nie usuwa żadnych danych z magazynu, ale konsola zapomina jego dane uwierzytelniające i klucz odzyskiwania, więc jego kopii nie da się już przywrócić z konsoli — najpierw pobierz arkusz odzyskiwania. Przy włączonym <a href="/docs/users">zatwierdzaniu na cztery oczy</a> drugi użytkownik musi to najpierw zatwierdzić.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

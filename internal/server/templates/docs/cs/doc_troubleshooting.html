@@ -38,7 +38,7 @@
   <tr><td>Záloha konzole: „the backup was made by a newer BackupZit“</td><td>Před obnovou nainstalujte na novou konzoli verzi, která zálohu vytvořila, nebo novější.</td></tr>
   <tr><td>Záloha konzole: „console backups need network storage“</td><td>Zvolte cíl SFTP, S3, SMB, Azure nebo zabezpečené úložiště; místní cesta agenta není z konzole dostupná.</td></tr>
   <tr><td>„Příliš mnoho neúspěšných přihlášení“</td><td>Vaše adresa byla zablokována po opakovaně špatných heslech: ve výchozím stavu na 30 minut, při opakovaných blokacích déle. Správce může blokaci zrušit v <a href="/settings/security">Nastavení → Přihlášení a zabezpečení</a>. Na serveru zruší všechny blokace <code>backupzit-server --unblock-ip all</code>. Účty se nikdy nezamykají trvale.</td></tr>
-  <tr><td>Ztracený telefon pro dvoufázové přihlášení</td><td>Použijte jeden z kódů obnovy; jinak správce dvoufázové přihlášení resetuje na stránce vašeho uživatele. Poslední správce si může heslo resetovat na serveru příkazem <code>backupzit-server --set-admin-password</code>.</td></tr>
+  <tr><td>Ztracený telefon pro dvoufázové přihlášení</td><td>Použijte jeden z kódů obnovy; jinak správce dvoufázové přihlášení resetuje na stránce vašeho uživatele. Uchovejte si kódy obnovy nebo mějte druhého správce: <code>backupzit-server --set-admin-password</code> na serveru nastaví jen heslo uživatele <i>admin</i> a dvoufázové přihlášení nevypne.</td></tr>
   <tr><td>„your directory account is not in any BackupZit group“</td><td>Přidejte uživatele do jedné ze skupin přiřazených v <a href="/settings/ldap">Nastavení → LDAP / Active Directory</a>, nebo přiřaďte více skupin. Pomocí <i>Test</i> tam uvidíte skupiny nalezené pro uživatele.</td></tr>
   <tr><td>API vrací 401 / 403</td><td>401: token chybí, je odvolaný, vypršel nebo je jeho vlastník zakázán. 403: role tokenu je pro požadavek příliš nízká.</td></tr>
   <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Špatný klíč účtu, nebo SAS tokenu chybí oprávnění ke čtení, zápisu, mazání či výpisu, nebo vypršel.</td></tr>
@@ -54,9 +54,9 @@
   <tr><td>VMware: „changed block tracking is off and can be enabled … only while the VM is off“</td><td>Bezplatná licence ESXi: jednou VM vypněte a pak spusťte úlohu; BackupZit zapne sledování změněných bloků a další zálohy čtou jen změněné bloky.</td></tr>
   <tr><td>VMware: „copy the disk on the datastore (needs free space …)“</td><td>Běžící VM se nakrátko kopírují na svém datastoru. Uvolněte tam místo (tolik, kolik disk zabírá), nebo VM zálohujte vypnutý.</td></tr>
   <tr><td>VMware: „… is a snapshot delta disk“</td><td>VM má vlastní snímky. Smažte je nebo je konsolidujte v ESXi Host Clientu (Snapshots → Delete all).</td></tr>
-  <tr><td>VMware: „the ESXi certificate changed“</td><td>Hostitel byl přeinstalován nebo na jeho adrese odpovídá jiný počítač. Pokud je to očekávané, odeberte hostitele v Agenti a znovu ho přidejte, aby se připnul nový certifikát.</td></tr>
+  <tr><td>VMware: „the ESXi certificate changed“</td><td>Hostitel byl přeinstalován nebo na jeho adrese odpovídá jiný počítač. Pokud je to očekávané, zkontrolujte otisk a klikněte na <b>Přijmout nový certifikát</b> u hostitele na stránce Agenti.</td></tr>
   <tr><td>VMware: soubory <code>*.replaced-DATE.vmdk</code> vedle disků VM</td><td>Staré disky VM obnoveného na místo. Smažte je v prohlížeči datastoru, jakmile obnovený VM funguje.</td></tr>
-  <tr><td>Hyper-V: soubory <code>*.replaced-DATE</code> vedle disků VM</td><td>Staré disky VM obnoveného na místo. Smažte je, jakmile obnovený VM funguje.</td></tr>
+  <tr><td>Hyper-V: staré soubory VHDX po obnově na místo</td><td>Obnova odpojí staré disky VM a ponechá je tam, kde byly (běh každý z nich uvádí: <i>old disk kept at …</i>); obnovené disky jsou v podsložce <code>backupzit-restore-…</code>. Smažte staré soubory, jakmile obnovený VM funguje.</td></tr>
   <tr><td>Okamžitá obnova v Proxmoxu: VM se nespustí nebo zamrzne</td><td>Zkontrolujte diskový server: <code>systemctl status backupzit-instant-ID</code> a <code>journalctl -u backupzit-instant-ID</code> na uzlu. Úložiště záloh musí zůstat dostupné; když nelze úložiště číst, čtení disků VM se zastaví.</td></tr>
   <tr><td>Okamžitá obnova v Proxmoxu: „efidisk0 stays on storage backupzit-instant“</td><td>QEMU nemůže přesunout úložiště proměnných EFI, dokud VM běží. Vypněte VM a spusťte <code>qm disk move ID efidisk0 STORAGE --delete 1</code>; nezávisí to na záloze.</td></tr>
   <tr><td>Proxmox: „runs on node X; install the BackupZit agent on X“</td><td>Host byl migrován. Nainstalujte agenta na každý uzel a hosty každého uzlu zálohujte agentem daného uzlu.</td></tr>
@@ -65,7 +65,7 @@
   <tr><td>Obnova systému Linux: „missing programs …“</td><td>Nainstalujte uvedené balíčky na obnovující počítač, nebo nastartujte obnovovací ISO BackupZit pro Linux, které je obsahuje.</td></tr>
   <tr><td>Obnovený linuxový počítač nemá síť</td><td>Síťová nastavení byla vázaná na starou MAC adresu (netplan <code>match: macaddress</code>). Obnovte s volbou <i>Jiný hardware</i>, nebo odstraňte řádky <code>match</code> v <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Obnovené Windows se zastaví s INACCESSIBLE_BOOT_DEVICE</td><td>Obnovte znovu s volbou <i>Obnovit na jiný hardware</i>, nebo nastartujte obnovovací ISO a spusťte <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
-  <tr><td>Obnovená kopie počítače se zobrazuje jako původní agent</td><td>Obnovy do nového VM v Proxmoxu agenta v kopii automaticky odregistrují. U jiných kopií odstraňte v kopii <code>agent.json</code> a zaregistrujte ji jako nový počítač.</td></tr>
+  <tr><td>Obnovená kopie počítače se zobrazuje jako původní agent</td><td>Systém Linux obnovený jako nový VM se odregistruje automaticky. U jiných kopií (VM obnovený jako nový VM, okamžitá obnova, replika, klonovaný disk) konzole běhy agenta pozdrží a zobrazí <i>dva počítače</i>; zaregistrujte kopii jako nový počítač (viz <a href="/docs/agents#duplicate">Dva počítače používající jednoho agenta</a>).</td></tr>
   <tr><td>Aktualizace agenta se nedokončí</td><td>Podívejte se do protokolu instalátoru v <code>C:\ProgramData\backupzit\updates</code> nebo <code>/var/tmp/backupzit-updates</code>; agenty starší než 0.21 je třeba jednou aktualizovat ručně.</td></tr>
   <tr><td>Chybí ikona v oznamovací oblasti</td><td>Klikněte na šipku <b>^</b> vedle hodin a přetáhněte ikonu BackupZit na hlavní panel, nebo spusťte <i>BackupZit Agent</i> z nabídky Start.</td></tr>
 </table>
@@ -102,9 +102,9 @@
 <h3>Mohu zálohy přesunout na jiné úložiště?</h3>
 <p>Zkopírujte složku úložiště (nebo prefix bucketu) tak, jak je — je soběstačná — a přidejte cílové úložiště, které ukazuje na nové umístění se stejným klíčem pro obnovu.</p>
 <h3>Smaže smazání úlohy i zálohy?</h3>
-<p>Ne. Zálohy zůstávají na úložišti a lze je obnovit z Aktivita nebo z příkazového řádku.</p>
+<p>Ne. Zálohy zůstávají na úložišti a lze je obnovit z Aktivita nebo z příkazového řádku. Úlohy kopie zálohy smazané úlohy se smažou spolu s ní; kopie, které vytvořily, zůstanou na svém úložišti.</p>
 <h3>Co se stane, když konzole neběží?</h3>
-<p>Dokud se nevrátí, nezačínají žádné nové plánované zálohy; běhy ve frontě pak pokračují. Obnovy jsou vždy možné z příkazového řádku s listem pro obnovu.</p>
+<p>Dokud se nevrátí, nezačínají žádné nové plánované zálohy; potom se každá úloha, jejíž plánovaný čas uplynul, spustí jednou (pokud její okno zálohování ještě neskončilo) a běhy ve frontě pokračují. Obnovy jsou vždy možné z příkazového řádku s listem pro obnovu.</p>
 <h3>Kolik místa budou zálohy potřebovat?</h3>
 <p>Pro první zálohu zhruba velikost dat po kompresi, plus denní změny za každý uchovávaný den. Stránka Sestavy ukazuje, kolik se odeslalo za každou úlohu.</p>
 {{template "docpager" .}}

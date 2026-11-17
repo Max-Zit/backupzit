@@ -3,7 +3,7 @@
 <p class="lead">Agent funguje i samostatně z příkazového řádku — pro skripty, pro obnovu bez konzole a pro nouzové situace. Spusťte <code>backupzit-agent</code> bez argumentů pro přehled a <code>backupzit-agent &lt;command&gt; -h</code> pro volby příkazu.</p>
 
 <h2>Repozitář a přihlašovací údaje</h2>
-<p>Každý příkaz přijímá <code>--repo</code> (nebo <code>BACKUPZIT_REPO</code>). Pro tajné údaje dávejte přednost proměnným prostředí. Repozitář agenta je <code>&lt;umístění úložiště&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — viz sloupec repozitáře u běhu v Aktivitě nebo list pro obnovu.</p>
+<p>Každý příkaz, který čte nebo zapisuje zálohy, přijímá <code>--repo</code> (nebo <code>BACKUPZIT_REPO</code>); <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> a <code>disks</code> ne. Pro tajné údaje dávejte přednost proměnným prostředí. Repozitář agenta je <code>&lt;umístění úložiště&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — viz pole <b>Úložiště záloh</b> na stránce běhu nebo list pro obnovu.</p>
 <table>
   <tr><th>Umístění</th><th>Přihlašovací údaje</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,7 +23,7 @@
   <tr><td><code>init</code></td><td>Vytvoří nový repozitář (šifrovaný, pokud je zadáno heslo).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Zálohuje soubory a složky. <code>--vss</code> čte ze stínové kopie svazku (Windows, správce); <code>--force</code> čte všechny soubory, i nezměněné.</td></tr>
   <tr><td><code>snapshots</code></td><td>Vypíše snímky s časem, hostitelem, velikostí a cestami.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Vypíše soubory ve snímku.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Vypíše všechny soubory ve snímku.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Obnoví soubory pod DIR (původní struktura složek se vytvoří znovu). <code>--original</code> je místo toho zapíše na původní místo a přepíše existující soubory.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Zkontroluje strukturu repozitáře; s <code>--read-data</code> se každý bajt stáhne a ověří.</td></tr>
 </table>
@@ -65,7 +65,7 @@
 <table>
   <tr><th>Příkaz</th><th>Co dělá</th></tr>
   <tr><td><code>hyperv list</code></td><td>Vypíše VM hostitele s jejich čísly BackupZit a složky pro obnovené disky.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Zálohuje VM (výchozí: všechny) z produkčních kontrolních bodů.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Zálohuje VM (výchozí: všechny) z kontrolních bodů pro obnovu s Resilient Change Tracking (produkční kontrolní body jen na hostitelích, které je nemají).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Obnoví VM na místě (výchozí) nebo jako novou VM s <code>--new</code>. <code>--overwrite</code> nahradí disky existující VM. Viz <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> a <code>pve extract</code> fungují i se zálohami Hyper-V.</p>

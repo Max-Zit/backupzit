@@ -26,9 +26,10 @@
 <ol>
   <li>Utwórz bucket z <b>włączonym Object Lock</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
   <li>Dodaj regułę cyklu życia, która usuwa <i>nieaktualne wersje</i> (noncurrent versions) po 1 dniu (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
-  <li>Dodaj magazyn S3 i zaznacz <b>Niezmienne kopie przez N dni</b>. Wybierz N co najmniej tak długie, jak najdłuższe przechowywanie, które chcesz chronić, np. 30.</li>
+  <li>Ustaw dla bucketu domyślną retencję w trybie zgodności na co najmniej N dni (MinIO: <code>mc retention set --default COMPLIANCE 30d</code>), aby obiekty były zablokowane, nawet jeśli przejęty komputer zapisze je bez blokady; <b>Testuj połączenie</b> ostrzega, gdy jej brak lub jest krótsza.</li>
+  <li>Dodaj magazyn S3 i zaznacz <b>Niezmienne kopie przez N dni</b>. Wybierz N co najmniej tak długie jak okres, przez który Twoje kopie muszą pozostać chronione, np. 30.</li>
 </ol>
-<p>Każdy punkt przywracania pozostaje zablokowany co najmniej N dni od utworzenia; dane współdzielone z nowszymi kopiami są przedłużane automatycznie.</p>
+<p>Każdy punkt przywracania pozostaje zablokowany co najmniej N dni od utworzenia; po każdej kopii agent przedłuża blokadę wszystkich danych, które retencja zadania nadal przechowuje.</p>
 <p id="lock-retained">Po każdej kopii agent przedłuża blokadę wszystkich danych, które retencja zadania nadal przechowuje, a nie tylko danych ponownie używanych przez nową kopię: kopia miesięczna przechowywana przez rok pozostaje zablokowana przez ten rok. Dotyczy to S3 Object Lock i repozytorium utwardzonego. Gdy skrócisz retencję, aby zwolnić miejsce, miejsce wraca dopiero po zakończeniu istniejących blokad, najpóźniej półtora okresu blokady później.</p>
 
 <h2>Utwardzone repozytorium</h2>

@@ -3,7 +3,7 @@
 <p class="lead">代理也可以在命令行中独立工作——用于脚本、在没有控制台的情况下还原以及应急。不带参数运行 <code>backupzit-agent</code> 查看概览，运行 <code>backupzit-agent &lt;command&gt; -h</code> 查看某个命令的选项。</p>
 
 <h2>存储库和凭据</h2>
-<p>每个命令都接受 <code>--repo</code>（或 <code>BACKUPZIT_REPO</code>）。机密信息最好使用环境变量。代理的存储库是 <code>&lt;存储位置&gt;/&lt;hostname&gt;_&lt;id&gt;</code>——请查看“活动”中某次运行的存储库列，或恢复单。</p>
+<p>每个读取或写入备份的命令都接受 <code>--repo</code>（或 <code>BACKUPZIT_REPO</code>）；<code>list</code>、<code>status</code>、<code>enroll</code>、<code>service</code> 和 <code>disks</code> 不接受。机密信息最好使用环境变量。代理的存储库是 <code>&lt;存储位置&gt;/&lt;hostname&gt;_&lt;id&gt;</code>——请查看运行页面上的<b>存储库</b>字段，或恢复单。</p>
 <table>
   <tr><th>位置</th><th>凭据</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,7 +23,7 @@
   <tr><td><code>init</code></td><td>创建新的存储库（如果提供了密码则加密）。</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>备份文件和文件夹。<code>--vss</code> 从卷影副本读取（Windows，管理员）；<code>--force</code> 读取所有文件，包括未更改的。</td></tr>
   <tr><td><code>snapshots</code></td><td>列出快照及其时间、主机、大小和路径。</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>列出快照中的文件。</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>列出快照中的所有文件。</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>将文件还原到 DIR 下（重建原始文件夹结构）。<code>--original</code> 则将其写回原始位置，覆盖现有文件。</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>检查存储库结构；使用 <code>--read-data</code> 时会下载并校验每个字节。</td></tr>
 </table>
@@ -65,7 +65,7 @@
 <table>
   <tr><th>命令</th><th>作用</th></tr>
   <tr><td><code>hyperv list</code></td><td>列出主机的虚拟机及其 BackupZit 编号，以及用于还原磁盘的文件夹。</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>从生产检查点备份虚拟机（默认：全部）。</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>从使用 Resilient Change Tracking 的恢复检查点备份虚拟机（默认：全部）（仅在没有恢复检查点的主机上使用生产检查点）。</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>就地还原虚拟机（默认），或使用 <code>--new</code> 作为新虚拟机还原。<code>--overwrite</code> 替换现有虚拟机的磁盘。参见 <a href="/docs/hyperv">Hyper-V</a>。</td></tr>
 </table>
 <p><code>pve show</code>、<code>pve ls</code> 和 <code>pve extract</code> 也适用于 Hyper-V 备份。</p>

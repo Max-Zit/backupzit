@@ -13,14 +13,16 @@
 
 <h2>Een host toevoegen</h2>
 <ol>
-  <li>Open <a href="/agents#vmware">Agents → VMware ESXi-hosts</a> → <i>Een ESXi-host toevoegen</i>.</li>
+  <li>Open <a href="/agents#vmware">Agents → VMware ESXi-hosts</a> → <i>Een ESXi-host of vCenter Server toevoegen</i>.</li>
   <li>Voer het adres, de gebruiker, het wachtwoord en de proxy-agent in.</li>
   <li>De console maakt één keer verbinding om ze te controleren. Hij leest de VM-lijst en de licentie, en <b>pint het HTTPS-certificaat en de SSH-hostsleutel van de host</b>. Als de host later wordt vervangen door een andere machine met hetzelfde adres, weigert BackupZit verbinding te maken in plaats van die het wachtwoord te sturen. Wijzigt het certificaat om een bekende reden — de host is opnieuw geïnstalleerd, heeft een nieuw certificaat gekregen of is aan vCenter toegevoegd (dat de certificaten van zijn hosts vervangt) —, dan toont de host op de pagina Agents de nieuwe vingerafdruk met een knop <b>Nieuw certificaat accepteren</b>. Vergelijk de vingerafdruk met de host voordat u hem accepteert.</li>
 </ol>
-<p>Het wachtwoord wordt versleuteld opgeslagen, zoals alle andere geheimen. De VM-lijst wordt elke 10 minuten vernieuwd, of direct met <i>Vernieuwen</i>. De tabel toont de modus van elke host:</p>
+<p>Het wachtwoord wordt versleuteld opgeslagen, zoals alle andere geheimen. De console maakt zelf verbinding met de host (HTTPS 443, en SSH 22 bij de gratis licentie) bij het toevoegen, bij <i>Vernieuwen</i> en elke 10 minuten om de VM-lijst te vernieuwen. <i>Verwijderen</i> verwijdert de host samen met zijn back-uptaken; de back-ups blijven op de opslag. De tabel toont de modus van elke host:</p>
 <ul>
   <li><b>vSphere-API (gelicentieerde host, geen SSH nodig):</b> snapshots, schijfkopieën, herstel en direct herstel lopen via de API.</li>
+  <li><b>vCenter Server (vSphere-API):</b> een vCenter met zijn ESXi-hosts; alles loopt via de API van vCenter.</li>
   <li><b>gratis licentie: snapshots en herstel via SSH:</b> de API van de host is alleen-lezen, dus deze stappen lopen via SSH.</li>
+  <li><b>SSH (gekozen voor deze host):</b> de host wordt via SSH gewijzigd, ook al zou zijn API dat kunnen (<i>Altijd SSH</i> bij het toevoegen van de host).</li>
 </ul>
 <p>Met <b>Automatisch</b> kiest de console zelf, dus een host die later een licentie krijgt, schakelt zonder verdere instellingen over op de API. <b>Hoe de host wordt gewijzigd</b> in de rij van de host (en bij het toevoegen) kan <b>Altijd SSH</b> of <b>Altijd de vSphere-API</b> afdwingen; de wijziging wordt meteen gecontroleerd. Eerdere back-ups en hun herstelpunten hangen niet af van de methode.</p>
 

@@ -48,7 +48,7 @@
   <tr><th>Opção</th><th>Exemplo</th></tr>
   <tr><td><b>Em horários específicos</b></td><td>Todos os dias úteis às 22:00; ou às 12:00 e 18:00 todos os dias. Até três vezes por dia, nos dias marcados.</td></tr>
   <tr><td><b>Repetidamente</b></td><td>A cada 2 horas entre 08:00 e 18:00, de segunda a sexta. Intervalos de 15 minutos a 12 horas.</td></tr>
-  <tr><td><b>Uma vez por mês</b></td><td>No dia 1 às 23:00.</td></tr>
+  <tr><td><b>Uma vez por mês</b></td><td>No dia 1 às 23:00 (qualquer dia de 1 a 28).</td></tr>
   <tr><td><b>Somente manualmente</b></td><td>Só é executada quando clica em <i>Executar backup agora</i>.</td></tr>
   <tr><td><b>Depois de outra tarefa</b></td><td>Primeiro o banco de dados, depois o servidor de arquivos: a tarefa começa assim que a tarefa escolhida termina com sucesso — ou após qualquer resultado, com <i>também quando essa tarefa falhou</i>. As cadeias podem ser mais longas (A → B → C); uma tarefa não pode executar depois de si mesma nem em círculo.</td></tr>
 </table>
@@ -78,7 +78,7 @@
   <li>Só são transferidos os dados que ainda não estão no destino, recriptografados com a chave do destino.</li>
   <li>O agendamento <b>Após cada backup da tarefa de origem</b> (padrão) mantém a cópia atualizada; qualquer agendamento normal também funciona, p. ex. uma vez por noite numa linha de internet lenta.</li>
   <li>A cópia tem a sua própria retenção, p. ex. 7 diários no NAS e 12 mensais na nuvem.</li>
-  <li>Backups de arquivos e de VMs copiados (Proxmox VE, Hyper-V, VMware) são restaurados a partir da página da execução de cópia ou do <a href="/restore">assistente de restauração</a>, como os originais — VMs inteiras, arquivos individuais de discos de VM e recuperação instantânea do Proxmox. Backups de VM copiados por um agente anterior à 0.29 não podem ser restaurados assim; a próxima execução de cópia com um agente mais novo torna restaurável a sua cópia mais recente. Cópias de imagens de disco são restauradas com o agente de linha de comandos.</li>
+  <li>Backups de arquivos e de VMs copiados (Proxmox VE, Hyper-V, VMware) são restaurados a partir da página da execução de cópia ou do <a href="/restore">assistente de restauração</a>, como os originais — VMs inteiras, arquivos individuais de discos de VM e recuperação instantânea do Proxmox. Backups de VM copiados por um agente anterior à 0.29 não podem ser restaurados assim; a próxima execução de cópia com um agente mais novo torna restaurável a sua cópia mais recente. Backups do Microsoft 365 copiados são restaurados da mesma forma. Cópias de imagens de disco, de backups de sistema Linux e de backups de bancos de dados são restauradas com o agente de linha de comandos.</li>
 </ul>
 
 <h2>Alterar uma tarefa</h2>
@@ -91,7 +91,7 @@
 <p>Em <b>Avançado</b> no formulário da tarefa, <b>Limitar a velocidade de envio a</b> limita a velocidade com que o agente envia dados ao armazenamento, em MB/s — por exemplo 10 MB/s das 08:00 às 18:00, para que os backups em horário de trabalho deixem a linha do escritório utilizável; fora da janela a tarefa corre à velocidade máxima. Os horários são a hora local do agente, e uma janela pode passar a meia-noite (22:00 a 06:00). O limite aplica-se a backups e tarefas de cópia (o envio para o segundo armazenamento), não a restaurações: uma restauração corre sempre à velocidade máxima.</p>
 
 <h2 id="compression">Compressão e desduplicação</h2>
-<p>Cada backup é desduplicado: dados que já estão no repositório — de backups anteriores da mesma tarefa ou de outras tarefas no mesmo destino de armazenamento — não são guardados de novo. Os dados novos são depois comprimidos com zstd; pedaços que não ficam menores (vídeo, arquivos compactados, arquivos criptografados) são guardados como estão. A criptografia vem depois da compressão.</p>
+<p>Cada backup é desduplicado: dados que já estão no repositório — de backups anteriores da mesma tarefa ou de outras tarefas do mesmo agente no mesmo destino de armazenamento — não são guardados de novo. Cada agente tem o seu próprio repositório (assim como os hosts VMware, os clusters Hyper-V e os locatários Microsoft 365), por isso não há desduplicação entre computadores. Os dados novos são depois comprimidos com zstd; pedaços que não ficam menores (vídeo, arquivos compactados, arquivos criptografados) são guardados como estão. A criptografia vem depois da compressão.</p>
 <p>O nível de compressão é uma configuração da tarefa (<b>Editar → Avançado</b>):</p>
 <table>
   <tr><th>Nível</th><th>Quando usar</th></tr>
@@ -120,7 +120,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Executar backup agora</b> (<b>Copiar agora</b> em tarefas de cópia) põe a tarefa na fila imediatamente.</li>
   <li><b>Testar restauração</b> restaura uma amostra aleatória do backup mais recente e verifica-a (veja <a href="/docs/restore">Restauração</a>).</li>
   <li><b>Desativar</b> pausa o agendamento sem perder a tarefa (com a aprovação de quatro olhos ativada, um segundo usuário tem de aprovar).</li>
-  <li><b>Excluir</b> remove a tarefa; os backups existentes permanecem no armazenamento e continuam restauráveis a partir de Atividade.</li>
+  <li><b>Excluir</b> remove a tarefa (com a aprovação de quatro olhos ativada, depois que um segundo usuário aprovar); os backups existentes permanecem no armazenamento e continuam restauráveis a partir de Atividade. As tarefas de cópia da tarefa são excluídas com ela; as suas cópias permanecem no armazenamento delas.</li>
 </ul>
 
 <h2>Parar uma execução</h2>

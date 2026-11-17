@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>Kolona <b>IP adrese</b> navodi sopstvene adrese mašine kako ih je agent poslednji put prijavio. <i>Viđen sa</i> je adresa sa koje stižu njegove veze: na lokalnoj mreži ista adresa, a za mašinu iza NAT-a (npr. laptop kod kuće) javna adresa rutera. Konzola za to ne pita nijedan spoljni servis.</p>
 
+<h2 id="names">Imena i oznake</h2>
+<p>Serveri različitih klijenata ili lokacija često imaju isto ime računara. Kliknite agenta na strani <a href="/agents">Agents</a> da mu date <b>ime prikazano u konzoli</b> i <b>oznake</b> — slobodne etikete, npr. klijent ili lokacija, odvojene zarezima. Ime se koristi u formama poslova, vraćanju, Activity, izveštajima i mejlovima; ime koje računar javlja ostaje vidljivo pored njega, a strana agenta upozorava kada drugi agenti javljaju isto ime računara. Kliknite oznaku da prikažete samo agente koji je imaju.</p>
+<p>Preimenovanje menja samo prikaz u konzoli: agent, njegov repozitorijum i bekapi ostaju isti, a računar ne može da menja svoje ime ni oznake. Za izmenu je potrebno pravo agents, a svaka izmena se beleži u audit log. Oznake pomažu da se agenti pronađu; ne daju niti ograničavaju pristup i ne dodaju agente u poslove. Svako ko može da se prijavi na konzolu vidi sve agente, a konzola čuva ključeve svih njihovih bekapa — klijentima koji moraju biti strogo odvojeni treba posebna konzola.</p>
+
 <h2>Agent na radnoj površini (Windows)</h2>
 <p>Windows agent prikazuje ikonu pored sata (može da bude ispod strelice <b>^</b> za skrivene ikone — prevucite je na traku zadataka da ostane vidljiva). Tačka na ikoni pokazuje stanje:</p>
 <table>

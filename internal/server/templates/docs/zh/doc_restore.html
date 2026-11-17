@@ -57,7 +57,8 @@
 <div class="callout tip"><p><b>找到正确的备份：</b>使用 <a href="/calendar">日历</a> 查看哪天运行了哪些备份，或查看作业页面的历史记录。</p></div>
 
 <h2>从磁盘映像还原单个文件</h2>
-<p>对于映像备份，点击备份运行中的<b>浏览文件</b>。可以直接在控制台中浏览映像内的 NTFS 文件系统，勾选文件和文件夹，并将其还原到任意代理——无需还原整个磁盘。 还原到文件夹时，文件的目录结构与文件备份相同：驱动器号成为第一级文件夹（<code>D:RestoreCUsers…</code>）。</p>
+<p>对于映像备份，点击备份运行中的<b>浏览文件</b>。可以直接在控制台中浏览映像内的 NTFS 文件系统，勾选文件和文件夹，并将其还原到任意代理——无需还原整个磁盘。 还原到文件夹时，文件的目录结构与文件备份相同：驱动器号成为第一级文件夹（<code>D:\Restore\C\Users\…</code>）。</p>
+<p>也可以把勾选的文件直接<b>下载</b>到浏览器:单个文件按原样下载,多个文件或文件夹打包为 ZIP 压缩包——适合从大型镜像备份中取出单个文档。与浏览一样,它适用于网络存储上的镜像备份,需要<b>恢复</b>权限,审计日志会记录下载了哪些路径。</p>
 
 <h2>从虚拟机还原单个文件（Proxmox VE、Hyper-V、VMware）</h2>
 <p>在虚拟机备份运行中，点击客户机旁的<b>浏览文件</b>。控制台会显示其磁盘的分区和 LVM 卷，并可浏览 NTFS、ext4 和 XFS 文件系统。<b>下载</b>勾选的文件（多个文件打包为 ZIP）或将其还原到任意代理。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。 恢复到代理上的文件会保留其在虚拟机中的 Unix 权限（ext4、XFS），因此恢复的机密文件（如 <code>/etc/shadow</code>）仍然是私有的；在 Linux 上，来自 NTFS 卷的文件只有其所有者可以读取。</p>
@@ -83,15 +84,16 @@
       <li>可选择将 ISO 复制到控制台的 <code>/var/lib/backupzit/dist</code> 目录；之后它会出现在恢复介质页面上。</li>
     </ol></li>
 </ul>
-<p>控制台中的文件浏览适用于网络存储上的备份（SFTP、S3、SMB、Azure、加固存储库）；控制台会直接读取它们。对于代理本地磁盘上的备份，请使用命令行。</p>
+<p>控制台中的文件浏览适用于网络存储上的备份（SFTP、S3、SMB、Azure、加固存储库）；控制台会直接读取它们。对于代理本地磁盘上的备份或使用 SSH 密钥的 SFTP 上的备份，仍可从控制台使用<i>仅这些路径</i>进行还原；如需查看其内容，请使用命令行。</p>
 
 <h2>不通过控制台还原</h2>
 <p>如果控制台本身丢失，任何安装了代理的机器都可以使用存储目标的<b>恢复单</b>直接从存储还原：</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (the SFTP host key, on the recovery sheet)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>参见 <a href="/docs/cli">命令行参考</a>。</p>
+<p><code>latest</code> 是该计算机任意作业的最新备份；如要还原某个特定作业，请使用 <code>snapshots</code> 输出中的快照 ID。参见 <a href="/docs/cli">命令行参考</a>。</p>
 
 <h2>自动还原测试</h2>
 <p>BackupZit 会定期验证您的备份，无需您做任何操作：每周（可在 <a href="/settings/tests">设置 → 还原测试</a> 中配置）每个作业的代理会从最新备份中还原一个<b>随机文件样本</b>到临时文件夹，根据存储的校验和验证每个字节，然后再删除。对于磁盘映像，会读取并验证随机块。这会检验整个链条——存储访问、凭据、加密密钥和数据完整性。</p>

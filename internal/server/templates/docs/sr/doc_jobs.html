@@ -48,7 +48,7 @@
   <tr><th>Opcija</th><th>Primer</th></tr>
   <tr><td><b>U određeno vreme</b></td><td>Svakog radnog dana u 22:00; ili u 12:00 i 18:00 svakog dana. Do tri puta dnevno, u dane koje označite.</td></tr>
   <tr><td><b>Više puta</b></td><td>Na svaka 2 sata između 08:00 i 18:00, od ponedeljka do petka. Intervali od 15 minuta do 12 sati.</td></tr>
-  <tr><td><b>Jednom mesečno</b></td><td>Prvog u mesecu u 23:00.</td></tr>
+  <tr><td><b>Jednom mesečno</b></td><td>Prvog u mesecu u 23:00 (bilo koji dan od 1. do 28.).</td></tr>
   <tr><td><b>Samo ručno</b></td><td>Pokreće se samo kada kliknete <i>Pokreni bekap sada</i>.</td></tr>
   <tr><td><b>Posle drugog posla</b></td><td>Prvo baza, pa fajl server: posao počinje čim izabrani posao uspešno završi — ili posle bilo kog ishoda, uz <i>i kada taj posao nije uspeo</i>. Lanci mogu biti duži (A → B → C); posao ne može da se pokreće posle samog sebe niti u krug.</td></tr>
 </table>
@@ -78,7 +78,7 @@
   <li>Prenose se samo podaci kojih još nema na odredištu, ponovo šifrovani ključem odredišta.</li>
   <li>Raspored <b>Posle svakog bekapa izvornog posla</b> (podrazumevano) drži kopiju ažurnom; radi i bilo koji običan raspored, npr. jednom noću za spor internet.</li>
   <li>Kopija ima svoju retenciju, npr. 7 dnevnih na NAS-u i 12 mesečnih u cloudu.</li>
-  <li>Kopirani bekapi fajlova i virtuelnih mašina (Proxmox VE, Hyper-V, VMware) vraćaju se sa stranice pokretanja kopije ili iz <a href="/restore">čarobnjaka za vraćanje</a>, kao i originali — cele VM, pojedinačni fajlovi sa diskova VM-a i Proxmox instant recovery. VM bekapi koje je kopirao agent stariji od 0.29 ne mogu ovako da se vrate; sledeće pokretanje kopije sa novijim agentom čini najnoviju kopiju vraćljivom. Kopije slika diskova se vraćaju agentom iz komandne linije.</li>
+  <li>Kopirani bekapi fajlova i virtuelnih mašina (Proxmox VE, Hyper-V, VMware) vraćaju se sa stranice pokretanja kopije ili iz <a href="/restore">čarobnjaka za vraćanje</a>, kao i originali — cele VM, pojedinačni fajlovi sa diskova VM-a i Proxmox instant recovery. VM bekapi koje je kopirao agent stariji od 0.29 ne mogu ovako da se vrate; sledeće pokretanje kopije sa novijim agentom čini najnoviju kopiju vraćljivom. Kopirani Microsoft 365 bekapi vraćaju se na isti način. Kopije slika diskova, bekapa Linux sistema i baza podataka vraćaju se agentom iz komandne linije.</li>
 </ul>
 
 <h2>Izmena posla</h2>
@@ -91,7 +91,7 @@
 <p>Pod <b>Napredno</b> u obrascu posla, <b>Ograniči brzinu slanja</b> ograničava koliko brzo agent šalje podatke na skladište, u MB/s — na primer 10 MB/s od 08:00 do 18:00, da bekapi u radno vreme ostave internet vezu kancelarije upotrebljivom; van tog prozora posao radi punom brzinom. Sati su lokalno vreme agenta, a prozor može da prelazi ponoć (22:00 do 06:00). Ograničenje važi za bekape i poslove kopiranja (slanje na drugo skladište), ne i za vraćanja: vraćanje uvek radi punom brzinom.</p>
 
 <h2 id="compression">Kompresija i deduplikacija</h2>
-<p>Svaki bekap je dedupliciran: podaci koji su već u repozitorijumu — iz ranijih bekapa istog posla ili iz drugih poslova na istom skladištu — ne čuvaju se ponovo. Novi podaci se zatim kompresuju algoritmom zstd; delovi koji se ne smanje (video, arhive, šifrovani fajlovi) čuvaju se kakvi jesu. Šifrovanje dolazi posle kompresije.</p>
+<p>Svaki bekap je dedupliciran: podaci koji su već u repozitorijumu — iz ranijih bekapa istog posla ili iz drugih poslova istog agenta na istom skladištu — ne čuvaju se ponovo. Svaki agent ima svoj repozitorijum (isto važi za VMware hostove, Hyper-V klastere i Microsoft 365 tenante), pa nema deduplikacije između računara. Novi podaci se zatim kompresuju algoritmom zstd; delovi koji se ne smanje (video, arhive, šifrovani fajlovi) čuvaju se kakvi jesu. Šifrovanje dolazi posle kompresije.</p>
 <p>Nivo kompresije je podešavanje posla (<b>Izmeni → Napredno</b>):</p>
 <table>
   <tr><th>Nivo</th><th>Kada ga koristiti</th></tr>
@@ -120,7 +120,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, pre<
   <li><b>Pokreni bekap sada</b> (<b>Kopiraj sada</b> za poslove kopije) odmah stavlja posao u red.</li>
   <li><b>Testiraj vraćanje</b> vraća nasumični uzorak najnovijeg bekapa i proverava ga (vidi <a href="/docs/restore">Vraćanje</a>).</li>
   <li><b>Onemogući</b> pauzira raspored bez gubitka posla (uz uključeno odobrenje „četiri oka”, drugi korisnik mora to da odobri).</li>
-  <li><b>Obriši</b> uklanja posao; postojeći bekapi ostaju na skladištu i mogu da se vrate iz Aktivnosti.</li>
+  <li><b>Obriši</b> uklanja posao (uz uključeno odobrenje „četiri oka”, pošto ga drugi korisnik odobri); postojeći bekapi ostaju na skladištu i mogu da se vrate iz Aktivnosti. Poslovi kopiranja tog posla brišu se zajedno sa njim; njihove kopije ostaju na svom skladištu.</li>
 </ul>
 
 <h2>Zaustavljanje run-a</h2>

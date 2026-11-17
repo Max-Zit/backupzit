@@ -57,7 +57,8 @@
 <div class="callout tip"><p><b>Encontrar la copia correcta:</b> use el <a href="/calendar">Calendario</a> para ver qué copias se ejecutaron cada día, o el historial de la página del trabajo.</p></div>
 
 <h2>Restaurar archivos sueltos de una imagen de disco</h2>
-<p>En las copias de imagen, haga clic en <b>Examinar archivos</b> en la ejecución de copia. Puede recorrer el sistema de archivos NTFS de la imagen directamente en la consola, marcar archivos y carpetas y restaurarlos en cualquier agente, sin restaurar el disco completo. Al restaurar en una carpeta, los archivos tienen la misma estructura que desde una copia de archivos: la letra de unidad pasa a ser la primera carpeta (<code>D:RestoreCUsers…</code>).</p>
+<p>En las copias de imagen, haga clic en <b>Examinar archivos</b> en la ejecución de copia. Puede recorrer el sistema de archivos NTFS de la imagen directamente en la consola, marcar archivos y carpetas y restaurarlos en cualquier agente, sin restaurar el disco completo. Al restaurar en una carpeta, los archivos tienen la misma estructura que desde una copia de archivos: la letra de unidad pasa a ser la primera carpeta (<code>D:\Restore\C\Users\…</code>).</p>
+<p>También puede <b>descargar</b> los archivos marcados directamente en el navegador: un archivo llega tal cual, varios archivos o carpetas en un archivo ZIP — práctico para un solo documento de una copia de imagen grande. Como la exploración, funciona para copias de imagen en almacenamiento de red, requiere el permiso <b>Restaurar</b>, y el registro de auditoría guarda qué rutas se descargaron.</p>
 
 <h2>Restaurar archivos sueltos de una VM (Proxmox VE, Hyper-V, VMware)</h2>
 <p>En una ejecución de copia de VM, haga clic en <b>Examinar archivos</b> junto al invitado. La consola muestra las particiones y volúmenes LVM de sus discos y permite explorar sistemas de archivos NTFS, ext4 y XFS. <b>Descargue</b> los archivos marcados (varios como archivo ZIP) o restáurelos en cualquier agente. Consulte <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> y <a href="/docs/vmware">VMware ESXi</a>. Los archivos restaurados en un agente conservan los permisos Unix que tenían en la VM (ext4, XFS), así que los secretos restaurados como <code>/etc/shadow</code> siguen siendo privados; en Linux, los archivos de volúmenes NTFS solo los puede leer su propietario.</p>
@@ -83,15 +84,16 @@
       <li>Opcionalmente copie la ISO en el directorio <code>/var/lib/backupzit/dist</code> de la consola; entonces se ofrece en la página Medios de recuperación.</li>
     </ol></li>
 </ul>
-<p>Explorar archivos en la consola funciona con copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); la consola las lee directamente. Para copias en un disco local de un agente, use la línea de comandos.</p>
+<p>Explorar archivos en la consola funciona con copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); la consola las lee directamente. Para copias en un disco local de un agente, o en SFTP con una clave SSH, una restauración con <i>Solo estas rutas</i> sigue funcionando desde la consola; para ver su contenido, use la línea de comandos.</p>
 
 <h2>Restaurar sin la consola</h2>
 <p>Si se pierde la propia consola, cualquier equipo con el agente instalado puede restaurar directamente desde el almacenamiento con la <b>hoja de recuperación</b> del destino de almacenamiento:</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (the SFTP host key, on the recovery sheet)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>Consulte <a href="/docs/cli">Referencia de la línea de comandos</a>.</p>
+<p><code>latest</code> es la copia más reciente de cualquier trabajo de ese equipo; para restaurar un trabajo concreto, use un ID de instantánea de <code>snapshots</code>. Consulte <a href="/docs/cli">Referencia de la línea de comandos</a>.</p>
 
 <h2>Pruebas de restauración automáticas</h2>
 <p>BackupZit pone a prueba sus copias con regularidad sin que tenga que hacer nada: cada semana (configurable en <a href="/settings/tests">Configuración → Pruebas de restauración</a>) el agente de cada trabajo restaura una <b>muestra aleatoria de archivos</b> de la copia más reciente en una carpeta temporal, verifica cada byte con las sumas de comprobación guardadas y vuelve a borrarla. En las imágenes de disco se leen y verifican bloques aleatorios. Así se comprueba toda la cadena: acceso al almacenamiento, credenciales, clave de cifrado e integridad de los datos.</p>

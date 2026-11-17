@@ -11,8 +11,8 @@
   <li><b>Tajemství agentů</b> — každý agent má vlastní tajemství, uložené na konzoli jen jako hash a na agentovi v souboru, který mohou číst jen správci.</li>
   <li><b>Webová konzole</b> — relační cookies HttpOnly a SameSite=Strict; ochrana proti cross-site požadavkům a clickjackingu; přísná Content-Security-Policy; hesla hashovaná bcryptem; citlivé stránky se nikdy neukládají do mezipaměti.</li>
   <li><b>Ochrana proti hrubé síle</b> — adresy, jejichž přihlášení příliš často selže, se blokují: hesla, dvoufázové kódy i tokeny API. Blokace přežijí restart, opakovaní útočníci se blokují déle a správci dostanou e-mail. Viz níže.</li>
-  <li><b>Účty</b> — role s nejmenšími oprávněními, volitelné dvoufázové ověření (TOTP) a přihlášení LDAPS; tokeny API s vlastní, nižší rolí a platností.</li>
-  <li><b>Schválení čtyř očí</b> (volitelné) — mazání nebo zakázání úloh, mazání agentů, hostitelů ESXi, cílových úložišť a uživatelů, zkracování uchovávání, vypnutí schvalování a vše, co by správci mohlo dát druhého schvalovatele (noví schvalovatelé, více práv, reset hesla a dvoufázového přihlášení, změny LDAP a SSO), vyžaduje schválení druhým uživatelem. Viz <a href="/docs/users">Uživatelé, role a LDAP</a>.</li>
+  <li><b>Účty</b> — role s nejmenšími oprávněními, volitelné dvoufázové ověření (TOTP), přihlášení LDAP přes LDAPS nebo StartTLS a jednotné přihlášení (OpenID Connect, SAML); tokeny API s vlastní, nižší rolí a platností.</li>
+  <li><b>Schválení čtyř očí</b> (volitelné) — mazání nebo zakázání úloh, mazání agentů, hostitelů ESXi, cílových úložišť a uživatelů, zkracování uchovávání, obnovení uchovávání po podezřelé záloze, mazání, zakázání nebo zmenšení úlohy pro více agentů, vypnutí schvalování a vše, co by správci mohlo dát druhého schvalovatele (noví schvalovatelé, více práv, reset hesla a dvoufázového přihlášení, změny LDAP a SSO), vyžaduje schválení druhým uživatelem. Viz <a href="/docs/users">Uživatelé, role a LDAP</a>.</li>
   <li><b>Auditní stopa</b> — přihlášení, neúspěšná přihlášení, změny uživatelů a rolí, úlohy, cílová úložiště, obnovy, zobrazené klíče pro obnovu, změny nastavení a akce API se zaznamenávají do <a href="/audit">protokolu auditu</a>; záznamy jsou zřetězené, takže změny a mazání v databázi se odhalí, a lze je kopírovat na server syslog nebo SIEM (<a href="/docs/users#audit-integrity">Ochrana proti změnám</a>); mazání na zabezpečeném úložišti se zaznamenává na tom serveru.</li>
   <li><b>Aktualizace konzole</b> — vydání jsou podepsaná klíčem vydání BackupZit (Ed25519). Konzole i služba root, která je instaluje, ověřují podpis, databáze se nejdřív zazálohuje a neúspěšná aktualizace se vrátí zpět.</li>
   <li><b>Aktualizace agentů</b> — agenti stahují nové verze jen ze své konzole přes připnuté spojení a instalují je jen tehdy, když sedí kontrolní součet SHA-256.</li>
@@ -46,20 +46,20 @@
   <tr><td>Povolené adresy</td><td>IP adresy nebo sítě (např. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). Webová konzole, REST API a každá stránka odpovídají jen těmto adresám; ostatní dostanou „not found“, jako by žádná konzole neexistovala. Agenti se ke svému API dostanou vždy (registrace, dotazování, výsledky, stahování, vzdálená instalace). Prázdné: všichni. Konzole odmítne seznam, který neobsahuje vaši vlastní adresu.</td></tr>
   <tr><td>Port 8443 jen pro agenty</td><td>Webová konzole je pak dostupná jen na webovém portu s důvěryhodným certifikátem (<a href="/docs/install">Nastavení → Certifikát</a>, obvykle 443), takže firewall může otevřít 8443 všem a 443 jen vašim adresám. K dispozici, jakmile webový port běží; měňte to z webového portu, ne z 8443.</td></tr>
 </table>
-<p>Typický firewall pro veřejnou konzoli: 8443 otevřený všem (agenti), 443 a 80 (HTTP kontrola Let's Encrypt) jen z vašich adres, SSH jen z vašich adres nebo vypnuté, vše ostatní zavřené.</p>
+<p>Typický firewall pro veřejnou konzoli: 8443 otevřený všem (agenti), 443 jen z vašich adres, 80 otevřený všem jen tehdy, když používáte HTTP kontrolu Let's Encrypt (Let's Encrypt ji provádí ze svých serverů; port odpovídá jen na kontrolu a přesměrovává na HTTPS), jinak zavřený a s kontrolou DNS; SSH jen z vašich adres nebo vypnuté; vše ostatní zavřené.</p>
 <p>Appliance neodpovídá na požadavky ICMP timestamp, které by komukoli v síti prozradily jeho čas (nález síťových skenerů); používá k tomu vlastní malou tabulku nftables a ostatní pravidla firewallu nemění.</p>
 <p>Zablokovali jste se? Na samotném serveru (<code>localhost</code>) konzole odpovídá vždy. Na appliance položka 5 nastavovací nabídky na jeho obrazovce zruší blokace přihlášení a tato omezení.</p>
 
 <h2>Doporučení</h2>
 <h3>Konzole</h3>
 <ul>
-  <li>Držte konzoli ve vnitřní síti; nepublikujte port 8443 do internetu. Pro vzdálenou správu použijte VPN.</li>
+  <li>Kde to jde, držte konzoli ve vnitřní síti. Pokud se k ní musí připojit agenti z jiných lokalit, publikujte jen port 8443 a omezte webovou konzoli podle popisu v části <a href="#web-access">Přístup k webové konzoli</a>; pro správu použijte VPN.</li>
   <li>Používejte dlouhé, jedinečné heslo správce a změňte počáteční.</li>
   <li>Vyžadujte <b>dvoufázové ověření</b> pro správce (<a href="/settings/security">Nastavení → Přihlášení a zabezpečení</a>).</li>
   <li>Dejte každé osobě vlastní účet s nejnižší funkční rolí; pro monitoring používejte tokeny API s rolí Čtenář.</li>
   <li>Zálohujte <code>secrets.key</code> odděleně od databáze (<a href="/docs/install">Instalace serveru</a>).</li>
   <li>Zvolte v <a href="/settings/security">Nastavení → Přihlášení a zabezpečení</a> vhodnou délku relace (kratší je bezpečnější).</li>
-  <li>Udržujte server aktuální (<code>apt upgrade</code> / <code>dnf upgrade</code>), včetně PostgreSQL.</li>
+  <li>Udržujte server aktuální, včetně PostgreSQL: na appliance v <b>Nastavení → Aktualizace → Operační systém</b> (bezpečnostní aktualizace se instalují automaticky), na vlastním serveru pomocí <code>apt upgrade</code> / <code>dnf upgrade</code>.</li>
 </ul>
 <h3>Úložiště</h3>
 <ul>
@@ -82,6 +82,6 @@
 </ul>
 
 <h2>Nahlášení bezpečnostního problému</h2>
-<p>Zranitelnosti hlaste soukromě správcům BackupZit místo otevírání veřejného issue.</p>
+<p>Zranitelnosti hlaste soukromě místo otevírání veřejného issue: na <a href="https://github.com/Max-Zit/backupzit/security">github.com/Max-Zit/backupzit</a> otevřete kartu <b>Security</b> a zvolte <b>Report a vulnerability</b>.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -66,8 +66,8 @@
       <label>{{T "Password"}} <small>{{if $.Data.HasPassword}}{{T "stored — leave empty to keep it"}}{{else}}{{T "\u00a0"}}{{end}}</small><input type="password" name="password" autocomplete="new-password"></label>
     </div>
     <div class="row">
-      <label>{{T "From"}} <input name="from" value="{{.From}}" placeholder="{{T "backup@company.com"}}"></label>
-      <label>{{T "To"}} <small>{{T "one or more addresses, separated by commas"}}</small><input name="to" value="{{join .To ", "}}" placeholder="{{T "it@company.com"}}"></label>
+      <label>{{T "From (email sender)"}} <input name="from" value="{{.From}}" placeholder="{{T "backup@company.com"}}"></label>
+      <label>{{T "To (email recipients)"}} <small>{{T "one or more addresses, separated by commas"}}</small><input name="to" value="{{join .To ", "}}" placeholder="{{T "it@company.com"}}"></label>
     </div>
     <label>{{T "Language of emails, chat messages and reports"}}
       <select name="language" class="narrow">{{$cur := .Language}}{{if not $cur}}{{$cur = lang}}{{end}}{{range languages}}<option value="{{.Code}}" {{if eq .Code $cur}}selected{{end}} lang="{{.Code}}">{{.Name}}</option>{{end}}</select>

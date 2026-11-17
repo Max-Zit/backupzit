@@ -29,7 +29,7 @@
   <li>The checkpoint is removed, and Hyper-V merges it in the background.</li>
   <li>The VM's configuration is stored with the backup: generation, CPU, memory, network adapters (switch, VLAN, MAC address), disk controllers, secure boot and TPM.</li>
 </ol>
-<p>VMs that are turned off are read directly, without a checkpoint. On hosts older than Windows Server 2016 (no recovery checkpoints) a production checkpoint is used and every backup reads the whole disks.</p>
+<p>VMs that are turned off are read directly, without a checkpoint. On hosts without recovery checkpoints, an ordinary checkpoint is taken (production where possible, otherwise crash-consistent) and every backup reads the whole disks.</p>
 <p id="checkpoint-concurrency">Overlapping backups of the same VM wait for each other on each host, including the service and command line. A backup removes only its own temporary checkpoint. The agent removes a checkpoint left behind once its backup has finished on another node (after a live migration), or when it is older than 48 hours (a backup interrupted by a crash or power loss). All overlapping backup processes must use updated binaries.</p>
 <p id="appconsistent"><b>Application-consistent only.</b> For Active Directory, SQL Server, Exchange and other databases, tick <i>Require application-consistent checkpoints</i> in the job (also in a job for a cluster). A running VM is then backed up only from a checkpoint the guest prepared with VSS; if that fails, the VM is not backed up and the run fails (with a notification) instead of taking a crash-consistent checkpoint. The other VMs of the job are still backed up and can be restored from that run. Check the integration service <i>Backup (volume shadow copy)</i> in the VM settings and VSS inside the guest (<code>vssadmin list writers</code>). Needs agents 0.48.0 or newer; older agents get a run that fails with a request to update them.</p>
 <p id="vtpm"><b>vTPM and BitLocker.</b> For Generation 2 VMs with a virtual TPM the backup also keeps the vTPM (the VM's guest state file and its key protector). Restored as a new VM on the same host, or on a host that has the original host's guardian certificate, the VM gets its vTPM back and BitLocker does not ask for the recovery key. On other hosts the VM gets a new, empty vTPM and the restore says so; to avoid that, import the original host's <i>UntrustedGuardian</i> certificate there first. Restoring over the existing VM keeps its vTPM. Shielded VMs (Host Guardian Service) are not supported. Keep the BitLocker recovery keys anyway.</p>
@@ -60,7 +60,7 @@
 
 <h3>Options</h3>
 <ul>
-  <li><b>Folder for the virtual disks</b>: the host's default folder or any folder that holds VM disks. An in-place restore puts the new disks next to the original ones.</li>
+  <li><b>Folder for the virtual disks</b>: the host's default folder or any folder that holds VM disks. An in-place restore puts the new disks in a new <code>backupzit-restore-…</code> subfolder and leaves the old ones where they were.</li>
   <li><b>Start the VM after the restore</b>.</li>
 </ul>
 
@@ -85,7 +85,7 @@
 <ol>
   <li>Open <a href="/jobs">Backup jobs</a> and the form <i>New backup job</i>.</li>
   <li>Open the <b>Agent</b> list and go to its end: under <i>Hyper-V failover clusters (virtual machines)</i> choose the cluster, e.g. <i>HVC01 — 2 nodes</i>. Choose the cluster, not a single node.</li>
-  <li>The kind is set to <i>Virtual machines</i>. Choose <i>All clustered VMs</i> (also VMs added to the cluster later) or <i>Only these</i>; each VM shows the node it runs on now.</li>
+  <li>The kind is set to <i>Virtual machines</i>. Choose <i>All clustered VMs</i> (also VMs added to the cluster later), <i>All clustered VMs except the ticked ones</i> or <i>Only these</i>; each VM shows the node it runs on now.</li>
   <li>Choose the storage target, the schedule and how many backups to keep, and click <i>Create job</i>.</li>
 </ol>
 <p>The job's page lists every node with its last result; <i>Run backup now on all agents</i> starts them all. A node that runs none of the job's VMs at that moment reports <i>None of the job's VMs runs on this node now</i>, which is a success.</p>

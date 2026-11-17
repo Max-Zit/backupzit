@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>De kolom <b>IP-adressen</b> toont de eigen adressen van de machine zoals de agent ze het laatst meldde. <i>gezien vanaf</i> is het adres waarvandaan zijn verbindingen binnenkomen: op een lokaal netwerk hetzelfde adres, voor een machine achter NAT (bijv. een laptop thuis) het openbare adres van de router. De console vraagt daarvoor geen externe dienst.</p>
 
+<h2 id="names">Namen en tags</h2>
+<p>Servers van verschillende klanten of locaties hebben vaak dezelfde hostnaam. Klik op de pagina <a href="/agents">Agents</a> op een agent om hem een <b>naam in de console</b> en <b>tags</b> te geven — vrije labels zoals een klant of locatie, gescheiden door komma's. De naam wordt gebruikt in taakformulieren, bij herstel, in Activiteit, in rapporten en e-mails; de hostnaam die de computer meldt blijft ernaast zichtbaar, en de agentpagina waarschuwt als andere agents dezelfde hostnaam melden. Klik op een tag om alleen de agents met die tag te tonen.</p>
+<p>Hernoemen verandert alleen wat de console toont: de agent, zijn repository en zijn back-ups blijven zoals ze zijn, en de computer kan zijn naam en tags niet wijzigen. Wijzigen vereist de machtiging voor agents en wordt vastgelegd in het auditlogboek. Tags helpen agents te vinden; ze geven of beperken geen toegang en voegen geen agents aan taken toe. Iedereen die zich bij de console kan aanmelden ziet alle agents, en de console bewaart de sleutels van al hun back-ups — klanten die strikt gescheiden moeten zijn, hebben elk een eigen console nodig.</p>
+
 <h2>De agent op het bureaublad (Windows)</h2>
 <p>De Windows-agent toont een pictogram naast de klok (het kan onder de pijl <b>^</b> van verborgen pictogrammen staan — sleep het naar de taakbalk zodat het zichtbaar blijft). De stip op het pictogram toont de status:</p>
 <table>

@@ -16,15 +16,15 @@
 <h2>Obnova obrazu na disk</h2>
 <p>V běhu zálohy obrazu použijte <b>Obnovit tento obraz na disk</b>:</p>
 <ul>
-  <li><b>Obnovit na agentovi</b> — počítač s cílovým diskem. Může to být běžící počítač s volným diskem, nebo počítač spuštěný z obnovovacího ISO.</li>
-  <li><b>Cílový disk</b> — musí být alespoň tak velký jako použitá oblast originálu. <b>Všechna data na něm budou zničena.</b></li>
+  <li><b>Obnovit na agentovi</b> — počítač s Windows, který má cílový disk. Může to být běžící počítač s volným diskem, nebo počítač spuštěný z obnovovacího ISO; disk, ze kterého běží Windows, nelze zvolit, takže obnova systémového disku počítače vyžaduje obnovovací ISO.</li>
+  <li><b>Cílový disk</b> — musí sahat alespoň po konec posledního oddílu původního disku (oddíly se znovu vytvoří v původních velikostech, nezmenšují se) a mít stejnou velikost sektoru (512 nebo 4096 bajtů). <b>Všechna data na něm budou zničena.</b></li>
   <li><b>Ponechat disk poté offline</b> — zaškrtněte, pokud je původní disk ve stejném počítači, aby Windows nezměnily ID disku kopie.</li>
 </ul>
 <p>Podporovány jsou disky GPT i MBR a zavádění EFI i BIOS. Rozložení oddílů a ID se znovu vytvoří, takže obnovený disk se spustí jako dřív.</p>
 
 <h2>Obnova na holý hardware z obnovovacího ISO</h2>
 <ol>
-  <li>V <a href="/recovery">Obnovovací média</a> stáhněte obnovovací ISO (Windows). Zapište ho na USB flash disk (Rufus, režim „obraz DD“ nebo „ISO“) nebo ho připojte k virtuálnímu počítači.</li>
+  <li>Jednou sestavte obnovovací ISO pro Windows (viz <a href="/docs/restore#recovery-iso">ISO pro obnovu</a>; Windows PE se nesmí dále šířit), nebo ho stáhněte ze stránky <a href="/recovery">Obnovovací média</a>, pokud bylo zkopírováno do konzole. Zapište ho na USB flash disk (Rufus v režimu <b>ISO</b>, abyste mohli přidat níže uvedenou složku) nebo ho připojte k virtuálnímu počítači.</li>
   <li>Volitelně vytvořte <b>kód obnovy</b> a stáhněte <code>recovery.json</code>; zkopírujte ho do složky <code>backupzit</code> na flash disku, aby se počítač připojil bez psaní.</li>
   <li>Spusťte obnovovaný počítač z flash disku. Spustí agenta v režimu obnovy a připojí se ke konzoli (nebo se zeptá na adresu serveru a kód obnovy).</li>
   <li>Počítač se objeví jako agent <span class="badge">obnova</span> se svými disky.</li>

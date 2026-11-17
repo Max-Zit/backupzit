@@ -29,7 +29,7 @@
   <li>Kontrolní bod se odstraní a Hyper-V ho na pozadí sloučí.</li>
   <li>Konfigurace VM se uloží se zálohou: generace, CPU, paměť, síťové adaptéry (přepínač, VLAN, MAC adresa), řadiče disků, zabezpečené spouštění a TPM.</li>
 </ol>
-<p>Vypnuté VM se čtou přímo, bez kontrolního bodu. Na hostitelích starších než Windows Server 2016 (bez kontrolních bodů pro obnovu) se použije produkční kontrolní bod a každá záloha čte celé disky.</p>
+<p>Vypnuté VM se čtou přímo, bez kontrolního bodu. Na hostitelích bez kontrolních bodů pro obnovu se pořídí běžný kontrolní bod (pokud možno produkční, jinak konzistentní jen jako při havárii) a každá záloha čte celé disky.</p>
 <p id="checkpoint-concurrency">Překrývající se zálohy stejného virtuálního počítače na každém hostiteli na sebe čekají, včetně služby a příkazového řádku. Záloha odstraňuje pouze svůj vlastní dočasný kontrolní bod. Agent odstraní ponechaný kontrolní bod, jakmile jeho záloha skončí na jiném uzlu (po živé migraci), nebo když je starší než 48 hodin (záloha přerušená pádem nebo výpadkem napájení). Všechny souběžné procesy zálohování musí používat aktualizované programy.</p>
 <p id="appconsistent"><b>Jen aplikačně konzistentní.</b> Pro Active Directory, SQL Server, Exchange a jiné databáze zaškrtněte v úloze <i>Vyžadovat aplikačně konzistentní kontrolní body</i> (také v úloze pro cluster). Běžící VM se pak zálohuje jen z kontrolního bodu, který host připravil pomocí VSS; pokud to selže, VM se nezálohuje a běh selže (s upozorněním) místo pořízení kontrolního bodu konzistentního jen při pádu. Ostatní VM úlohy se zálohují dál a lze je z tohoto běhu obnovit. Zkontrolujte integrační službu <i>Backup (volume shadow copy)</i> v nastavení VM a VSS uvnitř hosta (<code>vssadmin list writers</code>). Vyžaduje agenty 0.48.0 nebo novější; u starších agentů běh selže s výzvou k aktualizaci.</p>
 <p id="vtpm"><b>vTPM a BitLocker.</b> U VM 2. generace s virtuálním TPM záloha uchová i vTPM (soubor stavu hosta a ochranu klíče). Při obnově jako nový VM na stejném hostiteli nebo na hostiteli s certifikátem guardianu původního hostitele dostane VM svůj vTPM zpět a BitLocker nežádá klíč pro obnovení. Na jiných hostitelích dostane VM nový prázdný vTPM a obnova to uvede; tomu předejdete importem certifikátu <i>UntrustedGuardian</i> původního hostitele. Obnova přes existující VM jeho vTPM zachová. Stíněné VM (Host Guardian Service) nejsou podporovány. Klíče pro obnovení BitLockeru si přesto uschovejte.</p>
@@ -60,7 +60,7 @@
 
 <h3>Možnosti</h3>
 <ul>
-  <li><b>Složka pro virtuální disky</b>: výchozí složka hostitele nebo jakákoli složka s disky VM. Obnova na místo uloží nové disky vedle původních.</li>
+  <li><b>Složka pro virtuální disky</b>: výchozí složka hostitele nebo jakákoli složka s disky VM. Obnova na místo uloží nové disky do nové podsložky <code>backupzit-restore-…</code> a staré ponechá tam, kde byly.</li>
   <li><b>Po obnově spustit VM</b>.</li>
 </ul>
 
@@ -85,7 +85,7 @@
 <ol>
   <li>Otevřete <a href="/jobs">Backup jobs</a> a formulář <i>New backup job</i>.</li>
   <li>Otevřete seznam <b>Agent</b> a přejděte na jeho konec: ve skupině <i>Hyper-V failover clusters (virtual machines)</i> zvolte cluster, např. <i>HVC01 — 2 nodes</i>. Zvolte cluster, ne jednotlivý uzel.</li>
-  <li>Druh je nastaven na <i>Virtual machines</i>. Zvolte <i>All clustered VMs</i> (i počítače přidané do clusteru později) nebo <i>Only these</i>; u každého počítače je uzel, na kterém teď běží.</li>
+  <li>Druh je nastaven na <i>Virtual machines</i>. Zvolte <i>All clustered VMs</i> (i počítače přidané do clusteru později), <i>All clustered VMs except the ticked ones</i> nebo <i>Only these</i>; u každého počítače je uzel, na kterém teď běží.</li>
   <li>Zvolte úložiště, plán a počet uchovávaných záloh a klikněte na <i>Create job</i>.</li>
 </ol>
 <p>Stránka úlohy ukazuje každý uzel s posledním výsledkem; <i>Run backup now on all agents</i> spustí všechny. Uzel, na kterém v tu chvíli neběží žádný počítač úlohy, hlásí <i>None of the job's VMs runs on this node now</i> — to je úspěch.</p>

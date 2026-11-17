@@ -1,5 +1,7 @@
 {
   "%d changes wait for a second user's approval": "%d change waits for a second user's approval|%d changes wait for a second user's approval",
   "%d files": "%d file|%d files",
+  "From (email sender)": "From",
+  "To (email recipients)": "To",
   "VMs (count)": "VMs"
 }

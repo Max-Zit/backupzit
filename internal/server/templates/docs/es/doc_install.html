@@ -60,7 +60,7 @@
 <p>Cuando bzadmin inicia sesión en la propia pantalla del servidor (no por SSH), se abre un menú:</p>
 <table>
   <tr><th>Opción</th><th>Qué hace</th></tr>
-  <tr><td>1 Network</td><td>DHCP o una dirección estática con longitud de prefijo (p. ej. <code>192.168.1.20/24</code>), puerta de enlace y hasta tres servidores DNS. Con DHCP, los servidores DNS los proporciona el servidor DHCP, salvo que introduzca los suyos.</td></tr>
+  <tr><td>1 Network</td><td>DHCP o una dirección estática con longitud de prefijo (p. ej. <code>192.168.1.20/24</code>), puerta de enlace y hasta tres servidores DNS. Con DHCP, los servidores DNS los proporciona el servidor DHCP; para usar los suyos con DHCP, configúrelos después en Configuración → Red.</td></tr>
   <tr><td>2 Server name</td><td>El nombre de host (letras, dígitos y -).</td></tr>
   <tr><td>3 SSH</td><td>Activa o desactiva el servidor SSH y cambia su puerto. No se pueden usar los puertos de la consola (80, 443, 8443), de PostgreSQL (5432) ni de la recuperación instantánea (111, 2049).</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Para una contraseña olvidada de la consola web; también levanta los bloqueos de inicio de sesión. Después la pantalla deja de mostrar la contraseña inicial generada (también a partir del siguiente arranque, una vez cambiada la contraseña de admin en la consola web).</td></tr>
@@ -153,7 +153,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Por defecto, la consola obtiene las actualizaciones de las versiones oficiales de BackupZit en GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). En <a href="/settings/updates">Configuración → Actualizaciones</a> puede indicar otro <b>origen de actualizaciones</b>: su propio espejo HTTPS o una carpeta del servidor. Sea cual sea el origen, cada versión debe llevar una firma válida de BackupZit. La consola comprueba cada día si hay versiones nuevas y envía un correo a los administradores cuando hay una disponible. Para instalarla, haga clic en <b>Instalar</b>:</p>
 <p><b>Versiones candidatas:</b> cada versión se publica primero como <i>pre-release</i> y se prueba; solo después pasa a ser la versión oficial, con los mismos archivos. La fuente de actualizaciones <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> contiene siempre la candidata más reciente; úsela solo en una consola de pruebas, ya que una candidata aún puede sustituirse por otra corregida. Las consolas con la fuente predeterminada solo reciben versiones aprobadas.</p>
 <ol>
-  <li>La consola comprueba la firma de la versión y la suma de comprobación del paquete, y espera hasta que no haya ninguna copia ni restauración en curso.</li>
+  <li>La consola comprueba la firma de la versión y la suma de comprobación del paquete, y se niega a iniciar la actualización mientras haya una copia o restauración en curso; instálela cuando hayan terminado.</li>
   <li>Un servicio del sistema (<code>backupzit-update</code>, ejecutado como root) vuelve a comprobar la firma con las claves de publicación integradas en BackupZit. Ni siquiera una consola comprometida puede hacer que se instale otro paquete.</li>
   <li>Hace una copia de la base de datos (<code>pg_dump</code>), conserva el programa actual, instala el paquete y reinicia la consola.</li>
   <li>Si la nueva versión no responde en dos minutos, el programa anterior y la base de datos tal como estaba se restauran automáticamente. El resultado, con el registro del arranque fallido, se muestra en la página Actualizaciones, queda en el registro de auditoría y se envía por correo.</li>
@@ -168,7 +168,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Activar las actualizaciones de seguridad automáticas</b> (recomendado). La herramienta propia del sistema instala solo las correcciones de seguridad, a diario: <code>unattended-upgrades</code> en Debian y Ubuntu, <code>dnf-automatic</code> en AlmaLinux y Rocky Linux.</li>
   <li><b>Instalar ahora todas las actualizaciones</b>. Servicios como PostgreSQL pueden reiniciarse brevemente y la consola se reconecta sola.</li>
-  <li><b>Reiniciar servidor</b>, por ejemplo tras una actualización del kernel. La consola lo rechaza mientras haya copias o restauraciones en curso. Los agentes conservan sus trabajos e informan de los resultados cuando la consola vuelve.</li>
+  <li><b>Reiniciar servidor</b>, por ejemplo tras una actualización del kernel. La consola lo rechaza mientras haya copias o restauraciones en curso. Las copias cuya hora programada pase durante el reinicio se inician en cuanto la consola vuelve.</li>
 </ul>
 <p>Estas tareas se ejecutan mediante el mismo servicio root que las actualizaciones de la consola. Quedan en el registro de auditoría y la salida de la última tarea se muestra en la página.</p>
 

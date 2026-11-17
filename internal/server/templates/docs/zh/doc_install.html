@@ -60,7 +60,7 @@
 <p>当 bzadmin 在服务器自身屏幕上（而非通过 SSH）登录时，会打开一个菜单：</p>
 <table>
   <tr><th>项目</th><th>作用</th></tr>
-  <tr><td>1 Network</td><td>DHCP 或带前缀长度的静态地址（例如 <code>192.168.1.20/24</code>）、网关以及最多三个 DNS 服务器。 使用 DHCP 时，DNS 服务器由 DHCP 服务器提供，除非您自行填写。</td></tr>
+  <tr><td>1 Network</td><td>DHCP 或带前缀长度的静态地址（例如 <code>192.168.1.20/24</code>）、网关以及最多三个 DNS 服务器。 使用 DHCP 时，DNS 服务器由 DHCP 服务器提供；如要在使用 DHCP 时使用自己的 DNS 服务器，请稍后在“设置 → 网络”中设置。</td></tr>
   <tr><td>2 Server name</td><td>主机名（字母、数字和 -）。</td></tr>
   <tr><td>3 SSH</td><td>开启或关闭 SSH 服务器并更改其端口。不能使用控制台（80、443、8443）、PostgreSQL（5432）和即时恢复（111、2049）的端口。</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>用于忘记的 Web 控制台密码；同时解除登录封锁。之后屏幕不再显示生成的初始密码（在 Web 控制台中更改 admin 密码后，从下次启动起也是如此）。</td></tr>
@@ -153,7 +153,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>默认情况下，控制台从 GitHub 上的 BackupZit 官方发布获取更新（<code>https://github.com/Max-Zit/backupzit/releases</code>）。在 <a href="/settings/updates">设置 → 更新</a> 下，您可以改为输入另一个<b>更新源</b>——您自己的 HTTPS 镜像或服务器上的文件夹。无论来源如何，每个版本都必须带有有效的 BackupZit 签名。控制台每天检查新版本，有可用版本时会向管理员发送电子邮件。要安装它，请点击<b>安装</b>：</p>
 <p><b>候选版本：</b>每个版本都会先作为<i>预发布版</i>发布并测试，之后才以相同的文件成为正式版本。更新源 <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> 始终包含最新的候选版本——请仅在测试控制台上使用，因为候选版本仍可能被修正后的版本替换。使用默认更新源的控制台只会获得已批准的版本。</p>
 <ol>
-  <li>控制台检查版本签名和软件包校验和，并等待没有正在运行的备份或还原。</li>
+  <li>控制台检查版本签名和软件包校验和；有备份或还原正在运行时，控制台会拒绝开始更新，请在它们完成后再安装。</li>
   <li>系统服务（<code>backupzit-update</code>，以 root 身份运行）使用 BackupZit 内置的发布密钥再次检查签名。即使控制台被入侵，也无法让其他软件包被安装。</li>
   <li>它会备份数据库（<code>pg_dump</code>），保留当前程序，安装软件包并重启控制台。</li>
   <li>如果新版本在两分钟内没有响应，会自动恢复之前的程序和原先状态的数据库。结果连同启动失败的日志会显示在更新页面上，记录在审计日志中并通过电子邮件发送。</li>
@@ -168,7 +168,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>开启自动安全更新</b>（推荐）。系统自带的工具每天只安装安全修复：Debian 和 Ubuntu 上为 <code>unattended-upgrades</code>，AlmaLinux 和 Rocky Linux 上为 <code>dnf-automatic</code>。</li>
   <li><b>立即安装所有更新</b>。PostgreSQL 等服务可能会短暂重启，控制台会自动重新连接。</li>
-  <li><b>重启服务器</b>，例如在内核更新之后。有备份或还原正在运行时，控制台会拒绝重启。代理会保留其作业，并在控制台恢复后报告结果。</li>
+  <li><b>重启服务器</b>，例如在内核更新之后。有备份或还原正在运行时，控制台会拒绝重启。计划时间落在重启期间的备份会在控制台恢复后开始。</li>
 </ul>
 <p>这些任务通过与控制台更新相同的 root 服务运行。它们会记录在审计日志中，最后一个任务的输出会显示在页面上。</p>
 

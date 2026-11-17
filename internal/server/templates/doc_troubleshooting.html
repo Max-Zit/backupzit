@@ -38,7 +38,7 @@
   <tr><td>Console backup: "the backup was made by a newer BackupZit"</td><td>Install the version that made the backup, or a newer one, on the new console before restoring.</td></tr>
   <tr><td>Console backup: "console backups need network storage"</td><td>Choose an SFTP, S3, SMB, Azure or hardened repository target; a local path of an agent is not reachable from the console.</td></tr>
   <tr><td>"Too many failed sign-ins"</td><td>Your address was blocked after repeated wrong passwords: by default for 30 minutes, longer for repeated blocks. An administrator can lift the block under <a href="/settings/security">Settings → Sign-in &amp; security</a>. On the server, <code>backupzit-server --unblock-ip all</code> lifts all blocks. Accounts are never locked permanently.</td></tr>
-  <tr><td>Lost phone for two-factor sign-in</td><td>Use one of the recovery codes; otherwise an administrator resets two-factor on your user page. The last administrator can reset their password on the server with <code>backupzit-server --set-admin-password</code>.</td></tr>
+  <tr><td>Lost phone for two-factor sign-in</td><td>Use one of the recovery codes; otherwise an administrator resets two-factor on your user page. Keep the recovery codes or a second administrator: <code>backupzit-server --set-admin-password</code> on the server only sets the password of the user <i>admin</i> and does not turn off two-factor sign-in.</td></tr>
   <tr><td>"your directory account is not in any BackupZit group"</td><td>Add the user to one of the groups mapped under <a href="/settings/ldap">Settings → LDAP / Active Directory</a>, or map more groups. Use <i>Test</i> there to see the groups found for a user.</td></tr>
   <tr><td>API returns 401 / 403</td><td>401: token missing, revoked, expired or its owner disabled. 403: the token's role is too low for the request.</td></tr>
   <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Wrong account key, or the SAS token lacks read, write, delete or list permission or has expired.</td></tr>
@@ -54,9 +54,9 @@
   <tr><td>VMware: "changed block tracking is off and can be enabled … only while the VM is off"</td><td>Free ESXi license: shut the VM down once, then run the job; BackupZit enables changed block tracking and later backups read only changed blocks.</td></tr>
   <tr><td>VMware: "copy the disk on the datastore (needs free space …)"</td><td>Running VMs are copied briefly on their datastore. Free up space there (as much as the disk uses), or back up the VM while it is off.</td></tr>
   <tr><td>VMware: "… is a snapshot delta disk"</td><td>The VM has snapshots of its own. Delete or consolidate them in the ESXi host client (Snapshots → Delete all).</td></tr>
-  <tr><td>VMware: "the ESXi certificate changed"</td><td>The host was reinstalled or another machine answers at its address. If that is expected, remove the host under Agents and add it again to pin the new certificate.</td></tr>
+  <tr><td>VMware: "the ESXi certificate changed"</td><td>The host was reinstalled or another machine answers at its address. If that is expected, check the fingerprint and click <b>Accept the new certificate</b> next to the host on the Agents page.</td></tr>
   <tr><td>VMware: <code>*.replaced-DATE.vmdk</code> files next to VM disks</td><td>The old disks of a VM restored in place. Delete them in the datastore browser once the restored VM works.</td></tr>
-  <tr><td>Hyper-V: <code>*.replaced-DATE</code> files next to VM disks</td><td>The old disks of a VM restored in place. Delete them once the restored VM works.</td></tr>
+  <tr><td>Hyper-V: old VHDX files left after an in-place restore</td><td>The restore detaches the VM's old disks and leaves them where they were (the run lists each one: <i>old disk kept at …</i>); the restored disks are in a <code>backupzit-restore-…</code> subfolder. Delete the old files once the restored VM works.</td></tr>
   <tr><td>Proxmox instant recovery: the VM does not boot or hangs</td><td>Check the disk server: <code>systemctl status backupzit-instant-ID</code> and <code>journalctl -u backupzit-instant-ID</code> on the node. It needs the backup storage to stay reachable; when the repository cannot be read, the VM's disk reads stall.</td></tr>
   <tr><td>Proxmox instant recovery: "efidisk0 stays on storage backupzit-instant"</td><td>QEMU cannot move the EFI variable store while the VM runs. Shut the VM down and run <code>qm disk move ID efidisk0 STORAGE --delete 1</code>; it does not depend on the backup.</td></tr>
   <tr><td>Proxmox: "runs on node X; install the BackupZit agent on X"</td><td>The guest was migrated. Install the agent on every node and back up each node's guests with that node's agent.</td></tr>
@@ -65,7 +65,7 @@
   <tr><td>Linux system restore: "missing programs …"</td><td>Install the named packages on the restoring machine, or boot the BackupZit Linux recovery ISO, which has them.</td></tr>
   <tr><td>Restored Linux machine has no network</td><td>The network settings were bound to the old MAC address (netplan <code>match: macaddress</code>). Restore with <i>Different hardware</i>, or remove the <code>match</code> lines in <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Restored Windows stops with INACCESSIBLE_BOOT_DEVICE</td><td>Restore again with <i>Restore to different hardware</i>, or boot the recovery ISO and run <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
-  <tr><td>A restored copy of a machine shows up as the original agent</td><td>Restores into a new Proxmox VM unenroll the agent inside the copy automatically. For other copies, remove <code>agent.json</code> in the copy and enroll it as a new machine.</td></tr>
+  <tr><td>A restored copy of a machine shows up as the original agent</td><td>A Linux system restored as a new VM is unenrolled automatically. For other copies (a VM restored as a new VM, instant recovery, a replica, a cloned disk) the console holds the agent's runs and shows <i>two machines</i>; enroll the copy as a new machine (see <a href="/docs/agents#duplicate">Two machines using one agent</a>).</td></tr>
   <tr><td>Agent update does not finish</td><td>See the installer log in <code>C:\ProgramData\backupzit\updates</code> or <code>/var/tmp/backupzit-updates</code>; agents before 0.21 must be updated once by hand.</td></tr>
   <tr><td>The tray icon is missing</td><td>Click the <b>^</b> arrow next to the clock and drag the BackupZit icon onto the taskbar, or start <i>BackupZit Agent</i> from the Start menu.</td></tr>
 </table>
@@ -102,9 +102,9 @@
 <h3>Can I move backups to another storage?</h3>
 <p>Copy the repository folder (or bucket prefix) as is — it is self-contained — and add a storage target pointing to the new location with the same recovery key.</p>
 <h3>Does deleting a job delete the backups?</h3>
-<p>No. Backups stay on the storage and remain restorable from Activity or the command line.</p>
+<p>No. Backups stay on the storage and remain restorable from Activity or the command line. Copy jobs of the deleted job are deleted with it; the copies they made stay on their storage.</p>
 <h3>What happens if the console is down?</h3>
-<p>No new scheduled backups start until it is back; queued runs continue afterwards. Restores are always possible from the command line with the recovery sheet.</p>
+<p>No new scheduled backups start until it is back; then each job whose scheduled time passed runs once (unless its backup window is over), and queued runs continue. Restores are always possible from the command line with the recovery sheet.</p>
 <h3>How much space will backups need?</h3>
 <p>Roughly the size of the data after compression for the first backup, plus the daily changes for each kept day. The Reports page shows how much was uploaded per job.</p>
 {{template "docpager" .}}

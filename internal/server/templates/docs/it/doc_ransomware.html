@@ -26,9 +26,10 @@
 <ol>
   <li>Crea un bucket con <b>Object Lock attivato</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
   <li>Aggiungi una regola di lifecycle che elimini le <i>versioni non correnti</i> (noncurrent versions) dopo 1 giorno (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
-  <li>Aggiungi la destinazione S3 e seleziona <b>Backup immutabili per N giorni</b>. Scegli N almeno pari alla conservazione più lunga che vuoi proteggere, ad es. 30.</li>
+  <li>Imposta sul bucket una conservazione predefinita in modalità compliance di almeno N giorni (MinIO: <code>mc retention set --default COMPLIANCE 30d</code>), così gli oggetti restano bloccati anche se un computer compromesso li scrive senza blocco; <b>Verifica connessione</b> avvisa se manca o è più breve.</li>
+  <li>Aggiungi la destinazione S3 e seleziona <b>Backup immutabili per N giorni</b>. Scegli N almeno pari al periodo in cui i tuoi backup devono restare protetti, ad es. 30.</li>
 </ol>
-<p>Ogni punto di ripristino resta bloccato per almeno N giorni dalla sua creazione; i dati condivisi con backup più recenti vengono prorogati automaticamente.</p>
+<p>Ogni punto di ripristino resta bloccato per almeno N giorni dalla sua creazione; dopo ogni backup l’agente prolunga il blocco di tutti i dati che la conservazione del job mantiene ancora.</p>
 <p id="lock-retained">Dopo ogni backup l’agente prolunga il blocco di tutti i dati che la conservazione del job mantiene ancora, non solo di quelli che il nuovo backup riutilizza: un backup mensile conservato per un anno resta bloccato per quell’anno. Vale per S3 Object Lock e per il repository protetto. Se si accorcia la conservazione per liberare spazio, lo spazio torna disponibile solo alla fine dei blocchi esistenti, fino a un periodo di blocco e mezzo dopo.</p>
 
 <h2>Repository protetto</h2>

@@ -57,7 +57,7 @@
 
 <h3>Jazyk</h3>
 <p>Konzole je k dispozici ve 14 jazycích: angličtině, němčině, francouzštině, španělštině, italštině, portugalštině (Brazílie), nizozemštině, polštině, češtině, srbštině (latinka), turečtině, ruštině, čínštině (zjednodušené) a japonštině. Vyberte jazyk v seznamu vpravo nahoře nebo na přihlašovací stránce; volba se pamatuje v prohlížeči. Bez volby rozhoduje jazyk prohlížeče (chorvatské, bosenské a černohorské prohlížeče dostanou srbštinu, slovenské češtinu, ostatní jazyky angličtinu). Přeložena je i tato příručka (stránka bez překladu se zobrazí anglicky). E-maily, oznámení do chatu a sestavy používají jazyk zvolený v Nastavení → E-mailová oznámení; zprávy hlášené agenty zůstávají anglicky.</p>
-<p>Překlady jsou ve zdrojovém kódu v <code>internal/server/i18n/cs.json</code>: anglický text je klíč, překlad jeho hodnota. <code>go run ./tools/i18n missing cs</code> vypíše texty bez překladu; nepřeložené texty se zobrazují anglicky.</p>
+<p>Překlady jsou ve zdrojovém kódu v <code>internal/server/i18n/&lt;jazyk&gt;.json</code> (např. <code>de.json</code>): anglický text je klíč, překlad jeho hodnota. <code>go run ./tools/i18n missing de</code> vypíše texty bez překladu; nepřeložené texty se zobrazují anglicky.</p>
 <h3>Světlý a tmavý motiv</h3><p>Konzole se řídí světlým nebo tmavým nastavením operačního systému. Tlačítko s měsícem vpravo nahoře (a na přihlašovací stránce) přepíná mezi světlým a tmavým; volba se pamatuje v tomto prohlížeči.</p>
 
 <h2>Základní pojmy</h2>
@@ -74,7 +74,7 @@
   <li><b>Detekce ransomwaru</b> — neobvyklé zálohy (hromadné změny, šifrovaná data, hromadné mazání, náhlé skoky objemu dat) se označí a uchovávání se pozastaví (<a href="/docs/ransomware">Ochrana proti ransomwaru</a>).</li>
   <li><b>Upozornění a sestavy</b> — e-maily při selhání a denní souhrn; plánované sestavy pro vedení (<a href="/docs/notifications">E-mailová oznámení</a>, <a href="/docs/monitoring">Monitorování</a>).</li>
   <li><b>Cíle bodu obnovy</b> — úloha, jejíž nejnovější dobrá záloha je starší než její RPO, se zobrazí v přehledu a jednou se ohlásí e-mailem a v chatu (<a href="/docs/jobs#rpo">Úlohy zálohování</a>).</li>
-  <li><b>Kontroly dat</b> — jednou měsíčně se každý repozitář celý přečte a ověří, což odhalí poškození samotného úložiště (<a href="/docs/restore#data-check">Obnova</a>).</li>
+  <li><b>Kontroly dat</b> — jednou měsíčně se každý repozitář celý přečte a ověří (na S3 a Azure jen s volbou <i>I na cloudovém úložišti</i>, kvůli poplatkům za stahování), což odhalí poškození samotného úložiště (<a href="/docs/restore#data-check">Obnova</a>).</li>
 </ul>
 
 <h2>Licence a podpora</h2>

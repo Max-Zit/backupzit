@@ -48,7 +48,7 @@
   <tr><th>Option</th><th>Example</th></tr>
   <tr><td><b>At specific times</b></td><td>Every working day at 22:00; or at 12:00 and 18:00 every day. Up to three times a day, on the days you tick.</td></tr>
   <tr><td><b>Repeatedly</b></td><td>Every 2 hours between 08:00 and 18:00, Monday–Friday. Intervals from 15 minutes to 12 hours.</td></tr>
-  <tr><td><b>Once a month</b></td><td>On the 1st at 23:00.</td></tr>
+  <tr><td><b>Once a month</b></td><td>On the 1st at 23:00 (any day from 1 to 28).</td></tr>
   <tr><td><b>Manually only</b></td><td>Runs only when you click <i>Run backup now</i>.</td></tr>
   <tr><td><b>After another job</b></td><td>First the database, then the file server: the job starts as soon as the chosen job has finished successfully — or after any result, with <i>also when that job failed</i>. Chains can be longer (A → B → C); a job cannot run after itself or in a circle.</td></tr>
 </table>
@@ -78,7 +78,7 @@
   <li>Only data that is not yet at the destination is transferred, re-encrypted with the destination's key.</li>
   <li>Schedule <b>After each backup of the source job</b> (default) keeps the copy current; any normal schedule works too, e.g. once a night for a slow internet line.</li>
   <li>The copy has its own retention, e.g. 7 daily on the NAS and 12 monthly in the cloud.</li>
-  <li>Copied file backups and VM backups (Proxmox VE, Hyper-V, VMware) are restored from the copy run's page or the <a href="/restore">restore wizard</a>, like the originals — whole VMs, single files from VM disks, and Proxmox instant recovery. VM backups copied by an agent older than 0.29 cannot be restored this way; the next copy run with a newer agent makes its newest copy restorable. Copies of disk images are restored with the command line agent.</li>
+  <li>Copied file backups and VM backups (Proxmox VE, Hyper-V, VMware) are restored from the copy run's page or the <a href="/restore">restore wizard</a>, like the originals — whole VMs, single files from VM disks, and Proxmox instant recovery. VM backups copied by an agent older than 0.29 cannot be restored this way; the next copy run with a newer agent makes its newest copy restorable. Copied Microsoft 365 backups are restored the same way. Copies of disk images, Linux system and database backups are restored with the command line agent.</li>
 </ul>
 
 <h2>Changing a job</h2>
@@ -91,7 +91,7 @@
 <p>Under <b>Advanced</b> in the job form, <b>Limit the upload speed</b> caps how fast the agent sends data to the storage, in MB/s — for example 10 MB/s from 08:00 to 18:00, so backups during working hours leave the office line usable; outside the window the job runs at full speed. The hours are the agent's local time, and a window may span midnight (22:00 to 06:00). The limit applies to backups and to copy jobs (the upload to the second storage), not to restores: a restore always runs at full speed.</p>
 
 <h2 id="compression">Compression and deduplication</h2>
-<p>Every backup is deduplicated: data that is already in the repository — from earlier backups of the same job, or from other jobs on the same storage target — is not stored again. New data is then compressed with zstd; pieces that do not get smaller (video, archives, encrypted files) are stored as they are. Encryption comes after compression.</p>
+<p>Every backup is deduplicated: data that is already in the repository — from earlier backups of the same job, or from other jobs of the same agent on the same storage target — is not stored again. Each agent has its own repository (so do VMware hosts, Hyper-V clusters and Microsoft 365 tenants), so there is no deduplication between computers. New data is then compressed with zstd; pieces that do not get smaller (video, archives, encrypted files) are stored as they are. Encryption comes after compression.</p>
 <p>The compression level is a job setting (<b>Edit → Advanced</b>):</p>
 <table>
   <tr><th>Level</th><th>When to use it</th></tr>
@@ -120,7 +120,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Run backup now</b> (<b>Copy now</b> for copy jobs) queues the job immediately.</li>
   <li><b>Test restore</b> restores a random sample of the newest backup and verifies it (see <a href="/docs/restore">Restoring</a>).</li>
   <li><b>Disable</b> pauses the schedule without losing the job (with four-eyes approval on, a second user has to approve it).</li>
-  <li><b>Delete</b> removes the job; existing backups stay on the storage and remain restorable from Activity.</li>
+  <li><b>Delete</b> removes the job (with four-eyes approval on, after a second user approves); existing backups stay on the storage and remain restorable from Activity. Copy jobs of the job are deleted with it; their copies stay on their storage.</li>
 </ul>
 
 <h2>Stopping a run</h2>

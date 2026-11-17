@@ -13,14 +13,16 @@
 
 <h2>Adicionar um host</h2>
 <ol>
-  <li>Abra <a href="/agents#vmware">Agentes → Hosts VMware ESXi</a> → <i>Adicionar um host ESXi</i>.</li>
+  <li>Abra <a href="/agents#vmware">Agentes → Hosts VMware ESXi</a> → <i>Adicionar um host ESXi ou vCenter Server</i>.</li>
   <li>Informe o endereço, o usuário, a senha e o agente proxy.</li>
   <li>O console se conecta uma vez para verificá-los. Ele lê a lista de VMs e a licença, e <b>fixa o certificado HTTPS e a chave de host SSH do host</b>. Se mais tarde o host for substituído por outra máquina com o mesmo endereço, o BackupZit se recusa a conectar em vez de enviar a senha a ela. Se o certificado mudar por um motivo conhecido — o host foi reinstalado, recebeu um novo certificado ou foi adicionado ao vCenter (que substitui os certificados dos seus hosts) —, o host mostra a nova impressão digital com um botão <b>Aceitar o novo certificado</b> na página Agentes. Compare a impressão digital com a do host antes de aceitá-la.</li>
 </ol>
-<p>A senha é armazenada criptografada, como todos os outros segredos. A lista de VMs é atualizada a cada 10 minutos, ou na hora com <i>Atualizar</i>. A tabela mostra o modo de cada host:</p>
+<p>A senha é armazenada criptografada, como todos os outros segredos. O próprio console se conecta ao host (HTTPS 443, e SSH 22 na licença gratuita) quando ele é adicionado, com <i>Atualizar</i> e a cada 10 minutos para atualizar a lista de VMs. <i>Remover</i> exclui o host junto com as suas tarefas de backup; os backups continuam no armazenamento. A tabela mostra o modo de cada host:</p>
 <ul>
   <li><b>API do vSphere (host licenciado, SSH desnecessário):</b> snapshots, cópias de discos, restaurações e recuperação instantânea passam pela API.</li>
+  <li><b>vCenter Server (API do vSphere):</b> um vCenter com os seus hosts ESXi; tudo passa pela API do vCenter.</li>
   <li><b>licença gratuita: snapshots e restaurações por SSH:</b> a API do host é somente leitura, então essas etapas passam por SSH.</li>
+  <li><b>SSH (escolhido para este host):</b> o host é alterado por SSH, embora a API dele pudesse fazê-lo (<i>Sempre SSH</i> ao adicionar o host).</li>
 </ul>
 <p>Com <b>Automático</b> o console escolhe sozinho, então um host que receber uma licença depois passa para a API sem outra configuração. <b>Como o host é alterado</b>, na linha do host (e ao adicioná-lo), pode forçar <b>Sempre SSH</b> ou <b>Sempre a API do vSphere</b>; a mudança é verificada na hora. Backups anteriores e seus pontos de restauração não dependem do método.</p>
 

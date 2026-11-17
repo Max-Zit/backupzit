@@ -3,7 +3,7 @@
 <p class="lead">Agent działa także samodzielnie z wiersza poleceń — do skryptów, do przywracania bez konsoli i w sytuacjach awaryjnych. Uruchom <code>backupzit-agent</code> bez argumentów, aby zobaczyć przegląd, oraz <code>backupzit-agent &lt;command&gt; -h</code>, aby zobaczyć opcje polecenia.</p>
 
 <h2>Repozytorium i dane uwierzytelniające</h2>
-<p>Każde polecenie przyjmuje <code>--repo</code> (lub <code>BACKUPZIT_REPO</code>). Do sekretów lepiej używać zmiennych środowiskowych. Repozytorium agenta to <code>&lt;lokalizacja magazynu&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — zobacz kolumnę repozytorium uruchomienia w Aktywności lub arkusz odzyskiwania.</p>
+<p>Każde polecenie, które odczytuje lub zapisuje kopie zapasowe, przyjmuje <code>--repo</code> (lub <code>BACKUPZIT_REPO</code>); <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> i <code>disks</code> go nie przyjmują. Do sekretów lepiej używać zmiennych środowiskowych. Repozytorium agenta to <code>&lt;lokalizacja magazynu&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — zobacz pole <b>Repozytorium</b> na stronie uruchomienia lub arkusz odzyskiwania.</p>
 <table>
   <tr><th>Lokalizacja</th><th>Dane uwierzytelniające</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,7 +23,7 @@
   <tr><td><code>init</code></td><td>Tworzy nowe repozytorium (zaszyfrowane, jeśli podano hasło).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Tworzy kopię plików i folderów. <code>--vss</code> czyta z kopii w tle woluminu (Windows, administrator); <code>--force</code> czyta wszystkie pliki, także niezmienione.</td></tr>
   <tr><td><code>snapshots</code></td><td>Wyświetla migawki z czasem, hostem, rozmiarem i ścieżkami.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Wyświetla pliki w migawce.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Wyświetla wszystkie pliki w migawce.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Przywraca pliki pod DIR (odtwarzana jest oryginalna struktura folderów). <code>--original</code> zapisuje je zamiast tego w oryginalnej lokalizacji, nadpisując istniejące pliki.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Sprawdza strukturę repozytorium; z <code>--read-data</code> każdy bajt jest pobierany i sprawdzany.</td></tr>
 </table>
@@ -65,7 +65,7 @@
 <table>
   <tr><th>Polecenie</th><th>Co robi</th></tr>
   <tr><td><code>hyperv list</code></td><td>Wyświetla maszyny wirtualne hosta z ich numerami BackupZit oraz foldery na przywrócone dyski.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Tworzy kopie maszyn wirtualnych (domyślnie: wszystkich) z produkcyjnych punktów kontrolnych.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Tworzy kopie maszyn wirtualnych (domyślnie: wszystkich) z punktów kontrolnych odzyskiwania z Resilient Change Tracking (produkcyjne punkty kontrolne tylko na hostach, które ich nie mają).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Przywraca maszynę wirtualną na miejscu (domyślnie) lub jako nową z <code>--new</code>. <code>--overwrite</code> zastępuje dyski istniejącej maszyny. Zobacz <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> i <code>pve extract</code> działają także z kopiami Hyper-V.</p>

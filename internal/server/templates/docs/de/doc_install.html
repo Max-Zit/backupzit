@@ -60,7 +60,7 @@
 <p>Wenn sich bzadmin am eigenen Bildschirm des Servers anmeldet (nicht über SSH), öffnet sich ein Menü:</p>
 <table>
   <tr><th>Punkt</th><th>Was er tut</th></tr>
-  <tr><td>1 Network</td><td>DHCP oder eine statische Adresse mit Präfixlänge (z. B. <code>192.168.1.20/24</code>), Gateway und bis zu drei DNS-Server. Mit DHCP kommen die DNS-Server vom DHCP-Server, sofern Sie keine eigenen eintragen.</td></tr>
+  <tr><td>1 Network</td><td>DHCP oder eine statische Adresse mit Präfixlänge (z. B. <code>192.168.1.20/24</code>), Gateway und bis zu drei DNS-Server. Mit DHCP kommen die DNS-Server vom DHCP-Server; um mit DHCP eigene zu verwenden, tragen Sie sie später unter Einstellungen → Netzwerk ein.</td></tr>
   <tr><td>2 Server name</td><td>Der Hostname (Buchstaben, Ziffern und -).</td></tr>
   <tr><td>3 SSH</td><td>SSH-Server ein- oder ausschalten und seinen Port ändern. Die Ports der Konsole (80, 443, 8443), von PostgreSQL (5432) und der Sofortwiederherstellung (111, 2049) können nicht verwendet werden.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Bei einem vergessenen Webkonsolen-Passwort; hebt auch Anmeldesperren auf. Danach zeigt der Bildschirm das erzeugte Anfangspasswort nicht mehr an (ebenso ab dem nächsten Start, sobald das Passwort von admin in der Webkonsole geändert wurde).</td></tr>
@@ -153,7 +153,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Standardmäßig bezieht die Konsole Updates aus den offiziellen BackupZit-Versionen auf GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Unter <a href="/settings/updates">Einstellungen → Updates</a> können Sie stattdessen eine andere <b>Update-Quelle</b> eintragen — Ihren eigenen HTTPS-Spiegel oder einen Ordner auf dem Server. Unabhängig von der Quelle muss jede Version eine gültige BackupZit-Signatur tragen. Die Konsole prüft täglich auf neue Versionen und schickt den Administratoren eine E-Mail, wenn eine verfügbar ist. Zum Installieren klicken Sie auf <b>Installieren</b>:</p>
 <p><b>Release-Kandidaten:</b> Jede Version wird zuerst als <i>Pre-Release</i> veröffentlicht und getestet; erst dann wird sie mit denselben Dateien zum offiziellen Release. Die Update-Quelle <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> enthält immer den neuesten Kandidaten – verwenden Sie sie nur auf einer Testkonsole, da ein Kandidat noch durch einen korrigierten ersetzt werden kann. Konsolen mit der Standardquelle erhalten nur freigegebene Releases.</p>
 <ol>
-  <li>Die Konsole prüft die Versionssignatur und die Paketprüfsumme und wartet, bis keine Sicherung oder Wiederherstellung läuft.</li>
+  <li>Die Konsole prüft die Versionssignatur und die Paketprüfsumme und startet das Update nicht, solange eine Sicherung oder Wiederherstellung läuft; installieren Sie es, wenn diese beendet sind.</li>
   <li>Ein Systemdienst (<code>backupzit-update</code>, läuft als root) prüft die Signatur erneut mit den in BackupZit eingebauten Versionsschlüsseln. Selbst eine kompromittierte Konsole kann so kein anderes Paket installieren lassen.</li>
   <li>Er sichert die Datenbank (<code>pg_dump</code>), behält das aktuelle Programm, installiert das Paket und startet die Konsole neu.</li>
   <li>Antwortet die neue Version nicht innerhalb von zwei Minuten, werden das vorherige Programm und die Datenbank im vorherigen Zustand automatisch wiederhergestellt. Das Ergebnis mit dem Protokoll des fehlgeschlagenen Starts wird auf der Seite Updates angezeigt, im Audit-Protokoll festgehalten und per E-Mail versendet.</li>
@@ -168,7 +168,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Automatische Sicherheitsupdates einschalten</b> (empfohlen). Das systemeigene Werkzeug installiert täglich nur Sicherheitskorrekturen: <code>unattended-upgrades</code> unter Debian und Ubuntu, <code>dnf-automatic</code> unter AlmaLinux und Rocky Linux.</li>
   <li><b>Jetzt alle Updates installieren</b>. Dienste wie PostgreSQL können kurz neu starten, und die Konsole verbindet sich von selbst wieder.</li>
-  <li><b>Server neu starten</b>, zum Beispiel nach einem Kernel-Update. Die Konsole verweigert das, während Sicherungen oder Wiederherstellungen laufen. Agenten behalten ihre Aufträge und melden die Ergebnisse, sobald die Konsole zurück ist.</li>
+  <li><b>Server neu starten</b>, zum Beispiel nach einem Kernel-Update. Die Konsole verweigert das, während Sicherungen oder Wiederherstellungen laufen. Sicherungen, deren geplante Zeit während des Neustarts verstreicht, starten, sobald die Konsole zurück ist.</li>
 </ul>
 <p>Diese Aufgaben laufen über denselben root-Dienst wie Konsolen-Updates. Sie werden im Audit-Protokoll festgehalten, und die Ausgabe der letzten Aufgabe wird auf der Seite angezeigt.</p>
 

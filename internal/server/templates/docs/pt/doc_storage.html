@@ -97,6 +97,6 @@ backupzit-repo keys                           # chaves e os seus limites</pre>
 <p><b>Requer atenção</b> no painel avisa quando um destino de armazenamento está 90 % cheio ou ficará cheio em 30 dias. S3 e Azure não têm tamanho fixo; ali só são mostrados o espaço usado e o seu crescimento. O espaço usado são os dados armazenados (comprimidos, criptografados, desduplicados); arquivos que o armazenamento mantém por outras razões (versões de objetos, outros programas) não são contados.</p>
 
 <h2>Remover um destino</h2>
-<p>Remover um destino de armazenamento da console não exclui nenhum dado no armazenamento. Com a <a href="/docs/users">aprovação de quatro olhos</a> ativada, um segundo usuário tem de aprovar primeiro.</p>
+<p>Um destino de armazenamento que ainda é usado por tarefas não pode ser removido. Remover um destino da console não exclui nenhum dado no armazenamento, mas a console esquece as credenciais e a chave de recuperação dele, de modo que os seus backups já não podem ser restaurados a partir da console — baixe antes a ficha de recuperação. Com a <a href="/docs/users">aprovação de quatro olhos</a> ativada, um segundo usuário tem de aprovar primeiro.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -38,7 +38,7 @@
   <tr><td>Konsol yedeği: "the backup was made by a newer BackupZit"</td><td>Geri yüklemeden önce yeni konsola yedeği oluşturan sürümü veya daha yenisini kurun.</td></tr>
   <tr><td>Konsol yedeği: "console backups need network storage"</td><td>SFTP, S3, SMB, Azure veya güçlendirilmiş depo hedefi seçin; bir aracının yerel yoluna konsoldan erişilemez.</td></tr>
   <tr><td>"Çok fazla başarısız oturum açma"</td><td>Adresiniz tekrarlanan yanlış parolalardan sonra engellendi: varsayılan olarak 30 dakika, tekrarlanan engellerde daha uzun. Bir yönetici engeli <a href="/settings/security">Ayarlar → Oturum açma ve güvenlik</a> altında kaldırabilir. Sunucuda <code>backupzit-server --unblock-ip all</code> tüm engelleri kaldırır. Hesaplar asla kalıcı olarak kilitlenmez.</td></tr>
-  <tr><td>İki aşamalı oturum açma için telefon kayboldu</td><td>Kurtarma kodlarından birini kullanın; aksi halde bir yönetici kullanıcı sayfanızda iki aşamalı oturum açmayı sıfırlar. Son yönetici parolasını sunucuda <code>backupzit-server --set-admin-password</code> ile sıfırlayabilir.</td></tr>
+  <tr><td>İki aşamalı oturum açma için telefon kayboldu</td><td>Kurtarma kodlarından birini kullanın; aksi halde bir yönetici kullanıcı sayfanızda iki aşamalı oturum açmayı sıfırlar. Kurtarma kodlarını saklayın veya ikinci bir yönetici bulundurun: sunucudaki <code>backupzit-server --set-admin-password</code> yalnızca <i>admin</i> kullanıcısının parolasını ayarlar ve iki aşamalı oturum açmayı kapatmaz.</td></tr>
   <tr><td>"your directory account is not in any BackupZit group"</td><td>Kullanıcıyı <a href="/settings/ldap">Ayarlar → LDAP / Active Directory</a> altında eşlenen gruplardan birine ekleyin veya daha fazla grup eşleyin. Bir kullanıcı için bulunan grupları görmek için orada <i>Test</i>'i kullanın.</td></tr>
   <tr><td>API 401 / 403 döndürüyor</td><td>401: belirteç eksik, iptal edilmiş, süresi dolmuş veya sahibi devre dışı. 403: belirtecin rolü istek için çok düşük.</td></tr>
   <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Yanlış hesap anahtarı veya SAS belirtecinde okuma, yazma, silme ya da listeleme izni eksik veya süresi dolmuş.</td></tr>
@@ -54,9 +54,9 @@
   <tr><td>VMware: "changed block tracking is off and can be enabled … only while the VM is off"</td><td>Ücretsiz ESXi lisansı: VM'yi bir kez kapatın, sonra işi çalıştırın; BackupZit değişen blok izlemeyi açar ve sonraki yedekler yalnızca değişen blokları okur.</td></tr>
   <tr><td>VMware: "copy the disk on the datastore (needs free space …)"</td><td>Çalışan VM'ler kısa süreliğine kendi datastore'larında kopyalanır. Orada yer açın (diskin kullandığı kadar) veya VM'yi kapalıyken yedekleyin.</td></tr>
   <tr><td>VMware: "… is a snapshot delta disk"</td><td>VM'nin kendi anlık görüntüleri var. Bunları ESXi Host Client'ta silin veya birleştirin (Snapshots → Delete all).</td></tr>
-  <tr><td>VMware: "the ESXi certificate changed"</td><td>Ana bilgisayar yeniden kuruldu veya adresinde başka bir makine yanıt veriyor. Bu beklenen bir durumsa, yeni sertifikayı sabitlemek için ana bilgisayarı Aracılar altında kaldırıp yeniden ekleyin.</td></tr>
+  <tr><td>VMware: "the ESXi certificate changed"</td><td>Ana bilgisayar yeniden kuruldu veya adresinde başka bir makine yanıt veriyor. Bu beklenen bir durumsa, parmak izini denetleyin ve Aracılar sayfasında ana bilgisayarın yanındaki <b>Yeni sertifikayı kabul et</b> düğmesine tıklayın.</td></tr>
   <tr><td>VMware: VM disklerinin yanında <code>*.replaced-DATE.vmdk</code> dosyaları</td><td>Yerinde geri yüklenen bir VM'nin eski diskleri. Geri yüklenen VM çalışınca bunları datastore tarayıcısında silin.</td></tr>
-  <tr><td>Hyper-V: VM disklerinin yanında <code>*.replaced-DATE</code> dosyaları</td><td>Yerinde geri yüklenen bir VM'nin eski diskleri. Geri yüklenen VM çalışınca bunları silin.</td></tr>
+  <tr><td>Hyper-V: yerinde geri yüklemeden sonra kalan eski VHDX dosyaları</td><td>Geri yükleme VM'nin eski disklerini ayırır ve oldukları yerde bırakır (çalıştırma her birini listeler: <i>old disk kept at …</i>); geri yüklenen diskler bir <code>backupzit-restore-…</code> alt klasöründedir. Geri yüklenen VM çalışınca eski dosyaları silin.</td></tr>
   <tr><td>Proxmox anında kurtarma: VM önyüklenmiyor veya takılıyor</td><td>Disk sunucusunu denetleyin: düğümde <code>systemctl status backupzit-instant-ID</code> ve <code>journalctl -u backupzit-instant-ID</code>. Yedek depolamasının erişilebilir kalması gerekir; depo okunamadığında VM'nin disk okumaları durur.</td></tr>
   <tr><td>Proxmox anında kurtarma: "efidisk0 stays on storage backupzit-instant"</td><td>QEMU, VM çalışırken EFI değişken deposunu taşıyamaz. VM'yi kapatın ve <code>qm disk move ID efidisk0 STORAGE --delete 1</code> çalıştırın; bu, yedeğe bağlı değildir.</td></tr>
   <tr><td>Proxmox: "runs on node X; install the BackupZit agent on X"</td><td>Konuk taşınmış. Aracıyı her düğüme kurun ve her düğümün konuklarını o düğümün aracısıyla yedekleyin.</td></tr>
@@ -65,7 +65,7 @@
   <tr><td>Linux sistemi geri yükleme: "missing programs …"</td><td>Belirtilen paketleri geri yükleme yapan makineye kurun veya bunları içeren BackupZit Linux kurtarma ISO'sundan önyükleyin.</td></tr>
   <tr><td>Geri yüklenen Linux makinesinin ağı yok</td><td>Ağ ayarları eski MAC adresine bağlıydı (netplan <code>match: macaddress</code>). <i>Farklı donanım</i> ile geri yükleyin veya <code>/etc/netplan/</code> içindeki <code>match</code> satırlarını kaldırın.</td></tr>
   <tr><td>Geri yüklenen Windows INACCESSIBLE_BOOT_DEVICE ile duruyor</td><td><i>Farklı donanıma geri yükle</i> ile yeniden geri yükleyin veya kurtarma ISO'sundan önyükleyip <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code> çalıştırın.</td></tr>
-  <tr><td>Bir makinenin geri yüklenen kopyası orijinal aracı olarak görünüyor</td><td>Yeni bir Proxmox VM'ye yapılan geri yüklemeler kopyadaki aracının kaydını otomatik olarak siler. Diğer kopyalarda kopyadaki <code>agent.json</code> dosyasını kaldırın ve yeni bir makine olarak kaydedin.</td></tr>
+  <tr><td>Bir makinenin geri yüklenen kopyası orijinal aracı olarak görünüyor</td><td>Yeni bir VM olarak geri yüklenen bir Linux sisteminin kaydı otomatik olarak silinir. Diğer kopyalarda (yeni VM olarak geri yüklenen bir VM, anında kurtarma, bir replika, klonlanmış bir disk) konsol aracının çalıştırmalarını bekletir ve <i>iki makine</i> gösterir; kopyayı yeni bir makine olarak kaydedin (bkz. <a href="/docs/agents#duplicate">Tek bir aracıyı kullanan iki makine</a>).</td></tr>
   <tr><td>Aracı güncellemesi tamamlanmıyor</td><td><code>C:\ProgramData\backupzit\updates</code> veya <code>/var/tmp/backupzit-updates</code> içindeki yükleyici günlüğüne bakın; 0.21'den önceki aracıların bir kez elle güncellenmesi gerekir.</td></tr>
   <tr><td>Tepsi simgesi yok</td><td>Saatin yanındaki <b>^</b> okuna tıklayıp BackupZit simgesini görev çubuğuna sürükleyin veya Başlat menüsünden <i>BackupZit Agent</i>'ı başlatın.</td></tr>
 </table>
@@ -102,9 +102,9 @@
 <h3>Yedekleri başka bir depolamaya taşıyabilir miyim?</h3>
 <p>Depo klasörünü (veya kova önekini) olduğu gibi kopyalayın — kendi kendine yeterlidir — ve aynı kurtarma anahtarıyla yeni konumu gösteren bir depolama hedefi ekleyin.</p>
 <h3>Bir işi silmek yedekleri de siler mi?</h3>
-<p>Hayır. Yedekler depolamada kalır ve Etkinlik'ten veya komut satırından geri yüklenebilir.</p>
+<p>Hayır. Yedekler depolamada kalır ve Etkinlik'ten veya komut satırından geri yüklenebilir. Silinen işin kopyalama işleri de onunla birlikte silinir; bunların yaptığı kopyalar kendi depolamalarında kalır.</p>
 <h3>Konsol çalışmazsa ne olur?</h3>
-<p>Konsol geri gelene kadar yeni zamanlanmış yedeklemeler başlamaz; kuyruktaki çalıştırmalar sonra devam eder. Geri yüklemeler kurtarma sayfasıyla komut satırından her zaman mümkündür.</p>
+<p>Konsol geri gelene kadar yeni zamanlanmış yedeklemeler başlamaz; ardından zamanlanmış saati geçen her iş bir kez çalışır (yedekleme penceresi sona ermediyse) ve kuyruktaki çalıştırmalar devam eder. Geri yüklemeler kurtarma sayfasıyla komut satırından her zaman mümkündür.</p>
 <h3>Yedekler ne kadar alana ihtiyaç duyacak?</h3>
 <p>İlk yedek için kabaca sıkıştırma sonrası veri boyutu, artı saklanan her gün için günlük değişiklikler. Raporlar sayfası iş başına ne kadar yüklendiğini gösterir.</p>
 {{template "docpager" .}}

@@ -13,14 +13,16 @@
 
 <h2>Ana bilgisayar ekleme</h2>
 <ol>
-  <li><a href="/agents#vmware">Aracılar → VMware ESXi ana bilgisayarları</a> → <i>ESXi ana bilgisayarı ekleyin</i>'i açın.</li>
+  <li><a href="/agents#vmware">Aracılar → VMware ESXi ana bilgisayarları</a> → <i>Bir ESXi ana bilgisayarı veya vCenter Server ekle</i>'yi açın.</li>
   <li>Adresi, kullanıcıyı, parolayı ve vekil aracıyı girin.</li>
   <li>Konsol bunları denetlemek için bir kez bağlanır. VM listesini ve lisansı okur ve <b>ana bilgisayarın HTTPS sertifikasını ve SSH ana bilgisayar anahtarını sabitler</b>. Ana bilgisayar daha sonra aynı adrese sahip başka bir makineyle değiştirilirse, BackupZit parolayı ona göndermek yerine bağlanmayı reddeder. Sertifika bilinen bir nedenle değişirse — ana bilgisayar yeniden kuruldu, yeni bir sertifika aldı veya vCenter'a eklendi (vCenter ana bilgisayarlarının sertifikalarını değiştirir) — Aracılar sayfasında ana bilgisayar yeni parmak izini <b>Yeni sertifikayı kabul et</b> düğmesiyle gösterir. Kabul etmeden önce parmak izini ana bilgisayardakiyle karşılaştırın.</li>
 </ol>
-<p>Parola, diğer tüm gizli bilgiler gibi şifreli saklanır. VM listesi her 10 dakikada bir veya <i>Yenile</i> ile hemen yenilenir. Tablo her ana bilgisayarın modunu gösterir:</p>
+<p>Parola, diğer tüm gizli bilgiler gibi şifreli saklanır. Ana bilgisayara konsolun kendisi bağlanır (HTTPS 443, ücretsiz lisansta ayrıca SSH 22): ana bilgisayar eklendiğinde, <i>Yenile</i> ile ve VM listesini yenilemek için her 10 dakikada bir. <i>Kaldır</i>, ana bilgisayarı yedekleme işleriyle birlikte siler; yedekler depolamada kalır. Tablo her ana bilgisayarın modunu gösterir:</p>
 <ul>
   <li><b>vSphere API (lisanslı ana bilgisayar, SSH gerekmez):</b> anlık görüntüler, disk kopyaları, geri yüklemeler ve anında kurtarma API üzerinden yapılır.</li>
+  <li><b>vCenter Server (vSphere API):</b> ESXi ana bilgisayarlarıyla birlikte bir vCenter; her şey vCenter API'si üzerinden yapılır.</li>
   <li><b>ücretsiz lisans: anlık görüntüler ve geri yüklemeler SSH üzerinden:</b> ana bilgisayarın API'si salt okunurdur; bu yüzden bu adımlar SSH üzerinden yapılır.</li>
+  <li><b>SSH (bu ana bilgisayar için seçildi):</b> API'si bunu yapabilecek olsa da ana bilgisayar SSH üzerinden değiştirilir (ana bilgisayarı eklerken <i>Her zaman SSH</i>).</li>
 </ul>
 <p><b>Otomatik</b> ile konsol kendisi seçer; böylece sonradan lisans alan bir ana bilgisayar ek ayar yapmadan API'ye geçer. Ana bilgisayarın satırındaki (ve eklerken) <b>Ana bilgisayarın nasıl değiştirildiği</b>, <b>Her zaman SSH</b> veya <b>Her zaman vSphere API</b> seçeneğini zorlayabilir; değişiklik hemen denetlenir. Önceki yedekler ve geri yükleme noktaları yönteme bağlı değildir.</p>
 

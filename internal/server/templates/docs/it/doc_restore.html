@@ -57,7 +57,8 @@
 <div class="callout tip"><p><b>Trovare il backup giusto:</b> usate il <a href="/calendar">Calendario</a> per vedere quali backup sono stati eseguiti in quale giorno, o lo storico nella pagina del job.</p></div>
 
 <h2>Ripristinare singoli file da un'immagine disco</h2>
-<p>Per i backup di immagine, fate clic su <b>Sfoglia file</b> nell'esecuzione di backup. Potete navigare il file system NTFS dell'immagine direttamente nella console, selezionare file e cartelle e ripristinarli su qualsiasi agente — senza ripristinare l'intero disco. Ripristinati in una cartella, i file hanno la stessa struttura di un backup di file: la lettera di unità diventa la prima cartella (<code>D:RestoreCUsers…</code>).</p>
+<p>Per i backup di immagine, fate clic su <b>Sfoglia file</b> nell'esecuzione di backup. Potete navigare il file system NTFS dell'immagine direttamente nella console, selezionare file e cartelle e ripristinarli su qualsiasi agente — senza ripristinare l'intero disco. Ripristinati in una cartella, i file hanno la stessa struttura di un backup di file: la lettera di unità diventa la prima cartella (<code>D:\Restore\C\Users\…</code>).</p>
+<p>Potete anche <b>scaricare</b> i file selezionati direttamente nel browser: un file arriva così com’è, più file o cartelle in un archivio ZIP — comodo per un singolo documento da un grande backup di immagine. Come la navigazione, funziona per i backup di immagine su storage di rete, richiede l’autorizzazione <b>Ripristino</b>, e il registro di audit annota quali percorsi sono stati scaricati.</p>
 
 <h2>Ripristinare singoli file da una VM (Proxmox VE, Hyper-V, VMware)</h2>
 <p>In un'esecuzione di backup di VM fate clic su <b>Sfoglia file</b> accanto al guest. La console mostra le partizioni e i volumi LVM dei suoi dischi e permette di sfogliare i file system NTFS, ext4 e XFS. <b>Scaricate</b> i file selezionati (più file come archivio ZIP) o ripristinateli su qualsiasi agente. Vedete <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> e <a href="/docs/vmware">VMware ESXi</a>. I file ripristinati su un agente mantengono i permessi Unix che avevano nella VM (ext4, XFS), quindi i segreti ripristinati come <code>/etc/shadow</code> restano privati; su Linux i file dei volumi NTFS sono leggibili solo dal proprietario.</p>
@@ -83,15 +84,16 @@
       <li>Facoltativamente copiate la ISO nella directory <code>/var/lib/backupzit/dist</code> della console; viene allora offerta nella pagina Supporti di ripristino.</li>
     </ol></li>
 </ul>
-<p>La navigazione dei file nella console funziona per i backup su storage di rete (SFTP, S3, SMB, Azure, repository protetto); la console li legge direttamente. Per i backup su un disco locale di un agente usate la riga di comando.</p>
+<p>La navigazione dei file nella console funziona per i backup su storage di rete (SFTP, S3, SMB, Azure, repository protetto); la console li legge direttamente. Per i backup su un disco locale di un agente, o su SFTP con una chiave SSH, un ripristino con <i>Solo questi percorsi</i> funziona comunque dalla console; per esaminarne il contenuto usate la riga di comando.</p>
 
 <h2>Ripristinare senza la console</h2>
 <p>Se la console stessa va persa, qualsiasi macchina con l'agente installato può ripristinare direttamente dallo storage usando il <b>foglio di ripristino</b> della destinazione di archiviazione:</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (the SFTP host key, on the recovery sheet)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>Vedete <a href="/docs/cli">Riferimento della riga di comando</a>.</p>
+<p><code>latest</code> è il backup più recente di qualsiasi job di quel computer; per ripristinare un job specifico usate un ID di snapshot ottenuto con <code>snapshots</code>. Vedete <a href="/docs/cli">Riferimento della riga di comando</a>.</p>
 
 <h2>Test di ripristino automatici</h2>
 <p>BackupZit mette alla prova i vostri backup regolarmente senza che dobbiate fare nulla: ogni settimana (configurabile in <a href="/settings/tests">Impostazioni → Test di ripristino</a>) l'agente di ogni job ripristina un <b>campione casuale di file</b> dal backup più recente in una cartella temporanea, verifica ogni byte rispetto ai checksum memorizzati e lo elimina. Per le immagini disco vengono letti e verificati blocchi casuali. Così si mette alla prova l'intera catena — accesso allo storage, credenziali, chiave di cifratura e integrità dei dati.</p>

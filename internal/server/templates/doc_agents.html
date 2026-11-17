@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>The <b>IP addresses</b> column lists the machine's own addresses as the agent last reported them. <i>Seen from</i> is the address its connections arrive from: on a local network the same address, for a machine behind NAT (e.g. a laptop at home) the router's public address. The console does not ask any external service for it.</p>
 
+<h2 id="names">Names and tags</h2>
+<p>Servers of different customers or sites often have the same host name. Click an agent on the <a href="/agents">Agents</a> page to give it a <b>name shown in the console</b> and <b>tags</b> — free labels such as a customer or site, comma separated. The name is used in job forms, restore, Activity, reports and emails; the host name the computer reports stays visible next to it, and the agent page warns when other agents report the same host name. Click a tag to show only the agents that have it.</p>
+<p>Renaming changes only what the console shows: the agent, its repository and its backups stay as they are, and the computer cannot change its name or tags. Changing them needs the agents permission and is recorded in the audit log. Tags help to find agents; they do not give or limit access and do not add agents to jobs. Everyone who can sign in to the console sees all agents, and the console holds the keys of all their backups — customers that must be strictly separated need a console each.</p>
+
 <h2>The agent on the desktop (Windows)</h2>
 <p>The Windows agent shows an icon next to the clock (it may be under the <b>^</b> arrow of hidden icons — drag it onto the taskbar to keep it visible). The dot on the icon shows the state:</p>
 <table>

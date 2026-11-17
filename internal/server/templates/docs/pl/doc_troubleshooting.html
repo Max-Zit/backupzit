@@ -38,7 +38,7 @@
   <tr><td>Kopia konsoli: „the backup was made by a newer BackupZit”</td><td>Przed przywróceniem zainstaluj na nowej konsoli wersję, która utworzyła kopię, lub nowszą.</td></tr>
   <tr><td>Kopia konsoli: „console backups need network storage”</td><td>Wybierz magazyn SFTP, S3, SMB, Azure lub utwardzone repozytorium; ścieżka lokalna agenta jest niedostępna dla konsoli.</td></tr>
   <tr><td>„Zbyt wiele nieudanych logowań”</td><td>Twój adres zablokowano po powtarzanych błędnych hasłach: domyślnie na 30 minut, dłużej przy powtarzanych blokadach. Administrator może zdjąć blokadę w <a href="/settings/security">Ustawienia → Logowanie i bezpieczeństwo</a>. Na serwerze <code>backupzit-server --unblock-ip all</code> zdejmuje wszystkie blokady. Konta nigdy nie są blokowane na stałe.</td></tr>
-  <tr><td>Zgubiony telefon do logowania dwuskładnikowego</td><td>Użyj jednego z kodów odzyskiwania; w przeciwnym razie administrator zresetuje logowanie dwuskładnikowe na Twojej stronie użytkownika. Ostatni administrator może zresetować swoje hasło na serwerze poleceniem <code>backupzit-server --set-admin-password</code>.</td></tr>
+  <tr><td>Zgubiony telefon do logowania dwuskładnikowego</td><td>Użyj jednego z kodów odzyskiwania; w przeciwnym razie administrator zresetuje logowanie dwuskładnikowe na Twojej stronie użytkownika. Przechowuj kody odzyskiwania albo miej drugiego administratora: <code>backupzit-server --set-admin-password</code> na serwerze ustawia tylko hasło użytkownika <i>admin</i> i nie wyłącza logowania dwuskładnikowego.</td></tr>
   <tr><td>„your directory account is not in any BackupZit group”</td><td>Dodaj użytkownika do jednej z grup przypisanych w <a href="/settings/ldap">Ustawienia → LDAP / Active Directory</a> lub przypisz więcej grup. Użyj tam <i>Test</i>, aby zobaczyć grupy znalezione dla użytkownika.</td></tr>
   <tr><td>API zwraca 401 / 403</td><td>401: brak tokenu, token odwołany, wygasły lub jego właściciel wyłączony. 403: rola tokenu jest za niska dla żądania.</td></tr>
   <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>Błędny klucz konta albo tokenowi SAS brakuje prawa odczytu, zapisu, usuwania lub listowania, albo wygasł.</td></tr>
@@ -54,9 +54,9 @@
   <tr><td>VMware: „changed block tracking is off and can be enabled … only while the VM is off”</td><td>Darmowa licencja ESXi: wyłącz raz maszynę, a potem uruchom zadanie; BackupZit włączy śledzenie zmienionych bloków i kolejne kopie będą czytać tylko zmienione bloki.</td></tr>
   <tr><td>VMware: „copy the disk on the datastore (needs free space …)”</td><td>Działające maszyny są na chwilę kopiowane w swoim datastore. Zwolnij tam miejsce (tyle, ile zajmuje dysk) albo kopiuj maszynę, gdy jest wyłączona.</td></tr>
   <tr><td>VMware: „… is a snapshot delta disk”</td><td>Maszyna ma własne migawki. Usuń je lub skonsoliduj w kliencie hosta ESXi (Snapshots → Delete all).</td></tr>
-  <tr><td>VMware: „the ESXi certificate changed”</td><td>Host zainstalowano ponownie albo pod jego adresem odpowiada inna maszyna. Jeśli to oczekiwane, usuń host w Agenci i dodaj go ponownie, aby przypiąć nowy certyfikat.</td></tr>
+  <tr><td>VMware: „the ESXi certificate changed”</td><td>Host zainstalowano ponownie albo pod jego adresem odpowiada inna maszyna. Jeśli to oczekiwane, sprawdź odcisk i kliknij <b>Zaakceptuj nowy certyfikat</b> przy hoście na stronie Agenci.</td></tr>
   <tr><td>VMware: pliki <code>*.replaced-DATE.vmdk</code> obok dysków maszyny</td><td>Stare dyski maszyny przywróconej w miejscu. Usuń je w przeglądarce datastore, gdy przywrócona maszyna działa.</td></tr>
-  <tr><td>Hyper-V: pliki <code>*.replaced-DATE</code> obok dysków maszyny</td><td>Stare dyski maszyny przywróconej w miejscu. Usuń je, gdy przywrócona maszyna działa.</td></tr>
+  <tr><td>Hyper-V: stare pliki VHDX pozostałe po przywróceniu w miejscu</td><td>Przywracanie odłącza stare dyski maszyny i zostawia je tam, gdzie były (uruchomienie wymienia każdy z nich: <i>old disk kept at …</i>); przywrócone dyski są w podfolderze <code>backupzit-restore-…</code>. Usuń stare pliki, gdy przywrócona maszyna działa.</td></tr>
   <tr><td>Natychmiastowe odzyskiwanie Proxmox: maszyna się nie uruchamia lub zawiesza</td><td>Sprawdź serwer dysków: <code>systemctl status backupzit-instant-ID</code> i <code>journalctl -u backupzit-instant-ID</code> na węźle. Magazyn kopii musi pozostać dostępny; gdy repozytorium nie da się odczytać, odczyty dysku maszyny stają.</td></tr>
   <tr><td>Natychmiastowe odzyskiwanie Proxmox: „efidisk0 stays on storage backupzit-instant”</td><td>QEMU nie może przenieść magazynu zmiennych EFI, gdy maszyna działa. Wyłącz maszynę i uruchom <code>qm disk move ID efidisk0 STORAGE --delete 1</code>; nie zależy to od kopii.</td></tr>
   <tr><td>Proxmox: „runs on node X; install the BackupZit agent on X”</td><td>Gość został zmigrowany. Zainstaluj agenta na każdym węźle i kopiuj gości każdego węzła agentem tego węzła.</td></tr>
@@ -65,7 +65,7 @@
   <tr><td>Przywracanie systemu Linux: „missing programs …”</td><td>Zainstaluj wymienione pakiety na przywracającej maszynie albo uruchom ISO odzyskiwania Linux BackupZit, które je zawiera.</td></tr>
   <tr><td>Przywrócona maszyna Linux nie ma sieci</td><td>Ustawienia sieci były powiązane ze starym adresem MAC (netplan <code>match: macaddress</code>). Przywróć z opcją <i>Inny sprzęt</i> albo usuń wiersze <code>match</code> w <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Przywrócony Windows zatrzymuje się z INACCESSIBLE_BOOT_DEVICE</td><td>Przywróć ponownie z opcją <i>Przywróć na inny sprzęt</i> albo uruchom ISO odzyskiwania i wykonaj <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
-  <tr><td>Przywrócona kopia maszyny pojawia się jako oryginalny agent</td><td>Przywracanie do nowej maszyny Proxmox automatycznie wyrejestrowuje agenta w kopii. W innych kopiach usuń <code>agent.json</code> w kopii i zarejestruj ją jako nową maszynę.</td></tr>
+  <tr><td>Przywrócona kopia maszyny pojawia się jako oryginalny agent</td><td>System Linux przywrócony jako nowa maszyna wirtualna jest wyrejestrowywany automatycznie. W przypadku innych kopii (maszyna wirtualna przywrócona jako nowa, natychmiastowe odzyskiwanie, replika, sklonowany dysk) konsola wstrzymuje uruchomienia agenta i pokazuje <i>dwa komputery</i>; zarejestruj kopię jako nową maszynę (zobacz <a href="/docs/agents#duplicate">Dwie maszyny używające jednego agenta</a>).</td></tr>
   <tr><td>Aktualizacja agenta się nie kończy</td><td>Zobacz dziennik instalatora w <code>C:\ProgramData\backupzit\updates</code> lub <code>/var/tmp/backupzit-updates</code>; agentów starszych niż 0.21 trzeba raz zaktualizować ręcznie.</td></tr>
   <tr><td>Brak ikony w zasobniku</td><td>Kliknij strzałkę <b>^</b> obok zegara i przeciągnij ikonę BackupZit na pasek zadań albo uruchom <i>BackupZit Agent</i> z menu Start.</td></tr>
 </table>
@@ -102,9 +102,9 @@
 <h3>Czy mogę przenieść kopie do innego magazynu?</h3>
 <p>Skopiuj folder repozytorium (lub prefiks bucketu) bez zmian — jest samodzielny — i dodaj magazyn wskazujący nowe miejsce z tym samym kluczem odzyskiwania.</p>
 <h3>Czy usunięcie zadania usuwa kopie?</h3>
-<p>Nie. Kopie pozostają w magazynie i można je przywrócić z Aktywność lub z wiersza poleceń.</p>
+<p>Nie. Kopie pozostają w magazynie i można je przywrócić z Aktywność lub z wiersza poleceń. Zadania kopii kopii zapasowej usuniętego zadania są usuwane razem z nim; utworzone przez nie kopie pozostają w swoim magazynie.</p>
 <h3>Co się dzieje, gdy konsola nie działa?</h3>
-<p>Do jej powrotu nie startują nowe zaplanowane kopie; uruchomienia w kolejce są potem kontynuowane. Przywracanie jest zawsze możliwe z wiersza poleceń z arkuszem odzyskiwania.</p>
+<p>Do jej powrotu nie startują nowe zaplanowane kopie; potem każde zadanie, którego zaplanowany czas minął, uruchamia się raz (chyba że jego okno kopii już się skończyło), a uruchomienia w kolejce są kontynuowane. Przywracanie jest zawsze możliwe z wiersza poleceń z arkuszem odzyskiwania.</p>
 <h3>Ile miejsca będą potrzebować kopie?</h3>
 <p>Dla pierwszej kopii mniej więcej rozmiar danych po kompresji, plus codzienne zmiany za każdy przechowywany dzień. Strona Raporty pokazuje, ile wysłano dla każdego zadania.</p>
 {{template "docpager" .}}

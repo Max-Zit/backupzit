@@ -16,15 +16,15 @@
 <h2>Een image op een schijf herstellen</h2>
 <p>Gebruik in de run van de image-back-up <b>Deze image op een schijf herstellen</b>:</p>
 <ul>
-  <li><b>Herstellen op agent</b> — de machine met de doelschijf. Dat kan een draaiende machine met een vrije schijf zijn, of een machine die vanaf de herstel-ISO is opgestart.</li>
-  <li><b>Doelschijf</b> — moet minstens zo groot zijn als het gebruikte deel van het origineel. <b>Alle gegevens erop worden vernietigd.</b></li>
+  <li><b>Herstellen op agent</b> — de Windows-machine met de doelschijf. Dat kan een draaiende machine met een vrije schijf zijn, of een machine die vanaf de herstel-ISO is opgestart; de schijf waarvan Windows draait, kan niet worden gekozen, dus voor het herstellen van de systeemschijf van een machine is de herstel-ISO nodig.</li>
+  <li><b>Doelschijf</b> — moet minstens reiken tot het einde van de laatste partitie van de oorspronkelijke schijf (partities worden met hun oorspronkelijke grootte opnieuw aangemaakt, niet verkleind) en dezelfde sectorgrootte hebben (512 of 4096 bytes). <b>Alle gegevens erop worden vernietigd.</b></li>
   <li><b>Schijf daarna offline laten</b> — vink dit aan als de originele schijf in dezelfde machine zit, zodat Windows de schijf-ID's van de kopie niet wijzigt.</li>
 </ul>
 <p>GPT- en MBR-schijven, EFI- en BIOS-opstart worden ondersteund. De partitie-indeling en ID's worden opnieuw gemaakt, zodat de herstelde schijf opstart zoals voorheen.</p>
 
 <h2>Bare-metal-herstel met de herstel-ISO</h2>
 <ol>
-  <li>Download onder <a href="/recovery">Herstelmedia</a> de (Windows-)herstel-ISO. Schrijf hem naar een USB-stick (Rufus, modus "DD-image" of "ISO") of koppel hem aan een virtuele machine.</li>
+  <li>Bouw de Windows-herstel-ISO één keer (zie <a href="/docs/restore#recovery-iso">Herstel-ISO's</a>; Windows PE mag niet worden herverdeeld), of download hem onder <a href="/recovery">Herstelmedia</a> als hij naar de console is gekopieerd. Schrijf hem naar een USB-stick (Rufus in de modus <b>ISO</b>, zodat u de onderstaande map kunt toevoegen) of koppel hem aan een virtuele machine.</li>
   <li>Maak eventueel een <b>herstelcode</b> aan en download <code>recovery.json</code>; kopieer het naar een map <code>backupzit</code> op de stick, zodat de machine zonder typen verbinding maakt.</li>
   <li>Start de te herstellen machine op vanaf de stick. Hij start de agent in herstelmodus en maakt verbinding met de console (of vraagt om het serveradres en de herstelcode).</li>
   <li>De machine verschijnt als <span class="badge">herstel</span>-agent met zijn schijven.</li>

@@ -29,7 +29,7 @@
   <li>O ponto de verificação é removido e o Hyper-V o mescla em segundo plano.</li>
   <li>A configuração da VM é armazenada com o backup: geração, CPU, memória, adaptadores de rede (switch, VLAN, endereço MAC), controladoras de disco, inicialização segura e TPM.</li>
 </ol>
-<p>VMs desligadas são lidas diretamente, sem ponto de verificação. Em hosts anteriores ao Windows Server 2016 (sem pontos de verificação de recuperação) é usado um ponto de verificação de produção, e todo backup lê os discos inteiros.</p>
+<p>VMs desligadas são lidas diretamente, sem ponto de verificação. Em hosts sem pontos de verificação de recuperação é criado um ponto de verificação comum (de produção quando possível; caso contrário, consistente com falhas), e todo backup lê os discos inteiros.</p>
 <p id="checkpoint-concurrency">As cópias simultâneas da mesma VM aguardam a sua vez em cada anfitrião, tanto no serviço como na linha de comandos. Uma cópia remove apenas o seu próprio ponto de verificação temporário. O agente remove um ponto de verificação esquecido quando a sua cópia terminou noutro nó (após uma migração em direto) ou quando tem mais de 48 horas (uma cópia interrompida por uma falha ou corte de energia). Todos os processos de cópia simultâneos devem usar programas atualizados.</p>
 <p id="appconsistent"><b>Somente consistente com aplicativos.</b> Para Active Directory, SQL Server, Exchange e outros bancos de dados, marque <i>Exigir pontos de verificação consistentes com aplicativos</i> na tarefa (também numa tarefa para um cluster). Uma VM em execução passa a ser copiada apenas a partir de um ponto de verificação que o convidado preparou com VSS; se isso falhar, a VM não é copiada e a execução falha (com uma notificação) em vez de criar um ponto de verificação consistente com falhas. As outras VMs da tarefa continuam sendo copiadas e podem ser restauradas a partir dessa execução. Verifique o serviço de integração <i>Backup (volume shadow copy)</i> nas configurações da VM e o VSS dentro do convidado (<code>vssadmin list writers</code>). Requer agentes 0.48.0 ou mais recentes; com agentes mais antigos a execução falha pedindo para atualizá-los.</p>
 <p id="vtpm"><b>vTPM e BitLocker.</b> Para VMs de geração 2 com TPM virtual, o backup também guarda o vTPM (o arquivo de estado do convidado e o protetor de chave). Restaurada como nova VM no mesmo host, ou num host com o certificado guardião do host original, a VM recupera seu vTPM e o BitLocker não pede a chave de recuperação. Em outros hosts a VM recebe um vTPM novo e vazio, e a restauração informa isso; para evitar, importe antes o certificado <i>UntrustedGuardian</i> do host original. Restaurar sobre a VM existente mantém o vTPM dela. VMs blindadas (Host Guardian Service) não são suportadas. Guarde mesmo assim as chaves de recuperação do BitLocker.</p>
@@ -60,7 +60,7 @@
 
 <h3>Opções</h3>
 <ul>
-  <li><b>Pasta para os discos virtuais</b>: a pasta padrão do host ou qualquer pasta que contenha discos de VM. Uma restauração no local coloca os novos discos ao lado dos originais.</li>
+  <li><b>Pasta para os discos virtuais</b>: a pasta padrão do host ou qualquer pasta que contenha discos de VM. Uma restauração no local coloca os novos discos em uma nova subpasta <code>backupzit-restore-…</code> e deixa os antigos onde estavam.</li>
   <li><b>Iniciar a VM após a restauração</b>.</li>
 </ul>
 
@@ -85,7 +85,7 @@
 <ol>
   <li>Abra <a href="/jobs">Backup jobs</a> e o formulário <i>New backup job</i>.</li>
   <li>Abra a lista <b>Agent</b> e vá até o fim: em <i>Hyper-V failover clusters (virtual machines)</i> escolha o cluster, por ex. <i>HVC01 — 2 nodes</i>. Escolha o cluster, não um nó isolado.</li>
-  <li>O tipo fica em <i>Virtual machines</i>. Escolha <i>All clustered VMs</i> (também VMs adicionadas depois ao cluster) ou <i>Only these</i>; cada VM mostra o nó em que roda agora.</li>
+  <li>O tipo fica em <i>Virtual machines</i>. Escolha <i>All clustered VMs</i> (também VMs adicionadas depois ao cluster), <i>All clustered VMs except the ticked ones</i> ou <i>Only these</i>; cada VM mostra o nó em que roda agora.</li>
   <li>Escolha o armazenamento, o agendamento e quantos backups manter, e clique em <i>Create job</i>.</li>
 </ol>
 <p>A página do job mostra cada nó com o último resultado; <i>Run backup now on all agents</i> inicia todos. Um nó que naquele momento não roda nenhuma VM do job informa <i>None of the job's VMs runs on this node now</i>, o que é um sucesso.</p>

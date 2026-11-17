@@ -48,7 +48,7 @@
   <tr><th>Opzione</th><th>Esempio</th></tr>
   <tr><td><b>A orari specifici</b></td><td>Ogni giorno lavorativo alle 22:00; oppure alle 12:00 e alle 18:00 ogni giorno. Fino a tre volte al giorno, nei giorni selezionati.</td></tr>
   <tr><td><b>Ripetutamente</b></td><td>Ogni 2 ore tra le 08:00 e le 18:00, dal lunedì al venerdì. Intervalli da 15 minuti a 12 ore.</td></tr>
-  <tr><td><b>Una volta al mese</b></td><td>Il giorno 1 alle 23:00.</td></tr>
+  <tr><td><b>Una volta al mese</b></td><td>Il giorno 1 alle 23:00 (qualsiasi giorno da 1 a 28).</td></tr>
   <tr><td><b>Solo manualmente</b></td><td>Viene eseguito solo quando fate clic su <i>Esegui backup ora</i>.</td></tr>
   <tr><td><b>Dopo un altro job</b></td><td>Prima il database, poi il file server: il job parte appena il job scelto è terminato con successo — oppure dopo qualsiasi esito, con <i>anche se quel job non è riuscito</i>. Le catene possono essere più lunghe (A → B → C); un job non può essere eseguito dopo se stesso né in cerchio.</td></tr>
 </table>
@@ -78,7 +78,7 @@
   <li>Vengono trasferiti solo i dati non ancora presenti a destinazione, ricifrati con la chiave della destinazione.</li>
   <li>La pianificazione <b>Dopo ogni backup del job di origine</b> (predefinita) mantiene la copia aggiornata; funziona anche qualsiasi pianificazione normale, ad es. una volta per notte per una linea internet lenta.</li>
   <li>La copia ha una propria conservazione, ad es. 7 giornalieri sul NAS e 12 mensili nel cloud.</li>
-  <li>I backup di file e di VM copiati (Proxmox VE, Hyper-V, VMware) si ripristinano dalla pagina dell'esecuzione di copia o dalla <a href="/restore">procedura guidata di ripristino</a>, come gli originali — VM intere, singoli file dai dischi delle VM e ripristino istantaneo Proxmox. I backup di VM copiati da un agente precedente alla 0.29 non si possono ripristinare così; la successiva esecuzione di copia con un agente più recente rende ripristinabile la sua copia più recente. Le copie di immagini disco si ripristinano con l'agente da riga di comando.</li>
+  <li>I backup di file e di VM copiati (Proxmox VE, Hyper-V, VMware) si ripristinano dalla pagina dell'esecuzione di copia o dalla <a href="/restore">procedura guidata di ripristino</a>, come gli originali — VM intere, singoli file dai dischi delle VM e ripristino istantaneo Proxmox. I backup di VM copiati da un agente precedente alla 0.29 non si possono ripristinare così; la successiva esecuzione di copia con un agente più recente rende ripristinabile la sua copia più recente. I backup di Microsoft 365 copiati si ripristinano allo stesso modo. Le copie di immagini disco, di backup di sistema Linux e di backup di database si ripristinano con l'agente da riga di comando.</li>
 </ul>
 
 <h2>Modificare un job</h2>
@@ -91,7 +91,7 @@
 <p>In <b>Avanzate</b> nel modulo del job, <b>Limita la velocità di invio a</b> limita la velocità con cui l'agente invia i dati allo storage, in MB/s — ad esempio 10 MB/s dalle 08:00 alle 18:00, così i backup durante l'orario di lavoro lasciano utilizzabile la linea dell'ufficio; fuori dalla fascia il job va a piena velocità. Gli orari sono l'ora locale dell'agente e una fascia può attraversare la mezzanotte (dalle 22:00 alle 06:00). Il limite vale per i backup e i job di copia (l'invio al secondo storage), non per i ripristini: un ripristino va sempre a piena velocità.</p>
 
 <h2 id="compression">Compressione e deduplicazione</h2>
-<p>Ogni backup è deduplicato: i dati già presenti nel repository — da backup precedenti dello stesso job o da altri job sulla stessa destinazione di archiviazione — non vengono archiviati di nuovo. I dati nuovi vengono poi compressi con zstd; i pezzi che non si riducono (video, archivi, file cifrati) vengono archiviati così come sono. La cifratura avviene dopo la compressione.</p>
+<p>Ogni backup è deduplicato: i dati già presenti nel repository — da backup precedenti dello stesso job o da altri job dello stesso agente sulla stessa destinazione di archiviazione — non vengono archiviati di nuovo. Ogni agente ha un proprio repository (così come gli host VMware, i cluster Hyper-V e i tenant Microsoft 365), quindi non c'è deduplicazione tra computer diversi. I dati nuovi vengono poi compressi con zstd; i pezzi che non si riducono (video, archivi, file cifrati) vengono archiviati così come sono. La cifratura avviene dopo la compressione.</p>
 <p>Il livello di compressione è un'impostazione del job (<b>Modifica → Avanzate</b>):</p>
 <table>
   <tr><th>Livello</th><th>Quando usarlo</th></tr>
@@ -120,7 +120,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Esegui backup ora</b> (<b>Copia ora</b> per i job di copia) mette subito il job in coda.</li>
   <li><b>Testa ripristino</b> ripristina un campione casuale del backup più recente e lo verifica (vedete <a href="/docs/restore">Ripristino</a>).</li>
   <li><b>Disattiva</b> sospende la pianificazione senza perdere il job (con l'approvazione a quattro occhi attiva, un secondo utente deve approvare).</li>
-  <li><b>Elimina</b> rimuove il job; i backup esistenti restano sullo storage e restano ripristinabili da Attività.</li>
+  <li><b>Elimina</b> rimuove il job (con l'approvazione a quattro occhi attiva, dopo che un secondo utente ha approvato); i backup esistenti restano sullo storage e restano ripristinabili da Attività. I job di copia del job vengono eliminati insieme a esso; le loro copie restano sul loro storage.</li>
 </ul>
 
 <h2>Fermare un'esecuzione</h2>

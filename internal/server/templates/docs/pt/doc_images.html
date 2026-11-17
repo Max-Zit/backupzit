@@ -16,15 +16,15 @@
 <h2>Restaurar uma imagem em um disco</h2>
 <p>Na execução do backup de imagem, use <b>Restaurar esta imagem em um disco</b>:</p>
 <ul>
-  <li><b>Restaurar no agente</b> — a máquina que tem o disco de destino. Pode ser uma máquina em funcionamento com um disco livre ou uma máquina iniciada pela ISO de recuperação.</li>
-  <li><b>Disco de destino</b> — deve ser pelo menos tão grande quanto a área usada do original. <b>Todos os dados nele são destruídos.</b></li>
+  <li><b>Restaurar no agente</b> — a máquina Windows que tem o disco de destino. Pode ser uma máquina em funcionamento com um disco livre ou uma máquina iniciada pela ISO de recuperação; o disco a partir do qual o Windows está rodando não pode ser escolhido, então restaurar o disco do sistema de uma máquina exige a ISO de recuperação.</li>
+  <li><b>Disco de destino</b> — deve alcançar pelo menos o fim da última partição do disco original (as partições são recriadas com os tamanhos originais, sem ser reduzidas) e ter o mesmo tamanho de setor (512 ou 4096 bytes). <b>Todos os dados nele são destruídos.</b></li>
   <li><b>Deixar o disco offline depois</b> — marque quando o disco original estiver na mesma máquina, para que o Windows não altere os IDs de disco da cópia.</li>
 </ul>
 <p>Discos GPT e MBR, boot EFI e BIOS são suportados. O layout de partições e os IDs são recriados, então o disco restaurado inicia como antes.</p>
 
 <h2>Recuperação bare-metal com a ISO de recuperação</h2>
 <ol>
-  <li>Em <a href="/recovery">Mídia de recuperação</a> baixe a ISO de recuperação (Windows). Grave-a em um pendrive (Rufus, modo "imagem DD" ou "ISO") ou anexe-a a uma máquina virtual.</li>
+  <li>Gere a ISO de recuperação do Windows uma vez (veja <a href="/docs/restore#recovery-iso">ISOs de recuperação</a>; o Windows PE não pode ser redistribuído) ou baixe-a em <a href="/recovery">Mídia de recuperação</a>, se ela tiver sido copiada para o console. Grave-a em um pendrive (Rufus no modo <b>ISO</b>, para poder adicionar a pasta do passo seguinte) ou anexe-a a uma máquina virtual.</li>
   <li>Opcionalmente crie um <b>código de recuperação</b> e baixe <code>recovery.json</code>; copie-o para uma pasta <code>backupzit</code> no pendrive para que a máquina se conecte sem digitar nada.</li>
   <li>Inicie pelo pendrive a máquina a ser restaurada. Ela inicia o agente em modo de recuperação e se conecta ao console (ou pede o endereço do servidor e o código de recuperação).</li>
   <li>A máquina aparece como agente de <span class="badge">recuperação</span> com seus discos.</li>

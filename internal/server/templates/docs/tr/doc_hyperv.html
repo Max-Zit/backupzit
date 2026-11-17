@@ -29,7 +29,7 @@
   <li>Denetim noktası kaldırılır ve Hyper-V onu arka planda birleştirir.</li>
   <li>VM'nin yapılandırması yedekle birlikte saklanır: nesil, CPU, bellek, ağ bağdaştırıcıları (anahtar, VLAN, MAC adresi), disk denetleyicileri, güvenli önyükleme ve TPM.</li>
 </ol>
-<p>Kapalı VM'ler denetim noktası olmadan doğrudan okunur. Windows Server 2016'dan eski ana bilgisayarlarda (kurtarma denetim noktası yok) bir üretim denetim noktası kullanılır ve her yedek disklerin tamamını okur.</p>
+<p>Kapalı VM'ler denetim noktası olmadan doğrudan okunur. Kurtarma denetim noktaları olmayan ana bilgisayarlarda sıradan bir denetim noktası alınır (mümkünse üretim, aksi halde çökme tutarlı) ve her yedek disklerin tamamını okur.</p>
 <p id="checkpoint-concurrency">Aynı VM için çakışan yedeklemeler, hizmet ve komut satırı dahil her ana bilgisayarda birbirini bekler. Bir yedekleme yalnızca kendi geçici denetim noktasını kaldırır. Aracı, geride kalan bir denetim noktasını, yedeklemesi başka bir düğümde bittiğinde (canlı geçişten sonra) veya 48 saatten eski olduğunda (çökme ya da elektrik kesintisiyle yarıda kalan bir yedekleme) kaldırır. Çakışan tüm yedekleme süreçleri güncel programları kullanmalıdır.</p>
 <p id="appconsistent"><b>Yalnızca uygulamayla tutarlı.</b> Active Directory, SQL Server, Exchange ve diğer veritabanları için işte <i>Uygulamayla tutarlı denetim noktaları zorunlu olsun</i> seçeneğini işaretleyin (küme işinde de). Çalışan bir VM o zaman yalnızca konuğun VSS ile hazırladığı bir denetim noktasından yedeklenir; bu başarısız olursa çökme tutarlı bir denetim noktası almak yerine VM yedeklenmez ve çalışma başarısız olur (bildirimle). İşin diğer VM'leri yedeklenmeye devam eder ve o çalışmadan geri yüklenebilir. VM ayarlarındaki <i>Backup (volume shadow copy)</i> tümleştirme hizmetini ve konuk içindeki VSS'yi (<code>vssadmin list writers</code>) kontrol edin. 0.48.0 veya daha yeni ajanlar gerekir; eski ajanlarda çalışma, güncellenmelerini isteyen bir mesajla başarısız olur.</p>
 <p id="vtpm"><b>vTPM ve BitLocker.</b> Sanal TPM'li 2. nesil VM'lerde yedek, vTPM'yi de (konuk durum dosyası ve anahtar koruyucusu) saklar. Aynı konağa veya özgün konağın koruyucu (guardian) sertifikasına sahip bir konağa yeni VM olarak geri yüklendiğinde VM vTPM'sine kavuşur ve BitLocker kurtarma anahtarı istemez. Diğer konaklarda VM yeni, boş bir vTPM alır ve geri yükleme bunu bildirir; bunu önlemek için önce özgün konağın <i>UntrustedGuardian</i> sertifikasını oraya aktarın. Mevcut VM'in üzerine geri yükleme onun vTPM'sini korur. Korumalı VM'ler (Host Guardian Service) desteklenmez. BitLocker kurtarma anahtarlarını yine de saklayın.</p>
@@ -60,7 +60,7 @@
 
 <h3>Seçenekler</h3>
 <ul>
-  <li><b>Sanal diskler için klasör</b>: ana bilgisayarın varsayılan klasörü veya VM diskleri içeren herhangi bir klasör. Yerinde geri yükleme yeni diskleri orijinallerin yanına koyar.</li>
+  <li><b>Sanal diskler için klasör</b>: ana bilgisayarın varsayılan klasörü veya VM diskleri içeren herhangi bir klasör. Yerinde geri yükleme yeni diskleri yeni bir <code>backupzit-restore-…</code> alt klasörüne koyar ve eskilerini oldukları yerde bırakır.</li>
   <li><b>Geri yüklemeden sonra VM'yi başlat</b>.</li>
 </ul>
 
@@ -85,7 +85,7 @@
 <ol>
   <li><a href="/jobs">Backup jobs</a> sayfasını ve <i>New backup job</i> formunu açın.</li>
   <li><b>Agent</b> listesini açıp sonuna gidin: <i>Hyper-V failover clusters (virtual machines)</i> altında kümeyi seçin, ör. <i>HVC01 — 2 nodes</i>. Tek bir düğümü değil, kümeyi seçin.</li>
-  <li>Tür <i>Virtual machines</i> olarak ayarlanır. <i>All clustered VMs</i> (kümeye sonradan eklenen VM'ler dahil) veya <i>Only these</i> seçin; her VM'nin yanında şu anda çalıştığı düğüm görünür.</li>
+  <li>Tür <i>Virtual machines</i> olarak ayarlanır. <i>All clustered VMs</i> (kümeye sonradan eklenen VM'ler dahil), <i>All clustered VMs except the ticked ones</i> veya <i>Only these</i> seçin; her VM'nin yanında şu anda çalıştığı düğüm görünür.</li>
   <li>Depolamayı, zamanlamayı ve kaç yedeğin saklanacağını seçip <i>Create job</i> düğmesine tıklayın.</li>
 </ol>
 <p>İşin sayfası her düğümü son sonucuyla gösterir; <i>Run backup now on all agents</i> hepsini başlatır. O anda işin hiçbir VM'sini çalıştırmayan düğüm <i>None of the job's VMs runs on this node now</i> bildirir; bu bir başarıdır.</p>

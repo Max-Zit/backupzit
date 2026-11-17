@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Kopia systemu Linux i P2V</h1>
 <p class="lead">Zadanie <b>System Linux</b> tworzy kopię całej maszyny Linux, aby można ją było odtworzyć na pustym dysku — tę samą maszynę po awarii dysku, nowy sprzęt lub maszynę wirtualną w Proxmox VE (z fizycznej na wirtualną, P2V).</p>
+<p>Przetestowano z Debianem, Ubuntu 22.04 i Rocky Linux 9 (to samo dotyczy AlmaLinux i RHEL 9). Na Ubuntu 22.04 i systemach podobnych do RHEL 9 kopie systemu Linux wymagają agenta 0.50.0 lub nowszego.</p>
 
 <h2>Co jest kopiowane</h2>
 <ul>
@@ -10,12 +11,12 @@
 <p>Podobnie jak Relax-and-Recover, BackupZit nie kopiuje działającego dysku blok po bloku: Linux nie ma wbudowanej migawki działającego dysku, więc surowa kopia byłaby niespójna. Każdy plik jest odczytywany w całości, a układ sprawia, że przywrócony dysk znów się uruchamia. Bazy danych należy przed kopią zrzucić lub kopiować ich własnymi narzędziami.</p>
 <p>Pojedyncze pliki i foldery przywraca się z kopii systemu jak z każdej kopii plików (<b>Przywróć pliki z tej kopii</b> na stronie uruchomienia).</p>
 <h3>Jeszcze nieobsługiwane</h3>
-<p>Szyfrowane dyski (LUKS), programowy RAID (mdadm), btrfs i systemy rozłożone na kilka dysków. Zadanie wyraźnie to zgłasza, zamiast tworzyć niepełną kopię.</p>
+<p>Szyfrowane dyski (LUKS), programowy RAID (mdadm) i btrfs: zadanie wyraźnie to zgłasza, zamiast tworzyć niepełną kopię. Systemy rozłożone na kilka dysków są kopiowane, ale przywracanie całego systemu odtwarza jeden dysk (w wierszu poleceń wybiera się go opcją <code>--disk</code>); dysków MBR z partycjami logicznymi nie da się przywrócić w całości. Pole <b>Wyklucz</b> zadania pomija ścieżki, podobnie jak <code>--exclude</code> w wierszu poleceń.</p>
 
 <h2>Przywracanie całego systemu</h2>
 <p>Otwórz uruchomienie kopii systemu (strona zadania lub <a href="/runs">Aktywność</a>) i użyj <b>Przywróć cały system</b>:</p>
 <h3>Jako nowa VM Proxmox</h3>
-<p>Wybierz węzeł Proxmox (pracę wykonuje jego agent BackupZit), magazyn, ID maszyny, nazwę, pamięć i rdzenie. BackupZit tworzy maszynę z tym samym firmware co oryginał (UEFI/OVMF lub BIOS), dyskiem i kartą sieciową VirtIO SCSI, odtwarza dysk, przywraca wszystkie pliki i może uruchomić maszynę. Ponieważ maszyna jest kopią, która może działać obok oryginału:</p>
+<p>Wybierz węzeł Proxmox (pracę wykonuje jego agent BackupZit), magazyn, ID maszyny, nazwę, pamięć (domyślnie 2048 MiB), rdzenie (domyślnie 2) i mostek sieciowy (domyślnie <code>vmbr0</code>). BackupZit tworzy maszynę z tym samym firmware co oryginał (UEFI/OVMF lub BIOS), dyskiem i kartą sieciową VirtIO SCSI, odtwarza dysk, przywraca wszystkie pliki i może uruchomić maszynę. Ponieważ maszyna jest kopią, która może działać obok oryginału:</p>
 <ul>
   <li>ustawienia sieci powiązane ze starymi adresami MAC (typowe w obrazach chmurowych: netplan <code>match: macaddress</code>) są zmieniane tak, by dotyczyły dowolnego interfejsu przewodowego,</li>
   <li>agent BackupZit w kopii jest wyrejestrowywany, aby nie zgłaszał się jako oryginalna maszyna.</li>

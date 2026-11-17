@@ -97,6 +97,6 @@ backupzit-repo keys                           # sleutels en hun limieten</pre>
 <p><b>Vraagt aandacht</b> op het dashboard waarschuwt wanneer een opslagdoel voor 90 % vol is of binnen 30 dagen vol zal zijn. S3 en Azure hebben geen vaste grootte; daar worden alleen de gebruikte ruimte en de groei getoond. De gebruikte ruimte is de opgeslagen (gecomprimeerde, versleutelde, gededupliceerde) data; bestanden die de opslag om andere redenen bewaart (objectversies, andere programma's) worden niet meegeteld.</p>
 
 <h2>Een doel verwijderen</h2>
-<p>Een opslagdoel uit de console verwijderen wist geen gegevens op de opslag. Met <a href="/docs/users">vier-ogengoedkeuring</a> ingeschakeld moet eerst een tweede gebruiker goedkeuren.</p>
+<p>Een opslagdoel dat nog door taken wordt gebruikt, kan niet worden verwijderd. Een doel uit de console verwijderen wist geen gegevens op de opslag, maar de console vergeet de referenties en de herstelsleutel ervan, zodat de back-ups niet meer vanuit de console kunnen worden hersteld — download eerst het herstelblad. Met <a href="/docs/users">vier-ogengoedkeuring</a> ingeschakeld moet eerst een tweede gebruiker goedkeuren.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

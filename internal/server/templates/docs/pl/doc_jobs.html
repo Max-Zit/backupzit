@@ -48,7 +48,7 @@
   <tr><th>Opcja</th><th>Przykład</th></tr>
   <tr><td><b>O określonych godzinach</b></td><td>W każdy dzień roboczy o 22:00; albo o 12:00 i 18:00 codziennie. Do trzech razy dziennie, w zaznaczone dni.</td></tr>
   <tr><td><b>Wielokrotnie</b></td><td>Co 2 godziny między 08:00 a 18:00, od poniedziałku do piątku. Odstępy od 15 minut do 12 godzin.</td></tr>
-  <tr><td><b>Raz w miesiącu</b></td><td>1. dnia o 23:00.</td></tr>
+  <tr><td><b>Raz w miesiącu</b></td><td>1. dnia o 23:00 (dowolny dzień od 1 do 28).</td></tr>
   <tr><td><b>Tylko ręcznie</b></td><td>Uruchamia się tylko po kliknięciu <i>Uruchom kopię teraz</i>.</td></tr>
   <tr><td><b>Po innym zadaniu</b></td><td>Najpierw baza danych, potem serwer plików: zadanie startuje, gdy tylko wybrane zadanie zakończy się powodzeniem — lub po dowolnym wyniku, z <i>także gdy to zadanie się nie powiodło</i>. Łańcuchy mogą być dłuższe (A → B → C); zadanie nie może uruchamiać się po sobie samym ani w kółko.</td></tr>
 </table>
@@ -78,7 +78,7 @@
   <li>Przesyłane są tylko dane, których jeszcze nie ma w miejscu docelowym, ponownie szyfrowane kluczem miejsca docelowego.</li>
   <li>Harmonogram <b>Po każdej kopii zadania źródłowego</b> (domyślny) utrzymuje kopię aktualną; działa też każdy zwykły harmonogram, np. raz na noc przy wolnym łączu internetowym.</li>
   <li>Kopia ma własną retencję, np. 7 dziennych na NAS i 12 miesięcznych w chmurze.</li>
-  <li>Skopiowane kopie plików i maszyn wirtualnych (Proxmox VE, Hyper-V, VMware) przywraca się ze strony uruchomienia kopii lub z <a href="/restore">kreatora przywracania</a>, jak oryginały — całe maszyny, pojedyncze pliki z dysków maszyn i natychmiastowe odzyskiwanie Proxmox. Kopii maszyn skopiowanych przez agenta starszego niż 0.29 nie da się tak przywrócić; następne uruchomienie kopii z nowszym agentem sprawia, że najnowsza kopia staje się możliwa do przywrócenia. Kopie obrazów dysków przywraca się agentem wiersza poleceń.</li>
+  <li>Skopiowane kopie plików i maszyn wirtualnych (Proxmox VE, Hyper-V, VMware) przywraca się ze strony uruchomienia kopii lub z <a href="/restore">kreatora przywracania</a>, jak oryginały — całe maszyny, pojedyncze pliki z dysków maszyn i natychmiastowe odzyskiwanie Proxmox. Kopii maszyn skopiowanych przez agenta starszego niż 0.29 nie da się tak przywrócić; następne uruchomienie kopii z nowszym agentem sprawia, że najnowsza kopia staje się możliwa do przywrócenia. Skopiowane kopie Microsoft 365 przywraca się w ten sam sposób. Kopie obrazów dysków, kopii systemu Linux i kopii baz danych przywraca się agentem wiersza poleceń.</li>
 </ul>
 
 <h2>Zmiana zadania</h2>
@@ -91,7 +91,7 @@
 <p>W sekcji <b>Zaawansowane</b> formularza zadania <b>Ogranicz prędkość wysyłania do</b> ogranicza, jak szybko agent wysyła dane do magazynu, w MB/s — na przykład 10 MB/s od 08:00 do 18:00, aby kopie w godzinach pracy nie blokowały łącza biura; poza tym przedziałem zadanie działa z pełną prędkością. Godziny są czasem lokalnym agenta, a przedział może przechodzić przez północ (22:00 do 06:00). Limit dotyczy kopii i zadań kopii kopii (wysyłania do drugiego magazynu), a nie przywracania: przywracanie zawsze działa z pełną prędkością.</p>
 
 <h2 id="compression">Kompresja i deduplikacja</h2>
-<p>Każda kopia jest deduplikowana: dane, które już są w repozytorium — z wcześniejszych kopii tego samego zadania lub z innych zadań w tym samym miejscu docelowym — nie są zapisywane ponownie. Nowe dane są następnie kompresowane zstd; fragmenty, które się nie zmniejszają (wideo, archiwa, pliki zaszyfrowane), są zapisywane bez zmian. Szyfrowanie następuje po kompresji.</p>
+<p>Każda kopia jest deduplikowana: dane, które już są w repozytorium — z wcześniejszych kopii tego samego zadania lub z innych zadań tego samego agenta w tym samym miejscu docelowym — nie są zapisywane ponownie. Każdy agent ma własne repozytorium (tak samo hosty VMware, klastry Hyper-V i dzierżawy Microsoft 365), więc między komputerami nie ma deduplikacji. Nowe dane są następnie kompresowane zstd; fragmenty, które się nie zmniejszają (wideo, archiwa, pliki zaszyfrowane), są zapisywane bez zmian. Szyfrowanie następuje po kompresji.</p>
 <p>Poziom kompresji to ustawienie zadania (<b>Edytuj → Zaawansowane</b>):</p>
 <table>
   <tr><th>Poziom</th><th>Kiedy używać</th></tr>
@@ -120,7 +120,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Uruchom kopię teraz</b> (<b>Kopiuj teraz</b> dla zadań kopii kopii) natychmiast umieszcza zadanie w kolejce.</li>
   <li><b>Testuj przywracanie</b> przywraca losową próbkę najnowszej kopii i ją weryfikuje (zobacz <a href="/docs/restore">Przywracanie</a>).</li>
   <li><b>Wyłącz</b> wstrzymuje harmonogram bez utraty zadania (przy włączonym zatwierdzaniu na cztery oczy drugi użytkownik musi to zatwierdzić).</li>
-  <li><b>Usuń</b> usuwa zadanie; istniejące kopie pozostają w magazynie i nadal można je przywrócić z Aktywności.</li>
+  <li><b>Usuń</b> usuwa zadanie (przy włączonym zatwierdzaniu na cztery oczy — po zatwierdzeniu przez drugiego użytkownika); istniejące kopie pozostają w magazynie i nadal można je przywrócić z Aktywności. Zadania kopii kopii zapasowej tego zadania są usuwane razem z nim; ich kopie pozostają w swoim magazynie.</li>
 </ul>
 
 <h2>Zatrzymywanie uruchomienia</h2>

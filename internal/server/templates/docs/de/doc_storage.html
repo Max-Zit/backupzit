@@ -97,6 +97,6 @@ backupzit-repo keys                           # Schlüssel und ihre Limits</pre>
 <p><b>Benötigt Aufmerksamkeit</b> im Dashboard warnt, wenn ein Speicherziel zu 90 % voll ist oder innerhalb von 30 Tagen voll sein wird. S3 und Azure haben keine feste Größe; dort werden nur der belegte Platz und sein Wachstum angezeigt. Der belegte Platz sind die gespeicherten (komprimierten, verschlüsselten, deduplizierten) Daten; Dateien, die der Speicher aus anderen Gründen aufbewahrt (Objektversionen, andere Programme), werden nicht gezählt.</p>
 
 <h2>Ein Ziel entfernen</h2>
-<p>Das Entfernen eines Speicherziels aus der Konsole löscht keine Daten auf dem Speicher. Mit eingeschalteter <a href="/docs/users">Vier-Augen-Freigabe</a> muss ein zweiter Benutzer zuerst zustimmen.</p>
+<p>Ein Speicherziel, das noch von Aufträgen verwendet wird, kann nicht entfernt werden. Das Entfernen eines Ziels aus der Konsole löscht keine Daten auf dem Speicher, aber die Konsole vergisst seine Zugangsdaten und seinen Wiederherstellungsschlüssel, sodass seine Sicherungen nicht mehr aus der Konsole wiederhergestellt werden können — laden Sie vorher das Wiederherstellungsblatt herunter. Mit eingeschalteter <a href="/docs/users">Vier-Augen-Freigabe</a> muss ein zweiter Benutzer zuerst zustimmen.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

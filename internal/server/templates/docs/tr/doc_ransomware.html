@@ -26,9 +26,10 @@
 <ol>
   <li><b>Object Lock etkin</b> bir kova oluşturun (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
   <li><i>Güncel olmayan sürümleri</i> (noncurrent versions) 1 gün sonra silen bir yaşam döngüsü kuralı ekleyin (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
-  <li>S3 hedefini ekleyin ve <b>N gün boyunca değiştirilemez yedekler</b> seçeneğini işaretleyin. N'yi korunmasını istediğiniz en uzun saklama süresi kadar seçin, ör. 30.</li>
+  <li>Kovaya uyumluluk (compliance) modunda en az N günlük varsayılan bir saklama süresi verin (MinIO: <code>mc retention set --default COMPLIANCE 30d</code>); böylece ele geçirilmiş bir bilgisayar nesneleri kilitsiz yazsa bile nesneler kilitlenir. Bu süre eksikse veya daha kısaysa <b>Bağlantıyı test et</b> uyarır.</li>
+  <li>S3 hedefini ekleyin ve <b>N gün boyunca değiştirilemez yedekler</b> seçeneğini işaretleyin. N'yi en az yedeklerinizin korunması gereken süre kadar seçin, ör. 30.</li>
 </ol>
-<p>Her geri yükleme noktası oluşturulduktan sonra en az N gün kilitli kalır; daha yeni yedeklerle paylaşılan verilerin süresi otomatik olarak uzatılır.</p>
+<p>Her geri yükleme noktası oluşturulduktan sonra en az N gün kilitli kalır; her yedekten sonra aracı, işin saklama politikasının hâlâ tuttuğu tüm verilerin kilidini uzatır.</p>
 <p id="lock-retained">Her yedeklemeden sonra aracı, yalnızca yeni yedeğin yeniden kullandığı verinin değil, işin saklama politikasının hâlâ tuttuğu tüm verinin kilidini uzatır: bir yıl saklanan aylık bir yedek o yıl boyunca kilitli kalır. Bu, S3 Object Lock ve güçlendirilmiş depo için geçerlidir. Yer açmak için saklama süresini kısaltırsanız, alan ancak mevcut kilitler bitince, en geç bir buçuk kilit süresi sonra geri gelir.</p>
 
 <h2>Güçlendirilmiş depo</h2>

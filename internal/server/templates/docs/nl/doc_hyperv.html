@@ -29,7 +29,7 @@
   <li>Het controlepunt wordt verwijderd en Hyper-V voegt het op de achtergrond samen.</li>
   <li>De configuratie van de VM wordt met de back-up opgeslagen: generatie, CPU, geheugen, netwerkadapters (switch, VLAN, MAC-adres), schijfcontrollers, secure boot en TPM.</li>
 </ol>
-<p>Uitgeschakelde VM's worden direct gelezen, zonder controlepunt. Op hosts ouder dan Windows Server 2016 (geen herstelcontrolepunten) wordt een productiecontrolepunt gebruikt en leest elke back-up de volledige schijven.</p>
+<p>Uitgeschakelde VM's worden direct gelezen, zonder controlepunt. Op hosts zonder herstelcontrolepunten wordt een gewoon controlepunt gemaakt (waar mogelijk een productiecontrolepunt, anders crash-consistent) en leest elke back-up de volledige schijven.</p>
 <p id="checkpoint-concurrency">Overlappende back-ups van dezelfde VM wachten op elke host op elkaar, zowel via de service als de opdrachtregel. Een back-up verwijdert alleen zijn eigen tijdelijke controlepunt. De agent verwijdert een achtergebleven controlepunt zodra de back-up ervan op een ander knooppunt klaar is (na een livemigratie), of wanneer het ouder is dan 48 uur (een back-up die door een crash of stroomuitval is onderbroken). Alle overlappende back-upprocessen moeten bijgewerkte programma’s gebruiken.</p>
 <p id="appconsistent"><b>Alleen toepassingsconsistent.</b> Vink voor Active Directory, SQL Server, Exchange en andere databases <i>Toepassingsconsistente controlepunten vereisen</i> aan in de taak (ook in een taak voor een cluster). Een draaiende VM wordt dan alleen geback-upt vanuit een controlepunt dat de gast met VSS heeft voorbereid; mislukt dat, dan wordt de VM niet geback-upt en mislukt de run (met een melding) in plaats van een crashconsistent controlepunt te nemen. De andere VM's van de taak worden wel geback-upt en kunnen uit die run worden hersteld. Controleer de integratieservice <i>Backup (volume shadow copy)</i> in de VM-instellingen en VSS in de gast (<code>vssadmin list writers</code>). Vereist agents 0.48.0 of nieuwer; bij oudere agents mislukt de run met het verzoek ze bij te werken.</p>
 <p id="vtpm"><b>vTPM en BitLocker.</b> Bij VM's van generatie 2 met een virtuele TPM bewaart de back-up ook de vTPM (het gaststatusbestand en de sleutelbeveiliging). Hersteld als nieuwe VM op dezelfde host, of op een host met het guardian-certificaat van de oorspronkelijke host, krijgt de VM zijn vTPM terug en vraagt BitLocker niet om de herstelsleutel. Op andere hosts krijgt de VM een nieuwe, lege vTPM en meldt het herstel dat; importeer daar eerst het <i>UntrustedGuardian</i>-certificaat van de oorspronkelijke host om dat te voorkomen. Herstellen over de bestaande VM behoudt zijn vTPM. Afgeschermde VM's (Host Guardian Service) worden niet ondersteund. Bewaar de BitLocker-herstelsleutels toch.</p>
@@ -60,7 +60,7 @@
 
 <h3>Opties</h3>
 <ul>
-  <li><b>Map voor de virtuele schijven</b>: de standaardmap van de host of een willekeurige map met VM-schijven. Een herstel ter plaatse zet de nieuwe schijven naast de originele.</li>
+  <li><b>Map voor de virtuele schijven</b>: de standaardmap van de host of een willekeurige map met VM-schijven. Een herstel ter plaatse zet de nieuwe schijven in een nieuwe submap <code>backupzit-restore-…</code> en laat de oude staan waar ze waren.</li>
   <li><b>De VM na het herstel starten</b>.</li>
 </ul>
 
@@ -85,7 +85,7 @@
 <ol>
   <li>Open <a href="/jobs">Backup jobs</a> en het formulier <i>New backup job</i>.</li>
   <li>Open de lijst <b>Agent</b> en ga naar het einde: kies onder <i>Hyper-V failover clusters (virtual machines)</i> het cluster, bijv. <i>HVC01 — 2 nodes</i>. Kies het cluster, niet één knooppunt.</li>
-  <li>De soort staat op <i>Virtual machines</i>. Kies <i>All clustered VMs</i> (ook VM's die later aan het cluster worden toegevoegd) of <i>Only these</i>; bij elke VM staat het knooppunt waar hij nu draait.</li>
+  <li>De soort staat op <i>Virtual machines</i>. Kies <i>All clustered VMs</i> (ook VM's die later aan het cluster worden toegevoegd), <i>All clustered VMs except the ticked ones</i> of <i>Only these</i>; bij elke VM staat het knooppunt waar hij nu draait.</li>
   <li>Kies de opslag, het schema en hoeveel back-ups bewaard blijven, en klik op <i>Create job</i>.</li>
 </ol>
 <p>De pagina van de taak toont elk knooppunt met zijn laatste resultaat; <i>Run backup now on all agents</i> start ze allemaal. Een knooppunt waarop op dat moment geen VM van de taak draait, meldt <i>None of the job's VMs runs on this node now</i>; dat is een succes.</p>

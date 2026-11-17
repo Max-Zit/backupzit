@@ -48,7 +48,7 @@
   <tr><th>Optie</th><th>Voorbeeld</th></tr>
   <tr><td><b>Op vaste tijden</b></td><td>Elke werkdag om 22:00; of om 12:00 en 18:00 elke dag. Tot drie keer per dag, op de aangevinkte dagen.</td></tr>
   <tr><td><b>Herhaaldelijk</b></td><td>Elke 2 uur tussen 08:00 en 18:00, maandag–vrijdag. Intervallen van 15 minuten tot 12 uur.</td></tr>
-  <tr><td><b>Eens per maand</b></td><td>Op de 1e om 23:00.</td></tr>
+  <tr><td><b>Eens per maand</b></td><td>Op de 1e om 23:00 (elke dag van 1 tot en met 28).</td></tr>
   <tr><td><b>Alleen handmatig</b></td><td>Draait alleen als u op <i>Back-up nu uitvoeren</i> klikt.</td></tr>
   <tr><td><b>Na een andere taak</b></td><td>Eerst de database, dan de bestandsserver: de taak start zodra de gekozen taak geslaagd is — of na elk resultaat, met <i>ook als die taak mislukte</i>. Ketens kunnen langer zijn (A → B → C); een taak kan niet na zichzelf of in een kring draaien.</td></tr>
 </table>
@@ -78,7 +78,7 @@
   <li>Alleen gegevens die nog niet op het doel staan worden overgedragen, opnieuw versleuteld met de sleutel van het doel.</li>
   <li>Het schema <b>Na elke back-up van de brontaak</b> (standaard) houdt de kopie actueel; elk normaal schema werkt ook, bijv. één keer per nacht bij een trage internetlijn.</li>
   <li>De kopie heeft een eigen bewaring, bijv. 7 dagelijkse op de NAS en 12 maandelijkse in de cloud.</li>
-  <li>Gekopieerde bestandsback-ups en VM-back-ups (Proxmox VE, Hyper-V, VMware) worden net als de originelen hersteld vanaf de pagina van de kopieeruitvoering of de <a href="/restore">herstelwizard</a> — hele VM's, losse bestanden van VM-schijven en Proxmox direct herstel. VM-back-ups die een agent ouder dan 0.29 heeft gekopieerd, kunnen zo niet worden hersteld; de volgende kopieeruitvoering met een nieuwere agent maakt de nieuwste kopie herstelbaar. Kopieën van schijfimages worden hersteld met de opdrachtregelagent.</li>
+  <li>Gekopieerde bestandsback-ups en VM-back-ups (Proxmox VE, Hyper-V, VMware) worden net als de originelen hersteld vanaf de pagina van de kopieeruitvoering of de <a href="/restore">herstelwizard</a> — hele VM's, losse bestanden van VM-schijven en Proxmox direct herstel. VM-back-ups die een agent ouder dan 0.29 heeft gekopieerd, kunnen zo niet worden hersteld; de volgende kopieeruitvoering met een nieuwere agent maakt de nieuwste kopie herstelbaar. Gekopieerde Microsoft 365-back-ups worden op dezelfde manier hersteld. Kopieën van schijfimages, Linux-systeemback-ups en databaseback-ups worden hersteld met de opdrachtregelagent.</li>
 </ul>
 
 <h2>Een taak wijzigen</h2>
@@ -91,7 +91,7 @@
 <p>Onder <b>Geavanceerd</b> in het taakformulier begrenst <b>Uploadsnelheid beperken tot</b> hoe snel de agent gegevens naar de opslag stuurt, in MB/s — bijvoorbeeld 10 MB/s van 08:00 tot 18:00, zodat back-ups tijdens werktijd de kantoorlijn bruikbaar laten; buiten het tijdvenster draait de taak op volle snelheid. De uren zijn de lokale tijd van de agent, en een venster mag over middernacht lopen (22:00 tot 06:00). De limiet geldt voor back-ups en kopieertaken (het uploaden naar de tweede opslag), niet voor herstel: een herstel draait altijd op volle snelheid.</p>
 
 <h2 id="compression">Compressie en deduplicatie</h2>
-<p>Elke back-up wordt gededupliceerd: gegevens die al in de repository staan — uit eerdere back-ups van dezelfde taak of uit andere taken op hetzelfde opslagdoel — worden niet opnieuw opgeslagen. Nieuwe gegevens worden daarna gecomprimeerd met zstd; stukken die niet kleiner worden (video, archieven, versleutelde bestanden) worden ongewijzigd opgeslagen. Versleuteling komt na compressie.</p>
+<p>Elke back-up wordt gededupliceerd: gegevens die al in de repository staan — uit eerdere back-ups van dezelfde taak of uit andere taken van dezelfde agent op hetzelfde opslagdoel — worden niet opnieuw opgeslagen. Elke agent heeft een eigen repository (net als VMware-hosts, Hyper-V-clusters en Microsoft 365-tenants), dus er is geen deduplicatie tussen computers. Nieuwe gegevens worden daarna gecomprimeerd met zstd; stukken die niet kleiner worden (video, archieven, versleutelde bestanden) worden ongewijzigd opgeslagen. Versleuteling komt na compressie.</p>
 <p>Het compressieniveau is een taakinstelling (<b>Bewerken → Geavanceerd</b>):</p>
 <table>
   <tr><th>Niveau</th><th>Wanneer gebruiken</th></tr>
@@ -120,7 +120,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Back-up nu uitvoeren</b> (<b>Nu kopiëren</b> bij kopieertaken) zet de taak direct in de wachtrij.</li>
   <li><b>Herstel testen</b> herstelt een willekeurige steekproef van de nieuwste back-up en controleert die (zie <a href="/docs/restore">Herstellen</a>).</li>
   <li><b>Uitschakelen</b> pauzeert het schema zonder de taak te verliezen (met vier-ogengoedkeuring ingeschakeld moet een tweede gebruiker goedkeuren).</li>
-  <li><b>Verwijderen</b> verwijdert de taak; bestaande back-ups blijven op de opslag en blijven herstelbaar vanuit Activiteit.</li>
+  <li><b>Verwijderen</b> verwijdert de taak (met vier-ogengoedkeuring ingeschakeld nadat een tweede gebruiker heeft goedgekeurd); bestaande back-ups blijven op de opslag en blijven herstelbaar vanuit Activiteit. Kopietaken van de taak worden mee verwijderd; hun kopieën blijven op hun opslag.</li>
 </ul>
 
 <h2>Een uitvoering stoppen</h2>

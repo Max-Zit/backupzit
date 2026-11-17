@@ -97,6 +97,6 @@ backupzit-repo keys                           # chiavi e relativi limiti</pre>
 <p><b>Richiede attenzione</b> nella dashboard avvisa quando una destinazione è piena al 90 % o lo sarà entro 30 giorni. S3 e Azure non hanno una dimensione fissa; lì vengono mostrati solo lo spazio usato e la sua crescita. Lo spazio usato corrisponde ai dati archiviati (compressi, cifrati, deduplicati); i file che lo storage conserva per altri motivi (versioni degli oggetti, altri programmi) non vengono contati.</p>
 
 <h2>Rimuovere una destinazione</h2>
-<p>Rimuovere una destinazione di archiviazione dalla console non elimina alcun dato sullo storage. Con l'<a href="/docs/users">approvazione a quattro occhi</a> attiva, un secondo utente deve prima approvare.</p>
+<p>Una destinazione di archiviazione ancora usata da job non può essere rimossa. Rimuovere una destinazione dalla console non elimina alcun dato sullo storage, ma la console dimentica le sue credenziali e la chiave di ripristino, quindi i suoi backup non si possono più ripristinare dalla console — scaricate prima il foglio di ripristino. Con l'<a href="/docs/users">approvazione a quattro occhi</a> attiva, un secondo utente deve prima approvare.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

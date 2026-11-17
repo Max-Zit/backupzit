@@ -13,14 +13,16 @@
 
 <h2>Dodavanje hosta</h2>
 <ol>
-  <li>Otvorite <a href="/agents#vmware">Agenti → VMware ESXi hostovi</a> → <i>Dodajte ESXi host</i>.</li>
+  <li>Otvorite <a href="/agents#vmware">Agenti → VMware ESXi hostovi</a> → <i>Dodavanje ESXi hosta ili vCenter Server-a</i>.</li>
   <li>Unesite adresu, korisnika, lozinku i proxy agenta.</li>
   <li>Konzola se jednom povezuje da ih proveri. Čita listu virtuelnih mašina i licencu, i <b>pamti HTTPS sertifikat i SSH ključ hosta</b>. Ako se host kasnije zameni drugom mašinom sa istom adresom, BackupZit odbija da se poveže umesto da joj pošalje lozinku. Ako se sertifikat promeni iz poznatog razloga — host je ponovo instaliran, dobio je novi sertifikat ili je dodat u vCenter (koji zameni sertifikate svojih hostova) — na strani Agenti host prikazuje novi otisak i dugme <b>Prihvati novi sertifikat</b>. Pre prihvatanja uporedite otisak sa onim na hostu.</li>
 </ol>
-<p>Lozinka se čuva šifrovana, kao i sve druge tajne. Lista virtuelnih mašina se osvežava svakih 10 minuta, ili odmah dugmetom <i>Osveži</i>. Tabela prikazuje režim svakog hosta:</p>
+<p>Lozinka se čuva šifrovana, kao i sve druge tajne. Sama konzola se povezuje na host (HTTPS 443, a uz besplatnu licencu i SSH 22) kada se doda, na <i>Osveži</i> i svakih 10 minuta da osveži listu virtuelnih mašina. <i>Ukloni</i> briše host zajedno sa njegovim poslovima bekapa; bekapi ostaju na skladištu. Tabela prikazuje režim svakog hosta:</p>
 <ul>
   <li><b>vSphere API (licenciran host, SSH nije potreban):</b> snimci, kopije diskova, vraćanja i instant recovery idu preko API-ja.</li>
+  <li><b>vCenter Server (vSphere API):</b> vCenter sa svojim ESXi hostovima; sve ide preko vCenter API-ja.</li>
   <li><b>besplatna licenca: snimci i vraćanja preko SSH-a:</b> API hosta je samo za čitanje, pa ovi koraci idu preko SSH-a.</li>
+  <li><b>SSH (izabrano za ovaj host):</b> host se menja preko SSH-a iako bi njegov API to mogao (<i>Uvek SSH</i> pri dodavanju hosta).</li>
 </ul>
 <p>Sa <b>Automatski</b> konzola sama bira, pa host koji kasnije dobije licencu prelazi na API bez dodatnog podešavanja. <b>Kako se host menja</b> u redu hosta (i pri dodavanju) može da nametne <b>Uvek SSH</b> ili <b>Uvek vSphere API</b>; promena se odmah proverava. Raniji bekapi i njihove tačke vraćanja ne zavise od načina.</p>
 

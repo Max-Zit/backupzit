@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>La columna <b>Direcciones IP</b> muestra las direcciones propias del equipo tal como el agente las informó por última vez. <i>visto desde</i> es la dirección desde la que llegan sus conexiones: en una red local la misma dirección, para un equipo detrás de NAT (p. ej. un portátil en casa) la dirección pública del router. La consola no consulta ningún servicio externo para ello.</p>
 
+<h2 id="names">Nombres y etiquetas</h2>
+<p>Los servidores de distintos clientes o sedes suelen tener el mismo nombre de host. Haga clic en un agente en la página <a href="/agents">Agentes</a> para darle un <b>nombre mostrado en la consola</b> y <b>etiquetas</b>: rótulos libres como un cliente o una sede, separados por comas. El nombre se usa en los formularios de trabajos, la restauración, la actividad, los informes y los correos; el nombre de host que informa el equipo sigue visible a su lado, y la página del agente avisa cuando otros agentes informan el mismo nombre de host. Haga clic en una etiqueta para mostrar solo los agentes que la tienen.</p>
+<p>Cambiar el nombre solo cambia lo que muestra la consola: el agente, su repositorio y sus copias no cambian, y el equipo no puede cambiar su nombre ni sus etiquetas. Cambiarlos requiere el permiso de agentes y queda en el registro de auditoría. Las etiquetas ayudan a encontrar agentes; no dan ni limitan acceso y no añaden agentes a trabajos. Todos los que pueden iniciar sesión en la consola ven todos los agentes, y la consola guarda las claves de todas sus copias: los clientes que deben estar estrictamente separados necesitan una consola cada uno.</p>
+
 <h2>El agente en el escritorio (Windows)</h2>
 <p>El agente de Windows muestra un icono junto al reloj (puede estar bajo la flecha <b>^</b> de iconos ocultos; arrástrelo a la barra de tareas para que siga visible). El punto del icono indica el estado:</p>
 <table>

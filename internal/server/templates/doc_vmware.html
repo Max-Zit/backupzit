@@ -13,14 +13,16 @@
 
 <h2>Adding a host</h2>
 <ol>
-  <li>Open <a href="/agents#vmware">Agents → VMware ESXi hosts</a> → <i>Add an ESXi host</i>.</li>
+  <li>Open <a href="/agents#vmware">Agents → VMware ESXi hosts</a> → <i>Add an ESXi host or vCenter Server</i>.</li>
   <li>Enter the address, the user, the password and the proxy agent.</li>
   <li>The console connects once to check them. It reads the VM list and the license, and <b>pins the host's HTTPS certificate and SSH host key</b>. If the host is later replaced by another machine with the same address, BackupZit refuses to connect instead of sending it the password. If the certificate changes for a reason you know — the host was reinstalled, got a new certificate, or was added to vCenter (which replaces the certificates of its hosts) — the host shows the new fingerprint with an <b>Accept the new certificate</b> button on the Agents page. Compare the fingerprint with the host before accepting it.</li>
 </ol>
-<p>The password is stored encrypted, like all other secrets. The VM list is refreshed every 10 minutes, or immediately with <i>Refresh</i>. The table shows each host's mode:</p>
+<p>The password is stored encrypted, like all other secrets. The console itself connects to the host (HTTPS 443, and SSH 22 on the free license) when it is added, on <i>Refresh</i> and every 10 minutes to refresh the VM list. <i>Remove</i> deletes the host together with its backup jobs; the backups stay on the storage. The table shows each host's mode:</p>
 <ul>
   <li><b>vSphere API (licensed host, SSH not needed):</b> snapshots, disk copies, restores and instant recovery go through the API.</li>
+  <li><b>vCenter Server (vSphere API):</b> a vCenter with its ESXi hosts; everything goes through the vCenter API.</li>
   <li><b>free license: snapshots and restores over SSH:</b> the host's API is read-only, so these steps go over SSH.</li>
+  <li><b>SSH (chosen for this host):</b> the host is changed over SSH even though its API could do it (<i>Always SSH</i> when adding the host).</li>
 </ul>
 <p>The console chooses by itself with <b>Automatic</b>, so a host that gets a license later switches to the API without further setup. <b>How the host is changed</b> in the host's row (and when adding it) can force <b>Always SSH</b> or <b>Always vSphere API</b>; the change is checked at once. Earlier backups and their restore points are not affected by the method.</p>
 

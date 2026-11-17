@@ -13,14 +13,16 @@
 
 <h2>Přidání hostitele</h2>
 <ol>
-  <li>Otevřete <a href="/agents#vmware">Agenti → Hostitelé VMware ESXi</a> → <i>Přidat hostitele ESXi</i>.</li>
+  <li>Otevřete <a href="/agents#vmware">Agenti → Hostitelé VMware ESXi</a> → <i>Přidat hostitele ESXi nebo vCenter Server</i>.</li>
   <li>Zadejte adresu, uživatele, heslo a proxy agenta.</li>
   <li>Konzole se jednou připojí, aby je ověřila. Načte seznam VM a licenci a <b>připne HTTPS certifikát a SSH klíč hostitele</b>. Pokud bude hostitel později nahrazen jiným počítačem se stejnou adresou, BackupZit odmítne připojení místo toho, aby mu poslal heslo. Pokud se certifikát změní ze známého důvodu — hostitel byl přeinstalován, dostal nový certifikát nebo byl přidán do vCenter (který certifikáty svých hostitelů nahrazuje) —, zobrazí hostitel na stránce Agenti nový otisk s tlačítkem <b>Přijmout nový certifikát</b>. Před přijetím otisk porovnejte s hostitelem.</li>
 </ol>
-<p>Heslo se ukládá šifrovaně, jako všechna ostatní tajemství. Seznam VM se obnovuje každých 10 minut, nebo hned tlačítkem <i>Obnovit</i>. Tabulka ukazuje režim každého hostitele:</p>
+<p>Heslo se ukládá šifrovaně, jako všechna ostatní tajemství. Konzole se k hostiteli připojuje sama (HTTPS 443 a u bezplatné licence také SSH 22) při jeho přidání, po kliknutí na <i>Obnovit</i> a každých 10 minut kvůli obnovení seznamu VM. <i>Odebrat</i> smaže hostitele spolu s jeho úlohami zálohování; zálohy zůstanou na úložišti. Tabulka ukazuje režim každého hostitele:</p>
 <ul>
   <li><b>vSphere API (licencovaný hostitel, SSH není potřeba):</b> snímky, kopie disků, obnovy i okamžitá obnova jdou přes API.</li>
+  <li><b>vCenter Server (vSphere API):</b> vCenter s jeho hostiteli ESXi; vše jde přes API vCenter.</li>
   <li><b>bezplatná licence: snímky a obnovy přes SSH:</b> API hostitele je jen pro čtení, takže tyto kroky jdou přes SSH.</li>
+  <li><b>SSH (zvoleno pro tohoto hostitele):</b> hostitel se mění přes SSH, i když by to jeho API zvládlo (<i>Vždy SSH</i> při přidávání hostitele).</li>
 </ul>
 <p>S volbou <b>Automaticky</b> konzole vybírá sama, takže hostitel, který později dostane licenci, přejde na API bez dalšího nastavování. <b>Jak se hostitel mění</b> v řádku hostitele (a při přidání) může vynutit <b>Vždy SSH</b> nebo <b>Vždy vSphere API</b>; změna se hned ověří. Dřívější zálohy a jejich body obnovy na způsobu nezávisí.</p>
 

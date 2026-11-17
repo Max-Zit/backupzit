@@ -11,8 +11,8 @@
   <li><b>Aracı gizli anahtarları</b> — her aracının kendi gizli anahtarı vardır; konsolda yalnızca karma olarak, aracıda ise yalnızca yöneticilerin okuyabildiği bir dosyada saklanır.</li>
   <li><b>Web konsolu</b> — HttpOnly ve SameSite=Strict oturum çerezleri; siteler arası isteklere ve clickjacking'e karşı koruma; sıkı Content-Security-Policy; bcrypt ile karmalanmış parolalar; hassas sayfalar asla önbelleğe alınmaz.</li>
   <li><b>Kaba kuvvet koruması</b> — oturum açmada çok sık başarısız olan adresler engellenir: parolalar, iki aşamalı kodlar ve API belirteçleri. Engeller yeniden başlatmalardan sonra da sürer, tekrarlayanlar daha uzun engellenir ve yöneticiler bir e-posta alır. Aşağıya bakın.</li>
-  <li><b>Hesaplar</b> — en az ayrıcalıklı roller, isteğe bağlı iki aşamalı kimlik doğrulama (TOTP) ve LDAPS ile oturum açma; kendi, daha düşük rolü ve süresi olan API belirteçleri.</li>
-  <li><b>Dört göz onayı</b> (isteğe bağlı) — işleri silme veya devre dışı bırakma, aracıları, ESXi ana bilgisayarlarını, depolama hedeflerini ve kullanıcıları silme, saklamayı kısaltma, onayı kapatma ve bir yöneticiye ikinci bir onaylayıcı kazandırabilecek her şey (yeni onaylayıcılar, daha fazla hak, parola ve iki aşamalı sıfırlamalar, LDAP ve SSO değişiklikleri) ikinci bir kullanıcının onayını gerektirir. Bkz. <a href="/docs/users">Kullanıcılar, roller ve LDAP</a>.</li>
+  <li><b>Hesaplar</b> — en az ayrıcalıklı roller, isteğe bağlı iki aşamalı kimlik doğrulama (TOTP), LDAPS veya StartTLS üzerinden LDAP ile oturum açma ve çoklu oturum açma (OpenID Connect, SAML); kendi, daha düşük rolü ve süresi olan API belirteçleri.</li>
+  <li><b>Dört göz onayı</b> (isteğe bağlı) — işleri silme veya devre dışı bırakma, aracıları, ESXi ana bilgisayarlarını, depolama hedeflerini ve kullanıcıları silme, saklamayı kısaltma, şüpheli bir yedekten sonra saklamayı sürdürme, birden çok aracıya yönelik bir işi silme, devre dışı bırakma veya kapsamını daraltma, onayı kapatma ve bir yöneticiye ikinci bir onaylayıcı kazandırabilecek her şey (yeni onaylayıcılar, daha fazla hak, parola ve iki aşamalı sıfırlamalar, LDAP ve SSO değişiklikleri) ikinci bir kullanıcının onayını gerektirir. Bkz. <a href="/docs/users">Kullanıcılar, roller ve LDAP</a>.</li>
   <li><b>Denetim izi</b> — oturum açmalar, başarısız oturum açmalar, kullanıcı ve rol değişiklikleri, işler, depolama hedefleri, geri yüklemeler, görüntülenen kurtarma anahtarları, ayar değişiklikleri ve API işlemleri <a href="/audit">denetim günlüğüne</a> kaydedilir; girişler zincirlenir, böylece veritabanındaki değişiklik ve silmeler algılanır ve bir syslog sunucusuna veya SIEM'e kopyalanabilir (<a href="/docs/users#audit-integrity">Değişikliklere karşı koruma</a>); güçlendirilmiş bir depodaki silmeler o sunucuda günlüğe yazılır.</li>
   <li><b>Konsol güncellemeleri</b> — sürümler BackupZit sürüm anahtarıyla (Ed25519) imzalanır. Konsol ve onları kuran root hizmeti imzayı doğrular, veritabanı önce yedeklenir ve başarısız bir güncelleme geri alınır.</li>
   <li><b>Aracı güncellemeleri</b> — aracılar yeni sürümleri yalnızca sabitlenmiş bağlantı üzerinden kendi konsollarından indirir ve yalnızca SHA-256 sağlama toplamı eşleşirse kurar.</li>
@@ -46,20 +46,20 @@
   <tr><td>İzin verilen adresler</td><td>IP adresleri veya ağlar (ör. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). Web konsolu, REST API ve her sayfa yalnızca bu adreslere yanıt verir; diğerleri sanki konsol yokmuş gibi "not found" alır. Aracılar API'lerine her zaman ulaşır (kayıt, yoklama, sonuçlar, indirmeler, uzaktan kurulum). Boş: herkes. Konsol, kendi adresinizi içermeyen bir listeyi reddeder.</td></tr>
   <tr><td>8443 portu yalnızca aracılar için</td><td>Web konsolu bu durumda yalnızca güvenilir sertifikalı web portunda olur (<a href="/docs/install">Ayarlar → Sertifika</a>, genellikle 443); böylece bir güvenlik duvarı 8443'ü herkese, 443'ü yalnızca sizin adreslerinize açabilir. Web portu çalışmaya başladığında kullanılabilir; 8443'ten değil, web portundan değiştirin.</td></tr>
 </table>
-<p>Genel bir konsol için tipik güvenlik duvarı: 8443 herkese açık (aracılar), 443 ve 80 (Let's Encrypt HTTP denetimi) yalnızca sizin adreslerinizden, SSH yalnızca sizin adreslerinizden veya kapalı, geri kalan her şey kapalı.</p>
+<p>Genel bir konsol için tipik güvenlik duvarı: 8443 herkese açık (aracılar), 443 yalnızca sizin adreslerinizden, 80 yalnızca Let's Encrypt HTTP denetimini kullanıyorsanız herkese açık (Let's Encrypt bunu kendi sunucularından denetler; bu port yalnızca denetime yanıt verir ve HTTPS'ye yönlendirir), aksi halde kapalı ve DNS denetimi kullanılır; SSH yalnızca sizin adreslerinizden veya kapalı; geri kalan her şey kapalı.</p>
 <p>Appliance, saatini ağdaki herkese bildirecek ICMP timestamp isteklerini yanıtlamaz (ağ tarayıcılarının bir bulgusu); bunun için kendi küçük nftables tablosunu kullanır ve diğer güvenlik duvarı kurallarına dokunmaz.</p>
 <p>Dışarıda mı kaldınız? Sunucunun kendisinde (<code>localhost</code>) konsol her zaman yanıt verir. Cihazda (appliance), ekranındaki kurulum menüsünün 5. öğesi oturum açma engellerini ve bu kısıtlamaları kaldırır.</p>
 
 <h2>Öneriler</h2>
 <h3>Konsol</h3>
 <ul>
-  <li>Konsolu dahili bir ağda tutun; 8443 portunu internete açmayın. Uzaktan yönetim için VPN kullanın.</li>
+  <li>Mümkünse konsolu dahili bir ağda tutun. Diğer konumlardaki aracıların ona erişmesi gerekiyorsa yalnızca 8443 portunu yayımlayın ve web konsolunu <a href="#web-access">Web konsoluna erişim</a> bölümünde anlatıldığı gibi sınırlayın; yönetim için VPN kullanın.</li>
   <li>Uzun, benzersiz bir yönetici parolası kullanın ve ilk parolayı değiştirin.</li>
   <li>Yöneticiler için <b>iki aşamalı kimlik doğrulama</b> zorunlu kılın (<a href="/settings/security">Ayarlar → Oturum açma ve güvenlik</a>).</li>
   <li>Her kişiye işe yarayan en düşük rolle kendi hesabını verin; izleme için Görüntüleyici rollü API belirteçleri kullanın.</li>
   <li><code>secrets.key</code> dosyasını veritabanından ayrı yedekleyin (<a href="/docs/install">Sunucuyu kurma</a>).</li>
   <li><a href="/settings/security">Ayarlar → Oturum açma ve güvenlik</a> altında size uygun bir oturum süresi seçin (daha kısa daha güvenlidir).</li>
-  <li>Sunucuyu PostgreSQL dahil güncel tutun (<code>apt upgrade</code> / <code>dnf upgrade</code>).</li>
+  <li>Sunucuyu PostgreSQL dahil güncel tutun: cihazda <b>Ayarlar → Güncellemeler → İşletim sistemi</b> altında (güvenlik güncellemeleri otomatik kurulur), kendi sunucunuzda <code>apt upgrade</code> / <code>dnf upgrade</code> ile.</li>
 </ul>
 <h3>Depolama</h3>
 <ul>
@@ -82,6 +82,6 @@
 </ul>
 
 <h2>Güvenlik sorunu bildirme</h2>
-<p>Lütfen güvenlik açıklarını herkese açık bir kayıt açmak yerine BackupZit geliştiricilerine gizli olarak bildirin.</p>
+<p>Lütfen güvenlik açıklarını herkese açık bir kayıt açmak yerine gizli olarak bildirin: <a href="https://github.com/Max-Zit/backupzit/security">github.com/Max-Zit/backupzit</a> sayfasında <b>Security</b> sekmesini açın ve <b>Report a vulnerability</b> seçeneğini seçin.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

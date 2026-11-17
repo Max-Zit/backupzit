@@ -60,7 +60,7 @@
 <p>Wanneer bzadmin zich op het eigen scherm van de server aanmeldt (niet via SSH), opent een menu:</p>
 <table>
   <tr><th>Item</th><th>Wat het doet</th></tr>
-  <tr><td>1 Network</td><td>DHCP of een statisch adres met prefixlengte (bijv. <code>192.168.1.20/24</code>), gateway en maximaal drie DNS-servers. Met DHCP komen de DNS-servers van de DHCP-server, tenzij u eigen servers invult.</td></tr>
+  <tr><td>1 Network</td><td>DHCP of een statisch adres met prefixlengte (bijv. <code>192.168.1.20/24</code>), gateway en maximaal drie DNS-servers. Met DHCP komen de DNS-servers van de DHCP-server; wilt u met DHCP eigen servers gebruiken, stel ze dan later in onder Instellingen → Netwerk.</td></tr>
   <tr><td>2 Server name</td><td>De hostnaam (letters, cijfers en -).</td></tr>
   <tr><td>3 SSH</td><td>De SSH-server in- of uitschakelen en de poort ervan wijzigen. De poorten van de console (80, 443, 8443), PostgreSQL (5432) en direct herstel (111, 2049) kunnen niet worden gebruikt.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Voor een vergeten wachtwoord van de webconsole; heft ook aanmeldblokkades op. Daarna toont het scherm het gegenereerde initiële wachtwoord niet meer (ook vanaf de volgende start, zodra het wachtwoord van admin in de webconsole is gewijzigd).</td></tr>
@@ -153,7 +153,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Standaard haalt de console updates uit de officiële BackupZit-versies op GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Onder <a href="/settings/updates">Instellingen → Updates</a> kunt u in plaats daarvan een andere <b>updatebron</b> invoeren — uw eigen HTTPS-mirror of een map op de server. Welke bron ook, elke versie moet een geldige BackupZit-handtekening dragen. De console controleert dagelijks op nieuwe versies en mailt de beheerders als er een beschikbaar is. Klik op <b>Installeren</b> om hem te installeren:</p>
 <p><b>Releasekandidaten:</b> elke versie wordt eerst als <i>pre-release</i> gepubliceerd en getest; pas daarna wordt ze de officiële release, met dezelfde bestanden. De updatebron <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> bevat altijd de nieuwste kandidaat — gebruik die alleen op een testconsole, want een kandidaat kan nog door een verbeterde worden vervangen. Consoles met de standaardbron krijgen alleen goedgekeurde releases.</p>
 <ol>
-  <li>De console controleert de handtekening van de versie en de controlesom van het pakket, en wacht tot er geen back-up of herstel loopt.</li>
+  <li>De console controleert de handtekening van de versie en de controlesom van het pakket, en weigert de update te starten zolang er een back-up of herstel loopt; installeer hem wanneer die klaar zijn.</li>
   <li>Een systeemservice (<code>backupzit-update</code>, draait als root) controleert de handtekening opnieuw met de releasesleutels die in BackupZit zijn ingebouwd. Zelfs een gecompromitteerde console kan zo geen ander pakket laten installeren.</li>
   <li>Hij maakt een back-up van de database (<code>pg_dump</code>), bewaart het huidige programma, installeert het pakket en herstart de console.</li>
   <li>Antwoordt de nieuwe versie niet binnen twee minuten, dan worden het vorige programma en de database zoals die was automatisch hersteld. Het resultaat, met het logboek van de mislukte start, wordt op de pagina Updates getoond, vastgelegd in het auditlogboek en gemaild.</li>
@@ -168,7 +168,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Automatische beveiligingsupdates inschakelen</b> (aanbevolen). Het eigen hulpmiddel van het systeem installeert dagelijks alleen beveiligingsfixes: <code>unattended-upgrades</code> op Debian en Ubuntu, <code>dnf-automatic</code> op AlmaLinux en Rocky Linux.</li>
   <li><b>Nu alle updates installeren</b>. Services zoals PostgreSQL kunnen kort herstarten, en de console maakt vanzelf opnieuw verbinding.</li>
-  <li><b>Server herstarten</b>, bijvoorbeeld na een kernelupdate. De console weigert dat zolang er back-ups of herstelacties lopen. Agents behouden hun taken en melden de resultaten zodra de console terug is.</li>
+  <li><b>Server herstarten</b>, bijvoorbeeld na een kernelupdate. De console weigert dat zolang er back-ups of herstelacties lopen. Back-ups waarvan het geplande tijdstip tijdens de herstart verstrijkt, starten zodra de console terug is.</li>
 </ul>
 <p>Deze taken lopen via dezelfde root-service als console-updates. Ze worden vastgelegd in het auditlogboek, en de uitvoer van de laatste taak wordt op de pagina getoond.</p>
 

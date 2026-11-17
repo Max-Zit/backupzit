@@ -13,14 +13,16 @@
 
 <h2>Dodawanie hosta</h2>
 <ol>
-  <li>Otwórz <a href="/agents#vmware">Agenci → Hosty VMware ESXi</a> → <i>Dodaj host ESXi</i>.</li>
+  <li>Otwórz <a href="/agents#vmware">Agenci → Hosty VMware ESXi</a> → <i>Dodaj host ESXi lub vCenter Server</i>.</li>
   <li>Wpisz adres, użytkownika, hasło i agenta proxy.</li>
   <li>Konsola łączy się raz, aby je sprawdzić. Odczytuje listę maszyn i licencję oraz <b>przypina certyfikat HTTPS i klucz hosta SSH</b>. Jeśli host zostanie później zastąpiony inną maszyną o tym samym adresie, BackupZit odmówi połączenia zamiast wysłać jej hasło. Jeśli certyfikat zmieni się z znanego powodu — host został ponownie zainstalowany, otrzymał nowy certyfikat lub został dodany do vCenter (który zastępuje certyfikaty swoich hostów) — na stronie Agenci host pokazuje nowy odcisk z przyciskiem <b>Zaakceptuj nowy certyfikat</b>. Przed akceptacją porównaj odcisk z hostem.</li>
 </ol>
-<p>Hasło jest przechowywane w postaci zaszyfrowanej, jak wszystkie inne sekrety. Lista maszyn jest odświeżana co 10 minut lub od razu przyciskiem <i>Odśwież</i>. Tabela pokazuje tryb każdego hosta:</p>
+<p>Hasło jest przechowywane w postaci zaszyfrowanej, jak wszystkie inne sekrety. Konsola sama łączy się z hostem (HTTPS 443, a przy darmowej licencji także SSH 22) przy jego dodawaniu, po kliknięciu <i>Odśwież</i> i co 10 minut, aby odświeżyć listę maszyn. <i>Usuń</i> usuwa host razem z jego zadaniami kopii; kopie pozostają w magazynie. Tabela pokazuje tryb każdego hosta:</p>
 <ul>
   <li><b>API vSphere (licencjonowany host, SSH niepotrzebne):</b> migawki, kopie dysków, przywracanie i natychmiastowe odtwarzanie odbywają się przez API.</li>
+  <li><b>vCenter Server (API vSphere):</b> vCenter z jego hostami ESXi; wszystko odbywa się przez API vCenter.</li>
   <li><b>darmowa licencja: migawki i przywracanie przez SSH:</b> API hosta jest tylko do odczytu, więc te kroki odbywają się przez SSH.</li>
+  <li><b>SSH (wybrane dla tego hosta):</b> host jest zmieniany przez SSH, choć jego API by to umożliwiało (<i>Zawsze SSH</i> przy dodawaniu hosta).</li>
 </ul>
 <p>Przy <b>Automatycznie</b> konsola wybiera sama, więc host, który później dostanie licencję, przechodzi na API bez dodatkowej konfiguracji. <b>Sposób zmian na hoście</b> w wierszu hosta (i przy dodawaniu) może wymusić <b>Zawsze SSH</b> lub <b>Zawsze API vSphere</b>; zmiana jest od razu sprawdzana. Wcześniejsze kopie i ich punkty przywracania nie zależą od sposobu.</p>
 

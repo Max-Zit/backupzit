@@ -13,14 +13,16 @@
 
 <h2>Einen Host hinzufügen</h2>
 <ol>
-  <li>Öffnen Sie <a href="/agents#vmware">Agenten → VMware-ESXi-Hosts</a> → <i>ESXi-Host hinzufügen</i>.</li>
+  <li>Öffnen Sie <a href="/agents#vmware">Agenten → VMware-ESXi-Hosts</a> → <i>ESXi-Host oder vCenter Server hinzufügen</i>.</li>
   <li>Geben Sie Adresse, Benutzer, Passwort und Proxy-Agenten ein.</li>
   <li>Die Konsole verbindet sich einmal, um sie zu prüfen. Sie liest die VM-Liste und die Lizenz und <b>pinnt das HTTPS-Zertifikat und den SSH-Hostschlüssel des Hosts</b>. Wird der Host später durch eine andere Maschine mit derselben Adresse ersetzt, verweigert BackupZit die Verbindung, statt ihr das Passwort zu senden. Ändert sich das Zertifikat aus einem bekannten Grund — der Host wurde neu installiert, hat ein neues Zertifikat erhalten oder wurde zu vCenter hinzugefügt (das die Zertifikate seiner Hosts ersetzt) —, zeigt der Host auf der Seite Agenten den neuen Fingerabdruck mit der Schaltfläche <b>Neues Zertifikat akzeptieren</b>. Vergleichen Sie den Fingerabdruck vor dem Akzeptieren mit dem Host.</li>
 </ol>
-<p>Das Passwort wird wie alle anderen Geheimnisse verschlüsselt gespeichert. Die VM-Liste wird alle 10 Minuten aktualisiert oder sofort mit <i>Aktualisieren</i>. Die Tabelle zeigt den Modus jedes Hosts:</p>
+<p>Das Passwort wird wie alle anderen Geheimnisse verschlüsselt gespeichert. Die Konsole selbst verbindet sich mit dem Host (HTTPS 443, bei der kostenlosen Lizenz auch SSH 22), wenn er hinzugefügt wird, bei <i>Aktualisieren</i> und alle 10 Minuten, um die VM-Liste zu aktualisieren. <i>Entfernen</i> löscht den Host samt seinen Sicherungsaufträgen; die Sicherungen bleiben auf dem Speicher. Die Tabelle zeigt den Modus jedes Hosts:</p>
 <ul>
   <li><b>vSphere-API (lizenzierter Host, kein SSH nötig):</b> Snapshots, Festplattenkopien, Wiederherstellungen und Instant Recovery laufen über die API.</li>
+  <li><b>vCenter Server (vSphere-API):</b> ein vCenter mit seinen ESXi-Hosts; alles läuft über die vCenter-API.</li>
   <li><b>kostenlose Lizenz: Snapshots und Wiederherstellungen über SSH:</b> Die API des Hosts ist nur lesbar, daher laufen diese Schritte über SSH.</li>
+  <li><b>SSH (für diesen Host gewählt):</b> Der Host wird über SSH geändert, obwohl seine API das könnte (<i>Immer SSH</i> beim Hinzufügen des Hosts).</li>
 </ul>
 <p>Mit <b>Automatisch</b> wählt die Konsole selbst, sodass ein Host, der später eine Lizenz erhält, ohne weitere Einrichtung zur API wechselt. <b>Wie der Host geändert wird</b> in der Zeile des Hosts (und beim Hinzufügen) kann <b>Immer SSH</b> oder <b>Immer vSphere-API</b> erzwingen; die Änderung wird sofort geprüft. Frühere Sicherungen und ihre Wiederherstellungspunkte hängen nicht von der Methode ab.</p>
 

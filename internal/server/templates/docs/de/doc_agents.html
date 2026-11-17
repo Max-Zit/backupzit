@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>Die Spalte <b>IP-Adressen</b> listet die eigenen Adressen des Rechners, wie der Agent sie zuletzt gemeldet hat. <i>gesehen von</i> ist die Adresse, von der seine Verbindungen ankommen: im lokalen Netz dieselbe Adresse, bei einem Rechner hinter NAT (z. B. einem Laptop zu Hause) die öffentliche Adresse des Routers. Die Konsole fragt dafür keinen externen Dienst.</p>
 
+<h2 id="names">Namen und Tags</h2>
+<p>Server verschiedener Kunden oder Standorte haben oft denselben Hostnamen. Klicken Sie auf der Seite <a href="/agents">Agenten</a> auf einen Agenten, um ihm einen <b>in der Konsole angezeigten Namen</b> und <b>Tags</b> zu geben — freie Bezeichnungen wie ein Kunde oder Standort, durch Kommas getrennt. Der Name wird in Job-Formularen, bei der Wiederherstellung, in der Aktivität, in Berichten und E-Mails verwendet; der vom Computer gemeldete Hostname bleibt daneben sichtbar, und die Agentenseite warnt, wenn andere Agenten denselben Hostnamen melden. Klicken Sie auf ein Tag, um nur die Agenten mit diesem Tag anzuzeigen.</p>
+<p>Das Umbenennen ändert nur die Anzeige in der Konsole: Agent, Repository und Sicherungen bleiben, wie sie sind, und der Computer kann Namen und Tags nicht ändern. Dafür ist die Berechtigung für Agenten nötig, und jede Änderung steht im Audit-Log. Tags helfen beim Finden von Agenten; sie geben oder begrenzen keinen Zugriff und fügen keine Agenten zu Jobs hinzu. Jeder, der sich an der Konsole anmelden kann, sieht alle Agenten, und die Konsole hält die Schlüssel all ihrer Sicherungen — Kunden, die strikt getrennt sein müssen, brauchen je eine eigene Konsole.</p>
+
 <h2>Der Agent auf dem Desktop (Windows)</h2>
 <p>Der Windows-Agent zeigt ein Symbol neben der Uhr (es kann unter dem Pfeil <b>^</b> der ausgeblendeten Symbole liegen — ziehen Sie es auf die Taskleiste, damit es sichtbar bleibt). Der Punkt auf dem Symbol zeigt den Zustand:</p>
 <table>

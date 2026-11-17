@@ -3,32 +3,35 @@
 <p class="lead">Ricevi un'e-mail quando un backup non riesce e un riepilogo giornaliero ogni mattina.</p>
 
 <h2>Configurare l'e-mail</h2>
-<p>In <a href="/settings/email">Impostazioni → Notifiche e-mail</a>:</p>
+<p>In <a href="/settings/email">Impostazioni → Notifiche e-mail</a>, seleziona <b>Invia notifiche e-mail</b> (senza questa opzione non viene inviata alcuna e-mail) e compila:</p>
 <table>
   <tr><th>Campo</th><th>Esempio</th></tr>
   <tr><td>Server SMTP / porta</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, relay interno / 25</td></tr>
-  <tr><td>Sicurezza</td><td><b>STARTTLS</b> (porta 587), <b>TLS</b> (porta 465) o nessuna (solo relay interno)</td></tr>
-  <tr><td>Utente / password</td><td>La casella usata per l'invio; lascia vuoto per un relay anonimo. Microsoft 365 e Gmail richiedono una password per le app.</td></tr>
-  <tr><td>Mittente</td><td><code>backup@example.com</code></td></tr>
-  <tr><td>Destinatari</td><td>Uno o più indirizzi, separati da virgole.</td></tr>
+  <tr><td>Sicurezza</td><td><b>STARTTLS</b> (porta 587), <b>TLS</b> (porta 465) o <b>Nessuna</b> (solo per un relay interno senza autenticazione: nome utente e password non vengono mai inviati in chiaro)</td></tr>
+  <tr><td>Nome utente / Password</td><td>La casella usata per l'invio; lascia vuoto per un relay senza autenticazione. Gmail richiede una password per le app; per Microsoft 365, dove l'autenticazione SMTP di base è in via di dismissione, un relay o connettore SMTP è la scelta più sicura.</td></tr>
+  <tr><td>Da</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>A</td><td>Uno o più indirizzi, separati da virgole.</td></tr>
 </table>
-<p>Usa <b>Invia e-mail di test</b> per verificare le impostazioni. E-mail, messaggi chat e report sono scritti nella lingua scelta nello stesso modulo (per impostazione predefinita la lingua della console al salvataggio).</p>
+<p>Usa <b>Invia e-mail di test</b> per verificare le impostazioni, poi fai clic su <b>Salva</b> (il test non le salva). E-mail, messaggi chat e report sono scritti nella lingua scelta nello stesso modulo (per impostazione predefinita la lingua della console al salvataggio).</p>
 
 <h2>Cosa viene inviato</h2>
 <ul>
   <li><b>Errori</b> (consigliato) — un'e-mail per ogni esecuzione non riuscita con il motivo: backup, copie, ripristini e <b>test di ripristino</b> non riusciti. Con questa opzione ricevi anche un avviso <b>SUSPICIOUS</b> quando un backup sembra ransomware o una cancellazione di massa.</li>
   <li><b>Avvisi</b> — esecuzioni in cui alcuni file non sono stati letti.</li>
   <li><b>Successi</b> — ogni esecuzione riuscita (di solito troppo; meglio il report giornaliero).</li>
-  <li><b>Report giornaliero</b> — all'ora scelta: esecuzioni delle ultime 24 ore, problemi e agenti offline. L'oggetto inizia con <i>OK</i>, <i>WARNINGS</i> o <i>ATTENTION</i>, così le regole di posta possono smistarli.</li>
+  <li><b>Report giornaliero</b> — all'ora scelta: esecuzioni delle ultime 24 ore, problemi e agenti offline. L'oggetto termina con <i>OK</i>, <i>WARNINGS</i> o <i>ATTENTION</i> (ad es. <code>[BackupZit] Daily report 2026-11-17: OK</code>), così le regole di posta possono smistarli.</li>
 </ul>
 <p>Con <b>Errori</b> attivo, viene segnalato anche un job che manca il suo obiettivo del punto di ripristino (RPO) — una volta, e di nuovo solo dopo averlo rispettato nel frattempo. Le esecuzioni fermate da un utente (stato <i>annullata</i>) non inviano e-mail di errore; un'esecuzione fermata dal limite di tempo sì.</p>
+<h3 id="mail-filters">Un’e-mail per job e filtri di posta</h3>
+<p>Attivate anche <b>Successi</b> per ricevere un’e-mail per ogni esecuzione terminata di ogni job, con il job e il computer nell’oggetto, invece del solo riepilogo giornaliero. Per un riepilogo per job, create un <a href="/docs/monitoring">report pianificato</a> per quel job. L’oggetto è scritto nella lingua delle e-mail, quindi per le regole di posta ogni e-mail di esecuzione porta anche intestazioni che non cambiano con la lingua: <code>X-BackupZit-Status</code> (<code>success</code>, <code>warning</code> o <code>failed</code>), <code>X-BackupZit-Job</code>, <code>X-BackupZit-Agent</code> (il nome mostrato nella console), <code>X-BackupZit-Host</code> (il nome host comunicato dal computer), <code>X-BackupZit-Kind</code> e <code>X-BackupZit-Run</code>. Un backup che sembra ransomware porta anche <code>X-BackupZit-Suspicious: yes</code>: non lasciate che le regole che archiviano le esecuzioni riuscite lo nascondano.</p>
 <p>Indipendentemente da queste opzioni, i destinatari delle notifiche ricevono un'e-mail anche quando:</p>
 <ul>
   <li>una modifica attende l'approvazione di un secondo utente (principio dei quattro occhi);</li>
   <li>due macchine usano la stessa registrazione dell'agente;</li>
   <li>il log di audit è stato modificato;</li>
   <li>il backup della console stessa non è riuscito;</li>
-  <li>il rinnovo del certificato HTTPS per i browser non è riuscito;</li>
+  <li>il rinnovo del certificato HTTPS per i browser non è riuscito, o un certificato caricato scade entro 21 giorni;</li>
+  <li>è disponibile una nuova versione di BackupZit (disattivabile in Impostazioni → Aggiornamenti), o un aggiornamento della console non è riuscito;</li>
   <li>un indirizzo è stato bloccato dopo troppi accessi falliti (disattivabile nella protezione da forza bruta).</li>
 </ul>
 <p>Per riepiloghi settimanali o mensili usa i <a href="/docs/monitoring">report pianificati</a>; vengono inviati con le stesse impostazioni di posta e hanno destinatari propri. Gli oggetti iniziano con <code>[BackupZit]</code>, così le regole di posta possono smistarli. La password SMTP è memorizzata cifrata. I link in e-mail, messaggi chat e report portano alla console all'indirizzo con cui la apri nel browser (o a quello impostato con <code>--public-url</code>).</p>
@@ -48,6 +51,6 @@
  "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
  "url": "https://backup.example/runs/412"}</pre>
 <p><code>duration_s</code> è la durata dell'esecuzione in secondi. Per i backup, <code>files</code> e <code>bytes</code> sono la dimensione dei dati salvati, <code>bytes_read</code> quanto è stato letto e <code>bytes_stored</code> quanto è stato caricato sullo storage; <code>snapshot</code> è l'ID del nuovo backup.</p>
-<p>I messaggi vengono inviati una volta per esecuzione, anche quando l'e-mail è disattivata. Un canale che non funziona (URL errato, servizio non disponibile) viene annotato nel log della console e non blocca gli altri. Gli URL dei webhook sono memorizzati cifrati.</p>
+<p>Un job che manca il suo obiettivo del punto di ripristino invia <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code>; i campi vuoti (come <code>suspicious</code> o il job di un'esecuzione che non ne ha) vengono omessi. Gli URL di Slack e Teams devono usare https://. I messaggi vengono inviati una volta per esecuzione, anche quando l'e-mail è disattivata. Un canale che non funziona (URL errato, servizio non disponibile) viene annotato nel log della console e non blocca gli altri. Gli URL dei webhook sono memorizzati cifrati.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

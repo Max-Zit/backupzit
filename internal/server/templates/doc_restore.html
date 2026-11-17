@@ -57,7 +57,8 @@
 <div class="callout tip"><p><b>Finding the right backup:</b> use the <a href="/calendar">Calendar</a> to see which backups ran on which day, or the job page's history.</p></div>
 
 <h2>Restore single files from a disk image</h2>
-<p>For image backups, click <b>Browse files</b> on the backup run. You can navigate the NTFS file system inside the image directly in the console, tick files and folders, and restore them to any agent — without restoring the whole disk. Restored into a folder, the files get the same layout as from a file backup: the drive letter becomes the first folder (<code>D:RestoreCUsers…</code>).</p>
+<p>For image backups, click <b>Browse files</b> on the backup run. You can navigate the NTFS file system inside the image directly in the console, tick files and folders, and restore them to any agent — without restoring the whole disk. Restored into a folder, the files get the same layout as from a file backup: the drive letter becomes the first folder (<code>D:\Restore\C\Users\…</code>).</p>
+<p><b>Download</b> the ticked files straight to your browser instead: one file comes as it is, several files or folders as a ZIP archive — handy for a single document from a large image backup. Like browsing, it works for image backups on network storage, needs the <b>Restore</b> permission, and the audit log records which paths were downloaded.</p>
 
 <h2>Restore single files from a VM (Proxmox VE, Hyper-V, VMware)</h2>
 <p>In a VM backup run click <b>Browse files</b> next to the guest. The console shows the partitions and LVM volumes of its disks and lets you browse NTFS, ext4 and XFS file systems. <b>Download</b> the ticked files (several as a ZIP archive) or restore them on any agent. See <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> and <a href="/docs/vmware">VMware ESXi</a>. Files restored on an agent keep the Unix permissions they had in the VM (ext4, XFS), so restored secrets such as <code>/etc/shadow</code> stay private; files from NTFS volumes are readable only by their owner on Linux.</p>
@@ -83,15 +84,16 @@
       <li>Optionally copy the ISO into the console's <code>/var/lib/backupzit/dist</code>; it is then offered on the Recovery media page.</li>
     </ol></li>
 </ul>
-<p>Browsing files in the console works for backups on network storage (SFTP, S3, SMB, Azure, hardened repository); the console reads them directly. For backups on a local disk of an agent use the command line.</p>
+<p>Browsing files in the console works for backups on network storage (SFTP, S3, SMB, Azure, hardened repository); the console reads them directly. For backups on a local disk of an agent, or on SFTP with an SSH key, a restore with <i>Only these paths</i> still works from the console; to look into them, use the command line.</p>
 
 <h2>Restore without the console</h2>
 <p>If the console itself is lost, any machine with the agent installed can restore directly from the storage using the <b>recovery sheet</b> of the storage target:</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (the SFTP host key, on the recovery sheet)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>See <a href="/docs/cli">Command line reference</a>.</p>
+<p><code>latest</code> is the newest backup of any job of that computer; to restore a particular job, use a snapshot ID from <code>snapshots</code>. See <a href="/docs/cli">Command line reference</a>.</p>
 
 <h2>Automatic restore tests</h2>
 <p>BackupZit proves your backups regularly without you doing anything: weekly (configurable under <a href="/settings/tests">Settings → Restore tests</a>) the agent of each job restores a <b>random sample of files</b> from the newest backup into a temporary folder, verifies every byte against the stored checksums and deletes it again. For disk images, random blocks are read and verified. This exercises the whole chain — storage access, credentials, encryption key and data integrity.</p>

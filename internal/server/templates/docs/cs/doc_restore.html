@@ -57,7 +57,8 @@
 <div class="callout tip"><p><b>Jak najít správnou zálohu:</b> v <a href="/calendar">Kalendáři</a> uvidíte, které zálohy běžely v který den, nebo použijte historii na stránce úlohy.</p></div>
 
 <h2>Obnova jednotlivých souborů z obrazu disku</h2>
-<p>U záloh obrazů klikněte v běhu zálohy na <b>Procházet soubory</b>. Souborový systém NTFS v obrazu můžete procházet přímo v konzoli, zaškrtnout soubory a složky a obnovit je na libovolného agenta — bez obnovy celého disku. Při obnově do složky mají soubory stejné uspořádání jako ze zálohy souborů: písmeno jednotky se stane první složkou (<code>D:RestoreCUsers…</code>).</p>
+<p>U záloh obrazů klikněte v běhu zálohy na <b>Procházet soubory</b>. Souborový systém NTFS v obrazu můžete procházet přímo v konzoli, zaškrtnout soubory a složky a obnovit je na libovolného agenta — bez obnovy celého disku. Při obnově do složky mají soubory stejné uspořádání jako ze zálohy souborů: písmeno jednotky se stane první složkou (<code>D:\Restore\C\Users\…</code>).</p>
+<p>Zaškrtnuté soubory můžete také <b>stáhnout</b> přímo do prohlížeče: jeden soubor přijde tak, jak je, více souborů nebo složek jako archiv ZIP — užitečné pro jeden dokument z velké zálohy obrazu. Stejně jako procházení funguje pro zálohy obrazu na síťovém úložišti, vyžaduje oprávnění <b>Obnova</b> a protokol auditu zaznamená, které cesty byly staženy.</p>
 
 <h2>Obnova jednotlivých souborů z VM (Proxmox VE, Hyper-V, VMware)</h2>
 <p>V běhu zálohy VM klikněte vedle hosta na <b>Procházet soubory</b>. Konzole zobrazí oddíly a svazky LVM jeho disků a umožní procházet souborové systémy NTFS, ext4 a XFS. Zaškrtnuté soubory <b>stáhněte</b> (více jako archiv ZIP) nebo je obnovte na libovolného agenta. Viz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> a <a href="/docs/vmware">VMware ESXi</a>. Soubory obnovené na agentovi si ponechají unixová oprávnění, která měly ve VM (ext4, XFS), takže obnovená tajemství jako <code>/etc/shadow</code> zůstanou soukromá; soubory ze svazků NTFS může v Linuxu číst jen jejich vlastník.</p>
@@ -83,15 +84,16 @@
       <li>Volitelně zkopírujte ISO do adresáře <code>/var/lib/backupzit/dist</code> konzole; pak se nabízí na stránce Obnovovací média.</li>
     </ol></li>
 </ul>
-<p>Procházení souborů v konzoli funguje pro zálohy na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečené úložiště); konzole je čte přímo. Pro zálohy na místním disku agenta použijte příkazový řádek.</p>
+<p>Procházení souborů v konzoli funguje pro zálohy na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečené úložiště); konzole je čte přímo. U záloh na místním disku agenta nebo na SFTP s klíčem SSH funguje z konzole i nadále obnova s volbou <i>Jen tyto cesty</i>; chcete-li se do nich podívat, použijte příkazový řádek.</p>
 
 <h2>Obnova bez konzole</h2>
 <p>Pokud přijdete o samotnou konzoli, každý počítač s nainstalovaným agentem může obnovovat přímo z úložiště pomocí <b>listu pro obnovu</b> daného cíle úložiště:</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (the SFTP host key, on the recovery sheet)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>Viz <a href="/docs/cli">Referenční příručka příkazového řádku</a>.</p>
+<p><code>latest</code> je nejnovější záloha kterékoli úlohy daného počítače; chcete-li obnovit konkrétní úlohu, použijte ID snímku z <code>snapshots</code>. Viz <a href="/docs/cli">Referenční příručka příkazového řádku</a>.</p>
 
 <h2>Automatické testy obnovy</h2>
 <p>BackupZit vaše zálohy pravidelně prověřuje, aniž byste museli cokoli dělat: jednou týdně (nastavitelné v <a href="/settings/tests">Nastavení → Testy obnovy</a>) agent každé úlohy obnoví <b>náhodný vzorek souborů</b> z nejnovější zálohy do dočasné složky, ověří každý bajt proti uloženým kontrolním součtům a zase jej smaže. U obrazů disků se čtou a ověřují náhodné bloky. Prověří se tak celý řetězec — přístup k úložišti, přihlašovací údaje, šifrovací klíč i integrita dat.</p>

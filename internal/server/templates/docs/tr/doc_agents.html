@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p><b>IP adresleri</b> sütunu, makinenin kendi adreslerini aracının en son bildirdiği şekilde listeler. <i>görülen adres:</i> bağlantılarının geldiği adrestir: yerel ağda aynı adres, NAT arkasındaki bir makinede (ör. evdeki bir dizüstü) yönlendiricinin genel adresi. Konsol bunun için hiçbir dış hizmete sormaz.</p>
 
+<h2 id="names">Adlar ve etiketler</h2>
+<p>Farklı müşterilerin veya konumların sunucuları çoğu zaman aynı ana bilgisayar adına sahiptir. <a href="/agents">Ajanlar</a> sayfasında bir ajana tıklayarak ona <b>konsolda gösterilen bir ad</b> ve <b>etiketler</b> verin — müşteri veya konum gibi serbest, virgülle ayrılmış etiketler. Ad iş formlarında, geri yüklemede, Etkinlik'te, raporlarda ve e-postalarda kullanılır; bilgisayarın bildirdiği ana bilgisayar adı yanında görünür kalır ve başka ajanlar aynı adı bildirdiğinde ajan sayfası uyarır. Yalnızca o etikete sahip ajanları göstermek için bir etikete tıklayın.</p>
+<p>Yeniden adlandırma yalnızca konsolun gösterdiğini değiştirir: ajan, deposu ve yedekleri olduğu gibi kalır ve bilgisayar adını veya etiketlerini değiştiremez. Bunları değiştirmek ajan izni gerektirir ve denetim günlüğüne kaydedilir. Etiketler ajanları bulmaya yardım eder; erişim vermez veya sınırlamaz ve ajanları işlere eklemez. Konsolda oturum açabilen herkes tüm ajanları görür ve konsol tüm yedeklerinin anahtarlarını tutar — kesin olarak ayrılması gereken müşterilerin her biri için ayrı bir konsol gerekir.</p>
+
 <h2>Masaüstündeki aracı (Windows)</h2>
 <p>Windows aracısı saatin yanında bir simge gösterir (gizli simgelerin <b>^</b> okunun altında olabilir — görünür kalması için görev çubuğuna sürükleyin). Simgedeki nokta durumu gösterir:</p>
 <table>

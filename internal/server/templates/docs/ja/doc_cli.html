@@ -3,7 +3,7 @@
 <p class="lead">エージェントはコマンドラインから単独でも動作します。スクリプト、コンソールなしでの復元、緊急時に使えます。概要は引数なしで <code>backupzit-agent</code> を、コマンドのオプションは <code>backupzit-agent &lt;command&gt; -h</code> を実行してください。</p>
 
 <h2>リポジトリと資格情報</h2>
-<p>すべてのコマンドは <code>--repo</code>（または <code>BACKUPZIT_REPO</code>）を受け取ります。シークレットには環境変数を使うことをお勧めします。エージェントのリポジトリは <code>&lt;ストレージの場所&gt;/&lt;hostname&gt;_&lt;id&gt;</code> です。「アクティビティ」の実行のリポジトリ列か、復旧シートを参照してください。</p>
+<p>バックアップを読み書きするコマンドはすべて <code>--repo</code>（または <code>BACKUPZIT_REPO</code>）を受け取ります。<code>list</code>、<code>status</code>、<code>enroll</code>、<code>service</code>、<code>disks</code> は受け取りません。シークレットには環境変数を使うことをお勧めします。エージェントのリポジトリは <code>&lt;ストレージの場所&gt;/&lt;hostname&gt;_&lt;id&gt;</code> です。実行ページの <b>リポジトリ</b> フィールドか、復旧シートを参照してください。</p>
 <table>
   <tr><th>場所</th><th>資格情報</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,7 +23,7 @@
   <tr><td><code>init</code></td><td>新しいリポジトリを作成します（パスワードを指定すると暗号化）。</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>ファイルとフォルダーをバックアップします。<code>--vss</code> はボリューム シャドウ コピーから読み取ります（Windows、管理者）。<code>--force</code> は変更のないファイルも含めすべて読み取ります。</td></tr>
   <tr><td><code>snapshots</code></td><td>スナップショットを時刻、ホスト、サイズ、パスとともに一覧表示します。</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>スナップショット内のファイルを一覧表示します。</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>スナップショット内のすべてのファイルを一覧表示します。</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>ファイルを DIR の下に復元します（元のフォルダー構造が再作成されます）。<code>--original</code> では代わりに元の場所に書き戻し、既存のファイルを上書きします。</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>リポジトリの構造を確認します。<code>--read-data</code> ではすべてのバイトをダウンロードして検証します。</td></tr>
 </table>
@@ -65,7 +65,7 @@
 <table>
   <tr><th>コマンド</th><th>機能</th></tr>
   <tr><td><code>hyperv list</code></td><td>ホストの VM を BackupZit 番号付きで、復元ディスク用のフォルダーとともに一覧表示します。</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>運用チェックポイントから VM（既定: すべて）をバックアップします。</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Resilient Change Tracking を使う回復チェックポイントから VM（既定: すべて）をバックアップします（回復チェックポイントのないホストでのみ運用チェックポイントを使用）。</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>VM をその場（既定）または <code>--new</code> で新しい VM として復元します。<code>--overwrite</code> は既存 VM のディスクを置き換えます。<a href="/docs/hyperv">Hyper-V</a> を参照してください。</td></tr>
 </table>
 <p><code>pve show</code>、<code>pve ls</code>、<code>pve extract</code> は Hyper-V バックアップでも使えます。</p>

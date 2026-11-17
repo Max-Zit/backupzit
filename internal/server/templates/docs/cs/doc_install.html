@@ -60,7 +60,7 @@
 <p>Když se bzadmin přihlásí na vlastní obrazovce serveru (ne přes SSH), otevře se nabídka:</p>
 <table>
   <tr><th>Položka</th><th>Co dělá</th></tr>
-  <tr><td>1 Network</td><td>DHCP nebo statická adresa s délkou prefixu (např. <code>192.168.1.20/24</code>), brána a až tři servery DNS. S DHCP dodá servery DNS server DHCP, pokud nezadáte vlastní.</td></tr>
+  <tr><td>1 Network</td><td>DHCP nebo statická adresa s délkou prefixu (např. <code>192.168.1.20/24</code>), brána a až tři servery DNS. S DHCP dodá servery DNS server DHCP; chcete-li s DHCP použít vlastní, nastavte je později v Nastavení → Síť.</td></tr>
   <tr><td>2 Server name</td><td>Název hostitele (písmena, číslice a -).</td></tr>
   <tr><td>3 SSH</td><td>Zapne nebo vypne server SSH a změní jeho port. Porty konzole (80, 443, 8443), PostgreSQL (5432) a okamžité obnovy (111, 2049) použít nelze.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Pro zapomenuté heslo webové konzole; zruší také blokování přihlášení. Obrazovka pak přestane zobrazovat vygenerované počáteční heslo (stejně tak od dalšího spuštění poté, co se heslo admina změní ve webové konzoli).</td></tr>
@@ -153,7 +153,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Ve výchozím stavu konzole stahuje aktualizace z oficiálních vydání BackupZit na GitHubu (<code>https://github.com/Max-Zit/backupzit/releases</code>). V <a href="/settings/updates">Nastavení → Aktualizace</a> můžete místo toho zadat jiný <b>zdroj aktualizací</b> — vlastní zrcadlo HTTPS nebo složku na serveru. Ať je zdroj jakýkoli, každé vydání musí mít platný podpis BackupZit. Konzole denně kontroluje nová vydání a pošle správcům e-mail, když je některé k dispozici. Pro instalaci klikněte na <b>Instalovat</b>:</p>
 <p><b>Kandidáti na vydání:</b> každá verze se nejprve zveřejní jako <i>předběžné vydání</i> a otestuje; teprve potom se stane oficiálním vydáním se stejnými soubory. Zdroj aktualizací <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> obsahuje vždy nejnovějšího kandidáta — používejte jej jen na testovací konzoli, protože kandidáta může ještě nahradit opravený. Konzole s výchozím zdrojem dostávají jen schválená vydání.</p>
 <ol>
-  <li>Konzole ověří podpis vydání a kontrolní součet balíčku a počká, až neběží žádná záloha ani obnova.</li>
+  <li>Konzole ověří podpis vydání a kontrolní součet balíčku a odmítne aktualizaci spustit, dokud běží záloha nebo obnova; nainstalujte ji, až skončí.</li>
   <li>Systémová služba (<code>backupzit-update</code>, běží jako root) ověří podpis znovu pomocí klíčů vydání zabudovaných v BackupZit. Ani kompromitovaná konzole tak nemůže nechat nainstalovat jiný balíček.</li>
   <li>Zazálohuje databázi (<code>pg_dump</code>), ponechá si aktuální program, nainstaluje balíček a restartuje konzoli.</li>
   <li>Pokud nová verze do dvou minut neodpoví, předchozí program a databáze v původním stavu se automaticky obnoví. Výsledek s protokolem neúspěšného spuštění se zobrazí na stránce Aktualizace, zapíše se do protokolu auditu a odešle e-mailem.</li>
@@ -168,7 +168,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Zapnout automatické bezpečnostní aktualizace</b> (doporučeno). Nástroj samotného systému denně instaluje jen bezpečnostní opravy: <code>unattended-upgrades</code> v Debianu a Ubuntu, <code>dnf-automatic</code> v AlmaLinuxu a Rocky Linuxu.</li>
   <li><b>Nainstalovat nyní všechny aktualizace</b>. Služby jako PostgreSQL se mohou krátce restartovat a konzole se znovu připojí sama.</li>
-  <li><b>Restartovat server</b>, například po aktualizaci jádra. Konzole to odmítne, dokud běží zálohy nebo obnovy. Agenti si ponechají své úlohy a výsledky nahlásí, až bude konzole zpět.</li>
+  <li><b>Restartovat server</b>, například po aktualizaci jádra. Konzole to odmítne, dokud běží zálohy nebo obnovy. Zálohy, jejichž plánovaný čas uplyne během restartu, se spustí, až bude konzole zpět.</li>
 </ul>
 <p>Tyto úlohy běží přes stejnou službu root jako aktualizace konzole. Zaznamenávají se do protokolu auditu a výstup poslední úlohy se zobrazí na stránce.</p>
 

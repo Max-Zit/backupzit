@@ -3,7 +3,7 @@
 <p class="lead">De agent werkt ook zelfstandig vanaf de opdrachtregel: voor scripts, voor herstel zonder de console en voor noodgevallen. Voer <code>backupzit-agent</code> zonder argumenten uit voor een overzicht en <code>backupzit-agent &lt;command&gt; -h</code> voor de opties van een opdracht.</p>
 
 <h2>Repository en referenties</h2>
-<p>Elke opdracht accepteert <code>--repo</code> (of <code>BACKUPZIT_REPO</code>). Gebruik voor geheimen bij voorkeur omgevingsvariabelen. De repository van een agent is <code>&lt;opslaglocatie&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — zie de repositorykolom van een uitvoering in Activiteit, of het herstelblad.</p>
+<p>Elke opdracht die back-ups leest of schrijft, accepteert <code>--repo</code> (of <code>BACKUPZIT_REPO</code>); <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> en <code>disks</code> niet. Gebruik voor geheimen bij voorkeur omgevingsvariabelen. De repository van een agent is <code>&lt;opslaglocatie&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — zie het veld <b>Repository</b> op de pagina van de uitvoering, of het herstelblad.</p>
 <table>
   <tr><th>Locatie</th><th>Referenties</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,7 +23,7 @@
   <tr><td><code>init</code></td><td>Maakt een nieuwe repository (versleuteld als een wachtwoord is opgegeven).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Maakt een back-up van bestanden en mappen. <code>--vss</code> leest uit een volumeschaduwkopie (Windows, beheerder); <code>--force</code> leest alle bestanden, ook ongewijzigde.</td></tr>
   <tr><td><code>snapshots</code></td><td>Toont snapshots met tijd, host, grootte en paden.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Toont de bestanden in een snapshot.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Toont alle bestanden in een snapshot.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Herstelt bestanden onder DIR (de oorspronkelijke mapstructuur wordt nagebouwd). <code>--original</code> schrijft ze in plaats daarvan terug naar hun oorspronkelijke locatie en overschrijft bestaande bestanden.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Controleert de structuur van de repository; met <code>--read-data</code> wordt elke byte gedownload en gecontroleerd.</td></tr>
 </table>
@@ -65,7 +65,7 @@
 <table>
   <tr><th>Opdracht</th><th>Wat het doet</th></tr>
   <tr><td><code>hyperv list</code></td><td>Toont de VM's van de host met hun BackupZit-nummers, en de mappen voor herstelde schijven.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Maakt een back-up van VM's (standaard: alle) vanuit productiecontrolepunten.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Maakt een back-up van VM's (standaard: alle) vanuit herstelcontrolepunten met Resilient Change Tracking (productiecontrolepunten alleen op hosts zonder herstelcontrolepunten).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Herstelt een VM ter plaatse (standaard) of als nieuwe VM met <code>--new</code>. <code>--overwrite</code> vervangt de schijven van een bestaande VM. Zie <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> en <code>pve extract</code> werken ook met Hyper-V-back-ups.</p>

@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Linux-systeemback-up en P2V</h1>
 <p class="lead">Een taak <b>Linux-systeem</b> maakt een back-up van een complete Linux-machine, zodat die op een lege schijf opnieuw kan worden opgebouwd — dezelfde machine na een schijfdefect, nieuwe hardware of een virtuele machine in Proxmox VE (fysiek naar virtueel, P2V).</p>
+<p>Getest met Debian, Ubuntu 22.04 en Rocky Linux 9 (hetzelfde geldt voor AlmaLinux en RHEL 9). Op Ubuntu 22.04 en RHEL-achtige 9-systemen hebben Linux-systeemback-ups agent 0.50.0 of nieuwer nodig.</p>
 
 <h2>Wat wordt geback-upt</h2>
 <ul>
@@ -10,12 +11,12 @@
 <p>Net als Relax-and-Recover kopieert BackupZit de draaiende schijf niet blok voor blok: Linux heeft geen ingebouwde snapshot van een draaiende schijf, dus een ruwe kopie zou inconsistent zijn. Elk bestand wordt volledig gelezen, en de indeling maakt de herstelde schijf weer opstartbaar. Databases moeten vóór de back-up worden gedumpt of met hun eigen tools worden geback-upt.</p>
 <p>Losse bestanden en mappen herstelt u uit een systeemback-up zoals uit elke bestandsback-up (<b>Bestanden uit deze back-up herstellen</b> op de runpagina).</p>
 <h3>Nog niet ondersteund</h3>
-<p>Versleutelde schijven (LUKS), software-RAID (mdadm), btrfs en systemen verspreid over meerdere schijven. De taak meldt dit duidelijk in plaats van een onvolledige back-up te maken.</p>
+<p>Versleutelde schijven (LUKS), software-RAID (mdadm) en btrfs: de taak meldt dit duidelijk in plaats van een onvolledige back-up te maken. Systemen verspreid over meerdere schijven worden geback-upt, maar het herstel van het hele systeem bouwt één schijf opnieuw op (op de opdrachtregel kiest u die met <code>--disk</code>); MBR-schijven met logische partities kunnen niet als geheel worden hersteld. Het veld <b>Uitsluiten</b> van de taak laat paden weg, zoals <code>--exclude</code> op de opdrachtregel.</p>
 
 <h2>Het hele systeem herstellen</h2>
 <p>Open de run van de systeemback-up (taakpagina of <a href="/runs">Activiteit</a>) en gebruik <b>Het hele systeem herstellen</b>:</p>
 <h3>Als nieuwe Proxmox-VM</h3>
-<p>Kies de Proxmox-node (zijn BackupZit-agent doet het werk), opslag, VM-ID, naam, geheugen en cores. BackupZit maakt de VM met dezelfde firmware als het origineel (UEFI/OVMF of BIOS), een VirtIO SCSI-schijf en netwerkkaart, bouwt de schijf opnieuw op, herstelt alle bestanden en kan de VM starten. Omdat de VM een kopie is die naast het origineel kan draaien:</p>
+<p>Kies de Proxmox-node (zijn BackupZit-agent doet het werk), opslag, VM-ID, naam, geheugen (standaard 2048 MiB), cores (standaard 2) en netwerkbridge (standaard <code>vmbr0</code>). BackupZit maakt de VM met dezelfde firmware als het origineel (UEFI/OVMF of BIOS), een VirtIO SCSI-schijf en netwerkkaart, bouwt de schijf opnieuw op, herstelt alle bestanden en kan de VM starten. Omdat de VM een kopie is die naast het origineel kan draaien:</p>
 <ul>
   <li>worden netwerkinstellingen die aan de oude MAC-adressen gebonden zijn (gebruikelijk in cloud-images: netplan <code>match: macaddress</code>) aangepast zodat ze voor elke bekabelde interface gelden,</li>
   <li>wordt de BackupZit-agent in de kopie afgemeld, zodat hij zich niet als de originele machine meldt.</li>

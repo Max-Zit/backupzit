@@ -60,7 +60,7 @@
 <p>Quando o bzadmin faz login na própria tela do servidor (não por SSH), abre-se um menu:</p>
 <table>
   <tr><th>Item</th><th>O que faz</th></tr>
-  <tr><td>1 Network</td><td>DHCP ou um endereço estático com comprimento de prefixo (p. ex. <code>192.168.1.20/24</code>), gateway e até três servidores DNS. Com DHCP, os servidores DNS vêm do servidor DHCP, a menos que você informe os seus.</td></tr>
+  <tr><td>1 Network</td><td>DHCP ou um endereço estático com comprimento de prefixo (p. ex. <code>192.168.1.20/24</code>), gateway e até três servidores DNS. Com DHCP, os servidores DNS vêm do servidor DHCP; para usar os seus com DHCP, defina-os depois em Configurações → Rede.</td></tr>
   <tr><td>2 Server name</td><td>O nome do host (letras, dígitos e -).</td></tr>
   <tr><td>3 SSH</td><td>Liga ou desliga o servidor SSH e altera a sua porta. As portas da console (80, 443, 8443), do PostgreSQL (5432) e da recuperação instantânea (111, 2049) não podem ser usadas.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Para uma senha esquecida da console web; também remove bloqueios de login. Depois a tela deixa de mostrar a senha inicial gerada (o mesmo acontece a partir do arranque seguinte, depois de a senha de admin ser alterada na console web).</td></tr>
@@ -153,7 +153,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Por padrão a console obtém as atualizações das versões oficiais do BackupZit no GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Em <a href="/settings/updates">Configurações → Atualizações</a> pode indicar outra <b>origem de atualizações</b> — o seu próprio espelho HTTPS ou uma pasta no servidor. Seja qual for a origem, cada versão tem de ter uma assinatura válida do BackupZit. A console verifica diariamente se há novas versões e envia um e-mail aos administradores quando há uma disponível. Para instalá-la, clique em <b>Instalar</b>:</p>
 <p><b>Versões candidatas:</b> cada versão é publicada primeiro como <i>pré-lançamento</i> e testada; só depois se torna a versão oficial, com os mesmos arquivos. A fonte de atualizações <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> contém sempre a candidata mais recente — use-a apenas num console de teste, pois uma candidata ainda pode ser substituída por uma corrigida. Consoles com a fonte padrão recebem apenas versões aprovadas.</p>
 <ol>
-  <li>A console verifica a assinatura da versão e a soma de verificação do pacote, e espera até não haver nenhum backup ou restauração em curso.</li>
+  <li>A console verifica a assinatura da versão e a soma de verificação do pacote, e se recusa a iniciar a atualização enquanto houver um backup ou uma restauração em curso; instale-a quando eles tiverem terminado.</li>
   <li>Um serviço do sistema (<code>backupzit-update</code>, executado como root) volta a verificar a assinatura com as chaves de publicação incorporadas no BackupZit. Nem mesmo uma console comprometida consegue fazer instalar outro pacote.</li>
   <li>Faz backup do banco de dados (<code>pg_dump</code>), mantém o programa atual, instala o pacote e reinicia a console.</li>
   <li>Se a nova versão não responder em dois minutos, o programa anterior e o banco de dados como estava são restaurados automaticamente. O resultado, com o log do arranque falhado, aparece na página Atualizações, fica no log de auditoria e é enviado por e-mail.</li>
@@ -168,7 +168,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Ativar as atualizações de segurança automáticas</b> (recomendado). A ferramenta do próprio sistema instala diariamente só correções de segurança: <code>unattended-upgrades</code> no Debian e Ubuntu, <code>dnf-automatic</code> no AlmaLinux e Rocky Linux.</li>
   <li><b>Instalar agora todas as atualizações</b>. Serviços como o PostgreSQL podem reiniciar brevemente, e a console reconecta-se sozinha.</li>
-  <li><b>Reiniciar servidor</b>, por exemplo após uma atualização do kernel. A console recusa enquanto houver backups ou restaurações em curso. Os agentes mantêm as suas tarefas e reportam os resultados quando a console voltar.</li>
+  <li><b>Reiniciar servidor</b>, por exemplo após uma atualização do kernel. A console recusa enquanto houver backups ou restaurações em curso. Os backups cujo horário agendado passar durante a reinicialização começam assim que a console voltar.</li>
 </ul>
 <p>Estas tarefas passam pelo mesmo serviço root que as atualizações da console. Ficam registradas no log de auditoria, e a saída da última tarefa aparece na página.</p>
 

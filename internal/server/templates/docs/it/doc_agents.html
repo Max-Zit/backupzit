@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>La colonna <b>Indirizzi IP</b> elenca gli indirizzi propri della macchina come l'agente li ha comunicati l'ultima volta. <i>visto da</i> è l'indirizzo da cui arrivano le sue connessioni: in una rete locale lo stesso indirizzo, per una macchina dietro NAT (ad es. un portatile a casa) l'indirizzo pubblico del router. La console non interroga alcun servizio esterno per questo.</p>
 
+<h2 id="names">Nomi e tag</h2>
+<p>I server di clienti o sedi diversi hanno spesso lo stesso nome host. Fate clic su un agente nella pagina <a href="/agents">Agenti</a> per dargli un <b>nome mostrato nella console</b> e dei <b>tag</b>, etichette libere come un cliente o una sede, separate da virgole. Il nome è usato nei moduli dei job, nel ripristino, nell’attività, nei report e nelle e-mail; il nome host comunicato dal computer resta visibile accanto, e la pagina dell’agente avvisa quando altri agenti comunicano lo stesso nome host. Fate clic su un tag per mostrare solo gli agenti che lo hanno.</p>
+<p>Rinominare cambia solo ciò che mostra la console: l’agente, il suo repository e i suoi backup restano invariati e il computer non può cambiare il proprio nome né i tag. Modificarli richiede l’autorizzazione sugli agenti ed è registrato nel registro di audit. I tag aiutano a trovare gli agenti; non concedono né limitano accessi e non aggiungono agenti ai job. Chiunque possa accedere alla console vede tutti gli agenti, e la console custodisce le chiavi di tutti i loro backup: i clienti che devono essere separati rigorosamente hanno bisogno di una console ciascuno.</p>
+
 <h2>L'agente sul desktop (Windows)</h2>
 <p>L'agente Windows mostra un'icona accanto all'orologio (può trovarsi sotto la freccia <b>^</b> delle icone nascoste: trascinatela sulla barra delle applicazioni perché resti visibile). Il punto sull'icona indica lo stato:</p>
 <table>

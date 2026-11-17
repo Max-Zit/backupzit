@@ -60,7 +60,7 @@
 <p>Kada se bzadmin prijavi na samom ekranu servera (ne preko SSH-a), otvara se meni (na engleskom):</p>
 <table>
   <tr><th>Stavka</th><th>Šta radi</th></tr>
-  <tr><td>1 Network</td><td>DHCP ili statička adresa sa dužinom prefiksa (npr. <code>192.168.1.20/24</code>), gateway i do tri DNS servera. Uz DHCP DNS servere daje DHCP server, osim ako unesete svoje.</td></tr>
+  <tr><td>1 Network</td><td>DHCP ili statička adresa sa dužinom prefiksa (npr. <code>192.168.1.20/24</code>), gateway i do tri DNS servera. Uz DHCP DNS servere daje DHCP server; da biste uz DHCP koristili svoje, podesite ih kasnije u Podešavanja → Mreža.</td></tr>
   <tr><td>2 Server name</td><td>Ime hosta (slova, cifre i -).</td></tr>
   <tr><td>3 SSH</td><td>Uključivanje ili isključivanje SSH servera i promena njegovog porta. Portovi konzole (80, 443, 8443), PostgreSQL-a (5432) i instant recovery-ja (111, 2049) ne mogu da se koriste.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Za zaboravljenu lozinku web konzole; usput skida i blokade prijave. Ekran zatim više ne prikazuje generisanu početnu lozinku (to važi i kada se lozinka korisnika admin promeni u web konzoli, od sledećeg pokretanja).</td></tr>
@@ -153,7 +153,7 @@ backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
 <p>Podrazumevano konzola uzima ažuriranja iz zvaničnih BackupZit izdanja na GitHub-u (<code>https://github.com/Max-Zit/backupzit/releases</code>). U <a href="/settings/updates">Podešavanja → Ažuriranja</a> možete umesto toga uneti drugi <b>izvor ažuriranja</b> — svoj HTTPS mirror ili folder na serveru. Bez obzira na izvor, svako izdanje mora da ima ispravan BackupZit potpis. Konzola svakog dana proverava ima li novih izdanja i šalje email administratorima kada se pojavi novo. Za instalaciju kliknite <b>Instaliraj</b>:</p>
 <p><b>Kandidati za izdanje:</b> svaka verzija se prvo objavljuje kao <i>pre-release</i> i testira; tek onda postaje zvanično izdanje, sa istim fajlovima. Izvor ažuriranja <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> uvek sadrži najnovijeg kandidata — koristite ga samo na test konzoli, jer kandidata još može da zameni ispravljeni. Konzole sa podrazumevanim izvorom dobijaju samo odobrena izdanja.</p>
 <ol>
-  <li>Konzola proverava potpis izdanja i kontrolni zbir paketa, i čeka da se ne izvršava nijedan bekap ni vraćanje.</li>
+  <li>Konzola proverava potpis izdanja i kontrolni zbir paketa, i odbija da pokrene ažuriranje dok se izvršava bekap ili vraćanje; instalirajte ga kada se završe.</li>
   <li>Sistemski servis (<code>backupzit-update</code>, radi kao root) ponovo proverava potpis ključevima za izdanja ugrađenim u BackupZit. Ni kompromitovana konzola ne može da instalira neki drugi paket.</li>
   <li>Pravi bekap baze (<code>pg_dump</code>), čuva trenutni program, instalira paket i restartuje konzolu.</li>
   <li>Ako nova verzija ne odgovori za dva minuta, prethodni program i baza kakva je bila automatski se vraćaju. Rezultat, sa logom neuspelog pokretanja, prikazuje se na stranici Ažuriranja, upisuje u audit log i šalje emailom.</li>
@@ -168,7 +168,7 @@ backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
 <ul>
   <li><b>Uključi automatska bezbednosna ažuriranja</b> (preporučeno). Sopstveni alat sistema svakog dana instalira samo bezbednosne ispravke: <code>unattended-upgrades</code> na Debianu i Ubuntuu, <code>dnf-automatic</code> na AlmaLinuxu i Rocky Linuxu.</li>
   <li><b>Instaliraj sva ažuriranja sada</b>. Servisi kao PostgreSQL mogu kratko da se restartuju, a konzola se sama ponovo povezuje.</li>
-  <li><b>Restartuj server</b>, na primer posle ažuriranja kernela. Konzola to odbija dok se izvršavaju bekapi ili vraćanja. Agenti zadržavaju svoje poslove i javljaju rezultate kada se konzola vrati.</li>
+  <li><b>Restartuj server</b>, na primer posle ažuriranja kernela. Konzola to odbija dok se izvršavaju bekapi ili vraćanja. Bekapi čije zakazano vreme prođe tokom restarta pokreću se kada se konzola vrati.</li>
 </ul>
 <p>Ovi zadaci rade preko istog root servisa kao ažuriranja konzole. Upisuju se u audit log, a izlaz poslednjeg zadatka se prikazuje na stranici.</p>
 

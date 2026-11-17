@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Linux-Systemsicherung &amp; P2V</h1>
 <p class="lead">Ein Auftrag <b>Linux-System</b> sichert eine ganze Linux-Maschine, damit sie auf einer leeren Festplatte neu erstellt werden kann — dieselbe Maschine nach einem Festplattenausfall, neue Hardware oder eine virtuelle Maschine in Proxmox VE (physisch zu virtuell, P2V).</p>
+<p>Getestet mit Debian, Ubuntu 22.04 und Rocky Linux 9 (dasselbe gilt für AlmaLinux und RHEL 9). Auf Ubuntu 22.04 und RHEL-ähnlichen 9er-Systemen brauchen Linux-Systemsicherungen den Agenten 0.50.0 oder neuer.</p>
 
 <h2>Was gesichert wird</h2>
 <ul>
@@ -10,12 +11,12 @@
 <p>Wie Relax-and-Recover kopiert BackupZit die laufende Festplatte nicht blockweise: Linux hat keinen eingebauten Snapshot einer laufenden Festplatte, eine Rohkopie wäre also inkonsistent. Jede Datei wird vollständig gelesen, und das Layout macht die wiederhergestellte Festplatte wieder bootfähig. Datenbanken sollten vor der Sicherung gedumpt oder mit eigenen Werkzeugen gesichert werden.</p>
 <p>Einzelne Dateien und Ordner werden aus einer Systemsicherung wie aus jeder Dateisicherung wiederhergestellt (<b>Dateien aus dieser Sicherung wiederherstellen</b> auf der Laufseite).</p>
 <h3>Noch nicht unterstützt</h3>
-<p>Verschlüsselte Festplatten (LUKS), Software-RAID (mdadm), btrfs und Systeme, die über mehrere Festplatten verteilt sind. Der Auftrag meldet diese klar, statt eine unvollständige Sicherung zu erstellen.</p>
+<p>Verschlüsselte Festplatten (LUKS), Software-RAID (mdadm) und btrfs: Der Auftrag meldet diese klar, statt eine unvollständige Sicherung zu erstellen. Systeme, die über mehrere Festplatten verteilt sind, werden gesichert, aber die Wiederherstellung des ganzen Systems erstellt eine einzige Festplatte neu (in der Befehlszeile wird sie mit <code>--disk</code> gewählt); MBR-Festplatten mit logischen Partitionen lassen sich nicht als Ganzes wiederherstellen. Das Feld <b>Ausschließen</b> des Auftrags lässt Pfade aus, wie <code>--exclude</code> in der Befehlszeile.</p>
 
 <h2>Das ganze System wiederherstellen</h2>
 <p>Öffnen Sie den Lauf der Systemsicherung (Auftragsseite oder <a href="/runs">Aktivität</a>) und verwenden Sie <b>Gesamtes System wiederherstellen</b>:</p>
 <h3>Als neue Proxmox-VM</h3>
-<p>Wählen Sie den Proxmox-Knoten (sein BackupZit-Agent erledigt die Arbeit), Speicher, VM-ID, Name, Arbeitsspeicher und Kerne. BackupZit erstellt die VM mit derselben Firmware wie das Original (UEFI/OVMF oder BIOS), einer VirtIO-SCSI-Festplatte und Netzwerkkarte, erstellt die Festplatte neu, stellt alle Dateien wieder her und kann die VM starten. Da die VM eine Kopie ist, die neben dem Original laufen kann:</p>
+<p>Wählen Sie den Proxmox-Knoten (sein BackupZit-Agent erledigt die Arbeit), Speicher, VM-ID, Name, Arbeitsspeicher (Standard 2048 MiB), Kerne (Standard 2) und Netzwerkbrücke (Standard <code>vmbr0</code>). BackupZit erstellt die VM mit derselben Firmware wie das Original (UEFI/OVMF oder BIOS), einer VirtIO-SCSI-Festplatte und Netzwerkkarte, erstellt die Festplatte neu, stellt alle Dateien wieder her und kann die VM starten. Da die VM eine Kopie ist, die neben dem Original laufen kann:</p>
 <ul>
   <li>werden Netzwerkeinstellungen, die an die alten MAC-Adressen gebunden sind (üblich in Cloud-Images: netplan <code>match: macaddress</code>), so geändert, dass sie für jede kabelgebundene Schnittstelle gelten,</li>
   <li>wird der BackupZit-Agent in der Kopie abgemeldet, damit er sich nicht als die Originalmaschine meldet.</li>

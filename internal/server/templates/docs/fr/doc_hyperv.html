@@ -29,7 +29,7 @@
   <li>Le point de contrôle est supprimé et Hyper-V le fusionne en arrière-plan.</li>
   <li>La configuration de la VM est stockée avec la sauvegarde : génération, processeur, mémoire, cartes réseau (commutateur, VLAN, adresse MAC), contrôleurs de disque, démarrage sécurisé et TPM.</li>
 </ol>
-<p>Les VM éteintes sont lues directement, sans point de contrôle. Sur les hôtes antérieurs à Windows Server 2016 (sans points de contrôle de récupération), un point de contrôle de production est utilisé et chaque sauvegarde lit les disques entiers.</p>
+<p>Les VM éteintes sont lues directement, sans point de contrôle. Sur les hôtes sans points de contrôle de récupération, un point de contrôle ordinaire est pris (de production si possible, sinon en cohérence de crash) et chaque sauvegarde lit les disques entiers.</p>
 <p id="checkpoint-concurrency">Sur chaque hôte, les sauvegardes simultanées d’une même VM attendent leur tour, depuis le service comme en ligne de commande. Une sauvegarde ne supprime que son propre point de contrôle temporaire. L’agent supprime un point de contrôle resté en place dès que sa sauvegarde s’est terminée sur un autre nœud (après une migration dynamique), ou lorsqu’il a plus de 48 heures (sauvegarde interrompue par un crash ou une coupure de courant). Tous les processus de sauvegarde simultanés doivent utiliser les binaires mis à jour.</p>
 <p id="appconsistent"><b>Uniquement cohérent avec les applications.</b> Pour Active Directory, SQL Server, Exchange et d'autres bases de données, cochez <i>Exiger des points de contrôle cohérents avec les applications</i> dans la tâche (aussi dans une tâche pour un cluster). Une VM en cours d'exécution n'est alors sauvegardée qu'à partir d'un point de contrôle que l'invité a préparé avec VSS ; en cas d'échec, la VM n'est pas sauvegardée et l'exécution échoue (avec une notification) au lieu de prendre un point de contrôle cohérent en cas d'arrêt brutal. Les autres VM de la tâche sont tout de même sauvegardées et peuvent être restaurées depuis cette exécution. Vérifiez le service d'intégration <i>Backup (volume shadow copy)</i> dans les paramètres de la VM et VSS dans l'invité (<code>vssadmin list writers</code>). Nécessite des agents 0.48.0 ou plus récents ; avec des agents plus anciens, l'exécution échoue en demandant de les mettre à jour.</p>
 <p id="vtpm"><b>vTPM et BitLocker.</b> Pour les VM de génération 2 avec un TPM virtuel, la sauvegarde conserve aussi le vTPM (le fichier d'état de l'invité et son protecteur de clé). Restaurée comme nouvelle VM sur le même hôte, ou sur un hôte disposant du certificat gardien de l'hôte d'origine, la VM retrouve son vTPM et BitLocker ne demande pas la clé de récupération. Sur d'autres hôtes, la VM reçoit un vTPM neuf et vide, et la restauration le signale ; pour l'éviter, importez d'abord le certificat <i>UntrustedGuardian</i> de l'hôte d'origine. Une restauration par-dessus la VM existante conserve son vTPM. Les VM protégées (Host Guardian Service) ne sont pas prises en charge. Conservez malgré tout les clés de récupération BitLocker.</p>
@@ -60,7 +60,7 @@
 
 <h3>Options</h3>
 <ul>
-  <li><b>Dossier des disques virtuels</b> : le dossier par défaut de l'hôte ou tout dossier contenant des disques de VM. Une restauration sur place met les nouveaux disques à côté des originaux.</li>
+  <li><b>Dossier des disques virtuels</b> : le dossier par défaut de l'hôte ou tout dossier contenant des disques de VM. Une restauration sur place met les nouveaux disques dans un nouveau sous-dossier <code>backupzit-restore-…</code> et laisse les anciens là où ils étaient.</li>
   <li><b>Démarrer la VM après la restauration</b>.</li>
 </ul>
 
@@ -85,7 +85,7 @@
 <ol>
   <li>Ouvrez <a href="/jobs">Backup jobs</a> et le formulaire <i>New backup job</i>.</li>
   <li>Ouvrez la liste <b>Agent</b> et allez à sa fin : sous <i>Hyper-V failover clusters (virtual machines)</i>, choisissez le cluster, par ex. <i>HVC01 — 2 nodes</i>. Choisissez le cluster, pas un seul nœud.</li>
-  <li>Le type est réglé sur <i>Virtual machines</i>. Choisissez <i>All clustered VMs</i> (y compris les VM ajoutées plus tard au cluster) ou <i>Only these</i> ; chaque VM indique le nœud sur lequel elle tourne.</li>
+  <li>Le type est réglé sur <i>Virtual machines</i>. Choisissez <i>All clustered VMs</i> (y compris les VM ajoutées plus tard au cluster), <i>All clustered VMs except the ticked ones</i> ou <i>Only these</i> ; chaque VM indique le nœud sur lequel elle tourne.</li>
   <li>Choisissez le stockage, la planification et le nombre de sauvegardes à conserver, puis cliquez sur <i>Create job</i>.</li>
 </ol>
 <p>La page de la tâche montre chaque nœud avec son dernier résultat ; <i>Run backup now on all agents</i> les lance tous. Un nœud qui n'exécute à ce moment aucune VM de la tâche indique <i>None of the job's VMs runs on this node now</i>, ce qui est une réussite.</p>

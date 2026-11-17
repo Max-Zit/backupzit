@@ -60,7 +60,7 @@
 <p>Gdy bzadmin zaloguje się na własnym ekranie serwera (nie przez SSH), otwiera się menu:</p>
 <table>
   <tr><th>Pozycja</th><th>Co robi</th></tr>
-  <tr><td>1 Network</td><td>DHCP lub adres statyczny z długością prefiksu (np. <code>192.168.1.20/24</code>), brama i do trzech serwerów DNS. Przy DHCP serwery DNS pochodzą z serwera DHCP, chyba że wpiszesz własne.</td></tr>
+  <tr><td>1 Network</td><td>DHCP lub adres statyczny z długością prefiksu (np. <code>192.168.1.20/24</code>), brama i do trzech serwerów DNS. Przy DHCP serwery DNS pochodzą z serwera DHCP; aby przy DHCP używać własnych, ustaw je później w Ustawienia → Sieć.</td></tr>
   <tr><td>2 Server name</td><td>Nazwa hosta (litery, cyfry i -).</td></tr>
   <tr><td>3 SSH</td><td>Włącza lub wyłącza serwer SSH i zmienia jego port. Nie można użyć portów konsoli (80, 443, 8443), PostgreSQL (5432) ani natychmiastowego odzyskiwania (111, 2049).</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Dla zapomnianego hasła konsoli WWW; znosi też blokady logowania. Potem ekran przestaje pokazywać wygenerowane hasło początkowe (tak samo od następnego uruchomienia, gdy hasło admina zostanie zmienione w konsoli WWW).</td></tr>
@@ -153,7 +153,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Domyślnie konsola pobiera aktualizacje z oficjalnych wydań BackupZit na GitHubie (<code>https://github.com/Max-Zit/backupzit/releases</code>). W <a href="/settings/updates">Ustawienia → Aktualizacje</a> możesz zamiast tego podać inne <b>źródło aktualizacji</b> — własny serwer lustrzany HTTPS lub folder na serwerze. Niezależnie od źródła każde wydanie musi mieć ważny podpis BackupZit. Konsola codziennie sprawdza nowe wydania i wysyła e-mail do administratorów, gdy jakieś jest dostępne. Aby je zainstalować, kliknij <b>Zainstaluj</b>:</p>
 <p><b>Wersje kandydujące:</b> każda wersja jest najpierw publikowana jako <i>pre-release</i> i testowana; dopiero potem staje się oficjalnym wydaniem, z tymi samymi plikami. Źródło aktualizacji <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> zawiera zawsze najnowszego kandydata — używaj go tylko na konsoli testowej, bo kandydata może jeszcze zastąpić poprawiony. Konsole z domyślnym źródłem otrzymują tylko zatwierdzone wydania.</p>
 <ol>
-  <li>Konsola sprawdza podpis wydania i sumę kontrolną pakietu oraz czeka, aż nie będzie trwała żadna kopia ani przywracanie.</li>
+  <li>Konsola sprawdza podpis wydania i sumę kontrolną pakietu oraz odmawia rozpoczęcia aktualizacji, gdy trwa kopia lub przywracanie; zainstaluj ją, gdy się zakończą.</li>
   <li>Usługa systemowa (<code>backupzit-update</code>, działająca jako root) ponownie sprawdza podpis kluczami wydań wbudowanymi w BackupZit. Nawet przejęta konsola nie może zlecić instalacji innego pakietu.</li>
   <li>Tworzy kopię bazy danych (<code>pg_dump</code>), zachowuje bieżący program, instaluje pakiet i ponownie uruchamia konsolę.</li>
   <li>Jeśli nowa wersja nie odpowie w ciągu dwóch minut, poprzedni program i baza danych w poprzednim stanie są automatycznie przywracane. Wynik z dziennikiem nieudanego uruchomienia jest pokazywany na stronie Aktualizacje, zapisywany w dzienniku audytu i wysyłany e-mailem.</li>
@@ -168,7 +168,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Włącz automatyczne aktualizacje zabezpieczeń</b> (zalecane). Narzędzie systemu codziennie instaluje tylko poprawki zabezpieczeń: <code>unattended-upgrades</code> w Debianie i Ubuntu, <code>dnf-automatic</code> w AlmaLinux i Rocky Linux.</li>
   <li><b>Zainstaluj teraz wszystkie aktualizacje</b>. Usługi takie jak PostgreSQL mogą na chwilę się zrestartować, a konsola sama ponownie się połączy.</li>
-  <li><b>Uruchom ponownie serwer</b>, na przykład po aktualizacji jądra. Konsola odmawia, gdy trwają kopie lub przywracania. Agenci zachowują swoje zadania i zgłaszają wyniki, gdy konsola wróci.</li>
+  <li><b>Uruchom ponownie serwer</b>, na przykład po aktualizacji jądra. Konsola odmawia, gdy trwają kopie lub przywracania. Kopie, których zaplanowany czas minie podczas restartu, uruchamiają się, gdy konsola wróci.</li>
 </ul>
 <p>Te operacje przechodzą przez tę samą usługę root co aktualizacje konsoli. Są zapisywane w dzienniku audytu, a wynik ostatniej operacji jest pokazywany na stronie.</p>
 

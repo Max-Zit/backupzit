@@ -16,15 +16,15 @@
 <h2>Restaurer une image sur un disque</h2>
 <p>Dans l'exécution de la sauvegarde image, utilisez <b>Restaurer cette image sur un disque</b> :</p>
 <ul>
-  <li><b>Restaurer sur l’agent</b> — la machine qui possède le disque cible. Cela peut être une machine en marche avec un disque libre, ou une machine démarrée depuis l'ISO de récupération.</li>
-  <li><b>Disque cible</b> — doit être au moins aussi grand que la zone utilisée de l'original. <b>Toutes ses données sont détruites.</b></li>
+  <li><b>Restaurer sur l’agent</b> — la machine Windows qui possède le disque cible. Cela peut être une machine en marche avec un disque libre, ou une machine démarrée depuis l'ISO de récupération ; le disque à partir duquel Windows fonctionne ne peut pas être choisi, donc la restauration du disque système d'une machine nécessite l'ISO de récupération.</li>
+  <li><b>Disque cible</b> — doit aller au moins jusqu'à la fin de la dernière partition du disque d'origine (les partitions sont recréées avec leur taille d'origine, sans être réduites) et avoir la même taille de secteur (512 ou 4096 octets). <b>Toutes ses données sont détruites.</b></li>
   <li><b>Laisser ensuite le disque hors ligne</b> — cochez cette option lorsque le disque d'origine se trouve dans la même machine, afin que Windows ne modifie pas les identifiants de disque de la copie.</li>
 </ul>
 <p>Les disques GPT et MBR, l'amorçage EFI et BIOS sont pris en charge. La disposition des partitions et les identifiants sont recréés, donc le disque restauré démarre comme avant.</p>
 
 <h2>Restauration bare-metal avec l'ISO de récupération</h2>
 <ol>
-  <li>Dans <a href="/recovery">Supports de récupération</a>, téléchargez l'ISO de récupération (Windows). Gravez-la sur une clé USB (Rufus, mode « image DD » ou « ISO ») ou attachez-la à une machine virtuelle.</li>
+  <li>Créez une fois l'ISO de récupération Windows (voir <a href="/docs/restore#recovery-iso">ISO de récupération</a> ; Windows PE ne peut pas être redistribué), ou téléchargez-la depuis <a href="/recovery">Supports de récupération</a> si elle a été copiée dans la console. Écrivez-la sur une clé USB (Rufus en mode <b>ISO</b>, pour pouvoir ajouter le dossier ci-dessous) ou attachez-la à une machine virtuelle.</li>
   <li>Créez éventuellement un <b>code de récupération</b> et téléchargez <code>recovery.json</code> ; copiez-le dans un dossier <code>backupzit</code> sur la clé pour que la machine se connecte sans saisie.</li>
   <li>Démarrez la machine à restaurer depuis la clé. Elle lance l'agent en mode récupération et se connecte à la console (ou demande l'adresse du serveur et le code de récupération).</li>
   <li>La machine apparaît comme agent de <span class="badge">récupération</span> avec ses disques.</li>

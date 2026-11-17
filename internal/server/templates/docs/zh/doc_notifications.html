@@ -3,32 +3,35 @@
 <p class="lead">备份失败时收到电子邮件，每天早上收到每日摘要。</p>
 
 <h2>设置电子邮件</h2>
-<p>在 <a href="/settings/email">设置 → 电子邮件通知</a> 中：</p>
+<p>在 <a href="/settings/email">设置 → 电子邮件通知</a> 中勾选 <b>发送电子邮件通知</b>（不勾选则不会发送任何电子邮件），并填写：</p>
 <table>
   <tr><th>字段</th><th>示例</th></tr>
   <tr><td>SMTP 服务器 / 端口</td><td><code>smtp.office365.com</code> / 587，<code>smtp.gmail.com</code> / 587，内部中继 / 25</td></tr>
-  <tr><td>安全</td><td><b>STARTTLS</b>（端口 587）、<b>TLS</b>（端口 465）或无（仅限内部中继）</td></tr>
-  <tr><td>用户 / 密码</td><td>用于发送的邮箱；匿名中继请留空。Microsoft 365 和 Gmail 需要应用密码。</td></tr>
+  <tr><td>安全</td><td><b>STARTTLS</b>（端口 587）、<b>TLS</b>（端口 465）或<b>无</b>（仅限无需登录的内部中继：用户名和密码绝不会以未加密方式发送）</td></tr>
+  <tr><td>用户名 / 密码</td><td>用于发送的邮箱；无需登录的中继请留空。Gmail 需要应用密码；Microsoft 365 正在停用基本 SMTP 身份验证，使用 SMTP 中继或连接器更为稳妥。</td></tr>
   <tr><td>发件人</td><td><code>backup@example.com</code></td></tr>
   <tr><td>收件人</td><td>一个或多个地址，以逗号分隔。</td></tr>
 </table>
-<p>使用 <b>发送测试邮件</b> 检查设置。电子邮件、聊天消息和报告使用同一表单中选择的语言（默认为保存设置时控制台的语言）。</p>
+<p>使用 <b>发送测试邮件</b> 检查设置，然后单击 <b>保存</b>（测试不会保存设置）。电子邮件、聊天消息和报告使用同一表单中选择的语言（默认为保存设置时控制台的语言）。</p>
 
 <h2>发送哪些内容</h2>
 <ul>
   <li><b>失败</b>（推荐）—— 每次运行失败发送一封邮件并说明原因：备份、复制、还原以及失败的<b>还原测试</b>。开启此项后，当备份看起来像勒索软件或大规模删除时，您还会收到 <b>SUSPICIOUS</b> 警报。</li>
   <li><b>警告</b> —— 有些文件无法读取的运行。</li>
   <li><b>成功</b> —— 每次成功的运行（通常太多；建议使用每日报告）。</li>
-  <li><b>每日报告</b> —— 在所选时间发送：过去 24 小时的运行、问题和离线代理。主题以 <i>OK</i>、<i>WARNINGS</i> 或 <i>ATTENTION</i> 开头，便于邮件规则分类。</li>
+  <li><b>每日报告</b> —— 在所选时间发送：过去 24 小时的运行、问题和离线代理。主题以 <i>OK</i>、<i>WARNINGS</i> 或 <i>ATTENTION</i> 结尾（例如 <code>[BackupZit] Daily report 2026-11-17: OK</code>），便于邮件规则分类。</li>
 </ul>
 <p>开启<b>失败</b>后，未达到恢复点目标（RPO）的作业也会被通知——只通知一次，期间重新达标后才会再次通知。被用户停止的运行（状态<i>已取消</i>）不发送失败邮件；因时间限制而停止的运行会发送。</p>
+<h3 id="mail-filters">每个作业一封邮件,以及邮件过滤</h3>
+<p>同时打开<b>成功</b>,即可为每个作业的每次完成运行收到一封邮件(主题中包含作业和计算机),而不仅仅是每日摘要。如需每个作业一份摘要,请为该作业创建<a href="/docs/monitoring">计划报告</a>。主题使用邮件语言书写,因此为便于邮件规则,每封运行邮件还带有不随语言变化的标头:<code>X-BackupZit-Status</code>(<code>success</code>、<code>warning</code> 或 <code>failed</code>)、<code>X-BackupZit-Job</code>、<code>X-BackupZit-Agent</code>(控制台中显示的名称)、<code>X-BackupZit-Host</code>(计算机报告的主机名)、<code>X-BackupZit-Kind</code> 和 <code>X-BackupZit-Run</code>。看起来像勒索软件的备份还会带有 <code>X-BackupZit-Suspicious: yes</code>——不要让归档成功运行的规则把它隐藏。</p>
 <p>无论这些选项如何，以下情况通知收件人也会收到邮件：</p>
 <ul>
   <li>某项更改等待第二位用户批准（四眼审批）；</li>
   <li>两台机器使用同一个代理注册；</li>
   <li>审计日志被更改；</li>
   <li>控制台自身的备份失败；</li>
-  <li>浏览器 HTTPS 证书续订失败；</li>
+  <li>浏览器 HTTPS 证书续订失败，或上传的证书将在 21 天内过期；</li>
+  <li>有新的 BackupZit 版本可用（可在“设置 → 更新”中关闭），或控制台更新失败；</li>
   <li>某个地址因登录失败次数过多被封锁（可在暴力破解防护中关闭）。</li>
 </ul>
 <p>如需每周或每月摘要，请使用<a href="/docs/monitoring">计划报告</a>；它们使用相同的邮件设置发送，并有自己的收件人。主题以 <code>[BackupZit]</code> 开头，便于邮件规则分类。SMTP 密码加密存储。邮件、聊天消息和报告中的链接指向您在浏览器中打开控制台所用的地址（或通过 <code>--public-url</code> 设置的地址）。</p>
@@ -48,6 +51,6 @@
  "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
  "url": "https://backup.example/runs/412"}</pre>
 <p><code>duration_s</code> 是运行耗时（秒）。对于备份，<code>files</code> 和 <code>bytes</code> 是被备份数据的大小，<code>bytes_read</code> 是读取的量，<code>bytes_stored</code> 是上传到存储的量；<code>snapshot</code> 是新备份的 ID。</p>
-<p>每次运行只发送一次消息，即使关闭了电子邮件也会发送。出错的通道（URL 错误、服务不可用）会记录在控制台日志中，不会耽误其他通道。Webhook URL 加密存储。</p>
+<p>错过恢复点目标的作业会发送 <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code>；空字段（例如 <code>suspicious</code>，或不属于任何作业的运行的作业字段）会被省略。Slack 和 Teams 的 URL 必须使用 https://。每次运行只发送一次消息，即使关闭了电子邮件也会发送。出错的通道（URL 错误、服务不可用）会记录在控制台日志中，不会耽误其他通道。Webhook URL 加密存储。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -26,9 +26,10 @@
 <ol>
   <li>Erstellen Sie einen Bucket mit <b>aktiviertem Object Lock</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
   <li>Fügen Sie eine Lifecycle-Regel hinzu, die <i>nicht aktuelle Versionen</i> (noncurrent versions) nach 1 Tag löscht (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
-  <li>Fügen Sie das S3-Ziel hinzu und aktivieren Sie <b>Unveränderliche Sicherungen für N Tage</b>. Wählen Sie N mindestens so lang wie die längste Aufbewahrung, die geschützt sein soll, z. B. 30.</li>
+  <li>Geben Sie dem Bucket eine Standard-Aufbewahrung im Compliance-Modus von mindestens N Tagen (MinIO: <code>mc retention set --default COMPLIANCE 30d</code>), damit Objekte auch dann gesperrt sind, wenn ein kompromittierter Computer sie ohne Sperre schreibt; <b>Verbindung testen</b> warnt, wenn sie fehlt oder kürzer ist.</li>
+  <li>Fügen Sie das S3-Ziel hinzu und aktivieren Sie <b>Unveränderliche Sicherungen für N Tage</b>. Wählen Sie N mindestens so lang wie den Zeitraum, in dem Ihre Sicherungen geschützt bleiben müssen, z. B. 30.</li>
 </ol>
-<p>Jeder Wiederherstellungspunkt bleibt mindestens N Tage nach seiner Erstellung gesperrt; Daten, die mit neueren Sicherungen geteilt werden, werden automatisch verlängert.</p>
+<p>Jeder Wiederherstellungspunkt bleibt mindestens N Tage nach seiner Erstellung gesperrt; nach jeder Sicherung verlängert der Agent die Sperre aller Daten, die die Aufbewahrung des Auftrags noch behält.</p>
 <p id="lock-retained">Nach jeder Sicherung verlängert der Agent die Sperre aller Daten, die die Aufbewahrung des Auftrags noch behält, nicht nur der Daten, die die neue Sicherung wiederverwendet: Eine ein Jahr lang behaltene Monatssicherung bleibt dieses Jahr über gesperrt. Das gilt für S3 Object Lock und für das gehärtete Repository. Wenn Sie die Aufbewahrung verkürzen, um Platz zu schaffen, wird der Platz erst frei, wenn die bestehenden Sperren enden, bis zu anderthalb Sperrzeiträume später.</p>
 
 <h2>Gehärtetes Repository</h2>

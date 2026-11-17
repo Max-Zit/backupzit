@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>Sloupec <b>IP adresy</b> uvádí vlastní adresy počítače, jak je agent naposledy nahlásil. <i>viděn z</i> je adresa, ze které přicházejí jeho spojení: v místní síti stejná adresa, u počítače za NAT (např. notebooku doma) veřejná adresa routeru. Konzole se kvůli tomu neptá žádné externí služby.</p>
 
+<h2 id="names">Názvy a štítky</h2>
+<p>Servery různých zákazníků nebo poboček mají často stejný název hostitele. Klikněte na agenta na stránce <a href="/agents">Agenti</a> a dejte mu <b>název zobrazený v konzoli</b> a <b>štítky</b> — volné popisky, např. zákazník nebo pobočka, oddělené čárkami. Název se používá ve formulářích úloh, při obnově, v Aktivitě, v reportech a e-mailech; název hostitele hlášený počítačem zůstává vidět vedle něj a stránka agenta upozorní, když jiní agenti hlásí stejný název hostitele. Kliknutím na štítek zobrazíte jen agenty, kteří ho mají.</p>
+<p>Přejmenování mění jen to, co ukazuje konzole: agent, jeho repozitář a zálohy zůstávají beze změny a počítač nemůže změnit svůj název ani štítky. Jejich změna vyžaduje oprávnění pro agenty a zaznamená se do protokolu auditu. Štítky pomáhají agenty najít; nedávají ani neomezují přístup a nepřidávají agenty do úloh. Každý, kdo se může přihlásit do konzole, vidí všechny agenty a konzole drží klíče všech jejich záloh — zákazníci, kteří musí být striktně odděleni, potřebují každý vlastní konzoli.</p>
+
 <h2>Agent na ploše (Windows)</h2>
 <p>Agent pro Windows zobrazuje ikonu vedle hodin (může být pod šipkou <b>^</b> skrytých ikon — přetáhněte ji na hlavní panel, aby zůstala vidět). Tečka na ikoně ukazuje stav:</p>
 <table>

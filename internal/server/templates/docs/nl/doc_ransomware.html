@@ -26,9 +26,10 @@
 <ol>
   <li>Maak een bucket met <b>Object Lock ingeschakeld</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
   <li>Voeg een lifecycle-regel toe die <i>niet-actuele versies</i> (noncurrent versions) na 1 dag verwijdert (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
-  <li>Voeg het S3-doel toe en vink <b>Onveranderlijke back-ups gedurende N dagen</b> aan. Kies N minstens zo lang als de langste bewaartermijn die u beschermd wilt hebben, bijv. 30.</li>
+  <li>Geef de bucket een standaardbewaring in compliancemodus van minstens N dagen (MinIO: <code>mc retention set --default COMPLIANCE 30d</code>), zodat objecten ook vergrendeld zijn als een gecompromitteerde computer ze zonder vergrendeling schrijft; <b>Verbinding testen</b> waarschuwt als die ontbreekt of korter is.</li>
+  <li>Voeg het S3-doel toe en vink <b>Onveranderlijke back-ups gedurende N dagen</b> aan. Kies N minstens zo lang als de periode waarin uw back-ups beschermd moeten blijven, bijv. 30.</li>
 </ol>
-<p>Elk herstelpunt blijft minstens N dagen na het aanmaken vergrendeld; gegevens die gedeeld worden met nieuwere back-ups worden automatisch verlengd.</p>
+<p>Elk herstelpunt blijft minstens N dagen na het aanmaken vergrendeld; na elke back-up verlengt de agent de vergrendeling van alle gegevens die de bewaring van de taak nog behoudt.</p>
 <p id="lock-retained">Na elke back-up verlengt de agent de vergrendeling van alle gegevens die de bewaring van de taak nog behoudt, niet alleen van de gegevens die de nieuwe back-up hergebruikt: een maandelijkse back-up die een jaar wordt bewaard, blijft dat jaar vergrendeld. Dit geldt voor S3 Object Lock en voor de geharde repository. Als u de bewaring verkort om ruimte vrij te maken, komt de ruimte pas terug als de bestaande vergrendelingen aflopen, tot anderhalve vergrendelingsperiode later.</p>
 
 <h2>Geharde repository</h2>

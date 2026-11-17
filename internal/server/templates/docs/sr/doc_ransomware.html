@@ -26,9 +26,10 @@
 <ol>
   <li>Napravite bucket sa <b>uključenim Object Lock-om</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
   <li>Dodajte lifecycle pravilo koje briše <i>prethodne verzije</i> (noncurrent versions) posle 1 dana (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
-  <li>Dodajte S3 skladište i označite <b>Nepromenljivi bekapi na N dana</b>. Izaberite N bar onoliko dugo koliko je najduža retencija koju želite da zaštitite, npr. 30.</li>
+  <li>Podesite za bucket podrazumevanu retenciju u compliance režimu od najmanje N dana (MinIO: <code>mc retention set --default COMPLIANCE 30d</code>), da bi objekti bili zaključani čak i kada ih kompromitovan računar upiše bez zaključavanja; <b>Testiraj vezu</b> upozorava kada ona nedostaje ili je kraća.</li>
+  <li>Dodajte S3 skladište i označite <b>Nepromenljivi bekapi na N dana</b>. Izaberite N bar onoliko dugo koliko vaši bekapi moraju da ostanu zaštićeni, npr. 30.</li>
 </ol>
-<p>Svaka tačka vraćanja ostaje zaključana bar N dana posle nastanka; podacima zajedničkim sa novijim bekapima rok se automatski produžava.</p>
+<p>Svaka tačka vraćanja ostaje zaključana bar N dana posle nastanka; posle svakog bekapa agent produžava zaključavanje svih podataka koje retencija posla još čuva.</p>
 <p id="lock-retained">Posle svakog bekapa agent produžava zaključavanje svih podataka koje retention posla još čuva, a ne samo podataka koje novi bekap ponovo koristi: mesečni bekap koji se čuva godinu dana ostaje zaključan tu godinu. To važi za S3 Object Lock i za hardened repozitorijum. Kada skratite retention da biste oslobodili prostor, prostor se vraća tek kad postojeća zaključavanja isteknu, najviše jedan i po period zaključavanja kasnije.</p>
 
 <h2>Ojačani repozitorijum</h2>

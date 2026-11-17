@@ -60,7 +60,7 @@
 <p>Quand bzadmin se connecte sur l'écran même du serveur (pas en SSH), un menu s'ouvre :</p>
 <table>
   <tr><th>Élément</th><th>Ce qu'il fait</th></tr>
-  <tr><td>1 Network</td><td>DHCP ou une adresse statique avec longueur de préfixe (p. ex. <code>192.168.1.20/24</code>), passerelle et jusqu'à trois serveurs DNS. Avec DHCP, les serveurs DNS viennent du serveur DHCP, sauf si vous saisissez les vôtres.</td></tr>
+  <tr><td>1 Network</td><td>DHCP ou une adresse statique avec longueur de préfixe (p. ex. <code>192.168.1.20/24</code>), passerelle et jusqu'à trois serveurs DNS. Avec DHCP, les serveurs DNS viennent du serveur DHCP ; pour utiliser les vôtres avec DHCP, définissez-les ensuite dans Paramètres → Réseau.</td></tr>
   <tr><td>2 Server name</td><td>Le nom d'hôte (lettres, chiffres et -).</td></tr>
   <tr><td>3 SSH</td><td>Active ou désactive le serveur SSH et change son port. Les ports de la console (80, 443, 8443), de PostgreSQL (5432) et de la restauration instantanée (111, 2049) ne peuvent pas être utilisés.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Pour un mot de passe de console web oublié ; lève aussi les blocages de connexion. L'écran cesse ensuite d'afficher le mot de passe initial généré (de même dès le démarrage suivant une fois le mot de passe d'admin changé dans la console web).</td></tr>
@@ -153,7 +153,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Par défaut, la console récupère les mises à jour depuis les versions officielles de BackupZit sur GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Sous <a href="/settings/updates">Paramètres → Mises à jour</a>, vous pouvez saisir une autre <b>source de mise à jour</b> — votre propre miroir HTTPS ou un dossier sur le serveur. Quelle que soit la source, chaque version doit porter une signature BackupZit valide. La console vérifie chaque jour s'il y a de nouvelles versions et envoie un e-mail aux administrateurs quand l'une est disponible. Pour l'installer, cliquez sur <b>Installer</b> :</p>
 <p><b>Versions candidates :</b> chaque version est d’abord publiée comme <i>pré-version</i> et testée ; ce n’est qu’ensuite qu’elle devient la version officielle, avec les mêmes fichiers. La source de mise à jour <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> contient toujours la candidate la plus récente — utilisez-la uniquement sur une console de test, car une candidate peut encore être remplacée par une version corrigée. Les consoles avec la source par défaut ne reçoivent que les versions approuvées.</p>
 <ol>
-  <li>La console vérifie la signature de la version et la somme de contrôle du paquet, et attend qu'aucune sauvegarde ni restauration ne soit en cours.</li>
+  <li>La console vérifie la signature de la version et la somme de contrôle du paquet, et refuse de lancer la mise à jour tant qu'une sauvegarde ou une restauration est en cours ; installez-la une fois celles-ci terminées.</li>
   <li>Un service système (<code>backupzit-update</code>, exécuté en root) vérifie de nouveau la signature avec les clés de publication intégrées à BackupZit. Même une console compromise ne peut pas faire installer un autre paquet.</li>
   <li>Il sauvegarde la base de données (<code>pg_dump</code>), conserve le programme actuel, installe le paquet et redémarre la console.</li>
   <li>Si la nouvelle version ne répond pas dans les deux minutes, le programme précédent et la base de données telle qu'elle était sont restaurés automatiquement. Le résultat, avec le journal du démarrage échoué, est affiché sur la page Mises à jour, consigné dans le journal d'audit et envoyé par e-mail.</li>
@@ -168,7 +168,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Activer les mises à jour de sécurité automatiques</b> (recommandé). L'outil propre au système installe uniquement les correctifs de sécurité, chaque jour : <code>unattended-upgrades</code> sous Debian et Ubuntu, <code>dnf-automatic</code> sous AlmaLinux et Rocky Linux.</li>
   <li><b>Installer toutes les mises à jour maintenant</b>. Des services comme PostgreSQL peuvent redémarrer brièvement, et la console se reconnecte d'elle-même.</li>
-  <li><b>Redémarrer le serveur</b>, par exemple après une mise à jour du noyau. La console refuse tant que des sauvegardes ou restaurations sont en cours. Les agents conservent leurs tâches et transmettent les résultats quand la console revient.</li>
+  <li><b>Redémarrer le serveur</b>, par exemple après une mise à jour du noyau. La console refuse tant que des sauvegardes ou restaurations sont en cours. Les sauvegardes dont l'heure planifiée passe pendant le redémarrage démarrent dès que la console est revenue.</li>
 </ul>
 <p>Ces opérations passent par le même service root que les mises à jour de la console. Elles sont consignées dans le journal d'audit, et la sortie de la dernière opération est affichée sur la page.</p>
 

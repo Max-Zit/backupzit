@@ -3,7 +3,7 @@
 <p class="lead">Der Agent funktioniert auch eigenständig über die Befehlszeile — für Skripte, für Wiederherstellungen ohne Konsole und für Notfälle. Führen Sie <code>backupzit-agent</code> ohne Argumente für eine Übersicht aus und <code>backupzit-agent &lt;command&gt; -h</code> für die Optionen eines Befehls.</p>
 
 <h2>Repository und Zugangsdaten</h2>
-<p>Jeder Befehl nimmt <code>--repo</code> (oder <code>BACKUPZIT_REPO</code>). Für Geheimnisse sind Umgebungsvariablen vorzuziehen. Das Repository eines Agenten ist <code>&lt;Speicherort&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — siehe die Repository-Spalte eines Laufs in Aktivität oder das Wiederherstellungsblatt.</p>
+<p>Jeder Befehl, der Sicherungen liest oder schreibt, nimmt <code>--repo</code> (oder <code>BACKUPZIT_REPO</code>); <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> und <code>disks</code> nicht. Für Geheimnisse sind Umgebungsvariablen vorzuziehen. Das Repository eines Agenten ist <code>&lt;Speicherort&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — siehe das Feld <b>Repository</b> auf der Seite des Laufs oder das Wiederherstellungsblatt.</p>
 <table>
   <tr><th>Ort</th><th>Zugangsdaten</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,7 +23,7 @@
   <tr><td><code>init</code></td><td>Erstellt ein neues Repository (verschlüsselt, wenn ein Passwort angegeben ist).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Sichert Dateien und Ordner. <code>--vss</code> liest aus einer Volumeschattenkopie (Windows, Administrator); <code>--force</code> liest alle Dateien, auch unveränderte.</td></tr>
   <tr><td><code>snapshots</code></td><td>Listet Snapshots mit Zeit, Host, Größe und Pfaden auf.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Listet Dateien in einem Snapshot auf.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Listet alle Dateien in einem Snapshot auf.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Stellt Dateien unterhalb von DIR wieder her (die ursprüngliche Ordnerstruktur wird nachgebildet). <code>--original</code> schreibt sie stattdessen an ihren ursprünglichen Ort zurück und überschreibt vorhandene Dateien.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Prüft die Repository-Struktur; mit <code>--read-data</code> wird jedes Byte heruntergeladen und geprüft.</td></tr>
 </table>
@@ -65,7 +65,7 @@
 <table>
   <tr><th>Befehl</th><th>Was er tut</th></tr>
   <tr><td><code>hyperv list</code></td><td>Listet die VMs des Hosts mit ihren BackupZit-Nummern und die Ordner für wiederhergestellte Festplatten auf.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Sichert VMs (Standard: alle) aus Produktionsprüfpunkten.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Sichert VMs (Standard: alle) aus Wiederherstellungsprüfpunkten mit Resilient Change Tracking (Produktionsprüfpunkte nur auf Hosts ohne diese).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Stellt eine VM an Ort und Stelle (Standard) oder mit <code>--new</code> als neue VM wieder her. <code>--overwrite</code> ersetzt die Festplatten einer vorhandenen VM. Siehe <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> und <code>pve extract</code> funktionieren auch mit Hyper-V-Sicherungen.</p>

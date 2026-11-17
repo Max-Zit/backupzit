@@ -48,7 +48,7 @@
   <tr><th>Seçenek</th><th>Örnek</th></tr>
   <tr><td><b>Belirli saatlerde</b></td><td>Her iş günü 22:00'de; ya da her gün 12:00 ve 18:00'de. İşaretlenen günlerde günde en fazla üç kez.</td></tr>
   <tr><td><b>Tekrar tekrar</b></td><td>Pazartesi–cuma, 08:00 ile 18:00 arasında 2 saatte bir. 15 dakikadan 12 saate kadar aralıklar.</td></tr>
-  <tr><td><b>Ayda bir</b></td><td>Ayın 1'inde 23:00'te.</td></tr>
+  <tr><td><b>Ayda bir</b></td><td>Ayın 1'inde 23:00'te (1 ile 28 arasında herhangi bir gün).</td></tr>
   <tr><td><b>Yalnızca elle</b></td><td>Yalnızca <i>Yedeklemeyi şimdi çalıştır</i>'a tıkladığınızda çalışır.</td></tr>
   <tr><td><b>Başka bir işten sonra</b></td><td>Önce veritabanı, sonra dosya sunucusu: iş, seçilen iş başarıyla biter bitmez başlar — veya <i>o iş başarısız olsa da</i> seçiliyse her sonuçtan sonra. Zincirler daha uzun olabilir (A → B → C); bir iş kendisinden sonra veya döngü içinde çalışamaz.</td></tr>
 </table>
@@ -78,7 +78,7 @@
   <li>Yalnızca hedefte henüz olmayan veriler aktarılır, hedefin anahtarıyla yeniden şifrelenir.</li>
   <li><b>Kaynak işin her yedeğinden sonra</b> zamanlaması (varsayılan) kopyayı güncel tutar; herhangi bir normal zamanlama da çalışır, ör. yavaş bir internet hattı için her gece bir kez.</li>
   <li>Kopyanın kendi saklama ayarı vardır, ör. NAS'ta 7 günlük ve bulutta 12 aylık.</li>
-  <li>Kopyalanmış dosya yedekleri ve VM yedekleri (Proxmox VE, Hyper-V, VMware), özgünleri gibi kopyalama çalıştırmasının sayfasından veya <a href="/restore">geri yükleme sihirbazı</a>ndan geri yüklenir — tüm VM'ler, VM disklerinden tek tek dosyalar ve Proxmox anında kurtarma. 0.29'dan eski bir aracının kopyaladığı VM yedekleri bu şekilde geri yüklenemez; daha yeni bir aracıyla yapılan bir sonraki kopyalama çalıştırması en yeni kopyasını geri yüklenebilir yapar. Disk görüntüsü kopyaları komut satırı aracısıyla geri yüklenir.</li>
+  <li>Kopyalanmış dosya yedekleri ve VM yedekleri (Proxmox VE, Hyper-V, VMware), özgünleri gibi kopyalama çalıştırmasının sayfasından veya <a href="/restore">geri yükleme sihirbazı</a>ndan geri yüklenir — tüm VM'ler, VM disklerinden tek tek dosyalar ve Proxmox anında kurtarma. 0.29'dan eski bir aracının kopyaladığı VM yedekleri bu şekilde geri yüklenemez; daha yeni bir aracıyla yapılan bir sonraki kopyalama çalıştırması en yeni kopyasını geri yüklenebilir yapar. Kopyalanmış Microsoft 365 yedekleri de aynı şekilde geri yüklenir. Disk görüntüsü, Linux sistem ve veritabanı yedeklerinin kopyaları komut satırı aracısıyla geri yüklenir.</li>
 </ul>
 
 <h2>Bir işi değiştirme</h2>
@@ -91,7 +91,7 @@
 <p>İş formundaki <b>Gelişmiş</b> altında <b>Yükleme hızını şununla sınırla</b>, aracının depolamaya veri gönderme hızını MB/s cinsinden sınırlar — örneğin 08:00'den 18:00'e 10 MB/s, böylece mesai saatlerindeki yedekler ofis hattını kullanılabilir bırakır; zaman aralığı dışında iş tam hızda çalışır. Saatler aracının yerel saatidir ve bir aralık gece yarısını geçebilir (22:00'den 06:00'ya). Sınır yedeklere ve kopyalama işlerine (ikinci depolamaya yükleme) uygulanır, geri yüklemelere uygulanmaz: geri yükleme her zaman tam hızda çalışır.</p>
 
 <h2 id="compression">Sıkıştırma ve tekilleştirme</h2>
-<p>Her yedek tekilleştirilir: depoda zaten bulunan veriler — aynı işin önceki yedeklerinden veya aynı depolama hedefindeki diğer işlerden — yeniden saklanmaz. Yeni veriler ardından zstd ile sıkıştırılır; küçülmeyen parçalar (video, arşivler, şifreli dosyalar) olduğu gibi saklanır. Şifreleme sıkıştırmadan sonra gelir.</p>
+<p>Her yedek tekilleştirilir: depoda zaten bulunan veriler — aynı işin önceki yedeklerinden veya aynı aracının aynı depolama hedefindeki diğer işlerinden — yeniden saklanmaz. Her aracının kendi deposu vardır (VMware ana bilgisayarları, Hyper-V kümeleri ve Microsoft 365 kiracıları da öyle); bu yüzden bilgisayarlar arasında tekilleştirme yapılmaz. Yeni veriler ardından zstd ile sıkıştırılır; küçülmeyen parçalar (video, arşivler, şifreli dosyalar) olduğu gibi saklanır. Şifreleme sıkıştırmadan sonra gelir.</p>
 <p>Sıkıştırma düzeyi bir iş ayarıdır (<b>Düzenle → Gelişmiş</b>):</p>
 <table>
   <tr><th>Düzey</th><th>Ne zaman kullanılır</th></tr>
@@ -120,7 +120,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Yedeklemeyi şimdi çalıştır</b> (kopyalama işlerinde <b>Şimdi kopyala</b>) işi hemen kuyruğa alır.</li>
   <li><b>Geri yüklemeyi test et</b>, en yeni yedekten rastgele bir örneği geri yükler ve doğrular (bkz. <a href="/docs/restore">Geri yükleme</a>).</li>
   <li><b>Devre dışı bırak</b>, işi kaybetmeden zamanlamayı duraklatır (dört göz onayı açıkken ikinci bir kullanıcının onaylaması gerekir).</li>
-  <li><b>Sil</b> işi kaldırır; mevcut yedekler depolamada kalır ve Etkinlik'ten geri yüklenebilir olmayı sürdürür.</li>
+  <li><b>Sil</b> işi kaldırır (dört göz onayı açıkken ikinci bir kullanıcı onayladıktan sonra); mevcut yedekler depolamada kalır ve Etkinlik'ten geri yüklenebilir olmayı sürdürür. İşin kopyalama işleri de onunla birlikte silinir; kopyaları kendi depolamalarında kalır.</li>
 </ul>
 
 <h2>Bir çalıştırmayı durdurma</h2>

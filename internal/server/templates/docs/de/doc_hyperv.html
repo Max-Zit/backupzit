@@ -29,7 +29,7 @@
   <li>Der Prüfpunkt wird entfernt, und Hyper-V führt ihn im Hintergrund zusammen.</li>
   <li>Die Konfiguration der VM wird mit der Sicherung gespeichert: Generation, CPU, Arbeitsspeicher, Netzwerkadapter (Switch, VLAN, MAC-Adresse), Festplattencontroller, Secure Boot und TPM.</li>
 </ol>
-<p>Ausgeschaltete VMs werden direkt gelesen, ohne Prüfpunkt. Auf Hosts älter als Windows Server 2016 (keine Wiederherstellungsprüfpunkte) wird ein Produktionsprüfpunkt verwendet, und jede Sicherung liest die ganzen Festplatten.</p>
+<p>Ausgeschaltete VMs werden direkt gelesen, ohne Prüfpunkt. Auf Hosts ohne Wiederherstellungsprüfpunkte wird ein gewöhnlicher Prüfpunkt erstellt (wenn möglich ein Produktionsprüfpunkt, sonst absturzkonsistent), und jede Sicherung liest die ganzen Festplatten.</p>
 <p id="checkpoint-concurrency">Überlappende Sicherungen derselben VM warten auf jedem Host aufeinander, auch Dienst und Befehlszeile. Eine Sicherung entfernt nur ihren eigenen temporären Prüfpunkt. Der Agent entfernt einen zurückgebliebenen Prüfpunkt, sobald seine Sicherung auf einem anderen Knoten beendet ist (nach einer Livemigration), oder wenn er älter als 48 Stunden ist (eine durch Absturz oder Stromausfall unterbrochene Sicherung). Alle überlappenden Sicherungsprozesse müssen aktualisierte Programme verwenden.</p>
 <p id="appconsistent"><b>Nur anwendungskonsistent.</b> Für Active Directory, SQL Server, Exchange und andere Datenbanken aktivieren Sie im Job <i>Anwendungskonsistente Prüfpunkte verlangen</i> (auch im Job für einen Cluster). Eine laufende VM wird dann nur aus einem Prüfpunkt gesichert, den der Gast mit VSS vorbereitet hat; schlägt das fehl, wird die VM nicht gesichert und der Lauf schlägt fehl (mit Benachrichtigung), statt einen absturzkonsistenten Prüfpunkt zu nehmen. Die anderen VMs des Jobs werden weiter gesichert und lassen sich aus diesem Lauf wiederherstellen. Prüfen Sie den Integrationsdienst <i>Backup (volume shadow copy)</i> in den VM-Einstellungen und VSS im Gast (<code>vssadmin list writers</code>). Benötigt Agenten 0.48.0 oder neuer; bei älteren Agenten schlägt der Lauf mit der Aufforderung zur Aktualisierung fehl.</p>
 <p id="vtpm"><b>vTPM und BitLocker.</b> Bei VMs der Generation 2 mit virtuellem TPM speichert die Sicherung auch das vTPM (die Gaststatusdatei und die Schlüsselschutzvorrichtung). Als neue VM auf demselben Host wiederhergestellt, oder auf einem Host mit dem Guardian-Zertifikat des ursprünglichen Hosts, erhält die VM ihr vTPM zurück und BitLocker fragt nicht nach dem Wiederherstellungsschlüssel. Auf anderen Hosts erhält die VM ein neues, leeres vTPM, und die Wiederherstellung meldet das; importieren Sie dort vorher das Zertifikat <i>UntrustedGuardian</i> des ursprünglichen Hosts. Eine Wiederherstellung über die vorhandene VM behält deren vTPM. Abgeschirmte VMs (Host Guardian Service) werden nicht unterstützt. Bewahren Sie die BitLocker-Wiederherstellungsschlüssel trotzdem auf.</p>
@@ -60,7 +60,7 @@
 
 <h3>Optionen</h3>
 <ul>
-  <li><b>Ordner für die virtuellen Festplatten</b>: der Standardordner des Hosts oder ein beliebiger Ordner mit VM-Festplatten. Eine Wiederherstellung an Ort und Stelle legt die neuen Festplatten neben die ursprünglichen.</li>
+  <li><b>Ordner für die virtuellen Festplatten</b>: der Standardordner des Hosts oder ein beliebiger Ordner mit VM-Festplatten. Eine Wiederherstellung an Ort und Stelle legt die neuen Festplatten in einen neuen Unterordner <code>backupzit-restore-…</code> und lässt die alten, wo sie waren.</li>
   <li><b>VM nach der Wiederherstellung starten</b>.</li>
 </ul>
 
@@ -85,7 +85,7 @@
 <ol>
   <li>Öffnen Sie <a href="/jobs">Backup jobs</a> und das Formular <i>New backup job</i>.</li>
   <li>Öffnen Sie die Liste <b>Agent</b> und gehen Sie an ihr Ende: Wählen Sie unter <i>Hyper-V failover clusters (virtual machines)</i> den Cluster, z. B. <i>HVC01 — 2 nodes</i>. Wählen Sie den Cluster, nicht einen einzelnen Knoten.</li>
-  <li>Die Art ist auf <i>Virtual machines</i> gesetzt. Wählen Sie <i>All clustered VMs</i> (auch später zum Cluster hinzugefügte VMs) oder <i>Only these</i>; bei jeder VM steht der Knoten, auf dem sie gerade läuft.</li>
+  <li>Die Art ist auf <i>Virtual machines</i> gesetzt. Wählen Sie <i>All clustered VMs</i> (auch später zum Cluster hinzugefügte VMs), <i>All clustered VMs except the ticked ones</i> oder <i>Only these</i>; bei jeder VM steht der Knoten, auf dem sie gerade läuft.</li>
   <li>Wählen Sie das Speicherziel, den Zeitplan und wie viele Sicherungen bleiben, und klicken Sie auf <i>Create job</i>.</li>
 </ol>
 <p>Die Seite des Jobs zeigt jeden Knoten mit seinem letzten Ergebnis; <i>Run backup now on all agents</i> startet alle. Ein Knoten, auf dem gerade keine VM des Jobs läuft, meldet <i>None of the job's VMs runs on this node now</i> – das ist ein Erfolg.</p>

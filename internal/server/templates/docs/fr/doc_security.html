@@ -11,8 +11,8 @@
   <li><b>Secrets des agents</b> — chaque agent a son propre secret, stocké seulement sous forme de hachage sur la console et, sur l'agent, dans un fichier lisible uniquement par les administrateurs.</li>
   <li><b>Console web</b> — cookies de session HttpOnly et SameSite=Strict ; protection contre les requêtes intersites et le clickjacking ; Content-Security-Policy stricte ; mots de passe hachés avec bcrypt ; les pages sensibles ne sont jamais mises en cache.</li>
   <li><b>Protection contre la force brute</b> — les adresses qui échouent trop souvent à se connecter sont bloquées : mots de passe, codes à deux facteurs et jetons API. Les blocages survivent aux redémarrages, les récidivistes sont bloqués plus longtemps et les administrateurs reçoivent un e-mail. Voir ci-dessous.</li>
-  <li><b>Comptes</b> — rôles à moindre privilège, authentification à deux facteurs facultative (TOTP) et connexion LDAPS ; jetons API avec leur propre rôle, plus bas, et une expiration.</li>
-  <li><b>Approbation à quatre yeux</b> (facultative) — supprimer ou désactiver des tâches, supprimer des agents, hôtes ESXi, cibles de stockage et utilisateurs, raccourcir la rétention, désactiver l'approbation, et tout ce qui pourrait donner à un administrateur un second approbateur (nouveaux approbateurs, plus de droits, réinitialisations de mot de passe et de double authentification, modifications LDAP et SSO) nécessitent l'approbation d'un second utilisateur. Voir <a href="/docs/users">Utilisateurs, rôles et LDAP</a>.</li>
+  <li><b>Comptes</b> — rôles à moindre privilège, authentification à deux facteurs facultative (TOTP), connexion LDAP via LDAPS ou StartTLS et authentification unique (OpenID Connect, SAML) ; jetons API avec leur propre rôle, plus bas, et une expiration.</li>
+  <li><b>Approbation à quatre yeux</b> (facultative) — supprimer ou désactiver des tâches, supprimer des agents, hôtes ESXi, cibles de stockage et utilisateurs, raccourcir la rétention, reprendre la rétention après une sauvegarde suspecte, supprimer, désactiver ou réduire une tâche pour plusieurs agents, désactiver l'approbation, et tout ce qui pourrait donner à un administrateur un second approbateur (nouveaux approbateurs, plus de droits, réinitialisations de mot de passe et de double authentification, modifications LDAP et SSO) nécessitent l'approbation d'un second utilisateur. Voir <a href="/docs/users">Utilisateurs, rôles et LDAP</a>.</li>
   <li><b>Piste d'audit</b> — connexions, échecs de connexion, modifications d'utilisateurs et de rôles, tâches, cibles de stockage, restaurations, clés de récupération affichées, modifications de paramètres et actions API sont enregistrés dans le <a href="/audit">journal d'audit</a> ; les entrées sont chaînées pour que les modifications et suppressions dans la base soient détectées, et peuvent être copiées vers un serveur syslog ou un SIEM (<a href="/docs/users#audit-integrity">Protection contre les modifications</a>) ; les suppressions sur un dépôt renforcé sont journalisées sur ce serveur.</li>
   <li><b>Mises à jour de la console</b> — les versions sont signées avec la clé de publication BackupZit (Ed25519). La console et le service root qui les installe vérifient tous deux la signature, la base de données est sauvegardée d'abord et une mise à jour ratée est annulée.</li>
   <li><b>Mises à jour des agents</b> — les agents ne téléchargent de nouvelles versions que depuis leur console via la connexion épinglée et ne les installent que si la somme de contrôle SHA-256 correspond.</li>
@@ -46,20 +46,20 @@
   <tr><td>Adresses autorisées</td><td>Adresses IP ou réseaux (par ex. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). La console web, la REST API et toutes les pages ne répondent qu'à ces adresses ; les autres reçoivent « not found », comme s'il n'y avait pas de console. Les agents atteignent toujours leur API (inscription, interrogation, résultats, téléchargements, installation à distance). Vide : tout le monde. La console refuse une liste qui ne contient pas votre propre adresse.</td></tr>
   <tr><td>Port 8443 réservé aux agents</td><td>La console web n'est alors disponible que sur le port web avec le certificat de confiance (<a href="/docs/install">Paramètres → Certificat</a>, généralement 443), de sorte qu'un pare-feu peut ouvrir 8443 à tous et 443 uniquement à vos adresses. Disponible une fois le port web actif ; modifiez-le depuis le port web, pas depuis 8443.</td></tr>
 </table>
-<p>Un pare-feu typique pour une console publique : 8443 ouvert à tous (agents), 443 et 80 (vérification HTTP Let's Encrypt) uniquement depuis vos adresses, SSH uniquement depuis vos adresses ou désactivé, tout le reste fermé.</p>
+<p>Un pare-feu typique pour une console publique : 8443 ouvert à tous (agents), 443 uniquement depuis vos adresses, 80 ouvert à tous uniquement si vous utilisez la vérification HTTP Let's Encrypt (Let's Encrypt vérifie depuis ses propres serveurs ; le port ne répond qu'à la vérification et redirige vers HTTPS), sinon fermé et la vérification DNS utilisée ; SSH uniquement depuis vos adresses ou désactivé ; tout le reste fermé.</p>
 <p>L’appliance ne répond pas aux requêtes ICMP timestamp, qui donneraient son heure à n’importe qui sur le réseau (un constat des scanners réseau) ; elle utilise pour cela sa propre petite table nftables et ne touche pas aux autres règles de pare-feu.</p>
 <p>Bloqué ? Sur le serveur lui-même (<code>localhost</code>), la console répond toujours. Sur l'appliance, l'élément 5 du menu de configuration sur son écran lève les blocages de connexion et ces restrictions.</p>
 
 <h2>Recommandations</h2>
 <h3>Console</h3>
 <ul>
-  <li>Gardez la console sur un réseau interne ; ne publiez pas le port 8443 sur Internet. Utilisez un VPN pour l'administration à distance.</li>
+  <li>Gardez la console sur un réseau interne lorsque c'est possible. Si des agents d'autres sites doivent l'atteindre, publiez uniquement le port 8443 et limitez la console web comme décrit dans <a href="#web-access">Accès à la console web</a> ; utilisez un VPN pour l'administration.</li>
   <li>Utilisez un mot de passe administrateur long et unique et changez celui d'origine.</li>
   <li>Exigez l'<b>authentification à deux facteurs</b> pour les administrateurs (<a href="/settings/security">Paramètres → Connexion et sécurité</a>).</li>
   <li>Donnez à chaque personne son propre compte avec le rôle le plus bas qui fonctionne ; utilisez des jetons API avec le rôle Lecteur pour la supervision.</li>
   <li>Sauvegardez <code>secrets.key</code> séparément de la base de données (<a href="/docs/install">Installer le serveur</a>).</li>
   <li>Choisissez une durée de session de connexion adaptée dans <a href="/settings/security">Paramètres → Connexion et sécurité</a> (plus court est plus sûr).</li>
-  <li>Maintenez le serveur à jour (<code>apt upgrade</code> / <code>dnf upgrade</code>), PostgreSQL compris.</li>
+  <li>Maintenez le serveur à jour, PostgreSQL compris : sur l'appliance dans <b>Paramètres → Mises à jour → Système d'exploitation</b> (les mises à jour de sécurité s'installent automatiquement), sur votre propre serveur avec <code>apt upgrade</code> / <code>dnf upgrade</code>.</li>
 </ul>
 <h3>Stockage</h3>
 <ul>
@@ -82,6 +82,6 @@
 </ul>
 
 <h2>Signaler un problème de sécurité</h2>
-<p>Veuillez signaler les vulnérabilités en privé aux mainteneurs de BackupZit plutôt que d'ouvrir un ticket public.</p>
+<p>Veuillez signaler les vulnérabilités en privé plutôt que d'ouvrir un ticket public : sur <a href="https://github.com/Max-Zit/backupzit/security">github.com/Max-Zit/backupzit</a>, ouvrez l'onglet <b>Security</b> et choisissez <b>Report a vulnerability</b>.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -48,7 +48,7 @@
   <tr><th>Option</th><th>Exemple</th></tr>
   <tr><td><b>À des heures précises</b></td><td>Chaque jour ouvré à 22:00 ; ou à 12:00 et 18:00 tous les jours. Jusqu'à trois fois par jour, les jours cochés.</td></tr>
   <tr><td><b>Plusieurs fois</b></td><td>Toutes les 2 heures entre 08:00 et 18:00, du lundi au vendredi. Intervalles de 15 minutes à 12 heures.</td></tr>
-  <tr><td><b>Une fois par mois</b></td><td>Le 1er à 23:00.</td></tr>
+  <tr><td><b>Une fois par mois</b></td><td>Le 1er à 23:00 (n'importe quel jour du 1 au 28).</td></tr>
   <tr><td><b>Manuellement uniquement</b></td><td>S'exécute seulement quand vous cliquez sur <i>Lancer la sauvegarde maintenant</i>.</td></tr>
   <tr><td><b>Après une autre tâche</b></td><td>D'abord la base de données, puis le serveur de fichiers : la tâche démarre dès que la tâche choisie s'est terminée avec succès — ou après tout résultat, avec <i>même si cette tâche a échoué</i>. Les chaînes peuvent être plus longues (A → B → C) ; une tâche ne peut pas s'exécuter après elle-même ni en boucle.</td></tr>
 </table>
@@ -78,7 +78,7 @@
   <li>Seules les données qui ne sont pas encore à destination sont transférées, rechiffrées avec la clé de la destination.</li>
   <li>La planification <b>Après chaque sauvegarde de la tâche source</b> (par défaut) maintient la copie à jour ; toute planification normale fonctionne aussi, p. ex. une fois par nuit pour une ligne internet lente.</li>
   <li>La copie a sa propre rétention, p. ex. 7 quotidiennes sur le NAS et 12 mensuelles dans le cloud.</li>
-  <li>Les sauvegardes de fichiers et de VM copiées (Proxmox VE, Hyper-V, VMware) se restaurent depuis la page de l'exécution de copie ou l'<a href="/restore">assistant de restauration</a>, comme les originaux — VM entières, fichiers individuels des disques de VM et restauration instantanée Proxmox. Les sauvegardes de VM copiées par un agent antérieur à 0.29 ne peuvent pas être restaurées ainsi ; la prochaine exécution de copie avec un agent plus récent rend sa copie la plus récente restaurable. Les copies d'images disque se restaurent avec l'agent en ligne de commande.</li>
+  <li>Les sauvegardes de fichiers et de VM copiées (Proxmox VE, Hyper-V, VMware) se restaurent depuis la page de l'exécution de copie ou l'<a href="/restore">assistant de restauration</a>, comme les originaux — VM entières, fichiers individuels des disques de VM et restauration instantanée Proxmox. Les sauvegardes de VM copiées par un agent antérieur à 0.29 ne peuvent pas être restaurées ainsi ; la prochaine exécution de copie avec un agent plus récent rend sa copie la plus récente restaurable. Les sauvegardes Microsoft 365 copiées se restaurent de la même façon. Les copies d'images disque, de sauvegardes de système Linux et de bases de données se restaurent avec l'agent en ligne de commande.</li>
 </ul>
 
 <h2>Modifier une tâche</h2>
@@ -91,7 +91,7 @@
 <p>Sous <b>Avancé</b> dans le formulaire de tâche, <b>Limiter le débit d’envoi à</b> plafonne la vitesse à laquelle l'agent envoie les données au stockage, en Mo/s — par exemple 10 Mo/s de 08:00 à 18:00, pour que les sauvegardes pendant les heures de travail laissent la ligne du bureau utilisable ; en dehors de la plage, la tâche tourne à pleine vitesse. Les heures sont l'heure locale de l'agent, et une plage peut passer minuit (22:00 à 06:00). La limite s'applique aux sauvegardes et aux tâches de copie (l'envoi vers le second stockage), pas aux restaurations : une restauration tourne toujours à pleine vitesse.</p>
 
 <h2 id="compression">Compression et déduplication</h2>
-<p>Chaque sauvegarde est dédupliquée : les données déjà présentes dans le dépôt — issues de sauvegardes antérieures de la même tâche ou d'autres tâches sur la même cible de stockage — ne sont pas stockées à nouveau. Les nouvelles données sont ensuite compressées avec zstd ; les morceaux qui ne rapetissent pas (vidéo, archives, fichiers chiffrés) sont stockés tels quels. Le chiffrement intervient après la compression.</p>
+<p>Chaque sauvegarde est dédupliquée : les données déjà présentes dans le dépôt — issues de sauvegardes antérieures de la même tâche ou d'autres tâches du même agent sur la même cible de stockage — ne sont pas stockées à nouveau. Chaque agent a son propre dépôt (de même que les hôtes VMware, les clusters Hyper-V et les tenants Microsoft 365), il n'y a donc pas de déduplication entre ordinateurs. Les nouvelles données sont ensuite compressées avec zstd ; les morceaux qui ne rapetissent pas (vidéo, archives, fichiers chiffrés) sont stockés tels quels. Le chiffrement intervient après la compression.</p>
 <p>Le niveau de compression est un réglage de la tâche (<b>Modifier → Avancé</b>) :</p>
 <table>
   <tr><th>Niveau</th><th>Quand l'utiliser</th></tr>
@@ -120,7 +120,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Lancer la sauvegarde maintenant</b> (<b>Copier maintenant</b> pour les tâches de copie) met la tâche en file immédiatement.</li>
   <li><b>Tester la restauration</b> restaure un échantillon aléatoire de la sauvegarde la plus récente et le vérifie (voir <a href="/docs/restore">Restauration</a>).</li>
   <li><b>Désactiver</b> suspend la planification sans perdre la tâche (avec l'approbation à quatre yeux, un second utilisateur doit approuver).</li>
-  <li><b>Supprimer</b> retire la tâche ; les sauvegardes existantes restent sur le stockage et restent restaurables depuis Activité.</li>
+  <li><b>Supprimer</b> retire la tâche (avec l'approbation à quatre yeux activée, après l'approbation d'un second utilisateur) ; les sauvegardes existantes restent sur le stockage et restent restaurables depuis Activité. Les tâches de copie de cette tâche sont supprimées avec elle ; leurs copies restent sur leur stockage.</li>
 </ul>
 
 <h2>Arrêter une exécution</h2>

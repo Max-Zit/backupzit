@@ -97,6 +97,6 @@ backupzit-repo keys                           # ključevi i njihova ograničenja
 <p><b>Zahteva pažnju</b> na kontrolnoj tabli upozorava kada je skladište 90 % puno ili će se popuniti u narednih 30 dana. S3 i Azure nemaju fiksnu veličinu; tamo se prikazuju samo zauzet prostor i njegov rast. Zauzet prostor su sačuvani (kompresovani, šifrovani, deduplicirani) podaci; fajlovi koje skladište čuva iz drugih razloga (verzije objekata, drugi programi) se ne računaju.</p>
 
 <h2>Uklanjanje skladišta</h2>
-<p>Uklanjanje skladišta iz konzole ne briše nikakve podatke na skladištu. Uz uključeno <a href="/docs/users">odobrenje „četiri oka”</a>, drugi korisnik prvo mora to da odobri.</p>
+<p>Skladište koje poslovi još koriste ne može da se ukloni. Uklanjanje skladišta iz konzole ne briše nikakve podatke na skladištu, ali konzola zaboravlja njegove pristupne podatke i ključ za oporavak, pa njegovi bekapi više ne mogu da se vrate iz konzole — prvo preuzmite list za oporavak. Uz uključeno <a href="/docs/users">odobrenje „četiri oka”</a>, drugi korisnik prvo mora to da odobri.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

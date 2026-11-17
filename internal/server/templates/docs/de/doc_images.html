@@ -16,15 +16,15 @@
 <h2>Ein Abbild auf eine Festplatte wiederherstellen</h2>
 <p>Verwenden Sie im Lauf der Abbildsicherung <b>Dieses Abbild auf eine Festplatte wiederherstellen</b>:</p>
 <ul>
-  <li><b>Auf Agent wiederherstellen</b> — die Maschine mit der Zielfestplatte. Das kann eine laufende Maschine mit einer freien Festplatte sein oder eine vom Wiederherstellungs-ISO gestartete Maschine.</li>
-  <li><b>Zieldatenträger</b> — muss mindestens so groß sein wie der belegte Bereich des Originals. <b>Alle Daten darauf werden gelöscht.</b></li>
+  <li><b>Auf Agent wiederherstellen</b> — die Windows-Maschine mit der Zielfestplatte. Das kann eine laufende Maschine mit einer freien Festplatte sein oder eine vom Wiederherstellungs-ISO gestartete Maschine; die Festplatte, von der Windows läuft, kann nicht gewählt werden, daher braucht die Wiederherstellung der Systemfestplatte einer Maschine das Wiederherstellungs-ISO.</li>
+  <li><b>Zieldatenträger</b> — muss mindestens bis zum Ende der letzten Partition der Originalfestplatte reichen (Partitionen werden in ihrer ursprünglichen Größe neu angelegt, nicht verkleinert) und dieselbe Sektorgröße haben (512 oder 4096 Bytes). <b>Alle Daten darauf werden gelöscht.</b></li>
   <li><b>Festplatte danach offline lassen</b> — aktivieren Sie dies, wenn sich die Originalfestplatte in derselben Maschine befindet, damit Windows die Datenträger-IDs der Kopie nicht ändert.</li>
 </ul>
 <p>GPT- und MBR-Festplatten, EFI- und BIOS-Boot werden unterstützt. Partitionslayout und IDs werden neu erstellt, sodass die wiederhergestellte Festplatte wie zuvor startet.</p>
 
 <h2>Bare-Metal-Wiederherstellung mit dem Wiederherstellungs-ISO</h2>
 <ol>
-  <li>Laden Sie unter <a href="/recovery">Wiederherstellungsmedien</a> das (Windows-)Wiederherstellungs-ISO herunter. Schreiben Sie es auf einen USB-Stick (Rufus, Modus „DD-Image“ oder „ISO“) oder hängen Sie es an eine virtuelle Maschine.</li>
+  <li>Erstellen Sie das Windows-Wiederherstellungs-ISO einmal (siehe <a href="/docs/restore#recovery-iso">Wiederherstellungs-ISOs</a>; Windows PE darf nicht weitergegeben werden), oder laden Sie es unter <a href="/recovery">Wiederherstellungsmedien</a> herunter, wenn es in die Konsole kopiert wurde. Schreiben Sie es auf einen USB-Stick (Rufus im Modus <b>ISO</b>, damit Sie den unten genannten Ordner hinzufügen können) oder hängen Sie es an eine virtuelle Maschine.</li>
   <li>Erstellen Sie optional einen <b>Wiederherstellungscode</b> und laden Sie <code>recovery.json</code> herunter; kopieren Sie die Datei in einen Ordner <code>backupzit</code> auf dem Stick, damit die Maschine sich ohne Eingaben verbindet.</li>
   <li>Starten Sie die wiederherzustellende Maschine vom Stick. Sie startet den Agenten im Wiederherstellungsmodus und verbindet sich mit der Konsole (oder fragt nach Serveradresse und Wiederherstellungscode).</li>
   <li>Die Maschine erscheint als <span class="badge">Wiederherstellung</span>-Agent mit ihren Festplatten.</li>

@@ -29,7 +29,7 @@
   <li>Il checkpoint viene rimosso e Hyper-V lo unisce in background.</li>
   <li>La configurazione della VM viene salvata con il backup: generazione, CPU, memoria, schede di rete (switch, VLAN, indirizzo MAC), controller disco, avvio protetto e TPM.</li>
 </ol>
-<p>Le VM spente vengono lette direttamente, senza checkpoint. Sugli host precedenti a Windows Server 2016 (senza checkpoint di ripristino) si usa un checkpoint di produzione e ogni backup legge i dischi interi.</p>
+<p>Le VM spente vengono lette direttamente, senza checkpoint. Sugli host senza checkpoint di ripristino si crea un checkpoint normale (di produzione quando possibile, altrimenti crash-consistent) e ogni backup legge i dischi interi.</p>
 <p id="checkpoint-concurrency">I backup sovrapposti della stessa VM attendono il proprio turno su ogni host, sia dal servizio sia dalla riga di comando. Un backup elimina solo il proprio checkpoint temporaneo. L’agente rimuove un checkpoint rimasto quando il suo backup è terminato su un altro nodo (dopo una migrazione in tempo reale) o quando ha più di 48 ore (un backup interrotto da un arresto anomalo o da un’interruzione di corrente). Tutti i processi di backup sovrapposti devono usare programmi aggiornati.</p>
 <p id="appconsistent"><b>Solo coerente con le applicazioni.</b> Per Active Directory, SQL Server, Exchange e altri database, spunta <i>Richiedi checkpoint coerenti con le applicazioni</i> nel job (anche in un job per un cluster). Una VM in esecuzione viene allora salvata solo da un checkpoint preparato dal guest con VSS; se fallisce, la VM non viene salvata e l'esecuzione fallisce (con una notifica) invece di creare un checkpoint coerente con l'arresto anomalo. Le altre VM del job vengono comunque salvate e si possono ripristinare da quell'esecuzione. Controlla il servizio di integrazione <i>Backup (volume shadow copy)</i> nelle impostazioni della VM e VSS nel guest (<code>vssadmin list writers</code>). Richiede agenti 0.48.0 o successivi; con agenti più vecchi l'esecuzione fallisce chiedendo di aggiornarli.</p>
 <p id="vtpm"><b>vTPM e BitLocker.</b> Per le VM di generazione 2 con TPM virtuale il backup conserva anche il vTPM (il file di stato guest e la protezione della chiave). Ripristinata come nuova VM sullo stesso host, o su un host con il certificato guardian dell'host originale, la VM riottiene il suo vTPM e BitLocker non chiede la chiave di ripristino. Su altri host la VM riceve un vTPM nuovo e vuoto e il ripristino lo segnala; per evitarlo importa prima lì il certificato <i>UntrustedGuardian</i> dell'host originale. Il ripristino sopra la VM esistente ne conserva il vTPM. Le VM schermate (Host Guardian Service) non sono supportate. Conserva comunque le chiavi di ripristino di BitLocker.</p>
@@ -60,7 +60,7 @@
 
 <h3>Opzioni</h3>
 <ul>
-  <li><b>Cartella per i dischi virtuali</b>: la cartella predefinita dell'host o qualsiasi cartella che contenga dischi di VM. Un ripristino sul posto mette i nuovi dischi accanto a quelli originali.</li>
+  <li><b>Cartella per i dischi virtuali</b>: la cartella predefinita dell'host o qualsiasi cartella che contenga dischi di VM. Un ripristino sul posto mette i nuovi dischi in una nuova sottocartella <code>backupzit-restore-…</code> e lascia quelli vecchi dove si trovavano.</li>
   <li><b>Avvia la VM dopo il ripristino</b>.</li>
 </ul>
 
@@ -85,7 +85,7 @@
 <ol>
   <li>Apri <a href="/jobs">Backup jobs</a> e il modulo <i>New backup job</i>.</li>
   <li>Apri l'elenco <b>Agent</b> e vai in fondo: sotto <i>Hyper-V failover clusters (virtual machines)</i> scegli il cluster, ad es. <i>HVC01 — 2 nodes</i>. Scegli il cluster, non un singolo nodo.</li>
-  <li>Il tipo è impostato su <i>Virtual machines</i>. Scegli <i>All clustered VMs</i> (anche le VM aggiunte in seguito al cluster) oppure <i>Only these</i>; accanto a ogni VM c'è il nodo su cui è in esecuzione ora.</li>
+  <li>Il tipo è impostato su <i>Virtual machines</i>. Scegli <i>All clustered VMs</i> (anche le VM aggiunte in seguito al cluster), <i>All clustered VMs except the ticked ones</i> oppure <i>Only these</i>; accanto a ogni VM c'è il nodo su cui è in esecuzione ora.</li>
   <li>Scegli lo storage, la pianificazione e quanti backup conservare, poi fai clic su <i>Create job</i>.</li>
 </ol>
 <p>La pagina del job mostra ogni nodo con il suo ultimo risultato; <i>Run backup now on all agents</i> li avvia tutti. Un nodo che in quel momento non esegue nessuna VM del job segnala <i>None of the job's VMs runs on this node now</i>: è un successo.</p>

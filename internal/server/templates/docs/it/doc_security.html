@@ -11,8 +11,8 @@
   <li><b>Segreti degli agenti</b> — ogni agente ha un proprio segreto, memorizzato solo come hash sulla console e, sull'agente, in un file leggibile solo dagli amministratori.</li>
   <li><b>Console web</b> — cookie di sessione HttpOnly e SameSite=Strict; protezione da richieste cross-site e clickjacking; Content-Security-Policy rigorosa; password con hash bcrypt; le pagine sensibili non vengono mai memorizzate nella cache.</li>
   <li><b>Protezione dalla forza bruta</b> — gli indirizzi che falliscono l'accesso troppe volte vengono bloccati: password, codici a due fattori e token API. I blocchi sopravvivono ai riavvii, i recidivi vengono bloccati più a lungo e gli amministratori ricevono un'e-mail. Vedi sotto.</li>
-  <li><b>Account</b> — ruoli con privilegi minimi, autenticazione a due fattori facoltativa (TOTP) e accesso LDAPS; token API con un proprio ruolo, più basso, e una scadenza.</li>
-  <li><b>Approvazione a quattro occhi</b> (facoltativa) — eliminare o disattivare job, eliminare agenti, host ESXi, destinazioni di archiviazione e utenti, accorciare la conservazione, disattivare l'approvazione e tutto ciò che potrebbe dare a un amministratore un secondo approvatore (nuovi approvatori, più diritti, reimpostazione di password e due fattori, modifiche a LDAP e SSO) richiedono l'approvazione di un secondo utente. Vedi <a href="/docs/users">Utenti, ruoli e LDAP</a>.</li>
+  <li><b>Account</b> — ruoli con privilegi minimi, autenticazione a due fattori facoltativa (TOTP), accesso LDAP tramite LDAPS o StartTLS e single sign-on (OpenID Connect, SAML); token API con un proprio ruolo, più basso, e una scadenza.</li>
+  <li><b>Approvazione a quattro occhi</b> (facoltativa) — eliminare o disattivare job, eliminare agenti, host ESXi, destinazioni di archiviazione e utenti, accorciare la conservazione, riprendere la conservazione dopo un backup sospetto, eliminare, disattivare o ridurre un job per più agenti, disattivare l'approvazione e tutto ciò che potrebbe dare a un amministratore un secondo approvatore (nuovi approvatori, più diritti, reimpostazione di password e due fattori, modifiche a LDAP e SSO) richiedono l'approvazione di un secondo utente. Vedi <a href="/docs/users">Utenti, ruoli e LDAP</a>.</li>
   <li><b>Traccia di controllo</b> — accessi, accessi non riusciti, modifiche a utenti e ruoli, job, destinazioni di archiviazione, ripristini, chiavi di ripristino visualizzate, modifiche alle impostazioni e azioni API vengono registrati nel <a href="/audit">registro di controllo</a>; le voci sono concatenate così che modifiche ed eliminazioni nel database vengano rilevate, e possono essere copiate su un server syslog o SIEM (<a href="/docs/users#audit-integrity">Protezione dalle modifiche</a>); le eliminazioni su un repository protetto vengono registrate su quel server.</li>
   <li><b>Aggiornamenti della console</b> — le release sono firmate con la chiave di rilascio di BackupZit (Ed25519). La console e il servizio root che le installa verificano entrambi la firma, il database viene prima salvato e un aggiornamento non riuscito viene annullato.</li>
   <li><b>Aggiornamenti degli agenti</b> — gli agenti scaricano nuove versioni solo dalla propria console tramite la connessione fissata e le installano solo se il checksum SHA-256 corrisponde.</li>
@@ -46,20 +46,20 @@
   <tr><td>Indirizzi consentiti</td><td>Indirizzi IP o reti (ad es. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). La console web, la REST API e ogni pagina rispondono solo a questi indirizzi; gli altri ricevono "not found", come se non ci fosse alcuna console. Gli agenti raggiungono sempre la loro API (registrazione, interrogazioni, risultati, download, installazione remota). Vuoto: tutti. La console rifiuta un elenco che non contiene il tuo indirizzo.</td></tr>
   <tr><td>Porta 8443 solo per gli agenti</td><td>La console web è allora disponibile solo sulla porta web con il certificato attendibile (<a href="/docs/install">Impostazioni → Certificato</a>, di solito 443), così un firewall può aprire la 8443 a tutti e la 443 solo ai tuoi indirizzi. Disponibile una volta attiva la porta web; modificala dalla porta web, non dalla 8443.</td></tr>
 </table>
-<p>Un firewall tipico per una console pubblica: 8443 aperta a tutti (agenti), 443 e 80 (verifica HTTP di Let's Encrypt) solo dai tuoi indirizzi, SSH solo dai tuoi indirizzi o disattivato, tutto il resto chiuso.</p>
+<p>Un firewall tipico per una console pubblica: 8443 aperta a tutti (agenti), 443 solo dai tuoi indirizzi, 80 aperta a tutti solo se usi la verifica HTTP di Let's Encrypt (Let's Encrypt la esegue dai propri server; la porta risponde solo alla verifica e reindirizza a HTTPS), altrimenti chiusa, usando la verifica DNS; SSH solo dai tuoi indirizzi o disattivato; tutto il resto chiuso.</p>
 <p>L’appliance non risponde alle richieste ICMP timestamp, che rivelerebbero la sua ora a chiunque in rete (un rilievo degli scanner di rete); usa a questo scopo una propria piccola tabella nftables e non tocca le altre regole del firewall.</p>
 <p>Chiuso fuori? Sul server stesso (<code>localhost</code>) la console risponde sempre. Sull'appliance, la voce 5 del menu di configurazione sul suo schermo rimuove i blocchi di accesso e queste restrizioni.</p>
 
 <h2>Raccomandazioni</h2>
 <h3>Console</h3>
 <ul>
-  <li>Tieni la console su una rete interna; non pubblicare la porta 8443 su Internet. Usa una VPN per l'amministrazione remota.</li>
+  <li>Tieni la console su una rete interna, quando possibile. Se agenti di altre sedi devono raggiungerla, pubblica solo la porta 8443 e limita la console web come descritto in <a href="#web-access">Accesso alla console web</a>; usa una VPN per l'amministrazione.</li>
   <li>Usa una password di amministratore lunga e univoca e cambia quella iniziale.</li>
   <li>Richiedi l'<b>autenticazione a due fattori</b> per gli amministratori (<a href="/settings/security">Impostazioni → Accesso e sicurezza</a>).</li>
   <li>Dai a ogni persona un proprio account con il ruolo più basso che funziona; usa token API con il ruolo Visualizzatore per il monitoraggio.</li>
   <li>Salva <code>secrets.key</code> separatamente dal database (<a href="/docs/install">Installare il server</a>).</li>
   <li>Scegli in <a href="/settings/security">Impostazioni → Accesso e sicurezza</a> una durata della sessione adatta (più breve è più sicura).</li>
-  <li>Mantieni il server aggiornato (<code>apt upgrade</code> / <code>dnf upgrade</code>), PostgreSQL compreso.</li>
+  <li>Mantieni il server aggiornato, PostgreSQL compreso: sull'appliance in <b>Impostazioni → Aggiornamenti → Sistema operativo</b> (gli aggiornamenti di sicurezza si installano automaticamente), sul tuo server con <code>apt upgrade</code> / <code>dnf upgrade</code>.</li>
 </ul>
 <h3>Archiviazione</h3>
 <ul>
@@ -82,6 +82,6 @@
 </ul>
 
 <h2>Segnalare un problema di sicurezza</h2>
-<p>Segnala le vulnerabilità in privato ai manutentori di BackupZit invece di aprire una issue pubblica.</p>
+<p>Segnala le vulnerabilità in privato invece di aprire una issue pubblica: su <a href="https://github.com/Max-Zit/backupzit/security">github.com/Max-Zit/backupzit</a> apri la scheda <b>Security</b> e scegli <b>Report a vulnerability</b>.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

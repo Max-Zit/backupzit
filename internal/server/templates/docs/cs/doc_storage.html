@@ -97,6 +97,6 @@ backupzit-repo keys                           # klíče a jejich limity</pre>
 <p><b>Vyžaduje pozornost</b> na řídicím panelu varuje, když je cíl úložiště zaplněn z 90 % nebo se zaplní do 30 dní. S3 a Azure nemají pevnou velikost; tam se zobrazuje jen využité místo a jeho růst. Využité místo jsou uložená (komprimovaná, šifrovaná, deduplikovaná) data; soubory, které úložiště drží z jiných důvodů (verze objektů, jiné programy), se nezapočítávají.</p>
 
 <h2>Odebrání cíle</h2>
-<p>Odebrání cíle úložiště z konzole nesmaže na úložišti žádná data. Se zapnutým <a href="/docs/users">schválením čtyř očí</a> to musí nejprve schválit druhý uživatel.</p>
+<p>Cíl úložiště, který ještě používají úlohy, nelze odebrat. Odebrání cíle z konzole nesmaže na úložišti žádná data, ale konzole zapomene jeho přihlašovací údaje a klíč pro obnovení, takže jeho zálohy už z konzole obnovit nelze — nejprve si stáhněte list pro obnovu. Se zapnutým <a href="/docs/users">schválením čtyř očí</a> to musí nejprve schválit druhý uživatel.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

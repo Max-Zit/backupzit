@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>Kolumna <b>Adresy IP</b> pokazuje własne adresy maszyny, tak jak agent ostatnio je zgłosił. <i>widziany z</i> to adres, z którego przychodzą jego połączenia: w sieci lokalnej ten sam adres, dla maszyny za NAT (np. laptopa w domu) publiczny adres routera. Konsola nie pyta o to żadnej usługi zewnętrznej.</p>
 
+<h2 id="names">Nazwy i tagi</h2>
+<p>Serwery różnych klientów lub lokalizacji często mają tę samą nazwę hosta. Kliknij agenta na stronie <a href="/agents">Agenty</a>, aby nadać mu <b>nazwę wyświetlaną w konsoli</b> i <b>tagi</b> — dowolne etykiety, np. klient lub lokalizacja, oddzielone przecinkami. Nazwa jest używana w formularzach zadań, przy przywracaniu, w Aktywności, raportach i e-mailach; nazwa hosta zgłaszana przez komputer pozostaje widoczna obok, a strona agenta ostrzega, gdy inne agenty zgłaszają tę samą nazwę hosta. Kliknij tag, aby pokazać tylko agenty, które go mają.</p>
+<p>Zmiana nazwy zmienia tylko to, co pokazuje konsola: agent, jego repozytorium i kopie zapasowe pozostają bez zmian, a komputer nie może zmienić swojej nazwy ani tagów. Ich zmiana wymaga uprawnienia do agentów i jest zapisywana w dzienniku audytu. Tagi pomagają znaleźć agenty; nie dają ani nie ograniczają dostępu i nie dodają agentów do zadań. Każdy, kto może zalogować się do konsoli, widzi wszystkie agenty, a konsola przechowuje klucze wszystkich ich kopii — klienci, którzy muszą być ściśle rozdzieleni, potrzebują osobnej konsoli.</p>
+
 <h2>Agent na pulpicie (Windows)</h2>
 <p>Agent Windows pokazuje ikonę obok zegara (może być pod strzałką <b>^</b> ukrytych ikon — przeciągnij ją na pasek zadań, aby była stale widoczna). Kropka na ikonie pokazuje stan:</p>
 <table>

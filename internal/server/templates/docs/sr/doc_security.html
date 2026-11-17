@@ -11,8 +11,8 @@
   <li><b>Tajne agenata</b> — svaki agent ima sopstvenu tajnu, sačuvanu na konzoli samo kao heš, a na agentu u fajlu koji mogu da čitaju samo administratori.</li>
   <li><b>Web konzola</b> — HttpOnly, SameSite=Strict kolačići sesije; zaštita od cross-site zahteva i clickjacking-a; strogi Content-Security-Policy; lozinke heširane bcrypt-om; osetljive stranice se nikad ne keširaju.</li>
   <li><b>Zaštita od pogađanja lozinki</b> — adrese koje prečesto ne uspeju da se prijave se blokiraju: lozinke, dvofaktorski kodovi i API tokeni. Blokade preživljavaju restart, ponovni prekršioci se blokiraju duže, a administratori dobijaju email. Vidi dole.</li>
-  <li><b>Nalozi</b> — uloge sa najmanjim potrebnim pravima, opciona dvofaktorska autentifikacija (TOTP) i LDAPS prijava; API tokeni sa sopstvenom, nižom ulogom i rokom važenja.</li>
-  <li><b>Odobrenje „četiri oka”</b> (opciono) — brisanje ili onemogućavanje poslova, brisanje agenata, ESXi hostova, skladišta i korisnika, skraćivanje retencije, isključivanje odobrenja, i sve što bi jednom administratoru moglo da da drugog odobravača (novi odobravači, više prava, resetovanje lozinke i dvofaktorske prijave, izmene LDAP-a i SSO-a) traže odobrenje drugog korisnika. Vidi <a href="/docs/users">Korisnici, uloge i LDAP</a>.</li>
+  <li><b>Nalozi</b> — uloge sa najmanjim potrebnim pravima, opciona dvofaktorska autentifikacija (TOTP), LDAP prijava preko LDAPS-a ili StartTLS-a i jedinstvena prijava (single sign-on: OpenID Connect, SAML); API tokeni sa sopstvenom, nižom ulogom i rokom važenja.</li>
+  <li><b>Odobrenje „četiri oka”</b> (opciono) — brisanje ili onemogućavanje poslova, brisanje agenata, ESXi hostova, skladišta i korisnika, skraćivanje retencije, nastavak retencije posle sumnjivog bekapa, brisanje, onemogućavanje ili smanjivanje posla za više agenata, isključivanje odobrenja, i sve što bi jednom administratoru moglo da da drugog odobravača (novi odobravači, više prava, resetovanje lozinke i dvofaktorske prijave, izmene LDAP-a i SSO-a) traže odobrenje drugog korisnika. Vidi <a href="/docs/users">Korisnici, uloge i LDAP</a>.</li>
   <li><b>Revizijski trag</b> — prijave, neuspele prijave, izmene korisnika i uloga, poslovi, skladišta, vraćanja, prikazani ključevi za oporavak, izmene podešavanja i API radnje beleže se u <a href="/audit">dnevniku revizije</a>; unosi su povezani u lanac, pa se izmene i brisanja u bazi otkrivaju, i mogu da se kopiraju na syslog server ili SIEM (<a href="/docs/users#audit-integrity">Zaštita od izmena</a>); brisanja na ojačanom repozitorijumu beleže se na tom serveru.</li>
   <li><b>Ažuriranja konzole</b> — izdanja su potpisana BackupZit ključem za izdanja (Ed25519). I konzola i root servis koji ih instalira proveravaju potpis, baza se prvo bekapuje, a neuspelo ažuriranje se vraća unazad.</li>
   <li><b>Ažuriranja agenata</b> — agenti preuzimaju nove verzije samo sa svoje konzole preko fiksirane veze i instaliraju ih samo ako se SHA-256 kontrolni zbir poklapa.</li>
@@ -46,20 +46,20 @@
   <tr><td>Dozvoljene adrese</td><td>IP adrese ili mreže (npr. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). Web konzola, REST API i svaka stranica odgovaraju samo ovim adresama; ostale dobijaju „not found”, kao da konzola ne postoji. Agenti uvek dolaze do svog API-ja (prijavljivanje, provere, rezultati, preuzimanja, push instalacija). Prazno: svi. Konzola odbija listu koja ne sadrži vašu sopstvenu adresu.</td></tr>
   <tr><td>Port 8443 samo za agente</td><td>Web konzola je tada samo na web portu sa pouzdanim sertifikatom (<a href="/docs/install">Podešavanja → Sertifikat</a>, obično 443), pa firewall može da otvori 8443 svima, a 443 samo vašim adresama. Dostupno kada web port radi; menja se sa web porta, ne sa 8443.</td></tr>
 </table>
-<p>Tipičan firewall za javnu konzolu: 8443 otvoren svima (agenti), 443 i 80 (Let's Encrypt HTTP provera) samo sa vaših adresa, SSH samo sa vaših adresa ili isključen, sve ostalo zatvoreno.</p>
+<p>Tipičan firewall za javnu konzolu: 8443 otvoren svima (agenti), 443 samo sa vaših adresa, 80 otvoren svima samo ako koristite Let's Encrypt HTTP proveru (Let's Encrypt proverava sa svojih servera; port odgovara samo na proveru i preusmerava na HTTPS), inače zatvoren uz DNS proveru; SSH samo sa vaših adresa ili isključen; sve ostalo zatvoreno.</p>
 <p>Appliance ne odgovara na ICMP timestamp zahteve, koji bi svakome u mreži otkrili njegov sat (nalaz mrežnih skenera); koristi svoju malu nftables tabelu i ne dira ostala firewall pravila.</p>
 <p>Zaključani ste? Na samom serveru (<code>localhost</code>) konzola uvek odgovara. Na appliance-u, stavka 5 menija za podešavanje na njegovom ekranu skida blokade prijave i ova ograničenja.</p>
 
 <h2>Preporuke</h2>
 <h3>Konzola</h3>
 <ul>
-  <li>Držite konzolu u internoj mreži; ne objavljujte port 8443 na internetu. Za udaljenu administraciju koristite VPN.</li>
+  <li>Držite konzolu u internoj mreži gde god možete. Ako agenti sa drugih lokacija moraju da je dosegnu, objavite samo port 8443 i ograničite web konzolu kako je opisano u <a href="#web-access">Pristup web konzoli</a>; za administraciju koristite VPN.</li>
   <li>Koristite dugu, jedinstvenu administratorsku lozinku i promenite početnu.</li>
   <li>Zahtevajte <b>dvofaktorsku autentifikaciju</b> za administratore (<a href="/settings/security">Podešavanja → Prijava i bezbednost</a>).</li>
   <li>Dajte svakoj osobi sopstveni nalog sa najnižom ulogom koja je dovoljna; za nadzor koristite API tokene sa ulogom Posmatrač.</li>
   <li>Bekapujte <code>secrets.key</code> odvojeno od baze (<a href="/docs/install">Instalacija servera</a>).</li>
   <li>Izaberite trajanje sesije prijave u <a href="/settings/security">Podešavanja → Prijava i bezbednost</a> koje vam odgovara (kraće je bezbednije).</li>
-  <li>Održavajte server ažurnim (<code>apt upgrade</code> / <code>dnf upgrade</code>), uključujući PostgreSQL.</li>
+  <li>Održavajte server ažurnim, uključujući PostgreSQL: na appliance-u u <b>Podešavanja → Ažuriranja → Operativni sistem</b> (bezbednosna ažuriranja se instaliraju automatski), na sopstvenom serveru sa <code>apt upgrade</code> / <code>dnf upgrade</code>.</li>
 </ul>
 <h3>Skladište</h3>
 <ul>
@@ -82,6 +82,6 @@
 </ul>
 
 <h2>Prijava bezbednosnog problema</h2>
-<p>Ranjivosti prijavite privatno održavaocima BackupZit-a umesto otvaranja javnog issue-a.</p>
+<p>Ranjivosti prijavite privatno umesto otvaranja javnog issue-a: na <a href="https://github.com/Max-Zit/backupzit/security">github.com/Max-Zit/backupzit</a> otvorite karticu <b>Security</b> i izaberite <b>Report a vulnerability</b>.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

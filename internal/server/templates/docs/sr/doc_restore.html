@@ -57,7 +57,8 @@
 <div class="callout tip"><p><b>Kako naći pravi bekap:</b> u <a href="/calendar">Kalendaru</a> vidite koji bekapi su radili kog dana, ili pogledajte istoriju na stranici posla.</p></div>
 
 <h2>Vraćanje pojedinačnih fajlova iz slike diska</h2>
-<p>Za bekape slika diska kliknite <b>Pregledaj fajlove</b> na pokretanju bekapa. NTFS fajl-sistem u slici možete da pregledate direktno u konzoli, označite fajlove i foldere i vratite ih na bilo kog agenta — bez vraćanja celog diska. Pri vraćanju u folder fajlovi dobijaju isti raspored kao iz backup-a fajlova: slovo diska postaje prvi folder (<code>D:RestoreCUsers…</code>).</p>
+<p>Za bekape slika diska kliknite <b>Pregledaj fajlove</b> na pokretanju bekapa. NTFS fajl-sistem u slici možete da pregledate direktno u konzoli, označite fajlove i foldere i vratite ih na bilo kog agenta — bez vraćanja celog diska. Pri vraćanju u folder fajlovi dobijaju isti raspored kao iz backup-a fajlova: slovo diska postaje prvi folder (<code>D:\Restore\C\Users\…</code>).</p>
+<p>Označene fajlove možete i da <b>preuzmete</b> direktno u pregledač: jedan fajl stiže kakav jeste, više fajlova ili foldera kao ZIP arhiva — zgodno za jedan dokument iz velikog image bekapa. Kao i pregled, radi za image bekape na mrežnom skladištu, traži pravo <b>Restore</b>, a audit log beleži koje putanje su preuzete.</p>
 
 <h2>Vraćanje pojedinačnih fajlova iz VM-a (Proxmox VE, Hyper-V, VMware)</h2>
 <p>U pokretanju bekapa VM-a kliknite <b>Pregledaj fajlove</b> pored gosta. Konzola prikazuje particije i LVM volumene njegovih diskova i omogućava pregled NTFS, ext4 i XFS fajl-sistema. <b>Preuzmite</b> označene fajlove (više njih kao ZIP arhivu) ili ih vratite na bilo kog agenta. Vidi <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>. Fajlovi vraćeni na agenta zadržavaju Unix dozvole koje su imali u VM-u (ext4, XFS), pa vraćene tajne kao što je <code>/etc/shadow</code> ostaju privatne; fajlove sa NTFS volumena na Linux-u može da čita samo vlasnik.</p>
@@ -83,15 +84,16 @@
       <li>Po želji kopirajte ISO u <code>/var/lib/backupzit/dist</code> konzole; tada se nudi na stranici Medijum za oporavak.</li>
     </ol></li>
 </ul>
-<p>Pregled fajlova u konzoli radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); konzola ih čita direktno. Za bekape na lokalnom disku agenta koristite komandnu liniju.</p>
+<p>Pregled fajlova u konzoli radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); konzola ih čita direktno. Za bekape na lokalnom disku agenta, ili na SFTP-u sa SSH ključem, vraćanje sa <i>Samo ove putanje</i> i dalje radi iz konzole; da biste pregledali njihov sadržaj, koristite komandnu liniju.</p>
 
 <h2>Vraćanje bez konzole</h2>
 <p>Ako se izgubi i sama konzola, bilo koja mašina sa instaliranim agentom može da vrati direktno sa skladišta, pomoću <b>lista za oporavak</b> tog skladišta:</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;ključ za oporavak&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (ili pristupni podaci za S3/SMB/ojačani repozitorijum)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (ključ SFTP hosta, na listu za oporavak)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>Vidi <a href="/docs/cli">Komandna linija</a>.</p>
+<p><code>latest</code> je najnoviji bekap bilo kog posla tog računara; da biste vratili određeni posao, koristite ID snimka iz <code>snapshots</code>. Vidi <a href="/docs/cli">Komandna linija</a>.</p>
 
 <h2>Automatski testovi vraćanja</h2>
 <p>BackupZit redovno dokazuje vaše bekape bez ikakvog vašeg rada: jednom nedeljno (podešava se u <a href="/settings/tests">Podešavanja → Testovi vraćanja</a>) agent svakog posla vraća <b>nasumični uzorak fajlova</b> iz najnovijeg bekapa u privremeni folder, proverava svaki bajt u odnosu na sačuvane kontrolne zbirove i ponovo ga briše. Za slike diskova čitaju se i proveravaju nasumični blokovi. Tako se proverava ceo lanac — pristup skladištu, pristupni podaci, ključ za šifrovanje i ispravnost podataka.</p>

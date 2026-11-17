@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Copia del sistema Linux y P2V</h1>
 <p class="lead">Un trabajo de <b>Sistema Linux</b> copia una máquina Linux completa para poder recrearla en un disco vacío: la misma máquina tras un fallo de disco, hardware nuevo o una máquina virtual en Proxmox VE (de física a virtual, P2V).</p>
+<p>Probado con Debian, Ubuntu 22.04 y Rocky Linux 9 (lo mismo vale para AlmaLinux y RHEL 9). En Ubuntu 22.04 y sistemas tipo RHEL 9, las copias de sistema Linux necesitan el agente 0.50.0 o más reciente.</p>
 
 <h2>Qué se copia</h2>
 <ul>
@@ -10,12 +11,12 @@
 <p>Al igual que Relax-and-Recover, BackupZit no copia el disco en uso bloque a bloque: Linux no tiene una instantánea integrada de un disco en marcha, así que una copia en bruto sería incoherente. Cada archivo se lee completo y la disposición vuelve a hacer arrancable el disco restaurado. Las bases de datos deben volcarse antes de la copia o copiarse con sus propias herramientas.</p>
 <p>Los archivos y carpetas sueltos se restauran desde una copia de sistema como desde cualquier copia de archivos (<b>Restaurar archivos de esta copia</b> en la página de la ejecución).</p>
 <h3>Aún no compatible</h3>
-<p>Discos cifrados (LUKS), RAID por software (mdadm), btrfs y sistemas repartidos en varios discos. El trabajo lo indica claramente en lugar de crear una copia incompleta.</p>
+<p>Discos cifrados (LUKS), RAID por software (mdadm) y btrfs: el trabajo lo indica claramente en lugar de crear una copia incompleta. Los sistemas repartidos en varios discos sí se copian, pero la restauración de todo el sistema recrea un solo disco (en la línea de comandos se elige con <code>--disk</code>); los discos MBR con particiones lógicas no se pueden restaurar completos. El campo <b>Excluir</b> del trabajo deja fuera rutas, como <code>--exclude</code> en la línea de comandos.</p>
 
 <h2>Restaurar el sistema completo</h2>
 <p>Abra la ejecución de la copia del sistema (página del trabajo o <a href="/runs">Actividad</a>) y use <b>Restaurar todo el sistema</b>:</p>
 <h3>Como nueva VM de Proxmox</h3>
-<p>Elija el nodo Proxmox (su agente BackupZit hace el trabajo), el almacenamiento, el ID de VM, el nombre, la memoria y los núcleos. BackupZit crea la VM con el mismo firmware que el original (UEFI/OVMF o BIOS), un disco y una tarjeta de red VirtIO SCSI, recrea el disco, restaura todos los archivos y puede iniciar la VM. Como la VM es una copia que puede ejecutarse junto al original:</p>
+<p>Elija el nodo Proxmox (su agente BackupZit hace el trabajo), el almacenamiento, el ID de VM, el nombre, la memoria (por defecto 2048 MiB), los núcleos (por defecto 2) y el puente de red (por defecto <code>vmbr0</code>). BackupZit crea la VM con el mismo firmware que el original (UEFI/OVMF o BIOS), un disco y una tarjeta de red VirtIO SCSI, recrea el disco, restaura todos los archivos y puede iniciar la VM. Como la VM es una copia que puede ejecutarse junto al original:</p>
 <ul>
   <li>la configuración de red vinculada a las direcciones MAC antiguas (habitual en imágenes de nube: netplan <code>match: macaddress</code>) se cambia para que se aplique a cualquier interfaz cableada,</li>
   <li>el agente BackupZit dentro de la copia se da de baja, para que no se presente como la máquina original.</li>

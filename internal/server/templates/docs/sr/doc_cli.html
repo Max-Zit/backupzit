@@ -3,7 +3,7 @@
 <p class="lead">Agent radi i samostalno iz komandne linije — za skripte, za vraćanje bez konzole i za hitne slučajeve. Pokrenite <code>backupzit-agent</code> bez argumenata za pregled i <code>backupzit-agent &lt;command&gt; -h</code> za opcije neke komande.</p>
 
 <h2>Repozitorijum i pristupni podaci</h2>
-<p>Svaka komanda prima <code>--repo</code> (ili <code>BACKUPZIT_REPO</code>). Za tajne radije koristite promenljive okruženja. Repozitorijum agenta je <code>&lt;lokacija skladišta&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — vidi kolonu repozitorijuma pokretanja u Aktivnost, ili list za oporavak.</p>
+<p>Svaka komanda koja čita ili piše bekape prima <code>--repo</code> (ili <code>BACKUPZIT_REPO</code>); <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> i <code>disks</code> ga ne primaju. Za tajne radije koristite promenljive okruženja. Repozitorijum agenta je <code>&lt;lokacija skladišta&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — vidi polje <b>Repozitorijum</b> na stranici pokretanja, ili list za oporavak.</p>
 <table>
   <tr><th>Lokacija</th><th>Pristupni podaci</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,7 +23,7 @@
   <tr><td><code>init</code></td><td>Pravi nov repozitorijum (šifrovan kada je data lozinka).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Bekap fajlova i foldera. <code>--vss</code> čita iz Volume Shadow Copy-ja (Windows, administrator); <code>--force</code> čita sve fajlove i kada su nepromenjeni.</td></tr>
   <tr><td><code>snapshots</code></td><td>Navodi snimke sa vremenom, hostom, veličinom i putanjama.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Navodi fajlove u snimku.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Navodi sve fajlove u snimku.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Vraća fajlove ispod DIR (originalna struktura foldera se ponovo pravi). <code>--original</code> ih umesto toga upisuje nazad na originalnu lokaciju, prepisujući postojeće fajlove.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Proverava strukturu repozitorijuma; sa <code>--read-data</code> se svaki bajt preuzima i proverava.</td></tr>
 </table>
@@ -65,7 +65,7 @@
 <table>
   <tr><th>Komanda</th><th>Šta radi</th></tr>
   <tr><td><code>hyperv list</code></td><td>Navodi VM-ove hosta sa njihovim BackupZit brojevima, i foldere za vraćene diskove.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Bekap VM-ova (podrazumevano: svih) iz produkcionih checkpoint-a.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Bekap VM-ova (podrazumevano: svih) iz recovery checkpoint-a sa Resilient Change Tracking-om (produkcioni checkpoint-i samo na hostovima koji ih nemaju).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Vraća VM na mesto (podrazumevano) ili kao nov VM sa <code>--new</code>. <code>--overwrite</code> zamenjuje diskove postojećeg VM-a. Vidi <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> i <code>pve extract</code> rade i sa Hyper-V bekapima.</p>

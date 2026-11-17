@@ -3,7 +3,7 @@
 <p class="lead">O agente também funciona sozinho na linha de comandos: para scripts, para restaurar sem a console e para emergências. Execute <code>backupzit-agent</code> sem argumentos para uma visão geral e <code>backupzit-agent &lt;command&gt; -h</code> para as opções de um comando.</p>
 
 <h2>Repositório e credenciais</h2>
-<p>Todos os comandos aceitam <code>--repo</code> (ou <code>BACKUPZIT_REPO</code>). Para segredos, prefira variáveis de ambiente. O repositório de um agente é <code>&lt;local de armazenamento&gt;/&lt;hostname&gt;_&lt;id&gt;</code>: veja a coluna de repositório de uma execução em Atividade, ou a ficha de recuperação.</p>
+<p>Todos os comandos que leem ou gravam backups aceitam <code>--repo</code> (ou <code>BACKUPZIT_REPO</code>); <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> e <code>disks</code> não o usam. Para segredos, prefira variáveis de ambiente. O repositório de um agente é <code>&lt;local de armazenamento&gt;/&lt;hostname&gt;_&lt;id&gt;</code>: veja o campo <b>Repositório</b> na página da execução, ou a ficha de recuperação.</p>
 <table>
   <tr><th>Local</th><th>Credenciais</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,7 +23,7 @@
   <tr><td><code>init</code></td><td>Cria um novo repositório (criptografado se for dada uma senha).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Faz backup de arquivos e pastas. <code>--vss</code> lê de uma cópia de sombra do volume (Windows, administrador); <code>--force</code> lê todos os arquivos, mesmo os inalterados.</td></tr>
   <tr><td><code>snapshots</code></td><td>Lista os snapshots com hora, host, tamanho e caminhos.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Lista os arquivos de um snapshot.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Lista todos os arquivos de um snapshot.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Restaura arquivos em DIR (a estrutura de pastas original é recriada). <code>--original</code> grava-os no local original, sobrescrevendo os arquivos existentes.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Verifica a estrutura do repositório; com <code>--read-data</code> cada byte é baixado e verificado.</td></tr>
 </table>
@@ -65,7 +65,7 @@
 <table>
   <tr><th>Comando</th><th>O que faz</th></tr>
   <tr><td><code>hyperv list</code></td><td>Lista as VMs do host com os seus números BackupZit, e as pastas para discos restaurados.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Faz backup de VMs (padrão: todas) a partir de pontos de verificação de produção.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Faz backup de VMs (padrão: todas) a partir de pontos de verificação de recuperação com Resilient Change Tracking (pontos de verificação de produção só em hosts que não os têm).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Restaura uma VM no local (padrão) ou como nova VM com <code>--new</code>. <code>--overwrite</code> substitui os discos de uma VM existente. Veja <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> e <code>pve extract</code> também funcionam com backups Hyper-V.</p>

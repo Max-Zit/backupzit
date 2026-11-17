@@ -26,9 +26,10 @@
 <ol>
   <li>Create a bucket with <b>Object Lock enabled</b> (AWS, Wasabi, Backblaze B2, MinIO: <code>mc mb --with-lock</code>).</li>
   <li>Add a lifecycle rule that deletes <i>noncurrent versions</i> after 1 day (MinIO: <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
-  <li>Add the S3 target and tick <b>Immutable backups for N days</b>. Choose N at least as long as your longest retention you need protected, e.g. 30.</li>
+  <li>Give the bucket a default retention in compliance mode of at least N days (MinIO: <code>mc retention set --default COMPLIANCE 30d</code>), so objects are locked even if a compromised computer writes them without a lock; <b>Test connection</b> warns when it is missing or shorter.</li>
+  <li>Add the S3 target and tick <b>Immutable backups for N days</b>. Choose N at least as long as the period your backups must stay protected, e.g. 30.</li>
 </ol>
-<p>Each restore point stays locked for at least N days after it was created; data shared with newer backups is extended automatically.</p>
+<p>Each restore point stays locked for at least N days after it was created; after every backup the agent extends the lock of all data the job's retention still keeps.</p>
 <p id="lock-retained">After every backup the agent extends the lock of all data that the job's retention still keeps, not only of the data the new backup reuses: a monthly backup kept for a year stays locked for that year. This applies to S3 Object Lock and to the hardened repository. When you shorten the retention to free space, the space comes back only when the existing locks end, up to one and a half lock periods later.</p>
 
 <h2>Hardened repository</h2>

@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>La colonne <b>Adresses IP</b> liste les adresses propres de la machine telles que l'agent les a signalées en dernier. <i>vu depuis</i> est l'adresse d'où arrivent ses connexions : sur un réseau local la même adresse, pour une machine derrière un NAT (p. ex. un portable à la maison) l'adresse publique du routeur. La console n'interroge aucun service externe pour cela.</p>
 
+<h2 id="names">Noms et étiquettes</h2>
+<p>Les serveurs de clients ou de sites différents ont souvent le même nom d’hôte. Cliquez sur un agent dans la page <a href="/agents">Agents</a> pour lui donner un <b>nom affiché dans la console</b> et des <b>étiquettes</b> — des libellés libres comme un client ou un site, séparés par des virgules. Le nom est utilisé dans les formulaires de tâches, la restauration, l’activité, les rapports et les e-mails ; le nom d’hôte signalé par l’ordinateur reste visible à côté, et la page de l’agent avertit quand d’autres agents signalent le même nom d’hôte. Cliquez sur une étiquette pour n’afficher que les agents qui l’ont.</p>
+<p>Renommer ne change que l’affichage dans la console : l’agent, son dépôt et ses sauvegardes restent inchangés, et l’ordinateur ne peut pas modifier son nom ni ses étiquettes. Les modifier nécessite l’autorisation sur les agents et est consigné dans le journal d’audit. Les étiquettes aident à trouver les agents ; elles ne donnent ni ne limitent aucun accès et n’ajoutent pas d’agents aux tâches. Toute personne qui peut se connecter à la console voit tous les agents, et la console détient les clés de toutes leurs sauvegardes — des clients qui doivent être strictement séparés ont besoin chacun d’une console.</p>
+
 <h2>L'agent sur le bureau (Windows)</h2>
 <p>L'agent Windows affiche une icône à côté de l'horloge (elle peut se trouver sous la flèche <b>^</b> des icônes masquées — faites-la glisser sur la barre des tâches pour qu'elle reste visible). Le point sur l'icône indique l'état :</p>
 <table>

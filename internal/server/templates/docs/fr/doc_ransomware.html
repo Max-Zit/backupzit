@@ -26,9 +26,10 @@
 <ol>
   <li>Créez un bucket avec <b>Object Lock activé</b> (AWS, Wasabi, Backblaze B2, MinIO : <code>mc mb --with-lock</code>).</li>
   <li>Ajoutez une règle de cycle de vie qui supprime les <i>versions non actuelles</i> (noncurrent versions) après 1 jour (MinIO : <code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>).</li>
-  <li>Ajoutez la cible S3 et cochez <b>Sauvegardes immuables pendant N jours</b>. Choisissez N au moins aussi long que la plus longue rétention à protéger, par ex. 30.</li>
+  <li>Donnez au bucket une rétention par défaut en mode conformité (compliance) d'au moins N jours (MinIO : <code>mc retention set --default COMPLIANCE 30d</code>), afin que les objets soient verrouillés même si un ordinateur compromis les écrit sans verrou ; <b>Tester la connexion</b> avertit lorsqu'elle est absente ou plus courte.</li>
+  <li>Ajoutez la cible S3 et cochez <b>Sauvegardes immuables pendant N jours</b>. Choisissez N au moins aussi long que la période pendant laquelle vos sauvegardes doivent rester protégées, par ex. 30.</li>
 </ol>
-<p>Chaque point de restauration reste verrouillé au moins N jours après sa création ; les données partagées avec des sauvegardes plus récentes sont prolongées automatiquement.</p>
+<p>Chaque point de restauration reste verrouillé au moins N jours après sa création ; après chaque sauvegarde, l'agent prolonge le verrou de toutes les données que la rétention de la tâche conserve encore.</p>
 <p id="lock-retained">Après chaque sauvegarde, l’agent prolonge le verrou de toutes les données que la rétention de la tâche conserve encore, pas seulement des données que la nouvelle sauvegarde réutilise : une sauvegarde mensuelle conservée un an reste verrouillée pendant cette année. Cela vaut pour S3 Object Lock et pour le dépôt renforcé. Si vous raccourcissez la rétention pour libérer de l’espace, celui-ci ne revient qu’à la fin des verrous existants, jusqu’à une fois et demie la période de verrouillage plus tard.</p>
 
 <h2>Dépôt renforcé</h2>

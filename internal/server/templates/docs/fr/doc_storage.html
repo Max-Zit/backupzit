@@ -97,6 +97,6 @@ backupzit-repo keys                           # clés et leurs limites</pre>
 <p><b>Nécessite votre attention</b> sur le tableau de bord avertit quand une cible de stockage est pleine à 90 % ou le sera dans les 30 jours. S3 et Azure n'ont pas de taille fixe ; seuls l'espace utilisé et sa croissance y sont affichés. L'espace utilisé correspond aux données stockées (compressées, chiffrées, dédupliquées) ; les fichiers que le stockage conserve pour d'autres raisons (versions d'objets, autres programmes) ne sont pas comptés.</p>
 
 <h2>Supprimer une cible</h2>
-<p>Supprimer une cible de stockage de la console n'efface aucune donnée sur le stockage. Avec l'<a href="/docs/users">approbation à quatre yeux</a> activée, un second utilisateur doit d'abord l'approuver.</p>
+<p>Une cible de stockage encore utilisée par des tâches ne peut pas être supprimée. Supprimer une cible de la console n'efface aucune donnée sur le stockage, mais la console oublie ses identifiants et sa clé de récupération, de sorte que ses sauvegardes ne peuvent plus être restaurées depuis la console — téléchargez d'abord la fiche de récupération. Avec l'<a href="/docs/users">approbation à quatre yeux</a> activée, un second utilisateur doit d'abord l'approuver.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

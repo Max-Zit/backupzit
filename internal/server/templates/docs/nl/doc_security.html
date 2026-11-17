@@ -11,8 +11,8 @@
   <li><b>Agentgeheimen</b> — elke agent heeft een eigen geheim, op de console alleen als hash opgeslagen en op de agent in een bestand dat alleen beheerders kunnen lezen.</li>
   <li><b>Webconsole</b> — HttpOnly- en SameSite=Strict-sessiecookies; bescherming tegen cross-site-verzoeken en clickjacking; strikte Content-Security-Policy; wachtwoorden gehasht met bcrypt; gevoelige pagina's worden nooit gecachet.</li>
   <li><b>Bescherming tegen brute force</b> — adressen die te vaak mislukken bij het aanmelden worden geblokkeerd: wachtwoorden, tweestapscodes en API-tokens. Blokkades overleven herstarts, herhaalde overtreders worden langer geblokkeerd en beheerders krijgen een e-mail. Zie hieronder.</li>
-  <li><b>Accounts</b> — rollen met minimale rechten, optionele tweestapsverificatie (TOTP) en LDAPS-aanmelding; API-tokens met een eigen, lagere rol en vervaldatum.</li>
-  <li><b>Vier-ogengoedkeuring</b> (optioneel) — taken verwijderen of uitschakelen, agents, ESXi-hosts, opslagdoelen en gebruikers verwijderen, het bewaarbeleid inkorten, de goedkeuring uitschakelen en alles wat een beheerder een tweede goedkeurder zou kunnen geven (nieuwe goedkeurders, meer rechten, wachtwoord- en tweestapsresets, wijzigingen in LDAP en SSO) vereisen goedkeuring door een tweede gebruiker. Zie <a href="/docs/users">Gebruikers, rollen en LDAP</a>.</li>
+  <li><b>Accounts</b> — rollen met minimale rechten, optionele tweestapsverificatie (TOTP), LDAP-aanmelding via LDAPS of StartTLS, en eenmalige aanmelding (OpenID Connect, SAML); API-tokens met een eigen, lagere rol en vervaldatum.</li>
+  <li><b>Vier-ogengoedkeuring</b> (optioneel) — taken verwijderen of uitschakelen, agents, ESXi-hosts, opslagdoelen en gebruikers verwijderen, het bewaarbeleid inkorten, het bewaarbeleid hervatten na een verdachte back-up, een taak voor meerdere agents verwijderen, uitschakelen of inperken, de goedkeuring uitschakelen en alles wat een beheerder een tweede goedkeurder zou kunnen geven (nieuwe goedkeurders, meer rechten, wachtwoord- en tweestapsresets, wijzigingen in LDAP en SSO) vereisen goedkeuring door een tweede gebruiker. Zie <a href="/docs/users">Gebruikers, rollen en LDAP</a>.</li>
   <li><b>Audittrail</b> — aanmeldingen, mislukte aanmeldingen, wijzigingen van gebruikers en rollen, taken, opslagdoelen, herstelbewerkingen, getoonde herstelsleutels, instellingswijzigingen en API-acties worden vastgelegd in het <a href="/audit">auditlogboek</a>; items zijn aan elkaar gekoppeld zodat wijzigingen en verwijderingen in de database worden gedetecteerd, en kunnen naar een syslog-server of SIEM worden gekopieerd (<a href="/docs/users#audit-integrity">Bescherming tegen wijzigingen</a>); verwijderingen op een geharde repository worden op die server gelogd.</li>
   <li><b>Console-updates</b> — releases zijn ondertekend met de releasesleutel van BackupZit (Ed25519). De console en de root-dienst die ze installeert controleren allebei de handtekening, de database wordt eerst geback-upt en een mislukte update wordt teruggedraaid.</li>
   <li><b>Agent-updates</b> — agents downloaden nieuwe versies alleen van hun console via de gepinde verbinding en installeren ze alleen als de SHA-256-controlesom klopt.</li>
@@ -46,20 +46,20 @@
   <tr><td>Toegestane adressen</td><td>IP-adressen of netwerken (bijv. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). De webconsole, de REST API en elke pagina antwoorden alleen deze adressen; andere krijgen "not found", alsof er geen console is. Agents bereiken altijd hun API (registratie, polling, resultaten, downloads, push-installatie). Leeg: iedereen. De console weigert een lijst die uw eigen adres niet bevat.</td></tr>
   <tr><td>Poort 8443 alleen voor agents</td><td>De webconsole is dan alleen beschikbaar op de webpoort met het vertrouwde certificaat (<a href="/docs/install">Instellingen → Certificaat</a>, meestal 443), zodat een firewall 8443 voor iedereen en 443 alleen voor uw adressen kan openen. Beschikbaar zodra de webpoort draait; wijzig het vanaf de webpoort, niet vanaf 8443.</td></tr>
 </table>
-<p>Een typische firewall voor een openbare console: 8443 open voor iedereen (agents), 443 en 80 (HTTP-controle van Let's Encrypt) alleen vanaf uw adressen, SSH alleen vanaf uw adressen of uit, al het andere dicht.</p>
+<p>Een typische firewall voor een openbare console: 8443 open voor iedereen (agents), 443 alleen vanaf uw adressen, 80 alleen open voor iedereen als u de HTTP-controle van Let's Encrypt gebruikt (Let's Encrypt controleert die vanaf zijn eigen servers; de poort beantwoordt alleen de controle en stuurt door naar HTTPS), anders dicht en met de DNS-controle; SSH alleen vanaf uw adressen of uit; al het andere dicht.</p>
 <p>De appliance beantwoordt geen ICMP-timestampverzoeken, die zijn klok aan iedereen in het netwerk zouden verraden (een bevinding van netwerkscanners); hij gebruikt daarvoor een eigen kleine nftables-tabel en laat andere firewallregels ongemoeid.</p>
 <p>Buitengesloten? Op de server zelf (<code>localhost</code>) antwoordt de console altijd. Op de appliance heft item 5 van het setupmenu op het scherm aanmeldblokkades en deze beperkingen op.</p>
 
 <h2>Aanbevelingen</h2>
 <h3>Console</h3>
 <ul>
-  <li>Houd de console op een intern netwerk; publiceer poort 8443 niet op internet. Gebruik een VPN voor beheer op afstand.</li>
+  <li>Houd de console waar mogelijk op een intern netwerk. Moeten agents op andere locaties hem bereiken, publiceer dan alleen poort 8443 en beperk de webconsole zoals beschreven onder <a href="#web-access">Toegang tot de webconsole</a>; gebruik een VPN voor beheer.</li>
   <li>Gebruik een lang, uniek beheerderswachtwoord en wijzig het oorspronkelijke.</li>
   <li>Vereis <b>tweestapsverificatie</b> voor beheerders (<a href="/settings/security">Instellingen → Aanmelden en beveiliging</a>).</li>
   <li>Geef iedereen een eigen account met de laagste rol die werkt; gebruik voor monitoring API-tokens met de rol Kijker.</li>
   <li>Maak apart van de database een back-up van <code>secrets.key</code> (<a href="/docs/install">De server installeren</a>).</li>
   <li>Kies onder <a href="/settings/security">Instellingen → Aanmelden en beveiliging</a> een passende sessieduur (korter is veiliger).</li>
-  <li>Houd de server up-to-date (<code>apt upgrade</code> / <code>dnf upgrade</code>), inclusief PostgreSQL.</li>
+  <li>Houd de server up-to-date, inclusief PostgreSQL: op de appliance onder <b>Instellingen → Updates → Besturingssysteem</b> (beveiligingsupdates worden automatisch geïnstalleerd), op uw eigen server met <code>apt upgrade</code> / <code>dnf upgrade</code>.</li>
 </ul>
 <h3>Opslag</h3>
 <ul>
@@ -82,6 +82,6 @@
 </ul>
 
 <h2>Een beveiligingsprobleem melden</h2>
-<p>Meld kwetsbaarheden vertrouwelijk aan de beheerders van BackupZit in plaats van een openbaar issue te openen.</p>
+<p>Meld kwetsbaarheden vertrouwelijk in plaats van een openbaar issue te openen: open op <a href="https://github.com/Max-Zit/backupzit/security">github.com/Max-Zit/backupzit</a> het tabblad <b>Security</b> en kies <b>Report a vulnerability</b>.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

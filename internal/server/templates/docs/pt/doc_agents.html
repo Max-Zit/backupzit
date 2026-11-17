@@ -45,6 +45,10 @@ systemctl enable --now backupzit-agent</pre>
 </ul>
 <p>A coluna <b>Endereços IP</b> lista os endereços próprios da máquina conforme o agente os informou por último. <i>visto de</i> é o endereço de onde chegam as suas conexões: numa rede local o mesmo endereço, numa máquina atrás de NAT (p. ex. um notebook em casa) o endereço público do roteador. A console não consulta nenhum serviço externo para isso.</p>
 
+<h2 id="names">Nomes e etiquetas</h2>
+<p>Servidores de clientes ou locais diferentes têm muitas vezes o mesmo nome de host. Clique num agente na página <a href="/agents">Agentes</a> para lhe dar um <b>nome mostrado na console</b> e <b>etiquetas</b> — rótulos livres como um cliente ou local, separados por vírgulas. O nome é usado nos formulários de tarefas, no restauro, na atividade, nos relatórios e nos e-mails; o nome de host informado pelo computador continua visível ao lado, e a página do agente avisa quando outros agentes informam o mesmo nome de host. Clique numa etiqueta para mostrar apenas os agentes que a têm.</p>
+<p>Mudar o nome só muda o que a console mostra: o agente, o seu repositório e as suas cópias ficam como estão, e o computador não pode mudar o seu nome nem as etiquetas. Alterá-los requer a permissão de agentes e fica registado no registo de auditoria. As etiquetas ajudam a encontrar agentes; não dão nem limitam acesso e não adicionam agentes a tarefas. Todos os que podem iniciar sessão na console veem todos os agentes, e a console guarda as chaves de todas as suas cópias — clientes que têm de estar estritamente separados precisam de uma console cada.</p>
+
 <h2>O agente na área de trabalho (Windows)</h2>
 <p>O agente Windows mostra um ícone ao lado do relógio (pode estar sob a seta <b>^</b> dos ícones ocultos — arraste-o para a barra de tarefas para que fique visível). O ponto no ícone mostra o estado:</p>
 <table>

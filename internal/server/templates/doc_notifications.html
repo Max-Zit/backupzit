@@ -3,32 +3,35 @@
 <p class="lead">Get an email when a backup fails, and a daily summary every morning.</p>
 
 <h2>Setting up email</h2>
-<p>Under <a href="/settings/email">Settings → Email notifications</a>:</p>
+<p>Under <a href="/settings/email">Settings → Email notifications</a>, tick <b>Send email notifications</b> (without it no email is sent) and fill in:</p>
 <table>
   <tr><th>Field</th><th>Example</th></tr>
   <tr><td>SMTP server / port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, internal relay / 25</td></tr>
-  <tr><td>Security</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) or none (internal relay only)</td></tr>
-  <tr><td>User / password</td><td>The mailbox used to send; leave empty for an anonymous relay. Microsoft 365 and Gmail need an app password.</td></tr>
-  <tr><td>Sender</td><td><code>backup@example.com</code></td></tr>
-  <tr><td>Recipients</td><td>One or more addresses, comma separated.</td></tr>
+  <tr><td>Security</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) or <b>None</b> (internal relay without sign-in only: a username and password are never sent unencrypted)</td></tr>
+  <tr><td>Username / Password</td><td>The mailbox used to send; leave empty for a relay without sign-in. Gmail needs an app password; for Microsoft 365, where basic SMTP sign-in is being retired, an SMTP relay or connector is the safer choice.</td></tr>
+  <tr><td>From</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>To</td><td>One or more addresses, comma separated.</td></tr>
 </table>
-<p>Use <b>Send test email</b> to check the settings. Emails, chat messages and reports are written in the language chosen in the same form (by default the language of the console when the settings are saved).</p>
+<p>Use <b>Send test email</b> to check the settings, then click <b>Save</b> (the test does not save them). Emails, chat messages and reports are written in the language chosen in the same form (by default the language of the console when the settings are saved).</p>
 
 <h2>What is sent</h2>
 <ul>
   <li><b>Failures</b> (recommended) — one email per failed run with the reason: backups, copies, restores and failed <b>restore tests</b>. With this option on you also get a <b>SUSPICIOUS</b> alert when a backup looks like ransomware or mass deletion.</li>
   <li><b>Warnings</b> — runs where some files could not be read.</li>
   <li><b>Successes</b> — every successful run (usually too much; prefer the daily report).</li>
-  <li><b>Daily report</b> — at the chosen hour: runs of the last 24 hours, problems and offline agents. Subject starts with <i>OK</i>, <i>WARNINGS</i> or <i>ATTENTION</i>, so mail rules can sort them.</li>
+  <li><b>Daily report</b> — at the chosen hour: runs of the last 24 hours, problems and offline agents. The subject ends with <i>OK</i>, <i>WARNINGS</i> or <i>ATTENTION</i> (e.g. <code>[BackupZit] Daily report 2026-11-17: OK</code>), so mail rules can sort them.</li>
 </ul>
 <p>With <b>Failures</b> on, a job that misses its recovery point objective (RPO) is reported too — once, and again only after it met it in between. Runs stopped by a user (status <i>cancelled</i>) send no failure email; a run stopped by its time limit does.</p>
+<h3 id="mail-filters">One email per job, and mail filters</h3>
+<p>Turn on <b>Successes</b> as well to get one email for every finished run of every job, with the job and the computer in the subject, instead of only the daily summary. For one summary per job, create a <a href="/docs/monitoring">scheduled report</a> for that job. The subject is written in the email language, so for mail rules every run email also carries headers that do not change with the language: <code>X-BackupZit-Status</code> (<code>success</code>, <code>warning</code> or <code>failed</code>), <code>X-BackupZit-Job</code>, <code>X-BackupZit-Agent</code> (the name shown in the console), <code>X-BackupZit-Host</code> (the host name the computer reports), <code>X-BackupZit-Kind</code> and <code>X-BackupZit-Run</code>. A backup that looks like ransomware also carries <code>X-BackupZit-Suspicious: yes</code> — do not let rules that file away successful runs hide it.</p>
 <p>Independent of these options, the notification recipients also get an email when:</p>
 <ul>
   <li>a change waits for approval by a second user (four-eyes approval);</li>
   <li>two machines use one agent enrollment;</li>
   <li>the audit log was changed;</li>
   <li>the backup of the console itself failed;</li>
-  <li>renewing the HTTPS certificate for browsers failed;</li>
+  <li>renewing the HTTPS certificate for browsers failed, or an uploaded certificate expires within 21 days;</li>
+  <li>a new BackupZit version is available (can be turned off under Settings → Updates), or a console update failed;</li>
   <li>an address was blocked after too many failed sign-ins (can be turned off under brute-force protection).</li>
 </ul>
 <p>For weekly or monthly summaries use <a href="/docs/monitoring">scheduled reports</a>; they are sent with the same mail settings and have their own recipients. Subjects start with <code>[BackupZit]</code> so mail rules can sort them. The SMTP password is stored encrypted. Links in emails, chat messages and reports lead to the console at the address you open it with in the browser (or the address set with <code>--public-url</code>).</p>
@@ -48,6 +51,6 @@
  "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
  "url": "https://backup.example/runs/412"}</pre>
 <p><code>duration_s</code> is how long the run took in seconds. For backups, <code>files</code> and <code>bytes</code> are the size of what was backed up, <code>bytes_read</code> what was read from it and <code>bytes_stored</code> what was uploaded to the storage; <code>snapshot</code> is the ID of the new backup.</p>
-<p>Messages are sent once per run, also when email is off. A channel that fails (wrong URL, service down) is logged in the console log and does not hold back the others. Webhook URLs are stored encrypted.</p>
+<p>A job that misses its recovery point objective sends <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code>; empty fields (such as <code>suspicious</code> or the job of a run without one) are left out. Slack and Teams URLs must use https://. Messages are sent once per run, also when email is off. A channel that fails (wrong URL, service down) is logged in the console log and does not hold back the others. Webhook URLs are stored encrypted.</p>
 {{template "docpager" .}}
 </article></div>{{end}}
