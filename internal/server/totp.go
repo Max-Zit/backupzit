@@ -410,3 +410,23 @@ func (s *Server) handleUser2FAReset(w http.ResponseWriter, r *http.Request, _ st
 	s.audit(r, "user.2fa_reset", "%s", u.Username)
 	redirectMsg(w, r, fmt.Sprintf("/users/%d", u.ID), "Two-factor authentication reset; the user sets it up again at the next sign-in if required.")
 }
+
+// ResetTwoFactor turns off two-factor sign-in of a user from the server's
+// command line: the way back for a last administrator who lost both the
+// authenticator and the recovery codes. Whoever runs it has the server
+// itself (database and secrets key), so it gives nothing away. The user is
+// signed out everywhere, and the audit log records it.
+func (s *Store) ResetTwoFactor(ctx context.Context, username string) error {
+	var id int64
+	if err := s.db.QueryRow(ctx, `SELECT id FROM users WHERE username=$1`, username).Scan(&id); err != nil {
+		return fmt.Errorf("no user %q", username)
+	}
+	if err := s.DisableTwoFactor(ctx, id); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, id); err != nil {
+		return err
+	}
+	_, err := s.AppendAudit(ctx, "", "user.2fa_reset", fmt.Sprintf("%s (on the server's command line)", username), "command line")
+	return err
+}

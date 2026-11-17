@@ -52,6 +52,7 @@ func run() error {
 	devDB := flag.Bool("dev-embedded-db", false, "start a private PostgreSQL in the data directory (development/evaluation only)")
 	setPassword := flag.String("set-admin-password", "", "set the password of user 'admin' and exit")
 	unblock := flag.String("unblock-ip", "", "lift the sign-in block of an address (or \"all\") and exit")
+	resetTwoFactor := flag.String("reset-two-factor", "", "turn off two-factor sign-in of this user (lost authenticator and recovery codes), sign the user out, and exit")
 	devHTTP := flag.String("dev-http", "", "also serve plain HTTP on this loopback address, e.g. 127.0.0.1:8080 (development only)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	restoreConsole := flag.Bool("restore-console", false, "restore a console backup into the database and data directory, then exit (stop the service first; credentials as on the storage target's recovery sheet, in the environment)")
@@ -169,6 +170,13 @@ func run() error {
 			return err
 		}
 		fmt.Println("password for 'admin' updated")
+		return nil
+	}
+	if *resetTwoFactor != "" {
+		if err := store.ResetTwoFactor(ctx, *resetTwoFactor); err != nil {
+			return err
+		}
+		fmt.Printf("two-factor sign-in of %q turned off; sign in with the password and set it up again under My account%s", *resetTwoFactor, "\n")
 		return nil
 	}
 	if *unblock != "" {

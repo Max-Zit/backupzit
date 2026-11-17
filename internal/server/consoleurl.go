@@ -17,9 +17,17 @@ type seenURL struct {
 	url string
 }
 
-// ConsoleURL is the console's address for links: PublicURL, or the address
-// a browser last used ("" if neither is known).
+// ConsoleURL is the console's address for links: the web port with the
+// trusted certificate when it is on, else PublicURL, else the address a
+// browser last used ("" if none is known). PublicURL is the address agents
+// use (often port 8443); with "Port 8443 serves agents only" the web
+// console does not answer there (issue #37).
 func (s *Server) ConsoleURL() string {
+	if s.web != nil {
+		if u := s.web.WebAddress(); u != "" {
+			return u
+		}
+	}
 	if s.PublicURL != "" {
 		return s.PublicURL
 	}
