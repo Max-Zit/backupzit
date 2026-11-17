@@ -20,6 +20,8 @@
 <ul>
   <li>古い MAC アドレスに結び付いたネットワーク設定（クラウド イメージで一般的な netplan <code>match: macaddress</code>）は、任意の有線インターフェイスに適用されるよう変更されます。</li>
   <li>コピー内の BackupZit エージェントは登録解除され、元のマシンとして報告しないようにします。</li>
+  <li>VM には CPU タイプ <code>x86-64-v2-AES</code> が設定されます。RHEL 9 とそのクローン(Rocky、Alma)の起動に必要です(このタイプを持たない Proxmox VE のバージョンでは既定のタイプ)。</li>
+  <li>SELinux が有効なシステム(RHEL、Rocky、Alma、Fedora)は、初回起動時にファイルのラベルを付け直し、一度再起動します。</li>
 </ul>
 <h3>ディスクへ</h3>
 <p>Linux エージェントの空のディスク（例: 2 台目のディスク <code>/dev/sdb</code>）、または新しいマシン自体（ベアメタル）に復元します:</p>

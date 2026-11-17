@@ -20,6 +20,8 @@
 <ul>
   <li>les paramètres réseau liés aux anciennes adresses MAC (courants dans les images cloud : netplan <code>match: macaddress</code>) sont modifiés pour s'appliquer à toute interface filaire,</li>
   <li>l'agent BackupZit de la copie est désinscrit, afin qu'il ne se présente pas comme la machine d'origine.</li>
+  <li>la VM reçoit le type de processeur <code>x86-64-v2-AES</code>, dont RHEL 9 et ses clones (Rocky, Alma) ont besoin pour démarrer (sur les versions de Proxmox VE qui ne l’ont pas, le type par défaut) ;</li>
+  <li>un système avec SELinux activé (RHEL, Rocky, Alma, Fedora) réétiquette ses fichiers au premier démarrage et redémarre une fois.</li>
 </ul>
 <h3>Sur un disque</h3>
 <p>Restaurez sur un disque vide d'un agent Linux, par ex. un second disque (<code>/dev/sdb</code>), ou sur la nouvelle machine elle-même (bare metal) :</p>

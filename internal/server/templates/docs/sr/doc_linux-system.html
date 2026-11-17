@@ -20,6 +20,8 @@
 <ul>
   <li>mrežna podešavanja vezana za stare MAC adrese (česta u cloud slikama: netplan <code>match: macaddress</code>) menjaju se tako da važe za bilo koji žičani interfejs,</li>
   <li>BackupZit agent u kopiji se odjavljuje, da se ne bi javljao kao originalna mašina.</li>
+  <li>VM dobija tip procesora <code>x86-64-v2-AES</code>, koji je potreban RHEL 9 i njegovim klonovima (Rocky, Alma) da se podignu (na verzijama Proxmox VE bez njega, podrazumevani tip);</li>
+  <li>sistem sa uključenim SELinux-om (RHEL, Rocky, Alma, Fedora) pri prvom pokretanju ponovo označi svoje fajlove i jednom se restartuje.</li>
 </ul>
 <h3>Na disk</h3>
 <p>Vratite na prazan disk Linux agenta, npr. drugi disk (<code>/dev/sdb</code>), ili na samu novu mašinu („goli metal“):</p>

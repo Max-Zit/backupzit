@@ -606,6 +606,7 @@ func (j *restoreJob) bootloader() error {
 			j.res.Notes = append(j.res.Notes, "the BackupZit agent in the restored system was unenrolled (it would report as the original machine); enroll it as a new machine if needed")
 		}
 	}
+	j.selinuxRelabel()
 	if j.opts.RebuildInitramfs || j.opts.NewHardware {
 		j.rebuildInitramfs()
 	}
@@ -841,4 +842,22 @@ func (j *restoreJob) checkTools() error {
 	}
 	sort.Strings(p)
 	return fmt.Errorf("missing programs %s; install the packages %s (e.g. apt install %s)", strings.Join(missing, ", "), strings.Join(p, ", "), strings.Join(p, " "))
+}
+
+// selinuxRelabel makes a restored SELinux system (RHEL, Rocky, Alma, Fedora)
+// relabel its files on the first boot. The files keep their labels from the
+// backup, but the root folder of each file system is not a file of the
+// backup and stays unlabeled; with SELinux enforcing, that alone blocks
+// every program ("libc.so.6: Permission denied"). /.autorelabel makes the
+// system relabel everything once and restart, as after a restore with
+// Relax-and-Recover.
+func (j *restoreJob) selinuxRelabel() {
+	if !selinuxActive(filepath.Join(j.mnt, "etc/selinux/config")) {
+		return
+	}
+	if err := os.WriteFile(filepath.Join(j.mnt, ".autorelabel"), nil, 0o644); err != nil { // #nosec G306 -- an empty marker file, as relabel tools write it
+		j.res.Notes = append(j.res.Notes, "SELinux: could not request a relabel on the first boot ("+err.Error()+"); run fixfiles -F onboot in the restored system")
+		return
+	}
+	j.res.Notes = append(j.res.Notes, "SELinux: the restored system relabels its files on the first boot and restarts once")
 }

@@ -20,6 +20,8 @@
 <ul>
   <li>síťová nastavení vázaná na staré MAC adresy (běžná v cloudových obrazech: netplan <code>match: macaddress</code>) se upraví tak, aby platila pro libovolné kabelové rozhraní,</li>
   <li>agent BackupZit v kopii se odregistruje, aby se nehlásil jako původní počítač.</li>
+  <li>VM dostane typ procesoru <code>x86-64-v2-AES</code>, který RHEL 9 a jeho klony (Rocky, Alma) potřebují ke spuštění (ve verzích Proxmox VE bez něj výchozí typ);</li>
+  <li>systém se zapnutým SELinuxem (RHEL, Rocky, Alma, Fedora) při prvním spuštění znovu označí své soubory a jednou se restartuje.</li>
 </ul>
 <h3>Na disk</h3>
 <p>Obnovte na prázdný disk linuxového agenta, např. druhý disk (<code>/dev/sdb</code>), nebo přímo na nový počítač (bare metal):</p>

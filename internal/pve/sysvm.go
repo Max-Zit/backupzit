@@ -68,8 +68,17 @@ func CreateSystemVM(ctx context.Context, o SystemVMOptions) (int, string, error)
 	if o.UEFI {
 		args = append(args, "--bios", "ovmf", "--machine", "q35", "--efidisk0", o.Storage+":1,efitype=4m,pre-enrolled-keys=0")
 	}
-	if _, err := command(ctx, "qm", args...); err != nil {
-		return 0, "", err
+	// x86-64-v2-AES is the CPU type Proxmox VE 8 and 9 give new VMs: RHEL 9 and
+	// its clones, and Windows 11, do not boot on the old default kvm64 (the
+	// kernel stops right after "Probing EDD"). Older Proxmox VE versions do
+	// not know it and keep their default.
+	if _, err := command(ctx, "qm", append(args, "--cpu", "x86-64-v2-AES")...); err != nil {
+		if !strings.Contains(err.Error(), "cpu") {
+			return 0, "", err
+		}
+		if _, err := command(ctx, "qm", args...); err != nil {
+			return 0, "", err
+		}
 	}
 	cfg, err := command(ctx, "qm", "config", strconv.Itoa(o.VMID))
 	if err != nil {

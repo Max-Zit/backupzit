@@ -20,6 +20,8 @@
 <ul>
   <li>ustawienia sieci powiązane ze starymi adresami MAC (typowe w obrazach chmurowych: netplan <code>match: macaddress</code>) są zmieniane tak, by dotyczyły dowolnego interfejsu przewodowego,</li>
   <li>agent BackupZit w kopii jest wyrejestrowywany, aby nie zgłaszał się jako oryginalna maszyna.</li>
+  <li>maszyna wirtualna dostaje typ procesora <code>x86-64-v2-AES</code>, którego RHEL 9 i jego klony (Rocky, Alma) potrzebują do uruchomienia (w wersjach Proxmox VE bez niego typ domyślny);</li>
+  <li>system z włączonym SELinux (RHEL, Rocky, Alma, Fedora) przy pierwszym uruchomieniu ponownie etykietuje swoje pliki i raz się restartuje.</li>
 </ul>
 <h3>Na dysk</h3>
 <p>Przywróć na pusty dysk agenta Linux, np. drugi dysk (<code>/dev/sdb</code>), albo na samą nową maszynę (bare metal):</p>

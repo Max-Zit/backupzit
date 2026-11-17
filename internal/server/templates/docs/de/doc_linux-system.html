@@ -20,6 +20,8 @@
 <ul>
   <li>werden Netzwerkeinstellungen, die an die alten MAC-Adressen gebunden sind (üblich in Cloud-Images: netplan <code>match: macaddress</code>), so geändert, dass sie für jede kabelgebundene Schnittstelle gelten,</li>
   <li>wird der BackupZit-Agent in der Kopie abgemeldet, damit er sich nicht als die Originalmaschine meldet.</li>
+  <li>die VM erhält den CPU-Typ <code>x86-64-v2-AES</code>, den RHEL 9 und seine Klone (Rocky, Alma) zum Starten brauchen (auf Proxmox-VE-Versionen ohne ihn den Standardtyp);</li>
+  <li>ein System mit eingeschaltetem SELinux (RHEL, Rocky, Alma, Fedora) kennzeichnet beim ersten Start seine Dateien neu und startet einmal neu.</li>
 </ul>
 <h3>Auf eine Festplatte</h3>
 <p>Stellen Sie auf eine leere Festplatte eines Linux-Agenten wieder her, z. B. eine zweite Festplatte (<code>/dev/sdb</code>), oder auf die neue Maschine selbst (Bare Metal):</p>

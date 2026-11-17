@@ -20,6 +20,8 @@
 <ul>
   <li>eski MAC adreslerine bağlı ağ ayarları (bulut görüntülerinde yaygın: netplan <code>match: macaddress</code>) herhangi bir kablolu arabirim için geçerli olacak şekilde değiştirilir,</li>
   <li>kopyanın içindeki BackupZit aracısının kaydı silinir, böylece kendini orijinal makine olarak bildirmez.</li>
+  <li>VM, RHEL 9 ve klonlarının (Rocky, Alma) açılmak için ihtiyaç duyduğu <code>x86-64-v2-AES</code> işlemci türünü alır (bu türü bilmeyen Proxmox VE sürümlerinde varsayılan tür);</li>
+  <li>SELinux açık bir sistem (RHEL, Rocky, Alma, Fedora) ilk açılışta dosyalarını yeniden etiketler ve bir kez yeniden başlar.</li>
 </ul>
 <h3>Bir diske</h3>
 <p>Bir Linux aracısının boş diskine, ör. ikinci bir diske (<code>/dev/sdb</code>) veya yeni makinenin kendisine (çıplak donanım) geri yükleyin:</p>

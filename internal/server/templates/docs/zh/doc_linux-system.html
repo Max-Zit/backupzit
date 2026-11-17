@@ -20,6 +20,8 @@
 <ul>
   <li>绑定到旧 MAC 地址的网络设置（在云镜像中很常见：netplan <code>match: macaddress</code>）会被改为适用于任意有线接口，</li>
   <li>副本中的 BackupZit 代理会被取消注册，因此不会冒充原机器上报。</li>
+  <li>虚拟机使用 CPU 类型 <code>x86-64-v2-AES</code>,RHEL 9 及其衍生版(Rocky、Alma)需要它才能启动(在不支持该类型的 Proxmox VE 版本上使用默认类型);</li>
+  <li>启用了 SELinux 的系统(RHEL、Rocky、Alma、Fedora)会在首次启动时重新标记其文件,并重启一次。</li>
 </ul>
 <h3>到磁盘</h3>
 <p>还原到 Linux 代理的空磁盘，例如第二块磁盘（<code>/dev/sdb</code>），或还原到新机器本身（裸机）：</p>
