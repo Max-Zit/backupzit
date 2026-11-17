@@ -93,7 +93,7 @@ func cmdHyperV(ctx context.Context, args []string) error {
 		asNew := fs.Bool("new", false, "create a second VM next to the original (new name and MAC addresses)")
 		name := fs.String("name", "", "name of the restored VM")
 		folder := fs.String("folder", "", "folder for the virtual disks (default: the host's default)")
-		overwrite := fs.Bool("overwrite", false, "replace the original VM if it still exists (its disk files are renamed, not deleted)")
+		overwrite := fs.Bool("overwrite", false, "replace the original VM if it still exists (its old disk files stay where they are, not deleted)")
 		start := fs.Bool("start", false, "start the VM after the restore")
 		_ = fs.Parse(args[1:])
 		if fs.NArg() != 1 || *vmid == 0 {

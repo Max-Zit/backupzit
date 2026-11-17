@@ -110,7 +110,7 @@
 
 <div class="panel noprint" id="scheduled">
   <h2>{{template "icon" "clock"}} {{T "Scheduled reports"}}</h2>
-  <p class="muted">{{T "Reports are emailed automatically with the CSV attached once each period is complete. Email must be configured under"}} <a href="/settings/email">{{T "Settings → Email notifications"}}</a>.</p>
+  <p class="muted">{{T "Reports are emailed automatically with the PDF and CSV attached once each period is complete. Email must be configured under"}} <a href="/settings/email">{{T "Settings → Email notifications"}}</a>.</p>
   {{if .Data.Schedules}}
   <div class="table-wrap"><table>
     <thead><tr><th>{{T "Name"}}</th><th>{{T "When"}}</th><th>{{T "Covers"}}</th><th>{{T "Recipients"}}</th><th></th></tr></thead>

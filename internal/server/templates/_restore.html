@@ -108,7 +108,7 @@ page data; .Data holds the keys built by restoreFormData. */}}
   </div>
   <label class="check"><input type="radio" name="id_mode" value="next" checked> {{T "As a new VM next to the original"}} <small>{{T "new name (default: original name + \"restored\" and the date) and new MAC addresses"}}</small></label>
   <label class="check"><input type="radio" name="id_mode" value="original"> {{T "In place of the original VM"}} <small>{{T "or recreate it if it was deleted"}}</small></label>
-  <label class="check"><input type="checkbox" name="overwrite"> {{T "If the original VM still exists,"}} <b>{{T "turn it off and replace its disks"}}</b> {{T "with the backup"}} <small>{{T "it keeps its ID, network adapters and MAC addresses; the old disk files are kept renamed ("}}<code>.replaced-…</code>)</small></label>
+  <label class="check"><input type="checkbox" name="overwrite"> {{T "If the original VM still exists,"}} <b>{{T "turn it off and replace its disks"}}</b> {{T "with the backup"}} <small>{{T "it keeps its ID, network adapters and MAC addresses; its old disk files stay where they are and the restored disks go to a new subfolder"}}</small></label>
   <div class="row">
     <label>{{T "Name"}} <small>{{T "optional"}}</small><input name="name" maxlength="100"></label>
     <label>{{T "Folder for the virtual disks"}}
