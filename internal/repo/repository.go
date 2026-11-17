@@ -51,16 +51,21 @@ type Repository struct {
 	idx *Index
 
 	enc *zstd.Encoder
-	dec *zstd.Decoder
+	// encLevel is the level of enc (zero means zstd.SpeedDefault); a
+	// BlobWriter builds its own encoder with the same level so that its
+	// output is byte-identical.
+	encLevel zstd.EncoderLevel
+	dec      *zstd.Decoder
 	// aead encrypts all stored data; nil for unencrypted repositories.
 	aead cipher.AEAD
 
-	mu         sync.Mutex
-	pack       *packBuilder
-	pending    map[BlobHandle]struct{}
-	unindexed  []indexPack // packs uploaded since the last index write
-	stats      WriteStats
-	noCompress bool // store new blobs uncompressed (SetCompression("off"))
+	mu             sync.Mutex
+	pack           *packBuilder
+	pending        map[BlobHandle]struct{}
+	unindexed      []indexPack // packs uploaded since the last index write
+	stats          WriteStats
+	noCompress     bool // store new blobs uncompressed (SetCompression("off"))
+	vmBlockSizeKiB int  // session option; zero keeps the historical 1 MiB
 }
 
 // WriteStats counts what this session wrote to the backend.
@@ -627,7 +632,7 @@ func (r *Repository) SetCompression(level string) error {
 		return err
 	}
 	r.mu.Lock()
-	r.enc, r.noCompress = enc, false
+	r.enc, r.encLevel, r.noCompress = enc, lvl, false
 	r.mu.Unlock()
 	return nil
 }

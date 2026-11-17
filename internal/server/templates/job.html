@@ -39,6 +39,7 @@
     {{else if eq .Kind "vm"}}
     <dt>{{T "Backs up"}}</dt><dd>{{vmsel .Paths .Excludes}} <span class="muted">{{T "(hypervisor host)"}}</span></dd>
     {{if .Options.ExcludeDisks}}<dt>{{T "Excluded disks"}}</dt><dd class="mono">{{join .Options.ExcludeDisks ", "}}</dd>{{end}}
+    <dt>{{T "VM deduplication block size"}}</dt><dd>{{if eq .Options.VMBlockSizeKiB 256}}{{T "256 KiB"}}{{else if eq .Options.VMBlockSizeKiB 512}}{{T "512 KiB"}}{{else}}{{T "1 MiB (default)"}}{{end}}</dd>
     {{else}}
     <dt>{{T "Paths"}}</dt><dd class="mono">{{join .Paths "\n"}}</dd>
     <dt>{{T "Excludes"}}</dt><dd class="mono">{{if .Excludes}}{{join .Excludes ", "}}{{else}}—{{end}}</dd>

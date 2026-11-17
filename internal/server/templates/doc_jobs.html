@@ -102,6 +102,10 @@
 </table>
 <p>The level applies to new data from the next run; existing backups stay as they are, and restoring never depends on it. The run page shows the result: the compression ratio of the new data (e.g. <i>2.4×</i>) and how much of the data read was already stored (deduplication).</p>
 
+<p><b>VM deduplication block size</b> (Edit → Advanced) selects 256 KiB, 512 KiB or 1 MiB (the existing default) for virtual disks on Hyper-V, Proxmox VE and VMware. Smaller blocks may improve deduplication at the cost of more metadata. Update the agents before selecting a smaller size. Each image records its own block size: old backups stay restorable, and a change reads each disk in full once before changed-block incrementals resume. This does not rewrite old backups or change file backup chunking.</p>
+
+<p>CLI: use <code>--block-size-kib 256</code>, <code>512</code> or <code>1024</code> with <code>hyperv backup</code>, <code>pve backup</code> and <code>vmware backup</code>.</p>
+
 <h2>Commands before and after the backup</h2>
 <p>Administrators can let a job run a command on the agent before and after each backup — for example a database dump, stopping a service for a consistent copy, or a notification:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before

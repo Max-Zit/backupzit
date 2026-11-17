@@ -14,7 +14,8 @@ import (
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
-// BlockSize is the unit of deduplication for virtual disks.
+// BlockSize is the historical default and maximum VM block size.
+// New images use the session setting; readers use the image metadata.
 const BlockSize = 1 << 20
 
 var zeroBlock = make([]byte, BlockSize)
@@ -22,49 +23,11 @@ var zeroBlock = make([]byte, BlockSize)
 // Store reads a disk of the given size and saves it as a DiskImage with one
 // whole-disk partition. All-zero blocks are recorded as null IDs.
 func Store(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uint64, number int, model, source string, progress func(uint64)) (repo.DiskImage, error) {
-	if size == 0 {
-		return repo.DiskImage{}, errors.New("disk is empty")
+	img, err := StoreAreas(ctx, r, f, size, []Area{{Offset: 0, Length: size}}, nil, number, model, source, progress)
+	if err == nil {
+		img.Partitions[0].Method = "full"
 	}
-	if progress == nil {
-		progress = func(uint64) {}
-	}
-	img := repo.DiskImage{Number: number, Model: model, Size: size, SectorSize: 512, Style: "raw"}
-	p := repo.PartitionImage{Number: 1, Offset: 0, Length: size, Included: true, Method: "full", Source: source,
-		BlockSize: BlockSize, Blocks: (size + BlockSize - 1) / BlockSize}
-	ids := make([]repo.ID, p.Blocks)
-	buf := make([]byte, BlockSize)
-	for i := uint64(0); i < p.Blocks; i++ {
-		if err := ctx.Err(); err != nil {
-			return img, err
-		}
-		n := min(uint64(BlockSize), size-i*BlockSize)
-		if _, err := f.ReadAt(buf[:n], int64(i*BlockSize)); err != nil && !(errors.Is(err, io.EOF) && i == p.Blocks-1) {
-			return img, fmt.Errorf("read block %d: %w", i, err)
-		}
-		if i == 0 {
-			var err error
-			if img.Head, _, err = r.SaveBlob(ctx, repo.DataBlob, buf[:n]); err != nil {
-				return img, err
-			}
-		}
-		if bytes.Equal(buf[:n], zeroBlock[:n]) {
-			progress(n)
-			continue
-		}
-		id, _, err := r.SaveBlob(ctx, repo.DataBlob, buf[:n])
-		if err != nil {
-			return img, err
-		}
-		ids[i] = id
-		p.StoredBytes += n
-		progress(n)
-	}
-	var err error
-	if p.Maps, err = r.SaveBlockMap(ctx, ids); err != nil {
-		return img, err
-	}
-	img.Partitions = []repo.PartitionImage{p}
-	return img, nil
+	return img, err
 }
 
 // Write writes a disk image saved by Store to w. Null blocks are skipped
@@ -114,9 +77,6 @@ func Write(ctx context.Context, r *repo.Repository, img *repo.DiskImage, w io.Wr
 // Area is a byte range of a disk.
 type Area struct{ Offset, Length uint64 }
 
-// maxRun limits how much is read with one ReadAt call.
-const maxRun = 32 * BlockSize
-
 // StoreAreas saves a disk like Store but reads only the blocks that overlap
 // areas (the allocated or changed regions reported by changed block
 // tracking). Blocks outside the areas are taken from prev, the image of the
@@ -126,17 +86,29 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 	if size == 0 {
 		return repo.DiskImage{}, errors.New("disk is empty")
 	}
+	blockSize := uint64(r.VMBlockSizeKiB()) << 10
+	// A changed-block map is only meaningful with its original block size.
+	// Re-read the whole disk once when the job switches size, even if the
+	// hypervisor supplied only dirty ranges. Never treat the rest as zeros.
+	reblocked := false
+	if prev != nil {
+		if prev.Size != size || len(prev.Partitions) != 1 {
+			return repo.DiskImage{}, errors.New("the earlier backup of this disk has a different size")
+		}
+		if uint64(prev.Partitions[0].BlockSize) != blockSize {
+			prev = nil
+			areas = []Area{{Offset: 0, Length: size}}
+			reblocked = true
+		}
+	}
 	if progress == nil {
 		progress = func(uint64) {}
 	}
 	img := repo.DiskImage{Number: number, Model: model, Size: size, SectorSize: 512, Style: "raw"}
 	p := repo.PartitionImage{Number: 1, Offset: 0, Length: size, Included: true, Method: "changed-blocks", Source: source,
-		BlockSize: BlockSize, Blocks: (size + BlockSize - 1) / BlockSize}
+		BlockSize: uint32(blockSize), Blocks: (size + blockSize - 1) / blockSize} // #nosec G115 -- validated session setting is at most 1 MiB
 	ids := make([]repo.ID, p.Blocks)
 	if prev != nil {
-		if prev.Size != size || len(prev.Partitions) != 1 || prev.Partitions[0].BlockSize != BlockSize {
-			return img, errors.New("the earlier backup of this disk has a different size")
-		}
 		old, err := r.LoadBlockMap(ctx, &prev.Partitions[0])
 		if err != nil {
 			return img, fmt.Errorf("earlier backup: %w", err)
@@ -145,21 +117,43 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 		img.Head = prev.Head
 	} else {
 		p.Method = "used-blocks"
+		if reblocked {
+			p.Method = "full"
+		}
 	}
 	read := make([]bool, p.Blocks)
 	for _, a := range areas {
 		if a.Length == 0 || a.Offset >= size {
 			continue
 		}
-		end := min(a.Offset+a.Length, size)
-		for b := a.Offset / BlockSize; b*BlockSize < end; b++ {
+		end := min(a.Offset+min(a.Length, size-a.Offset), size)
+		for b := a.Offset / blockSize; b*blockSize < end; b++ {
 			read[b] = true
 		}
 	}
-	if img.Head.IsNull() {
-		read[0] = true
+	// Keep Head as the first MiB, as in existing repositories, even when
+	// the data map uses smaller blocks. Refresh it if any of that region
+	// changes, not only when block zero changes.
+	headSize := min(uint64(BlockSize), size)
+	headBlocks := (headSize + blockSize - 1) / blockSize
+	refreshHead := img.Head.IsNull()
+	for b := uint64(0); b < headBlocks; b++ {
+		refreshHead = refreshHead || read[b]
 	}
-	buf := make([]byte, maxRun)
+	if refreshHead {
+		for b := uint64(0); b < headBlocks; b++ {
+			read[b] = true
+		}
+	}
+	// Blocks are compressed in parallel; they reach the packs in disk order,
+	// exactly as with sequential SaveBlob calls.
+	bw, err := repo.NewBlobWriter(ctx, r, 0)
+	if err != nil {
+		return img, err
+	}
+	defer func() { _ = bw.Close() }()
+	runSize := uint64(32) * blockSize
+	buf := make([]byte, runSize)
 	for i := uint64(0); i < p.Blocks; {
 		if !read[i] {
 			i++
@@ -167,30 +161,30 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 		}
 		// Read a run of consecutive blocks at once.
 		j := i
-		for j < p.Blocks && read[j] && (j-i+1)*BlockSize <= maxRun {
+		for j < p.Blocks && read[j] && (j-i+1)*blockSize <= runSize {
 			j++
 		}
-		start := i * BlockSize
-		n := min(j*BlockSize, size) - start
+		start := i * blockSize
+		n := min(j*blockSize, size) - start
 		if err := ctx.Err(); err != nil {
 			return img, err
 		}
 		if _, err := f.ReadAt(buf[:n], int64(start)); err != nil && !(errors.Is(err, io.EOF) && j == p.Blocks) {
 			return img, fmt.Errorf("read at %d: %w", start, err)
 		}
-		for b := i; b < j; b++ {
-			blk := buf[(b-i)*BlockSize : min((b-i+1)*BlockSize, n)]
-			if b == 0 {
-				var err error
-				if img.Head, _, err = r.SaveBlob(ctx, repo.DataBlob, blk); err != nil {
-					return img, err
-				}
+		if i == 0 && refreshHead {
+			var err error
+			if img.Head, _, err = bw.Save(ctx, repo.DataBlob, buf[:headSize]); err != nil {
+				return img, err
 			}
+		}
+		for b := i; b < j; b++ {
+			blk := buf[(b-i)*blockSize : min((b-i+1)*blockSize, n)]
 			if bytes.Equal(blk, zeroBlock[:len(blk)]) {
 				ids[b] = repo.ID{}
 				continue
 			}
-			id, _, err := r.SaveBlob(ctx, repo.DataBlob, blk)
+			id, _, err := bw.Save(ctx, repo.DataBlob, blk)
 			if err != nil {
 				return img, err
 			}
@@ -199,13 +193,15 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 		progress(n)
 		i = j
 	}
-	for _, id := range ids {
+	if err := bw.Close(); err != nil {
+		return img, err
+	}
+	for i, id := range ids {
 		if !id.IsNull() {
-			p.StoredBytes += BlockSize
+			p.StoredBytes += min(blockSize, size-uint64(i)*blockSize)
 		}
 	}
 	p.StoredBytes = min(p.StoredBytes, size)
-	var err error
 	if p.Maps, err = r.SaveBlockMap(ctx, ids); err != nil {
 		return img, err
 	}

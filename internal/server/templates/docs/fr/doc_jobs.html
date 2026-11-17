@@ -102,6 +102,10 @@
 </table>
 <p>Le niveau s'applique aux nouvelles données dès l'exécution suivante ; les sauvegardes existantes restent telles quelles, et la restauration n'en dépend jamais. La page de l'exécution montre le résultat : le taux de compression des nouvelles données (p. ex. <i>2.4×</i>) et la part des données lues qui était déjà stockée (déduplication).</p>
 
+<p><b>Taille des blocs de déduplication des VM</b> (Modifier → Avancé) permet de choisir 256 Kio, 512 Kio ou 1 Mio (valeur historique par défaut) pour les disques virtuels Hyper-V, Proxmox VE et VMware. Des blocs plus petits peuvent améliorer la déduplication mais augmentent les métadonnées. Mettez les agents à jour avant de choisir une taille plus petite. Chaque image conserve sa propre taille de blocs : les anciennes sauvegardes restent restaurables. Après un changement, chaque disque est relu intégralement une fois, puis les incrémentaux par blocs modifiés reprennent. Les anciennes sauvegardes et le découpage des sauvegardes de fichiers restent inchangés.</p>
+
+<p>En ligne de commande, utilisez <code>--block-size-kib 256</code>, <code>512</code> ou <code>1024</code> avec <code>hyperv backup</code>, <code>pve backup</code> et <code>vmware backup</code>.</p>
+
 <h2>Commandes avant et après la sauvegarde</h2>
 <p>Les administrateurs peuvent faire exécuter par une tâche une commande sur l'agent avant et après chaque sauvegarde — par exemple un dump de base de données, l'arrêt d'un service pour une copie cohérente, ou une notification :</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before

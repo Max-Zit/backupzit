@@ -61,7 +61,7 @@ func TestHyperVClusterJob(t *testing.T) {
 		t.Fatal("cluster VMs missing from the form data")
 	}
 	_, loc, _ := c.do("POST", "/jobs", url.Values{"name": {"cluster VMs"}, "agent_id": {"hvcluster:HVC"}, "target_id": {itoa(target)},
-		"kind": {"vm"}, "vm_mode": {"selected"}, "vms": {"1000000001", "1000000002"}, "sched_kind": {"manual"}})
+		"kind": {"vm"}, "vm_mode": {"selected"}, "vms": {"1000000001", "1000000002"}, "sched_kind": {"manual"}, "vm_block_size_kib": {"256"}})
 	if !strings.Contains(loc, "/job-groups/") || !strings.Contains(loc, "msg=") {
 		msg, _ := url.QueryUnescape(loc)
 		t.Fatalf("create: %s", msg)
@@ -85,7 +85,7 @@ func TestHyperVClusterJob(t *testing.T) {
 		if m.AgentID == other.ID {
 			t.Fatal("an agent outside the cluster got a member job")
 		}
-		if m.Options.HVCluster != "HVC" || strings.Join(m.Paths, ",") != "1000000001,1000000002" {
+		if m.Options.HVCluster != "HVC" || m.Options.VMBlockSizeKiB != 256 || strings.Join(m.Paths, ",") != "1000000001,1000000002" {
 			t.Fatalf("member %+v", m)
 		}
 		id, err := e.store.QueueBackup(ctx, m.ID, "manual")
@@ -106,9 +106,18 @@ func TestHyperVClusterJob(t *testing.T) {
 	// Editing keeps the cluster; a cluster job cannot back up files.
 	gid := groups[0].ID
 	_, loc, _ = c.do("POST", "/job-groups/"+itoa(gid)+"/edit", url.Values{"name": {"cluster VMs"}, "scope": {"hvcluster"},
-		"vm_mode": {"all"}, "sched_kind": {"manual"}})
-	if g, _ := e.store.GetJobGroup(ctx, gid); !strings.Contains(loc, "msg=") || g.Options.HVCluster != "HVC" || strings.Join(g.Paths, ",") != "*" {
+		"vm_mode": {"all"}, "sched_kind": {"manual"}, "vm_block_size_kib": {"512"}})
+	if g, _ := e.store.GetJobGroup(ctx, gid); !strings.Contains(loc, "msg=") || g.Options.HVCluster != "HVC" || g.Options.VMBlockSizeKiB != 512 || strings.Join(g.Paths, ",") != "*" {
 		t.Fatalf("edit: %s %+v", loc, g)
+	}
+	updated, err := e.store.ListJobs(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range updated {
+		if m.GroupID != nil && *m.GroupID == gid && m.Options.VMBlockSizeKiB != 512 {
+			t.Fatalf("cluster member retained old block size: %+v", m)
+		}
 	}
 	if _, err := e.store.CreateJobGroup(ctx, server.JobGroup{Kind: server.JobFiles, Name: "x", Scope: server.GroupHVCluster, TargetID: target, Paths: []string{"C:\\"},
 		Options: server.JobOptions{HVCluster: "HVC"}}); err == nil {
