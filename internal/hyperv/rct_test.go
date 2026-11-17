@@ -53,7 +53,8 @@ func TestRCTReadPlan(t *testing.T) {
 		{name: "disabled", rct: true, reason: "rct_disabled"},
 		{name: "first-backup", rct: true, on: true, reason: "no_previous_backup"},
 		{name: "missing-image", rct: true, on: true, previous: true, reason: "no_previous_backup"},
-		{name: "grown", rct: true, on: true, previous: true, image: true, previousSize: size - 512, previousID: "old-id", reason: "disk_size_changed"},
+		{name: "grown", rct: true, on: true, previous: true, image: true, previousSize: size - 512, previousID: "old-id", ranges: [][2]uint64{{diskimg.BlockSize, 4}}, queries: 1, incremental: true, reason: "rct_changes"},
+		{name: "grown-unaligned", rct: true, on: true, previous: true, image: true, previousSize: size - diskimg.BlockSize, previousID: "old-id", ranges: [][2]uint64{{diskimg.BlockSize, 4}}, queries: 1, incremental: true, reason: "rct_changes"},
 		{name: "shrunk", rct: true, on: true, previous: true, image: true, previousSize: size + 512, previousID: "old-id", reason: "disk_size_changed"},
 		{name: "missing-id", rct: true, on: true, previous: true, image: true, previousSize: size, reason: "previous_id_missing"},
 		{name: "invalid-id", rct: true, on: true, previous: true, image: true, previousSize: size, previousID: "old-id", queryErr: apiErr, queries: 1, reason: "rct_query_failed"},
@@ -73,7 +74,12 @@ func TestRCTReadPlan(t *testing.T) {
 			}
 			defer r.Close()
 			old := bytes.Repeat([]byte{0x41}, size)
-			img, err := diskimg.Store(ctx, r, bytes.NewReader(old), size, 0, "previous", "checkpoint", nil)
+			oldSize := uint64(size)
+			if scenario.image && scenario.previousSize < size {
+				// A grown disk: the earlier backup really had the smaller size.
+				oldSize = scenario.previousSize
+			}
+			img, err := diskimg.Store(ctx, r, bytes.NewReader(old[:oldSize]), oldSize, 0, "previous", "checkpoint", nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -142,8 +148,12 @@ func TestRCTReadPlan(t *testing.T) {
 			wantRead := uint64(size)
 			if scenario.incremental {
 				wantRead = diskimg.BlockSize
-				if scenario.name == "unchanged" {
+				switch scenario.name {
+				case "unchanged":
 					wantRead = 0
+				case "grown", "grown-unaligned":
+					// the changed block and everything from the earlier end on
+					wantRead = diskimg.BlockSize + (size - scenario.previousSize/diskimg.BlockSize*diskimg.BlockSize)
 				}
 			}
 			if read != wantRead {

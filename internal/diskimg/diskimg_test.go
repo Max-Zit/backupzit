@@ -88,6 +88,58 @@ func TestStoreAreas(t *testing.T) {
 	check(&img1, orig1) // the first backup is unchanged
 }
 
+// A disk that grew keeps the earlier blocks: only the changed areas, the
+// earlier short last block and the new space are read.
+func TestStoreAreasGrown(t *testing.T) {
+	ctx := context.Background()
+	be, err := backend.OpenLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const oldSize, size = 4*BlockSize + 4096, 8 * BlockSize
+	disk := &memDisk{b: make([]byte, size)}
+	rng := rand.New(rand.NewSource(2))
+	rng.Read(disk.b[:oldSize])
+	img1, err := StoreAreas(ctx, r, &memDisk{b: disk.b[:oldSize]}, oldSize, []Area{{0, oldSize}}, nil, 0, "d", "test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Grown by the guest: block 1 changed, the rest of block 4 and block 6
+	// were written after the earlier end.
+	rng.Read(disk.b[BlockSize : BlockSize+10])
+	rng.Read(disk.b[oldSize : 5*BlockSize])
+	rng.Read(disk.b[6*BlockSize : 6*BlockSize+10])
+	var read uint64
+	img2, err := StoreAreas(ctx, r, disk, size, []Area{{BlockSize, 10}}, &img1, 0, "d", "test", func(n uint64) { read += n })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if want := uint64(BlockSize + (size - 4*BlockSize)); read != want {
+		t.Errorf("read %d bytes, want %d (changed block + everything from the earlier end)", read, want)
+	}
+	out := &memDisk{b: bytes.Repeat([]byte{0xee}, size)}
+	if err := Write(ctx, r, &img2, out, true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.b, disk.b) {
+		t.Error("restored grown disk differs")
+	}
+	// A disk that shrank cannot reuse the earlier map.
+	if _, err := StoreAreas(ctx, r, &memDisk{b: disk.b[:BlockSize]}, BlockSize, nil, &img2, 0, "d", "test", nil); err == nil {
+		t.Error("shrunk disk: want an error")
+	}
+}
+
 func TestWriteChanges(t *testing.T) {
 	ctx := context.Background()
 	be, err := backend.OpenLocal(t.TempDir())
