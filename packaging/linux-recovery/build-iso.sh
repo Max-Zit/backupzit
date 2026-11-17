@@ -9,6 +9,13 @@
 #   apt install live-build
 # Output: backupzit-recovery-linux-<version>.iso in the current directory.
 set -eu
+# live-build bind-mounts /proc, /sys and /dev into its chroot and unmounts
+# them again. The host's mounts are shared (systemd), so that would also
+# unmount host mounts such as /sys/fs/cgroup (on a Proxmox node no VM could
+# start any more). Run in a mount namespace of its own instead.
+if [ -z "${BZ_ISO_NS:-}" ] && command -v unshare >/dev/null; then
+	exec env BZ_ISO_NS=1 unshare --mount --propagation slave sh "$0" "$@"
+fi
 VERSION=${1:?usage: build-iso.sh <version> <agent binary>}
 AGENT=${2:?usage: build-iso.sh <version> <agent binary>}
 OUT=$(pwd)
