@@ -346,6 +346,11 @@ func (run guestRun) imageGuestDisk(ctx context.Context, r *repo.Repository, src 
 	read := func(n uint64) { *run.read += n; run.progress(n) }
 	if trk.tracking(key) && prev.Image != nil && prev.ChangeID != "" {
 		areas, size, err := trk.changes(ctx, key, prev.ChangeID)
+		if err == nil && prev.Image.Size != size {
+			// A resized disk is read completely: whether QEMU keeps the dirty
+			// bitmap of the old part across a resize is not checked here.
+			err = fmt.Errorf("the disk size changed from %d to %d bytes", prev.Image.Size, size)
+		}
 		if err == nil {
 			img, n, err := imageDiskAreas(ctx, r, src, size, areas, prev.Image, number, model, read)
 			if err == nil {
