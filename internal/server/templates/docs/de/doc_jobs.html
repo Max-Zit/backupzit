@@ -102,6 +102,10 @@
 </table>
 <p>Die Stufe gilt für neue Daten ab dem nächsten Lauf; vorhandene Sicherungen bleiben unverändert, und die Wiederherstellung hängt nie davon ab. Die Laufseite zeigt das Ergebnis: das Komprimierungsverhältnis der neuen Daten (z. B. <i>2.4×</i>) und wie viel der gelesenen Daten bereits gespeichert war (Deduplizierung).</p>
 
+<p><b>Blockgröße für die VM-Deduplizierung</b> (Bearbeiten → Erweitert) wählt 256 KiB, 512 KiB oder 1 MiB (der bisherige Standard) für virtuelle Datenträger unter Hyper-V, Proxmox VE und VMware. Kleinere Blöcke können die Deduplizierung verbessern, kosten aber mehr Metadaten. Aktualisieren Sie die Agenten, bevor Sie eine kleinere Größe wählen. Jedes Image speichert seine eigene Blockgröße: alte Sicherungen bleiben wiederherstellbar, und nach einer Änderung wird jeder Datenträger einmal vollständig gelesen, bevor inkrementelle Sicherungen geänderter Blöcke weiterlaufen. Alte Sicherungen werden nicht umgeschrieben, und die Aufteilung bei Dateisicherungen ändert sich nicht.</p>
+
+<p>Kommandozeile: <code>--block-size-kib 256</code>, <code>512</code> oder <code>1024</code> mit <code>hyperv backup</code>, <code>pve backup</code> und <code>vmware backup</code>.</p>
+
 <h2>Befehle vor und nach der Sicherung</h2>
 <p>Administratoren können einen Auftrag vor und nach jeder Sicherung einen Befehl auf dem Agenten ausführen lassen — zum Beispiel einen Datenbank-Dump, das Stoppen eines Dienstes für eine konsistente Kopie oder eine Benachrichtigung:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before

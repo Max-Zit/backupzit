@@ -102,6 +102,10 @@
 </table>
 <p>Il livello vale per i dati nuovi dalla prossima esecuzione; i backup esistenti restano invariati e il ripristino non ne dipende mai. La pagina dell'esecuzione mostra il risultato: il rapporto di compressione dei dati nuovi (ad es. <i>2.4×</i>) e quanta parte dei dati letti era già archiviata (deduplicazione).</p>
 
+<p><b>Dimensione del blocco di deduplicazione delle VM</b> (Modifica → Avanzate) sceglie 256 KiB, 512 KiB o 1 MiB (il valore predefinito esistente) per i dischi virtuali su Hyper-V, Proxmox VE e VMware. Blocchi più piccoli possono migliorare la deduplicazione a costo di più metadati. Aggiornate gli agenti prima di scegliere una dimensione più piccola. Ogni immagine registra la propria dimensione del blocco: i backup vecchi restano ripristinabili e, dopo una modifica, ogni disco viene letto una volta per intero prima che riprendano i backup incrementali dei blocchi modificati. I backup vecchi non vengono riscritti e la suddivisione dei backup di file non cambia.</p>
+
+<p>Riga di comando: usate <code>--block-size-kib 256</code>, <code>512</code> o <code>1024</code> con <code>hyperv backup</code>, <code>pve backup</code> e <code>vmware backup</code>.</p>
+
 <h2>Comandi prima e dopo il backup</h2>
 <p>Gli amministratori possono far eseguire a un job un comando sull'agente prima e dopo ogni backup — ad esempio un dump del database, l'arresto di un servizio per una copia coerente o una notifica:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before

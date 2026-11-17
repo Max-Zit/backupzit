@@ -102,6 +102,10 @@
 </table>
 <p>Het niveau geldt voor nieuwe gegevens vanaf de volgende uitvoering; bestaande back-ups blijven zoals ze zijn, en herstel hangt er nooit van af. De uitvoeringspagina toont het resultaat: de compressieverhouding van de nieuwe gegevens (bijv. <i>2.4×</i>) en hoeveel van de gelezen gegevens al was opgeslagen (deduplicatie).</p>
 
+<p><b>Blokgrootte voor VM-deduplicatie</b> (Bewerken → Geavanceerd) kiest 256 KiB, 512 KiB of 1 MiB (de bestaande standaard) voor virtuele schijven op Hyper-V, Proxmox VE en VMware. Kleinere blokken kunnen de deduplicatie verbeteren, ten koste van meer metadata. Werk de agents bij voordat u een kleinere grootte kiest. Elke image legt zijn eigen blokgrootte vast: oude back-ups blijven herstelbaar, en na een wijziging wordt elke schijf eenmaal volledig gelezen voordat incrementele back-ups van gewijzigde blokken verdergaan. Oude back-ups worden niet herschreven en de indeling van bestandsback-ups verandert niet.</p>
+
+<p>Opdrachtregel: gebruik <code>--block-size-kib 256</code>, <code>512</code> of <code>1024</code> met <code>hyperv backup</code>, <code>pve backup</code> en <code>vmware backup</code>.</p>
+
 <h2>Opdrachten voor en na de back-up</h2>
 <p>Beheerders kunnen een taak voor en na elke back-up een opdracht op de agent laten uitvoeren — bijvoorbeeld een databasedump, het stoppen van een service voor een consistente kopie, of een melding:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before

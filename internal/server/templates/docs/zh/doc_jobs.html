@@ -102,6 +102,10 @@
 </table>
 <p>该级别从下次运行开始应用于新数据；现有备份保持不变，还原也从不依赖它。运行页面显示结果：新数据的压缩比（例如 <i>2.4×</i>）以及读取的数据中有多少已经存储过（重复数据删除）。</p>
 
+<p><b>虚拟机去重块大小</b>(编辑 → 高级)可为 Hyper-V、Proxmox VE 和 VMware 上的虚拟磁盘选择 256 KiB、512 KiB 或 1 MiB(原有默认值)。较小的块可能改善去重效果,但元数据更多。选择较小的大小之前,请先更新代理。每个镜像记录自己的块大小:旧备份仍可恢复;更改后,每个磁盘会先完整读取一次,然后再继续基于更改块的增量备份。不会改写旧备份,也不改变文件备份的分块方式。</p>
+
+<p>命令行:在 <code>hyperv backup</code>、<code>pve backup</code> 和 <code>vmware backup</code> 中使用 <code>--block-size-kib 256</code>、<code>512</code> 或 <code>1024</code>。</p>
+
 <h2>备份前后的命令</h2>
 <p>管理员可以让作业在每次备份前后在代理上运行命令——例如数据库转储、为获得一致副本而停止服务，或发送通知：</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before

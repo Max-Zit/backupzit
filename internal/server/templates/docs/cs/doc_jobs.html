@@ -102,6 +102,10 @@
 </table>
 <p>Úroveň platí pro nová data od dalšího běhu; stávající zálohy zůstanou beze změny a obnova na ní nikdy nezávisí. Stránka běhu ukazuje výsledek: kompresní poměr nových dat (např. <i>2.4×</i>) a jaká část přečtených dat už byla uložena (deduplikace).</p>
 
+<p><b>Velikost bloku pro deduplikaci VM</b> (Upravit → Pokročilé) volí 256 KiB, 512 KiB nebo 1 MiB (dosavadní výchozí hodnota) pro virtuální disky v Hyper-V, Proxmox VE a VMware. Menší bloky mohou zlepšit deduplikaci za cenu více metadat. Před volbou menší velikosti aktualizujte agenty. Každý obraz si pamatuje vlastní velikost bloku: staré zálohy zůstávají obnovitelné a po změně se každý disk jednou přečte celý, než se obnoví přírůstkové zálohy změněných bloků. Staré zálohy se nepřepisují a dělení dat u záloh souborů se nemění.</p>
+
+<p>Příkazový řádek: použijte <code>--block-size-kib 256</code>, <code>512</code> nebo <code>1024</code> s <code>hyperv backup</code>, <code>pve backup</code> a <code>vmware backup</code>.</p>
+
 <h2>Příkazy před zálohou a po ní</h2>
 <p>Správci mohou nechat úlohu spustit na agentovi příkaz před každou zálohou a po ní — například výpis databáze, zastavení služby kvůli konzistentní kopii nebo oznámení:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before

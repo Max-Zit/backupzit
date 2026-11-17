@@ -102,6 +102,10 @@
 </table>
 <p>Düzey, sonraki çalıştırmadan itibaren yeni verilere uygulanır; mevcut yedekler olduğu gibi kalır ve geri yükleme asla buna bağlı değildir. Çalıştırma sayfası sonucu gösterir: yeni verilerin sıkıştırma oranı (ör. <i>2.4×</i>) ve okunan verilerin ne kadarının zaten saklandığı (tekilleştirme).</p>
 
+<p><b>VM tekilleştirme blok boyutu</b> (Düzenle → Gelişmiş), Hyper-V, Proxmox VE ve VMware üzerindeki sanal diskler için 256 KiB, 512 KiB veya 1 MiB (mevcut varsayılan) seçer. Daha küçük bloklar daha fazla meta veri pahasına tekilleştirmeyi iyileştirebilir. Daha küçük bir boyut seçmeden önce ajanları güncelleyin. Her imaj kendi blok boyutunu kaydeder: eski yedekler geri yüklenebilir kalır ve bir değişiklikten sonra, değişen blokların artımlı yedekleri sürmeden önce her disk bir kez tamamen okunur. Eski yedekler yeniden yazılmaz ve dosya yedeklerinin bölünmesi değişmez.</p>
+
+<p>Komut satırı: <code>hyperv backup</code>, <code>pve backup</code> ve <code>vmware backup</code> ile <code>--block-size-kib 256</code>, <code>512</code> veya <code>1024</code> kullanın.</p>
+
 <h2>Yedekten önce ve sonra komutlar</h2>
 <p>Yöneticiler bir işin her yedekten önce ve sonra aracıda bir komut çalıştırmasını sağlayabilir — örneğin bir veritabanı dökümü, tutarlı bir kopya için bir hizmeti durdurma veya bir bildirim:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before

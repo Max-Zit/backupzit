@@ -102,6 +102,10 @@
 </table>
 <p>Poziom dotyczy nowych danych od następnego uruchomienia; istniejące kopie pozostają bez zmian, a przywracanie nigdy od niego nie zależy. Strona uruchomienia pokazuje wynik: współczynnik kompresji nowych danych (np. <i>2.4×</i>) oraz jaka część odczytanych danych była już zapisana (deduplikacja).</p>
 
+<p><b>Rozmiar bloku deduplikacji maszyn wirtualnych</b> (Edytuj → Zaawansowane) wybiera 256 KiB, 512 KiB lub 1 MiB (dotychczasowa wartość domyślna) dla dysków wirtualnych w Hyper-V, Proxmox VE i VMware. Mniejsze bloki mogą poprawić deduplikację kosztem większej ilości metadanych. Zaktualizuj agenty przed wybraniem mniejszego rozmiaru. Każdy obraz zapisuje własny rozmiar bloku: stare kopie pozostają możliwe do przywrócenia, a po zmianie każdy dysk jest raz odczytywany w całości, zanim wznowione zostaną kopie przyrostowe zmienionych bloków. Stare kopie nie są przepisywane, a podział kopii plików się nie zmienia.</p>
+
+<p>Wiersz poleceń: użyj <code>--block-size-kib 256</code>, <code>512</code> lub <code>1024</code> z <code>hyperv backup</code>, <code>pve backup</code> i <code>vmware backup</code>.</p>
+
 <h2>Polecenia przed kopią i po niej</h2>
 <p>Administratorzy mogą zlecić zadaniu uruchomienie polecenia na agencie przed każdą kopią i po niej — na przykład zrzutu bazy danych, zatrzymania usługi dla spójnej kopii lub powiadomienia:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before

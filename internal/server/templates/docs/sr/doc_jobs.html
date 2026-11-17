@@ -102,6 +102,10 @@
 </table>
 <p>Nivo važi za nove podatke od sledećeg pokretanja; postojeći bekapi ostaju kakvi jesu, a vraćanje nikad ne zavisi od njega. Stranica pokretanja prikazuje rezultat: odnos kompresije novih podataka (npr. <i>2.4×</i>) i koliki deo pročitanih podataka je već bio sačuvan (deduplikacija).</p>
 
+<p><b>Veličina bloka za deduplikaciju VM-ova</b> (Izmena → Napredno) bira 256 KiB, 512 KiB ili 1 MiB (dosadašnja podrazumevana vrednost) za virtuelne diskove na Hyper-V, Proxmox VE i VMware. Manji blokovi mogu poboljšati deduplikaciju po cenu više metapodataka. Ažurirajte agente pre nego što izaberete manju veličinu. Svaki image beleži sopstvenu veličinu bloka: stari bekapi ostaju vraćljivi, a promena jednom čita svaki disk u celosti pre nego što se nastave inkrementalni bekapi promenjenih blokova. Ovo ne menja stare bekape niti podelu podataka kod bekapa fajlova.</p>
+
+<p>Komandna linija: koristite <code>--block-size-kib 256</code>, <code>512</code> ili <code>1024</code> uz <code>hyperv backup</code>, <code>pve backup</code> i <code>vmware backup</code>.</p>
+
 <h2>Komande pre i posle bekapa</h2>
 <p>Administratori mogu da podese da posao pokrene komandu na agentu pre i posle svakog bekapa — na primer dump baze, zaustavljanje servisa radi konzistentne kopije, ili obaveštenje:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, pre
