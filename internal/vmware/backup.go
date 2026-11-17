@@ -114,6 +114,7 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 				return nil, ctx.Err()
 			}
 			addErr(v.Name, err)
+			stats.Failed = append(stats.Failed, v.Name)
 			continue
 		}
 		sn.Guests = append(sn.Guests, *g)

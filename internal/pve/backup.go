@@ -132,6 +132,7 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 				return nil, ctx.Err()
 			}
 			addErr(guestLabel(g), err)
+			stats.Failed = append(stats.Failed, guestLabel(g))
 			continue
 		}
 		sn.Guests = append(sn.Guests, *gi)

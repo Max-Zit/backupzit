@@ -104,6 +104,7 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 				notApp++
 			}
 			addErr(vm.Name, err)
+			stats.Failed = append(stats.Failed, vm.Name)
 			continue
 		}
 		sn.Guests = append(sn.Guests, *g)

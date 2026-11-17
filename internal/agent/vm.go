@@ -109,25 +109,9 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	if errors.Is(err, hyperv.ErrNoneHere) {
 		return api.RunResult{Status: api.StatusSuccess, Message: "None of the job's VMs runs on this node now; the other nodes of cluster " + run.HVCluster + " back them up"}
 	}
-	if errors.Is(err, hyperv.ErrNotAppConsistent) && sn != nil {
-		// The job requires application-consistent checkpoints: the run
-		// fails, but the VMs that had one are kept and can be restored.
-		// No retention after a failed run.
-		stats, _ := json.Marshal(sn.Stats)
-		return api.RunResult{Status: api.StatusFailed, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors,
-			Message: fmt.Sprintf("%v; the other %d VMs were backed up", err, len(sn.Guests))}
-	}
-	if err != nil {
-		return failed(err)
-	}
-	stats, _ := json.Marshal(sn.Stats)
-	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors,
-		Message: fmt.Sprintf("Backed up %d guests", len(sn.Guests))}
-	if len(sn.Guests) == 1 {
-		res.Message = "Backed up 1 guest"
-	}
-	if len(sn.Stats.Errors) > 0 {
-		res.Status = api.StatusWarning
+	res, keep := vmBackupResult(sn, err)
+	if !keep {
+		return res
 	}
 	_ = lock.Unlock() // retention needs an exclusive lock
 	return a.withRetention(ctx, r, run, res)
@@ -277,4 +261,43 @@ func (a *Agent) cleanupCheckpoints(ctx context.Context) {
 	} else if len(done) > 0 {
 		a.log.Info("removed leftover backup checkpoints", "checkpoints", done)
 	}
+}
+
+// vmBackupResult turns the snapshot of a VM backup into the run result.
+// retention reports whether the job's retention may run: not after a
+// failed run, so older restore points of a missing guest stay.
+func vmBackupResult(sn *repo.Snapshot, err error) (res api.RunResult, retention bool) {
+	if errors.Is(err, hyperv.ErrNotAppConsistent) && sn != nil && len(sn.Stats.Failed) == 0 {
+		// The job requires application-consistent checkpoints: the run
+		// fails, but the VMs that had one are kept and can be restored.
+		// No retention after a failed run.
+		stats, _ := json.Marshal(sn.Stats)
+		return api.RunResult{Status: api.StatusFailed, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors,
+			Message: fmt.Sprintf("%v; the other %d VMs were backed up", err, len(sn.Guests))}, false
+	}
+	if sn != nil && len(sn.Stats.Failed) > 0 {
+		// A guest without a restore point in this run must not hide among
+		// warnings (issue #38): the run fails and names it. The other guests
+		// are kept and can be restored. No retention after a failed run, so
+		// the older restore points of that guest stay.
+		stats, _ := json.Marshal(sn.Stats)
+		msg := fmt.Sprintf("No backup of %s in this run; the other %d guests were backed up", strings.Join(sn.Stats.Failed, ", "), len(sn.Guests))
+		if errors.Is(err, hyperv.ErrNotAppConsistent) {
+			msg = fmt.Sprintf("%v. %s", err, msg)
+		}
+		return api.RunResult{Status: api.StatusFailed, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors, Message: msg}, false
+	}
+	if err != nil {
+		return failed(err), false
+	}
+	stats, _ := json.Marshal(sn.Stats)
+	res = api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors,
+		Message: fmt.Sprintf("Backed up %d guests", len(sn.Guests))}
+	if len(sn.Guests) == 1 {
+		res.Message = "Backed up 1 guest"
+	}
+	if len(sn.Stats.Errors) > 0 {
+		res.Status = api.StatusWarning
+	}
+	return res, true
 }

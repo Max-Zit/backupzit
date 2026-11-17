@@ -62,10 +62,16 @@ func OpenS3(ctx context.Context, u *url.URL, opts Options) (*S3, error) {
 		prefix = strings.Trim(parts[1], "/")
 	}
 	secure := u.Query().Get("tls") != "false"
+	tr, err := s3Transport(secure)
+	if err != nil {
+		return nil, fmt.Errorf("s3: %w", err)
+	}
 	client, err := minio.New(u.Host, &minio.Options{
-		Creds:  credentials.NewStaticV4(opts.S3AccessKey, opts.S3SecretKey, ""),
-		Secure: secure,
-		Region: opts.S3Region,
+		Creds:      credentials.NewStaticV4(opts.S3AccessKey, opts.S3SecretKey, ""),
+		Secure:     secure,
+		Region:     opts.S3Region,
+		Transport:  tr,
+		MaxRetries: s3ClientRetries,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("s3: %w", err)
@@ -178,7 +184,10 @@ func (s *S3) Save(ctx context.Context, name string, data []byte) error {
 		opts.RetainUntilDate = until
 		opts.SendContentMd5 = true // required for PUTs with Object Lock
 	}
-	if _, err := s.client.PutObject(ctx, s.bucket, s.key(name), bytes.NewReader(data), int64(len(data)), opts); err != nil {
+	if err := retryS3(ctx, func() error {
+		_, err := s.client.PutObject(ctx, s.bucket, s.key(name), bytes.NewReader(data), int64(len(data)), opts)
+		return err
+	}); err != nil {
 		return fmt.Errorf("s3 put %s: %w", name, withClockHint(err))
 	}
 	if s.lockDays > 0 && !opts.RetainUntilDate.IsZero() {
@@ -188,6 +197,15 @@ func (s *S3) Save(ctx context.Context, name string, data []byte) error {
 }
 
 func (s *S3) Load(ctx context.Context, name string) ([]byte, error) {
+	var b []byte
+	err := retryS3(ctx, func() (err error) {
+		b, err = s.loadOnce(ctx, name)
+		return err
+	})
+	return b, err
+}
+
+func (s *S3) loadOnce(ctx context.Context, name string) ([]byte, error) {
 	o, err := s.getOpts(name)
 	if err != nil {
 		return nil, err
@@ -204,7 +222,22 @@ func (s *S3) Load(ctx context.Context, name string) ([]byte, error) {
 	return b, nil
 }
 
+// LoadRange reads length bytes at offset. A short read is retried: it is
+// usually a dropped connection, but if it repeats, the pack may really be
+// shorter on the storage (damaged), and the message says so.
 func (s *S3) LoadRange(ctx context.Context, name string, offset int64, length int) ([]byte, error) {
+	var b []byte
+	err := retryS3(ctx, func() (err error) {
+		b, err = s.loadRangeOnce(ctx, name, offset, length)
+		return err
+	})
+	if errors.Is(err, errShortRead) {
+		return nil, fmt.Errorf("%w; it was read again several times, so the file may be damaged on the storage: run a data check (Check data on the job page)", err)
+	}
+	return b, err
+}
+
+func (s *S3) loadRangeOnce(ctx context.Context, name string, offset int64, length int) ([]byte, error) {
 	o, err := s.getOpts(name)
 	if err != nil {
 		return nil, err
@@ -227,8 +260,8 @@ func (s *S3) LoadRange(ctx context.Context, name string, offset int64, length in
 	if n == length {
 		return buf, nil
 	}
-	if err == nil {
-		err = io.ErrUnexpectedEOF
+	if err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return nil, fmt.Errorf("read %s@%d+%d: got %d bytes: %w", name, offset, length, n, errShortRead)
 	}
 	return nil, fmt.Errorf("read %s@%d+%d: %w", name, offset, length, s3NotFound(name, err))
 }
@@ -241,11 +274,16 @@ func (s *S3) Size(ctx context.Context, name string) (int64, error) {
 		}
 		return v.size, nil
 	}
-	st, err := s.client.StatObject(ctx, s.bucket, s.key(name), minio.StatObjectOptions{})
-	if err != nil {
-		return 0, s3NotFound(name, err)
-	}
-	return st.Size, nil
+	var size int64
+	err := retryS3(ctx, func() error {
+		st, err := s.client.StatObject(ctx, s.bucket, s.key(name), minio.StatObjectOptions{})
+		if err != nil {
+			return s3NotFound(name, err)
+		}
+		size = st.Size
+		return nil
+	})
+	return size, err
 }
 
 func (s *S3) List(ctx context.Context, dir string) ([]string, error) {
@@ -266,11 +304,18 @@ func (s *S3) List(ctx context.Context, dir string) ([]string, error) {
 		sort.Strings(out)
 		return out, nil
 	}
-	for obj := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
-		if obj.Err != nil {
-			return nil, fmt.Errorf("s3 list %s: %w", dir, withClockHint(obj.Err))
+	err := retryS3(ctx, func() error {
+		out = out[:0]
+		for obj := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+			if obj.Err != nil {
+				return obj.Err
+			}
+			out = append(out, trim(obj.Key))
 		}
-		out = append(out, trim(obj.Key))
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("s3 list %s: %w", dir, withClockHint(err))
 	}
 	return out, nil
 }
@@ -286,7 +331,9 @@ func (s *S3) Remove(ctx context.Context, name string) error {
 	if _, err := s.Size(ctx, name); err != nil {
 		return err
 	}
-	return s.client.RemoveObject(ctx, s.bucket, s.key(name), minio.RemoveObjectOptions{})
+	return retryS3(ctx, func() error {
+		return s.client.RemoveObject(ctx, s.bucket, s.key(name), minio.RemoveObjectOptions{})
+	})
 }
 
 func (s *S3) Close() error { return nil }
