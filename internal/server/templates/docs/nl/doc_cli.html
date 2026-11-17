@@ -155,6 +155,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Initieel beheerderswachtwoord (alleen bij de eerste start).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Geheimensleutel (base64) in plaats van het bestand <code>secrets.key</code>.</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>Stelt het wachtwoord van <i>admin</i> opnieuw in (activeert hem weer als lokale beheerder) en stopt.</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>Schakelt het aanmelden in twee stappen uit voor een gebruiker die authenticator en herstelcodes kwijt is, meldt hem af, schrijft het in het auditlogboek en stopt.</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Heft de aanmeldblokkade van een adres, of van alle, op (bescherming tegen brute force) en stopt.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Herstelt de console uit een consoleback-up en stopt (zie <a href="/docs/install">Server installeren</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Alleen voor evaluatie: privé-PostgreSQL in de gegevensmap, onversleuteld HTTP op localhost.</td></tr>

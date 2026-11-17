@@ -258,6 +258,8 @@ set -a; . /etc/backupzit/server.env; set +a
 backupzit-server --set-admin-password 'NEW-PASSWORD'
 ```
 
+Lost the authenticator app and the recovery codes? `backupzit-server --reset-two-factor USER` (same environment) turns two-factor sign-in off for that user and signs the user out; it is recorded in the audit log.
+
 **Just trying it out?** This runs a private PostgreSQL in the data folder and serves the console over plain HTTP on localhost (Windows or Linux, no installation):
 
 ```

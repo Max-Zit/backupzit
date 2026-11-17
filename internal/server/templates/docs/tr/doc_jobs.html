@@ -137,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>Bir yedekleme çalıştırması neyi raporlar</h2>
 <p><a href="/runs">Etkinlik</a>'te bir çalıştırmayı açın: dosya sayısı, yeni/değişen dosyalar, okunan veri, yüklenen yeni veri (tekilleştirme ve sıkıştırmadan sonra, sıkıştırma oranı ve zaten saklanmış payla — bkz. <a href="#compression">Sıkıştırma</a>), süre ve okunamayan dosyalar. Okunamayan dosyaları olan bir çalıştırma <b>uyarı</b> durumuyla biter — verilerin geri kalanı yedeklenmiştir.</p>
+<p>Bir konuğun (yeniden denemelerden sonra da) yedeklenemediği bir VM yedeklemesi <i>başarısız</i> olarak biter ve o konuğun adını verir, böylece uyarıların arasında kaybolmaz; diğer konuklar korunur ve geri yüklenebilir, saklama atlanır, böylece o konuğun eski geri yükleme noktaları kalır.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

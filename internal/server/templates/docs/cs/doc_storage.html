@@ -25,6 +25,7 @@
 
 <h2>Kompatibilní s S3</h2>
 <p>Zadejte koncový bod (např. <code>s3.eu-central-1.amazonaws.com</code>, <code>s3.wasabisys.com</code>, <code>10.0.0.5:9000</code>), bucket, volitelnou složku a přístupový klíč s právy čtení/zápisu do tohoto bucketu. <i>Nešifrované HTTP</i> zaškrtněte jen pro místní MinIO bez certifikátu.</p>
+<p>Objektové úložiště občas odpovídá pomalu nebo s dočasnou chybou. Agent čeká na odpověď až pět minut a při vypršení času, přerušeném spojení, neúplném čtení, chybách serveru a omezování (<i>SlowDown</i>) to několikrát zkusí znovu s rostoucími pauzami, než záloha nebo obnova vzdá. Opětovné odeslání části je bezpečné, i s Object Lock.</p>
 <h3>Neměnné zálohy (Object Lock)</h3>
 <p>Vytvořte bucket se <b>zapnutým Object Lock</b> a zaškrtněte <i>Neměnné zálohy … na N dní</i>. Každý soubor, který agenti zapíší, se uzamkne v <b>režimu compliance</b> na N dní (+1 den rezerva): nikdo — ani útočník s klíči, ani vlastník bucketu — jej předtím nesmaže ani nepřepíše. Po každé záloze se prodlouží zámek dat znovu použitých ze starších záloh, takže každý bod obnovy je chráněn po celou dobu.</p>
 <p id="s3-default-retention">Nastavte bucketu také <b>výchozí uchování</b> v <b>režimu compliance</b> alespoň na N dní (AWS: <i>Object Lock → Default retention</i>; MinIO: <code>mc retention set --default COMPLIANCE 30d</code>). Bucket pak sám zamkne každý nový objekt, i ten, který napadený počítač zapíše bez zámku. Test připojení cíle upozorní, když výchozí uchování chybí nebo je kratší než N dní.</p>

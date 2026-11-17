@@ -35,6 +35,7 @@
   <li>an address was blocked after too many failed sign-ins (can be turned off under brute-force protection).</li>
 </ul>
 <p>For weekly or monthly summaries use <a href="/docs/monitoring">scheduled reports</a>; they are sent with the same mail settings and have their own recipients. Subjects start with <code>[BackupZit]</code> so mail rules can sort them. The SMTP password is stored encrypted. Links in emails, chat messages and reports lead to the console at the address you open it with in the browser (or the address set with <code>--public-url</code>).</p>
+<p>When the HTTPS web port with a trusted certificate is on (Settings → Certificate), links in emails, chat messages and reports use its address, also when port 8443 serves agents only.</p>
 
 <h2>Slack, Microsoft Teams and webhooks</h2>
 <p>Under <a href="/settings/chat">Settings → Chat &amp; webhooks</a> add any number of channels; each chooses whether it gets failures, warnings and successes. Unusual backups (possible ransomware) count as failures. <b>Send test</b> checks a channel right away.</p>

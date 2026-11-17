@@ -137,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>O que uma execução de backup reporta</h2>
 <p>Abra uma execução em <a href="/runs">Atividade</a>: número de arquivos, arquivos novos/alterados, dados lidos, dados novos enviados (após desduplicação e compressão, com a taxa de compressão e a parte já guardada — veja <a href="#compression">Compressão</a>), duração e os arquivos que não puderam ser lidos. Uma execução com arquivos ilegíveis termina com o estado <b>aviso</b> — o resto dos dados fica copiado.</p>
+<p>Uma cópia de VM em que um convidado não pôde ser copiado (nem após as repetições) termina como <i>falhada</i> e indica esse convidado, para que não se perca entre os avisos; os outros convidados são mantidos e podem ser restaurados, e a retenção é ignorada, pelo que os pontos de restauro anteriores desse convidado ficam.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

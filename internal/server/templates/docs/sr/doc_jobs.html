@@ -137,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, pre<
 
 <h2>Šta pokretanje bekapa prijavljuje</h2>
 <p>Otvorite pokretanje u <a href="/runs">Aktivnosti</a>: broj fajlova, novi/promenjeni fajlovi, pročitani podaci, novi poslati podaci (posle deduplikacije i kompresije, sa odnosom kompresije i delom koji je već bio sačuvan — vidi <a href="#compression">Kompresija</a>), trajanje i fajlovi koji nisu mogli da se pročitaju. Pokretanje sa nečitljivim fajlovima završava se statusom <b>upozorenje</b> — ostali podaci su sačuvani.</p>
+<p>VM bekap u kome jedan gost nije mogao da se bekapuje (ni posle ponovljenih pokušaja) završava se kao <i>failed</i> i imenuje tog gosta, da se ne izgubi među upozorenjima; ostali gosti su sačuvani i mogu se vratiti, a retention se preskače, pa starije tačke vraćanja tog gosta ostaju.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

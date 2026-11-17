@@ -137,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>Co raportuje uruchomienie kopii</h2>
 <p>Otwórz uruchomienie w <a href="/runs">Aktywności</a>: liczba plików, nowe/zmienione pliki, odczytane dane, nowe wysłane dane (po deduplikacji i kompresji, ze współczynnikiem kompresji i częścią już zapisaną — zobacz <a href="#compression">Kompresja</a>), czas trwania oraz pliki, których nie dało się odczytać. Uruchomienie z nieczytelnymi plikami kończy się statusem <b>ostrzeżenie</b> — pozostałe dane są skopiowane.</p>
+<p>Kopia maszyn wirtualnych, w której gościa nie udało się skopiować (także po ponownych próbach), kończy się jako <i>nieudana</i> i podaje nazwę tego gościa, aby nie zginął wśród ostrzeżeń; pozostali goście są zachowani i można ich przywrócić, a retencja jest pomijana, więc starsze punkty przywracania tego gościa zostają.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

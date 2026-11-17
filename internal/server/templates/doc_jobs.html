@@ -137,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>What a backup run reports</h2>
 <p>Open a run in <a href="/runs">Activity</a>: number of files, new/changed files, data read, new data uploaded (after deduplication and compression, with the compression ratio and the share already stored — see <a href="#compression">Compression</a>), duration, and any files that could not be read. A run with unreadable files ends with status <b>warning</b> — the rest of the data is backed up.</p>
+<p>A VM backup in which a guest could not be backed up (also after the retries) ends as <i>failed</i> and names that guest, so it is not lost among the warnings; the other guests are kept and can be restored, and retention is skipped, so the older restore points of that guest stay.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

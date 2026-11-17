@@ -38,7 +38,7 @@
   <tr><td>コンソールのバックアップ: 「the backup was made by a newer BackupZit」</td><td>復元する前に、新しいコンソールにバックアップを作成したバージョン以降をインストールしてください。</td></tr>
   <tr><td>コンソールのバックアップ: 「console backups need network storage」</td><td>SFTP、S3、SMB、Azure、または強化リポジトリのストレージ先を選んでください。エージェントのローカル パスにはコンソールから到達できません。</td></tr>
   <tr><td>「サインインの失敗が多すぎます」</td><td>誤ったパスワードが繰り返されたため、アドレスがブロックされました: 既定では 30 分、繰り返すとさらに長くなります。管理者は <a href="/settings/security">設定 → サインインとセキュリティ</a> でブロックを解除できます。サーバー上では <code>backupzit-server --unblock-ip all</code> ですべてのブロックを解除できます。アカウントが恒久的にロックされることはありません。</td></tr>
-  <tr><td>2 要素サインイン用の電話を紛失した</td><td>リカバリー コードのいずれかを使います。ない場合は、管理者がユーザーのページで 2 要素をリセットします。リカバリー コードを保管するか、2 人目の管理者を用意しておいてください。サーバー上の <code>backupzit-server --set-admin-password</code> はユーザー <i>admin</i> のパスワードを設定するだけで、2 要素サインインは無効になりません。</td></tr>
+  <tr><td>2 要素サインイン用の電話を紛失した</td><td>回復コードのいずれかを使います。使えない場合は、管理者がユーザーページで 2 要素サインインをリセットします。サインインできる管理者がいなくなった場合は、サーバーで <code>backupzit-server --reset-two-factor USER</code> を実行します(Docker: <code>docker compose exec backupzit backupzit-server --reset-two-factor USER</code>)。そのユーザーの 2 要素サインインをオフにしてサインアウトさせ、監査ログに記録されます。その後パスワードでサインインし、設定し直してください。</td></tr>
   <tr><td>「your directory account is not in any BackupZit group」</td><td><a href="/settings/ldap">設定 → LDAP / Active Directory</a> で対応付けたグループのいずれかにユーザーを追加するか、さらにグループを対応付けてください。そのページの <i>テスト</i> で、ユーザーに対して見つかったグループを確認できます。</td></tr>
   <tr><td>API が 401 / 403 を返す</td><td>401: トークンがない、失効している、期限切れ、または所有者が無効化されている。403: トークンのロールが要求に対して低すぎます。</td></tr>
   <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>アカウント キーが誤っているか、SAS トークンに読み取り、書き込み、削除、一覧表示の権限がないか、期限が切れています。</td></tr>

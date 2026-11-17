@@ -137,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>Wat een back-upuitvoering meldt</h2>
 <p>Open een uitvoering in <a href="/runs">Activiteit</a>: aantal bestanden, nieuwe/gewijzigde bestanden, gelezen gegevens, nieuw geüploade gegevens (na deduplicatie en compressie, met de compressieverhouding en het al opgeslagen deel — zie <a href="#compression">Compressie</a>), duur, en bestanden die niet gelezen konden worden. Een uitvoering met onleesbare bestanden eindigt met status <b>waarschuwing</b> — de rest van de gegevens is geback-upt.</p>
+<p>Een VM-back-up waarin een gast (ook na de herhalingen) niet kon worden geback-upt, eindigt als <i>mislukt</i> en noemt die gast, zodat hij niet tussen de waarschuwingen verdwijnt; de andere gasten blijven bewaard en herstelbaar, en de bewaartermijn wordt overgeslagen, zodat oudere herstelpunten van die gast blijven.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

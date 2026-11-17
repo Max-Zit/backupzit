@@ -155,6 +155,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>İlk yönetici parolası (yalnızca ilk başlatmada).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td><code>secrets.key</code> dosyası yerine gizli bilgi anahtarı (base64).</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td><i>admin</i> parolasını sıfırlar (onu yerel yönetici olarak yeniden etkinleştirir) ve çıkar.</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>Doğrulayıcı uygulamasını ve kurtarma kodlarını kaybetmiş bir kullanıcının iki aşamalı oturum açmasını kapatır, oturumlarını kapatır, bunu denetim günlüğüne yazar ve çıkar.</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Bir adresin veya tüm adreslerin oturum açma engelini kaldırır (kaba kuvvet koruması) ve çıkar.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Konsolu bir konsol yedeğinden geri yükler ve çıkar (bkz. <a href="/docs/install">Sunucuyu kurma</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Yalnızca deneme için: veri dizininde özel PostgreSQL, localhost üzerinde şifresiz HTTP.</td></tr>

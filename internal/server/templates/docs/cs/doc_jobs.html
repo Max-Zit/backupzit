@@ -137,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>Co hlásí běh zálohy</h2>
 <p>Otevřete běh v <a href="/runs">Aktivitě</a>: počet souborů, nové/změněné soubory, přečtená data, nově nahraná data (po deduplikaci a kompresi, s kompresním poměrem a podílem už uložených dat — viz <a href="#compression">Komprese</a>), doba trvání a soubory, které nešlo přečíst. Běh s nečitelnými soubory skončí stavem <b>varování</b> — ostatní data jsou zálohována.</p>
+<p>Záloha VM, ve které se nepodařilo zálohovat některého hosta (ani po opakovaných pokusech), skončí jako <i>neúspěšná</i> a toho hosta jmenuje, aby se neztratil mezi varováními; ostatní hosté zůstávají a dají se obnovit a uchovávání se přeskočí, takže starší body obnovení toho hosta zůstanou.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

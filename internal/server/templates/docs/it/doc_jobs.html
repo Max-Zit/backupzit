@@ -137,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>Cosa riporta un'esecuzione di backup</h2>
 <p>Aprite un'esecuzione in <a href="/runs">Attività</a>: numero di file, file nuovi/modificati, dati letti, nuovi dati caricati (dopo deduplicazione e compressione, con il rapporto di compressione e la quota già archiviata — vedete <a href="#compression">Compressione</a>), durata e i file che non è stato possibile leggere. Un'esecuzione con file illeggibili termina con stato <b>avviso</b> — il resto dei dati è salvato.</p>
+<p>Un backup di VM in cui un guest non è stato salvato (nemmeno dopo i tentativi ripetuti) termina come <i>non riuscito</i> e nomina quel guest, così non si perde tra gli avvisi; gli altri guest sono conservati e ripristinabili, e la conservazione viene saltata, quindi i punti di ripristino precedenti di quel guest restano.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

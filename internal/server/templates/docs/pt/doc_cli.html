@@ -155,6 +155,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Senha inicial do administrador (apenas no primeiro arranque).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Chave de segredos (base64) em vez do arquivo <code>secrets.key</code>.</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>Redefine a senha de <i>admin</i> (reativa-o como administrador local) e sai.</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>Desativa o início de sessão em dois passos de um utilizador que perdeu o autenticador e os códigos de recuperação, termina as suas sessões, regista-o no registo de auditoria e sai.</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Remove o bloqueio de login de um endereço, ou de todos (proteção contra força bruta), e sai.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Restaura a console a partir de um backup da console e sai (veja <a href="/docs/install">Instalar o servidor</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Apenas para avaliação: PostgreSQL privado no diretório de dados, HTTP sem criptografia em localhost.</td></tr>

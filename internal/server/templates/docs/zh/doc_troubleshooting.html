@@ -38,7 +38,7 @@
   <tr><td>控制台备份：“the backup was made by a newer BackupZit”</td><td>还原之前，请在新控制台上安装生成该备份的版本或更新的版本。</td></tr>
   <tr><td>控制台备份：“console backups need network storage”</td><td>请选择 SFTP、S3、SMB、Azure 或加固存储库目标；控制台无法访问代理的本地路径。</td></tr>
   <tr><td>“登录失败次数过多”</td><td>您的地址在多次输错密码后被封锁：默认 30 分钟，重复封锁时更久。管理员可以在 <a href="/settings/security">设置 → 登录与安全</a> 中解除封锁。在服务器上，<code>backupzit-server --unblock-ip all</code> 会解除所有封锁。帐户永远不会被永久锁定。</td></tr>
-  <tr><td>丢失了用于双因素登录的手机</td><td>使用一个恢复代码；否则由管理员在您的用户页面上重置双因素登录。请保管好恢复代码或保留第二名管理员：服务器上的 <code>backupzit-server --set-admin-password</code> 只设置用户 <i>admin</i> 的密码，不会关闭双因素登录。</td></tr>
+  <tr><td>丢失了双重验证登录的手机</td><td>使用一个恢复代码;否则由管理员在您的用户页面上重置双重验证。如果已没有管理员能够登录,请在服务器上运行 <code>backupzit-server --reset-two-factor USER</code>(Docker:<code>docker compose exec backupzit backupzit-server --reset-two-factor USER</code>):它会关闭该用户的双重验证登录、注销其所有会话并记录到审计日志;然后用密码登录并重新设置。</td></tr>
   <tr><td>“your directory account is not in any BackupZit group”</td><td>将用户加入 <a href="/settings/ldap">设置 → LDAP / Active Directory</a> 中已映射的某个组，或映射更多组。在那里使用 <i>测试</i> 可查看为某个用户找到的组。</td></tr>
   <tr><td>API 返回 401 / 403</td><td>401：令牌缺失、已撤销、已过期或其所有者已被禁用。403：令牌的角色权限不足以执行该请求。</td></tr>
   <tr><td>Azure：AuthenticationFailed / AuthorizationPermissionMismatch</td><td>帐户密钥错误，或者 SAS 令牌缺少读取、写入、删除或列出权限，或已过期。</td></tr>

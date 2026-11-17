@@ -137,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>Ce que rapporte une exécution de sauvegarde</h2>
 <p>Ouvrez une exécution dans <a href="/runs">Activité</a> : nombre de fichiers, fichiers nouveaux/modifiés, données lues, nouvelles données envoyées (après déduplication et compression, avec le taux de compression et la part déjà stockée — voir <a href="#compression">Compression</a>), durée, et les fichiers qui n'ont pas pu être lus. Une exécution avec des fichiers illisibles se termine avec l'état <b>avertissement</b> — le reste des données est sauvegardé.</p>
+<p>Une sauvegarde de VM dans laquelle un invité n’a pas pu être sauvegardé (même après les nouvelles tentatives) se termine en <i>échec</i> et nomme cet invité, pour qu’il ne se perde pas parmi les avertissements ; les autres invités sont conservés et restaurables, et la rétention est ignorée, si bien que les anciens points de restauration de cet invité restent.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

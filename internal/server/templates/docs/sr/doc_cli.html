@@ -155,6 +155,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Početna lozinka administratora (samo pri prvom pokretanju).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Ključ tajni (base64) umesto fajla <code>secrets.key</code>.</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>Resetuje lozinku naloga <i>admin</i> (ponovo ga omogućava kao lokalnog administratora) i izlazi.</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>Isključuje dvofaktorsku prijavu korisniku koji je izgubio aplikaciju za autentifikaciju i kodove za oporavak, odjavljuje ga, upisuje to u audit log i završava.</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Skida blokadu prijave sa adrese, ili sa svih adresa (zaštita od pogađanja lozinki), i izlazi.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Vraća konzolu iz bekapa konzole i izlazi (vidi <a href="/docs/install">Instalacija servera</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Samo za probu: privatni PostgreSQL u folderu podataka, običan HTTP na localhost-u.</td></tr>

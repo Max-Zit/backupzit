@@ -155,6 +155,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>初始管理员密码（仅首次启动时）。</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>机密密钥（base64），代替 <code>secrets.key</code> 文件。</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>重置 <i>admin</i> 的密码（重新启用其本地管理员身份）并退出。</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>为丢失了验证器和恢复代码的用户关闭双重验证登录,注销其会话,写入审计日志后退出。</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>解除某个地址或所有地址的登录封锁（暴力破解防护）并退出。</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>从控制台备份还原控制台并退出（参见 <a href="/docs/install">安装服务器</a>）。</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>仅用于试用：数据目录中的私有 PostgreSQL，localhost 上的明文 HTTP。</td></tr>

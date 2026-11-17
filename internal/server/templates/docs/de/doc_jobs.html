@@ -137,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>Was ein Sicherungslauf meldet</h2>
 <p>Öffnen Sie einen Lauf in <a href="/runs">Aktivität</a>: Anzahl der Dateien, neue/geänderte Dateien, gelesene Daten, neu hochgeladene Daten (nach Deduplizierung und Komprimierung, mit dem Komprimierungsverhältnis und dem bereits gespeicherten Anteil — siehe <a href="#compression">Komprimierung</a>), Dauer und Dateien, die nicht gelesen werden konnten. Ein Lauf mit unlesbaren Dateien endet mit dem Status <b>Warnung</b> — die übrigen Daten sind gesichert.</p>
+<p>Eine VM-Sicherung, in der ein Gast (auch nach den Wiederholungen) nicht gesichert werden konnte, endet als <i>fehlgeschlagen</i> und nennt diesen Gast, damit er nicht unter den Warnungen untergeht; die anderen Gäste bleiben erhalten und können wiederhergestellt werden, und die Aufbewahrung wird übersprungen, sodass ältere Wiederherstellungspunkte dieses Gastes bleiben.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -155,6 +155,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>初期管理者パスワード（初回起動時のみ）。</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td><code>secrets.key</code> ファイルの代わりのシークレット キー（base64）。</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td><i>admin</i> のパスワードをリセットし（ローカル管理者として再有効化）、終了します。</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>認証アプリと回復コードを失ったユーザーの 2 要素サインインをオフにし、サインアウトさせ、監査ログに記録して終了します。</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>アドレスまたはすべてのアドレスのサインイン ブロック（ブルートフォース対策）を解除して終了します。</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>コンソール バックアップからコンソールを復元して終了します（<a href="/docs/install">サーバーのインストール</a>を参照）。</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>評価専用: データ ディレクトリ内のプライベート PostgreSQL、localhost 上の平文 HTTP。</td></tr>
