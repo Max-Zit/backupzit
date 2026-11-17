@@ -133,10 +133,8 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 	p := repo.PartitionImage{Number: 1, Offset: 0, Length: size, Included: true, Method: "changed-blocks", Source: source,
 		BlockSize: BlockSize, Blocks: (size + BlockSize - 1) / BlockSize}
 	ids := make([]repo.ID, p.Blocks)
-	read := make([]bool, p.Blocks)
 	if prev != nil {
-		// A grown disk keeps the earlier blocks; a shrunk one does not fit.
-		if prev.Size > size || len(prev.Partitions) != 1 || prev.Partitions[0].BlockSize != BlockSize {
+		if prev.Size != size || len(prev.Partitions) != 1 || prev.Partitions[0].BlockSize != BlockSize {
 			return img, errors.New("the earlier backup of this disk has a different size")
 		}
 		old, err := r.LoadBlockMap(ctx, &prev.Partitions[0])
@@ -145,16 +143,10 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 		}
 		copy(ids, old)
 		img.Head = prev.Head
-		// Everything from the block holding the earlier end (it may have been
-		// short) onwards is read, whatever the areas say.
-		if prev.Size < size {
-			for b := prev.Size / BlockSize; b < p.Blocks; b++ {
-				read[b] = true
-			}
-		}
 	} else {
 		p.Method = "used-blocks"
 	}
+	read := make([]bool, p.Blocks)
 	for _, a := range areas {
 		if a.Length == 0 || a.Offset >= size {
 			continue
