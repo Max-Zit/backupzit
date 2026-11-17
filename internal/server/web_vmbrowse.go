@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -215,7 +214,15 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 		redirectErr(w, r, vmBack(p), err)
 		return
 	}
-	s.audit(r, "restore.download", "%d paths from guest %d (%s) of backup #%d", len(sel), p.vmid, v.ID, p.run.ID)
+	// Find every ticked entry before anything is sent: a read error must
+	// show as a message, not as a broken download.
+	for _, sp := range sel {
+		if _, err := f.Stat(sp); err != nil {
+			redirectErr(w, r, vmBack(p), err)
+			return
+		}
+	}
+	s.audit(r, "restore.download", "%d paths from guest %d (%s) of backup #%d: %s", len(sel), p.vmid, v.ID, p.run.ID, auditPaths(sel))
 	if len(sel) == 1 {
 		if e, err := f.Stat(sel[0]); err == nil && !e.IsDir {
 			rd, size, err := f.ReadFile(vmfs.Clean(sel[0]))
@@ -223,18 +230,16 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 				redirectErr(w, r, vmBack(p), err)
 				return
 			}
-			w.Header().Set("Content-Type", "application/octet-stream")
-			w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(vmfs.Base(sel[0])))
-			w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
-			_, _ = io.Copy(w, rd)
+			setAttachment(w, vmfs.Base(sel[0]), "application/octet-stream", size)
+			if _, err := io.Copy(w, rd); err != nil {
+				s.abortDownload("guest file", err)
+			}
 			return
 		}
 	}
 	name := fmt.Sprintf("vm%d-%s.zip", p.vmid, time.Now().Format("20060102-1504"))
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(name))
+	setAttachment(w, name, "application/zip", -1)
 	zw := zip.NewWriter(w)
-	defer zw.Close()
 	base := p.dir
 	var add func(e vmfs.Entry) error
 	add = func(e vmfs.Entry) error {
@@ -245,10 +250,11 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 		if rel == "" {
 			rel = vmfs.Base(e.Path)
 		}
+		rel = zipEntryName(rel)
 		if e.IsDir {
 			children, err := f.List(e.Path)
 			if err != nil {
-				return nil
+				return err
 			}
 			if len(children) == 0 {
 				_, _ = zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: e.ModTime})
@@ -262,9 +268,9 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 		}
 		rd, _, err := f.ReadFile(e.Path)
 		if err != nil {
-			return nil
+			return err
 		}
-		zf, err := zw.CreateHeader(&zip.FileHeader{Name: path.Clean(rel), Method: zip.Deflate, Modified: e.ModTime})
+		zf, err := zw.CreateHeader(&zip.FileHeader{Name: rel, Method: zip.Deflate, Modified: e.ModTime})
 		if err != nil {
 			return err
 		}
@@ -273,13 +279,16 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 	}
 	for _, sp := range sel {
 		e, err := f.Stat(sp)
+		if err == nil {
+			e.Path = vmfs.Clean(sp)
+			err = add(e)
+		}
 		if err != nil {
-			continue
+			s.abortDownload("guest archive", err)
 		}
-		e.Path = vmfs.Clean(sp)
-		if add(e) != nil {
-			return
-		}
+	}
+	if err := zw.Close(); err != nil {
+		s.abortDownload("guest archive", err)
 	}
 }
 

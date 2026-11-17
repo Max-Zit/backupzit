@@ -119,6 +119,28 @@ func sendMail(ctx context.Context, e EmailSettings, subject, body string) error 
 }
 
 func sendMailWith(ctx context.Context, e EmailSettings, subject, body string, atts []attachment) error {
+	return sendMailFull(ctx, e, subject, body, atts, nil)
+}
+
+// mailHeader is an extra header of a message (X-BackupZit-...).
+type mailHeader struct{ Name, Value string }
+
+// maxHeaderValue bounds an extra header value (in runes, before encoding).
+const maxHeaderValue = 200
+
+// headerLine renders an extra header. The values come from users (job
+// names) and from agents (host names, untrusted): they are cut to
+// maxHeaderValue runes and Q-encoded, which encodes every control
+// character, so a line break can never start a header of its own.
+func headerLine(h mailHeader) string {
+	v := h.Value
+	if r := []rune(v); len(r) > maxHeaderValue {
+		v = string(r[:maxHeaderValue])
+	}
+	return h.Name + ": " + mime.QEncoding.Encode("utf-8", v) + "\r\n"
+}
+
+func sendMailFull(ctx context.Context, e EmailSettings, subject, body string, atts []attachment, extra []mailHeader) error {
 	// Addresses go into message headers: whatever path they came from,
 	// line breaks there would let them add headers of their own.
 	for _, a := range append([]string{e.From}, e.To...) {
@@ -171,6 +193,9 @@ func sendMailWith(ctx context.Context, e EmailSettings, subject, body string, at
 	rand.Read(id[:])
 	hdr := fmt.Sprintf("From: BackupZit <%s>\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMessage-ID: <%s@backupzit>\r\nMIME-Version: 1.0\r\n",
 		e.From, strings.Join(e.To, ", "), mime.QEncoding.Encode("utf-8", subject), time.Now().Format(time.RFC1123Z), hex.EncodeToString(id[:]))
+	for _, h := range extra {
+		hdr += headerLine(h)
+	}
 	text := strings.ReplaceAll(strings.ReplaceAll(body, "\r\n", "\n"), "\n", "\r\n")
 	msg := hdr + "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n" + text
 	if len(atts) > 0 {
@@ -209,10 +234,15 @@ type Notifier struct {
 	mu        sync.Mutex // one pass at a time
 	send      func(ctx context.Context, e EmailSettings, subject, body string) error
 	sendWith  func(ctx context.Context, e EmailSettings, subject, body string, atts []attachment) error
+	// sendRun sends a run alert with its X-BackupZit headers.
+	sendRun func(ctx context.Context, e EmailSettings, subject, body string, hdr []mailHeader) error
 }
 
 func NewNotifier(store *Store, log *slog.Logger, publicURL func() string) *Notifier {
-	return &Notifier{store: store, log: log, publicURL: publicURL, send: sendMail, sendWith: sendMailWith}
+	return &Notifier{store: store, log: log, publicURL: publicURL, send: sendMail, sendWith: sendMailWith,
+		sendRun: func(ctx context.Context, e EmailSettings, subject, body string, hdr []mailHeader) error {
+			return sendMailFull(ctx, e, subject, body, nil, hdr)
+		}}
 }
 
 func wants(e EmailSettings, status string) bool {
@@ -274,7 +304,7 @@ func (n *Notifier) runAlerts(ctx context.Context, l *language, e EmailSettings, 
 		}
 		if e.Enabled && (wants(e, run.Status) || (run.Anomaly != "" && e.OnFailure)) {
 			subject, body := n.runMessage(l, run)
-			if err := n.send(ctx, e, subject, body); err != nil {
+			if err := n.sendRun(ctx, e, subject, body, runHeaders(run)); err != nil {
 				// Leave unhandled to retry on the next pass; stop to avoid
 				// hammering a broken mail server.
 				n.log.Warn("send run notification", "run", id, "err", err)
@@ -368,7 +398,7 @@ func (n *Notifier) dailyReport(ctx context.Context, l *language, e EmailSettings
 	var offline []string
 	for _, a := range agents {
 		if !a.Online() && !a.Recovery {
-			offline = append(offline, a.Hostname)
+			offline = append(offline, a.Name())
 		}
 	}
 	state := reportState(l, count[api.StatusFailed] > 0 || len(offline) > 0, count[api.StatusWarning] > 0)
@@ -412,4 +442,23 @@ func notifyLanguage(e EmailSettings) *language {
 		return l
 	}
 	return languages[0]
+}
+
+// runHeaders are the language-independent headers of a run alert, for mail
+// filters: the subject is translated, these are not. A suspicious run is
+// marked separately, so a filter on "success" cannot hide it.
+func runHeaders(r Run) []mailHeader {
+	h := []mailHeader{{"X-BackupZit-Status", r.Status}, {"X-BackupZit-Kind", r.Kind}, {"X-BackupZit-Run", strconv.FormatInt(r.ID, 10)}}
+	if r.JobName != nil {
+		h = append(h, mailHeader{"X-BackupZit-Job", *r.JobName})
+	}
+	host := r.ReportedHost
+	if host == "" {
+		host = r.Hostname
+	}
+	h = append(h, mailHeader{"X-BackupZit-Host", host}, mailHeader{"X-BackupZit-Agent", r.Hostname})
+	if r.Anomaly != "" {
+		h = append(h, mailHeader{"X-BackupZit-Suspicious", "yes"})
+	}
+	return h
 }

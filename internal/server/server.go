@@ -388,6 +388,8 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /agents/{id}/adopt", s.ui(PermAgents, s.handleAgentAdopt))
 	mux.HandleFunc("POST /agents/{id}/update", s.ui(PermAgents, s.handleAgentUpdate))
 	mux.HandleFunc("POST /agents/{id}/max-runs", s.ui(PermAgents, s.handleAgentMaxRuns))
+	mux.HandleFunc("GET /agents/{id}", s.ui(PermView, s.handleAgentPage))
+	mux.HandleFunc("POST /agents/{id}/labels", s.ui(PermAgents, s.handleAgentLabels))
 	mux.HandleFunc("POST /agents/{id}/log", s.ui(PermAgents, s.handleAgentLogRequest))
 	mux.HandleFunc("GET /runs/{id}/log", s.ui(PermAgents, s.handleAgentLogDownload))
 	mux.HandleFunc("POST /agents/update-all", s.ui(PermAgents, s.handleAgentUpdateAll))
@@ -439,6 +441,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /runs/{id}/instant", s.ui(PermRestore, s.handleInstantEnd))
 	mux.HandleFunc("GET /runs/{id}/browse", s.ui(PermRestore, s.handleBrowse))
 	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(PermRestore, s.handleFilesRestore))
+	mux.HandleFunc("POST /runs/{id}/image-download", s.ui(PermRestore, s.handleImageDownload))
 	mux.HandleFunc("GET /runs/{id}/vmbrowse", s.ui(PermRestore, s.handleVMBrowse))
 	mux.HandleFunc("POST /runs/{id}/vmdownload", s.ui(PermRestore, s.handleVMDownload))
 	mux.HandleFunc("POST /runs/{id}/vmfiles-restore", s.ui(PermRestore, s.handleVMFilesRestore))
@@ -778,6 +781,17 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		s.serverError(w, err)
 		return
 	}
+	allAgents, allTags := agents, agentTags(agents)
+	tag := strings.TrimSpace(r.URL.Query().Get("tag"))
+	if tag != "" {
+		var sel []Agent
+		for _, a := range agents {
+			if a.HasTag(tag) {
+				sel = append(sel, a)
+			}
+		}
+		agents = sel
+	}
 	removed, _ := s.store.listRemovedAgents(r.Context())
 	hosts, err := s.store.ListVMwareHosts(r.Context())
 	if err != nil {
@@ -791,8 +805,8 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		}
 	}
 	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
-		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts, "Duplicates": s.dups.current(s.clock()), "ClockSkew": s.clocks.skewed(s.clock()), "Removed": removed,
-		"Unprotected": unprotected,
+		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(allAgents), "VMwareHosts": hosts, "Duplicates": s.dups.current(s.clock()), "ClockSkew": s.clocks.skewed(s.clock()), "Removed": removed,
+		"Unprotected": unprotected, "AllTags": allTags, "Tag": tag,
 	}})
 }
 

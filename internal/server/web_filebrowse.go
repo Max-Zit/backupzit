@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -220,7 +219,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 	ctx := context.WithoutCancel(r.Context())
-	s.audit(r, "restore.download", "%d paths from backup #%d", len(sel), run.ID)
+	s.audit(r, "restore.download", "%d paths from backup #%d: %s", len(sel), run.ID, auditPaths(sel))
 	writeFile := func(dst io.Writer, n *repo.Node) error {
 		for _, id := range n.Content {
 			b, err := repoR.LoadBlob(ctx, repo.DataBlob, id)
@@ -251,26 +250,24 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 			if n.Type == repo.NodeFile {
 				cp := *n
 				cp.Name = name
-				w.Header().Set("Content-Type", "application/octet-stream")
-				w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(cp.Name))
-				w.Header().Set("Content-Length", strconv.FormatUint(cp.Size, 10))
-				_ = writeFile(w, &cp)
+				setAttachment(w, cp.Name, "application/octet-stream", int64(cp.Size)) // #nosec G115 -- file sizes are below 2^63
+				if err := writeFile(w, &cp); err != nil {
+					s.abortDownload("file", err)
+				}
 				return
 			}
 		}
 		if _, n, err := lookupNode(ctx, repoR, sn.Tree, snapshotComps(sel[0])); err == nil && n != nil && n.Type == repo.NodeFile {
-			w.Header().Set("Content-Type", "application/octet-stream")
-			w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(n.Name))
-			w.Header().Set("Content-Length", strconv.FormatUint(n.Size, 10))
-			_ = writeFile(w, n)
+			setAttachment(w, n.Name, "application/octet-stream", int64(n.Size)) // #nosec G115 -- file sizes are below 2^63
+			if err := writeFile(w, n); err != nil {
+				s.abortDownload("file", err)
+			}
 			return
 		}
 	}
 	name := fmt.Sprintf("backup%d-%s.zip", run.ID, time.Now().Format("20060102-1504"))
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(name))
+	setAttachment(w, name, "application/zip", -1)
 	zw := zip.NewWriter(w)
-	defer zw.Close()
 	var add func(rel string, comps []string, n *repo.Node) error
 	add = func(rel string, comps []string, n *repo.Node) error {
 		if err := r.Context().Err(); err != nil {
@@ -286,7 +283,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 				return err // a cut archive fails in the browser instead of looking complete
 			}
 			if len(t.Nodes) == 0 {
-				_, _ = zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: n.ModTime})
+				_, _ = zw.CreateHeader(&zip.FileHeader{Name: zipEntryName(rel) + "/", Modified: n.ModTime})
 			}
 			for i := range t.Nodes {
 				if err := add(path.Join(rel, t.Nodes[i].Name), append(append([]string{}, comps...), t.Nodes[i].Name), &t.Nodes[i]); err != nil {
@@ -294,7 +291,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 				}
 			}
 		case repo.NodeFile:
-			zf, err := zw.CreateHeader(&zip.FileHeader{Name: rel, Method: zip.Deflate, Modified: n.ModTime})
+			zf, err := zw.CreateHeader(&zip.FileHeader{Name: zipEntryName(rel), Method: zip.Deflate, Modified: n.ModTime})
 			if err != nil {
 				return err
 			}
@@ -303,7 +300,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 			// A link to a file is stored as that file; links to folders are
 			// left out (they could loop).
 			if t, err := followLink(ctx, repoR, sn.Tree, comps, n); err == nil && t.Type == repo.NodeFile {
-				zf, err := zw.CreateHeader(&zip.FileHeader{Name: rel, Method: zip.Deflate, Modified: t.ModTime})
+				zf, err := zw.CreateHeader(&zip.FileHeader{Name: zipEntryName(rel), Method: zip.Deflate, Modified: t.ModTime})
 				if err != nil {
 					return err
 				}
@@ -317,9 +314,12 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 		if err != nil || n == nil {
 			continue
 		}
-		if add(n.Name, snapshotComps(sp), n) != nil {
-			return
+		if err := add(n.Name, snapshotComps(sp), n); err != nil {
+			s.abortDownload("archive", err)
 		}
+	}
+	if err := zw.Close(); err != nil {
+		s.abortDownload("archive", err)
 	}
 }
 
