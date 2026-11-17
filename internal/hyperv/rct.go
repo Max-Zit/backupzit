@@ -42,7 +42,8 @@ func planDiskRead(size uint64, rct bool, previous *diskimg.Previous, tracker dis
 	case previous == nil || previous.Image == nil:
 		p.reason = "no_previous_backup"
 		return p
-	case previous.Image.Size != size:
+	case previous.Image.Size > size:
+		// Shrunk: the earlier block map no longer fits the disk.
 		p.reason = "disk_size_changed"
 		return p
 	case previous.ChangeID == "":
@@ -57,6 +58,11 @@ func planDiskRead(size uint64, rct bool, previous *diskimg.Previous, tracker dis
 	p.areas = make([]diskimg.Area, 0, len(ranges))
 	for _, rg := range ranges {
 		p.areas = append(p.areas, diskimg.Area{Offset: rg[0], Length: rg[1]})
+	}
+	if old := previous.Image.Size; old < size {
+		// Grown (an expanded VHDX): RCT covers the old part; everything after
+		// the old end is read, instead of the whole disk again.
+		p.areas = append(p.areas, diskimg.Area{Offset: old, Length: size - old})
 	}
 	p.base, p.method, p.reason = previous.Image, "changed blocks", "rct_changes"
 	return p

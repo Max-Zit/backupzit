@@ -94,7 +94,9 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 	// hypervisor supplied only dirty ranges. Never treat the rest as zeros.
 	reblocked := false
 	if prev != nil {
-		if prev.Size != size || len(prev.Partitions) != 1 {
+		// A grown disk (an expanded VHDX) keeps the earlier blocks; a shrunk
+		// one does not fit.
+		if prev.Size > size || len(prev.Partitions) != 1 {
 			return repo.DiskImage{}, errors.New("the earlier backup of this disk has a different size")
 		}
 		if uint64(prev.Partitions[0].BlockSize) != blockSize {
@@ -110,6 +112,7 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 	p := repo.PartitionImage{Number: 1, Offset: 0, Length: size, Included: true, Method: "changed-blocks", Source: source,
 		BlockSize: uint32(blockSize), Blocks: (size + blockSize - 1) / blockSize} // #nosec G115 -- validated session setting is at most 1 MiB
 	ids := make([]repo.ID, p.Blocks)
+	read := make([]bool, p.Blocks)
 	if prev != nil {
 		old, err := r.LoadBlockMap(ctx, &prev.Partitions[0])
 		if err != nil {
@@ -117,13 +120,17 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 		}
 		copy(ids, old)
 		img.Head = prev.Head
+		// Everything from the block that held the earlier end (it may have
+		// been short) onwards is read, whatever the areas say.
+		for b := prev.Size / blockSize; prev.Size < size && b < p.Blocks; b++ {
+			read[b] = true
+		}
 	} else {
 		p.Method = "used-blocks"
 		if reblocked {
 			p.Method = "full"
 		}
 	}
-	read := make([]bool, p.Blocks)
 	for _, a := range areas {
 		if a.Length == 0 || a.Offset >= size {
 			continue
