@@ -13,11 +13,12 @@ import (
 	"github.com/crewjam/saml/xmlenc"
 )
 
-// GO-2026-6909: crewjam/saml up to v0.5.1 binds some assertion elements
+// GO-2026-6909: crewjam/saml (v0.6.3 too: the vulnerability database lists
+// no fixed release) binds some assertion elements
 // without their namespace (a NameID of any namespace fills Subject.NameID,
 // so it could be spoofed inside a signed assertion) and dereferences an
 // optional Subject without a check (a panic). Until a fixed release is
-// out, the console checks every SAML response itself before the library
+// listed, the console checks every SAML response itself before the library
 // reads it: these elements must be in the SAML assertion namespace, and
 // every assertion needs a Subject. Encrypted assertions are decrypted and
 // checked the same way.
