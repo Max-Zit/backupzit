@@ -203,6 +203,32 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 	return sn, nil
 }
 
+// Dir stores the directory dir and everything below it as one node named
+// name, without saving a snapshot: the caller places the node in its own
+// tree. Unchanged files are taken from parent, the node of the same
+// directory in an earlier backup (nil: read everything). Only opts.Excludes,
+// opts.OneFileSystem and opts.Progress are used. Files that cannot be read
+// are listed in the returned stats' errors.
+func Dir(ctx context.Context, r *repo.Repository, dir, name string, parent *repo.Node, opts Options) (repo.Node, repo.SnapshotStats, error) {
+	a := &Archiver{
+		r:    r,
+		opts: opts,
+		buf:  make([]byte, chunker.MaxSize),
+		chk:  chunker.New(nil, r.ChunkerPolynomial()),
+	}
+	n, ok, err := a.archivePath(ctx, dir, name, parent)
+	if err != nil {
+		return n, a.stats, err
+	}
+	if !ok || n.Type != repo.NodeDir || n.Subtree == nil {
+		if len(a.stats.Errors) > 0 {
+			return n, a.stats, errors.New(a.stats.Errors[0])
+		}
+		return n, a.stats, fmt.Errorf("%s is not a directory", dir)
+	}
+	return n, a.stats, nil
+}
+
 // The parent is the newest snapshot of the host with the same paths; else
 // the newest of the same job (tag job:N), whose paths changed because a
 // {users} or wildcard source now finds other folders. Unchanged files are

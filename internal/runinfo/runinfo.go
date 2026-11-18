@@ -48,7 +48,11 @@ func Guests(sn *repo.Snapshot) json.RawMessage {
 		}
 		for _, d := range g.Disks {
 			s.Size += d.Size
-			if d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {
+			if d.Files() {
+				s.Stored += d.Bytes
+				continue
+			}
+			if d.Image >= 0 && d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {
 				p := sn.Images[d.Image].Partitions[0]
 				s.Stored += p.StoredBytes
 				if p.Method == "changed-blocks" {

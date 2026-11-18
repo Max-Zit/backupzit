@@ -42,6 +42,9 @@ func (a *Agent) verifyRun(ctx context.Context, run api.Run) api.RunResult {
 	switch {
 	case len(sn.Images) > 0:
 		res.Message = fmt.Sprintf("Read and verified %d random blocks (%s) of %d", st.Blocks, humanSize(st.Bytes), st.Candidates)
+		if st.FileCandidates > 0 {
+			res.Message += fmt.Sprintf("; restored and verified %d random files (%s) of %d", st.Files, humanSize(st.FileBytes), st.FileCandidates)
+		}
 	case st.Candidates == 0:
 		res.Message = "The backup contains no files"
 	default:

@@ -97,6 +97,8 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	// Changed block tracking: the bitmaps of the previous backups are
 	// dropped only once this backup is saved.
 	prev := previousDisks(ctx, r)
+	prevVolumes := previousVolumes(ctx, r)
+	volumes := map[string]repo.Node{}
 	var trackers []*tracker
 	saved := false
 	defer func() {
@@ -116,7 +118,7 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	}
 	for _, g := range guests {
 		opts.Log("backing up guest", "vmid", g.VMID, "name", g.Name)
-		gi, trk, warns, err := backupGuest(ctx, r, stores, g, sn, guestRun{prev: prev, progress: progress, read: &bytesRead, log: opts.Log})
+		gi, trk, warns, err := backupGuest(ctx, r, stores, g, sn, guestRun{prev: prev, prevVolumes: prevVolumes, volumes: volumes, progress: progress, read: &bytesRead, log: opts.Log})
 		for _, w := range warns {
 			addErr(guestLabel(g), errors.New(w))
 		}
@@ -145,9 +147,15 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	for _, img := range sn.Images {
 		stats.Bytes += img.Partitions[0].StoredBytes
 	}
+	for _, g := range sn.Guests {
+		for _, d := range g.Disks {
+			stats.Bytes += d.Bytes
+		}
+	}
 	stats.BytesRead = bytesRead
 
-	treeID, err := r.SaveTree(ctx, &repo.Tree{})
+	// Container volumes stored as files; empty for VMs only.
+	treeID, err := saveVolumeTree(ctx, r, sn.Guests, volumes)
 	if err != nil {
 		return nil, err
 	}
@@ -169,10 +177,14 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 
 // guestRun is what backupGuest needs from the whole backup.
 type guestRun struct {
-	prev     map[string]diskimg.Previous
-	progress func(uint64) // bytes done (read or taken from the previous backup)
-	read     *uint64      // bytes actually read
-	log      func(string, ...any)
+	prev map[string]diskimg.Previous
+	// prevVolumes are the volumes stored as files in earlier backups, by
+	// path in the tree; volumes receives those of this backup.
+	prevVolumes map[string]*repo.Node
+	volumes     map[string]repo.Node
+	progress    func(uint64) // bytes done (read or taken from the previous backup)
+	read        *uint64      // bytes actually read
+	log         func(string, ...any)
 }
 
 func guestLabel(g Guest) string {
@@ -193,7 +205,7 @@ func snapshotCapable(st storage, volname string) bool {
 	case "lvmthin", "rbd":
 		return true
 	case "zfspool":
-		return volumeFormat(volname) != "subvol"
+		return true // zvols, and subvolumes read as files
 	case "dir", "nfs", "cifs", "glusterfs", "cephfs":
 		return volumeFormat(volname) == "qcow2"
 	}
@@ -228,12 +240,12 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		if !ok {
 			return nil, nil, warns, fmt.Errorf("%s: unknown storage %q", d.Key, sid)
 		}
+		if volumeFormat(vol) == "subvol" && !isFilesVolume(st, vol) {
+			return nil, nil, warns, fmt.Errorf("%s: container volumes that are directories on %s storage are not supported yet (only on ZFS)", d.Key, st.Type)
+		}
 		if !snapshotCapable(st, vol) {
 			if d.CloudInit {
 				continue
-			}
-			if volumeFormat(vol) == "subvol" {
-				return nil, nil, warns, fmt.Errorf("%s: ZFS subvolumes of containers are not supported yet", d.Key)
 			}
 			useSnap = false
 		}
@@ -311,6 +323,15 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		}
 		sid, vol, _ := strings.Cut(d.Volume, ":")
 		st := stores[sid]
+		if isFilesVolume(st, vol) {
+			gd, vwarns, err := run.backupVolumeFiles(ctx, r, g, d, st, vol, snap)
+			warns = append(warns, vwarns...)
+			if err != nil {
+				return nil, trk, warns, fmt.Errorf("%s (%s): %w", d.Key, d.Volume, err)
+			}
+			gi.Disks = append(gi.Disks, gd)
+			continue
+		}
 		var src *source
 		if snap != "" {
 			src, err = openSnapshot(ctx, st, vol, d.Volume, snap)
@@ -339,6 +360,31 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		warns = append(warns, "has no disks to back up; only the configuration was saved")
 	}
 	return gi, trk, warns, nil
+}
+
+// backupVolumeFiles stores a container's ZFS subvolume as files.
+func (run guestRun) backupVolumeFiles(ctx context.Context, r *repo.Repository, g Guest, d diskEntry, st storage, vol, snap string) (repo.GuestDisk, []string, error) {
+	sid, _, _ := strings.Cut(d.Volume, ":")
+	size, _ := parseSize(optValue(d.Opts, "size"))
+	dir, err := subvolDir(ctx, st, vol, snap)
+	if err != nil {
+		return repo.GuestDisk{}, nil, err
+	}
+	path := volumePathInTree(g.Type, g.VMID, d.Key)
+	n, vst, err := run.archiveVolume(ctx, r, dir, d.Key, path)
+	if err != nil {
+		return repo.GuestDisk{}, nil, err
+	}
+	// The quota was counted for progress; the files are what was there.
+	if size > vst.Bytes {
+		run.progress(size - vst.Bytes)
+	}
+	run.volumes[path] = n
+	run.log("stored container volume as files", "vmid", g.VMID, "key", d.Key, "files", vst.Files, "unchanged", vst.FilesSkipped, "bytes", vst.Bytes)
+	return repo.GuestDisk{
+		Key: d.Key, Volume: d.Volume, Storage: sid, Format: "subvol", Size: size,
+		Image: -1, Path: path, Bytes: vst.Bytes,
+	}, volumeErrors(d.Key, dir, vst.Errors), nil
 }
 
 // imageGuestDisk stores a disk: only the areas changed since the previous

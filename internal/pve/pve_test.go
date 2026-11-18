@@ -75,7 +75,7 @@ func TestParseStorage(t *testing.T) {
 		t.Fatal("nodes restriction ignored")
 	}
 	if !snapshotCapable(st["local-lvm"], "vm-100-disk-0") || snapshotCapable(st["local"], "100/vm-100-disk-0.raw") ||
-		!snapshotCapable(st["local"], "100/vm-100-disk-0.qcow2") || snapshotCapable(st["tank"], "subvol-200-disk-0") {
+		!snapshotCapable(st["local"], "100/vm-100-disk-0.qcow2") || !snapshotCapable(st["tank"], "subvol-200-disk-0") {
 		t.Fatal("snapshotCapable wrong")
 	}
 }

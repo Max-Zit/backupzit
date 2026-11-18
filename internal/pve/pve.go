@@ -389,7 +389,9 @@ func volumeFormat(volname string) string {
 			return f
 		}
 	}
-	if strings.HasPrefix(volname, "subvol-") || strings.HasPrefix(filepath.Base(volname), "subvol-") {
+	// Container volumes on ZFS: subvol-*, basevol-* of templates, and
+	// linked clones basevol-*/subvol-*.
+	if b := filepath.Base(volname); strings.HasPrefix(b, "subvol-") || strings.HasPrefix(b, "basevol-") {
 		return "subvol"
 	}
 	return "raw"

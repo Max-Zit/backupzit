@@ -21,19 +21,24 @@ type SampleOptions struct {
 
 // SampleStats is the result of a restore test.
 type SampleStats struct {
-	Files      int           `json:"files"`
-	Bytes      uint64        `json:"bytes"`
-	Blocks     int           `json:"blocks"`
-	Candidates int           `json:"candidates"`
-	Duration   time.Duration `json:"duration_ns"`
-	Errors     []string      `json:"errors,omitempty"`
+	Files      int    `json:"files"`
+	Bytes      uint64 `json:"bytes"`
+	Blocks     int    `json:"blocks"`
+	Candidates int    `json:"candidates"`
+	// FileCandidates and FileBytes are set for disk image backups that
+	// also hold files (Proxmox containers on ZFS next to VMs); Files is
+	// then the number of those verified.
+	FileCandidates int           `json:"file_candidates,omitempty"`
+	FileBytes      uint64        `json:"file_bytes,omitempty"`
+	Duration       time.Duration `json:"duration_ns"`
+	Errors         []string      `json:"errors,omitempty"`
 }
 
 // SampleVerify proves that a snapshot can really be restored: it restores
 // a random sample of its files into a temporary folder and verifies every
 // byte against the stored hashes, or for disk images reads a random sample
-// of blocks. All metadata (trees, block maps) on the way is read and
-// verified too.
+// of blocks (and of files too if it holds both). All metadata (trees, block
+// maps) on the way is read and verified too.
 func SampleVerify(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, o SampleOptions) (*SampleStats, error) {
 	start := time.Now()
 	st := &SampleStats{}
@@ -68,9 +73,27 @@ func SampleVerify(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, o 
 			st.Blocks++
 			st.Bytes += uint64(len(data))
 		}
+		fs, err := sampleFiles(ctx, r, sn, o, rng)
+		if err != nil {
+			return st, err
+		}
+		st.Files, st.FileBytes, st.FileCandidates = fs.Files, fs.Bytes, fs.Candidates
+		st.Errors = append(st.Errors, fs.Errors...)
 		st.Duration = time.Since(start)
 		return st, nil
 	}
+	fs, err := sampleFiles(ctx, r, sn, o, rng)
+	if err != nil {
+		return st, err
+	}
+	st.Files, st.Bytes, st.Candidates, st.Errors = fs.Files, fs.Bytes, fs.Candidates, fs.Errors
+	st.Duration = time.Since(start)
+	return st, nil
+}
+
+// sampleFiles restores and verifies a random sample of the snapshot's files.
+func sampleFiles(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, o SampleOptions, rng *rand.Rand) (*SampleStats, error) {
+	st := &SampleStats{}
 
 	type file struct {
 		path string
@@ -114,7 +137,6 @@ func SampleVerify(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, o 
 		total += f.size
 	}
 	if len(include) == 0 {
-		st.Duration = time.Since(start)
 		return st, nil
 	}
 	dir, err := os.MkdirTemp(o.TempDir, "backupzit-restore-test-")
@@ -132,6 +154,5 @@ func SampleVerify(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, o 
 	if int(rs.FilesVerified) < len(include) && len(rs.Errors) == 0 { // #nosec G115 -- file sizes and counts are not negative
 		st.Errors = append(st.Errors, fmt.Sprintf("only %d of %d files could be verified", rs.FilesVerified, len(include)))
 	}
-	st.Duration = time.Since(start)
 	return st, nil
 }
