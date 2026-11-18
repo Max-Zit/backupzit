@@ -121,12 +121,12 @@ page data; .Data holds the keys built by restoreFormData. */}}
 {{else}}<p class="muted">{{T "No agent on a Hyper-V host is enrolled. Install the BackupZit agent on the Hyper-V host to restore."}}</p>{{end}}
 {{else}}
 {{if .Data.VMAgents}}
-<form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack">
+<form method="post" action="/runs/{{.Data.Run.ID}}/restore" class="stack" data-pve-restore>
   {{template "restore_back" .}}
   <input type="hidden" name="kind" value="vm">
   <div class="row">
     <label>{{T "Guest"}}
-      <select name="vmid">{{range .Data.VM.Guests}}<option value="{{.VMID}}" {{if eq .VMID $.Data.SelectedVMID}}selected{{end}}>{{.VMID}} — {{.Name}} ({{if eq .Type "lxc"}}{{T "container"}}{{else}}{{T "VM"}}{{end}})</option>{{end}}</select>
+      <select name="vmid">{{with .Data.VM.VMs}}<optgroup label="{{T "Virtual machines (QEMU)"}}">{{range .}}<option value="{{.VMID}}" data-type="qemu" {{if eq .VMID $.Data.SelectedVMID}}selected{{end}}>{{.VMID}} — {{.Name}}</option>{{end}}</optgroup>{{end}}{{with .Data.VM.Containers}}<optgroup label="{{T "Containers (LXC)"}}">{{range .}}<option value="{{.VMID}}" data-type="lxc" {{if .Files}}data-files{{end}} {{if eq .VMID $.Data.SelectedVMID}}selected{{end}}>{{.VMID}} — {{.Name}}</option>{{end}}</optgroup>{{end}}</select>
     </label>
     <label>{{T "Restore on Proxmox node"}}
       <select name="agent_id">{{range .Data.VMAgents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Inv.Node}}{{if ne .Inv.Node .Hostname}} ({{.Hostname}}){{end}}</option>{{end}}</select>
@@ -135,14 +135,15 @@ page data; .Data holds the keys built by restoreFormData. */}}
   <label class="check"><input type="radio" name="id_mode" value="next" checked> {{T "As a new guest with the next free ID"}} <small>{{T "the original keeps running; network cards get new MAC addresses"}}</small></label>
   <label class="check"><input type="radio" name="id_mode" value="custom"> {{T "As a new guest with ID"}} <input name="new_vmid" type="number" min="100" max="999999999" class="narrow"></label>
   <label class="check"><input type="radio" name="id_mode" value="original"> {{T "With its original ID"}} <small>{{T "when the guest was deleted, or to replace it"}}</small></label>
-  <label class="check"><input type="radio" name="id_mode" value="instant"> {{T "Instantly, running from the backup"}} <small>{{T "VMs only: starts in seconds with the next free ID while its disks are read from the backup; then finish (move the disks to storage while it runs) or discard it on the run page"}}</small></label>
+  <label class="check" data-vm-only><input type="radio" name="id_mode" value="instant"> {{T "Instantly, running from the backup"}} <small>{{T "VMs only: starts in seconds with the next free ID while its disks are read from the backup; then finish (move the disks to storage while it runs) or discard it on the run page"}}</small></label>
   <label class="check"><input type="checkbox" name="overwrite"> {{T "If a guest with that ID exists,"}} <b>{{T "stop and delete it"}}</b> {{T "and replace it with the backup"}}</label>
   <div class="row">
     <label>{{T "Name"}} <small>{{T "optional, default: original name"}}</small><input name="name" maxlength="63"></label>
     <label>{{T "Storage for the disks"}}
-      <select name="storage"><option value="">{{T "Original storage of each disk"}}</option>{{range .Data.VMAgents}}<optgroup label="{{.Inv.Node}}">{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}</optgroup>{{end}}</select>
+      <select name="storage"><option value="">{{T "Original storage of each disk"}}</option>{{range .Data.VMAgents}}<optgroup label="{{.Inv.Node}}">{{if .Inv.StorageInfo}}{{range .Inv.StorageInfo}}<option value="{{.ID}}" data-st="{{.Type}}" {{if .VMs}}data-vms{{end}} {{if .Containers}}data-cts{{end}}>{{.ID}} ({{.Type}})</option>{{end}}{{else}}{{range .Inv.Storage}}<option value="{{.}}">{{.}}</option>{{end}}{{end}}</optgroup>{{end}}</select>
     </label>
   </div>
+  <p class="muted small" data-lxc-files-hint hidden>{{T "This container was backed up file by file from ZFS subvolumes: it is restored onto a ZFS storage, as new subvolumes with the files, owners, permissions and extended attributes of the backup."}}</p>
   <label class="check"><input type="checkbox" name="start"> {{T "Start the guest after the restore"}}</label>
   <div><button>{{T "Restore guest"}}</button></div>
 </form>

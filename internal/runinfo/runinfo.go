@@ -5,6 +5,7 @@ package runinfo
 
 import (
 	"encoding/json"
+	"path"
 
 	"github.com/max-zit/backupzit/internal/repo"
 )
@@ -36,6 +37,11 @@ type GuestSummary struct {
 	Changed int `json:"changed,omitempty"`
 	// Excluded are the disk files the job left out of the backup.
 	Excluded []string `json:"excluded,omitempty"`
+	// Files is the number of volumes stored as files rather than as disk
+	// images (Proxmox LXC containers on ZFS); they are browsed in the
+	// snapshot's tree below Path.
+	Files int    `json:"files,omitempty"`
+	Path  string `json:"path,omitempty"`
 }
 
 // Guests lists the guests of a VM backup.
@@ -50,6 +56,8 @@ func Guests(sn *repo.Snapshot) json.RawMessage {
 			s.Size += d.Size
 			if d.Files() {
 				s.Stored += d.Bytes
+				s.Files++
+				s.Path = path.Dir(d.Path)
 				continue
 			}
 			if d.Image >= 0 && d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {

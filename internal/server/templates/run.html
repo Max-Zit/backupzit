@@ -86,24 +86,58 @@
 {{end}}{{end}}
 
 {{if .Data.VM}}
+  {{$pve := not (or (eq $.Data.VMPlatform "hyperv") (eq $.Data.VMPlatform "vmware"))}}
+  {{$cts := $.Data.VM.Containers}}
   {{with .Data.BackupStats}}
   <div class="grid">
+    {{if and $pve $cts}}
+    {{with $.Data.VM.VMs}}<div class="stat"><b>{{len .}}</b><span>{{T "VMs backed up"}}</span></div>{{end}}
+    <div class="stat"><b>{{len $cts}}</b><span>{{T "containers backed up"}}</span></div>
+    <div class="stat"><b>{{bytes .BytesRead}}</b><span>{{T "data read"}}</span></div>
+    {{else}}
     <div class="stat"><b>{{.Files}}</b><span>{{T "guests backed up"}}</span></div>
     <div class="stat"><b>{{bytes .BytesRead}}</b><span>{{T "disks read"}}</span></div>
+    {{end}}
     <div class="stat"><b>{{bytes .BytesAdded}}</b><span>{{T "new data"}}</span></div>
     <div class="stat"><b>{{bytes .BytesStored}}</b><span>{{T "uploaded (compressed)"}}</span></div>
   </div>
   {{template "savings" .}}
   {{end}}
+  {{if $pve}}
+  {{with $.Data.VM.VMs}}
   <div class="panel">
-    <h2>{{if eq $.Data.VMPlatform "hyperv"}}{{T "Hyper-V virtual machines"}}{{else if eq $.Data.VMPlatform "vmware"}}{{T "VMware virtual machines"}}{{else}}{{T "Proxmox VMs and containers"}}{{end}}</h2>
+    <h2>{{T "Proxmox virtual machines (QEMU)"}}</h2>
     <div class="table-wrap"><table>
-      <tr><th>{{T "ID"}}</th><th>{{T "Name"}}</th><th>{{T "Type"}}</th><th>{{T "Disks"}}</th><th>{{T "With data"}}</th><th>{{T "Captured"}}</th><th></th></tr>
-      {{range .Data.VM.Guests}}
-      <tr><td>{{if or (eq .Platform "hyperv") (eq .Platform "vmware")}}—{{else}}{{.VMID}}{{end}}</td><td>{{.Name}}</td><td>{{if eq .Type "lxc"}}{{T "container"}}{{else}}{{T "VM"}}{{end}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}{{if .Changed}}<br><span class="muted">{{T "changed blocks only: %d of %d disks" .Changed .Disks}}</span>{{end}}{{if .Excluded}}<br><span class="muted">{{T "excluded by the job:"}} <span class="mono">{{join .Excluded ", "}}</span></span>{{end}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}</td></tr>
+      <tr><th>{{T "ID"}}</th><th>{{T "Name"}}</th><th>{{T "Disks"}}</th><th>{{T "With data"}}</th><th>{{T "Captured"}}</th><th></th></tr>
+      {{range .}}
+      <tr><td>{{.VMID}}</td><td>{{.Name}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}{{if .Changed}}<br><span class="muted">{{T "changed blocks only: %d of %d disks" .Changed .Disks}}</span>{{end}}{{if .Excluded}}<br><span class="muted">{{T "excluded by the job:"}} <span class="mono">{{join .Excluded ", "}}</span></span>{{end}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}</td></tr>
       {{end}}
     </table></div>
   </div>
+  {{end}}
+  {{with $cts}}
+  <div class="panel">
+    <h2>{{T "Proxmox containers (LXC)"}}</h2>
+    <div class="table-wrap"><table>
+      <tr><th>{{T "ID"}}</th><th>{{T "Name"}}</th><th>{{T "Volumes"}}</th><th>{{T "Stored as"}}</th><th>{{T "Data"}}</th><th>{{T "Captured"}}</th><th></th></tr>
+      {{range .}}
+      <tr><td>{{.VMID}}</td><td>{{.Name}}</td><td>{{.Disks}}{{if .Size}} · {{bytes .Size}}{{end}}</td><td>{{if eq .Files .Disks}}{{T "files (ZFS subvolume)"}}{{else if .Files}}{{T "files and disk images"}}{{else}}{{T "disk images"}}{{end}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}{{if .Changed}}<br><span class="muted">{{T "changed blocks only: %d of %d disks" .Changed .Disks}}</span>{{end}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}{{if .Files}}<a href="/runs/{{$.Data.Run.ID}}/files?path={{.Path}}">{{T "Browse files"}}</a>{{else}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}{{end}}</td></tr>
+      {{end}}
+    </table></div>
+    {{if $.Data.VM.HasFiles}}<p class="muted small">{{T "Containers on ZFS are backed up file by file from a snapshot of their subvolumes: only files changed since the previous backup are read, and single files are browsed and restored like those of a file backup."}}</p>{{end}}
+  </div>
+  {{end}}
+  {{else}}
+  <div class="panel">
+    <h2>{{if eq $.Data.VMPlatform "hyperv"}}{{T "Hyper-V virtual machines"}}{{else}}{{T "VMware virtual machines"}}{{end}}</h2>
+    <div class="table-wrap"><table>
+      <tr><th>{{T "Name"}}</th><th>{{T "Disks"}}</th><th>{{T "With data"}}</th><th>{{T "Captured"}}</th><th></th></tr>
+      {{range .Data.VM.Guests}}
+      <tr><td>{{.Name}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}{{if .Changed}}<br><span class="muted">{{T "changed blocks only: %d of %d disks" .Changed .Disks}}</span>{{end}}{{if .Excluded}}<br><span class="muted">{{T "excluded by the job:"}} <span class="mono">{{join .Excluded ", "}}</span></span>{{end}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}</td></tr>
+      {{end}}
+    </table></div>
+  </div>
+  {{end}}
 {{else if .Data.Image}}
   {{with .Data.BackupStats}}
   <div class="grid">

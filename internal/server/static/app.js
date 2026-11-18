@@ -254,14 +254,20 @@ function renderVMPicker() {
     box.appendChild(el("p", { "class": "muted" }, "No VMs or containers on this node yet."));
     return;
   }
-  guests.forEach(function (g) {
-    var l = el("label", { "class": "check" });
-    var cb = el("input", { type: "checkbox", name: "vms", value: g.vmid });
-    l.appendChild(cb);
-    var kind = g.type === "lxc" ? "container" : "VM";
-    var label = g.id ? (g.name || g.id) : g.vmid + "  " + (g.name || "");
-    l.appendChild(document.createTextNode(" " + label + "  (" + kind + ", " + fmtBytes(g.maxdisk || 0) + ", " + g.status + (agentSel.value.indexOf("hvcluster:") === 0 ? ", " + g.node : "") + ")"));
-    box.appendChild(l);
+  // Proxmox lists virtual machines (QEMU) and containers (LXC) apart.
+  var vms = guests.filter(function (g) { return g.type !== "lxc"; });
+  var cts = guests.filter(function (g) { return g.type === "lxc"; });
+  [[vms, box.getAttribute("data-vms-label") || "Virtual machines (QEMU)"], [cts, box.getAttribute("data-cts-label") || "Containers (LXC)"]].forEach(function (grp) {
+    if (!grp[0].length) return;
+    if (cts.length) box.appendChild(el("p", { "class": "small muted" }, grp[1] + " · " + grp[0].length));
+    grp[0].forEach(function (g) {
+      var l = el("label", { "class": "check" });
+      var cb = el("input", { type: "checkbox", name: "vms", value: g.vmid });
+      l.appendChild(cb);
+      var label = g.id ? (g.name || g.id) : g.vmid + "  " + (g.name || "");
+      l.appendChild(document.createTextNode(" " + label + "  (" + fmtBytes(g.maxdisk || 0) + ", " + g.status + (agentSel.value.indexOf("hvcluster:") === 0 ? ", " + g.node : "") + ")"));
+      box.appendChild(l);
+    });
   });
 }
 
@@ -569,4 +575,38 @@ function syncM365Modes() {
 document.addEventListener("DOMContentLoaded", syncM365Modes);
 document.addEventListener("change", function (e) {
   if (e.target.closest && e.target.closest("[data-m365-group]")) syncM365Modes();
+});
+
+// ---- Proxmox restore: storages and options that fit the chosen guest
+
+function syncPVERestore(form) {
+  var opt = form.querySelector("select[name=vmid]");
+  opt = opt && opt.options[opt.selectedIndex];
+  if (!opt) return;
+  var lxc = opt.getAttribute("data-type") === "lxc";
+  var files = opt.hasAttribute("data-files");
+  var st = form.querySelector("select[name=storage]");
+  if (st) {
+    Array.prototype.forEach.call(st.options, function (o) {
+      if (!o.value || !o.hasAttribute("data-st")) return; // agents before 0.53 report names only
+      var ok = lxc ? o.hasAttribute("data-cts") && (files ? o.getAttribute("data-st") === "zfspool" : o.getAttribute("data-st") !== "zfspool")
+                   : o.hasAttribute("data-vms");
+      o.disabled = o.hidden = !ok;
+    });
+    if (st.selectedOptions[0] && st.selectedOptions[0].disabled) st.value = "";
+  }
+  form.querySelectorAll("[data-vm-only]").forEach(function (l) {
+    var i = l.querySelector("input");
+    l.hidden = lxc;
+    if (i) { i.disabled = lxc; if (lxc && i.checked) form.querySelector("input[name=id_mode][value=next]").checked = true; }
+  });
+  var hint = form.querySelector("[data-lxc-files-hint]");
+  if (hint) hint.hidden = !files;
+}
+document.addEventListener("change", function (e) {
+  var form = e.target.closest && e.target.closest("form[data-pve-restore]");
+  if (form && e.target.name === "vmid") syncPVERestore(form);
+});
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll("form[data-pve-restore]").forEach(syncPVERestore);
 });

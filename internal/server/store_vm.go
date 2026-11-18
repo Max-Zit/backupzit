@@ -118,18 +118,60 @@ func describeVMSelection(l *language, vms []string, exclude ...[]string) string 
 
 // vmBackupDetails is the run detail reported by the agent.
 type vmBackupDetails struct {
-	Guests []struct {
-		VMID        int      `json:"vmid"`
-		Type        string   `json:"type"`
-		Name        string   `json:"name"`
-		Consistency string   `json:"consistency"`
-		Platform    string   `json:"platform"`
-		Disks       int      `json:"disks"`
-		Size        uint64   `json:"size"`
-		Stored      uint64   `json:"stored"`
-		Changed     int      `json:"changed"`
-		Excluded    []string `json:"excluded"`
-	} `json:"guests"`
+	Guests []vmGuestSummary `json:"guests"`
+}
+
+// vmGuestSummary is a guest of a VM backup run (runinfo.GuestSummary).
+type vmGuestSummary struct {
+	VMID        int      `json:"vmid"`
+	Type        string   `json:"type"`
+	Name        string   `json:"name"`
+	Consistency string   `json:"consistency"`
+	Platform    string   `json:"platform"`
+	Disks       int      `json:"disks"`
+	Size        uint64   `json:"size"`
+	Stored      uint64   `json:"stored"`
+	Changed     int      `json:"changed"`
+	Excluded    []string `json:"excluded"`
+	// Files volumes are stored as files below Path in the snapshot's tree
+	// (LXC containers on ZFS); they are browsed like a file backup.
+	Files int    `json:"files"`
+	Path  string `json:"path"`
+}
+
+// Container reports whether the guest is a Proxmox LXC container.
+func (g vmGuestSummary) Container() bool { return g.Type == "lxc" }
+
+// VMs returns the virtual machines of the backup.
+func (d *vmBackupDetails) VMs() []vmGuestSummary {
+	var out []vmGuestSummary
+	for _, g := range d.Guests {
+		if !g.Container() {
+			out = append(out, g)
+		}
+	}
+	return out
+}
+
+// Containers returns the Proxmox LXC containers of the backup.
+func (d *vmBackupDetails) Containers() []vmGuestSummary {
+	var out []vmGuestSummary
+	for _, g := range d.Guests {
+		if g.Container() {
+			out = append(out, g)
+		}
+	}
+	return out
+}
+
+// HasFiles reports whether a guest has volumes stored as files.
+func (d *vmBackupDetails) HasFiles() bool {
+	for _, g := range d.Guests {
+		if g.Files > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func vmDetails(run Run) *vmBackupDetails {
@@ -288,4 +330,12 @@ func vmFormSelection(r *http.Request) (paths, excludes []string) {
 		return []string{"*"}, r.Form["vms"]
 	}
 	return r.Form["vms"], nil
+}
+
+// containerFiles reports whether a VM backup (or a copy of one) holds LXC
+// containers stored as files, whose files can be restored like those of a
+// file backup.
+func containerFiles(run Run) bool {
+	d := vmDetails(run)
+	return d != nil && d.HasFiles()
 }

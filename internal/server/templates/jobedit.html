@@ -18,7 +18,10 @@
     <label class="check"><input type="radio" name="vm_mode" value="all" {{if and $all (not .Excludes)}}checked{{end}}> {{T "All VMs on the host"}} <small>{{T "VMs created later are included automatically"}}</small></label>
     <label class="check"><input type="radio" name="vm_mode" value="except" {{if and $all .Excludes}}checked{{end}}> {{T "All VMs on the host except the ticked ones"}} <small>{{T "e.g. the VM of this console; VMs created later are included automatically"}}</small></label>
     <label class="check"><input type="radio" name="vm_mode" value="selected" {{if not $all}}checked{{end}}> {{T "Only these:"}}</label>
-    <div class="disks vmlist">{{range $.Data.Guests}}<label class="check"><input type="checkbox" name="vms" value="{{.VMID}}" {{if has $sel (print .VMID)}}checked{{end}}> {{.Name}}{{if lt .VMID 1000000000}} ({{.VMID}}){{end}}{{if eq .Type "lxc"}} <small>{{T "container"}}</small>{{end}}</label>{{else}}<p class="muted">{{T "The host has not reported its VMs yet."}}</p>{{end}}</div>
+    <div class="disks vmlist">{{$vms := guestsof "vm" $.Data.Guests}}{{$cts := guestsof "lxc" $.Data.Guests}}
+    {{with $vms}}{{if $cts}}<p class="small muted">{{T "Virtual machines (QEMU)"}} · {{len $vms}}</p>{{end}}{{range .}}<label class="check"><input type="checkbox" name="vms" value="{{.VMID}}" {{if has $sel (print .VMID)}}checked{{end}}> {{.Name}}{{if lt .VMID 1000000000}} ({{.VMID}}){{end}}</label>{{end}}{{end}}
+    {{with $cts}}<p class="small muted">{{T "Containers (LXC)"}} · {{len $cts}}</p>{{range .}}<label class="check"><input type="checkbox" name="vms" value="{{.VMID}}" {{if has $sel (print .VMID)}}checked{{end}}> {{.Name}} ({{.VMID}})</label>{{end}}{{end}}
+    {{if not $.Data.Guests}}<p class="muted">{{T "The host has not reported its VMs yet."}}</p>{{end}}</div>
     {{else if eq .Kind "image"}}
     <p class="muted small">{{T "The disk and partitions of an image job cannot be changed; create a new job for another disk."}}</p>
     {{end}}

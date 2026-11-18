@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Virtuelle Maschinen in Proxmox VE</h1>
-<p class="lead">BackupZit sichert virtuelle Maschinen (QEMU) und Container (LXC) von Proxmox VE, ohne etwas in den Gästen zu installieren. Der Agent läuft auf dem Proxmox-Host, erstellt einen Snapshot jedes Gasts, liest dessen Festplatten und speichert sie dedupliziert auf einem beliebigen Speicherziel.</p>
+<p class="lead">BackupZit sichert virtuelle Maschinen (QEMU) und Container (LXC) von Proxmox VE, ohne etwas in den Gästen zu installieren. Der Agent läuft auf dem Proxmox-Host, erstellt einen Snapshot jedes Gasts, liest dessen Festplatten und speichert sie dedupliziert auf einem beliebigen Speicherziel. VM-Festplatten werden als Festplattenabbilder gespeichert; Container auf ZFS werden Datei für Datei gesichert (siehe <a href="#lxc-zfs">Container (LXC) auf ZFS</a>).</p>
 
 <h2>Einrichtung</h2>
 <ol>
@@ -21,7 +21,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Jede Festplatte wird aus dem Snapshot in Blöcken zu 1 MiB gelesen. Leere Blöcke werden nicht gespeichert und Blöcke, die bereits im Repository liegen, nicht erneut hochgeladen; nach der ersten Sicherung werden also nur geänderte Daten übertragen.  Laufende VMs mit Festplatten auf LVM-thin, ZFS, Ceph RBD oder qcow2-Dateien erhalten zusätzlich die <b>Verfolgung geänderter Blöcke</b> (QEMU Dirty Bitmaps): Ab der zweiten Sicherung werden nur die seit der vorherigen Sicherung geschriebenen Bereiche gelesen, was Sekunden statt Minuten dauert. Nachdem die VM gestoppt, neu gestartet oder auf einen anderen Knoten verschoben oder die Größe einer Festplatte geändert wurde, liest die nächste Sicherung ihre Festplatten einmal vollständig; die Seite der Ausführung zeigt, welche Festplatten nur als geänderte Blöcke gelesen wurden. Das ist die Standard-Blockgröße; ein Job kann stattdessen 256 oder 512 KiB verwenden (siehe <a href="/docs/jobs#compression">Jobs</a>).</li>
   <li>Der Snapshot wird entfernt. Die Gastkonfiguration (CPU, Arbeitsspeicher, Netzwerk, Festplatten) wird mit der Sicherung gespeichert.</li>
 </ol>
-<p>Die Laufseite listet jeden Gast, seine Festplatten und die Art der Erfassung auf. Wiederherstellungstests prüfen zufällige Blöcke von VM-Sicherungen wie bei Festplattenabbildern und starten — mit aktiviertem <a href="/docs/restore">Boot-Test</a> — jede VM vom Netzwerk isoliert aus der Sicherung, um zu beweisen, dass sie startet.</p>
+<p>Die Laufseite listet jeden Gast, seine Festplatten und die Art der Erfassung auf. Wiederherstellungstests prüfen zufällige Blöcke von VM-Sicherungen wie bei Festplattenabbildern und starten — mit aktiviertem <a href="/docs/restore">Boot-Test</a> — jede VM vom Netzwerk isoliert aus der Sicherung, um zu beweisen, dass sie startet. Container auf ZFS werden geprüft, indem zufällige Dateien wiederhergestellt werden.</p>
 
 <h3>Unterstützter Speicher</h3>
 <table>
@@ -31,9 +31,19 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ceph RBD</td><td>ja, Snapshot</td><td>ja</td></tr>
   <tr><td>Verzeichnis, NFS, CIFS mit <b>qcow2</b>-Festplatten</td><td>ja, Snapshot</td><td>ja</td></tr>
   <tr><td>Verzeichnis, NFS, CIFS mit Raw-Festplatten, Thick-LVM</td><td>nein — Gast stoppen oder Festplatte verschieben</td><td>ja</td></tr>
-  <tr><td>ZFS-Subvolumes von Containern</td><td colspan="2">noch nicht unterstützt</td></tr>
+  <tr><td>ZFS-Subvolumes von Containern (LXC)</td><td>ja, Snapshot, Datei für Datei</td><td>ja, Datei für Datei</td></tr>
 </table>
 <p>In Proxmox mit <i>Backup: no</i> (<code>backup=0</code>) markierte Festplatten, durchgereichte physische Festplatten und Bind-Mounts werden übersprungen und als Warnungen aufgeführt. Cloud-Init-Laufwerke werden nicht gespeichert; sie werden bei der Wiederherstellung aus der Konfiguration neu erstellt.</p>
+
+<h3 id="lxc-zfs">Container (LXC) auf ZFS</h3>
+<p>Auf einem ZFS-Speicher legt Proxmox die Volumes eines Containers (LXC) als Datasets ab (<code>subvol-&lt;ID&gt;-disk-N</code>): Dateisysteme, keine virtuellen Festplatten wie die zvols einer VM (QEMU). BackupZit sichert diese Container deshalb Datei für Datei:</p>
+<ul>
+  <li>Der temporäre Snapshot ist derselbe; der Agent liest die Dateien aus dem ZFS-Snapshot jedes Subvolumes (<code>.zfs/snapshot</code>, auch wenn es verborgen ist), während der Container weiterläuft.</li>
+  <li>Besitzer (auch die verschobenen IDs unprivilegierter Container), Berechtigungen, Zeiten, erweiterte Attribute und ACLs, harte und symbolische Links sowie Gerätedateien bleiben erhalten. Sockets werden wie bei vzdump ausgelassen; die Dienste im Container legen sie neu an.</li>
+  <li>Ab der zweiten Sicherung werden nur Dateien gelesen, deren Größe oder Änderungszeit sich geändert hat; die anderen werden aus der vorigen Sicherung übernommen.</li>
+  <li>Ein solcher Container wird auf einem ZFS-Speicher wiederhergestellt, als neue Subvolumes mit der Größe (Quota) der ursprünglichen Volumes.</li>
+</ul>
+<p>Container auf LVM-thin oder Ceph RBD haben virtuelle Festplatten und werden wie VMs blockweise gesichert. Die Seite des Laufs listet VMs (QEMU) und Container (LXC) in getrennten Tabellen und zeigt, wie jeder Container gespeichert wurde. Dafür sind Agenten ab 0.53 nötig.</p>
 
 <h2>Eine VM oder einen Container wiederherstellen</h2>
 <p>Öffnen Sie einen Lauf einer VM-Sicherung (über die Auftragsseite oder <a href="/runs">Aktivität</a>) und verwenden Sie <b>Eine VM oder einen Container wiederherstellen</b>:</p>
@@ -45,7 +55,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Name</b> und <b>Speicher für die Datenträger</b> — z. B. auf einen anderen Speicher als das Original wiederherstellen.</li>
   <li><b>Gast nach der Wiederherstellung starten</b>.</li>
 </ul>
-<p>Jede Wiederherstellung gibt VMs eine neue Generations-ID (<code>vmgenid</code>), sodass Windows-Domänencontroller und andere Software das Zurücksetzen sicher erkennen. Festplatten werden mit <code>pvesm</code> auf dem gewählten Speicher angelegt; auf Verzeichnisspeicher werden sie als Raw-Dateien wiederhergestellt.</p>
+<p>Jede Wiederherstellung gibt VMs eine neue Generations-ID (<code>vmgenid</code>), sodass Windows-Domänencontroller und andere Software das Zurücksetzen sicher erkennen. Festplatten werden mit <code>pvesm</code> auf dem gewählten Speicher angelegt; auf Verzeichnisspeicher werden sie als Raw-Dateien wiederhergestellt. Die Speicherliste bietet nur Speicher an, die zum gewählten Gast passen: VM-Festplatten für eine VM, Container-Volumes für einen Container und ZFS für einen Datei für Datei gesicherten Container.</p>
 
 <h2>Sofortige Wiederherstellung</h2>
 <p>Das Wiederherstellen einer großen VM dauert so lange wie das Kopieren ihrer Festplatten. Mit <b>Sofort, aus der Sicherung laufend</b> im Wiederherstellungsformular läuft die VM stattdessen innerhalb von Sekunden, während ihre Festplatten noch in der Sicherung liegen:</p>
@@ -87,6 +97,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>Auf Agent wiederherstellen</b> — in einen Ordner auf einem beliebigen Agenten kopieren, z. B. zurück in die VM (wenn dort der BackupZit-Agent läuft) oder auf einen Dateiserver.</li>
 </ul>
 <p>In der Befehlszeile: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> und <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> wählt eine Partition oder ein logisches Volume (<code>pve ls</code> ohne Pfad listet sie auf). Das Durchsuchen in der Konsole erfordert die Sicherung auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository).</p>
+<p>Bei Containern (LXC) auf ZFS öffnet <b>Dateien durchsuchen</b> direkt ihre Dateien, wie bei einer Dateisicherung; die Ordner <code>rootfs</code>, <code>mp0</code>, <code>mp1</code>… sind die Volumes des Containers. Auf einem Agenten wiederhergestellte Dateien behalten Besitzer und Berechtigungen.</p>
 
 <h2 id="host">Sicherung der Host-Konfiguration</h2><p>Die Gäste sind nur die Hälfte eines Proxmox-Knotens: Speicherdefinitionen, Netzwerk, Benutzer, Firewall, Zertifikate und die Einstellungen jeder VM und jedes Containers stehen in seiner Konfiguration. Sichern Sie sie mit einem gewöhnlichen Dateiauftrag auf dem Agenten des Knotens: Wählen Sie unter <a href="/jobs">Sicherungsaufträge</a> den Agenten des Knotens und <b>Dateien und Ordner</b> und klicken Sie dann auf <b>Host-Konfiguration eintragen</b>. Das trägt die Pfade <code>/etc</code> (mit <code>/etc/pve</code>, dem Netzwerk und <code>/etc/hosts</code>), <code>/var/lib/pve-cluster</code> (die Konfigurationsdatenbank <code>config.db</code>) und <code>/root</code> ein; führen Sie den Auftrag z. B. täglich aus. Die Datenbank ändert sich, während der Knoten läuft, daher erstellt der Agent zuerst eine konsistente Kopie davon, die in der Sicherung als <code>/var/lib/backupzit/pve-config/config.db</code> enthalten ist; zusätzliche Pakete sind nicht nötig.</p><p>So bauen Sie einen ausgefallenen Knoten wieder auf: Installieren Sie dieselbe Proxmox-VE-Version mit demselben Hostnamen und derselben Adresse, installieren Sie den Agenten, stellen Sie <code>/etc/network/interfaces</code> und <code>/etc/hosts</code> an ihrem Ort wieder her, stoppen Sie dann den Cluster-Dienst (<code>systemctl stop pve-cluster</code>), löschen Sie <code>config.db-wal</code> und <code>config.db-shm</code> in <code>/var/lib/pve-cluster</code>, falls vorhanden, stellen Sie die konsistente Kopie aus <code>/var/lib/backupzit/pve-config</code> nach <code>/var/lib/pve-cluster</code> wieder her (<code>config.db</code> und <code>config.db-wal</code>, falls die Sicherung eine enthält), starten Sie den Dienst wieder und stellen Sie die Gäste wieder her. In einem Cluster fügen Sie einen neu installierten Knoten wieder dem Cluster hinzu, statt <code>config.db</code> wiederherzustellen.</p>
 <h2>Noch nicht enthalten</h2>

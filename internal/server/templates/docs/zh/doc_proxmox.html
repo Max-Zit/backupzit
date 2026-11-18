@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Proxmox VE 虚拟机</h1>
-<p class="lead">BackupZit 备份 Proxmox VE 虚拟机（QEMU）和容器（LXC），无需在来宾内部安装任何东西。代理运行在 Proxmox 主机上，为每个来宾创建快照，读取其磁盘，并以重复数据删除方式存储到任意存储目标。</p>
+<p class="lead">BackupZit 备份 Proxmox VE 虚拟机（QEMU）和容器（LXC），无需在来宾内部安装任何东西。代理运行在 Proxmox 主机上，为每个来宾创建快照，读取其磁盘，并以重复数据删除方式存储到任意存储目标。虚拟机磁盘以磁盘映像存储；ZFS 上的容器逐个文件备份（参见<a href="#lxc-zfs">ZFS 上的容器（LXC）</a>）。</p>
 
 <h2>设置</h2>
 <ol>
@@ -21,7 +21,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>每块磁盘以 1 MiB 块从快照读取。空块不会存储，存储库中已有的块不会再次上传，因此首次备份之后只传输更改的数据。  运行中的虚拟机，如果磁盘位于 LVM-thin、ZFS、Ceph RBD 或 qcow2 文件上，还会使用<b>更改块跟踪</b>（QEMU 脏位图）：从第二次备份起，只读取上次备份之后写入的区域，只需几秒而不是几分钟。虚拟机停止、重启或迁移到其他节点后，或磁盘大小调整后，下一次备份会完整读取一次其磁盘；运行页面会显示哪些磁盘只读取了更改的块。 这是默认块大小；作业也可以改用 256 或 512 KiB（参见<a href="/docs/jobs#compression">作业</a>）。</li>
   <li>快照被删除。来宾配置（CPU、内存、网络、磁盘）随备份一起存储。</li>
 </ol>
-<p>运行页面列出每个来宾、其磁盘以及捕获方式。还原测试会像检查磁盘映像一样检查虚拟机备份的随机块；开启 <a href="/docs/restore">启动测试</a> 后，还会在与网络隔离的情况下从备份启动每台虚拟机，以证明它能够启动。</p>
+<p>运行页面列出每个来宾、其磁盘以及捕获方式。还原测试会像检查磁盘映像一样检查虚拟机备份的随机块；开启 <a href="/docs/restore">启动测试</a> 后，还会在与网络隔离的情况下从备份启动每台虚拟机，以证明它能够启动。ZFS 上的容器通过还原随机文件进行测试。</p>
 
 <h3>支持的存储</h3>
 <table>
@@ -31,9 +31,19 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ceph RBD</td><td>是，快照</td><td>是</td></tr>
   <tr><td>使用 <b>qcow2</b> 磁盘的目录、NFS、CIFS</td><td>是，快照</td><td>是</td></tr>
   <tr><td>使用 raw 磁盘的目录、NFS、CIFS，厚置备 LVM</td><td>否 —— 停止来宾或移动磁盘</td><td>是</td></tr>
-  <tr><td>容器的 ZFS 子卷</td><td colspan="2">暂不支持</td></tr>
+  <tr><td>容器（LXC）的 ZFS 子卷</td><td>是，快照，逐个文件</td><td>是，逐个文件</td></tr>
 </table>
 <p>在 Proxmox 中标记为 <i>Backup: no</i>（<code>backup=0</code>）的磁盘、直通的物理磁盘和 bind 挂载会被跳过并列为警告。Cloud-init 驱动器不会存储；还原时会根据配置重新创建。</p>
+
+<h3 id="lxc-zfs">ZFS 上的容器（LXC）</h3>
+<p>在 ZFS 存储上，Proxmox 将容器（LXC）的卷保存为数据集（<code>subvol-&lt;ID&gt;-disk-N</code>）：这是文件系统，而不是像虚拟机（QEMU）的 zvol 那样的虚拟磁盘。因此 BackupZit 逐个文件备份这些容器：</p>
+<ul>
+  <li>临时快照相同；容器继续运行时，代理从每个子卷的 ZFS 快照（<code>.zfs/snapshot</code>，即使已隐藏）读取文件。</li>
+  <li>保留所有者（包括非特权容器的偏移 ID）、权限、时间、扩展属性和 ACL、硬链接和符号链接以及设备文件。套接字会被略过，与 vzdump 相同；容器中的服务会重新创建它们。</li>
+  <li>从第二次备份起，只读取大小或修改时间发生变化的文件；其余文件取自上一次备份。</li>
+  <li>这样的容器会还原到 ZFS 存储上，成为与原卷大小（配额）相同的新子卷。</li>
+</ul>
+<p>LVM-thin 或 Ceph RBD 上的容器使用虚拟磁盘，与虚拟机一样按块备份。运行页面在不同的表格中列出虚拟机（QEMU）和容器（LXC），并显示每个容器的存储方式。需要 0.53 或更高版本的代理。</p>
 
 <h2>还原虚拟机或容器</h2>
 <p>打开虚拟机备份的运行（从作业页面或 <a href="/runs">活动</a>），使用 <b>还原虚拟机或容器</b>：</p>
@@ -45,7 +55,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>名称</b> 和 <b>磁盘的存储</b> —— 例如还原到与原来不同的存储。</li>
   <li><b>还原后启动客户机</b>。</li>
 </ul>
-<p>每次还原都会给虚拟机分配新的代 ID（<code>vmgenid</code>），以便 Windows 域控制器和其他软件安全地检测到回滚。磁盘通过 <code>pvesm</code> 在所选存储上分配；在目录存储上会还原为 raw 文件。</p>
+<p>每次还原都会给虚拟机分配新的代 ID（<code>vmgenid</code>），以便 Windows 域控制器和其他软件安全地检测到回滚。磁盘通过 <code>pvesm</code> 在所选存储上分配；在目录存储上会还原为 raw 文件。存储列表只提供适合所选客户机的存储：虚拟机用虚拟机磁盘存储，容器用容器卷存储，逐个文件备份的容器用 ZFS。</p>
 
 <h2>即时恢复</h2>
 <p>还原一台大型虚拟机所需的时间与复制其磁盘一样长。在还原表单中选择 <b>即时从备份运行</b> 后，虚拟机会在几秒钟内运行起来，而其磁盘仍在备份中：</p>
@@ -87,6 +97,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>在代理上还原</b> —— 将它们复制到任意代理上的文件夹，例如复制回虚拟机（如果其中运行着 BackupZit 代理）或文件服务器。</li>
 </ul>
 <p>在命令行中：<code>backupzit-agent pve ls --vmid 100 latest /etc</code> 和 <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>；<code>--volume</code> 选择分区或逻辑卷（不带路径的 <code>pve ls</code> 会列出它们）。在控制台中浏览要求备份位于网络存储上（SFTP、S3、SMB、Azure、加固存储库）。</p>
+<p>对于 ZFS 上的容器（LXC），<b>浏览文件</b>会像文件备份一样直接打开其文件；文件夹 <code>rootfs</code>、<code>mp0</code>、<code>mp1</code>… 是容器的卷。还原到代理上的文件会保留所有者和权限。</p>
 
 <h2 id="host">备份主机配置</h2><p>虚拟机和容器只是 Proxmox 节点的一半：存储定义、网络、用户、防火墙、证书以及每个虚拟机和容器的设置都在节点的配置中。请在节点的代理上用普通的文件作业备份它：在<a href="/jobs">备份作业</a>中选择节点的代理和<b>文件和文件夹</b>，然后点击<b>填入主机配置</b>。它会填入路径 <code>/etc</code>（包括 <code>/etc/pve</code>、网络和 <code>/etc/hosts</code>）、<code>/var/lib/pve-cluster</code>（配置数据库 <code>config.db</code>）和 <code>/root</code>；例如每天运行该作业。节点运行时数据库会变化，因此代理会先为它做一份一致的副本，备份中以 <code>/var/lib/backupzit/pve-config/config.db</code> 的形式包含该副本；不需要额外的软件包。</p><p>重建发生故障的节点：使用相同的主机名和地址安装相同版本的 Proxmox VE，安装代理，将 <code>/etc/network/interfaces</code> 和 <code>/etc/hosts</code> 恢复到原位置，然后停止集群服务（<code>systemctl stop pve-cluster</code>），如果 <code>/var/lib/pve-cluster</code> 中有 <code>config.db-wal</code> 和 <code>config.db-shm</code>，将其删除，再将一致的副本从 <code>/var/lib/backupzit/pve-config</code> 恢复到 <code>/var/lib/pve-cluster</code>（<code>config.db</code>，如果备份中有 <code>config.db-wal</code> 也一并恢复），重新启动服务并恢复虚拟机和容器。在集群中，请将重新安装的节点重新加入集群，而不是恢复 <code>config.db</code>。</p>
 <h2>尚未包含</h2>

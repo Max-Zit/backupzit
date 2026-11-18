@@ -751,10 +751,10 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 	if err != nil {
 		return 0, err
 	}
-	if (b.Kind != api.KindBackup && b.Kind != api.KindCopy && b.Kind != api.KindSystemBackup) || b.SnapshotID == "" {
+	if (b.Kind != api.KindBackup && b.Kind != api.KindCopy && b.Kind != api.KindSystemBackup && !containerFiles(b)) || b.SnapshotID == "" {
 		return 0, errors.New("run has no snapshot to restore")
 	}
-	if b.Kind == api.KindCopy && !s.copyOfFiles(ctx, b) {
+	if b.Kind == api.KindCopy && !s.copyOfFiles(ctx, b) && !containerFiles(b) {
 		return 0, errors.New("copies of disk images are restored with the command line agent (see Documentation)")
 	}
 	if _, err := s.GetAgent(ctx, agentID); err != nil {

@@ -50,6 +50,7 @@
 <table>
   <tr><th>Situation</th><th>What to do</th></tr>
   <tr><td>Proxmox: "the guest is running and one of its disks is on storage without snapshot support"</td><td>Running guests need LVM-thin, ZFS, Ceph RBD or qcow2 disks. Move the disk (<i>Disk Action → Move Storage</i>) or back the guest up while it is stopped.</td></tr>
+  <tr><td>Proxmox: "container volumes that are directories on dir storage are not supported yet"</td><td>The container's volume is a directory on directory, NFS or btrfs storage. Only directories on ZFS (subvolumes) are backed up file by file; move the volume to ZFS, LVM-thin or Ceph RBD (<i>Volume Action → Move Storage</i>).</td></tr>
   <tr><td>Hyper-V: the run says "crash-consistent"</td><td>The guest could not prepare for the checkpoint. In Windows guests check that the Hyper-V integration services (<i>Backup (volume shadow copy)</i>) are enabled in the VM settings. In Linux guests install <code>hyperv-daemons</code> (RHEL) or <code>linux-cloud-tools</code> / <code>hyperv-daemons</code> (Debian/Ubuntu).</td></tr>
   <tr><td>VMware: "SSH off" or "SSH to …: connection refused"</td><td>Enable SSH on the ESXi host: Host → Actions → Services → Enable Secure Shell (and set its policy to start with the host). Restores, and backups on the free license, need it.</td></tr>
   <tr><td>VMware: "changed block tracking is off and can be enabled … only while the VM is off"</td><td>Free ESXi license: shut the VM down once, then run the job; BackupZit enables changed block tracking and later backups read only changed blocks.</td></tr>

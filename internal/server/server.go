@@ -203,6 +203,16 @@ var funcs = template.FuncMap{
 	"vmsel": func(paths []string, exclude ...[]string) string {
 		return describeVMSelection(languages[0], paths, exclude...)
 	},
+	// guests of one kind: "lxc" for Proxmox containers, "vm" for the others.
+	"guestsof": func(kind string, gs []pve.Guest) []pve.Guest {
+		var out []pve.Guest
+		for _, g := range gs {
+			if (g.Type == "lxc") == (kind == "lxc") {
+				out = append(out, g)
+			}
+		}
+		return out
+	},
 	"bytes64": func(n int64) string { return humanBytes(uint64(n)) },
 	"upper":   strings.ToUpper,
 	"seq":     func(n int) []int { return make([]int, n) },
