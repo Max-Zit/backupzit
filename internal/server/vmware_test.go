@@ -312,9 +312,12 @@ func TestConsoleBackupRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := t.TempDir()
-	os.WriteFile(filepath.Join(data, server.SecretKeyFile), []byte("secret key bytes"), 0o600)
-	os.WriteFile(filepath.Join(data, "cert.pem"), []byte("pinned certificate"), 0o644)
-	os.WriteFile(filepath.Join(data, "key.pem"), []byte("certificate key"), 0o600)
+	// Written with checks: under heavy load Windows can refuse a write
+	// ("insufficient system resources"), which made the test report a file
+	// missing from the backup instead of the real cause.
+	mustWriteFile(t, filepath.Join(data, server.SecretKeyFile), "secret key bytes", 0o600)
+	mustWriteFile(t, filepath.Join(data, "cert.pem"), "pinned certificate", 0o644)
+	mustWriteFile(t, filepath.Join(data, "key.pem"), "certificate key", 0o600)
 	e.srv.StartConsoleBackup(ctx, data)
 	if _, err := e.store.CreateUser(ctx, server.User{Username: "ana", DisplayName: "Ana", Role: "operator"}, "ana-password-1"); err != nil {
 		t.Fatal(err)
@@ -377,6 +380,22 @@ func TestConsoleBackupRestore(t *testing.T) {
 	if _, loc, _ := newClientLogin(t, e, "ana", "ana-password-1"); loc != "/" {
 		t.Errorf("restored user cannot sign in: %s", loc)
 	}
+}
+
+// mustWriteFile writes a test file, retrying briefly when the system is
+// short of resources, and stops the test if it still cannot.
+func mustWriteFile(t *testing.T, path, content string, mode os.FileMode) {
+	t.Helper()
+	var err error
+	for i := 0; i < 5; i++ {
+		if err = os.WriteFile(path, []byte(content), mode); err == nil {
+			if b, rerr := os.ReadFile(path); rerr == nil && string(b) == content {
+				return
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	t.Fatalf("write %s: %v", path, err)
 }
 
 func newClientLogin(t *testing.T, e *env, user, pw string) (*client, string, string) {
