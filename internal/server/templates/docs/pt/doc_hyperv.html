@@ -25,7 +25,7 @@
     </ul>
     Se o convidado não puder fazer nenhum dos dois, o ponto de verificação é feito com consistência de falha (crash-consistent). A página da execução mostra qual tipo foi usado.</li>
   <li>O ponto de verificação de recuperação liga o <b>Resilient Change Tracking</b> (RCT) para os discos da VM; você verá arquivos <code>.rct</code> e <code>.mrt</code> ao lado deles. O primeiro backup lê os discos inteiros. Depois disso, o RCT informa quais blocos mudaram desde o backup anterior, e <b>só esses são lidos</b>.</li>
-  <li>Os discos são lidos no estado do ponto de verificação, pela Virtual Disk API, em blocos de 1 MiB. Isso abrange arquivos VHDX e VHD, incluindo cadeias de pontos de verificação anteriores. Blocos vazios não são armazenados, e blocos que já estão no repositório não são enviados de novo.</li>
+  <li>Os discos são lidos no estado do ponto de verificação, pela Virtual Disk API, em blocos de 1 MiB. Isso abrange arquivos VHDX e VHD, incluindo cadeias de pontos de verificação anteriores. Blocos vazios não são armazenados, e blocos que já estão no repositório não são enviados de novo. Este é o tamanho de bloco padrão; uma tarefa pode usar 256 ou 512 KiB em vez disso (veja <a href="/docs/jobs#compression">Tarefas</a>).</li>
   <li>O ponto de verificação é removido e o Hyper-V o mescla em segundo plano.</li>
   <li>A configuração da VM é armazenada com o backup: geração, CPU, memória, adaptadores de rede (switch, VLAN, endereço MAC), controladoras de disco, inicialização segura e TPM.</li>
 </ol>

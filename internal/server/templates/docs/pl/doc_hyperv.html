@@ -25,7 +25,7 @@
     </ul>
     Jeśli gość nie może zrobić żadnego z nich, punkt kontrolny jest tworzony w trybie spójności awaryjnej (crash-consistent). Strona uruchomienia pokazuje, który rodzaj został użyty.</li>
   <li>Punkt kontrolny odzyskiwania włącza <b>Resilient Change Tracking</b> (RCT) dla dysków maszyny; obok nich zobaczysz pliki <code>.rct</code> i <code>.mrt</code>. Pierwsza kopia odczytuje całe dyski. Potem RCT wskazuje, które bloki zmieniły się od poprzedniej kopii, i <b>tylko one są odczytywane</b>.</li>
-  <li>Dyski są odczytywane w stanie z punktu kontrolnego, przez Virtual Disk API, w blokach po 1 MiB. Obejmuje to pliki VHDX i VHD, w tym łańcuchy wcześniejszych punktów kontrolnych. Puste bloki nie są zapisywane, a bloki już obecne w repozytorium nie są ponownie wysyłane.</li>
+  <li>Dyski są odczytywane w stanie z punktu kontrolnego, przez Virtual Disk API, w blokach po 1 MiB. Obejmuje to pliki VHDX i VHD, w tym łańcuchy wcześniejszych punktów kontrolnych. Puste bloki nie są zapisywane, a bloki już obecne w repozytorium nie są ponownie wysyłane. To domyślny rozmiar bloku; zadanie może zamiast tego używać 256 lub 512 KiB (zobacz <a href="/docs/jobs#compression">Zadania</a>).</li>
   <li>Punkt kontrolny jest usuwany, a Hyper-V scala go w tle.</li>
   <li>Konfiguracja maszyny jest zapisywana razem z kopią: generacja, procesor, pamięć, karty sieciowe (przełącznik, VLAN, adres MAC), kontrolery dysków, bezpieczny rozruch i TPM.</li>
 </ol>

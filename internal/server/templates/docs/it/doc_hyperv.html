@@ -25,7 +25,7 @@
     </ul>
     Se il guest non può fare né l'una né l'altra cosa, il checkpoint viene preso in modalità crash-consistent. La pagina dell'esecuzione mostra quale tipo è stato usato.</li>
   <li>Il checkpoint di ripristino attiva il <b>Resilient Change Tracking</b> (RCT) per i dischi della VM; accanto a essi vedrai file <code>.rct</code> e <code>.mrt</code>. Il primo backup legge i dischi interi. In seguito RCT indica quali blocchi sono cambiati dal backup precedente, e <b>vengono letti solo quelli</b>.</li>
-  <li>I dischi vengono letti allo stato del checkpoint, tramite la Virtual Disk API, in blocchi da 1 MiB. Ciò comprende file VHDX e VHD, incluse le catene di checkpoint precedenti. I blocchi vuoti non vengono memorizzati e i blocchi già presenti nel repository non vengono ricaricati.</li>
+  <li>I dischi vengono letti allo stato del checkpoint, tramite la Virtual Disk API, in blocchi da 1 MiB. Ciò comprende file VHDX e VHD, incluse le catene di checkpoint precedenti. I blocchi vuoti non vengono memorizzati e i blocchi già presenti nel repository non vengono ricaricati. È la dimensione di blocco predefinita; un job può usare invece 256 o 512 KiB (vedete <a href="/docs/jobs#compression">Job</a>).</li>
   <li>Il checkpoint viene rimosso e Hyper-V lo unisce in background.</li>
   <li>La configurazione della VM viene salvata con il backup: generazione, CPU, memoria, schede di rete (switch, VLAN, indirizzo MAC), controller disco, avvio protetto e TPM.</li>
 </ol>
