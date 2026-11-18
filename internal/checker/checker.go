@@ -121,6 +121,18 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 	for _, sn := range sns {
 		walk(sn.Tree, "snapshot "+sn.ID.Short())
 		for _, g := range sn.Guests {
+			// Container volumes stored as files are in the tree just walked;
+			// a guest must not point to a directory that is not there.
+			for _, d := range g.Disks {
+				if !d.Files() {
+					continue
+				}
+				if n, err := r.FindNode(ctx, sn.Tree, d.Path); err != nil {
+					errf("snapshot %s guest %d volume %s: %v", sn.ID.Short(), g.VMID, d.Key, err)
+				} else if n.Type != repo.NodeDir || n.Subtree == nil {
+					errf("snapshot %s guest %d volume %s: %s is not a directory", sn.ID.Short(), g.VMID, d.Key, d.Path)
+				}
+			}
 			ids, err := g.StateBlobs()
 			if err != nil {
 				errf("snapshot %s guest %d: %v", sn.ID.Short(), g.VMID, err)

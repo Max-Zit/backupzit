@@ -167,8 +167,12 @@ func printGuests(gs []repo.Guest, imgs []repo.DiskImage) {
 	for _, g := range gs {
 		fmt.Printf("  %s %d %q: %s\n", g.Type, g.VMID, g.Name, g.Consistency)
 		for _, d := range g.Disks {
+			if d.Files() {
+				fmt.Printf("    %-10s %-28s %8s, %s in files\n", d.Key, d.Volume, humanBytes(d.Size), humanBytes(d.Bytes))
+				continue
+			}
 			stored := uint64(0)
-			if d.Image < len(imgs) && len(imgs[d.Image].Partitions) == 1 {
+			if d.Image >= 0 && d.Image < len(imgs) && len(imgs[d.Image].Partitions) == 1 {
 				stored = imgs[d.Image].Partitions[0].StoredBytes
 			}
 			fmt.Printf("    %-10s %-28s %8s, %s with data\n", d.Key, d.Volume, humanBytes(d.Size), humanBytes(stored))

@@ -52,6 +52,9 @@ type restorer struct {
 	chk     *chunker.Chunker
 	// links maps hard link keys to the first restored path.
 	links map[string]string
+	// dir is set by RunDir: the first level holds ordinary folders, not
+	// volume roots.
+	dir bool
 }
 
 // Run restores sn according to opts.
@@ -89,6 +92,38 @@ func Run(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Option
 	if len(rs.include) > 0 && rs.stats.Files+rs.stats.Dirs+rs.stats.Symlinks == 0 {
 		return &rs.stats, errors.New("no snapshot entries matched the include paths")
 	}
+	rs.stats.Duration = time.Since(start)
+	return &rs.stats, nil
+}
+
+// RunDir restores the contents of the directory node dir into target,
+// which must exist, and gives target the node's owner, mode and attributes
+// (e.g. the root of a container volume). opts.Target and opts.Include are
+// not used.
+func RunDir(ctx context.Context, r *repo.Repository, dir *repo.Node, target string, opts Options) (*Stats, error) {
+	if dir == nil || dir.Type != repo.NodeDir || dir.Subtree == nil {
+		return nil, errors.New("not a directory in the snapshot")
+	}
+	abs, err := filepath.Abs(target)
+	if err != nil {
+		return nil, err
+	}
+	opts.Target, opts.Include = abs, nil
+	rs := &restorer{r: r, opts: opts, dir: true}
+	if opts.Verify {
+		rs.buf = make([]byte, chunker.MaxSize)
+		rs.chk = chunker.New(nil, r.ChunkerPolynomial())
+	}
+	start := time.Now()
+	t, err := r.LoadTree(ctx, *dir.Subtree)
+	if err != nil {
+		return nil, fmt.Errorf("load root tree: %w", err)
+	}
+	if err := rs.restoreTree(ctx, t, nil); err != nil {
+		return &rs.stats, err
+	}
+	rs.applyMeta(abs, dir, true)
+	rs.stats.Dirs++
 	rs.stats.Duration = time.Since(start)
 	return &rs.stats, nil
 }
@@ -187,8 +222,8 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 				rs.stats.Dirs++
 				// A volume root ("C") keeps the attributes of the folder: C:\ is
 				// hidden and system, which would hide everything restored below it.
-				if len(comps) > 1 || runtime.GOOS != "windows" {
-					rs.applyMeta(dst, n, len(comps) > 1)
+				if len(comps) > 1 || rs.dir || runtime.GOOS != "windows" {
+					rs.applyMeta(dst, n, len(comps) > 1 || rs.dir)
 				}
 			}
 		case repo.NodeFile:
