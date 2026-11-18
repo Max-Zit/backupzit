@@ -23,9 +23,9 @@ func Concurrency(be Backend) int {
 	return 1
 }
 
-func (b *S3) Concurrency() int       { return objectStoreConcurrency }
-func (b *Azure) Concurrency() int    { return objectStoreConcurrency }
-func (b *Hardened) Concurrency() int { return objectStoreConcurrency }
+func (s *S3) Concurrency() int       { return objectStoreConcurrency }
+func (a *Azure) Concurrency() int    { return objectStoreConcurrency }
+func (h *Hardened) Concurrency() int { return objectStoreConcurrency }
 
 // The throttle keeps the average upload rate with parallel uploads too (its
 // limiter hands out start times one after another).
