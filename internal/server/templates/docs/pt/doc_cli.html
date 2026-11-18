@@ -141,7 +141,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>Dados guardados e ocultos (excluídos, ainda retidos).</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Torna novamente visíveis os arquivos excluídos desde TIME.</td></tr>
 </table>
-<p>Configuração: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p>Configuração: <code>/etc/backupzit-repo/repo.env</code>, ou as mesmas configurações como opções de <code>serve</code>: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code> (diretório de armazenamento, padrão <code>/srv/backupzit</code>), <code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code> (chaves e certificado, padrão <code>/etc/backupzit-repo</code>), <code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code> (padrão <code>:8500</code>), <code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code> (imutabilidade em dias, padrão 30) e <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code> (nomes e endereços para o certificado autoassinado). Os comandos de chaves também aceitam <code>--data</code> e <code>--config-dir</code>.</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> ativa métricas Prometheus por chave de acesso em <code>/metrics</code> (cabeçalho <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Servidor de gerenciamento (<code>backupzit-server</code>)</h2>
@@ -159,6 +159,11 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Remove o bloqueio de login de um endereço, ou de todos (proteção contra força bruta), e sai.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Restaura a console a partir de um backup da console e sai (veja <a href="/docs/install">Instalar o servidor</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Apenas para avaliação: PostgreSQL privado no diretório de dados, HTTP sem criptografia em localhost.</td></tr>
+  <tr><td><code>--setup</code></td><td>O menu de texto do appliance (rede, nome do servidor, senha do admin); como root.</td></tr>
+  <tr><td><code>--initial-password</code></td><td>Mostra a primeira senha gerada de <i>admin</i> enquanto ela ainda estiver em uso, e sai.</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>Imagem de contêiner: carrega a cópia da console feita antes de uma atualização (uma pasta em <code>pre-upgrade</code> do diretório de dados) e sai; execute com a imagem da versão em que a cópia foi feita. <code>list</code> mostra as cópias.</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>Imagem de contêiner: sai com 0 quando a console responde (a verificação de saúde da imagem).</td></tr>
+  <tr><td><code>--apply-update</code></td><td>Instala uma atualização solicitada na console; é executado pelo serviço <code>backupzit-update</code> como root, não manualmente.</td></tr>
   <tr><td><code>--version</code></td><td>Mostra a versão.</td></tr>
 </table>
 <pre>systemctl status backupzit-server

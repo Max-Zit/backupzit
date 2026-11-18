@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>bez tokenu</td><td>Specyfikacja OpenAPI 3 tego API dla narzędzi i generatorów klientów (także w repozytorium: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Okresy: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> lub <code>custom</code> z <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
-<p>Błędy zwracają <code>{"error": "..."}</code> z kodem 400 (błędne żądanie), 401 (brak tokenu, token nieprawidłowy lub wygasły), 403 (zbyt niska rola), 404 lub 409.</p>
+<p>Błędy zwracają <code>{"error": "..."}</code> z kodem 400 (błędne żądanie), 401 (brak tokenu, token nieprawidłowy lub wygasły), 403 (zbyt niska rola), 404 (nie znaleziono), 409 (teraz niemożliwe: zadanie już trwa, agent jest za stary dla tego żądania albo włączona jest zasada czterech oczu), 429 (zbyt wiele nieudanych prób z tokenem z danego adresu; poczekaj, aż blokada minie) lub 500 (błąd wewnętrzny; zobacz dziennik konsoli).</p>
 
 <h2>Przykłady</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>Metryka</th><th>Etykiety</th><th>Znaczenie</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>zawsze 1; wersja konsoli</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code> (online, offline)</td><td>liczba agentów</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>uruchomienia oczekujące lub trwające</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code> (failed, warning, all)</td><td>uruchomienia z ostatnich 24 godzin</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>podejrzane kopie, jeszcze niesprawdzone</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>, <code>agent</code>, <code>version</code></td><td>1, jeśli agent niedawno odpytał konsolę</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>, <code>agent</code></td><td>kiedy agent ostatnio odpytał konsolę</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>, <code>job</code>, <code>kind</code>, <code>agent</code></td><td>1, jeśli zadanie działa według swojego harmonogramu</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>jak wyżej</td><td>ostatnie zakończone uruchomienie: 0 sukces, 1 ostrzeżenie, 2 błąd</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>jak wyżej</td><td>ostatnia kopia zakończona sukcesem lub z ostrzeżeniami</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>jak wyżej, <code>rpo_hours</code></td><td>1 w ramach RPO, 0 przekroczone (zadania z RPO)</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>miejsce zajmowane przez repozytoria</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>wolne miejsce, gdy magazyn je podaje</td></tr>
+</table>
 <p>Alarmuj na przykład, gdy <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (brak dobrej kopii od dwóch dni).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

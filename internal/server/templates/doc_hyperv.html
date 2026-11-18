@@ -24,7 +24,7 @@
       <li>Linux guests freeze their file systems, if the Hyper-V daemons are installed (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
     </ul>
     If the guest can't do either, the checkpoint is taken crash-consistent. The run page shows which kind was used.</li>
-  <li>The recovery checkpoint switches on <b>Resilient Change Tracking</b> (RCT) for the VM's disks; you will see <code>.rct</code> and <code>.mrt</code> files next to them. The first backup reads the whole disks. After that, RCT reports which blocks changed since the previous backup, and <b>only those are read</b>.</li>
+  <li>The recovery checkpoint switches on <b>Resilient Change Tracking</b> (RCT) for the VM's disks; you will see <code>.rct</code> and <code>.mrt</code> files next to them. The first backup reads the whole disks. After that, RCT reports which blocks changed since the previous backup, and <b>only those are read</b>. A disk that grew (for example with <code>Resize-VHD</code>) is read the same way: the changed blocks and the new space. A disk that shrank is read in full once.</li>
   <li>The disks are read as of the checkpoint, through the Virtual Disk API, in 1 MiB blocks. This covers VHDX and VHD files, including chains of earlier checkpoints. Empty blocks are not stored, and blocks already in the repository are not uploaded again. This is the default block size; a job can use 256 or 512 KiB instead (see <a href="/docs/jobs#compression">Jobs</a>).</li>
   <li>The checkpoint is removed, and Hyper-V merges it in the background.</li>
   <li>The VM's configuration is stored with the backup: generation, CPU, memory, network adapters (switch, VLAN, MAC address), disk controllers, secure boot and TPM.</li>

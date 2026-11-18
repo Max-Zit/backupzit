@@ -110,6 +110,7 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 docker compose exec backupzit backupzit-server --initial-password</pre>
 <p>Open <code>https://&lt;host&gt;:8443</code> and sign in as <code>admin</code> with that password. The database and the console's data (secrets key, certificate, agent installers) live in the volumes <code>db</code> and <code>data</code>; back up both, or use <a href="#console-backup">the console backup</a>. Agents are installed on the computers as usual and connect to the host's port 8443. For a local disk target, mount a host folder into the container (see the comment in the file) and use the path inside the container.</p>
 <p><b>Updates:</b> the console checks for new versions and shows them under Settings → Updates with the commands to run in the folder of the file: <code>docker compose pull</code> and <code>docker compose up -d</code> (the tag <code>latest</code> follows the official releases, <code>testing</code> the release candidates; set <code>BACKUPZIT_TAG</code> in <code>.env</code> to stay on one version). Before a new version changes the database, it keeps a copy of the console in <code>pre-upgrade</code> in the data volume (the last three). To go back: set <code>BACKUPZIT_TAG</code> to the previous version, run <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;folder&gt;</code> with the folder of the copy, then <code>docker compose up -d</code>. Agents are updated from the console as always. In the container, the settings of the appliance (network, operating system updates, SSH) are not shown: they belong to the Docker host.</p>
+<p id="docker-logs"><b>Logs:</b> <code>docker compose logs -f backupzit</code> shows the console's log. The same log is kept as <code>logs/server.log</code> in the data volume and is part of the download under <a href="/settings/diagnostics">Settings → Diagnostics</a>. The image has no shell; <code>docker compose run --rm backupzit --restore-pre-upgrade list</code> shows the copies made before updates, newest first.</p>
 
 <h2 id="first">First sign-in</h2>
 <p>Open <code>https://&lt;server&gt;:8443</code>. The initial administrator is <b>admin</b>; the password is in <code>/var/lib/backupzit/initial-admin-password.txt</code> (or set <code>BACKUPZIT_ADMIN_PASSWORD</code> before the first start). Change it after signing in. To reset a forgotten password on the server:</p>
@@ -146,6 +147,11 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>443/tcp</td><td>agents, console</td><td>Azure / cloud storage</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
   <tr><td>636/tcp (389 with StartTLS)</td><td>console</td><td>domain controllers</td><td>LDAP / Active Directory sign-in</td></tr>
   <tr><td>587/465/25</td><td>console</td><td>mail server</td><td>email notifications</td></tr>
+  <tr><td>443/tcp (22/tcp on the free license)</td><td>console, proxy agent</td><td>ESXi hosts, vCenter</td><td>VMware: inventory, snapshots, disk reads and restores</td></tr>
+  <tr><td>2049/tcp, 111/tcp+udp</td><td>ESXi hosts</td><td>proxy agent</td><td>VMware instant recovery (the agent serves the backup as an NFS datastore)</td></tr>
+  <tr><td>443/tcp</td><td>agent of a Microsoft 365 job</td><td>graph.microsoft.com, login.microsoftonline.com</td><td>Microsoft 365 backups</td></tr>
+  <tr><td>514/udp or tcp, 6514/tcp (TLS)</td><td>console</td><td>syslog server / SIEM</td><td>optional: audit log export (the port you enter)</td></tr>
+  <tr><td>443/tcp</td><td>console</td><td>github.com and its download servers</td><td>update checks and downloads from the default update source; agents get their updates from the console</td></tr>
 </table>
 <p>The console also connects to the storage itself to let you browse files inside disk images and VM backups (and download them), so it needs the same storage access as the agents.</p>
 
@@ -182,6 +188,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>the console's certificate, which agents pin.</li>
 </ul>
 <p>It is encrypted with the target's recovery key and deduplicated. The newest backups are kept: 14 by default.</p>
+<p id="console-backup-page">On the page choose the <i>Storage target</i> (network storage only: SFTP, S3, SMB, Azure or a hardened repository; the backup goes into the folder <code>backupzit-console</code> there), the hour of the daily backup (<i>At</i>, console time) and how many backups to <i>Keep</i>. <i>Back up now</i> makes one at once. The page shows the last backup with its size and the repository address you need for a restore.</p>
 <h3>Restoring the console</h3>
 <ol>
   <li>Install a new console with the same or a newer version, for example from the appliance ISO.</li>

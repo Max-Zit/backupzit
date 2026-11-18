@@ -24,7 +24,7 @@
       <li>Hosté s Linuxem zmrazí své souborové systémy, pokud jsou nainstalovaní démoni Hyper-V (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
     </ul>
     Pokud host nezvládne ani jedno, kontrolní bod se pořídí v konzistenci jako při havárii (crash-consistent). Stránka běhu ukazuje, který druh byl použit.</li>
-  <li>Kontrolní bod pro obnovu zapne pro disky VM <b>Resilient Change Tracking</b> (RCT); vedle nich uvidíte soubory <code>.rct</code> a <code>.mrt</code>. První záloha čte celé disky. Potom RCT hlásí, které bloky se od předchozí zálohy změnily, a <b>čtou se jen ty</b>.</li>
+  <li>Kontrolní bod pro obnovu zapne pro disky VM <b>Resilient Change Tracking</b> (RCT); vedle nich uvidíte soubory <code>.rct</code> a <code>.mrt</code>. První záloha čte celé disky. Potom RCT hlásí, které bloky se od předchozí zálohy změnily, a <b>čtou se jen ty</b>. Zvětšený disk (například pomocí <code>Resize-VHD</code>) se čte stejně: změněné bloky a nový prostor. Zmenšený disk se jednou přečte celý.</li>
   <li>Disky se čtou ve stavu kontrolního bodu přes Virtual Disk API v blocích po 1 MiB. To zahrnuje soubory VHDX a VHD včetně řetězců dřívějších kontrolních bodů. Prázdné bloky se neukládají a bloky, které už jsou v úložišti, se znovu neodesílají. To je výchozí velikost bloku; úloha může místo ní použít 256 nebo 512 KiB (viz <a href="/docs/jobs#compression">Úlohy</a>).</li>
   <li>Kontrolní bod se odstraní a Hyper-V ho na pozadí sloučí.</li>
   <li>Konfigurace VM se uloží se zálohou: generace, CPU, paměť, síťové adaptéry (přepínač, VLAN, MAC adresa), řadiče disků, zabezpečené spouštění a TPM.</li>

@@ -141,7 +141,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>Saklanan ve gizli (silinmiş, hâlâ tutulan) veriler.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>TIME'dan beri silinen dosyaları yeniden görünür yapar.</td></tr>
 </table>
-<p>Yapılandırma: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p>Yapılandırma: <code>/etc/backupzit-repo/repo.env</code> veya aynı ayarlar <code>serve</code> seçenekleri olarak: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code> (depolama dizini, varsayılan <code>/srv/backupzit</code>), <code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code> (anahtarlar ve sertifika, varsayılan <code>/etc/backupzit-repo</code>), <code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code> (varsayılan <code>:8500</code>), <code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code> (gün olarak değiştirilemezlik, varsayılan 30) ve <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code> (kendinden imzalı sertifika için adlar ve adresler). Anahtar komutları da <code>--data</code> ve <code>--config-dir</code> kabul eder.</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code>, <code>/metrics</code> adresinde erişim anahtarı başına Prometheus metriklerini açar (başlık <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Yönetim sunucusu (<code>backupzit-server</code>)</h2>
@@ -159,6 +159,11 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Bir adresin veya tüm adreslerin oturum açma engelini kaldırır (kaba kuvvet koruması) ve çıkar.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Konsolu bir konsol yedeğinden geri yükler ve çıkar (bkz. <a href="/docs/install">Sunucuyu kurma</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Yalnızca deneme için: veri dizininde özel PostgreSQL, localhost üzerinde şifresiz HTTP.</td></tr>
+  <tr><td><code>--setup</code></td><td>Appliance'ın metin menüsü (ağ, sunucu adı, yönetici parolası); root olarak.</td></tr>
+  <tr><td><code>--initial-password</code></td><td><i>admin</i> için oluşturulan ilk parolayı, hâlâ kullanımdayken yazdırır ve çıkar.</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>Konteyner imajı: bir güncellemeden önce alınan konsol kopyasını (veri dizinindeki <code>pre-upgrade</code> içinde bir klasör) yükler ve çıkar; kopyanın alındığı sürümün imajıyla çalıştırın. <code>list</code> kopyaları gösterir.</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>Konteyner imajı: konsol yanıt verdiğinde 0 ile çıkar (imajın sağlık denetimi).</td></tr>
+  <tr><td><code>--apply-update</code></td><td>Konsolda istenen bir güncellemeyi kurar; elle değil, <code>backupzit-update</code> hizmeti tarafından root olarak çalıştırılır.</td></tr>
   <tr><td><code>--version</code></td><td>Sürümü yazdırır.</td></tr>
 </table>
 <pre>systemctl status backupzit-server

@@ -34,7 +34,7 @@
   <tr><td>更新: 「updates from the console need the Linux package of the console」</td><td>コンソールが deb/rpm パッケージからインストールされていません（例: 評価モード）。インストールしたのと同じ方法で更新してください。</td></tr>
   <tr><td>更新: 「the release is not signed with a BackupZit release key」</td><td>更新元に公式リリースがないか、途中でファイルが改変されています。公式のアドレスから再度ダウンロードしてください。</td></tr>
   <tr><td>更新: 状態が <i>rolled-back</i></td><td>新しいバージョンが起動しなかったため、以前のバージョンとそのデータベースが復元されました。起動に失敗したときのログは更新ページにあります。サポートに送ってください。</td></tr>
-  <tr><td>"The agent is no longer running this"</td><td>実行中にエージェントが再起動または停止された（コンピューターやサービスの再起動など）か、結果を送信できませんでした。0.52.0 以降のエージェントは処理中の実行を報告するため、コンソールはその実行を誰かが停止するまで実行中と表示するのではなく、約 2 分以内に失敗として記録します。古いエージェントでは、その実行のページで停止してください。何が起きたかは Agents ページの <i>Get log</i> で確認できます。次のスケジュール実行は通常どおり開始されます。</td></tr>
+  <tr><td>"The agent is no longer running this"</td><td>実行中にエージェントが再起動または停止された（コンピューターやサービスの再起動など）か、結果を送信できませんでした。0.52.0 以降のエージェントは処理中の実行を報告するため、コンソールはその実行を誰かが停止するまで実行中と表示するのではなく、約 2 分以内に失敗として記録します。古いエージェントでは、その実行のページで停止してください。何が起きたかはエージェント ページの <i>ログを取得</i> で確認できます。次のスケジュール実行は通常どおり開始されます。</td></tr>
   <tr><td>オペレーティング システム: 「no supported package manager」</td><td>オペレーティング システムの更新は Debian、Ubuntu（apt）と AlmaLinux、Rocky Linux、RHEL（dnf）でサポートされています。</td></tr>
   <tr><td>コンソールのバックアップ: 「the backup was made by a newer BackupZit」</td><td>復元する前に、新しいコンソールにバックアップを作成したバージョン以降をインストールしてください。</td></tr>
   <tr><td>コンソールのバックアップ: 「console backups need network storage」</td><td>SFTP、S3、SMB、Azure、または強化リポジトリのストレージ先を選んでください。エージェントのローカル パスにはコンソールから到達できません。</td></tr>

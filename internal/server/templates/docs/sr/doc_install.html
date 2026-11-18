@@ -109,7 +109,8 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>docker compose up -d
 docker compose exec backupzit backupzit-server --initial-password</pre>
 <p>Otvorite <code>https://&lt;host&gt;:8443</code> i prijavite se kao <code>admin</code> tom lozinkom. Baza i podaci konzole (ključ za tajne, sertifikat, instalacije agenata) su u volumenima <code>db</code> i <code>data</code>; pravite backup oba ili koristite <a href="#console-backup">backup konzole</a>. Agenti se instaliraju na računare kao i obično i povezuju na port 8443 hosta. Za lokalni disk kao skladište montirajte folder hosta u kontejner (vidi komentar u fajlu) i koristite putanju unutar kontejnera.</p>
-<p><b>Ažuriranja:</b> konzola proverava nove verzije i prikazuje ih pod Settings → Updates sa komandama koje se pokreću u folderu fajla: <code>docker compose pull</code> i <code>docker compose up -d</code> (oznaka <code>latest</code> prati zvanična izdanja, <code>testing</code> kandidate; postavite <code>BACKUPZIT_TAG</code> u <code>.env</code> da ostanete na jednoj verziji). Pre nego što nova verzija promeni bazu, čuva kopiju konzole u <code>pre-upgrade</code> u volumenu podataka (poslednje tri). Za povratak: postavite <code>BACKUPZIT_TAG</code> na prethodnu verziju, pokrenite <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;folder&gt;</code> sa folderom kopije, pa <code>docker compose up -d</code>. Agenti se ažuriraju iz konzole kao i uvek. U kontejneru se ne prikazuju podešavanja appliance-a (mreža, ažuriranja operativnog sistema, SSH): ona pripadaju Docker hostu.</p>
+<p><b>Ažuriranja:</b> konzola proverava nove verzije i prikazuje ih pod Podešavanja → Ažuriranja sa komandama koje se pokreću u folderu fajla: <code>docker compose pull</code> i <code>docker compose up -d</code> (oznaka <code>latest</code> prati zvanična izdanja, <code>testing</code> kandidate; postavite <code>BACKUPZIT_TAG</code> u <code>.env</code> da ostanete na jednoj verziji). Pre nego što nova verzija promeni bazu, čuva kopiju konzole u <code>pre-upgrade</code> u volumenu podataka (poslednje tri). Za povratak: postavite <code>BACKUPZIT_TAG</code> na prethodnu verziju, pokrenite <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;folder&gt;</code> sa folderom kopije, pa <code>docker compose up -d</code>. Agenti se ažuriraju iz konzole kao i uvek. U kontejneru se ne prikazuju podešavanja appliance-a (mreža, ažuriranja operativnog sistema, SSH): ona pripadaju Docker hostu.</p>
+<p id="docker-logs"><b>Logovi:</b> <code>docker compose logs -f backupzit</code> prikazuje log konzole. Isti log se čuva kao <code>logs/server.log</code> u volumenu podataka i deo je preuzimanja pod <a href="/settings/diagnostics">Podešavanja → Dijagnostika</a>. Image nema shell; <code>docker compose run --rm backupzit --restore-pre-upgrade list</code> prikazuje kopije napravljene pre ažuriranja, od najnovije.</p>
 
 <h2 id="first">Prva prijava</h2>
 <p>Otvorite <code>https://&lt;server&gt;:8443</code>. Početni administrator je <b>admin</b>; lozinka je u <code>/var/lib/backupzit/initial-admin-password.txt</code> (ili postavite <code>BACKUPZIT_ADMIN_PASSWORD</code> pre prvog pokretanja). Promenite je posle prijave. Zaboravljenu lozinku resetujete na serveru:</p>
@@ -146,6 +147,11 @@ backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
   <tr><td>443/tcp</td><td>agenti, konzola</td><td>Azure / cloud skladište</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
   <tr><td>636/tcp (389 sa StartTLS-om)</td><td>konzola</td><td>kontroleri domena</td><td>prijava preko LDAP-a / Active Directory-ja</td></tr>
   <tr><td>587/465/25</td><td>konzola</td><td>mail server</td><td>email obaveštenja</td></tr>
+  <tr><td>443/tcp (22/tcp uz besplatnu licencu)</td><td>konzola, proxy agent</td><td>ESXi hostovi, vCenter</td><td>VMware: inventar, snimci, čitanje diskova i vraćanja</td></tr>
+  <tr><td>2049/tcp, 111/tcp+udp</td><td>ESXi hostovi</td><td>proxy agent</td><td>VMware instant recovery (agent servira bekap kao NFS datastore)</td></tr>
+  <tr><td>443/tcp</td><td>agent posla za Microsoft 365</td><td>graph.microsoft.com, login.microsoftonline.com</td><td>bekapi Microsoft 365</td></tr>
+  <tr><td>514/udp ili tcp, 6514/tcp (TLS)</td><td>konzola</td><td>syslog server / SIEM</td><td>opciono: izvoz audit loga (port koji unesete)</td></tr>
+  <tr><td>443/tcp</td><td>konzola</td><td>github.com i njegovi serveri za preuzimanje</td><td>provera i preuzimanje ažuriranja iz podrazumevanog izvora ažuriranja; agenti dobijaju ažuriranja od konzole</td></tr>
 </table>
 <p>Konzola se i sama povezuje na skladište da biste mogli da pregledate fajlove u slikama diskova i bekapima VM-ova (i da ih preuzmete), pa joj treba isti pristup skladištu kao agentima.</p>
 
@@ -160,7 +166,7 @@ backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
   <li>Posle uspešnog ažuriranja ažuriraju se i agenti: svaki instalira novu verziju kada je slobodan. To možete isključiti na istoj stranici ako agente želite da ažurirate sami.</li>
 </ol>
 <p>Konzola je nedostupna oko jedan minut. Bekapi baze i prethodni programi poslednja tri ažuriranja čuvaju se u <code>/var/lib/backupzit-update</code>.</p>
-<p id="update-banner"><b>Obaveštenje u konzoli:</b> korisnici koji smeju da instaliraju ažuriranja (administratori) vide novu verziju i na vrhu svake stranice, sa <i>Install</i> (otvara ovu stranicu Updates) i <i>Release notes</i>. <b>×</b> ga tom korisniku sakriva na pet dana, u svakom browseru; još novija verzija ga odmah prikazuje ponovo. Ostale uloge ga ne vide. Na Docker konzoli obaveštenje umesto toga upućuje na komande za preuzimanje novog image-a.</p>
+<p id="update-banner"><b>Obaveštenje u konzoli:</b> korisnici koji smeju da instaliraju ažuriranja (administratori) vide novu verziju i na vrhu svake stranice, sa <i>Instaliraj</i> (otvara ovu stranicu, Podešavanja → Ažuriranja) i <i>Napomene uz izdanje</i>. <b>×</b> ga tom korisniku sakriva na pet dana, u svakom browseru; još novija verzija ga odmah prikazuje ponovo. Ostale uloge ga ne vide. Na Docker konzoli obaveštenje umesto toga upućuje na komande za preuzimanje novog image-a.</p>
 <p><b>Bez pristupa internetu:</b> fajlove izdanja (<code>manifest.json</code>, <code>manifest.json.sig</code> i serverski paket) preuzmite na drugom računaru. Zatim ih otpremite pod <i>Instaliraj ažuriranje iz fajlova</i>, ili ih kopirajte u folder na serveru i taj folder koristite kao izvor ažuriranja.</p>
 <p>I dalje možete da ažurirate menadžerom paketa (<code>apt install ./backupzit-server_….deb</code>); baza se migrira kada se nova verzija pokrene.</p>
 
@@ -182,6 +188,7 @@ backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
   <li>sertifikat konzole, koji agenti pamte.</li>
 </ul>
 <p>Šifrovan je ključem za oporavak skladišta i dedupliciran. Čuvaju se najnoviji bekapi: podrazumevano 14.</p>
+<p id="console-backup-page">Na stranici izaberite <i>Skladište</i> (samo mrežno skladište: SFTP, S3, SMB, Azure ili ojačani repozitorijum; bekap ide u folder <code>backupzit-console</code> na njemu), sat dnevnog bekapa (<i>U</i>, po vremenu konzole) i koliko bekapa da se čuva (<i>Čuvaj</i>). <i>Napravi bekap sada</i> odmah pravi jedan. Stranica prikazuje poslednji bekap sa njegovom veličinom i adresu repozitorijuma koja vam treba za vraćanje.</p>
 <h3>Vraćanje konzole</h3>
 <ol>
   <li>Instalirajte novu konzolu iste ili novije verzije, na primer sa ISO-a uređaja.</li>

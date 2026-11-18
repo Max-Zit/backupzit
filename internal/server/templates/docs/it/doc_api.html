@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>nessun token</td><td>La specifica OpenAPI 3 di questa API, per strumenti e generatori di client (anche nel repository: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Periodi: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, oppure <code>custom</code> con <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
-<p>Gli errori restituiscono <code>{"error": "..."}</code> con 400 (richiesta non valida), 401 (token mancante, non valido o scaduto), 403 (ruolo insufficiente), 404 o 409.</p>
+<p>Gli errori restituiscono <code>{"error": "..."}</code> con 400 (richiesta non valida), 401 (token mancante, non valido o scaduto), 403 (ruolo insufficiente), 404 (non trovato), 409 (non possibile ora: il job è già in esecuzione, l'agent è troppo vecchio per la richiesta oppure è attiva l'approvazione a quattro occhi), 429 (troppi tentativi falliti con un token da quell'indirizzo; attendi la fine del blocco) o 500 (errore interno; vedi il log della console).</p>
 
 <h2>Esempi</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>Metrica</th><th>Etichette</th><th>Significato</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>sempre 1; la versione della console</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code> (online, offline)</td><td>numero di agent</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>esecuzioni in coda o in corso</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code> (failed, warning, all)</td><td>esecuzioni delle ultime 24 ore</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>backup sospetti non ancora esaminati</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>, <code>agent</code>, <code>version</code></td><td>1 se l'agent ha contattato la console di recente</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>, <code>agent</code></td><td>quando l'agent ha contattato la console l'ultima volta</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>, <code>job</code>, <code>kind</code>, <code>agent</code></td><td>1 se il job viene eseguito secondo la sua pianificazione</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>come sopra</td><td>ultima esecuzione terminata: 0 riuscito, 1 avviso, 2 errore</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>come sopra</td><td>ultimo backup riuscito o con avvisi</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>come sopra, <code>rpo_hours</code></td><td>1 entro l'RPO, 0 mancato (job con un RPO)</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>spazio occupato dai repository</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>spazio libero, quando lo storage lo comunica</td></tr>
+</table>
 <p>Imposta un allarme, ad esempio, quando <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (nessun backup valido da due giorni).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

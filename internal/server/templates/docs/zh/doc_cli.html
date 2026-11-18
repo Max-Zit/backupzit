@@ -141,7 +141,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>已存储和隐藏（已删除、仍保留）的数据。</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>使自 TIME 以来删除的文件重新可见。</td></tr>
 </table>
-<p>配置：<code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>、<code>BACKUPZIT_REPO_DATA</code>、<code>BACKUPZIT_REPO_LISTEN</code>、<code>BACKUPZIT_REPO_TLS_HOSTS</code>。</p>
+<p>配置：<code>/etc/backupzit-repo/repo.env</code>，或以 <code>serve</code> 的选项形式设置相同内容：<code>BACKUPZIT_REPO_DATA</code> / <code>--data</code>（存储目录，默认 <code>/srv/backupzit</code>）、<code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code>（密钥和证书，默认 <code>/etc/backupzit-repo</code>）、<code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code>（默认 <code>:8500</code>）、<code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code>（不可变天数，默认 30）和 <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code>（自签名证书的名称和地址）。密钥命令同样接受 <code>--data</code> 和 <code>--config-dir</code>。</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> 会在 <code>/metrics</code> 上按访问密钥启用 Prometheus 指标（请求头 <code>Authorization: Bearer &lt;token&gt;</code>）。</p>
 
 <h2>管理服务器（<code>backupzit-server</code>）</h2>
@@ -159,6 +159,11 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>解除某个地址或所有地址的登录封锁（暴力破解防护）并退出。</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>从控制台备份还原控制台并退出（参见 <a href="/docs/install">安装服务器</a>）。</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>仅用于试用：数据目录中的私有 PostgreSQL，localhost 上的明文 HTTP。</td></tr>
+  <tr><td><code>--setup</code></td><td>设备的文本菜单（网络、服务器名称、管理员密码）；需以 root 身份运行。</td></tr>
+  <tr><td><code>--initial-password</code></td><td>打印 <i>admin</i> 自动生成的初始密码（仅当它仍在使用时）并退出。</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>容器镜像：加载更新前创建的控制台副本（数据目录中 <code>pre-upgrade</code> 下的一个文件夹）并退出；请使用创建该副本时所用版本的镜像运行。<code>list</code> 显示这些副本。</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>容器镜像：控制台有响应时以 0 退出（镜像的健康检查）。</td></tr>
+  <tr><td><code>--apply-update</code></td><td>安装在控制台中请求的更新；由 <code>backupzit-update</code> 服务以 root 身份运行，不要手动运行。</td></tr>
   <tr><td><code>--version</code></td><td>打印版本。</td></tr>
 </table>
 <pre>systemctl status backupzit-server

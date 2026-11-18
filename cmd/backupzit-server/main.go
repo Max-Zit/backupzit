@@ -62,7 +62,7 @@ func run() error {
 	setup := flag.Bool("setup", false, "the text menu of the appliance (network, server name, admin password); run as root")
 	healthcheck := flag.Bool("healthcheck", false, "container image: exit 0 when the console answers on its listen address (used by HEALTHCHECK)")
 	showInitial := flag.Bool("initial-password", false, "print the generated first password of user 'admin' (while it is still in use) and exit")
-	restorePre := flag.String("restore-pre-upgrade", "", "container image: load the copy of the console made before an update (a folder in <data-dir>/pre-upgrade) and exit; run it with the image of the version the copy was made from")
+	restorePre := flag.String("restore-pre-upgrade", "", "container image: load the copy of the console made before an update (a folder in <data-dir>/pre-upgrade) and exit; \"list\" shows the copies; run it with the image of the version the copy was made from")
 	flag.Parse()
 
 	if *showVersion {
@@ -91,6 +91,16 @@ func run() error {
 	}
 	if *restoreConsole {
 		return runRestoreConsole(ctx, *dbURL, *dataDir, *restoreRepo, *restoreSnapshot)
+	}
+	if *restorePre == "list" { // the image has no shell to look into the volume
+		names := server.PreUpgradeCopies(*dataDir)
+		if len(names) == 0 {
+			fmt.Println("no copies made before updates in", filepath.Join(*dataDir, server.PreUpgradeDir))
+		}
+		for _, n := range names {
+			fmt.Println(n)
+		}
+		return nil
 	}
 	if *restorePre != "" {
 		dir := *restorePre

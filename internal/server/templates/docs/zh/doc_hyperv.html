@@ -24,7 +24,7 @@
       <li>如果安装了 Hyper-V 守护程序（<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>），Linux 来宾会冻结其文件系统。</li>
     </ul>
     如果来宾两者都无法做到，则以崩溃一致方式创建检查点。运行页面会显示使用了哪种方式。</li>
-  <li>恢复检查点会为虚拟机的磁盘启用 <b>Resilient Change Tracking</b>（RCT）；您会在磁盘旁看到 <code>.rct</code> 和 <code>.mrt</code> 文件。第一次备份读取整个磁盘。之后，RCT 会报告自上次备份以来更改了哪些块，<b>只读取这些块</b>。</li>
+  <li>恢复检查点会为虚拟机的磁盘启用 <b>Resilient Change Tracking</b>（RCT）；您会在磁盘旁看到 <code>.rct</code> 和 <code>.mrt</code> 文件。第一次备份读取整个磁盘。之后，RCT 会报告自上次备份以来更改了哪些块，<b>只读取这些块</b>。 扩容后的磁盘（例如使用 <code>Resize-VHD</code>）以同样方式读取：只读取更改的块和新增空间。缩小的磁盘会完整读取一次。</li>
   <li>通过 Virtual Disk API，以 1 MiB 块读取检查点时刻的磁盘。这包括 VHDX 和 VHD 文件，以及更早检查点形成的链。空块不会存储，存储库中已有的块不会再次上传。 这是默认块大小；作业也可以改用 256 或 512 KiB（参见<a href="/docs/jobs#compression">作业</a>）。</li>
   <li>检查点被删除，Hyper-V 会在后台合并它。</li>
   <li>虚拟机配置随备份一起保存：代数、CPU、内存、网络适配器（交换机、VLAN、MAC 地址）、磁盘控制器、安全启动和 TPM。</li>

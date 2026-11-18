@@ -44,6 +44,7 @@
   <li>将组（名称，Entra ID 为 ID）映射到四个角色；以匹配的最高角色为准。不属于任何组的用户无法登录，除非您为他们选择一个角色。</li>
 </ol>
 <p id="oidc-groups">使用 OpenID Connect 时，控制台请求 <code>openid profile email</code> 这些 scope，身份提供程序提供 <code>groups</code> 时也会请求它（Authelia、Keycloak、authentik）；如果您的提供程序需要其他 scope，请在<b>附加 scope</b> 中添加。组信息从 ID 令牌读取；如果令牌中没有，则从 userinfo 端点读取。Entra ID 在应用注册中设置 <i>Token configuration → Add groups claim</i> 后才会发送组信息。</p>
+<p id="sso-claims"><b>用户名声明 / 属性</b> 选择作为 BackupZit 用户名的声明（OpenID Connect）或属性（SAML）。留空时，OpenID Connect 依次使用 <code>preferred_username</code>、<code>upn</code>、<code>email</code>，最后是 <code>sub</code>；SAML 依次使用 <code>username</code>、<code>uid</code>、UPN 和名称声明，最后是 NameID。<b>组声明 / 属性</b> 指定包含组的声明或属性；留空表示 <code>groups</code>。用户按该名称查找，因此以后更改声明会在用户下次登录时创建新用户。</p>
 <p>如果身份提供程序的 HTTPS 证书来自您自己的 CA 或是自签名的（本地 Keycloak 或 AD FS），需要在 <b>CA 证书（PEM）</b> 中提供该 CA 证书；公共提供程序（Entra ID、Okta、Google）则无需任何设置。保存时会检查身份提供程序是否响应。用户在首次登录时创建（在用户中标记为 <b>SSO</b>），并像目录用户一样在每次登录时根据其组获得角色；姓名和电子邮件来自身份提供程序。第二重验证由身份提供程序负责，因此控制台不会向 SSO 用户索要自己的双因素代码。本地帐户继续可用，因此即使身份提供程序不可达，管理员也始终可以登录。登录响应只能使用一次，并且必须由身份提供程序签名；每次 SSO 登录和拒绝都会记录在审计日志中。</p>
 
 <h2>会话</h2>

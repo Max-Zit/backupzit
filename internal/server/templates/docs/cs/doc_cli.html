@@ -141,7 +141,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>Uložená a skrytá (smazaná, ještě uchovávaná) data.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Znovu zviditelní soubory smazané od TIME.</td></tr>
 </table>
-<p>Konfigurace: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p>Konfigurace: <code>/etc/backupzit-repo/repo.env</code>, nebo totéž jako volby <code>serve</code>: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code> (adresář úložiště, výchozí <code>/srv/backupzit</code>), <code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code> (klíče a certifikát, výchozí <code>/etc/backupzit-repo</code>), <code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code> (výchozí <code>:8500</code>), <code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code> (neměnnost ve dnech, výchozí 30) a <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code> (názvy a adresy pro certifikát podepsaný sám sebou). Příkazy pro klíče přijímají také <code>--data</code> a <code>--config-dir</code>.</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> zapne metriky Prometheus pro každý přístupový klíč na <code>/metrics</code> (hlavička <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Správcovský server (<code>backupzit-server</code>)</h2>
@@ -159,6 +159,11 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Zruší blokování přihlášení adresy nebo všech adres (ochrana proti hrubé síle) a skončí.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Obnoví konzoli ze zálohy konzole a skončí (viz <a href="/docs/install">Instalace serveru</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Jen pro vyzkoušení: soukromý PostgreSQL v datovém adresáři, nešifrované HTTP na localhost.</td></tr>
+  <tr><td><code>--setup</code></td><td>Textové menu appliance (síť, název serveru, heslo správce); jako root.</td></tr>
+  <tr><td><code>--initial-password</code></td><td>Vypíše vygenerované první heslo účtu <i>admin</i>, dokud se ještě používá, a skončí.</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>Obraz kontejneru: načte kopii konzole pořízenou před aktualizací (složku v <code>pre-upgrade</code> datového adresáře) a skončí; spusťte ho s obrazem verze, ze které kopie pochází. <code>list</code> vypíše kopie.</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>Obraz kontejneru: skončí s kódem 0, když konzole odpovídá (kontrola stavu obrazu).</td></tr>
+  <tr><td><code>--apply-update</code></td><td>Nainstaluje aktualizaci vyžádanou v konzoli; spouští ji služba <code>backupzit-update</code> jako root, ne ručně.</td></tr>
   <tr><td><code>--version</code></td><td>Vypíše verzi.</td></tr>
 </table>
 <pre>systemctl status backupzit-server

@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>无需令牌</td><td>本 API 的 OpenAPI 3 规范，供工具和客户端生成器使用（也在仓库中：<code>internal/server/openapi.json</code>）</td></tr>
 </table>
 <p>时段：<code>today</code>、<code>yesterday</code>、<code>last7</code>、<code>last30</code>、<code>last90</code>、<code>thisweek</code>、<code>lastweek</code>、<code>thismonth</code>、<code>lastmonth</code>，或 <code>custom</code> 加 <code>from=2026-09-01&amp;to=2026-09-30</code>。</p>
-<p>错误返回 <code>{"error": "..."}</code>，状态码为 400（请求有误）、401（令牌缺失、无效或已过期）、403（角色权限不足）、404 或 409。</p>
+<p>错误返回 <code>{"error": "..."}</code>，状态码为 400（请求有误）、401（令牌缺失、无效或已过期）、403（角色权限不足）、404（未找到）、409（当前无法执行：作业已在运行、代理版本过旧无法处理该请求，或已启用四眼审批）、429（该地址的失败令牌尝试过多；请等待封锁结束）或 500（内部错误；请查看控制台的日志）。</p>
 
 <h2>示例</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>指标</th><th>标签</th><th>含义</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>始终为 1；控制台版本</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code>（online、offline）</td><td>代理数量</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>排队中或正在进行的运行</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code>（failed、warning、all）</td><td>最近 24 小时的运行</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>尚未审查的可疑备份</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>、<code>agent</code>、<code>version</code></td><td>代理最近轮询过控制台时为 1</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>、<code>agent</code></td><td>代理上次轮询的时间</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>、<code>job</code>、<code>kind</code>、<code>agent</code></td><td>作业按计划运行时为 1</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>同上</td><td>最近完成的运行：0 成功，1 警告，2 失败</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>同上</td><td>最近一次成功或带警告的备份</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>同上，另加 <code>rpo_hours</code></td><td>在 RPO 内为 1，未达成为 0（设置了 RPO 的作业）</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>、<code>target</code></td><td>存储库占用的空间</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>、<code>target</code></td><td>可用空间（存储报告时）</td></tr>
+</table>
 <p>例如当 <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code>（两天没有成功备份）时告警。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

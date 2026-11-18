@@ -109,7 +109,8 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>docker compose up -d
 docker compose exec backupzit backupzit-server --initial-password</pre>
 <p><code>https://&lt;ホスト&gt;:8443</code> を開き、そのパスワードで <code>admin</code> としてサインインします。データベースとコンソールのデータ（シークレット キー、証明書、エージェントのインストーラー）はボリューム <code>db</code> と <code>data</code> にあります。両方をバックアップするか、<a href="#console-backup">コンソールのバックアップ</a>を使ってください。エージェントはいつもどおりコンピューターにインストールし、ホストのポート 8443 に接続します。ローカル ディスクをバックアップ先にする場合は、ホストのフォルダーをコンテナーにマウントし（ファイル内のコメント参照）、コンテナー内のパスを使います。</p>
-<p><b>更新:</b> コンソールは新しいバージョンを確認し、Settings → Updates に、ファイルのあるフォルダーで実行するコマンドとともに表示します: <code>docker compose pull</code> と <code>docker compose up -d</code>（タグ <code>latest</code> は正式版、<code>testing</code> はリリース候補に追従します。1 つのバージョンにとどめるには <code>.env</code> で <code>BACKUPZIT_TAG</code> を設定します）。新しいバージョンがデータベースを変更する前に、コンソールのコピーをデータ ボリュームの <code>pre-upgrade</code> に保存します（最新 3 つ）。戻すには: <code>BACKUPZIT_TAG</code> を前のバージョンにし、コピーのフォルダーを指定して <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;フォルダー&gt;</code> を実行してから <code>docker compose up -d</code> を実行します。エージェントはこれまでどおりコンソールから更新します。コンテナーではアプライアンスの設定（ネットワーク、OS の更新、SSH）は表示されません。それらは Docker ホストの管理対象です。</p>
+<p><b>更新:</b> コンソールは新しいバージョンを確認し、設定 → 更新 に、ファイルのあるフォルダーで実行するコマンドとともに表示します: <code>docker compose pull</code> と <code>docker compose up -d</code>（タグ <code>latest</code> は正式版、<code>testing</code> はリリース候補に追従します。1 つのバージョンにとどめるには <code>.env</code> で <code>BACKUPZIT_TAG</code> を設定します）。新しいバージョンがデータベースを変更する前に、コンソールのコピーをデータ ボリュームの <code>pre-upgrade</code> に保存します（最新 3 つ）。戻すには: <code>BACKUPZIT_TAG</code> を前のバージョンにし、コピーのフォルダーを指定して <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;フォルダー&gt;</code> を実行してから <code>docker compose up -d</code> を実行します。エージェントはこれまでどおりコンソールから更新します。コンテナーではアプライアンスの設定（ネットワーク、OS の更新、SSH）は表示されません。それらは Docker ホストの管理対象です。</p>
+<p id="docker-logs"><b>ログ:</b> <code>docker compose logs -f backupzit</code> でコンソールのログを表示します。同じログはデータ ボリュームに <code>logs/server.log</code> として保存され、<a href="/settings/diagnostics">設定 → 診断</a>でダウンロードするファイルにも含まれます。イメージにはシェルがありません。<code>docker compose run --rm backupzit --restore-pre-upgrade list</code> で、更新前に作成されたコピーを新しい順に表示します。</p>
 
 <h2 id="first">初回サインイン</h2>
 <p><code>https://&lt;server&gt;:8443</code> を開きます。初期管理者は <b>admin</b> で、パスワードは <code>/var/lib/backupzit/initial-admin-password.txt</code> にあります（または初回起動前に <code>BACKUPZIT_ADMIN_PASSWORD</code> を設定）。サインイン後に変更してください。忘れたパスワードをサーバーでリセットするには:</p>
@@ -146,6 +147,11 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>443/tcp</td><td>エージェント、コンソール</td><td>Azure / クラウド ストレージ</td><td>Azure Blob、AWS、Wasabi、Google Cloud …</td></tr>
   <tr><td>636/tcp（StartTLS の場合は 389）</td><td>コンソール</td><td>ドメイン コントローラー</td><td>LDAP / Active Directory によるサインイン</td></tr>
   <tr><td>587/465/25</td><td>コンソール</td><td>メール サーバー</td><td>メール通知</td></tr>
+  <tr><td>443/tcp（無償ライセンスでは 22/tcp）</td><td>コンソール、プロキシ エージェント</td><td>ESXi ホスト、vCenter</td><td>VMware: インベントリ、スナップショット、ディスクの読み取りと復元</td></tr>
+  <tr><td>2049/tcp, 111/tcp+udp</td><td>ESXi ホスト</td><td>プロキシ エージェント</td><td>VMware のインスタント リカバリー（エージェントがバックアップを NFS データストアとして提供）</td></tr>
+  <tr><td>443/tcp</td><td>Microsoft 365 ジョブのエージェント</td><td>graph.microsoft.com、login.microsoftonline.com</td><td>Microsoft 365 のバックアップ</td></tr>
+  <tr><td>514/udp または tcp, 6514/tcp（TLS）</td><td>コンソール</td><td>syslog サーバー / SIEM</td><td>任意: 監査ログのエクスポート（入力したポート）</td></tr>
+  <tr><td>443/tcp</td><td>コンソール</td><td>github.com とそのダウンロード サーバー</td><td>既定の更新ソースからの更新確認とダウンロード。エージェントは更新をコンソールから取得します</td></tr>
 </table>
 <p>コンソールは、ディスク イメージや VM バックアップ内のファイルを参照（およびダウンロード）できるよう、自らもストレージに接続します。そのため、エージェントと同じストレージ アクセスが必要です。</p>
 
@@ -160,7 +166,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>更新が成功すると、エージェントも更新されます。各エージェントはアイドル時に新しいバージョンをインストールします。自分で更新したい場合は、同じページでこれを無効にしてください。</li>
 </ol>
 <p>コンソールは約 1 分間利用できなくなります。直近 3 回の更新のデータベース バックアップと以前のプログラムは <code>/var/lib/backupzit-update</code> に保存されます。</p>
-<p id="update-banner"><b>コンソール内の通知:</b> 更新をインストールできるユーザー（管理者）には、新しいバージョンがすべてのページの上部にも表示され、<i>Install</i>（この Updates ページを開く）と <i>Release notes</i> が付きます。<b>×</b> を押すと、そのユーザーに対してすべてのブラウザで 5 日間非表示になります。さらに新しいバージョンが出るとすぐに再表示されます。他のロールには表示されません。Docker コンソールでは、代わりに新しいイメージを取得するコマンドを案内します。</p>
+<p id="update-banner"><b>コンソール内の通知:</b> 更新をインストールできるユーザー（管理者）には、新しいバージョンがすべてのページの上部にも表示され、<i>インストール</i>（この「設定 → 更新」ページを開く）と <i>リリースノート</i> が付きます。<b>×</b> を押すと、そのユーザーに対してすべてのブラウザで 5 日間非表示になります。さらに新しいバージョンが出るとすぐに再表示されます。他のロールには表示されません。Docker コンソールでは、代わりに新しいイメージを取得するコマンドを案内します。</p>
 <p><b>インターネット アクセスがない場合:</b> 別のコンピューターでリリース ファイル（<code>manifest.json</code>、<code>manifest.json.sig</code>、サーバー パッケージ）をダウンロードします。その後、<i>ファイルから更新をインストール</i>でアップロードするか、サーバー上のフォルダーにコピーしてそのフォルダーを更新ソースとして使います。</p>
 <p>パッケージ マネージャーで更新することもできます（<code>apt install ./backupzit-server_….deb</code>）。データベースは新しいバージョンの起動時に移行されます。</p>
 
@@ -182,6 +188,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>エージェントが固定しているコンソールの証明書。</li>
 </ul>
 <p>ターゲットの回復キーで暗号化され、重複排除されます。最新のバックアップが保持されます（既定は 14 個）。</p>
+<p id="console-backup-page">このページで、<i>ストレージ先</i>（ネットワーク ストレージのみ: SFTP、S3、SMB、Azure、または強化リポジトリ。バックアップはそこの <code>backupzit-console</code> フォルダーに保存されます）、毎日のバックアップを行う時（<i>時刻</i>、コンソールの時間）、<i>保持</i>するバックアップの数を選びます。<i>今すぐバックアップ</i> ですぐに 1 つ作成します。ページには、最新のバックアップとそのサイズ、および復元に必要なリポジトリのアドレスが表示されます。</p>
 <h3>コンソールの復元</h3>
 <ol>
   <li>同じかそれより新しいバージョンの新しいコンソールをインストールします（例: アプライアンス ISO から）。</li>

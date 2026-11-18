@@ -24,7 +24,7 @@
       <li>Linux gosti „zamrzavaju“ svoje fajl-sisteme, ako su instalirani Hyper-V servisi (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>).</li>
     </ul>
     Ako gost ne može ni jedno ni drugo, checkpoint se pravi konzistentan kao posle nestanka struje. Stranica pokretanja prikazuje koja vrsta je korišćena.</li>
-  <li>Recovery checkpoint uključuje <b>Resilient Change Tracking</b> (RCT) za diskove VM-a; pored njih ćete videti fajlove <code>.rct</code> i <code>.mrt</code>. Prvi bekap čita cele diskove. Posle toga RCT javlja koji su se blokovi promenili od prethodnog bekapa, i <b>čitaju se samo oni</b>.</li>
+  <li>Recovery checkpoint uključuje <b>Resilient Change Tracking</b> (RCT) za diskove VM-a; pored njih ćete videti fajlove <code>.rct</code> i <code>.mrt</code>. Prvi bekap čita cele diskove. Posle toga RCT javlja koji su se blokovi promenili od prethodnog bekapa, i <b>čitaju se samo oni</b>. Disk koji je povećan (na primer sa <code>Resize-VHD</code>) čita se isto: promenjeni blokovi i novi prostor. Disk koji je smanjen čita se jednom ceo.</li>
   <li>Diskovi se čitaju u stanju iz checkpoint-a, preko Virtual Disk API-ja, u blokovima od 1 MiB. Ovo obuhvata VHDX i VHD fajlove, uključujući lance ranijih checkpoint-a. Prazni blokovi se ne čuvaju, a blokovi koji su već u repozitorijumu ne šalju se ponovo. To je podrazumevana veličina bloka; posao može da koristi i 256 ili 512 KiB (vidi <a href="/docs/jobs#compression">Poslovi</a>).</li>
   <li>Checkpoint se uklanja, a Hyper-V ga spaja u pozadini.</li>
   <li>Konfiguracija VM-a se čuva uz bekap: generacija, CPU, memorija, mrežni adapteri (switch, VLAN, MAC adresa), kontroleri diskova, secure boot i TPM.</li>

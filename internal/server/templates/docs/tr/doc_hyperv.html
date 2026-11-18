@@ -24,7 +24,7 @@
       <li>Linux konukları, Hyper-V daemon'ları kuruluysa (<code>hyperv-daemons</code> / <code>hv-vss-daemon</code>) dosya sistemlerini dondurur.</li>
     </ul>
     Konuk ikisini de yapamazsa denetim noktası çökme tutarlı (crash-consistent) olarak alınır. Çalıştırma sayfası hangi türün kullanıldığını gösterir.</li>
-  <li>Kurtarma denetim noktası, VM'nin diskleri için <b>Resilient Change Tracking</b> (RCT) özelliğini açar; yanlarında <code>.rct</code> ve <code>.mrt</code> dosyaları görürsünüz. İlk yedek disklerin tamamını okur. Ardından RCT önceki yedekten bu yana hangi blokların değiştiğini bildirir ve <b>yalnızca bunlar okunur</b>.</li>
+  <li>Kurtarma denetim noktası, VM'nin diskleri için <b>Resilient Change Tracking</b> (RCT) özelliğini açar; yanlarında <code>.rct</code> ve <code>.mrt</code> dosyaları görürsünüz. İlk yedek disklerin tamamını okur. Ardından RCT önceki yedekten bu yana hangi blokların değiştiğini bildirir ve <b>yalnızca bunlar okunur</b>. Büyütülen bir disk (örneğin <code>Resize-VHD</code> ile) aynı şekilde okunur: değişen bloklar ve yeni alan. Küçültülen bir disk bir kez tamamen okunur.</li>
   <li>Diskler, Virtual Disk API ile 1 MiB'lik bloklar halinde denetim noktasındaki haliyle okunur. Buna önceki denetim noktası zincirleri dahil VHDX ve VHD dosyaları girer. Boş bloklar saklanmaz ve depoda zaten bulunan bloklar yeniden yüklenmez. Bu varsayılan blok boyutudur; bir iş bunun yerine 256 veya 512 KiB kullanabilir (bkz. <a href="/docs/jobs#compression">İşler</a>).</li>
   <li>Denetim noktası kaldırılır ve Hyper-V onu arka planda birleştirir.</li>
   <li>VM'nin yapılandırması yedekle birlikte saklanır: nesil, CPU, bellek, ağ bağdaştırıcıları (anahtar, VLAN, MAC adresi), disk denetleyicileri, güvenli önyükleme ve TPM.</li>

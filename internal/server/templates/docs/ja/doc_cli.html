@@ -141,7 +141,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>保存済みのデータと非表示（削除済みだが保持中）のデータ。</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>TIME 以降に削除されたファイルを再び表示可能にします。</td></tr>
 </table>
-<p>構成: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>、<code>BACKUPZIT_REPO_DATA</code>、<code>BACKUPZIT_REPO_LISTEN</code>、<code>BACKUPZIT_REPO_TLS_HOSTS</code>。</p>
+<p>構成: <code>/etc/backupzit-repo/repo.env</code>、または同じ内容を <code>serve</code> のオプションとして指定します: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code>（ストレージ ディレクトリ、既定は <code>/srv/backupzit</code>）、<code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code>（キーと証明書、既定は <code>/etc/backupzit-repo</code>）、<code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code>（既定は <code>:8500</code>）、<code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code>（変更不可にする日数、既定は 30）、<code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code>（自己署名証明書の名前とアドレス）。キーのコマンドも <code>--data</code> と <code>--config-dir</code> を受け付けます。</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> を設定すると、<code>/metrics</code> でアクセス キーごとの Prometheus メトリクスが有効になります (ヘッダー <code>Authorization: Bearer &lt;token&gt;</code>)。</p>
 
 <h2>管理サーバー（<code>backupzit-server</code>）</h2>
@@ -159,6 +159,11 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>アドレスまたはすべてのアドレスのサインイン ブロック（ブルートフォース対策）を解除して終了します。</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>コンソール バックアップからコンソールを復元して終了します（<a href="/docs/install">サーバーのインストール</a>を参照）。</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>評価専用: データ ディレクトリ内のプライベート PostgreSQL、localhost 上の平文 HTTP。</td></tr>
+  <tr><td><code>--setup</code></td><td>アプライアンスのテキスト メニュー（ネットワーク、サーバー名、管理者パスワード）。root で実行します。</td></tr>
+  <tr><td><code>--initial-password</code></td><td>生成された <i>admin</i> の初期パスワードを、まだ使われている間に表示して終了します。</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>コンテナー イメージ: 更新前に作成されたコンソールのコピー（データ ディレクトリの <code>pre-upgrade</code> 内のフォルダー）を読み込んで終了します。コピーを作成したバージョンのイメージで実行してください。<code>list</code> はコピーを表示します。</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>コンテナー イメージ: コンソールが応答すると 0 で終了します（イメージのヘルス チェック）。</td></tr>
+  <tr><td><code>--apply-update</code></td><td>コンソールで要求された更新をインストールします。手動ではなく、<code>backupzit-update</code> サービスが root として実行します。</td></tr>
   <tr><td><code>--version</code></td><td>バージョンを表示します。</td></tr>
 </table>
 <pre>systemctl status backupzit-server

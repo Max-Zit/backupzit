@@ -88,7 +88,11 @@ func RestorePreUpgrade(ctx context.Context, dbURL, dataDir, dir string, logf fun
 	b, err := os.ReadFile(filepath.Join(dir, "meta.json")) // #nosec G304 -- files of the console's data directory
 	var meta consoleMeta
 	if err != nil || json.Unmarshal(b, &meta) != nil {
-		return errors.New("not a copy of the console (meta.json missing or damaged)")
+		msg := "not a copy of the console (meta.json missing or damaged)"
+		if names := PreUpgradeCopies(dataDir); len(names) > 0 {
+			msg += "; the copies are: " + strings.Join(names, ", ")
+		}
+		return errors.New(msg)
 	}
 	if err := restoreConsoleRoot(ctx, dbURL, dataDir, dir, logf); err != nil {
 		return err
@@ -96,6 +100,23 @@ func RestorePreUpgrade(ctx context.Context, dbURL, dataDir, dir string, logf fun
 	// The data directory now belongs to the version of the copy: starting
 	// that version makes no new copy.
 	return os.WriteFile(filepath.Join(dataDir, versionFile), []byte(meta.Version+"\n"), 0o600)
+}
+
+// PreUpgradeCopies lists the copies kept before updates, newest first
+// (folder names such as 20261118-101500-from-0.51.0).
+func PreUpgradeCopies(dataDir string) []string {
+	entries, err := os.ReadDir(filepath.Join(dataDir, PreUpgradeDir))
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			names = append(names, e.Name())
+		}
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(names)))
+	return names
 }
 
 func safeName(s string) string {

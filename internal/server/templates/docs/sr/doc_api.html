@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>bez tokena</td><td>OpenAPI 3 specifikacija ovog API-ja, za alate i generatore klijenata (i u repozitorijumu: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Periodi: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, ili <code>custom</code> sa <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
-<p>Greške vraćaju <code>{"error": "..."}</code> sa 400 (loš zahtev), 401 (token nedostaje, neispravan je ili je istekao), 403 (preniska uloga), 404 ili 409.</p>
+<p>Greške vraćaju <code>{"error": "..."}</code> sa 400 (loš zahtev), 401 (token nedostaje, neispravan je ili je istekao), 403 (preniska uloga), 404 (ne postoji), 409 (trenutno nije moguće: posao se već izvršava, agent je prestar za zahtev ili su uključena četiri oka), 429 (previše neuspelih pokušaja sa tokenom sa te adrese; sačekajte da blokada istekne) ili 500 (interna greška; vidi log konzole).</p>
 
 <h2>Primeri</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>Metrika</th><th>Labele</th><th>Značenje</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>uvek 1; verzija konzole</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code> (online, offline)</td><td>broj agenata</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>run-ovi koji čekaju ili rade</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code> (failed, warning, all)</td><td>run-ovi u poslednja 24 sata</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>sumnjivi backup-i koji još nisu pregledani</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>, <code>agent</code>, <code>version</code></td><td>1 ako se agent nedavno javio konzoli</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>, <code>agent</code></td><td>kada se agent poslednji put javio</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>, <code>job</code>, <code>kind</code>, <code>agent</code></td><td>1 ako posao radi po svom rasporedu</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>kao iznad</td><td>poslednji završeni run: 0 uspeh, 1 upozorenje, 2 greška</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>kao iznad</td><td>poslednji backup sa uspehom ili upozorenjima</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>kao iznad, <code>rpo_hours</code></td><td>1 u okviru RPO-a, 0 prekoračen (poslovi sa RPO-om)</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>prostor koji zauzimaju repozitorijumi</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>slobodan prostor, kada ga skladište javlja</td></tr>
+</table>
 <p>Alarm, na primer, kada je <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (nema dobrog backup-a dva dana).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

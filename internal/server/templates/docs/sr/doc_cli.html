@@ -141,7 +141,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>Sačuvani i sakriveni (obrisani, još zadržani) podaci.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Ponovo čini vidljivim fajlove obrisane od TIME.</td></tr>
 </table>
-<p>Konfiguracija: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p>Konfiguracija: <code>/etc/backupzit-repo/repo.env</code>, ili isto to kao opcije komande <code>serve</code>: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code> (folder za podatke skladišta, podrazumevano <code>/srv/backupzit</code>), <code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code> (ključevi i sertifikat, podrazumevano <code>/etc/backupzit-repo</code>), <code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code> (podrazumevano <code>:8500</code>), <code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code> (nepromenljivost u danima, podrazumevano 30) i <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code> (imena i adrese za samopotpisani sertifikat). Komande za ključeve takođe primaju <code>--data</code> i <code>--config-dir</code>.</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> uključuje Prometheus metrike po pristupnom ključu na <code>/metrics</code> (zaglavlje <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Server za upravljanje (<code>backupzit-server</code>)</h2>
@@ -159,6 +159,11 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Skida blokadu prijave sa adrese, ili sa svih adresa (zaštita od pogađanja lozinki), i izlazi.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Vraća konzolu iz bekapa konzole i izlazi (vidi <a href="/docs/install">Instalacija servera</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Samo za probu: privatni PostgreSQL u folderu podataka, običan HTTP na localhost-u.</td></tr>
+  <tr><td><code>--setup</code></td><td>Tekstualni meni uređaja (mreža, ime servera, lozinka korisnika admin); kao root.</td></tr>
+  <tr><td><code>--initial-password</code></td><td>Ispisuje generisanu početnu lozinku korisnika <i>admin</i> dok se još koristi, i izlazi.</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>Container image: učitava kopiju konzole napravljenu pre ažuriranja (folder u <code>pre-upgrade</code> u folderu podataka) i izlazi; pokrenite je sa image-om verzije od koje je kopija napravljena. <code>list</code> prikazuje kopije.</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>Container image: izlazi sa 0 kada konzola odgovara (health check image-a).</td></tr>
+  <tr><td><code>--apply-update</code></td><td>Instalira ažuriranje zatraženo u konzoli; pokreće ga servis <code>backupzit-update</code> kao root, ne ručno.</td></tr>
   <tr><td><code>--version</code></td><td>Ispisuje verziju.</td></tr>
 </table>
 <pre>systemctl status backupzit-server

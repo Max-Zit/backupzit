@@ -109,7 +109,8 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>docker compose up -d
 docker compose exec backupzit backupzit-server --initial-password</pre>
 <p>Otwórz <code>https://&lt;host&gt;:8443</code> i zaloguj się jako <code>admin</code> tym hasłem. Baza i dane konsoli (klucz sekretów, certyfikat, instalatory agentów) są w woluminach <code>db</code> i <code>data</code>; rób kopię obu lub użyj <a href="#console-backup">kopii konsoli</a>. Agenty instaluje się na komputerach jak zwykle; łączą się z portem 8443 hosta. Dla dysku lokalnego jako miejsca docelowego zamontuj folder hosta w kontenerze (patrz komentarz w pliku) i użyj ścieżki wewnątrz kontenera.</p>
-<p><b>Aktualizacje:</b> konsola sprawdza nowe wersje i pokazuje je w Settings → Updates razem z poleceniami do uruchomienia w folderze pliku: <code>docker compose pull</code> i <code>docker compose up -d</code> (tag <code>latest</code> śledzi wersje oficjalne, <code>testing</code> kandydatów; ustaw <code>BACKUPZIT_TAG</code> w <code>.env</code>, aby zostać przy jednej wersji). Zanim nowa wersja zmieni bazę, zachowuje kopię konsoli w <code>pre-upgrade</code> w woluminie danych (trzy ostatnie). Aby wrócić: ustaw <code>BACKUPZIT_TAG</code> na poprzednią wersję, uruchom <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;folder&gt;</code> z folderem kopii, potem <code>docker compose up -d</code>. Agenty aktualizuje się z konsoli jak zawsze. W kontenerze nie są pokazywane ustawienia appliance (sieć, aktualizacje systemu, SSH): należą do hosta Docker.</p>
+<p><b>Aktualizacje:</b> konsola sprawdza nowe wersje i pokazuje je w Ustawienia → Aktualizacje razem z poleceniami do uruchomienia w folderze pliku: <code>docker compose pull</code> i <code>docker compose up -d</code> (tag <code>latest</code> śledzi wersje oficjalne, <code>testing</code> kandydatów; ustaw <code>BACKUPZIT_TAG</code> w <code>.env</code>, aby zostać przy jednej wersji). Zanim nowa wersja zmieni bazę, zachowuje kopię konsoli w <code>pre-upgrade</code> w woluminie danych (trzy ostatnie). Aby wrócić: ustaw <code>BACKUPZIT_TAG</code> na poprzednią wersję, uruchom <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;folder&gt;</code> z folderem kopii, potem <code>docker compose up -d</code>. Agenty aktualizuje się z konsoli jak zawsze. W kontenerze nie są pokazywane ustawienia appliance (sieć, aktualizacje systemu, SSH): należą do hosta Docker.</p>
+<p id="docker-logs"><b>Dzienniki:</b> <code>docker compose logs -f backupzit</code> pokazuje dziennik konsoli. Ten sam dziennik jest przechowywany jako <code>logs/server.log</code> w woluminie danych i wchodzi w skład pliku do pobrania w <a href="/settings/diagnostics">Ustawienia → Diagnostyka</a>. Obraz nie ma powłoki; <code>docker compose run --rm backupzit --restore-pre-upgrade list</code> pokazuje kopie wykonane przed aktualizacjami, od najnowszej.</p>
 
 <h2 id="first">Pierwsze logowanie</h2>
 <p>Otwórz <code>https://&lt;server&gt;:8443</code>. Początkowym administratorem jest <b>admin</b>; hasło jest w <code>/var/lib/backupzit/initial-admin-password.txt</code> (lub ustaw <code>BACKUPZIT_ADMIN_PASSWORD</code> przed pierwszym uruchomieniem). Zmień je po zalogowaniu. Aby zresetować zapomniane hasło na serwerze:</p>
@@ -146,6 +147,11 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>443/tcp</td><td>agenci, konsola</td><td>Azure / magazyn w chmurze</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
   <tr><td>636/tcp (389 ze StartTLS)</td><td>konsola</td><td>kontrolery domeny</td><td>logowanie LDAP / Active Directory</td></tr>
   <tr><td>587/465/25</td><td>konsola</td><td>serwer poczty</td><td>powiadomienia e-mail</td></tr>
+  <tr><td>443/tcp (22/tcp przy darmowej licencji)</td><td>konsola, agent proxy</td><td>hosty ESXi, vCenter</td><td>VMware: lista maszyn, migawki, odczyt dysków i przywracanie</td></tr>
+  <tr><td>2049/tcp, 111/tcp+udp</td><td>hosty ESXi</td><td>agent proxy</td><td>VMware: natychmiastowe odzyskiwanie (agent udostępnia kopię jako datastore NFS)</td></tr>
+  <tr><td>443/tcp</td><td>agent zadania Microsoft 365</td><td>graph.microsoft.com, login.microsoftonline.com</td><td>kopie Microsoft 365</td></tr>
+  <tr><td>514/udp lub tcp, 6514/tcp (TLS)</td><td>konsola</td><td>serwer syslog / SIEM</td><td>opcjonalnie: eksport dziennika audytu (port, który wpiszesz)</td></tr>
+  <tr><td>443/tcp</td><td>konsola</td><td>github.com i jego serwery pobierania</td><td>sprawdzanie i pobieranie aktualizacji z domyślnego źródła aktualizacji; agenci dostają aktualizacje od konsoli</td></tr>
 </table>
 <p>Konsola łączy się też sama z magazynem, aby umożliwić przeglądanie plików w obrazach dysków i kopiach maszyn wirtualnych (i ich pobieranie), więc potrzebuje takiego samego dostępu do magazynu jak agenci.</p>
 
@@ -160,7 +166,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>Po udanej aktualizacji aktualizowani są też agenci: każdy instaluje nową wersję, gdy jest bezczynny. Wyłącz to na tej samej stronie, jeśli wolisz aktualizować ich samodzielnie.</li>
 </ol>
 <p>Konsola jest niedostępna przez około minutę. Kopie bazy danych i poprzednie programy z trzech ostatnich aktualizacji są przechowywane w <code>/var/lib/backupzit-update</code>.</p>
-<p id="update-banner"><b>Powiadomienie w konsoli:</b> użytkownicy, którzy mogą instalować aktualizacje (administratorzy), widzą nową wersję także u góry każdej strony, z przyciskami <i>Install</i> (otwiera tę stronę Updates) i <i>Release notes</i>. <b>×</b> ukrywa je dla tego użytkownika na pięć dni, w każdej przeglądarce; jeszcze nowsza wersja od razu pokazuje je ponownie. Inne role go nie widzą. W konsoli Docker powiadomienie wskazuje zamiast tego polecenia pobrania nowego obrazu.</p>
+<p id="update-banner"><b>Powiadomienie w konsoli:</b> użytkownicy, którzy mogą instalować aktualizacje (administratorzy), widzą nową wersję także u góry każdej strony, z przyciskami <i>Zainstaluj</i> (otwiera tę stronę Ustawienia → Aktualizacje) i <i>Informacje o wydaniu</i>. <b>×</b> ukrywa je dla tego użytkownika na pięć dni, w każdej przeglądarce; jeszcze nowsza wersja od razu pokazuje je ponownie. Inne role go nie widzą. W konsoli Docker powiadomienie wskazuje zamiast tego polecenia pobrania nowego obrazu.</p>
 <p><b>Bez dostępu do internetu:</b> pobierz pliki wydania (<code>manifest.json</code>, <code>manifest.json.sig</code> i pakiet serwera) na innym komputerze. Następnie prześlij je w <i>Zainstaluj aktualizację z plików</i> albo skopiuj do folderu na serwerze i użyj tego folderu jako źródła aktualizacji.</p>
 <p>Nadal możesz aktualizować menedżerem pakietów (<code>apt install ./backupzit-server_….deb</code>); baza danych jest migrowana przy uruchomieniu nowej wersji.</p>
 
@@ -182,6 +188,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>certyfikat konsoli, który przypinają agenci.</li>
 </ul>
 <p>Jest szyfrowana kluczem odzyskiwania miejsca docelowego i deduplikowana. Zachowywane są najnowsze kopie: domyślnie 14.</p>
+<p id="console-backup-page">Na stronie wybierz <i>Magazyn docelowy</i> (tylko magazyn sieciowy: SFTP, S3, SMB, Azure lub utwardzone repozytorium; kopia trafia tam do folderu <code>backupzit-console</code>), godzinę codziennej kopii (<i>O</i>, czas konsoli) i liczbę kopii w polu <i>Zachowaj</i>. <i>Utwórz kopię teraz</i> od razu tworzy kopię. Strona pokazuje ostatnią kopię z jej rozmiarem oraz adres repozytorium potrzebny do przywrócenia.</p>
 <h3>Przywracanie konsoli</h3>
 <ol>
   <li>Zainstaluj nową konsolę w tej samej lub nowszej wersji, na przykład z ISO appliance.</li>

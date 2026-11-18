@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>bez tokenu</td><td>Specifikace OpenAPI 3 tohoto API pro nástroje a generátory klientů (také v repozitáři: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Období: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> nebo <code>custom</code> s <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
-<p>Chyby vracejí <code>{"error": "..."}</code> s kódem 400 (chybný požadavek), 401 (token chybí, je neplatný nebo vypršel), 403 (příliš nízká role), 404 nebo 409.</p>
+<p>Chyby vracejí <code>{"error": "..."}</code> s kódem 400 (chybný požadavek), 401 (token chybí, je neplatný nebo vypršel), 403 (příliš nízká role), 404 (nenalezeno), 409 (teď není možné: úloha už běží, agent je pro požadavek příliš starý nebo je zapnuté schvalování čtyř očí), 429 (příliš mnoho neúspěšných pokusů o token z dané adresy; počkejte, až blokace skončí) nebo 500 (interní chyba; viz protokol konzole).</p>
 
 <h2>Příklady</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>Metrika</th><th>Štítky</th><th>Význam</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>vždy 1; verze konzole</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code> (online, offline)</td><td>počet agentů</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>čekající nebo probíhající běhy</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code> (failed, warning, all)</td><td>běhy za posledních 24 hodin</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>podezřelé zálohy, které ještě nebyly zkontrolovány</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>, <code>agent</code>, <code>version</code></td><td>1, pokud se agent nedávno ozval konzoli</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>, <code>agent</code></td><td>kdy se agent naposledy ozval</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>, <code>job</code>, <code>kind</code>, <code>agent</code></td><td>1, pokud úloha běží podle svého plánu</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>jako výše</td><td>poslední dokončený běh: 0 úspěch, 1 varování, 2 chyba</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>jako výše</td><td>poslední záloha s úspěchem nebo s varováními</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>jako výše, <code>rpo_hours</code></td><td>1 v rámci RPO, 0 nesplněno (úlohy s RPO)</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>místo, které zabírají repozitáře</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>volné místo, pokud ho úložiště hlásí</td></tr>
+</table>
 <p>Upozorněte například, když <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (dva dny bez dobré zálohy).</p>
 {{template "docpager" .}}
 </article></div>{{end}}
