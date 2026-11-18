@@ -66,6 +66,17 @@ type Repository struct {
 	stats          WriteStats
 	noCompress     bool // store new blobs uncompressed (SetCompression("off"))
 	vmBlockSizeKiB int  // session option; zero keeps the historical 1 MiB
+
+	// Packs are uploaded in the background, up to maxUploads at once, on
+	// backends that handle parallel uploads (object stores); elsewhere
+	// maxUploads is 1 and the caller uploads the pack as before. The blobs
+	// of a pack in flight stay in pending until it is uploaded, so the
+	// index only ever names packs that exist. upDone (on mu) is signalled
+	// when an upload ends; upErr keeps the first failure.
+	maxUploads int
+	inflight   int
+	upDone     *sync.Cond
+	upErr      error
 }
 
 // WriteStats counts what this session wrote to the backend.
@@ -198,23 +209,30 @@ func newRepository(be backend.Backend, cfg Config, polStr string, key []byte) (*
 			return nil, err
 		}
 	}
-	return &Repository{
-		aead:    aead,
-		be:      be,
-		cfg:     cfg,
-		pol:     pol,
-		idx:     newIndex(),
-		enc:     enc,
-		dec:     dec,
-		pack:    &packBuilder{},
-		pending: map[BlobHandle]struct{}{},
-	}, nil
+	r := &Repository{
+		aead:       aead,
+		be:         be,
+		cfg:        cfg,
+		pol:        pol,
+		idx:        newIndex(),
+		enc:        enc,
+		dec:        dec,
+		pack:       &packBuilder{},
+		pending:    map[BlobHandle]struct{}{},
+		maxUploads: backend.Concurrency(be),
+	}
+	r.upDone = sync.NewCond(&r.mu)
+	return r, nil
 }
 
 func (r *Repository) Config() Config                 { return r.cfg }
 func (r *Repository) Backend() backend.Backend       { return r.be }
 func (r *Repository) Index() *Index                  { return r.idx }
 func (r *Repository) ChunkerPolynomial() chunker.Pol { return r.pol }
+
+// Concurrency is how many blobs may be read at once from the backend
+// (restores read ahead on object stores; 1 elsewhere).
+func (r *Repository) Concurrency() int { return max(r.maxUploads, 1) }
 
 // Stats returns write statistics for this session.
 func (r *Repository) Stats() WriteStats {
@@ -285,6 +303,9 @@ func (r *Repository) SaveBlob(ctx context.Context, t BlobType, data []byte) (ID,
 }
 
 func (r *Repository) flushPackLocked(ctx context.Context) error {
+	if r.upErr != nil {
+		return r.upErr
+	}
 	if len(r.pack.blobs) == 0 {
 		return nil
 	}
@@ -292,20 +313,61 @@ func (r *Repository) flushPackLocked(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := r.be.Save(ctx, packName(packID), data); err != nil {
-		return fmt.Errorf("upload pack %s: %w", packID.Short(), err)
+	r.pack = &packBuilder{}
+	if r.maxUploads <= 1 {
+		if err := r.be.Save(ctx, packName(packID), data); err != nil {
+			return fmt.Errorf("upload pack %s: %w", packID.Short(), err)
+		}
+		return r.packUploadedLocked(ctx, packID, blobs)
 	}
+	// Wait for a free upload slot (Wait releases mu meanwhile, so other
+	// writers keep filling the next pack).
+	for r.inflight >= r.maxUploads && r.upErr == nil {
+		r.upDone.Wait()
+	}
+	if r.upErr != nil {
+		return r.upErr
+	}
+	r.inflight++
+	go func() {
+		err := r.be.Save(ctx, packName(packID), data)
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		defer r.upDone.Broadcast()
+		r.inflight--
+		if err == nil {
+			err = r.packUploadedLocked(ctx, packID, blobs)
+		} else {
+			err = fmt.Errorf("upload pack %s: %w", packID.Short(), err)
+		}
+		if err != nil && r.upErr == nil {
+			r.upErr = err
+		}
+	}()
+	return nil
+}
+
+// packUploadedLocked indexes a pack that reached the backend.
+func (r *Repository) packUploadedLocked(ctx context.Context, packID ID, blobs []PackedBlob) error {
 	r.idx.addPack(packID, blobs)
 	for _, b := range blobs {
 		delete(r.pending, BlobHandle{Type: b.Type, ID: b.ID})
 	}
 	r.unindexed = append(r.unindexed, indexPack{ID: packID, Blobs: blobs})
-	r.pack = &packBuilder{}
 	r.stats.PacksUploaded++
 	if len(r.unindexed) >= indexFlushPacks {
 		return r.writeIndexLocked(ctx)
 	}
 	return nil
+}
+
+// waitUploadsLocked waits until no pack upload is in flight and returns the
+// first upload error.
+func (r *Repository) waitUploadsLocked() error {
+	for r.inflight > 0 {
+		r.upDone.Wait()
+	}
+	return r.upErr
 }
 
 func (r *Repository) writeIndexLocked(ctx context.Context) error {
@@ -324,7 +386,12 @@ func (r *Repository) writeIndexLocked(ctx context.Context) error {
 func (r *Repository) Flush(ctx context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if err := r.flushPackLocked(ctx); err != nil {
+	err := r.flushPackLocked(ctx)
+	// Packs still uploading must be in the index before it is written.
+	if werr := r.waitUploadsLocked(); err == nil {
+		err = werr
+	}
+	if err != nil {
 		return err
 	}
 	return r.writeIndexLocked(ctx)
@@ -333,6 +400,13 @@ func (r *Repository) Flush(ctx context.Context) error {
 // LoadBlob reads, decompresses and verifies a blob.
 func (r *Repository) LoadBlob(ctx context.Context, t BlobType, id ID) ([]byte, error) {
 	loc, ok := r.idx.Lookup(BlobHandle{Type: t, ID: id})
+	if !ok && r.maxUploads > 1 {
+		// The blob may be in a pack that is still uploading.
+		r.mu.Lock()
+		_ = r.waitUploadsLocked()
+		r.mu.Unlock()
+		loc, ok = r.idx.Lookup(BlobHandle{Type: t, ID: id})
+	}
 	if !ok {
 		return nil, fmt.Errorf("%s blob %s not found in index", t, id.Short())
 	}
@@ -565,6 +639,11 @@ func (r *Repository) LoadTree(ctx context.Context, id ID) (*Tree, error) {
 
 // Close releases resources. It does not flush.
 func (r *Repository) Close() error {
+	// Uploads still in flight (a run that failed before Flush) must not use
+	// a closed backend.
+	r.mu.Lock()
+	_ = r.waitUploadsLocked()
+	r.mu.Unlock()
 	_ = r.enc.Close()
 	r.dec.Close()
 	return r.be.Close()
