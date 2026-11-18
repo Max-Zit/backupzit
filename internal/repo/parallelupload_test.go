@@ -41,7 +41,14 @@ func (s *slowStore) Save(ctx context.Context, name string, data []byte) error {
 			break
 		}
 	}
-	time.Sleep(s.delay)
+	// Like a real object store client, a cancelled context stops the upload
+	// (the BlobWriter cancels its context on Close: uploads in flight must
+	// have finished by then).
+	select {
+	case <-time.After(s.delay):
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	if n == s.failPack {
 		return errors.New("503 SlowDown")
 	}

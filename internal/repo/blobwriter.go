@@ -251,6 +251,13 @@ func (w *BlobWriter) Close() error {
 			_ = w.enc.Close()
 		}
 		w.closeErr = w.failed()
+		// Packs the commit loop handed to background uploads use w.ctx:
+		// they must finish before it is cancelled.
+		w.r.mu.Lock()
+		if err := w.r.waitUploadsLocked(); err != nil && w.closeErr == nil {
+			w.closeErr = err
+		}
+		w.r.mu.Unlock()
 		w.cancel()
 	})
 	return w.closeErr
