@@ -215,6 +215,9 @@ type Agent struct {
 	// running counts the runs in progress (the console may hand out several
 	// at once when the agent allows it).
 	running int
+	// active holds the IDs of the runs in progress, reported with each poll so
+	// the console can fail runs this process no longer knows (it restarted).
+	active map[int64]bool
 	// LogPath is the agent's log file, sent to the console on request.
 	LogPath string
 	// cancels stops a running run when the console cancels it.
@@ -243,6 +246,10 @@ func New(cfg *Config, log *slog.Logger, version string) *Agent {
 func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	a.mu.Lock()
 	busy, running := a.running > 0, a.running
+	active := make([]int64, 0, len(a.active))
+	for id := range a.active {
+		active = append(active, id)
+	}
 	invAt := a.inventoryAt
 	a.mu.Unlock()
 	host, osName, arch := hostInfo(a.version)
@@ -250,6 +257,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, Running: running, Parallel: true, IPs: localIPs(), Instance: a.instance, Progress: a.runProgress()}
 	req.WantStatus = a.wantStatus()
 	req.ConfigurableVMBlocks = true
+	req.Runs, req.ReportsRuns = active, true
 	invEvery := a.InventoryInterval
 	if invEvery <= 0 {
 		invEvery = inventoryInterval
@@ -285,6 +293,10 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	if resp.Run != nil {
 		a.mu.Lock()
 		a.running++
+		if a.active == nil {
+			a.active = map[int64]bool{}
+		}
+		a.active[resp.Run.ID] = true
 		a.mu.Unlock()
 		a.wg.Add(1)
 		go func(run api.Run) {
@@ -292,6 +304,7 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 			a.execute(ctx, run)
 			a.mu.Lock()
 			a.running--
+			delete(a.active, run.ID)
 			a.mu.Unlock()
 		}(*resp.Run)
 		// Ask again at once: the console may hand out another run.

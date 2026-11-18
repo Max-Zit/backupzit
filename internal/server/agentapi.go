@@ -100,6 +100,10 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 	// Runs wait while two machines use this enrollment (a running copy);
 	// only agent updates go out, after which agents tell themselves apart.
 	held := s.agentDuplicate(r.Context(), a, req.Instance, req.Hostname, req.IPs, remoteIP(r))
+	// With two copies polling, one copy's list says nothing about the other.
+	if req.ReportsRuns && !held {
+		s.failOrphanedRuns(r.Context(), a, req.Runs)
+	}
 	// A busy agent may take another run if it can run several at once
 	// (MaxRuns); agent updates wait until it is idle.
 	free := !req.Busy || (req.Parallel && req.Running < max(a.MaxRuns, 1) && !held)

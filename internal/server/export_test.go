@@ -42,3 +42,11 @@ func (s *Server) SetAvailableUpdate(version string) {
 	s.upd.available = &update.Manifest{Version: version}
 	s.upd.mu.Unlock()
 }
+
+// SetOrphanGrace changes how long a run may be missing from the agent's
+// list before it is failed (tests); it returns the old value.
+func SetOrphanGrace(d time.Duration) time.Duration {
+	old := orphanGrace
+	orphanGrace = d
+	return old
+}

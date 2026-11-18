@@ -65,6 +65,11 @@ type PollRequest struct {
 	Parallel bool `json:"parallel,omitempty"`
 	// ConfigurableVMBlocks means the agent honors Repository.VMBlockSizeKiB.
 	ConfigurableVMBlocks bool `json:"configurable_vm_blocks,omitempty"`
+	// Runs are the IDs of the runs this agent process is working on, sent
+	// with ReportsRuns (0.52.0 and newer). The console fails its runs that
+	// are missing, e.g. after the agent was restarted in the middle of one.
+	Runs        []int64 `json:"runs,omitempty"`
+	ReportsRuns bool    `json:"reports_runs,omitempty"`
 	// WantStatus asks for the job summary shown by the tray app.
 	WantStatus bool `json:"want_status,omitempty"`
 	// IPs are the agent's own network addresses (no loopback).
