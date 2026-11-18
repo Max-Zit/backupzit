@@ -27,10 +27,10 @@
 
 {{else if eq $d.Step 2}}
 <div class="panel">
-  <h2>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}{{T "Which virtual machine?"}}{{else}}{{T "Which machine or backup job?"}}{{end}}</h2>
+  <h2>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}{{T "Which VM or container?"}}{{else}}{{T "Which machine or backup job?"}}{{end}}</h2>
   {{if $d.Sources}}
   <div class="table-wrap"><table class="pick">
-    <tr><th>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}{{T "VM"}}{{else}}{{T "Backup job"}}{{end}}</th><th>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}{{T "Hypervisor"}}{{else}}{{T "Machine"}}{{end}}</th><th>{{T "Latest backup"}}</th><th>{{T "Restore points"}}</th><th></th></tr>
+    <tr><th>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}{{T "Guest"}}{{else}}{{T "Backup job"}}{{end}}</th><th>{{if or (eq $d.Type.Key "vm") (eq $d.Type.Key "vmfiles")}}{{T "Hypervisor"}}{{else}}{{T "Machine"}}{{end}}</th><th>{{T "Latest backup"}}</th><th>{{T "Restore points"}}</th><th></th></tr>
     {{range $d.Sources}}
     <tr><td class="nowrap"><a href="/restore?type={{$d.Type.Key}}&amp;src={{.Key}}"><b>{{.Title}}</b></a></td>
       <td>{{with .Platform}}<span class="badge info-badge">{{.}}</span> {{end}}{{.Detail}}</td>

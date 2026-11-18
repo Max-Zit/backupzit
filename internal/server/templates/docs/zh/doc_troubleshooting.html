@@ -50,6 +50,7 @@
 <table>
   <tr><th>情况</th><th>处理方法</th></tr>
   <tr><td>Proxmox：“the guest is running and one of its disks is on storage without snapshot support”</td><td>运行中的来宾需要 LVM-thin、ZFS、Ceph RBD 或 qcow2 磁盘。移动磁盘（<i>Disk Action → Move Storage</i>），或在来宾停止时备份。</td></tr>
+  <tr><td>Proxmox：“container volumes that are directories on dir storage are not supported yet”</td><td>容器的卷是目录、NFS 或 btrfs 存储上的一个目录。只有 ZFS 上的目录（子卷）会逐个文件备份；请将卷移动到 ZFS、LVM-thin 或 Ceph RBD（<i>Volume Action → Move Storage</i>）。</td></tr>
   <tr><td>Hyper-V：运行显示 “crash-consistent”</td><td>来宾无法为检查点做好准备。在 Windows 来宾中，检查虚拟机设置中的 Hyper-V 集成服务（<i>Backup (volume shadow copy)</i>）是否已启用。在 Linux 来宾中安装 <code>hyperv-daemons</code>（RHEL）或 <code>linux-cloud-tools</code> / <code>hyperv-daemons</code>（Debian/Ubuntu）。</td></tr>
   <tr><td>VMware：“SSH off” 或 “SSH to …: connection refused”</td><td>在 ESXi 主机上启用 SSH：Host → Actions → Services → Enable Secure Shell（并设置为随主机启动）。还原以及免费许可证下的备份都需要它。</td></tr>
   <tr><td>VMware：“changed block tracking is off and can be enabled … only while the VM is off”</td><td>免费 ESXi 许可证：关闭虚拟机一次，然后运行作业；BackupZit 会开启更改块跟踪，之后的备份只读取更改的块。</td></tr>

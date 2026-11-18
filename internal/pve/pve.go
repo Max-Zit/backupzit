@@ -104,6 +104,9 @@ type Inventory struct {
 	Version     string   `json:"version,omitempty"`
 	Guests      []Guest  `json:"guests"`
 	Storage     []string `json:"storage"` // storages usable for guest disks on this node
+	// StorageInfo describes the storages of Storage (agents 0.53 and newer):
+	// the restore form offers each guest only the storages it can go to.
+	StorageInfo []StorageInfo `json:"storage_info,omitempty"`
 	// Hosts are the ESXi hosts of a vCenter, where VMs can be restored.
 	Hosts []string `json:"hosts,omitempty"`
 }
@@ -151,10 +154,23 @@ func GetInventory(ctx context.Context) (*Inventory, error) {
 			// The instant recovery storage only holds temporary overlays.
 			if s.ID != InstantStorage && s.usable(inv.Node) && (s.has("images") || s.has("rootdir")) {
 				inv.Storage = append(inv.Storage, s.ID)
+				inv.StorageInfo = append(inv.StorageInfo, StorageInfo{ID: s.ID, Type: s.Type, VMs: s.has("images"), Containers: s.has("rootdir")})
 			}
 		}
+		sort.Strings(inv.Storage)
+		sort.Slice(inv.StorageInfo, func(i, j int) bool { return inv.StorageInfo[i].ID < inv.StorageInfo[j].ID })
 	}
 	return inv, nil
+}
+
+// StorageInfo is a storage of a node as the restore form needs it.
+type StorageInfo struct {
+	ID   string `json:"id"`
+	Type string `json:"type"` // zfspool, lvmthin, dir, rbd, ...
+	// VMs and Containers tell whether it holds VM disks (content images)
+	// and container volumes (rootdir).
+	VMs        bool `json:"vms,omitempty"`
+	Containers bool `json:"containers,omitempty"`
 }
 
 // ---- storage configuration

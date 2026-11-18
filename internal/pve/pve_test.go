@@ -3,6 +3,7 @@ package pve
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,6 +151,7 @@ func TestInventorySkipsInstantStorage(t *testing.T) {
 	ConfigDir = t.TempDir()
 	cfg := "dir: local\n\tpath /var/lib/vz\n\tcontent iso,images,rootdir\n\n" +
 		"lvmthin: local-lvm\n\tthinpool data\n\tvgname pve\n\tcontent rootdir,images\n\n" +
+		"zfspool: local-zfs\n\tpool rpool/data\n\tcontent rootdir\n\n" +
 		"dir: " + InstantStorage + "\n\tpath /var/lib/backupzit-instant\n\tcontent images\n"
 	if err := os.WriteFile(filepath.Join(ConfigDir, "storage.cfg"), []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
@@ -164,7 +166,13 @@ func TestInventorySkipsInstantStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(inv.Storage, ",") != "local,local-lvm" && strings.Join(inv.Storage, ",") != "local-lvm,local" {
+	if strings.Join(inv.Storage, ",") != "local,local-lvm,local-zfs" {
 		t.Errorf("storages %v", inv.Storage)
+	}
+	// The restore form offers each guest the storages it can go to.
+	want := []StorageInfo{{ID: "local", Type: "dir", VMs: true, Containers: true}, {ID: "local-lvm", Type: "lvmthin", VMs: true, Containers: true},
+		{ID: "local-zfs", Type: "zfspool", Containers: true}}
+	if fmt.Sprint(inv.StorageInfo) != fmt.Sprint(want) {
+		t.Errorf("storage info %+v", inv.StorageInfo)
 	}
 }

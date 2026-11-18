@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Virtuální počítače Proxmox VE</h1>
-<p class="lead">BackupZit zálohuje virtuální počítače (QEMU) a kontejnery (LXC) Proxmox VE, aniž by cokoli instaloval do hostů. Agent běží na hostiteli Proxmox, pořídí snímek každého hosta, přečte jeho disky a uloží je deduplikovaně na libovolné cílové úložiště.</p>
+<p class="lead">BackupZit zálohuje virtuální počítače (QEMU) a kontejnery (LXC) Proxmox VE, aniž by cokoli instaloval do hostů. Agent běží na hostiteli Proxmox, pořídí snímek každého hosta, přečte jeho disky a uloží je deduplikovaně na libovolné cílové úložiště. Disky VM se ukládají jako obrazy disků; kontejnery na ZFS se zálohují soubor po souboru (viz <a href="#lxc-zfs">Kontejnery (LXC) na ZFS</a>).</p>
 
 <h2>Nastavení</h2>
 <ol>
@@ -21,7 +21,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Každý disk se čte ze snímku po blocích 1 MiB. Prázdné bloky se neukládají a bloky, které už jsou v úložišti, se znovu neodesílají, takže po první záloze se přenášejí jen změněná data.  Běžící virtuální počítače s disky na LVM-thin, ZFS, Ceph RBD nebo v souborech qcow2 mají také <b>sledování změněných bloků</b> (dirty bitmapy QEMU): od druhé zálohy se čtou jen oblasti zapsané od předchozí zálohy, což trvá sekundy místo minut. Po zastavení, restartu nebo přesunu virtuálního počítače na jiný uzel nebo po změně velikosti disku přečte další záloha jeho disky jednou celé; stránka spuštění ukazuje, které disky byly přečteny jen jako změněné bloky. To je výchozí velikost bloku; úloha může místo ní použít 256 nebo 512 KiB (viz <a href="/docs/jobs#compression">Úlohy</a>).</li>
   <li>Snímek se odstraní. Konfigurace hosta (CPU, paměť, síť, disky) se uloží se zálohou.</li>
 </ol>
-<p>Stránka běhu vypisuje každého hosta, jeho disky a způsob zachycení. Testy obnovy kontrolují náhodné bloky záloh VM stejně jako u obrazů disků a se zapnutým <a href="/docs/restore">testem spuštění</a> spustí každý VM ze zálohy, izolovaný od sítě, aby prokázaly, že startuje.</p>
+<p>Stránka běhu vypisuje každého hosta, jeho disky a způsob zachycení. Testy obnovy kontrolují náhodné bloky záloh VM stejně jako u obrazů disků a se zapnutým <a href="/docs/restore">testem spuštění</a> spustí každý VM ze zálohy, izolovaný od sítě, aby prokázaly, že startuje. Kontejnery na ZFS se testují obnovením náhodných souborů.</p>
 
 <h3>Podporovaná úložiště</h3>
 <table>
@@ -31,9 +31,19 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ceph RBD</td><td>ano, snímek</td><td>ano</td></tr>
   <tr><td>Adresář, NFS, CIFS s disky <b>qcow2</b></td><td>ano, snímek</td><td>ano</td></tr>
   <tr><td>Adresář, NFS, CIFS s disky raw, tlusté LVM</td><td>ne — zastavte hosta nebo přesuňte disk</td><td>ano</td></tr>
-  <tr><td>Subsvazky ZFS kontejnerů</td><td colspan="2">zatím nepodporováno</td></tr>
+  <tr><td>Subvolumy ZFS kontejnerů (LXC)</td><td>ano, snímek, soubor po souboru</td><td>ano, soubor po souboru</td></tr>
 </table>
 <p>Disky označené v Proxmoxu <i>Backup: no</i> (<code>backup=0</code>), průchozí fyzické disky a bind mounty se přeskočí a uvedou jako varování. Jednotky cloud-init se neukládají; při obnově se znovu vytvoří z konfigurace.</p>
+
+<h3 id="lxc-zfs">Kontejnery (LXC) na ZFS</h3>
+<p>Na úložišti ZFS ukládá Proxmox svazky kontejneru (LXC) jako datasety (<code>subvol-&lt;ID&gt;-disk-N</code>): souborové systémy, ne virtuální disky jako zvoly VM (QEMU). BackupZit proto tyto kontejnery zálohuje soubor po souboru:</p>
+<ul>
+  <li>Dočasný snímek je stejný; agent čte soubory ze snímku ZFS každého subvolumu (<code>.zfs/snapshot</code>, i když je skrytý), zatímco kontejner dál běží.</li>
+  <li>Zachovávají se vlastníci (i posunutá ID neprivilegovaných kontejnerů), oprávnění, časy, rozšířené atributy a ACL, pevné a symbolické odkazy a soubory zařízení. Sockety se vynechávají, stejně jako u vzdump; služby v kontejneru si je vytvoří znovu.</li>
+  <li>Od druhé zálohy se čtou jen soubory, jejichž velikost nebo čas změny se změnily; ostatní se převezmou z předchozí zálohy.</li>
+  <li>Takový kontejner se obnovuje na úložiště ZFS jako nové subvolumy s velikostí (kvótou) původních svazků.</li>
+</ul>
+<p>Kontejnery na LVM-thin nebo Ceph RBD mají virtuální disky a zálohují se po blocích jako VM. Stránka běhu uvádí VM (QEMU) a kontejnery (LXC) v samostatných tabulkách a ukazuje, jak byl každý kontejner uložen. Vyžaduje agenty 0.53 nebo novější.</p>
 
 <h2>Obnova VM nebo kontejneru</h2>
 <p>Otevřete běh zálohy VM (ze stránky úlohy nebo z <a href="/runs">Aktivita</a>) a použijte <b>Obnovit VM nebo kontejner</b>:</p>
@@ -45,7 +55,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Název</b> a <b>Úložiště pro disky</b> — např. obnova na jiné úložiště než originál.</li>
   <li><b>Po obnově spustit hosta</b>.</li>
 </ul>
-<p>Každá obnova dá VM nové ID generace (<code>vmgenid</code>), aby řadiče domény Windows a další software bezpečně rozpoznaly návrat do minulosti. Disky se alokují pomocí <code>pvesm</code> na zvoleném úložišti; na adresářovém úložišti se obnoví jako soubory raw.</p>
+<p>Každá obnova dá VM nové ID generace (<code>vmgenid</code>), aby řadiče domény Windows a další software bezpečně rozpoznaly návrat do minulosti. Disky se alokují pomocí <code>pvesm</code> na zvoleném úložišti; na adresářovém úložišti se obnoví jako soubory raw. Seznam úložišť nabízí jen ta, která se hodí k vybranému hostu: disky VM pro VM, svazky kontejnerů pro kontejner a ZFS pro kontejner zálohovaný soubor po souboru.</p>
 
 <h2>Okamžitá obnova</h2>
 <p>Obnova velkého VM trvá tak dlouho jako kopírování jeho disků. S volbou <b>Okamžitě, běží ze zálohy</b> ve formuláři obnovy VM naopak běží během několika sekund, zatímco jeho disky jsou stále v záloze:</p>
@@ -87,6 +97,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>Obnovit na agentovi</b> — zkopírovat je do složky na libovolném agentovi, např. zpět do VM (pokud v něm běží agent BackupZit) nebo na souborový server.</li>
 </ul>
 <p>Na příkazovém řádku: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> a <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> vybere oddíl nebo logický svazek (<code>pve ls</code> bez cesty je vypíše). Procházení v konzoli vyžaduje zálohu na síťovém úložišti (SFTP, S3, SMB, Azure, zabezpečené úložiště).</p>
+<p>U kontejnerů (LXC) na ZFS otevře <b>Procházet soubory</b> přímo jejich soubory jako u zálohy souborů; složky <code>rootfs</code>, <code>mp0</code>, <code>mp1</code>… jsou svazky kontejneru. Soubory obnovené na agenta si zachovají vlastníky a oprávnění.</p>
 
 <h2 id="host">Záloha konfigurace hostitele</h2><p>Hosté jsou jen polovina uzlu Proxmox: definice úložišť, síť, uživatelé, firewall, certifikáty a nastavení každého virtuálního počítače a kontejneru jsou v jeho konfiguraci. Zálohujte ji běžnou úlohou souborů na agentovi uzlu: v části <a href="/jobs">Úlohy zálohování</a> vyberte agenta uzlu a <b>Soubory a složky</b> a pak klikněte na <b>Vyplnit konfiguraci hostitele</b>. Vyplní se cesty <code>/etc</code> (s <code>/etc/pve</code>, sítí a <code>/etc/hosts</code>), <code>/var/lib/pve-cluster</code> (konfigurační databáze <code>config.db</code>) a <code>/root</code>; spouštějte úlohu např. denně. Databáze se mění, zatímco uzel běží, proto agent nejprve vytvoří její konzistentní kopii, kterou záloha obsahuje jako <code>/var/lib/backupzit/pve-config/config.db</code>; další balíčky nejsou potřeba.</p><p>Obnova selhaného uzlu: nainstalujte stejnou verzi Proxmox VE se stejným názvem hostitele a adresou, nainstalujte agenta, obnovte <code>/etc/network/interfaces</code> a <code>/etc/hosts</code> na jejich místo, pak zastavte službu clusteru (<code>systemctl stop pve-cluster</code>), smažte <code>config.db-wal</code> a <code>config.db-shm</code> v <code>/var/lib/pve-cluster</code>, pokud existují, obnovte konzistentní kopii z <code>/var/lib/backupzit/pve-config</code> do <code>/var/lib/pve-cluster</code> (<code>config.db</code> a <code>config.db-wal</code>, pokud ho záloha obsahuje), znovu spusťte službu a obnovte hosty. V clusteru znovu nainstalovaný uzel opět přidejte do clusteru místo obnovy <code>config.db</code>.</p>
 <h2>Zatím nezahrnuto</h2>

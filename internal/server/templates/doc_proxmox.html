@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Proxmox VE virtual machines</h1>
-<p class="lead">BackupZit backs up Proxmox VE virtual machines (QEMU) and containers (LXC) without installing anything inside the guests. The agent runs on the Proxmox host, takes a snapshot of each guest, reads its disks and stores them deduplicated on any storage target.</p>
+<p class="lead">BackupZit backs up Proxmox VE virtual machines (QEMU) and containers (LXC) without installing anything inside the guests. The agent runs on the Proxmox host, takes a snapshot of each guest, reads its disks and stores them deduplicated on any storage target. VM disks are stored as disk images; containers on ZFS are backed up file by file (see <a href="#lxc-zfs">Containers (LXC) on ZFS</a>).</p>
 
 <h2>Setup</h2>
 <ol>
@@ -21,7 +21,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Every disk is read from the snapshot in 1 MiB blocks. Empty blocks are not stored and blocks already in the repository are not uploaded again, so after the first backup only changed data is transferred.  Running VMs with disks on LVM-thin, ZFS, Ceph RBD or qcow2 files also get <b>changed block tracking</b> (QEMU dirty bitmaps): from the second backup on, only the areas written since the previous backup are read, which takes seconds instead of minutes. After the VM was stopped, restarted or moved to another node, or a disk was resized, the next backup reads its disks completely once; the run page shows which disks were read as changed blocks only. This is the default block size; a job can use 256 or 512 KiB instead (see <a href="/docs/jobs#compression">Jobs</a>).</li>
   <li>The snapshot is removed. The guest configuration (CPU, memory, network, disks) is stored with the backup.</li>
 </ol>
-<p>The run page lists each guest, its disks and how it was captured. Restore tests check random blocks of VM backups like disk images and, with the <a href="/docs/restore">boot test</a> on, start each VM from the backup isolated from the network to prove that it boots.</p>
+<p>The run page lists each guest, its disks and how it was captured. Restore tests check random blocks of VM backups like disk images and, with the <a href="/docs/restore">boot test</a> on, start each VM from the backup isolated from the network to prove that it boots. Containers on ZFS are tested by restoring random files.</p>
 
 <h3>Supported storage</h3>
 <table>
@@ -31,9 +31,19 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ceph RBD</td><td>yes, snapshot</td><td>yes</td></tr>
   <tr><td>Directory, NFS, CIFS with <b>qcow2</b> disks</td><td>yes, snapshot</td><td>yes</td></tr>
   <tr><td>Directory, NFS, CIFS with raw disks, thick LVM</td><td>no — stop the guest or move the disk</td><td>yes</td></tr>
-  <tr><td>ZFS subvolumes of containers</td><td colspan="2">not supported yet</td></tr>
+  <tr><td>ZFS subvolumes of containers (LXC)</td><td>yes, snapshot, file by file</td><td>yes, file by file</td></tr>
 </table>
 <p>Disks marked <i>Backup: no</i> (<code>backup=0</code>) in Proxmox, passed-through physical disks and bind mounts are skipped and listed as warnings. Cloud-init drives are not stored; they are recreated from the configuration on restore.</p>
+
+<h3 id="lxc-zfs">Containers (LXC) on ZFS</h3>
+<p>On a ZFS storage, Proxmox keeps the volumes of a container (LXC) as datasets (<code>subvol-&lt;ID&gt;-disk-N</code>): file systems, not virtual disks like the zvols of a VM (QEMU). BackupZit therefore backs these containers up file by file:</p>
+<ul>
+  <li>The temporary snapshot is the same; the agent reads the files from the ZFS snapshot of each subvolume (<code>.zfs/snapshot</code>, also when it is hidden) while the container keeps running.</li>
+  <li>Owners (also the shifted IDs of unprivileged containers), permissions, times, extended attributes and ACLs, hard and symbolic links and device files are kept. Sockets are left out, as with vzdump; the services in the container create them again.</li>
+  <li>From the second backup on, only files whose size or modification time changed are read; the others are taken from the previous backup.</li>
+  <li>Such a container is restored onto a ZFS storage, as new subvolumes with the size (quota) of the original volumes.</li>
+</ul>
+<p>Containers on LVM-thin or Ceph RBD have virtual disks and are backed up block by block, like VMs. The run page lists the VMs (QEMU) and the containers (LXC) in separate tables and shows how each container was stored. This needs agents 0.53 or newer.</p>
 
 <h2>Restoring a VM or container</h2>
 <p>Open a VM backup run (from the job page or <a href="/runs">Activity</a>) and use <b>Restore a VM or container</b>:</p>
@@ -45,7 +55,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Name</b> and <b>Storage for the disks</b> — e.g. restore to a different storage than the original.</li>
   <li><b>Start the guest after the restore</b>.</li>
 </ul>
-<p>Every restore gives VMs a new generation ID (<code>vmgenid</code>), so Windows domain controllers and other software detect the rollback safely. Disks are allocated with <code>pvesm</code> on the chosen storage; on directory storage they are restored as raw files.</p>
+<p>Every restore gives VMs a new generation ID (<code>vmgenid</code>), so Windows domain controllers and other software detect the rollback safely. Disks are allocated with <code>pvesm</code> on the chosen storage; on directory storage they are restored as raw files. The storage list offers only storages that fit the chosen guest: VM disks for a VM, container volumes for a container, and ZFS for a container backed up file by file.</p>
 
 <h2>Instant recovery</h2>
 <p>Restoring a large VM takes as long as copying its disks. With <b>Instantly, running from the backup</b> in the restore form, the VM runs within seconds instead, while its disks are still in the backup:</p>
@@ -87,6 +97,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>Restore on agent</b> — copy them into a folder on any agent, e.g. back into the VM (if it runs the BackupZit agent) or onto a file server.</li>
 </ul>
 <p>On the command line: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> and <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> selects a partition or logical volume (<code>pve ls</code> without a path lists them). Browsing in the console needs the backup on network storage (SFTP, S3, SMB, Azure, hardened repository).</p>
+<p>For containers (LXC) on ZFS, <b>Browse files</b> opens their files directly, like those of a file backup; the folders <code>rootfs</code>, <code>mp0</code>, <code>mp1</code>… are the container's volumes. Files restored on an agent keep their owners and permissions.</p>
 
 <h2 id="host">Backing up the host configuration</h2><p>The guests are only half of a Proxmox node: storage definitions, network, users, firewall, certificates and the settings of every VM and container are in its configuration. Back it up with an ordinary files job on the node's agent: on <a href="/jobs">Backup jobs</a> choose the node's agent and <b>Files and folders</b>, then click <b>Fill in the host configuration</b>. It enters the paths <code>/etc</code> (with <code>/etc/pve</code>, the network and <code>/etc/hosts</code>), <code>/var/lib/pve-cluster</code> (the configuration database <code>config.db</code>) and <code>/root</code>; run the job e.g. daily. The database changes while the node runs, so the agent first makes a consistent copy of it, which the backup contains as <code>/var/lib/backupzit/pve-config/config.db</code>; no extra packages are needed.</p><p>To rebuild a failed node: install the same Proxmox VE version with the same host name and address, install the agent, restore <code>/etc/network/interfaces</code> and <code>/etc/hosts</code> into place, then stop the cluster service (<code>systemctl stop pve-cluster</code>), delete <code>config.db-wal</code> and <code>config.db-shm</code> in <code>/var/lib/pve-cluster</code> if they exist, restore the consistent copy from <code>/var/lib/backupzit/pve-config</code> into <code>/var/lib/pve-cluster</code> (<code>config.db</code>, and <code>config.db-wal</code> if the backup has one), start the service again and restore the guests. In a cluster, add a reinstalled node to the cluster again instead of restoring <code>config.db</code>.</p>
 <h2>Not yet included</h2>

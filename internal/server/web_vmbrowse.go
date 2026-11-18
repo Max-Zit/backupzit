@@ -142,6 +142,15 @@ func (s *Server) handleVMBrowse(w http.ResponseWriter, r *http.Request, user str
 		http.NotFound(w, r)
 		return
 	}
+	if d := vmDetails(p.run); d != nil {
+		for _, g := range d.Guests {
+			// LXC containers on ZFS are files in the snapshot's tree, not disks.
+			if g.VMID == p.vmid && g.Files > 0 && g.Path != "" {
+				http.Redirect(w, r, fileBack(p.run, g.Path), http.StatusSeeOther)
+				return
+			}
+		}
+	}
 	data := map[string]any{"Run": p.run, "VMID": p.vmid, "Path": p.dir, "Crumbs": vmCrumbs(p.dir)}
 	// Proxmox guests are known by their ID, Hyper-V and VMware VMs by name only.
 	label := fmt.Sprintf("guest %d", p.vmid)

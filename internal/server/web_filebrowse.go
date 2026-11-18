@@ -32,7 +32,14 @@ type fileEntry struct {
 }
 
 func browsableFileRun(run Run) bool {
-	return (run.Kind == api.KindBackup || run.Kind == api.KindSystemBackup) && run.SnapshotID != "" && !run.Expired
+	if run.SnapshotID == "" || run.Expired {
+		return false
+	}
+	if run.Kind == api.KindBackup || run.Kind == api.KindSystemBackup {
+		return true
+	}
+	// LXC containers on ZFS are stored as files in a VM backup.
+	return containerFiles(run)
 }
 
 // fileSnapshot opens the snapshot of a file backup run.

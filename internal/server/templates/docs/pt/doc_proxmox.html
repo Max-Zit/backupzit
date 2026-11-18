@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Máquinas virtuais do Proxmox VE</h1>
-<p class="lead">O BackupZit faz backup de máquinas virtuais (QEMU) e contêineres (LXC) do Proxmox VE sem instalar nada dentro dos convidados. O agente roda no host Proxmox, tira um snapshot de cada convidado, lê seus discos e os armazena deduplicados em qualquer destino de armazenamento.</p>
+<p class="lead">O BackupZit faz backup de máquinas virtuais (QEMU) e contêineres (LXC) do Proxmox VE sem instalar nada dentro dos convidados. O agente roda no host Proxmox, tira um snapshot de cada convidado, lê seus discos e os armazena deduplicados em qualquer destino de armazenamento. Os discos das VMs são guardados como imagens de disco; contêineres em ZFS têm backup arquivo por arquivo (veja <a href="#lxc-zfs">Contêineres (LXC) em ZFS</a>).</p>
 
 <h2>Configuração</h2>
 <ol>
@@ -21,7 +21,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li>Cada disco é lido do snapshot em blocos de 1 MiB. Blocos vazios não são armazenados e blocos que já estão no repositório não são enviados de novo, então após o primeiro backup só os dados alterados são transferidos.  VMs em execução com discos em LVM-thin, ZFS, Ceph RBD ou arquivos qcow2 também têm <b>rastreamento de blocos alterados</b> (dirty bitmaps do QEMU): a partir do segundo backup, só as áreas gravadas desde o backup anterior são lidas, o que leva segundos em vez de minutos. Depois que a VM foi parada, reiniciada ou movida para outro nó, ou que um disco foi redimensionado, o backup seguinte lê os discos completos uma vez; a página da execução mostra quais discos foram lidos somente como blocos alterados. Este é o tamanho de bloco padrão; uma tarefa pode usar 256 ou 512 KiB em vez disso (veja <a href="/docs/jobs#compression">Tarefas</a>).</li>
   <li>O snapshot é removido. A configuração do convidado (CPU, memória, rede, discos) é armazenada com o backup.</li>
 </ol>
-<p>A página da execução lista cada convidado, seus discos e como foi capturado. Testes de restauração verificam blocos aleatórios dos backups de VM como nas imagens de disco e, com o <a href="/docs/restore">teste de boot</a> ligado, iniciam cada VM a partir do backup, isolada da rede, para provar que ela inicia.</p>
+<p>A página da execução lista cada convidado, seus discos e como foi capturado. Testes de restauração verificam blocos aleatórios dos backups de VM como nas imagens de disco e, com o <a href="/docs/restore">teste de boot</a> ligado, iniciam cada VM a partir do backup, isolada da rede, para provar que ela inicia. Contêineres em ZFS são testados restaurando arquivos aleatórios.</p>
 
 <h3>Armazenamento suportado</h3>
 <table>
@@ -31,9 +31,19 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ceph RBD</td><td>sim, snapshot</td><td>sim</td></tr>
   <tr><td>Diretório, NFS, CIFS com discos <b>qcow2</b></td><td>sim, snapshot</td><td>sim</td></tr>
   <tr><td>Diretório, NFS, CIFS com discos raw, LVM thick</td><td>não — pare o convidado ou mova o disco</td><td>sim</td></tr>
-  <tr><td>Subvolumes ZFS de contêineres</td><td colspan="2">ainda não suportado</td></tr>
+  <tr><td>Subvolumes ZFS de contêineres (LXC)</td><td>sim, snapshot, arquivo por arquivo</td><td>sim, arquivo por arquivo</td></tr>
 </table>
 <p>Discos marcados como <i>Backup: no</i> (<code>backup=0</code>) no Proxmox, discos físicos em passthrough e bind mounts são ignorados e listados como avisos. Drives cloud-init não são armazenados; eles são recriados a partir da configuração na restauração.</p>
+
+<h3 id="lxc-zfs">Contêineres (LXC) em ZFS</h3>
+<p>Em um armazenamento ZFS, o Proxmox guarda os volumes de um contêiner (LXC) como datasets (<code>subvol-&lt;ID&gt;-disk-N</code>): sistemas de arquivos, não discos virtuais como os zvols de uma VM (QEMU). Por isso o BackupZit faz o backup desses contêineres arquivo por arquivo:</p>
+<ul>
+  <li>O snapshot temporário é o mesmo; o agente lê os arquivos do snapshot ZFS de cada subvolume (<code>.zfs/snapshot</code>, mesmo oculto) enquanto o contêiner continua rodando.</li>
+  <li>Proprietários (inclusive os IDs deslocados de contêineres sem privilégios), permissões, datas, atributos estendidos e ACLs, links físicos e simbólicos e arquivos de dispositivo são mantidos. Sockets ficam de fora, como no vzdump; os serviços do contêiner os recriam.</li>
+  <li>A partir do segundo backup, só são lidos os arquivos cujo tamanho ou data de modificação mudou; os outros vêm do backup anterior.</li>
+  <li>Um contêiner assim é restaurado em um armazenamento ZFS, como novos subvolumes com o tamanho (cota) dos volumes originais.</li>
+</ul>
+<p>Contêineres em LVM-thin ou Ceph RBD têm discos virtuais e têm backup bloco a bloco, como as VMs. A página da execução lista as VMs (QEMU) e os contêineres (LXC) em tabelas separadas e mostra como cada contêiner foi guardado. Requer agentes 0.53 ou mais recentes.</p>
 
 <h2>Restaurar uma VM ou contêiner</h2>
 <p>Abra uma execução de backup de VM (pela página da tarefa ou <a href="/runs">Atividade</a>) e use <b>Restaurar uma VM ou contêiner</b>:</p>
@@ -45,7 +55,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Nome</b> e <b>Armazenamento para os discos</b> — por ex. restaurar em um armazenamento diferente do original.</li>
   <li><b>Iniciar o convidado após a restauração</b>.</li>
 </ul>
-<p>Toda restauração dá às VMs um novo ID de geração (<code>vmgenid</code>), para que controladores de domínio Windows e outros softwares detectem a reversão com segurança. Os discos são alocados com <code>pvesm</code> no armazenamento escolhido; em armazenamento do tipo diretório eles são restaurados como arquivos raw.</p>
+<p>Toda restauração dá às VMs um novo ID de geração (<code>vmgenid</code>), para que controladores de domínio Windows e outros softwares detectem a reversão com segurança. Os discos são alocados com <code>pvesm</code> no armazenamento escolhido; em armazenamento do tipo diretório eles são restaurados como arquivos raw. A lista de armazenamentos só oferece os adequados ao convidado escolhido: discos de VM para uma VM, volumes de contêiner para um contêiner e ZFS para um contêiner com backup arquivo por arquivo.</p>
 
 <h2>Recuperação instantânea</h2>
 <p>Restaurar uma VM grande leva tanto tempo quanto copiar seus discos. Com <b>Instantaneamente, rodando a partir do backup</b> no formulário de restauração, a VM roda em segundos, enquanto seus discos ainda estão no backup:</p>
@@ -87,6 +97,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>Restaurar no agente</b> — copiá-los para uma pasta em qualquer agente, por ex. de volta à VM (se ela roda o agente BackupZit) ou para um servidor de arquivos.</li>
 </ul>
 <p>Na linha de comando: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> e <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> seleciona uma partição ou volume lógico (<code>pve ls</code> sem caminho os lista). Navegar no console exige o backup em armazenamento de rede (SFTP, S3, SMB, Azure, repositório protegido).</p>
+<p>Para contêineres (LXC) em ZFS, <b>Navegar pelos arquivos</b> abre diretamente seus arquivos, como os de um backup de arquivos; as pastas <code>rootfs</code>, <code>mp0</code>, <code>mp1</code>… são os volumes do contêiner. Arquivos restaurados em um agente mantêm proprietários e permissões.</p>
 
 <h2 id="host">Backup da configuração do host</h2><p>Os convidados são só metade de um nó Proxmox: definições de armazenamento, rede, usuários, firewall, certificados e as configurações de cada VM e contêiner estão na configuração dele. Faça o backup dela com uma tarefa de arquivos comum no agente do nó: em <a href="/jobs">Tarefas de backup</a>, escolha o agente do nó e <b>Arquivos e pastas</b> e clique em <b>Preencher a configuração do host</b>. Isso preenche os caminhos <code>/etc</code> (com <code>/etc/pve</code>, a rede e <code>/etc/hosts</code>), <code>/var/lib/pve-cluster</code> (o banco de dados de configuração <code>config.db</code>) e <code>/root</code>; execute a tarefa, por exemplo, diariamente. O banco de dados muda enquanto o nó funciona, então o agente primeiro faz uma cópia consistente dele, que o backup contém como <code>/var/lib/backupzit/pve-config/config.db</code>; não são necessários pacotes adicionais.</p><p>Para reconstruir um nó com falha: instale a mesma versão do Proxmox VE com o mesmo nome de host e endereço, instale o agente, restaure <code>/etc/network/interfaces</code> e <code>/etc/hosts</code> no lugar, depois pare o serviço do cluster (<code>systemctl stop pve-cluster</code>), exclua <code>config.db-wal</code> e <code>config.db-shm</code> em <code>/var/lib/pve-cluster</code> se existirem, restaure a cópia consistente de <code>/var/lib/backupzit/pve-config</code> em <code>/var/lib/pve-cluster</code> (<code>config.db</code>, e <code>config.db-wal</code> se o backup tiver um), inicie o serviço de novo e restaure os convidados. Em um cluster, adicione um nó reinstalado ao cluster de novo em vez de restaurar <code>config.db</code>.</p>
 <h2>Ainda não incluído</h2>
