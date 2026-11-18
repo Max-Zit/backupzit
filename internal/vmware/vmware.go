@@ -171,7 +171,7 @@ func (c *Client) datacenter(ctx context.Context) (*object.Datacenter, error) {
 		for _, d := range dcs {
 			names = append(names, d.Name())
 		}
-		return nil, fmt.Errorf("vCenter has several datacenters (%s); add it once per datacenter", strings.Join(names, ", "))
+		return nil, fmt.Errorf("vCenter has several datacenters (%s), which BackupZit does not support yet; add the ESXi hosts directly instead, each with its own account", strings.Join(names, ", "))
 	}
 	return dcs[0], nil
 }

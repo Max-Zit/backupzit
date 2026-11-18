@@ -140,6 +140,16 @@ function syncJobKind() {
     box.hidden = !on;
     box.querySelectorAll("input,textarea,select").forEach(function (i) { i.disabled = !on; });
   });
+  // Checkpoint and excluded-disk options are for Hyper-V only: not for a
+  // Proxmox node or a VMware host.
+  var agentSel = document.getElementById("agent_sel");
+  var agentOpt = agentSel && agentSel.options[agentSel.selectedIndex];
+  var notHV = !!agentOpt && (agentOpt.hasAttribute("data-pvehost") || agentOpt.value.indexOf("vmware:") === 0);
+  document.querySelectorAll("[data-hvonly]").forEach(function (box) {
+    if (!notHV) return;
+    box.hidden = true;
+    box.querySelectorAll("input,textarea,select").forEach(function (i) { i.disabled = true; });
+  });
   document.querySelectorAll("[data-notkind]").forEach(function (el) {
     var off = el.getAttribute("data-notkind") === sel.value;
     el.hidden = off;
@@ -339,6 +349,7 @@ document.addEventListener("change", function (e) {
   if (e.target.hasAttribute && e.target.hasAttribute("data-kindsel")) syncJobKind();
   if (e.target.id === "agent_sel") syncPVEHostHint();
   if (e.target.id === "agent_sel") syncGroupChoice();
+  if (e.target.id === "agent_sel") syncJobKind();
   if (e.target.id === "group_scope") syncGroupScope();
   if (e.target.id === "agent_sel") renderDiskPicker();
   if (e.target.id === "agent_sel") renderVMPicker();

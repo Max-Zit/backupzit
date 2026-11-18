@@ -38,7 +38,7 @@
     <ul class="agenda-list">
       {{range .Upcoming}}
       <li><div class="when"><b>{{.First.Format "Mon 2 Jan"}}</b><span>{{.First.Format "15:04"}}</span></div>
-        <div><a href="/jobs/{{.JobID}}" class="strong">{{.JobName}}</a><div class="muted small">{{.Hostname}} · {{if eq .Kind "image"}}{{T "disk image"}}{{else}}{{T "files"}}{{end}}</div></div></li>
+        <div><a href="/jobs/{{.JobID}}" class="strong">{{.JobName}}</a><div class="muted small">{{.Hostname}} · {{T .KindLabel}}</div></div></li>
       {{end}}
     </ul>
     {{else}}<div class="empty">{{template "icon" "calendar"}}<p>{{T "No scheduled backups in the next 7 days."}}</p></div>{{end}}

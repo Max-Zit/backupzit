@@ -31,6 +31,18 @@ func (e CalEntry) TimeLabel() string {
 	return e.First.Format("15:04")
 }
 
+// KindLabel names what the job backs up (planned entries carry the job
+// kind, past ones the run kind), for the agenda.
+func (e CalEntry) KindLabel() string {
+	if t := jobKindTitle(e.Kind); t != "" {
+		return t
+	}
+	if t := kindTitleEN(e.Kind); t != "" {
+		return t
+	}
+	return e.Kind
+}
+
 type CalDay struct {
 	Date    time.Time
 	InMonth bool

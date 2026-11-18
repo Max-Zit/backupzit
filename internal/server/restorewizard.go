@@ -32,7 +32,7 @@ var restoreTypes = []restoreType{
 	{Key: "vm", Title: "Whole virtual machine", Desc: "Proxmox VE, Hyper-V and VMware ESXi VMs (and Proxmox containers), as a new VM or in place of the original.", Icon: "vm"},
 	{Key: "vmfiles", Title: "Files from a virtual machine", Desc: "Browse the disks of a VM backup (NTFS, ext4, XFS, LVM), download files or restore them to an agent.", Icon: "folder"},
 	{Key: "files", Title: "Files and folders", Desc: "From file backups and Linux system backups, into a folder or to their original location.", Icon: "folder"},
-	{Key: "m365", Title: "Microsoft 365 mail and OneDrive", Desc: "Messages (.eml) and OneDrive files from Microsoft 365 backups: browse and download them, or restore them into a folder.", Icon: "folder"},
+	{Key: "m365", Title: "Microsoft 365", Desc: "Mail (.eml), OneDrive and SharePoint files, events (.ics) and contacts (.vcf) from Microsoft 365 backups: browse and download them, or restore them into a folder.", Icon: "folder"},
 	{Key: "image", Title: "Disk image / bare metal", Desc: "A Windows disk or its partitions onto a disk, also on different hardware or as a VM, from the recovery ISO.", Icon: "disk"},
 	{Key: "imagefiles", Title: "Files from a disk image", Desc: "Browse the NTFS partitions of a disk image and restore single files.", Icon: "folder"},
 	{Key: "sql", Title: "Database", Desc: "A SQL Server, PostgreSQL or MySQL/MariaDB database (or a whole PostgreSQL cluster), under a new name or in place, to any point in time covered by log backups.", Icon: "storage"},

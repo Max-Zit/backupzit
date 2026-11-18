@@ -226,6 +226,9 @@ type jobForm struct {
 	ReplicaAgents []pveAgent
 	// ChainJobs are the jobs this one can run after.
 	ChainJobs []Job
+	// HyperV: an edited VM job of a Hyper-V host or cluster (the options
+	// for checkpoints and excluded disks apply to Hyper-V only).
+	HyperV bool
 }
 
 // newJobForm prepares the form for job j (a new job: defaults).
@@ -471,6 +474,14 @@ func (s *Server) jobForm(r *http.Request, j Job, edit bool, agents []Agent) jobF
 		agents, _ = s.store.ListAgents(r.Context())
 	}
 	f.ReplicaAgents = pveAgents(agents)
+	if edit && j.Kind == JobVM && j.VMwareHostID == nil {
+		f.HyperV = j.Options.HVCluster != ""
+		for _, a := range agents {
+			if a.ID == j.AgentID && a.Platform() == "hyperv" {
+				f.HyperV = true
+			}
+		}
+	}
 	if jobs, err := s.store.ListJobs(r.Context()); err == nil {
 		f.ChainJobs = chainTargets(jobs, j.ID)
 	}
