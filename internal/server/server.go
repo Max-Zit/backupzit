@@ -488,6 +488,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /settings/updates/check", s.ui(PermSettings, s.handleUpdateCheck))
 	mux.HandleFunc("POST /settings/updates/install", s.ui(PermSettings, s.handleUpdateInstall))
 	mux.HandleFunc("POST /settings/updates/upload", s.ui(PermSettings, s.handleUpdateUpload))
+	mux.HandleFunc("POST /settings/updates/hide-banner", s.ui(PermSettings, s.handleUpdateBannerHide))
 	mux.HandleFunc("POST /settings/os", s.ui(PermSettings, s.handleOSAction))
 	mux.HandleFunc("POST /settings/network", s.ui(PermSettings, s.handleNetworkSettings))
 	mux.HandleFunc("POST /settings/ssh", s.ui(PermSettings, s.handleSSHSettings))
@@ -539,6 +540,8 @@ type pageData struct {
 	Approvals int
 	// SSO is the sign-in button text when single sign-on is set up (login page).
 	SSO string
+	// Update is the "new version available" banner (set by render).
+	Update *updateBanner
 }
 
 // ui requires a signed-in user whose role has perm, and rejects
@@ -620,6 +623,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d p
 	if d.Me != nil {
 		d.FourEyes = s.store.fourEyes(r.Context())
 		d.Approvals = s.store.PendingApprovals(r.Context())
+		d.Update = s.updateBannerFor(r.Context(), d.Me, r.URL.Path)
 	}
 	if d.User != "" {
 		w.Header().Set("Cache-Control", "no-store")

@@ -160,6 +160,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>Po úspěšné aktualizaci se aktualizují i agenti: každý nainstaluje novou verzi, když je nečinný. Pokud je chcete aktualizovat sami, vypněte to na stejné stránce.</li>
 </ol>
 <p>Konzole je asi minutu nedostupná. Zálohy databáze a předchozí programy z posledních tří aktualizací se uchovávají v <code>/var/lib/backupzit-update</code>.</p>
+<p id="update-banner"><b>Upozornění v konzoli:</b> uživatelé, kteří smějí instalovat aktualizace (správci), vidí novou verzi také nahoře na každé stránce, s tlačítky <i>Install</i> (otevře tuto stránku Updates) a <i>Release notes</i>. <b>×</b> je tomuto uživateli skryje na pět dní, v každém prohlížeči; ještě novější verze je hned zobrazí znovu. Ostatní role je nevidí. Na konzoli v Dockeru upozornění místo toho odkazuje na příkazy pro stažení nového image.</p>
 <p><b>Bez přístupu k internetu:</b> stáhněte soubory vydání (<code>manifest.json</code>, <code>manifest.json.sig</code> a balíček serveru) na jiném počítači. Pak je nahrajte v části <i>Nainstalovat aktualizaci ze souborů</i>, nebo je zkopírujte do složky na serveru a tuto složku použijte jako zdroj aktualizací.</p>
 <p>Aktualizovat můžete i nadále správcem balíčků (<code>apt install ./backupzit-server_….deb</code>); databáze se převede při spuštění nové verze.</p>
 

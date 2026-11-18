@@ -6,6 +6,7 @@ import (
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/netcfg"
+	"github.com/max-zit/backupzit/internal/update"
 )
 
 // EnableUpdateHelper pretends the root update helper is installed (tests).
@@ -33,4 +34,11 @@ func UseNetSystem(s *netcfg.System) func() {
 	saved := netSystem
 	netSystem = s
 	return func() { netSystem = saved }
+}
+
+// SetAvailableUpdate pretends the release check found version (tests).
+func (s *Server) SetAvailableUpdate(version string) {
+	s.upd.mu.Lock()
+	s.upd.available = &update.Manifest{Version: version}
+	s.upd.mu.Unlock()
 }

@@ -137,6 +137,12 @@ tr:last-child td { border-bottom: 0; }
 .flash .ic { margin-top: 1px; }
 .flash.ok { background: var(--ok-bg); color: var(--ok); }
 .flash.err { background: var(--bad-bg); color: var(--bad); }
+.flash.upd { background: var(--warn-bg); color: var(--warn); align-items: center; flex-wrap: wrap; }
+.flash.upd .upd-text { flex: 1 1 260px; }
+.flash.upd .upd-text a { color: inherit; text-decoration: underline; }
+.flash.upd .upd-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.flash.upd form { margin: 0; }
+.flash.upd .iconbtn { width: 32px; height: 32px; font-size: 22px; line-height: 1; color: var(--warn); }
 
 /* ---- forms */
 form.stack { display: grid; gap: 16px; max-width: 720px; }

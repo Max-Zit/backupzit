@@ -160,6 +160,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>Tras una actualización correcta también se actualizan los agentes: cada uno instala la nueva versión cuando está inactivo. Desactívelo en la misma página si prefiere actualizarlos usted.</li>
 </ol>
 <p>La consola no está disponible durante aproximadamente un minuto. Las copias de la base de datos y los programas anteriores de las tres últimas actualizaciones se guardan en <code>/var/lib/backupzit-update</code>.</p>
+<p id="update-banner"><b>Aviso en la consola:</b> los usuarios que pueden instalar actualizaciones (administradores) también ven una nueva versión en la parte superior de cada página, con <i>Install</i> (abre esta página Updates) y <i>Release notes</i>. <b>×</b> lo oculta para ese usuario durante cinco días, en todos los navegadores; una versión aún más nueva lo vuelve a mostrar de inmediato. Los demás roles no lo ven. En una consola Docker, el aviso remite en su lugar a los comandos para descargar la nueva imagen.</p>
 <p><b>Sin acceso a internet:</b> descargue los archivos de la versión (<code>manifest.json</code>, <code>manifest.json.sig</code> y el paquete del servidor) en otro equipo. Luego súbalos en <i>Instalar una actualización desde archivos</i>, o cópielos en una carpeta del servidor y use esa carpeta como origen de actualizaciones.</p>
 <p>También puede seguir actualizando con el gestor de paquetes (<code>apt install ./backupzit-server_….deb</code>); la base de datos se migra cuando arranca la nueva versión.</p>
 

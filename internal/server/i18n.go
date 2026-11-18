@@ -267,19 +267,26 @@ func (s *Server) handleLanguage(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Name: langCookie, Value: l.Code, Path: "/", MaxAge: 5 * 365 * 24 * 3600, HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: s.guard.Secure(r)}) // #nosec G124 -- language choice, not sensitive
 	}
 	back := r.FormValue("back")
-	if back == "" {
-		// Return to the page the switch was on.
-		if u, err := url.Parse(r.Referer()); err == nil && u.Path != "" {
-			back = u.Path
-			if u.RawQuery != "" && !strings.Contains(u.RawQuery, "sig=") {
-				back += "?" + u.RawQuery
-			}
+	if back == "" || !localPath(back) {
+		back = refererPath(r)
+	}
+	http.Redirect(w, r, back, http.StatusSeeOther)
+}
+
+// refererPath is the console page a form was sent from (path and query,
+// without a signed message so it does not show again), or "/".
+func refererPath(r *http.Request) string {
+	back := ""
+	if u, err := url.Parse(r.Referer()); err == nil && u.Path != "" {
+		back = u.Path
+		if u.RawQuery != "" && !strings.Contains(u.RawQuery, "sig=") {
+			back += "?" + u.RawQuery
 		}
 	}
 	if !localPath(back) {
-		back = "/"
+		return "/"
 	}
-	http.Redirect(w, r, back, http.StatusSeeOther)
+	return back
 }
 
 // localPath tells whether p is a path on this console, safe to redirect to.

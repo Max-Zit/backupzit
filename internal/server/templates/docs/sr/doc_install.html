@@ -160,6 +160,7 @@ backupzit-server --set-admin-password 'NOVA-LOZINKA'</pre>
   <li>Posle uspešnog ažuriranja ažuriraju se i agenti: svaki instalira novu verziju kada je slobodan. To možete isključiti na istoj stranici ako agente želite da ažurirate sami.</li>
 </ol>
 <p>Konzola je nedostupna oko jedan minut. Bekapi baze i prethodni programi poslednja tri ažuriranja čuvaju se u <code>/var/lib/backupzit-update</code>.</p>
+<p id="update-banner"><b>Obaveštenje u konzoli:</b> korisnici koji smeju da instaliraju ažuriranja (administratori) vide novu verziju i na vrhu svake stranice, sa <i>Install</i> (otvara ovu stranicu Updates) i <i>Release notes</i>. <b>×</b> ga tom korisniku sakriva na pet dana, u svakom browseru; još novija verzija ga odmah prikazuje ponovo. Ostale uloge ga ne vide. Na Docker konzoli obaveštenje umesto toga upućuje na komande za preuzimanje novog image-a.</p>
 <p><b>Bez pristupa internetu:</b> fajlove izdanja (<code>manifest.json</code>, <code>manifest.json.sig</code> i serverski paket) preuzmite na drugom računaru. Zatim ih otpremite pod <i>Instaliraj ažuriranje iz fajlova</i>, ili ih kopirajte u folder na serveru i taj folder koristite kao izvor ažuriranja.</p>
 <p>I dalje možete da ažurirate menadžerom paketa (<code>apt install ./backupzit-server_….deb</code>); baza se migrira kada se nova verzija pokrene.</p>
 

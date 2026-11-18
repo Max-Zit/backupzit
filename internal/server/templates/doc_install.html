@@ -160,6 +160,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>After a successful update the agents are updated too: each one installs the new version when it is idle. Turn this off on the same page if you prefer to update them yourself.</li>
 </ol>
 <p>The console is unavailable for about a minute. The database backups and previous programs of the last three updates are kept in <code>/var/lib/backupzit-update</code>.</p>
+<p id="update-banner"><b>Notice in the console:</b> users who may install updates (administrators) also see a new version at the top of every page, with <i>Install</i> (opens this Updates page) and <i>Release notes</i>. <b>×</b> hides it for that user for five days, in every browser; a still newer version shows it again at once. Other roles do not see it. On a Docker console the notice points to the commands for pulling the new image instead.</p>
 <p><b>Without internet access:</b> download the release files (<code>manifest.json</code>, <code>manifest.json.sig</code> and the server package) on another computer. Then upload them under <i>Install an update from files</i>, or copy them into a folder on the server and use that folder as the update source.</p>
 <p>You can still update with the package manager (<code>apt install ./backupzit-server_….deb</code>); the database is migrated when the new version starts.</p>
 

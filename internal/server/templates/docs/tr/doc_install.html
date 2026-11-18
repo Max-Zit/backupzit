@@ -160,6 +160,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>Başarılı bir güncellemeden sonra aracılar da güncellenir: her biri boşta olduğunda yeni sürümü kurar. Bunları kendiniz güncellemeyi tercih ederseniz aynı sayfada kapatın.</li>
 </ol>
 <p>Konsol yaklaşık bir dakika kullanılamaz. Son üç güncellemenin veritabanı yedekleri ve önceki programları <code>/var/lib/backupzit-update</code> içinde tutulur.</p>
+<p id="update-banner"><b>Konsoldaki bildirim:</b> güncelleme yükleyebilen kullanıcılar (yöneticiler) yeni bir sürümü her sayfanın üstünde de görür; yanında <i>Install</i> (bu Updates sayfasını açar) ve <i>Release notes</i> bulunur. <b>×</b> bildirimi o kullanıcı için her tarayıcıda beş gün gizler; daha da yeni bir sürüm onu hemen yeniden gösterir. Diğer roller onu görmez. Docker konsolunda bildirim bunun yerine yeni imajı çekme komutlarına yönlendirir.</p>
 <p><b>İnternet erişimi olmadan:</b> sürüm dosyalarını (<code>manifest.json</code>, <code>manifest.json.sig</code> ve sunucu paketi) başka bir bilgisayarda indirin. Ardından bunları <i>Dosyalardan güncelleme kur</i> altında yükleyin ya da sunucudaki bir klasöre kopyalayıp o klasörü güncelleme kaynağı olarak kullanın.</p>
 <p>Paket yöneticisiyle de güncellemeye devam edebilirsiniz (<code>apt install ./backupzit-server_….deb</code>); veritabanı yeni sürüm başladığında taşınır.</p>
 

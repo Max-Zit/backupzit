@@ -160,6 +160,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>Na een geslaagde update worden ook de agents bijgewerkt: elke agent installeert de nieuwe versie zodra hij inactief is. Schakel dat op dezelfde pagina uit als u ze liever zelf bijwerkt.</li>
 </ol>
 <p>De console is ongeveer een minuut niet beschikbaar. De databaseback-ups en vorige programma's van de laatste drie updates worden bewaard in <code>/var/lib/backupzit-update</code>.</p>
+<p id="update-banner"><b>Melding in de console:</b> gebruikers die updates mogen installeren (beheerders) zien een nieuwe versie ook bovenaan elke pagina, met <i>Install</i> (opent deze Updates-pagina) en <i>Release notes</i>. <b>×</b> verbergt de melding voor die gebruiker vijf dagen, in elke browser; een nog nieuwere versie toont hem meteen weer. Andere rollen zien hem niet. Op een Docker-console verwijst de melding in plaats daarvan naar de opdrachten om de nieuwe image op te halen.</p>
 <p><b>Zonder internettoegang:</b> download de versiebestanden (<code>manifest.json</code>, <code>manifest.json.sig</code> en het serverpakket) op een andere computer. Upload ze daarna onder <i>Een update uit bestanden installeren</i>, of kopieer ze naar een map op de server en gebruik die map als updatebron.</p>
 <p>U kunt nog steeds bijwerken met de pakketbeheerder (<code>apt install ./backupzit-server_….deb</code>); de database wordt gemigreerd wanneer de nieuwe versie start.</p>
 

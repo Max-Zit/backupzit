@@ -160,6 +160,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>更新成功后，代理也会随之更新：每个代理在空闲时安装新版本。如果您希望自行更新代理，可在同一页面上关闭此功能。</li>
 </ol>
 <p>控制台会有大约一分钟不可用。最近三次更新的数据库备份和之前的程序保存在 <code>/var/lib/backupzit-update</code> 中。</p>
+<p id="update-banner"><b>控制台中的通知：</b>可以安装更新的用户（管理员）还会在每个页面顶部看到新版本，并带有 <i>Install</i>（打开此 Updates 页面）和 <i>Release notes</i>。<b>×</b> 会为该用户在所有浏览器中隐藏通知五天；更新的版本发布时会立即再次显示。其他角色看不到该通知。在 Docker 控制台中，通知改为指向拉取新镜像的命令。</p>
 <p><b>无互联网访问时：</b>在另一台计算机上下载版本文件（<code>manifest.json</code>、<code>manifest.json.sig</code> 和服务器软件包）。然后在<i>从文件安装更新</i>下上传它们，或将其复制到服务器上的文件夹并将该文件夹用作更新源。</p>
 <p>您仍然可以使用软件包管理器更新（<code>apt install ./backupzit-server_….deb</code>）；新版本启动时会迁移数据库。</p>
 

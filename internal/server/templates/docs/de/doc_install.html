@@ -160,6 +160,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>Nach einem erfolgreichen Update werden auch die Agenten aktualisiert: Jeder installiert die neue Version, wenn er untätig ist. Schalten Sie das auf derselben Seite aus, wenn Sie sie lieber selbst aktualisieren.</li>
 </ol>
 <p>Die Konsole ist etwa eine Minute lang nicht verfügbar. Die Datenbanksicherungen und vorherigen Programme der letzten drei Updates werden in <code>/var/lib/backupzit-update</code> aufbewahrt.</p>
+<p id="update-banner"><b>Hinweis in der Konsole:</b> Benutzer, die Updates installieren dürfen (Administratoren), sehen eine neue Version auch oben auf jeder Seite, mit <i>Install</i> (öffnet diese Updates-Seite) und <i>Release notes</i>. <b>×</b> blendet den Hinweis für diesen Benutzer fünf Tage lang aus, in jedem Browser; eine noch neuere Version zeigt ihn sofort wieder. Andere Rollen sehen ihn nicht. Auf einer Docker-Konsole verweist der Hinweis stattdessen auf die Befehle zum Herunterladen des neuen Images.</p>
 <p><b>Ohne Internetzugang:</b> Laden Sie die Versionsdateien (<code>manifest.json</code>, <code>manifest.json.sig</code> und das Serverpaket) auf einem anderen Computer herunter. Laden Sie sie dann unter <i>Update aus Dateien installieren</i> hoch, oder kopieren Sie sie in einen Ordner auf dem Server und verwenden Sie diesen Ordner als Update-Quelle.</p>
 <p>Sie können weiterhin mit dem Paketmanager aktualisieren (<code>apt install ./backupzit-server_….deb</code>); die Datenbank wird migriert, wenn die neue Version startet.</p>
 
