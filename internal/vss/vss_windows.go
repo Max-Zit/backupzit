@@ -565,6 +565,107 @@ func (vss *IVssBackupComponents) GetSnapshotProperties(snapshotID ole.GUID,
 	return newVssErrorIfResultNotOK("GetSnapshotProperties() failed", HRESULT(result))
 }
 
+// QuerySnapshots calls Query for all snapshots visible in the current context.
+func (vss *IVssBackupComponents) QuerySnapshots() (*IVssEnumObject, error) {
+	var enum *IVssEnumObject
+	var result uintptr
+
+	if runtime.GOARCH == "386" {
+		// GUID_NULL passed by value as four zero words.
+		result, _, _ = syscall.Syscall9(vss.getVTable().query, 8,
+			uintptr(unsafe.Pointer(vss)), 0, 0, 0, 0, // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(VSS_OBJECT_NONE), uintptr(VSS_OBJECT_SNAPSHOT), uintptr(unsafe.Pointer(&enum)), 0) // #nosec G103 -- COM call through the VSS interface's vtable
+	} else {
+		var null ole.GUID
+		result, _, _ = syscall.Syscall6(vss.getVTable().query, 5,
+			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&null)), // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(VSS_OBJECT_NONE), uintptr(VSS_OBJECT_SNAPSHOT), uintptr(unsafe.Pointer(&enum)), 0) // #nosec G103 -- COM call through the VSS interface's vtable
+	}
+
+	if err := newVssErrorIfResultNotOK("Query() failed", HRESULT(result)); err != nil {
+		return nil, err
+	}
+	if enum == nil {
+		return nil, newVssTextError("Query() returned no enumerator")
+	}
+	return enum, nil
+}
+
+// snapshotPropertiesFromQuery finds snapshotID among the snapshots Query
+// returns and copies its properties to properties.
+func (vss *IVssBackupComponents) snapshotPropertiesFromQuery(snapshotID ole.GUID,
+	properties *vssSnapshotProperties) error {
+	enum, err := vss.QuerySnapshots()
+	if err != nil {
+		return err
+	}
+	defer enum.Release()
+
+	for {
+		// VSS_OBJECT_PROP: the object type, then the union aligned to 8 bytes,
+		// which Go reproduces because the properties contain pointers.
+		var prop struct {
+			objectType vssObjectType32
+			snapshot   vssSnapshotProperties
+		}
+		n, err := enum.Next(1, unsafe.Pointer(&prop)) // #nosec G103 -- COM call through the VSS interface's vtable
+		if err != nil {
+			return err
+		}
+		if n < 1 {
+			return newVssTextError(fmt.Sprintf("snapshot %s not found by Query()", snapshotID.String()))
+		}
+		if prop.objectType == vssObjectType32(VSS_OBJECT_SNAPSHOT) && prop.snapshot.snapshotID == snapshotID {
+			*properties = prop.snapshot
+			return nil
+		}
+		_ = vssFreeSnapshotProperties(&prop.snapshot)
+	}
+}
+
+// vssObjectType32 is VSS_OBJECT_TYPE as stored in VSS_OBJECT_PROP (a C enum,
+// 32 bits).
+type vssObjectType32 uint32
+
+// readSnapshotProperties returns the properties of a snapshot just created.
+func readSnapshotProperties(vss *IVssBackupComponents, snapshotID ole.GUID) (vssSnapshotProperties, error) {
+	return resolveSnapshotProperties(snapshotID, vss.GetSnapshotProperties, vss.snapshotPropertiesFromQuery,
+		func(p *vssSnapshotProperties) { _ = vssFreeSnapshotProperties(p) })
+}
+
+// resolveSnapshotProperties reads the properties of a snapshot with get and
+// makes sure they name the snapshot's device. Some VSS providers - the QEMU
+// guest agent's from version 110.2.1 on - answer GetSnapshotProperties with
+// S_OK but leave every field empty; then the properties are read from Query,
+// which still has them. Without a device the snapshot cannot be read: going
+// on would read the live volume (an empty device turns C:\x into \x) while
+// the backup reports that it read a snapshot, so that is an error.
+func resolveSnapshotProperties(snapshotID ole.GUID,
+	get, query func(ole.GUID, *vssSnapshotProperties) error,
+	free func(*vssSnapshotProperties)) (vssSnapshotProperties, error) {
+	var p vssSnapshotProperties
+	if err := get(snapshotID, &p); err != nil {
+		return vssSnapshotProperties{}, err
+	}
+	if p.GetSnapshotDeviceObject() != "" {
+		return p, nil
+	}
+	free(&p)
+
+	var q vssSnapshotProperties
+	if err := query(snapshotID, &q); err != nil {
+		return vssSnapshotProperties{}, newVssTextError(fmt.Sprintf(
+			"the VSS provider returned no device for snapshot %s, and Query() failed: %s",
+			snapshotID.String(), err))
+	}
+	if q.GetSnapshotDeviceObject() == "" {
+		free(&q)
+		return vssSnapshotProperties{}, newVssTextError(fmt.Sprintf(
+			"the VSS provider returned no device for snapshot %s", snapshotID.String()))
+	}
+	return q, nil
+}
+
 // vssFreeSnapshotProperties calls the equivalent VSS api.
 func vssFreeSnapshotProperties(properties *vssSnapshotProperties) error {
 	proc, err := findVssProc("VssFreeSnapshotProperties")
@@ -1065,8 +1166,7 @@ func newVssSnapshot(provider string,
 		return vssSnapshot{}, err
 	}
 
-	var snapshotProperties vssSnapshotProperties
-	err = iVssBackupComponents.GetSnapshotProperties(snapshotSetID, &snapshotProperties)
+	snapshotProperties, err := readSnapshotProperties(iVssBackupComponents, snapshotSetID)
 	if err != nil {
 		_ = iVssBackupComponents.AbortBackup()
 		iVssBackupComponents.Release()
@@ -1078,8 +1178,8 @@ func newVssSnapshot(provider string,
 			continue
 		}
 
-		err := iVssBackupComponents.GetSnapshotProperties(info.snapshotSetID,
-			&info.snapshotProperties)
+		props, err := readSnapshotProperties(iVssBackupComponents, info.snapshotSetID)
+		info.snapshotProperties = props
 		if err != nil {
 			msgError(mountPoint, fmt.Errorf(
 				"VSS error: GetSnapshotProperties() for mount point %s returned error: %w",
