@@ -19,6 +19,11 @@ func fakeDisk(t *testing.T, root, name string, size uint64) {
 	if err := os.WriteFile(filepath.Join(root, "block", name, "size"), []byte(strconv.FormatUint(size/512, 10)+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// The kernel's control file exists already (a test as non-root could
+	// not read one created write-only).
+	if err := os.WriteFile(filepath.Join(dir, "delete"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // The attached disk is the one new disk of its size; several, or none in
