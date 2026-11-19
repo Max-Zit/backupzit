@@ -49,6 +49,10 @@ type Repository struct {
 	cfg Config
 	pol chunker.Pol
 	idx *Index
+	// indexFiles are the index files in idx (refreshIndex loads only those
+	// written since, or everything again when one is gone: a prune).
+	indexMu    sync.Mutex
+	indexFiles map[string]bool
 
 	enc *zstd.Encoder
 	// encLevel is the level of enc (zero means zstd.SpeedDefault); a
@@ -318,6 +322,7 @@ func (r *Repository) loadIndexFile(ctx context.Context, n string) error {
 	for _, p := range f.Packs {
 		r.idx.addPack(p.ID, p.Blobs)
 	}
+	r.noteIndexFile(n)
 	return nil
 }
 
@@ -371,7 +376,11 @@ func (r *Repository) flushPackLocked(ctx context.Context) error {
 	r.pack = &packBuilder{}
 	if r.maxUploads <= 1 {
 		if err := r.be.Save(ctx, packName(packID), data); err != nil {
-			return fmt.Errorf("upload pack %s: %w", packID.Short(), err)
+			// Sticky, as for parallel uploads: the pack's blobs stay pending,
+			// so a later save of the same data would count as stored (a later
+			// VM of the run saved without it). Nothing more can be saved.
+			r.upErr = fmt.Errorf("upload pack %s: %w", packID.Short(), err)
+			return r.upErr
 		}
 		return r.packUploadedLocked(ctx, packID, blobs)
 	}
@@ -429,9 +438,11 @@ func (r *Repository) writeIndexLocked(ctx context.Context) error {
 	if len(r.unindexed) == 0 {
 		return nil
 	}
-	if _, err := r.saveIndexFile(ctx, r.unindexed); err != nil {
+	name, err := r.saveIndexFile(ctx, r.unindexed)
+	if err != nil {
 		return err
 	}
+	r.noteIndexFile(name)
 	r.unindexed = nil
 	return nil
 }
@@ -768,5 +779,64 @@ func (r *Repository) SetCompression(level string) error {
 	r.mu.Lock()
 	r.enc, r.encLevel, r.noCompress = enc, lvl, false
 	r.mu.Unlock()
+	return nil
+}
+
+func (r *Repository) noteIndexFile(name string) {
+	r.indexMu.Lock()
+	defer r.indexMu.Unlock()
+	if r.indexFiles == nil {
+		r.indexFiles = map[string]bool{}
+	}
+	r.indexFiles[name] = true
+}
+
+// refreshIndex brings the in-memory index up to date with the repository,
+// after a lock is taken. The index is loaded when the repository is opened,
+// which may be long before the lock (a run waits up to 30 minutes for
+// another one's prune): without this, a backup could take blobs for stored
+// that the prune deleted meanwhile, and a prune could delete packs another
+// run wrote since. New index files are loaded; if one known is gone, a
+// prune rewrote the index and all of it is loaded again.
+func (r *Repository) refreshIndex(ctx context.Context) error {
+	names, err := r.be.List(ctx, "index")
+	if err != nil {
+		return fmt.Errorf("list index: %w", err)
+	}
+	on := make(map[string]bool, len(names))
+	for _, n := range names {
+		on[n] = true
+	}
+	r.indexMu.Lock()
+	gone := false
+	var add []string
+	for n := range r.indexFiles {
+		if !on[n] {
+			gone = true
+			break
+		}
+	}
+	if !gone {
+		for _, n := range names {
+			if !r.indexFiles[n] {
+				add = append(add, n)
+			}
+		}
+	}
+	r.indexMu.Unlock()
+	if gone {
+		r.mu.Lock()
+		r.idx = newIndex()
+		r.mu.Unlock()
+		r.indexMu.Lock()
+		r.indexFiles = map[string]bool{}
+		r.indexMu.Unlock()
+		return r.loadIndex(ctx, nil)
+	}
+	for _, n := range add {
+		if err := r.loadIndexFile(ctx, n); err != nil {
+			return err
+		}
+	}
 	return nil
 }

@@ -264,6 +264,9 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 	r.mu.Lock()
 	r.idx = newIndex()
 	r.mu.Unlock()
+	r.indexMu.Lock()
+	r.indexFiles = map[string]bool{}
+	r.indexMu.Unlock()
 	if err := r.loadIndex(ctx, nil); err != nil {
 		return nil, err
 	}
