@@ -77,7 +77,7 @@
   <li>Quem copia é o agente da tarefa de origem; a máquina protegida <b>não é lida de novo</b>.</li>
   <li>Só são transferidos os dados que ainda não estão no destino, recriptografados com a chave do destino.</li>
   <li>O agendamento <b>Após cada backup da tarefa de origem</b> (padrão) mantém a cópia atualizada; qualquer agendamento normal também funciona, p. ex. uma vez por noite numa linha de internet lenta.</li>
-  <li>A cópia tem a sua própria retenção, p. ex. 7 diários no NAS e 12 mensais na nuvem.</li>
+  <li>A cópia tem a sua própria retenção, p. ex. 7 diários no NAS e 12 mensais na nuvem. Só são copiados os backups que esta retenção mantém: com 30 backups diários na origem e 12 mensais na cópia, copia-se o mais recente de cada mês, não os outros de novo a cada execução.</li>
   <li>Backups de arquivos e de VMs copiados (Proxmox VE, Hyper-V, VMware) são restaurados a partir da página da execução de cópia ou do <a href="/restore">assistente de restauração</a>, como os originais — VMs inteiras, arquivos individuais de discos de VM e recuperação instantânea do Proxmox. Backups de VM copiados por um agente anterior à 0.29 não podem ser restaurados assim; a próxima execução de cópia com um agente mais novo torna restaurável a sua cópia mais recente. Backups do Microsoft 365 copiados são restaurados da mesma forma. Cópias de imagens de disco, de backups de sistema Linux e de backups de bancos de dados são restauradas com o agente de linha de comandos.</li>
 </ul>
 

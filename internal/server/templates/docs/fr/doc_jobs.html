@@ -77,7 +77,7 @@
   <li>L'agent de la tâche source effectue la copie ; la machine protégée n'est <b>pas relue</b>.</li>
   <li>Seules les données qui ne sont pas encore à destination sont transférées, rechiffrées avec la clé de la destination.</li>
   <li>La planification <b>Après chaque sauvegarde de la tâche source</b> (par défaut) maintient la copie à jour ; toute planification normale fonctionne aussi, p. ex. une fois par nuit pour une ligne internet lente.</li>
-  <li>La copie a sa propre rétention, p. ex. 7 quotidiennes sur le NAS et 12 mensuelles dans le cloud.</li>
+  <li>La copie a sa propre rétention, p. ex. 7 quotidiennes sur le NAS et 12 mensuelles dans le cloud. Seules les sauvegardes que cette rétention conserve sont copiées : avec 30 sauvegardes quotidiennes à la source et 12 mensuelles dans la copie, la plus récente de chaque mois est copiée, pas les autres à nouveau à chaque exécution.</li>
   <li>Les sauvegardes de fichiers et de VM copiées (Proxmox VE, Hyper-V, VMware) se restaurent depuis la page de l'exécution de copie ou l'<a href="/restore">assistant de restauration</a>, comme les originaux — VM entières, fichiers individuels des disques de VM et restauration instantanée Proxmox. Les sauvegardes de VM copiées par un agent antérieur à 0.29 ne peuvent pas être restaurées ainsi ; la prochaine exécution de copie avec un agent plus récent rend sa copie la plus récente restaurable. Les sauvegardes Microsoft 365 copiées se restaurent de la même façon. Les copies d'images disque, de sauvegardes de système Linux et de bases de données se restaurent avec l'agent en ligne de commande.</li>
 </ul>
 

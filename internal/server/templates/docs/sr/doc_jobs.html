@@ -77,7 +77,7 @@
   <li>Kopiranje radi agent izvornog posla; zaštićena mašina se <b>ne čita ponovo</b>.</li>
   <li>Prenose se samo podaci kojih još nema na odredištu, ponovo šifrovani ključem odredišta.</li>
   <li>Raspored <b>Posle svakog bekapa izvornog posla</b> (podrazumevano) drži kopiju ažurnom; radi i bilo koji običan raspored, npr. jednom noću za spor internet.</li>
-  <li>Kopija ima svoju retenciju, npr. 7 dnevnih na NAS-u i 12 mesečnih u cloudu.</li>
+  <li>Kopija ima svoju retenciju, npr. 7 dnevnih na NAS-u i 12 mesečnih u cloudu. Kopiraju se samo bekapi koje ova retencija zadržava: sa 30 dnevnih bekapa u izvoru i 12 mesečnih u kopiji kopira se najnoviji bekap svakog meseca, a ne ostali iznova pri svakom pokretanju.</li>
   <li>Kopirani bekapi fajlova i virtuelnih mašina (Proxmox VE, Hyper-V, VMware) vraćaju se sa stranice pokretanja kopije ili iz <a href="/restore">čarobnjaka za vraćanje</a>, kao i originali — cele VM, pojedinačni fajlovi sa diskova VM-a i Proxmox instant recovery. VM bekapi koje je kopirao agent stariji od 0.29 ne mogu ovako da se vrate; sledeće pokretanje kopije sa novijim agentom čini najnoviju kopiju vraćljivom. Kopirani Microsoft 365 bekapi vraćaju se na isti način. Kopije slika diskova, bekapa Linux sistema i baza podataka vraćaju se agentom iz komandne linije.</li>
 </ul>
 

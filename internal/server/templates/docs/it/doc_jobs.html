@@ -77,7 +77,7 @@
   <li>La copia la esegue l'agente del job di origine; la macchina protetta <b>non viene riletta</b>.</li>
   <li>Vengono trasferiti solo i dati non ancora presenti a destinazione, ricifrati con la chiave della destinazione.</li>
   <li>La pianificazione <b>Dopo ogni backup del job di origine</b> (predefinita) mantiene la copia aggiornata; funziona anche qualsiasi pianificazione normale, ad es. una volta per notte per una linea internet lenta.</li>
-  <li>La copia ha una propria conservazione, ad es. 7 giornalieri sul NAS e 12 mensili nel cloud.</li>
+  <li>La copia ha una propria conservazione, ad es. 7 giornalieri sul NAS e 12 mensili nel cloud. Vengono copiati solo i backup che questa conservazione mantiene: con 30 backup giornalieri nella sorgente e 12 mensili nella copia, si copia il più recente di ogni mese, non di nuovo gli altri a ogni esecuzione.</li>
   <li>I backup di file e di VM copiati (Proxmox VE, Hyper-V, VMware) si ripristinano dalla pagina dell'esecuzione di copia o dalla <a href="/restore">procedura guidata di ripristino</a>, come gli originali — VM intere, singoli file dai dischi delle VM e ripristino istantaneo Proxmox. I backup di VM copiati da un agente precedente alla 0.29 non si possono ripristinare così; la successiva esecuzione di copia con un agente più recente rende ripristinabile la sua copia più recente. I backup di Microsoft 365 copiati si ripristinano allo stesso modo. Le copie di immagini disco, di backup di sistema Linux e di backup di database si ripristinano con l'agente da riga di comando.</li>
 </ul>
 

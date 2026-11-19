@@ -77,7 +77,7 @@
   <li>Kopiuje agent zadania źródłowego; chroniona maszyna <b>nie jest ponownie czytana</b>.</li>
   <li>Przesyłane są tylko dane, których jeszcze nie ma w miejscu docelowym, ponownie szyfrowane kluczem miejsca docelowego.</li>
   <li>Harmonogram <b>Po każdej kopii zadania źródłowego</b> (domyślny) utrzymuje kopię aktualną; działa też każdy zwykły harmonogram, np. raz na noc przy wolnym łączu internetowym.</li>
-  <li>Kopia ma własną retencję, np. 7 dziennych na NAS i 12 miesięcznych w chmurze.</li>
+  <li>Kopia ma własną retencję, np. 7 dziennych na NAS i 12 miesięcznych w chmurze. Kopiowane są tylko kopie, które ta retencja zachowa: przy 30 dziennych w źródle i 12 miesięcznych w kopii kopiowana jest najnowsza z każdego miesiąca, a nie przy każdym uruchomieniu ponownie pozostałe.</li>
   <li>Skopiowane kopie plików i maszyn wirtualnych (Proxmox VE, Hyper-V, VMware) przywraca się ze strony uruchomienia kopii lub z <a href="/restore">kreatora przywracania</a>, jak oryginały — całe maszyny, pojedyncze pliki z dysków maszyn i natychmiastowe odzyskiwanie Proxmox. Kopii maszyn skopiowanych przez agenta starszego niż 0.29 nie da się tak przywrócić; następne uruchomienie kopii z nowszym agentem sprawia, że najnowsza kopia staje się możliwa do przywrócenia. Skopiowane kopie Microsoft 365 przywraca się w ten sam sposób. Kopie obrazów dysków, kopii systemu Linux i kopii baz danych przywraca się agentem wiersza poleceń.</li>
 </ul>
 

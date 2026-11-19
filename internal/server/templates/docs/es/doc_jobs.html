@@ -77,7 +77,7 @@
   <li>Copia el agente del trabajo de origen; el equipo protegido <b>no se vuelve a leer</b>.</li>
   <li>Solo se transfieren los datos que aún no están en el destino, recifrados con la clave del destino.</li>
   <li>La programación <b>Tras cada copia del trabajo de origen</b> (predeterminada) mantiene la copia al día; también sirve cualquier programación normal, p. ej. una vez por noche con una línea de internet lenta.</li>
-  <li>La copia tiene su propia retención, p. ej. 7 diarias en el NAS y 12 mensuales en la nube.</li>
+  <li>La copia tiene su propia retención, p. ej. 7 diarias en el NAS y 12 mensuales en la nube. Solo se copian las copias que esta retención conserva: con 30 diarias en el origen y 12 mensuales en la copia, se copia la más reciente de cada mes, no las demás de nuevo en cada ejecución.</li>
   <li>Las copias de archivos y de VM copiadas (Proxmox VE, Hyper-V, VMware) se restauran desde la página de la ejecución de copia o desde el <a href="/restore">asistente de restauración</a>, igual que las originales: VM completas, archivos sueltos de discos de VM y recuperación instantánea de Proxmox. Las copias de VM copiadas por un agente anterior a 0.29 no se pueden restaurar así; la siguiente ejecución de copia con un agente más reciente hace restaurable su copia más reciente. Las copias de Microsoft 365 copiadas se restauran del mismo modo. Las copias de imágenes de disco, de sistemas Linux y de bases de datos se restauran con el agente de línea de comandos.</li>
 </ul>
 
