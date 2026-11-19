@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -335,6 +336,7 @@ func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone b
 	if g.Type == "lxc" {
 		re = lxcDiskKey
 	}
+	var hostKeys []string
 	for _, line := range strings.Split(strings.TrimRight(g.Config, "\n"), "\n") {
 		// Snapshot and pending sections describe the original's own
 		// snapshots and volumes: not part of the restored guest.
@@ -351,6 +353,9 @@ func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone b
 		// keeping them would let deleting the copy delete the original's volumes.
 		if unusedKey.MatchString(k) || k == "parent" {
 			continue
+		}
+		if actsOnHost(g.Type, k) && !slices.Contains(hostKeys, k) {
+			hostKeys = append(hostKeys, k)
 		}
 		switch {
 		case re.MatchString(k):
@@ -386,8 +391,33 @@ func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone b
 		}
 		b.WriteString(line + "\n")
 	}
+	if len(hostKeys) > 0 {
+		// Kept like Proxmox VE's own restore does, but they act on this host:
+		// from a backup of another (or a compromised) host they deserve a look.
+		notes = append(notes, fmt.Sprintf("kept settings from the backup that act on this host: %s; check them before starting the guest", strings.Join(hostKeys, ", ")))
+	}
 	return b.String(), cloudInit, notes
 }
+
+// actsOnHost reports whether a configuration key runs code on, or gives
+// the guest access to, the Proxmox host: hook scripts, raw LXC keys (mounts,
+// devices, hooks), raw QEMU arguments and passed-through devices.
+func actsOnHost(typ, k string) bool {
+	switch {
+	case k == "hookscript":
+		return true
+	case typ == "lxc":
+		return strings.HasPrefix(k, "lxc.") || hostDevKey.MatchString(k)
+	default:
+		return k == "args" || hostPCIKey.MatchString(k) || usbKey.MatchString(k)
+	}
+}
+
+var (
+	hostDevKey = regexp.MustCompile(`^dev\d+$`)
+	hostPCIKey = regexp.MustCompile(`^hostpci\d+$`)
+	usbKey     = regexp.MustCompile(`^usb\d+$`)
+)
 
 var unusedKey = regexp.MustCompile(`^unused\d+$`)
 
