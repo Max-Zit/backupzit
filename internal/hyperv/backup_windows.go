@@ -184,12 +184,38 @@ if (-not $s) { throw "recovery checkpoint not found" }
 try { Rename-VMSnapshot -VMSnapshot $s -NewName $name } catch { Remove-VMSnapshot -VMSnapshot $s; throw }
 [pscustomobject]@{ type = "Recovery"; state = "$($s.State)"; disks = @(Get-VMHardDiskDrive -VMSnapshot $s | ForEach-Object { [pscustomobject]@{ type = "$($_.ControllerType)"; num = $_.ControllerNumber; loc = $_.ControllerLocation; path = $_.Path } }) } | ConvertTo-Json -Depth 4 -Compress`
 
+// checkpointTimeout bounds creating (and naming) a checkpoint once started;
+// a cancelled backup waits for it, see takeCheckpoint.
+var checkpointTimeout = 15 * time.Minute
+
 // takeCheckpoint creates the backup's checkpoint: a recovery checkpoint
 // (application-consistent, else crash-consistent) where Hyper-V supports
 // them, otherwise a production checkpoint. rct reports whether the disks
 // track changes. With requireApp only application-consistent checkpoints
 // count: anything else is removed and ErrNotAppConsistent returned.
+//
+// Cancelling the backup does not interrupt a checkpoint being created:
+// Hyper-V finishes the job anyway, and a checkpoint not yet renamed to its
+// backupzit_ name would be removed by nothing (CleanupCheckpoints only knows
+// that prefix), leaving the VM on growing differencing disks for good. So
+// creating runs to the end, and a checkpoint finished after the cancel is
+// removed right away.
 func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp, crashOK bool) (ci checkpointInfo, consistency string, rct bool, warns []string, err error) {
+	run, cancel := context.WithTimeout(context.WithoutCancel(ctx), checkpointTimeout)
+	defer cancel()
+	ci, consistency, rct, warns, err = createCheckpoint(ctx, run, vm, name, requireApp, crashOK)
+	if err == nil && ctx.Err() != nil {
+		if _, rerr := ps(run, `Get-VMSnapshot -VM (Get-VM -Id `+psq(vm.ID)+`) -Name `+psq(name)+` -ErrorAction Stop | Remove-VMSnapshot -ErrorAction Stop`); rerr != nil {
+			warns = append(warns, "remove checkpoint "+name+": "+lastLine(rerr.Error()))
+		}
+		return checkpointInfo{}, "", false, warns, ctx.Err()
+	}
+	return ci, consistency, rct, warns, err
+}
+
+// createCheckpoint does the work of takeCheckpoint. PowerShell runs under
+// run; ctx only stops it from starting another attempt.
+func createCheckpoint(ctx, run context.Context, vm vmInfo, name string, requireApp, crashOK bool) (ci checkpointInfo, consistency string, rct bool, warns []string, err error) {
 	vars := `$id = ` + psq(vm.ID) + `; $name = ` + psq(name) + `; `
 	levels := []string{"1", "2"}
 	if requireApp {
@@ -197,7 +223,10 @@ func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp, cra
 	}
 	var appErr error
 	for _, level := range levels {
-		out, err := ps(ctx, vars+`$level = `+level+"\n"+recoveryScript)
+		if err := ctx.Err(); err != nil {
+			return ci, "", false, warns, err
+		}
+		out, err := ps(run, vars+`$level = `+level+"\n"+recoveryScript)
 		if err == nil && json.Unmarshal(out, &ci) == nil && len(ci.Disks) > 0 {
 			if level == "1" {
 				return ci, "recovery checkpoint, application-consistent (VSS or file system freeze inside the guest)", true, warns, nil
@@ -222,8 +251,11 @@ func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp, cra
 		}
 	}
 	// Older hosts: a production checkpoint without change tracking.
+	if err := ctx.Err(); err != nil {
+		return ci, "", false, warns, err
+	}
 	sel := `$vm = Get-VM -Id ` + psq(vm.ID) + `; `
-	out, err := ps(ctx, sel+`Checkpoint-VM -VM $vm -SnapshotName `+psq(name)+`; $s = Get-VMSnapshot -VM $vm -Name `+psq(name)+
+	out, err := ps(run, sel+`Checkpoint-VM -VM $vm -SnapshotName `+psq(name)+`; $s = Get-VMSnapshot -VM $vm -Name `+psq(name)+
 		`; [pscustomobject]@{ type="$($s.SnapshotType)"; state="$($s.State)"; disks=@(Get-VMHardDiskDrive -VMSnapshot $s | ForEach-Object { [pscustomobject]@{ type="$($_.ControllerType)"; num=$_.ControllerNumber; loc=$_.ControllerLocation; path=$_.Path } }) } | ConvertTo-Json -Depth 4 -Compress`)
 	if err != nil {
 		if requireApp {
@@ -239,7 +271,7 @@ func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp, cra
 		consistency = "production checkpoint (VSS or file system freeze inside the guest)"
 	} else if requireApp {
 		// Hyper-V fell back to a standard checkpoint: not what the job wants.
-		_, _ = ps(ctx, sel+`Get-VMSnapshot -VM $vm -Name `+psq(name)+` | Remove-VMSnapshot`)
+		_, _ = ps(run, sel+`Get-VMSnapshot -VM $vm -Name `+psq(name)+` | Remove-VMSnapshot`)
 		why := "only a crash-consistent checkpoint was possible"
 		if appErr != nil {
 			why = lastLine(appErr.Error())
