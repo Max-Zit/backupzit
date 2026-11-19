@@ -1967,6 +1967,7 @@
   "random blocks verified": "blocchi casuali verificati",
   "random files restored and verified": "file casuali ripristinati e verificati",
   "read": "letti",
+  "read through hot-add: %d of %d disks": "letti tramite hot-add: %d di %d dischi",
   "read)": "letti)",
   "reads the accounts and SharePoint sites of the tenant with the app above": "legge gli account e i siti SharePoint del tenant con l'app sopra",
   "reads the accounts and SharePoint sites of the tenant with the app above; tick the ones to back up": "legge account e siti SharePoint del tenant con l'app sopra; seleziona quelli da salvare",

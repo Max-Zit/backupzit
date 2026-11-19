@@ -11,7 +11,7 @@
       <li><b>文件和文件夹</b>——每行一个路径，按代理上的路径填写，例如 <code>C:\Users</code>、<code>D:\Data</code>、<code>/home</code>、<code>/etc</code>。</li>
       <li><b>磁盘映像</b>——整个磁盘或选定分区，可还原到空磁盘或新硬件。参见 <a href="/docs/images">磁盘映像</a>。</li>
       <li><b>Linux 系统</b>——Linux 机器的所有文件系统和磁盘布局，可还原到空磁盘或作为 Proxmox 虚拟机。参见 <a href="/docs/linux-system">Linux 系统备份</a>。</li>
-      <li><b>虚拟机（Proxmox VE、Hyper-V、VMware）</b>——虚拟化主机的虚拟机（以及 Proxmox 容器），客户机内无需代理：由 Proxmox 或 Hyper-V 主机上的代理备份，VMware ESXi 则由该主机的代理服务器代理备份（在代理列表中选择 ESXi 主机）。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。</li>
+      <li><b>虚拟机（Proxmox VE、Hyper-V、VMware）</b>——虚拟化主机的虚拟机（以及 Proxmox 容器），客户机内无需代理：由 Proxmox 或 Hyper-V 主机上的代理备份，VMware ESXi 则由该主机的备份代理备份（在代理列表中选择 ESXi 主机）。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。</li>
       <li><b>数据库</b>——代理所在机器上的 SQL Server、PostgreSQL 或 MySQL/MariaDB，带有日志备份，可还原到任意时刻。参见 <a href="/docs/sql">数据库</a>。</li>
       <li><b>NAS / 文件共享</b>——由代理读取的 SMB 或 NFS 共享；参见<a href="#nas">下文</a>。</li>
       <li><b>Microsoft 365</b>——Exchange Online 邮箱、日历、联系人、OneDrive 和 SharePoint 网站，由任意代理通过 Microsoft Graph 读取；参见 <a href="/docs/m365">Microsoft 365</a>。</li>

@@ -132,6 +132,7 @@ type vmGuestSummary struct {
 	Size        uint64   `json:"size"`
 	Stored      uint64   `json:"stored"`
 	Changed     int      `json:"changed"`
+	HotAdd      int      `json:"hot_add"`
 	Excluded    []string `json:"excluded"`
 	// Files volumes are stored as files below Path in the snapshot's tree
 	// (LXC containers on ZFS); they are browsed like a file backup.

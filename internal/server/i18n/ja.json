@@ -1967,6 +1967,7 @@
   "random blocks verified": "検証したランダムブロック",
   "random files restored and verified": "復元・検証したランダムファイル",
   "read": "読み取り",
+  "read through hot-add: %d of %d disks": "ホットアドで読み取り: %d / %d 台のディスク",
   "read)": "読み取り）",
   "reads the accounts and SharePoint sites of the tenant with the app above": "上記のアプリでテナントのアカウントと SharePoint サイトを読み取ります",
   "reads the accounts and SharePoint sites of the tenant with the app above; tick the ones to back up": "上のアプリでテナントのアカウントと SharePoint サイトを読み取ります。バックアップするものにチェックしてください",

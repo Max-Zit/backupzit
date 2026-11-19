@@ -84,6 +84,9 @@ type GuestDisk struct {
 	// backup (VMware change ID, Hyper-V RCT, Proxmox QEMU dirty bitmap);
 	// the next backup reads only what changed since.
 	ChangeID string `json:"change_id,omitempty"`
+	// Via is how a running VM's disk was read when not the default: "hot-add"
+	// (VMware: attached to the proxy agent's VM instead of copied).
+	Via string `json:"via,omitempty"`
 }
 
 // ExcludedDisk is a disk a job left out of a VM backup.

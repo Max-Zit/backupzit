@@ -35,6 +35,8 @@ type GuestSummary struct {
 	// Changed is the number of disks of which only the blocks changed
 	// since the previous backup were read (changed block tracking).
 	Changed int `json:"changed,omitempty"`
+	// HotAdd is the number of disks read through hot-add (VMware).
+	HotAdd int `json:"hot_add,omitempty"`
 	// Excluded are the disk files the job left out of the backup.
 	Excluded []string `json:"excluded,omitempty"`
 	// Files is the number of volumes stored as files rather than as disk
@@ -59,6 +61,9 @@ func Guests(sn *repo.Snapshot) json.RawMessage {
 				s.Files++
 				s.Path = path.Dir(d.Path)
 				continue
+			}
+			if d.Via == "hot-add" {
+				s.HotAdd++
 			}
 			if d.Image >= 0 && d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {
 				p := sn.Images[d.Image].Partitions[0]

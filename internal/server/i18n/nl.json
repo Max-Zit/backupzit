@@ -1967,6 +1967,7 @@
   "random blocks verified": "willekeurige blokken gecontroleerd",
   "random files restored and verified": "willekeurige bestanden hersteld en gecontroleerd",
   "read": "gelezen",
+  "read through hot-add: %d of %d disks": "gelezen via hot-add: %d van %d schijven",
   "read)": "gelezen)",
   "reads the accounts and SharePoint sites of the tenant with the app above": "leest de accounts en SharePoint-sites van de tenant met de app hierboven",
   "reads the accounts and SharePoint sites of the tenant with the app above; tick the ones to back up": "leest accounts en SharePoint-sites van de tenant met de app hierboven; vink aan wat geback-upt wordt",

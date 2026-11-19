@@ -378,7 +378,9 @@ func (c *Client) storeDiskHotAdd(ctx context.Context, ha *hotAdd, r *repo.Reposi
 		return repo.GuestDisk{}, err
 	}
 	defer release()
-	return c.storeImage(ctx, r, v, p, sn, progress, dev, p.method+", hot-add")
+	gd, err := c.storeImage(ctx, r, v, p, sn, progress, dev, p.method+", hot-add")
+	gd.Via = "hot-add"
+	return gd, err
 }
 
 // storeImage stores the planned areas of a disk read from ra.

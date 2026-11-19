@@ -133,7 +133,7 @@
     <div class="table-wrap"><table>
       <tr><th>{{T "Name"}}</th><th>{{T "Disks"}}</th><th>{{T "With data"}}</th><th>{{T "Captured"}}</th><th></th></tr>
       {{range .Data.VM.Guests}}
-      <tr><td>{{.Name}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}{{if .Changed}}<br><span class="muted">{{T "changed blocks only: %d of %d disks" .Changed .Disks}}</span>{{end}}{{if .Excluded}}<br><span class="muted">{{T "excluded by the job:"}} <span class="mono">{{join .Excluded ", "}}</span></span>{{end}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}</td></tr>
+      <tr><td>{{.Name}}</td><td>{{.Disks}} · {{bytes .Size}}</td><td>{{bytes .Stored}}</td><td class="small">{{.Consistency}}{{if .Changed}}<br><span class="muted">{{T "changed blocks only: %d of %d disks" .Changed .Disks}}</span>{{end}}{{if .HotAdd}}<br><span class="muted">{{T "read through hot-add: %d of %d disks" .HotAdd .Disks}}</span>{{end}}{{if .Excluded}}<br><span class="muted">{{T "excluded by the job:"}} <span class="mono">{{join .Excluded ", "}}</span></span>{{end}}</td><td>{{if and $.Data.Run.SnapshotID (not $.Data.Run.Expired) ($.Me.Can "restore")}}<a href="/runs/{{$.Data.Run.ID}}/vmbrowse?vmid={{.VMID}}">{{T "Browse files"}}</a>{{end}}</td></tr>
       {{end}}
     </table></div>
   </div>

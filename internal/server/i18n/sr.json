@@ -1967,6 +1967,7 @@
   "random blocks verified": "nasumičnih blokova provereno",
   "random files restored and verified": "nasumičnih fajlova vraćeno i provereno",
   "read": "pročitano",
+  "read through hot-add: %d of %d disks": "pročitano preko hot-add-a: %d od %d diskova",
   "read)": "pročitano)",
   "reads the accounts and SharePoint sites of the tenant with the app above": "čita naloge i SharePoint sajtove tenanta pomoću aplikacije iznad",
   "reads the accounts and SharePoint sites of the tenant with the app above; tick the ones to back up": "čita naloge i SharePoint sajtove tenanta preko gornje aplikacije; označite one koje treba čuvati",

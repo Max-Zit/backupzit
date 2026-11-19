@@ -1967,6 +1967,7 @@
   "random blocks verified": "ověřených náhodných bloků",
   "random files restored and verified": "obnovených a ověřených náhodných souborů",
   "read": "přečteno",
+  "read through hot-add: %d of %d disks": "čteno přes hot-add: %d z %d disků",
   "read)": "přečteno)",
   "reads the accounts and SharePoint sites of the tenant with the app above": "načte účty a weby SharePoint tenanta pomocí aplikace výše",
   "reads the accounts and SharePoint sites of the tenant with the app above; tick the ones to back up": "načte účty a weby SharePoint tenanta pomocí aplikace výše; zaškrtněte ty, které se mají zálohovat",

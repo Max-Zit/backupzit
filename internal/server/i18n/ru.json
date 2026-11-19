@@ -1967,6 +1967,7 @@
   "random blocks verified": "случайных блоков проверено",
   "random files restored and verified": "случайных файлов восстановлено и проверено",
   "read": "прочитано",
+  "read through hot-add: %d of %d disks": "прочитано через hot-add: %d из %d дисков",
   "read)": "прочитано)",
   "reads the accounts and SharePoint sites of the tenant with the app above": "считывает учётные записи и сайты SharePoint клиента с помощью приложения выше",
   "reads the accounts and SharePoint sites of the tenant with the app above; tick the ones to back up": "читает учётные записи и сайты SharePoint клиента через приложение выше; отметьте те, которые нужно сохранять",

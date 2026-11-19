@@ -1967,6 +1967,7 @@
   "random blocks verified": "doğrulanan rastgele blok",
   "random files restored and verified": "geri yüklenip doğrulanan rastgele dosya",
   "read": "okunan",
+  "read through hot-add: %d of %d disks": "hot-add ile okundu: %d / %d disk",
   "read)": "okundu)",
   "reads the accounts and SharePoint sites of the tenant with the app above": "yukarıdaki uygulamayla kiracının hesaplarını ve SharePoint sitelerini okur",
   "reads the accounts and SharePoint sites of the tenant with the app above; tick the ones to back up": "yukarıdaki uygulamayla kiracının hesaplarını ve SharePoint sitelerini okur; yedeklenecekleri işaretleyin",

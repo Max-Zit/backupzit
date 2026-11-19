@@ -1967,6 +1967,7 @@
   "random blocks verified": "blocos aleatórios verificados",
   "random files restored and verified": "arquivos aleatórios restaurados e verificados",
   "read": "lidos",
+  "read through hot-add: %d of %d disks": "lidos por hot-add: %d de %d discos",
   "read)": "lidos)",
   "reads the accounts and SharePoint sites of the tenant with the app above": "lê as contas e os sites do SharePoint do locatário com o aplicativo acima",
   "reads the accounts and SharePoint sites of the tenant with the app above; tick the ones to back up": "lê as contas e os sites do SharePoint do locatário com o aplicativo acima; marque os que serão copiados",
