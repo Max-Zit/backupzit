@@ -595,6 +595,11 @@ func (vss *IVssBackupComponents) QuerySnapshots() (*IVssEnumObject, error) {
 // returns and copies its properties to properties.
 func (vss *IVssBackupComponents) snapshotPropertiesFromQuery(snapshotID ole.GUID,
 	properties *vssSnapshotProperties) error {
+	if runtime.GOARCH != "amd64" {
+		// On 386 Go aligns the 64-bit fields of the properties to 4 bytes,
+		// C to 8: VSS_OBJECT_PROP would be read at the wrong offsets.
+		return newVssTextError("reading snapshot properties from Query() is supported on 64-bit Windows only")
+	}
 	enum, err := vss.QuerySnapshots()
 	if err != nil {
 		return err
@@ -602,12 +607,7 @@ func (vss *IVssBackupComponents) snapshotPropertiesFromQuery(snapshotID ole.GUID
 	defer enum.Release()
 
 	for {
-		// VSS_OBJECT_PROP: the object type, then the union aligned to 8 bytes,
-		// which Go reproduces because the properties contain pointers.
-		var prop struct {
-			objectType vssObjectType32
-			snapshot   vssSnapshotProperties
-		}
+		var prop vssObjectProp
 		n, err := enum.Next(1, unsafe.Pointer(&prop)) // #nosec G103 -- COM call through the VSS interface's vtable
 		if err != nil {
 			return err
@@ -615,7 +615,12 @@ func (vss *IVssBackupComponents) snapshotPropertiesFromQuery(snapshotID ole.GUID
 		if n < 1 {
 			return newVssTextError(fmt.Sprintf("snapshot %s not found by Query()", snapshotID.String()))
 		}
-		if prop.objectType == vssObjectType32(VSS_OBJECT_SNAPSHOT) && prop.snapshot.snapshotID == snapshotID {
+		if prop.objectType != vssObjectType32(VSS_OBJECT_SNAPSHOT) {
+			// Only snapshots were asked for; anything else is left alone
+			// (a leak at worst) rather than freed as snapshot properties.
+			continue
+		}
+		if prop.snapshot.snapshotID == snapshotID {
 			*properties = prop.snapshot
 			return nil
 		}
@@ -626,6 +631,14 @@ func (vss *IVssBackupComponents) snapshotPropertiesFromQuery(snapshotID ole.GUID
 // vssObjectType32 is VSS_OBJECT_TYPE as stored in VSS_OBJECT_PROP (a C enum,
 // 32 bits).
 type vssObjectType32 uint32
+
+// vssObjectProp is VSS_OBJECT_PROP holding a snapshot: the object type,
+// then the union aligned to 8 bytes, which Go reproduces on amd64 because
+// the properties contain pointers (136 bytes, the union at offset 8).
+type vssObjectProp struct {
+	objectType vssObjectType32
+	snapshot   vssSnapshotProperties
+}
 
 // readSnapshotProperties returns the properties of a snapshot just created.
 func readSnapshotProperties(vss *IVssBackupComponents, snapshotID ole.GUID) (vssSnapshotProperties, error) {
