@@ -34,7 +34,7 @@ func cmdNBDServe(ctx context.Context, args []string) error {
 		return err
 	}
 	defer r.Close()
-	sn, err := r.LoadSnapshot(ctx, *snapshot)
+	sn, err := loadGuestSnapshot(ctx, r, *snapshot, "", *vmid)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func cmdPVEInstant(ctx context.Context, sub string, args []string) error {
 		if err != nil {
 			return err
 		}
-		sn, err := r.LoadSnapshot(ctx, fs.Arg(0))
+		sn, err := loadGuestSnapshot(ctx, r, fs.Arg(0), "", *vmid)
 		_ = r.Close()
 		if err != nil {
 			return err

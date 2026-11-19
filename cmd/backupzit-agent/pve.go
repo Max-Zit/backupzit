@@ -138,7 +138,7 @@ func cmdPVE(ctx context.Context, args []string) error {
 			return err
 		}
 		defer lock.Unlock()
-		sn, err := r.LoadSnapshot(ctx, fs.Arg(0))
+		sn, err := loadGuestSnapshot(ctx, r, fs.Arg(0), "", *vmid)
 		if err != nil {
 			return err
 		}
@@ -204,7 +204,7 @@ func cmdPVEFiles(ctx context.Context, cmd string, args []string) error {
 		return err
 	}
 	defer r.Close()
-	sn, err := r.LoadSnapshot(ctx, fs.Arg(0))
+	sn, err := loadGuestSnapshot(ctx, r, fs.Arg(0), "", *vmid)
 	if err != nil {
 		return err
 	}
