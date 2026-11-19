@@ -26,7 +26,6 @@ func updateDir() string {
 	return "/var/lib/backupzit-agent/updates"
 }
 
-
 // download fetches an agent installer from the console.
 func (c *Client) download(ctx context.Context, name string, w io.Writer) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.cfg.ServerURL+api.PathDownloadPrefix+url.PathEscape(name), nil)
