@@ -112,3 +112,5 @@ require (
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/masahiro331/go-ext4-filesystem => github.com/gtawelt/go-ext4-filesystem v0.0.0-20261119143201-93650e89f39f

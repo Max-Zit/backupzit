@@ -128,6 +128,8 @@ github.com/gorilla/securecookie v1.1.1 h1:miw7JPhV+b/lAHSXz4qd/nN9jRiAFV5FwjeKyC
 github.com/gorilla/securecookie v1.1.1/go.mod h1:ra0sb63/xPlUeL+yeDciTfxMRAA+MP+HVt/4epWDjd4=
 github.com/gorilla/sessions v1.2.1 h1:DHd3rPN5lE3Ts3D8rKkQ8x/0kqfeNmBAaiSi+o7FsgI=
 github.com/gorilla/sessions v1.2.1/go.mod h1:dk2InVEVJ0sfLlnXv9EAgkf6ecYs/i80K/zI+bUmuGM=
+github.com/gtawelt/go-ext4-filesystem v0.0.0-20261119143201-93650e89f39f h1:WlrskGyGhISl9O4/gc6q//qQ1Q/5d4mrpEF1bg5WzOQ=
+github.com/gtawelt/go-ext4-filesystem v0.0.0-20261119143201-93650e89f39f/go.mod h1:3XMMY1M486mWGTD13WPItg6FsgflQR72ZMAkd+gsyoQ=
 github.com/hashicorp/go-uuid v1.0.2/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
 github.com/hashicorp/go-uuid v1.0.3 h1:2gKiV6YVmrJ1i2CKKa9obLvRieoRGviZFL26PcT/Co8=
 github.com/hashicorp/go-uuid v1.0.3/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
@@ -186,8 +188,6 @@ github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
 github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40 h1:EnfXoSqDfSNJv0VBNqY/88RNnhSGYkrHaO0mmFGbVsc=
 github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40/go.mod h1:vy1vK6wD6j7xX6O6hXe621WabdtNkou2h7uRtTfRMyg=
-github.com/masahiro331/go-ext4-filesystem v0.0.0-20260423010602-fe51f5b5e52b h1:IAYuiQq6BVizPeXTKBoY3Jcin3gGn8No7h31lvH0aKo=
-github.com/masahiro331/go-ext4-filesystem v0.0.0-20260423010602-fe51f5b5e52b/go.mod h1:3XMMY1M486mWGTD13WPItg6FsgflQR72ZMAkd+gsyoQ=
 github.com/masahiro331/go-xfs-filesystem v0.0.0-20260422061116-d21e5e4481bb h1:2c5hvZu2o6ccumpPVlyGiRT3aXvc6Yxj1Kqh+usy1iM=
 github.com/masahiro331/go-xfs-filesystem v0.0.0-20260422061116-d21e5e4481bb/go.mod h1:QKBZqdn6teT0LK3QhAf3K6xakItd1LonOShOEC44idQ=
 github.com/masterzen/simplexml v0.0.0-20190410153822-31eea3082786 h1:2ZKn+w/BJeL43sCxI2jhPLRv73oVVOjEKZjKkflyqxg=
