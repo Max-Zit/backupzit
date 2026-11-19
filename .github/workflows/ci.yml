@@ -117,18 +117,37 @@ jobs:
         run: go test -race -count=1 -timeout 60m $(go list ./... | grep -v '/internal/server$')
 
   race-server:
-    # The console's tests take most of the race run (about 45 min since 0.52),
-    # so they get a runner and a time limit of their own.
-    name: Race detector (Linux, console)
+    # The console's tests under -race in one process outgrew a runner: it
+    # was shut down after 40-50 min (0.52, 0.53). They run in four parts by
+    # test name, each in its own process and runner; together they cover
+    # every test, fuzz seed and example of the package. The memory and disk
+    # in use are logged every two minutes.
+    name: Race detector (Linux, console ${{ matrix.part }})
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: A-C
+            tests: '^(Test[A-C]|Fuzz|Example)'
+          - part: D-L
+            tests: '^Test[D-L]'
+          - part: M-R
+            tests: '^Test[M-R]'
+          - part: S-Z
+            tests: '^Test([S-Z]|[^A-Z])'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - name: Tests with -race (internal/server)
-        run: go test -race -count=1 -timeout 140m ./internal/server
+      - name: Tests with -race (internal/server, ${{ matrix.part }})
+        env:
+          TESTS: ${{ matrix.tests }}
+        run: |
+          (while sleep 120; do echo "resources: memory $(free -m | awk '/^Mem:/{print $3 "/" $2}') MB, disk $(df -h / | awk 'NR==2{print $3 "/" $2}')"; done) &
+          go test -race -count=1 -timeout 80m -run "$TESTS" ./internal/server
 
   fuzz:
     name: Fuzz parsers of untrusted input (short)
