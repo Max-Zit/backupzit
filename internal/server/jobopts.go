@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/repo"
@@ -42,6 +44,9 @@ type JobOptions struct {
 	// ExcludeDisks: Hyper-V VM jobs leave these disk files out (name
 	// patterns such as *-data.vhdx, or full paths).
 	ExcludeDisks []string `json:"exclude_disks,omitempty"`
+	// CrashConsistentOK: Hyper-V VMs (names or patterns) that cannot prepare
+	// a checkpoint themselves; a crash-consistent one is no warning for them.
+	CrashConsistentOK []string `json:"crash_consistent_ok,omitempty"`
 	// SQL Server jobs: the instance ("" = default), whether system
 	// databases are included when all are backed up, and how often the
 	// transaction logs are backed up (minutes, 0 = never).
@@ -132,6 +137,14 @@ func (o JobOptions) Validate() error {
 	}
 	if err := repo.ValidateVMBlockSizeKiB(o.VMBlockSizeKiB); err != nil {
 		return err
+	}
+	if len(o.CrashConsistentOK) > 200 {
+		return errors.New("list at most 200 VMs that may be crash-consistent")
+	}
+	for _, p := range o.CrashConsistentOK {
+		if _, err := path.Match(p, ""); err != nil || len(p) > 200 || strings.ContainsFunc(p, unicode.IsControl) {
+			return fmt.Errorf("%q is not a VM name or pattern (one per line, * and ? allowed)", p)
+		}
 	}
 	if o.Window && (o.WindowFrom < 0 || o.WindowFrom > 23 || o.WindowTo < 0 || o.WindowTo > 23 || o.WindowFrom == o.WindowTo) {
 		return errors.New("the backup window needs a start and a different end hour")
@@ -308,6 +321,7 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	o.SQLLogMinutes = atoiDefault(r.FormValue("sql_log_minutes"))
 	o.AppConsistent = r.FormValue("app_consistent") == "on"
 	o.ExcludeDisks = lines(r.FormValue("exclude_disks"))
+	o.CrashConsistentOK = lines(r.FormValue("crash_consistent_ok"))
 	if r.FormValue("replicate") == "on" {
 		o.ReplicaAgentID, o.ReplicaStorage = formID(r, "replica_agent"), r.FormValue("replica_storage")
 	}

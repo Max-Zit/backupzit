@@ -262,6 +262,9 @@ type Run struct {
 	// VMExcludeDisks are Hyper-V disk files left out of a VM backup: name
 	// patterns (*-data.vhdx) or full paths, case-insensitive.
 	VMExcludeDisks []string `json:"vm_exclude_disks,omitempty"`
+	// VMCrashConsistentOK lists Hyper-V VMs (names or patterns) whose
+	// crash-consistent checkpoint is expected: no warning for them (0.53.0).
+	VMCrashConsistentOK []string `json:"vm_crash_consistent_ok,omitempty"`
 	// VMware: the ESXi host a vm-backup or vm-restore runs against (the
 	// agent acts as proxy). Nil for Proxmox and Hyper-V, where the agent
 	// runs on the hypervisor itself.

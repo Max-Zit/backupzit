@@ -31,8 +31,12 @@ type BackupOptions struct {
 	RequireAppConsistent bool
 	// ExcludeDisks are disk files left out (see DiskExcluded).
 	ExcludeDisks []string
-	Progress     func(done, total uint64)
-	Log          func(msg string, args ...any)
+	// CrashConsistentOK lists VMs (names or patterns, see
+	// CrashConsistentExpected) whose crash-consistent checkpoint is expected:
+	// no warning for them, the guest still reports it as crash-consistent.
+	CrashConsistentOK []string
+	Progress          func(done, total uint64)
+	Log               func(msg string, args ...any)
 }
 
 // Backup checkpoints the selected VMs and stores their disks and settings
@@ -92,7 +96,7 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	notApp := 0
 	for _, vm := range sel {
 		opts.Log("backing up VM", "name", vm.Name, "id", vm.ID)
-		g, warns, err := backupVM(ctx, r, vm, sn, prev, progress, opts.RequireAppConsistent, opts.ExcludeDisks, opts.Log)
+		g, warns, err := backupVM(ctx, r, vm, sn, prev, progress, opts.RequireAppConsistent, CrashConsistentExpected(vm.Name, opts.CrashConsistentOK), opts.ExcludeDisks, opts.Log)
 		for _, w := range warns {
 			addErr(vm.Name, errors.New(w))
 		}
@@ -185,7 +189,7 @@ try { Rename-VMSnapshot -VMSnapshot $s -NewName $name } catch { Remove-VMSnapsho
 // them, otherwise a production checkpoint. rct reports whether the disks
 // track changes. With requireApp only application-consistent checkpoints
 // count: anything else is removed and ErrNotAppConsistent returned.
-func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp bool) (ci checkpointInfo, consistency string, rct bool, warns []string, err error) {
+func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp, crashOK bool) (ci checkpointInfo, consistency string, rct bool, warns []string, err error) {
 	vars := `$id = ` + psq(vm.ID) + `; $name = ` + psq(name) + `; `
 	levels := []string{"1", "2"}
 	if requireApp {
@@ -198,6 +202,9 @@ func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp bool
 			if level == "1" {
 				return ci, "recovery checkpoint, application-consistent (VSS or file system freeze inside the guest)", true, warns, nil
 			}
+			if crashOK {
+				return ci, "recovery checkpoint, crash-consistent (no backup integration in the guest; expected for this VM)", true, warns, nil
+			}
 			return ci, "recovery checkpoint, crash-consistent (no backup integration in the guest)", true, warns, nil
 		}
 		if err == nil {
@@ -206,6 +213,8 @@ func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp bool
 		switch {
 		case level == "1" && requireApp:
 			appErr = err
+		case level == "1" && crashOK:
+			// Listed in the job as a VM that cannot do better: no warning.
 		case level == "1":
 			warns = append(warns, "application-consistent checkpoint failed ("+lastLine(err.Error())+"), took a crash-consistent one")
 		default:
@@ -245,7 +254,7 @@ func lastLine(s string) string {
 	return strings.TrimSpace(l[len(l)-1])
 }
 
-func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), requireApp bool, excludeDisks []string, log func(string, ...any)) (_ *repo.Guest, warns []string, _ error) {
+func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), requireApp, crashOK bool, excludeDisks []string, log func(string, ...any)) (_ *repo.Guest, warns []string, _ error) {
 	if len(vm.Disks) == 0 {
 		return nil, nil, errNoDisks
 	}
@@ -279,7 +288,7 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 			return nil, nil, fmt.Errorf("name checkpoint: %w", err)
 		}
 		name := snapPrefix + hex.EncodeToString(nonce[:])
-		ci, consistency, withRCT, w, err := takeCheckpoint(ctx, vm, name, requireApp)
+		ci, consistency, withRCT, w, err := takeCheckpoint(ctx, vm, name, requireApp, crashOK)
 		warns = append(warns, w...)
 		if err != nil {
 			if vmGone(err) {

@@ -103,7 +103,7 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	} else if isPVE {
 		sn, err = pve.Backup(ctx, r, pve.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf})
 	} else {
-		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Cluster: run.HVCluster != "", RequireAppConsistent: run.AppConsistent, ExcludeDisks: run.VMExcludeDisks,
+		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Cluster: run.HVCluster != "", RequireAppConsistent: run.AppConsistent, ExcludeDisks: run.VMExcludeDisks, CrashConsistentOK: run.VMCrashConsistentOK,
 			Version: a.version, Tags: tags, Progress: prog, Log: logf})
 	}
 	if errors.Is(err, hyperv.ErrNoneHere) {

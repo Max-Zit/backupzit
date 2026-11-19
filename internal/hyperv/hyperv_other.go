@@ -32,9 +32,10 @@ type BackupOptions struct {
 	// RequireAppConsistent: no crash-consistent fallback (see ErrNotAppConsistent).
 	RequireAppConsistent bool
 	// ExcludeDisks are disk files left out (see DiskExcluded).
-	ExcludeDisks []string
-	Progress     func(done, total uint64)
-	Log          func(msg string, args ...any)
+	ExcludeDisks      []string
+	CrashConsistentOK []string
+	Progress          func(done, total uint64)
+	Log               func(msg string, args ...any)
 }
 
 func Backup(context.Context, *repo.Repository, BackupOptions) (*repo.Snapshot, error) {

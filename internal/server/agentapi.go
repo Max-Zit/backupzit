@@ -224,6 +224,7 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 					}
 					ar.VMExcludeDisks = j.Options.ExcludeDisks
 				}
+				ar.VMCrashConsistentOK = j.Options.CrashConsistentOK
 			}
 		}
 		if err := s.addVMware(ctx, run, ar); err != nil {
