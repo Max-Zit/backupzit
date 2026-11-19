@@ -68,7 +68,7 @@
   <tr><td>La macchina Linux ripristinata non ha rete</td><td>Le impostazioni di rete erano legate al vecchio indirizzo MAC (netplan <code>match: macaddress</code>). Ripristina con <i>Hardware diverso</i>, oppure rimuovi le righe <code>match</code> in <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Il Windows ripristinato si ferma con INACCESSIBLE_BOOT_DEVICE</td><td>Ripristina di nuovo con <i>Ripristina su hardware diverso</i>, oppure avvia la ISO di ripristino ed esegui <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>Una copia ripristinata di una macchina compare come l'agente originale</td><td>Un sistema Linux ripristinato come nuova VM viene deregistrato automaticamente. Per altre copie (una VM ripristinata come nuova VM, il ripristino istantaneo, una replica, un disco clonato) la console sospende le esecuzioni dell'agente e mostra <i>due macchine</i>; registra la copia come nuova macchina (vedi <a href="/docs/agents#duplicate">Due macchine che usano un solo agente</a>).</td></tr>
-  <tr><td>L'aggiornamento dell'agente non termina</td><td>Consulta il log del programma di installazione in <code>C:\ProgramData\backupzit\updates</code> o <code>/var/tmp/backupzit-updates</code>; gli agenti precedenti alla 0.21 vanno aggiornati una volta a mano.</td></tr>
+  <tr><td>L'aggiornamento dell'agente non termina</td><td>Consulta il log del programma di installazione in <code>C:\ProgramData\backupzit\updates</code> o <code>/var/lib/backupzit-agent/updates</code>; gli agenti precedenti alla 0.21 vanno aggiornati una volta a mano.</td></tr>
   <tr><td>Manca l'icona nell'area di notifica</td><td>Fai clic sulla freccia <b>^</b> accanto all'orologio e trascina l'icona di BackupZit sulla barra delle applicazioni, oppure avvia <i>BackupZit Agent</i> dal menu Start.</td></tr>
 </table>
 
@@ -91,7 +91,7 @@
   <tr><td>Agent su Linux</td><td><code>/var/log/backupzit/agent.log</code> e <code>journalctl -u backupzit-agent</code></td></tr>
   <tr><td>Qualsiasi agent, dalla console</td><td><b>Ottieni log</b> nella pagina <a href="/agents">Agent</a>: l'agent invia la fine del suo log e i log di installazione più recenti; si leggono o scaricano nella pagina dell'esecuzione (conservati 30 giorni; agent 0.38.0 o successivi).</td></tr>
   <tr><td>Un backup o un ripristino</td><td>la sua pagina in <a href="/runs">Attività</a>: messaggio, errori, statistiche e output dei comandi prima e dopo il backup</td></tr>
-  <tr><td>Aggiornamenti degli agent</td><td>log di installazione in <code>C:\ProgramData\backupzit\updates</code> (Windows) o <code>/var/tmp/backupzit-updates</code> (Linux); <b>Ottieni log</b> li include</td></tr>
+  <tr><td>Aggiornamenti degli agent</td><td>log di installazione in <code>C:\ProgramData\backupzit\updates</code> (Windows) o <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Ottieni log</b> li include</td></tr>
   <tr><td>Aggiornamenti della console</td><td><code>journalctl -u backupzit-update</code>; la versione precedente e un dump del database sono conservati in <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Repository protetto</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Chi ha cambiato cosa</td><td>il <a href="/audit">log di audit</a>, che può anche essere inviato a un server syslog</td></tr>

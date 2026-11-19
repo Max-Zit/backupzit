@@ -68,7 +68,7 @@
   <tr><td>Restored Linux machine has no network</td><td>The network settings were bound to the old MAC address (netplan <code>match: macaddress</code>). Restore with <i>Different hardware</i>, or remove the <code>match</code> lines in <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Restored Windows stops with INACCESSIBLE_BOOT_DEVICE</td><td>Restore again with <i>Restore to different hardware</i>, or boot the recovery ISO and run <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>A restored copy of a machine shows up as the original agent</td><td>A Linux system restored as a new VM is unenrolled automatically. For other copies (a VM restored as a new VM, instant recovery, a replica, a cloned disk) the console holds the agent's runs and shows <i>two machines</i>; enroll the copy as a new machine (see <a href="/docs/agents#duplicate">Two machines using one agent</a>).</td></tr>
-  <tr><td>Agent update does not finish</td><td>See the installer log in <code>C:\ProgramData\backupzit\updates</code> or <code>/var/tmp/backupzit-updates</code>; agents before 0.21 must be updated once by hand.</td></tr>
+  <tr><td>Agent update does not finish</td><td>See the installer log in <code>C:\ProgramData\backupzit\updates</code> or <code>/var/lib/backupzit-agent/updates</code>; agents before 0.21 must be updated once by hand.</td></tr>
   <tr><td>The tray icon is missing</td><td>Click the <b>^</b> arrow next to the clock and drag the BackupZit icon onto the taskbar, or start <i>BackupZit Agent</i> from the Start menu.</td></tr>
 </table>
 
@@ -91,7 +91,7 @@
   <tr><td>Agent on Linux</td><td><code>/var/log/backupzit/agent.log</code> and <code>journalctl -u backupzit-agent</code></td></tr>
   <tr><td>Any agent, from the console</td><td><b>Get log</b> on the <a href="/agents">Agents</a> page: the agent sends the end of its log and its newest installer logs; read or download them on the run page (kept 30 days; agents 0.38.0 or newer).</td></tr>
   <tr><td>One backup or restore</td><td>its page under <a href="/runs">Activity</a>: message, errors, statistics and the output of the commands before and after the backup</td></tr>
-  <tr><td>Agent updates</td><td>installer logs in <code>C:\ProgramData\backupzit\updates</code> (Windows) or <code>/var/tmp/backupzit-updates</code> (Linux); <b>Get log</b> includes them</td></tr>
+  <tr><td>Agent updates</td><td>installer logs in <code>C:\ProgramData\backupzit\updates</code> (Windows) or <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Get log</b> includes them</td></tr>
   <tr><td>Console updates</td><td><code>journalctl -u backupzit-update</code>; the previous version and a database dump are kept in <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Hardened repository</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Who changed what</td><td>the <a href="/audit">audit log</a>, which can also be sent to a syslog server</td></tr>

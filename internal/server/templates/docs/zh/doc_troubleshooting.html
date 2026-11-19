@@ -68,7 +68,7 @@
   <tr><td>还原后的 Linux 机器没有网络</td><td>网络设置绑定到了旧的 MAC 地址（netplan <code>match: macaddress</code>）。使用 <i>不同硬件</i> 还原，或删除 <code>/etc/netplan/</code> 中的 <code>match</code> 行。</td></tr>
   <tr><td>还原后的 Windows 停在 INACCESSIBLE_BOOT_DEVICE</td><td>使用 <i>还原到不同硬件</i> 重新还原，或从恢复 ISO 启动并运行 <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>。</td></tr>
   <tr><td>还原的机器副本显示为原来的代理</td><td>作为新虚拟机还原的 Linux 系统会自动取消注册。对于其他副本（作为新虚拟机还原的虚拟机、即时恢复、虚拟机副本、克隆的磁盘），控制台会暂停该代理的运行并显示<i>两台计算机</i>；请将副本注册为新机器（参见 <a href="/docs/agents#duplicate">两台机器使用同一个代理</a>）。</td></tr>
-  <tr><td>代理更新无法完成</td><td>查看 <code>C:\ProgramData\backupzit\updates</code> 或 <code>/var/tmp/backupzit-updates</code> 中的安装程序日志；0.21 之前的代理需要手动更新一次。</td></tr>
+  <tr><td>代理更新无法完成</td><td>查看 <code>C:\ProgramData\backupzit\updates</code> 或 <code>/var/lib/backupzit-agent/updates</code> 中的安装程序日志；0.21 之前的代理需要手动更新一次。</td></tr>
   <tr><td>托盘图标不见了</td><td>点击时钟旁边的 <b>^</b> 箭头，把 BackupZit 图标拖到任务栏上，或从开始菜单启动 <i>BackupZit Agent</i>。</td></tr>
 </table>
 
@@ -91,7 +91,7 @@
   <tr><td>Linux 上的代理</td><td><code>/var/log/backupzit/agent.log</code> 和 <code>journalctl -u backupzit-agent</code></td></tr>
   <tr><td>任意代理，从控制台</td><td><a href="/agents">代理</a> 页面上的 <b>获取日志</b>：代理发送其日志的末尾和最新的安装程序日志；可在运行页面中阅读或下载（保留 30 天；需要代理 0.38.0 或更高版本）。</td></tr>
   <tr><td>单次备份或还原</td><td><a href="/runs">活动</a> 中对应的页面：消息、错误、统计信息以及备份前后命令的输出</td></tr>
-  <tr><td>代理更新</td><td><code>C:\ProgramData\backupzit\updates</code>（Windows）或 <code>/var/tmp/backupzit-updates</code>（Linux）中的安装程序日志；<b>获取日志</b> 也包含它们</td></tr>
+  <tr><td>代理更新</td><td><code>C:\ProgramData\backupzit\updates</code>（Windows）或 <code>/var/lib/backupzit-agent/updates</code>（Linux）中的安装程序日志；<b>获取日志</b> 也包含它们</td></tr>
   <tr><td>控制台更新</td><td><code>journalctl -u backupzit-update</code>；上一个版本和数据库转储保存在 <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>加固存储库</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>谁更改了什么</td><td><a href="/audit">审计日志</a>，也可以发送到 syslog 服务器</td></tr>

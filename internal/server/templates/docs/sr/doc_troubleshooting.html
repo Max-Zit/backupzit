@@ -68,7 +68,7 @@
   <tr><td>Vraćena Linux mašina nema mrežu</td><td>Mrežna podešavanja su vezana za staru MAC adresu (netplan <code>match: macaddress</code>). Vratite sa opcijom <i>Drugi hardver</i>, ili uklonite redove <code>match</code> u <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Vraćeni Windows staje sa INACCESSIBLE_BOOT_DEVICE</td><td>Vratite ponovo sa <i>Vrati na drugi hardver</i>, ili podignite ISO za oporavak i pokrenite <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>Vraćena kopija mašine se prikazuje kao originalni agent</td><td>Linux sistem vraćen kao nov VM automatski se odjavljuje. Kod drugih kopija (VM vraćen kao nov VM, instant recovery, replika, klonirani disk) konzola zadržava pokretanja agenta i prikazuje <i>dva računara</i>; prijavite kopiju kao novu mašinu (vidi <a href="/docs/agents#duplicate">Dve mašine koriste istog agenta</a>).</td></tr>
-  <tr><td>Ažuriranje agenta se ne završava</td><td>Pogledajte log instalacionog programa u <code>C:\ProgramData\backupzit\updates</code> ili <code>/var/tmp/backupzit-updates</code>; agenti pre 0.21 moraju jednom da se ažuriraju ručno.</td></tr>
+  <tr><td>Ažuriranje agenta se ne završava</td><td>Pogledajte log instalacionog programa u <code>C:\ProgramData\backupzit\updates</code> ili <code>/var/lib/backupzit-agent/updates</code>; agenti pre 0.21 moraju jednom da se ažuriraju ručno.</td></tr>
   <tr><td>Nema ikone u traci</td><td>Kliknite strelicu <b>^</b> pored sata i prevucite BackupZit ikonu na traku zadataka, ili pokrenite <i>BackupZit Agent</i> iz Start menija.</td></tr>
 </table>
 
@@ -91,7 +91,7 @@
   <tr><td>Agent na Linuxu</td><td><code>/var/log/backupzit/agent.log</code> i <code>journalctl -u backupzit-agent</code></td></tr>
   <tr><td>Bilo koji agent, iz konzole</td><td><b>Preuzmi log</b> na stranici <a href="/agents">Agenti</a>: agent šalje kraj svog loga i najnovije logove instalacije; čitaju se ili preuzimaju na stranici run-a (čuvaju se 30 dana; agenti 0.38.0 ili noviji).</td></tr>
   <tr><td>Jedan backup ili restore</td><td>njegova stranica pod <a href="/runs">Aktivnost</a>: poruka, greške, statistika i izlaz komandi pre i posle backup-a</td></tr>
-  <tr><td>Ažuriranja agenata</td><td>logovi instalacije u <code>C:\ProgramData\backupzit\updates</code> (Windows) ili <code>/var/tmp/backupzit-updates</code> (Linux); <b>Preuzmi log</b> ih uključuje</td></tr>
+  <tr><td>Ažuriranja agenata</td><td>logovi instalacije u <code>C:\ProgramData\backupzit\updates</code> (Windows) ili <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Preuzmi log</b> ih uključuje</td></tr>
   <tr><td>Ažuriranja konzole</td><td><code>journalctl -u backupzit-update</code>; prethodna verzija i dump baze čuvaju se u <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Hardened repozitorijum</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Ko je šta menjao</td><td><a href="/audit">audit log</a>, koji može da se šalje i na syslog server</td></tr>

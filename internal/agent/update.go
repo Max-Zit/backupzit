@@ -21,8 +21,11 @@ func updateDir() string {
 	if runtime.GOOS == "windows" {
 		return filepath.Join(filepath.Dir(DefaultConfigPath()), "updates")
 	}
-	return "/var/tmp/backupzit-updates"
+	// Root's own folder: in /var/tmp (before 0.54.1) any local user could
+	// create the folder first and swap the checked package before dpkg -i.
+	return "/var/lib/backupzit-agent/updates"
 }
+
 
 // download fetches an agent installer from the console.
 func (c *Client) download(ctx context.Context, name string, w io.Writer) error {
@@ -55,6 +58,9 @@ func (a *Agent) selfUpdate(ctx context.Context, run api.Run) (api.RunResult, fun
 	}
 	dir := updateDir()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return failed(err), nil
+	}
+	if err := privateDir(dir); err != nil {
 		return failed(err), nil
 	}
 	// Keep only the newest download.

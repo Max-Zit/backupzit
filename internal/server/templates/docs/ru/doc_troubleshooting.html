@@ -68,7 +68,7 @@
   <tr><td>У восстановленной Linux-машины нет сети</td><td>Сетевые настройки были привязаны к старому MAC-адресу (netplan <code>match: macaddress</code>). Восстановите с опцией <i>Другое оборудование</i> или удалите строки <code>match</code> в <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Восстановленная Windows останавливается с INACCESSIBLE_BOOT_DEVICE</td><td>Восстановите заново с опцией <i>Восстановить на другое оборудование</i> или загрузитесь с ISO восстановления и выполните <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>Восстановленная копия машины отображается как исходный агент</td><td>У системы Linux, восстановленной как новая ВМ, регистрация агента снимается автоматически. Для других копий (ВМ, восстановленная как новая ВМ, мгновенное восстановление, реплика, клонированный диск) консоль приостанавливает запуски агента и показывает <i>две машины</i>; зарегистрируйте копию как новую машину (см. <a href="/docs/agents#duplicate">Две машины с одним агентом</a>).</td></tr>
-  <tr><td>Обновление агента не завершается</td><td>Смотрите журнал установщика в <code>C:\ProgramData\backupzit\updates</code> или <code>/var/tmp/backupzit-updates</code>; агентов версий до 0.21 нужно один раз обновить вручную.</td></tr>
+  <tr><td>Обновление агента не завершается</td><td>Смотрите журнал установщика в <code>C:\ProgramData\backupzit\updates</code> или <code>/var/lib/backupzit-agent/updates</code>; агентов версий до 0.21 нужно один раз обновить вручную.</td></tr>
   <tr><td>Нет значка в трее</td><td>Нажмите стрелку <b>^</b> рядом с часами и перетащите значок BackupZit на панель задач или запустите <i>BackupZit Agent</i> из меню «Пуск».</td></tr>
 </table>
 
@@ -91,7 +91,7 @@
   <tr><td>Агент в Linux</td><td><code>/var/log/backupzit/agent.log</code> и <code>journalctl -u backupzit-agent</code></td></tr>
   <tr><td>Любой агент, из консоли</td><td><b>Получить журнал</b> на странице <a href="/agents">Агенты</a>: агент отправляет конец своего журнала и последние журналы установки; их можно прочитать или скачать на странице запуска (хранятся 30 дней; агенты 0.38.0 и новее).</td></tr>
   <tr><td>Одно копирование или восстановление</td><td>его страница в разделе <a href="/runs">Активность</a>: сообщение, ошибки, статистика и вывод команд до и после копирования</td></tr>
-  <tr><td>Обновления агентов</td><td>журналы установки в <code>C:\ProgramData\backupzit\updates</code> (Windows) или <code>/var/tmp/backupzit-updates</code> (Linux); <b>Получить журнал</b> включает их</td></tr>
+  <tr><td>Обновления агентов</td><td>журналы установки в <code>C:\ProgramData\backupzit\updates</code> (Windows) или <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Получить журнал</b> включает их</td></tr>
   <tr><td>Обновления консоли</td><td><code>journalctl -u backupzit-update</code>; предыдущая версия и дамп базы данных хранятся в <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Защищённый репозиторий</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Кто что изменил</td><td><a href="/audit">журнал аудита</a>, который можно также отправлять на сервер syslog</td></tr>

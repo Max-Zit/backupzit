@@ -68,7 +68,7 @@
   <tr><td>Przywrócona maszyna Linux nie ma sieci</td><td>Ustawienia sieci były powiązane ze starym adresem MAC (netplan <code>match: macaddress</code>). Przywróć z opcją <i>Inny sprzęt</i> albo usuń wiersze <code>match</code> w <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Przywrócony Windows zatrzymuje się z INACCESSIBLE_BOOT_DEVICE</td><td>Przywróć ponownie z opcją <i>Przywróć na inny sprzęt</i> albo uruchom ISO odzyskiwania i wykonaj <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>Przywrócona kopia maszyny pojawia się jako oryginalny agent</td><td>System Linux przywrócony jako nowa maszyna wirtualna jest wyrejestrowywany automatycznie. W przypadku innych kopii (maszyna wirtualna przywrócona jako nowa, natychmiastowe odzyskiwanie, replika, sklonowany dysk) konsola wstrzymuje uruchomienia agenta i pokazuje <i>dwa komputery</i>; zarejestruj kopię jako nową maszynę (zobacz <a href="/docs/agents#duplicate">Dwie maszyny używające jednego agenta</a>).</td></tr>
-  <tr><td>Aktualizacja agenta się nie kończy</td><td>Zobacz dziennik instalatora w <code>C:\ProgramData\backupzit\updates</code> lub <code>/var/tmp/backupzit-updates</code>; agentów starszych niż 0.21 trzeba raz zaktualizować ręcznie.</td></tr>
+  <tr><td>Aktualizacja agenta się nie kończy</td><td>Zobacz dziennik instalatora w <code>C:\ProgramData\backupzit\updates</code> lub <code>/var/lib/backupzit-agent/updates</code>; agentów starszych niż 0.21 trzeba raz zaktualizować ręcznie.</td></tr>
   <tr><td>Brak ikony w zasobniku</td><td>Kliknij strzałkę <b>^</b> obok zegara i przeciągnij ikonę BackupZit na pasek zadań albo uruchom <i>BackupZit Agent</i> z menu Start.</td></tr>
 </table>
 
@@ -91,7 +91,7 @@
   <tr><td>Agent w Linux</td><td><code>/var/log/backupzit/agent.log</code> i <code>journalctl -u backupzit-agent</code></td></tr>
   <tr><td>Dowolny agent, z konsoli</td><td><b>Pobierz dziennik</b> na stronie <a href="/agents">Agenci</a>: agent wysyła koniec swojego dziennika i najnowsze dzienniki instalatora; można je przeczytać lub pobrać na stronie uruchomienia (przechowywane 30 dni; agenci 0.38.0 lub nowsi).</td></tr>
   <tr><td>Jedna kopia lub odtworzenie</td><td>jej strona w sekcji <a href="/runs">Aktywność</a>: komunikat, błędy, statystyki i wyjście poleceń przed kopią i po niej</td></tr>
-  <tr><td>Aktualizacje agentów</td><td>dzienniki instalatora w <code>C:\ProgramData\backupzit\updates</code> (Windows) lub <code>/var/tmp/backupzit-updates</code> (Linux); <b>Pobierz dziennik</b> je zawiera</td></tr>
+  <tr><td>Aktualizacje agentów</td><td>dzienniki instalatora w <code>C:\ProgramData\backupzit\updates</code> (Windows) lub <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Pobierz dziennik</b> je zawiera</td></tr>
   <tr><td>Aktualizacje konsoli</td><td><code>journalctl -u backupzit-update</code>; poprzednia wersja i zrzut bazy danych są w <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Wzmocnione repozytorium</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Kto co zmienił</td><td><a href="/audit">dziennik audytu</a>, który można też wysyłać do serwera syslog</td></tr>

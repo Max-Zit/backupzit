@@ -68,7 +68,7 @@
   <tr><td>Obnovený linuxový počítač nemá síť</td><td>Síťová nastavení byla vázaná na starou MAC adresu (netplan <code>match: macaddress</code>). Obnovte s volbou <i>Jiný hardware</i>, nebo odstraňte řádky <code>match</code> v <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Obnovené Windows se zastaví s INACCESSIBLE_BOOT_DEVICE</td><td>Obnovte znovu s volbou <i>Obnovit na jiný hardware</i>, nebo nastartujte obnovovací ISO a spusťte <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>Obnovená kopie počítače se zobrazuje jako původní agent</td><td>Systém Linux obnovený jako nový VM se odregistruje automaticky. U jiných kopií (VM obnovený jako nový VM, okamžitá obnova, replika, klonovaný disk) konzole běhy agenta pozdrží a zobrazí <i>dva počítače</i>; zaregistrujte kopii jako nový počítač (viz <a href="/docs/agents#duplicate">Dva počítače používající jednoho agenta</a>).</td></tr>
-  <tr><td>Aktualizace agenta se nedokončí</td><td>Podívejte se do protokolu instalátoru v <code>C:\ProgramData\backupzit\updates</code> nebo <code>/var/tmp/backupzit-updates</code>; agenty starší než 0.21 je třeba jednou aktualizovat ručně.</td></tr>
+  <tr><td>Aktualizace agenta se nedokončí</td><td>Podívejte se do protokolu instalátoru v <code>C:\ProgramData\backupzit\updates</code> nebo <code>/var/lib/backupzit-agent/updates</code>; agenty starší než 0.21 je třeba jednou aktualizovat ručně.</td></tr>
   <tr><td>Chybí ikona v oznamovací oblasti</td><td>Klikněte na šipku <b>^</b> vedle hodin a přetáhněte ikonu BackupZit na hlavní panel, nebo spusťte <i>BackupZit Agent</i> z nabídky Start.</td></tr>
 </table>
 
@@ -91,7 +91,7 @@
   <tr><td>Agent v Linuxu</td><td><code>/var/log/backupzit/agent.log</code> a <code>journalctl -u backupzit-agent</code></td></tr>
   <tr><td>Libovolný agent, z konzole</td><td><b>Získat protokol</b> na stránce <a href="/agents">Agenti</a>: agent pošle konec svého protokolu a nejnovější protokoly instalace; přečtete nebo stáhnete je na stránce běhu (uchovávají se 30 dní; agenti 0.38.0 nebo novější).</td></tr>
   <tr><td>Jedna záloha nebo obnova</td><td>její stránka v části <a href="/runs">Aktivita</a>: zpráva, chyby, statistiky a výstup příkazů před zálohou a po ní</td></tr>
-  <tr><td>Aktualizace agentů</td><td>protokoly instalace v <code>C:\ProgramData\backupzit\updates</code> (Windows) nebo <code>/var/tmp/backupzit-updates</code> (Linux); <b>Získat protokol</b> je obsahuje</td></tr>
+  <tr><td>Aktualizace agentů</td><td>protokoly instalace v <code>C:\ProgramData\backupzit\updates</code> (Windows) nebo <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Získat protokol</b> je obsahuje</td></tr>
   <tr><td>Aktualizace konzole</td><td><code>journalctl -u backupzit-update</code>; předchozí verze a výpis databáze zůstávají v <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Zabezpečené úložiště</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Kdo co změnil</td><td><a href="/audit">auditní protokol</a>, který lze posílat i na server syslog</td></tr>

@@ -25,3 +25,7 @@ func installerCommand(path string) (func() error, error) {
 		return cmd.Process.Release()
 	}, nil
 }
+
+// privateDir: the update folder is below ProgramData\backupzit, which only
+// administrators and SYSTEM can write.
+func privateDir(string) error { return nil }

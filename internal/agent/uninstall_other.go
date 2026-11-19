@@ -39,9 +39,9 @@ func uninstallerCommand() (func() error, error) {
 func uninstallScript(has func(string) bool, debInstalled func(string) bool) string {
 	switch {
 	case has("dpkg") && debInstalled("backupzit-agent"):
-		return "sleep 2; dpkg -r backupzit-agent >/var/tmp/backupzit-agent-uninstall.log 2>&1"
+		return "sleep 2; mkdir -p -m 700 /var/lib/backupzit-agent; dpkg -r backupzit-agent >/var/lib/backupzit-agent/uninstall.log 2>&1"
 	case has("rpm"):
-		return "sleep 2; rpm -q backupzit-agent >/dev/null 2>&1 && rpm -e backupzit-agent >/var/tmp/backupzit-agent-uninstall.log 2>&1"
+		return "sleep 2; mkdir -p -m 700 /var/lib/backupzit-agent; rpm -q backupzit-agent >/dev/null 2>&1 && rpm -e backupzit-agent >/var/lib/backupzit-agent/uninstall.log 2>&1"
 	}
 	return ""
 }

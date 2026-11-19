@@ -68,7 +68,7 @@
   <tr><td>Geri yüklenen Linux makinesinin ağı yok</td><td>Ağ ayarları eski MAC adresine bağlıydı (netplan <code>match: macaddress</code>). <i>Farklı donanım</i> ile geri yükleyin veya <code>/etc/netplan/</code> içindeki <code>match</code> satırlarını kaldırın.</td></tr>
   <tr><td>Geri yüklenen Windows INACCESSIBLE_BOOT_DEVICE ile duruyor</td><td><i>Farklı donanıma geri yükle</i> ile yeniden geri yükleyin veya kurtarma ISO'sundan önyükleyip <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code> çalıştırın.</td></tr>
   <tr><td>Bir makinenin geri yüklenen kopyası orijinal aracı olarak görünüyor</td><td>Yeni bir VM olarak geri yüklenen bir Linux sisteminin kaydı otomatik olarak silinir. Diğer kopyalarda (yeni VM olarak geri yüklenen bir VM, anında kurtarma, bir replika, klonlanmış bir disk) konsol aracının çalıştırmalarını bekletir ve <i>iki makine</i> gösterir; kopyayı yeni bir makine olarak kaydedin (bkz. <a href="/docs/agents#duplicate">Tek bir aracıyı kullanan iki makine</a>).</td></tr>
-  <tr><td>Aracı güncellemesi tamamlanmıyor</td><td><code>C:\ProgramData\backupzit\updates</code> veya <code>/var/tmp/backupzit-updates</code> içindeki yükleyici günlüğüne bakın; 0.21'den önceki aracıların bir kez elle güncellenmesi gerekir.</td></tr>
+  <tr><td>Aracı güncellemesi tamamlanmıyor</td><td><code>C:\ProgramData\backupzit\updates</code> veya <code>/var/lib/backupzit-agent/updates</code> içindeki yükleyici günlüğüne bakın; 0.21'den önceki aracıların bir kez elle güncellenmesi gerekir.</td></tr>
   <tr><td>Tepsi simgesi yok</td><td>Saatin yanındaki <b>^</b> okuna tıklayıp BackupZit simgesini görev çubuğuna sürükleyin veya Başlat menüsünden <i>BackupZit Agent</i>'ı başlatın.</td></tr>
 </table>
 
@@ -91,7 +91,7 @@
   <tr><td>Linux'ta ajan</td><td><code>/var/log/backupzit/agent.log</code> ve <code>journalctl -u backupzit-agent</code></td></tr>
   <tr><td>Herhangi bir ajan, konsoldan</td><td><a href="/agents">Ajanlar</a> sayfasındaki <b>Günlüğü al</b>: ajan günlüğünün sonunu ve en yeni yükleyici günlüklerini gönderir; çalıştırma sayfasında okunur veya indirilir (30 gün saklanır; ajan 0.38.0 veya daha yenisi).</td></tr>
   <tr><td>Tek bir yedekleme veya geri yükleme</td><td><a href="/runs">Etkinlik</a> altındaki sayfası: mesaj, hatalar, istatistikler ve yedekleme öncesi ve sonrası komutların çıktısı</td></tr>
-  <tr><td>Ajan güncellemeleri</td><td><code>C:\ProgramData\backupzit\updates</code> (Windows) veya <code>/var/tmp/backupzit-updates</code> (Linux) içindeki yükleyici günlükleri; <b>Günlüğü al</b> bunları da içerir</td></tr>
+  <tr><td>Ajan güncellemeleri</td><td><code>C:\ProgramData\backupzit\updates</code> (Windows) veya <code>/var/lib/backupzit-agent/updates</code> (Linux) içindeki yükleyici günlükleri; <b>Günlüğü al</b> bunları da içerir</td></tr>
   <tr><td>Konsol güncellemeleri</td><td><code>journalctl -u backupzit-update</code>; önceki sürüm ve bir veritabanı dökümü <code>/var/lib/backupzit-update</code> içinde tutulur</td></tr>
   <tr><td>Güçlendirilmiş depo</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Kim neyi değiştirdi</td><td>bir syslog sunucusuna da gönderilebilen <a href="/audit">denetim günlüğü</a></td></tr>

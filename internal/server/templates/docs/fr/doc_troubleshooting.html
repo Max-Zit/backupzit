@@ -68,7 +68,7 @@
   <tr><td>La machine Linux restaurée n'a pas de réseau</td><td>Les paramètres réseau étaient liés à l'ancienne adresse MAC (netplan <code>match: macaddress</code>). Restaurez avec <i>Matériel différent</i>, ou supprimez les lignes <code>match</code> dans <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Le Windows restauré s'arrête avec INACCESSIBLE_BOOT_DEVICE</td><td>Restaurez à nouveau avec <i>Restaurer sur un matériel différent</i>, ou démarrez l'ISO de récupération et exécutez <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>Une copie restaurée d'une machine apparaît comme l'agent d'origine</td><td>Un système Linux restauré comme nouvelle VM est désinscrit automatiquement. Pour les autres copies (une VM restaurée comme nouvelle VM, une restauration instantanée, une réplique, un disque cloné), la console retient les exécutions de l'agent et affiche <i>deux machines</i> ; inscrivez la copie comme nouvelle machine (voir <a href="/docs/agents#duplicate">Deux machines utilisant un même agent</a>).</td></tr>
-  <tr><td>La mise à jour de l'agent ne se termine pas</td><td>Consultez le journal de l'installateur dans <code>C:\ProgramData\backupzit\updates</code> ou <code>/var/tmp/backupzit-updates</code> ; les agents antérieurs à 0.21 doivent être mis à jour une fois à la main.</td></tr>
+  <tr><td>La mise à jour de l'agent ne se termine pas</td><td>Consultez le journal de l'installateur dans <code>C:\ProgramData\backupzit\updates</code> ou <code>/var/lib/backupzit-agent/updates</code> ; les agents antérieurs à 0.21 doivent être mis à jour une fois à la main.</td></tr>
   <tr><td>L'icône de la zone de notification est absente</td><td>Cliquez sur la flèche <b>^</b> près de l'horloge et faites glisser l'icône BackupZit sur la barre des tâches, ou lancez <i>BackupZit Agent</i> depuis le menu Démarrer.</td></tr>
 </table>
 
@@ -91,7 +91,7 @@
   <tr><td>Agent sous Linux</td><td><code>/var/log/backupzit/agent.log</code> et <code>journalctl -u backupzit-agent</code></td></tr>
   <tr><td>Tout agent, depuis la console</td><td><b>Obtenir le journal</b> sur la page <a href="/agents">Agents</a> : l'agent envoie la fin de son journal et ses journaux d'installation les plus récents ; à lire ou télécharger sur la page de l'exécution (conservés 30 jours ; agents 0.38.0 ou plus récents).</td></tr>
   <tr><td>Une sauvegarde ou restauration</td><td>sa page dans <a href="/runs">Activité</a> : message, erreurs, statistiques et sortie des commandes avant et après la sauvegarde</td></tr>
-  <tr><td>Mises à jour des agents</td><td>journaux d'installation dans <code>C:\ProgramData\backupzit\updates</code> (Windows) ou <code>/var/tmp/backupzit-updates</code> (Linux) ; <b>Obtenir le journal</b> les inclut</td></tr>
+  <tr><td>Mises à jour des agents</td><td>journaux d'installation dans <code>C:\ProgramData\backupzit\updates</code> (Windows) ou <code>/var/lib/backupzit-agent/updates</code> (Linux) ; <b>Obtenir le journal</b> les inclut</td></tr>
   <tr><td>Mises à jour de la console</td><td><code>journalctl -u backupzit-update</code> ; la version précédente et un dump de la base sont conservés dans <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Dépôt renforcé</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Qui a modifié quoi</td><td>le <a href="/audit">journal d'audit</a>, qui peut aussi être envoyé à un serveur syslog</td></tr>
