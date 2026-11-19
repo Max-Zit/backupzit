@@ -350,6 +350,7 @@ backupzit-agent snapshots --repo <location>
 backupzit-agent ls        --repo <location> <snapshot|latest>
 backupzit-agent restore   --repo <location> (--target DIR | --original) [--include PATH] [--verify] <snapshot|latest>
 backupzit-agent check     --repo <location> [--read-data]
+backupzit-agent repair    --repo <location> [--dry-run]
 ```
 
 Repository locations:
