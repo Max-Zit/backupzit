@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -135,6 +136,7 @@ func (f *subvolFixture) backup(t *testing.T, snap string) (*repo.Snapshot, uint6
 }
 
 func TestVolumeFilesBackupRestore(t *testing.T) {
+	skipOnWindows(t)
 	ctx := context.Background()
 	f := newSubvolFixture(t)
 	big := strings.Repeat("container data\n", 10000)
@@ -227,6 +229,7 @@ func dirTime(t *testing.T, f *subvolFixture, p string) time.Time {
 }
 
 func TestVolumeFilesCheckMissingPath(t *testing.T) {
+	skipOnWindows(t)
 	ctx := context.Background()
 	f := newSubvolFixture(t)
 	f.write(t, "backupzit_1", "etc/hostname", "ct\n")
@@ -251,6 +254,7 @@ func TestVolumeFilesCheckMissingPath(t *testing.T) {
 // A backup with VMs and containers on ZFS: the restore test reads blocks of
 // the disks and restores files of the containers.
 func TestVolumeFilesSampleVerify(t *testing.T) {
+	skipOnWindows(t)
 	ctx := context.Background()
 	f := newSubvolFixture(t)
 	f.write(t, "backupzit_1", "etc/hostname", "ct\n")
@@ -290,5 +294,14 @@ func TestVolumeFormatSubvol(t *testing.T) {
 	}
 	if got := subvolDataset(storage{Props: map[string]string{"pool": "rpool/data"}}, "basevol-100-disk-0/subvol-101-disk-0"); got != "rpool/data/subvol-101-disk-0" {
 		t.Errorf("dataset = %s", got)
+	}
+}
+
+// skipOnWindows: these tests build a fake ZFS mountpoint with Unix paths and
+// symlinks (Proxmox VE runs on Linux; Windows needs a privilege for symlinks).
+func skipOnWindows(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("Linux only: fake ZFS mountpoint with Unix paths and symlinks")
 	}
 }
