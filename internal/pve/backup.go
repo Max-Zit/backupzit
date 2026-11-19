@@ -97,7 +97,7 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	// Changed block tracking: the bitmaps of the previous backups are
 	// dropped only once this backup is saved.
 	prev := previousDisks(ctx, r)
-	prevVolumes := previousVolumes(ctx, r)
+	prevVolumes := previousVolumes(ctx, r, opts.Hostname)
 	volumes := map[string]repo.Node{}
 	var trackers []*tracker
 	saved := false

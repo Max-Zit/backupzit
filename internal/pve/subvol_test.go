@@ -45,6 +45,10 @@ func newSubvolFixture(t *testing.T) *subvolFixture {
 	}
 	old := command
 	t.Cleanup(func() { command = old })
+	// The fake subvolumes are folders, not mounted file systems.
+	oldMounted := mountedDir
+	t.Cleanup(func() { mountedDir = oldMounted })
+	mountedDir = func(dir string) bool { fi, err := os.Stat(dir); return err == nil && fi.IsDir() }
 	command = func(_ context.Context, name string, args ...string) ([]byte, error) {
 		switch {
 		case name == "zfs" && args[0] == "get":
@@ -105,7 +109,7 @@ func (f *subvolFixture) backup(t *testing.T, snap string) (*repo.Snapshot, uint6
 	ctx := context.Background()
 	var read, done uint64
 	run := guestRun{
-		prevVolumes: previousVolumes(ctx, f.r), volumes: map[string]repo.Node{},
+		prevVolumes: previousVolumes(ctx, f.r, "pve"), volumes: map[string]repo.Node{},
 		progress: func(n uint64) { done += n }, read: &read, log: func(string, ...any) {},
 	}
 	g := Guest{VMID: 201, Type: "lxc", Name: "storage02"}

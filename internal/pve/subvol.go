@@ -116,8 +116,11 @@ func volumeErrors(key, dir string, errs []string) []string {
 
 // previousVolumes finds, per path in the tree, the newest backup of each
 // Proxmox container volume stored as files: unchanged files are taken from
-// it instead of being read again.
-func previousVolumes(ctx context.Context, r *repo.Repository) map[string]*repo.Node {
+// it instead of being read again. Only backups of this host count: guest IDs
+// repeat across hosts (every Proxmox VE starts at 100), and a file of the
+// same size and time in another host's container 100 is another file. A
+// container moved to another node is read in full once.
+func previousVolumes(ctx context.Context, r *repo.Repository, host string) map[string]*repo.Node {
 	out := map[string]*repo.Node{}
 	snaps, err := r.ListSnapshots(ctx)
 	if err != nil {
@@ -125,6 +128,9 @@ func previousVolumes(ctx context.Context, r *repo.Repository) map[string]*repo.N
 	}
 	for i := len(snaps) - 1; i >= 0; i-- { // newest first
 		sn := snaps[i]
+		if sn.Hostname != host {
+			continue
+		}
 		for _, g := range sn.Guests {
 			if g.Platform != "proxmox" {
 				continue
@@ -215,8 +221,8 @@ func writeVolumeFiles(ctx context.Context, r *repo.Repository, sn *repo.Snapshot
 	if err != nil {
 		return err
 	}
-	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
-		return fmt.Errorf("%s is not mounted", volid)
+	if !mountedDir(dir) {
+		return fmt.Errorf("%s is not mounted at %s", volid, dir)
 	}
 	var done uint64
 	st, err := restorer.RunDir(ctx, r, n, dir, restorer.Options{Progress: func(_ string, s *restorer.Stats) {
