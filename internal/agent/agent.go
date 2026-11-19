@@ -472,6 +472,11 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 			res.Message = strings.TrimSpace("Disk " + backend.USBLabel(loc) + ". " + res.Message)
 		}
 	}
+	// The agent's own context ends when the service stops (shutdown,
+	// reboot, update): say so instead of a bare "context canceled".
+	if res.Status == api.StatusFailed && parent.Err() != nil && strings.Contains(res.Message, context.Canceled.Error()) {
+		res.Message = agentStoppedMessage
+	}
 	a.log.Info("run finished", "run", run.ID, "status", res.Status, "message", res.Message, "errors", len(res.Errors))
 	a.runFinished(run.ID, res)
 	// Report with a fresh context: the result must reach the server even
@@ -518,7 +523,7 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 	}
 	// Uploads honor the speed limit of the run (backend.WithLimiter).
 	be = backend.Throttle(be)
-	r, err := repo.Open(ctx, be, repo.Password(rs.Password))
+	r, err := repo.Open(ctx, be, repo.Password(rs.Password), repo.IndexProgress(a.indexProgress(be.Location())))
 	if errors.Is(err, repo.ErrNotInitialized) && create {
 		r, err = repo.Init(ctx, be, repo.Password(rs.Password))
 	}
@@ -788,3 +793,33 @@ func agentPortURL(serverURL string) string {
 
 // defaultAgentPort is where consoles listen for agents (tests change it).
 var defaultAgentPort = "8443"
+
+// indexProgress logs the loading of a large repository index (thousands of
+// files at a distant object store can take minutes before a backup starts):
+// a line when it starts, every 30 seconds, and when it is done.
+func (a *Agent) indexProgress(location string) func(done, total int) {
+	var mu sync.Mutex
+	var start, last time.Time
+	return func(done, total int) {
+		if total < 200 {
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		now := time.Now()
+		switch {
+		case start.IsZero():
+			start, last = now, now
+			a.log.Info("loading the repository index", "repository", location, "files", total)
+		case done == total:
+			a.log.Info("repository index loaded", "repository", location, "files", total, "duration", now.Sub(start).Round(time.Second).String())
+		case now.Sub(last) >= 30*time.Second:
+			last = now
+			a.log.Info("loading the repository index", "repository", location, "done", done, "files", total)
+		}
+	}
+}
+
+// agentStoppedMessage is the result of a run cut short because the agent
+// itself stopped (service stop, shutdown or reboot, e.g. Windows Update).
+const agentStoppedMessage = "The agent was stopped during the run (service stop, shutdown or reboot); the next run starts as scheduled"

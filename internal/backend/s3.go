@@ -358,35 +358,94 @@ func (s *S3) KeepLocked(ctx context.Context, names []string) (int, error) {
 		return 0, ErrReadOnly
 	}
 	period := time.Duration(s.lockDays) * 24 * time.Hour
+	get := func(name string) (*time.Time, error) {
+		_, until, err := s.client.GetObjectRetention(ctx, s.bucket, s.key(name), "")
+		if err != nil && minio.ToErrorResponse(err).Code == "NoSuchObjectLockConfiguration" {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, s3NotFound(name, err)
+		}
+		return until, nil
+	}
+	put := func(name string, until time.Time) error {
+		mode := minio.Compliance
+		return s.client.PutObjectRetention(ctx, s.bucket, s.key(name), minio.PutObjectRetentionOptions{
+			Mode: &mode, RetainUntilDate: &until})
+	}
+	return extendLocks(ctx, names, period, s.cacheKey, get, put)
+}
+
+// extendLocks extends the lock of each object that would end within period
+// to period and a half. Each object gets the retries of other requests; one
+// that still fails keeps its current lock (the next run tries again) and
+// the others are extended anyway. Only a storage that keeps failing
+// (keepGiveUp objects in a row) stops the step.
+func extendLocks(ctx context.Context, names []string, period time.Duration, cacheKey func(string) string,
+	get func(string) (*time.Time, error), put func(string, time.Time) error) (int, error) {
 	need := time.Now().Add(period)
 	extended := 0
+	var failed, inARow int
+	var firstErr error
+	note := func(err error) error {
+		failed++
+		inARow++
+		if firstErr == nil {
+			firstErr = err
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if inARow >= keepGiveUp {
+			return fmt.Errorf("%d objects in a row could not be extended, stopping: %w", inARow, firstErr)
+		}
+		return nil
+	}
 	for _, name := range names {
 		if strings.HasPrefix(name, "locks/") {
 			continue
 		}
-		ck := s.cacheKey(name)
+		ck := cacheKey(name)
 		if v, ok := retainCache.Load(ck); ok && !v.(time.Time).Before(need) {
 			continue
 		}
-		_, until, err := s.client.GetObjectRetention(ctx, s.bucket, s.key(name), "")
-		if err != nil && minio.ToErrorResponse(err).Code != "NoSuchObjectLockConfiguration" {
-			return extended, fmt.Errorf("s3 retention of %s: %w", name, s3NotFound(name, err))
+		var until *time.Time
+		err := retryS3(ctx, func() error {
+			var err error
+			until, err = get(name)
+			return err
+		})
+		if err != nil {
+			if stop := note(fmt.Errorf("s3 retention of %s: %w", name, err)); stop != nil {
+				return extended, stop
+			}
+			continue
 		}
 		if until != nil && !until.Before(need) {
 			retainCache.Store(ck, *until)
+			inARow = 0
 			continue
 		}
 		newUntil := need.Add(period / 2).UTC().Truncate(time.Second)
-		mode := minio.Compliance
-		if err := s.client.PutObjectRetention(ctx, s.bucket, s.key(name), minio.PutObjectRetentionOptions{
-			Mode: &mode, RetainUntilDate: &newUntil}); err != nil {
-			return extended, fmt.Errorf("s3 extend retention of %s: %w", name, err)
+		if err := retryS3(ctx, func() error { return put(name, newUntil) }); err != nil {
+			if stop := note(fmt.Errorf("s3 extend retention of %s: %w", name, err)); stop != nil {
+				return extended, stop
+			}
+			continue
 		}
 		retainCache.Store(ck, newUntil)
 		extended++
+		inARow = 0
+	}
+	if failed > 0 {
+		return extended, fmt.Errorf("the lock of %d of %d objects could not be extended (they keep their current lock; the next run tries again): %w", failed, len(names), firstErr)
 	}
 	return extended, nil
 }
+
+// keepGiveUp is how many objects in a row may fail (after their retries)
+// before extending locks stops: the storage is then down, not slow.
+const keepGiveUp = 5
 
 // DefaultRetention returns the bucket's default Object Lock retention
 // (mode "COMPLIANCE" or "GOVERNANCE", and days), "" when the bucket has

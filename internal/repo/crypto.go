@@ -34,11 +34,18 @@ var ErrWrongPassword = errors.New("wrong repository password (recovery key)")
 // Option configures Init and Open.
 type Option func(*options)
 
-type options struct{ password string }
+type options struct {
+	password      string
+	indexProgress func(done, total int)
+}
 
 // Password sets the repository password. With Init it creates an encrypted
 // repository; with Open it unlocks one.
 func Password(pw string) Option { return func(o *options) { o.password = pw } }
+
+// IndexProgress is called with Open as the index files are read (done of
+// total), from several goroutines on object stores; it must be quick.
+func IndexProgress(f func(done, total int)) Option { return func(o *options) { o.indexProgress = f } }
 
 type keyFile struct {
 	KDF     string    `json:"kdf"`

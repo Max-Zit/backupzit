@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/max-zit/backupzit/internal/backend"
@@ -18,16 +19,48 @@ func (r *Repository) KeepImmutable(ctx context.Context, sns ...*Snapshot) (int, 
 	if !ok || ret.LockDays() <= 0 || len(sns) == 0 {
 		return 0, nil
 	}
+	// One snapshot that cannot be read (after the backend's retries) must not
+	// cost all the others their lock extension: then the snapshots are read
+	// one by one, everything readable is extended and the rest is reported.
+	var problems []error
 	used, err := r.BlobsOf(ctx, sns)
 	if err != nil {
-		return 0, err
+		if ctx.Err() != nil {
+			return 0, err
+		}
+		used = map[BlobHandle]bool{}
+		bad := 0
+		for _, sn := range sns {
+			u, err := r.BlobsOf(ctx, []*Snapshot{sn})
+			if err != nil {
+				if ctx.Err() != nil {
+					return 0, err
+				}
+				if bad == 0 {
+					problems = append(problems, err)
+				}
+				bad++
+				continue
+			}
+			for h := range u {
+				used[h] = true
+			}
+		}
+		if bad > 0 {
+			problems[0] = fmt.Errorf("%d of %d snapshots could not be read, so their data keeps its current lock: %w", bad, len(sns), problems[0])
+		}
 	}
 	names := []string{"config"}
 	packs := map[ID]bool{}
+	missing := 0
 	for h := range used {
 		l, ok := r.idx.Lookup(h)
 		if !ok {
-			return 0, fmt.Errorf("blob %s not in index", h.ID.Short())
+			if missing == 0 {
+				problems = append(problems, fmt.Errorf("blob %s not in index", h.ID.Short()))
+			}
+			missing++
+			continue
 		}
 		packs[l.Pack] = true
 	}
@@ -40,9 +73,13 @@ func (r *Repository) KeepImmutable(ctx context.Context, sns ...*Snapshot) (int, 
 	for _, dir := range []string{"keys", "index"} {
 		files, err := r.be.List(ctx, dir)
 		if err != nil {
-			return 0, err
+			return 0, errors.Join(append(problems, err)...)
 		}
 		names = append(names, files...)
 	}
-	return ret.KeepLocked(ctx, names)
+	n, err := ret.KeepLocked(ctx, names)
+	if err != nil {
+		problems = append(problems, err)
+	}
+	return n, errors.Join(problems...)
 }

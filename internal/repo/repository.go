@@ -173,7 +173,7 @@ func Open(ctx context.Context, be backend.Backend, opts ...Option) (*Repository,
 	if err != nil {
 		return nil, err
 	}
-	if err := r.loadIndex(ctx); err != nil {
+	if err := r.loadIndex(ctx, o.indexProgress); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -241,27 +241,82 @@ func (r *Repository) Stats() WriteStats {
 	return r.stats
 }
 
-func (r *Repository) loadIndex(ctx context.Context) error {
+// indexReaders is how many index files are read at once from an object
+// store (they are small, so latency dominates: a large repository at a
+// distant provider has thousands of them).
+const indexReaders = 8
+
+func (r *Repository) loadIndex(ctx context.Context, progress func(done, total int)) error {
 	names, err := r.be.List(ctx, "index")
 	if err != nil {
 		return fmt.Errorf("list index: %w", err)
 	}
+	workers := 1
+	if r.Concurrency() > 1 {
+		workers = indexReaders
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	jobs := make(chan string)
+	var (
+		mu       sync.Mutex
+		firstErr error
+		done     int
+		wg       sync.WaitGroup
+	)
+	fail := func(err error) {
+		mu.Lock()
+		if firstErr == nil {
+			firstErr = err
+			cancel()
+		}
+		mu.Unlock()
+	}
+	for i := 0; i < min(workers, max(len(names), 1)); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for n := range jobs {
+				if err := r.loadIndexFile(ctx, n); err != nil {
+					fail(err)
+					continue
+				}
+				if progress != nil {
+					mu.Lock()
+					done++
+					d := done
+					mu.Unlock()
+					progress(d, len(names))
+				}
+			}
+		}()
+	}
 	for _, n := range names {
-		sealed, err := r.be.Load(ctx, n)
-		if err != nil {
-			return fmt.Errorf("load %s: %w", n, err)
+		if ctx.Err() != nil {
+			break
 		}
-		b, err := r.open(sealed)
-		if err != nil {
-			return fmt.Errorf("%s: %w", n, err)
-		}
-		f, err := decodeIndexFile(b)
-		if err != nil {
-			return fmt.Errorf("parse %s: %w", n, err)
-		}
-		for _, p := range f.Packs {
-			r.idx.addPack(p.ID, p.Blobs)
-		}
+		jobs <- n
+	}
+	close(jobs)
+	wg.Wait()
+	return firstErr
+}
+
+func (r *Repository) loadIndexFile(ctx context.Context, n string) error {
+	sealed, err := r.be.Load(ctx, n)
+	if err != nil {
+		return fmt.Errorf("load %s: %w", n, err)
+	}
+	b, err := r.open(sealed)
+	if err != nil {
+		return fmt.Errorf("%s: %w", n, err)
+	}
+	f, err := decodeIndexFile(b)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", n, err)
+	}
+	for _, p := range f.Packs {
+		r.idx.addPack(p.ID, p.Blobs)
 	}
 	return nil
 }

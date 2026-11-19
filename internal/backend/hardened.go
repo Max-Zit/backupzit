@@ -293,7 +293,11 @@ func (h *Hardened) KeepLocked(ctx context.Context, names []string) (int, error) 
 	if h.asOf > 0 {
 		return 0, ErrReadOnly
 	}
-	total := 0
+	total, all := 0, len(names)
+	// A batch that still fails after its retries keeps its current locks
+	// (the next run tries again); the other batches are extended anyway.
+	var failed, inARow int
+	var firstErr error
 	for len(names) > 0 {
 		batch := names[:min(len(names), 2000)]
 		names = names[len(batch):]
@@ -302,22 +306,39 @@ func (h *Hardened) KeepLocked(ctx context.Context, names []string) (int, error) 
 			full[i] = h.name(n)
 		}
 		body, _ := json.Marshal(map[string][]string{"names": full})
-		resp, err := h.do(ctx, http.MethodPost, "keep", body, map[string]string{"Content-Type": "application/json"})
-		if err != nil {
-			return total, err
-		}
-		if resp.StatusCode != http.StatusOK {
-			return total, statusError(resp)
-		}
 		var kr struct {
 			Extended int `json:"extended"`
 		}
-		err = json.NewDecoder(resp.Body).Decode(&kr)
-		_ = resp.Body.Close()
+		err := retryS3(ctx, func() error {
+			resp, err := h.do(ctx, http.MethodPost, "keep", body, map[string]string{"Content-Type": "application/json"})
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				return statusError(resp)
+			}
+			return json.NewDecoder(resp.Body).Decode(&kr)
+		})
 		if err != nil {
-			return total, err
+			failed += len(batch)
+			inARow++
+			if firstErr == nil {
+				firstErr = err
+			}
+			if ctx.Err() != nil {
+				return total, ctx.Err()
+			}
+			if inARow >= 2 {
+				return total, fmt.Errorf("the hardened repository keeps refusing to extend locks, stopping: %w", firstErr)
+			}
+			continue
 		}
+		inARow = 0
 		total += kr.Extended
+	}
+	if failed > 0 {
+		return total, fmt.Errorf("the lock of %d of %d files could not be extended (they keep their current lock; the next run tries again): %w", failed, all, firstErr)
 	}
 	return total, nil
 }

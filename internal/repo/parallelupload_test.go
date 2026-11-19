@@ -183,3 +183,50 @@ func TestParallelUploadsCloseWaits(t *testing.T) {
 		t.Errorf("%d uploads still running after Close", n)
 	}
 }
+
+// On an object store the index files are read several at a time; the
+// progress callback sees every file, and every blob is found afterwards.
+func TestParallelIndexLoad(t *testing.T) {
+	local, err := backend.OpenLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	w := newTestRepo(t, local, 64<<10)
+	blobs := randomBlobs(60, 8<<10)
+	var ids []ID
+	for i, b := range blobs {
+		id, _, err := w.SaveBlob(ctx, DataBlob, b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+		if i%2 == 1 { // many small index files, like many runs
+			if err := w.Flush(ctx); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	w.Close()
+	files, _ := local.List(ctx, "index")
+	be := &slowStore{Backend: local, delay: 0}
+	var calls, last atomic.Int32
+	r, err := Open(ctx, be, IndexProgress(func(done, total int) {
+		calls.Add(1)
+		if done == total {
+			last.Store(int32(total))
+		}
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	if int(calls.Load()) != len(files) || int(last.Load()) != len(files) {
+		t.Errorf("progress called %d times, last total %d, want %d files", calls.Load(), last.Load(), len(files))
+	}
+	for i, id := range ids {
+		if !r.Index().Has(BlobHandle{Type: DataBlob, ID: id}) {
+			t.Fatalf("blob %d missing after a parallel index load", i)
+		}
+	}
+}

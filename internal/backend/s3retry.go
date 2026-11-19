@@ -63,7 +63,10 @@ func transientS3(ctx context.Context, err error) bool {
 	if errors.As(err, &ne) && ne.Timeout() {
 		return true
 	}
-	resp := minio.ToErrorResponse(err)
+	// Our own messages wrap the S3 error ("read data/…: %w"); minio's
+	// ToErrorResponse only looks at the outermost error.
+	var resp minio.ErrorResponse
+	errors.As(err, &resp)
 	switch resp.Code {
 	case "SlowDown", "RequestTimeout", "InternalError", "ServiceUnavailable", "OperationAborted":
 		return true
@@ -72,7 +75,7 @@ func transientS3(ctx context.Context, err error) bool {
 		return true
 	}
 	msg := err.Error()
-	for _, s := range []string{"timeout awaiting response headers", "connection reset", "broken pipe", "TLS handshake timeout", "unexpected EOF", "server closed idle connection"} {
+	for _, s := range []string{"timeout awaiting response headers", "connection reset", "broken pipe", "TLS handshake timeout", "unexpected EOF", "server closed idle connection", "did not respond in time"} {
 		if strings.Contains(msg, s) {
 			return true
 		}

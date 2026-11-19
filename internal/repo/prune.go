@@ -264,7 +264,7 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 	r.mu.Lock()
 	r.idx = newIndex()
 	r.mu.Unlock()
-	if err := r.loadIndex(ctx); err != nil {
+	if err := r.loadIndex(ctx, nil); err != nil {
 		return nil, err
 	}
 	return st, nil
