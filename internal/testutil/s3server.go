@@ -21,6 +21,7 @@ type S3Server struct {
 	mu       sync.Mutex
 	truncate map[string]int // key part -> PUTs still to store short
 	puts     map[string]int
+	be       *s3mem.Backend
 }
 
 // StartS3Server starts an in-memory S3 server with the given buckets.
@@ -31,7 +32,7 @@ func StartS3Server(buckets ...string) (*S3Server, error) {
 			return nil, err
 		}
 	}
-	s := &S3Server{truncate: map[string]int{}, puts: map[string]int{}}
+	s := &S3Server{truncate: map[string]int{}, puts: map[string]int{}, be: be}
 	fake := gofakes3.New(be).Server()
 	s.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPut && r.URL.RawQuery == "" {
@@ -81,6 +82,13 @@ func (s *S3Server) Puts(part string) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.puts[part]
+}
+
+// Replace overwrites an object directly in the store (no S3 request), for
+// tests that damage data on the storage.
+func (s *S3Server) Replace(bucket, key string, data []byte) error {
+	_, err := s.be.PutObject(bucket, key, map[string]string{}, bytes.NewReader(data), int64(len(data)), nil)
+	return err
 }
 
 // Close stops the server.

@@ -4,6 +4,7 @@ package checker
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/max-zit/backupzit/internal/repo"
 )
@@ -18,6 +19,10 @@ type Result struct {
 	BlobsRead int
 	Errors    []string
 	Warnings  []string
+	// Damaged lists the indexed packs that are missing, unreadable or whose
+	// content does not verify: repair takes them out of the index, so that
+	// the next backups store their data again.
+	Damaged []repo.ID
 }
 
 // OK reports whether no errors were found.
@@ -35,6 +40,13 @@ type Options struct {
 func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error) {
 	res := &Result{}
 	errf := func(f string, a ...any) { res.Errors = append(res.Errors, fmt.Sprintf(f, a...)) }
+	bad := map[repo.ID]bool{}
+	damaged := func(p repo.ID) {
+		if !bad[p] {
+			bad[p] = true
+			res.Damaged = append(res.Damaged, p)
+		}
+	}
 
 	// 1. Packs on storage vs. packs in the index.
 	onDisk, err := r.ListPacks(ctx)
@@ -50,6 +62,7 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 	for p := range indexed {
 		if !present[p] {
 			errf("pack %s is referenced by the index but missing from storage", p.Short())
+			damaged(p)
 		}
 	}
 	for _, p := range onDisk {
@@ -66,6 +79,7 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 		blobs, err := r.ReadPackHeader(ctx, p)
 		if err != nil {
 			errf("pack %s: read header: %v", p.Short(), err)
+			damaged(p)
 			continue
 		}
 		for _, b := range blobs {
@@ -180,23 +194,60 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 	}
 	res.DataBlobs = len(seenData)
 
-	// 4. Optionally read everything.
+	// 4. Optionally read everything: several packs at once on storage that
+	// serves parallel requests well (S3, Azure, hardened), one by one on
+	// local disks and SFTP/SMB. On a distant S3 one stream read about 3 MB/s
+	// (855 GB in about three days, #38).
 	if opts.ReadData {
-		total := len(onDisk)
-		for i, p := range onDisk {
-			if err := ctx.Err(); err != nil {
-				return res, err
+		type verified struct {
+			blobs int
+			err   error
+		}
+		out := make([]verified, len(onDisk))
+		jobs := make(chan int)
+		var (
+			wg   sync.WaitGroup
+			mu   sync.Mutex
+			done int
+		)
+		for w := 0; w < min(max(r.Concurrency(), 1), max(len(onDisk), 1)); w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := range jobs {
+					n, err := r.VerifyPack(ctx, onDisk[i])
+					out[i] = verified{n, err}
+					if opts.Progress != nil {
+						mu.Lock()
+						done++
+						done := done
+						opts.Progress(done, len(onDisk))
+						mu.Unlock()
+					}
+				}
+			}()
+		}
+		for i := range onDisk {
+			if ctx.Err() != nil {
+				break
 			}
-			n, err := r.VerifyPack(ctx, p)
-			if err != nil {
-				errf("%v", err)
-			} else {
-				res.PacksRead++
-				res.BlobsRead += n
+			jobs <- i
+		}
+		close(jobs)
+		wg.Wait()
+		if err := ctx.Err(); err != nil {
+			return res, err
+		}
+		for i, v := range out {
+			if v.err != nil {
+				errf("%v", v.err)
+				if _, ok := indexed[onDisk[i]]; ok {
+					damaged(onDisk[i])
+				}
+				continue
 			}
-			if opts.Progress != nil {
-				opts.Progress(i+1, total)
-			}
+			res.PacksRead++
+			res.BlobsRead += v.blobs
 		}
 	}
 	return res, nil
