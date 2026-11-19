@@ -51,15 +51,13 @@ func (s *Server) docSections(lang string) []docSection {
 		return idx
 	}
 	var idx []docSection
-	pages := s.pages[lang]
-	if pages == nil {
-		pages = s.pages["en"]
-	}
 	{
 		for _, p := range docPages {
-			t := pages["doc_"+p.Slug]
-			if t == nil {
-				continue
+			t, ok := s.page(lang, "doc_"+p.Slug)
+			if !ok {
+				if t, ok = s.page("en", "doc_"+p.Slug); !ok {
+					continue
+				}
 			}
 			var b bytes.Buffer
 			if err := t.ExecuteTemplate(&b, "content", pageData{Data: map[string]any{"Page": p.Slug, "Pages": docPages, "Title": p.Title}}); err != nil {

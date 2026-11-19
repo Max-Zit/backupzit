@@ -80,7 +80,13 @@ type Server struct {
 	// image started on it ("" otherwise).
 	UpdatedFrom string
 
-	pages map[string]map[string]*template.Template // language -> page -> template
+	// pageSrc is the source of each page per language (language -> page ->
+	// file); pages holds those parsed so far. A page is parsed the first time
+	// it is shown in a language: all 14 languages parsed at start took about
+	// 440 MB, most of it for languages nobody uses.
+	pageSrc map[string]map[string]string
+	pagesMu sync.Mutex
+	pages   map[string]map[string]*template.Template
 	// Notifier is triggered when a run finishes (optional).
 	Notifier *Notifier
 	cache    *repoCache
@@ -318,6 +324,7 @@ func fileExists(name string) bool {
 }
 
 func (s *Server) loadTemplates() error {
+	s.pageSrc = map[string]map[string]string{}
 	s.pages = map[string]map[string]*template.Template{}
 	entries, err := fs.ReadDir(templateFS, "templates")
 	if err != nil {
@@ -325,6 +332,7 @@ func (s *Server) loadTemplates() error {
 	}
 	// One set per language: T and the text helpers are bound to it.
 	for _, l := range languages {
+		s.pageSrc[l.Code] = map[string]string{}
 		s.pages[l.Code] = map[string]*template.Template{}
 		for _, e := range entries {
 			name := e.Name()
@@ -343,14 +351,47 @@ func (s *Server) loadTemplates() error {
 					src = tr
 				}
 			}
-			t, err := template.New("layout.html").Funcs(funcs).Funcs(langFuncs(l)).ParseFS(templateFS, "templates/layout.html", "templates/_*.html", src)
-			if err != nil {
-				return fmt.Errorf("template %s: %w", src, err)
-			}
-			s.pages[l.Code][strings.TrimSuffix(name, ".html")] = t
+			s.pageSrc[l.Code][strings.TrimSuffix(name, ".html")] = src
 		}
 	}
+	// The login page is parsed now, so that a broken template set shows at
+	// start, not at the first sign-in.
+	if _, err := s.parsePage("en", "login"); err != nil {
+		return err
+	}
 	return nil
+}
+
+// page returns the template of a page in a language, parsing it the first
+// time it is needed.
+func (s *Server) page(lang, name string) (*template.Template, bool) {
+	t, err := s.parsePage(lang, name)
+	if err != nil {
+		if s.log != nil {
+			s.log.Error("page template", "page", name, "language", lang, "err", err)
+		}
+		return nil, false
+	}
+	return t, t != nil
+}
+
+func (s *Server) parsePage(lang, name string) (*template.Template, error) {
+	s.pagesMu.Lock()
+	defer s.pagesMu.Unlock()
+	if t := s.pages[lang][name]; t != nil {
+		return t, nil
+	}
+	src, ok := s.pageSrc[lang][name]
+	if !ok {
+		return nil, nil
+	}
+	l := languageByCode(lang)
+	t, err := template.New("layout.html").Funcs(funcs).Funcs(langFuncs(l)).ParseFS(templateFS, "templates/layout.html", "templates/_*.html", src)
+	if err != nil {
+		return nil, fmt.Errorf("template %s: %w", src, err)
+	}
+	s.pages[lang][name] = t
+	return t, nil
 }
 
 // Handler returns the HTTP handler for UI and agent API.
@@ -607,7 +648,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d p
 		s.noteConsoleURL(r)
 	}
 	lang := requestLanguage(r)
-	t, ok := s.pages[lang.Code][page]
+	t, ok := s.page(lang.Code, page)
 	if page == "login" {
 		if c := s.ssoSettings(r.Context()); c.Protocol != "" {
 			d.SSO = c.label()
