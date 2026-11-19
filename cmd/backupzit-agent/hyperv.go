@@ -105,7 +105,7 @@ func cmdHyperV(ctx context.Context, args []string) error {
 			return err
 		}
 		defer r.Close()
-		return withHyperVRestoreSnapshot(ctx, r, fs.Arg(0), func(sn *repo.Snapshot) error {
+		return withHyperVRestoreSnapshot(ctx, r, fs.Arg(0), *vmid, func(sn *repo.Snapshot) error {
 			res, err := hyperv.Restore(ctx, r, sn, hyperv.RestoreOptions{VMID: *vmid, AsNew: *asNew, Name: *name, Folder: *folder,
 				Overwrite: *overwrite, Start: *start, Progress: progressPrinter("written"),
 				Log: func(msg string, kv ...any) { fmt.Println(append([]any{" ", msg}, kv...)...) }})
@@ -127,14 +127,14 @@ func cmdHyperV(ctx context.Context, args []string) error {
 
 // withHyperVRestoreSnapshot holds a shared repository lock from snapshot
 // selection through the last restore read.
-func withHyperVRestoreSnapshot(ctx context.Context, r *repo.Repository, ref string, restore func(*repo.Snapshot) error) error {
+func withHyperVRestoreSnapshot(ctx context.Context, r *repo.Repository, ref string, vmid int, restore func(*repo.Snapshot) error) error {
 	lock, err := r.Lock(ctx, false, time.Minute)
 	if err != nil {
 		return err
 	}
 	defer lock.Unlock()
 
-	sn, err := r.LoadSnapshot(ctx, ref)
+	sn, err := loadGuestSnapshot(ctx, r, ref, "hyperv", vmid)
 	if err != nil {
 		return err
 	}

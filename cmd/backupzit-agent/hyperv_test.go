@@ -31,6 +31,9 @@ func (b *restoreLockBackend) List(ctx context.Context, dir string) ([]string, er
 	return b.Backend.List(ctx, dir)
 }
 
+// fixtureVMID is the Hyper-V VM in the fixture's snapshot.
+const fixtureVMID = 1000000001
+
 func restoreLockFixture(t *testing.T) (*repo.Repository, *repo.Repository, *restoreLockBackend, *repo.Snapshot, repo.ID) {
 	t.Helper()
 	ctx := context.Background()
@@ -56,7 +59,7 @@ func restoreLockFixture(t *testing.T) (*repo.Repository, *repo.Repository, *rest
 	if err := r.Flush(ctx); err != nil {
 		t.Fatal(err)
 	}
-	sn := &repo.Snapshot{Time: time.Now().UTC(), Tree: tree}
+	sn := &repo.Snapshot{Time: time.Now().UTC(), Tree: tree, Guests: []repo.Guest{{Platform: "hyperv", VMID: fixtureVMID}}}
 	if _, err := r.SaveSnapshot(ctx, sn); err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +127,7 @@ func TestHyperVRestoreRepositoryLock(t *testing.T) {
 				failure := errors.New("restore failed")
 				var want error
 				called := false
-				err := withHyperVRestoreSnapshot(ctx, r, ref, func(sn *repo.Snapshot) error {
+				err := withHyperVRestoreSnapshot(ctx, r, ref, fixtureVMID, func(sn *repo.Snapshot) error {
 					called = true
 					if sn.ID != expected.ID {
 						t.Errorf("snapshot = %s, want %s", sn.ID, expected.ID)
@@ -164,7 +167,7 @@ func TestHyperVRestoreRepositoryLockBlocksBeforeSnapshot(t *testing.T) {
 	be.onSnapshots = func() { t.Error("snapshot accessed while exclusive lock held") }
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Stop a conflicting wait without depending on sleeps/timeouts.
-	err = withHyperVRestoreSnapshot(ctx, r, sn.ID.String(), func(*repo.Snapshot) error {
+	err = withHyperVRestoreSnapshot(ctx, r, sn.ID.String(), fixtureVMID, func(*repo.Snapshot) error {
 		t.Error("restore started while exclusive lock held")
 		return nil
 	})
@@ -184,7 +187,7 @@ func TestHyperVRestoreRepositoryLockSnapshotError(t *testing.T) {
 			failure := errors.New("snapshot read failed")
 			be.snapshotErr = failure
 			be.onSnapshots = func() { requireRestoreLock(t, other) }
-			err := withHyperVRestoreSnapshot(context.Background(), r, ref, func(*repo.Snapshot) error {
+			err := withHyperVRestoreSnapshot(context.Background(), r, ref, fixtureVMID, func(*repo.Snapshot) error {
 				t.Error("restore started after snapshot read failed")
 				return nil
 			})

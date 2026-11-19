@@ -148,7 +148,7 @@ func cmdVMware(ctx context.Context, args []string) error {
 			return err
 		}
 		defer r.Close()
-		sn, err := r.LoadSnapshot(ctx, fs.Arg(0))
+		sn, err := loadGuestSnapshot(ctx, r, fs.Arg(0), "vmware", *vmid)
 		if err != nil {
 			return err
 		}
