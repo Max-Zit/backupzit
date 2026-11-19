@@ -84,6 +84,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Stop and delete an instant VM with its changes.</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Serve the disks of a VM in a backup read-only over NBD on a unix socket (started by instant recovery as a systemd unit).</td></tr>
 </table>
+<p><b><code>latest</code> with <code>--vmid</code></b> (VMware, Hyper-V and Proxmox VE commands) is the newest snapshot that holds that guest, not the newest of the repository, and the command names it (snapshot, host, time, guest name). Guest IDs repeat across hosts (every Proxmox VE starts at 100): if differently named guests of several hosts have the ID, <code>latest</code> is refused; give the snapshot ID from <code>snapshots</code>. <code>pve show latest</code> still shows the newest snapshot of the repository.</p>
 
 <h2>Microsoft SQL Server (agent on the SQL Server machine)</h2>
 <table>

@@ -84,6 +84,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Zastaví a smaže okamžitou VM i s jejími změnami.</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Poskytuje disky VM ze zálohy jen pro čtení přes NBD na unixovém soketu (spouští ho okamžitá obnova jako jednotku systemd).</td></tr>
 </table>
+<p><b><code>latest</code> s <code>--vmid</code></b> (příkazy VMware, Hyper-V a Proxmox VE) je nejnovější snímek, který obsahuje daného hosta, ne nejnovější snímek repozitáře, a příkaz jej vypíše (snímek, hostitel, čas, název hosta). ID hostů se mezi hostiteli opakují (každý Proxmox VE začíná na 100): pokud toto ID mají různě pojmenovaní hosté několika hostitelů, <code>latest</code> se odmítne; zadejte ID snímku z <code>snapshots</code>. <code>pve show latest</code> dál ukazuje nejnovější snímek repozitáře.</p>
 
 <h2>Microsoft SQL Server (agent na počítači se SQL Serverem)</h2>
 <table>

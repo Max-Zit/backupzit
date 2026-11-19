@@ -84,6 +84,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Anında VM'yi değişiklikleriyle birlikte durdurur ve siler.</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Bir yedekteki VM'nin disklerini bir Unix soketinde NBD üzerinden salt okunur sunar (anında kurtarma tarafından systemd birimi olarak başlatılır).</td></tr>
 </table>
+<p><b><code>--vmid</code> ile <code>latest</code></b> (VMware, Hyper-V ve Proxmox VE komutları), deponun en yeni snapshot'ı değil, o konuğu içeren en yeni snapshot'tır; komut bunu (snapshot, host, saat, konuk adı) yazar. Konuk kimlikleri hostlar arasında tekrarlanır (her Proxmox VE 100'den başlar): bu kimliğe birden fazla hostta farklı adlı konuklar sahipse <code>latest</code> reddedilir; <code>snapshots</code> ile gösterilen snapshot kimliğini verin. <code>pve show latest</code> deponun en yeni snapshot'ını göstermeye devam eder.</p>
 
 <h2>Microsoft SQL Server (SQL Server makinesindeki aracı)</h2>
 <table>

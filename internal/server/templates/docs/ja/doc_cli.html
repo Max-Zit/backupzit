@@ -84,6 +84,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>インスタント VM を停止し、変更とともに削除します。</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>バックアップ内の VM のディスクを Unix ソケット上の NBD で読み取り専用で提供します（インスタント リカバリが systemd ユニットとして起動）。</td></tr>
 </table>
+<p><b><code>--vmid</code> 付きの <code>latest</code></b>（VMware、Hyper-V、Proxmox VE のコマンド）は、リポジトリで最新のスナップショットではなく、そのゲストを含む最新のスナップショットを指し、コマンドはそれ（スナップショット、ホスト、時刻、ゲスト名）を表示します。ゲスト ID はホスト間で重複します（Proxmox VE はどれも 100 から始まります）。複数のホストで名前の異なるゲストがその ID を持つ場合、<code>latest</code> は拒否されます。<code>snapshots</code> で表示されるスナップショット ID を指定してください。<code>pve show latest</code> は引き続きリポジトリで最新のスナップショットを表示します。</p>
 
 <h2>Microsoft SQL Server（SQL Server マシン上のエージェント）</h2>
 <table>

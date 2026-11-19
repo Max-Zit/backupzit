@@ -84,6 +84,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Stopt en verwijdert een directe VM met haar wijzigingen.</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Biedt de schijven van een VM in een back-up alleen-lezen aan via NBD op een Unix-socket (gestart door direct herstel als systemd-unit).</td></tr>
 </table>
+<p><b><code>latest</code> met <code>--vmid</code></b> (opdrachten voor VMware, Hyper-V en Proxmox VE) is de nieuwste snapshot met die gast, niet de nieuwste van de repository, en de opdracht noemt hem (snapshot, host, tijd, gastnaam). Gast-ID's herhalen zich tussen hosts (elke Proxmox VE begint bij 100): hebben verschillend genoemde gasten van meerdere hosts dat ID, dan wordt <code>latest</code> geweigerd; geef het snapshot-ID uit <code>snapshots</code>. <code>pve show latest</code> toont nog steeds de nieuwste snapshot van de repository.</p>
 
 <h2>Microsoft SQL Server (agent op de SQL Server-machine)</h2>
 <table>

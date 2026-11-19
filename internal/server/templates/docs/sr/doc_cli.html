@@ -84,6 +84,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Zaustavlja i briše instant VM sa njegovim izmenama.</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Servira diskove VM-a iz bekapa samo za čitanje preko NBD-a na unix socketu (pokreće ga instant recovery kao systemd jedinicu).</td></tr>
 </table>
+<p><b><code>latest</code> sa <code>--vmid</code></b> (komande za VMware, Hyper-V i Proxmox VE) je najnoviji snapshot koji sadrži tog gosta, a ne najnoviji u repozitorijumu, i komanda ga ispisuje (snapshot, host, vreme, ime gosta). ID-jevi gostiju se ponavljaju na različitim hostovima (svaki Proxmox VE počinje od 100): ako taj ID imaju različito nazvani gosti više hostova, <code>latest</code> se odbija; navedite ID snapshota iz <code>snapshots</code>. <code>pve show latest</code> i dalje prikazuje najnoviji snapshot repozitorijuma.</p>
 
 <h2>Microsoft SQL Server (agent na mašini sa SQL Serverom)</h2>
 <table>

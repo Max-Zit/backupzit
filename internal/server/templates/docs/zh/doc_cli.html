@@ -84,6 +84,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>停止并删除即时虚拟机及其更改。</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>通过 Unix 套接字上的 NBD 以只读方式提供备份中虚拟机的磁盘（由即时恢复作为 systemd 单元启动）。</td></tr>
 </table>
+<p><b>带 <code>--vmid</code> 的 <code>latest</code></b>（VMware、Hyper-V 和 Proxmox VE 命令）指包含该客户机的最新快照，而不是存储库中最新的快照，命令会显示它（快照、主机、时间、客户机名称）。客户机 ID 在不同主机之间会重复（每个 Proxmox VE 都从 100 开始）：如果多个主机上名称不同的客户机具有该 ID，<code>latest</code> 会被拒绝；请改用 <code>snapshots</code> 显示的快照 ID。<code>pve show latest</code> 仍显示存储库中最新的快照。</p>
 
 <h2>Microsoft SQL Server（SQL Server 机器上的代理）</h2>
 <table>

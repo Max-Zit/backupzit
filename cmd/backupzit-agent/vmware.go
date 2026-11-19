@@ -148,6 +148,14 @@ func cmdVMware(ctx context.Context, args []string) error {
 			return err
 		}
 		defer r.Close()
+		// A shared lock from choosing the snapshot through the last read, like
+		// the Proxmox and Hyper-V restores: a prune meanwhile would remove data
+		// the restore still reads.
+		lock, err := r.Lock(ctx, false, time.Minute)
+		if err != nil {
+			return err
+		}
+		defer lock.Unlock()
 		sn, err := loadGuestSnapshot(ctx, r, fs.Arg(0), "vmware", *vmid)
 		if err != nil {
 			return err
