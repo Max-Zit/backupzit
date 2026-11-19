@@ -44,13 +44,11 @@
               {{range $m := everyChoices}}<option value="{{$m}}" {{if eq $m $e}}selected{{end}}>{{minutesText $m}}</option>{{end}}
             </select>
           </label>
-          <div>
+          <div class="window-line">{{$f := .From}}{{$t := .To}}
             <label class="check"><input type="checkbox" name="sched_window" {{if .Window}}checked{{end}}> {{T "Only between"}}</label>
-            <div class="times">{{$f := .From}}{{$t := .To}}
               <select name="sched_from">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $f}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
               <span>{{T "and"}}</span>
               <select name="sched_to">{{range $h := hours}}{{if $h}}<option value="{{$h}}" {{if eq $h $t}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}{{end}}<option value="24" {{if eq $t 24}}selected{{end}}>24:00</option></select>
-            </div>
           </div>
         </div>
       </div>
@@ -68,15 +66,15 @@
         </label>
         <label>{{T "At"}} <input type="time" name="sched_month_time" value="{{.MonthTime}}"></label>
       </div>
-    </fieldset>
-    <div class="row">
-      <label class="check"><input type="checkbox" name="window" {{if .J.Options.Window}}checked{{end}}> {{T "Backup window: start only between"}}</label>
+      <div class="window-line mt">
       {{$wf := .J.Options.WindowFrom}}{{$wt := .J.Options.WindowTo}}{{if not .J.Options.Window}}{{$wf = 22}}{{$wt = 6}}{{end}}
-      <select name="window_from" class="narrow" aria-label="{{T "from"}}">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $wf}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
-      <span>{{T "and"}}</span>
-      <select name="window_to" class="narrow" aria-label="{{T "to"}}">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $wt}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
-    </div>
-    <p class="muted small">{{T "Scheduled and chained runs that could not start within the window (e.g. because the night's jobs took longer) are cancelled when it closes, so they do not start during working hours. Starting a job by hand ignores the window."}}</p>
+        <label class="check"><input type="checkbox" name="window" {{if .J.Options.Window}}checked{{end}}> {{T "Backup window: start only between"}}</label>
+        <select name="window_from" class="narrow" aria-label="{{T "from"}}">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $wf}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
+        <span>{{T "and"}}</span>
+        <select name="window_to" class="narrow" aria-label="{{T "to"}}">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $wt}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
+      </div>
+      <p class="muted small">{{T "Scheduled and chained runs that could not start within the window (e.g. because the night's jobs took longer) are cancelled when it closes, so they do not start during working hours. Starting a job by hand ignores the window."}}</p>
+    </fieldset>
     <label>{{T "Recovery point objective (RPO), hours"}} <small>{{T "the newest good backup should never be older; the dashboard and a notification tell you when it is. Empty or 0: no RPO. Example: 26 for a daily backup"}}</small><input type="number" name="rpo_hours" min="0" max="8760" value="{{if .J.Options.RPOHours}}{{.J.Options.RPOHours}}{{end}}" class="narrow"></label>
     {{if or (not .Edit) .HyperV}}
     <label class="check" {{if not .Edit}}data-jobkind="vm" data-hvonly hidden{{end}}><input type="checkbox" name="app_consistent" {{if .J.Options.AppConsistent}}checked{{end}}> {{T "Require application-consistent checkpoints"}} <small>{{T "Hyper-V: back up a running VM only from a checkpoint made with VSS inside the guest (Active Directory, SQL Server, Exchange). If that is not possible, the VM is not backed up and the run fails instead of taking a crash-consistent checkpoint; the other VMs of the job are still backed up."}}</small></label>
@@ -86,13 +84,11 @@
       <summary>{{T "Advanced: speed limit, compression"}}{{if and .CanCommands (ne .J.Kind "copy")}}{{T ", commands before and after the backup"}}{{end}}</summary>
       <div class="row">
         <label>{{T "Limit the upload speed to (MB/s)"}} <small>{{T "0 or empty: no limit"}}</small><input type="number" name="limit_mbps" min="0" max="100000" value="{{if .J.Options.LimitMBps}}{{.J.Options.LimitMBps}}{{end}}"></label>
-        <div>
+        <div class="window-line">{{$lf := .LimitFrom}}{{$lt := .LimitTo}}
           <label class="check"><input type="checkbox" name="limit_window" {{if ne .J.Options.LimitFrom .J.Options.LimitTo}}checked{{end}}> {{T "Only between"}}</label>
-          <div class="times">{{$lf := .LimitFrom}}{{$lt := .LimitTo}}
             <select name="limit_from">{{range $h := hours}}<option value="{{$h}}" {{if eq $h $lf}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}</select>
             <span>{{T "and"}}</span>
             <select name="limit_to">{{range $h := hours}}{{if $h}}<option value="{{$h}}" {{if eq $h $lt}}selected{{end}}>{{printf "%02d:00" $h}}</option>{{end}}{{end}}<option value="24" {{if eq $lt 24}}selected{{end}}>24:00</option></select>
-          </div>
         </div>
       </div>
       <small class="muted">{{T "For example 10 MB/s from 08:00 to 18:00 keeps the office line usable during working hours; outside the window the backup runs at full speed. Times are the agent's local time."}}</small>

@@ -489,3 +489,11 @@ table.pick td .btn { padding: 6px 12px; }
 .release-notes h4 { margin: 12px 0 4px; }
 .release-notes ul { margin: 4px 0; padding-left: 20px; }
 .release-notes li { margin: 3px 0; }
+/* "Only between [hh] and [hh]": checkbox, both hours and "and" on one line
+   (schedule, backup window, speed limit), wrapping cleanly on phones. */
+.window-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.window-line select { width: auto; }
+.window-line .check { margin: 0; }
+.row > .window-line { align-self: end; min-height: 40px; }
+/* The VMs of "Only these:" / "except the ticked ones", set apart from the three choices above. */
+.vmlist { margin: 10px 0 6px 26px; padding-left: 14px; border-left: 2px solid var(--line-2); }
