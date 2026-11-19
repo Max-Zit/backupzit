@@ -164,3 +164,31 @@ func logTail(text string, n int) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// minAgentInventoryVersion is the first agent that sends its inventory on
+// request.
+const minAgentInventoryVersion = "0.54.1"
+
+// handleAgentInventoryRequest serves POST /agents/{id}/inventory: the agent
+// sends its disk and VM inventory with its next poll (new storages, guests
+// or disks show at once instead of after up to 15 minutes).
+func (s *Server) handleAgentInventoryRequest(w http.ResponseWriter, r *http.Request, _ string) {
+	id, err := pathID(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	a, err := s.store.GetAgent(r.Context(), id)
+	if err != nil {
+		redirectErr(w, r, "/agents", errors.New("unknown agent"))
+		return
+	}
+	l := requestLanguage(r)
+	if agentOlder(a, minAgentInventoryVersion) {
+		redirectErr(w, r, "/agents", errors.New(l.T("the agent on %s (%s) sends its inventory every 15 minutes; update it to %s or newer to refresh it at once", a.Hostname, a.Version, minAgentInventoryVersion)))
+		return
+	}
+	s.inventoryWanted.Store(a.ID, true)
+	s.audit(r, "agent.inventory", "asked %s for its inventory", a.Hostname)
+	redirectMsg(w, r, "/agents", l.T("%s sends its disks and VMs with its next poll; reload the page in a minute.", a.Hostname))
+}

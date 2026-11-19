@@ -101,6 +101,10 @@ type PollResponse struct {
 	// Cancel lists running runs of the agent to stop (cancelled in the
 	// console or over their job's time limit).
 	Cancel []int64 `json:"cancel,omitempty"`
+	// SendInventory asks the agent to send its disk and hypervisor inventory
+	// with its next poll instead of waiting for the 15-minute interval
+	// (Refresh on the Agents page; agents before 0.54.1 ignore it).
+	SendInventory bool `json:"send_inventory,omitempty"`
 }
 
 // Run kinds.

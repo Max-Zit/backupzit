@@ -87,6 +87,9 @@ type Server struct {
 	pageSrc map[string]map[string]string
 	pagesMu sync.Mutex
 	pages   map[string]map[string]*template.Template
+	// inventoryWanted holds the agents asked to send their inventory with
+	// their next poll (Refresh on the Agents page).
+	inventoryWanted sync.Map
 	// Notifier is triggered when a run finishes (optional).
 	Notifier *Notifier
 	cache    *repoCache
@@ -442,6 +445,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("GET /agents/{id}", s.ui(PermView, s.handleAgentPage))
 	mux.HandleFunc("POST /agents/{id}/labels", s.ui(PermAgents, s.handleAgentLabels))
 	mux.HandleFunc("POST /agents/{id}/log", s.ui(PermAgents, s.handleAgentLogRequest))
+	mux.HandleFunc("POST /agents/{id}/inventory", s.ui(PermAgents, s.handleAgentInventoryRequest))
 	mux.HandleFunc("GET /runs/{id}/log", s.ui(PermAgents, s.handleAgentLogDownload))
 	mux.HandleFunc("POST /agents/update-all", s.ui(PermAgents, s.handleAgentUpdateAll))
 	mux.HandleFunc("POST /vmware", s.ui(PermAgents, s.handleVMwareCreate))

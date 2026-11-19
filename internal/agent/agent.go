@@ -281,6 +281,12 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 		a.inventoryAt = time.Now()
 		a.mu.Unlock()
 	}
+	if resp.SendInventory {
+		a.mu.Lock()
+		a.inventoryAt = time.Time{}
+		a.mu.Unlock()
+		a.pollSoon()
+	}
 	for _, id := range resp.Cancel {
 		a.mu.Lock()
 		stop := a.cancels[id]
@@ -305,6 +311,11 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 			a.mu.Lock()
 			a.running--
 			delete(a.active, run.ID)
+			if strings.HasPrefix(run.Kind, "vm-") {
+				// Guests may have come or gone: the console sees them at
+				// the next idle poll, not after up to 15 minutes.
+				a.inventoryAt = time.Time{}
+			}
 			a.mu.Unlock()
 		}(*resp.Run)
 		// Ask again at once: the console may hand out another run.

@@ -92,6 +92,9 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 	}
 	s.clocks.seen(a.ID, req.Time, s.clock())
 	resp := api.PollResponse{PollIntervalSec: s.PollInterval}
+	if _, ok := s.inventoryWanted.LoadAndDelete(a.ID); ok {
+		resp.SendInventory = true
+	}
 	if req.WantStatus {
 		if st, err := s.agentStatus(r.Context(), a.ID); err == nil {
 			resp.Status = st

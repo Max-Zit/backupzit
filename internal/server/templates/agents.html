@@ -46,7 +46,7 @@ sudo systemctl enable --now backupzit-agent</pre>
       <td>{{if .Online}}{{template "status" "online"}}{{else}}{{template "status" "offline"}}{{end}}{{with (index $.Data.Duplicates .ID).Machines}}<br><span class="badge failed" title="{{join . ", "}}"><i></i>{{T "two machines"}}</span> <span class="muted small">{{join . ", "}} — {{T "runs are held"}} · <a href="/docs/agents#duplicate">{{T "help"}}</a></span>{{end}}{{if index $.Data.Unprotected .ID}}<br><span class="badge warning" title="{{T "no enabled backup job backs up this computer"}}"><i></i>{{T "no backup job"}}</span> <a class="small" href="/jobs">{{T "create one"}}</a>{{end}}{{with index $.Data.ClockSkew .ID}}<br><span class="badge warning" title="{{T "agent time minus console time"}}"><i></i>{{T "clock off"}} {{skew .}}</span> <a class="small" href="/docs/troubleshooting#clock">{{T "help"}}</a>{{end}}</td>
       <td>{{ago .LastSeen}}</td>
       <td>{{ts .EnrolledAt}}</td>
-      <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/log" class="inline"><button class="link">{{T "Get log"}}</button></form> <a href="/agents/remove/{{.ID}}">{{T "Remove"}}</a>{{end}}</td>
+      <td>{{if $.Me.Can "agents"}}<form method="post" action="/agents/{{.ID}}/inventory" class="inline"><button class="link" title="{{T "send the disks and VMs of this machine now (otherwise every 15 minutes)"}}">{{T "Refresh"}}</button></form> <form method="post" action="/agents/{{.ID}}/log" class="inline"><button class="link">{{T "Get log"}}</button></form> <a href="/agents/remove/{{.ID}}">{{T "Remove"}}</a>{{end}}</td>
     </tr>
     {{end}}
   </table></div>
