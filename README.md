@@ -67,7 +67,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 | **Files and folders** (Windows, Linux) | incremental, from a VSS snapshot on Windows; `{users}` paths (e.g. the Documents of every user) and wildcards; one job can cover several or all agents | single files from the browser (download), into a folder or to the original location |
 | **Whole disks** (Windows) | disk images of one, several or all disks, changed blocks only | bare metal from the recovery ISO, also onto different hardware; single files from the image |
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
-| **Proxmox VE** VMs and containers | agentless, changed blocks only; the node's own configuration (`/etc/pve`, `config.db`) with a files job | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
+| **Proxmox VE** VMs and containers | agentless, changed blocks only (containers on ZFS file by file, changed files only); the node's own configuration (`/etc/pve`, `config.db`) with a files job | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
 | **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent, changed block tracking | new VM or in place, instant recovery over NFS |
 | **Hyper-V** VMs, also **failover clusters** | agentless, resilient change tracking; optionally application-consistent only (VSS in the guest, for AD and SQL Server); all VMs except chosen ones; data disks can be left out; a clustered VM keeps its history when it moves to another node, also during a backup | new VM on the same or another Hyper-V host, also onto a Cluster Shared Volume as a cluster role; the vTPM (BitLocker) is kept |
 | **Databases** | SQL Server, PostgreSQL, MySQL/MariaDB with native tools; log backups | a single database to any point in time, under a new name or in place |
@@ -495,7 +495,7 @@ BackupZit is a young project: the first public release was 4 October 2026, and n
 
 Not supported yet (see *Not yet included* in each chapter of the built-in guide):
 - macOS — there is no agent for Mac computers.
-- Proxmox VE: container disks on ZFS subvolumes; raw disks on directory/NFS/CIFS storage and thick LVM only while the guest is stopped.
+- Proxmox VE: container volumes that are directories on non-ZFS storage, and replicas of containers on ZFS; raw disks on directory/NFS/CIFS storage and thick LVM only while the guest is stopped.
 - VMware: a vCenter with several datacenters (add the hosts of the others directly), raw device mappings and independent disks, VMs with snapshots of their own, instant recovery through a Windows proxy agent.
 - Hyper-V: shared VHDX, VHD Set and pass-through disks.
 - XCP-ng.
