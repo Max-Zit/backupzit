@@ -102,6 +102,9 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 		}
 		if err != nil {
 			if ctx.Err() != nil {
+				for _, w := range warns { // the run ends without them: keep them in the agent log
+					opts.Log("warning of the cancelled backup", "vm", vm.Name, "warning", w)
+				}
 				return nil, ctx.Err()
 			}
 			if errors.Is(err, ErrNotAppConsistent) {
@@ -184,9 +187,12 @@ if (-not $s) { throw "recovery checkpoint not found" }
 try { Rename-VMSnapshot -VMSnapshot $s -NewName $name } catch { Remove-VMSnapshot -VMSnapshot $s; throw }
 [pscustomobject]@{ type = "Recovery"; state = "$($s.State)"; disks = @(Get-VMHardDiskDrive -VMSnapshot $s | ForEach-Object { [pscustomobject]@{ type = "$($_.ControllerType)"; num = $_.ControllerNumber; loc = $_.ControllerLocation; path = $_.Path } }) } | ConvertTo-Json -Depth 4 -Compress`
 
-// checkpointTimeout bounds creating (and naming) a checkpoint once started;
-// a cancelled backup waits for it, see takeCheckpoint.
-var checkpointTimeout = 15 * time.Minute
+// checkpointGrace bounds how long a cancelled backup still waits for a
+// checkpoint being created (and named), see takeCheckpoint. It is shorter
+// than the console's wait for a cancelled run to stop. Without a cancel
+// creating has no time limit, as before: a slow application-consistent
+// checkpoint must not be cut off and left behind.
+var checkpointGrace = 5 * time.Minute
 
 // takeCheckpoint creates the backup's checkpoint: a recovery checkpoint
 // (application-consistent, else crash-consistent) where Hyper-V supports
@@ -201,11 +207,21 @@ var checkpointTimeout = 15 * time.Minute
 // creating runs to the end, and a checkpoint finished after the cancel is
 // removed right away.
 func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp, crashOK bool) (ci checkpointInfo, consistency string, rct bool, warns []string, err error) {
-	run, cancel := context.WithTimeout(context.WithoutCancel(ctx), checkpointTimeout)
+	run, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	defer cancel()
+	stop := context.AfterFunc(ctx, func() { time.AfterFunc(checkpointGrace, cancel) })
+	defer stop()
 	ci, consistency, rct, warns, err = createCheckpoint(ctx, run, vm, name, requireApp, crashOK)
+	if err != nil && ctx.Err() != nil && run.Err() != nil {
+		// The grace ran out while PowerShell created it: Hyper-V may still
+		// add the checkpoint under its default name.
+		warns = append(warns, fmt.Sprintf("the backup was cancelled while Hyper-V created a checkpoint, which did not finish within %s; if the VM has a checkpoint named after it with the date, delete it", checkpointGrace))
+	}
 	if err == nil && ctx.Err() != nil {
-		if _, rerr := ps(run, `Get-VMSnapshot -VM (Get-VM -Id `+psq(vm.ID)+`) -Name `+psq(name)+` -ErrorAction Stop | Remove-VMSnapshot -ErrorAction Stop`); rerr != nil {
+		// Its own time, like the removal after a backup: the grace may be spent.
+		rm, rmCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Minute)
+		defer rmCancel()
+		if _, rerr := ps(rm, `Get-VMSnapshot -VM (Get-VM -Id `+psq(vm.ID)+`) -Name `+psq(name)+` -ErrorAction Stop | Remove-VMSnapshot -ErrorAction Stop`); rerr != nil {
 			warns = append(warns, "remove checkpoint "+name+": "+lastLine(rerr.Error()))
 		}
 		return checkpointInfo{}, "", false, warns, ctx.Err()
