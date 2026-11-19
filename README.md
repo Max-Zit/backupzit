@@ -68,7 +68,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 | **Whole disks** (Windows) | disk images of one, several or all disks, changed blocks only | bare metal from the recovery ISO, also onto different hardware; single files from the image |
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
 | **Proxmox VE** VMs and containers | agentless, changed blocks only (containers on ZFS file by file, changed files only); the node's own configuration (`/etc/pve`, `config.db`) with a files job | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
-| **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent, changed block tracking | new VM or in place, instant recovery over NFS |
+| **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent, changed block tracking, hot-add (no copy on the datastore) | new VM or in place, instant recovery over NFS |
 | **Hyper-V** VMs, also **failover clusters** | agentless, resilient change tracking; optionally application-consistent only (VSS in the guest, for AD and SQL Server); all VMs except chosen ones; data disks can be left out; a clustered VM keeps its history when it moves to another node, also during a backup | new VM on the same or another Hyper-V host, also onto a Cluster Shared Volume as a cluster role; the vTPM (BitLocker) is kept |
 | **Databases** | SQL Server, PostgreSQL, MySQL/MariaDB with native tools; log backups | a single database to any point in time, under a new name or in place |
 | **NAS shares** | SMB or NFS share read by any agent, nothing installed on the NAS | into a folder or back onto the share |
