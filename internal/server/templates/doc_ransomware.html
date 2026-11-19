@@ -30,7 +30,7 @@
   <li>Add the S3 target and tick <b>Immutable backups for N days</b>. Choose N at least as long as the period your backups must stay protected, e.g. 30.</li>
 </ol>
 <p>Each restore point stays locked for at least N days after it was created; after every backup the agent extends the lock of all data the job's retention still keeps.</p>
-<p id="lock-retained">After every backup the agent extends the lock of all data that the job's retention still keeps, not only of the data the new backup reuses: a monthly backup kept for a year stays locked for that year. This applies to S3 Object Lock and to the hardened repository. When you shorten the retention to free space, the space comes back only when the existing locks end, up to one and a half lock periods later.</p>
+<p id="lock-retained">After every backup the agent extends the lock of all data that the job's retention still keeps, not only of the data the new backup reuses: a monthly backup kept for a year stays locked for that year. This applies to S3 Object Lock and to the hardened repository. When you shorten the retention to free space, the space comes back only when the existing locks end, up to one and a half lock periods later. If the storage does not answer for some files even after retries, they keep their current lock, the run warns with their number, and the next backup tries again; all other files are extended anyway.</p>
 
 <h2>Hardened repository</h2>
 <p>A dedicated Linux server running <code>backupzit-repo</code>:</p>

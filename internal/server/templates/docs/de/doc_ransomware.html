@@ -30,7 +30,7 @@
   <li>Fügen Sie das S3-Ziel hinzu und aktivieren Sie <b>Unveränderliche Sicherungen für N Tage</b>. Wählen Sie N mindestens so lang wie den Zeitraum, in dem Ihre Sicherungen geschützt bleiben müssen, z. B. 30.</li>
 </ol>
 <p>Jeder Wiederherstellungspunkt bleibt mindestens N Tage nach seiner Erstellung gesperrt; nach jeder Sicherung verlängert der Agent die Sperre aller Daten, die die Aufbewahrung des Auftrags noch behält.</p>
-<p id="lock-retained">Nach jeder Sicherung verlängert der Agent die Sperre aller Daten, die die Aufbewahrung des Auftrags noch behält, nicht nur der Daten, die die neue Sicherung wiederverwendet: Eine ein Jahr lang behaltene Monatssicherung bleibt dieses Jahr über gesperrt. Das gilt für S3 Object Lock und für das gehärtete Repository. Wenn Sie die Aufbewahrung verkürzen, um Platz zu schaffen, wird der Platz erst frei, wenn die bestehenden Sperren enden, bis zu anderthalb Sperrzeiträume später.</p>
+<p id="lock-retained">Nach jeder Sicherung verlängert der Agent die Sperre aller Daten, die die Aufbewahrung des Auftrags noch behält, nicht nur der Daten, die die neue Sicherung wiederverwendet: Eine ein Jahr lang behaltene Monatssicherung bleibt dieses Jahr über gesperrt. Das gilt für S3 Object Lock und für das gehärtete Repository. Wenn Sie die Aufbewahrung verkürzen, um Platz zu schaffen, wird der Platz erst frei, wenn die bestehenden Sperren enden, bis zu anderthalb Sperrzeiträume später. Antwortet der Speicher für einige Dateien auch nach Wiederholungen nicht, behalten sie ihre aktuelle Sperre, der Lauf warnt mit ihrer Anzahl, und die nächste Sicherung versucht es erneut; alle anderen Dateien werden trotzdem verlängert.</p>
 
 <h2>Gehärtetes Repository</h2>
 <p>Ein eigener Linux-Server mit <code>backupzit-repo</code>:</p>

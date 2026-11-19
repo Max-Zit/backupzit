@@ -30,7 +30,7 @@
   <li>Voeg het S3-doel toe en vink <b>Onveranderlijke back-ups gedurende N dagen</b> aan. Kies N minstens zo lang als de periode waarin uw back-ups beschermd moeten blijven, bijv. 30.</li>
 </ol>
 <p>Elk herstelpunt blijft minstens N dagen na het aanmaken vergrendeld; na elke back-up verlengt de agent de vergrendeling van alle gegevens die de bewaring van de taak nog behoudt.</p>
-<p id="lock-retained">Na elke back-up verlengt de agent de vergrendeling van alle gegevens die de bewaring van de taak nog behoudt, niet alleen van de gegevens die de nieuwe back-up hergebruikt: een maandelijkse back-up die een jaar wordt bewaard, blijft dat jaar vergrendeld. Dit geldt voor S3 Object Lock en voor de geharde repository. Als u de bewaring verkort om ruimte vrij te maken, komt de ruimte pas terug als de bestaande vergrendelingen aflopen, tot anderhalve vergrendelingsperiode later.</p>
+<p id="lock-retained">Na elke back-up verlengt de agent de vergrendeling van alle gegevens die de bewaring van de taak nog behoudt, niet alleen van de gegevens die de nieuwe back-up hergebruikt: een maandelijkse back-up die een jaar wordt bewaard, blijft dat jaar vergrendeld. Dit geldt voor S3 Object Lock en voor de geharde repository. Als u de bewaring verkort om ruimte vrij te maken, komt de ruimte pas terug als de bestaande vergrendelingen aflopen, tot anderhalve vergrendelingsperiode later. Antwoordt de opslag voor sommige bestanden ook na nieuwe pogingen niet, dan houden ze hun huidige vergrendeling, waarschuwt de run met hun aantal en probeert de volgende back-up het opnieuw; alle andere bestanden worden toch verlengd.</p>
 
 <h2>Geharde repository</h2>
 <p>Een aparte Linux-server met <code>backupzit-repo</code>:</p>

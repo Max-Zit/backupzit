@@ -30,7 +30,7 @@
   <li>Adicione o destino S3 e marque <b>Backups imutáveis por N dias</b>. Escolha N pelo menos tão longo quanto o período em que os seus backups devem ficar protegidos, por ex. 30.</li>
 </ol>
 <p>Cada ponto de restauração fica bloqueado por pelo menos N dias após sua criação; após cada backup, o agente prolonga o bloqueio de todos os dados que a retenção da tarefa ainda guarda.</p>
-<p id="lock-retained">Após cada cópia, o agente prolonga o bloqueio de todos os dados que a retenção da tarefa ainda guarda, e não só dos dados que a nova cópia reutiliza: uma cópia mensal guardada durante um ano fica bloqueada nesse ano. Isto aplica-se ao S3 Object Lock e ao repositório reforçado. Se encurtar a retenção para libertar espaço, o espaço só volta quando os bloqueios existentes terminarem, até um período e meio de bloqueio depois.</p>
+<p id="lock-retained">Após cada cópia, o agente prolonga o bloqueio de todos os dados que a retenção da tarefa ainda guarda, e não só dos dados que a nova cópia reutiliza: uma cópia mensal guardada durante um ano fica bloqueada nesse ano. Isto aplica-se ao S3 Object Lock e ao repositório reforçado. Se encurtar a retenção para libertar espaço, o espaço só volta quando os bloqueios existentes terminarem, até um período e meio de bloqueio depois. Se o armazenamento não responder para alguns arquivos mesmo após novas tentativas, eles mantêm o bloqueio atual, a execução avisa com o número deles e o próximo backup tenta de novo; todos os outros arquivos são estendidos mesmo assim.</p>
 
 <h2>Repositório protegido</h2>
 <p>Um servidor Linux dedicado executando <code>backupzit-repo</code>:</p>

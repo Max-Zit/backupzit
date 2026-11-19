@@ -30,7 +30,7 @@
   <li>Añada el destino S3 y marque <b>Copias inmutables durante N días</b>. Elija N al menos tan largo como el período durante el que sus copias deben permanecer protegidas, p. ej., 30.</li>
 </ol>
 <p>Cada punto de restauración permanece bloqueado al menos N días tras su creación; después de cada copia, el agente prolonga el bloqueo de todos los datos que la retención del trabajo aún conserva.</p>
-<p id="lock-retained">Después de cada copia, el agente prolonga el bloqueo de todos los datos que la retención de la tarea aún conserva, no solo de los que reutiliza la copia nueva: una copia mensual conservada un año permanece bloqueada ese año. Esto se aplica a S3 Object Lock y al repositorio reforzado. Si acorta la retención para liberar espacio, el espacio vuelve solo cuando terminan los bloqueos existentes, hasta un período y medio de bloqueo después.</p>
+<p id="lock-retained">Después de cada copia, el agente prolonga el bloqueo de todos los datos que la retención de la tarea aún conserva, no solo de los que reutiliza la copia nueva: una copia mensual conservada un año permanece bloqueada ese año. Esto se aplica a S3 Object Lock y al repositorio reforzado. Si acorta la retención para liberar espacio, el espacio vuelve solo cuando terminan los bloqueos existentes, hasta un período y medio de bloqueo después. Si el almacenamiento no responde para algunos archivos ni tras los reintentos, conservan su bloqueo actual, la ejecución avisa con su número y la siguiente copia lo vuelve a intentar; todos los demás archivos se amplían igualmente.</p>
 
 <h2>Repositorio reforzado</h2>
 <p>Un servidor Linux dedicado que ejecuta <code>backupzit-repo</code>:</p>

@@ -34,7 +34,7 @@
   <tr><td>更新：“updates from the console need the Linux package of the console”</td><td>控制台不是通过 deb/rpm 软件包安装的（例如评估模式）。请按安装时的方式更新它。</td></tr>
   <tr><td>更新：“the release is not signed with a BackupZit release key”</td><td>更新源中没有官方发布版本，或文件在传输中被篡改。请从官方地址重新下载。</td></tr>
   <tr><td>更新：状态为 <i>rolled-back</i></td><td>新版本未能启动，因此已还原之前的版本及其数据库。启动失败的日志在更新页面上；请将其发送给技术支持。</td></tr>
-  <tr><td>"The agent is no longer running this"</td><td>代理在运行期间被重启或停止（例如计算机或服务重启），或无法提交结果。0.52.0 及更新的代理会报告正在处理的运行，因此控制台会在大约两分钟内将此类运行标记为失败，而不是一直显示为运行中直到有人停止它；对于旧版代理，请在其页面上停止它。Agent 页面上的 <i>获取日志</i> 可查看发生了什么。下一次计划运行照常开始。</td></tr>
+  <tr><td>"The agent is no longer running this"</td><td>代理在运行期间被重启或停止（例如计算机或服务重启），或无法提交结果。0.52.0 及更新的代理会报告正在处理的运行，因此控制台会在大约两分钟内将此类运行标记为失败，而不是一直显示为运行中直到有人停止它；对于旧版代理，请在其页面上停止它。Agent 页面上的 <i>获取日志</i> 可查看发生了什么。下一次计划运行照常开始。 如果代理正常关闭（停止服务、为更新而重启），运行会以 "The agent was stopped during the run" 结束。</td></tr>
   <tr><td>操作系统：“no supported package manager”</td><td>操作系统更新支持 Debian、Ubuntu（apt）以及 AlmaLinux、Rocky Linux、RHEL（dnf）。</td></tr>
   <tr><td>控制台备份：“the backup was made by a newer BackupZit”</td><td>还原之前，请在新控制台上安装生成该备份的版本或更新的版本。</td></tr>
   <tr><td>控制台备份：“console backups need network storage”</td><td>请选择 SFTP、S3、SMB、Azure 或加固存储库目标；控制台无法访问代理的本地路径。</td></tr>

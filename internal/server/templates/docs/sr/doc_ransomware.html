@@ -30,7 +30,7 @@
   <li>Dodajte S3 skladište i označite <b>Nepromenljivi bekapi na N dana</b>. Izaberite N bar onoliko dugo koliko vaši bekapi moraju da ostanu zaštićeni, npr. 30.</li>
 </ol>
 <p>Svaka tačka vraćanja ostaje zaključana bar N dana posle nastanka; posle svakog bekapa agent produžava zaključavanje svih podataka koje retencija posla još čuva.</p>
-<p id="lock-retained">Posle svakog bekapa agent produžava zaključavanje svih podataka koje retention posla još čuva, a ne samo podataka koje novi bekap ponovo koristi: mesečni bekap koji se čuva godinu dana ostaje zaključan tu godinu. To važi za S3 Object Lock i za hardened repozitorijum. Kada skratite retention da biste oslobodili prostor, prostor se vraća tek kad postojeća zaključavanja isteknu, najviše jedan i po period zaključavanja kasnije.</p>
+<p id="lock-retained">Posle svakog bekapa agent produžava zaključavanje svih podataka koje retention posla još čuva, a ne samo podataka koje novi bekap ponovo koristi: mesečni bekap koji se čuva godinu dana ostaje zaključan tu godinu. To važi za S3 Object Lock i za hardened repozitorijum. Kada skratite retention da biste oslobodili prostor, prostor se vraća tek kad postojeća zaključavanja isteknu, najviše jedan i po period zaključavanja kasnije. Ako skladište ni posle ponovljenih pokušaja ne odgovori za neke fajlove, oni zadržavaju trenutno zaključavanje, pokretanje upozorava sa njihovim brojem, a sledeći bekap pokušava ponovo; svim ostalim fajlovima se zaključavanje ipak produžava.</p>
 
 <h2>Ojačani repozitorijum</h2>
 <p>Poseban Linux server sa <code>backupzit-repo</code>:</p>
