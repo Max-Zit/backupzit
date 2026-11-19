@@ -151,6 +151,13 @@ func TestProxmoxContainersOnZFS(t *testing.T) {
 	if _, err := e.store.QueueRestore(ctx, runID, a.ID, t.TempDir(), []string{"lxc/200/rootfs/etc"}, false); err != nil {
 		t.Errorf("restoring container files on an agent: %v", err)
 	}
+	// Their paths are those inside the container: never the host's.
+	if _, err := e.store.QueueRestore(ctx, runID, a.ID, "", []string{"lxc/200/rootfs/etc"}, false); err == nil || !strings.Contains(err.Error(), "not to the original location") {
+		t.Errorf("container files restored to the original location: %v", err)
+	}
+	if page := get(fmt.Sprintf("/runs/%d/files?path=lxc/200/rootfs/etc", runID)); strings.Contains(page, `name="mode" value="original"`) {
+		t.Error("the file browser of a container offers the original location")
+	}
 
 	page = get(fmt.Sprintf("/jobs/%d", jobID))
 	for _, want := range []string{"Protected VMs and containers", "container (LXC)", "as files", "VM (QEMU)", fmt.Sprintf(`/runs/%d/files?path=lxc`, runID)} {

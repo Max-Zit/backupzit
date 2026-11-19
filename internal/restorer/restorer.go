@@ -196,6 +196,12 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 			continue
 		}
 		seen[key] = true
+		if rs.dir && len(prefix) == 0 && n.Name == ".zfs" {
+			// The snapshot folder of a ZFS file system: writing there would
+			// create or remove ZFS snapshots, never files.
+			rs.addError(n.Name, errors.New("ZFS snapshot folder in the backup, skipped"))
+			continue
+		}
 		comps := append(append([]string(nil), prefix...), n.Name)
 		selected, descend := rs.match(comps)
 		if !selected && !descend {
@@ -205,7 +211,7 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 		switch n.Type {
 		case repo.NodeDir:
 			// Volume roots ("C") map to "C:\" which already exists.
-			if err := os.MkdirAll(dst, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
+			if err := rs.prepareDir(dst); err != nil {
 				rs.addError(dst, err)
 				continue
 			}
@@ -304,7 +310,10 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 	}
 	fsutil.ClearReadOnly(dst)
 	tmp := dst + ".bzpart"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
+	// O_EXCL: a file or symbolic link left at the temporary name (e.g. put
+	// there by root in a container) is removed, never written through.
+	_ = os.Remove(tmp)
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
 	if err != nil {
 		return err
 	}
@@ -342,6 +351,44 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 		rs.opts.Progress(dst, &rs.stats)
 	}
 	return nil
+}
+
+// prepareDir makes sure dst is a real folder before anything is restored
+// into it. A symbolic link there would send the restored files where it
+// points: into a folder of the host when root in a container made the
+// link, or anywhere when a forged backup did. Restoring into a folder or
+// a container volume replaces such a link with a folder. At the original
+// location, a link of the system (owned by root or by the agent's user,
+// e.g. /bin -> usr/bin) is followed; one of another user is not.
+func (rs *restorer) prepareDir(dst string) error {
+	fi, err := os.Lstat(dst)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return os.MkdirAll(dst, 0o755) // #nosec G301 -- folder of restored or copied files, like the original
+	case err != nil:
+		return err
+	case fi.IsDir():
+		return nil
+	case fi.Mode()&(os.ModeSymlink|os.ModeIrregular) == 0:
+		// Irregular: a junction on Windows, a link like a symbolic one.
+		return errors.New("exists and is not a folder")
+	case rs.opts.Target == "" && !rs.dir:
+		if !trustedLink(fi) {
+			return errors.New("is a symbolic link of another user, not followed")
+		}
+		st, err := os.Stat(dst)
+		if err != nil {
+			return err
+		}
+		if !st.IsDir() {
+			return errors.New("is a symbolic link to something that is not a folder")
+		}
+		return nil
+	}
+	if err := os.Remove(dst); err != nil {
+		return err
+	}
+	return os.Mkdir(dst, 0o755) // #nosec G301 -- folder of restored or copied files, like the original
 }
 
 func (rs *restorer) applyMeta(dst string, n *repo.Node, setTimes bool) {

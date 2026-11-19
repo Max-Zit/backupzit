@@ -36,7 +36,7 @@
   <li>Choisissez où :
     <ul>
       <li><b>Restaurer dans un dossier</b> (recommandé) — p. ex. <code>D:\Restore</code>. L'arborescence d'origine y est recréée : <code>D:\Restore\C\Users\ana\Documents\…</code>. Rien d'existant n'est touché.</li>
-      <li><b>Restaurer à l’emplacement d’origine</b> — réécrit les fichiers là où ils étaient, en <b>écrasant</b> les versions actuelles. Pour un partage NAS, l'agent reconnecte le partage en écriture.</li>
+      <li><b>Restaurer à l’emplacement d’origine</b> — réécrit les fichiers là où ils étaient, en <b>écrasant</b> les versions actuelles. Pour un partage NAS, l'agent reconnecte le partage en écriture. Un lien symbolique qui se trouve sur le chemin n'est jamais traversé en écriture : une restauration dans un dossier le remplace par un dossier ; à l'emplacement d'origine, seuls les liens du système (appartenant à root ou à l'utilisateur de l'agent) sont suivis.</li>
     </ul>
   </li>
   <li>Limitez éventuellement à <b>Uniquement ces chemins</b>, un par ligne, p. ex. <code>C:\Users\ana\Documents\Contracts</code> — ou sélectionnez-les dans le navigateur de fichiers (ci-dessous).</li>

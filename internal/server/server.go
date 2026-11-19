@@ -1298,7 +1298,7 @@ func (s *Server) restoreFormData(ctx context.Context, run Run) (map[string]any, 
 		"System": sysDetails(run), "LinuxAgents": linuxAgents(agents), "SelectedVMID": 0,
 		"SQL": sqlDetails(run), "SQLPoints": s.store.sqlRestorePoints(ctx, run), "WindowsAgents": sqlRestoreAgents(agents, sqlDetails(run)),
 		"SQLInstance": s.store.jobSQLInstance(ctx, run), "SelectedDB": "", "SQLRestore": sqlRestoreOptions(run),
-		"M365": s.store.isM365Run(ctx, run),
+		"M365": s.store.isM365Run(ctx, run), "Containers": containerFiles(run),
 	}, nil
 }
 

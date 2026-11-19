@@ -49,6 +49,12 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 	if err != nil {
 		return nil, err
 	}
+	for _, d := range g.Disks {
+		if d.Path != "" {
+			// Updating a replica compares disk blocks; these volumes are files.
+			return nil, fmt.Errorf("container %d is backed up as files (ZFS subvolume %s): replicas of such containers are not supported yet; restore it instead", g.VMID, d.Key)
+		}
+	}
 	inv, err := GetInventory(ctx)
 	if err != nil {
 		return nil, err

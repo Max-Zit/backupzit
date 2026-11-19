@@ -36,7 +36,7 @@
   <li>Zvolte kam:
     <ul>
       <li><b>Obnovit do složky</b> (doporučeno) — např. <code>D:\Restore</code>. Pod ní se znovu vytvoří původní struktura: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nic existujícího se nezmění.</li>
-      <li><b>Obnovit do původního umístění</b> — zapíše soubory tam, kde byly, a <b>přepíše</b> aktuální verze. U sdílené složky NAS ji agent znovu připojí pro zápis.</li>
+      <li><b>Obnovit do původního umístění</b> — zapíše soubory tam, kde byly, a <b>přepíše</b> aktuální verze. U sdílené složky NAS ji agent znovu připojí pro zápis. Přes symbolický odkaz, který stojí v cestě, se nikdy nezapisuje: obnovení do složky jej nahradí složkou; v původním umístění se sledují jen odkazy systému (vlastník root nebo uživatel agenta).</li>
     </ul>
   </li>
   <li>Volitelně omezte na <b>Jen tyto cesty</b>, jednu na řádek, např. <code>C:\Users\ana\Documents\Contracts</code> — nebo je vyberte v prohlížeči souborů (níže).</li>

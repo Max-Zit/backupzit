@@ -36,7 +36,7 @@
   <li>Wybierz, gdzie:
     <ul>
       <li><b>Przywróć do folderu</b> (zalecane) — np. <code>D:\Restore</code>. Pod nim odtwarzana jest oryginalna struktura: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nic istniejącego nie jest ruszane.</li>
-      <li><b>Przywróć do pierwotnej lokalizacji</b> — zapisuje pliki tam, gdzie były, <b>nadpisując</b> bieżące wersje. W przypadku udziału NAS agent ponownie podłącza udział z prawem zapisu.</li>
+      <li><b>Przywróć do pierwotnej lokalizacji</b> — zapisuje pliki tam, gdzie były, <b>nadpisując</b> bieżące wersje. W przypadku udziału NAS agent ponownie podłącza udział z prawem zapisu. Nigdy nie zapisuje się przez dowiązanie symboliczne, które stoi na drodze: przywracanie do folderu zastępuje je folderem; w oryginalnej lokalizacji śledzone są tylko dowiązania systemu (należące do roota lub użytkownika agenta).</li>
     </ul>
   </li>
   <li>Opcjonalnie ogranicz do <b>Tylko te ścieżki</b>, po jednej w wierszu, np. <code>C:\Users\ana\Documents\Contracts</code> — albo wybierz je w przeglądarce plików (niżej).</li>

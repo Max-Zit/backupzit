@@ -36,7 +36,7 @@
   <li>Kies waar:
     <ul>
       <li><b>Naar een map herstellen</b> (aanbevolen) — bijv. <code>D:\Restore</code>. Daaronder wordt de oorspronkelijke structuur nagebouwd: <code>D:\Restore\C\Users\ana\Documents\…</code>. Niets bestaands wordt aangeraakt.</li>
-      <li><b>Herstellen op de oorspronkelijke locatie</b> — schrijft de bestanden terug waar ze stonden en <b>overschrijft</b> huidige versies. Bij een NAS-share verbindt de agent de share opnieuw, beschrijfbaar.</li>
+      <li><b>Herstellen op de oorspronkelijke locatie</b> — schrijft de bestanden terug waar ze stonden en <b>overschrijft</b> huidige versies. Bij een NAS-share verbindt de agent de share opnieuw, beschrijfbaar. Er wordt nooit door een symbolische koppeling geschreven die in de weg zit: herstellen naar een map vervangt die door een map; op de oorspronkelijke locatie worden alleen koppelingen van het systeem (eigenaar root of de gebruiker van de agent) gevolgd.</li>
     </ul>
   </li>
   <li>Beperk optioneel tot <b>Alleen deze paden</b>, één per regel, bijv. <code>C:\Users\ana\Documents\Contracts</code> — of kies ze in de bestandsbrowser (hieronder).</li>

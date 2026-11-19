@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -178,7 +179,7 @@ func (s *Server) handleFileBrowse(w http.ResponseWriter, r *http.Request, user s
 	}
 	dir := strings.Join(snapshotComps(r.URL.Query().Get("path")), "/")
 	win := s.runIsWindows(r.Context(), run)
-	data := map[string]any{"Run": run, "Path": dir, "Crumbs": fileCrumbs(snapshotComps(dir), win), "Windows": win, "M365": s.store.isM365Run(r.Context(), run)}
+	data := map[string]any{"Run": run, "Path": dir, "Crumbs": fileCrumbs(snapshotComps(dir), win), "Windows": win, "M365": s.store.isM365Run(r.Context(), run), "Containers": containerFiles(run)}
 	pd := pageData{Title: fmt.Sprintf("Files of backup #%d", run.ID), Nav: "runs", User: user, Data: data}
 	repoR, sn, err := s.fileSnapshot(r.Context(), run)
 	if err == nil {
@@ -250,7 +251,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 	if len(sel) == 1 {
 		if _, n, err := lookupNode(ctx, repoR, sn.Tree, snapshotComps(sel[0])); err == nil && n != nil && n.Type == repo.NodeSymlink {
 			name := n.Name
-			if n, err = followLink(ctx, repoR, sn.Tree, snapshotComps(sel[0]), n); err != nil {
+			if n, err = followLink(ctx, repoR, sn.Tree, snapshotComps(sel[0]), n, containerFiles(run)); err != nil {
 				redirectErr(w, r, fileBack(run, dir), err)
 				return
 			}
@@ -306,7 +307,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request, user
 		case repo.NodeSymlink:
 			// A link to a file is stored as that file; links to folders are
 			// left out (they could loop).
-			if t, err := followLink(ctx, repoR, sn.Tree, comps, n); err == nil && t.Type == repo.NodeFile {
+			if t, err := followLink(ctx, repoR, sn.Tree, comps, n, containerFiles(run)); err == nil && t.Type == repo.NodeFile {
 				zf, err := zw.CreateHeader(&zip.FileHeader{Name: zipEntryName(rel), Method: zip.Deflate, Modified: t.ModTime})
 				if err != nil {
 					return err
@@ -371,8 +372,18 @@ func (s *Server) handleFilePickRestore(w http.ResponseWriter, r *http.Request, _
 
 // followLink resolves a symbolic link of a file backup inside the
 // snapshot: an absolute target (/srv/data/x, C:\Data\x) or one relative to
-// the link's folder. Links to links are followed, up to a limit.
-func followLink(ctx context.Context, r *repo.Repository, root repo.ID, comps []string, n *repo.Node) (*repo.Node, error) {
+// the link's folder. Links to links are followed, up to a limit. In a
+// backup of containers (lxc/<ID>/<volume>/...) a link stays in its volume:
+// an absolute target is inside the volume, and none leads to another
+// container or volume.
+func followLink(ctx context.Context, r *repo.Repository, root repo.ID, comps []string, n *repo.Node, containers bool) (*repo.Node, error) {
+	var volume []string
+	if containers {
+		if len(comps) < 4 {
+			return nil, fmt.Errorf("%s is a link outside a container volume", strings.Join(comps, "/"))
+		}
+		volume = slices.Clone(comps[:3])
+	}
 	for i := 0; n != nil && n.Type == repo.NodeSymlink; i++ {
 		if i == 16 {
 			return nil, fmt.Errorf("%s: too many levels of symbolic links", strings.Join(comps, "/"))
@@ -380,15 +391,20 @@ func followLink(ctx context.Context, r *repo.Repository, root repo.ID, comps []s
 		t := strings.ReplaceAll(n.LinkTarget, `\`, "/")
 		var next string
 		switch {
+		case strings.HasPrefix(t, "/") && volume != nil:
+			next = strings.Join(volume, "/") + t
 		case strings.HasPrefix(t, "/"):
 			next = t
-		case len(t) > 1 && t[1] == ':': // C:/Data/x
+		case len(t) > 1 && t[1] == ':' && volume == nil: // C:/Data/x
 			next = t[:1] + t[2:]
 		default:
 			next = path.Join(strings.Join(comps[:len(comps)-1], "/"), t)
 		}
 		next = path.Clean("/" + next)
 		target := snapshotComps(next)
+		if volume != nil && (len(target) < len(volume) || !slices.Equal(target[:len(volume)], volume)) {
+			return nil, fmt.Errorf("%s is a link to %s, outside its container volume", strings.Join(comps, "/"), n.LinkTarget)
+		}
 		_, nn, err := lookupNode(ctx, r, root, target)
 		if err != nil || nn == nil {
 			return nil, fmt.Errorf("%s is a link to %s, which is not in the backup", strings.Join(comps, "/"), n.LinkTarget)

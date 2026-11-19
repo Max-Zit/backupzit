@@ -760,6 +760,11 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 	if _, err := s.GetAgent(ctx, agentID); err != nil {
 		return 0, errors.New("unknown agent")
 	}
+	if target == "" && containerFiles(b) {
+		// The paths are those inside the container (lxc/<ID>/rootfs/...),
+		// not on the host the agent runs on.
+		return 0, errors.New("files of a container are restored into a folder, not to the original location; to put the whole container back, restore the guest")
+	}
 	if target == "" && s.isM365Run(ctx, b) {
 		return 0, errors.New("Microsoft 365 backups are restored into a folder (as .eml messages and files) or downloaded; enter a folder")
 	}

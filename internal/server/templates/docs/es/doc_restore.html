@@ -36,7 +36,7 @@
   <li>Elija dónde:
     <ul>
       <li><b>Restaurar en una carpeta</b> (recomendado): p. ej. <code>D:\Restore</code>. Debajo se recrea la estructura original: <code>D:\Restore\C\Users\ana\Documents\…</code>. No se toca nada existente.</li>
-      <li><b>Restaurar en la ubicación original</b>: escribe los archivos donde estaban, <b>sobrescribiendo</b> las versiones actuales. En un recurso NAS, el agente vuelve a conectar el recurso con escritura.</li>
+      <li><b>Restaurar en la ubicación original</b>: escribe los archivos donde estaban, <b>sobrescribiendo</b> las versiones actuales. En un recurso NAS, el agente vuelve a conectar el recurso con escritura. Nunca se escribe a través de un enlace simbólico que esté en el camino: al restaurar en una carpeta se sustituye por una carpeta; en la ubicación original solo se siguen los enlaces del sistema (propiedad de root o del usuario del agente).</li>
     </ul>
   </li>
   <li>Opcionalmente limite a <b>Solo estas rutas</b>, una por línea, p. ej. <code>C:\Users\ana\Documents\Contracts</code>, o elíjalas en el explorador de archivos (abajo).</li>

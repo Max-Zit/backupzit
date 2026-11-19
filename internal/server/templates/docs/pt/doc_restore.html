@@ -36,7 +36,7 @@
   <li>Escolha onde:
     <ul>
       <li><b>Restaurar em uma pasta</b> (recomendado) — p. ex. <code>D:\Restore</code>. A estrutura original é recriada por baixo: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nada do que existe é tocado.</li>
-      <li><b>Restaurar no local original</b> — grava os arquivos onde estavam, <b>sobrescrevendo</b> as versões atuais. Num compartilhamento NAS o agente volta a conectar o compartilhamento com escrita.</li>
+      <li><b>Restaurar no local original</b> — grava os arquivos onde estavam, <b>sobrescrevendo</b> as versões atuais. Num compartilhamento NAS o agente volta a conectar o compartilhamento com escrita. Nunca se grava através de um link simbólico que esteja no caminho: restaurar em uma pasta o substitui por uma pasta; no local original só são seguidos os links do sistema (de propriedade do root ou do usuário do agente).</li>
     </ul>
   </li>
   <li>Opcionalmente limite a <b>Somente estes caminhos</b>, um por linha, p. ex. <code>C:\Users\ana\Documents\Contracts</code> — ou escolha-os no navegador de arquivos (abaixo).</li>

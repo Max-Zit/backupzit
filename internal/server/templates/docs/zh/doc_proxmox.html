@@ -97,7 +97,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>在代理上还原</b> —— 将它们复制到任意代理上的文件夹，例如复制回虚拟机（如果其中运行着 BackupZit 代理）或文件服务器。</li>
 </ul>
 <p>在命令行中：<code>backupzit-agent pve ls --vmid 100 latest /etc</code> 和 <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>；<code>--volume</code> 选择分区或逻辑卷（不带路径的 <code>pve ls</code> 会列出它们）。在控制台中浏览要求备份位于网络存储上（SFTP、S3、SMB、Azure、加固存储库）。</p>
-<p>对于 ZFS 上的容器（LXC），<b>浏览文件</b>会像文件备份一样直接打开其文件；文件夹 <code>rootfs</code>、<code>mp0</code>、<code>mp1</code>… 是容器的卷。还原到代理上的文件会保留所有者和权限。</p>
+<p>对于 ZFS 上的容器（LXC），<b>浏览文件</b>会像文件备份一样直接打开其文件；文件夹 <code>rootfs</code>、<code>mp0</code>、<code>mp1</code>… 是容器的卷。还原到代理上的文件会保留所有者和权限。这些文件还原到文件夹，而不是原始位置：备份中的路径是容器内的路径，而不是主机上的路径。符号链接只在其所在卷内跟随。按文件备份的容器暂不支持副本；请改为还原它们。</p>
 
 <h2 id="host">备份主机配置</h2><p>虚拟机和容器只是 Proxmox 节点的一半：存储定义、网络、用户、防火墙、证书以及每个虚拟机和容器的设置都在节点的配置中。请在节点的代理上用普通的文件作业备份它：在<a href="/jobs">备份作业</a>中选择节点的代理和<b>文件和文件夹</b>，然后点击<b>填入主机配置</b>。它会填入路径 <code>/etc</code>（包括 <code>/etc/pve</code>、网络和 <code>/etc/hosts</code>）、<code>/var/lib/pve-cluster</code>（配置数据库 <code>config.db</code>）和 <code>/root</code>；例如每天运行该作业。节点运行时数据库会变化，因此代理会先为它做一份一致的副本，备份中以 <code>/var/lib/backupzit/pve-config/config.db</code> 的形式包含该副本；不需要额外的软件包。</p><p>重建发生故障的节点：使用相同的主机名和地址安装相同版本的 Proxmox VE，安装代理，将 <code>/etc/network/interfaces</code> 和 <code>/etc/hosts</code> 恢复到原位置，然后停止集群服务（<code>systemctl stop pve-cluster</code>），如果 <code>/var/lib/pve-cluster</code> 中有 <code>config.db-wal</code> 和 <code>config.db-shm</code>，将其删除，再将一致的副本从 <code>/var/lib/backupzit/pve-config</code> 恢复到 <code>/var/lib/pve-cluster</code>（<code>config.db</code>，如果备份中有 <code>config.db-wal</code> 也一并恢复），重新启动服务并恢复虚拟机和容器。在集群中，请将重新安装的节点重新加入集群，而不是恢复 <code>config.db</code>。</p>
 <h2>尚未包含</h2>

@@ -36,7 +36,7 @@
   <li>Choose where:
     <ul>
       <li><b>Restore into a folder</b> (recommended) — e.g. <code>D:\Restore</code>. The original structure is recreated below it: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nothing existing is touched.</li>
-      <li><b>Restore to original location</b> — writes the files back where they were, <b>overwriting</b> current versions. For a NAS share the agent connects the share again, writable.</li>
+      <li><b>Restore to original location</b> — writes the files back where they were, <b>overwriting</b> current versions. For a NAS share the agent connects the share again, writable. A symbolic link in the way is never written through: restoring into a folder replaces it with a folder; at the original location only links of the system (owned by root or the agent's user) are followed.</li>
     </ul>
   </li>
   <li>Optionally limit to <b>Only these paths</b>, one per line, e.g. <code>C:\Users\ana\Documents\Contracts</code> — or pick them in the file browser (below).</li>

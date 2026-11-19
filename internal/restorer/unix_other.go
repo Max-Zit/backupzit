@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"syscall"
 
 	"github.com/max-zit/backupzit/internal/repo"
 	"golang.org/x/sys/unix"
@@ -78,4 +79,14 @@ func makeSpecial(dst string, n *repo.Node) error {
 		return unix.Mknod(dst, mode, int(n.Unix.Rdev)) // #nosec G115 -- device number as stored in the snapshot
 	}
 	return errors.New("not a special file")
+}
+
+// trustedLink reports whether a symbolic link belongs to root or to the
+// agent's own user, like the links of the system itself.
+func trustedLink(fi fs.FileInfo) bool {
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return false
+	}
+	return st.Uid == 0 || int(st.Uid) == os.Geteuid()
 }
