@@ -49,6 +49,9 @@ type Conn struct {
 	// Method chooses how the host is changed: "" (automatic: the API on
 	// licensed hosts, SSH on the free license), "ssh" or "api".
 	Method string `json:"method,omitempty"`
+	// HotAdd reads the disks of running VMs through the agent's own VM
+	// (see hotadd.go) instead of copying them on the datastore.
+	HotAdd bool `json:"hot_add,omitempty"`
 }
 
 // Client is a connection to one ESXi host.

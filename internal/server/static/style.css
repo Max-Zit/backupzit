@@ -85,6 +85,8 @@ pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: 
 pre.scroll { max-height: 480px; overflow-y: auto; }
 .nowrap { white-space: nowrap; }
 .mt { margin-top: 18px; }
+.hotadd { margin-top: 6px; }
+.hotadd .check { display: inline-flex; margin: 0; }
 
 /* ---- panels & stats */
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 20px; box-shadow: var(--shadow); }

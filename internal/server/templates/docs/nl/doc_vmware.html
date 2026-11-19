@@ -8,7 +8,7 @@
   <li><b>Een gebruiker met beheerdersrechten op de host</b>, meestal <code>root</code>.</li>
   <li><b>SSH ingeschakeld op hosts met de gratis licentie:</b> Host → Actions → Services → Enable Secure Shell. De gratis ESXi-licentie maakt de API alleen-lezen, dus snapshots en herstelbewerkingen lopen via SSH. Gelicentieerde hosts worden via de vSphere-API gewijzigd en hebben geen SSH nodig.</li>
   <li><b>Een proxy-agent:</b> een willekeurige Windows- of Linux-agent die de host bereikt op poort 443 (en 22 als SSH wordt gebruikt). De back-upgegevens lopen erdoorheen, zet hem dus op een snel netwerk dicht bij de host en de opslag.</li>
-  <li><b>Vrije ruimte op de datastore van de VM</b> terwijl een draaiende VM wordt geback-upt. BackupZit kopieert de schijf daar even (zie hieronder). De kopie is thin, dus hij heeft zoveel ruimte nodig als de schijf werkelijk gebruikt.</li>
+  <li><b>Vrije ruimte op de datastore van de VM</b> terwijl een draaiende VM wordt geback-upt. BackupZit kopieert de schijf daar even (zie hieronder). De kopie is thin, dus hij heeft zoveel ruimte nodig als de schijf werkelijk gebruikt. Met <a href="#hot-add">hot-add</a> wordt geen kopie gemaakt.</li>
 </ul>
 
 <h2>Een host toevoegen</h2>
@@ -55,10 +55,20 @@
       <li>daarna alleen de blokken die sinds de vorige back-up zijn gewijzigd.</li>
     </ul>
   </li>
-  <li>Een draaiende VM houdt zijn schijven vergrendeld. Zijn schijven worden daarom op de datastore gekopieerd (thin) en <b>de snapshot wordt meteen verwijderd</b>, meestal na enkele seconden. De kopie wordt daarna via HTTPS gelezen en verwijderd. Uitgeschakelde VM's worden direct gelezen.</li>
+  <li>Een draaiende VM houdt zijn schijven vergrendeld. Zijn schijven worden daarom op de datastore gekopieerd (thin) en <b>de snapshot wordt meteen verwijderd</b>, meestal na enkele seconden. De kopie wordt daarna via HTTPS gelezen en verwijderd. Uitgeschakelde VM's worden direct gelezen. Met <a href="#hot-add">hot-add</a> worden de schijven van draaiende VM's in plaats daarvan via de eigen VM van de proxy gelezen, zonder kopie.</li>
   <li>De configuratie van de VM (<code>.vmx</code>) en de NVRAM worden met de back-up opgeslagen.</li>
 </ol>
 <p>Voorbeeld uit het testlab: een Debian-VM met een schijf van 8 GB, waarvan 1,6 GB in gebruik. De eerste back-up las 1,6 GB. De volgende, na 50 MB nieuwe gegevens, las 70 MB en duurde 23 seconden.</p>
+
+<h3 id="hot-add">Hot-add: geen kopie op de datastore</h3>
+<p>Het kopiëren van de schijven van een draaiende VM kost bij elke back-up, ook bij incrementele, tijd en I/O op de productiedatastore en vraagt vrije ruimte voor de gebruikte blokken van de schijven. Bij grote VM's op trage schijven telt dat. Met <b>Hot-add</b> (<a href="/agents#vmware">Agents → VMware ESXi-hosts</a>, het selectievakje onder de proxyagent) leest de proxy ze in plaats daarvan ter plekke:</p>
+<ul>
+  <li><b>Vereisten:</b> de proxy is een <b>Linux-agent in een VM</b> die de datastores van de VM ziet (op dezelfde host, of op een host van hetzelfde vCenter met toegang ertoe), en de host wordt via de vSphere-API gewijzigd (vCenter of een gelicentieerde host). De proxy vindt zijn eigen VM aan de hand van de BIOS-UUID.</li>
+  <li><b>Hoe:</b> zolang de snapshot bestaat, wordt elke schijf <b>independent-nonpersistent</b> aan de VM van de proxy gekoppeld. De proxy opent hem alleen-lezen; alles wat ernaar geschreven zou worden, gaat naar een redo log die vSphere weggooit wanneer de schijf wordt ontkoppeld, dus de schijf van de VM wordt nooit gewijzigd. De proxy leest alleen de blokken die CBT meldt, ontkoppelt de schijf en daarna wordt de snapshot verwijderd.</li>
+  <li><b>Wat het bespaart:</b> geen tijdelijke kopie en geen extra ruimte op de datastore. Een incrementele back-up van een VM van 2 TB met 20 GB aan wijzigingen leest 20 GB. De snapshot blijft bestaan zolang de schijven worden gelezen (in plaats van alleen tijdens het kopiëren), dus de VM schrijft iets langer in de snapshot.</li>
+  <li><b>Terugval:</b> als de proxy geen VM van de host is, of het koppelen of lezen van een schijf mislukt, wordt die schijf zoals voorheen op de datastore gekopieerd en toont de run een waarschuwing met de reden. Hot-add staat standaard uit; agents ouder dan 0.54 negeren het.</li>
+  <li><b>Op de proxy-VM:</b> voorkom met het devices-bestand van LVM dat LVM volumes van de gekoppelde schijven activeert (<code>use_devicesfile = 1</code> in <code>/etc/lvm/lvm.conf</code>, met de eigen schijven van de proxy geregistreerd via <code>lvmdevices</code>). Volumes die LVM toch activeert, worden verwijderd voordat de schijf wordt ontkoppeld. Koppel niet met de hand schijven van andere VM's aan de proxy: een independent-nonpersistent schijf uit de map van een andere VM wordt aangezien voor een schijf die een onderbroken back-up heeft achtergelaten, en ontkoppeld.</li>
+</ul>
 
 <h2>Een VM herstellen</h2>
 <p>Gebruik de <a href="/restore">herstelwizard</a> (<i>Volledige virtuele machine</i>) of de pagina van de back-up in Activiteit. Kies:</p>

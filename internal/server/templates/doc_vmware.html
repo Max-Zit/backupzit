@@ -8,7 +8,7 @@
   <li><b>A user with administrator rights on the host</b>, usually <code>root</code>.</li>
   <li><b>SSH enabled on hosts with the free license:</b> Host → Actions → Services → Enable Secure Shell. The free ESXi license makes the API read-only, so snapshots and restores go over SSH. Licensed hosts are changed through the vSphere API and need no SSH.</li>
   <li><b>A proxy agent:</b> any Windows or Linux agent that reaches the host on port 443 (and 22 when SSH is used). The backup data flows through it, so put it on a fast network close to the host and the storage.</li>
-  <li><b>Free space on the VM's datastore</b> while a running VM is backed up. BackupZit copies the disk there for a moment (see below). The copy is thin, so it needs as much space as the disk actually uses.</li>
+  <li><b>Free space on the VM's datastore</b> while a running VM is backed up. BackupZit copies the disk there for a moment (see below). The copy is thin, so it needs as much space as the disk actually uses. With <a href="#hot-add">hot-add</a> no copy is made.</li>
 </ul>
 
 <h2>Adding a host</h2>
@@ -55,10 +55,20 @@
       <li>after that, only the blocks changed since the previous backup.</li>
     </ul>
   </li>
-  <li>A running VM keeps its disks locked. Its disks are therefore copied on the datastore (thin) and <b>the snapshot is removed right away</b>, usually after seconds. The copy is then read over HTTPS and deleted. VMs that are turned off are read directly.</li>
+  <li>A running VM keeps its disks locked. Its disks are therefore copied on the datastore (thin) and <b>the snapshot is removed right away</b>, usually after seconds. The copy is then read over HTTPS and deleted. VMs that are turned off are read directly. With <a href="#hot-add">hot-add</a> the disks of running VMs are read through the proxy's own VM instead, without a copy.</li>
   <li>The VM's configuration (<code>.vmx</code>) and NVRAM are stored with the backup.</li>
 </ol>
 <p>Example from the test lab: a Debian VM with an 8 GB disk, 1.6 GB of it in use. The first backup read 1.6 GB. The next one, after 50 MB of new data, read 70 MB and took 23 seconds.</p>
+
+<h3 id="hot-add">Hot-add: no copy on the datastore</h3>
+<p>Copying the disks of a running VM costs time and I/O on the production datastore at every backup, incremental ones too, and needs free space for the disks' used blocks. With large VMs on slow disks that matters. With <b>Hot-add</b> (<a href="/agents#vmware">Agents → VMware ESXi hosts</a>, the checkbox under the proxy agent) the proxy reads them in place instead:</p>
+<ul>
+  <li><b>Requirements:</b> the proxy is a <b>Linux agent in a VM</b> that sees the VM's datastores (on the same host, or on a host of the same vCenter with access to them), and the host is changed through the vSphere API (vCenter or a licensed host). The proxy finds its own VM by its BIOS UUID.</li>
+  <li><b>How:</b> while the snapshot exists, each disk is attached to the proxy's VM <b>independent-nonpersistent</b>. The proxy opens it read-only; anything written to it would go to a redo log that vSphere discards when the disk is detached, so the VM's disk is never changed. The proxy reads only the blocks changed block tracking reports, detaches the disk, and then the snapshot is removed.</li>
+  <li><b>What it saves:</b> no temporary copy and no extra space on the datastore. An incremental backup of a 2 TB VM with 20 GB of changes reads 20 GB. The snapshot stays for as long as the disks are read (instead of only for the copy), so the VM writes into the snapshot a little longer.</li>
+  <li><b>Fallback:</b> if the proxy is not a VM of the host, or attaching or reading a disk fails, that disk is copied on the datastore as before, and the run shows a warning with the reason. Hot-add is off by default; agents before 0.54 ignore it.</li>
+  <li><b>On the proxy VM:</b> keep LVM from activating volumes of the attached disks, with LVM's devices file (<code>use_devicesfile = 1</code> in <code>/etc/lvm/lvm.conf</code>, the proxy's own disks listed with <code>lvmdevices</code>). Volumes it activates anyway are removed before the disk is detached. Do not attach disks of other VMs to the proxy by hand: an independent-nonpersistent disk from another VM's folder is taken for one an interrupted backup left behind, and detached.</li>
+</ul>
 
 <h2>Restoring a VM</h2>
 <p>Use the <a href="/restore">restore wizard</a> (<i>Whole virtual machine</i>) or the backup's page in Activity. Choose:</p>

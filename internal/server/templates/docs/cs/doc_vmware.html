@@ -8,7 +8,7 @@
   <li><b>Uživatel s právy správce na hostiteli</b>, obvykle <code>root</code>.</li>
   <li><b>SSH zapnuté na hostitelích s bezplatnou licencí:</b> Host → Actions → Services → Enable Secure Shell. Bezplatná licence ESXi dělá API jen pro čtení, takže snímky a obnovy jdou přes SSH. Licencovaní hostitelé se mění přes vSphere API a SSH nepotřebují.</li>
   <li><b>Proxy agent:</b> libovolný agent pro Windows nebo Linux, který dosáhne na hostitele na portu 443 (a 22, když se používá SSH). Data záloh tečou přes něj, proto ho umístěte do rychlé sítě blízko hostitele a úložiště.</li>
-  <li><b>Volné místo na datastoru VM</b> při zálohování běžícího VM. BackupZit tam disk na chvíli zkopíruje (viz níže). Kopie je thin, takže potřebuje tolik místa, kolik disk skutečně zabírá.</li>
+  <li><b>Volné místo na datastoru VM</b> při zálohování běžícího VM. BackupZit tam disk na chvíli zkopíruje (viz níže). Kopie je thin, takže potřebuje tolik místa, kolik disk skutečně zabírá. S funkcí <a href="#hot-add">hot-add</a> se žádná kopie nevytváří.</li>
 </ul>
 
 <h2>Přidání hostitele</h2>
@@ -55,10 +55,20 @@
       <li>potom jen bloky změněné od předchozí zálohy.</li>
     </ul>
   </li>
-  <li>Běžící VM drží své disky zamčené. Jeho disky se proto zkopírují na datastoru (thin) a <b>snímek se hned odstraní</b>, obvykle po několika sekundách. Kopie se pak přečte přes HTTPS a smaže. Vypnuté VM se čtou přímo.</li>
+  <li>Běžící VM drží své disky zamčené. Jeho disky se proto zkopírují na datastoru (thin) a <b>snímek se hned odstraní</b>, obvykle po několika sekundách. Kopie se pak přečte přes HTTPS a smaže. Vypnuté VM se čtou přímo. S funkcí <a href="#hot-add">hot-add</a> se disky běžících VM místo toho čtou přes vlastní VM proxy, bez kopie.</li>
   <li>Konfigurace VM (<code>.vmx</code>) a NVRAM se uloží se zálohou.</li>
 </ol>
 <p>Příklad z testovací laboratoře: VM s Debianem a diskem 8 GB, z toho 1,6 GB použito. První záloha přečetla 1,6 GB. Další, po 50 MB nových dat, přečetla 70 MB a trvala 23 sekund.</p>
+
+<h3 id="hot-add">Hot-add: žádná kopie na datastoru</h3>
+<p>Kopírování disků běžícího VM stojí při každé záloze, i inkrementální, čas a I/O na produkčním datastoru a vyžaduje volné místo pro použité bloky disků. U velkých VM na pomalých discích na tom záleží. S funkcí <b>Hot-add</b> (<a href="/agents#vmware">Agenti → Hostitelé VMware ESXi</a>, zaškrtávací políčko pod proxy agentem) je proxy místo toho čte přímo na místě:</p>
+<ul>
+  <li><b>Požadavky:</b> proxy je <b>agent pro Linux ve VM</b>, který vidí datastory zálohovaného VM (na stejném hostiteli nebo na hostiteli stejného vCenter, který k nim má přístup), a hostitel se mění přes vSphere API (vCenter nebo licencovaný hostitel). Proxy najde svůj vlastní VM podle jeho BIOS UUID.</li>
+  <li><b>Jak:</b> dokud snímek existuje, připojí se každý disk k VM proxy jako <b>independent-nonpersistent</b>. Proxy ho otevře jen pro čtení; cokoli by se na něj zapsalo, šlo by do redo logu, který vSphere při odpojení disku zahodí, takže disk VM se nikdy nezmění. Proxy čte jen bloky, které hlásí CBT, odpojí disk a pak se snímek odstraní.</li>
+  <li><b>Co se ušetří:</b> žádná dočasná kopie a žádné místo navíc na datastoru. Inkrementální záloha VM o velikosti 2 TB s 20 GB změn přečte 20 GB. Snímek zůstává po celou dobu čtení disků (místo jen po dobu kopírování), takže VM zapisuje do snímku o něco déle.</li>
+  <li><b>Záložní postup:</b> pokud proxy není VM daného hostitele nebo selže připojení či čtení disku, zkopíruje se tento disk na datastoru jako dřív a běh ukáže varování s důvodem. Hot-add je ve výchozím stavu vypnutý; agenti starší než 0.54 ho ignorují.</li>
+  <li><b>Na VM proxy:</b> pomocí souboru zařízení LVM zabraňte tomu, aby LVM aktivoval svazky připojených disků (<code>use_devicesfile = 1</code> v <code>/etc/lvm/lvm.conf</code>, vlastní disky proxy zapsané pomocí <code>lvmdevices</code>). Svazky, které LVM přesto aktivuje, se před odpojením disku odstraní. Nepřipojujte k proxy ručně disky jiných VM: disk independent-nonpersistent ze složky jiného VM se považuje za disk, který po sobě zanechala přerušená záloha, a odpojí se.</li>
+</ul>
 
 <h2>Obnova VM</h2>
 <p>Použijte <a href="/restore">průvodce obnovou</a> (<i>Celý virtuální počítač</i>) nebo stránku zálohy v Aktivita. Zvolte:</p>

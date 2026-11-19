@@ -86,7 +86,8 @@ sudo systemctl enable --now backupzit-agent</pre>
           <button class="link small">{{T "Save"}}</button></form>{{end}}</td>
       <td>{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/proxy" class="inline">
           <select name="proxy_agent_id" data-autosubmit>{{if not .ProxyAgentID}}<option value="">{{T "— choose —"}}</option>{{end}}{{$p := .ProxyAgentID}}{{range $.Data.Agents}}<option value="{{.ID}}" {{if and $p (eq .ID (deref64 $p))}}selected{{end}}>{{.Label}}</option>{{end}}</select>
-          <button class="link small">{{T "Save"}}</button></form>{{else}}{{with .ProxyName}}{{.}}{{else}}—{{end}}{{end}}</td>
+          <button class="link small">{{T "Save"}}</button></form>
+          <form method="post" action="/vmware/{{.ID}}/hotadd" class="hotadd"><label class="check small"><input type="checkbox" name="hot_add" data-autosubmit {{if .HotAdd}}checked{{end}}> {{T "Hot-add"}}</label> <a class="small" href="/docs/vmware#hot-add">{{T "what is this?"}}</a> <button class="link small">{{T "Save"}}</button></form>{{else}}{{with .ProxyName}}{{.}}{{else}}—{{end}}{{if .HotAdd}} <span class="badge info-badge">{{T "Hot-add"}}</span>{{end}}{{end}}</td>
       <td class="nowrap small">{{ago .InventoryAt}}{{with .LastError}}<br><span class="badge failed" title="{{.}}"><i></i>{{T "error"}}</span>{{end}}</td>
       <td class="nowrap">{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/refresh" class="inline"><button class="link">{{T "Refresh"}}</button></form>
         <form method="post" action="/vmware/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove %v and its backup jobs? Backups on storage stay." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>

@@ -8,7 +8,7 @@
   <li><b>Ein Benutzer mit Administratorrechten auf dem Host</b>, meist <code>root</code>.</li>
   <li><b>SSH auf Hosts mit der kostenlosen Lizenz aktiviert:</b> Host → Actions → Services → Enable Secure Shell. Die kostenlose ESXi-Lizenz macht die API nur lesbar, daher laufen Snapshots und Wiederherstellungen über SSH. Lizenzierte Hosts werden über die vSphere-API geändert und brauchen kein SSH.</li>
   <li><b>Ein Proxy-Agent:</b> ein beliebiger Windows- oder Linux-Agent, der den Host auf Port 443 erreicht (und 22, wenn SSH verwendet wird). Die Sicherungsdaten fließen durch ihn, stellen Sie ihn also in ein schnelles Netz nahe am Host und am Speicher.</li>
-  <li><b>Freier Platz auf dem Datastore der VM</b>, während eine laufende VM gesichert wird. BackupZit kopiert die Festplatte dort kurz (siehe unten). Die Kopie ist thin, sie braucht also so viel Platz, wie die Festplatte tatsächlich belegt.</li>
+  <li><b>Freier Platz auf dem Datastore der VM</b>, während eine laufende VM gesichert wird. BackupZit kopiert die Festplatte dort kurz (siehe unten). Die Kopie ist thin, sie braucht also so viel Platz, wie die Festplatte tatsächlich belegt. Mit <a href="#hot-add">Hot-Add</a> wird keine Kopie erstellt.</li>
 </ul>
 
 <h2>Einen Host hinzufügen</h2>
@@ -55,10 +55,20 @@
       <li>danach nur die seit der vorigen Sicherung geänderten Blöcke.</li>
     </ul>
   </li>
-  <li>Eine laufende VM hält ihre Festplatten gesperrt. Ihre Festplatten werden deshalb auf dem Datastore kopiert (thin), und <b>der Snapshot wird sofort entfernt</b>, meist nach Sekunden. Die Kopie wird dann über HTTPS gelesen und gelöscht. Ausgeschaltete VMs werden direkt gelesen.</li>
+  <li>Eine laufende VM hält ihre Festplatten gesperrt. Ihre Festplatten werden deshalb auf dem Datastore kopiert (thin), und <b>der Snapshot wird sofort entfernt</b>, meist nach Sekunden. Die Kopie wird dann über HTTPS gelesen und gelöscht. Ausgeschaltete VMs werden direkt gelesen. Mit <a href="#hot-add">Hot-Add</a> werden die Festplatten laufender VMs stattdessen über die eigene VM des Proxys gelesen, ohne Kopie.</li>
   <li>Die Konfiguration der VM (<code>.vmx</code>) und der NVRAM werden mit der Sicherung gespeichert.</li>
 </ol>
 <p>Beispiel aus dem Testlabor: eine Debian-VM mit einer 8-GB-Festplatte, davon 1,6 GB belegt. Die erste Sicherung las 1,6 GB. Die nächste, nach 50 MB neuen Daten, las 70 MB und dauerte 23 Sekunden.</p>
+
+<h3 id="hot-add">Hot-Add: keine Kopie auf dem Datastore</h3>
+<p>Das Kopieren der Festplatten einer laufenden VM kostet bei jeder Sicherung, auch bei inkrementellen, Zeit und I/O auf dem produktiven Datastore und braucht freien Platz für die belegten Blöcke der Festplatten. Bei großen VMs auf langsamen Festplatten fällt das ins Gewicht. Mit <b>Hot-Add</b> (<a href="/agents#vmware">Agenten → VMware-ESXi-Hosts</a>, das Kontrollkästchen unter dem Proxy-Agenten) liest der Proxy sie stattdessen direkt an Ort und Stelle:</p>
+<ul>
+  <li><b>Voraussetzungen:</b> Der Proxy ist ein <b>Linux-Agent in einer VM</b>, die die Datastores der VM sieht (auf demselben Host oder auf einem Host desselben vCenter mit Zugriff darauf), und der Host wird über die vSphere-API geändert (vCenter oder ein lizenzierter Host). Der Proxy findet seine eigene VM an ihrer BIOS-UUID.</li>
+  <li><b>Ablauf:</b> Solange der Snapshot besteht, wird jede Festplatte als <b>independent-nonpersistent</b> an die VM des Proxys angehängt. Der Proxy öffnet sie nur lesend; alles, was auf sie geschrieben würde, ginge in ein Redo-Log, das vSphere beim Trennen der Festplatte verwirft, die Festplatte der VM wird also nie verändert. Der Proxy liest nur die Blöcke, die CBT meldet, trennt die Festplatte, und danach wird der Snapshot entfernt.</li>
+  <li><b>Was es spart:</b> keine temporäre Kopie und kein zusätzlicher Platz auf dem Datastore. Eine inkrementelle Sicherung einer 2-TB-VM mit 20 GB Änderungen liest 20 GB. Der Snapshot bleibt bestehen, solange die Festplatten gelesen werden (statt nur für die Kopie), die VM schreibt also etwas länger in den Snapshot.</li>
+  <li><b>Fallback:</b> Ist der Proxy keine VM des Hosts oder schlägt das Anhängen oder Lesen einer Festplatte fehl, wird diese Festplatte wie bisher auf dem Datastore kopiert, und der Lauf zeigt eine Warnung mit dem Grund. Hot-Add ist standardmäßig aus; Agenten vor 0.54 ignorieren es.</li>
+  <li><b>Auf der Proxy-VM:</b> Verhindern Sie mit der Devices-Datei von LVM, dass LVM Volumes der angehängten Festplatten aktiviert (<code>use_devicesfile = 1</code> in <code>/etc/lvm/lvm.conf</code>, die eigenen Festplatten des Proxys mit <code>lvmdevices</code> eingetragen). Volumes, die LVM trotzdem aktiviert, werden vor dem Trennen der Festplatte entfernt. Hängen Sie Festplatten anderer VMs nicht von Hand an den Proxy an: Eine independent-nonpersistent-Festplatte aus dem Ordner einer anderen VM wird für eine gehalten, die eine unterbrochene Sicherung zurückgelassen hat, und getrennt.</li>
+</ul>
 
 <h2>Eine VM wiederherstellen</h2>
 <p>Verwenden Sie den <a href="/restore">Wiederherstellungsassistenten</a> (<i>Ganze virtuelle Maschine</i>) oder die Seite der Sicherung in Aktivität. Wählen Sie:</p>

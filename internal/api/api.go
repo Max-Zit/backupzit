@@ -465,6 +465,9 @@ type VMwareHost struct {
 	SSHHostKey string `json:"ssh_host_key,omitempty"`
 	// Method: "" automatic, "ssh" or "api" (see vmware.Conn).
 	Method string `json:"method,omitempty"`
+	// HotAdd: read the disks of running VMs through the proxy agent's own VM
+	// (agents before 0.54 ignore it and copy them on the datastore).
+	HotAdd bool `json:"hot_add,omitempty"`
 }
 
 // SpeedLimit caps the upload speed, between FromHour and ToHour o'clock

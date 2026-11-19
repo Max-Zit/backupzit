@@ -223,3 +223,27 @@ func (s *Store) refreshVMware(ctx context.Context, now time.Time) {
 		}
 	}()
 }
+
+// handleVMwareHotAdd serves POST /vmware/{id}/hotadd: hot-add on or off.
+// The proxy agent checks itself, at each backup, whether it is a VM of the
+// host; if not, or if anything fails, it copies the disks as before.
+func (s *Server) handleVMwareHotAdd(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	h, err := s.store.GetVMwareHost(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	on := r.FormValue("hot_add") == "on"
+	if err := s.store.UpdateVMwareHotAdd(r.Context(), id, on); err != nil {
+		s.serverError(w, err)
+		return
+	}
+	s.audit(r, "vmware.hotadd", "%s: hot-add %v", h.Name, on)
+	l := requestLanguage(r)
+	if on {
+		redirectMsg(w, r, "/agents#vmware", l.T("%s: the proxy agent reads the disks of running VMs through its own VM (hot-add) when it can, otherwise it copies them as before.", h.Name))
+		return
+	}
+	redirectMsg(w, r, "/agents#vmware", l.T("%s: the disks of running VMs are copied on the datastore.", h.Name))
+}

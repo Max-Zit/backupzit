@@ -14,6 +14,7 @@ import (
 
 type vmwareFlags struct {
 	host, user, thumbprint, sshKey *string
+	hotAdd                         *bool
 }
 
 func addVMwareFlags(fs *flag.FlagSet) vmwareFlags {
@@ -22,6 +23,7 @@ func addVMwareFlags(fs *flag.FlagSet) vmwareFlags {
 		user:       fs.String("user", "root", "ESXi user (password in BACKUPZIT_VMWARE_PASSWORD)"),
 		thumbprint: fs.String("thumbprint", "", "expected HTTPS certificate fingerprint (SHA256:…), shown by 'vmware list'"),
 		sshKey:     fs.String("ssh-host-key", "", "expected SSH host key fingerprint (SHA256:…)"),
+		hotAdd:     fs.Bool("hot-add", false, "backup: read the disks of running VMs through this agent's own VM (Linux agent in a VM that sees the datastores) instead of copying them on the datastore"),
 	}
 }
 
@@ -33,7 +35,7 @@ func (f vmwareFlags) connect(ctx context.Context) (*vmware.Client, error) {
 	if pw == "" {
 		return nil, errors.New("set the ESXi password in the environment variable BACKUPZIT_VMWARE_PASSWORD")
 	}
-	return vmware.Connect(ctx, vmware.Conn{Host: *f.host, User: *f.user, Password: pw, Thumbprint: *f.thumbprint, SSHHostKey: *f.sshKey})
+	return vmware.Connect(ctx, vmware.Conn{Host: *f.host, User: *f.user, Password: pw, Thumbprint: *f.thumbprint, SSHHostKey: *f.sshKey, HotAdd: *f.hotAdd})
 }
 
 // cmdVMware handles: vmware list|backup|restore (any agent as proxy for an ESXi host).

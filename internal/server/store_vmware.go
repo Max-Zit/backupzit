@@ -30,15 +30,19 @@ type VMwareHost struct {
 	Method string
 	// ProxyAgentID is the agent that reads and writes the VMs' disks.
 	ProxyAgentID *int64
-	ProxyName    *string
-	RepoDir      string
-	Inventory    json.RawMessage
-	InventoryAt  *time.Time
-	Version      string
-	APIWrites    bool
-	SSHOK        bool
-	LastError    string
-	CreatedAt    time.Time
+	// HotAdd: the proxy (a Linux agent in a VM that sees the datastores)
+	// reads the disks of running VMs attached to its own VM instead of
+	// copies on the datastore.
+	HotAdd      bool
+	ProxyName   *string
+	RepoDir     string
+	Inventory   json.RawMessage
+	InventoryAt *time.Time
+	Version     string
+	APIWrites   bool
+	SSHOK       bool
+	LastError   string
+	CreatedAt   time.Time
 }
 
 // Inv decodes the host's VM list.
@@ -105,24 +109,24 @@ func (h VMwareHost) Mode() string {
 func (h VMwareHost) UsesSSH() bool { return h.Method == vmware.MethodSSH || !h.APIWrites }
 
 func (h VMwareHost) conn() vmware.Conn {
-	return vmware.Conn{Host: h.Address, User: h.Username, Password: h.Password, Thumbprint: h.Thumbprint, SSHHostKey: h.SSHHostKey, Method: h.Method}
+	return vmware.Conn{Host: h.Address, User: h.Username, Password: h.Password, Thumbprint: h.Thumbprint, SSHHostKey: h.SSHHostKey, Method: h.Method, HotAdd: h.HotAdd}
 }
 
 func (h VMwareHost) apiHost() *api.VMwareHost {
-	return &api.VMwareHost{Name: h.Name, Address: h.Address, User: h.Username, Password: h.Password, Thumbprint: h.Thumbprint, SSHHostKey: h.SSHHostKey, Method: h.Method}
+	return &api.VMwareHost{Name: h.Name, Address: h.Address, User: h.Username, Password: h.Password, Thumbprint: h.Thumbprint, SSHHostKey: h.SSHHostKey, Method: h.Method, HotAdd: h.HotAdd}
 }
 
 const ctxVMware = "vmware_hosts.password"
 
 const vmwareCols = `h.id, h.name, h.address, h.username, h.password, h.thumbprint, h.ssh_host_key, h.method, h.proxy_agent_id, ` + agentNameSQL + `, h.repo_dir,
-	h.inventory, h.inventory_at, h.version, h.api_writes, h.ssh_ok, h.last_error, h.created_at`
+	h.inventory, h.inventory_at, h.version, h.api_writes, h.ssh_ok, h.last_error, h.created_at, h.hot_add`
 
 const vmwareFrom = ` FROM vmware_hosts h LEFT JOIN agents a ON a.id=h.proxy_agent_id AND a.removed_at IS NULL`
 
 func (s *Store) scanVMwareHost(r pgx.Row) (VMwareHost, error) {
 	var h VMwareHost
 	err := r.Scan(&h.ID, &h.Name, &h.Address, &h.Username, &h.Password, &h.Thumbprint, &h.SSHHostKey, &h.Method, &h.ProxyAgentID, &h.ProxyName, &h.RepoDir,
-		&h.Inventory, &h.InventoryAt, &h.Version, &h.APIWrites, &h.SSHOK, &h.LastError, &h.CreatedAt)
+		&h.Inventory, &h.InventoryAt, &h.Version, &h.APIWrites, &h.SSHOK, &h.LastError, &h.CreatedAt, &h.HotAdd)
 	if err == nil && s.box != nil {
 		h.Password, err = s.box.open(ctxVMware, h.Password)
 	}
@@ -186,6 +190,15 @@ func (s *Store) CreateVMwareHost(ctx context.Context, h VMwareHost) (int64, erro
 // UpdateVMwareMethod changes how the host is changed.
 func (s *Store) UpdateVMwareMethod(ctx context.Context, id int64, method string, apiWrites, sshOK bool) error {
 	_, err := s.db.Exec(ctx, `UPDATE vmware_hosts SET method=$2, api_writes=$3, ssh_ok=$4, last_error='' WHERE id=$1`, id, method, apiWrites, sshOK)
+	return err
+}
+
+// UpdateVMwareHotAdd turns hot-add on or off for the host.
+func (s *Store) UpdateVMwareHotAdd(ctx context.Context, id int64, on bool) error {
+	tag, err := s.db.Exec(ctx, `UPDATE vmware_hosts SET hot_add=$2 WHERE id=$1`, id, on)
+	if err == nil && tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
 	return err
 }
 

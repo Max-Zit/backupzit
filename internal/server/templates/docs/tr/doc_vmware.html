@@ -8,7 +8,7 @@
   <li><b>Ana bilgisayarda yönetici haklarına sahip bir kullanıcı</b>, genellikle <code>root</code>.</li>
   <li><b>Ücretsiz lisanslı ana bilgisayarlarda SSH etkin:</b> Host → Actions → Services → Enable Secure Shell. Ücretsiz ESXi lisansı API'yi salt okunur yapar; bu yüzden anlık görüntüler ve geri yüklemeler SSH üzerinden yapılır. Lisanslı ana bilgisayarlar vSphere API üzerinden değiştirilir ve SSH gerektirmez.</li>
   <li><b>Bir vekil aracı:</b> ana bilgisayara 443 numaralı bağlantı noktasından (SSH kullanıldığında 22'den de) ulaşan herhangi bir Windows veya Linux aracısı. Yedek verileri onun üzerinden akar; bu yüzden onu ana bilgisayara ve depolamaya yakın, hızlı bir ağa koyun.</li>
-  <li>Çalışan bir VM yedeklenirken <b>VM'nin datastore'unda boş alan</b>. BackupZit diski kısa süreliğine oraya kopyalar (aşağıya bakın). Kopya thin olduğundan diskin gerçekten kullandığı kadar alan gerekir.</li>
+  <li>Çalışan bir VM yedeklenirken <b>VM'nin datastore'unda boş alan</b>. BackupZit diski kısa süreliğine oraya kopyalar (aşağıya bakın). Kopya thin olduğundan diskin gerçekten kullandığı kadar alan gerekir. <a href="#hot-add">Hot-add</a> ile hiç kopya oluşturulmaz.</li>
 </ul>
 
 <h2>Ana bilgisayar ekleme</h2>
@@ -55,10 +55,20 @@
       <li>sonrasında yalnızca önceki yedekten bu yana değişen bloklar.</li>
     </ul>
   </li>
-  <li>Çalışan bir VM disklerini kilitli tutar. Bu yüzden diskleri datastore üzerinde kopyalanır (thin) ve <b>anlık görüntü hemen kaldırılır</b>, genellikle birkaç saniye sonra. Kopya ardından HTTPS üzerinden okunur ve silinir. Kapalı VM'ler doğrudan okunur.</li>
+  <li>Çalışan bir VM disklerini kilitli tutar. Bu yüzden diskleri datastore üzerinde kopyalanır (thin) ve <b>anlık görüntü hemen kaldırılır</b>, genellikle birkaç saniye sonra. Kopya ardından HTTPS üzerinden okunur ve silinir. Kapalı VM'ler doğrudan okunur. <a href="#hot-add">Hot-add</a> ile çalışan VM'lerin diskleri bunun yerine vekilin kendi VM'si üzerinden, kopya olmadan okunur.</li>
   <li>VM'nin yapılandırması (<code>.vmx</code>) ve NVRAM yedekle birlikte saklanır.</li>
 </ol>
 <p>Test laboratuvarından örnek: 8 GB diskli, 1,6 GB'ı kullanılan bir Debian VM. İlk yedek 1,6 GB okudu. Sonraki, 50 MB yeni veriden sonra, 70 MB okudu ve 23 saniye sürdü.</p>
+
+<h3 id="hot-add">Hot-add: datastore üzerinde kopya yok</h3>
+<p>Çalışan bir VM'nin disklerini kopyalamak, artımlı olanlar dahil her yedekte üretim datastore'unda zaman ve G/Ç harcar ve disklerin kullanılan blokları için boş alan gerektirir. Yavaş disklerdeki büyük VM'lerde bu önemlidir. <b>Hot-add</b> ile (<a href="/agents#vmware">Aracılar → VMware ESXi ana bilgisayarları</a>, proxy aracısının altındaki onay kutusu) vekil bunun yerine diskleri yerinde okur:</p>
+<ul>
+  <li><b>Gereksinimler:</b> vekil, VM'nin datastore'larını gören (aynı ana bilgisayarda veya aynı vCenter'ın bunlara erişimi olan bir ana bilgisayarında) <b>bir VM içindeki Linux aracısıdır</b> ve ana bilgisayar vSphere API üzerinden değiştirilir (vCenter veya lisanslı ana bilgisayar). Vekil kendi VM'sini BIOS UUID'sinden bulur.</li>
+  <li><b>Nasıl:</b> anlık görüntü var olduğu sürece her disk vekilin VM'sine <b>independent-nonpersistent</b> olarak bağlanır. Vekil diski salt okunur açar; ona yazılan her şey, disk ayrıldığında vSphere'in attığı bir redo log'a giderdi, bu yüzden VM'nin diski asla değişmez. Vekil yalnızca CBT'nin bildirdiği blokları okur, diski ayırır ve ardından anlık görüntü kaldırılır.</li>
+  <li><b>Ne kazandırır:</b> geçici kopya yok, datastore üzerinde ek alan yok. 20 GB değişikliği olan 2 TB'lık bir VM'nin artımlı yedeği 20 GB okur. Anlık görüntü, diskler okunduğu sürece kalır (yalnızca kopyalama süresince değil), bu yüzden VM anlık görüntüye biraz daha uzun süre yazar.</li>
+  <li><b>Yedek yol:</b> vekil ana bilgisayarın bir VM'si değilse veya bir diskin bağlanması ya da okunması başarısız olursa, o disk eskisi gibi datastore üzerinde kopyalanır ve çalıştırma nedenini içeren bir uyarı gösterir. Hot-add varsayılan olarak kapalıdır; 0.54 öncesi aracılar bunu yok sayar.</li>
+  <li><b>Vekil VM'de:</b> LVM'nin aygıt dosyasıyla (<code>/etc/lvm/lvm.conf</code> içinde <code>use_devicesfile = 1</code>, vekilin kendi diskleri <code>lvmdevices</code> ile kayıtlı) LVM'nin bağlanan disklerdeki birimleri etkinleştirmesini önleyin. LVM'nin yine de etkinleştirdiği birimler disk ayrılmadan önce kaldırılır. Başka VM'lerin disklerini vekile elle bağlamayın: başka bir VM'nin klasöründen gelen independent-nonpersistent bir disk, yarıda kalmış bir yedeğin geride bıraktığı disk sanılır ve ayrılır.</li>
+</ul>
 
 <h2>Bir VM'yi geri yükleme</h2>
 <p><a href="/restore">Geri yükleme sihirbazını</a> (<i>Tüm sanal makine</i>) veya yedeğin Etkinlik'teki sayfasını kullanın. Şunları seçin:</p>

@@ -110,6 +110,17 @@ func TestVMwareHosts(t *testing.T) {
 		t.Errorf("after automatic: %+v", h2)
 	}
 
+	// Hot-add is off until chosen, and goes to the proxy with each run.
+	if _, _, body := admin.do("GET", "/agents", nil); !strings.Contains(body, fmt.Sprintf(`action="/vmware/%d/hotadd"`, h.ID)) || strings.Contains(body, `name="hot_add" data-autosubmit checked`) {
+		t.Error("agents page lacks the hot-add checkbox, or it is on by default")
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/hotadd", h.ID), url.Values{"hot_add": {"on"}}); !strings.Contains(loc, "msg=") {
+		t.Errorf("hot-add on: %s", loc)
+	}
+	if h2, _ := e.store.GetVMwareHost(ctx, h.ID); !h2.HotAdd {
+		t.Errorf("hot-add not stored: %+v", h2)
+	}
+
 	// A VM job on the host runs on the proxy agent.
 	g := inv.Guests[0]
 	_, loc, _ = admin.do("POST", "/jobs", url.Values{"name": {"esx vms"}, "agent_id": {fmt.Sprintf("vmware:%d", h.ID)}, "target_id": {fmt.Sprint(targetID)},
@@ -146,7 +157,7 @@ func TestVMwareHosts(t *testing.T) {
 	}
 	run := poll()
 	if run == nil || run.ID != runID || run.VMware == nil || run.VMware.Password != simPass || run.VMware.Thumbprint != h.Thumbprint ||
-		!strings.Contains(run.Repository.URL, "esxi-esxi1_") || len(run.VMs) != 1 {
+		!strings.Contains(run.Repository.URL, "esxi-esxi1_") || len(run.VMs) != 1 || !run.VMware.HotAdd {
 		t.Fatalf("run for the proxy: %+v", run)
 	}
 	details, _ := json.Marshal(map[string]any{"guests": []map[string]any{{"vmid": g.VMID, "type": "vm", "name": g.Name, "platform": "vmware",

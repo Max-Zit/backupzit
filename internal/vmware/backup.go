@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"path"
 	"strconv"
 	"strings"
@@ -103,9 +104,13 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 	start := time.Now()
 	before := r.Stats()
 	sn := &repo.Snapshot{Time: start.UTC(), Hostname: opts.Hostname, Tags: append([]string{"vmware"}, opts.Tags...), ProgramVersion: opts.Version}
+	ha, haErr := c.hotAddProxy(ctx, opts.Log)
+	if haErr != nil {
+		addErr("hot-add", fmt.Errorf("%w; the disks of running VMs were copied on the datastore instead", haErr))
+	}
 	for _, v := range sel {
 		opts.Log("backing up VM", "name", v.Name, "uuid", v.UUID)
-		g, warns, err := c.backupVM(ctx, r, v, sn, prev, progress)
+		g, warns, err := c.backupVM(ctx, r, v, sn, prev, progress, ha)
 		for _, w := range warns {
 			addErr(v.Name, errors.New(w))
 		}
@@ -146,7 +151,7 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 	return sn, nil
 }
 
-func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64)) (_ *repo.Guest, warns []string, _ error) {
+func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), ha *hotAdd) (_ *repo.Guest, warns []string, _ error) {
 	if len(v.Disks) == 0 {
 		return nil, nil, errors.New("the VM has no virtual disks")
 	}
@@ -241,6 +246,8 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 		}
 		// A running VM keeps its base disks locked while the snapshot
 		// exists: copy them on the datastore, then drop the snapshot at once.
+		// With hot-add they are read through the agent's VM while the
+		// snapshot exists instead; a disk that fails there is copied.
 		if v.Power != "poweredOff" {
 			defer func() {
 				for _, p := range plans {
@@ -255,6 +262,17 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 				}
 			}()
 			for i := range plans {
+				if ha != nil {
+					img, err := c.storeDiskHotAdd(ctx, ha, r, v, plans[i], sn, progress)
+					if err == nil {
+						plans[i].stored = &img
+						continue
+					}
+					if ctx.Err() != nil {
+						return nil, warns, ctx.Err()
+					}
+					warns = append(warns, fmt.Sprintf("%s: hot-add failed, the disk was copied on the datastore instead: %v", plans[i].disk.Key, err))
+				}
 				if err := c.cloneDisk(ctx, v, &plans[i]); err != nil {
 					return nil, warns, fmt.Errorf("%s: %w", plans[i].disk.Key, err)
 				}
@@ -263,6 +281,10 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 		removeSnap()
 	}
 	for _, p := range plans {
+		if p.stored != nil {
+			g.Disks = append(g.Disks, *p.stored)
+			continue
+		}
 		img, err := c.storeDisk(ctx, r, v, p, sn, progress)
 		if err != nil {
 			return nil, warns, fmt.Errorf("%s: %w", p.disk.Key, err)
@@ -282,6 +304,8 @@ type diskPlan struct {
 	method string
 	// clone is a temporary copy of the disk read instead of the original.
 	clone *dsPath
+	// stored is the disk already read through hot-add.
+	stored *repo.GuestDisk
 }
 
 // planDisk decides which areas of a disk to read: with changed block
@@ -344,9 +368,28 @@ func (c *Client) storeDisk(ctx context.Context, r *repo.Repository, v VM, p disk
 	if err != nil {
 		return repo.GuestDisk{}, err
 	}
+	return c.storeImage(ctx, r, v, p, sn, progress, &fileReader{ctx: ctx, c: c, url: c.fileURL(flat)}, p.method)
+}
+
+// storeDiskHotAdd reads a disk of the snapshot through the agent's VM.
+func (c *Client) storeDiskHotAdd(ctx context.Context, ha *hotAdd, r *repo.Repository, v VM, p diskPlan, sn *repo.Snapshot, progress func(uint64)) (repo.GuestDisk, error) {
+	dev, release, err := ha.attach(ctx, p.disk.File, p.disk.Capacity)
+	if err != nil {
+		return repo.GuestDisk{}, err
+	}
+	defer release()
+	return c.storeImage(ctx, r, v, p, sn, progress, dev, p.method+", hot-add")
+}
+
+// storeImage stores the planned areas of a disk read from ra.
+func (c *Client) storeImage(ctx context.Context, r *repo.Repository, v VM, p diskPlan, sn *repo.Snapshot, progress func(uint64), ra io.ReaderAt, method string) (repo.GuestDisk, error) {
+	src, err := parseDSPath(p.disk.File)
+	if err != nil {
+		return repo.GuestDisk{}, err
+	}
 	d := p.disk
-	img, err := diskimg.StoreAreas(ctx, r, &fileReader{ctx: ctx, c: c, url: c.fileURL(flat)}, d.Capacity, p.areas, p.base,
-		len(sn.Images), fmt.Sprintf("vmware %s %s %s (%s)", v.Name, d.Key, d.File, p.method), "snapshot", progress)
+	img, err := diskimg.StoreAreas(ctx, r, ra, d.Capacity, p.areas, p.base,
+		len(sn.Images), fmt.Sprintf("vmware %s %s %s (%s)", v.Name, d.Key, d.File, method), "snapshot", progress)
 	if err != nil {
 		return repo.GuestDisk{}, err
 	}

@@ -8,7 +8,7 @@
   <li><b>Un utilisateur disposant des droits d'administrateur sur l'hôte</b>, généralement <code>root</code>.</li>
   <li><b>SSH activé sur les hôtes sous licence gratuite :</b> Host → Actions → Services → Enable Secure Shell. La licence ESXi gratuite rend l'API en lecture seule, donc les instantanés et les restaurations passent par SSH. Les hôtes sous licence sont modifiés via l'API vSphere et n'ont pas besoin de SSH.</li>
   <li><b>Un agent proxy :</b> tout agent Windows ou Linux qui atteint l'hôte sur le port 443 (et 22 quand SSH est utilisé). Les données de sauvegarde passent par lui ; placez-le donc sur un réseau rapide, proche de l'hôte et du stockage.</li>
-  <li><b>De l'espace libre sur le datastore de la VM</b> pendant la sauvegarde d'une VM en marche. BackupZit y copie brièvement le disque (voir ci-dessous). La copie est thin, elle a donc besoin d'autant d'espace que le disque en utilise réellement.</li>
+  <li><b>De l'espace libre sur le datastore de la VM</b> pendant la sauvegarde d'une VM en marche. BackupZit y copie brièvement le disque (voir ci-dessous). La copie est thin, elle a donc besoin d'autant d'espace que le disque en utilise réellement. Avec le <a href="#hot-add">hot-add</a>, aucune copie n'est faite.</li>
 </ul>
 
 <h2>Ajouter un hôte</h2>
@@ -55,10 +55,20 @@
       <li>ensuite, uniquement les blocs modifiés depuis la sauvegarde précédente.</li>
     </ul>
   </li>
-  <li>Une VM en marche garde ses disques verrouillés. Ses disques sont donc copiés sur le datastore (thin) et <b>l'instantané est supprimé aussitôt</b>, généralement après quelques secondes. La copie est ensuite lue via HTTPS et supprimée. Les VM éteintes sont lues directement.</li>
+  <li>Une VM en marche garde ses disques verrouillés. Ses disques sont donc copiés sur le datastore (thin) et <b>l'instantané est supprimé aussitôt</b>, généralement après quelques secondes. La copie est ensuite lue via HTTPS et supprimée. Les VM éteintes sont lues directement. Avec le <a href="#hot-add">hot-add</a>, les disques des VM en marche sont plutôt lus via la propre VM du proxy, sans copie.</li>
   <li>La configuration de la VM (<code>.vmx</code>) et la NVRAM sont stockées avec la sauvegarde.</li>
 </ol>
 <p>Exemple du laboratoire de test : une VM Debian avec un disque de 8 Go, dont 1,6 Go utilisés. La première sauvegarde a lu 1,6 Go. La suivante, après 50 Mo de nouvelles données, a lu 70 Mo et a duré 23 secondes.</p>
+
+<h3 id="hot-add">Hot-add : aucune copie sur le datastore</h3>
+<p>Copier les disques d'une VM en marche coûte du temps et des E/S sur le datastore de production à chaque sauvegarde, y compris les incrémentales, et demande de l'espace libre pour les blocs utilisés des disques. Avec de grosses VM sur des disques lents, cela compte. Avec le <b>Hot-add</b> (<a href="/agents#vmware">Agents → Hôtes VMware ESXi</a>, la case à cocher sous l'agent proxy), le proxy les lit plutôt sur place :</p>
+<ul>
+  <li><b>Prérequis :</b> le proxy est un <b>agent Linux dans une VM</b> qui voit les datastores de la VM (sur le même hôte, ou sur un hôte du même vCenter qui y a accès), et l'hôte est modifié via l'API vSphere (vCenter ou hôte sous licence). Le proxy trouve sa propre VM grâce à son BIOS UUID.</li>
+  <li><b>Fonctionnement :</b> tant que l'instantané existe, chaque disque est attaché à la VM du proxy en mode <b>independent-nonpersistent</b>. Le proxy l'ouvre en lecture seule ; tout ce qui y serait écrit irait dans un redo log que vSphere abandonne au détachement du disque, le disque de la VM n'est donc jamais modifié. Le proxy lit uniquement les blocs signalés par le CBT, détache le disque, puis l'instantané est supprimé.</li>
+  <li><b>Ce que cela économise :</b> aucune copie temporaire et aucun espace supplémentaire sur le datastore. Une sauvegarde incrémentale d'une VM de 2 To avec 20 Go de modifications lit 20 Go. L'instantané reste en place tant que les disques sont lus (au lieu de seulement pendant la copie), la VM écrit donc un peu plus longtemps dans l'instantané.</li>
+  <li><b>Solution de repli :</b> si le proxy n'est pas une VM de l'hôte, ou si l'attachement ou la lecture d'un disque échoue, ce disque est copié sur le datastore comme avant, et l'exécution affiche un avertissement avec la raison. Le Hot-add est désactivé par défaut ; les agents antérieurs à 0.54 l'ignorent.</li>
+  <li><b>Sur la VM du proxy :</b> empêchez LVM d'activer les volumes des disques attachés, avec le fichier de périphériques de LVM (<code>use_devicesfile = 1</code> dans <code>/etc/lvm/lvm.conf</code>, les disques propres du proxy enregistrés avec <code>lvmdevices</code>). Les volumes que LVM active malgré tout sont retirés avant le détachement du disque. N'attachez pas à la main des disques d'autres VM au proxy : un disque independent-nonpersistent provenant du dossier d'une autre VM est pris pour un disque laissé par une sauvegarde interrompue, et détaché.</li>
+</ul>
 
 <h2>Restaurer une VM</h2>
 <p>Utilisez l'<a href="/restore">assistant de restauration</a> (<i>Machine virtuelle complète</i>) ou la page de la sauvegarde dans Activité. Choisissez :</p>

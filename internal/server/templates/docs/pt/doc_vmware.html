@@ -8,7 +8,7 @@
   <li><b>Um usuário com direitos de administrador no host</b>, normalmente <code>root</code>.</li>
   <li><b>SSH ativado nos hosts com licença gratuita:</b> Host → Actions → Services → Enable Secure Shell. A licença gratuita do ESXi deixa a API somente leitura, então snapshots e restaurações passam por SSH. Hosts licenciados são alterados pela API do vSphere e não precisam de SSH.</li>
   <li><b>Um agente proxy:</b> qualquer agente Windows ou Linux que alcance o host na porta 443 (e na 22 quando o SSH é usado). Os dados do backup passam por ele, então coloque-o em uma rede rápida, perto do host e do armazenamento.</li>
-  <li><b>Espaço livre no datastore da VM</b> enquanto uma VM ligada é copiada. O BackupZit copia o disco ali por um momento (veja abaixo). A cópia é thin, então precisa de tanto espaço quanto o disco realmente usa.</li>
+  <li><b>Espaço livre no datastore da VM</b> enquanto uma VM ligada é copiada. O BackupZit copia o disco ali por um momento (veja abaixo). A cópia é thin, então precisa de tanto espaço quanto o disco realmente usa. Com <a href="#hot-add">hot-add</a> nenhuma cópia é feita.</li>
 </ul>
 
 <h2>Adicionar um host</h2>
@@ -55,10 +55,20 @@
       <li>depois, só os blocos alterados desde o backup anterior.</li>
     </ul>
   </li>
-  <li>Uma VM ligada mantém seus discos bloqueados. Por isso seus discos são copiados no datastore (thin) e <b>o snapshot é removido na hora</b>, normalmente após segundos. A cópia é então lida por HTTPS e excluída. VMs desligadas são lidas diretamente.</li>
+  <li>Uma VM ligada mantém seus discos bloqueados. Por isso seus discos são copiados no datastore (thin) e <b>o snapshot é removido na hora</b>, normalmente após segundos. A cópia é então lida por HTTPS e excluída. VMs desligadas são lidas diretamente. Com <a href="#hot-add">hot-add</a>, os discos de VMs ligadas são lidos pela própria VM do proxy, sem cópia.</li>
   <li>A configuração da VM (<code>.vmx</code>) e a NVRAM são armazenadas com o backup.</li>
 </ol>
 <p>Exemplo do laboratório de testes: uma VM Debian com um disco de 8 GB, 1,6 GB em uso. O primeiro backup leu 1,6 GB. O seguinte, após 50 MB de dados novos, leu 70 MB e levou 23 segundos.</p>
+
+<h3 id="hot-add">Hot-add: sem cópia no datastore</h3>
+<p>Copiar os discos de uma VM ligada custa tempo e E/S no datastore de produção a cada backup, inclusive nos incrementais, e precisa de espaço livre para os blocos usados dos discos. Com VMs grandes em discos lentos, isso pesa. Com <b>Hot-add</b> (<a href="/agents#vmware">Agentes → Hosts VMware ESXi</a>, a caixa de seleção abaixo do agente proxy), o proxy os lê no próprio lugar:</p>
+<ul>
+  <li><b>Requisitos:</b> o proxy é um <b>agente Linux em uma VM</b> que enxerga os datastores da VM (no mesmo host, ou em um host do mesmo vCenter com acesso a eles), e o host é alterado pela API do vSphere (vCenter ou host licenciado). O proxy encontra a própria VM pelo seu BIOS UUID.</li>
+  <li><b>Como:</b> enquanto o snapshot existe, cada disco é anexado à VM do proxy como <b>independent-nonpersistent</b>. O proxy o abre somente leitura; qualquer coisa gravada nele iria para um redo log que o vSphere descarta quando o disco é desanexado, então o disco da VM nunca é alterado. O proxy lê só os blocos que o CBT informa, desanexa o disco e então o snapshot é removido.</li>
+  <li><b>O que economiza:</b> nenhuma cópia temporária e nenhum espaço extra no datastore. Um backup incremental de uma VM de 2 TB com 20 GB de alterações lê 20 GB. O snapshot fica enquanto os discos são lidos (em vez de só durante a cópia), então a VM grava no snapshot por um pouco mais de tempo.</li>
+  <li><b>Alternativa:</b> se o proxy não for uma VM do host, ou se anexar ou ler um disco falhar, esse disco é copiado no datastore como antes, e a execução mostra um aviso com o motivo. O Hot-add vem desativado por padrão; agentes anteriores à 0.54 o ignoram.</li>
+  <li><b>Na VM do proxy:</b> impeça que o LVM ative volumes dos discos anexados, com o arquivo de dispositivos do LVM (<code>use_devicesfile = 1</code> em <code>/etc/lvm/lvm.conf</code>, com os discos do próprio proxy registrados com <code>lvmdevices</code>). Volumes que o LVM ativar mesmo assim são removidos antes de o disco ser desanexado. Não anexe manualmente discos de outras VMs ao proxy: um disco independent-nonpersistent da pasta de outra VM é tomado por um que um backup interrompido deixou para trás, e desanexado.</li>
+</ul>
 
 <h2>Restaurar uma VM</h2>
 <p>Use o <a href="/restore">assistente de restauração</a> (<i>Máquina virtual inteira</i>) ou a página do backup em Atividade. Escolha:</p>

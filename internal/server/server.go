@@ -407,6 +407,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /vmware/{id}/refresh", s.ui(PermAgents, s.handleVMwareRefresh))
 	mux.HandleFunc("POST /vmware/{id}/proxy", s.ui(PermAgents, s.handleVMwareProxy))
 	mux.HandleFunc("POST /vmware/{id}/method", s.ui(PermAgents, s.handleVMwareMethod))
+	mux.HandleFunc("POST /vmware/{id}/hotadd", s.ui(PermAgents, s.handleVMwareHotAdd))
 	mux.HandleFunc("POST /vmware/{id}/certificate", s.ui(PermAgents, s.handleVMwareCertificate))
 	mux.HandleFunc("POST /vmware/{id}/delete", s.ui(PermAgents, s.handleVMwareDelete))
 	mux.HandleFunc("GET /targets", s.ui(PermView, s.handleTargets))
