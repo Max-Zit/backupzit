@@ -32,6 +32,8 @@ var embedded = []struct{ name, license, file string }{
 
 type module struct {
 	Path, Version, Dir string
+	// Replace is set for a module replaced by a patched copy in the tree.
+	Replace *struct{ Path string }
 }
 
 func main() {
@@ -71,7 +73,11 @@ func main() {
 		if kind == "" {
 			bad = append(bad, p+" ("+name+")")
 		}
-		fmt.Fprintf(&b, "%s\n%s %s — %s\n%s\n\n%s\n\n", strings.Repeat("=", 78), m.Path, m.Version, kind, strings.Repeat("=", 78), strings.TrimSpace(text))
+		label := kind
+		if m.Replace != nil && strings.HasPrefix(m.Replace.Path, "./") {
+			label += " (patched copy in " + strings.TrimPrefix(m.Replace.Path, "./") + ", changes listed in its NOTICE.BackupZit)"
+		}
+		fmt.Fprintf(&b, "%s\n%s %s — %s\n%s\n\n%s\n\n", strings.Repeat("=", 78), m.Path, m.Version, label, strings.Repeat("=", 78), strings.TrimSpace(text))
 	}
 	// Code adapted from other projects keeps its license header in the
 	// source file; its notice ships here too.

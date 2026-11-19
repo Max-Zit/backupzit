@@ -5289,7 +5289,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ==============================================================================
-github.com/masahiro331/go-ext4-filesystem v0.0.0-20260423010602-fe51f5b5e52b — Apache License 2.0
+github.com/masahiro331/go-ext4-filesystem v0.0.0-20260423010602-fe51f5b5e52b — Apache License 2.0 (patched copy in third_party/go-ext4-filesystem, changes listed in its NOTICE.BackupZit)
 ==============================================================================
 
 Apache License

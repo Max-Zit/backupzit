@@ -113,4 +113,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/masahiro331/go-ext4-filesystem => github.com/gtawelt/go-ext4-filesystem v0.0.0-20261119143201-93650e89f39f
+// Patched copy: extents of the full length (32768 blocks) were read as
+// zeros; see third_party/go-ext4-filesystem/NOTICE.BackupZit.
+replace github.com/masahiro331/go-ext4-filesystem => ./third_party/go-ext4-filesystem
