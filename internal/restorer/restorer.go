@@ -2,6 +2,7 @@
 package restorer
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -326,12 +327,26 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 			// Missing/corrupt repository data: report but keep restoring others.
 			return fmt.Errorf("blob %s: %w", id.Short(), err)
 		}
-		if _, err := f.Write(data); err != nil {
+		// A chunk of zeros is skipped instead of written: sparse files
+		// (VM images, databases) stay sparse instead of taking their full
+		// size; the file system reads the hole as zeros.
+		if allZero(data) {
+			_, err = f.Seek(int64(len(data)), io.SeekCurrent)
+		} else {
+			_, err = f.Write(data)
+		}
+		if err != nil {
 			_ = f.Close()
 			_ = os.Remove(tmp)
 			return err
 		}
 		written += uint64(len(data))
+	}
+	// A hole at the end still needs the file's size.
+	if err := f.Truncate(int64(written)); err != nil { // #nosec G115 -- file sizes are below 2^63
+		_ = f.Close()
+		_ = os.Remove(tmp)
+		return err
 	}
 	if err := f.Close(); err != nil {
 		_ = os.Remove(tmp)
@@ -443,4 +458,20 @@ func (rs *restorer) verifyFile(p string, n *repo.Node) error {
 		return fmt.Errorf("size differs (%d bytes restored, %d expected)", size, n.Size)
 	}
 	return nil
+}
+
+var zeroBlock [64 << 10]byte
+
+func allZero(b []byte) bool {
+	if len(b) == 0 {
+		return false
+	}
+	for len(b) > 0 {
+		n := min(len(b), len(zeroBlock))
+		if !bytes.Equal(b[:n], zeroBlock[:n]) {
+			return false
+		}
+		b = b[n:]
+	}
+	return true
 }
