@@ -48,6 +48,10 @@ func s3Transport(secure bool) (http.RoundTripper, error) {
 // errShortRead marks a ranged read that returned fewer bytes than asked.
 var errShortRead = errors.New("the storage returned fewer bytes than requested")
 
+// errShortStored marks an upload the storage answered with success but
+// kept fewer (or more) bytes of: it is uploaded again.
+var errShortStored = errors.New("the storage kept a different size than was uploaded")
+
 // transientS3 reports whether err is worth another attempt: timeouts,
 // dropped connections, short reads, server errors and throttling. Missing
 // objects, refused access and the caller's own cancellation are not.
@@ -55,7 +59,7 @@ func transientS3(ctx context.Context, err error) bool {
 	if err == nil || ctx.Err() != nil || errors.Is(err, ErrNotFound) || errors.Is(err, ErrClockSkew) {
 		return false
 	}
-	if errors.Is(err, errShortRead) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.ECONNRESET) ||
+	if errors.Is(err, errShortRead) || errors.Is(err, errShortStored) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.ECONNRESET) ||
 		errors.Is(err, syscall.EPIPE) || errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
@@ -68,7 +72,7 @@ func transientS3(ctx context.Context, err error) bool {
 	var resp minio.ErrorResponse
 	errors.As(err, &resp)
 	switch resp.Code {
-	case "SlowDown", "RequestTimeout", "InternalError", "ServiceUnavailable", "OperationAborted":
+	case "SlowDown", "RequestTimeout", "InternalError", "ServiceUnavailable", "OperationAborted", "BadDigest", "IncompleteBody":
 		return true
 	}
 	if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusRequestTimeout {

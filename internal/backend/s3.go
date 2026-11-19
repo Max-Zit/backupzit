@@ -175,18 +175,37 @@ func (s *S3) Save(ctx context.Context, name string, data []byte) error {
 	}
 	// Packs are ~16-24 MiB: a single PUT (up to 5 GiB) keeps uploads atomic
 	// and avoids multipart bookkeeping.
-	opts := minio.PutObjectOptions{ContentType: "application/octet-stream", DisableMultipart: true}
+	// Content-MD5 on every PUT: the storage checks the whole body before it
+	// answers (before 0.54.2 only with Object Lock, where S3 requires it).
+	opts := minio.PutObjectOptions{ContentType: "application/octet-stream", DisableMultipart: true, SendContentMd5: true}
 	if s.lockDays > 0 && !strings.HasPrefix(name, "locks/") {
 		// One extra day keeps the object locked for the full period after
 		// a long backup that reuses it (see KeepLocked).
 		until := time.Now().Add(time.Duration(s.lockDays+1) * 24 * time.Hour).UTC()
 		opts.Mode = minio.Compliance
 		opts.RetainUntilDate = until
-		opts.SendContentMd5 = true // required for PUTs with Object Lock
 	}
 	if err := retryS3(ctx, func() error {
-		_, err := s.client.PutObject(ctx, s.bucket, s.key(name), bytes.NewReader(data), int64(len(data)), opts)
-		return err
+		if _, err := s.client.PutObject(ctx, s.bucket, s.key(name), bytes.NewReader(data), int64(len(data)), opts); err != nil {
+			return err
+		}
+		if strings.HasPrefix(name, "locks/") {
+			return nil // small, short-lived and rewritten often
+		}
+		// The size the storage kept: a provider answered success and later
+		// served a shorter object (#38). Another PUT replaces it (with Object
+		// Lock, as a new version).
+		st, err := s.client.StatObject(ctx, s.bucket, s.key(name), minio.StatObjectOptions{})
+		if err != nil {
+			if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+				return fmt.Errorf("%w: not visible yet after the upload", errShortStored)
+			}
+			return fmt.Errorf("check the stored size: %w", err)
+		}
+		if st.Size != int64(len(data)) {
+			return fmt.Errorf("%w: %d bytes kept of %d", errShortStored, st.Size, len(data))
+		}
+		return nil
 	}); err != nil {
 		return fmt.Errorf("s3 put %s: %w", name, withClockHint(err))
 	}
