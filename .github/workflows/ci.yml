@@ -105,7 +105,7 @@ jobs:
   race:
     name: Race detector (Linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -113,8 +113,22 @@ jobs:
           go-version-file: go.mod
       - name: Fetch the test PostgreSQL once (parallel test binaries would all download it)
         run: go test -race -count=1 -run '^TestJobEnableAudited$' ./internal/server
-      - name: Tests with -race
-        run: go test -race -count=1 -timeout 80m ./...
+      - name: Tests with -race (all packages except internal/server, which has its own job)
+        run: go test -race -count=1 -timeout 60m $(go list ./... | grep -v '/internal/server$')
+
+  race-server:
+    # The console's tests take most of the race run (about 45 min since 0.52),
+    # so they get a runner and a time limit of their own.
+    name: Race detector (Linux, console)
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Tests with -race (internal/server)
+        run: go test -race -count=1 -timeout 140m ./internal/server
 
   fuzz:
     name: Fuzz parsers of untrusted input (short)
