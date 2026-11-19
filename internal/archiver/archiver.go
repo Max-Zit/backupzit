@@ -152,11 +152,15 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		root := buildVTree(abs)
 		var parentTree *repo.Tree
 		if opts.Parent != nil {
-			t, err := r.LoadTree(ctx, opts.Parent.Tree)
-			if err != nil {
-				return nil, fmt.Errorf("load parent tree: %w", err)
+			// A parent tree that is gone (a damaged pack that repair took out
+			// of the index) or unreadable: back up without a parent, reading
+			// every file, instead of failing every later backup. Subtrees and
+			// file contents of the parent are checked the same way below.
+			if t, err := r.LoadTree(ctx, opts.Parent.Tree); err == nil {
+				parentTree = t
+			} else {
+				opts.Parent = nil
 			}
-			parentTree = t
 		}
 		id, err := a.saveVDir(ctx, root, parentTree)
 		if err != nil {

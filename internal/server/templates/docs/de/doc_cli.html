@@ -26,6 +26,7 @@
   <tr><td><code>ls SNAPSHOT|latest</code></td><td>Listet alle Dateien in einem Snapshot auf.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Stellt Dateien unterhalb von DIR wieder her (die ursprüngliche Ordnerstruktur wird nachgebildet). <code>--original</code> schreibt sie stattdessen an ihren ursprünglichen Ort zurück und überschreibt vorhandene Dateien.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Prüft die Repository-Struktur; mit <code>--read-data</code> wird jedes Byte heruntergeladen und geprüft.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Alle Daten lesen und beschädigte Datenpakete aus dem Index nehmen, damit die nächsten Sicherungen diese Daten erneut speichern; listet die Sicherungen auf, die die verlorenen Daten brauchen. <code>--dry-run</code> listet nur auf.</td></tr>
 </table>
 
 <h2>Festplattenabbilder (Windows)</h2>

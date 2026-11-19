@@ -26,6 +26,7 @@
   <tr><td><code>ls SNAPSHOT|latest</code></td><td>Navodi sve fajlove u snimku.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Vraća fajlove ispod DIR (originalna struktura foldera se ponovo pravi). <code>--original</code> ih umesto toga upisuje nazad na originalnu lokaciju, prepisujući postojeće fajlove.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Proverava strukturu repozitorijuma; sa <code>--read-data</code> se svaki bajt preuzima i proverava.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Čita sve podatke i izbacuje oštećene pakete podataka iz indeksa, tako da sledeći bekapi te podatke ponovo sačuvaju; navodi bekape kojima izgubljeni podaci trebaju. <code>--dry-run</code> samo navodi.</td></tr>
 </table>
 
 <h2>Slike diskova (Windows)</h2>

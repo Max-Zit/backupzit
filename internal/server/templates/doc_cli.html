@@ -26,6 +26,7 @@
   <tr><td><code>ls SNAPSHOT|latest</code></td><td>List all files in a snapshot.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Restore files below DIR (the original folder structure is recreated). <code>--original</code> instead writes them back to their original location, overwriting existing files.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Verify the repository structure; with <code>--read-data</code> every byte is downloaded and checked.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Read all data and take damaged data packs out of the index, so that the next backups store that data again; lists the backups that need the lost data. <code>--dry-run</code> only lists.</td></tr>
 </table>
 
 <h2>Disk images (Windows)</h2>

@@ -140,11 +140,12 @@ func Backup(ctx context.Context, r *repo.Repository, c *Client, opts Options) (*
 
 	var ptree *repo.Tree
 	if opts.Parent != nil {
-		t, err := r.LoadTree(ctx, opts.Parent.Tree)
-		if err != nil {
-			return nil, fmt.Errorf("load the previous backup: %w", err)
+		// A previous backup whose tree is gone (a damaged pack that repair
+		// took out of the index): everything is fetched again instead of
+		// failing every later backup.
+		if t, err := r.LoadTree(ctx, opts.Parent.Tree); err == nil {
+			ptree = t
 		}
-		ptree = t
 	}
 	root := &repo.Tree{}
 	for _, u := range accounts {

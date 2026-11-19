@@ -26,6 +26,7 @@
   <tr><td><code>ls SNAPSHOT|latest</code></td><td>Toont alle bestanden in een snapshot.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Herstelt bestanden onder DIR (de oorspronkelijke mapstructuur wordt nagebouwd). <code>--original</code> schrijft ze in plaats daarvan terug naar hun oorspronkelijke locatie en overschrijft bestaande bestanden.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Controleert de structuur van de repository; met <code>--read-data</code> wordt elke byte gedownload en gecontroleerd.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Leest alle gegevens en haalt beschadigde gegevenspakketten uit de index, zodat de volgende back-ups die gegevens opnieuw opslaan; toont de back-ups die de verloren gegevens nodig hebben. <code>--dry-run</code> toont alleen.</td></tr>
 </table>
 
 <h2>Schijfimages (Windows)</h2>

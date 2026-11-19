@@ -153,6 +153,9 @@ const (
 	KindAgentLog = "agent-log"
 	// KindRepoCheck reads all data of a repository and verifies it.
 	KindRepoCheck = "repo-check"
+	// KindRepoRepair takes the damaged packs a data check found out of the
+	// index, so that later backups store their data again (agents 0.54.2+).
+	KindRepoRepair = "repo-repair"
 	// KindRepoScan lists the repositories and their backups on a local or
 	// USB disk of the agent (Details: RepoScan), 0.44.0 and newer.
 	KindRepoScan = "repo-scan"
@@ -188,7 +191,7 @@ type Run struct {
 	// this job that the policy no longer keeps and prunes the repository.
 	JobID     int64                 `json:"job_id,omitempty"`
 	Retention *repo.RetentionPolicy `json:"retention,omitempty"`
-	// KeepSnapshots are never removed by retention: VMs run from them
+	// KeepSnapshots are never removed by retention or by a repair: VMs run from them
 	// (instant recovery).
 	KeepSnapshots []string   `json:"keep_snapshots,omitempty"`
 	JobName       string     `json:"job_name,omitempty"`
@@ -210,6 +213,10 @@ type Run struct {
 	RestoreTarget string   `json:"restore_target,omitempty"` // "" = original location
 	Includes      []string `json:"includes,omitempty"`
 	Verify        bool     `json:"verify,omitempty"`
+
+	// Repair (KindRepoRepair): also remove the backups that need the data
+	// of the damaged packs, so that later checks pass again.
+	RepairForget bool `json:"repair_forget,omitempty"`
 
 	// Image backup: disk number and partitions (empty = whole disk).
 	ImageDisk       int   `json:"image_disk,omitempty"`

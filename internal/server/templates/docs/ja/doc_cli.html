@@ -26,6 +26,7 @@
   <tr><td><code>ls SNAPSHOT|latest</code></td><td>スナップショット内のすべてのファイルを一覧表示します。</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>ファイルを DIR の下に復元します（元のフォルダー構造が再作成されます）。<code>--original</code> では代わりに元の場所に書き戻し、既存のファイルを上書きします。</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>リポジトリの構造を確認します。<code>--read-data</code> ではすべてのバイトをダウンロードして検証します。</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>すべてのデータを読み取り、破損したデータパックをインデックスから外して、次のバックアップがそのデータを再び保存するようにします。失われたデータを必要とするバックアップを一覧表示します。<code>--dry-run</code> は一覧表示のみ。</td></tr>
 </table>
 
 <h2>ディスク イメージ（Windows）</h2>

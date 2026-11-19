@@ -431,6 +431,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res, after = a.uninstall()
 	case api.KindRepoCheck:
 		res = a.repoCheck(ctx, run)
+	case api.KindRepoRepair:
+		res = a.repoRepair(ctx, run)
 	case api.KindRepoScan:
 		res = a.repoScan(ctx, run)
 	case api.KindVMBackup:

@@ -26,6 +26,7 @@
   <tr><td><code>ls SNAPSHOT|latest</code></td><td>Bir anlık görüntüdeki tüm dosyaları listeler.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Dosyaları DIR altına geri yükler (özgün klasör yapısı yeniden oluşturulur). <code>--original</code> bunun yerine dosyaları özgün konumlarına yazar ve mevcut dosyaların üzerine yazar.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Depo yapısını denetler; <code>--read-data</code> ile her bayt indirilip doğrulanır.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Tüm verileri okur ve hasarlı veri paketlerini dizinden çıkarır, böylece sonraki yedekler bu verileri yeniden kaydeder; kaybolan verilere ihtiyaç duyan yedekleri listeler. <code>--dry-run</code> yalnızca listeler.</td></tr>
 </table>
 
 <h2>Disk görüntüleri (Windows)</h2>

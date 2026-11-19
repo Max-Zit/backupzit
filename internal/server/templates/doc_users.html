@@ -61,7 +61,7 @@
 <p>Optional and off by default. Turn it on under <a href="/settings/security#four-eyes">Settings → Sign-in &amp; security → Four-eyes approval</a>; it needs at least two enabled administrators. Then these changes only take effect when a <b>second user</b> approves them:</p>
 <table>
   <tr><th>Change</th><th>Who can approve</th></tr>
-  <tr><td>Deleting or disabling a backup job, shortening a job's retention (any rule lower than before, or rules where everything was kept), resuming retention after a suspicious backup</td><td>Users who may manage jobs</td></tr>
+  <tr><td>Deleting or disabling a backup job, shortening a job's retention (any rule lower than before, or rules where everything was kept), resuming retention after a suspicious backup, a repair that also removes the backups that need lost data</td><td>Users who may manage jobs</td></tr>
   <tr><td>Removing an agent or an ESXi host</td><td>Users who may manage agents</td></tr>
   <tr><td>Removing a storage target</td><td>Users who may manage storage</td></tr>
   <tr><td>Deleting a user; creating a user who can approve (Administrator or Backup operator); giving a user a role with more rights, or enabling such a user again; resetting the password or the two-factor sign-in of such a user</td><td>Administrators</td></tr>

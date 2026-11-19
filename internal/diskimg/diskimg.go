@@ -105,6 +105,18 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 			reblocked = true
 		}
 	}
+	var old []repo.ID
+	if prev != nil {
+		var err error
+		if old, err = r.LoadBlockMap(ctx, &prev.Partitions[0]); err != nil {
+			// The earlier backup's block map is gone (a damaged pack that
+			// repair took out of the index) or unreadable: read the whole
+			// disk once instead of failing every later backup.
+			prev = nil
+			areas = []Area{{Offset: 0, Length: size}}
+			reblocked = true
+		}
+	}
 	if progress == nil {
 		progress = func(uint64) {}
 	}
@@ -114,12 +126,20 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 	ids := make([]repo.ID, p.Blocks)
 	read := make([]bool, p.Blocks)
 	if prev != nil {
-		old, err := r.LoadBlockMap(ctx, &prev.Partitions[0])
-		if err != nil {
-			return img, fmt.Errorf("earlier backup: %w", err)
-		}
 		copy(ids, old)
 		img.Head = prev.Head
+		// Blocks whose data is no longer in the repository (a damaged pack
+		// that repair took out of the index) are read again, not reused:
+		// otherwise every later backup would keep the lost data.
+		idx := r.Index()
+		for b, id := range ids {
+			if !id.IsNull() && !idx.Has(repo.BlobHandle{Type: repo.DataBlob, ID: id}) {
+				read[b] = true
+			}
+		}
+		if !img.Head.IsNull() && !idx.Has(repo.BlobHandle{Type: repo.DataBlob, ID: img.Head}) {
+			img.Head = repo.ID{}
+		}
 		// Everything from the block that held the earlier end (it may have
 		// been short) onwards is read, whatever the areas say.
 		for b := prev.Size / blockSize; prev.Size < size && b < p.Blocks; b++ {

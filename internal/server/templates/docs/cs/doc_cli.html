@@ -26,6 +26,7 @@
   <tr><td><code>ls SNAPSHOT|latest</code></td><td>Vypíše všechny soubory ve snímku.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Obnoví soubory pod DIR (původní struktura složek se vytvoří znovu). <code>--original</code> je místo toho zapíše na původní místo a přepíše existující soubory.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Zkontroluje strukturu repozitáře; s <code>--read-data</code> se každý bajt stáhne a ověří.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Přečte všechna data a odebere poškozené datové balíky z indexu, aby další zálohy tato data uložily znovu; vypíše zálohy, které ztracená data potřebují. <code>--dry-run</code> jen vypíše.</td></tr>
 </table>
 
 <h2>Obrazy disků (Windows)</h2>

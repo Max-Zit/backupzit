@@ -26,6 +26,7 @@
   <tr><td><code>ls SNAPSHOT|latest</code></td><td>列出快照中的所有文件。</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>将文件还原到 DIR 下（重建原始文件夹结构）。<code>--original</code> 则将其写回原始位置，覆盖现有文件。</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>检查存储库结构；使用 <code>--read-data</code> 时会下载并校验每个字节。</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>读取所有数据并将损坏的数据包移出索引，使后续备份重新存储这些数据；列出需要丢失数据的备份。<code>--dry-run</code> 仅列出。</td></tr>
 </table>
 
 <h2>磁盘映像（Windows）</h2>

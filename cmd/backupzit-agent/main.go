@@ -44,6 +44,7 @@ Files and folders:
   ls             List files in a snapshot
   restore        Restore files from a snapshot
   check          Verify repository integrity (--read-data reads everything)
+  repair         Take damaged data packs (found by reading everything) out of the index
 
 Disk images (Windows):
   disks          Show disks and partitions
@@ -208,6 +209,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdRestore(ctx, rest)
 	case "check":
 		return cmdCheck(ctx, rest)
+	case "repair":
+		return cmdRepair(ctx, rest)
 	case "image-backup":
 		return cmdImageBackup(ctx, rest)
 	case "image-restore":
@@ -524,4 +527,56 @@ func parseAsOf(s string) (time.Time, error) {
 		}
 	}
 	return time.Time{}, fmt.Errorf("invalid --as-of %q (use e.g. 2026-10-01T14:30)", s)
+}
+
+// cmdRepair reads all data under the exclusive lock and takes the damaged
+// packs out of the index, so that the next backups store that data again
+// (otherwise they keep reusing it). It lists the snapshots that need the
+// lost data; they are kept.
+func cmdRepair(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("repair", flag.ExitOnError)
+	rf := addRepoFlags(fs)
+	dry := fs.Bool("dry-run", false, "only check and list what would be taken out")
+	_ = fs.Parse(args)
+	r, err := rf.open(ctx)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	lock, err := r.Lock(ctx, !*dry, time.Minute)
+	if err != nil {
+		return err
+	}
+	defer lock.Unlock()
+	fmt.Println("reading all data (this takes as long as a data check) ...")
+	res, err := checker.Run(ctx, r, checker.Options{ReadData: true})
+	if err != nil {
+		return err
+	}
+	for _, e := range res.Errors {
+		fmt.Println("ERROR:", e)
+	}
+	if len(res.Damaged) == 0 {
+		fmt.Printf("read %d packs: no damaged pack, nothing to repair\n", res.PacksRead)
+		if !res.OK() {
+			return fmt.Errorf("check found %d errors that repair does not fix", len(res.Errors))
+		}
+		return nil
+	}
+	for _, p := range res.Damaged {
+		fmt.Println("damaged pack:", p.String())
+	}
+	if *dry {
+		fmt.Printf("%d damaged packs; run without --dry-run to take them out of the index\n", len(res.Damaged))
+		return nil
+	}
+	rep, err := r.DropDamagedPacks(ctx, res.Damaged)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("took %d packs (%d blobs) out of the index, removed %d pack files; the next backups store that data again\n", rep.Packs, rep.Blobs, rep.PackFilesRemoved)
+	for _, sn := range rep.Snapshots {
+		fmt.Printf("snapshot %s of %s from %s needs lost data\n", sn.ID.Short(), sn.Hostname, sn.Time.Local().Format("2006-01-02 15:04"))
+	}
+	return nil
 }

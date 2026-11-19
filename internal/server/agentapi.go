@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -166,6 +167,15 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	switch run.Kind {
 	case api.KindRepoScan:
 		ar.Repository = targetRepository(t, t.URL)
+	case api.KindRepoRepair:
+		// Removing the affected backups keeps the ones VMs run from (instant
+		// recovery) and stops while retention is paused after a suspicious
+		// backup (checked again here: the hold may have started since).
+		if slices.Contains(run.Paths, repairForgetFlag) && run.TargetID != nil && !s.store.repoRetentionHold(ctx, run.AgentID, *run.TargetID) {
+			if keep, err := s.store.instantSnapshots(ctx); err == nil {
+				ar.RepairForget, ar.KeepSnapshots = true, keep
+			}
+		}
 	case api.KindBackup:
 		s.addRetention(ctx, run, ar)
 		ar.Paths, ar.Excludes = run.Paths, run.Excludes

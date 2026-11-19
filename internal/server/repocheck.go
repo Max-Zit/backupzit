@@ -2,12 +2,14 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/max-zit/backupzit/internal/api"
 )
 
 // Full checks of the stored data: an agent reads every data pack of a
@@ -101,4 +103,138 @@ func (s *Server) handleJobCheck(w http.ResponseWriter, r *http.Request, _ string
 	}
 	s.audit(r, "job.check", "job %d, run %d", id, rid)
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Check of the stored data queued.")
+}
+
+// minRepoRepairVersion is the first agent that repairs a repository.
+const minRepoRepairVersion = "0.54.2"
+
+// damagedPacks is the number of damaged packs a failed data check found
+// (0 for other runs).
+func damagedPacks(run Run) int {
+	if run.Kind != api.KindRepoCheck || run.Status != api.StatusFailed || len(run.Stats) == 0 {
+		return 0
+	}
+	var st struct{ Damaged []json.RawMessage }
+	if json.Unmarshal(run.Stats, &st) != nil {
+		return 0
+	}
+	return len(st.Damaged)
+}
+
+// repairForgetFlag in the paths of a repo-repair run: also remove the
+// backups that need the lost data (the runs table has no column for it).
+const repairForgetFlag = "forget-damaged-backups"
+
+// handleRepoRepair serves POST /runs/{id}/repair: after a data check that
+// found damaged packs, the agent checks again under the exclusive lock and
+// takes them out of the index (KindRepoRepair). Removing the backups that
+// need the lost data too (forget=on) deletes backups: it is refused while
+// retention of a job on that storage is paused after a suspicious backup,
+// needs the password or two-factor code again, and waits for a second user
+// with four-eyes approval on.
+func (s *Server) handleRepoRepair(w http.ResponseWriter, r *http.Request, _ string) {
+	id, _ := pathID(r)
+	back := fmt.Sprintf("/runs/%d", id)
+	run, err := s.store.GetRun(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := s.checkRepoRepair(r.Context(), run); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	forget := r.FormValue("forget") == "on"
+	if forget {
+		if s.store.repoRetentionHold(r.Context(), run.AgentID, *run.TargetID) {
+			redirectErr(w, r, back, errRepairHold)
+			return
+		}
+		if err := s.confirmIdentity(r); err != nil {
+			redirectErr(w, r, back, err)
+			return
+		}
+		name := fmt.Sprintf("data check %d", id)
+		if run.JobName != nil {
+			name = fmt.Sprintf("%s (data check %d)", *run.JobName, id)
+		}
+		if s.needsApproval(w, r, back, "repair.forget", id, name, nil) {
+			return
+		}
+	}
+	rid, err := s.store.queueRepoRepair(r.Context(), run, forget)
+	if errors.Is(err, pgx.ErrNoRows) {
+		redirectErr(w, r, back, errors.New("a check or repair of this storage is already queued"))
+		return
+	}
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	msg := "Repair queued: the storage is checked again, then the damaged data packs leave the index."
+	if forget {
+		msg = "Repair queued: the storage is checked again, then the damaged data packs leave the index and the backups that need their data are removed."
+	}
+	s.audit(r, "repo.repair", "run %d after data check %d (%d damaged packs, remove affected backups: %v)", rid, id, damagedPacks(run), forget)
+	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), msg)
+}
+
+// errRepairHold refuses removing backups while retention is paused.
+var errRepairHold = errors.New("Retention of a job on this storage is paused after a suspicious backup: resume it before a repair removes backups, or repair without removing them.")
+
+// checkRepoRepair tells whether run is a data check that can be repaired.
+func (s *Server) checkRepoRepair(ctx context.Context, run Run) error {
+	if damagedPacks(run) == 0 || run.JobID == nil || run.TargetID == nil {
+		return errors.New("only a data check that found damaged packs can be repaired")
+	}
+	if a, err := s.store.GetAgent(ctx, run.AgentID); err == nil && agentOlder(a, minRepoRepairVersion) {
+		return fmt.Errorf("the agent on %s (%s) cannot repair a repository yet; update it to %s or newer", a.Hostname, a.Version, minRepoRepairVersion)
+	}
+	return nil
+}
+
+// executeRepoRepairForget queues the approved repair that also removes the
+// affected backups (four-eyes approval "repair.forget").
+func (s *Server) executeRepoRepairForget(ctx context.Context, checkID int64) error {
+	run, err := s.store.GetRun(ctx, checkID)
+	if err != nil {
+		return err
+	}
+	if err := s.checkRepoRepair(ctx, run); err != nil {
+		return err
+	}
+	if s.store.repoRetentionHold(ctx, run.AgentID, *run.TargetID) {
+		return errRepairHold
+	}
+	if _, err := s.store.queueRepoRepair(ctx, run, true); errors.Is(err, pgx.ErrNoRows) {
+		return errors.New("a check or repair of this storage is already queued")
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
+// queueRepoRepair queues a repair of the repository of a data check, unless
+// a check or repair of it is queued or running (pgx.ErrNoRows).
+func (s *Store) queueRepoRepair(ctx context.Context, check Run, forget bool) (int64, error) {
+	paths := []string{}
+	if forget {
+		paths = []string{repairForgetFlag}
+	}
+	var rid int64
+	err := s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, notified)
+		SELECT $1,$2,'repo-repair','manual',$3,$4,$5,false
+		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE kind IN ('repo-check','repo-repair') AND target_id=$4 AND repo_url=$3 AND status IN ('queued','running'))
+		RETURNING id`, check.AgentID, *check.JobID, check.RepoURL, *check.TargetID, paths).Scan(&rid)
+	return rid, err
+}
+
+// repoRetentionHold tells whether retention of a job of the agent on the
+// target is paused after a suspicious backup (true also when unknown).
+func (s *Store) repoRetentionHold(ctx context.Context, agentID, targetID int64) bool {
+	var hold bool
+	if err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM jobs WHERE agent_id=$1 AND target_id=$2 AND retention_hold)`, agentID, targetID).Scan(&hold); err != nil {
+		return true
+	}
+	return hold
 }

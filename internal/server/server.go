@@ -477,6 +477,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /jobs/{id}/run", s.ui(PermRun, s.handleJobRun))
 	mux.HandleFunc("POST /jobs/{id}/test", s.ui(PermRun, s.handleJobTest))
 	mux.HandleFunc("POST /jobs/{id}/check", s.ui(PermRun, s.handleJobCheck))
+	mux.HandleFunc("POST /runs/{id}/repair", s.ui(PermJobs, s.handleRepoRepair))
 	mux.HandleFunc("POST /jobs/{id}/release-hold", s.ui(PermJobs, s.handleJobReleaseHold))
 	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(PermJobs, s.handleJobEnable(true)))
 	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
@@ -1339,7 +1340,7 @@ func (s *Server) restoreFormData(ctx context.Context, run Run) (map[string]any, 
 		}
 	}
 	return map[string]any{
-		"Run": run, "Agents": agents, "Inventory": inventories(agents), "VMwareHosts": hosts,
+		"Run": run, "Agents": agents, "Inventory": inventories(agents), "VMwareHosts": hosts, "Damaged": damagedPacks(run),
 		"VM": vm, "PVEAgents": pveAgents(agents), "VMAgents": hypervisorAgents(agents, vm.Platform()), "VMPlatform": vm.Platform(),
 		"System": sysDetails(run), "LinuxAgents": linuxAgents(agents), "SelectedVMID": 0,
 		"SQL": sqlDetails(run), "SQLPoints": s.store.sqlRestorePoints(ctx, run), "WindowsAgents": sqlRestoreAgents(agents, sqlDetails(run)),
@@ -1410,5 +1411,5 @@ func Shutdown(srv *http.Server) {
 
 // kindTitleEN names a run kind for people (English).
 func kindTitleEN(k string) string {
-	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "repo-scan": "Find backups", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
+	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "repo-repair": "Data repair", "repo-scan": "Find backups", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
 }

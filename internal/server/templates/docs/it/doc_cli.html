@@ -26,6 +26,7 @@
   <tr><td><code>ls SNAPSHOT|latest</code></td><td>Elenca tutti i file di uno snapshot.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Ripristina i file sotto DIR (viene ricreata la struttura di cartelle originale). <code>--original</code> li riscrive invece nella posizione originale, sovrascrivendo i file esistenti.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Verifica la struttura del repository; con <code>--read-data</code> ogni byte viene scaricato e controllato.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Legge tutti i dati e toglie dall'indice i pacchetti di dati danneggiati, così i prossimi backup salvano di nuovo quei dati; elenca i backup che hanno bisogno dei dati persi. <code>--dry-run</code> elenca soltanto.</td></tr>
 </table>
 
 <h2>Immagini disco (Windows)</h2>
