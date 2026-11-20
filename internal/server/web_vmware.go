@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/vmware"
 )
 
@@ -38,6 +39,10 @@ func (s *Server) handleVMwareCreate(w http.ResponseWriter, r *http.Request, _ st
 			return
 		}
 		h.ProxyAgentID = &id
+	}
+	if r.FormValue("via_proxy") == "on" {
+		s.createVMwareViaProxy(w, r, h)
+		return
 	}
 	inv, c, sshErr, err := probeVMware(r.Context(), h)
 	if err != nil {
@@ -79,6 +84,28 @@ func (s *Server) handleVMwareRefresh(w http.ResponseWriter, r *http.Request, _ s
 		http.NotFound(w, r)
 		return
 	}
+	if h.ViaProxy {
+		// The proxy reads it (#51); the page shows the result when it is
+		// quick, otherwise a moment later.
+		l := requestLanguage(r)
+		runID, err := s.store.queueVMwareProbe(r.Context(), h, "manual")
+		if err != nil && !errors.Is(err, errProbeQueued) {
+			redirectErr(w, r, "/agents#vmware", fmt.Errorf("%s: %v", h.Name, err))
+			return
+		}
+		if err == nil {
+			if run, done := s.store.waitProbe(r.Context(), runID, 15*time.Second); done {
+				if run.Status != api.StatusSuccess {
+					redirectErr(w, r, "/agents#vmware", fmt.Errorf("%s: %s", h.Name, run.Message))
+					return
+				}
+				redirectMsg(w, r, "/agents#vmware", l.T("VM list of %s refreshed through the proxy agent.", h.Name))
+				return
+			}
+		}
+		redirectMsg(w, r, "/agents#vmware", l.T("The proxy agent reads the VM list of %s as soon as it is free; reload this page in a minute.", h.Name))
+		return
+	}
 	if err := s.store.RefreshVMwareHost(r.Context(), h); err != nil {
 		redirectErr(w, r, "/agents#vmware", fmt.Errorf("%s: %v", h.Name, err))
 		return
@@ -104,6 +131,17 @@ func (s *Server) handleVMwareMethod(w http.ResponseWriter, r *http.Request, _ st
 		return
 	}
 	h.Method = vmwareMethod(r.FormValue("method"))
+	if h.ViaProxy {
+		// Checked by the proxy (#51): stored now, its check shows any error.
+		if err := s.store.UpdateVMwareMethod(r.Context(), id, h.Method, h.APIWrites, h.SSHOK); err != nil {
+			s.serverError(w, err)
+			return
+		}
+		s.audit(r, "vmware.method", "%s: %q (checked through the proxy agent)", h.Name, h.Method)
+		_, _ = s.store.queueVMwareProbe(r.Context(), h, "manual")
+		redirectMsg(w, r, "/agents#vmware", requestLanguage(r).T("%s: saved; the proxy agent checks the connection now.", h.Name))
+		return
+	}
 	_, c, sshErr, err := probeVMware(r.Context(), h)
 	if err != nil {
 		redirectErr(w, r, "/agents#vmware", fmt.Errorf("%s: %v", h.Name, err))
@@ -145,6 +183,18 @@ func (s *Server) handleVMwareCertificate(w http.ResponseWriter, r *http.Request,
 	}
 	old := h.Thumbprint
 	h.Thumbprint = fp
+	if h.ViaProxy {
+		// The proxy saw this fingerprint; its next check uses it (#51).
+		if err := s.store.UpdateVMwareThumbprint(r.Context(), id, fp); err != nil {
+			s.serverError(w, err)
+			return
+		}
+		_, _ = s.store.db.Exec(r.Context(), `UPDATE vmware_hosts SET last_error='' WHERE id=$1`, id)
+		s.audit(r, "vmware.certificate", "%s: certificate %s accepted (was %s), seen by the proxy agent", h.Name, fp, old)
+		_, _ = s.store.queueVMwareProbe(r.Context(), h, "manual")
+		redirectMsg(w, r, "/agents#vmware", l.T("%s: the new certificate %s is pinned.", h.Name, fp))
+		return
+	}
 	if err := s.store.RefreshVMwareHost(r.Context(), h); err != nil {
 		redirectErr(w, r, "/agents#vmware", fmt.Errorf("%s: %v", h.Name, err))
 		return
@@ -175,6 +225,13 @@ func (s *Server) handleVMwareProxy(w http.ResponseWriter, r *http.Request, _ str
 		return
 	}
 	s.audit(r, "vmware.proxy", "%s via %s", h.Name, a.Hostname)
+	if h.ViaProxy {
+		h.ProxyAgentID = &aid
+		if _, err := s.store.queueVMwareProbe(r.Context(), h, "manual"); err != nil && !errors.Is(err, errProbeQueued) {
+			redirectErr(w, r, "/agents#vmware", fmt.Errorf("%s is now backed up through %s, but its VM list cannot be read through it: %v", h.Name, a.Hostname, err))
+			return
+		}
+	}
 	redirectMsg(w, r, "/agents#vmware", fmt.Sprintf("%s is now backed up through %s.", h.Name, a.Hostname))
 }
 
@@ -212,12 +269,19 @@ func (s *Store) refreshVMware(ctx context.Context, now time.Time) {
 		if err != nil {
 			return
 		}
+		s.pruneProbeRuns(ctx)
 		for _, h := range hosts {
 			if t, ok := vmwareTried.Load(h.ID); ok && now.Sub(t.(time.Time)) < 10*time.Minute {
 				continue
 			}
 			if h.InventoryAt == nil || now.Sub(*h.InventoryAt) >= 10*time.Minute {
 				vmwareTried.Store(h.ID, now)
+				if h.ViaProxy {
+					// The proxy reads it (#51); a busy or offline proxy just
+					// leaves the list as it is.
+					_, _ = s.queueVMwareProbe(ctx, h, "scheduled")
+					continue
+				}
 				_ = s.RefreshVMwareHost(ctx, h)
 			}
 		}

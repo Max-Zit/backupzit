@@ -114,6 +114,17 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 	if req.Busy {
 		resp.Cancel = s.store.cancelRequests(r.Context(), a.ID)
 	}
+	if !free && req.Parallel && !held {
+		// A check of a VMware host takes seconds: it does not wait behind
+		// the agent's backups (#51).
+		if run, err := s.store.claimProbe(r.Context(), a.ID); err == nil && run != nil {
+			if ar, err := s.toAPIRun(r.Context(), run); err == nil {
+				resp.Run = ar
+			} else if s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()}) == nil {
+				_ = s.store.applyVMwareProbe(r.Context(), *run, api.RunResult{Status: api.StatusFailed, Message: err.Error()})
+			}
+		}
+	}
 	if free {
 		run, err := s.store.claimRunIdle(r.Context(), a.ID, held, !req.Busy)
 		if err != nil {
@@ -149,6 +160,16 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	}
 	if run.Kind == api.KindLeftoverCleanup { // needs no storage
 		return s.cleanupRun(ctx, run)
+	}
+	if run.Kind == api.KindVMwareProbe {
+		ar := &api.Run{ID: run.ID, Kind: run.Kind}
+		if err := s.addVMware(ctx, run, ar); err != nil {
+			return nil, err
+		}
+		if ar.VMware == nil {
+			return nil, errors.New("the VMware host was removed from the console")
+		}
+		return ar, nil
 	}
 	if run.Kind == api.KindVMReplicaStart { // needs no storage
 		ar := &api.Run{ID: run.ID, Kind: run.Kind}
@@ -331,6 +352,13 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 	s.log.Info("run finished", "run", id, "status", res.Status, "agent", a.Hostname)
 	if run, err := s.store.GetRun(r.Context(), id); err == nil && run.Kind == api.KindAgentUninstall {
 		s.agentUninstalled(context.WithoutCancel(r.Context()), a, id, res)
+		writeJSON(w, http.StatusOK, struct{}{})
+		return
+	} else if err == nil && run.Kind == api.KindVMwareProbe {
+		// What the proxy saw of its VMware host (#51): no chains, no alerts.
+		if err := s.store.applyVMwareProbe(context.WithoutCancel(r.Context()), run, res); err != nil {
+			s.log.Error("store the VMware host check", "run", id, "err", err)
+		}
 		writeJSON(w, http.StatusOK, struct{}{})
 		return
 	}

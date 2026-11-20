@@ -461,6 +461,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res = a.repoScan(ctx, run)
 	case api.KindLeftoverCleanup:
 		res = a.leftoverCleanup(ctx, run)
+	case api.KindVMwareProbe:
+		res = a.vmwareProbe(ctx, run)
 	case api.KindVMBackup:
 		res = a.vmBackup(ctx, run)
 	case api.KindVMRestore:

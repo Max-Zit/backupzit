@@ -309,3 +309,35 @@ func vmBackupResult(sn *repo.Snapshot, err error) (res api.RunResult, retention 
 	}
 	return res, true
 }
+
+// vmwareProbe connects to the VMware host of the run (the console may have
+// no route to it) and returns its VM list, version, license and the
+// certificate and SSH key it presented (KindVMwareProbe, V-3). A host whose
+// certificate differs from the pinned one is refused, as in every run; the
+// error names the new fingerprint for the console to offer.
+func (a *Agent) vmwareProbe(ctx context.Context, run api.Run) api.RunResult {
+	if run.VMware == nil {
+		return failed(errors.New("the run names no VMware host"))
+	}
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	c, err := vmwareConnect(ctx, run.VMware)
+	if err != nil {
+		return failed(err)
+	}
+	defer c.Logout()
+	inv, err := c.Inventory(ctx, run.VMware.Name)
+	if err != nil {
+		return failed(fmt.Errorf("read the VM list: %w", err))
+	}
+	p := api.VMwareProbe{Version: c.Version, VCenter: c.VCenter, APIWrites: c.APIWrites, Thumbprint: c.Thumbprint, UsesSSH: c.Method() == vmware.MethodSSH}
+	p.Inventory, _ = json.Marshal(inv)
+	if p.UsesSSH { // the API needs no SSH
+		if err := c.CheckSSH(ctx); err != nil {
+			p.SSHError = err.Error()
+		}
+	}
+	p.SSHHostKey = c.SSHHostKey
+	details, _ := json.Marshal(p)
+	return api.RunResult{Status: api.StatusSuccess, Details: details, Message: fmt.Sprintf("Connected to %s (%s): %d VMs", run.VMware.Name, inv.Version, len(inv.Guests))}
+}

@@ -917,7 +917,7 @@ func (s *Store) ListRuns(ctx context.Context, f RunFilter) ([]Run, error) {
 	if !f.Since.IsZero() {
 		since = f.Since
 	}
-	q := `SELECT ` + runCols + runFrom + ` WHERE ($1::bigint=0 OR r.job_id=$1) AND ($2::bigint=0 OR r.agent_id=$2)
+	q := `SELECT ` + runCols + runFrom + ` WHERE r.kind <> 'vmware-probe' AND ($1::bigint=0 OR r.job_id=$1) AND ($2::bigint=0 OR r.agent_id=$2)
 		AND ($4::timestamptz IS NULL OR r.queued_at >= $4) ORDER BY r.queued_at DESC LIMIT $3`
 	rows, err := s.db.Query(ctx, q, f.JobID, f.AgentID, f.Limit, since)
 	if err != nil {
@@ -1088,10 +1088,10 @@ func (s *Store) Summary(ctx context.Context) (Summary, error) {
 		(SELECT count(*) FROM agents WHERE removed_at IS NULL AND last_seen_at > now() - interval '3 minutes'),
 		(SELECT count(*) FROM jobs),
 		(SELECT count(*) FROM storage_targets),
-		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours'),
-		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='failed'),
-		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='warning'),
-		(SELECT count(*) FROM runs WHERE status IN ('queued','running')),
+		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND kind<>'vmware-probe'),
+		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='failed' AND kind<>'vmware-probe'),
+		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='warning' AND kind<>'vmware-probe'),
+		(SELECT count(*) FROM runs WHERE status IN ('queued','running') AND kind<>'vmware-probe'),
 		(SELECT count(*) FROM runs WHERE anomaly<>'' AND NOT anomaly_ack)`).
 		Scan(&x.Agents, &x.AgentsOnline, &x.Jobs, &x.Targets, &x.Runs24h, &x.Failed24h, &x.Warning24h, &x.Running, &x.Suspicious)
 	return x, err

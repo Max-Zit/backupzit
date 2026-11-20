@@ -78,7 +78,7 @@ sudo systemctl enable --now backupzit-agent</pre>
     <tr><th>{{T "Host"}}</th><th>{{T "VMs"}}</th><th>{{T "Mode"}}</th><th>{{T "Proxy agent"}}</th><th>{{T "Checked"}}</th><th></th></tr>
     {{range .Data.VMwareHosts}}
     <tr>
-      <td><b>{{.Name}}</b><br><span class="mono small">{{.Address}}</span>{{with .Inv}}{{with .Version}} <span class="muted small">{{.}}</span>{{end}}{{end}}</td>
+      <td><b>{{.Name}}</b><br><span class="mono small">{{.Address}}</span>{{with .Inv}}{{with .Version}} <span class="muted small">{{.}}</span>{{end}}{{end}}{{if .ViaProxy}}<br><span class="badge info-badge" title="{{T "The proxy agent connects to the host; the console needs no route to it."}}">{{T "through the proxy"}}</span>{{if and (not .Inv) (not .LastError)}} <span class="muted small">{{T "waiting for the proxy agent"}}</span>{{end}}{{end}}</td>
       <td>{{with .Inv}}{{len .Guests}}{{else}}—{{end}}</td>
       <td class="small">{{T .Mode}}{{if and .UsesSSH (not .SSHOK)}}<br><span class="badge warning"><i></i>{{T "SSH off"}}</span>{{end}}
         {{if and ($.Me.Can "agents") (not .IsVCenter)}}<form method="post" action="/vmware/{{.ID}}/method" class="inline"><select name="method" data-autosubmit aria-label="{{T "How the host is changed"}}">
@@ -88,6 +88,7 @@ sudo systemctl enable --now backupzit-agent</pre>
           <select name="proxy_agent_id" data-autosubmit>{{if not .ProxyAgentID}}<option value="">{{T "— choose —"}}</option>{{end}}{{$p := .ProxyAgentID}}{{range $.Data.Agents}}<option value="{{.ID}}" {{if and $p (eq .ID (deref64 $p))}}selected{{end}}>{{.Label}}</option>{{end}}</select>
           <button class="link small">{{T "Save"}}</button></form>
           <form method="post" action="/vmware/{{.ID}}/hotadd" class="hotadd"><label class="check small"><input type="checkbox" name="hot_add" data-autosubmit {{if .HotAdd}}checked{{end}}> {{T "Hot-add"}}</label> <a class="small" href="/docs/vmware#hot-add">{{T "what is this?"}}</a> <button class="link small">{{T "Save"}}</button></form>
+          <form method="post" action="/vmware/{{.ID}}/connection" class="hotadd"><label class="check small"><input type="checkbox" name="via_proxy" data-autosubmit {{if .ViaProxy}}checked{{end}}> {{T "Connect through the proxy"}}</label> <a class="small" href="/docs/vmware#via-proxy">{{T "what is this?"}}</a> <button class="link small">{{T "Save"}}</button></form>
           {{$hid := .ID}}{{with index $.Data.ProxyChoices .ID}}<details class="small proxies"><summary>{{T "Further proxies"}}</summary>
             <form method="post" action="/vmware/{{$hid}}/proxies" class="stack">
               {{range .}}<label class="check"><input type="checkbox" name="agent_id" value="{{.ID}}" {{if .On}}checked{{end}}> {{.Label}}{{with .Host}} <span class="muted">— {{T "on %v" .}}</span>{{else}}{{if .On}} <span class="badge warning"><i></i>{{T "ESXi host not found"}}</span>{{end}}{{end}}{{if .Old}} <span class="badge warning"><i></i>{{T "update the agent"}}</span>{{end}}</label>{{end}}
@@ -121,6 +122,7 @@ sudo systemctl enable --now backupzit-agent</pre>
       </div>
       <label>{{T "How the host is changed"}} <small>{{T "Automatic: the vSphere API on licensed hosts and vCenter (no SSH needed), SSH on the free license, whose API is read-only"}}</small>
         <select name="method"><option value="">{{T "Automatic"}}</option><option value="ssh">{{T "Always SSH"}}</option><option value="api">{{T "Always vSphere API"}}</option></select></label>
+      <label class="check"><input type="checkbox" name="via_proxy"> {{T "Connect through the proxy agent"}} <small>{{T "the proxy checks the address and password and reads the VM list; the console needs no route to the host (agent 0.56 or newer)"}}</small></label>
       <p class="muted small">{{T "The console connects once to check the address and password, and pins the host's certificate and SSH key. Hosts with the free ESXi license need"}} <b>{{T "SSH enabled"}}</b> {{T "(Host → Actions → Services → Enable Secure Shell) for snapshots and restores."}}</p>
       <p class="muted small">{{T "With vCenter Server, BackupZit sees the VMs of all its ESXi hosts and clusters through one connection, follows VMs moved with vMotion, and finishes instant recovery with Storage vMotion without downtime."}}</p>
       <div><button>{{T "Add ESXi host or vCenter"}}</button></div>

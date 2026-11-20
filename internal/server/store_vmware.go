@@ -37,15 +37,18 @@ type VMwareHost struct {
 	// ExtraProxies are further proxy agents (vCenter, 0.55): a VM is backed up
 	// by the proxy on its ESXi host, else by ProxyAgentID.
 	ExtraProxies []int64
-	ProxyName    *string
-	RepoDir      string
-	Inventory    json.RawMessage
-	InventoryAt  *time.Time
-	Version      string
-	APIWrites    bool
-	SSHOK        bool
-	LastError    string
-	CreatedAt    time.Time
+	// ViaProxy: the console never connects to the host itself; the proxy
+	// checks the connection and reads the VM list (vmware-probe runs, #51).
+	ViaProxy    bool
+	ProxyName   *string
+	RepoDir     string
+	Inventory   json.RawMessage
+	InventoryAt *time.Time
+	Version     string
+	APIWrites   bool
+	SSHOK       bool
+	LastError   string
+	CreatedAt   time.Time
 }
 
 // Inv decodes the host's VM list.
@@ -122,7 +125,7 @@ func (h VMwareHost) apiHost() *api.VMwareHost {
 const ctxVMware = "vmware_hosts.password"
 
 const vmwareCols = `h.id, h.name, h.address, h.username, h.password, h.thumbprint, h.ssh_host_key, h.method, h.proxy_agent_id, ` + agentNameSQL + `, h.repo_dir,
-	h.inventory, h.inventory_at, h.version, h.api_writes, h.ssh_ok, h.last_error, h.created_at, h.hot_add,
+	h.inventory, h.inventory_at, h.version, h.api_writes, h.ssh_ok, h.last_error, h.created_at, h.hot_add, h.via_proxy,
 	(SELECT coalesce(array_agg(p.agent_id ORDER BY p.agent_id), '{}') FROM vmware_proxies p JOIN agents pa ON pa.id=p.agent_id AND pa.removed_at IS NULL
 		WHERE p.host_id=h.id AND p.agent_id IS DISTINCT FROM h.proxy_agent_id)`
 
@@ -131,7 +134,7 @@ const vmwareFrom = ` FROM vmware_hosts h LEFT JOIN agents a ON a.id=h.proxy_agen
 func (s *Store) scanVMwareHost(r pgx.Row) (VMwareHost, error) {
 	var h VMwareHost
 	err := r.Scan(&h.ID, &h.Name, &h.Address, &h.Username, &h.Password, &h.Thumbprint, &h.SSHHostKey, &h.Method, &h.ProxyAgentID, &h.ProxyName, &h.RepoDir,
-		&h.Inventory, &h.InventoryAt, &h.Version, &h.APIWrites, &h.SSHOK, &h.LastError, &h.CreatedAt, &h.HotAdd, &h.ExtraProxies)
+		&h.Inventory, &h.InventoryAt, &h.Version, &h.APIWrites, &h.SSHOK, &h.LastError, &h.CreatedAt, &h.HotAdd, &h.ViaProxy, &h.ExtraProxies)
 	if err == nil && s.box != nil {
 		h.Password, err = s.box.open(ctxVMware, h.Password)
 	}
@@ -183,9 +186,9 @@ func validAddress(a string) bool {
 func (s *Store) CreateVMwareHost(ctx context.Context, h VMwareHost) (int64, error) {
 	var id int64
 	err := s.db.QueryRow(ctx, `INSERT INTO vmware_hosts(name, address, username, password, thumbprint, ssh_host_key, proxy_agent_id, repo_dir,
-		inventory, inventory_at, version, api_writes, ssh_ok, method) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),$10,$11,$12,$13) RETURNING id`,
+		inventory, inventory_at, version, api_writes, ssh_ok, method, via_proxy) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,CASE WHEN $9::jsonb IS NULL THEN NULL ELSE now() END,$10,$11,$12,$13,$14) RETURNING id`,
 		h.Name, h.Address, h.Username, s.seal(ctxVMware, h.Password), h.Thumbprint, h.SSHHostKey, h.ProxyAgentID, h.RepoDir,
-		h.Inventory, h.Version, h.APIWrites, h.SSHOK, h.Method).Scan(&id)
+		h.Inventory, h.Version, h.APIWrites, h.SSHOK, h.Method, h.ViaProxy).Scan(&id)
 	if err != nil && strings.Contains(err.Error(), "duplicate key") {
 		return 0, fmt.Errorf("a VMware host named %q already exists", h.Name)
 	}

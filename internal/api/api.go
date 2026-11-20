@@ -176,6 +176,10 @@ const (
 	// the agent's ledger (Proxmox VE, Hyper-V; VMware with Run.VMware) and the
 	// BackupZit snapshots in Run.Cleanup (agents 0.56+).
 	KindLeftoverCleanup = "leftover-cleanup"
+	// KindVMwareProbe connects to the VMware host of Run.VMware through the
+	// proxy agent and returns what the console needs of it (Details:
+	// VMwareProbe), so the console needs no route to the host (agents 0.56+).
+	KindVMwareProbe = "vmware-probe"
 )
 
 // RepoScan is the result of a repo-scan run.
@@ -583,4 +587,19 @@ type CommandResult struct {
 // AgentLog is the log an agent sends for a KindAgentLog run.
 type AgentLog struct {
 	Text string `json:"text"`
+}
+
+// VMwareProbe is the result of a vmware-probe run: what the proxy saw of
+// the host. The console pins Thumbprint and SSHHostKey the first time and
+// stores the VM list.
+type VMwareProbe struct {
+	// Inventory is the VM list (JSON pve.Inventory).
+	Inventory  json.RawMessage `json:"inventory"`
+	Version    string          `json:"version"`
+	VCenter    bool            `json:"vcenter,omitempty"`
+	APIWrites  bool            `json:"api_writes,omitempty"`
+	UsesSSH    bool            `json:"uses_ssh,omitempty"`
+	SSHError   string          `json:"ssh_error,omitempty"`
+	Thumbprint string          `json:"thumbprint"`
+	SSHHostKey string          `json:"ssh_host_key,omitempty"`
 }
