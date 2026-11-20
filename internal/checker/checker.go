@@ -117,6 +117,13 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 		}
 	}
 
+	// 0. Index files that could not be read: their packs were taken from
+	// the pack headers when the repository was opened; repair rewrites the
+	// index.
+	for _, n := range r.DamagedIndexFiles() {
+		errf("index file %s is damaged; its packs were read from their own headers instead (repair writes a new index)", n)
+	}
+
 	// 1. Packs on storage vs. packs in the index.
 	onDisk, err := r.ListPacks(ctx)
 	if err != nil {

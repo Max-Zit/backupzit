@@ -56,6 +56,9 @@ type Repository struct {
 	// written since, or everything again when one is gone: a prune).
 	indexMu    sync.Mutex
 	indexFiles map[string]bool
+	// damagedIndex are index files that could not be read; their packs
+	// were recovered from the pack headers (see recoverIndex).
+	damagedIndex []string
 
 	enc *zstd.Encoder
 	// encLevel is the level of enc (zero means zstd.SpeedDefault); a
@@ -283,6 +286,7 @@ func (r *Repository) loadIndex(ctx context.Context, progress func(done, total in
 		firstErr error
 		done     int
 		wg       sync.WaitGroup
+		damaged  []string
 	)
 	fail := func(err error) {
 		mu.Lock()
@@ -298,6 +302,12 @@ func (r *Repository) loadIndex(ctx context.Context, progress func(done, total in
 			defer wg.Done()
 			for n := range jobs {
 				if err := r.loadIndexFile(ctx, n); err != nil {
+					if errors.Is(err, errIndexDamaged) {
+						mu.Lock()
+						damaged = append(damaged, n)
+						mu.Unlock()
+						continue
+					}
 					fail(err)
 					continue
 				}
@@ -319,6 +329,10 @@ func (r *Repository) loadIndex(ctx context.Context, progress func(done, total in
 	}
 	close(jobs)
 	wg.Wait()
+	if firstErr == nil && len(damaged) > 0 {
+		r.noteDamagedIndex(damaged)
+		firstErr = r.recoverIndex(ctx)
+	}
 	return firstErr
 }
 
@@ -329,11 +343,11 @@ func (r *Repository) loadIndexFile(ctx context.Context, n string) error {
 	}
 	b, err := r.open(sealed)
 	if err != nil {
-		return fmt.Errorf("%s: %w", n, err)
+		return fmt.Errorf("%s: %w: %w", n, errIndexDamaged, err)
 	}
 	f, err := decodeIndexFile(b)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", n, err)
+		return fmt.Errorf("parse %s: %w: %w", n, errIndexDamaged, err)
 	}
 	for _, p := range f.Packs {
 		r.idx.addPack(p.ID, p.Blobs)
@@ -879,10 +893,19 @@ func (r *Repository) refreshIndex(ctx context.Context) error {
 		r.indexMu.Unlock()
 		return r.loadIndex(ctx, nil)
 	}
+	var damaged []string
 	for _, n := range add {
 		if err := r.loadIndexFile(ctx, n); err != nil {
+			if errors.Is(err, errIndexDamaged) {
+				damaged = append(damaged, n)
+				continue
+			}
 			return err
 		}
+	}
+	if len(damaged) > 0 {
+		r.noteDamagedIndex(damaged)
+		return r.recoverIndex(ctx)
 	}
 	return nil
 }
