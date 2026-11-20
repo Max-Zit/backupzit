@@ -493,8 +493,15 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 	a.log.Info("run finished", "run", run.ID, "status", res.Status, "message", res.Message, "errors", len(res.Errors))
 	a.runFinished(run.ID, res)
 	// Report with a fresh context: the result must reach the server even
-	// when the agent is shutting down. Retry for a while on network errors.
-	for i := 0; i < 20; i++ {
+	// when the agent is shutting down. Retry for a while on network errors:
+	// for two hours while the agent runs (the console may be restarting or
+	// updating its appliance; it still takes the result), for a minute when
+	// the agent itself is stopping.
+	deadline := time.Now().Add(2 * time.Hour)
+	if parent.Err() != nil {
+		deadline = time.Now().Add(time.Minute)
+	}
+	for i := 0; time.Now().Before(deadline); i++ {
 		rctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		err := a.client.post(rctx, fmt.Sprintf("%s%d/finish", api.PathRunsPrefix, run.ID), res, nil, true)
 		cancel()
@@ -508,7 +515,7 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		if strings.Contains(err.Error(), "not found or not running") {
 			return
 		}
-		time.Sleep(time.Duration(i+1) * 3 * time.Second)
+		time.Sleep(min(time.Duration(i+1)*3*time.Second, time.Minute))
 	}
 }
 

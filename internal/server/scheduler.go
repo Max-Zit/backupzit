@@ -52,10 +52,13 @@ type Scheduler struct {
 	StaleAfter time.Duration
 	// Notifier, if set, sends alerts and daily reports on every tick.
 	Notifier *Notifier
+	// started is when the console started: no agent could poll before
+	// (FailStaleRuns).
+	started time.Time
 }
 
 func NewScheduler(store *Store, log *slog.Logger) *Scheduler {
-	return &Scheduler{store: store, log: log, interval: 20 * time.Second, StaleAfter: 10 * time.Minute}
+	return &Scheduler{store: store, log: log, interval: 20 * time.Second, StaleAfter: 10 * time.Minute, started: time.Now()}
 }
 
 // Run loops until ctx is done.
@@ -78,7 +81,7 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 		defer s.Notifier.Pass(ctx, now)
 	}
 	s.store.refreshVMware(ctx, now)
-	if n, err := s.store.FailStaleRuns(ctx, s.StaleAfter); err != nil {
+	if n, err := s.store.FailStaleRuns(ctx, s.StaleAfter, s.started); err != nil {
 		s.log.Error("fail stale runs", "err", err)
 	} else if n > 0 {
 		s.log.Warn("marked runs of unresponsive agents as failed", "count", n)

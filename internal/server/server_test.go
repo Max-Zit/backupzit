@@ -298,11 +298,27 @@ func TestAgentLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	time.Sleep(1100 * time.Millisecond)
-	if n, err := e.store.FailStaleRuns(ctx, time.Second); err != nil || n != 1 {
+	// M-1 (0.55): the silence counts from the console's start: right after a
+	// restart the agents get their time to poll again.
+	if n, err := e.store.FailStaleRuns(ctx, time.Second, time.Now()); err != nil || n != 0 {
+		t.Fatalf("run failed right after the console started: n=%d err=%v", n, err)
+	}
+	if n, err := e.store.FailStaleRuns(ctx, time.Second, time.Now().Add(-time.Hour)); err != nil || n != 1 {
 		t.Fatalf("fail stale: n=%d err=%v", n, err)
 	}
 	if r, _ := e.store.GetRun(ctx, stale); r.Status != api.StatusFailed {
 		t.Errorf("stale run status %s", r.Status)
+	}
+	// The agent's late result is still taken (the backup exists).
+	if err := e.store.FinishRun(ctx, agentID, stale, api.RunResult{Status: api.StatusSuccess, SnapshotID: strings.Repeat("ab", 32)}); err != nil {
+		t.Fatalf("late result refused: %v", err)
+	}
+	if r, _ := e.store.GetRun(ctx, stale); r.Status != api.StatusSuccess || r.SnapshotID == "" {
+		t.Errorf("late result: %s %q", r.Status, r.SnapshotID)
+	}
+	// A second result for the same run is refused.
+	if err := e.store.FinishRun(ctx, agentID, stale, api.RunResult{Status: api.StatusFailed}); err == nil {
+		t.Error("a finished run accepted another result")
 	}
 }
 

@@ -939,9 +939,10 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	ct, err := s.db.Exec(ctx, `UPDATE runs SET status=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' AND cancel_by<>'' THEN 'cancelled' ELSE $3 END,
 		finished_at=now(), stats=$4, errors=$5,
 		message=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_reason ELSE $6 END,
-		notified=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_by<>'' ELSE notified END,
-		snapshot_id=CASE WHEN kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') THEN $7 ELSE snapshot_id END, details=$8, commands=$9
-		WHERE id=$2 AND agent_id=$1 AND status='running'`,
+		notified=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_by<>'' ELSE notified AND NOT stale_failed END,
+		snapshot_id=CASE WHEN kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') THEN $7 ELSE snapshot_id END, details=$8, commands=$9,
+		stale_failed=false
+		WHERE id=$2 AND agent_id=$1 AND (status='running' OR (status='failed' AND stale_failed))`,
 		agentID, runID, res.Status, stats, res.Errors, res.Message, res.SnapshotID, details, commands)
 	if err != nil {
 		return err
@@ -982,12 +983,16 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	return nil
 }
 
-// FailStaleRuns marks running runs as failed when their agent stopped polling.
-func (s *Store) FailStaleRuns(ctx context.Context, after time.Duration) (int64, error) {
-	ct, err := s.db.Exec(ctx, `UPDATE runs r SET status='failed', finished_at=now(),
+// FailStaleRuns marks running runs as failed when their agent stopped
+// polling for longer than after. The silence counts from the console's own
+// start at the earliest: while the console was down (a restart, an
+// appliance update) no agent could poll. Such runs keep stale_failed, so
+// the agent's result is still taken when it comes (FinishRun).
+func (s *Store) FailStaleRuns(ctx context.Context, after time.Duration, consoleStart time.Time) (int64, error) {
+	ct, err := s.db.Exec(ctx, `UPDATE runs r SET status='failed', finished_at=now(), stale_failed=true,
 		message='agent stopped responding while the run was in progress'
 		FROM agents a WHERE a.id=r.agent_id AND r.status='running'
-		AND (a.last_seen_at IS NULL OR a.last_seen_at < now() - make_interval(secs => $1))`, after.Seconds())
+		AND GREATEST(coalesce(a.last_seen_at, $2::timestamptz), $2::timestamptz) < now() - make_interval(secs => $1)`, after.Seconds(), consoleStart)
 	if err != nil {
 		return 0, err
 	}
