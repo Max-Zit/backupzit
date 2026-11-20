@@ -33,6 +33,12 @@ var ErrPasswordRequired = errors.New("repository is encrypted: a password (recov
 // replaced on the storage, and nothing is written to it in plaintext.
 var ErrNotEncrypted = errors.New("the repository is not encrypted although a recovery key was given (its config may have been changed on the storage); nothing is written to it")
 
+// ErrPackDamaged marks a pack that is proven damaged on the storage: it is
+// missing, or a read of all its bytes does not match its content hash.
+// Errors without it (a download cut short, a timeout) say nothing about
+// the pack itself: it may only be the way to this machine (#38).
+var ErrPackDamaged = errors.New("damaged on the storage")
+
 // ErrWrongPassword means no key file could be opened with the password.
 var ErrWrongPassword = errors.New("wrong repository password (recovery key)")
 

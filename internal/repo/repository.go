@@ -562,35 +562,45 @@ func (r *Repository) ListPacks(ctx context.Context) ([]ID, error) {
 // blob listed in its header.
 func (r *Repository) VerifyPack(ctx context.Context, pack ID) (int, error) {
 	data, err := r.be.Load(ctx, packName(pack))
+	if errors.Is(err, backend.ErrNotFound) {
+		return 0, fmt.Errorf("pack %s: missing on the storage: %w", pack.Short(), ErrPackDamaged)
+	}
 	if err != nil {
-		return 0, err
+		return 0, err // a read problem (network, timeout), no verdict on the pack
 	}
 	if Hash(data) != pack {
-		return 0, fmt.Errorf("pack %s: content hash mismatch", pack.Short())
+		// Fewer bytes arrived than the storage holds: the way lost them,
+		// not the storage (#38: a host whose downloads were cut short).
+		if size, serr := r.be.Size(ctx, packName(pack)); serr == nil && size > int64(len(data)) {
+			return 0, fmt.Errorf("pack %s: only %d of its %d bytes arrived (the storage has it whole; check the network path: proxy, firewall, IPS, NAT)", pack.Short(), len(data), size)
+		}
+		return 0, fmt.Errorf("pack %s: content hash mismatch: %w", pack.Short(), ErrPackDamaged)
 	}
+	// From here the content is exactly what was written (its hash is its
+	// name): what follows cannot be read differently on another try.
 	if len(data) < packTrailerLen {
-		return 0, fmt.Errorf("pack %s: too short", pack.Short())
+		return 0, fmt.Errorf("pack %s: too short: %w", pack.Short(), ErrPackDamaged)
 	}
 	hl := int(binary.LittleEndian.Uint32(data[len(data)-packTrailerLen:]))
 	if hl <= 0 || hl > len(data)-packTrailerLen {
-		return 0, fmt.Errorf("pack %s: invalid header length", pack.Short())
+		return 0, fmt.Errorf("pack %s: invalid header length: %w", pack.Short(), ErrPackDamaged)
 	}
 	hdrStart := len(data) - packTrailerLen - hl
 	hdr, err := r.open(data[hdrStart : len(data)-packTrailerLen])
 	if err != nil {
-		return 0, fmt.Errorf("pack %s header: %w", pack.Short(), err)
+		return 0, fmt.Errorf("pack %s header: %v: %w", pack.Short(), err, ErrPackDamaged)
 	}
 	blobs, err := parsePackHeader(hdr)
 	if err != nil {
-		return 0, fmt.Errorf("pack %s: %w", pack.Short(), err)
+		return 0, fmt.Errorf("pack %s: %v: %w", pack.Short(), err, ErrPackDamaged)
 	}
 	for _, b := range blobs {
 		end := int(b.Offset) + int(b.Length)
 		if end > hdrStart {
-			return 0, fmt.Errorf("pack %s: blob %s out of bounds", pack.Short(), b.ID.Short())
+			return 0, fmt.Errorf("pack %s: blob %s out of bounds: %w", pack.Short(), b.ID.Short(), ErrPackDamaged)
 		}
 		if _, err := r.decodeBlob(b.ID, b.Type, data[b.Offset:end], b.Raw); err != nil {
-			return 0, fmt.Errorf("pack %s: %w", pack.Short(), err)
+			return 0, fmt.Errorf("pack %s: %v: %w", pack.Short(), err, ErrPackDamaged)
 		}
 	}
 	return len(blobs), nil

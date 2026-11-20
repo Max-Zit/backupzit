@@ -3,8 +3,10 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/max-zit/backupzit/internal/repo"
 )
@@ -19,10 +21,15 @@ type Result struct {
 	BlobsRead int
 	Errors    []string
 	Warnings  []string
-	// Damaged lists the indexed packs that are missing, unreadable or whose
-	// content does not verify: repair takes them out of the index, so that
-	// the next backups store their data again.
+	// Damaged lists the indexed packs proven damaged on the storage
+	// (missing, or a read of all their bytes does not verify): repair takes
+	// them out of the index, so that the next backups store their data
+	// again.
 	Damaged []repo.ID
+	// Unreadable lists packs this machine could not read even after a few
+	// tries while the storage holds them (a download cut short, timeouts):
+	// it may be the network path, so repair leaves them alone (#38).
+	Unreadable []repo.ID
 }
 
 // OK reports whether no errors were found.
@@ -34,6 +41,36 @@ type Options struct {
 	ReadData bool
 	// Progress is called after each pack is read (ReadData only).
 	Progress func(done, total int)
+	// RetryPause is the wait before reading a pack that failed once more
+	// (default 10 s, doubled for the third try): a dropped connection or a
+	// download cut short is not a damaged pack.
+	RetryPause time.Duration
+}
+
+// DefaultRetryPause is RetryPause when Options leave it 0 (tests shorten it).
+var DefaultRetryPause = 10 * time.Second
+
+// tries runs read up to three times, pausing in between, while it fails.
+// A proven verdict (repo.ErrPackDamaged) is read again too: over plain
+// HTTP a corrupt download can be a one-off.
+func tries(ctx context.Context, pause time.Duration, read func() error) error {
+	if pause <= 0 {
+		pause = DefaultRetryPause
+	}
+	var err error
+	for i := 0; i < 3; i++ {
+		if err = read(); err == nil || ctx.Err() != nil {
+			return err
+		}
+		if i < 2 {
+			select {
+			case <-ctx.Done():
+				return err
+			case <-time.After(pause << i):
+			}
+		}
+	}
+	return err
 }
 
 // Run checks r.
@@ -76,10 +113,17 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 		if !present[p] {
 			continue
 		}
-		blobs, err := r.ReadPackHeader(ctx, p)
+		var blobs []repo.PackedBlob
+		err := tries(ctx, opts.RetryPause, func() (err error) {
+			blobs, err = r.ReadPackHeader(ctx, p)
+			return err
+		})
 		if err != nil {
-			errf("pack %s: read header: %v", p.Short(), err)
-			damaged(p)
+			// With ReadData the whole pack is read below, which tells a
+			// damaged pack from one that only does not arrive here.
+			if !opts.ReadData {
+				errf("pack %s: read header: %v", p.Short(), err)
+			}
 			continue
 		}
 		for _, b := range blobs {
@@ -215,7 +259,11 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 			go func() {
 				defer wg.Done()
 				for i := range jobs {
-					n, err := r.VerifyPack(ctx, onDisk[i])
+					var n int
+					err := tries(ctx, opts.RetryPause, func() (err error) {
+						n, err = r.VerifyPack(ctx, onDisk[i])
+						return err
+					})
 					out[i] = verified{n, err}
 					if opts.Progress != nil {
 						mu.Lock()
@@ -240,9 +288,20 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 		}
 		for i, v := range out {
 			if v.err != nil {
-				errf("%v", v.err)
-				if _, ok := indexed[onDisk[i]]; ok {
+				_, inIndex := indexed[onDisk[i]]
+				switch {
+				case !inIndex:
+					// A pack no backup uses (taken out by a repair, left over
+					// from an interrupted backup): the next cleanup removes it.
+					res.Warnings = append(res.Warnings, fmt.Sprintf("%v (not in the index: no backup uses it, the next cleanup removes it)", v.err))
+				case errors.Is(v.err, repo.ErrPackDamaged):
+					errf("%v", v.err)
 					damaged(onDisk[i])
+				default:
+					// Only this machine could not read it: not a verdict on
+					// the pack (repair leaves it alone).
+					errf("pack %s could not be read from this agent after 3 tries (the storage may be fine; check the network path: proxy, firewall, IPS, NAT): %v", onDisk[i].Short(), v.err)
+					res.Unreadable = append(res.Unreadable, onDisk[i])
 				}
 				continue
 			}

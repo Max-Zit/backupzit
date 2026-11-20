@@ -8,11 +8,9 @@ import (
 
 // RepairResult is what DropDamagedPacks did.
 type RepairResult struct {
-	// Packs taken out of the index, and the blobs they held.
+	// Packs taken out of the index, and the blobs they held. Their files
+	// stay until the next cleanup (prune) removes them as unreferenced.
 	Packs, Blobs int
-	// PackFilesRemoved counts the damaged pack files deleted from the
-	// storage (immutable storage keeps them until their lock expires).
-	PackFilesRemoved int
 	// Snapshots that need data of the dropped packs: they cannot be
 	// restored completely. Later backups store that data again.
 	Snapshots []*Snapshot
@@ -100,13 +98,9 @@ func (r *Repository) DropDamagedPacks(ctx context.Context, packs []ID) (*RepairR
 			return nil, fmt.Errorf("remove %s: %w", n, err)
 		}
 	}
-	for p := range drop {
-		// A pack that cannot be removed now (immutable storage, a lock that
-		// has not expired) is out of the index already: prune removes it later.
-		if err := r.be.Remove(ctx, packName(p)); err == nil {
-			res.PackFilesRemoved++
-		}
-	}
+	// The pack files themselves stay: prune removes them later as
+	// unreferenced, and until then a wrong verdict can still be undone by
+	// restoring the old index files from a copy of the storage.
 	r.mu.Lock()
 	r.idx = newIndex()
 	r.mu.Unlock()

@@ -251,7 +251,7 @@ func (s *S3) LoadRange(ctx context.Context, name string, offset int64, length in
 		return err
 	})
 	if errors.Is(err, errShortRead) {
-		return nil, fmt.Errorf("%w; it was read again several times, so the file may be damaged on the storage: run a data check (Check data on the job page)", err)
+		return nil, fmt.Errorf("%w; it was read again several times: the file may be shorter on the storage, or downloads to this machine are cut short on the way (proxy, firewall, IPS, NAT); a data check tells them apart (Check data on the job page)", err)
 	}
 	return b, err
 }

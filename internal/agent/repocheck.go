@@ -72,7 +72,18 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 	if err != nil {
 		return failed(fmt.Errorf("check: %w", err))
 	}
+	// Packs this agent cannot read while the storage holds them may only be
+	// cut short on the way here: they are never taken out (#38).
+	unreadable := ""
+	if n := len(res.Unreadable); n > 0 {
+		unreadable = fmt.Sprintf(". %s could not be read from this agent and %s left alone: the storage may be fine, check the network path (proxy, firewall, IPS, NAT)",
+			count(n, "data pack", "data packs"), map[bool]string{true: "was", false: "were"}[n == 1])
+	}
 	if len(res.Damaged) == 0 {
+		if unreadable != "" {
+			return api.RunResult{Status: api.StatusWarning, Errors: res.Errors,
+				Message: fmt.Sprintf("No data pack is proven damaged, nothing was taken out%s", unreadable)}
+		}
 		return api.RunResult{Status: api.StatusSuccess, Message: fmt.Sprintf("Read all %d data packs again: none is damaged now, nothing to repair", res.PacksRead)}
 	}
 	rep, err := r.DropDamagedPacks(ctx, res.Damaged)
@@ -122,7 +133,8 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 			out.Errors = append(out.Errors, describe(sn)+" needs lost data")
 		}
 	}
-	stats, _ := json.Marshal(map[string]int{"packs": rep.Packs, "blobs": rep.Blobs, "pack_files_removed": rep.PackFilesRemoved,
+	out.Message += unreadable
+	stats, _ := json.Marshal(map[string]int{"packs": rep.Packs, "blobs": rep.Blobs, "unreadable": len(res.Unreadable),
 		"backups_affected": len(rep.Snapshots), "backups_removed": len(out.Forgotten), "backups_not_removed": notRemoved})
 	out.Stats = stats
 	return out

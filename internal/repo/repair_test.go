@@ -52,7 +52,7 @@ func TestDropDamagedPacks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Packs != 1 || res.Blobs < 1 || res.PackFilesRemoved != 1 || len(res.Snapshots) != 1 || res.Snapshots[0].ID != lostSn {
+	if res.Packs != 1 || res.Blobs < 1 || len(res.Snapshots) != 1 || res.Snapshots[0].ID != lostSn {
 		t.Fatalf("result %+v (snapshots %d)", res, len(res.Snapshots))
 	}
 	if r.idx.Has(BlobHandle{Type: DataBlob, ID: lostID}) || !r.idx.Has(BlobHandle{Type: DataBlob, ID: keptID}) {

@@ -556,6 +556,9 @@ func cmdRepair(ctx context.Context, args []string) error {
 	for _, e := range res.Errors {
 		fmt.Println("ERROR:", e)
 	}
+	for _, p := range res.Unreadable {
+		fmt.Println("not readable from here (left alone; check the network path):", p.String())
+	}
 	if len(res.Damaged) == 0 {
 		fmt.Printf("read %d packs: no damaged pack, nothing to repair\n", res.PacksRead)
 		if !res.OK() {
@@ -574,7 +577,7 @@ func cmdRepair(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("took %d packs (%d blobs) out of the index, removed %d pack files; the next backups store that data again\n", rep.Packs, rep.Blobs, rep.PackFilesRemoved)
+	fmt.Printf("took %d packs (%d blobs) out of the index (their files go with the next cleanup); the next backups store that data again\n", rep.Packs, rep.Blobs)
 	for _, sn := range rep.Snapshots {
 		fmt.Printf("snapshot %s of %s from %s needs lost data\n", sn.ID.Short(), sn.Hostname, sn.Time.Local().Format("2006-01-02 15:04"))
 	}
