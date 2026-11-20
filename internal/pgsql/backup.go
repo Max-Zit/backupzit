@@ -54,7 +54,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 	if err != nil {
 		return nil, nil, err
 	}
-	stage, err := workDir(ctx, fmt.Sprintf("stage-%d", time.Now().UnixNano()))
+	stage, err := workDir(fmt.Sprintf("stage-%d", time.Now().UnixNano()))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -92,7 +92,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		ast, astErr := s.archiverState(ctx)
 		reported := false
 		dir := filepath.Join(stage, "wal")
-		if err := os.MkdirAll(dir, 0o700); err != nil {
+		if err := os.Mkdir(dir, 0o700); err != nil {
 			return nil, nil, err
 		}
 		entries, _ := os.ReadDir(WALSpool)
@@ -162,7 +162,11 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		}
 		start := time.Now()
 		o.Log("pg_basebackup", "port", s.Port)
-		cdir := filepath.Join(stage, "cluster")
+		// pg_basebackup writes as postgres into an empty folder of its own.
+		cdir, err := pgDir(stage, "cluster")
+		if err != nil {
+			return nil, problems, err
+		}
 		out, err := asPostgres(ctx, s.bin("pg_basebackup"), "-p", strconv.Itoa(s.Port), "-D", cdir, "-Ft", "-X", "fetch", "-c", "fast", "-v", "--no-password")
 		if err != nil {
 			return nil, problems, err
@@ -186,7 +190,9 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			FirstLSN: first, LastLSN: last, Start: start, Finish: time.Now()})
 		gfile := filepath.Join(stage, "globals.sql")
 		if out, err := asPostgres(ctx, s.bin("pg_dumpall"), "-p", strconv.Itoa(s.Port), "--globals-only"); err == nil {
-			_ = os.WriteFile(gfile, out, 0o600)
+			if err := writeNew(gfile, out, 0o600); err != nil {
+				return nil, problems, err
+			}
 			meta.Databases = append(meta.Databases, repo.SQLDatabase{Name: Globals, File: gfile, Size: uint64(len(out)), Start: time.Now(), Finish: time.Now()})
 		} else {
 			problems = append(problems, "roles were not saved: "+err.Error())
@@ -195,9 +201,10 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		if err != nil {
 			return nil, problems, err
 		}
-		ddir := filepath.Join(stage, "dumps")
-		_ = os.MkdirAll(ddir, 0o700)
-		_ = exec.CommandContext(ctx, "chown", "postgres:", ddir).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
+		ddir, err := pgDir(stage, "dumps")
+		if err != nil {
+			return nil, problems, err
+		}
 		for _, d := range dbs {
 			if len(o.Databases) > 0 && !containsFold(o.Databases, d.Name) {
 				continue
@@ -348,7 +355,7 @@ func partialCopy(p string, size, segBytes int64) bool {
 	if size >= segBytes {
 		return false
 	}
-	f, err := os.Open(p) // #nosec G304 -- a file in the agent's WAL spool
+	f, err := os.OpenFile(p, os.O_RDONLY|oNoFollow, 0) // #nosec G304 -- a file in the agent's WAL spool (not through a link)
 	if err != nil {
 		return false
 	}
@@ -427,7 +434,9 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 	if err != nil && o.Database != Cluster {
 		return nil, err
 	}
-	work, err := workDir(ctx, "restore-"+time.Now().Format("20060102-150405"))
+	// Root fills the folder while it is root's and hands it to postgres only
+	// once it stops writing there (startRecovered, before pg_restore).
+	work, err := workDir("restore-" + time.Now().Format("20060102-150405"))
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +480,9 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 			return nil, err
 		}
 		walDir := filepath.Join(work, "wal")
-		_ = os.MkdirAll(walDir, 0o700)
+		if err := os.Mkdir(walDir, 0o700); err != nil {
+			return nil, err
+		}
 		next := NextSegment(cl.LastLSN)
 		for _, sn := range wals {
 			w := find(sn, WAL)
@@ -513,16 +524,22 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 			return res, nil
 		}
 		defer inst.stop(context.Background())
+		// work is postgres's by now: a new file only, never through a link.
 		dump = filepath.Join(work, "pitr.dump")
-		_ = os.WriteFile(dump, nil, 0o600)
-		_ = exec.CommandContext(ctx, "chown", "postgres:", dump).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
+		if err := writeNew(dump, nil, 0o600); err != nil {
+			return nil, err
+		}
+		if err := givePostgres(dump); err != nil {
+			return nil, err
+		}
 		o.Log("pg_dump from the recovered instance", "database", o.Database)
 		if _, err := asPostgres(ctx, inst.bin("pg_dump"), "-h", inst.Socket, "-p", strconv.Itoa(inst.Port), "-Fc", "-Z", "0", "-f", dump, dbnameArg(o.Database)); err != nil {
 			return nil, err
 		}
 	}
-	// pg_restore runs as postgres: give it the restored files.
-	_ = exec.CommandContext(ctx, "chown", "-R", "postgres:", work).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
+	// pg_restore runs as postgres: give it the restored files (-h: a link
+	// postgres put there keeps its target's owner).
+	_ = exec.CommandContext(ctx, "chown", "-R", "-h", "postgres:", work).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 	if err := s.restoreDump(ctx, dump, o); err != nil {
 		return nil, err
 	}
@@ -582,7 +599,7 @@ func (i *instance) stop(ctx context.Context) {
 // a free port, replaying WAL from walDir up to stopAt (zero: all).
 func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.Time, bindir, version string, log func(string, ...any)) (*instance, error) {
 	data := filepath.Join(work, "data")
-	if err := os.MkdirAll(data, 0o700); err != nil {
+	if err := os.Mkdir(data, 0o700); err != nil {
 		return nil, err
 	}
 	if out, err := exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "base.tar"), "-C", data).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
@@ -618,7 +635,7 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 	for _, d := range []string{work, walDir} {
 		_ = os.Chmod(d, 0o700) // #nosec G302 -- a directory needs the x bit
 	}
-	if out, err := exec.CommandContext(ctx, "chown", "-R", "postgres:", work).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
+	if out, err := exec.CommandContext(ctx, "chown", "-R", "-h", "postgres:", work).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
 		return nil, fmt.Errorf("chown: %v: %s", err, out)
 	}
 	if bindir == "" {
@@ -627,7 +644,7 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 	inst := &instance{DataDir: data, Socket: work, BinDir: bindir, Port: port}
 	log("starting the recovered cluster", "port", port)
 	if _, err := asPostgres(ctx, inst.bin("pg_ctl"), "-D", data, "-l", filepath.Join(work, "postgres.log"), "-w", "-t", "3600", "start"); err != nil {
-		b, _ := os.ReadFile(filepath.Join(work, "postgres.log")) // #nosec G304 -- PostgreSQL files and dumps in the agent's working folder
+		b, _ := readNoFollow(filepath.Join(work, "postgres.log"), 1<<20)
 		return nil, fmt.Errorf("the recovered cluster did not start: %s", lastLines(strings.TrimSpace(string(b)), 4))
 	}
 	// Wait for the end of recovery (promotion).
@@ -702,12 +719,14 @@ func safeName(s string) string {
 	}, s)
 }
 
+// copyFile copies a segment of the WAL spool (written by postgres) into the
+// stage: not through a link in either place (H-N4).
 func copyFile(src, dst string) error {
-	b, err := os.ReadFile(src) // #nosec G304 -- PostgreSQL files and dumps in the agent's working folder
+	b, err := readNoFollow(src, 0)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, b, 0o600) // #nosec G703 -- dump file in the agent's working folder
+	return writeNew(dst, b, 0o600)
 }
 
 // mapTablespaces unpacks the user tablespaces of a tar base backup

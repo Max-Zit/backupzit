@@ -26,20 +26,55 @@ const WALSpool = BaseDir + "/wal"
 // enter it but not list it.
 const BaseDir = "/var/lib/backupzit-pg"
 
-// workDir creates a directory below BaseDir owned by postgres.
-func workDir(ctx context.Context, name string) (string, error) {
+// workDir creates a new directory below BaseDir owned by root (0711, so
+// postgres can reach a folder of its own inside, see pgDir). It stays
+// root's: what root writes there cannot be swapped for a link (H-N4).
+func workDir(name string) (string, error) {
 	if err := os.MkdirAll(BaseDir, 0o711); err != nil { // #nosec G301 -- postgres must traverse it
 		return "", err
 	}
 	_ = os.Chmod(BaseDir, 0o711) // #nosec G302 -- a directory needs the x bit
 	d := filepath.Join(BaseDir, name)
-	if err := os.MkdirAll(d, 0o700); err != nil {
+	if err := os.Mkdir(d, 0o711); err != nil { // #nosec G301 -- postgres must traverse it; a new name only
 		return "", err
 	}
-	if out, err := exec.CommandContext(ctx, "chown", "postgres:", d).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
-		return "", fmt.Errorf("chown %s: %v: %s", d, err, out)
-	}
+	_ = os.Chmod(d, 0o711) // #nosec G302 -- a directory needs the x bit (umask)
 	return d, nil
+}
+
+// spoolDir creates the WAL spool (WALSpool), which archive_command writes
+// as postgres. It sits in the root-owned BaseDir, so postgres cannot put a
+// link in its place.
+func spoolDir() error {
+	if err := os.MkdirAll(BaseDir, 0o711); err != nil { // #nosec G301 -- postgres must traverse it
+		return err
+	}
+	_ = os.Chmod(BaseDir, 0o711) // #nosec G302 -- a directory needs the x bit
+	fi, err := os.Lstat(WALSpool)
+	switch {
+	case os.IsNotExist(err):
+		if err := os.Mkdir(WALSpool, 0o700); err != nil {
+			return err
+		}
+	case err != nil:
+		return err
+	case !fi.IsDir():
+		return fmt.Errorf("%s is not a folder", WALSpool)
+	}
+	return givePostgres(WALSpool)
+}
+
+// pgDir creates the folder name inside the root-owned dir for postgres to
+// write in (pg_basebackup, pg_dump output).
+func pgDir(dir, name string) (string, error) {
+	p := filepath.Join(dir, name)
+	if err := os.Mkdir(p, 0o700); err != nil {
+		return "", err
+	}
+	if err := givePostgres(p); err != nil {
+		return "", fmt.Errorf("give %s to postgres: %w", p, err)
+	}
+	return p, nil
 }
 
 // ArchiveCommand is the archive_command BackupZit sets (run by /bin/sh). It
@@ -232,7 +267,7 @@ func (s *Server) ArchiveState(ctx context.Context) (ok bool, problem string, err
 // EnableArchiving sets archive_mode and archive_command (ALTER SYSTEM). It
 // returns true when PostgreSQL must be restarted for archive_mode.
 func (s *Server) EnableArchiving(ctx context.Context) (restart bool, err error) {
-	if _, err := workDir(ctx, "wal"); err != nil {
+	if err := spoolDir(); err != nil {
 		return false, err
 	}
 	mode, _ := s.Query(ctx, "", "SHOW archive_mode")
