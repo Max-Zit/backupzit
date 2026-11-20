@@ -340,6 +340,12 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 	rct := false
 	if vm.State == "Off" {
 		g.Consistency = "VM was off, disks read directly"
+		// Resilient change tracking lives in the VHDX (its .rct file) and is
+		// queried on the attached disk, with or without a checkpoint: a VM
+		// that is off for a long time is read incrementally too, instead of
+		// in full on every run (B3). planDiskRead falls back to the whole
+		// disk when tracking is off or the earlier change ID is not known.
+		rct = true
 	} else {
 		// A prefixed checkpoint may still belong to another process or to a
 		// backup reading after live migration. Only remove our own checkpoint.
