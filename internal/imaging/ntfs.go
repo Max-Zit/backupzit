@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -196,7 +197,9 @@ func (v *Volume) open(p string) (*ntfs.MFT_ENTRY, error) {
 }
 
 // List returns the entries of a directory, folders first. NTFS metadata
-// files ($MFT, ...) are hidden.
+// files ($MFT, ...) are hidden. Every name of a file with hard links is an
+// entry of its own, and every named data stream (alternate data stream) is
+// listed as "name:stream".
 func (v *Volume) List(dir string) ([]Entry, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -205,25 +208,64 @@ func (v *Volume) List(dir string) ([]Entry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", dir, err)
 	}
+	// The names come from the directory's index, not from ntfs.ListDir: it
+	// lists each file once with one of its names (from any directory), so
+	// further hard links were missing or showed a name of another folder.
+	dirRef := uint64(e.Record_number())
+	stats := map[uint64][]*ntfs.FileInfo{}
 	seen := map[string]bool{}
 	var out []Entry
-	for _, fi := range ntfs.ListDir(v.ctx, e) {
-		if fi == nil || fi.IsSlack || fi.Name == "" || fi.Name == "." || fi.NameType == "DOS" {
+	for _, idx := range e.Dir(v.ctx) {
+		fn := idx.File()
+		name := fn.Name()
+		if name == "" || name == "." || fn.NameType().Name == "DOS" {
 			continue
 		}
-		if strings.HasPrefix(fi.Name, "$") && dir == `\` {
+		if strings.HasPrefix(name, "$") && dir == `\` {
 			continue
 		}
-		key := strings.ToLower(fi.Name)
+		key := strings.ToLower(name)
 		if seen[key] {
 			continue
 		}
-		seen[key] = true
-		p := dir + `\` + fi.Name
-		if dir == `\` {
-			p = `\` + fi.Name
+		ref := idx.MftReference()
+		infos, ok := stats[ref]
+		if !ok {
+			// Index blocks no longer in use may still hold entries of
+			// deleted files: only names the file itself has in this
+			// directory count.
+			if mft, err := v.ctx.GetMFT(int64(ref)); err == nil && hasFileName(v.ctx, mft, name, dirRef) { // #nosec G115 -- MFT references are 48 bit
+				infos = ntfs.Stat(v.ctx, mft)
+			}
+			if len(infos) == 0 {
+				continue
+			}
+			stats[ref] = infos
+		} else if mft, err := v.ctx.GetMFT(int64(ref)); err != nil || !hasFileName(v.ctx, mft, name, dirRef) { // #nosec G115 -- MFT references are 48 bit
+			continue
 		}
-		out = append(out, Entry{Name: fi.Name, Path: p, IsDir: fi.IsDir, Size: fi.Size, ModTime: fi.Mtime})
+		seen[key] = true
+		p := dir + `\` + name
+		if dir == `\` {
+			p = `\` + name
+		}
+		// ntfs.Stat returns the file's data streams under one of its
+		// names; only the stream part (":stream") is taken from it.
+		streams := map[string]bool{}
+		for _, fi := range infos {
+			if fi == nil || fi.IsSlack {
+				continue
+			}
+			stream := ""
+			if i := strings.IndexByte(fi.Name, ':'); i >= 0 {
+				stream = fi.Name[i:]
+			}
+			if streams[stream] {
+				continue
+			}
+			streams[stream] = true
+			out = append(out, Entry{Name: name + stream, Path: p + stream, IsDir: fi.IsDir && stream == "", Size: fi.Size, ModTime: fi.Mtime})
+		}
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].IsDir != out[j].IsDir {
@@ -232,6 +274,46 @@ func (v *Volume) List(dir string) ([]Entry, error) {
 		return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
 	})
 	return out, nil
+}
+
+// hasFileName reports whether mft has the $FILE_NAME name in the directory
+// with MFT record parent.
+func hasFileName(c *ntfs.NTFSContext, mft *ntfs.MFT_ENTRY, name string, parent uint64) bool {
+	for _, attr := range mft.EnumerateAttributes(c) {
+		if attr.Type().Value != ntfs.ATTR_TYPE_FILE_NAME {
+			continue
+		}
+		fn := c.Profile.FILE_NAME(attr.Data(c), 0)
+		if fn.MftReference() == parent && fn.Name() == name {
+			return true
+		}
+	}
+	return false
+}
+
+// StreamName returns the name of the alternate data stream a path inside
+// the volume names (`\dir\file:stream`), "" for the file's main data.
+func StreamName(p string) string {
+	base := p[strings.LastIndexAny(p, `\/`)+1:]
+	if i := strings.IndexByte(base, ':'); i >= 0 {
+		return base[i+1:]
+	}
+	return ""
+}
+
+// openData opens the data of a file, or of its alternate data stream when
+// the path ends in ":stream". (Opening the path alone gives the file:
+// go-ntfs drops the stream part.)
+func (v *Volume) openData(p string) (ntfs.RangeReaderAt, error) {
+	mft, err := v.open(p)
+	if err != nil {
+		return nil, err
+	}
+	stream := ntfs.WILDCARD_STREAM_NAME
+	if s := StreamName(p); s != "" {
+		stream = s
+	}
+	return ntfs.OpenStream(v.ctx, mft, ntfs.ATTR_TYPE_DATA, ntfs.WILDCARD_STREAM_ID, stream)
 }
 
 // Stat returns the entry for a path.
@@ -323,11 +405,7 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 
 func (v *Volume) extractFile(e Entry, target string) (int64, error) {
 	v.mu.Lock()
-	mft, err := v.open(e.Path)
-	var data ntfs.RangeReaderAt
-	if err == nil {
-		data, err = ntfs.OpenStream(v.ctx, mft, ntfs.ATTR_TYPE_DATA, ntfs.WILDCARD_STREAM_ID, ntfs.WILDCARD_STREAM_NAME)
-	}
+	data, err := v.openData(e.Path)
 	v.mu.Unlock()
 	if err != nil {
 		return 0, err
@@ -335,7 +413,7 @@ func (v *Volume) extractFile(e Entry, target string) (int64, error) {
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 		return 0, err
 	}
-	tmp := target + ".bzpart"
+	tmp := TempTarget(target)
 	// NTFS has no Unix permissions: only the owner may read restored
 	// files on Linux (on Windows the target folder's ACL applies).
 	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
@@ -374,6 +452,9 @@ func (v *Volume) extractFile(e Entry, target string) (int64, error) {
 		_ = os.Remove(tmp)
 		return 0, fmt.Errorf("read %d of %d bytes", off, e.Size)
 	}
+	if tmp == target {
+		return off, nil // a stream, written in place (its file has the time)
+	}
 	_ = os.Remove(target)
 	if err := os.Rename(tmp, target); err != nil {
 		_ = os.Remove(tmp)
@@ -383,6 +464,16 @@ func (v *Volume) extractFile(e Entry, target string) (int64, error) {
 		_ = os.Chtimes(target, e.ModTime, e.ModTime)
 	}
 	return off, nil
+}
+
+// TempTarget returns the file a restore writes before renaming it to
+// target. Alternate data streams on Windows ("file:stream") are written in
+// place: a stream cannot be renamed to another stream name.
+func TempTarget(target string) string {
+	if runtime.GOOS == "windows" && strings.Contains(filepath.Base(target), ":") {
+		return target
+	}
+	return target + ".bzpart"
 }
 
 // OpenSnapshotVolume opens the NTFS volume of a partition of sn; ref is a
@@ -440,11 +531,7 @@ func (v *Volume) ReadFile(p string) (io.Reader, int64, error) {
 		return nil, 0, fmt.Errorf("%s is a folder", p)
 	}
 	v.mu.Lock()
-	mft, err := v.open(e.Path)
-	var data ntfs.RangeReaderAt
-	if err == nil {
-		data, err = ntfs.OpenStream(v.ctx, mft, ntfs.ATTR_TYPE_DATA, ntfs.WILDCARD_STREAM_ID, ntfs.WILDCARD_STREAM_NAME)
-	}
+	data, err := v.openData(e.Path)
 	v.mu.Unlock()
 	if err != nil {
 		return nil, 0, err

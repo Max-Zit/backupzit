@@ -134,7 +134,7 @@ func extractFile(fsys FS, e Entry, dst string) (int64, error) {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 		return 0, err
 	}
-	tmp := dst + ".bzpart"
+	tmp := imaging.TempTarget(dst)
 	// Keep the file's permissions from the guest, so restored secrets
 	// (/etc/shadow, private keys) do not become readable for everyone;
 	// without them, only the owner may read the file.
@@ -153,6 +153,9 @@ func extractFile(fsys FS, e Entry, dst string) (int64, error) {
 	if err != nil {
 		_ = os.Remove(tmp)
 		return n, err
+	}
+	if tmp == dst {
+		return n, nil // an NTFS stream on Windows, written in place
 	}
 	_ = os.Chmod(tmp, perm)
 	_ = os.Remove(dst)
