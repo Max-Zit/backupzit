@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/license"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/session"
+	"github.com/vmware/govmomi/session/keepalive"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 	"golang.org/x/crypto/ssh"
@@ -128,6 +129,11 @@ func Connect(ctx context.Context, conn Conn) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect to %s: %w", conn.Host, err)
 	}
+	// While the proxy reads disks (hot-add, a long first full backup) no
+	// vSphere call is made: without a keep-alive the session expires after
+	// the idle timeout (about 30 minutes), and detaching the disks and
+	// removing the snapshot afterwards fail with NotAuthenticated.
+	vc.RoundTripper = keepalive.NewHandlerSOAP(vc.RoundTripper, 5*time.Minute, nil)
 	if err := session.NewManager(vc).Login(ctx, url.UserPassword(conn.User, conn.Password)); err != nil {
 		return nil, fmt.Errorf("sign in to %s: %w", conn.Host, err)
 	}
