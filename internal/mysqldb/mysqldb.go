@@ -333,8 +333,13 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 	defer os.RemoveAll(work)
 	fetch := func(sn *repo.Snapshot, path, sub string) (string, error) {
 		t := filepath.Join(work, sub)
-		if _, err := restorer.Run(ctx, r, sn, restorer.Options{Target: t, Include: []string{path}}); err != nil {
+		st, err := restorer.Run(ctx, r, sn, restorer.Options{Target: t, Include: []string{path}})
+		if err != nil {
 			return "", err
+		}
+		// An unreadable binary log would replay across a gap.
+		if len(st.Errors) > 0 {
+			return "", fmt.Errorf("could not read the backup completely: %s", strings.Join(st.Errors, "; "))
 		}
 		return filepath.Join(t, strings.TrimPrefix(path, "/")), nil
 	}

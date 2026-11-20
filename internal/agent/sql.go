@@ -81,6 +81,15 @@ func (a *Agent) sqlBackup(ctx context.Context, run api.Run) api.RunResult {
 	}
 	stats, _ := json.Marshal(sn.Stats)
 	details := runinfo.SQL(sn)
+	// The backup holds only the dumps and logs the agent wrote itself: a
+	// file it could not read means a database (or a log) is missing.
+	if len(sn.Stats.Errors) > 0 {
+		res := failed(fmt.Errorf("%s could not be read, the backup is incomplete: %s", count(len(sn.Stats.Errors), "file", "files"), strings.Join(sn.Stats.Errors, "; ")))
+		// No restore point: the console must not offer it or chain logs to it.
+		res.Stats, res.Details = stats, details
+		res.Errors = append(problems, sn.Stats.Errors...)
+		return res
+	}
 	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: details, Errors: problems}
 	var size uint64
 	dbs := 0

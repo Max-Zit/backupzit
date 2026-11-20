@@ -204,8 +204,12 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 	if err != nil {
 		return nil, problems, err
 	}
-	for _, f := range stored {
-		_ = os.Remove(f)
+	// Spooled WAL goes only when everything was read: otherwise the next log
+	// backup takes it again (PostgreSQL counts it as archived already).
+	if len(sn.Stats.Errors) == 0 {
+		for _, f := range stored {
+			_ = os.Remove(f)
+		}
 	}
 	return sn, problems, nil
 }
@@ -294,8 +298,14 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 	res := &RestoreResult{Database: o.Database}
 	fetch := func(sn *repo.Snapshot, path, sub string) (string, error) {
 		target := filepath.Join(work, sub)
-		if _, err := restorer.Run(ctx, r, sn, restorer.Options{Target: target, Include: []string{path}}); err != nil {
+		st, err := restorer.Run(ctx, r, sn, restorer.Options{Target: target, Include: []string{path}})
+		if err != nil {
 			return "", err
+		}
+		// One unreadable WAL segment would make the recovery stop early
+		// or replay across a gap while reporting success.
+		if len(st.Errors) > 0 {
+			return "", fmt.Errorf("could not read the backup completely: %s", strings.Join(st.Errors, "; "))
 		}
 		return filepath.Join(target, strings.TrimPrefix(path, "/")), nil
 	}
@@ -437,7 +447,9 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 		return nil, fmt.Errorf("unpack base.tar: %v: %s", err, out)
 	}
 	if _, err := os.Stat(filepath.Join(base, "pg_wal.tar")); err == nil {
-		_ = exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "pg_wal.tar"), "-C", filepath.Join(data, "pg_wal")).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
+		if out, err := exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "pg_wal.tar"), "-C", filepath.Join(data, "pg_wal")).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
+			return nil, fmt.Errorf("unpack pg_wal.tar: %v: %s", err, out)
+		}
 	}
 	if err := mapTablespaces(ctx, data, base, filepath.Join(work, "tablespaces")); err != nil {
 		return nil, err
