@@ -253,7 +253,7 @@ func StartReplica(ctx context.Context, replicaVMID, vmid int) error {
 		}
 		// Once started, its disks no longer hold the backup: the next update
 		// compares every block.
-		if err := os.WriteFile(p, []byte(stateToken.ReplaceAllString(string(b), "")), 0o640); err != nil { // #nosec G306 -- Proxmox guest configuration, 0640 as Proxmox writes it
+		if err := os.WriteFile(p, []byte(stateToken.ReplaceAllString(string(b), "")), 0o640); err != nil { // #nosec G306 G703 -- p is configPath: the Proxmox folder and a guest number; 0640 as Proxmox writes it
 			return err
 		}
 		_, err = command(ctx, guestTool(typ), "start", strconv.Itoa(replicaVMID))

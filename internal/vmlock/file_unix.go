@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// pollEvery is how often a file lock held by another process is tried.
+var pollEvery = 500 * time.Millisecond
+
 func lockFile(ctx context.Context, key string) (func(), error) {
 	if err := os.MkdirAll(Dir, 0o700); err != nil {
 		// Not the service (tests, a user's command line): the in-process

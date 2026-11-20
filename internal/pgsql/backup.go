@@ -593,11 +593,11 @@ func mapTablespaces(ctx context.Context, data, base, dir string) error {
 			return fmt.Errorf("unexpected line in tablespace_map: %q", line)
 		}
 		tarFile := filepath.Join(base, oid+".tar")
-		if _, err := os.Stat(tarFile); err != nil {
+		if _, err := os.Stat(tarFile); err != nil { // #nosec G703 -- oid is digits only (checked above), base is the agent's working folder
 			return fmt.Errorf("tablespace %s is not in the backup (%s.tar is missing)", oid, oid)
 		}
 		target := filepath.Join(dir, oid)
-		if err := os.MkdirAll(target, 0o700); err != nil {
+		if err := os.MkdirAll(target, 0o700); err != nil { // #nosec G703 -- oid is digits only, dir is the agent's working folder
 			return err
 		}
 		if o, err := exec.CommandContext(ctx, "tar", "-xf", tarFile, "-C", target).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell

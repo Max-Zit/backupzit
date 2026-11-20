@@ -380,7 +380,7 @@ func loadRetainCache() {
 		if RetainCacheFile == "" {
 			return
 		}
-		b, err := os.ReadFile(RetainCacheFile)
+		b, err := os.ReadFile(RetainCacheFile) // #nosec G304 -- fixed file in the agent's folder (set by the service)
 		if err != nil {
 			return
 		}

@@ -8,7 +8,6 @@ import (
 	"context"
 	"regexp"
 	"sync"
-	"time"
 )
 
 var unsafeKey = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
@@ -58,9 +57,6 @@ func Lock(ctx context.Context, key string) (func(), error) {
 		release()
 	}, nil
 }
-
-// pollEvery is how often a file lock held by another process is tried.
-var pollEvery = 500 * time.Millisecond
 
 // Dir holds the lock files on Linux; only root uses it (the agent's own
 // folder).

@@ -180,8 +180,8 @@ func TestVMwareParts(t *testing.T) {
 		t.Fatal(err)
 	}
 	ra, rb = poll(pa, "1.0.0", uuidA), poll(pb, "1.0.0", uuidB)
-	if ra == nil || rb == nil {
-		t.Fatal("parts not handed out")
+	if ra == nil || rb == nil || ra.ID != first {
+		t.Fatalf("parts not handed out: %+v %+v", ra, rb)
 	}
 	e.store.FinishRun(ctx, pa.id, ra.ID, api.RunResult{Status: api.StatusSuccess, SnapshotID: snap('b'), Stats: json.RawMessage(`{}`)})
 	e.store.FinishRun(ctx, pb.id, rb.ID, api.RunResult{Status: api.StatusWarning, SnapshotID: snap('c'), Stats: json.RawMessage(`{}`)})

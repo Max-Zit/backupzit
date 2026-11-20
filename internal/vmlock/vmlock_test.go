@@ -8,7 +8,6 @@ import (
 
 func TestLockSerializesOneVM(t *testing.T) {
 	Dir = t.TempDir()
-	pollEvery = 10 * time.Millisecond
 	unlock, err := Lock(context.Background(), "pve-101")
 	if err != nil {
 		t.Fatal(err)
