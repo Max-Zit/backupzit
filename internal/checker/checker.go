@@ -235,6 +235,25 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 				}
 			}
 		}
+		// Linux system backups keep each disk's start and the raw parts of
+		// partitions as blobs of their own (prune counts them as used too).
+		if sys := sn.System; sys != nil {
+			for di, d := range sys.Disks {
+				need := []repo.ID{d.Head}
+				for _, p := range d.Partitions {
+					need = append(need, p.Raw...)
+				}
+				for _, id := range need {
+					if id.IsNull() || seenData[id] {
+						continue
+					}
+					seenData[id] = true
+					if !r.Index().Has(repo.BlobHandle{Type: repo.DataBlob, ID: id}) {
+						errf("snapshot %s system disk %d: data blob %s missing", sn.ID.Short(), di, id.Short())
+					}
+				}
+			}
+		}
 	}
 	res.DataBlobs = len(seenData)
 
