@@ -295,8 +295,18 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		defer func() {
 			cctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 			defer cancel()
-			if _, err := command(cctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap); err != nil {
-				_, _ = command(cctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap, "--force")
+			_, err1 := command(cctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap)
+			if err1 == nil {
+				return
+			}
+			// The retry gets its own time: the first try may have used up
+			// the five minutes (a slow storage merging the snapshot).
+			fctx, fcancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer fcancel()
+			if _, err2 := command(fctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap, "--force"); err2 != nil {
+				warns = append(warns, fmt.Sprintf("the backup snapshot %s of guest %d could not be removed (%v; with --force: %v); the next backup of the guest removes it", snap, g.VMID, err1, err2))
+			} else {
+				warns = append(warns, fmt.Sprintf("the backup snapshot %s of guest %d was removed only with --force (%v)", snap, g.VMID, err1))
 			}
 		}()
 		switch {
