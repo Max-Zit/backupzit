@@ -165,7 +165,7 @@ The agent installers (MSI, deb, rpm), the server packages and the Linux recovery
 2. Start the VM. Its screen shows **the address of the web console and the initial password** of the user `admin`.
 3. Open `https://<address>:8443` in a browser. The browser warns once about the self-signed certificate. Sign in as `admin` and change the password.
 
-The appliance gets its address by DHCP. On the VM's own screen, sign in as `bzadmin` (initial password `backupzit`, which must be changed). A setup menu opens, where you can set:
+The appliance gets its address by DHCP. On the VM's own screen, sign in as `bzadmin` (the initial password is shown on that screen, a random one for each appliance; it must be changed). A setup menu opens, where you can set:
 - a static address,
 - the server name,
 - the time zone (e.g. `Europe/Belgrade`; the appliance starts in UTC),

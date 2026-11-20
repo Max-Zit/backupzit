@@ -1,6 +1,9 @@
 #!/bin/sh
 # First start of the BackupZit appliance: database, configuration, console.
 set -e
+# A random initial password for bzadmin before SSH can answer (the image
+# was built with the documented one).
+/usr/local/sbin/backupzit-appliance-boot bzadmin || true
 # VM images ship without SSH host keys: every copy gets its own.
 if ! ls /etc/ssh/ssh_host_*_key >/dev/null 2>&1; then
     ssh-keygen -A
