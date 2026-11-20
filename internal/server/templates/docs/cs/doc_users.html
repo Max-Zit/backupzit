@@ -9,13 +9,13 @@
   <tr><td>Spouštění, zastavování a rušení záloh (Spustit zálohu nyní, Zastavit běh, Zrušit vše čekající a běžící)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
   <tr><td>Obnova souborů, disků, systémů Linux a VM; procházení a stahování souborů v obrazech a zálohách VM</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
   <tr><td>Vytváření, změna a mazání úloh; plánované sestavy</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
-  <tr><td>Registrace, aktualizace a odebírání agentů; kódy obnovy</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
-  <tr><td>Cílová úložiště, přihlašovací údaje a klíče pro obnovu</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Aktualizace a odebírání agentů; kódy obnovy</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Cílová úložiště, přihlašovací údaje a klíče pro obnovu; přidávání agentů a agentů proxy VMware (agent dostává přihlašovací údaje k úložišti a klíč pro obnovu svých úloh)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
   <tr><td>Nastavení (e-mail, relace, LDAP, certifikát, aktualizace, záloha konzole)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
   <tr><td>Příkazy před zálohou a po ní (běží jako root / SYSTEM na agentovi)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
   <tr><td>Uživatelé a protokol auditu</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
 </table>
-<p>Typické rozdělení: IT správci jsou <b>Správci</b>; lidé, kteří vedou každodenní zálohy, jsou <b>Operátoři záloh</b>; helpdesk, který obnovuje smazané soubory, jsou <b>Operátoři obnovy</b>; vedení a auditoři jsou <b>Čtenáři</b>. Stránky a tlačítka, které role nesmí používat, jsou skryté a server je v každém případě odmítne. Mějte na paměti, že obnova může přepsat data — obnova obrazu disku nebo systému Linux vymaže cílový disk a obnova VM s volbou <i>nahradit</i> smaže existující VM — proto role obnovy dávejte jen lidem, kterým byste to svěřili; každá obnova je v protokolu auditu.</p>
+<p>Typické rozdělení: IT správci jsou <b>Správci</b>; lidé, kteří vedou každodenní zálohy, jsou <b>Operátoři záloh</b>; helpdesk, který obnovuje smazané soubory, jsou <b>Operátoři obnovy</b>; vedení a auditoři jsou <b>Čtenáři</b>. Stránky a tlačítka, které role nesmí používat, jsou skryté a server je v každém případě odmítne. Mějte na paměti, že obnova může přepsat data — obnova obrazu disku nebo systému Linux vymaže cílový disk a obnova VM s volbou <i>nahradit</i> smaže existující VM — proto role obnovy dávejte jen lidem, kterým byste to svěřili; každá obnova je v protokolu auditu. Systém obnovy spuštěný s kódem obnovy dostává přihlašovací údaje k úložišti zálohy, kterou obnovuje.</p>
 
 <h2>Místní uživatelé</h2>
 <p>V <a href="/users">Uživatelé</a> → <i>Nový místní uživatel</i> zadejte uživatelské jméno, roli a heslo o délce alespoň 10 znaků. Na stránce uživatele můžete změnit roli, zakázat účet (otevřené relace okamžitě skončí), nastavit nové heslo nebo uživatele smazat. Nastavení nového hesla uživatele všude odhlásí a zruší jeho tokeny API. Vlastní heslo se mění v části Můj účet, která vyžaduje současné heslo. Vytvoření uživatele a nastavení hesla jinému uživateli nejprve vyžaduje vaše vlastní heslo (nebo aktuální kód dvoufázového ověření; uživatelé jednotného přihlášení: přihlášení před méně než 10 minutami), aby ukradená relace nemohla založit účet, jehož heslo zná.</p>

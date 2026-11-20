@@ -9,13 +9,13 @@
   <tr><td>Start, stop and cancel backups (Run backup now, Stop run, Cancel all queued and running)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
   <tr><td>Restore files, disks, Linux systems and VMs; browse and download files in images and VM backups</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
   <tr><td>Create, change and delete jobs; scheduled reports</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
-  <tr><td>Enroll, update and remove agents; recovery codes</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
-  <tr><td>Storage targets, credentials and recovery keys</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td>Update and remove agents; recovery codes</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+  <tr><td>Storage targets, credentials and recovery keys; adding agents and VMware proxies (an agent receives the storage credentials and recovery key of its jobs)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
   <tr><td>Settings (email, sessions, LDAP, certificate, updates, console backup)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
   <tr><td>Commands before and after a backup (they run as root / SYSTEM on the agent)</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
   <tr><td>Users and audit log</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
 </table>
-<p>Typical use: IT administrators are <b>Administrators</b>; the people who run day-to-day backups are <b>Backup operators</b>; help desk staff who recover deleted files are <b>Restore operators</b>; management and auditors are <b>Viewers</b>. Pages and buttons a role may not use are hidden, and the server refuses them in any case. Note that restoring can overwrite data — a disk image or Linux system restore erases the target disk, and a VM restore with <i>replace</i> deletes the existing VM — so give the restore roles only to people you would trust with that; every restore is in the audit log.</p>
+<p>Typical use: IT administrators are <b>Administrators</b>; the people who run day-to-day backups are <b>Backup operators</b>; help desk staff who recover deleted files are <b>Restore operators</b>; management and auditors are <b>Viewers</b>. Pages and buttons a role may not use are hidden, and the server refuses them in any case. Note that restoring can overwrite data — a disk image or Linux system restore erases the target disk, and a VM restore with <i>replace</i> deletes the existing VM — so give the restore roles only to people you would trust with that; every restore is in the audit log. A recovery system started with a recovery code receives the storage credentials of the backup it restores.</p>
 
 <h2>Local users</h2>
 <p>Under <a href="/users">Users</a> → <i>New local user</i> enter a username, role and a password of at least 10 characters. On the user's page you can change the role, disable the account (open sessions end immediately), set a new password or delete the user. Setting a new password signs the user out everywhere and revokes their API tokens. Your own password is changed under My account, which asks for the current one. Creating a user and setting another user's password first ask for your own password (or your current two-factor code; single sign-on users: a sign-in less than 10 minutes ago), so that a stolen session cannot make an account whose password it knows.</p>

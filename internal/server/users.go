@@ -21,11 +21,13 @@ import (
 type Perm string
 
 const (
-	PermView     Perm = "view"     // dashboards, activity, calendar, reports, docs
-	PermRun      Perm = "run"      // start a backup of an existing job
-	PermRestore  Perm = "restore"  // restore files and disk images
-	PermJobs     Perm = "jobs"     // create, change, delete jobs; report schedules
-	PermAgents   Perm = "agents"   // enroll and remove agents, recovery codes
+	PermView    Perm = "view"    // dashboards, activity, calendar, reports, docs
+	PermRun     Perm = "run"     // start a backup of an existing job
+	PermRestore Perm = "restore" // restore files and disk images
+	PermJobs    Perm = "jobs"    // create, change, delete jobs; report schedules
+	PermAgents  Perm = "agents"  // update and remove agents, recovery codes
+	// PermStorage also adds agents and chooses VMware proxies: an agent gets
+	// the storage credentials and recovery key of its jobs (H-N2).
 	PermStorage  Perm = "storage"  // storage targets, credentials, recovery keys
 	PermSettings Perm = "settings" // email, sessions, LDAP
 	PermUsers    Perm = "users"    // users and the audit log
@@ -40,7 +42,7 @@ type Role struct {
 var Roles = []Role{
 	{"admin", "Administrator", "Full access, including users, settings, storage credentials and recovery keys.",
 		[]Perm{PermView, PermRun, PermRestore, PermJobs, PermAgents, PermStorage, PermSettings, PermUsers}},
-	{"operator", "Backup operator", "Manages agents, jobs and schedules, runs backups and restores. Cannot see storage credentials or recovery keys, or change users and settings.",
+	{"operator", "Backup operator", "Manages jobs and schedules, runs backups and restores, updates and removes agents. Cannot add agents or VMware proxies (they receive storage credentials), see storage credentials or recovery keys, or change users and settings.",
 		[]Perm{PermView, PermRun, PermRestore, PermJobs, PermAgents}},
 	{"restore", "Restore operator", "Help desk: sees everything, restores files and disks and can start backups, but cannot change jobs.",
 		[]Perm{PermView, PermRun, PermRestore}},
@@ -54,8 +56,8 @@ var AllPerms = []struct {
 	Name string
 }{
 	{PermView, "View dashboards, activity, reports"}, {PermRun, "Start backups"}, {PermRestore, "Restore files and disks"},
-	{PermJobs, "Manage jobs and report schedules"}, {PermAgents, "Enroll and remove agents"},
-	{PermStorage, "Storage targets and recovery keys"}, {PermSettings, "Settings and LDAP"}, {PermUsers, "Users and audit log"},
+	{PermJobs, "Manage jobs and report schedules"}, {PermAgents, "Update and remove agents"},
+	{PermStorage, "Storage targets, recovery keys, adding agents and VMware proxies"}, {PermSettings, "Settings and LDAP"}, {PermUsers, "Users and audit log"},
 }
 
 func roleByKey(k string) (Role, bool) {

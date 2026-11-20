@@ -84,7 +84,7 @@ sudo systemctl enable --now backupzit-agent</pre>
         {{if and ($.Me.Can "agents") (not .IsVCenter)}}<form method="post" action="/vmware/{{.ID}}/method" class="inline"><select name="method" data-autosubmit aria-label="{{T "How the host is changed"}}">
           <option value="" {{if eq .Method ""}}selected{{end}}>{{T "Automatic"}}</option><option value="ssh" {{if eq .Method "ssh"}}selected{{end}}>{{T "Always SSH"}}</option><option value="api" {{if eq .Method "api"}}selected{{end}}>{{T "Always vSphere API"}}</option></select>
           <button class="link small">{{T "Save"}}</button></form>{{end}}</td>
-      <td>{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/proxy" class="inline">
+      <td>{{if $.Me.Can "storage"}}<form method="post" action="/vmware/{{.ID}}/proxy" class="inline">
           <select name="proxy_agent_id" data-autosubmit>{{if not .ProxyAgentID}}<option value="">{{T "— choose —"}}</option>{{end}}{{$p := .ProxyAgentID}}{{range $.Data.Agents}}<option value="{{.ID}}" {{if and $p (eq .ID (deref64 $p))}}selected{{end}}>{{.Label}}</option>{{end}}</select>
           <button class="link small">{{T "Save"}}</button></form>
           <form method="post" action="/vmware/{{.ID}}/hotadd" class="hotadd"><label class="check small"><input type="checkbox" name="hot_add" data-autosubmit {{if .HotAdd}}checked{{end}}> {{T "Hot-add"}}</label> <a class="small" href="/docs/vmware#hot-add">{{T "what is this?"}}</a> <button class="link small">{{T "Save"}}</button></form>
@@ -104,7 +104,7 @@ sudo systemctl enable --now backupzit-agent</pre>
     {{end}}
   </table></div>
   {{else}}<p class="muted">{{T "No ESXi host added yet."}}</p>{{end}}
-  {{if $.Me.Can "agents"}}
+  {{if $.Me.Can "storage"}}
   <details class="mt" {{if not .Data.VMwareHosts}}open{{end}}>
     <summary>{{T "Add an ESXi host or vCenter Server"}}</summary>
     <form method="post" action="/vmware" class="stack mt">
@@ -130,7 +130,7 @@ sudo systemctl enable --now backupzit-agent</pre>
 </div>
 
 <div class="row">
-{{if $.Me.Can "agents"}}  <div class="panel">
+{{if $.Me.Can "storage"}}  <div class="panel">
     <h2>{{T "Add agents"}}</h2>
     <p class="muted">{{T "Create an enrollment token, then install the agent on each machine with it."}}</p>
     <form method="post" action="/agents/token" class="stack">

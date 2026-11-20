@@ -1142,8 +1142,16 @@ func TestUsersAndRoles(t *testing.T) {
 
 	op := newClient(t, e)
 	op.login("operator1", "correct-horse-9")
-	if code, _, _ := op.do("POST", "/agents/token", url.Values{}); code != 200 {
+	// H-N2: an agent gets the storage credentials and recovery key of its
+	// jobs, so adding agents is the storage permission's (administrators).
+	if code, _, _ := op.do("POST", "/agents/token", url.Values{}); code != http.StatusForbidden {
 		t.Errorf("operator enrollment token: %d", code)
+	}
+	if code, _, _ := op.do("POST", "/vmware/1/proxies", url.Values{}); code != http.StatusForbidden {
+		t.Errorf("operator further proxies: %d", code)
+	}
+	if code, _, _ := admin.do("POST", "/agents/token", url.Values{}); code != 200 {
+		t.Errorf("admin enrollment token: %d", code)
 	}
 	if code, _, _ := op.do("POST", "/targets", url.Values{"name": {"x"}, "kind": {"local"}, "url": {"/tmp/x"}}); code != http.StatusForbidden {
 		t.Errorf("operator created storage: %d", code)
