@@ -173,7 +173,7 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		// Removing the affected backups keeps the ones VMs run from (instant
 		// recovery) and stops while retention is paused after a suspicious
 		// backup (checked again here: the hold may have started since).
-		if slices.Contains(run.Paths, repairForgetFlag) && run.TargetID != nil && !s.store.repoRetentionHold(ctx, run.AgentID, *run.TargetID) {
+		if slices.Contains(run.Paths, repairForgetFlag) && run.TargetID != nil && !s.store.repoRetentionHold(ctx, *run.TargetID, run.RepoURL) {
 			if keep, err := s.store.instantSnapshots(ctx); err == nil {
 				ar.RepairForget, ar.KeepSnapshots = true, keep
 			}

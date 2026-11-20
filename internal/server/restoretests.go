@@ -79,10 +79,13 @@ func (s *Store) QueueRestoreTest(ctx context.Context, jobID int64, trigger strin
 		agentID, targetID int64
 		repoURL, snapshot string
 	}
-	err := s.db.QueryRow(ctx, `SELECT agent_id, target_id, repo_url, snapshot_id FROM runs
-		WHERE job_id=$1 AND kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') AND status IN ('success','warning')
-		AND snapshot_id<>'' AND NOT expired AND target_id IS NOT NULL
-		ORDER BY finished_at DESC LIMIT 1`, jobID).Scan(&b.agentID, &b.targetID, &b.repoURL, &b.snapshot)
+	// On the job's agent (M-N4): the newest run may be a part of a further
+	// VMware proxy that is offline or removed now; the test reads the backup
+	// from the repository, which every proxy of the connection can.
+	err := s.db.QueryRow(ctx, `SELECT j.agent_id, r.target_id, r.repo_url, r.snapshot_id FROM runs r JOIN jobs j ON j.id=r.job_id
+		WHERE r.job_id=$1 AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') AND r.status IN ('success','warning')
+		AND r.snapshot_id<>'' AND NOT r.expired AND r.target_id IS NOT NULL
+		ORDER BY r.finished_at DESC LIMIT 1`, jobID).Scan(&b.agentID, &b.targetID, &b.repoURL, &b.snapshot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, errors.New("the job has no backup to test yet")
 	}

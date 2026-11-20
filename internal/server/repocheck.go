@@ -36,9 +36,11 @@ func (x RestoreTestSettings) repoCheckInterval() time.Duration {
 func (s *Store) QueueRepoCheck(ctx context.Context, jobID int64, trigger string) (int64, error) {
 	var agentID, targetID int64
 	var repoURL string
-	err := s.db.QueryRow(ctx, `SELECT agent_id, target_id, repo_url FROM runs
-		WHERE job_id=$1 AND kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') AND status IN ('success','warning')
-		AND target_id IS NOT NULL AND repo_url<>'' ORDER BY finished_at DESC LIMIT 1`, jobID).Scan(&agentID, &targetID, &repoURL)
+	// On the job's agent: the newest run may be a part of a further VMware
+	// proxy that is offline or removed now (M-N4); the repository is one.
+	err := s.db.QueryRow(ctx, `SELECT j.agent_id, r.target_id, r.repo_url FROM runs r JOIN jobs j ON j.id=r.job_id
+		WHERE r.job_id=$1 AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') AND r.status IN ('success','warning')
+		AND r.target_id IS NOT NULL AND r.repo_url<>'' ORDER BY r.finished_at DESC LIMIT 1`, jobID).Scan(&agentID, &targetID, &repoURL)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, errors.New("the job has no backup to check yet")
 	}
@@ -164,7 +166,7 @@ func (s *Server) handleRepoRepair(w http.ResponseWriter, r *http.Request, _ stri
 	}
 	forget := r.FormValue("forget") == "on"
 	if forget {
-		if s.store.repoRetentionHold(r.Context(), run.AgentID, *run.TargetID) {
+		if s.store.repoRetentionHold(r.Context(), *run.TargetID, run.RepoURL) {
 			redirectErr(w, r, back, errRepairHold)
 			return
 		}
@@ -221,7 +223,7 @@ func (s *Server) executeRepoRepairForget(ctx context.Context, checkID int64) err
 	if err := s.checkRepoRepair(ctx, run); err != nil {
 		return err
 	}
-	if s.store.repoRetentionHold(ctx, run.AgentID, *run.TargetID) {
+	if s.store.repoRetentionHold(ctx, *run.TargetID, run.RepoURL) {
 		return errRepairHold
 	}
 	if _, err := s.store.queueRepoRepair(ctx, run, true); errors.Is(err, pgx.ErrNoRows) {
@@ -247,11 +249,14 @@ func (s *Store) queueRepoRepair(ctx context.Context, check Run, forget bool) (in
 	return rid, err
 }
 
-// repoRetentionHold tells whether retention of a job of the agent on the
-// target is paused after a suspicious backup (true also when unknown).
-func (s *Store) repoRetentionHold(ctx context.Context, agentID, targetID int64) bool {
+// repoRetentionHold tells whether retention of a job whose backups are in the
+// repository is paused after a suspicious backup (true also when unknown).
+func (s *Store) repoRetentionHold(ctx context.Context, targetID int64, repoURL string) bool {
+	// By repository, not by agent: the check of a split VMware job may run on
+	// a further proxy that has no job of its own (M-N2).
 	var hold bool
-	if err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM jobs WHERE agent_id=$1 AND target_id=$2 AND retention_hold)`, agentID, targetID).Scan(&hold); err != nil {
+	if err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM jobs j WHERE j.retention_hold AND j.target_id=$1
+		AND EXISTS (SELECT 1 FROM runs r WHERE r.job_id=j.id AND r.target_id=$1 AND r.repo_url=$2))`, targetID, repoURL).Scan(&hold); err != nil {
 		return true
 	}
 	return hold
