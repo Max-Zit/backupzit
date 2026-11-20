@@ -81,10 +81,17 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 		defer s.Notifier.Pass(ctx, now)
 	}
 	s.store.refreshVMware(ctx, now)
-	if n, err := s.store.FailStaleRuns(ctx, s.StaleAfter, s.started); err != nil {
+	if ids, err := s.store.FailStaleRuns(ctx, s.StaleAfter, s.started); err != nil {
 		s.log.Error("fail stale runs", "err", err)
-	} else if n > 0 {
-		s.log.Warn("marked runs of unresponsive agents as failed", "count", n)
+	} else if len(ids) > 0 {
+		s.log.Warn("marked runs of unresponsive agents as failed", "count", len(ids))
+		s.chainAfter(ctx, ids)
+	}
+	if ids, err := s.store.failStaleParts(ctx, time.Hour); err != nil {
+		s.log.Error("fail stale parts", "err", err)
+	} else if len(ids) > 0 {
+		s.log.Warn("failed queued parts of proxies that went away", "count", len(ids))
+		s.chainAfter(ctx, ids)
 	}
 	if stopped, err := s.store.enforceTimeLimits(ctx, now); err != nil {
 		s.log.Error("job time limits", "err", err)
@@ -166,5 +173,18 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 		s.log.Error("queue data checks", "err", err)
 	} else if len(ids) > 0 {
 		s.log.Info("queued checks of the stored data", "runs", ids)
+	}
+}
+
+// chainAfter decides the chained jobs (and, for split starts, the copies)
+// after runs the console ended itself: a single run chains once as before,
+// a split start once its last part ended (L-14, L-N20, M-N3).
+func (s *Scheduler) chainAfter(ctx context.Context, ids []int64) {
+	for _, id := range ids {
+		if queued, err := s.store.chainAfterRun(ctx, id); err != nil {
+			s.log.Error("chain after run", "run", id, "err", err)
+		} else if len(queued) > 0 {
+			s.log.Info("chained jobs queued", "after", id, "runs", queued)
+		}
 	}
 }

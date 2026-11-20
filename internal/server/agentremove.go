@@ -78,26 +78,46 @@ func (s *Store) agentRepos(ctx context.Context, agentID int64) ([]agentRepo, err
 // softRemoveAgent keeps a removed agent as history of its backups: queued
 // runs are dropped, its jobs deleted (runs keep the job's name) and it can
 // no longer sign in.
-func (s *Store) softRemoveAgent(ctx context.Context, id int64) error {
+func (s *Store) softRemoveAgent(ctx context.Context, id int64) ([]int64, error) {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer tx.Rollback(ctx)
+	// Parts of split VMware starts end as failed instead of vanishing, so
+	// the start is decided (chains, copies) once the others are done (M-N3).
+	rows, err := tx.Query(ctx, `UPDATE runs SET status='failed', message='The agent was removed.', finished_at=now()
+		WHERE agent_id=$1 AND (status='running' OR (status='queued' AND batch IS NOT NULL)) RETURNING id`, id)
+	if err != nil {
+		return nil, err
+	}
+	ended, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return nil, err
+	}
 	for _, q := range []string{
 		`UPDATE runs r SET job_name=j.name FROM jobs j WHERE r.job_id=j.id AND r.agent_id=$1`,
 		`DELETE FROM runs WHERE agent_id=$1 AND status='queued'`,
-		`UPDATE runs SET status='failed', message='The agent was removed.', finished_at=now() WHERE agent_id=$1 AND status='running'`,
 		`UPDATE vmware_hosts SET proxy_agent_id=NULL WHERE proxy_agent_id=$1`,
 		`DELETE FROM jobs WHERE agent_id=$1`,
 		`DELETE FROM agent_removals WHERE agent_id=$1`,
 		`UPDATE agents SET removed_at=now() WHERE id=$1`,
 	} {
 		if _, err := tx.Exec(ctx, q, id); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return tx.Commit(ctx)
+	return ended, tx.Commit(ctx)
+}
+
+// hasConnectionParts tells whether the agent backed up parts of a split
+// VMware start for a connection it is not (or no longer) the proxy of.
+func (s *Store) hasConnectionParts(ctx context.Context, agentID int64) bool {
+	var ok bool
+	_ = s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM runs r LEFT JOIN jobs j ON j.id=r.job_id
+		WHERE r.agent_id=$1 AND r.vmware_host_id IS NOT NULL AND r.snapshot_id<>''
+		AND (j.agent_id IS NULL OR j.agent_id<>r.agent_id))`, agentID).Scan(&ok)
+	return ok
 }
 
 // expireSnapshots marks the runs of deleted backups.
@@ -385,10 +405,17 @@ func (s *Server) completeAgentRemoval(ctx context.Context, a Agent, backups, by,
 	if err != nil {
 		return err
 	}
-	if backups == removeAllBackups || len(repos) == 0 {
+	// The parts a further VMware proxy backed up belong to the connection
+	// and stay restorable: such an agent is always kept as history (runs
+	// go with the agent row).
+	if (backups == removeAllBackups || len(repos) == 0) && !s.store.hasConnectionParts(ctx, a.ID) {
 		err = s.store.DeleteAgent(ctx, a.ID)
 	} else {
-		err = s.store.softRemoveAgent(ctx, a.ID)
+		var ended []int64
+		ended, err = s.store.softRemoveAgent(ctx, a.ID)
+		for _, id := range ended {
+			s.chainAfterRun(ctx, id)
+		}
 	}
 	if err != nil {
 		return err

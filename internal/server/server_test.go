@@ -300,11 +300,11 @@ func TestAgentLifecycle(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 	// M-1 (0.55): the silence counts from the console's start: right after a
 	// restart the agents get their time to poll again.
-	if n, err := e.store.FailStaleRuns(ctx, time.Second, time.Now()); err != nil || n != 0 {
-		t.Fatalf("run failed right after the console started: n=%d err=%v", n, err)
+	if ids, err := e.store.FailStaleRuns(ctx, time.Second, time.Now()); err != nil || len(ids) != 0 {
+		t.Fatalf("run failed right after the console started: %v err=%v", ids, err)
 	}
-	if n, err := e.store.FailStaleRuns(ctx, time.Second, time.Now().Add(-time.Hour)); err != nil || n != 1 {
-		t.Fatalf("fail stale: n=%d err=%v", n, err)
+	if ids, err := e.store.FailStaleRuns(ctx, time.Second, time.Now().Add(-time.Hour)); err != nil || len(ids) != 1 || ids[0] != stale {
+		t.Fatalf("fail stale: %v err=%v", ids, err)
 	}
 	if r, _ := e.store.GetRun(ctx, stale); r.Status != api.StatusFailed {
 		t.Errorf("stale run status %s", r.Status)

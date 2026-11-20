@@ -1027,15 +1027,33 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 // start at the earliest: while the console was down (a restart, an
 // appliance update) no agent could poll. Such runs keep stale_failed, so
 // the agent's result is still taken when it comes (FinishRun).
-func (s *Store) FailStaleRuns(ctx context.Context, after time.Duration, consoleStart time.Time) (int64, error) {
-	ct, err := s.db.Exec(ctx, `UPDATE runs r SET status='failed', finished_at=now(), stale_failed=true,
+func (s *Store) FailStaleRuns(ctx context.Context, after time.Duration, consoleStart time.Time) ([]int64, error) {
+	rows, err := s.db.Query(ctx, `UPDATE runs r SET status='failed', finished_at=now(), stale_failed=true,
 		message='agent stopped responding while the run was in progress'
 		FROM agents a WHERE a.id=r.agent_id AND r.status='running'
-		AND GREATEST(coalesce(a.last_seen_at, $2::timestamptz), $2::timestamptz) < now() - make_interval(secs => $1)`, after.Seconds(), consoleStart)
+		AND GREATEST(coalesce(a.last_seen_at, $2::timestamptz), $2::timestamptz) < now() - make_interval(secs => $1)
+		RETURNING r.id`, after.Seconds(), consoleStart)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return ct.RowsAffected(), nil
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+// failStaleParts fails the queued parts of a split VMware start whose
+// proxy has not polled for longer than after: they would never start and
+// would hold up every later start of the job (M-N3). The parts are only
+// given to proxies that poll, so this is a proxy that went away since.
+func (s *Store) failStaleParts(ctx context.Context, after time.Duration) ([]int64, error) {
+	rows, err := s.db.Query(ctx, `UPDATE runs r SET status='failed', finished_at=now(),
+		message='the proxy agent did not pick up its part (it has not contacted the console since)'
+		FROM agents a WHERE a.id=r.agent_id AND r.status='queued' AND r.batch IS NOT NULL
+		AND r.queued_at < now() - make_interval(secs => $1)
+		AND coalesce(a.last_seen_at, 'epoch'::timestamptz) < now() - make_interval(secs => $1)
+		RETURNING r.id`, after.Seconds())
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }
 
 // Summary holds dashboard counters.

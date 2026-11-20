@@ -265,4 +265,20 @@ func TestVMwareParts(t *testing.T) {
 	if !strings.Contains(msg, "several proxies") {
 		t.Errorf("old proxy's part: %q", msg)
 	}
+
+	// Removing the further proxy while its part of this start is still queued:
+	// the part ends as failed (the start is decided), the agent is kept as
+	// history and its earlier parts stay in Activity (H-N1, M-N3).
+	var parts int
+	e.pool.QueryRow(ctx, `SELECT count(*) FROM runs WHERE agent_id=$1 AND snapshot_id<>''`, pb.id).Scan(&parts)
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/agents/%d/delete", pb.id), url.Values{"backups": {"keep"}}); !strings.Contains(loc, "msg=") {
+		t.Fatalf("remove the further proxy: %s", loc)
+	}
+	var removed bool
+	var left, queued int
+	e.pool.QueryRow(ctx, `SELECT removed_at IS NOT NULL FROM agents WHERE id=$1`, pb.id).Scan(&removed)
+	e.pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE snapshot_id<>''), count(*) FILTER (WHERE status='queued') FROM runs WHERE agent_id=$1`, pb.id).Scan(&left, &queued)
+	if !removed || left != parts || parts == 0 || queued != 0 {
+		t.Errorf("after removing the further proxy: removed=%v, backups %d of %d, queued %d", removed, left, parts, queued)
+	}
 }

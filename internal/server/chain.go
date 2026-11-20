@@ -105,6 +105,17 @@ func (s *Store) chainAfterRun(ctx context.Context, runID int64) ([]int64, error)
 		return nil, nil
 	}
 	ok := run.Status == api.StatusSuccess || run.Status == api.StatusWarning
+	if run.Batch == nil {
+		// Once per run: the console may end a run (stale agent) and the agent
+		// still report it later; the chain was decided the first time.
+		ct, err := s.db.Exec(ctx, `UPDATE runs SET chained=true WHERE id=$1 AND NOT chained`, run.ID)
+		if err != nil {
+			return nil, err
+		}
+		if ct.RowsAffected() == 0 {
+			return nil, nil
+		}
+	}
 	if run.Batch != nil {
 		// A backup split over several proxies: the chain follows once, after
 		// the last part, and as a success only if every part succeeded. The
