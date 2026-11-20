@@ -223,7 +223,10 @@ func sendMailFull(ctx context.Context, e EmailSettings, subject, body string, at
 	if err := w.Close(); err != nil {
 		return err
 	}
-	return c.Quit()
+	// The server accepted the message with the end of DATA: a failing QUIT
+	// must not count as an error, or the mail is sent again on every pass.
+	_ = c.Quit()
+	return nil
 }
 
 // Notifier sends run alerts and daily reports.
