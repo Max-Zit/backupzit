@@ -45,11 +45,16 @@ func (s *Store) QueueRepoCheck(ctx context.Context, jobID int64, trigger string)
 	if err != nil {
 		return 0, err
 	}
+	return s.queueRepoCheckOf(ctx, jobID, agentID, targetID, repoURL, trigger)
+}
+
+// queueRepoCheckOf queues a check of one repository (target and URL).
+func (s *Store) queueRepoCheckOf(ctx context.Context, jobID, agentID, targetID int64, repoURL, trigger string) (int64, error) {
 	if a, err := s.GetAgent(ctx, agentID); err == nil && agentOlder(a, minRepoCheckVersion) {
 		return 0, fmt.Errorf("the agent on %s (%s) cannot check the stored data yet; update it to %s or newer", a.Hostname, a.Version, minRepoCheckVersion)
 	}
 	var id int64
-	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, notified)
+	err := s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, notified)
 		SELECT $1,$2,'repo-check',$3,$4,$5,false
 		WHERE NOT EXISTS (SELECT 1 FROM runs WHERE kind='repo-check' AND target_id=$5 AND repo_url=$4 AND status IN ('queued','running'))
 		RETURNING id`, agentID, jobID, trigger, repoURL, targetID).Scan(&id)
@@ -68,7 +73,10 @@ func (s *Store) queueDueRepoChecks(ctx context.Context, now time.Time) ([]int64,
 	if every == 0 {
 		return nil, nil
 	}
-	rows, err := s.db.Query(ctx, `SELECT DISTINCT ON (r.target_id, r.repo_url) r.job_id FROM runs r
+	// The due pair itself is checked: a job with runs under two repository
+	// URLs (rotating USB disks, a moved folder) would otherwise get its newest
+	// repository checked again and again while the old pair stayed due.
+	rows, err := s.db.Query(ctx, `SELECT DISTINCT ON (r.target_id, r.repo_url) r.job_id, r.agent_id, r.target_id, r.repo_url FROM runs r
 		JOIN jobs j ON j.id=r.job_id JOIN storage_targets t ON t.id=r.target_id
 		WHERE j.enabled AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log')
 		AND r.status IN ('success','warning') AND r.repo_url<>''
@@ -79,13 +87,20 @@ func (s *Store) queueDueRepoChecks(ctx context.Context, now time.Time) ([]int64,
 	if err != nil {
 		return nil, err
 	}
-	jobs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	type due struct {
+		Job, Agent, Target int64
+		URL                string
+	}
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (due, error) {
+		var d due
+		return d, r.Scan(&d.Job, &d.Agent, &d.Target, &d.URL)
+	})
 	if err != nil {
 		return nil, err
 	}
 	var queued []int64
-	for _, j := range jobs {
-		if id, err := s.QueueRepoCheck(ctx, j, "schedule"); err == nil {
+	for _, d := range list {
+		if id, err := s.queueRepoCheckOf(ctx, d.Job, d.Agent, d.Target, d.URL, "schedule"); err == nil {
 			queued = append(queued, id)
 		}
 	}

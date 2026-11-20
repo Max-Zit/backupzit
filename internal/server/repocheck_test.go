@@ -219,4 +219,33 @@ func TestRepoCheck(t *testing.T) {
 	if n != 1 {
 		t.Errorf("scheduled checks queued: %d", n)
 	}
+
+	// M-22 (0.55): the job also has older backups in another repository (a
+	// rotating disk, a moved folder): both are checked once, no loop.
+	if _, err := e.pool.Exec(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, status, repo_url, target_id, queued_at, started_at, finished_at)
+		SELECT agent_id, job_id, 'backup', 'manual', 'success', repo_url || '-old', target_id, queued_at, started_at, finished_at
+		FROM runs WHERE job_id=$1 AND kind='backup' ORDER BY id LIMIT 1`, jobID); err != nil {
+		t.Fatal(err)
+	}
+	countChecks := func() map[string]int {
+		m := map[string]int{}
+		runs, _ := e.store.ListRuns(ctx, server.RunFilter{JobID: jobID, Limit: 100})
+		for _, r := range runs {
+			if r.Kind == "repo-check" && r.Status == "queued" && r.Trigger == "schedule" {
+				m[r.RepoURL]++
+			}
+		}
+		return m
+	}
+	sched.Tick(ctx, time.Now().Add(31*24*time.Hour))
+	sched.Tick(ctx, time.Now().Add(31*24*time.Hour))
+	if m := countChecks(); len(m) != 2 {
+		t.Errorf("scheduled checks per repository: %v", m)
+	} else {
+		for u, c := range m {
+			if c != 1 {
+				t.Errorf("repository %s checked %d times", u, c)
+			}
+		}
+	}
 }
