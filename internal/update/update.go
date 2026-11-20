@@ -284,13 +284,32 @@ func marshal(v any) []byte {
 	return append(b, '\n')
 }
 
-// WriteJSON writes v atomically.
+// WriteJSON writes v atomically. The root update helper writes its results
+// into a folder the console user can write to: a fixed temporary name
+// there could be a planted symlink, and root would overwrite whatever it
+// points to. A new file with a random name (O_EXCL, never through a
+// symlink) is renamed over p instead; the rename replaces a symlink at p
+// itself, not its target.
 func WriteJSON(p string, v any, mode os.FileMode) error {
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, marshal(v), mode); err != nil {
+	f, err := os.CreateTemp(filepath.Dir(p), "."+filepath.Base(p)+".*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, p)
+	tmp := f.Name()
+	_, err = f.Write(marshal(v))
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmp, mode)
+	}
+	if err == nil {
+		err = os.Rename(tmp, p)
+	}
+	if err != nil {
+		_ = os.Remove(tmp)
+	}
+	return err
 }
 
 // ReadJSON reads a JSON file into v.
