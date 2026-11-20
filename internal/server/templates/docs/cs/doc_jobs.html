@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — poštovní schránky Exchange Online, kalendáře, kontakty, OneDrive a weby SharePoint, čtené přes Microsoft Graph libovolným agentem; viz <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Volitelně přidejte <b>výjimky</b>, jednu na řádek: vzor názvu, který platí v každé složce (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), nebo úplnou cestu, která platí jen pro daný soubor či složku (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, i se zástupnými znaky: <code>D:\VMs\*.iso</code>). Ve Windows úplné cesty nerozlišují velká a malá písmena.</li>
+  <li>Volitelně přidejte <b>výjimky</b>, jednu na řádek: vzor názvu, který platí v každé složce (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), nebo úplnou cestu, která platí jen pro daný soubor či složku (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, i se zástupnými znaky: <code>D:\VMs\*.iso</code>). Ve Windows úplné cesty nerozlišují velká a malá písmena. Na Linuxu se jaderné souborové systémy jako <code>/proc</code>, <code>/sys</code> a <code>/dev</code> vždy uloží jako prázdné složky, i když úloha zálohuje <code>/</code>.</li>
   <li>Nastavte <b>Ponechat zálohy</b> a <b>Rozvrh</b>, pak <i>Vytvořit úlohu</i>.</li>
 </ol>
 

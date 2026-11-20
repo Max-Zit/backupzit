@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b>——Exchange Online 邮箱、日历、联系人、OneDrive 和 SharePoint 网站，由任意代理通过 Microsoft Graph 读取；参见 <a href="/docs/m365">Microsoft 365</a>。</li>
     </ul>
   </li>
-  <li>可选添加<b>排除项</b>，每行一个：名称模式，适用于每个文件夹（<code>*.tmp</code>、<code>node_modules</code>、<code>Thumbs.db</code>、<code>*.iso</code>），或完整路径，仅适用于该文件或文件夹（<code>C:\Data\Temp</code>、<code>/srv/www/cache</code>，也可使用通配符：<code>D:\VMs\*.iso</code>）。在 Windows 上，完整路径不区分大小写。</li>
+  <li>可选添加<b>排除项</b>，每行一个：名称模式，适用于每个文件夹（<code>*.tmp</code>、<code>node_modules</code>、<code>Thumbs.db</code>、<code>*.iso</code>），或完整路径，仅适用于该文件或文件夹（<code>C:\Data\Temp</code>、<code>/srv/www/cache</code>，也可使用通配符：<code>D:\VMs\*.iso</code>）。在 Windows 上，完整路径不区分大小写。在 Linux 上，<code>/proc</code>、<code>/sys</code> 和 <code>/dev</code> 等内核文件系统始终保存为空文件夹，即使作业备份的是 <code>/</code>。</li>
   <li>设置<b>保留备份</b>和<b>计划</b>，然后点击<i>创建作业</i>。</li>
 </ol>
 

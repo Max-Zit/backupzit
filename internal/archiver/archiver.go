@@ -68,6 +68,9 @@ type Archiver struct {
 	// parentDev is the file system of the directory being archived
 	// (OneFileSystem).
 	parentDev *uint64
+	// pseudo are mount points of kernel file systems (Linux): kept as empty
+	// folders, never read.
+	pseudo map[string]bool
 	// links maps hard link keys to the first stored node.
 	links map[string]*repo.Node
 }
@@ -107,10 +110,11 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 	}
 
 	a := &Archiver{
-		r:    r,
-		opts: opts,
-		buf:  make([]byte, chunker.MaxSize),
-		chk:  chunker.New(nil, r.ChunkerPolynomial()),
+		r:      r,
+		opts:   opts,
+		buf:    make([]byte, chunker.MaxSize),
+		chk:    chunker.New(nil, r.ChunkerPolynomial()),
+		pseudo: pseudoMounts(),
 	}
 	start := time.Now()
 	before := r.Stats()
@@ -215,10 +219,11 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 // are listed in the returned stats' errors.
 func Dir(ctx context.Context, r *repo.Repository, dir, name string, parent *repo.Node, opts Options) (repo.Node, repo.SnapshotStats, error) {
 	a := &Archiver{
-		r:    r,
-		opts: opts,
-		buf:  make([]byte, chunker.MaxSize),
-		chk:  chunker.New(nil, r.ChunkerPolynomial()),
+		r:      r,
+		opts:   opts,
+		buf:    make([]byte, chunker.MaxSize),
+		chk:    chunker.New(nil, r.ChunkerPolynomial()),
+		pseudo: pseudoMounts(),
 	}
 	n, ok, err := a.archivePath(ctx, dir, name, parent)
 	if err != nil {
@@ -419,7 +424,7 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 		n.Type = repo.NodeDir
 		a.stats.Dirs++
 		dev, _ := deviceOf(fi)
-		if a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev && !slices.Contains(a.opts.ExtraMounts, p) {
+		if a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev && !slices.Contains(a.opts.ExtraMounts, p) || a.pseudo[p] {
 			// A mount point of another file system: keep the directory, not
 			// its contents (system backups list each file system as a path).
 			id, err := a.r.SaveTree(ctx, &repo.Tree{})

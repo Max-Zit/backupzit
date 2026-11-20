@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — boîtes aux lettres Exchange Online, calendriers, contacts, OneDrive et sites SharePoint, lus via Microsoft Graph par n'importe quel agent ; voir <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Ajoutez éventuellement des <b>exclusions</b>, une par ligne : un motif de nom, valable dans chaque dossier (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), ou un chemin complet, valable pour ce seul fichier ou dossier (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, aussi avec jokers : <code>D:\VMs\*.iso</code>). Sous Windows, les chemins complets ignorent la casse.</li>
+  <li>Ajoutez éventuellement des <b>exclusions</b>, une par ligne : un motif de nom, valable dans chaque dossier (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), ou un chemin complet, valable pour ce seul fichier ou dossier (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, aussi avec jokers : <code>D:\VMs\*.iso</code>). Sous Windows, les chemins complets ignorent la casse. Sous Linux, les systèmes de fichiers du noyau comme <code>/proc</code>, <code>/sys</code> et <code>/dev</code> sont toujours gardés comme dossiers vides, même quand la tâche sauvegarde <code>/</code>.</li>
   <li>Définissez <b>Conserver les sauvegardes</b> et la <b>Planification</b>, puis <i>Créer la tâche</i>.</li>
 </ol>
 

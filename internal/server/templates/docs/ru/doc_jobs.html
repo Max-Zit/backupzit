@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — почтовые ящики Exchange Online, календари, контакты, OneDrive и сайты SharePoint, которые любой агент читает через Microsoft Graph; см. <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>При желании добавьте <b>исключения</b>, по одному в строке: шаблон имени, действующий в каждой папке (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), или полный путь, действующий только для этого файла или папки (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, в том числе с подстановочными знаками: <code>D:\VMs\*.iso</code>). В Windows полные пути не учитывают регистр.</li>
+  <li>При желании добавьте <b>исключения</b>, по одному в строке: шаблон имени, действующий в каждой папке (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), или полный путь, действующий только для этого файла или папки (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, в том числе с подстановочными знаками: <code>D:\VMs\*.iso</code>). В Windows полные пути не учитывают регистр. В Linux файловые системы ядра, например <code>/proc</code>, <code>/sys</code> и <code>/dev</code>, всегда сохраняются как пустые папки, даже когда задание копирует <code>/</code>.</li>
   <li>Задайте <b>Хранить копии</b> и <b>Расписание</b>, затем <i>Создать задание</i>.</li>
 </ol>
 

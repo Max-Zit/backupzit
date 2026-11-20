@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b>: buzones de Exchange Online, calendarios, contactos, OneDrive y sitios de SharePoint, leídos mediante Microsoft Graph por cualquier agente; consulte <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Opcionalmente añada <b>exclusiones</b>, una por línea: un patrón de nombre, que se aplica en todas las carpetas (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), o una ruta completa, que se aplica solo a ese archivo o carpeta (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, también con comodines: <code>D:\VMs\*.iso</code>). En Windows las rutas completas no distinguen mayúsculas y minúsculas.</li>
+  <li>Opcionalmente añada <b>exclusiones</b>, una por línea: un patrón de nombre, que se aplica en todas las carpetas (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), o una ruta completa, que se aplica solo a ese archivo o carpeta (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, también con comodines: <code>D:\VMs\*.iso</code>). En Windows las rutas completas no distinguen mayúsculas y minúsculas. En Linux, los sistemas de archivos del kernel como <code>/proc</code>, <code>/sys</code> y <code>/dev</code> se guardan siempre como carpetas vacías, también cuando el trabajo copia <code>/</code>.</li>
   <li>Defina <b>Conservar copias</b> y la <b>Programación</b> y luego <i>Crear trabajo</i>.</li>
 </ol>
 

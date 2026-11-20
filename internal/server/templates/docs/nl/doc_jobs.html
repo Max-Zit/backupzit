@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — Exchange Online-postvakken, agenda's, contactpersonen, OneDrive en SharePoint-sites, gelezen via Microsoft Graph door een willekeurige agent; zie <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Voeg optioneel <b>uitsluitingen</b> toe, één per regel: een naampatroon, dat in elke map geldt (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), of een volledig pad, dat alleen voor dat ene bestand of die map geldt (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, ook met jokertekens: <code>D:\VMs\*.iso</code>). Op Windows negeren volledige paden hoofd- en kleine letters.</li>
+  <li>Voeg optioneel <b>uitsluitingen</b> toe, één per regel: een naampatroon, dat in elke map geldt (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), of een volledig pad, dat alleen voor dat ene bestand of die map geldt (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, ook met jokertekens: <code>D:\VMs\*.iso</code>). Op Windows negeren volledige paden hoofd- en kleine letters. Op Linux worden kernelbestandssystemen zoals <code>/proc</code>, <code>/sys</code> en <code>/dev</code> altijd als lege mappen bewaard, ook als de taak <code>/</code> back-upt.</li>
   <li>Stel <b>Back-ups bewaren</b> en het <b>Schema</b> in en kies dan <i>Taak maken</i>.</li>
 </ol>
 

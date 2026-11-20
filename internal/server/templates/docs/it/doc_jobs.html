@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — caselle di Exchange Online, calendari, contatti, OneDrive e siti SharePoint, letti tramite Microsoft Graph da qualsiasi agente; vedete <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Facoltativamente aggiungete <b>esclusioni</b>, una per riga: un modello di nome, valido in ogni cartella (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), o un percorso completo, valido solo per quel file o quella cartella (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, anche con caratteri jolly: <code>D:\VMs\*.iso</code>). Su Windows i percorsi completi ignorano maiuscole e minuscole.</li>
+  <li>Facoltativamente aggiungete <b>esclusioni</b>, una per riga: un modello di nome, valido in ogni cartella (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), o un percorso completo, valido solo per quel file o quella cartella (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, anche con caratteri jolly: <code>D:\VMs\*.iso</code>). Su Windows i percorsi completi ignorano maiuscole e minuscole. Su Linux i file system del kernel come <code>/proc</code>, <code>/sys</code> e <code>/dev</code> vengono sempre salvati come cartelle vuote, anche quando il job esegue il backup di <code>/</code>.</li>
   <li>Impostate <b>Conserva backup</b> e la <b>Pianificazione</b>, poi <i>Crea job</i>.</li>
 </ol>
 

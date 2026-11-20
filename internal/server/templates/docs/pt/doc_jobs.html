@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — caixas de correio do Exchange Online, calendários, contatos, OneDrive e sites do SharePoint, lidos via Microsoft Graph por qualquer agente; veja <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Opcionalmente adicione <b>exclusões</b>, uma por linha: um padrão de nome, que vale em todas as pastas (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), ou um caminho completo, que vale só para esse arquivo ou pasta (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, também com curingas: <code>D:\VMs\*.iso</code>). No Windows, caminhos completos ignoram maiúsculas e minúsculas.</li>
+  <li>Opcionalmente adicione <b>exclusões</b>, uma por linha: um padrão de nome, que vale em todas as pastas (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), ou um caminho completo, que vale só para esse arquivo ou pasta (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, também com curingas: <code>D:\VMs\*.iso</code>). No Windows, caminhos completos ignoram maiúsculas e minúsculas. No Linux, sistemas de arquivos do kernel como <code>/proc</code>, <code>/sys</code> e <code>/dev</code> são sempre guardados como pastas vazias, também quando a tarefa faz backup de <code>/</code>.</li>
   <li>Defina <b>Manter backups</b> e o <b>Agendamento</b> e depois <i>Criar tarefa</i>.</li>
 </ol>
 

@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — Exchange Online mailboxes, calendars, contacts, OneDrive and SharePoint sites, read through Microsoft Graph by any agent; see <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Optionally add <b>excludes</b>, one per line: a name pattern, which applies in every folder (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), or a full path, which applies to that one file or folder (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, also with wildcards: <code>D:\VMs\*.iso</code>). Full paths ignore upper and lower case on Windows.</li>
+  <li>Optionally add <b>excludes</b>, one per line: a name pattern, which applies in every folder (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), or a full path, which applies to that one file or folder (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, also with wildcards: <code>D:\VMs\*.iso</code>). Full paths ignore upper and lower case on Windows. On Linux, kernel file systems such as <code>/proc</code>, <code>/sys</code> and <code>/dev</code> are always kept as empty folders, also when the job backs up <code>/</code>.</li>
   <li>Set <b>Keep backups</b> and the <b>Schedule</b>, then <i>Create job</i>.</li>
 </ol>
 

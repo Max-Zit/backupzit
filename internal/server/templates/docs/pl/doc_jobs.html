@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — skrzynki Exchange Online, kalendarze, kontakty, OneDrive i witryny SharePoint, czytane przez Microsoft Graph przez dowolnego agenta; zobacz <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Opcjonalnie dodaj <b>wykluczenia</b>, po jednym w wierszu: wzorzec nazwy, który działa w każdym folderze (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), lub pełną ścieżkę, która dotyczy tylko tego pliku lub folderu (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, także z symbolami wieloznacznymi: <code>D:\VMs\*.iso</code>). W Windows pełne ścieżki ignorują wielkość liter.</li>
+  <li>Opcjonalnie dodaj <b>wykluczenia</b>, po jednym w wierszu: wzorzec nazwy, który działa w każdym folderze (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), lub pełną ścieżkę, która dotyczy tylko tego pliku lub folderu (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, także z symbolami wieloznacznymi: <code>D:\VMs\*.iso</code>). W Windows pełne ścieżki ignorują wielkość liter. W Linuksie systemy plików jądra, takie jak <code>/proc</code>, <code>/sys</code> i <code>/dev</code>, są zawsze zapisywane jako puste foldery, także gdy zadanie kopiuje <code>/</code>.</li>
   <li>Ustaw <b>Zachowuj kopie</b> i <b>Harmonogram</b>, a potem <i>Utwórz zadanie</i>.</li>
 </ol>
 

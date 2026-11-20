@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — Exchange Online のメールボックス、予定表、連絡先、OneDrive、SharePoint サイト。任意のエージェントが Microsoft Graph 経由で読み取ります。<a href="/docs/m365">Microsoft 365</a> を参照してください。</li>
     </ul>
   </li>
-  <li>必要に応じて<b>除外</b>を 1 行に 1 つ追加します。すべてのフォルダーで有効な名前パターン（<code>*.tmp</code>、<code>node_modules</code>、<code>Thumbs.db</code>、<code>*.iso</code>）、またはそのファイルやフォルダーだけに有効な完全パス（<code>C:\Data\Temp</code>、<code>/srv/www/cache</code>、ワイルドカードも可: <code>D:\VMs\*.iso</code>）。Windows では完全パスの大文字と小文字は区別されません。</li>
+  <li>必要に応じて<b>除外</b>を 1 行に 1 つ追加します。すべてのフォルダーで有効な名前パターン（<code>*.tmp</code>、<code>node_modules</code>、<code>Thumbs.db</code>、<code>*.iso</code>）、またはそのファイルやフォルダーだけに有効な完全パス（<code>C:\Data\Temp</code>、<code>/srv/www/cache</code>、ワイルドカードも可: <code>D:\VMs\*.iso</code>）。Windows では完全パスの大文字と小文字は区別されません。Linux では、<code>/proc</code>、<code>/sys</code>、<code>/dev</code> などのカーネル ファイル システムは、ジョブが <code>/</code> をバックアップする場合でも常に空のフォルダーとして保存されます。</li>
   <li><b>バックアップの保持</b>と<b>スケジュール</b>を設定し、<i>ジョブを作成</i>します。</li>
 </ol>
 

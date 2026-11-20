@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — Exchange-Online-Postfächer, Kalender, Kontakte, OneDrive und SharePoint-Websites, gelesen über Microsoft Graph durch einen beliebigen Agenten; siehe <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Fügen Sie optional <b>Ausschlüsse</b> hinzu, einen pro Zeile: ein Namensmuster, das in jedem Ordner gilt (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), oder ein vollständiger Pfad, der für genau diese Datei oder diesen Ordner gilt (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, auch mit Platzhaltern: <code>D:\VMs\*.iso</code>). Vollständige Pfade ignorieren unter Windows Groß- und Kleinschreibung.</li>
+  <li>Fügen Sie optional <b>Ausschlüsse</b> hinzu, einen pro Zeile: ein Namensmuster, das in jedem Ordner gilt (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), oder ein vollständiger Pfad, der für genau diese Datei oder diesen Ordner gilt (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, auch mit Platzhaltern: <code>D:\VMs\*.iso</code>). Vollständige Pfade ignorieren unter Windows Groß- und Kleinschreibung. Unter Linux werden Kernel-Dateisysteme wie <code>/proc</code>, <code>/sys</code> und <code>/dev</code> immer als leere Ordner gesichert, auch wenn der Auftrag <code>/</code> sichert.</li>
   <li>Legen Sie <b>Sicherungen behalten</b> und den <b>Zeitplan</b> fest, dann <i>Auftrag erstellen</i>.</li>
 </ol>
 
