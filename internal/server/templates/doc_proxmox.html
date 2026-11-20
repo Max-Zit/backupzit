@@ -71,7 +71,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>The first time, the replica is restored like a new guest (next free ID, name <i>original-replica</i>, new MAC addresses, never started with the node).</li>
   <li>Later only the blocks that changed since the backup the replica holds are written — typically a few seconds per backup.</li>
-  <li>The job page lists the replicas, the backup each holds and its state. If a guest is lost, click <b>Start replica</b>: it runs with the data of the last backup, without a restore. Start it only when the original is really gone — both on the network at the same time can conflict.</li>
+  <li>The job page lists the replicas, the backup each holds and its state. If a guest is lost, click <b>Start replica</b>: it runs with the data of the last backup, without a restore. Start it only when the original is really gone — both on the network at the same time can conflict. After a replica was started (also in the Proxmox VE interface, for example for a failover test), the next update compares every block instead of writing only the changes, so that the replica matches the backup again.</li>
   <li>While a replica runs it is no longer updated (the run reports it). To replicate again, delete the replica guest in Proxmox; the next backup creates a new one. Replicas with Proxmox snapshots are not updated either.</li>
   <li>Disks added to a guest later are not replicated (delete the replica to start over); disks that grew are grown on the replica too. Changes to the configuration (memory, CPUs) are taken when the replica is created.</li>
   <li>Replication reads the backups like a restore: the replica node must reach the storage. Switching replication off leaves the replicas as they are.</li>

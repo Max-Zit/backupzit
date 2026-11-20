@@ -71,7 +71,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>Prvi put se replika vraća kao nov gost (sledeći slobodan ID, ime <i>original-replica</i>, nove MAC adrese, nikad se ne pokreće sa čvorom).</li>
   <li>Kasnije se upisuju samo blokovi koji su se promenili od bekapa koji replika sadrži — obično nekoliko sekundi po bekapu.</li>
-  <li>Stranica posla navodi replike, bekap koji svaka sadrži i njeno stanje. Ako se gost izgubi, kliknite <b>Pokreni repliku</b>: radi sa podacima poslednjeg bekapa, bez vraćanja. Pokrenite je samo kada originala zaista više nema — oba na mreži u isto vreme mogu da se sudare.</li>
+  <li>Stranica posla navodi replike, bekap koji svaka sadrži i njeno stanje. Ako se gost izgubi, kliknite <b>Pokreni repliku</b>: radi sa podacima poslednjeg bekapa, bez vraćanja. Pokrenite je samo kada originala zaista više nema — oba na mreži u isto vreme mogu da se sudare. Kada je replika pokrenuta (i u Proxmox VE interfejsu, na primer za test prebacivanja), sledeće ažuriranje poredi svaki blok umesto da upiše samo izmene, tako da replika ponovo odgovara bekapu.</li>
   <li>Dok replika radi, više se ne ažurira (pokretanje to javlja). Da biste ponovo replicirali, obrišite gosta repliku u Proxmoxu; sledeći bekap pravi novu. Ni replike sa Proxmox snimcima se ne ažuriraju.</li>
   <li>Diskovi dodati gostu kasnije se ne repliciraju (obrišite repliku da biste počeli iznova); diskovi koji su povećani povećavaju se i na replici. Izmene konfiguracije (memorija, procesori) preuzimaju se kada se replika pravi.</li>
   <li>Replikacija čita bekape kao vraćanje: čvor replike mora da dođe do skladišta. Isključivanje replikacije ostavlja replike kakve jesu.</li>

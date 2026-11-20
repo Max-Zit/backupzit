@@ -71,7 +71,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>Poprvé se replika obnoví jako nový host (další volné ID, název <i>original-replica</i>, nové MAC adresy, nikdy se nespouští s uzlem).</li>
   <li>Později se zapisují jen bloky změněné od zálohy, kterou replika obsahuje — obvykle pár sekund na zálohu.</li>
-  <li>Stránka úlohy vypisuje repliky, zálohu, kterou každá obsahuje, a jejich stav. Pokud se host ztratí, klikněte na <b>Spustit repliku</b>: poběží s daty poslední zálohy, bez obnovy. Spusťte ji jen tehdy, když originál opravdu zmizel — oba v síti současně mohou kolidovat.</li>
+  <li>Stránka úlohy vypisuje repliky, zálohu, kterou každá obsahuje, a jejich stav. Pokud se host ztratí, klikněte na <b>Spustit repliku</b>: poběží s daty poslední zálohy, bez obnovy. Spusťte ji jen tehdy, když originál opravdu zmizel — oba v síti současně mohou kolidovat. Po spuštění repliky (i v rozhraní Proxmox VE, například při testu převzetí) další aktualizace porovná každý blok místo zápisu jen změn, aby replika opět odpovídala záloze.</li>
   <li>Dokud replika běží, už se neaktualizuje (běh to ohlásí). Chcete-li znovu replikovat, smažte hosta repliky v Proxmoxu; další záloha vytvoří novou. Repliky se snímky Proxmoxu se také neaktualizují.</li>
   <li>Disky přidané k hostovi později se nereplikují (smažte repliku a začněte znovu); zvětšené disky se zvětší i na replice. Změny konfigurace (paměť, CPU) se převezmou při vytvoření repliky.</li>
   <li>Replikace čte zálohy jako obnova: uzel repliky musí dosáhnout na úložiště. Vypnutí replikace ponechá repliky, jak jsou.</li>

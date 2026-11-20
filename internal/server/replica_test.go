@@ -123,8 +123,31 @@ func TestReplication(t *testing.T) {
 		t.Fatalf("replica start run: %+v", r)
 	}
 	finish(r.ID, api.RunResult{Status: api.StatusSuccess})
-	backup(strings.Repeat("c3", 32))
+	snap3, snap4 := strings.Repeat("c3", 32), strings.Repeat("d4", 32)
+	backup(snap3)
 	if r = poll(); r == nil || r.Kind != api.KindVMReplica || r.Replica.Guests[0].SnapshotID != "" {
 		t.Fatalf("replication after a failed update: %+v", r)
+	}
+	finish(r.ID, api.RunResult{Status: api.StatusSuccess,
+		Details: json.RawMessage(`{"replicas":[{"vmid":100,"replica_vmid":1100,"name":"web-replica","snapshot":"` + snap3 + `"}]}`)})
+	backup(snap4)
+	if r = poll(); r == nil || r.Replica.Guests[0].SnapshotID != snap3 {
+		t.Fatalf("incremental replication: %+v", r)
+	}
+	finish(r.ID, api.RunResult{Status: api.StatusSuccess,
+		Details: json.RawMessage(`{"replicas":[{"vmid":100,"replica_vmid":1100,"name":"web-replica","snapshot":"` + snap4 + `"}]}`)})
+
+	// H-6: a failover start after a successful update forgets the backup the
+	// replica holds, so the next update compares every block.
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/jobs/%d/replica-start", j.ID), url.Values{"vmid": {"100"}}); !strings.Contains(loc, "/runs/") {
+		t.Fatalf("start replica: %s", loc)
+	}
+	if r = poll(); r == nil || r.Kind != api.KindVMReplicaStart {
+		t.Fatalf("replica start run: %+v", r)
+	}
+	finish(r.ID, api.RunResult{Status: api.StatusSuccess})
+	backup(strings.Repeat("e5", 32))
+	if r = poll(); r == nil || r.Kind != api.KindVMReplica || r.Replica.Guests[0].SnapshotID != "" {
+		t.Fatalf("replication after a failover start still sends the old backup: %+v", r)
 	}
 }

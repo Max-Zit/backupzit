@@ -2,11 +2,14 @@ package pve
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/max-zit/backupzit/internal/diskimg"
 	"github.com/max-zit/backupzit/internal/repo"
@@ -134,6 +137,12 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 	if opts.Prev != nil {
 		prevGuest, _ = FindGuest(opts.Prev, g.VMID)
 	}
+	if prevGuest != nil {
+		if why := replicaDiverged(ctx, conf, opts.Prev.ID.String(), g.Type, existing.VMID); why != "" {
+			prevGuest = nil
+			res.Notes = append(res.Notes, why+": all blocks were compared by writing them")
+		}
+	}
 	if prevGuest == nil {
 		res.Notes = append(res.Notes, "the backup the replica holds is no longer available: all blocks were compared by writing them")
 	}
@@ -217,7 +226,8 @@ func markReplica(g *repo.Guest, vmid int, sn *repo.Snapshot) error {
 	}
 	var out strings.Builder
 	out.WriteString("description: " + replicaMarker(g.VMID) + " (" + g.Name + "), updated from the backup of " +
-		sn.Time.Local().Format("2006-01-02 15:04") + ". Start it only if the original is lost; replication pauses while it runs.\n")
+		sn.Time.Local().Format("2006-01-02 15:04") + ". Start it only if the original is lost; replication pauses while it runs. " +
+		replicaState(sn.ID.String(), time.Now()) + "\n")
 	for _, l := range strings.SplitAfter(string(b), "\n") {
 		if strings.HasPrefix(l, "description:") || strings.HasPrefix(l, "#") || strings.HasPrefix(l, "onboot:") {
 			continue
@@ -241,8 +251,62 @@ func StartReplica(ctx context.Context, replicaVMID, vmid int) error {
 		if !strings.Contains(string(b), replicaMarker(vmid)) {
 			return fmt.Errorf("guest %d is not the replica of guest %d", replicaVMID, vmid)
 		}
+		// Once started, its disks no longer hold the backup: the next update
+		// compares every block.
+		if err := os.WriteFile(p, []byte(stateToken.ReplaceAllString(string(b), "")), 0o640); err != nil { // #nosec G306 -- Proxmox guest configuration, 0640 as Proxmox writes it
+			return err
+		}
 		_, err = command(ctx, guestTool(typ), "start", strconv.Itoa(replicaVMID))
 		return err
 	}
 	return errors.New("replica " + strconv.Itoa(replicaVMID) + " does not exist on this node")
+}
+
+// stateToken records in a replica's description which backup it holds and
+// when it was written. A started replica loses it (StartReplica), so the
+// next update compares every block instead of only the changed ones.
+var stateToken = regexp.MustCompile(` ?\[BackupZit state [0-9a-f]+ [0-9]+\]`)
+
+func replicaState(snapshotID string, at time.Time) string {
+	return fmt.Sprintf("[BackupZit state %s %d]", snapshotID, at.Unix())
+}
+
+// replicaDiverged tells why a replica's disks may no longer hold the backup
+// prevID ("" when they do): the state token is missing (started through
+// BackupZit, or written by an older version) or names another backup, or
+// Proxmox VE started the guest since (for example in its web interface).
+func replicaDiverged(ctx context.Context, conf, prevID, typ string, vmid int) string {
+	var id string
+	var at int64
+	if m := stateToken.FindString(conf); m != "" {
+		_, _ = fmt.Sscanf(strings.TrimSpace(m), "[BackupZit state %s %d]", &id, &at)
+	}
+	if id != prevID || at == 0 {
+		return "the replica may have been started since its last update"
+	}
+	if started := startedSince(ctx, typ, vmid, at); started != "" {
+		return "the replica was started " + started + " since its last update"
+	}
+	return ""
+}
+
+// startedSince finds a start task of the guest in the Proxmox VE task log
+// after the given time (Unix seconds).
+func startedSince(ctx context.Context, typ string, vmid int, since int64) string {
+	filter := "qmstart"
+	if typ == "lxc" {
+		filter = "vzstart"
+	}
+	out, err := command(ctx, "pvesh", "get", "/nodes/"+LocalNode()+"/tasks", "--vmid", strconv.Itoa(vmid),
+		"--typefilter", filter, "--since", strconv.FormatInt(since, 10), "--limit", "1", "--output-format", "json")
+	if err != nil {
+		return ""
+	}
+	var tasks []struct {
+		Start int64 `json:"starttime"`
+	}
+	if json.Unmarshal(out, &tasks) != nil || len(tasks) == 0 || tasks[0].Start < since {
+		return ""
+	}
+	return "on " + time.Unix(tasks[0].Start, 0).Local().Format("2006-01-02 15:04")
 }
