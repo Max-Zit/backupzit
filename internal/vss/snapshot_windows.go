@@ -37,7 +37,9 @@ func snapshotVolumes(volumes []string, timeout time.Duration, onErr ErrorHandler
 	if err != nil {
 		return nil, nil, err
 	}
-	devs := map[string]string{strings.ToLower(volumes[0]): snap.GetSnapshotDeviceObject()}
+	// An unsupported first volume is left out of the set: the snapshot's
+	// own device belongs to the first supported one.
+	devs := map[string]string{strings.ToLower(snap.volume): snap.GetSnapshotDeviceObject()}
 	for v, x := range snap.extra {
 		devs[strings.ToLower(v)] = x.snapshotDeviceObject
 	}

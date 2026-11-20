@@ -38,6 +38,9 @@ type guestConfig struct {
 	Node string `json:"node,omitempty"`
 }
 
+// ErrNoVMs: none of the selected VMs is on the host (or the connection).
+var ErrNoVMs = errors.New("no virtual machines on this ESXi host")
+
 // Backup snapshots the selected VMs and stores their disks and
 // configuration in one repository snapshot.
 func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.Snapshot, error) {
@@ -86,7 +89,7 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 		}
 	}
 	if len(sel) == 0 && len(stats.Errors) == 0 {
-		return nil, errors.New("no virtual machines on this ESXi host")
+		return nil, ErrNoVMs
 	}
 	prev, err := diskimg.PreviousDisks(ctx, r, "vmware")
 	if err != nil {
@@ -152,6 +155,10 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 	return sn, nil
 }
 
+// vmLockKey names a VM for vmlock: backups and in-place restores of one VM
+// through this agent run one at a time.
+func (c *Client) vmLockKey(uuid string) string { return "vmware-" + c.conn.Host + "-" + uuid }
+
 func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), ha *hotAdd) (_ *repo.Guest, warns []string, _ error) {
 	if len(v.Disks) == 0 {
 		return nil, nil, errors.New("the VM has no virtual disks")
@@ -159,7 +166,7 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 	// One BackupZit operation per VM on this proxy: the leftover sweep
 	// removes every backupzit snapshot and the clone path is shared, so a
 	// parallel run of the same VM would lose its snapshot or clone (M-13).
-	unlockVM, err := vmlock.Lock(ctx, "vmware-"+c.conn.Host+"-"+v.UUID)
+	unlockVM, err := vmlock.Lock(ctx, c.vmLockKey(v.UUID))
 	if err != nil {
 		return nil, nil, err
 	}

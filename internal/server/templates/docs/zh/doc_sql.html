@@ -27,7 +27,7 @@
 
 <h2>PostgreSQL</h2>
 <p>代理以 <code>postgres</code> 帐户通过本地套接字工作 —— 备份无需任何配置。完整备份会存储整个集群（<b>pg_basebackup</b>）、角色（<code>pg_dumpall --globals-only</code>）以及每个数据库的 <b>pg_dump</b>。</p>
-<p><b>时间点恢复</b>需要 WAL 归档。开启日志备份后，第一次完整备份会通过 <code>ALTER SYSTEM</code> 进行设置：<code>archive_mode = on</code>，以及一个将已完成的 WAL 段复制到 <code>/var/lib/backupzit-pg/wal</code> 的 <code>archive_command</code>；日志备份会在那里存储并删除它们。<code>archive_mode</code> 在 PostgreSQL <b>重启一次</b>后生效（<code>systemctl restart postgresql</code>）—— 运行会提示您。如果已有其他工具在使用 <code>archive_command</code>，BackupZit 不会改动它，并在没有时间点恢复的情况下进行备份。如果日志备份停止（作业被禁用或删除），请再次关闭归档（<code>ALTER SYSTEM RESET archive_mode</code>，然后重启），以免文件夹被填满。该命令以临时名称复制每个段，完成后再重命名，因此日志备份绝不会取到复制了一半的段；代理 0.55 及更高版本会自动更新旧版本的命令（只需重新加载，无需重启）。</p>
+<p><b>时间点恢复</b>需要 WAL 归档。开启日志备份后，第一次完整备份会通过 <code>ALTER SYSTEM</code> 进行设置：<code>archive_mode = on</code>，以及一个将已完成的 WAL 段复制到 <code>/var/lib/backupzit-pg/wal</code> 的 <code>archive_command</code>；日志备份会在那里存储并删除它们。<code>archive_mode</code> 在 PostgreSQL <b>重启一次</b>后生效（<code>systemctl restart postgresql</code>）—— 运行会提示您。如果已有其他工具在使用 <code>archive_command</code>，BackupZit 不会改动它，并在没有时间点恢复的情况下进行备份。如果日志备份停止（作业被禁用或删除），请再次关闭归档（<code>ALTER SYSTEM RESET archive_mode</code>，然后重启），以免文件夹被填满。该命令以临时名称复制每个段，完成后再重命名，因此日志备份绝不会取到复制了一半的段；代理 0.55 及更高版本会自动更新旧版本的命令（只需重新加载，无需重启）。 副本在重命名之前写入磁盘。如果不完整的段（由旧版本或崩溃留下）阻塞了归档，下一次日志备份会发出警告，并在不再有写入时将其删除，以便 PostgreSQL 重新归档该段；如果归档因其他原因失败，日志备份也会发出警告。</p>
 <ul>
   <li><b>还原数据库</b>到完整备份时的状态：从其 pg_dump 还原到正在运行的服务器，可使用新名称或替换该数据库。</li>
   <li><b>指定时间点</b>（或最新）：代理将集群备份解压到空闲端口上的临时实例（仅套接字、无网络、无归档），将 WAL 重放到该时间点，从中导出数据库到正在运行的服务器，然后删除临时实例。机器在一段时间内需要有容纳集群的可用空间。用户表空间同样解压到临时文件夹中，绝不会解压到属于正在运行的服务器的原始目录。</li>

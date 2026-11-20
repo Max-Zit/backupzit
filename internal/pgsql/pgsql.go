@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -41,20 +42,35 @@ func workDir(ctx context.Context, name string) (string, error) {
 	return d, nil
 }
 
-// ArchiveCommand is the archive_command BackupZit sets. It copies to a
-// temporary name and renames, so a segment in the spool is always complete:
-// the agent may read the spool while PostgreSQL is still copying.
-const ArchiveCommand = "test ! -f " + WALSpool + "/%f && cp %p " + WALSpool + "/%f.part && mv " + WALSpool + "/%f.part " + WALSpool + "/%f"
+// ArchiveCommand is the archive_command BackupZit sets (run by /bin/sh). It
+// copies to a temporary name, syncs the copy to disk and only then renames
+// it (and syncs the folder), so a segment in the spool is always complete:
+// the agent may read the spool while PostgreSQL is still copying, and a
+// power loss cannot leave a short file under the final name. A segment that
+// is already there is accepted when it is identical: PostgreSQL archives a
+// segment again after a crash, and refusing it would stop archiving.
+const ArchiveCommand = "if test -f " + WALSpool + "/%f; then cmp -s %p " + WALSpool + "/%f; " +
+	"else cp %p " + WALSpool + "/%f.part && sync " + WALSpool + "/%f.part && mv " + WALSpool + "/%f.part " + WALSpool + "/%f && sync " + WALSpool + "; fi"
 
-// legacyArchiveCommand is the archive_command of agents before 0.55
-// (copied in place); UpgradeArchiveCommand replaces it.
-const legacyArchiveCommand = "test ! -f " + WALSpool + "/%f && cp %p " + WALSpool + "/%f"
+// olderArchiveCommands are the archive_commands of earlier agents, which
+// UpgradeArchiveCommand replaces: before 0.55 the copy went in place (a
+// failed copy stayed as a short segment), the first 0.55 builds renamed it
+// without syncing.
+var olderArchiveCommands = []string{
+	"test ! -f " + WALSpool + "/%f && cp %p " + WALSpool + "/%f",
+	"test ! -f " + WALSpool + "/%f && cp %p " + WALSpool + "/%f.part && mv " + WALSpool + "/%f.part " + WALSpool + "/%f",
+}
+
+// ownArchiveCommand reports whether command was set by BackupZit.
+func ownArchiveCommand(command string) bool {
+	return command == ArchiveCommand || slices.Contains(olderArchiveCommands, command)
+}
 
 // UpgradeArchiveCommand replaces BackupZit's old archive_command with
 // ArchiveCommand (a reload, no restart).
 func (s *Server) UpgradeArchiveCommand(ctx context.Context) error {
 	cur, err := s.Query(ctx, "", "SELECT current_setting('archive_command')")
-	if err != nil || cur != legacyArchiveCommand {
+	if err != nil || !slices.Contains(olderArchiveCommands, cur) {
 		return err
 	}
 	if _, err := s.Query(ctx, "", "ALTER SYSTEM SET archive_command = '"+strings.ReplaceAll(ArchiveCommand, "'", "''")+"'"); err != nil {
@@ -152,8 +168,22 @@ func (s *Server) Query(ctx context.Context, db, sql string) (string, error) {
 	if db == "" {
 		db = "postgres"
 	}
-	out, err := asPostgres(ctx, s.bin("psql"), "-XAtq", "-p", strconv.Itoa(s.Port), "-d", db, "-c", sql)
+	out, err := asPostgres(ctx, s.bin("psql"), "-XAtq", "-p", strconv.Itoa(s.Port), dbnameArg(db), "-c", sql)
 	return strings.TrimSpace(string(out)), err
+}
+
+// dbnameArg is the argument that names database db for psql, pg_dump and
+// pg_restore. They read a database name containing = (or starting with
+// postgres://) as a connection string, so a role that may create databases
+// could name one "host=elsewhere ..." and send the nightly dump there.
+// Wrapped as dbname='...' the name is only ever a name; host and port stay
+// those of the command line.
+func dbnameArg(db string) string { return "--dbname=dbname=" + conninfoQuote(db) }
+
+// conninfoQuote quotes a value for a libpq connection string: in single
+// quotes, with backslash and single quote escaped by a backslash.
+func conninfoQuote(v string) string {
+	return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(v) + "'"
 }
 
 // Databases lists the databases except templates.
@@ -189,9 +219,9 @@ func (s *Server) ArchiveState(ctx context.Context) (ok bool, problem string, err
 	switch {
 	case level == "minimal":
 		return false, "wal_level is minimal; set it to replica and restart PostgreSQL", nil
-	case command != ArchiveCommand && command != legacyArchiveCommand && command != "" && command != "(disabled)":
+	case !ownArchiveCommand(command) && command != "" && command != "(disabled)":
 		return false, "archive_command is already set by another tool (" + command + "); BackupZit does not change it", nil
-	case command != ArchiveCommand && command != legacyArchiveCommand:
+	case !ownArchiveCommand(command):
 		return false, "archive_command is not set", nil
 	case mode == "off":
 		return false, "archive_mode is off", nil

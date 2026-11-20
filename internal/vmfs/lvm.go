@@ -204,8 +204,8 @@ type lvmParser struct {
 	depth int
 }
 
-// maxLVMDepth bounds the nesting of LVM metadata sections (real metadata
-// nests about four levels); deeper input is crafted or damaged.
+// maxLVMDepth bounds the nesting of LVM metadata sections and arrays (real
+// metadata nests about four levels); deeper input is crafted or damaged.
 const maxLVMDepth = 32
 
 func (p *lvmParser) skip() {
@@ -302,6 +302,13 @@ func (p *lvmParser) value() (any, error) {
 		p.pos++
 		return b.String(), nil
 	case c == '[':
+		// Arrays nest through value() itself, so they count against the
+		// same depth as sections: "a = [[[[..." would otherwise recurse once
+		// per byte and overflow the stack, which recover() cannot catch.
+		if p.depth++; p.depth > maxLVMDepth {
+			return nil, fmt.Errorf("LVM metadata nested too deep")
+		}
+		defer func() { p.depth-- }()
 		p.pos++
 		var arr []any
 		for {

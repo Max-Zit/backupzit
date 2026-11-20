@@ -931,6 +931,9 @@ type vssSnapshot struct {
 	// extra are further volumes of the same snapshot set.
 	extra   map[string]mountPoint
 	timeout time.Duration
+	// volume is the one the snapshot ID above belongs to: the first
+	// supported volume of the set.
+	volume string
 }
 
 // GetSnapshotDeviceObject returns root path to access the snapshot files
@@ -1089,14 +1092,16 @@ func newVssSnapshot(provider string,
 		return vssSnapshot{}, err
 	}
 
-	if isSupported, err := iVssBackupComponents.IsVolumeSupported(providerID, volume); err != nil {
+	// The first supported volume carries the set; unsupported ones are left
+	// out wherever they are in the list.
+	vols, err := supportedVolumes(append([]string{volume}, extra...), func(v string) (bool, error) {
+		return iVssBackupComponents.IsVolumeSupported(providerID, v)
+	}, msgError)
+	if err != nil {
 		iVssBackupComponents.Release()
 		return vssSnapshot{}, err
-	} else if !isSupported {
-		iVssBackupComponents.Release()
-		return vssSnapshot{}, newVssTextError(fmt.Sprintf("Snapshots are not supported for volume "+
-			"%s", volume))
 	}
+	volume, extra = vols[0], vols[1:]
 
 	const retryStartSnapshotSetSleep = 5 * time.Second
 	var snapshotSetID ole.GUID
@@ -1126,10 +1131,6 @@ func newVssSnapshot(provider string,
 	// same moment, so the disks are consistent with each other (L-35).
 	extraInfo := make(map[string]mountPoint)
 	for _, v := range extra {
-		if ok, err := iVssBackupComponents.IsVolumeSupported(providerID, v); err != nil || !ok {
-			msgError(v, fmt.Errorf("VSS is not available for volume %s; it is read without a snapshot", v))
-			continue
-		}
 		var id ole.GUID
 		if err := iVssBackupComponents.AddToSnapshotSet(v, providerID, &id); err != nil {
 			iVssBackupComponents.Release()
@@ -1237,8 +1238,44 @@ func newVssSnapshot(provider string,
 
 	return vssSnapshot{
 		iVssBackupComponents, snapshotSetID, snapshotProperties,
-		snapshotProperties.GetSnapshotDeviceObject(), mountPointInfo, extraInfo, time.Until(deadline),
+		snapshotProperties.GetSnapshotDeviceObject(), mountPointInfo, extraInfo, time.Until(deadline), volume,
 	}, nil
+}
+
+// supportedVolumes keeps the volumes of one snapshot set that VSS supports.
+// An unsupported volume is reported through msgError and read without a
+// snapshot, wherever it is in the list: before, one at the front failed the
+// whole set, which cost a second timeout for the per-volume fallback and
+// warned that the volumes are not consistent (L-35). A single volume that
+// is not supported, or a set without any supported one, is an error.
+func supportedVolumes(volumes []string, supported func(string) (bool, error), msgError ErrorHandler) ([]string, error) {
+	if len(volumes) == 1 {
+		ok, err := supported(volumes[0])
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, newVssTextError(fmt.Sprintf("Snapshots are not supported for volume %s", volumes[0]))
+		}
+		return volumes, nil
+	}
+	var out, left []string
+	for _, v := range volumes {
+		if ok, err := supported(v); err != nil || !ok {
+			left = append(left, v)
+			continue
+		}
+		out = append(out, v)
+	}
+	if len(out) == 0 {
+		return nil, newVssTextError("Snapshots are not supported for any of the volumes " + strings.Join(volumes, ", "))
+	}
+	if msgError != nil {
+		for _, v := range left {
+			msgError(v, fmt.Errorf("VSS is not available for volume %s; it is read without a snapshot", v))
+		}
+	}
+	return out, nil
 }
 
 // Delete deletes the created snapshot.

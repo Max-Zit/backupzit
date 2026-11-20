@@ -14,6 +14,7 @@ import (
 
 	"github.com/max-zit/backupzit/internal/diskimg"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmlock"
 )
 
 // RestoreOptions control a guest restore.
@@ -82,14 +83,6 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	if err != nil {
 		return nil, err
 	}
-	inv, err := GetInventory(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list guests: %w", err)
-	}
-	stores, err := readStorage()
-	if err != nil {
-		return nil, fmt.Errorf("read storage configuration: %w", err)
-	}
 	target := opts.NewVMID
 	switch {
 	case target == 0:
@@ -101,6 +94,22 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	if target < 100 || target > 999999999 {
 		return nil, fmt.Errorf("invalid guest ID %d", target)
+	}
+	// A restore over an existing guest stops and deletes it: not while a
+	// backup of that guest on this node holds its snapshot (M-13). The
+	// guest list is read after the wait.
+	unlockVM, err := vmlock.Lock(ctx, vmLockKey(target))
+	if err != nil {
+		return nil, err
+	}
+	defer unlockVM()
+	inv, err := GetInventory(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list guests: %w", err)
+	}
+	stores, err := readStorage()
+	if err != nil {
+		return nil, fmt.Errorf("read storage configuration: %w", err)
 	}
 	res := &RestoreResult{VMID: target, Type: g.Type, Name: g.Name, Node: inv.Node}
 

@@ -68,3 +68,45 @@ func TestResolveSnapshotProperties(t *testing.T) {
 		})
 	}
 }
+
+// P9 (0.55 review): an unsupported volume is left out of the snapshot set
+// wherever it is in the list; before, one at the front failed the whole set.
+func TestSupportedVolumes(t *testing.T) {
+	supported := func(v string) (bool, error) {
+		switch v {
+		case `f:\`:
+			return false, nil
+		case `g:\`:
+			return false, errors.New("IsVolumeSupported failed")
+		}
+		return true, nil
+	}
+	for _, tc := range []struct {
+		in, want, reported []string
+		err                bool
+	}{
+		{in: []string{`c:\`, `d:\`}, want: []string{`c:\`, `d:\`}},
+		{in: []string{`f:\`, `c:\`, `d:\`}, want: []string{`c:\`, `d:\`}, reported: []string{`f:\`}},
+		{in: []string{`c:\`, `f:\`, `d:\`}, want: []string{`c:\`, `d:\`}, reported: []string{`f:\`}},
+		{in: []string{`g:\`, `f:\`, `d:\`}, want: []string{`d:\`}, reported: []string{`g:\`, `f:\`}},
+		{in: []string{`f:\`, `g:\`}, err: true},
+		{in: []string{`f:\`}, err: true},
+		{in: []string{`g:\`}, err: true},
+		{in: []string{`c:\`}, want: []string{`c:\`}},
+	} {
+		var reported []string
+		got, err := supportedVolumes(tc.in, supported, func(item string, _ error) { reported = append(reported, item) })
+		if tc.err {
+			if err == nil {
+				t.Errorf("%v: no error", tc.in)
+			}
+			if len(reported) > 0 {
+				t.Errorf("%v: reported %v although the set fails", tc.in, reported)
+			}
+			continue
+		}
+		if err != nil || strings.Join(got, ",") != strings.Join(tc.want, ",") || strings.Join(reported, ",") != strings.Join(tc.reported, ",") {
+			t.Errorf("%v: %v %v, reported %v", tc.in, got, err, reported)
+		}
+	}
+}

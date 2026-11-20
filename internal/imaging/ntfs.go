@@ -135,6 +135,8 @@ type Entry struct {
 	IsDir   bool      `json:"is_dir"`
 	Size    int64     `json:"size"`
 	ModTime time.Time `json:"mtime"`
+	// ID is the MFT record number (see Visited); 0 when unknown.
+	ID uint64 `json:"-"`
 }
 
 // ErrNotNTFS is returned for partitions without an NTFS file system.
@@ -184,8 +186,11 @@ func CleanPath(p string) string {
 	return `\` + strings.Join(parts, `\`)
 }
 
+// rootRecord is the MFT record of the root folder.
+const rootRecord = 5
+
 func (v *Volume) open(p string) (*ntfs.MFT_ENTRY, error) {
-	root, err := v.ctx.GetMFT(5)
+	root, err := v.ctx.GetMFT(rootRecord)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +271,7 @@ func (v *Volume) List(dir string) ([]Entry, error) {
 				continue
 			}
 			streams[stream] = true
-			out = append(out, Entry{Name: name + stream, Path: p + stream, IsDir: fi.IsDir && stream == "", Size: fi.Size, ModTime: fi.Mtime})
+			out = append(out, Entry{Name: name + stream, Path: p + stream, IsDir: fi.IsDir && stream == "", Size: fi.Size, ModTime: fi.Mtime, ID: ref})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -322,7 +327,7 @@ func (v *Volume) openData(p string) (ntfs.RangeReaderAt, error) {
 func (v *Volume) Stat(p string) (Entry, error) {
 	p = CleanPath(p)
 	if p == `\` {
-		return Entry{Name: `\`, Path: `\`, IsDir: true}, nil
+		return Entry{Name: `\`, Path: `\`, IsDir: true, ID: rootRecord}, nil
 	}
 	parent := CleanPath(p[:strings.LastIndex(p, `\`)])
 	name := p[strings.LastIndex(p, `\`)+1:]
@@ -352,6 +357,7 @@ type ExtractStats struct {
 func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string) string, progress func(*ExtractStats)) (*ExtractStats, error) {
 	st := &ExtractStats{}
 	start := time.Now()
+	var seen Visited
 	var walk func(e Entry, depth int) error
 	walk = func(e Entry, depth int) error {
 		if err := ctx.Err(); err != nil {
@@ -363,6 +369,10 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 		}
 		target := dest(e.Path)
 		if e.IsDir {
+			if !seen.Enter(e.ID) {
+				st.Errors = append(st.Errors, LoopMessage(e.Path))
+				return nil
+			}
 			if err := os.MkdirAll(target, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 				st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
 				return nil
@@ -401,6 +411,9 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 			st.Errors = append(st.Errors, err.Error())
 			continue
 		}
+		// Per selected path: one selected inside another is copied again,
+		// as before, instead of being reported as a loop.
+		seen = Visited{}
 		if err := walk(e, 0); err != nil {
 			return st, err
 		}
@@ -567,3 +580,29 @@ func SafeName(name string) bool {
 // MaxDepth limits how deep restores, downloads and listings walk into a
 // file system read from a backup: a crafted one may nest folders without end.
 const MaxDepth = 256
+
+// Visited remembers the folders a walk has entered, by their MFT record or
+// inode number. In a damaged or crafted file system a folder can contain
+// itself or be reachable under several names: two entries pointing back to
+// their own folder already make 2^MaxDepth paths, and a restore would create
+// folders until it is cancelled.
+type Visited map[uint64]bool
+
+// Enter reports whether the folder with the given id may be walked: false
+// when this walk entered it before. An unknown id (0) is always walked;
+// MaxDepth still bounds those.
+func (v Visited) Enter(id uint64) bool {
+	if id == 0 {
+		return true
+	}
+	if v[id] {
+		return false
+	}
+	v[id] = true
+	return true
+}
+
+// LoopMessage is how a walk reports a folder it entered before.
+func LoopMessage(p string) string {
+	return p + ": the same folder as one already copied (a loop in a damaged file system?), skipped"
+}

@@ -72,6 +72,7 @@ type ExtractStats struct {
 // their path inside the volume (target/etc/nginx/...).
 func Extract(ctx context.Context, fsys FS, paths []string, target string) (*ExtractStats, error) {
 	st := &ExtractStats{}
+	var seen Visited
 	var walk func(e Entry, depth int) error
 	walk = func(e Entry, depth int) error {
 		if err := ctx.Err(); err != nil {
@@ -87,6 +88,10 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 			return nil
 		}
 		if e.IsDir {
+			if !seen.Enter(e.ID) {
+				st.Errors = append(st.Errors, LoopMessage(e.Path))
+				return nil
+			}
 			if err := os.MkdirAll(dst, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 				return err
 			}
@@ -127,6 +132,9 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 		if e.Path == "" {
 			e.Path = Clean(p)
 		}
+		// Per selected path: one selected inside another is copied again,
+		// as before, instead of being reported as a loop.
+		seen = Visited{}
 		if err := walk(e, 0); err != nil {
 			return st, err
 		}

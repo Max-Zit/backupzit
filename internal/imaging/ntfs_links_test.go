@@ -169,3 +169,44 @@ func TestNTFSExtractLinksAndStreams(t *testing.T) {
 		}
 	}
 }
+
+// P6 (0.55 review): walks recognise a folder they entered before by its MFT
+// record, so a crafted folder that contains itself is copied once. Folders
+// of a real volume have distinct records and are all copied (see
+// TestNTFSExtractLinksAndStreams for the whole volume).
+func TestNTFSFolderIDs(t *testing.T) {
+	v := openLinksStreams(t)
+	root, err := v.Stat(`\`)
+	if err != nil || root.ID != rootRecord {
+		t.Fatalf("root: %+v %v", root, err)
+	}
+	seen := Visited{}
+	if !seen.Enter(root.ID) {
+		t.Fatal("root refused")
+	}
+	es, err := v.List(`\`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirs := 0
+	for _, e := range es {
+		if !e.IsDir {
+			continue
+		}
+		dirs++
+		if e.ID == 0 || !seen.Enter(e.ID) {
+			t.Errorf("%s: record %d missing or not distinct", e.Path, e.ID)
+		}
+		if seen.Enter(e.ID) {
+			t.Errorf("%s: entered twice", e.Path)
+		}
+	}
+	if dirs < 3 {
+		t.Fatalf("only %d folders listed", dirs)
+	}
+	for i := 0; i < 2; i++ {
+		if !seen.Enter(0) {
+			t.Fatal("an unknown id must always be walked")
+		}
+	}
+}

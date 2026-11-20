@@ -37,6 +37,24 @@ func TestLVMNestingLimit(t *testing.T) {
 	if _, err := parseLVMConfig("vg {\n id = \"x\"\n lv {\n seg {\n start = 0\n }\n }\n}\n"); err != nil {
 		t.Fatalf("normal metadata: %v", err)
 	}
+	// Arrays nest through value(), not section(): without the same cap a
+	// few MiB of "[" overflow the stack and kill the process.
+	arr := "a = " + strings.Repeat("[", 3<<20)
+	if _, err := parseLVMConfig(arr); err == nil || !strings.Contains(err.Error(), "too deep") {
+		t.Fatalf("deeply nested array: %v", err)
+	}
+	// Normal arrays, also nested ones inside sections, still parse.
+	cfg, err := parseLVMConfig("vg {\n seg {\n stripes = [\n\"pv0\", 0\n]\n x = [[1], [2]]\n }\n}\n")
+	if err != nil {
+		t.Fatalf("normal arrays: %v", err)
+	}
+	seg, _ := cfg["vg"].(map[string]any)["seg"].(map[string]any)
+	if s, _ := seg["stripes"].([]any); len(s) != 2 {
+		t.Fatalf("stripes parsed wrong: %v", seg)
+	}
+	if x, _ := seg["x"].([]any); len(x) != 2 {
+		t.Fatalf("nested array parsed wrong: %v", seg)
+	}
 }
 
 func TestGPTEntrySizeBound(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/max-zit/backupzit/internal/diskimg"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmlock"
 )
 
 // Replication keeps a stopped copy of a guest (the replica) up to date from
@@ -58,6 +59,19 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 			return nil, fmt.Errorf("container %d is backed up as files (ZFS subvolume %s): replicas of such containers are not supported yet; restore it instead", g.VMID, d.Key)
 		}
 	}
+	// The update writes the replica's disks: not while a backup of the
+	// replica (a job over all guests) holds its snapshot (M-13). Taken
+	// before the guest list is read, so a replica started during the wait
+	// is seen as running.
+	unlockVM := func() {}
+	defer func() { unlockVM() }()
+	if opts.ReplicaVMID > 0 {
+		unlock, err := vmlock.Lock(ctx, vmLockKey(opts.ReplicaVMID))
+		if err != nil {
+			return nil, err
+		}
+		unlockVM = unlock
+	}
 	inv, err := GetInventory(ctx)
 	if err != nil {
 		return nil, err
@@ -78,6 +92,9 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 			res.Notes = append(res.Notes, fmt.Sprintf("replica %d did not exist and was created again", opts.ReplicaVMID))
 		}
 		opts.Log("creating replica", "vmid", g.VMID)
+		// Restore locks the new guest itself (vmlock is not reentrant).
+		unlockVM()
+		unlockVM = func() {}
 		rr, err := Restore(ctx, r, sn, RestoreOptions{VMID: g.VMID, NewVMID: newID, Name: res.Name, Storage: opts.Storage, Progress: opts.Progress, Log: opts.Log})
 		if err != nil {
 			return nil, err

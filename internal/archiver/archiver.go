@@ -79,6 +79,18 @@ type Archiver struct {
 // snapshot when one exists for its volume).
 func (a *Archiver) src(p string) string { return a.snaps.Map(p) }
 
+// storeEmpty tells whether the directory p on device dev is kept as an empty
+// folder: a mount point of another file system with OneFileSystem, or a
+// kernel file system. A path listed in ExtraMounts was asked for explicitly
+// and is always read (a system backup lists /boot even when it is also
+// seen as an automount point).
+func (a *Archiver) storeEmpty(p string, dev uint64) bool {
+	if slices.Contains(a.opts.ExtraMounts, p) {
+		return false
+	}
+	return a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev || a.pseudo[p]
+}
+
 // Run backs up opts.Paths and saves a snapshot.
 func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot, error) {
 	if len(opts.Paths) == 0 {
@@ -424,7 +436,7 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 		n.Type = repo.NodeDir
 		a.stats.Dirs++
 		dev, _ := deviceOf(fi)
-		if a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev && !slices.Contains(a.opts.ExtraMounts, p) || a.pseudo[p] {
+		if a.storeEmpty(p, dev) {
 			// A mount point of another file system: keep the directory, not
 			// its contents (system backups list each file system as a path).
 			id, err := a.r.SaveTree(ctx, &repo.Tree{})

@@ -213,7 +213,23 @@ func snapshotCapable(st storage, volname string) bool {
 	return false
 }
 
+// vmLockKey names a guest for vmlock: backups, in-place restores and
+// replica updates of one guest on this node run one at a time.
+func vmLockKey(vmid int) string { return fmt.Sprintf("pve-%d", vmid) }
+
 func backupGuest(ctx context.Context, r *repo.Repository, stores map[string]storage, g Guest, sn *repo.Snapshot, run guestRun) (*repo.Guest, *tracker, []string, error) {
+	// One BackupZit operation per guest at a time: the sweep of old
+	// snapshots removes every backupzit_* snapshot, also the live one of a
+	// parallel run (M-13). The lock comes first, so the guest's state
+	// (running, configuration, disks) is read after a long wait and not
+	// before, and it is held until QEMU's NBD server is stopped: there is
+	// one per VM, and stopping it later would end the export of the run
+	// that waited.
+	unlockVM, err := vmlock.Lock(ctx, vmLockKey(g.VMID))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer unlockVM()
 	gi, trk, warns, err := backupGuestDisks(ctx, r, stores, g, sn, run)
 	if trk != nil && trk.started {
 		trk.stopServer()
@@ -260,13 +276,8 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		Platform: "proxmox", Type: g.Type, VMID: g.VMID, Name: g.Name, Node: g.Node, Running: running,
 		Config: cleanConfig(conf),
 	}
-	// One BackupZit operation per guest at a time: the sweep below removes
-	// every backupzit_* snapshot, also the live one of a parallel run (M-13).
-	unlockVM, err := vmlock.Lock(ctx, fmt.Sprintf("pve-%d", g.VMID))
-	if err != nil {
-		return nil, nil, warns, err
-	}
-	defer unlockVM()
+	// backupGuest holds the guest's vmlock: the sweep below cannot remove
+	// the live snapshot of a parallel run.
 	snap := ""
 	if useSnap {
 		// Remove snapshots left behind by an interrupted backup.

@@ -2,8 +2,10 @@ package pgsql
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"os"
@@ -83,7 +85,12 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		// Close the current segment so recent changes are archived.
 		before := time.Now()
 		_, _ = s.Query(ctx, "", "SELECT pg_switch_wal()")
-		waitArchived(ctx, s, before)
+		caughtUp := waitArchived(ctx, s, before)
+		// A short segment that stays in the spool can stop archiving for
+		// good (PostgreSQL retries it and the command refuses an existing
+		// file); what PostgreSQL reports decides what is done with it.
+		ast, astErr := s.archiverState(ctx)
+		reported := false
 		dir := filepath.Join(stage, "wal")
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return nil, nil, err
@@ -96,11 +103,24 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			if !IsSegment(n) && !strings.HasSuffix(n, ".history") && !strings.HasSuffix(n, ".backup") {
 				continue
 			}
-			if fi, err := e.Info(); IsSegment(n) && segBytes > 0 && (err != nil || fi.Size() != segBytes) {
-				continue
+			if IsSegment(n) && segBytes > 0 {
+				fi, err := e.Info()
+				if err != nil {
+					continue
+				}
+				if fi.Size() != segBytes {
+					if astErr == nil {
+						if msg := handlePartial(filepath.Join(WALSpool, n), fi, segBytes, ast, time.Now()); msg != "" {
+							o.Log(msg)
+							problems = append(problems, msg)
+							reported = reported || n == ast.lastFailed
+						}
+					}
+					continue
+				}
 			}
 			if err := copyFile(filepath.Join(WALSpool, n), filepath.Join(dir, n)); err != nil {
-				return nil, nil, err
+				return nil, problems, err
 			}
 			if fi, err := e.Info(); err == nil {
 				size += uint64(fi.Size()) // #nosec G115 -- file sizes and counts are not negative
@@ -110,8 +130,14 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 				segs = append(segs, n)
 			}
 		}
+		// Archiving that fails for another reason (spool disk full, folder
+		// gone) must not go unnoticed either: pg_wal grows meanwhile.
+		if astErr == nil && ast.stuck && !caughtUp && !reported {
+			problems = append(problems, fmt.Sprintf("PostgreSQL cannot archive WAL segment %s (archive_command failed, last at %s); point-in-time recovery stops there and pg_wal grows until it works again — see the PostgreSQL log",
+				ast.lastFailed, ast.failedAt.Format("2006-01-02 15:04:05")))
+		}
 		if len(segs) == 0 {
-			return nil, nil, nil
+			return nil, problems, nil
 		}
 		sort.Strings(segs)
 		now := time.Now()
@@ -179,7 +205,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			f := filepath.Join(ddir, safeName(d.Name)+".dump")
 			t0 := time.Now()
 			o.Log("pg_dump", "database", d.Name)
-			if _, err := asPostgres(ctx, s.bin("pg_dump"), "-p", strconv.Itoa(s.Port), "-Fc", "-Z", "0", "-f", f, "--", d.Name); err != nil {
+			if _, err := asPostgres(ctx, s.bin("pg_dump"), "-p", strconv.Itoa(s.Port), "-Fc", "-Z", "0", "-f", f, dbnameArg(d.Name)); err != nil {
 				problems = append(problems, fmt.Sprintf("database %s: %v", d.Name, err))
 				continue
 			}
@@ -229,21 +255,137 @@ func basebackupLSNs(dir string) (start, end string) {
 }
 
 // waitArchived waits briefly until the archiver has handled the segment
-// switched at t.
-func waitArchived(ctx context.Context, s *Server, t time.Time) {
+// switched at t; false: it did not within the wait.
+func waitArchived(ctx context.Context, s *Server, t time.Time) bool {
 	for i := 0; i < 30; i++ {
 		out, err := s.Query(ctx, "", "SELECT coalesce(extract(epoch from last_archived_time)::bigint, 0) FROM pg_stat_archiver")
 		if err == nil {
 			if n, _ := strconv.ParseInt(out, 10, 64); n >= t.Unix() {
-				return
+				return true
 			}
 		}
 		select {
 		case <-ctx.Done():
-			return
+			return false
 		case <-time.After(time.Second):
 		}
 	}
+	return false
+}
+
+// archiverState is PostgreSQL's view of WAL archiving (pg_stat_archiver).
+type archiverState struct {
+	lastArchived string    // last WAL file archived
+	lastFailed   string    // last WAL file the archive_command failed on
+	failedAt     time.Time // when that was
+	stuck        bool      // the latest attempt failed (no success since)
+}
+
+func (s *Server) archiverState(ctx context.Context) (archiverState, error) {
+	out, err := s.Query(ctx, "", "SELECT coalesce(last_archived_wal, ''), coalesce(last_failed_wal, ''), coalesce(extract(epoch from last_failed_time)::bigint, 0), "+
+		"(last_failed_time IS NOT NULL AND (last_archived_time IS NULL OR last_failed_time > last_archived_time))::int FROM pg_stat_archiver")
+	if err != nil {
+		return archiverState{}, err
+	}
+	f := strings.Split(out, "|")
+	if len(f) != 4 {
+		return archiverState{}, fmt.Errorf("unexpected pg_stat_archiver row %q", out)
+	}
+	at, _ := strconv.ParseInt(f[2], 10, 64)
+	return archiverState{lastArchived: f[0], lastFailed: f[1], failedAt: time.Unix(at, 0), stuck: f[3] == "1"}, nil
+}
+
+// partialAge is how long a short segment in the spool must be untouched
+// before it counts as stale: a copy in progress changes it all the time.
+const partialAge = 5 * time.Minute
+
+// partialVerdict is what a log backup does with a segment in the spool that
+// is shorter than a WAL segment.
+type partialVerdict int
+
+const (
+	partialWait    partialVerdict = iota // probably still being copied: looked at again next time
+	partialBlocked                       // archiving fails on it, but it may still be written: reported
+	partialRetry                         // stale copy that stops archiving: removed, PostgreSQL copies it again
+	partialLost                          // stale copy PostgreSQL never sends again: removed, the gap reported
+)
+
+// judgePartial decides about the short spool segment name, last written at
+// mtime. Only a copy nothing can still be writing is removed: PostgreSQL
+// fails on it since a time after it was written, or has archived later
+// segments of the same timeline.
+func judgePartial(name string, mtime, now time.Time, st archiverState) partialVerdict {
+	old := now.Sub(mtime) > partialAge
+	switch {
+	case st.stuck && st.lastFailed == name:
+		// PostgreSQL keeps a segment in pg_wal until it is archived, so the
+		// spool copy is not the only one.
+		if old && mtime.Before(st.failedAt) {
+			return partialRetry
+		}
+		return partialBlocked
+	case old && segmentAfter(st.lastArchived, name):
+		return partialLost
+	}
+	return partialWait
+}
+
+// segmentAfter reports whether the WAL file a (a segment, or a .partial or
+// .backup file named after one) is a later segment than seg on the same
+// timeline.
+func segmentAfter(a, seg string) bool {
+	if len(a) < 24 || !IsSegment(a[:24]) || !IsSegment(seg) {
+		return false
+	}
+	return a[:8] == seg[:8] && a[:24] > seg
+}
+
+// partialCopy reports whether the spool file p of size bytes is provably an
+// incomplete copy: shorter than a segment, and not a complete segment of
+// another size either (the long header of a segment's first page records
+// its size, at offset 32, in the server's byte order).
+func partialCopy(p string, size, segBytes int64) bool {
+	if size >= segBytes {
+		return false
+	}
+	f, err := os.Open(p) // #nosec G304 -- a file in the agent's WAL spool
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	h := make([]byte, 40)
+	if n, _ := io.ReadFull(f, h); n < len(h) {
+		return true
+	}
+	le, be := binary.LittleEndian.Uint32(h[32:]), binary.BigEndian.Uint32(h[32:])
+	return int64(le) != size && int64(be) != size
+}
+
+// handlePartial acts on the short spool segment p and returns what the run
+// reports about it ("" when it is most likely still being copied).
+func handlePartial(p string, fi fs.FileInfo, segBytes int64, st archiverState, now time.Time) string {
+	name := filepath.Base(p)
+	if !partialCopy(p, fi.Size(), segBytes) {
+		return ""
+	}
+	switch judgePartial(name, fi.ModTime(), now, st) {
+	case partialBlocked:
+		return fmt.Sprintf("WAL archiving is stuck at segment %s: an incomplete copy (%d of %d bytes) is in %s and PostgreSQL's archive_command fails on it; a later log backup removes it once nothing writes to it",
+			name, fi.Size(), segBytes, WALSpool)
+	case partialRetry:
+		if err := os.Remove(p); err != nil {
+			return fmt.Sprintf("WAL archiving is stuck at segment %s: an incomplete copy (%d of %d bytes) in %s could not be removed: %v", name, fi.Size(), segBytes, WALSpool, err)
+		}
+		return fmt.Sprintf("WAL segment %s in %s was an incomplete copy (%d of %d bytes) that stopped WAL archiving; it was removed and PostgreSQL archives the segment again",
+			name, WALSpool, fi.Size(), segBytes)
+	case partialLost:
+		if err := os.Remove(p); err != nil {
+			return fmt.Sprintf("WAL segment %s in %s is incomplete (%d of %d bytes) and could not be removed: %v", name, WALSpool, fi.Size(), segBytes, err)
+		}
+		return fmt.Sprintf("WAL segment %s in %s was incomplete (%d of %d bytes, probably left by a crash) and PostgreSQL does not archive it again; it was removed. Point-in-time recovery from earlier full backups cannot go past it: run a full backup",
+			name, WALSpool, fi.Size(), segBytes)
+	}
+	return ""
 }
 
 // RestoreOptions select what RestoreFromRepo restores.
@@ -375,7 +517,7 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 		_ = os.WriteFile(dump, nil, 0o600)
 		_ = exec.CommandContext(ctx, "chown", "postgres:", dump).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 		o.Log("pg_dump from the recovered instance", "database", o.Database)
-		if _, err := asPostgres(ctx, inst.bin("pg_dump"), "-h", inst.Socket, "-p", strconv.Itoa(inst.Port), "-Fc", "-Z", "0", "-f", dump, "--", o.Database); err != nil {
+		if _, err := asPostgres(ctx, inst.bin("pg_dump"), "-h", inst.Socket, "-p", strconv.Itoa(inst.Port), "-Fc", "-Z", "0", "-f", dump, dbnameArg(o.Database)); err != nil {
 			return nil, err
 		}
 	}
@@ -413,7 +555,7 @@ func (s *Server) restoreDump(ctx context.Context, dump string, o RestoreOptions)
 		return err
 	}
 	o.Log("pg_restore", "database", target)
-	if _, err := asPostgres(ctx, s.bin("pg_restore"), "-p", strconv.Itoa(s.Port), "-d", target, "--no-password", dump); err != nil {
+	if _, err := asPostgres(ctx, s.bin("pg_restore"), "-p", strconv.Itoa(s.Port), dbnameArg(target), "--no-password", dump); err != nil {
 		return fmt.Errorf("pg_restore into %s: %w", target, err)
 	}
 	return nil

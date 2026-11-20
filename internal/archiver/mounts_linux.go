@@ -27,15 +27,23 @@ func pseudoMounts() map[string]bool {
 	return parseMountinfo(string(b))
 }
 
+// parseMountinfo judges each mount point by its last listed entry, the
+// mount on top that a reader sees: with systemd automount /boot or /home
+// has an autofs line and, once used, the real file system mounted over it,
+// and that one must be backed up.
 func parseMountinfo(s string) map[string]bool {
 	out := map[string]bool{}
 	for _, line := range strings.Split(s, "\n") {
 		pre, post, ok := strings.Cut(line, " - ")
 		f, g := strings.Fields(pre), strings.Fields(post)
-		if !ok || len(f) < 5 || len(g) < 1 || !pseudoFS[g[0]] {
+		if !ok || len(f) < 5 || len(g) < 1 {
 			continue
 		}
-		out[unescapeMount(f[4])] = true
+		if p := unescapeMount(f[4]); pseudoFS[g[0]] {
+			out[p] = true
+		} else {
+			delete(out, p)
+		}
 	}
 	return out
 }
