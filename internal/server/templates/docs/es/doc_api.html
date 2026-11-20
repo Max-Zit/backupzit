@@ -5,7 +5,7 @@
 <h2>Tokens</h2>
 <p>Cree un token en <a href="/account#tokens">Mi cuenta → Tokens de API</a>. Asígnele el rol más bajo que sea suficiente: <b>Observador</b> para supervisión, <b>Operador de restauración</b> para iniciar también copias y pruebas de restauración. El token se muestra una sola vez; envíelo en cada solicitud:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Los tokens pueden caducar, su propietario o un administrador pueden revocarlos (<a href="/users">Usuarios</a>) y dejan de funcionar cuando el propietario se deshabilita. Las acciones realizadas con un token aparecen en el registro de auditoría con el nombre del token.</p>
+<p>Los tokens pueden caducar, su propietario o un administrador pueden revocarlos (<a href="/users">Usuarios</a>) y dejan de funcionar cuando el propietario se deshabilita. Las acciones realizadas con un token aparecen en el registro de auditoría con el nombre del token. Una contraseña nueva establecida por un administrador también revoca los tokens del propietario.</p>
 
 <h2>Puntos de conexión</h2>
 <p>Todas las respuestas son JSON. URL base: <code>https://&lt;consola&gt;:8443</code>.</p>

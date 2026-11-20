@@ -47,7 +47,7 @@ func TestDeleteBackupsConfirmsIdentity(t *testing.T) {
 		t.Fatal("no two-factor secret")
 	}
 	secret := strings.ReplaceAll(m[1], " ", "")
-	if code, _, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, now)}}); code != 200 {
+	if code, _, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, now)}, "password": {"correct-horse-9"}}); code != 200 {
 		t.Fatalf("enable 2FA: %d", code)
 	}
 	now = now.Add(time.Minute) // a new code; the used one cannot be replayed

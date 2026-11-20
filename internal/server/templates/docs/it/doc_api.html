@@ -5,7 +5,7 @@
 <h2>Token</h2>
 <p>Crea un token in <a href="/account#tokens">Il mio account → Token API</a>. Assegnagli il ruolo più basso sufficiente: <b>Visualizzatore</b> per il monitoraggio, <b>Operatore di ripristino</b> per avviare anche backup e test di ripristino. Il token viene mostrato una sola volta; invialo in ogni richiesta:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>I token possono scadere, essere revocati dal proprietario o da un amministratore (<a href="/users">Utenti</a>) e smettono di funzionare quando il proprietario viene disattivato. Le azioni eseguite con un token compaiono nel registro di controllo con il nome del token.</p>
+<p>I token possono scadere, essere revocati dal proprietario o da un amministratore (<a href="/users">Utenti</a>) e smettono di funzionare quando il proprietario viene disattivato. Le azioni eseguite con un token compaiono nel registro di controllo con il nome del token. Una nuova password impostata da un amministratore revoca anche i token del proprietario.</p>
 
 <h2>Endpoint</h2>
 <p>Tutte le risposte sono in JSON. URL di base: <code>https://&lt;console&gt;:8443</code>.</p>

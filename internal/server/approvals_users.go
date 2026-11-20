@@ -197,6 +197,7 @@ func (s *Server) executeUserApproval(ctx context.Context, a Approval) (ok bool, 
 		if err := s.store.setUserPasswordHash(ctx, a.ObjectID, hash); err != nil {
 			return true, err
 		}
+		_, _ = s.store.revokeTokens(ctx, a.ObjectID)
 		s.initialPasswordUsed(a.ObjectName)
 		return true, nil
 	case "user.2fa_reset":

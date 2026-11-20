@@ -340,6 +340,10 @@ func groupSecret(s string) string {
 
 func (s *Server) handleAccount2FAEnable(w http.ResponseWriter, r *http.Request, user string) {
 	me := currentUser(r)
+	if err := s.confirmEnrollment(r); err != nil {
+		redirectErr(w, r, "/account/2fa", err)
+		return
+	}
 	t, err := s.store.getTwoFactor(r.Context(), me.ID)
 	if err != nil || t.Secret == "" {
 		redirectErr(w, r, "/account/2fa", errors.New("start the setup again"))
@@ -362,8 +366,8 @@ func (s *Server) handleAccount2FAEnable(w http.ResponseWriter, r *http.Request, 
 
 func (s *Server) handleAccount2FACodes(w http.ResponseWriter, r *http.Request, user string) {
 	me := currentUser(r)
-	if _, err := s.store.checkSecondFactor(r.Context(), me.ID, r.FormValue("code"), s.clock()); err != nil {
-		redirectErr(w, r, "/account/2fa", errors.New("enter a current code from your app to create new recovery codes"))
+	if err := s.checkOwnCode(r, "enter a current code from your app to create new recovery codes"); err != nil {
+		redirectErr(w, r, "/account/2fa", err)
 		return
 	}
 	plain, hashed := newRecoveryCodes()
@@ -382,8 +386,8 @@ func (s *Server) handleAccount2FADisable(w http.ResponseWriter, r *http.Request,
 		redirectErr(w, r, "/account/2fa", errors.New("two-factor authentication is required for your account"))
 		return
 	}
-	if _, err := s.store.checkSecondFactor(r.Context(), me.ID, r.FormValue("code"), s.clock()); err != nil {
-		redirectErr(w, r, "/account/2fa", errors.New("enter a current code from your app to turn two-factor authentication off"))
+	if err := s.checkOwnCode(r, "enter a current code from your app to turn two-factor authentication off"); err != nil {
+		redirectErr(w, r, "/account/2fa", err)
 		return
 	}
 	if err := s.store.DisableTwoFactor(r.Context(), me.ID); err != nil {
@@ -397,6 +401,11 @@ func (s *Server) handleAccount2FADisable(w http.ResponseWriter, r *http.Request,
 func (s *Server) handleUser2FAReset(w http.ResponseWriter, r *http.Request, _ string) {
 	u, ok := s.userFromPath(w, r)
 	if !ok {
+		return
+	}
+	if u.ID == currentUser(r).ID {
+		// Without a code: a stolen session could reset it and enroll anew.
+		redirectErr(w, r, fmt.Sprintf("/users/%d", u.ID), errOwn2FAReset)
 		return
 	}
 	if u.ID != currentUser(r).ID && !u.Disabled && canApproveRole(u.Role) &&

@@ -5,7 +5,7 @@
 <h2>Tokens</h2>
 <p>Crie um token em <a href="/account#tokens">Minha conta → Tokens de API</a>. Dê a ele a função mais baixa que seja suficiente — <b>Visualizador</b> para monitoramento, <b>Operador de restauração</b> para também iniciar backups e testes de restauração. O token é mostrado uma única vez; envie-o em cada requisição:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Tokens podem expirar, ser revogados pelo dono ou por um administrador (<a href="/users">Usuários</a>) e param de funcionar quando o dono é desativado. Ações feitas com um token aparecem no log de auditoria com o nome do token.</p>
+<p>Tokens podem expirar, ser revogados pelo dono ou por um administrador (<a href="/users">Usuários</a>) e param de funcionar quando o dono é desativado. Ações feitas com um token aparecem no log de auditoria com o nome do token. Uma nova senha definida por um administrador também revoga os tokens do proprietário.</p>
 
 <h2>Endpoints</h2>
 <p>Todas as respostas são JSON. URL base: <code>https://&lt;console&gt;:8443</code>.</p>

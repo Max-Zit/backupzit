@@ -5,7 +5,7 @@
 <h2>Token</h2>
 <p>Erstellen Sie ein Token unter <a href="/account#tokens">Mein Konto → API-Token</a>. Geben Sie ihm die niedrigste Rolle, die genügt — <b>Betrachter</b> für die Überwachung, <b>Wiederherstellungsoperator</b>, um auch Sicherungen und Wiederherstellungstests zu starten. Das Token wird nur einmal angezeigt; senden Sie es mit jeder Anfrage:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Token können ablaufen, von ihrem Besitzer oder einem Administrator widerrufen werden (<a href="/users">Benutzer</a>) und funktionieren nicht mehr, wenn der Besitzer deaktiviert wird. Mit einem Token ausgeführte Aktionen erscheinen im Prüfprotokoll mit dem Namen des Tokens.</p>
+<p>Token können ablaufen, von ihrem Besitzer oder einem Administrator widerrufen werden (<a href="/users">Benutzer</a>) und funktionieren nicht mehr, wenn der Besitzer deaktiviert wird. Mit einem Token ausgeführte Aktionen erscheinen im Prüfprotokoll mit dem Namen des Tokens. Ein von einem Administrator gesetztes neues Passwort widerruft auch die Tokens des Besitzers.</p>
 
 <h2>Endpunkte</h2>
 <p>Alle Antworten sind JSON. Basis-URL: <code>https://&lt;konsole&gt;:8443</code>.</p>

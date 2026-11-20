@@ -288,12 +288,12 @@ func (g *loginGuard) Fail(r *http.Request, username, what string) {
 	}
 }
 
-// Success clears the failures of the address and the username.
-func (g *loginGuard) Success(r *http.Request, username string) {
-	ip := g.ClientIP(r)
+// Success clears the failures of the username. The address keeps its
+// count until the window ends: otherwise one valid account would let an
+// address reset its counter between guesses at many other usernames.
+func (g *loginGuard) Success(_ *http.Request, username string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	delete(g.fails, "ip:"+ip)
 	delete(g.fails, userKey(username))
 }
 

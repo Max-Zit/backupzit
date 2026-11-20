@@ -31,7 +31,7 @@ func TestResetTwoFactorFromCommandLine(t *testing.T) {
 		t.Fatal("no secret on the setup page")
 	}
 	secret := strings.ReplaceAll(m[1], " ", "")
-	if code, _, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, time.Now())}}); code != 200 {
+	if code, _, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, time.Now())}, "password": {"correct-horse-9"}}); code != 200 {
 		t.Fatalf("enable 2FA: %d", code)
 	}
 

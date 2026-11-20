@@ -489,6 +489,11 @@ func (s *Server) handleUserPassword(w http.ResponseWriter, r *http.Request, _ st
 		return
 	}
 	back := fmt.Sprintf("/users/%d", u.ID)
+	if u.ID == currentUser(r).ID {
+		// Without the current password: a stolen session could take over the account.
+		redirectErr(w, r, back, errOwnPassword)
+		return
+	}
 	if r.FormValue("password") != r.FormValue("password2") {
 		redirectErr(w, r, back, errors.New("the passwords do not match"))
 		return
@@ -509,8 +514,11 @@ func (s *Server) handleUserPassword(w http.ResponseWriter, r *http.Request, _ st
 		return
 	}
 	s.initialPasswordUsed(u.Username)
+	if n, err := s.store.revokeTokens(r.Context(), u.ID); err == nil && n > 0 {
+		s.audit(r, "token.revoke", "%d API tokens of %s revoked with the password reset", n, u.Username)
+	}
 	s.audit(r, "user.password", "password of %s reset", u.Username)
-	redirectMsg(w, r, back, "Password changed; the user was signed out everywhere.")
+	redirectMsg(w, r, back, "Password changed; the user was signed out everywhere and their API tokens were revoked.")
 }
 
 // checkUserDeletable keeps the last enabled local administrator.
@@ -587,10 +595,16 @@ func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, user, new
 
 func (s *Server) handleAccountPassword(w http.ResponseWriter, r *http.Request, _ string) {
 	me := currentUser(r)
+	if wait := s.guard.Blocked(r, me.Username); wait > 0 {
+		redirectErr(w, r, "/account", fmt.Errorf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1))
+		return
+	}
 	if _, err := s.authenticate(r.Context(), me.Username, r.FormValue("current")); err != nil || me.Source != "local" {
+		s.guard.Fail(r, me.Username, "confirmations")
 		redirectErr(w, r, "/account", errors.New("the current password is wrong"))
 		return
 	}
+	s.guard.Success(r, me.Username)
 	if r.FormValue("password") != r.FormValue("password2") {
 		redirectErr(w, r, "/account", errors.New("the new passwords do not match"))
 		return

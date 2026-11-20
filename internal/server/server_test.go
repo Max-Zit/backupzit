@@ -1330,10 +1330,10 @@ func TestTwoFactor(t *testing.T) {
 		t.Fatal("setup page lacks secret or QR code")
 	}
 	secret := strings.ReplaceAll(m[1], " ", "")
-	if _, loc, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {"000000"}}); !strings.Contains(loc, "err=") {
+	if _, loc, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {"000000"}, "password": {"correct-horse-9"}}); !strings.Contains(loc, "err=") {
 		t.Error("wrong code enabled 2FA")
 	}
-	code, _, body := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, now)}})
+	code, _, body := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, now)}, "password": {"correct-horse-9"}})
 	recovery := regexp.MustCompile(`<li class="mono">([A-Z2-7]{4}-[A-Z2-7]{4})</li>`).FindAllStringSubmatch(body, -1)
 	if code != 200 || len(recovery) != 10 {
 		t.Fatalf("enable: %d, %d recovery codes", code, len(recovery))
