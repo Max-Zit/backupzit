@@ -45,6 +45,12 @@ func TestCheckSAMLXML(t *testing.T) {
 	if err := checkSAMLResponse([]byte(enc), nil); err == nil {
 		t.Error("an encrypted assertion that does not decrypt was accepted")
 	}
+	// L-N1 (0.56): an encrypted NameID is decrypted and checked too (it was
+	// passed to the library unchecked).
+	encID := strings.Replace(samlOK, `</samlp:Response>`, `<saml:EncryptedID><xenc:EncryptedData xmlns:xenc="http://www.w3.org/2001/04/xmlenc#"/></saml:EncryptedID></samlp:Response>`, 1)
+	if err := checkSAMLResponse([]byte(encID), nil); err == nil {
+		t.Error("an encrypted NameID that does not decrypt was accepted")
+	}
 }
 
 // A panic in the library's parser is a refused response.

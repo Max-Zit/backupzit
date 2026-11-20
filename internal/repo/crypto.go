@@ -78,8 +78,10 @@ const (
 	kdfTime    = 3
 	kdfMemory  = 64 * 1024
 	kdfThreads = 4
-	// maxKeyFiles is how many key files an open tries.
-	maxKeyFiles = 32
+	// maxKeyFiles is how many valid key files an open tries, maxKeyListing
+	// how many it reads at all.
+	maxKeyFiles   = 32
+	maxKeyListing = 1000
 )
 
 func newAEAD(key []byte) (cipher.AEAD, error) {
@@ -178,11 +180,17 @@ func unlock(ctx context.Context, be backend.Backend, password string) (*masterKe
 	}
 	var loadErr error
 	// A repository has a few key files; planted ones must not make every
-	// open try thousands of key derivations.
-	if len(names) > maxKeyFiles {
-		names = names[:maxKeyFiles]
+	// open read thousands of files or try many key derivations. Only valid
+	// ones count toward the derivations, so invalid planted files cannot
+	// push the real key out (L-N11).
+	if len(names) > maxKeyListing {
+		names = names[:maxKeyListing]
 	}
+	tried := 0
 	for _, n := range names {
+		if tried >= maxKeyFiles {
+			break
+		}
 		b, err := be.Load(ctx, n)
 		if err != nil {
 			loadErr = err
@@ -196,6 +204,7 @@ func unlock(ctx context.Context, be backend.Backend, password string) (*masterKe
 		if json.Unmarshal(b, &kf) != nil || kf.KDF != "argon2id" || kf.Memory > 1<<20 || kf.Time < 1 || kf.Time > 10 || kf.Threads < 1 {
 			continue
 		}
+		tried++
 		kek, err := newAEAD(argon2.IDKey([]byte(password), kf.Salt, kf.Time, kf.Memory, kf.Threads, 32))
 		if err != nil {
 			continue

@@ -937,8 +937,20 @@ func (s *Store) claimRun(ctx context.Context, agentID int64, onlyUpdate bool) (*
 // claimRunIdle is claimRun for an agent that is idle or already runs
 // something (then no agent update, which restarts the agent).
 func (s *Store) claimRunIdle(ctx context.Context, agentID int64, onlyUpdate, idle bool) (*Run, error) {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	// Claims by agents with a queued VMware VM run take turns: two proxies
+	// polling at the same moment would otherwise both pass the busy check
+	// of the connection (vmwareBusySQL, L-N3). The lock ends with the
+	// transaction; other agents are not held up.
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(7316541) WHERE EXISTS (SELECT 1 FROM runs WHERE agent_id=$1 AND status='queued' AND vmware_host_id IS NOT NULL)`, agentID); err != nil {
+		return nil, err
+	}
 	var id int64
-	err := s.db.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
+	err = tx.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
 		WHERE id = (SELECT r.id FROM runs r LEFT JOIN jobs j ON j.id=r.job_id WHERE r.agent_id=$1 AND r.status='queued' AND (NOT $2 OR r.kind='agent-update')
 			AND ($3 OR r.kind<>'agent-update') AND NOT `+windowClosed(4)+` AND NOT `+vmwareBusySQL+`
 			ORDER BY r.kind IN ('verify','repo-check'), r.queued_at LIMIT 1 FOR UPDATE OF r SKIP LOCKED)
@@ -947,6 +959,9 @@ func (s *Store) claimRunIdle(ctx context.Context, agentID int64, onlyUpdate, idl
 		return nil, nil
 	}
 	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 	r, err := s.GetRun(ctx, id)

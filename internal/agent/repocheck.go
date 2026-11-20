@@ -93,6 +93,10 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 			return api.RunResult{Status: api.StatusWarning, Errors: res.Errors,
 				Message: fmt.Sprintf("No data pack is proven damaged, nothing was taken out%s", unreadable)}
 		}
+		if len(res.Errors) > 0 { // other problems the check found stay visible (L-N7)
+			return api.RunResult{Status: api.StatusWarning, Errors: res.Errors,
+				Message: fmt.Sprintf("No data pack is proven damaged, nothing was taken out; the check found %s", count(len(res.Errors), "other problem", "other problems"))}
+		}
 		return api.RunResult{Status: api.StatusSuccess, Message: fmt.Sprintf("Read all %d data packs again: none is damaged now, nothing to repair", res.PacksRead)}
 	}
 	rep, err := r.DropDamagedPacks(ctx, res.Damaged)

@@ -477,7 +477,10 @@ func (s *Server) handleSAMLACS(w http.ResponseWriter, r *http.Request) {
 	// resolution), checked before the library reads it (GO-2026-6909, see
 	// samlcheck.go).
 	raw, err := base64.StdEncoding.DecodeString(r.PostForm.Get("SAMLResponse"))
-	if err == nil && r.PostForm.Get("SAMLart") != "" {
+	// The library reads r.Form, which includes the query string: an artifact
+	// in the URL would start artifact resolution, whose answer is never
+	// checked here (L-N1).
+	if err == nil && r.Form.Get("SAMLart") != "" {
 		err = samlErr("SAML artifact binding is not used")
 	}
 	if err == nil {

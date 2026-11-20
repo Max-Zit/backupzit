@@ -349,7 +349,7 @@ func (rep *Report) CSV() []byte {
 			}
 			return t.Local().Format("2006-01-02 15:04:05")
 		}
-		_ = w.Write([]string{strconv.FormatInt(r.ID, 10), r.Kind, r.Hostname, csvSafe(deref(r.JobName)), r.Status,
+		_ = w.Write([]string{strconv.FormatInt(r.ID, 10), r.Kind, csvSafe(r.Hostname), csvSafe(deref(r.JobName)), r.Status,
 			r.QueuedAt.Local().Format("2006-01-02 15:04:05"), ts(r.StartedAt), ts(r.FinishedAt),
 			strconv.Itoa(int(r.Duration().Seconds())), strconv.FormatUint(st.Files, 10), strconv.FormatUint(st.Bytes, 10),
 			strconv.FormatUint(st.BytesRead, 10), strconv.FormatUint(st.BytesStored, 10), csvSafe(r.Message)})

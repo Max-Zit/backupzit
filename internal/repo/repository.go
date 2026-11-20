@@ -25,6 +25,9 @@ const FormatVersion = 1
 // DefaultPackSize is the target size of a pack file.
 const DefaultPackSize = 16 << 20
 
+// maxPackSize bounds the pack size a repository configuration may ask for.
+const maxPackSize = 256 << 20
+
 // indexFlushPacks writes an intermediate index after this many packs so an
 // interrupted backup does not leave too much unindexed data behind.
 const indexFlushPacks = 32
@@ -201,6 +204,12 @@ func newRepository(be backend.Backend, cfg Config, polStr string, key []byte) (*
 	}
 	if cfg.PackSize <= 0 {
 		cfg.PackSize = DefaultPackSize
+	}
+	// The plaintext config of an unencrypted repository can be changed by
+	// anyone with write access to the storage: packs are built in memory and
+	// blob offsets are 32-bit (L-N10).
+	if cfg.PackSize > maxPackSize {
+		cfg.PackSize = maxPackSize
 	}
 	enc, err := zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedDefault), zstd.WithEncoderConcurrency(1))
 	if err != nil {
