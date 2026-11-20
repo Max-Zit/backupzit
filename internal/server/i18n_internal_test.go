@@ -141,7 +141,7 @@ func TestLocalPathAndNames(t *testing.T) {
 			t.Errorf("localPath(%q) = %v", p, !want)
 		}
 	}
-	for n, want := range map[string]bool{"sales_restored": true, "Prodaja 2026": true, "shop-copy$1": true, `x\' OR 1=1 -- `: false, "a`b": false, "a]b": false, "": false} {
+	for n, want := range map[string]bool{"sales_restored": true, "Prodaja 2026": true, "shop-copy$1": true, `x\' OR 1=1 -- `: false, "a`b": false, "a]b": false, "": false, "--file=/etc/x": false, "-x": false} {
 		if dbName.MatchString(n) != want {
 			t.Errorf("dbName(%q) = %v", n, !want)
 		}

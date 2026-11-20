@@ -402,7 +402,7 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 	if err != nil {
 		return 0, err
 	}
-	err = run(ctx, f, io.Discard, s.tool["client"], "--default-character-set=utf8mb4", target)
+	err = run(ctx, f, io.Discard, s.tool["client"], "--default-character-set=utf8mb4", "--", target)
 	_ = f.Close()
 	if err != nil {
 		return 0, fmt.Errorf("load the dump into %s: %w", target, err)

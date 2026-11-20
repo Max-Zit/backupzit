@@ -163,7 +163,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			f := filepath.Join(ddir, safeName(d.Name)+".dump")
 			t0 := time.Now()
 			o.Log("pg_dump", "database", d.Name)
-			if _, err := asPostgres(ctx, s.bin("pg_dump"), "-p", strconv.Itoa(s.Port), "-Fc", "-Z", "0", "-f", f, d.Name); err != nil {
+			if _, err := asPostgres(ctx, s.bin("pg_dump"), "-p", strconv.Itoa(s.Port), "-Fc", "-Z", "0", "-f", f, "--", d.Name); err != nil {
 				problems = append(problems, fmt.Sprintf("database %s: %v", d.Name, err))
 				continue
 			}
@@ -349,7 +349,7 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 		_ = os.WriteFile(dump, nil, 0o600)
 		_ = exec.CommandContext(ctx, "chown", "postgres:", dump).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 		o.Log("pg_dump from the recovered instance", "database", o.Database)
-		if _, err := asPostgres(ctx, inst.bin("pg_dump"), "-h", inst.Socket, "-p", strconv.Itoa(inst.Port), "-Fc", "-Z", "0", "-f", dump, o.Database); err != nil {
+		if _, err := asPostgres(ctx, inst.bin("pg_dump"), "-h", inst.Socket, "-p", strconv.Itoa(inst.Port), "-Fc", "-Z", "0", "-f", dump, "--", o.Database); err != nil {
 			return nil, err
 		}
 	}

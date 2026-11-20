@@ -372,8 +372,9 @@ func mysqlRestorePoints(d *repo.SQLBackup, logs []Run) []SQLRestorePoint {
 }
 
 // dbName limits the name of a database restored under a new name; the
-// agents quote it as well.
-var dbName = regexp.MustCompile(`^[\p{L}\p{N}_$ .-]{1,128}$`)
+// agents quote it as well. No leading "-": the database tools would read
+// such a name as an option (e.g. --file=...).
+var dbName = regexp.MustCompile(`^[\p{L}\p{N}_$ .][\p{L}\p{N}_$ .-]{0,127}$`)
 
 // handleSQLRestore handles the SQL Server restore form.
 func (s *Server) handleSQLRestore(w http.ResponseWriter, r *http.Request, runID int64, back string) {
