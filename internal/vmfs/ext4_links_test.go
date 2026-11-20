@@ -3,6 +3,7 @@ package vmfs
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/binary"
 	"io"
 	"os"
 	"strings"
@@ -61,6 +62,32 @@ func TestExt4SymlinkLoops(t *testing.T) {
 		b, _ := io.ReadAll(r)
 		if string(b) != "hello from a/f\n" {
 			t.Errorf("%s reads %q", p, b)
+		}
+	}
+}
+
+// M-N8 (0.56): a crafted superblock (a 1 GiB block size, no inodes per
+// group) is refused instead of allocating gigabytes or dividing by zero.
+func TestExt4CraftedSuperblock(t *testing.T) {
+	gz, err := os.ReadFile("testdata/ext4-links.img.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	zr, _ := gzip.NewReader(bytes.NewReader(gz))
+	orig, _ := io.ReadAll(zr)
+	for name, patch := range map[string]func([]byte){
+		"block size":       func(b []byte) { binary.LittleEndian.PutUint32(b[1024+24:], 20) },
+		"inodes per group": func(b []byte) { binary.LittleEndian.PutUint32(b[1024+40:], 0) },
+		"blocks per group": func(b []byte) { binary.LittleEndian.PutUint32(b[1024+32:], 0) },
+	} {
+		img := append([]byte(nil), orig...)
+		patch(img)
+		vols, err := Volumes(bytes.NewReader(img), int64(len(img)))
+		if err != nil || len(vols) == 0 {
+			continue // not even recognised: fine
+		}
+		if _, err := Open(vols[0]); err == nil {
+			t.Errorf("%s: crafted superblock accepted", name)
 		}
 	}
 }

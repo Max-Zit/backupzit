@@ -38,7 +38,13 @@ func Check(r io.Reader) bool {
 }
 
 func (ext4 *FileSystem) Extents(inode *Inode) ([]Extent, error) {
-	extents, err := ext4.extents(inode.BlockOrExtents[:], nil, extentDepthRoot)
+	// A crafted tree can point many internal nodes at one block: at most as
+	// many nodes and extents as the volume has blocks.
+	budget := ext4.r.Size()/ext4.sb.GetBlockSize() + 16
+	if budget > 1<<22 {
+		budget = 1 << 22
+	}
+	extents, err := ext4.extents(inode.BlockOrExtents[:], nil, extentDepthRoot, &budget)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to get extents: %w", err)
 	}
@@ -128,7 +134,10 @@ func (ext4 *FileSystem) getInode(inodeAddress int64) (*Inode, error) {
 	return &inode, nil
 }
 
-func (ext4 *FileSystem) extents(b []byte, extents []Extent, expectedDepth int) ([]Extent, error) {
+func (ext4 *FileSystem) extents(b []byte, extents []Extent, expectedDepth int, budget *int64) ([]Extent, error) {
+	if *budget--; *budget < 0 {
+		return nil, xerrors.New("extent tree larger than the volume")
+	}
 	extentReader := bytes.NewReader(b)
 	extentHeader := &ExtentHeader{}
 	err := binary.Read(extentReader, binary.LittleEndian, extentHeader)
@@ -160,6 +169,9 @@ func (ext4 *FileSystem) extents(b []byte, extents []Extent, expectedDepth int) (
 				return nil, xerrors.Errorf("failed to read leaf node extent: %w", err)
 			}
 			extents = append(extents, extent)
+			if *budget--; *budget < 0 {
+				return nil, xerrors.New("extent tree larger than the volume")
+			}
 		}
 	} else {
 		for i := uint16(0); i < extentHeader.Entries; i++ {
@@ -175,7 +187,7 @@ func (ext4 *FileSystem) extents(b []byte, extents []Extent, expectedDepth int) (
 				return nil, xerrors.Errorf("failed to read leaf node extent: %w", err)
 			}
 
-			extents, err = ext4.extents(b, extents, int(extentHeader.Depth)-1)
+			extents, err = ext4.extents(b, extents, int(extentHeader.Depth)-1, budget)
 			if err != nil {
 				return nil, xerrors.Errorf("failed to get extents: %w", err)
 			}

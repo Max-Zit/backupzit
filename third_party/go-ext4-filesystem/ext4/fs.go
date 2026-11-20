@@ -62,6 +62,15 @@ func NewFS(r io.SectionReader, cache Cache[string, any]) (*FileSystem, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("failed to parse super block: %w", err)
 	}
+	// A crafted superblock must not make the reader divide by zero or
+	// allocate gigabytes (block size, group counts): BackupZit opens guest
+	// file systems in its console.
+	if sb.LogBlockSize > 6 || sb.BlockPerGroup == 0 || sb.InodePerGroup == 0 || sb.InodeSize < 128 || int64(sb.InodeSize) > sb.GetBlockSize() {
+		return nil, xerrors.New("implausible ext4 superblock")
+	}
+	if maxGroups := r.Size()/(sb.GetBlockSize()*int64(sb.BlockPerGroup)) + 1; int64(sb.GetGroupDescriptorTableCount()) > maxGroups {
+		return nil, xerrors.Errorf("ext4 superblock names %d block groups, the volume holds at most %d", sb.GetGroupDescriptorTableCount(), maxGroups)
+	}
 
 	numBlockGroups := int64(sb.GetGroupDescriptorTableCount())
 	numBlockGroups2 := (sb.InodeCount + sb.InodePerGroup - 1) / sb.InodePerGroup
