@@ -164,6 +164,13 @@ func Open(ctx context.Context, be backend.Backend, opts ...Option) (*Repository,
 	polStr, key := cfg.ChunkerPolynomial, []byte(nil)
 	switch cfg.Encryption {
 	case "":
+		// Someone who can write to the storage could replace config with an
+		// unencrypted one (and remove index/ and snapshots/): the next backup
+		// would then upload everything in plaintext. A caller that has a
+		// recovery key expects an encrypted repository.
+		if o.password != "" {
+			return nil, fmt.Errorf("%s: %w", be.Location(), ErrNotEncrypted)
+		}
 	case EncryptionAES256GCM:
 		mk, err := unlock(ctx, be, o.password)
 		if err != nil {

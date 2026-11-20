@@ -4,7 +4,7 @@
 
 <h2>Ingebouwde bescherming</h2>
 <ul>
-  <li><b>Versleuteling bij de bron</b> — AES-256-GCM in de agent; de opslag ziet alleen versleutelde gegevens. Sleutels worden afgeleid met Argon2id.</li>
+  <li><b>Versleuteling bij de bron</b> — AES-256-GCM in de agent; de opslag ziet alleen versleutelde gegevens. Sleutels worden afgeleid met Argon2id. Een repository op een versleuteld doel die zegt niet versleuteld te zijn (de configuratie is op de opslag vervangen), wordt geweigerd, zodat er niets onversleuteld in wordt geschreven.</li>
   <li><b>Gepinde verbindingen</b> — agents pinnen het consolecertificaat; SFTP-hostsleutels en certificaten van geharde repository's worden ook gepind. Geen certificaatautoriteit kan worden misbruikt om zich als hen voor te doen.</li>
   <li><b>Vertrouwd certificaat voor browsers</b> — optioneel een geüpload of Let's Encrypt-certificaat (TLS 1.2+) op een apart adres, automatisch vernieuwd; zie <a href="/docs/install">De server installeren</a>.</li>
   <li><b>Geheimen in rust</b> — opslagwachtwoorden en -sleutels, herstelsleutels, SMTP/LDAP-wachtwoorden en tweestapsgeheimen worden in de database versleuteld met een sleutel die erbuiten wordt bewaard (<code>secrets.key</code>).</li>

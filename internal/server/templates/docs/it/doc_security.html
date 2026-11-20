@@ -4,7 +4,7 @@
 
 <h2>Protezioni integrate</h2>
 <ul>
-  <li><b>Cifratura alla fonte</b> — AES-256-GCM nell'agente; lo storage vede solo dati cifrati. Le chiavi sono derivate con Argon2id.</li>
+  <li><b>Cifratura alla fonte</b> — AES-256-GCM nell'agente; lo storage vede solo dati cifrati. Le chiavi sono derivate con Argon2id. Un repository su una destinazione cifrata che si dichiara non cifrato (la sua configurazione è stata sostituita sullo storage) viene rifiutato, così non vi si scrive nulla in chiaro.</li>
   <li><b>Connessioni fissate (pinning)</b> — gli agenti fissano il certificato della console; anche le chiavi host SFTP e i certificati dei repository protetti vengono fissati. Nessuna autorità di certificazione può essere usata per impersonarli.</li>
   <li><b>Certificato attendibile per i browser</b> — facoltativamente un certificato caricato o Let's Encrypt (TLS 1.2+) su un indirizzo separato, rinnovato automaticamente; vedi <a href="/docs/install">Installare il server</a>.</li>
   <li><b>Segreti a riposo</b> — password e chiavi dello storage, chiavi di ripristino, password SMTP/LDAP e segreti a due fattori sono cifrati nel database con una chiave tenuta fuori da esso (<code>secrets.key</code>).</li>

@@ -4,7 +4,7 @@
 
 <h2>Eingebauter Schutz</h2>
 <ul>
-  <li><b>Verschlüsselung an der Quelle</b> — AES-256-GCM im Agenten; der Speicher sieht nur verschlüsselte Daten. Schlüssel werden mit Argon2id abgeleitet.</li>
+  <li><b>Verschlüsselung an der Quelle</b> — AES-256-GCM im Agenten; der Speicher sieht nur verschlüsselte Daten. Schlüssel werden mit Argon2id abgeleitet. Ein Repository auf einem verschlüsselten Ziel, das sich als unverschlüsselt ausgibt (seine Konfiguration wurde auf dem Speicher ersetzt), wird abgelehnt, sodass nichts unverschlüsselt hineingeschrieben wird.</li>
   <li><b>Gepinnte Verbindungen</b> — Agenten pinnen das Konsolenzertifikat; SFTP-Hostschlüssel und Zertifikate gehärteter Repositories werden ebenfalls gepinnt. Keine Zertifizierungsstelle kann missbraucht werden, um sich als sie auszugeben.</li>
   <li><b>Vertrauenswürdiges Zertifikat für Browser</b> — optional ein hochgeladenes oder Let's-Encrypt-Zertifikat (TLS 1.2+) auf einer eigenen Adresse, automatisch erneuert; siehe <a href="/docs/install">Server installieren</a>.</li>
   <li><b>Geheimnisse im Ruhezustand</b> — Speicherpasswörter und -schlüssel, Wiederherstellungsschlüssel, SMTP-/LDAP-Passwörter und Zwei-Faktor-Geheimnisse werden in der Datenbank mit einem außerhalb gehaltenen Schlüssel (<code>secrets.key</code>) verschlüsselt.</li>

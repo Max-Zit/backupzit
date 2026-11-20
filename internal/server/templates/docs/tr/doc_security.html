@@ -4,7 +4,7 @@
 
 <h2>Yerleşik koruma</h2>
 <ul>
-  <li><b>Kaynakta şifreleme</b> — aracıda AES-256-GCM; depolama yalnızca şifreli veri görür. Anahtarlar Argon2id ile türetilir.</li>
+  <li><b>Kaynakta şifreleme</b> — aracıda AES-256-GCM; depolama yalnızca şifreli veri görür. Anahtarlar Argon2id ile türetilir. Şifreli bir hedefte şifresiz olduğunu söyleyen bir depo (yapılandırması depolamada değiştirilmiş) reddedilir; böylece ona hiçbir şey şifresiz yazılmaz.</li>
   <li><b>Sabitlenmiş bağlantılar</b> — aracılar konsol sertifikasını sabitler; SFTP ana bilgisayar anahtarları ve güçlendirilmiş depo sertifikaları da sabitlenir. Hiçbir sertifika yetkilisi onların kılığına girmek için kötüye kullanılamaz.</li>
   <li><b>Tarayıcılar için güvenilir sertifika</b> — isteğe bağlı olarak ayrı bir adreste yüklenmiş veya Let's Encrypt sertifikası (TLS 1.2+), otomatik yenilenir; bkz. <a href="/docs/install">Sunucuyu kurma</a>.</li>
   <li><b>Durağan gizli bilgiler</b> — depolama parolaları ve anahtarları, kurtarma anahtarları, SMTP/LDAP parolaları ve iki aşamalı gizli anahtarlar veritabanında, veritabanı dışında tutulan bir anahtarla (<code>secrets.key</code>) şifrelenir.</li>

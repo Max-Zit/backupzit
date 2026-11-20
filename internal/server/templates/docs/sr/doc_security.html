@@ -4,7 +4,7 @@
 
 <h2>Ugrađena zaštita</h2>
 <ul>
-  <li><b>Šifrovanje na izvoru</b> — AES-256-GCM u agentu; skladište vidi samo šifrovane podatke. Ključevi se izvode pomoću Argon2id.</li>
+  <li><b>Šifrovanje na izvoru</b> — AES-256-GCM u agentu; skladište vidi samo šifrovane podatke. Ključevi se izvode pomoću Argon2id. Repozitorijum na šifrovanom skladištu koji tvrdi da nije šifrovan (konfiguracija mu je zamenjena na skladištu) se odbija, tako da se u njega ništa ne upisuje nešifrovano.</li>
   <li><b>Fiksirane veze</b> — agenti fiksiraju sertifikat konzole; SFTP ključevi hostova i sertifikati ojačanih repozitorijuma takođe su fiksirani. Nijedan sertifikacioni autoritet ne može da se zloupotrebi da bi se lažno predstavio kao oni.</li>
   <li><b>Pouzdan sertifikat za pregledače</b> — opciono otpremljen ili Let's Encrypt sertifikat (TLS 1.2+) na posebnoj adresi, automatski obnavljan; vidi <a href="/docs/install">Instalacija servera</a>.</li>
   <li><b>Tajne u mirovanju</b> — lozinke i ključevi skladišta, ključevi za oporavak, SMTP/LDAP lozinke i dvofaktorske tajne čuvaju se šifrovani u bazi ključem koji se drži van nje (<code>secrets.key</code>).</li>

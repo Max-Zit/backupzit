@@ -4,7 +4,7 @@
 
 <h2>Vestavěná ochrana</h2>
 <ul>
-  <li><b>Šifrování u zdroje</b> — AES-256-GCM v agentovi; úložiště vidí jen šifrovaná data. Klíče se odvozují pomocí Argon2id.</li>
+  <li><b>Šifrování u zdroje</b> — AES-256-GCM v agentovi; úložiště vidí jen šifrovaná data. Klíče se odvozují pomocí Argon2id. Repozitář na šifrovaném cíli, který tvrdí, že není šifrovaný (jeho konfigurace byla na úložišti nahrazena), se odmítne, takže se do něj nic nezapíše nešifrovaně.</li>
   <li><b>Připnutá spojení</b> — agenti připínají certifikát konzole; připínají se i klíče hostitele SFTP a certifikáty zabezpečených úložišť. Žádnou certifikační autoritu nelze zneužít k vydávání se za ně.</li>
   <li><b>Důvěryhodný certifikát pro prohlížeče</b> — volitelně nahraný certifikát nebo certifikát Let's Encrypt (TLS 1.2+) na samostatné adrese, obnovovaný automaticky; viz <a href="/docs/install">Instalace serveru</a>.</li>
   <li><b>Tajemství v klidu</b> — hesla a klíče úložišť, klíče pro obnovu, hesla SMTP/LDAP a dvoufázová tajemství se v databázi šifrují klíčem drženým mimo ni (<code>secrets.key</code>).</li>

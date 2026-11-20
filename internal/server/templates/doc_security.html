@@ -4,7 +4,7 @@
 
 <h2>Built-in protection</h2>
 <ul>
-  <li><b>Encryption at the source</b> — AES-256-GCM in the agent; the storage only sees encrypted data. Keys are derived with Argon2id.</li>
+  <li><b>Encryption at the source</b> — AES-256-GCM in the agent; the storage only sees encrypted data. Keys are derived with Argon2id. A repository on an encrypted target that claims to be unencrypted (its configuration replaced on the storage) is refused, so nothing is written to it in plaintext.</li>
   <li><b>Pinned connections</b> — agents pin the console certificate; SFTP host keys and hardened repository certificates are pinned too. No certificate authority can be abused to impersonate them.</li>
   <li><b>Trusted certificate for browsers</b> — optionally an uploaded or Let's Encrypt certificate (TLS 1.2+) on a separate address, renewed automatically; see <a href="/docs/install">Installing the server</a>.</li>
   <li><b>Secrets at rest</b> — storage passwords and keys, recovery keys, SMTP/LDAP passwords and two-factor secrets are encrypted in the database with a key kept outside it (<code>secrets.key</code>).</li>

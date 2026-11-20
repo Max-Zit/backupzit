@@ -4,7 +4,7 @@
 
 <h2>Proteções embutidas</h2>
 <ul>
-  <li><b>Criptografia na origem</b> — AES-256-GCM no agente; o armazenamento só vê dados criptografados. As chaves são derivadas com Argon2id.</li>
+  <li><b>Criptografia na origem</b> — AES-256-GCM no agente; o armazenamento só vê dados criptografados. As chaves são derivadas com Argon2id. Um repositório em um destino criptografado que diz não ser criptografado (sua configuração foi substituída no armazenamento) é recusado, então nada é gravado nele sem criptografia.</li>
   <li><b>Conexões fixadas</b> — os agentes fixam o certificado do console; chaves de host SFTP e certificados de repositórios protegidos também são fixados. Nenhuma autoridade certificadora pode ser usada para se passar por eles.</li>
   <li><b>Certificado confiável para navegadores</b> — opcionalmente um certificado enviado ou do Let's Encrypt (TLS 1.2+) em um endereço separado, renovado automaticamente; veja <a href="/docs/install">Instalar o servidor</a>.</li>
   <li><b>Segredos em repouso</b> — senhas e chaves de armazenamento, chaves de recuperação, senhas SMTP/LDAP e segredos de dois fatores são criptografados no banco de dados com uma chave mantida fora dele (<code>secrets.key</code>).</li>

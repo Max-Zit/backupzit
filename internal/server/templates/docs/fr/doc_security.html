@@ -4,7 +4,7 @@
 
 <h2>Protections intégrées</h2>
 <ul>
-  <li><b>Chiffrement à la source</b> — AES-256-GCM dans l'agent ; le stockage ne voit que des données chiffrées. Les clés sont dérivées avec Argon2id.</li>
+  <li><b>Chiffrement à la source</b> — AES-256-GCM dans l'agent ; le stockage ne voit que des données chiffrées. Les clés sont dérivées avec Argon2id. Un dépôt sur une cible chiffrée qui se dit non chiffré (sa configuration a été remplacée sur le stockage) est refusé : rien n'y est écrit en clair.</li>
   <li><b>Connexions épinglées</b> — les agents épinglent le certificat de la console ; les clés d'hôte SFTP et les certificats des dépôts renforcés sont aussi épinglés. Aucune autorité de certification ne peut être détournée pour se faire passer pour eux.</li>
   <li><b>Certificat de confiance pour les navigateurs</b> — en option un certificat téléversé ou Let's Encrypt (TLS 1.2+) sur une adresse séparée, renouvelé automatiquement ; voir <a href="/docs/install">Installer le serveur</a>.</li>
   <li><b>Secrets au repos</b> — mots de passe et clés de stockage, clés de récupération, mots de passe SMTP/LDAP et secrets de double authentification sont chiffrés dans la base avec une clé conservée hors de celle-ci (<code>secrets.key</code>).</li>

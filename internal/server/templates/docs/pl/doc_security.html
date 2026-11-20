@@ -4,7 +4,7 @@
 
 <h2>Wbudowana ochrona</h2>
 <ul>
-  <li><b>Szyfrowanie u źródła</b> — AES-256-GCM w agencie; magazyn widzi tylko zaszyfrowane dane. Klucze są wyprowadzane za pomocą Argon2id.</li>
+  <li><b>Szyfrowanie u źródła</b> — AES-256-GCM w agencie; magazyn widzi tylko zaszyfrowane dane. Klucze są wyprowadzane za pomocą Argon2id. Repozytorium na zaszyfrowanym celu, które podaje się za niezaszyfrowane (jego konfiguracja została podmieniona w magazynie), jest odrzucane, więc nic nie zostaje do niego zapisane jawnym tekstem.</li>
   <li><b>Przypięte połączenia</b> — agenci przypinają certyfikat konsoli; klucze hosta SFTP i certyfikaty utwardzonych repozytoriów także są przypinane. Żadnego urzędu certyfikacji nie da się wykorzystać do podszycia się pod nie.</li>
   <li><b>Zaufany certyfikat dla przeglądarek</b> — opcjonalnie wgrany certyfikat lub certyfikat Let's Encrypt (TLS 1.2+) na osobnym adresie, odnawiany automatycznie; zobacz <a href="/docs/install">Instalacja serwera</a>.</li>
   <li><b>Sekrety w spoczynku</b> — hasła i klucze magazynów, klucze odzyskiwania, hasła SMTP/LDAP i sekrety uwierzytelniania dwuskładnikowego są szyfrowane w bazie kluczem przechowywanym poza nią (<code>secrets.key</code>).</li>
