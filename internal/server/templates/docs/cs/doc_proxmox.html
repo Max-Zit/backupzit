@@ -34,6 +34,14 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Subvolumy ZFS kontejnerů (LXC)</td><td>ano, snímek, soubor po souboru</td><td>ano, soubor po souboru</td></tr>
 </table>
 <p>Disky označené v Proxmoxu <i>Backup: no</i> (<code>backup=0</code>), průchozí fyzické disky a bind mounty se přeskočí a uvedou jako varování. Jednotky cloud-init se neukládají; při obnově se znovu vytvoří z konfigurace. Zastavený host, jehož disky se čtou bez snímku, má mezitím zámek zálohy Proxmox VE jako u vzdump: nelze ho spustit (ani přes HA), dokud se jeho disky nepřečtou.</p>
+<p id="leftovers"><b>Snímky a zámky, které zůstanou.</b> Agent si každý zálohovací snímek zaznamená dřív, než ho pořídí, a zámek zálohy zastaveného hosta hned po jeho nastavení, a záznam smaže teprve tehdy, když konfigurace hosta ukáže, že zmizel (snímek se odstraní s <code>--force</code>, když běžné odstranění selže, nejvýše tři pokusy během zhruba deseti minut). Po pádu agenta nebo výpadku napájení je agent odstraní sám, při startu a každých 15 minut:</p>
+<ul>
+  <li>Hosté, se kterými právě pracuje záloha nebo obnova agenta, a hosté, pro které Proxmox VE právě vykonává úlohu (zálohu vzdump, migraci), zůstanou nedotčení.</li>
+  <li>Zámek snímku (<code>lock: snapshot</code>), který zanechalo přerušené vytváření, se odstraní spolu se snímkem; zařízení Ceph RBD snímku se předtím odmapují (unmap).</li>
+  <li>Snímky <code>backupzit_…</code> starší než jeden den, o kterých agent nemá záznam (například ze starších verzí), se odstraní také. Vašich vlastních snímků se nikdy nedotkne.</li>
+  <li>Zámek zálohy se odstraní jen tehdy, když záznam ukazuje, že ho nastavil BackupZit. Zámek, který BackupZit nenastavil, se nahlásí s příkazem, který ho odstraní (<code>qm unlock</code>, <code>pct unlock</code>), protože vzdump používá stejný zámek.</li>
+  <li>Co nelze odstranit, se vypíše na řídicím panelu v části <i>Vyžaduje pozornost</i> s tlačítkem <b>Odebrat nyní</b> a jednou se na to upozorní.</li>
+</ul>
 
 <h3 id="lxc-zfs">Kontejnery (LXC) na ZFS</h3>
 <p>Na úložišti ZFS ukládá Proxmox svazky kontejneru (LXC) jako datasety (<code>subvol-&lt;ID&gt;-disk-N</code>): souborové systémy, ne virtuální disky jako zvoly VM (QEMU). BackupZit proto tyto kontejnery zálohuje soubor po souboru:</p>
@@ -71,7 +79,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>Poprvé se replika obnoví jako nový host (další volné ID, název <i>original-replica</i>, nové MAC adresy, nikdy se nespouští s uzlem).</li>
   <li>Později se zapisují jen bloky změněné od zálohy, kterou replika obsahuje — obvykle pár sekund na zálohu.</li>
-  <li>Stránka úlohy vypisuje repliky, zálohu, kterou každá obsahuje, a jejich stav. Pokud se host ztratí, klikněte na <b>Spustit repliku</b>: poběží s daty poslední zálohy, bez obnovy. Spusťte ji jen tehdy, když originál opravdu zmizel — oba v síti současně mohou kolidovat. Po spuštění repliky (i v rozhraní Proxmox VE, například při testu převzetí) další aktualizace porovná každý blok místo zápisu jen změn, aby replika opět odpovídala záloze.</li>
+  <li>Stránka úlohy vypisuje repliky, zálohu, kterou každá obsahuje, a jejich stav. Pokud se host ztratí, klikněte na <b>Spustit repliku</b>: poběží s daty poslední zálohy, bez obnovy. Spusťte ji jen tehdy, když originál opravdu zmizel — oba v síti současně mohou kolidovat. Po spuštění repliky (i v rozhraní Proxmox VE, například při testu převzetí) další aktualizace porovná každý blok místo zápisu jen změn, aby replika opět odpovídala záloze. Totéž nastane po přerušené aktualizaci (pád agenta nebo uzlu) a když z protokolu úloh Proxmox VE nelze zjistit, zda byla replika spuštěna.</li>
   <li>Dokud replika běží, už se neaktualizuje (běh to ohlásí). Chcete-li znovu replikovat, smažte hosta repliky v Proxmoxu; další záloha vytvoří novou. Repliky se snímky Proxmoxu se také neaktualizují.</li>
   <li>Disky přidané k hostovi později se nereplikují (smažte repliku a začněte znovu); zvětšené disky se zvětší i na replice. Změny konfigurace (paměť, CPU) se převezmou při vytvoření repliky.</li>
   <li>Replikace čte zálohy jako obnova: uzel repliky musí dosáhnout na úložiště. Vypnutí replikace ponechá repliky, jak jsou.</li>

@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>görüntülerin ve ISO'nun sağlama toplamları</td></tr>
 </table>
 <p>Paketler (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, aracılar) sürüm sayfasında listelenir. Görüntülerin her biri yaklaşık 1,5 GB'dir. Bir indirmeyi <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) veya <code>Get-FileHash file -Algorithm SHA256</code> (Windows) ile denetleyin.</p>
+<p>Sağlama toplamlarının kendisinin BackupZit'ten geldiğini denetlemek için önce <code>SHA256SUMS.sig</code> imzasını sürüm anahtarıyla doğrulayın (OpenSSL 3); <code>release-files.sha256</code> ve <code>release-files.sha256.sig</code> aynısını <code>install.sh</code>, <code>build-winpe.ps1</code> ve kurtarma ISO'su için yapar.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Hazır VM görüntüsü</h2>
 <p>Bir dakikadan kısa sürede açılan ve internet erişimi gerektirmeyen hazır bir appliance (Debian, PostgreSQL, konsol, otomatik güvenlik güncellemeleri):</p>

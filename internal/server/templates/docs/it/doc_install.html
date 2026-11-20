@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>checksum delle immagini e della ISO</td></tr>
 </table>
 <p>I pacchetti (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agenti) sono elencati nella pagina della versione. Le immagini sono di circa 1,5 GB ciascuna. Verificate un download con <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) o <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+<p>Per verificare che i checksum stessi provengano da BackupZit, verifica prima la firma <code>SHA256SUMS.sig</code> con la chiave di rilascio (OpenSSL 3); <code>release-files.sha256</code> e <code>release-files.sha256.sig</code> fanno lo stesso per <code>install.sh</code>, <code>build-winpe.ps1</code> e la ISO di ripristino.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Immagine VM pronta</h2>
 <p>Un'appliance finita (Debian, PostgreSQL, la console, aggiornamenti di sicurezza automatici) che si avvia in meno di un minuto e non richiede accesso a internet:</p>

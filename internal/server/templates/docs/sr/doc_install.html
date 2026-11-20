@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>kontrolni zbirovi slika i ISO-a</td></tr>
 </table>
 <p>Paketi (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agenti) su navedeni na stranici izdanja. Svaka slika ima oko 1,5 GB. Preuzimanje proverite sa <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) ili <code>Get-FileHash fajl -Algorithm SHA256</code> (Windows).</p>
+<p>Da biste proverili da sami kontrolni zbirovi potiču od BackupZit-a, prvo proverite potpis <code>SHA256SUMS.sig</code> ključem izdanja (OpenSSL 3); <code>release-files.sha256</code> i <code>release-files.sha256.sig</code> čine isto za <code>install.sh</code>, <code>build-winpe.ps1</code> i ISO za oporavak.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Gotova slika VM-a</h2>
 <p>Gotov uređaj (Debian, PostgreSQL, konzola, automatska bezbednosna ažuriranja) koji se pokreće za manje od minuta i ne traži pristup internetu:</p>

@@ -61,7 +61,7 @@
 <p>也可以把勾选的文件直接<b>下载</b>到浏览器:单个文件按原样下载,多个文件或文件夹打包为 ZIP 压缩包——适合从大型镜像备份中取出单个文档。与浏览一样,它适用于网络存储上的镜像备份,需要<b>恢复</b>权限,审计日志会记录下载了哪些路径。</p>
 
 <h2>从虚拟机还原单个文件（Proxmox VE、Hyper-V、VMware）</h2>
-<p>在虚拟机备份运行中，点击客户机旁的<b>浏览文件</b>。控制台会显示其磁盘的分区和 LVM 卷，并可浏览 NTFS、ext4 和 XFS 文件系统。<b>下载</b>勾选的文件（多个文件打包为 ZIP）或将其还原到任意代理。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。 恢复到代理上的文件会保留其在虚拟机中的 Unix 权限（ext4、XFS），因此恢复的机密文件（如 <code>/etc/shadow</code>）仍然是私有的；在 Linux 上，来自 NTFS 卷的文件只有其所有者可以读取。</p>
+<p>在虚拟机备份运行中，点击客户机旁的<b>浏览文件</b>。控制台会显示其磁盘的分区和 LVM 卷，并可浏览 NTFS、ext4 和 XFS 文件系统。<b>下载</b>勾选的文件（多个文件打包为 ZIP）或将其还原到任意代理。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。 恢复到代理上的文件会保留其在虚拟机中的 Unix 权限（ext4、XFS），因此恢复的机密文件（如 <code>/etc/shadow</code>）仍然是私有的；在 Linux 上，来自 NTFS 卷的文件只有其所有者可以读取。还原到 Windows 代理上时，来自 Linux 来宾（ext4、XFS）的含 <code>:</code> 的名称会被跳过并列出：Windows 会把冒号后的部分当作另一个文件的流来读取。NTFS 备用数据流会作为流还原。</p>
 
 <h2>还原整台机器</h2>
 <ul>

@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>映像和 ISO 的校验和</td></tr>
 </table>
 <p>软件包（<code>backupzit-server_X_amd64.deb</code>、<code>backupzit-server-X.x86_64.rpm</code>、代理）列在发布页面上。每个映像约 1.5 GB。使用 <code>sha256sum -c SHA256SUMS --ignore-missing</code>（Linux）或 <code>Get-FileHash file -Algorithm SHA256</code>（Windows）校验下载文件。</p>
+<p>要确认校验和本身来自 BackupZit，请先用发布密钥验证签名 <code>SHA256SUMS.sig</code>（OpenSSL 3）；<code>release-files.sha256</code> 和 <code>release-files.sha256.sig</code> 对 <code>install.sh</code>、<code>build-winpe.ps1</code> 和恢复 ISO 起同样的作用。</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. 现成的虚拟机映像</h2>
 <p>一个现成的设备（Debian、PostgreSQL、控制台、自动安全更新），不到一分钟即可启动，无需互联网访问：</p>

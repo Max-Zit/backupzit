@@ -17,13 +17,14 @@
   <li>Unesite adresu, korisnika, lozinku i proxy agenta.</li>
   <li>Konzola se jednom povezuje da ih proveri. Čita listu virtuelnih mašina i licencu, i <b>pamti HTTPS sertifikat i SSH ključ hosta</b>. Ako se host kasnije zameni drugom mašinom sa istom adresom, BackupZit odbija da se poveže umesto da joj pošalje lozinku. Ako se sertifikat promeni iz poznatog razloga — host je ponovo instaliran, dobio je novi sertifikat ili je dodat u vCenter (koji zameni sertifikate svojih hostova) — na strani Agenti host prikazuje novi otisak i dugme <b>Prihvati novi sertifikat</b>. Pre prihvatanja uporedite otisak sa onim na hostu.</li>
 </ol>
-<p>Lozinka se čuva šifrovana, kao i sve druge tajne. Sama konzola se povezuje na host (HTTPS 443, a uz besplatnu licencu i SSH 22) kada se doda, na <i>Osveži</i> i svakih 10 minuta da osveži listu virtuelnih mašina. <i>Ukloni</i> briše host zajedno sa njegovim poslovima bekapa; bekapi ostaju na skladištu. Tabela prikazuje režim svakog hosta:</p>
+<p>Lozinka se čuva šifrovana, kao i sve druge tajne. Sama konzola se povezuje na host (HTTPS 443, a uz besplatnu licencu i SSH 22) kada se doda, na <i>Osveži</i> i svakih 10 minuta da osveži listu virtuelnih mašina, osim ako se do hosta stiže <a href="#via-proxy">preko proxy agenta</a>. <i>Ukloni</i> briše host zajedno sa njegovim poslovima bekapa; bekapi ostaju na skladištu. Tabela prikazuje režim svakog hosta:</p>
 <ul>
   <li><b>vSphere API (licenciran host, SSH nije potreban):</b> snimci, kopije diskova, vraćanja i instant recovery idu preko API-ja.</li>
   <li><b>vCenter Server (vSphere API):</b> vCenter sa svojim ESXi hostovima; sve ide preko vCenter API-ja.</li>
   <li><b>besplatna licenca: snimci i vraćanja preko SSH-a:</b> API hosta je samo za čitanje, pa ovi koraci idu preko SSH-a.</li>
   <li><b>SSH (izabrano za ovaj host):</b> host se menja preko SSH-a iako bi njegov API to mogao (<i>Uvek SSH</i> pri dodavanju hosta).</li>
 </ul>
+<p id="via-proxy"><b>Preko proxy agenta</b> (agent 0.56 ili noviji): pri dodavanju hosta označite <b>Poveži preko proxy agenta</b>, ili <b>Poveži preko proxy-ja</b> u njegovom redu, i konzola se nikad sama ne povezuje na host. Proxy agent proverava adresu i lozinku, čita listu VM-ova, verziju i licencu i javlja HTTPS sertifikat i SSH ključ hosta koje je video; konzola ih pamti pri prvom povezivanju, kao i kod direktne veze, a od tada proxy agent odbija host koji pokaže drugi sertifikat (red hosta tada nudi <b>Prihvati novi sertifikat</b>). <i>Osveži</i> i lista VM-ova na svakih 10 minuta takođe dolaze od proxy agenta; te provere se ne prikazuju u Aktivnosti. Samo proxy agent mora da dopre do hosta, baš kao za bekape i vraćanja, pa konzola može da bude u drugoj mreži, iza NAT-a ili u adresnom opsegu koji se preklapa. Pogrešna adresa ili lozinka prikazuje se kao greška hosta posle prve provere proxy agenta: uklonite host i dodajte ga ponovo. Dok je proxy agent offline ili zauzet, ostaje poslednja lista VM-ova.</p>
 <p>Sa <b>Automatski</b> konzola sama bira, pa host koji kasnije dobije licencu prelazi na API bez dodatnog podešavanja. <b>Kako se host menja</b> u redu hosta (i pri dodavanju) može da nametne <b>Uvek SSH</b> ili <b>Uvek vSphere API</b>; promena se odmah proverava. Raniji bekapi i njihove tačke vraćanja ne zavise od načina.</p>
 
 <h2 id="vcenter">vCenter Server</h2>
@@ -79,7 +80,13 @@
   <li><b>Zadržavanje po proxy agentu:</b> svaki deo čuva podešeni broj bekapa svojih VM-ova, a poslovi kopiranja ih takođe kopiraju i čuvaju po delovima. Bekapi od pre podele posla i bekapi uklonjenog proxy agenta ostaju kakvi jesu: i dalje su tačke vraćanja svojih VM-ova. VM premešten na drugi host (vMotion) od sledećeg osvežavanja liste VM-ova ide proxy agentu tog hosta.</li>
   <li>Host proxy agenta BackupZit nalazi po BIOS UUID-u koji njegov agent javlja; stranica Agenti ga prikazuje pored svakog agenta. <i>ESXi host nije pronađen</i>: agent nije VM ovog vCenter-a, ili je lista VM-ova starija od agenta (kliknite <i>Osveži</i>).</li>
 </ul>
-<p><b>Otkazivanje</b> VMware bekapa (Aktivnost → Otkaži) zaustavlja i kopiranje diska koje je u toku na datastore-u i briše nepotpunu kopiju; snimak se uklanja kao posle svakog bekapa.</p>
+<p><b>Otkazivanje</b> VMware bekapa (Aktivnost → Otkaži) zaustavlja i kopiranje diska koje je u toku na datastore-u i briše nepotpunu kopiju; snimak se uklanja kao posle svakog bekapa. Na snimak koji se još pravi u trenutku otkazivanja čeka se (do pet minuta), pa se i on uklanja.</p>
+<p id="leftovers"><b>Snimci koji zaostanu.</b> Proxy agent beleži svaki snimak i privremenu kopiju diska pre nego što ih napravi, a zapis briše tek kada vidi da objekta više nema: posle uklanjanja ponovo izlista snimke VM-a, pokušava do tri puta tokom desetak minuta i konsoliduje diskove kada vSphere javi da im je to potrebno. Ako agent stane usred posla (pad, nestanak struje) ili uklanjanje stalno ne uspeva, zapis ostaje:</p>
+<ul>
+  <li>Konzola stavlja u red pokretanje čišćenja na proxy agentu (samo on ima pristupne podatke hosta), a proxy agent takve ostatke uklanja i posle svakog bekapa veze. VM-ovi na kojima upravo radi bekap ili vraćanje proxy agenta ostaju netaknuti.</li>
+  <li>Kontrolna tabla navodi svaki ostatak pod <i>Zahteva pažnju</i> (VM, od kada, zašto) sa <b>Ukloni sada</b>, a za svaki ostatak koji ostane jednom se šalje obaveštenje (email, chat).</li>
+  <li>Konzola takođe traži snimke <code>backupzit_…</code> starije od šest sati u listi VM-ova koju osvežava na svakih 10 minuta, dok nijedan bekap veze ne radi, pa se pojavljuju i ostaci starijih agenata. Uklanjaju se isključivo snimci nazvani <code>backupzit_…</code>; sopstveni snimci VM-a se nikad ne diraju.</li>
+</ul>
 
 <h2>Vraćanje VM-a</h2>
 <p>Koristite <a href="/restore">čarobnjak za vraćanje</a> (<i>Cela virtuelna mašina</i>) ili stranicu bekapa u Aktivnosti. Izaberite:</p>

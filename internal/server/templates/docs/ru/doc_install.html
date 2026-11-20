@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>контрольные суммы образов и ISO</td></tr>
 </table>
 <p>Пакеты (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, агенты) перечислены на странице выпуска. Каждый образ занимает около 1,5 ГБ. Проверьте загрузку командой <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) или <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+<p>Чтобы убедиться, что сами контрольные суммы исходят от BackupZit, сначала проверьте подпись <code>SHA256SUMS.sig</code> ключом выпуска (OpenSSL 3); <code>release-files.sha256</code> и <code>release-files.sha256.sig</code> делают то же самое для <code>install.sh</code>, <code>build-winpe.ps1</code> и ISO восстановления.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Готовый образ ВМ</h2>
 <p>Готовый appliance (Debian, PostgreSQL, консоль, автоматические обновления безопасности), который запускается меньше чем за минуту и не требует доступа в интернет:</p>

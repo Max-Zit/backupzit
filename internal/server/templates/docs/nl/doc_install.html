@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>controlesommen van de images en de ISO</td></tr>
 </table>
 <p>De pakketten (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agents) staan op de versiepagina. De images zijn elk ongeveer 1,5 GB. Controleer een download met <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) of <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+<p>Om te controleren dat de controlesommen zelf van BackupZit komen, verifieert u eerst de handtekening <code>SHA256SUMS.sig</code> met de releasesleutel (OpenSSL 3); <code>release-files.sha256</code> en <code>release-files.sha256.sig</code> doen hetzelfde voor <code>install.sh</code>, <code>build-winpe.ps1</code> en de herstel-ISO.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Kant-en-klare VM-image</h2>
 <p>Een kant-en-klare appliance (Debian, PostgreSQL, de console, automatische beveiligingsupdates) die in minder dan een minuut start en geen internettoegang nodig heeft:</p>

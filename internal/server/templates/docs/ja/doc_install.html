@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>イメージと ISO のチェックサム</td></tr>
 </table>
 <p>パッケージ（<code>backupzit-server_X_amd64.deb</code>、<code>backupzit-server-X.x86_64.rpm</code>、エージェント）はリリース ページに掲載されています。イメージはそれぞれ約 1.5 GB です。ダウンロードは <code>sha256sum -c SHA256SUMS --ignore-missing</code>（Linux）または <code>Get-FileHash file -Algorithm SHA256</code>（Windows）で確認してください。</p>
+<p>チェックサム自体が BackupZit のものであることを確認するには、まず署名 <code>SHA256SUMS.sig</code> をリリース キーで検証します（OpenSSL 3）。<code>release-files.sha256</code> と <code>release-files.sha256.sig</code> は、<code>install.sh</code>、<code>build-winpe.ps1</code>、復旧 ISO について同じ役割を果たします。</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. 既製の VM イメージ</h2>
 <p>1 分以内に起動し、インターネット アクセスを必要としない完成済みのアプライアンス（Debian、PostgreSQL、コンソール、自動セキュリティ更新）:</p>

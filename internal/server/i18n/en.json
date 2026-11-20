@@ -3,5 +3,6 @@
   "%d files": "%d file|%d files",
   "From (email sender)": "From",
   "To (email recipients)": "To",
-  "VMs (count)": "VMs"
+  "VMs (count)": "VMs",
+  "removing it failed %d times: %s": "removing it failed %d time: %s|removing it failed %d times: %s"
 }

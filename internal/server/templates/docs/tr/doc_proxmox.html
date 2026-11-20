@@ -34,6 +34,14 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Kapsayıcıların (LXC) ZFS alt birimleri</td><td>evet, anlık görüntü, dosya dosya</td><td>evet, dosya dosya</td></tr>
 </table>
 <p>Proxmox'ta <i>Backup: no</i> (<code>backup=0</code>) olarak işaretlenmiş diskler, doğrudan aktarılan fiziksel diskler ve bind bağlamaları atlanır ve uyarı olarak listelenir. Cloud-init sürücüleri saklanmaz; geri yüklemede yapılandırmadan yeniden oluşturulur. Diskleri anlık görüntü olmadan okunan durdurulmuş bir konuk, bu sırada vzdump'taki gibi Proxmox VE yedekleme kilidini taşır: diskleri okunana kadar (HA ile de) başlatılamaz.</p>
+<p id="leftovers"><b>Geride kalan anlık görüntüler ve kilitler.</b> Aracı her yedekleme anlık görüntüsünü almadan önce, durdurulmuş bir konuğun yedekleme kilidini de konduğu anda kaydeder ve kaydı ancak konuğun yapılandırması bunların gittiğini gösterdiğinde siler (normal kaldırma başarısız olursa anlık görüntü <code>--force</code> ile kaldırılır; yaklaşık on dakika içinde en fazla üç deneme). Aracı çökmesi veya elektrik kesintisinden sonra aracı bunları başlangıçta ve 15 dakikada bir kendisi kaldırır:</p>
+<ul>
+  <li>Aracının bir yedeklemesinin veya geri yüklemesinin üzerinde çalıştığı konuklara ve Proxmox VE'nin bir görev (vzdump yedeği, geçiş) yürüttüğü konuklara dokunulmaz.</li>
+  <li>Yarıda kalan bir oluşturmanın bıraktığı anlık görüntü kilidi (<code>lock: snapshot</code>) anlık görüntüyle birlikte kaldırılır; anlık görüntünün Ceph RBD aygıtlarının eşlemesi önce kaldırılır (unmap).</li>
+  <li>Aracının kaydı olmayan, bir günden eski <code>backupzit_…</code> anlık görüntüleri (örneğin eski sürümlerden) de kaldırılır. Kendi anlık görüntülerinize asla dokunulmaz.</li>
+  <li>Bir yedekleme kilidi yalnızca kayıt onu BackupZit'in koyduğunu gösteriyorsa kaldırılır. BackupZit'in koymadığı bir kilit, vzdump aynı kilidi kullandığı için, onu kaldıran komutla (<code>qm unlock</code>, <code>pct unlock</code>) birlikte bildirilir.</li>
+  <li>Kaldırılamayanlar panoda <i>İlgi gerekiyor</i> altında <b>Şimdi kaldır</b> ile listelenir ve bir kez bildirilir.</li>
+</ul>
 
 <h3 id="lxc-zfs">ZFS üzerinde kapsayıcılar (LXC)</h3>
 <p>Bir ZFS depolamasında Proxmox, bir kapsayıcının (LXC) birimlerini veri kümeleri olarak tutar (<code>subvol-&lt;ID&gt;-disk-N</code>): bir VM'nin (QEMU) zvol'leri gibi sanal diskler değil, dosya sistemleri. Bu yüzden BackupZit bu kapsayıcıları dosya dosya yedekler:</p>
@@ -71,7 +79,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>İlk seferde replika yeni bir konuk gibi geri yüklenir (sonraki boş kimlik, ad <i>original-replica</i>, yeni MAC adresleri, düğümle asla başlatılmaz).</li>
   <li>Sonrasında yalnızca replikanın tuttuğu yedekten bu yana değişen bloklar yazılır — genellikle yedek başına birkaç saniye.</li>
-  <li>İş sayfası replikaları, her birinin tuttuğu yedeği ve durumlarını listeler. Bir konuk kaybolursa <b>Replikayı başlat</b>'a tıklayın: geri yükleme olmadan son yedeğin verileriyle çalışır. Yalnızca orijinal gerçekten yok olduğunda başlatın — ikisinin aynı anda ağda olması çakışmaya yol açabilir. Bir kopya başlatıldıktan sonra (Proxmox VE arayüzünde de, örneğin bir yük devri testi için), sonraki güncelleme yalnızca değişiklikleri yazmak yerine her bloğu karşılaştırır; böylece kopya yeniden yedekle eşleşir.</li>
+  <li>İş sayfası replikaları, her birinin tuttuğu yedeği ve durumlarını listeler. Bir konuk kaybolursa <b>Replikayı başlat</b>'a tıklayın: geri yükleme olmadan son yedeğin verileriyle çalışır. Yalnızca orijinal gerçekten yok olduğunda başlatın — ikisinin aynı anda ağda olması çakışmaya yol açabilir. Bir kopya başlatıldıktan sonra (Proxmox VE arayüzünde de, örneğin bir yük devri testi için), sonraki güncelleme yalnızca değişiklikleri yazmak yerine her bloğu karşılaştırır; böylece kopya yeniden yedekle eşleşir. Aynısı yarıda kalan bir güncellemeden sonra (aracı veya düğüm çökmesi) ve replikanın başlatılıp başlatılmadığı Proxmox VE görev günlüğünden okunamadığında da olur.</li>
   <li>Bir replika çalışırken artık güncellenmez (çalıştırma bunu bildirir). Yeniden çoğaltmak için replika konuğunu Proxmox'ta silin; sonraki yedek yenisini oluşturur. Proxmox anlık görüntüleri olan replikalar da güncellenmez.</li>
   <li>Bir konuğa sonradan eklenen diskler çoğaltılmaz (baştan başlamak için replikayı silin); büyüyen diskler replikada da büyütülür. Yapılandırma değişiklikleri (bellek, CPU) replika oluşturulurken alınır.</li>
   <li>Çoğaltma, yedekleri bir geri yükleme gibi okur: replika düğümünün depolamaya erişebilmesi gerekir. Çoğaltmayı kapatmak replikaları olduğu gibi bırakır.</li>

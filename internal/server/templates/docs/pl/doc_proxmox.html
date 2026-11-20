@@ -34,6 +34,14 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Podwoluminy ZFS kontenerów (LXC)</td><td>tak, migawka, plik po pliku</td><td>tak, plik po pliku</td></tr>
 </table>
 <p>Dyski oznaczone w Proxmox jako <i>Backup: no</i> (<code>backup=0</code>), przekazane dyski fizyczne i montowania bind są pomijane i wymieniane jako ostrzeżenia. Napędy cloud-init nie są zapisywane; przy przywracaniu są odtwarzane z konfiguracji. Zatrzymany gość, którego dyski są czytane bez migawki, ma w tym czasie blokadę kopii zapasowej Proxmox VE, jak przy vzdump: nie można go uruchomić (także przez HA), dopóki jego dyski nie zostaną przeczytane.</p>
+<p id="leftovers"><b>Pozostawione migawki i blokady.</b> Agent zapisuje każdą migawkę kopii zapasowej, zanim ją utworzy, oraz blokadę kopii zapasowej zatrzymanego gościa, gdy tylko zostanie założona, i usuwa wpis dopiero wtedy, gdy konfiguracja gościa pokazuje, że jej już nie ma (migawka jest usuwana z <code>--force</code>, gdy zwykłe usunięcie się nie powiedzie, do trzech prób w ciągu mniej więcej dziesięciu minut). Po awarii agenta lub zaniku zasilania agent sam je usuwa, przy starcie i co 15 minut:</p>
+<ul>
+  <li>Goście, nad którymi pracuje kopia lub przywracanie agenta, oraz goście, dla których Proxmox VE wykonuje operację (kopię vzdump, migrację), pozostają nietknięci.</li>
+  <li>Blokada migawki (<code>lock: snapshot</code>) pozostawiona przez przerwane tworzenie jest usuwana razem z migawką; urządzenia Ceph RBD migawki są wcześniej odmapowywane (unmap).</li>
+  <li>Migawki <code>backupzit_…</code> starsze niż jeden dzień, o których agent nie ma wpisu (na przykład ze starszych wersji), także są usuwane. Twoje własne migawki nigdy nie są ruszane.</li>
+  <li>Blokada kopii zapasowej jest usuwana tylko wtedy, gdy wpis pokazuje, że założył ją BackupZit. Blokada, której nie założył, jest zgłaszana wraz z poleceniem, które ją usuwa (<code>qm unlock</code>, <code>pct unlock</code>), ponieważ vzdump używa tej samej blokady.</li>
+  <li>To, czego nie da się usunąć, pojawia się na pulpicie w sekcji <i>Wymaga uwagi</i> z przyciskiem <b>Usuń teraz</b> i jest zgłaszane jeden raz.</li>
+</ul>
 
 <h3 id="lxc-zfs">Kontenery (LXC) na ZFS</h3>
 <p>Na magazynie ZFS Proxmox przechowuje woluminy kontenera (LXC) jako zbiory danych (<code>subvol-&lt;ID&gt;-disk-N</code>): systemy plików, a nie dyski wirtualne jak zvole maszyny wirtualnej (QEMU). Dlatego BackupZit kopiuje te kontenery plik po pliku:</p>
@@ -71,7 +79,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>Za pierwszym razem replika jest przywracana jak nowy gość (następne wolne ID, nazwa <i>original-replica</i>, nowe adresy MAC, nigdy nie startuje razem z węzłem).</li>
   <li>Później zapisywane są tylko bloki zmienione od kopii, którą zawiera replika — zwykle kilka sekund na kopię.</li>
-  <li>Strona zadania wymienia repliki, kopię, którą zawiera każda z nich, i ich stan. Jeśli gość zostanie utracony, kliknij <b>Uruchom replikę</b>: działa z danymi z ostatniej kopii, bez przywracania. Uruchamiaj ją tylko wtedy, gdy oryginału naprawdę już nie ma — oba w sieci jednocześnie mogą powodować konflikty. Po uruchomieniu repliki (także w interfejsie Proxmox VE, np. do testu przełączenia) kolejna aktualizacja porównuje każdy blok zamiast zapisywać tylko zmiany, aby replika znów odpowiadała kopii.</li>
+  <li>Strona zadania wymienia repliki, kopię, którą zawiera każda z nich, i ich stan. Jeśli gość zostanie utracony, kliknij <b>Uruchom replikę</b>: działa z danymi z ostatniej kopii, bez przywracania. Uruchamiaj ją tylko wtedy, gdy oryginału naprawdę już nie ma — oba w sieci jednocześnie mogą powodować konflikty. Po uruchomieniu repliki (także w interfejsie Proxmox VE, np. do testu przełączenia) kolejna aktualizacja porównuje każdy blok zamiast zapisywać tylko zmiany, aby replika znów odpowiadała kopii. To samo dzieje się po przerwanej aktualizacji (awaria agenta lub węzła) oraz wtedy, gdy z dziennika zadań Proxmox VE nie da się odczytać, czy replika została uruchomiona.</li>
   <li>Gdy replika działa, nie jest już aktualizowana (uruchomienie to zgłasza). Aby replikować ponownie, usuń gościa-replikę w Proxmox; następna kopia utworzy nową. Repliki z migawkami Proxmox również nie są aktualizowane.</li>
   <li>Dyski dodane później do gościa nie są replikowane (usuń replikę, aby zacząć od nowa); powiększone dyski są powiększane także w replice. Zmiany konfiguracji (pamięć, procesory) są przejmowane przy tworzeniu repliki.</li>
   <li>Replikacja odczytuje kopie jak przywracanie: węzeł repliki musi mieć dostęp do magazynu. Wyłączenie replikacji pozostawia repliki bez zmian.</li>

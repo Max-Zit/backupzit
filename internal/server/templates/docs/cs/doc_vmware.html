@@ -17,13 +17,14 @@
   <li>Zadejte adresu, uživatele, heslo a proxy agenta.</li>
   <li>Konzole se jednou připojí, aby je ověřila. Načte seznam VM a licenci a <b>připne HTTPS certifikát a SSH klíč hostitele</b>. Pokud bude hostitel později nahrazen jiným počítačem se stejnou adresou, BackupZit odmítne připojení místo toho, aby mu poslal heslo. Pokud se certifikát změní ze známého důvodu — hostitel byl přeinstalován, dostal nový certifikát nebo byl přidán do vCenter (který certifikáty svých hostitelů nahrazuje) —, zobrazí hostitel na stránce Agenti nový otisk s tlačítkem <b>Přijmout nový certifikát</b>. Před přijetím otisk porovnejte s hostitelem.</li>
 </ol>
-<p>Heslo se ukládá šifrovaně, jako všechna ostatní tajemství. Konzole se k hostiteli připojuje sama (HTTPS 443 a u bezplatné licence také SSH 22) při jeho přidání, po kliknutí na <i>Obnovit</i> a každých 10 minut kvůli obnovení seznamu VM. <i>Odebrat</i> smaže hostitele spolu s jeho úlohami zálohování; zálohy zůstanou na úložišti. Tabulka ukazuje režim každého hostitele:</p>
+<p>Heslo se ukládá šifrovaně, jako všechna ostatní tajemství. Konzole se k hostiteli připojuje sama (HTTPS 443 a u bezplatné licence také SSH 22) při jeho přidání, po kliknutí na <i>Obnovit</i> a každých 10 minut kvůli obnovení seznamu VM, pokud se k hostiteli nepřipojuje <a href="#via-proxy">přes agenta proxy</a>. <i>Odebrat</i> smaže hostitele spolu s jeho úlohami zálohování; zálohy zůstanou na úložišti. Tabulka ukazuje režim každého hostitele:</p>
 <ul>
   <li><b>vSphere API (licencovaný hostitel, SSH není potřeba):</b> snímky, kopie disků, obnovy i okamžitá obnova jdou přes API.</li>
   <li><b>vCenter Server (vSphere API):</b> vCenter s jeho hostiteli ESXi; vše jde přes API vCenter.</li>
   <li><b>bezplatná licence: snímky a obnovy přes SSH:</b> API hostitele je jen pro čtení, takže tyto kroky jdou přes SSH.</li>
   <li><b>SSH (zvoleno pro tohoto hostitele):</b> hostitel se mění přes SSH, i když by to jeho API zvládlo (<i>Vždy SSH</i> při přidávání hostitele).</li>
 </ul>
+<p id="via-proxy"><b>Přes agenta proxy</b> (agent 0.56 nebo novější): při přidávání hostitele zaškrtněte <b>Připojit přes agenta proxy</b>, nebo v jeho řádku <b>Připojit přes proxy</b>, a konzole se k hostiteli sama nikdy nepřipojí. Agent proxy ověří adresu a heslo, přečte seznam VM, verzi a licenci a nahlásí certifikát HTTPS a klíč hostitele SSH, které viděl; konzole je napoprvé připne stejně jako u přímého připojení a od té doby agent proxy odmítne hostitele, který předloží jiný certifikát (řádek hostitele pak nabídne <b>Přijmout nový certifikát</b>). <i>Obnovit</i> i seznam VM každých 10 minut zajišťuje také agent proxy; tyto kontroly se v Aktivitě nezobrazují. Hostitele musí dosáhnout jen agent proxy, přesně jako u záloh a obnov, takže konzole může být v jiné síti, za NAT nebo v překrývajícím se rozsahu adres. Chybná adresa nebo heslo se po první kontrole agenta proxy zobrazí jako chyba hostitele: odeberte hostitele a přidejte ho znovu. Dokud je agent proxy offline nebo zaneprázdněný, zůstává poslední seznam VM.</p>
 <p>S volbou <b>Automaticky</b> konzole vybírá sama, takže hostitel, který později dostane licenci, přejde na API bez dalšího nastavování. <b>Jak se hostitel mění</b> v řádku hostitele (a při přidání) může vynutit <b>Vždy SSH</b> nebo <b>Vždy vSphere API</b>; změna se hned ověří. Dřívější zálohy a jejich body obnovy na způsobu nezávisí.</p>
 
 <h2 id="vcenter">vCenter Server</h2>
@@ -79,7 +80,13 @@
   <li><b>Retence pro každého agenta proxy:</b> každá část uchovává nastavený počet záloh svých VM a úlohy kopírování je kopírují a uchovávají také po částech. Zálohy z doby před rozdělením úlohy a zálohy odebraného agenta proxy zůstávají, jak jsou: dál slouží jako body obnovy svých VM. VM přesunutý na jiného hostitele (vMotion) připadne od příští obnovy seznamu VM agentovi proxy tohoto hostitele.</li>
   <li>Hostitele agenta proxy BackupZit najde podle BIOS UUID, které jeho agent hlásí; stránka Agenti ho ukazuje u každého agenta. <i>Hostitel ESXi nenalezen</i>: agent není VM tohoto vCenter, nebo je seznam VM starší než agent (klikněte na <i>Obnovit</i>).</li>
 </ul>
-<p><b>Zrušení</b> zálohy VMware (Aktivita → Zrušit) zastaví i probíhající kopírování disku na datastoru a smaže neúplnou kopii; snímek se odstraní jako po každé záloze.</p>
+<p><b>Zrušení</b> zálohy VMware (Aktivita → Zrušit) zastaví i probíhající kopírování disku na datastoru a smaže neúplnou kopii; snímek se odstraní jako po každé záloze. Na snímek, který se v okamžiku zrušení teprve vytváří, se počká (až pět minut) a také se odstraní.</p>
+<p id="leftovers"><b>Snímky, které zůstanou.</b> Agent proxy si každý snímek a dočasnou kopii disku zaznamená dřív, než je vytvoří, a záznam smaže teprve tehdy, když vidí, že objekt zmizel: po odstranění znovu vypíše snímky VM, zkusí to nejvýše třikrát během zhruba deseti minut a konsoliduje disky, když vSphere hlásí, že to potřebují. Když se agent zastaví uprostřed práce (pád, výpadek napájení) nebo odstranění opakovaně selhává, záznam zůstane:</p>
+<ul>
+  <li>Konzole zařadí na agenta proxy běh úklidu (přihlašovací údaje hostitele má jen on) a agent proxy takové zbytky odstraňuje také po každé záloze připojení. VM, se kterými právě pracuje záloha nebo obnova agenta proxy, zůstanou nedotčené.</li>
+  <li>Řídicí panel vypíše každý zbytek v části <i>Vyžaduje pozornost</i> (VM, od kdy, proč) s tlačítkem <b>Odebrat nyní</b> a pro každý zbytek, který zůstane, se jednou odešle oznámení (e-mail, chat).</li>
+  <li>Konzole navíc v seznamu VM, který obnovuje každých 10 minut, hledá snímky <code>backupzit_…</code> starší než šest hodin, pokud neběží žádná záloha připojení, takže se objeví i zbytky starších agentů. Odstraňují se vždy jen snímky pojmenované <code>backupzit_…</code>; vlastních snímků VM se nikdy nedotkne.</li>
+</ul>
 
 <h2>Obnova VM</h2>
 <p>Použijte <a href="/restore">průvodce obnovou</a> (<i>Celý virtuální počítač</i>) nebo stránku zálohy v Aktivita. Zvolte:</p>

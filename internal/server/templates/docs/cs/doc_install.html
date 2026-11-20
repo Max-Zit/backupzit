@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>kontrolní součty obrazů a ISO</td></tr>
 </table>
 <p>Balíčky (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agenti) jsou uvedeny na stránce vydání. Obrazy mají každý zhruba 1,5 GB. Stažený soubor ověřte příkazem <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) nebo <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+<p>Chcete-li ověřit, že samotné kontrolní součty pocházejí od BackupZit, ověřte nejprve podpis <code>SHA256SUMS.sig</code> klíčem vydání (OpenSSL 3); <code>release-files.sha256</code> a <code>release-files.sha256.sig</code> slouží ke stejnému účelu pro <code>install.sh</code>, <code>build-winpe.ps1</code> a ISO pro obnovu.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Hotový obraz VM</h2>
 <p>Hotová appliance (Debian, PostgreSQL, konzole, automatické bezpečnostní aktualizace), která naběhne za méně než minutu a nepotřebuje přístup k internetu:</p>
