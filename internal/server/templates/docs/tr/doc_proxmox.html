@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ham (raw) diskli dizin, NFS, CIFS, kalın LVM</td><td>hayır — konuğu durdurun veya diski taşıyın</td><td>evet</td></tr>
   <tr><td>Kapsayıcıların (LXC) ZFS alt birimleri</td><td>evet, anlık görüntü, dosya dosya</td><td>evet, dosya dosya</td></tr>
 </table>
-<p>Proxmox'ta <i>Backup: no</i> (<code>backup=0</code>) olarak işaretlenmiş diskler, doğrudan aktarılan fiziksel diskler ve bind bağlamaları atlanır ve uyarı olarak listelenir. Cloud-init sürücüleri saklanmaz; geri yüklemede yapılandırmadan yeniden oluşturulur.</p>
+<p>Proxmox'ta <i>Backup: no</i> (<code>backup=0</code>) olarak işaretlenmiş diskler, doğrudan aktarılan fiziksel diskler ve bind bağlamaları atlanır ve uyarı olarak listelenir. Cloud-init sürücüleri saklanmaz; geri yüklemede yapılandırmadan yeniden oluşturulur. Diskleri anlık görüntü olmadan okunan durdurulmuş bir konuk, bu sırada vzdump'taki gibi Proxmox VE yedekleme kilidini taşır: diskleri okunana kadar (HA ile de) başlatılamaz.</p>
 
 <h3 id="lxc-zfs">ZFS üzerinde kapsayıcılar (LXC)</h3>
 <p>Bir ZFS depolamasında Proxmox, bir kapsayıcının (LXC) birimlerini veri kümeleri olarak tutar (<code>subvol-&lt;ID&gt;-disk-N</code>): bir VM'nin (QEMU) zvol'leri gibi sanal diskler değil, dosya sistemleri. Bu yüzden BackupZit bu kapsayıcıları dosya dosya yedekler:</p>

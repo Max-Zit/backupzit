@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>使用 raw 磁盘的目录、NFS、CIFS，厚置备 LVM</td><td>否 —— 停止来宾或移动磁盘</td><td>是</td></tr>
   <tr><td>容器（LXC）的 ZFS 子卷</td><td>是，快照，逐个文件</td><td>是，逐个文件</td></tr>
 </table>
-<p>在 Proxmox 中标记为 <i>Backup: no</i>（<code>backup=0</code>）的磁盘、直通的物理磁盘和 bind 挂载会被跳过并列为警告。Cloud-init 驱动器不会存储；还原时会根据配置重新创建。</p>
+<p>在 Proxmox 中标记为 <i>Backup: no</i>（<code>backup=0</code>）的磁盘、直通的物理磁盘和 bind 挂载会被跳过并列为警告。Cloud-init 驱动器不会存储；还原时会根据配置重新创建。在没有快照的情况下读取磁盘的已停止来宾，在此期间会像 vzdump 一样带有 Proxmox VE 的备份锁：在其磁盘读取完成之前无法启动（HA 也不行）。</p>
 
 <h3 id="lxc-zfs">ZFS 上的容器（LXC）</h3>
 <p>在 ZFS 存储上，Proxmox 将容器（LXC）的卷保存为数据集（<code>subvol-&lt;ID&gt;-disk-N</code>）：这是文件系统，而不是像虚拟机（QEMU）的 zvol 那样的虚拟磁盘。因此 BackupZit 逐个文件备份这些容器：</p>

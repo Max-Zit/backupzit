@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Directory, NFS, CIFS with raw disks, thick LVM</td><td>no — stop the guest or move the disk</td><td>yes</td></tr>
   <tr><td>ZFS subvolumes of containers (LXC)</td><td>yes, snapshot, file by file</td><td>yes, file by file</td></tr>
 </table>
-<p>Disks marked <i>Backup: no</i> (<code>backup=0</code>) in Proxmox, passed-through physical disks and bind mounts are skipped and listed as warnings. Cloud-init drives are not stored; they are recreated from the configuration on restore.</p>
+<p>Disks marked <i>Backup: no</i> (<code>backup=0</code>) in Proxmox, passed-through physical disks and bind mounts are skipped and listed as warnings. Cloud-init drives are not stored; they are recreated from the configuration on restore. A stopped guest whose disks are read without a snapshot carries Proxmox VE's backup lock meanwhile, as with vzdump: it cannot be started (also not by HA) until its disks are read.</p>
 
 <h3 id="lxc-zfs">Containers (LXC) on ZFS</h3>
 <p>On a ZFS storage, Proxmox keeps the volumes of a container (LXC) as datasets (<code>subvol-&lt;ID&gt;-disk-N</code>): file systems, not virtual disks like the zvols of a VM (QEMU). BackupZit therefore backs these containers up file by file:</p>

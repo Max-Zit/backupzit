@@ -323,6 +323,23 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		gi.Consistency = "stopped guest, disks read directly"
 		if g.Template {
 			gi.Consistency = "template, disks read directly"
+		} else {
+			// Without a snapshot nothing holds the disks still: HA, onboot
+			// or a user could start the guest during the read and the image
+			// would be torn. Proxmox VE's backup lock refuses that start, as
+			// with vzdump (M-15).
+			if err := lockGuest(ctx, g); err != nil {
+				return nil, nil, warns, err
+			}
+			defer unlockGuest(g)
+			if guestRunning(ctx, g) {
+				return nil, nil, warns, errors.New("the guest was started before its disks could be read; run the backup again")
+			}
+			defer func() {
+				if err == nil && guestRunning(ctx, g) {
+					err = errors.New("the guest was started while its disks were read: this backup could be torn, run it again")
+				}
+			}()
 		}
 	}
 
@@ -710,4 +727,21 @@ func configuredSize(g Guest) uint64 {
 		}
 	}
 	return n
+}
+
+// lockGuest sets Proxmox VE's backup lock on a guest (qm/pct set --lock
+// backup): while it is set the guest cannot be started. A guest that is
+// already locked (another backup, a migration) is not read.
+func lockGuest(ctx context.Context, g Guest) error {
+	if _, err := command(ctx, guestTool(g.Type), "set", strconv.Itoa(g.VMID), "--lock", "backup"); err != nil {
+		return fmt.Errorf("lock the guest for the backup (is it locked by another operation?): %w", err)
+	}
+	return nil
+}
+
+// unlockGuest removes the backup lock again.
+func unlockGuest(g Guest) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	_, _ = command(ctx, guestTool(g.Type), "unlock", strconv.Itoa(g.VMID))
 }

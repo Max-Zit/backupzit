@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Adresář, NFS, CIFS s disky raw, tlusté LVM</td><td>ne — zastavte hosta nebo přesuňte disk</td><td>ano</td></tr>
   <tr><td>Subvolumy ZFS kontejnerů (LXC)</td><td>ano, snímek, soubor po souboru</td><td>ano, soubor po souboru</td></tr>
 </table>
-<p>Disky označené v Proxmoxu <i>Backup: no</i> (<code>backup=0</code>), průchozí fyzické disky a bind mounty se přeskočí a uvedou jako varování. Jednotky cloud-init se neukládají; při obnově se znovu vytvoří z konfigurace.</p>
+<p>Disky označené v Proxmoxu <i>Backup: no</i> (<code>backup=0</code>), průchozí fyzické disky a bind mounty se přeskočí a uvedou jako varování. Jednotky cloud-init se neukládají; při obnově se znovu vytvoří z konfigurace. Zastavený host, jehož disky se čtou bez snímku, má mezitím zámek zálohy Proxmox VE jako u vzdump: nelze ho spustit (ani přes HA), dokud se jeho disky nepřečtou.</p>
 
 <h3 id="lxc-zfs">Kontejnery (LXC) na ZFS</h3>
 <p>Na úložišti ZFS ukládá Proxmox svazky kontejneru (LXC) jako datasety (<code>subvol-&lt;ID&gt;-disk-N</code>): souborové systémy, ne virtuální disky jako zvoly VM (QEMU). BackupZit proto tyto kontejnery zálohuje soubor po souboru:</p>

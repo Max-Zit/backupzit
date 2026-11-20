@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Répertoire, NFS, CIFS avec disques raw, LVM épais</td><td>non — arrêtez l'invité ou déplacez le disque</td><td>oui</td></tr>
   <tr><td>Sous-volumes ZFS des conteneurs (LXC)</td><td>oui, snapshot, fichier par fichier</td><td>oui, fichier par fichier</td></tr>
 </table>
-<p>Les disques marqués <i>Backup: no</i> (<code>backup=0</code>) dans Proxmox, les disques physiques en passthrough et les montages bind sont ignorés et listés comme avertissements. Les lecteurs cloud-init ne sont pas stockés ; ils sont recréés à partir de la configuration lors de la restauration.</p>
+<p>Les disques marqués <i>Backup: no</i> (<code>backup=0</code>) dans Proxmox, les disques physiques en passthrough et les montages bind sont ignorés et listés comme avertissements. Les lecteurs cloud-init ne sont pas stockés ; ils sont recréés à partir de la configuration lors de la restauration. Un invité arrêté dont les disques sont lus sans instantané porte pendant ce temps le verrou de sauvegarde de Proxmox VE, comme avec vzdump : il ne peut pas être démarré (pas non plus par la HA) tant que ses disques ne sont pas lus.</p>
 
 <h3 id="lxc-zfs">Conteneurs (LXC) sur ZFS</h3>
 <p>Sur un stockage ZFS, Proxmox conserve les volumes d’un conteneur (LXC) sous forme de datasets (<code>subvol-&lt;ID&gt;-disk-N</code>) : des systèmes de fichiers, et non des disques virtuels comme les zvols d’une VM (QEMU). BackupZit sauvegarde donc ces conteneurs fichier par fichier :</p>

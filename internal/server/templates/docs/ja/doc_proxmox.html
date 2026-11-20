@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>raw ディスクのディレクトリ、NFS、CIFS、シック LVM</td><td>不可 — ゲストを停止するかディスクを移動</td><td>可</td></tr>
   <tr><td>コンテナー（LXC）の ZFS サブボリューム</td><td>はい、スナップショット、ファイル単位</td><td>はい、ファイル単位</td></tr>
 </table>
-<p>Proxmox で <i>Backup: no</i>（<code>backup=0</code>）とマークされたディスク、パススルーした物理ディスク、バインド マウントはスキップされ、警告として表示されます。Cloud-init ドライブは保存されず、復元時に構成から再作成されます。</p>
+<p>Proxmox で <i>Backup: no</i>（<code>backup=0</code>）とマークされたディスク、パススルーした物理ディスク、バインド マウントはスキップされ、警告として表示されます。Cloud-init ドライブは保存されず、復元時に構成から再作成されます。スナップショットなしでディスクを読み取る停止中のゲストには、vzdump と同様にその間 Proxmox VE のバックアップ ロックが掛かり、ディスクの読み取りが終わるまで（HA によっても）起動できません。</p>
 
 <h3 id="lxc-zfs">ZFS 上のコンテナー（LXC）</h3>
 <p>ZFS ストレージでは、Proxmox はコンテナー（LXC）のボリュームをデータセット（<code>subvol-&lt;ID&gt;-disk-N</code>）として保持します。これは VM（QEMU）の zvol のような仮想ディスクではなく、ファイルシステムです。そのため BackupZit はこれらのコンテナーをファイル単位でバックアップします。</p>

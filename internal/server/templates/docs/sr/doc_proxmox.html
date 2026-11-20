@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Directory, NFS, CIFS sa raw diskovima, thick LVM</td><td>ne — zaustavite gosta ili premestite disk</td><td>da</td></tr>
   <tr><td>ZFS podvolumeni kontejnera (LXC)</td><td>da, snimak, fajl po fajl</td><td>da, fajl po fajl</td></tr>
 </table>
-<p>Diskovi označeni sa <i>Backup: no</i> (<code>backup=0</code>) u Proxmoxu, prosleđeni fizički diskovi i bind mount-ovi se preskaču i navode kao upozorenja. Cloud-init diskovi se ne čuvaju; pri vraćanju se ponovo prave iz konfiguracije.</p>
+<p>Diskovi označeni sa <i>Backup: no</i> (<code>backup=0</code>) u Proxmoxu, prosleđeni fizički diskovi i bind mount-ovi se preskaču i navode kao upozorenja. Cloud-init diskovi se ne čuvaju; pri vraćanju se ponovo prave iz konfiguracije. Zaustavljeni gost čiji se diskovi čitaju bez snimka za to vreme nosi Proxmox VE zaključavanje za bekap, kao kod vzdump-a: ne može da se pokrene (ni preko HA) dok se diskovi ne pročitaju.</p>
 
 <h3 id="lxc-zfs">Kontejneri (LXC) na ZFS-u</h3>
 <p>Na ZFS skladištu Proxmox čuva volumene kontejnera (LXC) kao skupove podataka (<code>subvol-&lt;ID&gt;-disk-N</code>): sisteme fajlova, a ne virtuelne diskove kao zvol-ove VM-a (QEMU). Zato BackupZit ove kontejnere bekapuje fajl po fajl:</p>

@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Verzeichnis, NFS, CIFS mit Raw-Festplatten, Thick-LVM</td><td>nein — Gast stoppen oder Festplatte verschieben</td><td>ja</td></tr>
   <tr><td>ZFS-Subvolumes von Containern (LXC)</td><td>ja, Snapshot, Datei für Datei</td><td>ja, Datei für Datei</td></tr>
 </table>
-<p>In Proxmox mit <i>Backup: no</i> (<code>backup=0</code>) markierte Festplatten, durchgereichte physische Festplatten und Bind-Mounts werden übersprungen und als Warnungen aufgeführt. Cloud-Init-Laufwerke werden nicht gespeichert; sie werden bei der Wiederherstellung aus der Konfiguration neu erstellt.</p>
+<p>In Proxmox mit <i>Backup: no</i> (<code>backup=0</code>) markierte Festplatten, durchgereichte physische Festplatten und Bind-Mounts werden übersprungen und als Warnungen aufgeführt. Cloud-Init-Laufwerke werden nicht gespeichert; sie werden bei der Wiederherstellung aus der Konfiguration neu erstellt. Ein angehaltener Gast, dessen Datenträger ohne Snapshot gelesen werden, trägt währenddessen die Sicherungssperre von Proxmox VE, wie bei vzdump: Er lässt sich (auch durch HA) erst starten, wenn seine Datenträger gelesen sind.</p>
 
 <h3 id="lxc-zfs">Container (LXC) auf ZFS</h3>
 <p>Auf einem ZFS-Speicher legt Proxmox die Volumes eines Containers (LXC) als Datasets ab (<code>subvol-&lt;ID&gt;-disk-N</code>): Dateisysteme, keine virtuellen Festplatten wie die zvols einer VM (QEMU). BackupZit sichert diese Container deshalb Datei für Datei:</p>

@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Katalog, NFS, CIFS z dyskami raw, gruby LVM</td><td>nie — zatrzymaj gościa lub przenieś dysk</td><td>tak</td></tr>
   <tr><td>Podwoluminy ZFS kontenerów (LXC)</td><td>tak, migawka, plik po pliku</td><td>tak, plik po pliku</td></tr>
 </table>
-<p>Dyski oznaczone w Proxmox jako <i>Backup: no</i> (<code>backup=0</code>), przekazane dyski fizyczne i montowania bind są pomijane i wymieniane jako ostrzeżenia. Napędy cloud-init nie są zapisywane; przy przywracaniu są odtwarzane z konfiguracji.</p>
+<p>Dyski oznaczone w Proxmox jako <i>Backup: no</i> (<code>backup=0</code>), przekazane dyski fizyczne i montowania bind są pomijane i wymieniane jako ostrzeżenia. Napędy cloud-init nie są zapisywane; przy przywracaniu są odtwarzane z konfiguracji. Zatrzymany gość, którego dyski są czytane bez migawki, ma w tym czasie blokadę kopii zapasowej Proxmox VE, jak przy vzdump: nie można go uruchomić (także przez HA), dopóki jego dyski nie zostaną przeczytane.</p>
 
 <h3 id="lxc-zfs">Kontenery (LXC) na ZFS</h3>
 <p>Na magazynie ZFS Proxmox przechowuje woluminy kontenera (LXC) jako zbiory danych (<code>subvol-&lt;ID&gt;-disk-N</code>): systemy plików, a nie dyski wirtualne jak zvole maszyny wirtualnej (QEMU). Dlatego BackupZit kopiuje te kontenery plik po pliku:</p>

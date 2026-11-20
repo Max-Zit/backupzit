@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Directory, NFS, CIFS con dischi raw, LVM thick</td><td>no — arresta il guest o sposta il disco</td><td>sì</td></tr>
   <tr><td>Subvolumi ZFS dei container (LXC)</td><td>sì, snapshot, file per file</td><td>sì, file per file</td></tr>
 </table>
-<p>I dischi contrassegnati con <i>Backup: no</i> (<code>backup=0</code>) in Proxmox, i dischi fisici in passthrough e i bind mount vengono saltati e indicati come avvisi. Le unità cloud-init non vengono salvate; vengono ricreate dalla configurazione al ripristino.</p>
+<p>I dischi contrassegnati con <i>Backup: no</i> (<code>backup=0</code>) in Proxmox, i dischi fisici in passthrough e i bind mount vengono saltati e indicati come avvisi. Le unità cloud-init non vengono salvate; vengono ricreate dalla configurazione al ripristino. Un guest fermo i cui dischi vengono letti senza snapshot porta nel frattempo il blocco di backup di Proxmox VE, come con vzdump: non può essere avviato (neanche dall'HA) finché i suoi dischi non sono stati letti.</p>
 
 <h3 id="lxc-zfs">Container (LXC) su ZFS</h3>
 <p>Su uno storage ZFS, Proxmox conserva i volumi di un container (LXC) come dataset (<code>subvol-&lt;ID&gt;-disk-N</code>): file system, non dischi virtuali come gli zvol di una VM (QEMU). Per questo BackupZit salva questi container file per file:</p>

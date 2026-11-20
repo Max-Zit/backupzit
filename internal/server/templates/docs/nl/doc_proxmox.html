@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Directory, NFS, CIFS met raw-schijven, thick LVM</td><td>nee — stop de gast of verplaats de schijf</td><td>ja</td></tr>
   <tr><td>ZFS-subvolumes van containers (LXC)</td><td>ja, snapshot, bestand voor bestand</td><td>ja, bestand voor bestand</td></tr>
 </table>
-<p>Schijven die in Proxmox als <i>Backup: no</i> (<code>backup=0</code>) zijn gemarkeerd, doorgegeven fysieke schijven en bind mounts worden overgeslagen en als waarschuwingen vermeld. Cloud-init-stations worden niet opgeslagen; ze worden bij het herstel uit de configuratie opnieuw gemaakt.</p>
+<p>Schijven die in Proxmox als <i>Backup: no</i> (<code>backup=0</code>) zijn gemarkeerd, doorgegeven fysieke schijven en bind mounts worden overgeslagen en als waarschuwingen vermeld. Cloud-init-stations worden niet opgeslagen; ze worden bij het herstel uit de configuratie opnieuw gemaakt. Een gestopte gast waarvan de schijven zonder snapshot worden gelezen, heeft intussen de back-upvergrendeling van Proxmox VE, zoals bij vzdump: hij kan pas worden gestart (ook niet door HA) als zijn schijven zijn gelezen.</p>
 
 <h3 id="lxc-zfs">Containers (LXC) op ZFS</h3>
 <p>Op een ZFS-opslag bewaart Proxmox de volumes van een container (LXC) als datasets (<code>subvol-&lt;ID&gt;-disk-N</code>): bestandssystemen, geen virtuele schijven zoals de zvols van een VM (QEMU). Daarom maakt BackupZit van deze containers bestand voor bestand een back-up:</p>

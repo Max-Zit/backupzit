@@ -33,7 +33,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Directorio, NFS, CIFS con discos raw, LVM grueso</td><td>no: detenga el invitado o mueva el disco</td><td>sí</td></tr>
   <tr><td>Subvolúmenes ZFS de contenedores (LXC)</td><td>sí, snapshot, archivo por archivo</td><td>sí, archivo por archivo</td></tr>
 </table>
-<p>Los discos marcados como <i>Backup: no</i> (<code>backup=0</code>) en Proxmox, los discos físicos en passthrough y los montajes bind se omiten y se muestran como advertencias. Las unidades cloud-init no se guardan; se recrean a partir de la configuración al restaurar.</p>
+<p>Los discos marcados como <i>Backup: no</i> (<code>backup=0</code>) en Proxmox, los discos físicos en passthrough y los montajes bind se omiten y se muestran como advertencias. Las unidades cloud-init no se guardan; se recrean a partir de la configuración al restaurar. Un invitado detenido cuyos discos se leen sin instantánea lleva mientras tanto el bloqueo de copia de Proxmox VE, como con vzdump: no se puede iniciar (tampoco por HA) hasta que se hayan leído sus discos.</p>
 
 <h3 id="lxc-zfs">Contenedores (LXC) en ZFS</h3>
 <p>En un almacenamiento ZFS, Proxmox guarda los volúmenes de un contenedor (LXC) como datasets (<code>subvol-&lt;ID&gt;-disk-N</code>): sistemas de archivos, no discos virtuales como los zvols de una VM (QEMU). Por eso BackupZit copia estos contenedores archivo por archivo:</p>
