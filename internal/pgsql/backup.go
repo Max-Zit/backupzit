@@ -65,10 +65,20 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		if !o.PITR {
 			return nil, nil, nil
 		}
+		if err := s.UpgradeArchiveCommand(ctx); err != nil {
+			problems = append(problems, "could not update archive_command: "+err.Error())
+		}
 		if ok, problem, err := s.ArchiveState(ctx); err != nil {
 			return nil, nil, err
 		} else if !ok {
 			return nil, []string{"WAL archiving is not active: " + problem}, nil
+		}
+		// A segment is taken only with its full size: one PostgreSQL is still
+		// copying (archive_command of agents before 0.55) waits for the next
+		// log backup and stays in the spool.
+		var segBytes int64
+		if out, err := s.Query(ctx, "", "SELECT pg_size_bytes(current_setting('wal_segment_size'))"); err == nil {
+			segBytes, _ = strconv.ParseInt(strings.TrimSpace(out), 10, 64)
 		}
 		// Close the current segment so recent changes are archived.
 		before := time.Now()
@@ -84,6 +94,9 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		for _, e := range entries {
 			n := e.Name()
 			if !IsSegment(n) && !strings.HasSuffix(n, ".history") && !strings.HasSuffix(n, ".backup") {
+				continue
+			}
+			if fi, err := e.Info(); IsSegment(n) && segBytes > 0 && (err != nil || fi.Size() != segBytes) {
 				continue
 			}
 			if err := copyFile(filepath.Join(WALSpool, n), filepath.Join(dir, n)); err != nil {
@@ -106,6 +119,9 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 	default:
 		meta.Kind = "full"
 		if o.PITR {
+			if err := s.UpgradeArchiveCommand(ctx); err != nil {
+				problems = append(problems, "could not update archive_command: "+err.Error())
+			}
 			if ok, problem, err := s.ArchiveState(ctx); err != nil {
 				return nil, nil, err
 			} else if !ok {

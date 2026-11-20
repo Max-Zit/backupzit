@@ -41,8 +41,28 @@ func workDir(ctx context.Context, name string) (string, error) {
 	return d, nil
 }
 
-// ArchiveCommand is the archive_command BackupZit sets.
-const ArchiveCommand = "test ! -f " + WALSpool + "/%f && cp %p " + WALSpool + "/%f"
+// ArchiveCommand is the archive_command BackupZit sets. It copies to a
+// temporary name and renames, so a segment in the spool is always complete:
+// the agent may read the spool while PostgreSQL is still copying.
+const ArchiveCommand = "test ! -f " + WALSpool + "/%f && cp %p " + WALSpool + "/%f.part && mv " + WALSpool + "/%f.part " + WALSpool + "/%f"
+
+// legacyArchiveCommand is the archive_command of agents before 0.55
+// (copied in place); UpgradeArchiveCommand replaces it.
+const legacyArchiveCommand = "test ! -f " + WALSpool + "/%f && cp %p " + WALSpool + "/%f"
+
+// UpgradeArchiveCommand replaces BackupZit's old archive_command with
+// ArchiveCommand (a reload, no restart).
+func (s *Server) UpgradeArchiveCommand(ctx context.Context) error {
+	cur, err := s.Query(ctx, "", "SELECT current_setting('archive_command')")
+	if err != nil || cur != legacyArchiveCommand {
+		return err
+	}
+	if _, err := s.Query(ctx, "", "ALTER SYSTEM SET archive_command = '"+strings.ReplaceAll(ArchiveCommand, "'", "''")+"'"); err != nil {
+		return err
+	}
+	_, err = s.Query(ctx, "", "SELECT pg_reload_conf()")
+	return err
+}
 
 // Server is the local PostgreSQL cluster on Port.
 type Server struct {
@@ -169,9 +189,9 @@ func (s *Server) ArchiveState(ctx context.Context) (ok bool, problem string, err
 	switch {
 	case level == "minimal":
 		return false, "wal_level is minimal; set it to replica and restart PostgreSQL", nil
-	case command != ArchiveCommand && command != "" && command != "(disabled)":
+	case command != ArchiveCommand && command != legacyArchiveCommand && command != "" && command != "(disabled)":
 		return false, "archive_command is already set by another tool (" + command + "); BackupZit does not change it", nil
-	case command != ArchiveCommand:
+	case command != ArchiveCommand && command != legacyArchiveCommand:
 		return false, "archive_command is not set", nil
 	case mode == "off":
 		return false, "archive_mode is off", nil
