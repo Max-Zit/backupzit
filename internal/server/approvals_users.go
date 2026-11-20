@@ -229,3 +229,22 @@ func (s *Server) approvers(ctx context.Context) approverStatus {
 	n, _ := s.store.enabledAdmins(ctx, 0)
 	return approverStatus{Admins: n}
 }
+
+// raisesRights tells whether saving u gives the account a permission it
+// does not have now (a higher role, or enabling it again).
+func raisesRights(old, u User) bool {
+	if u.Disabled {
+		return false
+	}
+	nr, ok := roleByKey(u.Role)
+	if !ok {
+		return false
+	}
+	or, _ := roleByKey(old.Role)
+	for _, p := range nr.Perms {
+		if old.Disabled || !or.Has(p) {
+			return true
+		}
+	}
+	return false
+}

@@ -491,6 +491,7 @@ systemctl start backupzit-server</pre></li>
       </div>
       <div><button name="action" value="test" class="secondary">{{T "Test connection"}}</button></div>
     </details>
+    {{template "reauth_admin" $.Me}}
     <div><button name="action" value="save">{{T "Save LDAP settings"}}</button></div>
   </form>
 </div>
@@ -550,6 +551,7 @@ systemctl start backupzit-server</pre></li>
           <option value="admin" {{if eq .DefaultRole "admin"}}selected{{end}}>{{T "Administrator"}}</option>
         </select></label>
     </fieldset>
+    {{template "reauth_admin" $.Me}}
     <div><button>{{T "Save single sign-on settings"}}</button></div>
   </form>
   <p class="muted small mt">{{T "Saving checks the identity provider. Test the sign-in in a private browser window before you sign out."}}</p>

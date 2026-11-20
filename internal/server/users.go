@@ -475,6 +475,15 @@ func (s *Server) handleUserUpdate(w http.ResponseWriter, r *http.Request, _ stri
 		redirectErr(w, r, back, err)
 		return
 	}
+	// More rights for a user (a higher role, or enabling the account) need
+	// the current password: a stolen session could raise an account it
+	// knows the password of (M-N1).
+	if raisesRights(old, u) {
+		if err := s.confirmAdmin(r); err != nil {
+			redirectErr(w, r, back, err)
+			return
+		}
+	}
 	if s.store.fourEyes(r.Context()) && gainsApproval(old.Role, old.Disabled, u.Role, u.Disabled) {
 		p := User{DisplayName: u.DisplayName, Email: u.Email, Role: u.Role, Disabled: u.Disabled}
 		if s.needsApproval(w, r, back, "user.role", u.ID, u.Username+" → "+u.RoleName(), p) {

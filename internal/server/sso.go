@@ -692,13 +692,19 @@ func (s *Server) ssoPage(r *http.Request) ssoPage {
 
 func (s *Server) handleSettingsSSO(w http.ResponseWriter, r *http.Request, user string) {
 	const back = "/settings/sso"
+	// Like LDAP: the identity provider decides who signs in as what (M-N1).
+	if err := s.confirmAdmin(r); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
 	old := s.ssoSettings(r.Context())
 	t := func(k string) string { return strings.TrimSpace(r.FormValue(k)) }
 	c := SSOSettings{Protocol: t("protocol"), Label: t("label"), Issuer: t("issuer"), ClientID: t("client_id"), ClientSecret: r.FormValue("client_secret"), Scopes: t("scopes"),
 		MetadataURL: t("metadata_url"), MetadataXML: t("metadata_xml"), CACert: t("ca_cert"), UsernameClaim: t("username_claim"), GroupsClaim: t("groups_claim"),
 		AdminGroup: t("admin_group"), OperatorGroup: t("operator_group"), RestoreGroup: t("restore_group"), ViewerGroup: t("viewer_group"),
 		DefaultRole: t("default_role"), SPKey: old.SPKey, SPCert: old.SPCert}
-	if c.ClientSecret == "" {
+	// The stored secret only for the same provider and client (M-N5).
+	if c.ClientSecret == "" && c.Issuer == old.Issuer && c.ClientID == old.ClientID && c.MetadataURL == old.MetadataURL {
 		c.ClientSecret = old.ClientSecret // unchanged
 	}
 	if err := c.Validate(); err != nil {

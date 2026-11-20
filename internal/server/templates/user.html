@@ -24,6 +24,7 @@
         <dt>{{T "Last sign-in"}}</dt><dd>{{if .LastLogin}}{{ts .LastLogin}}{{else}}{{T "never"}}{{end}}</dd>
         <dt>{{T "Two-factor"}}</dt><dd>{{if .TwoFactor}}<span class="badge success"><i></i>{{T "on"}}</span>{{else}}<span class="badge"><i></i>{{T "off"}}</span>{{end}}</dd>
       </dl>
+      {{if not $.Data.Self}}{{template "reauth_admin_opt" $.Me}}{{end}}
       <div><button>{{T "Save"}}</button></div>
     </form>
   </div>
