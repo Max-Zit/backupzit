@@ -165,7 +165,11 @@ while True:
     if n==0: break
     d=r.read(n)
     if len(d)!=n: sys.exit(3)
-    os.pwrite(fd,d,off)
+    while d:
+        w=os.pwrite(fd,d,off)
+        if w<=0: sys.exit(4)
+        d=d[w:]
+        off+=w
 os.fsync(fd)
 os.close(fd)
 `
