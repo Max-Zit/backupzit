@@ -15,7 +15,7 @@ We confirm reports within a few working days, fix confirmed problems in a new re
 
 ## How releases are protected
 
-- Every release is signed with the BackupZit release key; consoles and agents verify the signature and checksums before installing an update.
+- Every release is signed with the BackupZit release key; consoles verify the signature and checksums before installing an update. Agents download updates only from their console over the pinned connection and install them only if the SHA-256 checksum the console gives matches.
 - Release packages are built from tagged commits of this repository; the appliance and recovery images carry a written source offer (`SOURCE-CODE.txt`).
 
 ## How BackupZit is tested
