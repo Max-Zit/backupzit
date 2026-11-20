@@ -41,7 +41,7 @@
 <p>Bij elke uitvoering verbindt de agent de share — Windows-agents via het UNC-pad (<code>\\nas01\data</code>, alleen SMB), Linux-agents door hem alleen-lezen te koppelen onder <code>/mnt/backupzit-nas</code> (vereist <code>cifs-utils</code> voor SMB, <code>nfs-common</code> of <code>nfs-utils</code> voor NFS; Proxmox VE heeft beide) — en verbreekt de verbinding daarna. De back-ups zijn gewone bestandsback-ups: gededupliceerd en incrementeel, met bewaring, kopieertaken, hersteltests, bladeren en bestandsherstel. <b>Herstellen op de oorspronkelijke locatie</b> verbindt de share opnieuw, beschrijfbaar, en schrijft de bestanden erop terug; of herstel naar een map op een willekeurige agent, of download.</p>
 
 <h2>Geopende en vergrendelde bestanden (VSS)</h2>
-<p>Op Windows gebruikt de agent de <b>Volume Shadow Copy Service</b>: hij maakt een consistente momentopname van het volume en maakt de back-up daaruit, zodat geopende bestanden (Outlook-PST, databases, documenten die worden bewerkt) consistent worden geback-upt. Toepassingen die VSS ondersteunen (bijvoorbeeld SQL Server) schrijven hun gegevens naar schijf voordat de snapshot wordt gemaakt.</p>
+<p>Op Windows gebruikt de agent de <b>Volume Shadow Copy Service</b>: hij maakt een consistente momentopname van het volume en maakt de back-up daaruit, zodat geopende bestanden (Outlook-PST, databases, documenten die worden bewerkt) consistent worden geback-upt. Toepassingen die VSS ondersteunen (bijvoorbeeld SQL Server) schrijven hun gegevens naar schijf voordat de snapshot wordt gemaakt. Een taak met mappen op meerdere volumes (C: en D:) legt ze samen vast, op hetzelfde moment; alleen als VSS dat niet kan, krijgt elk volume een eigen momentopname en waarschuwt de run.</p>
 
 <h2>Schema's</h2>
 <table>

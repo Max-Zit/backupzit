@@ -116,6 +116,10 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 			timeout = 5 * time.Minute
 		}
 		snaps = vss.CreateVolumes(vols, timeout, func(item string, err error) {
+			if item == "vss" { // one set per volume instead of one for all: still snapshots
+				addErr(item, err)
+				return
+			}
 			addErr(item, fmt.Errorf("VSS snapshot failed, reading live: %w", err))
 		})
 		defer snaps.Close()

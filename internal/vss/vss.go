@@ -70,6 +70,7 @@ func Create(paths []string, timeout time.Duration, onErr ErrorHandler) (*Set, er
 	defer createMu.Unlock()
 	s := &Set{snaps: map[string]string{}}
 	seen := map[string]bool{}
+	var vols []string
 	for _, p := range paths {
 		vol := strings.ToLower(filepath.VolumeName(p))
 		if vol == "" || seen[vol] {
@@ -80,6 +81,28 @@ func Create(paths []string, timeout time.Duration, onErr ErrorHandler) (*Set, er
 			onErr(p, fmt.Errorf("VSS is not available for %s (network or non-drive path); reading it without a snapshot", vol))
 			continue
 		}
+		vols = append(vols, vol)
+	}
+	// One snapshot set for all volumes: files on C: and D: as of the same
+	// moment (L-35). Only when that fails, one set per volume as before.
+	if len(vols) > 1 {
+		list := make([]string, len(vols))
+		for i, v := range vols {
+			list[i] = v + `\`
+		}
+		devs, closeFn, err := snapshotVolumes(list, timeout, onErr)
+		if err == nil {
+			for _, v := range vols {
+				if d, ok := devs[v+`\`]; ok {
+					s.snaps[v] = d
+				}
+			}
+			s.close = append(s.close, closeFn)
+			return s, nil
+		}
+		onErr("vss", fmt.Errorf("the volumes could not be snapshotted together (%w); each one gets a snapshot of its own, so they are not consistent with each other", err))
+	}
+	for _, vol := range vols {
 		dev, closeFn, err := snapshotVolume(vol+`\`, timeout, onErr)
 		if err != nil {
 			onErr(vol, fmt.Errorf("VSS snapshot of %s failed, reading files without a snapshot: %w", strings.ToUpper(vol), err))
@@ -98,11 +121,30 @@ func CreateVolumes(volumes []string, timeout time.Duration, onErr ErrorHandler) 
 	createMu.Lock()
 	defer createMu.Unlock()
 	s := &Set{snaps: map[string]string{}}
+	var list []string
+	seen := map[string]bool{}
 	for _, v := range volumes {
-		key := strings.ToLower(v)
-		if _, ok := s.snaps[key]; ok {
-			continue
+		if k := strings.ToLower(v); !seen[k] {
+			seen[k] = true
+			list = append(list, v)
 		}
+	}
+	// One snapshot set for all volumes of all disks, so the disks are
+	// consistent with each other (L-35); one set per volume only if that
+	// fails.
+	if len(list) > 1 {
+		devs, closeFn, err := snapshotVolumes(list, timeout, onErr)
+		if err == nil {
+			for k, d := range devs {
+				s.snaps[k] = d
+			}
+			s.close = append(s.close, closeFn)
+			return s
+		}
+		onErr("vss", fmt.Errorf("the volumes could not be snapshotted together (%w); each one gets a snapshot of its own, so the disks are not consistent with each other", err))
+	}
+	for _, v := range list {
+		key := strings.ToLower(v)
 		dev, closeFn, err := snapshotVolume(v, timeout, onErr)
 		if err != nil {
 			onErr(v, err)

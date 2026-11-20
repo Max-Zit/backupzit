@@ -928,7 +928,9 @@ type vssSnapshot struct {
 	snapshotProperties   vssSnapshotProperties
 	snapshotDeviceObject string
 	mountPointInfo       map[string]mountPoint
-	timeout              time.Duration
+	// extra are further volumes of the same snapshot set.
+	extra   map[string]mountPoint
+	timeout time.Duration
 }
 
 // GetSnapshotDeviceObject returns root path to access the snapshot files
@@ -1010,7 +1012,7 @@ func HasSufficientPrivilegesForVSS() error {
 // newVssSnapshot creates a new vss snapshot. If creating the snapshots doesn't
 // finish within the timeout an error is returned.
 func newVssSnapshot(provider string,
-	volume string, timeout time.Duration, filter volumeFilter, msgError ErrorHandler) (vssSnapshot, error) {
+	volume string, extra []string, timeout time.Duration, filter volumeFilter, msgError ErrorHandler) (vssSnapshot, error) {
 	is64Bit, err := isRunningOn64BitWindows()
 	if err != nil {
 		return vssSnapshot{}, newVssTextError(fmt.Sprintf(
@@ -1120,6 +1122,22 @@ func newVssSnapshot(provider string,
 		return vssSnapshot{}, err
 	}
 
+	// Further volumes in the same set: all of them are snapshotted at the
+	// same moment, so the disks are consistent with each other (L-35).
+	extraInfo := make(map[string]mountPoint)
+	for _, v := range extra {
+		if ok, err := iVssBackupComponents.IsVolumeSupported(providerID, v); err != nil || !ok {
+			msgError(v, fmt.Errorf("VSS is not available for volume %s; it is read without a snapshot", v))
+			continue
+		}
+		var id ole.GUID
+		if err := iVssBackupComponents.AddToSnapshotSet(v, providerID, &id); err != nil {
+			iVssBackupComponents.Release()
+			return vssSnapshot{}, err
+		}
+		extraInfo[v] = mountPoint{isSnapshotted: true, snapshotSetID: id}
+	}
+
 	mountPointInfo := make(map[string]mountPoint)
 
 	// if filter==nil just don't process mount points for this volume at all
@@ -1205,9 +1223,21 @@ func newVssSnapshot(provider string,
 		mountPointInfo[mountPoint] = info
 	}
 
+	for v, info := range extraInfo {
+		props, err := readSnapshotProperties(iVssBackupComponents, info.snapshotSetID)
+		if err != nil {
+			msgError(v, fmt.Errorf("VSS error: GetSnapshotProperties() for volume %s returned error: %w", v, err))
+			delete(extraInfo, v)
+			continue
+		}
+		info.snapshotProperties = props
+		info.snapshotDeviceObject = props.GetSnapshotDeviceObject()
+		extraInfo[v] = info
+	}
+
 	return vssSnapshot{
 		iVssBackupComponents, snapshotSetID, snapshotProperties,
-		snapshotProperties.GetSnapshotDeviceObject(), mountPointInfo, time.Until(deadline),
+		snapshotProperties.GetSnapshotDeviceObject(), mountPointInfo, extraInfo, time.Until(deadline),
 	}, nil
 }
 
@@ -1225,6 +1255,9 @@ func (p *vssSnapshot) Delete() error {
 			}
 		}
 	}
+	for _, x := range p.extra {
+		_ = vssFreeSnapshotProperties(&x.snapshotProperties)
+	}
 
 	if p.iVssBackupComponents != nil {
 		defer p.iVssBackupComponents.Release()
@@ -1237,6 +1270,11 @@ func (p *vssSnapshot) Delete() error {
 			return err
 		}
 
+		// The other volumes of the set (they go with the set anyway when the
+		// backup components are released; this frees them at once).
+		for _, x := range p.extra {
+			_, _, _ = p.iVssBackupComponents.DeleteSnapshots(x.snapshotSetID)
+		}
 		if _, _, e := p.iVssBackupComponents.DeleteSnapshots(p.snapshotID); e != nil {
 			err = newVssTextError(fmt.Sprintf("Failed to delete snapshot: %s", e.Error()))
 			_ = p.iVssBackupComponents.AbortBackup()

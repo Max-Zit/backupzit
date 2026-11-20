@@ -41,7 +41,7 @@
 <p>Em cada execução o agente conecta o compartilhamento — agentes Windows pelo caminho UNC (<code>\\nas01\data</code>, só SMB), agentes Linux montando-o somente leitura em <code>/mnt/backupzit-nas</code> (precisa de <code>cifs-utils</code> para SMB, <code>nfs-common</code> ou <code>nfs-utils</code> para NFS; o Proxmox VE tem ambos) — e depois desconecta-o. Os backups são backups de arquivos comuns: desduplicados e incrementais, com retenção, tarefas de cópia, testes de restauração, navegação e restauração de arquivos. <b>Restaurar no local original</b> volta a conectar o compartilhamento com escrita e grava os arquivos nele; ou restaure para uma pasta em qualquer agente, ou baixe.</p>
 
 <h2>Arquivos abertos e bloqueados (VSS)</h2>
-<p>No Windows o agente usa o <b>Serviço de Cópias de Sombra de Volume</b>: tira um snapshot consistente do volume num dado momento e faz o backup a partir dele, para que arquivos abertos (PST do Outlook, bancos de dados, documentos em edição) sejam copiados de forma consistente. Aplicações compatíveis com VSS (por exemplo o SQL Server) gravam os seus dados no disco antes do snapshot.</p>
+<p>No Windows o agente usa o <b>Serviço de Cópias de Sombra de Volume</b>: tira um snapshot consistente do volume num dado momento e faz o backup a partir dele, para que arquivos abertos (PST do Outlook, bancos de dados, documentos em edição) sejam copiados de forma consistente. Aplicações compatíveis com VSS (por exemplo o SQL Server) gravam os seus dados no disco antes do snapshot. Uma tarefa com pastas em vários volumes (C: e D:) os captura juntos, no mesmo instante; só se o VSS não puder, cada volume recebe seu próprio snapshot e a execução avisa.</p>
 
 <h2>Agendamentos</h2>
 <table>

@@ -41,7 +41,7 @@
 <p>Her çalıştırmada aracı paylaşımı bağlar — Windows aracıları UNC yoluyla (<code>\\nas01\data</code>, yalnızca SMB), Linux aracıları <code>/mnt/backupzit-nas</code> altına salt okunur bağlayarak (SMB için <code>cifs-utils</code>, NFS için <code>nfs-common</code> veya <code>nfs-utils</code> gerekir; Proxmox VE'de ikisi de vardır) — ve ardından bağlantıyı keser. Yedekler sıradan dosya yedekleridir: tekilleştirilmiş ve artımlı; saklama, kopyalama işleri, geri yükleme testleri, göz atma ve dosya geri yükleme ile. <b>Özgün konuma geri yükle</b> paylaşımı yazılabilir olarak yeniden bağlar ve dosyaları üzerine geri yazar; ya da herhangi bir aracıdaki bir klasöre geri yükleyin veya indirin.</p>
 
 <h2>Açık ve kilitli dosyalar (VSS)</h2>
-<p>Windows'ta aracı <b>Birim Gölge Kopyası Hizmeti</b>'ni kullanır: birimin tutarlı, belirli bir andaki anlık görüntüsünü alır ve yedeği ondan yapar; böylece açık dosyalar (Outlook PST, veritabanları, düzenlenmekte olan belgeler) tutarlı biçimde yedeklenir. VSS destekleyen uygulamalar (örneğin SQL Server) anlık görüntü alınmadan önce verilerini diske yazar.</p>
+<p>Windows'ta aracı <b>Birim Gölge Kopyası Hizmeti</b>'ni kullanır: birimin tutarlı, belirli bir andaki anlık görüntüsünü alır ve yedeği ondan yapar; böylece açık dosyalar (Outlook PST, veritabanları, düzenlenmekte olan belgeler) tutarlı biçimde yedeklenir. VSS destekleyen uygulamalar (örneğin SQL Server) anlık görüntü alınmadan önce verilerini diske yazar. Birden çok birimde (C: ve D:) klasörleri olan bir iş bunları aynı anda birlikte anlık görüntüler; yalnızca VSS bunu yapamazsa her birim kendi anlık görüntüsünü alır ve çalıştırma uyarır.</p>
 
 <h2>Zamanlamalar</h2>
 <table>

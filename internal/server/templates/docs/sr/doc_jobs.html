@@ -41,7 +41,7 @@
 <p>Za svako pokretanje agent povezuje deljeni folder — Windows agenti preko njegove UNC putanje (<code>\\nas01\data</code>, samo SMB), Linux agenti tako što ga montiraju samo za čitanje ispod <code>/mnt/backupzit-nas</code> (potreban je <code>cifs-utils</code> za SMB, <code>nfs-common</code> ili <code>nfs-utils</code> za NFS; Proxmox VE ima oba) — i posle ga odvaja. Bekapi su obični bekapi fajlova: deduplicirani i inkrementalni, sa retencijom, poslovima kopiranja, testovima vraćanja, pregledom i vraćanjem fajlova. <b>Vraćanje na originalnu lokaciju</b> ponovo povezuje deljeni folder, sa pravom pisanja, i upisuje fajlove nazad; ili vratite u folder na bilo kom agentu, ili preuzmite.</p>
 
 <h2>Otvoreni i zaključani fajlovi (VSS)</h2>
-<p>Na Windowsu agent koristi <b>Volume Shadow Copy Service</b>: pravi konzistentan snimak volumena u jednom trenutku i bekap pravi iz njega, pa se otvoreni fajlovi (Outlook PST, baze, dokumenti koji se menjaju) čuvaju konzistentno. Aplikacije koje podržavaju VSS (na primer SQL Server) upisuju svoje podatke na disk pre snimka.</p>
+<p>Na Windowsu agent koristi <b>Volume Shadow Copy Service</b>: pravi konzistentan snimak volumena u jednom trenutku i bekap pravi iz njega, pa se otvoreni fajlovi (Outlook PST, baze, dokumenti koji se menjaju) čuvaju konzistentno. Aplikacije koje podržavaju VSS (na primer SQL Server) upisuju svoje podatke na disk pre snimka. Posao sa folderima na više volumena (C: i D:) snima ih zajedno, u istom trenutku; samo kada VSS to ne može, svaki volumen dobija svoj snimak i pokretanje upozorava.</p>
 
 <h2>Rasporedi</h2>
 <table>

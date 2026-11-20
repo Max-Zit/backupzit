@@ -41,7 +41,7 @@
 <p>Przy każdym uruchomieniu agent podłącza udział — agenci Windows przez ścieżkę UNC (<code>\\nas01\data</code>, tylko SMB), agenci Linux montując go tylko do odczytu pod <code>/mnt/backupzit-nas</code> (wymaga <code>cifs-utils</code> dla SMB, <code>nfs-common</code> lub <code>nfs-utils</code> dla NFS; Proxmox VE ma oba) — a potem go odłącza. Kopie są zwykłymi kopiami plików: zdeduplikowane i przyrostowe, z retencją, zadaniami kopii kopii, testami przywracania, przeglądaniem i przywracaniem plików. <b>Przywróć do pierwotnej lokalizacji</b> ponownie podłącza udział z prawem zapisu i zapisuje do niego pliki; można też przywrócić do folderu na dowolnym agencie lub pobrać.</p>
 
 <h2>Otwarte i zablokowane pliki (VSS)</h2>
-<p>W Windows agent używa <b>usługi kopiowania woluminów w tle</b>: tworzy spójną migawkę woluminu z danej chwili i kopiuje z niej, więc otwarte pliki (PST Outlooka, bazy danych, edytowane dokumenty) są kopiowane spójnie. Aplikacje obsługujące VSS (na przykład SQL Server) zapisują dane na dysk przed utworzeniem migawki.</p>
+<p>W Windows agent używa <b>usługi kopiowania woluminów w tle</b>: tworzy spójną migawkę woluminu z danej chwili i kopiuje z niej, więc otwarte pliki (PST Outlooka, bazy danych, edytowane dokumenty) są kopiowane spójnie. Aplikacje obsługujące VSS (na przykład SQL Server) zapisują dane na dysk przed utworzeniem migawki. Zadanie z folderami na kilku woluminach (C: i D:) obejmuje je jedną migawką w tym samym momencie; tylko gdy VSS nie może, każdy wolumin dostaje własną migawkę, a uruchomienie ostrzega.</p>
 
 <h2>Harmonogramy</h2>
 <table>

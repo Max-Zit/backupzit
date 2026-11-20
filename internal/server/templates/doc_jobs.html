@@ -41,7 +41,7 @@
 <p>For every run the agent connects the share — Windows agents through its UNC path (<code>\\nas01\data</code>, SMB only), Linux agents by mounting it read-only below <code>/mnt/backupzit-nas</code> (needs <code>cifs-utils</code> for SMB, <code>nfs-common</code> or <code>nfs-utils</code> for NFS; Proxmox VE has both) — and disconnects it afterwards. The backups are ordinary file backups: deduplicated and incremental, with retention, copy jobs, restore tests, browsing and file restore. <b>Restore to the original location</b> connects the share again, writable, and writes the files back onto it; or restore into a folder on any agent, or download.</p>
 
 <h2>Open and locked files (VSS)</h2>
-<p>On Windows the agent uses the <b>Volume Shadow Copy Service</b>: it takes a consistent, point-in-time snapshot of the volume and backs up from that, so open files (Outlook PST, databases, documents being edited) are backed up consistently. Applications that support VSS (for example SQL Server) flush their data to disk before the snapshot is taken.</p>
+<p>On Windows the agent uses the <b>Volume Shadow Copy Service</b>: it takes a consistent, point-in-time snapshot of the volume and backs up from that, so open files (Outlook PST, databases, documents being edited) are backed up consistently. Applications that support VSS (for example SQL Server) flush their data to disk before the snapshot is taken. A job with folders on several volumes (C: and D:) snapshots them together, at the same moment; only if VSS cannot, each volume gets its own snapshot and the run warns.</p>
 
 <h2>Schedules</h2>
 <table>
