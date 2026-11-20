@@ -83,6 +83,9 @@ func rpoText(l *language, st RPOState) string {
 
 const settingRPOAlerts = "rpo_alerts"
 
+// settingRPOChatAlerts: the jobs whose RPO chat alert went out (0.55).
+const settingRPOChatAlerts = "rpo_chat_alerts"
+
 // rpoAlerts notifies once when a job misses its RPO (again after it met it
 // in between).
 func (n *Notifier) rpoAlerts(ctx context.Context, l *language, e EmailSettings, chat ChatSettings, now time.Time) {
@@ -94,17 +97,26 @@ func (n *Notifier) rpoAlerts(ctx context.Context, l *language, e EmailSettings, 
 	if err != nil {
 		return
 	}
+	// Email and chat are tracked apart: a failing mail server retries the
+	// email on every pass, the chat alert goes once all the same.
 	sent := map[string]bool{}
 	_ = n.store.GetSetting(ctx, settingRPOAlerts, &sent)
-	next := map[string]bool{}
+	var chatSent map[string]bool // stays nil while the setting does not exist
+	if n.store.GetSetting(ctx, settingRPOChatAlerts, &chatSent) != nil || chatSent == nil {
+		chatSent = map[string]bool{}
+		for k := range sent { // before 0.55 both went together
+			chatSent[k] = true
+		}
+	}
+	next, nextChat := map[string]bool{}, map[string]bool{}
 	for _, j := range jobs {
 		st := rpoState(j, cov[j.ID], now)
 		key := strconv.FormatInt(j.ID, 10)
 		if !st.Missed {
 			continue
 		}
-		next[key] = true
-		if sent[key] {
+		next[key], nextChat[key] = true, true
+		if sent[key] && chatSent[key] {
 			continue
 		}
 		subject := "[BackupZit] " + l.T("RPO missed: %s", j.Name)
@@ -114,12 +126,14 @@ func (n *Notifier) rpoAlerts(ctx context.Context, l *language, e EmailSettings, 
 		if u := n.publicURL(); u != "" {
 			fmt.Fprintf(&b, "\n%s %s/jobs/%d\n", l.T("Details:"), u, j.ID)
 		}
-		if e.Enabled && e.OnFailure && e.Host != "" && len(e.To) > 0 {
+		if !sent[key] && e.Enabled && e.OnFailure && e.Host != "" && len(e.To) > 0 {
 			if err := n.send(ctx, e, subject, b.String()); err != nil {
 				n.log.Warn("send RPO notification", "job", j.ID, "err", err)
 				delete(next, key) // try again on the next pass
-				continue
 			}
+		}
+		if chatSent[key] {
+			continue
 		}
 		for _, c := range chat.Channels {
 			if !c.OnFailure {
@@ -134,6 +148,9 @@ func (n *Notifier) rpoAlerts(ctx context.Context, l *language, e EmailSettings, 
 	}
 	if b1, _ := json.Marshal(sent); string(b1) != mustJSON(next) {
 		_ = n.store.SetSetting(ctx, settingRPOAlerts, next)
+	}
+	if b2, _ := json.Marshal(chatSent); string(b2) != mustJSON(nextChat) {
+		_ = n.store.SetSetting(ctx, settingRPOChatAlerts, nextChat)
 	}
 }
 

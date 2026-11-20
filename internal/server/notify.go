@@ -288,41 +288,63 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 }
 
 func (n *Notifier) runAlerts(ctx context.Context, l *language, e EmailSettings, chat ChatSettings) {
-	rows, err := n.store.db.Query(ctx, `SELECT id FROM runs WHERE NOT notified AND finished_at IS NOT NULL ORDER BY finished_at LIMIT 50`)
+	// Runs whose chat alerts are still due come first: a backlog of emails
+	// waiting for a broken mail server must not hold them back.
+	rows, err := n.store.db.Query(ctx, `SELECT id, chat_notified FROM runs WHERE NOT notified AND finished_at IS NOT NULL
+		ORDER BY chat_notified, finished_at LIMIT 100`)
 	if err != nil {
 		n.log.Error("pending notifications", "err", err)
 		return
 	}
-	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	type pending struct {
+		ID       int64
+		ChatSent bool
+	}
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (pending, error) {
+		var p pending
+		return p, r.Scan(&p.ID, &p.ChatSent)
+	})
 	if err != nil {
 		return
 	}
-	for _, id := range ids {
-		run, err := n.store.GetRun(ctx, id)
+	mailBroken := false
+	for _, p := range list {
+		run, err := n.store.GetRun(ctx, p.ID)
 		if err != nil {
 			continue
 		}
+		mailDone := true
 		if e.Enabled && (wants(e, run.Status) || (run.Anomaly != "" && e.OnFailure)) {
-			subject, body := n.runMessage(l, run)
-			if err := n.sendRun(ctx, e, subject, body, runHeaders(run)); err != nil {
-				// Leave unhandled to retry on the next pass; stop to avoid
-				// hammering a broken mail server.
-				n.log.Warn("send run notification", "run", id, "err", err)
-				return
-			}
-			n.log.Info("notification sent", "run", id, "status", run.Status)
-		}
-		// Chat and webhooks: best effort, a failing channel does not hold
-		// back the others or later runs.
-		for _, c := range chat.Channels {
-			if !c.wantsStatus(run.Status, run.Anomaly != "") {
-				continue
-			}
-			if err := n.sendChat(ctx, l, c, run); err != nil {
-				n.log.Warn("send chat notification", "run", id, "channel", c.Name, "err", err)
+			if mailBroken {
+				mailDone = false
+			} else {
+				subject, body := n.runMessage(l, run)
+				if err := n.sendRun(ctx, e, subject, body, runHeaders(run)); err != nil {
+					// Retried on the next pass; no more mail this pass, so a
+					// broken mail server is not hammered. Chat goes on.
+					n.log.Warn("send run notification", "run", p.ID, "err", err)
+					mailBroken, mailDone = true, false
+				} else {
+					n.log.Info("notification sent", "run", p.ID, "status", run.Status)
+				}
 			}
 		}
-		_, _ = n.store.db.Exec(ctx, `UPDATE runs SET notified=true WHERE id=$1`, id)
+		// Chat and webhooks: once, best effort; a failing channel does not
+		// hold back the others, later runs or the email.
+		if !p.ChatSent {
+			for _, c := range chat.Channels {
+				if !c.wantsStatus(run.Status, run.Anomaly != "") {
+					continue
+				}
+				if err := n.sendChat(ctx, l, c, run); err != nil {
+					n.log.Warn("send chat notification", "run", p.ID, "channel", c.Name, "err", err)
+				}
+			}
+			_, _ = n.store.db.Exec(ctx, `UPDATE runs SET chat_notified=true WHERE id=$1`, p.ID)
+		}
+		if mailDone {
+			_, _ = n.store.db.Exec(ctx, `UPDATE runs SET notified=true WHERE id=$1`, p.ID)
+		}
 	}
 }
 

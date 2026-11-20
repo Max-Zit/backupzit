@@ -126,4 +126,26 @@ func TestChatNotifications(t *testing.T) {
 		t.Errorf("teams in Serbian: %v", bodies["/teams"][1:])
 	}
 	mu.Unlock()
+
+	// M-23 (0.55): a mail server that fails does not hold back chat; the
+	// email is retried, the chat message is not sent twice.
+	es.Enabled, es.Host, es.Port, es.From, es.To, es.OnFailure = true, "127.0.0.1", 1, "backup@example.com", []string{"it@example.com"}, true
+	if err := e.store.SetSetting(ctx, "email", es); err != nil {
+		t.Fatal(err)
+	}
+	runID, _ = e.store.QueueBackup(ctx, jobID, "manual")
+	e.store.ClaimRun(ctx, agents[0].ID)
+	e.store.FinishRun(ctx, agents[0].ID, runID, api.RunResult{Status: api.StatusFailed, Message: "disk full again"})
+	n.Pass(ctx, time.Date(2026, 10, 2, 12, 0, 0, 0, time.Local))
+	n.Pass(ctx, time.Date(2026, 10, 2, 12, 1, 0, 0, time.Local))
+	mu.Lock()
+	if len(bodies["/teams"]) != 3 {
+		t.Errorf("teams messages with a broken mail server: %d, want 3", len(bodies["/teams"]))
+	}
+	mu.Unlock()
+	var notified bool
+	e.pool.QueryRow(ctx, `SELECT notified FROM runs WHERE id=$1`, runID).Scan(&notified)
+	if notified {
+		t.Error("the run counts as notified although its email was not sent")
+	}
 }

@@ -941,7 +941,7 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 		message=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_reason ELSE $6 END,
 		notified=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_by<>'' ELSE notified AND NOT stale_failed END,
 		snapshot_id=CASE WHEN kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') THEN $7 ELSE snapshot_id END, details=$8, commands=$9,
-		stale_failed=false
+		chat_notified=chat_notified AND NOT stale_failed, stale_failed=false
 		WHERE id=$2 AND agent_id=$1 AND (status='running' OR (status='failed' AND stale_failed))`,
 		agentID, runID, res.Status, stats, res.Errors, res.Message, res.SnapshotID, details, commands)
 	if err != nil {
