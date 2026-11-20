@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -86,6 +87,9 @@ func TestExtractColonNames(t *testing.T) {
 		"a:b":      {Data: []byte("a file named a:b")},
 		"a::$DATA": {Data: []byte("overwritten")},
 		"d:x/f":    {Data: []byte("in a folder named d:x")},
+		// An explicit folder: MapFS makes implicit ones 0555, which the
+		// restore keeps and a non-root test run then cannot clean up.
+		"d:x": {Mode: fs.ModeDir | 0o755},
 	}}
 	dir := t.TempDir()
 	read := func(dir, p string) string {
