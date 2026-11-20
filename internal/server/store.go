@@ -869,15 +869,22 @@ func (s *Store) GetRun(ctx context.Context, id int64) (Run, error) {
 type RunFilter struct {
 	JobID   int64
 	AgentID int64
-	Limit   int
+	// Since keeps runs queued at or after it (zero: all).
+	Since time.Time
+	Limit int
 }
 
 func (s *Store) ListRuns(ctx context.Context, f RunFilter) ([]Run, error) {
 	if f.Limit <= 0 {
 		f.Limit = 100
 	}
-	q := `SELECT ` + runCols + runFrom + ` WHERE ($1::bigint=0 OR r.job_id=$1) AND ($2::bigint=0 OR r.agent_id=$2) ORDER BY r.queued_at DESC LIMIT $3`
-	rows, err := s.db.Query(ctx, q, f.JobID, f.AgentID, f.Limit)
+	var since any
+	if !f.Since.IsZero() {
+		since = f.Since
+	}
+	q := `SELECT ` + runCols + runFrom + ` WHERE ($1::bigint=0 OR r.job_id=$1) AND ($2::bigint=0 OR r.agent_id=$2)
+		AND ($4::timestamptz IS NULL OR r.queued_at >= $4) ORDER BY r.queued_at DESC LIMIT $3`
+	rows, err := s.db.Query(ctx, q, f.JobID, f.AgentID, f.Limit, since)
 	if err != nil {
 		return nil, err
 	}

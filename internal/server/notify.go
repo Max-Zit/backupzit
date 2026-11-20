@@ -400,11 +400,13 @@ func (n *Notifier) runMessage(l *language, r Run) (string, string) {
 }
 
 func (n *Notifier) dailyReport(ctx context.Context, l *language, e EmailSettings, now time.Time) error {
-	runs, err := n.store.ListRuns(ctx, RunFilter{Limit: 1000})
+	// All runs of the last 24 hours, selected in SQL: a busy console (log
+	// backups every few minutes) has more than any fixed number of runs.
+	since := now.Add(-24 * time.Hour)
+	runs, err := n.store.ListRuns(ctx, RunFilter{Since: since, Limit: 1_000_000})
 	if err != nil {
 		return err
 	}
-	since := now.Add(-24 * time.Hour)
 	count := map[string]int{}
 	var problems []Run
 	for _, r := range runs {
