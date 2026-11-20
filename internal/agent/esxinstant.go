@@ -376,6 +376,14 @@ func (a *Agent) vmwareInstant(ctx context.Context, run api.Run) api.RunResult {
 	}
 	fail := func(err error) api.RunResult {
 		removeESXiInstant(cfg)
+		// As after a discard: with no other instant VM the NFS datastore
+		// and the NFS server go too, instead of staying behind on the host.
+		if len(loadESXiInstants()) == 0 {
+			cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
+			defer cancel()
+			_ = c.InstantUnmount(cctx, cfg.Datastore)
+			_ = exec.CommandContext(cctx, "systemctl", "stop", esxiInstantUnit).Run()
+		}
 		return failed(err)
 	}
 	if err := startESXiNFS(ctx); err != nil {
