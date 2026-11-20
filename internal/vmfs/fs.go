@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -131,7 +132,7 @@ func (f *ioFS) List(dir string) ([]Entry, error) {
 	}
 	out := make([]Entry, 0, len(des))
 	for _, d := range des {
-		if d.Name() == "." || d.Name() == ".." || d.Name() == "lost+found" && dir == "/" {
+		if !SafeName(d.Name()) || d.Name() == "lost+found" && dir == "/" {
 			continue
 		}
 		e := Entry{Name: d.Name(), Path: path.Join(dir, d.Name()), IsDir: d.IsDir()}
@@ -239,4 +240,17 @@ func (c *closingReader) Read(b []byte) (int, error) {
 		_ = c.f.Close()
 	}
 	return n, err
+}
+
+// SafeName is imaging.SafeName (names read from guest file systems).
+func SafeName(name string) bool { return imaging.SafeName(name) }
+
+// MaxDepth limits how deep restores, downloads and listings walk into a
+// guest file system: a crafted one may nest folders without end.
+const MaxDepth = imaging.MaxDepth
+
+// Within tells whether path p lies in folder dir.
+func Within(dir, p string) bool {
+	rel, err := filepath.Rel(dir, p)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }

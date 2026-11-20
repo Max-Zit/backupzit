@@ -77,7 +77,9 @@ func gptPartitions(disk io.ReaderAt, head []byte) ([]Volume, error) {
 	entriesLBA := int64(binary.LittleEndian.Uint64(h[72:])) // #nosec G115 -- a value from a damaged disk that does not fit makes the following read fail
 	count := int(binary.LittleEndian.Uint32(h[80:]))
 	esize := int(binary.LittleEndian.Uint32(h[84:]))
-	if esize < 128 || count > 1024 {
+	// Real tables have 128 entries of 128 bytes; a crafted header must not
+	// make the console or agent allocate gigabytes.
+	if esize < 128 || esize > 4096 || count > 1024 {
 		return nil, fmt.Errorf("invalid GPT header")
 	}
 	buf := make([]byte, count*esize)

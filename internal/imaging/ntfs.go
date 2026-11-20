@@ -218,7 +218,7 @@ func (v *Volume) List(dir string) ([]Entry, error) {
 	for _, idx := range e.Dir(v.ctx) {
 		fn := idx.File()
 		name := fn.Name()
-		if name == "" || name == "." || fn.NameType().Name == "DOS" {
+		if !SafeName(name) || fn.NameType().Name == "DOS" {
 			continue
 		}
 		if strings.HasPrefix(name, "$") && dir == `\` {
@@ -260,7 +260,9 @@ func (v *Volume) List(dir string) ([]Entry, error) {
 			if i := strings.IndexByte(fi.Name, ':'); i >= 0 {
 				stream = fi.Name[i:]
 			}
-			if streams[stream] {
+			// A stream name comes from the disk too: one with a slash,
+			// backslash or NUL (a crafted volume) would leave the folder.
+			if streams[stream] || !SafeName(name+stream) {
 				continue
 			}
 			streams[stream] = true
@@ -350,10 +352,14 @@ type ExtractStats struct {
 func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string) string, progress func(*ExtractStats)) (*ExtractStats, error) {
 	st := &ExtractStats{}
 	start := time.Now()
-	var walk func(e Entry) error
-	walk = func(e Entry) error {
+	var walk func(e Entry, depth int) error
+	walk = func(e Entry, depth int) error {
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if depth > MaxDepth {
+			st.Errors = append(st.Errors, fmt.Sprintf("%s: more than %d folders deep (damaged file system?), skipped", e.Path, MaxDepth))
+			return nil
 		}
 		target := dest(e.Path)
 		if e.IsDir {
@@ -367,7 +373,7 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 				return nil
 			}
 			for _, c := range children {
-				if err := walk(c); err != nil {
+				if err := walk(c, depth+1); err != nil {
 					return err
 				}
 			}
@@ -395,7 +401,7 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 			st.Errors = append(st.Errors, err.Error())
 			continue
 		}
-		if err := walk(e); err != nil {
+		if err := walk(e, 0); err != nil {
 			return st, err
 		}
 	}
@@ -549,3 +555,15 @@ func (l lockedReaderAt) ReadAt(b []byte, off int64) (int, error) {
 	defer l.v.mu.Unlock()
 	return l.r.ReadAt(b, off)
 }
+
+// SafeName tells whether a name read from a guest file system can be used
+// as one path element: not empty, not "." or "..", no slash, backslash or
+// NUL. A crafted directory entry could otherwise point a restore outside
+// its folder (on Windows a backslash separates folders) or loop forever.
+func SafeName(name string) bool {
+	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, "/\\\x00")
+}
+
+// MaxDepth limits how deep restores, downloads and listings walk into a
+// file system read from a backup: a crafted one may nest folders without end.
+const MaxDepth = 256

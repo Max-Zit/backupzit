@@ -250,10 +250,13 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 	setAttachment(w, name, "application/zip", -1)
 	zw := zip.NewWriter(w)
 	base := p.dir
-	var add func(e vmfs.Entry) error
-	add = func(e vmfs.Entry) error {
+	var add func(e vmfs.Entry, depth int) error
+	add = func(e vmfs.Entry, depth int) error {
 		if err := r.Context().Err(); err != nil {
 			return err
+		}
+		if depth > vmfs.MaxDepth {
+			return fmt.Errorf("%s: more than %d folders deep (damaged file system?)", e.Path, vmfs.MaxDepth)
 		}
 		rel := strings.TrimPrefix(strings.TrimPrefix(e.Path, base), "/")
 		if rel == "" {
@@ -269,7 +272,7 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 				_, _ = zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: e.ModTime})
 			}
 			for _, ch := range children {
-				if err := add(ch); err != nil {
+				if err := add(ch, depth+1); err != nil {
 					return err
 				}
 			}
@@ -290,7 +293,7 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 		e, err := f.Stat(sp)
 		if err == nil {
 			e.Path = vmfs.Clean(sp)
-			err = add(e)
+			err = add(e, 0)
 		}
 		if err != nil {
 			s.abortDownload("guest archive", err)

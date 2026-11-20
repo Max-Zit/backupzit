@@ -72,12 +72,20 @@ type ExtractStats struct {
 // their path inside the volume (target/etc/nginx/...).
 func Extract(ctx context.Context, fsys FS, paths []string, target string) (*ExtractStats, error) {
 	st := &ExtractStats{}
-	var walk func(e Entry) error
-	walk = func(e Entry) error {
+	var walk func(e Entry, depth int) error
+	walk = func(e Entry, depth int) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+		if depth > MaxDepth {
+			st.Errors = append(st.Errors, fmt.Sprintf("%s: more than %d folders deep (damaged file system?), skipped", e.Path, MaxDepth))
+			return nil
+		}
 		dst := filepath.Join(target, filepath.FromSlash(strings.TrimPrefix(e.Path, "/")))
+		if !Within(target, dst) {
+			st.Errors = append(st.Errors, fmt.Sprintf("%s: outside the restore folder, skipped", e.Path))
+			return nil
+		}
 		if e.IsDir {
 			if err := os.MkdirAll(dst, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
 				return err
@@ -95,7 +103,7 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 				return nil
 			}
 			for _, c := range children {
-				if err := walk(c); err != nil {
+				if err := walk(c, depth+1); err != nil {
 					return err
 				}
 			}
@@ -119,7 +127,7 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 		if e.Path == "" {
 			e.Path = Clean(p)
 		}
-		if err := walk(e); err != nil {
+		if err := walk(e, 0); err != nil {
 			return st, err
 		}
 	}
