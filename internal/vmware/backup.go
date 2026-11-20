@@ -348,6 +348,13 @@ func (c *Client) cloneDisk(ctx context.Context, v VM, p *diskPlan) error {
 		return fmt.Errorf("create %s on datastore %s: %w", tmpDir, dst.DS, err)
 	}
 	if err := c.copyDisk(ctx, src, dst); err != nil {
+		// A partial copy takes datastore space: delete it now, also when
+		// the run was cancelled.
+		dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
+		defer cancel()
+		if c.exists(dctx, dst.DS, dst.Path) {
+			_ = c.deleteDisk(dctx, dst)
+		}
 		return fmt.Errorf("copy the disk on the datastore (needs free space for its used blocks): %w", err)
 	}
 	p.clone = &dst
