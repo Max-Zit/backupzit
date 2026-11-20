@@ -35,6 +35,23 @@ func TestDropDamagedPacks(t *testing.T) {
 	lostData := bytes.Repeat([]byte("on the damaged pack "), 60000)
 	lostID, lostSn := snapshotOf(lostData)
 	keptID, _ := snapshotOf(bytes.Repeat([]byte("elsewhere "), 60000))
+	// A third backup whose folder list cannot be read now (its pack is gone
+	// from this agent's view, not proven damaged): kept, not affected (A2).
+	_, unreadSn := snapshotOf(bytes.Repeat([]byte("third "), 60000))
+	unreadTree := func() ID {
+		sn, err := r.LoadSnapshot(ctx, unreadSn.String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return sn.Tree
+	}()
+	tl, ok := r.idx.Lookup(BlobHandle{Type: TreeBlob, ID: unreadTree})
+	if !ok {
+		t.Fatal("setup: tree not indexed")
+	}
+	be.mu.Lock()
+	delete(be.objs, "data/"+tl.Pack.String()[:2]+"/"+tl.Pack.String())
+	be.mu.Unlock()
 	loc, ok := r.idx.Lookup(BlobHandle{Type: DataBlob, ID: lostID})
 	if !ok {
 		t.Fatal("setup: blob not indexed")
@@ -52,7 +69,7 @@ func TestDropDamagedPacks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Packs != 1 || res.Blobs < 1 || len(res.Snapshots) != 1 || res.Snapshots[0].ID != lostSn {
+	if res.Packs != 1 || res.Blobs < 1 || len(res.Snapshots) != 1 || res.Snapshots[0].ID != lostSn || len(res.Unchecked) != 1 || res.Unchecked[0].ID != unreadSn {
 		t.Fatalf("result %+v (snapshots %d)", res, len(res.Snapshots))
 	}
 	if r.idx.Has(BlobHandle{Type: DataBlob, ID: lostID}) || !r.idx.Has(BlobHandle{Type: DataBlob, ID: keptID}) {

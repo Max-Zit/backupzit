@@ -50,6 +50,38 @@ type Options struct {
 // DefaultRetryPause is RetryPause when Options leave it 0 (tests shorten it).
 var DefaultRetryPause = 10 * time.Second
 
+// maxFailStreak packs in a row that cannot be read (after their retries)
+// mean the storage or the way to it is down: the check stops with an error
+// instead of trying every pack for days (and holding the lock of a repair).
+const maxFailStreak = 20
+
+// errStorageDown is the error of a check stopped by maxFailStreak.
+var errStorageDown = errors.New("the storage stopped answering")
+
+// streak counts reads that failed in a row; any success resets it.
+type streak struct {
+	mu   sync.Mutex
+	n    int
+	last error
+}
+
+// add records one read; it reports true once maxFailStreak is reached.
+func (s *streak) add(err error) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err == nil || errors.Is(err, repo.ErrPackDamaged) {
+		s.n = 0 // the storage answered
+		return false
+	}
+	s.n++
+	s.last = err
+	return s.n >= maxFailStreak
+}
+
+func (s *streak) err() error {
+	return fmt.Errorf("%w: %d data packs in a row could not be read (last: %v); nothing was judged, check the storage and the network path and run the check again", errStorageDown, s.n, s.last)
+}
+
 // tries runs read up to three times, pausing in between, while it fails.
 // A proven verdict (repo.ErrPackDamaged) is read again too: over plain
 // HTTP a corrupt download can be a one-off.
@@ -109,15 +141,28 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 	}
 
 	// 2. Pack headers must match the index.
+	var hs streak
 	for p := range indexed {
 		if !present[p] {
 			continue
 		}
 		var blobs []repo.PackedBlob
-		err := tries(ctx, opts.RetryPause, func() (err error) {
+		var err error
+		if opts.ReadData {
+			// The whole pack is read (with retries) below anyway.
 			blobs, err = r.ReadPackHeader(ctx, p)
-			return err
-		})
+		} else {
+			err = tries(ctx, opts.RetryPause, func() (err error) {
+				blobs, err = r.ReadPackHeader(ctx, p)
+				return err
+			})
+		}
+		if ctx.Err() != nil {
+			return res, ctx.Err()
+		}
+		if hs.add(err) {
+			return res, hs.err()
+		}
 		if err != nil {
 			// With ReadData the whole pack is read below, which tells a
 			// damaged pack from one that only does not arrive here.
@@ -272,18 +317,28 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 			wg   sync.WaitGroup
 			mu   sync.Mutex
 			done int
+			ds   streak
 		)
+		rctx, stop := context.WithCancel(ctx)
+		defer stop()
+		down := false
 		for w := 0; w < min(max(r.Concurrency(), 1), max(len(onDisk), 1)); w++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				for i := range jobs {
 					var n int
-					err := tries(ctx, opts.RetryPause, func() (err error) {
-						n, err = r.VerifyPack(ctx, onDisk[i])
+					err := tries(rctx, opts.RetryPause, func() (err error) {
+						n, err = r.VerifyPack(rctx, onDisk[i])
 						return err
 					})
 					out[i] = verified{n, err}
+					if rctx.Err() == nil && ds.add(err) {
+						mu.Lock()
+						down = true
+						mu.Unlock()
+						stop()
+					}
 					if opts.Progress != nil {
 						mu.Lock()
 						done++
@@ -295,7 +350,7 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 			}()
 		}
 		for i := range onDisk {
-			if ctx.Err() != nil {
+			if rctx.Err() != nil {
 				break
 			}
 			jobs <- i
@@ -304,6 +359,9 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 		wg.Wait()
 		if err := ctx.Err(); err != nil {
 			return res, err
+		}
+		if down {
+			return res, ds.err()
 		}
 		for i, v := range out {
 			if v.err != nil {

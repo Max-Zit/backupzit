@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/repo"
@@ -77,14 +76,39 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	sort.Slice(sns, func(i, j int) bool { return sns[i].Time.Before(sns[j].Time) })
 	source := len(sns)
 	sns, older := copySelection(sns, run.Retention)
-	tags := []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}
-	if strings.HasPrefix(run.Part, partPrefix) {
-		tags = append(tags, run.Part) // the copy keeps retention per proxy too
+	// Each copy keeps the part tag of its source (split VMware backups), so
+	// the copy job's retention also keeps every part on its own.
+	base := []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}
+	byPart := map[string][]*repo.Snapshot{}
+	var parts []string
+	for _, sn := range sns {
+		k := partOf(sn)
+		if _, seen := byPart[k]; !seen {
+			parts = append(parts, k)
+		}
+		byPart[k] = append(byPart[k], sn)
 	}
-	st, copied, err := repo.Copy(ctx, src, dst, sns, tags, nil)
-	if err != nil {
-		return failed(fmt.Errorf("copy: %w", err))
+	st := &repo.CopyStats{}
+	var copied []*repo.Snapshot
+	for _, k := range parts {
+		tags := base
+		if k != "" {
+			tags = append(append([]string{}, base...), k)
+		}
+		s, c, err := repo.Copy(ctx, src, dst, byPart[k], tags, nil)
+		if s != nil {
+			st.Snapshots += s.Snapshots
+			st.Skipped += s.Skipped
+			st.Blobs += s.Blobs
+			st.BytesRead += s.BytesRead
+			st.BytesStored += s.BytesStored
+		}
+		copied = append(copied, c...)
+		if err != nil {
+			return failed(fmt.Errorf("copy: %w", err))
+		}
 	}
+	sort.Slice(copied, func(i, j int) bool { return copied[i].Time.Before(copied[j].Time) })
 	stats, _ := json.Marshal(st)
 	res := api.RunResult{Status: api.StatusSuccess, Stats: stats}
 	if len(copied) > 0 {

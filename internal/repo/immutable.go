@@ -50,7 +50,20 @@ func (r *Repository) KeepImmutable(ctx context.Context, sns ...*Snapshot) (int, 
 			problems[0] = fmt.Errorf("%d of %d snapshots could not be read, so their data keeps its current lock: %w", bad, len(sns), problems[0])
 		}
 	}
+	// The small files first: without config, keys, index and snapshots the
+	// packs cannot be read at all, so their locks must not wait behind
+	// 10,000 packs (or be left out when the step stops early).
 	names := []string{"config"}
+	for _, dir := range []string{"keys", "index"} {
+		files, err := r.be.List(ctx, dir)
+		if err != nil {
+			return 0, errors.Join(append(problems, err)...)
+		}
+		names = append(names, files...)
+	}
+	for _, sn := range sns {
+		names = append(names, "snapshots/"+sn.ID.String())
+	}
 	packs := map[ID]bool{}
 	missing := 0
 	for h := range used {
@@ -67,20 +80,10 @@ func (r *Repository) KeepImmutable(ctx context.Context, sns ...*Snapshot) (int, 
 	for p := range packs {
 		names = append(names, packName(p))
 	}
-	for _, sn := range sns {
-		names = append(names, "snapshots/"+sn.ID.String())
-	}
-	for _, dir := range []string{"keys", "index"} {
-		files, err := r.be.List(ctx, dir)
-		if err != nil {
-			return 0, errors.Join(append(problems, err)...)
-		}
-		names = append(names, files...)
-	}
 	// In batches, so that the run shows how far it is (a repository with
 	// 10,000 packs on a slow provider takes a while, #38).
 	progress, _ := ctx.Value(keepProgressKey{}).(func(done, total int))
-	n, failedInARow := 0, 0
+	n := 0
 	for start := 0; start < len(names); start += keepBatch {
 		end := min(start+keepBatch, len(names))
 		k, err := ret.KeepLocked(ctx, names[start:end])
@@ -89,15 +92,13 @@ func (r *Repository) KeepImmutable(ctx context.Context, sns ...*Snapshot) (int, 
 			progress(end, len(names))
 		}
 		if err == nil {
-			failedInARow = 0
 			continue
 		}
 		problems = append(problems, err)
-		if k == 0 {
-			failedInARow++
-		}
-		// The storage keeps failing: stop, the next run tries again.
-		if ctx.Err() != nil || errors.Is(err, backend.ErrKeepStopped) || failedInARow >= 2 {
+		// A few objects that fail keep their current lock and the others
+		// are extended; only a storage that keeps failing (the backend
+		// says so) stops the step. The next run tries again.
+		if ctx.Err() != nil || errors.Is(err, backend.ErrKeepStopped) {
 			break
 		}
 	}

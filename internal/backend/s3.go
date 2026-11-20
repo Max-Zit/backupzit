@@ -449,7 +449,7 @@ func (s *S3) KeepLocked(ctx context.Context, names []string) (int, error) {
 		return 0, ErrReadOnly
 	}
 	period := time.Duration(s.lockDays) * 24 * time.Hour
-	get := func(name string) (*time.Time, error) {
+	get := func(ctx context.Context, name string) (*time.Time, error) {
 		_, until, err := s.client.GetObjectRetention(ctx, s.bucket, s.key(name), "")
 		if err != nil && minio.ToErrorResponse(err).Code == "NoSuchObjectLockConfiguration" {
 			return nil, nil
@@ -459,7 +459,7 @@ func (s *S3) KeepLocked(ctx context.Context, names []string) (int, error) {
 		}
 		return until, nil
 	}
-	put := func(name string, until time.Time) error {
+	put := func(ctx context.Context, name string, until time.Time) error {
 		mode := minio.Compliance
 		return s.client.PutObjectRetention(ctx, s.bucket, s.key(name), minio.PutObjectRetentionOptions{
 			Mode: &mode, RetainUntilDate: &until})
@@ -473,7 +473,7 @@ func (s *S3) KeepLocked(ctx context.Context, names []string) (int, error) {
 // the others are extended anyway. Only a storage that keeps failing
 // (keepGiveUp objects in a row) stops the step.
 func extendLocks(ctx context.Context, names []string, period time.Duration, cacheKey func(string) string,
-	get func(string) (*time.Time, error), put func(string, time.Time) error) (int, error) {
+	get func(context.Context, string) (*time.Time, error), put func(context.Context, string, time.Time) error) (int, error) {
 	loadRetainCache()
 	defer saveRetainCache()
 	need := time.Now().Add(period)
@@ -510,7 +510,7 @@ func extendLocks(ctx context.Context, names []string, period time.Duration, cach
 		var until *time.Time
 		err := retryS3(wctx, func() error {
 			var err error
-			until, err = get(name)
+			until, err = get(wctx, name)
 			return err
 		})
 		if err != nil {
@@ -523,7 +523,7 @@ func extendLocks(ctx context.Context, names []string, period time.Duration, cach
 			return
 		}
 		newUntil := need.Add(period / 2).UTC().Truncate(time.Second)
-		if err := retryS3(wctx, func() error { return put(name, newUntil) }); err != nil {
+		if err := retryS3(wctx, func() error { return put(wctx, name, newUntil) }); err != nil {
 			fail(fmt.Errorf("s3 extend retention of %s: %w", name, err))
 			return
 		}

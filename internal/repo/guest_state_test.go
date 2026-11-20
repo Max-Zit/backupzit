@@ -342,3 +342,64 @@ func TestHyperVGuestStateLegacyConfigurations(t *testing.T) {
 		})
 	}
 }
+
+// oneFailsPerBatch is storage where everything is locked far enough
+// already, except one object per batch that keeps failing.
+type oneFailsPerBatch struct {
+	backend.Backend
+	seen []string
+}
+
+func (*oneFailsPerBatch) LockDays() int { return 1 }
+func (b *oneFailsPerBatch) KeepLocked(_ context.Context, names []string) (int, error) {
+	b.seen = append(b.seen, names...)
+	return 0, fmt.Errorf("the lock of 1 of %d objects could not be extended", len(names))
+}
+
+// A5 (0.55): a failing object in every batch does not stop the step (all
+// objects are handed over), and the small files that make the packs
+// readable (config, keys, index, snapshots) come first.
+func TestKeepImmutableFailuresDoNotStopEarly(t *testing.T) {
+	ctx := context.Background()
+	local, err := backend.OpenLocal(filepath.Join(t.TempDir(), "repo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	be := &oneFailsPerBatch{Backend: local}
+	r, err := repo.Init(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _, err := r.SaveBlob(ctx, repo.DataBlob, []byte("data"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, err := r.SaveTree(ctx, &repo.Tree{Nodes: []repo.Node{{Name: "f", Type: repo.NodeFile, Content: []repo.ID{id}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var sns []*repo.Snapshot
+	for i := 0; i < 1200; i++ { // more than two batches of names
+		sn := &repo.Snapshot{Time: time.Now().Add(time.Duration(i) * time.Second), Tree: tree}
+		if _, err := r.SaveSnapshot(ctx, sn); err != nil {
+			t.Fatal(err)
+		}
+		sns = append(sns, sn)
+	}
+	if _, err := r.KeepImmutable(ctx, sns...); err == nil {
+		t.Fatal("no error for the failing objects")
+	}
+	want := 1 + 1200 + 1 // config, snapshots, the pack
+	if len(be.seen) < want {
+		t.Fatalf("handed over %d objects, want at least %d (stopped early)", len(be.seen), want)
+	}
+	if be.seen[0] != "config" || !strings.HasPrefix(be.seen[1], "keys/") && !strings.HasPrefix(be.seen[1], "index/") {
+		t.Errorf("order: %v", be.seen[:3])
+	}
+	if last := be.seen[len(be.seen)-1]; !strings.HasPrefix(last, "data/") {
+		t.Errorf("the packs do not come last: %s", last)
+	}
+}

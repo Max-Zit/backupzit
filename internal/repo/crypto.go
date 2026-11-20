@@ -78,6 +78,8 @@ const (
 	kdfTime    = 3
 	kdfMemory  = 64 * 1024
 	kdfThreads = 4
+	// maxKeyFiles is how many key files an open tries.
+	maxKeyFiles = 32
 )
 
 func newAEAD(key []byte) (cipher.AEAD, error) {
@@ -175,6 +177,11 @@ func unlock(ctx context.Context, be backend.Backend, password string) (*masterKe
 		return nil, errors.New("encrypted repository has no key files")
 	}
 	var loadErr error
+	// A repository has a few key files; planted ones must not make every
+	// open try thousands of key derivations.
+	if len(names) > maxKeyFiles {
+		names = names[:maxKeyFiles]
+	}
 	for _, n := range names {
 		b, err := be.Load(ctx, n)
 		if err != nil {
@@ -184,8 +191,9 @@ func unlock(ctx context.Context, be backend.Backend, password string) (*masterKe
 		var kf keyFile
 		// Anyone who can write to the storage can plant a key file: argon2
 		// panics on 0 rounds or threads, which would end the agent or the
-		// console.
-		if json.Unmarshal(b, &kf) != nil || kf.KDF != "argon2id" || kf.Memory > 4<<20 || kf.Time < 1 || kf.Time > 100 || kf.Threads < 1 {
+		// console, and huge costs would exhaust its memory and time (BackupZit
+		// writes 64 MiB, 3 passes).
+		if json.Unmarshal(b, &kf) != nil || kf.KDF != "argon2id" || kf.Memory > 1<<20 || kf.Time < 1 || kf.Time > 10 || kf.Threads < 1 {
 			continue
 		}
 		kek, err := newAEAD(argon2.IDKey([]byte(password), kf.Salt, kf.Time, kf.Memory, kf.Threads, 32))

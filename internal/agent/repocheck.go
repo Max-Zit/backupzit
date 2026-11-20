@@ -142,8 +142,14 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 			out.Errors = append(out.Errors, describe(sn)+" needs lost data")
 		}
 	}
+	if n := len(rep.Unchecked); n > 0 {
+		// Their folder lists are in packs this agent cannot read now: nothing
+		// proves they need the lost data, so they are kept.
+		out.Message += fmt.Sprintf(". %s could not be read completely from this agent and %s kept", count(n, "backup", "backups"),
+			map[bool]string{true: "was", false: "were"}[n == 1])
+	}
 	out.Message += unreadable
-	stats, _ := json.Marshal(map[string]int{"packs": rep.Packs, "blobs": rep.Blobs, "unreadable": len(res.Unreadable),
+	stats, _ := json.Marshal(map[string]int{"packs": rep.Packs, "blobs": rep.Blobs, "unreadable": len(res.Unreadable), "backups_unchecked": len(rep.Unchecked),
 		"backups_affected": len(rep.Snapshots), "backups_removed": len(out.Forgotten), "backups_not_removed": notRemoved})
 	out.Stats = stats
 	return out

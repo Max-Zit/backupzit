@@ -203,14 +203,11 @@ type Run struct {
 	// (instant recovery).
 	KeepSnapshots []string `json:"keep_snapshots,omitempty"`
 	// Part: a VMware backup split over several proxies (0.55) tags its
-	// snapshot with Part, and retention keeps the job's backups per part.
-	// The connection's own proxy (PartPrimary) also owns the job's backups
-	// without a part or of a proxy no longer in PartOthers.
-	Part        string     `json:"part,omitempty"`
-	PartPrimary bool       `json:"part_primary,omitempty"`
-	PartOthers  []string   `json:"part_others,omitempty"`
-	JobName     string     `json:"job_name,omitempty"`
-	Repository  Repository `json:"repository"`
+	// snapshot with Part; retention (and a copy) deals with that part only,
+	// and every policy applies to each part on its own.
+	Part       string     `json:"part,omitempty"`
+	JobName    string     `json:"job_name,omitempty"`
+	Repository Repository `json:"repository"`
 
 	// Backup
 	Paths    []string `json:"paths,omitempty"`

@@ -330,7 +330,7 @@ func (h *Hardened) KeepLocked(ctx context.Context, names []string) (int, error) 
 				return total, ctx.Err()
 			}
 			if inARow >= 2 {
-				return total, fmt.Errorf("the hardened repository keeps refusing to extend locks, stopping: %w", firstErr)
+				return total, fmt.Errorf("the hardened repository keeps refusing to extend locks, stopping: %w: %w", ErrKeepStopped, firstErr)
 			}
 			continue
 		}

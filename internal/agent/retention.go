@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -30,31 +29,28 @@ func hasTag(sn *repo.Snapshot, tag string) bool {
 // partPrefix starts the tag of a part of a split VMware backup.
 const partPrefix = "proxy:"
 
+// partOf is the part tag of sn: the proxy of a VMware backup split over
+// several proxies ("" for every other backup).
+func partOf(sn *repo.Snapshot) string {
+	for _, t := range sn.Tags {
+		if strings.HasPrefix(t, partPrefix) {
+			return t
+		}
+	}
+	return ""
+}
+
 // ownSnapshot tells whether retention of this run deals with sn: a
-// snapshot of the run's job and, for a VMware backup split over several
-// proxies, of the run's part. The connection's own proxy also takes the
-// job's snapshots without a part and those of a proxy that left the
-// connection, so they do not stay forever.
+// snapshot of the run's job and, for a part of a split VMware backup, of
+// that part.
 func ownSnapshot(sn *repo.Snapshot, run api.Run) bool {
 	return hasTag(sn, jobTag(run.JobID)) && inPart(sn, run)
 }
 
-// inPart tells whether sn belongs to the run's part (any without a part).
-// Copies of a split backup run per part too: they copy the source's
-// backups of their part and keep it on the copies.
+// inPart tells whether sn belongs to the run's part (a run without a part
+// takes all). Copies of a split backup run per part too.
 func inPart(sn *repo.Snapshot, run api.Run) bool {
-	if run.Part == "" || hasTag(sn, run.Part) {
-		return true
-	}
-	if !run.PartPrimary {
-		return false
-	}
-	for _, t := range sn.Tags {
-		if strings.HasPrefix(t, partPrefix) && slices.Contains(run.PartOthers, t) {
-			return false
-		}
-	}
-	return true
+	return run.Part == "" || partOf(sn) == run.Part
 }
 
 // applyRetention removes snapshots of the run's job that the policy no
@@ -233,7 +229,26 @@ func keepSet(mine []*repo.Snapshot, run api.Run, snapshotID string, load func() 
 }
 
 // retentionRemove selects the snapshots a policy removes (see
-// repo.RetentionRemove).
+// repo.RetentionRemove), for each part of a split VMware backup on its
+// own: the parts back up different VMs, so one part's backups must never
+// take the place of another's (keep 7 daily = 7 days of every part). The
+// backups of a proxy that left the connection stay a group of their own.
 func retentionRemove(sns []*repo.Snapshot, p repo.RetentionPolicy) []*repo.Snapshot {
-	return repo.RetentionRemove(sns, p)
+	groups := map[string][]*repo.Snapshot{}
+	var keys []string
+	for _, sn := range sns {
+		k := partOf(sn)
+		if _, seen := groups[k]; !seen {
+			keys = append(keys, k)
+		}
+		groups[k] = append(groups[k], sn)
+	}
+	if len(keys) <= 1 {
+		return repo.RetentionRemove(sns, p)
+	}
+	var out []*repo.Snapshot
+	for _, k := range keys {
+		out = append(out, repo.RetentionRemove(groups[k], p)...)
+	}
+	return out
 }

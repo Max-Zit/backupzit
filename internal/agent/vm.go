@@ -109,6 +109,11 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Cluster: run.HVCluster != "", RequireAppConsistent: run.AppConsistent, ExcludeDisks: run.VMExcludeDisks, CrashConsistentOK: run.VMCrashConsistentOK,
 			Version: a.version, Tags: tags, Progress: prog, Log: logf})
 	}
+	if run.Part != "" && errors.Is(err, vmware.ErrNoVMs) {
+		// The connection's proxy in a split backup: all VMs of the job are
+		// on the hosts of the other proxies right now.
+		return api.RunResult{Status: api.StatusSuccess, Message: "None of the job's VMs is left for this proxy now; the proxies on their ESXi hosts back them up"}
+	}
 	if errors.Is(err, hyperv.ErrNoneHere) {
 		return api.RunResult{Status: api.StatusSuccess, Message: "None of the job's VMs runs on this node now; the other nodes of cluster " + run.HVCluster + " back them up"}
 	}

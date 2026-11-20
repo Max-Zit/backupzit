@@ -56,8 +56,8 @@ func TestExtendLocksContinuesAfterFailures(t *testing.T) {
 	}
 	var flaky atomic.Int32
 	extendedNames := map[string]bool{}
-	get := func(name string) (*time.Time, error) { return nil, nil }
-	put := func(name string, until time.Time) error {
+	get := func(_ context.Context, name string) (*time.Time, error) { return nil, nil }
+	put := func(_ context.Context, name string, until time.Time) error {
 		switch name {
 		case "data/02": // fails once, then works
 			if flaky.Add(1) == 1 {
@@ -97,7 +97,7 @@ func TestExtendLocksGivesUpWhenStorageIsDown(t *testing.T) {
 		names[i] = fmt.Sprintf("data/%02d", i)
 	}
 	var calls atomic.Int32
-	get := func(name string) (*time.Time, error) {
+	get := func(_ context.Context, name string) (*time.Time, error) {
 		calls.Add(1)
 		return nil, minio.ErrorResponse{Code: "ServiceUnavailable", StatusCode: 503}
 	}
@@ -120,8 +120,8 @@ func TestExtendLocksGivesUpWhenStorageIsDown(t *testing.T) {
 func TestExtendLocksKeepsLongLocks(t *testing.T) {
 	prefix := fmt.Sprintf("long-%d/", time.Now().UnixNano())
 	later := time.Now().Add(60 * 24 * time.Hour)
-	get := func(string) (*time.Time, error) { return &later, nil }
-	put := func(string, time.Time) error { t.Error("extended a long lock"); return nil }
+	get := func(context.Context, string) (*time.Time, error) { return &later, nil }
+	put := func(context.Context, string, time.Time) error { t.Error("extended a long lock"); return nil }
 	if n, err := extendLocks(context.Background(), []string{"data/a", "locks/x"}, 30*24*time.Hour, func(s string) string { return prefix + s }, get, put); n != 0 || err != nil {
 		t.Errorf("%d, %v", n, err)
 	}
@@ -138,8 +138,8 @@ func TestRetainCacheSurvivesRestart(t *testing.T) {
 	prefix := fmt.Sprintf("restart-%d/", time.Now().UnixNano())
 	names := []string{"data/a", "data/b", "index/c"}
 	var gets atomic.Int32
-	get := func(string) (*time.Time, error) { gets.Add(1); return nil, nil }
-	put := func(string, time.Time) error { return nil }
+	get := func(context.Context, string) (*time.Time, error) { gets.Add(1); return nil, nil }
+	put := func(context.Context, string, time.Time) error { return nil }
 	if n, err := extendLocks(context.Background(), names, 30*24*time.Hour, func(s string) string { return prefix + s }, get, put); n != 3 || err != nil {
 		t.Fatalf("first run: %d %v", n, err)
 	}

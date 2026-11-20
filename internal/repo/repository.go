@@ -571,7 +571,13 @@ func (r *Repository) VerifyPack(ctx context.Context, pack ID) (int, error) {
 	if Hash(data) != pack {
 		// Fewer bytes arrived than the storage holds: the way lost them,
 		// not the storage (#38: a host whose downloads were cut short).
-		if size, serr := r.be.Size(ctx, packName(pack)); serr == nil && size > int64(len(data)) {
+		size, serr := r.be.Size(ctx, packName(pack))
+		switch {
+		case serr != nil:
+			// Without the stored size nothing tells a cut download from a
+			// damaged pack: no verdict (A8).
+			return 0, fmt.Errorf("pack %s: content hash mismatch, and its size on the storage could not be read: %v", pack.Short(), serr)
+		case size > int64(len(data)):
 			return 0, fmt.Errorf("pack %s: only %d of its %d bytes arrived (the storage has it whole; check the network path: proxy, firewall, IPS, NAT)", pack.Short(), len(data), size)
 		}
 		return 0, fmt.Errorf("pack %s: content hash mismatch: %w", pack.Short(), ErrPackDamaged)

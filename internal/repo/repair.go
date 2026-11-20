@@ -14,6 +14,106 @@ type RepairResult struct {
 	// Snapshots that need data of the dropped packs: they cannot be
 	// restored completely. Later backups store that data again.
 	Snapshots []*Snapshot
+	// Unchecked snapshots could not be read completely for other reasons
+	// (data this agent cannot read now): kept, not counted as affected.
+	Unchecked []*Snapshot
+}
+
+// needsLost tells whether sn references a blob in lost. Blobs in lost are
+// never loaded: a lost folder list or block map proves the snapshot
+// affected. Any other load error is returned (affected unknown). trees
+// remembers the verdict of folder lists already walked.
+func (r *Repository) needsLost(ctx context.Context, sn *Snapshot, lost map[BlobHandle]bool, trees map[ID]bool) (bool, error) {
+	var walk func(id ID) (bool, error)
+	walk = func(id ID) (bool, error) {
+		if v, ok := trees[id]; ok {
+			return v, nil
+		}
+		if lost[BlobHandle{Type: TreeBlob, ID: id}] {
+			trees[id] = true
+			return true, nil
+		}
+		t, err := r.LoadTree(ctx, id)
+		if err != nil {
+			return false, err
+		}
+		trees[id] = false // a cycle cannot make it affected twice
+		for _, n := range t.Nodes {
+			for _, c := range n.Content {
+				if lost[BlobHandle{Type: DataBlob, ID: c}] {
+					trees[id] = true
+					return true, nil
+				}
+			}
+			if n.Subtree != nil {
+				v, err := walk(*n.Subtree)
+				if err != nil {
+					delete(trees, id)
+					return false, err
+				}
+				if v {
+					trees[id] = true
+					return true, nil
+				}
+			}
+		}
+		return false, nil
+	}
+	if v, err := walk(sn.Tree); err != nil || v {
+		return v, err
+	}
+	data := func(id ID) bool { return !id.IsNull() && lost[BlobHandle{Type: DataBlob, ID: id}] }
+	for _, g := range sn.Guests {
+		ids, err := g.StateBlobs()
+		if err != nil {
+			return false, err
+		}
+		for _, id := range ids {
+			if data(id) || !r.idx.Has(BlobHandle{Type: DataBlob, ID: id}) {
+				return true, nil
+			}
+		}
+	}
+	if sys := sn.System; sys != nil {
+		for _, d := range sys.Disks {
+			if data(d.Head) {
+				return true, nil
+			}
+			for _, p := range d.Partitions {
+				for _, id := range p.Raw {
+					if data(id) {
+						return true, nil
+					}
+				}
+			}
+		}
+	}
+	for _, img := range sn.Images {
+		if data(img.Head) {
+			return true, nil
+		}
+		for i := range img.Partitions {
+			p := &img.Partitions[i]
+			if !p.Included {
+				continue
+			}
+			for _, m := range p.Maps {
+				if lost[BlobHandle{Type: MapBlob, ID: m}] {
+					return true, nil
+				}
+			}
+			ids, err := r.LoadBlockMap(ctx, p)
+			if err != nil {
+				return false, err
+			}
+			for _, id := range ids {
+				if data(id) {
+					return true, nil
+				}
+			}
+		}
+	}
+	return false, nil
 }
 
 // DropDamagedPacks takes damaged packs (from a data check) out of the
@@ -62,17 +162,18 @@ func (r *Repository) DropDamagedPacks(ctx context.Context, packs []ID) (*RepairR
 	if err != nil {
 		return nil, err
 	}
+	trees := map[ID]bool{}
 	for _, sn := range sns {
-		used, err := r.BlobsOf(ctx, []*Snapshot{sn})
-		if err != nil {
-			res.Snapshots = append(res.Snapshots, sn) // unreadable: affected
-			continue
-		}
-		for h := range used {
-			if lost[h] {
-				res.Snapshots = append(res.Snapshots, sn)
-				break
-			}
+		affected, err := r.needsLost(ctx, sn, lost, trees)
+		switch {
+		case err != nil:
+			// A folder list or block map that is not lost could not be read
+			// (a pack this agent cannot read now, #38): nothing proves the
+			// backup needs lost data, so it is not counted as affected (and
+			// never removed for it).
+			res.Unchecked = append(res.Unchecked, sn)
+		case affected:
+			res.Snapshots = append(res.Snapshots, sn)
 		}
 	}
 

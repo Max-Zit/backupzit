@@ -110,3 +110,78 @@ func TestShortDownloadIsNotDamage(t *testing.T) {
 		t.Fatalf("pack short on the storage: damaged %v, unreadable %v, errors %v", res.Damaged, res.Unreadable, res.Errors)
 	}
 }
+
+// down fails every read of a data pack, like a storage that stopped
+// answering in the middle of a check.
+type down struct{ *backend.Local }
+
+func (d *down) Load(ctx context.Context, name string) ([]byte, error) {
+	if strings.HasPrefix(name, "data/") {
+		return nil, os.ErrDeadlineExceeded
+	}
+	return d.Local.Load(ctx, name)
+}
+
+func (d *down) LoadRange(ctx context.Context, name string, off int64, n int) ([]byte, error) {
+	if strings.HasPrefix(name, "data/") {
+		return nil, os.ErrDeadlineExceeded
+	}
+	return d.Local.LoadRange(ctx, name, off, n)
+}
+
+// A4 (0.55): when the storage stops answering, the check stops after a
+// streak of unreadable packs instead of trying each one (with its pauses)
+// for days, and judges nothing.
+func TestCheckStopsWhenStorageIsDown(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	loc, err := backend.OpenLocal(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, loc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []repo.ID
+	for i := 0; i < 30; i++ {
+		data := make([]byte, 64<<10)
+		mrand.New(mrand.NewSource(int64(i))).Read(data)
+		id, _, err := r.SaveBlob(ctx, repo.DataBlob, data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+		if err := r.Flush(ctx); err != nil { // one pack each
+			t.Fatal(err)
+		}
+	}
+	tree, err := r.SaveTree(ctx, &repo.Tree{Nodes: []repo.Node{{Name: "f", Type: repo.NodeFile, Content: ids}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.SaveSnapshot(ctx, &repo.Snapshot{Time: time.Now(), Tree: tree}); err != nil {
+		t.Fatal(err)
+	}
+	r.Close()
+	r2, err := repo.Open(ctx, &down{Local: loc})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, readData := range []bool{false, true} {
+		start := time.Now()
+		res, err := checker.Run(ctx, r2, checker.Options{ReadData: readData, RetryPause: time.Millisecond})
+		if err == nil || !strings.Contains(err.Error(), "stopped answering") {
+			t.Fatalf("ReadData=%v: err %v, want the storage-down stop", readData, err)
+		}
+		if res != nil && (len(res.Damaged) > 0 || len(res.Unreadable) > 0) {
+			t.Errorf("ReadData=%v: judged packs while the storage was down: %+v", readData, res)
+		}
+		if time.Since(start) > time.Minute {
+			t.Errorf("ReadData=%v: took %v", readData, time.Since(start))
+		}
+	}
+}

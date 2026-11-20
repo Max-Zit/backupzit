@@ -297,11 +297,12 @@ func WriteJSON(p string, v any, mode os.FileMode) error {
 	}
 	tmp := f.Name()
 	_, err = f.Write(marshal(v))
+	if err == nil {
+		// On the open file: a name could be swapped for a symlink after Close.
+		err = f.Chmod(mode)
+	}
 	if cerr := f.Close(); err == nil {
 		err = cerr
-	}
-	if err == nil {
-		err = os.Chmod(tmp, mode)
 	}
 	if err == nil {
 		err = os.Rename(tmp, p)

@@ -507,10 +507,12 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 	// for two hours while the agent runs (the console may be restarting or
 	// updating its appliance; it still takes the result), for a minute when
 	// the agent itself is stopping.
+	stopping := parent.Err() != nil
 	deadline := time.Now().Add(2 * time.Hour)
-	if parent.Err() != nil {
+	if stopping {
 		deadline = time.Now().Add(time.Minute)
 	}
+	trimmed := false
 	for i := 0; time.Now().Before(deadline); i++ {
 		rctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		err := a.client.post(rctx, fmt.Sprintf("%s%d/finish", api.PathRunsPrefix, run.ID), res, nil, true)
@@ -525,8 +527,46 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		if strings.Contains(err.Error(), "not found or not running") {
 			return
 		}
-		time.Sleep(min(time.Duration(i+1)*3*time.Second, time.Minute))
+		// The console refused the result itself (too large, not readable):
+		// once more with the long lists cut, then give up (the console marks
+		// the run failed) instead of keeping the job blocked for hours.
+		if strings.Contains(err.Error(), "server: invalid request") {
+			if trimmed {
+				return
+			}
+			trimmed = true
+			res = trimResult(res)
+			continue
+		}
+		// The service is stopping (update, reboot): a minute more at most,
+		// so the stop does not wait for hours.
+		if !stopping && parent.Err() != nil {
+			stopping = true
+			if soon := time.Now().Add(time.Minute); soon.Before(deadline) {
+				deadline = soon
+			}
+		}
+		wait := min(time.Duration(i+1)*3*time.Second, time.Minute)
+		if stopping {
+			time.Sleep(min(wait, 10*time.Second))
+			continue
+		}
+		select {
+		case <-time.After(wait):
+		case <-parent.Done():
+		}
 	}
+}
+
+// trimResult shortens what can make a run result too large for the console.
+func trimResult(res api.RunResult) api.RunResult {
+	if len(res.Errors) > 100 {
+		res.Errors = append(res.Errors[:100:100], fmt.Sprintf("... and %d more", len(res.Errors)-100))
+	}
+	if len(res.Message) > 4000 {
+		res.Message = res.Message[:4000] + " …"
+	}
+	return res
 }
 
 func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*repo.Repository, func(), error) {
