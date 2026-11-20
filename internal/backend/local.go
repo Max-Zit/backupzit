@@ -149,7 +149,13 @@ func (l *Local) List(_ context.Context, dir string) ([]string, error) {
 }
 
 func (l *Local) Remove(_ context.Context, name string) error {
-	return os.Remove(l.path(name))
+	err := os.Remove(l.path(name))
+	if errors.Is(err, fs.ErrNotExist) {
+		// Like the other backends: prune and lock removal treat a missing
+		// file as already gone.
+		return fmt.Errorf("%s: %w", name, ErrNotFound)
+	}
+	return err
 }
 
 func (l *Local) Close() error { return nil }
