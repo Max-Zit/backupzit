@@ -363,7 +363,15 @@ type ExtractStats struct {
 
 // Extract copies paths (files or folders, recursively) out of the volume.
 // Each path is written to dest(path), e.g. `D:\Restore\Users\ana\x.txt`.
+// It is ExtractBelow without a restore folder (the original location).
 func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string) string, progress func(*ExtractStats)) (*ExtractStats, error) {
+	return v.ExtractBelow(ctx, paths, "", dest, progress)
+}
+
+// ExtractBelow is Extract into the restore folder root: every folder from
+// root down is a real folder (a link or junction there is replaced, see
+// MkdirBelow), so nothing is written outside root through a link.
+func (v *Volume) ExtractBelow(ctx context.Context, paths []string, root string, dest func(p string) string, progress func(*ExtractStats)) (*ExtractStats, error) {
 	st := &ExtractStats{}
 	start := time.Now()
 	var seen Visited
@@ -386,7 +394,7 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 				st.Errors = append(st.Errors, LoopMessage(e.Path))
 				return nil
 			}
-			if err := os.MkdirAll(target, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
+			if err := MkdirBelow(root, target); err != nil {
 				st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
 				return nil
 			}
@@ -406,7 +414,7 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 			}
 			return nil
 		}
-		n, err := v.extractFile(e, target)
+		n, err := v.extractFile(e, root, target)
 		if err != nil {
 			st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
 			return nil
@@ -435,20 +443,20 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 	return st, nil
 }
 
-func (v *Volume) extractFile(e Entry, target string) (int64, error) {
+func (v *Volume) extractFile(e Entry, root, target string) (int64, error) {
 	v.mu.Lock()
 	data, err := v.openData(e.Path)
 	v.mu.Unlock()
 	if err != nil {
 		return 0, err
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
+	if err := MkdirBelow(root, filepath.Dir(target)); err != nil {
 		return 0, err
 	}
 	tmp := TempTarget(target)
 	// NTFS has no Unix permissions: only the owner may read restored
 	// files on Linux (on Windows the target folder's ACL applies).
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
+	f, err := CreateFresh(tmp)
 	if err != nil {
 		return 0, err
 	}

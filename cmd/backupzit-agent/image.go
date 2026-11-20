@@ -263,7 +263,7 @@ func cmdImageExtract(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	st, err := v.Extract(ctx, fs.Args()[1:], func(p string) string {
+	st, err := v.ExtractBelow(ctx, fs.Args()[1:], *target, func(p string) string {
 		return filepath.Join(*target, filepath.FromSlash(strings.ReplaceAll(p, `\`, "/")))
 	}, nil)
 	if err != nil {
