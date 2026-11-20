@@ -210,3 +210,45 @@ func TestNTFSFolderIDs(t *testing.T) {
 		}
 	}
 }
+
+// L-N15 (0.56): on Windows a ':' in a name picks a stream: "a:b" is stream b
+// of the file a and "a::$DATA" is a itself. Only an NTFS stream, whose name
+// the entry carries apart, may end a path restored there in ":stream".
+func TestWindowsName(t *testing.T) {
+	for _, c := range []struct {
+		path, stream string
+		ok           bool
+	}{
+		{`\Users\ana\notes.txt`, "", true},
+		{"/etc/passwd", "", true},
+		{`\ads.txt:secret`, "secret", true},
+		{"/dir/ads.txt:Zone.Identifier", "Zone.Identifier", true},
+		{"/home/ana/a:b", "", false},      // ext4 name: a stream of a on Windows
+		{"/home/ana/a::$DATA", "", false}, // the sibling a itself
+		{"/d:x/f", "", false},             // a folder name
+		{`\d:x\ads.txt:secret`, "secret", false},
+		{`\ads.txt:secret`, "other", false},
+		{`\ads.txt:s:$DATA`, "s:$DATA", false},
+		{`\dir\:s`, "s", false}, // a stream of the folder
+	} {
+		if got := WindowsName(c.path, c.stream); got != c.ok {
+			t.Errorf("WindowsName(%q, %q) = %v", c.path, c.stream, got)
+		}
+	}
+	// The listing carries the stream names.
+	v := openLinksStreams(t)
+	es, err := v.List(`\`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, e := range es {
+		got[e.Name] = e.Stream
+		if !WindowsName(e.Path, e.Stream) {
+			t.Errorf("%s (stream %q) would not be restored on Windows", e.Path, e.Stream)
+		}
+	}
+	if got["ads.txt"] != "" || got["ads.txt:secret"] != "secret" || got["ads.txt:Zone.Identifier"] != "Zone.Identifier" {
+		t.Errorf("streams %q", got)
+	}
+}

@@ -130,8 +130,8 @@ type Database struct {
 }
 
 // asPostgres runs a command as the postgres account (in /, which it can
-// read) and returns its standard output.
-func asPostgres(ctx context.Context, name string, args ...string) ([]byte, error) {
+// read) and returns its standard output; tests replace it.
+var asPostgres = func(ctx context.Context, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "runuser", append([]string{"-u", "postgres", "--", name}, args...)...) // #nosec G204 -- fixed program; arguments are separate values, no shell
 	cmd.Dir = "/"
 	cmd.Env = append(os.Environ(), "LC_ALL=C", "PGCONNECT_TIMEOUT=20")

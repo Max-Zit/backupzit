@@ -1,7 +1,9 @@
 package pgsql
 
 import (
+	"context"
 	"encoding/binary"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -163,5 +165,34 @@ func TestHandlePartial(t *testing.T) {
 	stuck := archiverState{lastArchived: "000000010000000000000012", lastFailed: "000000010000000000000013", failedAt: now, stuck: true}
 	if msg := handlePartial(p, fi, segBytes, stuck, now); !strings.Contains(msg, "archives the segment again") {
 		t.Fatalf("an empty copy that blocks archiving: %q", msg)
+	}
+}
+
+// L-N16 (0.56): a failed or cancelled pg_ctl start may leave the recovered
+// server running; it is stopped (with a context of its own, the job's may be
+// cancelled) before the restore removes its data folder.
+func TestFailedStartStopsTheServer(t *testing.T) {
+	old := asPostgres
+	defer func() { asPostgres = old }()
+	var stopped bool
+	asPostgres = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		switch args[len(args)-1] {
+		case "start":
+			<-ctx.Done() // the job is cancelled while pg_ctl waits
+			return nil, ctx.Err()
+		case "stop":
+			stopped = ctx.Err() == nil && strings.Contains(strings.Join(args, " "), "-D /work/data")
+			return nil, nil
+		}
+		return nil, errors.New("not in this test")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	inst := &instance{DataDir: "/work/data", Socket: "/work", Port: 54321}
+	if err := inst.start(ctx, "/work/postgres.log"); err == nil {
+		t.Fatal("a cancelled start reported success")
+	}
+	if !stopped {
+		t.Fatal("the server pg_ctl may have started was not stopped")
 	}
 }

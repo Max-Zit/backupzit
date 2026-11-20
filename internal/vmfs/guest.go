@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/max-zit/backupzit/internal/imaging"
@@ -85,6 +86,12 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 		dst := filepath.Join(target, filepath.FromSlash(strings.TrimPrefix(e.Path, "/")))
 		if !Within(target, dst) {
 			st.Errors = append(st.Errors, fmt.Sprintf("%s: outside the restore folder, skipped", e.Path))
+			return nil
+		}
+		// An ext4/XFS name with ':' would become a stream of another file on
+		// Windows; NTFS streams (e.Stream) are written as streams.
+		if runtime.GOOS == "windows" && !imaging.WindowsName(e.Path, e.Stream) {
+			st.Errors = append(st.Errors, imaging.ColonMessage(e.Path))
 			return nil
 		}
 		if e.IsDir {

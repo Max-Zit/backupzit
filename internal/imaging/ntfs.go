@@ -137,6 +137,10 @@ type Entry struct {
 	ModTime time.Time `json:"mtime"`
 	// ID is the MFT record number (see Visited); 0 when unknown.
 	ID uint64 `json:"-"`
+	// Stream is the name of the alternate data stream the entry is (Name
+	// and Path end in ":" + Stream); "" for a file's main data. Restores to
+	// Windows rely on it to tell a stream from a ':' in a name (WindowsName).
+	Stream string `json:"-"`
 }
 
 // ErrNotNTFS is returned for partitions without an NTFS file system.
@@ -223,7 +227,9 @@ func (v *Volume) List(dir string) ([]Entry, error) {
 	for _, idx := range e.Dir(v.ctx) {
 		fn := idx.File()
 		name := fn.Name()
-		if !SafeName(name) || fn.NameType().Name == "DOS" {
+		// A ':' (allowed in the POSIX name space) would make the path read
+		// as a stream of another file: "a:b" is stream b of a (L-N15).
+		if !SafeName(name) || strings.ContainsRune(name, ':') || fn.NameType().Name == "DOS" {
 			continue
 		}
 		if strings.HasPrefix(name, "$") && dir == `\` {
@@ -266,12 +272,15 @@ func (v *Volume) List(dir string) ([]Entry, error) {
 				stream = fi.Name[i:]
 			}
 			// A stream name comes from the disk too: one with a slash,
-			// backslash or NUL (a crafted volume) would leave the folder.
-			if streams[stream] || !SafeName(name+stream) {
+			// backslash or NUL (a crafted volume) would leave the folder,
+			// an empty one or one with a further ':' (":$DATA") would name
+			// the file's main data on Windows.
+			sname := strings.TrimPrefix(stream, ":")
+			if streams[stream] || !SafeName(name+stream) || (stream != "" && (sname == "" || strings.ContainsRune(sname, ':'))) {
 				continue
 			}
 			streams[stream] = true
-			out = append(out, Entry{Name: name + stream, Path: p + stream, IsDir: fi.IsDir && stream == "", Size: fi.Size, ModTime: fi.Mtime, ID: ref})
+			out = append(out, Entry{Name: name + stream, Path: p + stream, IsDir: fi.IsDir && stream == "", Size: fi.Size, ModTime: fi.Mtime, ID: ref, Stream: sname})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -365,6 +374,10 @@ func (v *Volume) Extract(ctx context.Context, paths []string, dest func(p string
 		}
 		if depth > MaxDepth {
 			st.Errors = append(st.Errors, fmt.Sprintf("%s: more than %d folders deep (damaged file system?), skipped", e.Path, MaxDepth))
+			return nil
+		}
+		if runtime.GOOS == "windows" && !WindowsName(e.Path, e.Stream) {
+			st.Errors = append(st.Errors, ColonMessage(e.Path))
 			return nil
 		}
 		target := dest(e.Path)
@@ -575,6 +588,30 @@ func (l lockedReaderAt) ReadAt(b []byte, off int64) (int, error) {
 // its folder (on Windows a backslash separates folders) or loop forever.
 func SafeName(name string) bool {
 	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, "/\\\x00")
+}
+
+// WindowsName tells whether a path inside a backed up file system (folders
+// separated by "/" or "\") can be restored below a Windows folder. Windows
+// reads a ':' as the start of a stream name: a Linux file "a:b" would be
+// written into stream b of the file a, and "a::$DATA" over a itself. SafeName
+// allows ':', which is an ordinary character on Linux; on Windows only an
+// NTFS alternate data stream, whose name is carried apart (Entry.Stream),
+// may end the path in ":stream" (L-N15).
+func WindowsName(p, stream string) bool {
+	if stream != "" {
+		base, ok := strings.CutSuffix(p, ":"+stream)
+		if !ok || strings.ContainsRune(stream, ':') || base == "" || strings.HasSuffix(base, "/") || strings.HasSuffix(base, `\`) {
+			return false
+		}
+		p = base
+	}
+	return !strings.ContainsRune(p, ':')
+}
+
+// ColonMessage is how a restore to Windows reports a path WindowsName
+// refuses.
+func ColonMessage(p string) string {
+	return p + ": Windows does not allow ':' in file names (it would write into a stream of another file), skipped"
 }
 
 // MaxDepth limits how deep restores, downloads and listings walk into a

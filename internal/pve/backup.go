@@ -753,6 +753,12 @@ func configuredSize(g Guest) uint64 {
 // already locked (another backup, a migration) is not read.
 func lockGuest(ctx context.Context, g Guest) error {
 	if _, err := command(ctx, guestTool(g.Type), "set", strconv.Itoa(g.VMID), "--lock", "backup"); err != nil {
+		if strings.Contains(err.Error(), "locked (backup)") {
+			// Proxmox VE's own backups (vzdump) use the same lock, so it is
+			// never removed automatically; the message names the way out
+			// when an interrupted run left it (M-N11).
+			return fmt.Errorf("guest %d already has the backup lock: if no backup of it is running (BackupZit or vzdump), it may be left over from an interrupted run (agent crash, power loss); `%s unlock %d` removes it: %w", g.VMID, guestTool(g.Type), g.VMID, err)
+		}
 		return fmt.Errorf("lock the guest for the backup (is it locked by another operation?): %w", err)
 	}
 	return nil

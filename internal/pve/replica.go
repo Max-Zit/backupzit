@@ -154,14 +154,22 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 	if opts.Prev != nil {
 		prevGuest, _ = FindGuest(opts.Prev, g.VMID)
 	}
-	if prevGuest != nil {
-		if why := replicaDiverged(ctx, conf, opts.Prev.ID.String(), g.Type, existing.VMID); why != "" {
-			prevGuest = nil
-			res.Notes = append(res.Notes, why+": all blocks were compared by writing them")
-		}
-	}
 	if prevGuest == nil {
 		res.Notes = append(res.Notes, "the backup the replica holds is no longer available: all blocks were compared by writing them")
+	} else if why := replicaDiverged(ctx, conf, opts.Prev.ID.String(), g.Type, existing.VMID); why != "" {
+		opts.Log("comparing all blocks of the replica", "replica", existing.VMID, "why", why)
+		prevGuest = nil
+		res.Notes = append(res.Notes, why+": all blocks were compared by writing them")
+	}
+	// The state token says the disks hold the backup named in it. It goes
+	// before the first write and comes back (markReplica) only once every
+	// disk is written: an update cut short by an agent or node crash leaves
+	// disks that hold parts of two backups, and the next update must then
+	// compare every block (L-N21).
+	if stateToken.MatchString(conf) {
+		if err := os.WriteFile(p, []byte(stateToken.ReplaceAllString(conf, "")), 0o640); err != nil { // #nosec G306 G703 -- p is configPath: the Proxmox folder and a guest number; 0640 as Proxmox writes it
+			return res, fmt.Errorf("replica %d: clear its state before the update: %w", existing.VMID, err)
+		}
 	}
 	var total, done uint64
 	for _, d := range g.Disks {
@@ -280,8 +288,9 @@ func StartReplica(ctx context.Context, replicaVMID, vmid int) error {
 }
 
 // stateToken records in a replica's description which backup it holds and
-// when it was written. A started replica loses it (StartReplica), so the
-// next update compares every block instead of only the changed ones.
+// when it was written. A started replica loses it (StartReplica), and so
+// does one while an update writes its disks (Replicate), so the next update
+// compares every block instead of only the changed ones.
 var stateToken = regexp.MustCompile(` ?\[BackupZit state [0-9a-f]+ [0-9]+\]`)
 
 func replicaState(snapshotID string, at time.Time) string {
@@ -290,8 +299,9 @@ func replicaState(snapshotID string, at time.Time) string {
 
 // replicaDiverged tells why a replica's disks may no longer hold the backup
 // prevID ("" when they do): the state token is missing (started through
-// BackupZit, or written by an older version) or names another backup, or
-// Proxmox VE started the guest since (for example in its web interface).
+// BackupZit, an update cut short, or written by an older version) or names
+// another backup, or Proxmox VE started the guest since (for example in its
+// web interface), or its task log cannot tell.
 func replicaDiverged(ctx context.Context, conf, prevID, typ string, vmid int) string {
 	var id string
 	var at int64
@@ -301,15 +311,22 @@ func replicaDiverged(ctx context.Context, conf, prevID, typ string, vmid int) st
 	if id != prevID || at == 0 {
 		return "the replica may have been started since its last update"
 	}
-	if started := startedSince(ctx, typ, vmid, at); started != "" {
+	started, err := startedSince(ctx, typ, vmid, at)
+	if err != nil {
+		// Fail closed: a start in the web interface would go unseen, and
+		// only the changes would be written over the diverged disks (L-N8).
+		return "the Proxmox VE task log could not be read (" + err.Error() + "), so the replica may have been started since its last update"
+	}
+	if started != "" {
 		return "the replica was started " + started + " since its last update"
 	}
 	return ""
 }
 
 // startedSince finds a start task of the guest in the Proxmox VE task log
-// after the given time (Unix seconds).
-func startedSince(ctx context.Context, typ string, vmid int, since int64) string {
+// after the given time (Unix seconds): "" when there is none, an error when
+// the log could not be read.
+func startedSince(ctx context.Context, typ string, vmid int, since int64) (string, error) {
 	filter := "qmstart"
 	if typ == "lxc" {
 		filter = "vzstart"
@@ -317,13 +334,22 @@ func startedSince(ctx context.Context, typ string, vmid int, since int64) string
 	out, err := command(ctx, "pvesh", "get", "/nodes/"+LocalNode()+"/tasks", "--vmid", strconv.Itoa(vmid),
 		"--typefilter", filter, "--since", strconv.FormatInt(since, 10), "--limit", "1", "--output-format", "json")
 	if err != nil {
-		return ""
+		return "", err
 	}
 	var tasks []struct {
 		Start int64 `json:"starttime"`
 	}
-	if json.Unmarshal(out, &tasks) != nil || len(tasks) == 0 || tasks[0].Start < since {
-		return ""
+	if err := json.Unmarshal(out, &tasks); err != nil {
+		return "", fmt.Errorf("unexpected task list: %w", err)
 	}
-	return "on " + time.Unix(tasks[0].Start, 0).Local().Format("2006-01-02 15:04")
+	if len(tasks) == 0 {
+		return "", nil
+	}
+	if tasks[0].Start == 0 {
+		return "", errors.New("unexpected task list: a task without a start time")
+	}
+	if tasks[0].Start < since {
+		return "", nil
+	}
+	return "on " + time.Unix(tasks[0].Start, 0).Local().Format("2006-01-02 15:04"), nil
 }

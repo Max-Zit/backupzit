@@ -32,6 +32,9 @@ type Entry struct {
 	Perm fs.FileMode `json:"-"`
 	// ID identifies the inode or MFT record (see Visited); 0 when unknown.
 	ID uint64 `json:"-"`
+	// Stream names the NTFS alternate data stream the entry is ("" for
+	// main data and for ext4/XFS, where ':' is part of the name).
+	Stream string `json:"-"`
 }
 
 // FS is a read-only file system inside a backed up disk.
@@ -89,7 +92,7 @@ type ntfsFS struct{ v *imaging.Volume }
 func toWin(p string) string { return strings.ReplaceAll(Clean(p), "/", `\`) }
 
 func fromNTFS(e imaging.Entry) Entry {
-	return Entry{Name: e.Name, Path: Clean(e.Path), IsDir: e.IsDir, Size: e.Size, ModTime: e.ModTime, ID: e.ID}
+	return Entry{Name: e.Name, Path: Clean(e.Path), IsDir: e.IsDir, Size: e.Size, ModTime: e.ModTime, ID: e.ID, Stream: e.Stream}
 }
 
 func (n ntfsFS) List(dir string) ([]Entry, error) {

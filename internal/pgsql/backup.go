@@ -595,6 +595,25 @@ func (i *instance) stop(ctx context.Context) {
 	_, _ = asPostgres(ctx, i.bin("pg_ctl"), "-D", i.DataDir, "-m", "fast", "-w", "stop")
 }
 
+// stopTimeout bounds the stop after a failed start (pg_ctl itself waits up
+// to 60 seconds).
+const stopTimeout = 90 * time.Second
+
+// start runs pg_ctl start and waits for the server to accept connections.
+func (i *instance) start(ctx context.Context, logFile string) error {
+	_, err := asPostgres(ctx, i.bin("pg_ctl"), "-D", i.DataDir, "-l", logFile, "-w", "-t", "3600", "start")
+	if err != nil {
+		// pg_ctl may have started the server before it failed or was
+		// cancelled (its wait cut short): stop it with a context of its
+		// own, or the caller's clean-up deletes the data folder under a
+		// running server (L-N16). Without a server this fails at once.
+		sctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		defer cancel()
+		i.stop(sctx)
+	}
+	return err
+}
+
 // startRecovered unpacks a tar base backup into work/data and starts it on
 // a free port, replaying WAL from walDir up to stopAt (zero: all).
 func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.Time, bindir, version string, log func(string, ...any)) (*instance, error) {
@@ -643,7 +662,7 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 	}
 	inst := &instance{DataDir: data, Socket: work, BinDir: bindir, Port: port}
 	log("starting the recovered cluster", "port", port)
-	if _, err := asPostgres(ctx, inst.bin("pg_ctl"), "-D", data, "-l", filepath.Join(work, "postgres.log"), "-w", "-t", "3600", "start"); err != nil {
+	if err := inst.start(ctx, filepath.Join(work, "postgres.log")); err != nil {
 		b, _ := readNoFollow(filepath.Join(work, "postgres.log"), 1<<20)
 		return nil, fmt.Errorf("the recovered cluster did not start: %s", lastLines(strings.TrimSpace(string(b)), 4))
 	}

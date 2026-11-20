@@ -2,10 +2,18 @@ package vmfs
 
 import (
 	"bytes"
+	"compress/bzip2"
+	"context"
 	"encoding/binary"
+	"io"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"testing/fstest"
+
+	"github.com/max-zit/backupzit/internal/imaging"
 )
 
 // M-4/M-5 (0.55): names and structures from a guest's disks are untrusted.
@@ -65,5 +73,81 @@ func TestGPTEntrySizeBound(t *testing.T) {
 	binary.LittleEndian.PutUint32(head[512+84:], 1<<30) // a crafted entry size of 1 GiB
 	if _, err := gptPartitions(bytes.NewReader(make([]byte, 4096)), head); err == nil {
 		t.Fatal("a crafted GPT entry size was accepted")
+	}
+}
+
+// L-N15 (0.56): on Windows a ':' in an ext4/XFS name would pick a stream of
+// another file ("a:b" is stream b of a, "a::$DATA" is a itself), so such
+// names are skipped and reported there; NTFS streams are still written as
+// streams. On Linux ':' is an ordinary character and every name is restored.
+func TestExtractColonNames(t *testing.T) {
+	ext := &ioFS{fsys: fstest.MapFS{
+		"a":        {Data: []byte("sibling")},
+		"a:b":      {Data: []byte("a file named a:b")},
+		"a::$DATA": {Data: []byte("overwritten")},
+		"d:x/f":    {Data: []byte("in a folder named d:x")},
+	}}
+	dir := t.TempDir()
+	read := func(dir, p string) string {
+		b, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(p)))
+		if err != nil {
+			return "<" + err.Error() + ">"
+		}
+		return string(b)
+	}
+	st, err := Extract(context.Background(), ext, []string{"/"}, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := read(dir, "a"); got != "sibling" {
+		t.Errorf("a = %q", got)
+	}
+	if runtime.GOOS == "windows" {
+		if len(st.Errors) != 3 {
+			t.Errorf("errors %q", st.Errors)
+		}
+		for _, e := range st.Errors {
+			if !strings.Contains(e, "Windows does not allow ':'") {
+				t.Errorf("error %q", e)
+			}
+		}
+		if _, err := os.Stat(filepath.Join(dir, "a:b")); err == nil {
+			t.Error("a:b became a stream of a")
+		}
+	} else {
+		if len(st.Errors) > 0 {
+			t.Errorf("errors %q", st.Errors)
+		}
+		for p, want := range map[string]string{"a:b": "a file named a:b", "a::$DATA": "overwritten", "d:x/f": "in a folder named d:x"} {
+			if got := read(dir, p); got != want {
+				t.Errorf("%s = %q, want %q", p, got, want)
+			}
+		}
+	}
+
+	// NTFS streams keep their name apart from the file name through vmfs.
+	f, err := os.Open(filepath.Join("..", "imaging", "testdata", "links-streams.ntfs.bz2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	img, err := io.ReadAll(bzip2.NewReader(f))
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := imaging.OpenNTFS(bytes.NewReader(img))
+	if err != nil {
+		t.Fatal(err)
+	}
+	nd := t.TempDir()
+	st, err = Extract(context.Background(), safeFS{ntfsFS{v}}, []string{"/ads.txt", "/ads.txt:secret"}, nd)
+	if err != nil || len(st.Errors) > 0 {
+		t.Fatalf("NTFS: %v %q", err, st.Errors)
+	}
+	if got := read(nd, "ads.txt"); got != "main stream" {
+		t.Errorf("ads.txt = %q", got)
+	}
+	if got := read(nd, "ads.txt:secret"); got != "hidden stream" {
+		t.Errorf("ads.txt:secret = %q", got)
 	}
 }
