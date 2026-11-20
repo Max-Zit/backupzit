@@ -5,14 +5,23 @@ if ! getent passwd backupzit-repo >/dev/null; then
       || useradd --system --home-dir /srv/backupzit --shell /sbin/nologin backupzit-repo
 fi
 mkdir -p /srv/backupzit /etc/backupzit-repo
-chown backupzit-repo:backupzit-repo /srv/backupzit /etc/backupzit-repo
-chmod 700 /srv/backupzit /etc/backupzit-repo
-chown root:backupzit-repo /etc/backupzit-repo/repo.env
-chmod 640 /etc/backupzit-repo/repo.env
-# Create the certificate as the service user.
-if command -v runuser >/dev/null 2>&1; then
-    runuser -u backupzit-repo -- /usr/bin/backupzit-repo fingerprint --config-dir /etc/backupzit-repo >/dev/null || true
-fi
+chown backupzit-repo:backupzit-repo /srv/backupzit
+chmod 700 /srv/backupzit
+# The configuration directory is root's; the service only reads its keys
+# and certificate, through its group. In a directory of the service's, a
+# compromised service could put links where root changes files here (up to
+# 0.55 it was the service's, so links found below are left alone).
+chown -h root:backupzit-repo /etc/backupzit-repo
+chmod 750 /etc/backupzit-repo
+for f in repo.env keys cert.pem key.pem; do
+    p=/etc/backupzit-repo/$f
+    if [ -f "$p" ] && [ ! -L "$p" ]; then
+        chown -h root:backupzit-repo "$p"
+        chmod 640 "$p"
+    fi
+done
+# Create the certificate (root's, readable for the service's group).
+/usr/bin/backupzit-repo fingerprint --config-dir /etc/backupzit-repo >/dev/null || true
 if command -v systemctl >/dev/null 2>&1; then
     systemctl daemon-reload || true
     systemctl enable backupzit-repo.service >/dev/null 2>&1 || true

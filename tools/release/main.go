@@ -3,11 +3,15 @@
 //
 //	release keygen -out DIR                  # once; keep DIR/release.key secret
 //	release sign -key KEY -version X -dir dist [-notes FILE]
-//	release notes -key KEY -dir DIR -notes FILE  # new notes, signed again
+//	release notes -key KEY -dir DIR -notes FILE [-version X]  # new notes, signed again
 //	release verify -dir DIR -file NAME            # signature and checksum of a released file
+//	release sign-file -key KEY FILE...            # FILE.sig, e.g. for SHA256SUMS
 //
 // sign writes DIR/manifest.json and manifest.json.sig listing the server,
 // agent and repository packages of version X found in the directory.
+// sign-file writes a detached signature in the same format (base64
+// Ed25519 over the file's bytes), for the checksum lists of the files
+// that are not in the manifest (appliance images, install.sh, ISOs).
 package main
 
 import (
@@ -38,7 +42,7 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: release keygen|sign|notes|verify [options]")
+		return errors.New("usage: release keygen|sign|notes|verify|sign-file [options]")
 	}
 	switch args[0] {
 	case "verify":
@@ -108,11 +112,16 @@ func run(args []string) error {
 		return nil
 	case "notes":
 		// Replaces the notes of a signed manifest (DIR/manifest.json) and
-		// signs it again; the packages and their checksums stay.
+		// signs it again; the packages and their checksums stay. The
+		// manifest usually comes from the published release, so its
+		// current signature must check out first: otherwise whoever can
+		// change release files would get their checksums signed with the
+		// real key at the next change of the notes.
 		fs := flag.NewFlagSet("notes", flag.ExitOnError)
 		keyPath := fs.String("key", "", "release.key")
-		dir := fs.String("dir", "", "directory with manifest.json")
+		dir := fs.String("dir", "", "directory with manifest.json and manifest.json.sig")
 		notes := fs.String("notes", "", "file with the new release notes")
+		version := fs.String("version", "", "the release version the manifest must be for")
 		_ = fs.Parse(args[1:])
 		if *keyPath == "" || *dir == "" || *notes == "" {
 			return errors.New("-key, -dir and -notes are required")
@@ -121,26 +130,61 @@ func run(args []string) error {
 		if err != nil {
 			return err
 		}
+		if err := checkTrusted(key); err != nil {
+			return err
+		}
 		raw, err := os.ReadFile(filepath.Join(*dir, "manifest.json"))
 		if err != nil {
 			return err
 		}
-		var m update.Manifest
-		if err := json.Unmarshal(raw, &m); err != nil {
-			return fmt.Errorf("manifest.json: %w", err)
+		sig, err := os.ReadFile(filepath.Join(*dir, "manifest.json.sig"))
+		if err != nil {
+			return fmt.Errorf("the signature of the manifest is needed: %w", err)
 		}
-		if m.Product != "backupzit" || m.Version == "" || len(m.Files) == 0 {
-			return errors.New("manifest.json is not a BackupZit release manifest")
+		m, err := update.Verify(raw, string(sig), nil)
+		if err != nil {
+			return fmt.Errorf("manifest.json: %w; not signing it again", err)
+		}
+		if *version != "" && m.Version != *version {
+			return fmt.Errorf("the manifest is for %s, not %s", m.Version, *version)
+		}
+		if len(m.Files) == 0 {
+			return errors.New("manifest.json lists no packages")
 		}
 		n, err := os.ReadFile(*notes)
 		if err != nil {
 			return err
 		}
 		m.Notes = strings.TrimSpace(string(n))
-		if err := writeManifest(*dir, m, key); err != nil {
+		if err := writeManifest(*dir, *m, key); err != nil {
 			return err
 		}
 		fmt.Printf("signed manifest for %s again with new notes\n", m.Version)
+		return nil
+	case "sign-file":
+		fs := flag.NewFlagSet("sign-file", flag.ExitOnError)
+		keyPath := fs.String("key", "", "release.key")
+		_ = fs.Parse(args[1:])
+		if *keyPath == "" || fs.NArg() == 0 {
+			return errors.New("usage: release sign-file -key KEY FILE...")
+		}
+		key, err := loadKey(*keyPath)
+		if err != nil {
+			return err
+		}
+		if err := checkTrusted(key); err != nil {
+			return err
+		}
+		for _, p := range fs.Args() {
+			b, err := os.ReadFile(p) // #nosec G304 G703 -- path from the command line of a development tool
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(p+".sig", []byte(update.Sign(b, key)+"\n"), 0o644); err != nil { // #nosec G306 G703 -- output file of a development tool, not secret
+				return err
+			}
+			fmt.Printf("signed %s\n", filepath.Base(p))
+		}
 		return nil
 	case "sign":
 		fs := flag.NewFlagSet("sign", flag.ExitOnError)
@@ -229,12 +273,24 @@ func loadKey(path string) (ed25519.PrivateKey, error) {
 	return ed25519.NewKeyFromSeed(seed), nil
 }
 
+// checkTrusted refuses a key that is not one of update.TrustedKeys: what
+// it signs would be refused by every console and by install.sh anyway.
+func checkTrusted(key ed25519.PrivateKey) error {
+	pub := base64.StdEncoding.EncodeToString(key[ed25519.SeedSize:])
+	for _, k := range update.TrustedKeys {
+		if k == pub {
+			return nil
+		}
+	}
+	return errors.New("this key is not a BackupZit release key (update.TrustedKeys)")
+}
+
 // writeManifest writes DIR/manifest.json and its signature.
 func writeManifest(dir string, m update.Manifest, key ed25519.PrivateKey) error {
 	raw, _ := json.MarshalIndent(m, "", "  ")
 	raw = append(raw, '\n')
-	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), raw, 0o644); err != nil { // #nosec G306 -- output file of a development tool, not secret
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), raw, 0o644); err != nil { // #nosec G306 G703 -- output file of a development tool, not secret
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "manifest.json.sig"), []byte(update.Sign(raw, key)+"\n"), 0o644) // #nosec G306 -- output file of a development tool, not secret
+	return os.WriteFile(filepath.Join(dir, "manifest.json.sig"), []byte(update.Sign(raw, key)+"\n"), 0o644) // #nosec G306 G703 -- output file of a development tool, not secret
 }

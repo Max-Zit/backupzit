@@ -134,8 +134,12 @@ if [ $FRESH = 1 ]; then
         fi
         systemctl enable --now postgresql
         DB_PASS=$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)
-        su postgres -s /bin/sh -c "cd /; psql -qc \"SET password_encryption = 'scram-sha-256'; CREATE USER backupzit PASSWORD '$DB_PASS';\"" 2>/dev/null ||
-            su postgres -s /bin/sh -c "cd /; psql -qc \"SET password_encryption = 'scram-sha-256'; ALTER USER backupzit PASSWORD '$DB_PASS';\""
+        # The SQL goes on stdin (printf is a shell builtin), so the password
+        # does not show in the process list. ON_ERROR_STOP makes psql fail
+        # on an existing user, as -c did.
+        pg_sql() { printf '%s\n' "$1" | su postgres -s /bin/sh -c "cd /; psql -X -q -v ON_ERROR_STOP=1"; }
+        pg_sql "SET password_encryption = 'scram-sha-256'; CREATE USER backupzit PASSWORD '$DB_PASS';" 2>/dev/null ||
+            pg_sql "SET password_encryption = 'scram-sha-256'; ALTER USER backupzit PASSWORD '$DB_PASS';"
         su postgres -s /bin/sh -c "cd /; createdb -O backupzit backupzit" 2>/dev/null || true
         DB_URL="postgres://backupzit:$DB_PASS@localhost:5432/backupzit?sslmode=disable"
     fi

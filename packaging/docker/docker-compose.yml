@@ -9,7 +9,10 @@
 # Guide: https://github.com/Max-Zit/backupzit (Documentation → Installation → Docker)
 services:
   db:
-    image: postgres:17
+    # Pinned by digest (the multi-platform index of postgres:17 on
+    # 2026-11-20), so a changed tag cannot slip in another image. Move it to
+    # a newer 17.x with every release: docker buildx imagetools inspect postgres:17
+    image: postgres:17@sha256:b60e90042aa6b8dbecd58e224b3e36114dbf8ad754465264c2476ad58a86e45c
     restart: unless-stopped
     environment:
       POSTGRES_USER: backupzit
