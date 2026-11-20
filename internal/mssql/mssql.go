@@ -181,10 +181,16 @@ type RestoreOptions struct {
 
 // Restore restores a database. A database with another name than the one
 // in the backup gets its own files in the instance's default folders.
-func (s *Server) Restore(ctx context.Context, o RestoreOptions) error {
+func (s *Server) Restore(ctx context.Context, o RestoreOptions) (err error) {
 	if o.Log == nil {
 		o.Log = func(string, ...any) {}
 	}
+	singleUser := false
+	defer func() {
+		if err != nil && singleUser {
+			err = s.afterFailedRestore(o.Target, err)
+		}
+	}()
 	if o.Target == "" || strings.ContainsAny(o.Target, "\x00") {
 		return errors.New("invalid database name")
 	}
@@ -225,6 +231,7 @@ func (s *Server) Restore(ctx context.Context, o RestoreOptions) error {
 		if exists > 0 {
 			o.Log("disconnecting users", "database", o.Target)
 			_, _ = s.db.ExecContext(ctx, "ALTER DATABASE "+quote(o.Target)+" SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
+			singleUser = true
 		}
 	}
 	with = append(with, "NORECOVERY", "CHECKSUM")
@@ -367,4 +374,26 @@ func LSNLess(a, b string) bool {
 		return len(a) < len(b)
 	}
 	return a < b
+}
+
+// afterFailedRestore leaves a database that a failed replacing restore had
+// set to SINGLE_USER usable again: still the old database (the full backup
+// did not restore) back in MULTI_USER, or one left RESTORING (a log or the
+// final recovery failed) brought online at the last restored point. Without
+// this the production database stays single-user or offline.
+func (s *Server) afterFailedRestore(db string, cause error) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	var state string
+	_ = s.db.QueryRowContext(ctx, `SELECT state_desc FROM sys.databases WHERE name = @p1`, db).Scan(&state)
+	if state == "RESTORING" {
+		if _, err := s.db.ExecContext(ctx, "RESTORE DATABASE "+quote(db)+" WITH RECOVERY"); err != nil {
+			return fmt.Errorf("%w; the database stays in RESTORING (RESTORE DATABASE ... WITH RECOVERY failed: %v)", cause, err)
+		}
+		cause = fmt.Errorf("%w; the database was brought online at the last restored point", cause)
+	}
+	if _, err := s.db.ExecContext(ctx, "ALTER DATABASE "+quote(db)+" SET MULTI_USER"); err != nil {
+		return fmt.Errorf("%w; it is still in SINGLE_USER mode (SET MULTI_USER failed: %v)", cause, err)
+	}
+	return cause
 }
