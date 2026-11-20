@@ -141,6 +141,7 @@ func (s *Server) handleJobTest(w http.ResponseWriter, r *http.Request, _ string)
 		redirectErr(w, r, back, err)
 		return
 	}
+	s.audit(r, "job.test", "job %d, run %d", id, rid) // as the API does (L-7)
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Restore test queued.")
 }
 

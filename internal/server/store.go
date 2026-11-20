@@ -754,6 +754,11 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 	if (b.Kind != api.KindBackup && b.Kind != api.KindCopy && b.Kind != api.KindSystemBackup && !containerFiles(b)) || b.SnapshotID == "" {
 		return 0, errors.New("run has no snapshot to restore")
 	}
+	// Like the API: the snapshot is gone (retention, a repair). The pages
+	// hide the form, so only a crafted request gets here (L-7).
+	if b.Expired {
+		return 0, errors.New("this backup was removed by the retention policy")
+	}
 	if b.Kind == api.KindCopy && !s.copyOfFiles(ctx, b) && !containerFiles(b) {
 		return 0, errors.New("copies of disk images are restored with the command line agent (see Documentation)")
 	}

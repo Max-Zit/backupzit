@@ -1206,10 +1206,12 @@ func (s *Server) handleJobEditPage(w http.ResponseWriter, r *http.Request, user 
 func (s *Server) handleJobRun(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
 	back := fmt.Sprintf("/jobs/%d", id)
-	if _, err := s.store.QueueBackup(r.Context(), id, "manual"); err != nil {
+	rid, err := s.store.QueueBackup(r.Context(), id, "manual")
+	if err != nil {
 		redirectErr(w, r, back, err)
 		return
 	}
+	s.audit(r, "job.run", "job %d, run %d", id, rid) // as the API does (L-7)
 	redirectMsg(w, r, back, "Backup queued. The agent picks it up on its next poll.")
 }
 
