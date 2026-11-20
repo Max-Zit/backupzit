@@ -968,7 +968,11 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 		}
 	}
 	if len(res.Forgotten) > 0 {
-		if _, err := s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE snapshot_id = ANY($1)`, res.Forgotten); err != nil {
+		// Only runs of the same repository: copies on other storage keep the
+		// snapshot IDs, and an agent must not hide other agents' backups.
+		if _, err := s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE snapshot_id = ANY($1)
+			AND repo_url IS NOT DISTINCT FROM (SELECT repo_url FROM runs WHERE id=$2)
+			AND target_id IS NOT DISTINCT FROM (SELECT target_id FROM runs WHERE id=$2)`, res.Forgotten, runID); err != nil {
 			return err
 		}
 	}
