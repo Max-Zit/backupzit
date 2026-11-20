@@ -402,6 +402,10 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request, _ stri
 		redirectErr(w, r, "/users", errors.New("the passwords do not match"))
 		return
 	}
+	if err := s.confirmAdmin(r); err != nil {
+		redirectErr(w, r, "/users", err)
+		return
+	}
 	u := User{Username: r.FormValue("username"), DisplayName: r.FormValue("display_name"), Email: r.FormValue("email"), Role: r.FormValue("role")}
 	if s.store.fourEyes(r.Context()) && canApproveRole(u.Role) {
 		// A new approver could decide the requests of its creator.
@@ -496,6 +500,10 @@ func (s *Server) handleUserPassword(w http.ResponseWriter, r *http.Request, _ st
 	}
 	if r.FormValue("password") != r.FormValue("password2") {
 		redirectErr(w, r, back, errors.New("the passwords do not match"))
+		return
+	}
+	if err := s.confirmAdmin(r); err != nil {
+		redirectErr(w, r, back, err)
 		return
 	}
 	if u.ID != currentUser(r).ID && u.Source == "local" && !u.Disabled && s.store.fourEyes(r.Context()) && canApproveRole(u.Role) {

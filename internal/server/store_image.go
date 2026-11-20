@@ -110,6 +110,9 @@ func (s *Store) QueueImageRestore(ctx context.Context, backupRunID, agentID int6
 	if b.Kind != api.KindImageBackup || b.SnapshotID == "" {
 		return 0, errors.New("run has no disk image to restore")
 	}
+	if b.Expired { // L-7: like the other restores
+		return 0, errors.New("this backup was removed by the retention policy")
+	}
 	if n := len(imageDetails(b)); o.Image < 0 || (n > 0 && o.Image >= n) {
 		return 0, errors.New("choose a disk of the backup to restore")
 	}

@@ -60,7 +60,7 @@ func TestAgentLog(t *testing.T) {
 	}
 
 	// L-1 (0.55): roles that may not download the log do not see its tail.
-	if _, loc, _ := admin.do("POST", "/users", url.Values{"username": {"vera"}, "role": {"viewer"},
+	if _, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"vera"}, "role": {"viewer"},
 		"password": {"correct-horse-9"}, "password2": {"correct-horse-9"}}); !strings.Contains(loc, "msg=") {
 		t.Fatalf("create viewer: %s", loc)
 	}

@@ -245,6 +245,9 @@ func (s *Store) QueueImageFileRestore(ctx context.Context, backupRunID, agentID 
 	if b.Kind != api.KindImageBackup || b.SnapshotID == "" {
 		return 0, errors.New("run has no disk image")
 	}
+	if b.Expired { // L-7: like the other restores
+		return 0, errors.New("this backup was removed by the retention policy")
+	}
 	if _, err := s.GetAgent(ctx, agentID); err != nil {
 		return 0, errors.New("unknown agent")
 	}

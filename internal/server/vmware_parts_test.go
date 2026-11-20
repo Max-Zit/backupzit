@@ -31,6 +31,8 @@ func TestVMwareParts(t *testing.T) {
 		t.Fatal("login")
 	}
 	targetID, _ := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	// Split backups need network storage (C4): the agents here never touch it.
+	e.pool.Exec(ctx, `UPDATE storage_targets SET kind='sftp' WHERE id=$1`, targetID)
 	type proxy struct {
 		cfg *agent.Config
 		id  int64
@@ -112,6 +114,20 @@ func TestVMwareParts(t *testing.T) {
 	var afterID int64
 	fmt.Sscan(m[1], &afterID)
 
+	snap := func(c byte) string { return strings.Repeat(string(c), 64) }
+	// The first backup into the new repository is not split (the parts would
+	// create it at the same time, A7): one part on the connection's proxy.
+	init, err := e.store.QueueBackup(ctx, jobID, "manual")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	e.pool.QueryRow(ctx, `SELECT count(*) FROM runs WHERE job_id=$1`, jobID).Scan(&n)
+	if r := poll(pa, "1.0.0", uuidA); n != 1 || r == nil || r.ID != init || r.Part != fmt.Sprintf("proxy:%d", pa.id) {
+		t.Fatalf("first backup: %d runs, %+v", n, r)
+	}
+	e.store.FinishRun(ctx, pa.id, init, api.RunResult{Status: api.StatusSuccess, SnapshotID: snap('0'), Stats: json.RawMessage(`{}`)})
+
 	first, err := e.store.QueueBackup(ctx, jobID, "manual")
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +142,7 @@ func TestVMwareParts(t *testing.T) {
 		paths     []string
 		excludes  []string
 	}
-	rows, _ := e.pool.Query(ctx, `SELECT id, agent_id, part, coalesce(batch,0), paths, excludes FROM runs WHERE job_id=$1 ORDER BY id`, jobID)
+	rows, _ := e.pool.Query(ctx, `SELECT id, agent_id, part, coalesce(batch,0), paths, excludes FROM runs WHERE job_id=$1 AND id>=$2 ORDER BY id`, jobID, first)
 	var got []row
 	for rows.Next() {
 		var r row
@@ -141,11 +157,11 @@ func TestVMwareParts(t *testing.T) {
 	}
 
 	ra := poll(pa, "1.0.0", uuidA)
-	if ra == nil || ra.ID != first || ra.Part != got[0].part || !ra.PartPrimary || !slices.Equal(ra.PartOthers, []string{got[1].part}) || ra.VMware == nil {
+	if ra == nil || ra.ID != first || ra.Part != got[0].part || ra.VMware == nil {
 		t.Fatalf("part of the connection's proxy: %+v", ra)
 	}
 	rb := poll(pb, "1.0.0", uuidB)
-	if rb == nil || rb.ID != got[1].id || rb.Part != got[1].part || rb.PartPrimary || rb.PartOthers != nil || !slices.Equal(rb.VMs, []string{"2", "11", "12"}) {
+	if rb == nil || rb.ID != got[1].id || rb.Part != got[1].part || !slices.Equal(rb.VMs, []string{"2", "11", "12"}) {
 		t.Fatalf("part of the further proxy: %+v", rb)
 	}
 	status := func() (string, bool) {
@@ -156,7 +172,6 @@ func TestVMwareParts(t *testing.T) {
 		}
 		return s, j.LastFinished != nil
 	}
-	snap := func(c byte) string { return strings.Repeat(string(c), 64) }
 	e.store.FinishRun(ctx, pa.id, first, api.RunResult{Status: api.StatusSuccess, SnapshotID: snap('a'), Stats: json.RawMessage(`{}`)})
 	if s, fin := status(); s != "running" || fin {
 		t.Errorf("one part done: %s finished=%v, want running", s, fin)
@@ -219,8 +234,8 @@ func TestVMwareParts(t *testing.T) {
 	if c1 != nil && c2 != nil && c2.ID < c1.ID {
 		c1, c2 = c2, c1
 	}
-	if c1 == nil || c2 == nil || c1.Kind != api.KindCopy || c1.Part != got[0].part || !c1.PartPrimary || !slices.Equal(c1.PartOthers, []string{got[1].part}) ||
-		c2.Part != got[1].part || c2.PartPrimary || c1.SourceTag != fmt.Sprintf("job:%d", jobID) {
+	if c1 == nil || c2 == nil || c1.Kind != api.KindCopy || c1.Part != got[0].part ||
+		c2.Part != got[1].part || c1.SourceTag != fmt.Sprintf("job:%d", jobID) {
 		t.Fatalf("copy runs: %+v / %+v", c1, c2)
 	}
 	e.store.FinishRun(ctx, pa.id, c1.ID, api.RunResult{Status: api.StatusSuccess, SnapshotID: snap('d'), Stats: json.RawMessage(`{}`)})

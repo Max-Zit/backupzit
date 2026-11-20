@@ -37,6 +37,7 @@
       <form method="post" action="/users/{{.ID}}/password" class="stack">
         <label>{{T "New password"}} <small>{{T "at least"}} {{$.Data.MinPassword}} {{T "characters"}}</small><input name="password" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
         <label>{{T "Repeat"}} <input name="password2" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
+        {{template "reauth_admin" $.Me}}
         <div><button class="secondary">{{T "Set password"}}</button></div>
       </form>
     </div>

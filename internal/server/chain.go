@@ -109,11 +109,12 @@ func (s *Store) chainAfterRun(ctx context.Context, runID int64) ([]int64, error)
 		// A backup split over several proxies: the chain follows once, after
 		// the last part, and as a success only if every part succeeded. The
 		// claim on the first run decides who queues it.
-		var allOK, cancelled bool
+		var allOK, anyOK, cancelled bool
 		err := s.db.QueryRow(ctx, `UPDATE runs SET chained=true WHERE id=$1 AND NOT chained
 			AND NOT EXISTS (SELECT 1 FROM runs o WHERE o.batch=$1 AND o.status IN ('queued','running'))
 			RETURNING (SELECT bool_and(o.status IN ('success','warning')) FROM runs o WHERE o.batch=$1),
-				(SELECT bool_or(o.status='cancelled') FROM runs o WHERE o.batch=$1)`, *run.Batch).Scan(&allOK, &cancelled)
+				(SELECT bool_or(o.status IN ('success','warning')) FROM runs o WHERE o.batch=$1),
+				(SELECT bool_or(o.status='cancelled') FROM runs o WHERE o.batch=$1)`, *run.Batch).Scan(&allOK, &anyOK, &cancelled)
 		if errors.Is(err, pgx.ErrNoRows) || cancelled {
 			return nil, nil // parts still run, already decided, or one was cancelled
 		}
@@ -121,6 +122,13 @@ func (s *Store) chainAfterRun(ctx context.Context, runID int64) ([]int64, error)
 			return nil, err
 		}
 		ok = allOK
+		// "After each backup" copies follow once too, when a part has a
+		// backup to copy (also when the console ended the last part).
+		if anyOK && isBackupKind(run.Kind) {
+			if _, err := s.QueueCopiesAfter(ctx, *run.JobID); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return s.QueueChainAfter(ctx, *run.JobID, ok)
 }

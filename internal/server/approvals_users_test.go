@@ -22,7 +22,7 @@ func TestFourEyesNoSelfApprover(t *testing.T) {
 	admin.login("admin", "admin-pass-123")
 	const pw = "correct-horse-9"
 	create := func(name, role string) string {
-		_, loc, _ := admin.do("POST", "/users", url.Values{"username": {name}, "role": {role}, "password": {pw}, "password2": {pw}})
+		_, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {name}, "role": {role}, "password": {pw}, "password2": {pw}})
 		return loc
 	}
 	for _, u := range [][2]string{{"admin2", "admin"}, {"v1", "viewer"}} {
@@ -78,7 +78,7 @@ func TestFourEyesNoSelfApprover(t *testing.T) {
 		t.Error("role changed without approval")
 	}
 	a2 := userID("admin2")
-	_, loc, _ = admin.do("POST", fmt.Sprintf("/users/%d/password", a2), url.Values{"password": {"new-secret-77x"}, "password2": {"new-secret-77x"}})
+	_, loc, _ = admin.do("POST", fmt.Sprintf("/users/%d/password", a2), url.Values{"reauth_password": {"admin-pass-123"}, "password": {"new-secret-77x"}, "password2": {"new-secret-77x"}})
 	held("password reset", loc)
 	var payload string
 	e.pool.QueryRow(ctx, `SELECT payload::text FROM approvals WHERE id=$1`, pending()).Scan(&payload)
@@ -91,7 +91,7 @@ func TestFourEyesNoSelfApprover(t *testing.T) {
 	_, loc, _ = admin.do("POST", fmt.Sprintf("/users/%d/2fa-reset", a2), url.Values{})
 	held("two-factor reset", loc)
 	// A viewer's password is reset at once.
-	if _, loc, _ := admin.do("POST", fmt.Sprintf("/users/%d/password", v1), url.Values{"password": {"viewer-pass-88"}, "password2": {"viewer-pass-88"}}); !strings.Contains(loc, "msg=Password") {
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/users/%d/password", v1), url.Values{"reauth_password": {"admin-pass-123"}, "password": {"viewer-pass-88"}, "password2": {"viewer-pass-88"}}); !strings.Contains(loc, "msg=Password") {
 		t.Errorf("viewer password: %s", loc)
 	}
 

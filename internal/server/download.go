@@ -147,13 +147,22 @@ func (s *Server) handleImageDownload(w http.ResponseWriter, r *http.Request, _ s
 	}
 	setAttachment(w, fmt.Sprintf("image%d-%s.zip", run.ID, time.Now().Format("20060102-1504")), "application/zip", -1)
 	zw := zip.NewWriter(w)
-	var add func(e imaging.Entry) error
-	add = func(e imaging.Entry) error {
+	// Bounded like the restore walks (P6): a damaged or crafted NTFS can nest
+	// folders without end or contain a folder in itself.
+	seen := imaging.Visited{}
+	var add func(e imaging.Entry, depth int) error
+	add = func(e imaging.Entry, depth int) error {
 		if err := r.Context().Err(); err != nil {
 			return err
 		}
+		if depth > imaging.MaxDepth {
+			return fmt.Errorf("%s: more than %d folders deep (damaged file system?)", e.Path, imaging.MaxDepth)
+		}
 		rel := zipEntryName(strings.TrimPrefix(e.Path, dir))
 		if e.IsDir {
+			if !seen.Enter(e.ID) {
+				return nil
+			}
 			children, err := v.List(e.Path)
 			if err != nil {
 				return err
@@ -162,7 +171,7 @@ func (s *Server) handleImageDownload(w http.ResponseWriter, r *http.Request, _ s
 				_, _ = zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: e.ModTime})
 			}
 			for _, ch := range children {
-				if err := add(ch); err != nil {
+				if err := add(ch, depth+1); err != nil {
 					return err
 				}
 			}
@@ -180,7 +189,8 @@ func (s *Server) handleImageDownload(w http.ResponseWriter, r *http.Request, _ s
 		return err
 	}
 	for _, e := range entries {
-		if err := add(e); err != nil {
+		seen = imaging.Visited{}
+		if err := add(e, 0); err != nil {
 			s.abortDownload("image archive", err)
 		}
 	}

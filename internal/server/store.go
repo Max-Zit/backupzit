@@ -744,7 +744,10 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 	// proxy, so its retention leaves the other proxies' backups alone.
 	if j.Kind == JobVM && j.VMwareHostID != nil {
 		if h, err := s.GetVMwareHost(ctx, *j.VMwareHostID); err == nil && h.ProxyAgentID != nil && len(h.ExtraProxies) > 0 {
-			parts := s.vmwareParts(ctx, h, j)
+			var parts []vmwarePart
+			if s.canSplit(ctx, t, repo) {
+				parts = s.vmwareParts(ctx, h, j)
+			}
 			if parts == nil {
 				parts = []vmwarePart{{agentID: *h.ProxyAgentID, paths: j.Paths, excludes: j.Excludes, primary: true}}
 			}
@@ -937,7 +940,7 @@ func (s *Store) claimRunIdle(ctx context.Context, agentID int64, onlyUpdate, idl
 	var id int64
 	err := s.db.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
 		WHERE id = (SELECT r.id FROM runs r LEFT JOIN jobs j ON j.id=r.job_id WHERE r.agent_id=$1 AND r.status='queued' AND (NOT $2 OR r.kind='agent-update')
-			AND ($3 OR r.kind<>'agent-update') AND NOT `+windowClosed(4)+`
+			AND ($3 OR r.kind<>'agent-update') AND NOT `+windowClosed(4)+` AND NOT `+vmwareBusySQL+`
 			ORDER BY r.kind IN ('verify','repo-check'), r.queued_at LIMIT 1 FOR UPDATE OF r SKIP LOCKED)
 		RETURNING id`, agentID, onlyUpdate, idle, time.Now().Hour()).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {

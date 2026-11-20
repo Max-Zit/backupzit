@@ -334,12 +334,8 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 	s.chainAfterRun(r.Context(), id)
 	if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && isBackupKind(run.Kind) {
 		// A backup split over several proxies is copied once, after its last
-		// part (a copy per part would miss the parts still running).
-		copies := res.Status != api.StatusFailed
-		if run.Batch != nil {
-			copies = s.store.batchCopies(r.Context(), *run.Batch)
-		}
-		if copies {
+		// part: chainAfterRun queues those copies when it decides the chain.
+		if res.Status != api.StatusFailed && run.Batch == nil {
 			if ids, err := s.store.QueueCopiesAfter(r.Context(), *run.JobID); err != nil {
 				s.log.Error("queue copy jobs", "job", *run.JobID, "err", err)
 			} else if len(ids) > 0 {

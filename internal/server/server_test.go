@@ -1106,16 +1106,16 @@ func TestUsersAndRoles(t *testing.T) {
 	}
 	// Create one user per role.
 	for _, role := range []string{"operator", "restore", "viewer"} {
-		_, loc, _ := admin.do("POST", "/users", url.Values{"username": {role + "1"}, "role": {role}, "display_name": {"User " + role},
+		_, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {role + "1"}, "role": {role}, "display_name": {"User " + role},
 			"password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
 		if !strings.Contains(loc, "msg=") {
 			t.Fatalf("create %s: %s", role, loc)
 		}
 	}
-	if _, loc, _ := admin.do("POST", "/users", url.Values{"username": {"short"}, "role": {"viewer"}, "password": {"abc"}, "password2": {"abc"}}); !strings.Contains(loc, "err=") {
+	if _, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"short"}, "role": {"viewer"}, "password": {"abc"}, "password2": {"abc"}}); !strings.Contains(loc, "err=") {
 		t.Error("short password accepted")
 	}
-	if _, loc, _ := admin.do("POST", "/users", url.Values{"username": {"Operator1"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}}); !strings.Contains(loc, "err=") {
+	if _, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"Operator1"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}}); !strings.Contains(loc, "err=") {
 		t.Error("duplicate (case-insensitive) username accepted")
 	}
 
@@ -1331,7 +1331,7 @@ func TestTwoFactor(t *testing.T) {
 	server.SetClock(e.srv, func() time.Time { return now })
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
-	admin.do("POST", "/users", url.Values{"username": {"ana"}, "role": {"operator"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
+	admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"ana"}, "role": {"operator"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
 
 	ana := newClient(t, e)
 	if !ana.login("ana", "correct-horse-9") {
@@ -1534,7 +1534,7 @@ func TestRESTAPI(t *testing.T) {
 	ctx := e.ctx
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
-	admin.do("POST", "/users", url.Values{"username": {"mon"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
+	admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"mon"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
 	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
 	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
 	if err != nil {

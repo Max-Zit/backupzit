@@ -19,13 +19,34 @@ func TestReauthCannotBeBypassedWithASession(t *testing.T) {
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
 	for _, u := range []string{"ana", "marko"} {
-		if _, loc, _ := admin.do("POST", "/users", url.Values{"username": {u}, "role": {"admin"},
+		if _, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {u}, "role": {"admin"},
 			"password": {"correct-horse-9"}, "password2": {"correct-horse-9"}}); !strings.Contains(loc, "msg=") {
 			t.Fatalf("create %s: %s", u, loc)
 		}
 	}
 	ana := newClient(t, e)
 	ana.login("ana", "correct-horse-9")
+
+	// (C9) Creating a user or setting another user's password needs the
+	// password too: a stolen session could otherwise make an account it
+	// knows the password of and delete backups from there.
+	for _, v := range []url.Values{{}, {"reauth_password": {"wrong-pass-1"}}} {
+		v.Set("username", "eve")
+		v.Set("role", "admin")
+		v.Set("password", "eve-knows-this-1")
+		v.Set("password2", "eve-knows-this-1")
+		if _, loc, _ := ana.do("POST", "/users", v); !strings.Contains(loc, "err=") {
+			t.Errorf("user created without the password (%v): %s", v.Has("reauth_password"), loc)
+		}
+	}
+	if _, _, page := ana.do("GET", "/users", nil); !strings.Contains(page, `name="reauth_password"`) {
+		t.Error("the new user form does not ask for the password")
+	}
+	var eve int
+	e.pool.QueryRow(e.ctx, `SELECT count(*) FROM users WHERE username='eve'`).Scan(&eve)
+	if eve != 0 {
+		t.Error("eve exists")
+	}
 
 	// (a) Turning on two-factor sign-in asks for the password.
 	_, _, page := ana.do("GET", "/account/2fa", nil)
@@ -80,7 +101,10 @@ func TestReauthCannotBeBypassedWithASession(t *testing.T) {
 	}
 	marko := newClient(t, e)
 	marko.login("marko", "correct-horse-9")
-	if _, loc, _ := marko.do("POST", fmt.Sprintf("/users/%d/password", anaID), url.Values{"password": {"new-horse-99"}, "password2": {"new-horse-99"}}); !strings.Contains(loc, "msg=") {
+	if _, loc, _ := marko.do("POST", fmt.Sprintf("/users/%d/password", anaID), url.Values{"password": {"new-horse-99"}, "password2": {"new-horse-99"}}); !strings.Contains(loc, "err=") {
+		t.Errorf("another user's password set without confirming: %s", loc)
+	}
+	if _, loc, _ := marko.do("POST", fmt.Sprintf("/users/%d/password", anaID), url.Values{"reauth_password": {"correct-horse-9"}, "password": {"new-horse-99"}, "password2": {"new-horse-99"}}); !strings.Contains(loc, "msg=") {
 		t.Fatalf("reset ana's password: %s", loc)
 	}
 	if c := status(); c != 401 {

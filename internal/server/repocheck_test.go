@@ -160,7 +160,7 @@ func TestRepoCheck(t *testing.T) {
 		t.Fatalf("repair removing backups during a retention hold: %s", loc)
 	}
 	e.pool.Exec(ctx, `UPDATE jobs SET retention_hold=false WHERE id=$1`, jobID)
-	if _, loc, _ := admin.do("POST", "/users", url.Values{"username": {"admin2"}, "role": {"admin"},
+	if _, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"admin2"}, "role": {"admin"},
 		"password": {"correct-horse-9"}, "password2": {"correct-horse-9"}}); !strings.Contains(loc, "msg=") {
 		t.Fatalf("create admin2: %s", loc)
 	}

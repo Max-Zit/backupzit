@@ -1172,6 +1172,17 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 	if pr, err := s.store.newestBackup(r.Context(), j.ID); err == nil && pr != nil {
 		data["ProtectedRun"] = pr
 		if d := vmDetails(*pr); d != nil {
+			// A split VMware backup: the VMs of all its parts (C11).
+			if pr.Batch != nil {
+				for _, o := range s.store.batchRuns(r.Context(), *pr.Batch) {
+					if od := vmDetails(o); o.ID != pr.ID && od != nil && (o.Status == api.StatusSuccess || o.Status == api.StatusWarning) {
+						for _, g := range od.Guests {
+							g.RunID = o.ID
+							d.Guests = append(d.Guests, g)
+						}
+					}
+				}
+			}
 			data["Protected"] = d
 		}
 		if d := sqlDetails(*pr); d != nil {

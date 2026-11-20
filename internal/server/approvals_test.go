@@ -26,7 +26,7 @@ func TestFourEyesApproval(t *testing.T) {
 		t.Fatalf("turned on with one administrator: %s", loc)
 	}
 	for _, u := range []struct{ name, role string }{{"admin2", "admin"}, {"victim", "viewer"}, {"viewer1", "viewer"}} {
-		if _, loc, _ := admin.do("POST", "/users", url.Values{"username": {u.name}, "role": {u.role},
+		if _, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {u.name}, "role": {u.role},
 			"password": {"correct-horse-9"}, "password2": {"correct-horse-9"}}); !strings.Contains(loc, "msg=") {
 			t.Fatalf("create %s: %s", u.name, loc)
 		}

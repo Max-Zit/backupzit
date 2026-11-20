@@ -19,7 +19,7 @@ func TestResetTwoFactorFromCommandLine(t *testing.T) {
 	ctx := e.ctx
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
-	admin.do("POST", "/users", url.Values{"username": {"ana"}, "role": {"admin"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
+	admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"ana"}, "role": {"admin"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
 
 	ana := newClient(t, e)
 	if !ana.login("ana", "correct-horse-9") {

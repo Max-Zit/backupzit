@@ -39,7 +39,31 @@ func partTag(agentID int64) string { return fmt.Sprintf("proxy:%d", agentID) }
 // as the inventory places them. nil: the connection has no further proxy
 // (or no inventory yet), and one run on its proxy backs up all, as before.
 func (s *Store) vmwareParts(ctx context.Context, h VMwareHost, j Job) []vmwarePart {
+	// Only proxies that poll now: a part on a stopped proxy VM would wait
+	// forever and hold up every later start of the job. Their VMs go to
+	// the connection's proxy meanwhile.
+	var usable []int64
+	for _, id := range h.ExtraProxies {
+		if a, err := s.GetAgent(ctx, id); err == nil && a.Online() && !agentOlder(a, minPartsVersion) {
+			usable = append(usable, id)
+		}
+	}
+	h.ExtraProxies = usable
 	return splitVMware(h, j, func(id int64) string { return s.agentMachineUUID(ctx, id) })
+}
+
+// canSplit tells whether a job's backups to repo on t may be split over
+// proxies. Not on a local or USB target: that path is a disk of each proxy,
+// and the restores (on the connection's proxy) would not see the others'
+// parts. Not before the repository holds a backup: the parts would create
+// it at the same time, each with its own key.
+func (s *Store) canSplit(ctx context.Context, t Target, repo string) bool {
+	if t.Kind == "local" || t.Kind == "usb" {
+		return false
+	}
+	var ok bool
+	_ = s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM runs WHERE repo_url=$1 AND target_id=$2 AND status IN ('success','warning') AND coalesce(snapshot_id,'') <> '')`, repo, t.ID).Scan(&ok)
+	return ok
 }
 
 // splitVMware is vmwareParts with the agents' machine UUIDs from machineUUID.
@@ -94,7 +118,6 @@ func splitVMware(h VMwareHost, j Job, machineUUID func(int64) string) []vmwarePa
 	}
 	assigned := map[int64][]pve.Guest{}
 	moved := map[string]bool{} // VM numbers another proxy takes
-	left := 0
 	for _, g := range inv.Guests {
 		if !selected(g) {
 			continue
@@ -105,13 +128,12 @@ func splitVMware(h VMwareHost, j Job, machineUUID func(int64) string) []vmwarePa
 			if g.FormerVMID != 0 {
 				moved[strconv.Itoa(g.FormerVMID)] = true
 			}
-			continue
 		}
-		left++
 	}
 	var parts []vmwarePart
 	// The connection's proxy keeps the job's own choice minus the moved VMs:
-	// a VM added since the inventory is backed up there, not missed.
+	// a VM added since the inventory is backed up there, not missed. With
+	// "all VMs" it always has a part (also when no VM is left for it now).
 	p := vmwarePart{agentID: primary, primary: true}
 	if all {
 		p.paths = []string{"*"}
@@ -127,7 +149,7 @@ func splitVMware(h VMwareHost, j Job, machineUUID func(int64) string) []vmwarePa
 			}
 		}
 	}
-	if left > 0 || (!all && len(p.paths) > 0) {
+	if all || len(p.paths) > 0 {
 		parts = append(parts, p)
 	}
 	ids := make([]int64, 0, len(assigned))
@@ -209,8 +231,7 @@ const lastFinishedSQL = `(SELECT CASE WHEN lr.batch IS NULL THEN lr.finished_at 
 // them.
 const minPartsVersion = "0.55.0"
 
-// addPart hands a part of a split VMware backup its tag and, to the
-// connection's own proxy, the parts of the other proxies (retention).
+// addPart hands a part of a split VMware backup its tag.
 func (s *Server) addPart(ctx context.Context, run *Run, ar *api.Run) error {
 	if run.Part == "" {
 		return nil
@@ -219,14 +240,6 @@ func (s *Server) addPart(ctx context.Context, run *Run, ar *api.Run) error {
 		return fmt.Errorf("the agent on %s (%s) cannot take part in a backup over several proxies yet; update it to %s or newer (Agents page)", a.Hostname, a.Version, minPartsVersion)
 	}
 	ar.Part = run.Part
-	h, err := s.store.vmwareHostOfRun(ctx, run.ID)
-	if err != nil || h == nil || h.ProxyAgentID == nil || *h.ProxyAgentID != run.AgentID {
-		return err // a further proxy: only its own part
-	}
-	ar.PartPrimary = true
-	for _, id := range h.ExtraProxies {
-		ar.PartOthers = append(ar.PartOthers, partTag(id))
-	}
 	return nil
 }
 
@@ -338,6 +351,14 @@ func (s *Server) handleVMwareProxies(w http.ResponseWriter, r *http.Request, _ s
 		}
 		ids, names = append(ids, aid), append(names, a.Hostname)
 	}
+	// With further proxies even the connection's own proxy runs parts: an
+	// older one would refuse every backup of the connection.
+	if len(ids) > 0 && h.ProxyAgentID != nil {
+		if pa, err := s.store.GetAgent(r.Context(), *h.ProxyAgentID); err == nil && agentOlder(pa, minPartsVersion) {
+			redirectErr(w, r, "/agents#vmware", fmt.Errorf("update the connection's proxy agent %s (%s) to %s or newer first", pa.Hostname, pa.Version, minPartsVersion))
+			return
+		}
+	}
 	if len(ids) > maxExtraProxies {
 		redirectErr(w, r, "/agents#vmware", fmt.Errorf("at most %d further proxies", maxExtraProxies))
 		return
@@ -407,8 +428,7 @@ func (s *Store) queueCopyParts(ctx context.Context, j Job, trigger, repo string,
 	return first, tx.Commit(ctx)
 }
 
-// addCopyPart gives a copy run of a split backup its part: the copy of the
-// connection's own proxy also takes the backups without a part.
+// addCopyPart gives a copy run of a split backup its part.
 func (s *Server) addCopyPart(ctx context.Context, run *Run, ar *api.Run) error {
 	if run.Part == "" || run.JobID == nil {
 		return nil
@@ -417,25 +437,26 @@ func (s *Server) addCopyPart(ctx context.Context, run *Run, ar *api.Run) error {
 		return fmt.Errorf("the agent on %s (%s) cannot copy a backup over several proxies yet; update it to %s or newer (Agents page)", a.Hostname, a.Version, minPartsVersion)
 	}
 	ar.Part = run.Part
-	j, err := s.store.GetJob(ctx, *run.JobID)
-	if err != nil || j.SourceJobID == nil {
-		return nil
-	}
-	src, err := s.store.GetJob(ctx, *j.SourceJobID)
-	if err != nil {
-		return nil
-	}
-	parts := s.store.copyParts(ctx, src)
-	if len(parts) > 0 && parts[0] == run.Part {
-		ar.PartPrimary, ar.PartOthers = true, parts[1:]
-	}
 	return nil
 }
 
-// batchCopies tells whether the copies after a split backup may start: all
-// its parts finished and at least one has a backup.
-func (s *Store) batchCopies(ctx context.Context, batch int64) bool {
-	var ok bool
-	_ = s.db.QueryRow(ctx, `SELECT NOT bool_or(status IN ('queued','running')) AND bool_or(status IN ('success','warning')) FROM runs WHERE batch=$1`, batch).Scan(&ok)
-	return ok
+// vmwareBusySQL is an SQL condition on the queued run r: a VMware VM
+// operation of the same connection runs on another proxy, and r is not a
+// part of the same start. The per-VM lock of an agent only covers its own
+// runs: two jobs with the same VM on two proxies (it moved between hosts),
+// or a restore in place during a backup, would remove each other's
+// snapshot or temporary disk copy. Such runs wait for each other.
+const vmwareBusySQL = `(r.vmware_host_id IS NOT NULL AND r.kind IN ('vm-backup','vm-restore','vm-instant','vm-instant-finish','vm-instant-discard')
+	AND EXISTS (SELECT 1 FROM runs o WHERE o.status='running' AND o.vmware_host_id=r.vmware_host_id AND o.agent_id<>r.agent_id
+		AND o.kind IN ('vm-backup','vm-restore','vm-instant','vm-instant-finish','vm-instant-discard')
+		AND (r.batch IS NULL OR o.batch IS DISTINCT FROM r.batch)))`
+
+// batchRuns are the runs of a split start.
+func (s *Store) batchRuns(ctx context.Context, batch int64) []Run {
+	rows, err := s.db.Query(ctx, `SELECT `+runCols+runFrom+` WHERE r.batch=$1 ORDER BY r.id`, batch)
+	if err != nil {
+		return nil
+	}
+	runs, _ := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Run, error) { return scanRun(r) })
+	return runs
 }

@@ -138,6 +138,9 @@ type vmGuestSummary struct {
 	// (LXC containers on ZFS); they are browsed like a file backup.
 	Files int    `json:"files"`
 	Path  string `json:"path"`
+	// RunID is the run that holds this guest when the job page lists the
+	// parts of a split VMware backup together (0 = the run shown).
+	RunID int64 `json:"-"`
 }
 
 // Container reports whether the guest is a Proxmox LXC container.

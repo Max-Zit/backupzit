@@ -41,6 +41,49 @@ func (s *Server) confirmIdentity(r *http.Request) error {
 	return nil
 }
 
+// confirmAdmin makes the signed-in user prove who they are before they
+// create a user or set another user's password: otherwise a stolen session
+// creates an account with a known password (or takes over another one),
+// signs in with it and passes every confirmIdentity there (H-4). The
+// current two-factor code when that is on, single sign-on users a sign-in
+// within ssoFreshSignIn, everyone else the password.
+func (s *Server) confirmAdmin(r *http.Request) error {
+	me := currentUser(r)
+	if me == nil {
+		return errors.New("sign in again")
+	}
+	if wait := s.guard.Blocked(r, me.Username); wait > 0 {
+		return fmt.Errorf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1)
+	}
+	switch {
+	case me.TwoFactor:
+		code := strings.TrimSpace(r.FormValue("reauth_code"))
+		if code == "" {
+			return errors.New("Enter the current code from your authenticator app to confirm.")
+		}
+		if _, err := s.store.checkSecondFactor(r.Context(), me.ID, code, s.clock()); err != nil {
+			s.guard.Fail(r, me.Username, "confirmations")
+			return errors.New("Enter the current code from your authenticator app to confirm.")
+		}
+	case me.Source == "sso":
+		if age, ok := s.sessionAge(r); !ok || age > ssoFreshSignIn {
+			return errors.New("Sign in again through single sign-on, then do this within 10 minutes.")
+		}
+		return nil
+	default:
+		pw := r.FormValue("reauth_password")
+		if pw == "" { // not an attempt: no failed sign-in
+			return errors.New("Enter your password to confirm.")
+		}
+		if _, err := s.authenticate(r.Context(), me.Username, pw); err != nil {
+			s.guard.Fail(r, me.Username, "confirmations")
+			return errors.New("Enter your password to confirm.")
+		}
+	}
+	s.guard.Success(r, me.Username)
+	return nil
+}
+
 // ssoFreshSignIn is how recent a single sign-on must be before such a user
 // turns on two-factor sign-in (they have no password to confirm).
 const ssoFreshSignIn = 10 * time.Minute

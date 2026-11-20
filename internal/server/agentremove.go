@@ -50,7 +50,10 @@ type agentRepo struct {
 func (x agentRepo) Local() bool { return x.TargetKind == "local" || x.TargetKind == "usb" }
 
 // agentRepos lists the repositories with backups of the agent (copies that
-// copy jobs made on other storage are not included).
+// copy jobs made on other storage are not included). The parts a further
+// proxy backed up for a vCenter connection are not its own: they are in
+// the connection's repository with the other proxies' parts (removing the
+// proxy must not delete those).
 func (s *Store) agentRepos(ctx context.Context, agentID int64) ([]agentRepo, error) {
 	rows, err := s.db.Query(ctx, `SELECT r.target_id, t.name, t.kind, r.repo_url,
 			COALESCE(array_agg(DISTINCT COALESCE(j.name, NULLIF(r.job_name,''))) FILTER (WHERE COALESCE(j.name, NULLIF(r.job_name,'')) IS NOT NULL), '{}'),
@@ -476,8 +479,8 @@ func deleteRepository(ctx context.Context, be backend.Backend) string {
 	return fmt.Sprintf("repository deleted (%d files)", len(names))
 }
 
-// keepNewestBackups keeps the newest backup of each job (with the database
-// logs it needs), frees the space of the others and returns their IDs.
+// keepNewestBackups keeps the newest backup of each job (of each part of a
+// split VMware job; with the database logs it needs), frees the space of the others and returns their IDs.
 func keepNewestBackups(ctx context.Context, r *repo.Repository) (string, []string) {
 	lock, err := r.Lock(ctx, true, 2*time.Minute)
 	if err != nil {
@@ -490,11 +493,17 @@ func keepNewestBackups(ctx context.Context, r *repo.Repository) (string, []strin
 	}
 	groups := map[string][]*repo.Snapshot{}
 	for _, sn := range sns {
-		key := ""
+		key, part := "", ""
 		for _, t := range sn.Tags {
 			if strings.HasPrefix(t, "job:") {
 				key = t
 			}
+			if strings.HasPrefix(t, "proxy:") {
+				part = t // each part of a split VMware backup holds other VMs
+			}
+		}
+		if key != "" {
+			key += "|" + part
 		}
 		if key == "" { // made without a job (command line)
 			key = sn.Hostname + "\x00" + strings.Join(sn.Paths, "\x00")

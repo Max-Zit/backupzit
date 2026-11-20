@@ -255,7 +255,7 @@ func TestAgentRemoveUninstallFails(t *testing.T) {
 func TestAgentRemoveFourEyes(t *testing.T) {
 	x := newRemoveEnv(t, "test")
 	const pw = "correct-horse-9"
-	x.admin.do("POST", "/users", url.Values{"username": {"admin2"}, "role": {"admin"}, "password": {pw}, "password2": {pw}})
+	x.admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"admin2"}, "role": {"admin"}, "password": {pw}, "password2": {pw}})
 	if _, loc, _ := x.admin.do("POST", "/settings/four-eyes", url.Values{"four_eyes": {"on"}}); !strings.Contains(loc, "msg=") {
 		t.Fatalf("four-eyes: %s", loc)
 	}

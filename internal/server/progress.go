@@ -128,8 +128,9 @@ func estimatePercent(files, prevFiles, scanned, prevBytes uint64) (int, bool) {
 // successful backup before run (0 if none).
 func (s *Store) lastBackupSize(ctx context.Context, jobID, runID int64) (files, bytes uint64) {
 	var stats json.RawMessage
+	// Of the same part of a split VMware backup (the parts hold other VMs).
 	if s.db.QueryRow(ctx, `SELECT stats FROM runs WHERE job_id=$1 AND id<>$2 AND status IN ('success','warning') AND stats IS NOT NULL
-		ORDER BY finished_at DESC LIMIT 1`, jobID, runID).Scan(&stats) != nil {
+		AND part=(SELECT part FROM runs WHERE id=$2) ORDER BY finished_at DESC LIMIT 1`, jobID, runID).Scan(&stats) != nil {
 		return 0, 0
 	}
 	var st struct {

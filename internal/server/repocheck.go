@@ -76,7 +76,9 @@ func (s *Store) queueDueRepoChecks(ctx context.Context, now time.Time) ([]int64,
 	// The due pair itself is checked: a job with runs under two repository
 	// URLs (rotating USB disks, a moved folder) would otherwise get its newest
 	// repository checked again and again while the old pair stayed due.
-	rows, err := s.db.Query(ctx, `SELECT DISTINCT ON (r.target_id, r.repo_url) r.job_id, r.agent_id, r.target_id, r.repo_url FROM runs r
+	// The job's agent checks it: the run's may be a further VMware proxy that
+	// was removed since (a check queued there would never start, C10).
+	rows, err := s.db.Query(ctx, `SELECT DISTINCT ON (r.target_id, r.repo_url) r.job_id, j.agent_id, r.target_id, r.repo_url FROM runs r
 		JOIN jobs j ON j.id=r.job_id JOIN storage_targets t ON t.id=r.target_id
 		WHERE j.enabled AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log')
 		AND r.status IN ('success','warning') AND r.repo_url<>''
@@ -120,8 +122,9 @@ func (s *Server) handleJobCheck(w http.ResponseWriter, r *http.Request, _ string
 	redirectMsg(w, r, fmt.Sprintf("/runs/%d", rid), "Check of the stored data queued.")
 }
 
-// minRepoRepairVersion is the first agent that repairs a repository.
-const minRepoRepairVersion = "0.54.2"
+// minRepoRepairVersion is the first agent that repairs only proven damage
+// (0.55, R-1): 0.54.2 also took out packs that only arrived short.
+const minRepoRepairVersion = "0.55.0"
 
 // damagedPacks is the number of damaged packs a failed data check found
 // (0 for other runs).

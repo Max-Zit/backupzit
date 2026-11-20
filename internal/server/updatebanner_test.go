@@ -23,7 +23,7 @@ func TestUpdateBanner(t *testing.T) {
 
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
-	admin.do("POST", "/users", url.Values{"username": {"vera"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
+	admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"vera"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
 	viewer := newClient(t, e)
 	if !viewer.login("vera", "correct-horse-9") {
 		t.Fatal("viewer login")

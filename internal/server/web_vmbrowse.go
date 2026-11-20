@@ -250,6 +250,9 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 	setAttachment(w, name, "application/zip", -1)
 	zw := zip.NewWriter(w)
 	base := p.dir
+	// A folder already in the archive (a loop in a damaged or crafted file
+	// system) is not walked again (P6).
+	seen := vmfs.Visited{}
 	var add func(e vmfs.Entry, depth int) error
 	add = func(e vmfs.Entry, depth int) error {
 		if err := r.Context().Err(); err != nil {
@@ -264,6 +267,9 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 		}
 		rel = zipEntryName(rel)
 		if e.IsDir {
+			if !seen.Enter(e.ID) {
+				return nil
+			}
 			children, err := f.List(e.Path)
 			if err != nil {
 				return err
@@ -293,6 +299,7 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 		e, err := f.Stat(sp)
 		if err == nil {
 			e.Path = vmfs.Clean(sp)
+			seen = vmfs.Visited{}
 			err = add(e, 0)
 		}
 		if err != nil {
