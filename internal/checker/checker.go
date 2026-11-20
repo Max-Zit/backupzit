@@ -128,11 +128,49 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 		present[p] = true
 	}
 	indexed := r.Index().Packs()
+	// A pack absent from the listing is asked for directly before it counts
+	// as missing: SFTP and SMB listings skip folders they cannot read
+	// without an error, and repair would drop healthy data (H-N6).
+	if len(onDisk) == 0 && len(indexed) > 0 {
+		return res, fmt.Errorf("the storage lists no data packs at all although the index names %d: a folder may be missing or not mounted; nothing was judged", len(indexed))
+	}
+	var gone []repo.ID
+	var ls streak
 	for p := range indexed {
-		if !present[p] {
-			errf("pack %s is referenced by the index but missing from storage", p.Short())
-			damaged(p)
+		if present[p] {
+			continue
 		}
+		var stored bool
+		err := tries(ctx, opts.RetryPause, func() (err error) {
+			stored, err = r.PackStored(ctx, p)
+			return err
+		})
+		if ctx.Err() != nil {
+			return res, ctx.Err()
+		}
+		if ls.add(err) {
+			return res, ls.err()
+		}
+		switch {
+		case err != nil:
+			errf("pack %s is not in the storage listing and could not be looked up after 3 tries (the storage may be fine): %v", p.Short(), err)
+			res.Unreadable = append(res.Unreadable, p)
+		case stored:
+			res.Warnings = append(res.Warnings, fmt.Sprintf("pack %s is on the storage but was missing from its listing (the storage listed its folders incompletely)", p.Short()))
+			present[p] = true
+			onDisk = append(onDisk, p)
+		default:
+			gone = append(gone, p)
+		}
+	}
+	// Most of the data gone at once is more likely a folder that is not
+	// mounted or the wrong location than lost data: no verdict.
+	if len(gone) > 10 && len(gone)*2 > len(indexed) {
+		return res, fmt.Errorf("%d of %d data packs are missing on the storage: more likely a folder that is not mounted or a wrong location than lost data; nothing was judged", len(gone), len(indexed))
+	}
+	for _, p := range gone {
+		errf("pack %s is referenced by the index but missing from storage", p.Short())
+		damaged(p)
 	}
 	for _, p := range onDisk {
 		if _, ok := indexed[p]; !ok {

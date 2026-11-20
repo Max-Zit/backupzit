@@ -210,6 +210,14 @@ func TestVMwareParts(t *testing.T) {
 	if again, _ := e.store.ChainAfterRun(ctx, ra.ID); len(again) != 0 {
 		t.Errorf("chain started twice: %v", again)
 	}
+	// H-N1: removing the further proxy with "delete backups" must not take
+	// the connection's repository with it; the connection's proxy owns it.
+	if urls := e.store.AgentRepoURLs(ctx, pb.id); len(urls) != 0 {
+		t.Errorf("the further proxy owns repositories: %v", urls)
+	}
+	if urls := e.store.AgentRepoURLs(ctx, pa.id); len(urls) != 1 {
+		t.Errorf("the connection's proxy owns %v, want the connection's repository", urls)
+	}
 	e.pool.Exec(ctx, `UPDATE runs SET status='cancelled' WHERE job_id=$1 AND status IN ('queued','running')`, afterID)
 
 	// A copy of the job runs per part too, each keeping its part.

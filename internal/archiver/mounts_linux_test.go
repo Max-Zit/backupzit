@@ -31,7 +31,8 @@ func TestParseMountinfo(t *testing.T) {
 
 // P2 (0.55 review): with systemd automount a mount point has an autofs line
 // and the real file system mounted over it; the one on top decides, so /boot
-// and /home are read, while an automount nobody triggered stays empty.
+// and /home are read. An automount nobody triggered yet is read too (M-N12):
+// the walk mounts it, as before 0.55.
 func TestParseMountinfoAutomount(t *testing.T) {
 	info := `26 1 253:0 / / rw,relatime shared:1 - ext4 /dev/mapper/root rw
 40 26 0:41 / /boot rw,relatime shared:20 - autofs systemd-1 rw,fd=37,pgrp=1,timeout=120,minproto=5,maxproto=5,direct
@@ -43,12 +44,12 @@ func TestParseMountinfoAutomount(t *testing.T) {
 46 45 0:45 / /proc/sys/fs/binfmt_misc rw,relatime shared:26 - binfmt_misc binfmt_misc rw
 `
 	m := parseMountinfo(info)
-	for _, p := range []string{"/", "/boot", "/home"} {
+	for _, p := range []string{"/", "/boot", "/home", "/efi"} {
 		if m[p] {
 			t.Errorf("%s has a real file system on top but is treated as a kernel file system", p)
 		}
 	}
-	for _, p := range []string{"/efi", "/proc/sys/fs/binfmt_misc"} {
+	for _, p := range []string{"/proc/sys/fs/binfmt_misc"} {
 		if !m[p] {
 			t.Errorf("%s not recognized as a kernel file system", p)
 		}

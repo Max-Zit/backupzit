@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -50,16 +51,18 @@ type agentRepo struct {
 func (x agentRepo) Local() bool { return x.TargetKind == "local" || x.TargetKind == "usb" }
 
 // agentRepos lists the repositories with backups of the agent (copies that
-// copy jobs made on other storage are not included). The parts a further
-// proxy backed up for a vCenter connection are not its own: they are in
-// the connection's repository with the other proxies' parts (removing the
-// proxy must not delete those).
+// copy jobs made on other storage are not included). VMware runs count only
+// while the agent is the job's (the connection's) proxy: the parts a further
+// proxy backed up, and the runs of a former connection proxy, are in the
+// connection's repository with everybody else's backups (removing such an
+// agent must not delete those, H-N1).
 func (s *Store) agentRepos(ctx context.Context, agentID int64) ([]agentRepo, error) {
 	rows, err := s.db.Query(ctx, `SELECT r.target_id, t.name, t.kind, r.repo_url,
 			COALESCE(array_agg(DISTINCT COALESCE(j.name, NULLIF(r.job_name,''))) FILTER (WHERE COALESCE(j.name, NULLIF(r.job_name,'')) IS NOT NULL), '{}'),
 			count(*) FILTER (WHERE r.status IN ('success','warning') AND r.snapshot_id<>'' AND NOT r.expired)
 		FROM runs r JOIN storage_targets t ON t.id=r.target_id LEFT JOIN jobs j ON j.id=r.job_id
 		WHERE r.agent_id=$1 AND r.repo_url<>'' AND r.kind IN ('backup','image-backup','vm-backup','system-backup','sql-backup','sql-log')
+			AND (r.vmware_host_id IS NULL OR j.agent_id = r.agent_id)
 		GROUP BY r.target_id, t.name, t.kind, r.repo_url ORDER BY t.name, r.repo_url`, agentID)
 	if err != nil {
 		return nil, err
@@ -257,7 +260,10 @@ type agentRemoveData struct {
 	CanUninstall bool
 	Pending      bool
 	ProxyJobs    []string
-	Immutable    []string
+	// FurtherProxyOf are the vCenter connections this agent is a further
+	// proxy of: its parts stay in their repositories.
+	FurtherProxyOf []string
+	Immutable      []string
 }
 
 func (s *Server) handleAgentRemovePage(w http.ResponseWriter, r *http.Request, user string) {
@@ -278,6 +284,13 @@ func (s *Server) handleAgentRemovePage(w http.ResponseWriter, r *http.Request, u
 		for _, j := range jobs {
 			if j.AgentID == id && (j.Kind == JobVM || j.Kind == JobM365 || j.Kind == JobNAS) {
 				d.ProxyJobs = append(d.ProxyJobs, j.Name)
+			}
+		}
+	}
+	if hosts, err := s.store.ListVMwareHosts(r.Context()); err == nil {
+		for _, h := range hosts {
+			if slices.Contains(h.ExtraProxies, id) {
+				d.FurtherProxyOf = append(d.FurtherProxyOf, h.Name)
 			}
 		}
 	}

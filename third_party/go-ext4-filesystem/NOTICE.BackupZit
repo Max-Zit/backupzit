@@ -9,6 +9,9 @@ Changes by BackupZit (2026-11-19):
   an unwritten one. Before, files restored from ext4 returned zeros for
   every such extent (most files above 128 MiB). Reported with a fix by
   gtawelt (BackupZit PR #49; upstream masahiro331/go-ext4-filesystem#24).
+- ext4/fs.go (2026-11-20): Open follows at most 40 symbolic links (a link to
+  itself recursed until the stack overflowed), reads a link by its full
+  path, and resolves a relative target in the link's folder.
 - The upstream tests are left out.
 
 Drop this copy once upstream has the fix.

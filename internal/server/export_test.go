@@ -55,3 +55,13 @@ func SetOrphanGrace(d time.Duration) time.Duration {
 func (s *Store) ChainAfterRun(ctx context.Context, runID int64) ([]int64, error) {
 	return s.chainAfterRun(ctx, runID)
 }
+
+// AgentRepoURLs are the repositories agent removal treats as the agent's.
+func (s *Store) AgentRepoURLs(ctx context.Context, agentID int64) []string {
+	repos, _ := s.agentRepos(ctx, agentID)
+	var out []string
+	for _, r := range repos {
+		out = append(out, r.URL)
+	}
+	return out
+}

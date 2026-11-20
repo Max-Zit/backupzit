@@ -10,10 +10,12 @@ import (
 
 // pseudoFS are kernel file systems without data to back up: reading them
 // can block (/proc/kmsg) or produce endless or huge files (/proc/kcore).
+// Not autofs: an automount point nobody used yet holds no data until it is
+// read, and reading it mounts the real file system (NAS, /boot/efi; M-N12).
 var pseudoFS = map[string]bool{
 	"proc": true, "sysfs": true, "devtmpfs": true, "devpts": true, "cgroup": true, "cgroup2": true,
 	"securityfs": true, "debugfs": true, "tracefs": true, "pstore": true, "bpf": true, "configfs": true,
-	"fusectl": true, "mqueue": true, "hugetlbfs": true, "autofs": true, "binfmt_misc": true,
+	"fusectl": true, "mqueue": true, "hugetlbfs": true, "binfmt_misc": true,
 	"efivarfs": true, "rpc_pipefs": true, "nsfs": true, "selinuxfs": true,
 }
 

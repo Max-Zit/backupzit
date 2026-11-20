@@ -523,7 +523,16 @@ func (ext4 *FileSystem) ReadDirInfo(name string) (fs.FileInfo, error) {
 	return nil, fs.ErrNotExist
 }
 
+// maxLinkDepth bounds how many symbolic links Open follows (Linux allows
+// 40): a link to itself ("ln -s x /x") recursed until the stack overflowed,
+// which no recover() catches.
+const maxLinkDepth = 40
+
 func (ext4 *FileSystem) Open(name string) (fs.File, error) {
+	return ext4.openLinks(name, 0)
+}
+
+func (ext4 *FileSystem) openLinks(name string, depth int) (fs.File, error) {
 	const op = "open"
 
 	name = strings.TrimPrefix(name, "/")
@@ -547,11 +556,19 @@ func (ext4 *FileSystem) Open(name string) (fs.File, error) {
 		}
 		// Resolve symlinks
 		if dir.inode.IsSymlink() {
-			link, err := ext4.ReadLink(dir.name)
+			if depth >= maxLinkDepth {
+				return nil, ext4.wrapError(op, name, xerrors.New("too many levels of symbolic links"))
+			}
+			// The link itself is in dirName, and a relative target is relative
+			// to that folder (it was read as a name in the root folder).
+			link, err := ext4.ReadLink(path.Join("/", dirName, dir.name))
 			if err != nil {
 				return nil, xerrors.Errorf("failed to read link: %w", err)
 			}
-			return ext4.Open(link)
+			if !strings.HasPrefix(link, "/") {
+				link = path.Join("/", dirName, link)
+			}
+			return ext4.openLinks(link, depth+1)
 		}
 
 		fi := FileInfo{

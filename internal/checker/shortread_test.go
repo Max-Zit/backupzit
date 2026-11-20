@@ -185,3 +185,95 @@ func TestCheckStopsWhenStorageIsDown(t *testing.T) {
 		}
 	}
 }
+
+// shortList leaves packs out of the data listing (an SFTP/SMB listing that
+// skips a folder it cannot read) while they are still on the storage.
+type shortList struct {
+	*backend.Local
+	hide  map[string]bool
+	empty bool
+}
+
+func (s *shortList) List(ctx context.Context, dir string) ([]string, error) {
+	names, err := s.Local.List(ctx, dir)
+	if err != nil || dir != "data" {
+		return names, err
+	}
+	if s.empty {
+		return nil, nil
+	}
+	var out []string
+	for _, n := range names {
+		if !s.hide[n] {
+			out = append(out, n)
+		}
+	}
+	return out, nil
+}
+
+// H-N6 (0.56): a pack missing from one listing is not damaged while the
+// storage still has it; an empty data listing is no verdict at all; a pack
+// that is really gone still is damaged.
+func TestPackMissingFromListing(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	loc, err := backend.OpenLocal(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, loc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []repo.ID
+	for i := 0; i < 4; i++ {
+		data := make([]byte, 64<<10)
+		mrand.New(mrand.NewSource(int64(100 + i))).Read(data)
+		id, _, err := r.SaveBlob(ctx, repo.DataBlob, data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+		if err := r.Flush(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tree, err := r.SaveTree(ctx, &repo.Tree{Nodes: []repo.Node{{Name: "f", Type: repo.NodeFile, Content: ids}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.SaveSnapshot(ctx, &repo.Snapshot{Time: time.Now(), Tree: tree}); err != nil {
+		t.Fatal(err)
+	}
+	packs, _ := r.ListPacks(ctx)
+	r.Close()
+	name := func(p repo.ID) string { return "data/" + p.String()[:2] + "/" + p.String() }
+
+	// Two packs left out of the listing, still stored: warnings, no damage.
+	sl := &shortList{Local: loc, hide: map[string]bool{name(packs[0]): true, name(packs[1]): true}}
+	r2, err := repo.Open(ctx, sl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := checker.Run(ctx, r2, checker.Options{ReadData: true, RetryPause: time.Millisecond})
+	if err != nil || len(res.Damaged) != 0 || len(res.Warnings) < 2 || !res.OK() {
+		t.Fatalf("incomplete listing: err %v, damaged %v, warnings %v, errors %v", err, res.Damaged, res.Warnings, res.Errors)
+	}
+	// An empty data listing: an error, nothing judged.
+	r3, _ := repo.Open(ctx, &shortList{Local: loc, empty: true})
+	if res, err := checker.Run(ctx, r3, checker.Options{RetryPause: time.Millisecond}); err == nil || (res != nil && len(res.Damaged) > 0) {
+		t.Fatalf("empty listing: err %v, %+v", err, res)
+	}
+	// One pack really gone: damaged.
+	if err := os.Remove(filepath.Join(dir, filepath.FromSlash(name(packs[2])))); err != nil {
+		t.Fatal(err)
+	}
+	r4, _ := repo.Open(ctx, loc)
+	res, err = checker.Run(ctx, r4, checker.Options{RetryPause: time.Millisecond})
+	if err != nil || len(res.Damaged) != 1 || res.Damaged[0] != packs[2] {
+		t.Fatalf("missing pack: err %v, damaged %v", err, res.Damaged)
+	}
+}

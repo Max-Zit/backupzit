@@ -558,6 +558,20 @@ func (r *Repository) ListPacks(ctx context.Context) ([]ID, error) {
 	return out, nil
 }
 
+// PackStored asks the storage directly whether a pack file exists (not
+// through a listing, which some storages return incomplete without an
+// error): false only when the storage answers that it is not there.
+func (r *Repository) PackStored(ctx context.Context, id ID) (bool, error) {
+	_, err := r.be.Size(ctx, packName(id))
+	if errors.Is(err, backend.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // VerifyPack downloads a whole pack, checks its name hash, and verifies every
 // blob listed in its header.
 func (r *Repository) VerifyPack(ctx context.Context, pack ID) (int, error) {
