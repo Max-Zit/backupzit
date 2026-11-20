@@ -1312,7 +1312,9 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		"Instant": runInstant(run), "InstantStorage": s.instantStorage(r.Context(), run), "BootTests": bootTests(run)} {
 		data[k] = v
 	}
-	if run.Kind == api.KindAgentLog {
+	// The log may hold paths, host names and errors of the agent: only
+	// those who may download it (the agents permission) see its tail.
+	if me := currentUser(r); run.Kind == api.KindAgentLog && me.Can(string(PermAgents)) {
 		if text, err := s.store.AgentLog(r.Context(), run.ID); err == nil && text != "" {
 			data["AgentLog"] = logTail(text, 200)
 		}
