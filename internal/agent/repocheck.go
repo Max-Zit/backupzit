@@ -41,6 +41,15 @@ func (a *Agent) repoCheck(ctx context.Context, run api.Run) api.RunResult {
 			out.Errors = append(out.Errors[:maxCheckErrors], fmt.Sprintf("... and %d more", len(res.Errors)-maxCheckErrors))
 		}
 		out.Message = fmt.Sprintf("%d problems found in %d backups and %d data packs: some backups may not be restorable", len(res.Errors), res.Snapshots, res.Packs)
+		switch d, u := len(res.Damaged), len(res.Unreadable); {
+		case d > 0 && u > 0:
+			out.Message += fmt.Sprintf(". %s damaged on the storage; %s could not be read from this agent (it may be the network path)", count(d, "pack", "packs"), count(u, "pack", "packs"))
+		case d > 0:
+			out.Message += fmt.Sprintf(". %s damaged on the storage", count(d, "pack", "packs"))
+		case u > 0:
+			// Only unreadable from here: say so instead of "damaged" (#38).
+			out.Message = fmt.Sprintf("%s could not be read from this agent, although the storage holds them: check the network path (proxy, firewall, IPS, NAT) before anything else", count(u, "data pack", "data packs"))
+		}
 		return out
 	}
 	out.Message = fmt.Sprintf("Checked %d backups and read all %d data packs (%d blocks): no errors", res.Snapshots, res.PacksRead, res.BlobsRead)
