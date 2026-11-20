@@ -777,6 +777,12 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 	if err != nil {
 		return 0, err
 	}
+	// VM and image backups have a snapshot too, but are restored on their
+	// run page in the console (a whole VM, or files from a VM or an image):
+	// say so instead of claiming there is no snapshot (B4).
+	if (b.Kind == api.KindVMBackup || b.Kind == api.KindImageBackup) && b.SnapshotID != "" && !containerFiles(b) {
+		return 0, errors.New("VM and image backups are restored on the run page in the console (Restore, or Browse files for single files); this call restores file, system and copy backups")
+	}
 	if (b.Kind != api.KindBackup && b.Kind != api.KindCopy && b.Kind != api.KindSystemBackup && !containerFiles(b)) || b.SnapshotID == "" {
 		return 0, errors.New("run has no snapshot to restore")
 	}

@@ -1743,6 +1743,12 @@ func TestProxmoxJobs(t *testing.T) {
 	if r, _ := e.store.GetRun(ctx, runID); r.SnapshotID == "" {
 		t.Fatal("snapshot ID of the VM backup not stored")
 	}
+	// B4 (round 4): the file restore call said "run has no snapshot to
+	// restore" for a VM backup, which has one; it now says where VM backups
+	// are restored.
+	if _, err := e.store.QueueRestore(ctx, runID, a.ID, "/restore", nil, false); err == nil || !strings.Contains(err.Error(), "restored on the run page") {
+		t.Errorf("file restore of a VM backup: %v", err)
+	}
 
 	if _, err := e.store.QueueVMRestore(ctx, runID, a.ID, api.VMRestore{VMID: 999}); err == nil {
 		t.Error("restore of a guest that is not in the backup accepted")
