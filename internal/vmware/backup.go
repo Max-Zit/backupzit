@@ -13,6 +13,7 @@ import (
 
 	"github.com/max-zit/backupzit/internal/diskimg"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmlock"
 )
 
 // BackupOptions select the VMs to back up.
@@ -155,6 +156,14 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 	if len(v.Disks) == 0 {
 		return nil, nil, errors.New("the VM has no virtual disks")
 	}
+	// One BackupZit operation per VM on this proxy: the leftover sweep
+	// removes every backupzit snapshot and the clone path is shared, so a
+	// parallel run of the same VM would lose its snapshot or clone (M-13).
+	unlockVM, err := vmlock.Lock(ctx, "vmware-"+c.conn.Host+"-"+v.UUID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer unlockVM()
 	vmxPath, err := parseDSPath(v.VMX)
 	if err != nil {
 		return nil, nil, err

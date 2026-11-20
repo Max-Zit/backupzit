@@ -13,6 +13,7 @@ import (
 
 	"github.com/max-zit/backupzit/internal/diskimg"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmlock"
 )
 
 // BackupOptions select the guests to back up.
@@ -259,6 +260,13 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		Platform: "proxmox", Type: g.Type, VMID: g.VMID, Name: g.Name, Node: g.Node, Running: running,
 		Config: cleanConfig(conf),
 	}
+	// One BackupZit operation per guest at a time: the sweep below removes
+	// every backupzit_* snapshot, also the live one of a parallel run (M-13).
+	unlockVM, err := vmlock.Lock(ctx, fmt.Sprintf("pve-%d", g.VMID))
+	if err != nil {
+		return nil, nil, warns, err
+	}
+	defer unlockVM()
 	snap := ""
 	if useSnap {
 		// Remove snapshots left behind by an interrupted backup.
