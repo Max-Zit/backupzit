@@ -319,6 +319,7 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 		return err
 	}
 	var written uint64
+	sparse := false
 	for _, id := range n.Content {
 		data, err := rs.r.LoadBlob(ctx, repo.DataBlob, id)
 		if err != nil {
@@ -331,6 +332,12 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 		// (VM images, databases) stay sparse instead of taking their full
 		// size; the file system reads the hole as zeros.
 		if allZero(data) {
+			if !sparse {
+				// Windows needs the file marked sparse before the first
+				// hole; if the file system cannot, the zeros are written.
+				_ = markSparse(f)
+				sparse = true
+			}
 			_, err = f.Seek(int64(len(data)), io.SeekCurrent)
 		} else {
 			_, err = f.Write(data)
