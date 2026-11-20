@@ -204,3 +204,37 @@ func (c *Client) hotAddProxy(ctx context.Context, log func(string, ...any)) (*ho
 	log("hot-add: disks of running VMs are read through the agent's VM", "vm", h.name)
 	return h, nil
 }
+
+// MachineUUIDs are the BIOS UUID of the machine this agent runs on in both
+// byte orders (Linux in a VM; nil elsewhere). The agent reports the first
+// with its polls, so the console finds the proxy's VM in the inventory.
+func MachineUUIDs() []string {
+	ids, err := ownVMUUIDs()
+	if err != nil {
+		return nil
+	}
+	return ids
+}
+
+// SameMachine tells whether a machine UUID reported by an agent is a VM's
+// BIOS UUID (config.uuid), in either byte order.
+func SameMachine(machineUUID, biosUUID string) bool {
+	m, b := strings.ToLower(machineUUID), strings.ToLower(biosUUID)
+	return m != "" && b != "" && (m == b || swapUUID(m) == b)
+}
+
+// swapUUID reverses the byte order of the first three fields.
+func swapUUID(id string) string {
+	rev := func(s string) string {
+		var b strings.Builder
+		for i := len(s) - 2; i >= 0; i -= 2 {
+			b.WriteString(s[i : i+2])
+		}
+		return b.String()
+	}
+	p := strings.Split(id, "-")
+	if len(p) != 5 {
+		return id
+	}
+	return rev(p[0]) + "-" + rev(p[1]) + "-" + rev(p[2]) + "-" + p[3] + "-" + p[4]
+}

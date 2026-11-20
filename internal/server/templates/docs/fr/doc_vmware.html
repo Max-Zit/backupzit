@@ -70,6 +70,16 @@
   <li><b>Sur la VM du proxy :</b> empêchez LVM d'activer les volumes des disques attachés, avec le fichier de périphériques de LVM (<code>use_devicesfile = 1</code> dans <code>/etc/lvm/lvm.conf</code>, les disques propres du proxy enregistrés avec <code>lvmdevices</code>). Les volumes que LVM active malgré tout sont retirés avant le détachement du disque. N'attachez pas à la main des disques d'autres VM au proxy : un disque independent-nonpersistent provenant du dossier d'une autre VM est pris pour un disque laissé par une sauvegarde interrompue, et détaché.</li>
 </ul>
 
+<h3 id="proxies">Plusieurs agents proxy (vCenter)</h3>
+<p>Un agent proxy lit un disque après l'autre, et via le hot-add uniquement sur les hôtes dont il voit les datastores. Avec une connexion vCenter, ajoutez <b>un agent Linux dans une VM sur chaque hôte ESXi</b> comme agent proxy supplémentaire (<a href="/agents#vmware">Agents → Hôtes VMware ESXi</a>, <i>Agents proxy supplémentaires</i> sous l'agent proxy ; agents 0.55 ou plus récents) :</p>
+<ul>
+  <li><b>Répartition par hôte :</b> chaque sauvegarde de la tâche est répartie. Chaque VM va à l'agent proxy de l'hôte ESXi sur lequel elle tourne (selon la dernière liste des VM), toute autre VM à l'agent proxy de la connexion. Chaque agent proxy sauvegarde sa part dans une exécution distincte, en même temps que les autres, via le hot-add sur son propre hôte.</li>
+  <li><b>Un démarrage :</b> la tâche présente les parties d'un démarrage comme un tout : en cours tant qu'une partie tourne, en échec si une partie a échoué. Les alertes RPO et le tableau de bord ne comptent une sauvegarde qu'une fois toutes les parties réussies ; une tâche enchaînée ou une copie « après chaque sauvegarde » démarre une seule fois, après la dernière partie.</li>
+  <li><b>Rétention par agent proxy :</b> chaque partie conserve le nombre de sauvegardes de la tâche pour ses VM, et les tâches de copie les copient et les conservent aussi par partie. Quand un agent proxy supplémentaire est retiré, l'agent proxy de la connexion reprend ses anciennes sauvegardes et les supprime selon la politique de rétention. Une VM déplacée sur un autre hôte (vMotion) passe à l'agent proxy de cet hôte dès la prochaine actualisation de la liste des VM.</li>
+  <li>BackupZit trouve l'hôte d'un agent proxy grâce au BIOS UUID que son agent signale ; la page Agents l'affiche à côté de chaque agent. <i>Hôte ESXi introuvable</i> : l'agent n'est pas une VM de ce vCenter, ou la liste des VM est plus ancienne que l'agent (cliquez sur <i>Actualiser</i>).</li>
+</ul>
+<p><b>Annuler</b> une sauvegarde VMware (Activité → Annuler) arrête aussi une copie de disque en cours sur le datastore et supprime la copie partielle ; l'instantané est supprimé comme après chaque sauvegarde.</p>
+
 <h2>Restaurer une VM</h2>
 <p>Utilisez l'<a href="/restore">assistant de restauration</a> (<i>Machine virtuelle complète</i>) ou la page de la sauvegarde dans Activité. Choisissez :</p>
 <ul>

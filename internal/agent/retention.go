@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -26,6 +27,36 @@ func hasTag(sn *repo.Snapshot, tag string) bool {
 	return false
 }
 
+// partPrefix starts the tag of a part of a split VMware backup.
+const partPrefix = "proxy:"
+
+// ownSnapshot tells whether retention of this run deals with sn: a
+// snapshot of the run's job and, for a VMware backup split over several
+// proxies, of the run's part. The connection's own proxy also takes the
+// job's snapshots without a part and those of a proxy that left the
+// connection, so they do not stay forever.
+func ownSnapshot(sn *repo.Snapshot, run api.Run) bool {
+	return hasTag(sn, jobTag(run.JobID)) && inPart(sn, run)
+}
+
+// inPart tells whether sn belongs to the run's part (any without a part).
+// Copies of a split backup run per part too: they copy the source's
+// backups of their part and keep it on the copies.
+func inPart(sn *repo.Snapshot, run api.Run) bool {
+	if run.Part == "" || hasTag(sn, run.Part) {
+		return true
+	}
+	if !run.PartPrimary {
+		return false
+	}
+	for _, t := range sn.Tags {
+		if strings.HasPrefix(t, partPrefix) && slices.Contains(run.PartOthers, t) {
+			return false
+		}
+	}
+	return true
+}
+
 // applyRetention removes snapshots of the run's job that the policy no
 // longer keeps and frees their data. It returns the removed snapshot IDs
 // and a summary for the run message. Failures here do not fail the
@@ -40,7 +71,7 @@ func (a *Agent) applyRetention(ctx context.Context, r *repo.Repository, run api.
 	}
 	var mine []*repo.Snapshot
 	for _, sn := range sns {
-		if hasTag(sn, jobTag(run.JobID)) {
+		if ownSnapshot(sn, run) {
 			mine = append(mine, sn)
 		}
 	}
@@ -143,7 +174,7 @@ func (a *Agent) keepImmutable(ctx context.Context, r *repo.Repository, run api.R
 			return err
 		}
 		for _, sn := range all {
-			if hasTag(sn, jobTag(run.JobID)) {
+			if ownSnapshot(sn, run) {
 				mine = append(mine, sn)
 			}
 		}

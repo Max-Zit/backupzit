@@ -33,6 +33,9 @@ func (s *Store) queueCopy(ctx context.Context, j Job, a Agent, dst Target, trigg
 		return 0, err
 	}
 	da := Agent{RepoDir: dir}
+	if parts := s.copyParts(ctx, src); parts != nil {
+		return s.queueCopyParts(ctx, j, trigger, repoURL(dst, da), dst.ID, st.ID, repoURL(st, da), parts)
+	}
 	var id int64
 	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, source_target_id, source_repo_url)
 		SELECT $1,$2,'copy',$3,$4,$5,$6,$7

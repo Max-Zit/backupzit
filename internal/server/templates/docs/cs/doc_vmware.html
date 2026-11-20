@@ -70,6 +70,16 @@
   <li><b>Na VM proxy:</b> pomocí souboru zařízení LVM zabraňte tomu, aby LVM aktivoval svazky připojených disků (<code>use_devicesfile = 1</code> v <code>/etc/lvm/lvm.conf</code>, vlastní disky proxy zapsané pomocí <code>lvmdevices</code>). Svazky, které LVM přesto aktivuje, se před odpojením disku odstraní. Nepřipojujte k proxy ručně disky jiných VM: disk independent-nonpersistent ze složky jiného VM se považuje za disk, který po sobě zanechala přerušená záloha, a odpojí se.</li>
 </ul>
 
+<h3 id="proxies">Více agentů proxy (vCenter)</h3>
+<p>Jeden agent proxy čte disky jeden po druhém, a přes hot-add jen na hostitelích, jejichž datastory vidí. U připojení vCenter přidejte jako dalšího agenta proxy <b>linuxového agenta ve VM na každém hostiteli ESXi</b> (<a href="/agents#vmware">Agenti → Hostitelé VMware ESXi</a>, <i>Další agenti proxy</i> pod agentem proxy; agenti 0.55 nebo novější):</p>
+<ul>
+  <li><b>Rozdělení podle hostitele:</b> každá záloha úlohy se rozdělí. Každý VM připadne agentovi proxy na hostiteli ESXi, na kterém běží (podle posledního seznamu VM), každý další VM agentovi proxy připojení. Každý agent proxy zálohuje svůj podíl jako samostatný běh, současně s ostatními, přes hot-add na svém hostiteli.</li>
+  <li><b>Jedno spuštění:</b> úloha zobrazuje části jednoho spuštění jako celek: běží, dokud běží některá část, a selhala, pokud selhala některá část. Upozornění RPO a přehled počítají zálohu, až když uspěly všechny části; navazující úloha nebo kopie „po každé záloze“ se spustí jednou, po poslední části.</li>
+  <li><b>Retence pro každého agenta proxy:</b> každá část uchovává nastavený počet záloh svých VM a úlohy kopírování je kopírují a uchovávají také po částech. Když dalšího agenta proxy odeberete, jeho starší zálohy převezme agent proxy připojení a odstraní je podle zásady retence. VM přesunutý na jiného hostitele (vMotion) připadne od příští obnovy seznamu VM agentovi proxy tohoto hostitele.</li>
+  <li>Hostitele agenta proxy BackupZit najde podle BIOS UUID, které jeho agent hlásí; stránka Agenti ho ukazuje u každého agenta. <i>Hostitel ESXi nenalezen</i>: agent není VM tohoto vCenter, nebo je seznam VM starší než agent (klikněte na <i>Obnovit</i>).</li>
+</ul>
+<p><b>Zrušení</b> zálohy VMware (Aktivita → Zrušit) zastaví i probíhající kopírování disku na datastoru a smaže neúplnou kopii; snímek se odstraní jako po každé záloze.</p>
+
 <h2>Obnova VM</h2>
 <p>Použijte <a href="/restore">průvodce obnovou</a> (<i>Celý virtuální počítač</i>) nebo stránku zálohy v Aktivita. Zvolte:</p>
 <ul>

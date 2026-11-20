@@ -33,16 +33,19 @@ type VMwareHost struct {
 	// HotAdd: the proxy (a Linux agent in a VM that sees the datastores)
 	// reads the disks of running VMs attached to its own VM instead of
 	// copies on the datastore.
-	HotAdd      bool
-	ProxyName   *string
-	RepoDir     string
-	Inventory   json.RawMessage
-	InventoryAt *time.Time
-	Version     string
-	APIWrites   bool
-	SSHOK       bool
-	LastError   string
-	CreatedAt   time.Time
+	HotAdd bool
+	// ExtraProxies are further proxy agents (vCenter, 0.55): a VM is backed up
+	// by the proxy on its ESXi host, else by ProxyAgentID.
+	ExtraProxies []int64
+	ProxyName    *string
+	RepoDir      string
+	Inventory    json.RawMessage
+	InventoryAt  *time.Time
+	Version      string
+	APIWrites    bool
+	SSHOK        bool
+	LastError    string
+	CreatedAt    time.Time
 }
 
 // Inv decodes the host's VM list.
@@ -119,14 +122,16 @@ func (h VMwareHost) apiHost() *api.VMwareHost {
 const ctxVMware = "vmware_hosts.password"
 
 const vmwareCols = `h.id, h.name, h.address, h.username, h.password, h.thumbprint, h.ssh_host_key, h.method, h.proxy_agent_id, ` + agentNameSQL + `, h.repo_dir,
-	h.inventory, h.inventory_at, h.version, h.api_writes, h.ssh_ok, h.last_error, h.created_at, h.hot_add`
+	h.inventory, h.inventory_at, h.version, h.api_writes, h.ssh_ok, h.last_error, h.created_at, h.hot_add,
+	(SELECT coalesce(array_agg(p.agent_id ORDER BY p.agent_id), '{}') FROM vmware_proxies p JOIN agents pa ON pa.id=p.agent_id AND pa.removed_at IS NULL
+		WHERE p.host_id=h.id AND p.agent_id IS DISTINCT FROM h.proxy_agent_id)`
 
 const vmwareFrom = ` FROM vmware_hosts h LEFT JOIN agents a ON a.id=h.proxy_agent_id AND a.removed_at IS NULL`
 
 func (s *Store) scanVMwareHost(r pgx.Row) (VMwareHost, error) {
 	var h VMwareHost
 	err := r.Scan(&h.ID, &h.Name, &h.Address, &h.Username, &h.Password, &h.Thumbprint, &h.SSHHostKey, &h.Method, &h.ProxyAgentID, &h.ProxyName, &h.RepoDir,
-		&h.Inventory, &h.InventoryAt, &h.Version, &h.APIWrites, &h.SSHOK, &h.LastError, &h.CreatedAt, &h.HotAdd)
+		&h.Inventory, &h.InventoryAt, &h.Version, &h.APIWrites, &h.SSHOK, &h.LastError, &h.CreatedAt, &h.HotAdd, &h.ExtraProxies)
 	if err == nil && s.box != nil {
 		h.Password, err = s.box.open(ctxVMware, h.Password)
 	}
@@ -213,6 +218,9 @@ func (s *Store) UpdateVMwareProxy(ctx context.Context, id, agentID int64) error 
 	_, err := s.db.Exec(ctx, `UPDATE vmware_hosts SET proxy_agent_id=$2 WHERE id=$1`, id, agentID)
 	if err == nil {
 		_, err = s.db.Exec(ctx, `UPDATE jobs SET agent_id=$2 WHERE vmware_host_id=$1`, id, agentID)
+	}
+	if err == nil { // the connection's own proxy is not a further one
+		_, err = s.db.Exec(ctx, `DELETE FROM vmware_proxies WHERE host_id=$1 AND agent_id=$2`, id, agentID)
 	}
 	return err
 }
@@ -426,4 +434,24 @@ func (s *Store) QueueVMwareRestore(ctx context.Context, backupRunID, hostID int6
 		VALUES($1,$2,'vm-restore','manual',$3,$4,$5,$6,$7) RETURNING id`,
 		*h.ProxyAgentID, b.JobID, b.RepoURL, b.TargetID, b.SnapshotID, opts, h.ID).Scan(&id)
 	return id, err
+}
+
+// setVMwareExtraProxies replaces the further proxy agents of a connection
+// (the connection's own proxy is never one of them).
+func (s *Store) setVMwareExtraProxies(ctx context.Context, hostID int64, ids []int64) error {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, `DELETE FROM vmware_proxies WHERE host_id=$1`, hostID); err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if _, err := tx.Exec(ctx, `INSERT INTO vmware_proxies(host_id, agent_id) SELECT $1,$2
+			WHERE NOT EXISTS (SELECT 1 FROM vmware_hosts WHERE id=$1 AND proxy_agent_id=$2) ON CONFLICT DO NOTHING`, hostID, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }

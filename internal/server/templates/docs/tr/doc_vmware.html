@@ -70,6 +70,16 @@
   <li><b>Vekil VM'de:</b> LVM'nin aygıt dosyasıyla (<code>/etc/lvm/lvm.conf</code> içinde <code>use_devicesfile = 1</code>, vekilin kendi diskleri <code>lvmdevices</code> ile kayıtlı) LVM'nin bağlanan disklerdeki birimleri etkinleştirmesini önleyin. LVM'nin yine de etkinleştirdiği birimler disk ayrılmadan önce kaldırılır. Başka VM'lerin disklerini vekile elle bağlamayın: başka bir VM'nin klasöründen gelen independent-nonpersistent bir disk, yarıda kalmış bir yedeğin geride bıraktığı disk sanılır ve ayrılır.</li>
 </ul>
 
+<h3 id="proxies">Birden fazla proxy aracısı (vCenter)</h3>
+<p>Tek bir proxy aracısı diskleri birbiri ardına okur ve hot-add ile yalnızca datastore'larını gördüğü ana bilgisayarlarda okuyabilir. Bir vCenter bağlantısında, ek proxy aracısı olarak <b>her ESXi ana bilgisayarındaki bir VM'de çalışan bir Linux aracısı</b> ekleyin (<a href="/agents#vmware">Aracılar → VMware ESXi ana bilgisayarları</a>, proxy aracısının altındaki <i>Ek proxy aracıları</i>; 0.55 veya daha yeni aracılar):</p>
+<ul>
+  <li><b>Ana bilgisayara göre bölme:</b> işin her yedeği bölünür. Her VM, çalıştığı ESXi ana bilgisayarındaki proxy aracısına (son VM listesine göre), diğer her VM bağlantının proxy aracısına gider. Her proxy aracısı kendi payını ayrı bir çalıştırma olarak, diğerleriyle aynı anda, kendi ana bilgisayarında hot-add ile yedekler.</li>
+  <li><b>Tek başlatma:</b> iş, bir başlatmanın parçalarını bir bütün olarak gösterir: bir parça çalıştıkça çalışıyor, bir parça başarısız olduysa başarısız. RPO uyarıları ve pano, bir yedeği ancak tüm parçalar başarılı olunca sayar; zincirlenmiş bir iş veya "her yedekten sonra" kopyası son parçadan sonra bir kez başlar.</li>
+  <li><b>Proxy aracısı başına saklama:</b> her parça kendi VM'lerinin işte ayarlı sayıdaki yedeğini saklar; kopyalama işleri de bunları parça başına kopyalar ve saklar. Ek bir proxy aracısı kaldırıldığında eski yedeklerini bağlantının proxy aracısı devralır ve saklama politikasına göre kaldırır. Başka bir ana bilgisayara taşınan bir VM (vMotion), VM listesinin bir sonraki yenilenmesinden itibaren o ana bilgisayarın proxy aracısına gider.</li>
+  <li>BackupZit bir proxy aracısının ana bilgisayarını, aracısının bildirdiği BIOS UUID ile bulur; Aracılar sayfası bunu her aracının yanında gösterir. <i>ESXi ana bilgisayarı bulunamadı</i>: aracı bu vCenter'ın bir VM'i değil ya da VM listesi aracıdan eski (<i>Yenile</i>'ye tıklayın).</li>
+</ul>
+<p>Bir VMware yedeğini <b>iptal etmek</b> (Etkinlik → İptal) datastore üzerinde süren bir disk kopyasını da durdurur ve yarım kopyayı siler; anlık görüntü her yedekten sonra olduğu gibi kaldırılır.</p>
+
 <h2>Bir VM'yi geri yükleme</h2>
 <p><a href="/restore">Geri yükleme sihirbazını</a> (<i>Tüm sanal makine</i>) veya yedeğin Etkinlik'teki sayfasını kullanın. Şunları seçin:</p>
 <ul>

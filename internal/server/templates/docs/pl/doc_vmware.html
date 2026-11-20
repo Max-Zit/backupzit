@@ -70,6 +70,16 @@
   <li><b>Na maszynie proxy:</b> nie pozwól LVM aktywować woluminów podłączonych dysków, używając pliku urządzeń LVM (<code>use_devicesfile = 1</code> w <code>/etc/lvm/lvm.conf</code>, własne dyski proxy wpisane za pomocą <code>lvmdevices</code>). Woluminy, które LVM mimo to aktywuje, są usuwane przed odłączeniem dysku. Nie podłączaj ręcznie do proxy dysków innych maszyn: dysk independent-nonpersistent z folderu innej maszyny jest uznawany za pozostawiony przez przerwaną kopię i odłączany.</li>
 </ul>
 
+<h3 id="proxies">Kilku agentów proxy (vCenter)</h3>
+<p>Jeden agent proxy odczytuje dyski jeden po drugim, a przez hot-add tylko na hostach, których datastore widzi. Przy połączeniu z vCenter dodaj <b>agenta Linux w maszynie wirtualnej na każdym hoście ESXi</b> jako dodatkowego agenta proxy (<a href="/agents#vmware">Agenci → Hosty VMware ESXi</a>, <i>Dodatkowi agenci proxy</i> pod agentem proxy; agenci 0.55 lub nowsi):</p>
+<ul>
+  <li><b>Podział według hosta:</b> każda kopia zapasowa zadania jest dzielona. Każda maszyna trafia do agenta proxy na hoście ESXi, na którym działa (według ostatniej listy maszyn), każda inna do agenta proxy połączenia. Każdy agent proxy wykonuje kopię swojej części jako osobne uruchomienie, równocześnie z pozostałymi, przez hot-add na własnym hoście.</li>
+  <li><b>Jedno uruchomienie:</b> zadanie pokazuje części jednego uruchomienia jako całość: w toku, dopóki trwa któraś część, nieudane, jeśli któraś część się nie powiodła. Alerty RPO i pulpit liczą kopię zapasową dopiero wtedy, gdy wszystkie części się powiodły; zadanie łańcuchowe lub kopia „po każdej kopii zapasowej” startuje raz, po ostatniej części.</li>
+  <li><b>Retencja dla każdego agenta proxy:</b> każda część przechowuje ustawioną liczbę kopii zapasowych swoich maszyn, a zadania kopiowania także kopiują je i przechowują według części. Po usunięciu dodatkowego agenta proxy jego starsze kopie przejmuje agent proxy połączenia i usuwa je zgodnie z zasadą retencji. Maszyna przeniesiona na inny host (vMotion) trafia do agenta proxy tego hosta od następnego odświeżenia listy maszyn.</li>
+  <li>BackupZit znajduje host agenta proxy po BIOS UUID, który zgłasza jego agent; strona Agenci pokazuje go obok każdego agenta. <i>Nie znaleziono hosta ESXi</i>: agent nie jest maszyną wirtualną tego vCenter albo lista maszyn jest starsza niż agent (kliknij <i>Odśwież</i>).</li>
+</ul>
+<p><b>Anulowanie</b> kopii zapasowej VMware (Aktywność → Anuluj) zatrzymuje też trwające kopiowanie dysku w datastore i usuwa niepełną kopię; migawka jest usuwana jak po każdej kopii zapasowej.</p>
+
 <h2>Przywracanie maszyny</h2>
 <p>Użyj <a href="/restore">kreatora przywracania</a> (<i>Cała maszyna wirtualna</i>) lub strony kopii w Aktywność. Wybierz:</p>
 <ul>

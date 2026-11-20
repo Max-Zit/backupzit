@@ -80,14 +80,17 @@ type Guest struct {
 	ID string `json:"id,omitempty"`
 	// FormerVMID is an earlier number of the same VM (VMware: before
 	// vCenter gave it an instance UUID); jobs still naming it are updated.
-	FormerVMID int    `json:"former_vmid,omitempty"`
-	Name       string `json:"name"`
-	Type       string `json:"type"` // qemu | lxc
-	Node       string `json:"node"`
-	Status     string `json:"status"`
-	MaxDisk    uint64 `json:"maxdisk"`
-	MaxMem     uint64 `json:"maxmem"`
-	Template   bool   `json:"template,omitempty"`
+	FormerVMID int `json:"former_vmid,omitempty"`
+	// BIOSUUID (VMware) finds the VM a proxy agent runs in, and so its ESXi
+	// host (backups over several proxies).
+	BIOSUUID string `json:"bios_uuid,omitempty"`
+	Name     string `json:"name"`
+	Type     string `json:"type"` // qemu | lxc
+	Node     string `json:"node"`
+	Status   string `json:"status"`
+	MaxDisk  uint64 `json:"maxdisk"`
+	MaxMem   uint64 `json:"maxmem"`
+	Template bool   `json:"template,omitempty"`
 	// Clustered marks a Hyper-V VM that is a role of a failover cluster: it
 	// moves between the nodes.
 	Clustered bool `json:"clustered,omitempty"`

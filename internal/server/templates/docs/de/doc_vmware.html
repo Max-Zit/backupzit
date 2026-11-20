@@ -70,6 +70,16 @@
   <li><b>Auf der Proxy-VM:</b> Verhindern Sie mit der Devices-Datei von LVM, dass LVM Volumes der angehängten Festplatten aktiviert (<code>use_devicesfile = 1</code> in <code>/etc/lvm/lvm.conf</code>, die eigenen Festplatten des Proxys mit <code>lvmdevices</code> eingetragen). Volumes, die LVM trotzdem aktiviert, werden vor dem Trennen der Festplatte entfernt. Hängen Sie Festplatten anderer VMs nicht von Hand an den Proxy an: Eine independent-nonpersistent-Festplatte aus dem Ordner einer anderen VM wird für eine gehalten, die eine unterbrochene Sicherung zurückgelassen hat, und getrennt.</li>
 </ul>
 
+<h3 id="proxies">Mehrere Proxy-Agenten (vCenter)</h3>
+<p>Ein Proxy-Agent liest eine Festplatte nach der anderen, und per Hot-Add nur auf den Hosts, deren Datastores er sieht. Fügen Sie bei einer vCenter-Verbindung <b>einen Linux-Agenten in einer VM auf jedem ESXi-Host</b> als weiteren Proxy-Agenten hinzu (<a href="/agents#vmware">Agenten → VMware-ESXi-Hosts</a>, <i>Weitere Proxy-Agenten</i> unter dem Proxy-Agenten; Agenten ab 0.55):</p>
+<ul>
+  <li><b>Aufteilung nach Host:</b> jede Sicherung des Jobs wird aufgeteilt. Jede VM geht an den Proxy-Agenten auf dem ESXi-Host, auf dem sie läuft (laut der letzten VM-Liste), jede andere VM an den Proxy-Agenten der Verbindung. Jeder Proxy-Agent sichert seinen Anteil als eigenen Lauf, gleichzeitig mit den anderen, per Hot-Add auf seinem eigenen Host.</li>
+  <li><b>Ein Start:</b> der Job zeigt die Teile eines Starts als Ganzes: läuft, solange ein Teil läuft, fehlgeschlagen, wenn ein Teil fehlschlug. RPO-Warnungen und das Dashboard zählen eine Sicherung erst, wenn alle Teile erfolgreich waren; ein verketteter Job oder eine Kopie „nach jeder Sicherung“ startet einmal, nach dem letzten Teil.</li>
+  <li><b>Aufbewahrung je Proxy-Agent:</b> jeder Teil behält die eingestellte Zahl an Sicherungen seiner VMs, und Kopierjobs kopieren und behalten sie ebenfalls je Teil. Wird ein weiterer Proxy-Agent entfernt, übernimmt der Proxy-Agent der Verbindung dessen ältere Sicherungen und entfernt sie nach der Aufbewahrungsrichtlinie. Eine auf einen anderen Host verschobene VM (vMotion) geht ab der nächsten Aktualisierung der VM-Liste an den Proxy-Agenten dieses Hosts.</li>
+  <li>Den Host eines Proxy-Agenten findet BackupZit über die BIOS-UUID, die sein Agent meldet; die Seite Agenten zeigt ihn neben jedem Agenten. <i>ESXi-Host nicht gefunden</i>: der Agent ist keine VM dieses vCenter, oder die VM-Liste ist älter als der Agent (klicken Sie auf <i>Aktualisieren</i>).</li>
+</ul>
+<p><b>Abbrechen</b> einer VMware-Sicherung (Aktivität → Abbrechen) stoppt auch eine laufende Festplattenkopie auf dem Datastore und löscht die unvollständige Kopie; der Snapshot wird wie nach jeder Sicherung entfernt.</p>
+
 <h2>Eine VM wiederherstellen</h2>
 <p>Verwenden Sie den <a href="/restore">Wiederherstellungsassistenten</a> (<i>Ganze virtuelle Maschine</i>) oder die Seite der Sicherung in Aktivität. Wählen Sie:</p>
 <ul>

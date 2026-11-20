@@ -30,22 +30,6 @@ var ownVMUUIDs = func() ([]string, error) {
 	return []string{id, swapUUID(id)}, nil
 }
 
-// swapUUID reverses the byte order of the first three fields.
-func swapUUID(id string) string {
-	rev := func(s string) string {
-		var b strings.Builder
-		for i := len(s) - 2; i >= 0; i -= 2 {
-			b.WriteString(s[i : i+2])
-		}
-		return b.String()
-	}
-	p := strings.Split(id, "-")
-	if len(p) != 5 {
-		return id
-	}
-	return rev(p[0]) + "-" + rev(p[1]) + "-" + rev(p[2]) + "-" + p[3] + "-" + p[4]
-}
-
 // blockDevices lists the whole disks the kernel knows, with their size in
 // bytes.
 var blockDevices = func() (map[string]uint64, error) {

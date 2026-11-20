@@ -84,6 +84,9 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	defer lock.Unlock()
 	var lastLog time.Time
 	tags := []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}
+	if strings.HasPrefix(run.Part, partPrefix) {
+		tags = append(tags, run.Part) // retention per proxy (split VMware backup)
+	}
 	prog := func(done, total uint64) {
 		a.progress(ctx, done, total, 0)
 		if time.Since(lastLog) > time.Minute {

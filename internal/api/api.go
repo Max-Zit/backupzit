@@ -91,6 +91,9 @@ type PollRequest struct {
 	// Hypervisor is the Proxmox VE inventory (JSON pve.Inventory) of an agent
 	// on a Proxmox node, sent like Disks.
 	Hypervisor json.RawMessage `json:"hypervisor,omitempty"`
+	// MachineUUID is the BIOS UUID of the agent's machine (Linux in a VM,
+	// 0.55): the console finds a VMware proxy's VM, and so its ESXi host.
+	MachineUUID string `json:"machine_uuid,omitempty"`
 	// Time is the agent's clock in unix milliseconds when it sent the poll
 	// (0.44.0 and newer); the console warns when it is off.
 	Time int64 `json:"time,omitempty"`
@@ -198,9 +201,16 @@ type Run struct {
 	Retention *repo.RetentionPolicy `json:"retention,omitempty"`
 	// KeepSnapshots are never removed by retention or by a repair: VMs run from them
 	// (instant recovery).
-	KeepSnapshots []string   `json:"keep_snapshots,omitempty"`
-	JobName       string     `json:"job_name,omitempty"`
-	Repository    Repository `json:"repository"`
+	KeepSnapshots []string `json:"keep_snapshots,omitempty"`
+	// Part: a VMware backup split over several proxies (0.55) tags its
+	// snapshot with Part, and retention keeps the job's backups per part.
+	// The connection's own proxy (PartPrimary) also owns the job's backups
+	// without a part or of a proxy no longer in PartOthers.
+	Part        string     `json:"part,omitempty"`
+	PartPrimary bool       `json:"part_primary,omitempty"`
+	PartOthers  []string   `json:"part_others,omitempty"`
+	JobName     string     `json:"job_name,omitempty"`
+	Repository  Repository `json:"repository"`
 
 	// Backup
 	Paths    []string `json:"paths,omitempty"`

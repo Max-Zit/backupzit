@@ -56,7 +56,8 @@ func (s *Store) jobCoverage(ctx context.Context) (map[int64]*JobCoverage, error)
 		}
 		return c
 	}
-	rows, err := s.db.Query(ctx, `SELECT job_id, count(*) FROM runs
+	// The parts of a split VMware backup are one restore point.
+	rows, err := s.db.Query(ctx, `SELECT job_id, count(DISTINCT coalesce(batch, id)) FROM runs
 		WHERE job_id IS NOT NULL AND kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup')
 		AND status IN ('success','warning') AND coalesce(snapshot_id,'') <> '' AND NOT expired GROUP BY job_id`)
 	if err != nil {
@@ -72,9 +73,13 @@ func (s *Store) jobCoverage(ctx context.Context) (map[int64]*JobCoverage, error)
 		get(id).Points = n
 	}
 	rows.Close()
-	rows, err = s.db.Query(ctx, `SELECT DISTINCT ON (job_id) job_id, kind, finished_at, details, stats FROM runs
+	// The newest good backup; of a split VMware backup all its parts (sizes
+	// and VMs add up), and only once every part succeeded.
+	rows, err = s.db.Query(ctx, `WITH last AS (SELECT DISTINCT ON (job_id) job_id, id, batch, finished_at FROM runs
 		WHERE job_id IS NOT NULL AND kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log')
-		AND status IN ('success','warning') AND finished_at IS NOT NULL ORDER BY job_id, finished_at DESC`)
+		AND status IN ('success','warning') AND finished_at IS NOT NULL AND `+batchOK("runs")+` ORDER BY job_id, finished_at DESC)
+		SELECT l.job_id, r.kind, l.finished_at, r.details, r.stats FROM last l JOIN runs r ON r.id=l.id OR (l.batch IS NOT NULL AND r.batch=l.batch)
+		ORDER BY l.job_id, r.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +99,7 @@ func (s *Store) jobCoverage(ctx context.Context) (map[int64]*JobCoverage, error)
 			BytesRead uint64 `json:"bytes_read"`
 		}
 		_ = json.Unmarshal(stats, &st)
-		c.Size = max(st.Bytes, st.BytesRead)
+		c.Size += max(st.Bytes, st.BytesRead)
 		var d struct {
 			Guests []struct {
 				Name string `json:"name"`

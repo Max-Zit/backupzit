@@ -70,6 +70,16 @@
   <li><b>En la VM del proxy:</b> impida que LVM active volúmenes de los discos conectados, con el archivo de dispositivos de LVM (<code>use_devicesfile = 1</code> en <code>/etc/lvm/lvm.conf</code>, con los discos propios del proxy registrados mediante <code>lvmdevices</code>). Los volúmenes que LVM active de todos modos se retiran antes de desconectar el disco. No conecte a mano discos de otras VM al proxy: un disco independent-nonpersistent de la carpeta de otra VM se toma por uno que dejó una copia interrumpida, y se desconecta.</li>
 </ul>
 
+<h3 id="proxies">Varios agentes proxy (vCenter)</h3>
+<p>Un agente proxy lee un disco tras otro y, mediante hot-add, solo en los hosts cuyos datastores ve. Con una conexión vCenter, añada <b>un agente Linux en una VM de cada host ESXi</b> como agente proxy adicional (<a href="/agents#vmware">Agentes → Hosts VMware ESXi</a>, <i>Agentes proxy adicionales</i> bajo el agente proxy; agentes 0.55 o posteriores):</p>
+<ul>
+  <li><b>División por host:</b> cada copia de seguridad del trabajo se divide. Cada VM va al agente proxy del host ESXi en el que se ejecuta (según la última lista de VM), y cualquier otra VM al agente proxy de la conexión. Cada agente proxy respalda su parte como una ejecución propia, a la vez que los demás, mediante hot-add en su propio host.</li>
+  <li><b>Un inicio:</b> el trabajo muestra las partes de un inicio como una sola: en ejecución mientras una parte se ejecuta, fallida si una parte falló. Las alertas de RPO y el panel cuentan una copia de seguridad cuando todas las partes tuvieron éxito; un trabajo encadenado o una copia «después de cada copia de seguridad» se inicia una vez, tras la última parte.</li>
+  <li><b>Retención por agente proxy:</b> cada parte conserva el número de copias de seguridad del trabajo para sus VM, y los trabajos de copia también las copian y conservan por parte. Al quitar un agente proxy adicional, el agente proxy de la conexión asume sus copias de seguridad anteriores y las elimina según la política de retención. Una VM movida a otro host (vMotion) pasa al agente proxy de ese host a partir de la siguiente actualización de la lista de VM.</li>
+  <li>BackupZit encuentra el host de un agente proxy por el BIOS UUID que informa su agente; la página Agentes lo muestra junto a cada agente. <i>Host ESXi no encontrado</i>: el agente no es una VM de este vCenter, o la lista de VM es anterior al agente (haga clic en <i>Actualizar</i>).</li>
+</ul>
+<p><b>Cancelar</b> una copia de seguridad de VMware (Actividad → Cancelar) también detiene una copia de disco en curso en el datastore y elimina la copia parcial; la instantánea se elimina como tras cada copia de seguridad.</p>
+
 <h2>Restaurar una VM</h2>
 <p>Use el <a href="/restore">asistente de restauración</a> (<i>Máquina virtual completa</i>) o la página de la copia en Actividad. Elija:</p>
 <ul>

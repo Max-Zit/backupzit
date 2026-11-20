@@ -29,6 +29,7 @@ import (
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/restorer"
 	"github.com/max-zit/backupzit/internal/tlsutil"
+	"github.com/max-zit/backupzit/internal/vmware"
 )
 
 // Config is persisted after enrollment.
@@ -227,7 +228,10 @@ type Agent struct {
 	wg          sync.WaitGroup
 
 	localOnce sync.Once
-	ls        *localState
+	// machineUUID is the BIOS UUID of this machine (VMware proxies), read once.
+	machineOnce sync.Once
+	machineUUID string
+	ls          *localState
 
 	// instance identifies this agent process; the console sees two
 	// machines using one enrollment (a clone) by two live instances.
@@ -258,6 +262,12 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	req.WantStatus = a.wantStatus()
 	req.ConfigurableVMBlocks = true
 	req.Runs, req.ReportsRuns = active, true
+	a.machineOnce.Do(func() {
+		if ids := vmware.MachineUUIDs(); len(ids) > 0 {
+			a.machineUUID = ids[0]
+		}
+	})
+	req.MachineUUID = a.machineUUID
 	invEvery := a.InventoryInterval
 	if invEvery <= 0 {
 		invEvery = inventoryInterval

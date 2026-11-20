@@ -50,3 +50,8 @@ func SetOrphanGrace(d time.Duration) time.Duration {
 	orphanGrace = d
 	return old
 }
+
+// ChainAfterRun is chainAfterRun for tests.
+func (s *Store) ChainAfterRun(ctx context.Context, runID int64) ([]int64, error) {
+	return s.chainAfterRun(ctx, runID)
+}

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/max-zit/backupzit/internal/api"
 )
 
@@ -103,6 +105,23 @@ func (s *Store) chainAfterRun(ctx context.Context, runID int64) ([]int64, error)
 		return nil, nil
 	}
 	ok := run.Status == api.StatusSuccess || run.Status == api.StatusWarning
+	if run.Batch != nil {
+		// A backup split over several proxies: the chain follows once, after
+		// the last part, and as a success only if every part succeeded. The
+		// claim on the first run decides who queues it.
+		var allOK, cancelled bool
+		err := s.db.QueryRow(ctx, `UPDATE runs SET chained=true WHERE id=$1 AND NOT chained
+			AND NOT EXISTS (SELECT 1 FROM runs o WHERE o.batch=$1 AND o.status IN ('queued','running'))
+			RETURNING (SELECT bool_and(o.status IN ('success','warning')) FROM runs o WHERE o.batch=$1),
+				(SELECT bool_or(o.status='cancelled') FROM runs o WHERE o.batch=$1)`, *run.Batch).Scan(&allOK, &cancelled)
+		if errors.Is(err, pgx.ErrNoRows) || cancelled {
+			return nil, nil // parts still run, already decided, or one was cancelled
+		}
+		if err != nil {
+			return nil, err
+		}
+		ok = allOK
+	}
 	return s.QueueChainAfter(ctx, *run.JobID, ok)
 }
 

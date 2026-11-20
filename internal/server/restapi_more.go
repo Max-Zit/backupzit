@@ -18,7 +18,7 @@ import (
 // success or warnings.
 func (s *Store) lastGoodBackups(ctx context.Context) (map[int64]time.Time, error) {
 	rows, err := s.db.Query(ctx, `SELECT job_id, max(finished_at) FROM runs
-		WHERE job_id IS NOT NULL AND status IN ('success','warning') AND kind = ANY($1) GROUP BY job_id`, timeLimitKinds)
+		WHERE job_id IS NOT NULL AND status IN ('success','warning') AND kind = ANY($1) AND `+batchOK("runs")+` GROUP BY job_id`, timeLimitKinds)
 	if err != nil {
 		return nil, err
 	}

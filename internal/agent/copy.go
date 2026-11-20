@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/repo"
@@ -69,14 +70,18 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	}
 	var sns []*repo.Snapshot
 	for _, sn := range all {
-		if hasTag(sn, run.SourceTag) {
+		if hasTag(sn, run.SourceTag) && inPart(sn, run) {
 			sns = append(sns, sn)
 		}
 	}
 	sort.Slice(sns, func(i, j int) bool { return sns[i].Time.Before(sns[j].Time) })
 	source := len(sns)
 	sns, older := copySelection(sns, run.Retention)
-	st, copied, err := repo.Copy(ctx, src, dst, sns, []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}, nil)
+	tags := []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}
+	if strings.HasPrefix(run.Part, partPrefix) {
+		tags = append(tags, run.Part) // the copy keeps retention per proxy too
+	}
+	st, copied, err := repo.Copy(ctx, src, dst, sns, tags, nil)
 	if err != nil {
 		return failed(fmt.Errorf("copy: %w", err))
 	}

@@ -70,6 +70,16 @@
   <li><b>Op de proxy-VM:</b> voorkom met het devices-bestand van LVM dat LVM volumes van de gekoppelde schijven activeert (<code>use_devicesfile = 1</code> in <code>/etc/lvm/lvm.conf</code>, met de eigen schijven van de proxy geregistreerd via <code>lvmdevices</code>). Volumes die LVM toch activeert, worden verwijderd voordat de schijf wordt ontkoppeld. Koppel niet met de hand schijven van andere VM's aan de proxy: een independent-nonpersistent schijf uit de map van een andere VM wordt aangezien voor een schijf die een onderbroken back-up heeft achtergelaten, en ontkoppeld.</li>
 </ul>
 
+<h3 id="proxies">Meerdere proxyagents (vCenter)</h3>
+<p>Eén proxyagent leest de ene schijf na de andere, en via hot-add alleen op de hosts waarvan hij de datastores ziet. Voeg bij een vCenter-verbinding <b>een Linux-agent in een VM op elke ESXi-host</b> toe als extra proxyagent (<a href="/agents#vmware">Agents → VMware ESXi-hosts</a>, <i>Extra proxyagents</i> onder de proxyagent; agents 0.55 of nieuwer):</p>
+<ul>
+  <li><b>Verdeling per host:</b> elke back-up van de taak wordt verdeeld. Elke VM gaat naar de proxyagent op de ESXi-host waarop hij draait (volgens de laatste VM-lijst), elke andere VM naar de proxyagent van de verbinding. Elke proxyagent maakt een back-up van zijn deel als eigen uitvoering, tegelijk met de andere, via hot-add op zijn eigen host.</li>
+  <li><b>Eén start:</b> de taak toont de delen van een start als geheel: bezig zolang een deel loopt, mislukt als een deel mislukte. RPO-meldingen en het dashboard tellen een back-up pas als alle delen geslaagd zijn; een gekoppelde taak of een kopie "na elke back-up" start één keer, na het laatste deel.</li>
+  <li><b>Bewaring per proxyagent:</b> elk deel bewaart het ingestelde aantal back-ups van zijn VM's, en kopieertaken kopiëren en bewaren ze ook per deel. Wordt een extra proxyagent verwijderd, dan neemt de proxyagent van de verbinding zijn oudere back-ups over en verwijdert ze volgens het bewaarbeleid. Een VM die naar een andere host is verplaatst (vMotion) gaat vanaf de volgende vernieuwing van de VM-lijst naar de proxyagent van die host.</li>
+  <li>BackupZit vindt de host van een proxyagent via de BIOS-UUID die zijn agent meldt; de pagina Agents toont hem naast elke agent. <i>ESXi-host niet gevonden</i>: de agent is geen VM van dit vCenter, of de VM-lijst is ouder dan de agent (klik op <i>Vernieuwen</i>).</li>
+</ul>
+<p><b>Annuleren</b> van een VMware-back-up (Activiteit → Annuleren) stopt ook een lopende schijfkopie op de datastore en verwijdert de onvolledige kopie; de snapshot wordt verwijderd zoals na elke back-up.</p>
+
 <h2>Een VM herstellen</h2>
 <p>Gebruik de <a href="/restore">herstelwizard</a> (<i>Volledige virtuele machine</i>) of de pagina van de back-up in Activiteit. Kies:</p>
 <ul>

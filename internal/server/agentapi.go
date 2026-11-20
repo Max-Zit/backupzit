@@ -245,6 +245,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 		if err := s.addVMware(ctx, run, ar); err != nil {
 			return nil, err
 		}
+		if err := s.addPart(ctx, run, ar); err != nil {
+			return nil, err
+		}
 	case api.KindSQLBackup, api.KindSQLLog:
 		s.addRetention(ctx, run, ar)
 		if err := s.addSQL(ctx, run, ar); err != nil {
@@ -282,6 +285,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	case api.KindCopy:
 		s.addRetention(ctx, run, ar)
 		if err := s.addCopySource(ctx, run, ar); err != nil {
+			return nil, err
+		}
+		if err := s.addCopyPart(ctx, run, ar); err != nil {
 			return nil, err
 		}
 	case api.KindImageRestore:
@@ -326,13 +332,21 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.chainAfterRun(r.Context(), id)
-	if res.Status != api.StatusFailed {
-		if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && isBackupKind(run.Kind) {
+	if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && isBackupKind(run.Kind) {
+		// A backup split over several proxies is copied once, after its last
+		// part (a copy per part would miss the parts still running).
+		copies := res.Status != api.StatusFailed
+		if run.Batch != nil {
+			copies = s.store.batchCopies(r.Context(), *run.Batch)
+		}
+		if copies {
 			if ids, err := s.store.QueueCopiesAfter(r.Context(), *run.JobID); err != nil {
 				s.log.Error("queue copy jobs", "job", *run.JobID, "err", err)
 			} else if len(ids) > 0 {
 				s.log.Info("copy jobs queued after backup", "job", *run.JobID, "runs", ids)
 			}
+		}
+		if res.Status != api.StatusFailed {
 			if rid, err := s.store.QueueReplica(r.Context(), run); err != nil {
 				s.log.Error("queue replication", "job", *run.JobID, "err", err)
 			} else if rid != 0 {

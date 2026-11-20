@@ -37,9 +37,12 @@ type VM struct {
 	// Snapshots is true when the VM has snapshots of its own.
 	Snapshots bool `json:"snapshots,omitempty"`
 	// Host is the ESXi host the VM is registered on (vCenter).
-	Host  string `json:"host,omitempty"`
-	Disks []Disk `json:"disks"`
-	NICs  []NIC  `json:"nics"`
+	Host string `json:"host,omitempty"`
+	// BIOSUUID is config.uuid (lower case): a proxy agent in this VM reports
+	// it as its machine UUID, so the console knows on which host it runs.
+	BIOSUUID string `json:"bios_uuid,omitempty"`
+	Disks    []Disk `json:"disks"`
+	NICs     []NIC  `json:"nics"`
 }
 
 // Disk is a virtual disk of a VM.
@@ -93,6 +96,9 @@ func vmFromMO(m mo.VirtualMachine) VM {
 		v.Disks, v.NICs = devices(m.Config.Hardware.Device)
 	}
 	v.VMID = VMIDFor(v.UUID)
+	if m.Config != nil {
+		v.BIOSUUID = strings.ToLower(m.Config.Uuid)
+	}
 	if m.Config != nil && m.Config.InstanceUuid != "" && m.Config.Uuid != "" {
 		if id := VMIDFor(m.Config.Uuid); id != v.VMID {
 			v.BIOSVMID = id
@@ -315,7 +321,7 @@ func (c *Client) Inventory(ctx context.Context, host string) (*pve.Inventory, er
 		if c.VCenter && v.Host != "" {
 			node = v.Host
 		}
-		inv.Guests = append(inv.Guests, pve.Guest{VMID: v.VMID, FormerVMID: v.BIOSVMID, ID: v.UUID, Name: v.Name, Type: "vm", Node: node,
+		inv.Guests = append(inv.Guests, pve.Guest{VMID: v.VMID, FormerVMID: v.BIOSVMID, ID: v.UUID, BIOSUUID: v.BIOSUUID, Name: v.Name, Type: "vm", Node: node,
 			Status: status, MaxDisk: v.DiskSize(), MaxMem: uint64(v.MemoryMB) << 20, Template: v.Template}) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 	}
 	for _, d := range dss {

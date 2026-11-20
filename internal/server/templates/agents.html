@@ -87,7 +87,14 @@ sudo systemctl enable --now backupzit-agent</pre>
       <td>{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/proxy" class="inline">
           <select name="proxy_agent_id" data-autosubmit>{{if not .ProxyAgentID}}<option value="">{{T "— choose —"}}</option>{{end}}{{$p := .ProxyAgentID}}{{range $.Data.Agents}}<option value="{{.ID}}" {{if and $p (eq .ID (deref64 $p))}}selected{{end}}>{{.Label}}</option>{{end}}</select>
           <button class="link small">{{T "Save"}}</button></form>
-          <form method="post" action="/vmware/{{.ID}}/hotadd" class="hotadd"><label class="check small"><input type="checkbox" name="hot_add" data-autosubmit {{if .HotAdd}}checked{{end}}> {{T "Hot-add"}}</label> <a class="small" href="/docs/vmware#hot-add">{{T "what is this?"}}</a> <button class="link small">{{T "Save"}}</button></form>{{else}}{{with .ProxyName}}{{.}}{{else}}—{{end}}{{if .HotAdd}} <span class="badge info-badge">{{T "Hot-add"}}</span>{{end}}{{end}}</td>
+          <form method="post" action="/vmware/{{.ID}}/hotadd" class="hotadd"><label class="check small"><input type="checkbox" name="hot_add" data-autosubmit {{if .HotAdd}}checked{{end}}> {{T "Hot-add"}}</label> <a class="small" href="/docs/vmware#hot-add">{{T "what is this?"}}</a> <button class="link small">{{T "Save"}}</button></form>
+          {{$hid := .ID}}{{with index $.Data.ProxyChoices .ID}}<details class="small proxies"><summary>{{T "Further proxies"}}</summary>
+            <form method="post" action="/vmware/{{$hid}}/proxies" class="stack">
+              {{range .}}<label class="check"><input type="checkbox" name="agent_id" value="{{.ID}}" {{if .On}}checked{{end}}> {{.Label}}{{with .Host}} <span class="muted">— {{T "on %v" .}}</span>{{else}}{{if .On}} <span class="badge warning"><i></i>{{T "ESXi host not found"}}</span>{{end}}{{end}}{{if .Old}} <span class="badge warning"><i></i>{{T "update the agent"}}</span>{{end}}</label>{{end}}
+              <button class="small">{{T "Save"}}</button>
+            </form>
+            <p class="muted">{{T "Each VM is backed up by the proxy on its ESXi host, through hot-add; the others by the proxy above."}} <a href="/docs/vmware#proxies">{{T "more"}}</a></p>
+          </details>{{end}}{{else}}{{with .ProxyName}}{{.}}{{else}}—{{end}}{{if .HotAdd}} <span class="badge info-badge">{{T "Hot-add"}}</span>{{end}}{{with .ExtraProxies}} <span class="badge info-badge">{{T "+%v proxies" (len .)}}</span>{{end}}{{end}}</td>
       <td class="nowrap small">{{ago .InventoryAt}}{{with .LastError}}<br><span class="badge failed" title="{{.}}"><i></i>{{T "error"}}</span>{{end}}</td>
       <td class="nowrap">{{if $.Me.Can "agents"}}<form method="post" action="/vmware/{{.ID}}/refresh" class="inline"><button class="link">{{T "Refresh"}}</button></form>
         <form method="post" action="/vmware/{{.ID}}/delete" class="inline" data-confirm="{{T "Remove %v and its backup jobs? Backups on storage stay." .Name}}"><button class="link">{{T "Remove"}}</button></form>{{end}}</td>
