@@ -93,7 +93,7 @@ func TestOIDCGroupsFromUserInfo(t *testing.T) {
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
 	_, loc, body := admin.do("POST", "/settings/sso", url.Values{
-		"protocol": {"oidc"}, "issuer": {idp.ts.URL}, "client_id": {"console"}, "client_secret": {"s3cret"},
+		"reauth_password": {"admin-pass-123"}, "protocol": {"oidc"}, "issuer": {idp.ts.URL}, "client_id": {"console"}, "client_secret": {"s3cret"},
 		"scopes": {"offline_access"}, "ca_cert": {idp.caPEM()}, "admin_group": {"bz-admins"}, "default_role": {""},
 	})
 	if !strings.HasPrefix(loc, "/settings/sso") {
@@ -141,7 +141,7 @@ func TestOIDCNoGroupRefused(t *testing.T) {
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
 	admin.do("POST", "/settings/sso", url.Values{
-		"protocol": {"oidc"}, "issuer": {idp.ts.URL}, "client_id": {"console"}, "client_secret": {"s3cret"},
+		"reauth_password": {"admin-pass-123"}, "protocol": {"oidc"}, "issuer": {idp.ts.URL}, "client_id": {"console"}, "client_secret": {"s3cret"},
 		"ca_cert": {idp.caPEM()}, "admin_group": {"bz-admins"},
 	})
 	user := newClient(t, e)

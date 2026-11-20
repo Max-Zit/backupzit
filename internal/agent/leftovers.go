@@ -52,7 +52,7 @@ func (a *Agent) janitor(ctx context.Context) {
 		}()
 		cctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 		defer cancel()
-		a.cleanLocal(cctx)
+		_, _ = a.cleanLocal(cctx) // logged there; failures stay in the ledger
 	}()
 }
 
