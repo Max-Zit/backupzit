@@ -423,6 +423,9 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 	if _, err := os.Stat(filepath.Join(base, "pg_wal.tar")); err == nil {
 		_ = exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "pg_wal.tar"), "-C", filepath.Join(data, "pg_wal")).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 	}
+	if err := mapTablespaces(ctx, data, base, filepath.Join(work, "tablespaces")); err != nil {
+		return nil, err
+	}
 	port, err := freePort()
 	if err != nil {
 		return nil, err
@@ -535,4 +538,44 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, b, 0o600) // #nosec G703 -- dump file in the agent's working folder
+}
+
+// mapTablespaces unpacks the user tablespaces of a tar base backup
+// (<oid>.tar next to base.tar) into dir and points tablespace_map there.
+// Otherwise PostgreSQL links pg_tblspc to the original absolute paths when
+// the recovered cluster starts: on the same server those belong to the live
+// cluster, and the recovery would write into production data.
+func mapTablespaces(ctx context.Context, data, base, dir string) error {
+	p := filepath.Join(data, "tablespace_map")
+	b, err := os.ReadFile(p) // #nosec G304 -- file of the base backup in the agent's working folder
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var out strings.Builder
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimRight(line, "\r")
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		oid, _, _ := strings.Cut(line, " ")
+		if oid == "" || strings.Trim(oid, "0123456789") != "" {
+			return fmt.Errorf("unexpected line in tablespace_map: %q", line)
+		}
+		tarFile := filepath.Join(base, oid+".tar")
+		if _, err := os.Stat(tarFile); err != nil {
+			return fmt.Errorf("tablespace %s is not in the backup (%s.tar is missing)", oid, oid)
+		}
+		target := filepath.Join(dir, oid)
+		if err := os.MkdirAll(target, 0o700); err != nil {
+			return err
+		}
+		if o, err := exec.CommandContext(ctx, "tar", "-xf", tarFile, "-C", target).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
+			return fmt.Errorf("unpack tablespace %s: %v: %s", oid, err, o)
+		}
+		fmt.Fprintf(&out, "%s %s\n", oid, target)
+	}
+	return os.WriteFile(p, []byte(out.String()), 0o600)
 }
