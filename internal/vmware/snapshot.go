@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
@@ -13,6 +14,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/max-zit/backupzit/internal/diskimg"
+	"github.com/max-zit/backupzit/internal/leftover"
 )
 
 const snapPrefix = "backupzit_"
@@ -21,6 +23,9 @@ const snapPrefix = "backupzit_"
 type snapshot struct {
 	Ref types.ManagedObjectReference
 	ID  int32 // vim-cmd snapshot id
+	// Name and Created: set by leftovers.
+	Name    string
+	Created time.Time
 	// Quiesced is true when VMware Tools prepared the guest.
 	Quiesced bool
 }
@@ -60,7 +65,7 @@ func (c *Client) leftovers(ctx context.Context, vm types.ManagedObjectReference)
 	walk = func(ts []types.VirtualMachineSnapshotTree) {
 		for _, t := range ts {
 			if strings.HasPrefix(t.Name, snapPrefix) {
-				out = append(out, snapshot{Ref: t.Snapshot, ID: t.Id})
+				out = append(out, snapshot{Ref: t.Snapshot, ID: t.Id, Name: t.Name, Created: t.CreateTime})
 			}
 			walk(t.ChildSnapshotList)
 		}
@@ -71,15 +76,26 @@ func (c *Client) leftovers(ctx context.Context, vm types.ManagedObjectReference)
 	return out, nil
 }
 
+// snapshotGrace bounds how long a cancelled backup still waits for its
+// snapshot being created: the host finishes the task anyway, and a snapshot
+// that appears after the run gave up would stay (S-1).
+var snapshotGrace = 5 * time.Minute
+
 // createSnapshot takes a snapshot without memory; quiesce asks VMware Tools
-// to flush the guest's file systems and applications first.
+// to flush the guest's file systems and applications first. A cancel does
+// not cut the creation short (up to snapshotGrace): the caller removes a
+// snapshot finished after the cancel.
 func (c *Client) createSnapshot(ctx context.Context, vm VM, name string, quiesce bool) (*snapshot, error) {
+	run, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	defer cancel()
+	stop := context.AfterFunc(ctx, func() { time.AfterFunc(snapshotGrace, cancel) })
+	defer stop()
 	if c.useAPI {
-		task, err := object.NewVirtualMachine(c.vim, vm.Ref).CreateSnapshot(ctx, name, "BackupZit backup in progress", false, quiesce)
+		task, err := object.NewVirtualMachine(c.vim, vm.Ref).CreateSnapshot(run, name, "BackupZit backup in progress", false, quiesce)
 		if err != nil {
 			return nil, err
 		}
-		if err := task.Wait(ctx); err != nil {
+		if err := task.Wait(run); err != nil {
 			return nil, err
 		}
 	} else {
@@ -87,11 +103,11 @@ func (c *Client) createSnapshot(ctx context.Context, vm VM, name string, quiesce
 		if quiesce {
 			q = "1"
 		}
-		if _, err := c.run(ctx, fmt.Sprintf("vim-cmd vmsvc/snapshot.create %s %s %s 0 %s", sq(vm.MoID), sq(name), sq("BackupZit backup in progress"), q)); err != nil {
+		if _, err := c.run(run, fmt.Sprintf("vim-cmd vmsvc/snapshot.create %s %s %s 0 %s", sq(vm.MoID), sq(name), sq("BackupZit backup in progress"), q)); err != nil {
 			return nil, err
 		}
 	}
-	s, err := c.findSnapshot(ctx, vm.Ref, name)
+	s, err := c.findSnapshot(run, vm.Ref, name)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +129,67 @@ func (c *Client) removeSnapshot(ctx context.Context, vm VM, s snapshot) error {
 	}
 	_, err := c.run(ctx, fmt.Sprintf("vim-cmd vmsvc/snapshot.remove %s %d", sq(vm.MoID), s.ID))
 	return err
+}
+
+// snapshotItem is the ledger record of a backup snapshot of vm.
+func (c *Client) snapshotItem(vm VM, name string) leftover.Item {
+	return leftover.Item{Platform: leftover.VMware, Kind: leftover.KindSnapshot, Host: c.conn.Host, VM: vm.UUID, VMName: vm.Name, Name: name}
+}
+
+// removeSnapshotVerified removes the snapshot called name and lists the
+// VM's snapshots again to see that it is gone, up to len(waits)+1 times. A
+// VM whose disks still need consolidation afterwards is consolidated. The
+// ledger item goes once the snapshot is gone; otherwise it records the
+// failure for the janitor and the console (S-1).
+func (c *Client) removeSnapshotVerified(ctx context.Context, vm VM, name string, waits []time.Duration) (note string, err error) {
+	it := c.snapshotItem(vm, name)
+	err = leftover.Retry(ctx, waits, func(ctx context.Context) error {
+		s, err := c.findSnapshot(ctx, vm.Ref, name)
+		if err != nil || s == nil {
+			return err
+		}
+		return c.removeSnapshot(ctx, vm, *s)
+	}, func(ctx context.Context) (bool, error) {
+		s, err := c.findSnapshot(ctx, vm.Ref, name)
+		return err == nil && s == nil, err
+	})
+	if err != nil {
+		leftover.Failed(it, err)
+		return "", err
+	}
+	leftover.Done(it)
+	return c.consolidate(ctx, vm), nil
+}
+
+// consolidate merges what a snapshot removal left in delta disks
+// (runtime.consolidationNeeded, e.g. after a host or datastore hiccup).
+// It returns a note when the VM still needs it.
+func (c *Client) consolidate(ctx context.Context, vm VM) string {
+	needed := func() bool {
+		var m mo.VirtualMachine
+		if err := property.DefaultCollector(c.vim).RetrieveOne(ctx, vm.Ref, []string{"runtime.consolidationNeeded"}, &m); err != nil {
+			return false
+		}
+		return m.Runtime.ConsolidationNeeded
+	}
+	if !needed() {
+		return ""
+	}
+	if !c.useAPI {
+		return "the disks of VM " + vm.Name + " need consolidation after the snapshot removal; consolidate them in the host client (Snapshots → Consolidate)"
+	}
+	res, err := methods.ConsolidateVMDisks_Task(ctx, c.vim, &types.ConsolidateVMDisks_Task{This: vm.Ref})
+	if err == nil {
+		err = object.NewTask(c.vim, res.Returnval).Wait(ctx)
+	}
+	if err != nil || needed() {
+		why := "it is still needed"
+		if err != nil {
+			why = err.Error()
+		}
+		return "the disks of VM " + vm.Name + " need consolidation after the snapshot removal and consolidating them failed (" + why + "); consolidate them in the vSphere Client (Snapshots → Consolidate)"
+	}
+	return "the disks of VM " + vm.Name + " were consolidated after the snapshot removal"
 }
 
 // snapshotDisks returns the disks as they are in a snapshot.

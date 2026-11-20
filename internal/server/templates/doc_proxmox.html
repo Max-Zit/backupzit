@@ -34,6 +34,14 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>ZFS subvolumes of containers (LXC)</td><td>yes, snapshot, file by file</td><td>yes, file by file</td></tr>
 </table>
 <p>Disks marked <i>Backup: no</i> (<code>backup=0</code>) in Proxmox, passed-through physical disks and bind mounts are skipped and listed as warnings. Cloud-init drives are not stored; they are recreated from the configuration on restore. A stopped guest whose disks are read without a snapshot carries Proxmox VE's backup lock meanwhile, as with vzdump: it cannot be started (also not by HA) until its disks are read.</p>
+<p id="leftovers"><b>Snapshots and locks that stay behind.</b> The agent records each backup snapshot before it takes it, and the backup lock of a stopped guest once it is set, and drops the record only when the guest's configuration shows it gone (a snapshot is removed with <code>--force</code> when the plain removal fails, up to three tries over about ten minutes). After an agent crash or a power loss the agent removes them itself, when it starts and every 15 minutes:</p>
+<ul>
+  <li>Guests a backup or restore of the agent works on, and guests for which Proxmox VE runs a task (a vzdump backup, a migration), are left alone.</li>
+  <li>A snapshot lock (<code>lock: snapshot</code>) left by an interrupted creation is removed with it, and Ceph RBD devices of the snapshot are unmapped first.</li>
+  <li><code>backupzit_…</code> snapshots older than a day that the agent has no record of (for example from older versions) are removed too. Snapshots of your own are never touched.</li>
+  <li>A backup lock is removed only when the record shows that BackupZit set it. One it did not set is reported with the command that removes it (<code>qm unlock</code>, <code>pct unlock</code>), because vzdump uses the same lock.</li>
+  <li>What cannot be removed is listed on the dashboard under <i>Attention</i> with <b>Remove now</b>, and notified once.</li>
+</ul>
 
 <h3 id="lxc-zfs">Containers (LXC) on ZFS</h3>
 <p>On a ZFS storage, Proxmox keeps the volumes of a container (LXC) as datasets (<code>subvol-&lt;ID&gt;-disk-N</code>): file systems, not virtual disks like the zvols of a VM (QEMU). BackupZit therefore backs these containers up file by file:</p>
@@ -71,7 +79,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>The first time, the replica is restored like a new guest (next free ID, name <i>original-replica</i>, new MAC addresses, never started with the node).</li>
   <li>Later only the blocks that changed since the backup the replica holds are written — typically a few seconds per backup.</li>
-  <li>The job page lists the replicas, the backup each holds and its state. If a guest is lost, click <b>Start replica</b>: it runs with the data of the last backup, without a restore. Start it only when the original is really gone — both on the network at the same time can conflict. After a replica was started (also in the Proxmox VE interface, for example for a failover test), the next update compares every block instead of writing only the changes, so that the replica matches the backup again.</li>
+  <li>The job page lists the replicas, the backup each holds and its state. If a guest is lost, click <b>Start replica</b>: it runs with the data of the last backup, without a restore. Start it only when the original is really gone — both on the network at the same time can conflict. After a replica was started (also in the Proxmox VE interface, for example for a failover test), the next update compares every block instead of writing only the changes, so that the replica matches the backup again. The same happens after an update that was interrupted (an agent or node crash), and when the Proxmox VE task log cannot be read to tell whether the replica was started.</li>
   <li>While a replica runs it is no longer updated (the run reports it). To replicate again, delete the replica guest in Proxmox; the next backup creates a new one. Replicas with Proxmox snapshots are not updated either.</li>
   <li>Disks added to a guest later are not replicated (delete the replica to start over); disks that grew are grown on the replica too. Changes to the configuration (memory, CPUs) are taken when the replica is created.</li>
   <li>Replication reads the backups like a restore: the replica node must reach the storage. Switching replication off leaves the replicas as they are.</li>

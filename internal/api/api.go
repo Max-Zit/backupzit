@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/max-zit/backupzit/internal/leftover"
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
@@ -91,6 +92,10 @@ type PollRequest struct {
 	// Hypervisor is the Proxmox VE inventory (JSON pve.Inventory) of an agent
 	// on a Proxmox node, sent like Disks.
 	Hypervisor json.RawMessage `json:"hypervisor,omitempty"`
+	// Leftovers is the agent's list (JSON array of leftover.Item) of what
+	// its backups left on a hypervisor and could not remove yet (0.56): sent
+	// when it changes and with the inventory; nil means unchanged.
+	Leftovers json.RawMessage `json:"leftovers,omitempty"`
 	// MachineUUID is the BIOS UUID of the agent's machine (Linux in a VM,
 	// 0.55): the console finds a VMware proxy's VM, and so its ESXi host.
 	MachineUUID string `json:"machine_uuid,omitempty"`
@@ -167,6 +172,10 @@ const (
 	// KindRepoScan lists the repositories and their backups on a local or
 	// USB disk of the agent (Details: RepoScan), 0.44.0 and newer.
 	KindRepoScan = "repo-scan"
+	// KindLeftoverCleanup removes what earlier backups left on a hypervisor:
+	// the agent's ledger (Proxmox VE, Hyper-V; VMware with Run.VMware) and the
+	// BackupZit snapshots in Run.Cleanup (agents 0.56+).
+	KindLeftoverCleanup = "leftover-cleanup"
 )
 
 // RepoScan is the result of a repo-scan run.
@@ -292,6 +301,9 @@ type Run struct {
 	// agent acts as proxy). Nil for Proxmox and Hyper-V, where the agent
 	// runs on the hypervisor itself.
 	VMware *VMwareHost `json:"vmware,omitempty"`
+	// Cleanup: BackupZit snapshots a clean-up run removes (found by the
+	// console in the VMware inventory).
+	Cleanup []leftover.Item `json:"cleanup,omitempty"`
 	// VM restore.
 	VMRestore *VMRestore `json:"vm_restore,omitempty"`
 
@@ -306,6 +318,12 @@ type Run struct {
 	UpdateFile    string `json:"update_file,omitempty"`
 	UpdateSHA256  string `json:"update_sha256,omitempty"`
 	UpdateVersion string `json:"update_version,omitempty"`
+	// UpdateManifest and UpdateManifestSig are the signed list of the agent
+	// installers of UpdateVersion (update.AgentManifestName, 0.56). Agents
+	// check the installer against it with the release keys built into them;
+	// UpdateSHA256 alone only says what the console has.
+	UpdateManifest    string `json:"update_manifest,omitempty"`
+	UpdateManifestSig string `json:"update_manifest_sig,omitempty"`
 }
 
 // Repository tells the agent where and how to store data.

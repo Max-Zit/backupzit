@@ -26,6 +26,7 @@ import (
 	"github.com/max-zit/backupzit/internal/archiver"
 	"github.com/max-zit/backupzit/internal/backend"
 	"github.com/max-zit/backupzit/internal/fsutil"
+	"github.com/max-zit/backupzit/internal/leftover"
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/restorer"
 	"github.com/max-zit/backupzit/internal/tlsutil"
@@ -239,6 +240,11 @@ type Agent struct {
 
 	// checkpointsAt: last look for leftover Hyper-V backup checkpoints.
 	checkpointsAt time.Time
+	// janitorAt and janitorRunning: the last clean-up of leftovers (S-2);
+	// leftoversSent is the list the console got last.
+	janitorAt      time.Time
+	janitorRunning bool
+	leftoversSent  json.RawMessage
 }
 
 func New(cfg *Config, log *slog.Logger, version string) *Agent {
@@ -276,10 +282,12 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	if !busy {
 		a.cleanupCheckpoints(ctx)
 	}
+	a.janitor(ctx)
 	if sendInventory {
 		req.Disks = a.diskInventory()
 		req.Hypervisor = a.hypervisorInventory(ctx)
 	}
+	req.Leftovers = a.leftoverReport(sendInventory)
 	req.Time = time.Now().UnixMilli()
 	err := a.client.post(ctx, api.PathPoll, req, &resp, true)
 	a.recordPoll(err, resp.Status)
@@ -289,6 +297,11 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	if sendInventory {
 		a.mu.Lock()
 		a.inventoryAt = time.Now()
+		a.mu.Unlock()
+	}
+	if req.Leftovers != nil {
+		a.mu.Lock()
+		a.leftoversSent = req.Leftovers
 		a.mu.Unlock()
 	}
 	if resp.SendInventory {
@@ -373,6 +386,7 @@ func (a *Agent) Run(ctx context.Context) {
 
 func (a *Agent) execute(ctx context.Context, run api.Run) {
 	ctx = withRunID(ctx, run.ID)
+	ctx = leftover.WithRun(ctx, run.ID) // what the run creates on a hypervisor is recorded with it
 	a.log.Info("run started", "run", run.ID, "kind", run.Kind, "job", run.JobName)
 	a.runStarted(run)
 	// The console can cancel the run; the command after the backup still runs
@@ -445,6 +459,8 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res = a.repoRepair(ctx, run)
 	case api.KindRepoScan:
 		res = a.repoScan(ctx, run)
+	case api.KindLeftoverCleanup:
+		res = a.leftoverCleanup(ctx, run)
 	case api.KindVMBackup:
 		res = a.vmBackup(ctx, run)
 	case api.KindVMRestore:

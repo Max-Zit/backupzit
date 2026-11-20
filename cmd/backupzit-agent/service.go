@@ -18,6 +18,7 @@ import (
 	"github.com/max-zit/backupzit/internal/agent"
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/leftover"
 	"github.com/max-zit/backupzit/internal/logfile"
 )
 
@@ -130,6 +131,9 @@ func (p *program) Start(s service.Service) error {
 				if p.cfgPath == agent.DefaultConfigPath() {
 					// Known object lock dates survive restarts and updates (#38).
 					backend.RetainCacheFile = agent.RetainCachePath()
+					// What backups create on the hypervisor is recorded until its
+					// removal is verified (snapshot clean-up, 0.56).
+					leftover.Open(agent.LeftoverPath())
 				}
 				go ag.ServeLocal(ctx)
 				if !service.Interactive() {

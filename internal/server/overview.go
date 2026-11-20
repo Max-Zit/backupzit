@@ -145,6 +145,9 @@ type Attention struct {
 	Title    string
 	Detail   string
 	Link     string
+	// Action is a form (POST) that deals with it, e.g. Remove now for a
+	// leftover snapshot; "" when there is none.
+	Action string
 }
 
 // attention lists failing jobs, offline agents and jobs without a recent
@@ -162,11 +165,11 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 		}
 		link := fmt.Sprintf("/jobs/%d", j.ID)
 		if st := rpoState(j, cov[j.ID], now); st.Missed {
-			out = append(out, Attention{"failed", j.Name, l.T("RPO missed: %s", rpoText(l, st)), link})
+			out = append(out, Attention{"failed", j.Name, l.T("RPO missed: %s", rpoText(l, st)), link, ""})
 			continue
 		}
 		if j.LastStatus != nil && *j.LastStatus == api.StatusFailed {
-			out = append(out, Attention{"failed", j.Name, l.T("the last run failed"), link})
+			out = append(out, Attention{"failed", j.Name, l.T("the last run failed"), link, ""})
 			continue
 		}
 		sc, err := ParseSchedule(j.Schedule)
@@ -183,14 +186,14 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 		switch {
 		case c == nil || c.LastOK == nil:
 			if j.CreatedAt.Before(prev) {
-				out = append(out, Attention{"warning", j.Name, l.T("no successful backup yet"), link})
+				out = append(out, Attention{"warning", j.Name, l.T("no successful backup yet"), link, ""})
 			}
 		case c.LastOK.Before(prev.Add(-time.Hour)):
-			out = append(out, Attention{"warning", j.Name, l.T("last successful backup %s ago; scheduled runs since then did not succeed", humanAge(l, now.Sub(*c.LastOK))), link})
+			out = append(out, Attention{"warning", j.Name, l.T("last successful backup %s ago; scheduled runs since then did not succeed", humanAge(l, now.Sub(*c.LastOK))), link, ""})
 		}
 	}
 	if s.InitialPasswordInUse() {
-		out = append(out, Attention{"warning", "admin", l.T("still has the generated initial password — change it under Account"), "/account"})
+		out = append(out, Attention{"warning", "admin", l.T("still has the generated initial password — change it under Account"), "/account", ""})
 	}
 	agents, _ := s.store.ListAgents(ctx)
 	if bare := unprotectedAgents(agents, jobs, now); len(bare) > 0 {
@@ -203,7 +206,7 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 			shown = append(shown[:5:5], "…")
 		}
 		out = append(out, Attention{"warning", l.T("Agents without backup"),
-			l.T("%d agents are in no enabled backup job: %s", len(names), strings.Join(shown, ", ")), "/jobs"})
+			l.T("%d agents are in no enabled backup job: %s", len(names), strings.Join(shown, ", ")), "/jobs", ""})
 	}
 	dups := s.dups.current(s.clock())
 	skew := s.clocks.skewed(now)
@@ -212,21 +215,21 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 			continue
 		}
 		if d, ok := dups[a.ID]; ok {
-			out = append(out, Attention{"failed", a.Name(), l.T("two machines use this agent (%s); its backups and restores are held — stop the copy or enroll it as a new machine", strings.Join(d.Machines, ", ")), "/agents"})
+			out = append(out, Attention{"failed", a.Name(), l.T("two machines use this agent (%s); its backups and restores are held — stop the copy or enroll it as a new machine", strings.Join(d.Machines, ", ")), "/agents", ""})
 		}
 		if d, ok := skew[a.ID]; ok {
 			sev := "warning"
 			if d >= 10*time.Minute || d <= -10*time.Minute {
 				sev = "failed"
 			}
-			out = append(out, Attention{sev, a.Name(), skewText(l, d), "/agents"})
+			out = append(out, Attention{sev, a.Name(), skewText(l, d), "/agents", ""})
 		}
 		if a.LastSeen == nil || now.Sub(*a.LastSeen) > 15*time.Minute {
 			seen := l.T("agent never connected")
 			if a.LastSeen != nil {
 				seen = l.T("agent offline for %s", humanAge(l, now.Sub(*a.LastSeen)))
 			}
-			out = append(out, Attention{"warning", a.Name(), seen, "/agents"})
+			out = append(out, Attention{"warning", a.Name(), seen, "/agents", ""})
 		}
 	}
 	if usage, err := s.store.storageUsage(ctx, now); err == nil && len(usage) > 0 {
@@ -238,14 +241,15 @@ func (s *Server) attention(ctx context.Context, now time.Time, l *language) []At
 			}
 			switch soon := u.FullInDays >= 0 && u.FullInDays <= 30; {
 			case u.UsedPercent() >= 90 || soon && u.FullInDays <= 7:
-				out = append(out, Attention{"failed", t.Name, storageWarning(l, u), "/targets#usage"})
+				out = append(out, Attention{"failed", t.Name, storageWarning(l, u), "/targets#usage", ""})
 			case soon:
-				out = append(out, Attention{"warning", t.Name, storageWarning(l, u), "/targets#usage"})
+				out = append(out, Attention{"warning", t.Name, storageWarning(l, u), "/targets#usage", ""})
 			}
 		}
 	}
+	out = append(out, s.leftoverAttention(ctx, now, l, agents)...)
 	if n := s.store.PendingApprovals(ctx); n > 0 {
-		out = append(out, Attention{"warning", l.T("Approvals"), l.T("%d changes wait for a second user's approval", n), "/approvals"})
+		out = append(out, Attention{"warning", l.T("Approvals"), l.T("%d changes wait for a second user's approval", n), "/approvals", ""})
 	}
 	sort.SliceStable(out, func(i, k int) bool { return out[i].Severity == "failed" && out[k].Severity != "failed" })
 	return out

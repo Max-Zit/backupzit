@@ -36,6 +36,9 @@ type VM struct {
 	Template bool   `json:"template,omitempty"`
 	// Snapshots is true when the VM has snapshots of its own.
 	Snapshots bool `json:"snapshots,omitempty"`
+	// BackupSnapshots are its BackupZit snapshots (leftovers when no backup
+	// runs); not stored with backups.
+	BackupSnapshots []pve.SnapRef `json:"-"`
 	// Host is the ESXi host the VM is registered on (vCenter).
 	Host string `json:"host,omitempty"`
 	// BIOSUUID is config.uuid (lower case): a proxy agent in this VM reports
@@ -82,6 +85,18 @@ func vmFromMO(m mo.VirtualMachine) VM {
 	v := VM{Ref: m.Self, MoID: m.Self.Value, Name: m.Name, Power: string(m.Runtime.PowerState),
 		VMX: m.Summary.Config.VmPathName, Tools: m.Guest != nil && m.Guest.ToolsRunningStatus == "guestToolsRunning",
 		Snapshots: m.Snapshot != nil}
+	if m.Snapshot != nil {
+		var walk func([]types.VirtualMachineSnapshotTree)
+		walk = func(ts []types.VirtualMachineSnapshotTree) {
+			for _, t := range ts {
+				if strings.HasPrefix(t.Name, snapPrefix) {
+					v.BackupSnapshots = append(v.BackupSnapshots, pve.SnapRef{Name: t.Name, Created: t.CreateTime.UTC()})
+				}
+				walk(t.ChildSnapshotList)
+			}
+		}
+		walk(m.Snapshot.RootSnapshotList)
+	}
 	if m.Config != nil {
 		v.UUID = m.Config.InstanceUuid
 		if v.UUID == "" { // VMs created without vCenter IDs: the BIOS UUID
@@ -322,7 +337,7 @@ func (c *Client) Inventory(ctx context.Context, host string) (*pve.Inventory, er
 			node = v.Host
 		}
 		inv.Guests = append(inv.Guests, pve.Guest{VMID: v.VMID, FormerVMID: v.BIOSVMID, ID: v.UUID, BIOSUUID: v.BIOSUUID, Name: v.Name, Type: "vm", Node: node,
-			Status: status, MaxDisk: v.DiskSize(), MaxMem: uint64(v.MemoryMB) << 20, Template: v.Template}) // #nosec G115 -- disk and datastore sizes from vSphere are within range
+			Status: status, MaxDisk: v.DiskSize(), MaxMem: uint64(v.MemoryMB) << 20, Template: v.Template, BackupSnapshots: v.BackupSnapshots}) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 	}
 	for _, d := range dss {
 		inv.Storage = append(inv.Storage, d.Name)

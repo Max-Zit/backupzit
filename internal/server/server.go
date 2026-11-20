@@ -446,6 +446,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /agents/{id}/labels", s.ui(PermAgents, s.handleAgentLabels))
 	mux.HandleFunc("POST /agents/{id}/log", s.ui(PermAgents, s.handleAgentLogRequest))
 	mux.HandleFunc("POST /agents/{id}/inventory", s.ui(PermAgents, s.handleAgentInventoryRequest))
+	mux.HandleFunc("POST /leftovers/clean", s.ui(PermAgents, s.handleLeftoverClean))
 	mux.HandleFunc("GET /runs/{id}/log", s.ui(PermAgents, s.handleAgentLogDownload))
 	mux.HandleFunc("POST /agents/update-all", s.ui(PermAgents, s.handleAgentUpdateAll))
 	mux.HandleFunc("POST /vmware", s.ui(PermStorage, s.handleVMwareCreate))
@@ -1427,5 +1428,5 @@ func Shutdown(srv *http.Server) {
 
 // kindTitleEN names a run kind for people (English).
 func kindTitleEN(k string) string {
-	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "repo-repair": "Data repair", "repo-scan": "Find backups", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
+	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "repo-repair": "Data repair", "repo-scan": "Find backups", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore", "leftover-cleanup": "Leftover clean-up"}[k]
 }

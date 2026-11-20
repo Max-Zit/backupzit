@@ -81,6 +81,7 @@ func (s *Scheduler) Tick(ctx context.Context, now time.Time) {
 		defer s.Notifier.Pass(ctx, now)
 	}
 	s.store.refreshVMware(ctx, now)
+	s.store.autoLeftoverCleanup(ctx, now)
 	if ids, err := s.store.FailStaleRuns(ctx, s.StaleAfter, s.started); err != nil {
 		s.log.Error("fail stale runs", "err", err)
 	} else if len(ids) > 0 {

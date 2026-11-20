@@ -83,6 +83,9 @@ func rpoText(l *language, st RPOState) string {
 
 const settingRPOAlerts = "rpo_alerts"
 
+// settingLeftoverAlerts holds the leftovers already notified (0.56).
+const settingLeftoverAlerts = "leftover_alerts"
+
 // settingRPOChatAlerts: the jobs whose RPO chat alert went out (0.55).
 const settingRPOChatAlerts = "rpo_chat_alerts"
 

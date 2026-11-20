@@ -94,6 +94,16 @@ type Guest struct {
 	// Clustered marks a Hyper-V VM that is a role of a failover cluster: it
 	// moves between the nodes.
 	Clustered bool `json:"clustered,omitempty"`
+	// BackupSnapshots are the BackupZit snapshots the VM has now (VMware
+	// inventory, 0.56): one that stays after its backup is a leftover the
+	// console lists.
+	BackupSnapshots []SnapRef `json:"backup_snapshots,omitempty"`
+}
+
+// SnapRef is a snapshot by name and creation time.
+type SnapRef struct {
+	Name    string    `json:"name"`
+	Created time.Time `json:"created"`
 }
 
 // Inventory is what a node agent reports to the console.

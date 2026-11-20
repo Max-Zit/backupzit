@@ -58,6 +58,20 @@ func Lock(ctx context.Context, key string) (func(), error) {
 	}, nil
 }
 
+// TryLock takes the VM's lock only when nothing uses it now; ok is false
+// when an operation of this or another BackupZit process holds it. The
+// agent's clean-up of leftovers uses it: it never waits for, and never
+// touches, a VM a run is working on.
+func TryLock(key string) (unlock func(), ok bool) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Lock does not wait with a done context
+	unlock, err := Lock(ctx, key)
+	if err != nil {
+		return nil, false
+	}
+	return unlock, true
+}
+
 // Dir holds the lock files on Linux; only root uses it (the agent's own
 // folder).
 var Dir = "/var/lib/backupzit-agent/locks"

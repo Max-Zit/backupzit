@@ -446,9 +446,9 @@ func (s *Server) addCopyPart(ctx context.Context, run *Run, ar *api.Run) error {
 // runs: two jobs with the same VM on two proxies (it moved between hosts),
 // or a restore in place during a backup, would remove each other's
 // snapshot or temporary disk copy. Such runs wait for each other.
-const vmwareBusySQL = `(r.vmware_host_id IS NOT NULL AND r.kind IN ('vm-backup','vm-restore','vm-instant','vm-instant-finish','vm-instant-discard')
+const vmwareBusySQL = `(r.vmware_host_id IS NOT NULL AND r.kind IN ('vm-backup','vm-restore','vm-instant','vm-instant-finish','vm-instant-discard','leftover-cleanup')
 	AND EXISTS (SELECT 1 FROM runs o WHERE o.status='running' AND o.vmware_host_id=r.vmware_host_id AND o.agent_id<>r.agent_id
-		AND o.kind IN ('vm-backup','vm-restore','vm-instant','vm-instant-finish','vm-instant-discard')
+		AND o.kind IN ('vm-backup','vm-restore','vm-instant','vm-instant-finish','vm-instant-discard','leftover-cleanup')
 		AND (r.batch IS NULL OR o.batch IS DISTINCT FROM r.batch)))`
 
 // batchRuns are the runs of a split start.

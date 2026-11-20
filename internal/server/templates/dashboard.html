@@ -25,7 +25,7 @@
   <h2>{{T "Needs attention"}}</h2>
   {{with .Data.Attention}}
   <ul class="attention">
-    {{range .}}<li class="{{.Severity}}"><span class="badge {{.Severity}}"><i></i>{{if eq .Severity "failed"}}{{T "failed"}}{{else}}{{T "check"}}{{end}}</span> <a href="{{.Link}}"><b>{{.Title}}</b></a> — {{.Detail}}</li>{{end}}
+    {{range .}}<li class="{{.Severity}}"><span class="badge {{.Severity}}"><i></i>{{if eq .Severity "failed"}}{{T "failed"}}{{else}}{{T "check"}}{{end}}</span> <a href="{{.Link}}"><b>{{.Title}}</b></a> — {{.Detail}}{{if and .Action ($.Me.Can "agents")}} <form method="post" action="{{.Action}}" class="inline"><button class="link small" title="{{T "The agent removes it now (a run on the Activity page shows the result)"}}">{{T "Remove now"}}</button></form>{{end}}</li>{{end}}
   </ul>
   {{else}}<p class="ok-line">{{template "icon" "check"}} {{T "Everything is fine: all jobs succeeded recently and all agents are online."}}</p>{{end}}
 </div>

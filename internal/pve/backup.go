@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/diskimg"
+	"github.com/max-zit/backupzit/internal/leftover"
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/vmlock"
 )
@@ -132,7 +133,7 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 		}
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil, ctx.Err()
+				return nil, leftover.CancelError(ctx.Err(), stats.Errors) // with what its clean-up reported
 			}
 			addErr(guestLabel(g), err)
 			stats.Failed = append(stats.Failed, guestLabel(g))
@@ -283,10 +284,20 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		// Remove snapshots left behind by an interrupted backup.
 		for _, n := range snapshotNames(conf) {
 			if strings.HasPrefix(n, snapPrefix) {
-				_, _ = command(ctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), n, "--force")
+				it := snapshotItem(g, n)
+				if at, ok := snapshotTime(n); ok {
+					it.Created = at
+				}
+				leftover.Add(context.Background(), it) // since when, for the console
+				if _, err := removeGuestSnapshot(ctx, g, n, nil); err != nil {
+					warns = append(warns, fmt.Sprintf("the snapshot %s left by an earlier backup could not be removed (%v); the agent tries again and the dashboard lists it until it is gone", n, err))
+				}
 			}
 		}
 		snap = snapPrefix + strconv.FormatInt(time.Now().Unix(), 10)
+		// Recorded before it exists: a crash or cancel during the creation
+		// leaves a record the janitor finds it by (S-1).
+		leftover.Add(ctx, snapshotItem(g, snap))
 		args := []string{"snapshot", strconv.Itoa(g.VMID), snap, "--description", "Temporary snapshot for a BackupZit backup; removed automatically"}
 		if g.Type == "qemu" {
 			args = append(args, "--vmstate", "0")
@@ -307,27 +318,25 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 				trk = nil
 			}
 		}
+		removeSnap := func(waits []time.Duration) {
+			cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Minute)
+			defer cancel()
+			forced, err := removeGuestSnapshot(cctx, g, snap, waits)
+			switch {
+			case err != nil:
+				warns = append(warns, fmt.Sprintf("the backup snapshot %s of guest %d could not be removed (%v); the agent tries again and the dashboard lists it until it is gone", snap, g.VMID, err))
+			case forced:
+				warns = append(warns, fmt.Sprintf("the backup snapshot %s of guest %d was removed only with --force", snap, g.VMID))
+			}
+		}
 		if _, err := command(ctx, guestTool(g.Type), args...); err != nil {
+			// A failed or cancelled creation can leave the snapshot (or a
+			// half-made one, snapstate prepare) in the configuration.
+			removeSnap(nil)
 			return nil, trk, warns, fmt.Errorf("create snapshot: %w", err)
 		}
 		trk.verify(ctx)
-		defer func() {
-			cctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-			defer cancel()
-			_, err1 := command(cctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap)
-			if err1 == nil {
-				return
-			}
-			// The retry gets its own time: the first try may have used up
-			// the five minutes (a slow storage merging the snapshot).
-			fctx, fcancel := context.WithTimeout(context.Background(), 5*time.Minute)
-			defer fcancel()
-			if _, err2 := command(fctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap, "--force"); err2 != nil {
-				warns = append(warns, fmt.Sprintf("the backup snapshot %s of guest %d could not be removed (%v; with --force: %v); the next backup of the guest removes it", snap, g.VMID, err1, err2))
-			} else {
-				warns = append(warns, fmt.Sprintf("the backup snapshot %s of guest %d was removed only with --force (%v)", snap, g.VMID, err1))
-			}
-		}()
+		defer removeSnap(leftover.RunWaits)
 		switch {
 		case !running:
 			gi.Consistency = "snapshot of the stopped guest"
@@ -754,13 +763,16 @@ func configuredSize(g Guest) uint64 {
 func lockGuest(ctx context.Context, g Guest) error {
 	if _, err := command(ctx, guestTool(g.Type), "set", strconv.Itoa(g.VMID), "--lock", "backup"); err != nil {
 		if strings.Contains(err.Error(), "locked (backup)") {
-			// Proxmox VE's own backups (vzdump) use the same lock, so it is
-			// never removed automatically; the message names the way out
-			// when an interrupted run left it (M-N11).
-			return fmt.Errorf("guest %d already has the backup lock: if no backup of it is running (BackupZit or vzdump), it may be left over from an interrupted run (agent crash, power loss); `%s unlock %d` removes it: %w", g.VMID, guestTool(g.Type), g.VMID, err)
+			// Proxmox VE's own backups (vzdump) use the same lock: the agent
+			// removes only one its ledger says it set (CleanLeftovers); the
+			// message names the way out for any other (M-N11).
+			return fmt.Errorf("guest %d already has the backup lock: if no backup of it is running (BackupZit or vzdump), it may be left over from an interrupted run (agent crash, power loss); the agent removes a lock it set itself within 15 minutes, `%s unlock %d` removes any other: %w", g.VMID, guestTool(g.Type), g.VMID, err)
 		}
 		return fmt.Errorf("lock the guest for the backup (is it locked by another operation?): %w", err)
 	}
+	// Recorded once it is ours (a lock that could not be set may be
+	// vzdump's): a crash leaves a record the janitor removes it by (S-2).
+	leftover.Add(ctx, lockItem(g))
 	return nil
 }
 
@@ -768,5 +780,14 @@ func lockGuest(ctx context.Context, g Guest) error {
 func unlockGuest(g Guest) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	_, _ = command(ctx, guestTool(g.Type), "unlock", strconv.Itoa(g.VMID))
+	_, err := command(ctx, guestTool(g.Type), "unlock", strconv.Itoa(g.VMID))
+	conf, ok, cerr := guestConf(g)
+	switch {
+	case cerr == nil && (!ok || configLock(conf) != "backup"):
+		leftover.Done(lockItem(g))
+	case err != nil:
+		leftover.Failed(lockItem(g), err)
+	default:
+		leftover.Failed(lockItem(g), cerr)
+	}
 }

@@ -147,6 +147,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	if run.Kind == api.KindAgentLog || run.Kind == api.KindAgentUninstall {
 		return &api.Run{ID: run.ID, Kind: run.Kind}, nil
 	}
+	if run.Kind == api.KindLeftoverCleanup { // needs no storage
+		return s.cleanupRun(ctx, run)
+	}
 	if run.Kind == api.KindVMReplicaStart { // needs no storage
 		ar := &api.Run{ID: run.ID, Kind: run.Kind}
 		return ar, s.addReplica(ctx, run, ar)

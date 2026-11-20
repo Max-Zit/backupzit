@@ -390,6 +390,9 @@ func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest, r
 			return err
 		}
 	}
+	if err := s.saveLeftovers(ctx, id, req.Leftovers); err != nil {
+		return err
+	}
 	if len(req.IPs) > 16 {
 		req.IPs = req.IPs[:16]
 	}

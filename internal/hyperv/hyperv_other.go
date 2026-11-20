@@ -22,6 +22,10 @@ func GetInventory(context.Context) (*pve.Inventory, error) { return nil, errUnsu
 
 func CleanupCheckpoints(context.Context) ([]string, error) { return nil, errUnsupported }
 
+func CleanLeftovers(context.Context, func(string, ...any)) ([]string, error) {
+	return nil, errUnsupported
+}
+
 type BackupOptions struct {
 	VMIDs    []int
 	Exclude  []int

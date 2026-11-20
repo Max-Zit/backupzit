@@ -41,7 +41,14 @@ func TestTakeCheckpointCancel(t *testing.T) {
 			original := ps
 			defer func() { ps = original }()
 			creates, removes := 0, 0
+			exists := false
 			ps = func(run context.Context, script string) ([]byte, error) {
+				if strings.Contains(script, ").Count") { // checkpointExists (0.56)
+					if exists {
+						return []byte("1"), nil
+					}
+					return []byte("0"), nil
+				}
 				if run.Err() != nil {
 					t.Error("PowerShell started with a cancelled context: the checkpoint would be left half done")
 				}
@@ -53,9 +60,11 @@ func TestTakeCheckpointCancel(t *testing.T) {
 					if tc.removeFails {
 						return nil, errors.New("injected removal failure")
 					}
+					exists = false
 					return nil, nil
 				}
 				creates++
+				exists = true
 				if !strings.Contains(script, psq(name)) {
 					t.Error("creation script does not name the checkpoint")
 				}

@@ -43,3 +43,21 @@ func TestLockSerializesOneVM(t *testing.T) {
 		t.Fatal("the waiting run did not get the lock after the release")
 	}
 }
+
+// TryLock never waits: it gets a free VM and refuses a held one.
+func TestTryLock(t *testing.T) {
+	Dir = t.TempDir()
+	unlock, ok := TryLock("vmware-h-1")
+	if !ok {
+		t.Fatal("a free VM was refused")
+	}
+	if _, ok := TryLock("vmware-h-1"); ok {
+		t.Fatal("a held VM was taken twice")
+	}
+	unlock()
+	again, ok := TryLock("vmware-h-1")
+	if !ok {
+		t.Fatal("the VM stayed held after the release")
+	}
+	again()
+}

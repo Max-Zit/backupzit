@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/diskimg"
+	"github.com/max-zit/backupzit/internal/leftover"
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
@@ -214,19 +215,30 @@ func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp, cra
 	ci, consistency, rct, warns, err = createCheckpoint(ctx, run, vm, name, requireApp, crashOK)
 	if err != nil && ctx.Err() != nil && run.Err() != nil {
 		// The grace ran out while PowerShell created it: Hyper-V may still
-		// add the checkpoint under its default name.
-		warns = append(warns, fmt.Sprintf("the backup was cancelled while Hyper-V created a checkpoint, which did not finish within %s; if the VM has a checkpoint named after it with the date, delete it", checkpointGrace))
+		// add the checkpoint under its default name. The ledger item says
+		// so; the agent's janitor removes it (S-2).
+		it := checkpointItem(vm, name)
+		it.Pending = true
+		leftover.Add(ctx, it)
+		warns = append(warns, fmt.Sprintf("the backup was cancelled while Hyper-V created a checkpoint, which did not finish within %s; the agent removes it when it appears (the dashboard lists it until then)", checkpointGrace))
+		return ci, consistency, rct, warns, err
 	}
-	if err == nil && ctx.Err() != nil {
-		// Its own time, like the removal after a backup: the grace may be spent.
+	if err != nil || ctx.Err() != nil {
+		// Created after all (a cancel during the creation) or half made:
+		// removed with its own time, the grace may be spent.
 		rm, rmCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Minute)
 		defer rmCancel()
-		if _, rerr := ps(rm, `Get-VMSnapshot -VM (Get-VM -Id `+psq(vm.ID)+`) -Name `+psq(name)+` -ErrorAction Stop | Remove-VMSnapshot -ErrorAction Stop`); rerr != nil {
-			warns = append(warns, "remove checkpoint "+name+": "+lastLine(rerr.Error()))
+		if rerr := removeCheckpointVerified(rm, vm, name, nil); rerr != nil && !errors.Is(rerr, errMoved) {
+			warns = append(warns, "remove checkpoint "+name+": "+rerr.Error()+"; the agent tries again and the dashboard lists it until it is gone")
+		} else if errors.Is(rerr, errMoved) {
+			leftover.Done(checkpointItem(vm, name))
 		}
-		return checkpointInfo{}, "", false, warns, ctx.Err()
+		if err == nil {
+			err = ctx.Err()
+		}
+		return checkpointInfo{}, "", false, warns, err
 	}
-	return ci, consistency, rct, warns, err
+	return ci, consistency, rct, warns, nil
 }
 
 // createCheckpoint does the work of takeCheckpoint. PowerShell runs under
@@ -336,6 +348,9 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 			return nil, nil, fmt.Errorf("name checkpoint: %w", err)
 		}
 		name := snapPrefix + hex.EncodeToString(nonce[:])
+		// Recorded before it exists: a crash during the creation leaves a
+		// record the janitor finds it by (S-1).
+		leftover.Add(ctx, checkpointItem(vm, name))
 		ci, consistency, withRCT, w, err := takeCheckpoint(ctx, vm, name, requireApp, crashOK)
 		warns = append(warns, w...)
 		if err != nil {
@@ -345,13 +360,17 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 			return nil, warns, err
 		}
 		defer func() {
-			c, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+			c, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer cancel()
-			out, err := ps(c, `$vm = Get-VM -Id `+psq(vm.ID)+` -ErrorAction SilentlyContinue; if (-not $vm) { 'moved' } else { Get-VMSnapshot -VM $vm -Name `+psq(name)+` -ErrorAction Stop | Remove-VMSnapshot -ErrorAction Stop }`)
+			err := removeCheckpointVerified(c, vm, name, leftover.RunWaits)
 			switch {
+			case errors.Is(err, errMoved):
+				leftover.Done(checkpointItem(vm, name)) // the node that runs it now removes it
 			case err != nil:
-				warns = append(warns, "remove checkpoint "+name+": "+lastLine(err.Error()))
-			case strings.TrimSpace(string(out)) == "moved":
+				warns = append(warns, "remove checkpoint "+name+": "+err.Error()+"; the agent tries again and the dashboard lists it until it is gone")
+			}
+			switch {
+			case errors.Is(err, errMoved):
 				// Live-migrated to another node during the backup: that node's
 				// agent removes the checkpoint once this marker says the
 				// backup has finished reading (CleanupCheckpoints).

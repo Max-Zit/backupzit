@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/diskimg"
+	"github.com/max-zit/backupzit/internal/leftover"
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/vmlock"
 )
@@ -120,7 +121,9 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 		}
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil, ctx.Err()
+				// A snapshot or disk copy that could not be removed is
+				// still told about when the run was cancelled (S-1).
+				return nil, leftover.CancelError(ctx.Err(), stats.Errors) // the warnings are in it
 			}
 			addErr(v.Name, err)
 			stats.Failed = append(stats.Failed, v.Name)
@@ -130,6 +133,8 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 		sn.Paths = append(sn.Paths, "vmware/"+v.UUID)
 		stats.Files++
 	}
+	// What earlier runs left on other VMs of the connection (S-2).
+	c.cleanAfterBackup(ctx, opts.Log)
 	if len(sn.Guests) == 0 {
 		return nil, fmt.Errorf("no VM could be backed up: %s", strings.Join(stats.Errors, "; "))
 	}
@@ -212,20 +217,50 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 		if v, err = c.vm(ctx, v.Ref); err != nil {
 			return nil, warns, err
 		}
-		// Remove snapshots left behind by an interrupted backup.
+		// Remove snapshots left behind by an interrupted backup (the VM's
+		// lock is held: none of them belongs to a running run of this agent).
 		if old, err := c.leftovers(ctx, v.Ref); err == nil {
 			for _, s := range old {
-				_ = c.removeSnapshot(ctx, v, s)
+				it := c.snapshotItem(v, s.Name)
+				it.Created = s.Created.UTC()
+				leftover.Add(context.Background(), it) // since when, for the console
+				if _, err := c.removeSnapshotVerified(ctx, v, s.Name, nil); err != nil {
+					warns = append(warns, fmt.Sprintf("the snapshot %s left by an earlier backup could not be removed (%v); the agent tries again and the dashboard lists it until it is gone", s.Name, err))
+				}
 			}
 		}
 		name := snapPrefix + strconv.FormatInt(time.Now().Unix(), 10)
+		// Recorded before it exists: an agent crash or a cancel during the
+		// creation leaves a record the janitor finds the snapshot by (S-1).
+		leftover.Add(ctx, c.snapshotItem(v, name))
+		bg := func() (context.Context, context.CancelFunc) {
+			return context.WithTimeout(context.WithoutCancel(ctx), 30*time.Minute)
+		}
 		quiesce := v.Tools && v.Power == "poweredOn"
 		s, err := c.createSnapshot(ctx, v, name, quiesce)
-		if err != nil && quiesce {
-			warns = append(warns, "quiesced snapshot failed ("+err.Error()+"), took a crash-consistent one")
-			s, err = c.createSnapshot(ctx, v, name, false)
+		if err != nil && quiesce && ctx.Err() == nil {
+			// A failed quiesced snapshot may still be listed: it goes first,
+			// the second one has the same name.
+			c2, cancel := bg()
+			_, rerr := c.removeSnapshotVerified(c2, v, name, nil)
+			cancel()
+			if rerr == nil {
+				leftover.Add(ctx, c.snapshotItem(v, name))
+				warns = append(warns, "quiesced snapshot failed ("+err.Error()+"), took a crash-consistent one")
+				s, err = c.createSnapshot(ctx, v, name, false)
+			}
 		}
-		if err != nil {
+		if err != nil || ctx.Err() != nil {
+			// Created after all (a cancel, a task that reported an error
+			// late), or not: look it up by name and remove it.
+			c2, cancel := bg()
+			defer cancel()
+			if _, rerr := c.removeSnapshotVerified(c2, v, name, leftover.RunWaits); rerr != nil {
+				warns = append(warns, fmt.Sprintf("the backup snapshot %s of VM %s could not be removed after the failed creation (%v); the agent tries again and the dashboard lists it until it is gone", name, v.Name, rerr))
+			}
+			if err == nil {
+				err = ctx.Err()
+			}
 			return nil, warns, fmt.Errorf("create snapshot: %w", err)
 		}
 		removed := false
@@ -234,10 +269,14 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 				return
 			}
 			removed = true
-			c2, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			c2, cancel := bg()
 			defer cancel()
-			if err := c.removeSnapshot(c2, v, *s); err != nil {
-				warns = append(warns, "remove snapshot "+name+": "+err.Error())
+			note, err := c.removeSnapshotVerified(c2, v, name, leftover.RunWaits)
+			switch {
+			case err != nil:
+				warns = append(warns, fmt.Sprintf("the backup snapshot %s of VM %s could not be removed (%v); the agent tries again and the dashboard lists it until it is gone", name, v.Name, err))
+			case note != "":
+				warns = append(warns, note)
 			}
 		}
 		defer removeSnap()
@@ -268,7 +307,11 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 			defer func() {
 				for _, p := range plans {
 					if p.clone != nil {
-						_ = c.deleteDisk(context.Background(), *p.clone)
+						c2, cancel := bg()
+						if err := c.deleteCopy(c2, v, *p.clone); err != nil {
+							warns = append(warns, fmt.Sprintf("the temporary disk copy %s could not be deleted (%v); the agent tries again and the dashboard lists it until it is gone", p.clone, err))
+						}
+						cancel()
 					}
 				}
 				for _, p := range plans {
@@ -363,13 +406,15 @@ func (c *Client) cloneDisk(ctx context.Context, v VM, p *diskPlan) error {
 	if err := c.mkdir(ctx, dst.DS, tmpDir); err != nil {
 		return fmt.Errorf("create %s on datastore %s: %w", tmpDir, dst.DS, err)
 	}
+	// Recorded before the copy starts: a crash leaves a record (S-2).
+	leftover.Add(ctx, c.copyItem(v, dst))
 	if err := c.copyDisk(ctx, src, dst); err != nil {
 		// A partial copy takes datastore space: delete it now, also when
 		// the run was cancelled.
 		dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
 		defer cancel()
-		if c.exists(dctx, dst.DS, dst.Path) {
-			_ = c.deleteDisk(dctx, dst)
+		if derr := c.deleteCopy(dctx, v, dst); derr != nil {
+			err = fmt.Errorf("%w; the partial copy %s could not be deleted (%v), the agent tries again", err, dst, derr)
 		}
 		return fmt.Errorf("copy the disk on the datastore (needs free space for its used blocks): %w", err)
 	}
