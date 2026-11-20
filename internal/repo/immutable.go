@@ -77,9 +77,40 @@ func (r *Repository) KeepImmutable(ctx context.Context, sns ...*Snapshot) (int, 
 		}
 		names = append(names, files...)
 	}
-	n, err := ret.KeepLocked(ctx, names)
-	if err != nil {
+	// In batches, so that the run shows how far it is (a repository with
+	// 10,000 packs on a slow provider takes a while, #38).
+	progress, _ := ctx.Value(keepProgressKey{}).(func(done, total int))
+	n, failedInARow := 0, 0
+	for start := 0; start < len(names); start += keepBatch {
+		end := min(start+keepBatch, len(names))
+		k, err := ret.KeepLocked(ctx, names[start:end])
+		n += k
+		if progress != nil {
+			progress(end, len(names))
+		}
+		if err == nil {
+			failedInARow = 0
+			continue
+		}
 		problems = append(problems, err)
+		if k == 0 {
+			failedInARow++
+		}
+		// The storage keeps failing: stop, the next run tries again.
+		if ctx.Err() != nil || errors.Is(err, backend.ErrKeepStopped) || failedInARow >= 2 {
+			break
+		}
 	}
 	return n, errors.Join(problems...)
+}
+
+// keepBatch is how many objects KeepImmutable hands to the storage at once.
+const keepBatch = 500
+
+type keepProgressKey struct{}
+
+// WithKeepProgress makes KeepImmutable report how many of the objects it
+// has handled so far.
+func WithKeepProgress(ctx context.Context, progress func(done, total int)) context.Context {
+	return context.WithValue(ctx, keepProgressKey{}, progress)
 }

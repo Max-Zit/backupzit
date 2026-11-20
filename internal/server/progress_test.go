@@ -55,6 +55,12 @@ func TestRunProgress(t *testing.T) {
 		t.Fatal("estimate shown past the previous file count")
 	}
 
+	// R-2 (0.55): a step after the data shows with its count, not a silent 100 %.
+	poll(api.RunProgress{Done: 1000 << 20, Total: 1000 << 20, Stage: "locks", StageDone: 3200, StageTotal: 11000})
+	if b := page(fmt.Sprint("/runs/", runID)); !strings.Contains(b, "Extending object locks 3200 / 11000") {
+		t.Fatal("the lock extension step is not shown")
+	}
+
 	// Finished runs show no progress.
 	if err := x.e.store.FinishRun(ctx, x.agentID, runID, api.RunResult{Status: api.StatusSuccess}); err != nil {
 		t.Fatal(err)

@@ -542,6 +542,7 @@
   "Existing recovery key (optional)": "Clé de récupération existante (facultatif)",
   "Expires": "Expire",
   "Expires after": "Expire après",
+  "Extending object locks %d / %d": "Prolongation des verrous d'objets %d / %d",
   "Failed": "Échecs",
   "Failed attempts per address": "Échecs par adresse",
   "Failed attempts per username": "Échecs par nom d’utilisateur",

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -103,8 +105,14 @@ func TestExtendLocksGivesUpWhenStorageIsDown(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "in a row") {
 		t.Fatalf("error %v, want to stop", err)
 	}
-	if want := int32(keepGiveUp * (len(s3Backoff) + 1)); calls.Load() != want {
-		t.Errorf("%d requests, want %d (%d objects with their retries)", calls.Load(), want, keepGiveUp)
+	// keepWorkers objects are asked at a time: at most those in flight when
+	// the storage was given up, never all 50.
+	per := int32(len(s3Backoff) + 1)
+	if max := int32(keepGiveUp+keepWorkers) * per; calls.Load() < int32(keepGiveUp)*per || calls.Load() > max {
+		t.Errorf("%d requests, want %d to %d", calls.Load(), int32(keepGiveUp)*per, max)
+	}
+	if !errors.Is(err, ErrKeepStopped) {
+		t.Errorf("error %v does not mark the stop", err)
 	}
 }
 
@@ -116,5 +124,32 @@ func TestExtendLocksKeepsLongLocks(t *testing.T) {
 	put := func(string, time.Time) error { t.Error("extended a long lock"); return nil }
 	if n, err := extendLocks(context.Background(), []string{"data/a", "locks/x"}, 30*24*time.Hour, func(s string) string { return prefix + s }, get, put); n != 0 || err != nil {
 		t.Errorf("%d, %v", n, err)
+	}
+}
+
+// R-2 (0.55): known retain-until dates survive a restart of the agent, so
+// the next run does not ask about every object again (#38).
+func TestRetainCacheSurvivesRestart(t *testing.T) {
+	fastRetries(t)
+	old := RetainCacheFile
+	RetainCacheFile = filepath.Join(t.TempDir(), "retain-cache.json")
+	defer func() { RetainCacheFile = old }()
+	retainLoadOnce = sync.Once{}
+	prefix := fmt.Sprintf("restart-%d/", time.Now().UnixNano())
+	names := []string{"data/a", "data/b", "index/c"}
+	var gets atomic.Int32
+	get := func(string) (*time.Time, error) { gets.Add(1); return nil, nil }
+	put := func(string, time.Time) error { return nil }
+	if n, err := extendLocks(context.Background(), names, 30*24*time.Hour, func(s string) string { return prefix + s }, get, put); n != 3 || err != nil {
+		t.Fatalf("first run: %d %v", n, err)
+	}
+	// "Restart": the memory is empty, the file is read again.
+	for _, n := range names {
+		retainCache.Delete(prefix + n)
+	}
+	retainLoadOnce = sync.Once{}
+	gets.Store(0)
+	if n, err := extendLocks(context.Background(), names, 30*24*time.Hour, func(s string) string { return prefix + s }, get, put); n != 0 || err != nil || gets.Load() != 0 {
+		t.Fatalf("after a restart: extended %d, asked %d times, %v", n, gets.Load(), err)
 	}
 }

@@ -542,6 +542,7 @@
   "Existing recovery key (optional)": "Postojeći ključ za oporavak (opciono)",
   "Expires": "Ističe",
   "Expires after": "Ističe posle",
+  "Extending object locks %d / %d": "Produžavanje zaključavanja objekata %d / %d",
   "Failed": "Neuspelo",
   "Failed attempts per address": "Neuspeli pokušaji po adresi",
   "Failed attempts per username": "Neuspeli pokušaji po korisničkom imenu",

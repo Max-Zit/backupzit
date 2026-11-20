@@ -542,6 +542,7 @@
   "Existing recovery key (optional)": "Vorhandener Wiederherstellungsschlüssel (optional)",
   "Expires": "Läuft ab",
   "Expires after": "Läuft ab nach",
+  "Extending object locks %d / %d": "Objektsperren werden verlängert %d / %d",
   "Failed": "Fehlgeschl.",
   "Failed attempts per address": "Fehlversuche pro Adresse",
   "Failed attempts per username": "Fehlversuche pro Benutzername",

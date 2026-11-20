@@ -49,6 +49,11 @@ type RunProgress struct {
 	// (file backups, 0.44.0 and newer); with the previous backup's size it
 	// gives a better estimate than the file count alone.
 	Scanned uint64 `json:"scanned,omitempty"`
+	// Stage names a step after the data, with its own count (0.55): "locks"
+	// is extending object locks (StageDone of StageTotal objects).
+	Stage      string `json:"stage,omitempty"`
+	StageDone  uint64 `json:"stage_done,omitempty"`
+	StageTotal uint64 `json:"stage_total,omitempty"`
 }
 
 type PollRequest struct {

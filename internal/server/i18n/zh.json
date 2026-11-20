@@ -542,6 +542,7 @@
   "Existing recovery key (optional)": "现有恢复密钥（可选）",
   "Expires": "过期时间",
   "Expires after": "有效期",
+  "Extending object locks %d / %d": "正在延长对象锁定 %d / %d",
   "Failed": "失败",
   "Failed attempts per address": "每个地址的失败次数",
   "Failed attempts per username": "每个用户名的失败次数",

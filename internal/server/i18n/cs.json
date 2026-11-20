@@ -542,6 +542,7 @@
   "Existing recovery key (optional)": "Stávající klíč pro obnovení (volitelné)",
   "Expires": "Vyprší",
   "Expires after": "Vyprší po",
+  "Extending object locks %d / %d": "Prodlužování zámků objektů %d / %d",
   "Failed": "Neúspěšné",
   "Failed attempts per address": "Neúspěšné pokusy na adresu",
   "Failed attempts per username": "Neúspěšné pokusy na uživatelské jméno",

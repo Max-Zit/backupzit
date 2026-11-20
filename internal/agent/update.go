@@ -100,3 +100,13 @@ func (a *Agent) selfUpdate(ctx context.Context, run api.Run) (api.RunResult, fun
 		}
 	}
 }
+
+// RetainCachePath is the service's file of known object lock dates: in its
+// own folder, which only the service account can change (a forged date
+// would skip extending a lock).
+func RetainCachePath() string {
+	if runtime.GOOS == "windows" {
+		return filepath.Join(filepath.Dir(DefaultConfigPath()), "retain-cache.json")
+	}
+	return "/var/lib/backupzit-agent/retain-cache.json"
+}

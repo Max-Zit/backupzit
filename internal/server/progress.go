@@ -60,6 +60,10 @@ type runProgress struct {
 	Total     string // "" if unknown
 	Files     int
 	FilesAll  uint64 // files of the previous backup, 0 if unknown
+	// Stage is a step after the data ("locks": extending object locks)
+	// with its own count.
+	Stage                 string
+	StageDone, StageTotal uint64
 }
 
 // withProgress adds the reported progress to the running runs.
@@ -69,10 +73,11 @@ func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
 			continue
 		}
 		x, ok := s.live.get(runs[i].AgentID, runs[i].ID)
-		if !ok || (x.Done == 0 && x.Total == 0 && x.Files == 0) {
+		if !ok || (x.Done == 0 && x.Total == 0 && x.Files == 0 && x.Stage == "") {
 			continue
 		}
-		p := &runProgress{Percent: -1, Done: humanBytes(x.Done), Files: int(x.Files)} // #nosec G115 -- sizes and counts for display and statistics, not negative
+		p := &runProgress{Percent: -1, Done: humanBytes(x.Done), Files: int(x.Files), // #nosec G115 -- sizes and counts for display and statistics, not negative
+			Stage: x.Stage, StageDone: x.StageDone, StageTotal: x.StageTotal}
 		switch {
 		case x.Total > 0:
 			p.Total = humanBytes(x.Total)

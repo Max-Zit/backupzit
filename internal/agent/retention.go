@@ -152,7 +152,13 @@ func (a *Agent) keepImmutable(ctx context.Context, r *repo.Repository, run api.R
 	if err != nil || len(sns) == 0 {
 		return err
 	}
-	n, err := r.KeepImmutable(ctx, sns...)
+	// The console shows "Extending object locks N / M" instead of a silent
+	// 100 % (a large repository on a slow provider takes a while, #38).
+	kctx := repo.WithKeepProgress(ctx, func(done, total int) {
+		a.progressStage(ctx, "locks", uint64(done), uint64(total)) // #nosec G115 -- counts, not negative
+	})
+	n, err := r.KeepImmutable(kctx, sns...)
+	a.progressStage(ctx, "", 0, 0)
 	if n > 0 {
 		a.log.Info("extended immutability", "run", run.ID, "snapshots", len(sns), "objects", n)
 	}

@@ -542,6 +542,7 @@
   "Existing recovery key (optional)": "Bestaande herstelsleutel (optioneel)",
   "Expires": "Verloopt",
   "Expires after": "Verloopt na",
+  "Extending object locks %d / %d": "Objectvergrendelingen verlengen %d / %d",
   "Failed": "Mislukt",
   "Failed attempts per address": "Mislukte pogingen per adres",
   "Failed attempts per username": "Mislukte pogingen per gebruikersnaam",

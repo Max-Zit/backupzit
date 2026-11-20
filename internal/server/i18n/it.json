@@ -542,6 +542,7 @@
   "Existing recovery key (optional)": "Chiave di ripristino esistente (facoltativa)",
   "Expires": "Scade",
   "Expires after": "Scade dopo",
+  "Extending object locks %d / %d": "Estensione dei blocchi degli oggetti %d / %d",
   "Failed": "Non riusciti",
   "Failed attempts per address": "Tentativi falliti per indirizzo",
   "Failed attempts per username": "Tentativi falliti per nome utente",

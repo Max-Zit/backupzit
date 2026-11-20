@@ -23,6 +23,8 @@ type localState struct {
 	// running are the runs in progress; st.Current is one of them (the
 	// tray shows one).
 	running map[int64]*localipc.Run
+	// stages are steps after the data of running runs (for the console).
+	stages  map[int64]api.RunProgress
 	askedAt time.Time // last status request from the tray
 	pollNow chan struct{}
 }
@@ -30,8 +32,12 @@ type localState struct {
 func (a *Agent) local() *localState {
 	a.localOnce.Do(func() {
 		h, _ := os.Hostname()
+		server := ""
+		if a.client != nil && a.client.cfg != nil {
+			server = a.client.cfg.ServerURL
+		}
 		a.ls = &localState{pollNow: make(chan struct{}, 1),
-			st: localipc.Status{Version: a.version, Hostname: h, ServerURL: a.client.cfg.ServerURL, Enrolled: true, Jobs: []localipc.Job{}}}
+			st: localipc.Status{Version: a.version, Hostname: h, ServerURL: server, Enrolled: true, Jobs: []localipc.Job{}}}
 	})
 	return a.ls
 }
@@ -87,6 +93,7 @@ func (a *Agent) runFinished(id int64, res api.RunResult) {
 		return
 	}
 	delete(ls.running, id)
+	delete(ls.stages, id)
 	r := *cur
 	now := time.Now()
 	r.Finished, r.Status, r.Message = &now, res.Status, res.Message
@@ -128,11 +135,30 @@ func (a *Agent) runProgress() []api.RunProgress {
 	defer ls.mu.Unlock()
 	var out []api.RunProgress
 	for id, r := range ls.running {
-		if r.Done > 0 || r.Total > 0 || r.Files > 0 {
-			out = append(out, api.RunProgress{RunID: id, Done: r.Done, Total: r.Total, Files: r.Files, Scanned: r.Scanned})
+		st := ls.stages[id]
+		if r.Done > 0 || r.Total > 0 || r.Files > 0 || st.Stage != "" {
+			out = append(out, api.RunProgress{RunID: id, Done: r.Done, Total: r.Total, Files: r.Files, Scanned: r.Scanned,
+				Stage: st.Stage, StageDone: st.StageDone, StageTotal: st.StageTotal})
 		}
 	}
 	return out
+}
+
+// progressStage reports a step after the data of the run in ctx, e.g.
+// "locks" (extending object locks) with done of total; "" ends it.
+func (a *Agent) progressStage(ctx context.Context, stage string, done, total uint64) {
+	ls := a.local()
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	id := runIDOf(ctx)
+	if stage == "" {
+		delete(ls.stages, id)
+		return
+	}
+	if ls.stages == nil {
+		ls.stages = map[int64]api.RunProgress{}
+	}
+	ls.stages[id] = api.RunProgress{Stage: stage, StageDone: done, StageTotal: total}
 }
 
 // ServeLocal answers the tray app until ctx ends.

@@ -542,6 +542,7 @@
   "Existing recovery key (optional)": "Istniejący klucz odzyskiwania (opcjonalnie)",
   "Expires": "Wygasa",
   "Expires after": "Wygasa po",
+  "Extending object locks %d / %d": "Przedłużanie blokad obiektów %d / %d",
   "Failed": "Nieudane",
   "Failed attempts per address": "Nieudane próby na adres",
   "Failed attempts per username": "Nieudane próby na nazwę użytkownika",

@@ -3,11 +3,14 @@ package backend
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -357,11 +360,80 @@ func (s *S3) Remove(ctx context.Context, name string) error {
 
 func (s *S3) Close() error { return nil }
 
-// retainCache remembers retain-until dates known to this process (keyed by
-// bucket/key), so repeated backups do not query every shared pack again.
+// retainCache remembers known retain-until dates (keyed by endpoint, bucket
+// and key), so repeated backups do not query every shared pack again. With
+// RetainCacheFile set it survives restarts and updates of the agent: a lock
+// can only be extended, never shortened, so a remembered date is never
+// later than the real one.
 var retainCache sync.Map
 
-func (s *S3) cacheKey(name string) string { return s.bucket + "/" + s.key(name) }
+// RetainCacheFile is where the agent keeps retainCache ("" = memory only).
+var RetainCacheFile string
+
+var (
+	retainLoadOnce sync.Once
+	retainSaveMu   sync.Mutex
+)
+
+func loadRetainCache() {
+	retainLoadOnce.Do(func() {
+		if RetainCacheFile == "" {
+			return
+		}
+		b, err := os.ReadFile(RetainCacheFile)
+		if err != nil {
+			return
+		}
+		var m map[string]int64
+		if json.Unmarshal(b, &m) != nil {
+			return
+		}
+		now := time.Now()
+		for k, u := range m {
+			if t := time.Unix(u, 0); t.After(now) {
+				retainCache.LoadOrStore(k, t)
+			}
+		}
+	})
+}
+
+func saveRetainCache() {
+	if RetainCacheFile == "" {
+		return
+	}
+	retainSaveMu.Lock()
+	defer retainSaveMu.Unlock()
+	m := map[string]int64{}
+	now := time.Now()
+	retainCache.Range(func(k, v any) bool {
+		if t := v.(time.Time); t.After(now) {
+			m[k.(string)] = t.Unix()
+		}
+		return true
+	})
+	b, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(RetainCacheFile), 0o700); err != nil {
+		return
+	}
+	f, err := os.CreateTemp(filepath.Dir(RetainCacheFile), ".retain-*.tmp")
+	if err != nil {
+		return
+	}
+	_, err = f.Write(b)
+	if cerr := f.Close(); err == nil && cerr == nil {
+		err = os.Rename(f.Name(), RetainCacheFile)
+	}
+	if err != nil {
+		_ = os.Remove(f.Name())
+	}
+}
+
+// The endpoint is part of the key: two endpoints may have a bucket and
+// prefix of the same name (L-26).
+func (s *S3) cacheKey(name string) string { return s.loc + "|" + s.key(name) }
 
 func (s *S3) LockDays() int { return s.lockDays }
 
@@ -402,65 +474,106 @@ func (s *S3) KeepLocked(ctx context.Context, names []string) (int, error) {
 // (keepGiveUp objects in a row) stops the step.
 func extendLocks(ctx context.Context, names []string, period time.Duration, cacheKey func(string) string,
 	get func(string) (*time.Time, error), put func(string, time.Time) error) (int, error) {
+	loadRetainCache()
+	defer saveRetainCache()
 	need := time.Now().Add(period)
-	extended := 0
-	var failed, inARow int
-	var firstErr error
-	note := func(err error) error {
+	// Several objects at a time: one request after another took hours on a
+	// slow provider with ~10,000 packs (#38).
+	wctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var mu sync.Mutex
+	var extended, failed, inARow int
+	var firstErr, stopErr error
+	fail := func(err error) {
+		mu.Lock()
+		defer mu.Unlock()
 		failed++
 		inARow++
 		if firstErr == nil {
 			firstErr = err
 		}
-		if ctx.Err() != nil {
-			return ctx.Err()
+		if stopErr == nil && inARow >= keepGiveUp && ctx.Err() == nil {
+			stopErr = fmt.Errorf("%d objects in a row could not be extended, stopping: %w: %w", inARow, ErrKeepStopped, firstErr)
+			cancel()
 		}
-		if inARow >= keepGiveUp {
-			return fmt.Errorf("%d objects in a row could not be extended, stopping: %w", inARow, firstErr)
-		}
-		return nil
 	}
-	for _, name := range names {
-		if strings.HasPrefix(name, "locks/") {
-			continue
+	done := func(ext bool) {
+		mu.Lock()
+		defer mu.Unlock()
+		if ext {
+			extended++
 		}
+		inARow = 0
+	}
+	one := func(name string) {
 		ck := cacheKey(name)
-		if v, ok := retainCache.Load(ck); ok && !v.(time.Time).Before(need) {
-			continue
-		}
 		var until *time.Time
-		err := retryS3(ctx, func() error {
+		err := retryS3(wctx, func() error {
 			var err error
 			until, err = get(name)
 			return err
 		})
 		if err != nil {
-			if stop := note(fmt.Errorf("s3 retention of %s: %w", name, err)); stop != nil {
-				return extended, stop
-			}
-			continue
+			fail(fmt.Errorf("s3 retention of %s: %w", name, err))
+			return
 		}
 		if until != nil && !until.Before(need) {
 			retainCache.Store(ck, *until)
-			inARow = 0
-			continue
+			done(false)
+			return
 		}
 		newUntil := need.Add(period / 2).UTC().Truncate(time.Second)
-		if err := retryS3(ctx, func() error { return put(name, newUntil) }); err != nil {
-			if stop := note(fmt.Errorf("s3 extend retention of %s: %w", name, err)); stop != nil {
-				return extended, stop
-			}
-			continue
+		if err := retryS3(wctx, func() error { return put(name, newUntil) }); err != nil {
+			fail(fmt.Errorf("s3 extend retention of %s: %w", name, err))
+			return
 		}
 		retainCache.Store(ck, newUntil)
-		extended++
-		inARow = 0
+		done(true)
 	}
-	if failed > 0 {
+	jobs := make(chan string)
+	var wg sync.WaitGroup
+	for w := 0; w < keepWorkers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for name := range jobs {
+				one(name)
+			}
+		}()
+	}
+feed:
+	for _, name := range names {
+		if strings.HasPrefix(name, "locks/") {
+			continue
+		}
+		if v, ok := retainCache.Load(cacheKey(name)); ok && !v.(time.Time).Before(need) {
+			continue
+		}
+		select {
+		case jobs <- name:
+		case <-wctx.Done():
+			break feed
+		}
+	}
+	close(jobs)
+	wg.Wait()
+	switch {
+	case ctx.Err() != nil:
+		return extended, ctx.Err()
+	case stopErr != nil:
+		return extended, stopErr
+	case failed > 0:
 		return extended, fmt.Errorf("the lock of %d of %d objects could not be extended (they keep their current lock; the next run tries again): %w", failed, len(names), firstErr)
 	}
 	return extended, nil
 }
+
+// ErrKeepStopped marks extending locks that stopped because the storage
+// kept failing (callers stop sending more objects).
+var ErrKeepStopped = errors.New("the storage keeps failing")
+
+// keepWorkers is how many objects get their lock extended at a time.
+const keepWorkers = 16
 
 // keepGiveUp is how many objects in a row may fail (after their retries)
 // before extending locks stops: the storage is then down, not slow.
