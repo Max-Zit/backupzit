@@ -55,6 +55,7 @@ func TestExtendLocksContinuesAfterFailures(t *testing.T) {
 		names = append(names, fmt.Sprintf("data/%02d", i))
 	}
 	var flaky atomic.Int32
+	var mu sync.Mutex // put runs in several workers at once
 	extendedNames := map[string]bool{}
 	get := func(_ context.Context, name string) (*time.Time, error) { return nil, nil }
 	put := func(_ context.Context, name string, until time.Time) error {
@@ -66,7 +67,9 @@ func TestExtendLocksContinuesAfterFailures(t *testing.T) {
 		case "data/05": // keeps failing
 			return minio.ErrorResponse{Code: "RequestTimeout", StatusCode: 400, Message: "The server did not respond in time."}
 		}
+		mu.Lock()
 		extendedNames[name] = true
+		mu.Unlock()
 		return nil
 	}
 	n, err := extendLocks(ctx, names, 30*24*time.Hour, func(s string) string { return prefix + s }, get, put)
