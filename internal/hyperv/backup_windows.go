@@ -363,6 +363,21 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 			}
 		}()
 		disks, g.Consistency, rct = ci.Disks, consistency, withRCT
+		// The checkpoint leaves out disks Hyper-V cannot checkpoint (pass-
+		// through disks, shared VHD Sets): say so, and record them like
+		// excluded disks, so that an in-place restore keeps them attached
+		// instead of detaching them (M-17).
+		inCheckpoint := map[string]bool{}
+		for _, d := range ci.Disks {
+			inCheckpoint[d.key()] = true
+		}
+		for _, d := range vm.Disks {
+			if _, ok := excluded[d.key()]; ok || inCheckpoint[d.key()] {
+				continue
+			}
+			excluded[d.key()] = d.Path
+			warns = append(warns, fmt.Sprintf("disk %s (%s) cannot be part of a checkpoint (a pass-through disk or a shared VHD Set) and is not in the backup; an in-place restore keeps it attached", d.key(), d.Path))
+		}
 	}
 	for _, d := range vm.Disks {
 		if p, ok := excluded[d.key()]; ok {
