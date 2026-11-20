@@ -196,16 +196,23 @@ func ServeESXiInstant(ctx context.Context, logf func(string, ...any)) error {
 			for _, c := range loadESXiInstants() {
 				live[c.Dir] = true
 			}
+			// Collected under mu, closed after it: Forget takes the file
+			// system's lock, which a disk being opened holds while it waits
+			// for mu (lock order).
 			mu.Lock()
+			gone := map[string]*opened{}
 			for dir, op := range repos {
 				if !live[dir] {
-					fs.Forget(dir)
-					op.close()
+					gone[dir] = op
 					delete(repos, dir)
-					logf("stopped serving %s", dir)
 				}
 			}
 			mu.Unlock()
+			for dir, op := range gone {
+				fs.Forget(dir)
+				op.close()
+				logf("stopped serving %s", dir)
+			}
 		}
 	}()
 	defer instantnfs.Unregister()

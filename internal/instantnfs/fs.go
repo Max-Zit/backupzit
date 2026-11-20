@@ -40,16 +40,23 @@ func (f *FS) overlay(name string) (*Overlay, error) {
 	}
 	name = cleanName(name)
 	f.mu.Lock()
-	defer f.mu.Unlock()
-	if o := f.disks[name]; o != nil {
+	o := f.disks[name]
+	f.mu.Unlock()
+	if o != nil || f.Disk == nil {
 		return o, nil
 	}
-	if f.Disk == nil {
-		return nil, nil
-	}
+	// Disk opens the repository (slow, and it takes the agent's own lock):
+	// not under f.mu, or every other instant VM would wait, and the agent's
+	// cleanup, which holds its lock and calls Forget, could deadlock.
 	o, err := f.Disk(name)
 	if err != nil || o == nil {
 		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if cur := f.disks[name]; cur != nil {
+		_ = o.Close() // opened twice at the same time: keep the first
+		return cur, nil
 	}
 	f.disks[name] = o
 	return o, nil
