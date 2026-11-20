@@ -87,17 +87,23 @@ func (s *Store) QueueChainAfter(ctx context.Context, jobID int64, ok bool) ([]in
 
 // chainAfterRun starts the jobs chained after a finished run's job.
 func (s *Server) chainAfterRun(ctx context.Context, runID int64) {
-	run, err := s.store.GetRun(ctx, runID)
+	if ids, err := s.store.chainAfterRun(ctx, runID); err != nil {
+		s.log.Error("queue chained jobs", "run", runID, "err", err)
+	} else if len(ids) > 0 {
+		s.log.Info("chained jobs queued", "after_run", runID, "runs", ids)
+	}
+}
+
+// chainAfterRun queues the jobs chained after the job of a finished run.
+// Also runs the console ends itself (the time limit, a run that could not
+// be handed out) trigger the chains that follow failures (L-14).
+func (s *Store) chainAfterRun(ctx context.Context, runID int64) ([]int64, error) {
+	run, err := s.GetRun(ctx, runID)
 	if err != nil || run.JobID == nil || !chainKinds[run.Kind] || run.Status == api.StatusCancelled {
-		return
+		return nil, nil
 	}
 	ok := run.Status == api.StatusSuccess || run.Status == api.StatusWarning
-	ids, err := s.store.QueueChainAfter(ctx, *run.JobID, ok)
-	if err != nil {
-		s.log.Error("queue chained jobs", "job", *run.JobID, "err", err)
-	} else if len(ids) > 0 {
-		s.log.Info("chained jobs queued", "after_job", *run.JobID, "runs", ids)
-	}
+	return s.QueueChainAfter(ctx, *run.JobID, ok)
 }
 
 // chainTargets are the jobs a job can run after (not itself).

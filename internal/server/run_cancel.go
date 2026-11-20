@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Cancelling runs: a queued run fails at once; a running run is marked and
@@ -109,9 +111,16 @@ func (s *Store) enforceTimeLimits(ctx context.Context, now time.Time) ([]Run, er
 	}
 	// The agent did not stop the run (it may hang in an operation that
 	// cannot be interrupted): fail it so the job can run again.
-	_, err = s.db.Exec(ctx, `UPDATE runs SET status=CASE WHEN cancel_by<>'' THEN 'cancelled' ELSE 'failed' END, finished_at=now(), notified=(cancel_by<>''),
+	rows, err = s.db.Query(ctx, `UPDATE runs SET status=CASE WHEN cancel_by<>'' THEN 'cancelled' ELSE 'failed' END, finished_at=now(), notified=(cancel_by<>''),
 		message=cancel_reason || ' (the agent did not confirm the stop)'
-		WHERE status='running' AND cancel_reason IS NOT NULL AND cancel_at < now() - make_interval(secs => $1)`, cancelGrace.Seconds())
+		WHERE status='running' AND cancel_reason IS NOT NULL AND cancel_at < now() - make_interval(secs => $1) RETURNING id`, cancelGrace.Seconds())
+	if err != nil {
+		return stopped, err
+	}
+	failedIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	for _, id := range failedIDs {
+		_, _ = s.chainAfterRun(ctx, id) // cancelled runs are skipped there
+	}
 	return stopped, err
 }
 

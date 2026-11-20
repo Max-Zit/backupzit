@@ -127,7 +127,9 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 				err = errors.New("update the agent to use configurable VM block sizes")
 			}
 			if err != nil {
-				_ = s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()})
+				if s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()}) == nil {
+					s.chainAfterRun(r.Context(), run.ID)
+				}
 			} else {
 				resp.Run = ar
 				s.log.Info("run assigned", "run", run.ID, "kind", run.Kind, "agent", a.Hostname)
