@@ -53,6 +53,32 @@ type File struct {
 	SHA256 string `json:"sha256"`
 }
 
+// AgentManifestName is the file, next to the agent installers of a console,
+// with the signed list of the agent and repository installers of a version
+// (its signature: the same name with .sig). The server package carries it;
+// agents check an update against it (GHSA-v284-8576-jp84).
+func AgentManifestName(version string) string { return "agent-manifest-" + version + ".json" }
+
+// VerifyAgentInstaller checks a signed agent list (raw, sig) against keys
+// (TrustedKeys when nil) and returns the entry of the installer name of
+// the given version: the size and SHA-256 an agent must find in the
+// download.
+func VerifyAgentInstaller(raw []byte, sig string, keys []string, version, name string) (File, error) {
+	m, err := Verify(raw, sig, keys)
+	if err != nil {
+		return File{}, err
+	}
+	if m.Version != version {
+		return File{}, fmt.Errorf("the signed list is for %s, not %s", m.Version, version)
+	}
+	for _, f := range m.Files {
+		if f.Name == name && (f.Kind == "agent" || f.Kind == "agent-legacy" || f.Kind == "repo") {
+			return f, nil
+		}
+	}
+	return File{}, fmt.Errorf("%s is not in the signed list of the agent installers of %s", name, version)
+}
+
 // Sign signs manifest bytes and returns the base64 signature.
 func Sign(manifest []byte, key ed25519.PrivateKey) string {
 	return base64.StdEncoding.EncodeToString(ed25519.Sign(key, manifest))
