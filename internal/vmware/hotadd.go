@@ -114,6 +114,11 @@ func (h *hotAdd) attach(ctx context.Context, file string, capacity uint64) (io.R
 		return nil, nil, err
 	}
 	defer unlock()
+	// The session may have ended during the previous long read; the attach
+	// itself is not retried (done twice it would attach the disk twice).
+	if err := h.c.ensureSession(ctx); err != nil {
+		return nil, nil, err
+	}
 	before, err := blockDevices()
 	if err != nil {
 		return nil, nil, err
@@ -158,7 +163,10 @@ func (h *hotAdd) attach(ctx context.Context, file string, capacity uint64) (io.R
 			defer unlock()
 		}
 		releaseDisk(dev, h.log)
-		if err := h.detachFile(ctx, file); err != nil {
+		// After a long read the session may have ended (#44): sign in again
+		// and retry once (detachFile lists the devices again, so a retry
+		// never detaches twice).
+		if err := h.c.again(ctx, func() error { return h.detachFile(ctx, file) }); err != nil {
 			h.log("hot-add: detaching failed; the next backup detaches it", "disk", file, "error", err)
 		}
 	}

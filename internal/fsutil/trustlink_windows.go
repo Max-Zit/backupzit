@@ -5,6 +5,7 @@ package fsutil
 import (
 	"io/fs"
 	"sync"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -56,44 +57,60 @@ func trustedOwner(owner *windows.SID) bool {
 }
 
 var (
-	adminsOnce sync.Once
-	admins     []*windows.SID
+	adminsMu sync.Mutex
+	adminsAt time.Time
+	admins   []*windows.SID
 )
+
+// adminsFor is how long the list of administrators is kept (a new or
+// removed administrator counts after that, without an agent restart).
+const adminsFor = 10 * time.Minute
 
 // localAdmins returns the members of the local Administrators group (an
 // administrator who creates a link on client Windows owns it himself, not
 // the group). The group name depends on the language, so it is looked up
 // by its well-known SID.
 func localAdmins() []*windows.SID {
-	adminsOnce.Do(func() {
-		sid, err := windows.CreateWellKnownSid(windows.WinBuiltinAdministratorsSid)
-		if err != nil {
-			return
-		}
-		name, _, _, err := sid.LookupAccount("")
-		if err != nil {
-			return
-		}
-		n, err := windows.UTF16PtrFromString(name)
-		if err != nil {
-			return
-		}
-		var buf *byte
-		var read, total uint32
-		r, _, _ := procNetLocalGroupGetMembers.Call(0, uintptr(unsafe.Pointer(n)), 0, uintptr(unsafe.Pointer(&buf)), // #nosec G103 -- arguments of the NetLocalGroupGetMembers API
-			uintptr(maxPreferredLength), uintptr(unsafe.Pointer(&read)), uintptr(unsafe.Pointer(&total)), 0) // #nosec G103 -- arguments of the NetLocalGroupGetMembers API
-		if r != 0 || buf == nil {
-			return
-		}
-		defer windows.NetApiBufferFree(buf)                                 //nolint:errcheck // frees the buffer of the call above
-		members := unsafe.Slice((**windows.SID)(unsafe.Pointer(buf)), read) // #nosec G103 -- LOCALGROUP_MEMBERS_INFO_0 array of read entries returned by the API
-		for _, m := range members {
-			if c, err := m.Copy(); err == nil {
-				admins = append(admins, c)
-			}
-		}
-	})
+	adminsMu.Lock()
+	defer adminsMu.Unlock()
+	if !adminsAt.IsZero() && time.Since(adminsAt) < adminsFor {
+		return admins
+	}
+	admins, adminsAt = readLocalAdmins(), time.Now()
 	return admins
+}
+
+func readLocalAdmins() []*windows.SID {
+	sid, err := windows.CreateWellKnownSid(windows.WinBuiltinAdministratorsSid)
+	if err != nil {
+		return nil
+	}
+	name, _, _, err := sid.LookupAccount("")
+	if err != nil {
+		return nil
+	}
+	n, err := windows.UTF16PtrFromString(name)
+	if err != nil {
+		return nil
+	}
+	var buf *byte
+	var read, total uint32
+	r, _, _ := procNetLocalGroupGetMembers.Call(0, uintptr(unsafe.Pointer(n)), 0, uintptr(unsafe.Pointer(&buf)), // #nosec G103 -- arguments of the NetLocalGroupGetMembers API
+		uintptr(maxPreferredLength), uintptr(unsafe.Pointer(&read)), uintptr(unsafe.Pointer(&total)), 0) // #nosec G103 -- arguments of the NetLocalGroupGetMembers API
+	if buf != nil {
+		defer windows.NetApiBufferFree(buf) //nolint:errcheck // frees the buffer of the call above
+	}
+	if r != 0 || buf == nil {
+		return nil
+	}
+	var out []*windows.SID
+	members := unsafe.Slice((**windows.SID)(unsafe.Pointer(buf)), read) // #nosec G103 -- LOCALGROUP_MEMBERS_INFO_0 array of read entries returned by the API
+	for _, m := range members {
+		if c, err := m.Copy(); err == nil {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // maxPreferredLength is MAX_PREFERRED_LENGTH: the call allocates what it needs.

@@ -45,6 +45,7 @@ const repackGiveUp = 3
 const (
 	repackGap     = 1 << 20
 	repackMaxRead = 64 << 20
+	repackMemory  = 128 << 20
 )
 
 // fetchUsed reads the used blobs of pack p in as few ranged reads as
@@ -204,7 +205,10 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 	jobs := make(chan ID)
 	results := make(chan fetched)
 	var wg sync.WaitGroup
-	for w := 0; w < min(r.Concurrency(), max(len(repack), 1)); w++ {
+	// Each worker holds the used data of one pack: at most repackMemory in
+	// all (large packs are read one at a time).
+	workers := max(1, min(r.Concurrency(), repackMemory/max(r.cfg.PackSize, 1), len(repack)))
+	for w := 0; w < workers; w++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

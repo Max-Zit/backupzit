@@ -146,3 +146,27 @@ func TestTargetLinkSwappedInAfterTheCheck(t *testing.T) {
 		t.Fatalf("written outside: %v", names)
 	}
 }
+
+// At the original location a link of another user in the middle of the
+// path is not followed, also when the folder at its end exists.
+func TestOriginalLocationLinkAbovePath(t *testing.T) {
+	root, outside := filepath.Clean(t.TempDir()), filepath.Clean(t.TempDir())
+	if err := os.MkdirAll(filepath.Join(outside, "Windows", "System32"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	folderLink(t, outside, filepath.Join(root, "P"))
+	old := trustedLink
+	trustedLink = func(string, os.FileInfo) bool { return false }
+	defer func() { trustedLink = old }()
+	orig := openTarget(t, "")
+	if err := orig.Mkdir(filepath.Join(root, "P", "Windows", "System32")); err == nil {
+		t.Fatal("a link of another user above the path was followed")
+	}
+	trustedLink = func(string, os.FileInfo) bool { return true }
+	if err := orig.Mkdir(filepath.Join(root, "P", "Windows", "System32", "new")); err != nil {
+		t.Fatalf("a trusted link was not followed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "Windows", "System32", "new")); err != nil {
+		t.Fatal(err)
+	}
+}

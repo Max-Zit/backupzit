@@ -71,7 +71,13 @@ func (t *Target) rel(p string) (string, error) {
 	return rel, nil
 }
 
-func isLink(fi fs.FileInfo) bool { return fi.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 }
+// isLink: a symbolic link, or a junction (irregular and no folder on
+// Windows). Folders that carry another kind of reparse point (cloud-file
+// placeholders) are folders, not links.
+func isLink(fi fs.FileInfo) bool {
+	m := fi.Mode()
+	return m&os.ModeSymlink != 0 || (m&os.ModeIrregular != 0 && !m.IsDir())
+}
 
 // Mkdir creates the folder p and the folders above it.
 func (t *Target) Mkdir(p string) error {
@@ -132,37 +138,44 @@ func (t *Target) realDir(rel string) error {
 }
 
 // mkdirTrusted is os.MkdirAll at the original location, following only
-// links of the system or an administrator.
+// links of the system or an administrator. Every part of the path is
+// looked at from the volume root down: Lstat follows links in the middle
+// of a path, so checking only p would accept a user's junction above it.
 func mkdirTrusted(p string) error {
 	p = filepath.Clean(p)
-	fi, err := os.Lstat(p)
-	switch {
-	case err == nil && fi.IsDir():
-		return nil
-	case err == nil && isLink(fi):
-		if !fsutil.TrustedLink(p, fi) {
-			return fmt.Errorf("%s is a link of another user, not followed (restore into a folder instead)", p)
-		}
-		st, err := os.Stat(p)
-		if err != nil {
-			return err
-		}
-		if !st.IsDir() {
-			return fmt.Errorf("%s is a link to something that is not a folder", p)
-		}
-		return nil
-	case err == nil:
-		return fmt.Errorf("%s exists and is not a folder", p)
-	case !errors.Is(err, fs.ErrNotExist):
-		return err
+	vol := filepath.VolumeName(p)
+	cur := vol + string(filepath.Separator)
+	rest := strings.TrimPrefix(strings.TrimPrefix(p, vol), string(filepath.Separator))
+	if !filepath.IsAbs(p) {
+		cur, rest = "", p
 	}
-	if parent := filepath.Dir(p); parent != p {
-		if err := mkdirTrusted(parent); err != nil {
-			return err
+	for _, c := range strings.Split(rest, string(filepath.Separator)) {
+		if c == "" {
+			continue
 		}
-	}
-	if err := os.Mkdir(p, 0o755); err != nil && !errors.Is(err, fs.ErrExist) { // #nosec G301 -- folder of restored or copied files, like the original
-		return err
+		cur = filepath.Join(cur, c)
+		fi, err := os.Lstat(cur)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			if err := os.Mkdir(cur, 0o755); err != nil && !errors.Is(err, fs.ErrExist) { // #nosec G301 -- folder of restored or copied files, like the original
+				return err
+			}
+		case err != nil:
+			return err
+		case isLink(fi):
+			if !trustedLink(cur, fi) {
+				return fmt.Errorf("%s is a link of another user, not followed (restore into a folder instead)", cur)
+			}
+			st, err := os.Stat(cur)
+			if err != nil {
+				return err
+			}
+			if !st.IsDir() {
+				return fmt.Errorf("%s is a link to something that is not a folder", cur)
+			}
+		case !fi.IsDir():
+			return fmt.Errorf("%s exists and is not a folder", cur)
+		}
 	}
 	return nil
 }
@@ -261,3 +274,6 @@ func (t *Target) Chtimes(p string, atime, mtime time.Time) error {
 	}
 	return t.root.Chtimes(rel, atime, mtime)
 }
+
+// trustedLink is fsutil.TrustedLink (a variable for the tests).
+var trustedLink = fsutil.TrustedLink

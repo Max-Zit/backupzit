@@ -130,11 +130,16 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 		// A session that ended during the previous VM (a long read) fails
 		// only that VM's clean-up at most, not every VM after it (#44).
 		n := c.Relogins
+		if ctx.Err() != nil {
+			return nil, leftover.CancelError(ctx.Err(), stats.Errors)
+		}
 		if err := c.ensureSession(ctx); err != nil {
-			addErr(v.Name, err)
-			stats.Failed = append(stats.Failed, v.Name)
-			finished(true)
-			continue
+			if ctx.Err() != nil {
+				return nil, leftover.CancelError(ctx.Err(), stats.Errors)
+			}
+			// Checking failed (a short network error, or signing in again
+			// failed): the VM's own calls tell what is wrong.
+			opts.Log("checking the vSphere session failed", "error", err)
 		}
 		g, warns, err := c.backupVM(ctx, r, v, sn, prev, progress, ha)
 		if c.Relogins > n {

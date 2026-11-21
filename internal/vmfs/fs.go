@@ -70,13 +70,13 @@ func open(v Volume) (FS, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read ext file system: %w", err)
 		}
-		return &ioFS{fsys: f}, nil
+		return &ioFS{fsys: newLockedFS(f)}, nil
 	case "xfs":
 		f, err := xfs.NewFS(*io.NewSectionReader(v.r, 0, v.Size), nil)
 		if err != nil {
 			return nil, fmt.Errorf("read XFS: %w", err)
 		}
-		return &ioFS{fsys: f}, nil
+		return &ioFS{fsys: newLockedFS(f)}, nil
 	}
 	return nil, ErrNotBrowsable
 }

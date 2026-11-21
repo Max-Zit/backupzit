@@ -8,16 +8,17 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
 // createStream opens the alternate data stream rel ("dir\file:stream")
-// below the restore folder. os.Root does not open stream names, so the
-// file is opened (or created) through the root first, then the stream by
-// its full path, and both handles must name the same file: a link swapped
-// in between would make the stream open another file, which is closed
-// again before anything is written.
+// below the restore folder for writing (emptied). os.Root does not open
+// stream names, so the file is opened (or created) through the root, and
+// the stream is opened relative to that handle (NtCreateFile with the file
+// as root directory): no path is resolved again, so no link swapped in
+// meanwhile can lead elsewhere.
 func (t *Target) createStream(rel string) (*os.File, error) {
 	base := streamBase(rel)
 	bf, err := t.root.OpenFile(base, os.O_RDONLY, 0)
@@ -27,35 +28,24 @@ func (t *Target) createStream(rel string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer bf.Close()                                                                  //nolint:errcheck // read handle, only compared
-	sf, err := os.OpenFile(filepath.Join(t.dir, rel), os.O_CREATE|os.O_WRONLY, 0o600) // #nosec G304 -- checked against the file opened through the root below
+	defer bf.Close()                                         //nolint:errcheck // the handle the stream is opened relative to
+	name, err := windows.NewNTUnicodeString(rel[len(base):]) // ":stream" or ":stream:$DATA"
 	if err != nil {
 		return nil, err
 	}
-	same, err := sameFile(bf, sf)
-	if err != nil || !same {
-		_ = sf.Close()
-		if err == nil {
-			err = errors.New("the file changed while its stream was restored")
-		}
-		return nil, fmt.Errorf("%s: %w", filepath.Join(t.dir, rel), err)
+	oa := &windows.OBJECT_ATTRIBUTES{
+		RootDirectory: windows.Handle(bf.Fd()),
+		ObjectName:    name,
+		Attributes:    windows.OBJ_CASE_INSENSITIVE,
 	}
-	if err := sf.Truncate(0); err != nil {
-		_ = sf.Close()
-		return nil, err
+	oa.Length = uint32(unsafe.Sizeof(*oa)) // #nosec G103 -- size of the structure the API expects
+	var h windows.Handle
+	var iosb windows.IO_STATUS_BLOCK
+	err = windows.NtCreateFile(&h, windows.FILE_GENERIC_WRITE|windows.SYNCHRONIZE, oa, &iosb, nil, windows.FILE_ATTRIBUTE_NORMAL,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE, windows.FILE_OVERWRITE_IF,
+		windows.FILE_NON_DIRECTORY_FILE|windows.FILE_SYNCHRONOUS_IO_NONALERT, 0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("open stream %s: %w", filepath.Join(t.dir, rel), err)
 	}
-	return sf, nil
-}
-
-// sameFile tells whether two handles are of one file (a stream handle has
-// the file's volume and index).
-func sameFile(a, b *os.File) (bool, error) {
-	var ia, ib windows.ByHandleFileInformation
-	if err := windows.GetFileInformationByHandle(windows.Handle(a.Fd()), &ia); err != nil {
-		return false, err
-	}
-	if err := windows.GetFileInformationByHandle(windows.Handle(b.Fd()), &ib); err != nil {
-		return false, err
-	}
-	return ia.VolumeSerialNumber == ib.VolumeSerialNumber && ia.FileIndexHigh == ib.FileIndexHigh && ia.FileIndexLow == ib.FileIndexLow, nil
+	return os.NewFile(uintptr(h), filepath.Join(t.dir, rel)), nil
 }

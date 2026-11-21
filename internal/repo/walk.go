@@ -104,22 +104,18 @@ func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHand
 		origin[sn.Tree] = sn
 		level = append(level, sn.Tree)
 	}
+	// Each tree is merged into the result as soon as it is read, so only
+	// the trees being read are in memory, not a whole level of them.
+	var tmu sync.Mutex
 	for len(level) > 0 {
-		trees := make([]*Tree, len(level))
+		var next []ID
 		err := forEach(ctx, workers, len(level), func(ctx context.Context, i int) error {
 			t, err := r.LoadTree(ctx, level[i])
+			tmu.Lock()
+			defer tmu.Unlock()
 			if err != nil {
 				return fmt.Errorf("snapshot %s: %w", origin[level[i]].ID.Short(), err)
 			}
-			trees[i] = t
-			counted()
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		var next []ID
-		for i, t := range trees {
 			for _, n := range t.Nodes {
 				for _, c := range n.Content {
 					used[BlobHandle{Type: DataBlob, ID: c}] = true
@@ -135,6 +131,11 @@ func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHand
 				origin[*n.Subtree] = origin[level[i]]
 				next = append(next, *n.Subtree)
 			}
+			counted()
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
 		level = next
 	}
