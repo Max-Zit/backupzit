@@ -24,7 +24,9 @@ type localState struct {
 	// tray shows one).
 	running map[int64]*localipc.Run
 	// stages are steps after the data of running runs (for the console).
-	stages  map[int64]api.RunProgress
+	stages map[int64]api.RunProgress
+	// vms: the VM a VM backup works on and the VMs it finished (0.57).
+	vms     map[int64]*api.RunProgress
 	askedAt time.Time // last status request from the tray
 	pollNow chan struct{}
 }
@@ -94,6 +96,7 @@ func (a *Agent) runFinished(id int64, res api.RunResult) {
 	}
 	delete(ls.running, id)
 	delete(ls.stages, id)
+	delete(ls.vms, id)
 	r := *cur
 	now := time.Now()
 	r.Finished, r.Status, r.Message = &now, res.Status, res.Message
@@ -136,9 +139,15 @@ func (a *Agent) runProgress() []api.RunProgress {
 	var out []api.RunProgress
 	for id, r := range ls.running {
 		st := ls.stages[id]
-		if r.Done > 0 || r.Total > 0 || r.Files > 0 || st.Stage != "" {
-			out = append(out, api.RunProgress{RunID: id, Done: r.Done, Total: r.Total, Files: r.Files, Scanned: r.Scanned,
-				Stage: st.Stage, StageDone: st.StageDone, StageTotal: st.StageTotal})
+		vm := ls.vms[id]
+		if r.Done > 0 || r.Total > 0 || r.Files > 0 || st.Stage != "" || vm != nil {
+			p := api.RunProgress{RunID: id, Done: r.Done, Total: r.Total, Files: r.Files, Scanned: r.Scanned,
+				Stage: st.Stage, StageDone: st.StageDone, StageTotal: st.StageTotal}
+			if vm != nil {
+				p.VM, p.VMsDone, p.VMsTotal = vm.VM, vm.VMsDone, vm.VMsTotal
+				p.VMsFinished = append([]api.VMFinished(nil), vm.VMsFinished...)
+			}
+			out = append(out, p)
 		}
 	}
 	return out
@@ -221,4 +230,43 @@ func withRunID(ctx context.Context, id int64) context.Context {
 func runIDOf(ctx context.Context) int64 {
 	id, _ := ctx.Value(runIDKey{}).(int64)
 	return id
+}
+
+// maxVMsListed bounds the finished VMs a run reports with its progress.
+const maxVMsListed = 500
+
+// vmStarted records that the VM backup of ctx works on the VM name, one of
+// total (#44: the run showed only a percentage).
+func (a *Agent) vmStarted(ctx context.Context, name string, total int) {
+	ls := a.local()
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	id := runIDOf(ctx)
+	if ls.vms == nil {
+		ls.vms = map[int64]*api.RunProgress{}
+	}
+	v := ls.vms[id]
+	if v == nil {
+		v = &api.RunProgress{}
+		ls.vms[id] = v
+	}
+	v.VM, v.VMsTotal = name, total
+}
+
+// vmFinished records that the VM backup of ctx finished the VM name.
+func (a *Agent) vmFinished(ctx context.Context, name string, failed bool) {
+	ls := a.local()
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	v := ls.vms[runIDOf(ctx)]
+	if v == nil {
+		return
+	}
+	v.VMsDone++
+	if v.VM == name {
+		v.VM = ""
+	}
+	if len(v.VMsFinished) < maxVMsListed {
+		v.VMsFinished = append(v.VMsFinished, api.VMFinished{Name: name, Failed: failed})
+	}
 }

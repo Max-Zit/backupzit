@@ -40,6 +40,10 @@ type BackupOptions struct {
 	CrashConsistentOK []string
 	Progress          func(done, total uint64)
 	Log               func(msg string, args ...any)
+	// VMStarted and VMFinished (optional) tell which VM the backup works
+	// on and the result of each, for the run's progress (0.57).
+	VMStarted  func(name string, total int)
+	VMFinished func(name string, failed bool)
 }
 
 func Backup(context.Context, *repo.Repository, BackupOptions) (*repo.Snapshot, error) {

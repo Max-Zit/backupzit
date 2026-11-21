@@ -38,6 +38,10 @@ type BackupOptions struct {
 	CrashConsistentOK []string
 	Progress          func(done, total uint64)
 	Log               func(msg string, args ...any)
+	// VMStarted and VMFinished (optional) tell which VM the backup works
+	// on and the result of each, for the run's progress (0.57).
+	VMStarted  func(name string, total int)
+	VMFinished func(name string, failed bool)
 }
 
 // Backup checkpoints the selected VMs and stores their disks and settings
@@ -97,6 +101,9 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	notApp := 0
 	for _, vm := range sel {
 		opts.Log("backing up VM", "name", vm.Name, "id", vm.ID)
+		if opts.VMStarted != nil {
+			opts.VMStarted(vm.Name, len(sel))
+		}
 		g, warns, err := backupVM(ctx, r, vm, sn, prev, progress, opts.RequireAppConsistent, CrashConsistentExpected(vm.Name, opts.CrashConsistentOK), opts.ExcludeDisks, opts.Log)
 		for _, w := range warns {
 			addErr(vm.Name, errors.New(w))
@@ -113,11 +120,17 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 			}
 			addErr(vm.Name, err)
 			stats.Failed = append(stats.Failed, vm.Name)
+			if opts.VMFinished != nil {
+				opts.VMFinished(vm.Name, true)
+			}
 			continue
 		}
 		sn.Guests = append(sn.Guests, *g)
 		sn.Paths = append(sn.Paths, "hyperv/"+vm.ID)
 		stats.Files++
+		if opts.VMFinished != nil {
+			opts.VMFinished(vm.Name, false)
+		}
 	}
 	if len(sn.Guests) == 0 {
 		err := fmt.Errorf("no VM could be backed up: %s", strings.Join(stats.Errors, "; "))

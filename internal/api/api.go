@@ -55,6 +55,18 @@ type RunProgress struct {
 	Stage      string `json:"stage,omitempty"`
 	StageDone  uint64 `json:"stage_done,omitempty"`
 	StageTotal uint64 `json:"stage_total,omitempty"`
+	// VM is the VM a VM backup works on (0.57); VMsDone of VMsTotal are
+	// finished, VMsFinished lists them in order with their result.
+	VM          string       `json:"vm,omitempty"`
+	VMsDone     int          `json:"vms_done,omitempty"`
+	VMsTotal    int          `json:"vms_total,omitempty"`
+	VMsFinished []VMFinished `json:"vms_finished,omitempty"`
+}
+
+// VMFinished is a VM a running VM backup has finished.
+type VMFinished struct {
+	Name   string `json:"name"`
+	Failed bool   `json:"failed,omitempty"`
 }
 
 type PollRequest struct {

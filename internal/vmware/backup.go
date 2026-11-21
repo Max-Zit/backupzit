@@ -27,6 +27,10 @@ type BackupOptions struct {
 	Tags     []string
 	Progress func(done, total uint64)
 	Log      func(msg string, args ...any)
+	// VMStarted and VMFinished (optional) tell which VM the backup works
+	// on and the result of each, for the run's progress (0.57).
+	VMStarted  func(name string, total int)
+	VMFinished func(name string, failed bool)
 }
 
 // guestConfig is stored as repo.Guest.Config of VMware guests.
@@ -115,12 +119,21 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 	}
 	for _, v := range sel {
 		opts.Log("backing up VM", "name", v.Name, "uuid", v.UUID)
+		if opts.VMStarted != nil {
+			opts.VMStarted(v.Name, len(sel))
+		}
+		finished := func(failed bool) {
+			if opts.VMFinished != nil {
+				opts.VMFinished(v.Name, failed)
+			}
+		}
 		// A session that ended during the previous VM (a long read) fails
 		// only that VM's clean-up at most, not every VM after it (#44).
 		n := c.Relogins
 		if err := c.ensureSession(ctx); err != nil {
 			addErr(v.Name, err)
 			stats.Failed = append(stats.Failed, v.Name)
+			finished(true)
 			continue
 		}
 		g, warns, err := c.backupVM(ctx, r, v, sn, prev, progress, ha)
@@ -138,11 +151,13 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 			}
 			addErr(v.Name, err)
 			stats.Failed = append(stats.Failed, v.Name)
+			finished(true)
 			continue
 		}
 		sn.Guests = append(sn.Guests, *g)
 		sn.Paths = append(sn.Paths, "vmware/"+v.UUID)
 		stats.Files++
+		finished(false)
 	}
 	// What earlier runs left on other VMs of the connection (S-2).
 	c.cleanAfterBackup(ctx, opts.Log)

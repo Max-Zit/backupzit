@@ -60,6 +60,22 @@ func TestRunProgress(t *testing.T) {
 	if b := page(fmt.Sprint("/runs/", runID)); !strings.Contains(b, "Extending object locks 3200 / 11000") {
 		t.Fatal("the lock extension step is not shown")
 	}
+	poll(api.RunProgress{Done: 0, Total: 0, Stage: "locks-read", StageDone: 77})
+	if b := page(fmt.Sprint("/runs/", runID)); !strings.Contains(b, "Reading the kept backups for the object locks: 77 read") {
+		t.Fatal("reading the kept backups is not shown")
+	}
+
+	// #44 (0.57): a VM backup shows the VM it is on and the VMs finished.
+	poll(api.RunProgress{Done: 300 << 20, Total: 1000 << 20, VM: "web-01", VMsDone: 1, VMsTotal: 4,
+		VMsFinished: []api.VMFinished{{Name: "db-<01>", Failed: true}}})
+	for _, p := range []string{"/runs", fmt.Sprint("/runs/", runID)} {
+		if b := page(p); !strings.Contains(b, "VM 2 of 4: web-01") {
+			t.Fatalf("%s: current VM not shown", p)
+		}
+	}
+	if b := page(fmt.Sprint("/runs/", runID)); !strings.Contains(b, "db-&lt;01&gt;") || !strings.Contains(b, `badge failed`) {
+		t.Fatal("finished VM not listed (escaped) with its result")
+	}
 
 	// Finished runs show no progress.
 	if err := x.e.store.FinishRun(ctx, x.agentID, runID, api.RunResult{Status: api.StatusSuccess}); err != nil {

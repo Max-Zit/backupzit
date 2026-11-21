@@ -95,6 +95,8 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 		}
 	}
 	logf := func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) }
+	vmStarted := func(name string, total int) { a.vmStarted(ctx, name, total) }
+	vmFinished := func(name string, failed bool) { a.vmFinished(ctx, name, failed) }
 	var sn *repo.Snapshot
 	if run.VMware != nil {
 		c, cerr := vmwareConnect(ctx, run.VMware)
@@ -102,12 +104,14 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 			return failed(cerr)
 		}
 		defer c.Logout()
-		sn, err = c.Backup(ctx, r, vmware.BackupOptions{VMIDs: sel, Exclude: excl, Hostname: run.VMware.Name, Version: a.version, Tags: tags, Progress: prog, Log: logf})
+		sn, err = c.Backup(ctx, r, vmware.BackupOptions{VMIDs: sel, Exclude: excl, Hostname: run.VMware.Name, Version: a.version, Tags: tags, Progress: prog, Log: logf,
+			VMStarted: vmStarted, VMFinished: vmFinished})
 	} else if isPVE {
-		sn, err = pve.Backup(ctx, r, pve.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf})
+		sn, err = pve.Backup(ctx, r, pve.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf,
+			VMStarted: vmStarted, VMFinished: vmFinished})
 	} else {
 		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Cluster: run.HVCluster != "", RequireAppConsistent: run.AppConsistent, ExcludeDisks: run.VMExcludeDisks, CrashConsistentOK: run.VMCrashConsistentOK,
-			Version: a.version, Tags: tags, Progress: prog, Log: logf})
+			Version: a.version, Tags: tags, Progress: prog, Log: logf, VMStarted: vmStarted, VMFinished: vmFinished})
 	}
 	if run.Part != "" && errors.Is(err, vmware.ErrNoVMs) {
 		// The connection's proxy in a split backup: all VMs of the job are

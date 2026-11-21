@@ -64,6 +64,11 @@ type runProgress struct {
 	// with its own count.
 	Stage                 string
 	StageDone, StageTotal uint64
+	// VM is the VM a VM backup works on, number VMsDone+1 of VMsTotal;
+	// VMsFinished are the VMs done so far (0.57).
+	VM                 string
+	VMNumber, VMsTotal int
+	VMsFinished        []api.VMFinished
 }
 
 // withProgress adds the reported progress to the running runs.
@@ -73,11 +78,15 @@ func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
 			continue
 		}
 		x, ok := s.live.get(runs[i].AgentID, runs[i].ID)
-		if !ok || (x.Done == 0 && x.Total == 0 && x.Files == 0 && x.Stage == "") {
+		if !ok || (x.Done == 0 && x.Total == 0 && x.Files == 0 && x.Stage == "" && x.VMsTotal == 0) {
 			continue
 		}
 		p := &runProgress{Percent: -1, Done: humanBytes(x.Done), Files: int(x.Files), // #nosec G115 -- sizes and counts for display and statistics, not negative
-			Stage: x.Stage, StageDone: x.StageDone, StageTotal: x.StageTotal}
+			Stage: x.Stage, StageDone: x.StageDone, StageTotal: x.StageTotal,
+			VM: x.VM, VMsTotal: x.VMsTotal, VMsFinished: x.VMsFinished}
+		if x.VM != "" {
+			p.VMNumber = min(x.VMsDone+1, x.VMsTotal)
+		}
 		switch {
 		case x.Total > 0:
 			p.Total = humanBytes(x.Total)

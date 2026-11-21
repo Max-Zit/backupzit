@@ -30,6 +30,10 @@ type BackupOptions struct {
 	Progress func(done, total uint64)
 	// Log receives progress messages.
 	Log func(msg string, args ...any)
+	// VMStarted and VMFinished (optional) tell which VM the backup works
+	// on and the result of each, for the run's progress (0.57).
+	VMStarted  func(name string, total int)
+	VMFinished func(name string, failed bool)
 }
 
 // Backup snapshots the selected guests and stores their disks and
@@ -120,6 +124,9 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	}
 	for _, g := range guests {
 		opts.Log("backing up guest", "vmid", g.VMID, "name", g.Name)
+		if opts.VMStarted != nil {
+			opts.VMStarted(guestLabel(g), len(guests))
+		}
 		gi, trk, warns, err := backupGuest(ctx, r, stores, g, sn, guestRun{prev: prev, prevVolumes: prevVolumes, volumes: volumes, progress: progress, read: &bytesRead, log: opts.Log})
 		for _, w := range warns {
 			addErr(guestLabel(g), errors.New(w))
@@ -137,11 +144,17 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 			}
 			addErr(guestLabel(g), err)
 			stats.Failed = append(stats.Failed, guestLabel(g))
+			if opts.VMFinished != nil {
+				opts.VMFinished(guestLabel(g), true)
+			}
 			continue
 		}
 		sn.Guests = append(sn.Guests, *gi)
 		sn.Paths = append(sn.Paths, fmt.Sprintf("%s/%d", g.Type, g.VMID))
 		stats.Files++
+		if opts.VMFinished != nil {
+			opts.VMFinished(guestLabel(g), false)
+		}
 	}
 	if len(sn.Guests) == 0 {
 		return nil, fmt.Errorf("no guest could be backed up: %s", strings.Join(stats.Errors, "; "))
