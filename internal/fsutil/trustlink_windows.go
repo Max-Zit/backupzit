@@ -80,13 +80,13 @@ func localAdmins() []*windows.SID {
 		}
 		var buf *byte
 		var read, total uint32
-		r, _, _ := procNetLocalGroupGetMembers.Call(0, uintptr(unsafe.Pointer(n)), 0, uintptr(unsafe.Pointer(&buf)),
-			uintptr(maxPreferredLength), uintptr(unsafe.Pointer(&read)), uintptr(unsafe.Pointer(&total)), 0)
+		r, _, _ := procNetLocalGroupGetMembers.Call(0, uintptr(unsafe.Pointer(n)), 0, uintptr(unsafe.Pointer(&buf)), // #nosec G103 -- arguments of the NetLocalGroupGetMembers API
+			uintptr(maxPreferredLength), uintptr(unsafe.Pointer(&read)), uintptr(unsafe.Pointer(&total)), 0) // #nosec G103 -- arguments of the NetLocalGroupGetMembers API
 		if r != 0 || buf == nil {
 			return
 		}
-		defer windows.NetApiBufferFree(buf) //nolint:errcheck // frees the buffer of the call above
-		members := unsafe.Slice((**windows.SID)(unsafe.Pointer(buf)), read)
+		defer windows.NetApiBufferFree(buf)                                 //nolint:errcheck // frees the buffer of the call above
+		members := unsafe.Slice((**windows.SID)(unsafe.Pointer(buf)), read) // #nosec G103 -- LOCALGROUP_MEMBERS_INFO_0 array of read entries returned by the API
 		for _, m := range members {
 			if c, err := m.Copy(); err == nil {
 				admins = append(admins, c)
