@@ -8,48 +8,101 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
+
+	"github.com/max-zit/backupzit/internal/fsutil"
 )
 
-// MkdirBelow creates dir like os.MkdirAll, but every folder from root down
-// to dir is a real folder afterwards: a symbolic link or junction where a
-// folder belongs is replaced by an empty folder (the restore fills it). A
-// link put into the restore folder beforehand, by anyone who may write
-// there, can thus not send restored files elsewhere with the agent's
-// rights. root itself and the folders above it are taken as they are (the
-// administrator chose them). With root "" (restore to the original
-// location) it is os.MkdirAll.
-func MkdirBelow(root, dir string) error {
-	if root == "" {
-		return os.MkdirAll(dir, 0o755) // #nosec G301 -- folder of restored or copied files, like the original
+// Target writes restored files, either below a restore folder or at the
+// original location.
+//
+// Below a restore folder every create, rename, chmod, time change and
+// removal goes through an os.Root opened on that folder, so nothing is
+// written outside it: not through a symbolic link or junction put there
+// beforehand by anyone who may write to the folder, and not through one
+// swapped in while the restore runs (checking a path and then writing to it
+// by name would leave that gap). A link where a folder belongs is replaced
+// by a real folder (removing a link removes the link, not what it points
+// to). The restore folder itself and the folders above it are taken as they
+// are: the administrator chose them.
+//
+// At the original location links are followed only when they belong to the
+// system or an administrator (fsutil.TrustedLink).
+type Target struct {
+	dir  string   // the restore folder, "" for the original location
+	root *os.Root // opened on dir
+}
+
+// OpenTarget opens the restore folder dir ("" = the original location). A
+// volume root ("/", "C:\") is refused as restore folder: system links there
+// (/bin, /lib on merged-/usr systems) would be replaced by empty folders.
+func OpenTarget(dir string) (*Target, error) {
+	if dir == "" {
+		return &Target{}, nil
 	}
-	root, dir = filepath.Clean(root), filepath.Clean(dir)
-	rel, err := filepath.Rel(root, dir)
+	dir = filepath.Clean(dir)
+	if filepath.Dir(dir) == dir {
+		return nil, fmt.Errorf("restore into a folder, not into the root of a volume (%s)", dir)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- the restore folder chosen by the administrator
+		return nil, err
+	}
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	return &Target{dir: dir, root: r}, nil
+}
+
+// Close releases the restore folder.
+func (t *Target) Close() error {
+	if t.root == nil {
+		return nil
+	}
+	return t.root.Close()
+}
+
+// rel returns p relative to the restore folder.
+func (t *Target) rel(p string) (string, error) {
+	rel, err := filepath.Rel(t.dir, filepath.Clean(p))
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return fmt.Errorf("%s is outside the restore folder %s", dir, root)
+		return "", fmt.Errorf("%s is outside the restore folder %s", p, t.dir)
 	}
-	if err := os.MkdirAll(root, 0o755); err != nil { // #nosec G301 -- the restore folder chosen by the administrator
+	return rel, nil
+}
+
+func isLink(fi fs.FileInfo) bool { return fi.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 }
+
+// Mkdir creates the folder p and the folders above it.
+func (t *Target) Mkdir(p string) error {
+	if t.root == nil {
+		return mkdirTrusted(p)
+	}
+	rel, err := t.rel(p)
+	if err != nil {
 		return err
 	}
 	if rel == "." {
 		return nil
 	}
-	p := root
+	cur := ""
 	for _, c := range strings.Split(rel, string(filepath.Separator)) {
-		p = filepath.Join(p, c)
-		if err := realDir(p); err != nil {
+		cur = filepath.Join(cur, c)
+		if err := t.realDir(cur); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// realDir makes sure p is a folder and not a link to one.
-func realDir(p string) error {
+// realDir makes sure the folder rel (all folders above it are real) is a
+// folder and not a link.
+func (t *Target) realDir(rel string) error {
 	for range 2 {
-		fi, err := os.Lstat(p)
+		fi, err := t.root.Lstat(rel)
 		switch {
 		case errors.Is(err, fs.ErrNotExist):
-			err := os.Mkdir(p, 0o755) // #nosec G301 -- folder of restored or copied files, like the original
+			err := t.root.Mkdir(rel, 0o755)
 			if err == nil {
 				return nil
 			}
@@ -59,39 +112,152 @@ func realDir(p string) error {
 			// Created meanwhile: look at what it is.
 		case err != nil:
 			return err
-		case fi.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0:
+		case isLink(fi):
 			// Irregular: a junction on Windows, followed like a symbolic
-			// link. Removing it removes the link, not what it points to.
-			if err := os.Remove(p); err != nil {
-				return fmt.Errorf("%s is a link where a folder belongs and cannot be replaced: %w", p, err)
+			// link.
+			if err := t.root.Remove(rel); err != nil {
+				return fmt.Errorf("%s is a link where a folder belongs and cannot be replaced: %w", filepath.Join(t.dir, rel), err)
 			}
-			if err := os.Mkdir(p, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
+			if err := t.root.Mkdir(rel, 0o755); err != nil {
 				return err
 			}
 			return nil
 		case fi.IsDir():
 			return nil
 		default:
-			return fmt.Errorf("%s exists and is not a folder", p)
+			return fmt.Errorf("%s exists and is not a folder", filepath.Join(t.dir, rel))
 		}
 	}
-	return fmt.Errorf("%s keeps changing while it is created", p)
+	return fmt.Errorf("%s keeps changing while it is created", filepath.Join(t.dir, rel))
 }
 
-// CreateFresh creates the file path for writing. Whatever is at that name
-// (a part file of an earlier attempt, or a symbolic link put there) is
-// removed first and the file is created anew (O_EXCL), so a link at the
-// name is never written through. An alternate data stream ("file:stream"
-// on Windows) is written into its file, which must not be a link.
-func CreateFresh(path string) (*os.File, error) {
-	if runtime.GOOS == "windows" {
-		if i := strings.IndexByte(filepath.Base(path), ':'); i >= 0 {
-			base := filepath.Join(filepath.Dir(path), filepath.Base(path)[:i])
-			if fi, err := os.Lstat(base); err == nil && fi.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
-				return nil, fmt.Errorf("%s is a link, its stream is not written", base)
-			}
+// mkdirTrusted is os.MkdirAll at the original location, following only
+// links of the system or an administrator.
+func mkdirTrusted(p string) error {
+	p = filepath.Clean(p)
+	fi, err := os.Lstat(p)
+	switch {
+	case err == nil && fi.IsDir():
+		return nil
+	case err == nil && isLink(fi):
+		if !fsutil.TrustedLink(p, fi) {
+			return fmt.Errorf("%s is a link of another user, not followed (restore into a folder instead)", p)
+		}
+		st, err := os.Stat(p)
+		if err != nil {
+			return err
+		}
+		if !st.IsDir() {
+			return fmt.Errorf("%s is a link to something that is not a folder", p)
+		}
+		return nil
+	case err == nil:
+		return fmt.Errorf("%s exists and is not a folder", p)
+	case !errors.Is(err, fs.ErrNotExist):
+		return err
+	}
+	if parent := filepath.Dir(p); parent != p {
+		if err := mkdirTrusted(parent); err != nil {
+			return err
 		}
 	}
-	_ = os.Remove(path)
-	return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
+	if err := os.Mkdir(p, 0o755); err != nil && !errors.Is(err, fs.ErrExist) { // #nosec G301 -- folder of restored or copied files, like the original
+		return err
+	}
+	return nil
+}
+
+// Create creates the file p anew for writing. Whatever is at that name (a
+// part file of an earlier attempt, or a link put there) is removed first
+// and the file is created with O_EXCL, so a link at the name is never
+// written through. An alternate data stream ("file:stream" on Windows) is
+// written into its file, which must not be a link.
+func (t *Target) Create(p string) (*os.File, error) {
+	stream := runtime.GOOS == "windows" && streamBase(p) != p
+	if t.root == nil {
+		if stream {
+			base := streamBase(p)
+			if fi, err := os.Lstat(base); err == nil && isLink(fi) {
+				return nil, fmt.Errorf("%s is a link, its stream is not written", base)
+			}
+			return os.OpenFile(p, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- a stream of a file at the original location
+		}
+		_ = os.Remove(p)
+		return os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) // #nosec G304 -- file at the original location
+	}
+	rel, err := t.rel(p)
+	if err != nil {
+		return nil, err
+	}
+	if stream {
+		return t.createStream(rel)
+	}
+	_ = t.root.Remove(rel)
+	return t.root.OpenFile(rel, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+}
+
+// streamBase returns the file of the stream "dir\file:stream". It works on
+// the string: a one-letter file name ("d:stream") would read as a drive.
+func streamBase(p string) string {
+	i := strings.LastIndexAny(p, `\/`) + 1
+	j := strings.IndexByte(p[i:], ':')
+	if j < 0 {
+		return p
+	}
+	return p[:i+j]
+}
+
+// Replace moves the finished part file tmp to dst; something at dst (an
+// older file, or a link) is removed, not followed.
+func (t *Target) Replace(tmp, dst string) error {
+	if t.root == nil {
+		_ = os.Remove(dst)
+		return os.Rename(tmp, dst)
+	}
+	rt, err := t.rel(tmp)
+	if err != nil {
+		return err
+	}
+	rd, err := t.rel(dst)
+	if err != nil {
+		return err
+	}
+	_ = t.root.Remove(rd)
+	return t.root.Rename(rt, rd)
+}
+
+// Remove removes p (a part file left by a failed write).
+func (t *Target) Remove(p string) error {
+	if t.root == nil {
+		return os.Remove(p)
+	}
+	rel, err := t.rel(p)
+	if err != nil {
+		return err
+	}
+	return t.root.Remove(rel)
+}
+
+// Chmod sets the permissions of p.
+func (t *Target) Chmod(p string, m fs.FileMode) error {
+	if t.root == nil {
+		return os.Chmod(p, m)
+	}
+	rel, err := t.rel(p)
+	if err != nil {
+		return err
+	}
+	return t.root.Chmod(rel, m)
+}
+
+// Chtimes sets the times of p.
+func (t *Target) Chtimes(p string, atime, mtime time.Time) error {
+	if t.root == nil {
+		return os.Chtimes(p, atime, mtime)
+	}
+	rel, err := t.rel(p)
+	if err != nil {
+		return err
+	}
+	return t.root.Chtimes(rel, atime, mtime)
 }

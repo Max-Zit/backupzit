@@ -2,6 +2,7 @@ package vmfs
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +20,7 @@ func dirLink(t *testing.T, target, link string) {
 		return
 	}
 	if runtime.GOOS == "windows" {
-		if out, err := exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput(); err == nil {
+		if out, err := exec.Command("cmd", "/c", "mklink", "/J", filepath.Clean(link), filepath.Clean(target)).CombinedOutput(); err == nil {
 			return
 		} else {
 			t.Skipf("cannot create a junction: %v %s", err, out)
@@ -32,7 +33,11 @@ func dirLink(t *testing.T, target, link string) {
 // restored files to where it pointed, with the agent's rights. Folders
 // below the restore folder are now always real folders.
 func TestExtractDoesNotFollowFolderLinksInTarget(t *testing.T) {
+	// Folders with explicit modes: MapFS makes implicit ones 0555, which
+	// the restore keeps, and a non-root test then cannot clean up.
 	f := &ioFS{fsys: fstest.MapFS{
+		"edge":            {Mode: fs.ModeDir | 0o755},
+		"edge/comp":       {Mode: fs.ModeDir | 0o755},
 		"edge/comp/a.txt": {Data: []byte("aaa"), Mode: 0o644},
 		"edge/b.txt":      {Data: []byte("bbb"), Mode: 0o644},
 	}}

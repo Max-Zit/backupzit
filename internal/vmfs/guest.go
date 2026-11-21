@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -73,6 +72,14 @@ type ExtractStats struct {
 // their path inside the volume (target/etc/nginx/...).
 func Extract(ctx context.Context, fsys FS, paths []string, target string) (*ExtractStats, error) {
 	st := &ExtractStats{}
+	// Every write goes through the restore folder (imaging.Target): a link
+	// in it cannot send the restored files elsewhere with the agent's
+	// rights, not even one swapped in while the restore runs.
+	tg, err := imaging.OpenTarget(target)
+	if err != nil {
+		return st, err
+	}
+	defer tg.Close() //nolint:errcheck // the folder handle
 	var seen Visited
 	var walk func(e Entry, depth int) error
 	walk = func(e Entry, depth int) error {
@@ -99,7 +106,7 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 				st.Errors = append(st.Errors, LoopMessage(e.Path))
 				return nil
 			}
-			if err := imaging.MkdirBelow(target, dst); err != nil {
+			if err := tg.Mkdir(dst); err != nil {
 				st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
 				return nil
 			}
@@ -107,7 +114,7 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 			// private) once its contents are written: a read-only folder
 			// would refuse them.
 			if e.Perm != 0 {
-				defer os.Chmod(dst, e.Perm)
+				defer tg.Chmod(dst, e.Perm) //nolint:errcheck // as before: the files are written
 			}
 			st.Dirs++
 			children, err := fsys.List(e.Path)
@@ -122,7 +129,7 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 			}
 			return nil
 		}
-		n, err := extractFile(fsys, e, target, dst)
+		n, err := extractFile(fsys, e, tg, dst)
 		if err != nil {
 			st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
 			return nil
@@ -150,12 +157,12 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 	return st, nil
 }
 
-func extractFile(fsys FS, e Entry, target, dst string) (int64, error) {
+func extractFile(fsys FS, e Entry, tg *imaging.Target, dst string) (int64, error) {
 	rd, _, err := fsys.ReadFile(e.Path)
 	if err != nil {
 		return 0, err
 	}
-	if err := imaging.MkdirBelow(target, filepath.Dir(dst)); err != nil {
+	if err := tg.Mkdir(filepath.Dir(dst)); err != nil {
 		return 0, err
 	}
 	tmp := imaging.TempTarget(dst)
@@ -166,7 +173,7 @@ func extractFile(fsys FS, e Entry, target, dst string) (int64, error) {
 	if perm == 0 {
 		perm = 0o600
 	}
-	f, err := imaging.CreateFresh(tmp)
+	f, err := tg.Create(tmp)
 	if err != nil {
 		return 0, err
 	}
@@ -175,20 +182,19 @@ func extractFile(fsys FS, e Entry, target, dst string) (int64, error) {
 		err = cerr
 	}
 	if err != nil {
-		_ = os.Remove(tmp)
+		_ = tg.Remove(tmp)
 		return n, err
 	}
 	if tmp == dst {
 		return n, nil // an NTFS stream on Windows, written in place
 	}
-	_ = os.Chmod(tmp, perm)
-	_ = os.Remove(dst)
-	if err := os.Rename(tmp, dst); err != nil {
-		_ = os.Remove(tmp)
+	_ = tg.Chmod(tmp, perm)
+	if err := tg.Replace(tmp, dst); err != nil {
+		_ = tg.Remove(tmp)
 		return n, err
 	}
 	if !e.ModTime.IsZero() {
-		_ = os.Chtimes(dst, e.ModTime, e.ModTime)
+		_ = tg.Chtimes(dst, e.ModTime, e.ModTime)
 	}
 	return n, nil
 }
