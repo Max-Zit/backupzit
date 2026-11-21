@@ -133,11 +133,11 @@ func StoreAreas(ctx context.Context, r *repo.Repository, f io.ReaderAt, size uin
 		// otherwise every later backup would keep the lost data.
 		idx := r.Index()
 		for b, id := range ids {
-			if !id.IsNull() && !idx.Has(repo.BlobHandle{Type: repo.DataBlob, ID: id}) {
+			if !id.IsNull() && !idx.Reusable(repo.BlobHandle{Type: repo.DataBlob, ID: id}) {
 				read[b] = true
 			}
 		}
-		if !img.Head.IsNull() && !idx.Has(repo.BlobHandle{Type: repo.DataBlob, ID: img.Head}) {
+		if !img.Head.IsNull() && !idx.Reusable(repo.BlobHandle{Type: repo.DataBlob, ID: img.Head}) {
 			img.Head = repo.ID{}
 		}
 		// Everything from the block that held the earlier end (it may have

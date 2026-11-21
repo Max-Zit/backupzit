@@ -144,7 +144,7 @@ func (w *BlobWriter) Save(ctx context.Context, t BlobType, data []byte) (ID, boo
 		return id, false, errors.New("blob writer closed")
 	}
 	r.mu.Lock()
-	if _, ok := r.pending[h]; ok || r.idx.Has(h) {
+	if _, ok := r.pending[h]; ok || r.idx.Reusable(h) {
 		r.stats.DupBlobs++
 		r.mu.Unlock()
 		return id, false, nil

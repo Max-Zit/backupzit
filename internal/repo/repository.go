@@ -59,6 +59,9 @@ type Repository struct {
 	// damagedIndex are index files that could not be read; their packs
 	// were recovered from the pack headers (see recoverIndex).
 	damagedIndex []string
+	// unreadablePacks are packs that no readable index file lists and whose
+	// header could not be used (see recoverIndex).
+	unreadablePacks map[ID]string
 
 	enc *zstd.Encoder
 	// encLevel is the level of enc (zero means zstd.SpeedDefault); a
@@ -329,9 +332,11 @@ func (r *Repository) loadIndex(ctx context.Context, progress func(done, total in
 	}
 	close(jobs)
 	wg.Wait()
-	if firstErr == nil && len(damaged) > 0 {
-		r.noteDamagedIndex(damaged)
-		firstErr = r.recoverIndex(ctx)
+	if firstErr == nil {
+		r.setDamagedIndex(damaged)
+		if len(damaged) > 0 {
+			firstErr = r.recoverIndex(ctx)
+		}
 	}
 	return firstErr
 }
@@ -364,7 +369,7 @@ func (r *Repository) SaveBlob(ctx context.Context, t BlobType, data []byte) (ID,
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, ok := r.pending[h]; ok || r.idx.Has(h) {
+	if _, ok := r.pending[h]; ok || r.idx.Reusable(h) {
 		r.stats.DupBlobs++
 		return id, false, nil
 	}
@@ -543,7 +548,14 @@ func (r *Repository) decodeBlob(id ID, t BlobType, stored []byte, raw uint32) ([
 	return data, nil
 }
 
-// ReadPackHeader returns the blob list stored inside a pack.
+// errPackHeader marks a pack whose header was read but cannot be used (wrong
+// length, cannot be decrypted, cannot be parsed), as opposed to a storage
+// error while reading it.
+var errPackHeader = errors.New("pack header unreadable")
+
+// ReadPackHeader returns the blob list stored inside a pack. An error that
+// wraps errPackHeader says the header content is bad; any other error comes
+// from the storage.
 func (r *Repository) ReadPackHeader(ctx context.Context, pack ID) ([]PackedBlob, error) {
 	name := packName(pack)
 	tr, err := r.be.LoadRange(ctx, name, -packTrailerLen, packTrailerLen)
@@ -552,16 +564,20 @@ func (r *Repository) ReadPackHeader(ctx context.Context, pack ID) ([]PackedBlob,
 	}
 	hl := binary.LittleEndian.Uint32(tr)
 	if hl == 0 || hl > maxPackHeader {
-		return nil, fmt.Errorf("pack %s: invalid header length %d", pack.Short(), hl)
+		return nil, fmt.Errorf("pack %s: invalid header length %d: %w", pack.Short(), hl, errPackHeader)
 	}
 	hdr, err := r.be.LoadRange(ctx, name, -int64(packTrailerLen+hl), int(hl))
 	if err != nil {
 		return nil, err
 	}
 	if hdr, err = r.open(hdr); err != nil {
-		return nil, fmt.Errorf("pack %s header: %w", pack.Short(), err)
+		return nil, fmt.Errorf("pack %s header: %v: %w", pack.Short(), err, errPackHeader)
 	}
-	return parsePackHeader(hdr)
+	blobs, err := parsePackHeader(hdr)
+	if err != nil {
+		return nil, fmt.Errorf("pack %s: %v: %w", pack.Short(), err, errPackHeader)
+	}
+	return blobs, nil
 }
 
 // ListPacks returns the IDs of all pack files present in the backend.
@@ -903,8 +919,20 @@ func (r *Repository) refreshIndex(ctx context.Context) error {
 			return err
 		}
 	}
+	// A damaged file is tried again here (it is not in indexFiles), so the
+	// list is what is damaged now. A file that reads fine since, or is gone,
+	// leaves it; the packs recovered for it then come from the index again.
+	if len(damaged) == 0 && len(r.DamagedIndexFiles()) > 0 {
+		r.mu.Lock()
+		r.idx = newIndex()
+		r.mu.Unlock()
+		r.indexMu.Lock()
+		r.indexFiles = map[string]bool{}
+		r.indexMu.Unlock()
+		return r.loadIndex(ctx, nil)
+	}
+	r.setDamagedIndex(damaged)
 	if len(damaged) > 0 {
-		r.noteDamagedIndex(damaged)
 		return r.recoverIndex(ctx)
 	}
 	return nil

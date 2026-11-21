@@ -130,6 +130,10 @@ func (r *Repository) DropDamagedPacks(ctx context.Context, packs []ID) (*RepairR
 	if len(drop) == 0 {
 		return res, nil
 	}
+	// The new index would list the recovered, unverified packs as well.
+	if err := r.errDamagedIndexFiles(); err != nil {
+		return nil, err
+	}
 	if err := r.Flush(ctx); err != nil {
 		return nil, err
 	}

@@ -134,6 +134,12 @@ func (a *Agent) withRetention(ctx context.Context, r *repo.Repository, run api.R
 		res.Status = api.StatusWarning
 		res.Message = strings.TrimSpace(res.Message + " Could not extend immutability of reused data: " + err.Error())
 	}
+	// A backup that ran on an index rebuilt from pack headers works, but the
+	// repository needs repair; prune refuses until then.
+	if bad := r.DamagedIndexFiles(); len(bad) > 0 {
+		res.Status = api.StatusWarning
+		res.Message = strings.TrimSpace(res.Message + " " + fmt.Sprintf("The repository has %s; run repair (new data was stored again instead of reusing recovered packs).", count(len(bad), "damaged index file", "damaged index files")))
+	}
 	forgotten, msg, warn := a.applyRetention(ctx, r, run)
 	res.Forgotten = forgotten
 	if warn && res.Status == api.StatusSuccess {

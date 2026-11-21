@@ -556,7 +556,7 @@ func (b *backup) store(ctx context.Context, it item, buf []byte) ([]repo.ID, uin
 func (b *backup) allKnown(ids []repo.ID) bool {
 	idx := b.r.Index()
 	for _, id := range ids {
-		if !idx.Has(repo.BlobHandle{Type: repo.DataBlob, ID: id}) {
+		if !idx.Reusable(repo.BlobHandle{Type: repo.DataBlob, ID: id}) {
 			return false
 		}
 	}
