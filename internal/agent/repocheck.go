@@ -75,6 +75,16 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 		return failed(err)
 	}
 	defer lock.Unlock()
+	// Damaged index files: their packs were read from the pack headers when
+	// the repository was opened; a new index replaces them.
+	rebuilt := ""
+	if bad := r.DamagedIndexFiles(); len(bad) > 0 {
+		n, err := r.RebuildIndex(ctx)
+		if err != nil {
+			return failed(fmt.Errorf("rebuild index: %w", err))
+		}
+		rebuilt = fmt.Sprintf("Replaced %s by a new index for %d data packs. ", count(len(bad), "damaged index file", "damaged index files"), n)
+	}
 	res, err := checker.Run(ctx, r, checker.Options{ReadData: true, Progress: func(done, total int) {
 		a.progress(ctx, uint64(done), uint64(total), 0) // #nosec G115 -- counts for display
 	}})
@@ -91,20 +101,20 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 	if len(res.Damaged) == 0 {
 		if unreadable != "" {
 			return api.RunResult{Status: api.StatusWarning, Errors: res.Errors,
-				Message: fmt.Sprintf("No data pack is proven damaged, nothing was taken out%s", unreadable)}
+				Message: rebuilt + fmt.Sprintf("No data pack is proven damaged, nothing was taken out%s", unreadable)}
 		}
 		if len(res.Errors) > 0 { // other problems the check found stay visible (L-N7)
 			return api.RunResult{Status: api.StatusWarning, Errors: res.Errors,
-				Message: fmt.Sprintf("No data pack is proven damaged, nothing was taken out; the check found %s", count(len(res.Errors), "other problem", "other problems"))}
+				Message: rebuilt + fmt.Sprintf("No data pack is proven damaged, nothing was taken out; the check found %s", count(len(res.Errors), "other problem", "other problems"))}
 		}
-		return api.RunResult{Status: api.StatusSuccess, Message: fmt.Sprintf("Read all %d data packs again: none is damaged now, nothing to repair", res.PacksRead)}
+		return api.RunResult{Status: api.StatusSuccess, Message: rebuilt + fmt.Sprintf("Read all %d data packs again: none is damaged now, nothing to repair", res.PacksRead)}
 	}
 	rep, err := r.DropDamagedPacks(ctx, res.Damaged)
 	if err != nil {
 		return failed(fmt.Errorf("repair: %w", err))
 	}
 	out := api.RunResult{Status: api.StatusWarning}
-	out.Message = fmt.Sprintf("Took %d damaged data packs (%d blocks) out of the index: the next backups store that data again. %d backups need the lost data and cannot be restored completely",
+	out.Message = rebuilt + fmt.Sprintf("Took %d damaged data packs (%d blocks) out of the index: the next backups store that data again. %d backups need the lost data and cannot be restored completely",
 		rep.Packs, rep.Blobs, len(rep.Snapshots))
 	// Optionally the affected backups go too: as long as they exist, every
 	// later data check reports the missing data. Immutable storage may keep
@@ -135,7 +145,7 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 			}
 			out.Forgotten = append(out.Forgotten, sn.ID.String())
 		}
-		out.Message = fmt.Sprintf("Took %d damaged data packs (%d blocks) out of the index: the next backups store that data again. Removed %d of the %d backups that needed the lost data",
+		out.Message = rebuilt + fmt.Sprintf("Took %d damaged data packs (%d blocks) out of the index: the next backups store that data again. Removed %d of the %d backups that needed the lost data",
 			rep.Packs, rep.Blobs, len(out.Forgotten), len(rep.Snapshots))
 	} else {
 		for i, sn := range rep.Snapshots {

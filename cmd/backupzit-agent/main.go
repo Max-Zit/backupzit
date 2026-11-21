@@ -548,6 +548,26 @@ func cmdRepair(ctx context.Context, args []string) error {
 		return err
 	}
 	defer lock.Unlock()
+	// In a dry run the damaged index files stay, and the check lists them
+	// again: they are not errors that repair leaves.
+	indexErrs := 0
+	if bad := r.DamagedIndexFiles(); len(bad) > 0 {
+		if *dry {
+			indexErrs = len(bad)
+		}
+		for _, n := range bad {
+			fmt.Println("damaged index file:", n)
+		}
+		if *dry {
+			fmt.Printf("%d damaged index files; run without --dry-run to write a new index from the readable index files and the pack headers\n", len(bad))
+		} else {
+			n, err := r.RebuildIndex(ctx)
+			if err != nil {
+				return fmt.Errorf("rebuild index: %w", err)
+			}
+			fmt.Printf("wrote a new index for %d packs and removed the damaged index files\n", n)
+		}
+	}
 	fmt.Println("reading all data (this takes as long as a data check) ...")
 	res, err := checker.Run(ctx, r, checker.Options{ReadData: true})
 	if err != nil {
@@ -561,8 +581,11 @@ func cmdRepair(ctx context.Context, args []string) error {
 	}
 	if len(res.Damaged) == 0 {
 		fmt.Printf("read %d packs: no damaged pack, nothing to repair\n", res.PacksRead)
-		if !res.OK() {
-			return fmt.Errorf("check found %d errors that repair does not fix", len(res.Errors))
+		if n := len(res.Errors) - indexErrs; n > 0 {
+			return fmt.Errorf("check found %d errors that repair does not fix", n)
+		}
+		if indexErrs > 0 {
+			return fmt.Errorf("%d damaged index files; run without --dry-run to replace them", indexErrs)
 		}
 		return nil
 	}
