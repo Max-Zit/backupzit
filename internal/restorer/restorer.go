@@ -319,7 +319,11 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 		return err
 	}
 	var written uint64
-	sparse := false
+	// Only a file that was sparse is marked sparse again: Hyper-V refuses
+	// a sparse VHD/VHDX ("must not be sparse"), and backups before 0.57
+	// did not record the attribute (those files stay as they were
+	// restored before).
+	marked := n.WinAttrs&fsutil.AttrSparse == 0 // true: nothing to mark
 	for _, id := range n.Content {
 		data, err := rs.r.LoadBlob(ctx, repo.DataBlob, id)
 		if err != nil {
@@ -332,11 +336,12 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 		// (VM images, databases) stay sparse instead of taking their full
 		// size; the file system reads the hole as zeros.
 		if allZero(data) {
-			if !sparse {
+			if !marked {
 				// Windows needs the file marked sparse before the first
 				// hole; if the file system cannot, the zeros are written.
+				// In a file that is not marked NTFS writes the zeros too.
 				_ = markSparse(f)
-				sparse = true
+				marked = true
 			}
 			_, err = f.Seek(int64(len(data)), io.SeekCurrent)
 		} else {

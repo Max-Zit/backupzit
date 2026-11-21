@@ -87,3 +87,8 @@ func OriginalPath(comps []string) string {
 	}
 	return "/" + filepath.Join(comps...)
 }
+
+// AttrSparse is FILE_ATTRIBUTE_SPARSE_FILE: recorded with the other
+// Windows attributes (0.57), so that a restore marks only files sparse
+// that were sparse (it cannot be set like the others).
+const AttrSparse = 0x200

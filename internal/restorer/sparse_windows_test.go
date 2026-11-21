@@ -11,6 +11,7 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/max-zit/backupzit/internal/backend"
+	"github.com/max-zit/backupzit/internal/fsutil"
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/restorer"
 )
@@ -57,7 +58,12 @@ func TestRestoreKeepsFilesSparseOnWindows(t *testing.T) {
 	}
 	content := []repo.ID{z, z, z, z, d, z, z, z, z}
 	size := uint64(8*len(zeros) + len(data))
-	root, err := r.SaveTree(ctx, &repo.Tree{Nodes: []repo.Node{{Name: "disk.img", Type: repo.NodeFile, Mode: 0o644, Size: size, Content: content}}})
+	// disk.img was sparse (0.57 records the attribute); disk.vhdx was not:
+	// Hyper-V refuses sparse virtual disks, so it must not become one.
+	root, err := r.SaveTree(ctx, &repo.Tree{Nodes: []repo.Node{
+		{Name: "disk.img", Type: repo.NodeFile, Mode: 0o644, Size: size, Content: content, WinAttrs: fsutil.AttrSparse},
+		{Name: "disk.vhdx", Type: repo.NodeFile, Mode: 0o644, Size: size, Content: content},
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,5 +96,12 @@ func TestRestoreKeepsFilesSparseOnWindows(t *testing.T) {
 	}
 	if used := allocated(t, p); used >= int64(size)/2 {
 		t.Errorf("%d of %d bytes allocated: the zeros were written", used, size)
+	}
+	v := filepath.Join(target, "disk.vhdx")
+	if b, err := os.ReadFile(v); err != nil || !bytes.Equal(b, want) {
+		t.Fatalf("disk.vhdx: %v", err)
+	}
+	if fi, err := os.Stat(v); err != nil || fsutil.WinAttrs(fi)&fsutil.AttrSparse != 0 {
+		t.Errorf("a file that was not sparse came back sparse: %v", err)
 	}
 }

@@ -67,3 +67,29 @@ func TestTrustedOwner(t *testing.T) {
 		t.Error("no members of the local Administrators group found")
 	}
 }
+
+// WinAttrs records the sparse attribute (restores mark only such files
+// sparse again).
+func TestWinAttrsRecordsSparse(t *testing.T) {
+	p := filepath.Join(filepath.Clean(t.TempDir()), "s.bin")
+	f, err := os.Create(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ret uint32
+	err = windows.DeviceIoControl(windows.Handle(f.Fd()), windows.FSCTL_SET_SPARSE, nil, 0, nil, 0, &ret, nil)
+	_ = f.Close()
+	if err != nil {
+		t.Skipf("FSCTL_SET_SPARSE: %v", err)
+	}
+	fi, err := os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if WinAttrs(fi)&AttrSparse == 0 {
+		t.Error("sparse attribute not recorded")
+	}
+	if err := SetWinAttrs(p, WinAttrs(fi)); err != nil {
+		t.Errorf("setting recorded attributes back: %v", err)
+	}
+}
