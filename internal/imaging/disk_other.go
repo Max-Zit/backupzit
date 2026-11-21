@@ -56,3 +56,11 @@ func FinishLayout(context.Context, int, *RestoreStats, func(string)) []string { 
 func RebuildBoot(context.Context, int, func(string)) (*BootReport, error) {
 	return nil, ErrUnsupported
 }
+
+// FindWindowsInstalls is Windows only.
+func FindWindowsInstalls(context.Context) ([]WindowsInstall, error) { return nil, ErrUnsupported }
+
+// RepairBoot is Windows only.
+func RepairBoot(context.Context, WindowsInstall, BootRepairOptions, func(string)) (*BootReport, error) {
+	return nil, ErrUnsupported
+}

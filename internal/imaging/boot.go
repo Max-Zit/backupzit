@@ -76,3 +76,34 @@ func BootFilesFor(fw Firmware, style string) (files, warning string) {
 		return "UEFI", ""
 	}
 }
+
+// WindowsInstall is a Windows installation found on a local disk.
+type WindowsInstall struct {
+	Disk      int    `json:"disk"`
+	Partition int    `json:"partition"`
+	Style     string `json:"style"`
+	Product   string `json:"product,omitempty"` // e.g. "Windows Server 2025 Standard"
+	Version   string `json:"version,omitempty"` // e.g. "24H2"
+	Build     string `json:"build,omitempty"`
+	// SystemPartition is the partition with the boot files (EFI system
+	// partition or active partition), 0 if none was found.
+	SystemPartition int `json:"system_partition,omitempty"`
+	volumeGUIDPath  string
+}
+
+// BootRepairOptions select the repairs.
+type BootRepairOptions struct {
+	// BootFiles forces the bcdboot firmware ("UEFI", "BIOS", "ALL");
+	// empty chooses it from this machine's firmware.
+	BootFiles string
+	// MBRCode writes the Windows boot code to sector 0 (MBR disks; needs
+	// bootsect.exe in the recovery environment).
+	MBRCode bool
+	// SetActive marks the system partition active (MBR disks).
+	SetActive bool
+	// BootDrivers sets the disk controller drivers to start at boot.
+	BootDrivers bool
+	// BackupDir receives copies of sector 0 and the BCD store before
+	// anything is changed.
+	BackupDir string
+}

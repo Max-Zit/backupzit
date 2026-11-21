@@ -53,6 +53,7 @@ Disk images (Windows):
   image-ls       List files inside an imaged partition
   image-extract  Copy files out of an imaged partition
   prepare-hardware  Prepare a restored Windows disk for different hardware
+  boot-repair       Make an existing Windows start again (boot files, MBR, active partition)
   access-package    Store repository credentials encrypted for the recovery medium (create, show)
 
 Linux system (bare-metal restore, P2V):
@@ -204,6 +205,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdImageRestore(ctx, rest)
 	case "access-package":
 		return cmdAccessPackage(ctx, rest)
+	case "boot-repair":
+		return cmdBootRepair(ctx, rest)
 	case "image-layout":
 		return cmdImageLayout(ctx, rest)
 	case "image-ls":
