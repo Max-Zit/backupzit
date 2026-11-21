@@ -388,7 +388,7 @@ func (rs *restorer) prepareDir(dst string) error {
 		// Irregular: a junction on Windows, a link like a symbolic one.
 		return errors.New("exists and is not a folder")
 	case rs.opts.Target == "" && !rs.dir:
-		if !trustedLink(fi) {
+		if !fsutil.TrustedLink(dst, fi) {
 			return errors.New("is a symbolic link of another user, not followed")
 		}
 		st, err := os.Stat(dst)
