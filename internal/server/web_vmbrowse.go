@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
@@ -20,7 +21,11 @@ import (
 
 // cachedVMDisk keeps the volumes and opened file systems of a guest disk.
 type cachedVMDisk struct {
-	vols  []vmfs.Volume
+	vols []vmfs.Volume
+	// mu guards fss: two browse or download requests of the same disk at
+	// once used to write the map together ("concurrent map writes" ends
+	// the whole console).
+	mu    sync.Mutex
 	fss   map[string]vmfs.FS
 	disk  string
 	disks []string
@@ -86,6 +91,8 @@ func (c *cachedVMDisk) fs(volID string) (vmfs.Volume, vmfs.FS, error) {
 	if err != nil {
 		return v, nil, err
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if f, ok := c.fss[v.ID]; ok {
 		return v, f, nil
 	}
