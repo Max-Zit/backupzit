@@ -158,14 +158,18 @@ func cmdImageLayout(ctx context.Context, args []string) error {
 func printImageLayout(img *repo.DiskImage, limits map[int]imaging.PartitionLimits, l *imaging.Layout, size, needed uint64) {
 	fmt.Printf("Image: disk %d, %s, %s\n", img.Number, humanBytes(img.Size), strings.ToUpper(img.Style))
 	fmt.Printf("Target: %s (smallest possible: %s)\n\n", humanBytes(size), humanBytes(needed))
-	fmt.Println("  #  original    minimum     used        resizable")
+	fmt.Println("  #  original    minimum     used        shrinkable  resizable")
 	for _, p := range img.Partitions {
 		lim := limits[p.Number]
 		res := "yes"
 		if !lim.Resizable {
 			res = "no: " + lim.Reason
 		}
-		fmt.Printf("  %d  %-10s  %-10s  %-10s  %s\n", p.Number, humanBytes(p.Length), humanBytes(lim.Min(&p)), humanBytes(lim.UsedBytes), res)
+		shrink := "-"
+		if lim.ShrinkableTo > 0 {
+			shrink = humanBytes(lim.ShrinkableTo)
+		}
+		fmt.Printf("  %d  %-10s  %-10s  %-10s  %-10s  %s\n", p.Number, humanBytes(p.Length), humanBytes(lim.Min(&p)), humanBytes(lim.UsedBytes), shrink, res)
 	}
 	if l == nil {
 		return

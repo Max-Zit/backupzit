@@ -27,6 +27,9 @@ type PartitionLimits struct {
 	// MinSize is the smallest length the partition can be restored to
 	// (its minimum size); 0 means its original length.
 	MinSize uint64 `json:"min_size,omitempty"`
+	// ShrinkableTo is the smallest length the file system allows without
+	// moving clusters (informational while shrinking is not supported).
+	ShrinkableTo uint64 `json:"shrinkable_to,omitempty"`
 	// UsedBytes is the space the file system had in use (informational).
 	UsedBytes uint64 `json:"used_bytes,omitempty"`
 	// Reason tells why the partition cannot be resized.

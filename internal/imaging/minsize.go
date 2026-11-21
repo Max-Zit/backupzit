@@ -155,8 +155,17 @@ func LimitsForPartition(ctx context.Context, r *repo.Repository, p *repo.Partiti
 		}
 		return PartitionLimits{Reason: err.Error()}
 	}
-	return PartitionLimits{Resizable: true, MinSize: u.MinSize, UsedBytes: u.UsedBytes}
+	lim := PartitionLimits{Resizable: true, MinSize: u.MinSize, ShrinkableTo: u.MinSize, UsedBytes: u.UsedBytes}
+	if !ShrinkSupported {
+		lim.MinSize = max(u.MinSize, p.Length)
+	}
+	return lim
 }
+
+// ShrinkSupported tells whether image restores can make NTFS partitions
+// smaller than they were backed up. Until they can, the minimum size of a
+// partition is its original size; ShrinkableTo shows what it could be.
+const ShrinkSupported = false
 
 // ImageLimits returns the resize limits of every partition of a disk image.
 func ImageLimits(ctx context.Context, r *repo.Repository, img *repo.DiskImage) map[int]PartitionLimits {
