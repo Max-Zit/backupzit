@@ -35,7 +35,7 @@ require (
 	github.com/vmware/govmomi v0.56.2
 	github.com/willscott/go-nfs v0.0.4
 	golang.org/x/crypto v0.59.0
-	golang.org/x/net v0.62.0
+	golang.org/x/net v0.63.0
 	golang.org/x/oauth2 v0.38.0
 	golang.org/x/sys v0.50.0
 	golang.org/x/term v0.48.0
