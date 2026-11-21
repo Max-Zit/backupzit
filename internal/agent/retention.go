@@ -57,13 +57,13 @@ func inPart(sn *repo.Snapshot, run api.Run) bool {
 // longer keeps and frees their data. It returns the removed snapshot IDs
 // and a summary for the run message. Failures here do not fail the
 // backup that just succeeded; they are reported as text.
-func (a *Agent) applyRetention(ctx context.Context, r *repo.Repository, run api.Run) ([]string, string) {
+func (a *Agent) applyRetention(ctx context.Context, r *repo.Repository, run api.Run) (forgotten []string, note string, warn bool) {
 	if run.Retention == nil || run.Retention.Empty() || run.JobID == 0 {
-		return nil, ""
+		return nil, "", false
 	}
 	sns, err := r.ListSnapshots(ctx)
 	if err != nil {
-		return nil, "retention skipped: " + err.Error()
+		return nil, "retention skipped: " + err.Error(), false
 	}
 	var mine []*repo.Snapshot
 	for _, sn := range sns {
@@ -85,26 +85,29 @@ func (a *Agent) applyRetention(ctx context.Context, r *repo.Repository, run api.
 	}
 	remove = filtered
 	if len(remove) == 0 {
-		return nil, ""
+		return nil, "", false
 	}
 
 	lock, err := r.Lock(ctx, true, lockWait)
 	if err != nil {
-		return nil, "retention skipped: " + err.Error()
+		return nil, "retention skipped: " + err.Error(), false
 	}
 	defer lock.Unlock()
-	var forgotten []string
 	for _, sn := range remove {
 		if err := r.RemoveSnapshot(ctx, sn.ID); err != nil {
-			return forgotten, "retention stopped: " + err.Error()
+			return forgotten, "retention stopped: " + err.Error(), true
 		}
 		forgotten = append(forgotten, sn.ID.String())
 	}
 	st, err := r.Prune(ctx, repo.PruneOptions{Progress: func(m string) { a.log.Info("prune", "run", run.ID, "msg", m) }})
 	if err != nil {
-		return forgotten, fmt.Sprintf("removed %s; freeing space failed: %v", count(len(forgotten), "old backup", "old backups"), err)
+		return forgotten, fmt.Sprintf("removed %s; freeing space failed: %v", count(len(forgotten), "old backup", "old backups"), err), true
 	}
-	return forgotten, fmt.Sprintf("removed %s, freed %s", count(len(forgotten), "old backup", "old backups"), humanSize(st.BytesFreed))
+	msg := fmt.Sprintf("removed %s, freed %s", count(len(forgotten), "old backup", "old backups"), humanSize(st.BytesFreed))
+	if st.PacksSkipped > 0 {
+		return forgotten, msg + fmt.Sprintf("; %s could not be read and stay as they are, the next run tries again (%s)", count(st.PacksSkipped, "pack", "packs"), st.SkipReason), true
+	}
+	return forgotten, msg, false
 }
 
 func humanSize(b uint64) string {
@@ -131,8 +134,11 @@ func (a *Agent) withRetention(ctx context.Context, r *repo.Repository, run api.R
 		res.Status = api.StatusWarning
 		res.Message = strings.TrimSpace(res.Message + " Could not extend immutability of reused data: " + err.Error())
 	}
-	forgotten, msg := a.applyRetention(ctx, r, run)
+	forgotten, msg, warn := a.applyRetention(ctx, r, run)
 	res.Forgotten = forgotten
+	if warn && res.Status == api.StatusSuccess {
+		res.Status = api.StatusWarning
+	}
 	if msg != "" {
 		if res.Message != "" {
 			res.Message += ". "
@@ -183,6 +189,14 @@ func (a *Agent) keepImmutable(ctx context.Context, r *repo.Repository, run api.R
 	// 100 % (a large repository on a slow provider takes a while, #38).
 	kctx := repo.WithKeepProgress(ctx, func(done, total int) {
 		a.progressStage(ctx, "locks", uint64(done), uint64(total)) // #nosec G115 -- counts, not negative
+	})
+	// Before the locks: reading the kept backups, which took longer than
+	// the locks themselves on a slow provider (#38).
+	kctx = repo.WithWalkProgress(kctx, func(read int) {
+		a.progressStage(ctx, "locks-read", uint64(read), 0) // #nosec G115 -- a count, not negative
+	})
+	kctx = repo.WithKeepLog(kctx, func(msg string, kv ...any) {
+		a.log.Info(msg, append([]any{"run", run.ID}, kv...)...)
 	})
 	n, err := r.KeepImmutable(kctx, sns...)
 	a.progressStage(ctx, "", 0, 0)

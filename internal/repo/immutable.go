@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/max-zit/backupzit/internal/backend"
 )
@@ -22,6 +23,12 @@ func (r *Repository) KeepImmutable(ctx context.Context, sns ...*Snapshot) (int, 
 	// One snapshot that cannot be read (after the backend's retries) must not
 	// cost all the others their lock extension: then the snapshots are read
 	// one by one, everything readable is extended and the rest is reported.
+	logf, _ := ctx.Value(keepLogKey{}).(func(msg string, kv ...any))
+	if logf == nil {
+		logf = func(string, ...any) {}
+	}
+	start := time.Now()
+	logf("lock extension: reading the kept backups", "snapshots", len(sns))
 	var problems []error
 	used, err := r.BlobsOf(ctx, sns)
 	if err != nil {
@@ -80,6 +87,11 @@ func (r *Repository) KeepImmutable(ctx context.Context, sns ...*Snapshot) (int, 
 	for p := range packs {
 		names = append(names, packName(p))
 	}
+	logf("lock extension: kept backups read", "blobs", len(used), "objects", len(names), "took", time.Since(start).Round(time.Second).String())
+	start = time.Now()
+	defer func() {
+		logf("lock extension: locks checked", "objects", len(names), "took", time.Since(start).Round(time.Second).String())
+	}()
 	// In batches, so that the run shows how far it is (a repository with
 	// 10,000 packs on a slow provider takes a while, #38).
 	progress, _ := ctx.Value(keepProgressKey{}).(func(done, total int))
@@ -109,6 +121,15 @@ func (r *Repository) KeepImmutable(ctx context.Context, sns ...*Snapshot) (int, 
 const keepBatch = 500
 
 type keepProgressKey struct{}
+
+type keepLogKey struct{}
+
+// WithKeepLog makes KeepImmutable log its phases (reading the kept
+// backups, checking the locks) with their duration, so a slow step shows
+// in the agent log (#38).
+func WithKeepLog(ctx context.Context, logf func(msg string, kv ...any)) context.Context {
+	return context.WithValue(ctx, keepLogKey{}, logf)
+}
 
 // WithKeepProgress makes KeepImmutable report how many of the objects it
 // has handled so far.
