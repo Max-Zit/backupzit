@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 )
 
 // blobReaders is how many trees and block maps BlobsOf reads at once from
@@ -16,7 +15,8 @@ const blobReaders = 16
 type walkProgressKey struct{}
 
 // WithWalkProgress makes BlobsOf report how many trees and block maps it
-// has read so far (the total is not known in advance).
+// has read so far (the total is not known in advance). It is called
+// once at a time, with growing counts.
 func WithWalkProgress(ctx context.Context, progress func(read int)) context.Context {
 	return context.WithValue(ctx, walkProgressKey{}, progress)
 }
@@ -79,11 +79,15 @@ func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHand
 		workers = blobReaders
 	}
 	progress, _ := ctx.Value(walkProgressKey{}).(func(read int))
-	var read atomic.Int64
+	// One call at a time and in order, although the readers run at once.
+	var pmu sync.Mutex
+	read := 0
 	counted := func() {
-		n := read.Add(1)
+		pmu.Lock()
+		defer pmu.Unlock()
+		read++
 		if progress != nil {
-			progress(int(n))
+			progress(read)
 		}
 	}
 
