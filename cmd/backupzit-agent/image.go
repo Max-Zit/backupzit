@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/max-zit/backupzit/internal/imaging"
+	"github.com/max-zit/backupzit/internal/recovery"
 )
 
 func cmdDisks(args []string) error {
@@ -140,6 +141,8 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 	confirm := fs.Bool("yes-erase-target", false, "confirm that all data on the target disk will be destroyed")
 	keepOffline := fs.Bool("keep-offline", false, "leave the target disk offline (when the source disk is in the same machine)")
 	srcDisk := fs.Int("source-disk", -1, "for a backup of several disks: the number of the backed up disk to restore")
+	parts := fs.String("partitions", "", "restore only these partitions, e.g. 1,3 (the others are created empty)")
+	verify := fs.Bool("verify", false, "read and check every block of the snapshot before writing to the disk")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent image-restore [options] <snapshot-id|latest>")
 		fs.PrintDefaults()
@@ -148,6 +151,10 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 	if fs.NArg() != 1 || *target < 0 {
 		fs.Usage()
 		return errors.New("snapshot and --target-disk are required")
+	}
+	sel, err := parsePartitionList(*parts)
+	if err != nil {
+		return err
 	}
 	if !*confirm {
 		return fmt.Errorf("this erases disk %d completely; add --yes-erase-target to continue", *target)
@@ -168,8 +175,15 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	if *verify {
+		fmt.Println("verifying the snapshot before writing")
+		p := progressPrinter("verified")
+		if err := recovery.Verify(ctx, r, recovery.Job{Snapshot: sn, Image: idx, Partitions: sel}, func(_ string, done, total uint64) { p(done, total) }); err != nil {
+			return fmt.Errorf("the snapshot is damaged, nothing was written: %w", err)
+		}
+	}
 	fmt.Printf("restoring disk %d of image %s from %s to disk %d\n", sn.Images[idx].Number, sn.ID.Short(), sn.Time.Local().Format("2006-01-02 15:04:05"), *target)
-	st, err := imaging.Restore(ctx, r, sn, imaging.RestoreOptions{Image: idx, TargetDisk: *target, KeepOffline: *keepOffline, Progress: progressPrinter("written")})
+	st, err := imaging.Restore(ctx, r, sn, imaging.RestoreOptions{Image: idx, TargetDisk: *target, KeepOffline: *keepOffline, Partitions: sel, Progress: progressPrinter("written")})
 	if err != nil {
 		return err
 	}

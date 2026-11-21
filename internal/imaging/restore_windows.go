@@ -29,6 +29,26 @@ type RestoreOptions struct {
 	// otherwise assign new disk and partition IDs to resolve the duplicate
 	// and the restored system would no longer boot.
 	KeepOffline bool
+	// Partitions limits the restore to these partition numbers of the
+	// image; the others are created empty. Nil restores every backed up
+	// partition.
+	Partitions []int
+}
+
+// restorePartition tells whether the contents of p are written.
+func (o RestoreOptions) restorePartition(p *repo.PartitionImage) bool {
+	if !p.Included {
+		return false
+	}
+	if o.Partitions == nil {
+		return true
+	}
+	for _, n := range o.Partitions {
+		if n == p.Number {
+			return true
+		}
+	}
+	return false
 }
 
 // RestoreStats summarises an image restore.
@@ -47,6 +67,15 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	img := &sn.Images[opts.Image]
 	start := time.Now()
+	for _, n := range opts.Partitions {
+		p := findPartition(img, n)
+		if p == nil {
+			return nil, fmt.Errorf("the image has no partition %d", n)
+		}
+		if !p.Included {
+			return nil, fmt.Errorf("partition %d was not backed up", n)
+		}
+	}
 
 	disks, err := ListDisks()
 	if err != nil {
@@ -118,15 +147,15 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 
 	var total, done uint64
-	for _, p := range img.Partitions {
-		if p.Included {
-			total += p.StoredBytes
+	for i := range img.Partitions {
+		if opts.restorePartition(&img.Partitions[i]) {
+			total += img.Partitions[i].StoredBytes
 		}
 	}
 	st := &RestoreStats{}
 	for i := range img.Partitions {
 		p := &img.Partitions[i]
-		if !p.Included {
+		if !opts.restorePartition(p) {
 			continue
 		}
 		ids, err := r.LoadBlockMap(ctx, p)
