@@ -68,7 +68,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 | **Whole disks** (Windows) | disk images of one, several or all disks, changed blocks only | bare metal from the recovery ISO, also onto different hardware; single files from the image |
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
 | **Proxmox VE** VMs and containers | agentless, changed blocks only (containers on ZFS file by file, changed files only); the node's own configuration (`/etc/pve`, `config.db`) with a files job | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
-| **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent (one per ESXi host under vCenter, all at once), changed block tracking, hot-add (no copy on the datastore) | new VM or in place, instant recovery over NFS |
+| **VMware ESXi** and **vCenter** VMs | agentless through a proxy agent (one per ESXi host under vCenter, all at once), changed block tracking, hot-add (no copy on the datastore); the console needs no route to the host when the proxy connects to it | new VM or in place, instant recovery over NFS |
 | **Hyper-V** VMs, also **failover clusters** | agentless, resilient change tracking; optionally application-consistent only (VSS in the guest, for AD and SQL Server); all VMs except chosen ones; data disks can be left out; a clustered VM keeps its history when it moves to another node, also during a backup | new VM on the same or another Hyper-V host, also onto a Cluster Shared Volume as a cluster role; the vTPM (BitLocker) is kept |
 | **Databases** | SQL Server, PostgreSQL, MySQL/MariaDB with native tools; log backups | a single database to any point in time, under a new name or in place |
 | **NAS shares** | SMB or NFS share read by any agent, nothing installed on the NAS | into a folder or back onto the share |
@@ -312,7 +312,9 @@ systemctl enable --now backupzit-agent
 
 **From the console:** under *Agents → Install on a machine from here*, the console installs the agent itself, over SSH (Linux) or WinRM (Windows).
 
-**VMware ESXi:** nothing is installed on the host. Add it under *Agents → VMware ESXi hosts* and choose an agent as its proxy.
+**VMware ESXi:** nothing is installed on the host. Add it under *Agents → VMware ESXi hosts* and choose an agent as its proxy. With *Connect through the proxy agent*, only the proxy needs to reach the host (customer networks behind NAT or with overlapping addresses).
+
+Snapshots and checkpoints a backup creates on a hypervisor are recorded before they are made and removed with a check afterwards; what an interrupted backup leaves is cleaned up by the agent and listed on the dashboard until it is gone.
 
 ## Updating
 
@@ -323,7 +325,7 @@ systemctl enable --now backupzit-agent
 
 Without internet access, upload the release files on the same page. Updating with the package manager or by running the install script again also works.
 
-**Agents** are updated by the console, automatically after a console update or with *Update all agents*. A running backup is never interrupted.
+**Agents** are updated by the console, automatically after a console update or with *Update all agents*. A running backup is never interrupted. Agents install only an installer named in the list signed with the release key, which they check themselves, and never go back to an older version; update the console first.
 
 **Operating system** updates of the appliance are shown and installed under *Settings → Updates* as well.
 
