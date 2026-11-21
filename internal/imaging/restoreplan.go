@@ -9,9 +9,9 @@ import (
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
-// ErrShrinkUnsupported is returned for a layout that makes an NTFS
-// partition smaller than in the image.
-var ErrShrinkUnsupported = errors.New("restoring a partition smaller than it was backed up is not supported yet")
+// ErrShrinkUnsupported is returned for a layout that makes a partition
+// smaller than in the image that is not NTFS (only NTFS can be shrunk).
+var ErrShrinkUnsupported = errors.New("only NTFS partitions can be restored smaller than they were backed up")
 
 // partitionWrite is one partition of the target disk: where it goes and
 // whether its contents come from the image.
@@ -20,6 +20,9 @@ type partitionWrite struct {
 	Offset  uint64
 	Length  uint64
 	Restore bool
+	// Shrink is set when an NTFS partition becomes smaller: its file
+	// system is shrunk while it is written.
+	Shrink bool
 }
 
 // Moved tells whether the partition changes place or size.
@@ -77,10 +80,14 @@ func restorePlan(img *repo.DiskImage, opts RestoreOptions) ([]partitionWrite, er
 		if lp.Restore && !p.Included {
 			return nil, fmt.Errorf("partition %d was not backed up", lp.Source)
 		}
+		w := partitionWrite{Src: p, Offset: lp.Offset, Length: lp.Length, Restore: lp.Restore}
 		if lp.Restore && lp.Length < p.Length {
-			return nil, fmt.Errorf("partition %d: %w", lp.Source, ErrShrinkUnsupported)
+			if !strings.EqualFold(p.FileSystem, "NTFS") || FixedSizeKind(p) {
+				return nil, fmt.Errorf("partition %d: %w", lp.Source, ErrShrinkUnsupported)
+			}
+			w.Shrink = true
 		}
-		out = append(out, partitionWrite{Src: p, Offset: lp.Offset, Length: lp.Length, Restore: lp.Restore})
+		out = append(out, w)
 	}
 	return out, nil
 }

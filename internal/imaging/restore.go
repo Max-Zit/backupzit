@@ -35,4 +35,15 @@ type RestoreStats struct {
 	// Grown lists the target offsets of restored partitions that became
 	// larger; their file systems are extended by FinishLayout.
 	Grown []uint64 `json:"grown,omitempty"`
+	// Shrunk lists the NTFS partitions that were restored smaller.
+	Shrunk []ShrinkReport `json:"shrunk,omitempty"`
+}
+
+// ShrinkReport describes one shrunk partition. Windows checks the file
+// system (chkdsk) once at the next start.
+type ShrinkReport struct {
+	Partition     int    `json:"partition"`
+	MovedClusters uint64 `json:"moved_clusters"`
+	// Orphaned clusters behind the new end belonged to no file.
+	Orphaned uint64 `json:"orphaned,omitempty"`
 }

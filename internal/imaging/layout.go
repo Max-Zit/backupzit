@@ -28,7 +28,7 @@ type PartitionLimits struct {
 	// (its minimum size); 0 means its original length.
 	MinSize uint64 `json:"min_size,omitempty"`
 	// ShrinkableTo is the smallest length the file system allows without
-	// moving clusters (informational while shrinking is not supported).
+	// moving clusters (shrinking below it moves clusters and takes longer).
 	ShrinkableTo uint64 `json:"shrinkable_to,omitempty"`
 	// UsedBytes is the space the file system had in use (informational).
 	UsedBytes uint64 `json:"used_bytes,omitempty"`

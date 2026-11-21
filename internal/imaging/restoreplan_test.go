@@ -47,13 +47,20 @@ func TestRestorePlanLayout(t *testing.T) {
 	if !plan[2].Grown() || plan[0].Moved() || !plan[3].Moved() {
 		t.Errorf("plan: %+v", plan)
 	}
-	// Shrinking is refused until NTFS can be shrunk.
+	// NTFS partitions shrink; others are refused.
 	small, err := SuggestLayout(img, 40*gib, lim, LayoutOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := restorePlan(img, RestoreOptions{Layout: small}); !errors.Is(err, ErrShrinkUnsupported) {
-		t.Errorf("shrink: %v", err)
+	sp, err := restorePlan(img, RestoreOptions{Layout: small})
+	if err != nil || !sp[2].Shrink || sp[0].Shrink {
+		t.Errorf("shrink: %+v, %v", sp, err)
+	}
+	fat := *small
+	fat.Partitions = append([]LayoutPartition(nil), small.Partitions...)
+	fat.Partitions[0].Length -= mib
+	if _, err := restorePlan(img, RestoreOptions{Layout: &fat}); !errors.Is(err, ErrShrinkUnsupported) {
+		t.Errorf("shrinking the EFI partition: %v", err)
 	}
 	if _, err := restorePlan(img, RestoreOptions{Layout: l, Partitions: []int{3}}); err == nil {
 		t.Error("layout and partition list together accepted")

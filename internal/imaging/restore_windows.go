@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf16"
 
+	"github.com/max-zit/backupzit/internal/imaging/ntfsresize"
 	"github.com/max-zit/backupzit/internal/repo"
 	"golang.org/x/sys/windows"
 )
@@ -55,6 +56,28 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	if target.SectorSize != img.SectorSize {
 		return nil, fmt.Errorf("target disk has %d byte sectors, image was taken from %d byte sectors", target.SectorSize, img.SectorSize)
+	}
+
+	// Plan the shrinking of NTFS partitions before the disk is touched, so
+	// a volume that cannot be shrunk leaves the target as it was.
+	shrinks := map[int]*ntfsresize.Plan{}
+	for i, w := range plan {
+		if !w.Shrink {
+			continue
+		}
+		pr, err := NewPartitionReader(ctx, r, w.Src)
+		if err != nil {
+			return nil, fmt.Errorf("partition %d: %w", w.Src.Number, err)
+		}
+		vol, err := ntfsresize.Open(pr)
+		if err != nil {
+			return nil, fmt.Errorf("partition %d: read the file system: %w", w.Src.Number, err)
+		}
+		sp, err := vol.Plan(w.Length)
+		if err != nil {
+			return nil, fmt.Errorf("partition %d cannot be shrunk to %d bytes: %w", w.Src.Number, w.Length, err)
+		}
+		shrinks[i] = sp
 	}
 
 	// Try to lock and dismount volumes on the target disk so pending writes
@@ -105,7 +128,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		}
 	}
 	st := &RestoreStats{}
-	for _, w := range plan {
+	for i, w := range plan {
 		p := w.Src
 		if !w.Restore {
 			continue
@@ -129,6 +152,9 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			if err != nil {
 				return st, fmt.Errorf("partition %d block %d: %w", p.Number, b, err)
 			}
+			if end := w.Offset + w.Length; off+uint64(len(data)) > end {
+				data = data[:end-off] // a shrunk partition ends inside the block
+			}
 			if _, err := f.WriteAt(data, int64(off)); err != nil { // #nosec G115 -- disk offsets are within range
 				return st, fmt.Errorf("partition %d block %d: write: %w", p.Number, b, err)
 			}
@@ -137,6 +163,12 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			if opts.Progress != nil {
 				opts.Progress(done, total)
 			}
+		}
+		if sp := shrinks[i]; sp != nil {
+			if err := sp.Apply(&sectionWriter{f: f, base: w.Offset, size: w.Length}, nil); err != nil {
+				return st, fmt.Errorf("partition %d: shrink the file system: %w", p.Number, err)
+			}
+			st.Shrunk = append(st.Shrunk, ShrinkReport{Partition: p.Number, MovedClusters: sp.MovedClusters, Orphaned: sp.Orphaned})
 		}
 		st.Partitions++
 		if w.Moved() {
@@ -189,6 +221,19 @@ func setDiskOffline(h windows.Handle, offline bool) error {
 	binary.LittleEndian.PutUint64(in[16:24], diskAttributeOffline)
 	_, err := ioctl(h, ioctlDiskSetDiskAttributes, in, 0)
 	return err
+}
+
+// sectionWriter writes into one partition of the disk.
+type sectionWriter struct {
+	f          *os.File
+	base, size uint64
+}
+
+func (s *sectionWriter) WriteAt(b []byte, off int64) (int, error) {
+	if off < 0 || uint64(off)+uint64(len(b)) > s.size {
+		return 0, fmt.Errorf("write at %d+%d outside the partition (%d bytes)", off, len(b), s.size)
+	}
+	return s.f.WriteAt(b, int64(s.base)+off) // #nosec G115 -- disk offsets are within range
 }
 
 // fixBootSectors updates the boot sector of a moved partition (and its

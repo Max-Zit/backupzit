@@ -9,6 +9,7 @@ import (
 	"math/bits"
 	"strings"
 
+	"github.com/max-zit/backupzit/internal/imaging/ntfsresize"
 	"github.com/max-zit/backupzit/internal/repo"
 	ntfs "www.velocidex.com/golang/go-ntfs/parser"
 )
@@ -160,16 +161,14 @@ func LimitsForPartition(ctx context.Context, r *repo.Repository, p *repo.Partiti
 		return PartitionLimits{Reason: err.Error()}
 	}
 	lim := PartitionLimits{Resizable: true, MinSize: u.MinSize, ShrinkableTo: u.MinSize, UsedBytes: u.UsedBytes}
-	if !ShrinkSupported {
-		lim.MinSize = max(u.MinSize, p.Length)
+	// Moving clusters allows less than the last allocated cluster: about
+	// the used space. This reads every file record (a while on volumes
+	// with many files).
+	if vol, err := ntfsresize.Open(pr); err == nil {
+		lim.MinSize = min(lim.MinSize, alignUp(vol.MinimumSize(), LayoutAlign))
 	}
 	return lim
 }
-
-// ShrinkSupported tells whether image restores can make NTFS partitions
-// smaller than they were backed up. Until they can, the minimum size of a
-// partition is its original size; ShrinkableTo shows what it could be.
-const ShrinkSupported = false
 
 // BitLockerRawReason explains why a partition backed up encrypted cannot
 // be resized.
