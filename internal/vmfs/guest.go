@@ -99,8 +99,9 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 				st.Errors = append(st.Errors, LoopMessage(e.Path))
 				return nil
 			}
-			if err := os.MkdirAll(dst, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
-				return err
+			if err := imaging.MkdirBelow(target, dst); err != nil {
+				st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
+				return nil
 			}
 			// The folder's own permissions (e.g. /root or ~/.ssh stay
 			// private) once its contents are written: a read-only folder
@@ -121,7 +122,7 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 			}
 			return nil
 		}
-		n, err := extractFile(fsys, e, dst)
+		n, err := extractFile(fsys, e, target, dst)
 		if err != nil {
 			st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
 			return nil
@@ -149,12 +150,12 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 	return st, nil
 }
 
-func extractFile(fsys FS, e Entry, dst string) (int64, error) {
+func extractFile(fsys FS, e Entry, target, dst string) (int64, error) {
 	rd, _, err := fsys.ReadFile(e.Path)
 	if err != nil {
 		return 0, err
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
+	if err := imaging.MkdirBelow(target, filepath.Dir(dst)); err != nil {
 		return 0, err
 	}
 	tmp := imaging.TempTarget(dst)
@@ -165,7 +166,7 @@ func extractFile(fsys FS, e Entry, dst string) (int64, error) {
 	if perm == 0 {
 		perm = 0o600
 	}
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
+	f, err := imaging.CreateFresh(tmp)
 	if err != nil {
 		return 0, err
 	}
