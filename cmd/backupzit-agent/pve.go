@@ -239,6 +239,11 @@ func cmdPVEFiles(ctx context.Context, cmd string, args []string) error {
 		for _, e := range st.Errors {
 			fmt.Println("  error:", e)
 		}
+		// Like image-extract: a restore that left files out must not end
+		// with exit code 0, or scripts take it for complete (B8).
+		if len(st.Errors) > 0 {
+			return fmt.Errorf("extract finished with %d errors", len(st.Errors))
+		}
 		return nil
 	}
 	dir := "/"
