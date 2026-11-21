@@ -296,8 +296,8 @@ func cmdPrepareHardware(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Windows on %s: %d disk controller drivers enabled (%s), %d drivers added, boot files rebuilt: %v\n",
-		rep.WindowsVolume, len(rep.DriversEnabled), strings.Join(rep.DriversEnabled, " "), rep.DriversAdded, rep.BootRebuilt)
+	fmt.Printf("Windows on %s: %d disk controller drivers enabled (%s), %d drivers added, boot files rebuilt: %v (firmware %s, boot files for %s)\n",
+		rep.WindowsVolume, len(rep.DriversEnabled), strings.Join(rep.DriversEnabled, " "), rep.DriversAdded, rep.BootRebuilt, rep.Firmware, rep.BootFiles)
 	for _, w := range rep.Warnings {
 		fmt.Println("  warning:", w)
 	}

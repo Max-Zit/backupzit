@@ -26,16 +26,6 @@ var bootStorageDrivers = []string{
 	"SmartPqi", "arcsas", "ADP80XX", "HpSAMD", "storvsc", "pvscsi", "vioscsi", "viostor", "VMSCSI",
 }
 
-// HardwareReport describes what PrepareForNewHardware changed.
-type HardwareReport struct {
-	WindowsVolume  string   `json:"windows_volume"`
-	DriversEnabled []string `json:"drivers_enabled"`
-	DriversAdded   int      `json:"drivers_added"`
-	DriverSources  []string `json:"driver_sources,omitempty"`
-	BootRebuilt    bool     `json:"boot_rebuilt"`
-	Warnings       []string `json:"warnings,omitempty"`
-}
-
 // PrepareForNewHardware makes a restored Windows installation start on
 // different hardware ("universal restore"): it enables the boot start of
 // common disk controller drivers in the offline registry, adds drivers from
@@ -106,16 +96,20 @@ func PrepareForNewHardware(ctx context.Context, diskNumber int, driverDirs []str
 		}
 	}
 
-	// 3. Boot files for this machine's firmware.
+	// 3. Boot files for this machine's firmware (not just the partition
+	// style: an MBR disk on a UEFI machine needs both).
+	rep.Firmware = DetectFirmware()
+	fw, warn := BootFilesFor(rep.Firmware, disk.Style)
+	rep.BootFiles = fw
+	if warn != "" {
+		rep.Warnings = append(rep.Warnings, warn)
+	}
+	log("firmware " + firmwareLabel(rep.Firmware) + ", boot files for " + fw)
 	if sysPart != nil {
 		sys, unmountSys, err := letterFor(sysPart.VolumeGUIDPath)
 		if err != nil {
 			rep.Warnings = append(rep.Warnings, "mount the system partition: "+err.Error())
 		} else {
-			fw := "UEFI"
-			if disk.Style == StyleMBR {
-				fw = "BIOS"
-			}
 			out, err := runRetry(ctx, "bcdboot.exe", win+`\Windows`, "/s", sys, "/f", fw)
 			unmountSys()
 			if err != nil {

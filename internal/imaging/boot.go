@@ -1,0 +1,69 @@
+package imaging
+
+// Firmware types of the machine the recovery environment runs on.
+const (
+	FirmwareUEFI    = "uefi"
+	FirmwareBIOS    = "bios"
+	FirmwareUnknown = ""
+)
+
+// Firmware describes how the running machine boots.
+type Firmware struct {
+	Type       string `json:"type"`                  // FirmwareUEFI, FirmwareBIOS or "" if unknown
+	SecureBoot bool   `json:"secure_boot,omitempty"` // UEFI Secure Boot is on
+}
+
+// HardwareReport describes what PrepareForNewHardware changed.
+type HardwareReport struct {
+	WindowsVolume  string   `json:"windows_volume"`
+	DriversEnabled []string `json:"drivers_enabled"`
+	DriversAdded   int      `json:"drivers_added"`
+	DriverSources  []string `json:"driver_sources,omitempty"`
+	// Firmware of the machine the restore ran on; BootFiles is the bcdboot
+	// firmware chosen for it ("UEFI", "BIOS" or "ALL").
+	Firmware    Firmware `json:"firmware"`
+	BootFiles   string   `json:"boot_files,omitempty"`
+	BootRebuilt bool     `json:"boot_rebuilt"`
+	Warnings    []string `json:"warnings,omitempty"`
+}
+
+func firmwareLabel(fw Firmware) string {
+	switch fw.Type {
+	case FirmwareUEFI:
+		if fw.SecureBoot {
+			return "UEFI (Secure Boot on)"
+		}
+		return "UEFI"
+	case FirmwareBIOS:
+		return "BIOS"
+	}
+	return "unknown"
+}
+
+// String is e.g. "UEFI (Secure Boot on)".
+func (fw Firmware) String() string { return firmwareLabel(fw) }
+
+// BootFilesFor chooses the bcdboot firmware (/f) for a Windows disk of the
+// given partition style on a machine with the given firmware, and says
+// when the combination will not start as it is.
+func BootFilesFor(fw Firmware, style string) (files, warning string) {
+	switch {
+	case fw.Type == FirmwareUEFI && style == StyleGPT:
+		return "UEFI", ""
+	case fw.Type == FirmwareBIOS && style == StyleMBR:
+		return "BIOS", ""
+	case fw.Type == FirmwareUEFI && style == StyleMBR:
+		w := "this computer starts in UEFI mode, but the disk has an MBR partition table: it starts only with legacy boot (CSM) turned on in the firmware settings; restore with a GPT target layout to start in UEFI mode"
+		if fw.SecureBoot {
+			w += " (legacy boot needs Secure Boot turned off)"
+		}
+		return "ALL", w
+	case fw.Type == FirmwareBIOS && style == StyleGPT:
+		return "UEFI", "this computer starts in BIOS (legacy) mode, but the disk has a GPT partition table: switch the firmware to UEFI mode, or restore with an MBR target layout"
+	case style == StyleMBR:
+		// Firmware unknown: what the partition style suggests.
+		return "BIOS", ""
+	default:
+		return "UEFI", ""
+	}
+}
