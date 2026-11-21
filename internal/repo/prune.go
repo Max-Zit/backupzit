@@ -123,6 +123,12 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 			opts.Progress(fmt.Sprintf(f, a...))
 		}
 	}
+	// Prune deletes every pack the index lacks and then all old index files:
+	// with a damaged index file the index is built from pack headers, and a
+	// pack missing from it may still be needed (B11 review).
+	if err := r.errDamagedIndexFiles(); err != nil {
+		return nil, err
+	}
 	st := &PruneStats{}
 
 	say("reading the backups")

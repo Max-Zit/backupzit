@@ -625,7 +625,7 @@ func (a *Archiver) archiveFile(ctx context.Context, p string, fi fs.FileInfo, n 
 func (a *Archiver) allBlobsKnown(ids []repo.ID) bool {
 	idx := a.r.Index()
 	for _, id := range ids {
-		if !idx.Has(repo.BlobHandle{Type: repo.DataBlob, ID: id}) {
+		if !idx.Reusable(repo.BlobHandle{Type: repo.DataBlob, ID: id}) {
 			return false
 		}
 	}

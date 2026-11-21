@@ -561,11 +561,14 @@ func cmdRepair(ctx context.Context, args []string) error {
 		if *dry {
 			fmt.Printf("%d damaged index files; run without --dry-run to write a new index from the readable index files and the pack headers\n", len(bad))
 		} else {
-			n, err := r.RebuildIndex(ctx)
+			rb, err := r.RebuildIndex(ctx)
 			if err != nil {
 				return fmt.Errorf("rebuild index: %w", err)
 			}
-			fmt.Printf("wrote a new index for %d packs and removed the damaged index files\n", n)
+			fmt.Printf("wrote a new index for %d packs and removed the damaged index files\n", rb.Packs)
+			for _, p := range rb.Left {
+				fmt.Printf("pack %s is damaged and stays out of the index\n", p.Short())
+			}
 		}
 	}
 	fmt.Println("reading all data (this takes as long as a data check) ...")

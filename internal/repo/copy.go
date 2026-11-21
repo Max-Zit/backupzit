@@ -97,5 +97,5 @@ func (r *Repository) hasBlob(h BlobHandle) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	_, pending := r.pending[h]
-	return pending || r.idx.Has(h)
+	return pending || r.idx.Reusable(h)
 }

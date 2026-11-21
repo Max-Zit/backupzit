@@ -28,10 +28,49 @@ type Index struct {
 	mu    sync.RWMutex
 	blobs map[BlobHandle]Location
 	packs map[ID]struct{}
+	// recovered are packs that came from their own headers because an index
+	// file was damaged. Their blobs can be read, but are not reused by new
+	// backups (see Reusable) until RebuildIndex has verified the pack.
+	recovered map[ID]struct{}
 }
 
 func newIndex() *Index {
-	return &Index{blobs: map[BlobHandle]Location{}, packs: map[ID]struct{}{}}
+	return &Index{blobs: map[BlobHandle]Location{}, packs: map[ID]struct{}{}, recovered: map[ID]struct{}{}}
+}
+
+// addRecoveredPack is addPack for a pack read from its header.
+func (x *Index) addRecoveredPack(pack ID, blobs []PackedBlob) {
+	x.mu.Lock()
+	x.recovered[pack] = struct{}{}
+	x.mu.Unlock()
+	x.addPack(pack, blobs)
+}
+
+// RecoveredPacks returns the packs that were read from their headers and are
+// not verified yet.
+func (x *Index) RecoveredPacks() []ID {
+	x.mu.RLock()
+	defer x.mu.RUnlock()
+	out := make([]ID, 0, len(x.recovered))
+	for p := range x.recovered {
+		out = append(out, p)
+	}
+	return out
+}
+
+// Reusable reports whether a blob is indexed in a pack that a new backup may
+// deduplicate against: not in a pack taken from its header only. A pack
+// that repair dropped as damaged can come back that way (its header is
+// intact, its data is not), and reusing it would keep the lost data.
+func (x *Index) Reusable(h BlobHandle) bool {
+	x.mu.RLock()
+	defer x.mu.RUnlock()
+	l, ok := x.blobs[h]
+	if !ok {
+		return false
+	}
+	_, rec := x.recovered[l.Pack]
+	return !rec
 }
 
 func (x *Index) addPack(pack ID, blobs []PackedBlob) {
@@ -40,8 +79,15 @@ func (x *Index) addPack(pack ID, blobs []PackedBlob) {
 	x.packs[pack] = struct{}{}
 	for _, b := range blobs {
 		h := BlobHandle{Type: b.Type, ID: b.ID}
-		if _, ok := x.blobs[h]; ok {
-			continue // duplicate copy in another pack; first one wins
+		if old, ok := x.blobs[h]; ok {
+			// Duplicate copy in another pack; first one wins, except that a
+			// copy in a recovered (unverified) pack gives way to a copy in
+			// a pack the index lists: a backup that stored the data again.
+			_, oldRec := x.recovered[old.Pack]
+			_, newRec := x.recovered[pack]
+			if !oldRec || newRec {
+				continue
+			}
 		}
 		x.blobs[h] = Location{Pack: pack, Offset: b.Offset, Length: b.Length, Raw: b.Raw}
 	}

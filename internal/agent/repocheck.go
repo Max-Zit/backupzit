@@ -79,11 +79,14 @@ func (a *Agent) repoRepair(ctx context.Context, run api.Run) api.RunResult {
 	// the repository was opened; a new index replaces them.
 	rebuilt := ""
 	if bad := r.DamagedIndexFiles(); len(bad) > 0 {
-		n, err := r.RebuildIndex(ctx)
+		rb, err := r.RebuildIndex(ctx)
 		if err != nil {
 			return failed(fmt.Errorf("rebuild index: %w", err))
 		}
-		rebuilt = fmt.Sprintf("Replaced %s by a new index for %d data packs. ", count(len(bad), "damaged index file", "damaged index files"), n)
+		rebuilt = fmt.Sprintf("Replaced %s by a new index for %d data packs. ", count(len(bad), "damaged index file", "damaged index files"), rb.Packs)
+		if len(rb.Left) > 0 {
+			rebuilt += fmt.Sprintf("%s failed the check and stay out of the index. ", count(len(rb.Left), "data pack", "data packs"))
+		}
 	}
 	res, err := checker.Run(ctx, r, checker.Options{ReadData: true, Progress: func(done, total int) {
 		a.progress(ctx, uint64(done), uint64(total), 0) // #nosec G115 -- counts for display
