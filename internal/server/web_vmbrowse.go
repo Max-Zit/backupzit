@@ -123,6 +123,16 @@ func (s *Server) vmBrowseParams(r *http.Request) (vmBrowseParams, error) {
 	return p, nil
 }
 
+// hasVolume tells whether id names one of vols.
+func hasVolume(vols []vmfs.Volume, id string) bool {
+	for _, v := range vols {
+		if v.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func vmCrumbs(dir string) []crumb {
 	out := []crumb{{Name: "/", Path: "/"}}
 	cur := ""
@@ -176,6 +186,14 @@ func (s *Server) handleVMBrowse(w http.ResponseWriter, r *http.Request, user str
 			var v vmfs.Volume
 			var f vmfs.FS
 			v, f, err = c.fs(p.volume)
+			if err != nil && p.volume != "" && !hasVolume(c.vols, p.volume) {
+				// The form sends the partition of the disk shown before
+				// when only the disk is changed ("no volume p3", B10):
+				// start at the first browsable partition of this disk.
+				p.volume, p.dir = "", "/"
+				data["Path"], data["Crumbs"] = p.dir, vmCrumbs(p.dir)
+				v, f, err = c.fs("")
+			}
 			data["Volume"] = v
 			if err == nil {
 				var entries []vmfs.Entry
