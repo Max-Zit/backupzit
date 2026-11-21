@@ -137,16 +137,20 @@ func LimitsForPartition(ctx context.Context, r *repo.Repository, p *repo.Partiti
 		return PartitionLimits{Reason: "not backed up"}
 	case FixedSizeKind(p):
 		return PartitionLimits{Reason: Partition{GPTType: p.GPTType, MBRType: p.MBRType}.Kind() + " partitions keep their size"}
-	case !strings.EqualFold(p.FileSystem, "NTFS"):
-		fs := p.FileSystem
-		if fs == "" {
-			fs = "unknown file system (encrypted with BitLocker?)"
-		}
-		return PartitionLimits{Reason: fs}
 	}
 	pr, err := NewPartitionReader(ctx, r, p)
 	if err != nil {
 		return PartitionLimits{Reason: err.Error()}
+	}
+	if IsBitLockerRaw(pr) {
+		return PartitionLimits{Reason: BitLockerRawReason}
+	}
+	if !strings.EqualFold(p.FileSystem, "NTFS") {
+		fs := p.FileSystem
+		if fs == "" {
+			fs = "unknown file system"
+		}
+		return PartitionLimits{Reason: fs + " is not resized"}
 	}
 	u, err := MeasureNTFS(pr)
 	if err != nil {
@@ -166,6 +170,21 @@ func LimitsForPartition(ctx context.Context, r *repo.Repository, p *repo.Partiti
 // smaller than they were backed up. Until they can, the minimum size of a
 // partition is its original size; ShrinkableTo shows what it could be.
 const ShrinkSupported = false
+
+// BitLockerRawReason explains why a partition backed up encrypted cannot
+// be resized.
+const BitLockerRawReason = "backed up encrypted with BitLocker: it can only be moved and needs its recovery key after the restore"
+
+// IsBitLockerRaw tells whether a partition image starts with a BitLocker
+// volume header ("-FVE-FS-"): it was read encrypted, not through a
+// shadow copy of the unlocked volume.
+func IsBitLockerRaw(r io.ReaderAt) bool {
+	b := make([]byte, 16)
+	if _, err := r.ReadAt(b, 0); err != nil {
+		return false
+	}
+	return string(b[3:11]) == "-FVE-FS-"
+}
 
 // ImageLimits returns the resize limits of every partition of a disk image.
 func ImageLimits(ctx context.Context, r *repo.Repository, img *repo.DiskImage) map[int]PartitionLimits {

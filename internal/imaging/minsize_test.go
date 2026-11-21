@@ -103,3 +103,26 @@ func TestMeasureNTFS(t *testing.T) {
 		t.Errorf("min size %d not aligned", u.MinSize)
 	}
 }
+
+type bytesReaderAt []byte
+
+func (b bytesReaderAt) ReadAt(p []byte, off int64) (int, error) {
+	if off >= int64(len(b)) {
+		return 0, errors.New("EOF")
+	}
+	return copy(p, b[off:]), nil
+}
+
+func TestIsBitLockerRaw(t *testing.T) {
+	fve := make([]byte, 512)
+	copy(fve[3:], "-FVE-FS-")
+	if !IsBitLockerRaw(bytesReaderAt(fve)) {
+		t.Error("BitLocker header not recognised")
+	}
+	if IsBitLockerRaw(bytesReaderAt(bootSector(512, 8, 1000))) {
+		t.Error("NTFS recognised as BitLocker")
+	}
+	if IsBitLockerRaw(bytesReaderAt(nil)) {
+		t.Error("empty reader recognised as BitLocker")
+	}
+}
