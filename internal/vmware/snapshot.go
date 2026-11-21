@@ -143,28 +143,36 @@ func (c *Client) snapshotItem(vm VM, name string) leftover.Item {
 // failure for the janitor and the console (S-1).
 func (c *Client) removeSnapshotVerified(ctx context.Context, vm VM, name string, waits []time.Duration) (note string, err error) {
 	it := c.snapshotItem(vm, name)
+	// Each try signs in again when the session ended (during a long read
+	// it used to leave the snapshot, #44).
 	err = leftover.Retry(ctx, waits, func(ctx context.Context) error {
-		s, err := c.findSnapshot(ctx, vm.Ref, name)
-		if err != nil || s == nil {
+		return c.again(ctx, func() error {
+			s, err := c.findSnapshot(ctx, vm.Ref, name)
+			if err != nil || s == nil {
+				return err
+			}
+			return c.removeSnapshot(ctx, vm, *s)
+		})
+	}, func(ctx context.Context) (gone bool, err error) {
+		err = c.again(ctx, func() error {
+			s, err := c.findSnapshot(ctx, vm.Ref, name)
+			gone = err == nil && s == nil
 			return err
-		}
-		return c.removeSnapshot(ctx, vm, *s)
-	}, func(ctx context.Context) (bool, error) {
-		s, err := c.findSnapshot(ctx, vm.Ref, name)
-		return err == nil && s == nil, err
+		})
+		return gone, err
 	})
 	if err != nil {
 		leftover.Failed(it, err)
 		return "", err
 	}
 	leftover.Done(it)
-	return c.consolidate(ctx, vm), nil
+	return c.consolidate(ctx, vm, "after the snapshot removal"), nil
 }
 
 // consolidate merges what a snapshot removal left in delta disks
 // (runtime.consolidationNeeded, e.g. after a host or datastore hiccup).
 // It returns a note when the VM still needs it.
-func (c *Client) consolidate(ctx context.Context, vm VM) string {
+func (c *Client) consolidate(ctx context.Context, vm VM, when string) string {
 	needed := func() bool {
 		var m mo.VirtualMachine
 		if err := property.DefaultCollector(c.vim).RetrieveOne(ctx, vm.Ref, []string{"runtime.consolidationNeeded"}, &m); err != nil {
@@ -176,7 +184,7 @@ func (c *Client) consolidate(ctx context.Context, vm VM) string {
 		return ""
 	}
 	if !c.useAPI {
-		return "the disks of VM " + vm.Name + " need consolidation after the snapshot removal; consolidate them in the host client (Snapshots → Consolidate)"
+		return "the disks of VM " + vm.Name + " need consolidation " + when + "; consolidate them in the host client (Snapshots → Consolidate)"
 	}
 	res, err := methods.ConsolidateVMDisks_Task(ctx, c.vim, &types.ConsolidateVMDisks_Task{This: vm.Ref})
 	if err == nil {
@@ -187,9 +195,9 @@ func (c *Client) consolidate(ctx context.Context, vm VM) string {
 		if err != nil {
 			why = err.Error()
 		}
-		return "the disks of VM " + vm.Name + " need consolidation after the snapshot removal and consolidating them failed (" + why + "); consolidate them in the vSphere Client (Snapshots → Consolidate)"
+		return "the disks of VM " + vm.Name + " need consolidation " + when + " and consolidating them failed (" + why + "); consolidate them in the vSphere Client (Snapshots → Consolidate)"
 	}
-	return "the disks of VM " + vm.Name + " were consolidated after the snapshot removal"
+	return "the disks of VM " + vm.Name + " were consolidated " + when
 }
 
 // snapshotDisks returns the disks as they are in a snapshot.
@@ -264,4 +272,14 @@ func (c *Client) changedAreas(ctx context.Context, vm VM, s snapshot, d Disk, ch
 		off = next
 	}
 	return areas, nil
+}
+
+// hasSnapshots tells whether the VM has any snapshot (its own or one of
+// BackupZit).
+func (c *Client) hasSnapshots(ctx context.Context, vm types.ManagedObjectReference) (bool, error) {
+	var m mo.VirtualMachine
+	if err := property.DefaultCollector(c.vim).RetrieveOne(ctx, vm, []string{"snapshot"}, &m); err != nil {
+		return false, err
+	}
+	return m.Snapshot != nil && len(m.Snapshot.RootSnapshotList) > 0, nil
 }

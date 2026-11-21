@@ -49,20 +49,23 @@ func (c *Client) fileURL(p dsPath) string {
 	return u.String()
 }
 
-// get downloads a (small) datastore file.
+// get downloads a (small) datastore file; a 401 because the session ended
+// signs in again once.
 func (c *Client) get(ctx context.Context, p dsPath) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.fileURL(p), nil)
-	if err != nil {
-		return nil, err
-	}
 	var b []byte
-	err = c.vim.Do(ctx, req, func(resp *http.Response) error {
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("download %s: %s", p, resp.Status)
+	err := c.again(ctx, func() error {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.fileURL(p), nil)
+		if err != nil {
+			return err
 		}
-		var err error
-		b, err = io.ReadAll(io.LimitReader(resp.Body, 64<<20))
-		return err
+		return c.vim.Do(ctx, req, func(resp *http.Response) error {
+			if resp.StatusCode != http.StatusOK {
+				return fmt.Errorf("download %s: %s", p, resp.Status)
+			}
+			var err error
+			b, err = io.ReadAll(io.LimitReader(resp.Body, 64<<20))
+			return err
+		})
 	})
 	return b, err
 }

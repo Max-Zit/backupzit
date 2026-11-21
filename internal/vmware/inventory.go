@@ -344,3 +344,14 @@ func (c *Client) Inventory(ctx context.Context, host string) (*pve.Inventory, er
 	}
 	return inv, nil
 }
+
+// hasDelta tells whether a disk of the VM is not a plain base disk (a
+// snapshot delta, or a format that is not read directly).
+func (v VM) hasDelta() bool {
+	for _, d := range v.Disks {
+		if d.Delta {
+			return true
+		}
+	}
+	return false
+}

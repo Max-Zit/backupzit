@@ -115,7 +115,18 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 	}
 	for _, v := range sel {
 		opts.Log("backing up VM", "name", v.Name, "uuid", v.UUID)
+		// A session that ended during the previous VM (a long read) fails
+		// only that VM's clean-up at most, not every VM after it (#44).
+		n := c.Relogins
+		if err := c.ensureSession(ctx); err != nil {
+			addErr(v.Name, err)
+			stats.Failed = append(stats.Failed, v.Name)
+			continue
+		}
 		g, warns, err := c.backupVM(ctx, r, v, sn, prev, progress, ha)
+		if c.Relogins > n {
+			opts.Log("the vSphere session had ended; signed in again", "host", c.conn.Host, "times", c.Relogins-n)
+		}
 		for _, w := range warns {
 			addErr(v.Name, errors.New(w))
 		}
@@ -226,6 +237,21 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 				leftover.Add(context.Background(), it) // since when, for the console
 				if _, err := c.removeSnapshotVerified(ctx, v, s.Name, nil); err != nil {
 					warns = append(warns, fmt.Sprintf("the snapshot %s left by an earlier backup could not be removed (%v); the agent tries again and the dashboard lists it until it is gone", s.Name, err))
+				}
+			}
+		}
+		// Disks that are still deltas although the VM has no snapshot are
+		// what a snapshot removal that did not finish leaves (the session
+		// ended during it, #44): consolidate them first, or the backup would
+		// refuse the delta disk. A VM with snapshots of its own is never
+		// touched; its backup names them.
+		if v.hasDelta() {
+			if own, err := c.hasSnapshots(ctx, v.Ref); err == nil && !own {
+				if note := c.consolidate(ctx, v, "before the backup (an earlier snapshot removal did not finish)"); note != "" {
+					warns = append(warns, note)
+				}
+				if v, err = c.vm(ctx, v.Ref); err != nil {
+					return nil, warns, err
 				}
 			}
 		}

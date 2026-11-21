@@ -77,6 +77,11 @@ type Client struct {
 
 	sshMu sync.Mutex
 	ssh   *ssh.Client
+
+	// loginMu serialises signing in again after the session was lost;
+	// Relogins counts how often that happened.
+	loginMu  sync.Mutex
+	Relogins int
 }
 
 // Fingerprint formats the SHA-256 fingerprint of a DER certificate.
