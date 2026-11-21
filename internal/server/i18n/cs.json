@@ -562,6 +562,8 @@
   "Expires": "Vyprší",
   "Expires after": "Vyprší po",
   "Extending object locks %d / %d": "Prodlužování zámků objektů %d / %d",
+  "Reading the kept backups for the object locks: %d read": "Čtení ponechaných záloh pro zámky objektů: přečteno %d",
+  "VM %d of %d: %s": "VM %d z %d: %s",
   "Failed": "Neúspěšné",
   "Failed attempts per address": "Neúspěšné pokusy na adresu",
   "Failed attempts per username": "Neúspěšné pokusy na uživatelské jméno",

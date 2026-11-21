@@ -68,7 +68,7 @@
   <li><b>Haftalık</b> — son N haftanın her birinin en yeni yedeği.</li>
   <li><b>Aylık</b> — son N ayın her birinin en yeni yedeği.</li>
 </ul>
-<p>Örnek: 3 en yeni, 7 günlük, 4 haftalık, 6 aylık; ~20 geri yükleme noktasıyla yaklaşık yarım yıllık geçmiş tutar. Her başarılı çalıştırmadan sonra artık seçilmeyen anlık görüntüler kaldırılır (Etkinlik'te <i>süresi doldu</i> olarak gösterilir) ve hiçbir anlık görüntünün kullanmadığı veriler depolamadan silinir. Hepsi sıfır olursa her şey tutulur.</p>
+<p>Örnek: 3 en yeni, 7 günlük, 4 haftalık, 6 aylık; ~20 geri yükleme noktasıyla yaklaşık yarım yıllık geçmiş tutar. Her başarılı çalıştırmadan sonra artık seçilmeyen anlık görüntüler kaldırılır (Etkinlik'te <i>süresi doldu</i> olarak gösterilir) ve hiçbir anlık görüntünün kullanmadığı veriler depolamadan silinir. Hâlâ kullanılan bazı veriler içeren paketler yalnızca bu verilerle yeniden yazılır, nesne depolamada aynı anda birkaçı; yeniden denemelerden sonra bile okunamayan bir paket olduğu gibi kalır, çalıştırma bir uyarıyla biter ve sonraki çalıştırma yeniden dener. Hepsi sıfır olursa her şey tutulur.</p>
 <div class="callout"><p>Tekilleştirme sayesinde uzun saklama ucuzdur: değişmeyen veriler, kaç anlık görüntü başvurursa başvursun yalnızca bir kez saklanır.</p></div>
 
 <h2>Yedek kopyalama işleri (3-2-1)</h2>

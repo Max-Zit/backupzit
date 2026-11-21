@@ -562,6 +562,8 @@
   "Expires": "Expira",
   "Expires after": "Expira após",
   "Extending object locks %d / %d": "Estendendo bloqueios de objetos %d / %d",
+  "Reading the kept backups for the object locks: %d read": "Lendo os backups mantidos para os bloqueios de objetos: %d lidos",
+  "VM %d of %d: %s": "VM %d de %d: %s",
   "Failed": "Falhas",
   "Failed attempts per address": "Tentativas falhas por endereço",
   "Failed attempts per username": "Tentativas falhas por nome de usuário",

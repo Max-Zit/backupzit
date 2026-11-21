@@ -562,6 +562,8 @@
   "Expires": "Läuft ab",
   "Expires after": "Läuft ab nach",
   "Extending object locks %d / %d": "Objektsperren werden verlängert %d / %d",
+  "Reading the kept backups for the object locks: %d read": "Behaltene Sicherungen für die Objektsperren werden gelesen: %d gelesen",
+  "VM %d of %d: %s": "VM %d von %d: %s",
   "Failed": "Fehlgeschl.",
   "Failed attempts per address": "Fehlversuche pro Adresse",
   "Failed attempts per username": "Fehlversuche pro Benutzername",

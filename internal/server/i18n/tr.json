@@ -562,6 +562,8 @@
   "Expires": "Bitiş",
   "Expires after": "Şu süre sonra sona erer",
   "Extending object locks %d / %d": "Nesne kilitleri uzatılıyor %d / %d",
+  "Reading the kept backups for the object locks: %d read": "Nesne kilitleri için saklanan yedekler okunuyor: %d okundu",
+  "VM %d of %d: %s": "VM %d / %d: %s",
   "Failed": "Başarısız",
   "Failed attempts per address": "Adres başına başarısız deneme",
   "Failed attempts per username": "Kullanıcı adı başına başarısız deneme",

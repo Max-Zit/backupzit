@@ -562,6 +562,8 @@
   "Expires": "过期时间",
   "Expires after": "有效期",
   "Extending object locks %d / %d": "正在延长对象锁定 %d / %d",
+  "Reading the kept backups for the object locks: %d read": "正在为对象锁定读取保留的备份：已读取 %d",
+  "VM %d of %d: %s": "虚拟机 %d / %d：%s",
   "Failed": "失败",
   "Failed attempts per address": "每个地址的失败次数",
   "Failed attempts per username": "每个用户名的失败次数",

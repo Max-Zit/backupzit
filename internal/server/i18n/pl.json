@@ -562,6 +562,8 @@
   "Expires": "Wygasa",
   "Expires after": "Wygasa po",
   "Extending object locks %d / %d": "Przedłużanie blokad obiektów %d / %d",
+  "Reading the kept backups for the object locks: %d read": "Odczytywanie zachowanych kopii dla blokad obiektów: odczytano %d",
+  "VM %d of %d: %s": "VM %d z %d: %s",
   "Failed": "Nieudane",
   "Failed attempts per address": "Nieudane próby na adres",
   "Failed attempts per username": "Nieudane próby na nazwę użytkownika",

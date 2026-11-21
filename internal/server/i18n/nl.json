@@ -562,6 +562,8 @@
   "Expires": "Verloopt",
   "Expires after": "Verloopt na",
   "Extending object locks %d / %d": "Objectvergrendelingen verlengen %d / %d",
+  "Reading the kept backups for the object locks: %d read": "Bewaarde back-ups lezen voor de objectvergrendelingen: %d gelezen",
+  "VM %d of %d: %s": "VM %d van %d: %s",
   "Failed": "Mislukt",
   "Failed attempts per address": "Mislukte pogingen per adres",
   "Failed attempts per username": "Mislukte pogingen per gebruikersnaam",

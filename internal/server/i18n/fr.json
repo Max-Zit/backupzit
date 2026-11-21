@@ -562,6 +562,8 @@
   "Expires": "Expire",
   "Expires after": "Expire après",
   "Extending object locks %d / %d": "Prolongation des verrous d'objets %d / %d",
+  "Reading the kept backups for the object locks: %d read": "Lecture des sauvegardes conservées pour les verrous d'objets : %d lus",
+  "VM %d of %d: %s": "VM %d sur %d : %s",
   "Failed": "Échecs",
   "Failed attempts per address": "Échecs par adresse",
   "Failed attempts per username": "Échecs par nom d’utilisateur",

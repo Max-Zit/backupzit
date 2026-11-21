@@ -562,6 +562,8 @@
   "Expires": "Истекает",
   "Expires after": "Истекает через",
   "Extending object locks %d / %d": "Продление блокировок объектов %d / %d",
+  "Reading the kept backups for the object locks: %d read": "Чтение сохранённых копий для блокировок объектов: прочитано %d",
+  "VM %d of %d: %s": "ВМ %d из %d: %s",
   "Failed": "Ошибки",
   "Failed attempts per address": "Неудачные попытки с адреса",
   "Failed attempts per username": "Неудачные попытки на имя пользователя",

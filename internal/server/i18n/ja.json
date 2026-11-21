@@ -562,6 +562,8 @@
   "Expires": "有効期限",
   "Expires after": "有効期間",
   "Extending object locks %d / %d": "オブジェクト ロックを延長中 %d / %d",
+  "Reading the kept backups for the object locks: %d read": "オブジェクト ロックのため保持しているバックアップを読み取り中: %d 件読み取り済み",
+  "VM %d of %d: %s": "VM %d / %d: %s",
   "Failed": "失敗",
   "Failed attempts per address": "アドレスごとの失敗回数",
   "Failed attempts per username": "ユーザー名ごとの失敗回数",

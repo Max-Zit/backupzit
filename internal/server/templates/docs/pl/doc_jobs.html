@@ -68,7 +68,7 @@
   <li><b>Co tydzień</b> — najnowsza kopia z każdego z ostatnich N tygodni.</li>
   <li><b>Co miesiąc</b> — najnowsza kopia z każdego z ostatnich N miesięcy.</li>
 </ul>
-<p>Przykład: 3 najnowsze, 7 dziennych, 4 tygodniowe, 6 miesięcznych zachowuje około pół roku historii z ~20 punktami przywracania. Po każdym udanym uruchomieniu migawki, których już nic nie wybiera, są usuwane (widoczne jako <i>wygasł</i> w Aktywności), a dane nieużywane przez żadną migawkę są kasowane z magazynu. Same zera zachowują wszystko.</p>
+<p>Przykład: 3 najnowsze, 7 dziennych, 4 tygodniowe, 6 miesięcznych zachowuje około pół roku historii z ~20 punktami przywracania. Po każdym udanym uruchomieniu migawki, których już nic nie wybiera, są usuwane (widoczne jako <i>wygasł</i> w Aktywności), a dane nieużywane przez żadną migawkę są kasowane z magazynu. Paczki, które nadal zawierają część używanych danych, są przepisywane tylko z tymi danymi, w pamięci obiektowej po kilka naraz; paczka, której nie da się odczytać nawet po ponownych próbach, zostaje bez zmian, uruchomienie kończy się ostrzeżeniem, a następne uruchomienie próbuje ponownie. Same zera zachowują wszystko.</p>
 <div class="callout"><p>Dzięki deduplikacji długa retencja jest tania: niezmienione dane są przechowywane tylko raz, niezależnie od tego, ile migawek się do nich odwołuje.</p></div>
 
 <h2>Zadania kopii kopii zapasowej (3-2-1)</h2>

@@ -562,6 +562,8 @@
   "Expires": "Scade",
   "Expires after": "Scade dopo",
   "Extending object locks %d / %d": "Estensione dei blocchi degli oggetti %d / %d",
+  "Reading the kept backups for the object locks: %d read": "Lettura dei backup conservati per i blocchi degli oggetti: %d letti",
+  "VM %d of %d: %s": "VM %d su %d: %s",
   "Failed": "Non riusciti",
   "Failed attempts per address": "Tentativi falliti per indirizzo",
   "Failed attempts per username": "Tentativi falliti per nome utente",
