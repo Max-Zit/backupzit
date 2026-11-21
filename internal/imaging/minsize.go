@@ -194,3 +194,17 @@ func ImageLimits(ctx context.Context, r *repo.Repository, img *repo.DiskImage) m
 	}
 	return out
 }
+
+// HasWindows tells whether an image partition holds a Windows
+// installation (its SYSTEM registry hive).
+func HasWindows(ctx context.Context, r *repo.Repository, p *repo.PartitionImage) bool {
+	if !p.Included || !strings.EqualFold(p.FileSystem, "NTFS") {
+		return false
+	}
+	v, err := OpenVolume(ctx, r, p)
+	if err != nil {
+		return false
+	}
+	_, err = v.Stat(`\Windows\System32\config\SYSTEM`)
+	return err == nil
+}

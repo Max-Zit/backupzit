@@ -35,6 +35,9 @@ type RestoreStats struct {
 	// Grown lists the target offsets of restored partitions that became
 	// larger; their file systems are extended by FinishLayout.
 	Grown []uint64 `json:"grown,omitempty"`
+	// NewPartitionID is set when a partition restore had to give the
+	// partition a new GPT ID because its own is in use in this computer.
+	NewPartitionID string `json:"new_partition_id,omitempty"`
 	// Shrunk lists the NTFS partitions that were restored smaller.
 	Shrunk []ShrinkReport `json:"shrunk,omitempty"`
 }

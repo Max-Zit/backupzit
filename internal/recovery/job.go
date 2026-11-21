@@ -24,7 +24,10 @@ type Job struct {
 	// Layout places the partitions on the target disk (moved, resized,
 	// left out); nil keeps the image's layout. With a layout, Partitions
 	// is not used: the layout says which partitions are restored.
-	Layout     *imaging.Layout
+	Layout *imaging.Layout
+	// Into restores a single partition onto a disk whose other partitions
+	// stay (partition restore); Partitions and Layout are then not used.
+	Into       *PartitionTarget
 	TargetDisk int
 	// NewHardware prepares the restored Windows for this machine; drivers
 	// from DriverDirs and the recovery medium are added.
@@ -34,6 +37,17 @@ type Job struct {
 	// Verify reads every block that will be written before the target
 	// disk is touched.
 	Verify bool
+}
+
+// PartitionTarget says where a partition restore writes: over partition
+// Replace of the target disk, or into free space (Replace 0, at Offset or
+// the first space that fits). Length 0 keeps the size of the replaced
+// partition or of the image partition.
+type PartitionTarget struct {
+	Partition int    `json:"partition"` // number in the image
+	Replace   int    `json:"replace,omitempty"`
+	Offset    uint64 `json:"offset,omitempty"`
+	Length    uint64 `json:"length,omitempty"`
 }
 
 // ProtectedDisks returns the numbers of the disks that hold any of paths
@@ -85,6 +99,12 @@ func (j Job) Check(disks []imaging.Disk, protected map[int]string) error {
 	}
 	if target.SectorSize != img.SectorSize {
 		return fmt.Errorf("target disk has %d byte sectors, image was taken from %d byte sectors", target.SectorSize, img.SectorSize)
+	}
+	if j.Into != nil {
+		if j.Layout != nil || j.Partitions != nil {
+			return errors.New("a partition restore takes neither a layout nor a partition list")
+		}
+		return imaging.CheckPartitionRestore(img, target, j.partitionOptions())
 	}
 	if j.Partitions != nil && len(j.Partitions) == 0 {
 		return errors.New("no partition selected")
@@ -145,9 +165,17 @@ func unlimited(img *repo.DiskImage) map[int]imaging.PartitionLimits {
 	return m
 }
 
+func (j Job) partitionOptions() imaging.PartitionRestoreOptions {
+	return imaging.PartitionRestoreOptions{Image: j.Image, Partition: j.Into.Partition, TargetDisk: j.TargetDisk,
+		Replace: j.Into.Replace, Offset: j.Into.Offset, Length: j.Into.Length}
+}
+
 // restoredPartitions returns the numbers of the partitions the job
 // writes (nil: every backed up one).
 func (j Job) restoredPartitions() []int {
+	if j.Into != nil {
+		return []int{j.Into.Partition}
+	}
 	if j.Layout == nil {
 		return j.Partitions
 	}
@@ -158,6 +186,15 @@ func (j Job) restoredPartitions() []int {
 		}
 	}
 	return out
+}
+
+func imagePartition(img *repo.DiskImage, num int) *repo.PartitionImage {
+	for i := range img.Partitions {
+		if img.Partitions[i].Number == num {
+			return &img.Partitions[i]
+		}
+	}
+	return &repo.PartitionImage{Number: num}
 }
 
 // SameDiskAsSource tells whether the target disk looks like the disk the
@@ -291,9 +328,20 @@ func Run(ctx context.Context, s *Session, j Job, progress Progress, log *Logger)
 	if progress != nil {
 		p = func(done, total uint64) { progress("write", done, total) }
 	}
-	st, err := imaging.Restore(ctx, s.Repo, j.Snapshot, imaging.RestoreOptions{
-		Image: j.Image, TargetDisk: j.TargetDisk, KeepOffline: j.KeepOffline, Partitions: j.Partitions, Layout: j.Layout, Progress: p,
-	})
+	var st *imaging.RestoreStats
+	var err error
+	if j.Into != nil {
+		po := j.partitionOptions()
+		po.Progress = p
+		st, err = imaging.RestorePartition(ctx, s.Repo, j.Snapshot, po)
+		if st != nil && st.NewPartitionID != "" {
+			res.Warnings = append(res.Warnings, "the partition got a new ID ("+st.NewPartitionID+"): its own is used by another partition in this computer")
+		}
+	} else {
+		st, err = imaging.Restore(ctx, s.Repo, j.Snapshot, imaging.RestoreOptions{
+			Image: j.Image, TargetDisk: j.TargetDisk, KeepOffline: j.KeepOffline, Partitions: j.Partitions, Layout: j.Layout, Progress: p,
+		})
+	}
 	res.Restore = st
 	if err != nil {
 		log.Printf("image restore failed: %v", err)
@@ -304,7 +352,15 @@ func Run(ctx context.Context, s *Session, j Job, progress Progress, log *Logger)
 	if !j.KeepOffline {
 		res.Warnings = append(res.Warnings, imaging.FinishLayout(ctx, j.TargetDisk, st, logf)...)
 	}
-	if st.Moved && !j.KeepOffline && !j.NewHardware {
+	needBoot := st.Moved
+	if j.Into != nil {
+		// Only a restored Windows partition needs new boot files.
+		needBoot = imaging.HasWindows(ctx, s.Repo, imagePartition(img, j.Into.Partition))
+	}
+	if len(st.Shrunk) > 0 {
+		res.Warnings = append(res.Warnings, "partitions were restored smaller: Windows checks their file systems (chkdsk) once at the next start")
+	}
+	if needBoot && !j.KeepOffline && !j.NewHardware {
 		// Partitions moved: the BCD (on MBR disks) points at the old offsets.
 		br, err := imaging.RebuildBoot(ctx, j.TargetDisk, logf)
 		switch {

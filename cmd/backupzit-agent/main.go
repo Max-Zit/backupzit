@@ -49,6 +49,7 @@ Disk images (Windows):
   disks          Show disks and partitions
   image-backup   Back up a whole disk or selected partitions
   image-restore  Write an image onto a disk (erases it)
+  partition-restore  Write one partition of an image to a disk; its other partitions stay
   image-layout   Show the target layout of an image restore (sizes, minimum sizes)
   image-ls       List files inside an imaged partition
   image-extract  Copy files out of an imaged partition
@@ -210,6 +211,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdDrivers(ctx, rest)
 	case "boot-repair":
 		return cmdBootRepair(ctx, rest)
+	case "partition-restore":
+		return cmdPartitionRestore(ctx, rest)
 	case "image-layout":
 		return cmdImageLayout(ctx, rest)
 	case "image-ls":

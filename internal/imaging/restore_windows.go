@@ -62,22 +62,13 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	// a volume that cannot be shrunk leaves the target as it was.
 	shrinks := map[int]*ntfsresize.Plan{}
 	for i, w := range plan {
-		if !w.Shrink {
-			continue
+		if w.Shrink {
+			sp, err := planShrink(ctx, r, w)
+			if err != nil {
+				return nil, err
+			}
+			shrinks[i] = sp
 		}
-		pr, err := NewPartitionReader(ctx, r, w.Src)
-		if err != nil {
-			return nil, fmt.Errorf("partition %d: %w", w.Src.Number, err)
-		}
-		vol, err := ntfsresize.Open(pr)
-		if err != nil {
-			return nil, fmt.Errorf("partition %d: read the file system: %w", w.Src.Number, err)
-		}
-		sp, err := vol.Plan(w.Length)
-		if err != nil {
-			return nil, fmt.Errorf("partition %d cannot be shrunk to %d bytes: %w", w.Src.Number, w.Length, err)
-		}
-		shrinks[i] = sp
 	}
 
 	// Try to lock and dismount volumes on the target disk so pending writes
@@ -129,56 +120,17 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	st := &RestoreStats{}
 	for i, w := range plan {
-		p := w.Src
 		if !w.Restore {
 			continue
 		}
-		ids, err := r.LoadBlockMap(ctx, p)
-		if err != nil {
-			return st, fmt.Errorf("partition %d: %w", p.Number, err)
-		}
-		for b, id := range ids {
-			if err := ctx.Err(); err != nil {
-				return st, err
-			}
-			if id.IsNull() {
-				continue
-			}
-			off, ok := w.blockOffset(b)
-			if !ok {
-				continue
-			}
-			data, err := r.LoadBlob(ctx, repo.DataBlob, id)
-			if err != nil {
-				return st, fmt.Errorf("partition %d block %d: %w", p.Number, b, err)
-			}
-			if end := w.Offset + w.Length; off+uint64(len(data)) > end {
-				data = data[:end-off] // a shrunk partition ends inside the block
-			}
-			if _, err := f.WriteAt(data, int64(off)); err != nil { // #nosec G115 -- disk offsets are within range
-				return st, fmt.Errorf("partition %d block %d: write: %w", p.Number, b, err)
-			}
-			st.BytesWritten += uint64(len(data))
-			done += uint64(len(data))
+		err := writePartition(ctx, r, f, w, shrinks[i], img.SectorSize, st, func(n uint64) {
+			done += n
 			if opts.Progress != nil {
 				opts.Progress(done, total)
 			}
-		}
-		if sp := shrinks[i]; sp != nil {
-			if err := sp.Apply(&sectionWriter{f: f, base: w.Offset, size: w.Length}, nil); err != nil {
-				return st, fmt.Errorf("partition %d: shrink the file system: %w", p.Number, err)
-			}
-			st.Shrunk = append(st.Shrunk, ShrinkReport{Partition: p.Number, MovedClusters: sp.MovedClusters, Orphaned: sp.Orphaned})
-		}
-		st.Partitions++
-		if w.Moved() {
-			st.Moved = true
-			if err := fixBootSectors(f, w, img.SectorSize); err != nil {
-				return st, fmt.Errorf("partition %d: %w", p.Number, err)
-			}
-		}
-		if w.Grown() {
-			st.Grown = append(st.Grown, w.Offset)
+		})
+		if err != nil {
+			return st, err
 		}
 	}
 	for _, w := range plan {
@@ -221,6 +173,76 @@ func setDiskOffline(h windows.Handle, offline bool) error {
 	binary.LittleEndian.PutUint64(in[16:24], diskAttributeOffline)
 	_, err := ioctl(h, ioctlDiskSetDiskAttributes, in, 0)
 	return err
+}
+
+// planShrink plans shrinking the NTFS file system of w before anything is
+// written.
+func planShrink(ctx context.Context, r *repo.Repository, w partitionWrite) (*ntfsresize.Plan, error) {
+	pr, err := NewPartitionReader(ctx, r, w.Src)
+	if err != nil {
+		return nil, fmt.Errorf("partition %d: %w", w.Src.Number, err)
+	}
+	vol, err := ntfsresize.Open(pr)
+	if err != nil {
+		return nil, fmt.Errorf("partition %d: read the file system: %w", w.Src.Number, err)
+	}
+	sp, err := vol.Plan(w.Length)
+	if err != nil {
+		return nil, fmt.Errorf("partition %d cannot be shrunk to %d bytes: %w", w.Src.Number, w.Length, err)
+	}
+	return sp, nil
+}
+
+// writePartition writes the stored blocks of one partition to its place
+// on the disk, shrinks its file system (sp, if set) and fixes the boot
+// sector of a moved partition. written is called with each block's size.
+func writePartition(ctx context.Context, r *repo.Repository, f *os.File, w partitionWrite, sp *ntfsresize.Plan, sectorSize uint32, st *RestoreStats, written func(uint64)) error {
+	p := w.Src
+	ids, err := r.LoadBlockMap(ctx, p)
+	if err != nil {
+		return fmt.Errorf("partition %d: %w", p.Number, err)
+	}
+	for b, id := range ids {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if id.IsNull() {
+			continue
+		}
+		off, ok := w.blockOffset(b)
+		if !ok {
+			continue
+		}
+		data, err := r.LoadBlob(ctx, repo.DataBlob, id)
+		if err != nil {
+			return fmt.Errorf("partition %d block %d: %w", p.Number, b, err)
+		}
+		if end := w.Offset + w.Length; off+uint64(len(data)) > end {
+			data = data[:end-off] // a shrunk partition ends inside the block
+		}
+		if _, err := f.WriteAt(data, int64(off)); err != nil { // #nosec G115 -- disk offsets are within range
+			return fmt.Errorf("partition %d block %d: write: %w", p.Number, b, err)
+		}
+		st.BytesWritten += uint64(len(data))
+		written(uint64(len(data)))
+	}
+	if sp != nil {
+		if err := sp.Apply(&sectionWriter{f: f, base: w.Offset, size: w.Length}, nil); err != nil {
+			return fmt.Errorf("partition %d: shrink the file system: %w", p.Number, err)
+		}
+		st.Shrunk = append(st.Shrunk, ShrinkReport{Partition: p.Number, MovedClusters: sp.MovedClusters, Orphaned: sp.Orphaned})
+	}
+	st.Partitions++
+	if w.Moved() {
+		st.Moved = true
+		if err := fixBootSectors(f, w, sectorSize); err != nil {
+			return fmt.Errorf("partition %d: %w", p.Number, err)
+		}
+	}
+	if w.Grown() {
+		st.Grown = append(st.Grown, w.Offset)
+	}
+	return nil
 }
 
 // sectionWriter writes into one partition of the disk.

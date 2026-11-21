@@ -77,3 +77,8 @@ func ProblemDevices(context.Context) ([]ProblemDevice, error) { return nil, ErrU
 func AddDriversToWindows(context.Context, WindowsInstall, string) (int, error) {
 	return 0, ErrUnsupported
 }
+
+// RestorePartition is Windows only.
+func RestorePartition(context.Context, *repo.Repository, *repo.Snapshot, PartitionRestoreOptions) (*RestoreStats, error) {
+	return nil, ErrUnsupported
+}
