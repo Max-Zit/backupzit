@@ -33,22 +33,6 @@ func Backup(context.Context, *repo.Repository, BackupOptions) (*repo.Snapshot, e
 	return nil, ErrUnsupported
 }
 
-// RestoreOptions configure an image restore.
-type RestoreOptions struct {
-	TargetDisk  int
-	Image       int
-	Progress    func(done, total uint64)
-	KeepOffline bool
-	Partitions  []int
-}
-
-// RestoreStats summarises an image restore.
-type RestoreStats struct {
-	Partitions   int
-	BytesWritten uint64
-	Duration     time.Duration
-}
-
 // Restore is not supported on this platform yet.
 func Restore(context.Context, *repo.Repository, *repo.Snapshot, RestoreOptions) (*RestoreStats, error) {
 	return nil, ErrUnsupported
@@ -64,3 +48,11 @@ func PrepareForNewHardware(context.Context, int, []string, func(string)) (*Hardw
 
 // RecoveryDriverDirs is Windows only.
 func RecoveryDriverDirs() []string { return nil }
+
+// FinishLayout is Windows only.
+func FinishLayout(context.Context, int, *RestoreStats, func(string)) []string { return nil }
+
+// RebuildBoot is Windows only.
+func RebuildBoot(context.Context, int, func(string)) (*BootReport, error) {
+	return nil, ErrUnsupported
+}

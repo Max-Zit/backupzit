@@ -238,3 +238,39 @@ func TestLogger(t *testing.T) {
 	var nl *Logger
 	nl.Printf("no panic")
 }
+
+func TestJobCheckLayout(t *testing.T) {
+	sn := &repo.Snapshot{Images: []repo.DiskImage{{Style: "gpt", SectorSize: 512, Partitions: []repo.PartitionImage{
+		{Number: 1, Offset: 1 << 20, Length: 100 << 20, Included: true, GPTType: imaging.GPTTypeEFI},
+		{Number: 2, Offset: 101 << 20, Length: 10 << 30, Included: true, FileSystem: "NTFS"},
+	}}}}
+	img := &sn.Images[0]
+	disks := testDisks()
+	lim := map[int]imaging.PartitionLimits{2: {Resizable: true, MinSize: 5 << 30}}
+	l, err := imaging.SuggestLayout(img, disks[0].Size, lim, imaging.LayoutOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := (Job{Snapshot: sn, TargetDisk: 0, Layout: l}).Check(disks, nil); err != nil {
+		t.Errorf("valid layout: %v", err)
+	}
+	if err := (Job{Snapshot: sn, TargetDisk: 0, Layout: l, Partitions: []int{2}}).Check(disks, nil); err == nil {
+		t.Error("layout plus partition list accepted")
+	}
+	big, _ := imaging.SuggestLayout(img, 1<<40, lim, imaging.LayoutOptions{})
+	if err := (Job{Snapshot: sn, TargetDisk: 0, Layout: big}).Check(disks, nil); err == nil {
+		t.Error("layout for a larger disk accepted")
+	}
+	none := *l
+	none.Partitions = append([]imaging.LayoutPartition(nil), l.Partitions...)
+	for i := range none.Partitions {
+		none.Partitions[i].Restore = false
+	}
+	if err := (Job{Snapshot: sn, TargetDisk: 0, Layout: &none}).Check(disks, nil); err == nil {
+		t.Error("layout without restored partitions accepted")
+	}
+	j := Job{Snapshot: sn, Layout: l}
+	if got := j.restoredPartitions(); len(got) != 2 {
+		t.Errorf("restored partitions %v", got)
+	}
+}

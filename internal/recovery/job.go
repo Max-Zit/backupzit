@@ -21,6 +21,10 @@ type Job struct {
 	Image int
 	// Partitions to restore; nil restores every backed up partition.
 	Partitions []int
+	// Layout places the partitions on the target disk (moved, resized,
+	// left out); nil keeps the image's layout. With a layout, Partitions
+	// is not used: the layout says which partitions are restored.
+	Layout     *imaging.Layout
 	TargetDisk int
 	// NewHardware prepares the restored Windows for this machine; drivers
 	// from DriverDirs and the recovery medium are added.
@@ -85,6 +89,28 @@ func (j Job) Check(disks []imaging.Disk, protected map[int]string) error {
 	if j.Partitions != nil && len(j.Partitions) == 0 {
 		return errors.New("no partition selected")
 	}
+	if j.Layout != nil {
+		if j.Partitions != nil {
+			return errors.New("give the partitions to restore in the layout")
+		}
+		if j.Layout.DiskSize > target.Size {
+			return fmt.Errorf("the layout was planned for a disk of %d bytes, disk %d has %d", j.Layout.DiskSize, j.TargetDisk, target.Size)
+		}
+		restored := 0
+		for _, lp := range j.Layout.Partitions {
+			if lp.Restore {
+				restored++
+			}
+		}
+		if restored == 0 {
+			return errors.New("no partition selected")
+		}
+		// Limits were checked when the layout was made; check the shape.
+		if err := j.Layout.Validate(img, unlimited(img)); err != nil {
+			return err
+		}
+		return nil
+	}
 	for _, n := range j.Partitions {
 		var found *repo.PartitionImage
 		for i := range img.Partitions {
@@ -109,6 +135,31 @@ func (j Job) Check(disks []imaging.Disk, protected map[int]string) error {
 	return nil
 }
 
+// unlimited allows any size for every partition, for checking the shape
+// of a layout (order, overlap, disk size) without resize limits.
+func unlimited(img *repo.DiskImage) map[int]imaging.PartitionLimits {
+	m := map[int]imaging.PartitionLimits{}
+	for _, p := range img.Partitions {
+		m[p.Number] = imaging.PartitionLimits{Resizable: true, MinSize: 1}
+	}
+	return m
+}
+
+// restoredPartitions returns the numbers of the partitions the job
+// writes (nil: every backed up one).
+func (j Job) restoredPartitions() []int {
+	if j.Layout == nil {
+		return j.Partitions
+	}
+	out := []int{}
+	for _, lp := range j.Layout.Partitions {
+		if lp.Restore {
+			out = append(out, lp.Source)
+		}
+	}
+	return out
+}
+
 // SameDiskAsSource tells whether the target disk looks like the disk the
 // image was taken from (same partition table ID). Restoring over it
 // destroys the last copy if the backup turns out damaged, so the user
@@ -130,6 +181,7 @@ type Progress func(phase string, done, total uint64)
 type Result struct {
 	Restore  *imaging.RestoreStats
 	Hardware *imaging.HardwareReport
+	Boot     *imaging.BootReport
 	Warnings []string
 }
 
@@ -164,15 +216,16 @@ func (l *Logger) Printf(format string, args ...any) {
 // (blobs are authenticated when loaded). It writes nothing.
 func Verify(ctx context.Context, r *repo.Repository, j Job, progress Progress) error {
 	img := &j.Snapshot.Images[j.Image]
+	only := j.restoredPartitions()
 	sel := map[int]bool{}
-	for _, n := range j.Partitions {
+	for _, n := range only {
 		sel[n] = true
 	}
 	var total, done uint64
 	var parts []*repo.PartitionImage
 	for i := range img.Partitions {
 		p := &img.Partitions[i]
-		if p.Included && (j.Partitions == nil || sel[p.Number]) {
+		if p.Included && (only == nil || sel[p.Number]) {
 			parts = append(parts, p)
 			total += p.StoredBytes
 		}
@@ -208,14 +261,22 @@ func Run(ctx context.Context, s *Session, j Job, progress Progress, log *Logger)
 	img := &j.Snapshot.Images[j.Image]
 	log.Printf("image restore: snapshot %s from %s, backed up disk %d (%s) to disk %d",
 		j.Snapshot.ID.Short(), j.Snapshot.Time.Local().Format("2006-01-02 15:04"), img.Number, strings.ToUpper(img.Style), j.TargetDisk)
-	if j.Partitions != nil {
-		log.Printf("partitions: %v", j.Partitions)
+	if only := j.restoredPartitions(); only != nil {
+		log.Printf("partitions: %v", only)
 	}
-	lock, err := s.Repo.Lock(ctx, false, time.Minute)
-	if err != nil {
-		return nil, fmt.Errorf("lock repository: %w", err)
+	if j.Layout != nil {
+		for _, lp := range j.Layout.Partitions {
+			log.Printf("layout: partition %d at %d, %d bytes, restore %v", lp.Source, lp.Offset, lp.Length, lp.Restore)
+		}
 	}
-	defer func() { _ = lock.Unlock() }()
+	// A shared lock keeps prune from deleting data during the restore. A
+	// read-only view (immutable storage as of a past time) cannot take
+	// one; nothing can delete from it either.
+	if lock, err := s.Repo.Lock(ctx, false, time.Minute); err != nil {
+		log.Printf("repository not locked (%v); continuing", err)
+	} else {
+		defer func() { _ = lock.Unlock() }()
+	}
 
 	if j.Verify {
 		log.Printf("verifying the snapshot")
@@ -231,7 +292,7 @@ func Run(ctx context.Context, s *Session, j Job, progress Progress, log *Logger)
 		p = func(done, total uint64) { progress("write", done, total) }
 	}
 	st, err := imaging.Restore(ctx, s.Repo, j.Snapshot, imaging.RestoreOptions{
-		Image: j.Image, TargetDisk: j.TargetDisk, KeepOffline: j.KeepOffline, Partitions: j.Partitions, Progress: p,
+		Image: j.Image, TargetDisk: j.TargetDisk, KeepOffline: j.KeepOffline, Partitions: j.Partitions, Layout: j.Layout, Progress: p,
 	})
 	res.Restore = st
 	if err != nil {
@@ -239,6 +300,21 @@ func Run(ctx context.Context, s *Session, j Job, progress Progress, log *Logger)
 		return res, err
 	}
 	log.Printf("wrote %d partitions, %d bytes in %s", st.Partitions, st.BytesWritten, st.Duration.Round(time.Second))
+	logf := func(s string) { log.Printf("%s", s) }
+	if !j.KeepOffline {
+		res.Warnings = append(res.Warnings, imaging.FinishLayout(ctx, j.TargetDisk, st, logf)...)
+	}
+	if st.Moved && !j.KeepOffline && !j.NewHardware {
+		// Partitions moved: the BCD (on MBR disks) points at the old offsets.
+		br, err := imaging.RebuildBoot(ctx, j.TargetDisk, logf)
+		switch {
+		case err != nil:
+			res.Warnings = append(res.Warnings, "rebuild the boot files: "+err.Error())
+		default:
+			res.Boot = br
+			res.Warnings = append(res.Warnings, br.Warnings...)
+		}
+	}
 	if j.NewHardware && !j.KeepOffline {
 		if progress != nil {
 			progress("hardware", 0, 0)

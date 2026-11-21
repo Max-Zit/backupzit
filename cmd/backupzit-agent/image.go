@@ -143,6 +143,9 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 	srcDisk := fs.Int("source-disk", -1, "for a backup of several disks: the number of the backed up disk to restore")
 	parts := fs.String("partitions", "", "restore only these partitions, e.g. 1,3 (the others are created empty)")
 	verify := fs.Bool("verify", false, "read and check every block of the snapshot before writing to the disk")
+	fit := fs.Bool("fit", false, "fit the partitions to the target disk (the large partitions take up the space; see image-layout)")
+	resize := fs.String("resize", "", "with --fit: set partition sizes, e.g. 3=200G")
+	drop := fs.Bool("drop-others", false, "with --fit and --partitions: leave the other partitions out")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent image-restore [options] <snapshot-id|latest>")
 		fs.PrintDefaults()
@@ -175,19 +178,65 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if *verify {
-		fmt.Println("verifying the snapshot before writing")
-		p := progressPrinter("verified")
-		if err := recovery.Verify(ctx, r, recovery.Job{Snapshot: sn, Image: idx, Partitions: sel}, func(_ string, done, total uint64) { p(done, total) }); err != nil {
-			return fmt.Errorf("the snapshot is damaged, nothing was written: %w", err)
-		}
-	}
-	fmt.Printf("restoring disk %d of image %s from %s to disk %d\n", sn.Images[idx].Number, sn.ID.Short(), sn.Time.Local().Format("2006-01-02 15:04:05"), *target)
-	st, err := imaging.Restore(ctx, r, sn, imaging.RestoreOptions{Image: idx, TargetDisk: *target, KeepOffline: *keepOffline, Partitions: sel, Progress: progressPrinter("written")})
+	job := recovery.Job{Snapshot: sn, Image: idx, Partitions: sel, TargetDisk: *target, KeepOffline: *keepOffline, Verify: *verify}
+	disks, err := imaging.ListDisks()
 	if err != nil {
 		return err
 	}
+	if *fit || *resize != "" {
+		var size uint64
+		for _, d := range disks {
+			if d.Number == *target {
+				size = d.Size
+			}
+		}
+		if size == 0 {
+			return fmt.Errorf("target disk %d not found", *target)
+		}
+		sizes, err := parseResizes(*resize)
+		if err != nil {
+			return err
+		}
+		img := &sn.Images[idx]
+		limits := imaging.ImageLimits(ctx, r, img)
+		l, err := imaging.SuggestLayout(img, size, limits, imaging.LayoutOptions{Restore: sel, DropOthers: *drop})
+		if err != nil {
+			return err
+		}
+		for n, s := range sizes {
+			if err := l.Resize(n, s); err != nil {
+				return err
+			}
+		}
+		if err := l.Validate(img, limits); err != nil {
+			return err
+		}
+		printImageLayout(img, limits, l, size, 0)
+		job.Layout, job.Partitions = l, nil
+	}
+	if err := job.Check(disks, recovery.ProtectedDisks(disks, []string{rf.location})); err != nil {
+		return err
+	}
+	fmt.Printf("restoring disk %d of image %s from %s to disk %d\n", sn.Images[idx].Number, sn.ID.Short(), sn.Time.Local().Format("2006-01-02 15:04:05"), *target)
+	verified, written := progressPrinter("verified"), progressPrinter("written")
+	progress := func(phase string, done, total uint64) {
+		switch phase {
+		case "verify":
+			verified(done, total)
+		case "write":
+			written(done, total)
+		}
+	}
+	log := recovery.NewLogger(nil, func(s string) { fmt.Println(" ", s) })
+	res, err := recovery.Run(ctx, &recovery.Session{Repo: r}, job, progress, log)
+	if err != nil {
+		return err
+	}
+	st := res.Restore
 	fmt.Printf("restored %d partitions, %s written in %s\n", st.Partitions, humanBytes(st.BytesWritten), st.Duration.Round(time.Second))
+	for _, w := range res.Warnings {
+		fmt.Println("  warning:", w)
+	}
 	return nil
 }
 

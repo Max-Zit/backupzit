@@ -13,6 +13,15 @@ type Firmware struct {
 	SecureBoot bool   `json:"secure_boot,omitempty"` // UEFI Secure Boot is on
 }
 
+// BootReport describes rebuilt boot files.
+type BootReport struct {
+	WindowsVolume string   `json:"windows_volume,omitempty"`
+	Firmware      Firmware `json:"firmware"`
+	BootFiles     string   `json:"boot_files,omitempty"`
+	Rebuilt       bool     `json:"rebuilt"`
+	Warnings      []string `json:"warnings,omitempty"`
+}
+
 // HardwareReport describes what PrepareForNewHardware changed.
 type HardwareReport struct {
 	WindowsVolume  string   `json:"windows_volume"`

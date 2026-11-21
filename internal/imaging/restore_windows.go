@@ -16,48 +16,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// RestoreOptions configure an image restore.
-type RestoreOptions struct {
-	// TargetDisk is the disk number to overwrite. All data on it is lost.
-	TargetDisk int
-	// Image selects the disk image within the snapshot (default 0).
-	Image int
-	// Progress is called with bytes written and total bytes to write.
-	Progress func(done, total uint64)
-	// KeepOffline leaves the target disk offline afterwards. Use it when
-	// the source disk is attached to the same machine: Windows would
-	// otherwise assign new disk and partition IDs to resolve the duplicate
-	// and the restored system would no longer boot.
-	KeepOffline bool
-	// Partitions limits the restore to these partition numbers of the
-	// image; the others are created empty. Nil restores every backed up
-	// partition.
-	Partitions []int
-}
-
-// restorePartition tells whether the contents of p are written.
-func (o RestoreOptions) restorePartition(p *repo.PartitionImage) bool {
-	if !p.Included {
-		return false
-	}
-	if o.Partitions == nil {
-		return true
-	}
-	for _, n := range o.Partitions {
-		if n == p.Number {
-			return true
-		}
-	}
-	return false
-}
-
-// RestoreStats summarises an image restore.
-type RestoreStats struct {
-	Partitions   int
-	BytesWritten uint64
-	Duration     time.Duration
-}
-
 // Restore writes a disk image to a physical disk: it recreates the
 // partition table with the original disk and partition identifiers (so
 // boot configuration keeps working) and writes every stored block.
@@ -67,14 +25,9 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	img := &sn.Images[opts.Image]
 	start := time.Now()
-	for _, n := range opts.Partitions {
-		p := findPartition(img, n)
-		if p == nil {
-			return nil, fmt.Errorf("the image has no partition %d", n)
-		}
-		if !p.Included {
-			return nil, fmt.Errorf("partition %d was not backed up", n)
-		}
+	plan, err := restorePlan(img, opts)
+	if err != nil {
+		return nil, err
 	}
 
 	disks, err := ListDisks()
@@ -93,13 +46,12 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	if target.System {
 		return nil, fmt.Errorf("disk %d holds the running Windows installation and cannot be overwritten", opts.TargetDisk)
 	}
-	var needed uint64
-	for _, p := range img.Partitions {
-		needed = max(needed, p.Offset+p.Length)
+	var last uint64
+	for _, w := range plan {
+		last = max(last, w.Offset+w.Length)
 	}
-	needed += 1 << 20 // room for the backup GPT
-	if target.Size < needed {
-		return nil, fmt.Errorf("target disk %d is too small: %d bytes, image needs %d", opts.TargetDisk, target.Size, needed)
+	if _, end := UsableRange(img.Style, target.Size, target.SectorSize); end < last {
+		return nil, fmt.Errorf("target disk %d is too small: %d bytes, the partitions need %d", opts.TargetDisk, target.Size, last+(target.Size-end))
 	}
 	if target.SectorSize != img.SectorSize {
 		return nil, fmt.Errorf("target disk has %d byte sectors, image was taken from %d byte sectors", target.SectorSize, img.SectorSize)
@@ -135,7 +87,7 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		_, _ = ioctl(dh, ioctlDiskUpdateProperties, nil, 0)
 	}()
 
-	if err := writeLayout(dh, img, target.Size); err != nil {
+	if err := writeLayout(dh, img, plan, target.Size); err != nil {
 		return nil, fmt.Errorf("write partition table: %w", err)
 	}
 	f := os.NewFile(uintptr(dh), physicalDrivePath(target.Number))
@@ -147,15 +99,15 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 
 	var total, done uint64
-	for i := range img.Partitions {
-		if opts.restorePartition(&img.Partitions[i]) {
-			total += img.Partitions[i].StoredBytes
+	for _, w := range plan {
+		if w.Restore {
+			total += w.Src.StoredBytes
 		}
 	}
 	st := &RestoreStats{}
-	for i := range img.Partitions {
-		p := &img.Partitions[i]
-		if !opts.restorePartition(p) {
+	for _, w := range plan {
+		p := w.Src
+		if !w.Restore {
 			continue
 		}
 		ids, err := r.LoadBlockMap(ctx, p)
@@ -169,11 +121,15 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			if id.IsNull() {
 				continue
 			}
+			off, ok := w.blockOffset(b)
+			if !ok {
+				continue
+			}
 			data, err := r.LoadBlob(ctx, repo.DataBlob, id)
 			if err != nil {
 				return st, fmt.Errorf("partition %d block %d: %w", p.Number, b, err)
 			}
-			if _, err := f.WriteAt(data, int64(p.Offset)+int64(b)*int64(p.BlockSize)); err != nil { // #nosec G115 -- length of a small buffer for a Windows API call
+			if _, err := f.WriteAt(data, int64(off)); err != nil { // #nosec G115 -- disk offsets are within range
 				return st, fmt.Errorf("partition %d block %d: write: %w", p.Number, b, err)
 			}
 			st.BytesWritten += uint64(len(data))
@@ -183,6 +139,20 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			}
 		}
 		st.Partitions++
+		if w.Moved() {
+			st.Moved = true
+			if err := fixBootSectors(f, w, img.SectorSize); err != nil {
+				return st, fmt.Errorf("partition %d: %w", p.Number, err)
+			}
+		}
+		if w.Grown() {
+			st.Grown = append(st.Grown, w.Offset)
+		}
+	}
+	for _, w := range plan {
+		if !w.Restore && w.Moved() {
+			st.Moved = true
+		}
 	}
 	if err := windows.FlushFileBuffers(dh); err != nil {
 		return st, fmt.Errorf("flush: %w", err)
@@ -221,8 +191,40 @@ func setDiskOffline(h windows.Handle, offline bool) error {
 	return err
 }
 
-// writeLayout creates a partition table identical to the image's.
-func writeLayout(h windows.Handle, img *repo.DiskImage, diskSize uint64) error {
+// fixBootSectors updates the boot sector of a moved partition (and its
+// backup copies) with the new number of sectors before the partition.
+func fixBootSectors(f *os.File, w partitionWrite, sectorSize uint32) error {
+	sec := make([]byte, sectorSize)
+	if _, err := f.ReadAt(sec, int64(w.Offset)); err != nil { // #nosec G115 -- disk offsets are within range
+		return fmt.Errorf("read boot sector: %w", err)
+	}
+	backups := backupBootSectors(sec, sectorSize)
+	if !patchHiddenSectors(sec, w.Offset, sectorSize) {
+		return nil
+	}
+	if _, err := f.WriteAt(sec, int64(w.Offset)); err != nil { // #nosec G115 -- disk offsets are within range
+		return fmt.Errorf("write boot sector: %w", err)
+	}
+	for _, rel := range backups {
+		if rel+uint64(sectorSize) > w.Length {
+			continue
+		}
+		b := make([]byte, sectorSize)
+		if _, err := f.ReadAt(b, int64(w.Offset+rel)); err != nil { // #nosec G115 -- disk offsets are within range
+			continue
+		}
+		if patchHiddenSectors(b, w.Offset, sectorSize) {
+			if _, err := f.WriteAt(b, int64(w.Offset+rel)); err != nil { // #nosec G115 -- disk offsets are within range
+				return fmt.Errorf("write backup boot sector: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// writeLayout creates the partition table: the image's disk and
+// partition identifiers at the offsets and sizes of the plan.
+func writeLayout(h windows.Handle, img *repo.DiskImage, plan []partitionWrite, diskSize uint64) error {
 	// CREATE_DISK: PartitionStyle, then MBR {Signature} or GPT {DiskId, MaxPartitionCount}.
 	create := make([]byte, 24)
 	switch img.Style {
@@ -244,8 +246,7 @@ func writeLayout(h windows.Handle, img *repo.DiskImage, diskSize uint64) error {
 		return fmt.Errorf("create disk: %w", err)
 	}
 
-	parts := img.Partitions
-	count := len(parts)
+	count := len(plan)
 	if img.Style == StyleMBR {
 		count = (count + 3) / 4 * 4 // MBR layouts come in groups of four
 		if count == 0 {
@@ -267,15 +268,16 @@ func writeLayout(h windows.Handle, img *repo.DiskImage, diskSize uint64) error {
 		binary.LittleEndian.PutUint32(lay[0:4], partitionStyleMBR)
 		binary.LittleEndian.PutUint32(lay[8:12], img.MBRSignature)
 	}
-	for i, p := range parts {
+	for i, w := range plan {
+		p := w.Src
 		e := lay[48+i*144 : 48+(i+1)*144]
 		if img.Style == StyleGPT {
 			binary.LittleEndian.PutUint32(e[0:4], partitionStyleGPT)
 		} else {
 			binary.LittleEndian.PutUint32(e[0:4], partitionStyleMBR)
 		}
-		binary.LittleEndian.PutUint64(e[8:16], p.Offset)
-		binary.LittleEndian.PutUint64(e[16:24], p.Length)
+		binary.LittleEndian.PutUint64(e[8:16], w.Offset)
+		binary.LittleEndian.PutUint64(e[16:24], w.Length)
 		binary.LittleEndian.PutUint32(e[24:28], uint32(p.Number)) // #nosec G115 -- length of a small buffer for a Windows API call
 		e[28] = 1                                                 // RewritePartition
 		u := e[32:]
@@ -301,7 +303,7 @@ func writeLayout(h windows.Handle, img *repo.DiskImage, diskSize uint64) error {
 				u[1] = 1
 			}
 			u[2] = 1                                                       // RecognizedPartition
-			binary.LittleEndian.PutUint32(u[4:8], uint32(p.Offset/sector)) // #nosec G115 -- length of a small buffer for a Windows API call
+			binary.LittleEndian.PutUint32(u[4:8], uint32(w.Offset/sector)) // #nosec G115 -- length of a small buffer for a Windows API call
 		}
 	}
 	if _, err := ioctl(h, ioctlDiskSetDriveLayoutEx, lay, 0); err != nil {
