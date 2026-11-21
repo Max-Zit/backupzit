@@ -64,3 +64,16 @@ func FindWindowsInstalls(context.Context) ([]WindowsInstall, error) { return nil
 func RepairBoot(context.Context, WindowsInstall, BootRepairOptions, func(string)) (*BootReport, error) {
 	return nil, ErrUnsupported
 }
+
+// LoadDrivers is Windows only.
+func LoadDrivers(context.Context, string, func(string)) (*LoadDriversResult, error) {
+	return nil, ErrUnsupported
+}
+
+// ProblemDevices is Windows only.
+func ProblemDevices(context.Context) ([]ProblemDevice, error) { return nil, ErrUnsupported }
+
+// AddDriversToWindows is Windows only.
+func AddDriversToWindows(context.Context, WindowsInstall, string) (int, error) {
+	return 0, ErrUnsupported
+}

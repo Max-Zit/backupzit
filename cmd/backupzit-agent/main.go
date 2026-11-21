@@ -53,6 +53,7 @@ Disk images (Windows):
   image-ls       List files inside an imaged partition
   image-extract  Copy files out of an imaged partition
   prepare-hardware  Prepare a restored Windows disk for different hardware
+  drivers           Devices without driver, load drivers (recovery environment), add drivers to a Windows
   boot-repair       Make an existing Windows start again (boot files, MBR, active partition)
   access-package    Store repository credentials encrypted for the recovery medium (create, show)
 
@@ -205,6 +206,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdImageRestore(ctx, rest)
 	case "access-package":
 		return cmdAccessPackage(ctx, rest)
+	case "drivers":
+		return cmdDrivers(ctx, rest)
 	case "boot-repair":
 		return cmdBootRepair(ctx, rest)
 	case "image-layout":
