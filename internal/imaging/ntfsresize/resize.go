@@ -29,8 +29,11 @@ type Volume struct {
 	Clusters       uint64
 	RecordSize     uint64
 	mftRuns        []Run
-	records        []*Record // in-use records, by number
-	bitmap         []byte
+	mftRecords     uint64
+	// records holds the system files and the records changed by Plan;
+	// the others are read again when needed (volumes can have millions).
+	records map[uint64]*Record
+	bitmap  []byte
 	// UsedClusters is the number of allocated clusters.
 	UsedClusters uint64
 }
@@ -69,7 +72,7 @@ func Open(src io.ReaderAt) (*Volume, error) {
 	if err := v.readMFTRuns(mftLCN); err != nil {
 		return nil, err
 	}
-	if err := v.readRecords(); err != nil {
+	if err := v.readSystemRecords(); err != nil {
 		return nil, err
 	}
 	if err := v.readBitmap(); err != nil {
@@ -179,40 +182,73 @@ func (v *Volume) readMFTRuns(mftLCN uint64) error {
 	return nil
 }
 
-// readRecords reads every file record that is in use.
-func (v *Volume) readRecords() error {
-	var mftSize uint64
-	for _, r := range v.mftRuns {
-		mftSize = max(mftSize, (r.VCN+r.Len)*v.ClusterSize)
-	}
-	n := mftSize / v.RecordSize
-	v.records = make([]*Record, n)
+// systemRecords are kept in memory: Plan changes them.
+var systemRecords = []uint64{recMFT, recMFTMirr, recLogFile, recVolume, recBitmap, recBadClus}
+
+// scanRecords calls fn for every file record in use, in order. Records
+// already held in v.records are passed as they are (with changes).
+func (v *Volume) scanRecords(fn func(*Record) error) error {
 	const batch = 256
-	for start := uint64(0); start < n; start += batch {
-		cnt := min(batch, n-start)
+	for start := uint64(0); start < v.mftRecords; start += batch {
+		cnt := min(batch, v.mftRecords-start)
 		buf, err := v.readVirtual(v.mftRuns, start*v.RecordSize, cnt*v.RecordSize)
 		if err != nil {
 			return fmt.Errorf("read file records: %w", err)
 		}
 		for i := uint64(0); i < cnt; i++ {
+			num := start + i
+			if r, ok := v.records[num]; ok {
+				if err := fn(r); err != nil {
+					return err
+				}
+				continue
+			}
 			b := buf[i*v.RecordSize : (i+1)*v.RecordSize]
 			if string(b[0:4]) != "FILE" || binary.LittleEndian.Uint16(b[0x16:])&1 == 0 {
 				continue
 			}
 			if err := removeFixups(b); err != nil {
-				return fmt.Errorf("file record %d: %w", start+i, err)
+				return fmt.Errorf("file record %d: %w", num, err)
 			}
-			r, err := parseRecord(start+i, b)
+			r, err := parseRecord(num, b)
 			if err != nil {
 				return err
 			}
-			v.records[start+i] = r
+			if err := fn(r); err != nil {
+				return err
+			}
 		}
 	}
-	for _, num := range []uint64{recMFT, recMFTMirr, recLogFile, recVolume, recBitmap, recBadClus} {
-		if num >= uint64(len(v.records)) || v.records[num] == nil {
+	return nil
+}
+
+// readSystemRecords loads the system files the resize changes.
+func (v *Volume) readSystemRecords() error {
+	var mftSize uint64
+	for _, r := range v.mftRuns {
+		mftSize = max(mftSize, (r.VCN+r.Len)*v.ClusterSize)
+	}
+	v.mftRecords = mftSize / v.RecordSize
+	v.records = map[uint64]*Record{}
+	for _, num := range systemRecords {
+		if num >= v.mftRecords {
 			return fmt.Errorf("system file record %d missing", num)
 		}
+		b, err := v.readVirtual(v.mftRuns, num*v.RecordSize, v.RecordSize)
+		if err != nil {
+			return fmt.Errorf("read file record %d: %w", num, err)
+		}
+		if err := removeFixups(b); err != nil {
+			return fmt.Errorf("file record %d: %w", num, err)
+		}
+		r, err := parseRecord(num, b)
+		if err != nil {
+			return err
+		}
+		if !r.InUse {
+			return fmt.Errorf("system file record %d not in use", num)
+		}
+		v.records[num] = r
 	}
 	return nil
 }
@@ -387,10 +423,11 @@ func (v *Volume) Plan(newSize uint64) (*Plan, error) {
 		return nil, fmt.Errorf("the data does not fit: %d clusters behind the new end, %d free before it", behind, free)
 	}
 
-	marked := map[uint64]bool{} // clusters behind the end that belong to a file
-	for _, rec := range v.records {
-		if rec == nil {
-			continue
+	var marked uint64 // clusters behind the end that belong to a file
+	mftExt := map[uint64]*Record{}
+	err := v.scanRecords(func(rec *Record) error {
+		if rec.Base == recMFT && rec.Number != recMFT {
+			mftExt[rec.Number] = rec
 		}
 		for _, a := range rec.Attrs {
 			if !a.NonResident || a == bad {
@@ -411,7 +448,7 @@ func (v *Volume) Plan(newSize uint64) (*Plan, error) {
 				}
 				exts, err := alloc.take(r.Len - keep)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				vcn, from := r.VCN+keep, r.LCN+keep
 				for _, e := range exts {
@@ -419,8 +456,8 @@ func (v *Volume) Plan(newSize uint64) (*Plan, error) {
 					out = append(out, Run{VCN: vcn, LCN: e.start, Len: e.len})
 					for c := uint64(0); c < e.len; c++ {
 						v.setUsed(e.start+c, true)
-						marked[from+c] = true
 					}
+					marked += e.len
 					p.MovedClusters += e.len
 					vcn += e.len
 					from += e.len
@@ -432,38 +469,30 @@ func (v *Volume) Plan(newSize uint64) (*Plan, error) {
 				rec.dirty = true
 			}
 		}
+		if rec.dirty {
+			if _, err := rec.encode(); err != nil {
+				return err
+			}
+			v.records[rec.Number] = rec
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	p.Orphaned = behind - uint64(len(marked))
+	p.Orphaned = behind - marked
 
-	// $MFT runs as they are after the moves.
-	if a := v.records[recMFT].unnamed(attrData); a != nil && a.dirty {
-		v.mftRuns = append([]Run(nil), a.Runs...)
-		// Extension records of a fragmented $MFT add their runs.
-		for _, rec := range v.records {
-			if rec != nil && rec.Base == recMFT && rec.Number != recMFT {
-				if e := rec.unnamed(attrData); e != nil {
-					v.mftRuns = append(v.mftRuns, e.Runs...)
-				}
+	// $MFT runs as they are after the moves (all segments, when a
+	// fragmented $MFT has extension records).
+	if mft := v.records[recMFT].unnamed(attrData); mft.dirty || anyDirty(mftExt) {
+		runs := append([]Run(nil), mft.Runs...)
+		for _, e := range mftExt {
+			if d := e.unnamed(attrData); d != nil {
+				runs = append(runs, d.Runs...)
 			}
 		}
-		sort.Slice(v.mftRuns, func(i, j int) bool { return v.mftRuns[i].VCN < v.mftRuns[j].VCN })
-	} else {
-		for _, rec := range v.records {
-			if rec != nil && rec.Base == recMFT && rec.dirty {
-				// A moved extension of $MFT: rebuild from all segments.
-				var runs []Run
-				for _, r := range v.records {
-					if r != nil && (r.Number == recMFT || r.Base == recMFT) {
-						if e := r.unnamed(attrData); e != nil {
-							runs = append(runs, e.Runs...)
-						}
-					}
-				}
-				sort.Slice(runs, func(i, j int) bool { return runs[i].VCN < runs[j].VCN })
-				v.mftRuns = runs
-				break
-			}
-		}
+		sort.Slice(runs, func(i, j int) bool { return runs[i].VCN < runs[j].VCN })
+		v.mftRuns = runs
 	}
 
 	// $Bitmap: shorter, covering the new cluster count.
@@ -492,8 +521,9 @@ func (v *Volume) Plan(newSize uint64) (*Plan, error) {
 	binary.LittleEndian.PutUint16(val[0x0A:], binary.LittleEndian.Uint16(val[0x0A:])|0x0001)
 	v.records[recVolume].dirty = true
 
-	for _, rec := range v.records {
-		if rec != nil && rec.dirty {
+	for _, num := range sortedKeys(v.records) {
+		rec := v.records[num]
+		if rec.dirty {
 			if _, err := rec.encode(); err != nil {
 				return nil, err
 			}
@@ -501,6 +531,24 @@ func (v *Volume) Plan(newSize uint64) (*Plan, error) {
 		}
 	}
 	return p, nil
+}
+
+func anyDirty(m map[uint64]*Record) bool {
+	for _, r := range m {
+		if r.dirty {
+			return true
+		}
+	}
+	return false
+}
+
+func sortedKeys(m map[uint64]*Record) []uint64 {
+	out := make([]uint64, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }
 
 // writeVirtual writes data at byte offset off of a stream through runs.

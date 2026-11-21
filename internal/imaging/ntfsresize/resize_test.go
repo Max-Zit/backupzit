@@ -119,9 +119,10 @@ func checkConsistent(t *testing.T, img []byte) *Volume {
 		t.Fatalf("reopen the shrunk volume: %v", err)
 	}
 	owner := map[uint64]string{}
-	for _, rec := range v.records {
-		if rec == nil {
-			continue
+	bad := false
+	err = v.scanRecords(func(rec *Record) error {
+		if bad {
+			return nil
 		}
 		for _, a := range rec.Attrs {
 			if !a.NonResident || (rec.Number == recBadClus && a.Name == "$Bad") {
@@ -138,17 +139,23 @@ func checkConsistent(t *testing.T, img []byte) *Volume {
 				for c := r.LCN; c < r.LCN+r.Len; c++ {
 					if !v.used(c) {
 						t.Errorf("record %d: cluster %d in use but free in $Bitmap", rec.Number, c)
-						return v
+						bad = true
+						return nil
 					}
 					who := fmt.Sprintf("%d/%#x", rec.Number, a.Type)
 					if o, ok := owner[c]; ok {
 						t.Errorf("cluster %d used by %s and %s", c, o, who)
-						return v
+						bad = true
+						return nil
 					}
 					owner[c] = who
 				}
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 	return v
 }
@@ -329,8 +336,8 @@ func moveToEnd(t *testing.T, src []byte, rec uint64, attrType uint32) []byte {
 		v.mftRuns = append([]Run(nil), a.Runs...)
 	}
 	v.records[recBitmap].dirty = true
-	for _, r := range v.records {
-		if r != nil && r.dirty {
+	for _, num := range sortedKeys(v.records) {
+		if r := v.records[num]; r.dirty {
 			p.dirty = append(p.dirty, r)
 		}
 	}
