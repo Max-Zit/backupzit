@@ -191,9 +191,10 @@ if ($r.ReturnValue -eq 4096) {
     while ($job.JobState -lt 7) { Start-Sleep -Milliseconds 500; $job = Get-CimInstance -InputObject $r.Job }
     if ($job.JobState -ne 7) { throw ("recovery checkpoint: " + $job.ErrorDescription) }
 } elseif ($r.ReturnValue -ne 0) { throw ("recovery checkpoint: error " + $r.ReturnValue) }
-# The new checkpoint appears in the list shortly after the job.
+# The new checkpoint appears in the list shortly after the job (of a VM
+# that is off it took several seconds in the lab).
 $s = $null
-for ($i = 0; $i -lt 30 -and -not $s; $i++) {
+for ($i = 0; $i -lt 120 -and -not $s; $i++) {
     $s = Get-VMSnapshot -VM $v | Where-Object { $before -notcontains $_.Id } | Select-Object -First 1
     if (-not $s) { Start-Sleep -Milliseconds 500 }
 }
@@ -246,6 +247,14 @@ func takeCheckpoint(ctx context.Context, vm vmInfo, name string, requireApp, cra
 		} else if errors.Is(rerr, errMoved) {
 			leftover.Done(checkpointItem(vm, name))
 		}
+		if err != nil && strings.Contains(err.Error(), "recovery checkpoint not found") {
+			// Hyper-V finished the job without listing the checkpoint yet: it
+			// may still appear under its default name. The ledger item says
+			// so; the agent's janitor removes it (S-2).
+			it := checkpointItem(vm, name)
+			it.Pending = true
+			leftover.Add(ctx, it)
+		}
 		if err == nil {
 			err = ctx.Err()
 		}
@@ -262,6 +271,13 @@ func createCheckpoint(ctx, run context.Context, vm vmInfo, name string, requireA
 	if requireApp {
 		levels = levels[:1]
 	}
+	// A VM that is off has nothing to quiesce: a crash-consistent recovery
+	// checkpoint only, no production checkpoint, no warnings (the caller
+	// reads the disks directly when this fails).
+	off := vm.State == "Off"
+	if off {
+		levels = []string{"2"}
+	}
 	var appErr error
 	for _, level := range levels {
 		if err := ctx.Err(); err != nil {
@@ -269,6 +285,9 @@ func createCheckpoint(ctx, run context.Context, vm vmInfo, name string, requireA
 		}
 		out, err := ps(run, vars+`$level = `+level+"\n"+recoveryScript)
 		if err == nil && json.Unmarshal(out, &ci) == nil && len(ci.Disks) > 0 {
+			if off {
+				return ci, "VM was off, disks read from a recovery checkpoint", true, warns, nil
+			}
 			if level == "1" {
 				return ci, "recovery checkpoint, application-consistent (VSS or file system freeze inside the guest)", true, warns, nil
 			}
@@ -279,6 +298,9 @@ func createCheckpoint(ctx, run context.Context, vm vmInfo, name string, requireA
 		}
 		if err == nil {
 			err = errors.New("no disks in the recovery checkpoint")
+		}
+		if off {
+			return ci, "", false, warns, fmt.Errorf("recovery checkpoint of the VM that is off: %w", err)
 		}
 		switch {
 		case level == "1" && requireApp:
@@ -322,6 +344,54 @@ func createCheckpoint(ctx, run context.Context, vm vmInfo, name string, requireA
 	return ci, consistency, false, warns, nil
 }
 
+// checkpointName returns a new name for a backup's checkpoint. A prefixed
+// checkpoint may still belong to another process or to a backup reading
+// after live migration: only the backup's own name is ever removed.
+func checkpointName() (string, error) {
+	var nonce [16]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return "", fmt.Errorf("name checkpoint: %w", err)
+	}
+	return snapPrefix + hex.EncodeToString(nonce[:]), nil
+}
+
+// removeBackupCheckpoint removes the backup's checkpoint after the disks
+// were read; what goes wrong is added to warns.
+func removeBackupCheckpoint(vm vmInfo, name string, warns *[]string) {
+	c, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	err := removeCheckpointVerified(c, vm, name, leftover.RunWaits)
+	switch {
+	case errors.Is(err, errMoved):
+		leftover.Done(checkpointItem(vm, name)) // the node that runs it now removes it
+		// Live-migrated to another node during the backup: that node's
+		// agent removes the checkpoint once this marker says the backup
+		// has finished reading (CleanupCheckpoints).
+		if m := doneMarker(vm, name); m == "" || os.WriteFile(m, nil, 0o600) != nil {
+			*warns = append(*warns, "the VM moved to another node during the backup; remove its checkpoint "+name+" there (Hyper-V Manager → Checkpoints)")
+		} else {
+			*warns = append(*warns, "the VM moved to another node during the backup; the agent there removes its checkpoint "+name)
+		}
+	case err != nil:
+		*warns = append(*warns, "remove checkpoint "+name+": "+err.Error()+"; the agent tries again and the dashboard lists it until it is gone")
+	}
+}
+
+// allDisksIn reports whether checkpoint ci holds every disk of the VM that
+// the job does not exclude.
+func allDisksIn(ci checkpointInfo, disks []vmDisk, excluded map[string]string) bool {
+	in := map[string]bool{}
+	for _, d := range ci.Disks {
+		in[d.key()] = true
+	}
+	for _, d := range disks {
+		if _, ok := excluded[d.key()]; !ok && !in[d.key()] {
+			return false
+		}
+	}
+	return true
+}
+
 func lastLine(s string) string {
 	l := strings.Split(strings.TrimSpace(s), "\n")
 	return strings.TrimSpace(l[len(l)-1])
@@ -351,26 +421,62 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 	g := &repo.Guest{Platform: "hyperv", Type: "vm", VMID: VMIDFor(vm.ID), ID: vm.ID, Name: vm.Name, Running: vm.State != "Off", Config: string(cfg)}
 	disks := vm.Disks
 	rct := false
-	if vm.State == "Off" {
+	off := vm.State == "Off"
+	if off {
 		g.Consistency = "VM was off, disks read directly"
 		// Resilient change tracking lives in the VHDX (its .rct file) and is
 		// queried on the attached disk, with or without a checkpoint: a VM
 		// that is off for a long time is read incrementally too, instead of
-		// in full on every run (B3). planDiskRead falls back to the whole
+		// in full on every run (#56). planDiskRead falls back to the whole
 		// disk when tracking is off or the earlier change ID is not known.
 		rct = true
+	}
+	// A VM that is off gets a recovery checkpoint too (0.58): without one the
+	// disks' change tracking ID never advances while it stays off, so every
+	// backup read again everything changed since the VM last ran. The
+	// checkpoint also keeps the read consistent if the VM is started
+	// meanwhile. Where Hyper-V cannot take one (Replica VMs, for example) or
+	// it leaves a disk out, the disks are read directly as before.
+	var ci checkpointInfo
+	var consistency string
+	var withRCT bool
+	cleanup := func() {}
+	if off {
+		name, err := checkpointName()
+		if err != nil {
+			return nil, nil, err
+		}
+		leftover.Add(ctx, checkpointItem(vm, name))
+		c, _, rctOK, w, err := takeCheckpoint(ctx, vm, name, false, true)
+		warns = append(warns, w...)
+		switch {
+		case err != nil && ctx.Err() != nil:
+			return nil, warns, err
+		case err != nil:
+			if log != nil {
+				log("hyperv: no recovery checkpoint of the VM that is off; its disks are read directly", "vm", vm.Name, "error", lastLine(err.Error()))
+			}
+		case !allDisksIn(c, vm.Disks, excluded):
+			removeBackupCheckpoint(vm, name, &warns)
+			if log != nil {
+				log("hyperv: the recovery checkpoint of the VM that is off leaves a disk out; its disks are read directly", "vm", vm.Name)
+			}
+		default:
+			defer removeBackupCheckpoint(vm, name, &warns)
+			disks, g.Consistency, rct = c.Disks, "VM was off, disks read from a recovery checkpoint", rctOK
+		}
 	} else {
 		// A prefixed checkpoint may still belong to another process or to a
 		// backup reading after live migration. Only remove our own checkpoint.
-		var nonce [16]byte
-		if _, err := rand.Read(nonce[:]); err != nil {
-			return nil, nil, fmt.Errorf("name checkpoint: %w", err)
+		name, err := checkpointName()
+		if err != nil {
+			return nil, nil, err
 		}
-		name := snapPrefix + hex.EncodeToString(nonce[:])
 		// Recorded before it exists: a crash during the creation leaves a
 		// record the janitor finds it by (S-1).
 		leftover.Add(ctx, checkpointItem(vm, name))
-		ci, consistency, withRCT, w, err := takeCheckpoint(ctx, vm, name, requireApp, crashOK)
+		var w []string
+		ci, consistency, withRCT, w, err = takeCheckpoint(ctx, vm, name, requireApp, crashOK)
 		warns = append(warns, w...)
 		if err != nil {
 			if vmGone(err) {
@@ -378,28 +484,10 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 			}
 			return nil, warns, err
 		}
-		defer func() {
-			c, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-			defer cancel()
-			err := removeCheckpointVerified(c, vm, name, leftover.RunWaits)
-			switch {
-			case errors.Is(err, errMoved):
-				leftover.Done(checkpointItem(vm, name)) // the node that runs it now removes it
-			case err != nil:
-				warns = append(warns, "remove checkpoint "+name+": "+err.Error()+"; the agent tries again and the dashboard lists it until it is gone")
-			}
-			switch {
-			case errors.Is(err, errMoved):
-				// Live-migrated to another node during the backup: that node's
-				// agent removes the checkpoint once this marker says the
-				// backup has finished reading (CleanupCheckpoints).
-				if m := doneMarker(vm, name); m == "" || os.WriteFile(m, nil, 0o600) != nil {
-					warns = append(warns, "the VM moved to another node during the backup; remove its checkpoint "+name+" there (Hyper-V Manager → Checkpoints)")
-				} else {
-					warns = append(warns, "the VM moved to another node during the backup; the agent there removes its checkpoint "+name)
-				}
-			}
-		}()
+		cleanup = func() { removeBackupCheckpoint(vm, name, &warns) }
+	}
+	defer func() { cleanup() }()
+	if !off {
 		disks, g.Consistency, rct = ci.Disks, consistency, withRCT
 		// The checkpoint leaves out disks Hyper-V cannot checkpoint (pass-
 		// through disks, shared VHD Sets): say so, and record them like
