@@ -105,7 +105,7 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 		}
 		defer c.Logout()
 		sn, err = c.Backup(ctx, r, vmware.BackupOptions{VMIDs: sel, Exclude: excl, Hostname: run.VMware.Name, Version: a.version, Tags: tags, Progress: prog, Log: logf,
-			VMStarted: vmStarted, VMFinished: vmFinished})
+			VMStarted: vmStarted, VMFinished: vmFinished, NoQuiesce: run.VMwareNoQuiesce})
 	} else if isPVE {
 		sn, err = pve.Backup(ctx, r, pve.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf,
 			VMStarted: vmStarted, VMFinished: vmFinished})

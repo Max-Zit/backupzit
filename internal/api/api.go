@@ -313,6 +313,9 @@ type Run struct {
 	// VMCrashConsistentOK lists Hyper-V VMs (names or patterns) whose
 	// crash-consistent checkpoint is expected: no warning for them (0.53.0).
 	VMCrashConsistentOK []string `json:"vm_crash_consistent_ok,omitempty"`
+	// VMwareNoQuiesce: VMware snapshots of running VMs without VMware Tools
+	// quiescing (crash-consistent), set in the job (0.58.0).
+	VMwareNoQuiesce bool `json:"vmware_no_quiesce,omitempty"`
 	// VMware: the ESXi host a vm-backup or vm-restore runs against (the
 	// agent acts as proxy). Nil for Proxmox and Hyper-V, where the agent
 	// runs on the hypervisor itself.

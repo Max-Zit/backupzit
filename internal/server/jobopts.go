@@ -47,6 +47,10 @@ type JobOptions struct {
 	// CrashConsistentOK: Hyper-V VMs (names or patterns) that cannot prepare
 	// a checkpoint themselves; a crash-consistent one is no warning for them.
 	CrashConsistentOK []string `json:"crash_consistent_ok,omitempty"`
+	// VMwareNoQuiesce: VMware VM jobs take their snapshots without VMware
+	// Tools quiescing (crash-consistent), for guests whose quiescing fails
+	// or misbehaves (#59). Off by default: application-consistent.
+	VMwareNoQuiesce bool `json:"vmware_no_quiesce,omitempty"`
 	// SQL Server jobs: the instance ("" = default), whether system
 	// databases are included when all are backed up, and how often the
 	// transaction logs are backed up (minutes, 0 = never).
@@ -242,6 +246,8 @@ type jobForm struct {
 	// HyperV: an edited VM job of a Hyper-V host or cluster (the options
 	// for checkpoints and excluded disks apply to Hyper-V only).
 	HyperV bool
+	// VMware: an edited VM job of a VMware host (quiescing option).
+	VMware bool
 }
 
 // newJobForm prepares the form for job j (a new job: defaults).
@@ -322,6 +328,7 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	o.AppConsistent = r.FormValue("app_consistent") == "on"
 	o.ExcludeDisks = lines(r.FormValue("exclude_disks"))
 	o.CrashConsistentOK = lines(r.FormValue("crash_consistent_ok"))
+	o.VMwareNoQuiesce = r.FormValue("vmware_no_quiesce") == "on"
 	if r.FormValue("replicate") == "on" {
 		o.ReplicaAgentID, o.ReplicaStorage = formID(r, "replica_agent"), r.FormValue("replica_storage")
 	}
@@ -488,6 +495,7 @@ func (s *Server) jobForm(r *http.Request, j Job, edit bool, agents []Agent) jobF
 		agents, _ = s.store.ListAgents(r.Context())
 	}
 	f.ReplicaAgents = pveAgents(agents)
+	f.VMware = edit && j.Kind == JobVM && j.VMwareHostID != nil
 	if edit && j.Kind == JobVM && j.VMwareHostID == nil {
 		f.HyperV = j.Options.HVCluster != ""
 		for _, a := range agents {

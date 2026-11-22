@@ -150,6 +150,13 @@ function syncJobKind() {
     box.hidden = true;
     box.querySelectorAll("input,textarea,select").forEach(function (i) { i.disabled = true; });
   });
+  // The quiescing option is for VMware hosts only.
+  var isVMw = !!agentOpt && agentOpt.value.indexOf("vmware:") === 0;
+  document.querySelectorAll("[data-vmwonly]").forEach(function (box) {
+    if (isVMw) return;
+    box.hidden = true;
+    box.querySelectorAll("input,textarea,select").forEach(function (i) { i.disabled = true; });
+  });
   document.querySelectorAll("[data-notkind]").forEach(function (el) {
     var off = el.getAttribute("data-notkind") === sel.value;
     el.hidden = off;

@@ -31,6 +31,9 @@ type BackupOptions struct {
 	// on and the result of each, for the run's progress (0.57).
 	VMStarted  func(name string, total int)
 	VMFinished func(name string, failed bool)
+	// NoQuiesce: snapshots of running VMs are taken without VMware Tools
+	// quiescing (crash-consistent), for guests whose quiescing fails (0.58).
+	NoQuiesce bool
 }
 
 // guestConfig is stored as repo.Guest.Config of VMware guests.
@@ -141,7 +144,7 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 			// failed): the VM's own calls tell what is wrong.
 			opts.Log("checking the vSphere session failed", "error", err)
 		}
-		g, warns, err := c.backupVM(ctx, r, v, sn, prev, progress, ha)
+		g, warns, err := c.backupVM(ctx, r, v, sn, prev, progress, ha, opts.NoQuiesce)
 		if c.Relogins > n {
 			opts.Log("the vSphere session had ended; signed in again", "host", c.conn.Host, "times", c.Relogins-n)
 		}
@@ -195,7 +198,7 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 // through this agent run one at a time.
 func (c *Client) vmLockKey(uuid string) string { return "vmware-" + c.conn.Host + "-" + uuid }
 
-func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), ha *hotAdd) (_ *repo.Guest, warns []string, _ error) {
+func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), ha *hotAdd, noQuiesce bool) (_ *repo.Guest, warns []string, _ error) {
 	if len(v.Disks) == 0 {
 		return nil, nil, errors.New("the VM has no virtual disks")
 	}
@@ -282,7 +285,7 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 		bg := func() (context.Context, context.CancelFunc) {
 			return context.WithTimeout(context.WithoutCancel(ctx), 30*time.Minute)
 		}
-		quiesce := v.Tools && v.Power == "poweredOn"
+		quiesce := v.Tools && v.Power == "poweredOn" && !noQuiesce
 		s, err := c.createSnapshot(ctx, v, name, quiesce)
 		if err != nil && quiesce && ctx.Err() == nil {
 			// A failed quiesced snapshot may still be listed: it goes first,
@@ -331,6 +334,8 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 			g.Consistency = "VM was off, disks read from a snapshot"
 		case s.Quiesced:
 			g.Consistency = "snapshot, guest quiesced by VMware Tools (application-consistent)"
+		case noQuiesce && v.Tools:
+			g.Consistency = "snapshot, crash-consistent (quiescing switched off in the job)"
 		default:
 			g.Consistency = "snapshot, crash-consistent (VMware Tools not running)"
 		}

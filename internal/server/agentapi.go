@@ -264,6 +264,12 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 					ar.VMExcludeDisks = j.Options.ExcludeDisks
 				}
 				ar.VMCrashConsistentOK = j.Options.CrashConsistentOK
+				if j.Options.VMwareNoQuiesce {
+					if a, err := s.store.GetAgent(ctx, run.AgentID); err == nil && strings.Count(a.Version, ".") == 2 && update.Newer(minNoQuiesceVersion, a.Version) {
+						return nil, fmt.Errorf("the agent on %s (%s) cannot take snapshots without quiescing yet and would quiesce the guests; update it to %s or newer (Agents page)", a.Hostname, a.Version, minNoQuiesceVersion)
+					}
+					ar.VMwareNoQuiesce = true
+				}
 			}
 		}
 		if err := s.addVMware(ctx, run, ar); err != nil {
@@ -432,6 +438,10 @@ const minAllDisksVersion = "0.33.7"
 // minAppConsistentVersion is the first agent that honours AppConsistent;
 // older agents would quietly fall back to crash-consistent checkpoints.
 const minAppConsistentVersion = "0.48.0"
+
+// minNoQuiesceVersion is the first agent that honours VMwareNoQuiesce;
+// older ones would still quiesce the guests.
+const minNoQuiesceVersion = "0.58.0"
 
 // minExcludeDisksVersion is the first agent that honours VMExcludeDisks;
 // older ones would silently back up the excluded disks.
