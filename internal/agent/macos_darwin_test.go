@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -82,17 +83,45 @@ func TestInstallerCommandNeedsPkg(t *testing.T) {
 		}
 	}
 	if _, err := os.Stat(macInstaller); err == nil {
+		saved := prepareJob
+		defer func() { prepareJob = saved }()
+		var dir, kind, script string
+		prepareJob = func(d, k, s string) (func() error, error) {
+			dir, kind, script = d, k, s
+			return func() error { return nil }, nil
+		}
 		if _, err := installerCommand("/x/backupzit-agent-0.59.0.pkg"); err != nil {
 			t.Errorf("pkg refused: %v", err)
+		}
+		// Prepared before the run is reported (issue #3), in the update
+		// folder, with the installer's command.
+		if dir != "/x" || kind != "update" || !strings.Contains(script, "/usr/sbin/installer -verbose -pkg") {
+			t.Errorf("prepared %q %q:\n%s", dir, kind, script)
 		}
 	}
 }
 
-// The one-shot job runs once, as root, and removes itself.
+// A job launchd refuses fails the update before it is reported (issue #3).
+func TestInstallerCommandReportsRefusedJob(t *testing.T) {
+	if _, err := os.Stat(macInstaller); err != nil {
+		t.Skip("no macOS installer")
+	}
+	saved := prepareJob
+	defer func() { prepareJob = saved }()
+	prepareJob = func(string, string, string) (func() error, error) {
+		return nil, errors.New("launchd refused the update job: exit status 5")
+	}
+	if _, err := installerCommand("/x/backupzit-agent-0.59.0.pkg"); err == nil || !strings.Contains(err.Error(), "launchd refused") {
+		t.Fatalf("refused job: %v", err)
+	}
+}
+
+// The one-shot job runs once, as root, removes itself, and does not start
+// when it is loaded: it is started after the run is reported (issue #3).
 func TestOneShotJob(t *testing.T) {
 	plist := "/Library/Application Support/BackupZit/updates/com.backupzit.agent.update.1.plist"
 	j := oneShotJob("com.backupzit.agent.update.1", plist, "echo hi")
-	if !j.RunAtLoad || j.KeepAlive || !j.LaunchOnlyOnce || j.UserName != "root" {
+	if j.RunAtLoad || j.KeepAlive || !j.LaunchOnlyOnce || j.UserName != "root" {
 		t.Errorf("job %+v", j)
 	}
 	if len(j.ProgramArguments) != 3 || j.ProgramArguments[0] != "/bin/sh" || j.ProgramArguments[1] != "-c" {

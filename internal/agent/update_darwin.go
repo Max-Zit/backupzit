@@ -8,9 +8,11 @@ import (
 )
 
 // installerCommand installs the verified package with Apple's installer
-// in a one-shot launchd job of its own (see runDetached): the package's
+// in a one-shot launchd job of its own (see prepareDetached): the package's
 // postinstall restarts the agent's LaunchDaemon, which must not stop the
-// installation. The installer's output goes to <package>.log in the update
+// installation. The job is loaded here, before the agent reports the update
+// run, so a job launchd refuses fails the run; the returned function only
+// starts it. The installer's output goes to <package>.log in the update
 // folder, which "send the agent log" includes.
 func installerCommand(path string) (func() error, error) {
 	if !strings.HasSuffix(path, ".pkg") {
@@ -19,9 +21,7 @@ func installerCommand(path string) (func() error, error) {
 	if _, err := os.Stat(macInstaller); err != nil {
 		return nil, fmt.Errorf("macOS package, but %s is not available on this system", macInstaller)
 	}
-	script := pkgInstallScript(path)
-	dir := filepath.Dir(path)
-	return func() error { return runDetached(dir, "update", script) }, nil
+	return prepareDetached(filepath.Dir(path), "update", pkgInstallScript(path))
 }
 
 // pkgInstallScript installs a package on the startup volume. The package

@@ -11,8 +11,9 @@ import (
 )
 
 // uninstallerCommand removes the agent installed by the .pkg, in a
-// one-shot launchd job (see runDetached), because the first thing it does
-// is stopping the agent's own LaunchDaemon. As with a package removal on
+// one-shot launchd job (see prepareDetached), because the first thing it
+// does is stopping the agent's own LaunchDaemon. The job is loaded before
+// the run is reported (a refusal fails it), and started afterwards. As with a package removal on
 // Linux, the configuration (/Library/Application Support/BackupZit) and the
 // log (/Library/Logs/BackupZit) stay; the uninstall log is written there.
 func uninstallerCommand() (func() error, error) {
@@ -21,17 +22,14 @@ func uninstallerCommand() (func() error, error) {
 	}) {
 		return nil, errors.New("the agent was not installed from the BackupZit package (.pkg); uninstall it by hand")
 	}
-	script := uninstallScript()
 	dir := stateDir()
-	return func() error {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return err
-		}
-		if err := protectDir(dir); err != nil {
-			return err
-		}
-		return runDetached(dir, "uninstall", script)
-	}, nil
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, err
+	}
+	if err := protectDir(dir); err != nil {
+		return nil, err
+	}
+	return prepareDetached(dir, "uninstall", uninstallScript())
 }
 
 func fileExists(p string) bool { _, err := os.Lstat(p); return err == nil }
