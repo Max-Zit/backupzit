@@ -57,7 +57,7 @@ func unixMeta(p string, fi fs.FileInfo) *repo.UnixMeta {
 	}
 	m := &repo.UnixMeta{UID: st.Uid, GID: st.Gid, User: userName(st.Uid), Group: groupName(st.Gid)}
 	if fi.Mode()&fs.ModeDevice != 0 {
-		m.Rdev = uint64(st.Rdev)
+		m.Rdev = uint64(st.Rdev) // #nosec G115 -- a device number (int32 on macOS) kept as is; the restore converts it back
 		m.Char = fi.Mode()&fs.ModeCharDevice != 0
 	}
 	if fi.Mode().IsRegular() && st.Nlink > 1 {
@@ -112,5 +112,5 @@ func deviceOf(fi fs.FileInfo) (uint64, bool) {
 	if !ok {
 		return 0, false
 	}
-	return uint64(st.Dev), true
+	return uint64(st.Dev), true // #nosec G115 -- a device number (int32 on macOS), only compared with others
 }

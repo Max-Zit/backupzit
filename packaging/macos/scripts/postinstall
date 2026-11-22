@@ -1,0 +1,122 @@
+#!/bin/sh
+# Runs as root after the payload is in place: $1 is the path of the package
+# being installed, $3 the target volume. Its output goes to
+# /var/log/install.log.
+#
+# 1. Enrolls the agent when an enrollment code (BZ1-..., Agents > Create
+#    enrollment token in the console) is provided. A package takes no
+#    properties on the command line as the MSI does (ENROLLCODE=...), so the
+#    code comes from a file, the first one found of:
+#      /Library/Application Support/BackupZit/enroll-code
+#          written by an MDM script before the installation (owned by root),
+#          deleted once used: it holds an enrollment token
+#      backupzit-enroll.txt next to the .pkg
+#          for an installation by hand or from a shared folder
+#    Upgrades and reinstalls with the same code keep the enrollment
+#    (--if-not-enrolled); a console that cannot be reached now gets the code
+#    retried by the service (--pending-ok), as with the MSI.
+# 2. Installs and (re)starts the agent's LaunchDaemon; the agent's "service"
+#    command defines it.
+# 3. Opens the menu bar app in the session of the logged-in user, whose
+#    assistant guides him through the permissions only he can grant.
+set -u
+
+[ "${3:-/}" = "/" ] || { echo "BackupZit: not installed on the startup disk, nothing started"; exit 0; }
+
+AGENT=/Library/BackupZit/bin/backupzit-agent
+APP=/Applications/BackupZit.app
+TRAY_PLIST=/Library/LaunchAgents/com.backupzit.tray.plist
+TRAY_LABEL=com.backupzit.tray
+MDM_CODE="/Library/Application Support/BackupZit/enroll-code"
+CFG_DIR=/etc/backupzit
+
+# Messages go to stderr: what read_code prints is the code itself.
+log() { echo "BackupZit postinstall: $*" >&2; }
+
+# read_code prints the enrollment code found in file $1, without the white
+# space a copy and paste adds (as the agent itself does), or nothing.
+read_code() {
+    [ -f "$1" ] || return 0
+    code=$(head -c 8192 "$1" | tr -d ' \t\r\n')
+    case $code in
+        BZ1-*) ;;
+        *) log "ignoring $1: not a BackupZit enrollment code (it starts with BZ1-)"; return 0 ;;
+    esac
+    # The rest is URL-safe base64: anything else is a damaged copy.
+    case ${code#BZ1-} in
+        '' | *[!A-Za-z0-9_-]*) log "ignoring $1: the enrollment code is damaged, copy it again from the console"; return 0 ;;
+    esac
+    printf '%s' "$code"
+}
+
+# mdm_code prints the code an MDM left for this installation. Only a file
+# owned by root counts: the code decides which console controls the Mac.
+mdm_code() {
+    [ -f "$MDM_CODE" ] || return 0
+    if [ "$(stat -f %u "$MDM_CODE")" != 0 ]; then
+        log "ignoring $MDM_CODE: not owned by root"
+        return 0
+    fi
+    read_code "$MDM_CODE"
+}
+
+enroll() {
+    src=$MDM_CODE
+    code=$(mdm_code)
+    if [ -z "$code" ] && [ -n "${1:-}" ]; then
+        # Product archives may name the inner package after a '#'.
+        pkg=${1%%#*}
+        src="$(dirname "$pkg")/backupzit-enroll.txt"
+        code=$(read_code "$src")
+    fi
+    [ -n "$code" ] || return 0
+    log "enrolling with the code from $src"
+    if "$AGENT" enroll --code "$code" --if-not-enrolled --pending-ok; then
+        if [ "$src" = "$MDM_CODE" ]; then
+            rm -f "$MDM_CODE"
+        fi
+    else
+        log "enrollment failed (reason in $CFG_DIR/enroll-error.log); enroll later in Terminal: sudo $AGENT enroll --code BZ1-..."
+    fi
+}
+
+# start_service installs the LaunchDaemon on the first installation; an
+# upgrade keeps it (preinstall stopped it) and starts the new program.
+start_service() {
+    mkdir -p "$CFG_DIR"
+    chmod 700 "$CFG_DIR"
+    if ! "$AGENT" service status >/dev/null 2>&1; then
+        if ! "$AGENT" service install; then
+            log "the agent service is not installed yet; once enrolled, run in Terminal:"
+            log "  sudo $AGENT enroll --code BZ1-...   (Agents > Create enrollment token in the console)"
+            log "  sudo $AGENT service install && sudo $AGENT service start"
+            return 0
+        fi
+    fi
+    "$AGENT" service start || log "the agent service did not start (log: /var/log/backupzit/agent.log)"
+}
+
+# open_tray starts the menu bar app for the user at the screen now; other
+# users get it at their next login from the LaunchAgent. It is started by
+# launchd in the user's session ("launchctl asuser ... open" from this root
+# script would run the app as root).
+open_tray() {
+    uid=$(stat -f %u /dev/console 2>/dev/null) || uid=
+    case $uid in
+        '' | 0 | *[!0-9]*) log "nobody is logged in: the menu bar app starts at the next login"; return 0 ;;
+    esac
+    # An upgrade may bring a changed LaunchAgent: load it again.
+    launchctl bootout "gui/$uid/$TRAY_LABEL" >/dev/null 2>&1 || true
+    if launchctl bootstrap "gui/$uid" "$TRAY_PLIST" 2>/dev/null; then
+        return 0
+    fi
+    launchctl kickstart -k "gui/$uid/$TRAY_LABEL" >/dev/null 2>&1 && return 0
+    # Last resort, as that user (root asks no password).
+    launchctl asuser "$uid" /usr/bin/sudo -u "#$uid" /usr/bin/open -a "$APP" ||
+        log "could not open the menu bar app; it starts at the next login"
+}
+
+enroll "${1:-}"
+start_service
+open_tray
+exit 0

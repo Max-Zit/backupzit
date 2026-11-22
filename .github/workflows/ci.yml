@@ -49,6 +49,44 @@ jobs:
           go build ./...
           go vet ./...
 
+  macos:
+    # The macOS agent (Apple Silicon): built natively, since the menu bar
+    # app needs cgo and AppKit. Only the agent-side packages are tested
+    # here: the console runs on Linux.
+    name: Build and test (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: go build and go vet
+        run: |
+          go build ./...
+          go vet ./...
+      - name: Tests (agent-side packages)
+        run: >-
+          go test -count=1 -timeout 30m
+          ./internal/agent ./internal/archiver ./internal/restorer ./internal/fsutil ./internal/repo
+          ./internal/e2e ./internal/macperm ./internal/localipc ./cmd/backupzit-agent
+      - name: Installer scripts
+        run: |
+          for f in packaging/macos/build-pkg.sh packaging/macos/uninstall.sh packaging/macos/test-scripts.sh \
+                   packaging/macos/scripts/preinstall packaging/macos/scripts/postinstall; do
+            /bin/sh -n "$f"
+          done
+          ./packaging/macos/test-scripts.sh
+      - name: Installer package (built and checked, not uploaded)
+        run: |
+          OUT_DIR="$RUNNER_TEMP/pkg" WORK_DIR="$RUNNER_TEMP/pkgwork" ./packaging/macos/build-pkg.sh 0.0.0-ci
+          pkg="$RUNNER_TEMP/pkg/backupzit-agent_0.0.0-ci_darwin_arm64.pkg"
+          pkgutil --payload-files "$pkg" | grep -qx './Library/BackupZit/bin/backupzit-agent'
+          pkgutil --payload-files "$pkg" | grep -qx './Applications/BackupZit.app/Contents/Info.plist'
+          pkgutil --expand "$pkg" "$RUNNER_TEMP/pkgexpanded"
+          test -x "$RUNNER_TEMP/pkgexpanded/backupzit-agent-component.pkg/Scripts/postinstall"
+          test -f "$RUNNER_TEMP/pkgexpanded/Resources/en.lproj/conclusion.html"
+
   staticcheck:
     name: staticcheck
     runs-on: ubuntu-latest
@@ -58,12 +96,13 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - name: staticcheck (Linux and Windows)
+      - name: staticcheck (Linux, Windows and macOS)
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@v0.8.2
           checks="all,-ST1000,-ST1003,-ST1005,-ST1013,-ST1020,-ST1021,-ST1022,-S1011,-S1017,-SA1019"
           staticcheck -checks "$checks" ./...
           GOOS=windows staticcheck -checks "$checks" ./...
+          GOOS=darwin GOARCH=arm64 staticcheck -checks "$checks" ./...
 
   gosec:
     name: gosec (Linux and Windows)
@@ -80,6 +119,7 @@ jobs:
           # third_party/ holds patched copies of other projects (see their NOTICE.BackupZit).
           gosec -quiet -exclude-dir=third_party ./...
           GOOS=windows gosec -quiet -exclude-dir=third_party ./...
+          GOOS=darwin GOARCH=arm64 gosec -quiet -exclude-dir=third_party ./...
 
   govulncheck:
     name: govulncheck (Go vulnerability database)
