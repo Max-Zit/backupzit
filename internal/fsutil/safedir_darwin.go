@@ -162,8 +162,30 @@ func (d *Dir) Mknod(name string, mode uint32, dev int) error {
 	return nil
 }
 
-// ClearReadOnly: Windows only.
-func (d *Dir) ClearReadOnly(string) {}
+// lockFlags refuse that a file is replaced by a rename.
+const lockFlags = unix.UF_IMMUTABLE | unix.UF_APPEND | unix.SF_IMMUTABLE | unix.SF_APPEND
+
+// ClearReadOnly removes the immutable and append-only flags of the regular
+// file name, so that a restored file can replace it (one restored with
+// them before, as Windows clears the read-only attribute). The file is
+// opened relative to the folder without following a link; the kernel only
+// lets its owner or root clear the flags.
+func (d *Dir) ClearReadOnly(name string) {
+	dfd, err := d.Fd()
+	if err != nil {
+		return
+	}
+	fd, err := unix.Openat(dfd, name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return
+	}
+	defer unix.Close(fd) //nolint:errcheck // read only
+	var st unix.Stat_t
+	if unix.Fstat(fd, &st) != nil || st.Mode&unix.S_IFMT != unix.S_IFREG || st.Flags&lockFlags == 0 {
+		return
+	}
+	_ = unix.Fchflags(fd, int(st.Flags&^lockFlags))
+}
 
 func trustedUID(uid uint32) bool { return uid == 0 || int(uid) == os.Geteuid() }
 

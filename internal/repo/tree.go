@@ -118,4 +118,14 @@ type UnixMeta struct {
 	// LinkKey identifies files with several hard links within a snapshot
 	// ("device:inode"); restore links the later ones to the first.
 	LinkKey string `json:"link_key,omitempty"`
+	// Flags are the BSD file flags of macOS (st_flags: UF_HIDDEN,
+	// UF_NODUMP, UF_IMMUTABLE, SF_APPEND, ...) as read. The restore sets
+	// only those a user or root may set again: never UF_COMPRESSED (the
+	// stored data is the decompressed content) nor the flags the kernel
+	// manages (SIP, iCloud, document tracking). Zero, and absent from
+	// the JSON, on Linux.
+	Flags uint32 `json:"flags,omitempty"`
+	// Birthtime is the creation time of the entry (macOS); zero, and
+	// absent from the JSON, where the system does not record one (Linux).
+	Birthtime time.Time `json:"birthtime,omitzero"`
 }

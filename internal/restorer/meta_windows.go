@@ -21,7 +21,7 @@ func applyFileMeta(*os.File, *repo.Node, bool) []error { return nil }
 // afterRename sets attributes and times of the restored file name in d.
 // Attributes are always applied: zero means "no preserved attributes set"
 // and must clear e.g. the archive bit Windows put on the new file.
-func afterRename(d *fsutil.Dir, name string, n *repo.Node) []error {
+func afterRename(d *fsutil.Dir, name string, _ fsutil.FileID, n *repo.Node) []error {
 	if err := d.SetMeta(name, n.WinAttrs, true, n.ModTime); err != nil {
 		return []error{err}
 	}

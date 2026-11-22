@@ -71,6 +71,10 @@ type Archiver struct {
 	// pseudo are mount points of kernel file systems (Linux): kept as empty
 	// folders, never read.
 	pseudo map[string]bool
+	// skips are system folders kept empty (macOS: caches, swap, other
+	// volumes; systemSkips), except roots, the paths the job names.
+	skips *skipSet
+	roots []string
 	// links maps hard link keys to the first stored node.
 	links map[string]*repo.Node
 }
@@ -80,15 +84,17 @@ type Archiver struct {
 func (a *Archiver) src(p string) string { return a.snaps.Map(p) }
 
 // storeEmpty tells whether the directory p on device dev is kept as an empty
-// folder: a mount point of another file system with OneFileSystem, or a
-// kernel file system. A path listed in ExtraMounts was asked for explicitly
-// and is always read (a system backup lists /boot even when it is also
-// seen as an automount point).
+// folder: a mount point of another file system with OneFileSystem, a
+// kernel file system, or a system folder of systemSkips below a source. A
+// path listed in ExtraMounts was asked for explicitly and is always read
+// (a system backup lists /boot even when it is also seen as an automount
+// point).
 func (a *Archiver) storeEmpty(p string, dev uint64) bool {
 	if slices.Contains(a.opts.ExtraMounts, p) {
 		return false
 	}
-	return a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev || a.pseudo[p]
+	return a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev || a.pseudo[p] ||
+		a.skips.match(p) && !slices.Contains(a.roots, p)
 }
 
 // Run backs up opts.Paths and saves a snapshot.
@@ -127,6 +133,8 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		buf:    make([]byte, chunker.MaxSize),
 		chk:    chunker.New(nil, r.ChunkerPolynomial()),
 		pseudo: pseudoMounts(),
+		skips:  systemSkips(abs),
+		roots:  abs,
 	}
 	start := time.Now()
 	before := r.Stats()
@@ -236,6 +244,8 @@ func Dir(ctx context.Context, r *repo.Repository, dir, name string, parent *repo
 		buf:    make([]byte, chunker.MaxSize),
 		chk:    chunker.New(nil, r.ChunkerPolynomial()),
 		pseudo: pseudoMounts(),
+		skips:  systemSkips([]string{dir}),
+		roots:  []string{dir},
 	}
 	n, ok, err := a.archivePath(ctx, dir, name, parent)
 	if err != nil {

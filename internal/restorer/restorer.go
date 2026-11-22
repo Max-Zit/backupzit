@@ -509,7 +509,7 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 		_ = dir.Remove(tmp)
 		return none, err
 	}
-	metaErrs = append(metaErrs, afterRename(dir, name, n)...)
+	metaErrs = append(metaErrs, afterRename(dir, name, id, n)...)
 	for _, err := range metaErrs {
 		rs.addError(dst, err)
 	}
