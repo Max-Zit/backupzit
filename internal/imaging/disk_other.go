@@ -82,3 +82,11 @@ func AddDriversToWindows(context.Context, WindowsInstall, string) (int, error) {
 func RestorePartition(context.Context, *repo.Repository, *repo.Snapshot, PartitionRestoreOptions) (*RestoreStats, error) {
 	return nil, ErrUnsupported
 }
+
+// LockedBitLockerVolumes is Windows only.
+func LockedBitLockerVolumes() ([]LockedVolume, error) { return nil, ErrUnsupported }
+
+// UnlockBitLocker is Windows only.
+func UnlockBitLocker(context.Context, LockedVolume, string) (string, error) {
+	return "", ErrUnsupported
+}

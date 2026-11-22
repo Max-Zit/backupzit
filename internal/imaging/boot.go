@@ -1,5 +1,10 @@
 package imaging
 
+import (
+	"regexp"
+	"strings"
+)
+
 // Firmware types of the machine the recovery environment runs on.
 const (
 	FirmwareUEFI    = "uefi"
@@ -107,3 +112,17 @@ type BootRepairOptions struct {
 	// anything is changed.
 	BackupDir string
 }
+
+// LockedVolume is a BitLocker volume that is locked.
+type LockedVolume struct {
+	Disk      int    `json:"disk"`
+	Partition int    `json:"partition"`
+	Length    uint64 `json:"length"`
+	guidPath  string
+}
+
+// recoveryKeyRe matches a BitLocker recovery password: 8 groups of 6 digits.
+var recoveryKeyRe = regexp.MustCompile(`^\d{6}(-\d{6}){7}$`)
+
+// ValidRecoveryKey tells whether s looks like a BitLocker recovery key.
+func ValidRecoveryKey(s string) bool { return recoveryKeyRe.MatchString(strings.TrimSpace(s)) }

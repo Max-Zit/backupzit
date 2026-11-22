@@ -24,3 +24,14 @@ func TestBootFilesFor(t *testing.T) {
 		}
 	}
 }
+
+func TestValidRecoveryKey(t *testing.T) {
+	if !ValidRecoveryKey("123456-234567-345678-456789-567890-678901-789012-890123") {
+		t.Error("valid key refused")
+	}
+	for _, k := range []string{"", "123456", "123456-234567-345678-456789-567890-678901-789012-89012x", "1234567-234567-345678-456789-567890-678901-789012-890123"} {
+		if ValidRecoveryKey(k) {
+			t.Errorf("%q accepted", k)
+		}
+	}
+}

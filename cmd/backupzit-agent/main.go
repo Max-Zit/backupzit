@@ -55,6 +55,7 @@ Disk images (Windows):
   image-extract  Copy files out of an imaged partition
   prepare-hardware  Prepare a restored Windows disk for different hardware
   drivers           Devices without driver, load drivers (recovery environment), add drivers to a Windows
+  bitlocker         List locked BitLocker volumes, unlock one with its recovery key
   boot-repair       Make an existing Windows start again (boot files, MBR, active partition)
   access-package    Store repository credentials encrypted for the recovery medium (create, show)
 
@@ -209,6 +210,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdAccessPackage(ctx, rest)
 	case "drivers":
 		return cmdDrivers(ctx, rest)
+	case "bitlocker":
+		return cmdBitLocker(ctx, rest)
 	case "boot-repair":
 		return cmdBootRepair(ctx, rest)
 	case "partition-restore":
