@@ -56,14 +56,16 @@ func inPart(sn *repo.Snapshot, run api.Run) bool {
 // applyRetention removes snapshots of the run's job that the policy no
 // longer keeps and frees their data. It returns the removed snapshot IDs
 // and a summary for the run message. Failures here do not fail the
-// backup that just succeeded; they are reported as text.
+// backup that just succeeded: they are reported as text, and the run ends
+// with a warning (0.58: also when the repository could not be listed or
+// locked, so a retention that never runs does not go unnoticed).
 func (a *Agent) applyRetention(ctx context.Context, r *repo.Repository, run api.Run) (forgotten []string, note string, warn bool) {
 	if run.Retention == nil || run.Retention.Empty() || run.JobID == 0 {
 		return nil, "", false
 	}
 	sns, err := r.ListSnapshots(ctx)
 	if err != nil {
-		return nil, "retention skipped: " + err.Error(), false
+		return nil, "retention skipped: " + err.Error(), true
 	}
 	var mine []*repo.Snapshot
 	for _, sn := range sns {
@@ -90,7 +92,7 @@ func (a *Agent) applyRetention(ctx context.Context, r *repo.Repository, run api.
 
 	lock, err := r.Lock(ctx, true, lockWait)
 	if err != nil {
-		return nil, "retention skipped: " + err.Error(), false
+		return nil, "retention skipped: " + err.Error(), true
 	}
 	defer lock.Unlock()
 	for _, sn := range remove {
