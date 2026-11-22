@@ -3,7 +3,8 @@
 // sees every file as of one moment, also those a program keeps writing.
 //
 // The snapshot is made with "tmutil localsnapshot" (no root needed), mounted
-// read-only in a private temporary folder with mount_apfs (root needed) and
+// read-only in a private temporary folder with mount_apfs (root and Full
+// Disk Access needed: macOS refuses the mount to root without it) and
 // deleted with "tmutil deletelocalsnapshots" after the backup. Files live on
 // the data volume (/System/Volumes/Data) and macOS shows most of them at
 // their usual place through firmlinks (/Users is /System/Volumes/Data/Users),
@@ -31,6 +32,7 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/leftover"
+	"github.com/max-zit/backupzit/internal/macperm"
 )
 
 // DataVolume is where macOS mounts the startup disk's data volume.
@@ -76,6 +78,11 @@ type system struct {
 	cleanupTimeout time.Duration
 	// retryWait is the pause before checking a deletion again.
 	retryWait time.Duration
+	// fullDiskAccess tells whether this process has Full Disk Access, and
+	// isRoot whether it runs as root: both decide whether a snapshot can
+	// be mounted at all.
+	fullDiskAccess func() macperm.State
+	isRoot         func() bool
 }
 
 var sys = &system{
@@ -87,6 +94,8 @@ var sys = &system{
 	firmlinks:      systemFirmlinks,
 	cleanupTimeout: 2 * time.Minute,
 	retryWait:      2 * time.Second,
+	fullDiskAccess: macperm.FullDiskAccess,
+	isRoot:         func() bool { return os.Geteuid() == 0 },
 }
 
 // runCommand is the real Runner. A failure carries the tool's own message.
@@ -162,6 +171,15 @@ func (y *system) create(ctx context.Context, paths []string, timeout time.Durati
 	}
 	if !need {
 		return s, nil
+	}
+	// macOS (TCC) mounts a snapshot only for a program with Full Disk
+	// Access, root included. Without it tmutil would still make a snapshot,
+	// which takes up to a minute and could then not be mounted: the files
+	// are read without a snapshot at once, with the real reason (issue #4).
+	// An undetermined state is tried, as before.
+	if y.fullDiskAccess() == macperm.Denied {
+		onErr("apfs snapshot", fmt.Errorf("no APFS local snapshot of %s was taken, reading files without a snapshot: macOS mounts a snapshot only for a program with Full Disk Access (System Settings > Privacy & Security > Full Disk Access)", DataVolume))
+		return &Set{sys: y}, nil
 	}
 	if timeout <= 0 {
 		timeout = 5 * time.Minute
@@ -245,7 +263,7 @@ func (y *system) acquire(runCtx context.Context, timeout time.Duration) (*snapsh
 	sn.item.Detail = dir
 	leftover.Add(runCtx, sn.item)
 	if _, err := y.run(ctx, mountAPFS, mountArgs(date, dir)...); err != nil {
-		return nil, errors.Join(withRootHint(err), y.release(sn))
+		return nil, errors.Join(withMountHint(err, y.isRoot()), y.release(sn))
 	}
 	if m, err := y.mountOf(dir); err != nil || m != dir {
 		return nil, errors.Join(fmt.Errorf("the snapshot is not mounted on %s after mount_apfs", dir), y.release(sn))
@@ -277,13 +295,20 @@ func mountArgs(date, dir string) []string {
 	return []string{"-o", "rdonly,nobrowse", "-s", SnapshotName(date), DataVolume, dir}
 }
 
-// withRootHint explains the usual reason mount_apfs refuses: only root may
-// mount (the agent service runs as root; a command line run may not).
-func withRootHint(err error) error {
-	if s := err.Error(); strings.Contains(s, "Operation not permitted") || strings.Contains(s, "exit status 77") {
-		return fmt.Errorf("%w (mounting a snapshot needs root: the agent service runs as root)", err)
+// withMountHint explains the usual reasons mount_apfs refuses ("Operation
+// not permitted"): a process that is not root (a command line run; the
+// agent service runs as root), or, for root, missing Full Disk Access,
+// which macOS requires to mount a snapshot even for root. Saying "needs
+// root" to the root service misled (issue #4).
+func withMountHint(err error, root bool) error {
+	s := err.Error()
+	if !strings.Contains(s, "Operation not permitted") && !strings.Contains(s, "exit status 77") {
+		return err
 	}
-	return err
+	if root {
+		return fmt.Errorf("%w (macOS mounts a snapshot only for a program with Full Disk Access: System Settings > Privacy & Security > Full Disk Access)", err)
+	}
+	return fmt.Errorf("%w (mounting a snapshot needs root: the agent service runs as root)", err)
 }
 
 // release unmounts the snapshot, removes its mount point and deletes it,

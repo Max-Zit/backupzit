@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/max-zit/backupzit/internal/macperm"
 	"os"
 	"path/filepath"
 	"slices"
@@ -121,6 +122,8 @@ func (f *fakeMac) system() *system {
 		firmlinks:      func() []firmlink { return defaultFirmlinks },
 		cleanupTimeout: time.Minute,
 		retryWait:      time.Millisecond,
+		fullDiskAccess: func() macperm.State { return macperm.Granted },
+		isRoot:         func() bool { return true },
 	}
 }
 
@@ -228,15 +231,16 @@ func TestOtherVolumesReadLive(t *testing.T) {
 	}
 }
 
-// A failed snapshot (tmutil refuses, mount_apfs needs root) is reported;
-// what was made is removed and everything is read live.
+// A failed snapshot (tmutil refuses, mount_apfs refuses root without Full
+// Disk Access) is reported; what was made is removed and everything is read
+// live.
 func TestSnapshotFailureFallsBack(t *testing.T) {
 	for _, tc := range []struct {
 		fail, want string
 		calls      []string
 	}{
 		{"tmutil localsnapshot", "APFS local snapshot of /System/Volumes/Data failed, reading files without a snapshot", []string{"tmutil localsnapshot"}},
-		{"mount_apfs -o", "mounting a snapshot needs root", []string{
+		{"mount_apfs -o", "macOS mounts a snapshot only for a program with Full Disk Access", []string{
 			"tmutil localsnapshot",
 			"mount_apfs -o rdonly,nobrowse -s com.apple.TimeMachine.2026-11-22-194429.local /System/Volumes/Data /tmp/backupzit-apfs-1",
 			"tmutil deletelocalsnapshots 2026-11-22-194429",
@@ -501,5 +505,40 @@ func TestRealMountDirCanonical(t *testing.T) {
 	defer func() { _ = os.Remove(dir) }()
 	if r, err := filepath.EvalSymlinks(dir); err != nil || r != dir || !ownMountDir(dir) {
 		t.Fatalf("mount point %s resolves to %s (%v)", dir, r, err)
+	}
+}
+
+// Without Full Disk Access macOS refuses to mount a snapshot, even to
+// root: none is made (it would take a minute for nothing) and the report
+// names the permission (issue #4).
+func TestNoSnapshotWithoutFullDiskAccess(t *testing.T) {
+	f := newFakeMac()
+	y := f.system()
+	y.fullDiskAccess = func() macperm.State { return macperm.Denied }
+	errs, onErr := collect()
+	set, err := y.create(context.Background(), []string{"/Users/alice"}, time.Minute, onErr)
+	if err != nil || set == nil || set.snap != nil {
+		t.Fatalf("set %+v, %v", set, err)
+	}
+	if len(f.calls) != 0 {
+		t.Errorf("commands run: %q", f.calls)
+	}
+	if len(*errs) != 1 || !strings.Contains((*errs)[0], "Full Disk Access") {
+		t.Errorf("report: %q", *errs)
+	}
+}
+
+// A refused mount is explained by the permission root lacks, not by root.
+func TestMountHint(t *testing.T) {
+	refused := errors.New("mount_apfs ...: exit status 77: mount_apfs: volume could not be mounted: Operation not permitted")
+	if got := withMountHint(refused, true).Error(); !strings.Contains(got, "Full Disk Access") || strings.Contains(got, "needs root") {
+		t.Errorf("root: %s", got)
+	}
+	if got := withMountHint(refused, false).Error(); !strings.Contains(got, "needs root") {
+		t.Errorf("not root: %s", got)
+	}
+	other := errors.New("mount_apfs: no such snapshot")
+	if withMountHint(other, true) != other {
+		t.Error("other errors get a hint")
 	}
 }
