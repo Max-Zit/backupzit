@@ -24,6 +24,14 @@ func cmdStatus(ctx context.Context) error {
 	if st.LastError != "" {
 		fmt.Printf("          last error: %s\n", st.LastError)
 	}
+	if p := st.MacPermissions; p != nil {
+		// Only the macOS agent reports it.
+		fmt.Printf("full disk access: %s", p.FullDiskAccess)
+		if p.FullDiskAccess != "granted" {
+			fmt.Printf(" (System Settings > Privacy & Security > Full Disk Access: switch on %s)", p.AgentPath)
+		}
+		fmt.Println()
+	}
 	ts := func(t *time.Time) string {
 		if t == nil {
 			return "â€”"

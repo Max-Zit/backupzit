@@ -75,7 +75,7 @@ func summarize(st *localipc.Status, callErr error, now time.Time) Summary {
 	s := Summary{Percent: -1, Jobs: []JobView{}}
 	if st == nil {
 		s.State, s.Headline = "offline", "Agent service is not running"
-		s.Detail = "Start the \"BackupZit Agent\" service or reinstall the agent."
+		s.Detail = serviceHint
 		if callErr != nil {
 			s.Error = callErr.Error()
 		}
@@ -201,7 +201,7 @@ func summarize(st *localipc.Status, callErr error, now time.Time) Summary {
 // tooltip is the short text shown on hover (Windows limits it to 127
 // characters).
 //
-//lint:ignore U1000 used by the Windows tray
+//lint:ignore U1000 used by the Windows and macOS trays
 func (s Summary) tooltip() string {
 	t := "BackupZit — " + s.Headline
 	if s.State == "running" && s.Percent >= 0 {
