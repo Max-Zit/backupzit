@@ -24,6 +24,18 @@ func dirLink(t *testing.T, target, link string) {
 	t.Skip("cannot create a link to a folder")
 }
 
+// realTempDir is a test folder by its path without links: on macOS the
+// temporary folder is below /var, a link to /private/var, which the tests
+// that trust no link would refuse before they reach their own links.
+func realTempDir(t *testing.T) string {
+	t.Helper()
+	p, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return filepath.Clean(p)
+}
+
 func trusting(t *testing.T, on bool) {
 	old := trustLink
 	trustLink = func(bool) bool { return on }
@@ -31,7 +43,7 @@ func trusting(t *testing.T, on bool) {
 }
 
 func TestOpenOriginalCreatesAndFollowsTrustedLinks(t *testing.T) {
-	base, outside := filepath.Clean(t.TempDir()), filepath.Clean(t.TempDir())
+	base, outside := realTempDir(t), realTempDir(t)
 	d, err := OpenOriginal(filepath.Join(base, "a", "b"))
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +84,7 @@ func TestOpenOriginalCreatesAndFollowsTrustedLinks(t *testing.T) {
 // A folder of the path swapped for a link after it was opened changes
 // nothing: the writes go into the folder that was opened.
 func TestDirSwappedAfterOpen(t *testing.T) {
-	base, outside := filepath.Clean(t.TempDir()), filepath.Clean(t.TempDir())
+	base, outside := realTempDir(t), realTempDir(t)
 	trusting(t, false)
 	d, err := OpenOriginal(filepath.Join(base, "C"))
 	if err != nil {
@@ -103,7 +115,7 @@ func TestDirSwappedAfterOpen(t *testing.T) {
 // Below a restore folder a link where a folder belongs is replaced by a
 // real folder.
 func TestSubReplacesLinksBelowRestoreFolder(t *testing.T) {
-	base, outside := filepath.Clean(t.TempDir()), filepath.Clean(t.TempDir())
+	base, outside := realTempDir(t), realTempDir(t)
 	dirLink(t, outside, filepath.Join(base, "C"))
 	d, err := OpenFolder(base)
 	if err != nil {
@@ -141,7 +153,7 @@ func TestSubReplacesLinksBelowRestoreFolder(t *testing.T) {
 }
 
 func TestOpenOriginalRelativeSymlink(t *testing.T) {
-	base := filepath.Clean(t.TempDir())
+	base := realTempDir(t)
 	if err := os.MkdirAll(filepath.Join(base, "real", "x"), 0o755); err != nil {
 		t.Fatal(err)
 	}

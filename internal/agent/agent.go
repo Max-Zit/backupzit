@@ -116,9 +116,19 @@ func httpClient(fingerprint string) *http.Client {
 	return &http.Client{Transport: tr, Timeout: 60 * time.Second}
 }
 
+// reportOSEnv overrides the operating system the agent reports to the
+// console. Development aid: a macOS agent set to e.g. "Debian GNU/Linux 12"
+// is handled by a console that does not know macOS agents yet exactly like
+// a Linux agent.
+const reportOSEnv = "BACKUPZIT_REPORT_OS"
+
 func hostInfo(version string) (hostname, osName, arch string) {
 	hostname, _ = os.Hostname()
-	return hostname, osDescription(), runtime.GOARCH
+	osName = osDescription()
+	if v := strings.TrimSpace(os.Getenv(reportOSEnv)); v != "" {
+		osName = v
+	}
+	return hostname, osName, runtime.GOARCH
 }
 
 // Enroll registers this machine with the server and returns the config to save.

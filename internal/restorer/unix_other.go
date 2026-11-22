@@ -1,4 +1,4 @@
-//go:build !windows && !linux
+//go:build !linux && !windows && !darwin
 
 package restorer
 

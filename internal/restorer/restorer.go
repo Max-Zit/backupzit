@@ -388,6 +388,9 @@ func (rs *restorer) openDirOf(p string) (*fsutil.Dir, error) {
 	return d, nil
 }
 
+// hole is a range of zeros skipped instead of written (offset, length).
+type hole struct{ off, n int64 }
+
 // linkTo creates name in dir as a hard link to the file restored at first.
 // firstLink is the first restored file of a set of hard links.
 type firstLink struct {
@@ -450,6 +453,7 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 	// did not record the attribute (those files stay as they were
 	// restored before).
 	marked := n.WinAttrs&fsutil.AttrSparse == 0 // true: nothing to mark
+	var holes []hole
 	for _, id := range n.Content {
 		data, err := rs.r.LoadBlob(ctx, repo.DataBlob, id)
 		if err != nil {
@@ -467,6 +471,12 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 				_ = markSparse(f)
 				marked = true
 			}
+			// #nosec G115 -- file sizes are below 2^63
+			if last := len(holes) - 1; last >= 0 && holes[last].off+holes[last].n == int64(written) {
+				holes[last].n += int64(len(data)) // one range for consecutive chunks of zeros
+			} else {
+				holes = append(holes, hole{int64(written), int64(len(data))})
+			}
 			_, err = f.Seek(int64(len(data)), io.SeekCurrent)
 		} else {
 			_, err = f.Write(data)
@@ -480,6 +490,10 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 	if err := f.Truncate(int64(written)); err != nil { // #nosec G115 -- file sizes are below 2^63
 		return fail(err)
 	}
+	// Where the file system filled skipped ranges with zeros (APFS does
+	// for gaps below 16 MiB), they are freed again; if it cannot, the
+	// zeros stay, as before.
+	_ = punchHoles(f, holes)
 	if written != n.Size {
 		return fail(fmt.Errorf("restored %d bytes, snapshot says %d", written, n.Size))
 	}
