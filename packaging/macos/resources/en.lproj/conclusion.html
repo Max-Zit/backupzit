@@ -54,11 +54,9 @@ reports a missing permission to your BackupZit console.</p>
 
 <h2>Not enrolled yet?</h2>
 <p>If you did not provide an enrollment code, copy one from the console (<b>Agents &gt; Create
-enrollment token</b>) and run in Terminal, one command after the other:<br>
+enrollment token</b>) and run in Terminal:<br>
 <code>sudo /Library/BackupZit/bin/backupzit-agent enroll --code BZ1-...</code><br>
-<!-- Drop this command once "service install" works before enrollment on macOS. -->
-<code>sudo /Library/BackupZit/bin/backupzit-agent service install &amp;&amp; sudo /Library/BackupZit/bin/backupzit-agent service start</code><br>
-The second command starts the agent: without an enrollment the installer could not.</p>
+The agent is already running and starts working as soon as it is enrolled.</p>
 
 <p class="note">To remove BackupZit later: <code>sudo /Library/BackupZit/uninstall.sh</code></p>
 </body>

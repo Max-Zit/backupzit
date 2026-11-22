@@ -14,21 +14,10 @@ const (
 	// among other causes, the label is still listed in the domain because
 	// a bootout has not finished yet.
 	errIO = 5
-	// errInProgress (EINPROGRESS, "Operation now in progress") is what
-	// bootout returns when the job's process does not exit at once: the
-	// unload goes on in the background.
-	errInProgress = 36
 	// errAlready (EALREADY, "Operation already in progress") is bootstrap's
 	// answer while a bootout of the same label is still running.
 	errAlready = 37
-	// errNotFound (ESRCH, "Could not find service") is the exit status
-	// when the domain has no such job.
-	errNotFound = 113
 )
-
-// pollInterval is how often the state of a job is read while waiting for
-// launchd to finish unloading or loading it.
-const pollInterval = 500 * time.Millisecond
 
 // exitCode is launchctl's exit status in an error from run: 0 for no error,
 // -1 when launchctl did not run or did not exit normally.

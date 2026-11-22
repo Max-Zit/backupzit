@@ -55,12 +55,9 @@ signale aussi une autorisation manquante à votre console BackupZit.</p>
 
 <h2>Pas encore inscrit ?</h2>
 <p>Si vous n’avez pas fourni de code d’inscription, copiez-en un depuis la console
-(<b>Agents &gt; Créer un jeton d’inscription</b>) et lancez dans le Terminal, une commande après
-l’autre :<br>
+(<b>Agents &gt; Créer un jeton d’inscription</b>) et lancez dans le Terminal :<br>
 <code>sudo /Library/BackupZit/bin/backupzit-agent enroll --code BZ1-...</code><br>
-<!-- Drop this command once "service install" works before enrollment on macOS. -->
-<code>sudo /Library/BackupZit/bin/backupzit-agent service install &amp;&amp; sudo /Library/BackupZit/bin/backupzit-agent service start</code><br>
-La seconde commande démarre l’agent : sans inscription, le programme d’installation ne le pouvait pas.</p>
+L’agent tourne déjà et se met au travail dès qu’il est inscrit.</p>
 
 <p class="note">Pour supprimer BackupZit plus tard : <code>sudo /Library/BackupZit/uninstall.sh</code></p>
 </body>

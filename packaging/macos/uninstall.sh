@@ -19,7 +19,9 @@ esac
 
 AGENT=/Library/BackupZit/bin/backupzit-agent
 TRAY_LABEL=com.backupzit.tray
+# The agent's own folders on macOS (agent.DefaultConfigPath, agent.LogPath).
 SUPPORT="/Library/Application Support/BackupZit"
+LOGS=/Library/Logs/BackupZit
 
 # The agent's daemon, through its own command; then whatever is left of it
 # if the program is gone already.
@@ -49,7 +51,7 @@ rm -f /Library/LaunchAgents/com.backupzit.tray.plist
 rm -f /var/run/backupzit-agent.sock
 rm -f "$SUPPORT/enroll-code"
 if [ -n "$PURGE" ]; then
-    rm -rf /etc/backupzit /var/log/backupzit "$SUPPORT"
+    rm -rf "$SUPPORT" "$LOGS"
 else
     rmdir "$SUPPORT" 2>/dev/null || true
 fi
@@ -60,6 +62,6 @@ rm -rf /Library/BackupZit
 if [ -n "$PURGE" ]; then
     echo "BackupZit agent removed, with its configuration and logs."
 else
-    echo "BackupZit agent removed; its configuration is kept in /etc/backupzit (sudo rm -rf /etc/backupzit /var/log/backupzit deletes it)."
+    echo "BackupZit agent removed; its configuration is kept in $SUPPORT and its log in $LOGS (sudo rm -rf \"$SUPPORT\" $LOGS deletes them)."
 fi
 echo "Remove BackupZit from System Settings > Privacy & Security > Full Disk Access if it is still listed."

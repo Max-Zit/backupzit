@@ -17,4 +17,4 @@ func snapshotMessage(volumes []string) string {
 }
 
 // permissionWarning: only macOS has permissions the user must grant.
-func permissionWarning() string { return "" }
+func permissionWarning([]string) string { return "" }

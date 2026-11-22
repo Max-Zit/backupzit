@@ -141,6 +141,12 @@ while plutil -extract "$i" xml1 -o /dev/null "$WORK/components.plist" >/dev/null
     i=$((i + 1))
 done
 
+# Extended attributes the build leaves on the files (a quarantine flag, Finder
+# info) would be installed on every Mac as such (._ entries of the payload).
+# com.apple.provenance stays: the kernel keeps it on files made on macOS 13+
+# and sets its own on the installed ones.
+xattr -cr "$PAY"
+
 mkdir -p "$WORK/packages"
 pkgbuild --root "$PAY" --component-plist "$WORK/components.plist" --scripts "$WORK/scripts" \
     --identifier com.backupzit.agent --version "$PKG_VERSION" --install-location / \

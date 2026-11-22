@@ -30,8 +30,10 @@ AGENT=/Library/BackupZit/bin/backupzit-agent
 APP=/Applications/BackupZit.app
 TRAY_PLIST=/Library/LaunchAgents/com.backupzit.tray.plist
 TRAY_LABEL=com.backupzit.tray
-MDM_CODE="/Library/Application Support/BackupZit/enroll-code"
-CFG_DIR=/etc/backupzit
+# The agent's own folders on macOS (agent.DefaultConfigPath, agent.LogPath).
+CFG_DIR="/Library/Application Support/BackupZit"
+LOG_FILE=/Library/Logs/BackupZit/agent.log
+MDM_CODE="$CFG_DIR/enroll-code"
 AGENT_CFG=$CFG_DIR/agent.json
 
 # Messages go to stderr: what read_code prints is the code itself.
@@ -143,20 +145,17 @@ enroll() {
     fi
 }
 
-# start_service installs the LaunchDaemon on the first installation; an
+# start_service installs the LaunchDaemon on the first installation (also
+# before enrollment: the service waits for a code, like the MSI's); an
 # upgrade keeps it (preinstall stopped it) and starts the new program.
 start_service() {
-    mkdir -p "$CFG_DIR"
-    chmod 700 "$CFG_DIR"
     if ! "$AGENT" service status >/dev/null 2>&1; then
         if ! "$AGENT" service install; then
-            log "the agent service is not installed yet; once enrolled, run in Terminal:"
-            log "  sudo $AGENT enroll --code BZ1-...   (Agents > Create enrollment token in the console)"
-            log "  sudo $AGENT service install && sudo $AGENT service start"
+            log "the agent service could not be installed; run in Terminal: sudo $AGENT service install"
             return 0
         fi
     fi
-    "$AGENT" service start || log "the agent service did not start (log: /var/log/backupzit/agent.log)"
+    "$AGENT" service start || log "the agent service did not start (log: $LOG_FILE)"
 }
 
 # open_tray starts the menu bar app for the user at the screen now; other

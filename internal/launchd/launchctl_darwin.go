@@ -11,6 +11,21 @@ import (
 	"time"
 )
 
+// launchctl exit statuses of bootout and print (see wait.go for the others).
+const (
+	// errInProgress (EINPROGRESS, "Operation now in progress") is what
+	// bootout returns when the job's process does not exit at once: the
+	// unload goes on in the background.
+	errInProgress = 36
+	// errNotFound (ESRCH, "Could not find service") is the exit status
+	// when the domain has no such job.
+	errNotFound = 113
+)
+
+// pollInterval is how often the state of a job is read while waiting for
+// launchd to finish unloading or loading it.
+const pollInterval = 500 * time.Millisecond
+
 // launchctl is the system's launchctl: by absolute path, so the agent never
 // runs another program of that name found in PATH.
 const launchctl = "/bin/launchctl"

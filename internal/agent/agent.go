@@ -720,7 +720,7 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 	}
 	if run.NAS == nil {
 		// Local files only: a share's access does not depend on it.
-		if w := permissionWarning(); w != "" {
+		if w := permissionWarning(paths); w != "" {
 			res.Status = api.StatusWarning
 			res.Message = strings.TrimSpace(w + " " + res.Message)
 		}

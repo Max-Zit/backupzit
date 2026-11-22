@@ -48,8 +48,8 @@ func groupName(gid uint32) string {
 	return n
 }
 
-// unixMeta reads owner, device number, hard link identity and extended
-// attributes of p.
+// unixMeta reads owner, device number, hard link identity, extended
+// attributes and, on macOS, file flags and creation time of p.
 func unixMeta(p string, fi fs.FileInfo) *repo.UnixMeta {
 	st, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
@@ -64,6 +64,7 @@ func unixMeta(p string, fi fs.FileInfo) *repo.UnixMeta {
 		m.LinkKey = fmt.Sprintf("%d:%d", st.Dev, st.Ino)
 	}
 	m.Xattrs = readXattrs(p)
+	statExtra(m, st)
 	return m
 }
 
