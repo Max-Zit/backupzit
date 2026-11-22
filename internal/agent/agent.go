@@ -218,7 +218,8 @@ type Agent struct {
 	client  *Client
 	log     *slog.Logger
 	version string
-	// VSS makes Windows backups read from shadow copies (default on Windows).
+	// VSS makes files backups read from a snapshot: shadow copies on
+	// Windows, an APFS local snapshot on macOS (default on both).
 	VSS bool
 	// InventoryInterval is how often disks are reported (default 15 min).
 	InventoryInterval time.Duration
@@ -258,7 +259,7 @@ type Agent struct {
 }
 
 func New(cfg *Config, log *slog.Logger, version string) *Agent {
-	return &Agent{client: NewClient(cfg), log: log, version: version, VSS: runtime.GOOS == "windows", instance: newInstanceID()}
+	return &Agent{client: NewClient(cfg), log: log, version: version, VSS: readsSnapshots, instance: newInstanceID()}
 }
 
 // PollOnce sends one heartbeat and starts a run if one was assigned.
@@ -701,11 +702,18 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 	stats, _ := json.Marshal(sn.Stats)
 	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Errors: sn.Stats.Errors}
 	if len(sn.VSSVolumes) > 0 {
-		res.Message = "Read from VSS snapshot of " + strings.Join(sn.VSSVolumes, ", ")
+		res.Message = snapshotMessage(sn.VSSVolumes)
 	}
 	if len(sn.Stats.Errors) > 0 {
 		res.Status = api.StatusWarning
 		res.Message = strings.TrimSpace(fmt.Sprintf("%d files or folders could not be read. %s", len(sn.Stats.Errors), res.Message))
+	}
+	if run.NAS == nil {
+		// Local files only: a share's access does not depend on it.
+		if w := permissionWarning(); w != "" {
+			res.Status = api.StatusWarning
+			res.Message = strings.TrimSpace(w + " " + res.Message)
+		}
 	}
 	res.Message = strings.TrimSpace(res.Message + " " + note)
 	_ = lock.Unlock() // retention needs an exclusive lock

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/max-zit/backupzit/internal/apfssnap"
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/hyperv"
 	"github.com/max-zit/backupzit/internal/leftover"
@@ -64,6 +65,9 @@ func (a *Agent) cleanLocal(ctx context.Context) (removed []string, err error) {
 		removed, err = pve.CleanLeftovers(ctx, logf)
 	case hyperv.Available():
 		removed, err = hyperv.CleanLeftovers(ctx, logf)
+	case apfssnap.Available():
+		// A Mac: APFS local snapshots its files backups did not delete.
+		removed, err = apfssnap.CleanLeftovers(ctx, logf)
 	default:
 		return nil, nil
 	}
@@ -112,7 +116,7 @@ func (a *Agent) leftoverCleanup(ctx context.Context, run api.Run) api.RunResult 
 		defer c.Logout()
 		removed, err = c.CleanLeftovers(ctx, run.Cleanup, func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) })
 	} else {
-		if !pve.Available() && !hyperv.Available() {
+		if !pve.Available() && !hyperv.Available() && !apfssnap.Available() {
 			return failed(fmt.Errorf("this machine is neither a Proxmox VE node nor a Hyper-V host"))
 		}
 		removed, err = a.cleanLocal(ctx)
