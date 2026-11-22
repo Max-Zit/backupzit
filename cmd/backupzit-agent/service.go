@@ -188,8 +188,10 @@ func newLogger(cfgPath string) *slog.Logger {
 	}
 	if f, err := logfile.Open(logPath); err == nil {
 		// Interactive runs and systemd (journal) also get the log on stdout;
-		// the Windows service only writes the file.
-		if service.Interactive() || runtime.GOOS != "windows" {
+		// the Windows service and the macOS LaunchDaemon only write the file
+		// (launchd has no journal: stdout would be a second, never rotated
+		// copy of the log).
+		if service.Interactive() || (runtime.GOOS != "windows" && runtime.GOOS != "darwin") {
 			w = io.MultiWriter(os.Stdout, f)
 		} else {
 			w = f
@@ -216,7 +218,10 @@ func newService(cfgPath string) (service.Service, *program, error) {
 			"Restart":                "always",
 		},
 	})
-	return svc, p, err
+	if err != nil {
+		return nil, p, err
+	}
+	return platformService(svc, args), p, nil
 }
 
 // cmdService handles: service install|uninstall|start|stop|status|run
@@ -246,7 +251,7 @@ func cmdService(args []string) error {
 		}[st])
 		return nil
 	case "install":
-		if _, err := agent.LoadConfig(*cfgPath); err != nil {
+		if _, err := agent.LoadConfig(*cfgPath); err != nil && installNeedsEnrollment {
 			return fmt.Errorf("enroll the agent before installing the service: %w", err)
 		}
 	}

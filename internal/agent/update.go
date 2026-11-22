@@ -17,14 +17,23 @@ import (
 	"github.com/max-zit/backupzit/internal/update"
 )
 
+// stateDir is the service's own folder for its working files (updates,
+// object lock dates, leftovers, job commands), which only the service
+// account can change. Windows and macOS keep them next to the configuration
+// (macOS has no /var/lib; "/Library/Application Support/BackupZit" is
+// root's own, see protectDir), Linux in /var/lib/backupzit-agent.
+func stateDir() string {
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+		return filepath.Dir(DefaultConfigPath())
+	}
+	return "/var/lib/backupzit-agent"
+}
+
 // updateDir holds downloaded installers.
 func updateDir() string {
-	if runtime.GOOS == "windows" {
-		return filepath.Join(filepath.Dir(DefaultConfigPath()), "updates")
-	}
 	// Root's own folder: in /var/tmp (before 0.54.1) any local user could
 	// create the folder first and swap the checked package before dpkg -i.
-	return "/var/lib/backupzit-agent/updates"
+	return filepath.Join(stateDir(), "updates")
 }
 
 // download fetches an agent installer from the console.
@@ -114,10 +123,7 @@ func (a *Agent) selfUpdate(ctx context.Context, run api.Run) (api.RunResult, fun
 // own folder, which only the service account can change (a forged date
 // would skip extending a lock).
 func RetainCachePath() string {
-	if runtime.GOOS == "windows" {
-		return filepath.Join(filepath.Dir(DefaultConfigPath()), "retain-cache.json")
-	}
-	return "/var/lib/backupzit-agent/retain-cache.json"
+	return filepath.Join(stateDir(), "retain-cache.json")
 }
 
 // updateKeys are the release keys an update must be signed with (nil:

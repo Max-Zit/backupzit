@@ -5,6 +5,7 @@ package agent
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -12,7 +13,11 @@ import (
 // first (in /var/tmp before 0.54.1), or a link, is refused; a folder that
 // others could write gets 0700.
 func TestPrivateUpdateDir(t *testing.T) {
-	if updateDir() != "/var/lib/backupzit-agent/updates" {
+	want := "/var/lib/backupzit-agent/updates"
+	if runtime.GOOS == "darwin" {
+		want = "/Library/Application Support/BackupZit/updates"
+	}
+	if updateDir() != want {
 		t.Errorf("update folder %s", updateDir())
 	}
 	base := t.TempDir()
