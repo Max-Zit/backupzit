@@ -142,7 +142,9 @@ func RunDir(ctx context.Context, r *repo.Repository, dir *repo.Node, target stri
 	if err != nil {
 		return nil, fmt.Errorf("load root tree: %w", err)
 	}
+	relock := unlockDir(top) // applySelfMeta sets its stored flags again
 	if err := rs.restoreTree(ctx, t, nil, top); err != nil {
+		relock()
 		return &rs.stats, err
 	}
 	for _, err := range applySelfMeta(top, dir) {
@@ -247,6 +249,10 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 				rs.addError(dst, err)
 				continue
 			}
+			// A folder locked by an earlier restore takes no new entries
+			// (macOS only; relock: its flags back when its metadata is not set).
+			relock := unlockDir(sub)
+			metaSet := false
 			if n.Subtree != nil {
 				st, err := rs.r.LoadTree(ctx, *n.Subtree)
 				if err == nil {
@@ -256,6 +262,7 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 				}
 				if err != nil {
 					if sub != nil {
+						relock()
 						_ = sub.Close()
 					}
 					return err
@@ -266,12 +273,17 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 				// A volume root ("C") keeps the attributes of the folder: C:\ is
 				// hidden and system, which would hide everything restored below it.
 				if sub != nil && (len(comps) > 1 || rs.dir || runtime.GOOS != "windows") {
-					for _, err := range applyDirMeta(dir, sub, n.Name, n, len(comps) > 1 || rs.dir) {
+					setTimes := len(comps) > 1 || rs.dir
+					for _, err := range applyDirMeta(dir, sub, n.Name, n, setTimes) {
 						rs.addError(dst, err)
 					}
+					metaSet = setTimes // flags are set with the times
 				}
 			}
 			if sub != nil {
+				if !metaSet {
+					relock()
+				}
 				_ = sub.Close()
 			}
 		case repo.NodeFile:
@@ -509,7 +521,7 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 		_ = dir.Remove(tmp)
 		return none, err
 	}
-	metaErrs = append(metaErrs, afterRename(dir, name, n)...)
+	metaErrs = append(metaErrs, afterRename(dir, name, id, n)...)
 	for _, err := range metaErrs {
 		rs.addError(dst, err)
 	}

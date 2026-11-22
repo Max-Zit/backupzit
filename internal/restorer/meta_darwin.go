@@ -18,19 +18,29 @@ import (
 // path, as on Linux. The order differs from Linux: macOS refuses extended
 // attributes on a file whose mode leaves no write permission even through a
 // writable handle, so they come before the mode; chown still comes first
-// (it clears setuid bits), times last.
+// (it clears setuid bits), then times, creation time and file flags
+// (flags_darwin.go).
 
 // kernelXattrs are extended attributes macOS manages itself and refuses to
 // set: com.apple.provenance names the app that created the file.
 var kernelXattrs = map[string]bool{"com.apple.provenance": true}
 
-// applyFileMeta sets the metadata of the regular file f just written.
+// applyFileMeta sets the metadata of the regular file f just written, all
+// but the flags that would refuse its rename to its name (afterRename).
 func applyFileMeta(f *os.File, n *repo.Node, setTimes bool) []error {
-	return applyFdMeta(int(f.Fd()), f.Name(), n, setTimes, false) // #nosec G115 -- a file descriptor
+	fd := int(f.Fd()) // #nosec G115 -- a file descriptor
+	errs := applyFdMeta(fd, f.Name(), n, setTimes, false)
+	if setTimes {
+		errs = append(errs, applyFdExtra(fd, f.Name(), n, false, ^uint32(lockFlags))...)
+	}
+	return errs
 }
 
-// afterRename: nothing is left to set on macOS.
-func afterRename(*fsutil.Dir, string, *repo.Node) []error { return nil }
+// afterRename sets the immutable and append-only flags of the file name in
+// d (the file id written).
+func afterRename(d *fsutil.Dir, name string, id fsutil.FileID, n *repo.Node) []error {
+	return lockAfterRename(d, name, id, n)
+}
 
 // applyDirMeta sets the metadata of the restored folder sub.
 func applyDirMeta(_, sub *fsutil.Dir, _ string, n *repo.Node, setTimes bool) []error {
@@ -38,7 +48,12 @@ func applyDirMeta(_, sub *fsutil.Dir, _ string, n *repo.Node, setTimes bool) []e
 	if err != nil {
 		return []error{err}
 	}
-	return applyFdMeta(fd, sub.Path(), n, setTimes, false)
+	errs := applyFdMeta(fd, sub.Path(), n, setTimes, false)
+	if setTimes {
+		// After its entries: an immutable folder takes no new ones.
+		errs = append(errs, applyFdExtra(fd, sub.Path(), n, false, ^uint32(0))...)
+	}
+	return errs
 }
 
 // applySelfMeta sets the metadata of the folder d itself (RunDir's target).
@@ -134,7 +149,8 @@ func applyLinkMeta(d *fsutil.Dir, name string, n *repo.Node) []error {
 		return []error{err}
 	}
 	defer unix.Close(fd) //nolint:errcheck // metadata only
-	return applyFdMeta(fd, d.Join(name), n, true, true)
+	errs := applyFdMeta(fd, d.Join(name), n, true, true)
+	return append(errs, applyFdExtra(fd, d.Join(name), n, true, ^uint32(0))...)
 }
 
 // makeSpecialAt creates the device node or named pipe name in d and sets
@@ -169,13 +185,15 @@ func makeSpecialAt(d *fsutil.Dir, name string, n *repo.Node) []error {
 			return []error{err}
 		}
 		defer unix.Close(fd) //nolint:errcheck // metadata only
-		return applyFdMeta(fd, d.Join(name), n, true, false)
+		errs := applyFdMeta(fd, d.Join(name), n, true, false)
+		return append(errs, applyFdExtra(fd, d.Join(name), n, false, ^uint32(0))...)
 	}
 	return deviceMeta(d, name, n, mode)
 }
 
-// deviceMeta sets owner, mode, extended attributes and times of the device
-// node name in d, relative to the folder and without following it.
+// deviceMeta sets owner, mode, extended attributes, times, creation time
+// and file flags of the device node name in d, relative to the folder and
+// without following it (the last ones and the attributes by path).
 func deviceMeta(d *fsutil.Dir, name string, n *repo.Node, mode uint32) []error {
 	dfd, err := d.Fd()
 	if err != nil {
@@ -214,5 +232,5 @@ func deviceMeta(d *fsutil.Dir, name string, n *repo.Node, mode uint32) []error {
 			errs = append(errs, &fs.PathError{Op: "set times", Path: p, Err: err})
 		}
 	}
-	return errs
+	return append(errs, pathExtra(p, n, st.Flags)...)
 }

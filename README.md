@@ -452,7 +452,31 @@ snapshots/<id>         one JSON document per backup run
   identical data is stored once across all files, snapshots and machines that
   share the repository.
 - Directories are stored as JSON *tree* blobs (names, types, sizes, mtimes,
-  Windows attributes, chunk lists).
+  Windows attributes, chunk lists). On Unix each node also has a `unix`
+  object: owner (`uid`, `gid`, `user`, `group`), `rdev`/`char` of device
+  nodes, `xattrs` and the `link_key` of hard links. macOS agents add two
+  optional fields, absent everywhere else: `flags`, the BSD file flags as
+  read (`st_flags`: hidden, nodump, immutable, append-only, ...), and
+  `birthtime`, the creation time. A restore sets again only the flags a
+  user may set (and `SF_*` ones as root), after the times and, for
+  immutable or append-only files, after the file has its name; never
+  `UF_COMPRESSED`: the backup holds the decompressed content, and the
+  kernel hides the compressed data (`com.apple.decmpfs`) from the backup.
+  A later restore over locked files, folders (Finder's "Locked"), links
+  or named pipes clears their immutable and append-only flags first
+  (owner or root only; `SF_*` ones cannot be cleared outside single-user
+  mode) and sets the stored ones again.
+- A macOS backup of a folder keeps some system folders below it as empty
+  folders: other volumes (`/Volumes`), swap (`/System/Volumes/VM`,
+  `/private/var/vm`), the support volumes in `/System/Volumes`, `/dev`,
+  temporary files (`/private/tmp`, `/private/var/folders`), caches
+  (`/Library/Caches`, `/System/Library/Caches`, `~/Library/Caches`), the
+  Trash (`~/.Trash`, `.Trashes`), Spotlight, FSEvents, document versions,
+  local and HFS+ Time Machine backups, on `/`, on the data volume
+  `/System/Volumes/Data` and at the root of other volumes. With `/` as a
+  source, the data volume's folders that `/` already shows through their
+  firmlinks (`/Users`, `/Applications`, ...) are not read twice. A folder
+  named as a source of the job is always read (`/Volumes/USB`, `~/.Trash`).
 - Blobs are zstd-compressed when that makes them smaller and grouped into
   ~16 MiB pack files. Each pack ends with a header listing its blobs, so the
   index can always be rebuilt from the packs themselves.

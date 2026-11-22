@@ -26,7 +26,7 @@ func applyFileMeta(f *os.File, n *repo.Node, setTimes bool) []error {
 }
 
 // afterRename: nothing is left to set on Linux.
-func afterRename(*fsutil.Dir, string, *repo.Node) []error { return nil }
+func afterRename(*fsutil.Dir, string, fsutil.FileID, *repo.Node) []error { return nil }
 
 // applyDirMeta sets the metadata of the restored folder sub.
 func applyDirMeta(_, sub *fsutil.Dir, _ string, n *repo.Node, setTimes bool) []error {
