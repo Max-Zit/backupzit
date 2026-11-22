@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 13px -apple-system, "Helvetica Neue", sans-serif; line-height: 1.45; }
+  h1 { font-size: 17px; margin: 0 0 8px; }
+  h2 { font-size: 14px; margin: 16px 0 4px; }
+  ol { margin: 4px 0; padding-left: 22px; }
+  li { margin: 2px 0; }
+  code { font: 12px ui-monospace, Menlo, monospace; }
+  .note { margin-top: 16px; }
+</style>
+</head>
+<body>
+<h1>The BackupZit agent is installed</h1>
+<p>macOS lets only you grant the permissions below. Without <b>Full Disk Access</b>, backups
+silently miss protected folders (Mail, Messages, Safari, Desktop and Documents of other users,
+app data).</p>
+
+<h2>1. Give the agent Full Disk Access</h2>
+<ol>
+  <li>Open <b>System Settings &gt; Privacy &amp; Security &gt; Full Disk Access</b>.</li>
+  <li>Click the <b>+</b> button below the list and enter your password.</li>
+  <li>In the window that opens, press <b>Command-Shift-G</b>, type
+      <code>/Library/BackupZit/bin/backupzit-agent</code> and press Return, then click <b>Open</b>.</li>
+  <li>Check that the switch next to <b>backupzit-agent</b> is on.</li>
+</ol>
+<p>Instead of the <b>+</b> button you can drag the file into the list: in the Finder choose
+<b>Go &gt; Go to Folder…</b>, type <code>/Library/BackupZit/bin</code>, then drag
+<b>backupzit-agent</b> onto the Full Disk Access list.</p>
+
+<h2>2. Allow the agent in the background</h2>
+<ol>
+  <li>macOS shows the notification “Background Items Added”: the agent is a background service
+      and must stay allowed.</li>
+  <li>Open <b>System Settings &gt; General &gt; Login Items &amp; Extensions</b>.</li>
+  <li>Under <b>Allow in the Background</b>, check that <b>backupzit-agent</b> and
+      <b>BackupZit</b> are switched on.</li>
+</ol>
+
+<h2>3. Allow notifications</h2>
+<ol>
+  <li>When the BackupZit menu bar app asks to send notifications, click <b>Allow</b>.</li>
+  <li>Later: <b>System Settings &gt; Notifications &gt; BackupZit</b>, switch on
+      <b>Allow notifications</b>. BackupZit tells you there when a backup fails.</li>
+</ol>
+
+<h2>4. The menu bar app checks it for you</h2>
+<p>The BackupZit icon is now in the menu bar. Its assistant checks each of these permissions,
+shows what is still missing and opens the right page of System Settings. The agent also
+reports a missing permission to your BackupZit console.</p>
+
+<h2>Not enrolled yet?</h2>
+<p>If you did not provide an enrollment code, copy one from the console (<b>Agents &gt; Create
+enrollment token</b>) and run in Terminal, one command after the other:<br>
+<code>sudo /Library/BackupZit/bin/backupzit-agent enroll --code BZ1-...</code><br>
+<!-- Drop this command once "service install" works before enrollment on macOS. -->
+<code>sudo /Library/BackupZit/bin/backupzit-agent service install &amp;&amp; sudo /Library/BackupZit/bin/backupzit-agent service start</code><br>
+The second command starts the agent: without an enrollment the installer could not.</p>
+
+<p class="note">To remove BackupZit later: <code>sudo /Library/BackupZit/uninstall.sh</code></p>
+</body>
+</html>

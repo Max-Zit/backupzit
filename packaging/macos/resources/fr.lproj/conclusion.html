@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 13px -apple-system, "Helvetica Neue", sans-serif; line-height: 1.45; }
+  h1 { font-size: 17px; margin: 0 0 8px; }
+  h2 { font-size: 14px; margin: 16px 0 4px; }
+  ol { margin: 4px 0; padding-left: 22px; }
+  li { margin: 2px 0; }
+  code { font: 12px ui-monospace, Menlo, monospace; }
+  .note { margin-top: 16px; }
+</style>
+</head>
+<body>
+<h1>L’agent BackupZit est installé</h1>
+<p>macOS ne permet qu’à vous d’accorder les autorisations ci-dessous. Sans
+<b>l’accès complet au disque</b>, les sauvegardes omettent sans le dire les dossiers protégés
+(Mail, Messages, Safari, Bureau et Documents des autres utilisateurs, données des apps).</p>
+
+<h2>1. Donnez à l’agent l’accès complet au disque</h2>
+<ol>
+  <li>Ouvrez <b>Réglages Système &gt; Confidentialité et sécurité &gt; Accès complet au disque</b>.</li>
+  <li>Cliquez sur le bouton <b>+</b> sous la liste et saisissez votre mot de passe.</li>
+  <li>Dans la fenêtre qui s’ouvre, appuyez sur <b>Commande-Maj-G</b>, tapez
+      <code>/Library/BackupZit/bin/backupzit-agent</code> puis Retour, et cliquez sur <b>Ouvrir</b>.</li>
+  <li>Vérifiez que l’interrupteur à côté de <b>backupzit-agent</b> est activé.</li>
+</ol>
+<p>Au lieu du bouton <b>+</b>, vous pouvez glisser le fichier dans la liste : dans le Finder,
+choisissez <b>Aller &gt; Aller au dossier…</b>, tapez <code>/Library/BackupZit/bin</code>, puis
+glissez <b>backupzit-agent</b> sur la liste « Accès complet au disque ».</p>
+
+<h2>2. Autorisez l’agent en arrière-plan</h2>
+<ol>
+  <li>macOS affiche la notification « Éléments d’arrière-plan ajoutés » : l’agent est un service
+      en arrière-plan et doit rester autorisé.</li>
+  <li>Ouvrez <b>Réglages Système &gt; Général &gt; Ouverture et extensions</b>.</li>
+  <li>Sous <b>Autoriser en arrière-plan</b>, vérifiez que <b>backupzit-agent</b> et
+      <b>BackupZit</b> sont activés.</li>
+</ol>
+
+<h2>3. Autorisez les notifications</h2>
+<ol>
+  <li>Quand l’app BackupZit de la barre des menus demande à envoyer des notifications, cliquez
+      sur <b>Autoriser</b>.</li>
+  <li>Plus tard : <b>Réglages Système &gt; Notifications &gt; BackupZit</b>, activez
+      <b>Autoriser les notifications</b>. BackupZit vous y prévient quand une sauvegarde échoue.</li>
+</ol>
+
+<h2>4. L’app de la barre des menus vérifie pour vous</h2>
+<p>L’icône BackupZit est maintenant dans la barre des menus. Son assistant vérifie chacune de ces
+autorisations, montre ce qui manque encore et ouvre la bonne page des Réglages Système. L’agent
+signale aussi une autorisation manquante à votre console BackupZit.</p>
+
+<h2>Pas encore inscrit ?</h2>
+<p>Si vous n’avez pas fourni de code d’inscription, copiez-en un depuis la console
+(<b>Agents &gt; Créer un jeton d’inscription</b>) et lancez dans le Terminal, une commande après
+l’autre :<br>
+<code>sudo /Library/BackupZit/bin/backupzit-agent enroll --code BZ1-...</code><br>
+<!-- Drop this command once "service install" works before enrollment on macOS. -->
+<code>sudo /Library/BackupZit/bin/backupzit-agent service install &amp;&amp; sudo /Library/BackupZit/bin/backupzit-agent service start</code><br>
+La seconde commande démarre l’agent : sans inscription, le programme d’installation ne le pouvait pas.</p>
+
+<p class="note">Pour supprimer BackupZit plus tard : <code>sudo /Library/BackupZit/uninstall.sh</code></p>
+</body>
+</html>

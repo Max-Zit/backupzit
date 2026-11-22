@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Installer of the BackupZit agent for macOS (Apple Silicon), built by
+     build-pkg.sh, which fills in the version. The welcome page says what is
+     installed; the conclusion page guides the user through the permissions
+     only he can grant (Full Disk Access, background item, notifications).
+     Pages: resources/<language>.lproj. -->
+<installer-gui-script minSpecVersion="2">
+    <title>BackupZit Agent</title>
+    <organization>com.backupzit</organization>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+    <!-- One component, always installed on the startup disk: the daemon
+         and the paths in the scripts are those of the running system. -->
+    <options customize="never" require-scripts="true" hostArchitectures="arm64"/>
+    <domains enable_localSystem="true" enable_anywhere="false" enable_currentUserHome="false"/>
+    <!-- Oldest macOS still getting security updates when this was written. -->
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="13.0"/>
+        </allowed-os-versions>
+    </volume-check>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.backupzit.agent"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.backupzit.agent" visible="false">
+        <pkg-ref id="com.backupzit.agent"/>
+    </choice>
+    <pkg-ref id="com.backupzit.agent" version="@PKG_VERSION@" onConclusion="none">backupzit-agent-component.pkg</pkg-ref>
+    <product id="com.backupzit.agent" version="@PKG_VERSION@"/>
+</installer-gui-script>
