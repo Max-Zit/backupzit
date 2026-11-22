@@ -34,6 +34,12 @@ func classify(name string) (title, desc string, order int, primary, ok bool) {
 		return "Linux agent — Debian / Ubuntu", "deb package", 3, false, true
 	case strings.HasPrefix(n, "backupzit-agent") && strings.HasSuffix(n, ".rpm"):
 		return "Linux agent — AlmaLinux / Rocky Linux", "rpm package", 4, false, true
+	// The full suffix, not just ".pkg": the package is built for Apple
+	// silicon only (packaging/macos/build-pkg.sh), and naming the
+	// architecture leaves room for another package without offering it to
+	// the wrong Macs.
+	case strings.HasPrefix(n, "backupzit-agent") && strings.HasSuffix(n, "_darwin_arm64.pkg"):
+		return "macOS agent — Apple Silicon", "pkg installer for Macs with Apple silicon, macOS 13 or newer", 4, false, true
 	case strings.HasPrefix(n, "backupzit-repo") && (strings.HasSuffix(n, ".deb") || strings.HasSuffix(n, ".rpm")):
 		return "Hardened repository", "for a dedicated Linux backup server (" + n[strings.LastIndex(n, ".")+1:] + ")", 6, false, true
 	case n == "backupzit-agent.exe":
@@ -111,9 +117,23 @@ type agentUpdate struct {
 }
 
 // packageKind returns the installer kind an agent uses: "msi", "legacy.msi",
-// "deb" or "rpm" ("" if it cannot be updated from the console).
+// "deb", "rpm" or "pkg" ("" if it cannot be updated from the console).
 func packageKind(a Agent) string {
-	if a.Recovery || a.Arch != "amd64" {
+	if a.Recovery {
+		return ""
+	}
+	// Macs are recognised by their system name, not by the architecture:
+	// the Windows and Linux packages are amd64 only, while the macOS agent
+	// is built for Apple silicon only (Intel Macs, which Apple no longer
+	// supports in current macOS releases, get no package). Checked before
+	// the amd64 rule below, which would otherwise exclude every Mac.
+	if agentPlatform(a) == GroupMacOS {
+		if a.Arch != "arm64" {
+			return ""
+		}
+		return "pkg"
+	}
+	if a.Arch != "amd64" {
 		return ""
 	}
 	osName := strings.ToLower(a.OS)
@@ -147,6 +167,10 @@ func fileKind(name string) string {
 		return "deb"
 	case strings.HasSuffix(n, ".rpm"):
 		return "rpm"
+	// Only the Apple silicon package is an installer the console serves to
+	// agents (/api/agent/download refuses other names): see classify.
+	case strings.HasSuffix(n, "_darwin_arm64.pkg"):
+		return "pkg"
 	}
 	return ""
 }
