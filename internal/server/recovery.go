@@ -2,12 +2,12 @@ package server
 
 import (
 	"encoding/json"
-
-	"github.com/max-zit/backupzit/internal/recovery"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/max-zit/backupzit/internal/recovery"
 )
 
 // Recovery codes are enrollment tokens with a longer lifetime, meant to be
