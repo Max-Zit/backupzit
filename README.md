@@ -462,6 +462,10 @@ snapshots/<id>         one JSON document per backup run
   immutable or append-only files, after the file has its name; never
   `UF_COMPRESSED`: the backup holds the decompressed content, and the
   kernel hides the compressed data (`com.apple.decmpfs`) from the backup.
+  A later restore over locked files, folders (Finder's "Locked"), links
+  or named pipes clears their immutable and append-only flags first
+  (owner or root only; `SF_*` ones cannot be cleared outside single-user
+  mode) and sets the stored ones again.
 - A macOS backup of a folder keeps some system folders below it as empty
   folders: other volumes (`/Volumes`), swap (`/System/Volumes/VM`,
   `/private/var/vm`), the support volumes in `/System/Volumes`, `/dev`,

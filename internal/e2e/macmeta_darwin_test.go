@@ -30,10 +30,21 @@ func setCrtime(t *testing.T, p string, bt time.Time) {
 	}
 }
 
+// lchflags sets the flags of p itself (a link, a folder or a named pipe)
+// through a handle of the entry.
+func lchflags(p string, flags int) error {
+	fd, err := unix.Open(p, unix.O_RDONLY|unix.O_SYMLINK|unix.O_NONBLOCK, 0)
+	if err != nil {
+		return err
+	}
+	defer unix.Close(fd) //nolint:errcheck // flags only
+	return unix.Fchflags(fd, flags)
+}
+
 // TestMacMetadata backs up and restores the BSD file flags (hidden,
 // nodump, immutable, append-only) and creation times of files, folders,
-// links and named pipes; a compressed file comes back as an ordinary file with the same
-// content; a second restore replaces the immutable file of the first.
+// links and named pipes; a second restore replaces the immutable file,
+// folder (its entries too), link and named pipe of the first.
 func TestMacMetadata(t *testing.T) {
 	ctx := context.Background()
 	must := func(err error) {
@@ -62,18 +73,16 @@ func TestMacMetadata(t *testing.T) {
 	setCrtime(t, in("link"), bt.Add(time.Hour))
 	must(unix.Chflags(in("hidden"), unix.UF_HIDDEN))
 	must(unix.Chflags(in("nodump"), unix.UF_NODUMP))
-	must(unix.Chflags(in("hiddendir"), unix.UF_HIDDEN))
+	must(unix.Chflags(in("hiddendir"), unix.UF_HIDDEN|unix.UF_IMMUTABLE))
 	must(unix.Chflags(in("locked"), unix.UF_IMMUTABLE|unix.UF_HIDDEN))
 	must(unix.Chflags(in("append"), unix.UF_APPEND))
-	must(unix.Chflags(in("fifo"), unix.UF_HIDDEN|unix.UF_NODUMP))
-	// A link's own flag, through a handle of the link.
-	lfd, err := unix.Open(in("link"), unix.O_RDONLY|unix.O_SYMLINK, 0)
-	must(err)
-	must(unix.Fchflags(lfd, unix.UF_HIDDEN))
-	_ = unix.Close(lfd)
+	must(lchflags(in("fifo"), unix.UF_HIDDEN|unix.UF_NODUMP|unix.UF_IMMUTABLE))
+	// A link's own flags, through a handle of the link.
+	must(lchflags(in("link"), unix.UF_HIDDEN|unix.UF_IMMUTABLE))
+	locked := []string{"locked", "append", "hiddendir", "link", "fifo"}
 	t.Cleanup(func() {
-		for _, p := range []string{"locked", "append"} {
-			_ = unix.Chflags(in(p), 0)
+		for _, p := range locked {
+			_ = lchflags(in(p), 0)
 		}
 	})
 
@@ -89,8 +98,8 @@ func TestMacMetadata(t *testing.T) {
 	dst := t.TempDir()
 	out := func(p string) string { return filepath.Join(dst, src, p) }
 	t.Cleanup(func() {
-		for _, p := range []string{"locked", "append"} {
-			_ = unix.Chflags(out(p), 0)
+		for _, p := range locked {
+			_ = lchflags(out(p), 0)
 		}
 	})
 	for round := 1; round <= 2; round++ {
@@ -102,9 +111,9 @@ func TestMacMetadata(t *testing.T) {
 	}
 
 	for p, want := range map[string]uint32{
-		"hidden": unix.UF_HIDDEN, "nodump": unix.UF_NODUMP, "hiddendir": unix.UF_HIDDEN,
-		"locked": unix.UF_IMMUTABLE | unix.UF_HIDDEN, "append": unix.UF_APPEND, "link": unix.UF_HIDDEN,
-		"hiddendir/inside": 0, "fifo": unix.UF_HIDDEN | unix.UF_NODUMP,
+		"hidden": unix.UF_HIDDEN, "nodump": unix.UF_NODUMP, "hiddendir": unix.UF_HIDDEN | unix.UF_IMMUTABLE,
+		"locked": unix.UF_IMMUTABLE | unix.UF_HIDDEN, "append": unix.UF_APPEND, "link": unix.UF_HIDDEN | unix.UF_IMMUTABLE,
+		"hiddendir/inside": 0, "fifo": unix.UF_HIDDEN | unix.UF_NODUMP | unix.UF_IMMUTABLE,
 	} {
 		if got := flagsOf(t, out(p)); got != want {
 			t.Errorf("%s: flags %#x, want %#x", p, got, want)
@@ -129,6 +138,16 @@ func TestMacMetadata(t *testing.T) {
 	}
 	if flagsOf(t, in("hidden")) != unix.UF_HIDDEN {
 		t.Error("the link's flag was set on its target")
+	}
+	// A locked folder only passed through to reach an included file takes
+	// the file and keeps its lock (its own metadata is not restored).
+	st, err := restorer.Run(ctx, r, sn, restorer.Options{Target: dst, Include: []string{in("hiddendir/inside")}})
+	must(err)
+	if len(st.Errors) > 0 || st.Files != 1 {
+		t.Fatalf("restore through the locked folder: %d files, errors %v", st.Files, st.Errors)
+	}
+	if got := flagsOf(t, out("hiddendir")); got != unix.UF_HIDDEN|unix.UF_IMMUTABLE {
+		t.Errorf("folder passed through: flags %#x, want its lock back", got)
 	}
 }
 

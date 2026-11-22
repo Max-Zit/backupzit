@@ -244,6 +244,7 @@ func (d *Dir) Remove(name string) error { return d.root.Remove(name) }
 
 // Symlink creates the symbolic link name pointing to target.
 func (d *Dir) Symlink(target, name string) error {
+	d.ClearLocks(name) // macOS: a locked entry refuses its removal
 	_ = d.root.Remove(name)
 	return d.root.Symlink(target, name)
 }

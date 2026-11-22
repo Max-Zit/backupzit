@@ -160,3 +160,34 @@ func pathExtra(p string, n *repo.Node, cur uint32) []error {
 	}
 	return errs
 }
+
+// unlockDir clears the immutable and append-only flags of the folder d
+// opened for restoring into it: a folder locked by an earlier restore (or
+// in Finder) takes no new entries and lets none be removed or replaced, so
+// every file of a second restore into it would fail. applyDirMeta sets the
+// stored flags again after the folder's entries; relock gives the folder
+// back the flags it had when its metadata is not restored (a folder only
+// passed through to reach an included path, or a first level at the
+// original location).
+func unlockDir(d *fsutil.Dir) (relock func()) {
+	noop := func() {}
+	if d == nil {
+		return noop
+	}
+	fd, err := d.Fd()
+	if err != nil {
+		return noop
+	}
+	var st unix.Stat_t
+	if unix.Fstat(fd, &st) != nil || st.Flags&lockFlags == 0 {
+		return noop
+	}
+	if unix.Fchflags(fd, int(st.Flags&^lockFlags)) != nil {
+		return noop // not the owner: the entries will report the refusal
+	}
+	return func() {
+		if fd, err := d.Fd(); err == nil {
+			_ = unix.Fchflags(fd, int(st.Flags))
+		}
+	}
+}

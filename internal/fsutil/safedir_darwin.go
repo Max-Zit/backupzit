@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"unsafe"
 
 	"golang.org/x/sys/unix"
 )
@@ -131,6 +132,7 @@ func (d *Dir) LinkFrom(src *Dir, srcName, name string, want FileID) error {
 	if !isWant(sfd, srcName) {
 		return fmt.Errorf("%s changed since it was restored", src.Join(srcName))
 	}
+	d.ClearLocks(name)
 	_ = d.root.Remove(name)
 	// Without AT_SYMLINK_FOLLOW a link put at srcName is linked itself,
 	// never what it points to.
@@ -148,6 +150,7 @@ func (d *Dir) LinkFrom(src *Dir, srcName, name string, want FileID) error {
 // macOS has no mknodat: the node is created by name and the caller checks
 // it through the folder before setting anything on it.
 func (d *Dir) Mknod(name string, mode uint32, dev int) error {
+	d.ClearLocks(name) // a locked entry of an earlier restore refuses its removal
 	_ = d.root.Remove(name)
 	p := d.Join(name)
 	var err error
@@ -162,29 +165,61 @@ func (d *Dir) Mknod(name string, mode uint32, dev int) error {
 	return nil
 }
 
-// lockFlags refuse that a file is replaced by a rename.
+// lockFlags refuse that an entry is replaced by a rename or removed, and
+// an immutable folder takes no new entries.
 const lockFlags = unix.UF_IMMUTABLE | unix.UF_APPEND | unix.SF_IMMUTABLE | unix.SF_APPEND
 
-// ClearReadOnly removes the immutable and append-only flags of the regular
-// file name, so that a restored file can replace it (one restored with
-// them before, as Windows clears the read-only attribute). The file is
-// opened relative to the folder without following a link; the kernel only
-// lets its owner or root clear the flags.
-func (d *Dir) ClearReadOnly(name string) {
+// ClearReadOnly removes the immutable and append-only flags of the entry
+// name (see ClearLocks), so that a restored file can replace it, as
+// Windows clears the read-only attribute.
+func (d *Dir) ClearReadOnly(name string) { d.ClearLocks(name) }
+
+// ClearLocks removes the immutable and append-only flags of the entry name
+// of any type, without following it, so that a second restore can remove
+// and create it again (a restore sets them, Finder's "Locked" sets
+// UF_IMMUTABLE on folders too). The entry is changed through its own
+// handle opened relative to the folder and checked to be the entry looked
+// at; a device node is never opened (that would talk to the device) and is
+// changed by path without following it. The kernel only lets the owner or
+// root clear the UF_ flags (SF_ ones only in single-user mode): a refusal
+// is left to the removal that follows to report.
+func (d *Dir) ClearLocks(name string) {
 	dfd, err := d.Fd()
 	if err != nil {
 		return
 	}
-	fd, err := unix.Openat(dfd, name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
+	var st unix.Stat_t
+	if unix.Fstatat(dfd, name, &st, unix.AT_SYMLINK_NOFOLLOW) != nil || st.Flags&lockFlags == 0 {
+		return
+	}
+	want := st.Flags &^ lockFlags
+	flags := unix.O_RDONLY | unix.O_NOFOLLOW | unix.O_NONBLOCK | unix.O_CLOEXEC
+	switch st.Mode & unix.S_IFMT {
+	case unix.S_IFCHR, unix.S_IFBLK:
+		_ = setFlagsByPath(d.Join(name), want)
+		return
+	case unix.S_IFLNK:
+		flags = unix.O_RDONLY | unix.O_SYMLINK | unix.O_CLOEXEC
+	}
+	fd, err := unix.Openat(dfd, name, flags, 0)
 	if err != nil {
 		return
 	}
-	defer unix.Close(fd) //nolint:errcheck // read only
-	var st unix.Stat_t
-	if unix.Fstat(fd, &st) != nil || st.Mode&unix.S_IFMT != unix.S_IFREG || st.Flags&lockFlags == 0 {
-		return
+	defer unix.Close(fd) //nolint:errcheck // flags only
+	var got unix.Stat_t
+	if unix.Fstat(fd, &got) != nil || got.Dev != st.Dev || got.Ino != st.Ino {
+		return // another entry was put at the name meanwhile
 	}
-	_ = unix.Fchflags(fd, int(st.Flags&^lockFlags))
+	_ = unix.Fchflags(fd, int(want))
+}
+
+// setFlagsByPath sets the file flags of p without following it
+// (setattrlist ATTR_CMN_FLAGS with FSOPT_NOFOLLOW).
+func setFlagsByPath(p string, flags uint32) error {
+	al := &unix.Attrlist{Bitmapcount: unix.ATTR_BIT_MAP_COUNT, Commonattr: unix.ATTR_CMN_FLAGS}
+	// #nosec G103 -- setattrlist takes the flags as raw bytes
+	buf := unsafe.Slice((*byte)(unsafe.Pointer(&flags)), unsafe.Sizeof(flags))
+	return unix.Setattrlist(p, al, buf, unix.FSOPT_NOFOLLOW)
 }
 
 func trustedUID(uid uint32) bool { return uid == 0 || int(uid) == os.Geteuid() }
