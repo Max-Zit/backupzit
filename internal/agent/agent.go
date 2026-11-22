@@ -50,14 +50,24 @@ func DefaultConfigPath() string {
 		}
 		return filepath.Join(pd, "backupzit", "agent.json")
 	}
+	if runtime.GOOS == "darwin" {
+		// macOS keeps /etc for the system (a link into /private):
+		// system-wide application data belongs in /Library/Application
+		// Support, which only root can write to.
+		return "/Library/Application Support/BackupZit/agent.json"
+	}
 	return "/etc/backupzit/agent.json"
 }
 
-// LogPath is the agent's log file for a configuration file: on Linux with
-// the default configuration /var/log/backupzit/agent.log, otherwise
-// agent.log next to the configuration (C:\ProgramData\backupzit on
-// Windows). Rotated files end in .1 to .3.
+// LogPath is the agent's log file for a configuration file: with the
+// default configuration /var/log/backupzit/agent.log on Linux and
+// /Library/Logs/BackupZit/agent.log on macOS (where Console.app lists it),
+// otherwise agent.log next to the configuration (C:\ProgramData\backupzit
+// on Windows). Rotated files end in .1 to .3.
 func LogPath(cfgPath string) string {
+	if runtime.GOOS == "darwin" && cfgPath == DefaultConfigPath() {
+		return "/Library/Logs/BackupZit/agent.log"
+	}
 	if runtime.GOOS != "windows" && cfgPath == DefaultConfigPath() {
 		return "/var/log/backupzit/agent.log"
 	}

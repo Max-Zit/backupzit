@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -19,10 +18,7 @@ import (
 // LeftoverPath is the service's ledger of what its backups created on the
 // hypervisor (leftover), in its own folder.
 func LeftoverPath() string {
-	if runtime.GOOS == "windows" {
-		return filepath.Join(filepath.Dir(DefaultConfigPath()), "leftovers.json")
-	}
-	return "/var/lib/backupzit-agent/leftovers.json"
+	return filepath.Join(stateDir(), "leftovers.json")
 }
 
 // janitorEvery is how often the agent works through its ledger (and right
