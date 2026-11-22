@@ -26,8 +26,11 @@ const (
 	VMware  = "vmware"
 	Proxmox = "proxmox"
 	HyperV  = "hyperv"
+	// MacOS: an APFS local snapshot a files backup of a Mac reads from
+	// (KindSnapshot; VM is the volume, Detail its mount point).
+	MacOS = "macos"
 
-	KindSnapshot   = "snapshot"   // VMware or Proxmox VE snapshot
+	KindSnapshot   = "snapshot"   // VMware, Proxmox VE or APFS snapshot
 	KindCheckpoint = "checkpoint" // Hyper-V checkpoint
 	KindDiskCopy   = "disk-copy"  // VMware temporary copy of a disk on a datastore
 	KindLock       = "lock"       // Proxmox VE backup lock set by BackupZit

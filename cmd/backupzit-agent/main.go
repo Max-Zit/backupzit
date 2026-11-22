@@ -289,7 +289,7 @@ func cmdBackup(ctx context.Context, args []string) error {
 	fs.Var(&tags, "tag", "tag for the snapshot (repeatable)")
 	fs.Var(&excludes, "exclude", "glob pattern of names to skip (repeatable)")
 	noParent := fs.Bool("force", false, "read all files even if unchanged since the last snapshot")
-	useVSS := fs.Bool("vss", false, "read from a Volume Shadow Copy snapshot (Windows, requires administrator)")
+	useVSS := fs.Bool("vss", false, "read from a snapshot: Volume Shadow Copy (Windows, requires administrator) or APFS local snapshot (macOS, requires root)")
 	host := fs.String("host", "", "override hostname stored in the snapshot")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent backup [options] <path>...")
