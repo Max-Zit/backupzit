@@ -111,3 +111,24 @@ func TestParsePrint(t *testing.T) {
 		t.Errorf("unknown output read as %v", s)
 	}
 }
+
+// Text is written as plutil writes it: only &, < and > as entities, never
+// a numeric reference, which launchd's parser does not decode (&#xA; for a
+// newline cut every multi-line script after its first line, issue #5).
+func TestEscapeLikePlutil(t *testing.T) {
+	in := "printf '%s' \"$x\" >a 2>&1\necho <b>\ttab & done\x00"
+	want := "printf '%s' \"$x\" &gt;a 2&gt;&amp;1\necho &lt;b&gt;\ttab &amp; done�"
+	if got := escape(in); got != want {
+		t.Fatalf("escape:\n%q\nwant\n%q", got, want)
+	}
+	plist, err := Job{Label: "com.backupzit.agent.update.1", ProgramArguments: []string{"/bin/sh", "-c", "echo one >f\necho two >>f"}, LaunchOnlyOnce: true, UserName: "root"}.Plist()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(plist), "&#") {
+		t.Fatalf("numeric character reference in the plist:\n%s", plist)
+	}
+	if !strings.Contains(string(plist), "echo one &gt;f\necho two &gt;&gt;f") {
+		t.Fatalf("script not on its lines:\n%s", plist)
+	}
+}

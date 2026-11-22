@@ -11,7 +11,6 @@ package launchd
 
 import (
 	"bytes"
-	"encoding/xml"
 	"fmt"
 	"sort"
 	"strconv"
@@ -135,10 +134,31 @@ func writeEnv(b *bytes.Buffer, env map[string]string) {
 }
 
 // escape makes text safe inside an XML element: a path or a shell script
-// with "&" or "<" must not end the element or break the file.
+// with "&" or "<" must not end the element or break the file. Only "&",
+// "<" and ">" become entities; newlines, tabs and quotes are written as
+// they are, as Apple's plutil writes them. xml.EscapeText was not kept: it
+// writes a newline as the hexadecimal reference "&#xA;", which launchd's
+// property list parser does not decode, so a multi-line "/bin/sh -c"
+// script reached the shell as one line where "&" backgrounded the first
+// command and "#xA;..." made the rest a comment (issue #5: updates and
+// uninstalls never ran). Characters XML does not allow are replaced, as
+// xml.EscapeText did, so the file stays readable.
 func escape(s string) string {
 	var b strings.Builder
-	_ = xml.EscapeText(&b, []byte(s))
+	for _, r := range s {
+		switch {
+		case r == '&':
+			b.WriteString("&amp;")
+		case r == '<':
+			b.WriteString("&lt;")
+		case r == '>':
+			b.WriteString("&gt;")
+		case r == '\t' || r == '\n' || r == '\r' || (r >= 0x20 && r <= 0xD7FF) || (r >= 0xE000 && r <= 0xFFFD) || (r >= 0x10000 && r <= 0x10FFFF):
+			b.WriteRune(r)
+		default:
+			b.WriteRune('\uFFFD')
+		}
+	}
 	return b.String()
 }
 
