@@ -183,6 +183,11 @@ try {
     else { Write-Warning "bootsect.exe not found in the ADK; boot-repair --mbr will not work" }
     if ($UiExe) {
         Copy-Item $UiExe (Join-Path $mount "Windows\System32\backupzit-recovery.exe")
+        # The program needs common controls 6: its manifest lies next to it.
+        $manifest = "$UiExe.manifest"
+        if (-not (Test-Path $manifest)) { $manifest = Join-Path $PSScriptRoot "..\..\cmd\backupzit-recovery\backupzit-recovery.exe.manifest" }
+        if (-not (Test-Path $manifest)) { throw "backupzit-recovery.exe.manifest not found (next to -UiExe or in cmd\backupzit-recovery)" }
+        Copy-Item $manifest (Join-Path $mount "Windows\System32\backupzit-recovery.exe.manifest")
     }
     $i = 0
     foreach ($dir in $drivers) {
@@ -205,7 +210,7 @@ try {
     if ($KeyboardLayout) { $kb = "wpeutil SetKeyboardLayout $KeyboardLayout >nul 2>&1" }
     if ($UiExe) {
         $start = @"
-start "" backupzit-recovery.exe
+start "" backupzit-recovery.exe --open=restore
 echo The BackupZit recovery program runs in its own window. Type "backupzit-recovery" to start it again,
 echo "backupzit-agent recovery" for the console mode, or "wpeutil reboot" to restart the computer.
 "@
