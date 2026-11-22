@@ -64,6 +64,9 @@ type system struct {
 	mountOf func(p string) (string, error)
 	// mkdirTemp makes the private folder the snapshot is mounted on.
 	mkdirTemp func() (string, error)
+	// resolve follows the symbolic links of a path (the temporary folder
+	// is below /tmp or /var, links to /private/...).
+	resolve func(string) (string, error)
 	// removeDir removes that folder once nothing is mounted on it.
 	removeDir func(string) error
 	// firmlinks returns the firmlinks of the system volume.
@@ -79,6 +82,7 @@ var sys = &system{
 	run:            runCommand,
 	mountOf:        mountOf,
 	mkdirTemp:      func() (string, error) { return os.MkdirTemp("", mountDirPrefix+"*") },
+	resolve:        filepath.EvalSymlinks,
 	removeDir:      os.Remove,
 	firmlinks:      systemFirmlinks,
 	cleanupTimeout: 2 * time.Minute,
@@ -198,6 +202,11 @@ func (y *system) classify(p string, links []firmlink) int {
 		if _, ok := dataRel(p, links); ok {
 			return onData
 		}
+		if isSystemAlias(p) {
+			// /var itself is the link on the sealed system volume (statfs
+			// followed it): the backup stores the link, read live.
+			return onSystem
+		}
 		return unknown
 	case systemVolume:
 		return onSystem
@@ -228,7 +237,7 @@ func (y *system) acquire(runCtx context.Context, timeout time.Duration) (*snapsh
 	}
 	sn := &snapshot{date: date, refs: 1, item: ledgerItem(date, "")}
 	leftover.Add(runCtx, sn.item)
-	dir, err := y.mkdirTemp()
+	dir, err := y.mountDir()
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("mount point: %w", err), y.release(sn))
 	}
@@ -243,6 +252,23 @@ func (y *system) acquire(runCtx context.Context, timeout time.Duration) (*snapsh
 	}
 	active[date] = sn
 	return sn, nil
+}
+
+// mountDir makes the mount point and returns its canonical path. statfs
+// names a mount point by its resolved path (/private/tmp/..., never
+// /tmp/...), so the checks that the snapshot is mounted, the ledger and
+// Map all use that path.
+func (y *system) mountDir() (string, error) {
+	dir, err := y.mkdirTemp()
+	if err != nil {
+		return "", err
+	}
+	canon, err := y.resolve(dir)
+	if err != nil {
+		_ = y.removeDir(dir) // empty, made just above
+		return "", err
+	}
+	return canon, nil
 }
 
 // mountArgs is the mount_apfs command line: read-only, hidden from the
@@ -320,9 +346,19 @@ func (y *system) unmount(ctx context.Context, dir string) error {
 	return nil
 }
 
+// mounted tells whether a file system is mounted on dir. statfs reports
+// the resolved path, so a ledger record written before mount points were
+// canonical (/tmp/... for /private/tmp/...) still matches.
 func (y *system) mounted(dir string) bool {
 	m, err := y.mountOf(dir)
-	return err == nil && m == dir
+	if err != nil {
+		return false
+	}
+	if m == dir {
+		return true
+	}
+	canon, err := y.resolve(dir)
+	return err == nil && m == canon
 }
 
 // snapshotGone checks tmutil's list of snapshot dates of the data volume.
@@ -554,25 +590,48 @@ func parseFirmlinks(b []byte) []firmlink {
 	return out
 }
 
+// systemAliases are the symbolic links of the sealed system volume that
+// lead into the data volume (/var -> private/var). Unlike firmlinks they
+// are not in /usr/share/firmlinks, but the system volume is read-only and
+// sealed, so they cannot change. They are kept out of hasFirmlinkBelow:
+// below / they are links, which the backup stores as links.
+var systemAliases = []firmlink{
+	{"/etc", "private/etc"},
+	{"/tmp", "private/tmp"},
+	{"/var", "private/var"},
+}
+
+// isSystemAlias tells whether p is one of those links itself.
+func isSystemAlias(p string) bool {
+	p = filepath.Clean(p)
+	return slices.ContainsFunc(systemAliases, func(a firmlink) bool { return a.source == p })
+}
+
 // dataRel returns where p is inside the data volume: below
-// /System/Volumes/Data, or below a firmlink (the longest one wins:
-// /System/Library/Caches is on the data volume, /System is not).
+// /System/Volumes/Data, below a firmlink (the longest one wins:
+// /System/Library/Caches is on the data volume, /System is not), or below
+// a link of systemAliases. A link itself is not mapped: in the snapshot
+// private/var is a folder, and the backup must keep /var a link.
 func dataRel(p string, links []firmlink) (string, bool) {
 	p = filepath.Clean(p)
 	if within(p, DataVolume) {
 		return strings.TrimPrefix(strings.TrimPrefix(p, DataVolume), "/"), true
 	}
-	best := -1
+	var best *firmlink
 	for i, l := range links {
-		if within(p, l.source) && (best < 0 || len(l.source) > len(links[best].source)) {
-			best = i
+		if within(p, l.source) && (best == nil || len(l.source) > len(best.source)) {
+			best = &links[i]
 		}
 	}
-	if best < 0 {
+	for i, a := range systemAliases {
+		if within(p, a.source) && p != a.source && (best == nil || len(a.source) > len(best.source)) {
+			best = &systemAliases[i]
+		}
+	}
+	if best == nil {
 		return "", false
 	}
-	l := links[best]
-	return l.target + strings.TrimPrefix(p, l.source), true
+	return best.target + strings.TrimPrefix(p, best.source), true
 }
 
 // hasFirmlinkBelow tells whether a firmlink is p or below it: backing up

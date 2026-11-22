@@ -24,6 +24,9 @@ type fakeMac struct {
 	next    string            // date of the next snapshot
 	fail    map[string]error  // command (tool + first argument) -> error
 	removed []string
+	// links are symbolic links (path -> target) resolve follows; none by
+	// default, so the mount point keeps the name mkdirTemp gives.
+	links map[string]string
 }
 
 func newFakeMac() *fakeMac {
@@ -35,6 +38,8 @@ func newFakeMac() *fakeMac {
 			"/opt":              DataVolume,
 			"/private":          DataVolume,
 			"/usr/local":        DataVolume,
+			"/etc":              DataVolume, // statfs follows /etc -> private/etc
+			"/var":              DataVolume,
 			"/Volumes":          DataVolume,
 			DataVolume:          DataVolume,
 			"/Volumes/External": "/Volumes/External",
@@ -67,18 +72,31 @@ func (f *fakeMac) run(_ context.Context, name string, args ...string) ([]byte, e
 	case key == "tmutil listlocalsnapshotdates":
 		return []byte("Snapshot dates for disk " + args[1] + ":\n" + strings.Join(f.dates, "\n") + "\n"), nil
 	case filepath.Base(name) == "mount_apfs":
-		f.mounts[args[len(args)-1]] = true
+		r, _ := f.resolve(args[len(args)-1])
+		f.mounts[r] = true
 		return nil, nil
 	case filepath.Base(name) == "umount":
-		delete(f.mounts, args[len(args)-1])
+		r, _ := f.resolve(args[len(args)-1])
+		delete(f.mounts, r)
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected command %s", line)
 }
 
+// resolve plays filepath.EvalSymlinks with f.links.
+func (f *fakeMac) resolve(p string) (string, error) {
+	for from, to := range f.links {
+		if within(p, from) {
+			return to + strings.TrimPrefix(p, from), nil
+		}
+	}
+	return p, nil
+}
+
+// mountOf answers like statfs: the mount point by its resolved path.
 func (f *fakeMac) mountOf(p string) (string, error) {
-	if f.mounts[p] {
-		return p, nil
+	if r, _ := f.resolve(p); f.mounts[r] {
+		return r, nil
 	}
 	best, m := "", systemVolume
 	for prefix, mp := range f.volumes {
@@ -98,6 +116,7 @@ func (f *fakeMac) system() *system {
 		run:            f.run,
 		mountOf:        f.mountOf,
 		mkdirTemp:      func() (string, error) { return "/tmp/backupzit-apfs-1", nil },
+		resolve:        f.resolve,
 		removeDir:      func(d string) error { f.removed = append(f.removed, d); return nil },
 		firmlinks:      func() []firmlink { return defaultFirmlinks },
 		cleanupTimeout: time.Minute,
@@ -175,7 +194,13 @@ func TestMapPaths(t *testing.T) {
 		"/Volumes/Share/x":               "/Volumes/Share/x",               // other mounts below /Volumes
 		"/Volumes":                       m + "/Volumes",
 		"/Applications/Safari.app/Info":  m + "/Applications/Safari.app/Info",
-		"/Usersx/anna":                   "/Usersx/anna", // not below /Users
+		"/Usersx/anna":                   "/Usersx/anna",          // not below /Users
+		"/var/db/a":                      m + "/private/var/db/a", // /var -> private/var on the system volume
+		"/etc/ssh/sshd_config":           m + "/private/etc/ssh/sshd_config",
+		"/tmp/x":                         m + "/private/tmp/x",
+		"/var":                           "/var", // the link itself stays a link
+		"/etc":                           "/etc",
+		"/varx/a":                        "/varx/a",
 	} {
 		if got := s.Map(in); got != want {
 			t.Errorf("Map(%s) = %s, want %s", in, got, want)
@@ -389,5 +414,92 @@ func TestJanitorKeepsForeignFolders(t *testing.T) {
 		if ownMountDir(dir) != own {
 			t.Errorf("ownMountDir(%q) = %v", dir, !own)
 		}
+	}
+}
+
+// The temporary folder is below a symbolic link (/tmp -> /private/tmp)
+// and statfs names the mount point by its resolved path: the snapshot is
+// mounted, mapped, recorded and unmounted on that path.
+func TestMountPointResolved(t *testing.T) {
+	ledger := filepath.Join(t.TempDir(), "leftovers.json")
+	leftover.Open(ledger)
+	defer leftover.Close()
+
+	f := newFakeMac()
+	f.links = map[string]string{"/tmp": "/private/tmp"}
+	errs, onErr := collect()
+	s, _ := f.system().create(context.Background(), []string{"/Users/anna"}, time.Minute, onErr)
+	if len(*errs) != 0 || s.snap == nil {
+		t.Fatalf("not mounted: %v", *errs)
+	}
+	if got := s.Map("/Users/anna/a"); got != "/private/tmp/backupzit-apfs-1/Users/anna/a" {
+		t.Fatalf("map: %s", got)
+	}
+	if items := leftover.List(); len(items) != 1 || items[0].Detail != "/private/tmp/backupzit-apfs-1" {
+		t.Fatalf("ledger: %+v", items)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(f.calls, "umount /private/tmp/backupzit-apfs-1") || len(f.mounts) != 0 || len(f.dates) != 0 {
+		t.Fatalf("calls %v mounts %v dates %v", f.calls, f.mounts, f.dates)
+	}
+	if !slices.Equal(f.removed, []string{"/private/tmp/backupzit-apfs-1"}) || len(leftover.List()) != 0 {
+		t.Fatalf("removed %v ledger %+v", f.removed, leftover.List())
+	}
+}
+
+// A ledger record naming the folder through the link (/tmp/...) still
+// unmounts the snapshot before deleting it.
+func TestJanitorUnmountsUnresolvedRecord(t *testing.T) {
+	f := newFakeMac()
+	f.links = map[string]string{"/tmp": "/private/tmp"}
+	y := f.system()
+	f.dates = []string{"2026-11-22-194429"}
+	f.mounts["/private/tmp/backupzit-apfs-7"] = true
+	removed, err := y.cleanLeftovers(context.Background(), []leftover.Item{ledgerItem("2026-11-22-194429", "/tmp/backupzit-apfs-7")}, nil)
+	if err != nil || len(removed) != 1 || len(f.mounts) != 0 || len(f.dates) != 0 {
+		t.Fatalf("removed %v err %v mounts %v dates %v", removed, err, f.mounts, f.dates)
+	}
+	if !slices.Contains(f.calls, "umount /tmp/backupzit-apfs-7") {
+		t.Fatalf("calls %v", f.calls)
+	}
+}
+
+// /var, /etc and /tmp are links of the system volume into the data
+// volume: what is below them needs the snapshot, the links themselves not.
+func TestSystemAliases(t *testing.T) {
+	f := newFakeMac()
+	errs, onErr := collect()
+	s, _ := f.system().create(context.Background(), []string{"/var/db", "/etc/ssh"}, time.Minute, onErr)
+	if len(*errs) != 0 || s.snap == nil {
+		t.Fatalf("no snapshot: %v", *errs)
+	}
+	if got := s.Map("/var/db/x"); got != "/tmp/backupzit-apfs-1/private/var/db/x" {
+		t.Fatalf("map: %s", got)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	f = newFakeMac()
+	s, _ = f.system().create(context.Background(), []string{"/var", "/etc"}, time.Minute, onErr)
+	if len(*errs) != 0 || s.snap != nil || len(f.calls) != 0 {
+		t.Fatalf("links alone: errors %v calls %v", *errs, f.calls)
+	}
+	if hasFirmlinkBelow("/var", defaultFirmlinks) {
+		t.Fatal("an alias counted as a firmlink")
+	}
+}
+
+// The real mount point is canonical: statfs would name it the same way.
+func TestRealMountDirCanonical(t *testing.T) {
+	dir, err := sys.mountDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Remove(dir) }()
+	if r, err := filepath.EvalSymlinks(dir); err != nil || r != dir || !ownMountDir(dir) {
+		t.Fatalf("mount point %s resolves to %s (%v)", dir, r, err)
 	}
 }
