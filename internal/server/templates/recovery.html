@@ -43,6 +43,30 @@
 </div>
 
 <div class="panel">
+  <h2>{{T "Access package for restores without the console"}}</h2>
+  <p class="muted">{{T "The Windows recovery environment can open backups directly, also when this console is not reachable. An access package holds the locations and credentials of the chosen backups, encrypted with a passphrase of its own. Put it into the backupzit folder on the recovery stick; in an emergency only the passphrase is needed."}}</p>
+  {{range .Data.StaleAccess}}<div class="flash err">{{template "icon" "alert"}}<span>{{T "An access package from %v no longer matches: the credentials of this storage changed. Create a new one and destroy the old one." .}}</span></div>{{end}}
+  {{if $.Me.Can "restore"}}
+  {{if .Data.Repos}}
+  <form method="post" action="/recovery/access-package" class="mt">
+    <div class="table-wrap"><table>
+      <tr><th></th><th>{{T "Computer"}}</th><th>{{T "Storage"}}</th><th>{{T "Last backup"}}</th></tr>
+      {{range .Data.Repos}}<tr><td><input type="checkbox" name="repo" value="{{.Key}}" checked></td><td>{{.Hostname}}</td><td>{{.TargetName}}<br><span class="mono small muted">{{.URL}}</span></td><td>{{ts .Last}}</td></tr>{{end}}
+    </table></div>
+    <label class="mt">{{T "Passphrase (at least %v characters)" .Data.MinPassphrase}} <input name="passphrase" type="password" autocomplete="new-password" required minlength="{{.Data.MinPassphrase}}"></label>
+    <label>{{T "Repeat the passphrase"}} <input name="passphrase2" type="password" autocomplete="new-password" required minlength="{{.Data.MinPassphrase}}"></label>
+    {{template "reauth" $.Me}}
+    <button class="mt">{{template "icon" "download"}} {{T "Create access package"}}</button>
+  </form>
+  {{else}}<p class="muted">{{T "No disk image or virtual machine backups yet."}}</p>{{end}}
+  {{if .Data.AccessPackages}}
+  <p class="muted small mt">{{T "Access packages created so far:"}} {{range $i, $p := .Data.AccessPackages}}{{if $i}}, {{end}}{{ts $p.Created}} ({{$p.User}}){{end}}</p>
+  <form method="post" action="/recovery/access-packages/forget" class="inline" data-confirm="{{T "Forget the list of access packages? Do this after destroying the old packages."}}"><button class="link">{{T "Forget the list"}}</button></form>
+  {{end}}
+  {{end}}
+</div>
+
+<div class="panel">
   <h2>{{T "Connected recovery agents"}}</h2>
   {{if .Data.Agents}}
   <div class="table-wrap"><table>

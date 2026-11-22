@@ -2,6 +2,8 @@ package server
 
 import (
 	"encoding/json"
+
+	"github.com/max-zit/backupzit/internal/recovery"
 	"net"
 	"net/http"
 	"strings"
@@ -16,6 +18,10 @@ const recoveryTokenTTL = 30 * 24 * time.Hour
 const LinuxRecoveryISO = "backupzit-recovery-linux.iso"
 
 func (s *Server) recoveryPage(w http.ResponseWriter, r *http.Request, user string, token string, exp time.Time) {
+	s.recoveryPageWith(w, r, user, token, exp, "")
+}
+
+func (s *Server) recoveryPageWith(w http.ResponseWriter, r *http.Request, user string, token string, exp time.Time, errMsg string) {
 	var isos []download
 	for _, d := range s.downloads() {
 		if strings.HasSuffix(strings.ToLower(d.Name), ".iso") {
@@ -43,9 +49,23 @@ func (s *Server) recoveryPage(w http.ResponseWriter, r *http.Request, user strin
 			rec = append(rec, a)
 		}
 	}
-	s.render(w, r, "recovery", pageData{Title: "Recovery", Nav: "recovery", User: user, Data: map[string]any{
+	repos, err := s.store.recoveryRepos(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	targets, err := s.store.ListTargets(r.Context())
+	if err != nil {
+		s.serverError(w, err)
+		return
+	}
+	var records []accessRecord
+	_ = s.store.GetSetting(r.Context(), accessPackagesSetting, &records)
+	s.render(w, r, "recovery", pageData{Title: "Recovery", Nav: "recovery", User: user, Error: errMsg, Data: map[string]any{
 		"ISOs": isos, "Token": token, "Expires": exp, "ServerURL": s.publicURL(r),
 		"Fingerprint": s.CertFingerprint, "Agents": rec, "OnlineISO": online,
+		"Repos": repos, "AccessPackages": records, "StaleAccess": staleAccessPackages(records, targets),
+		"MinPassphrase": recovery.MinPassphraseLength,
 	}})
 }
 
