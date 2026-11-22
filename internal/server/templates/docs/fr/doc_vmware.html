@@ -49,7 +49,7 @@
       <li>Sur les hôtes gratuits, le CBT ne peut être activé que lorsque la VM est éteinte. BackupZit le fait lors de la première sauvegarde qui trouve la VM éteinte. D'ici là, chaque sauvegarde lit les disques entiers et l'exécution affiche un avertissement.</li>
     </ul>
   </li>
-  <li>Un instantané <code>backupzit_…</code> est pris. Lorsque les <b>VMware Tools</b> tournent dans l'invité, l'instantané est <b>suspendu</b> (quiesced) : les applications et systèmes de fichiers sont vidés d'abord, ce qui rend la sauvegarde cohérente au niveau applicatif. Sans VMware Tools, elle est cohérente en cas de crash. Installez <code>open-vm-tools</code> dans les VM Linux et VMware Tools dans les VM Windows.</li>
+  <li>Un instantané <code>backupzit_…</code> est pris. Lorsque les <b>VMware Tools</b> tournent dans l'invité, l'instantané est <b>suspendu</b> (quiesced) : les applications et systèmes de fichiers sont vidés d'abord, ce qui rend la sauvegarde cohérente au niveau applicatif. Sans VMware Tools, elle est cohérente en cas de crash. Installez <code>open-vm-tools</code> dans les VM Linux et VMware Tools dans les VM Windows. Pour un invité dont la suspension échoue ou se comporte mal, cochez <i>Instantanés cohérents en cas de crash (sans suspension par VMware Tools)</i> dans la tâche : ses sauvegardes sont alors cohérentes en cas de crash, comme après une coupure de courant (agent 0.58). Sur certains hôtes (ESXi 6.7), le disque d'un instantané suspendu est un petit delta écrit par la suspension elle-même ; l'agent le lit avec l'instantané (agent 0.58 ; les agents plus anciens le refusaient comme disque delta d'instantané).</li>
   <li>Le CBT indique quels blocs lire :
     <ul>
       <li>pour la première sauvegarde, uniquement les blocs utilisés ;</li>
@@ -126,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Pas encore inclus</h2>
 <ul>
   <li><b>vCenter avec plusieurs datacenters.</b> Seul un vCenter avec un datacenter peut être ajouté ; ajoutez directement les hôtes des autres.</li>
-  <li><b>Les VM ayant leurs propres instantanés.</b> Leurs disques sont des deltas ; supprimez ou consolidez d'abord les instantanés.</li>
+  <li><b>Les VM ayant leurs propres instantanés.</b> Leurs disques sont des deltas ; supprimez ou consolidez d'abord les instantanés. (Le petit delta qu'écrit un instantané suspendu appartient à la sauvegarde elle-même et est lu avec elle.)</li>
   <li><b>Certains types de disques.</b> Les mappages de périphériques bruts (RDM) et les disques indépendants.</li>
   <li><b>La restauration instantanée via un agent proxy Windows.</b> La restauration instantanée nécessite un agent proxy Linux.</li>
 </ul>

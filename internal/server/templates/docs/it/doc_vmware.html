@@ -49,7 +49,7 @@
       <li>Sugli host gratuiti il CBT si può attivare solo a VM spenta. BackupZit lo fa al primo backup che trova la VM spenta. Fino ad allora ogni backup legge i dischi interi e l'esecuzione mostra un avviso.</li>
     </ul>
   </li>
-  <li>Viene creato uno snapshot <code>backupzit_…</code>. Quando nel guest girano i <b>VMware Tools</b>, lo snapshot è <b>quiesced</b>: applicazioni e file system vengono prima svuotati, rendendo il backup coerente a livello applicativo. Senza VMware Tools è crash-consistent. Installa <code>open-vm-tools</code> nelle VM Linux e VMware Tools nelle VM Windows.</li>
+  <li>Viene creato uno snapshot <code>backupzit_…</code>. Quando nel guest girano i <b>VMware Tools</b>, lo snapshot è <b>quiesced</b>: applicazioni e file system vengono prima svuotati, rendendo il backup coerente a livello applicativo. Senza VMware Tools è crash-consistent. Installa <code>open-vm-tools</code> nelle VM Linux e VMware Tools nelle VM Windows. Per un guest il cui quiescing fallisce o si comporta male, spunta <i>Snapshot crash-consistent (senza quiescing di VMware Tools)</i> nel job: i suoi backup sono allora crash-consistent, come dopo un'interruzione di corrente (agente 0.58). Su alcuni host (ESXi 6.7) il disco di uno snapshot quiesced è un piccolo delta scritto dal quiescing stesso; l'agente lo legge con lo snapshot (agente 0.58; gli agenti precedenti lo rifiutavano come disco delta di snapshot).</li>
   <li>Il CBT indica quali blocchi leggere:
     <ul>
       <li>per il primo backup, solo i blocchi in uso;</li>
@@ -126,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Non ancora incluso</h2>
 <ul>
   <li><b>vCenter con più datacenter.</b> Si può aggiungere solo un vCenter con un datacenter; aggiungi direttamente gli host degli altri.</li>
-  <li><b>VM con snapshot propri.</b> I loro dischi sono delta; elimina o consolida prima gli snapshot.</li>
+  <li><b>VM con snapshot propri.</b> I loro dischi sono delta; elimina o consolida prima gli snapshot. (Il piccolo delta che scrive uno snapshot quiesced appartiene al backup stesso e viene letto con esso.)</li>
   <li><b>Alcuni tipi di disco.</b> Raw device mapping (RDM) e dischi indipendenti.</li>
   <li><b>Ripristino istantaneo tramite un agente proxy Windows.</b> Il ripristino istantaneo richiede un agente proxy Linux.</li>
 </ul>

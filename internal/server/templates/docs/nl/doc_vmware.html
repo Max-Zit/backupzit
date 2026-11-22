@@ -49,7 +49,7 @@
       <li>Op gratis hosts kan CBT alleen worden ingeschakeld terwijl de VM uit staat. BackupZit doet het bij de eerste back-up die de VM uitgeschakeld aantreft. Tot dan leest elke back-up de volledige schijven en toont de run een waarschuwing.</li>
     </ul>
   </li>
-  <li>Er wordt een snapshot <code>backupzit_…</code> gemaakt. Als <b>VMware Tools</b> in de gast draaien, wordt de snapshot <b>gequiesced</b>: toepassingen en bestandssystemen worden eerst geleegd, wat de back-up applicatieconsistent maakt. Zonder VMware Tools is hij crash-consistent. Installeer <code>open-vm-tools</code> in Linux-VM's en VMware Tools in Windows-VM's.</li>
+  <li>Er wordt een snapshot <code>backupzit_…</code> gemaakt. Als <b>VMware Tools</b> in de gast draaien, wordt de snapshot <b>gequiesced</b>: toepassingen en bestandssystemen worden eerst geleegd, wat de back-up applicatieconsistent maakt. Zonder VMware Tools is hij crash-consistent. Installeer <code>open-vm-tools</code> in Linux-VM's en VMware Tools in Windows-VM's. Vink voor een gast waarbij quiescing mislukt of niet goed werkt <i>Crash-consistente snapshots (zonder quiescing door VMware Tools)</i> aan in de taak: zijn back-ups zijn dan crash-consistent, zoals na een stroomuitval (agent 0.58). Op sommige hosts (ESXi 6.7) is de schijf van een gequiescede snapshot een kleine delta die het quiescen zelf heeft geschreven; de agent leest die met de snapshot (agent 0.58; oudere agents weigerden hem als snapshot-deltaschijf).</li>
   <li>CBT meldt welke blokken gelezen moeten worden:
     <ul>
       <li>bij de eerste back-up alleen de gebruikte blokken;</li>
@@ -126,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Nog niet inbegrepen</h2>
 <ul>
   <li><b>vCenter met meerdere datacenters.</b> Alleen een vCenter met één datacenter kan worden toegevoegd; voeg de hosts van de andere rechtstreeks toe.</li>
-  <li><b>VM's met eigen snapshots.</b> Hun schijven zijn delta's; verwijder of consolideer de snapshots eerst.</li>
+  <li><b>VM's met eigen snapshots.</b> Hun schijven zijn delta's; verwijder of consolideer de snapshots eerst. (De kleine delta die een gequiescede snapshot schrijft, hoort bij de back-up zelf en wordt ermee gelezen.)</li>
   <li><b>Sommige schijftypen.</b> Raw device mappings (RDM) en onafhankelijke schijven.</li>
   <li><b>Direct herstel via een Windows-proxy-agent.</b> Direct herstel vereist een Linux-proxy-agent.</li>
 </ul>

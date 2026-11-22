@@ -49,7 +49,7 @@
       <li>Auf kostenlosen Hosts kann CBT nur eingeschaltet werden, während die VM ausgeschaltet ist. BackupZit tut das bei der ersten Sicherung, die die VM ausgeschaltet vorfindet. Bis dahin liest jede Sicherung die ganzen Festplatten, und der Lauf zeigt eine Warnung.</li>
     </ul>
   </li>
-  <li>Ein Snapshot <code>backupzit_…</code> wird erstellt. Laufen <b>VMware Tools</b> im Gast, wird der Snapshot <b>stillgelegt</b> (quiesced): Anwendungen und Dateisysteme werden vorher geleert, was die Sicherung anwendungskonsistent macht. Ohne VMware Tools ist sie absturzkonsistent. Installieren Sie <code>open-vm-tools</code> in Linux-VMs und VMware Tools in Windows-VMs.</li>
+  <li>Ein Snapshot <code>backupzit_…</code> wird erstellt. Laufen <b>VMware Tools</b> im Gast, wird der Snapshot <b>stillgelegt</b> (quiesced): Anwendungen und Dateisysteme werden vorher geleert, was die Sicherung anwendungskonsistent macht. Ohne VMware Tools ist sie absturzkonsistent. Installieren Sie <code>open-vm-tools</code> in Linux-VMs und VMware Tools in Windows-VMs. Für einen Gast, dessen Stilllegung fehlschlägt oder fehlerhaft arbeitet, aktivieren Sie im Job <i>Absturzkonsistente Snapshots (ohne Stilllegung durch VMware Tools)</i>: Seine Sicherungen sind dann absturzkonsistent, wie nach einem Stromausfall (Agent 0.58). Auf manchen Hosts (ESXi 6.7) ist die Festplatte eines stillgelegten Snapshots ein kleines Delta, das die Stilllegung selbst geschrieben hat; der Agent liest es mit dem Snapshot (Agent 0.58; ältere Agenten lehnten es als Snapshot-Delta-Festplatte ab).</li>
   <li>CBT meldet, welche Blöcke zu lesen sind:
     <ul>
       <li>bei der ersten Sicherung nur die belegten Blöcke;</li>
@@ -126,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Noch nicht enthalten</h2>
 <ul>
   <li><b>vCenter mit mehreren Datacentern.</b> Nur ein vCenter mit einem Datacenter kann hinzugefügt werden; fügen Sie die Hosts der anderen direkt hinzu.</li>
-  <li><b>VMs mit eigenen Snapshots.</b> Ihre Festplatten sind Deltas; löschen oder konsolidieren Sie die Snapshots zuerst.</li>
+  <li><b>VMs mit eigenen Snapshots.</b> Ihre Festplatten sind Deltas; löschen oder konsolidieren Sie die Snapshots zuerst. (Das kleine Delta, das ein stillgelegter Snapshot schreibt, gehört zur Sicherung selbst und wird mit ihr gelesen.)</li>
   <li><b>Einige Festplattentypen.</b> Raw Device Mappings (RDM) und unabhängige Festplatten.</li>
   <li><b>Sofortige Wiederherstellung über einen Windows-Proxy-Agenten.</b> Die sofortige Wiederherstellung braucht einen Linux-Proxy-Agenten.</li>
 </ul>

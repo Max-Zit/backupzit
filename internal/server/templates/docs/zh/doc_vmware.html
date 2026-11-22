@@ -49,7 +49,7 @@
       <li>在免费主机上，只有在虚拟机关闭时才能开启 CBT。BackupZit 会在第一次发现虚拟机处于关闭状态的备份时开启它。在此之前，每次备份都读取整个磁盘，运行会显示警告。</li>
     </ul>
   </li>
-  <li>创建快照 <code>backupzit_…</code>。当来宾中运行着 <b>VMware Tools</b> 时，快照会<b>静默</b>（quiesced）：先刷新应用程序和文件系统，使备份具有应用一致性。没有 VMware Tools 时则为崩溃一致性。请在 Linux 虚拟机中安装 <code>open-vm-tools</code>，在 Windows 虚拟机中安装 VMware Tools。</li>
+  <li>创建快照 <code>backupzit_…</code>。当来宾中运行着 <b>VMware Tools</b> 时，快照会<b>静默</b>（quiesced）：先刷新应用程序和文件系统，使备份具有应用一致性。没有 VMware Tools 时则为崩溃一致性。请在 Linux 虚拟机中安装 <code>open-vm-tools</code>，在 Windows 虚拟机中安装 VMware Tools。对于静默失败或工作异常的来宾，请在作业中勾选 <i>崩溃一致快照（不经 VMware Tools 静默）</i>：其备份将是崩溃一致的，如同断电之后（代理 0.58）。在某些主机（ESXi 6.7）上，静默快照的磁盘是由静默本身写入的小型增量；代理会连同快照一起读取它（代理 0.58；更早的代理会将其视为快照增量磁盘而拒绝）。</li>
   <li>CBT 报告需要读取哪些块：
     <ul>
       <li>第一次备份时，只读取已使用的块；</li>
@@ -126,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>尚未包含</h2>
 <ul>
   <li><b>包含多个数据中心的 vCenter。</b> 只能添加只有一个数据中心的 vCenter；其他数据中心的主机请直接添加。</li>
-  <li><b>自带快照的虚拟机。</b> 其磁盘是增量磁盘；请先删除或合并快照。</li>
+  <li><b>自带快照的虚拟机。</b> 其磁盘是增量磁盘；请先删除或合并快照。（静默快照写入的小型增量属于备份自身，会随快照一起读取。）</li>
   <li><b>某些磁盘类型。</b> 裸设备映射（RDM）和独立磁盘。</li>
   <li><b>通过 Windows 代理（proxy）进行即时恢复。</b> 即时恢复需要 Linux 代理（proxy）。</li>
 </ul>

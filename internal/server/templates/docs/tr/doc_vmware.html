@@ -49,7 +49,7 @@
       <li>Ücretsiz ana bilgisayarlarda CBT yalnızca VM kapalıyken açılabilir. BackupZit bunu VM'yi kapalı bulan ilk yedeklemede yapar. O zamana kadar her yedek disklerin tamamını okur ve çalıştırma bir uyarı gösterir.</li>
     </ul>
   </li>
-  <li>Bir <code>backupzit_…</code> anlık görüntüsü alınır. Konukta <b>VMware Tools</b> çalışıyorsa anlık görüntü <b>sessize alınır</b> (quiesced): uygulamalar ve dosya sistemleri önce boşaltılır, bu da yedeği uygulama tutarlı yapar. VMware Tools olmadan çökme tutarlıdır. Linux VM'lere <code>open-vm-tools</code>, Windows VM'lere VMware Tools kurun.</li>
+  <li>Bir <code>backupzit_…</code> anlık görüntüsü alınır. Konukta <b>VMware Tools</b> çalışıyorsa anlık görüntü <b>sessize alınır</b> (quiesced): uygulamalar ve dosya sistemleri önce boşaltılır, bu da yedeği uygulama tutarlı yapar. VMware Tools olmadan çökme tutarlıdır. Linux VM'lere <code>open-vm-tools</code>, Windows VM'lere VMware Tools kurun. Sessize alma işlemi başarısız olan veya hatalı çalışan bir konuk için işte <i>Çökme tutarlı anlık görüntüler (VMware Tools ile sessize alma olmadan)</i> seçeneğini işaretleyin: yedekleri o zaman bir elektrik kesintisinden sonraki gibi çökme tutarlı olur (aracı 0.58). Bazı ana bilgisayarlarda (ESXi 6.7) sessize alınmış bir anlık görüntünün diski, sessize alma işleminin kendisinin yazdığı küçük bir deltadır; aracı bunu anlık görüntüyle birlikte okur (aracı 0.58; eski aracılar bunu anlık görüntü delta diski olarak reddediyordu).</li>
   <li>CBT hangi blokların okunacağını bildirir:
     <ul>
       <li>ilk yedekte yalnızca kullanılan bloklar;</li>
@@ -126,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Henüz dahil olmayanlar</h2>
 <ul>
   <li><b>Birden çok veri merkezi olan vCenter.</b> Yalnızca tek veri merkezli bir vCenter eklenebilir; diğerlerinin ana bilgisayarlarını doğrudan ekleyin.</li>
-  <li><b>Kendi anlık görüntüleri olan VM'ler.</b> Diskleri deltadır; önce anlık görüntüleri silin veya birleştirin.</li>
+  <li><b>Kendi anlık görüntüleri olan VM'ler.</b> Diskleri deltadır; önce anlık görüntüleri silin veya birleştirin. (Sessize alınmış bir anlık görüntünün yazdığı küçük delta yedeğin kendisine aittir ve onunla birlikte okunur.)</li>
   <li><b>Bazı disk türleri.</b> Ham aygıt eşlemeleri (RDM) ve bağımsız diskler.</li>
   <li><b>Windows vekil aracısı üzerinden anında kurtarma.</b> Anında kurtarma bir Linux vekil aracısı gerektirir.</li>
 </ul>

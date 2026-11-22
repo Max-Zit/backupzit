@@ -49,7 +49,7 @@
       <li>Na bezplatných hostitelích lze CBT zapnout jen při vypnutém VM. BackupZit to udělá při první záloze, která najde VM vypnutý. Do té doby každá záloha čte celé disky a běh ukazuje varování.</li>
     </ul>
   </li>
-  <li>Pořídí se snímek <code>backupzit_…</code>. Když v hostovi běží <b>VMware Tools</b>, snímek se <b>uklidní</b> (quiesced): aplikace a souborové systémy se nejdřív vyprázdní, takže záloha je konzistentní na úrovni aplikací. Bez VMware Tools je konzistentní jako při havárii. Do linuxových VM nainstalujte <code>open-vm-tools</code> a do VM s Windows VMware Tools.</li>
+  <li>Pořídí se snímek <code>backupzit_…</code>. Když v hostovi běží <b>VMware Tools</b>, snímek se <b>uklidní</b> (quiesced): aplikace a souborové systémy se nejdřív vyprázdní, takže záloha je konzistentní na úrovni aplikací. Bez VMware Tools je konzistentní jako při havárii. Do linuxových VM nainstalujte <code>open-vm-tools</code> a do VM s Windows VMware Tools. Pro hosta, u kterého uklidnění selhává nebo nefunguje správně, zaškrtněte v úloze <i>Snímky konzistentní při pádu (bez uklidnění pomocí VMware Tools)</i>: jeho zálohy jsou pak konzistentní při pádu, jako po výpadku napájení (agent 0.58). Na některých hostitelích (ESXi 6.7) je disk uklidněného snímku malá delta, kterou zapsalo samo uklidnění; agent ji čte spolu se snímkem (agent 0.58; starší agenti ji odmítali jako delta disk snímku).</li>
   <li>CBT hlásí, které bloky číst:
     <ul>
       <li>při první záloze jen používané bloky;</li>
@@ -126,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Zatím nezahrnuto</h2>
 <ul>
   <li><b>vCenter s více datacentry.</b> Přidat lze jen vCenter s jedním datacentrem; hostitele ostatních přidejte přímo.</li>
-  <li><b>VM s vlastními snímky.</b> Jejich disky jsou delty; snímky nejdřív smažte nebo konsolidujte.</li>
+  <li><b>VM s vlastními snímky.</b> Jejich disky jsou delty; snímky nejdřív smažte nebo konsolidujte. (Malá delta, kterou zapíše uklidněný snímek, patří samotné záloze a čte se spolu s ní.)</li>
   <li><b>Některé typy disků.</b> Raw device mapping (RDM) a nezávislé disky.</li>
   <li><b>Okamžitá obnova přes proxy agenta pro Windows.</b> Okamžitá obnova potřebuje proxy agenta pro Linux.</li>
 </ul>

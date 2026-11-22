@@ -49,7 +49,7 @@
       <li>Na besplatnim hostovima CBT može da se uključi samo dok je VM ugašena. BackupZit to radi pri prvom bekapu koji zatekne VM ugašenu. Do tada svaki bekap čita cele diskove, a pokretanje prikazuje upozorenje.</li>
     </ul>
   </li>
-  <li>Pravi se snimak <code>backupzit_…</code>. Kada u gostu rade <b>VMware Tools</b>, snimak je <b>quiesced</b>: aplikacije i fajl-sistemi prvo upisuju svoje podatke, pa je bekap konzistentan na nivou aplikacija. Bez VMware Tools-a konzistentan je kao posle nestanka struje. Instalirajte <code>open-vm-tools</code> u Linux virtuelne mašine i VMware Tools u Windows virtuelne mašine.</li>
+  <li>Pravi se snimak <code>backupzit_…</code>. Kada u gostu rade <b>VMware Tools</b>, snimak je <b>quiesced</b>: aplikacije i fajl-sistemi prvo upisuju svoje podatke, pa je bekap konzistentan na nivou aplikacija. Bez VMware Tools-a konzistentan je kao posle nestanka struje. Instalirajte <code>open-vm-tools</code> u Linux virtuelne mašine i VMware Tools u Windows virtuelne mašine. Za gosta kod kog quiescing ne uspeva ili ne radi kako treba, uključite u poslu <i>Crash-consistent snimci (bez quiescing-a preko VMware Tools-a)</i>: njegovi bekapi su tada crash-consistent, kao posle nestanka struje (agent 0.58). Na nekim hostovima (ESXi 6.7) disk quiesced snimka je mala delta koju je upisao sam quiescing; agent je čita zajedno sa snimkom (agent 0.58; stariji agenti su je odbijali kao delta disk snimka).</li>
   <li>CBT javlja koje blokove treba čitati:
     <ul>
       <li>za prvi bekap, samo blokove u upotrebi;</li>
@@ -126,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Još nije uključeno</h2>
 <ul>
   <li><b>vCenter sa više datacentara.</b> Može da se doda samo vCenter sa jednim datacentrom; hostove ostalih dodajte direktno.</li>
-  <li><b>Virtuelne mašine sa sopstvenim snimcima.</b> Njihovi diskovi su delte; prvo obrišite ili konsolidujte snimke.</li>
+  <li><b>Virtuelne mašine sa sopstvenim snimcima.</b> Njihovi diskovi su delte; prvo obrišite ili konsolidujte snimke. (Mala delta koju upisuje quiesced snimak pripada samom bekapu i čita se zajedno s njim.)</li>
   <li><b>Neke vrste diskova.</b> Raw device mappings (RDM) i nezavisni diskovi.</li>
   <li><b>Instant recovery preko Windows proxy agenta.</b> Instant recovery traži Linux proxy agenta.</li>
 </ul>

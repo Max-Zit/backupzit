@@ -49,7 +49,7 @@
       <li>En hosts gratuitos, el CBT solo puede activarse con la VM apagada. BackupZit lo hace en la primera copia que encuentra la VM apagada. Hasta entonces, cada copia lee los discos completos y la ejecución muestra una advertencia.</li>
     </ul>
   </li>
-  <li>Se toma una instantánea <code>backupzit_…</code>. Cuando las <b>VMware Tools</b> se ejecutan en el invitado, la instantánea se <b>pone en reposo</b> (quiesced): primero se vacían las aplicaciones y los sistemas de archivos, lo que hace la copia coherente con las aplicaciones. Sin VMware Tools es coherente ante bloqueos. Instale <code>open-vm-tools</code> en las VM Linux y VMware Tools en las VM Windows.</li>
+  <li>Se toma una instantánea <code>backupzit_…</code>. Cuando las <b>VMware Tools</b> se ejecutan en el invitado, la instantánea se <b>pone en reposo</b> (quiesced): primero se vacían las aplicaciones y los sistemas de archivos, lo que hace la copia coherente con las aplicaciones. Sin VMware Tools es coherente ante bloqueos. Instale <code>open-vm-tools</code> en las VM Linux y VMware Tools en las VM Windows. Para un invitado cuya puesta en reposo falla o se comporta mal, marque <i>Instantáneas coherentes ante bloqueos (sin puesta en reposo de VMware Tools)</i> en la tarea: sus copias son entonces coherentes ante bloqueos, como tras un corte de corriente (agente 0.58). En algunos hosts (ESXi 6.7) el disco de una instantánea puesta en reposo es un pequeño delta que escribió la propia puesta en reposo; el agente lo lee con la instantánea (agente 0.58; los agentes anteriores lo rechazaban como disco delta de instantánea).</li>
   <li>El CBT indica qué bloques leer:
     <ul>
       <li>en la primera copia, solo los bloques en uso;</li>
@@ -126,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Aún no incluido</h2>
 <ul>
   <li><b>vCenter con varios datacenters.</b> Solo se puede añadir un vCenter con un datacenter; añada directamente los hosts de los demás.</li>
-  <li><b>VM con instantáneas propias.</b> Sus discos son deltas; elimine o consolide primero las instantáneas.</li>
+  <li><b>VM con instantáneas propias.</b> Sus discos son deltas; elimine o consolide primero las instantáneas. (El pequeño delta que escribe una instantánea puesta en reposo es de la propia copia y se lee con ella.)</li>
   <li><b>Algunos tipos de disco.</b> Asignaciones de dispositivos sin formato (RDM) y discos independientes.</li>
   <li><b>Recuperación instantánea mediante un agente proxy Windows.</b> La recuperación instantánea necesita un agente proxy Linux.</li>
 </ul>

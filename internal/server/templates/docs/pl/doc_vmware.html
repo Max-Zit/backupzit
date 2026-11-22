@@ -49,7 +49,7 @@
       <li>Na hostach darmowych CBT można włączyć tylko przy wyłączonej maszynie. BackupZit robi to przy pierwszej kopii, która zastanie maszynę wyłączoną. Do tego czasu każda kopia odczytuje całe dyski, a uruchomienie pokazuje ostrzeżenie.</li>
     </ul>
   </li>
-  <li>Tworzona jest migawka <code>backupzit_…</code>. Gdy w gościu działają <b>VMware Tools</b>, migawka jest <b>wyciszana</b> (quiesced): najpierw opróżniane są aplikacje i systemy plików, co czyni kopię spójną aplikacyjnie. Bez VMware Tools jest spójna awaryjnie. Zainstaluj <code>open-vm-tools</code> w maszynach Linux i VMware Tools w maszynach Windows.</li>
+  <li>Tworzona jest migawka <code>backupzit_…</code>. Gdy w gościu działają <b>VMware Tools</b>, migawka jest <b>wyciszana</b> (quiesced): najpierw opróżniane są aplikacje i systemy plików, co czyni kopię spójną aplikacyjnie. Bez VMware Tools jest spójna awaryjnie. Zainstaluj <code>open-vm-tools</code> w maszynach Linux i VMware Tools w maszynach Windows. Dla gościa, u którego wyciszanie się nie udaje lub działa nieprawidłowo, zaznacz w zadaniu <i>Migawki spójne awaryjnie (bez wyciszania przez VMware Tools)</i>: jego kopie są wtedy spójne awaryjnie, jak po zaniku zasilania (agent 0.58). Na niektórych hostach (ESXi 6.7) dysk wyciszonej migawki jest małą deltą, którą zapisało samo wyciszanie; agent odczytuje ją razem z migawką (agent 0.58; starsi agenci odrzucali ją jako dysk delta migawki).</li>
   <li>CBT wskazuje, które bloki odczytać:
     <ul>
       <li>przy pierwszej kopii tylko używane bloki;</li>
@@ -126,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Jeszcze nieobsługiwane</h2>
 <ul>
   <li><b>vCenter z kilkoma centrami danych.</b> Można dodać tylko vCenter z jednym centrum danych; hosty pozostałych dodaj bezpośrednio.</li>
-  <li><b>Maszyny z własnymi migawkami.</b> Ich dyski są deltami; najpierw usuń lub skonsoliduj migawki.</li>
+  <li><b>Maszyny z własnymi migawkami.</b> Ich dyski są deltami; najpierw usuń lub skonsoliduj migawki. (Mała delta, którą zapisuje wyciszona migawka, należy do samej kopii i jest odczytywana razem z nią.)</li>
   <li><b>Niektóre typy dysków.</b> Mapowania surowych urządzeń (RDM) i dyski niezależne.</li>
   <li><b>Natychmiastowe odzyskiwanie przez agenta proxy Windows.</b> Natychmiastowe odzyskiwanie wymaga agenta proxy Linux.</li>
 </ul>
