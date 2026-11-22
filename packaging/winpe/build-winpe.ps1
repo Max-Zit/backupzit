@@ -26,13 +26,32 @@
 
   With -UiExe the graphical recovery program is copied to System32 and
   started instead of the console recovery agent.
+
+  -DriverDir takes several folders. -IncludeHostDrivers adds the storage,
+  disk controller and network drivers of the machine the ISO is built on
+  (e.g. Intel RST/VMD on a notebook), so this medium sees its disks.
+  Vendor drivers are not shipped with BackupZit; the folders come from
+  you (e.g. the VirtIO ISO for Proxmox, VMware PVSCSI/VMXNET3).
+
+  -BaseWim builds on another Windows PE image instead of the ADK's, e.g. a
+  winre.wim (Windows Recovery Environment) that brings Wi-Fi and the
+  drivers of its machine. The BackupZit program replaces its recovery
+  menu.
+
+  -UsbDrive F: also writes the medium to the USB stick with that drive
+  letter (MakeWinPEMedia, FAT32; everything on it is erased). It needs
+  -Force.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$AgentExe,
     [Parameter(Mandatory = $true)][string]$Out,
     [string]$RecoveryJson = "",
     [string]$AccessPackage = "",
-    [string]$DriverDir = "",
+    [string[]]$DriverDir = @(),
+    [switch]$IncludeHostDrivers,
+    [string]$BaseWim = "",
+    [string]$UsbDrive = "",
+    [switch]$Force,
     [string]$UiExe = "",
     [string]$Language = "de-de",
     [string]$KeyboardLayout = "",
@@ -50,8 +69,16 @@ $peRoot = Join-Path $adk "Windows Preinstallation Environment"
 if (-not (Test-Path $peRoot)) { throw "Windows PE add-on not installed" }
 $ocs = Join-Path $peRoot "amd64\WinPE_OCs"
 
-foreach ($f in @($AgentExe, $RecoveryJson, $AccessPackage, $UiExe, $DriverDir)) {
+foreach ($f in @($AgentExe, $RecoveryJson, $AccessPackage, $UiExe, $BaseWim) + $DriverDir) {
     if ($f -and -not (Test-Path $f)) { throw "not found: $f" }
+}
+if ($UsbDrive) {
+    if ($UsbDrive -notmatch '^[D-Zd-z]:$') { throw "-UsbDrive takes a drive letter such as F:" }
+    if (-not $Force) { throw "-UsbDrive erases $UsbDrive completely; add -Force to continue" }
+    $vol = Get-Volume -DriveLetter $UsbDrive[0] -ErrorAction Stop
+    $disk = Get-Partition -DriveLetter $UsbDrive[0] | Get-Disk
+    if ($disk.BusType -ne "USB") { throw "$UsbDrive is not on a USB disk (bus $($disk.BusType)); refusing to erase it" }
+    if ($disk.IsBoot -or $disk.IsSystem) { throw "$UsbDrive is on the system disk" }
 }
 $Language = $Language.ToLower()
 if ($Language -and -not (Test-Path (Join-Path $ocs $Language))) {
@@ -92,6 +119,29 @@ if (Test-Path $WorkDir) {
     Remove-Item -Recurse -Force $WorkDir
 }
 Invoke-AdkCmd "copype amd64 `"$WorkDir`""
+if ($BaseWim) {
+    Write-Output "using $BaseWim as the base image"
+    Copy-Item -Force $BaseWim "$WorkDir\media\sources\boot.wim"
+    Set-ItemProperty "$WorkDir\media\sources\boot.wim" -Name IsReadOnly -Value $false
+}
+
+# Drivers of this machine: storage, disk controllers and network.
+$drivers = @($DriverDir)
+if ($IncludeHostDrivers) {
+    $hostDrv = Join-Path $WorkDir "host-drivers"
+    New-Item -ItemType Directory -Force $hostDrv | Out-Null
+    $classes = @("SCSIAdapter", "HDC", "Net", "System")
+    $n = 0
+    foreach ($d in Get-WindowsDriver -Online | Where-Object { $classes -contains $_.ClassName }) {
+        $src = Split-Path -Parent $d.OriginalFileName
+        # "System" holds chipset drivers too; keep only storage-related ones.
+        if ($d.ClassName -eq "System" -and $d.ProviderName -notmatch "Intel" -and $src -notmatch "(?i)vmd|rst|iastor") { continue }
+        $dst = Join-Path $hostDrv ((Split-Path -Leaf $src))
+        if (-not (Test-Path $dst)) { Copy-Item -Recurse $src $dst; $n++ }
+    }
+    Write-Output "exported $n driver packages of this machine"
+    $drivers += $hostDrv
+}
 
 $mount = Join-Path $WorkDir "mount"
 Invoke-Dism @("/Mount-Image", "/ImageFile:$WorkDir\media\sources\boot.wim", "/Index:1", "/MountDir:$mount") "mount boot.wim"
@@ -134,11 +184,21 @@ try {
     if ($UiExe) {
         Copy-Item $UiExe (Join-Path $mount "Windows\System32\backupzit-recovery.exe")
     }
-    if ($DriverDir) {
-        Invoke-Dism @("/Image:$mount", "/Add-Driver", "/Driver:$DriverDir", "/Recurse") "adding drivers to Windows PE"
-        $drv = Join-Path $mount "BackupZit\drivers"
+    $i = 0
+    foreach ($dir in $drivers) {
+        # /ForceUnsigned is not used: unsigned drivers would not load anyway
+        # with Secure Boot.
+        Invoke-Dism @("/Image:$mount", "/Add-Driver", "/Driver:$dir", "/Recurse") "adding drivers from $dir to Windows PE"
+        $drv = Join-Path $mount "BackupZit\drivers\$i"
         New-Item -ItemType Directory -Force $drv | Out-Null
-        Copy-Item -Recurse -Force (Join-Path $DriverDir "*") $drv
+        Copy-Item -Recurse -Force (Join-Path $dir "*") $drv
+        $i++
+    }
+    if ($BaseWim) {
+        # Windows RE starts its recovery menu through winpeshl.ini; start
+        # the BackupZit environment instead.
+        $ini = "[LaunchApps]`r`n%SYSTEMROOT%\System32\cmd.exe, /k %SYSTEMROOT%\System32\startnet.cmd`r`n"
+        Set-Content -Path (Join-Path $mount "Windows\System32\winpeshl.ini") -Value $ini -Encoding ASCII
     }
 
     $kb = ""
@@ -190,3 +250,9 @@ $bootdata = "2#p0,e,b`"$oscdimg\etfsboot.com`"#pEF,e,b`"$oscdimg\efisys_noprompt
 & "$oscdimg\oscdimg.exe" -m -o -u2 -udfver102 "-bootdata:$bootdata" "$WorkDir\media" "$Out"
 if ($LASTEXITCODE -ne 0) { throw "oscdimg failed ($LASTEXITCODE)" }
 Write-Output "built $Out ($([math]::Round((Get-Item $Out).Length / 1MB)) MB)"
+
+if ($UsbDrive) {
+    Write-Output "writing the medium to $UsbDrive (erases it)"
+    Invoke-AdkCmd "MakeWinPEMedia /UFD /F `"$WorkDir`" $UsbDrive"
+    Write-Output "USB stick $UsbDrive ready (UEFI and BIOS)"
+}
