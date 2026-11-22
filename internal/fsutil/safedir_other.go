@@ -57,7 +57,13 @@ func rootID(r *os.Root) (fileID, error) {
 }
 
 // LinkFrom: the caller restores a copy.
-func (d *Dir) LinkFrom(*Dir, string, string) error { return errors.ErrUnsupported }
+func (d *Dir) LinkFrom(*Dir, string, string, FileID) error { return errors.ErrUnsupported }
+
+// FileID identifies a file (not used here).
+type FileID = fileID
+
+// IDOf: hard links are restored as copies here.
+func IDOf(*os.File) (FileID, bool) { return FileID{}, false }
 
 // ClearReadOnly: Windows only.
 func (d *Dir) ClearReadOnly(string) {}

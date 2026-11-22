@@ -62,3 +62,11 @@ func TestAllDisksIn(t *testing.T) {
 		t.Error("an excluded disk counted as missing")
 	}
 }
+
+func TestReplicaVMsAreNotCheckpointed(t *testing.T) {
+	for mode, want := range map[string]bool{"": false, "None": false, "Primary": false, "Replica": true, "ExtendedReplica": true, "TestReplica": false} {
+		if got := replica(vmInfo{Replication: mode}); got != want {
+			t.Errorf("%q: %v", mode, got)
+		}
+	}
+}

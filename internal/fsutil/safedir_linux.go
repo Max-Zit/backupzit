@@ -4,6 +4,7 @@ package fsutil
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"golang.org/x/sys/unix"
@@ -11,6 +12,18 @@ import (
 
 // fileID identifies a file: device and inode.
 type fileID struct{ dev, ino uint64 }
+
+// FileID identifies a file (IDOf).
+type FileID = fileID
+
+// IDOf identifies the open file f.
+func IDOf(f *os.File) (FileID, bool) {
+	var st unix.Stat_t
+	if err := unix.Fstat(int(f.Fd()), &st); err != nil { // #nosec G115 -- a file descriptor
+		return FileID{}, false
+	}
+	return FileID{st.Dev, st.Ino}, true
+}
 
 // lstat looks at the entry name of d without following it. A link is
 // opened itself (O_PATH|O_NOFOLLOW) and its owner and target are read from
@@ -50,7 +63,11 @@ func (d *Dir) lstat(name string) (entry, error) {
 		if lst.Mode&unix.S_IFMT != unix.S_IFLNK || lst.Dev != st.Dev || lst.Ino != st.Ino {
 			return entry{}, errChanged
 		}
-		e.trusted = lst.Uid == 0 || int(lst.Uid) == os.Geteuid()
+		// Owned by root (or the agent's user) is not enough when another
+		// user may rename such a link into this folder or remove it to put
+		// his own there: the folder must be theirs too and not writable by
+		// others (or sticky), like the kernel's protected_symlinks rule.
+		e.trusted = trustedUID(lst.Uid) && parentProtected(dfd)
 		buf := make([]byte, 4096)
 		n, err := unix.Readlinkat(lfd, "", buf)
 		if err != nil {
@@ -87,8 +104,10 @@ func (d *Dir) Fd() (int, error) {
 	return int(f.Fd()), nil // #nosec G115 -- a file descriptor
 }
 
-// LinkFrom creates the hard link name in d to the file srcName in src.
-func (d *Dir) LinkFrom(src *Dir, srcName, name string) error {
+// LinkFrom creates the hard link name in d to the file srcName in src,
+// which must still be the regular file want (the one the restore wrote):
+// one put in its place, such as a user's symbolic link, is not linked.
+func (d *Dir) LinkFrom(src *Dir, srcName, name string, want FileID) error {
 	sfd, err := src.Fd()
 	if err != nil {
 		return err
@@ -97,8 +116,21 @@ func (d *Dir) LinkFrom(src *Dir, srcName, name string) error {
 	if err != nil {
 		return err
 	}
+	fd, err := unix.Openat(sfd, srcName, unix.O_PATH|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return &os.PathError{Op: "open", Path: src.Join(srcName), Err: err}
+	}
+	defer unix.Close(fd) //nolint:errcheck // path handle
+	var st unix.Stat_t
+	if err := unix.Fstat(fd, &st); err != nil {
+		return err
+	}
+	if st.Mode&unix.S_IFMT != unix.S_IFREG || (FileID{st.Dev, st.Ino}) != want {
+		return fmt.Errorf("%s changed since it was restored", src.Join(srcName))
+	}
 	_ = d.root.Remove(name)
-	if err := unix.Linkat(sfd, srcName, dfd, name, 0); err != nil {
+	// The checked file itself, through its descriptor.
+	if err := unix.Linkat(unix.AT_FDCWD, fmt.Sprintf("/proc/self/fd/%d", fd), dfd, name, unix.AT_SYMLINK_FOLLOW); err != nil {
 		return &os.LinkError{Op: "link", Old: src.Join(srcName), New: d.Join(name), Err: err}
 	}
 	return nil
@@ -119,3 +151,18 @@ func (d *Dir) Mknod(name string, mode uint32, dev int) error {
 
 // ClearReadOnly: Windows only.
 func (d *Dir) ClearReadOnly(string) {}
+
+func trustedUID(uid uint32) bool { return uid == 0 || int(uid) == os.Geteuid() }
+
+// parentProtected reports whether only root (or the agent's user) may
+// remove or add entries in the folder dfd.
+func parentProtected(dfd int) bool {
+	var st unix.Stat_t
+	if err := unix.Fstat(dfd, &st); err != nil || !trustedUID(st.Uid) {
+		return false
+	}
+	if st.Mode&unix.S_ISVTX != 0 {
+		return true // sticky: others may not remove or rename what is not theirs
+	}
+	return st.Mode&0o002 == 0 && (st.Mode&0o020 == 0 || st.Gid == 0)
+}

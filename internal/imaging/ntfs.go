@@ -14,6 +14,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/max-zit/backupzit/internal/fsutil"
 	"github.com/max-zit/backupzit/internal/repo"
 	ntfs "www.velocidex.com/golang/go-ntfs/parser"
 )
@@ -488,6 +489,9 @@ func (v *Volume) extractFile(e Entry, tg *Target, target string) (int64, error) 
 			break
 		}
 	}
+	if tmp != target && !e.ModTime.IsZero() {
+		_ = fsutil.SetTimes(f, e.ModTime) // through the handle, before it gets its name
+	}
 	if err := f.Close(); err != nil {
 		_ = tg.Remove(tmp)
 		return 0, err
@@ -502,9 +506,6 @@ func (v *Volume) extractFile(e Entry, tg *Target, target string) (int64, error) 
 	if err := tg.Replace(tmp, target); err != nil {
 		_ = tg.Remove(tmp)
 		return 0, err
-	}
-	if !e.ModTime.IsZero() {
-		_ = tg.Chtimes(target, e.ModTime, e.ModTime)
 	}
 	return off, nil
 }

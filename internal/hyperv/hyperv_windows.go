@@ -76,6 +76,9 @@ type vmInfo struct {
 	DiskSize     uint64   `json:"disksize"`
 	Checkpoint   string   `json:"checkpointtype"`
 	Clustered    bool     `json:"clustered"`
+	// Replication is the VM's Hyper-V Replica mode (None, Primary, Replica,
+	// ExtendedReplica, TestReplica).
+	Replication string `json:"replication,omitempty"`
 }
 
 type vmNIC struct {
@@ -104,7 +107,7 @@ const psVMInfo = `[pscustomobject]@{
  secureboot=$(if ($vm.Generation -eq 2) { "$((Get-VMFirmware -VM $vm).SecureBoot)" } else { "" });
  template=$(if ($vm.Generation -eq 2) { "$((Get-VMFirmware -VM $vm).SecureBootTemplate)" } else { "" });
  tpm=$(try { [bool](Get-VMSecurity -VM $vm).TpmEnabled } catch { $false });
- notes="$($vm.Notes)"; checkpointtype="$($vm.CheckpointType)"; clustered=[bool]$vm.IsClustered;
+ notes="$($vm.Notes)"; checkpointtype="$($vm.CheckpointType)"; clustered=[bool]$vm.IsClustered; replication="$($vm.ReplicationMode)";
  nics=@(Get-VMNetworkAdapter -VM $vm | ForEach-Object { [pscustomobject]@{ switch="$($_.SwitchName)"; mac=$_.MacAddress; dynamicmac=$_.DynamicMacAddressEnabled; vlan=[int](Get-VMNetworkAdapterVlan -VMNetworkAdapter $_).AccessVlanId } });
  disks=@(Get-VMHardDiskDrive -VM $vm | ForEach-Object { [pscustomobject]@{ type="$($_.ControllerType)"; num=$_.ControllerNumber; loc=$_.ControllerLocation; path=$_.Path; size=$(try { (Get-VHD -Path $_.Path).Size } catch { 0 }) } });
  disksize=[uint64]((Get-VMHardDiskDrive -VM $vm | ForEach-Object { try { (Get-VHD -Path $_.Path).Size } catch { 0 } } | Measure-Object -Sum).Sum)

@@ -74,9 +74,12 @@ func OpenFolder(p string) (*Dir, error) {
 // through the part above it; a link on the way is followed only when it
 // belongs to the system or an administrator (owner and target read from
 // the link itself), never one of another user.
-func OpenOriginal(p string) (*Dir, error) { return openOriginal(p, 0) }
+func OpenOriginal(p string) (*Dir, error) { return openOriginal(p, 0, true) }
 
-func openOriginal(p string, links int) (*Dir, error) {
+// openOriginal opens p; create: missing folders are created (not on the way
+// to the target of a link: a link to a folder that does not exist, such as
+// one on a disk that is not mounted, is an error, as before 0.58).
+func openOriginal(p string, links int, create bool) (*Dir, error) {
 	if links > maxLinks {
 		return nil, fmt.Errorf("%s: too many links", p)
 	}
@@ -95,7 +98,7 @@ func openOriginal(p string, links int) (*Dir, error) {
 		if c == "" {
 			continue
 		}
-		next, err := d.sub(c, true, links)
+		next, err := d.sub(c, true, links, create)
 		_ = d.Close()
 		if err != nil {
 			return nil, err
@@ -148,9 +151,9 @@ func (d *Dir) handle() (*os.File, error) {
 // restore folder (follow false) a link where the folder belongs is replaced
 // by a real folder; at the original location (follow true) a link of the
 // system or an administrator is followed and one of another user refused.
-func (d *Dir) Sub(name string, follow bool) (*Dir, error) { return d.sub(name, follow, 0) }
+func (d *Dir) Sub(name string, follow bool) (*Dir, error) { return d.sub(name, follow, 0, true) }
 
-func (d *Dir) sub(name string, follow bool, links int) (*Dir, error) {
+func (d *Dir) sub(name string, follow bool, links int, create bool) (*Dir, error) {
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/`+string(filepath.Separator)) {
 		return nil, fmt.Errorf("%q is not a folder name", name)
 	}
@@ -165,6 +168,9 @@ func (d *Dir) sub(name string, follow bool, links int) (*Dir, error) {
 		}
 		switch e.kind {
 		case entryMissing:
+			if !create {
+				return nil, fmt.Errorf("%s does not exist (a link points there)", p)
+			}
 			if err := d.root.Mkdir(name, 0o755); err != nil && !errors.Is(err, os.ErrExist) { // #nosec G301 -- folder of restored files, like the original
 				return nil, err
 			}
@@ -195,11 +201,7 @@ func (d *Dir) sub(name string, follow bool, links int) (*Dir, error) {
 				if !trustLink(e.trusted) {
 					return nil, fmt.Errorf("%s is a link of another user, not followed (restore into a folder instead)", p)
 				}
-				t := e.target
-				if !filepath.IsAbs(t) {
-					t = filepath.Join(d.path, t)
-				}
-				return openOriginal(t, links+1)
+				return openOriginal(linkTarget(d.path, e.target), links+1, false)
 			}
 			if err := d.root.Remove(name); err != nil {
 				return nil, fmt.Errorf("%s is a link where a folder belongs and cannot be replaced: %w", p, err)
@@ -244,4 +246,19 @@ func (d *Dir) Remove(name string) error { return d.root.Remove(name) }
 func (d *Dir) Symlink(target, name string) error {
 	_ = d.root.Remove(name)
 	return d.root.Symlink(target, name)
+}
+
+// linkTarget returns the absolute path a link in the folder dir points to:
+// target as it is when absolute, relative to dir otherwise, and on Windows
+// relative to dir's volume when it starts with one backslash ("\foo").
+// dir holds no links (every link on the way was replaced by its target),
+// so ".." in target is resolved by name.
+func linkTarget(dir, target string) string {
+	if filepath.IsAbs(target) {
+		return filepath.Clean(target)
+	}
+	if filepath.Separator == '\\' && strings.HasPrefix(target, `\`) && !strings.HasPrefix(target, `\\`) {
+		return filepath.Clean(filepath.VolumeName(dir) + target)
+	}
+	return filepath.Join(dir, target)
 }

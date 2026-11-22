@@ -435,13 +435,17 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 	// disks' change tracking ID never advances while it stays off, so every
 	// backup read again everything changed since the VM last ran. The
 	// checkpoint also keeps the read consistent if the VM is started
-	// meanwhile. Where Hyper-V cannot take one (Replica VMs, for example) or
+	// meanwhile. A Replica VM is never checkpointed (it would disturb the
+	// replication applying changes to it); where Hyper-V cannot take one or
 	// it leaves a disk out, the disks are read directly as before.
 	var ci checkpointInfo
 	var consistency string
 	var withRCT bool
 	cleanup := func() {}
-	if off {
+	switch {
+	case off && replica(vm):
+		// Read directly, as before 0.58.
+	case off:
 		name, err := checkpointName()
 		if err != nil {
 			return nil, nil, err
@@ -465,7 +469,7 @@ func backupVM(ctx context.Context, r *repo.Repository, vm vmInfo, sn *repo.Snaps
 			defer removeBackupCheckpoint(vm, name, &warns)
 			disks, g.Consistency, rct = c.Disks, "VM was off, disks read from a recovery checkpoint", rctOK
 		}
-	} else {
+	default:
 		// A prefixed checkpoint may still belong to another process or to a
 		// backup reading after live migration. Only remove our own checkpoint.
 		name, err := checkpointName()
@@ -589,4 +593,10 @@ func formatOf(p string) string {
 		return "avhdx"
 	}
 	return "vhdx"
+}
+
+// replica reports whether vm is the copy that Hyper-V Replica keeps of a
+// VM on another host.
+func replica(vm vmInfo) bool {
+	return strings.EqualFold(vm.Replication, "Replica") || strings.EqualFold(vm.Replication, "ExtendedReplica")
 }

@@ -266,34 +266,35 @@ func (t *Target) Remove(p string) error {
 	return t.root.Remove(rel)
 }
 
-// Chmod sets the permissions of p.
-func (t *Target) Chmod(p string, m fs.FileMode) error {
+// at returns the opened folder p's entry is in and its name there.
+func (t *Target) at(p string) (*os.Root, string, error) {
 	if t.root == nil {
 		d, name, err := t.origEntry(p)
 		if err != nil {
-			return err
+			return nil, "", err
 		}
-		return d.Root().Chmod(name, m)
+		return d.Root(), name, nil
 	}
 	rel, err := t.rel(p)
-	if err != nil {
-		return err
-	}
-	return t.root.Chmod(rel, m)
+	return t.root, rel, err
 }
 
-// Chtimes sets the times of p.
-func (t *Target) Chtimes(p string, atime, mtime time.Time) error {
-	if t.root == nil {
-		d, name, err := t.origEntry(p)
-		if err != nil {
-			return err
-		}
-		return d.Root().Chtimes(name, atime, mtime)
-	}
-	rel, err := t.rel(p)
+// Chmod sets the permissions of the folder p, through the folder opened
+// (files get theirs through their own handle before Replace: by name, a
+// hard link put in their place could redirect them).
+func (t *Target) Chmod(p string, m fs.FileMode) error {
+	root, rel, err := t.at(p)
 	if err != nil {
 		return err
 	}
-	return t.root.Chtimes(rel, atime, mtime)
+	return chmodDir(root, rel, m)
+}
+
+// Chtimes sets the times of the folder p, through the folder opened.
+func (t *Target) Chtimes(p string, _, mtime time.Time) error {
+	root, rel, err := t.at(p)
+	if err != nil {
+		return err
+	}
+	return chtimesDir(root, rel, mtime)
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -47,4 +48,13 @@ func createStream(root *os.Root, rel, display string) (*os.File, error) {
 		return nil, fmt.Errorf("open stream %s: %w", display, err)
 	}
 	return os.NewFile(uintptr(h), display), nil
+}
+
+// chmodDir sets the attributes Go maps the permissions to on the folder
+// rel in root (on Windows a hard link needs write access to its target).
+func chmodDir(root *os.Root, rel string, m fs.FileMode) error { return root.Chmod(rel, m) }
+
+// chtimesDir sets the times of the folder rel in root.
+func chtimesDir(root *os.Root, rel string, mtime time.Time) error {
+	return root.Chtimes(rel, mtime, mtime)
 }

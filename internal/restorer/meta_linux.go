@@ -77,31 +77,51 @@ func fdTimes(fd int, n *repo.Node) error {
 }
 
 // applyLinkMeta sets owner, extended attributes and times of the symbolic
-// link name in d (the link itself).
+// link name in d, through a handle of the link itself. It must still be the
+// link the restore created (a symbolic link of the agent's user with one
+// name): by name, a hard link to /etc/shadow put in its place would get
+// the owner instead.
 func applyLinkMeta(d *fsutil.Dir, name string, n *repo.Node) []error {
 	dfd, err := d.Fd()
 	if err != nil {
 		return []error{err}
 	}
 	p := d.Join(name)
+	fd, err := unix.Openat(dfd, name, unix.O_PATH|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return []error{&fs.PathError{Op: "open", Path: p, Err: err}}
+	}
+	defer unix.Close(fd) //nolint:errcheck // path handle
+	var st unix.Stat_t
+	if err := unix.Fstat(fd, &st); err != nil {
+		return []error{err}
+	}
+	if st.Mode&unix.S_IFMT != unix.S_IFLNK || int(st.Uid) != os.Geteuid() || st.Nlink != 1 {
+		return []error{fmt.Errorf("%s changed while it was restored", p)}
+	}
+	// The link itself through its descriptor: the /proc entry of an
+	// O_PATH|O_NOFOLLOW descriptor leads to the link, not where it points.
+	self := fmt.Sprintf("/proc/self/fd/%d", fd)
 	var errs []error
 	if n.Unix != nil && os.Geteuid() == 0 {
-		if err := unix.Fchownat(dfd, name, int(n.Unix.UID), int(n.Unix.GID), unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		if err := unix.Fchownat(fd, "", int(n.Unix.UID), int(n.Unix.GID), unix.AT_EMPTY_PATH); err != nil {
 			errs = append(errs, &fs.PathError{Op: "lchown", Path: p, Err: err})
 		}
 	}
-	if n.Unix != nil && len(n.Unix.Xattrs) > 0 {
-		// The folder through its descriptor, the link itself not followed.
-		lp := fmt.Sprintf("/proc/self/fd/%d/%s", dfd, name)
+	if n.Unix != nil {
 		for k, val := range n.Unix.Xattrs {
-			if err := unix.Lsetxattr(lp, k, val, 0); err != nil && !errors.Is(err, unix.ENOTSUP) && !errors.Is(err, unix.EPERM) {
+			if err := unix.Setxattr(self, k, val, 0); err != nil && !errors.Is(err, unix.ENOTSUP) && !errors.Is(err, unix.EPERM) {
 				errs = append(errs, &fs.PathError{Op: "setxattr " + k, Path: p, Err: err})
 			}
 		}
 	}
 	if !n.ModTime.IsZero() {
 		ts := []unix.Timespec{unix.NsecToTimespec(n.ModTime.UnixNano()), unix.NsecToTimespec(n.ModTime.UnixNano())}
-		if err := unix.UtimesNanoAt(dfd, name, ts, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		err := unix.UtimesNanoAt(fd, "", ts, unix.AT_EMPTY_PATH)
+		if errors.Is(err, unix.EINVAL) || errors.Is(err, unix.ENOENT) {
+			err = unix.UtimesNanoAt(unix.AT_FDCWD, self, ts, 0)
+		}
+		if err != nil {
 			errs = append(errs, &fs.PathError{Op: "set times", Path: p, Err: err})
 		}
 	}
@@ -146,7 +166,7 @@ func makeSpecialAt(d *fsutil.Dir, name string, n *repo.Node) []error {
 	if err := unix.Fstat(fd, &st); err != nil {
 		return []error{err}
 	}
-	if st.Mode&unix.S_IFMT != mode&unix.S_IFMT {
+	if st.Mode&unix.S_IFMT != mode&unix.S_IFMT || int(st.Uid) != os.Geteuid() || st.Nlink != 1 {
 		return []error{fmt.Errorf("%s changed while it was restored", d.Join(name))}
 	}
 	var errs []error

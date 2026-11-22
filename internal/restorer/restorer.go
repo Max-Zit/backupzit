@@ -50,8 +50,11 @@ type restorer struct {
 	stats   Stats
 	buf     []byte
 	chk     *chunker.Chunker
-	// links maps hard link keys to the first restored path.
-	links map[string]string
+	// links maps hard link keys to the first restored file.
+	links map[string]firstLink
+	// lsrc is the folder of the first file linked to last (lsrcPath).
+	lsrc     *fsutil.Dir
+	lsrcPath string
 	// dir is set by RunDir: the first level holds ordinary folders, not
 	// volume roots.
 	dir bool
@@ -60,6 +63,7 @@ type restorer struct {
 // Run restores sn according to opts.
 func Run(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Options) (*Stats, error) {
 	rs := &restorer{r: r, opts: opts}
+	defer rs.closeLinkSource()
 	for _, inc := range opts.Include {
 		comps, err := fsutil.ParseSnapshotPath(inc)
 		if err != nil {
@@ -123,6 +127,7 @@ func RunDir(ctx context.Context, r *repo.Repository, dir *repo.Node, target stri
 	}
 	opts.Target, opts.Include = abs, nil
 	rs := &restorer{r: r, opts: opts, dir: true}
+	defer rs.closeLinkSource()
 	if opts.Verify {
 		rs.buf = make([]byte, chunker.MaxSize)
 		rs.chk = chunker.New(nil, r.ChunkerPolynomial())
@@ -282,16 +287,17 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 					// Fall back to a copy (e.g. across file systems).
 				}
 			}
-			if err := rs.restoreFile(ctx, dir, n.Name, dst, n); err != nil {
+			id, err := rs.restoreFile(ctx, dir, n.Name, dst, n)
+			if err != nil {
 				rs.addError(dst, err)
 				continue
 			}
 			if n.Unix != nil && n.Unix.LinkKey != "" {
 				if rs.links == nil {
-					rs.links = map[string]string{}
+					rs.links = map[string]firstLink{}
 				}
 				if _, ok := rs.links[n.Unix.LinkKey]; !ok {
-					rs.links[n.Unix.LinkKey] = dst
+					rs.links[n.Unix.LinkKey] = firstLink{dst, id}
 				}
 			}
 			if rs.opts.Verify {
@@ -383,13 +389,32 @@ func (rs *restorer) openDirOf(p string) (*fsutil.Dir, error) {
 }
 
 // linkTo creates name in dir as a hard link to the file restored at first.
-func (rs *restorer) linkTo(dir *fsutil.Dir, name, first string) error {
-	src, err := rs.openDirOf(filepath.Dir(first))
-	if err != nil {
-		return err
+// firstLink is the first restored file of a set of hard links.
+type firstLink struct {
+	path string
+	id   fsutil.FileID
+}
+
+// linkTo creates name in dir as a hard link to the file restored first;
+// the folder of that file stays open for the next link to it.
+func (rs *restorer) linkTo(dir *fsutil.Dir, name string, first firstLink) error {
+	fd := filepath.Dir(first.path)
+	if rs.lsrc == nil || rs.lsrcPath != fd {
+		rs.closeLinkSource()
+		src, err := rs.openDirOf(fd)
+		if err != nil {
+			return err
+		}
+		rs.lsrc, rs.lsrcPath = src, fd
 	}
-	defer src.Close()
-	return dir.LinkFrom(src, filepath.Base(first), name)
+	return dir.LinkFrom(rs.lsrc, filepath.Base(first.path), name, first.id)
+}
+
+func (rs *restorer) closeLinkSource() {
+	if rs.lsrc != nil {
+		_ = rs.lsrc.Close()
+		rs.lsrc, rs.lsrcPath = nil, ""
+	}
 }
 
 func validName(n string) bool {
@@ -401,20 +426,23 @@ func validName(n string) bool {
 	return runtime.GOOS != "windows" || !strings.ContainsRune(n, '\\')
 }
 
-func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst string, n *repo.Node) error {
+// restoreFile writes the file name in dir and returns its identity (for hard
+// links to it).
+func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst string, n *repo.Node) (fsutil.FileID, error) {
 	dir.ClearReadOnly(name)
 	tmp := name + ".bzpart"
 	// Created exclusively in the opened folder: a file or link left at the
 	// temporary name (e.g. put there by root in a container) is removed,
 	// never written through.
+	var none fsutil.FileID
 	f, err := dir.CreateExcl(tmp)
 	if err != nil {
-		return err
+		return none, err
 	}
-	fail := func(err error) error {
+	fail := func(err error) (fsutil.FileID, error) {
 		_ = f.Close()
 		_ = dir.Remove(tmp)
-		return err
+		return none, err
 	}
 	var written uint64
 	// Only a file that was sparse is marked sparse again: Hyper-V refuses
@@ -458,13 +486,14 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 	// Owner, mode, attributes and times through the file's own handle
 	// (Linux), before it gets its name.
 	metaErrs := applyFileMeta(f, n, true)
+	id, _ := fsutil.IDOf(f)
 	if err := f.Close(); err != nil {
 		_ = dir.Remove(tmp)
-		return err
+		return none, err
 	}
 	if err := dir.Rename(tmp, name); err != nil {
 		_ = dir.Remove(tmp)
-		return err
+		return none, err
 	}
 	metaErrs = append(metaErrs, afterRename(dir, name, n)...)
 	for _, err := range metaErrs {
@@ -475,7 +504,7 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 	if rs.opts.Progress != nil {
 		rs.opts.Progress(dst, &rs.stats)
 	}
-	return nil
+	return id, nil
 }
 
 // verifyFile reads the restored file back in pieces of the stored chunks'

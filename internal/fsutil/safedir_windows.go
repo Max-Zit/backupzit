@@ -49,11 +49,13 @@ func (d *Dir) lstat(name string) (entry, error) {
 		}
 		if ti.tag == windows.IO_REPARSE_TAG_MOUNT_POINT || ti.tag == windows.IO_REPARSE_TAG_SYMLINK {
 			e.kind = entryLink
-			if sd, err := windows.GetSecurityInfo(h, windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION); err == nil {
-				if owner, _, err := sd.Owner(); err == nil && owner != nil {
-					e.trusted = trustedOwner(owner)
-				}
-			}
+			// Owned by the system or an administrator is not enough: the
+			// compatibility junctions in every profile ("Application Data",
+			// "Cookies", ...) belong to SYSTEM, but the user has full
+			// control of them and could point one at C:\Windows\System32
+			// (the owner stays). So nobody else may change, remove or
+			// replace the link either.
+			e.trusted = onlyTrustedMay(h, linkRights) && onlyTrustedMay(windows.Handle(f.Fd()), parentRights)
 			t, err := reparseTarget(h)
 			if err != nil {
 				return entry{}, &os.PathError{Op: "readlink", Path: d.Join(name), Err: err}
@@ -126,13 +128,81 @@ func reparseTarget(h windows.Handle) (string, error) {
 	if relative {
 		return t, nil
 	}
+	return ntTarget(t), nil
+}
+
+// ntTarget turns the NT path of a link's target into a Win32 path.
+func ntTarget(t string) string {
 	switch {
 	case strings.HasPrefix(t, `\??\UNC\`):
-		return `\\` + t[len(`\??\UNC\`):], nil
+		return `\\` + t[len(`\??\UNC\`):]
+	case len(t) >= 6 && strings.HasPrefix(t, `\??\`) && t[5] == ':':
+		return t[len(`\??\`):] // \??\C:\...
 	case strings.HasPrefix(t, `\??\`):
-		return t[len(`\??\`):], nil
+		// A mounted volume (\??\Volume{GUID}\) and other device paths.
+		return `\\?\` + t[len(`\??\`):]
 	}
-	return t, nil
+	return t
+}
+
+// Rights that let somebody change where a link leads: on the link itself
+// (point it elsewhere, remove it, change its permissions or owner) and on
+// its folder (remove it, to put another one in its place, or change the
+// folder's permissions to be allowed to).
+const (
+	fileWriteData      = 0x2
+	fileAppendData     = 0x4
+	fileWriteEA        = 0x10
+	fileDeleteChild    = 0x40
+	fileWriteAttribute = 0x100
+	writeRights        = windows.DELETE | windows.WRITE_DAC | windows.WRITE_OWNER | windows.GENERIC_WRITE | windows.GENERIC_ALL
+	linkRights         = writeRights | fileWriteData | fileAppendData | fileWriteEA | fileWriteAttribute
+	parentRights       = fileDeleteChild | windows.WRITE_DAC | windows.WRITE_OWNER | windows.GENERIC_ALL
+)
+
+// ownerRights is OWNER RIGHTS (S-1-3-4): the owner, checked separately.
+const ownerRights = "S-1-3-4"
+
+// onlyTrustedMay reports whether only the system and administrators may
+// do any of rights on h: its owner is one of them, and no entry of its
+// access list allows any of rights to anybody else (entries that deny are
+// not counted, which errs on the safe side).
+func onlyTrustedMay(h windows.Handle, rights uint32) bool {
+	sd, err := windows.GetSecurityInfo(h, windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION)
+	if err != nil {
+		return false
+	}
+	owner, _, err := sd.Owner()
+	if err != nil || owner == nil || !trustedOwner(owner) {
+		return false
+	}
+	dacl, _, err := sd.DACL()
+	if err != nil || dacl == nil { // no access list: everybody may do everything
+		return false
+	}
+	// ACL header: revision, sbz1, size, AceCount.
+	count := le16((*[8]byte)(unsafe.Pointer(dacl))[4:]) // #nosec G103 -- the ACL header
+	for i := range uint32(count) {
+		var ace *windows.ACCESS_ALLOWED_ACE
+		if err := windows.GetAce(dacl, i, &ace); err != nil {
+			return false
+		}
+		if ace.Header.AceFlags&windows.INHERIT_ONLY_ACE != 0 || ace.Header.AceType == windows.ACCESS_DENIED_ACE_TYPE {
+			continue
+		}
+		if uint32(ace.Mask)&rights == 0 {
+			continue
+		}
+		if ace.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE {
+			return false // another kind of entry that allows: not trusted
+		}
+		sid := (*windows.SID)(unsafe.Pointer(&ace.SidStart)) // #nosec G103 -- the SID inside the entry
+		if trustedOwner(sid) || sid.String() == ownerRights {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func le16(b []byte) uint16 { return uint16(b[0]) | uint16(b[1])<<8 }
@@ -154,7 +224,13 @@ func rootID(r *os.Root) (fileID, error) {
 
 // LinkFrom is not used on Windows (file backups record no hard links
 // there): the caller restores a copy.
-func (d *Dir) LinkFrom(*Dir, string, string) error { return errors.ErrUnsupported }
+func (d *Dir) LinkFrom(*Dir, string, string, FileID) error { return errors.ErrUnsupported }
+
+// FileID identifies a file (not used here).
+type FileID = fileID
+
+// IDOf: hard links are restored as copies here.
+func IDOf(*os.File) (FileID, bool) { return FileID{}, false }
 
 // SetMeta sets the preserved Windows attributes (attrs, when setAttrs) and
 // the access and modification times (mtime, when not zero) of the entry
@@ -230,4 +306,11 @@ func (d *Dir) ClearReadOnly(name string) {
 		return
 	}
 	_ = d.SetMeta(name, fi.FileAttributes&^windows.FILE_ATTRIBUTE_READONLY&preservedAttrs, true, time.Time{})
+}
+
+// SetTimes sets the access and modification times of the open file f
+// through its handle (not by name).
+func SetTimes(f *os.File, t time.Time) error {
+	ft := windows.NsecToFiletime(t.UnixNano())
+	return windows.SetFileTime(windows.Handle(f.Fd()), nil, &ft, &ft)
 }

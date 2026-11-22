@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/max-zit/backupzit/internal/fsutil"
 	"github.com/max-zit/backupzit/internal/imaging"
 	"github.com/max-zit/backupzit/internal/repo"
 )
@@ -178,6 +179,15 @@ func extractFile(fsys FS, e Entry, tg *imaging.Target, dst string) (int64, error
 		return 0, err
 	}
 	n, err := io.Copy(f, rd)
+	if err == nil && tmp != dst {
+		// Permissions and times through the file's own handle, before it
+		// gets its name: by name, a hard link put in its place could
+		// redirect them (0.58).
+		_ = f.Chmod(perm)
+		if !e.ModTime.IsZero() {
+			_ = fsutil.SetTimes(f, e.ModTime)
+		}
+	}
 	if cerr := f.Close(); err == nil {
 		err = cerr
 	}
@@ -188,13 +198,9 @@ func extractFile(fsys FS, e Entry, tg *imaging.Target, dst string) (int64, error
 	if tmp == dst {
 		return n, nil // an NTFS stream on Windows, written in place
 	}
-	_ = tg.Chmod(tmp, perm)
 	if err := tg.Replace(tmp, dst); err != nil {
 		_ = tg.Remove(tmp)
 		return n, err
-	}
-	if !e.ModTime.IsZero() {
-		_ = tg.Chtimes(dst, e.ModTime, e.ModTime)
 	}
 	return n, nil
 }
