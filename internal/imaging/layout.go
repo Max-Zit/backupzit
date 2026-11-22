@@ -44,15 +44,32 @@ func (l PartitionLimits) Min(p *repo.PartitionImage) uint64 {
 	return l.MinSize
 }
 
+// Source numbers of partitions a layout creates (they are not in the
+// image): converting MBR to GPT needs an EFI system partition and an MSR.
+const (
+	SourceNewEFI = -1
+	SourceNewMSR = -2
+)
+
+// Sizes of created partitions. 260 MiB is the smallest FAT32 EFI system
+// partition that also works on disks with 4 KiB sectors.
+const (
+	NewEFISize = 260 << 20
+	NewMSRSize = 16 << 20
+)
+
 // LayoutPartition is one partition of a target layout.
 type LayoutPartition struct {
-	// Source is the number of the partition in the disk image.
+	// Source is the number of the partition in the disk image, or
+	// SourceNewEFI / SourceNewMSR for a partition the restore creates.
 	Source int    `json:"source"`
 	Offset uint64 `json:"offset"`
 	Length uint64 `json:"length"`
 	// Restore tells whether the contents are written from the image. A
 	// partition that is not restored is created empty.
 	Restore bool `json:"restore"`
+	// Active marks the partition Windows starts from on an MBR disk.
+	Active bool `json:"active,omitempty"`
 }
 
 // End is the first byte after the partition.
@@ -88,6 +105,14 @@ type LayoutOptions struct {
 	// DropOthers leaves partitions that are not restored out of the
 	// layout instead of creating them empty.
 	DropOthers bool
+	// Style converts the partition table ("gpt" or "mbr"); empty keeps the
+	// image's. MBR to GPT adds an EFI system partition and an MSR; GPT to
+	// MBR leaves them out and makes the Windows partition active.
+	Style string
+	// WindowsPartition is the image partition with Windows (see
+	// HasWindows); it becomes active when converting to MBR. 0: the
+	// largest restored NTFS partition.
+	WindowsPartition int
 }
 
 // ErrTargetTooSmall is wrapped by errors about a too small target disk.
@@ -156,6 +181,18 @@ func findPartition(img *repo.DiskImage, num int) *repo.PartitionImage {
 	return nil
 }
 
+// layoutSource returns the image partition of a layout entry, or a
+// stand-in for partitions the restore creates.
+func layoutSource(img *repo.DiskImage, lp LayoutPartition) *repo.PartitionImage {
+	switch lp.Source {
+	case SourceNewEFI:
+		return &repo.PartitionImage{Number: SourceNewEFI, Offset: lp.Offset, Length: NewEFISize, GPTType: GPTTypeEFI, MBRType: 0xEF, FileSystem: "FAT32", Name: "EFI system partition"}
+	case SourceNewMSR:
+		return &repo.PartitionImage{Number: SourceNewMSR, Offset: lp.Offset, Length: NewMSRSize, GPTType: GPTTypeMSR, Name: "Microsoft reserved partition"}
+	}
+	return findPartition(img, lp.Source)
+}
+
 func sortedPartitions(img *repo.DiskImage) []*repo.PartitionImage {
 	ps := make([]*repo.PartitionImage, 0, len(img.Partitions))
 	for i := range img.Partitions {
@@ -193,10 +230,18 @@ func SuggestLayout(img *repo.DiskImage, diskSize uint64, limits map[int]Partitio
 		if opts.DropOthers && !restore[p.Number] {
 			continue
 		}
-		l.Partitions = append(l.Partitions, LayoutPartition{Source: p.Number, Offset: p.Offset, Length: p.Length, Restore: restore[p.Number]})
+		l.Partitions = append(l.Partitions, LayoutPartition{Source: p.Number, Offset: p.Offset, Length: p.Length, Restore: restore[p.Number], Active: p.Bootable && img.Style == StyleMBR})
 	}
 	if len(l.Partitions) == 0 {
 		return nil, errors.New("no partitions to restore")
+	}
+	if opts.Style != "" && opts.Style != img.Style {
+		if opts.Mode == LayoutAsSource {
+			return nil, errors.New("converting the partition style needs a fitted layout")
+		}
+		if err := l.convert(img, opts); err != nil {
+			return nil, err
+		}
 	}
 	if opts.Mode == LayoutAsSource {
 		return l, l.Validate(img, limits)
@@ -207,6 +252,52 @@ func SuggestLayout(img *repo.DiskImage, diskSize uint64, limits map[int]Partitio
 	return l, l.Validate(img, limits)
 }
 
+// convert changes the layout to another partition table style.
+func (l *Layout) convert(img *repo.DiskImage, opts LayoutOptions) error {
+	switch opts.Style {
+	case StyleGPT:
+		l.Style = StyleGPT
+		created := []LayoutPartition{{Source: SourceNewEFI, Length: NewEFISize}, {Source: SourceNewMSR, Length: NewMSRSize}}
+		for i := range l.Partitions {
+			l.Partitions[i].Active = false
+		}
+		l.Partitions = append(created, l.Partitions...)
+	case StyleMBR:
+		l.Style = StyleMBR
+		var kept []LayoutPartition
+		for _, lp := range l.Partitions {
+			switch strings.ToUpper(findPartition(img, lp.Source).GPTType) {
+			case GPTTypeEFI, GPTTypeMSR:
+				continue // BIOS boot files go onto the Windows partition
+			}
+			lp.Active = false
+			kept = append(kept, lp)
+		}
+		if len(kept) > 4 {
+			return fmt.Errorf("an MBR disk holds at most 4 partitions; %d would be needed (leave some out)", len(kept))
+		}
+		win := -1
+		var size uint64
+		for i, lp := range kept {
+			p := findPartition(img, lp.Source)
+			switch {
+			case opts.WindowsPartition > 0 && lp.Source == opts.WindowsPartition:
+				win, size = i, ^uint64(0)
+			case lp.Restore && strings.EqualFold(p.FileSystem, "NTFS") && !FixedSizeKind(p) && p.Length > size:
+				win, size = i, p.Length
+			}
+		}
+		if win < 0 {
+			return errors.New("no partition to start Windows from on the MBR disk")
+		}
+		kept[win].Active = true
+		l.Partitions = kept
+	default:
+		return fmt.Errorf("unknown partition style %q", opts.Style)
+	}
+	return nil
+}
+
 // absorbers returns the indexes of the partitions that take up free or
 // missing space: the large resizable ones (at least a quarter of all
 // resizable space). With a single one, that is usually Windows.
@@ -215,13 +306,13 @@ func (l *Layout) absorbers(img *repo.DiskImage, limits map[int]PartitionLimits) 
 	var res []int
 	for i, lp := range l.Partitions {
 		if limits[lp.Source].Resizable && lp.Restore {
-			total += findPartition(img, lp.Source).Length
+			total += layoutSource(img, lp).Length
 			res = append(res, i)
 		}
 	}
 	var out []int
 	for _, i := range res {
-		if findPartition(img, l.Partitions[i].Source).Length*4 >= total {
+		if layoutSource(img, l.Partitions[i]).Length*4 >= total {
 			out = append(out, i)
 		}
 	}
@@ -255,7 +346,7 @@ func (l *Layout) fit(img *repo.DiskImage, limits map[int]PartitionLimits) error 
 	}
 	var minAbs uint64
 	for _, i := range abs {
-		minAbs += alignUp(limits[l.Partitions[i].Source].Min(findPartition(img, l.Partitions[i].Source)), LayoutAlign)
+		minAbs += alignUp(limits[l.Partitions[i].Source].Min(layoutSource(img, l.Partitions[i])), LayoutAlign)
 	}
 	needed := start + fixed + minAbs
 	if l.Style == StyleGPT {
@@ -275,11 +366,11 @@ func (l *Layout) fit(img *repo.DiskImage, limits map[int]PartitionLimits) error 
 	for len(open) > 0 {
 		var srcTotal uint64
 		for _, i := range open {
-			srcTotal += findPartition(img, l.Partitions[i].Source).Length
+			srcTotal += layoutSource(img, l.Partitions[i]).Length
 		}
 		var clamped []int
 		for _, i := range open {
-			src := findPartition(img, l.Partitions[i].Source)
+			src := layoutSource(img, l.Partitions[i])
 			share := alignDown(uint64(float64(avail)*float64(src.Length)/float64(srcTotal)), LayoutAlign)
 			if mn := alignUp(limits[src.Number].Min(src), LayoutAlign); share < mn {
 				clamped = append(clamped, i)
@@ -289,7 +380,7 @@ func (l *Layout) fit(img *repo.DiskImage, limits map[int]PartitionLimits) error 
 		if len(clamped) == 0 {
 			var used uint64
 			for k, i := range open {
-				src := findPartition(img, l.Partitions[i].Source)
+				src := layoutSource(img, l.Partitions[i])
 				share := alignDown(uint64(float64(avail)*float64(src.Length)/float64(srcTotal)), LayoutAlign)
 				if k == len(open)-1 {
 					share = alignDown(avail-used, LayoutAlign)
@@ -359,7 +450,7 @@ func (l *Layout) Validate(img *repo.DiskImage, limits map[int]PartitionLimits) e
 	var prevEnd uint64
 	var last uint64
 	for i, lp := range l.Partitions {
-		src := findPartition(img, lp.Source)
+		src := layoutSource(img, lp)
 		if src == nil {
 			return fmt.Errorf("the image has no partition %d", lp.Source)
 		}
@@ -412,7 +503,7 @@ func (l *Layout) Validate(img *repo.DiskImage, limits map[int]PartitionLimits) e
 func (l *Layout) Moved(img *repo.DiskImage) bool {
 	for _, lp := range l.Partitions {
 		src := findPartition(img, lp.Source)
-		if src == nil || src.Offset != lp.Offset || src.Length != lp.Length {
+		if l.Style != img.Style || src == nil || src.Offset != lp.Offset || src.Length != lp.Length {
 			return true
 		}
 	}

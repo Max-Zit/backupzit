@@ -4,6 +4,7 @@ package imaging
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -51,7 +52,11 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	for _, w := range plan {
 		last = max(last, w.Offset+w.Length)
 	}
-	if _, end := UsableRange(img.Style, target.Size, target.SectorSize); end < last {
+	style := img.Style
+	if opts.Layout != nil {
+		style = opts.Layout.Style
+	}
+	if _, end := UsableRange(style, target.Size, target.SectorSize); end < last {
 		return nil, fmt.Errorf("target disk %d is too small: %d bytes, the partitions need %d", opts.TargetDisk, target.Size, last+(target.Size-end))
 	}
 	if target.SectorSize != img.SectorSize {
@@ -101,12 +106,21 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		_, _ = ioctl(dh, ioctlDiskUpdateProperties, nil, 0)
 	}()
 
-	if err := writeLayout(dh, img, plan, target.Size); err != nil {
+	diskID, sig := img.GPTDiskID, img.MBRSignature
+	if style != img.Style {
+		// A converted disk gets new identifiers; its boot files are written
+		// afterwards anyway.
+		if diskID, err = NewGUID(); err != nil {
+			return nil, err
+		}
+		sig = newMBRSignature()
+	}
+	if err := writeLayout(dh, style, diskID, sig, plan, img.SectorSize, target.Size); err != nil {
 		return nil, fmt.Errorf("write partition table: %w", err)
 	}
 	f := os.NewFile(uintptr(dh), physicalDrivePath(target.Number))
 
-	if img.Style == StyleMBR {
+	if style == StyleMBR && img.Style == StyleMBR {
 		if err := restoreMBRBootCode(ctx, r, f, img); err != nil {
 			return nil, err
 		}
@@ -118,7 +132,12 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			total += w.Src.StoredBytes
 		}
 	}
-	st := &RestoreStats{}
+	st := &RestoreStats{NeedMBRCode: style == StyleMBR && img.Style != StyleMBR}
+	for _, w := range plan {
+		if w.Create == SourceNewEFI {
+			st.CreatedEFI = append(st.CreatedEFI, w.Offset)
+		}
+	}
 	for i, w := range plan {
 		if !w.Restore {
 			continue
@@ -289,15 +308,26 @@ func fixBootSectors(f *os.File, w partitionWrite, sectorSize uint32) error {
 	return nil
 }
 
-// writeLayout creates the partition table: the image's disk and
-// partition identifiers at the offsets and sizes of the plan.
-func writeLayout(h windows.Handle, img *repo.DiskImage, plan []partitionWrite, diskSize uint64) error {
+// newMBRSignature returns a random, non-zero MBR disk signature.
+func newMBRSignature() uint32 {
+	for {
+		var b [4]byte
+		_, _ = rand.Read(b[:])
+		if s := binary.LittleEndian.Uint32(b[:]); s != 0 {
+			return s
+		}
+	}
+}
+
+// writeLayout creates the partition table in the given style and disk
+// identity, with the entries of the plan.
+func writeLayout(h windows.Handle, style, diskID string, signature uint32, plan []partitionWrite, sectorSize uint32, diskSize uint64) error {
 	// CREATE_DISK: PartitionStyle, then MBR {Signature} or GPT {DiskId, MaxPartitionCount}.
 	create := make([]byte, 24)
-	switch img.Style {
+	switch style {
 	case StyleGPT:
 		binary.LittleEndian.PutUint32(create[0:4], partitionStyleGPT)
-		id, err := guidBytes(img.GPTDiskID)
+		id, err := guidBytes(diskID)
 		if err != nil {
 			return err
 		}
@@ -305,72 +335,75 @@ func writeLayout(h windows.Handle, img *repo.DiskImage, plan []partitionWrite, d
 		binary.LittleEndian.PutUint32(create[20:24], 128)
 	case StyleMBR:
 		binary.LittleEndian.PutUint32(create[0:4], partitionStyleMBR)
-		binary.LittleEndian.PutUint32(create[4:8], img.MBRSignature)
+		binary.LittleEndian.PutUint32(create[4:8], signature)
 	default:
-		return fmt.Errorf("unsupported partition style %q", img.Style)
+		return fmt.Errorf("unsupported partition style %q", style)
 	}
 	if _, err := ioctl(h, ioctlDiskCreateDisk, create, 0); err != nil {
 		return fmt.Errorf("create disk: %w", err)
 	}
 
 	count := len(plan)
-	if img.Style == StyleMBR {
+	if style == StyleMBR {
 		count = (count + 3) / 4 * 4 // MBR layouts come in groups of four
 		if count == 0 {
 			count = 4
 		}
 	}
 	lay := make([]byte, 48+144*count)
-	sector := uint64(img.SectorSize)
-	binary.LittleEndian.PutUint32(lay[4:8], uint32(count))
-	if img.Style == StyleGPT {
+	sector := uint64(sectorSize)
+	binary.LittleEndian.PutUint32(lay[4:8], uint32(count)) // #nosec G115 -- small count
+	if style == StyleGPT {
 		binary.LittleEndian.PutUint32(lay[0:4], partitionStyleGPT)
-		id, _ := guidBytes(img.GPTDiskID)
+		id, _ := guidBytes(diskID)
 		copy(lay[8:24], id[:])
-		first := 34 * sector
+		first, end := UsableRange(StyleGPT, diskSize, sectorSize)
 		binary.LittleEndian.PutUint64(lay[24:32], first)
-		binary.LittleEndian.PutUint64(lay[32:40], diskSize-first-33*sector)
+		binary.LittleEndian.PutUint64(lay[32:40], end-first)
 		binary.LittleEndian.PutUint32(lay[40:44], 128)
 	} else {
 		binary.LittleEndian.PutUint32(lay[0:4], partitionStyleMBR)
-		binary.LittleEndian.PutUint32(lay[8:12], img.MBRSignature)
+		binary.LittleEndian.PutUint32(lay[8:12], signature)
 	}
 	for i, w := range plan {
-		p := w.Src
 		e := lay[48+i*144 : 48+(i+1)*144]
-		if img.Style == StyleGPT {
+		num := w.Src.Number
+		if num <= 0 {
+			num = i + 1
+		}
+		if style == StyleGPT {
 			binary.LittleEndian.PutUint32(e[0:4], partitionStyleGPT)
 		} else {
 			binary.LittleEndian.PutUint32(e[0:4], partitionStyleMBR)
 		}
 		binary.LittleEndian.PutUint64(e[8:16], w.Offset)
 		binary.LittleEndian.PutUint64(e[16:24], w.Length)
-		binary.LittleEndian.PutUint32(e[24:28], uint32(p.Number)) // #nosec G115 -- length of a small buffer for a Windows API call
-		e[28] = 1                                                 // RewritePartition
+		binary.LittleEndian.PutUint32(e[24:28], uint32(num)) // #nosec G115 -- small partition number
+		e[28] = 1                                            // RewritePartition
 		u := e[32:]
-		if img.Style == StyleGPT {
-			t, err := guidBytes(p.GPTType)
+		if style == StyleGPT {
+			t, err := guidBytes(w.GPTType)
 			if err != nil {
-				return fmt.Errorf("partition %d type: %w", p.Number, err)
+				return fmt.Errorf("partition %d type: %w", num, err)
 			}
-			id, err := guidBytes(p.GPTID)
+			id, err := guidBytes(w.GPTID)
 			if err != nil {
-				return fmt.Errorf("partition %d id: %w", p.Number, err)
+				return fmt.Errorf("partition %d id: %w", num, err)
 			}
 			copy(u[0:16], t[:])
 			copy(u[16:32], id[:])
-			binary.LittleEndian.PutUint64(u[32:40], p.GPTAttributes)
-			name := utf16.Encode([]rune(p.Name))
+			binary.LittleEndian.PutUint64(u[32:40], w.GPTAttributes)
+			name := utf16.Encode([]rune(w.Name))
 			for j := 0; j < len(name) && j < 35; j++ {
 				binary.LittleEndian.PutUint16(u[40+2*j:], name[j])
 			}
 		} else {
-			u[0] = p.MBRType
-			if p.Bootable {
+			u[0] = w.MBRType
+			if w.Bootable {
 				u[1] = 1
 			}
 			u[2] = 1                                                       // RecognizedPartition
-			binary.LittleEndian.PutUint32(u[4:8], uint32(w.Offset/sector)) // #nosec G115 -- length of a small buffer for a Windows API call
+			binary.LittleEndian.PutUint32(u[4:8], uint32(w.Offset/sector)) // #nosec G115 -- MBR offsets are below 2^32 sectors
 		}
 	}
 	if _, err := ioctl(h, ioctlDiskSetDriveLayoutEx, lay, 0); err != nil {

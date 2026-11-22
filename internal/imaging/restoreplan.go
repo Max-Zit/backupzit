@@ -1,6 +1,7 @@
 package imaging
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -23,10 +24,23 @@ type partitionWrite struct {
 	// Shrink is set when an NTFS partition becomes smaller: its file
 	// system is shrunk while it is written.
 	Shrink bool
+	// Create is SourceNewEFI or SourceNewMSR for a partition that is not
+	// in the image (style conversion), 0 otherwise.
+	Create int
+
+	// The partition table entry in the target style.
+	GPTType       string
+	GPTID         string
+	GPTAttributes uint64
+	Name          string
+	MBRType       byte
+	Bootable      bool
 }
 
 // Moved tells whether the partition changes place or size.
-func (w partitionWrite) Moved() bool { return w.Offset != w.Src.Offset || w.Length != w.Src.Length }
+func (w partitionWrite) Moved() bool {
+	return w.Create != 0 || w.Offset != w.Src.Offset || w.Length != w.Src.Length
+}
 
 // Grown tells whether the partition becomes larger.
 func (w partitionWrite) Grown() bool { return w.Length > w.Src.Length }
@@ -61,26 +75,26 @@ func restorePlan(img *repo.DiskImage, opts RestoreOptions) ([]partitionWrite, er
 	if opts.Layout == nil {
 		for i := range img.Partitions {
 			p := &img.Partitions[i]
-			out = append(out, partitionWrite{Src: p, Offset: p.Offset, Length: p.Length, Restore: sel(p)})
+			out = append(out, partitionWrite{Src: p, Offset: p.Offset, Length: p.Length, Restore: sel(p), Bootable: p.Bootable})
 		}
-		return out, nil
+		return entries(img, img.Style, out)
 	}
 	if opts.Partitions != nil {
 		return nil, errors.New("give the partitions to restore either in the layout or as a list, not both")
 	}
 	l := opts.Layout
-	if l.Style != img.Style {
-		return nil, fmt.Errorf("converting %s to %s is not supported yet", strings.ToUpper(img.Style), strings.ToUpper(l.Style))
-	}
 	for _, lp := range l.Partitions {
-		p := findPartition(img, lp.Source)
+		p := layoutSource(img, lp)
 		if p == nil {
 			return nil, fmt.Errorf("the image has no partition %d", lp.Source)
 		}
 		if lp.Restore && !p.Included {
 			return nil, fmt.Errorf("partition %d was not backed up", lp.Source)
 		}
-		w := partitionWrite{Src: p, Offset: lp.Offset, Length: lp.Length, Restore: lp.Restore}
+		w := partitionWrite{Src: p, Offset: lp.Offset, Length: lp.Length, Restore: lp.Restore, Bootable: lp.Active}
+		if lp.Source < 0 {
+			w.Create, w.Restore = lp.Source, false
+		}
 		if lp.Restore && lp.Length < p.Length {
 			if !strings.EqualFold(p.FileSystem, "NTFS") || FixedSizeKind(p) {
 				return nil, fmt.Errorf("partition %d: %w", lp.Source, ErrShrinkUnsupported)
@@ -89,7 +103,56 @@ func restorePlan(img *repo.DiskImage, opts RestoreOptions) ([]partitionWrite, er
 		}
 		out = append(out, w)
 	}
-	return out, nil
+	return entries(img, l.Style, out)
+}
+
+// entries fills in the partition table entries for the target style:
+// types and IDs as in the image when the style stays, mapped types and
+// new IDs when it changes.
+func entries(img *repo.DiskImage, style string, ws []partitionWrite) ([]partitionWrite, error) {
+	for i := range ws {
+		w := &ws[i]
+		p := w.Src
+		switch style {
+		case StyleGPT:
+			w.GPTType = gptTypeFor(p)
+			w.Name = p.Name
+			w.GPTAttributes = p.GPTAttributes
+			w.GPTID = p.GPTID
+			if img.Style != StyleGPT || w.Create != 0 || w.GPTID == "" {
+				id, err := NewGUID()
+				if err != nil {
+					return nil, err
+				}
+				w.GPTID = id
+			}
+			if w.Name == "" {
+				switch w.GPTType {
+				case GPTTypeRecovery:
+					w.Name = "Recovery"
+					w.GPTAttributes = 0x8000000000000001 // required, no drive letter
+				case GPTTypeBasicData:
+					w.Name = "Basic data partition"
+				}
+			}
+		case StyleMBR:
+			w.MBRType = mbrTypeFor(p)
+		default:
+			return nil, fmt.Errorf("unsupported partition style %q", style)
+		}
+	}
+	return ws, nil
+}
+
+// NewGUID returns a random (version 4) GUID as "XXXXXXXX-XXXX-...".
+func NewGUID() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	b[6] = b[6]&0x0F | 0x40
+	b[8] = b[8]&0x3F | 0x80
+	return strings.ToUpper(fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])), nil
 }
 
 // blockOffset returns where block b of a partition goes on the target

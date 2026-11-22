@@ -38,6 +38,12 @@ type RestoreStats struct {
 	// NewPartitionID is set when a partition restore had to give the
 	// partition a new GPT ID because its own is in use in this computer.
 	NewPartitionID string `json:"new_partition_id,omitempty"`
+	// CreatedEFI lists the offsets of EFI system partitions the restore
+	// created (MBR to GPT); FinishLayout formats them.
+	CreatedEFI []uint64 `json:"created_efi,omitempty"`
+	// NeedMBRCode is set when a GPT image went onto an MBR disk: the
+	// Windows MBR boot code is written by FinishLayout.
+	NeedMBRCode bool `json:"need_mbr_code,omitempty"`
 	// Shrunk lists the NTFS partitions that were restored smaller.
 	Shrunk []ShrinkReport `json:"shrunk,omitempty"`
 }

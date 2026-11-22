@@ -65,11 +65,6 @@ func TestRestorePlanLayout(t *testing.T) {
 	if _, err := restorePlan(img, RestoreOptions{Layout: l, Partitions: []int{3}}); err == nil {
 		t.Error("layout and partition list together accepted")
 	}
-	other := *l
-	other.Style = StyleMBR
-	if _, err := restorePlan(img, RestoreOptions{Layout: &other}); err == nil {
-		t.Error("style conversion accepted")
-	}
 }
 
 func TestBlockOffset(t *testing.T) {
@@ -115,5 +110,89 @@ func TestPatchHiddenSectors(t *testing.T) {
 	}
 	if got := backupBootSectors(ntfsBoot(0, 1000), 512); len(got) != 1 || got[0] != 1000*512 {
 		t.Errorf("NTFS backup %v", got)
+	}
+}
+
+func legacyMBR() *repo.DiskImage {
+	return &repo.DiskImage{Style: StyleMBR, SectorSize: 512, MBRSignature: 0x1234, Partitions: []repo.PartitionImage{
+		{Number: 1, Offset: mib, Length: 500 * mib, MBRType: 0x07, Bootable: true, Included: true, FileSystem: "NTFS"},
+		{Number: 2, Offset: 501 * mib, Length: 59 * gib, MBRType: 0x07, Included: true, FileSystem: "NTFS"},
+	}}
+}
+
+func TestConvertMBRToGPT(t *testing.T) {
+	img := legacyMBR()
+	lim := map[int]PartitionLimits{2: {Resizable: true, MinSize: 20 * gib}}
+	l, err := SuggestLayout(img, 80*gib, lim, LayoutOptions{Style: StyleGPT})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l.Style != StyleGPT || len(l.Partitions) != 4 || l.Partitions[0].Source != SourceNewEFI || l.Partitions[1].Source != SourceNewMSR {
+		t.Fatalf("layout: %+v", l)
+	}
+	if !l.Moved(img) {
+		t.Error("a converted layout counts as moved")
+	}
+	plan, err := restorePlan(img, RestoreOptions{Layout: l})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan[0].Create != SourceNewEFI || plan[0].Restore || plan[0].GPTType != GPTTypeEFI || plan[0].Length != NewEFISize {
+		t.Errorf("EFI entry: %+v", plan[0])
+	}
+	if plan[3].GPTType != GPTTypeBasicData || plan[3].GPTID == "" || plan[3].Name != "Basic data partition" || !plan[3].Restore {
+		t.Errorf("Windows entry: %+v", plan[3])
+	}
+	if plan[2].GPTID == plan[3].GPTID {
+		t.Error("partition IDs not unique")
+	}
+	if _, err := SuggestLayout(img, 80*gib, lim, LayoutOptions{Style: StyleGPT, Mode: LayoutAsSource}); err == nil {
+		t.Error("conversion with the source layout accepted")
+	}
+}
+
+func TestConvertGPTToMBR(t *testing.T) {
+	img := windowsGPT()
+	lim := windowsLimits(10 * gib)
+	l, err := SuggestLayout(img, 60*gib, lim, LayoutOptions{Style: StyleMBR})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l.Style != StyleMBR || len(l.Partitions) != 2 {
+		t.Fatalf("EFI and MSR should be left out: %+v", l.Partitions)
+	}
+	if !l.Partitions[0].Active || l.Partitions[0].Source != 3 || l.Partitions[1].Active {
+		t.Errorf("the Windows partition should be active: %+v", l.Partitions)
+	}
+	plan, err := restorePlan(img, RestoreOptions{Layout: l})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan[0].MBRType != 0x07 || !plan[0].Bootable || plan[1].MBRType != 0x27 {
+		t.Errorf("MBR entries: %+v", plan)
+	}
+	if _, err := SuggestLayout(img, 3*1024*gib, lim, LayoutOptions{Style: StyleMBR}); err != nil {
+		t.Errorf("large disk: %v", err)
+	}
+	many := windowsGPT()
+	for i := 5; i <= 8; i++ {
+		many.Partitions = append(many.Partitions, repo.PartitionImage{Number: i, Offset: uint64(i) * 70 * gib, Length: gib, GPTType: GPTTypeBasicData, Included: true, FileSystem: "NTFS"})
+	}
+	if _, err := SuggestLayout(many, 1024*gib, lim, LayoutOptions{Style: StyleMBR}); err == nil {
+		t.Error("6 partitions on MBR accepted")
+	}
+}
+
+func TestNewGUID(t *testing.T) {
+	a, err := NewGUID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := NewGUID()
+	if a == b || len(a) != 36 || a[14] != '4' {
+		t.Errorf("GUIDs %s %s", a, b)
+	}
+	if _, err := guidBytesPortable(a); err != nil {
+		t.Error(err)
 	}
 }

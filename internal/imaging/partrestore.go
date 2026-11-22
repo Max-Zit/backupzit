@@ -148,6 +148,9 @@ func mbrTypeFor(p *repo.PartitionImage) byte {
 	if p.MBRType != 0 {
 		return p.MBRType
 	}
+	if strings.EqualFold(p.GPTType, GPTTypeRecovery) {
+		return 0x27
+	}
 	switch strings.ToUpper(p.FileSystem) {
 	case "FAT32":
 		return 0x0C

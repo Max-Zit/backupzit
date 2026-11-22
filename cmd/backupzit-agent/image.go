@@ -146,6 +146,7 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 	fit := fs.Bool("fit", false, "fit the partitions to the target disk (the large partitions take up the space; see image-layout)")
 	resize := fs.String("resize", "", "with --fit: set partition sizes, e.g. 3=200G")
 	drop := fs.Bool("drop-others", false, "with --fit and --partitions: leave the other partitions out")
+	style := fs.String("style", "", "convert the partition table: gpt (UEFI) or mbr (BIOS); implies --fit")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: backupzit-agent image-restore [options] <snapshot-id|latest>")
 		fs.PrintDefaults()
@@ -183,7 +184,7 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if *fit || *resize != "" {
+	if *fit || *resize != "" || *style != "" {
 		var size uint64
 		for _, d := range disks {
 			if d.Number == *target {
@@ -199,7 +200,15 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 		}
 		img := &sn.Images[idx]
 		limits := imaging.ImageLimits(ctx, r, img)
-		l, err := imaging.SuggestLayout(img, size, limits, imaging.LayoutOptions{Restore: sel, DropOthers: *drop})
+		lo := imaging.LayoutOptions{Restore: sel, DropOthers: *drop, Style: strings.ToLower(*style)}
+		if lo.Style != "" {
+			for i := range img.Partitions {
+				if imaging.HasWindows(ctx, r, &img.Partitions[i]) {
+					lo.WindowsPartition = img.Partitions[i].Number
+				}
+			}
+		}
+		l, err := imaging.SuggestLayout(img, size, limits, lo)
 		if err != nil {
 			return err
 		}
