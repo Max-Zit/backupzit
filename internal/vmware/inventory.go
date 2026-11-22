@@ -58,6 +58,9 @@ type Disk struct {
 	// Delta is true when File is a snapshot delta, not the base disk.
 	Delta    bool   `json:"delta,omitempty"`
 	ChangeID string `json:"change_id,omitempty"`
+	// Base is the base disk at the end of a delta's parent chain ("" for a
+	// base disk, or a delta whose chain is not known).
+	Base string `json:"-"`
 }
 
 // NIC is a network adapter.
@@ -153,9 +156,19 @@ func devices(devs object.VirtualDeviceList) ([]Disk, []NIC) {
 			if b, ok := x.Backing.(*types.VirtualDiskFlatVer2BackingInfo); ok {
 				disk.File, disk.ChangeID, disk.Delta = b.FileName, b.ChangeId, b.Parent != nil
 				disk.Thin = b.ThinProvisioned != nil && *b.ThinProvisioned
+				for p := b.Parent; p != nil; p = p.Parent {
+					disk.Base = p.FileName
+				}
+			} else if b, ok := x.Backing.(*types.VirtualDiskSeSparseBackingInfo); ok {
+				// SEsparse, the delta format on VMFS 6: never read directly,
+				// only through hot-add or a copy on the datastore.
+				disk.File, disk.ChangeID, disk.Delta, disk.Thin = b.FileName, b.ChangeId, true, true
+				for p := b.Parent; p != nil; p = p.Parent {
+					disk.Base = p.FileName
+				}
 			} else if b, ok := x.Backing.(types.BaseVirtualDeviceFileBackingInfo); ok {
 				disk.File = b.GetVirtualDeviceFileBackingInfo().FileName
-				disk.Delta = true // seSparse / other formats are not read directly
+				disk.Delta = true // other formats are not read directly
 			}
 			disks = append(disks, disk)
 		case types.BaseVirtualEthernetCard:
@@ -343,6 +356,16 @@ func (c *Client) Inventory(ctx context.Context, host string) (*pve.Inventory, er
 		inv.Storage = append(inv.Storage, d.Name)
 	}
 	return inv, nil
+}
+
+// disk returns the VM's disk with the device key k.
+func (v VM) disk(k int32) (Disk, bool) {
+	for _, d := range v.Disks {
+		if d.DevKey == k {
+			return d, true
+		}
+	}
+	return Disk{}, false
 }
 
 // hasDelta tells whether a disk of the VM is not a plain base disk (a

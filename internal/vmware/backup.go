@@ -411,16 +411,34 @@ type diskPlan struct {
 	clone *dsPath
 	// stored is the disk already read through hot-add.
 	stored *repo.GuestDisk
+	// volume is the VM's disk recorded with the backup: the base disk also
+	// when a delta of the backup's own snapshot is read.
+	volume string
+	// chain: disk is a delta of the backup's own snapshot, read only
+	// through hot-add or a copy on the datastore (never its file directly).
+	chain bool
 }
 
 // planDisk decides which areas of a disk to read: with changed block
 // tracking only what changed since the previous backup, or the allocated
-// areas; otherwise the whole disk.
+// areas; otherwise the whole disk. v is the VM as it was before the
+// backup's snapshot s.
 func (c *Client) planDisk(ctx context.Context, v VM, s *snapshot, d Disk, prev map[string]diskimg.Previous) (diskPlan, error) {
+	volume, chain := d.File, false
 	if d.Delta {
-		return diskPlan{}, fmt.Errorf("%s is a snapshot delta disk; delete or consolidate the VM's own snapshots before backing it up", d.File)
+		// A quiesced snapshot (VMware Tools, VSS) may list the disk as a
+		// small delta written by the quiescing, on top of the base disk the
+		// VM had before the snapshot (#59). That delta belongs to the
+		// backup's own snapshot and is read with it. A delta the VM already
+		// had is one of its own snapshots: refused as before.
+		had, ok := v.disk(d.DevKey)
+		if !ok || had.Delta || d.Base == "" || d.Base != had.File || v.Power == "poweredOff" {
+			return diskPlan{}, fmt.Errorf("%s is a snapshot delta disk; delete or consolidate the VM's own snapshots before backing it up", d.File)
+		}
+		d.Thin = had.Thin // restored as the VM's disk was, not as the delta
+		volume, chain = had.File, true
 	}
-	p := diskPlan{disk: d, areas: []diskimg.Area{{Offset: 0, Length: d.Capacity}}, method: "whole disk"}
+	p := diskPlan{disk: d, volume: volume, chain: chain, areas: []diskimg.Area{{Offset: 0, Length: d.Capacity}}, method: "whole disk"}
 	if d.ChangeID == "" {
 		return p, nil
 	}
@@ -477,6 +495,8 @@ func (c *Client) storeDisk(ctx context.Context, r *repo.Repository, v VM, p disk
 	read := src
 	if p.clone != nil {
 		read = *p.clone
+	} else if p.chain {
+		return repo.GuestDisk{}, fmt.Errorf("%s is a delta of the backup's snapshot and can only be read through hot-add or a copy on the datastore", p.disk.File)
 	}
 	flat, err := c.flatFile(ctx, read)
 	if err != nil {
@@ -499,13 +519,17 @@ func (c *Client) storeDiskHotAdd(ctx context.Context, ha *hotAdd, r *repo.Reposi
 
 // storeImage stores the planned areas of a disk read from ra.
 func (c *Client) storeImage(ctx context.Context, r *repo.Repository, v VM, p diskPlan, sn *repo.Snapshot, progress func(uint64), ra io.ReaderAt, method string) (repo.GuestDisk, error) {
-	src, err := parseDSPath(p.disk.File)
+	vol := p.volume
+	if vol == "" {
+		vol = p.disk.File
+	}
+	src, err := parseDSPath(vol)
 	if err != nil {
 		return repo.GuestDisk{}, err
 	}
 	d := p.disk
 	img, err := diskimg.StoreAreas(ctx, r, ra, d.Capacity, p.areas, p.base,
-		len(sn.Images), fmt.Sprintf("vmware %s %s %s (%s)", v.Name, d.Key, d.File, method), "snapshot", progress)
+		len(sn.Images), fmt.Sprintf("vmware %s %s %s (%s)", v.Name, d.Key, vol, method), "snapshot", progress)
 	if err != nil {
 		return repo.GuestDisk{}, err
 	}
@@ -514,6 +538,6 @@ func (c *Client) storeImage(ctx context.Context, r *repo.Repository, v VM, p dis
 	if d.Thin {
 		format = "thin"
 	}
-	return repo.GuestDisk{Key: d.Key, Volume: d.File, Storage: src.DS, Format: format, Size: d.Capacity,
+	return repo.GuestDisk{Key: d.Key, Volume: vol, Storage: src.DS, Format: format, Size: d.Capacity,
 		Image: len(sn.Images) - 1, ChangeID: d.ChangeID}, nil
 }
