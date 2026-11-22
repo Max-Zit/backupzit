@@ -147,26 +147,32 @@ func TestTargetLinkSwappedInAfterTheCheck(t *testing.T) {
 	}
 }
 
-// At the original location a link of another user in the middle of the
-// path is not followed, also when the folder at its end exists.
-func TestOriginalLocationLinkAbovePath(t *testing.T) {
+// At the original location (0.58) a folder swapped for a link after it was
+// opened changes nothing: the file goes into the folder that was opened.
+// (Which links are followed: fsutil.OpenOriginal and its tests.)
+func TestOriginalLocationSwappedAfterOpen(t *testing.T) {
 	root, outside := filepath.Clean(t.TempDir()), filepath.Clean(t.TempDir())
-	if err := os.MkdirAll(filepath.Join(outside, "Windows", "System32"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	folderLink(t, outside, filepath.Join(root, "P"))
-	old := trustedLink
-	trustedLink = func(string, os.FileInfo) bool { return false }
-	defer func() { trustedLink = old }()
 	orig := openTarget(t, "")
-	if err := orig.Mkdir(filepath.Join(root, "P", "Windows", "System32")); err == nil {
-		t.Fatal("a link of another user above the path was followed")
-	}
-	trustedLink = func(string, os.FileInfo) bool { return true }
-	if err := orig.Mkdir(filepath.Join(root, "P", "Windows", "System32", "new")); err != nil {
-		t.Fatalf("a trusted link was not followed: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(outside, "Windows", "System32", "new")); err != nil {
+	dir := filepath.Join(root, "C", "Users")
+	if err := orig.Mkdir(dir); err != nil {
 		t.Fatal(err)
+	}
+	if err := os.Rename(dir, dir+"2"); err != nil {
+		t.Skipf("the opened folder cannot be moved away (%v): no swap possible", err)
+	}
+	folderLink(t, outside, dir)
+	f, err := orig.Create(filepath.Join(dir, "x.bzpart"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+	if err := orig.Replace(filepath.Join(dir, "x.bzpart"), filepath.Join(dir, "x")); err != nil {
+		t.Fatal(err)
+	}
+	if names, _ := os.ReadDir(outside); len(names) != 0 {
+		t.Fatalf("written through the swapped-in link: %v", names)
+	}
+	if _, err := os.Stat(filepath.Join(dir+"2", "x")); err != nil {
+		t.Fatalf("not in the opened folder: %v", err)
 	}
 }

@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !windows && !linux
 
 package restorer
 
@@ -7,25 +7,10 @@ import (
 	"io/fs"
 	"os"
 
+	"github.com/max-zit/backupzit/internal/fsutil"
 	"github.com/max-zit/backupzit/internal/repo"
 	"golang.org/x/sys/unix"
 )
-
-// unixMode converts Go file mode flags to the Unix st_mode permission bits
-// including setuid, setgid and sticky.
-func unixMode(m fs.FileMode) uint32 {
-	mode := uint32(m.Perm())
-	if m&fs.ModeSetuid != 0 {
-		mode |= unix.S_ISUID
-	}
-	if m&fs.ModeSetgid != 0 {
-		mode |= unix.S_ISGID
-	}
-	if m&fs.ModeSticky != 0 {
-		mode |= unix.S_ISVTX
-	}
-	return mode
-}
 
 // applyUnix restores owner, mode, extended attributes and times. The order
 // matters: chown clears setuid bits and file capabilities, so mode and
@@ -78,4 +63,29 @@ func makeSpecial(dst string, n *repo.Node) error {
 		return unix.Mknod(dst, mode, int(n.Unix.Rdev)) // #nosec G115 -- device number as stored in the snapshot
 	}
 	return errors.New("not a special file")
+}
+
+// Other systems (not built for now): metadata by path, as before 0.58.
+
+func applyFileMeta(*os.File, *repo.Node, bool) []error { return nil }
+
+func afterRename(d *fsutil.Dir, name string, n *repo.Node) []error {
+	return applyUnix(d.Join(name), n, true)
+}
+
+func applyDirMeta(_, sub *fsutil.Dir, _ string, n *repo.Node, setTimes bool) []error {
+	return applyUnix(sub.Path(), n, setTimes)
+}
+
+func applySelfMeta(d *fsutil.Dir, n *repo.Node) []error { return applyUnix(d.Path(), n, true) }
+
+func applyLinkMeta(d *fsutil.Dir, name string, n *repo.Node) []error {
+	return applyUnix(d.Join(name), n, true)
+}
+
+func makeSpecialAt(d *fsutil.Dir, name string, n *repo.Node) []error {
+	if err := makeSpecial(d.Join(name), n); err != nil {
+		return []error{err}
+	}
+	return applyUnix(d.Join(name), n, true)
 }

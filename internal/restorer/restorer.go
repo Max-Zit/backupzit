@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -68,15 +67,28 @@ func Run(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Option
 		}
 		rs.include = append(rs.include, comps)
 	}
-	if opts.Target != "" {
+	// The folder the first level of the snapshot goes into: the restore
+	// folder, or "/" at the original location (on Windows the first level
+	// are the volumes, each opened on its own).
+	var top *fsutil.Dir
+	switch {
+	case opts.Target != "":
 		abs, err := filepath.Abs(opts.Target)
 		if err != nil {
 			return nil, err
 		}
 		rs.opts.Target = abs
-		if err := os.MkdirAll(abs, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
+		if top, err = fsutil.OpenFolder(abs); err != nil {
 			return nil, err
 		}
+	case runtime.GOOS != "windows":
+		var err error
+		if top, err = fsutil.OpenOriginal("/"); err != nil {
+			return nil, err
+		}
+	}
+	if top != nil {
+		defer top.Close()
 	}
 	if opts.Verify {
 		rs.buf = make([]byte, chunker.MaxSize)
@@ -87,7 +99,7 @@ func Run(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Option
 	if err != nil {
 		return nil, fmt.Errorf("load root tree: %w", err)
 	}
-	if err := rs.restoreTree(ctx, root, nil); err != nil {
+	if err := rs.restoreTree(ctx, root, nil, top); err != nil {
 		return &rs.stats, err
 	}
 	if len(rs.include) > 0 && rs.stats.Files+rs.stats.Dirs+rs.stats.Symlinks == 0 {
@@ -115,15 +127,22 @@ func RunDir(ctx context.Context, r *repo.Repository, dir *repo.Node, target stri
 		rs.buf = make([]byte, chunker.MaxSize)
 		rs.chk = chunker.New(nil, r.ChunkerPolynomial())
 	}
+	top, err := fsutil.OpenFolder(abs)
+	if err != nil {
+		return nil, err
+	}
+	defer top.Close()
 	start := time.Now()
 	t, err := r.LoadTree(ctx, *dir.Subtree)
 	if err != nil {
 		return nil, fmt.Errorf("load root tree: %w", err)
 	}
-	if err := rs.restoreTree(ctx, t, nil); err != nil {
+	if err := rs.restoreTree(ctx, t, nil, top); err != nil {
 		return &rs.stats, err
 	}
-	rs.applyMeta(abs, dir, true)
+	for _, err := range applySelfMeta(top, dir) {
+		rs.addError(abs, err)
+	}
 	rs.stats.Dirs++
 	rs.stats.Duration = time.Since(start)
 	return &rs.stats, nil
@@ -174,7 +193,10 @@ func (rs *restorer) addError(p string, err error) {
 	rs.stats.Errors = append(rs.stats.Errors, fmt.Sprintf("%s: %v", p, err))
 }
 
-func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []string) error {
+// restoreTree restores the entries of t, which belong into the folder dir
+// (the folder of prefix). dir is nil only above the volumes on Windows at
+// the original location (no folder holds "C" or "UNC").
+func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []string, dir *fsutil.Dir) error {
 	// A folder never holds two entries of one name. A tampered snapshot
 	// could pair a symlink with a folder of the same name, so that the
 	// folder's files are written where the link points: skip duplicates.
@@ -209,19 +231,28 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 			continue
 		}
 		dst := rs.dest(comps)
+		if n.Type != repo.NodeDir && dir == nil {
+			rs.addError(dst, errors.New("not inside a folder, skipped"))
+			continue
+		}
 		switch n.Type {
 		case repo.NodeDir:
-			// Volume roots ("C") map to "C:\" which already exists.
-			if err := rs.prepareDir(dst); err != nil {
+			sub, err := rs.openSub(dir, comps, dst)
+			if err != nil {
 				rs.addError(dst, err)
 				continue
 			}
 			if n.Subtree != nil {
-				sub, err := rs.r.LoadTree(ctx, *n.Subtree)
-				if err != nil {
-					return fmt.Errorf("load tree for %s: %w", dst, err)
+				st, err := rs.r.LoadTree(ctx, *n.Subtree)
+				if err == nil {
+					err = rs.restoreTree(ctx, st, comps, sub)
+				} else {
+					err = fmt.Errorf("load tree for %s: %w", dst, err)
 				}
-				if err := rs.restoreTree(ctx, sub, comps); err != nil {
+				if err != nil {
+					if sub != nil {
+						_ = sub.Close()
+					}
 					return err
 				}
 			}
@@ -229,9 +260,14 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 				rs.stats.Dirs++
 				// A volume root ("C") keeps the attributes of the folder: C:\ is
 				// hidden and system, which would hide everything restored below it.
-				if len(comps) > 1 || rs.dir || runtime.GOOS != "windows" {
-					rs.applyMeta(dst, n, len(comps) > 1 || rs.dir)
+				if sub != nil && (len(comps) > 1 || rs.dir || runtime.GOOS != "windows") {
+					for _, err := range applyDirMeta(dir, sub, n.Name, n, len(comps) > 1 || rs.dir) {
+						rs.addError(dst, err)
+					}
 				}
+			}
+			if sub != nil {
+				_ = sub.Close()
 			}
 		case repo.NodeFile:
 			if !selected {
@@ -239,15 +275,14 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 			}
 			if n.Unix != nil && n.Unix.LinkKey != "" {
 				if first, ok := rs.links[n.Unix.LinkKey]; ok {
-					_ = os.Remove(dst)
-					if err := os.Link(first, dst); err == nil {
+					if err := rs.linkTo(dir, n.Name, first); err == nil {
 						rs.stats.Files++
 						continue
 					}
 					// Fall back to a copy (e.g. across file systems).
 				}
 			}
-			if err := rs.restoreFile(ctx, dst, n); err != nil {
+			if err := rs.restoreFile(ctx, dir, n.Name, dst, n); err != nil {
 				rs.addError(dst, err)
 				continue
 			}
@@ -259,9 +294,8 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 					rs.links[n.Unix.LinkKey] = dst
 				}
 			}
-			rs.applyMeta(dst, n, true)
 			if rs.opts.Verify {
-				if err := rs.verifyFile(dst, n); err != nil {
+				if err := rs.verifyFile(dir, n.Name, n); err != nil {
 					rs.addError(dst, fmt.Errorf("verify: %w", err))
 				} else {
 					rs.stats.FilesVerified++
@@ -271,29 +305,91 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 			if !selected {
 				continue
 			}
-			_ = os.Remove(dst)
-			if err := os.Symlink(n.LinkTarget, dst); err != nil {
+			if err := dir.Symlink(n.LinkTarget, n.Name); err != nil {
 				rs.addError(dst, err)
 				continue
 			}
 			rs.stats.Symlinks++
-			if runtime.GOOS != "windows" {
-				rs.applyMeta(dst, n, true)
+			for _, err := range applyLinkMeta(dir, n.Name, n) {
+				rs.addError(dst, err)
 			}
 		case repo.NodeDev, repo.NodeFifo:
 			if !selected {
 				continue
 			}
-			if err := makeSpecial(dst, n); err != nil {
+			for _, err := range makeSpecialAt(dir, n.Name, n) {
 				rs.addError(dst, err)
-				continue
 			}
-			rs.applyMeta(dst, n, true)
 		default:
 			rs.addError(dst, fmt.Errorf("unknown node type %q", n.Type))
 		}
 	}
 	return nil
+}
+
+// openSub opens the folder of comps (dst) for restoring into it, creating
+// it: in dir, or from the volume root for the first folders on Windows at
+// the original location. Below a restore folder a link where a folder
+// belongs is replaced by a real folder: one put there by root in a
+// container, or by a forged backup, would send the restored files where it
+// points. At the original location a link of the system (owned by root or
+// the agent's user, e.g. /bin -> usr/bin; on Windows SYSTEM, TrustedInstaller
+// or an administrator) is followed; one of another user is not. A nil
+// folder with no error: a level above the shares of a UNC path.
+func (rs *restorer) openSub(dir *fsutil.Dir, comps []string, dst string) (*fsutil.Dir, error) {
+	original := rs.opts.Target == "" && !rs.dir
+	if original && runtime.GOOS == "windows" {
+		switch {
+		case len(comps) == 1 && len(comps[0]) == 1: // a volume: "C" is C:\
+			return fsutil.OpenOriginal(dst)
+		case comps[0] == "UNC" && len(comps) < 3:
+			return nil, nil
+		case comps[0] == "UNC" && len(comps) == 3: // \server\share
+			return fsutil.OpenOriginal(dst)
+		}
+	}
+	if dir == nil {
+		return nil, errors.New("not inside a folder, skipped")
+	}
+	return dir.Sub(comps[len(comps)-1], original)
+}
+
+// openDirOf opens the folder p again (for a hard link to a file restored
+// earlier), the same way as while restoring.
+func (rs *restorer) openDirOf(p string) (*fsutil.Dir, error) {
+	if rs.opts.Target == "" && !rs.dir {
+		return fsutil.OpenOriginal(p)
+	}
+	rel, err := filepath.Rel(rs.opts.Target, p)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return nil, fmt.Errorf("%s is outside the restore folder", p)
+	}
+	d, err := fsutil.OpenFolder(rs.opts.Target)
+	if err != nil {
+		return nil, err
+	}
+	if rel == "." {
+		return d, nil
+	}
+	for _, c := range strings.Split(rel, string(filepath.Separator)) {
+		next, err := d.Sub(c, false)
+		_ = d.Close()
+		if err != nil {
+			return nil, err
+		}
+		d = next
+	}
+	return d, nil
+}
+
+// linkTo creates name in dir as a hard link to the file restored at first.
+func (rs *restorer) linkTo(dir *fsutil.Dir, name, first string) error {
+	src, err := rs.openDirOf(filepath.Dir(first))
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	return dir.LinkFrom(src, filepath.Base(first), name)
 }
 
 func validName(n string) bool {
@@ -305,17 +401,19 @@ func validName(n string) bool {
 	return runtime.GOOS != "windows" || !strings.ContainsRune(n, '\\')
 }
 
-func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
+func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst string, n *repo.Node) error {
+	dir.ClearReadOnly(name)
+	tmp := name + ".bzpart"
+	// Created exclusively in the opened folder: a file or link left at the
+	// temporary name (e.g. put there by root in a container) is removed,
+	// never written through.
+	f, err := dir.CreateExcl(tmp)
+	if err != nil {
 		return err
 	}
-	fsutil.ClearReadOnly(dst)
-	tmp := dst + ".bzpart"
-	// O_EXCL: a file or symbolic link left at the temporary name (e.g. put
-	// there by root in a container) is removed, never written through.
-	_ = os.Remove(tmp)
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
-	if err != nil {
+	fail := func(err error) error {
+		_ = f.Close()
+		_ = dir.Remove(tmp)
 		return err
 	}
 	var written uint64
@@ -327,10 +425,8 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 	for _, id := range n.Content {
 		data, err := rs.r.LoadBlob(ctx, repo.DataBlob, id)
 		if err != nil {
-			_ = f.Close()
-			_ = os.Remove(tmp)
 			// Missing/corrupt repository data: report but keep restoring others.
-			return fmt.Errorf("blob %s: %w", id.Short(), err)
+			return fail(fmt.Errorf("blob %s: %w", id.Short(), err))
 		}
 		// A chunk of zeros is skipped instead of written: sparse files
 		// (VM images, databases) stay sparse instead of taking their full
@@ -348,29 +444,31 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 			_, err = f.Write(data)
 		}
 		if err != nil {
-			_ = f.Close()
-			_ = os.Remove(tmp)
-			return err
+			return fail(err)
 		}
 		written += uint64(len(data))
 	}
 	// A hole at the end still needs the file's size.
 	if err := f.Truncate(int64(written)); err != nil { // #nosec G115 -- file sizes are below 2^63
-		_ = f.Close()
-		_ = os.Remove(tmp)
-		return err
-	}
-	if err := f.Close(); err != nil {
-		_ = os.Remove(tmp)
-		return err
+		return fail(err)
 	}
 	if written != n.Size {
-		_ = os.Remove(tmp)
-		return fmt.Errorf("restored %d bytes, snapshot says %d", written, n.Size)
+		return fail(fmt.Errorf("restored %d bytes, snapshot says %d", written, n.Size))
 	}
-	if err := os.Rename(tmp, dst); err != nil {
-		_ = os.Remove(tmp)
+	// Owner, mode, attributes and times through the file's own handle
+	// (Linux), before it gets its name.
+	metaErrs := applyFileMeta(f, n, true)
+	if err := f.Close(); err != nil {
+		_ = dir.Remove(tmp)
 		return err
+	}
+	if err := dir.Rename(tmp, name); err != nil {
+		_ = dir.Remove(tmp)
+		return err
+	}
+	metaErrs = append(metaErrs, afterRename(dir, name, n)...)
+	for _, err := range metaErrs {
+		rs.addError(dst, err)
 	}
 	rs.stats.Files++
 	rs.stats.Bytes += written
@@ -380,70 +478,11 @@ func (rs *restorer) restoreFile(ctx context.Context, dst string, n *repo.Node) e
 	return nil
 }
 
-// prepareDir makes sure dst is a real folder before anything is restored
-// into it. A symbolic link there would send the restored files where it
-// points: into a folder of the host when root in a container made the
-// link, or anywhere when a forged backup did. Restoring into a folder or
-// a container volume replaces such a link with a folder. At the original
-// location, a link of the system (owned by root or by the agent's user,
-// e.g. /bin -> usr/bin) is followed; one of another user is not.
-func (rs *restorer) prepareDir(dst string) error {
-	fi, err := os.Lstat(dst)
-	switch {
-	case errors.Is(err, os.ErrNotExist):
-		return os.MkdirAll(dst, 0o755) // #nosec G301 -- folder of restored or copied files, like the original
-	case err != nil:
-		return err
-	case fi.IsDir():
-		return nil
-	case fi.Mode()&(os.ModeSymlink|os.ModeIrregular) == 0:
-		// Irregular: a junction on Windows, a link like a symbolic one.
-		return errors.New("exists and is not a folder")
-	case rs.opts.Target == "" && !rs.dir:
-		if !fsutil.TrustedLink(dst, fi) {
-			return errors.New("is a symbolic link of another user, not followed")
-		}
-		st, err := os.Stat(dst)
-		if err != nil {
-			return err
-		}
-		if !st.IsDir() {
-			return errors.New("is a symbolic link to something that is not a folder")
-		}
-		return nil
-	}
-	if err := os.Remove(dst); err != nil {
-		return err
-	}
-	return os.Mkdir(dst, 0o755) // #nosec G301 -- folder of restored or copied files, like the original
-}
-
-func (rs *restorer) applyMeta(dst string, n *repo.Node, setTimes bool) {
-	if runtime.GOOS != "windows" {
-		for _, err := range applyUnix(dst, n, setTimes) {
-			rs.addError(dst, err)
-		}
-		return
-	}
-	if setTimes && !n.ModTime.IsZero() {
-		if err := os.Chtimes(dst, n.ModTime, n.ModTime); err != nil {
-			rs.addError(dst, err)
-		}
-	}
-	// Always apply on Windows: zero means "no preserved attributes set" and
-	// must clear e.g. the archive bit Windows put on the new file.
-	if runtime.GOOS == "windows" {
-		if err := fsutil.SetWinAttrs(dst, n.WinAttrs); err != nil {
-			rs.addError(dst, err)
-		}
-	}
-}
-
 // verifyFile reads the restored file back in pieces of the stored chunks'
 // lengths and compares their hashes and the total size. It does not depend
 // on the repository's chunker, so it also works for copied snapshots.
-func (rs *restorer) verifyFile(p string, n *repo.Node) error {
-	f, err := os.Open(p) // #nosec G304 -- file in the restore target chosen by the administrator
+func (rs *restorer) verifyFile(dir *fsutil.Dir, name string, n *repo.Node) error {
+	f, err := dir.Root().Open(name)
 	if err != nil {
 		return err
 	}

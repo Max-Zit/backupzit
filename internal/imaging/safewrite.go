@@ -26,11 +26,17 @@ import (
 // to). The restore folder itself and the folders above it are taken as they
 // are: the administrator chose them.
 //
-// At the original location links are followed only when they belong to the
-// system or an administrator (fsutil.TrustedLink).
+// At the original location every write goes through the folder it belongs
+// in, opened from the volume root down (fsutil.OpenOriginal): links are
+// followed only when they belong to the system or an administrator, and a
+// folder swapped for a link after it was opened changes nothing (0.58).
 type Target struct {
 	dir  string   // the restore folder, "" for the original location
 	root *os.Root // opened on dir
+	// orig is the folder at the original location used last (origKey: as
+	// asked for).
+	orig    *fsutil.Dir
+	origKey string
 }
 
 // OpenTarget opens the restore folder dir ("" = the original location). A
@@ -56,10 +62,32 @@ func OpenTarget(dir string) (*Target, error) {
 
 // Close releases the restore folder.
 func (t *Target) Close() error {
+	if t.orig != nil {
+		_ = t.orig.Close()
+		t.orig = nil
+	}
 	if t.root == nil {
 		return nil
 	}
 	return t.root.Close()
+}
+
+// origDir opens the folder dir at the original location (creating it).
+func (t *Target) origDir(dir string) (*fsutil.Dir, error) {
+	dir = filepath.Clean(dir)
+	if t.orig != nil && t.origKey == dir {
+		return t.orig, nil
+	}
+	if t.orig != nil {
+		_ = t.orig.Close()
+		t.orig = nil
+	}
+	d, err := fsutil.OpenOriginal(dir)
+	if err != nil {
+		return nil, err
+	}
+	t.orig, t.origKey = d, dir
+	return d, nil
 }
 
 // rel returns p relative to the restore folder.
@@ -82,7 +110,8 @@ func isLink(fi fs.FileInfo) bool {
 // Mkdir creates the folder p and the folders above it.
 func (t *Target) Mkdir(p string) error {
 	if t.root == nil {
-		return mkdirTrusted(p)
+		_, err := t.origDir(p)
+		return err
 	}
 	rel, err := t.rel(p)
 	if err != nil {
@@ -137,49 +166,6 @@ func (t *Target) realDir(rel string) error {
 	return fmt.Errorf("%s keeps changing while it is created", filepath.Join(t.dir, rel))
 }
 
-// mkdirTrusted is os.MkdirAll at the original location, following only
-// links of the system or an administrator. Every part of the path is
-// looked at from the volume root down: Lstat follows links in the middle
-// of a path, so checking only p would accept a user's junction above it.
-func mkdirTrusted(p string) error {
-	p = filepath.Clean(p)
-	vol := filepath.VolumeName(p)
-	cur := vol + string(filepath.Separator)
-	rest := strings.TrimPrefix(strings.TrimPrefix(p, vol), string(filepath.Separator))
-	if !filepath.IsAbs(p) {
-		cur, rest = "", p
-	}
-	for _, c := range strings.Split(rest, string(filepath.Separator)) {
-		if c == "" {
-			continue
-		}
-		cur = filepath.Join(cur, c)
-		fi, err := os.Lstat(cur)
-		switch {
-		case errors.Is(err, fs.ErrNotExist):
-			if err := os.Mkdir(cur, 0o755); err != nil && !errors.Is(err, fs.ErrExist) { // #nosec G301 -- folder of restored or copied files, like the original
-				return err
-			}
-		case err != nil:
-			return err
-		case isLink(fi):
-			if !trustedLink(cur, fi) {
-				return fmt.Errorf("%s is a link of another user, not followed (restore into a folder instead)", cur)
-			}
-			st, err := os.Stat(cur)
-			if err != nil {
-				return err
-			}
-			if !st.IsDir() {
-				return fmt.Errorf("%s is a link to something that is not a folder", cur)
-			}
-		case !fi.IsDir():
-			return fmt.Errorf("%s exists and is not a folder", cur)
-		}
-	}
-	return nil
-}
-
 // Create creates the file p anew for writing. Whatever is at that name (a
 // part file of an earlier attempt, or a link put there) is removed first
 // and the file is created with O_EXCL, so a link at the name is never
@@ -188,22 +174,29 @@ func mkdirTrusted(p string) error {
 func (t *Target) Create(p string) (*os.File, error) {
 	stream := runtime.GOOS == "windows" && streamBase(p) != p
 	if t.root == nil {
+		base := p // a ':' is part of a name except in a Windows stream
 		if stream {
-			base := streamBase(p)
-			if fi, err := os.Lstat(base); err == nil && isLink(fi) {
+			base = streamBase(p)
+		}
+		d, err := t.origDir(filepath.Dir(base))
+		if err != nil {
+			return nil, err
+		}
+		name := filepath.Base(base)
+		if stream {
+			if l, err := d.IsLink(name); err == nil && l {
 				return nil, fmt.Errorf("%s is a link, its stream is not written", base)
 			}
-			return os.OpenFile(p, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- a stream of a file at the original location
+			return createStream(d.Root(), name+p[len(base):], p)
 		}
-		_ = os.Remove(p)
-		return os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) // #nosec G304 -- file at the original location
+		return d.CreateExcl(name)
 	}
 	rel, err := t.rel(p)
 	if err != nil {
 		return nil, err
 	}
 	if stream {
-		return t.createStream(rel)
+		return createStream(t.root, rel, filepath.Join(t.dir, rel))
 	}
 	_ = t.root.Remove(rel)
 	return t.root.OpenFile(rel, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
@@ -220,12 +213,30 @@ func streamBase(p string) string {
 	return p[:i+j]
 }
 
+// origEntry opens the folder of p at the original location and returns it
+// with p's name in it.
+func (t *Target) origEntry(p string) (*fsutil.Dir, string, error) {
+	p = filepath.Clean(p)
+	d, err := t.origDir(filepath.Dir(p))
+	if err != nil {
+		return nil, "", err
+	}
+	return d, filepath.Base(p), nil
+}
+
 // Replace moves the finished part file tmp to dst; something at dst (an
 // older file, or a link) is removed, not followed.
 func (t *Target) Replace(tmp, dst string) error {
 	if t.root == nil {
-		_ = os.Remove(dst)
-		return os.Rename(tmp, dst)
+		if !strings.EqualFold(filepath.Dir(filepath.Clean(tmp)), filepath.Dir(filepath.Clean(dst))) {
+			return errors.New("the part file is not in the folder of " + dst)
+		}
+		d, name, err := t.origEntry(dst)
+		if err != nil {
+			return err
+		}
+		_ = d.Remove(name)
+		return d.Rename(filepath.Base(filepath.Clean(tmp)), name)
 	}
 	rt, err := t.rel(tmp)
 	if err != nil {
@@ -242,7 +253,11 @@ func (t *Target) Replace(tmp, dst string) error {
 // Remove removes p (a part file left by a failed write).
 func (t *Target) Remove(p string) error {
 	if t.root == nil {
-		return os.Remove(p)
+		d, name, err := t.origEntry(p)
+		if err != nil {
+			return err
+		}
+		return d.Remove(name)
 	}
 	rel, err := t.rel(p)
 	if err != nil {
@@ -254,7 +269,11 @@ func (t *Target) Remove(p string) error {
 // Chmod sets the permissions of p.
 func (t *Target) Chmod(p string, m fs.FileMode) error {
 	if t.root == nil {
-		return os.Chmod(p, m)
+		d, name, err := t.origEntry(p)
+		if err != nil {
+			return err
+		}
+		return d.Root().Chmod(name, m)
 	}
 	rel, err := t.rel(p)
 	if err != nil {
@@ -266,7 +285,11 @@ func (t *Target) Chmod(p string, m fs.FileMode) error {
 // Chtimes sets the times of p.
 func (t *Target) Chtimes(p string, atime, mtime time.Time) error {
 	if t.root == nil {
-		return os.Chtimes(p, atime, mtime)
+		d, name, err := t.origEntry(p)
+		if err != nil {
+			return err
+		}
+		return d.Root().Chtimes(name, atime, mtime)
 	}
 	rel, err := t.rel(p)
 	if err != nil {
@@ -274,6 +297,3 @@ func (t *Target) Chtimes(p string, atime, mtime time.Time) error {
 	}
 	return t.root.Chtimes(rel, atime, mtime)
 }
-
-// trustedLink is fsutil.TrustedLink (a variable for the tests).
-var trustedLink = fsutil.TrustedLink
