@@ -1,7 +1,7 @@
-//go:build !windows
+//go:build !windows && !darwin
 
-// Command backupzit-tray is the Windows notification area app of the agent.
-// On other systems use "backupzit-agent status".
+// Command backupzit-tray is the Windows notification area and macOS menu
+// bar app of the agent. On other systems use "backupzit-agent status".
 package main
 
 import (
@@ -10,6 +10,6 @@ import (
 )
 
 func main() {
-	fmt.Fprintln(os.Stderr, "backupzit-tray is only available on Windows; use \"backupzit-agent status\"")
+	fmt.Fprintln(os.Stderr, "backupzit-tray is only available on Windows and macOS; use \"backupzit-agent status\"")
 	os.Exit(1)
 }
