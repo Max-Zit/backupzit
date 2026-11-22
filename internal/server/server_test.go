@@ -2268,3 +2268,33 @@ func TestBruteForceProtection(t *testing.T) {
 		t.Error("settings change not audited")
 	}
 }
+
+// A Mac is backed up as files: the console refuses a Linux system job for
+// it, as for a Windows computer (issue #1), and keeps it out of the agents
+// a Linux system is restored with.
+func TestMacAgentGetsNoSystemJob(t *testing.T) {
+	e := setup(t)
+	ctx := e.ctx
+	targetID, err := e.store.CreateTarget(ctx, server.Target{Name: "local", Kind: "local", URL: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
+	resp, err := e.store.EnrollAgent(ctx, api.EnrollRequest{Token: token, Hostname: "mac1", OS: "macOS 27.0.1 (26A434)", Arch: "arm64", Version: "0.58.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mac server.Agent
+	agents, _ := e.store.ListAgents(ctx)
+	for _, a := range agents {
+		if a.UUID == resp.AgentUUID {
+			mac = a
+		}
+	}
+	if _, err := e.store.CreateJob(ctx, server.Job{Kind: server.JobSystem, AgentID: mac.ID, TargetID: targetID, Name: "system", Paths: []string{"/"}}); err == nil || !strings.Contains(err.Error(), "is a Mac") {
+		t.Errorf("system job for a Mac: %v", err)
+	}
+	if _, err := e.store.CreateJob(ctx, server.Job{AgentID: mac.ID, TargetID: targetID, Name: "files", Paths: []string{"/Users"}}); err != nil {
+		t.Errorf("files job for a Mac: %v", err)
+	}
+}
