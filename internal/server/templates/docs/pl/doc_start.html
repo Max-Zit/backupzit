@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Pierwsze kroki</h1>
-<p class="lead">BackupZit chroni komputery z Windows i Linuksem, maszyny wirtualne Proxmox VE, Hyper-V i VMware ESXi, bazy danych (SQL Server, PostgreSQL, MySQL/MariaDB), udziały NAS i Microsoft 365 — pliki, całe dyski, całe systemy i skrzynki pocztowe — z jednej konsoli WWW działającej w Twojej własnej sieci.</p>
+<p class="lead">BackupZit chroni komputery z Windows, Linuksem i macOS, maszyny wirtualne Proxmox VE, Hyper-V i VMware ESXi, bazy danych (SQL Server, PostgreSQL, MySQL/MariaDB), udziały NAS i Microsoft 365 — pliki, całe dyski, całe systemy i skrzynki pocztowe — z jednej konsoli WWW działającej w Twojej własnej sieci.</p>
 
 <h2>Co chroni BackupZit</h2>
 <table>
   <tr><th>Co</th><th>Jak</th><th>Przywracanie</th></tr>
-  <tr><td>Pliki i foldery (Windows, Linux)</td><td>Agent na maszynie; otwarte pliki w Windows przez VSS. <a href="/docs/jobs">Zadania kopii</a></td><td>Cała kopia lub pojedyncze foldery, do dowolnego agenta, do oryginalnej lokalizacji lub innego folderu. <a href="/docs/restore">Przywracanie</a></td></tr>
+  <tr><td>Pliki i foldery (Windows, Linux, macOS)</td><td>Agent na maszynie; otwarte pliki w Windows przez VSS, na Macu przez lokalną migawkę APFS. <a href="/docs/jobs">Zadania kopii</a>, <a href="/docs/macos">Agenci macOS</a></td><td>Cała kopia lub pojedyncze foldery, do dowolnego agenta, do oryginalnej lokalizacji lub innego folderu. <a href="/docs/restore">Przywracanie</a></td></tr>
   <tr><td>Dyski Windows</td><td>Obraz całego dysku lub wybranych partycji z migawki VSS. <a href="/docs/images">Obrazy dysków</a></td><td>Na pusty dysk lub bare metal z ISO odzyskiwania Windows, także na inny sprzęt lub do maszyny wirtualnej; pojedyncze pliki z obrazu.</td></tr>
   <tr><td>Systemy Linux</td><td>Wszystkie lokalne systemy plików plus układ dysków (partycje, LVM, UUID, kod rozruchowy). <a href="/docs/linux-system">Kopia systemu Linux</a></td><td>Na pusty dysk lub bare metal z ISO odzyskiwania Linux albo jako nowa maszyna Proxmox (P2V); pojedyncze pliki.</td></tr>
   <tr><td>Maszyny wirtualne Hyper-V</td><td>Agent na hoście Hyper-V, <b>bez agenta w maszynach</b>; punkty kontrolne odzyskiwania (VSS w gościu), Resilient Change Tracking czyta tylko zmienione bloki. <a href="/docs/hyperv">Hyper-V</a></td><td>Cała maszyna jako nowa lub na miejscu (zachowuje ID i adresy MAC); pojedyncze pliki z dysków maszyn.</td></tr>
@@ -19,7 +19,7 @@
 <h2>Jak działa BackupZit</h2>
 <ul>
   <li><b>Konsola zarządzania</b> (ta aplikacja WWW) — działa na serwerze Linux w Twojej sieci. Przechowuje konfigurację, planuje zadania, zbiera wyniki i pokazuje raporty. Nigdy nie musi być dostępna z Internetu.</li>
-  <li><b>Agenci</b> — mała usługa na każdej chronionej maszynie (MSI dla Windows, deb/rpm dla Linuksa) oraz na hostach Proxmox i Hyper-V; do hostów VMware ESXi dociera się przez agenta działającego jako proxy. Agenci łączą się z konsolą przez HTTPS, odbierają zadania i wysyłają dane kopii <i>bezpośrednio</i> do magazynu. W Windows agent pokazuje swój stan obok zegara.</li>
+  <li><b>Agenci</b> — mała usługa na każdej chronionej maszynie (MSI dla Windows, deb/rpm dla Linuksa, pkg dla macOS) oraz na hostach Proxmox i Hyper-V; do hostów VMware ESXi dociera się przez agenta działającego jako proxy. Agenci łączą się z konsolą przez HTTPS, odbierają zadania i wysyłają dane kopii <i>bezpośrednio</i> do magazynu. W Windows agent pokazuje swój stan obok zegara, na Macu na pasku menu.</li>
   <li><b>Miejsca docelowe</b> — gdzie przechowywane są kopie: SFTP, magazyn obiektów zgodny z S3 (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, udział SMB/NAS, rotowane dyski USB, dysk lokalny lub zamontowany albo utwardzone repozytorium BackupZit.</li>
 </ul>
 <div class="callout tip"><p>Dane kopii nigdy nie przechodzą przez konsolę. Konsola tylko koordynuje, więc wystarczy jej mała maszyna wirtualna.</p></div>
@@ -28,7 +28,7 @@
 <p>Aby uruchomić nową konsolę, zaimportuj gotowy obraz appliance do małej maszyny wirtualnej, uruchom ISO appliance lub wykonaj skrypt instalacyjny na istniejącym serwerze Linux; zobacz <a href="/docs/install">Instalacja serwera</a>.</p>
 <ol>
   <li><b>Dodaj miejsce docelowe</b> w <a href="/targets">Magazyn</a>. Pozostaw włączone <i>Szyfruj kopie</i> i zachowaj w bezpiecznym miejscu arkusz odzyskiwania pokazany potem. Zobacz <a href="/docs/storage">Miejsca docelowe</a>.</li>
-  <li><b>Zainstaluj agentów</b>: w <a href="/agents">Agenci</a> kliknij <i>Utwórz token rejestracji</i>, pobierz instalator z tej samej strony i wklej kod rejestracji, gdy instalator Windows o niego poprosi (Linux: <code>backupzit-agent enroll --code …</code>). Dla maszyn wirtualnych zainstaluj agenta na hoście Proxmox lub Hyper-V; hosty VMware ESXi dodaj w Agenci → Hosty VMware ESXi. Zobacz <a href="/docs/agents">Agenci</a>.</li>
+  <li><b>Zainstaluj agentów</b>: w <a href="/agents">Agenci</a> kliknij <i>Utwórz token rejestracji</i>, pobierz instalator z tej samej strony i wklej kod rejestracji, gdy instalator Windows o niego poprosi (Linux i macOS: <code>backupzit-agent enroll --code …</code>, zobacz <a href="/docs/macos">Agenci macOS</a>). Dla maszyn wirtualnych zainstaluj agenta na hoście Proxmox lub Hyper-V; hosty VMware ESXi dodaj w Agenci → Hosty VMware ESXi. Zobacz <a href="/docs/agents">Agenci</a>.</li>
   <li><b>Utwórz zadanie kopii</b> w <a href="/jobs">Zadania kopii</a>: wybierz agenta, magazyn, co kopiować (pliki, udział NAS, obraz dysku, bazy danych, cały system Linux lub maszyny wirtualne hosta Proxmox, Hyper-V lub VMware ESXi), kiedy uruchamiać i ile kopii zachować. Zobacz <a href="/docs/jobs">Zadania kopii i harmonogramy</a>.</li>
   <li><b>Uruchom je raz ręcznie</b> przyciskiem <i>Uruchom kopię teraz</i> na stronie zadania i sprawdź wynik w <a href="/runs">Aktywność</a>.</li>
   <li><b>Przetestuj przywracanie</b> — kopia jest warta tyle, ile jej przywrócenie. Automatyczne testy przywracania działają co tydzień; przywróć też raz coś ręcznie za pomocą <a href="/restore">kreatora przywracania</a>. Zobacz <a href="/docs/restore">Przywracanie</a>.</li>

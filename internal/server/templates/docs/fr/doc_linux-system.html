@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Sauvegarde du système Linux et P2V</h1>
 <p class="lead">Une tâche <b>Système Linux</b> sauvegarde une machine Linux entière afin de pouvoir la recréer sur un disque vide — la même machine après une panne de disque, un nouveau matériel ou une machine virtuelle dans Proxmox VE (physique vers virtuel, P2V).</p>
+<p>Un Mac ne peut pas être sauvegardé comme système : la console refuse une tâche système pour lui, car son volume système est scellé et signé par Apple et se réinstalle au lieu de se restaurer. Sauvegardez ses données avec une tâche de fichiers (voir <a href="/docs/macos#limits">Agents macOS</a>).</p>
 <p>Testé avec Debian, Ubuntu 22.04 et Rocky Linux 9 (de même pour AlmaLinux et RHEL 9). Sur Ubuntu 22.04 et les systèmes de type RHEL 9, les sauvegardes de système Linux nécessitent l’agent 0.50.0 ou plus récent.</p>
 
 <h2>Ce qui est sauvegardé</h2>

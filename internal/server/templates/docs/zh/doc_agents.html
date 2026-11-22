@@ -7,6 +7,7 @@
   <li>Windows 10、11 以及 Windows Server 2016 及更高版本 — <b>Windows 代理</b> MSI。</li>
   <li>Windows 7 SP1、Windows Server 2008 R2 SP1 和 2012 R2 — <b>Windows 代理 — 旧系统</b> MSI（<code>…-legacy.msi</code>），功能相同，包括 VSS 和磁盘映像。</li>
   <li>Debian、Ubuntu、AlmaLinux、Rocky Linux（64 位）。</li>
+  <li>搭载 Apple 芯片、运行 macOS 13 及更高版本的 Mac —— <b>macOS 代理</b>安装包（<code>…_darwin_arm64.pkg</code>），用于文件和文件夹（参见 <a href="/docs/macos">macOS 代理</a>）。</li>
   <li>Proxmox VE 7、8 和 9 节点 — Debian 软件包；代理还会备份该节点的虚拟机和容器（参见 <a href="/docs/proxmox">Proxmox VE</a>）。</li>
   <li>Hyper-V 主机（Windows Server 2016 及更高版本、带 Hyper-V 的 Windows 10/11）：Windows MSI。代理还会备份主机的虚拟机（参见 <a href="/docs/hyperv">Hyper-V</a>）。</li>
   <li>VMware ESXi 主机 — ESXi 上不安装任何东西：在 <a href="/agents#vmware">VMware ESXi 主机</a> 下添加主机，并选择一个代理作为其代理服务器（参见 <a href="/docs/vmware">VMware ESXi</a>）。</li>
@@ -15,7 +16,7 @@
 <h2>注册代理</h2>
 <ol>
   <li>在 <a href="/agents">Agent</a> 页面上点击<b>创建注册令牌</b>。控制台会显示一个<b>注册码</b>（<code>BZ1-…</code>），有效期 7 天，可用于任意数量的机器。它包含供代理使用的控制台地址（带代理端口，通常为 8443，即使页面是通过 Web 端口 443 打开的）、令牌和证书指纹。0.33.6 及以后的代理也可以使用旧版控制台在 Web 端口上生成的注册码进行注册。</li>
-  <li>Windows：运行 MSI，在安装程序要求时粘贴注册码。Linux：运行显示的命令。</li>
+  <li>Windows：运行 MSI，在安装程序要求时粘贴注册码。Linux：运行显示的命令。macOS：安装安装包，然后在“终端”中运行显示的命令（参见 <a href="/docs/macos#enroll">macOS 代理</a>）。</li>
   <li>机器会在一分钟内出现在代理列表中。</li>
 </ol>
 <p>如果安装期间无法连接控制台，代理会保留注册码并不断重试，直到注册成功。升级会保留注册，不会再次询问。在已注册的机器上使用 <code>ENROLLCODE</code> 进行静默安装时，如果注册码属于同一控制台，则保留注册（GPO 或 RMM 可以安全地重复执行）；如果属于其他控制台，则迁移该机器；之前的注册会以 <code>agent.json.replaced-<i>日期</i></code> 保存在 <code>agent.json</code> 旁边，将其改回原名即可让机器以同一代理身份回到旧控制台。</p>
@@ -26,6 +27,9 @@
 <pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
+<h3 id="macos">macOS</h3>
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
+<p>在安装 <code>.pkg</code> 后运行。使用 MDM 时，则改为在安装安装包之前将注册码写入 <code>/Library/Application Support/BackupZit/enroll-code</code>。之后必须由 Mac 的用户授予完全磁盘访问权限；参见 <a href="/docs/macos">macOS 代理</a>。</p>
 
 <h2>从控制台安装代理</h2>
 <p>无需把安装程序复制到每台机器，可以让控制台安装代理：在 <a href="/agents">Agent</a> 页面打开<b>从此处安装到机器</b>，选择 Linux 或 Windows，输入机器地址和管理员帐户。</p>
@@ -33,6 +37,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>Linux</b>（Debian、Ubuntu、AlmaLinux、Rocky Linux；64 位）：控制台通过 <b>SSH</b> 以 root 身份或具有 <code>sudo</code> 权限的用户身份连接（密码也用于 sudo；使用密钥时需要免密码 sudo）。密码或私钥均可。输入机器的 <b>SSH 主机密钥指纹</b>（在机器上运行 <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>），以确保控制台连接的是正确的机器；不输入时，指纹会显示在安装日志中。</li>
   <li><b>Windows</b>（64 位）：控制台通过 <b>WinRM</b>（端口 5985，消息使用 NTLM 加密；HTTPS 侦听器为 5986）以本地或域管理员身份连接。Windows Server 默认启用 WinRM；在 Windows 10/11 上以管理员身份运行一次 <code>winrm quickconfig</code>。内置 Administrator 以外的本地帐户需要远程管理权限（<code>LocalAccountTokenFilterPolicy</code>）——或使用域帐户。旧系统（Windows 7、Server 2008 R2/2012 R2）会获得 legacy MSI。</li>
 </ul>
+<p>Mac 不从这里安装：请手动或通过 MDM 部署 <code>.pkg</code>（<a href="/docs/macos#enroll">macOS 代理</a>）。</p>
 <p>机器通过一个仅对本次安装有效的链接（30 分钟、三次下载）从控制台下载最新的代理软件包，检查其 SHA-256 校验和，安装并注册。安装页面显示每一步；帐户和密码仅用于此目的，不会保存。如果机器已在此控制台注册，则保留注册并更新软件包；控制台不认识的注册（之前移除的代理或其他控制台）会被替换。每次安装都会记录在审计日志中。与任何代理一样，机器必须能访问控制台的代理地址。</p>
 
 <h2>代理状态</h2>
@@ -61,6 +66,7 @@ systemctl enable --now backupzit-agent</pre>
   <tr><td>灰色</td><td>无法连接控制台，或代理服务未运行。</td></tr>
 </table>
 <p>点击图标（或从“开始”菜单打开 <b>BackupZit Agent</b>）可打开状态窗口：保护状态、正在运行的备份进度、上次和下次备份，以及该计算机的所有备份作业和<b>立即备份</b>按钮。右键单击打开菜单：每个作业的 <i>Back up now</i>、<i>Open console in browser</i>、<i>Hide this icon</i>（直到下次登录；备份继续进行）。该窗口需要 Microsoft Edge WebView2，它是 Windows 10 和 11 的一部分；在旧系统上，图标和菜单可用，<i>Open</i> 会在浏览器中显示控制台。</p>
+<p>在 Mac 上，菜单栏 App 提供同样的功能，并且还会检查 macOS 要求用户授予的权限（参见 <a href="/docs/macos#assistant">macOS 代理</a>）。</p>
 <p>用户可以通过这种方式启动其计算机的备份；作业、计划和保留只能在控制台中设置。在任何系统上，<code>backupzit-agent status</code>（以管理员或 root 身份）都会打印相同的信息。</p>
 
 <h2 id="parallel">同时运行多个作业</h2>
@@ -70,10 +76,10 @@ systemctl enable --now backupzit-agent</pre>
 <p>当控制台拥有比代理运行版本更新的代理安装程序时，Agent 页面会在其版本旁显示<b>更新到 x.y.z</b>，并在列表下方显示<b>更新所有代理</b>。然后代理会：</p>
 <ol>
   <li>等到空闲（正在运行的备份绝不会被中断），</li>
-  <li>通过其固定的连接从控制台下载相应的安装程序——Windows 10/11/2016+ 用 MSI，Windows 7/2008 R2/2012 R2 用<i>旧系统</i> MSI，Linux 上用 deb 或 rpm 软件包——并对其进行检查：自 0.56 起，安装程序必须在以 BackupZit 发布密钥签名的代理安装程序列表中，代理用内置的密钥验证该列表，因此在控制台上被改动的安装程序会被拒绝，</li>
+  <li>通过其固定的连接从控制台下载相应的安装程序——Windows 10/11/2016+ 用 MSI，Windows 7/2008 R2/2012 R2 用<i>旧系统</i> MSI，Linux 上用 deb 或 rpm 软件包，Mac 上用 <code>.pkg</code>——并对其进行检查：自 0.56 起，安装程序必须在以 BackupZit 发布密钥签名的代理安装程序列表中，代理用内置的密钥验证该列表，因此在控制台上被改动的安装程序会被拒绝，</li>
   <li>安装并重启；新版本会在几分钟内出现在列表中。注册和所有设置都会保留。</li>
 </ol>
-<p>控制台提供其 <code>dist</code> 目录中最新的安装程序；服务器软件包附带其自身版本的代理安装程序。通过 <a href="/settings/updates">设置 → 更新</a> 更新控制台后，代理会自动更新（可在那里关闭）。从控制台更新适用于 0.21 及以后版本的代理；更旧的代理需通过在旧版本上安装较新的 MSI / 软件包更新一次（注册会保留）。0.56 及更高版本的代理只接受来自 0.56 或更高版本控制台的更新（其软件包带有已签名的列表），并且绝不会更新到比自身更旧的版本。安装程序日志位于 <code>C:\ProgramData\backupzit\updates</code> 或 <code>/var/lib/backupzit-agent/updates</code>。</p>
+<p>控制台提供其 <code>dist</code> 目录中最新的安装程序；服务器软件包附带其自身版本的代理安装程序。通过 <a href="/settings/updates">设置 → 更新</a> 更新控制台后，代理会自动更新（可在那里关闭）。从控制台更新适用于 0.21 及以后版本的代理；更旧的代理需通过在旧版本上安装较新的 MSI / 软件包更新一次（注册会保留）。0.56 及更高版本的代理只接受来自 0.56 或更高版本控制台的更新（其软件包带有已签名的列表），并且绝不会更新到比自身更旧的版本。安装程序日志位于 <code>C:\ProgramData\backupzit\updates</code>、<code>/var/lib/backupzit-agent/updates</code>，或在 Mac 上位于 <code>/Library/Application Support/BackupZit/updates</code>。如果 Mac 的安装包未使用 Apple Developer ID 签名，代理更新会使其失去完全磁盘访问权限（参见 <a href="/docs/macos#unsigned">macOS 代理</a>）。</p>
 
 <h2>移除代理</h2>
 <p>“Agent”页面上的<b>移除</b>会打开一个包含两项选择的页面；启用<a href="/docs/users">双人审批</a>时，需要另一位用户先批准。</p><ul><li><b>从计算机卸载代理</b>（0.42.7 及更高版本的在线代理）：代理报告后自行卸载，然后连同其作业从控制台移除。离线代理只会从控制台移除——请在计算机上卸载（见下文）。</li><li><b>其备份：</b><i>全部保留</i>（默认——备份保留在存储上，仍可恢复）、<i>每个作业只保留最新的备份</i>（每个备份都是完整的，因此最新的备份可恢复其日期时的全部内容）或<i>全部删除</i>。删除需要输入计算机名称；控制台在后台删除，并将结果写入<a href="/audit">审计日志</a>。不可变存储会保留已锁定的数据直到锁定到期；计算机自身磁盘上的备份和复制作业的副本不会被删除。备份其他系统（Proxmox、VMware、Hyper-V、Microsoft 365、NAS）的代理会连同它们的备份一起删除。</li></ul>
@@ -98,6 +104,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows：<code>C:\ProgramData\backupzit\agent.json</code>（仅 SYSTEM 和 Administrators 可访问）。</li>
   <li>Linux：<code>/etc/backupzit/agent.json</code>（仅 root）。</li>
+  <li>macOS：<code>/Library/Application Support/BackupZit/agent.json</code>（仅 root）。</li>
 </ul>
 <p>该文件包含代理的机密。任何能读取它的人都可以冒充该代理，因此请保持这些权限。</p>
 
@@ -105,13 +112,14 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows：<code>C:\ProgramData\backupzit\agent.log</code></li>
   <li>Linux：<code>/var/log/backupzit/agent.log</code> 和 <code>journalctl -u backupzit-agent</code></li>
+  <li>macOS：<code>/Library/Logs/BackupZit/agent.log</code></li>
   <li>恢复系统会在屏幕上显示日志。</li>
   <li>日志最多保留 4 个 10 MB 的文件（<code>agent.log</code> 和 <code>agent.log.1</code> 至 <code>.3</code>）；更早的记录会被删除。</li>
   <li>“代理”页面上的 <b>获取日志</b> 会将日志末尾取回控制台——见 <a href="/docs/troubleshooting#logs">日志</a>。</li>
 </ul>
 
 <h2>卸载</h2>
-<p>Windows：<i>设置 → 应用 → BackupZit Agent → 卸载</i>（或 <code>msiexec /x</code>）。Linux：<code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>。然后在控制台中移除该代理。备份保留在存储上。</p>
+<p>Windows：<i>设置 → 应用 → BackupZit Agent → 卸载</i>（或 <code>msiexec /x</code>）。Linux：<code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>。macOS：<code>sudo /Library/BackupZit/uninstall.sh</code>（参见 <a href="/docs/macos#update">macOS 代理</a>）。然后在控制台中移除该代理。备份保留在存储上。</p>
 <p>在 Windows 上，卸载会将注册搁置（<code>C:\ProgramData\backupzit\agent.json.removed-<i>日期</i></code>），因此再次安装代理时会要求输入注册码。如果安装程序发现早期版本的注册，会提示：将注册码留空以保留它，或粘贴新的注册码重新注册计算机（例如注册到另一个控制台）。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

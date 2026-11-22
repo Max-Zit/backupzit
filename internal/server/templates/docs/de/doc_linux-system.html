@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Linux-Systemsicherung &amp; P2V</h1>
 <p class="lead">Ein Auftrag <b>Linux-System</b> sichert eine ganze Linux-Maschine, damit sie auf einer leeren Festplatte neu erstellt werden kann — dieselbe Maschine nach einem Festplattenausfall, neue Hardware oder eine virtuelle Maschine in Proxmox VE (physisch zu virtuell, P2V).</p>
+<p>Ein Mac lässt sich nicht als System sichern: Die Konsole lehnt einen Systemauftrag für ihn ab, weil sein Systemvolume von Apple versiegelt und signiert ist und neu installiert statt wiederhergestellt wird. Sichern Sie seine Daten mit einem Dateiauftrag (siehe <a href="/docs/macos#limits">macOS-Agenten</a>).</p>
 <p>Getestet mit Debian, Ubuntu 22.04 und Rocky Linux 9 (dasselbe gilt für AlmaLinux und RHEL 9). Auf Ubuntu 22.04 und RHEL-ähnlichen 9er-Systemen brauchen Linux-Systemsicherungen den Agenten 0.50.0 oder neuer.</p>
 
 <h2>Was gesichert wird</h2>

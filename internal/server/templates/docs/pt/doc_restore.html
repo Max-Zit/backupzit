@@ -43,7 +43,7 @@
   <li>Mantenha <b>Verificar arquivos restaurados</b> ativado: cada arquivo é lido de volta e comparado com a soma de verificação do backup.</li>
   <li>Clique em <b>Iniciar restauração</b>. O progresso e os resultados aparecem na página da execução de restauração.</li>
 </ol>
-<p>Também são restaurados os horários dos arquivos, os atributos do Windows (oculto, somente leitura, …) e, no Linux, proprietários, permissões (incluindo bits setuid), ACLs, atributos estendidos (rótulos SELinux, capacidades de arquivo), links simbólicos e físicos. Os proprietários só são definidos quando o agente é executado como root/administrador.</p>
+<p>Também são restaurados os horários dos arquivos, os atributos do Windows (oculto, somente leitura, …) e, no Linux, proprietários, permissões (incluindo bits setuid), ACLs, atributos estendidos (rótulos SELinux, capacidades de arquivo), links simbólicos e físicos. No macOS também as flags de arquivo BSD (oculto, bloqueado…), a data de criação e os atributos estendidos (veja <a href="/docs/macos#metadata">Agentes macOS</a>). Os proprietários só são definidos quando o agente é executado como root/administrador.</p>
 
 <h3 id="browse-files">Navegar, baixar e escolher arquivos</h3>
 <p>Na execução de backup, <b>Navegar pelos arquivos</b> mostra as pastas copiadas como estavam (também para compartilhamentos NAS e backups de sistema Linux). Abra pastas, marque arquivos e pastas e depois:</p>

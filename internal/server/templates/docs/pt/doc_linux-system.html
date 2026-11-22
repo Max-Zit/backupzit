@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Backup do sistema Linux e P2V</h1>
 <p class="lead">Uma tarefa <b>Sistema Linux</b> faz backup de uma máquina Linux inteira para que ela possa ser recriada em um disco vazio — a mesma máquina após uma falha de disco, hardware novo ou uma máquina virtual no Proxmox VE (físico para virtual, P2V).</p>
+<p>Um Mac não pode ter backup como sistema: a console recusa uma tarefa de sistema para ele, porque o seu volume de sistema é selado e assinado pela Apple e é reinstalado em vez de restaurado. Faça backup dos dados dele com uma tarefa de arquivos (veja <a href="/docs/macos#limits">Agentes macOS</a>).</p>
 <p>Testado com Debian, Ubuntu 22.04 e Rocky Linux 9 (o mesmo vale para AlmaLinux e RHEL 9). No Ubuntu 22.04 e em sistemas do tipo RHEL 9, as cópias de sistema Linux precisam do agente 0.50.0 ou mais recente.</p>
 
 <h2>O que é copiado</h2>

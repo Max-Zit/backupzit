@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Záloha systému Linux a P2V</h1>
 <p class="lead">Úloha <b>Systém Linux</b> zálohuje celý linuxový počítač, aby ho šlo znovu vytvořit na prázdném disku — tentýž počítač po selhání disku, nový hardware nebo virtuální počítač v Proxmox VE (z fyzického na virtuální, P2V).</p>
+<p>Mac nelze zálohovat jako systém: konzole pro něj systémovou úlohu odmítne, protože jeho systémový svazek je zapečetěný a podepsaný společností Apple a místo obnovy se přeinstaluje. Jeho data zálohujte úlohou souborů (viz <a href="/docs/macos#limits">Agenti pro macOS</a>).</p>
 <p>Testováno s Debianem, Ubuntu 22.04 a Rocky Linux 9 (totéž platí pro AlmaLinux a RHEL 9). Na Ubuntu 22.04 a systémech podobných RHEL 9 vyžadují zálohy systému Linux agenta 0.50.0 nebo novějšího.</p>
 
 <h2>Co se zálohuje</h2>

@@ -7,6 +7,7 @@
   <li>Windows 10, 11 oraz Windows Server 2016 i nowsze — MSI <b>Agent Windows</b>.</li>
   <li>Windows 7 SP1, Windows Server 2008 R2 SP1 i 2012 R2 — MSI <b>Agent Windows — starsze systemy</b> (<code>…-legacy.msi</code>), z tymi samymi funkcjami, w tym VSS i obrazami dysków.</li>
   <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bitowe).</li>
+  <li>Komputery Mac z czipem Apple, macOS 13 i nowszy — pakiet <b>agenta macOS</b> (<code>…_darwin_arm64.pkg</code>), dla plików i folderów (zobacz <a href="/docs/macos">Agenci macOS</a>).</li>
   <li>Węzły Proxmox VE 7, 8 i 9 — pakiet Debiana; agent tworzy wtedy także kopie maszyn wirtualnych i kontenerów węzła (zobacz <a href="/docs/proxmox">Proxmox VE</a>).</li>
   <li>Hosty Hyper-V (Windows Server 2016 i nowsze, Windows 10/11 z Hyper-V): MSI dla Windows. Agent tworzy wtedy także kopie maszyn wirtualnych hosta (zobacz <a href="/docs/hyperv">Hyper-V</a>).</li>
   <li>Hosty VMware ESXi — na ESXi nic się nie instaluje: dodaj host w <a href="/agents#vmware">Hosty VMware ESXi</a> i wybierz agenta jako proxy (zobacz <a href="/docs/vmware">VMware ESXi</a>).</li>
@@ -15,7 +16,7 @@
 <h2>Rejestrowanie agentów</h2>
 <ol>
   <li>Na stronie <a href="/agents">Agenci</a> kliknij <b>Utwórz token rejestracji</b>. Konsola pokaże <b>kod rejestracji</b> (<code>BZ1-…</code>), ważny 7 dni i używalny na dowolnej liczbie maszyn. Zawiera adres konsoli dla agentów (z portem agentów, zwykle 8443, także gdy strona jest otwarta na porcie WWW 443), token i odcisk certyfikatu. Agenci od 0.33.6 rejestrują się także kodami, które starsze konsole utworzyły na porcie WWW.</li>
-  <li>Windows: uruchom MSI i wklej kod, gdy instalator o niego poprosi. Linux: wykonaj pokazane polecenie.</li>
+  <li>Windows: uruchom MSI i wklej kod, gdy instalator o niego poprosi. Linux: wykonaj pokazane polecenie. macOS: zainstaluj pakiet, a potem wykonaj pokazane polecenie w Terminalu (zobacz <a href="/docs/macos#enroll">Agenci macOS</a>).</li>
   <li>Maszyna pojawi się na liście agentów w ciągu minuty.</li>
 </ol>
 <p>Jeśli konsola jest niedostępna podczas instalacji, agent zachowuje kod i ponawia próby, aż zdoła się zarejestrować. Aktualizacje zachowują rejestrację i nie pytają ponownie. Cicha instalacja z <code>ENROLLCODE</code> na już zarejestrowanej maszynie zachowuje rejestrację, gdy kod dotyczy tej samej konsoli (GPO lub RMM mogą ją bezpiecznie powtarzać), i przenosi maszynę, gdy kod dotyczy innej konsoli; poprzednia rejestracja jest zachowywana jako <code>agent.json.replaced-<i>data</i></code> obok <code>agent.json</code>, więc przywrócenie nazwy przenosi maszynę z powrotem do starej konsoli jako tego samego agenta.</p>
@@ -26,6 +27,9 @@
 <pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
+<h3 id="macos">macOS</h3>
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
+<p>Wykonaj je po zainstalowaniu <code>.pkg</code>. MDM zamiast tego zapisuje kod do <code>/Library/Application Support/BackupZit/enroll-code</code> przed instalacją pakietu. Pełny dostęp do dysku musi potem przyznać użytkownik Maca; zobacz <a href="/docs/macos">Agenci macOS</a>.</p>
 
 <h2>Instalowanie agentów z konsoli</h2>
 <p>Zamiast kopiować instalatory na każdą maszynę, pozwól konsoli zainstalować agenta: na stronie <a href="/agents">Agenci</a> otwórz <b>Zainstaluj na maszynie stąd</b>, wybierz Linux lub Windows i podaj adres maszyny oraz konto administratora.</p>
@@ -33,6 +37,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64-bitowe): konsola łączy się przez <b>SSH</b> jako root lub jako użytkownik z uprawnieniami <code>sudo</code> (hasło służy też do sudo; przy kluczu potrzebne jest sudo bez hasła). Działa hasło lub klucz prywatny. Podaj <b>odcisk klucza hosta SSH</b> maszyny (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> na maszynie), aby mieć pewność, że konsola rozmawia z właściwą maszyną; bez niego odcisk zostanie pokazany w dzienniku instalacji.</li>
   <li><b>Windows</b> (64-bitowy): konsola łączy się przez <b>WinRM</b> (port 5985, komunikaty szyfrowane NTLM; 5986 dla nasłuchiwania HTTPS) jako administrator lokalny lub domenowy. WinRM jest domyślnie włączony w Windows Server; w Windows 10/11 uruchom raz <code>winrm quickconfig</code> jako administrator. Konta lokalne inne niż wbudowany Administrator potrzebują uprawnień zdalnej administracji (<code>LocalAccountTokenFilterPolicy</code>) — albo użyj konta domenowego. Starsze systemy (Windows 7, Server 2008 R2/2012 R2) dostają MSI legacy.</li>
 </ul>
+<p>Maców nie instaluje się stąd: wdróż <code>.pkg</code> ręcznie lub przez MDM (<a href="/docs/macos#enroll">Agenci macOS</a>).</p>
 <p>Maszyna pobiera najnowszy pakiet agenta z konsoli przez link ważny tylko dla tej instalacji (30 minut, trzy pobrania), sprawdza jego sumę SHA-256, instaluje go i się rejestruje. Strona instalacji pokazuje każdy krok; konto i hasło są używane tylko do tego i nie są zapisywane. Jeśli maszyna jest już zarejestrowana w tej konsoli, rejestracja zostaje zachowana, a pakiet zaktualizowany; rejestracja, której konsola nie zna (wcześniej usunięty agent lub inna konsola), zostaje zastąpiona. Każda instalacja trafia do dziennika audytu. Maszyna musi docierać do adresu agentów konsoli, jak każdy agent.</p>
 
 <h2>Stan agenta</h2>
@@ -61,6 +66,7 @@ systemctl enable --now backupzit-agent</pre>
   <tr><td>szara</td><td>Konsola jest niedostępna lub usługa agenta nie działa.</td></tr>
 </table>
 <p>Kliknij ikonę (lub otwórz <b>BackupZit Agent</b> z menu Start), aby zobaczyć okno stanu: stan ochrony, postęp trwającej kopii, ostatnia i następna kopia oraz wszystkie zadania kopii komputera z przyciskiem <b>Utwórz kopię teraz</b>. Prawy przycisk otwiera menu: <i>Back up now</i> dla każdego zadania, <i>Open console in browser</i>, <i>Hide this icon</i> (do następnego logowania; kopie trwają dalej). Okno wymaga Microsoft Edge WebView2, który jest częścią Windows 10 i 11; w starszych systemach ikona i menu działają, a <i>Open</i> pokazuje konsolę w przeglądarce.</p>
+<p>Na Macu aplikacja na pasku menu robi to samo i dodatkowo sprawdza uprawnienia, o które macOS prosi użytkownika (zobacz <a href="/docs/macos#assistant">Agenci macOS</a>).</p>
 <p>Użytkownicy mogą w ten sposób uruchomić kopię swojego komputera; zadania, harmonogramy i retencję ustawia się tylko w konsoli. W każdym systemie <code>backupzit-agent status</code> (jako administrator lub root) wyświetla te same informacje.</p>
 
 <h2 id="parallel">Kilka zadań naraz</h2>
@@ -70,10 +76,10 @@ systemctl enable --now backupzit-agent</pre>
 <p>Gdy konsola ma nowszy instalator agenta niż ten, który działa na agencie, strona Agenci pokazuje <b>Zaktualizuj do x.y.z</b> obok jego wersji oraz <b>Zaktualizuj wszystkich agentów</b> pod listą. Agent wtedy:</p>
 <ol>
   <li>czeka, aż będzie bezczynny (trwająca kopia nigdy nie jest przerywana),</li>
-  <li>pobiera z konsoli odpowiedni instalator przez swoje przypięte połączenie — MSI dla Windows 10/11/2016+, MSI <i>starsze systemy</i> dla Windows 7/2008 R2/2012 R2, pakiet deb lub rpm w Linuksie — i sprawdza go: od 0.56 instalator musi znajdować się na liście instalatorów agenta podpisanej kluczem wydań BackupZit, którą agent sprawdza wbudowanym w siebie kluczem, więc instalator zmieniony na konsoli zostaje odrzucony,</li>
+  <li>pobiera z konsoli odpowiedni instalator przez swoje przypięte połączenie — MSI dla Windows 10/11/2016+, MSI <i>starsze systemy</i> dla Windows 7/2008 R2/2012 R2, pakiet deb lub rpm w Linuksie, <code>.pkg</code> na Macu — i sprawdza go: od 0.56 instalator musi znajdować się na liście instalatorów agenta podpisanej kluczem wydań BackupZit, którą agent sprawdza wbudowanym w siebie kluczem, więc instalator zmieniony na konsoli zostaje odrzucony,</li>
   <li>instaluje go i uruchamia się ponownie; nowa wersja pojawia się na liście w ciągu kilku minut. Rejestracja i wszystkie ustawienia zostają zachowane.</li>
 </ol>
-<p>Konsola oferuje najnowsze instalatory ze swojego katalogu <code>dist</code>; pakiet serwera zawiera instalatory agentów swojej własnej wersji. Po zaktualizowaniu konsoli w <a href="/settings/updates">Ustawienia → Aktualizacje</a> agenci są aktualizowani automatycznie (można to tam wyłączyć). Aktualizacje z konsoli działają dla agentów od wersji 0.21; starszych agentów aktualizuje się raz, instalując nowszy MSI / pakiet na starym (rejestracja zostaje zachowana). Agenci 0.56 i nowsi przyjmują aktualizację tylko od konsoli 0.56 lub nowszej (jej pakiet zawiera podpisaną listę) i nigdy do wersji starszej niż własna. Dziennik instalatora jest w <code>C:\ProgramData\backupzit\updates</code> lub <code>/var/lib/backupzit-agent/updates</code>.</p>
+<p>Konsola oferuje najnowsze instalatory ze swojego katalogu <code>dist</code>; pakiet serwera zawiera instalatory agentów swojej własnej wersji. Po zaktualizowaniu konsoli w <a href="/settings/updates">Ustawienia → Aktualizacje</a> agenci są aktualizowani automatycznie (można to tam wyłączyć). Aktualizacje z konsoli działają dla agentów od wersji 0.21; starszych agentów aktualizuje się raz, instalując nowszy MSI / pakiet na starym (rejestracja zostaje zachowana). Agenci 0.56 i nowsi przyjmują aktualizację tylko od konsoli 0.56 lub nowszej (jej pakiet zawiera podpisaną listę) i nigdy do wersji starszej niż własna. Dziennik instalatora jest w <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> lub, na Macu, <code>/Library/Application Support/BackupZit/updates</code>. Aktualizacja agenta na Macu, którego pakiet nie jest podpisany identyfikatorem Apple Developer ID, odbiera mu pełny dostęp do dysku (zobacz <a href="/docs/macos#unsigned">Agenci macOS</a>).</p>
 
 <h2>Usuwanie agenta</h2>
 <p><b>Usuń</b> na stronie Agenci otwiera stronę z dwoma wyborami; przy włączonym <a href="/docs/users">zatwierdzaniu na cztery oczy</a> najpierw musi to zatwierdzić drugi użytkownik.</p><ul><li><b>Odinstaluj agenta z komputera</b> (agenci online od wersji 0.42.7): agent się zgłasza, sam się odinstalowuje, a potem jest usuwany z konsoli wraz z zadaniami. Agent offline jest usuwany tylko z konsoli — odinstaluj go na komputerze (patrz niżej).</li><li><b>Jego kopie:</b> <i>zachowaj wszystkie</i> (domyślnie — pozostają w magazynie i nadal można je przywrócić), <i>zachowaj tylko najnowszą kopię każdego zadania</i> (każda kopia jest pełna, więc najnowsza przywraca wszystko na swoją datę) lub <i>usuń wszystkie</i>. Usunięcie wymaga wpisania nazwy komputera; konsola usuwa w tle i zapisuje wynik w <a href="/audit">dzienniku audytu</a>. Niezmienny magazyn przechowuje zablokowane dane do wygaśnięcia blokady; kopie na dysku samego komputera i kopie zadań kopiowania nie są usuwane. Agent, który wykonuje kopie innych systemów (Proxmox, VMware, Hyper-V, Microsoft 365, NAS), zabiera ich kopie ze sobą.</li></ul>
@@ -98,6 +104,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (dostępny tylko dla SYSTEM i Administratorów).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (tylko root).</li>
+  <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (tylko root).</li>
 </ul>
 <p>Plik zawiera sekret agenta. Każdy, kto może go odczytać, może działać jako ten agent, więc zachowaj te uprawnienia.</p>
 
@@ -105,13 +112,14 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
   <li>Linux: <code>/var/log/backupzit/agent.log</code> i <code>journalctl -u backupzit-agent</code></li>
+  <li>macOS: <code>/Library/Logs/BackupZit/agent.log</code></li>
   <li>Systemy odzyskiwania wyświetlają dziennik na ekranie.</li>
   <li>Dziennik obejmuje do 4 plików po 10 MB (<code>agent.log</code> oraz <code>agent.log.1</code> do <code>.3</code>); starsze wpisy są usuwane.</li>
   <li><b>Pobierz dziennik</b> na stronie Agenci pobiera koniec dziennika do konsoli — zobacz <a href="/docs/troubleshooting#logs">Dzienniki</a>.</li>
 </ul>
 
 <h2>Odinstalowanie</h2>
-<p>Windows: <i>Ustawienia → Aplikacje → BackupZit Agent → Odinstaluj</i> (lub <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Następnie usuń agenta w konsoli. Kopie pozostają w magazynie.</p>
+<p>Windows: <i>Ustawienia → Aplikacje → BackupZit Agent → Odinstaluj</i> (lub <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. macOS: <code>sudo /Library/BackupZit/uninstall.sh</code> (zobacz <a href="/docs/macos#update">Agenci macOS</a>). Następnie usuń agenta w konsoli. Kopie pozostają w magazynie.</p>
 <p>W Windows odinstalowanie odkłada rejestrację na bok (<code>C:\ProgramData\backupzit\agent.json.removed-<i>data</i></code>), więc ponowna instalacja agenta poprosi o kod rejestracji. Jeśli instalator znajdzie rejestrację wcześniejszej wersji, poinformuje o tym: zostaw kod pusty, aby ją zachować, lub wklej nowy kod, aby ponownie zarejestrować komputer (na przykład w innej konsoli).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

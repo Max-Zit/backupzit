@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Backup del sistema Linux e P2V</h1>
 <p class="lead">Un job <b>Sistema Linux</b> esegue il backup di un'intera macchina Linux, così da poterla ricreare su un disco vuoto — la stessa macchina dopo un guasto al disco, nuovo hardware o una macchina virtuale in Proxmox VE (da fisico a virtuale, P2V).</p>
+<p>Un Mac non può essere salvato come sistema: la console rifiuta un job di sistema per esso, perché il suo volume di sistema è sigillato e firmato da Apple e si reinstalla invece di ripristinarlo. Salvate i suoi dati con un job di file (vedete <a href="/docs/macos#limits">Agenti macOS</a>).</p>
 <p>Testato con Debian, Ubuntu 22.04 e Rocky Linux 9 (lo stesso vale per AlmaLinux e RHEL 9). Su Ubuntu 22.04 e sui sistemi di tipo RHEL 9, i backup di sistema Linux richiedono l’agente 0.50.0 o successivo.</p>
 
 <h2>Cosa viene salvato</h2>

@@ -1,0 +1,122 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>macOS エージェント（Apple シリコン）</h1>
+<p class="lead">macOS エージェントは、Apple シリコン搭載 Mac のファイルとフォルダーをバックアップします。最初の起動からサービスとして動作し、起動ディスクのバックアップはすべて APFS ローカル スナップショットから読み取り、Mac のファイル メタデータを保持します。メニュー バー アプリが状態を表示し、Mac のユーザーにしか許可できないアクセス権の設定を案内します。</p>
+
+<h2 id="requirements">要件</h2>
+<ul>
+  <li><b>Apple シリコン</b>（M1 以降、arm64）搭載で <b>macOS 13</b> 以降の Mac。Intel Mac 用のパッケージはありません。</li>
+  <li>インストールと登録のための、Mac の管理者アカウント。</li>
+  <li><a href="#permissions">フルディスクアクセス</a>を許可する Mac のユーザー: macOS はほかの誰にも、スクリプトにもコンソールにもそれを許しません。</li>
+  <li>他のエージェントと同様に、Mac はコンソールのエージェント用アドレス（通常はポート 8443）とストレージに到達できる必要があります。</li>
+</ul>
+
+<h2 id="install">インストール</h2>
+<ol>
+  <li><a href="/agents">エージェント</a>ページで <b>macOS エージェント — Apple シリコン</b>（<code>backupzit-agent_<i>version</i>_darwin_arm64.pkg</code>）をダウンロードします。Windows と Linux のインストーラーと同様に、コンソール パッケージに同梱されています。</li>
+  <li>Mac で <code>.pkg</code> を開き、インストーラーの指示に従います。Apple Developer ID で署名されていないパッケージの場合、macOS はまず確認を求めます: パッケージを右クリックして<b>開く</b>を選びます（新しい macOS では <i>システム設定 → プライバシーとセキュリティ → このまま開く</i>）。</li>
+  <li>インストーラーの最後のページで許可すべき<a href="#permissions">アクセス権</a>が説明され、メニュー バー アプリが開きます。</li>
+</ol>
+<p>パッケージがインストールするもの:</p>
+<table>
+  <tr><th>内容</th><th>場所</th></tr>
+  <tr><td>エージェント プログラム</td><td><code>/Library/BackupZit/bin/backupzit-agent</code></td></tr>
+  <tr><td>アンインストーラー</td><td><code>/Library/BackupZit/uninstall.sh</code></td></tr>
+  <tr><td>メニュー バー アプリ</td><td><code>/Applications/BackupZit.app</code></td></tr>
+  <tr><td>エージェント サービス（LaunchDaemon: root として動作し、起動時に開始、停止すると再起動）</td><td><code>/Library/LaunchDaemons/com.backupzit.agent.plist</code></td></tr>
+  <tr><td>ログイン時のメニュー バー アプリ（LaunchAgent）</td><td><code>/Library/LaunchAgents/com.backupzit.tray.plist</code></td></tr>
+  <tr><td>構成（root のみ、登録時に作成）</td><td><code>/Library/Application Support/BackupZit/agent.json</code></td></tr>
+  <tr><td>ログ</td><td><code>/Library/Logs/BackupZit/agent.log</code></td></tr>
+</table>
+<p>プログラムは <code>PATH</code> に追加されません。ターミナルではフル パスで呼び出してください。</p>
+
+<h2 id="enroll">登録</h2>
+<p>サービスは Mac が登録される前からインストールされて動作しており、登録されるとすぐに作業を始めます。<a href="/agents">エージェント</a>ページの<b>登録トークンを作成</b>で、Windows と Linux のコマンドの隣に macOS のコマンドが表示されます。次の 3 つの方法から 1 つを選びます:</p>
+<ol>
+  <li><b>インストール後にターミナルで</b>（通常の方法）:
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
+  <li id="mdm"><b>MDM で</b>（Jamf、Intune、Mosyle…）: パッケージをインストールする前に、スクリプトでコードを root 所有のファイルに書き込みます:
+<pre>sudo mkdir -p "/Library/Application Support/BackupZit"
+echo "BZ1-..." | sudo tee "/Library/Application Support/BackupZit/enroll-code" &gt;/dev/null</pre>
+  その後パッケージを配布します。インストール時にこのコードで Mac が登録され、ファイルは削除されます。root 所有でないファイルは無視されます。登録済みの Mac を別のコンソールに移すのもこの方法です。</li>
+  <li><b>パッケージの隣のファイル</b>: コードを書いた <code>backupzit-enroll.txt</code> を <code>.pkg</code> と同じフォルダー（たとえば USB メモリや共有フォルダー）に置きます。これが使われるのは Mac がまだ登録されていない間だけで、しかもほかの誰も書き込めなかった場合だけです: ファイルの所有者が root またはパッケージの所有者であり、そのフォルダーにほかのユーザーが書き込めない（または <code>/Users/Shared</code> のようにスティッキー ビットが設定されている）こと。</li>
+</ol>
+<p>インストール中にコンソールに接続できない場合、エージェントはコードを保持して再試行します。登録に失敗した場合、理由は <code>/Library/Application Support/BackupZit/enroll-error.log</code> にあります。その後ターミナルで登録してください。アップグレードと再インストールでは登録が保持されます。</p>
+
+<h2 id="permissions">アクセス権</h2>
+<p>macOS は一部のデータを、root として動作するものも含むすべてのプログラムから保護し、ユーザーがシステム設定で許可するまで読ませません。これらのアクセス権を許可できるのは Mac の前にいるユーザーだけです。インストーラーの最後のページとメニュー バー アプリがその手順を案内します。</p>
+<h3 id="full-disk-access">エージェントのフルディスクアクセス</h3>
+<p>これがないと、バックアップから macOS が保護するフォルダーが抜け、APFS スナップショットも作成されません（<a href="#backup">バックアップされるもの</a>を参照）。</p>
+<ol>
+  <li><b>システム設定 → プライバシーとセキュリティ → フルディスクアクセス</b>を開きます。</li>
+  <li>一覧の下の <b>+</b> をクリックし、パスワードを入力します。</li>
+  <li><b>Command-Shift-G</b> を押し、<code>/Library/BackupZit/bin/backupzit-agent</code> と入力して return キーを押し、<b>開く</b>をクリックします。</li>
+  <li><b>backupzit-agent</b> の横のスイッチがオンになっていることを確認します。</li>
+</ol>
+<p><b>+</b> の代わりにファイルを一覧にドラッグすることもできます: Finder で <i>移動 → フォルダへ移動…</i> を選び、<code>/Library/BackupZit/bin</code> と入力して、<b>backupzit-agent</b> を一覧にドラッグします。</p>
+<h3 id="background">バックグラウンドのエージェント</h3>
+<p>インストール後、macOS は <i>バックグラウンド項目が追加されました</i> と表示します。<b>システム設定 → 一般 → ログイン項目と機能拡張</b>の<b>バックグラウンドでの実行を許可</b>で、<b>backupzit-agent</b> と <b>BackupZit</b> をオンのままにしてください。オフにするとエージェントは動作せず、バックアップは開始されません。</p>
+<h3 id="notifications">通知とログイン時に開く</h3>
+<ul>
+  <li><b>通知</b>: メニュー バー アプリが求めたときに許可するか、後で<b>システム設定 → 通知 → BackupZit</b>（<i>通知を許可</i>）で許可します。バックアップが失敗すると、アプリがそこでユーザーに知らせます。</li>
+  <li><b>ログイン時に開く</b>: <i>ログイン項目と機能拡張 → バックグラウンドでの実行を許可</i>で <b>BackupZit</b> がオンである限り、メニュー バー アプリはログインのたびに開きます。</li>
+</ul>
+<h3 id="assistant">メニュー バー アプリとそのアシスタント</h3>
+<p>メニュー バーの BackupZit アイコンはエージェントの状態を表示します。そのメニューには、Mac の各ジョブの <b>Back up now</b>、<b>Open console in browser</b>、<b>Hide this icon</b>（次回のログインまで。バックアップは続行されます）があります。<b>Permissions</b> セクションには、バックグラウンドのエージェント、フルディスクアクセス、通知、ログイン時に開くが、それぞれ ✅ または ❌ 付きで一覧表示されます。項目をクリックすると、システム設定の該当ページが開きます。足りない許可は、ログインごとに一度、手順を示すダイアログでも説明されます。足りないものがある間は数秒ごとに自動で再確認するため、アクセス権が許可されるとすぐに ✅ が表示されます。エージェントは、フルディスクアクセスがないことを実行レポートでコンソールにも報告します。</p>
+<h3 id="status">ターミナルでの確認</h3>
+<pre>/Library/BackupZit/bin/backupzit-agent status</pre>
+<p>通常のユーザーでも動作し、コンソール、ジョブ、<code>full disk access: granted</code> または <code>denied</code>（オンにすべきプログラムとともに）を表示します。</p>
+<h3 id="unsigned">更新後のフルディスクアクセス</h3>
+<p>macOS はフルディスクアクセスをプログラムの署名に結び付けます。Apple Developer ID で署名されたパッケージは更新後もそれを保持します。Developer ID なしでビルドされた（<i>アドホック</i>署名の）パッケージは、自己更新のたびにそれを失います: バックアップが再び警告し、メニュー バー アプリは更新以降フルディスクアクセスがなくなったことを伝えます。もう一度許可してください: フルディスクアクセスの一覧で <b>backupzit-agent</b> を選び、<b>−</b> をクリックして削除し（オフにしてオンに戻すだけでは不十分です）、上記のとおり <b>+</b> で再度追加します。</p>
+
+<h2 id="backup">バックアップされるもの</h2>
+<p>Mac エージェントは、他のエージェントと同様に<b>ファイルとフォルダー</b>のジョブを実行します: <code>/Users</code>、<code>/Applications</code>、<code>/</code> などのパス、<a href="/docs/jobs#users"><code>{users}</code> パス</a>（<code>/Users/&lt;name&gt;/Documents</code>）とワイルドカード。<i>すべての macOS エージェント</i> を使った<a href="/docs/jobs#groups">複数エージェント用のジョブ</a>でも同様です。</p>
+<h3 id="snapshot">APFS ローカル スナップショット</h3>
+<p>起動ディスクのデータ ボリュームのファイル バックアップはすべて、Windows の VSS に相当する macOS の仕組みである <b>APFS ローカル スナップショット</b>から読み取られます: バックアップはすべてのファイルを同じ瞬間の状態で扱い、プログラムが書き込み続けているファイルも同様です。エージェントはスナップショットを作成し（<code>tmutil localsnapshot</code>）、読み取り専用でマウントしてそこからファイルを読み、バックアップ後にアンマウントして削除します。クラッシュで残ったスナップショットは次回の起動時に片付けられます。Time Machine 自身のスナップショットには一切触れません。実行レポートには <i>Read from an APFS local snapshot of /System/Volumes/Data.</i> と表示されます。</p>
+<p>スナップショットにはサービス（root）と<a href="#full-disk-access">フルディスクアクセス</a>が必要です。フルディスクアクセスがない場合や、ほかのボリューム上のパス（<code>/Volumes</code>: 外部ディスク、ネットワーク共有）では、ファイルはスナップショットなしで読み取られ、実行レポートにその旨が表示されます。</p>
+<h3 id="metadata">メタデータ</h3>
+<p>すべてのファイルとフォルダーとともに保存されるもの: 所有者とグループ、アクセス権、拡張属性（macOS 自身が管理する <code>com.apple.provenance</code> を除く）、ハード リンク、シンボリック リンク、BSD ファイル フラグ（不可視、ロック、nodump、append-only…。システム フラグはサービスのようにエージェントが root として動作する場合のみ）、作成日時、ナノ秒単位の変更日時。スパース ファイルはスパースのまま保たれ、APFS 上で穴が再び開けられます。</p>
+<h3 id="excludes">空のまま保存されるフォルダー</h3>
+<p>バックアップするフォルダーの下にある一部のシステム フォルダーは、空のフォルダーとして保存されます: ほかのボリューム（<code>/Volumes</code>）、スワップ（<code>/System/Volumes/VM</code>、<code>/private/var/vm</code>）、<code>/System/Volumes</code> 内のサポート ボリューム、<code>/dev</code>、一時ファイル（<code>/private/tmp</code>、<code>/private/var/folders</code>）、キャッシュ（<code>/Library/Caches</code>、<code>/System/Library/Caches</code>、<code>~/Library/Caches</code>）、ゴミ箱（<code>~/.Trash</code>、<code>.Trashes</code>）、Spotlight、FSEvents、書類のバージョン、ローカルおよび HFS+ の Time Machine バックアップ。<code>/</code> をソースにした場合、<code>/</code> がすでに表示しているデータ ボリュームのフォルダー（<code>/Users</code>、<code>/Applications</code>…）は二重に読み取られません。ジョブのソースとして指定したフォルダーは常に読み取られます（例: <code>/Volumes/USB</code> や <code>~/.Trash</code>）。</p>
+<h3 id="warnings">実行レポートの警告</h3>
+<p>フルディスクアクセスがないと、macOS が保護するフォルダーは読み取れません: メール、メッセージ、Safari、デスクトップと書類、ほかのアプリのデータ、リムーバブル ボリュームとネットワーク ボリューム。ソースが <code>/Users</code>（<code>/Users/Shared</code> を除く）、<code>/Library</code>、<code>/Volumes</code>、またはそれらより上のフォルダー（<code>/</code> など）に及ぶバックアップは、その場合 <i>Full Disk Access is not granted to the BackupZit agent</i> という警告で終わります。ほかのフォルダー（例: <code>/opt/data</code>）のバックアップでは警告は出ません。</p>
+
+<h2 id="restore">復元</h2>
+<p>Mac のファイルは、すべての<a href="/docs/restore">ファイル バックアップ</a>と同様に復元します: バックアップ全体または一部のパスだけを、フォルダーまたは元の場所へ、その Mac または別のエージェント上に。個別のファイルはコンソールからダウンロードできます。Mac 上での復元では、上記のメタデータが再び設定されます。Windows や Linux と同様に、復元は開いたフォルダーを通してのみ書き込み、パスでは書き込まないため、復元中に途中に置かれたリンクはたどられません。ロックされたファイルに上書きで復元する場合は、まずロックと append-only のフラグを解除し、保存されていたフラグを再び設定します（システム フラグは稼働中の Mac では解除できません）。</p>
+
+<h2 id="update">更新とアンインストール</h2>
+<p><a href="/agents">エージェント</a>ページでは、他のエージェントと同様に Mac にも<b>更新: <i>version</i></b> が表示されます（<a href="/docs/agents">エージェント</a>を参照）。エージェントはコンソールから <code>.pkg</code> をダウンロードし、署名済みのエージェント インストーラー一覧と SHA-256 チェックサムで検証し、1 回限りの launchd ジョブで Apple の <code>installer</code> を使ってインストールし、新しいバージョンで再起動します。launchd がそのジョブを拒否した場合、更新の実行は launchd のメッセージとともに失敗します。インストーラーのログは <code>/Library/Application Support/BackupZit/updates</code> にあります。署名されていないパッケージの更新後は、<a href="#unsigned">フルディスクアクセス</a>を確認してください。</p>
+<p>エージェント ページの<b>削除</b>で<b>コンピューターからエージェントをアンインストール</b>を選ぶと、プログラム、メニュー バー アプリ、LaunchDaemon と LaunchAgent、パッケージのレシートが削除されます。構成とログは残ります。手動でアンインストールするには:</p>
+<pre>sudo /Library/BackupZit/uninstall.sh            # keeps configuration and log
+sudo /Library/BackupZit/uninstall.sh --purge    # deletes them too</pre>
+<p><code>--purge</code> なしでは登録が退避される（<code>agent.json.removed-<i>date</i></code>）ため、新しくインストールすると再びコードを求められます。アンインストール後は、<i>プライバシーとセキュリティ → フルディスクアクセス</i>から <b>backupzit-agent</b> を手動で削除してください。macOS はプログラムにそれをさせません。</p>
+
+<h2 id="limits">Mac エージェントにできないこと</h2>
+<table>
+  <tr><th>Mac では不可</th><th>代わりに</th></tr>
+  <tr><td><a href="/docs/linux-system">Linux システム</a> / ベアメタル バックアップ</td><td>コンソールは Mac 用のシステム ジョブを拒否します（<i>is a Mac: back it up with a files job</i>）: Mac のシステム ボリュームは Apple によって封印・署名されており、復元ではなく再インストールするものです。データはファイル ジョブでバックアップしてください。</td></tr>
+  <tr><td><a href="/docs/images">ディスク イメージ</a></td><td>Windows のみ。</td></tr>
+  <tr><td>Hyper-V、Proxmox VE ホスト、VMware ESXi プロキシ</td><td>Hyper-V ホスト（Windows）、Proxmox ノード（Linux）上のエージェント、または Linux のプロキシ エージェント。</td></tr>
+  <tr><td><a href="/docs/jobs#nas">NAS / ファイル共有</a>ジョブ（SMB、NFS）</td><td>当面は Windows または Linux のエージェント: Mac エージェントはまだ共有をマウントしません。</td></tr>
+  <tr><td><a href="/docs/sql">PostgreSQL / MySQL</a> ジョブ</td><td>macOS ではまだ検証されていません: Mac では復元をテストしてから使ってください。</td></tr>
+</table>
+<p><a href="/docs/m365">Microsoft 365</a> ジョブは、インターネットにアクセスできる任意のエージェントで動作し、Mac でも同様です。</p>
+
+<h2 id="troubleshooting">トラブルシューティング</h2>
+<table>
+  <tr><th>状況</th><th>対処</th></tr>
+  <tr><td>Mac が表示されない、またはオフラインと表示される</td><td>登録されていること（<code>backupzit-agent status</code>、<a href="#enroll">登録</a>）と、<i>ログイン項目と機能拡張 → バックグラウンドでの実行を許可</i>で <b>backupzit-agent</b> がオンであることを確認してください。<code>sudo launchctl print system/com.backupzit.agent</code> でサービスを表示し、<code>sudo /Library/BackupZit/bin/backupzit-agent service start</code> で開始します。その後、他のエージェントと同様にコンソールへのネットワーク経路を確認してください（<a href="/docs/troubleshooting">トラブルシューティング</a>）。</td></tr>
+  <tr><td>「Full Disk Access is not granted to the BackupZit agent」、<code>full disk access: denied</code></td><td><a href="#full-disk-access">フルディスクアクセス</a>のとおりに許可してください。</td></tr>
+  <tr><td>更新後にフルディスクアクセスがなくなった</td><td>パッケージが Apple Developer ID で署名されていません: 一覧から <b>−</b> で backupzit-agent を削除し、再度追加してください（<a href="#unsigned">更新後のフルディスクアクセス</a>）。</td></tr>
+  <tr><td>実行でファイルが「without a snapshot」で読み取られたと表示される</td><td>「No APFS local snapshot … was taken」: フルディスクアクセスを許可してください。「Not on the startup disk's data volume」: パスが外部ディスクまたは共有上にあり、APFS ローカル スナップショットの対象外です。それでもバックアップはされます。その他の理由はメッセージに表示されます。</td></tr>
+  <tr><td>更新の実行が失敗した</td><td>実行に理由が表示されます（例: launchd によるインストーラー ジョブの拒否）。インストーラーの出力は <code>/Library/Application Support/BackupZit/updates</code> にあります（エージェント ページの<b>ログを取得</b>にも含まれます）。新しい <code>.pkg</code> を手動でインストールしても構いません。登録は保持されます。</td></tr>
+  <tr><td>Mac のシステム ジョブが拒否される</td><td>想定どおりです: <a href="#limits">Mac エージェントにできないこと</a>を参照してください。</td></tr>
+</table>
+<h3 id="logs">ログ</h3>
+<ul>
+  <li>エージェント: <code>/Library/Logs/BackupZit/agent.log</code>（Console.app にも表示されます）。クラッシュのトレースは <code>/Library/Logs/BackupZit/launchd.log</code> に書き込まれます。</li>
+  <li>インストーラーによる登録: <code>/Library/Application Support/BackupZit/enroll-error.log</code> とインストーラーのログ <code>/var/log/install.log</code>。</li>
+  <li>更新: <code>/Library/Application Support/BackupZit/updates</code>。</li>
+  <li><a href="/agents">エージェント</a>ページの<b>ログを取得</b>で、ログの末尾をコンソールに取り込めます（<a href="/docs/troubleshooting#logs">ログ</a>を参照）。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

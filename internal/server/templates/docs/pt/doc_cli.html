@@ -112,8 +112,8 @@
   <tr><th>Comando</th><th>O que faz</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Liga o agente a uma console com o código de registro da página Agentes (<code>--force</code> substitui um registro existente). A forma antiga <code>--server URL --token T --fingerprint F</code> continua a funcionar.</td></tr>
   <tr><td><code>set-server https://address:8443</code></td><td>Aponta um agente registrado para um novo endereço da console (mesmo certificado); depois reinicie o serviço do agente. Veja <a href="/docs/agents#new-address">Agentes</a>.</td></tr>
-  <tr><td><code>status</code></td><td>Mostra o que o agente em execução está fazendo e os seus trabalhos de backup (o ícone da bandeja do Windows mostra o mesmo).</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Gerencia o serviço do agente (os instaladores fazem isso).</td></tr>
+  <tr><td><code>status</code></td><td>Mostra o que o agente em execução está fazendo e os seus trabalhos de backup (o ícone da bandeja do Windows mostra o mesmo). Num Mac também mostra <code>full disk access: granted</code> ou <code>denied</code>, também para um usuário comum.</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Gerencia o serviço do agente (os instaladores fazem isso). Num Mac o serviço é o LaunchDaemon <code>/Library/LaunchDaemons/com.backupzit.agent.plist</code> e o programa é <code>/Library/BackupZit/bin/backupzit-agent</code>, que não está no <code>PATH</code>; veja <a href="/docs/macos">Agentes macOS</a>.</td></tr>
   <tr><td><code>recovery</code></td><td>Modo de recuperação, iniciado automaticamente pelas ISOs de recuperação; em qualquer sistema Linux live: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Mostra a versão.</td></tr>
   <tr><td><code>forget</code></td><td>Deixa o registro de lado (renomeado, não apagado); os desinstaladores o executam, então uma nova instalação pede de novo um código de registro.</td></tr>

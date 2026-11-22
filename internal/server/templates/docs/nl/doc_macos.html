@@ -1,0 +1,122 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>macOS-agents (Apple silicon)</h1>
+<p class="lead">De macOS-agent maakt back-ups van de bestanden en mappen van een Mac met Apple silicon. Hij draait vanaf de eerste opstart als service, leest elke back-up van de opstartschijf uit een lokale APFS-momentopname en behoudt de bestandsmetadata van de Mac. Een menubalk-app toont zijn status en leidt de gebruiker door de toestemmingen die alleen hij kan geven.</p>
+
+<h2 id="requirements">Vereisten</h2>
+<ul>
+  <li>Een Mac met <b>Apple silicon</b> (M1 en nieuwer, arm64) en <b>macOS 13</b> of nieuwer. Voor Intel-Macs is er geen pakket.</li>
+  <li>Een beheerdersaccount op de Mac, voor de installatie en de registratie.</li>
+  <li>De gebruiker van de Mac, om <a href="#permissions">volledige schijftoegang</a> te geven: macOS laat niemand anders dat doen, geen script en ook de console niet.</li>
+  <li>Zoals elke agent moet de Mac het agentadres van de console (meestal poort 8443) en de opslag kunnen bereiken.</li>
+</ul>
+
+<h2 id="install">Installeren</h2>
+<ol>
+  <li>Download op de pagina <a href="/agents">Agents</a> <b>macOS-agent — Apple Silicon</b> (<code>backupzit-agent_<i>versie</i>_darwin_arm64.pkg</code>). Het consolepakket bevat het, net als de installatieprogramma's voor Windows en Linux.</li>
+  <li>Open het <code>.pkg</code> op de Mac en volg het installatieprogramma. Bij een pakket dat niet met een Apple Developer ID is ondertekend, vraagt macOS eerst om bevestiging: klik er met de rechtermuisknop op en kies <b>Open</b> (op nieuwere macOS-versies: <i>Systeeminstellingen → Privacy en beveiliging → Open toch</i>).</li>
+  <li>De laatste pagina van het installatieprogramma legt uit welke <a href="#permissions">toestemmingen</a> nodig zijn, en de menubalk-app wordt geopend.</li>
+</ol>
+<p>Het pakket installeert:</p>
+<table>
+  <tr><th>Wat</th><th>Waar</th></tr>
+  <tr><td>Het agentprogramma</td><td><code>/Library/BackupZit/bin/backupzit-agent</code></td></tr>
+  <tr><td>Het verwijderprogramma</td><td><code>/Library/BackupZit/uninstall.sh</code></td></tr>
+  <tr><td>De menubalk-app</td><td><code>/Applications/BackupZit.app</code></td></tr>
+  <tr><td>De agentservice (LaunchDaemon: draait als root, start bij het opstarten, wordt herstart als hij stopt)</td><td><code>/Library/LaunchDaemons/com.backupzit.agent.plist</code></td></tr>
+  <tr><td>De menubalk-app bij het inloggen (LaunchAgent)</td><td><code>/Library/LaunchAgents/com.backupzit.tray.plist</code></td></tr>
+  <tr><td>Configuratie (alleen root, aangemaakt bij de registratie)</td><td><code>/Library/Application Support/BackupZit/agent.json</code></td></tr>
+  <tr><td>Logboek</td><td><code>/Library/Logs/BackupZit/agent.log</code></td></tr>
+</table>
+<p>Het programma wordt niet aan het <code>PATH</code> toegevoegd: roep het in Terminal aan met zijn volledige pad.</p>
+
+<h2 id="enroll">Registreren</h2>
+<p>De service is geïnstalleerd en draait al voordat de Mac geregistreerd is; hij gaat aan het werk zodra dat zo is. Op de pagina <a href="/agents">Agents</a> toont <b>Registratietoken maken</b> de opdrachten voor macOS naast die voor Windows en Linux. Kies een van drie manieren:</p>
+<ol>
+  <li><b>In Terminal, na de installatie</b> (de gebruikelijke manier):
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
+  <li id="mdm"><b>Met een MDM</b> (Jamf, Intune, Mosyle…): voordat het pakket wordt geïnstalleerd, schrijft een script de code naar een bestand dat eigendom is van root:
+<pre>sudo mkdir -p "/Library/Application Support/BackupZit"
+echo "BZ1-..." | sudo tee "/Library/Application Support/BackupZit/enroll-code" &gt;/dev/null</pre>
+  Rol daarna het pakket uit. De installatie registreert de Mac met de code en verwijdert het bestand. Een bestand dat niet van root is, wordt genegeerd. Zo verhuist u ook een geregistreerde Mac naar een andere console.</li>
+  <li><b>Een bestand naast het pakket</b>: <code>backupzit-enroll.txt</code> met de code, in dezelfde map als het <code>.pkg</code> (bijvoorbeeld op een USB-stick of in een gedeelde map). Het wordt alleen gebruikt zolang de Mac nog niet geregistreerd is, en alleen als niemand anders het geschreven kan hebben: het bestand is eigendom van root of van de eigenaar van het pakket, en de map is niet schrijfbaar voor andere gebruikers (of heeft de sticky bit, zoals <code>/Users/Shared</code>).</li>
+</ol>
+<p>Is de console tijdens de installatie niet bereikbaar, dan bewaart de agent de code en probeert hij het opnieuw. Mislukt de registratie, dan staat de reden in <code>/Library/Application Support/BackupZit/enroll-error.log</code>; registreer de Mac daarna in Terminal. Upgrades en herinstallaties behouden de registratie.</p>
+
+<h2 id="permissions">Toestemmingen</h2>
+<p>macOS beschermt sommige gegevens tegen elk programma, ook tegen een programma dat als root draait, totdat de gebruiker het in Systeeminstellingen toestaat. Alleen de gebruiker aan de Mac kan deze toestemmingen geven; de laatste pagina van het installatieprogramma en de menubalk-app leiden hem erdoorheen.</p>
+<h3 id="full-disk-access">Volledige schijftoegang voor de agent</h3>
+<p>Zonder deze toegang missen back-ups de mappen die macOS beschermt, en wordt er geen APFS-momentopname gemaakt (zie <a href="#backup">Wat wordt geback-upt</a>).</p>
+<ol>
+  <li>Open <b>Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang</b>.</li>
+  <li>Klik op <b>+</b> onder de lijst en voer uw wachtwoord in.</li>
+  <li>Druk op <b>Command-Shift-G</b>, typ <code>/Library/BackupZit/bin/backupzit-agent</code>, druk op Return en klik op <b>Open</b>.</li>
+  <li>Controleer dat de schakelaar naast <b>backupzit-agent</b> aan staat.</li>
+</ol>
+<p>In plaats van <b>+</b> kunt u het bestand naar de lijst slepen: kies in de Finder <i>Ga → Ga naar map…</i>, typ <code>/Library/BackupZit/bin</code> en sleep <b>backupzit-agent</b> naar de lijst.</p>
+<h3 id="background">De agent op de achtergrond</h3>
+<p>Na de installatie toont macOS <i>Achtergrondonderdelen toegevoegd</i>. In <b>Systeeminstellingen → Algemeen → Inlogonderdelen en extensies</b> moeten onder <b>Sta toe op achtergrond</b> <b>backupzit-agent</b> en <b>BackupZit</b> aan blijven: staan ze uit, dan draait de agent niet en start er geen back-up.</p>
+<h3 id="notifications">Berichtgeving en openen bij inloggen</h3>
+<ul>
+  <li><b>Berichtgeving</b>: sta deze toe wanneer de menubalk-app erom vraagt, of later in <b>Systeeminstellingen → Berichtgeving → BackupZit</b> (<i>Sta berichtgeving toe</i>). De app meldt de gebruiker daar wanneer een back-up mislukt.</li>
+  <li><b>Openen bij inloggen</b>: de menubalk-app opent bij elke aanmelding zolang <b>BackupZit</b> aan staat onder <i>Inlogonderdelen en extensies → Sta toe op achtergrond</i>.</li>
+</ul>
+<h3 id="assistant">De menubalk-app en zijn assistent</h3>
+<p>Het BackupZit-pictogram in de menubalk toont de status van de agent; het menu biedt <b>Back up now</b> voor elke taak van de Mac, <b>Open console in browser</b> en <b>Hide this icon</b> (tot de volgende aanmelding; back-ups gaan door). Het onderdeel <b>Permissions</b> toont de agent op de achtergrond, volledige schijftoegang, berichtgeving en openen bij inloggen, elk met ✅ of ❌. Een klik op een item opent de bijbehorende pagina van Systeeminstellingen; een ontbrekende toestemming legt de app bovendien eenmaal per aanmelding uit in een venster met de stappen. Zolang er iets ontbreekt, controleert hij zelf om de paar seconden opnieuw, zodat ✅ verschijnt zodra de toestemming is gegeven. De agent meldt ontbrekende volledige schijftoegang ook aan de console, in het runrapport.</p>
+<h3 id="status">Controleren in Terminal</h3>
+<pre>/Library/BackupZit/bin/backupzit-agent status</pre>
+<p>Dit werkt als gewone gebruiker en toont de console, de taken en <code>full disk access: granted</code> of <code>denied</code> (met het programma dat aangezet moet worden).</p>
+<h3 id="unsigned">Volledige schijftoegang na een update</h3>
+<p>macOS koppelt volledige schijftoegang aan de handtekening van het programma. Pakketten die met een Apple Developer ID zijn ondertekend, houden deze toegang bij updates. Een pakket dat zonder is gebouwd (<i>ad hoc</i> ondertekend) verliest hem bij elke zelfupdate: back-ups waarschuwen dan weer, en de menubalk-app meldt dat volledige schijftoegang sinds de update weg is. Geef de toegang opnieuw: selecteer in de lijst Volledige schijftoegang <b>backupzit-agent</b>, klik op <b>−</b> om hem te verwijderen (uit- en weer aanzetten is niet genoeg) en voeg hem daarna opnieuw toe met <b>+</b> zoals hierboven.</p>
+
+<h2 id="backup">Wat wordt geback-upt</h2>
+<p>Een Mac-agent voert taken voor <b>bestanden en mappen</b> uit zoals elke agent: paden als <code>/Users</code>, <code>/Applications</code> of <code>/</code>, <a href="/docs/jobs#users"><code>{users}</code>-paden</a> (<code>/Users/&lt;naam&gt;/Documents</code>) en jokertekens, ook in een <a href="/docs/jobs#groups">taak voor meerdere agents</a> met <i>Alle macOS-agents</i>.</p>
+<h3 id="snapshot">Lokale APFS-momentopname</h3>
+<p>Elke bestandsback-up van het datavolume van de opstartschijf wordt gelezen uit een <b>lokale APFS-momentopname</b>, de macOS-tegenhanger van VSS op Windows: de back-up ziet elk bestand zoals het op één moment was, ook bestanden waarin een programma blijft schrijven. De agent maakt de momentopname (<code>tmutil localsnapshot</code>), koppelt hem alleen-lezen, leest de bestanden eruit en ontkoppelt en verwijdert hem na de back-up. Momentopnamen die na een crash zijn achtergebleven, worden bij de volgende start opgeruimd; de eigen momentopnamen van Time Machine worden nooit aangeraakt. Het runrapport meldt <i>Read from an APFS local snapshot of /System/Volumes/Data.</i></p>
+<p>De momentopname vereist de service (root) en <a href="#full-disk-access">volledige schijftoegang</a>. Zonder volledige schijftoegang, en voor paden op andere volumes (<code>/Volumes</code>: externe schijven, netwerkshares), worden de bestanden zonder momentopname gelezen, en het runrapport vermeldt dat.</p>
+<h3 id="metadata">Metadata</h3>
+<p>Bewaard bij elk bestand en elke map: eigenaar en groep, rechten, uitgebreide kenmerken (behalve <code>com.apple.provenance</code>, dat macOS zelf beheert), harde koppelingen, symbolische koppelingen, BSD-bestandsvlaggen (verborgen, geblokkeerd, nodump, alleen toevoegen…; de systeemvlaggen alleen als de agent als root draait, zoals de service), de aanmaaktijd en wijzigingstijden tot op de nanoseconde. Sparse-bestanden blijven sparse: hun gaten worden op APFS opnieuw uitgespaard.</p>
+<h3 id="excludes">Leeg bewaarde mappen</h3>
+<p>Sommige systeemmappen onder een geback-upte map worden als lege mappen bewaard: andere volumes (<code>/Volumes</code>), swap (<code>/System/Volumes/VM</code>, <code>/private/var/vm</code>), de hulpvolumes in <code>/System/Volumes</code>, <code>/dev</code>, tijdelijke bestanden (<code>/private/tmp</code>, <code>/private/var/folders</code>), caches (<code>/Library/Caches</code>, <code>/System/Library/Caches</code>, <code>~/Library/Caches</code>), de prullenmand (<code>~/.Trash</code>, <code>.Trashes</code>), Spotlight, FSEvents, documentversies en lokale en HFS+-Time Machine-reservekopieën. Met <code>/</code> als bron worden de mappen van het datavolume die <code>/</code> al toont (<code>/Users</code>, <code>/Applications</code>…) niet twee keer gelezen. Een map die als bron van de taak is opgegeven, wordt altijd gelezen, bijv. <code>/Volumes/USB</code> of <code>~/.Trash</code>.</p>
+<h3 id="warnings">Waarschuwingen in het runrapport</h3>
+<p>Zonder volledige schijftoegang kunnen de mappen die macOS beschermt niet worden gelezen: Mail, Berichten, Safari, Bureaublad en Documenten, gegevens van andere apps, verwisselbare en netwerkvolumes. Een back-up waarvan de bronnen <code>/Users</code> (behalve <code>/Users/Shared</code>), <code>/Library</code> of <code>/Volumes</code> bereiken, of een map daarboven zoals <code>/</code>, eindigt dan met de waarschuwing <i>Full Disk Access is not granted to the BackupZit agent</i>. Back-ups van andere mappen (bijv. <code>/opt/data</code>) waarschuwen niet.</p>
+
+<h2 id="restore">Herstellen</h2>
+<p>Bestanden van een Mac worden hersteld zoals alle <a href="/docs/restore">bestandsback-ups</a>: de hele back-up of alleen enkele paden, naar een map of naar de oorspronkelijke locatie, op de Mac of op een andere agent; losse bestanden kunnen vanuit de console worden gedownload. Een herstel op een Mac zet de bovenstaande metadata terug. Net als op Windows en Linux schrijft het alleen via de mappen die het heeft geopend, nooit via een pad, zodat een koppeling die tijdens het herstel in de weg wordt gezet niet wordt gevolgd. Een herstel over geblokkeerde bestanden wist eerst hun vlaggen geblokkeerd en alleen toevoegen en zet daarna de opgeslagen vlaggen terug (systeemvlaggen kunnen op een draaiende Mac niet worden gewist).</p>
+
+<h2 id="update">Bijwerken en verwijderen</h2>
+<p>De pagina <a href="/agents">Agents</a> biedt voor een Mac net als voor andere agents <b>Bijwerken naar <i>versie</i></b> aan (zie <a href="/docs/agents">Agents</a>). De agent downloadt het <code>.pkg</code> van de console, controleert het aan de hand van de ondertekende lijst met agent-installatieprogramma's en de SHA-256-controlesom, installeert het met Apples <code>installer</code> in een eenmalige launchd-taak en herstart met de nieuwe versie. Weigert launchd die taak, dan mislukt de update-run met de melding van launchd. Het logboek van het installatieprogramma staat in <code>/Library/Application Support/BackupZit/updates</code>. Controleer na een update van een niet-ondertekend pakket de <a href="#unsigned">volledige schijftoegang</a>.</p>
+<p><b>Verwijderen</b> op de pagina Agents met <b>Agent van de computer verwijderen (deïnstalleren)</b> verwijdert het programma, de menubalk-app, de LaunchDaemon en LaunchAgent en het pakketbewijs; de configuratie en het logboek blijven. Handmatig verwijderen:</p>
+<pre>sudo /Library/BackupZit/uninstall.sh            # keeps configuration and log
+sudo /Library/BackupZit/uninstall.sh --purge    # deletes them too</pre>
+<p>Zonder <code>--purge</code> wordt de registratie opzijgezet (<code>agent.json.removed-<i>date</i></code>), zodat een nieuwe installatie weer om een code vraagt. Verwijder na het verwijderen <b>backupzit-agent</b> handmatig uit <i>Privacy en beveiliging → Volledige schijftoegang</i>: macOS laat geen programma dat doen.</p>
+
+<h2 id="limits">Wat een Mac-agent niet kan</h2>
+<table>
+  <tr><th>Niet op een Mac</th><th>In plaats daarvan</th></tr>
+  <tr><td><a href="/docs/linux-system">Linux-systeem</a>- / bare-metal-back-ups</td><td>De console weigert een systeemtaak voor een Mac (<i>is a Mac: back it up with a files job</i>): het systeemvolume is door Apple verzegeld en ondertekend en wordt opnieuw geïnstalleerd, niet hersteld. Maak een back-up van de gegevens met een bestandstaak.</td></tr>
+  <tr><td><a href="/docs/images">Schijfimages</a></td><td>Alleen Windows.</td></tr>
+  <tr><td>Hyper-V-, Proxmox VE-hosts en VMware ESXi-proxy</td><td>Agents op de Hyper-V-host (Windows), de Proxmox-node (Linux) of een Linux-proxyagent.</td></tr>
+  <tr><td>Taken voor <a href="/docs/jobs#nas">NAS / bestandsshares</a> (SMB, NFS)</td><td>Voorlopig een Windows- of Linux-agent: de Mac-agent koppelt nog geen shares.</td></tr>
+  <tr><td>Taken voor <a href="/docs/sql">PostgreSQL / MySQL</a></td><td>Nog niet gevalideerd op macOS: gebruik ze op een Mac pas na een geteste herstelbewerking.</td></tr>
+</table>
+<p>Taken voor <a href="/docs/m365">Microsoft 365</a> draaien op elke agent met internettoegang, ook op een Mac.</p>
+
+<h2 id="troubleshooting">Problemen oplossen</h2>
+<table>
+  <tr><th>Situatie</th><th>Wat te doen</th></tr>
+  <tr><td>De Mac verschijnt niet of staat offline</td><td>Controleer dat hij geregistreerd is (<code>backupzit-agent status</code>, <a href="#enroll">Registreren</a>) en dat <b>backupzit-agent</b> aan staat onder <i>Inlogonderdelen en extensies → Sta toe op achtergrond</i>. <code>sudo launchctl print system/com.backupzit.agent</code> toont de service; <code>sudo /Library/BackupZit/bin/backupzit-agent service start</code> start hem. Controleer daarna de netwerkverbinding met de console zoals bij elke agent (<a href="/docs/troubleshooting">Problemen oplossen</a>).</td></tr>
+  <tr><td>"Full Disk Access is not granted to the BackupZit agent", <code>full disk access: denied</code></td><td>Geef de toegang zoals beschreven onder <a href="#full-disk-access">Volledige schijftoegang</a>.</td></tr>
+  <tr><td>Volledige schijftoegang kwijt na een update</td><td>Het pakket is niet ondertekend met een Apple Developer ID: verwijder backupzit-agent met <b>−</b> uit de lijst en voeg hem opnieuw toe (<a href="#unsigned">Volledige schijftoegang na een update</a>).</td></tr>
+  <tr><td>De run meldt dat de bestanden "without a snapshot" zijn gelezen</td><td>"No APFS local snapshot … was taken": geef volledige schijftoegang. "Not on the startup disk's data volume": het pad ligt op een externe schijf of een share, die lokale APFS-momentopnamen niet dekken; het wordt toch geback-upt. Elke andere reden staat in de melding.</td></tr>
+  <tr><td>Een update-run is mislukt</td><td>De run toont de reden, bijv. de weigering van de installatietaak door launchd. De uitvoer van het installatieprogramma staat in <code>/Library/Application Support/BackupZit/updates</code> (<b>Logboek ophalen</b> op de pagina Agents neemt die mee). Het nieuwere <code>.pkg</code> handmatig installeren werkt ook; de registratie blijft behouden.</td></tr>
+  <tr><td>Een systeemtaak voor de Mac wordt geweigerd</td><td>Zo hoort het: zie <a href="#limits">Wat een Mac-agent niet kan</a>.</td></tr>
+</table>
+<h3 id="logs">Logboeken</h3>
+<ul>
+  <li>Agent: <code>/Library/Logs/BackupZit/agent.log</code> (ook te zien in de app Console); een crashtrace gaat naar <code>/Library/Logs/BackupZit/launchd.log</code>.</li>
+  <li>Registratie door het installatieprogramma: <code>/Library/Application Support/BackupZit/enroll-error.log</code> en het installatielogboek <code>/var/log/install.log</code>.</li>
+  <li>Updates: <code>/Library/Application Support/BackupZit/updates</code>.</li>
+  <li><b>Logboek ophalen</b> op de pagina <a href="/agents">Agents</a> haalt het einde van het logboek op vanuit de console (zie <a href="/docs/troubleshooting#logs">Logboeken</a>).</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

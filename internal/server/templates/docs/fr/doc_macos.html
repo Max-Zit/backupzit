@@ -1,0 +1,122 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Agents macOS (Apple silicon)</h1>
+<p class="lead">L'agent macOS sauvegarde les fichiers et dossiers d'un Mac avec puce Apple silicon. Il tourne comme service dès le démarrage, lit chaque sauvegarde du disque de démarrage depuis un instantané local APFS et conserve les métadonnées des fichiers du Mac. Une app de la barre des menus affiche son état et guide l'utilisateur à travers les autorisations que lui seul peut accorder.</p>
+
+<h2 id="requirements">Prérequis</h2>
+<ul>
+  <li>Un Mac avec <b>Apple silicon</b> (M1 et plus récents, arm64) et <b>macOS 13</b> ou plus récent. Les Mac Intel n'ont pas de paquet.</li>
+  <li>Un compte administrateur sur le Mac, pour l'installation et l'inscription.</li>
+  <li>L'utilisateur du Mac, pour accorder l'<a href="#permissions">accès complet au disque</a> : macOS ne laisse personne d'autre le faire, ni un script ni la console.</li>
+  <li>Comme tout agent, le Mac doit joindre l'adresse agents de la console (en général le port 8443) et le stockage.</li>
+</ul>
+
+<h2 id="install">Installation</h2>
+<ol>
+  <li>Sur la page <a href="/agents">Agents</a>, téléchargez <b>Agent macOS — Apple Silicon</b> (<code>backupzit-agent_<i>version</i>_darwin_arm64.pkg</code>). Le paquet de la console le contient, comme les installateurs Windows et Linux.</li>
+  <li>Ouvrez le <code>.pkg</code> sur le Mac et suivez l'installateur. Pour un paquet qui n'est pas signé avec un Apple Developer ID, macOS demande d'abord une confirmation : faites un clic droit dessus et choisissez <b>Ouvrir</b> (sur les macOS récents : <i>Réglages Système → Confidentialité et sécurité → Ouvrir quand même</i>).</li>
+  <li>La dernière page de l'installateur explique les <a href="#permissions">autorisations</a> à accorder, et l'app de la barre des menus s'ouvre.</li>
+</ol>
+<p>Le paquet installe :</p>
+<table>
+  <tr><th>Quoi</th><th>Où</th></tr>
+  <tr><td>Le programme de l'agent</td><td><code>/Library/BackupZit/bin/backupzit-agent</code></td></tr>
+  <tr><td>Le désinstallateur</td><td><code>/Library/BackupZit/uninstall.sh</code></td></tr>
+  <tr><td>L'app de la barre des menus</td><td><code>/Applications/BackupZit.app</code></td></tr>
+  <tr><td>Le service de l'agent (LaunchDaemon : tourne en root, démarre au boot, relancé s'il s'arrête)</td><td><code>/Library/LaunchDaemons/com.backupzit.agent.plist</code></td></tr>
+  <tr><td>L'app de la barre des menus à l'ouverture de session (LaunchAgent)</td><td><code>/Library/LaunchAgents/com.backupzit.tray.plist</code></td></tr>
+  <tr><td>Configuration (root uniquement, créée à l'inscription)</td><td><code>/Library/Application Support/BackupZit/agent.json</code></td></tr>
+  <tr><td>Journal</td><td><code>/Library/Logs/BackupZit/agent.log</code></td></tr>
+</table>
+<p>Le programme n'est pas ajouté au <code>PATH</code> : dans le Terminal, appelez-le avec son chemin complet.</p>
+
+<h2 id="enroll">Inscription</h2>
+<p>Le service est installé et tourne avant même que le Mac soit inscrit ; il se met au travail dès qu'il l'est. Sur la page <a href="/agents">Agents</a>, <b>Créer un jeton d’inscription</b> affiche les commandes pour macOS à côté de celles pour Windows et Linux. Choisissez l'une des trois méthodes :</p>
+<ol>
+  <li><b>Dans le Terminal, après l'installation</b> (la méthode habituelle) :
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
+  <li id="mdm"><b>Avec un MDM</b> (Jamf, Intune, Mosyle…) : avant l'installation du paquet, un script écrit le code dans un fichier appartenant à root :
+<pre>sudo mkdir -p "/Library/Application Support/BackupZit"
+echo "BZ1-..." | sudo tee "/Library/Application Support/BackupZit/enroll-code" &gt;/dev/null</pre>
+  Déployez ensuite le paquet. Son installation inscrit le Mac avec le code et supprime le fichier. Un fichier qui n'appartient pas à root est ignoré. C'est aussi la façon de déplacer un Mac inscrit vers une autre console.</li>
+  <li><b>Un fichier à côté du paquet</b> : <code>backupzit-enroll.txt</code> contenant le code, dans le même dossier que le <code>.pkg</code> (par exemple sur une clé USB ou un dossier partagé). Il n'est utilisé que tant que le Mac n'est pas encore inscrit, et seulement si personne d'autre n'a pu l'écrire : le fichier appartient à root ou au propriétaire du paquet, et son dossier n'est pas modifiable par d'autres utilisateurs (ou a le sticky bit, comme <code>/Users/Shared</code>).</li>
+</ol>
+<p>Si la console n'est pas joignable pendant l'installation, l'agent garde le code et réessaie. Si l'inscription échoue, la raison se trouve dans <code>/Library/Application Support/BackupZit/enroll-error.log</code> ; inscrivez ensuite le Mac dans le Terminal. Les mises à niveau et réinstallations conservent l'inscription.</p>
+
+<h2 id="permissions">Autorisations</h2>
+<p>macOS protège certaines données contre tout programme, même s'il tourne en root, jusqu'à ce que l'utilisateur l'autorise dans Réglages Système. Seul l'utilisateur devant le Mac peut accorder ces autorisations ; la dernière page de l'installateur et l'app de la barre des menus le guident.</p>
+<h3 id="full-disk-access">Accès complet au disque pour l'agent</h3>
+<p>Sans lui, les sauvegardes omettent les dossiers que macOS protège, et aucun instantané APFS n'est pris (voir <a href="#backup">Ce qui est sauvegardé</a>).</p>
+<ol>
+  <li>Ouvrez <b>Réglages Système → Confidentialité et sécurité → Accès complet au disque</b>.</li>
+  <li>Cliquez sur <b>+</b> sous la liste et saisissez votre mot de passe.</li>
+  <li>Appuyez sur <b>Commande-Maj-G</b>, tapez <code>/Library/BackupZit/bin/backupzit-agent</code>, appuyez sur Retour et cliquez sur <b>Ouvrir</b>.</li>
+  <li>Vérifiez que l'interrupteur à côté de <b>backupzit-agent</b> est activé.</li>
+</ol>
+<p>Au lieu de <b>+</b>, vous pouvez faire glisser le fichier dans la liste : dans le Finder, choisissez <i>Aller → Aller au dossier…</i>, tapez <code>/Library/BackupZit/bin</code> et faites glisser <b>backupzit-agent</b> sur la liste.</p>
+<h3 id="background">L'agent en arrière-plan</h3>
+<p>Après l'installation, macOS affiche <i>Éléments d'arrière-plan ajoutés</i>. Dans <b>Réglages Système → Général → Éléments de connexion et extensions</b>, sous <b>Autoriser en arrière-plan</b>, <b>backupzit-agent</b> et <b>BackupZit</b> doivent rester activés : désactivé, l'agent ne tourne pas et aucune sauvegarde ne démarre.</p>
+<h3 id="notifications">Notifications et ouverture à la connexion</h3>
+<ul>
+  <li><b>Notifications</b> : autorisez-les quand l'app de la barre des menus le demande, ou plus tard dans <b>Réglages Système → Notifications → BackupZit</b> (<i>Autoriser les notifications</i>). L'app y prévient l'utilisateur quand une sauvegarde échoue.</li>
+  <li><b>Ouverture à la connexion</b> : l'app de la barre des menus s'ouvre à chaque ouverture de session tant que <b>BackupZit</b> est activé sous <i>Éléments de connexion et extensions → Autoriser en arrière-plan</i>.</li>
+</ul>
+<h3 id="assistant">L'app de la barre des menus et son assistant</h3>
+<p>L'icône BackupZit dans la barre des menus affiche l'état de l'agent ; son menu propose <b>Back up now</b> pour chaque tâche du Mac, <b>Open console in browser</b> et <b>Hide this icon</b> (jusqu'à la prochaine ouverture de session ; les sauvegardes continuent). Sa section <b>Permissions</b> liste l'agent en arrière-plan, l'accès complet au disque, les notifications et l'ouverture à la connexion, chacun avec ✅ ou ❌. Un clic sur un élément ouvre sa page de Réglages Système ; une autorisation manquante est en plus expliquée une fois par session, dans une fenêtre qui donne les étapes à suivre. Tant qu'il manque quelque chose, elle revérifie d'elle-même toutes les quelques secondes, si bien que ✅ apparaît dès que l'autorisation est accordée. L'agent signale aussi un accès complet au disque manquant à la console, dans le rapport d'exécution.</p>
+<h3 id="status">Vérifier dans le Terminal</h3>
+<pre>/Library/BackupZit/bin/backupzit-agent status</pre>
+<p>La commande fonctionne pour un utilisateur normal et affiche la console, les tâches et <code>full disk access: granted</code> ou <code>denied</code> (avec le programme à activer).</p>
+<h3 id="unsigned">L'accès complet au disque après une mise à jour</h3>
+<p>macOS lie l'accès complet au disque à la signature du programme. Les paquets signés avec un Apple Developer ID le conservent d'une mise à jour à l'autre. Un paquet construit sans (signé <i>ad hoc</i>) le perd à chaque mise à jour automatique : les sauvegardes avertissent alors de nouveau, et l'app de la barre des menus indique que l'accès complet au disque a disparu depuis la mise à jour. Accordez-le de nouveau : dans la liste Accès complet au disque, sélectionnez <b>backupzit-agent</b>, cliquez sur <b>−</b> pour le retirer (le désactiver puis le réactiver ne suffit pas), puis ajoutez-le de nouveau avec <b>+</b> comme ci-dessus.</p>
+
+<h2 id="backup">Ce qui est sauvegardé</h2>
+<p>Un agent Mac exécute des tâches <b>fichiers et dossiers</b> comme tout agent : des chemins comme <code>/Users</code>, <code>/Applications</code> ou <code>/</code>, des <a href="/docs/jobs#users">chemins <code>{users}</code></a> (<code>/Users/&lt;nom&gt;/Documents</code>) et des jokers, aussi dans une <a href="/docs/jobs#groups">tâche pour plusieurs agents</a> avec <i>Tous les agents macOS</i>.</p>
+<h3 id="snapshot">Instantané local APFS</h3>
+<p>Chaque sauvegarde de fichiers du volume de données du disque de démarrage est lue depuis un <b>instantané local APFS</b>, l'équivalent macOS de VSS sous Windows : la sauvegarde voit chaque fichier tel qu'il était à un même instant, y compris ceux qu'un programme continue d'écrire. L'agent prend l'instantané (<code>tmutil localsnapshot</code>), le monte en lecture seule, y lit les fichiers, puis le démonte et le supprime après la sauvegarde. Les instantanés laissés par un plantage sont nettoyés au démarrage suivant ; les instantanés propres à Time Machine ne sont jamais touchés. Le rapport d'exécution indique <i>Read from an APFS local snapshot of /System/Volumes/Data.</i></p>
+<p>L'instantané nécessite le service (root) et l'<a href="#full-disk-access">accès complet au disque</a>. Sans accès complet au disque, et pour les chemins sur d'autres volumes (<code>/Volumes</code> : disques externes, partages réseau), les fichiers sont lus sans instantané, et le rapport d'exécution le signale.</p>
+<h3 id="metadata">Métadonnées</h3>
+<p>Conservés avec chaque fichier et dossier : propriétaire et groupe, permissions, attributs étendus (sauf <code>com.apple.provenance</code>, que macOS gère lui-même), liens physiques, liens symboliques, indicateurs de fichier BSD (caché, verrouillé, nodump, ajout seul… ; les indicateurs système seulement quand l'agent tourne en root, comme le service), la date de création et les dates de modification à la nanoseconde. Les fichiers creux restent creux : leurs trous sont recréés sur APFS.</p>
+<h3 id="excludes">Dossiers gardés vides</h3>
+<p>Certains dossiers système sous un dossier sauvegardé sont gardés comme dossiers vides : les autres volumes (<code>/Volumes</code>), le swap (<code>/System/Volumes/VM</code>, <code>/private/var/vm</code>), les volumes de support dans <code>/System/Volumes</code>, <code>/dev</code>, les fichiers temporaires (<code>/private/tmp</code>, <code>/private/var/folders</code>), les caches (<code>/Library/Caches</code>, <code>/System/Library/Caches</code>, <code>~/Library/Caches</code>), la Corbeille (<code>~/.Trash</code>, <code>.Trashes</code>), Spotlight, FSEvents, les versions de documents et les sauvegardes Time Machine locales et HFS+. Avec <code>/</code> comme source, les dossiers du volume de données que <code>/</code> montre déjà (<code>/Users</code>, <code>/Applications</code>…) ne sont pas lus deux fois. Un dossier indiqué comme source de la tâche est toujours lu, p. ex. <code>/Volumes/USB</code> ou <code>~/.Trash</code>.</p>
+<h3 id="warnings">Avertissements dans le rapport d'exécution</h3>
+<p>Sans accès complet au disque, les dossiers que macOS protège ne peuvent pas être lus : Mail, Messages, Safari, Bureau et Documents, les données des autres apps, les volumes amovibles et réseau. Une sauvegarde dont les sources atteignent <code>/Users</code> (sauf <code>/Users/Shared</code>), <code>/Library</code> ou <code>/Volumes</code>, ou un dossier au-dessus comme <code>/</code>, se termine alors avec l'avertissement <i>Full Disk Access is not granted to the BackupZit agent</i>. Les sauvegardes d'autres dossiers (p. ex. <code>/opt/data</code>) n'avertissent pas.</p>
+
+<h2 id="restore">Restauration</h2>
+<p>Les fichiers d'un Mac se restaurent comme toutes les <a href="/docs/restore">sauvegardes de fichiers</a> : la sauvegarde entière ou seulement certains chemins, dans un dossier ou à l'emplacement d'origine, sur le Mac ou sur un autre agent ; des fichiers individuels se téléchargent depuis la console. Une restauration sur un Mac remet les métadonnées ci-dessus. Comme sous Windows et Linux, elle n'écrit qu'à travers les dossiers qu'elle a ouverts, jamais par chemin, si bien qu'un lien placé en travers pendant la restauration n'est pas suivi. Une restauration par-dessus des fichiers verrouillés retire d'abord leurs indicateurs verrouillé et ajout seul, puis remet ceux enregistrés (les indicateurs système ne peuvent pas être retirés sur un Mac en marche).</p>
+
+<h2 id="update">Mise à jour et désinstallation</h2>
+<p>La page <a href="/agents">Agents</a> propose <b>Mettre à jour vers <i>version</i></b> pour un Mac comme pour les autres agents (voir <a href="/docs/agents">Agents</a>). L'agent télécharge le <code>.pkg</code> depuis la console, le vérifie par rapport à la liste signée des installateurs d'agent et à sa somme SHA-256, l'installe avec l'<code>installer</code> d'Apple dans une tâche launchd ponctuelle et redémarre avec la nouvelle version. Si launchd refuse cette tâche, l'exécution de mise à jour échoue avec le message de launchd. Le journal de l'installateur se trouve dans <code>/Library/Application Support/BackupZit/updates</code>. Vérifiez l'<a href="#unsigned">accès complet au disque</a> après la mise à jour d'un paquet non signé.</p>
+<p><b>Supprimer</b> sur la page Agents avec <b>Désinstaller l’agent de l’ordinateur</b> retire le programme, l'app de la barre des menus, le LaunchDaemon et le LaunchAgent ainsi que le reçu du paquet ; la configuration et le journal restent. Pour désinstaller à la main :</p>
+<pre>sudo /Library/BackupZit/uninstall.sh            # keeps configuration and log
+sudo /Library/BackupZit/uninstall.sh --purge    # deletes them too</pre>
+<p>Sans <code>--purge</code>, l'inscription est mise de côté (<code>agent.json.removed-<i>date</i></code>), si bien qu'une nouvelle installation demande de nouveau un code. Après la désinstallation, retirez <b>backupzit-agent</b> de <i>Confidentialité et sécurité → Accès complet au disque</i> à la main : macOS ne laisse aucun programme le faire.</p>
+
+<h2 id="limits">Ce qu'un agent Mac ne fait pas</h2>
+<table>
+  <tr><th>Pas sur un Mac</th><th>À la place</th></tr>
+  <tr><td>Sauvegardes <a href="/docs/linux-system">système Linux</a> / bare-metal</td><td>La console refuse une tâche système pour un Mac (<i>is a Mac: back it up with a files job</i>) : son volume système est scellé et signé par Apple et se réinstalle, il ne se restaure pas. Sauvegardez les données avec une tâche de fichiers.</td></tr>
+  <tr><td><a href="/docs/images">Images disque</a></td><td>Windows uniquement.</td></tr>
+  <tr><td>Hôtes Hyper-V, Proxmox VE et proxy VMware ESXi</td><td>Des agents sur l'hôte Hyper-V (Windows), le nœud Proxmox (Linux) ou un agent proxy Linux.</td></tr>
+  <tr><td>Tâches <a href="/docs/jobs#nas">NAS / partage de fichiers</a> (SMB, NFS)</td><td>Un agent Windows ou Linux pour l'instant : l'agent Mac ne monte pas encore de partages.</td></tr>
+  <tr><td>Tâches <a href="/docs/sql">PostgreSQL / MySQL</a></td><td>Pas encore validées sous macOS : ne les utilisez sur un Mac qu'après avoir testé une restauration.</td></tr>
+</table>
+<p>Les tâches <a href="/docs/m365">Microsoft 365</a> tournent sur tout agent disposant d'un accès à Internet, un Mac aussi.</p>
+
+<h2 id="troubleshooting">Dépannage</h2>
+<table>
+  <tr><th>Situation</th><th>Que faire</th></tr>
+  <tr><td>Le Mac n'apparaît pas ou s'affiche hors ligne</td><td>Vérifiez qu'il est inscrit (<code>backupzit-agent status</code>, <a href="#enroll">Inscription</a>) et que <b>backupzit-agent</b> est activé sous <i>Éléments de connexion et extensions → Autoriser en arrière-plan</i>. <code>sudo launchctl print system/com.backupzit.agent</code> affiche le service ; <code>sudo /Library/BackupZit/bin/backupzit-agent service start</code> le démarre. Vérifiez ensuite le chemin réseau vers la console comme pour tout agent (<a href="/docs/troubleshooting">Dépannage</a>).</td></tr>
+  <tr><td>« Full Disk Access is not granted to the BackupZit agent », <code>full disk access: denied</code></td><td>Accordez-le comme indiqué dans <a href="#full-disk-access">Accès complet au disque</a>.</td></tr>
+  <tr><td>Accès complet au disque perdu après une mise à jour</td><td>Le paquet n'est pas signé avec un Apple Developer ID : retirez backupzit-agent de la liste avec <b>−</b> et ajoutez-le de nouveau (<a href="#unsigned">L'accès complet au disque après une mise à jour</a>).</td></tr>
+  <tr><td>L'exécution indique que les fichiers ont été lus « without a snapshot »</td><td>« No APFS local snapshot … was taken » : accordez l'accès complet au disque. « Not on the startup disk's data volume » : le chemin est sur un disque externe ou un partage, que les instantanés locaux APFS ne couvrent pas ; il est sauvegardé quand même. Toute autre raison figure dans le message.</td></tr>
+  <tr><td>Une exécution de mise à jour a échoué</td><td>L'exécution indique la raison, p. ex. le refus par launchd de la tâche d'installation. La sortie de l'installateur se trouve dans <code>/Library/Application Support/BackupZit/updates</code> (<b>Obtenir le journal</b> sur la page Agents l'inclut). Installer le <code>.pkg</code> plus récent à la main fonctionne aussi ; l'inscription est conservée.</td></tr>
+  <tr><td>Une tâche système pour le Mac est refusée</td><td>C'est normal : voir <a href="#limits">Ce qu'un agent Mac ne fait pas</a>.</td></tr>
+</table>
+<h3 id="logs">Journaux</h3>
+<ul>
+  <li>Agent : <code>/Library/Logs/BackupZit/agent.log</code> (aussi listé dans Console.app) ; une trace de plantage va dans <code>/Library/Logs/BackupZit/launchd.log</code>.</li>
+  <li>Inscription par l'installateur : <code>/Library/Application Support/BackupZit/enroll-error.log</code> et le journal de l'installateur <code>/var/log/install.log</code>.</li>
+  <li>Mises à jour : <code>/Library/Application Support/BackupZit/updates</code>.</li>
+  <li><b>Obtenir le journal</b> sur la page <a href="/agents">Agents</a> récupère la fin du journal depuis la console (voir <a href="/docs/troubleshooting#logs">Journaux</a>).</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

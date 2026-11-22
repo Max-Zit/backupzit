@@ -112,8 +112,8 @@
   <tr><th>Komut</th><th>Ne yapar</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Aracıyı Aracılar sayfasındaki kayıt koduyla bir konsola bağlar (<code>--force</code> mevcut kaydı değiştirir). Eski biçim <code>--server URL --token T --fingerprint F</code> hâlâ çalışır.</td></tr>
   <tr><td><code>set-server https://address:8443</code></td><td>Kayıtlı bir aracıyı konsolun yeni adresine yönlendirir (aynı sertifika); ardından aracı hizmetini yeniden başlatın. Bkz. <a href="/docs/agents#new-address">Aracılar</a>.</td></tr>
-  <tr><td><code>status</code></td><td>Çalışan aracının ne yaptığını ve yedekleme işlerini gösterir (Windows tepsi simgesi de aynısını gösterir).</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Aracı hizmetini yönetir (yükleyiciler bunu yapar).</td></tr>
+  <tr><td><code>status</code></td><td>Çalışan aracının ne yaptığını ve yedekleme işlerini gösterir (Windows tepsi simgesi de aynısını gösterir). Bir Mac'te normal bir kullanıcı için de <code>full disk access: granted</code> veya <code>denied</code> bilgisini gösterir.</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Aracı hizmetini yönetir (yükleyiciler bunu yapar). Bir Mac'te hizmet <code>/Library/LaunchDaemons/com.backupzit.agent.plist</code> LaunchDaemon'ıdır ve program, <code>PATH</code>'te olmayan <code>/Library/BackupZit/bin/backupzit-agent</code>'tır; bkz. <a href="/docs/macos">macOS aracıları</a>.</td></tr>
   <tr><td><code>recovery</code></td><td>Kurtarma modu, kurtarma ISO'ları tarafından otomatik başlatılır; herhangi bir canlı Linux sisteminde: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Sürümü yazdırır.</td></tr>
   <tr><td><code>forget</code></td><td>Kaydı kenara koyar (yeniden adlandırır, silmez); kaldırıcılar çalıştırır, böylece yeni bir kurulum yeniden kayıt kodu ister.</td></tr>

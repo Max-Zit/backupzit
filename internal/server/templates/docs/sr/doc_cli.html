@@ -112,8 +112,8 @@
   <tr><th>Komanda</th><th>Šta radi</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Povezuje agenta sa konzolom pomoću koda za prijavljivanje sa stranice Agenti (<code>--force</code> zamenjuje postojeće prijavljivanje). Stariji oblik <code>--server URL --token T --fingerprint F</code> i dalje radi.</td></tr>
   <tr><td><code>set-server https://address:8443</code></td><td>Usmerava prijavljenog agenta na novu adresu konzole (isti sertifikat); posle toga restartujte servis agenta. Vidi <a href="/docs/agents#new-address">Agenti</a>.</td></tr>
-  <tr><td><code>status</code></td><td>Prikazuje šta agent koji radi trenutno radi i njegove poslove bekapa (Windows ikona u traci prikazuje isto).</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Upravlja servisom agenta (to rade instalacioni programi).</td></tr>
+  <tr><td><code>status</code></td><td>Prikazuje šta agent koji radi trenutno radi i njegove poslove bekapa (Windows ikona u traci prikazuje isto). Na Mac-u prikazuje i <code>full disk access: granted</code> ili <code>denied</code>, i za običnog korisnika.</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Upravlja servisom agenta (to rade instalacioni programi). Na Mac-u je servis LaunchDaemon <code>/Library/LaunchDaemons/com.backupzit.agent.plist</code>, a program je <code>/Library/BackupZit/bin/backupzit-agent</code>, koji nije u <code>PATH</code>-u; vidi <a href="/docs/macos">macOS agenti</a>.</td></tr>
   <tr><td><code>recovery</code></td><td>Režim oporavka, koji ISO-i za oporavak pokreću automatski; na bilo kom Linux live sistemu: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Ispisuje verziju.</td></tr>
   <tr><td><code>forget</code></td><td>Odlaže registraciju (preimenuje je, ne briše); pokreću ga deinstalacioni programi, pa nova instalacija ponovo traži kod za registraciju.</td></tr>

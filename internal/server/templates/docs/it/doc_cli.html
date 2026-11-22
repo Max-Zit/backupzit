@@ -112,8 +112,8 @@
   <tr><th>Comando</th><th>Cosa fa</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Collega l'agente a una console con il codice di registrazione dalla pagina Agenti (<code>--force</code> sostituisce una registrazione esistente). La forma precedente <code>--server URL --token T --fingerprint F</code> funziona ancora.</td></tr>
   <tr><td><code>set-server https://address:8443</code></td><td>Indirizza un agente registrato verso un nuovo indirizzo della console (stesso certificato); poi riavviate il servizio dell'agente. Vedete <a href="/docs/agents#new-address">Agenti</a>.</td></tr>
-  <tr><td><code>status</code></td><td>Mostra cosa sta facendo l'agente in esecuzione e i suoi job di backup (l'icona nell'area di notifica di Windows mostra lo stesso).</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Gestisce il servizio dell'agente (se ne occupano gli installer).</td></tr>
+  <tr><td><code>status</code></td><td>Mostra cosa sta facendo l'agente in esecuzione e i suoi job di backup (l'icona nell'area di notifica di Windows mostra lo stesso). Su un Mac mostra anche <code>full disk access: granted</code> o <code>denied</code>, anche per un utente normale.</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Gestisce il servizio dell'agente (se ne occupano gli installer). Su un Mac il servizio è il LaunchDaemon <code>/Library/LaunchDaemons/com.backupzit.agent.plist</code> e il programma è <code>/Library/BackupZit/bin/backupzit-agent</code>, che non è nel <code>PATH</code>; vedete <a href="/docs/macos">Agenti macOS</a>.</td></tr>
   <tr><td><code>recovery</code></td><td>Modalità di ripristino, avviata automaticamente dalle ISO di ripristino; su qualsiasi sistema Linux live: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Mostra la versione.</td></tr>
   <tr><td><code>forget</code></td><td>Mette da parte la registrazione (rinominata, non cancellata); lo eseguono i programmi di disinstallazione, così una nuova installazione chiede di nuovo un codice di registrazione.</td></tr>

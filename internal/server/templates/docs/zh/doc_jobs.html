@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b>——Exchange Online 邮箱、日历、联系人、OneDrive 和 SharePoint 网站，由任意代理通过 Microsoft Graph 读取；参见 <a href="/docs/m365">Microsoft 365</a>。</li>
     </ul>
   </li>
-  <li>可选添加<b>排除项</b>，每行一个：名称模式，适用于每个文件夹（<code>*.tmp</code>、<code>node_modules</code>、<code>Thumbs.db</code>、<code>*.iso</code>），或完整路径，仅适用于该文件或文件夹（<code>C:\Data\Temp</code>、<code>/srv/www/cache</code>，也可使用通配符：<code>D:\VMs\*.iso</code>）。在 Windows 上，完整路径不区分大小写。在 Linux 上，<code>/proc</code>、<code>/sys</code> 和 <code>/dev</code> 等内核文件系统始终保存为空文件夹，即使作业备份的是 <code>/</code>。</li>
+  <li>可选添加<b>排除项</b>，每行一个：名称模式，适用于每个文件夹（<code>*.tmp</code>、<code>node_modules</code>、<code>Thumbs.db</code>、<code>*.iso</code>），或完整路径，仅适用于该文件或文件夹（<code>C:\Data\Temp</code>、<code>/srv/www/cache</code>，也可使用通配符：<code>D:\VMs\*.iso</code>）。在 Windows 上，完整路径不区分大小写。在 Linux 上，<code>/proc</code>、<code>/sys</code> 和 <code>/dev</code> 等内核文件系统始终保存为空文件夹，即使作业备份的是 <code>/</code>；在 macOS 上，交换区、缓存、废纸篓、临时文件和其他卷也是如此（参见 <a href="/docs/macos#excludes">macOS 代理</a>）。</li>
   <li>设置<b>保留备份</b>和<b>计划</b>，然后点击<i>创建作业</i>。</li>
 </ol>
 
@@ -27,7 +27,7 @@
 
 <h2 id="groups">一个作业用于多个代理</h2>
 <p>要在许多计算机上备份相同的文件夹，请在 <b>代理</b> 下选择 <i>多个代理</i> 中的一项：<i>所有代理</i>、<i>所有 Windows 代理</i>、<i>所有 Linux 代理</i>、<i>所有 macOS 代理</i> 或 <i>选择代理…</i>（然后勾选）。此类作业备份文件和文件夹；配合 <code>{users}</code> 路径（例如 <code>{users}/Documents</code>），一个作业即可覆盖公司所有人的文档。之后注册的代理会在一分钟内自动加入作业（<i>选择代理…</i> 时仅限勾选的代理）。</p>
-<p>多代理作业也可以是 <b>磁盘映像</b> 作业——为其覆盖的每个 Windows 代理的所有内部磁盘创建映像（不能选择分区，因为每台计算机的分区各不相同）——或为其覆盖的每个 Linux 代理创建 <b>Linux 系统</b> 作业。其他操作系统的代理会被自动排除，选择 <i>所有代理</i> 时也是如此。</p>
+<p>多代理作业也可以是 <b>磁盘映像</b> 作业——为其覆盖的每个 Windows 代理的所有内部磁盘创建映像（不能选择分区，因为每台计算机的分区各不相同）——或为其覆盖的每个 Linux 代理创建 <b>Linux 系统</b> 作业。其他操作系统的代理会被自动排除，选择 <i>所有代理</i> 时也是如此。<i>所有 macOS 代理</i> 覆盖各台 Mac（<a href="/docs/macos">macOS 代理</a>），用于文件和文件夹。</p>
 <p>每个代理备份到存储目标上自己的存储库，拥有各自的历史记录、还原和保留期，与单代理作业相同。作业页面在 <i>多代理作业</i> 下列出该作业；其页面显示每个代理及其最近结果，<i>立即在所有代理上运行备份</i> 会启动所有代理。单个代理的作业带有 <i>多个代理</i> 标记：打开它可查看历史记录和还原，或停用它以暂停该计算机。文件夹、计划和保留期在多代理作业中更改，并适用于其所有代理；在那里也可以排除代理。排除代理或删除作业会保留其备份在存储上。启用四眼审批时，排除代理、缩短保留期、停用和删除需等待第二位用户。</p>
 <p>暂时无法运行该作业的代理会列出原因，例如对 <code>{users}</code> 和通配符而言早于 0.45.0 的代理；更新后即会加入。许多计划相同的代理会同时开始；<a href="#window">备份时间窗口</a> 或每个作业不同的时间可分散存储负载。</p>
 
@@ -38,10 +38,11 @@
   <li>对于 SMB，填写帐户（用户、可选的域、密码——加密存储）；留空表示来宾访问。NFS 使用代理机器对导出的访问权限（在 NAS 上允许其地址）；</li>
   <li>要备份的<b>共享中的文件夹</b>，每行一个（留空：整个共享），以及排除项，例如 <code>#recycle</code>、<code>@eaDir</code> 或 <code>.snapshot</code>。</li>
 </ul>
-<p>每次运行时，代理都会连接共享——Windows 代理通过其 UNC 路径（<code>\\nas01\data</code>，仅 SMB），Linux 代理以只读方式挂载到 <code>/mnt/backupzit-nas</code> 下（SMB 需要 <code>cifs-utils</code>，NFS 需要 <code>nfs-common</code> 或 <code>nfs-utils</code>；Proxmox VE 两者都有）——之后断开连接。这些备份是普通的文件备份：经过重复数据删除且为增量，支持保留、复制作业、还原测试、浏览和文件还原。<b>还原到原位置</b>会以可写方式重新连接共享并将文件写回；也可以还原到任意代理上的文件夹或下载。</p>
+<p>每次运行时，代理都会连接共享——Windows 代理通过其 UNC 路径（<code>\\nas01\data</code>，仅 SMB），Linux 代理以只读方式挂载到 <code>/mnt/backupzit-nas</code> 下（SMB 需要 <code>cifs-utils</code>，NFS 需要 <code>nfs-common</code> 或 <code>nfs-utils</code>；Proxmox VE 两者都有）——之后断开连接。Mac 代理目前还不能连接共享：请使用 Windows 或 Linux 代理。这些备份是普通的文件备份：经过重复数据删除且为增量，支持保留、复制作业、还原测试、浏览和文件还原。<b>还原到原位置</b>会以可写方式重新连接共享并将文件写回；也可以还原到任意代理上的文件夹或下载。</p>
 
 <h2>打开和锁定的文件（VSS）</h2>
 <p>在 Windows 上，代理使用<b>卷影复制服务</b>：它为卷创建一致的时间点快照并从中备份，因此打开的文件（Outlook PST、数据库、正在编辑的文档）都能一致地备份。支持 VSS 的应用程序（例如 SQL Server）会在创建快照前将数据刷新到磁盘。文件夹位于多个卷（C: 和 D:）上的作业会在同一时刻一起为它们创建快照；只有 VSS 无法做到时，才会为每个卷分别创建快照，并且运行会发出警告。</p>
+<p id="apfs">在 Mac 上，代理则从启动磁盘的 <b>APFS 本地快照</b>读取，快照在每次备份时创建并删除。它需要完全磁盘访问权限，而只有 Mac 的用户才能授予；没有该权限时，或对于外置磁盘和共享，文件会在没有快照的情况下读取，运行会说明这一点。参见 <a href="/docs/macos#snapshot">macOS 代理</a>。</p>
 
 <h2>计划</h2>
 <table>

@@ -43,7 +43,7 @@
   <li>Deje activado <b>Verificar archivos restaurados</b>: cada archivo se vuelve a leer y se compara con la suma de comprobación de la copia.</li>
   <li>Haga clic en <b>Iniciar restauración</b>. El progreso y los resultados aparecen en la página de la ejecución de restauración.</li>
 </ol>
-<p>También se restauran las fechas de los archivos, los atributos de Windows (oculto, solo lectura, …) y, en Linux, propietarios, permisos (incluidos los bits setuid), ACL, atributos extendidos (etiquetas SELinux, capacidades de archivos) y enlaces simbólicos y físicos. Los propietarios solo se establecen si el agente se ejecuta como root/administrador.</p>
+<p>También se restauran las fechas de los archivos, los atributos de Windows (oculto, solo lectura, …) y, en Linux, propietarios, permisos (incluidos los bits setuid), ACL, atributos extendidos (etiquetas SELinux, capacidades de archivos) y enlaces simbólicos y físicos. En macOS también los flags de archivo BSD (oculto, bloqueado…), la fecha de creación y los atributos extendidos (vea <a href="/docs/macos#metadata">Agentes macOS</a>). Los propietarios solo se establecen si el agente se ejecuta como root/administrador.</p>
 
 <h3 id="browse-files">Explorar, descargar y elegir archivos</h3>
 <p>En la ejecución de copia, <b>Examinar archivos</b> muestra las carpetas copiadas tal como estaban (también para recursos NAS y copias del sistema Linux). Abra carpetas, marque archivos y carpetas y luego:</p>

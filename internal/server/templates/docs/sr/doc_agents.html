@@ -7,6 +7,7 @@
   <li>Windows 10, 11 i Windows Server 2016 i noviji — MSI <b>Windows agent</b>.</li>
   <li>Windows 7 SP1, Windows Server 2008 R2 SP1 i 2012 R2 — MSI <b>Windows agent — stariji sistemi</b> (<code>…-legacy.msi</code>), sa istim mogućnostima uključujući VSS i slike diskova.</li>
   <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bitni).</li>
+  <li>Mac računari sa Apple silicon čipom, macOS 13 i noviji — paket <b>macOS agent</b> (<code>…_darwin_arm64.pkg</code>), za fajlove i foldere (vidi <a href="/docs/macos">macOS agenti</a>).</li>
   <li>Proxmox VE 7, 8 i 9 čvorovi — Debian paket; agent tada pravi bekap i virtuelnih mašina i kontejnera tog čvora (vidi <a href="/docs/proxmox">Proxmox VE</a>).</li>
   <li>Hyper-V hostovi (Windows Server 2016 i noviji, Windows 10/11 sa Hyper-V-om): Windows MSI. Agent tada pravi bekap i virtuelnih mašina tog hosta (vidi <a href="/docs/hyperv">Hyper-V</a>).</li>
   <li>VMware ESXi hostovi — na ESXi se ništa ne instalira: dodajte host pod <a href="/agents#vmware">VMware ESXi hostovi</a> i izaberite agenta koji mu služi kao proxy (vidi <a href="/docs/vmware">VMware ESXi</a>).</li>
@@ -15,7 +16,7 @@
 <h2>Registracija agenata</h2>
 <ol>
   <li>Na stranici <a href="/agents">Agenti</a> kliknite <b>Napravi token za registraciju</b>. Konzola prikazuje <b>kod za registraciju</b> (<code>BZ1-…</code>), koji važi 7 dana i može da se koristi za bilo koliko mašina. Sadrži adresu konzole za agente (sa portom za agente, obično 8443, čak i kada je stranica otvorena na web portu 443), token i otisak sertifikata. Agenti od verzije 0.33.6 se registruju i kodovima koje su starije konzole napravile na web portu.</li>
-  <li>Windows: pokrenite MSI i nalepite kod kada ga instalacija zatraži. Linux: pokrenite prikazanu komandu.</li>
+  <li>Windows: pokrenite MSI i nalepite kod kada ga instalacija zatraži. Linux: pokrenite prikazanu komandu. macOS: instalirajte paket, a zatim u Terminalu pokrenite prikazanu komandu (vidi <a href="/docs/macos#enroll">macOS agenti</a>).</li>
   <li>Mašina se pojavljuje u listi agenata za manje od minuta.</li>
 </ol>
 <p>Ako konzola nije dostupna tokom instalacije, agent čuva kod i pokušava ponovo dok ne uspe da se registruje. Nadogradnje zadržavaju registraciju i ne pitaju ponovo. Tiha instalacija sa <code>ENROLLCODE</code> na mašini koja je već registrovana zadržava registraciju kada je kod za istu konzolu (GPO ili RMM mogu bezbedno da je ponavljaju), a premešta mašinu kada je kod za drugu konzolu; prethodna registracija se čuva kao <code>agent.json.replaced-<i>datum</i></code> pored <code>agent.json</code>, pa vraćanje starog imena vraća mašinu na staru konzolu kao istog agenta.</p>
@@ -26,6 +27,9 @@
 <pre>apt install ./backupzit-agent_*.deb        # ili: dnf install ./backupzit-agent-*.rpm
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
+<h3 id="macos">macOS</h3>
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
+<p>Pokrenite je posle instalacije <code>.pkg</code> paketa. MDM umesto toga upisuje kod u <code>/Library/Application Support/BackupZit/enroll-code</code> pre instalacije paketa. Pun pristup disku (Full Disk Access) zatim mora da da korisnik Mac-a; vidi <a href="/docs/macos">macOS agenti</a>.</p>
 
 <h2>Instalacija agenata iz konzole</h2>
 <p>Umesto da instalaciju kopirate na svaku mašinu, prepustite instalaciju konzoli: na stranici <a href="/agents">Agenti</a> otvorite <b>Instaliraj na mašinu odavde</b>, izaberite Linux ili Windows i unesite adresu mašine i administratorski nalog.</p>
@@ -33,6 +37,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64-bitni): konzola se povezuje preko <b>SSH</b>-a kao root, ili kao korisnik sa <code>sudo</code> pravima (lozinka se koristi i za sudo; uz ključ je potreban sudo bez lozinke). Radi lozinka ili privatni ključ. Unesite <b>otisak SSH ključa hosta</b> (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> na mašini) da biste bili sigurni da konzola razgovara sa pravom mašinom; bez njega se otisak prikazuje u logu instalacije.</li>
   <li><b>Windows</b> (64-bitni): konzola se povezuje preko <b>WinRM</b>-a (port 5985, poruke šifrovane NTLM-om; 5986 za HTTPS listener) kao lokalni administrator ili administrator domena. WinRM je podrazumevano uključen na Windows Serveru; na Windows 10/11 jednom pokrenite <code>winrm quickconfig</code> kao administrator. Lokalni nalozi osim ugrađenog naloga Administrator trebaju prava za udaljenu administraciju (<code>LocalAccountTokenFilterPolicy</code>) — ili koristite nalog domena. Stariji sistemi (Windows 7, Server 2008 R2/2012 R2) dobijaju legacy MSI.</li>
 </ul>
+<p>Mac računari se ne instaliraju odavde: rasporedite <code>.pkg</code> ručno ili preko MDM-a (<a href="/docs/macos#enroll">macOS agenti</a>).</p>
 <p>Mašina preuzima najnoviji paket agenta sa konzole preko linka koji radi samo za ovu instalaciju (30 minuta, tri preuzimanja), proverava njegov SHA-256 kontrolni zbir, instalira ga i registruje se. Stranica instalacije prikazuje svaki korak; nalog i lozinka se koriste samo za ovo i ne čuvaju se. Ako je mašina već registrovana na ovoj konzoli, registracija se zadržava, a paket ažurira; registracija koju konzola ne poznaje (ranije uklonjen agent ili druga konzola) se zamenjuje. Svaka instalacija je u audit logu. Mašina mora da dođe do adrese konzole za agente, kao i svaki agent.</p>
 
 <h2>Stanje agenta</h2>
@@ -61,6 +66,7 @@ systemctl enable --now backupzit-agent</pre>
   <tr><td>siva</td><td>Konzola nije dostupna ili servis agenta ne radi.</td></tr>
 </table>
 <p>Kliknite ikonu (ili otvorite <b>BackupZit Agent</b> iz Start menija) za prozor sa stanjem: stanje zaštite, napredak bekapa koji je u toku, poslednji i sledeći bekap, i svi poslovi bekapa tog računara sa dugmetom <b>Napravi bekap sada</b>. Desni klik otvara meni: <i>Napravi bekap sada</i> po poslu, <i>Otvori konzolu u pregledaču</i>, <i>Sakrij ovu ikonu</i> (do sledeće prijave; bekapi se nastavljaju). Prozoru je potreban Microsoft Edge WebView2, koji je deo Windowsa 10 i 11; na starijim sistemima ikona i meni rade, a <i>Otvori</i> prikazuje konzolu u pregledaču.</p>
+<p>Na Mac-u aplikacija u traci menija radi isto i proverava i dozvole koje macOS traži od korisnika (vidi <a href="/docs/macos#assistant">macOS agenti</a>).</p>
 <p>Korisnici ovako mogu da pokrenu bekap svog računara; poslovi, rasporedi i čuvanje se podešavaju samo u konzoli. Na bilo kom sistemu, <code>backupzit-agent status</code> (kao administrator ili root) ispisuje iste informacije.</p>
 
 <h2 id="parallel">Više poslova istovremeno</h2>
@@ -70,10 +76,10 @@ systemctl enable --now backupzit-agent</pre>
 <p>Kada konzola ima noviju instalaciju agenta od one koju agent koristi, stranica Agenti pored njegove verzije prikazuje <b>Ažuriraj na x.y.z</b>, a ispod liste <b>Ažuriraj sve agente</b>. Agent tada:</p>
 <ol>
   <li>čeka da bude slobodan (bekap koji je u toku se nikada ne prekida),</li>
-  <li>preuzima odgovarajuću instalaciju sa konzole preko svoje zapamćene veze — MSI za Windows 10/11/2016+, MSI za <i>starije sisteme</i> za Windows 7/2008 R2/2012 R2, deb ili rpm paket na Linuxu — i proverava je: od 0.56 instalacija mora da bude na listi instalacija agenta potpisanoj ključem izdanja BackupZit-a, a tu listu agent proverava ključem ugrađenim u sebe, pa se instalacija izmenjena na konzoli odbija,</li>
+  <li>preuzima odgovarajuću instalaciju sa konzole preko svoje zapamćene veze — MSI za Windows 10/11/2016+, MSI za <i>starije sisteme</i> za Windows 7/2008 R2/2012 R2, deb ili rpm paket na Linuxu, <code>.pkg</code> na Mac-u — i proverava je: od 0.56 instalacija mora da bude na listi instalacija agenta potpisanoj ključem izdanja BackupZit-a, a tu listu agent proverava ključem ugrađenim u sebe, pa se instalacija izmenjena na konzoli odbija,</li>
   <li>instalira je i restartuje se; nova verzija se pojavljuje u listi za nekoliko minuta. Registracija i sva podešavanja se zadržavaju.</li>
 </ol>
-<p>Konzola nudi najnovije instalacije iz svog foldera <code>dist</code>; serverski paket donosi instalacije agenata svoje verzije. Posle ažuriranja konzole u <a href="/settings/updates">Podešavanja → Ažuriranja</a>, agenti se ažuriraju automatski (to može da se isključi tamo). Ažuriranja iz konzole rade za agente od verzije 0.21; stariji agenti se jednom ažuriraju instaliranjem novijeg MSI-a / paketa preko starog (registracija se zadržava). Agenti 0.56 i noviji prihvataju ažuriranje samo od konzole 0.56 ili novije (njen paket nosi potpisanu listu) i nikad na stariju verziju od sopstvene. Log instalacije je u <code>C:\ProgramData\backupzit\updates</code> ili <code>/var/lib/backupzit-agent/updates</code>.</p>
+<p>Konzola nudi najnovije instalacije iz svog foldera <code>dist</code>; serverski paket donosi instalacije agenata svoje verzije. Posle ažuriranja konzole u <a href="/settings/updates">Podešavanja → Ažuriranja</a>, agenti se ažuriraju automatski (to može da se isključi tamo). Ažuriranja iz konzole rade za agente od verzije 0.21; stariji agenti se jednom ažuriraju instaliranjem novijeg MSI-a / paketa preko starog (registracija se zadržava). Agenti 0.56 i noviji prihvataju ažuriranje samo od konzole 0.56 ili novije (njen paket nosi potpisanu listu) i nikad na stariju verziju od sopstvene. Log instalacije je u <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> ili, na Mac-u, <code>/Library/Application Support/BackupZit/updates</code>. Ažuriranje agenta na Mac-u čiji paket nije potpisan Apple Developer ID-jem oduzima mu pun pristup disku (vidi <a href="/docs/macos#unsigned">macOS agenti</a>).</p>
 
 <h2>Uklanjanje agenta</h2>
 <p><b>Ukloni</b> na stranici Agenti otvara stranicu sa dva izbora; uz uključeno <a href="/docs/users">odobrenje četiri oka</a> prvo mora da odobri drugi korisnik.</p><ul><li><b>Deinstaliraj agenta sa računara</b> (agenti na mreži, od verzije 0.42.7): agent se javi, sam se deinstalira i zatim se uklanja iz konzole sa svojim poslovima. Agent koji nije na mreži uklanja se samo iz konzole — deinstalirajte ga na računaru (vidi ispod).</li><li><b>Njegovi backup-i:</b> <i>zadrži sve</i> (podrazumevano — ostaju na storage-u i i dalje mogu da se vrate), <i>zadrži samo najnoviji backup svakog posla</i> (svaki backup je potpun, pa najnoviji vraća sve stanje sa svog datuma) ili <i>obriši sve</i>. Za brisanje treba upisati ime računara; konzola briše u pozadini i upisuje rezultat u <a href="/audit">audit log</a>. Nepromenljivi storage čuva zaključane podatke dok zaštita ne istekne; backup-i na disku samog računara i kopije poslova kopiranja se ne brišu. Agent koji pravi backup drugih sistema (Proxmox, VMware, Hyper-V, Microsoft 365, NAS) briše i njihove backup-e.</li></ul>
@@ -98,6 +104,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (dostupno samo SYSTEM-u i administratorima).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (samo root).</li>
+  <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (samo root).</li>
 </ul>
 <p>Fajl sadrži tajnu agenta. Ko god može da ga pročita, može da se predstavi kao taj agent, pa zadržite ove dozvole.</p>
 
@@ -105,13 +112,14 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
   <li>Linux: <code>/var/log/backupzit/agent.log</code> i <code>journalctl -u backupzit-agent</code></li>
+  <li>macOS: <code>/Library/Logs/BackupZit/agent.log</code></li>
   <li>Sistemi za oporavak ispisuju log na svom ekranu.</li>
   <li>Log čuva do 4 fajla od 10 MB (<code>agent.log</code> i <code>agent.log.1</code> do <code>.3</code>); stariji zapisi se brišu.</li>
   <li><b>Preuzmi log</b> na stranici Agenti donosi kraj loga u konzolu — vidi <a href="/docs/troubleshooting#logs">Logovi</a>.</li>
 </ul>
 
 <h2>Deinstalacija</h2>
-<p>Windows: <i>Settings → Apps → BackupZit Agent → Uninstall</i> (ili <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Zatim uklonite agenta u konzoli. Bekapi ostaju na skladištu.</p>
+<p>Windows: <i>Settings → Apps → BackupZit Agent → Uninstall</i> (ili <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. macOS: <code>sudo /Library/BackupZit/uninstall.sh</code> (vidi <a href="/docs/macos#update">macOS agenti</a>). Zatim uklonite agenta u konzoli. Bekapi ostaju na skladištu.</p>
 <p>Na Windowsu deinstalacija sklanja registraciju u stranu (<code>C:\ProgramData\backupzit\agent.json.removed-<i>datum</i></code>), pa ponovna instalacija agenta traži kod za registraciju. Ako instalacija pronađe registraciju ranije verzije, to i kaže: ostavite kod prazan da biste je zadržali, ili nalepite novi kod da biste računar ponovo registrovali (na primer na drugoj konzoli).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

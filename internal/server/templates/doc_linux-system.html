@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Linux system backup &amp; P2V</h1>
 <p class="lead">A <b>Linux system</b> job backs up a whole Linux machine so it can be recreated on an empty disk — the same machine after a disk failure, new hardware, or a virtual machine in Proxmox VE (physical-to-virtual, P2V).</p>
+<p>A Mac cannot be backed up as a system: the console refuses a system job for it, because its system volume is sealed and signed by Apple and is reinstalled rather than restored. Back up its data with a files job (see <a href="/docs/macos#limits">macOS agents</a>).</p>
 <p>Tested with Debian, Ubuntu 22.04 and Rocky Linux 9 (the same applies to AlmaLinux and RHEL 9). On Ubuntu 22.04 and RHEL-like 9 systems, Linux system backups need agent 0.50.0 or newer.</p>
 
 <h2>What is backed up</h2>

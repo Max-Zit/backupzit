@@ -3,9 +3,9 @@
 
 <h2>Um agente aparece offline</h2>
 <ul>
-  <li>A máquina está ligada e o serviço está rodando? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>A máquina está ligada e o serviço está rodando? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>; macOS: <code>sudo launchctl print system/com.backupzit.agent</code> (veja <a href="/docs/macos#troubleshooting">Agentes macOS</a>).</li>
   <li>A máquina alcança o console? <code>Test-NetConnection backup-server -Port 8443</code> ou <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Log do agente: <code>C:\ProgramData\backupzit\agent.log</code>, no Linux <code>/var/log/backupzit/agent.log</code> ou <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" significa que o certificado do console mudou — registre o agente de novo.</li>
+  <li>Log do agente: <code>C:\ProgramData\backupzit\agent.log</code>, no Linux <code>/var/log/backupzit/agent.log</code> ou <code>journalctl -u backupzit-agent</code>, no macOS <code>/Library/Logs/BackupZit/agent.log</code>. "fingerprint mismatch" significa que o certificado do console mudou — registre o agente de novo.</li>
 </ul>
 
 <h2>Um backup falhou</h2>
@@ -73,12 +73,14 @@
   <tr><td>A máquina Linux restaurada não tem rede</td><td>As configurações de rede estavam vinculadas ao endereço MAC antigo (netplan <code>match: macaddress</code>). Restaure com <i>Hardware diferente</i>, ou remova as linhas <code>match</code> em <code>/etc/netplan/</code>.</td></tr>
   <tr><td>O Windows restaurado para com INACCESSIBLE_BOOT_DEVICE</td><td>Restaure de novo com <i>Restaurar em hardware diferente</i>, ou dê boot pela ISO de recuperação e execute <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>Uma cópia restaurada de uma máquina aparece como o agente original</td><td>Um sistema Linux restaurado como nova VM tem o registro do agente cancelado automaticamente. Em outras cópias (uma VM restaurada como nova VM, recuperação instantânea, uma réplica, um disco clonado), o console retém as execuções do agente e mostra <i>duas máquinas</i>; registre a cópia como uma máquina nova (veja <a href="/docs/agents#duplicate">Duas máquinas a usar um agente</a>).</td></tr>
-  <tr><td>A atualização do agente não termina</td><td>Veja o log do instalador em <code>C:\ProgramData\backupzit\updates</code> ou <code>/var/lib/backupzit-agent/updates</code>; agentes anteriores à 0.21 precisam ser atualizados uma vez manualmente.</td></tr>
+  <tr><td>A atualização do agente não termina</td><td>Veja o log do instalador em <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> ou <code>/Library/Application Support/BackupZit/updates</code> (macOS); agentes anteriores à 0.21 precisam ser atualizados uma vez manualmente.</td></tr>
+  <tr><td>Mac: "Full Disk Access is not granted", arquivos lidos "without a snapshot", Acesso completo ao disco perdido após uma atualização</td><td>Veja <a href="/docs/macos#troubleshooting">Agentes macOS</a>: só o usuário do Mac pode conceder o Acesso completo ao disco, e um pacote não assinado o perde a cada atualização.</td></tr>
+  <tr><td>"… is a Mac: back it up with a files job"</td><td>Um Mac não pode ter backup como sistema; use uma tarefa de arquivos (<a href="/docs/macos#limits">Agentes macOS</a>).</td></tr>
   <tr><td>O ícone da bandeja sumiu</td><td>Clique na seta <b>^</b> ao lado do relógio e arraste o ícone do BackupZit para a barra de tarefas, ou inicie <i>BackupZit Agent</i> pelo menu Iniciar.</td></tr>
 </table>
 
 <h2>Um backup termina com "aviso"</h2>
-<p>Alguns arquivos não puderam ser lidos — geralmente arquivos bloqueados por um aplicativo enquanto o VSS não está disponível, ou arquivos para os quais o agente não tem permissão. A lista está na página da execução. Todo o resto foi copiado.</p>
+<p>Alguns arquivos não puderam ser lidos — geralmente arquivos bloqueados por um aplicativo enquanto o VSS não está disponível, ou arquivos para os quais o agente não tem permissão. A lista está na página da execução. Todo o resto foi copiado. Num Mac, a falta do Acesso completo ao disco também gera um aviso (<a href="/docs/macos#warnings">Agentes macOS</a>).</p>
 
 <h2>Os backups estão lentos</h2>
 <ul>
@@ -94,9 +96,10 @@
   <tr><td>Console (servidor)</td><td><code>journalctl -u backupzit-server</code> e o arquivo <code>/var/lib/backupzit/logs/server.log</code> (até 4 arquivos de 10 MB). As últimas linhas ficam em <a href="/settings/diagnostics">Configurações → Diagnóstico</a>.</td></tr>
   <tr><td>Agente no Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
   <tr><td>Agente no Linux</td><td><code>/var/log/backupzit/agent.log</code> e <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Agente no macOS</td><td><code>/Library/Logs/BackupZit/agent.log</code> (veja <a href="/docs/macos#logs">Agentes macOS</a>)</td></tr>
   <tr><td>Qualquer agente, pelo console</td><td><b>Obter log</b> na página <a href="/agents">Agentes</a>: o agente envia o fim do seu log e os logs de instalação mais recentes; leia ou baixe-os na página da execução (mantidos por 30 dias; agentes 0.38.0 ou mais novos).</td></tr>
   <tr><td>Um backup ou restauração</td><td>sua página em <a href="/runs">Atividade</a>: mensagem, erros, estatísticas e saída dos comandos antes e depois do backup</td></tr>
-  <tr><td>Atualizações de agentes</td><td>logs de instalação em <code>C:\ProgramData\backupzit\updates</code> (Windows) ou <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Obter log</b> os inclui</td></tr>
+  <tr><td>Atualizações de agentes</td><td>logs de instalação em <code>C:\ProgramData\backupzit\updates</code> (Windows), <code>/var/lib/backupzit-agent/updates</code> (Linux) ou <code>/Library/Application Support/BackupZit/updates</code> (macOS); <b>Obter log</b> os inclui</td></tr>
   <tr><td>Atualizações do console</td><td><code>journalctl -u backupzit-update</code>; a versão anterior e um dump do banco de dados ficam em <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Repositório protegido</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Quem alterou o quê</td><td>o <a href="/audit">log de auditoria</a>, que também pode ser enviado a um servidor syslog</td></tr>

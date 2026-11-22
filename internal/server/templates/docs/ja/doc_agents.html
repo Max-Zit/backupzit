@@ -7,6 +7,7 @@
   <li>Windows 10、11、Windows Server 2016 以降 — <b>Windows エージェント</b> MSI。</li>
   <li>Windows 7 SP1、Windows Server 2008 R2 SP1、2012 R2 — <b>Windows エージェント — 旧システム</b> MSI（<code>…-legacy.msi</code>）。VSS やディスク イメージを含め同じ機能を備えます。</li>
   <li>Debian、Ubuntu、AlmaLinux、Rocky Linux（64 ビット）。</li>
+  <li>Apple シリコン搭載で macOS 13 以降の Mac — <b>macOS エージェント</b> パッケージ（<code>…_darwin_arm64.pkg</code>）。ファイルとフォルダー用です（<a href="/docs/macos">macOS エージェント</a>を参照）。</li>
   <li>Proxmox VE 7、8 および 9 のノード — Debian パッケージ。エージェントはノードの VM とコンテナーもバックアップします（<a href="/docs/proxmox">Proxmox VE</a> を参照）。</li>
   <li>Hyper-V ホスト（Windows Server 2016 以降、Hyper-V を有効にした Windows 10/11）: Windows MSI。エージェントはホストの VM もバックアップします（<a href="/docs/hyperv">Hyper-V</a> を参照）。</li>
   <li>VMware ESXi ホスト — ESXi には何もインストールしません。<a href="/agents#vmware">VMware ESXi ホスト</a>でホストを追加し、プロキシとなるエージェントを選びます（<a href="/docs/vmware">VMware ESXi</a> を参照）。</li>
@@ -15,7 +16,7 @@
 <h2>エージェントの登録</h2>
 <ol>
   <li><a href="/agents">エージェント</a>ページで<b>登録トークンを作成</b>をクリックします。コンソールに<b>登録コード</b>（<code>BZ1-…</code>）が表示されます。有効期間は 7 日で、何台のマシンにも使えます。エージェント用のコンソール アドレス（ページを Web ポート 443 で開いていても、エージェント用ポート、通常は 8443）、トークン、証明書のフィンガープリントが含まれます。0.33.6 以降のエージェントは、古いコンソールが Web ポートで作成したコードでも登録できます。</li>
-  <li>Windows: MSI を実行し、インストーラーが求めたらコードを貼り付けます。Linux: 表示されたコマンドを実行します。</li>
+  <li>Windows: MSI を実行し、インストーラーが求めたらコードを貼り付けます。Linux: 表示されたコマンドを実行します。macOS: パッケージをインストールし、表示されたコマンドをターミナルで実行します（<a href="/docs/macos#enroll">macOS エージェント</a>を参照）。</li>
   <li>1 分以内にマシンがエージェント一覧に表示されます。</li>
 </ol>
 <p>インストール中にコンソールに接続できない場合、エージェントはコードを保持し、登録できるまで再試行します。アップグレードでは登録が保持され、再度尋ねられることはありません。登録済みのマシンで <code>ENROLLCODE</code> を指定してサイレント インストールすると、コードが同じコンソールのものなら登録を保持し（GPO や RMM で安全に繰り返せます）、別のコンソールのものならマシンを移行します。以前の登録は <code>agent.json</code> の隣に <code>agent.json.replaced-<i>日付</i></code> として保存されるため、名前を元に戻せばマシンは同じエージェントとして元のコンソールに戻ります。</p>
@@ -26,6 +27,9 @@
 <pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
+<h3 id="macos">macOS</h3>
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
+<p><code>.pkg</code> をインストールした後に実行します。MDM の場合は、代わりにパッケージをインストールする前にコードを <code>/Library/Application Support/BackupZit/enroll-code</code> に書き込みます。その後、フルディスクアクセスを Mac のユーザーが許可する必要があります。<a href="/docs/macos">macOS エージェント</a>を参照してください。</p>
 
 <h2>コンソールからのエージェントのインストール</h2>
 <p>インストーラーを各マシンにコピーする代わりに、コンソールにエージェントをインストールさせることができます。<a href="/agents">エージェント</a>で<b>ここからマシンにインストール</b>を開き、Linux または Windows を選んで、マシンのアドレスと管理者アカウントを入力します。</p>
@@ -33,6 +37,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>Linux</b>（Debian、Ubuntu、AlmaLinux、Rocky Linux、64 ビット）: コンソールは <b>SSH</b> で root として、または <code>sudo</code> 権限を持つユーザーとして接続します（パスワードは sudo にも使われます。キーを使う場合はパスワードなしの sudo が必要です）。パスワードでも秘密キーでも構いません。コンソールが正しいマシンと通信していることを確かめるため、マシンの <b>SSH ホスト キーのフィンガープリント</b>（マシン上で <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>）を入力してください。入力しない場合、フィンガープリントはインストール ログに表示されます。</li>
   <li><b>Windows</b>（64 ビット）: コンソールは <b>WinRM</b>（ポート 5985、メッセージは NTLM で暗号化。HTTPS リスナーは 5986）でローカル管理者またはドメイン管理者として接続します。WinRM は Windows Server では既定で有効です。Windows 10/11 では管理者として一度 <code>winrm quickconfig</code> を実行してください。組み込みの Administrator 以外のローカル アカウントにはリモート管理権限（<code>LocalAccountTokenFilterPolicy</code>）が必要です。またはドメイン アカウントを使ってください。旧システム（Windows 7、Server 2008 R2/2012 R2）には legacy MSI が使われます。</li>
 </ul>
+<p>Mac はここからはインストールしません: <code>.pkg</code> を手動または MDM で配布してください（<a href="/docs/macos#enroll">macOS エージェント</a>）。</p>
 <p>マシンは、このインストール専用のリンク（30 分、3 回までダウンロード可）でコンソールから最新のエージェント パッケージをダウンロードし、SHA-256 チェックサムを確認してインストールし、登録します。インストール ページには各手順が表示されます。アカウントとパスワードはこの目的にのみ使われ、保存されません。マシンがすでにこのコンソールに登録されている場合は登録を保持してパッケージを更新し、コンソールが知らない登録（以前に削除したエージェントや別のコンソール）は置き換えます。すべてのインストールは監査ログに記録されます。マシンは、他のエージェントと同様にコンソールのエージェント用アドレスに到達できる必要があります。</p>
 
 <h2>エージェントの状態</h2>
@@ -61,6 +66,7 @@ systemctl enable --now backupzit-agent</pre>
   <tr><td>灰色</td><td>コンソールに接続できないか、エージェント サービスが実行されていません。</td></tr>
 </table>
 <p>アイコンをクリックする（またはスタート メニューから <b>BackupZit Agent</b> を開く）と状態ウィンドウが表示されます: 保護状態、実行中のバックアップの進行状況、前回と次回のバックアップ、そして<b>今すぐバックアップ</b>付きのコンピューターのすべてのバックアップ ジョブ。右クリックでメニューが開きます: ジョブごとの <i>Back up now</i>、<i>Open console in browser</i>、<i>Hide this icon</i>（次回のサインインまで。バックアップは続行されます）。このウィンドウには Windows 10 と 11 に含まれる Microsoft Edge WebView2 が必要です。旧システムではアイコンとメニューが動作し、<i>Open</i> でブラウザーにコンソールが表示されます。</p>
+<p>Mac ではメニュー バー アプリが同じことを行い、さらに macOS がユーザーに求めるアクセス権も確認します（<a href="/docs/macos#assistant">macOS エージェント</a>を参照）。</p>
 <p>ユーザーはこうして自分のコンピューターのバックアップを開始できます。ジョブ、スケジュール、保持期間はコンソールでのみ設定します。どのシステムでも、<code>backupzit-agent status</code>（管理者または root として）で同じ情報が表示されます。</p>
 
 <h2 id="parallel">複数のジョブを同時に</h2>
@@ -70,10 +76,10 @@ systemctl enable --now backupzit-agent</pre>
 <p>エージェントが実行しているものより新しいエージェント インストーラーがコンソールにある場合、エージェント ページではそのバージョンの横に<b>更新: x.y.z</b>、一覧の下に<b>すべてのエージェントを更新</b>が表示されます。エージェントはその後:</p>
 <ol>
   <li>アイドルになるまで待ちます（実行中のバックアップが中断されることはありません）。</li>
-  <li>固定された接続でコンソールから対応するインストーラーをダウンロードし（Windows 10/11/2016+ には MSI、Windows 7/2008 R2/2012 R2 には<i>旧システム</i>の MSI、Linux では deb または rpm パッケージ）、検証します。0.56 以降、インストーラーは BackupZit のリリース キーで署名されたエージェント インストーラーの一覧に含まれている必要があり、エージェントはこの一覧を組み込みのキーで検証するため、コンソール上で改ざんされたインストーラーは拒否されます。</li>
+  <li>固定された接続でコンソールから対応するインストーラーをダウンロードし（Windows 10/11/2016+ には MSI、Windows 7/2008 R2/2012 R2 には<i>旧システム</i>の MSI、Linux では deb または rpm パッケージ、Mac では <code>.pkg</code>）、検証します。0.56 以降、インストーラーは BackupZit のリリース キーで署名されたエージェント インストーラーの一覧に含まれている必要があり、エージェントはこの一覧を組み込みのキーで検証するため、コンソール上で改ざんされたインストーラーは拒否されます。</li>
   <li>インストールして再起動します。数分以内に新しいバージョンが一覧に表示されます。登録とすべての設定は保持されます。</li>
 </ol>
-<p>コンソールは <code>dist</code> ディレクトリにある最新のインストーラーを提供します。サーバー パッケージには同じバージョンのエージェント インストーラーが同梱されています。<a href="/settings/updates">設定 → 更新</a>からコンソールを更新すると、エージェントは自動的に更新されます（そこで無効にできます）。コンソールからの更新はバージョン 0.21 以降のエージェントで動作します。それより古いエージェントは、新しい MSI / パッケージを古いものの上にインストールして一度更新します（登録は保持されます）。エージェント 0.56 以降は、0.56 以降のコンソール（そのパッケージに署名済みの一覧が含まれます）からのみ更新を受け入れ、自身より古いバージョンには決して更新しません。インストーラーのログは <code>C:\ProgramData\backupzit\updates</code> または <code>/var/lib/backupzit-agent/updates</code> にあります。</p>
+<p>コンソールは <code>dist</code> ディレクトリにある最新のインストーラーを提供します。サーバー パッケージには同じバージョンのエージェント インストーラーが同梱されています。<a href="/settings/updates">設定 → 更新</a>からコンソールを更新すると、エージェントは自動的に更新されます（そこで無効にできます）。コンソールからの更新はバージョン 0.21 以降のエージェントで動作します。それより古いエージェントは、新しい MSI / パッケージを古いものの上にインストールして一度更新します（登録は保持されます）。エージェント 0.56 以降は、0.56 以降のコンソール（そのパッケージに署名済みの一覧が含まれます）からのみ更新を受け入れ、自身より古いバージョンには決して更新しません。インストーラーのログは <code>C:\ProgramData\backupzit\updates</code>、<code>/var/lib/backupzit-agent/updates</code>、または Mac では <code>/Library/Application Support/BackupZit/updates</code> にあります。パッケージが Apple Developer ID で署名されていない Mac では、エージェントの更新でフルディスクアクセスが失われます（<a href="/docs/macos#unsigned">macOS エージェント</a>を参照）。</p>
 
 <h2>エージェントの削除</h2>
 <p>エージェント ページの<b>削除</b>を押すと、2 つの選択肢があるページが開きます。<a href="/docs/users">4 つの目による承認</a>が有効な場合は、先に別のユーザーの承認が必要です。</p><ul><li><b>コンピューターからエージェントをアンインストール</b>（バージョン 0.42.7 以降のオンラインのエージェント）: エージェントが報告し、自身をアンインストールしてから、ジョブとともにコンソールから削除されます。オフラインのエージェントはコンソールからのみ削除されます。コンピューターでアンインストールしてください（下記参照）。</li><li><b>そのバックアップ:</b> <i>すべて保持</i>（既定。ストレージに残り、引き続き復元できます）、<i>各ジョブの最新のバックアップだけを保持</i>（各バックアップは完全なので、最新のものでその日時点のすべてを復元できます）、<i>すべて削除</i>のいずれかです。削除にはコンピューター名の入力が必要です。コンソールはバックグラウンドで削除し、結果を<a href="/audit">監査ログ</a>に記録します。変更不可ストレージはロックの期限までロックされたデータを保持します。コンピューター自体のディスク上のバックアップとコピー ジョブのコピーは削除されません。他のシステム（Proxmox、VMware、Hyper-V、Microsoft 365、NAS）をバックアップしているエージェントは、それらのバックアップも一緒に削除します。</li></ul>
@@ -98,6 +104,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code>（SYSTEM と Administrators のみアクセス可）。</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code>（root のみ）。</li>
+  <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code>（root のみ）。</li>
 </ul>
 <p>このファイルにはエージェントのシークレットが含まれます。読み取れる人は誰でもそのエージェントになりすませるため、これらのアクセス許可を維持してください。</p>
 
@@ -105,13 +112,14 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
   <li>Linux: <code>/var/log/backupzit/agent.log</code> と <code>journalctl -u backupzit-agent</code></li>
+  <li>macOS: <code>/Library/Logs/BackupZit/agent.log</code></li>
   <li>復旧システムでは画面にログが表示されます。</li>
   <li>ログは 10 MB のファイルを最大 4 つ保持します（<code>agent.log</code> と <code>agent.log.1</code>～<code>.3</code>）。それより古い記録は削除されます。</li>
   <li>エージェント ページの <b>ログを取得</b> で、ログの末尾をコンソールに取り込めます — <a href="/docs/troubleshooting#logs">ログ</a> を参照してください。</li>
 </ul>
 
 <h2>アンインストール</h2>
-<p>Windows: <i>設定 → アプリ → BackupZit Agent → アンインストール</i>（または <code>msiexec /x</code>）。Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>。その後、コンソールでエージェントを削除します。バックアップはストレージに残ります。</p>
+<p>Windows: <i>設定 → アプリ → BackupZit Agent → アンインストール</i>（または <code>msiexec /x</code>）。Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>。macOS: <code>sudo /Library/BackupZit/uninstall.sh</code>（<a href="/docs/macos#update">macOS エージェント</a>を参照）。その後、コンソールでエージェントを削除します。バックアップはストレージに残ります。</p>
 <p>Windows ではアンインストール時に登録が退避される（<code>C:\ProgramData\backupzit\agent.json.removed-<i>日付</i></code>）ため、エージェントを再インストールすると登録コードを求められます。インストーラーが以前のバージョンの登録を見つけた場合はその旨を表示します。保持するにはコードを空のままにし、コンピューターを再登録する（たとえば別のコンソールに）には新しいコードを貼り付けます。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

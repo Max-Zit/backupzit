@@ -7,6 +7,7 @@
   <li>Windows 10, 11 ve Windows Server 2016 ve sonrası — <b>Windows aracısı</b> MSI.</li>
   <li>Windows 7 SP1, Windows Server 2008 R2 SP1 ve 2012 R2 — <b>Windows aracısı — eski sistemler</b> MSI (<code>…-legacy.msi</code>), VSS ve disk görüntüleri dahil aynı özelliklerle.</li>
   <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64 bit).</li>
+  <li>Apple silicon'lu Mac'ler, macOS 13 ve sonrası — <b>macOS aracısı</b> paketi (<code>…_darwin_arm64.pkg</code>), dosya ve klasörler için (bkz. <a href="/docs/macos">macOS aracıları</a>).</li>
   <li>Proxmox VE 7, 8 ve 9 düğümleri — Debian paketi; aracı bu durumda düğümün VM'lerini ve kapsayıcılarını da yedekler (bkz. <a href="/docs/proxmox">Proxmox VE</a>).</li>
   <li>Hyper-V ana bilgisayarları (Windows Server 2016 ve sonrası, Hyper-V'li Windows 10/11): Windows MSI. Aracı bu durumda ana bilgisayarın VM'lerini de yedekler (bkz. <a href="/docs/hyperv">Hyper-V</a>).</li>
   <li>VMware ESXi ana bilgisayarları — ESXi'ye hiçbir şey kurulmaz: ana bilgisayarı <a href="/agents#vmware">VMware ESXi ana bilgisayarları</a> altında ekleyin ve proxy olarak bir aracı seçin (bkz. <a href="/docs/vmware">VMware ESXi</a>).</li>
@@ -15,7 +16,7 @@
 <h2>Aracıları kaydetme</h2>
 <ol>
   <li><a href="/agents">Aracılar</a> sayfasında <b>Kayıt belirteci oluştur</b>'a tıklayın. Konsol 7 gün geçerli ve istenen sayıda makinede kullanılabilen bir <b>kayıt kodu</b> (<code>BZ1-…</code>) gösterir. Kod, aracılar için konsol adresini (sayfa web bağlantı noktası 443'te açık olsa bile aracı bağlantı noktasıyla, genellikle 8443), belirteci ve sertifika parmak izini içerir. 0.33.6'dan itibaren aracılar, eski konsolların web bağlantı noktasında oluşturduğu kodlarla da kaydolur.</li>
-  <li>Windows: MSI'yi çalıştırın ve yükleyici istediğinde kodu yapıştırın. Linux: gösterilen komutu çalıştırın.</li>
+  <li>Windows: MSI'yi çalıştırın ve yükleyici istediğinde kodu yapıştırın. Linux: gösterilen komutu çalıştırın. macOS: paketi kurun, ardından gösterilen komutu Terminal'de çalıştırın (bkz. <a href="/docs/macos#enroll">macOS aracıları</a>).</li>
   <li>Makine bir dakika içinde aracı listesinde görünür.</li>
 </ol>
 <p>Kurulum sırasında konsola ulaşılamazsa aracı kodu saklar ve kaydolabilene kadar yeniden dener. Yükseltmeler kaydı korur ve yeniden sormaz. Zaten kayıtlı bir makinede <code>ENROLLCODE</code> ile sessiz kurulum, kod aynı konsol içinse kaydı korur (GPO veya RMM bunu güvenle tekrarlayabilir), kod başka bir konsol içinse makineyi taşır; önceki kayıt <code>agent.json</code> yanında <code>agent.json.replaced-<i>tarih</i></code> olarak saklanır, böylece adını geri değiştirmek makineyi aynı aracı olarak eski konsoluna döndürür.</p>
@@ -26,6 +27,9 @@
 <pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
+<h3 id="macos">macOS</h3>
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
+<p>Bunu <code>.pkg</code>'yi kurduktan sonra çalıştırın. Bir MDM bunun yerine paketi kurmadan önce kodu <code>/Library/Application Support/BackupZit/enroll-code</code> dosyasına yazar. Ardından Tam Disk Erişimi'ni Mac'in kullanıcısı vermelidir; bkz. <a href="/docs/macos">macOS aracıları</a>.</p>
 
 <h2>Aracıları konsoldan kurma</h2>
 <p>Yükleyicileri her makineye kopyalamak yerine aracıyı konsola kurdurun: <a href="/agents">Aracılar</a> sayfasında <b>Buradan bir makineye kur</b>'u açın, Linux veya Windows'u seçin ve makinenin adresini ve bir yönetici hesabını girin.</p>
@@ -33,6 +37,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64 bit): konsol <b>SSH</b> üzerinden root olarak veya <code>sudo</code> haklarına sahip bir kullanıcı olarak bağlanır (parola sudo için de kullanılır; anahtarla parolasız sudo gerekir). Parola veya özel anahtar çalışır. Konsolun doğru makineyle konuştuğundan emin olmak için makinenin <b>SSH ana bilgisayar anahtarı parmak izini</b> girin (makinede <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>); girilmezse parmak izi kurulum günlüğünde gösterilir.</li>
   <li><b>Windows</b> (64 bit): konsol <b>WinRM</b> üzerinden (bağlantı noktası 5985, iletiler NTLM ile şifreli; HTTPS dinleyicisi için 5986) yerel veya etki alanı yöneticisi olarak bağlanır. WinRM, Windows Server'da varsayılan olarak açıktır; Windows 10/11'de bir kez yönetici olarak <code>winrm quickconfig</code> çalıştırın. Yerleşik Administrator dışındaki yerel hesaplar uzaktan yönetici haklarına (<code>LocalAccountTokenFilterPolicy</code>) ihtiyaç duyar — ya da bir etki alanı hesabı kullanın. Eski sistemler (Windows 7, Server 2008 R2/2012 R2) eski MSI'yi alır.</li>
 </ul>
+<p>Mac'ler buradan kurulmaz: <code>.pkg</code>'yi elle veya bir MDM ile dağıtın (<a href="/docs/macos#enroll">macOS aracıları</a>).</p>
 <p>Makine en yeni aracı paketini konsoldan yalnızca bu kurulum için geçerli bir bağlantıyla (30 dakika, üç indirme) indirir, SHA-256 sağlama toplamını denetler, kurar ve kaydolur. Kurulum sayfası her adımı gösterir; hesap ve parola yalnızca bunun için kullanılır ve saklanmaz. Makine bu konsola zaten kayıtlıysa kayıt korunur ve paket güncellenir; konsolun tanımadığı bir kayıt (daha önce kaldırılmış bir aracı veya başka bir konsol) değiştirilir. Her kurulum denetim günlüğündedir. Makine, her aracı gibi konsolun aracı adresine ulaşabilmelidir.</p>
 
 <h2>Aracı durumu</h2>
@@ -61,6 +66,7 @@ systemctl enable --now backupzit-agent</pre>
   <tr><td>gri</td><td>Konsola ulaşılamıyor veya aracı hizmeti çalışmıyor.</td></tr>
 </table>
 <p>Durum penceresi için simgeye tıklayın (veya Başlat menüsünden <b>BackupZit Agent</b>'ı açın): koruma durumu, çalışan bir yedeğin ilerlemesi, son ve sonraki yedek ve bilgisayarın tüm yedekleme işleri <b>Şimdi yedekle</b> ile. Sağ tıklama menüyü açar: iş başına <i>Back up now</i>, <i>Open console in browser</i>, <i>Hide this icon</i> (bir sonraki oturum açmaya kadar; yedekler sürer). Pencere, Windows 10 ve 11'in parçası olan Microsoft Edge WebView2'ye ihtiyaç duyar; eski sistemlerde simge ve menü çalışır ve <i>Open</i> konsolu tarayıcıda gösterir.</p>
+<p>Bir Mac'te menü çubuğu uygulaması aynısını yapar ve macOS'un kullanıcıdan istediği izinleri de denetler (bkz. <a href="/docs/macos#assistant">macOS aracıları</a>).</p>
 <p>Kullanıcılar böylece bilgisayarlarının yedeğini başlatabilir; işler, zamanlamalar ve saklama yalnızca konsolda ayarlanır. Her sistemde <code>backupzit-agent status</code> (yönetici veya root olarak) aynı bilgileri yazdırır.</p>
 
 <h2 id="parallel">Aynı anda birden çok iş</h2>
@@ -70,10 +76,10 @@ systemctl enable --now backupzit-agent</pre>
 <p>Konsolda bir aracının çalıştırdığından daha yeni bir aracı yükleyicisi varsa, Aracılar sayfası sürümünün yanında <b>Şuna güncelle: x.y.z</b> ve listenin altında <b>Tüm aracıları güncelle</b> gösterir. Aracı bu durumda:</p>
 <ol>
   <li>boşta kalana kadar bekler (çalışan bir yedek asla kesilmez),</li>
-  <li>uygun yükleyiciyi sabitlenmiş bağlantısı üzerinden konsoldan indirir — Windows 10/11/2016+ için MSI, Windows 7/2008 R2/2012 R2 için <i>eski sistemler</i> MSI'si, Linux'ta deb veya rpm paketi — ve onu denetler: 0.56'dan itibaren yükleyicinin, BackupZit sürüm anahtarıyla imzalanmış aracı yükleyicileri listesinde bulunması gerekir; aracı bu listeyi içine gömülü anahtarla denetler, bu yüzden konsolda değiştirilmiş bir yükleyici reddedilir,</li>
+  <li>uygun yükleyiciyi sabitlenmiş bağlantısı üzerinden konsoldan indirir — Windows 10/11/2016+ için MSI, Windows 7/2008 R2/2012 R2 için <i>eski sistemler</i> MSI'si, Linux'ta deb veya rpm paketi, bir Mac'te <code>.pkg</code> — ve onu denetler: 0.56'dan itibaren yükleyicinin, BackupZit sürüm anahtarıyla imzalanmış aracı yükleyicileri listesinde bulunması gerekir; aracı bu listeyi içine gömülü anahtarla denetler, bu yüzden konsolda değiştirilmiş bir yükleyici reddedilir,</li>
   <li>kurar ve yeniden başlar; yeni sürüm birkaç dakika içinde listede görünür. Kayıt ve tüm ayarlar korunur.</li>
 </ol>
-<p>Konsol, <code>dist</code> dizinindeki en yeni yükleyicileri sunar; sunucu paketi kendi sürümünün aracı yükleyicilerini içerir. Konsol <a href="/settings/updates">Ayarlar → Güncellemeler</a> üzerinden güncellendikten sonra aracılar otomatik olarak güncellenir (orada kapatılabilir). Konsoldan güncellemeler 0.21 ve sonraki sürüm aracılar için çalışır; daha eski aracılar, yeni MSI / paket eskisinin üzerine kurularak bir kez güncellenir (kayıt korunur). 0.56 ve sonraki aracılar bir güncellemeyi yalnızca 0.56 veya sonraki bir konsoldan kabul eder (onun paketi imzalı listeyi içerir) ve asla kendi sürümlerinden eski bir sürüme güncellenmez. Yükleyici günlüğü <code>C:\ProgramData\backupzit\updates</code> veya <code>/var/lib/backupzit-agent/updates</code> içindedir.</p>
+<p>Konsol, <code>dist</code> dizinindeki en yeni yükleyicileri sunar; sunucu paketi kendi sürümünün aracı yükleyicilerini içerir. Konsol <a href="/settings/updates">Ayarlar → Güncellemeler</a> üzerinden güncellendikten sonra aracılar otomatik olarak güncellenir (orada kapatılabilir). Konsoldan güncellemeler 0.21 ve sonraki sürüm aracılar için çalışır; daha eski aracılar, yeni MSI / paket eskisinin üzerine kurularak bir kez güncellenir (kayıt korunur). 0.56 ve sonraki aracılar bir güncellemeyi yalnızca 0.56 veya sonraki bir konsoldan kabul eder (onun paketi imzalı listeyi içerir) ve asla kendi sürümlerinden eski bir sürüme güncellenmez. Yükleyici günlüğü <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> veya bir Mac'te <code>/Library/Application Support/BackupZit/updates</code> içindedir. Paketi Apple Developer ID ile imzalanmamış bir Mac'te aracı güncellemesi, Tam Disk Erişimi'ni elinden alır (bkz. <a href="/docs/macos#unsigned">macOS aracıları</a>).</p>
 
 <h2>Bir aracıyı kaldırma</h2>
 <p>Aracılar sayfasındaki <b>Kaldır</b>, iki seçenekli bir sayfa açar; <a href="/docs/users">dört göz onayı</a> açıksa önce ikinci bir kullanıcının onaylaması gerekir.</p><ul><li><b>Aracıyı bilgisayardan kaldır</b> (0.42.7 sürümünden itibaren çevrimiçi aracılar): aracı bildirir, kendini kaldırır ve ardından işleriyle birlikte konsoldan kaldırılır. Çevrimdışı bir aracı yalnızca konsoldan kaldırılır — bilgisayarda kaldırın (aşağıya bakın).</li><li><b>Yedekleri:</b> <i>tümünü sakla</i> (varsayılan — depolamada kalırlar ve hâlâ geri yüklenebilirler), <i>her işin yalnızca en yeni yedeğini sakla</i> (her yedek eksiksizdir, bu yüzden en yenisi her şeyi kendi tarihindeki haliyle geri yükler) veya <i>tümünü sil</i>. Silmek için bilgisayarın adını yazmak gerekir; konsol arka planda siler ve sonucu <a href="/audit">denetim günlüğüne</a> yazar. Değiştirilemez depolama kilitli verileri kilit süresi dolana kadar saklar; bilgisayarın kendi diskindeki yedekler ve kopyalama işlerinin kopyaları silinmez. Başka sistemleri yedekleyen bir aracı (Proxmox, VMware, Hyper-V, Microsoft 365, NAS) onların yedeklerini de götürür.</li></ul>
@@ -98,6 +104,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (yalnızca SYSTEM ve Administrators erişebilir).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (yalnızca root).</li>
+  <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (yalnızca root).</li>
 </ul>
 <p>Dosya aracının gizli bilgisini içerir. Onu okuyabilen herkes o aracı gibi davranabilir; bu nedenle bu izinleri koruyun.</p>
 
@@ -105,13 +112,14 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
   <li>Linux: <code>/var/log/backupzit/agent.log</code> ve <code>journalctl -u backupzit-agent</code></li>
+  <li>macOS: <code>/Library/Logs/BackupZit/agent.log</code></li>
   <li>Kurtarma sistemleri günlüğü ekranlarında gösterir.</li>
   <li>Günlük en fazla 4 adet 10 MB dosya tutar (<code>agent.log</code> ve <code>agent.log.1</code> ile <code>.3</code> arası); daha eski kayıtlar silinir.</li>
   <li>Ajanlar sayfasındaki <b>Günlüğü al</b>, günlüğün sonunu konsola getirir — bkz. <a href="/docs/troubleshooting#logs">Günlükler</a>.</li>
 </ul>
 
 <h2>Kaldırma</h2>
-<p>Windows: <i>Ayarlar → Uygulamalar → BackupZit Agent → Kaldır</i> (veya <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Ardından aracıyı konsoldan kaldırın. Yedekler depolamada kalır.</p>
+<p>Windows: <i>Ayarlar → Uygulamalar → BackupZit Agent → Kaldır</i> (veya <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. macOS: <code>sudo /Library/BackupZit/uninstall.sh</code> (bkz. <a href="/docs/macos#update">macOS aracıları</a>). Ardından aracıyı konsoldan kaldırın. Yedekler depolamada kalır.</p>
 <p>Windows'ta kaldırma işlemi kaydı bir kenara koyar (<code>C:\ProgramData\backupzit\agent.json.removed-<i>tarih</i></code>), bu yüzden aracıyı yeniden kurmak bir kayıt kodu ister. Yükleyici önceki bir sürümün kaydını bulursa bunu söyler: korumak için kodu boş bırakın veya bilgisayarı yeniden kaydetmek için yeni bir kod yapıştırın (örneğin başka bir konsolla).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

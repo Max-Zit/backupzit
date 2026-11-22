@@ -112,8 +112,8 @@
   <tr><th>Opdracht</th><th>Wat het doet</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Verbindt de agent met een console met de registratiecode van de pagina Agents (<code>--force</code> vervangt een bestaande registratie). De oudere vorm <code>--server URL --token T --fingerprint F</code> werkt nog steeds.</td></tr>
   <tr><td><code>set-server https://address:8443</code></td><td>Wijst een geregistreerde agent naar een nieuw adres van de console (zelfde certificaat); start daarna de agentservice opnieuw. Zie <a href="/docs/agents#new-address">Agents</a>.</td></tr>
-  <tr><td><code>status</code></td><td>Toont wat de draaiende agent doet en zijn back-uptaken (het Windows-systeemvakpictogram toont hetzelfde).</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Beheert de agentservice (de installatieprogramma's doen dit).</td></tr>
+  <tr><td><code>status</code></td><td>Toont wat de draaiende agent doet en zijn back-uptaken (het Windows-systeemvakpictogram toont hetzelfde). Op een Mac toont het ook <code>full disk access: granted</code> of <code>denied</code>, ook voor een gewone gebruiker.</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Beheert de agentservice (de installatieprogramma's doen dit). Op een Mac is de service de LaunchDaemon <code>/Library/LaunchDaemons/com.backupzit.agent.plist</code> en het programma <code>/Library/BackupZit/bin/backupzit-agent</code>, dat niet in het <code>PATH</code> staat; zie <a href="/docs/macos">macOS-agents</a>.</td></tr>
   <tr><td><code>recovery</code></td><td>Herstelmodus, automatisch gestart door de herstel-ISO's; op elk live Linux-systeem: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Toont de versie.</td></tr>
   <tr><td><code>forget</code></td><td>Zet de registratie opzij (hernoemd, niet verwijderd); de verwijderprogramma's voeren het uit, zodat een nieuwe installatie opnieuw om een registratiecode vraagt.</td></tr>

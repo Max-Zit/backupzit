@@ -43,7 +43,7 @@
   <li>Lassen Sie <b>Wiederhergestellte Dateien prüfen</b> eingeschaltet: Jede Datei wird zurückgelesen und mit der Prüfsumme in der Sicherung verglichen.</li>
   <li>Klicken Sie auf <b>Wiederherstellung starten</b>. Fortschritt und Ergebnisse erscheinen auf der Seite des Wiederherstellungslaufs.</li>
 </ol>
-<p>Dateizeiten, Windows-Attribute (versteckt, schreibgeschützt, …) und unter Linux Besitzer, Berechtigungen (einschließlich setuid-Bits), ACLs, erweiterte Attribute (SELinux-Labels, Datei-Capabilities), symbolische und harte Links werden ebenfalls wiederhergestellt. Besitzer werden nur gesetzt, wenn der Agent als root/Administrator läuft.</p>
+<p>Dateizeiten, Windows-Attribute (versteckt, schreibgeschützt, …) und unter Linux Besitzer, Berechtigungen (einschließlich setuid-Bits), ACLs, erweiterte Attribute (SELinux-Labels, Datei-Capabilities), symbolische und harte Links werden ebenfalls wiederhergestellt. Unter macOS außerdem die BSD-Datei-Flags (versteckt, geschützt…), die Erstellungszeit und die erweiterten Attribute (siehe <a href="/docs/macos#metadata">macOS-Agenten</a>). Besitzer werden nur gesetzt, wenn der Agent als root/Administrator läuft.</p>
 
 <h3 id="browse-files">Dateien durchsuchen, herunterladen und auswählen</h3>
 <p>Beim Sicherungslauf zeigt <b>Dateien durchsuchen</b> die gesicherten Ordner so, wie sie waren (auch bei NAS-Freigaben und Linux-Systemsicherungen). Öffnen Sie Ordner, haken Sie Dateien und Ordner an und dann:</p>

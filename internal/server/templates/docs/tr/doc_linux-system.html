@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Linux sistem yedeği ve P2V</h1>
 <p class="lead"><b>Linux sistemi</b> işi, bir Linux makinesinin tamamını yedekler; böylece boş bir diskte yeniden oluşturulabilir — disk arızasından sonra aynı makine, yeni donanım veya Proxmox VE'de bir sanal makine (fizikselden sanala, P2V).</p>
+<p>Bir Mac sistem olarak yedeklenemez: konsol onun için bir sistem işini reddeder, çünkü sistem birimi Apple tarafından mühürlenmiş ve imzalanmıştır ve geri yüklenmek yerine yeniden kurulur. Verilerini bir dosya işiyle yedekleyin (bkz. <a href="/docs/macos#limits">macOS aracıları</a>).</p>
 <p>Debian, Ubuntu 22.04 ve Rocky Linux 9 ile test edildi (aynısı AlmaLinux ve RHEL 9 için de geçerlidir). Ubuntu 22.04 ve RHEL benzeri 9 sistemlerde Linux sistem yedekleri için 0.50.0 veya daha yeni bir ajan gerekir.</p>
 
 <h2>Neler yedeklenir</h2>

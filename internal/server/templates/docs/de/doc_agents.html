@@ -7,6 +7,7 @@
   <li>Windows 10, 11 und Windows Server 2016 und neuer — MSI <b>Windows-Agent</b>.</li>
   <li>Windows 7 SP1, Windows Server 2008 R2 SP1 und 2012 R2 — MSI <b>Windows-Agent — ältere Systeme</b> (<code>…-legacy.msi</code>), mit denselben Funktionen einschließlich VSS und Festplattenabbildern.</li>
   <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64 Bit).</li>
+  <li>Macs mit Apple Silicon, macOS 13 und neuer — Paket <b>macOS-Agent</b> (<code>…_darwin_arm64.pkg</code>), für Dateien und Ordner (siehe <a href="/docs/macos">macOS-Agenten</a>).</li>
   <li>Proxmox-VE-7-, -8- und -9-Knoten — das Debian-Paket; der Agent sichert dann auch die VMs und Container des Knotens (siehe <a href="/docs/proxmox">Proxmox VE</a>).</li>
   <li>Hyper-V-Hosts (Windows Server 2016 und neuer, Windows 10/11 mit Hyper-V): das Windows-MSI. Der Agent sichert dann auch die VMs des Hosts (siehe <a href="/docs/hyperv">Hyper-V</a>).</li>
   <li>VMware-ESXi-Hosts — auf ESXi wird nichts installiert: Fügen Sie den Host unter <a href="/agents#vmware">VMware-ESXi-Hosts</a> hinzu und wählen Sie einen Agenten als Proxy (siehe <a href="/docs/vmware">VMware ESXi</a>).</li>
@@ -15,7 +16,7 @@
 <h2>Agenten registrieren</h2>
 <ol>
   <li>Klicken Sie auf der Seite <a href="/agents">Agenten</a> auf <b>Registrierungstoken erstellen</b>. Die Konsole zeigt einen <b>Registrierungscode</b> (<code>BZ1-…</code>), 7 Tage gültig und für beliebig viele Rechner nutzbar. Er enthält die Konsolenadresse für Agenten (mit dem Agenten-Port, meist 8443, auch wenn die Seite über den Web-Port 443 geöffnet ist), das Token und den Zertifikat-Fingerabdruck. Agenten ab 0.33.6 registrieren sich auch mit Codes, die ältere Konsolen auf dem Web-Port erstellt haben.</li>
-  <li>Windows: Führen Sie das MSI aus und fügen Sie den Code ein, wenn das Installationsprogramm danach fragt. Linux: Führen Sie den angezeigten Befehl aus.</li>
+  <li>Windows: Führen Sie das MSI aus und fügen Sie den Code ein, wenn das Installationsprogramm danach fragt. Linux: Führen Sie den angezeigten Befehl aus. macOS: Installieren Sie das Paket und führen Sie dann den angezeigten Befehl im Terminal aus (siehe <a href="/docs/macos#enroll">macOS-Agenten</a>).</li>
   <li>Der Rechner erscheint innerhalb einer Minute in der Agentenliste.</li>
 </ol>
 <p>Ist die Konsole während der Installation nicht erreichbar, behält der Agent den Code und versucht es erneut, bis er sich registrieren kann. Upgrades behalten die Registrierung und fragen nicht erneut. Eine stille Installation mit <code>ENROLLCODE</code> auf einem bereits registrierten Rechner behält die Registrierung, wenn der Code für dieselbe Konsole ist (GPO oder RMM können sie gefahrlos wiederholen), und verschiebt den Rechner, wenn der Code für eine andere Konsole ist; die vorherige Registrierung bleibt als <code>agent.json.replaced-<i>Datum</i></code> neben <code>agent.json</code> erhalten, sodass das Zurückbenennen den Rechner als denselben Agenten zu seiner alten Konsole zurückbringt.</p>
@@ -26,6 +27,9 @@
 <pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
+<h3 id="macos">macOS</h3>
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
+<p>Führen Sie ihn nach der Installation des <code>.pkg</code> aus. Ein MDM schreibt den Code stattdessen vor der Installation des Pakets nach <code>/Library/Application Support/BackupZit/enroll-code</code>. Den Festplattenvollzugriff muss danach der Benutzer des Macs erteilen; siehe <a href="/docs/macos">macOS-Agenten</a>.</p>
 
 <h2>Agenten aus der Konsole installieren</h2>
 <p>Statt Installationsprogramme auf jeden Rechner zu kopieren, lassen Sie die Konsole den Agenten installieren: Öffnen Sie unter <a href="/agents">Agenten</a> <b>Von hier aus auf einem Rechner installieren</b>, wählen Sie Linux oder Windows und geben Sie die Adresse des Rechners und ein Administratorkonto ein.</p>
@@ -33,6 +37,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64 Bit): Die Konsole verbindet sich über <b>SSH</b> als root oder als Benutzer mit <code>sudo</code>-Rechten (das Passwort wird auch für sudo verwendet; mit einem Schlüssel ist sudo ohne Passwort nötig). Passwort oder privater Schlüssel funktionieren. Geben Sie den <b>SSH-Host-Key-Fingerabdruck</b> des Rechners ein (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> auf dem Rechner), damit die Konsole sicher mit dem richtigen Rechner spricht; ohne ihn wird der Fingerabdruck im Installationsprotokoll angezeigt.</li>
   <li><b>Windows</b> (64 Bit): Die Konsole verbindet sich über <b>WinRM</b> (Port 5985, Nachrichten mit NTLM verschlüsselt; 5986 für einen HTTPS-Listener) als lokaler oder Domänenadministrator. WinRM ist auf Windows Server standardmäßig aktiv; unter Windows 10/11 führen Sie einmal <code>winrm quickconfig</code> als Administrator aus. Lokale Konten außer dem integrierten Administrator brauchen Remote-Administratorrechte (<code>LocalAccountTokenFilterPolicy</code>) — oder verwenden Sie ein Domänenkonto. Ältere Systeme (Windows 7, Server 2008 R2/2012 R2) erhalten das Legacy-MSI.</li>
 </ul>
+<p>Macs werden nicht von hier aus installiert: Verteilen Sie das <code>.pkg</code> von Hand oder mit einem MDM (<a href="/docs/macos#enroll">macOS-Agenten</a>).</p>
 <p>Der Rechner lädt das neueste Agentenpaket über einen Link von der Konsole, der nur für diese Installation gilt (30 Minuten, drei Downloads), prüft seine SHA-256-Prüfsumme, installiert es und registriert sich. Die Installationsseite zeigt jeden Schritt; Konto und Passwort werden nur dafür verwendet und nicht gespeichert. Ist der Rechner bereits bei dieser Konsole registriert, bleibt die Registrierung erhalten und das Paket wird aktualisiert; eine der Konsole unbekannte Registrierung (ein früher entfernter Agent oder eine andere Konsole) wird ersetzt. Jede Installation steht im Audit-Protokoll. Der Rechner muss die Agentenadresse der Konsole erreichen, wie jeder Agent.</p>
 
 <h2>Agentenstatus</h2>
@@ -61,6 +66,7 @@ systemctl enable --now backupzit-agent</pre>
   <tr><td>grau</td><td>Die Konsole ist nicht erreichbar oder der Agentendienst läuft nicht.</td></tr>
 </table>
 <p>Klicken Sie auf das Symbol (oder öffnen Sie <b>BackupZit Agent</b> im Startmenü) für das Statusfenster: Schutzstatus, Fortschritt einer laufenden Sicherung, letzte und nächste Sicherung und alle Sicherungsaufträge des Computers mit <b>Jetzt sichern</b>. Rechtsklick öffnet das Menü: <i>Back up now</i> pro Auftrag, <i>Open console in browser</i>, <i>Hide this icon</i> (bis zur nächsten Anmeldung; Sicherungen laufen weiter). Das Fenster benötigt Microsoft Edge WebView2, das Teil von Windows 10 und 11 ist; auf älteren Systemen funktionieren Symbol und Menü, und <i>Open</i> zeigt die Konsole im Browser.</p>
+<p>Auf einem Mac tut die Menüleisten-App dasselbe und prüft außerdem die Berechtigungen, die macOS vom Benutzer verlangt (siehe <a href="/docs/macos#assistant">macOS-Agenten</a>).</p>
 <p>Benutzer können so eine Sicherung ihres Computers starten; Aufträge, Zeitpläne und Aufbewahrung werden nur in der Konsole festgelegt. Auf jedem System gibt <code>backupzit-agent status</code> (als Administrator oder root) dieselben Informationen aus.</p>
 
 <h2 id="parallel">Mehrere Aufträge gleichzeitig</h2>
@@ -70,10 +76,10 @@ systemctl enable --now backupzit-agent</pre>
 <p>Hat die Konsole ein neueres Agenten-Installationsprogramm als ein Agent ausführt, zeigt die Seite Agenten <b>Aktualisieren auf x.y.z</b> neben seiner Version und <b>Alle Agenten aktualisieren</b> unter der Liste. Der Agent dann:</p>
 <ol>
   <li>wartet, bis er untätig ist (eine laufende Sicherung wird nie unterbrochen),</li>
-  <li>lädt das passende Installationsprogramm über seine gepinnte Verbindung von der Konsole — das MSI für Windows 10/11/2016+, das MSI <i>ältere Systeme</i> für Windows 7/2008 R2/2012 R2, das deb- oder rpm-Paket unter Linux — und prüft es: Seit 0.56 muss das Installationsprogramm in der mit dem BackupZit-Release-Schlüssel signierten Liste der Agenten-Installationsprogramme stehen, die der Agent mit dem in ihn eingebauten Schlüssel prüft; ein auf der Konsole verändertes Installationsprogramm wird daher abgelehnt,</li>
+  <li>lädt das passende Installationsprogramm über seine gepinnte Verbindung von der Konsole — das MSI für Windows 10/11/2016+, das MSI <i>ältere Systeme</i> für Windows 7/2008 R2/2012 R2, das deb- oder rpm-Paket unter Linux, das <code>.pkg</code> auf einem Mac — und prüft es: Seit 0.56 muss das Installationsprogramm in der mit dem BackupZit-Release-Schlüssel signierten Liste der Agenten-Installationsprogramme stehen, die der Agent mit dem in ihn eingebauten Schlüssel prüft; ein auf der Konsole verändertes Installationsprogramm wird daher abgelehnt,</li>
   <li>installiert es und startet neu; die neue Version erscheint innerhalb weniger Minuten in der Liste. Registrierung und alle Einstellungen bleiben erhalten.</li>
 </ol>
-<p>Die Konsole bietet die neuesten Installationsprogramme in ihrem Verzeichnis <code>dist</code> an; das Serverpaket liefert die Agenten-Installationsprogramme seiner eigenen Version mit. Nachdem die Konsole über <a href="/settings/updates">Einstellungen → Updates</a> aktualisiert wurde, werden die Agenten automatisch aktualisiert (dort abschaltbar). Updates aus der Konsole funktionieren für Agenten ab Version 0.21; ältere Agenten werden einmal aktualisiert, indem das neuere MSI / Paket über das alte installiert wird (die Registrierung bleibt erhalten). Agenten ab 0.56 nehmen ein Update nur von einer Konsole ab 0.56 an (ihr Paket enthält die signierte Liste) und nie auf eine ältere Version als ihre eigene. Das Protokoll des Installationsprogramms liegt in <code>C:\ProgramData\backupzit\updates</code> oder <code>/var/lib/backupzit-agent/updates</code>.</p>
+<p>Die Konsole bietet die neuesten Installationsprogramme in ihrem Verzeichnis <code>dist</code> an; das Serverpaket liefert die Agenten-Installationsprogramme seiner eigenen Version mit. Nachdem die Konsole über <a href="/settings/updates">Einstellungen → Updates</a> aktualisiert wurde, werden die Agenten automatisch aktualisiert (dort abschaltbar). Updates aus der Konsole funktionieren für Agenten ab Version 0.21; ältere Agenten werden einmal aktualisiert, indem das neuere MSI / Paket über das alte installiert wird (die Registrierung bleibt erhalten). Agenten ab 0.56 nehmen ein Update nur von einer Konsole ab 0.56 an (ihr Paket enthält die signierte Liste) und nie auf eine ältere Version als ihre eigene. Das Protokoll des Installationsprogramms liegt in <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> oder, auf einem Mac, <code>/Library/Application Support/BackupZit/updates</code>. Ein Agenten-Update eines Macs, dessen Paket nicht mit einer Apple Developer ID signiert ist, nimmt ihm den Festplattenvollzugriff (siehe <a href="/docs/macos#unsigned">macOS-Agenten</a>).</p>
 
 <h2>Einen Agenten entfernen</h2>
 <p><b>Entfernen</b> auf der Seite Agenten öffnet eine Seite mit zwei Entscheidungen; mit <a href="/docs/users">Vier-Augen-Freigabe</a> muss zuerst ein zweiter Benutzer zustimmen.</p><ul><li><b>Agent vom Computer deinstallieren</b> (Online-Agenten ab Version 0.42.7): Der Agent meldet sich, deinstalliert sich selbst und wird dann mit seinen Jobs aus der Konsole entfernt. Ein Offline-Agent wird nur aus der Konsole entfernt — deinstallieren Sie ihn auf dem Computer (siehe unten).</li><li><b>Seine Sicherungen:</b> <i>alle behalten</i> (Standard — sie bleiben auf dem Speicher und lassen sich weiterhin wiederherstellen), <i>nur die neueste Sicherung jedes Jobs behalten</i> (jede Sicherung ist vollständig, die neueste stellt also alles mit ihrem Stand wieder her) oder <i>alle löschen</i>. Zum Löschen muss der Computername eingegeben werden; die Konsole löscht im Hintergrund und schreibt das Ergebnis in das <a href="/audit">Audit-Protokoll</a>. Unveränderlicher Speicher behält gesperrte Daten bis zum Ablauf der Sperre; Sicherungen auf einem Datenträger des Computers selbst und Kopien von Kopier-Jobs werden nicht gelöscht. Ein Agent, der andere Systeme sichert (Proxmox, VMware, Hyper-V, Microsoft 365, NAS), nimmt deren Sicherungen mit.</li></ul>
@@ -98,6 +104,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (nur für SYSTEM und Administratoren zugänglich).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (nur root).</li>
+  <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (nur root).</li>
 </ul>
 <p>Die Datei enthält das Geheimnis des Agenten. Wer sie lesen kann, kann als dieser Agent auftreten, behalten Sie also diese Berechtigungen bei.</p>
 
@@ -105,13 +112,14 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
   <li>Linux: <code>/var/log/backupzit/agent.log</code> und <code>journalctl -u backupzit-agent</code></li>
+  <li>macOS: <code>/Library/Logs/BackupZit/agent.log</code></li>
   <li>Wiederherstellungssysteme zeigen das Protokoll auf ihrem Bildschirm.</li>
   <li>Das Protokoll umfasst bis zu 4 Dateien zu 10 MB (<code>agent.log</code> und <code>agent.log.1</code> bis <code>.3</code>); ältere Einträge werden gelöscht.</li>
   <li><b>Protokoll holen</b> auf der Seite Agenten holt das Ende des Protokolls in die Konsole — siehe <a href="/docs/troubleshooting#logs">Protokolle</a>.</li>
 </ul>
 
 <h2>Deinstallieren</h2>
-<p>Windows: <i>Einstellungen → Apps → BackupZit Agent → Deinstallieren</i> (oder <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Entfernen Sie dann den Agenten in der Konsole. Sicherungen bleiben auf dem Speicher.</p>
+<p>Windows: <i>Einstellungen → Apps → BackupZit Agent → Deinstallieren</i> (oder <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. macOS: <code>sudo /Library/BackupZit/uninstall.sh</code> (siehe <a href="/docs/macos#update">macOS-Agenten</a>). Entfernen Sie dann den Agenten in der Konsole. Sicherungen bleiben auf dem Speicher.</p>
 <p>Unter Windows legt die Deinstallation die Registrierung beiseite (<code>C:\ProgramData\backupzit\agent.json.removed-<i>Datum</i></code>), sodass eine erneute Installation des Agenten nach einem Registrierungscode fragt. Findet das Installationsprogramm eine Registrierung einer früheren Version, sagt es das: Lassen Sie den Code leer, um sie zu behalten, oder fügen Sie einen neuen Code ein, um den Computer erneut zu registrieren (zum Beispiel bei einer anderen Konsole).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

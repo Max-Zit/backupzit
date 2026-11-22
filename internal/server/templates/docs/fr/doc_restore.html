@@ -43,7 +43,7 @@
   <li>Laissez <b>Vérifier les fichiers restaurés</b> activé : chaque fichier est relu et comparé à la somme de contrôle de la sauvegarde.</li>
   <li>Cliquez sur <b>Lancer la restauration</b>. La progression et les résultats s'affichent sur la page de l'exécution de restauration.</li>
 </ol>
-<p>Les dates des fichiers, les attributs Windows (caché, lecture seule, …) et, sous Linux, les propriétaires, permissions (y compris les bits setuid), ACL, attributs étendus (étiquettes SELinux, capacités de fichiers), liens symboliques et physiques sont aussi restaurés. Les propriétaires ne sont définis que si l'agent tourne en root/administrateur.</p>
+<p>Les dates des fichiers, les attributs Windows (caché, lecture seule, …) et, sous Linux, les propriétaires, permissions (y compris les bits setuid), ACL, attributs étendus (étiquettes SELinux, capacités de fichiers), liens symboliques et physiques sont aussi restaurés. Sous macOS, également les indicateurs de fichier BSD (caché, verrouillé…), la date de création et les attributs étendus (voir <a href="/docs/macos#metadata">Agents macOS</a>). Les propriétaires ne sont définis que si l'agent tourne en root/administrateur.</p>
 
 <h3 id="browse-files">Parcourir, télécharger et choisir des fichiers</h3>
 <p>Sur l'exécution de sauvegarde, <b>Parcourir les fichiers</b> montre les dossiers sauvegardés tels qu'ils étaient (aussi pour les partages NAS et les sauvegardes de système Linux). Ouvrez des dossiers, cochez des fichiers et des dossiers, puis :</p>

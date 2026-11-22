@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Začínáme</h1>
-<p class="lead">BackupZit chrání počítače s Windows a Linuxem, virtuální počítače Proxmox VE, Hyper-V a VMware ESXi, databáze (SQL Server, PostgreSQL, MySQL/MariaDB), sdílené složky NAS a Microsoft 365 — soubory, celé disky, celé systémy i poštovní schránky — z jedné webové konzole, která běží ve vaší vlastní síti.</p>
+<p class="lead">BackupZit chrání počítače s Windows, Linuxem a macOS, virtuální počítače Proxmox VE, Hyper-V a VMware ESXi, databáze (SQL Server, PostgreSQL, MySQL/MariaDB), sdílené složky NAS a Microsoft 365 — soubory, celé disky, celé systémy i poštovní schránky — z jedné webové konzole, která běží ve vaší vlastní síti.</p>
 
 <h2>Co BackupZit chrání</h2>
 <table>
   <tr><th>Co</th><th>Jak</th><th>Obnova</th></tr>
-  <tr><td>Soubory a složky (Windows, Linux)</td><td>Agent na počítači; otevřené soubory ve Windows přes VSS. <a href="/docs/jobs">Úlohy zálohování</a></td><td>Celá záloha nebo jednotlivé složky, na libovolného agenta, na původní místo nebo do jiné složky. <a href="/docs/restore">Obnova</a></td></tr>
+  <tr><td>Soubory a složky (Windows, Linux, macOS)</td><td>Agent na počítači; otevřené soubory ve Windows přes VSS, na Macu přes lokální snímek APFS. <a href="/docs/jobs">Úlohy zálohování</a>, <a href="/docs/macos">Agenti pro macOS</a></td><td>Celá záloha nebo jednotlivé složky, na libovolného agenta, na původní místo nebo do jiné složky. <a href="/docs/restore">Obnova</a></td></tr>
   <tr><td>Disky Windows</td><td>Obraz celého disku nebo vybraných oddílů ze snímku VSS. <a href="/docs/images">Obrazy disků</a></td><td>Na prázdný disk nebo bare metal s ISO pro obnovu Windows, i na jiný hardware nebo do VM; jednotlivé soubory z obrazu.</td></tr>
   <tr><td>Systémy Linux</td><td>Všechny místní souborové systémy plus rozložení disků (oddíly, LVM, UUID, zaváděcí kód). <a href="/docs/linux-system">Záloha systému Linux</a></td><td>Na prázdný disk nebo bare metal s ISO pro obnovu Linuxu, nebo jako nový VM v Proxmoxu (P2V); jednotlivé soubory.</td></tr>
   <tr><td>VM Hyper-V</td><td>Agent na hostiteli Hyper-V, <b>žádný agent uvnitř VM</b>; kontrolní body pro obnovu (VSS uvnitř hosta), Resilient Change Tracking čte jen změněné bloky. <a href="/docs/hyperv">Hyper-V</a></td><td>Celý VM jako nový nebo na místě (zachová ID a MAC adresy); jednotlivé soubory z disků VM.</td></tr>
@@ -19,7 +19,7 @@
 <h2>Jak BackupZit funguje</h2>
 <ul>
   <li><b>Správcovská konzole</b> (tato webová aplikace) — běží na linuxovém serveru ve vaší síti. Ukládá konfiguraci, plánuje úlohy, sbírá výsledky a zobrazuje sestavy. Nikdy nemusí být dostupná z internetu.</li>
-  <li><b>Agenti</b> — malá služba na každém chráněném počítači (MSI pro Windows, deb/rpm pro Linux) a na hostitelích Proxmox a Hyper-V; k hostitelům VMware ESXi se přistupuje přes agenta, který funguje jako proxy. Agenti kontaktují konzoli přes HTTPS, přijímají úlohy a posílají data záloh <i>přímo</i> na úložiště. Ve Windows agent zobrazuje svůj stav vedle hodin.</li>
+  <li><b>Agenti</b> — malá služba na každém chráněném počítači (MSI pro Windows, deb/rpm pro Linux, pkg pro macOS) a na hostitelích Proxmox a Hyper-V; k hostitelům VMware ESXi se přistupuje přes agenta, který funguje jako proxy. Agenti kontaktují konzoli přes HTTPS, přijímají úlohy a posílají data záloh <i>přímo</i> na úložiště. Ve Windows agent zobrazuje svůj stav vedle hodin, na Macu v řádku nabídek.</li>
   <li><b>Cíle úložiště</b> — kde se zálohy uchovávají: SFTP, objektové úložiště kompatibilní s S3 (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, sdílená složka SMB/NAS, rotující disky USB, místní nebo připojený disk, nebo zabezpečené úložiště BackupZit.</li>
 </ul>
 <div class="callout tip"><p>Data záloh nikdy neprocházejí konzolí. Konzole jen koordinuje, takže jí stačí malý virtuální počítač.</p></div>
@@ -28,7 +28,7 @@
 <p>Novou konzoli nastavíte tak, že naimportujete hotový obraz appliance do malého VM, spustíte ISO appliance nebo spustíte instalační skript na existujícím linuxovém serveru; viz <a href="/docs/install">Instalace serveru</a>.</p>
 <ol>
   <li><b>Přidejte cíl úložiště</b> v části <a href="/targets">Úložiště</a>. Nechte zapnuté <i>Šifrovat zálohy</i> a list pro obnovu, který se poté zobrazí, uložte na bezpečné místo. Viz <a href="/docs/storage">Cíle úložiště</a>.</li>
-  <li><b>Nainstalujte agenty</b>: v části <a href="/agents">Agenti</a> klikněte na <i>Vytvořit registrační token</i>, stáhněte instalátor ze stejné stránky a vložte registrační kód, když o něj instalátor Windows požádá (Linux: <code>backupzit-agent enroll --code …</code>). Pro VM nainstalujte agenta na hostitele Proxmox nebo Hyper-V; hostitele VMware ESXi přidejte v Agenti → Hostitelé VMware ESXi. Viz <a href="/docs/agents">Agenti</a>.</li>
+  <li><b>Nainstalujte agenty</b>: v části <a href="/agents">Agenti</a> klikněte na <i>Vytvořit registrační token</i>, stáhněte instalátor ze stejné stránky a vložte registrační kód, když o něj instalátor Windows požádá (Linux a macOS: <code>backupzit-agent enroll --code …</code>, viz <a href="/docs/macos">Agenti pro macOS</a>). Pro VM nainstalujte agenta na hostitele Proxmox nebo Hyper-V; hostitele VMware ESXi přidejte v Agenti → Hostitelé VMware ESXi. Viz <a href="/docs/agents">Agenti</a>.</li>
   <li><b>Vytvořte úlohu zálohování</b> v části <a href="/jobs">Úlohy zálohování</a>: zvolte agenta, úložiště, co zálohovat (soubory, sdílenou složku NAS, obraz disku, databáze, celý systém Linux nebo VM hostitele Proxmox, Hyper-V či VMware ESXi), kdy spouštět a kolik záloh ponechat. Viz <a href="/docs/jobs">Úlohy zálohování a plány</a>.</li>
   <li><b>Jednou ji spusťte ručně</b> tlačítkem <i>Spustit zálohu nyní</i> na stránce úlohy a výsledek zkontrolujte v <a href="/runs">Aktivita</a>.</li>
   <li><b>Vyzkoušejte obnovu</b> — záloha je jen tak dobrá jako její obnova. Automatické testy obnovy běží týdně; obnovte také jednou něco ručně pomocí <a href="/restore">průvodce obnovou</a>. Viz <a href="/docs/restore">Obnova</a>.</li>

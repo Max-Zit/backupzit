@@ -1,0 +1,122 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>macOS agents (Apple silicon)</h1>
+<p class="lead">The macOS agent backs up the files and folders of a Mac with Apple silicon. It runs as a service from the first boot, reads every backup of the startup disk from an APFS local snapshot and keeps the Mac's file metadata. A menu bar app shows its state and guides the user through the permissions only he can grant.</p>
+
+<h2 id="requirements">Requirements</h2>
+<ul>
+  <li>A Mac with <b>Apple silicon</b> (M1 and newer, arm64) and <b>macOS 13</b> or newer. Intel Macs get no package.</li>
+  <li>An administrator account on the Mac, for the installation and the enrollment.</li>
+  <li>The user of the Mac, to grant <a href="#permissions">Full Disk Access</a>: macOS lets nobody else do it, neither a script nor the console.</li>
+  <li>Like every agent, the Mac must reach the console's agent address (usually port 8443) and the storage.</li>
+</ul>
+
+<h2 id="install">Installing</h2>
+<ol>
+  <li>On the <a href="/agents">Agents</a> page, download <b>macOS agent — Apple Silicon</b> (<code>backupzit-agent_<i>version</i>_darwin_arm64.pkg</code>). The console package carries it, like the Windows and Linux installers.</li>
+  <li>Open the <code>.pkg</code> on the Mac and follow the installer. A package that is not signed with an Apple Developer ID makes macOS ask for confirmation first: right-click it and choose <b>Open</b> (on newer macOS: <i>System Settings → Privacy &amp; Security → Open Anyway</i>).</li>
+  <li>The installer's last page explains the <a href="#permissions">permissions</a> to grant, and the menu bar app opens.</li>
+</ol>
+<p>The package installs:</p>
+<table>
+  <tr><th>What</th><th>Where</th></tr>
+  <tr><td>The agent program</td><td><code>/Library/BackupZit/bin/backupzit-agent</code></td></tr>
+  <tr><td>The uninstaller</td><td><code>/Library/BackupZit/uninstall.sh</code></td></tr>
+  <tr><td>The menu bar app</td><td><code>/Applications/BackupZit.app</code></td></tr>
+  <tr><td>The agent service (LaunchDaemon: runs as root, starts at boot, restarted when it stops)</td><td><code>/Library/LaunchDaemons/com.backupzit.agent.plist</code></td></tr>
+  <tr><td>The menu bar app at login (LaunchAgent)</td><td><code>/Library/LaunchAgents/com.backupzit.tray.plist</code></td></tr>
+  <tr><td>Configuration (root only, created at enrollment)</td><td><code>/Library/Application Support/BackupZit/agent.json</code></td></tr>
+  <tr><td>Log</td><td><code>/Library/Logs/BackupZit/agent.log</code></td></tr>
+</table>
+<p>The program is not added to the <code>PATH</code>: in Terminal, call it with its full path.</p>
+
+<h2 id="enroll">Enrolling</h2>
+<p>The service is installed and running even before the Mac is enrolled; it starts working as soon as it is. On the <a href="/agents">Agents</a> page, <b>Create enrollment token</b> shows the commands for macOS next to those for Windows and Linux. Choose one of three ways:</p>
+<ol>
+  <li><b>In Terminal, after the installation</b> (the usual way):
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
+  <li id="mdm"><b>With an MDM</b> (Jamf, Intune, Mosyle…): before the package is installed, a script writes the code to a file owned by root:
+<pre>sudo mkdir -p "/Library/Application Support/BackupZit"
+echo "BZ1-..." | sudo tee "/Library/Application Support/BackupZit/enroll-code" &gt;/dev/null</pre>
+  Then deploy the package. Its installation enrolls the Mac with the code and deletes the file. A file not owned by root is ignored. This is also the way to move an enrolled Mac to another console.</li>
+  <li><b>A file next to the package</b>: <code>backupzit-enroll.txt</code> with the code, in the same folder as the <code>.pkg</code> (for example on a USB stick or a shared folder). It is used only while the Mac is not enrolled yet, and only if nobody else could have written it: the file is owned by root or by the owner of the package, and its folder is not writable by other users (or has the sticky bit, like <code>/Users/Shared</code>).</li>
+</ol>
+<p>If the console cannot be reached during the installation, the agent keeps the code and retries. If the enrollment fails, the reason is in <code>/Library/Application Support/BackupZit/enroll-error.log</code>; enroll in Terminal afterwards. Upgrades and reinstallations keep the enrollment.</p>
+
+<h2 id="permissions">Permissions</h2>
+<p>macOS protects some data from every program, also from one running as root, until the user allows it in System Settings. Only the user at the Mac can grant these permissions; the installer's last page and the menu bar app walk him through them.</p>
+<h3 id="full-disk-access">Full Disk Access for the agent</h3>
+<p>Without it, backups miss the folders macOS protects, and no APFS snapshot is taken (see <a href="#backup">What is backed up</a>).</p>
+<ol>
+  <li>Open <b>System Settings → Privacy &amp; Security → Full Disk Access</b>.</li>
+  <li>Click <b>+</b> below the list and enter your password.</li>
+  <li>Press <b>Command-Shift-G</b>, type <code>/Library/BackupZit/bin/backupzit-agent</code>, press Return and click <b>Open</b>.</li>
+  <li>Check that the switch next to <b>backupzit-agent</b> is on.</li>
+</ol>
+<p>Instead of <b>+</b>, you can drag the file into the list: in the Finder choose <i>Go → Go to Folder…</i>, type <code>/Library/BackupZit/bin</code> and drag <b>backupzit-agent</b> onto the list.</p>
+<h3 id="background">The agent in the background</h3>
+<p>After the installation macOS shows <i>Background Items Added</i>. In <b>System Settings → General → Login Items &amp; Extensions</b>, under <b>Allow in the Background</b>, <b>backupzit-agent</b> and <b>BackupZit</b> must stay on: switched off, the agent does not run and no backup starts.</p>
+<h3 id="notifications">Notifications and open at login</h3>
+<ul>
+  <li><b>Notifications</b>: allow them when the menu bar app asks, or later in <b>System Settings → Notifications → BackupZit</b> (<i>Allow notifications</i>). The app tells the user there when a backup fails.</li>
+  <li><b>Open at login</b>: the menu bar app opens at every login while <b>BackupZit</b> is on under <i>Login Items &amp; Extensions → Allow in the Background</i>.</li>
+</ul>
+<h3 id="assistant">The menu bar app and its assistant</h3>
+<p>The BackupZit icon in the menu bar shows the agent's state; its menu has <b>Back up now</b> for each job of the Mac, <b>Open console in browser</b> and <b>Hide this icon</b> (until the next login; backups continue). Its <b>Permissions</b> section lists the agent in the background, Full Disk Access, notifications and open at login, each with ✅ or ❌. Click an item to open its page of System Settings; a missing permission is also explained once per login in a dialog with the steps to take. While something is missing, it checks again by itself every few seconds, so ✅ appears as soon as the permission is granted. The agent also reports a missing Full Disk Access to the console, in the run report.</p>
+<h3 id="status">Checking in Terminal</h3>
+<pre>/Library/BackupZit/bin/backupzit-agent status</pre>
+<p>It works as a normal user and shows the console, the jobs and <code>full disk access: granted</code> or <code>denied</code> (with the program to switch on).</p>
+<h3 id="unsigned">Full Disk Access after an update</h3>
+<p>macOS ties Full Disk Access to the program's signature. Packages signed with an Apple Developer ID keep it across updates. A package built without one (signed <i>ad hoc</i>) loses it with each self-update: backups then warn again, and the menu bar app says that Full Disk Access is gone since the update. Grant it again: in the Full Disk Access list select <b>backupzit-agent</b>, click <b>−</b> to remove it (switching it off and on is not enough), then add it again with <b>+</b> as above.</p>
+
+<h2 id="backup">What is backed up</h2>
+<p>A Mac agent runs <b>files and folders</b> jobs like any agent: paths such as <code>/Users</code>, <code>/Applications</code> or <code>/</code>, <a href="/docs/jobs#users"><code>{users}</code> paths</a> (<code>/Users/&lt;name&gt;/Documents</code>) and wildcards, also in a <a href="/docs/jobs#groups">job for several agents</a> with <i>All macOS agents</i>.</p>
+<h3 id="snapshot">APFS local snapshot</h3>
+<p>Every files backup of the startup disk's data volume is read from an <b>APFS local snapshot</b>, the macOS counterpart of VSS on Windows: the backup sees every file as of one moment, also those a program keeps writing. The agent takes the snapshot (<code>tmutil localsnapshot</code>), mounts it read-only, reads the files from it and unmounts and deletes it after the backup. Snapshots left by a crash are cleaned up at the next start; Time Machine's own snapshots are never touched. The run report says <i>Read from an APFS local snapshot of /System/Volumes/Data.</i></p>
+<p>The snapshot needs the service (root) and <a href="#full-disk-access">Full Disk Access</a>. Without Full Disk Access, and for paths on other volumes (<code>/Volumes</code>: external disks, network shares), the files are read without a snapshot, and the run report says so.</p>
+<h3 id="metadata">Metadata</h3>
+<p>Kept with every file and folder: owner and group, permissions, extended attributes (except <code>com.apple.provenance</code>, which macOS manages itself), hard links, symbolic links, BSD file flags (hidden, locked, nodump, append-only…; the system flags only when the agent runs as root, as the service does), the creation time and modification times to the nanosecond. Sparse files stay sparse: their holes are punched again on APFS.</p>
+<h3 id="excludes">Folders kept empty</h3>
+<p>Some system folders below a backed up folder are kept as empty folders: other volumes (<code>/Volumes</code>), swap (<code>/System/Volumes/VM</code>, <code>/private/var/vm</code>), the support volumes in <code>/System/Volumes</code>, <code>/dev</code>, temporary files (<code>/private/tmp</code>, <code>/private/var/folders</code>), caches (<code>/Library/Caches</code>, <code>/System/Library/Caches</code>, <code>~/Library/Caches</code>), the Trash (<code>~/.Trash</code>, <code>.Trashes</code>), Spotlight, FSEvents, document versions and local and HFS+ Time Machine backups. With <code>/</code> as a source, the data volume's folders that <code>/</code> already shows (<code>/Users</code>, <code>/Applications</code>…) are not read twice. A folder named as a source of the job is always read, e.g. <code>/Volumes/USB</code> or <code>~/.Trash</code>.</p>
+<h3 id="warnings">Warnings in the run report</h3>
+<p>Without Full Disk Access the folders macOS protects cannot be read: Mail, Messages, Safari, Desktop and Documents, other apps' data, removable and network volumes. A backup whose sources reach <code>/Users</code> (except <code>/Users/Shared</code>), <code>/Library</code> or <code>/Volumes</code>, or a folder above them such as <code>/</code>, then ends with the warning <i>Full Disk Access is not granted to the BackupZit agent</i>. Backups of other folders (e.g. <code>/opt/data</code>) do not warn.</p>
+
+<h2 id="restore">Restoring</h2>
+<p>Files of a Mac are restored like all <a href="/docs/restore">file backups</a>: the whole backup or only some paths, into a folder or to the original location, on the Mac or on another agent; single files can be downloaded from the console. A restore on a Mac sets the metadata above again. Like on Windows and Linux, it writes only through the folders it opened, never by path, so a link put in the way during the restore is not followed. A restore over locked files clears their locked and append-only flags first and sets the stored ones again (system flags cannot be cleared on a running Mac).</p>
+
+<h2 id="update">Updating and uninstalling</h2>
+<p>The <a href="/agents">Agents</a> page offers <b>Update to <i>version</i></b> for a Mac like for other agents (see <a href="/docs/agents">Agents</a>). The agent downloads the <code>.pkg</code> from the console, checks it against the signed list of agent installers and its SHA-256 checksum, installs it with Apple's <code>installer</code> in a one-shot launchd job and restarts with the new version. If launchd refuses that job, the update run fails with launchd's message. The installer log is in <code>/Library/Application Support/BackupZit/updates</code>. Check <a href="#unsigned">Full Disk Access</a> after an update of an unsigned package.</p>
+<p><b>Remove</b> on the Agents page with <b>Uninstall the agent from the computer</b> removes the program, the menu bar app, the LaunchDaemon and LaunchAgent and the package receipt; the configuration and the log stay. To uninstall by hand:</p>
+<pre>sudo /Library/BackupZit/uninstall.sh            # keeps configuration and log
+sudo /Library/BackupZit/uninstall.sh --purge    # deletes them too</pre>
+<p>Without <code>--purge</code> the enrollment is set aside (<code>agent.json.removed-<i>date</i></code>), so a new installation asks for a code again. After uninstalling, remove <b>backupzit-agent</b> from <i>Privacy &amp; Security → Full Disk Access</i> by hand: macOS does not let a program do it.</p>
+
+<h2 id="limits">What a Mac agent cannot do</h2>
+<table>
+  <tr><th>Not on a Mac</th><th>Instead</th></tr>
+  <tr><td><a href="/docs/linux-system">Linux system</a> / bare-metal backups</td><td>The console refuses a system job for a Mac (<i>is a Mac: back it up with a files job</i>): its system volume is sealed and signed by Apple and is reinstalled, not restored. Back up the data with a files job.</td></tr>
+  <tr><td><a href="/docs/images">Disk images</a></td><td>Windows only.</td></tr>
+  <tr><td>Hyper-V, Proxmox VE hosts and VMware ESXi proxy</td><td>Agents on the Hyper-V host (Windows), the Proxmox node (Linux) or a Linux proxy agent.</td></tr>
+  <tr><td><a href="/docs/jobs#nas">NAS / file share</a> jobs (SMB, NFS)</td><td>A Windows or Linux agent for now: the Mac agent does not mount shares yet.</td></tr>
+  <tr><td><a href="/docs/sql">PostgreSQL / MySQL</a> jobs</td><td>Not validated on macOS yet: use them on a Mac only after testing a restore.</td></tr>
+</table>
+<p><a href="/docs/m365">Microsoft 365</a> jobs run on any agent with internet access, a Mac too.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+  <tr><th>Situation</th><th>What to do</th></tr>
+  <tr><td>The Mac does not appear or shows as offline</td><td>Check that it is enrolled (<code>backupzit-agent status</code>, <a href="#enroll">Enrolling</a>) and that <b>backupzit-agent</b> is on under <i>Login Items &amp; Extensions → Allow in the Background</i>. <code>sudo launchctl print system/com.backupzit.agent</code> shows the service; <code>sudo /Library/BackupZit/bin/backupzit-agent service start</code> starts it. Then check the network path to the console as for any agent (<a href="/docs/troubleshooting">Troubleshooting</a>).</td></tr>
+  <tr><td>"Full Disk Access is not granted to the BackupZit agent", <code>full disk access: denied</code></td><td>Grant it as in <a href="#full-disk-access">Full Disk Access</a>.</td></tr>
+  <tr><td>Full Disk Access lost after an update</td><td>The package is not signed with an Apple Developer ID: remove backupzit-agent from the list with <b>−</b> and add it again (<a href="#unsigned">Full Disk Access after an update</a>).</td></tr>
+  <tr><td>The run says the files were read "without a snapshot"</td><td>"No APFS local snapshot … was taken": grant Full Disk Access. "Not on the startup disk's data volume": the path is on an external disk or a share, which APFS local snapshots do not cover; it is backed up all the same. Any other reason is in the message.</td></tr>
+  <tr><td>An update run failed</td><td>The run shows the reason, e.g. launchd's refusal of the installer job. The installer's output is in <code>/Library/Application Support/BackupZit/updates</code> (<b>Get log</b> on the Agents page includes it). Installing the newer <code>.pkg</code> by hand also works; the enrollment is kept.</td></tr>
+  <tr><td>A system job for the Mac is refused</td><td>Expected: see <a href="#limits">What a Mac agent cannot do</a>.</td></tr>
+</table>
+<h3 id="logs">Logs</h3>
+<ul>
+  <li>Agent: <code>/Library/Logs/BackupZit/agent.log</code> (also listed in Console.app); a crash trace goes to <code>/Library/Logs/BackupZit/launchd.log</code>.</li>
+  <li>Enrollment by the installer: <code>/Library/Application Support/BackupZit/enroll-error.log</code> and the installer log <code>/var/log/install.log</code>.</li>
+  <li>Updates: <code>/Library/Application Support/BackupZit/updates</code>.</li>
+  <li><b>Get log</b> on the <a href="/agents">Agents</a> page fetches the end of the log from the console (see <a href="/docs/troubleshooting#logs">Logs</a>).</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

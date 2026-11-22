@@ -778,6 +778,7 @@
   "Install the macOS agent package below, then enroll the Mac in Terminal. For an MDM, write the code to the file below before installing the package. The installer then shows how to grant Full Disk Access, which only the user of the Mac can do.": "Установите пакет агента macOS ниже, затем зарегистрируйте Mac в Терминале. Для MDM запишите код в указанный ниже файл до установки пакета. Затем установщик покажет, как предоставить полный доступ к диску — это может сделать только пользователь Mac.",
   "Linux agent — AlmaLinux / Rocky Linux": "Агент Linux — AlmaLinux / Rocky Linux",
   "macOS agent — Apple Silicon": "Агент macOS — Apple Silicon",
+  "macOS agents (Apple silicon)": "Агенты macOS (Apple silicon)",
   "Linux agent — Debian / Ubuntu": "Агент Linux — Debian / Ubuntu",
   "Linux over SSH, Windows over WinRM": "Linux через SSH, Windows через WinRM",
   "Linux recovery ISO": "ISO восстановления Linux",
