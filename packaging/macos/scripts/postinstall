@@ -11,10 +11,13 @@
 #          written by an MDM script before the installation (owned by root),
 #          deleted once used: it holds an enrollment token
 #      backupzit-enroll.txt next to the .pkg
-#          for an installation by hand or from a shared folder
+#          for an installation by hand or from a shared folder; used only
+#          while the Mac is not enrolled, and only when no other user could
+#          have put it there (see side_code)
 #    Upgrades and reinstalls with the same code keep the enrollment
 #    (--if-not-enrolled); a console that cannot be reached now gets the code
-#    retried by the service (--pending-ok), as with the MSI.
+#    retried by the service (--pending-ok), as with the MSI. Moving an
+#    enrolled Mac to another console takes the root-owned MDM file.
 # 2. Installs and (re)starts the agent's LaunchDaemon; the agent's "service"
 #    command defines it.
 # 3. Opens the menu bar app in the session of the logged-in user, whose
@@ -29,6 +32,7 @@ TRAY_PLIST=/Library/LaunchAgents/com.backupzit.tray.plist
 TRAY_LABEL=com.backupzit.tray
 MDM_CODE="/Library/Application Support/BackupZit/enroll-code"
 CFG_DIR=/etc/backupzit
+AGENT_CFG=$CFG_DIR/agent.json
 
 # Messages go to stderr: what read_code prints is the code itself.
 log() { echo "BackupZit postinstall: $*" >&2; }
@@ -60,14 +64,73 @@ mdm_code() {
     read_code "$MDM_CODE"
 }
 
+# trusted_side_file succeeds when file $1, found next to package $2, can
+# only have been written by root or by the owner of the package: a regular
+# file, not a symbolic link, owned by one of them, in a folder owned by one
+# of them that no other user can write to, or that has the sticky bit (as
+# /Users/Shared), where other users cannot replace a file they do not own.
+# Without this rule, anyone able to write next to the .pkg would choose the
+# console that drives this root agent.
+trusted_side_file() {
+    if [ -L "$1" ] || [ ! -f "$1" ]; then
+        log "ignoring $1: not a regular file"
+        return 1
+    fi
+    pkg_uid=$(stat -f %u "$2" 2>/dev/null) || pkg_uid=
+    file_uid=$(stat -f %u "$1" 2>/dev/null) || file_uid=
+    dir=$(dirname "$1")
+    dir_uid=$(stat -f %u "$dir" 2>/dev/null) || dir_uid=
+    # %Lp alone leaves out the sticky bit: %Mp holds it (1777, 0755).
+    dir_mode=$(stat -f %Mp%Lp "$dir" 2>/dev/null) || dir_mode=
+    # Numbers only: the mode goes into shell arithmetic below.
+    for v in "$pkg_uid" "$file_uid" "$dir_uid" "$dir_mode"; do
+        case $v in
+            '' | *[!0-9]*) log "ignoring $1: cannot read who owns it"; return 1 ;;
+        esac
+    done
+    case $dir_mode in
+        *[89]*) log "ignoring $1: cannot read the permissions of its folder"; return 1 ;;
+    esac
+    if [ "$file_uid" != 0 ] && [ "$file_uid" != "$pkg_uid" ]; then
+        log "ignoring $1: owned neither by root nor by the owner of the package"
+        return 1
+    fi
+    if [ "$dir_uid" != 0 ] && [ "$dir_uid" != "$pkg_uid" ]; then
+        log "ignoring $1: its folder is owned neither by root nor by the owner of the package"
+        return 1
+    fi
+    # Octal mode: 022 = writable by group or others, 01000 = sticky bit.
+    if [ $((0$dir_mode & 022)) -ne 0 ] && [ $((0$dir_mode & 01000)) -eq 0 ]; then
+        log "ignoring $1: other users can write to its folder"
+        return 1
+    fi
+    return 0
+}
+
+# side_code prints the code of the backupzit-enroll.txt next to package $1,
+# or nothing. A Mac already enrolled ignores it, so that an upgrade or a
+# reinstall never moves the agent to another console.
+side_code() {
+    [ -n "$1" ] || return 0
+    # Product archives may name the inner package after a '#'.
+    pkg=${1%%#*}
+    f="$(dirname "$pkg")/backupzit-enroll.txt"
+    [ -e "$f" ] || [ -L "$f" ] || return 0
+    if [ -e "$AGENT_CFG" ]; then
+        log "ignoring $f: this Mac is already enrolled (to move it to another console, use $MDM_CODE)"
+        return 0
+    fi
+    trusted_side_file "$f" "$pkg" || return 0
+    read_code "$f"
+}
+
 enroll() {
     src=$MDM_CODE
     code=$(mdm_code)
     if [ -z "$code" ] && [ -n "${1:-}" ]; then
-        # Product archives may name the inner package after a '#'.
         pkg=${1%%#*}
         src="$(dirname "$pkg")/backupzit-enroll.txt"
-        code=$(read_code "$src")
+        code=$(side_code "$1")
     fi
     [ -n "$code" ] || return 0
     log "enrolling with the code from $src"
