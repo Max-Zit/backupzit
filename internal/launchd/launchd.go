@@ -140,8 +140,8 @@ func writeEnv(b *bytes.Buffer, env map[string]string) {
 // writes a newline as the hexadecimal reference "&#xA;", which launchd's
 // property list parser does not decode, so a multi-line "/bin/sh -c"
 // script reached the shell as one line where "&" backgrounded the first
-// command and "#xA;..." made the rest a comment (issue #5: updates and
-// uninstalls never ran). Characters XML does not allow are replaced, as
+// command and "#xA;..." made the rest a comment: updates and
+// uninstalls never ran. Characters XML does not allow are replaced, as
 // xml.EscapeText did, so the file stays readable.
 func escape(s string) string {
 	var b strings.Builder

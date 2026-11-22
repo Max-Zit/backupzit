@@ -7,7 +7,7 @@ import (
 )
 
 // Each agent is offered the installer of its own system and architecture;
-// a Mac gets the Apple silicon package (issue #2).
+// a Mac gets the Apple silicon package.
 func TestPackageKind(t *testing.T) {
 	for _, c := range []struct {
 		os, arch, want string

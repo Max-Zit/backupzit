@@ -114,7 +114,7 @@ func TestParsePrint(t *testing.T) {
 
 // Text is written as plutil writes it: only &, < and > as entities, never
 // a numeric reference, which launchd's parser does not decode (&#xA; for a
-// newline cut every multi-line script after its first line, issue #5).
+// newline cut every multi-line script after its first line).
 func TestEscapeLikePlutil(t *testing.T) {
 	in := "printf '%s' \"$x\" >a 2>&1\necho <b>\ttab & done\x00"
 	want := "printf '%s' \"$x\" &gt;a 2&gt;&amp;1\necho &lt;b&gt;\ttab &amp; done�"

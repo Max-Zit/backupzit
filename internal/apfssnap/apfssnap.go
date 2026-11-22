@@ -175,7 +175,7 @@ func (y *system) create(ctx context.Context, paths []string, timeout time.Durati
 	// macOS (TCC) mounts a snapshot only for a program with Full Disk
 	// Access, root included. Without it tmutil would still make a snapshot,
 	// which takes up to a minute and could then not be mounted: the files
-	// are read without a snapshot at once, with the real reason (issue #4).
+	// are read without a snapshot at once, with the real reason.
 	// An undetermined state is tried, as before.
 	if y.fullDiskAccess() == macperm.Denied {
 		onErr("apfs snapshot", fmt.Errorf("no APFS local snapshot of %s was taken, reading files without a snapshot: macOS mounts a snapshot only for a program with Full Disk Access (System Settings > Privacy & Security > Full Disk Access)", DataVolume))
@@ -299,7 +299,7 @@ func mountArgs(date, dir string) []string {
 // not permitted"): a process that is not root (a command line run; the
 // agent service runs as root), or, for root, missing Full Disk Access,
 // which macOS requires to mount a snapshot even for root. Saying "needs
-// root" to the root service misled (issue #4).
+// root" to the root service misled.
 func withMountHint(err error, root bool) error {
 	s := err.Error()
 	if !strings.Contains(s, "Operation not permitted") && !strings.Contains(s, "exit status 77") {

@@ -73,7 +73,7 @@ func oneShotJob(label, plistPath, script string) launchd.Job {
 // because the installation (or uninstallation) stops the agent. Loading the
 // job is where launchd checks it and can refuse it; done before the report,
 // such a refusal fails the run in the console instead of being written only
-// to the agent's own log while the console shows a success (issue #3).
+// to the agent's own log while the console shows a success.
 // Starting a loaded job (kickstart) is all that is left for afterwards.
 //
 // Why a launchd job and not a child process (Setsid, like Linux without

@@ -2270,7 +2270,7 @@ func TestBruteForceProtection(t *testing.T) {
 }
 
 // A Mac is backed up as files: the console refuses a Linux system job for
-// it, as for a Windows computer (issue #1), and keeps it out of the agents
+// it, as for a Windows computer, and keeps it out of the agents
 // a Linux system is restored with.
 func TestMacAgentGetsNoSystemJob(t *testing.T) {
 	e := setup(t)

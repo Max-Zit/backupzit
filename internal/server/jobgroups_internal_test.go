@@ -89,7 +89,7 @@ func TestUnprotectedAgents(t *testing.T) {
 	}
 }
 
-// Only Linux agents restore a Linux system to a disk: not a Mac (issue #1).
+// Only Linux agents restore a Linux system to a disk: not a Mac.
 func TestIsLinuxAgent(t *testing.T) {
 	for os, want := range map[string]bool{
 		"Debian GNU/Linux 12 (bookworm)": true,

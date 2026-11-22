@@ -93,7 +93,7 @@ func TestInstallerCommandNeedsPkg(t *testing.T) {
 		if _, err := installerCommand("/x/backupzit-agent-0.59.0.pkg"); err != nil {
 			t.Errorf("pkg refused: %v", err)
 		}
-		// Prepared before the run is reported (issue #3), in the update
+		// Prepared before the run is reported, in the update
 		// folder, with the installer's command.
 		if dir != "/x" || kind != "update" || !strings.Contains(script, "/usr/sbin/installer -verbose -pkg") {
 			t.Errorf("prepared %q %q:\n%s", dir, kind, script)
@@ -101,7 +101,7 @@ func TestInstallerCommandNeedsPkg(t *testing.T) {
 	}
 }
 
-// A job launchd refuses fails the update before it is reported (issue #3).
+// A job launchd refuses fails the update before it is reported.
 func TestInstallerCommandReportsRefusedJob(t *testing.T) {
 	if _, err := os.Stat(macInstaller); err != nil {
 		t.Skip("no macOS installer")
@@ -117,7 +117,7 @@ func TestInstallerCommandReportsRefusedJob(t *testing.T) {
 }
 
 // The one-shot job runs once, as root, removes itself, and does not start
-// when it is loaded: it is started after the run is reported (issue #3).
+// when it is loaded: it is started after the run is reported.
 func TestOneShotJob(t *testing.T) {
 	plist := "/Library/Application Support/BackupZit/updates/com.backupzit.agent.update.1.plist"
 	j := oneShotJob("com.backupzit.agent.update.1", plist, "echo hi")

@@ -510,7 +510,7 @@ func TestRealMountDirCanonical(t *testing.T) {
 
 // Without Full Disk Access macOS refuses to mount a snapshot, even to
 // root: none is made (it would take a minute for nothing) and the report
-// names the permission (issue #4).
+// names the permission.
 func TestNoSnapshotWithoutFullDiskAccess(t *testing.T) {
 	f := newFakeMac()
 	y := f.system()

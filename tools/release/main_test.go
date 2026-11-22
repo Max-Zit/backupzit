@@ -121,7 +121,7 @@ func TestSignFile(t *testing.T) {
 	}
 }
 
-// The macOS package is an agent installer of the release (issue #2): it is
+// The macOS package is an agent installer of the release: it is
 // in the signed lists the console and the agents check.
 func TestPackagesListsMacPackage(t *testing.T) {
 	dir := t.TempDir()
