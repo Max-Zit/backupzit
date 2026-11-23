@@ -947,7 +947,7 @@ func (w *wizard) start() error {
 	w.back.SetEnabled(false)
 	ctx, cancel := context.WithCancel(context.Background())
 	w.cancel = cancel
-	logFile := openLogFile()
+	logFile := openLogFile(j.TargetDisk)
 	logger := recovery.NewLogger(logFile, func(s string) {
 		w.dlg.Synchronize(func() { w.log.AppendText(time.Now().Format("15:04:05 ") + logText(s) + "\r\n") })
 	})
@@ -996,22 +996,14 @@ func (w *wizard) start() error {
 	return nil
 }
 
-// openLogFile opens a protocol file next to the program or on the first
-// writable drive that has a backupzit folder (the recovery medium).
-func openLogFile() *os.File {
+// openLogFile opens a protocol file in \backupzit on a writable drive
+// that is not on the target disk (the stick or the backup disk; the target
+// is overwritten while the file is open), else in the temp folder.
+func openLogFile(targetDisk int) *os.File {
 	name := "restore-" + time.Now().Format("20060102-150405") + ".log"
-	var dirs []string
-	for _, r := range recovery.DriveRoots() {
-		dirs = append(dirs, filepath.Join(r, "backupzit"))
+	f, err := os.OpenFile(filepath.Join(backupDir(targetDisk), name), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600) // #nosec G304 -- fixed folder
+	if err != nil {
+		return nil
 	}
-	dirs = append(dirs, os.TempDir())
-	for _, d := range dirs {
-		if fi, err := os.Stat(d); err != nil || !fi.IsDir() {
-			continue
-		}
-		if f, err := os.OpenFile(filepath.Join(d, name), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil { // #nosec G304 -- fixed folder
-			return f
-		}
-	}
-	return nil
+	return f
 }
