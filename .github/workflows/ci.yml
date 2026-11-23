@@ -69,7 +69,12 @@ jobs:
         run: >-
           go test -count=1 -timeout 30m
           ./internal/agent ./internal/archiver ./internal/restorer ./internal/fsutil ./internal/repo
-          ./internal/e2e ./internal/macperm ./internal/localipc ./cmd/backupzit-agent
+          ./internal/e2e ./internal/macperm ./internal/localipc ./internal/apfssnap ./internal/launchd
+          ./cmd/backupzit-agent ./cmd/backupzit-tray
+      - name: staticcheck of the menu bar app (needs cgo, so here natively)
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.2
+          staticcheck -checks "all,-ST1000,-ST1003,-ST1005,-ST1013,-ST1020,-ST1021,-ST1022,-S1011,-S1017,-SA1019" ./cmd/backupzit-tray
       - name: Installer scripts
         run: |
           for f in packaging/macos/build-pkg.sh packaging/macos/uninstall.sh packaging/macos/test-scripts.sh \
@@ -102,10 +107,13 @@ jobs:
           checks="all,-ST1000,-ST1003,-ST1005,-ST1013,-ST1020,-ST1021,-ST1022,-S1011,-S1017,-SA1019"
           staticcheck -checks "$checks" ./...
           GOOS=windows staticcheck -checks "$checks" ./...
-          GOOS=darwin GOARCH=arm64 staticcheck -checks "$checks" ./...
+          # The menu bar app is left out here: without cgo (a Linux runner)
+          # fyne.io/systray has no darwin code to check it against. The
+          # macOS job checks it natively.
+          GOOS=darwin GOARCH=arm64 staticcheck -checks "$checks" $(GOOS=darwin GOARCH=arm64 go list ./... | grep -v '/cmd/backupzit-tray$')
 
   gosec:
-    name: gosec (Linux and Windows)
+    name: gosec (Linux, Windows and macOS)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
