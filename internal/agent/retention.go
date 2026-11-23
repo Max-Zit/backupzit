@@ -155,7 +155,9 @@ func (a *Agent) withRetention(ctx context.Context, r *repo.Repository, run api.R
 	}
 	if msg != "" {
 		if res.Message != "" {
-			res.Message += ". "
+			// One full stop between the two, also after a message that
+			// ends with one already.
+			res.Message = strings.TrimSuffix(res.Message, ".") + ". "
 		}
 		res.Message += msg
 	}
