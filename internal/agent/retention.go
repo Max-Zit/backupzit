@@ -99,7 +99,7 @@ func (a *Agent) applyRetention(ctx context.Context, r *repo.Repository, run api.
 	// backups lost data is not known until repair has read every pack, so
 	// older restore points are kept (and prune refuses anyway).
 	if bad := r.DamagedIndexFiles(); len(bad) > 0 {
-		return nil, fmt.Sprintf("retention skipped: the repository has %s; older restore points are kept until repair has run", count(len(bad), "damaged index file", "damaged index files")), false
+		return nil, fmt.Sprintf("retention skipped: the repository has %s; older restore points are kept until repair has run", count(len(bad), "damaged index file", "damaged index files")), true
 	}
 	for _, sn := range remove {
 		if err := r.RemoveSnapshot(ctx, sn.ID); err != nil {

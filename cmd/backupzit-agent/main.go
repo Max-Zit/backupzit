@@ -588,6 +588,10 @@ func cmdRepair(ctx context.Context, args []string) error {
 	}
 	if len(res.Damaged) == 0 && rep.Packs > 0 {
 		printTakenOut(rep)
+		// Other problems the check found are not hidden by the rebuild.
+		if n := len(res.Errors) - indexErrs; n > 0 {
+			return fmt.Errorf("check found %d errors that repair does not fix", n)
+		}
 		return nil
 	}
 	if len(res.Damaged) == 0 {

@@ -61,7 +61,8 @@ func (r *Repository) KeepImmutable(ctx context.Context, sns ...*Snapshot) (int, 
 	// packs cannot be read at all, so their locks must not wait behind
 	// 10,000 packs (or be left out when the step stops early).
 	names := []string{"config"}
-	for _, dir := range []string{"keys", "index"} {
+	// index-damaged/ holds the copies of damaged index files (RebuildIndex).
+	for _, dir := range []string{"keys", "index", damagedIndexDir} {
 		files, err := r.be.List(ctx, dir)
 		if err != nil {
 			return 0, errors.Join(append(problems, err)...)
