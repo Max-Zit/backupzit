@@ -516,6 +516,11 @@ func (v *Volume) Plan(newSize uint64) (*Plan, error) {
 		v.setUsed(c, false)
 	}
 	v.bitmap = v.bitmap[:newBitmapLen]
+	// Windows marks the bits past the last cluster as used, so they are
+	// never allocated; chkdsk calls the bitmap incorrect otherwise.
+	for c := p.NewClusters; c < newBitmapLen*8; c++ {
+		v.setUsed(c, true)
+	}
 
 	// $BadClus:$Bad: a sparse stream as long as the volume.
 	bad.Runs = []Run{{VCN: 0, Len: p.NewClusters, Sparse: true}}
@@ -749,4 +754,60 @@ func (v *Volume) DumpRecord(num uint64) (string, error) {
 		fmt.Fprintf(&sb, "    %d runs, %d clusters: %v\n", len(a.Runs), total, a.Runs)
 	}
 	return sb.String(), nil
+}
+
+// BitmapReport compares $Bitmap with the clusters files actually use (a
+// diagnostic): bits set without an owner, owned clusters missing, the
+// bits past the last cluster, and the size of $Bitmap.
+func (v *Volume) BitmapReport() (string, error) {
+	owned := make([]byte, len(v.bitmap))
+	err := v.scanRecords(func(rec *Record) error {
+		for _, a := range rec.Attrs {
+			if !a.NonResident || (rec.Number == recBadClus && a.Name == "$Bad") {
+				continue
+			}
+			for _, r := range a.Runs {
+				if r.Sparse {
+					continue
+				}
+				for c := r.LCN; c < r.LCN+r.Len && c/8 < uint64(len(owned)); c++ {
+					owned[c/8] |= 1 << (c % 8)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	var unowned, missing []uint64
+	var nUnowned, nMissing uint64
+	for c := uint64(0); c < v.Clusters; c++ {
+		u, o := v.used(c), owned[c/8]&(1<<(c%8)) != 0
+		switch {
+		case u && !o:
+			nUnowned++
+			if len(unowned) < 10 {
+				unowned = append(unowned, c)
+			}
+		case o && !u:
+			nMissing++
+			if len(missing) < 10 {
+				missing = append(missing, c)
+			}
+		}
+	}
+	var tail []int
+	for c := v.Clusters; c < uint64(len(v.bitmap))*8 && len(tail) < 72; c++ {
+		if v.used(c) {
+			tail = append(tail, 1)
+		} else {
+			tail = append(tail, 0)
+		}
+	}
+	bm := v.records[recBitmap].unnamed(attrData)
+	return fmt.Sprintf("bitmap: %d bytes read, data size %d, alloc %d, init %d, need %d bytes for %d clusters\n"+
+		"used but no owner: %d %v\nowned but free: %d %v\nbits past the end (first 72): %v\n",
+		len(v.bitmap), bm.DataSize, bm.AllocSize, bm.InitializedSize, (v.Clusters+7)/8, v.Clusters,
+		nUnowned, unowned, nMissing, missing, tail), nil
 }

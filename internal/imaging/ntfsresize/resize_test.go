@@ -425,3 +425,22 @@ func TestRunLengthIsSigned(t *testing.T) {
 		t.Errorf("Windows' encoding: %v, %v", runs, err)
 	}
 }
+
+// Windows marks the bits past the last cluster in $Bitmap as used; chkdsk
+// reports "the volume bitmap is incorrect" when they are clear.
+func TestShrinkMarksBitsPastTheEnd(t *testing.T) {
+	src := testImage(t)
+	out, p := shrink(t, src, 5<<20+3*4096) // a cluster count that is not a multiple of 8
+	if p.NewClusters%8 == 0 {
+		t.Fatalf("test needs a partial last byte, got %d clusters", p.NewClusters)
+	}
+	v, err := Open(bytes.NewReader(out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for c := v.Clusters; c < uint64(len(v.bitmap))*8; c++ {
+		if !v.used(c) {
+			t.Fatalf("bit %d past the end (%d clusters) is clear", c, v.Clusters)
+		}
+	}
+}

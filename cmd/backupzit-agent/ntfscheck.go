@@ -70,6 +70,9 @@ func cmdNTFSCheck(args []string) error {
 		return nil
 	}
 	fmt.Printf("clusters %d of %d bytes, %d used, last used %d, records of %d bytes\n", v.Clusters, v.ClusterSize, v.UsedClusters, v.LastUsedCluster(), v.RecordSize)
+	if rep, err := v.BitmapReport(); err == nil {
+		fmt.Print(rep)
+	}
 	probs, err := v.Check(40)
 	if err != nil {
 		return err
