@@ -123,6 +123,11 @@ func TestSuggestLayoutNotResizable(t *testing.T) {
 	if err := l.Validate(img, map[int]PartitionLimits{3: {Reason: "BitLocker"}}); err == nil {
 		t.Error("resizing a non-resizable partition must not validate")
 	}
+	// A partition that is not restored is created empty: any size will do.
+	l.Partitions[2].Restore = false
+	if err := l.Validate(img, map[int]PartitionLimits{3: {Reason: "BitLocker"}}); err != nil {
+		t.Errorf("resizing a partition that is not restored: %v", err)
+	}
 }
 
 func TestSuggestLayoutProportional(t *testing.T) {

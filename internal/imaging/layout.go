@@ -488,6 +488,8 @@ func (l *Layout) Validate(img *repo.DiskImage, limits map[int]PartitionLimits) e
 		last = max(last, lp.End())
 		lim := limits[lp.Source]
 		switch {
+		case !lp.Restore:
+			// Created empty: its size is free.
 		case !lim.Resizable && lp.Length != src.Length:
 			why := lim.Reason
 			if why == "" {
