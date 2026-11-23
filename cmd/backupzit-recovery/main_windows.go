@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
@@ -173,9 +174,29 @@ func firstIPv4() string {
 func inWinPE() bool { return strings.EqualFold(os.Getenv("SystemDrive"), "X:") }
 
 func startDetached(name string, args ...string) {
-	cmd := exec.Command(name, args...) // #nosec G204 -- fixed programs started by the user
-	cmd.SysProcAttr = &windows.SysProcAttr{CreationFlags: windows.CREATE_NEW_CONSOLE}
-	_ = cmd.Start()
+	// Not exec.Cmd: it always passes standard handles (NUL when none are
+	// set), so a program in a new console wrote to NUL and read an empty
+	// stdin: the agent's window stayed empty and cmd.exe closed at once.
+	// Without STARTF_USESTDHANDLES the program uses its new console.
+	exe, err := exec.LookPath(name)
+	if err != nil {
+		return
+	}
+	line, err := windows.UTF16PtrFromString(windows.ComposeCommandLine(append([]string{exe}, args...)))
+	if err != nil {
+		return
+	}
+	app, err := windows.UTF16PtrFromString(exe)
+	if err != nil {
+		return
+	}
+	si := windows.StartupInfo{Cb: uint32(unsafe.Sizeof(windows.StartupInfo{}))}
+	var pi windows.ProcessInformation
+	if err := windows.CreateProcess(app, line, nil, nil, false, windows.CREATE_NEW_CONSOLE|windows.CREATE_UNICODE_ENVIRONMENT, nil, nil, &si, &pi); err != nil {
+		return
+	}
+	_ = windows.CloseHandle(pi.Thread)
+	_ = windows.CloseHandle(pi.Process)
 }
 
 // startConsoleMode opens the console mode of the agent in its own window.
