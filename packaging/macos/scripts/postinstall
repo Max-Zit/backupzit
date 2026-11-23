@@ -11,7 +11,7 @@
 #          written by an MDM script before the installation (owned by root),
 #          deleted once used: it holds an enrollment token
 #      backupzit-enroll.txt next to the .pkg
-#          for an installation by hand or from a shared folder; used only
+#          for an installation by hand, on the startup disk; used only
 #          while the Mac is not enrolled, and only when no other user could
 #          have put it there (see side_code)
 #    Upgrades and reinstalls with the same code keep the enrollment
@@ -36,6 +36,14 @@ LOG_FILE=/Library/Logs/BackupZit/agent.log
 MDM_CODE="$CFG_DIR/enroll-code"
 AGENT_CFG=$CFG_DIR/agent.json
 
+# Commands by absolute path: this runs as root.
+ID_CMD=/usr/bin/id
+DSEDITGROUP=/usr/sbin/dseditgroup
+# A side file must be on the startup disk's data volume (where this folder
+# is): a disk image or a USB stick may ignore ownership, and its files can
+# then claim to belong to root.
+SYSTEM_DATA="/Library/Application Support"
+
 # Messages go to stderr: what read_code prints is the code itself.
 log() { echo "BackupZit postinstall: $*" >&2; }
 
@@ -43,7 +51,13 @@ log() { echo "BackupZit postinstall: $*" >&2; }
 # space a copy and paste adds (as the agent itself does), or nothing.
 read_code() {
     [ -f "$1" ] || return 0
-    code=$(head -c 8192 "$1" | tr -d ' \t\r\n')
+    read_code_from "$1" < "$1"
+}
+
+# read_code_from does the same with the code on standard input (file $1 is
+# only named in messages).
+read_code_from() {
+    code=$(head -c 8192 | tr -d ' \t\r\n')
     case $code in
         BZ1-*) ;;
         *) log "ignoring $1: not a BackupZit enrollment code (it starts with BZ1-)"; return 0 ;;
@@ -75,8 +89,8 @@ mdm_code() {
 # (an administrator of the Mac, who may install packages anyway).
 is_admin() {
     [ "$1" = 0 ] && return 0
-    name=$(id -un "$1" 2>/dev/null) || return 1
-    dseditgroup -o checkmember -m "$name" admin >/dev/null 2>&1
+    name=$("$ID_CMD" -un "$1" 2>/dev/null) || return 1
+    "$DSEDITGROUP" -o checkmember -m "$name" admin >/dev/null 2>&1
 }
 
 # trusted_side_file succeeds when file $1 (next to the package) can only
@@ -92,26 +106,51 @@ is_admin() {
 # console, which can restore any file as root. One name only: macOS lets any
 # user hard-link a file he can read (there is no protected_hardlinks rule),
 # so a second name says nothing about who wrote the file.
+#
+# The caller opened the file on descriptor 3 before: what is checked is that
+# file (it must still be the one at the path), and the code is read from it,
+# so it cannot be swapped between the checks and the read. It must be on the
+# startup disk (a disk image or USB stick may ignore ownership, and its
+# files then claim any owner) and not writable by others.
 trusted_side_file() {
     if [ -L "$1" ] || [ ! -f "$1" ]; then
         log "ignoring $1: not a regular file"
         return 1
     fi
+    opened=$(stat -f %d:%i <&3 2>/dev/null) || opened=
+    at_path=$(stat -f %d:%i "$1" 2>/dev/null) || at_path=
+    case $opened in
+        '' | *[!0-9:]* | :* | *:) log "ignoring $1: cannot read where it is"; return 1 ;;
+    esac
+    if [ "$opened" != "$at_path" ]; then
+        log "ignoring $1: it changed while it was checked"
+        return 1
+    fi
+    system_dev=$(stat -f %d "$SYSTEM_DATA" 2>/dev/null) || system_dev=
+    if [ -z "$system_dev" ] || [ "${opened%%:*}" != "$system_dev" ]; then
+        log "ignoring $1: it is not on the startup disk (on a disk image or USB stick any file can claim to belong to root); copy the package and the file to the Mac, or use $MDM_CODE"
+        return 1
+    fi
     file_uid=$(stat -f %u "$1" 2>/dev/null) || file_uid=
+    file_mode=$(stat -f %Lp "$1" 2>/dev/null) || file_mode=
     links=$(stat -f %l "$1" 2>/dev/null) || links=
     dir=$(dirname "$1")
     dir_uid=$(stat -f %u "$dir" 2>/dev/null) || dir_uid=
     # %Lp alone leaves out the sticky bit: %Mp holds it (1777, 0755).
     dir_mode=$(stat -f %Mp%Lp "$dir" 2>/dev/null) || dir_mode=
-    # Numbers only: the mode goes into shell arithmetic below.
-    for v in "$file_uid" "$links" "$dir_uid" "$dir_mode"; do
+    # Numbers only: the modes go into shell arithmetic below.
+    for v in "$file_uid" "$file_mode" "$links" "$dir_uid" "$dir_mode"; do
         case $v in
             '' | *[!0-9]*) log "ignoring $1: cannot read who owns it"; return 1 ;;
         esac
     done
-    case $dir_mode in
-        *[89]*) log "ignoring $1: cannot read the permissions of its folder"; return 1 ;;
+    case $dir_mode$file_mode in
+        *[89]*) log "ignoring $1: cannot read the permissions of the file or its folder"; return 1 ;;
     esac
+    if [ $((0$file_mode & 022)) -ne 0 ]; then
+        log "ignoring $1: other users can change it"
+        return 1
+    fi
     if [ "$links" != 1 ]; then
         log "ignoring $1: it has several names (hard links)"
         return 1
@@ -145,8 +184,16 @@ side_code() {
         log "ignoring $f: this Mac is already enrolled (to move it to another console, use $MDM_CODE)"
         return 0
     fi
-    trusted_side_file "$f" || return 0
-    read_code "$f"
+    if [ -L "$f" ] || [ ! -f "$f" ]; then
+        log "ignoring $f: not a regular file"
+        return 0
+    fi
+    # Opened once: checked and read through this descriptor.
+    exec 3<"$f" || return 0
+    if trusted_side_file "$f"; then
+        read_code_from "$f" <&3
+    fi
+    exec 3<&-
 }
 
 enroll() {

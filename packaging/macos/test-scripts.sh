@@ -9,7 +9,7 @@ cd "$(dirname "$0")"
 # The functions under test, taken from postinstall itself (running it would
 # install the agent).
 log() { :; }
-for fn in read_code is_admin trusted_side_file side_code; do
+for fn in read_code read_code_from is_admin trusted_side_file side_code; do
     eval "$(sed -n '/^'"$fn"'() {$/,/^}$/p' scripts/postinstall)"
     command -v "$fn" >/dev/null || { echo "$fn not found in scripts/postinstall" >&2; exit 1; }
 done
@@ -47,7 +47,11 @@ got=$(read_code "$tmp/missing")
 # hold what stat answers for the side file and its folder; user 501 is an
 # administrator, 502 a standard user.
 stat() {
-    case $2:$3 in
+    case $2:${3:-} in
+        %d:%i:) echo "${STAT_DEV:-1}:7" ;;
+        %d:%i:"$tmp/pkg/backupzit-enroll.txt") echo "${STAT_DEV:-1}:${STAT_INO:-7}" ;;
+        %d:"$tmp/etc") echo 1 ;;
+        %Lp:"$tmp/pkg/backupzit-enroll.txt") echo "${STAT_FILE_MODE:-644}" ;;
         %u:"$tmp/pkg/backupzit-enroll.txt") echo "$STAT_FILE_UID" ;;
         %l:"$tmp/pkg/backupzit-enroll.txt") echo "$STAT_LINKS" ;;
         %u:"$tmp/pkg") echo "$STAT_DIR_UID" ;;
@@ -57,12 +61,14 @@ stat() {
 }
 id() { case $2 in 501) echo admin1 ;; 502) echo bob ;; *) return 1 ;; esac; }
 dseditgroup() { [ "$4" = admin1 ] && [ "$5" = admin ]; }
+ID_CMD=id DSEDITGROUP=dseditgroup
 
 code='BZ1-abc_DEF-123'
 mkdir "$tmp/pkg" "$tmp/etc"
 : > "$tmp/pkg/BackupZit.pkg"
 AGENT_CFG=$tmp/etc/agent.json
 MDM_CODE=/nonexistent/enroll-code
+SYSTEM_DATA=$tmp/etc
 
 # side FILE_UID LINKS DIR_UID DIR_MODE NAME WANT: side_code prints WANT when
 # stat answers these owners, link count and folder mode.
@@ -94,6 +100,11 @@ side '' 1 501 0755    "owner unreadable" ''
 side 501 '' 501 0755  "link count unreadable" ''
 side 501 1 501 'x'    "mode unreadable" ''
 side 501 1 501 0758   "mode not octal" ''
+# A disk image or USB stick may ignore ownership: its files claim any owner.
+STAT_DEV=2; side 0 1 0 0755 "on a disk image or USB stick" ''; unset STAT_DEV
+STAT_FILE_MODE=666; side 501 1 501 0755 "file others may change" ''; unset STAT_FILE_MODE
+STAT_FILE_MODE=0x; side 501 1 501 0755 "file mode unreadable" ''; unset STAT_FILE_MODE
+STAT_INO=8; side 501 1 501 0755 "file swapped while it was checked" ''; unset STAT_INO
 
 : > "$AGENT_CFG"
 side 501 1 501 0755   "Mac already enrolled" ''
@@ -125,7 +136,14 @@ real() {
         echo "ok   real stat, $2"
     fi
 }
+SYSTEM_DATA=$tmp
 real 0755 "private folder" "$code"
+SYSTEM_DATA=/dev
+real 0755 "on another volume" ''
+SYSTEM_DATA=$tmp
+chmod 0666 "$tmp/real/backupzit-enroll.txt"
+real 0755 "file writable by everyone" ''
+chmod 0644 "$tmp/real/backupzit-enroll.txt"
 real 1777 "sticky folder" "$code"
 real 0777 "folder writable by everyone" ''
 ln "$tmp/real/backupzit-enroll.txt" "$tmp/real/second-name"

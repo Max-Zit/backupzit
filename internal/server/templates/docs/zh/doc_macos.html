@@ -37,7 +37,7 @@
   <li id="mdm"><b>使用 MDM</b>（Jamf、Intune、Mosyle……）：在安装安装包之前，由脚本将注册码写入一个属于 root 的文件：
 <pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   然后部署安装包。安装时会用该注册码注册 Mac 并删除该文件。不属于 root 的文件会被忽略。这也是将已注册的 Mac 迁移到另一个控制台的方法。</li>
-  <li><b>安装包旁边的文件</b>：在 <code>.pkg</code> 所在的同一文件夹中（例如 U 盘或共享文件夹）放一个写有注册码的 <code>backupzit-enroll.txt</code>。只有在 Mac 尚未注册时才会使用它，并且只有在其他人不可能写入它时才会使用：文件属于 root 或安装包的所有者，且其所在文件夹不可被其他用户写入（或像 <code>/Users/Shared</code> 那样设置了粘滞位）。</li>
+  <li><b>软件包旁的文件</b>：在 Mac 启动磁盘上与 <code>.pkg</code> 相同的文件夹中放一个写有代码的 <code>backupzit-enroll.txt</code>（例如 <code>/Users/Shared</code>；如果来自 U 盘或网络共享，请先把两者复制到 Mac 上：在这类卷上，任何文件都可以声称属于 root）。只有在 Mac 尚未注册、并且没有其他人可能写入它时才会使用：该文件属于 root 或 Mac 的管理员，只有一个名称且只有其所有者可以更改，其文件夹属于 root 或管理员，其他用户不能写入（或者像 <code>/Users/Shared</code> 那样设置了粘滞位）。</li>
 </ol>
 <p>如果安装期间无法连接控制台，代理会保留注册码并不断重试。如果注册失败，原因记录在 <code>/Library/Application Support/BackupZit/enroll-error.log</code> 中；之后请在“终端”中注册。升级和重新安装会保留注册。</p>
 

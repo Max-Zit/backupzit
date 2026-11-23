@@ -323,7 +323,8 @@ sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."
 - **MDM** (Jamf, Intune, ...): write the code to `/Library/Application Support/BackupZit/enroll-code` (owned by root, readable by root only: the code enrolls any number of Macs for 7 days) before installing the package; the installation enrolls the Mac and deletes the file, also when enrolling fails:
   ```
   echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat > "/Library/Application Support/BackupZit/enroll-code"'
-  ``` A `backupzit-enroll.txt` next to the `.pkg` also works for a Mac that is not enrolled yet.
+  ```
+  A `backupzit-enroll.txt` next to the `.pkg` on the Mac's startup disk (e.g. in `/Users/Shared`; not on a USB stick or a network share, where any file can claim to belong to root) also works for a Mac that is not enrolled yet, if it belongs to root or an administrator and nobody else may change it.
 - Uninstall: `sudo /Library/BackupZit/uninstall.sh` (`--purge` also deletes the configuration and the log).
 
 **From the console:** under *Agents → Install on a machine from here*, the console installs the agent itself, over SSH (Linux) or WinRM (Windows).
