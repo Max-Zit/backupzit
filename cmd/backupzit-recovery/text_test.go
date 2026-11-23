@@ -110,6 +110,11 @@ func TestLogTextInGerman(t *testing.T) {
 		"boot files for UEFI":                                                    "Bootdateien für UEFI",
 		"firmware UEFI (Secure Boot on), boot files for UEFI":                    "Firmware UEFI (Secure Boot an), Bootdateien für UEFI",
 		`Windows found on E:`:                                                    `Windows gefunden auf E:`,
+		`new hardware: Windows found on E:`:                                      `Neue Hardware: Windows gefunden auf E:`,
+		"wrote 3 partitions, 42947575808 bytes in 9m46s":                         "3 Partitionen geschrieben, 40,0 GiB in 9m46s",
+		"verifying the snapshot":                                                 "Backup wird geprüft",
+		"snapshot verified":                                                      "Backup geprüft, keine Fehler",
+		"warning: rebuild the boot files: x":                                     "Hinweis: rebuild the boot files: x",
 		"something new":                                                          "something new",
 	} {
 		if got := logText(in); got != want {

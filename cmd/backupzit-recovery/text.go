@@ -175,6 +175,25 @@ func logText(s string) string {
 	if lang != "de" {
 		return s
 	}
+	// Lines of the restore job: prefixes around image lines, and its own.
+	if rest, ok := strings.CutPrefix(s, "new hardware: "); ok {
+		return "Neue Hardware: " + logText(rest)
+	}
+	if rest, ok := strings.CutPrefix(s, "warning: "); ok {
+		return "Hinweis: " + rest
+	}
+	switch s {
+	case "verifying the snapshot":
+		return "Backup wird geprüft"
+	case "snapshot verified":
+		return "Backup geprüft, keine Fehler"
+	}
+	var parts int
+	var bytes uint64
+	var dur string
+	if _, err := fmt.Sscanf(s, "wrote %d partitions, %d bytes in %s", &parts, &bytes, &dur); err == nil {
+		return fmt.Sprintf("%d Partitionen geschrieben, %s in %s", parts, humanBytes(bytes), dur)
+	}
 	if rest, ok := strings.CutPrefix(s, "firmware "); ok {
 		rest = strings.NewReplacer("Secure Boot on", "Secure Boot an", "Secure Boot off", "Secure Boot aus", ", boot files for ", ", Bootdateien für ").Replace(rest)
 		return "Firmware " + rest
