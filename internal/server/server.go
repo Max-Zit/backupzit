@@ -501,8 +501,8 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /approvals/{id}/{decision}", s.ui(PermView, s.handleApprovalDecision))
 	mux.HandleFunc("POST /recovery/token", s.ui(PermAgents, s.handleRecoveryToken))
 	mux.HandleFunc("POST /recovery/recovery.json", s.ui(PermAgents, s.handleRecoveryJSON))
-	mux.HandleFunc("POST /recovery/access-package", s.ui(PermRestore, s.handleAccessPackage))
-	mux.HandleFunc("POST /recovery/access-packages/forget", s.ui(PermRestore, s.handleAccessPackagesForget))
+	mux.HandleFunc("POST /recovery/access-package", s.ui(PermStorage, s.handleAccessPackage))
+	mux.HandleFunc("POST /recovery/access-packages/forget", s.ui(PermStorage, s.handleAccessPackagesForget))
 
 	return securityHeaders(s.limitAccess(mux, main))
 }

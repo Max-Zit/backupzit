@@ -46,7 +46,7 @@
   <h2>{{T "Access package for restores without the console"}}</h2>
   <p class="muted">{{T "The Windows recovery environment can open backups directly, also when this console is not reachable. An access package holds the locations and credentials of the chosen backups, encrypted with a passphrase of its own. Put it into the backupzit folder on the recovery stick; in an emergency only the passphrase is needed."}}</p>
   {{range .Data.StaleAccess}}<div class="flash err">{{template "icon" "alert"}}<span>{{T "An access package from %v no longer matches: the credentials of this storage changed. Create a new one and destroy the old one." .}}</span></div>{{end}}
-  {{if $.Me.Can "restore"}}
+  {{if $.Me.Can "storage"}}
   {{if .Data.Repos}}
   <form method="post" action="/recovery/access-package" class="mt">
     <div class="table-wrap"><table>

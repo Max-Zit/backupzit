@@ -1139,6 +1139,16 @@ func TestUsersAndRoles(t *testing.T) {
 	if code, _, _ := admin.do("POST", fmt.Sprintf("/targets/%d/recovery-key", tid), url.Values{}); code != 200 {
 		t.Errorf("admin recovery key: %d", code)
 	}
+	// An access package holds the storage credentials and recovery keys:
+	// the same permission as seeing a recovery key.
+	for _, p := range []string{"/recovery/access-package", "/recovery/access-packages/forget"} {
+		if code, _, _ := op.do("POST", p, url.Values{"passphrase": {"long-enough-pass"}, "passphrase2": {"long-enough-pass"}}); code != http.StatusForbidden {
+			t.Errorf("operator POST %s: %d, want 403", p, code)
+		}
+	}
+	if _, _, body := op.do("GET", "/recovery", nil); strings.Contains(body, `action="/recovery/access-package"`) {
+		t.Error("operator sees the access package form")
+	}
 
 	// The last local administrator cannot be removed or demoted.
 	users, _ := e.store.ListUsers(ctx)
