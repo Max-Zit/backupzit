@@ -196,6 +196,29 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			total += d.Size
 		}
 	}
+	// The new disks are written next to the existing guest's: on thin
+	// storage (LVM-thin, ZFS, sparse files) a pool that runs full stops the
+	// writes of every guest on it, so the room is checked first.
+	if old != nil {
+		need := map[string]uint64{}
+		for _, d := range g.Disks {
+			st, _ := storageFor(d)
+			need[st.ID] += dataBytes(sn, d)
+		}
+		for id, n := range need {
+			total, avail, err := storageSpace(ctx, id)
+			if err != nil {
+				opts.Log("free space of the storage not checked", "storage", id, "error", err)
+				continue
+			}
+			reserve := max(total/20, 1<<30)
+			if avail < n+reserve {
+				return nil, fmt.Errorf("storage %s has %s free: the restore writes about %s next to the disks of the existing guest %d and would leave less than %s; free space, restore to another storage or as a new guest, or choose to delete the existing guest first (the guest was not changed)",
+					id, gib(avail), gib(n), target, gib(reserve))
+			}
+		}
+	}
+
 	var done uint64
 	progress := func(n uint64) {
 		done += n
@@ -344,6 +367,50 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 }
 
 var createdRe = regexp.MustCompile(`successfully created '([^']+)'`)
+
+// gib formats a size for messages.
+func gib(n uint64) string { return strconv.FormatFloat(float64(n)/(1<<30), 'f', 1, 64) + " GiB" }
+
+// dataBytes is about how much a restore writes for disk d: the blocks of
+// its image that carry data, or the bytes of its files.
+func dataBytes(sn *repo.Snapshot, d repo.GuestDisk) uint64 {
+	if d.Files() {
+		return d.Bytes
+	}
+	if d.Image < 0 || d.Image >= len(sn.Images) {
+		return d.Size
+	}
+	var n uint64
+	for _, p := range sn.Images[d.Image].Partitions {
+		n += p.StoredBytes
+	}
+	if n == 0 {
+		return d.Size
+	}
+	return n
+}
+
+// storageSpace returns the size and free space of a storage in bytes
+// ("pvesm status", in KiB).
+var storageSpace = func(ctx context.Context, id string) (total, avail uint64, err error) {
+	out, err := command(ctx, "pvesm", "status", "--storage", id)
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		f := strings.Fields(line)
+		if len(f) < 6 || f[0] != id {
+			continue
+		}
+		t, err1 := strconv.ParseUint(f[3], 10, 64)
+		a, err2 := strconv.ParseUint(f[5], 10, 64)
+		if err1 != nil || err2 != nil {
+			break
+		}
+		return t * 1024, a * 1024, nil
+	}
+	return 0, 0, fmt.Errorf("unexpected pvesm status output: %s", strings.TrimSpace(string(out)))
+}
 
 // The writers of a restore (tests replace them).
 var (

@@ -25,6 +25,7 @@ func TestOverwriteRestoreOrder(t *testing.T) {
 		writeErr    error
 		destroyErr  bool
 		configThere bool
+		freeKiB     string // free space pvesm reports, default plenty
 		wantCalls   []string
 		wantErr     []string // substrings; none = success
 		wantNoCall  []string
@@ -52,6 +53,10 @@ func TestOverwriteRestoreOrder(t *testing.T) {
 			wantErr: []string{"restored disks of ID 100 are kept: local:100/vm-100-disk-1.raw"}},
 		{name: "remove first (as before 0.59)", running: true, removeFirst: true,
 			wantCalls: []string{stop, "qm destroy 100", alloc, "write"}, wantNoCall: []string{destroy, free}},
+		{name: "no room next to the old guest: nothing done", running: true, freeKiB: "1048576",
+			wantNoCall: []string{"pvesm alloc", stop, "qm destroy"}, wantErr: []string{"storage local has 1.0 GiB free", "the guest was not changed", "delete the existing guest first"}},
+		{name: "no room but delete first", running: true, removeFirst: true, freeKiB: "1048576",
+			wantCalls: []string{stop, "qm destroy 100", alloc, "write"}},
 	} {
 		t.Run(sc.name, func(t *testing.T) {
 			oldDir, oldCmd, oldLocks, oldWrite := ConfigDir, command, vmlock.Dir, writeDiskFn
@@ -81,6 +86,13 @@ func TestOverwriteRestoreOrder(t *testing.T) {
 					return []byte(fmt.Sprintf(`[{"vmid":100,"name":"web","type":"qemu","node":%q,"status":%q}]`, LocalNode(), status)), nil
 				case c == "pveversion":
 					return []byte("pve-manager/9.2.21"), nil
+				case c == "pvesm status --storage local":
+					free := sc.freeKiB
+					if free == "" {
+						free = "34423880"
+					}
+					return []byte("Name         Type     Status     Total (KiB)      Used (KiB) Available (KiB)        %" + "\n" +
+						"local         dir     active        98497780        59024352        " + free + "   59.92%" + "\n"), nil
 				}
 				calls = append(calls, c)
 				switch {
@@ -133,5 +145,22 @@ func TestOverwriteRestoreOrder(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// pvesm status as Proxmox VE 9.2 prints it (KiB).
+func TestStorageSpace(t *testing.T) {
+	oldCmd := command
+	defer func() { command = oldCmd }()
+	command = func(_ context.Context, name string, args ...string) ([]byte, error) {
+		return []byte("Name             Type     Status     Total (KiB)      Used (KiB) Available (KiB)        %\n" +
+			"local-lvm     lvmthin     active       354275328       227763608       126511719   64.29%\n"), nil
+	}
+	total, avail, err := storageSpace(context.Background(), "local-lvm")
+	if err != nil || total != 354275328*1024 || avail != 126511719*1024 {
+		t.Fatalf("total %d avail %d %v", total, avail, err)
+	}
+	if _, _, err := storageSpace(context.Background(), "other"); err == nil {
+		t.Fatal("a storage not in the output")
 	}
 }
