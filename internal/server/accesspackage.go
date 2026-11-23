@@ -136,7 +136,8 @@ func (s *Server) handleAccessPackage(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 	if len([]rune(pass)) < recovery.MinPassphraseLength {
-		fail(fmt.Sprintf("The passphrase must have at least %d characters.", recovery.MinPassphraseLength))
+		// A fixed text, so the catalog translates it; the minimum is in the label.
+		fail("The passphrase is too short.")
 		return
 	}
 	repos, err := s.store.recoveryRepos(ctx)
