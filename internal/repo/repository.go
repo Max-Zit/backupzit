@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -333,8 +334,9 @@ func (r *Repository) loadIndex(ctx context.Context, progress func(done, total in
 	close(jobs)
 	wg.Wait()
 	if firstErr == nil {
-		r.setDamagedIndex(damaged)
-		if len(damaged) > 0 {
+		all := r.stillDamaged(damaged, names)
+		r.setDamagedIndex(all)
+		if len(all) > 0 {
 			firstErr = r.recoverIndex(ctx)
 		}
 	}
@@ -348,17 +350,42 @@ func (r *Repository) loadIndexFile(ctx context.Context, n string) error {
 	}
 	b, err := r.open(sealed)
 	if err != nil {
-		return fmt.Errorf("%s: %w: %w", n, errIndexDamaged, err)
+		return r.indexFileBad(ctx, n, sealed, fmt.Errorf("%s: %w: %w", n, errIndexDamaged, err))
 	}
 	f, err := decodeIndexFile(b)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w: %w", n, errIndexDamaged, err)
+		return r.indexFileBad(ctx, n, sealed, fmt.Errorf("parse %s: %w: %w", n, errIndexDamaged, err))
 	}
 	for _, p := range f.Packs {
 		r.idx.addPack(p.ID, p.Blobs)
 	}
 	r.noteIndexFile(n)
 	return nil
+}
+
+// indexFileBad decides whether an index file that cannot be opened or
+// parsed is damaged on the storage (damaged, which wraps errIndexDamaged)
+// or was only cut short on its way here. Index files are named by the hash
+// of their content: when the hash does not match and the storage holds more
+// bytes than arrived, the download was cut (as for packs since #38, see
+// VerifyPack), and the open fails as it does for any storage error instead
+// of taking a healthy file for damaged (new backups would store their data
+// again, prune would be blocked and repair would remove the file).
+func (r *Repository) indexFileBad(ctx context.Context, n string, sealed []byte, damaged error) error {
+	if base := n[strings.LastIndex(n, "/")+1:]; Hash(sealed).String() == base {
+		return damaged // exactly what was written: reading it again does not help
+	}
+	size, err := r.be.Size(ctx, n)
+	switch {
+	case errors.Is(err, backend.ErrNotFound):
+		return fmt.Errorf("load %s: %w", n, err) // gone since it was listed
+	case err != nil:
+		// Without the stored size nothing tells a cut download from damage.
+		return fmt.Errorf("load %s: content hash mismatch, and its size on the storage could not be read: %w", n, err)
+	case size > int64(len(sealed)):
+		return fmt.Errorf("load %s: only %d of its %d bytes arrived (the storage has it whole; check the network path: proxy, firewall, IPS, NAT)", n, len(sealed), size)
+	}
+	return damaged
 }
 
 // SaveBlob stores data unless an identical blob already exists. It returns
@@ -568,6 +595,12 @@ func (r *Repository) ReadPackHeader(ctx context.Context, pack ID) ([]PackedBlob,
 	}
 	hdr, err := r.be.LoadRange(ctx, name, -int64(packTrailerLen+hl), int(hl))
 	if err != nil {
+		// A length beyond the pack itself (a cut-short pack, or a crafted
+		// file) is bad header content, not a storage error: reading it
+		// again does not help, and the storage did answer.
+		if size, serr := r.be.Size(ctx, name); serr == nil && int64(hl)+packTrailerLen > size {
+			return nil, fmt.Errorf("pack %s: header length %d beyond the %d bytes of the pack: %w", pack.Short(), hl, size, errPackHeader)
+		}
 		return nil, err
 	}
 	if hdr, err = r.open(hdr); err != nil {
@@ -614,12 +647,18 @@ func (r *Repository) PackStored(ctx context.Context, id ID) (bool, error) {
 // VerifyPack downloads a whole pack, checks its name hash, and verifies every
 // blob listed in its header.
 func (r *Repository) VerifyPack(ctx context.Context, pack ID) (int, error) {
+	blobs, err := r.verifyPack(ctx, pack)
+	return len(blobs), err
+}
+
+// verifyPack is VerifyPack that returns the blobs of the pack's own header.
+func (r *Repository) verifyPack(ctx context.Context, pack ID) ([]PackedBlob, error) {
 	data, err := r.be.Load(ctx, packName(pack))
 	if errors.Is(err, backend.ErrNotFound) {
-		return 0, fmt.Errorf("pack %s: missing on the storage: %w", pack.Short(), ErrPackDamaged)
+		return nil, fmt.Errorf("pack %s: missing on the storage: %w", pack.Short(), ErrPackDamaged)
 	}
 	if err != nil {
-		return 0, err // a read problem (network, timeout), no verdict on the pack
+		return nil, err // a read problem (network, timeout), no verdict on the pack
 	}
 	if Hash(data) != pack {
 		// Fewer bytes arrived than the storage holds: the way lost them,
@@ -629,40 +668,40 @@ func (r *Repository) VerifyPack(ctx context.Context, pack ID) (int, error) {
 		case serr != nil:
 			// Without the stored size nothing tells a cut download from a
 			// damaged pack: no verdict (A8).
-			return 0, fmt.Errorf("pack %s: content hash mismatch, and its size on the storage could not be read: %v", pack.Short(), serr)
+			return nil, fmt.Errorf("pack %s: content hash mismatch, and its size on the storage could not be read: %v", pack.Short(), serr)
 		case size > int64(len(data)):
-			return 0, fmt.Errorf("pack %s: only %d of its %d bytes arrived (the storage has it whole; check the network path: proxy, firewall, IPS, NAT)", pack.Short(), len(data), size)
+			return nil, fmt.Errorf("pack %s: only %d of its %d bytes arrived (the storage has it whole; check the network path: proxy, firewall, IPS, NAT)", pack.Short(), len(data), size)
 		}
-		return 0, fmt.Errorf("pack %s: content hash mismatch: %w", pack.Short(), ErrPackDamaged)
+		return nil, fmt.Errorf("pack %s: content hash mismatch: %w", pack.Short(), ErrPackDamaged)
 	}
 	// From here the content is exactly what was written (its hash is its
 	// name): what follows cannot be read differently on another try.
 	if len(data) < packTrailerLen {
-		return 0, fmt.Errorf("pack %s: too short: %w", pack.Short(), ErrPackDamaged)
+		return nil, fmt.Errorf("pack %s: too short: %w", pack.Short(), ErrPackDamaged)
 	}
 	hl := int(binary.LittleEndian.Uint32(data[len(data)-packTrailerLen:]))
 	if hl <= 0 || hl > len(data)-packTrailerLen {
-		return 0, fmt.Errorf("pack %s: invalid header length: %w", pack.Short(), ErrPackDamaged)
+		return nil, fmt.Errorf("pack %s: invalid header length: %w", pack.Short(), ErrPackDamaged)
 	}
 	hdrStart := len(data) - packTrailerLen - hl
 	hdr, err := r.open(data[hdrStart : len(data)-packTrailerLen])
 	if err != nil {
-		return 0, fmt.Errorf("pack %s header: %v: %w", pack.Short(), err, ErrPackDamaged)
+		return nil, fmt.Errorf("pack %s header: %v: %w", pack.Short(), err, ErrPackDamaged)
 	}
 	blobs, err := parsePackHeader(hdr)
 	if err != nil {
-		return 0, fmt.Errorf("pack %s: %v: %w", pack.Short(), err, ErrPackDamaged)
+		return nil, fmt.Errorf("pack %s: %v: %w", pack.Short(), err, ErrPackDamaged)
 	}
 	for _, b := range blobs {
 		end := int(b.Offset) + int(b.Length)
 		if end > hdrStart {
-			return 0, fmt.Errorf("pack %s: blob %s out of bounds: %w", pack.Short(), b.ID.Short(), ErrPackDamaged)
+			return nil, fmt.Errorf("pack %s: blob %s out of bounds: %w", pack.Short(), b.ID.Short(), ErrPackDamaged)
 		}
 		if _, err := r.decodeBlob(b.ID, b.Type, data[b.Offset:end], b.Raw); err != nil {
-			return 0, fmt.Errorf("pack %s: %v: %w", pack.Short(), err, ErrPackDamaged)
+			return nil, fmt.Errorf("pack %s: %v: %w", pack.Short(), err, ErrPackDamaged)
 		}
 	}
-	return len(blobs), nil
+	return blobs, nil
 }
 
 // SaveJSON stores v as JSON at dir/<sha256> and returns the ID.
@@ -919,20 +958,25 @@ func (r *Repository) refreshIndex(ctx context.Context) error {
 			return err
 		}
 	}
-	// A damaged file is tried again here (it is not in indexFiles), so the
-	// list is what is damaged now. A file that reads fine since, or is gone,
-	// leaves it; the packs recovered for it then come from the index again.
-	if len(damaged) == 0 && len(r.DamagedIndexFiles()) > 0 {
-		r.mu.Lock()
-		r.idx = newIndex()
-		r.mu.Unlock()
-		r.indexMu.Lock()
-		r.indexFiles = map[string]bool{}
-		r.indexMu.Unlock()
-		return r.loadIndex(ctx, nil)
+	// A damaged file is tried again here (it is not in indexFiles). One that
+	// reads fine since leaves the list, and the packs recovered for it then
+	// come from the index again. One that is gone does not: the packs only
+	// it listed would fall out of the index, and prune would delete them;
+	// they are recovered until RebuildIndex has written the new index.
+	for _, n := range r.DamagedIndexFiles() {
+		if on[n] && !slices.Contains(damaged, n) {
+			r.mu.Lock()
+			r.idx = newIndex()
+			r.mu.Unlock()
+			r.indexMu.Lock()
+			r.indexFiles = map[string]bool{}
+			r.indexMu.Unlock()
+			return r.loadIndex(ctx, nil)
+		}
 	}
-	r.setDamagedIndex(damaged)
-	if len(damaged) > 0 {
+	all := r.stillDamaged(damaged, names)
+	r.setDamagedIndex(all)
+	if len(all) > 0 {
 		return r.recoverIndex(ctx)
 	}
 	return nil
