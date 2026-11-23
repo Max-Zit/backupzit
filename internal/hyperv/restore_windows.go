@@ -2,6 +2,8 @@ package hyperv
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/diskimg"
+	"github.com/max-zit/backupzit/internal/fsutil"
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
@@ -138,20 +141,51 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		}
 		folder = strings.TrimSpace(string(out))
 	}
-	dir := filepath.Join(folder, strings.TrimSpace(unsafeName.ReplaceAllString(name, "_")))
-	if inPlace {
-		dir = folder
+	// B1 (0.59): New-VHD, the virtual disk API and Hyper-V take paths, and
+	// the default folders are often writable by users (a data volume's
+	// root gives Authenticated Users "Modify", client Hyper-V uses Public
+	// Documents). So every folder on the way is held open where nobody can
+	// rename or replace it, links are followed only if trusted, and the
+	// disks go into a folder of ours that only the system, administrators
+	// and Hyper-V administrators may change (on an SMB share it keeps the
+	// share's permissions: the host's computer account needs them).
+	pinned, err := fsutil.PinFolder(folder, true)
+	if err != nil {
+		return nil, fmt.Errorf("folder for the disks: %w", err)
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
-		return nil, fmt.Errorf("create %s: %w", dir, err)
+	var vmFolders []*fsutil.Pinned
+	releaseFolders := func() {
+		for i := len(vmFolders) - 1; i >= 0; i-- {
+			_ = vmFolders[i].Close()
+		}
+		vmFolders = nil
+		_ = pinned.Close()
 	}
+	defer releaseFolders()
+	private := !isShare(folder)
+	removeDir := false // our own folder, removed again if the restore fails early
+	var vf *fsutil.Pinned
 	if inPlace {
-		var err error
-		dir, err = os.MkdirTemp(folder, "backupzit-restore-")
-		if err != nil {
-			return nil, fmt.Errorf("create staging directory: %w", err)
+		vf, err = stagingFolder(pinned, private)
+		removeDir = true
+	} else {
+		created := false
+		vf, created, err = pinned.Sub(strings.TrimSpace(unsafeName.ReplaceAllString(name, "_")), true, private)
+		if err == nil && !created && private && vf.OthersMayChange() {
+			// An existing folder (of a VM removed earlier, say) that others
+			// may change: the disks go into a folder of ours inside it.
+			vmFolders = append(vmFolders, vf)
+			if vf, err = stagingFolder(vf, true); err == nil {
+				removeDir = true
+				res.Notes = append(res.Notes, fmt.Sprintf("other users may change %s: the disks are in %s", vmFolders[0].Path(), vf.Path()))
+			}
 		}
 	}
+	if err != nil {
+		return nil, fmt.Errorf("create the folder for the disks in %s: %w", folder, err)
+	}
+	vmFolders = append(vmFolders, vf)
+	dir := vf.Path()
 
 	var total, done uint64
 	for _, d := range g.Disks {
@@ -173,8 +207,9 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 			for _, f := range created {
 				_ = os.Remove(f)
 			}
-			if inPlace {
-				_ = os.Remove(dir) // only remove our now-empty staging directory
+			if removeDir {
+				releaseFolders()   // our handle would keep it
+				_ = os.Remove(dir) // only our own folder, and only when empty
 			}
 		}
 	}()
@@ -439,4 +474,24 @@ func keepList(ds []repo.ExcludedDisk) string {
 		}
 	}
 	return strings.Join(s, ",")
+}
+
+// isShare reports whether folder is on an SMB share (\server\share\...).
+func isShare(folder string) bool {
+	f := strings.ToUpper(folder)
+	if strings.HasPrefix(f, `\?\UNC\`) {
+		return true
+	}
+	return strings.HasPrefix(f, `\`) && !strings.HasPrefix(f, `\?\`) && !strings.HasPrefix(f, `\.\`)
+}
+
+// stagingFolder creates a new folder of ours with a random name in p
+// (private: only the system, administrators and Hyper-V administrators
+// may change it).
+func stagingFolder(p *fsutil.Pinned, private bool) (*fsutil.Pinned, error) {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return nil, err
+	}
+	return p.CreatePrivate("backupzit-restore-"+hex.EncodeToString(b[:]), private)
 }

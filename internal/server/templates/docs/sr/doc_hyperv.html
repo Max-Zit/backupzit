@@ -62,7 +62,7 @@
 
 <h3>Opcije</h3>
 <ul>
-  <li><b>Folder za virtuelne diskove</b>: podrazumevani folder hosta ili bilo koji folder sa diskovima virtuelnih mašina. Vraćanje na mesto originala stavlja nove diskove u nov podfolder <code>backupzit-restore-…</code>, a stare ostavlja tamo gde su bili.</li>
+  <li><b>Folder za virtuelne diskove</b>: podrazumevani folder hosta ili bilo koji folder sa diskovima virtuelnih mašina. Vraćanje na mesto originala stavlja nove diskove u nov podfolder <code>backupzit-restore-…</code>, a stare ostavlja tamo gde su bili. Od verzije 0.59 diskovi idu u folder koji smeju da menjaju samo sistem, administratori i Hyper-V Administrators (na SMB deljenom folderu zadržava dozvole tog foldera), a nijedan folder na putanji ne može da se preimenuje ili zameni dok restore traje; link na putanji se prati samo ako pripada sistemu, kao <code>C:\ClusterStorage\Volume1</code>. Ako folder sa imenom VM-a već postoji i drugi korisnici smeju da ga menjaju, diskovi idu u novi folder <code>backupzit-restore-…</code> unutar njega.</li>
   <li><b>Pokreni VM posle vraćanja</b>.</li>
 </ul>
 

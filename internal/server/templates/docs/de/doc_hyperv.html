@@ -62,7 +62,7 @@
 
 <h3>Optionen</h3>
 <ul>
-  <li><b>Ordner für die virtuellen Festplatten</b>: der Standardordner des Hosts oder ein beliebiger Ordner mit VM-Festplatten. Eine Wiederherstellung an Ort und Stelle legt die neuen Festplatten in einen neuen Unterordner <code>backupzit-restore-…</code> und lässt die alten, wo sie waren.</li>
+  <li><b>Ordner für die virtuellen Festplatten</b>: der Standardordner des Hosts oder ein beliebiger Ordner mit VM-Festplatten. Eine Wiederherstellung an Ort und Stelle legt die neuen Festplatten in einen neuen Unterordner <code>backupzit-restore-…</code> und lässt die alten, wo sie waren. Seit 0.59 kommen die Datenträger in einen Ordner, den nur das System, Administratoren und Hyper-V-Administratoren ändern dürfen (auf einer SMB-Freigabe behält er die Berechtigungen der Freigabe), und kein Ordner auf dem Weg kann während der Wiederherstellung umbenannt oder ersetzt werden; einer Verknüpfung auf dem Weg wird nur gefolgt, wenn sie dem System gehört, etwa <code>C:\ClusterStorage\Volume1</code>. Gibt es schon einen Ordner mit dem Namen der VM, den andere Benutzer ändern dürfen, kommen die Datenträger in einen neuen Ordner <code>backupzit-restore-…</code> darin.</li>
   <li><b>VM nach der Wiederherstellung starten</b>.</li>
 </ul>
 

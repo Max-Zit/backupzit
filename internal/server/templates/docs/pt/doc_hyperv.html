@@ -62,7 +62,7 @@
 
 <h3>Opções</h3>
 <ul>
-  <li><b>Pasta para os discos virtuais</b>: a pasta padrão do host ou qualquer pasta que contenha discos de VM. Uma restauração no local coloca os novos discos em uma nova subpasta <code>backupzit-restore-…</code> e deixa os antigos onde estavam.</li>
+  <li><b>Pasta para os discos virtuais</b>: a pasta padrão do host ou qualquer pasta que contenha discos de VM. Uma restauração no local coloca os novos discos em uma nova subpasta <code>backupzit-restore-…</code> e deixa os antigos onde estavam. Desde a 0.59 os discos vão para uma pasta que só o sistema, os administradores e os administradores do Hyper-V podem alterar (em um compartilhamento SMB ela mantém as permissões do compartilhamento), e nenhuma pasta do caminho pode ser renomeada ou substituída durante a restauração; um link no caminho só é seguido se pertencer ao sistema, como <code>C:\ClusterStorage\Volume1</code>. Se já existir uma pasta com o nome da VM que outros usuários podem alterar, os discos vão para uma nova pasta <code>backupzit-restore-…</code> dentro dela.</li>
   <li><b>Iniciar a VM após a restauração</b>.</li>
 </ul>
 

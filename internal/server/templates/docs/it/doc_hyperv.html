@@ -62,7 +62,7 @@
 
 <h3>Opzioni</h3>
 <ul>
-  <li><b>Cartella per i dischi virtuali</b>: la cartella predefinita dell'host o qualsiasi cartella che contenga dischi di VM. Un ripristino sul posto mette i nuovi dischi in una nuova sottocartella <code>backupzit-restore-…</code> e lascia quelli vecchi dove si trovavano.</li>
+  <li><b>Cartella per i dischi virtuali</b>: la cartella predefinita dell'host o qualsiasi cartella che contenga dischi di VM. Un ripristino sul posto mette i nuovi dischi in una nuova sottocartella <code>backupzit-restore-…</code> e lascia quelli vecchi dove si trovavano. Dalla 0.59 i dischi vanno in una cartella che possono modificare solo il sistema, gli amministratori e gli amministratori di Hyper-V (su una condivisione SMB mantiene le autorizzazioni della condivisione), e nessuna cartella del percorso può essere rinominata o sostituita durante il ripristino; un collegamento sul percorso viene seguito solo se appartiene al sistema, come <code>C:\ClusterStorage\Volume1</code>. Se esiste già una cartella con il nome della VM che altri utenti possono modificare, i dischi vanno in una nuova cartella <code>backupzit-restore-…</code> al suo interno.</li>
   <li><b>Avvia la VM dopo il ripristino</b>.</li>
 </ul>
 

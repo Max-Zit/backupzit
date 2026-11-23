@@ -62,7 +62,7 @@
 
 <h3>Options</h3>
 <ul>
-  <li><b>Dossier des disques virtuels</b> : le dossier par défaut de l'hôte ou tout dossier contenant des disques de VM. Une restauration sur place met les nouveaux disques dans un nouveau sous-dossier <code>backupzit-restore-…</code> et laisse les anciens là où ils étaient.</li>
+  <li><b>Dossier des disques virtuels</b> : le dossier par défaut de l'hôte ou tout dossier contenant des disques de VM. Une restauration sur place met les nouveaux disques dans un nouveau sous-dossier <code>backupzit-restore-…</code> et laisse les anciens là où ils étaient. Depuis la 0.59, les disques sont placés dans un dossier que seuls le système, les administrateurs et les administrateurs Hyper-V peuvent modifier (sur un partage SMB, il garde les autorisations du partage), et aucun dossier du chemin ne peut être renommé ni remplacé pendant la restauration ; un lien sur le chemin n'est suivi que s'il appartient au système, comme <code>C:\ClusterStorage\Volume1</code>. Si un dossier au nom de la VM existe et que d'autres utilisateurs peuvent le modifier, les disques vont dans un nouveau dossier <code>backupzit-restore-…</code> à l'intérieur.</li>
   <li><b>Démarrer la VM après la restauration</b>.</li>
 </ul>
 

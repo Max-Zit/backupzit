@@ -62,7 +62,7 @@
 
 <h3>Opciones</h3>
 <ul>
-  <li><b>Carpeta para los discos virtuales</b>: la carpeta predeterminada del host o cualquier carpeta que contenga discos de VM. Una restauración en el sitio coloca los discos nuevos en una subcarpeta nueva <code>backupzit-restore-…</code> y deja los antiguos donde estaban.</li>
+  <li><b>Carpeta para los discos virtuales</b>: la carpeta predeterminada del host o cualquier carpeta que contenga discos de VM. Una restauración en el sitio coloca los discos nuevos en una subcarpeta nueva <code>backupzit-restore-…</code> y deja los antiguos donde estaban. Desde la 0.59 los discos van a una carpeta que solo pueden cambiar el sistema, los administradores y los administradores de Hyper-V (en un recurso compartido SMB conserva los permisos del recurso), y ninguna carpeta del camino se puede renombrar ni sustituir mientras dura la restauración; un enlace del camino solo se sigue si pertenece al sistema, como <code>C:\ClusterStorage\Volume1</code>. Si ya existe una carpeta con el nombre de la VM que otros usuarios pueden cambiar, los discos van a una nueva carpeta <code>backupzit-restore-…</code> dentro de ella.</li>
   <li><b>Iniciar la VM tras la restauración</b>.</li>
 </ul>
 

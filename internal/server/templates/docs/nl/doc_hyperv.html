@@ -62,7 +62,7 @@
 
 <h3>Opties</h3>
 <ul>
-  <li><b>Map voor de virtuele schijven</b>: de standaardmap van de host of een willekeurige map met VM-schijven. Een herstel ter plaatse zet de nieuwe schijven in een nieuwe submap <code>backupzit-restore-…</code> en laat de oude staan waar ze waren.</li>
+  <li><b>Map voor de virtuele schijven</b>: de standaardmap van de host of een willekeurige map met VM-schijven. Een herstel ter plaatse zet de nieuwe schijven in een nieuwe submap <code>backupzit-restore-…</code> en laat de oude staan waar ze waren. Sinds 0.59 komen de schijven in een map die alleen het systeem, beheerders en Hyper-V-beheerders mogen wijzigen (op een SMB-share houdt hij de machtigingen van de share), en geen map onderweg kan tijdens het herstel worden hernoemd of vervangen; een koppeling onderweg wordt alleen gevolgd als ze van het systeem is, zoals <code>C:\ClusterStorage\Volume1</code>. Bestaat er al een map met de naam van de VM die andere gebruikers mogen wijzigen, dan komen de schijven in een nieuwe map <code>backupzit-restore-…</code> daarin.</li>
   <li><b>De VM na het herstel starten</b>.</li>
 </ul>
 

@@ -62,7 +62,7 @@
 
 <h3>Možnosti</h3>
 <ul>
-  <li><b>Složka pro virtuální disky</b>: výchozí složka hostitele nebo jakákoli složka s disky VM. Obnova na místo uloží nové disky do nové podsložky <code>backupzit-restore-…</code> a staré ponechá tam, kde byly.</li>
+  <li><b>Složka pro virtuální disky</b>: výchozí složka hostitele nebo jakákoli složka s disky VM. Obnova na místo uloží nové disky do nové podsložky <code>backupzit-restore-…</code> a staré ponechá tam, kde byly. Od verze 0.59 se disky ukládají do složky, kterou smí měnit jen systém, správci a Hyper-V Administrators (na sdílené složce SMB si ponechá oprávnění sdílené složky), a žádnou složku na cestě nelze během obnovy přejmenovat ani nahradit; odkaz na cestě se sleduje jen tehdy, patří-li systému, například <code>C:\ClusterStorage\Volume1</code>. Pokud složka s názvem VM existuje a jiní uživatelé ji smějí měnit, disky se uloží do nové složky <code>backupzit-restore-…</code> uvnitř ní.</li>
   <li><b>Po obnově spustit VM</b>.</li>
 </ul>
 

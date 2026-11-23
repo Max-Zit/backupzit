@@ -62,7 +62,7 @@
 
 <h3>Opcje</h3>
 <ul>
-  <li><b>Folder na dyski wirtualne</b>: domyślny folder hosta lub dowolny folder z dyskami maszyn. Przywracanie w miejscu umieszcza nowe dyski w nowym podfolderze <code>backupzit-restore-…</code>, a stare zostawia tam, gdzie były.</li>
+  <li><b>Folder na dyski wirtualne</b>: domyślny folder hosta lub dowolny folder z dyskami maszyn. Przywracanie w miejscu umieszcza nowe dyski w nowym podfolderze <code>backupzit-restore-…</code>, a stare zostawia tam, gdzie były. Od wersji 0.59 dyski trafiają do folderu, który mogą zmieniać tylko system, administratorzy i administratorzy funkcji Hyper-V (w udziale SMB zachowuje uprawnienia udziału), a żadnego folderu na ścieżce nie da się w trakcie przywracania przemianować ani zastąpić; dowiązanie na ścieżce jest śledzone tylko wtedy, gdy należy do systemu, jak <code>C:\ClusterStorage\Volume1</code>. Jeśli istnieje już folder o nazwie maszyny wirtualnej, który mogą zmieniać inni użytkownicy, dyski trafiają do nowego folderu <code>backupzit-restore-…</code> w jego wnętrzu.</li>
   <li><b>Uruchom VM po przywróceniu</b>.</li>
 </ul>
 

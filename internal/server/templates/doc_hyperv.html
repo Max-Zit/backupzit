@@ -62,7 +62,7 @@
 
 <h3>Options</h3>
 <ul>
-  <li><b>Folder for the virtual disks</b>: the host's default folder or any folder that holds VM disks. An in-place restore puts the new disks in a new <code>backupzit-restore-…</code> subfolder and leaves the old ones where they were.</li>
+  <li><b>Folder for the virtual disks</b>: the host's default folder or any folder that holds VM disks. An in-place restore puts the new disks in a new <code>backupzit-restore-…</code> subfolder and leaves the old ones where they were. Since 0.59 the disks go into a folder that only the system, administrators and Hyper-V Administrators may change (on an SMB share it keeps the share's permissions), and no folder on the way can be renamed or replaced while the restore runs; a link on the way is followed only if it belongs to the system, such as <code>C:\ClusterStorage\Volume1</code>. If a folder with the VM's name exists and other users may change it, the disks go into a new <code>backupzit-restore-…</code> folder inside it.</li>
   <li><b>Start the VM after the restore</b>.</li>
 </ul>
 

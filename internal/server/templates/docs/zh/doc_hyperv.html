@@ -62,7 +62,7 @@
 
 <h3>选项</h3>
 <ul>
-  <li><b>虚拟磁盘文件夹</b>：主机的默认文件夹或任何存放虚拟机磁盘的文件夹。原位还原会将新磁盘放入新的 <code>backupzit-restore-…</code> 子文件夹，旧磁盘则保留在原处。</li>
+  <li><b>虚拟磁盘文件夹</b>：主机的默认文件夹或任何存放虚拟机磁盘的文件夹。原位还原会将新磁盘放入新的 <code>backupzit-restore-…</code> 子文件夹，旧磁盘则保留在原处。从 0.59 起，磁盘放在只有系统、管理员和 Hyper-V Administrators 可以更改的文件夹中（在 SMB 共享上保留共享的权限），还原期间路径上的任何文件夹都无法被重命名或替换；路径上的链接只有属于系统时才会跟随，例如 <code>C:\ClusterStorage\Volume1</code>。如果已有以该 VM 命名且其他用户可以更改的文件夹，磁盘会放在其中新的 <code>backupzit-restore-…</code> 文件夹里。</li>
   <li><b>还原后启动虚拟机</b>。</li>
 </ul>
 

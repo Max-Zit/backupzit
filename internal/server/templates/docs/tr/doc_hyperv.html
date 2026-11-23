@@ -62,7 +62,7 @@
 
 <h3>Seçenekler</h3>
 <ul>
-  <li><b>Sanal diskler için klasör</b>: ana bilgisayarın varsayılan klasörü veya VM diskleri içeren herhangi bir klasör. Yerinde geri yükleme yeni diskleri yeni bir <code>backupzit-restore-…</code> alt klasörüne koyar ve eskilerini oldukları yerde bırakır.</li>
+  <li><b>Sanal diskler için klasör</b>: ana bilgisayarın varsayılan klasörü veya VM diskleri içeren herhangi bir klasör. Yerinde geri yükleme yeni diskleri yeni bir <code>backupzit-restore-…</code> alt klasörüne koyar ve eskilerini oldukları yerde bırakır. 0.59'dan beri diskler yalnızca sistemin, yöneticilerin ve Hyper-V Yöneticilerinin değiştirebileceği bir klasöre konur (SMB paylaşımında paylaşımın izinlerini korur) ve geri yükleme sürerken yoldaki hiçbir klasör yeniden adlandırılamaz veya değiştirilemez; yoldaki bir bağlantı yalnızca <code>C:\ClusterStorage\Volume1</code> gibi sisteme aitse izlenir. VM'nin adını taşıyan bir klasör zaten varsa ve başka kullanıcılar onu değiştirebiliyorsa, diskler içinde yeni bir <code>backupzit-restore-…</code> klasörüne konur.</li>
   <li><b>Geri yüklemeden sonra VM'yi başlat</b>.</li>
 </ul>
 

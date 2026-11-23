@@ -5,6 +5,7 @@ package fsutil
 import (
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"time"
 	"unsafe"
@@ -169,7 +170,7 @@ const ownerRights = "S-1-3-4"
 // do any of rights on h: its owner is one of them, and no entry of its
 // access list allows any of rights to anybody else (entries that deny are
 // not counted, which errs on the safe side).
-func onlyTrustedMay(h windows.Handle, rights uint32) bool {
+func onlyTrustedMay(h windows.Handle, rights uint32, alsoTrusted ...string) bool {
 	sd, err := windows.GetSecurityInfo(h, windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION)
 	if err != nil {
 		return false
@@ -199,7 +200,7 @@ func onlyTrustedMay(h windows.Handle, rights uint32) bool {
 			return false // another kind of entry that allows: not trusted
 		}
 		sid := (*windows.SID)(unsafe.Pointer(&ace.SidStart)) // #nosec G103 -- the SID inside the entry
-		if trustedOwner(sid) || sid.String() == ownerRights {
+		if trustedOwner(sid) || sid.String() == ownerRights || slices.Contains(alsoTrusted, sid.String()) {
 			continue
 		}
 		return false
