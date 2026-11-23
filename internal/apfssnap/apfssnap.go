@@ -64,8 +64,15 @@ type system struct {
 	run Runner
 	// mountOf returns the mount point of the file system holding p.
 	mountOf func(p string) (string, error)
-	// mkdirTemp makes the private folder the snapshot is mounted on.
+	// mkdirTemp makes the private (0700, root's) folder that holds the
+	// mount point; mkdir makes the mount point inside it.
 	mkdirTemp func() (string, error)
+	mkdir     func(string, os.FileMode) error
+	// lstat looks at a folder without following it (the janitor's check
+	// that a mount point read back from the ledger is still its own).
+	lstat func(string) (os.FileInfo, error)
+	// ours tells whether a file belongs to this process's user.
+	ours func(os.FileInfo) bool
 	// resolve follows the symbolic links of a path (the temporary folder
 	// is below /tmp or /var, links to /private/...).
 	resolve func(string) (string, error)
@@ -89,6 +96,9 @@ var sys = &system{
 	run:            runCommand,
 	mountOf:        mountOf,
 	mkdirTemp:      func() (string, error) { return os.MkdirTemp("", mountDirPrefix+"*") },
+	mkdir:          os.Mkdir,
+	lstat:          os.Lstat,
+	ours:           ownedByUs,
 	resolve:        filepath.EvalSymlinks,
 	removeDir:      os.Remove,
 	firmlinks:      systemFirmlinks,
@@ -118,6 +128,9 @@ type snapshot struct {
 	mount string // where it is mounted
 	refs  int
 	item  leftover.Item
+	// foreign: tmutil answered with a snapshot that existed before (Time
+	// Machine's, made in the same second): it is read, never deleted.
+	foreign bool
 }
 
 // mu serializes creating and deleting snapshots, so a snapshot is never
@@ -241,6 +254,13 @@ func (y *system) acquire(runCtx context.Context, timeout time.Duration) (*snapsh
 	defer mu.Unlock()
 	ctx, cancel := context.WithTimeout(runCtx, timeout)
 	defer cancel()
+	// tmutil names snapshots by the second, like Time Machine's own: one
+	// that existed before our request is not ours, even if tmutil answers
+	// with its name, and must not be deleted after the backup.
+	before, err := y.run(ctx, tmutil, "listlocalsnapshotdates", DataVolume)
+	if err != nil {
+		return nil, err
+	}
 	out, err := y.run(ctx, tmutil, "localsnapshot")
 	if err != nil {
 		return nil, err
@@ -253,15 +273,21 @@ func (y *system) acquire(runCtx context.Context, timeout time.Duration) (*snapsh
 		sn.refs++
 		return sn, nil
 	}
-	sn := &snapshot{date: date, refs: 1, item: ledgerItem(date, "")}
-	leftover.Add(runCtx, sn.item)
+	sn := &snapshot{date: date, refs: 1, item: ledgerItem(date, ""), foreign: slices.Contains(parseDates(before), date)}
+	// A foreign snapshot never goes to the ledger: the janitor deletes what
+	// the ledger names. Its mount goes away at the latest with a restart.
+	if !sn.foreign {
+		leftover.Add(runCtx, sn.item)
+	}
 	dir, err := y.mountDir()
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("mount point: %w", err), y.release(sn))
 	}
 	sn.mount = dir
 	sn.item.Detail = dir
-	leftover.Add(runCtx, sn.item)
+	if !sn.foreign {
+		leftover.Add(runCtx, sn.item)
+	}
 	if _, err := y.run(ctx, mountAPFS, mountArgs(date, dir)...); err != nil {
 		return nil, errors.Join(withMountHint(err, y.isRoot()), y.release(sn))
 	}
@@ -272,21 +298,30 @@ func (y *system) acquire(runCtx context.Context, timeout time.Duration) (*snapsh
 	return sn, nil
 }
 
-// mountDir makes the mount point and returns its canonical path. statfs
-// names a mount point by its resolved path (/private/tmp/..., never
-// /tmp/...), so the checks that the snapshot is mounted, the ledger and
-// Map all use that path.
+// mountDir makes the mount point and returns its canonical path: the
+// folder "snapshot" inside a private temporary folder (0700, root's). A
+// mount hides the mode of the folder it is mounted on, so mounted straight
+// on the private folder the snapshot was readable by every local user
+// while a backup ran (and by a user's apps without Full Disk Access); the
+// private folder above it keeps them out. statfs names a mount point by
+// its resolved path (/private/tmp/..., never /tmp/...), so the checks that
+// the snapshot is mounted, the ledger and Map all use that path.
 func (y *system) mountDir() (string, error) {
-	dir, err := y.mkdirTemp()
+	parent, err := y.mkdirTemp()
 	if err != nil {
 		return "", err
 	}
-	canon, err := y.resolve(dir)
+	canon, err := y.resolve(parent)
 	if err != nil {
-		_ = y.removeDir(dir) // empty, made just above
+		_ = y.removeDir(parent) // empty, made just above
 		return "", err
 	}
-	return canon, nil
+	dir := filepath.Join(canon, mountSubdir)
+	if err := y.mkdir(dir, 0o700); err != nil {
+		_ = y.removeDir(canon)
+		return "", err
+	}
+	return dir, nil
 }
 
 // mountArgs is the mount_apfs command line: read-only, hidden from the
@@ -317,9 +352,21 @@ func withMountHint(err error, root bool) error {
 func (y *system) release(sn *snapshot) error {
 	ctx, cancel := context.WithTimeout(context.Background(), y.cleanupTimeout)
 	defer cancel()
-	err := y.removeSnapshot(ctx, sn.date, sn.mount)
+	if sn.foreign {
+		// Not ours (Time Machine's): unmounted, never deleted.
+		if sn.mount == "" {
+			return nil
+		}
+		if err := y.unmount(ctx, sn.mount); err != nil {
+			return err
+		}
+		_ = y.removeDir(sn.mount)
+		_ = y.removeDir(filepath.Dir(sn.mount))
+		return nil
+	}
+	dirGone, err := y.removeSnapshot(ctx, sn.date, sn.mount)
 	if err != nil {
-		leftover.Failed(sn.item, err)
+		failed(sn.item, dirGone, err)
 		return err
 	}
 	leftover.Done(sn.item)
@@ -327,25 +374,28 @@ func (y *system) release(sn *snapshot) error {
 }
 
 // removeSnapshot is the clean-up of a backup and of the janitor: unmount
-// (forced when a plain unmount fails), remove the folder, delete the
-// snapshot, check it is gone.
-func (y *system) removeSnapshot(ctx context.Context, date, dir string) error {
+// (forced when a plain unmount fails), remove the mount point and its
+// private folder, delete the snapshot, check it is gone. dirGone tells
+// whether the folders are gone (or there were none), also when deleting
+// the snapshot then fails.
+func (y *system) removeSnapshot(ctx context.Context, date, dir string) (dirGone bool, err error) {
 	if dir != "" {
 		if err := y.unmount(ctx, dir); err != nil {
-			return err
+			return false, err
 		}
-		// An empty folder left in the temporary folder is not worth
-		// keeping the snapshot for: its removal error is ignored.
+		// Empty folders left in the temporary folder are not worth
+		// keeping the snapshot for: their removal errors are ignored.
 		_ = y.removeDir(dir)
+		_ = y.removeDir(filepath.Dir(dir))
 	}
 	for try := 0; ; try++ {
 		_, derr := y.run(ctx, tmutil, "deletelocalsnapshots", date)
 		gone, lerr := y.snapshotGone(ctx, date)
 		switch {
 		case lerr == nil && gone:
-			return nil
+			return true, nil
 		case try > 0 || ctx.Err() != nil:
-			return errors.Join(fmt.Errorf("delete APFS snapshot %s", SnapshotName(date)), derr, lerr)
+			return true, errors.Join(fmt.Errorf("delete APFS snapshot %s", SnapshotName(date)), derr, lerr)
 		}
 		select {
 		case <-ctx.Done():
@@ -474,14 +524,17 @@ func (y *system) cleanLeftovers(ctx context.Context, items []leftover.Item, log 
 			continue
 		}
 		dir := it.Detail
-		if !ownMountDir(dir) {
-			dir = "" // never unmount or remove a folder this package did not make
+		if !ownMountDir(dir) || !y.ownFolders(dir) {
+			// Never unmount or remove a folder this package did not make,
+			// nor one a user may have put in its place: the name of a
+			// removed private folder in the sticky /tmp is free again.
+			dir = ""
 		}
 		cctx, cancel := context.WithTimeout(ctx, y.cleanupTimeout)
-		rerr := y.removeSnapshot(cctx, date, dir)
+		dirGone, rerr := y.removeSnapshot(cctx, date, dir)
 		cancel()
 		if rerr != nil {
-			leftover.Failed(it, rerr)
+			failed(it, dirGone, rerr)
 			errs = append(errs, rerr)
 			continue
 		}
@@ -492,14 +545,43 @@ func (y *system) cleanLeftovers(ctx context.Context, items []leftover.Item, log 
 	return removed, errors.Join(errs...)
 }
 
-// mountDirPrefix starts the name of every mount point this package makes.
-const mountDirPrefix = "backupzit-apfs-"
+// mountDirPrefix starts the name of every private folder this package
+// makes; mountSubdir is the mount point inside it.
+const (
+	mountDirPrefix = "backupzit-apfs-"
+	mountSubdir    = "snapshot"
+)
 
 // ownMountDir tells whether dir, read back from the ledger, is a mount
-// point this package made (an absolute, clean path to a backupzit-apfs-*
-// folder).
+// point this package made: an absolute, clean path to backupzit-apfs-*/
+// snapshot.
 func ownMountDir(dir string) bool {
-	return filepath.IsAbs(dir) && filepath.Clean(dir) == dir && strings.HasPrefix(filepath.Base(dir), mountDirPrefix)
+	return filepath.IsAbs(dir) && filepath.Clean(dir) == dir && filepath.Base(dir) == mountSubdir &&
+		strings.HasPrefix(filepath.Base(filepath.Dir(dir)), mountDirPrefix)
+}
+
+// ownFolders tells whether the private folder of the mount point dir is
+// still a real folder (not a link) of this process's user with mode 0700,
+// and dir a real folder in it: only then may the janitor unmount there.
+// Looked at without following links, so a link a user put at a free name
+// in the sticky /tmp is never followed by root's umount -f.
+func (y *system) ownFolders(dir string) bool {
+	pfi, err := y.lstat(filepath.Dir(dir))
+	if err != nil || !pfi.IsDir() || pfi.Mode().Perm() != 0o700 || !y.ours(pfi) {
+		return false
+	}
+	fi, err := y.lstat(dir)
+	return err == nil && fi.IsDir()
+}
+
+// failed records a failed removal; once the folders are gone, the ledger
+// forgets them, so a later clean-up never goes back to their names.
+func failed(it leftover.Item, dirGone bool, err error) {
+	if dirGone && it.Detail != "" {
+		it.Detail = ""
+		leftover.Add(context.Background(), it)
+	}
+	leftover.Failed(it, err)
 }
 
 // ledgerItem is the ledger record of a snapshot; Detail holds its mount

@@ -1,6 +1,11 @@
 package apfssnap
 
-import "golang.org/x/sys/unix"
+import (
+	"os"
+	"syscall"
+
+	"golang.org/x/sys/unix"
+)
 
 const available = true
 
@@ -12,4 +17,11 @@ func mountOf(p string) (string, error) {
 		return "", err
 	}
 	return unix.ByteSliceToString(st.Mntonname[:]), nil
+}
+
+// ownedByUs tells whether fi belongs to this process's user (root for the
+// agent service).
+func ownedByUs(fi os.FileInfo) bool {
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	return ok && int(st.Uid) == os.Geteuid()
 }

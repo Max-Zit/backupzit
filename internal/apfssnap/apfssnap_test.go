@@ -1,3 +1,8 @@
+//go:build darwin
+
+// The snapshot logic runs on macOS only (mount points, firmlinks and paths
+// are macOS ones); on Windows its paths are not even valid.
+
 package apfssnap
 
 import (
@@ -28,6 +33,27 @@ type fakeMac struct {
 	// links are symbolic links (path -> target) resolve follows; none by
 	// default, so the mount point keeps the name mkdirTemp gives.
 	links map[string]string
+	// planted are paths lstat reports as a symbolic link (put there by a
+	// user); every other path is a private folder of ours.
+	planted map[string]bool
+}
+
+// fakeInfo is what the fake lstat reports.
+type fakeInfo struct{ mode os.FileMode }
+
+func (i fakeInfo) Name() string       { return "" }
+func (i fakeInfo) Size() int64        { return 0 }
+func (i fakeInfo) Mode() os.FileMode  { return i.mode }
+func (i fakeInfo) ModTime() time.Time { return time.Time{} }
+func (i fakeInfo) IsDir() bool        { return i.mode.IsDir() }
+func (i fakeInfo) Sys() any           { return nil }
+
+// lstat plays os.Lstat: a private folder, or a link where one was planted.
+func (f *fakeMac) lstat(p string) (os.FileInfo, error) {
+	if f.planted[p] {
+		return fakeInfo{os.ModeSymlink | 0o755}, nil
+	}
+	return fakeInfo{os.ModeDir | 0o700}, nil
 }
 
 func newFakeMac() *fakeMac {
@@ -117,6 +143,9 @@ func (f *fakeMac) system() *system {
 		run:            f.run,
 		mountOf:        f.mountOf,
 		mkdirTemp:      func() (string, error) { return "/tmp/backupzit-apfs-1", nil },
+		mkdir:          func(string, os.FileMode) error { return nil },
+		lstat:          f.lstat,
+		ours:           func(os.FileInfo) bool { return true },
 		resolve:        f.resolve,
 		removeDir:      func(d string) error { f.removed = append(f.removed, d); return nil },
 		firmlinks:      func() []firmlink { return defaultFirmlinks },
@@ -141,7 +170,7 @@ func TestSnapshotLifecycle(t *testing.T) {
 	if err != nil || len(*errs) > 0 {
 		t.Fatalf("create: %v %v", err, *errs)
 	}
-	if got := s.Map("/Users/anna/Documents/a.txt"); got != "/tmp/backupzit-apfs-1/Users/anna/Documents/a.txt" {
+	if got := s.Map("/Users/anna/Documents/a.txt"); got != "/tmp/backupzit-apfs-1/snapshot/Users/anna/Documents/a.txt" {
 		t.Fatalf("map: %s", got)
 	}
 	if v := s.Volumes(); !slices.Equal(v, []string{DataVolume}) {
@@ -154,16 +183,17 @@ func TestSnapshotLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{
+		"tmutil listlocalsnapshotdates /System/Volumes/Data",
 		"tmutil localsnapshot",
-		"mount_apfs -o rdonly,nobrowse -s com.apple.TimeMachine.2026-11-22-194429.local /System/Volumes/Data /tmp/backupzit-apfs-1",
-		"umount /tmp/backupzit-apfs-1",
+		"mount_apfs -o rdonly,nobrowse -s com.apple.TimeMachine.2026-11-22-194429.local /System/Volumes/Data /tmp/backupzit-apfs-1/snapshot",
+		"umount /tmp/backupzit-apfs-1/snapshot",
 		"tmutil deletelocalsnapshots 2026-11-22-194429",
 		"tmutil listlocalsnapshotdates /System/Volumes/Data",
 	}
 	if !slices.Equal(f.calls, want) {
 		t.Fatalf("calls:\n%s\nwant:\n%s", strings.Join(f.calls, "\n"), strings.Join(want, "\n"))
 	}
-	if len(f.dates) != 0 || len(f.mounts) != 0 || !slices.Equal(f.removed, []string{"/tmp/backupzit-apfs-1"}) {
+	if len(f.dates) != 0 || len(f.mounts) != 0 || !slices.Equal(f.removed, []string{"/tmp/backupzit-apfs-1/snapshot", "/tmp/backupzit-apfs-1"}) {
 		t.Fatalf("left: dates %v mounts %v removed %v", f.dates, f.mounts, f.removed)
 	}
 	if got := s.Map("/Users/anna/a"); got != "/Users/anna/a" {
@@ -179,7 +209,7 @@ func TestMapPaths(t *testing.T) {
 	_, onErr := collect()
 	s, _ := f.system().create(context.Background(), []string{"/", "/Volumes/External/photos"}, time.Minute, onErr)
 	defer func() { _ = s.Close() }()
-	m := "/tmp/backupzit-apfs-1"
+	m := "/tmp/backupzit-apfs-1/snapshot"
 	for in, want := range map[string]string{
 		"/Users/anna":                    m + "/Users/anna",
 		"/Users":                         m + "/Users",
@@ -239,10 +269,11 @@ func TestSnapshotFailureFallsBack(t *testing.T) {
 		fail, want string
 		calls      []string
 	}{
-		{"tmutil localsnapshot", "APFS local snapshot of /System/Volumes/Data failed, reading files without a snapshot", []string{"tmutil localsnapshot"}},
+		{"tmutil localsnapshot", "APFS local snapshot of /System/Volumes/Data failed, reading files without a snapshot", []string{"tmutil listlocalsnapshotdates /System/Volumes/Data", "tmutil localsnapshot"}},
 		{"mount_apfs -o", "macOS mounts a snapshot only for a program with Full Disk Access", []string{
+			"tmutil listlocalsnapshotdates /System/Volumes/Data",
 			"tmutil localsnapshot",
-			"mount_apfs -o rdonly,nobrowse -s com.apple.TimeMachine.2026-11-22-194429.local /System/Volumes/Data /tmp/backupzit-apfs-1",
+			"mount_apfs -o rdonly,nobrowse -s com.apple.TimeMachine.2026-11-22-194429.local /System/Volumes/Data /tmp/backupzit-apfs-1/snapshot",
 			"tmutil deletelocalsnapshots 2026-11-22-194429",
 			"tmutil listlocalsnapshotdates /System/Volumes/Data",
 		}},
@@ -280,15 +311,15 @@ func TestCloseForcesUnmountAndRecordsFailure(t *testing.T) {
 	_, onErr := collect()
 	y := f.system()
 	s, _ := y.create(leftover.WithRun(context.Background(), 7), []string{"/Users/anna"}, time.Minute, onErr)
-	if items := leftover.List(); len(items) != 1 || items[0].RunID != 7 || items[0].Detail != "/tmp/backupzit-apfs-1" || items[0].Platform != leftover.MacOS {
+	if items := leftover.List(); len(items) != 1 || items[0].RunID != 7 || items[0].Detail != "/tmp/backupzit-apfs-1/snapshot" || items[0].Platform != leftover.MacOS {
 		t.Fatalf("ledger during the backup: %+v", items)
 	}
 	// Busy: a plain unmount fails, the forced one works.
-	f.fail["umount /tmp/backupzit-apfs-1"] = errors.New("resource busy")
+	f.fail["umount /tmp/backupzit-apfs-1/snapshot"] = errors.New("resource busy")
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(f.calls, "umount -f /tmp/backupzit-apfs-1") || len(f.dates) != 0 {
+	if !slices.Contains(f.calls, "umount -f /tmp/backupzit-apfs-1/snapshot") || len(f.dates) != 0 {
 		t.Fatalf("calls %v dates %v", f.calls, f.dates)
 	}
 	if items := leftover.List(); len(items) != 0 {
@@ -299,7 +330,7 @@ func TestCloseForcesUnmountAndRecordsFailure(t *testing.T) {
 	f = newFakeMac()
 	y = f.system()
 	s, _ = y.create(context.Background(), []string{"/Users/anna"}, time.Minute, onErr)
-	f.fail["umount /tmp/backupzit-apfs-1"] = errors.New("resource busy")
+	f.fail["umount /tmp/backupzit-apfs-1/snapshot"] = errors.New("resource busy")
 	f.fail["umount -f"] = errors.New("resource busy")
 	if err := s.Close(); err == nil || !strings.Contains(err.Error(), "still mounted") {
 		t.Fatalf("close: %v", err)
@@ -313,7 +344,7 @@ func TestCloseForcesUnmountAndRecordsFailure(t *testing.T) {
 	}
 
 	// The janitor finishes the job once the mount is free.
-	delete(f.fail, "umount /tmp/backupzit-apfs-1")
+	delete(f.fail, "umount /tmp/backupzit-apfs-1/snapshot")
 	delete(f.fail, "umount -f")
 	removed, err := y.cleanLeftovers(context.Background(), leftover.List(), nil)
 	if err != nil || !slices.Equal(removed, []string{"com.apple.TimeMachine.2026-11-22-194429.local"}) {
@@ -357,11 +388,11 @@ func TestSharedSnapshot(t *testing.T) {
 	if a.snap != b.snap || a.snap.refs != 2 {
 		t.Fatal("not shared")
 	}
-	items := []leftover.Item{ledgerItem("2026-11-22-194429", "/tmp/backupzit-apfs-1")}
+	items := []leftover.Item{ledgerItem("2026-11-22-194429", "/tmp/backupzit-apfs-1/snapshot")}
 	if removed, err := y.cleanLeftovers(context.Background(), items, nil); err != nil || len(removed) != 0 {
 		t.Fatalf("janitor touched a snapshot in use: %v %v", removed, err)
 	}
-	if err := a.Close(); err != nil || len(f.dates) != 1 || !f.mounts["/tmp/backupzit-apfs-1"] {
+	if err := a.Close(); err != nil || len(f.dates) != 1 || !f.mounts["/tmp/backupzit-apfs-1/snapshot"] {
 		t.Fatalf("first close: %v %v %v", err, f.dates, f.mounts)
 	}
 	if err := b.Close(); err != nil || len(f.dates) != 0 || len(f.mounts) != 0 {
@@ -414,7 +445,7 @@ func TestJanitorKeepsForeignFolders(t *testing.T) {
 	if err != nil || len(removed) != 1 || len(f.removed) != 0 || !f.mounts["/Users/anna"] {
 		t.Fatalf("removed %v err %v dirs %v mounts %v", removed, err, f.removed, f.mounts)
 	}
-	for dir, own := range map[string]bool{"/tmp/backupzit-apfs-1": true, "/var/folders/x/T/backupzit-apfs-42": true, "backupzit-apfs-1": false, "/tmp/../Users/backupzit-apfs-1": false, "/Users/anna": false, "": false} {
+	for dir, own := range map[string]bool{"/tmp/backupzit-apfs-1/snapshot": true, "/var/folders/x/T/backupzit-apfs-42/snapshot": true, "/var/folders/x/T/backupzit-apfs-42": false, "/tmp/other/snapshot": false, "backupzit-apfs-1": false, "/tmp/../Users/backupzit-apfs-1": false, "/Users/anna": false, "": false} {
 		if ownMountDir(dir) != own {
 			t.Errorf("ownMountDir(%q) = %v", dir, !own)
 		}
@@ -436,19 +467,19 @@ func TestMountPointResolved(t *testing.T) {
 	if len(*errs) != 0 || s.snap == nil {
 		t.Fatalf("not mounted: %v", *errs)
 	}
-	if got := s.Map("/Users/anna/a"); got != "/private/tmp/backupzit-apfs-1/Users/anna/a" {
+	if got := s.Map("/Users/anna/a"); got != "/private/tmp/backupzit-apfs-1/snapshot/Users/anna/a" {
 		t.Fatalf("map: %s", got)
 	}
-	if items := leftover.List(); len(items) != 1 || items[0].Detail != "/private/tmp/backupzit-apfs-1" {
+	if items := leftover.List(); len(items) != 1 || items[0].Detail != "/private/tmp/backupzit-apfs-1/snapshot" {
 		t.Fatalf("ledger: %+v", items)
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(f.calls, "umount /private/tmp/backupzit-apfs-1") || len(f.mounts) != 0 || len(f.dates) != 0 {
+	if !slices.Contains(f.calls, "umount /private/tmp/backupzit-apfs-1/snapshot") || len(f.mounts) != 0 || len(f.dates) != 0 {
 		t.Fatalf("calls %v mounts %v dates %v", f.calls, f.mounts, f.dates)
 	}
-	if !slices.Equal(f.removed, []string{"/private/tmp/backupzit-apfs-1"}) || len(leftover.List()) != 0 {
+	if !slices.Equal(f.removed, []string{"/private/tmp/backupzit-apfs-1/snapshot", "/private/tmp/backupzit-apfs-1"}) || len(leftover.List()) != 0 {
 		t.Fatalf("removed %v ledger %+v", f.removed, leftover.List())
 	}
 }
@@ -460,12 +491,12 @@ func TestJanitorUnmountsUnresolvedRecord(t *testing.T) {
 	f.links = map[string]string{"/tmp": "/private/tmp"}
 	y := f.system()
 	f.dates = []string{"2026-11-22-194429"}
-	f.mounts["/private/tmp/backupzit-apfs-7"] = true
-	removed, err := y.cleanLeftovers(context.Background(), []leftover.Item{ledgerItem("2026-11-22-194429", "/tmp/backupzit-apfs-7")}, nil)
+	f.mounts["/private/tmp/backupzit-apfs-7/snapshot"] = true
+	removed, err := y.cleanLeftovers(context.Background(), []leftover.Item{ledgerItem("2026-11-22-194429", "/tmp/backupzit-apfs-7/snapshot")}, nil)
 	if err != nil || len(removed) != 1 || len(f.mounts) != 0 || len(f.dates) != 0 {
 		t.Fatalf("removed %v err %v mounts %v dates %v", removed, err, f.mounts, f.dates)
 	}
-	if !slices.Contains(f.calls, "umount /tmp/backupzit-apfs-7") {
+	if !slices.Contains(f.calls, "umount /tmp/backupzit-apfs-7/snapshot") {
 		t.Fatalf("calls %v", f.calls)
 	}
 }
@@ -479,7 +510,7 @@ func TestSystemAliases(t *testing.T) {
 	if len(*errs) != 0 || s.snap == nil {
 		t.Fatalf("no snapshot: %v", *errs)
 	}
-	if got := s.Map("/var/db/x"); got != "/tmp/backupzit-apfs-1/private/var/db/x" {
+	if got := s.Map("/var/db/x"); got != "/tmp/backupzit-apfs-1/snapshot/private/var/db/x" {
 		t.Fatalf("map: %s", got)
 	}
 	if err := s.Close(); err != nil {
@@ -540,5 +571,84 @@ func TestMountHint(t *testing.T) {
 	other := errors.New("mount_apfs: no such snapshot")
 	if withMountHint(other, true) != other {
 		t.Error("other errors get a hint")
+	}
+}
+
+// A private folder a user replaced with a link at its free name (the
+// folder was removed, deleting the snapshot failed) is never unmounted:
+// root's umount -f would act where the link points. The snapshot is still
+// deleted, and once the folders are gone the ledger forgets their path.
+func TestJanitorRefusesPlantedLink(t *testing.T) {
+	ledger := filepath.Join(t.TempDir(), "leftovers.json")
+	leftover.Open(ledger)
+	defer leftover.Close()
+
+	f := newFakeMac()
+	y := f.system()
+	f.dates = []string{"2026-11-22-194429"}
+	f.planted = map[string]bool{"/tmp/backupzit-apfs-1": true}
+	f.mounts["/Users/anna"] = true
+	f.links = map[string]string{"/tmp/backupzit-apfs-1/snapshot": "/Users/anna"}
+	removed, err := y.cleanLeftovers(context.Background(), []leftover.Item{ledgerItem("2026-11-22-194429", "/tmp/backupzit-apfs-1/snapshot")}, nil)
+	if err != nil || len(removed) != 1 || !f.mounts["/Users/anna"] || len(f.removed) != 0 {
+		t.Fatalf("removed %v err %v mounts %v dirs %v", removed, err, f.mounts, f.removed)
+	}
+	for _, c := range f.calls {
+		if strings.HasPrefix(c, "umount") {
+			t.Fatalf("unmounted through a planted link: %v", f.calls)
+		}
+	}
+}
+
+// When deleting the snapshot fails after its folders were removed, the
+// ledger keeps the snapshot but no longer the folder's path.
+func TestFailedDeleteForgetsRemovedFolder(t *testing.T) {
+	ledger := filepath.Join(t.TempDir(), "leftovers.json")
+	leftover.Open(ledger)
+	defer leftover.Close()
+
+	f := newFakeMac()
+	f.fail["tmutil deletelocalsnapshots"] = errors.New("busy")
+	errs, onErr := collect()
+	s, _ := f.system().create(context.Background(), []string{"/Users/anna"}, time.Minute, onErr)
+	if len(*errs) != 0 || s.snap == nil {
+		t.Fatalf("not mounted: %v", *errs)
+	}
+	if err := s.Close(); err == nil {
+		t.Fatal("delete failure not reported")
+	}
+	if items := leftover.List(); len(items) != 1 || items[0].Detail != "" || items[0].Tries == 0 {
+		t.Fatalf("ledger: %+v", items)
+	}
+}
+
+// tmutil names snapshots by the second, like Time Machine: when it answers
+// with one that existed before the request (Time Machine's, made in the
+// same second), the backup reads it but never deletes it nor records it.
+func TestForeignSnapshotNotDeleted(t *testing.T) {
+	ledger := filepath.Join(t.TempDir(), "leftovers.json")
+	leftover.Open(ledger)
+	defer leftover.Close()
+
+	f := newFakeMac()
+	f.dates = []string{f.next} // Time Machine's, same second
+	errs, onErr := collect()
+	s, _ := f.system().create(context.Background(), []string{"/Users/anna"}, time.Minute, onErr)
+	if len(*errs) != 0 || s.snap == nil || !s.snap.foreign {
+		t.Fatalf("not mounted as foreign: %v %+v", *errs, s.snap)
+	}
+	if items := leftover.List(); len(items) != 0 {
+		t.Fatalf("foreign snapshot in the ledger: %+v", items)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.dates) != 1 || len(f.mounts) != 0 {
+		t.Fatalf("dates %v mounts %v", f.dates, f.mounts)
+	}
+	for _, c := range f.calls {
+		if strings.HasPrefix(c, "tmutil deletelocalsnapshots") {
+			t.Fatalf("deleted Time Machine's snapshot: %v", f.calls)
+		}
 	}
 }
