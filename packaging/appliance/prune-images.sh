@@ -23,8 +23,10 @@ trap 'rm -f /tmp/bz-releases.$$' EXIT
 while read -r tag; do
     n=$((n + 1))
     [ "$n" -le "$KEEP" ] && continue
+    # One request per release (not one per image name): its assets.
+    assets=$(gh api "repos/$REPO/releases/tags/$tag" --jq '.assets[] | "\(.name) \(.id) \(.size)"')
     for name in $IMAGES; do
-        line=$(gh api "repos/$REPO/releases/tags/$tag" --jq ".assets[] | select(.name == \"$name\") | \"\(.id) \(.size)\"")
+        line=$(printf '%s\n' "$assets" | awk -v n="$name" '$1 == n { print $2, $3 }')
         [ -n "$line" ] || continue
         id=${line% *}
         size=${line#* }
