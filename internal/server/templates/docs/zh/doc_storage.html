@@ -11,7 +11,7 @@
   <tr><td><b>SMB 共享</b></td><td>Windows 文件服务器、Synology/QNAP NAS</td><td>SMB 2/3；代理自行登录，无需映射驱动器。</td></tr>
   <tr><td><b>加固存储库</b></td><td>防勒索软件的本地存储</td><td>运行 <code>backupzit-repo</code> 的 Linux 服务器；备份在其不可变期结束前无法删除。</td></tr>
   <tr><td><b>轮换 USB 磁盘</b></td><td>小型办公室的离线副本：两块或更多磁盘每周轮换</td><td>按卷标（BZBACKUP1、BZBACKUP2 …）识别，而不是按驱动器号。</td></tr>
-  <tr><td><b>本地 / 挂载路径</b></td><td>USB 磁盘、第二块磁盘，或挂载在代理上的 NFS/iSCSI 卷</td><td>代理看到的路径，例如 <code>E:\Backups</code> 或 <code>/mnt/backup</code>。</td></tr>
+  <tr><td><b>本地 / 挂载路径</b></td><td>USB 磁盘、第二块磁盘，或挂载在代理上的 NFS/iSCSI 卷</td><td>代理看到的路径，例如 <code>E:\Backups</code> 或 <code>/mnt/backup</code>。在该文件夹下，代理只使用真实的文件夹和文件：指向其外部的链接、指向文件夹的链接、联接（junction）以及其中的装载点都会被忽略（0.59）。</td></tr>
 </table>
 <div class="callout tip"><p><b>3-2-1 规则：</b>保留 3 份数据副本，存放在 2 种不同介质上，其中 1 份异地存放——例如一个作业备份到本地 NAS，另一个备份到 S3 或另一栋楼中的加固存储库。</p></div>
 

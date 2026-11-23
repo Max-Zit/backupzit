@@ -11,7 +11,7 @@
   <tr><td><b>SMB paylaşımı</b></td><td>Windows dosya sunucuları, Synology/QNAP NAS</td><td>SMB 2/3; aracılar kendileri oturum açar, sürücü eşlemesi gerekmez.</td></tr>
   <tr><td><b>Güçlendirilmiş depo</b></td><td>Fidye yazılımına dayanıklı yerinde depolama</td><td><code>backupzit-repo</code> çalıştıran bir Linux sunucusu; yedekler değiştirilemezlik süreleri bitmeden silinemez.</td></tr>
   <tr><td><b>Dönüşümlü USB diskler</b></td><td>Küçük ofisler için çevrimdışı kopyalar: haftalık değiştirilen iki veya daha fazla disk</td><td>Sürücü harfiyle değil, birim etiketiyle (BZBACKUP1, BZBACKUP2 …) bulunur.</td></tr>
-  <tr><td><b>Yerel / bağlanmış yol</b></td><td>Bir USB disk, ikinci disk veya aracıya bağlanmış bir NFS/iSCSI birimi</td><td>Aracının gördüğü yol, ör. <code>E:\Backups</code> veya <code>/mnt/backup</code>.</td></tr>
+  <tr><td><b>Yerel / bağlanmış yol</b></td><td>Bir USB disk, ikinci disk veya aracıya bağlanmış bir NFS/iSCSI birimi</td><td>Aracının gördüğü yol, ör. <code>E:\Backups</code> veya <code>/mnt/backup</code>. Bu klasörün altında ajan yalnızca gerçek klasörleri ve dosyaları kullanır: dışarı çıkan bağlantılar, klasör bağlantıları, junction'lar ve içindeki bağlama noktaları yok sayılır (0.59).</td></tr>
 </table>
 <div class="callout tip"><p><b>3-2-1 kuralı:</b> verilerinizin 3 kopyasını, 2 farklı ortamda, 1'i dış konumda tutun — örneğin bir iş yerel NAS'a, diğeri S3'e veya başka bir binadaki güçlendirilmiş depoya.</p></div>
 

@@ -11,7 +11,7 @@
   <tr><td><b>Compartilhamento SMB</b></td><td>Servidores de arquivos Windows, NAS Synology/QNAP</td><td>SMB 2/3; os agentes fazem login por conta própria, sem mapear unidades.</td></tr>
   <tr><td><b>Repositório protegido</b></td><td>Armazenamento local à prova de ransomware</td><td>Um servidor Linux com <code>backupzit-repo</code>; os backups não podem ser excluídos antes do fim do seu período de imutabilidade.</td></tr>
   <tr><td><b>Discos USB em rotação</b></td><td>Cópias offline para pequenos escritórios: dois ou mais discos trocados semanalmente</td><td>Encontrados pelo rótulo do volume (BZBACKUP1, BZBACKUP2 …), não pela letra da unidade.</td></tr>
-  <tr><td><b>Caminho local / montado</b></td><td>Um disco USB, um segundo disco ou um volume NFS/iSCSI montado no agente</td><td>Caminho como o agente o vê, p. ex. <code>E:\Backups</code> ou <code>/mnt/backup</code>.</td></tr>
+  <tr><td><b>Caminho local / montado</b></td><td>Um disco USB, um segundo disco ou um volume NFS/iSCSI montado no agente</td><td>Caminho como o agente o vê, p. ex. <code>E:\Backups</code> ou <code>/mnt/backup</code>. Abaixo dessa pasta o agente usa apenas pastas e arquivos reais: links que levam para fora dela, links para pastas, junções e pontos de montagem dentro dela são ignorados (0.59).</td></tr>
 </table>
 <div class="callout tip"><p><b>Regra 3-2-1:</b> mantenha 3 cópias dos seus dados, em 2 mídias diferentes, 1 delas fora do local — por exemplo, uma tarefa para um NAS local e outra para S3 ou um repositório protegido noutro edifício.</p></div>
 

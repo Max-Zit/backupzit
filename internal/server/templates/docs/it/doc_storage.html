@@ -11,7 +11,7 @@
   <tr><td><b>Condivisione SMB</b></td><td>File server Windows, NAS Synology/QNAP</td><td>SMB 2/3; gli agenti accedono da soli, non serve mappare unità.</td></tr>
   <tr><td><b>Repository protetto</b></td><td>Archiviazione locale a prova di ransomware</td><td>Un server Linux con <code>backupzit-repo</code>; i backup non possono essere eliminati prima della fine del loro periodo di immutabilità.</td></tr>
   <tr><td><b>Dischi USB a rotazione</b></td><td>Copie offline per piccoli uffici: due o più dischi scambiati ogni settimana</td><td>Trovati tramite l'etichetta del volume (BZBACKUP1, BZBACKUP2 …), non la lettera di unità.</td></tr>
-  <tr><td><b>Percorso locale / montato</b></td><td>Un disco USB, un secondo disco o un volume NFS/iSCSI montato sull'agente</td><td>Percorso come lo vede l'agente, ad es. <code>E:\Backups</code> o <code>/mnt/backup</code>.</td></tr>
+  <tr><td><b>Percorso locale / montato</b></td><td>Un disco USB, un secondo disco o un volume NFS/iSCSI montato sull'agente</td><td>Percorso come lo vede l'agente, ad es. <code>E:\Backups</code> o <code>/mnt/backup</code>. Sotto quella cartella l'agente usa solo cartelle e file reali: i collegamenti che portano fuori, i collegamenti a cartelle, le giunzioni e i punti di montaggio al suo interno vengono ignorati (0.59).</td></tr>
 </table>
 <div class="callout tip"><p><b>Regola 3-2-1:</b> conservate 3 copie dei dati, su 2 supporti diversi, di cui 1 fuori sede — ad esempio un job verso un NAS locale e un altro verso S3 o un repository protetto in un altro edificio.</p></div>
 

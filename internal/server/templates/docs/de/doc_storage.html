@@ -11,7 +11,7 @@
   <tr><td><b>SMB-Freigabe</b></td><td>Windows-Dateiserver, Synology-/QNAP-NAS</td><td>SMB 2/3; Agenten melden sich selbst an, keine Laufwerkszuordnung nötig.</td></tr>
   <tr><td><b>Gehärtetes Repository</b></td><td>Ransomware-sicherer Speicher vor Ort</td><td>Ein Linux-Server mit <code>backupzit-repo</code>; Sicherungen können vor Ablauf ihrer Unveränderlichkeitsfrist nicht gelöscht werden.</td></tr>
   <tr><td><b>Wechselnde USB-Festplatten</b></td><td>Offline-Kopien für kleine Büros: zwei oder mehr Festplatten, wöchentlich getauscht</td><td>Gefunden über die Volumebezeichnung (BZBACKUP1, BZBACKUP2 …), nicht über den Laufwerksbuchstaben.</td></tr>
-  <tr><td><b>Lokaler / eingebundener Pfad</b></td><td>Eine USB-Festplatte, eine zweite Festplatte oder ein auf dem Agenten eingebundenes NFS-/iSCSI-Volume</td><td>Pfad aus Sicht des Agenten, z. B. <code>E:\Backups</code> oder <code>/mnt/backup</code>.</td></tr>
+  <tr><td><b>Lokaler / eingebundener Pfad</b></td><td>Eine USB-Festplatte, eine zweite Festplatte oder ein auf dem Agenten eingebundenes NFS-/iSCSI-Volume</td><td>Pfad aus Sicht des Agenten, z. B. <code>E:\Backups</code> oder <code>/mnt/backup</code>. Unterhalb dieses Ordners verwendet der Agent nur echte Ordner und Dateien: Verknüpfungen, die aus ihm hinausführen, Verknüpfungen auf Ordner, Junctions und Bereitstellungspunkte darin werden ignoriert (0.59).</td></tr>
 </table>
 <div class="callout tip"><p><b>3-2-1-Regel:</b> Halten Sie 3 Kopien Ihrer Daten auf 2 verschiedenen Medien, davon 1 außer Haus — zum Beispiel ein Auftrag auf ein lokales NAS und ein weiterer auf S3 oder ein gehärtetes Repository in einem anderen Gebäude.</p></div>
 

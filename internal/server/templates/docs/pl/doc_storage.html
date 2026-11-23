@@ -11,7 +11,7 @@
   <tr><td><b>Udział SMB</b></td><td>Serwery plików Windows, NAS Synology/QNAP</td><td>SMB 2/3; agenci logują się sami, nie trzeba mapować dysków.</td></tr>
   <tr><td><b>Utwardzone repozytorium</b></td><td>Lokalny magazyn odporny na ransomware</td><td>Serwer Linux z <code>backupzit-repo</code>; kopii nie można usunąć przed upływem okresu niezmienności.</td></tr>
   <tr><td><b>Rotowane dyski USB</b></td><td>Kopie offline dla małych biur: dwa lub więcej dysków wymienianych co tydzień</td><td>Rozpoznawane po etykiecie woluminu (BZBACKUP1, BZBACKUP2 …), nie po literze dysku.</td></tr>
-  <tr><td><b>Ścieżka lokalna / zamontowana</b></td><td>Dysk USB, drugi dysk lub wolumin NFS/iSCSI zamontowany na agencie</td><td>Ścieżka widziana przez agenta, np. <code>E:\Backups</code> lub <code>/mnt/backup</code>.</td></tr>
+  <tr><td><b>Ścieżka lokalna / zamontowana</b></td><td>Dysk USB, drugi dysk lub wolumin NFS/iSCSI zamontowany na agencie</td><td>Ścieżka widziana przez agenta, np. <code>E:\Backups</code> lub <code>/mnt/backup</code>. Poniżej tego folderu agent używa tylko prawdziwych folderów i plików: dowiązania prowadzące poza niego, dowiązania do folderów, połączenia (junction) i punkty montowania w nim są pomijane (0.59).</td></tr>
 </table>
 <div class="callout tip"><p><b>Zasada 3-2-1:</b> trzymaj 3 kopie danych, na 2 różnych nośnikach, w tym 1 poza siedzibą — na przykład jedno zadanie na lokalny NAS i drugie do S3 lub utwardzonego repozytorium w innym budynku.</p></div>
 

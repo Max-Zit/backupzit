@@ -11,7 +11,7 @@
   <tr><td><b>SMB-share</b></td><td>Windows-bestandsservers, Synology/QNAP-NAS</td><td>SMB 2/3; agents melden zich zelf aan, geen stationstoewijzing nodig.</td></tr>
   <tr><td><b>Geharde repository</b></td><td>Ransomwarebestendige opslag op locatie</td><td>Een Linux-server met <code>backupzit-repo</code>; back-ups kunnen niet worden verwijderd voordat hun onveranderlijkheidsperiode afloopt.</td></tr>
   <tr><td><b>Roterende USB-schijven</b></td><td>Offline kopieën voor kleine kantoren: twee of meer schijven die wekelijks worden gewisseld</td><td>Gevonden op volumelabel (BZBACKUP1, BZBACKUP2 …), niet op stationsletter.</td></tr>
-  <tr><td><b>Lokaal / gekoppeld pad</b></td><td>Een USB-schijf, tweede schijf of een NFS/iSCSI-volume dat op de agent is gekoppeld</td><td>Pad zoals de agent het ziet, bijv. <code>E:\Backups</code> of <code>/mnt/backup</code>.</td></tr>
+  <tr><td><b>Lokaal / gekoppeld pad</b></td><td>Een USB-schijf, tweede schijf of een NFS/iSCSI-volume dat op de agent is gekoppeld</td><td>Pad zoals de agent het ziet, bijv. <code>E:\Backups</code> of <code>/mnt/backup</code>. Onder die map gebruikt de agent alleen echte mappen en bestanden: koppelingen die eruit leiden, koppelingen naar mappen, junctions en koppelpunten erin worden genegeerd (0.59).</td></tr>
 </table>
 <div class="callout tip"><p><b>3-2-1-regel:</b> bewaar 3 kopieën van uw gegevens, op 2 verschillende media, waarvan 1 buiten de deur — bijvoorbeeld één taak naar een lokale NAS en een andere naar S3 of een geharde repository in een ander gebouw.</p></div>
 

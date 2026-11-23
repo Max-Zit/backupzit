@@ -11,7 +11,7 @@
   <tr><td><b>Sdílená složka SMB</b></td><td>Souborové servery Windows, NAS Synology/QNAP</td><td>SMB 2/3; agenti se přihlašují sami, není třeba mapovat jednotky.</td></tr>
   <tr><td><b>Zabezpečené úložiště</b></td><td>Místní úložiště odolné vůči ransomwaru</td><td>Linuxový server s <code>backupzit-repo</code>; zálohy nelze smazat před koncem jejich doby neměnnosti.</td></tr>
   <tr><td><b>Rotující disky USB</b></td><td>Offline kopie pro malé kanceláře: dva nebo více disků střídaných jednou týdně</td><td>Hledají se podle jmenovky svazku (BZBACKUP1, BZBACKUP2 …), ne podle písmene jednotky.</td></tr>
-  <tr><td><b>Místní / připojená cesta</b></td><td>Disk USB, druhý disk nebo svazek NFS/iSCSI připojený k agentovi</td><td>Cesta, jak ji vidí agent, např. <code>E:\Backups</code> nebo <code>/mnt/backup</code>.</td></tr>
+  <tr><td><b>Místní / připojená cesta</b></td><td>Disk USB, druhý disk nebo svazek NFS/iSCSI připojený k agentovi</td><td>Cesta, jak ji vidí agent, např. <code>E:\Backups</code> nebo <code>/mnt/backup</code>. Pod touto složkou agent používá jen skutečné složky a soubory: odkazy, které z ní vedou ven, odkazy na složky, spojení (junction) a přípojné body uvnitř se ignorují (0.59).</td></tr>
 </table>
 <div class="callout tip"><p><b>Pravidlo 3-2-1:</b> mějte 3 kopie dat na 2 různých médiích, z toho 1 mimo pracoviště — například jednu úlohu na místní NAS a druhou do S3 nebo na zabezpečené úložiště v jiné budově.</p></div>
 
