@@ -84,6 +84,12 @@
           </File>
           <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run" Name="BackupZit Agent" Value="&quot;[INSTALLFOLDER]backupzit-tray.exe&quot;" Type="string" />
         </Component>
+        <!-- Graphical recovery program and its manifest, for building the
+             Windows recovery ISO (packaging\winpe\build-winpe.ps1); not run here. -->
+        <Component Id="RecoveryExe" Bitness="always64">
+          <File Id="RecoveryExeFile" Source="$(var.RecoveryExe)" Name="backupzit-recovery.exe" KeyPath="yes" />
+          <File Id="RecoveryManifestFile" Source="$(var.RootDir)\cmd\backupzit-recovery\backupzit-recovery.exe.manifest" Name="backupzit-recovery.exe.manifest" />
+        </Component>
         <!-- License of BackupZit and of the third-party components it includes. -->
         <Component Id="License" Bitness="always64">
           <File Id="LicenseFile" Source="$(var.RootDir)\LICENSE" Name="LICENSE.txt" KeyPath="yes" />

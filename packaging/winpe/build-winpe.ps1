@@ -26,8 +26,10 @@
   components (e.g. WinPE-FontSupport-JA-JP); -PowerShell adds PowerShell
   with the storage and DISM cmdlets (larger ISO).
 
-  With -UiExe the graphical recovery program is copied to System32 and
-  started instead of the console recovery agent.
+  The graphical recovery program (backupzit-recovery.exe and its
+  .manifest, installed next to the agent) is copied to System32 and started
+  instead of the console recovery agent. -UiExe names another copy, -NoUi
+  leaves it out (console agent only).
 
   -DriverDir takes several folders. -IncludeHostDrivers adds the storage,
   disk controller and network drivers of the machine the ISO is built on
@@ -55,6 +57,7 @@ param(
     [string]$UsbDrive = "",
     [switch]$Force,
     [string]$UiExe = "",
+    [switch]$NoUi,
     [string]$Language = "de-de",
     [string]$KeyboardLayout = "",
     [string]$TimeZone = (Get-TimeZone).Id,
@@ -71,6 +74,14 @@ if (-not (Test-Path $setEnv)) { throw "Windows ADK Deployment Tools not found ($
 $peRoot = Join-Path $adk "Windows Preinstallation Environment"
 if (-not (Test-Path $peRoot)) { throw "Windows PE add-on not installed" }
 $ocs = Join-Path $peRoot "amd64\WinPE_OCs"
+
+# The graphical program is installed next to the agent (MSI): use it unless
+# -UiExe names another one or -NoUi asks for the console agent only.
+if (-not $UiExe -and -not $NoUi -and (Test-Path $AgentExe)) {
+    $next = Join-Path (Split-Path -Parent (Resolve-Path $AgentExe)) "backupzit-recovery.exe"
+    if (Test-Path $next) { $UiExe = $next; Write-Host "graphical recovery program: $UiExe" }
+}
+if ($NoUi) { $UiExe = "" }
 
 foreach ($f in @($AgentExe, $RecoveryJson, $AccessPackage, $UiExe, $BaseWim) + $DriverDir) {
     if ($f -and -not (Test-Path $f)) { throw "not found: $f" }
