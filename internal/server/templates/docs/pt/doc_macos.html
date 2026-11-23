@@ -35,8 +35,7 @@
   <li><b>No Terminal, depois da instalação</b> (a forma habitual):
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
   <li id="mdm"><b>Com um MDM</b> (Jamf, Intune, Mosyle…): antes de o pacote ser instalado, um script grava o código num arquivo cujo dono é root:
-<pre>sudo mkdir -p "/Library/Application Support/BackupZit"
-echo "BZ1-..." | sudo tee "/Library/Application Support/BackupZit/enroll-code" &gt;/dev/null</pre>
+<pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   Depois distribua o pacote. A instalação dele registra o Mac com o código e apaga o arquivo. Um arquivo cujo dono não é root é ignorado. Esta também é a forma de mover um Mac registrado para outra console.</li>
   <li><b>Um arquivo ao lado do pacote</b>: <code>backupzit-enroll.txt</code> com o código, na mesma pasta que o <code>.pkg</code> (por exemplo num pendrive ou numa pasta compartilhada). Ele só é usado enquanto o Mac ainda não está registrado, e só se ninguém mais puder tê-lo escrito: o dono do arquivo é root ou o dono do pacote, e a pasta dele não permite escrita por outros usuários (ou tem o sticky bit, como <code>/Users/Shared</code>).</li>
 </ol>

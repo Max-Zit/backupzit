@@ -320,7 +320,10 @@ sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."
 ```
 
 - **Full Disk Access:** only the user of the Mac can grant it, in *System Settings → Privacy & Security → Full Disk Access* (add `/Library/BackupZit/bin/backupzit-agent`). The installer's last page and the menu bar app's permission assistant guide through it; without it, protected folders (Mail, Messages, Safari, Desktop, Documents, other apps' data) are skipped and backups warn.
-- **MDM** (Jamf, Intune, ...): write the code to `/Library/Application Support/BackupZit/enroll-code` (owned by root) before installing the package; the installation enrolls the Mac and deletes the file. A `backupzit-enroll.txt` next to the `.pkg` also works for a Mac that is not enrolled yet.
+- **MDM** (Jamf, Intune, ...): write the code to `/Library/Application Support/BackupZit/enroll-code` (owned by root, readable by root only: the code enrolls any number of Macs for 7 days) before installing the package; the installation enrolls the Mac and deletes the file, also when enrolling fails:
+  ```
+  echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat > "/Library/Application Support/BackupZit/enroll-code"'
+  ``` A `backupzit-enroll.txt` next to the `.pkg` also works for a Mac that is not enrolled yet.
 - Uninstall: `sudo /Library/BackupZit/uninstall.sh` (`--purge` also deletes the configuration and the log).
 
 **From the console:** under *Agents → Install on a machine from here*, the console installs the agent itself, over SSH (Linux) or WinRM (Windows).
@@ -597,8 +600,8 @@ with an Apple Developer ID, set `BACKUPZIT_MAC_APP_IDENTITY` ("Developer ID Appl
 and `BACKUPZIT_MAC_INSTALLER_IDENTITY` ("Developer ID Installer: ..."), and to notarize,
 `BACKUPZIT_MAC_NOTARY_PROFILE` (a keychain profile of `xcrun notarytool`), as
 `BACKUPZIT_SIGN_THUMBPRINT` does for the MSI. `tools/release` puts the package in the signed
-lists, and CI builds and tests on macOS too. `BACKUPZIT_REPORT_OS` overrides the system an agent
-reports to the console (a development aid).
+lists, and CI builds and tests on macOS too. `BACKUPZIT_REPORT_OS` overrides the system a macOS agent
+reports to the console (a development aid, ignored on Windows and Linux).
 
 Releases for the console's self-update are signed with the Ed25519 release key; its public
 key is built into `internal/update` (`TrustedKeys`). Keep `release.key` offline and backed up:

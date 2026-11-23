@@ -39,7 +39,7 @@ func TestFileKindAndDownloadsOfMacPackage(t *testing.T) {
 		}
 	}
 	title, _, _, _, ok := classify("backupzit-agent_0.59.0_darwin_arm64.pkg")
-	if !ok || title != "macOS agent — Apple Silicon" {
+	if !ok || title != "macOS agent — Apple silicon" {
 		t.Errorf("classify: %q %v", title, ok)
 	}
 }
@@ -65,5 +65,23 @@ func TestAvailableUpdatesForMac(t *testing.T) {
 	}
 	if u, ok := got[2]; ok {
 		t.Errorf("up-to-date Mac offered %+v", u)
+	}
+}
+
+// Downloads of the same position keep one order (by title): the macOS
+// package after the rpm, whatever order the folder lists them in.
+func TestDownloadsOrderStable(t *testing.T) {
+	dir := t.TempDir()
+	for _, n := range []string{"backupzit-agent_0.59.0_darwin_arm64.pkg", "backupzit-agent-0.59.0-1.x86_64.rpm", "backupzit-agent_0.59.0_amd64.deb"} {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s := &Server{DistDir: dir}
+	for range 20 {
+		d := s.downloads()
+		if len(d) != 3 || d[1].Title != "Linux agent — AlmaLinux / Rocky Linux" || d[2].Title != "macOS agent — Apple silicon" {
+			t.Fatalf("order: %+v", d)
+		}
 	}
 }

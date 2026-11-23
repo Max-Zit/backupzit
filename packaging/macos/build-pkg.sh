@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the macOS (Apple Silicon) agent, its menu bar app and the installer
+# Builds the macOS (Apple silicon) agent, its menu bar app and the installer
 # package.
 #   ./packaging/macos/build-pkg.sh 0.59.0
 # Output: dist/backupzit-agent_<version>_darwin_arm64.pkg
@@ -108,7 +108,7 @@ xattr -cr "$PAY" 2>/dev/null || true
 
 # sign_code signs a program or the app: Developer ID with the hardened
 # runtime and a secure timestamp (needed for notarization) when configured,
-# ad hoc otherwise (Apple Silicon runs nothing unsigned).
+# ad hoc otherwise (Apple silicon runs nothing unsigned).
 sign_code() {
     if [ -n "${BACKUPZIT_MAC_APP_IDENTITY:-}" ]; then
         codesign --force --options runtime --timestamp --sign "$BACKUPZIT_MAC_APP_IDENTITY" "$@"

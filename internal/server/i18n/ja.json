@@ -778,7 +778,7 @@
   "macOS agents (Apple silicon)": "macOS エージェント（Apple シリコン）",
   "Install the macOS agent package below, then enroll the Mac in Terminal. For an MDM, write the code to the file below before installing the package. The installer then shows how to grant Full Disk Access, which only the user of the Mac can do.": "下の macOS エージェントのパッケージをインストールしてから、ターミナルで Mac を登録します。MDM の場合は、パッケージをインストールする前にコードを下のファイルに書き込みます。その後インストーラが、Mac のユーザーにしかできないフルディスクアクセスの許可方法を表示します。",
   "Linux agent — AlmaLinux / Rocky Linux": "Linux エージェント — AlmaLinux / Rocky Linux",
-  "macOS agent — Apple Silicon": "macOS エージェント — Apple シリコン",
+  "macOS agent — Apple silicon": "macOS エージェント — Apple シリコン",
   "Linux agent — Debian / Ubuntu": "Linux エージェント — Debian / Ubuntu",
   "Linux over SSH, Windows over WinRM": "Linux は SSH、Windows は WinRM",
   "Linux recovery ISO": "Linux リカバリ ISO",

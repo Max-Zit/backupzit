@@ -23,15 +23,16 @@ sudo systemctl enable --now backupzit-agent</pre>
     {{/* A .pkg takes no properties on its command line as an MSI does
        (ENROLLCODE): the Mac is enrolled in Terminal after the installation,
        or by an MDM through the root-only file the package's postinstall
-       reads (packaging/macos/scripts/postinstall). Full Disk Access cannot
-       be granted by a script or this console, only by the user. */}}
+       reads (packaging/macos/scripts/postinstall). The code is written with
+       umask 077: it enrolls any number of Macs for 7 days, so no other local
+       user may read it (sudo tee would leave it 0644). Full Disk Access
+       cannot be granted by a script or this console, only by the user. */}}
     <h3 class="mt">{{T "macOS (Apple silicon)"}}</h3>
     <p class="small">{{T "Install the macOS agent package below, then enroll the Mac in Terminal. For an MDM, write the code to the file below before installing the package. The installer then shows how to grant Full Disk Access, which only the user of the Mac can do."}}</p>
     <pre id="cmd-mac">sudo /Library/BackupZit/bin/backupzit-agent enroll --code "{{.Code}}"
 
-# MDM, before the package:
-sudo mkdir -p "/Library/Application Support/BackupZit"
-echo "{{.Code}}" | sudo tee "/Library/Application Support/BackupZit/enroll-code" >/dev/null</pre>
+# MDM, before the package (the file readable by root only):
+echo "{{.Code}}" | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat > "/Library/Application Support/BackupZit/enroll-code"'</pre>
     <button class="secondary" data-copy="#cmd-mac" type="button">{{T "Copy"}}</button>
     <h3 class="mt">{{T "Details"}}</h3>
     <dl class="kv">

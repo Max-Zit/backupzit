@@ -39,7 +39,7 @@ func classify(name string) (title, desc string, order int, primary, ok bool) {
 	// architecture leaves room for another package without offering it to
 	// the wrong Macs.
 	case strings.HasPrefix(n, "backupzit-agent") && strings.HasSuffix(n, "_darwin_arm64.pkg"):
-		return "macOS agent — Apple Silicon", "pkg installer for Macs with Apple silicon, macOS 13 or newer", 4, false, true
+		return "macOS agent — Apple silicon", "pkg installer for Macs with Apple silicon, macOS 13 or newer", 4, false, true
 	case strings.HasPrefix(n, "backupzit-repo") && (strings.HasSuffix(n, ".deb") || strings.HasSuffix(n, ".rpm")):
 		return "Hardened repository", "for a dedicated Linux backup server (" + n[strings.LastIndex(n, ".")+1:] + ")", 6, false, true
 	case n == "backupzit-agent.exe":
@@ -81,7 +81,15 @@ func (s *Server) downloads() []download {
 	for _, d := range newest {
 		out = append(out, d)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].order < out[j].order })
+	// Entries of the same position (the rpm and macOS packages, the two
+	// recovery ISOs) by title: the map above has no order, and the page
+	// must not swap them from one load to the next.
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].order != out[j].order {
+			return out[i].order < out[j].order
+		}
+		return out[i].Title < out[j].Title
+	})
 	return out
 }
 

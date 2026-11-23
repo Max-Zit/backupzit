@@ -35,8 +35,7 @@
   <li><b>Im Terminal, nach der Installation</b> (der übliche Weg):
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
   <li id="mdm"><b>Mit einem MDM</b> (Jamf, Intune, Mosyle…): Vor der Installation des Pakets schreibt ein Skript den Code in eine Datei, die root gehört:
-<pre>sudo mkdir -p "/Library/Application Support/BackupZit"
-echo "BZ1-..." | sudo tee "/Library/Application Support/BackupZit/enroll-code" &gt;/dev/null</pre>
+<pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   Verteilen Sie dann das Paket. Seine Installation registriert den Mac mit dem Code und löscht die Datei. Eine Datei, die nicht root gehört, wird ignoriert. So wird auch ein registrierter Mac zu einer anderen Konsole umgezogen.</li>
   <li><b>Eine Datei neben dem Paket</b>: <code>backupzit-enroll.txt</code> mit dem Code, im selben Ordner wie das <code>.pkg</code> (zum Beispiel auf einem USB-Stick oder in einem freigegebenen Ordner). Sie wird nur verwendet, solange der Mac noch nicht registriert ist, und nur, wenn niemand anderes sie geschrieben haben kann: Die Datei gehört root oder dem Besitzer des Pakets, und ihr Ordner ist für andere Benutzer nicht beschreibbar (oder hat das Sticky-Bit, wie <code>/Users/Shared</code>).</li>
 </ol>

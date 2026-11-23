@@ -35,8 +35,7 @@
   <li><b>U Terminalu, posle instalacije</b> (uobičajen način):
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
   <li id="mdm"><b>Preko MDM-a</b> (Jamf, Intune, Mosyle…): pre instalacije paketa skripta upisuje kod u fajl čiji je vlasnik root:
-<pre>sudo mkdir -p "/Library/Application Support/BackupZit"
-echo "BZ1-..." | sudo tee "/Library/Application Support/BackupZit/enroll-code" &gt;/dev/null</pre>
+<pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   Zatim rasporedite paket. Njegova instalacija registruje Mac tim kodom i briše fajl. Fajl čiji vlasnik nije root se zanemaruje. Ovo je i način da se registrovani Mac premesti na drugu konzolu.</li>
   <li><b>Fajl pored paketa</b>: <code>backupzit-enroll.txt</code> sa kodom, u istom folderu kao <code>.pkg</code> (na primer na USB stiku ili u deljenom folderu). Koristi se samo dok Mac još nije registrovan, i samo ako niko drugi nije mogao da ga upiše: vlasnik fajla je root ili vlasnik paketa, a u njegov folder ne mogu da pišu drugi korisnici (ili ima sticky bit, kao <code>/Users/Shared</code>).</li>
 </ol>

@@ -35,8 +35,7 @@
   <li><b>V Terminálu po instalaci</b> (obvyklý způsob):
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
   <li id="mdm"><b>Přes MDM</b> (Jamf, Intune, Mosyle…): před instalací balíčku skript zapíše kód do souboru, jehož vlastníkem je root:
-<pre>sudo mkdir -p "/Library/Application Support/BackupZit"
-echo "BZ1-..." | sudo tee "/Library/Application Support/BackupZit/enroll-code" &gt;/dev/null</pre>
+<pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   Pak balíček nasaďte. Jeho instalace Mac tímto kódem zaregistruje a soubor smaže. Soubor, jehož vlastníkem není root, se ignoruje. Takto lze také přesunout registrovaný Mac do jiné konzole.</li>
   <li><b>Soubor vedle balíčku</b>: <code>backupzit-enroll.txt</code> s kódem ve stejné složce jako <code>.pkg</code> (například na USB disku nebo ve sdílené složce). Použije se jen, dokud Mac ještě není registrovaný, a jen pokud ho nemohl zapsat nikdo jiný: vlastníkem souboru je root nebo vlastník balíčku a do jeho složky nemohou zapisovat jiní uživatelé (nebo má sticky bit jako <code>/Users/Shared</code>).</li>
 </ol>

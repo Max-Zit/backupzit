@@ -35,8 +35,7 @@
   <li><b>インストール後にターミナルで</b>（通常の方法）:
 <pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
   <li id="mdm"><b>MDM で</b>（Jamf、Intune、Mosyle…）: パッケージをインストールする前に、スクリプトでコードを root 所有のファイルに書き込みます:
-<pre>sudo mkdir -p "/Library/Application Support/BackupZit"
-echo "BZ1-..." | sudo tee "/Library/Application Support/BackupZit/enroll-code" &gt;/dev/null</pre>
+<pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
   その後パッケージを配布します。インストール時にこのコードで Mac が登録され、ファイルは削除されます。root 所有でないファイルは無視されます。登録済みの Mac を別のコンソールに移すのもこの方法です。</li>
   <li><b>パッケージの隣のファイル</b>: コードを書いた <code>backupzit-enroll.txt</code> を <code>.pkg</code> と同じフォルダー（たとえば USB メモリや共有フォルダー）に置きます。これが使われるのは Mac がまだ登録されていない間だけで、しかもほかの誰も書き込めなかった場合だけです: ファイルの所有者が root またはパッケージの所有者であり、そのフォルダーにほかのユーザーが書き込めない（または <code>/Users/Shared</code> のようにスティッキー ビットが設定されている）こと。</li>
 </ol>
