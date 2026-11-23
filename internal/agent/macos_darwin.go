@@ -97,7 +97,7 @@ func loadDetached(dir, kind, script string) (start func() error, err error) {
 	if err := launchd.WritePlist(plist, oneShotJob(label, plist, script)); err != nil {
 		return nil, err
 	}
-	if err := launchd.Bootstrap(label, plist); err != nil {
+	if err := launchd.BootstrapNew(plist); err != nil {
 		_ = os.Remove(plist)
 		return nil, fmt.Errorf("launchd refused the %s job: %w", kind, err)
 	}

@@ -126,19 +126,26 @@ func httpClient(fingerprint string) *http.Client {
 	return &http.Client{Transport: tr, Timeout: 60 * time.Second}
 }
 
-// reportOSEnv overrides the operating system the agent reports to the
-// console. Development aid: a macOS agent set to e.g. "Debian GNU/Linux 12"
-// is handled by a console that does not know macOS agents yet exactly like
-// a Linux agent.
+// reportOSEnv overrides the operating system a macOS agent reports to the
+// console. Development aid: a Mac set to e.g. "Debian GNU/Linux 12" is
+// handled by a console that does not know macOS agents yet exactly like a
+// Linux agent. macOS only: the reported system decides which jobs and
+// updates the console offers, and nothing but testing a Mac against an
+// older console needs to change it.
 const reportOSEnv = "BACKUPZIT_REPORT_OS"
 
 func hostInfo(version string) (hostname, osName, arch string) {
 	hostname, _ = os.Hostname()
-	osName = osDescription()
-	if v := strings.TrimSpace(os.Getenv(reportOSEnv)); v != "" {
-		osName = v
+	return hostname, reportedOS(runtime.GOOS, osDescription(), os.Getenv(reportOSEnv)), runtime.GOARCH
+}
+
+// reportedOS is the system the agent reports: the real one, or on macOS
+// the override when one is set.
+func reportedOS(goos, real, override string) string {
+	if v := strings.TrimSpace(override); goos == "darwin" && v != "" {
+		return v
 	}
-	return hostname, osName, runtime.GOARCH
+	return real
 }
 
 // Enroll registers this machine with the server and returns the config to save.

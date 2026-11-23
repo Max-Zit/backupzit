@@ -57,6 +57,14 @@ func Bootstrap(label, plistPath string) error {
 	return run("bootstrap", "system", plistPath)
 }
 
+// BootstrapNew loads a system job whose label was never used before (the
+// agent's one-shot jobs carry a new label each time): such a job cannot be
+// disabled, so it is not enabled first. "launchctl enable" writes the label
+// into launchd's overrides file, which would gain one entry per update.
+func BootstrapNew(plistPath string) error {
+	return run("bootstrap", "system", plistPath)
+}
+
 // Kickstart starts a loaded job that is not running (no -k: a running job
 // is left alone).
 func Kickstart(label string) error { return run("kickstart", SystemTarget(label)) }

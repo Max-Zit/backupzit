@@ -24,7 +24,11 @@ func privateDir(dir string) error {
 		return fmt.Errorf("%s is not a folder owned by the agent's user; refusing to install from it", dir)
 	}
 	if fi.Mode().Perm()&0o077 != 0 {
-		return os.Chmod(dir, 0o700) // #nosec G302 -- a folder: 0700 is root only
+		if err := os.Chmod(dir, 0o700); err != nil { // #nosec G302 -- a folder: 0700 is root only
+			return err
+		}
 	}
-	return nil
+	// On macOS an access control entry (inherited from the folder above)
+	// can let others in although the mode says 0700.
+	return clearACL(dir)
 }
