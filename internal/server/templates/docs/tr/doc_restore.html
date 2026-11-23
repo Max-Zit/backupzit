@@ -80,6 +80,7 @@
       <li>Microsoft'un ücretsiz <b>Windows ADK</b>'sını (<i>Deployment Tools</i> özelliği) ve <b>Windows PE eklentisini</b> kurun.</li>
       <li>Sürümden <code>build-winpe.ps1</code>'i indirin (aracı paketlerinin yanında) ve aracının kurulu olduğu bir makinenin <code>C:\Program Files\backupzit Agent</code> klasöründen <code>backupzit-agent.exe</code>'yi alın.</li>
       <li>Yönetici PowerShell'inde: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Depolama veya ağ sürücüleri için <code>-DriverDir C:\Drivers</code> (ör. Proxmox VM'leri için VirtIO), yazmadan bağlanması için <code>-RecoveryJson .\recovery.json</code> ekleyin.</li>
+      <li>ISO, grafik kurtarma programını (aracının yanına kurulan <code>backupzit-recovery.exe</code>) başlatır: disk görüntüsünü veya tek tek bölümleri, daha küçük ya da daha büyük bir diske de geri yükleme, önyüklemeyi onarma, sürücü yükleme. <code>-AccessPackage .\backupzit.bzaccess</code> ile (<a href="/recovery">Kurtarma ortamları</a> altında oluşturulur) yedekleri bu konsol olmadan açar; yalnızca parola ifadesi gerekir. Saatler bu bilgisayarın saat diliminde gösterilir (<code>-TimeZone</code>); <code>-NoUi</code> yalnızca konsol aracısını ekler.</li>
       <li>İsteğe bağlı olarak ISO'yu konsolun <code>/var/lib/backupzit/dist</code> dizinine kopyalayın; ardından Kurtarma ortamı sayfasında sunulur.</li>
     </ol></li>
 </ul>

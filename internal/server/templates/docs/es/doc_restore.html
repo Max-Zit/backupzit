@@ -80,6 +80,7 @@
       <li>Instale el <b>Windows ADK</b> gratuito (característica <i>Deployment Tools</i>) y el <b>complemento Windows PE</b> de Microsoft.</li>
       <li>Descargue <code>build-winpe.ps1</code> de la versión (junto a los paquetes de agente) y tome <code>backupzit-agent.exe</code> de <code>C:\Program Files\backupzit Agent</code> de un equipo con el agente.</li>
       <li>En un PowerShell de administrador: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Añada <code>-DriverDir C:\Drivers</code> para controladores de almacenamiento o de red (p. ej. VirtIO para VM de Proxmox) y <code>-RecoveryJson .\recovery.json</code> para que se conecte sin escribir nada.</li>
+      <li>La ISO inicia el programa gráfico de recuperación (<code>backupzit-recovery.exe</code>, instalado junto al agente): restaurar una imagen de disco o particiones sueltas, también en un disco más pequeño o más grande, reparar el arranque, cargar controladores. Con <code>-AccessPackage .\backupzit.bzaccess</code> (creado en <a href="/recovery">Medios de recuperación</a>) abre las copias de seguridad sin esta consola; solo se necesita la frase de contraseña. Las horas se muestran en la zona horaria de este PC (<code>-TimeZone</code>); <code>-NoUi</code> incluye solo el agente de consola.</li>
       <li>Opcionalmente copie la ISO en el directorio <code>/var/lib/backupzit/dist</code> de la consola; entonces se ofrece en la página Medios de recuperación.</li>
     </ol></li>
 </ul>

@@ -80,6 +80,7 @@
       <li>Установите бесплатный <b>Windows ADK</b> (компонент <i>Deployment Tools</i>) и <b>надстройку Windows PE</b> от Microsoft.</li>
       <li>Скачайте <code>build-winpe.ps1</code> из выпуска (рядом с пакетами агента) и возьмите <code>backupzit-agent.exe</code> из <code>C:\Program Files\backupzit Agent</code> машины с агентом.</li>
       <li>В PowerShell от имени администратора: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Добавьте <code>-DriverDir C:\Drivers</code> для драйверов хранилища или сети (например VirtIO для ВМ Proxmox) и <code>-RecoveryJson .\recovery.json</code>, чтобы подключение шло без ввода.</li>
+      <li>ISO запускает графическую программу восстановления (<code>backupzit-recovery.exe</code>, устанавливается рядом с агентом): восстановление образа диска или отдельных разделов, в том числе на диск меньшего или большего размера, восстановление загрузки, загрузка драйверов. С <code>-AccessPackage .\backupzit.bzaccess</code> (создаётся в разделе <a href="/recovery">Носители восстановления</a>) она открывает резервные копии без этой консоли; нужна только парольная фраза. Время показывается в часовом поясе этого ПК (<code>-TimeZone</code>); <code>-NoUi</code> включает только консольный агент.</li>
       <li>При желании скопируйте ISO в каталог <code>/var/lib/backupzit/dist</code> консоли; тогда он предлагается на странице «Носители восстановления».</li>
     </ol></li>
 </ul>

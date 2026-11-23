@@ -80,6 +80,7 @@
       <li>从 Microsoft 安装免费的 <b>Windows ADK</b>（功能 <i>Deployment Tools</i>）和 <b>Windows PE 加载项</b>。</li>
       <li>从发布中下载 <code>build-winpe.ps1</code>（位于代理软件包旁），并从装有代理的机器的 <code>C:\Program Files\backupzit Agent</code> 中取得 <code>backupzit-agent.exe</code>。</li>
       <li>在管理员 PowerShell 中运行：<code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>。添加 <code>-DriverDir C:\Drivers</code> 以包含存储或网络驱动程序（例如 Proxmox 虚拟机的 VirtIO），添加 <code>-RecoveryJson .\recovery.json</code> 使其无需输入即可连接。</li>
+      <li>ISO 会启动图形化恢复程序（安装在代理旁边的 <code>backupzit-recovery.exe</code>）：还原磁盘映像或单个分区（也可还原到更小或更大的磁盘）、修复启动、加载驱动程序。使用 <code>-AccessPackage .\backupzit.bzaccess</code>（在<a href="/recovery">恢复介质</a>中创建）时，它无需此控制台即可打开备份，只需要密码短语。时间按此电脑的时区显示（<code>-TimeZone</code>）；<code>-NoUi</code> 只包含控制台代理。</li>
       <li>可选择将 ISO 复制到控制台的 <code>/var/lib/backupzit/dist</code> 目录；之后它会出现在恢复介质页面上。</li>
     </ol></li>
 </ul>

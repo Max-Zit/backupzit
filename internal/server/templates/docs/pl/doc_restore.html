@@ -80,6 +80,7 @@
       <li>Zainstaluj bezpłatny <b>Windows ADK</b> (funkcja <i>Deployment Tools</i>) i <b>dodatek Windows PE</b> od Microsoftu.</li>
       <li>Pobierz <code>build-winpe.ps1</code> z wydania (obok pakietów agenta) i weź <code>backupzit-agent.exe</code> z <code>C:\Program Files\backupzit Agent</code> maszyny z agentem.</li>
       <li>W PowerShellu jako administrator: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Dodaj <code>-DriverDir C:\Drivers</code> dla sterowników pamięci masowej lub sieci (np. VirtIO dla maszyn Proxmox) i <code>-RecoveryJson .\recovery.json</code>, aby łączył się bez wpisywania.</li>
+      <li>ISO uruchamia graficzny program odzyskiwania (<code>backupzit-recovery.exe</code>, zainstalowany obok agenta): przywracanie obrazu dysku lub pojedynczych partycji, także na mniejszy lub większy dysk, naprawa rozruchu, ładowanie sterowników. Z <code>-AccessPackage .\backupzit.bzaccess</code> (utworzonym w <a href="/recovery">Nośnikach odzyskiwania</a>) otwiera kopie zapasowe bez tej konsoli; potrzebne jest tylko hasło. Czasy są pokazywane w strefie czasowej tego komputera (<code>-TimeZone</code>); <code>-NoUi</code> dołącza tylko agenta konsolowego.</li>
       <li>Opcjonalnie skopiuj ISO do katalogu <code>/var/lib/backupzit/dist</code> konsoli; wtedy jest ono oferowane na stronie Nośniki odzyskiwania.</li>
     </ol></li>
 </ul>

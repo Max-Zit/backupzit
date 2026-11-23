@@ -80,6 +80,7 @@
       <li>Installeer de gratis <b>Windows ADK</b> (onderdeel <i>Deployment Tools</i>) en de <b>Windows PE-invoegtoepassing</b> van Microsoft.</li>
       <li>Download <code>build-winpe.ps1</code> uit de versie (naast de agentpakketten) en neem <code>backupzit-agent.exe</code> uit <code>C:\Program Files\backupzit Agent</code> van een machine met de agent.</li>
       <li>In een PowerShell als beheerder: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Voeg <code>-DriverDir C:\Drivers</code> toe voor opslag- of netwerkstuurprogramma's (bijv. VirtIO voor Proxmox-VM's) en <code>-RecoveryJson .\recovery.json</code> zodat hij zonder typen verbinding maakt.</li>
+      <li>De ISO start het grafische herstelprogramma (<code>backupzit-recovery.exe</code>, naast de agent geïnstalleerd): een schijfkopie of losse partities herstellen, ook naar een kleinere of grotere schijf, het opstarten herstellen, stuurprogramma's laden. Met <code>-AccessPackage .\backupzit.bzaccess</code> (gemaakt onder <a href="/recovery">Herstelmedia</a>) opent het de back-ups zonder deze console; alleen de wachtzin is nodig. Tijden verschijnen in de tijdzone van deze pc (<code>-TimeZone</code>); <code>-NoUi</code> neemt alleen de console-agent op.</li>
       <li>Kopieer de ISO optioneel naar de map <code>/var/lib/backupzit/dist</code> van de console; hij wordt dan aangeboden op de pagina Herstelmedia.</li>
     </ol></li>
 </ul>

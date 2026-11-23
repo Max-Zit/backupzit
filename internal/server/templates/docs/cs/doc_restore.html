@@ -80,6 +80,7 @@
       <li>Nainstalujte bezplatný <b>Windows ADK</b> (funkce <i>Deployment Tools</i>) a <b>doplněk Windows PE</b> od Microsoftu.</li>
       <li>Stáhněte <code>build-winpe.ps1</code> z vydání (vedle balíčků agenta) a vezměte <code>backupzit-agent.exe</code> z <code>C:\Program Files\backupzit Agent</code> počítače s agentem.</li>
       <li>V PowerShellu jako správce: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Přidejte <code>-DriverDir C:\Drivers</code> pro ovladače úložiště nebo sítě (např. VirtIO pro VM v Proxmoxu) a <code>-RecoveryJson .\recovery.json</code>, aby se připojil bez psaní.</li>
+      <li>ISO spustí grafický program pro obnovu (<code>backupzit-recovery.exe</code>, nainstalovaný vedle agenta): obnova obrazu disku nebo jednotlivých oddílů, i na menší nebo větší disk, oprava spouštění, načtení ovladačů. S <code>-AccessPackage .\backupzit.bzaccess</code> (vytvořeným v <a href="/recovery">Médiích pro obnovu</a>) otevře zálohy bez této konzole; stačí heslová fráze. Časy se zobrazují v časovém pásmu tohoto PC (<code>-TimeZone</code>); <code>-NoUi</code> přidá jen konzolového agenta.</li>
       <li>Volitelně zkopírujte ISO do adresáře <code>/var/lib/backupzit/dist</code> konzole; pak se nabízí na stránce Obnovovací média.</li>
     </ol></li>
 </ul>

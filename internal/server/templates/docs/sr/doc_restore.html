@@ -80,6 +80,7 @@
       <li>Instalirajte besplatni <b>Windows ADK</b> (funkcija <i>Deployment Tools</i>) i <b>Windows PE add-on</b> od Microsofta.</li>
       <li>Preuzmite <code>build-winpe.ps1</code> iz izdanja (pored paketa agenta) i uzmite <code>backupzit-agent.exe</code> iz <code>C:\Program Files\backupzit Agent</code> na mašini sa agentom.</li>
       <li>U administratorskom PowerShell-u: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>. Dodajte <code>-DriverDir C:\Drivers</code> za drajvere za diskove ili mrežu (npr. VirtIO za Proxmox virtuelne mašine) i <code>-RecoveryJson .\recovery.json</code> da se povezuje bez kucanja.</li>
+      <li>ISO pokreće grafički program za oporavak (<code>backupzit-recovery.exe</code>, instaliran pored agenta): vraćanje slike diska ili pojedinačnih particija, i na manji ili veći disk, popravka pokretanja, učitavanje drajvera. Sa <code>-AccessPackage .\backupzit.bzaccess</code> (napravljenim pod <a href="/recovery">Medijumi za oporavak</a>) otvara bekape bez ove konzole; potrebna je samo lozinka. Vremena se prikazuju u vremenskoj zoni ovog računara (<code>-TimeZone</code>); <code>-NoUi</code> ugrađuje samo konzolnog agenta.</li>
       <li>Po želji kopirajte ISO u <code>/var/lib/backupzit/dist</code> konzole; tada se nudi na stranici Medijum za oporavak.</li>
     </ol></li>
 </ul>

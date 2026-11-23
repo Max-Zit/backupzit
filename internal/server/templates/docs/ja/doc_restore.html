@@ -80,6 +80,7 @@
       <li>Microsoft の無料の <b>Windows ADK</b>（機能 <i>Deployment Tools</i>）と <b>Windows PE アドオン</b>をインストールします。</li>
       <li>リリースから <code>build-winpe.ps1</code> をダウンロードし（エージェント パッケージの隣）、エージェントがインストールされたマシンの <code>C:\Program Files\backupzit Agent</code> から <code>backupzit-agent.exe</code> を取得します。</li>
       <li>管理者の PowerShell で: <code>.\build-winpe.ps1 -AgentExe .\backupzit-agent.exe -Out .\backupzit-recovery.iso</code>。ストレージやネットワークのドライバー（例: Proxmox VM 用の VirtIO）には <code>-DriverDir C:\Drivers</code> を、入力なしで接続させるには <code>-RecoveryJson .\recovery.json</code> を追加します。</li>
+      <li>ISO はグラフィカルな回復プログラム（エージェントの隣にインストールされる <code>backupzit-recovery.exe</code>）を起動します。ディスクイメージや個々のパーティションの復元（より小さい・大きいディスクへも可）、ブートの修復、ドライバーの読み込みができます。<code>-AccessPackage .\backupzit.bzaccess</code>（<a href="/recovery">回復メディア</a>で作成）を付けると、このコンソールなしでバックアップを開けます。必要なのはパスフレーズだけです。時刻はこの PC のタイムゾーンで表示されます（<code>-TimeZone</code>）。<code>-NoUi</code> はコンソールエージェントのみを含めます。</li>
       <li>必要に応じて ISO をコンソールの <code>/var/lib/backupzit/dist</code> ディレクトリにコピーします。すると、リカバリーメディア ページで提供されます。</li>
     </ol></li>
 </ul>
