@@ -220,7 +220,8 @@ func cmdImageRestore(ctx context.Context, args []string) error {
 		if err := l.Validate(img, limits); err != nil {
 			return err
 		}
-		printImageLayout(img, limits, l, size, 0)
+		needed, _ := imaging.NeededDiskSize(img, limits, lo)
+		printImageLayout(img, limits, l, size, needed)
 		job.Layout, job.Partitions = l, nil
 	}
 	if err := job.Check(disks, recovery.ProtectedDisks(disks, []string{rf.location})); err != nil {
