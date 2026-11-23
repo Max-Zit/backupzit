@@ -24,7 +24,7 @@ require (
 	github.com/kardianos/service v1.3.0
 	github.com/klauspost/compress v1.20.5
 	github.com/letsencrypt/pebble/v2 v2.10.3
-	github.com/masahiro331/go-ext4-filesystem v0.0.0-20260423010602-fe51f5b5e52b
+	github.com/masahiro331/go-ext4-filesystem v0.0.0-20261121070946-2c847b6f8831
 	github.com/masahiro331/go-xfs-filesystem v0.0.0-20261121071311-4626f2d5e0aa
 	github.com/masterzen/winrm v0.0.0-20261114181639-d693523ae428
 	github.com/microsoft/go-mssqldb v1.12.0
@@ -113,6 +113,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-// Patched copy: extents of the full length (32768 blocks) were read as
-// zeros; see third_party/go-ext4-filesystem/NOTICE.BackupZit.
+// Patched copy: plausibility checks of the superblock and the extent tree
+// for crafted images; see third_party/go-ext4-filesystem/NOTICE.BackupZit.
 replace github.com/masahiro331/go-ext4-filesystem => ./third_party/go-ext4-filesystem

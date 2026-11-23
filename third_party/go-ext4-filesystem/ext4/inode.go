@@ -24,27 +24,25 @@ type Extent struct {
 	StartLo uint32 `struc:"uint32,little"`
 }
 
-// extInitMaxLen is EXT_INIT_MAX_LEN of the Linux kernel: the longest
-// initialized extent. A length of exactly 0x8000 is an initialized extent
-// of 32768 blocks; only lengths above it are unwritten.
-const extInitMaxLen = 0x8000
+// maxInitExtentLen is the longest initialized extent (EXT_INIT_MAX_LEN in
+// the kernel). A length of exactly 32768 is an initialized extent of that
+// many blocks; only larger values mark an unwritten extent of Len-32768
+// blocks (ext4_ext_is_unwritten, ext4_ext_get_actual_len).
+const maxInitExtentLen = 0x8000
 
 // IsUninitialized returns true if this extent is unwritten (allocated but
 // not yet written). Reads from such extents should return zeros.
-// (BackupZit change: was Len&0x8000, which took full-length extents for
-// unwritten ones; as ext4_ext_is_unwritten in the kernel.)
 func (e *Extent) IsUninitialized() bool {
-	return e.Len > extInitMaxLen
+	return e.Len > maxInitExtentLen
 }
 
-// GetLen returns the actual number of blocks.
-// (BackupZit change: was Len&0x7FFF, which made 32768 blocks 0; as
-// ext4_ext_get_actual_len in the kernel.)
+// GetLen returns the actual number of blocks: Len for initialized extents
+// (up to 32768), Len-32768 for unwritten ones.
 func (e *Extent) GetLen() uint16 {
-	if e.Len <= extInitMaxLen {
+	if e.Len <= maxInitExtentLen {
 		return e.Len
 	}
-	return e.Len - extInitMaxLen
+	return e.Len - maxInitExtentLen
 }
 
 // DirectoryEntry2 is more or less a flat file that maps an arbitrary byte string
