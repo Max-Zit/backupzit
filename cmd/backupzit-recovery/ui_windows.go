@@ -3,7 +3,9 @@
 package main
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/lxn/walk"
@@ -265,13 +267,15 @@ func drawBars(c *walk.Canvas, font *walk.Font, r walk.Rectangle, diskSize uint64
 	if diskSize == 0 {
 		return
 	}
-	minW := 6
-	for _, br := range bars {
-		x := area.X + int(float64(area.Width)*float64(br.offset)/float64(diskSize))
-		wd := int(float64(area.Width) * float64(br.length) / float64(diskSize))
-		if wd < minW {
-			wd = minW
-		}
+	bars = slices.Clone(bars)
+	slices.SortStableFunc(bars, func(a, b bar) int { return cmp.Compare(a.offset, b.offset) })
+	parts := make([]span, len(bars))
+	for i, br := range bars {
+		parts[i] = span{br.offset, br.length}
+	}
+	px := barSpans(parts, diskSize, area.Width, 64)
+	for i, br := range bars {
+		x, wd := area.X+px[i].x, px[i].w
 		col := partColor(br.src)
 		if br.faded {
 			col = walk.RGB(0xC8, 0xC8, 0xC8)

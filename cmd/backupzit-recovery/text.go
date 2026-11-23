@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/max-zit/backupzit/internal/imaging"
 )
 
 // lang is "de" or "en". The recovery program is German and English; the
@@ -39,9 +41,10 @@ func t(de, en string) string {
 // tf is t with fmt.Sprintf.
 func tf(de, en string, args ...any) string { return fmt.Sprintf(t(de, en), args...) }
 
-// humanBytes formats a size, e.g. "59.4 GB".
+// humanBytes formats a size in binary units, e.g. "39,7 GiB", the units
+// of the size fields, so a size reads the same everywhere.
 func humanBytes(b uint64) string {
-	const unit = 1000
+	const unit = 1024
 	if b < unit {
 		return fmt.Sprintf("%d B", b)
 	}
@@ -50,11 +53,81 @@ func humanBytes(b uint64) string {
 		div *= unit
 		exp++
 	}
-	s := fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "kMGTPE"[exp])
+	s := fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
 	if lang == "de" {
 		s = strings.Replace(s, ".", ",", 1)
 	}
 	return s
+}
+
+// reasonText says in the current language why a partition cannot be
+// resized; kind is its type (imaging.Partition.Kind).
+func reasonText(lim imaging.PartitionLimits, kind string) string {
+	switch lim.Why {
+	case imaging.ReasonNotBackedUp:
+		return t("nicht gesichert", "not backed up")
+	case imaging.ReasonFixedSize:
+		return tf("Partitionen vom Typ „%s“ behalten ihre Größe", "%s partitions keep their size", kind)
+	case imaging.ReasonBitLocker:
+		return t("mit BitLocker verschlüsselt gesichert: nur verschiebbar, braucht nach dem Restore den Wiederherstellungsschlüssel",
+			"backed up encrypted with BitLocker: can only be moved, needs its recovery key after the restore")
+	case imaging.ReasonFileSystem:
+		return t("Größenänderung nur für NTFS", "only NTFS is resized")
+	case imaging.ReasonNotNTFS:
+		return t("verschlüsselt (BitLocker) oder nicht als NTFS lesbar", "encrypted (BitLocker) or not readable as NTFS")
+	case imaging.ReasonError:
+		return t("nicht lesbar: ", "not readable: ") + lim.Reason
+	}
+	return lim.Reason
+}
+
+// span is a partition on disk in bytes; pix is its bar in pixels.
+type span struct{ off, len uint64 }
+type pix struct{ x, w int }
+
+// barSpans places partition bars in width pixels: proportional to the
+// disk, but each at least minW wide so small partitions (EFI, MSR) stay
+// visible and labelled; the large ones give up the room. Free space keeps
+// its proportional width.
+func barSpans(parts []span, disk uint64, width, minW int) []pix {
+	if disk == 0 || len(parts) == 0 {
+		return nil
+	}
+	if n := len(parts); n*minW > width/2 {
+		minW = max(1, width/(2*n))
+	}
+	scale := float64(width) / float64(disk)
+	prop := make([]float64, len(parts))
+	w := make([]float64, len(parts))
+	var extra, slack float64
+	for i, p := range parts {
+		prop[i] = float64(p.len) * scale
+		w[i] = max(prop[i], float64(minW))
+		extra += w[i] - prop[i]
+		if prop[i] > float64(minW) {
+			slack += prop[i] - float64(minW)
+		}
+	}
+	if extra > 0 && slack > 0 {
+		f := min(1, extra/slack)
+		for i := range w {
+			if prop[i] > float64(minW) {
+				w[i] -= (prop[i] - float64(minW)) * f
+			}
+		}
+	}
+	out := make([]pix, len(parts))
+	var cursor float64
+	var prevEnd uint64
+	for i, p := range parts {
+		if p.off > prevEnd {
+			cursor += float64(p.off-prevEnd) * scale
+		}
+		out[i] = pix{x: int(cursor), w: int(w[i])}
+		cursor += w[i]
+		prevEnd = max(prevEnd, p.off+p.len)
+	}
+	return out
 }
 
 // gib converts bytes to GiB for size fields, and back.

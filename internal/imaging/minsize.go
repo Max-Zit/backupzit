@@ -135,30 +135,30 @@ func MeasureNTFS(r io.ReaderAt) (*NTFSUsage, error) {
 func LimitsForPartition(ctx context.Context, r *repo.Repository, p *repo.PartitionImage) PartitionLimits {
 	switch {
 	case !p.Included:
-		return PartitionLimits{Reason: "not backed up"}
+		return PartitionLimits{Reason: "not backed up", Why: ReasonNotBackedUp}
 	case FixedSizeKind(p):
-		return PartitionLimits{Reason: Partition{GPTType: p.GPTType, MBRType: p.MBRType}.Kind() + " partitions keep their size"}
+		return PartitionLimits{Reason: Partition{GPTType: p.GPTType, MBRType: p.MBRType}.Kind() + " partitions keep their size", Why: ReasonFixedSize}
 	}
 	pr, err := NewPartitionReader(ctx, r, p)
 	if err != nil {
-		return PartitionLimits{Reason: err.Error()}
+		return PartitionLimits{Reason: err.Error(), Why: ReasonError}
 	}
 	if IsBitLockerRaw(pr) {
-		return PartitionLimits{Reason: BitLockerRawReason}
+		return PartitionLimits{Reason: BitLockerRawReason, Why: ReasonBitLocker}
 	}
 	if !strings.EqualFold(p.FileSystem, "NTFS") {
 		fs := p.FileSystem
 		if fs == "" {
 			fs = "unknown file system"
 		}
-		return PartitionLimits{Reason: fs + " is not resized"}
+		return PartitionLimits{Reason: fs + " is not resized", Why: ReasonFileSystem}
 	}
 	u, err := MeasureNTFS(pr)
 	if err != nil {
 		if errors.Is(err, ErrNotNTFS) {
-			return PartitionLimits{Reason: "backed up encrypted (BitLocker) or not readable as NTFS"}
+			return PartitionLimits{Reason: "backed up encrypted (BitLocker) or not readable as NTFS", Why: ReasonNotNTFS}
 		}
-		return PartitionLimits{Reason: err.Error()}
+		return PartitionLimits{Reason: err.Error(), Why: ReasonError}
 	}
 	lim := PartitionLimits{Resizable: true, MinSize: u.MinSize, ShrinkableTo: u.MinSize, UsedBytes: u.UsedBytes}
 	// Moving clusters allows less than the last allocated cluster: about

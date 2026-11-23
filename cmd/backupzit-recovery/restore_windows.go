@@ -702,14 +702,12 @@ func (w *wizard) buildRows() {
 			switch {
 			case !src.Included:
 				info = t("nicht gesichert, wird leer angelegt", "not backed up, created empty")
+			case lim.Why == imaging.ReasonBitLocker:
+				info = reasonText(lim, "")
 			case !lim.Resizable:
-				info = t("nur verschiebbar: ", "can only be moved: ") + lim.Reason
+				info = t("nur verschiebbar: ", "can only be moved: ") + reasonText(lim, imaging.Partition{GPTType: src.GPTType, MBRType: src.MBRType}.Kind())
 			default:
 				info = tf("belegt %s, mindestens %s", "used %s, at least %s", humanBytes(lim.UsedBytes), humanBytes(lim.Min(src)))
-			}
-			if lim.Reason == imaging.BitLockerRawReason {
-				info = t("mit BitLocker verschlüsselt gesichert: nur verschiebbar, braucht nach dem Restore den Wiederherstellungsschlüssel",
-					"backed up encrypted with BitLocker: can only be moved, needs its recovery key after the restore")
 			}
 		}
 		var cb *walk.CheckBox

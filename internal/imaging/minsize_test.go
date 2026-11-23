@@ -1,6 +1,7 @@
 package imaging
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"os"
@@ -8,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/max-zit/backupzit/internal/repo"
 )
 
 func TestBitmapUsage(t *testing.T) {
@@ -124,5 +127,23 @@ func TestIsBitLockerRaw(t *testing.T) {
 	}
 	if IsBitLockerRaw(bytesReaderAt(nil)) {
 		t.Error("empty reader recognised as BitLocker")
+	}
+}
+
+func TestLimitsGiveAReasonCode(t *testing.T) {
+	ctx := context.Background()
+	for _, c := range []struct {
+		p    repo.PartitionImage
+		want LimitReason
+	}{
+		{repo.PartitionImage{Included: false}, ReasonNotBackedUp},
+		{repo.PartitionImage{Included: true, GPTType: GPTTypeEFI}, ReasonFixedSize},
+		{repo.PartitionImage{Included: true, GPTType: GPTTypeMSR}, ReasonFixedSize},
+		{repo.PartitionImage{Included: true, MBRType: 0x27}, ReasonFixedSize},
+	} {
+		lim := LimitsForPartition(ctx, nil, &c.p)
+		if lim.Resizable || lim.Why != c.want || lim.Reason == "" {
+			t.Errorf("%+v: got %+v, want reason %q", c.p, lim, c.want)
+		}
 	}
 }

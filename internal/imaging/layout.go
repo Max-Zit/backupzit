@@ -32,9 +32,23 @@ type PartitionLimits struct {
 	ShrinkableTo uint64 `json:"shrinkable_to,omitempty"`
 	// UsedBytes is the space the file system had in use (informational).
 	UsedBytes uint64 `json:"used_bytes,omitempty"`
-	// Reason tells why the partition cannot be resized.
-	Reason string `json:"reason,omitempty"`
+	// Reason tells why the partition cannot be resized (English, for the
+	// command line); Why is the same as a code programs can translate.
+	Reason string      `json:"reason,omitempty"`
+	Why    LimitReason `json:"why,omitempty"`
 }
+
+// LimitReason says why a partition cannot be resized.
+type LimitReason string
+
+const (
+	ReasonNotBackedUp LimitReason = "not-backed-up" // contents not in the image
+	ReasonFixedSize   LimitReason = "fixed-size"    // EFI, MSR, recovery and the like
+	ReasonBitLocker   LimitReason = "bitlocker"     // backed up encrypted
+	ReasonFileSystem  LimitReason = "file-system"   // not NTFS
+	ReasonNotNTFS     LimitReason = "not-ntfs"      // says NTFS but does not read as NTFS
+	ReasonError       LimitReason = "error"         // reading failed; Reason has the error
+)
 
 // Min returns the smallest allowed length of p.
 func (l PartitionLimits) Min(p *repo.PartitionImage) uint64 {
