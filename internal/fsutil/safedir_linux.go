@@ -67,7 +67,10 @@ func (d *Dir) lstat(name string) (entry, error) {
 		// user may rename such a link into this folder or remove it to put
 		// his own there: the folder must be theirs too and not writable by
 		// others (or sticky), like the kernel's protected_symlinks rule.
-		e.trusted = trustedUID(lst.Uid) && parentProtected(dfd)
+		// And it must have one name only: with fs.protected_hardlinks off,
+		// anyone may hard-link root's link (to /etc, say) into a sticky
+		// folder such as /tmp, where it would look like root's own.
+		e.trusted = trustedUID(lst.Uid) && lst.Nlink == 1 && parentProtected(dfd)
 		buf := make([]byte, 4096)
 		n, err := unix.Readlinkat(lfd, "", buf)
 		if err != nil {

@@ -50,6 +50,45 @@ func TestLinkInWritableFolderNotTrusted(t *testing.T) {
 	}
 }
 
+// B2 (0.59): a link with a second name (a hard link of it, which anyone may
+// make in a sticky folder when fs.protected_hardlinks is off) is not
+// trusted under either name. The agent's own links count as trusted, so
+// this runs without root.
+func TestHardLinkedLinkNotTrusted(t *testing.T) {
+	base := t.TempDir()
+	if err := os.Chmod(base, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(t.TempDir(), filepath.Join(base, "l")); err != nil {
+		t.Fatal(err)
+	}
+	trusted := func(name string) bool {
+		d, err := OpenOriginal(base)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer d.Close()
+		e, err := d.lstat(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e.kind != entryLink {
+			t.Fatalf("%s is no link", name)
+		}
+		return e.trusted
+	}
+	if !trusted("l") {
+		t.Fatal("the agent's own link in its own folder is not trusted")
+	}
+	// link(2) on Linux links the symbolic link itself.
+	if err := os.Link(filepath.Join(base, "l"), filepath.Join(base, "second")); err != nil {
+		t.Skipf("hard link of a link: %v", err)
+	}
+	if trusted("l") || trusted("second") {
+		t.Error("a link with two names is trusted")
+	}
+}
+
 // A trusted link to a folder that does not exist (a disk that is not
 // mounted) is an error; nothing is created where it points.
 func TestLinkToMissingFolderNotCreated(t *testing.T) {

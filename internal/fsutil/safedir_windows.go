@@ -54,8 +54,10 @@ func (d *Dir) lstat(name string) (entry, error) {
 			// "Cookies", ...) belong to SYSTEM, but the user has full
 			// control of them and could point one at C:\Windows\System32
 			// (the owner stays). So nobody else may change, remove or
-			// replace the link either.
-			e.trusted = onlyTrustedMay(h, linkRights) && onlyTrustedMay(windows.Handle(f.Fd()), parentRights)
+			// replace the link either. And it must have one name only: a
+			// hard link of an administrator's link made elsewhere would carry
+			// the same owner and permissions.
+			e.trusted = fi.NumberOfLinks == 1 && onlyTrustedMay(h, linkRights) && onlyTrustedMay(windows.Handle(f.Fd()), parentRights)
 			t, err := reparseTarget(h)
 			if err != nil {
 				return entry{}, &os.PathError{Op: "readlink", Path: d.Join(name), Err: err}
