@@ -38,6 +38,11 @@ func decodeRuns(b []byte, vcn uint64) ([]Run, error) {
 		for k := 0; k < ls; k++ {
 			length |= uint64(b[i+1+k]) << (8 * k)
 		}
+		// Lengths are signed like the offsets: Windows rejects a run whose
+		// stored length has the top bit set.
+		if b[i+ls]&0x80 != 0 || length == 0 {
+			return nil, errors.New("invalid (negative or zero) run length in mapping pairs")
+		}
 		r := Run{VCN: vcn, Len: length}
 		if os == 0 {
 			r.Sparse = true
@@ -63,15 +68,6 @@ func decodeRuns(b []byte, vcn uint64) ([]Run, error) {
 	return nil, errors.New("mapping pairs not terminated")
 }
 
-// bytesUnsigned is the number of bytes needed for v as unsigned.
-func bytesUnsigned(v uint64) int {
-	n := 1
-	for v >>= 8; v != 0; v >>= 8 {
-		n++
-	}
-	return n
-}
-
 // bytesSigned is the number of bytes needed for v as two's complement.
 func bytesSigned(v int64) int {
 	for n := 1; n < 8; n++ {
@@ -88,7 +84,8 @@ func encodeRuns(runs []Run) []byte {
 	var out []byte
 	var prev int64
 	for _, r := range runs {
-		ls := bytesUnsigned(r.Len)
+		// Signed, as NTFS reads it: 0x8982 takes three bytes (82 89 00).
+		ls := bytesSigned(int64(r.Len)) // #nosec G115 -- cluster counts fit in int64
 		h := byte(ls)
 		var off []byte
 		if !r.Sparse {

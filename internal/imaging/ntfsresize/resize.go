@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/bits"
 	"sort"
+	"strings"
 )
 
 // Well-known file record numbers.
@@ -710,4 +711,42 @@ func (v *Volume) Check(max int) ([]string, error) {
 		return nil
 	})
 	return out, err
+}
+
+// DumpRecord describes the non-resident attributes of one file record (a
+// diagnostic): header fields, mapping pairs as stored and decoded.
+func (v *Volume) DumpRecord(num uint64) (string, error) {
+	b, err := v.readVirtual(v.mftRuns, num*v.RecordSize, v.RecordSize)
+	if err != nil {
+		return "", err
+	}
+	if err := removeFixups(b); err != nil {
+		return "", err
+	}
+	r, err := parseRecord(num, b)
+	if err != nil {
+		return "", err
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "record %d in use %v extension %v base %d, %d attributes\n", num, r.InUse, r.Extension, r.Base, len(r.Attrs))
+	for _, a := range r.Attrs {
+		if !a.NonResident {
+			fmt.Fprintf(&sb, "  attr %#x %q resident, %d bytes\n", a.Type, a.Name, len(a.raw))
+			continue
+		}
+		flags := binary.LittleEndian.Uint16(a.raw[0x0C:])
+		mp := int(binary.LittleEndian.Uint16(a.raw[0x20:]))
+		cu := binary.LittleEndian.Uint16(a.raw[0x22:])
+		fmt.Fprintf(&sb, "  attr %#x %q flags %#x len %d mp@%#x cu %d vcn %d-%d alloc %d data %d init %d\n",
+			a.Type, a.Name, flags, len(a.raw), mp, cu, a.StartVCN, a.LastVCN, a.AllocSize, a.DataSize, a.InitializedSize)
+		if mp < len(a.raw) {
+			fmt.Fprintf(&sb, "    pairs % x\n", a.raw[mp:])
+		}
+		var total uint64
+		for _, run := range a.Runs {
+			total += run.Len
+		}
+		fmt.Fprintf(&sb, "    %d runs, %d clusters: %v\n", len(a.Runs), total, a.Runs)
+	}
+	return sb.String(), nil
 }

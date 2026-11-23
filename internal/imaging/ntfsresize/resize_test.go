@@ -407,3 +407,21 @@ func TestPlanKeepsMFTRuns(t *testing.T) {
 		t.Errorf("$MFT runs changed although $MFT did not move:\n got %s\nwant %s", got, want)
 	}
 }
+
+// NTFS reads run lengths as signed numbers: a length whose top stored
+// byte has bit 7 set is negative, so 0x8982 needs three bytes (82 89 00).
+// Found on a real Windows volume (chkdsk: "extent list could not be
+// initialized").
+func TestRunLengthIsSigned(t *testing.T) {
+	enc := encodeRuns([]Run{{VCN: 0, LCN: 3475731, Len: 0x8982}})
+	ls := int(enc[0] & 0x0F)
+	if top := enc[ls]; top&0x80 != 0 {
+		t.Errorf("length 0x8982 stored as % x: top byte %#x reads as negative", enc[1:1+ls], top)
+	}
+	if _, err := decodeRuns([]byte{0x32, 0x82, 0x89, 0x13, 0x09, 0x35, 0x00}, 0); err == nil {
+		t.Error("a negative run length was accepted")
+	}
+	if runs, err := decodeRuns([]byte{0x33, 0x82, 0x89, 0x00, 0x7c, 0x66, 0x3f, 0x00}, 0); err != nil || runs[0].Len != 0x8982 || runs[0].LCN != 4155004 {
+		t.Errorf("Windows' encoding: %v, %v", runs, err)
+	}
+}

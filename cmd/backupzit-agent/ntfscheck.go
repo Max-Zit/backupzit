@@ -40,6 +40,7 @@ func cmdNTFSCheck(args []string) error {
 	fs := flag.NewFlagSet("ntfs-check", flag.ExitOnError)
 	dev := fs.String("device", "", `disk or image, e.g. \.\PhysicalDrive2`)
 	off := fs.Int64("offset", 0, "partition offset in bytes")
+	recs := fs.String("records", "", "only describe these file records, e.g. 22335,45256")
 	_ = fs.Parse(args)
 	if *dev == "" {
 		return errors.New("--device is required")
@@ -52,6 +53,21 @@ func cmdNTFSCheck(args []string) error {
 	v, err := ntfsresize.Open(offsetReader{f: f, off: *off})
 	if err != nil {
 		return err
+	}
+	if *recs != "" {
+		nums, err := parsePartitionList(*recs)
+		if err != nil {
+			return err
+		}
+		for _, n := range nums {
+			d, err := v.DumpRecord(uint64(n)) // #nosec G115 -- record numbers are positive
+			if err != nil {
+				fmt.Printf("record %d: %v\n", n, err)
+				continue
+			}
+			fmt.Print(d)
+		}
+		return nil
 	}
 	fmt.Printf("clusters %d of %d bytes, %d used, last used %d, records of %d bytes\n", v.Clusters, v.ClusterSize, v.UsedClusters, v.LastUsedCluster(), v.RecordSize)
 	probs, err := v.Check(40)
