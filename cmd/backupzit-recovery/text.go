@@ -163,3 +163,47 @@ func writableDir(dir string) bool {
 	_ = os.Remove(name)
 	return true
 }
+
+// logText shows a progress line of the image functions (English, fixed
+// beginnings) in the current language. The list of disk controller drivers
+// is shortened to their number; unknown lines stay as they are.
+func logText(s string) string {
+	if rest, ok := strings.CutPrefix(s, "disk controller drivers set to start at boot: "); ok {
+		n := len(strings.Fields(rest))
+		return tf("Treiber für %d Disk-Controller beim Start aktiviert", "disk controller drivers enabled at start: %d", n)
+	}
+	if lang != "de" {
+		return s
+	}
+	if rest, ok := strings.CutPrefix(s, "firmware "); ok {
+		rest = strings.NewReplacer("Secure Boot on", "Secure Boot an", "Secure Boot off", "Secure Boot aus", ", boot files for ", ", Bootdateien für ").Replace(rest)
+		return "Firmware " + rest
+	}
+	for _, p := range [][2]string{
+		{"boot data backed up to ", "Bootdaten gesichert nach "},
+		{"boot files for ", "Bootdateien für "},
+		{"Windows found on ", "Windows gefunden auf "},
+		{"adding drivers from ", "Treiber werden hinzugefügt aus "},
+	} {
+		if rest, ok := strings.CutPrefix(s, p[0]); ok {
+			return p[1] + rest
+		}
+	}
+	if s == "MBR boot code written" {
+		return "Windows-Bootcode in den MBR geschrieben"
+	}
+	var n int
+	if _, err := fmt.Sscanf(s, "partition %d is now active", &n); err == nil {
+		return fmt.Sprintf("Partition %d ist jetzt aktiv", n)
+	}
+	return s
+}
+
+// problemText explains the problem pnputil reports for a device; a missing
+// driver gets words, the raw code stays for support.
+func problemText(p string) string {
+	if strings.Contains(strings.ToUpper(p), "0XC0000490") || strings.Contains(p, "CM_PROB_FAILED_INSTALL") || strings.Contains(p, "(28)") {
+		return t("kein passender Treiber geladen", "no matching driver loaded") + " (" + p + ")"
+	}
+	return p
+}

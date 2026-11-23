@@ -99,3 +99,38 @@ func TestChooseBackupDir(t *testing.T) {
 		t.Errorf("fallback: got %q", got)
 	}
 }
+
+func TestLogTextInGerman(t *testing.T) {
+	withLang(t, "de")
+	for in, want := range map[string]string{
+		`boot data backed up to D:\backupzit\boot-backup-disk0-1`:                `Bootdaten gesichert nach D:\backupzit\boot-backup-disk0-1`,
+		"disk controller drivers set to start at boot: storahci stornvme pciide": "Treiber für 3 Disk-Controller beim Start aktiviert",
+		"partition 1 is now active":                                              "Partition 1 ist jetzt aktiv",
+		"MBR boot code written":                                                  "Windows-Bootcode in den MBR geschrieben",
+		"boot files for UEFI":                                                    "Bootdateien für UEFI",
+		"firmware UEFI (Secure Boot on), boot files for UEFI":                    "Firmware UEFI (Secure Boot an), Bootdateien für UEFI",
+		`Windows found on E:`:                                                    `Windows gefunden auf E:`,
+		"something new":                                                          "something new",
+	} {
+		if got := logText(in); got != want {
+			t.Errorf("logText(%q) = %q, want %q", in, got, want)
+		}
+	}
+	withLang(t, "en")
+	if got := logText("disk controller drivers set to start at boot: a b"); got != "disk controller drivers enabled at start: 2" {
+		t.Errorf("en: %q", got)
+	}
+}
+
+func TestProblemText(t *testing.T) {
+	withLang(t, "de")
+	if got := problemText("0xC0000490"); !strings.Contains(got, "kein passender Treiber") || !strings.Contains(got, "0xC0000490") {
+		t.Errorf("missing driver: %q", got)
+	}
+	if got := problemText("CM_PROB_FAILED_INSTALL (28)"); !strings.Contains(got, "kein passender Treiber") {
+		t.Errorf("code 28: %q", got)
+	}
+	if got := problemText("0x0000000A"); got != "0x0000000A" {
+		t.Errorf("other: %q", got)
+	}
+}

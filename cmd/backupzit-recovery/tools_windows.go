@@ -85,7 +85,7 @@ func runBootRepair(owner walk.Form) {
 					var lines []string
 					err := busy(dlg, t("Boot wird repariert…", "Repairing the boot…"), func(ctx context.Context) error {
 						var err error
-						rep, err = imaging.RepairBoot(ctx, installs[i], opts, func(s string) { lines = append(lines, s) })
+						rep, err = imaging.RepairBoot(ctx, installs[i], opts, func(s string) { lines = append(lines, logText(s)) })
 						return err
 					})
 					if err != nil {
@@ -195,7 +195,7 @@ func runDrivers(owner walk.Form) {
 			labels = []string{err.Error()}
 		}
 		for _, d := range devs {
-			labels = append(labels, fmt.Sprintf("%s  (%s)  %s  –  %s", d.Description, d.Class, d.Problem, d.InstanceID))
+			labels = append(labels, fmt.Sprintf("%s  (%s)  %s  –  %s", d.Description, d.Class, problemText(d.Problem), d.InstanceID))
 		}
 		if err == nil && len(labels) == 0 {
 			labels = []string{t("Alle Geräte haben einen funktionierenden Treiber.", "Every device has a working driver.")}

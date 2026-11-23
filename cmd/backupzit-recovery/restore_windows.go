@@ -949,7 +949,7 @@ func (w *wizard) start() error {
 	w.cancel = cancel
 	logFile := openLogFile()
 	logger := recovery.NewLogger(logFile, func(s string) {
-		w.dlg.Synchronize(func() { w.log.AppendText(time.Now().Format("15:04:05 ") + s + "\r\n") })
+		w.dlg.Synchronize(func() { w.log.AppendText(time.Now().Format("15:04:05 ") + logText(s) + "\r\n") })
 	})
 	started := time.Now()
 	progress := func(phase string, done, total uint64) {
