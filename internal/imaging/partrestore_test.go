@@ -3,6 +3,7 @@ package imaging
 import (
 	"encoding/binary"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/max-zit/backupzit/internal/repo"
@@ -183,5 +184,30 @@ func TestGUIDBytesPortable(t *testing.T) {
 	}
 	if _, err := guidBytesPortable("nope"); err == nil {
 		t.Error("invalid GUID accepted")
+	}
+}
+
+// On the disk of the running Windows its system partition (EFI, or the
+// active one on MBR) holds the boot files in use: it is not replaced.
+func TestPlanPartitionRestoreKeepsRunningSystemPartition(t *testing.T) {
+	img := windowsGPT()
+	d := dataDisk()
+	d.System = true
+	if _, err := planPartitionRestore(img, d, PartitionRestoreOptions{Partition: 1, Replace: 1}); err == nil || !strings.Contains(err.Error(), "running Windows") {
+		t.Errorf("EFI partition of the running Windows: %v", err)
+	}
+	if _, err := planPartitionRestore(img, d, PartitionRestoreOptions{Partition: 3, Replace: 4}); err != nil {
+		t.Errorf("data partition on the system disk: %v", err)
+	}
+	d.System = false
+	if _, err := planPartitionRestore(img, d, PartitionRestoreOptions{Partition: 1, Replace: 1}); err != nil {
+		t.Errorf("EFI partition of another disk: %v", err)
+	}
+	m := &Disk{Number: 0, Size: 100 * gib, SectorSize: 512, Style: StyleMBR, System: true, Partitions: []Partition{
+		{Number: 1, Offset: 1 * mib, Length: 500 * mib, MBRType: 0x07, Bootable: true},
+		{Number: 2, Offset: 501 * mib, Length: 50 * gib, MBRType: 0x07},
+	}}
+	if _, err := planPartitionRestore(img, m, PartitionRestoreOptions{Partition: 3, Replace: 1}); err == nil || !strings.Contains(err.Error(), "running Windows") {
+		t.Errorf("active partition of the running Windows: %v", err)
 	}
 }

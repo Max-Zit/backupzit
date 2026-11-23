@@ -86,6 +86,11 @@ func planPartitionRestore(img *repo.DiskImage, target *Disk, opts PartitionResto
 		if old == nil {
 			return w, fmt.Errorf("disk %d has no partition %d", target.Number, opts.Replace)
 		}
+		// The system partition of the running Windows holds the boot files
+		// in use; replacing it would leave the computer unable to start.
+		if target.System && (strings.EqualFold(old.GPTType, GPTTypeEFI) || (target.Style == StyleMBR && old.Bootable)) {
+			return w, fmt.Errorf("partition %d is the system partition of the running Windows", opts.Replace)
+		}
 		w.Offset, w.Length = old.Offset, old.Length
 		if opts.Length > 0 {
 			w.Length = alignDown(opts.Length, uint64(target.SectorSize))
