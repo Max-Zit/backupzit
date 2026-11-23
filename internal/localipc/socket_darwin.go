@@ -48,11 +48,14 @@ func Listen() (net.Listener, error) {
 	}
 	// Failing to give the group access only keeps the socket root-only (the
 	// menu bar app then shows the agent as unreachable); backups still run.
-	if err := os.Chown(SocketPath, 0, int(staffGID())); err != nil {
-		_ = os.Chmod(SocketPath, 0o600)
+	// Owner and mode are set without following a link: /var/run is root's,
+	// so nobody else can put one at the name, but should that ever change
+	// a link would hand another file to the staff group.
+	if err := unix.Fchownat(unix.AT_FDCWD, SocketPath, 0, int(staffGID()), unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		_ = unix.Fchmodat(unix.AT_FDCWD, SocketPath, 0o600, unix.AT_SYMLINK_NOFOLLOW)
 		return l, nil
 	}
-	_ = os.Chmod(SocketPath, 0o660) // #nosec G302 -- staff are the callers allowed in; every request is checked by authorize
+	_ = unix.Fchmodat(unix.AT_FDCWD, SocketPath, 0o660, unix.AT_SYMLINK_NOFOLLOW) // staff are the callers allowed in; every request is checked by authorize
 	return l, nil
 }
 
