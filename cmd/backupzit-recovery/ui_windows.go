@@ -52,11 +52,18 @@ func busy(owner walk.Form, text string, fn func(ctx context.Context) error) erro
 	return result
 }
 
-// askText asks for one line of text.
+// askText asks for one line of text. Values are read before the dialog
+// closes: walk destroys its controls on close, and reading them afterwards
+// yields "" (or index 0).
 func askText(owner walk.Form, title, prompt string, password bool) (string, bool) {
 	var dlg *walk.Dialog
 	var edit *walk.LineEdit
 	var ok, cancel *walk.PushButton
+	var text string
+	accept := func() {
+		text = edit.Text()
+		dlg.Accept()
+	}
 	if _, err := (Dialog{
 		AssignTo:      &dlg,
 		Title:         title,
@@ -69,7 +76,7 @@ func askText(owner walk.Form, title, prompt string, password bool) (string, bool
 			LineEdit{AssignTo: &edit, PasswordMode: password},
 			Composite{Layout: HBox{MarginsZero: true}, Children: []Widget{
 				HSpacer{},
-				PushButton{AssignTo: &ok, Text: "OK", OnClicked: func() { dlg.Accept() }},
+				PushButton{AssignTo: &ok, Text: "OK", OnClicked: accept},
 				PushButton{AssignTo: &cancel, Text: t("Abbrechen", "Cancel"), OnClicked: func() { dlg.Cancel() }},
 			}},
 		},
@@ -79,7 +86,7 @@ func askText(owner walk.Form, title, prompt string, password bool) (string, bool
 	if dlg.Result() != walk.DlgCmdOK {
 		return "", false
 	}
-	return edit.Text(), true
+	return text, true
 }
 
 // askChoice lets the user pick one of items.
@@ -90,6 +97,11 @@ func askChoice(owner walk.Form, title, prompt string, items []string) (int, bool
 	var dlg *walk.Dialog
 	var lb *walk.ListBox
 	var ok, cancel *walk.PushButton
+	choice := -1
+	accept := func() {
+		choice = lb.CurrentIndex()
+		dlg.Accept()
+	}
 	if _, err := (Dialog{
 		AssignTo:      &dlg,
 		Title:         title,
@@ -99,20 +111,20 @@ func askChoice(owner walk.Form, title, prompt string, items []string) (int, bool
 		Layout:        VBox{},
 		Children: []Widget{
 			Label{Text: prompt},
-			ListBox{AssignTo: &lb, Model: items, CurrentIndex: 0, OnItemActivated: func() { dlg.Accept() }},
+			ListBox{AssignTo: &lb, Model: items, CurrentIndex: 0, OnItemActivated: accept},
 			Composite{Layout: HBox{MarginsZero: true}, Children: []Widget{
 				HSpacer{},
-				PushButton{AssignTo: &ok, Text: "OK", OnClicked: func() { dlg.Accept() }},
+				PushButton{AssignTo: &ok, Text: "OK", OnClicked: accept},
 				PushButton{AssignTo: &cancel, Text: t("Abbrechen", "Cancel"), OnClicked: func() { dlg.Cancel() }},
 			}},
 		},
 	}).Run(owner); err != nil {
 		return 0, false
 	}
-	if dlg.Result() != walk.DlgCmdOK || lb.CurrentIndex() < 0 {
+	if dlg.Result() != walk.DlgCmdOK || choice < 0 {
 		return 0, false
 	}
-	return lb.CurrentIndex(), true
+	return choice, true
 }
 
 // browseFolder lets the user pick a folder.
