@@ -130,3 +130,26 @@ func TestAccessRepoSourceOpensRepository(t *testing.T) {
 		t.Error("key file not removed")
 	}
 }
+
+// Key derivation parameters far above the ones this code writes are
+// refused before any memory is taken: a damaged or crafted package must
+// not exhaust the memory of a recovery machine.
+func TestKDFLimits(t *testing.T) {
+	ok := accessEnvelope{KDF: "argon2id", Salt: make([]byte, 16), Time: accessKDFTime, MemoryKiB: accessKDFMemory, Threads: accessKDFThreads}
+	if err := checkKDF(&ok); err != nil {
+		t.Fatalf("own parameters refused: %v", err)
+	}
+	for name, change := range map[string]func(e *accessEnvelope){
+		"memory 2 GiB": func(e *accessEnvelope) { e.MemoryKiB = 2 * 1024 * 1024 },
+		"time 50":      func(e *accessEnvelope) { e.Time = 50 },
+		"threads 200":  func(e *accessEnvelope) { e.Threads = 200 },
+		"no threads":   func(e *accessEnvelope) { e.Threads = 0 },
+		"short salt":   func(e *accessEnvelope) { e.Salt = make([]byte, 8) },
+	} {
+		e := ok
+		change(&e)
+		if err := checkKDF(&e); err == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+}

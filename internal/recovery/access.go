@@ -122,12 +122,22 @@ const (
 	accessKDFThreads = 4
 )
 
-func accessAEAD(passphrase string, e *accessEnvelope) (cipher.AEAD, error) {
+// checkKDF refuses key derivation parameters far beyond the ones written
+// here (64 MiB, 3 passes, 4 threads): a damaged or crafted package must not
+// take the memory of a recovery machine (Windows PE often has 2-4 GB).
+func checkKDF(e *accessEnvelope) error {
 	if e.KDF != "argon2id" {
-		return nil, fmt.Errorf("unsupported key derivation %q", e.KDF)
+		return fmt.Errorf("unsupported key derivation %q", e.KDF)
 	}
-	if e.MemoryKiB > 4*1024*1024 || e.Time > 100 || e.Threads == 0 || len(e.Salt) < 16 {
-		return nil, ErrAccessPassphrase
+	if e.MemoryKiB > 1024*1024 || e.Time > 10 || e.Threads == 0 || e.Threads > 16 || len(e.Salt) < 16 {
+		return ErrAccessPassphrase
+	}
+	return nil
+}
+
+func accessAEAD(passphrase string, e *accessEnvelope) (cipher.AEAD, error) {
+	if err := checkKDF(e); err != nil {
+		return nil, err
 	}
 	key := argon2.IDKey([]byte(passphrase), e.Salt, e.Time, e.MemoryKiB, e.Threads, 32)
 	block, err := aes.NewCipher(key)
