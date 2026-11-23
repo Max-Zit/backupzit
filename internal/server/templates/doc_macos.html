@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>macOS agents (Apple silicon)</h1>
 <p class="lead">The macOS agent backs up the files and folders of a Mac with Apple silicon. It runs as a service from the first boot, reads every backup of the startup disk from an APFS local snapshot and keeps the Mac's file metadata. A menu bar app shows its state and guides the user through the permissions only he can grant.</p>
+<div class="callout warn"><p><b>Preview.</b> The macOS agent is new in 0.59. It was written and tested on Macs by a contributor; our own tests of it run on macOS in the build pipeline. Please report what does not work in <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a>.</p></div>
 
 <h2 id="requirements">Requirements</h2>
 <ul>

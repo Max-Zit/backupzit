@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>macOS 代理（Apple 芯片）</h1>
 <p class="lead">macOS 代理备份搭载 Apple 芯片的 Mac 上的文件和文件夹。它从首次启动起就作为服务运行，启动磁盘的每次备份都从 APFS 本地快照读取，并保留 Mac 的文件元数据。菜单栏 App 显示其状态，并引导用户授予只有用户本人才能授予的权限。</p>
+<div class="callout warn"><p><b>预览版。</b>macOS 代理是 0.59 的新功能，由一位贡献者编写并在 Mac 上测试；我们自己的测试在构建流水线的 macOS 上运行。如有问题，请在 <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a> 中报告。</p></div>
 
 <h2 id="requirements">要求</h2>
 <ul>

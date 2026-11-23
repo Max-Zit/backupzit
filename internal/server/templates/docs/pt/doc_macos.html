@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Agentes macOS (Apple silicon)</h1>
 <p class="lead">O agente macOS faz backup dos arquivos e pastas de um Mac com Apple silicon. Ele roda como serviço desde a primeira inicialização, lê cada backup do disco de inicialização a partir de um snapshot local do APFS e preserva os metadados dos arquivos do Mac. Um app da barra de menus mostra o seu estado e guia o usuário pelas permissões que só ele pode conceder.</p>
+<div class="callout warn"><p><b>Prévia.</b> O agente para macOS é novo na 0.59. Foi escrito e testado em Macs por um colaborador; nossos próprios testes rodam no macOS no pipeline de build. Informe o que não funcionar em <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a>.</p></div>
 
 <h2 id="requirements">Requisitos</h2>
 <ul>

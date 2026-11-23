@@ -1,0 +1,50 @@
+name: macOS package
+
+# The macOS agent's installer (.pkg) is built on a Mac: here, for every
+# release tag, from the tagged source. The release build downloads it with
+# packaging/macos/fetch-pkg.sh (which checks its SHA-256) before
+# packaging/linux/build-packages.sh puts it into the console package and the
+# signed list of installers. The package is not signed with an Apple
+# Developer ID (none yet): the programs are ad-hoc signed by build-pkg.sh.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (an existing tag without the v, e.g. 0.59.0)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  pkg:
+    name: Build the macOS package
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/v{0}', inputs.version) || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build and check the package
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          v="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
+          case "$v" in *[!0-9A-Za-z.-]* | '') echo "bad version: $v" >&2; exit 1 ;; esac
+          OUT_DIR="$RUNNER_TEMP/pkg" WORK_DIR="$RUNNER_TEMP/pkgwork" ./packaging/macos/build-pkg.sh "$v"
+          pkg="$RUNNER_TEMP/pkg/backupzit-agent_${v}_darwin_arm64.pkg"
+          pkgutil --payload-files "$pkg" | grep -qx './Library/BackupZit/bin/backupzit-agent'
+          cd "$RUNNER_TEMP/pkg" && shasum -a 256 "backupzit-agent_${v}_darwin_arm64.pkg" > SHA256SUMS && cat SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos-pkg
+          path: ${{ runner.temp }}/pkg/
+          if-no-files-found: error
+          retention-days: 30

@@ -32,10 +32,11 @@ if ! cp dist/backupzit-agent-${VERSION}-x64*.msi bin/linux/agents/ 2>/dev/null; 
     [ -n "${NO_MSI:-}" ] || { echo "no MSI for $VERSION in dist/: build it first (packaging/windows/build-msi.ps1 -Version $VERSION, and -Legacy)" >&2; exit 1; }
     echo "note: no MSI for $VERSION (NO_MSI set)"
 fi
-# Likewise Macs, from the package built on a Mac: packaging/macos/build-pkg.sh
-# (NO_PKG=1 builds without it).
+# Likewise Macs, from the package the "macOS package" workflow built on a
+# Mac for the tag: sh packaging/macos/fetch-pkg.sh VERSION (NO_PKG=1 builds
+# without it, e.g. a quick test build).
 if ! cp dist/backupzit-agent_${VERSION}_darwin_arm64.pkg bin/linux/agents/ 2>/dev/null; then
-    [ -n "${NO_PKG:-}" ] || { echo "no macOS package for $VERSION in dist/: build it first on a Mac (packaging/macos/build-pkg.sh $VERSION)" >&2; exit 1; }
+    [ -n "${NO_PKG:-}" ] || { echo "no macOS package for $VERSION in dist/: fetch it first (sh packaging/macos/fetch-pkg.sh $VERSION), or build it on a Mac (packaging/macos/build-pkg.sh $VERSION)" >&2; exit 1; }
     echo "note: no macOS package for $VERSION (NO_PKG set)"
 fi
 # The signed list of these installers (GHSA-v284-8576-jp84): agents 0.56

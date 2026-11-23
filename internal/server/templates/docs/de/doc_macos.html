@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>macOS-Agenten (Apple Silicon)</h1>
 <p class="lead">Der macOS-Agent sichert die Dateien und Ordner eines Macs mit Apple Silicon. Er läuft ab dem ersten Start als Dienst, liest jede Sicherung des Startlaufwerks aus einem lokalen APFS-Snapshot und behält die Dateimetadaten des Macs bei. Eine Menüleisten-App zeigt seinen Zustand und führt den Benutzer durch die Berechtigungen, die nur er erteilen kann.</p>
+<div class="callout warn"><p><b>Vorschau.</b> Der macOS-Agent ist neu in 0.59. Ein Mitwirkender hat ihn geschrieben und auf Macs getestet; unsere eigenen Tests laufen in der Build-Pipeline auf macOS. Bitte melden Sie, was nicht funktioniert, in den <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a>.</p></div>
 
 <h2 id="requirements">Voraussetzungen</h2>
 <ul>

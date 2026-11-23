@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Agents macOS (Apple silicon)</h1>
 <p class="lead">L'agent macOS sauvegarde les fichiers et dossiers d'un Mac avec puce Apple silicon. Il tourne comme service dès le démarrage, lit chaque sauvegarde du disque de démarrage depuis un instantané local APFS et conserve les métadonnées des fichiers du Mac. Une app de la barre des menus affiche son état et guide l'utilisateur à travers les autorisations que lui seul peut accorder.</p>
+<div class="callout warn"><p><b>Préversion.</b> L'agent macOS est nouveau dans la 0.59. Il a été écrit et testé sur des Mac par un contributeur ; nos propres tests tournent sur macOS dans la chaîne de compilation. Signalez ce qui ne fonctionne pas dans les <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a>.</p></div>
 
 <h2 id="requirements">Prérequis</h2>
 <ul>

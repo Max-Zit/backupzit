@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>macOS エージェント（Apple シリコン）</h1>
 <p class="lead">macOS エージェントは、Apple シリコン搭載 Mac のファイルとフォルダーをバックアップします。最初の起動からサービスとして動作し、起動ディスクのバックアップはすべて APFS ローカル スナップショットから読み取り、Mac のファイル メタデータを保持します。メニュー バー アプリが状態を表示し、Mac のユーザーにしか許可できないアクセス権の設定を案内します。</p>
+<div class="callout warn"><p><b>プレビュー。</b>macOS エージェントは 0.59 の新機能です。コントリビューターが作成し、Mac でテストしました。当社のテストはビルド パイプラインの macOS 上で実行しています。動作しない点は <a href="https://github.com/Max-Zit/backupzit/issues">GitHub Issues</a> でお知らせください。</p></div>
 
 <h2 id="requirements">要件</h2>
 <ul>
