@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Copia del sistema Linux y P2V</h1>
 <p class="lead">Un trabajo de <b>Sistema Linux</b> copia una máquina Linux completa para poder recrearla en un disco vacío: la misma máquina tras un fallo de disco, hardware nuevo o una máquina virtual en Proxmox VE (de física a virtual, P2V).</p>
+<p>Un Mac no se puede copiar como sistema: la consola rechaza un trabajo de sistema para él, porque su volumen de sistema está sellado y firmado por Apple y se reinstala en lugar de restaurarse. Copie sus datos con un trabajo de archivos (vea <a href="/docs/macos#limits">Agentes macOS</a>).</p>
 <p>Probado con Debian, Ubuntu 22.04 y Rocky Linux 9 (lo mismo vale para AlmaLinux y RHEL 9). En Ubuntu 22.04 y sistemas tipo RHEL 9, las copias de sistema Linux necesitan el agente 0.50.0 o más reciente.</p>
 
 <h2>Qué se copia</h2>

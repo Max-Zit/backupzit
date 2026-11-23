@@ -1,4 +1,4 @@
-//go:build !linux && !windows
+//go:build !linux && !windows && !darwin
 
 package fsutil
 
@@ -67,3 +67,6 @@ func IDOf(*os.File) (FileID, bool) { return FileID{}, false }
 
 // ClearReadOnly: Windows only.
 func (d *Dir) ClearReadOnly(string) {}
+
+// ClearLocks: macOS only (no immutable flags are restored here).
+func (d *Dir) ClearLocks(string) {}

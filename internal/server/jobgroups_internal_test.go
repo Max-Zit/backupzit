@@ -16,6 +16,7 @@ func TestGroupScopeMatches(t *testing.T) {
 		"Ubuntu 24.04.1 LTS":                                    GroupLinux,
 		"Rocky Linux 9.4 (Blue Onyx)":                           GroupLinux,
 		"darwin":                                                GroupMacOS,
+		"macOS 27.0.1 (26A434)":                                 GroupMacOS,
 	}
 	id := int64(0)
 	for os, want := range agents {
@@ -85,5 +86,21 @@ func TestUnprotectedAgents(t *testing.T) {
 	}
 	if strings.Join(got, ",") != "only-disabled,none" {
 		t.Fatalf("unprotected = %v", got)
+	}
+}
+
+// Only Linux agents restore a Linux system to a disk: not a Mac.
+func TestIsLinuxAgent(t *testing.T) {
+	for os, want := range map[string]bool{
+		"Debian GNU/Linux 12 (bookworm)": true,
+		"Ubuntu 24.04.1 LTS":             true,
+		"Windows 11 Pro (build 26100)":   false,
+		"macOS 27.0.1 (26A434)":          false,
+		"darwin":                         false,
+		"":                               false,
+	} {
+		if got := isLinuxAgent(Agent{OS: os}); got != want {
+			t.Errorf("%q: %v", os, got)
+		}
 	}
 }

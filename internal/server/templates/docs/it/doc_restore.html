@@ -43,7 +43,7 @@
   <li>Lasciate attivo <b>Verifica i file ripristinati</b>: ogni file viene riletto e confrontato con il checksum del backup.</li>
   <li>Fate clic su <b>Avvia ripristino</b>. Avanzamento e risultati compaiono nella pagina dell'esecuzione di ripristino.</li>
 </ol>
-<p>Vengono ripristinati anche gli orari dei file, gli attributi di Windows (nascosto, sola lettura, …) e, su Linux, proprietari, permessi (inclusi i bit setuid), ACL, attributi estesi (etichette SELinux, capability dei file), link simbolici e fisici. I proprietari vengono impostati solo se l'agente è eseguito come root/amministratore.</p>
+<p>Vengono ripristinati anche gli orari dei file, gli attributi di Windows (nascosto, sola lettura, …) e, su Linux, proprietari, permessi (inclusi i bit setuid), ACL, attributi estesi (etichette SELinux, capability dei file), link simbolici e fisici. Su macOS anche i flag di file BSD (nascosto, bloccato…), la data di creazione e gli attributi estesi (vedete <a href="/docs/macos#metadata">Agenti macOS</a>). I proprietari vengono impostati solo se l'agente è eseguito come root/amministratore.</p>
 
 <h3 id="browse-files">Sfogliare, scaricare e scegliere file</h3>
 <p>Nell'esecuzione di backup, <b>Sfoglia file</b> mostra le cartelle salvate com'erano (anche per condivisioni NAS e backup del sistema Linux). Aprite le cartelle, selezionate file e cartelle, poi:</p>

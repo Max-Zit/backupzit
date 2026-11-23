@@ -1,0 +1,121 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>macOS-Agenten (Apple Silicon)</h1>
+<p class="lead">Der macOS-Agent sichert die Dateien und Ordner eines Macs mit Apple Silicon. Er läuft ab dem ersten Start als Dienst, liest jede Sicherung des Startlaufwerks aus einem lokalen APFS-Snapshot und behält die Dateimetadaten des Macs bei. Eine Menüleisten-App zeigt seinen Zustand und führt den Benutzer durch die Berechtigungen, die nur er erteilen kann.</p>
+
+<h2 id="requirements">Voraussetzungen</h2>
+<ul>
+  <li>Ein Mac mit <b>Apple Silicon</b> (M1 und neuer, arm64) und <b>macOS 13</b> oder neuer. Für Intel-Macs gibt es kein Paket.</li>
+  <li>Ein Administratorkonto auf dem Mac, für Installation und Registrierung.</li>
+  <li>Den Benutzer des Macs, um den <a href="#permissions">Festplattenvollzugriff</a> zu erteilen: macOS lässt das niemand anderen tun, weder ein Skript noch die Konsole.</li>
+  <li>Wie jeder Agent muss der Mac die Agentenadresse der Konsole (meist Port 8443) und den Speicher erreichen.</li>
+</ul>
+
+<h2 id="install">Installieren</h2>
+<ol>
+  <li>Laden Sie auf der Seite <a href="/agents">Agenten</a> <b>macOS-Agent — Apple Silicon</b> herunter (<code>backupzit-agent_<i>version</i>_darwin_arm64.pkg</code>). Das Konsolenpaket enthält es, wie die Installationsprogramme für Windows und Linux.</li>
+  <li>Öffnen Sie das <code>.pkg</code> auf dem Mac und folgen Sie dem Installationsprogramm. Bei einem Paket, das nicht mit einer Apple Developer ID signiert ist, fragt macOS zuerst nach einer Bestätigung: Klicken Sie mit der rechten Maustaste darauf und wählen Sie <b>Öffnen</b> (bei neueren macOS-Versionen: <i>Systemeinstellungen → Datenschutz &amp; Sicherheit → Dennoch öffnen</i>).</li>
+  <li>Die letzte Seite des Installationsprogramms erklärt die zu erteilenden <a href="#permissions">Berechtigungen</a>, und die Menüleisten-App öffnet sich.</li>
+</ol>
+<p>Das Paket installiert:</p>
+<table>
+  <tr><th>Was</th><th>Wo</th></tr>
+  <tr><td>Das Agentenprogramm</td><td><code>/Library/BackupZit/bin/backupzit-agent</code></td></tr>
+  <tr><td>Das Deinstallationsprogramm</td><td><code>/Library/BackupZit/uninstall.sh</code></td></tr>
+  <tr><td>Die Menüleisten-App</td><td><code>/Applications/BackupZit.app</code></td></tr>
+  <tr><td>Der Agentendienst (LaunchDaemon: läuft als root, startet beim Booten, wird neu gestartet, wenn er stoppt)</td><td><code>/Library/LaunchDaemons/com.backupzit.agent.plist</code></td></tr>
+  <tr><td>Die Menüleisten-App bei der Anmeldung (LaunchAgent)</td><td><code>/Library/LaunchAgents/com.backupzit.tray.plist</code></td></tr>
+  <tr><td>Konfiguration (nur root, bei der Registrierung angelegt)</td><td><code>/Library/Application Support/BackupZit/agent.json</code></td></tr>
+  <tr><td>Protokoll</td><td><code>/Library/Logs/BackupZit/agent.log</code></td></tr>
+</table>
+<p>Das Programm wird nicht zum <code>PATH</code> hinzugefügt: Rufen Sie es im Terminal mit seinem vollständigen Pfad auf.</p>
+
+<h2 id="enroll">Registrieren</h2>
+<p>Der Dienst ist installiert und läuft schon, bevor der Mac registriert ist; er beginnt zu arbeiten, sobald er es ist. Auf der Seite <a href="/agents">Agenten</a> zeigt <b>Registrierungstoken erstellen</b> die Befehle für macOS neben denen für Windows und Linux. Wählen Sie einen von drei Wegen:</p>
+<ol>
+  <li><b>Im Terminal, nach der Installation</b> (der übliche Weg):
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
+  <li id="mdm"><b>Mit einem MDM</b> (Jamf, Intune, Mosyle…): Vor der Installation des Pakets schreibt ein Skript den Code in eine Datei, die root gehört:
+<pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
+  Verteilen Sie dann das Paket. Seine Installation registriert den Mac mit dem Code und löscht die Datei. Eine Datei, die nicht root gehört, wird ignoriert. So wird auch ein registrierter Mac zu einer anderen Konsole umgezogen.</li>
+  <li><b>Eine Datei neben dem Paket</b>: <code>backupzit-enroll.txt</code> mit dem Code, im selben Ordner wie das <code>.pkg</code> (zum Beispiel auf einem USB-Stick oder in einem freigegebenen Ordner). Sie wird nur verwendet, solange der Mac noch nicht registriert ist, und nur, wenn niemand anderes sie geschrieben haben kann: Die Datei gehört root oder dem Besitzer des Pakets, und ihr Ordner ist für andere Benutzer nicht beschreibbar (oder hat das Sticky-Bit, wie <code>/Users/Shared</code>).</li>
+</ol>
+<p>Ist die Konsole während der Installation nicht erreichbar, behält der Agent den Code und versucht es erneut. Schlägt die Registrierung fehl, steht der Grund in <code>/Library/Application Support/BackupZit/enroll-error.log</code>; registrieren Sie den Mac danach im Terminal. Upgrades und Neuinstallationen behalten die Registrierung.</p>
+
+<h2 id="permissions">Berechtigungen</h2>
+<p>macOS schützt manche Daten vor jedem Programm, auch vor einem, das als root läuft, bis der Benutzer es in den Systemeinstellungen erlaubt. Nur der Benutzer am Mac kann diese Berechtigungen erteilen; die letzte Seite des Installationsprogramms und die Menüleisten-App führen ihn hindurch.</p>
+<h3 id="full-disk-access">Festplattenvollzugriff für den Agenten</h3>
+<p>Ohne ihn fehlen in den Sicherungen die Ordner, die macOS schützt, und es wird kein APFS-Snapshot erstellt (siehe <a href="#backup">Was gesichert wird</a>).</p>
+<ol>
+  <li>Öffnen Sie <b>Systemeinstellungen → Datenschutz &amp; Sicherheit → Festplattenvollzugriff</b>.</li>
+  <li>Klicken Sie unter der Liste auf <b>+</b> und geben Sie Ihr Passwort ein.</li>
+  <li>Drücken Sie <b>Befehl-Umschalt-G</b>, geben Sie <code>/Library/BackupZit/bin/backupzit-agent</code> ein, drücken Sie die Eingabetaste und klicken Sie auf <b>Öffnen</b>.</li>
+  <li>Prüfen Sie, dass der Schalter neben <b>backupzit-agent</b> eingeschaltet ist.</li>
+</ol>
+<p>Statt <b>+</b> können Sie die Datei in die Liste ziehen: Wählen Sie im Finder <i>Gehe zu → Gehe zum Ordner …</i>, geben Sie <code>/Library/BackupZit/bin</code> ein und ziehen Sie <b>backupzit-agent</b> auf die Liste.</p>
+<h3 id="background">Der Agent im Hintergrund</h3>
+<p>Nach der Installation zeigt macOS <i>Hintergrundobjekte hinzugefügt</i>. In <b>Systemeinstellungen → Allgemein → Anmeldeobjekte &amp; Erweiterungen</b> müssen unter <b>Im Hintergrund erlauben</b> <b>backupzit-agent</b> und <b>BackupZit</b> eingeschaltet bleiben: Ausgeschaltet läuft der Agent nicht, und keine Sicherung startet.</p>
+<h3 id="notifications">Mitteilungen und Öffnen bei der Anmeldung</h3>
+<ul>
+  <li><b>Mitteilungen</b>: Erlauben Sie sie, wenn die Menüleisten-App fragt, oder später in <b>Systemeinstellungen → Mitteilungen → BackupZit</b> (<i>Mitteilungen erlauben</i>). Die App informiert den Benutzer dort, wenn eine Sicherung fehlschlägt.</li>
+  <li><b>Öffnen bei der Anmeldung</b>: Die Menüleisten-App öffnet sich bei jeder Anmeldung, solange <b>BackupZit</b> unter <i>Anmeldeobjekte &amp; Erweiterungen → Im Hintergrund erlauben</i> eingeschaltet ist.</li>
+</ul>
+<h3 id="assistant">Die Menüleisten-App und ihr Assistent</h3>
+<p>Das BackupZit-Symbol in der Menüleiste zeigt den Zustand des Agenten; sein Menü bietet <b>Back up now</b> für jeden Auftrag des Macs, <b>Open console in browser</b> und <b>Hide this icon</b> (bis zur nächsten Anmeldung; Sicherungen laufen weiter). Sein Abschnitt <b>Permissions</b> listet den Agenten im Hintergrund, den Festplattenvollzugriff, Mitteilungen und das Öffnen bei der Anmeldung, jeweils mit ✅ oder ❌. Ein Klick auf einen Eintrag öffnet seine Seite der Systemeinstellungen; eine fehlende Berechtigung erklärt die App zudem einmal pro Anmeldung in einem Dialog mit den nötigen Schritten. Solange etwas fehlt, prüft sie selbst alle paar Sekunden erneut, sodass ✅ erscheint, sobald die Berechtigung erteilt ist. Der Agent meldet einen fehlenden Festplattenvollzugriff auch an die Konsole, im Laufbericht.</p>
+<h3 id="status">Prüfen im Terminal</h3>
+<pre>/Library/BackupZit/bin/backupzit-agent status</pre>
+<p>Der Befehl funktioniert als normaler Benutzer und zeigt die Konsole, die Aufträge und <code>full disk access: granted</code> oder <code>denied</code> (mit dem einzuschaltenden Programm).</p>
+<h3 id="unsigned">Festplattenvollzugriff nach einem Update</h3>
+<p>macOS bindet den Festplattenvollzugriff an die Signatur des Programms. Mit einer Apple Developer ID signierte Pakete behalten ihn über Updates hinweg. Ein ohne sie gebautes Paket (<i>ad hoc</i> signiert) verliert ihn bei jedem Selbst-Update: Sicherungen warnen dann wieder, und die Menüleisten-App meldet, dass der Festplattenvollzugriff seit dem Update fehlt. Erteilen Sie ihn erneut: Wählen Sie in der Liste Festplattenvollzugriff <b>backupzit-agent</b> aus, klicken Sie auf <b>−</b>, um ihn zu entfernen (Aus- und Einschalten genügt nicht), und fügen Sie ihn dann wie oben mit <b>+</b> wieder hinzu.</p>
+
+<h2 id="backup">Was gesichert wird</h2>
+<p>Ein Mac-Agent führt Aufträge für <b>Dateien und Ordner</b> aus wie jeder Agent: Pfade wie <code>/Users</code>, <code>/Applications</code> oder <code>/</code>, <a href="/docs/jobs#users"><code>{users}</code>-Pfade</a> (<code>/Users/&lt;name&gt;/Documents</code>) und Platzhalter, auch in einem <a href="/docs/jobs#groups">Auftrag für mehrere Agenten</a> mit <i>Alle macOS-Agenten</i>.</p>
+<h3 id="snapshot">Lokaler APFS-Snapshot</h3>
+<p>Jede Dateisicherung des Datenvolumes des Startlaufwerks wird aus einem <b>lokalen APFS-Snapshot</b> gelesen, dem macOS-Gegenstück zu VSS unter Windows: Die Sicherung sieht jede Datei zum selben Zeitpunkt, auch solche, in die ein Programm weiter schreibt. Der Agent erstellt den Snapshot (<code>tmutil localsnapshot</code>), bindet ihn schreibgeschützt ein, liest die Dateien daraus und hängt ihn nach der Sicherung aus und löscht ihn. Nach einem Absturz übrig gebliebene Snapshots werden beim nächsten Start bereinigt; die eigenen Snapshots von Time Machine werden nie angetastet. Der Laufbericht meldet <i>Read from an APFS local snapshot of /System/Volumes/Data.</i></p>
+<p>Der Snapshot braucht den Dienst (root) und den <a href="#full-disk-access">Festplattenvollzugriff</a>. Ohne Festplattenvollzugriff und für Pfade auf anderen Volumes (<code>/Volumes</code>: externe Festplatten, Netzwerkfreigaben) werden die Dateien ohne Snapshot gelesen, und der Laufbericht sagt es.</p>
+<h3 id="metadata">Metadaten</h3>
+<p>Mit jeder Datei und jedem Ordner erhalten: Besitzer und Gruppe, Berechtigungen, erweiterte Attribute (außer <code>com.apple.provenance</code>, das macOS selbst verwaltet), harte Links, symbolische Links, BSD-Datei-Flags (versteckt, geschützt, nodump, nur anhängen…; die System-Flags nur, wenn der Agent als root läuft, wie der Dienst), die Erstellungszeit und Änderungszeiten auf die Nanosekunde. Dünn besetzte Dateien (Sparse-Dateien) bleiben es: Ihre Lücken werden auf APFS wieder ausgestanzt.</p>
+<h3 id="excludes">Leer gesicherte Ordner</h3>
+<p>Einige Systemordner unterhalb eines gesicherten Ordners werden als leere Ordner gesichert: andere Volumes (<code>/Volumes</code>), Swap (<code>/System/Volumes/VM</code>, <code>/private/var/vm</code>), die Hilfsvolumes in <code>/System/Volumes</code>, <code>/dev</code>, temporäre Dateien (<code>/private/tmp</code>, <code>/private/var/folders</code>), Caches (<code>/Library/Caches</code>, <code>/System/Library/Caches</code>, <code>~/Library/Caches</code>), der Papierkorb (<code>~/.Trash</code>, <code>.Trashes</code>), Spotlight, FSEvents, Dokumentversionen sowie lokale und HFS+-Time-Machine-Backups. Mit <code>/</code> als Quelle werden die Ordner des Datenvolumes, die <code>/</code> bereits zeigt (<code>/Users</code>, <code>/Applications</code>…), nicht doppelt gelesen. Ein Ordner, der als Quelle des Auftrags angegeben ist, wird immer gelesen, z. B. <code>/Volumes/USB</code> oder <code>~/.Trash</code>.</p>
+<h3 id="warnings">Warnungen im Laufbericht</h3>
+<p>Ohne Festplattenvollzugriff können die Ordner, die macOS schützt, nicht gelesen werden: Mail, Nachrichten, Safari, Schreibtisch und Dokumente, Daten anderer Apps, Wechsel- und Netzwerkvolumes. Eine Sicherung, deren Quellen <code>/Users</code> (außer <code>/Users/Shared</code>), <code>/Library</code> oder <code>/Volumes</code> erreichen, oder einen Ordner darüber wie <code>/</code>, endet dann mit der Warnung <i>Full Disk Access is not granted to the BackupZit agent</i>. Sicherungen anderer Ordner (z. B. <code>/opt/data</code>) warnen nicht.</p>
+
+<h2 id="restore">Wiederherstellen</h2>
+<p>Dateien eines Macs werden wie alle <a href="/docs/restore">Dateisicherungen</a> wiederhergestellt: die ganze Sicherung oder nur einige Pfade, in einen Ordner oder an den ursprünglichen Ort, auf dem Mac oder auf einem anderen Agenten; einzelne Dateien lassen sich aus der Konsole herunterladen. Eine Wiederherstellung auf einem Mac setzt die oben genannten Metadaten wieder. Wie unter Windows und Linux schreibt sie nur über die Ordner, die sie geöffnet hat, nie über einen Pfad, sodass einem während der Wiederherstellung in den Weg gelegten Link nicht gefolgt wird. Eine Wiederherstellung über geschützte Dateien entfernt zuerst deren Flags „geschützt“ und „nur anhängen“ und setzt danach die gespeicherten wieder (System-Flags lassen sich auf einem laufenden Mac nicht entfernen).</p>
+
+<h2 id="update">Aktualisieren und deinstallieren</h2>
+<p>Die Seite <a href="/agents">Agenten</a> bietet für einen Mac wie für andere Agenten <b>Aktualisieren auf <i>Version</i></b> an (siehe <a href="/docs/agents">Agenten</a>). Der Agent lädt das <code>.pkg</code> von der Konsole, prüft es gegen die signierte Liste der Agenten-Installationsprogramme und seine SHA-256-Prüfsumme, installiert es mit Apples <code>installer</code> in einem einmaligen launchd-Auftrag und startet mit der neuen Version neu. Lehnt launchd diesen Auftrag ab, schlägt der Update-Lauf mit der Meldung von launchd fehl. Das Protokoll des Installationsprogramms liegt in <code>/Library/Application Support/BackupZit/updates</code>. Prüfen Sie nach dem Update eines nicht signierten Pakets den <a href="#unsigned">Festplattenvollzugriff</a>.</p>
+<p><b>Entfernen</b> auf der Seite Agenten mit <b>Agent vom Computer deinstallieren</b> entfernt das Programm, die Menüleisten-App, den LaunchDaemon und den LaunchAgent sowie den Paketbeleg; Konfiguration und Protokoll bleiben. Von Hand deinstallieren:</p>
+<pre>sudo /Library/BackupZit/uninstall.sh            # keeps configuration and log
+sudo /Library/BackupZit/uninstall.sh --purge    # deletes them too</pre>
+<p>Ohne <code>--purge</code> wird die Registrierung beiseitegelegt (<code>agent.json.removed-<i>date</i></code>), sodass eine neue Installation wieder nach einem Code fragt. Entfernen Sie nach der Deinstallation <b>backupzit-agent</b> von Hand aus <i>Datenschutz &amp; Sicherheit → Festplattenvollzugriff</i>: macOS lässt das kein Programm tun.</p>
+
+<h2 id="limits">Was ein Mac-Agent nicht kann</h2>
+<table>
+  <tr><th>Nicht auf einem Mac</th><th>Stattdessen</th></tr>
+  <tr><td><a href="/docs/linux-system">Linux-System</a>- / Bare-Metal-Sicherungen</td><td>Die Konsole lehnt einen Systemauftrag für einen Mac ab (<i>is a Mac: back it up with a files job</i>): Sein Systemvolume ist von Apple versiegelt und signiert und wird neu installiert, nicht wiederhergestellt. Sichern Sie die Daten mit einem Dateiauftrag.</td></tr>
+  <tr><td><a href="/docs/images">Disk-Images</a></td><td>Nur Windows.</td></tr>
+  <tr><td>Hyper-V-, Proxmox-VE-Hosts und VMware-ESXi-Proxy</td><td>Agenten auf dem Hyper-V-Host (Windows), dem Proxmox-Knoten (Linux) oder ein Linux-Proxy-Agent.</td></tr>
+  <tr><td>Aufträge für <a href="/docs/jobs#nas">NAS / Dateifreigaben</a> (SMB, NFS)</td><td>Vorerst ein Windows- oder Linux-Agent: Der Mac-Agent bindet noch keine Freigaben ein.</td></tr>
+  <tr><td>Aufträge für <a href="/docs/sql">PostgreSQL / MySQL</a></td><td>Unter macOS noch nicht validiert: Verwenden Sie sie auf einem Mac erst nach einer getesteten Wiederherstellung.</td></tr>
+</table>
+<p>Aufträge für <a href="/docs/m365">Microsoft 365</a> laufen auf jedem Agenten mit Internetzugang, auch auf einem Mac.</p>
+
+<h2 id="troubleshooting">Fehlerbehebung</h2>
+<table>
+  <tr><th>Situation</th><th>Was tun</th></tr>
+  <tr><td>Der Mac erscheint nicht oder wird als offline angezeigt</td><td>Prüfen Sie, dass er registriert ist (<code>backupzit-agent status</code>, <a href="#enroll">Registrieren</a>) und dass <b>backupzit-agent</b> unter <i>Anmeldeobjekte &amp; Erweiterungen → Im Hintergrund erlauben</i> eingeschaltet ist. <code>sudo launchctl print system/com.backupzit.agent</code> zeigt den Dienst; <code>sudo /Library/BackupZit/bin/backupzit-agent service start</code> startet ihn. Prüfen Sie dann den Netzwerkweg zur Konsole wie bei jedem Agenten (<a href="/docs/troubleshooting">Fehlerbehebung</a>).</td></tr>
+  <tr><td>„Full Disk Access is not granted to the BackupZit agent“, <code>full disk access: denied</code></td><td>Erteilen Sie ihn wie unter <a href="#full-disk-access">Festplattenvollzugriff</a> beschrieben.</td></tr>
+  <tr><td>Festplattenvollzugriff nach einem Update verloren</td><td>Das Paket ist nicht mit einer Apple Developer ID signiert: Entfernen Sie backupzit-agent mit <b>−</b> aus der Liste und fügen Sie es wieder hinzu (<a href="#unsigned">Festplattenvollzugriff nach einem Update</a>).</td></tr>
+  <tr><td>Der Lauf meldet, die Dateien seien „without a snapshot“ gelesen worden</td><td>„No APFS local snapshot … was taken“: Erteilen Sie den Festplattenvollzugriff. „Not on the startup disk's data volume“: Der Pfad liegt auf einer externen Festplatte oder einer Freigabe, die lokale APFS-Snapshots nicht abdecken; er wird trotzdem gesichert. Jeder andere Grund steht in der Meldung.</td></tr>
+  <tr><td>Ein Update-Lauf ist fehlgeschlagen</td><td>Der Lauf zeigt den Grund, z. B. die Ablehnung des Installationsauftrags durch launchd. Die Ausgabe des Installationsprogramms liegt in <code>/Library/Application Support/BackupZit/updates</code> (<b>Protokoll holen</b> auf der Seite Agenten enthält sie). Das neuere <code>.pkg</code> von Hand zu installieren funktioniert auch; die Registrierung bleibt erhalten.</td></tr>
+  <tr><td>Ein Systemauftrag für den Mac wird abgelehnt</td><td>Erwartet: siehe <a href="#limits">Was ein Mac-Agent nicht kann</a>.</td></tr>
+</table>
+<h3 id="logs">Protokolle</h3>
+<ul>
+  <li>Agent: <code>/Library/Logs/BackupZit/agent.log</code> (auch in der App Konsole aufgeführt); ein Absturzprotokoll geht nach <code>/Library/Logs/BackupZit/launchd.log</code>.</li>
+  <li>Registrierung durch das Installationsprogramm: <code>/Library/Application Support/BackupZit/enroll-error.log</code> und das Installationsprotokoll <code>/var/log/install.log</code>.</li>
+  <li>Updates: <code>/Library/Application Support/BackupZit/updates</code>.</li>
+  <li><b>Protokoll holen</b> auf der Seite <a href="/agents">Agenten</a> ruft das Ende des Protokolls aus der Konsole ab (siehe <a href="/docs/troubleshooting#logs">Protokolle</a>).</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

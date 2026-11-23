@@ -1,0 +1,121 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>macOS agenti (Apple silicon)</h1>
+<p class="lead">macOS agent pravi bekap fajlova i foldera Mac računara sa Apple čipom. Radi kao servis od prvog pokretanja, svaki bekap startnog diska čita iz lokalnog APFS snimka i čuva metapodatke fajlova Mac računara. Aplikacija na traci menija prikazuje njegovo stanje i vodi korisnika kroz dozvole koje samo on može da da.</p>
+
+<h2 id="requirements">Zahtevi</h2>
+<ul>
+  <li>Mac sa <b>Apple silicon</b> čipom (M1 i noviji, arm64) i <b>macOS 13</b> ili noviji. Za Intel Mac računare nema paketa.</li>
+  <li>Administratorski nalog na Mac računaru, za instalaciju i registraciju.</li>
+  <li>Korisnik Mac računara, da bi dao <a href="#permissions">pun pristup disku</a>: macOS to ne dozvoljava nikom drugom, ni skripti ni konzoli.</li>
+  <li>Kao svaki agent, Mac mora da dopre do adrese konzole za agente (obično port 8443) i do skladišta.</li>
+</ul>
+
+<h2 id="install">Instalacija</h2>
+<ol>
+  <li>Na stranici <a href="/agents">Agenti</a> preuzmite <b>macOS agent — Apple Silicon</b> (<code>backupzit-agent_<i>verzija</i>_darwin_arm64.pkg</code>). Paket konzole ga nosi, kao i instalacije za Windows i Linux.</li>
+  <li>Otvorite <code>.pkg</code> na Mac računaru i pratite instalaciju. Za paket koji nije potpisan Apple Developer ID-jem macOS prvo traži potvrdu: kliknite ga desnim tasterom i izaberite <b>Open</b> (na novijem macOS-u: <i>System Settings → Privacy &amp; Security → Open Anyway</i>).</li>
+  <li>Poslednja stranica instalacije objašnjava <a href="#permissions">dozvole</a> koje treba dati, a aplikacija na traci menija se otvara.</li>
+</ol>
+<p>Paket instalira:</p>
+<table>
+  <tr><th>Šta</th><th>Gde</th></tr>
+  <tr><td>Program agenta</td><td><code>/Library/BackupZit/bin/backupzit-agent</code></td></tr>
+  <tr><td>Program za deinstalaciju</td><td><code>/Library/BackupZit/uninstall.sh</code></td></tr>
+  <tr><td>Aplikaciju na traci menija</td><td><code>/Applications/BackupZit.app</code></td></tr>
+  <tr><td>Servis agenta (LaunchDaemon: radi kao root, pokreće se pri podizanju sistema, ponovo se pokreće kada stane)</td><td><code>/Library/LaunchDaemons/com.backupzit.agent.plist</code></td></tr>
+  <tr><td>Aplikaciju na traci menija pri prijavi (LaunchAgent)</td><td><code>/Library/LaunchAgents/com.backupzit.tray.plist</code></td></tr>
+  <tr><td>Konfiguraciju (samo root, pravi se pri registraciji)</td><td><code>/Library/Application Support/BackupZit/agent.json</code></td></tr>
+  <tr><td>Log</td><td><code>/Library/Logs/BackupZit/agent.log</code></td></tr>
+</table>
+<p>Program se ne dodaje u <code>PATH</code>: u Terminalu ga pozivajte punom putanjom.</p>
+
+<h2 id="enroll">Registracija</h2>
+<p>Servis je instaliran i radi i pre nego što se Mac registruje; počinje da radi čim se to desi. Na stranici <a href="/agents">Agenti</a>, <b>Napravi token za registraciju</b> prikazuje komande za macOS pored onih za Windows i Linux. Izaberite jedan od tri načina:</p>
+<ol>
+  <li><b>U Terminalu, posle instalacije</b> (uobičajen način):
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
+  <li id="mdm"><b>Preko MDM-a</b> (Jamf, Intune, Mosyle…): pre instalacije paketa skripta upisuje kod u fajl čiji je vlasnik root:
+<pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
+  Zatim rasporedite paket. Njegova instalacija registruje Mac tim kodom i briše fajl. Fajl čiji vlasnik nije root se zanemaruje. Ovo je i način da se registrovani Mac premesti na drugu konzolu.</li>
+  <li><b>Fajl pored paketa</b>: <code>backupzit-enroll.txt</code> sa kodom, u istom folderu kao <code>.pkg</code> (na primer na USB stiku ili u deljenom folderu). Koristi se samo dok Mac još nije registrovan, i samo ako niko drugi nije mogao da ga upiše: vlasnik fajla je root ili vlasnik paketa, a u njegov folder ne mogu da pišu drugi korisnici (ili ima sticky bit, kao <code>/Users/Shared</code>).</li>
+</ol>
+<p>Ako konzola nije dostupna tokom instalacije, agent čuva kod i pokušava ponovo. Ako registracija ne uspe, razlog je u <code>/Library/Application Support/BackupZit/enroll-error.log</code>; registrujte Mac posle toga u Terminalu. Nadogradnje i ponovne instalacije zadržavaju registraciju.</p>
+
+<h2 id="permissions">Dozvole</h2>
+<p>macOS štiti deo podataka od svakog programa, i od onog koji radi kao root, dok korisnik to ne dozvoli u System Settings. Samo korisnik za Mac računarom može da da ove dozvole; poslednja stranica instalacije i aplikacija na traci menija vode ga kroz njih.</p>
+<h3 id="full-disk-access">Pun pristup disku za agenta</h3>
+<p>Bez njega bekapima nedostaju folderi koje macOS štiti i APFS snimak se ne pravi (vidi <a href="#backup">Šta se bekapuje</a>).</p>
+<ol>
+  <li>Otvorite <b>System Settings → Privacy &amp; Security → Full Disk Access</b>.</li>
+  <li>Kliknite <b>+</b> ispod liste i unesite lozinku.</li>
+  <li>Pritisnite <b>Command-Shift-G</b>, ukucajte <code>/Library/BackupZit/bin/backupzit-agent</code>, pritisnite Return i kliknite <b>Open</b>.</li>
+  <li>Proverite da je prekidač pored <b>backupzit-agent</b> uključen.</li>
+</ol>
+<p>Umesto <b>+</b> možete da prevučete fajl u listu: u Finderu izaberite <i>Go → Go to Folder…</i>, ukucajte <code>/Library/BackupZit/bin</code> i prevucite <b>backupzit-agent</b> u listu.</p>
+<h3 id="background">Agent u pozadini</h3>
+<p>Posle instalacije macOS prikazuje <i>Background Items Added</i>. U <b>System Settings → General → Login Items &amp; Extensions</b>, pod <b>Allow in the Background</b>, <b>backupzit-agent</b> i <b>BackupZit</b> moraju da ostanu uključeni: kada su isključeni, agent ne radi i nijedan bekap se ne pokreće.</p>
+<h3 id="notifications">Obaveštenja i otvaranje pri prijavi</h3>
+<ul>
+  <li><b>Obaveštenja</b>: dozvolite ih kada aplikacija na traci menija zatraži, ili kasnije u <b>System Settings → Notifications → BackupZit</b> (<i>Allow notifications</i>). Aplikacija tako javlja korisniku kada bekap ne uspe.</li>
+  <li><b>Otvaranje pri prijavi</b>: aplikacija na traci menija se otvara pri svakoj prijavi dok je <b>BackupZit</b> uključen pod <i>Login Items &amp; Extensions → Allow in the Background</i>.</li>
+</ul>
+<h3 id="assistant">Aplikacija na traci menija i njen asistent</h3>
+<p>Ikona BackupZit na traci menija prikazuje stanje agenta; njen meni ima <b>Back up now</b> za svaki posao Mac računara, <b>Open console in browser</b> i <b>Hide this icon</b> (do sledeće prijave; bekapi se nastavljaju). Njen odeljak <b>Permissions</b> navodi agenta u pozadini, pun pristup disku, obaveštenja i otvaranje pri prijavi, svako sa ✅ ili ❌. Klik na stavku otvara njenu stranicu u System Settings; dozvolu koja nedostaje aplikacija uz to objašnjava jednom po prijavi, u prozoru sa koracima. Dok nešto nedostaje, sama ponovo proverava na svakih nekoliko sekundi, pa se ✅ pojavljuje čim se dozvola da. Agent nedostatak punog pristupa disku javlja i konzoli, u izveštaju pokretanja.</p>
+<h3 id="status">Provera u Terminalu</h3>
+<pre>/Library/BackupZit/bin/backupzit-agent status</pre>
+<p>Radi i za običnog korisnika i prikazuje konzolu, poslove i <code>full disk access: granted</code> ili <code>denied</code> (sa programom koji treba uključiti).</p>
+<h3 id="unsigned">Pun pristup disku posle ažuriranja</h3>
+<p>macOS vezuje pun pristup disku za potpis programa. Paketi potpisani Apple Developer ID-jem ga zadržavaju kroz ažuriranja. Paket napravljen bez njega (potpisan <i>ad hoc</i>) ga gubi pri svakom samoažuriranju: bekapi tada ponovo upozoravaju, a aplikacija na traci menija kaže da je pun pristup disku nestao od ažuriranja. Dajte ga ponovo: u listi Full Disk Access izaberite <b>backupzit-agent</b>, kliknite <b>−</b> da ga uklonite (isključivanje i uključivanje nije dovoljno), pa ga ponovo dodajte sa <b>+</b> kao gore.</p>
+
+<h2 id="backup">Šta se bekapuje</h2>
+<p>Mac agent pokreće poslove <b>fajlova i foldera</b> kao svaki agent: putanje kao <code>/Users</code>, <code>/Applications</code> ili <code>/</code>, <a href="/docs/jobs#users"><code>{users}</code> putanje</a> (<code>/Users/&lt;ime&gt;/Documents</code>) i džokere, i u <a href="/docs/jobs#groups">poslu za više agenata</a> sa <i>Svi macOS agenti</i>.</p>
+<h3 id="snapshot">Lokalni APFS snimak</h3>
+<p>Svaki bekap fajlova sa volumena podataka startnog diska čita se iz <b>lokalnog APFS snimka</b>, macOS pandana VSS-a na Windowsu: bekap vidi svaki fajl u jednom trenutku, i one u koje program stalno upisuje. Agent pravi snimak (<code>tmutil localsnapshot</code>), montira ga samo za čitanje, čita fajlove iz njega i posle bekapa ga demontira i briše. Snimci ostali posle pada se čiste pri sledećem pokretanju; sopstveni snimci Time Machine-a se nikad ne diraju. Izveštaj pokretanja kaže <i>Read from an APFS local snapshot of /System/Volumes/Data.</i></p>
+<p>Snimku su potrebni servis (root) i <a href="#full-disk-access">pun pristup disku</a>. Bez punog pristupa disku, i za putanje na drugim volumenima (<code>/Volumes</code>: eksterni diskovi, mrežni deljeni folderi), fajlovi se čitaju bez snimka, i izveštaj pokretanja to navodi.</p>
+<h3 id="metadata">Metapodaci</h3>
+<p>Čuvaju se uz svaki fajl i folder: vlasnik i grupa, dozvole, prošireni atributi (osim <code>com.apple.provenance</code>, kojim macOS upravlja sam), čvrsti linkovi, simbolički linkovi, BSD flegovi fajlova (skriven, zaključan, nodump, samo dodavanje…; sistemski flegovi samo kada agent radi kao root, kao servis), vreme kreiranja i vremena izmene do nanosekunde. Retki (sparse) fajlovi ostaju retki: njihove rupe se na APFS-u ponovo prave.</p>
+<h3 id="excludes">Folderi koji se čuvaju prazni</h3>
+<p>Neki sistemski folderi ispod foldera koji se bekapuje čuvaju se kao prazni folderi: drugi volumeni (<code>/Volumes</code>), swap (<code>/System/Volumes/VM</code>, <code>/private/var/vm</code>), pomoćni volumeni u <code>/System/Volumes</code>, <code>/dev</code>, privremeni fajlovi (<code>/private/tmp</code>, <code>/private/var/folders</code>), keševi (<code>/Library/Caches</code>, <code>/System/Library/Caches</code>, <code>~/Library/Caches</code>), Trash (<code>~/.Trash</code>, <code>.Trashes</code>), Spotlight, FSEvents, verzije dokumenata i lokalni i HFS+ Time Machine bekapi. Sa <code>/</code> kao izvorom, folderi volumena podataka koje <code>/</code> već prikazuje (<code>/Users</code>, <code>/Applications</code>…) ne čitaju se dvaput. Folder naveden kao izvor posla uvek se čita, npr. <code>/Volumes/USB</code> ili <code>~/.Trash</code>.</p>
+<h3 id="warnings">Upozorenja u izveštaju pokretanja</h3>
+<p>Bez punog pristupa disku folderi koje macOS štiti ne mogu da se pročitaju: Mail, Messages, Safari, Desktop i Documents, podaci drugih aplikacija, prenosivi i mrežni volumeni. Bekap čiji izvori obuhvataju <code>/Users</code> (osim <code>/Users/Shared</code>), <code>/Library</code> ili <code>/Volumes</code>, ili folder iznad njih kao <code>/</code>, tada se završava upozorenjem <i>Full Disk Access is not granted to the BackupZit agent</i>. Bekapi drugih foldera (npr. <code>/opt/data</code>) ne upozoravaju.</p>
+
+<h2 id="restore">Vraćanje</h2>
+<p>Fajlovi Mac računara se vraćaju kao svi <a href="/docs/restore">bekapi fajlova</a>: ceo bekap ili samo neke putanje, u folder ili na originalnu lokaciju, na Mac ili na drugog agenta; pojedinačni fajlovi mogu da se preuzmu iz konzole. Vraćanje na Mac ponovo postavlja gore navedene metapodatke. Kao na Windowsu i Linuxu, upisuje samo kroz foldere koje je otvorilo, nikad po putanji, pa se link podmetnut tokom vraćanja ne prati. Vraćanje preko zaključanih fajlova prvo skida njihove flegove zaključavanja i samo-dodavanja, pa ponovo postavlja sačuvane (sistemski flegovi ne mogu da se skinu na Mac računaru koji radi).</p>
+
+<h2 id="update">Ažuriranje i deinstalacija</h2>
+<p>Stranica <a href="/agents">Agenti</a> nudi <b>Ažuriraj na <i>verzija</i></b> za Mac kao i za druge agente (vidi <a href="/docs/agents">Agenti</a>). Agent preuzima <code>.pkg</code> sa konzole, proverava ga prema potpisanoj listi instalacija agenta i njegovom SHA-256 kontrolnom zbiru, instalira ga Apple-ovim programom <code>installer</code> u jednokratnom launchd poslu i ponovo se pokreće sa novom verzijom. Ako launchd odbije taj posao, ažuriranje se završava greškom sa porukom launchd-a. Log instalacije je u <code>/Library/Application Support/BackupZit/updates</code>. Posle ažuriranja nepotpisanog paketa proverite <a href="#unsigned">pun pristup disku</a>.</p>
+<p><b>Ukloni</b> na stranici Agenti sa <b>Deinstaliraj agenta sa računara</b> uklanja program, aplikaciju na traci menija, LaunchDaemon i LaunchAgent i potvrdu instalacije paketa; konfiguracija i log ostaju. Ručna deinstalacija:</p>
+<pre>sudo /Library/BackupZit/uninstall.sh            # zadržava konfiguraciju i log
+sudo /Library/BackupZit/uninstall.sh --purge    # briše i njih</pre>
+<p>Bez <code>--purge</code> registracija se ostavlja po strani (<code>agent.json.removed-<i>datum</i></code>), pa nova instalacija ponovo traži kod. Posle deinstalacije ručno uklonite <b>backupzit-agent</b> iz <i>Privacy &amp; Security → Full Disk Access</i>: macOS to ne dozvoljava programu.</p>
+
+<h2 id="limits">Šta Mac agent ne može</h2>
+<table>
+  <tr><th>Ne na Mac računaru</th><th>Umesto toga</th></tr>
+  <tr><td>Bekapi <a href="/docs/linux-system">Linux sistema</a> / bare-metal</td><td>Konzola odbija sistemski posao za Mac (<i>is a Mac: back it up with a files job</i>): njegov sistemski volumen je zapečaćen i potpisan od Apple-a i ponovo se instalira, ne vraća se. Bekapujte podatke poslom fajlova.</td></tr>
+  <tr><td><a href="/docs/images">Disk image-i</a></td><td>Samo Windows.</td></tr>
+  <tr><td>Hyper-V i Proxmox VE hostovi i VMware ESXi proxy</td><td>Agenti na Hyper-V hostu (Windows), na Proxmox čvoru (Linux) ili Linux proxy agent.</td></tr>
+  <tr><td>Poslovi <a href="/docs/jobs#nas">NAS / deljenog foldera</a> (SMB, NFS)</td><td>Za sada Windows ili Linux agent: Mac agent još ne montira deljene foldere.</td></tr>
+  <tr><td>Poslovi <a href="/docs/sql">PostgreSQL / MySQL</a></td><td>Još nisu provereni na macOS-u: koristite ih na Mac računaru tek posle testa vraćanja.</td></tr>
+</table>
+<p>Poslovi <a href="/docs/m365">Microsoft 365</a> rade na svakom agentu sa pristupom internetu, i na Mac računaru.</p>
+
+<h2 id="troubleshooting">Rešavanje problema</h2>
+<table>
+  <tr><th>Situacija</th><th>Šta uraditi</th></tr>
+  <tr><td>Mac se ne pojavljuje ili je prikazan kao offline</td><td>Proverite da je registrovan (<code>backupzit-agent status</code>, <a href="#enroll">Registracija</a>) i da je <b>backupzit-agent</b> uključen pod <i>Login Items &amp; Extensions → Allow in the Background</i>. <code>sudo launchctl print system/com.backupzit.agent</code> prikazuje servis; <code>sudo /Library/BackupZit/bin/backupzit-agent service start</code> ga pokreće. Zatim proverite mrežnu putanju do konzole kao za svakog agenta (<a href="/docs/troubleshooting">Rešavanje problema</a>).</td></tr>
+  <tr><td>„Full Disk Access is not granted to the BackupZit agent”, <code>full disk access: denied</code></td><td>Dajte ga kao u <a href="#full-disk-access">Pun pristup disku</a>.</td></tr>
+  <tr><td>Pun pristup disku izgubljen posle ažuriranja</td><td>Paket nije potpisan Apple Developer ID-jem: uklonite backupzit-agent sa liste sa <b>−</b> i ponovo ga dodajte (<a href="#unsigned">Pun pristup disku posle ažuriranja</a>).</td></tr>
+  <tr><td>Pokretanje kaže da su fajlovi pročitani „without a snapshot”</td><td>„No APFS local snapshot … was taken”: dajte pun pristup disku. „Not on the startup disk's data volume”: putanja je na eksternom disku ili deljenom folderu, koje lokalni APFS snimci ne pokrivaju; svejedno se bekapuje. Svaki drugi razlog je u poruci.</td></tr>
+  <tr><td>Ažuriranje nije uspelo</td><td>Pokretanje prikazuje razlog, npr. da je launchd odbio posao instalacije. Izlaz instalacije je u <code>/Library/Application Support/BackupZit/updates</code> (<b>Preuzmi log</b> na stranici Agenti ga uključuje). Ručna instalacija novijeg <code>.pkg</code> takođe radi; registracija se zadržava.</td></tr>
+  <tr><td>Sistemski posao za Mac je odbijen</td><td>Očekivano: vidi <a href="#limits">Šta Mac agent ne može</a>.</td></tr>
+</table>
+<h3 id="logs">Logovi</h3>
+<ul>
+  <li>Agent: <code>/Library/Logs/BackupZit/agent.log</code> (vidljiv i u aplikaciji Console); trag pada ide u <code>/Library/Logs/BackupZit/launchd.log</code>.</li>
+  <li>Registracija iz instalacije: <code>/Library/Application Support/BackupZit/enroll-error.log</code> i log instalacije <code>/var/log/install.log</code>.</li>
+  <li>Ažuriranja: <code>/Library/Application Support/BackupZit/updates</code>.</li>
+  <li><b>Preuzmi log</b> na stranici <a href="/agents">Agenti</a> preuzima kraj loga iz konzole (vidi <a href="/docs/troubleshooting#logs">Logovi</a>).</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

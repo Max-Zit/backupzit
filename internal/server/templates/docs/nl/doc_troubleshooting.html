@@ -3,9 +3,9 @@
 
 <h2>Een agent wordt als offline getoond</h2>
 <ul>
-  <li>Staat de machine aan en draait de dienst? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Staat de machine aan en draait de dienst? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>; macOS: <code>sudo launchctl print system/com.backupzit.agent</code> (zie <a href="/docs/macos#troubleshooting">macOS-agents</a>).</li>
   <li>Kan de machine de console bereiken? <code>Test-NetConnection backup-server -Port 8443</code> of <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Agentlogboek: <code>C:\ProgramData\backupzit\agent.log</code>, op Linux <code>/var/log/backupzit/agent.log</code> of <code>journalctl -u backupzit-agent</code>. "fingerprint mismatch" betekent dat het consolecertificaat is gewijzigd — registreer de agent opnieuw.</li>
+  <li>Agentlogboek: <code>C:\ProgramData\backupzit\agent.log</code>, op Linux <code>/var/log/backupzit/agent.log</code> of <code>journalctl -u backupzit-agent</code>, op macOS <code>/Library/Logs/BackupZit/agent.log</code>. "fingerprint mismatch" betekent dat het consolecertificaat is gewijzigd — registreer de agent opnieuw.</li>
 </ul>
 
 <h2>Een back-up is mislukt</h2>
@@ -73,12 +73,14 @@
   <tr><td>Herstelde Linux-machine heeft geen netwerk</td><td>De netwerkinstellingen waren gebonden aan het oude MAC-adres (netplan <code>match: macaddress</code>). Herstel met <i>Andere hardware</i>, of verwijder de <code>match</code>-regels in <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Herstelde Windows stopt met INACCESSIBLE_BOOT_DEVICE</td><td>Herstel opnieuw met <i>Herstellen op andere hardware</i>, of start de herstel-ISO en voer <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code> uit.</td></tr>
   <tr><td>Een herstelde kopie van een machine verschijnt als de originele agent</td><td>Een Linux-systeem dat als nieuwe VM is hersteld, wordt automatisch afgemeld. Bij andere kopieën (een VM die als nieuwe VM is hersteld, direct herstel, een replica, een gekloonde schijf) houdt de console de runs van de agent aan en toont <i>twee machines</i>; registreer de kopie als nieuwe machine (zie <a href="/docs/agents#duplicate">Twee machines die één agent gebruiken</a>).</td></tr>
-  <tr><td>Agent-update wordt niet voltooid</td><td>Bekijk het installatielogboek in <code>C:\ProgramData\backupzit\updates</code> of <code>/var/lib/backupzit-agent/updates</code>; agents van vóór 0.21 moeten één keer handmatig worden bijgewerkt.</td></tr>
+  <tr><td>Agent-update wordt niet voltooid</td><td>Bekijk het installatielogboek in <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> of <code>/Library/Application Support/BackupZit/updates</code> (macOS); agents van vóór 0.21 moeten één keer handmatig worden bijgewerkt.</td></tr>
+  <tr><td>Mac: "Full Disk Access is not granted", bestanden "without a snapshot" gelezen, volledige schijftoegang kwijt na een update</td><td>Zie <a href="/docs/macos#troubleshooting">macOS-agents</a>: alleen de gebruiker van de Mac kan volledige schijftoegang geven, en een niet-ondertekend pakket verliest die bij elke update.</td></tr>
+  <tr><td>"… is a Mac: back it up with a files job"</td><td>Een Mac kan niet als systeem worden geback-upt; gebruik een bestandstaak (<a href="/docs/macos#limits">macOS-agents</a>).</td></tr>
   <tr><td>Het tray-pictogram ontbreekt</td><td>Klik op de pijl <b>^</b> naast de klok en sleep het BackupZit-pictogram naar de taakbalk, of start <i>BackupZit Agent</i> vanuit het menu Start.</td></tr>
 </table>
 
 <h2>Een back-up eindigt met "waarschuwing"</h2>
-<p>Sommige bestanden konden niet worden gelezen — meestal bestanden die door een toepassing zijn vergrendeld terwijl VSS niet beschikbaar is, of bestanden waarvoor de agent geen rechten heeft. De lijst staat op de runpagina. Al het andere is geback-upt.</p>
+<p>Sommige bestanden konden niet worden gelezen — meestal bestanden die door een toepassing zijn vergrendeld terwijl VSS niet beschikbaar is, of bestanden waarvoor de agent geen rechten heeft. De lijst staat op de runpagina. Al het andere is geback-upt. Op een Mac geeft ook ontbrekende volledige schijftoegang een waarschuwing (<a href="/docs/macos#warnings">macOS-agents</a>).</p>
 
 <h2>Back-ups zijn traag</h2>
 <ul>
@@ -94,9 +96,10 @@
   <tr><td>Console (server)</td><td><code>journalctl -u backupzit-server</code> en het bestand <code>/var/lib/backupzit/logs/server.log</code> (tot 4 bestanden van 10 MB). De laatste regels staan onder <a href="/settings/diagnostics">Instellingen → Diagnose</a>.</td></tr>
   <tr><td>Agent op Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
   <tr><td>Agent op Linux</td><td><code>/var/log/backupzit/agent.log</code> en <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Agent op macOS</td><td><code>/Library/Logs/BackupZit/agent.log</code> (zie <a href="/docs/macos#logs">macOS-agents</a>)</td></tr>
   <tr><td>Elke agent, vanuit de console</td><td><b>Logboek ophalen</b> op de pagina <a href="/agents">Agents</a>: de agent stuurt het einde van zijn logboek en de nieuwste installatielogboeken; lees of download ze op de pagina van de uitvoering (30 dagen bewaard; agents 0.38.0 of nieuwer).</td></tr>
   <tr><td>Eén back-up of herstelactie</td><td>de pagina onder <a href="/runs">Activiteit</a>: melding, fouten, statistieken en uitvoer van de opdrachten voor en na de back-up</td></tr>
-  <tr><td>Agentupdates</td><td>installatielogboeken in <code>C:\ProgramData\backupzit\updates</code> (Windows) of <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Logboek ophalen</b> neemt ze mee</td></tr>
+  <tr><td>Agentupdates</td><td>installatielogboeken in <code>C:\ProgramData\backupzit\updates</code> (Windows), <code>/var/lib/backupzit-agent/updates</code> (Linux) of <code>/Library/Application Support/BackupZit/updates</code> (macOS); <b>Logboek ophalen</b> neemt ze mee</td></tr>
   <tr><td>Console-updates</td><td><code>journalctl -u backupzit-update</code>; de vorige versie en een databasedump blijven in <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Geharde repository</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Wie wat heeft gewijzigd</td><td>het <a href="/audit">auditlogboek</a>, dat ook naar een syslogserver kan gaan</td></tr>

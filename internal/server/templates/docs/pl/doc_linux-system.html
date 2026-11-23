@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Kopia systemu Linux i P2V</h1>
 <p class="lead">Zadanie <b>System Linux</b> tworzy kopię całej maszyny Linux, aby można ją było odtworzyć na pustym dysku — tę samą maszynę po awarii dysku, nowy sprzęt lub maszynę wirtualną w Proxmox VE (z fizycznej na wirtualną, P2V).</p>
+<p>Maca nie można skopiować jako systemu: konsola odrzuca dla niego zadanie systemowe, ponieważ jego wolumin systemowy jest zapieczętowany i podpisany przez Apple i instaluje się go ponownie, zamiast przywracać. Twórz kopię jego danych zadaniem plików (zobacz <a href="/docs/macos#limits">Agenci macOS</a>).</p>
 <p>Przetestowano z Debianem, Ubuntu 22.04 i Rocky Linux 9 (to samo dotyczy AlmaLinux i RHEL 9). Na Ubuntu 22.04 i systemach podobnych do RHEL 9 kopie systemu Linux wymagają agenta 0.50.0 lub nowszego.</p>
 
 <h2>Co jest kopiowane</h2>

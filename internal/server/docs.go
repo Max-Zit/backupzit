@@ -7,6 +7,9 @@ var docPages = []struct{ Slug, Title string }{
 	{"start", "Getting started"},
 	{"install", "Installing the server"},
 	{"agents", "Agents"},
+	// Right after Agents: installing, enrolling and the permissions of a Mac
+	// follow on from the agents page, before storage and jobs.
+	{"macos", "macOS agents (Apple silicon)"},
 	{"storage", "Storage targets"},
 	{"jobs", "Backup jobs & schedules"},
 	{"restore", "Restoring"},

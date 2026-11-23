@@ -112,8 +112,8 @@
   <tr><th>Příkaz</th><th>Co dělá</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Připojí agenta ke konzoli pomocí registračního kódu ze stránky Agenti (<code>--force</code> nahradí existující registraci). Starší forma <code>--server URL --token T --fingerprint F</code> stále funguje.</td></tr>
   <tr><td><code>set-server https://address:8443</code></td><td>Nasměruje registrovaného agenta na novou adresu konzole (stejný certifikát); poté restartujte službu agenta. Viz <a href="/docs/agents#new-address">Agenti</a>.</td></tr>
-  <tr><td><code>status</code></td><td>Zobrazí, co běžící agent právě dělá, a jeho úlohy zálohování (ikona v oznamovací oblasti Windows ukazuje totéž).</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Spravuje službu agenta (dělají to instalátory).</td></tr>
+  <tr><td><code>status</code></td><td>Zobrazí, co běžící agent právě dělá, a jeho úlohy zálohování (ikona v oznamovací oblasti Windows ukazuje totéž). Na Macu zobrazí také <code>full disk access: granted</code> nebo <code>denied</code>, i pro běžného uživatele.</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Spravuje službu agenta (dělají to instalátory). Na Macu je službou LaunchDaemon <code>/Library/LaunchDaemons/com.backupzit.agent.plist</code> a programem <code>/Library/BackupZit/bin/backupzit-agent</code>, který není v <code>PATH</code>; viz <a href="/docs/macos">Agenti pro macOS</a>.</td></tr>
   <tr><td><code>recovery</code></td><td>Režim obnovy, spouštěný automaticky ISO pro obnovu; na libovolném živém systému Linux: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Vypíše verzi.</td></tr>
   <tr><td><code>forget</code></td><td>Odloží registraci (přejmenuje, nesmaže); spouštějí ho odinstalační programy, takže nová instalace znovu požádá o registrační kód.</td></tr>

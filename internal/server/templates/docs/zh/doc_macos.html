@@ -1,0 +1,121 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>macOS 代理（Apple 芯片）</h1>
+<p class="lead">macOS 代理备份搭载 Apple 芯片的 Mac 上的文件和文件夹。它从首次启动起就作为服务运行，启动磁盘的每次备份都从 APFS 本地快照读取，并保留 Mac 的文件元数据。菜单栏 App 显示其状态，并引导用户授予只有用户本人才能授予的权限。</p>
+
+<h2 id="requirements">要求</h2>
+<ul>
+  <li>搭载 <b>Apple 芯片</b>（M1 及更新，arm64）并运行 <b>macOS 13</b> 或更高版本的 Mac。Intel Mac 没有安装包。</li>
+  <li>Mac 上的管理员帐户，用于安装和注册。</li>
+  <li>由 Mac 的用户授予<a href="#permissions">完全磁盘访问权限</a>：macOS 不允许其他任何人这样做，脚本和控制台都不行。</li>
+  <li>与所有代理一样，Mac 必须能访问控制台的代理地址（通常为端口 8443）和存储。</li>
+</ul>
+
+<h2 id="install">安装</h2>
+<ol>
+  <li>在 <a href="/agents">Agent</a> 页面下载 <b>macOS 代理 — Apple 芯片</b>（<code>backupzit-agent_<i>version</i>_darwin_arm64.pkg</code>）。与 Windows 和 Linux 安装程序一样，它包含在控制台软件包中。</li>
+  <li>在 Mac 上打开 <code>.pkg</code> 并按照安装器操作。未使用 Apple Developer ID 签名的安装包会让 macOS 先要求确认：右键点按它并选择<b>打开</b>（在较新的 macOS 上：<i>系统设置 → 隐私与安全性 → 仍要打开</i>）。</li>
+  <li>安装器的最后一页会说明需要授予的<a href="#permissions">权限</a>，并打开菜单栏 App。</li>
+</ol>
+<p>安装包安装的内容：</p>
+<table>
+  <tr><th>内容</th><th>位置</th></tr>
+  <tr><td>代理程序</td><td><code>/Library/BackupZit/bin/backupzit-agent</code></td></tr>
+  <tr><td>卸载程序</td><td><code>/Library/BackupZit/uninstall.sh</code></td></tr>
+  <tr><td>菜单栏 App</td><td><code>/Applications/BackupZit.app</code></td></tr>
+  <tr><td>代理服务（LaunchDaemon：以 root 身份运行，开机时启动，停止后自动重启）</td><td><code>/Library/LaunchDaemons/com.backupzit.agent.plist</code></td></tr>
+  <tr><td>登录时启动的菜单栏 App（LaunchAgent）</td><td><code>/Library/LaunchAgents/com.backupzit.tray.plist</code></td></tr>
+  <tr><td>配置（仅 root，注册时创建）</td><td><code>/Library/Application Support/BackupZit/agent.json</code></td></tr>
+  <tr><td>日志</td><td><code>/Library/Logs/BackupZit/agent.log</code></td></tr>
+</table>
+<p>该程序不会加入 <code>PATH</code>：在“终端”中请使用其完整路径调用。</p>
+
+<h2 id="enroll">注册</h2>
+<p>即使 Mac 尚未注册，服务也已安装并在运行；一旦注册，它就开始工作。在 <a href="/agents">Agent</a> 页面，<b>创建注册令牌</b>会在 Windows 和 Linux 的命令旁边显示 macOS 的命令。从以下三种方式中选择一种：</p>
+<ol>
+  <li><b>安装后在“终端”中</b>（常用方式）：
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
+  <li id="mdm"><b>使用 MDM</b>（Jamf、Intune、Mosyle……）：在安装安装包之前，由脚本将注册码写入一个属于 root 的文件：
+<pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
+  然后部署安装包。安装时会用该注册码注册 Mac 并删除该文件。不属于 root 的文件会被忽略。这也是将已注册的 Mac 迁移到另一个控制台的方法。</li>
+  <li><b>安装包旁边的文件</b>：在 <code>.pkg</code> 所在的同一文件夹中（例如 U 盘或共享文件夹）放一个写有注册码的 <code>backupzit-enroll.txt</code>。只有在 Mac 尚未注册时才会使用它，并且只有在其他人不可能写入它时才会使用：文件属于 root 或安装包的所有者，且其所在文件夹不可被其他用户写入（或像 <code>/Users/Shared</code> 那样设置了粘滞位）。</li>
+</ol>
+<p>如果安装期间无法连接控制台，代理会保留注册码并不断重试。如果注册失败，原因记录在 <code>/Library/Application Support/BackupZit/enroll-error.log</code> 中；之后请在“终端”中注册。升级和重新安装会保留注册。</p>
+
+<h2 id="permissions">权限</h2>
+<p>macOS 会保护某些数据不被任何程序读取（即使以 root 身份运行），直到用户在“系统设置”中允许。只有坐在 Mac 前的用户才能授予这些权限；安装器的最后一页和菜单栏 App 会引导用户完成。</p>
+<h3 id="full-disk-access">代理的完全磁盘访问权限</h3>
+<p>没有它，备份会缺少 macOS 保护的文件夹，并且不会创建 APFS 快照（参见<a href="#backup">备份的内容</a>）。</p>
+<ol>
+  <li>打开<b>系统设置 → 隐私与安全性 → 完全磁盘访问权限</b>。</li>
+  <li>点按列表下方的 <b>+</b> 并输入密码。</li>
+  <li>按下 <b>Command-Shift-G</b>，输入 <code>/Library/BackupZit/bin/backupzit-agent</code>，按 Return 键，然后点按<b>打开</b>。</li>
+  <li>检查 <b>backupzit-agent</b> 旁边的开关已打开。</li>
+</ol>
+<p>也可以不用 <b>+</b>，而是将文件拖入列表：在“访达”中选择<i>前往 → 前往文件夹…</i>，输入 <code>/Library/BackupZit/bin</code>，然后将 <b>backupzit-agent</b> 拖到列表上。</p>
+<h3 id="background">在后台运行的代理</h3>
+<p>安装后 macOS 会显示<i>已添加后台项目</i>。在<b>系统设置 → 通用 → 登录项与扩展</b>的<b>允许在后台</b>下，<b>backupzit-agent</b> 和 <b>BackupZit</b> 必须保持打开：关闭后，代理不会运行，也不会开始任何备份。</p>
+<h3 id="notifications">通知和登录时打开</h3>
+<ul>
+  <li><b>通知</b>：在菜单栏 App 请求时允许，或稍后在<b>系统设置 → 通知 → BackupZit</b>（<i>允许通知</i>）中允许。备份失败时，App 会通过通知告知用户。</li>
+  <li><b>登录时打开</b>：只要 <b>BackupZit</b> 在<i>登录项与扩展 → 允许在后台</i>下处于打开状态，菜单栏 App 就会在每次登录时打开。</li>
+</ul>
+<h3 id="assistant">菜单栏 App 及其助手</h3>
+<p>菜单栏中的 BackupZit 图标显示代理的状态；其菜单包含针对 Mac 每个作业的 <b>Back up now</b>、<b>Open console in browser</b> 和 <b>Hide this icon</b>（直到下次登录；备份继续进行）。其 <b>Permissions</b> 部分列出后台运行的代理、完全磁盘访问权限、通知和登录时打开，每项都带有 ✅ 或 ❌。点按某一项会打开“系统设置”中相应的页面；缺少的权限还会在每次登录后通过对话框说明一次，并给出操作步骤。只要还缺少某项权限，它就会每隔几秒自动重新检查，因此一旦授予权限就会显示 ✅。代理也会在运行报告中向控制台报告缺少完全磁盘访问权限。</p>
+<h3 id="status">在“终端”中检查</h3>
+<pre>/Library/BackupZit/bin/backupzit-agent status</pre>
+<p>普通用户也可以运行，它会显示控制台、作业以及 <code>full disk access: granted</code> 或 <code>denied</code>（并指出需要打开的程序）。</p>
+<h3 id="unsigned">更新后的完全磁盘访问权限</h3>
+<p>macOS 将完全磁盘访问权限与程序的签名绑定。使用 Apple Developer ID 签名的安装包在更新后会保留该权限。没有 Developer ID 构建（<i>ad hoc</i> 签名）的安装包每次自更新都会失去该权限：备份会再次发出警告，菜单栏 App 会提示自更新以来完全磁盘访问权限已丢失。请重新授予：在完全磁盘访问权限列表中选择 <b>backupzit-agent</b>，点按 <b>−</b> 将其移除（关闭再打开开关是不够的），然后按上述方法用 <b>+</b> 重新添加。</p>
+
+<h2 id="backup">备份的内容</h2>
+<p>Mac 代理与任何代理一样运行<b>文件和文件夹</b>作业：如 <code>/Users</code>、<code>/Applications</code> 或 <code>/</code> 等路径、<a href="/docs/jobs#users"><code>{users}</code> 路径</a>（<code>/Users/&lt;name&gt;/Documents</code>）和通配符，也可以在使用 <i>所有 macOS 代理</i> 的<a href="/docs/jobs#groups">多代理作业</a>中使用。</p>
+<h3 id="snapshot">APFS 本地快照</h3>
+<p>启动磁盘数据卷的每次文件备份都从 <b>APFS 本地快照</b>读取，这是 macOS 上相当于 Windows VSS 的机制：备份看到的每个文件都处于同一时刻的状态，包括程序仍在写入的文件。代理创建快照（<code>tmutil localsnapshot</code>），以只读方式挂载，从中读取文件，并在备份后卸载和删除它。崩溃遗留的快照会在下次启动时清理；Time Machine 自己的快照绝不会被触碰。运行报告显示 <i>Read from an APFS local snapshot of /System/Volumes/Data.</i></p>
+<p>快照需要服务（root）和<a href="#full-disk-access">完全磁盘访问权限</a>。没有完全磁盘访问权限时，以及对于其他卷上的路径（<code>/Volumes</code>：外置磁盘、网络共享），文件会在没有快照的情况下读取，运行报告会说明这一点。</p>
+<h3 id="metadata">元数据</h3>
+<p>随每个文件和文件夹一起保存：所有者和组、权限、扩展属性（由 macOS 自行管理的 <code>com.apple.provenance</code> 除外）、硬链接、符号链接、BSD 文件标志（隐藏、锁定、nodump、append-only……；系统标志仅在代理以 root 身份运行时保存，服务即是如此）、创建时间以及精确到纳秒的修改时间。稀疏文件保持稀疏：在 APFS 上会重新打出其空洞。</p>
+<h3 id="excludes">保留为空的文件夹</h3>
+<p>已备份文件夹下的某些系统文件夹会保留为空文件夹：其他卷（<code>/Volumes</code>）、交换区（<code>/System/Volumes/VM</code>、<code>/private/var/vm</code>）、<code>/System/Volumes</code> 中的支持卷、<code>/dev</code>、临时文件（<code>/private/tmp</code>、<code>/private/var/folders</code>）、缓存（<code>/Library/Caches</code>、<code>/System/Library/Caches</code>、<code>~/Library/Caches</code>）、废纸篓（<code>~/.Trash</code>、<code>.Trashes</code>）、Spotlight、FSEvents、文稿版本以及本地和 HFS+ 的 Time Machine 备份。以 <code>/</code> 作为来源时，<code>/</code> 已显示的数据卷文件夹（<code>/Users</code>、<code>/Applications</code>……）不会被读取两次。作为作业来源指定的文件夹总会被读取，例如 <code>/Volumes/USB</code> 或 <code>~/.Trash</code>。</p>
+<h3 id="warnings">运行报告中的警告</h3>
+<p>没有完全磁盘访问权限时，无法读取 macOS 保护的文件夹：邮件、信息、Safari 浏览器、桌面和文稿、其他 App 的数据、可移除卷和网络卷。此时，来源涉及 <code>/Users</code>（<code>/Users/Shared</code> 除外）、<code>/Library</code> 或 <code>/Volumes</code>，或其上层文件夹（如 <code>/</code>）的备份会以警告 <i>Full Disk Access is not granted to the BackupZit agent</i> 结束。其他文件夹（例如 <code>/opt/data</code>）的备份不会发出警告。</p>
+
+<h2 id="restore">还原</h2>
+<p>Mac 的文件与所有<a href="/docs/restore">文件备份</a>一样还原：整个备份或仅部分路径，还原到文件夹或原始位置，在该 Mac 或其他代理上；单个文件可以从控制台下载。在 Mac 上还原会重新设置上述元数据。与 Windows 和 Linux 一样，它只通过已打开的文件夹写入，绝不按路径写入，因此还原期间被放在路径中的链接不会被跟随。覆盖已锁定的文件进行还原时，会先清除其锁定和 append-only 标志，然后重新设置保存的标志（系统标志无法在运行中的 Mac 上清除）。</p>
+
+<h2 id="update">更新和卸载</h2>
+<p>与其他代理一样，<a href="/agents">Agent</a> 页面也会为 Mac 提供<b>更新到 <i>version</i></b>（参见 <a href="/docs/agents">Agent</a>）。代理从控制台下载 <code>.pkg</code>，根据已签名的代理安装程序列表及其 SHA-256 校验和进行检查，在一次性的 launchd 作业中使用 Apple 的 <code>installer</code> 安装，然后以新版本重启。如果 launchd 拒绝该作业，更新运行会失败并显示 launchd 的消息。安装程序日志位于 <code>/Library/Application Support/BackupZit/updates</code>。更新未签名的安装包后，请检查<a href="#unsigned">完全磁盘访问权限</a>。</p>
+<p>在 Agent 页面上使用<b>移除</b>并选择<b>从计算机卸载代理</b>，会移除程序、菜单栏 App、LaunchDaemon 和 LaunchAgent 以及安装包回执；配置和日志会保留。手动卸载：</p>
+<pre>sudo /Library/BackupZit/uninstall.sh            # keeps configuration and log
+sudo /Library/BackupZit/uninstall.sh --purge    # deletes them too</pre>
+<p>不带 <code>--purge</code> 时，注册会被搁置（<code>agent.json.removed-<i>date</i></code>），因此重新安装会再次要求注册码。卸载后，请手动从<i>隐私与安全性 → 完全磁盘访问权限</i>中移除 <b>backupzit-agent</b>：macOS 不允许程序这样做。</p>
+
+<h2 id="limits">Mac 代理不能做什么</h2>
+<table>
+  <tr><th>Mac 上不支持</th><th>替代方案</th></tr>
+  <tr><td><a href="/docs/linux-system">Linux 系统</a> / 裸机备份</td><td>控制台会拒绝为 Mac 创建系统作业（<i>is a Mac: back it up with a files job</i>）：其系统卷由 Apple 密封并签名，应重新安装而不是还原。请用文件作业备份数据。</td></tr>
+  <tr><td><a href="/docs/images">磁盘映像</a></td><td>仅限 Windows。</td></tr>
+  <tr><td>Hyper-V、Proxmox VE 主机和 VMware ESXi 代理服务器</td><td>Hyper-V 主机（Windows）、Proxmox 节点（Linux）上的代理或 Linux 代理服务器。</td></tr>
+  <tr><td><a href="/docs/jobs#nas">NAS / 文件共享</a>作业（SMB、NFS）</td><td>目前请使用 Windows 或 Linux 代理：Mac 代理尚不能挂载共享。</td></tr>
+  <tr><td><a href="/docs/sql">PostgreSQL / MySQL</a> 作业</td><td>尚未在 macOS 上验证：请先测试还原，再在 Mac 上使用。</td></tr>
+</table>
+<p><a href="/docs/m365">Microsoft 365</a> 作业可在任何能访问互联网的代理上运行，Mac 也可以。</p>
+
+<h2 id="troubleshooting">故障排除</h2>
+<table>
+  <tr><th>情况</th><th>处理方法</th></tr>
+  <tr><td>Mac 未出现或显示为离线</td><td>检查它是否已注册（<code>backupzit-agent status</code>，<a href="#enroll">注册</a>），以及 <b>backupzit-agent</b> 在<i>登录项与扩展 → 允许在后台</i>下是否已打开。<code>sudo launchctl print system/com.backupzit.agent</code> 显示服务；<code>sudo /Library/BackupZit/bin/backupzit-agent service start</code> 启动服务。然后像对任何代理一样检查到控制台的网络路径（<a href="/docs/troubleshooting">故障排除</a>）。</td></tr>
+  <tr><td>“Full Disk Access is not granted to the BackupZit agent”，<code>full disk access: denied</code></td><td>按照<a href="#full-disk-access">完全磁盘访问权限</a>中的步骤授予。</td></tr>
+  <tr><td>更新后完全磁盘访问权限丢失</td><td>安装包未使用 Apple Developer ID 签名：用 <b>−</b> 从列表中移除 backupzit-agent，然后重新添加（<a href="#unsigned">更新后的完全磁盘访问权限</a>）。</td></tr>
+  <tr><td>运行显示文件是“without a snapshot”读取的</td><td>“No APFS local snapshot … was taken”：授予完全磁盘访问权限。“Not on the startup disk's data volume”：该路径位于外置磁盘或共享上，APFS 本地快照不覆盖它；它仍会被备份。其他原因见消息。</td></tr>
+  <tr><td>更新运行失败</td><td>运行会显示原因，例如 launchd 拒绝了安装程序作业。安装程序的输出位于 <code>/Library/Application Support/BackupZit/updates</code>（Agent 页面上的<b>获取日志</b>也包含它）。手动安装较新的 <code>.pkg</code> 也可以；注册会保留。</td></tr>
+  <tr><td>Mac 的系统作业被拒绝</td><td>这是预期行为：参见 <a href="#limits">Mac 代理不能做什么</a>。</td></tr>
+</table>
+<h3 id="logs">日志</h3>
+<ul>
+  <li>代理：<code>/Library/Logs/BackupZit/agent.log</code>（也会列在“控制台”App 中）；崩溃跟踪写入 <code>/Library/Logs/BackupZit/launchd.log</code>。</li>
+  <li>安装器执行的注册：<code>/Library/Application Support/BackupZit/enroll-error.log</code> 和安装器日志 <code>/var/log/install.log</code>。</li>
+  <li>更新：<code>/Library/Application Support/BackupZit/updates</code>。</li>
+  <li><a href="/agents">Agent</a> 页面上的<b>获取日志</b>会从控制台获取日志末尾（参见 <a href="/docs/troubleshooting#logs">日志</a>）。</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

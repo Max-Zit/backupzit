@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Bekap Linux sistema i P2V</h1>
 <p class="lead">Posao <b>Linux sistem</b> pravi bekap cele Linux mašine, tako da može ponovo da se napravi na praznom disku — ista mašina posle kvara diska, nov hardver, ili virtuelna mašina u Proxmox VE (fizičko u virtuelno, P2V).</p>
+<p>Mac ne može da se bekapuje kao sistem: konzola odbija sistemski posao za njega, jer je njegov sistemski volumen zapečaćen i potpisan od strane Apple-a i ponovo se instalira umesto da se vraća. Bekap njegovih podataka napravite poslom fajlova (vidi <a href="/docs/macos#limits">macOS agenti</a>).</p>
 <p>Testirano sa Debianom, Ubuntu 22.04 i Rocky Linux 9 (isto važi za AlmaLinux i RHEL 9). Na Ubuntu 22.04 i sistemima nalik RHEL 9 bekapi Linux sistema traže agent 0.50.0 ili noviji.</p>
 
 <h2>Šta se čuva</h2>

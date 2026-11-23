@@ -120,3 +120,21 @@ func TestSignFile(t *testing.T) {
 		t.Error("signature written with an untrusted key")
 	}
 }
+
+// The macOS package is an agent installer of the release: it is
+// in the signed lists the console and the agents check.
+func TestPackagesListsMacPackage(t *testing.T) {
+	dir := t.TempDir()
+	for _, n := range []string{"backupzit-agent_0.59.0_darwin_arm64.pkg", "backupzit-agent_0.58.0_darwin_arm64.pkg", "notes.txt"} {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files, err := packages(dir, "0.59.0", map[string]bool{"agent": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || files[0].Name != "backupzit-agent_0.59.0_darwin_arm64.pkg" || files[0].Kind != "agent" || files[0].Format != "pkg" || files[0].Arch != "arm64" {
+		t.Fatalf("%+v", files)
+	}
+}

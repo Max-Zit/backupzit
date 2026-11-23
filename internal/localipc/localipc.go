@@ -44,6 +44,20 @@ type Status struct {
 	// Jobs come from the console; JobsAt is when they were received.
 	Jobs   []Job      `json:"jobs"`
 	JobsAt *time.Time `json:"jobs_at,omitempty"`
+	// MacPermissions is only reported by the macOS agent (nil, and absent
+	// from the JSON, elsewhere).
+	MacPermissions *MacPermissions `json:"mac_permissions,omitempty"`
+}
+
+// MacPermissions are the macOS privacy permissions of the agent service
+// itself. The tray app cannot check them for the agent (they are given per
+// program, and the tray is another one), so the agent reports them.
+type MacPermissions struct {
+	// FullDiskAccess is a macperm.State: granted, denied or unknown.
+	FullDiskAccess string `json:"full_disk_access"`
+	// AgentPath is the agent's program, the item the user must switch on
+	// (or add) in System Settings > Full Disk Access.
+	AgentPath string `json:"agent_path,omitempty"`
 }
 
 // Run is a run executed by the agent.
@@ -117,6 +131,13 @@ func Serve(ctx context.Context, l net.Listener, handle func(context.Context, Req
 			_ = c.SetDeadline(time.Now().Add(30 * time.Second))
 			var req Request
 			if err := json.NewDecoder(bufio.NewReader(c)).Decode(&req); err != nil {
+				return
+			}
+			// Where the channel itself cannot restrict the callers to those
+			// of the Windows pipe ACL (macOS), the caller is checked per
+			// command; elsewhere authorize lets everything through.
+			if err := authorize(c, req.Cmd); err != nil {
+				_ = json.NewEncoder(c).Encode(Response{Error: err.Error()})
 				return
 			}
 			resp := handle(ctx, req)

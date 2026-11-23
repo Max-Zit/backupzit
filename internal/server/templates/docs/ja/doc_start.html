@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>はじめに</h1>
-<p class="lead">BackupZit は、自社ネットワーク内で動作する 1 つの Web コンソールから、Windows と Linux のマシン、Proxmox VE・Hyper-V・VMware ESXi の仮想マシン、データベース（SQL Server、PostgreSQL、MySQL/MariaDB）、NAS 共有、Microsoft 365 を、ファイル、ディスク全体、システム全体、メールボックスの単位で保護します。</p>
+<p class="lead">BackupZit は、自社ネットワーク内で動作する 1 つの Web コンソールから、Windows、Linux、macOS のマシン、Proxmox VE・Hyper-V・VMware ESXi の仮想マシン、データベース（SQL Server、PostgreSQL、MySQL/MariaDB）、NAS 共有、Microsoft 365 を、ファイル、ディスク全体、システム全体、メールボックスの単位で保護します。</p>
 
 <h2>BackupZit が保護するもの</h2>
 <table>
   <tr><th>対象</th><th>方法</th><th>復元</th></tr>
-  <tr><td>ファイルとフォルダー（Windows、Linux）</td><td>マシン上のエージェント。Windows で開いているファイルは VSS 経由。<a href="/docs/jobs">バックアップ ジョブ</a></td><td>バックアップ全体または個別フォルダーを、任意のエージェント、元の場所、または別のフォルダーへ。<a href="/docs/restore">復元</a></td></tr>
+  <tr><td>ファイルとフォルダー（Windows、Linux、macOS）</td><td>マシン上のエージェント。開いているファイルは、Windows では VSS 経由、Mac では APFS ローカル スナップショット経由。<a href="/docs/jobs">バックアップ ジョブ</a>、<a href="/docs/macos">macOS エージェント</a></td><td>バックアップ全体または個別フォルダーを、任意のエージェント、元の場所、または別のフォルダーへ。<a href="/docs/restore">復元</a></td></tr>
   <tr><td>Windows ディスク</td><td>VSS スナップショットから、ディスク全体または選択したパーティションのディスク イメージ。<a href="/docs/images">ディスク イメージ</a></td><td>Windows 復旧 ISO で空のディスクやベアメタルへ。異なるハードウェアや VM へも可。イメージから個別ファイル。</td></tr>
   <tr><td>Linux システム</td><td>すべてのローカル ファイル システムとディスク レイアウト（パーティション、LVM、UUID、ブート コード）。<a href="/docs/linux-system">Linux システム バックアップ</a></td><td>Linux 復旧 ISO で空のディスクやベアメタルへ、または新しい Proxmox VM として（P2V）。個別ファイル。</td></tr>
   <tr><td>Hyper-V VM</td><td>Hyper-V ホスト上のエージェント、<b>VM 内にエージェント不要</b>。復旧チェックポイント（ゲスト内の VSS）、Resilient Change Tracking で変更されたブロックのみ読み取り。<a href="/docs/hyperv">Hyper-V</a></td><td>VM 全体を新規またはその場に（ID と MAC アドレスを保持）。VM ディスクから個別ファイル。</td></tr>
@@ -19,7 +19,7 @@
 <h2>BackupZit のしくみ</h2>
 <ul>
   <li><b>管理コンソール</b>（この Web アプリケーション）— ネットワーク内の Linux サーバーで動作します。構成を保存し、ジョブをスケジュールし、結果を収集してレポートを表示します。インターネットから到達可能にする必要はありません。</li>
-  <li><b>エージェント</b> — 保護対象の各マシン（Windows MSI、Linux deb/rpm）と Proxmox・Hyper-V ホストで動く小さなサービスです。VMware ESXi ホストにはプロキシとして動作するエージェント経由で接続します。エージェントは HTTPS でコンソールに接続してジョブを受け取り、バックアップ データをストレージに<i>直接</i>送ります。Windows ではエージェントが時計の横に状態を表示します。</li>
+  <li><b>エージェント</b> — 保護対象の各マシン（Windows MSI、Linux deb/rpm、macOS pkg）と Proxmox・Hyper-V ホストで動く小さなサービスです。VMware ESXi ホストにはプロキシとして動作するエージェント経由で接続します。エージェントは HTTPS でコンソールに接続してジョブを受け取り、バックアップ データをストレージに<i>直接</i>送ります。Windows ではエージェントが時計の横に、Mac ではメニュー バーに状態を表示します。</li>
   <li><b>ストレージ ターゲット</b> — バックアップの保存先: SFTP、S3 互換オブジェクト ストレージ（AWS、Wasabi、Backblaze B2、MinIO、Google Cloud…）、Azure Blob Storage、SMB 共有/NAS、ローテーションする USB ディスク、ローカルまたはマウントされたディスク、BackupZit 強化リポジトリ。</li>
 </ul>
 <div class="callout tip"><p>バックアップ データがコンソールを経由することはありません。コンソールは調整役にすぎないため、小さな仮想マシンで十分です。</p></div>
@@ -28,7 +28,7 @@
 <p>新しいコンソールを用意するには、既製のアプライアンス イメージを小さな VM にインポートするか、アプライアンス ISO から起動するか、既存の Linux サーバーでインストール スクリプトを実行します。<a href="/docs/install">サーバーのインストール</a>を参照してください。</p>
 <ol>
   <li><a href="/targets">ストレージ</a>で<b>ストレージ ターゲットを追加</b>します。<i>バックアップを暗号化</i>は有効のままにし、その後表示される復旧シートを安全な場所に保管してください。<a href="/docs/storage">ストレージ ターゲット</a>を参照してください。</li>
-  <li><b>エージェントをインストール</b>します: <a href="/agents">エージェント</a>で<i>登録トークンを作成</i>をクリックし、同じページからインストーラーをダウンロードして、Windows インストーラーが求めたら登録コードを貼り付けます（Linux: <code>backupzit-agent enroll --code …</code>）。VM の場合は Proxmox または Hyper-V ホストにエージェントをインストールし、VMware ESXi ホストはエージェント → VMware ESXi ホストで追加します。<a href="/docs/agents">エージェント</a>を参照してください。</li>
+  <li><b>エージェントをインストール</b>します: <a href="/agents">エージェント</a>で<i>登録トークンを作成</i>をクリックし、同じページからインストーラーをダウンロードして、Windows インストーラーが求めたら登録コードを貼り付けます（Linux と macOS: <code>backupzit-agent enroll --code …</code>、<a href="/docs/macos">macOS エージェント</a>を参照）。VM の場合は Proxmox または Hyper-V ホストにエージェントをインストールし、VMware ESXi ホストはエージェント → VMware ESXi ホストで追加します。<a href="/docs/agents">エージェント</a>を参照してください。</li>
   <li><a href="/jobs">バックアップ ジョブ</a>で<b>バックアップ ジョブを作成</b>します: エージェント、ストレージ、バックアップ対象（ファイル、NAS 共有、ディスク イメージ、データベース、Linux システム全体、または Proxmox・Hyper-V・VMware ESXi ホストの VM）、実行タイミング、保持するバックアップ数を選びます。<a href="/docs/jobs">バックアップ ジョブとスケジュール</a>を参照してください。</li>
   <li>ジョブ ページの<i>今すぐバックアップを実行</i>で<b>一度手動で実行</b>し、<a href="/runs">アクティビティ</a>で結果を確認します。</li>
   <li><b>復元をテスト</b>します — バックアップの価値は復元できるかどうかで決まります。自動復元テストは毎週実行されます。<a href="/restore">復元ウィザード</a>で一度は手動でも復元してみてください。<a href="/docs/restore">復元</a>を参照してください。</li>

@@ -18,7 +18,6 @@ import (
 
 	"github.com/max-zit/backupzit/internal/fsutil"
 	"github.com/max-zit/backupzit/internal/repo"
-	"github.com/max-zit/backupzit/internal/vss"
 	"github.com/restic/chunker"
 )
 
@@ -39,9 +38,10 @@ type Options struct {
 	Excludes []string
 	// Progress, if set, is called for each file processed.
 	Progress func(path string, s *repo.SnapshotStats)
-	// VSS reads the sources from Volume Shadow Copy snapshots (Windows).
-	// If a snapshot cannot be created the volume is read live and a
-	// warning is recorded.
+	// VSS reads the sources from Volume Shadow Copy snapshots (Windows)
+	// or from an APFS local snapshot of the data volume (macOS). If a
+	// snapshot cannot be created the volume is read live and a warning is
+	// recorded.
 	VSS bool
 	// VSSTimeout bounds snapshot creation (default 5 minutes).
 	VSSTimeout time.Duration
@@ -64,31 +64,74 @@ type Archiver struct {
 	stats repo.SnapshotStats
 	buf   []byte
 	chk   *chunker.Chunker
-	snaps *vss.Set
+	// snaps are the snapshots the sources are read from (nil: none).
+	snaps snapshotSet
 	// parentDev is the file system of the directory being archived
 	// (OneFileSystem).
 	parentDev *uint64
 	// pseudo are mount points of kernel file systems (Linux): kept as empty
 	// folders, never read.
 	pseudo map[string]bool
+	// skips are system folders kept empty (macOS: caches, swap, other
+	// volumes; systemSkips), except roots, the paths the job names.
+	skips *skipSet
+	roots []string
 	// links maps hard link keys to the first stored node.
 	links map[string]*repo.Node
 }
 
-// src maps an original path to where its data is read from (the VSS
-// snapshot when one exists for its volume).
-func (a *Archiver) src(p string) string { return a.snaps.Map(p) }
+// snapshotSet is a point-in-time view of the sources' volumes: VSS
+// snapshots on Windows (vss.Set), an APFS local snapshot on macOS
+// (apfssnap.Set).
+type snapshotSet interface {
+	// Map translates an original path into where its data is read from.
+	Map(p string) string
+	// Volumes lists the volumes read from a snapshot.
+	Volumes() []string
+	// Close deletes the snapshots; it may be called more than once.
+	Close() error
+}
+
+// src maps an original path to where its data is read from (the snapshot
+// when one exists for its volume). The stored path stays the original.
+func (a *Archiver) src(p string) string {
+	if a.snaps == nil {
+		return p
+	}
+	return a.snaps.Map(p)
+}
+
+// closeSnapshots releases the snapshots and records a failure as a warning:
+// the backup itself is complete.
+func (a *Archiver) closeSnapshots() {
+	if a.snaps == nil {
+		return
+	}
+	if err := a.snaps.Close(); err != nil {
+		a.addError(snapshotItem, fmt.Errorf("delete snapshot: %w", err))
+	}
+}
+
+// snapshotVolumes lists the volumes read from a snapshot.
+func (a *Archiver) snapshotVolumes() []string {
+	if a.snaps == nil {
+		return nil
+	}
+	return a.snaps.Volumes()
+}
 
 // storeEmpty tells whether the directory p on device dev is kept as an empty
-// folder: a mount point of another file system with OneFileSystem, or a
-// kernel file system. A path listed in ExtraMounts was asked for explicitly
-// and is always read (a system backup lists /boot even when it is also
-// seen as an automount point).
+// folder: a mount point of another file system with OneFileSystem, a
+// kernel file system, or a system folder of systemSkips below a source. A
+// path listed in ExtraMounts was asked for explicitly and is always read
+// (a system backup lists /boot even when it is also seen as an automount
+// point).
 func (a *Archiver) storeEmpty(p string, dev uint64) bool {
 	if slices.Contains(a.opts.ExtraMounts, p) {
 		return false
 	}
-	return a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev || a.pseudo[p]
+	return a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev || a.pseudo[p] ||
+		a.skips.match(p) && !slices.Contains(a.roots, p)
 }
 
 // Run backs up opts.Paths and saves a snapshot.
@@ -127,6 +170,8 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		buf:    make([]byte, chunker.MaxSize),
 		chk:    chunker.New(nil, r.ChunkerPolynomial()),
 		pseudo: pseudoMounts(),
+		skips:  systemSkips(abs),
+		roots:  abs,
 	}
 	start := time.Now()
 	before := r.Stats()
@@ -136,14 +181,11 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		if timeout <= 0 {
 			timeout = 5 * time.Minute
 		}
-		snaps, _ := vss.Create(abs, timeout, func(item string, err error) { a.addError(item, err) })
-		a.snaps = snaps
-		defer func() {
-			if err := snaps.Close(); err != nil {
-				// The snapshot is released by Windows eventually; not fatal.
-				a.addError("vss", fmt.Errorf("delete snapshot: %w", err))
-			}
-		}()
+		a.snaps = createSnapshots(ctx, abs, timeout, func(item string, err error) { a.addError(item, err) })
+		// Also on errors and cancels; a second Close does nothing. (A VSS
+		// snapshot that cannot be deleted is released by Windows
+		// eventually; an APFS one stays in the leftover ledger.)
+		defer a.closeSnapshots()
 	}
 
 	var treeID repo.ID
@@ -189,9 +231,7 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 	}
 
 	// Release snapshots before recording stats so cleanup errors are reported.
-	if err := a.snaps.Close(); err != nil {
-		a.addError("vss", fmt.Errorf("delete snapshot: %w", err))
-	}
+	a.closeSnapshots()
 
 	after := r.Stats()
 	a.stats.BytesAdded = after.RawBytes - before.RawBytes
@@ -206,7 +246,7 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		Tree:           treeID,
 		Stats:          a.stats,
 		ProgramVersion: opts.Version,
-		VSSVolumes:     a.snaps.Volumes(),
+		VSSVolumes:     a.snapshotVolumes(),
 		System:         opts.System,
 		SQL:            opts.SQL,
 	}
@@ -236,6 +276,8 @@ func Dir(ctx context.Context, r *repo.Repository, dir, name string, parent *repo
 		buf:    make([]byte, chunker.MaxSize),
 		chk:    chunker.New(nil, r.ChunkerPolynomial()),
 		pseudo: pseudoMounts(),
+		skips:  systemSkips([]string{dir}),
+		roots:  []string{dir},
 	}
 	n, ok, err := a.archivePath(ctx, dir, name, parent)
 	if err != nil {

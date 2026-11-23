@@ -50,14 +50,24 @@ func DefaultConfigPath() string {
 		}
 		return filepath.Join(pd, "backupzit", "agent.json")
 	}
+	if runtime.GOOS == "darwin" {
+		// macOS keeps /etc for the system (a link into /private):
+		// system-wide application data belongs in /Library/Application
+		// Support, which only root can write to.
+		return "/Library/Application Support/BackupZit/agent.json"
+	}
 	return "/etc/backupzit/agent.json"
 }
 
-// LogPath is the agent's log file for a configuration file: on Linux with
-// the default configuration /var/log/backupzit/agent.log, otherwise
-// agent.log next to the configuration (C:\ProgramData\backupzit on
-// Windows). Rotated files end in .1 to .3.
+// LogPath is the agent's log file for a configuration file: with the
+// default configuration /var/log/backupzit/agent.log on Linux and
+// /Library/Logs/BackupZit/agent.log on macOS (where Console.app lists it),
+// otherwise agent.log next to the configuration (C:\ProgramData\backupzit
+// on Windows). Rotated files end in .1 to .3.
 func LogPath(cfgPath string) string {
+	if runtime.GOOS == "darwin" && cfgPath == DefaultConfigPath() {
+		return "/Library/Logs/BackupZit/agent.log"
+	}
 	if runtime.GOOS != "windows" && cfgPath == DefaultConfigPath() {
 		return "/var/log/backupzit/agent.log"
 	}
@@ -116,9 +126,26 @@ func httpClient(fingerprint string) *http.Client {
 	return &http.Client{Transport: tr, Timeout: 60 * time.Second}
 }
 
+// reportOSEnv overrides the operating system a macOS agent reports to the
+// console. Development aid: a Mac set to e.g. "Debian GNU/Linux 12" is
+// handled by a console that does not know macOS agents yet exactly like a
+// Linux agent. macOS only: the reported system decides which jobs and
+// updates the console offers, and nothing but testing a Mac against an
+// older console needs to change it.
+const reportOSEnv = "BACKUPZIT_REPORT_OS"
+
 func hostInfo(version string) (hostname, osName, arch string) {
 	hostname, _ = os.Hostname()
-	return hostname, osDescription(), runtime.GOARCH
+	return hostname, reportedOS(runtime.GOOS, osDescription(), os.Getenv(reportOSEnv)), runtime.GOARCH
+}
+
+// reportedOS is the system the agent reports: the real one, or on macOS
+// the override when one is set.
+func reportedOS(goos, real, override string) string {
+	if v := strings.TrimSpace(override); goos == "darwin" && v != "" {
+		return v
+	}
+	return real
 }
 
 // Enroll registers this machine with the server and returns the config to save.
@@ -208,7 +235,8 @@ type Agent struct {
 	client  *Client
 	log     *slog.Logger
 	version string
-	// VSS makes Windows backups read from shadow copies (default on Windows).
+	// VSS makes files backups read from a snapshot: shadow copies on
+	// Windows, an APFS local snapshot on macOS (default on both).
 	VSS bool
 	// InventoryInterval is how often disks are reported (default 15 min).
 	InventoryInterval time.Duration
@@ -248,7 +276,7 @@ type Agent struct {
 }
 
 func New(cfg *Config, log *slog.Logger, version string) *Agent {
-	return &Agent{client: NewClient(cfg), log: log, version: version, VSS: runtime.GOOS == "windows", instance: newInstanceID()}
+	return &Agent{client: NewClient(cfg), log: log, version: version, VSS: readsSnapshots, instance: newInstanceID()}
 }
 
 // PollOnce sends one heartbeat and starts a run if one was assigned.
@@ -691,11 +719,18 @@ func (a *Agent) backupPaths(ctx context.Context, run api.Run, paths []string, us
 	stats, _ := json.Marshal(sn.Stats)
 	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Errors: sn.Stats.Errors}
 	if len(sn.VSSVolumes) > 0 {
-		res.Message = "Read from VSS snapshot of " + strings.Join(sn.VSSVolumes, ", ")
+		res.Message = snapshotMessage(sn.VSSVolumes)
 	}
 	if len(sn.Stats.Errors) > 0 {
 		res.Status = api.StatusWarning
 		res.Message = strings.TrimSpace(fmt.Sprintf("%d files or folders could not be read. %s", len(sn.Stats.Errors), res.Message))
+	}
+	if run.NAS == nil {
+		// Local files only: a share's access does not depend on it.
+		if w := permissionWarning(paths); w != "" {
+			res.Status = api.StatusWarning
+			res.Message = strings.TrimSpace(w + " " + res.Message)
+		}
 	}
 	res.Message = strings.TrimSpace(res.Message + " " + note)
 	_ = lock.Unlock() // retention needs an exclusive lock

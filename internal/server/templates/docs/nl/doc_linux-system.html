@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Linux-systeemback-up en P2V</h1>
 <p class="lead">Een taak <b>Linux-systeem</b> maakt een back-up van een complete Linux-machine, zodat die op een lege schijf opnieuw kan worden opgebouwd — dezelfde machine na een schijfdefect, nieuwe hardware of een virtuele machine in Proxmox VE (fysiek naar virtueel, P2V).</p>
+<p>Een Mac kan niet als systeem worden geback-upt: de console weigert er een systeemtaak voor, omdat het systeemvolume door Apple verzegeld en ondertekend is en opnieuw wordt geïnstalleerd in plaats van hersteld. Maak een back-up van de gegevens met een bestandstaak (zie <a href="/docs/macos#limits">macOS-agents</a>).</p>
 <p>Getest met Debian, Ubuntu 22.04 en Rocky Linux 9 (hetzelfde geldt voor AlmaLinux en RHEL 9). Op Ubuntu 22.04 en RHEL-achtige 9-systemen hebben Linux-systeemback-ups agent 0.50.0 of nieuwer nodig.</p>
 
 <h2>Wat wordt geback-upt</h2>

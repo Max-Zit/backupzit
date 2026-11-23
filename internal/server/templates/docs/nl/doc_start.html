@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Aan de slag</h1>
-<p class="lead">BackupZit beschermt Windows- en Linux-machines, virtuele machines op Proxmox VE, Hyper-V en VMware ESXi, databases (SQL Server, PostgreSQL, MySQL/MariaDB), NAS-shares en Microsoft 365 — bestanden, hele schijven, hele systemen en postvakken — vanuit één webconsole die in uw eigen netwerk draait.</p>
+<p class="lead">BackupZit beschermt Windows-, Linux- en macOS-machines, virtuele machines op Proxmox VE, Hyper-V en VMware ESXi, databases (SQL Server, PostgreSQL, MySQL/MariaDB), NAS-shares en Microsoft 365 — bestanden, hele schijven, hele systemen en postvakken — vanuit één webconsole die in uw eigen netwerk draait.</p>
 
 <h2>Wat BackupZit beschermt</h2>
 <table>
   <tr><th>Wat</th><th>Hoe</th><th>Herstel</th></tr>
-  <tr><td>Bestanden en mappen (Windows, Linux)</td><td>Agent op de machine; geopende bestanden op Windows via VSS. <a href="/docs/jobs">Back-uptaken</a></td><td>Hele back-up of losse mappen, naar elke agent, de oorspronkelijke locatie of een andere map. <a href="/docs/restore">Herstellen</a></td></tr>
+  <tr><td>Bestanden en mappen (Windows, Linux, macOS)</td><td>Agent op de machine; geopende bestanden op Windows via VSS, op een Mac via een lokale APFS-momentopname. <a href="/docs/jobs">Back-uptaken</a>, <a href="/docs/macos">macOS-agents</a></td><td>Hele back-up of losse mappen, naar elke agent, de oorspronkelijke locatie of een andere map. <a href="/docs/restore">Herstellen</a></td></tr>
   <tr><td>Windows-schijven</td><td>Schijfimage van een hele schijf of gekozen partities, vanuit een VSS-snapshot. <a href="/docs/images">Schijfimages</a></td><td>Op een lege schijf of bare metal met de Windows-herstel-ISO, ook op andere hardware of in een VM; losse bestanden uit de image.</td></tr>
   <tr><td>Linux-systemen</td><td>Alle lokale bestandssystemen plus de schijfindeling (partities, LVM, UUID's, opstartcode). <a href="/docs/linux-system">Linux-systeemback-up</a></td><td>Op een lege schijf of bare metal met de Linux-herstel-ISO, of als nieuwe Proxmox-VM (P2V); losse bestanden.</td></tr>
   <tr><td>Hyper-V-VM's</td><td>Agent op de Hyper-V-host, <b>geen agent in de VM's</b>; herstelcontrolepunten (VSS in de gast), Resilient Change Tracking leest alleen gewijzigde blokken. <a href="/docs/hyperv">Hyper-V</a></td><td>Hele VM als nieuwe of ter plaatse (behoudt ID en MAC-adressen); losse bestanden van VM-schijven.</td></tr>
@@ -19,7 +19,7 @@
 <h2>Hoe BackupZit werkt</h2>
 <ul>
   <li><b>Beheerconsole</b> (deze webtoepassing) — draait op een Linux-server in uw netwerk. Ze bewaart de configuratie, plant taken, verzamelt resultaten en toont rapporten. Ze hoeft nooit vanaf internet bereikbaar te zijn.</li>
-  <li><b>Agents</b> — een kleine service op elke beschermde machine (Windows-MSI, Linux deb/rpm) en op Proxmox- en Hyper-V-hosts; VMware ESXi-hosts worden bereikt via een agent die als proxy werkt. Agents nemen via HTTPS contact op met de console, ontvangen taken en sturen de back-upgegevens <i>rechtstreeks</i> naar de opslag. Op Windows toont de agent zijn status naast de klok.</li>
+  <li><b>Agents</b> — een kleine service op elke beschermde machine (Windows-MSI, Linux deb/rpm, macOS pkg) en op Proxmox- en Hyper-V-hosts; VMware ESXi-hosts worden bereikt via een agent die als proxy werkt. Agents nemen via HTTPS contact op met de console, ontvangen taken en sturen de back-upgegevens <i>rechtstreeks</i> naar de opslag. Op Windows toont de agent zijn status naast de klok, op een Mac in de menubalk.</li>
   <li><b>Opslagdoelen</b> — waar back-ups worden bewaard: SFTP, S3-compatibele objectopslag (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, een SMB-share/NAS, roterende USB-schijven, een lokale of gekoppelde schijf, of een geharde BackupZit-repository.</li>
 </ul>
 <div class="callout tip"><p>Back-upgegevens gaan nooit via de console. De console coördineert alleen, dus een kleine virtuele machine volstaat.</p></div>
@@ -28,7 +28,7 @@
 <p>Om een nieuwe console op te zetten, importeert u de kant-en-klare appliance-image in een kleine VM, start u de appliance-ISO of voert u het installatiescript uit op een bestaande Linux-server; zie <a href="/docs/install">Server installeren</a>.</p>
 <ol>
   <li><b>Voeg een opslagdoel toe</b> onder <a href="/targets">Opslag</a>. Laat <i>Back-ups versleutelen</i> aan staan en bewaar het herstelblad dat daarna wordt getoond op een veilige plek. Zie <a href="/docs/storage">Opslagdoelen</a>.</li>
-  <li><b>Installeer agents</b>: klik onder <a href="/agents">Agents</a> op <i>Registratietoken maken</i>, download het installatieprogramma van dezelfde pagina en plak de registratiecode wanneer het Windows-installatieprogramma erom vraagt (Linux: <code>backupzit-agent enroll --code …</code>). Installeer voor VM's de agent op de Proxmox- of Hyper-V-host; voeg VMware ESXi-hosts toe onder Agents → VMware ESXi-hosts. Zie <a href="/docs/agents">Agents</a>.</li>
+  <li><b>Installeer agents</b>: klik onder <a href="/agents">Agents</a> op <i>Registratietoken maken</i>, download het installatieprogramma van dezelfde pagina en plak de registratiecode wanneer het Windows-installatieprogramma erom vraagt (Linux en macOS: <code>backupzit-agent enroll --code …</code>, zie <a href="/docs/macos">macOS-agents</a>). Installeer voor VM's de agent op de Proxmox- of Hyper-V-host; voeg VMware ESXi-hosts toe onder Agents → VMware ESXi-hosts. Zie <a href="/docs/agents">Agents</a>.</li>
   <li><b>Maak een back-uptaak</b> onder <a href="/jobs">Back-uptaken</a>: kies de agent, de opslag, wat er geback-upt wordt (bestanden, een NAS-share, een schijfimage, databases, het hele Linux-systeem of de VM's van een Proxmox-, Hyper-V- of VMware ESXi-host), wanneer hij draait en hoeveel back-ups bewaard blijven. Zie <a href="/docs/jobs">Back-uptaken en planningen</a>.</li>
   <li><b>Voer hem één keer handmatig uit</b> met <i>Back-up nu uitvoeren</i> op de taakpagina en controleer het resultaat onder <a href="/runs">Activiteit</a>.</li>
   <li><b>Test een herstel</b> — een back-up is maar zo goed als het herstel ervan. Automatische hersteltests draaien wekelijks; herstel ook één keer iets met de hand met de <a href="/restore">herstelwizard</a>. Zie <a href="/docs/restore">Herstellen</a>.</li>

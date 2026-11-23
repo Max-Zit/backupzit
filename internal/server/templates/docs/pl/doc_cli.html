@@ -112,8 +112,8 @@
   <tr><th>Polecenie</th><th>Co robi</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Łączy agenta z konsolą przy użyciu kodu rejestracji ze strony Agenci (<code>--force</code> zastępuje istniejącą rejestrację). Starsza forma <code>--server URL --token T --fingerprint F</code> nadal działa.</td></tr>
   <tr><td><code>set-server https://address:8443</code></td><td>Kieruje zarejestrowanego agenta na nowy adres konsoli (ten sam certyfikat); następnie uruchom ponownie usługę agenta. Zobacz <a href="/docs/agents#new-address">Agenci</a>.</td></tr>
-  <tr><td><code>status</code></td><td>Pokazuje, co robi działający agent, oraz jego zadania kopii (ikona w zasobniku Windows pokazuje to samo).</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Zarządza usługą agenta (robią to instalatory).</td></tr>
+  <tr><td><code>status</code></td><td>Pokazuje, co robi działający agent, oraz jego zadania kopii (ikona w zasobniku Windows pokazuje to samo). Na Macu pokazuje też <code>full disk access: granted</code> lub <code>denied</code>, także dla zwykłego użytkownika.</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Zarządza usługą agenta (robią to instalatory). Na Macu usługą jest LaunchDaemon <code>/Library/LaunchDaemons/com.backupzit.agent.plist</code>, a programem <code>/Library/BackupZit/bin/backupzit-agent</code>, którego nie ma w <code>PATH</code>; zobacz <a href="/docs/macos">Agenci macOS</a>.</td></tr>
   <tr><td><code>recovery</code></td><td>Tryb odzyskiwania, uruchamiany automatycznie przez ISO odzyskiwania; na dowolnym systemie Linux live: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Wyświetla wersję.</td></tr>
   <tr><td><code>forget</code></td><td>Odkłada rejestrację (zmienia nazwę, nie usuwa); uruchamiają go deinstalatory, więc nowa instalacja znów pyta o kod rejestracji.</td></tr>

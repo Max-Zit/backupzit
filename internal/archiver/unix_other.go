@@ -48,8 +48,8 @@ func groupName(gid uint32) string {
 	return n
 }
 
-// unixMeta reads owner, device number, hard link identity and extended
-// attributes of p.
+// unixMeta reads owner, device number, hard link identity, extended
+// attributes and, on macOS, file flags and creation time of p.
 func unixMeta(p string, fi fs.FileInfo) *repo.UnixMeta {
 	st, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
@@ -57,13 +57,14 @@ func unixMeta(p string, fi fs.FileInfo) *repo.UnixMeta {
 	}
 	m := &repo.UnixMeta{UID: st.Uid, GID: st.Gid, User: userName(st.Uid), Group: groupName(st.Gid)}
 	if fi.Mode()&fs.ModeDevice != 0 {
-		m.Rdev = uint64(st.Rdev)
+		m.Rdev = uint64(st.Rdev) // #nosec G115 -- a device number is an identifier (int32 on macOS): its bits are kept, not its value
 		m.Char = fi.Mode()&fs.ModeCharDevice != 0
 	}
 	if fi.Mode().IsRegular() && st.Nlink > 1 {
 		m.LinkKey = fmt.Sprintf("%d:%d", st.Dev, st.Ino)
 	}
 	m.Xattrs = readXattrs(p)
+	statExtra(m, st)
 	return m
 }
 
@@ -112,5 +113,5 @@ func deviceOf(fi fs.FileInfo) (uint64, bool) {
 	if !ok {
 		return 0, false
 	}
-	return uint64(st.Dev), true
+	return uint64(st.Dev), true // #nosec G115 -- a device number is an identifier (int32 on macOS), only compared for equality
 }

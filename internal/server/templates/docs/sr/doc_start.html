@@ -1,11 +1,11 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Prvi koraci</h1>
-<p class="lead">BackupZit štiti Windows i Linux mašine, Proxmox VE, Hyper-V i VMware ESXi virtuelne mašine, baze podataka (SQL Server, PostgreSQL, MySQL/MariaDB), NAS deljene foldere i Microsoft 365 — fajlove, cele diskove, cele sisteme i poštanska sanduča — iz jedne web konzole koja radi na vašoj mreži.</p>
+<p class="lead">BackupZit štiti Windows, Linux i macOS mašine, Proxmox VE, Hyper-V i VMware ESXi virtuelne mašine, baze podataka (SQL Server, PostgreSQL, MySQL/MariaDB), NAS deljene foldere i Microsoft 365 — fajlove, cele diskove, cele sisteme i poštanska sanduča — iz jedne web konzole koja radi na vašoj mreži.</p>
 
 <h2>Šta BackupZit štiti</h2>
 <table>
   <tr><th>Šta</th><th>Kako</th><th>Vraćanje</th></tr>
-  <tr><td>Fajlovi i folderi (Windows, Linux)</td><td>Agent na mašini; otvoreni fajlovi na Windowsu preko VSS-a. <a href="/docs/jobs">Poslovi bekapa</a></td><td>Ceo bekap ili pojedinačni folderi, na bilo kog agenta, na originalnu lokaciju ili u drugi folder. <a href="/docs/restore">Vraćanje</a></td></tr>
+  <tr><td>Fajlovi i folderi (Windows, Linux, macOS)</td><td>Agent na mašini; otvoreni fajlovi na Windowsu preko VSS-a, na Mac-u preko lokalnog APFS snimka. <a href="/docs/jobs">Poslovi bekapa</a>, <a href="/docs/macos">macOS agenti</a></td><td>Ceo bekap ili pojedinačni folderi, na bilo kog agenta, na originalnu lokaciju ili u drugi folder. <a href="/docs/restore">Vraćanje</a></td></tr>
   <tr><td>Windows diskovi</td><td>Slika celog diska ili izabranih particija, iz VSS snimka. <a href="/docs/images">Slike diskova</a></td><td>Na prazan disk ili „goli metal“ pomoću Windows ISO-a za oporavak, i na drugi hardver ili u VM; pojedinačni fajlovi iz slike.</td></tr>
   <tr><td>Linux sistemi</td><td>Svi lokalni fajl-sistemi i raspored diskova (particije, LVM, UUID-ovi, boot kod). <a href="/docs/linux-system">Bekap Linux sistema</a></td><td>Na prazan disk ili „goli metal“ pomoću Linux ISO-a za oporavak, ili kao nova Proxmox VM (P2V); pojedinačni fajlovi.</td></tr>
   <tr><td>Hyper-V virtuelne mašine</td><td>Agent na Hyper-V hostu, <b>bez agenta u virtuelnim mašinama</b>; checkpoint-i za oporavak (VSS u gostu), Resilient Change Tracking čita samo promenjene blokove. <a href="/docs/hyperv">Hyper-V</a></td><td>Cela VM kao nova ili na mestu originala (zadržava ID i MAC adrese); pojedinačni fajlovi sa diskova VM-a.</td></tr>
@@ -19,7 +19,7 @@
 <h2>Kako BackupZit radi</h2>
 <ul>
   <li><b>Konzola za upravljanje</b> (ova web aplikacija) — radi na Linux serveru u vašoj mreži. Čuva podešavanja, pokreće poslove po rasporedu, prikuplja rezultate i prikazuje izveštaje. Nikada ne mora da bude dostupna sa interneta.</li>
-  <li><b>Agenti</b> — mali servis na svakoj zaštićenoj mašini (Windows MSI, Linux deb/rpm) i na Proxmox i Hyper-V hostovima; do VMware ESXi hostova se stiže preko agenta koji radi kao proxy. Agenti se javljaju konzoli preko HTTPS-a, preuzimaju poslove i šalju podatke bekapa <i>direktno</i> na skladište. Na Windowsu agent pokazuje svoje stanje pored sata.</li>
+  <li><b>Agenti</b> — mali servis na svakoj zaštićenoj mašini (Windows MSI, Linux deb/rpm, macOS pkg) i na Proxmox i Hyper-V hostovima; do VMware ESXi hostova se stiže preko agenta koji radi kao proxy. Agenti se javljaju konzoli preko HTTPS-a, preuzimaju poslove i šalju podatke bekapa <i>direktno</i> na skladište. Na Windowsu agent pokazuje svoje stanje pored sata, na Mac-u u traci menija.</li>
   <li><b>Skladišta</b> — gde se bekapi čuvaju: SFTP, S3-kompatibilno skladište (AWS, Wasabi, Backblaze B2, MinIO, Google Cloud…), Azure Blob Storage, SMB deljeni folder/NAS, USB diskovi u rotaciji, lokalni ili montirani disk, ili BackupZit ojačani repozitorijum.</li>
 </ul>
 <div class="callout tip"><p>Podaci bekapa nikada ne prolaze kroz konzolu. Konzola samo koordiniše, pa može da radi na maloj virtuelnoj mašini.</p></div>
@@ -28,7 +28,7 @@
 <p>Novu konzolu postavljate tako što uvezete gotovu sliku uređaja u malu VM, pokrenete ISO za instalaciju uređaja ili pokrenete instalacioni skript na postojećem Linux serveru; vidi <a href="/docs/install">Instalacija servera</a>.</p>
 <ol>
   <li><b>Dodajte skladište</b> u meniju <a href="/targets">Skladište</a>. Ostavite uključeno <i>Šifruj bekape</i> i list za oporavak koji se zatim prikaže sačuvajte na sigurnom mestu. Vidi <a href="/docs/storage">Skladišta</a>.</li>
-  <li><b>Instalirajte agente</b>: u meniju <a href="/agents">Agenti</a> kliknite <i>Napravi token za registraciju</i>, preuzmite instalaciju sa iste stranice i nalepite kod za registraciju kada ga Windows instalacija zatraži (Linux: <code>backupzit-agent enroll --code …</code>). Za virtuelne mašine instalirajte agenta na Proxmox ili Hyper-V host; VMware ESXi hostove dodajte pod Agenti → VMware ESXi hostovi. Vidi <a href="/docs/agents">Agenti</a>.</li>
+  <li><b>Instalirajte agente</b>: u meniju <a href="/agents">Agenti</a> kliknite <i>Napravi token za registraciju</i>, preuzmite instalaciju sa iste stranice i nalepite kod za registraciju kada ga Windows instalacija zatraži (Linux i macOS: <code>backupzit-agent enroll --code …</code>, vidi <a href="/docs/macos">macOS agenti</a>). Za virtuelne mašine instalirajte agenta na Proxmox ili Hyper-V host; VMware ESXi hostove dodajte pod Agenti → VMware ESXi hostovi. Vidi <a href="/docs/agents">Agenti</a>.</li>
   <li><b>Napravite posao bekapa</b> u meniju <a href="/jobs">Poslovi bekapa</a>: izaberite agenta, skladište, šta se čuva (fajlovi, NAS deljeni folder, slika diska, baze podataka, ceo Linux sistem ili virtuelne mašine Proxmox, Hyper-V ili VMware ESXi hosta), kada se pokreće i koliko bekapa se čuva. Vidi <a href="/docs/jobs">Poslovi bekapa i rasporedi</a>.</li>
   <li><b>Pokrenite ga jednom ručno</b> dugmetom <i>Pokreni bekap sada</i> na stranici posla i proverite rezultat u meniju <a href="/runs">Aktivnost</a>.</li>
   <li><b>Isprobajte vraćanje</b> — bekap vredi onoliko koliko i njegovo vraćanje. Automatski testovi vraćanja rade jednom nedeljno; vratite nešto i ručno bar jednom, pomoću <a href="/restore">čarobnjaka za vraćanje</a>. Vidi <a href="/docs/restore">Vraćanje</a>.</li>

@@ -3,9 +3,9 @@
 
 <h2>Agent je prikazan kao van mreže</h2>
 <ul>
-  <li>Da li je mašina uključena i da li servis radi? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Da li je mašina uključena i da li servis radi? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>; macOS: <code>sudo launchctl print system/com.backupzit.agent</code> (vidi <a href="/docs/macos#troubleshooting">macOS agenti</a>).</li>
   <li>Da li mašina dolazi do konzole? <code>Test-NetConnection backup-server -Port 8443</code> ili <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Log agenta: <code>C:\ProgramData\backupzit\agent.log</code>, na Linuxu <code>/var/log/backupzit/agent.log</code> ili <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch” znači da se sertifikat konzole promenio — ponovo prijavite agenta.</li>
+  <li>Log agenta: <code>C:\ProgramData\backupzit\agent.log</code>, na Linuxu <code>/var/log/backupzit/agent.log</code> ili <code>journalctl -u backupzit-agent</code>, na macOS-u <code>/Library/Logs/BackupZit/agent.log</code>. „fingerprint mismatch” znači da se sertifikat konzole promenio — ponovo prijavite agenta.</li>
 </ul>
 
 <h2>Bekap nije uspeo</h2>
@@ -73,12 +73,14 @@
   <tr><td>Vraćena Linux mašina nema mrežu</td><td>Mrežna podešavanja su vezana za staru MAC adresu (netplan <code>match: macaddress</code>). Vratite sa opcijom <i>Drugi hardver</i>, ili uklonite redove <code>match</code> u <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Vraćeni Windows staje sa INACCESSIBLE_BOOT_DEVICE</td><td>Vratite ponovo sa <i>Vrati na drugi hardver</i>, ili podignite ISO za oporavak i pokrenite <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>Vraćena kopija mašine se prikazuje kao originalni agent</td><td>Linux sistem vraćen kao nov VM automatski se odjavljuje. Kod drugih kopija (VM vraćen kao nov VM, instant recovery, replika, klonirani disk) konzola zadržava pokretanja agenta i prikazuje <i>dva računara</i>; prijavite kopiju kao novu mašinu (vidi <a href="/docs/agents#duplicate">Dve mašine koriste istog agenta</a>).</td></tr>
-  <tr><td>Ažuriranje agenta se ne završava</td><td>Pogledajte log instalacionog programa u <code>C:\ProgramData\backupzit\updates</code> ili <code>/var/lib/backupzit-agent/updates</code>; agenti pre 0.21 moraju jednom da se ažuriraju ručno.</td></tr>
+  <tr><td>Ažuriranje agenta se ne završava</td><td>Pogledajte log instalacionog programa u <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> ili <code>/Library/Application Support/BackupZit/updates</code> (macOS); agenti pre 0.21 moraju jednom da se ažuriraju ručno.</td></tr>
+  <tr><td>Mac: „Full Disk Access is not granted”, fajlovi pročitani „without a snapshot”, pun pristup disku izgubljen posle ažuriranja</td><td>Vidi <a href="/docs/macos#troubleshooting">macOS agenti</a>: samo korisnik Mac-a može da da pun pristup disku (Full Disk Access), a nepotpisan paket ga gubi pri svakom ažuriranju.</td></tr>
+  <tr><td>„… is a Mac: back it up with a files job”</td><td>Mac ne može da se bekapuje kao sistem; koristite posao fajlova (<a href="/docs/macos#limits">macOS agenti</a>).</td></tr>
   <tr><td>Nema ikone u traci</td><td>Kliknite strelicu <b>^</b> pored sata i prevucite BackupZit ikonu na traku zadataka, ili pokrenite <i>BackupZit Agent</i> iz Start menija.</td></tr>
 </table>
 
 <h2>Bekap se završava sa „upozorenjem”</h2>
-<p>Neki fajlovi nisu mogli da se pročitaju — obično fajlovi koje je zaključala aplikacija dok VSS nije dostupan, ili fajlovi za koje agent nema prava. Lista je na stranici pokretanja. Sve ostalo je bekapovano.</p>
+<p>Neki fajlovi nisu mogli da se pročitaju — obično fajlovi koje je zaključala aplikacija dok VSS nije dostupan, ili fajlovi za koje agent nema prava. Lista je na stranici pokretanja. Sve ostalo je bekapovano. Na Mac-u upozorenje daje i nedostatak punog pristupa disku (<a href="/docs/macos#warnings">macOS agenti</a>).</p>
 
 <h2>Bekapi su spori</h2>
 <ul>
@@ -94,9 +96,10 @@
   <tr><td>Konzola (server)</td><td><code>journalctl -u backupzit-server</code> i fajl <code>/var/lib/backupzit/logs/server.log</code> (do 4 fajla od 10 MB). Poslednji redovi su pod <a href="/settings/diagnostics">Podešavanja → Dijagnostika</a>.</td></tr>
   <tr><td>Agent na Windowsu</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
   <tr><td>Agent na Linuxu</td><td><code>/var/log/backupzit/agent.log</code> i <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Agent na macOS-u</td><td><code>/Library/Logs/BackupZit/agent.log</code> (vidi <a href="/docs/macos#logs">macOS agenti</a>)</td></tr>
   <tr><td>Bilo koji agent, iz konzole</td><td><b>Preuzmi log</b> na stranici <a href="/agents">Agenti</a>: agent šalje kraj svog loga i najnovije logove instalacije; čitaju se ili preuzimaju na stranici run-a (čuvaju se 30 dana; agenti 0.38.0 ili noviji).</td></tr>
   <tr><td>Jedan backup ili restore</td><td>njegova stranica pod <a href="/runs">Aktivnost</a>: poruka, greške, statistika i izlaz komandi pre i posle backup-a</td></tr>
-  <tr><td>Ažuriranja agenata</td><td>logovi instalacije u <code>C:\ProgramData\backupzit\updates</code> (Windows) ili <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Preuzmi log</b> ih uključuje</td></tr>
+  <tr><td>Ažuriranja agenata</td><td>logovi instalacije u <code>C:\ProgramData\backupzit\updates</code> (Windows), <code>/var/lib/backupzit-agent/updates</code> (Linux) ili <code>/Library/Application Support/BackupZit/updates</code> (macOS); <b>Preuzmi log</b> ih uključuje</td></tr>
   <tr><td>Ažuriranja konzole</td><td><code>journalctl -u backupzit-update</code>; prethodna verzija i dump baze čuvaju se u <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Hardened repozitorijum</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Ko je šta menjao</td><td><a href="/audit">audit log</a>, koji može da se šalje i na syslog server</td></tr>

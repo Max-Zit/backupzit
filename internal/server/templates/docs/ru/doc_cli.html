@@ -112,8 +112,8 @@
   <tr><th>Команда</th><th>Что делает</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Подключает агента к консоли по коду регистрации со страницы «Агенты» (<code>--force</code> заменяет существующую регистрацию). Старая форма <code>--server URL --token T --fingerprint F</code> по-прежнему работает.</td></tr>
   <tr><td><code>set-server https://address:8443</code></td><td>Перенаправляет зарегистрированного агента на новый адрес консоли (тот же сертификат); затем перезапустите службу агента. См. <a href="/docs/agents#new-address">Агенты</a>.</td></tr>
-  <tr><td><code>status</code></td><td>Показывает, что делает запущенный агент, и его задания копирования (значок в области уведомлений Windows показывает то же).</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Управляет службой агента (это делают установщики).</td></tr>
+  <tr><td><code>status</code></td><td>Показывает, что делает запущенный агент, и его задания копирования (значок в области уведомлений Windows показывает то же). На Mac также показывает <code>full disk access: granted</code> или <code>denied</code>, в том числе для обычного пользователя.</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Управляет службой агента (это делают установщики). На Mac служба — это LaunchDaemon <code>/Library/LaunchDaemons/com.backupzit.agent.plist</code>, а программа — <code>/Library/BackupZit/bin/backupzit-agent</code>, которой нет в <code>PATH</code>; см. <a href="/docs/macos">Агенты macOS</a>.</td></tr>
   <tr><td><code>recovery</code></td><td>Режим восстановления, автоматически запускается с ISO восстановления; в любой live-системе Linux: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Выводит версию.</td></tr>
   <tr><td><code>forget</code></td><td>Откладывает регистрацию (переименовывает, не удаляет); его запускают деинсталляторы, поэтому новая установка снова запрашивает код регистрации.</td></tr>

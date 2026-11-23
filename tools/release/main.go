@@ -324,6 +324,11 @@ func packages(dir, v string, kinds map[string]bool) ([]update.File, error) {
 			f.Kind, f.Format, f.Arch = "agent", "msi", "amd64"
 		case name == "backupzit-agent-"+v+"-x64-legacy.msi":
 			f.Kind, f.Format, f.Arch = "agent-legacy", "msi", "amd64"
+		case name == "backupzit-agent_"+v+"_darwin_arm64.pkg":
+			// Kind "agent": the macOS agent updates itself from the console
+			// like the others, so its package must be in the signed list
+			// agents check (VerifyAgentInstaller accepts agent kinds only).
+			f.Kind, f.Format, f.Arch = "agent", "pkg", "arm64"
 		case name == "backupzit-repo_"+v+"_amd64.deb":
 			f.Kind, f.Format, f.Arch = "repo", "deb", "amd64"
 		case name == "backupzit-repo-"+v+"-1.x86_64.rpm":

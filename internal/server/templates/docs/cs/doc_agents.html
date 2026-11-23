@@ -7,6 +7,7 @@
   <li>Windows 10, 11 a Windows Server 2016 a novější — MSI <b>Agent pro Windows</b>.</li>
   <li>Windows 7 SP1, Windows Server 2008 R2 SP1 a 2012 R2 — MSI <b>Agent pro Windows — starší systémy</b> (<code>…-legacy.msi</code>), se stejnými funkcemi včetně VSS a obrazů disků.</li>
   <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64bitové).</li>
+  <li>Macy s čipem Apple, macOS 13 a novější — balíček <b>agenta pro macOS</b> (<code>…_darwin_arm64.pkg</code>), pro soubory a složky (viz <a href="/docs/macos">Agenti pro macOS</a>).</li>
   <li>Uzly Proxmox VE 7, 8 a 9 — balíček pro Debian; agent pak zálohuje i VM a kontejnery uzlu (viz <a href="/docs/proxmox">Proxmox VE</a>).</li>
   <li>Hostitelé Hyper-V (Windows Server 2016 a novější, Windows 10/11 s Hyper-V): MSI pro Windows. Agent pak zálohuje i VM hostitele (viz <a href="/docs/hyperv">Hyper-V</a>).</li>
   <li>Hostitelé VMware ESXi — na ESXi se nic neinstaluje: přidejte hostitele v části <a href="/agents#vmware">Hostitelé VMware ESXi</a> a zvolte agenta jako proxy (viz <a href="/docs/vmware">VMware ESXi</a>).</li>
@@ -15,7 +16,7 @@
 <h2>Registrace agentů</h2>
 <ol>
   <li>Na stránce <a href="/agents">Agenti</a> klikněte na <b>Vytvořit registrační token</b>. Konzole zobrazí <b>registrační kód</b> (<code>BZ1-…</code>), platný 7 dní a použitelný pro libovolný počet počítačů. Obsahuje adresu konzole pro agenty (s portem agentů, obvykle 8443, i když je stránka otevřená na webovém portu 443), token a otisk certifikátu. Agenti od 0.33.6 se registrují i kódy, které starší konzole vytvořily na webovém portu.</li>
-  <li>Windows: spusťte MSI a vložte kód, když o něj instalátor požádá. Linux: spusťte zobrazený příkaz.</li>
+  <li>Windows: spusťte MSI a vložte kód, když o něj instalátor požádá. Linux: spusťte zobrazený příkaz. macOS: nainstalujte balíček a pak spusťte zobrazený příkaz v Terminálu (viz <a href="/docs/macos#enroll">Agenti pro macOS</a>).</li>
   <li>Počítač se do minuty objeví v seznamu agentů.</li>
 </ol>
 <p>Pokud konzole během instalace není dostupná, agent si kód ponechá a zkouší to znovu, dokud se nezaregistruje. Upgrady registraci zachovávají a znovu se neptají. Tichá instalace s <code>ENROLLCODE</code> na již registrovaném počítači registraci zachová, když je kód pro stejnou konzoli (GPO nebo RMM ji mohou bezpečně opakovat), a přesune počítač, když je kód pro jinou konzoli; předchozí registrace se uchová jako <code>agent.json.replaced-<i>datum</i></code> vedle <code>agent.json</code>, takže jejím přejmenováním zpět se počítač vrátí ke staré konzoli jako tentýž agent.</p>
@@ -26,6 +27,9 @@
 <pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
+<h3 id="macos">macOS</h3>
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
+<p>Spusťte ho po instalaci <code>.pkg</code>. MDM místo toho zapíše kód do <code>/Library/Application Support/BackupZit/enroll-code</code> ještě před instalací balíčku. Plný přístup k disku pak musí udělit uživatel Macu; viz <a href="/docs/macos">Agenti pro macOS</a>.</p>
 
 <h2>Instalace agentů z konzole</h2>
 <p>Místo kopírování instalátorů na každý počítač nechte agenta nainstalovat konzoli: na stránce <a href="/agents">Agenti</a> otevřete <b>Nainstalovat na počítač odsud</b>, zvolte Linux nebo Windows a zadejte adresu počítače a účet správce.</p>
@@ -33,6 +37,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64bitové): konzole se připojí přes <b>SSH</b> jako root nebo jako uživatel s právy <code>sudo</code> (heslo se použije i pro sudo; s klíčem je nutné sudo bez hesla). Funguje heslo i soukromý klíč. Zadejte <b>otisk hostitelského klíče SSH</b> počítače (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> na počítači), aby bylo jisté, že konzole mluví se správným počítačem; bez něj se otisk zobrazí v protokolu instalace.</li>
   <li><b>Windows</b> (64bitové): konzole se připojí přes <b>WinRM</b> (port 5985, zprávy šifrované pomocí NTLM; 5986 pro naslouchací proces HTTPS) jako místní nebo doménový správce. WinRM je ve Windows Serveru ve výchozím stavu zapnutý; ve Windows 10/11 spusťte jednou <code>winrm quickconfig</code> jako správce. Jiné místní účty než vestavěný Administrator potřebují práva vzdálené správy (<code>LocalAccountTokenFilterPolicy</code>) — nebo použijte doménový účet. Starší systémy (Windows 7, Server 2008 R2/2012 R2) dostanou legacy MSI.</li>
 </ul>
+<p>Macy se odsud neinstalují: nasaďte <code>.pkg</code> ručně nebo přes MDM (<a href="/docs/macos#enroll">Agenti pro macOS</a>).</p>
 <p>Počítač stáhne nejnovější balíček agenta z konzole přes odkaz, který platí jen pro tuto instalaci (30 minut, tři stažení), ověří jeho kontrolní součet SHA-256, nainstaluje ho a zaregistruje se. Stránka instalace ukazuje každý krok; účet a heslo se použijí jen k tomu a neukládají se. Pokud je počítač u této konzole už registrován, registrace se zachová a balíček se aktualizuje; registrace, kterou konzole nezná (dříve odebraný agent nebo jiná konzole), se nahradí. Každá instalace je v protokolu auditu. Počítač musí dosáhnout na adresu konzole pro agenty, jako každý agent.</p>
 
 <h2>Stav agenta</h2>
@@ -61,6 +66,7 @@ systemctl enable --now backupzit-agent</pre>
   <tr><td>šedá</td><td>Konzole není dostupná nebo služba agenta neběží.</td></tr>
 </table>
 <p>Klikněte na ikonu (nebo otevřete <b>BackupZit Agent</b> z nabídky Start) pro okno stavu: stav ochrany, průběh běžící zálohy, poslední a příští záloha a všechny úlohy zálohování počítače s tlačítkem <b>Zálohovat nyní</b>. Pravé tlačítko otevře nabídku: <i>Back up now</i> pro každou úlohu, <i>Open console in browser</i>, <i>Hide this icon</i> (do příštího přihlášení; zálohy pokračují). Okno potřebuje Microsoft Edge WebView2, který je součástí Windows 10 a 11; na starších systémech ikona a nabídka fungují a <i>Open</i> zobrazí konzoli v prohlížeči.</p>
+<p>Na Macu dělá totéž aplikace v řádku nabídek a navíc kontroluje oprávnění, o která macOS uživatele žádá (viz <a href="/docs/macos#assistant">Agenti pro macOS</a>).</p>
 <p>Uživatelé tak mohou spustit zálohu svého počítače; úlohy, plány a uchovávání se nastavují jen v konzoli. Na každém systému vypíše <code>backupzit-agent status</code> (jako správce nebo root) stejné informace.</p>
 
 <h2 id="parallel">Více úloh současně</h2>
@@ -70,10 +76,10 @@ systemctl enable --now backupzit-agent</pre>
 <p>Když má konzole novější instalátor agenta, než na jakém agent běží, stránka Agenti zobrazí <b>Aktualizovat na x.y.z</b> vedle jeho verze a <b>Aktualizovat všechny agenty</b> pod seznamem. Agent pak:</p>
 <ol>
   <li>počká, až bude nečinný (běžící záloha se nikdy nepřeruší),</li>
-  <li>stáhne odpovídající instalátor z konzole přes své připnuté spojení — MSI pro Windows 10/11/2016+, MSI <i>starší systémy</i> pro Windows 7/2008 R2/2012 R2, balíček deb nebo rpm v Linuxu — a ověří ho: od 0.56 musí být instalátor v seznamu instalátorů agenta podepsaném klíčem vydání BackupZit, který agent ověří klíčem zabudovaným v sobě, takže instalátor změněný na konzoli odmítne,</li>
+  <li>stáhne odpovídající instalátor z konzole přes své připnuté spojení — MSI pro Windows 10/11/2016+, MSI <i>starší systémy</i> pro Windows 7/2008 R2/2012 R2, balíček deb nebo rpm v Linuxu, <code>.pkg</code> na Macu — a ověří ho: od 0.56 musí být instalátor v seznamu instalátorů agenta podepsaném klíčem vydání BackupZit, který agent ověří klíčem zabudovaným v sobě, takže instalátor změněný na konzoli odmítne,</li>
   <li>nainstaluje ho a restartuje se; nová verze se objeví v seznamu během několika minut. Registrace i všechna nastavení se zachovají.</li>
 </ol>
-<p>Konzole nabízí nejnovější instalátory ze svého adresáře <code>dist</code>; balíček serveru obsahuje instalátory agentů své vlastní verze. Po aktualizaci konzole v <a href="/settings/updates">Nastavení → Aktualizace</a> se agenti aktualizují automaticky (lze tam vypnout). Aktualizace z konzole fungují pro agenty od verze 0.21; starší agenti se jednou aktualizují instalací novějšího MSI / balíčku přes starý (registrace se zachová). Agenti 0.56 a novější přijmou aktualizaci jen od konzole 0.56 nebo novější (její balíček nese podepsaný seznam) a nikdy ne na starší verzi, než je jejich vlastní. Protokol instalátoru je v <code>C:\ProgramData\backupzit\updates</code> nebo <code>/var/lib/backupzit-agent/updates</code>.</p>
+<p>Konzole nabízí nejnovější instalátory ze svého adresáře <code>dist</code>; balíček serveru obsahuje instalátory agentů své vlastní verze. Po aktualizaci konzole v <a href="/settings/updates">Nastavení → Aktualizace</a> se agenti aktualizují automaticky (lze tam vypnout). Aktualizace z konzole fungují pro agenty od verze 0.21; starší agenti se jednou aktualizují instalací novějšího MSI / balíčku přes starý (registrace se zachová). Agenti 0.56 a novější přijmou aktualizaci jen od konzole 0.56 nebo novější (její balíček nese podepsaný seznam) a nikdy ne na starší verzi, než je jejich vlastní. Protokol instalátoru je v <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> nebo na Macu v <code>/Library/Application Support/BackupZit/updates</code>. Aktualizace agenta na Macu, jehož balíček není podepsaný identifikátorem Apple Developer ID, mu odebere plný přístup k disku (viz <a href="/docs/macos#unsigned">Agenti pro macOS</a>).</p>
 
 <h2>Odebrání agenta</h2>
 <p><b>Odebrat</b> na stránce Agenti otevře stránku se dvěma volbami; se zapnutým <a href="/docs/users">schvalováním čtyř očí</a> musí nejprve schválit druhý uživatel.</p><ul><li><b>Odinstalovat agenta z počítače</b> (online agenti od verze 0.42.7): agent se ohlásí, sám se odinstaluje a poté se odebere z konzole i se svými úlohami. Offline agent se odebere jen z konzole — odinstalujte ho na počítači (viz níže).</li><li><b>Jeho zálohy:</b> <i>ponechat všechny</i> (výchozí — zůstanou na úložišti a lze je dál obnovit), <i>ponechat jen nejnovější zálohu každé úlohy</i> (každá záloha je úplná, takže nejnovější obnoví vše k svému datu) nebo <i>smazat všechny</i>. Pro smazání je nutné zadat název počítače; konzole maže na pozadí a zapíše výsledek do <a href="/audit">protokolu auditu</a>. Neměnné úložiště uchovává uzamčená data do vypršení zámku; zálohy na disku samotného počítače a kopie úloh kopírování se nemažou. Agent, který zálohuje jiné systémy (Proxmox, VMware, Hyper-V, Microsoft 365, NAS), vezme jejich zálohy s sebou.</li></ul>
@@ -98,6 +104,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (přístupné jen pro SYSTEM a Administrators).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (jen root).</li>
+  <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (jen root).</li>
 </ul>
 <p>Soubor obsahuje tajný údaj agenta. Kdo ho může číst, může vystupovat jako tento agent, proto tato oprávnění zachovejte.</p>
 
@@ -105,13 +112,14 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
   <li>Linux: <code>/var/log/backupzit/agent.log</code> a <code>journalctl -u backupzit-agent</code></li>
+  <li>macOS: <code>/Library/Logs/BackupZit/agent.log</code></li>
   <li>Systémy pro obnovu vypisují protokol na obrazovku.</li>
   <li>Protokol uchovává až 4 soubory po 10 MB (<code>agent.log</code> a <code>agent.log.1</code> až <code>.3</code>); starší záznamy se mažou.</li>
   <li><b>Získat protokol</b> na stránce Agenti přenese konec protokolu do konzole — viz <a href="/docs/troubleshooting#logs">Protokoly</a>.</li>
 </ul>
 
 <h2>Odinstalace</h2>
-<p>Windows: <i>Nastavení → Aplikace → BackupZit Agent → Odinstalovat</i> (nebo <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Pak agenta odeberte v konzoli. Zálohy zůstanou na úložišti.</p>
+<p>Windows: <i>Nastavení → Aplikace → BackupZit Agent → Odinstalovat</i> (nebo <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. macOS: <code>sudo /Library/BackupZit/uninstall.sh</code> (viz <a href="/docs/macos#update">Agenti pro macOS</a>). Pak agenta odeberte v konzoli. Zálohy zůstanou na úložišti.</p>
 <p>Ve Windows odinstalace odloží registraci stranou (<code>C:\ProgramData\backupzit\agent.json.removed-<i>datum</i></code>), takže nová instalace agenta požádá o registrační kód. Pokud instalátor najde registraci starší verze, oznámí to: nechte kód prázdný, chcete-li ji zachovat, nebo vložte nový kód a počítač znovu zaregistrujte (například u jiné konzole).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

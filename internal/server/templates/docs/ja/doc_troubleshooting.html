@@ -3,9 +3,9 @@
 
 <h2>エージェントがオフラインと表示される</h2>
 <ul>
-  <li>マシンの電源は入っていて、サービスは動作していますか？ Windows: <code>Get-Service backupzit-agent</code>、Linux: <code>systemctl status backupzit-agent</code>。</li>
+  <li>マシンの電源は入っていて、サービスは動作していますか？ Windows: <code>Get-Service backupzit-agent</code>、Linux: <code>systemctl status backupzit-agent</code>、macOS: <code>sudo launchctl print system/com.backupzit.agent</code>（<a href="/docs/macos#troubleshooting">macOS エージェント</a>を参照）。</li>
   <li>マシンからコンソールに到達できますか？ <code>Test-NetConnection backup-server -Port 8443</code> または <code>curl -k https://backup-server:8443/login</code>。</li>
-  <li>エージェントのログ: <code>C:\ProgramData\backupzit\agent.log</code>、Linux では <code>/var/log/backupzit/agent.log</code> または <code>journalctl -u backupzit-agent</code>。「fingerprint mismatch」はコンソールの証明書が変わったことを意味します — エージェントを登録し直してください。</li>
+  <li>エージェントのログ: <code>C:\ProgramData\backupzit\agent.log</code>、Linux では <code>/var/log/backupzit/agent.log</code> または <code>journalctl -u backupzit-agent</code>、macOS では <code>/Library/Logs/BackupZit/agent.log</code>。「fingerprint mismatch」はコンソールの証明書が変わったことを意味します — エージェントを登録し直してください。</li>
 </ul>
 
 <h2>バックアップが失敗した</h2>
@@ -73,12 +73,14 @@
   <tr><td>復元した Linux マシンがネットワークに接続できない</td><td>ネットワーク設定が古い MAC アドレスに結び付いていました（netplan <code>match: macaddress</code>）。<i>別のハードウェア</i> で復元するか、<code>/etc/netplan/</code> の <code>match</code> 行を削除してください。</td></tr>
   <tr><td>復元した Windows が INACCESSIBLE_BOOT_DEVICE で停止する</td><td><i>異なるハードウェアに復元</i> で再度復元するか、リカバリー ISO から起動して <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code> を実行してください。</td></tr>
   <tr><td>復元したマシンのコピーが元のエージェントとして表示される</td><td>新しい VM として復元した Linux システムは、自動的に登録解除されます。それ以外のコピー（新しい VM として復元した VM、インスタント リカバリ、レプリカ、クローンしたディスク）では、コンソールはエージェントの実行を保留し、<i>2 台のマシン</i> と表示します。コピーを新しいマシンとして登録してください（<a href="/docs/agents#duplicate">1 つのエージェントを使う 2 台のマシン</a> を参照）。</td></tr>
-  <tr><td>エージェントの更新が完了しない</td><td><code>C:\ProgramData\backupzit\updates</code> または <code>/var/lib/backupzit-agent/updates</code> のインストーラーのログを確認してください。0.21 より前のエージェントは一度手動で更新する必要があります。</td></tr>
+  <tr><td>エージェントの更新が完了しない</td><td><code>C:\ProgramData\backupzit\updates</code>、<code>/var/lib/backupzit-agent/updates</code>、または <code>/Library/Application Support/BackupZit/updates</code>（macOS）のインストーラーのログを確認してください。0.21 より前のエージェントは一度手動で更新する必要があります。</td></tr>
+  <tr><td>Mac: 「Full Disk Access is not granted」、ファイルが「without a snapshot」で読み取られる、更新後にフルディスクアクセスがなくなった</td><td><a href="/docs/macos#troubleshooting">macOS エージェント</a>を参照してください: フルディスクアクセスを許可できるのは Mac のユーザーだけで、署名されていないパッケージは更新のたびにそれを失います。</td></tr>
+  <tr><td>「… is a Mac: back it up with a files job」</td><td>Mac はシステムとしてはバックアップできません。ファイル ジョブを使ってください（<a href="/docs/macos#limits">macOS エージェント</a>）。</td></tr>
   <tr><td>トレイ アイコンが表示されない</td><td>時計の横の <b>^</b> 矢印をクリックして BackupZit のアイコンをタスク バーにドラッグするか、スタート メニューから <i>BackupZit Agent</i> を起動してください。</td></tr>
 </table>
 
 <h2>バックアップが「警告」で終わる</h2>
-<p>一部のファイルを読み取れませんでした — 通常は、VSS が使えないときにアプリケーションがロックしているファイルや、エージェントに権限のないファイルです。一覧は実行ページにあります。それ以外はすべてバックアップされています。</p>
+<p>一部のファイルを読み取れませんでした — 通常は、VSS が使えないときにアプリケーションがロックしているファイルや、エージェントに権限のないファイルです。一覧は実行ページにあります。それ以外はすべてバックアップされています。Mac では、フルディスクアクセスがない場合も警告になります（<a href="/docs/macos#warnings">macOS エージェント</a>）。</p>
 
 <h2>バックアップが遅い</h2>
 <ul>
@@ -94,9 +96,10 @@
   <tr><td>コンソール（サーバー）</td><td><code>journalctl -u backupzit-server</code> とファイル <code>/var/lib/backupzit/logs/server.log</code>（10 MB のファイルを最大 4 つ）。最後の行は <a href="/settings/diagnostics">設定 → 診断</a> に表示されます。</td></tr>
   <tr><td>Windows のエージェント</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
   <tr><td>Linux のエージェント</td><td><code>/var/log/backupzit/agent.log</code> と <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>macOS のエージェント</td><td><code>/Library/Logs/BackupZit/agent.log</code>（<a href="/docs/macos#logs">macOS エージェント</a>を参照）</td></tr>
   <tr><td>任意のエージェント（コンソールから）</td><td><a href="/agents">エージェント</a> ページの <b>ログを取得</b>: エージェントがログの末尾と最新のインストーラー ログを送信します。実行ページで閲覧またはダウンロードできます（30 日間保存。エージェント 0.38.0 以降）。</td></tr>
   <tr><td>個々のバックアップや復元</td><td><a href="/runs">アクティビティ</a> にあるそのページ: メッセージ、エラー、統計、バックアップ前後のコマンドの出力</td></tr>
-  <tr><td>エージェントの更新</td><td><code>C:\ProgramData\backupzit\updates</code>（Windows）または <code>/var/lib/backupzit-agent/updates</code>（Linux）のインストーラー ログ。<b>ログを取得</b> にも含まれます</td></tr>
+  <tr><td>エージェントの更新</td><td><code>C:\ProgramData\backupzit\updates</code>（Windows）、<code>/var/lib/backupzit-agent/updates</code>（Linux）、または <code>/Library/Application Support/BackupZit/updates</code>（macOS）のインストーラー ログ。<b>ログを取得</b> にも含まれます</td></tr>
   <tr><td>コンソールの更新</td><td><code>journalctl -u backupzit-update</code>。以前のバージョンとデータベースのダンプは <code>/var/lib/backupzit-update</code> に保存されます</td></tr>
   <tr><td>強化リポジトリ</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>誰が何を変更したか</td><td><a href="/audit">監査ログ</a>（syslog サーバーにも送信可能）</td></tr>

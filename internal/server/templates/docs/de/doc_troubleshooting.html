@@ -3,9 +3,9 @@
 
 <h2>Ein Agent wird als offline angezeigt</h2>
 <ul>
-  <li>Ist die Maschine eingeschaltet und läuft der Dienst? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Ist die Maschine eingeschaltet und läuft der Dienst? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>; macOS: <code>sudo launchctl print system/com.backupzit.agent</code> (siehe <a href="/docs/macos#troubleshooting">macOS-Agenten</a>).</li>
   <li>Erreicht die Maschine die Konsole? <code>Test-NetConnection backup-server -Port 8443</code> oder <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Agentenprotokoll: <code>C:\ProgramData\backupzit\agent.log</code>, unter Linux <code>/var/log/backupzit/agent.log</code> oder <code>journalctl -u backupzit-agent</code>. „fingerprint mismatch“ bedeutet, dass sich das Konsolenzertifikat geändert hat — registrieren Sie den Agenten erneut.</li>
+  <li>Agentenprotokoll: <code>C:\ProgramData\backupzit\agent.log</code>, unter Linux <code>/var/log/backupzit/agent.log</code> oder <code>journalctl -u backupzit-agent</code>, unter macOS <code>/Library/Logs/BackupZit/agent.log</code>. „fingerprint mismatch“ bedeutet, dass sich das Konsolenzertifikat geändert hat — registrieren Sie den Agenten erneut.</li>
 </ul>
 
 <h2>Eine Sicherung ist fehlgeschlagen</h2>
@@ -73,12 +73,14 @@
   <tr><td>Die wiederhergestellte Linux-Maschine hat kein Netzwerk</td><td>Die Netzwerkeinstellungen waren an die alte MAC-Adresse gebunden (netplan <code>match: macaddress</code>). Stellen Sie mit <i>Andere Hardware</i> wieder her oder entfernen Sie die <code>match</code>-Zeilen in <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Wiederhergestelltes Windows bleibt mit INACCESSIBLE_BOOT_DEVICE stehen</td><td>Stellen Sie erneut mit <i>Auf andere Hardware wiederherstellen</i> wieder her, oder starten Sie das Wiederherstellungs-ISO und führen Sie <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code> aus.</td></tr>
   <tr><td>Eine wiederhergestellte Kopie einer Maschine erscheint als der ursprüngliche Agent</td><td>Ein als neue VM wiederhergestelltes Linux-System wird automatisch abgemeldet. Bei anderen Kopien (eine als neue VM wiederhergestellte VM, Sofortwiederherstellung, ein Replikat, eine geklonte Festplatte) hält die Konsole die Läufe des Agenten an und zeigt <i>zwei Rechner</i>; registrieren Sie die Kopie als neue Maschine (siehe <a href="/docs/agents#duplicate">Zwei Rechner mit einem Agenten</a>).</td></tr>
-  <tr><td>Das Agenten-Update wird nicht abgeschlossen</td><td>Siehe das Installationsprotokoll in <code>C:\ProgramData\backupzit\updates</code> bzw. <code>/var/lib/backupzit-agent/updates</code>; Agenten vor 0.21 müssen einmal von Hand aktualisiert werden.</td></tr>
+  <tr><td>Das Agenten-Update wird nicht abgeschlossen</td><td>Siehe das Installationsprotokoll in <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> bzw. <code>/Library/Application Support/BackupZit/updates</code> (macOS); Agenten vor 0.21 müssen einmal von Hand aktualisiert werden.</td></tr>
+  <tr><td>Mac: „Full Disk Access is not granted“, Dateien „without a snapshot“ gelesen, Festplattenvollzugriff nach einem Update verloren</td><td>Siehe <a href="/docs/macos#troubleshooting">macOS-Agenten</a>: Nur der Benutzer des Macs kann den Festplattenvollzugriff erteilen, und ein nicht signiertes Paket verliert ihn bei jedem Update.</td></tr>
+  <tr><td>„… is a Mac: back it up with a files job“</td><td>Ein Mac lässt sich nicht als System sichern; verwenden Sie einen Dateiauftrag (<a href="/docs/macos#limits">macOS-Agenten</a>).</td></tr>
   <tr><td>Das Tray-Symbol fehlt</td><td>Klicken Sie auf den Pfeil <b>^</b> neben der Uhr und ziehen Sie das BackupZit-Symbol auf die Taskleiste, oder starten Sie <i>BackupZit Agent</i> aus dem Startmenü.</td></tr>
 </table>
 
 <h2>Eine Sicherung endet mit „Warnung“</h2>
-<p>Einige Dateien konnten nicht gelesen werden — meist Dateien, die von einer Anwendung gesperrt sind, während VSS nicht verfügbar ist, oder Dateien, für die der Agent keine Berechtigung hat. Die Liste steht auf der Laufseite. Alles andere ist gesichert.</p>
+<p>Einige Dateien konnten nicht gelesen werden — meist Dateien, die von einer Anwendung gesperrt sind, während VSS nicht verfügbar ist, oder Dateien, für die der Agent keine Berechtigung hat. Die Liste steht auf der Laufseite. Alles andere ist gesichert. Auf einem Mac führt auch ein fehlender Festplattenvollzugriff zu einer Warnung (<a href="/docs/macos#warnings">macOS-Agenten</a>).</p>
 
 <h2>Sicherungen sind langsam</h2>
 <ul>
@@ -94,9 +96,10 @@
   <tr><td>Konsole (Server)</td><td><code>journalctl -u backupzit-server</code> und die Datei <code>/var/lib/backupzit/logs/server.log</code> (bis zu 4 Dateien zu 10 MB). Die letzten Zeilen stehen unter <a href="/settings/diagnostics">Einstellungen → Diagnose</a>.</td></tr>
   <tr><td>Agent unter Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
   <tr><td>Agent unter Linux</td><td><code>/var/log/backupzit/agent.log</code> und <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Agent unter macOS</td><td><code>/Library/Logs/BackupZit/agent.log</code> (siehe <a href="/docs/macos#logs">macOS-Agenten</a>)</td></tr>
   <tr><td>Jeder Agent, aus der Konsole</td><td><b>Protokoll holen</b> auf der Seite <a href="/agents">Agenten</a>: Der Agent sendet das Ende seines Protokolls und die neuesten Installer-Protokolle; lesen oder herunterladen auf der Seite des Laufs (30 Tage aufbewahrt; Agenten ab 0.38.0).</td></tr>
   <tr><td>Eine Sicherung oder Wiederherstellung</td><td>ihre Seite unter <a href="/runs">Aktivität</a>: Meldung, Fehler, Statistik und Ausgabe der Befehle vor und nach der Sicherung</td></tr>
-  <tr><td>Agenten-Updates</td><td>Installer-Protokolle in <code>C:\ProgramData\backupzit\updates</code> (Windows) oder <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Protokoll holen</b> enthält sie</td></tr>
+  <tr><td>Agenten-Updates</td><td>Installer-Protokolle in <code>C:\ProgramData\backupzit\updates</code> (Windows), <code>/var/lib/backupzit-agent/updates</code> (Linux) oder <code>/Library/Application Support/BackupZit/updates</code> (macOS); <b>Protokoll holen</b> enthält sie</td></tr>
   <tr><td>Konsolen-Updates</td><td><code>journalctl -u backupzit-update</code>; die vorige Version und ein Datenbank-Dump liegen in <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Gehärtetes Repository</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Wer was geändert hat</td><td>das <a href="/audit">Audit-Protokoll</a>, das auch an einen Syslog-Server gehen kann</td></tr>

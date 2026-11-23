@@ -9,9 +9,9 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Max-Zit/backupzit/badge)](https://scorecard.dev/viewer/?uri=github.com/Max-Zit/backupzit)
 [![Go Report Card](https://goreportcard.com/badge/github.com/max-zit/backupzit)](https://goreportcard.com/report/github.com/max-zit/backupzit)
 
-**Self-hosted backup for servers, workstations, virtual machines, databases and Microsoft 365, managed from one web console.** A free, open-source alternative to commercial backup products such as Veeam Backup & Replication or NAKIVO for Windows, Linux, Proxmox VE, VMware ESXi and Hyper-V.
+**Self-hosted backup for servers, workstations, virtual machines, databases and Microsoft 365, managed from one web console.** A free, open-source alternative to commercial backup products such as Veeam Backup & Replication or NAKIVO for Windows, Linux, macOS, Proxmox VE, VMware ESXi and Hyper-V.
 
-BackupZit backs up Windows and Linux machines (files or whole disks), Proxmox VE, Hyper-V and VMware ESXi virtual machines, SQL Server, PostgreSQL and MySQL/MariaDB databases, NAS shares and Microsoft 365. It stores the backups deduplicated, compressed and encrypted on storage you choose, and restores anything from a single file to a whole machine on new hardware.
+BackupZit backs up Windows, Linux and macOS machines (files, or whole disks and systems on Windows and Linux), Proxmox VE, Hyper-V and VMware ESXi virtual machines, SQL Server, PostgreSQL and MySQL/MariaDB databases, NAS shares and Microsoft 365. It stores the backups deduplicated, compressed and encrypted on storage you choose, and restores anything from a single file to a whole machine on new hardware.
 
 - **Your own server, your own network.** Every organization runs its own console. There is no cloud service and nothing has to be exposed to the internet.
 - **Free and open source** under the AGPLv3. [MaxZit](https://github.com/Max-Zit) offers commercial support.
@@ -64,7 +64,8 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 
 | What | How | Restore |
 |---|---|---|
-| **Files and folders** (Windows, Linux) | incremental, from a VSS snapshot on Windows; `{users}` paths (e.g. the Documents of every user) and wildcards; one job can cover several or all agents | single files from the browser (download), into a folder or to the original location |
+| **Files and folders** (Windows, Linux, macOS) | incremental, from a VSS snapshot on Windows; `{users}` paths (e.g. the Documents of every user) and wildcards; one job can cover several or all agents | single files from the browser (download), into a folder or to the original location |
+| **Macs** (Apple silicon, macOS 13+) | files and folders from an APFS local snapshot, with owners, permissions, extended attributes, BSD file flags, creation times and sparse files; a menu bar app with a permission assistant for Full Disk Access | like other file backups, metadata included |
 | **Whole disks** (Windows) | disk images of one, several or all disks, changed blocks only | bare metal from the recovery ISO, also onto different hardware; single files from the image |
 | **Linux systems** | all file systems and the disk layout | bare metal from the Linux recovery ISO, or as a new Proxmox VM (P2V) |
 | **Proxmox VE** VMs and containers | agentless, changed blocks only (containers on ZFS file by file, changed files only); the node's own configuration (`/etc/pve`, `config.db`) with a files job | new VM or in place, **instant recovery** (the VM runs from the backup in seconds), replication, automatic boot tests |
@@ -90,7 +91,7 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
 - Email, Slack, Teams and webhook notifications.
 - Reports (PDF and CSV, emailed on a schedule) and a calendar of runs; each run shows its compression ratio and how much data was already stored.
 - The dashboard warns about computers without a backup job, agents whose clock is off, and two machines using one agent (for example a cloned VM).
-- A Windows tray icon with the backup status and *Back up now*.
+- A Windows tray icon and a macOS menu bar app with the backup status and *Back up now*.
 - Removing an agent can also uninstall it from the computer, keeping or deleting its backups.
 - A diagnostics zip for support requests (without passwords or keys), and a light and dark theme.
 - Roles (Administrator, Backup operator, Restore operator, Viewer).
@@ -109,8 +110,8 @@ Then open `https://<address>:8443`, sign in as `admin`, add storage, enroll an a
                                    │ agents ask for work (HTTPS 8443, outbound only)
         ┌──────────────────────────┼──────────────────────────┐
    ┌────┴─────┐              ┌─────┴─────┐              ┌──────┴──────┐
-   │ Windows  │              │  Linux    │              │ Proxmox /   │   ESXi hosts through
-   │ agent    │              │  agent    │              │ Hyper-V     │   a proxy agent,
+   │ Windows  │              │  Linux /  │              │ Proxmox /   │   ESXi hosts through
+   │ agent    │              │  macOS    │              │ Hyper-V     │   a proxy agent,
    └────┬─────┘              └─────┬─────┘              └──────┬──────┘   M365 through any agent
         └──────────────────────────┼──────────────────────────┘
                                    ▼  agents write directly to the storage
@@ -310,6 +311,21 @@ backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent
 ```
 
+**macOS** (Macs with Apple silicon, macOS 13 and newer):
+- Download `backupzit-agent_<version>_darwin_arm64.pkg` from the *Agents* page, open it and follow the installer. It installs the agent service (a LaunchDaemon, running as root from boot) and the BackupZit menu bar app.
+- Enroll in Terminal:
+
+```
+sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."
+```
+
+- **Full Disk Access:** only the user of the Mac can grant it, in *System Settings → Privacy & Security → Full Disk Access* (add `/Library/BackupZit/bin/backupzit-agent`). The installer's last page and the menu bar app's permission assistant guide through it; without it, protected folders (Mail, Messages, Safari, Desktop, Documents, other apps' data) are skipped and backups warn.
+- **MDM** (Jamf, Intune, ...): write the code to `/Library/Application Support/BackupZit/enroll-code` (owned by root, readable by root only: the code enrolls any number of Macs for 7 days) before installing the package; the installation enrolls the Mac and deletes the file, also when enrolling fails:
+  ```
+  echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat > "/Library/Application Support/BackupZit/enroll-code"'
+  ``` A `backupzit-enroll.txt` next to the `.pkg` also works for a Mac that is not enrolled yet.
+- Uninstall: `sudo /Library/BackupZit/uninstall.sh` (`--purge` also deletes the configuration and the log).
+
 **From the console:** under *Agents → Install on a machine from here*, the console installs the agent itself, over SSH (Linux) or WinRM (Windows).
 
 **VMware ESXi:** nothing is installed on the host. Add it under *Agents → VMware ESXi hosts* and choose an agent as its proxy. With *Connect through the proxy agent*, only the proxy needs to reach the host (customer networks behind NAT or with overlapping addresses).
@@ -325,7 +341,7 @@ Snapshots and checkpoints a backup creates on a hypervisor are recorded before t
 
 Without internet access, upload the release files on the same page. Updating with the package manager or by running the install script again also works.
 
-**Agents** are updated by the console, automatically after a console update or with *Update all agents*. A running backup is never interrupted. Agents install only an installer named in the list signed with the release key, which they check themselves, and never go back to an older version; update the console first.
+**Agents** are updated by the console, automatically after a console update or with *Update all agents*. Macs too: the agent installs the new `.pkg` itself. A running backup is never interrupted. Agents install only an installer named in the list signed with the release key, which they check themselves, and never go back to an older version; update the console first.
 
 **Operating system** updates of the appliance are shown and installed under *Settings → Updates* as well.
 
@@ -336,6 +352,7 @@ Without internet access, upload the release files on the same page. Updating wit
 | Console | Debian 12+, Ubuntu 22.04+, AlmaLinux / Rocky Linux 9+ (x86-64), PostgreSQL 13+; or the ready-made appliance |
 | Windows agent | Windows 10, 11, Server 2016 and newer (MSI); Windows 7 SP1, Server 2008 R2 SP1, 2012 R2 (legacy MSI) |
 | Linux agent | Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bit), Proxmox VE 7, 8 and 9 |
+| macOS agent | macOS 13 and newer on Apple silicon (arm64; no package for Intel Macs): files and folders. Not on a Mac: system / bare-metal backups (the sealed system volume is reinstalled), disk images, hypervisor hosts and the VMware proxy, NAS share jobs |
 | Hypervisors | Proxmox VE 7/8/9, Hyper-V (Windows Server 2016+ including failover clusters, Windows 10/11), VMware ESXi 6.7, 7, 8 (also with the free license), vCenter Server 7, 8 |
 | Microsoft 365 | any tenant with an app registration (application permissions, read-only) |
 
@@ -452,7 +469,31 @@ snapshots/<id>         one JSON document per backup run
   identical data is stored once across all files, snapshots and machines that
   share the repository.
 - Directories are stored as JSON *tree* blobs (names, types, sizes, mtimes,
-  Windows attributes, chunk lists).
+  Windows attributes, chunk lists). On Unix each node also has a `unix`
+  object: owner (`uid`, `gid`, `user`, `group`), `rdev`/`char` of device
+  nodes, `xattrs` and the `link_key` of hard links. macOS agents add two
+  optional fields, absent everywhere else: `flags`, the BSD file flags as
+  read (`st_flags`: hidden, nodump, immutable, append-only, ...), and
+  `birthtime`, the creation time. A restore sets again only the flags a
+  user may set (and `SF_*` ones as root), after the times and, for
+  immutable or append-only files, after the file has its name; never
+  `UF_COMPRESSED`: the backup holds the decompressed content, and the
+  kernel hides the compressed data (`com.apple.decmpfs`) from the backup.
+  A later restore over locked files, folders (Finder's "Locked"), links
+  or named pipes clears their immutable and append-only flags first
+  (owner or root only; `SF_*` ones cannot be cleared outside single-user
+  mode) and sets the stored ones again.
+- A macOS backup of a folder keeps some system folders below it as empty
+  folders: other volumes (`/Volumes`), swap (`/System/Volumes/VM`,
+  `/private/var/vm`), the support volumes in `/System/Volumes`, `/dev`,
+  temporary files (`/private/tmp`, `/private/var/folders`), caches
+  (`/Library/Caches`, `/System/Library/Caches`, `~/Library/Caches`), the
+  Trash (`~/.Trash`, `.Trashes`), Spotlight, FSEvents, document versions,
+  local and HFS+ Time Machine backups, on `/`, on the data volume
+  `/System/Volumes/Data` and at the root of other volumes. With `/` as a
+  source, the data volume's folders that `/` already shows through their
+  firmlinks (`/Users`, `/Applications`, ...) are not read twice. A folder
+  named as a source of the job is always read (`/Volumes/USB`, `~/.Trash`).
 - Blobs are zstd-compressed when that makes them smaller and grouped into
   ~16 MiB pack files. Each pack ends with a header listing its blobs, so the
   index can always be rebuilt from the packs themselves.
@@ -497,7 +538,7 @@ The complete reference is the guide built into the console (*Documentation*).
 BackupZit is a young project: the first public release was 4 October 2026, and new versions come out often. Every release is tested in a lab with Proxmox VE, VMware ESXi, Hyper-V, Windows and Linux machines before it is published; release candidates are offered on a separate *testing* update channel first. Please [report](https://github.com/Max-Zit/backupzit/issues/new/choose) anything that does not work for you.
 
 Not supported yet (see *Not yet included* in each chapter of the built-in guide):
-- macOS — there is no agent for Mac computers.
+- macOS: the agent is new. NAS share jobs are not available on a Mac yet (use a Windows or Linux agent), PostgreSQL and MySQL jobs have not been validated on macOS, and packages signed with an Apple Developer ID (which keep Full Disk Access across updates) have not been tested in the field yet; unsigned builds lose Full Disk Access with each update.
 - Proxmox VE: container volumes that are directories on non-ZFS storage, and replicas of containers on ZFS; raw disks on directory/NFS/CIFS storage and thick LVM only while the guest is stopped.
 - VMware: a vCenter with several datacenters (add the hosts of the others directly), raw device mappings and independent disks, VMs with snapshots of their own, instant recovery through a Windows proxy agent.
 - Hyper-V: shared VHDX, VHD Set and pass-through disks.
@@ -545,12 +586,22 @@ If BackupZit is useful to you, a ⭐ on GitHub helps other administrators find i
 go test ./...                      # end-to-end tests (local + in-memory SFTP, server + embedded PostgreSQL)
 go build -o bin/ ./cmd/...                     # agent + server
 .\packaging\windows\build-msi.ps1 -Version X.Y.Z   # Windows MSI (WiX 5)
-sh packaging/linux/build-packages.sh X.Y.Z       # .deb/.rpm (nfpm)
+sh packaging/macos/build-pkg.sh X.Y.Z            # macOS .pkg for Apple silicon, on a Mac (Go, Xcode command line tools)
+sh packaging/linux/build-packages.sh X.Y.Z       # .deb/.rpm (nfpm); carries the .pkg from dist/ (NO_PKG=1: without it)
 sh packaging/appliance/build-iso.sh dist/backupzit-server_X.Y.Z_amd64.deb   # appliance ISO (on Debian: xorriso, isolinux)
 sh packaging/appliance/build-images.sh dist/backupzit-server_X.Y.Z_amd64.deb   # OVA, qcow2, VHDX (on a Proxmox VE host)
 sh packaging/publish-release.sh X.Y.Z /path/to/release.key notes.txt   # sign and publish as GitHub release (consoles update from it)
 go run ./tools/release sign -key release.key -version X.Y.Z -dir <release folder>   # signed update manifest
 ```
+
+`build-pkg.sh` writes `dist/backupzit-agent_X.Y.Z_darwin_arm64.pkg`. Without signing variables its
+programs are signed ad hoc, and macOS drops their Full Disk Access after each update. To sign
+with an Apple Developer ID, set `BACKUPZIT_MAC_APP_IDENTITY` ("Developer ID Application: ...")
+and `BACKUPZIT_MAC_INSTALLER_IDENTITY` ("Developer ID Installer: ..."), and to notarize,
+`BACKUPZIT_MAC_NOTARY_PROFILE` (a keychain profile of `xcrun notarytool`), as
+`BACKUPZIT_SIGN_THUMBPRINT` does for the MSI. `tools/release` puts the package in the signed
+lists, and CI builds and tests on macOS too. `BACKUPZIT_REPORT_OS` overrides the system a macOS agent
+reports to the console (a development aid, ignored on Windows and Linux).
 
 Releases for the console's self-update are signed with the Ed25519 release key; its public
 key is built into `internal/update` (`TrustedKeys`). Keep `release.key` offline and backed up:

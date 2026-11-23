@@ -3,9 +3,9 @@
 
 <h2>Un agent apparaît hors ligne</h2>
 <ul>
-  <li>La machine est-elle allumée et le service tourne-t-il ? Windows : <code>Get-Service backupzit-agent</code> ; Linux : <code>systemctl status backupzit-agent</code>.</li>
+  <li>La machine est-elle allumée et le service tourne-t-il ? Windows : <code>Get-Service backupzit-agent</code> ; Linux : <code>systemctl status backupzit-agent</code> ; macOS : <code>sudo launchctl print system/com.backupzit.agent</code> (voir <a href="/docs/macos#troubleshooting">Agents macOS</a>).</li>
   <li>La machine atteint-elle la console ? <code>Test-NetConnection backup-server -Port 8443</code> ou <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Journal de l'agent : <code>C:\ProgramData\backupzit\agent.log</code>, sous Linux <code>/var/log/backupzit/agent.log</code> ou <code>journalctl -u backupzit-agent</code>. « fingerprint mismatch » signifie que le certificat de la console a changé — inscrivez à nouveau l'agent.</li>
+  <li>Journal de l'agent : <code>C:\ProgramData\backupzit\agent.log</code>, sous Linux <code>/var/log/backupzit/agent.log</code> ou <code>journalctl -u backupzit-agent</code>, sous macOS <code>/Library/Logs/BackupZit/agent.log</code>. « fingerprint mismatch » signifie que le certificat de la console a changé — inscrivez à nouveau l'agent.</li>
 </ul>
 
 <h2>Une sauvegarde a échoué</h2>
@@ -73,12 +73,14 @@
   <tr><td>La machine Linux restaurée n'a pas de réseau</td><td>Les paramètres réseau étaient liés à l'ancienne adresse MAC (netplan <code>match: macaddress</code>). Restaurez avec <i>Matériel différent</i>, ou supprimez les lignes <code>match</code> dans <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Le Windows restauré s'arrête avec INACCESSIBLE_BOOT_DEVICE</td><td>Restaurez à nouveau avec <i>Restaurer sur un matériel différent</i>, ou démarrez l'ISO de récupération et exécutez <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>Une copie restaurée d'une machine apparaît comme l'agent d'origine</td><td>Un système Linux restauré comme nouvelle VM est désinscrit automatiquement. Pour les autres copies (une VM restaurée comme nouvelle VM, une restauration instantanée, une réplique, un disque cloné), la console retient les exécutions de l'agent et affiche <i>deux machines</i> ; inscrivez la copie comme nouvelle machine (voir <a href="/docs/agents#duplicate">Deux machines utilisant un même agent</a>).</td></tr>
-  <tr><td>La mise à jour de l'agent ne se termine pas</td><td>Consultez le journal de l'installateur dans <code>C:\ProgramData\backupzit\updates</code> ou <code>/var/lib/backupzit-agent/updates</code> ; les agents antérieurs à 0.21 doivent être mis à jour une fois à la main.</td></tr>
+  <tr><td>La mise à jour de l'agent ne se termine pas</td><td>Consultez le journal de l'installateur dans <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> ou <code>/Library/Application Support/BackupZit/updates</code> (macOS) ; les agents antérieurs à 0.21 doivent être mis à jour une fois à la main.</td></tr>
+  <tr><td>Mac : « Full Disk Access is not granted », fichiers lus « without a snapshot », accès complet au disque perdu après une mise à jour</td><td>Voir <a href="/docs/macos#troubleshooting">Agents macOS</a> : seul l'utilisateur du Mac peut accorder l'accès complet au disque, et un paquet non signé le perd à chaque mise à jour.</td></tr>
+  <tr><td>« … is a Mac: back it up with a files job »</td><td>Un Mac ne peut pas être sauvegardé comme système ; utilisez une tâche de fichiers (<a href="/docs/macos#limits">Agents macOS</a>).</td></tr>
   <tr><td>L'icône de la zone de notification est absente</td><td>Cliquez sur la flèche <b>^</b> près de l'horloge et faites glisser l'icône BackupZit sur la barre des tâches, ou lancez <i>BackupZit Agent</i> depuis le menu Démarrer.</td></tr>
 </table>
 
 <h2>Une sauvegarde se termine par un « avertissement »</h2>
-<p>Certains fichiers n'ont pas pu être lus — en général des fichiers verrouillés par une application alors que VSS n'est pas disponible, ou des fichiers pour lesquels l'agent n'a pas d'autorisation. La liste figure sur la page de l'exécution. Tout le reste est sauvegardé.</p>
+<p>Certains fichiers n'ont pas pu être lus — en général des fichiers verrouillés par une application alors que VSS n'est pas disponible, ou des fichiers pour lesquels l'agent n'a pas d'autorisation. La liste figure sur la page de l'exécution. Tout le reste est sauvegardé. Sur un Mac, un accès complet au disque manquant donne aussi un avertissement (<a href="/docs/macos#warnings">Agents macOS</a>).</p>
 
 <h2>Les sauvegardes sont lentes</h2>
 <ul>
@@ -94,9 +96,10 @@
   <tr><td>Console (serveur)</td><td><code>journalctl -u backupzit-server</code> et le fichier <code>/var/lib/backupzit/logs/server.log</code> (jusqu'à 4 fichiers de 10 Mo). Les dernières lignes sont dans <a href="/settings/diagnostics">Paramètres → Diagnostic</a>.</td></tr>
   <tr><td>Agent sous Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
   <tr><td>Agent sous Linux</td><td><code>/var/log/backupzit/agent.log</code> et <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Agent sous macOS</td><td><code>/Library/Logs/BackupZit/agent.log</code> (voir <a href="/docs/macos#logs">Agents macOS</a>)</td></tr>
   <tr><td>Tout agent, depuis la console</td><td><b>Obtenir le journal</b> sur la page <a href="/agents">Agents</a> : l'agent envoie la fin de son journal et ses journaux d'installation les plus récents ; à lire ou télécharger sur la page de l'exécution (conservés 30 jours ; agents 0.38.0 ou plus récents).</td></tr>
   <tr><td>Une sauvegarde ou restauration</td><td>sa page dans <a href="/runs">Activité</a> : message, erreurs, statistiques et sortie des commandes avant et après la sauvegarde</td></tr>
-  <tr><td>Mises à jour des agents</td><td>journaux d'installation dans <code>C:\ProgramData\backupzit\updates</code> (Windows) ou <code>/var/lib/backupzit-agent/updates</code> (Linux) ; <b>Obtenir le journal</b> les inclut</td></tr>
+  <tr><td>Mises à jour des agents</td><td>journaux d'installation dans <code>C:\ProgramData\backupzit\updates</code> (Windows), <code>/var/lib/backupzit-agent/updates</code> (Linux) ou <code>/Library/Application Support/BackupZit/updates</code> (macOS) ; <b>Obtenir le journal</b> les inclut</td></tr>
   <tr><td>Mises à jour de la console</td><td><code>journalctl -u backupzit-update</code> ; la version précédente et un dump de la base sont conservés dans <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Dépôt renforcé</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Qui a modifié quoi</td><td>le <a href="/audit">journal d'audit</a>, qui peut aussi être envoyé à un serveur syslog</td></tr>

@@ -112,8 +112,8 @@
   <tr><th>コマンド</th><th>機能</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>「エージェント」ページの登録コードでエージェントをコンソールに接続します（<code>--force</code> は既存の登録を置き換えます）。旧形式の <code>--server URL --token T --fingerprint F</code> も引き続き使えます。</td></tr>
   <tr><td><code>set-server https://address:8443</code></td><td>登録済みエージェントをコンソールの新しいアドレス（同じ証明書）に向けます。その後エージェント サービスを再起動してください。<a href="/docs/agents#new-address">エージェント</a>を参照してください。</td></tr>
-  <tr><td><code>status</code></td><td>実行中のエージェントの処理内容とバックアップ ジョブを表示します（Windows のトレイ アイコンも同じ内容を表示します）。</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>エージェント サービスを管理します（インストーラーが行います）。</td></tr>
+  <tr><td><code>status</code></td><td>実行中のエージェントの処理内容とバックアップ ジョブを表示します（Windows のトレイ アイコンも同じ内容を表示します）。Mac では <code>full disk access: granted</code> または <code>denied</code> も表示し、通常のユーザーでも動作します。</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>エージェント サービスを管理します（インストーラーが行います）。Mac ではサービスは LaunchDaemon <code>/Library/LaunchDaemons/com.backupzit.agent.plist</code> で、プログラムは <code>PATH</code> にない <code>/Library/BackupZit/bin/backupzit-agent</code> です。<a href="/docs/macos">macOS エージェント</a>を参照してください。</td></tr>
   <tr><td><code>recovery</code></td><td>復旧モード。復旧 ISO が自動的に起動します。任意の Linux ライブ システムでは: <code>sudo backupzit-agent recovery --server URL --token CODE</code>。</td></tr>
   <tr><td><code>version</code></td><td>バージョンを表示します。</td></tr>
   <tr><td><code>forget</code></td><td>登録を退避します（削除せず名前を変更）。アンインストーラーが実行するため、新しいインストールでは再び登録コードを求められます。</td></tr>

@@ -1,0 +1,121 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>macOS aracıları (Apple silicon)</h1>
+<p class="lead">macOS aracısı, Apple silicon'lu bir Mac'in dosya ve klasörlerini yedekler. İlk açılıştan itibaren hizmet olarak çalışır, başlangıç diskinin her yedeğini bir APFS yerel anlık görüntüsünden okur ve Mac'in dosya meta verilerini korur. Menü çubuğu uygulaması durumunu gösterir ve kullanıcıya yalnızca onun verebileceği izinlerde yol gösterir.</p>
+
+<h2 id="requirements">Gereksinimler</h2>
+<ul>
+  <li><b>Apple silicon</b>'lu (M1 ve sonrası, arm64) ve <b>macOS 13</b> veya sonrası yüklü bir Mac. Intel Mac'ler için paket yoktur.</li>
+  <li>Kurulum ve kayıt için Mac'te bir yönetici hesabı.</li>
+  <li><a href="#permissions">Tam Disk Erişimi</a>'ni vermesi için Mac'in kullanıcısı: macOS bunu başka hiç kimseye, ne bir betiğe ne de konsola yaptırır.</li>
+  <li>Her aracı gibi Mac de konsolun aracı adresine (genellikle bağlantı noktası 8443) ve depolamaya ulaşabilmelidir.</li>
+</ul>
+
+<h2 id="install">Kurulum</h2>
+<ol>
+  <li><a href="/agents">Aracılar</a> sayfasında <b>macOS ajanı — Apple Silicon</b>'ı (<code>backupzit-agent_<i>sürüm</i>_darwin_arm64.pkg</code>) indirin. Konsol paketi, Windows ve Linux yükleyicileri gibi bunu da içerir.</li>
+  <li><code>.pkg</code>'yi Mac'te açın ve yükleyiciyi izleyin. Apple Developer ID ile imzalanmamış bir paket için macOS önce onay ister: pakete sağ tıklayıp <b>Aç</b>'ı seçin (yeni macOS sürümlerinde: <i>Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç</i>).</li>
+  <li>Yükleyicinin son sayfası verilmesi gereken <a href="#permissions">izinleri</a> açıklar ve menü çubuğu uygulaması açılır.</li>
+</ol>
+<p>Paket şunları kurar:</p>
+<table>
+  <tr><th>Ne</th><th>Nerede</th></tr>
+  <tr><td>Aracı programı</td><td><code>/Library/BackupZit/bin/backupzit-agent</code></td></tr>
+  <tr><td>Kaldırıcı</td><td><code>/Library/BackupZit/uninstall.sh</code></td></tr>
+  <tr><td>Menü çubuğu uygulaması</td><td><code>/Applications/BackupZit.app</code></td></tr>
+  <tr><td>Aracı hizmeti (LaunchDaemon: root olarak çalışır, açılışta başlar, durduğunda yeniden başlatılır)</td><td><code>/Library/LaunchDaemons/com.backupzit.agent.plist</code></td></tr>
+  <tr><td>Oturum açılışında menü çubuğu uygulaması (LaunchAgent)</td><td><code>/Library/LaunchAgents/com.backupzit.tray.plist</code></td></tr>
+  <tr><td>Yapılandırma (yalnızca root, kayıtta oluşturulur)</td><td><code>/Library/Application Support/BackupZit/agent.json</code></td></tr>
+  <tr><td>Günlük</td><td><code>/Library/Logs/BackupZit/agent.log</code></td></tr>
+</table>
+<p>Program <code>PATH</code>'e eklenmez: Terminal'de onu tam yoluyla çağırın.</p>
+
+<h2 id="enroll">Kayıt</h2>
+<p>Hizmet, Mac kaydedilmeden önce de kurulu ve çalışır durumdadır; kaydedildiği anda iş görmeye başlar. <a href="/agents">Aracılar</a> sayfasında <b>Kayıt belirteci oluştur</b>, Windows ve Linux komutlarının yanında macOS komutlarını da gösterir. Üç yoldan birini seçin:</p>
+<ol>
+  <li><b>Kurulumdan sonra Terminal'de</b> (olağan yol):
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
+  <li id="mdm"><b>Bir MDM ile</b> (Jamf, Intune, Mosyle…): paket kurulmadan önce bir betik kodu sahibi root olan bir dosyaya yazar:
+<pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
+  Ardından paketi dağıtın. Paketin kurulumu Mac'i bu kodla kaydeder ve dosyayı siler. Sahibi root olmayan bir dosya yok sayılır. Kayıtlı bir Mac'i başka bir konsola taşımanın yolu da budur.</li>
+  <li><b>Paketin yanında bir dosya</b>: <code>.pkg</code> ile aynı klasörde (örneğin bir USB bellekte veya paylaşılan bir klasörde) kodu içeren <code>backupzit-enroll.txt</code>. Yalnızca Mac henüz kayıtlı değilken ve yalnızca onu başka kimse yazamamışsa kullanılır: dosyanın sahibi root veya paketin sahibidir ve klasörüne başka kullanıcılar yazamaz (ya da <code>/Users/Shared</code> gibi yapışkan biti vardır).</li>
+</ol>
+<p>Kurulum sırasında konsola ulaşılamazsa aracı kodu saklar ve yeniden dener. Kayıt başarısız olursa nedeni <code>/Library/Application Support/BackupZit/enroll-error.log</code> içindedir; sonra Terminal'de kaydedin. Yükseltmeler ve yeniden kurulumlar kaydı korur.</p>
+
+<h2 id="permissions">İzinler</h2>
+<p>macOS bazı verileri, root olarak çalışan bir program dahil her programdan, kullanıcı Sistem Ayarları'nda izin verene kadar korur. Bu izinleri yalnızca Mac'in başındaki kullanıcı verebilir; yükleyicinin son sayfası ve menü çubuğu uygulaması ona adım adım yol gösterir.</p>
+<h3 id="full-disk-access">Aracı için Tam Disk Erişimi</h3>
+<p>Bu izin olmadan yedekler macOS'un koruduğu klasörleri atlar ve APFS anlık görüntüsü alınmaz (bkz. <a href="#backup">Neler yedeklenir</a>).</p>
+<ol>
+  <li><b>Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi</b>'ni açın.</li>
+  <li>Listenin altındaki <b>+</b>'ya tıklayın ve parolanızı girin.</li>
+  <li><b>Command-Shift-G</b>'ye basın, <code>/Library/BackupZit/bin/backupzit-agent</code> yazın, Return'e basın ve <b>Aç</b>'a tıklayın.</li>
+  <li><b>backupzit-agent</b> yanındaki anahtarın açık olduğunu denetleyin.</li>
+</ol>
+<p><b>+</b> yerine dosyayı listeye sürükleyebilirsiniz: Finder'da <i>Git → Klasöre Git…</i>'i seçin, <code>/Library/BackupZit/bin</code> yazın ve <b>backupzit-agent</b>'ı listeye sürükleyin.</p>
+<h3 id="background">Arka planda aracı</h3>
+<p>Kurulumdan sonra macOS <i>Arka Plan Öğeleri Eklendi</i> bildirimini gösterir. <b>Sistem Ayarları → Genel → Giriş Öğeleri ve Uzantılar</b>'da, <b>Arka Planda İzin Ver</b> altında <b>backupzit-agent</b> ve <b>BackupZit</b> açık kalmalıdır: kapatılırsa aracı çalışmaz ve hiçbir yedek başlamaz.</p>
+<h3 id="notifications">Bildirimler ve oturum açılışında açma</h3>
+<ul>
+  <li><b>Bildirimler</b>: menü çubuğu uygulaması sorduğunda izin verin veya daha sonra <b>Sistem Ayarları → Bildirimler → BackupZit</b>'te (<i>Bildirimlere izin ver</i>). Uygulama bir yedek başarısız olduğunda kullanıcıya bunu buradan bildirir.</li>
+  <li><b>Oturum açılışında açma</b>: <b>BackupZit</b>, <i>Giriş Öğeleri ve Uzantılar → Arka Planda İzin Ver</i> altında açık olduğu sürece menü çubuğu uygulaması her oturum açılışında açılır.</li>
+</ul>
+<h3 id="assistant">Menü çubuğu uygulaması ve yardımcısı</h3>
+<p>Menü çubuğundaki BackupZit simgesi aracının durumunu gösterir; menüsünde Mac'in her işi için <b>Back up now</b>, <b>Open console in browser</b> ve <b>Hide this icon</b> (bir sonraki oturum açmaya kadar; yedekler sürer) bulunur. <b>Permissions</b> bölümü arka planda aracıyı, Tam Disk Erişimi'ni, bildirimleri ve oturum açılışında açmayı her biri ✅ veya ❌ ile listeler. Bir öğeye tıklamak, Sistem Ayarları'nda ilgili sayfayı açar; eksik bir izni uygulama ayrıca her oturum açılışında bir kez, adımları gösteren bir pencerede açıklar. Bir şey eksik olduğu sürece birkaç saniyede bir kendiliğinden yeniden denetler, böylece izin verilir verilmez ✅ görünür. Aracı, eksik Tam Disk Erişimi'ni konsola da çalıştırma raporunda bildirir.</p>
+<h3 id="status">Terminal'de denetleme</h3>
+<pre>/Library/BackupZit/bin/backupzit-agent status</pre>
+<p>Normal bir kullanıcı olarak da çalışır ve konsolu, işleri ve <code>full disk access: granted</code> veya <code>denied</code> bilgisini (açılması gereken programla birlikte) gösterir.</p>
+<h3 id="unsigned">Güncellemeden sonra Tam Disk Erişimi</h3>
+<p>macOS, Tam Disk Erişimi'ni programın imzasına bağlar. Apple Developer ID ile imzalanmış paketler bunu güncellemeler boyunca korur. Bu imza olmadan oluşturulmuş (<i>ad hoc</i> imzalı) bir paket her kendi kendini güncellemede bunu kaybeder: yedekler yeniden uyarır ve menü çubuğu uygulaması Tam Disk Erişimi'nin güncellemeden beri kaldırıldığını söyler. İzni yeniden verin: Tam Disk Erişimi listesinde <b>backupzit-agent</b>'ı seçin, kaldırmak için <b>−</b>'ye tıklayın (kapatıp yeniden açmak yetmez), ardından yukarıdaki gibi <b>+</b> ile yeniden ekleyin.</p>
+
+<h2 id="backup">Neler yedeklenir</h2>
+<p>Bir Mac aracısı, her aracı gibi <b>dosya ve klasör</b> işlerini çalıştırır: <code>/Users</code>, <code>/Applications</code> veya <code>/</code> gibi yollar, <a href="/docs/jobs#users"><code>{users}</code> yolları</a> (<code>/Users/&lt;ad&gt;/Documents</code>) ve joker karakterler; <i>Tüm macOS aracıları</i> ile <a href="/docs/jobs#groups">birden çok aracı için bir işte</a> de.</p>
+<h3 id="snapshot">APFS yerel anlık görüntüsü</h3>
+<p>Başlangıç diskinin veri birimindeki her dosya yedeği bir <b>APFS yerel anlık görüntüsünden</b> okunur; bu, Windows'taki VSS'nin macOS karşılığıdır: yedek her dosyayı aynı andaki haliyle görür, bir programın sürekli yazdığı dosyaları da. Aracı anlık görüntüyü alır (<code>tmutil localsnapshot</code>), salt okunur bağlar, dosyaları ondan okur ve yedekten sonra ayırıp siler. Bir çökmeden kalan anlık görüntüler bir sonraki başlatmada temizlenir; Time Machine'in kendi anlık görüntülerine asla dokunulmaz. Çalıştırma raporu <i>Read from an APFS local snapshot of /System/Volumes/Data.</i> der.</p>
+<p>Anlık görüntü için hizmet (root) ve <a href="#full-disk-access">Tam Disk Erişimi</a> gerekir. Tam Disk Erişimi olmadan ve başka birimlerdeki yollar için (<code>/Volumes</code>: harici diskler, ağ paylaşımları) dosyalar anlık görüntü olmadan okunur ve çalıştırma raporu bunu belirtir.</p>
+<h3 id="metadata">Meta veriler</h3>
+<p>Her dosya ve klasörle birlikte saklanır: sahip ve grup, izinler, genişletilmiş öznitelikler (macOS'un kendisinin yönettiği <code>com.apple.provenance</code> hariç), sabit bağlantılar, sembolik bağlantılar, BSD dosya bayrakları (hidden, locked, nodump, append-only…; sistem bayrakları yalnızca aracı, hizmetin yaptığı gibi root olarak çalıştığında), oluşturma zamanı ve nanosaniyeye kadar değişiklik zamanları. Seyrek dosyalar seyrek kalır: boşlukları APFS'te yeniden açılır.</p>
+<h3 id="excludes">Boş tutulan klasörler</h3>
+<p>Yedeklenen bir klasörün altındaki bazı sistem klasörleri boş klasörler olarak saklanır: diğer birimler (<code>/Volumes</code>), takas (<code>/System/Volumes/VM</code>, <code>/private/var/vm</code>), <code>/System/Volumes</code> içindeki destek birimleri, <code>/dev</code>, geçici dosyalar (<code>/private/tmp</code>, <code>/private/var/folders</code>), önbellekler (<code>/Library/Caches</code>, <code>/System/Library/Caches</code>, <code>~/Library/Caches</code>), Çöp Sepeti (<code>~/.Trash</code>, <code>.Trashes</code>), Spotlight, FSEvents, belge sürümleri ve yerel ve HFS+ Time Machine yedekleri. Kaynak <code>/</code> olduğunda, <code>/</code>'ın zaten gösterdiği veri birimi klasörleri (<code>/Users</code>, <code>/Applications</code>…) iki kez okunmaz. İşin kaynağı olarak adı verilen bir klasör her zaman okunur, örn. <code>/Volumes/USB</code> veya <code>~/.Trash</code>.</p>
+<h3 id="warnings">Çalıştırma raporundaki uyarılar</h3>
+<p>Tam Disk Erişimi olmadan macOS'un koruduğu klasörler okunamaz: Mail, Mesajlar, Safari, Masaüstü ve Belgeler, diğer uygulamaların verileri, çıkarılabilir ve ağ birimleri. Kaynakları <code>/Users</code> (<code>/Users/Shared</code> hariç), <code>/Library</code> veya <code>/Volumes</code>'a ya da <code>/</code> gibi bunların üstündeki bir klasöre uzanan bir yedek bu durumda <i>Full Disk Access is not granted to the BackupZit agent</i> uyarısıyla biter. Diğer klasörlerin yedekleri (örn. <code>/opt/data</code>) uyarı vermez.</p>
+
+<h2 id="restore">Geri yükleme</h2>
+<p>Bir Mac'in dosyaları tüm <a href="/docs/restore">dosya yedekleri</a> gibi geri yüklenir: yedeğin tamamı veya yalnızca bazı yollar, bir klasöre veya özgün konuma, Mac'e veya başka bir aracıya; tek tek dosyalar konsoldan indirilebilir. Mac'te geri yükleme yukarıdaki meta verileri yeniden ayarlar. Windows ve Linux'ta olduğu gibi yalnızca açtığı klasörler üzerinden yazar, asla yol üzerinden değil; böylece geri yükleme sırasında araya konan bir bağlantı izlenmez. Kilitli dosyaların üzerine geri yükleme önce locked ve append-only bayraklarını kaldırır, sonra saklanan bayrakları yeniden ayarlar (sistem bayrakları çalışan bir Mac'te kaldırılamaz).</p>
+
+<h2 id="update">Güncelleme ve kaldırma</h2>
+<p><a href="/agents">Aracılar</a> sayfası bir Mac için de diğer aracılar gibi <b>Şuna güncelle: <i>sürüm</i></b> sunar (bkz. <a href="/docs/agents">Aracılar</a>). Aracı <code>.pkg</code>'yi konsoldan indirir, onu imzalı aracı yükleyicileri listesine ve SHA-256 sağlama toplamına göre denetler, tek seferlik bir launchd işinde Apple'ın <code>installer</code> aracıyla kurar ve yeni sürümle yeniden başlar. launchd bu işi reddederse güncelleme çalıştırması launchd'nin iletisiyle başarısız olur. Yükleyici günlüğü <code>/Library/Application Support/BackupZit/updates</code> içindedir. İmzasız bir paketin güncellemesinden sonra <a href="#unsigned">Tam Disk Erişimi</a>'ni denetleyin.</p>
+<p>Aracılar sayfasında <b>Aracıyı bilgisayardan kaldır</b> ile <b>Kaldır</b>; programı, menü çubuğu uygulamasını, LaunchDaemon ve LaunchAgent'ı ve paket makbuzunu kaldırır; yapılandırma ve günlük kalır. Elle kaldırmak için:</p>
+<pre>sudo /Library/BackupZit/uninstall.sh            # yapılandırmayı ve günlüğü korur
+sudo /Library/BackupZit/uninstall.sh --purge    # onları da siler</pre>
+<p><code>--purge</code> olmadan kayıt bir kenara konur (<code>agent.json.removed-<i>tarih</i></code>), böylece yeni bir kurulum yeniden kod ister. Kaldırdıktan sonra <b>backupzit-agent</b>'ı <i>Gizlilik ve Güvenlik → Tam Disk Erişimi</i>'nden elle kaldırın: macOS bunu bir programın yapmasına izin vermez.</p>
+
+<h2 id="limits">Bir Mac aracısının yapamadıkları</h2>
+<table>
+  <tr><th>Mac'te yok</th><th>Bunun yerine</th></tr>
+  <tr><td><a href="/docs/linux-system">Linux sistemi</a> / bare metal yedekleri</td><td>Konsol bir Mac için sistem işini reddeder (<i>is a Mac: back it up with a files job</i>): sistem birimi Apple tarafından mühürlenmiş ve imzalanmıştır ve geri yüklenmez, yeniden kurulur. Verileri bir dosya işiyle yedekleyin.</td></tr>
+  <tr><td><a href="/docs/images">Disk görüntüleri</a></td><td>Yalnızca Windows.</td></tr>
+  <tr><td>Hyper-V, Proxmox VE ana bilgisayarları ve VMware ESXi proxy'si</td><td>Hyper-V ana bilgisayarındaki (Windows), Proxmox düğümündeki (Linux) aracılar veya bir Linux proxy aracısı.</td></tr>
+  <tr><td><a href="/docs/jobs#nas">NAS / dosya paylaşımı</a> işleri (SMB, NFS)</td><td>Şimdilik bir Windows veya Linux aracısı: Mac aracısı henüz paylaşım bağlamıyor.</td></tr>
+  <tr><td><a href="/docs/sql">PostgreSQL / MySQL</a> işleri</td><td>macOS'ta henüz doğrulanmadı: bir Mac'te ancak bir geri yüklemeyi test ettikten sonra kullanın.</td></tr>
+</table>
+<p><a href="/docs/m365">Microsoft 365</a> işleri, internet erişimi olan her aracıda, bir Mac'te de çalışır.</p>
+
+<h2 id="troubleshooting">Sorun giderme</h2>
+<table>
+  <tr><th>Durum</th><th>Ne yapmalı</th></tr>
+  <tr><td>Mac görünmüyor veya çevrimdışı görünüyor</td><td>Kayıtlı olduğunu (<code>backupzit-agent status</code>, <a href="#enroll">Kayıt</a>) ve <b>backupzit-agent</b>'ın <i>Giriş Öğeleri ve Uzantılar → Arka Planda İzin Ver</i> altında açık olduğunu denetleyin. <code>sudo launchctl print system/com.backupzit.agent</code> hizmeti gösterir; <code>sudo /Library/BackupZit/bin/backupzit-agent service start</code> onu başlatır. Ardından konsola giden ağ yolunu her aracıda olduğu gibi denetleyin (<a href="/docs/troubleshooting">Sorun giderme</a>).</td></tr>
+  <tr><td>"Full Disk Access is not granted to the BackupZit agent", <code>full disk access: denied</code></td><td><a href="#full-disk-access">Tam Disk Erişimi</a>'ndeki gibi verin.</td></tr>
+  <tr><td>Güncellemeden sonra Tam Disk Erişimi kayboldu</td><td>Paket Apple Developer ID ile imzalanmamış: backupzit-agent'ı listeden <b>−</b> ile kaldırın ve yeniden ekleyin (<a href="#unsigned">Güncellemeden sonra Tam Disk Erişimi</a>).</td></tr>
+  <tr><td>Çalıştırma, dosyaların "without a snapshot" okunduğunu söylüyor</td><td>"No APFS local snapshot … was taken": Tam Disk Erişimi verin. "Not on the startup disk's data volume": yol, APFS yerel anlık görüntülerinin kapsamadığı harici bir diskte veya paylaşımda; yine de yedeklenir. Diğer her neden iletidedir.</td></tr>
+  <tr><td>Bir güncelleme çalıştırması başarısız oldu</td><td>Çalıştırma nedeni gösterir, örn. launchd'nin yükleyici işini reddetmesi. Yükleyicinin çıktısı <code>/Library/Application Support/BackupZit/updates</code> içindedir (Aracılar sayfasındaki <b>Günlüğü al</b> bunu içerir). Yeni <code>.pkg</code>'yi elle kurmak da işe yarar; kayıt korunur.</td></tr>
+  <tr><td>Mac için bir sistem işi reddediliyor</td><td>Beklenen davranış: bkz. <a href="#limits">Bir Mac aracısının yapamadıkları</a>.</td></tr>
+</table>
+<h3 id="logs">Günlükler</h3>
+<ul>
+  <li>Aracı: <code>/Library/Logs/BackupZit/agent.log</code> (Konsol uygulamasında da listelenir); bir çökme izi <code>/Library/Logs/BackupZit/launchd.log</code>'a gider.</li>
+  <li>Yükleyicinin yaptığı kayıt: <code>/Library/Application Support/BackupZit/enroll-error.log</code> ve yükleyici günlüğü <code>/var/log/install.log</code>.</li>
+  <li>Güncellemeler: <code>/Library/Application Support/BackupZit/updates</code>.</li>
+  <li><a href="/agents">Aracılar</a> sayfasındaki <b>Günlüğü al</b>, günlüğün sonunu konsola getirir (bkz. <a href="/docs/troubleshooting#logs">Günlükler</a>).</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

@@ -1,4 +1,4 @@
-//go:build !windows && !linux
+//go:build !linux && !windows && !darwin
 
 package restorer
 
@@ -69,7 +69,7 @@ func makeSpecial(dst string, n *repo.Node) error {
 
 func applyFileMeta(*os.File, *repo.Node, bool) []error { return nil }
 
-func afterRename(d *fsutil.Dir, name string, n *repo.Node) []error {
+func afterRename(d *fsutil.Dir, name string, _ fsutil.FileID, n *repo.Node) []error {
 	return applyUnix(d.Join(name), n, true)
 }
 

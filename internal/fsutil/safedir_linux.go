@@ -155,6 +155,9 @@ func (d *Dir) Mknod(name string, mode uint32, dev int) error {
 // ClearReadOnly: Windows only.
 func (d *Dir) ClearReadOnly(string) {}
 
+// ClearLocks: macOS only (no immutable flags are restored here).
+func (d *Dir) ClearLocks(string) {}
+
 func trustedUID(uid uint32) bool { return uid == 0 || int(uid) == os.Geteuid() }
 
 // parentProtected reports whether only root (or the agent's user) may

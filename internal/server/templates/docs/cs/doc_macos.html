@@ -1,0 +1,121 @@
+{{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
+<h1>Agenti pro macOS (Apple Silicon)</h1>
+<p class="lead">Agent pro macOS zálohuje soubory a složky Macu s čipem Apple. Běží jako služba od prvního spuštění, každou zálohu spouštěcího disku čte z lokálního snímku APFS a zachovává metadata souborů Macu. Aplikace v řádku nabídek zobrazuje jeho stav a provede uživatele oprávněními, která může udělit jen on.</p>
+
+<h2 id="requirements">Požadavky</h2>
+<ul>
+  <li>Mac s čipem <b>Apple Silicon</b> (M1 a novější, arm64) a <b>macOS 13</b> nebo novějším. Pro Macy s procesorem Intel balíček není.</li>
+  <li>Účet správce na Macu pro instalaci a registraci.</li>
+  <li>Uživatel Macu, který udělí <a href="#permissions">plný přístup k disku</a>: macOS to nedovolí nikomu jinému, ani skriptu, ani konzoli.</li>
+  <li>Jako každý agent musí Mac dosáhnout na adresu konzole pro agenty (obvykle port 8443) a na úložiště.</li>
+</ul>
+
+<h2 id="install">Instalace</h2>
+<ol>
+  <li>Na stránce <a href="/agents">Agenti</a> stáhněte <b>Agent pro macOS — Apple Silicon</b> (<code>backupzit-agent_<i>verze</i>_darwin_arm64.pkg</code>). Balíček konzole ho obsahuje stejně jako instalátory pro Windows a Linux.</li>
+  <li>Otevřete <code>.pkg</code> na Macu a postupujte podle instalátoru. U balíčku, který není podepsaný identifikátorem Apple Developer ID, si macOS nejprve vyžádá potvrzení: klikněte na něj pravým tlačítkem a zvolte <b>Otevřít</b> (v novějších macOS: <i>Nastavení systému → Soukromí a zabezpečení → Přesto otevřít</i>).</li>
+  <li>Poslední stránka instalátoru vysvětlí <a href="#permissions">oprávnění</a>, která je třeba udělit, a otevře se aplikace v řádku nabídek.</li>
+</ol>
+<p>Balíček nainstaluje:</p>
+<table>
+  <tr><th>Co</th><th>Kam</th></tr>
+  <tr><td>Program agenta</td><td><code>/Library/BackupZit/bin/backupzit-agent</code></td></tr>
+  <tr><td>Odinstalátor</td><td><code>/Library/BackupZit/uninstall.sh</code></td></tr>
+  <tr><td>Aplikaci v řádku nabídek</td><td><code>/Applications/BackupZit.app</code></td></tr>
+  <tr><td>Službu agenta (LaunchDaemon: běží jako root, startuje při spuštění systému, znovu se spustí, když se zastaví)</td><td><code>/Library/LaunchDaemons/com.backupzit.agent.plist</code></td></tr>
+  <tr><td>Aplikaci v řádku nabídek po přihlášení (LaunchAgent)</td><td><code>/Library/LaunchAgents/com.backupzit.tray.plist</code></td></tr>
+  <tr><td>Konfiguraci (jen root, vzniká při registraci)</td><td><code>/Library/Application Support/BackupZit/agent.json</code></td></tr>
+  <tr><td>Protokol</td><td><code>/Library/Logs/BackupZit/agent.log</code></td></tr>
+</table>
+<p>Program se nepřidává do <code>PATH</code>: v Terminálu ho volejte celou cestou.</p>
+
+<h2 id="enroll">Registrace</h2>
+<p>Služba je nainstalovaná a běží, ještě než se Mac zaregistruje; pracovat začne, jakmile k tomu dojde. Na stránce <a href="/agents">Agenti</a> zobrazí <b>Vytvořit registrační token</b> příkazy pro macOS vedle příkazů pro Windows a Linux. Zvolte jeden ze tří způsobů:</p>
+<ol>
+  <li><b>V Terminálu po instalaci</b> (obvyklý způsob):
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre></li>
+  <li id="mdm"><b>Přes MDM</b> (Jamf, Intune, Mosyle…): před instalací balíčku skript zapíše kód do souboru, jehož vlastníkem je root:
+<pre>echo "BZ1-..." | sudo sh -c 'umask 077; mkdir -p "/Library/Application Support/BackupZit"; cat &gt; "/Library/Application Support/BackupZit/enroll-code"'</pre>
+  Pak balíček nasaďte. Jeho instalace Mac tímto kódem zaregistruje a soubor smaže. Soubor, jehož vlastníkem není root, se ignoruje. Takto lze také přesunout registrovaný Mac do jiné konzole.</li>
+  <li><b>Soubor vedle balíčku</b>: <code>backupzit-enroll.txt</code> s kódem ve stejné složce jako <code>.pkg</code> (například na USB disku nebo ve sdílené složce). Použije se jen, dokud Mac ještě není registrovaný, a jen pokud ho nemohl zapsat nikdo jiný: vlastníkem souboru je root nebo vlastník balíčku a do jeho složky nemohou zapisovat jiní uživatelé (nebo má sticky bit jako <code>/Users/Shared</code>).</li>
+</ol>
+<p>Pokud konzole během instalace není dostupná, agent si kód ponechá a zkouší to znovu. Pokud registrace selže, důvod je v <code>/Library/Application Support/BackupZit/enroll-error.log</code>; zaregistrujte pak Mac v Terminálu. Upgrady a přeinstalace registraci zachovávají.</p>
+
+<h2 id="permissions">Oprávnění</h2>
+<p>macOS chrání některá data před každým programem, i před programem běžícím jako root, dokud to uživatel nepovolí v Nastavení systému. Tato oprávnění může udělit jen uživatel u Macu; poslední stránka instalátoru a aplikace v řádku nabídek ho jimi provedou.</p>
+<h3 id="full-disk-access">Plný přístup k disku pro agenta</h3>
+<p>Bez něj zálohám chybí složky chráněné macOS a nepořídí se snímek APFS (viz <a href="#backup">Co se zálohuje</a>).</p>
+<ol>
+  <li>Otevřete <b>Nastavení systému → Soukromí a zabezpečení → Plný přístup k disku</b>.</li>
+  <li>Klikněte na <b>+</b> pod seznamem a zadejte heslo.</li>
+  <li>Stiskněte <b>Command-Shift-G</b>, napište <code>/Library/BackupZit/bin/backupzit-agent</code>, stiskněte Return a klikněte na <b>Otevřít</b>.</li>
+  <li>Zkontrolujte, že přepínač vedle <b>backupzit-agent</b> je zapnutý.</li>
+</ol>
+<p>Místo <b>+</b> můžete soubor do seznamu přetáhnout: ve Finderu zvolte <i>Otevřít → Otevřít složku…</i>, napište <code>/Library/BackupZit/bin</code> a přetáhněte <b>backupzit-agent</b> do seznamu.</p>
+<h3 id="background">Agent na pozadí</h3>
+<p>Po instalaci macOS zobrazí <i>Přidány položky na pozadí</i>. V <b>Nastavení systému → Obecné → Položky otevírané po přihlášení a rozšíření</b> musí v části <b>Povolit na pozadí</b> zůstat <b>backupzit-agent</b> a <b>BackupZit</b> zapnuté: po vypnutí agent neběží a žádná záloha se nespustí.</p>
+<h3 id="notifications">Oznámení a otevírání po přihlášení</h3>
+<ul>
+  <li><b>Oznámení</b>: povolte je, když o to aplikace v řádku nabídek požádá, nebo později v <b>Nastavení systému → Oznámení → BackupZit</b> (<i>Povolit oznámení</i>). Aplikace tak uživateli oznámí, když záloha selže.</li>
+  <li><b>Otevírání po přihlášení</b>: aplikace v řádku nabídek se otevře po každém přihlášení, dokud je <b>BackupZit</b> zapnutý v <i>Položky otevírané po přihlášení a rozšíření → Povolit na pozadí</i>.</li>
+</ul>
+<h3 id="assistant">Aplikace v řádku nabídek a její asistent</h3>
+<p>Ikona BackupZit v řádku nabídek ukazuje stav agenta; její nabídka obsahuje <b>Back up now</b> pro každou úlohu Macu, <b>Open console in browser</b> a <b>Hide this icon</b> (do příštího přihlášení; zálohy pokračují). Její část <b>Permissions</b> uvádí agenta na pozadí, plný přístup k disku, oznámení a otevírání po přihlášení, každé s ✅ nebo ❌. Kliknutím na položku otevřete její stránku Nastavení systému; chybějící oprávnění aplikace navíc jednou po každém přihlášení vysvětlí v dialogu s postupem. Dokud něco chybí, sama to každých pár sekund znovu kontroluje, takže ✅ se objeví hned, jak je oprávnění uděleno. Agent chybějící plný přístup k disku hlásí také konzoli, ve zprávě o běhu.</p>
+<h3 id="status">Kontrola v Terminálu</h3>
+<pre>/Library/BackupZit/bin/backupzit-agent status</pre>
+<p>Funguje i pro běžného uživatele a zobrazí konzoli, úlohy a <code>full disk access: granted</code> nebo <code>denied</code> (s programem, který je třeba zapnout).</p>
+<h3 id="unsigned">Plný přístup k disku po aktualizaci</h3>
+<p>macOS váže plný přístup k disku na podpis programu. Balíčky podepsané identifikátorem Apple Developer ID si ho při aktualizacích zachovají. Balíček sestavený bez něj (podepsaný <i>ad hoc</i>) ho ztratí při každé samoaktualizaci: zálohy pak znovu varují a aplikace v řádku nabídek hlásí, že plný přístup k disku od aktualizace chybí. Udělte ho znovu: v seznamu Plný přístup k disku vyberte <b>backupzit-agent</b>, klikněte na <b>−</b> a odstraňte ho (vypnout a zapnout nestačí), pak ho znovu přidejte přes <b>+</b> jako výše.</p>
+
+<h2 id="backup">Co se zálohuje</h2>
+<p>Agent na Macu provádí úlohy <b>souborů a složek</b> jako každý agent: cesty jako <code>/Users</code>, <code>/Applications</code> nebo <code>/</code>, <a href="/docs/jobs#users">cesty s <code>{users}</code></a> (<code>/Users/&lt;jméno&gt;/Documents</code>) a zástupné znaky, i v <a href="/docs/jobs#groups">úloze pro více agentů</a> s <i>Všichni agenti macOS</i>.</p>
+<h3 id="snapshot">Lokální snímek APFS</h3>
+<p>Každá záloha souborů z datového svazku spouštěcího disku se čte z <b>lokálního snímku APFS</b>, macOS obdoby VSS ve Windows: záloha vidí každý soubor k jednomu okamžiku, i ty, do kterých program průběžně zapisuje. Agent snímek pořídí (<code>tmutil localsnapshot</code>), připojí ho jen pro čtení, přečte z něj soubory a po záloze ho odpojí a smaže. Snímky, které zůstaly po pádu, se uklidí při dalším spuštění; vlastních snímků Time Machine se agent nikdy nedotkne. Zpráva o běhu uvádí <i>Read from an APFS local snapshot of /System/Volumes/Data.</i></p>
+<p>Snímek potřebuje službu (root) a <a href="#full-disk-access">plný přístup k disku</a>. Bez plného přístupu k disku a pro cesty na jiných svazcích (<code>/Volumes</code>: externí disky, síťové sdílené složky) se soubory čtou bez snímku a zpráva o běhu to uvede.</p>
+<h3 id="metadata">Metadata</h3>
+<p>Zachovají se u každého souboru a složky: vlastník a skupina, oprávnění, rozšířené atributy (kromě <code>com.apple.provenance</code>, který spravuje macOS sám), pevné odkazy, symbolické odkazy, příznaky souborů BSD (skrytý, zamčený, nodump, jen připisování…; systémové příznaky jen tehdy, když agent běží jako root, jako služba), čas vytvoření a časy změny s přesností na nanosekundy. Řídké soubory zůstanou řídké: jejich díry se na APFS znovu vyrazí.</p>
+<h3 id="excludes">Složky uložené prázdné</h3>
+<p>Některé systémové složky pod zálohovanou složkou se uloží jako prázdné složky: jiné svazky (<code>/Volumes</code>), odkládací prostor (<code>/System/Volumes/VM</code>, <code>/private/var/vm</code>), podpůrné svazky v <code>/System/Volumes</code>, <code>/dev</code>, dočasné soubory (<code>/private/tmp</code>, <code>/private/var/folders</code>), mezipaměti (<code>/Library/Caches</code>, <code>/System/Library/Caches</code>, <code>~/Library/Caches</code>), Koš (<code>~/.Trash</code>, <code>.Trashes</code>), Spotlight, FSEvents, verze dokumentů a lokální zálohy Time Machine i zálohy Time Machine na HFS+. Se zdrojem <code>/</code> se složky datového svazku, které <code>/</code> už zobrazuje (<code>/Users</code>, <code>/Applications</code>…), nečtou dvakrát. Složka uvedená jako zdroj úlohy se čte vždy, např. <code>/Volumes/USB</code> nebo <code>~/.Trash</code>.</p>
+<h3 id="warnings">Varování ve zprávě o běhu</h3>
+<p>Bez plného přístupu k disku nelze číst složky chráněné macOS: Mail, Zprávy, Safari, Plochu a Dokumenty, data jiných aplikací, vyměnitelné a síťové svazky. Záloha, jejíž zdroje sahají do <code>/Users</code> (kromě <code>/Users/Shared</code>), <code>/Library</code> nebo <code>/Volumes</code>, nebo do složky nad nimi jako <code>/</code>, pak skončí varováním <i>Full Disk Access is not granted to the BackupZit agent</i>. Zálohy jiných složek (např. <code>/opt/data</code>) nevarují.</p>
+
+<h2 id="restore">Obnova</h2>
+<p>Soubory Macu se obnovují jako všechny <a href="/docs/restore">zálohy souborů</a>: celá záloha nebo jen některé cesty, do složky nebo na původní místo, na Macu nebo na jiném agentovi; jednotlivé soubory lze stáhnout z konzole. Obnova na Macu znovu nastaví výše uvedená metadata. Stejně jako ve Windows a Linuxu zapisuje jen přes složky, které otevřela, nikdy podle cesty, takže odkaz podstrčený během obnovy se nenásleduje. Obnova přes zamčené soubory nejprve zruší jejich příznaky zamčení a jen připisování a pak znovu nastaví uložené (systémové příznaky nelze na běžícím Macu zrušit).</p>
+
+<h2 id="update">Aktualizace a odinstalace</h2>
+<p>Stránka <a href="/agents">Agenti</a> nabízí pro Mac <b>Aktualizovat na <i>verze</i></b> stejně jako pro jiné agenty (viz <a href="/docs/agents">Agenti</a>). Agent stáhne <code>.pkg</code> z konzole, ověří ho proti podepsanému seznamu instalátorů agenta a jeho kontrolnímu součtu SHA-256, nainstaluje ho programem Apple <code>installer</code> v jednorázové úloze launchd a restartuje se s novou verzí. Pokud launchd tuto úlohu odmítne, běh aktualizace selže se zprávou launchd. Protokol instalátoru je v <code>/Library/Application Support/BackupZit/updates</code>. Po aktualizaci nepodepsaného balíčku zkontrolujte <a href="#unsigned">plný přístup k disku</a>.</p>
+<p><b>Odebrat</b> na stránce Agenti s volbou <b>Odinstalovat agenta z počítače</b> odstraní program, aplikaci v řádku nabídek, LaunchDaemon a LaunchAgent a záznam o instalaci balíčku; konfigurace a protokol zůstanou. Ruční odinstalace:</p>
+<pre>sudo /Library/BackupZit/uninstall.sh            # keeps configuration and log
+sudo /Library/BackupZit/uninstall.sh --purge    # deletes them too</pre>
+<p>Bez <code>--purge</code> se registrace odloží stranou (<code>agent.json.removed-<i>datum</i></code>), takže nová instalace znovu požádá o kód. Po odinstalaci odstraňte <b>backupzit-agent</b> z <i>Soukromí a zabezpečení → Plný přístup k disku</i> ručně: macOS to programu nedovolí.</p>
+
+<h2 id="limits">Co agent na Macu neumí</h2>
+<table>
+  <tr><th>Ne na Macu</th><th>Místo toho</th></tr>
+  <tr><td>Zálohy <a href="/docs/linux-system">systému Linux</a> / bare-metal</td><td>Konzole systémovou úlohu pro Mac odmítne (<i>is a Mac: back it up with a files job</i>): jeho systémový svazek je zapečetěný a podepsaný společností Apple a přeinstaluje se, neobnovuje se. Data zálohujte úlohou souborů.</td></tr>
+  <tr><td><a href="/docs/images">Obrazy disků</a></td><td>Jen Windows.</td></tr>
+  <tr><td>Hostitelé Hyper-V, Proxmox VE a proxy VMware ESXi</td><td>Agenti na hostiteli Hyper-V (Windows), na uzlu Proxmox (Linux) nebo linuxový agent jako proxy.</td></tr>
+  <tr><td>Úlohy <a href="/docs/jobs#nas">NAS / sdílené složky</a> (SMB, NFS)</td><td>Zatím agent pro Windows nebo Linux: agent na Macu zatím sdílené složky nepřipojuje.</td></tr>
+  <tr><td>Úlohy <a href="/docs/sql">PostgreSQL / MySQL</a></td><td>V macOS zatím neověřeno: na Macu je používejte až po vyzkoušení obnovy.</td></tr>
+</table>
+<p>Úlohy <a href="/docs/m365">Microsoft 365</a> běží na každém agentovi s přístupem k internetu, i na Macu.</p>
+
+<h2 id="troubleshooting">Řešení problémů</h2>
+<table>
+  <tr><th>Situace</th><th>Co dělat</th></tr>
+  <tr><td>Mac se neobjeví nebo je offline</td><td>Zkontrolujte, že je registrovaný (<code>backupzit-agent status</code>, <a href="#enroll">Registrace</a>) a že <b>backupzit-agent</b> je zapnutý v <i>Položky otevírané po přihlášení a rozšíření → Povolit na pozadí</i>. <code>sudo launchctl print system/com.backupzit.agent</code> zobrazí službu; <code>sudo /Library/BackupZit/bin/backupzit-agent service start</code> ji spustí. Pak zkontrolujte síťovou cestu ke konzoli jako u každého agenta (<a href="/docs/troubleshooting">Řešení problémů</a>).</td></tr>
+  <tr><td>„Full Disk Access is not granted to the BackupZit agent“, <code>full disk access: denied</code></td><td>Udělte ho podle <a href="#full-disk-access">Plný přístup k disku</a>.</td></tr>
+  <tr><td>Plný přístup k disku po aktualizaci zmizel</td><td>Balíček není podepsaný identifikátorem Apple Developer ID: odstraňte backupzit-agent ze seznamu přes <b>−</b> a znovu ho přidejte (<a href="#unsigned">Plný přístup k disku po aktualizaci</a>).</td></tr>
+  <tr><td>Běh uvádí, že soubory byly přečteny „without a snapshot“</td><td>„No APFS local snapshot … was taken“: udělte plný přístup k disku. „Not on the startup disk's data volume“: cesta je na externím disku nebo sdílené složce, které lokální snímky APFS nepokrývají; zálohuje se i tak. Jakýkoli jiný důvod je ve zprávě.</td></tr>
+  <tr><td>Běh aktualizace selhal</td><td>Běh ukáže důvod, např. odmítnutí úlohy instalátoru službou launchd. Výstup instalátoru je v <code>/Library/Application Support/BackupZit/updates</code> (<b>Získat protokol</b> na stránce Agenti ho obsahuje). Funguje i ruční instalace novějšího <code>.pkg</code>; registrace se zachová.</td></tr>
+  <tr><td>Systémová úloha pro Mac je odmítnuta</td><td>Očekávané: viz <a href="#limits">Co agent na Macu neumí</a>.</td></tr>
+</table>
+<h3 id="logs">Protokoly</h3>
+<ul>
+  <li>Agent: <code>/Library/Logs/BackupZit/agent.log</code> (uvedený i v aplikaci Konzole); záznam o pádu jde do <code>/Library/Logs/BackupZit/launchd.log</code>.</li>
+  <li>Registrace instalátorem: <code>/Library/Application Support/BackupZit/enroll-error.log</code> a protokol instalátoru <code>/var/log/install.log</code>.</li>
+  <li>Aktualizace: <code>/Library/Application Support/BackupZit/updates</code>.</li>
+  <li><b>Získat protokol</b> na stránce <a href="/agents">Agenti</a> načte konec protokolu z konzole (viz <a href="/docs/troubleshooting#logs">Protokoly</a>).</li>
+</ul>
+{{template "docpager" .}}
+</article></div>{{end}}

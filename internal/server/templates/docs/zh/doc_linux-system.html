@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Linux 系统备份和 P2V</h1>
 <p class="lead"><b>Linux 系统</b>作业会备份整台 Linux 机器，以便在空磁盘上重建它 —— 磁盘故障后的同一台机器、新硬件，或 Proxmox VE 中的虚拟机（物理到虚拟，P2V）。</p>
+<p>Mac 不能作为系统进行备份：控制台会拒绝为其创建系统作业，因为其系统卷由 Apple 密封并签名，应重新安装而不是还原。请用文件作业备份其数据（参见 <a href="/docs/macos#limits">macOS 代理</a>）。</p>
 <p>已在 Debian、Ubuntu 22.04 和 Rocky Linux 9 上测试(AlmaLinux 和 RHEL 9 同样适用)。在 Ubuntu 22.04 和类 RHEL 9 系统上,Linux 系统备份需要 0.50.0 或更新版本的代理。</p>
 
 <h2>备份内容</h2>

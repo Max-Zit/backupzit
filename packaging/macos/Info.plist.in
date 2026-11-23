@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The menu bar app of the BackupZit agent (cmd/backupzit-tray).
+     build-pkg.sh fills in the versions. LSUIElement keeps it
+     out of the Dock and the app switcher: it lives in the menu bar only. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.backupzit.tray</string>
+	<key>CFBundleName</key>
+	<string>BackupZit</string>
+	<key>CFBundleDisplayName</key>
+	<string>BackupZit</string>
+	<key>CFBundleExecutable</key>
+	<string>backupzit-tray</string>
+	<key>CFBundleIconFile</key>
+	<string>BackupZit</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@PKG_VERSION@</string>
+	<key>CFBundleVersion</key>
+	<string>@PKG_VERSION@</string>
+	<key>CFBundleGetInfoString</key>
+	<string>BackupZit Agent @VERSION@</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>MaxZit</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+</dict>
+</plist>

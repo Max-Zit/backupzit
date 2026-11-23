@@ -1,0 +1,13 @@
+#!/bin/sh
+# Runs as root before the payload is copied ($3 = target volume). An upgrade
+# (by hand, by an MDM or from the console) stops the running agent and the
+# menu bar apps, so their programs are replaced while nothing runs them;
+# postinstall starts the new ones.
+[ "${3:-/}" = "/" ] || exit 0
+
+AGENT=/Library/BackupZit/bin/backupzit-agent
+if [ -x "$AGENT" ]; then
+    "$AGENT" service stop >/dev/null 2>&1 || true
+fi
+pkill -x backupzit-tray >/dev/null 2>&1 || true
+exit 0

@@ -196,6 +196,7 @@ func (a *Agent) handleLocal(ctx context.Context, req localipc.Request) localipc.
 		if first {
 			a.pollSoon() // fetch the job list now
 		}
+		st.MacPermissions = MacPermissions()
 		return localipc.Response{OK: true, Status: &st}
 	case localipc.CmdRun:
 		cctx, cancel := context.WithTimeout(ctx, 15*time.Second)

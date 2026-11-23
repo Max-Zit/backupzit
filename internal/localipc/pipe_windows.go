@@ -156,3 +156,7 @@ func dial(ctx context.Context) (net.Conn, error) {
 		}
 	}
 }
+
+// authorize lets every caller through: the pipe's ACL (pipeSDDL) already
+// limits who may connect, and every allowed caller may use every command.
+func authorize(net.Conn, string) error { return nil }

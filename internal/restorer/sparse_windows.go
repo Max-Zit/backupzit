@@ -15,3 +15,6 @@ func markSparse(f *os.File) error {
 	var ret uint32
 	return windows.DeviceIoControl(windows.Handle(f.Fd()), windows.FSCTL_SET_SPARSE, nil, 0, nil, 0, &ret, nil)
 }
+
+// punchHoles: NTFS leaves the ranges skipped in a sparse file unallocated.
+func punchHoles(*os.File, []hole) error { return nil }

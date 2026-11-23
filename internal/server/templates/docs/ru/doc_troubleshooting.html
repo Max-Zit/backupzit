@@ -3,9 +3,9 @@
 
 <h2>Агент отображается как не в сети</h2>
 <ul>
-  <li>Включена ли машина и работает ли служба? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>.</li>
+  <li>Включена ли машина и работает ли служба? Windows: <code>Get-Service backupzit-agent</code>; Linux: <code>systemctl status backupzit-agent</code>; macOS: <code>sudo launchctl print system/com.backupzit.agent</code> (см. <a href="/docs/macos#troubleshooting">Агенты macOS</a>).</li>
   <li>Доступна ли консоль с машины? <code>Test-NetConnection backup-server -Port 8443</code> или <code>curl -k https://backup-server:8443/login</code>.</li>
-  <li>Журнал агента: <code>C:\ProgramData\backupzit\agent.log</code>, в Linux <code>/var/log/backupzit/agent.log</code> или <code>journalctl -u backupzit-agent</code>. «fingerprint mismatch» означает, что сертификат консоли изменился — зарегистрируйте агента заново.</li>
+  <li>Журнал агента: <code>C:\ProgramData\backupzit\agent.log</code>, в Linux <code>/var/log/backupzit/agent.log</code> или <code>journalctl -u backupzit-agent</code>, в macOS <code>/Library/Logs/BackupZit/agent.log</code>. «fingerprint mismatch» означает, что сертификат консоли изменился — зарегистрируйте агента заново.</li>
 </ul>
 
 <h2>Копирование завершилось ошибкой</h2>
@@ -73,12 +73,14 @@
   <tr><td>У восстановленной Linux-машины нет сети</td><td>Сетевые настройки были привязаны к старому MAC-адресу (netplan <code>match: macaddress</code>). Восстановите с опцией <i>Другое оборудование</i> или удалите строки <code>match</code> в <code>/etc/netplan/</code>.</td></tr>
   <tr><td>Восстановленная Windows останавливается с INACCESSIBLE_BOOT_DEVICE</td><td>Восстановите заново с опцией <i>Восстановить на другое оборудование</i> или загрузитесь с ISO восстановления и выполните <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code>.</td></tr>
   <tr><td>Восстановленная копия машины отображается как исходный агент</td><td>У системы Linux, восстановленной как новая ВМ, регистрация агента снимается автоматически. Для других копий (ВМ, восстановленная как новая ВМ, мгновенное восстановление, реплика, клонированный диск) консоль приостанавливает запуски агента и показывает <i>две машины</i>; зарегистрируйте копию как новую машину (см. <a href="/docs/agents#duplicate">Две машины с одним агентом</a>).</td></tr>
-  <tr><td>Обновление агента не завершается</td><td>Смотрите журнал установщика в <code>C:\ProgramData\backupzit\updates</code> или <code>/var/lib/backupzit-agent/updates</code>; агентов версий до 0.21 нужно один раз обновить вручную.</td></tr>
+  <tr><td>Обновление агента не завершается</td><td>Смотрите журнал установщика в <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> или <code>/Library/Application Support/BackupZit/updates</code> (macOS); агентов версий до 0.21 нужно один раз обновить вручную.</td></tr>
+  <tr><td>Mac: «Full Disk Access is not granted», файлы прочитаны «without a snapshot», полный доступ к диску пропал после обновления</td><td>См. <a href="/docs/macos#troubleshooting">Агенты macOS</a>: полный доступ к диску может предоставить только пользователь Mac, а неподписанный пакет теряет его при каждом обновлении.</td></tr>
+  <tr><td>«… is a Mac: back it up with a files job»</td><td>Mac нельзя скопировать как систему; используйте задание файлов (<a href="/docs/macos#limits">Агенты macOS</a>).</td></tr>
   <tr><td>Нет значка в трее</td><td>Нажмите стрелку <b>^</b> рядом с часами и перетащите значок BackupZit на панель задач или запустите <i>BackupZit Agent</i> из меню «Пуск».</td></tr>
 </table>
 
 <h2>Копирование завершается с «предупреждением»</h2>
-<p>Некоторые файлы не удалось прочитать — обычно файлы, заблокированные приложением, когда VSS недоступен, или файлы, на которые у агента нет прав. Список есть на странице запуска. Всё остальное скопировано.</p>
+<p>Некоторые файлы не удалось прочитать — обычно файлы, заблокированные приложением, когда VSS недоступен, или файлы, на которые у агента нет прав. Список есть на странице запуска. Всё остальное скопировано. На Mac предупреждение даёт и отсутствие полного доступа к диску (<a href="/docs/macos#warnings">Агенты macOS</a>).</p>
 
 <h2>Копирование идёт медленно</h2>
 <ul>
@@ -94,9 +96,10 @@
   <tr><td>Консоль (сервер)</td><td><code>journalctl -u backupzit-server</code> и файл <code>/var/lib/backupzit/logs/server.log</code> (до 4 файлов по 10 МБ). Последние строки — в разделе <a href="/settings/diagnostics">Настройки → Диагностика</a>.</td></tr>
   <tr><td>Агент в Windows</td><td><code>C:\ProgramData\backupzit\agent.log</code></td></tr>
   <tr><td>Агент в Linux</td><td><code>/var/log/backupzit/agent.log</code> и <code>journalctl -u backupzit-agent</code></td></tr>
+  <tr><td>Агент в macOS</td><td><code>/Library/Logs/BackupZit/agent.log</code> (см. <a href="/docs/macos#logs">Агенты macOS</a>)</td></tr>
   <tr><td>Любой агент, из консоли</td><td><b>Получить журнал</b> на странице <a href="/agents">Агенты</a>: агент отправляет конец своего журнала и последние журналы установки; их можно прочитать или скачать на странице запуска (хранятся 30 дней; агенты 0.38.0 и новее).</td></tr>
   <tr><td>Одно копирование или восстановление</td><td>его страница в разделе <a href="/runs">Активность</a>: сообщение, ошибки, статистика и вывод команд до и после копирования</td></tr>
-  <tr><td>Обновления агентов</td><td>журналы установки в <code>C:\ProgramData\backupzit\updates</code> (Windows) или <code>/var/lib/backupzit-agent/updates</code> (Linux); <b>Получить журнал</b> включает их</td></tr>
+  <tr><td>Обновления агентов</td><td>журналы установки в <code>C:\ProgramData\backupzit\updates</code> (Windows), <code>/var/lib/backupzit-agent/updates</code> (Linux) или <code>/Library/Application Support/BackupZit/updates</code> (macOS); <b>Получить журнал</b> включает их</td></tr>
   <tr><td>Обновления консоли</td><td><code>journalctl -u backupzit-update</code>; предыдущая версия и дамп базы данных хранятся в <code>/var/lib/backupzit-update</code></td></tr>
   <tr><td>Защищённый репозиторий</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>Кто что изменил</td><td><a href="/audit">журнал аудита</a>, который можно также отправлять на сервер syslog</td></tr>

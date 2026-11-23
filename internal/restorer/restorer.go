@@ -142,7 +142,9 @@ func RunDir(ctx context.Context, r *repo.Repository, dir *repo.Node, target stri
 	if err != nil {
 		return nil, fmt.Errorf("load root tree: %w", err)
 	}
+	relock := unlockDir(top) // applySelfMeta sets its stored flags again
 	if err := rs.restoreTree(ctx, t, nil, top); err != nil {
+		relock()
 		return &rs.stats, err
 	}
 	for _, err := range applySelfMeta(top, dir) {
@@ -247,6 +249,10 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 				rs.addError(dst, err)
 				continue
 			}
+			// A folder locked by an earlier restore takes no new entries
+			// (macOS only; relock: its flags back when its metadata is not set).
+			relock := unlockDir(sub)
+			metaSet := false
 			if n.Subtree != nil {
 				st, err := rs.r.LoadTree(ctx, *n.Subtree)
 				if err == nil {
@@ -256,6 +262,7 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 				}
 				if err != nil {
 					if sub != nil {
+						relock()
 						_ = sub.Close()
 					}
 					return err
@@ -266,12 +273,17 @@ func (rs *restorer) restoreTree(ctx context.Context, t *repo.Tree, prefix []stri
 				// A volume root ("C") keeps the attributes of the folder: C:\ is
 				// hidden and system, which would hide everything restored below it.
 				if sub != nil && (len(comps) > 1 || rs.dir || runtime.GOOS != "windows") {
-					for _, err := range applyDirMeta(dir, sub, n.Name, n, len(comps) > 1 || rs.dir) {
+					setTimes := len(comps) > 1 || rs.dir
+					for _, err := range applyDirMeta(dir, sub, n.Name, n, setTimes) {
 						rs.addError(dst, err)
 					}
+					metaSet = setTimes // flags are set with the times
 				}
 			}
 			if sub != nil {
+				if !metaSet {
+					relock()
+				}
 				_ = sub.Close()
 			}
 		case repo.NodeFile:
@@ -388,6 +400,9 @@ func (rs *restorer) openDirOf(p string) (*fsutil.Dir, error) {
 	return d, nil
 }
 
+// hole is a range of zeros skipped instead of written (offset, length).
+type hole struct{ off, n int64 }
+
 // linkTo creates name in dir as a hard link to the file restored at first.
 // firstLink is the first restored file of a set of hard links.
 type firstLink struct {
@@ -450,6 +465,7 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 	// did not record the attribute (those files stay as they were
 	// restored before).
 	marked := n.WinAttrs&fsutil.AttrSparse == 0 // true: nothing to mark
+	var holes []hole
 	for _, id := range n.Content {
 		data, err := rs.r.LoadBlob(ctx, repo.DataBlob, id)
 		if err != nil {
@@ -467,6 +483,12 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 				_ = markSparse(f)
 				marked = true
 			}
+			// #nosec G115 -- file sizes are below 2^63
+			if last := len(holes) - 1; last >= 0 && holes[last].off+holes[last].n == int64(written) {
+				holes[last].n += int64(len(data)) // one range for consecutive chunks of zeros
+			} else {
+				holes = append(holes, hole{int64(written), int64(len(data))})
+			}
 			_, err = f.Seek(int64(len(data)), io.SeekCurrent)
 		} else {
 			_, err = f.Write(data)
@@ -480,6 +502,10 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 	if err := f.Truncate(int64(written)); err != nil { // #nosec G115 -- file sizes are below 2^63
 		return fail(err)
 	}
+	// Where the file system filled skipped ranges with zeros (APFS does
+	// for gaps below 16 MiB), they are freed again; if it cannot, the
+	// zeros stay, as before.
+	_ = punchHoles(f, holes)
 	if written != n.Size {
 		return fail(fmt.Errorf("restored %d bytes, snapshot says %d", written, n.Size))
 	}
@@ -495,7 +521,7 @@ func (rs *restorer) restoreFile(ctx context.Context, dir *fsutil.Dir, name, dst 
 		_ = dir.Remove(tmp)
 		return none, err
 	}
-	metaErrs = append(metaErrs, afterRename(dir, name, n)...)
+	metaErrs = append(metaErrs, afterRename(dir, name, id, n)...)
 	for _, err := range metaErrs {
 		rs.addError(dst, err)
 	}

@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Linux システム バックアップと P2V</h1>
 <p class="lead"><b>Linux システム</b> ジョブは Linux マシン全体をバックアップし、空のディスク上に再作成できるようにします — ディスク故障後の同じマシン、新しいハードウェア、または Proxmox VE の仮想マシン（物理から仮想へ、P2V）。</p>
+<p>Mac はシステムとしてはバックアップできません: Mac のシステム ボリュームは Apple によって封印・署名されており、復元ではなく再インストールするものなので、コンソールは Mac 用のシステム ジョブを拒否します。データはファイル ジョブでバックアップしてください（<a href="/docs/macos#limits">macOS エージェント</a>を参照）。</p>
 <p>Debian、Ubuntu 22.04、Rocky Linux 9 でテスト済みです(AlmaLinux と RHEL 9 も同様)。Ubuntu 22.04 と RHEL 系 9 のシステムでは、Linux システムバックアップにエージェント 0.50.0 以降が必要です。</p>
 
 <h2>バックアップされるもの</h2>

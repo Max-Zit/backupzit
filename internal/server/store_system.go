@@ -54,9 +54,10 @@ func systemRestoreOptions(run Run) *api.SystemRestore {
 	return &o
 }
 
-// isLinuxAgent reports whether a can restore Linux systems.
+// isLinuxAgent reports whether a can restore Linux systems: not a Windows
+// computer, nor a Mac (macOS agents back up files only).
 func isLinuxAgent(a Agent) bool {
-	return a.OS != "" && !strings.Contains(strings.ToLower(a.OS), "windows")
+	return agentPlatform(a) == GroupLinux
 }
 
 // QueueSystemRestore creates a system-restore run from a system backup.

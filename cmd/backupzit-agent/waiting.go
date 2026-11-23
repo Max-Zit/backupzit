@@ -37,6 +37,9 @@ func startWaitingStatus(ctx context.Context, log *slog.Logger) *waitingStatus {
 			w.mu.Lock()
 			defer w.mu.Unlock()
 			st := w.st
+			// Reported before enrollment too, so the menu bar app can guide
+			// the user while the machine waits for its enrollment code.
+			st.MacPermissions = agent.MacPermissions()
 			return localipc.Response{OK: true, Status: &st}
 		})
 	}()

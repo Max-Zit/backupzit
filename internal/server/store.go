@@ -599,8 +599,13 @@ func (s *Store) checkJob(ctx context.Context, j *Job) error {
 	if err := checkSourcePatterns(agent, j); err != nil {
 		return err
 	}
-	if j.Kind == JobSystem && (strings.Contains(strings.ToLower(agent.OS), "windows") || agent.Recovery) {
+	if j.Kind == JobSystem && (agentPlatform(agent) == GroupWindows || agent.Recovery) {
 		return fmt.Errorf("%s is not a Linux machine; use a disk image job for Windows", agent.Hostname)
+	}
+	if j.Kind == JobSystem && agentPlatform(agent) == GroupMacOS {
+		// The system volume of a Mac is sealed and signed by Apple: it is
+		// reinstalled, not restored; its data are backed up as files.
+		return fmt.Errorf("%s is a Mac: back it up with a files job (a Mac cannot be restored as a system)", agent.Hostname)
 	}
 	if j.Kind == JobVM && j.VMwareHostID != nil {
 		h, err := s.GetVMwareHost(ctx, *j.VMwareHostID)

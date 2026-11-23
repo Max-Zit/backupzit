@@ -7,6 +7,7 @@
   <li>Windows 10, 11 and Windows Server 2016 and newer — <b>Windows agent</b> MSI.</li>
   <li>Windows 7 SP1, Windows Server 2008 R2 SP1 and 2012 R2 — <b>Windows agent — older systems</b> MSI (<code>…-legacy.msi</code>), with the same features including VSS and disk images.</li>
   <li>Debian, Ubuntu, AlmaLinux, Rocky Linux (64-bit).</li>
+  <li>Macs with Apple silicon, macOS 13 and newer — <b>macOS agent</b> package (<code>…_darwin_arm64.pkg</code>), for files and folders (see <a href="/docs/macos">macOS agents</a>).</li>
   <li>Proxmox VE 7, 8 and 9 nodes — the Debian package; the agent then also backs up the node's VMs and containers (see <a href="/docs/proxmox">Proxmox VE</a>).</li>
   <li>Hyper-V hosts (Windows Server 2016 and newer, Windows 10/11 with Hyper-V): the Windows MSI. The agent then also backs up the host's VMs (see <a href="/docs/hyperv">Hyper-V</a>).</li>
   <li>VMware ESXi hosts — nothing is installed on ESXi: add the host under <a href="/agents#vmware">VMware ESXi hosts</a> and choose an agent as its proxy (see <a href="/docs/vmware">VMware ESXi</a>).</li>
@@ -15,7 +16,7 @@
 <h2>Enrolling agents</h2>
 <ol>
   <li>On the <a href="/agents">Agents</a> page click <b>Create enrollment token</b>. The console shows an <b>enrollment code</b> (<code>BZ1-…</code>), valid for 7 days and usable for any number of machines. It contains the console address for agents (with the agents' port, usually 8443, also when the page is open on the web port 443), the token and the certificate fingerprint. Agents from 0.33.6 also enroll with codes that older consoles made on the web port.</li>
-  <li>Windows: run the MSI and paste the code when the installer asks for it. Linux: run the command shown.</li>
+  <li>Windows: run the MSI and paste the code when the installer asks for it. Linux: run the command shown. macOS: install the package, then run the command shown in Terminal (see <a href="/docs/macos#enroll">macOS agents</a>).</li>
   <li>The machine appears in the agent list within a minute.</li>
 </ol>
 <p>If the console cannot be reached during installation, the agent keeps the code and retries until it can enroll. Upgrades keep the enrollment and do not ask again. A silent install with <code>ENROLLCODE</code> on a machine that is already enrolled keeps the enrollment when the code is for the same console (GPO or RMM can repeat it safely), and moves the machine when the code is for another console; the previous enrollment is kept as <code>agent.json.replaced-<i>date</i></code> next to <code>agent.json</code>, so renaming it back returns the machine to its old console as the same agent.</p>
@@ -26,6 +27,9 @@
 <pre>apt install ./backupzit-agent_*.deb        # or: dnf install ./backupzit-agent-*.rpm
 backupzit-agent enroll --code "BZ1-..."
 systemctl enable --now backupzit-agent</pre>
+<h3 id="macos">macOS</h3>
+<pre>sudo /Library/BackupZit/bin/backupzit-agent enroll --code "BZ1-..."</pre>
+<p>Run it after installing the <code>.pkg</code>. An MDM writes the code to <code>/Library/Application Support/BackupZit/enroll-code</code> before installing the package instead. Full Disk Access must then be granted by the user of the Mac; see <a href="/docs/macos">macOS agents</a>.</p>
 
 <h2>Installing agents from the console</h2>
 <p>Instead of copying installers to each machine, let the console install the agent: on <a href="/agents">Agents</a> open <b>Install on a machine from here</b>, choose Linux or Windows and enter the machine's address and an administrator account.</p>
@@ -33,6 +37,7 @@ systemctl enable --now backupzit-agent</pre>
   <li><b>Linux</b> (Debian, Ubuntu, AlmaLinux, Rocky Linux; 64-bit): the console connects over <b>SSH</b> as root, or as a user with <code>sudo</code> rights (the password is also used for sudo; with a key, passwordless sudo is needed). A password or a private key works. Enter the machine's <b>SSH host key fingerprint</b> (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on the machine) to make sure the console talks to the right machine; without it, the fingerprint is shown in the installation log.</li>
   <li><b>Windows</b> (64-bit): the console connects over <b>WinRM</b> (port 5985, messages encrypted with NTLM; 5986 for an HTTPS listener) as a local or domain administrator. WinRM is on by default on Windows Server; on Windows 10/11 run <code>winrm quickconfig</code> once as administrator. Local accounts other than the built-in Administrator need remote admin rights (<code>LocalAccountTokenFilterPolicy</code>) — or use a domain account. Older systems (Windows 7, Server 2008 R2/2012 R2) get the legacy MSI.</li>
 </ul>
+<p>Macs are not installed from here: deploy the <code>.pkg</code> by hand or with an MDM (<a href="/docs/macos#enroll">macOS agents</a>).</p>
 <p>The machine downloads the newest agent package from the console through a link that works only for this installation (30 minutes, three downloads), checks its SHA-256 checksum, installs it and enrolls. The installation page shows each step; the account and password are used only for this and are not stored. If the machine is already enrolled with this console, the enrollment is kept and the package is updated; an enrollment the console does not know (an agent removed earlier, or another console) is replaced. Every installation is in the audit log. The machine must reach the console's agent address, like any agent.</p>
 
 <h2>Agent status</h2>
@@ -61,6 +66,7 @@ systemctl enable --now backupzit-agent</pre>
   <tr><td>grey</td><td>The console cannot be reached, or the agent service is not running.</td></tr>
 </table>
 <p>Click the icon (or open <b>BackupZit Agent</b> from the Start menu) for the status window: protection state, progress of a running backup, last and next backup, and all backup jobs of the computer with <b>Back up now</b>. Right-click for the menu: <i>Back up now</i> per job, <i>Open console in browser</i>, <i>Hide this icon</i> (until the next sign-in; backups continue). The window needs Microsoft Edge WebView2, which is part of Windows 10 and 11; on older systems the icon and menu work and <i>Open</i> shows the console in the browser.</p>
+<p>On a Mac the menu bar app does the same and also checks the permissions macOS asks the user for (see <a href="/docs/macos#assistant">macOS agents</a>).</p>
 <p>Users can start a backup of their computer this way; the jobs, schedules and retention are set only in the console. On any system, <code>backupzit-agent status</code> (as administrator or root) prints the same information.</p>
 
 <h2 id="parallel">Several jobs at once</h2>
@@ -70,10 +76,10 @@ systemctl enable --now backupzit-agent</pre>
 <p>When the console has a newer agent installer than an agent runs, the Agents page shows <b>Update to x.y.z</b> next to its version, and <b>Update all agents</b> below the list. The agent then:</p>
 <ol>
   <li>waits until it is idle (a running backup is never interrupted),</li>
-  <li>downloads the matching installer from the console over its pinned connection — the MSI for Windows 10/11/2016+, the <i>older systems</i> MSI for Windows 7/2008 R2/2012 R2, the deb or rpm package on Linux — and checks it: since 0.56 the installer must be in the list of agent installers signed with the BackupZit release key, which the agent checks with the key built into it, so an installer changed on the console is refused,</li>
+  <li>downloads the matching installer from the console over its pinned connection — the MSI for Windows 10/11/2016+, the <i>older systems</i> MSI for Windows 7/2008 R2/2012 R2, the deb or rpm package on Linux, the <code>.pkg</code> on a Mac — and checks it: since 0.56 the installer must be in the list of agent installers signed with the BackupZit release key, which the agent checks with the key built into it, so an installer changed on the console is refused,</li>
   <li>installs it and restarts; the new version appears in the list within a few minutes. The enrollment and all settings are kept.</li>
 </ol>
-<p>The console offers the newest installers in its <code>dist</code> directory; the server package ships the agent installers of its own version. After the console was updated from <a href="/settings/updates">Settings → Updates</a>, the agents are updated automatically (can be turned off there). Updates from the console work for agents from version 0.21 on; older agents are updated once by installing the newer MSI / package over the old one (the enrollment is kept). Agents 0.56 and newer accept an update only from a console of 0.56 or newer (its package carries the signed list) and never to an older version than their own. The installer log is in <code>C:\ProgramData\backupzit\updates</code> or <code>/var/lib/backupzit-agent/updates</code>.</p>
+<p>The console offers the newest installers in its <code>dist</code> directory; the server package ships the agent installers of its own version. After the console was updated from <a href="/settings/updates">Settings → Updates</a>, the agents are updated automatically (can be turned off there). Updates from the console work for agents from version 0.21 on; older agents are updated once by installing the newer MSI / package over the old one (the enrollment is kept). Agents 0.56 and newer accept an update only from a console of 0.56 or newer (its package carries the signed list) and never to an older version than their own. The installer log is in <code>C:\ProgramData\backupzit\updates</code>, <code>/var/lib/backupzit-agent/updates</code> or, on a Mac, <code>/Library/Application Support/BackupZit/updates</code>. An agent update of a Mac whose package is not signed with an Apple Developer ID takes away its Full Disk Access (see <a href="/docs/macos#unsigned">macOS agents</a>).</p>
 
 <h2>Removing an agent</h2>
 <p><b>Remove</b> on the Agents page opens a page with two choices; with <a href="/docs/users">four-eyes approval</a> on, a second user has to approve it first.</p><ul><li><b>Uninstall the agent from the computer</b> (online agents from version 0.42.7): the agent reports, uninstalls itself and is then removed from the console with its jobs. An offline agent is removed from the console only — uninstall it on the computer (see below).</li><li><b>Its backups:</b> <i>keep all</i> (the default — they stay on the storage and can still be restored), <i>keep only the newest backup of each job</i> (each backup is complete, so the newest one restores everything as of its date), or <i>delete all</i>. Deleting needs the computer's name typed in; the console deletes in the background and writes the result to the <a href="/audit">audit log</a>. Immutable storage keeps locked data until its lock expires; backups on a disk of the computer itself and copies made by copy jobs are not deleted. An agent that backs up other systems (Proxmox, VMware, Hyper-V, Microsoft 365, NAS) takes their backups with it.</li></ul>
@@ -98,6 +104,7 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.json</code> (accessible only to SYSTEM and Administrators).</li>
   <li>Linux: <code>/etc/backupzit/agent.json</code> (root only).</li>
+  <li>macOS: <code>/Library/Application Support/BackupZit/agent.json</code> (root only).</li>
 </ul>
 <p>The file contains the agent's secret. Anyone who can read it can act as that agent, so keep these permissions.</p>
 
@@ -105,13 +112,14 @@ systemctl enable --now backupzit-agent</pre>
 <ul>
   <li>Windows: <code>C:\ProgramData\backupzit\agent.log</code></li>
   <li>Linux: <code>/var/log/backupzit/agent.log</code> and <code>journalctl -u backupzit-agent</code></li>
+  <li>macOS: <code>/Library/Logs/BackupZit/agent.log</code></li>
   <li>Recovery systems print the log on their screen.</li>
   <li>The log keeps up to 4 files of 10 MB (<code>agent.log</code> and <code>agent.log.1</code> to <code>.3</code>); older entries are deleted.</li>
   <li><b>Get log</b> on the Agents page fetches the end of the log from the console — see <a href="/docs/troubleshooting#logs">Logs</a>.</li>
 </ul>
 
 <h2>Uninstalling</h2>
-<p>Windows: <i>Settings → Apps → BackupZit Agent → Uninstall</i> (or <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. Then remove the agent in the console. Backups stay on the storage.</p>
+<p>Windows: <i>Settings → Apps → BackupZit Agent → Uninstall</i> (or <code>msiexec /x</code>). Linux: <code>apt remove backupzit-agent</code> / <code>dnf remove backupzit-agent</code>. macOS: <code>sudo /Library/BackupZit/uninstall.sh</code> (see <a href="/docs/macos#update">macOS agents</a>). Then remove the agent in the console. Backups stay on the storage.</p>
 <p>On Windows, uninstalling sets the enrollment aside (<code>C:\ProgramData\backupzit\agent.json.removed-<i>date</i></code>), so installing the agent again asks for an enrollment code. If the installer finds an enrollment of an earlier version, it says so: leave the code empty to keep it, or paste a new code to enroll the computer again (for example with another console).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

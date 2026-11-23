@@ -112,8 +112,8 @@
   <tr><th>Comando</th><th>Qué hace</th></tr>
   <tr><td><code>enroll --code BZ1-… [--force]</code></td><td>Conecta el agente a una consola con el código de registro de la página Agentes (<code>--force</code> sustituye un registro existente). La forma antigua <code>--server URL --token T --fingerprint F</code> sigue funcionando.</td></tr>
   <tr><td><code>set-server https://address:8443</code></td><td>Apunta un agente registrado a una nueva dirección de la consola (mismo certificado); después reinicie el servicio del agente. Consulte <a href="/docs/agents#new-address">Agentes</a>.</td></tr>
-  <tr><td><code>status</code></td><td>Muestra qué está haciendo el agente en ejecución y sus trabajos de copia (el icono de la bandeja de Windows muestra lo mismo).</td></tr>
-  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Gestiona el servicio del agente (lo hacen los instaladores).</td></tr>
+  <tr><td><code>status</code></td><td>Muestra qué está haciendo el agente en ejecución y sus trabajos de copia (el icono de la bandeja de Windows muestra lo mismo). En un Mac también muestra <code>full disk access: granted</code> o <code>denied</code>, también para un usuario normal.</td></tr>
+  <tr><td><code>service install|uninstall|start|stop|status|run</code></td><td>Gestiona el servicio del agente (lo hacen los instaladores). En un Mac el servicio es el LaunchDaemon <code>/Library/LaunchDaemons/com.backupzit.agent.plist</code> y el programa es <code>/Library/BackupZit/bin/backupzit-agent</code>, que no está en el <code>PATH</code>; vea <a href="/docs/macos">Agentes macOS</a>.</td></tr>
   <tr><td><code>recovery</code></td><td>Modo de recuperación, iniciado automáticamente por las ISO de recuperación; en cualquier sistema Linux en vivo: <code>sudo backupzit-agent recovery --server URL --token CODE</code>.</td></tr>
   <tr><td><code>version</code></td><td>Muestra la versión.</td></tr>
   <tr><td><code>forget</code></td><td>Aparta el registro (lo renombra, no lo borra); lo ejecutan los desinstaladores, así que una nueva instalación vuelve a pedir un código de registro.</td></tr>
