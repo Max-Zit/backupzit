@@ -527,6 +527,12 @@ func keepNewestBackups(ctx context.Context, r *repo.Repository) (string, []strin
 		return "not deleted: " + err.Error(), nil
 	}
 	defer lock.Unlock()
+	// The lock refreshed the index. While a file of it is damaged, prune
+	// refuses and nobody knows which backups lost data: the older backups
+	// stay until repair has run.
+	if bad := r.DamagedIndexFiles(); len(bad) > 0 {
+		return fmt.Sprintf("not deleted: the repository has %d damaged index files; the older backups are kept until repair has run", len(bad)), nil
+	}
 	sns, err := r.ListSnapshots(ctx)
 	if err != nil {
 		return "not deleted: " + err.Error(), nil

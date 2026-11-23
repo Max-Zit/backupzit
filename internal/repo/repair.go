@@ -19,6 +19,35 @@ type RepairResult struct {
 	Unchecked []*Snapshot
 }
 
+// Merge adds the result of another step (the packs RebuildIndex left out and
+// the ones DropDamagedPacks took out): each backup is listed once.
+func (rr *RepairResult) Merge(o *RepairResult) {
+	rr.Packs += o.Packs
+	rr.Blobs += o.Blobs
+	seen := map[ID]bool{}
+	for _, sn := range rr.Snapshots {
+		seen[sn.ID] = true
+	}
+	for _, sn := range o.Snapshots {
+		if !seen[sn.ID] {
+			seen[sn.ID] = true
+			rr.Snapshots = append(rr.Snapshots, sn)
+		}
+	}
+	// A backup one step proved affected is no longer unchecked.
+	un := rr.Unchecked
+	rr.Unchecked = nil
+	for _, sn := range append(un, o.Unchecked...) {
+		dup := false
+		for _, x := range rr.Unchecked {
+			dup = dup || x.ID == sn.ID
+		}
+		if !seen[sn.ID] && !dup {
+			rr.Unchecked = append(rr.Unchecked, sn)
+		}
+	}
+}
+
 // needsLost tells whether sn references a blob in lost. Blobs in lost are
 // never loaded: a lost folder list or block map proves the snapshot
 // affected. Any other load error is returned (affected unknown). trees
