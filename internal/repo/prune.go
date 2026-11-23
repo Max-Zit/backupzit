@@ -2,11 +2,14 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/max-zit/backupzit/internal/backend"
 )
 
 // PruneOptions control how aggressively space is reclaimed.
@@ -33,6 +36,64 @@ type PruneStats struct {
 	// again. SkipReason is the first error.
 	PacksSkipped int    `json:"packs_skipped,omitempty"`
 	SkipReason   string `json:"skip_reason,omitempty"`
+	// PacksRestored were on the storage but not in the index although they
+	// hold data backups use and nothing else holds (an index file lost or
+	// deleted by hand): verified and put back into the index instead of
+	// deleted. PacksUnchecked are such packs that could not be verified now:
+	// they stay, neither deleted nor indexed.
+	PacksRestored  int `json:"packs_restored,omitempty"`
+	PacksUnchecked int `json:"packs_unchecked,omitempty"`
+}
+
+type unindexedVerdict int
+
+const (
+	unindexedDelete    unindexedVerdict = iota // garbage: delete it
+	unindexedRestore                           // needed and verified: index it
+	unindexedUnchecked                         // maybe needed, unverified: leave it
+)
+
+// neededUnindexed decides about a pack on the storage that the index does
+// not list. It is deleted unless its header lists a blob that a backup uses
+// and the index has nowhere else; then it is verified (three tries, as the
+// data check does): indexed again when intact, deleted only when every try
+// proves it damaged. A header that cannot be read for a storage problem
+// leaves the pack alone; a damaged header makes it garbage.
+func (r *Repository) neededUnindexed(ctx context.Context, p ID, used map[BlobHandle]bool) ([]PackedBlob, unindexedVerdict) {
+	header, err := r.ReadPackHeader(ctx, p)
+	switch {
+	case errors.Is(err, errPackHeader), errors.Is(err, backend.ErrNotFound):
+		return nil, unindexedDelete
+	case err != nil:
+		return nil, unindexedUnchecked
+	}
+	needed := false
+	for _, b := range header {
+		h := BlobHandle{Type: b.Type, ID: b.ID}
+		if used[h] && !r.idx.Has(h) {
+			needed = true
+			break
+		}
+	}
+	if !needed {
+		return nil, unindexedDelete
+	}
+	var blobs []PackedBlob
+	everyTryDamaged := true
+	err = Tries(ctx, 0, func() (err error) {
+		blobs, err = r.verifyPack(ctx, p)
+		if !errors.Is(err, ErrPackDamaged) {
+			everyTryDamaged = false
+		}
+		return err
+	})
+	switch {
+	case err == nil:
+		return blobs, unindexedRestore
+	case errors.Is(err, ErrPackDamaged) && everyTryDamaged && !errors.Is(err, ErrPackGone):
+		return nil, unindexedDelete
+	}
+	return nil, unindexedUnchecked
 }
 
 // repackGiveUp is how many packs in a row may fail to be read before prune
@@ -174,6 +235,23 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 	var repack []ID
 	for _, p := range onDisk {
 		pi := packs[p]
+		if pi == nil {
+			// Not in the index: usually what an interrupted backup left. But
+			// an index file lost or deleted by hand takes its packs out of
+			// the index too, and they may hold the only copy of data backups
+			// use (B5, 0.59): such a pack is verified and indexed again.
+			switch blobs, verdict := r.neededUnindexed(ctx, p, used); verdict {
+			case unindexedRestore:
+				say("pack %s was not in the index but holds data backups use: indexed again", p.Short())
+				keep = append(keep, indexPack{ID: p, Blobs: blobs})
+				st.PacksRestored++
+				continue
+			case unindexedUnchecked:
+				say("pack %s is not in the index, may hold data backups use and could not be verified now: left as it is", p.Short())
+				st.PacksUnchecked++
+				continue
+			}
+		}
 		switch {
 		case pi == nil || pi.usedBytes == 0:
 			deletePacks = append(deletePacks, p) // unreferenced or fully unused
@@ -187,7 +265,9 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 			st.BytesRemaining += pi.totalBytes
 		}
 	}
-	if len(deletePacks) == 0 && len(repack) == 0 {
+	// A pack indexed again needs the new index written even when nothing
+	// goes.
+	if len(deletePacks) == 0 && len(repack) == 0 && st.PacksRestored == 0 {
 		say("nothing to prune")
 		return st, nil
 	}
