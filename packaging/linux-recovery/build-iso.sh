@@ -79,6 +79,20 @@ SOURCES="$SRC/../appliance/SOURCE-CODE.txt"
 mkdir -p config/includes.chroot/usr/share/doc/backupzit config/includes.binary
 install -m 0644 "$SOURCES" config/includes.chroot/usr/share/doc/backupzit/SOURCE-CODE.txt
 install -m 0644 "$SOURCES" config/includes.binary/SOURCE-CODE.txt
+# The agent's license (AGPLv3) and the licenses of what it contains ship
+# with it, in the live system and on the ISO: from the repository, or from
+# the agent package the binary was taken from (its LICENSE is "copyright").
+LIC="" TPL=""
+for d in "$SRC/../.." "$(dirname "$AGENT")/../share/doc/backupzit-agent"; do
+    for l in "$d/LICENSE" "$d/copyright"; do
+        if [ -z "$LIC" ] && [ -f "$l" ] && [ -f "$d/THIRD_PARTY_LICENSES.txt" ]; then LIC="$l" TPL="$d/THIRD_PARTY_LICENSES.txt"; fi
+    done
+done
+[ -n "$LIC" ] || { echo "LICENSE and THIRD_PARTY_LICENSES.txt not found (in the repository or the extracted agent package)" >&2; exit 1; }
+for dst in config/includes.chroot/usr/share/doc/backupzit config/includes.binary; do
+    install -m 0644 "$LIC" "$dst/LICENSE.txt"
+    install -m 0644 "$TPL" "$dst/THIRD_PARTY_LICENSES.txt"
+done
 cat > config/includes.chroot/etc/systemd/network/80-dhcp.network <<'NET'
 [Match]
 Name=en* eth*

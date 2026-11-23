@@ -1,6 +1,8 @@
 // Command licenses writes THIRD_PARTY_LICENSES.txt: the license texts of
-// every Go module linked into the BackupZit programs (Windows and Linux
-// builds), which the permissive licenses require to ship with binaries.
+// every Go module linked into the BackupZit programs (Windows, Linux and
+// macOS builds), with the NOTICE files of Apache-licensed modules and the
+// licenses inside modules (copied code, embedded files), which the
+// permissive licenses require to ship with binaries.
 // It fails on licenses that are not known to be compatible with AGPLv3.
 //
 //	go run ./tools/licenses > THIRD_PARTY_LICENSES.txt
@@ -27,7 +29,7 @@ var adapted = []struct{ file, project, license string }{
 var embedded = []struct{ name, license, file string }{
 	{"DejaVu Sans fonts (internal/server/fonts, used in PDF reports)", "Bitstream Vera / DejaVu font license", "internal/server/fonts/LICENSE-DejaVu.txt"},
 	{"Droid Sans Fallback font (internal/server/fonts, used in PDF reports)", "Apache License 2.0", "internal/server/fonts/LICENSE-DroidSansFallback.txt"},
-	{"Feather icons (https://feathericons.com; the console's menu and button icons are drawn after them)", "MIT License", "tools/licenses/feather.txt"},
+	{"Feather icons (https://feathericons.com; the menu and button icons of the console and of the tray window are drawn after them)", "MIT License", "tools/licenses/feather.txt"},
 }
 
 type module struct {
@@ -36,23 +38,55 @@ type module struct {
 	Replace *struct{ Path string }
 }
 
+// nested is a license file inside a module, below its root: a package that
+// carries code of another project (go-mssqldb's internal copies), or files
+// a package embeds into the programs (go-webview2's WebView2Loader.dll).
+type nested struct {
+	mod       module
+	rel, file string
+}
+
 func main() {
 	mods := map[string]module{}
-	for _, goos := range []string{"windows", "linux"} {
-		cmd := exec.Command("go", "list", "-deps", "-json=Module", "./cmd/...")
-		cmd.Env = append(os.Environ(), "GOOS="+goos)
+	inner := map[string]nested{} // by file path
+	for _, t := range []struct{ goos, goarch, cgo string }{{"windows", "amd64", ""}, {"linux", "amd64", ""}, {"darwin", "arm64", "1"}} {
+		cmd := exec.Command("go", "list", "-deps", "-json=Dir,Module,EmbedFiles", "./cmd/...")
+		cmd.Env = append(os.Environ(), "GOOS="+t.goos, "GOARCH="+t.goarch)
+		if t.cgo != "" {
+			// The macOS menu bar app is cgo code: list its packages too.
+			cmd.Env = append(cmd.Env, "CGO_ENABLED="+t.cgo)
+		}
 		out, err := cmd.Output()
 		if err != nil {
-			fail("go list: %v", err)
+			fail("go list (%s): %v", t.goos, err)
 		}
 		dec := json.NewDecoder(bytes.NewReader(out))
 		for dec.More() {
-			var p struct{ Module *module }
+			var p struct {
+				Dir        string
+				Module     *module
+				EmbedFiles []string
+			}
 			if err := dec.Decode(&p); err != nil {
 				fail("decode: %v", err)
 			}
-			if m := p.Module; m != nil && m.Path != "github.com/max-zit/backupzit" {
-				mods[m.Path] = *m
+			m := p.Module
+			if m == nil || m.Path == "github.com/max-zit/backupzit" || m.Dir == "" {
+				continue
+			}
+			mods[m.Path] = *m
+			// License files between the package and the module root, and
+			// next to the files it embeds.
+			dirs := parentsBelow(p.Dir, m.Dir)
+			for _, e := range p.EmbedFiles {
+				dirs = append(dirs, parentsBelow(filepath.Join(p.Dir, filepath.Dir(e)), m.Dir)...)
+			}
+			for _, d := range dirs {
+				if _, name := licenseText(d); name != "no license file" {
+					f := filepath.Join(d, name)
+					rel, _ := filepath.Rel(m.Dir, d)
+					inner[f] = nested{*m, filepath.ToSlash(rel), f}
+				}
 			}
 		}
 	}
@@ -78,6 +112,33 @@ func main() {
 			label += " (patched copy in " + strings.TrimPrefix(m.Replace.Path, "./") + ", changes listed in its NOTICE.BackupZit)"
 		}
 		fmt.Fprintf(&b, "%s\n%s %s — %s\n%s\n\n%s\n\n", strings.Repeat("=", 78), m.Path, m.Version, label, strings.Repeat("=", 78), strings.TrimSpace(text))
+		// Apache License 2.0, 4(d): its NOTICE file ships too.
+		if n := noticeText(m.Dir); n != "" {
+			fmt.Fprintf(&b, "NOTICE of %s:\n\n%s\n\n", m.Path, strings.TrimSpace(n))
+		}
+	}
+	var files []string
+	for f := range inner {
+		files = append(files, f)
+	}
+	sort.Slice(files, func(i, j int) bool {
+		a, c := inner[files[i]], inner[files[j]]
+		return a.mod.Path+"/"+a.rel < c.mod.Path+"/"+c.rel
+	})
+	for _, f := range files {
+		n := inner[f]
+		text, err := os.ReadFile(f) // #nosec G304 -- license file in the module cache
+		if err != nil {
+			fail("%v", err)
+		}
+		kind := classify(string(text))
+		if kind == "" {
+			bad = append(bad, n.mod.Path+"/"+n.rel)
+		}
+		fmt.Fprintf(&b, "%s\n%s %s, %s — %s\n%s\n\n%s\n\n", strings.Repeat("=", 78), n.mod.Path, n.mod.Version, n.rel, kind, strings.Repeat("=", 78), strings.TrimSpace(string(text)))
+		if t := noticeText(filepath.Dir(f)); t != "" {
+			fmt.Fprintf(&b, "NOTICE of %s/%s:\n\n%s\n\n", n.mod.Path, n.rel, strings.TrimSpace(t))
+		}
 	}
 	// Code adapted from other projects keeps its license header in the
 	// source file; its notice ships here too.
@@ -120,6 +181,28 @@ func licenseText(dir string) (string, string) {
 		}
 	}
 	return "", "no license file"
+}
+
+// noticeText returns the NOTICE file of a folder, if there is one.
+func noticeText(dir string) string {
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if n := strings.ToLower(e.Name()); n == "notice" || strings.HasPrefix(n, "notice.") {
+			if b, err := os.ReadFile(filepath.Join(dir, e.Name())); err == nil { // #nosec G304 -- file in the module cache
+				return string(b)
+			}
+		}
+	}
+	return ""
+}
+
+// parentsBelow lists dir and its parent folders up to, not including, root.
+func parentsBelow(dir, root string) []string {
+	var out []string
+	for d := filepath.Clean(dir); d != filepath.Clean(root) && strings.HasPrefix(d, filepath.Clean(root)+string(filepath.Separator)); d = filepath.Dir(d) {
+		out = append(out, d)
+	}
+	return out
 }
 
 // classify names licenses compatible with distribution under AGPLv3.
