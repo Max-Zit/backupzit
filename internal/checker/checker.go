@@ -82,27 +82,12 @@ func (s *streak) err() error {
 	return fmt.Errorf("%w: %d data packs in a row could not be read (last: %v); nothing was judged, check the storage and the network path and run the check again", errStorageDown, s.n, s.last)
 }
 
-// tries runs read up to three times, pausing in between, while it fails.
-// A proven verdict (repo.ErrPackDamaged) is read again too: over plain
-// HTTP a corrupt download can be a one-off.
+// tries is repo.Tries with the checker's default pause.
 func tries(ctx context.Context, pause time.Duration, read func() error) error {
 	if pause <= 0 {
 		pause = DefaultRetryPause
 	}
-	var err error
-	for i := 0; i < 3; i++ {
-		if err = read(); err == nil || ctx.Err() != nil {
-			return err
-		}
-		if i < 2 {
-			select {
-			case <-ctx.Done():
-				return err
-			case <-time.After(pause << i):
-			}
-		}
-	}
-	return err
+	return repo.Tries(ctx, pause, read)
 }
 
 // Run checks r.
