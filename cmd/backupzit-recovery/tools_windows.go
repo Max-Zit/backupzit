@@ -289,10 +289,6 @@ func addDriversToWindows(owner walk.Form) {
 // --- Network -----------------------------------------------------------------
 
 func runNetwork(owner walk.Form) {
-	var dlg *walk.Dialog
-	var adapter, mode *walk.ComboBox
-	var ip, mask, gw, dns *walk.LineEdit
-	var state *walk.TextEdit
 	var names []string
 	if ifs, err := net.Interfaces(); err == nil {
 		for _, i := range ifs {
@@ -301,6 +297,25 @@ func runNetwork(owner walk.Form) {
 			}
 		}
 	}
+	if err := networkDialog(owner, names); err != nil {
+		errorBox(owner, err)
+	}
+}
+
+// networkDialog sets up the network adapters named (none when no driver
+// is loaded: the dialog then says so and still shows ipconfig).
+func networkDialog(owner walk.Form, names []string) error {
+	var dlg *walk.Dialog
+	var adapter, mode *walk.ComboBox
+	var ip, mask, gw, dns *walk.LineEdit
+	var state *walk.TextEdit
+	first, hint := 0, ""
+	if len(names) == 0 {
+		first = -1
+		hint = t("Keine Netzwerkkarte gefunden. Meist fehlt ihr Treiber: im Hauptfenster unter „Treiber“ laden, dann „Netzwerk neu starten“.",
+			"No network adapter found. Usually its driver is missing: load it under “Drivers” in the main window, then “Restart the network”.")
+	}
+	noAdapter := errors.New(t("Keine Netzwerkkarte gewählt.", "No network adapter chosen."))
 	showState := func() {
 		out, _ := exec.Command("ipconfig.exe", "/all").CombinedOutput() // #nosec G204 -- fixed command
 		text := strings.ReplaceAll(winenc.Text(out), "\r\n", "\n")
@@ -312,9 +327,10 @@ func runNetwork(owner walk.Form) {
 		MinSize:  Size{Width: 700, Height: 520},
 		Layout:   VBox{},
 		Children: []Widget{
+			Label{Text: hint, Visible: hint != "", TextColor: walk.RGB(0xB0, 0x30, 0x20)},
 			Composite{Layout: Grid{Columns: 2}, Children: []Widget{
 				Label{Text: t("Netzwerkkarte:", "Network adapter:")},
-				ComboBox{AssignTo: &adapter, Model: names, CurrentIndex: 0},
+				ComboBox{AssignTo: &adapter, Model: names, CurrentIndex: first},
 				Label{Text: t("Adresse:", "Address:")},
 				ComboBox{AssignTo: &mode, Model: []string{t("automatisch (DHCP)", "automatic (DHCP)"), t("fest", "static")}, CurrentIndex: 0},
 				Label{Text: "IP:"},
@@ -329,6 +345,10 @@ func runNetwork(owner walk.Form) {
 			Composite{Layout: HBox{MarginsZero: true}, Children: []Widget{
 				PushButton{Text: t("Übernehmen", "Apply"), OnClicked: func() {
 					name := adapter.Text()
+					if name == "" {
+						errorBox(dlg, noAdapter)
+						return
+					}
 					var cmds [][]string
 					if mode.CurrentIndex() == 0 {
 						cmds = [][]string{
@@ -367,9 +387,9 @@ func runNetwork(owner walk.Form) {
 		},
 	}.Create(owner)
 	if err != nil {
-		errorBox(owner, err)
-		return
+		return err
 	}
 	showState()
 	dlg.Run()
+	return nil
 }

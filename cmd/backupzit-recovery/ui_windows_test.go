@@ -108,3 +108,26 @@ func TestAskChoiceReturnsSelectedItem(t *testing.T) {
 		t.Fatalf("askChoice = %d, %v; want 2, true", got, ok)
 	}
 }
+
+// closeDialog waits for the dialog with the title and closes it.
+func closeDialog(title string) {
+	go func() {
+		name, _ := syscall.UTF16PtrFromString(title)
+		for i := 0; i < 200; i++ {
+			if h := win.FindWindow(nil, name); h != 0 && win.IsWindowVisible(h) {
+				win.PostMessage(h, win.WM_CLOSE, 0, 0)
+				return
+			}
+			time.Sleep(25 * time.Millisecond)
+		}
+	}()
+}
+
+func TestNetworkDialogOpensWithoutAdapters(t *testing.T) {
+	useManifest(t)
+	withLang(t, "en")
+	closeDialog("Network")
+	if err := networkDialog(nil, nil); err != nil {
+		t.Fatalf("no network adapter: %v", err)
+	}
+}
