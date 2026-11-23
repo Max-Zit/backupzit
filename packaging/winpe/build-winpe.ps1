@@ -20,7 +20,9 @@
 
   -Language (default de-de) adds the Windows PE language pack and sets the
   UI language, -KeyboardLayout (default: the one of the language, e.g.
-  0407:00000407 for German) the keyboard. -Components adds further optional
+  0407:00000407 for German) the keyboard, -TimeZone (default: the one of
+  this PC, e.g. "W. Europe Standard Time"; "" keeps Pacific time) the time
+  zone snapshot times are shown in. -Components adds further optional
   components (e.g. WinPE-FontSupport-JA-JP); -PowerShell adds PowerShell
   with the storage and DISM cmdlets (larger ISO).
 
@@ -55,6 +57,7 @@ param(
     [string]$UiExe = "",
     [string]$Language = "de-de",
     [string]$KeyboardLayout = "",
+    [string]$TimeZone = (Get-TimeZone).Id,
     [string[]]$Components = @(),
     [switch]$PowerShell,
     [int]$ScratchSpaceMB = 512,
@@ -180,6 +183,11 @@ try {
     }
     if ($KeyboardLayout) {
         Invoke-Dism @("/Image:$mount", "/Set-InputLocale:$KeyboardLayout") "set keyboard layout"
+    }
+    if ($TimeZone) {
+        # Windows PE runs in Pacific time otherwise: snapshot times would be
+        # shown hours off, which makes choosing a backup by its time hard.
+        Invoke-Dism @("/Image:$mount", "/Set-TimeZone:$TimeZone") "set time zone"
     }
     if ($ScratchSpaceMB -gt 0) {
         Invoke-Dism @("/Image:$mount", "/Set-ScratchSpace:$ScratchSpaceMB") "set scratch space"
