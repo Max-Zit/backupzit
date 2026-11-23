@@ -2,6 +2,7 @@ package checker_test
 
 import (
 	"context"
+	"fmt"
 	mrand "math/rand"
 	"os"
 	"path/filepath"
@@ -275,5 +276,65 @@ func TestPackMissingFromListing(t *testing.T) {
 	res, err = checker.Run(ctx, r4, checker.Options{RetryPause: time.Millisecond})
 	if err != nil || len(res.Damaged) != 1 || res.Damaged[0] != packs[2] {
 		t.Fatalf("missing pack: err %v, damaged %v", err, res.Damaged)
+	}
+}
+
+type vanished struct{ *backend.Local }
+
+func (v *vanished) Load(ctx context.Context, name string) ([]byte, error) {
+	if strings.HasPrefix(name, "data/") {
+		return nil, fmt.Errorf("%s: %w", name, backend.ErrNotFound)
+	}
+	return v.Local.Load(ctx, name)
+}
+
+// B4 (0.59): packs the storage just listed and that are gone when the data
+// check reads them, most of them at once, are a folder that went away
+// during the check (a data volume unmounted), not lost data: no verdict.
+func TestCheckJudgesNothingWhenMostPacksVanish(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	loc, err := backend.OpenLocal(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, loc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []repo.ID
+	for i := 0; i < 30; i++ {
+		data := make([]byte, 64<<10)
+		mrand.New(mrand.NewSource(int64(i))).Read(data)
+		id, _, err := r.SaveBlob(ctx, repo.DataBlob, data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+		if err := r.Flush(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tree, err := r.SaveTree(ctx, &repo.Tree{Nodes: []repo.Node{{Name: "f", Type: repo.NodeFile, Content: ids}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.SaveSnapshot(ctx, &repo.Snapshot{Time: time.Now(), Tree: tree}); err != nil {
+		t.Fatal(err)
+	}
+	r.Close()
+	r2, err := repo.Open(ctx, &vanished{Local: loc})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := checker.Run(ctx, r2, checker.Options{ReadData: true, RetryPause: time.Millisecond})
+	if err == nil || !strings.Contains(err.Error(), "gone when they were read") {
+		t.Fatalf("err %v, want no verdict", err)
+	}
+	if res != nil && len(res.Damaged) > 0 {
+		t.Errorf("judged %d packs damaged", len(res.Damaged))
 	}
 }

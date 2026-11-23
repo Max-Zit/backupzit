@@ -15,9 +15,10 @@ import (
 // parsed (cut short, overwritten, wrong key). Reading it again does not help.
 var errIndexDamaged = errors.New("index file damaged")
 
-// errPackGone marks a pack that is not on the storage (any more): damaged for
-// the data check, but a rebuild that just listed it stops on it.
-var errPackGone = errors.New("missing on the storage")
+// ErrPackGone marks a pack that is not on the storage (any more), with
+// ErrPackDamaged: damaged for the data check, but a rebuild that just listed
+// it stops on it, and a check that finds most packs gone judges nothing.
+var ErrPackGone = errors.New("missing on the storage")
 
 // DamagedIndexFiles returns the index files that could not be read when the
 // repository was opened or its index refreshed. Their packs were found from
@@ -235,7 +236,7 @@ func (r *Repository) RebuildIndexWith(ctx context.Context, o RebuildOptions) (*R
 			return err
 		})
 		switch {
-		case errors.Is(err, errPackGone):
+		case errors.Is(err, ErrPackGone):
 			// It was listed moments ago, under the exclusive lock: a pack
 			// that vanishes now is a storage that changes or a folder that
 			// went away, not damage (0.59 review: a data volume unmounted

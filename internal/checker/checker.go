@@ -393,6 +393,19 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*Result, error)
 		if down {
 			return res, ds.err()
 		}
+		// Packs that were listed a moment ago and are gone when read: most of
+		// them at once is more likely a folder that went away during the
+		// check (a data volume unmounted) than lost data, as for the listing
+		// above: no verdict (0.59).
+		vanished := 0
+		for i, v := range out {
+			if _, inIndex := indexed[onDisk[i]]; inIndex && errors.Is(v.err, repo.ErrPackGone) {
+				vanished++
+			}
+		}
+		if vanished > 10 && vanished*2 > len(onDisk) {
+			return res, fmt.Errorf("%d of %d data packs were gone when they were read, although the storage had just listed them: more likely a folder that went away during the check than lost data; nothing was judged", vanished, len(onDisk))
+		}
 		for i, v := range out {
 			if v.err != nil {
 				_, inIndex := indexed[onDisk[i]]

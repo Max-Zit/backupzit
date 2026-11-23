@@ -678,7 +678,7 @@ func (r *Repository) VerifyPack(ctx context.Context, pack ID) (int, error) {
 func (r *Repository) verifyPack(ctx context.Context, pack ID) ([]PackedBlob, error) {
 	data, err := r.be.Load(ctx, packName(pack))
 	if errors.Is(err, backend.ErrNotFound) {
-		return nil, fmt.Errorf("pack %s: %w: %w", pack.Short(), errPackGone, ErrPackDamaged)
+		return nil, fmt.Errorf("pack %s: %w: %w", pack.Short(), ErrPackGone, ErrPackDamaged)
 	}
 	if err != nil {
 		return nil, err // a read problem (network, timeout), no verdict on the pack
