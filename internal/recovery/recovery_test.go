@@ -274,3 +274,33 @@ func TestJobCheckLayout(t *testing.T) {
 		t.Errorf("restored partitions %v", got)
 	}
 }
+
+func TestLocateLocalRepo(t *testing.T) {
+	if filepath.Separator != '\\' {
+		t.Skip("drive letters are Windows only")
+	}
+	empty, other := t.TempDir(), t.TempDir()
+	repo := filepath.Join(other, "backups", "riso-repo")
+	if err := os.MkdirAll(filepath.Join(repo, "snapshots"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "config"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	roots := []string{empty, other}
+	for _, c := range []struct{ loc, want string }{
+		// The drive letter changed (G: when the package was made, another one in WinPE).
+		{`Q:\backups\riso-repo`, repo},
+		// The path still works: kept.
+		{repo, repo},
+		// Not found anywhere: kept, so the error names the original path.
+		{`Q:\backups\missing`, `Q:\backups\missing`},
+		// Not a local path.
+		{"sftp://host/backups/riso-repo", "sftp://host/backups/riso-repo"},
+		{`\\server\share\riso-repo`, `\\server\share\riso-repo`},
+	} {
+		if got := LocateLocalRepo(c.loc, roots); got != c.want {
+			t.Errorf("LocateLocalRepo(%q) = %q, want %q", c.loc, got, c.want)
+		}
+	}
+}

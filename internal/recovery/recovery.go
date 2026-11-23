@@ -124,6 +124,27 @@ func FindLocalRepos(roots []string, depth int) []string {
 	return found
 }
 
+// LocateLocalRepo finds a local repository whose drive letter changed: an
+// access package stores the path as it was where the package was made
+// (G:\backups\pc), while the recovery environment gives the same disk
+// another letter. If loc is a drive path that holds no repository, the
+// same path is tried below each root; the first repository found is
+// returned. Anything else (a working path, a URL, a UNC path, nothing
+// found) comes back unchanged.
+func LocateLocalRepo(loc string, roots []string) string {
+	vol := filepath.VolumeName(loc)
+	if len(vol) != 2 || vol[1] != ':' || isRepoDir(loc) {
+		return loc
+	}
+	rest := strings.TrimLeft(loc[len(vol):], `\/`)
+	for _, r := range roots {
+		if p := filepath.Join(r, rest); isRepoDir(p) {
+			return p
+		}
+	}
+	return loc
+}
+
 func isRepoDir(dir string) bool {
 	if fi, err := os.Stat(filepath.Join(dir, "config")); err != nil || fi.IsDir() {
 		return false

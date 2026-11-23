@@ -58,7 +58,7 @@ type AccessRepo struct {
 // in tempDir (the backend reads keys from files); cleanup removes it.
 func (a AccessRepo) Source(tempDir string) (src Source, cleanup func(), err error) {
 	cleanup = func() {}
-	src = Source{Location: a.Location, Password: a.Password, Options: backend.Options{
+	src = Source{Location: LocateLocalRepo(a.Location, DriveRoots()), Password: a.Password, Options: backend.Options{
 		SFTPPassword: a.SFTPPassword, SFTPHostKey: a.SFTPHostKey,
 		S3AccessKey: a.S3AccessKey, S3SecretKey: a.S3SecretKey, S3Region: a.S3Region,
 		SMBPassword: a.SMBPassword, SMBDomain: a.SMBDomain,
