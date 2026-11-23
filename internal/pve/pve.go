@@ -80,17 +80,30 @@ type Guest struct {
 	ID string `json:"id,omitempty"`
 	// FormerVMID is an earlier number of the same VM (VMware: before
 	// vCenter gave it an instance UUID); jobs still naming it are updated.
-	FormerVMID int    `json:"former_vmid,omitempty"`
-	Name       string `json:"name"`
-	Type       string `json:"type"` // qemu | lxc
-	Node       string `json:"node"`
-	Status     string `json:"status"`
-	MaxDisk    uint64 `json:"maxdisk"`
-	MaxMem     uint64 `json:"maxmem"`
-	Template   bool   `json:"template,omitempty"`
+	FormerVMID int `json:"former_vmid,omitempty"`
+	// BIOSUUID (VMware) finds the VM a proxy agent runs in, and so its ESXi
+	// host (backups over several proxies).
+	BIOSUUID string `json:"bios_uuid,omitempty"`
+	Name     string `json:"name"`
+	Type     string `json:"type"` // qemu | lxc
+	Node     string `json:"node"`
+	Status   string `json:"status"`
+	MaxDisk  uint64 `json:"maxdisk"`
+	MaxMem   uint64 `json:"maxmem"`
+	Template bool   `json:"template,omitempty"`
 	// Clustered marks a Hyper-V VM that is a role of a failover cluster: it
 	// moves between the nodes.
 	Clustered bool `json:"clustered,omitempty"`
+	// BackupSnapshots are the BackupZit snapshots the VM has now (VMware
+	// inventory, 0.56): one that stays after its backup is a leftover the
+	// console lists.
+	BackupSnapshots []SnapRef `json:"backup_snapshots,omitempty"`
+}
+
+// SnapRef is a snapshot by name and creation time.
+type SnapRef struct {
+	Name    string    `json:"name"`
+	Created time.Time `json:"created"`
 }
 
 // Inventory is what a node agent reports to the console.
@@ -104,6 +117,9 @@ type Inventory struct {
 	Version     string   `json:"version,omitempty"`
 	Guests      []Guest  `json:"guests"`
 	Storage     []string `json:"storage"` // storages usable for guest disks on this node
+	// StorageInfo describes the storages of Storage (agents 0.53 and newer):
+	// the restore form offers each guest only the storages it can go to.
+	StorageInfo []StorageInfo `json:"storage_info,omitempty"`
 	// Hosts are the ESXi hosts of a vCenter, where VMs can be restored.
 	Hosts []string `json:"hosts,omitempty"`
 }
@@ -151,10 +167,23 @@ func GetInventory(ctx context.Context) (*Inventory, error) {
 			// The instant recovery storage only holds temporary overlays.
 			if s.ID != InstantStorage && s.usable(inv.Node) && (s.has("images") || s.has("rootdir")) {
 				inv.Storage = append(inv.Storage, s.ID)
+				inv.StorageInfo = append(inv.StorageInfo, StorageInfo{ID: s.ID, Type: s.Type, VMs: s.has("images"), Containers: s.has("rootdir")})
 			}
 		}
+		sort.Strings(inv.Storage)
+		sort.Slice(inv.StorageInfo, func(i, j int) bool { return inv.StorageInfo[i].ID < inv.StorageInfo[j].ID })
 	}
 	return inv, nil
+}
+
+// StorageInfo is a storage of a node as the restore form needs it.
+type StorageInfo struct {
+	ID   string `json:"id"`
+	Type string `json:"type"` // zfspool, lvmthin, dir, rbd, ...
+	// VMs and Containers tell whether it holds VM disks (content images)
+	// and container volumes (rootdir).
+	VMs        bool `json:"vms,omitempty"`
+	Containers bool `json:"containers,omitempty"`
 }
 
 // ---- storage configuration
@@ -389,7 +418,9 @@ func volumeFormat(volname string) string {
 			return f
 		}
 	}
-	if strings.HasPrefix(volname, "subvol-") || strings.HasPrefix(filepath.Base(volname), "subvol-") {
+	// Container volumes on ZFS: subvol-*, basevol-* of templates, and
+	// linked clones basevol-*/subvol-*.
+	if b := filepath.Base(volname); strings.HasPrefix(b, "subvol-") || strings.HasPrefix(b, "basevol-") {
 		return "subvol"
 	}
 	return "raw"

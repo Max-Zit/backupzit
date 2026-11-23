@@ -50,6 +50,7 @@ func cmdHyperV(ctx context.Context, args []string) error {
 	case "backup":
 		fs := flag.NewFlagSet("hyperv backup", flag.ExitOnError)
 		rf := addRepoFlags(fs)
+		rf.addVMBlockSizeFlag(fs)
 		ids := fs.String("vmid", "", "comma-separated VMIDs from 'hyperv list' (default: all VMs)")
 		_ = fs.Parse(args[1:])
 		var sel []int
@@ -93,7 +94,7 @@ func cmdHyperV(ctx context.Context, args []string) error {
 		asNew := fs.Bool("new", false, "create a second VM next to the original (new name and MAC addresses)")
 		name := fs.String("name", "", "name of the restored VM")
 		folder := fs.String("folder", "", "folder for the virtual disks (default: the host's default)")
-		overwrite := fs.Bool("overwrite", false, "replace the original VM if it still exists (its disk files are renamed, not deleted)")
+		overwrite := fs.Bool("overwrite", false, "replace the original VM if it still exists (its old disk files stay where they are, not deleted)")
 		start := fs.Bool("start", false, "start the VM after the restore")
 		_ = fs.Parse(args[1:])
 		if fs.NArg() != 1 || *vmid == 0 {
@@ -104,7 +105,7 @@ func cmdHyperV(ctx context.Context, args []string) error {
 			return err
 		}
 		defer r.Close()
-		return withHyperVRestoreSnapshot(ctx, r, fs.Arg(0), func(sn *repo.Snapshot) error {
+		return withHyperVRestoreSnapshot(ctx, r, fs.Arg(0), *vmid, func(sn *repo.Snapshot) error {
 			res, err := hyperv.Restore(ctx, r, sn, hyperv.RestoreOptions{VMID: *vmid, AsNew: *asNew, Name: *name, Folder: *folder,
 				Overwrite: *overwrite, Start: *start, Progress: progressPrinter("written"),
 				Log: func(msg string, kv ...any) { fmt.Println(append([]any{" ", msg}, kv...)...) }})
@@ -126,14 +127,14 @@ func cmdHyperV(ctx context.Context, args []string) error {
 
 // withHyperVRestoreSnapshot holds a shared repository lock from snapshot
 // selection through the last restore read.
-func withHyperVRestoreSnapshot(ctx context.Context, r *repo.Repository, ref string, restore func(*repo.Snapshot) error) error {
+func withHyperVRestoreSnapshot(ctx context.Context, r *repo.Repository, ref string, vmid int, restore func(*repo.Snapshot) error) error {
 	lock, err := r.Lock(ctx, false, time.Minute)
 	if err != nil {
 		return err
 	}
 	defer lock.Unlock()
 
-	sn, err := r.LoadSnapshot(ctx, ref)
+	sn, err := loadGuestSnapshot(ctx, r, ref, "hyperv", vmid)
 	if err != nil {
 		return err
 	}

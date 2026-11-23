@@ -190,8 +190,12 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 	defer os.RemoveAll(stage)
 	fetch := func(sn *repo.Snapshot, db *repo.SQLDatabase, n int) (string, error) {
 		sub := filepath.Join(stage, fmt.Sprintf("%03d", n))
-		if _, err := restorer.Run(ctx, r, sn, restorer.Options{Target: sub, Include: []string{db.File}}); err != nil {
+		st, err := restorer.Run(ctx, r, sn, restorer.Options{Target: sub, Include: []string{db.File}})
+		if err != nil {
 			return "", err
+		}
+		if len(st.Errors) > 0 {
+			return "", fmt.Errorf("could not read the backup completely: %s", strings.Join(st.Errors, "; "))
 		}
 		return findFile(sub, filepath.Base(db.File))
 	}

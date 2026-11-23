@@ -8,20 +8,23 @@
   <li><b>Użytkownik z prawami administratora na hoście</b>, zwykle <code>root</code>.</li>
   <li><b>SSH włączone na hostach z darmową licencją:</b> Host → Actions → Services → Enable Secure Shell. Darmowa licencja ESXi udostępnia API tylko do odczytu, więc migawki i przywracanie odbywają się przez SSH. Hosty licencjonowane są zmieniane przez API vSphere i nie potrzebują SSH.</li>
   <li><b>Agent proxy:</b> dowolny agent Windows lub Linux, który łączy się z hostem na porcie 443 (i 22, gdy używane jest SSH). Dane kopii przechodzą przez niego, więc umieść go w szybkiej sieci blisko hosta i magazynu.</li>
-  <li><b>Wolne miejsce w datastore maszyny</b> podczas kopiowania działającej maszyny. BackupZit kopiuje tam na chwilę dysk (zobacz niżej). Kopia jest thin, więc potrzebuje tyle miejsca, ile dysk faktycznie zajmuje.</li>
+  <li><b>Wolne miejsce w datastore maszyny</b> podczas kopiowania działającej maszyny. BackupZit kopiuje tam na chwilę dysk (zobacz niżej). Kopia jest thin, więc potrzebuje tyle miejsca, ile dysk faktycznie zajmuje. Z funkcją <a href="#hot-add">hot-add</a> nie jest tworzona żadna kopia.</li>
 </ul>
 
 <h2>Dodawanie hosta</h2>
 <ol>
-  <li>Otwórz <a href="/agents#vmware">Agenci → Hosty VMware ESXi</a> → <i>Dodaj host ESXi</i>.</li>
+  <li>Otwórz <a href="/agents#vmware">Agenci → Hosty VMware ESXi</a> → <i>Dodaj host ESXi lub vCenter Server</i>.</li>
   <li>Wpisz adres, użytkownika, hasło i agenta proxy.</li>
   <li>Konsola łączy się raz, aby je sprawdzić. Odczytuje listę maszyn i licencję oraz <b>przypina certyfikat HTTPS i klucz hosta SSH</b>. Jeśli host zostanie później zastąpiony inną maszyną o tym samym adresie, BackupZit odmówi połączenia zamiast wysłać jej hasło. Jeśli certyfikat zmieni się z znanego powodu — host został ponownie zainstalowany, otrzymał nowy certyfikat lub został dodany do vCenter (który zastępuje certyfikaty swoich hostów) — na stronie Agenci host pokazuje nowy odcisk z przyciskiem <b>Zaakceptuj nowy certyfikat</b>. Przed akceptacją porównaj odcisk z hostem.</li>
 </ol>
-<p>Hasło jest przechowywane w postaci zaszyfrowanej, jak wszystkie inne sekrety. Lista maszyn jest odświeżana co 10 minut lub od razu przyciskiem <i>Odśwież</i>. Tabela pokazuje tryb każdego hosta:</p>
+<p>Hasło jest przechowywane w postaci zaszyfrowanej, jak wszystkie inne sekrety. Konsola sama łączy się z hostem (HTTPS 443, a przy darmowej licencji także SSH 22) przy jego dodawaniu, po kliknięciu <i>Odśwież</i> i co 10 minut, aby odświeżyć listę maszyn, chyba że z hostem łączy się <a href="#via-proxy">przez agenta proxy</a>. <i>Usuń</i> usuwa host razem z jego zadaniami kopii; kopie pozostają w magazynie. Tabela pokazuje tryb każdego hosta:</p>
 <ul>
   <li><b>API vSphere (licencjonowany host, SSH niepotrzebne):</b> migawki, kopie dysków, przywracanie i natychmiastowe odtwarzanie odbywają się przez API.</li>
+  <li><b>vCenter Server (API vSphere):</b> vCenter z jego hostami ESXi; wszystko odbywa się przez API vCenter.</li>
   <li><b>darmowa licencja: migawki i przywracanie przez SSH:</b> API hosta jest tylko do odczytu, więc te kroki odbywają się przez SSH.</li>
+  <li><b>SSH (wybrane dla tego hosta):</b> host jest zmieniany przez SSH, choć jego API by to umożliwiało (<i>Zawsze SSH</i> przy dodawaniu hosta).</li>
 </ul>
+<p id="via-proxy"><b>Przez agenta proxy</b> (agent 0.56 lub nowszy): zaznacz <b>Połącz przez agenta proxy</b> przy dodawaniu hosta albo <b>Połącz przez proxy</b> w jego wierszu, a konsola nigdy nie połączy się z hostem sama. Agent proxy sprawdza adres i hasło, odczytuje listę maszyn, wersję i licencję oraz zgłasza certyfikat HTTPS i klucz hosta SSH, które zobaczył; konsola przypina je za pierwszym razem, tak jak przy połączeniu bezpośrednim, a od tej pory agent proxy odrzuca host, który przedstawi inny certyfikat (wiersz hosta proponuje wtedy <b>Zaakceptuj nowy certyfikat</b>). <i>Odśwież</i> i lista maszyn co 10 minut też pochodzą od agenta proxy; te sprawdzenia nie pojawiają się w Aktywności. Host musi być osiągalny tylko dla agenta proxy, dokładnie jak przy kopiach zapasowych i przywracaniu, więc konsola może być w innej sieci, za NAT lub w nakładającym się zakresie adresów. Błędny adres lub hasło pojawia się jako błąd hosta po pierwszym sprawdzeniu przez agenta proxy: usuń host i dodaj go ponownie. Dopóki agent proxy jest offline lub zajęty, zostaje ostatnia lista maszyn.</p>
 <p>Przy <b>Automatycznie</b> konsola wybiera sama, więc host, który później dostanie licencję, przechodzi na API bez dodatkowej konfiguracji. <b>Sposób zmian na hoście</b> w wierszu hosta (i przy dodawaniu) może wymusić <b>Zawsze SSH</b> lub <b>Zawsze API vSphere</b>; zmiana jest od razu sprawdzana. Wcześniejsze kopie i ich punkty przywracania nie zależą od sposobu.</p>
 
 <h2 id="vcenter">vCenter Server</h2>
@@ -46,17 +49,44 @@
       <li>Na hostach darmowych CBT można włączyć tylko przy wyłączonej maszynie. BackupZit robi to przy pierwszej kopii, która zastanie maszynę wyłączoną. Do tego czasu każda kopia odczytuje całe dyski, a uruchomienie pokazuje ostrzeżenie.</li>
     </ul>
   </li>
-  <li>Tworzona jest migawka <code>backupzit_…</code>. Gdy w gościu działają <b>VMware Tools</b>, migawka jest <b>wyciszana</b> (quiesced): najpierw opróżniane są aplikacje i systemy plików, co czyni kopię spójną aplikacyjnie. Bez VMware Tools jest spójna awaryjnie. Zainstaluj <code>open-vm-tools</code> w maszynach Linux i VMware Tools w maszynach Windows.</li>
+  <li>Tworzona jest migawka <code>backupzit_…</code>. Gdy w gościu działają <b>VMware Tools</b>, migawka jest <b>wyciszana</b> (quiesced): najpierw opróżniane są aplikacje i systemy plików, co czyni kopię spójną aplikacyjnie. Bez VMware Tools jest spójna awaryjnie. Zainstaluj <code>open-vm-tools</code> w maszynach Linux i VMware Tools w maszynach Windows. Dla gościa, u którego wyciszanie się nie udaje lub działa nieprawidłowo, zaznacz w zadaniu <i>Migawki spójne awaryjnie (bez wyciszania przez VMware Tools)</i>: jego kopie są wtedy spójne awaryjnie, jak po zaniku zasilania (agent 0.58). Na niektórych hostach (ESXi 6.7) dysk wyciszonej migawki jest małą deltą, którą zapisało samo wyciszanie; agent odczytuje ją razem z migawką (agent 0.58; starsi agenci odrzucali ją jako dysk delta migawki).</li>
   <li>CBT wskazuje, które bloki odczytać:
     <ul>
       <li>przy pierwszej kopii tylko używane bloki;</li>
       <li>potem tylko bloki zmienione od poprzedniej kopii.</li>
     </ul>
   </li>
-  <li>Działająca maszyna trzyma swoje dyski zablokowane. Dlatego jej dyski są kopiowane w datastore (thin), a <b>migawka jest od razu usuwana</b>, zwykle po kilku sekundach. Kopia jest następnie odczytywana przez HTTPS i usuwana. Wyłączone maszyny są odczytywane bezpośrednio.</li>
+  <li>Działająca maszyna trzyma swoje dyski zablokowane. Dlatego jej dyski są kopiowane w datastore (thin), a <b>migawka jest od razu usuwana</b>, zwykle po kilku sekundach. Kopia jest następnie odczytywana przez HTTPS i usuwana. Wyłączone maszyny są odczytywane bezpośrednio. Z funkcją <a href="#hot-add">hot-add</a> dyski działających maszyn są zamiast tego odczytywane przez własną maszynę proxy, bez kopii.</li>
   <li>Konfiguracja maszyny (<code>.vmx</code>) i NVRAM są zapisywane razem z kopią.</li>
 </ol>
 <p>Przykład z laboratorium testowego: maszyna Debian z dyskiem 8 GB, z czego 1,6 GB zajęte. Pierwsza kopia odczytała 1,6 GB. Następna, po 50 MB nowych danych, odczytała 70 MB i trwała 23 sekundy.</p>
+
+<h3 id="hot-add">Hot-add: bez kopii w datastore</h3>
+<p>Kopiowanie dysków działającej maszyny kosztuje przy każdej kopii, także przyrostowej, czas i operacje I/O w produkcyjnym datastore oraz wymaga wolnego miejsca na używane bloki dysków. Przy dużych maszynach na wolnych dyskach ma to znaczenie. Z funkcją <b>Hot-add</b> (<a href="/agents#vmware">Agenci → Hosty VMware ESXi</a>, pole wyboru pod agentem proxy) proxy odczytuje je zamiast tego na miejscu:</p>
+<ul>
+  <li><b>Wymagania:</b> proxy to <b>agent Linux w maszynie wirtualnej</b>, która widzi datastore kopiowanej maszyny (na tym samym hoście albo na hoście tego samego vCenter z dostępem do nich), a host jest zmieniany przez API vSphere (vCenter lub host licencjonowany). Proxy znajduje własną maszynę po jej BIOS UUID.</li>
+  <li><b>Jak:</b> dopóki istnieje migawka, każdy dysk jest podłączany do maszyny proxy jako <b>independent-nonpersistent</b>. Proxy otwiera go tylko do odczytu; wszystko, co zostałoby na nim zapisane, trafiłoby do redo logu, który vSphere odrzuca przy odłączeniu dysku, więc dysk maszyny nigdy się nie zmienia. Proxy odczytuje tylko bloki zgłaszane przez CBT, odłącza dysk, a potem migawka jest usuwana.</li>
+  <li><b>Co oszczędza:</b> nie ma kopii tymczasowej ani dodatkowego miejsca w datastore. Kopia przyrostowa maszyny 2 TB z 20 GB zmian odczytuje 20 GB. Migawka pozostaje przez cały czas odczytu dysków (a nie tylko na czas kopiowania), więc maszyna zapisuje do migawki nieco dłużej.</li>
+  <li><b>Rozwiązanie awaryjne:</b> jeśli proxy nie jest maszyną tego hosta albo podłączenie lub odczyt dysku się nie powiedzie, ten dysk jest kopiowany w datastore jak dotąd, a uruchomienie pokazuje ostrzeżenie z przyczyną. Hot-add jest domyślnie wyłączony; agenci w wersjach przed 0.54 go ignorują. Strona uruchomienia pokazuje, ile dysków odczytano przez hot-add.</li>
+  <li><b>Na maszynie proxy:</b> nie pozwól LVM aktywować woluminów podłączonych dysków, używając pliku urządzeń LVM (<code>use_devicesfile = 1</code> w <code>/etc/lvm/lvm.conf</code>, własne dyski proxy wpisane za pomocą <code>lvmdevices</code>). Woluminy, które LVM mimo to aktywuje, są usuwane przed odłączeniem dysku. Nie podłączaj ręcznie do proxy dysków innych maszyn: dysk independent-nonpersistent z folderu innej maszyny jest uznawany za pozostawiony przez przerwaną kopię i odłączany.</li>
+</ul>
+
+<h3 id="proxies">Kilku agentów proxy (vCenter)</h3>
+<p>Jeden agent proxy odczytuje dyski jeden po drugim, a przez hot-add tylko na hostach, których datastore widzi. Przy połączeniu z vCenter dodaj <b>agenta Linux w maszynie wirtualnej na każdym hoście ESXi</b> jako dodatkowego agenta proxy (<a href="/agents#vmware">Agenci → Hosty VMware ESXi</a>, <i>Dodatkowi agenci proxy</i> pod agentem proxy; agenci 0.55 lub nowsi):</p>
+<ul>
+  <li><b>Podział według hosta:</b> każda kopia zapasowa zadania jest dzielona. Każda maszyna trafia do agenta proxy na hoście ESXi, na którym działa (według ostatniej listy maszyn), każda inna do agenta proxy połączenia. Każdy agent proxy wykonuje kopię swojej części jako osobne uruchomienie, równocześnie z pozostałymi, przez hot-add na własnym hoście. Biorą udział tylko agenci proxy, którzy są online: maszyny wyłączonego agenta proxy trafiają do agenta proxy połączenia. Pierwsza kopia zapasowa do nowego repozytorium i kopie na cel lokalny lub USB nie są dzielone.</li>
+  <li><b>Jedno uruchomienie:</b> zadanie pokazuje części jednego uruchomienia jako całość: w toku, dopóki trwa któraś część, nieudane, jeśli któraś część się nie powiodła. Alerty RPO i pulpit liczą kopię zapasową dopiero wtedy, gdy wszystkie części się powiodły; zadanie łańcuchowe lub kopia „po każdej kopii zapasowej” startuje raz, po ostatniej części.</li>
+  <li><b>Bez nakładania:</b> kopie zapasowe i przywracania połączenia na różnych agentach proxy nie działają równocześnie (równocześnie działają tylko części jednego uruchomienia), więc maszyny przeniesionej między hostami nigdy nie obsługują dwaj agenci proxy naraz.</li>
+  <li><b>Retencja dla każdego agenta proxy:</b> każda część przechowuje ustawioną liczbę kopii zapasowych swoich maszyn, a zadania kopiowania także kopiują je i przechowują według części. Kopie zapasowe sprzed podziału zadania i kopie usuniętego agenta proxy pozostają bez zmian: nadal są punktami przywracania swoich maszyn. Maszyna przeniesiona na inny host (vMotion) trafia do agenta proxy tego hosta od następnego odświeżenia listy maszyn.</li>
+  <li>BackupZit znajduje host agenta proxy po BIOS UUID, który zgłasza jego agent; strona Agenci pokazuje go obok każdego agenta. <i>Nie znaleziono hosta ESXi</i>: agent nie jest maszyną wirtualną tego vCenter albo lista maszyn jest starsza niż agent (kliknij <i>Odśwież</i>).</li>
+</ul>
+<p><b>Anulowanie</b> kopii zapasowej VMware (Aktywność → Anuluj) zatrzymuje też trwające kopiowanie dysku w datastore i usuwa niepełną kopię; migawka jest usuwana jak po każdej kopii zapasowej. Na migawkę, która w chwili anulowania jest jeszcze tworzona, agent czeka (do pięciu minut) i również ją usuwa.</p>
+<p id="leftovers"><b>Pozostawione migawki.</b> Agent proxy zapisuje każdą migawkę i tymczasową kopię dysku, zanim ją utworzy, i usuwa wpis dopiero wtedy, gdy widzi, że obiektu już nie ma: po usunięciu ponownie pobiera listę migawek maszyny, próbuje do trzech razy w ciągu mniej więcej dziesięciu minut, loguje się ponownie, gdy sesja vSphere się zakończyła (także przed każdą maszyną, więc jedna utracona sesja nie powoduje błędu kolejnych maszyn), i konsoliduje dyski, gdy vSphere zgłasza, że tego wymagają; maszyna bez migawek, której dyski po wcześniejszym usuwaniu wciąż wymagają konsolidacji, jest konsolidowana przed swoją następną kopią. Jeśli agent zatrzyma się w połowie (awaria, zanik zasilania) albo usuwanie wciąż się nie udaje, wpis zostaje:</p>
+<ul>
+  <li>Konsola kolejkuje uruchomienie czyszczenia na agencie proxy (tylko on ma poświadczenia hosta), a agent proxy usuwa takie pozostałości także po każdej kopii zapasowej połączenia. Maszyny, nad którymi pracuje kopia lub przywracanie agenta proxy, pozostają nietknięte.</li>
+  <li>Pulpit pokazuje każdą pozostałość w sekcji <i>Wymaga uwagi</i> (maszyna, od kiedy, dlaczego) z przyciskiem <b>Usuń teraz</b>, a dla każdej pozostałości, która zostaje, jeden raz wysyłane jest powiadomienie (e-mail, czat).</li>
+  <li>Konsola szuka też migawek <code>backupzit_…</code> starszych niż sześć godzin na liście maszyn, którą odświeża co 10 minut, gdy nie działa żadna kopia zapasowa połączenia, więc pojawiają się również pozostałości starszych agentów. Usuwane są wyłącznie migawki o nazwie <code>backupzit_…</code>; własne migawki maszyny nigdy nie są ruszane.</li>
+</ul>
 
 <h2>Przywracanie maszyny</h2>
 <p>Użyj <a href="/restore">kreatora przywracania</a> (<i>Cała maszyna wirtualna</i>) lub strony kopii w Aktywność. Wybierz:</p>
@@ -96,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Jeszcze nieobsługiwane</h2>
 <ul>
   <li><b>vCenter z kilkoma centrami danych.</b> Można dodać tylko vCenter z jednym centrum danych; hosty pozostałych dodaj bezpośrednio.</li>
-  <li><b>Maszyny z własnymi migawkami.</b> Ich dyski są deltami; najpierw usuń lub skonsoliduj migawki.</li>
+  <li><b>Maszyny z własnymi migawkami.</b> Ich dyski są deltami; najpierw usuń lub skonsoliduj migawki. (Mała delta, którą zapisuje wyciszona migawka, należy do samej kopii i jest odczytywana razem z nią.)</li>
   <li><b>Niektóre typy dysków.</b> Mapowania surowych urządzeń (RDM) i dyski niezależne.</li>
   <li><b>Natychmiastowe odzyskiwanie przez agenta proxy Windows.</b> Natychmiastowe odzyskiwanie wymaga agenta proxy Linux.</li>
 </ul>

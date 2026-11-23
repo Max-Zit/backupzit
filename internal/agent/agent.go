@@ -26,9 +26,11 @@ import (
 	"github.com/max-zit/backupzit/internal/archiver"
 	"github.com/max-zit/backupzit/internal/backend"
 	"github.com/max-zit/backupzit/internal/fsutil"
+	"github.com/max-zit/backupzit/internal/leftover"
 	"github.com/max-zit/backupzit/internal/repo"
 	"github.com/max-zit/backupzit/internal/restorer"
 	"github.com/max-zit/backupzit/internal/tlsutil"
+	"github.com/max-zit/backupzit/internal/vmware"
 )
 
 // Config is persisted after enrollment.
@@ -215,6 +217,9 @@ type Agent struct {
 	// running counts the runs in progress (the console may hand out several
 	// at once when the agent allows it).
 	running int
+	// active holds the IDs of the runs in progress, reported with each poll so
+	// the console can fail runs this process no longer knows (it restarted).
+	active map[int64]bool
 	// LogPath is the agent's log file, sent to the console on request.
 	LogPath string
 	// cancels stops a running run when the console cancels it.
@@ -224,7 +229,10 @@ type Agent struct {
 	wg          sync.WaitGroup
 
 	localOnce sync.Once
-	ls        *localState
+	// machineUUID is the BIOS UUID of this machine (VMware proxies), read once.
+	machineOnce sync.Once
+	machineUUID string
+	ls          *localState
 
 	// instance identifies this agent process; the console sees two
 	// machines using one enrollment (a clone) by two live instances.
@@ -232,6 +240,11 @@ type Agent struct {
 
 	// checkpointsAt: last look for leftover Hyper-V backup checkpoints.
 	checkpointsAt time.Time
+	// janitorAt and janitorRunning: the last clean-up of leftovers (S-2);
+	// leftoversSent is the list the console got last.
+	janitorAt      time.Time
+	janitorRunning bool
+	leftoversSent  json.RawMessage
 }
 
 func New(cfg *Config, log *slog.Logger, version string) *Agent {
@@ -243,12 +256,24 @@ func New(cfg *Config, log *slog.Logger, version string) *Agent {
 func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	a.mu.Lock()
 	busy, running := a.running > 0, a.running
+	active := make([]int64, 0, len(a.active))
+	for id := range a.active {
+		active = append(active, id)
+	}
 	invAt := a.inventoryAt
 	a.mu.Unlock()
 	host, osName, arch := hostInfo(a.version)
 	var resp api.PollResponse
 	req := api.PollRequest{Hostname: host, OS: osName, Arch: arch, Version: a.version, Busy: busy, Running: running, Parallel: true, IPs: localIPs(), Instance: a.instance, Progress: a.runProgress()}
 	req.WantStatus = a.wantStatus()
+	req.ConfigurableVMBlocks = true
+	req.Runs, req.ReportsRuns = active, true
+	a.machineOnce.Do(func() {
+		if ids := vmware.MachineUUIDs(); len(ids) > 0 {
+			a.machineUUID = ids[0]
+		}
+	})
+	req.MachineUUID = a.machineUUID
 	invEvery := a.InventoryInterval
 	if invEvery <= 0 {
 		invEvery = inventoryInterval
@@ -257,10 +282,12 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	if !busy {
 		a.cleanupCheckpoints(ctx)
 	}
+	a.janitor(ctx)
 	if sendInventory {
 		req.Disks = a.diskInventory()
 		req.Hypervisor = a.hypervisorInventory(ctx)
 	}
+	req.Leftovers = a.leftoverReport(sendInventory)
 	req.Time = time.Now().UnixMilli()
 	err := a.client.post(ctx, api.PathPoll, req, &resp, true)
 	a.recordPoll(err, resp.Status)
@@ -271,6 +298,17 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 		a.mu.Lock()
 		a.inventoryAt = time.Now()
 		a.mu.Unlock()
+	}
+	if req.Leftovers != nil {
+		a.mu.Lock()
+		a.leftoversSent = req.Leftovers
+		a.mu.Unlock()
+	}
+	if resp.SendInventory {
+		a.mu.Lock()
+		a.inventoryAt = time.Time{}
+		a.mu.Unlock()
+		a.pollSoon()
 	}
 	for _, id := range resp.Cancel {
 		a.mu.Lock()
@@ -284,6 +322,10 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 	if resp.Run != nil {
 		a.mu.Lock()
 		a.running++
+		if a.active == nil {
+			a.active = map[int64]bool{}
+		}
+		a.active[resp.Run.ID] = true
 		a.mu.Unlock()
 		a.wg.Add(1)
 		go func(run api.Run) {
@@ -291,6 +333,12 @@ func (a *Agent) PollOnce(ctx context.Context) (time.Duration, error) {
 			a.execute(ctx, run)
 			a.mu.Lock()
 			a.running--
+			delete(a.active, run.ID)
+			if strings.HasPrefix(run.Kind, "vm-") {
+				// Guests may have come or gone: the console sees them at
+				// the next idle poll, not after up to 15 minutes.
+				a.inventoryAt = time.Time{}
+			}
 			a.mu.Unlock()
 		}(*resp.Run)
 		// Ask again at once: the console may hand out another run.
@@ -338,6 +386,7 @@ func (a *Agent) Run(ctx context.Context) {
 
 func (a *Agent) execute(ctx context.Context, run api.Run) {
 	ctx = withRunID(ctx, run.ID)
+	ctx = leftover.WithRun(ctx, run.ID) // what the run creates on a hypervisor is recorded with it
 	a.log.Info("run started", "run", run.ID, "kind", run.Kind, "job", run.JobName)
 	a.runStarted(run)
 	// The console can cancel the run; the command after the backup still runs
@@ -406,8 +455,14 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		res, after = a.uninstall()
 	case api.KindRepoCheck:
 		res = a.repoCheck(ctx, run)
+	case api.KindRepoRepair:
+		res = a.repoRepair(ctx, run)
 	case api.KindRepoScan:
 		res = a.repoScan(ctx, run)
+	case api.KindLeftoverCleanup:
+		res = a.leftoverCleanup(ctx, run)
+	case api.KindVMwareProbe:
+		res = a.vmwareProbe(ctx, run)
 	case api.KindVMBackup:
 		res = a.vmBackup(ctx, run)
 	case api.KindVMRestore:
@@ -458,11 +513,25 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 			res.Message = strings.TrimSpace("Disk " + backend.USBLabel(loc) + ". " + res.Message)
 		}
 	}
+	// The agent's own context ends when the service stops (shutdown,
+	// reboot, update): say so instead of a bare "context canceled".
+	if res.Status == api.StatusFailed && parent.Err() != nil && strings.Contains(res.Message, context.Canceled.Error()) {
+		res.Message = agentStoppedMessage
+	}
 	a.log.Info("run finished", "run", run.ID, "status", res.Status, "message", res.Message, "errors", len(res.Errors))
 	a.runFinished(run.ID, res)
 	// Report with a fresh context: the result must reach the server even
-	// when the agent is shutting down. Retry for a while on network errors.
-	for i := 0; i < 20; i++ {
+	// when the agent is shutting down. Retry for a while on network errors:
+	// for two hours while the agent runs (the console may be restarting or
+	// updating its appliance; it still takes the result), for a minute when
+	// the agent itself is stopping.
+	stopping := parent.Err() != nil
+	deadline := time.Now().Add(2 * time.Hour)
+	if stopping {
+		deadline = time.Now().Add(time.Minute)
+	}
+	trimmed := false
+	for i := 0; time.Now().Before(deadline); i++ {
 		rctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		err := a.client.post(rctx, fmt.Sprintf("%s%d/finish", api.PathRunsPrefix, run.ID), res, nil, true)
 		cancel()
@@ -476,8 +545,46 @@ func (a *Agent) execute(ctx context.Context, run api.Run) {
 		if strings.Contains(err.Error(), "not found or not running") {
 			return
 		}
-		time.Sleep(time.Duration(i+1) * 3 * time.Second)
+		// The console refused the result itself (too large, not readable):
+		// once more with the long lists cut, then give up (the console marks
+		// the run failed) instead of keeping the job blocked for hours.
+		if strings.Contains(err.Error(), "server: invalid request") {
+			if trimmed {
+				return
+			}
+			trimmed = true
+			res = trimResult(res)
+			continue
+		}
+		// The service is stopping (update, reboot): a minute more at most,
+		// so the stop does not wait for hours.
+		if !stopping && parent.Err() != nil {
+			stopping = true
+			if soon := time.Now().Add(time.Minute); soon.Before(deadline) {
+				deadline = soon
+			}
+		}
+		wait := min(time.Duration(i+1)*3*time.Second, time.Minute)
+		if stopping {
+			time.Sleep(min(wait, 10*time.Second))
+			continue
+		}
+		select {
+		case <-time.After(wait):
+		case <-parent.Done():
+		}
 	}
+}
+
+// trimResult shortens what can make a run result too large for the console.
+func trimResult(res api.RunResult) api.RunResult {
+	if len(res.Errors) > 100 {
+		res.Errors = append(res.Errors[:100:100], fmt.Sprintf("... and %d more", len(res.Errors)-100))
+	}
+	if len(res.Message) > 4000 {
+		res.Message = res.Message[:4000] + " …"
+	}
+	return res
 }
 
 func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*repo.Repository, func(), error) {
@@ -504,7 +611,7 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 	}
 	// Uploads honor the speed limit of the run (backend.WithLimiter).
 	be = backend.Throttle(be)
-	r, err := repo.Open(ctx, be, repo.Password(rs.Password))
+	r, err := repo.Open(ctx, be, repo.Password(rs.Password), repo.IndexProgress(a.indexProgress(be.Location())))
 	if errors.Is(err, repo.ErrNotInitialized) && create {
 		r, err = repo.Init(ctx, be, repo.Password(rs.Password))
 	}
@@ -517,6 +624,11 @@ func (a *Agent) openRepo(ctx context.Context, rs api.Repository, create bool) (*
 		if err := r.SetCompression(rs.Compression); err != nil {
 			a.log.Warn("compression level ignored", "err", err)
 		}
+	}
+	if err := r.SetVMBlockSizeKiB(rs.VMBlockSizeKiB); err != nil {
+		_ = r.Close()
+		cleanup()
+		return nil, nil, err
 	}
 	return r, func() { _ = r.Close(); cleanup() }, nil
 }
@@ -769,3 +881,33 @@ func agentPortURL(serverURL string) string {
 
 // defaultAgentPort is where consoles listen for agents (tests change it).
 var defaultAgentPort = "8443"
+
+// indexProgress logs the loading of a large repository index (thousands of
+// files at a distant object store can take minutes before a backup starts):
+// a line when it starts, every 30 seconds, and when it is done.
+func (a *Agent) indexProgress(location string) func(done, total int) {
+	var mu sync.Mutex
+	var start, last time.Time
+	return func(done, total int) {
+		if total < 200 {
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		now := time.Now()
+		switch {
+		case start.IsZero():
+			start, last = now, now
+			a.log.Info("loading the repository index", "repository", location, "files", total)
+		case done == total:
+			a.log.Info("repository index loaded", "repository", location, "files", total, "duration", now.Sub(start).Round(time.Second).String())
+		case now.Sub(last) >= 30*time.Second:
+			last = now
+			a.log.Info("loading the repository index", "repository", location, "done", done, "files", total)
+		}
+	}
+}
+
+// agentStoppedMessage is the result of a run cut short because the agent
+// itself stopped (service stop, shutdown or reboot, e.g. Windows Update).
+const agentStoppedMessage = "The agent was stopped during the run (service stop, shutdown or reboot); the next run starts as scheduled"

@@ -16,15 +16,15 @@
 <h2>Restoring an image to a disk</h2>
 <p>On the image backup run, use <b>Restore this image to a disk</b>:</p>
 <ul>
-  <li><b>Restore on agent</b> — the machine that has the target disk. This can be a running machine with a spare disk, or a machine booted from the recovery ISO.</li>
-  <li><b>Target disk</b> — must be at least as large as the used area of the original. <b>All data on it is destroyed.</b></li>
+  <li><b>Restore on agent</b> — the Windows machine that has the target disk. This can be a running machine with a spare disk, or a machine booted from the recovery ISO; the disk Windows is running from cannot be chosen, so restoring the system disk of a machine needs the recovery ISO.</li>
+  <li><b>Target disk</b> — must reach at least the end of the original disk's last partition (partitions are recreated with their original sizes, not shrunk) and have the same sector size (512 or 4096 bytes). <b>All data on it is destroyed.</b></li>
   <li><b>Leave the disk offline afterwards</b> — tick this when the original disk is in the same machine, so Windows does not change the disk IDs of the copy.</li>
 </ul>
 <p>GPT and MBR disks, EFI and BIOS boot are supported. The partition layout and IDs are recreated, so the restored disk boots as before.</p>
 
 <h2>Bare-metal recovery with the recovery ISO</h2>
 <ol>
-  <li>On <a href="/recovery">Recovery media</a> download the (Windows) recovery ISO. Burn it to a USB stick (Rufus, "DD image" or "ISO" mode) or attach it to a virtual machine.</li>
+  <li>Build the Windows recovery ISO once (see <a href="/docs/restore#recovery-iso">Recovery ISOs</a>; Windows PE may not be redistributed), or download it from <a href="/recovery">Recovery media</a> if it was copied into the console. Write it to a USB stick (Rufus in <b>ISO</b> mode, so you can add the folder below) or attach it to a virtual machine.</li>
   <li>Optionally create a <b>recovery code</b> and download <code>recovery.json</code>; copy it to a <code>backupzit</code> folder on the stick so the machine connects without typing.</li>
   <li>Boot the machine to restore from the stick. It starts the agent in recovery mode and connects to the console (or asks for the server address and recovery code).</li>
   <li>The machine appears as a <span class="badge">recovery</span> agent with its disks.</li>

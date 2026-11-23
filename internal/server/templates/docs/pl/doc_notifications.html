@@ -3,35 +3,39 @@
 <p class="lead">Otrzymuj e-mail, gdy kopia się nie powiedzie, i codzienne podsumowanie każdego ranka.</p>
 
 <h2>Konfiguracja e-maila</h2>
-<p>W <a href="/settings/email">Ustawienia → Powiadomienia e-mail</a>:</p>
+<p>W <a href="/settings/email">Ustawienia → Powiadomienia e-mail</a> zaznacz <b>Wysyłaj powiadomienia e-mail</b> (bez tego żaden e-mail nie jest wysyłany) i wypełnij:</p>
 <table>
   <tr><th>Pole</th><th>Przykład</th></tr>
   <tr><td>Serwer SMTP / port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, wewnętrzny przekaźnik / 25</td></tr>
-  <tr><td>Bezpieczeństwo</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) lub brak (tylko wewnętrzny przekaźnik)</td></tr>
-  <tr><td>Użytkownik / hasło</td><td>Skrzynka używana do wysyłania; pozostaw puste dla anonimowego przekaźnika. Microsoft 365 i Gmail wymagają hasła aplikacji.</td></tr>
-  <tr><td>Nadawca</td><td><code>backup@example.com</code></td></tr>
-  <tr><td>Odbiorcy</td><td>Jeden lub więcej adresów, rozdzielonych przecinkami.</td></tr>
+  <tr><td>Bezpieczeństwo</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) lub <b>Brak</b> (tylko wewnętrzny przekaźnik bez logowania: nazwa użytkownika i hasło nigdy nie są wysyłane bez szyfrowania)</td></tr>
+  <tr><td>Nazwa użytkownika / Hasło</td><td>Skrzynka używana do wysyłania; pozostaw puste dla przekaźnika bez logowania. Gmail wymaga hasła aplikacji; dla Microsoft 365, gdzie podstawowe logowanie SMTP jest wycofywane, bezpieczniejszym wyborem jest przekaźnik SMTP lub łącznik (connector).</td></tr>
+  <tr><td>Od</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Do</td><td>Jeden lub więcej adresów, rozdzielonych przecinkami.</td></tr>
 </table>
-<p>Użyj <b>Wyślij testowy e-mail</b>, aby sprawdzić ustawienia. E-maile, wiadomości czatu i raporty są pisane w języku wybranym w tym samym formularzu (domyślnie w języku konsoli w chwili zapisu).</p>
+<p>Użyj <b>Wyślij testowy e-mail</b>, aby sprawdzić ustawienia, a potem kliknij <b>Zapisz</b> (test ich nie zapisuje). E-maile, wiadomości czatu i raporty są pisane w języku wybranym w tym samym formularzu (domyślnie w języku konsoli w chwili zapisu).</p>
 
 <h2>Co jest wysyłane</h2>
 <ul>
   <li><b>Błędy</b> (zalecane) — jeden e-mail na każde nieudane uruchomienie z przyczyną: kopie, kopie wtórne, przywracania i nieudane <b>testy przywracania</b>. Przy tej opcji otrzymasz też alert <b>SUSPICIOUS</b>, gdy kopia wygląda na ransomware lub masowe usunięcie.</li>
   <li><b>Ostrzeżenia</b> — uruchomienia, w których nie udało się odczytać części plików.</li>
   <li><b>Sukcesy</b> — każde udane uruchomienie (zwykle za dużo; lepiej raport dzienny).</li>
-  <li><b>Raport dzienny</b> — o wybranej godzinie: uruchomienia z ostatnich 24 godzin, problemy i agenci offline. Temat zaczyna się od <i>OK</i>, <i>WARNINGS</i> lub <i>ATTENTION</i>, więc reguły poczty mogą je sortować.</li>
+  <li><b>Raport dzienny</b> — o wybranej godzinie: uruchomienia z ostatnich 24 godzin, problemy i agenci offline. Temat kończy się na <i>OK</i>, <i>WARNINGS</i> lub <i>ATTENTION</i> (np. <code>[BackupZit] Daily report 2026-11-17: OK</code>), więc reguły poczty mogą je sortować.</li>
 </ul>
 <p>Gdy włączone są <b>Błędy</b>, zgłaszane jest też zadanie, które nie dotrzymało celu punktu odtwarzania (RPO) — raz, a ponownie dopiero po tym, jak w międzyczasie go dotrzymało. Uruchomienia zatrzymane przez użytkownika (status <i>anulowano</i>) nie wysyłają e-maila o błędzie; uruchomienie zatrzymane przez limit czasu wysyła.</p>
+<h3 id="mail-filters">Jeden e-mail na zadanie i filtry poczty</h3>
+<p>Włącz także <b>Sukcesy</b>, aby otrzymywać jeden e-mail dla każdego zakończonego uruchomienia każdego zadania, z zadaniem i komputerem w temacie, zamiast tylko dziennego podsumowania. Aby mieć jedno podsumowanie na zadanie, utwórz dla niego <a href="/docs/monitoring">zaplanowany raport</a>. Temat jest pisany w języku e-maili, dlatego na potrzeby reguł poczty każdy e-mail o uruchomieniu zawiera też nagłówki, które nie zmieniają się z językiem: <code>X-BackupZit-Status</code> (<code>success</code>, <code>warning</code> lub <code>failed</code>), <code>X-BackupZit-Job</code>, <code>X-BackupZit-Agent</code> (nazwa wyświetlana w konsoli), <code>X-BackupZit-Host</code> (nazwa hosta zgłaszana przez komputer), <code>X-BackupZit-Kind</code> i <code>X-BackupZit-Run</code>. Kopia, która wygląda na ransomware, ma dodatkowo <code>X-BackupZit-Suspicious: yes</code> — nie pozwól, aby reguły odkładające udane uruchomienia ją ukryły.</p>
 <p>Niezależnie od tych opcji odbiorcy powiadomień dostają też e-mail, gdy:</p>
 <ul>
   <li>zmiana czeka na zatwierdzenie przez drugiego użytkownika (zasada czterech oczu);</li>
   <li>dwie maszyny używają jednej rejestracji agenta;</li>
   <li>dziennik audytu został zmieniony;</li>
   <li>kopia samej konsoli się nie powiodła;</li>
-  <li>odnowienie certyfikatu HTTPS dla przeglądarek się nie powiodło;</li>
+  <li>odnowienie certyfikatu HTTPS dla przeglądarek się nie powiodło lub przesłany certyfikat wygasa w ciągu 21 dni;</li>
+  <li>dostępna jest nowa wersja BackupZit (można to wyłączyć w Ustawienia → Aktualizacje) lub aktualizacja konsoli się nie powiodła;</li>
   <li>adres został zablokowany po zbyt wielu nieudanych logowaniach (można to wyłączyć w ochronie przed atakami siłowymi).</li>
 </ul>
 <p>Do podsumowań tygodniowych lub miesięcznych używaj <a href="/docs/monitoring">raportów zaplanowanych</a>; są wysyłane z tymi samymi ustawieniami poczty i mają własnych odbiorców. Tematy zaczynają się od <code>[BackupZit]</code>, więc reguły poczty mogą je sortować. Hasło SMTP jest przechowywane w postaci zaszyfrowanej. Linki w e-mailach, wiadomościach czatu i raportach prowadzą do konsoli pod adresem, z którego otwierasz ją w przeglądarce (lub ustawionym przez <code>--public-url</code>).</p>
+<p>Gdy włączony jest port WWW HTTPS z zaufanym certyfikatem (Ustawienia → Certyfikat), łącza w e-mailach, wiadomościach czatu i raportach używają jego adresu, także gdy port 8443 obsługuje tylko agenty.</p>
 
 <h2>Slack, Microsoft Teams i webhooki</h2>
 <p>W <a href="/settings/chat">Ustawienia → Czat i webhooki</a> dodaj dowolną liczbę kanałów; każdy wybiera, czy otrzymuje błędy, ostrzeżenia i sukcesy. Nietypowe kopie (możliwy ransomware) liczą się jako błędy. <b>Wyślij test</b> od razu sprawdza kanał.</p>
@@ -48,6 +52,6 @@
  "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
  "url": "https://backup.example/runs/412"}</pre>
 <p><code>duration_s</code> to czas wykonania w sekundach. W kopiach zapasowych <code>files</code> i <code>bytes</code> to rozmiar kopiowanych danych, <code>bytes_read</code> ile z nich odczytano, a <code>bytes_stored</code> ile wysłano do magazynu; <code>snapshot</code> to ID nowej kopii.</p>
-<p>Wiadomości są wysyłane raz na uruchomienie, także gdy e-mail jest wyłączony. Kanał, który zawiedzie (błędny URL, usługa niedostępna), jest zapisywany w logu konsoli i nie wstrzymuje pozostałych. Adresy URL webhooków są przechowywane w postaci zaszyfrowanej.</p>
+<p>Zadanie, które nie dotrzymało celu punktu odtwarzania, wysyła <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code>; puste pola (takie jak <code>suspicious</code> czy zadanie uruchomienia bez zadania) są pomijane. Adresy URL Slack i Teams muszą używać https://. Wiadomości są wysyłane raz na uruchomienie, także gdy e-mail jest wyłączony. Kanał, który zawiedzie (błędny URL, usługa niedostępna), jest zapisywany w logu konsoli i nie wstrzymuje pozostałych. Adresy URL webhooków są przechowywane w postaci zaszyfrowanej.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

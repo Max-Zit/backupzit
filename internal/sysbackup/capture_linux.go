@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -31,38 +30,6 @@ var localFS = map[string]bool{"ext2": true, "ext3": true, "ext4": true, "xfs": t
 // Bios boot partition (GRUB core image on GPT disks).
 const biosBootType = "21686148-6449-6e6f-744e-656564454649"
 
-type lsblkDev struct {
-	Name        string     `json:"name"`
-	Path        string     `json:"path"`
-	Type        string     `json:"type"`
-	Size        uint64     `json:"size"`
-	FSType      string     `json:"fstype"`
-	FSVer       string     `json:"fsver"`
-	UUID        string     `json:"uuid"`
-	PartUUID    string     `json:"partuuid"`
-	Label       string     `json:"label"`
-	PartLabel   string     `json:"partlabel"`
-	PartType    string     `json:"parttype"`
-	PartFlags   string     `json:"partflags"`
-	PTType      string     `json:"pttype"`
-	PTUUID      string     `json:"ptuuid"`
-	MountPoints []*string  `json:"mountpoints"`
-	LogSec      uint32     `json:"log-sec"`
-	Model       string     `json:"model"`
-	FSUsed      uint64     `json:"fsused"`
-	Children    []lsblkDev `json:"children"`
-}
-
-func (d lsblkDev) mounts() []string {
-	var out []string
-	for _, m := range d.MountPoints {
-		if m != nil && *m != "" {
-			out = append(out, *m)
-		}
-	}
-	return out
-}
-
 var command = func(ctx context.Context, name string, args ...string) ([]byte, error) {
 	var stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- fixed program; arguments are separate values, no shell
@@ -82,11 +49,9 @@ func Capture(ctx context.Context, r *repo.Repository) (*repo.SystemLayout, []str
 	if err != nil {
 		return nil, nil, err
 	}
-	var tree struct {
-		BlockDevices []lsblkDev `json:"blockdevices"`
-	}
-	if err := json.Unmarshal(out, &tree); err != nil {
-		return nil, nil, fmt.Errorf("parse lsblk: %w", err)
+	devices, err := parseLsblk(out)
+	if err != nil {
+		return nil, nil, err
 	}
 	host, _ := os.Hostname()
 	lay := &repo.SystemLayout{OS: osName(), Hostname: host, Arch: runtime.GOARCH}
@@ -102,7 +67,7 @@ func Capture(ctx context.Context, r *repo.Repository) (*repo.SystemLayout, []str
 
 	var paths []string
 	vgs := map[string]bool{}
-	for _, disk := range tree.BlockDevices {
+	for _, disk := range devices {
 		if disk.Type != "disk" || !holdsSystem(disk) {
 			continue
 		}

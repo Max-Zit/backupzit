@@ -146,7 +146,7 @@ func isBackupKind(k string) bool {
 
 // ListRunsBetween returns runs queued in [from, to), newest first.
 func (s *Store) ListRunsBetween(ctx context.Context, from, to time.Time, agentID, jobID int64) ([]Run, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+runCols+runFrom+` WHERE r.queued_at >= $1 AND r.queued_at < $2
+	rows, err := s.db.Query(ctx, `SELECT `+runCols+runFrom+` WHERE r.queued_at >= $1 AND r.queued_at < $2 AND r.kind <> 'vmware-probe'
 		AND ($3::bigint=0 OR r.agent_id=$3) AND ($4::bigint=0 OR r.job_id=$4) ORDER BY r.queued_at DESC LIMIT 50000`, from, to, agentID, jobID)
 	if err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func (s *Store) BuildReport(ctx context.Context, p Period, agentID, jobID int64)
 	rep := &Report{Period: p, Generated: time.Now(), Runs: runs}
 	if agentID != 0 {
 		if a, err := s.GetAgent(ctx, agentID); err == nil {
-			rep.AgentName = a.Hostname
+			rep.AgentName = a.Name()
 		}
 	}
 	if jobID != 0 {
@@ -349,7 +349,7 @@ func (rep *Report) CSV() []byte {
 			}
 			return t.Local().Format("2006-01-02 15:04:05")
 		}
-		_ = w.Write([]string{strconv.FormatInt(r.ID, 10), r.Kind, r.Hostname, csvSafe(deref(r.JobName)), r.Status,
+		_ = w.Write([]string{strconv.FormatInt(r.ID, 10), r.Kind, csvSafe(r.Hostname), csvSafe(deref(r.JobName)), r.Status,
 			r.QueuedAt.Local().Format("2006-01-02 15:04:05"), ts(r.StartedAt), ts(r.FinishedAt),
 			strconv.Itoa(int(r.Duration().Seconds())), strconv.FormatUint(st.Files, 10), strconv.FormatUint(st.Bytes, 10),
 			strconv.FormatUint(st.BytesRead, 10), strconv.FormatUint(st.BytesStored, 10), csvSafe(r.Message)})
@@ -562,7 +562,7 @@ func (rs ReportSchedule) DescribeIn(l *language) string {
 }
 
 func (s *Store) ListReportSchedules(ctx context.Context) ([]ReportSchedule, error) {
-	rows, err := s.db.Query(ctx, `SELECT rs.id, rs.name, rs.frequency, rs.agent_id, rs.job_id, a.hostname, j.name, rs.recipients, rs.hour, rs.last_period
+	rows, err := s.db.Query(ctx, `SELECT rs.id, rs.name, rs.frequency, rs.agent_id, rs.job_id, `+agentNameSQL+`, j.name, rs.recipients, rs.hour, rs.last_period
 		FROM report_schedules rs LEFT JOIN agents a ON a.id=rs.agent_id LEFT JOIN jobs j ON j.id=rs.job_id ORDER BY rs.name`)
 	if err != nil {
 		return nil, err

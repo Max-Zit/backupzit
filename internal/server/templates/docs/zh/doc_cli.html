@@ -3,7 +3,7 @@
 <p class="lead">代理也可以在命令行中独立工作——用于脚本、在没有控制台的情况下还原以及应急。不带参数运行 <code>backupzit-agent</code> 查看概览，运行 <code>backupzit-agent &lt;command&gt; -h</code> 查看某个命令的选项。</p>
 
 <h2>存储库和凭据</h2>
-<p>每个命令都接受 <code>--repo</code>（或 <code>BACKUPZIT_REPO</code>）。机密信息最好使用环境变量。代理的存储库是 <code>&lt;存储位置&gt;/&lt;hostname&gt;_&lt;id&gt;</code>——请查看“活动”中某次运行的存储库列，或恢复单。</p>
+<p>每个读取或写入备份的命令都接受 <code>--repo</code>（或 <code>BACKUPZIT_REPO</code>）；<code>list</code>、<code>status</code>、<code>enroll</code>、<code>service</code> 和 <code>disks</code> 不接受。机密信息最好使用环境变量。代理的存储库是 <code>&lt;存储位置&gt;/&lt;hostname&gt;_&lt;id&gt;</code>——请查看运行页面上的<b>存储库</b>字段，或恢复单。</p>
 <table>
   <tr><th>位置</th><th>凭据</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,9 +23,10 @@
   <tr><td><code>init</code></td><td>创建新的存储库（如果提供了密码则加密）。</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>备份文件和文件夹。<code>--vss</code> 从卷影副本读取（Windows，管理员）；<code>--force</code> 读取所有文件，包括未更改的。</td></tr>
   <tr><td><code>snapshots</code></td><td>列出快照及其时间、主机、大小和路径。</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>列出快照中的文件。</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>列出快照中的所有文件。</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>将文件还原到 DIR 下（重建原始文件夹结构）。<code>--original</code> 则将其写回原始位置，覆盖现有文件。</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>检查存储库结构；使用 <code>--read-data</code> 时会下载并校验每个字节。</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>读取所有数据并将损坏的数据包移出索引，使后续备份重新存储这些数据；列出需要丢失数据的备份。<code>--dry-run</code> 仅列出。</td></tr>
 </table>
 
 <h2>磁盘映像（Windows）</h2>
@@ -76,7 +77,7 @@
 <table>
   <tr><th>命令</th><th>作用</th></tr>
   <tr><td><code>hyperv list</code></td><td>列出主机的虚拟机及其 BackupZit 编号，以及用于还原磁盘的文件夹。</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>从生产检查点备份虚拟机（默认：全部）。</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>从使用 Resilient Change Tracking 的恢复检查点备份虚拟机（默认：全部）（仅在没有恢复检查点的主机上使用生产检查点）。</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>就地还原虚拟机（默认），或使用 <code>--new</code> 作为新虚拟机还原。<code>--overwrite</code> 替换现有虚拟机的磁盘。参见 <a href="/docs/hyperv">Hyper-V</a>。</td></tr>
 </table>
 <p><code>pve show</code>、<code>pve ls</code> 和 <code>pve extract</code> 也适用于 Hyper-V 备份。</p>
@@ -95,6 +96,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>停止并删除即时虚拟机及其更改。</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>通过 Unix 套接字上的 NBD 以只读方式提供备份中虚拟机的磁盘（由即时恢复作为 systemd 单元启动）。</td></tr>
 </table>
+<p><b>带 <code>--vmid</code> 的 <code>latest</code></b>（VMware、Hyper-V 和 Proxmox VE 命令）指包含该客户机的最新快照，而不是存储库中最新的快照，命令会显示它（快照、主机、时间、客户机名称）。客户机 ID 在不同主机之间会重复（每个 Proxmox VE 都从 100 开始）：如果多个主机上名称不同的客户机具有该 ID，<code>latest</code> 会被拒绝；请改用 <code>snapshots</code> 显示的快照 ID。<code>pve show latest</code> 仍显示存储库中最新的快照。</p>
 
 <h2>Microsoft SQL Server（SQL Server 机器上的代理）</h2>
 <table>
@@ -152,7 +154,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>已存储和隐藏（已删除、仍保留）的数据。</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>使自 TIME 以来删除的文件重新可见。</td></tr>
 </table>
-<p>配置：<code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>、<code>BACKUPZIT_REPO_DATA</code>、<code>BACKUPZIT_REPO_LISTEN</code>、<code>BACKUPZIT_REPO_TLS_HOSTS</code>。</p>
+<p>配置：<code>/etc/backupzit-repo/repo.env</code>，或以 <code>serve</code> 的选项形式设置相同内容：<code>BACKUPZIT_REPO_DATA</code> / <code>--data</code>（存储目录，默认 <code>/srv/backupzit</code>）、<code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code>（密钥和证书，默认 <code>/etc/backupzit-repo</code>）、<code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code>（默认 <code>:8500</code>）、<code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code>（不可变天数，默认 30）和 <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code>（自签名证书的名称和地址）。密钥命令同样接受 <code>--data</code> 和 <code>--config-dir</code>。</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> 会在 <code>/metrics</code> 上按访问密钥启用 Prometheus 指标（请求头 <code>Authorization: Bearer &lt;token&gt;</code>）。</p>
 
 <h2>管理服务器（<code>backupzit-server</code>）</h2>
@@ -166,9 +168,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>初始管理员密码（仅首次启动时）。</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>机密密钥（base64），代替 <code>secrets.key</code> 文件。</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>重置 <i>admin</i> 的密码（重新启用其本地管理员身份）并退出。</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>为丢失了验证器和恢复代码的用户关闭双重验证登录,注销其会话,写入审计日志后退出。</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>解除某个地址或所有地址的登录封锁（暴力破解防护）并退出。</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>从控制台备份还原控制台并退出（参见 <a href="/docs/install">安装服务器</a>）。</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>仅用于试用：数据目录中的私有 PostgreSQL，localhost 上的明文 HTTP。</td></tr>
+  <tr><td><code>--setup</code></td><td>设备的文本菜单（网络、服务器名称、管理员密码）；需以 root 身份运行。</td></tr>
+  <tr><td><code>--initial-password</code></td><td>打印 <i>admin</i> 自动生成的初始密码（仅当它仍在使用时）并退出。</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>容器镜像：加载更新前创建的控制台副本（数据目录中 <code>pre-upgrade</code> 下的一个文件夹）并退出；请使用创建该副本时所用版本的镜像运行。<code>list</code> 显示这些副本。</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>容器镜像：控制台有响应时以 0 退出（镜像的健康检查）。</td></tr>
+  <tr><td><code>--apply-update</code></td><td>安装在控制台中请求的更新；由 <code>backupzit-update</code> 服务以 root 身份运行，不要手动运行。</td></tr>
   <tr><td><code>--version</code></td><td>打印版本。</td></tr>
 </table>
 <pre>systemctl status backupzit-server

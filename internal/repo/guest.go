@@ -1,14 +1,19 @@
 package repo
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 )
 
 // Guest is a virtual machine or container backed up from a hypervisor
 // without an agent inside it. Its disks are stored as DiskImages of the
 // snapshot (one whole-disk partition each), so retention, prune, copy and
-// restore tests treat them like any other image.
+// restore tests treat them like any other image. Container volumes that are
+// file systems rather than block devices (Proxmox ZFS subvolumes) are stored
+// as directories of the snapshot's tree instead, see GuestDisk.Path.
 type Guest struct {
 	Platform string `json:"platform"` // "proxmox", "hyperv" or "vmware"
 	Type     string `json:"type"`     // "qemu" (VM) or "lxc" (container)
@@ -62,18 +67,61 @@ type GuestDisk struct {
 	Key     string `json:"key"`    // configuration key: scsi0, efidisk0, rootfs, mp0
 	Volume  string `json:"volume"` // volume ID at backup time, storage:name
 	Storage string `json:"storage"`
-	Format  string `json:"format,omitempty"` // raw, qcow2, ...
-	Size    uint64 `json:"size"`
-	// Image is the index of the disk's data in Snapshot.Images.
+	Format  string `json:"format,omitempty"` // raw, qcow2, subvol, ...
+	// Size is the size of the disk; for a subvolume its quota (0: none).
+	Size uint64 `json:"size"`
+	// Image is the index of the disk's data in Snapshot.Images; -1 for a
+	// volume stored as files (Path).
 	Image int `json:"image"`
+	// Path is set for a volume stored as files: the directory in the
+	// snapshot's tree that holds its contents ("lxc/101/rootfs"). Being part
+	// of the tree, its data is kept, checked and copied like that of a file
+	// backup.
+	Path string `json:"path,omitempty"`
+	// Bytes is the total size of the files of a volume stored as files.
+	Bytes uint64 `json:"bytes,omitempty"`
 	// ChangeID is the changed block tracking position of the disk at the
 	// backup (VMware change ID, Hyper-V RCT, Proxmox QEMU dirty bitmap);
 	// the next backup reads only what changed since.
 	ChangeID string `json:"change_id,omitempty"`
+	// Via is how a running VM's disk was read when not the default: "hot-add"
+	// (VMware: attached to the proxy agent's VM instead of copied).
+	Via string `json:"via,omitempty"`
 }
 
 // ExcludedDisk is a disk a job left out of a VM backup.
 type ExcludedDisk struct {
 	Key  string `json:"key"`  // controller location, e.g. scsi0:1
 	Path string `json:"path"` // disk file on the host
+}
+
+// Files reports whether the volume is stored as files rather than as a disk
+// image.
+func (d GuestDisk) Files() bool { return d.Path != "" }
+
+// FindNode returns the node at path ("a/b/c") below the tree root.
+func (r *Repository) FindNode(ctx context.Context, root ID, path string) (*Node, error) {
+	if path == "" {
+		return nil, errors.New("empty path")
+	}
+	tree := root
+	comps := strings.Split(path, "/")
+	for i, c := range comps {
+		t, err := r.LoadTree(ctx, tree)
+		if err != nil {
+			return nil, err
+		}
+		n := t.Find(c)
+		if n == nil {
+			return nil, fmt.Errorf("%s: not in the snapshot", strings.Join(comps[:i+1], "/"))
+		}
+		if i == len(comps)-1 {
+			return n, nil
+		}
+		if n.Type != NodeDir || n.Subtree == nil {
+			return nil, fmt.Errorf("%s: not a directory", strings.Join(comps[:i+1], "/"))
+		}
+		tree = *n.Subtree
+	}
+	return nil, errors.New("unreachable")
 }

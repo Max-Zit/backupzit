@@ -3,11 +3,15 @@
 //
 //	release keygen -out DIR                  # once; keep DIR/release.key secret
 //	release sign -key KEY -version X -dir dist [-notes FILE]
-//	release notes -key KEY -dir DIR -notes FILE  # new notes, signed again
+//	release notes -key KEY -dir DIR -notes FILE [-version X]  # new notes, signed again
 //	release verify -dir DIR -file NAME            # signature and checksum of a released file
+//	release sign-file -key KEY FILE...            # FILE.sig, e.g. for SHA256SUMS
 //
 // sign writes DIR/manifest.json and manifest.json.sig listing the server,
 // agent and repository packages of version X found in the directory.
+// sign-file writes a detached signature in the same format (base64
+// Ed25519 over the file's bytes), for the checksum lists of the files
+// that are not in the manifest (appliance images, install.sh, ISOs).
 package main
 
 import (
@@ -38,7 +42,7 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: release keygen|sign|notes|verify [options]")
+		return errors.New("usage: release keygen|sign|notes|verify|sign-file [options]")
 	}
 	switch args[0] {
 	case "verify":
@@ -108,11 +112,16 @@ func run(args []string) error {
 		return nil
 	case "notes":
 		// Replaces the notes of a signed manifest (DIR/manifest.json) and
-		// signs it again; the packages and their checksums stay.
+		// signs it again; the packages and their checksums stay. The
+		// manifest usually comes from the published release, so its
+		// current signature must check out first: otherwise whoever can
+		// change release files would get their checksums signed with the
+		// real key at the next change of the notes.
 		fs := flag.NewFlagSet("notes", flag.ExitOnError)
 		keyPath := fs.String("key", "", "release.key")
-		dir := fs.String("dir", "", "directory with manifest.json")
+		dir := fs.String("dir", "", "directory with manifest.json and manifest.json.sig")
 		notes := fs.String("notes", "", "file with the new release notes")
+		version := fs.String("version", "", "the release version the manifest must be for")
 		_ = fs.Parse(args[1:])
 		if *keyPath == "" || *dir == "" || *notes == "" {
 			return errors.New("-key, -dir and -notes are required")
@@ -121,26 +130,61 @@ func run(args []string) error {
 		if err != nil {
 			return err
 		}
+		if err := checkTrusted(key); err != nil {
+			return err
+		}
 		raw, err := os.ReadFile(filepath.Join(*dir, "manifest.json"))
 		if err != nil {
 			return err
 		}
-		var m update.Manifest
-		if err := json.Unmarshal(raw, &m); err != nil {
-			return fmt.Errorf("manifest.json: %w", err)
+		sig, err := os.ReadFile(filepath.Join(*dir, "manifest.json.sig"))
+		if err != nil {
+			return fmt.Errorf("the signature of the manifest is needed: %w", err)
 		}
-		if m.Product != "backupzit" || m.Version == "" || len(m.Files) == 0 {
-			return errors.New("manifest.json is not a BackupZit release manifest")
+		m, err := update.Verify(raw, string(sig), nil)
+		if err != nil {
+			return fmt.Errorf("manifest.json: %w; not signing it again", err)
+		}
+		if *version != "" && m.Version != *version {
+			return fmt.Errorf("the manifest is for %s, not %s", m.Version, *version)
+		}
+		if len(m.Files) == 0 {
+			return errors.New("manifest.json lists no packages")
 		}
 		n, err := os.ReadFile(*notes)
 		if err != nil {
 			return err
 		}
 		m.Notes = strings.TrimSpace(string(n))
-		if err := writeManifest(*dir, m, key); err != nil {
+		if err := writeManifest(*dir, *m, key); err != nil {
 			return err
 		}
 		fmt.Printf("signed manifest for %s again with new notes\n", m.Version)
+		return nil
+	case "sign-file":
+		fs := flag.NewFlagSet("sign-file", flag.ExitOnError)
+		keyPath := fs.String("key", "", "release.key")
+		_ = fs.Parse(args[1:])
+		if *keyPath == "" || fs.NArg() == 0 {
+			return errors.New("usage: release sign-file -key KEY FILE...")
+		}
+		key, err := loadKey(*keyPath)
+		if err != nil {
+			return err
+		}
+		if err := checkTrusted(key); err != nil {
+			return err
+		}
+		for _, p := range fs.Args() {
+			b, err := os.ReadFile(p) // #nosec G304 G703 -- path from the command line of a development tool
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(p+".sig", []byte(update.Sign(b, key)+"\n"), 0o644); err != nil { // #nosec G306 G703 -- output file of a development tool, not secret
+				return err
+			}
+			fmt.Printf("signed %s\n", filepath.Base(p))
+		}
 		return nil
 	case "sign":
 		fs := flag.NewFlagSet("sign", flag.ExitOnError)
@@ -164,47 +208,12 @@ func run(args []string) error {
 			}
 			m.Notes = strings.TrimSpace(string(n))
 		}
-		entries, err := os.ReadDir(*dir)
+		files, err := packages(*dir, *version, nil)
 		if err != nil {
 			return err
 		}
+		m.Files = files
 		v := *version
-		for _, e := range entries {
-			name := e.Name()
-			f := update.File{Name: name}
-			switch {
-			case name == "backupzit-server_"+v+"_amd64.deb":
-				f.Kind, f.Format, f.Arch = "server", "deb", "amd64"
-			case name == "backupzit-server-"+v+"-1.x86_64.rpm":
-				f.Kind, f.Format, f.Arch = "server", "rpm", "amd64"
-			case name == "backupzit-agent_"+v+"_amd64.deb":
-				f.Kind, f.Format, f.Arch = "agent", "deb", "amd64"
-			case name == "backupzit-agent-"+v+"-1.x86_64.rpm":
-				f.Kind, f.Format, f.Arch = "agent", "rpm", "amd64"
-			case name == "backupzit-agent-"+v+"-x64.msi":
-				f.Kind, f.Format, f.Arch = "agent", "msi", "amd64"
-			case name == "backupzit-agent-"+v+"-x64-legacy.msi":
-				f.Kind, f.Format, f.Arch = "agent-legacy", "msi", "amd64"
-			case name == "backupzit-repo_"+v+"_amd64.deb":
-				f.Kind, f.Format, f.Arch = "repo", "deb", "amd64"
-			case name == "backupzit-repo-"+v+"-1.x86_64.rpm":
-				f.Kind, f.Format, f.Arch = "repo", "rpm", "amd64"
-			default:
-				continue
-			}
-			fh, err := os.Open(filepath.Join(*dir, name)) // #nosec G304 -- path from the command line of a development tool
-			if err != nil {
-				return err
-			}
-			h := sha256.New()
-			f.Size, err = io.Copy(h, fh)
-			_ = fh.Close()
-			if err != nil {
-				return err
-			}
-			f.SHA256 = hex.EncodeToString(h.Sum(nil))
-			m.Files = append(m.Files, f)
-		}
 		if len(m.Files) == 0 {
 			return fmt.Errorf("no packages of version %s in %s", v, *dir)
 		}
@@ -212,6 +221,46 @@ func run(args []string) error {
 			return err
 		}
 		fmt.Printf("signed manifest for %s with %d packages\n", v, len(m.Files))
+		return nil
+	case "sign-agents":
+		// The signed list of the agent and repository installers the server
+		// package carries (GHSA-v284-8576-jp84): agents check the installer
+		// a console hands them against it, with the release key built into
+		// them, so a changed installer on the console is refused. Made
+		// before the server package, which cannot list itself.
+		fs := flag.NewFlagSet("sign-agents", flag.ExitOnError)
+		keyPath := fs.String("key", "", "release.key")
+		version := fs.String("version", "", "release version, e.g. 0.56.0")
+		dir := fs.String("dir", "", "directory with the agent installers; the list is written there")
+		_ = fs.Parse(args[1:])
+		if *keyPath == "" || *version == "" || *dir == "" {
+			return errors.New("-key, -version and -dir are required")
+		}
+		key, err := loadKey(*keyPath)
+		if err != nil {
+			return err
+		}
+		if err := checkTrusted(key); err != nil {
+			return err
+		}
+		files, err := packages(*dir, *version, map[string]bool{"agent": true, "agent-legacy": true, "repo": true})
+		if err != nil {
+			return err
+		}
+		if len(files) == 0 {
+			return fmt.Errorf("no agent installers of version %s in %s", *version, *dir)
+		}
+		m := update.Manifest{Product: "backupzit", Version: *version, Released: time.Now().UTC().Truncate(time.Second), Files: files}
+		raw, _ := json.MarshalIndent(m, "", "  ")
+		raw = append(raw, '\n')
+		name := filepath.Join(*dir, update.AgentManifestName(*version))
+		if err := os.WriteFile(name, raw, 0o644); err != nil { // #nosec G306 G703 -- output file of a development tool, not secret
+			return err
+		}
+		if err := os.WriteFile(name+".sig", []byte(update.Sign(raw, key)+"\n"), 0o644); err != nil { // #nosec G306 G703 -- output file of a development tool, not secret
+			return err
+		}
+		fmt.Printf("signed the list of %d agent installers of %s\n", len(files), *version)
 		return nil
 	}
 	return fmt.Errorf("unknown command %q", args[0])
@@ -229,12 +278,74 @@ func loadKey(path string) (ed25519.PrivateKey, error) {
 	return ed25519.NewKeyFromSeed(seed), nil
 }
 
+// checkTrusted refuses a key that is not one of update.TrustedKeys: what
+// it signs would be refused by every console and by install.sh anyway.
+func checkTrusted(key ed25519.PrivateKey) error {
+	pub := base64.StdEncoding.EncodeToString(key[ed25519.SeedSize:])
+	for _, k := range update.TrustedKeys {
+		if k == pub {
+			return nil
+		}
+	}
+	return errors.New("this key is not a BackupZit release key (update.TrustedKeys)")
+}
+
 // writeManifest writes DIR/manifest.json and its signature.
 func writeManifest(dir string, m update.Manifest, key ed25519.PrivateKey) error {
 	raw, _ := json.MarshalIndent(m, "", "  ")
 	raw = append(raw, '\n')
-	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), raw, 0o644); err != nil { // #nosec G306 -- output file of a development tool, not secret
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), raw, 0o644); err != nil { // #nosec G306 G703 -- output file of a development tool, not secret
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "manifest.json.sig"), []byte(update.Sign(raw, key)+"\n"), 0o644) // #nosec G306 -- output file of a development tool, not secret
+	return os.WriteFile(filepath.Join(dir, "manifest.json.sig"), []byte(update.Sign(raw, key)+"\n"), 0o644) // #nosec G306 G703 -- output file of a development tool, not secret
+}
+
+// packages lists the release packages of version v in dir with their
+// size and SHA-256; with kinds, only those of the given kinds.
+func packages(dir, v string, kinds map[string]bool) ([]update.File, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var out []update.File
+	for _, e := range entries {
+		name := e.Name()
+		f := update.File{Name: name}
+		switch {
+		case name == "backupzit-server_"+v+"_amd64.deb":
+			f.Kind, f.Format, f.Arch = "server", "deb", "amd64"
+		case name == "backupzit-server-"+v+"-1.x86_64.rpm":
+			f.Kind, f.Format, f.Arch = "server", "rpm", "amd64"
+		case name == "backupzit-agent_"+v+"_amd64.deb":
+			f.Kind, f.Format, f.Arch = "agent", "deb", "amd64"
+		case name == "backupzit-agent-"+v+"-1.x86_64.rpm":
+			f.Kind, f.Format, f.Arch = "agent", "rpm", "amd64"
+		case name == "backupzit-agent-"+v+"-x64.msi":
+			f.Kind, f.Format, f.Arch = "agent", "msi", "amd64"
+		case name == "backupzit-agent-"+v+"-x64-legacy.msi":
+			f.Kind, f.Format, f.Arch = "agent-legacy", "msi", "amd64"
+		case name == "backupzit-repo_"+v+"_amd64.deb":
+			f.Kind, f.Format, f.Arch = "repo", "deb", "amd64"
+		case name == "backupzit-repo-"+v+"-1.x86_64.rpm":
+			f.Kind, f.Format, f.Arch = "repo", "rpm", "amd64"
+		default:
+			continue
+		}
+		if kinds != nil && !kinds[f.Kind] {
+			continue
+		}
+		fh, err := os.Open(filepath.Join(dir, name)) // #nosec G304 -- path from the command line of a development tool
+		if err != nil {
+			return nil, err
+		}
+		h := sha256.New()
+		f.Size, err = io.Copy(h, fh)
+		_ = fh.Close()
+		if err != nil {
+			return nil, err
+		}
+		f.SHA256 = hex.EncodeToString(h.Sum(nil))
+		out = append(out, f)
+	}
+	return out, nil
 }

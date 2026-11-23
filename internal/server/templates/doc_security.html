@@ -4,15 +4,16 @@
 
 <h2>Built-in protection</h2>
 <ul>
-  <li><b>Encryption at the source</b> — AES-256-GCM in the agent; the storage only sees encrypted data. Keys are derived with Argon2id.</li>
+  <li><b>Encryption at the source</b> — AES-256-GCM in the agent; the storage only sees encrypted data. Keys are derived with Argon2id. A repository on an encrypted target that claims to be unencrypted (its configuration replaced on the storage) is refused, so nothing is written to it in plaintext.</li>
   <li><b>Pinned connections</b> — agents pin the console certificate; SFTP host keys and hardened repository certificates are pinned too. No certificate authority can be abused to impersonate them.</li>
   <li><b>Trusted certificate for browsers</b> — optionally an uploaded or Let's Encrypt certificate (TLS 1.2+) on a separate address, renewed automatically; see <a href="/docs/install">Installing the server</a>.</li>
   <li><b>Secrets at rest</b> — storage passwords and keys, recovery keys, SMTP/LDAP passwords and two-factor secrets are encrypted in the database with a key kept outside it (<code>secrets.key</code>).</li>
   <li><b>Agent secrets</b> — each agent has its own secret, stored only as a hash on the console and in a file only administrators can read on the agent.</li>
   <li><b>Web console</b> — HttpOnly, SameSite=Strict session cookies; protection against cross-site requests and clickjacking; strict Content-Security-Policy; passwords hashed with bcrypt; sensitive pages are never cached.</li>
+  <li><b>Confirmation of sensitive changes</b> — saving or testing the LDAP settings, saving the single sign-on settings and giving a user more rights (a higher role, enabling the account) ask for your current password or two-factor code, so a stolen session cannot point sign-in at a server of its own. A stored LDAP, SMTP or single sign-on secret is reused only for the same server and account: changing only the address asks for the secret again.</li>
   <li><b>Brute-force protection</b> — addresses that fail to sign in too often are blocked: passwords, two-factor codes and API tokens. Blocks survive restarts, repeat offenders are blocked longer, and administrators get an email. See below.</li>
-  <li><b>Accounts</b> — roles with least privilege, optional two-factor authentication (TOTP) and LDAPS sign-in; API tokens with their own, lower role and expiry.</li>
-  <li><b>Four-eyes approval</b> (optional) — deleting or disabling jobs, deleting agents, ESXi hosts, storage targets and users, shortening retention, turning the approval off, and everything that could give one administrator a second approver (new approvers, more rights, password and two-factor resets, LDAP and SSO changes) need a second user's approval. See <a href="/docs/users">Users, roles &amp; LDAP</a>.</li>
+  <li><b>Accounts</b> — roles with least privilege, optional two-factor authentication (TOTP), LDAP sign-in over LDAPS or StartTLS, and single sign-on (OpenID Connect, SAML); API tokens with their own, lower role and expiry.</li>
+  <li><b>Four-eyes approval</b> (optional) — deleting or disabling jobs, deleting agents, ESXi hosts, storage targets and users, shortening retention, resuming retention after a suspicious backup, repairs that remove backups, deleting, disabling or reducing a job for several agents, turning the approval off, and everything that could give one administrator a second approver (new approvers, more rights, password and two-factor resets, LDAP and SSO changes) need a second user's approval. See <a href="/docs/users">Users, roles &amp; LDAP</a>.</li>
   <li><b>Audit trail</b> — sign-ins, failed sign-ins, user and role changes, jobs, storage targets, restores, displayed recovery keys, settings changes and API actions are recorded in the <a href="/audit">audit log</a>; entries are chained so that changes and deletions in the database are detected, and can be copied to a syslog server or SIEM (<a href="/docs/users#audit-integrity">Protection against changes</a>); deletions on a hardened repository are logged on that server.</li>
   <li><b>Console updates</b> — releases are signed with the BackupZit release key (Ed25519). The console and the root service that installs them both verify the signature, the database is backed up first and a failed update is rolled back.</li>
   <li><b>Agent updates</b> — agents download new versions only from their console over the pinned connection and install them only if the SHA-256 checksum matches.</li>
@@ -46,20 +47,20 @@
   <tr><td>Allowed addresses</td><td>IP addresses or networks (e.g. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). The web console, the REST API and every page answer only these addresses; others get "not found", as if there were no console. Agents always reach their API (enrollment, polling, results, downloads, push installation). Empty: everyone. The console refuses a list that does not contain your own address.</td></tr>
   <tr><td>Port 8443 serves agents only</td><td>The web console is then only on the web port with the trusted certificate (<a href="/docs/install">Settings → Certificate</a>, usually 443), so a firewall can open 8443 to everyone and 443 only to your addresses. Available once the web port is running; change it from the web port, not from 8443.</td></tr>
 </table>
-<p>A typical firewall for a public console: 8443 open to everyone (agents), 443 and 80 (Let's Encrypt HTTP check) only from your addresses, SSH only from your addresses or off, everything else closed.</p>
+<p>A typical firewall for a public console: 8443 open to everyone (agents), 443 only from your addresses, 80 open to everyone only if you use the Let's Encrypt HTTP check (Let's Encrypt checks it from its own servers; the port only answers the check and redirects to HTTPS), otherwise closed and the DNS check used; SSH only from your addresses or off; everything else closed.</p>
 <p>The appliance does not answer ICMP timestamp requests, which would tell its clock to anyone on the network (a finding of network scanners); it uses its own small nftables table and leaves other firewall rules alone.</p>
 <p>Locked out? On the server itself (<code>localhost</code>) the console always answers. On the appliance, item 5 of the setup menu on its screen lifts sign-in blocks and these limits.</p>
 
 <h2>Recommendations</h2>
 <h3>Console</h3>
 <ul>
-  <li>Keep the console on an internal network; do not publish port 8443 to the internet. Use a VPN for remote administration.</li>
+  <li>Keep the console on an internal network where you can. If agents at other sites must reach it, publish only port 8443 and limit the web console as described under <a href="#web-access">Web console access</a>; use a VPN for administration.</li>
   <li>Use a long, unique admin password and change the initial one.</li>
   <li>Require <b>two-factor authentication</b> for administrators (<a href="/settings/security">Settings → Sign-in &amp; security</a>).</li>
   <li>Give every person their own account with the lowest role that works; use API tokens with the Viewer role for monitoring.</li>
   <li>Back up <code>secrets.key</code> separately from the database (<a href="/docs/install">Installing the server</a>).</li>
   <li>Choose a sign-in session length under <a href="/settings/security">Settings → Sign-in &amp; security</a> that suits you (shorter is safer).</li>
-  <li>Keep the server updated (<code>apt upgrade</code> / <code>dnf upgrade</code>), including PostgreSQL.</li>
+  <li>Keep the server updated, including PostgreSQL: on the appliance under <b>Settings → Updates → Operating system</b> (security updates install automatically), on your own server with <code>apt upgrade</code> / <code>dnf upgrade</code>.</li>
 </ul>
 <h3>Storage</h3>
 <ul>
@@ -82,6 +83,6 @@
 </ul>
 
 <h2>Reporting a security issue</h2>
-<p>Please report vulnerabilities privately to the BackupZit maintainers instead of opening a public issue.</p>
+<p>Please report vulnerabilities privately instead of opening a public issue: on <a href="https://github.com/Max-Zit/backupzit/security">github.com/Max-Zit/backupzit</a>, open the <b>Security</b> tab and choose <b>Report a vulnerability</b>.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

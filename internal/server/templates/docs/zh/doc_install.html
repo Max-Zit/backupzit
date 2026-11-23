@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>映像和 ISO 的校验和</td></tr>
 </table>
 <p>软件包（<code>backupzit-server_X_amd64.deb</code>、<code>backupzit-server-X.x86_64.rpm</code>、代理）列在发布页面上。每个映像约 1.5 GB。使用 <code>sha256sum -c SHA256SUMS --ignore-missing</code>（Linux）或 <code>Get-FileHash file -Algorithm SHA256</code>（Windows）校验下载文件。</p>
+<p>要确认校验和本身来自 BackupZit，请先用发布密钥验证签名 <code>SHA256SUMS.sig</code>（OpenSSL 3）；<code>release-files.sha256</code> 和 <code>release-files.sha256.sig</code> 对 <code>install.sh</code>、<code>build-winpe.ps1</code> 和恢复 ISO 起同样的作用。</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. 现成的虚拟机映像</h2>
 <p>一个现成的设备（Debian、PostgreSQL、控制台、自动安全更新），不到一分钟即可启动，无需互联网访问：</p>
@@ -53,14 +58,14 @@
 <p>设备有两个独立的帐户：</p>
 <ul>
   <li>Web 控制台（<code>https://&lt;address&gt;:8443</code>）中的 <b>admin</b>，用于日常工作。其初始密码在首次启动后显示在服务器屏幕上；请在<b>我的帐户</b>中更改。</li>
-  <li>服务器本身上的 <b>bzadmin</b>（虚拟化平台控制台中的屏幕或 SSH），初始密码为 <code>backupzit</code>。首次登录时必须更改；该用户可以使用 <code>sudo</code>。root 无法登录。</li>
+  <li>服务器本身上的 <b>bzadmin</b>（虚拟化平台控制台中的屏幕或 SSH），初始密码显示在服务器屏幕上（自 0.56 起每台设备随机生成；此前为 <code>backupzit</code>）。首次登录时必须更改；该用户可以使用 <code>sudo</code>。root 无法登录。</li>
 </ul>
 <p>BackupZit 和操作系统的更新从控制台管理（见下文）。已包含 VMware Tools 和 QEMU 客户机代理，因此虚拟化平台会显示设备的地址。</p>
 <h3 id="setup-menu">服务器屏幕上的设置菜单</h3>
 <p>当 bzadmin 在服务器自身屏幕上（而非通过 SSH）登录时，会打开一个菜单：</p>
 <table>
   <tr><th>项目</th><th>作用</th></tr>
-  <tr><td>1 Network</td><td>DHCP 或带前缀长度的静态地址（例如 <code>192.168.1.20/24</code>）、网关以及最多三个 DNS 服务器。 使用 DHCP 时，DNS 服务器由 DHCP 服务器提供，除非您自行填写。</td></tr>
+  <tr><td>1 Network</td><td>DHCP 或带前缀长度的静态地址（例如 <code>192.168.1.20/24</code>）、网关以及最多三个 DNS 服务器。 使用 DHCP 时，DNS 服务器由 DHCP 服务器提供；如要在使用 DHCP 时使用自己的 DNS 服务器，请稍后在“设置 → 网络”中设置。</td></tr>
   <tr><td>2 Server name</td><td>主机名（字母、数字和 -）。</td></tr>
   <tr><td>3 SSH</td><td>开启或关闭 SSH 服务器并更改其端口。不能使用控制台（80、443、8443）、PostgreSQL（5432）和即时恢复（111、2049）的端口。</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>用于忘记的 Web 控制台密码；同时解除登录封锁。之后屏幕不再显示生成的初始密码（在 Web 控制台中更改 admin 密码后，从下次启动起也是如此）。</td></tr>
@@ -109,7 +114,8 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>docker compose up -d
 docker compose exec backupzit backupzit-server --initial-password</pre>
 <p>打开 <code>https://&lt;主机&gt;:8443</code>，使用该密码以 <code>admin</code> 登录。数据库和控制台数据（密钥、证书、代理安装程序）位于卷 <code>db</code> 和 <code>data</code> 中；请备份两者，或使用 <a href="#console-backup">控制台备份</a>。代理照常安装在计算机上，并连接到主机的 8443 端口。若使用本地磁盘作为存储目标，请将主机文件夹挂载到容器中（见文件中的注释），并使用容器内的路径。</p>
-<p><b>更新：</b>控制台会检查新版本，并在 Settings → Updates 下显示，附带在该文件所在文件夹中运行的命令：<code>docker compose pull</code> 和 <code>docker compose up -d</code>（标签 <code>latest</code> 跟随正式版本，<code>testing</code> 跟随候选版本；在 <code>.env</code> 中设置 <code>BACKUPZIT_TAG</code> 可固定在某一版本）。新版本修改数据库之前，会在数据卷的 <code>pre-upgrade</code> 中保留控制台副本（最近三个）。如需回退：将 <code>BACKUPZIT_TAG</code> 设为上一版本，使用副本文件夹运行 <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;文件夹&gt;</code>，然后运行 <code>docker compose up -d</code>。代理仍照常从控制台更新。在容器中不显示设备的设置（网络、操作系统更新、SSH）：这些属于 Docker 主机。</p>
+<p><b>更新：</b>控制台会检查新版本，并在 设置 → 更新 下显示，附带在该文件所在文件夹中运行的命令：<code>docker compose pull</code> 和 <code>docker compose up -d</code>（标签 <code>latest</code> 跟随正式版本，<code>testing</code> 跟随候选版本；在 <code>.env</code> 中设置 <code>BACKUPZIT_TAG</code> 可固定在某一版本）。新版本修改数据库之前，会在数据卷的 <code>pre-upgrade</code> 中保留控制台副本（最近三个）。如需回退：将 <code>BACKUPZIT_TAG</code> 设为上一版本，使用副本文件夹运行 <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;文件夹&gt;</code>，然后运行 <code>docker compose up -d</code>。代理仍照常从控制台更新。在容器中不显示设备的设置（网络、操作系统更新、SSH）：这些属于 Docker 主机。</p>
+<p id="docker-logs"><b>日志：</b><code>docker compose logs -f backupzit</code> 显示控制台的日志。同一日志以 <code>logs/server.log</code> 保存在数据卷中，并包含在 <a href="/settings/diagnostics">设置 → 诊断</a> 下的下载内容中。该镜像不含 shell；<code>docker compose run --rm backupzit --restore-pre-upgrade list</code> 显示更新前创建的副本，最新的在前。</p>
 
 <h2 id="first">首次登录</h2>
 <p>打开 <code>https://&lt;server&gt;:8443</code>。初始管理员是 <b>admin</b>；密码位于 <code>/var/lib/backupzit/initial-admin-password.txt</code>（或在首次启动前设置 <code>BACKUPZIT_ADMIN_PASSWORD</code>）。登录后请更改密码。在服务器上重置忘记的密码：</p>
@@ -146,6 +152,11 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>443/tcp</td><td>代理、控制台</td><td>Azure / 云存储</td><td>Azure Blob、AWS、Wasabi、Google Cloud …</td></tr>
   <tr><td>636/tcp（使用 StartTLS 时为 389）</td><td>控制台</td><td>域控制器</td><td>LDAP / Active Directory 登录</td></tr>
   <tr><td>587/465/25</td><td>控制台</td><td>邮件服务器</td><td>电子邮件通知</td></tr>
+  <tr><td>443/tcp（免费许可证时为 22/tcp）</td><td>控制台、代理（proxy）</td><td>ESXi 主机、vCenter</td><td>VMware：清单、快照、磁盘读取和还原</td></tr>
+  <tr><td>2049/tcp, 111/tcp+udp</td><td>ESXi 主机</td><td>代理（proxy）</td><td>VMware 即时恢复（代理将备份作为 NFS 数据存储提供）</td></tr>
+  <tr><td>443/tcp</td><td>Microsoft 365 作业的代理</td><td>graph.microsoft.com、login.microsoftonline.com</td><td>Microsoft 365 备份</td></tr>
+  <tr><td>514/udp 或 tcp, 6514/tcp（TLS）</td><td>控制台</td><td>syslog 服务器 / SIEM</td><td>可选：导出审计日志（您输入的端口）</td></tr>
+  <tr><td>443/tcp</td><td>控制台</td><td>github.com 及其下载服务器</td><td>从默认更新源检查和下载更新；代理从控制台获取更新</td></tr>
 </table>
 <p>控制台还会自行连接存储，以便您浏览磁盘映像和虚拟机备份中的文件（并下载），因此它需要与代理相同的存储访问权限。</p>
 
@@ -153,13 +164,14 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>默认情况下，控制台从 GitHub 上的 BackupZit 官方发布获取更新（<code>https://github.com/Max-Zit/backupzit/releases</code>）。在 <a href="/settings/updates">设置 → 更新</a> 下，您可以改为输入另一个<b>更新源</b>——您自己的 HTTPS 镜像或服务器上的文件夹。无论来源如何，每个版本都必须带有有效的 BackupZit 签名。控制台每天检查新版本，有可用版本时会向管理员发送电子邮件。要安装它，请点击<b>安装</b>：</p>
 <p><b>候选版本：</b>每个版本都会先作为<i>预发布版</i>发布并测试，之后才以相同的文件成为正式版本。更新源 <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> 始终包含最新的候选版本——请仅在测试控制台上使用，因为候选版本仍可能被修正后的版本替换。使用默认更新源的控制台只会获得已批准的版本。</p>
 <ol>
-  <li>控制台检查版本签名和软件包校验和，并等待没有正在运行的备份或还原。</li>
+  <li>控制台检查版本签名和软件包校验和；有备份或还原正在运行时，控制台会拒绝开始更新，请在它们完成后再安装。</li>
   <li>系统服务（<code>backupzit-update</code>，以 root 身份运行）使用 BackupZit 内置的发布密钥再次检查签名。即使控制台被入侵，也无法让其他软件包被安装。</li>
   <li>它会备份数据库（<code>pg_dump</code>），保留当前程序，安装软件包并重启控制台。</li>
   <li>如果新版本在两分钟内没有响应，会自动恢复之前的程序和原先状态的数据库。结果连同启动失败的日志会显示在更新页面上，记录在审计日志中并通过电子邮件发送。</li>
   <li>更新成功后，代理也会随之更新：每个代理在空闲时安装新版本。如果您希望自行更新代理，可在同一页面上关闭此功能。</li>
 </ol>
 <p>控制台会有大约一分钟不可用。最近三次更新的数据库备份和之前的程序保存在 <code>/var/lib/backupzit-update</code> 中。</p>
+<p id="update-banner"><b>控制台中的通知：</b>可以安装更新的用户（管理员）还会在每个页面顶部看到新版本，并带有 <i>安装</i>（打开此“设置 → 更新”页面）和 <i>发行说明</i>。<b>×</b> 会为该用户在所有浏览器中隐藏通知五天；更新的版本发布时会立即再次显示。其他角色看不到该通知。在 Docker 控制台中，通知改为指向拉取新镜像的命令。</p>
 <p><b>无互联网访问时：</b>在另一台计算机上下载版本文件（<code>manifest.json</code>、<code>manifest.json.sig</code> 和服务器软件包）。然后在<i>从文件安装更新</i>下上传它们，或将其复制到服务器上的文件夹并将该文件夹用作更新源。</p>
 <p>您仍然可以使用软件包管理器更新（<code>apt install ./backupzit-server_….deb</code>）；新版本启动时会迁移数据库。</p>
 
@@ -168,7 +180,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>开启自动安全更新</b>（推荐）。系统自带的工具每天只安装安全修复：Debian 和 Ubuntu 上为 <code>unattended-upgrades</code>，AlmaLinux 和 Rocky Linux 上为 <code>dnf-automatic</code>。</li>
   <li><b>立即安装所有更新</b>。PostgreSQL 等服务可能会短暂重启，控制台会自动重新连接。</li>
-  <li><b>重启服务器</b>，例如在内核更新之后。有备份或还原正在运行时，控制台会拒绝重启。代理会保留其作业，并在控制台恢复后报告结果。</li>
+  <li><b>重启服务器</b>，例如在内核更新之后。有备份或还原正在运行时，控制台会拒绝重启。计划时间落在重启期间的备份会在控制台恢复后开始。</li>
 </ul>
 <p>这些任务通过与控制台更新相同的 root 服务运行。它们会记录在审计日志中，最后一个任务的输出会显示在页面上。</p>
 
@@ -181,6 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>代理所固定的控制台证书。</li>
 </ul>
 <p>它使用目标的恢复密钥加密并进行重复数据删除。保留最新的备份：默认 14 个。</p>
+<p id="console-backup-page">在该页面上选择<i>存储目标</i>（仅限网络存储：SFTP、S3、SMB、Azure 或加固存储库；备份存放在其中的 <code>backupzit-console</code> 文件夹），每日备份的整点时间（<i>时间</i>，按控制台时间）以及要<i>保留</i>的备份数量。<i>立即备份</i> 会马上创建一个备份。页面会显示最近一次备份及其大小，以及还原时所需的存储库地址。</p>
 <h3>还原控制台</h3>
 <ol>
   <li>安装相同或更新版本的新控制台，例如从设备 ISO 安装。</li>

@@ -30,7 +30,9 @@ func TestThrottle(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		be.Save(ctx, "y", data)
 	}
-	if d := time.Since(start); d > 200*time.Millisecond {
+	// Throttled, these would take about 1 s; the margin is for a busy disk
+	// (a loaded Windows test machine needed 275 ms).
+	if d := time.Since(start); d > 800*time.Millisecond {
 		t.Errorf("unlimited uploads took %s", d)
 	}
 	// Without a limiter in the context nothing waits.

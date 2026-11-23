@@ -84,6 +84,9 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 	defer lock.Unlock()
 	var lastLog time.Time
 	tags := []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}
+	if strings.HasPrefix(run.Part, partPrefix) {
+		tags = append(tags, run.Part) // retention per proxy (split VMware backup)
+	}
 	prog := func(done, total uint64) {
 		a.progress(ctx, done, total, 0)
 		if time.Since(lastLog) > time.Minute {
@@ -92,6 +95,8 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 		}
 	}
 	logf := func(msg string, kv ...any) { a.log.Info(msg, append([]any{"run", run.ID}, kv...)...) }
+	vmStarted := func(name string, total int) { a.vmStarted(ctx, name, total) }
+	vmFinished := func(name string, failed bool) { a.vmFinished(ctx, name, failed) }
 	var sn *repo.Snapshot
 	if run.VMware != nil {
 		c, cerr := vmwareConnect(ctx, run.VMware)
@@ -99,35 +104,26 @@ func (a *Agent) vmBackup(ctx context.Context, run api.Run) api.RunResult {
 			return failed(cerr)
 		}
 		defer c.Logout()
-		sn, err = c.Backup(ctx, r, vmware.BackupOptions{VMIDs: sel, Exclude: excl, Hostname: run.VMware.Name, Version: a.version, Tags: tags, Progress: prog, Log: logf})
+		sn, err = c.Backup(ctx, r, vmware.BackupOptions{VMIDs: sel, Exclude: excl, Hostname: run.VMware.Name, Version: a.version, Tags: tags, Progress: prog, Log: logf,
+			VMStarted: vmStarted, VMFinished: vmFinished, NoQuiesce: run.VMwareNoQuiesce})
 	} else if isPVE {
-		sn, err = pve.Backup(ctx, r, pve.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf})
+		sn, err = pve.Backup(ctx, r, pve.BackupOptions{VMIDs: sel, Exclude: excl, Version: a.version, Tags: tags, Progress: prog, Log: logf,
+			VMStarted: vmStarted, VMFinished: vmFinished})
 	} else {
-		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Cluster: run.HVCluster != "", RequireAppConsistent: run.AppConsistent, ExcludeDisks: run.VMExcludeDisks,
-			Version: a.version, Tags: tags, Progress: prog, Log: logf})
+		sn, err = hyperv.Backup(ctx, r, hyperv.BackupOptions{VMIDs: sel, Exclude: excl, Cluster: run.HVCluster != "", RequireAppConsistent: run.AppConsistent, ExcludeDisks: run.VMExcludeDisks, CrashConsistentOK: run.VMCrashConsistentOK,
+			Version: a.version, Tags: tags, Progress: prog, Log: logf, VMStarted: vmStarted, VMFinished: vmFinished})
+	}
+	if run.Part != "" && errors.Is(err, vmware.ErrNoVMs) {
+		// The connection's proxy in a split backup: all VMs of the job are
+		// on the hosts of the other proxies right now.
+		return api.RunResult{Status: api.StatusSuccess, Message: "None of the job's VMs is left for this proxy now; the proxies on their ESXi hosts back them up"}
 	}
 	if errors.Is(err, hyperv.ErrNoneHere) {
 		return api.RunResult{Status: api.StatusSuccess, Message: "None of the job's VMs runs on this node now; the other nodes of cluster " + run.HVCluster + " back them up"}
 	}
-	if errors.Is(err, hyperv.ErrNotAppConsistent) && sn != nil {
-		// The job requires application-consistent checkpoints: the run
-		// fails, but the VMs that had one are kept and can be restored.
-		// No retention after a failed run.
-		stats, _ := json.Marshal(sn.Stats)
-		return api.RunResult{Status: api.StatusFailed, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors,
-			Message: fmt.Sprintf("%v; the other %d VMs were backed up", err, len(sn.Guests))}
-	}
-	if err != nil {
-		return failed(err)
-	}
-	stats, _ := json.Marshal(sn.Stats)
-	res := api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors,
-		Message: fmt.Sprintf("Backed up %d guests", len(sn.Guests))}
-	if len(sn.Guests) == 1 {
-		res.Message = "Backed up 1 guest"
-	}
-	if len(sn.Stats.Errors) > 0 {
-		res.Status = api.StatusWarning
+	res, keep := vmBackupResult(sn, err)
+	if !keep {
+		return res
 	}
 	_ = lock.Unlock() // retention needs an exclusive lock
 	return a.withRetention(ctx, r, run, res)
@@ -220,7 +216,7 @@ func (a *Agent) hypervRestore(ctx context.Context, run api.Run, r *repo.Reposito
 }
 
 func vmwareConnect(ctx context.Context, h *api.VMwareHost) (*vmware.Client, error) {
-	return vmware.Connect(ctx, vmware.Conn{Host: h.Address, User: h.User, Password: h.Password, Thumbprint: h.Thumbprint, SSHHostKey: h.SSHHostKey, Method: h.Method})
+	return vmware.Connect(ctx, vmware.Conn{Host: h.Address, User: h.User, Password: h.Password, Thumbprint: h.Thumbprint, SSHHostKey: h.SSHHostKey, Method: h.Method, HotAdd: h.HotAdd})
 }
 
 // vmwareRestore restores a VM onto an ESXi host: NewVMID -1 creates a copy
@@ -277,4 +273,75 @@ func (a *Agent) cleanupCheckpoints(ctx context.Context) {
 	} else if len(done) > 0 {
 		a.log.Info("removed leftover backup checkpoints", "checkpoints", done)
 	}
+}
+
+// vmBackupResult turns the snapshot of a VM backup into the run result.
+// retention reports whether the job's retention may run: not after a
+// failed run, so older restore points of a missing guest stay.
+func vmBackupResult(sn *repo.Snapshot, err error) (res api.RunResult, retention bool) {
+	if errors.Is(err, hyperv.ErrNotAppConsistent) && sn != nil && len(sn.Stats.Failed) == 0 {
+		// The job requires application-consistent checkpoints: the run
+		// fails, but the VMs that had one are kept and can be restored.
+		// No retention after a failed run.
+		stats, _ := json.Marshal(sn.Stats)
+		return api.RunResult{Status: api.StatusFailed, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors,
+			Message: fmt.Sprintf("%v; the other %d VMs were backed up", err, len(sn.Guests))}, false
+	}
+	if sn != nil && len(sn.Stats.Failed) > 0 {
+		// A guest without a restore point in this run must not hide among
+		// warnings (issue #38): the run fails and names it. The other guests
+		// are kept and can be restored. No retention after a failed run, so
+		// the older restore points of that guest stay.
+		stats, _ := json.Marshal(sn.Stats)
+		msg := fmt.Sprintf("No backup of %s in this run; the other %d guests were backed up", strings.Join(sn.Stats.Failed, ", "), len(sn.Guests))
+		if errors.Is(err, hyperv.ErrNotAppConsistent) {
+			msg = fmt.Sprintf("%v. %s", err, msg)
+		}
+		return api.RunResult{Status: api.StatusFailed, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors, Message: msg}, false
+	}
+	if err != nil {
+		return failed(err), false
+	}
+	stats, _ := json.Marshal(sn.Stats)
+	res = api.RunResult{Status: api.StatusSuccess, SnapshotID: sn.ID.String(), Stats: stats, Details: runinfo.Guests(sn), Errors: sn.Stats.Errors,
+		Message: fmt.Sprintf("Backed up %d guests", len(sn.Guests))}
+	if len(sn.Guests) == 1 {
+		res.Message = "Backed up 1 guest"
+	}
+	if len(sn.Stats.Errors) > 0 {
+		res.Status = api.StatusWarning
+	}
+	return res, true
+}
+
+// vmwareProbe connects to the VMware host of the run (the console may have
+// no route to it) and returns its VM list, version, license and the
+// certificate and SSH key it presented (KindVMwareProbe, V-3). A host whose
+// certificate differs from the pinned one is refused, as in every run; the
+// error names the new fingerprint for the console to offer.
+func (a *Agent) vmwareProbe(ctx context.Context, run api.Run) api.RunResult {
+	if run.VMware == nil {
+		return failed(errors.New("the run names no VMware host"))
+	}
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	c, err := vmwareConnect(ctx, run.VMware)
+	if err != nil {
+		return failed(err)
+	}
+	defer c.Logout()
+	inv, err := c.Inventory(ctx, run.VMware.Name)
+	if err != nil {
+		return failed(fmt.Errorf("read the VM list: %w", err))
+	}
+	p := api.VMwareProbe{Version: c.Version, VCenter: c.VCenter, APIWrites: c.APIWrites, Thumbprint: c.Thumbprint, UsesSSH: c.Method() == vmware.MethodSSH}
+	p.Inventory, _ = json.Marshal(inv)
+	if p.UsesSSH { // the API needs no SSH
+		if err := c.CheckSSH(ctx); err != nil {
+			p.SSHError = err.Error()
+		}
+	}
+	p.SSHHostKey = c.SSHHostKey
+	details, _ := json.Marshal(p)
+	return api.RunResult{Status: api.StatusSuccess, Details: details, Message: fmt.Sprintf("Connected to %s (%s): %d VMs", run.VMware.Name, inv.Version, len(inv.Guests))}
 }

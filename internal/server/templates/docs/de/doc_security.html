@@ -4,15 +4,16 @@
 
 <h2>Eingebauter Schutz</h2>
 <ul>
-  <li><b>Verschlüsselung an der Quelle</b> — AES-256-GCM im Agenten; der Speicher sieht nur verschlüsselte Daten. Schlüssel werden mit Argon2id abgeleitet.</li>
+  <li><b>Verschlüsselung an der Quelle</b> — AES-256-GCM im Agenten; der Speicher sieht nur verschlüsselte Daten. Schlüssel werden mit Argon2id abgeleitet. Ein Repository auf einem verschlüsselten Ziel, das sich als unverschlüsselt ausgibt (seine Konfiguration wurde auf dem Speicher ersetzt), wird abgelehnt, sodass nichts unverschlüsselt hineingeschrieben wird.</li>
   <li><b>Gepinnte Verbindungen</b> — Agenten pinnen das Konsolenzertifikat; SFTP-Hostschlüssel und Zertifikate gehärteter Repositories werden ebenfalls gepinnt. Keine Zertifizierungsstelle kann missbraucht werden, um sich als sie auszugeben.</li>
   <li><b>Vertrauenswürdiges Zertifikat für Browser</b> — optional ein hochgeladenes oder Let's-Encrypt-Zertifikat (TLS 1.2+) auf einer eigenen Adresse, automatisch erneuert; siehe <a href="/docs/install">Server installieren</a>.</li>
   <li><b>Geheimnisse im Ruhezustand</b> — Speicherpasswörter und -schlüssel, Wiederherstellungsschlüssel, SMTP-/LDAP-Passwörter und Zwei-Faktor-Geheimnisse werden in der Datenbank mit einem außerhalb gehaltenen Schlüssel (<code>secrets.key</code>) verschlüsselt.</li>
   <li><b>Agentengeheimnisse</b> — jeder Agent hat ein eigenes Geheimnis, auf der Konsole nur als Hash gespeichert und auf dem Agenten in einer Datei, die nur Administratoren lesen können.</li>
   <li><b>Webkonsole</b> — HttpOnly-, SameSite=Strict-Sitzungscookies; Schutz vor Cross-Site-Anfragen und Clickjacking; strikte Content-Security-Policy; Passwörter mit bcrypt gehasht; sensible Seiten werden nie zwischengespeichert.</li>
+  <li><b>Bestätigung sensibler Änderungen</b> — Speichern oder Testen der LDAP-Einstellungen, Speichern der Single-Sign-On-Einstellungen und das Vergeben von mehr Rechten an einen Benutzer (eine höhere Rolle, das Aktivieren des Kontos) verlangen Ihr aktuelles Passwort oder Ihren Zwei-Faktor-Code, damit eine gestohlene Sitzung die Anmeldung nicht auf einen eigenen Server umleiten kann. Ein gespeichertes LDAP-, SMTP- oder Single-Sign-On-Geheimnis wird nur für denselben Server und dasselbe Konto weiterverwendet: Wer nur die Adresse ändert, muss das Geheimnis erneut eingeben.</li>
   <li><b>Schutz vor Brute-Force</b> — Adressen, deren Anmeldung zu oft fehlschlägt, werden gesperrt: Passwörter, Zwei-Faktor-Codes und API-Token. Sperren überdauern Neustarts, Wiederholungstäter werden länger gesperrt, und Administratoren erhalten eine E-Mail. Siehe unten.</li>
-  <li><b>Konten</b> — Rollen mit minimalen Rechten, optionale Zwei-Faktor-Authentifizierung (TOTP) und LDAPS-Anmeldung; API-Token mit eigener, niedrigerer Rolle und Ablaufdatum.</li>
-  <li><b>Vier-Augen-Freigabe</b> (optional) — das Löschen oder Deaktivieren von Aufträgen, das Löschen von Agenten, ESXi-Hosts, Speicherzielen und Benutzern, das Verkürzen der Aufbewahrung, das Ausschalten der Freigabe und alles, was einem Administrator einen zweiten Freigebenden verschaffen könnte (neue Freigebende, mehr Rechte, Rücksetzen von Passwort und Zwei-Faktor, Änderungen an LDAP und SSO), brauchen die Freigabe eines zweiten Benutzers. Siehe <a href="/docs/users">Benutzer, Rollen &amp; LDAP</a>.</li>
+  <li><b>Konten</b> — Rollen mit minimalen Rechten, optionale Zwei-Faktor-Authentifizierung (TOTP), LDAP-Anmeldung über LDAPS oder StartTLS und Single Sign-on (OpenID Connect, SAML); API-Token mit eigener, niedrigerer Rolle und Ablaufdatum.</li>
+  <li><b>Vier-Augen-Freigabe</b> (optional) — das Löschen oder Deaktivieren von Aufträgen, das Löschen von Agenten, ESXi-Hosts, Speicherzielen und Benutzern, das Verkürzen der Aufbewahrung, das Fortsetzen der Aufbewahrung nach einer verdächtigen Sicherung, Reparaturen, die Sicherungen entfernen, das Löschen, Deaktivieren oder Verkleinern eines Auftrags für mehrere Agenten, das Ausschalten der Freigabe und alles, was einem Administrator einen zweiten Freigebenden verschaffen könnte (neue Freigebende, mehr Rechte, Rücksetzen von Passwort und Zwei-Faktor, Änderungen an LDAP und SSO), brauchen die Freigabe eines zweiten Benutzers. Siehe <a href="/docs/users">Benutzer, Rollen &amp; LDAP</a>.</li>
   <li><b>Prüfpfad</b> — Anmeldungen, fehlgeschlagene Anmeldungen, Benutzer- und Rollenänderungen, Aufträge, Speicherziele, Wiederherstellungen, angezeigte Wiederherstellungsschlüssel, Einstellungsänderungen und API-Aktionen werden im <a href="/audit">Prüfprotokoll</a> erfasst; Einträge sind verkettet, sodass Änderungen und Löschungen in der Datenbank erkannt werden, und können an einen Syslog-Server oder ein SIEM kopiert werden (<a href="/docs/users#audit-integrity">Schutz vor Änderungen</a>); Löschungen auf einem gehärteten Repository werden auf diesem Server protokolliert.</li>
   <li><b>Konsolen-Updates</b> — Releases sind mit dem BackupZit-Releaseschlüssel (Ed25519) signiert. Die Konsole und der root-Dienst, der sie installiert, prüfen beide die Signatur, die Datenbank wird vorher gesichert, und ein fehlgeschlagenes Update wird zurückgerollt.</li>
   <li><b>Agenten-Updates</b> — Agenten laden neue Versionen nur von ihrer Konsole über die gepinnte Verbindung und installieren sie nur, wenn die SHA-256-Prüfsumme stimmt.</li>
@@ -46,20 +47,20 @@
   <tr><td>Erlaubte Adressen</td><td>IP-Adressen oder Netzwerke (z. B. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). Webkonsole, REST API und jede Seite antworten nur diesen Adressen; andere erhalten „not found“, als gäbe es keine Konsole. Agenten erreichen ihre API immer (Registrierung, Abfragen, Ergebnisse, Downloads, Push-Installation). Leer: alle. Die Konsole lehnt eine Liste ab, die Ihre eigene Adresse nicht enthält.</td></tr>
   <tr><td>Port 8443 nur für Agenten</td><td>Die Webkonsole ist dann nur auf dem Webport mit dem vertrauenswürdigen Zertifikat erreichbar (<a href="/docs/install">Einstellungen → Zertifikat</a>, meist 443), sodass eine Firewall 8443 für alle und 443 nur für Ihre Adressen öffnen kann. Verfügbar, sobald der Webport läuft; ändern Sie es über den Webport, nicht über 8443.</td></tr>
 </table>
-<p>Eine typische Firewall für eine öffentliche Konsole: 8443 offen für alle (Agenten), 443 und 80 (Let's-Encrypt-HTTP-Prüfung) nur von Ihren Adressen, SSH nur von Ihren Adressen oder aus, alles andere geschlossen.</p>
+<p>Eine typische Firewall für eine öffentliche Konsole: 8443 offen für alle (Agenten), 443 nur von Ihren Adressen, 80 nur dann offen für alle, wenn Sie die Let's-Encrypt-HTTP-Prüfung verwenden (Let's Encrypt prüft von seinen eigenen Servern aus; der Port beantwortet nur die Prüfung und leitet auf HTTPS um), sonst geschlossen und die DNS-Prüfung verwendet; SSH nur von Ihren Adressen oder aus; alles andere geschlossen.</p>
 <p>Die Appliance beantwortet keine ICMP-Timestamp-Anfragen, die jedem im Netzwerk ihre Uhrzeit verraten würden (ein Befund von Netzwerkscannern); sie verwendet dafür eine eigene kleine nftables-Tabelle und lässt andere Firewall-Regeln unverändert.</p>
 <p>Ausgesperrt? Auf dem Server selbst (<code>localhost</code>) antwortet die Konsole immer. Auf der Appliance hebt Punkt 5 des Setup-Menüs auf ihrem Bildschirm Anmeldesperren und diese Beschränkungen auf.</p>
 
 <h2>Empfehlungen</h2>
 <h3>Konsole</h3>
 <ul>
-  <li>Betreiben Sie die Konsole in einem internen Netz; veröffentlichen Sie Port 8443 nicht im Internet. Nutzen Sie für die Fernverwaltung ein VPN.</li>
+  <li>Betreiben Sie die Konsole nach Möglichkeit in einem internen Netz. Müssen Agenten an anderen Standorten sie erreichen, veröffentlichen Sie nur Port 8443 und beschränken Sie die Webkonsole wie unter <a href="#web-access">Zugriff auf die Webkonsole</a> beschrieben; nutzen Sie für die Verwaltung ein VPN.</li>
   <li>Verwenden Sie ein langes, eindeutiges Administratorpasswort und ändern Sie das ursprüngliche.</li>
   <li>Verlangen Sie <b>Zwei-Faktor-Authentifizierung</b> für Administratoren (<a href="/settings/security">Einstellungen → Anmeldung &amp; Sicherheit</a>).</li>
   <li>Geben Sie jeder Person ein eigenes Konto mit der niedrigsten funktionierenden Rolle; verwenden Sie für die Überwachung API-Token mit der Rolle Betrachter.</li>
   <li>Sichern Sie <code>secrets.key</code> getrennt von der Datenbank (<a href="/docs/install">Server installieren</a>).</li>
   <li>Wählen Sie unter <a href="/settings/security">Einstellungen → Anmeldung &amp; Sicherheit</a> eine passende Sitzungsdauer (kürzer ist sicherer).</li>
-  <li>Halten Sie den Server aktuell (<code>apt upgrade</code> / <code>dnf upgrade</code>), einschließlich PostgreSQL.</li>
+  <li>Halten Sie den Server aktuell, einschließlich PostgreSQL: auf der Appliance unter <b>Einstellungen → Updates → Betriebssystem</b> (Sicherheitsupdates werden automatisch installiert), auf Ihrem eigenen Server mit <code>apt upgrade</code> / <code>dnf upgrade</code>.</li>
 </ul>
 <h3>Speicher</h3>
 <ul>
@@ -82,6 +83,6 @@
 </ul>
 
 <h2>Sicherheitsproblem melden</h2>
-<p>Bitte melden Sie Schwachstellen vertraulich an die BackupZit-Maintainer, statt ein öffentliches Issue zu eröffnen.</p>
+<p>Bitte melden Sie Schwachstellen vertraulich, statt ein öffentliches Issue zu eröffnen: Öffnen Sie auf <a href="https://github.com/Max-Zit/backupzit/security">github.com/Max-Zit/backupzit</a> den Tab <b>Security</b> und wählen Sie <b>Report a vulnerability</b>.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

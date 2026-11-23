@@ -3,35 +3,39 @@
 <p class="lead">Bir yedekleme başarısız olduğunda e-posta, her sabah da günlük özet alın.</p>
 
 <h2>E-postayı ayarlama</h2>
-<p><a href="/settings/email">Ayarlar → E-posta bildirimleri</a> altında:</p>
+<p><a href="/settings/email">Ayarlar → E-posta bildirimleri</a> altında <b>E-posta bildirimleri gönder</b> seçeneğini işaretleyin (işaretlenmezse hiç e-posta gönderilmez) ve şunları doldurun:</p>
 <table>
   <tr><th>Alan</th><th>Örnek</th></tr>
   <tr><td>SMTP sunucusu / bağlantı noktası</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, dahili aktarıcı / 25</td></tr>
-  <tr><td>Güvenlik</td><td><b>STARTTLS</b> (bağlantı noktası 587), <b>TLS</b> (bağlantı noktası 465) veya yok (yalnızca dahili aktarıcı)</td></tr>
-  <tr><td>Kullanıcı / parola</td><td>Gönderim için kullanılan posta kutusu; anonim aktarıcı için boş bırakın. Microsoft 365 ve Gmail uygulama parolası ister.</td></tr>
-  <tr><td>Gönderen</td><td><code>backup@example.com</code></td></tr>
-  <tr><td>Alıcılar</td><td>Virgülle ayrılmış bir veya daha fazla adres.</td></tr>
+  <tr><td>Güvenlik</td><td><b>STARTTLS</b> (bağlantı noktası 587), <b>TLS</b> (bağlantı noktası 465) veya <b>Yok</b> (yalnızca oturum açma gerektirmeyen dahili aktarıcı için: kullanıcı adı ve parola asla şifrelenmeden gönderilmez)</td></tr>
+  <tr><td>Kullanıcı adı / Parola</td><td>Gönderim için kullanılan posta kutusu; oturum açma gerektirmeyen bir aktarıcı için boş bırakın. Gmail uygulama parolası ister; temel SMTP oturum açmanın kullanımdan kaldırıldığı Microsoft 365 için bir SMTP aktarıcısı veya bağlayıcısı daha güvenli bir seçimdir.</td></tr>
+  <tr><td>Kimden</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Kime</td><td>Virgülle ayrılmış bir veya daha fazla adres.</td></tr>
 </table>
-<p>Ayarları denetlemek için <b>Test e-postası gönder</b> düğmesini kullanın. E-postalar, sohbet mesajları ve raporlar aynı formda seçilen dilde yazılır (varsayılan olarak ayarlar kaydedilirken konsolun dili).</p>
+<p>Ayarları denetlemek için <b>Test e-postası gönder</b> düğmesini kullanın, ardından <b>Kaydet</b>'e tıklayın (test ayarları kaydetmez). E-postalar, sohbet mesajları ve raporlar aynı formda seçilen dilde yazılır (varsayılan olarak ayarlar kaydedilirken konsolun dili).</p>
 
 <h2>Neler gönderilir</h2>
 <ul>
   <li><b>Hatalar</b> (önerilir) — başarısız her çalıştırma için nedeniyle birlikte bir e-posta: yedeklemeler, kopyalar, geri yüklemeler ve başarısız <b>geri yükleme testleri</b>. Bu seçenek açıkken bir yedek fidye yazılımı veya toplu silme gibi göründüğünde <b>SUSPICIOUS</b> uyarısı da alırsınız.</li>
   <li><b>Uyarılar</b> — bazı dosyaların okunamadığı çalıştırmalar.</li>
   <li><b>Başarılar</b> — her başarılı çalıştırma (genellikle fazla; günlük raporu tercih edin).</li>
-  <li><b>Günlük rapor</b> — seçilen saatte: son 24 saatin çalıştırmaları, sorunlar ve çevrimdışı aracılar. Konu <i>OK</i>, <i>WARNINGS</i> veya <i>ATTENTION</i> ile başlar, böylece posta kuralları bunları ayıklayabilir.</li>
+  <li><b>Günlük rapor</b> — seçilen saatte: son 24 saatin çalıştırmaları, sorunlar ve çevrimdışı aracılar. Konu <i>OK</i>, <i>WARNINGS</i> veya <i>ATTENTION</i> ile biter (ör. <code>[BackupZit] Daily report 2026-11-17: OK</code>), böylece posta kuralları bunları ayıklayabilir.</li>
 </ul>
 <p><b>Hatalar</b> açıkken kurtarma noktası hedefini (RPO) kaçıran bir iş de bildirilir — bir kez ve arada hedefi tutturduktan sonra yeniden. Bir kullanıcının durdurduğu çalıştırmalar (<i>iptal edildi</i> durumu) hata e-postası göndermez; süre sınırıyla durdurulan bir çalıştırma gönderir.</p>
+<h3 id="mail-filters">İş başına bir e-posta ve posta filtreleri</h3>
+<p>Yalnızca günlük özet yerine her işin her tamamlanan çalıştırması için iş ve bilgisayar konu satırında olan bir e-posta almak için <b>Başarılar</b> seçeneğini de açın. İş başına bir özet için o iş için bir <a href="/docs/monitoring">zamanlanmış rapor</a> oluşturun. Konu e-posta dilinde yazılır; bu yüzden posta kuralları için her çalıştırma e-postası dille değişmeyen başlıklar da taşır: <code>X-BackupZit-Status</code> (<code>success</code>, <code>warning</code> veya <code>failed</code>), <code>X-BackupZit-Job</code>, <code>X-BackupZit-Agent</code> (konsolda gösterilen ad), <code>X-BackupZit-Host</code> (bilgisayarın bildirdiği ana bilgisayar adı), <code>X-BackupZit-Kind</code> ve <code>X-BackupZit-Run</code>. Fidye yazılımına benzeyen bir yedek ayrıca <code>X-BackupZit-Suspicious: yes</code> taşır — başarılı çalıştırmaları kaldıran kuralların onu gizlemesine izin vermeyin.</p>
 <p>Bu seçeneklerden bağımsız olarak bildirim alıcıları şu durumlarda da e-posta alır:</p>
 <ul>
   <li>bir değişiklik ikinci bir kullanıcının onayını bekliyor (dört göz onayı);</li>
   <li>iki makine aynı aracı kaydını kullanıyor;</li>
   <li>denetim günlüğü değiştirildi;</li>
   <li>konsolun kendi yedeği başarısız oldu;</li>
-  <li>tarayıcılar için HTTPS sertifikasının yenilenmesi başarısız oldu;</li>
+  <li>tarayıcılar için HTTPS sertifikasının yenilenmesi başarısız oldu veya yüklenen bir sertifikanın süresi 21 gün içinde doluyor;</li>
+  <li>yeni bir BackupZit sürümü kullanılabilir (Ayarlar → Güncellemeler altında kapatılabilir) veya bir konsol güncellemesi başarısız oldu;</li>
   <li>çok fazla başarısız oturum açma sonrası bir adres engellendi (kaba kuvvet korumasında kapatılabilir).</li>
 </ul>
 <p>Haftalık veya aylık özetler için <a href="/docs/monitoring">zamanlanmış raporları</a> kullanın; aynı posta ayarlarıyla gönderilir ve kendi alıcıları vardır. Konular <code>[BackupZit]</code> ile başlar, böylece posta kuralları bunları ayıklayabilir. SMTP parolası şifreli saklanır. E-postalardaki, sohbet mesajlarındaki ve raporlardaki bağlantılar, konsolu tarayıcıda açtığınız adrese (veya <code>--public-url</code> ile ayarlanan adrese) götürür.</p>
+<p>Güvenilir sertifikalı HTTPS web bağlantı noktası açıkken (Ayarlar → Sertifika), e-postalardaki, sohbet mesajlarındaki ve raporlardaki bağlantılar, 8443 bağlantı noktası yalnızca ajanlara hizmet etse bile onun adresini kullanır.</p>
 
 <h2>Slack, Microsoft Teams ve webhook'lar</h2>
 <p><a href="/settings/chat">Ayarlar → Sohbet ve webhook'lar</a> altında istediğiniz kadar kanal ekleyin; her biri hataları, uyarıları ve başarıları alıp almayacağını seçer. Olağandışı yedekler (olası fidye yazılımı) hata sayılır. <b>Test gönder</b> bir kanalı hemen denetler.</p>
@@ -48,6 +52,6 @@
  "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
  "url": "https://backup.example/runs/412"}</pre>
 <p><code>duration_s</code> çalışmanın saniye cinsinden süresidir. Yedeklerde <code>files</code> ve <code>bytes</code> yedeklenen verinin boyutu, <code>bytes_read</code> okunan miktar ve <code>bytes_stored</code> depolamaya yüklenen miktardır; <code>snapshot</code> yeni yedeğin kimliğidir.</p>
-<p>Mesajlar çalıştırma başına bir kez, e-posta kapalıyken de gönderilir. Başarısız olan bir kanal (yanlış URL, hizmet çalışmıyor) konsol günlüğüne yazılır ve diğerlerini bekletmez. Webhook URL'leri şifreli saklanır.</p>
+<p>Kurtarma noktası hedefini kaçıran bir iş <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code> gönderir; boş alanlar (ör. <code>suspicious</code> veya işi olmayan bir çalıştırmanın işi) gönderilmez. Slack ve Teams URL'leri https:// kullanmalıdır. Mesajlar çalıştırma başına bir kez, e-posta kapalıyken de gönderilir. Başarısız olan bir kanal (yanlış URL, hizmet çalışmıyor) konsol günlüğüne yazılır ve diğerlerini bekletmez. Webhook URL'leri şifreli saklanır.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

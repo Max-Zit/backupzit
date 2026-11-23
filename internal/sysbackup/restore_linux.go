@@ -606,6 +606,7 @@ func (j *restoreJob) bootloader() error {
 			j.res.Notes = append(j.res.Notes, "the BackupZit agent in the restored system was unenrolled (it would report as the original machine); enroll it as a new machine if needed")
 		}
 	}
+	j.selinuxRelabel()
 	if j.opts.RebuildInitramfs || j.opts.NewHardware {
 		j.rebuildInitramfs()
 	}
@@ -674,21 +675,18 @@ func (j *restoreJob) rebuildInitramfs() {
 	if _, err := os.Stat(filepath.Join(j.mnt, "usr/bin/dracut")); err != nil {
 		return // Debian/Ubuntu include the common drivers by default
 	}
-	var binds []string
-	for _, d := range []string{"dev", "proc", "sys", "run"} {
-		p := filepath.Join(j.mnt, d)
-		_ = os.MkdirAll(p, 0o755) // #nosec G301 -- folder of restored or copied files, like the original
-		if _, err := j.run("mount", "--rbind", "/"+d, p); err == nil {
-			binds = append(binds, p)
-		}
-	}
-	if out, err := j.run("chroot", j.mnt, "dracut", "-f", "--regenerate-all", "--no-hostonly"); err != nil {
+	// dracut runs in a mount namespace of its own: the host's mounts are
+	// shared (systemd), and unmounting bind mounts of /dev, /proc, /sys and
+	// /run here would also unmount the host's own submounts such as
+	// /sys/fs/cgroup; on a Proxmox node no VM could start any more ("unknown
+	// cgroup mode"). The namespace and its mounts end with the command.
+	script := `set -e
+for d in dev proc sys run; do mkdir -p "$1/$d"; mount --rbind "/$d" "$1/$d"; done
+exec chroot "$1" dracut -f --regenerate-all --no-hostonly`
+	if out, err := j.run("unshare", "--mount", "--propagation", "slave", "sh", "-c", script, "sh", j.mnt); err != nil {
 		j.res.Notes = append(j.res.Notes, "initramfs not rebuilt: "+strings.TrimSpace(out)+" "+err.Error())
 	} else {
 		j.res.Notes = append(j.res.Notes, "initramfs rebuilt with all drivers (dracut)")
-	}
-	for i := len(binds) - 1; i >= 0; i-- {
-		_, _ = j.run("umount", "-R", binds[i])
 	}
 }
 
@@ -802,7 +800,7 @@ func (j *restoreJob) adaptNetwork() {
 // checkTools makes sure the programs needed for this layout exist (a Linux
 // live system may lack some) and names the packages to install.
 func (j *restoreJob) checkTools() error {
-	need := map[string]string{"wipefs": "util-linux", "blockdev": "util-linux", "losetup": "util-linux", "mount": "util-linux", "lsblk": "util-linux"}
+	need := map[string]string{"wipefs": "util-linux", "blockdev": "util-linux", "losetup": "util-linux", "mount": "util-linux", "lsblk": "util-linux", "unshare": "util-linux"}
 	if j.disk.Table == "gpt" {
 		need["sgdisk"] = "gdisk"
 	} else {
@@ -841,4 +839,22 @@ func (j *restoreJob) checkTools() error {
 	}
 	sort.Strings(p)
 	return fmt.Errorf("missing programs %s; install the packages %s (e.g. apt install %s)", strings.Join(missing, ", "), strings.Join(p, ", "), strings.Join(p, " "))
+}
+
+// selinuxRelabel makes a restored SELinux system (RHEL, Rocky, Alma, Fedora)
+// relabel its files on the first boot. The files keep their labels from the
+// backup, but the root folder of each file system is not a file of the
+// backup and stays unlabeled; with SELinux enforcing, that alone blocks
+// every program ("libc.so.6: Permission denied"). /.autorelabel makes the
+// system relabel everything once and restart, as after a restore with
+// Relax-and-Recover.
+func (j *restoreJob) selinuxRelabel() {
+	if !selinuxActive(filepath.Join(j.mnt, "etc/selinux/config")) {
+		return
+	}
+	if err := os.WriteFile(filepath.Join(j.mnt, ".autorelabel"), nil, 0o644); err != nil { // #nosec G306 -- an empty marker file, as relabel tools write it
+		j.res.Notes = append(j.res.Notes, "SELinux: could not request a relabel on the first boot ("+err.Error()+"); run fixfiles -F onboot in the restored system")
+		return
+	}
+	j.res.Notes = append(j.res.Notes, "SELinux: the restored system relabels its files on the first boot and restarts once")
 }

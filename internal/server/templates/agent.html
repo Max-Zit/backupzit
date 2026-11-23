@@ -1,0 +1,31 @@
+{{define "content"}}
+{{$a := .Data.Agent}}
+<h1>{{$a.Name}}</h1>
+<p class="muted">{{T "Host name reported by the computer:"}} <b class="mono">{{$a.Hostname}}</b> · {{$a.OS}}/{{$a.Arch}} · {{T "agent"}} <span class="mono">{{$a.Version}}</span> · <a href="/agents">{{T "all agents"}}</a></p>
+
+{{with .Data.SameHost}}
+<div class="callout warn">
+  <p>{{T "Other agents report the same host name:"}} {{range $i, $o := .}}{{if $i}}, {{end}}<a href="/agents/{{$o.ID}}">{{$o.Label}}</a>{{end}}. {{T "Give each one a name of its own, so the right computer is chosen for jobs and restores."}}</p>
+</div>
+{{end}}
+
+<div class="panel">
+  <h2>{{T "Name and tags"}}</h2>
+  {{if $.Me.Can "agents"}}
+  <form method="post" action="/agents/{{$a.ID}}/labels" class="stack">
+    <label>{{T "Name shown in the console"}} <small>{{T "optional; empty shows the host name"}}</small>
+      <input name="display_name" value="{{$a.DisplayName}}" maxlength="{{.Data.MaxName}}" placeholder="{{$a.Hostname}}"></label>
+    <label>{{T "Tags"}} <small>{{T "optional, comma separated, e.g. a customer or site; at most %d tags of %d characters" .Data.MaxTags .Data.MaxTagLen}}</small>
+      <input name="tags" value="{{join $a.Tags ", "}}" list="agent-tags" placeholder="{{T "Customer A, Vienna office"}}"></label>
+    <datalist id="agent-tags">{{range .Data.Tags}}<option value="{{.}}">{{end}}</datalist>
+    <div><button>{{T "Save"}}</button></div>
+  </form>
+  <p class="muted small mt">{{T "The name and tags only change what the console shows. The agent, its repository and its backups stay as they are, and the computer cannot change them. Tags help to find agents; they do not separate customers: everyone who can sign in to this console sees all agents."}}</p>
+  {{else}}
+  <dl class="kv">
+    <dt>{{T "Name shown in the console"}}</dt><dd>{{$a.Name}}</dd>
+    <dt>{{T "Tags"}}</dt><dd>{{range $a.Tags}}<span class="badge">{{.}}</span> {{else}}<span class="muted">—</span>{{end}}</dd>
+  </dl>
+  {{end}}
+</div>
+{{end}}

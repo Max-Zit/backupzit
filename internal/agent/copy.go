@@ -12,6 +12,30 @@ import (
 	"github.com/max-zit/backupzit/internal/runinfo"
 )
 
+// copySelection leaves out the source backups that the copy job's own
+// retention would remove right after copying them: when the source keeps
+// more (e.g. 30 daily backups, the copy 7), they were copied again on
+// every run and removed again by the retention (uploads, lock extension
+// and pruning for nothing). The policy picks the same backups in the
+// source as in the copy: those only in the copy are older than all of the
+// source's. It returns the backups to copy and the number left out.
+func copySelection(sns []*repo.Snapshot, p *repo.RetentionPolicy) ([]*repo.Snapshot, int) {
+	if p == nil || p.Empty() {
+		return sns, 0
+	}
+	drop := map[*repo.Snapshot]bool{}
+	for _, sn := range retentionRemove(sns, *p) {
+		drop[sn] = true
+	}
+	var keep []*repo.Snapshot
+	for _, sn := range sns {
+		if !drop[sn] {
+			keep = append(keep, sn)
+		}
+	}
+	return keep, len(sns) - len(keep)
+}
+
 // copyRun copies the snapshots of the source job from run.Source into
 // run.Repository (backup copy job, e.g. NAS → off-site S3).
 func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
@@ -45,15 +69,46 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 	}
 	var sns []*repo.Snapshot
 	for _, sn := range all {
-		if hasTag(sn, run.SourceTag) {
+		if hasTag(sn, run.SourceTag) && inPart(sn, run) {
 			sns = append(sns, sn)
 		}
 	}
 	sort.Slice(sns, func(i, j int) bool { return sns[i].Time.Before(sns[j].Time) })
-	st, copied, err := repo.Copy(ctx, src, dst, sns, []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}, nil)
-	if err != nil {
-		return failed(fmt.Errorf("copy: %w", err))
+	source := len(sns)
+	sns, older := copySelection(sns, run.Retention)
+	// Each copy keeps the part tag of its source (split VMware backups), so
+	// the copy job's retention also keeps every part on its own.
+	base := []string{fmt.Sprintf("run:%d", run.ID), jobTag(run.JobID)}
+	byPart := map[string][]*repo.Snapshot{}
+	var parts []string
+	for _, sn := range sns {
+		k := partOf(sn)
+		if _, seen := byPart[k]; !seen {
+			parts = append(parts, k)
+		}
+		byPart[k] = append(byPart[k], sn)
 	}
+	st := &repo.CopyStats{}
+	var copied []*repo.Snapshot
+	for _, k := range parts {
+		tags := base
+		if k != "" {
+			tags = append(append([]string{}, base...), k)
+		}
+		s, c, err := repo.Copy(ctx, src, dst, byPart[k], tags, nil)
+		if s != nil {
+			st.Snapshots += s.Snapshots
+			st.Skipped += s.Skipped
+			st.Blobs += s.Blobs
+			st.BytesRead += s.BytesRead
+			st.BytesStored += s.BytesStored
+		}
+		copied = append(copied, c...)
+		if err != nil {
+			return failed(fmt.Errorf("copy: %w", err))
+		}
+	}
+	sort.Slice(copied, func(i, j int) bool { return copied[i].Time.Before(copied[j].Time) })
 	stats, _ := json.Marshal(st)
 	res := api.RunResult{Status: api.StatusSuccess, Stats: stats}
 	if len(copied) > 0 {
@@ -64,7 +119,10 @@ func (a *Agent) copyRun(ctx context.Context, run api.Run) api.RunResult {
 		}
 	}
 	res.Message = fmt.Sprintf("Copied %s (%d already copied); %s new data uploaded", count(st.Snapshots, "backup", "backups"), st.Skipped, humanSize(st.BytesStored))
-	if len(sns) == 0 {
+	if older > 0 {
+		res.Message += fmt.Sprintf("; %s of the source not copied (older than what this job's retention keeps)", count(older, "backup", "backups"))
+	}
+	if source == 0 {
 		res.Message = "The source job has no backups yet"
 	}
 	_ = srcLock.Unlock()

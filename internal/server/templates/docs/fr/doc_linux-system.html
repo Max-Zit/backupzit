@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Sauvegarde du système Linux et P2V</h1>
 <p class="lead">Une tâche <b>Système Linux</b> sauvegarde une machine Linux entière afin de pouvoir la recréer sur un disque vide — la même machine après une panne de disque, un nouveau matériel ou une machine virtuelle dans Proxmox VE (physique vers virtuel, P2V).</p>
+<p>Testé avec Debian, Ubuntu 22.04 et Rocky Linux 9 (de même pour AlmaLinux et RHEL 9). Sur Ubuntu 22.04 et les systèmes de type RHEL 9, les sauvegardes de système Linux nécessitent l’agent 0.50.0 ou plus récent.</p>
 
 <h2>Ce qui est sauvegardé</h2>
 <ul>
@@ -10,15 +11,17 @@
 <p>Comme Relax-and-Recover, BackupZit ne copie pas le disque en cours d'utilisation bloc par bloc : Linux n'a pas d'instantané intégré d'un disque en marche, une copie brute serait donc incohérente. Chaque fichier est lu en entier, et la disposition rend le disque restauré à nouveau amorçable. Les bases de données doivent être exportées avant la sauvegarde ou sauvegardées avec leurs propres outils.</p>
 <p>Les fichiers et dossiers individuels se restaurent depuis une sauvegarde système comme depuis toute sauvegarde de fichiers (<b>Restaurer des fichiers depuis cette sauvegarde</b> sur la page de l'exécution).</p>
 <h3>Pas encore pris en charge</h3>
-<p>Disques chiffrés (LUKS), RAID logiciel (mdadm), btrfs et systèmes répartis sur plusieurs disques. La tâche les signale clairement au lieu de créer une sauvegarde incomplète.</p>
+<p>Disques chiffrés (LUKS), RAID logiciel (mdadm) et btrfs : la tâche les signale clairement au lieu de créer une sauvegarde incomplète. Les systèmes répartis sur plusieurs disques sont sauvegardés, mais la restauration du système entier recrée un seul disque (la ligne de commande le choisit avec <code>--disk</code>) ; les disques MBR avec des partitions logiques ne peuvent pas être restaurés en entier. Le champ <b>Exclure</b> de la tâche exclut des chemins, comme <code>--exclude</code> en ligne de commande.</p>
 
 <h2>Restaurer le système entier</h2>
 <p>Ouvrez l'exécution de la sauvegarde système (page de la tâche ou <a href="/runs">Activité</a>) et utilisez <b>Restaurer tout le système</b> :</p>
 <h3>En tant que nouvelle VM Proxmox</h3>
-<p>Choisissez le nœud Proxmox (son agent BackupZit fait le travail), le stockage, l'ID de VM, le nom, la mémoire et les cœurs. BackupZit crée la VM avec le même micrologiciel que l'original (UEFI/OVMF ou BIOS), un disque et une carte réseau VirtIO SCSI, recrée le disque, restaure tous les fichiers et peut démarrer la VM. Comme la VM est une copie qui peut tourner à côté de l'original :</p>
+<p>Choisissez le nœud Proxmox (son agent BackupZit fait le travail), le stockage, l'ID de VM, le nom, la mémoire (par défaut 2048 Mio), les cœurs (par défaut 2) et le pont réseau (par défaut <code>vmbr0</code>). BackupZit crée la VM avec le même micrologiciel que l'original (UEFI/OVMF ou BIOS), un disque et une carte réseau VirtIO SCSI, recrée le disque, restaure tous les fichiers et peut démarrer la VM. Comme la VM est une copie qui peut tourner à côté de l'original :</p>
 <ul>
   <li>les paramètres réseau liés aux anciennes adresses MAC (courants dans les images cloud : netplan <code>match: macaddress</code>) sont modifiés pour s'appliquer à toute interface filaire,</li>
   <li>l'agent BackupZit de la copie est désinscrit, afin qu'il ne se présente pas comme la machine d'origine.</li>
+  <li>la VM reçoit le type de processeur <code>x86-64-v2-AES</code>, dont RHEL 9 et ses clones (Rocky, Alma) ont besoin pour démarrer (sur les versions de Proxmox VE qui ne l’ont pas, le type par défaut) ;</li>
+  <li>un système avec SELinux activé (RHEL, Rocky, Alma, Fedora) réétiquette ses fichiers au premier démarrage et redémarre une fois.</li>
 </ul>
 <h3>Sur un disque</h3>
 <p>Restaurez sur un disque vide d'un agent Linux, par ex. un second disque (<code>/dev/sdb</code>), ou sur la nouvelle machine elle-même (bare metal) :</p>

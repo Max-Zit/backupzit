@@ -8,8 +8,8 @@
 <p>Karta <b>úloh v rámci RPO</b> počítá úlohy, jejichž nejnovější dobrá záloha je mladší než jejich cíl bodu obnovy (viz <a href="/docs/jobs#rpo">Úlohy zálohování</a>); úloha, která ho nedodržela, je uvedena i v <b>Vyžaduje pozornost</b>. Tento seznam také upozorní, když účet <code>admin</code> má stále vygenerované počáteční heslo a když dva počítače používají jednu registraci agenta (viz <a href="/docs/agents">Agenti</a>). VM spuštěné ze zálohy (okamžitá obnova) se zobrazují nad kartami, dokud nejsou dokončeny nebo zahozeny. Uvádí také agenty, kteří nejsou v žádné zapnuté úloze zálohování (od hodiny po registraci).</p>
 
 <h2>Aktivita</h2>
-<p>Každý běh, nejnovější první. Klikněte na běh pro podrobnosti: co bylo zpracováno, statistika, chyby podle souborů a — u záloh — možnosti obnovy. Probíhající běhy se obnovují automaticky. Plánované běhy mají ikonu hodin.</p>
-<p>Probíhající záloha ukazuje pod svým stavem, kam se dostala — na nástěnce, stránce úlohy, v Aktivitě a na stránce spuštění: pruh s procentem, zpracovaná data (z celku, je-li znám, např. u obrazů disků a virtuálních počítačů) a počet souborů. Zálohy souborů předem neznají svou velikost; jejich procento se odhaduje ze souborů a velikosti předchozí zálohy úlohy a je označeno ≈. Když záloha přeroste obojí, zobrazí se jen data a počet souborů. Obnovy ukazují průběh stejně; obnova celé zálohy ukazuje procento její velikosti. Agent hlásí průběh při každém dotazu (každých 15 sekund nebo častěji, dokud spuštění běží).</p>
+<p>Nejnovějších 200 běhů, nejnovější první (stránky úloh a agentů a přehledy sahají dál do minulosti). Klikněte na běh pro podrobnosti: co bylo zpracováno, statistika, chyby podle souborů a — u záloh — možnosti obnovy. Probíhající běhy se obnovují automaticky. Plánované běhy mají ikonu hodin.</p>
+<p>Probíhající záloha ukazuje pod svým stavem, kam se dostala — na nástěnce, stránce úlohy, v Aktivitě a na stránce spuštění: pruh s procentem, zpracovaná data (z celku, je-li znám, např. u obrazů disků a virtuálních počítačů) a počet souborů. Zálohy souborů předem neznají svou velikost; jejich procento se odhaduje ze souborů a velikosti předchozí zálohy úlohy a je označeno ≈. Když záloha přeroste obojí, zobrazí se jen data a počet souborů. Záloha VM navíc ukazuje VM, na kterém právě je (<i>VM 2 z 4: název</i>, agent 0.57 nebo novější), a její stránka spuštění vypisuje dosud dokončené VM s jejich výsledkem. Obnovy ukazují průběh stejně; obnova celé zálohy ukazuje procento její velikosti. Agent hlásí průběh při každém dotazu (každých 15 sekund nebo častěji, dokud spuštění běží).</p>
 <h3>Typy běhů</h3>
 <table>
   <tr><th>Typ</th><th>Co to je</th></tr>
@@ -26,6 +26,7 @@
   <tr><td>verify</td><td>Automatický nebo ruční <a href="/docs/restore">test obnovy</a>.</td></tr>
   <tr><td>restore, image-restore, image-file-restore</td><td>Obnovy souborů, celého disku nebo souborů z obrazu.</td></tr>
   <tr><td>repo-check</td><td>Kontrola dat: agent přečte všechna data repozitáře a ověří je (viz <a href="/docs/restore#data-check">Obnova</a>).</td></tr>
+  <tr><td>repo-repair</td><td>Oprava dat: po kontrole dat, která našla poškozené datové balíky, agent kontroluje znovu a odebere je z indexu (viz <a href="/docs/troubleshooting#repair">Řešení problémů</a>).</td></tr>
   <tr><td>agent-log</td><td>Protokol, který agent poslal na vyžádání (<b>Získat protokol</b> na stránce Agenti).</td></tr>
 </table>
 <h3>Stav</h3>

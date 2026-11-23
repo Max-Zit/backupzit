@@ -28,17 +28,35 @@ const EncryptionAES256GCM = "aes256-gcm"
 // without a password.
 var ErrPasswordRequired = errors.New("repository is encrypted: a password (recovery key) is required")
 
+// ErrNotEncrypted is returned when a repository opened with a password
+// (recovery key) says it is not encrypted: its config may have been
+// replaced on the storage, and nothing is written to it in plaintext.
+var ErrNotEncrypted = errors.New("the repository is not encrypted although a recovery key was given (its config may have been changed on the storage); nothing is written to it")
+
+// ErrPackDamaged marks a pack that is proven damaged on the storage: it is
+// missing, or a read of all its bytes does not match its content hash.
+// Errors without it (a download cut short, a timeout) say nothing about
+// the pack itself: it may only be the way to this machine (#38).
+var ErrPackDamaged = errors.New("damaged on the storage")
+
 // ErrWrongPassword means no key file could be opened with the password.
 var ErrWrongPassword = errors.New("wrong repository password (recovery key)")
 
 // Option configures Init and Open.
 type Option func(*options)
 
-type options struct{ password string }
+type options struct {
+	password      string
+	indexProgress func(done, total int)
+}
 
 // Password sets the repository password. With Init it creates an encrypted
 // repository; with Open it unlocks one.
 func Password(pw string) Option { return func(o *options) { o.password = pw } }
+
+// IndexProgress is called with Open as the index files are read (done of
+// total), from several goroutines on object stores; it must be quick.
+func IndexProgress(f func(done, total int)) Option { return func(o *options) { o.indexProgress = f } }
 
 type keyFile struct {
 	KDF     string    `json:"kdf"`
@@ -60,6 +78,10 @@ const (
 	kdfTime    = 3
 	kdfMemory  = 64 * 1024
 	kdfThreads = 4
+	// maxKeyFiles is how many valid key files an open tries, maxKeyListing
+	// how many it reads at all.
+	maxKeyFiles   = 32
+	maxKeyListing = 1000
 )
 
 func newAEAD(key []byte) (cipher.AEAD, error) {
@@ -156,15 +178,33 @@ func unlock(ctx context.Context, be backend.Backend, password string) (*masterKe
 	if len(names) == 0 {
 		return nil, errors.New("encrypted repository has no key files")
 	}
+	var loadErr error
+	// A repository has a few key files; planted ones must not make every
+	// open read thousands of files or try many key derivations. Only valid
+	// ones count toward the derivations, so invalid planted files cannot
+	// push the real key out (L-N11).
+	if len(names) > maxKeyListing {
+		names = names[:maxKeyListing]
+	}
+	tried := 0
 	for _, n := range names {
+		if tried >= maxKeyFiles {
+			break
+		}
 		b, err := be.Load(ctx, n)
 		if err != nil {
+			loadErr = err
 			continue
 		}
 		var kf keyFile
-		if json.Unmarshal(b, &kf) != nil || kf.KDF != "argon2id" || kf.Memory > 4<<20 || kf.Time > 100 {
+		// Anyone who can write to the storage can plant a key file: argon2
+		// panics on 0 rounds or threads, which would end the agent or the
+		// console, and huge costs would exhaust its memory and time (BackupZit
+		// writes 64 MiB, 3 passes).
+		if json.Unmarshal(b, &kf) != nil || kf.KDF != "argon2id" || kf.Memory > 1<<20 || kf.Time < 1 || kf.Time > 10 || kf.Threads < 1 {
 			continue
 		}
+		tried++
 		kek, err := newAEAD(argon2.IDKey([]byte(password), kf.Salt, kf.Time, kf.Memory, kf.Threads, 32))
 		if err != nil {
 			continue
@@ -178,6 +218,10 @@ func unlock(ctx context.Context, be backend.Backend, password string) (*masterKe
 			return nil, fmt.Errorf("key file %s is damaged", n)
 		}
 		return &mk, nil
+	}
+	if loadErr != nil {
+		// A storage error is not a wrong recovery key.
+		return nil, fmt.Errorf("read key files: %w", loadErr)
 	}
 	return nil, ErrWrongPassword
 }

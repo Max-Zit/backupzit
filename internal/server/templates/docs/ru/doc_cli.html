@@ -3,7 +3,7 @@
 <p class="lead">Агент работает и самостоятельно из командной строки — для скриптов, для восстановления без консоли и в аварийных ситуациях. Запустите <code>backupzit-agent</code> без аргументов для обзора и <code>backupzit-agent &lt;command&gt; -h</code> для параметров команды.</p>
 
 <h2>Репозиторий и учётные данные</h2>
-<p>Каждая команда принимает <code>--repo</code> (или <code>BACKUPZIT_REPO</code>). Для секретов лучше использовать переменные окружения. Репозиторий агента — <code>&lt;место хранения&gt;/&lt;hostname&gt;_&lt;id&gt;</code>: см. столбец репозитория у запуска в разделе «Активность» или лист восстановления.</p>
+<p>Каждая команда, которая читает или записывает копии, принимает <code>--repo</code> (или <code>BACKUPZIT_REPO</code>); <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> и <code>disks</code> его не принимают. Для секретов лучше использовать переменные окружения. Репозиторий агента — <code>&lt;место хранения&gt;/&lt;hostname&gt;_&lt;id&gt;</code>: см. поле <b>Репозиторий</b> на странице запуска или лист восстановления.</p>
 <table>
   <tr><th>Расположение</th><th>Учётные данные</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,9 +23,10 @@
   <tr><td><code>init</code></td><td>Создаёт новый репозиторий (зашифрованный, если указан пароль).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Копирует файлы и папки. <code>--vss</code> читает из теневой копии тома (Windows, администратор); <code>--force</code> читает все файлы, даже неизменённые.</td></tr>
   <tr><td><code>snapshots</code></td><td>Выводит снимки со временем, хостом, размером и путями.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Выводит файлы в снимке.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Выводит все файлы в снимке.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Восстанавливает файлы в DIR (исходная структура папок воссоздаётся). <code>--original</code> вместо этого записывает их в исходное место, перезаписывая существующие файлы.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Проверяет структуру репозитория; с <code>--read-data</code> каждый байт скачивается и проверяется.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Читает все данные и убирает повреждённые пакеты данных из индекса, чтобы следующие копии сохранили эти данные заново; перечисляет копии, которым нужны потерянные данные. <code>--dry-run</code> только перечисляет.</td></tr>
 </table>
 
 <h2>Образы дисков (Windows)</h2>
@@ -76,7 +77,7 @@
 <table>
   <tr><th>Команда</th><th>Что делает</th></tr>
   <tr><td><code>hyperv list</code></td><td>Выводит ВМ хоста с их номерами BackupZit и папки для восстановленных дисков.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Копирует ВМ (по умолчанию все) из рабочих контрольных точек.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Копирует ВМ (по умолчанию все) из контрольных точек восстановления с Resilient Change Tracking (рабочие контрольные точки — только на хостах, где их нет).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Восстанавливает ВМ на месте (по умолчанию) или как новую ВМ с <code>--new</code>. <code>--overwrite</code> заменяет диски существующей ВМ. См. <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> и <code>pve extract</code> работают и с копиями Hyper-V.</p>
@@ -95,6 +96,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Останавливает и удаляет мгновенную ВМ вместе с её изменениями.</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Отдаёт диски ВМ из копии только для чтения по NBD через Unix-сокет (запускается мгновенным восстановлением как unit systemd).</td></tr>
 </table>
+<p><b><code>latest</code> с <code>--vmid</code></b> (команды VMware, Hyper-V и Proxmox VE) — это самый новый снимок, содержащий этого гостя, а не самый новый в репозитории, и команда его называет (снимок, хост, время, имя гостя). ID гостей повторяются на разных хостах (любой Proxmox VE начинает со 100): если это ID есть у по-разному названных гостей нескольких хостов, <code>latest</code> отклоняется; укажите ID снимка из <code>snapshots</code>. <code>pve show latest</code> по-прежнему показывает самый новый снимок репозитория.</p>
 
 <h2>Microsoft SQL Server (агент на машине с SQL Server)</h2>
 <table>
@@ -152,7 +154,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>Сохранённые и скрытые (удалённые, но ещё хранящиеся) данные.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Снова делает видимыми файлы, удалённые начиная с TIME.</td></tr>
 </table>
-<p>Конфигурация: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p>Конфигурация: <code>/etc/backupzit-repo/repo.env</code> или те же значения как параметры <code>serve</code>: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code> (каталог хранения, по умолчанию <code>/srv/backupzit</code>), <code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code> (ключи и сертификат, по умолчанию <code>/etc/backupzit-repo</code>), <code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code> (по умолчанию <code>:8500</code>), <code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code> (неизменяемость в днях, по умолчанию 30) и <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code> (имена и адреса для самоподписанного сертификата). Команды для ключей тоже принимают <code>--data</code> и <code>--config-dir</code>.</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> включает метрики Prometheus по каждому ключу доступа на <code>/metrics</code> (заголовок <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Сервер управления (<code>backupzit-server</code>)</h2>
@@ -166,9 +168,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Начальный пароль администратора (только при первом запуске).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Ключ секретов (base64) вместо файла <code>secrets.key</code>.</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>Сбрасывает пароль <i>admin</i> (снова включает его как локального администратора) и завершает работу.</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>Отключает двухфакторный вход пользователю, потерявшему приложение-аутентификатор и коды восстановления, завершает его сеансы, записывает это в журнал аудита и завершает работу.</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Снимает блокировку входа с адреса или со всех адресов (защита от перебора) и завершает работу.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Восстанавливает консоль из копии консоли и завершает работу (см. <a href="/docs/install">Установка сервера</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Только для пробы: частный PostgreSQL в каталоге данных, незашифрованный HTTP на localhost.</td></tr>
+  <tr><td><code>--setup</code></td><td>Текстовое меню appliance (сеть, имя сервера, пароль администратора); от root.</td></tr>
+  <tr><td><code>--initial-password</code></td><td>Выводит сгенерированный первый пароль <i>admin</i>, пока он ещё используется, и завершает работу.</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>Образ контейнера: загружает копию консоли, сделанную перед обновлением (папка в <code>pre-upgrade</code> каталога данных), и завершает работу; запускайте с образом той версии, из которой сделана копия. <code>list</code> показывает копии.</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>Образ контейнера: завершается с кодом 0, когда консоль отвечает (проверка состояния образа).</td></tr>
+  <tr><td><code>--apply-update</code></td><td>Устанавливает обновление, запрошенное в консоли; запускается службой <code>backupzit-update</code> от root, не вручную.</td></tr>
   <tr><td><code>--version</code></td><td>Выводит версию.</td></tr>
 </table>
 <pre>systemctl status backupzit-server

@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/license"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/session"
+	"github.com/vmware/govmomi/session/keepalive"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 	"golang.org/x/crypto/ssh"
@@ -49,6 +50,9 @@ type Conn struct {
 	// Method chooses how the host is changed: "" (automatic: the API on
 	// licensed hosts, SSH on the free license), "ssh" or "api".
 	Method string `json:"method,omitempty"`
+	// HotAdd reads the disks of running VMs through the agent's own VM
+	// (see hotadd.go) instead of copying them on the datastore.
+	HotAdd bool `json:"hot_add,omitempty"`
 }
 
 // Client is a connection to one ESXi host.
@@ -73,6 +77,11 @@ type Client struct {
 
 	sshMu sync.Mutex
 	ssh   *ssh.Client
+
+	// loginMu serialises signing in again after the session was lost;
+	// Relogins counts how often that happened.
+	loginMu  sync.Mutex
+	Relogins int
 }
 
 // Fingerprint formats the SHA-256 fingerprint of a DER certificate.
@@ -125,6 +134,11 @@ func Connect(ctx context.Context, conn Conn) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect to %s: %w", conn.Host, err)
 	}
+	// While the proxy reads disks (hot-add, a long first full backup) no
+	// vSphere call is made: without a keep-alive the session expires after
+	// the idle timeout (about 30 minutes), and detaching the disks and
+	// removing the snapshot afterwards fail with NotAuthenticated.
+	vc.RoundTripper = keepalive.NewHandlerSOAP(vc.RoundTripper, 5*time.Minute, nil)
 	if err := session.NewManager(vc).Login(ctx, url.UserPassword(conn.User, conn.Password)); err != nil {
 		return nil, fmt.Errorf("sign in to %s: %w", conn.Host, err)
 	}
@@ -171,7 +185,7 @@ func (c *Client) datacenter(ctx context.Context) (*object.Datacenter, error) {
 		for _, d := range dcs {
 			names = append(names, d.Name())
 		}
-		return nil, fmt.Errorf("vCenter has several datacenters (%s); add it once per datacenter", strings.Join(names, ", "))
+		return nil, fmt.Errorf("vCenter has several datacenters (%s), which BackupZit does not support yet; add the ESXi hosts directly instead, each with its own account", strings.Join(names, ", "))
 	}
 	return dcs[0], nil
 }

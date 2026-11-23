@@ -3,35 +3,39 @@
 <p class="lead">Reciba un correo cuando falle una copia y un resumen diario cada mañana.</p>
 
 <h2>Configurar el correo</h2>
-<p>En <a href="/settings/email">Configuración → Notificaciones por correo</a>:</p>
+<p>En <a href="/settings/email">Configuración → Notificaciones por correo</a>, marque <b>Enviar notificaciones por correo</b> (sin esta opción no se envía ningún correo) y rellene:</p>
 <table>
   <tr><th>Campo</th><th>Ejemplo</th></tr>
   <tr><td>Servidor SMTP / puerto</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, relé interno / 25</td></tr>
-  <tr><td>Seguridad</td><td><b>STARTTLS</b> (puerto 587), <b>TLS</b> (puerto 465) o ninguna (solo relé interno)</td></tr>
-  <tr><td>Usuario / contraseña</td><td>El buzón usado para enviar; déjelo vacío para un relé anónimo. Microsoft 365 y Gmail requieren una contraseña de aplicación.</td></tr>
-  <tr><td>Remitente</td><td><code>backup@example.com</code></td></tr>
-  <tr><td>Destinatarios</td><td>Una o varias direcciones, separadas por comas.</td></tr>
+  <tr><td>Seguridad</td><td><b>STARTTLS</b> (puerto 587), <b>TLS</b> (puerto 465) o <b>Ninguna</b> (solo para un relé interno sin autenticación: el nombre de usuario y la contraseña nunca se envían sin cifrar)</td></tr>
+  <tr><td>Nombre de usuario / Contraseña</td><td>El buzón usado para enviar; déjelo vacío para un relé sin autenticación. Gmail requiere una contraseña de aplicación; en Microsoft 365, donde se está retirando la autenticación SMTP básica, un relé o conector SMTP es la opción más segura.</td></tr>
+  <tr><td>De</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Para</td><td>Una o varias direcciones, separadas por comas.</td></tr>
 </table>
-<p>Use <b>Enviar correo de prueba</b> para comprobar la configuración. Los correos, mensajes de chat e informes se escriben en el idioma elegido en el mismo formulario (por defecto, el idioma de la consola al guardar).</p>
+<p>Use <b>Enviar correo de prueba</b> para comprobar la configuración y después haga clic en <b>Guardar</b> (la prueba no la guarda). Los correos, mensajes de chat e informes se escriben en el idioma elegido en el mismo formulario (por defecto, el idioma de la consola al guardar).</p>
 
 <h2>Qué se envía</h2>
 <ul>
   <li><b>Fallos</b> (recomendado): un correo por cada ejecución fallida con el motivo: copias, copias secundarias, restauraciones y <b>pruebas de restauración</b> fallidas. Con esta opción también recibe una alerta <b>SUSPICIOUS</b> cuando una copia parece ransomware o un borrado masivo.</li>
   <li><b>Advertencias</b>: ejecuciones en las que no se pudieron leer algunos archivos.</li>
   <li><b>Éxitos</b>: cada ejecución correcta (normalmente demasiado; mejor el informe diario).</li>
-  <li><b>Informe diario</b>: a la hora elegida: ejecuciones de las últimas 24 horas, problemas y agentes sin conexión. El asunto empieza por <i>OK</i>, <i>WARNINGS</i> o <i>ATTENTION</i>, para que las reglas de correo puedan clasificarlos.</li>
+  <li><b>Informe diario</b>: a la hora elegida: ejecuciones de las últimas 24 horas, problemas y agentes sin conexión. El asunto termina en <i>OK</i>, <i>WARNINGS</i> o <i>ATTENTION</i> (p. ej. <code>[BackupZit] Daily report 2026-11-17: OK</code>), para que las reglas de correo puedan clasificarlos.</li>
 </ul>
 <p>Con <b>Fallos</b> activado, también se notifica un trabajo que incumple su objetivo de punto de recuperación (RPO): una vez, y de nuevo solo después de haberlo cumplido entretanto. Las ejecuciones detenidas por un usuario (estado <i>cancelada</i>) no envían correo de fallo; una ejecución detenida por su límite de tiempo, sí.</p>
+<h3 id="mail-filters">Un correo por trabajo y filtros de correo</h3>
+<p>Active también <b>Éxitos</b> para recibir un correo por cada ejecución terminada de cada trabajo, con el trabajo y el equipo en el asunto, en lugar de solo el resumen diario. Para un resumen por trabajo, cree un <a href="/docs/monitoring">informe programado</a> para ese trabajo. El asunto está escrito en el idioma de los correos, así que para las reglas de correo cada correo de ejecución lleva también encabezados que no cambian con el idioma: <code>X-BackupZit-Status</code> (<code>success</code>, <code>warning</code> o <code>failed</code>), <code>X-BackupZit-Job</code>, <code>X-BackupZit-Agent</code> (el nombre mostrado en la consola), <code>X-BackupZit-Host</code> (el nombre de host que informa el equipo), <code>X-BackupZit-Kind</code> y <code>X-BackupZit-Run</code>. Una copia que parece ransomware lleva además <code>X-BackupZit-Suspicious: yes</code>: no deje que las reglas que archivan las ejecuciones correctas la oculten.</p>
 <p>Independientemente de estas opciones, los destinatarios de las notificaciones también reciben un correo cuando:</p>
 <ul>
   <li>un cambio espera la aprobación de un segundo usuario (principio de los cuatro ojos);</li>
   <li>dos equipos usan un mismo registro de agente;</li>
   <li>se modificó el registro de auditoría;</li>
   <li>falló la copia de la propia consola;</li>
-  <li>falló la renovación del certificado HTTPS para navegadores;</li>
+  <li>falló la renovación del certificado HTTPS para navegadores, o un certificado subido caduca en menos de 21 días;</li>
+  <li>hay una nueva versión de BackupZit disponible (se puede desactivar en Configuración → Actualizaciones) o falló una actualización de la consola;</li>
   <li>se bloqueó una dirección tras demasiados inicios de sesión fallidos (se puede desactivar en la protección contra fuerza bruta).</li>
 </ul>
 <p>Para resúmenes semanales o mensuales use los <a href="/docs/monitoring">informes programados</a>; se envían con la misma configuración de correo y tienen sus propios destinatarios. Los asuntos empiezan por <code>[BackupZit]</code> para que las reglas de correo puedan clasificarlos. La contraseña SMTP se guarda cifrada. Los enlaces de los correos, mensajes de chat e informes llevan a la consola en la dirección con la que la abre en el navegador (o la definida con <code>--public-url</code>).</p>
+<p>Cuando el puerto web HTTPS con un certificado de confianza está activado (Ajustes → Certificado), los enlaces de correos, mensajes de chat e informes usan su dirección, también cuando el puerto 8443 solo atiende a los agentes.</p>
 
 <h2>Slack, Microsoft Teams y webhooks</h2>
 <p>En <a href="/settings/chat">Configuración → Chat y webhooks</a> añada tantos canales como quiera; cada uno elige si recibe fallos, advertencias y éxitos. Las copias inusuales (posible ransomware) cuentan como fallos. <b>Enviar prueba</b> comprueba un canal al instante.</p>
@@ -48,6 +52,6 @@
  "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
  "url": "https://backup.example/runs/412"}</pre>
 <p><code>duration_s</code> es la duración de la ejecución en segundos. En las copias, <code>files</code> y <code>bytes</code> son el tamaño de lo copiado, <code>bytes_read</code> lo leído y <code>bytes_stored</code> lo subido al almacenamiento; <code>snapshot</code> es el ID de la nueva copia.</p>
-<p>Los mensajes se envían una vez por ejecución, también con el correo desactivado. Un canal que falla (URL incorrecta, servicio caído) se registra en el log de la consola y no retrasa a los demás. Las URL de los webhooks se guardan cifradas.</p>
+<p>Un trabajo que incumple su objetivo de punto de recuperación envía <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code>; los campos vacíos (como <code>suspicious</code> o el trabajo de una ejecución que no tiene ninguno) se omiten. Las URL de Slack y Teams deben usar https://. Los mensajes se envían una vez por ejecución, también con el correo desactivado. Un canal que falla (URL incorrecta, servicio caído) se registra en el log de la consola y no retrasa a los demás. Las URL de los webhooks se guardan cifradas.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

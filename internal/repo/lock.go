@@ -51,6 +51,10 @@ func (r *Repository) Lock(ctx context.Context, exclusive bool, wait time.Duratio
 	for {
 		l, err := r.tryLock(ctx, exclusive, host)
 		if err == nil {
+			if err := r.refreshIndex(ctx); err != nil {
+				_ = l.Unlock()
+				return nil, err
+			}
 			return l, nil
 		}
 		if !errors.Is(err, ErrLocked) || wait <= 0 || time.Now().After(deadline) {

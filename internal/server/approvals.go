@@ -50,12 +50,16 @@ var approvalActions = map[string]approvalAction{
 	"group.delete":     {"Delete backup job for several agents", PermJobs},
 	"group.disable":    {"Disable backup job for several agents", PermJobs},
 	"group.update":     {"Change backup job for several agents (fewer agents or shorter retention)", PermJobs},
+	"repair.forget":    {"Repair and remove the backups that need the lost data", PermJobs},
 }
 
 // Approval is a change waiting for (or decided by) a second user.
 // DeletesBackups reports whether carrying out the request deletes backups
 // (the approver then confirms their identity, like the requester).
 func (a Approval) DeletesBackups() bool {
+	if a.Action == "repair.forget" {
+		return true
+	}
 	if a.Action != "agent.delete" {
 		return false
 	}
@@ -253,6 +257,8 @@ func (s *Server) executeApproval(ctx context.Context, a Approval) error {
 		return s.store.DeleteVMwareHost(ctx, id)
 	case "storage.delete":
 		return s.store.DeleteTarget(ctx, id)
+	case "repair.forget":
+		return s.executeRepoRepairForget(ctx, id)
 	case "user.delete":
 		u, err := s.store.GetUser(ctx, id)
 		if err != nil {

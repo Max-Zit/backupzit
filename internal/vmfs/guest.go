@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 
+	"github.com/max-zit/backupzit/internal/fsutil"
 	"github.com/max-zit/backupzit/internal/imaging"
 	"github.com/max-zit/backupzit/internal/repo"
 )
@@ -72,21 +73,49 @@ type ExtractStats struct {
 // their path inside the volume (target/etc/nginx/...).
 func Extract(ctx context.Context, fsys FS, paths []string, target string) (*ExtractStats, error) {
 	st := &ExtractStats{}
-	var walk func(e Entry) error
-	walk = func(e Entry) error {
+	// Every write goes through the restore folder (imaging.Target): a link
+	// in it cannot send the restored files elsewhere with the agent's
+	// rights, not even one swapped in while the restore runs.
+	tg, err := imaging.OpenTarget(target)
+	if err != nil {
+		return st, err
+	}
+	defer tg.Close() //nolint:errcheck // the folder handle
+	var seen Visited
+	var walk func(e Entry, depth int) error
+	walk = func(e Entry, depth int) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+		if depth > MaxDepth {
+			st.Errors = append(st.Errors, fmt.Sprintf("%s: more than %d folders deep (damaged file system?), skipped", e.Path, MaxDepth))
+			return nil
+		}
 		dst := filepath.Join(target, filepath.FromSlash(strings.TrimPrefix(e.Path, "/")))
+		if !Within(target, dst) {
+			st.Errors = append(st.Errors, fmt.Sprintf("%s: outside the restore folder, skipped", e.Path))
+			return nil
+		}
+		// An ext4/XFS name with ':' would become a stream of another file on
+		// Windows; NTFS streams (e.Stream) are written as streams.
+		if runtime.GOOS == "windows" && !imaging.WindowsName(e.Path, e.Stream) {
+			st.Errors = append(st.Errors, imaging.ColonMessage(e.Path))
+			return nil
+		}
 		if e.IsDir {
-			if err := os.MkdirAll(dst, 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
-				return err
+			if !seen.Enter(e.ID) {
+				st.Errors = append(st.Errors, LoopMessage(e.Path))
+				return nil
+			}
+			if err := tg.Mkdir(dst); err != nil {
+				st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
+				return nil
 			}
 			// The folder's own permissions (e.g. /root or ~/.ssh stay
 			// private) once its contents are written: a read-only folder
 			// would refuse them.
 			if e.Perm != 0 {
-				defer os.Chmod(dst, e.Perm)
+				defer tg.Chmod(dst, e.Perm) //nolint:errcheck // as before: the files are written
 			}
 			st.Dirs++
 			children, err := fsys.List(e.Path)
@@ -95,13 +124,13 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 				return nil
 			}
 			for _, c := range children {
-				if err := walk(c); err != nil {
+				if err := walk(c, depth+1); err != nil {
 					return err
 				}
 			}
 			return nil
 		}
-		n, err := extractFile(fsys, e, dst)
+		n, err := extractFile(fsys, e, tg, dst)
 		if err != nil {
 			st.Errors = append(st.Errors, fmt.Sprintf("%s: %v", e.Path, err))
 			return nil
@@ -119,22 +148,25 @@ func Extract(ctx context.Context, fsys FS, paths []string, target string) (*Extr
 		if e.Path == "" {
 			e.Path = Clean(p)
 		}
-		if err := walk(e); err != nil {
+		// Per selected path: one selected inside another is copied again,
+		// as before, instead of being reported as a loop.
+		seen = Visited{}
+		if err := walk(e, 0); err != nil {
 			return st, err
 		}
 	}
 	return st, nil
 }
 
-func extractFile(fsys FS, e Entry, dst string) (int64, error) {
+func extractFile(fsys FS, e Entry, tg *imaging.Target, dst string) (int64, error) {
 	rd, _, err := fsys.ReadFile(e.Path)
 	if err != nil {
 		return 0, err
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil { // #nosec G301 -- folder of restored or copied files, like the original
+	if err := tg.Mkdir(filepath.Dir(dst)); err != nil {
 		return 0, err
 	}
-	tmp := dst + ".bzpart"
+	tmp := imaging.TempTarget(dst)
 	// Keep the file's permissions from the guest, so restored secrets
 	// (/etc/shadow, private keys) do not become readable for everyone;
 	// without them, only the owner may read the file.
@@ -142,26 +174,33 @@ func extractFile(fsys FS, e Entry, dst string) (int64, error) {
 	if perm == 0 {
 		perm = 0o600
 	}
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) // #nosec G304 -- file in the restore target chosen by the administrator
+	f, err := tg.Create(tmp)
 	if err != nil {
 		return 0, err
 	}
 	n, err := io.Copy(f, rd)
+	if err == nil && tmp != dst {
+		// Permissions and times through the file's own handle, before it
+		// gets its name: by name, a hard link put in its place could
+		// redirect them (0.58).
+		_ = f.Chmod(perm)
+		if !e.ModTime.IsZero() {
+			_ = fsutil.SetTimes(f, e.ModTime)
+		}
+	}
 	if cerr := f.Close(); err == nil {
 		err = cerr
 	}
 	if err != nil {
-		_ = os.Remove(tmp)
+		_ = tg.Remove(tmp)
 		return n, err
 	}
-	_ = os.Chmod(tmp, perm)
-	_ = os.Remove(dst)
-	if err := os.Rename(tmp, dst); err != nil {
-		_ = os.Remove(tmp)
-		return n, err
+	if tmp == dst {
+		return n, nil // an NTFS stream on Windows, written in place
 	}
-	if !e.ModTime.IsZero() {
-		_ = os.Chtimes(dst, e.ModTime, e.ModTime)
+	if err := tg.Replace(tmp, dst); err != nil {
+		_ = tg.Remove(tmp)
+		return n, err
 	}
 	return n, nil
 }

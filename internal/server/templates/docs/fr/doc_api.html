@@ -5,7 +5,7 @@
 <h2>Jetons</h2>
 <p>Créez un jeton dans <a href="/account#tokens">Mon compte → Jetons API</a>. Donnez-lui le rôle le plus bas qui suffit — <b>Lecteur</b> pour la supervision, <b>Opérateur de restauration</b> pour aussi lancer des sauvegardes et des tests de restauration. Le jeton n'est affiché qu'une fois ; envoyez-le dans chaque requête :</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Les jetons peuvent expirer, être révoqués par leur propriétaire ou un administrateur (<a href="/users">Utilisateurs</a>) et cessent de fonctionner lorsque le propriétaire est désactivé. Les actions effectuées avec un jeton apparaissent dans le journal d'audit avec le nom du jeton.</p>
+<p>Les jetons peuvent expirer, être révoqués par leur propriétaire ou un administrateur (<a href="/users">Utilisateurs</a>) et cessent de fonctionner lorsque le propriétaire est désactivé. Les actions effectuées avec un jeton apparaissent dans le journal d'audit avec le nom du jeton. Un nouveau mot de passe défini par un administrateur révoque aussi les jetons du propriétaire.</p>
 
 <h2>Points de terminaison</h2>
 <p>Toutes les réponses sont en JSON. URL de base : <code>https://&lt;console&gt;:8443</code>.</p>
@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>sans jeton</td><td>La spécification OpenAPI 3 de cette API, pour les outils et générateurs de clients (aussi dans le dépôt : <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Périodes : <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, ou <code>custom</code> avec <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
-<p>Les erreurs renvoient <code>{"error": "..."}</code> avec 400 (requête invalide), 401 (jeton absent, invalide ou expiré), 403 (rôle insuffisant), 404 ou 409.</p>
+<p>Les erreurs renvoient <code>{"error": "..."}</code> avec 400 (requête invalide), 401 (jeton absent, invalide ou expiré), 403 (rôle insuffisant), 404 (introuvable), 409 (impossible pour le moment : la tâche est déjà en cours, l'agent est trop ancien pour la requête, ou l'approbation à quatre yeux est activée), 429 (trop de tentatives de jeton échouées depuis l'adresse ; attendez la fin du blocage) ou 500 (erreur interne ; voir le journal de la console).</p>
 
 <h2>Exemples</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>Métrique</th><th>Labels</th><th>Signification</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>toujours 1 ; la version de la console</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code> (online, offline)</td><td>nombre d'agents</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>exécutions en attente ou en cours</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code> (failed, warning, all)</td><td>exécutions des dernières 24 heures</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>sauvegardes suspectes pas encore examinées</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>, <code>agent</code>, <code>version</code></td><td>1 si l'agent a contacté la console récemment</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>, <code>agent</code></td><td>dernier contact de l'agent avec la console</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>, <code>job</code>, <code>kind</code>, <code>agent</code></td><td>1 si la tâche s'exécute selon sa planification</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>comme ci-dessus</td><td>dernière exécution terminée : 0 succès, 1 avertissement, 2 échec</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>comme ci-dessus</td><td>dernière sauvegarde réussie ou avec avertissements</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>comme ci-dessus, <code>rpo_hours</code></td><td>1 dans le RPO, 0 dépassé (tâches avec un RPO)</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>espace occupé par les dépôts</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>espace libre, quand le stockage l'indique</td></tr>
+</table>
 <p>Alertez par exemple quand <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (pas de bonne sauvegarde depuis deux jours).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

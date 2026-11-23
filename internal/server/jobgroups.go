@@ -571,6 +571,7 @@ func (s *Server) handleGroupRun(w http.ResponseWriter, r *http.Request, _ string
 			n++
 		}
 	}
+	s.audit(r, "group.run", "job for several agents %d (%s): %d backups queued", g.ID, g.Name, n) // L-7
 	redirectMsg(w, r, back, fmt.Sprintf("Backups queued for %d agents.", n))
 }
 

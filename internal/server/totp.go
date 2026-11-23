@@ -340,6 +340,10 @@ func groupSecret(s string) string {
 
 func (s *Server) handleAccount2FAEnable(w http.ResponseWriter, r *http.Request, user string) {
 	me := currentUser(r)
+	if err := s.confirmEnrollment(r); err != nil {
+		redirectErr(w, r, "/account/2fa", err)
+		return
+	}
 	t, err := s.store.getTwoFactor(r.Context(), me.ID)
 	if err != nil || t.Secret == "" {
 		redirectErr(w, r, "/account/2fa", errors.New("start the setup again"))
@@ -362,8 +366,8 @@ func (s *Server) handleAccount2FAEnable(w http.ResponseWriter, r *http.Request, 
 
 func (s *Server) handleAccount2FACodes(w http.ResponseWriter, r *http.Request, user string) {
 	me := currentUser(r)
-	if _, err := s.store.checkSecondFactor(r.Context(), me.ID, r.FormValue("code"), s.clock()); err != nil {
-		redirectErr(w, r, "/account/2fa", errors.New("enter a current code from your app to create new recovery codes"))
+	if err := s.checkOwnCode(r, "enter a current code from your app to create new recovery codes"); err != nil {
+		redirectErr(w, r, "/account/2fa", err)
 		return
 	}
 	plain, hashed := newRecoveryCodes()
@@ -382,8 +386,8 @@ func (s *Server) handleAccount2FADisable(w http.ResponseWriter, r *http.Request,
 		redirectErr(w, r, "/account/2fa", errors.New("two-factor authentication is required for your account"))
 		return
 	}
-	if _, err := s.store.checkSecondFactor(r.Context(), me.ID, r.FormValue("code"), s.clock()); err != nil {
-		redirectErr(w, r, "/account/2fa", errors.New("enter a current code from your app to turn two-factor authentication off"))
+	if err := s.checkOwnCode(r, "enter a current code from your app to turn two-factor authentication off"); err != nil {
+		redirectErr(w, r, "/account/2fa", err)
 		return
 	}
 	if err := s.store.DisableTwoFactor(r.Context(), me.ID); err != nil {
@@ -399,6 +403,11 @@ func (s *Server) handleUser2FAReset(w http.ResponseWriter, r *http.Request, _ st
 	if !ok {
 		return
 	}
+	if u.ID == currentUser(r).ID {
+		// Without a code: a stolen session could reset it and enroll anew.
+		redirectErr(w, r, fmt.Sprintf("/users/%d", u.ID), errOwn2FAReset)
+		return
+	}
 	if u.ID != currentUser(r).ID && !u.Disabled && canApproveRole(u.Role) &&
 		s.needsApproval(w, r, fmt.Sprintf("/users/%d", u.ID), "user.2fa_reset", u.ID, u.Username, nil) {
 		return
@@ -409,4 +418,24 @@ func (s *Server) handleUser2FAReset(w http.ResponseWriter, r *http.Request, _ st
 	}
 	s.audit(r, "user.2fa_reset", "%s", u.Username)
 	redirectMsg(w, r, fmt.Sprintf("/users/%d", u.ID), "Two-factor authentication reset; the user sets it up again at the next sign-in if required.")
+}
+
+// ResetTwoFactor turns off two-factor sign-in of a user from the server's
+// command line: the way back for a last administrator who lost both the
+// authenticator and the recovery codes. Whoever runs it has the server
+// itself (database and secrets key), so it gives nothing away. The user is
+// signed out everywhere, and the audit log records it.
+func (s *Store) ResetTwoFactor(ctx context.Context, username string) error {
+	var id int64
+	if err := s.db.QueryRow(ctx, `SELECT id FROM users WHERE username=$1`, username).Scan(&id); err != nil {
+		return fmt.Errorf("no user %q", username)
+	}
+	if err := s.DisableTwoFactor(ctx, id); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, id); err != nil {
+		return err
+	}
+	_, err := s.AppendAudit(ctx, "", "user.2fa_reset", fmt.Sprintf("%s (on the server's command line)", username), "command line")
+	return err
 }

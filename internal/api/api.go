@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/max-zit/backupzit/internal/leftover"
 	"github.com/max-zit/backupzit/internal/repo"
 )
 
@@ -49,6 +50,23 @@ type RunProgress struct {
 	// (file backups, 0.44.0 and newer); with the previous backup's size it
 	// gives a better estimate than the file count alone.
 	Scanned uint64 `json:"scanned,omitempty"`
+	// Stage names a step after the data, with its own count (0.55): "locks"
+	// is extending object locks (StageDone of StageTotal objects).
+	Stage      string `json:"stage,omitempty"`
+	StageDone  uint64 `json:"stage_done,omitempty"`
+	StageTotal uint64 `json:"stage_total,omitempty"`
+	// VM is the VM a VM backup works on (0.57); VMsDone of VMsTotal are
+	// finished, VMsFinished lists them in order with their result.
+	VM          string       `json:"vm,omitempty"`
+	VMsDone     int          `json:"vms_done,omitempty"`
+	VMsTotal    int          `json:"vms_total,omitempty"`
+	VMsFinished []VMFinished `json:"vms_finished,omitempty"`
+}
+
+// VMFinished is a VM a running VM backup has finished.
+type VMFinished struct {
+	Name   string `json:"name"`
+	Failed bool   `json:"failed,omitempty"`
 }
 
 type PollRequest struct {
@@ -63,6 +81,13 @@ type PollRequest struct {
 	// can run several at once (0.39.0 and newer).
 	Running  int  `json:"running,omitempty"`
 	Parallel bool `json:"parallel,omitempty"`
+	// ConfigurableVMBlocks means the agent honors Repository.VMBlockSizeKiB.
+	ConfigurableVMBlocks bool `json:"configurable_vm_blocks,omitempty"`
+	// Runs are the IDs of the runs this agent process is working on, sent
+	// with ReportsRuns (0.52.0 and newer). The console fails its runs that
+	// are missing, e.g. after the agent was restarted in the middle of one.
+	Runs        []int64 `json:"runs,omitempty"`
+	ReportsRuns bool    `json:"reports_runs,omitempty"`
 	// WantStatus asks for the job summary shown by the tray app.
 	WantStatus bool `json:"want_status,omitempty"`
 	// IPs are the agent's own network addresses (no loopback).
@@ -79,6 +104,13 @@ type PollRequest struct {
 	// Hypervisor is the Proxmox VE inventory (JSON pve.Inventory) of an agent
 	// on a Proxmox node, sent like Disks.
 	Hypervisor json.RawMessage `json:"hypervisor,omitempty"`
+	// Leftovers is the agent's list (JSON array of leftover.Item) of what
+	// its backups left on a hypervisor and could not remove yet (0.56): sent
+	// when it changes and with the inventory; nil means unchanged.
+	Leftovers json.RawMessage `json:"leftovers,omitempty"`
+	// MachineUUID is the BIOS UUID of the agent's machine (Linux in a VM,
+	// 0.55): the console finds a VMware proxy's VM, and so its ESXi host.
+	MachineUUID string `json:"machine_uuid,omitempty"`
 	// Time is the agent's clock in unix milliseconds when it sent the poll
 	// (0.44.0 and newer); the console warns when it is off.
 	Time int64 `json:"time,omitempty"`
@@ -94,6 +126,10 @@ type PollResponse struct {
 	// Cancel lists running runs of the agent to stop (cancelled in the
 	// console or over their job's time limit).
 	Cancel []int64 `json:"cancel,omitempty"`
+	// SendInventory asks the agent to send its disk and hypervisor inventory
+	// with its next poll instead of waiting for the 15-minute interval
+	// (Refresh on the Agents page; agents before 0.54.1 ignore it).
+	SendInventory bool `json:"send_inventory,omitempty"`
 }
 
 // Run kinds.
@@ -142,9 +178,20 @@ const (
 	KindAgentLog = "agent-log"
 	// KindRepoCheck reads all data of a repository and verifies it.
 	KindRepoCheck = "repo-check"
+	// KindRepoRepair takes the damaged packs a data check found out of the
+	// index, so that later backups store their data again (agents 0.54.2+).
+	KindRepoRepair = "repo-repair"
 	// KindRepoScan lists the repositories and their backups on a local or
 	// USB disk of the agent (Details: RepoScan), 0.44.0 and newer.
 	KindRepoScan = "repo-scan"
+	// KindLeftoverCleanup removes what earlier backups left on a hypervisor:
+	// the agent's ledger (Proxmox VE, Hyper-V; VMware with Run.VMware) and the
+	// BackupZit snapshots in Run.Cleanup (agents 0.56+).
+	KindLeftoverCleanup = "leftover-cleanup"
+	// KindVMwareProbe connects to the VMware host of Run.VMware through the
+	// proxy agent and returns what the console needs of it (Details:
+	// VMwareProbe), so the console needs no route to the host (agents 0.56+).
+	KindVMwareProbe = "vmware-probe"
 )
 
 // RepoScan is the result of a repo-scan run.
@@ -177,11 +224,15 @@ type Run struct {
 	// this job that the policy no longer keeps and prunes the repository.
 	JobID     int64                 `json:"job_id,omitempty"`
 	Retention *repo.RetentionPolicy `json:"retention,omitempty"`
-	// KeepSnapshots are never removed by retention: VMs run from them
+	// KeepSnapshots are never removed by retention or by a repair: VMs run from them
 	// (instant recovery).
-	KeepSnapshots []string   `json:"keep_snapshots,omitempty"`
-	JobName       string     `json:"job_name,omitempty"`
-	Repository    Repository `json:"repository"`
+	KeepSnapshots []string `json:"keep_snapshots,omitempty"`
+	// Part: a VMware backup split over several proxies (0.55) tags its
+	// snapshot with Part; retention (and a copy) deals with that part only,
+	// and every policy applies to each part on its own.
+	Part       string     `json:"part,omitempty"`
+	JobName    string     `json:"job_name,omitempty"`
+	Repository Repository `json:"repository"`
 
 	// Backup
 	Paths    []string `json:"paths,omitempty"`
@@ -199,6 +250,10 @@ type Run struct {
 	RestoreTarget string   `json:"restore_target,omitempty"` // "" = original location
 	Includes      []string `json:"includes,omitempty"`
 	Verify        bool     `json:"verify,omitempty"`
+
+	// Repair (KindRepoRepair): also remove the backups that need the data
+	// of the damaged packs, so that later checks pass again.
+	RepairForget bool `json:"repair_forget,omitempty"`
 
 	// Image backup: disk number and partitions (empty = whole disk).
 	ImageDisk       int   `json:"image_disk,omitempty"`
@@ -255,10 +310,19 @@ type Run struct {
 	// VMExcludeDisks are Hyper-V disk files left out of a VM backup: name
 	// patterns (*-data.vhdx) or full paths, case-insensitive.
 	VMExcludeDisks []string `json:"vm_exclude_disks,omitempty"`
+	// VMCrashConsistentOK lists Hyper-V VMs (names or patterns) whose
+	// crash-consistent checkpoint is expected: no warning for them (0.53.0).
+	VMCrashConsistentOK []string `json:"vm_crash_consistent_ok,omitempty"`
+	// VMwareNoQuiesce: VMware snapshots of running VMs without VMware Tools
+	// quiescing (crash-consistent), set in the job (0.58.0).
+	VMwareNoQuiesce bool `json:"vmware_no_quiesce,omitempty"`
 	// VMware: the ESXi host a vm-backup or vm-restore runs against (the
 	// agent acts as proxy). Nil for Proxmox and Hyper-V, where the agent
 	// runs on the hypervisor itself.
 	VMware *VMwareHost `json:"vmware,omitempty"`
+	// Cleanup: BackupZit snapshots a clean-up run removes (found by the
+	// console in the VMware inventory).
+	Cleanup []leftover.Item `json:"cleanup,omitempty"`
 	// VM restore.
 	VMRestore *VMRestore `json:"vm_restore,omitempty"`
 
@@ -273,6 +337,12 @@ type Run struct {
 	UpdateFile    string `json:"update_file,omitempty"`
 	UpdateSHA256  string `json:"update_sha256,omitempty"`
 	UpdateVersion string `json:"update_version,omitempty"`
+	// UpdateManifest and UpdateManifestSig are the signed list of the agent
+	// installers of UpdateVersion (update.AgentManifestName, 0.56). Agents
+	// check the installer against it with the release keys built into them;
+	// UpdateSHA256 alone only says what the console has.
+	UpdateManifest    string `json:"update_manifest,omitempty"`
+	UpdateManifestSig string `json:"update_manifest_sig,omitempty"`
 }
 
 // Repository tells the agent where and how to store data.
@@ -296,6 +366,12 @@ type Repository struct {
 	Password string `json:"password,omitempty"`
 	// Compression of new data: "" (default), "off", "fast" or "max" (job option).
 	Compression string `json:"compression,omitempty"`
+	// VMBlockSizeKiB applies to new virtual disk images only (0 = 1024).
+	VMBlockSizeKiB int `json:"vm_block_size_kib,omitempty"`
+	// NeedsVMBlocks is server-side only: the job uses, or once used, a
+	// block size other than 1 MiB, so only agents with
+	// ConfigurableVMBlocks may run it.
+	NeedsVMBlocks bool `json:"-"`
 }
 
 // Run statuses.
@@ -449,6 +525,9 @@ type VMwareHost struct {
 	SSHHostKey string `json:"ssh_host_key,omitempty"`
 	// Method: "" automatic, "ssh" or "api" (see vmware.Conn).
 	Method string `json:"method,omitempty"`
+	// HotAdd: read the disks of running VMs through the proxy agent's own VM
+	// (agents before 0.54 ignore it and copy them on the datastore).
+	HotAdd bool `json:"hot_add,omitempty"`
 }
 
 // SpeedLimit caps the upload speed, between FromHour and ToHour o'clock
@@ -523,4 +602,19 @@ type CommandResult struct {
 // AgentLog is the log an agent sends for a KindAgentLog run.
 type AgentLog struct {
 	Text string `json:"text"`
+}
+
+// VMwareProbe is the result of a vmware-probe run: what the proxy saw of
+// the host. The console pins Thumbprint and SSHHostKey the first time and
+// stores the VM list.
+type VMwareProbe struct {
+	// Inventory is the VM list (JSON pve.Inventory).
+	Inventory  json.RawMessage `json:"inventory"`
+	Version    string          `json:"version"`
+	VCenter    bool            `json:"vcenter,omitempty"`
+	APIWrites  bool            `json:"api_writes,omitempty"`
+	UsesSSH    bool            `json:"uses_ssh,omitempty"`
+	SSHError   string          `json:"ssh_error,omitempty"`
+	Thumbprint string          `json:"thumbprint"`
+	SSHHostKey string          `json:"ssh_host_key,omitempty"`
 }

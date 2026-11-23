@@ -57,7 +57,7 @@
 
 <h3>Język</h3>
 <p>Konsola jest dostępna w 14 językach: angielskim, niemieckim, francuskim, hiszpańskim, włoskim, portugalskim (Brazylia), niderlandzkim, polskim, czeskim, serbskim (alfabet łaciński), tureckim, rosyjskim, chińskim (uproszczonym) i japońskim. Wybierz język z listy w prawym górnym rogu lub na stronie logowania; wybór jest zapamiętywany w przeglądarce. Bez wyboru decyduje język przeglądarki (przeglądarki chorwackie, bośniackie i czarnogórskie dostają serbski, słowackie czeski, inne języki angielski). Ten przewodnik też jest przetłumaczony (strona bez tłumaczenia jest wyświetlana po angielsku). E-maile, powiadomienia na czacie i raporty używają języka wybranego w Ustawienia → Powiadomienia e-mail; komunikaty zgłaszane przez agentów pozostają po angielsku.</p>
-<p>Tłumaczenia są w kodzie źródłowym, w <code>internal/server/i18n/pl.json</code>: tekst angielski jest kluczem, a tłumaczenie jego wartością. <code>go run ./tools/i18n missing pl</code> wyświetla teksty bez tłumaczenia; nieprzetłumaczone teksty są wyświetlane po angielsku.</p>
+<p>Tłumaczenia są w kodzie źródłowym, w <code>internal/server/i18n/&lt;język&gt;.json</code> (np. <code>de.json</code>): tekst angielski jest kluczem, a tłumaczenie jego wartością. <code>go run ./tools/i18n missing de</code> wyświetla teksty bez tłumaczenia; nieprzetłumaczone teksty są wyświetlane po angielsku.</p>
 <h3>Jasny i ciemny motyw</h3><p>Konsola stosuje jasne lub ciemne ustawienie systemu operacyjnego. Przycisk z księżycem w prawym górnym rogu (i na stronie logowania) przełącza między jasnym a ciemnym; wybór jest zapamiętywany w tej przeglądarce.</p>
 
 <h2>Podstawowe pojęcia</h2>
@@ -74,7 +74,7 @@
   <li><b>Wykrywanie ransomware</b> — nietypowe kopie (masowe zmiany, zaszyfrowane dane, masowe usuwanie, nagłe skoki ilości danych) są oznaczane, a retencja wstrzymywana (<a href="/docs/ransomware">Ochrona przed ransomware</a>).</li>
   <li><b>Alerty i raporty</b> — e-maile o błędach i codzienne podsumowanie; planowane raporty dla kierownictwa (<a href="/docs/notifications">Powiadomienia e-mail</a>, <a href="/docs/monitoring">Monitorowanie</a>).</li>
   <li><b>Cele punktu odtwarzania</b> — zadanie, którego najnowsza dobra kopia staje się starsza niż jego RPO, pojawia się na pulpicie i jest zgłaszane raz e-mailem i na czacie (<a href="/docs/jobs#rpo">Zadania kopii</a>).</li>
-  <li><b>Sprawdzanie danych</b> — raz w miesiącu każde repozytorium jest odczytywane w całości i sprawdzane, co wykrywa uszkodzenia samego magazynu (<a href="/docs/restore#data-check">Przywracanie</a>).</li>
+  <li><b>Sprawdzanie danych</b> — raz w miesiącu każde repozytorium jest odczytywane w całości i sprawdzane (na S3 i Azure tylko z opcją <i>Także w chmurze</i>, ze względu na opłaty za pobieranie), co wykrywa uszkodzenia samego magazynu (<a href="/docs/restore#data-check">Przywracanie</a>).</li>
 </ul>
 
 <h2>Licencja i wsparcie</h2>

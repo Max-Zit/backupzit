@@ -5,7 +5,7 @@
 <h2>Токены</h2>
 <p>Создайте токен в <a href="/account#tokens">Моя учётная запись → API-токены</a>. Дайте ему минимально достаточную роль — <b>Наблюдатель</b> для мониторинга, <b>Оператор восстановления</b>, чтобы также запускать копирование и тесты восстановления. Токен показывается один раз; передавайте его в каждом запросе:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Токены могут истекать, их может отозвать владелец или администратор (<a href="/users">Пользователи</a>), и они перестают работать, когда владелец отключён. Действия, выполненные токеном, отображаются в журнале аудита с именем токена.</p>
+<p>Токены могут истекать, их может отозвать владелец или администратор (<a href="/users">Пользователи</a>), и они перестают работать, когда владелец отключён. Действия, выполненные токеном, отображаются в журнале аудита с именем токена. Новый пароль, заданный администратором, также отзывает токены владельца.</p>
 
 <h2>Конечные точки</h2>
 <p>Все ответы — JSON. Базовый URL: <code>https://&lt;консоль&gt;:8443</code>.</p>
@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>без токена</td><td>Спецификация OpenAPI 3 этого API для инструментов и генераторов клиентов (также в репозитории: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Периоды: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> или <code>custom</code> с <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
-<p>Ошибки возвращают <code>{"error": "..."}</code> с кодом 400 (неверный запрос), 401 (токен отсутствует, недействителен или истёк), 403 (недостаточная роль), 404 или 409.</p>
+<p>Ошибки возвращают <code>{"error": "..."}</code> с кодом 400 (неверный запрос), 401 (токен отсутствует, недействителен или истёк), 403 (недостаточная роль), 404 (не найдено), 409 (сейчас невозможно: задание уже выполняется, агент слишком старый для запроса или включено одобрение «четыре глаза»), 429 (слишком много неудачных попыток с токеном с этого адреса; дождитесь окончания блокировки) или 500 (внутренняя ошибка; см. журнал консоли).</p>
 
 <h2>Примеры</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>Метрика</th><th>Метки</th><th>Значение</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>всегда 1; версия консоли</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code> (online, offline)</td><td>число агентов</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>запуски в очереди или выполняющиеся</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code> (failed, warning, all)</td><td>запуски за последние 24 часа</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>ещё не проверенные подозрительные копии</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>, <code>agent</code>, <code>version</code></td><td>1, если агент недавно обращался к консоли</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>, <code>agent</code></td><td>когда агент последний раз обращался к консоли</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>, <code>job</code>, <code>kind</code>, <code>agent</code></td><td>1, если задание выполняется по расписанию</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>как выше</td><td>последний завершённый запуск: 0 успех, 1 предупреждение, 2 ошибка</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>как выше</td><td>последняя копия с успехом или предупреждениями</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>как выше, <code>rpo_hours</code></td><td>1 в пределах RPO, 0 при нарушении (задания с RPO)</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>место, занятое репозиториями</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>свободное место, если хранилище его сообщает</td></tr>
+</table>
 <p>Оповещайте, например, когда <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (два дня без удачной копии).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

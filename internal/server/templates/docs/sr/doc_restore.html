@@ -14,7 +14,7 @@
       <li>fajlove iz slike diska</li>
       <li>bazu podataka (u određeni trenutak)</li>
       <li>ceo Linux sistem</li>
-      <li>Microsoft 365 poštu i OneDrive (vidi <a href="/docs/m365">Microsoft 365</a>)</li>
+      <li>Microsoft 365 poštu, OneDrive, kalendare i kontakte i SharePoint fajlove (vidi <a href="/docs/m365">Microsoft 365</a>)</li>
     </ul>
     Za svaki izbor se prikazuje koliko tačaka vraćanja postoji.</li>
   <li><b>Izvor</b>: virtuelna mašina (preko svih hipervizora i poslova), ili posao bekapa i njegova mašina.</li>
@@ -36,7 +36,7 @@
   <li>Izaberite gde:
     <ul>
       <li><b>Vrati u folder</b> (preporučeno) — npr. <code>D:\Restore</code>. Ispod njega se ponovo pravi originalna struktura: <code>D:\Restore\C\Users\ana\Documents\…</code>. Ništa postojeće se ne dira.</li>
-      <li><b>Vrati na originalnu lokaciju</b> — vraća fajlove tamo gde su bili i <b>prepisuje</b> trenutne verzije. Za NAS deljeni folder agent ponovo povezuje folder, sa pravom pisanja.</li>
+      <li><b>Vrati na originalnu lokaciju</b> — vraća fajlove tamo gde su bili i <b>prepisuje</b> trenutne verzije. Za NAS deljeni folder agent ponovo povezuje folder, sa pravom pisanja. Sparse fajlovi (slike VM-ova, baze podataka) vraćaju se kao sparse. Na Windowsu se kao sparse ponovo označava samo fajl koji je bio sparse; ostali, kao VHD/VHDX diskovi (Hyper-V odbija sparse diskove), vraćaju se kao obični fajlovi, kao i svi fajlovi bekapa napravljenih agentima pre 0.57, koji taj atribut nisu beležili. Nikad se ne piše kroz simbolički link ili junction koji se nađe na putu: vraćanje u folder ga zamenjuje folderom, a svako vraćanje piše samo u foldere koje je otvorilo, čak i kada se link pojavi dok traje (0.58: i za bekape fajlova i na originalnoj lokaciji; koren volumena kao / ili C: ne može da se izabere kao folder za fajlove iz bekapa VM-ova i slika diska). Na originalnoj lokaciji prate se samo linkovi sistema (vlasnik root ili korisnik agenta na Linuxu, SYSTEM, TrustedInstaller ili administrator na Windowsu, i niko drugi ne može da ih promeni ni zameni: ne prate se stari linkovi za kompatibilnost u korisničkim profilima, kao <i>Application Data</i>); link ka folderu koji ne postoji je greška i ništa se ne pravi tamo gde on pokazuje. Vlasnik, dozvole i atributi se postavljaju na samom vraćenom fajlu, nikad preko linka podmetnutog na njegovo mesto.</li>
     </ul>
   </li>
   <li>Po želji ograničite na <b>Samo ove putanje</b>, jednu po redu, npr. <code>C:\Users\ana\Documents\Ugovori</code> — ili ih izaberite u pregledaču fajlova (dole).</li>
@@ -57,10 +57,11 @@
 <div class="callout tip"><p><b>Kako naći pravi bekap:</b> u <a href="/calendar">Kalendaru</a> vidite koji bekapi su radili kog dana, ili pogledajte istoriju na stranici posla.</p></div>
 
 <h2>Vraćanje pojedinačnih fajlova iz slike diska</h2>
-<p>Za bekape slika diska kliknite <b>Pregledaj fajlove</b> na pokretanju bekapa. NTFS fajl-sistem u slici možete da pregledate direktno u konzoli, označite fajlove i foldere i vratite ih na bilo kog agenta — bez vraćanja celog diska. Pri vraćanju u folder fajlovi dobijaju isti raspored kao iz backup-a fajlova: slovo diska postaje prvi folder (<code>D:RestoreCUsers…</code>).</p>
+<p>Za bekape slika diska kliknite <b>Pregledaj fajlove</b> na pokretanju bekapa. NTFS fajl-sistem u slici možete da pregledate direktno u konzoli, označite fajlove i foldere i vratite ih na bilo kog agenta — bez vraćanja celog diska. Pri vraćanju u folder fajlovi dobijaju isti raspored kao iz backup-a fajlova: slovo diska postaje prvi folder (<code>D:\Restore\C\Users\…</code>).</p>
+<p>Označene fajlove možete i da <b>preuzmete</b> direktno u pregledač: jedan fajl stiže kakav jeste, više fajlova ili foldera kao ZIP arhiva — zgodno za jedan dokument iz velikog image bekapa. Kao i pregled, radi za image bekape na mrežnom skladištu, traži pravo <b>Restore</b>, a audit log beleži koje putanje su preuzete.</p>
 
 <h2>Vraćanje pojedinačnih fajlova iz VM-a (Proxmox VE, Hyper-V, VMware)</h2>
-<p>U pokretanju bekapa VM-a kliknite <b>Pregledaj fajlove</b> pored gosta. Konzola prikazuje particije i LVM volumene njegovih diskova i omogućava pregled NTFS, ext4 i XFS fajl-sistema. <b>Preuzmite</b> označene fajlove (više njih kao ZIP arhivu) ili ih vratite na bilo kog agenta. Vidi <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>. Fajlovi vraćeni na agenta zadržavaju Unix dozvole koje su imali u VM-u (ext4, XFS), pa vraćene tajne kao što je <code>/etc/shadow</code> ostaju privatne; fajlove sa NTFS volumena na Linux-u može da čita samo vlasnik.</p>
+<p>U pokretanju bekapa VM-a kliknite <b>Pregledaj fajlove</b> pored gosta. Konzola prikazuje particije i LVM volumene njegovih diskova i omogućava pregled NTFS, ext4 i XFS fajl-sistema. <b>Preuzmite</b> označene fajlove (više njih kao ZIP arhivu) ili ih vratite na bilo kog agenta. Vidi <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>. Fajlovi vraćeni na agenta zadržavaju Unix dozvole koje su imali u VM-u (ext4, XFS), pa vraćene tajne kao što je <code>/etc/shadow</code> ostaju privatne; fajlove sa NTFS volumena na Linux-u može da čita samo vlasnik. Pri vraćanju na Windows agenta imena sa <code>:</code> iz Linux gostiju (ext4, XFS) se preskaču i navode: Windows bi deo posle dvotačke pročitao kao tok (stream) drugog fajla. NTFS alternativni tokovi podataka vraćaju se kao tokovi.</p>
 
 <h2>Vraćanje celih mašina</h2>
 <ul>
@@ -84,15 +85,16 @@
       <li>Po želji kopirajte ISO u <code>/var/lib/backupzit/dist</code> konzole; tada se nudi na stranici Medijum za oporavak.</li>
     </ol></li>
 </ul>
-<p>Pregled fajlova u konzoli radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); konzola ih čita direktno. Za bekape na lokalnom disku agenta koristite komandnu liniju.</p>
+<p>Pregled fajlova u konzoli radi za bekape na mrežnom skladištu (SFTP, S3, SMB, Azure, ojačani repozitorijum); konzola ih čita direktno. Za bekape na lokalnom disku agenta, ili na SFTP-u sa SSH ključem, vraćanje sa <i>Samo ove putanje</i> i dalje radi iz konzole; da biste pregledali njihov sadržaj, koristite komandnu liniju.</p>
 
 <h2>Vraćanje bez konzole</h2>
 <p>Ako se izgubi i sama konzola, bilo koja mašina sa instaliranim agentom može da vrati direktno sa skladišta, pomoću <b>lista za oporavak</b> tog skladišta:</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;ključ za oporavak&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (ili pristupni podaci za S3/SMB/ojačani repozitorijum)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (ključ SFTP hosta, na listu za oporavak)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>Vidi <a href="/docs/cli">Komandna linija</a>.</p>
+<p><code>latest</code> je najnoviji bekap bilo kog posla tog računara; da biste vratili određeni posao, koristite ID snimka iz <code>snapshots</code>. Vidi <a href="/docs/cli">Komandna linija</a>.</p>
 
 <h2>Automatski testovi vraćanja</h2>
 <p>BackupZit redovno dokazuje vaše bekape bez ikakvog vašeg rada: jednom nedeljno (podešava se u <a href="/settings/tests">Podešavanja → Testovi vraćanja</a>) agent svakog posla vraća <b>nasumični uzorak fajlova</b> iz najnovijeg bekapa u privremeni folder, proverava svaki bajt u odnosu na sačuvane kontrolne zbirove i ponovo ga briše. Za slike diskova čitaju se i proveravaju nasumični blokovi. Tako se proverava ceo lanac — pristup skladištu, pristupni podaci, ključ za šifrovanje i ispravnost podataka.</p>
@@ -110,7 +112,7 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Stranica pokretanja navodi svaku VM sa rezultatom i trajanjem pokretanja.</li>
 </ul>
 <h3 id="data-check">Provera svih sačuvanih podataka</h3>
-<p>Test restore čita uzorak. Pored toga, agent čita <b>svaki</b> deo podataka u svakom repozitorijumu, proverava ga prema kontrolnom zbiru i proverava da su folderi i podaci svakog backup-a na mestu — podrazumevano jednom mesečno (Podešavanja → Restore testovi: <b>Proveravaj sačuvane podatke</b>: mesečno, na svaka tri meseca ili nikad). Tako se otkriva oštećenje samog skladišta, na primer disk koji otkazuje u NAS-u ili propadanje podataka, pre nego što vam backup zatreba. Svaki repozitorijum se proverava jednom (poslovi jednog agenta na jednom skladištu ga dele), i to agent koji u njega piše. Provera čita onoliko koliko repozitorijum sadrži, pa na cloud skladištu (S3, Azure) radi samo ako je uključeno <b>I na cloud skladištima</b>. Pronađeni problemi obaraju run <i>Provera podataka</i> i šalju obaveštenje o grešci; <b>Proveri podatke</b> na stranici posla odmah pokreće proveru. Traži agente 0.39.0 ili novije.</p>
+<p>Test restore čita uzorak. Pored toga, agent čita <b>svaki</b> deo podataka u svakom repozitorijumu, proverava ga prema kontrolnom zbiru i proverava da su folderi i podaci svakog backup-a na mestu — podrazumevano jednom mesečno (Podešavanja → Restore testovi: <b>Proveravaj sačuvane podatke</b>: mesečno, na svaka tri meseca ili nikad). Tako se otkriva oštećenje samog skladišta, na primer disk koji otkazuje u NAS-u ili propadanje podataka, pre nego što vam backup zatreba. Svaki repozitorijum se proverava jednom (poslovi jednog agenta na jednom skladištu ga dele), i to agent koji u njega piše. Provera čita onoliko koliko repozitorijum sadrži, pa na cloud skladištu (S3, Azure) radi samo ako je uključeno <b>I na cloud skladištima</b>. Pronađeni problemi obaraju run <i>Provera podataka</i> i šalju obaveštenje o grešci; <b>Proveri podatke</b> na stranici posla odmah pokreće proveru. Traži agente 0.39.0 ili novije. Na S3, Azure i hardened storage-u provera čita više paketa podataka odjednom (agenti 0.54.2 i noviji). Provera koja nađe oštećene pakete podataka nudi <b>Popravka</b> na stranici svog pokretanja (<a href="/docs/troubleshooting#repair">Rešavanje problema</a>).</p>
 <p>Pored toga, s vremena na vreme (npr. jednom u tromesečju) ručno vratite pravi folder i otvorite nekoliko fajlova — tako se uvežbavaju i ljudi koji će to morati da urade u hitnom slučaju.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

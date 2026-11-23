@@ -57,7 +57,7 @@
 
 <h3>Idioma</h3>
 <p>A console está disponível em 14 idiomas: inglês, alemão, francês, espanhol, italiano, português (Brasil), holandês, polonês, tcheco, sérvio (alfabeto latino), turco, russo, chinês (simplificado) e japonês. Escolha um na lista de idiomas no canto superior direito ou na página de login; a escolha fica guardada no navegador. Sem escolha, decide o idioma do navegador (navegadores croatas, bósnios e montenegrinos recebem sérvio, eslovacos recebem tcheco, outros idiomas inglês). Este guia também está traduzido (uma página sem tradução é mostrada em inglês). E-mails, notificações de chat e relatórios usam o idioma escolhido em Configurações → Notificações por e-mail; mensagens enviadas pelos agentes permanecem em inglês.</p>
-<p>As traduções estão no código-fonte, em <code>internal/server/i18n/pt.json</code>: o texto em inglês é a chave e a tradução o seu valor. <code>go run ./tools/i18n missing pt</code> lista os textos sem tradução; textos não traduzidos são mostrados em inglês.</p>
+<p>As traduções estão no código-fonte, em <code>internal/server/i18n/&lt;idioma&gt;.json</code> (p. ex. <code>pt.json</code>): o texto em inglês é a chave e a tradução o seu valor. <code>go run ./tools/i18n missing pt</code> lista os textos sem tradução; textos não traduzidos são mostrados em inglês.</p>
 <h3>Tema claro e escuro</h3><p>O console segue a configuração clara ou escura do sistema operacional. O botão da lua no canto superior direito (e na página de login) alterna entre claro e escuro; a escolha fica guardada neste navegador.</p>
 
 <h2>Conceitos-chave</h2>
@@ -74,7 +74,7 @@
   <li><b>Detecção de ransomware</b> — backups incomuns (alterações em massa, dados criptografados, exclusão em massa, saltos súbitos do volume de dados) são sinalizados e a retenção é pausada (<a href="/docs/ransomware">Proteção contra ransomware</a>).</li>
   <li><b>Alertas e relatórios</b> — e-mails em caso de falha e um resumo diário; relatórios agendados para a gestão (<a href="/docs/notifications">Notificações por e-mail</a>, <a href="/docs/monitoring">Monitoramento</a>).</li>
   <li><b>Objetivos de ponto de recuperação</b> — uma tarefa cujo backup bom mais recente fica mais antigo que o seu RPO aparece no painel e é informada uma vez por e-mail e chat (<a href="/docs/jobs#rpo">Tarefas de backup</a>).</li>
-  <li><b>Verificações de dados</b> — uma vez por mês cada repositório é lido por completo e verificado, o que encontra danos no próprio armazenamento (<a href="/docs/restore#data-check">Restauração</a>).</li>
+  <li><b>Verificações de dados</b> — uma vez por mês cada repositório é lido por completo e verificado (no S3 e no Azure só com <i>Também em armazenamento na nuvem</i>, por causa das taxas de download), o que encontra danos no próprio armazenamento (<a href="/docs/restore#data-check">Restauração</a>).</li>
 </ul>
 
 <h2>Licença e suporte</h2>

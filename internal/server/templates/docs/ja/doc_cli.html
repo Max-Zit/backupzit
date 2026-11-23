@@ -3,7 +3,7 @@
 <p class="lead">エージェントはコマンドラインから単独でも動作します。スクリプト、コンソールなしでの復元、緊急時に使えます。概要は引数なしで <code>backupzit-agent</code> を、コマンドのオプションは <code>backupzit-agent &lt;command&gt; -h</code> を実行してください。</p>
 
 <h2>リポジトリと資格情報</h2>
-<p>すべてのコマンドは <code>--repo</code>（または <code>BACKUPZIT_REPO</code>）を受け取ります。シークレットには環境変数を使うことをお勧めします。エージェントのリポジトリは <code>&lt;ストレージの場所&gt;/&lt;hostname&gt;_&lt;id&gt;</code> です。「アクティビティ」の実行のリポジトリ列か、復旧シートを参照してください。</p>
+<p>バックアップを読み書きするコマンドはすべて <code>--repo</code>（または <code>BACKUPZIT_REPO</code>）を受け取ります。<code>list</code>、<code>status</code>、<code>enroll</code>、<code>service</code>、<code>disks</code> は受け取りません。シークレットには環境変数を使うことをお勧めします。エージェントのリポジトリは <code>&lt;ストレージの場所&gt;/&lt;hostname&gt;_&lt;id&gt;</code> です。実行ページの <b>リポジトリ</b> フィールドか、復旧シートを参照してください。</p>
 <table>
   <tr><th>場所</th><th>資格情報</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,9 +23,10 @@
   <tr><td><code>init</code></td><td>新しいリポジトリを作成します（パスワードを指定すると暗号化）。</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>ファイルとフォルダーをバックアップします。<code>--vss</code> はボリューム シャドウ コピーから読み取ります（Windows、管理者）。<code>--force</code> は変更のないファイルも含めすべて読み取ります。</td></tr>
   <tr><td><code>snapshots</code></td><td>スナップショットを時刻、ホスト、サイズ、パスとともに一覧表示します。</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>スナップショット内のファイルを一覧表示します。</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>スナップショット内のすべてのファイルを一覧表示します。</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>ファイルを DIR の下に復元します（元のフォルダー構造が再作成されます）。<code>--original</code> では代わりに元の場所に書き戻し、既存のファイルを上書きします。</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>リポジトリの構造を確認します。<code>--read-data</code> ではすべてのバイトをダウンロードして検証します。</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>すべてのデータを読み取り、破損したデータパックをインデックスから外して、次のバックアップがそのデータを再び保存するようにします。失われたデータを必要とするバックアップを一覧表示します。<code>--dry-run</code> は一覧表示のみ。</td></tr>
 </table>
 
 <h2>ディスク イメージ（Windows）</h2>
@@ -76,7 +77,7 @@
 <table>
   <tr><th>コマンド</th><th>機能</th></tr>
   <tr><td><code>hyperv list</code></td><td>ホストの VM を BackupZit 番号付きで、復元ディスク用のフォルダーとともに一覧表示します。</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>運用チェックポイントから VM（既定: すべて）をバックアップします。</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Resilient Change Tracking を使う回復チェックポイントから VM（既定: すべて）をバックアップします（回復チェックポイントのないホストでのみ運用チェックポイントを使用）。</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>VM をその場（既定）または <code>--new</code> で新しい VM として復元します。<code>--overwrite</code> は既存 VM のディスクを置き換えます。<a href="/docs/hyperv">Hyper-V</a> を参照してください。</td></tr>
 </table>
 <p><code>pve show</code>、<code>pve ls</code>、<code>pve extract</code> は Hyper-V バックアップでも使えます。</p>
@@ -95,6 +96,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>インスタント VM を停止し、変更とともに削除します。</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>バックアップ内の VM のディスクを Unix ソケット上の NBD で読み取り専用で提供します（インスタント リカバリが systemd ユニットとして起動）。</td></tr>
 </table>
+<p><b><code>--vmid</code> 付きの <code>latest</code></b>（VMware、Hyper-V、Proxmox VE のコマンド）は、リポジトリで最新のスナップショットではなく、そのゲストを含む最新のスナップショットを指し、コマンドはそれ（スナップショット、ホスト、時刻、ゲスト名）を表示します。ゲスト ID はホスト間で重複します（Proxmox VE はどれも 100 から始まります）。複数のホストで名前の異なるゲストがその ID を持つ場合、<code>latest</code> は拒否されます。<code>snapshots</code> で表示されるスナップショット ID を指定してください。<code>pve show latest</code> は引き続きリポジトリで最新のスナップショットを表示します。</p>
 
 <h2>Microsoft SQL Server（SQL Server マシン上のエージェント）</h2>
 <table>
@@ -152,7 +154,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>保存済みのデータと非表示（削除済みだが保持中）のデータ。</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>TIME 以降に削除されたファイルを再び表示可能にします。</td></tr>
 </table>
-<p>構成: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>、<code>BACKUPZIT_REPO_DATA</code>、<code>BACKUPZIT_REPO_LISTEN</code>、<code>BACKUPZIT_REPO_TLS_HOSTS</code>。</p>
+<p>構成: <code>/etc/backupzit-repo/repo.env</code>、または同じ内容を <code>serve</code> のオプションとして指定します: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code>（ストレージ ディレクトリ、既定は <code>/srv/backupzit</code>）、<code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code>（キーと証明書、既定は <code>/etc/backupzit-repo</code>）、<code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code>（既定は <code>:8500</code>）、<code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code>（変更不可にする日数、既定は 30）、<code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code>（自己署名証明書の名前とアドレス）。キーのコマンドも <code>--data</code> と <code>--config-dir</code> を受け付けます。</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> を設定すると、<code>/metrics</code> でアクセス キーごとの Prometheus メトリクスが有効になります (ヘッダー <code>Authorization: Bearer &lt;token&gt;</code>)。</p>
 
 <h2>管理サーバー（<code>backupzit-server</code>）</h2>
@@ -166,9 +168,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>初期管理者パスワード（初回起動時のみ）。</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td><code>secrets.key</code> ファイルの代わりのシークレット キー（base64）。</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td><i>admin</i> のパスワードをリセットし（ローカル管理者として再有効化）、終了します。</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>認証アプリと回復コードを失ったユーザーの 2 要素サインインをオフにし、サインアウトさせ、監査ログに記録して終了します。</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>アドレスまたはすべてのアドレスのサインイン ブロック（ブルートフォース対策）を解除して終了します。</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>コンソール バックアップからコンソールを復元して終了します（<a href="/docs/install">サーバーのインストール</a>を参照）。</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>評価専用: データ ディレクトリ内のプライベート PostgreSQL、localhost 上の平文 HTTP。</td></tr>
+  <tr><td><code>--setup</code></td><td>アプライアンスのテキスト メニュー（ネットワーク、サーバー名、管理者パスワード）。root で実行します。</td></tr>
+  <tr><td><code>--initial-password</code></td><td>生成された <i>admin</i> の初期パスワードを、まだ使われている間に表示して終了します。</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>コンテナー イメージ: 更新前に作成されたコンソールのコピー（データ ディレクトリの <code>pre-upgrade</code> 内のフォルダー）を読み込んで終了します。コピーを作成したバージョンのイメージで実行してください。<code>list</code> はコピーを表示します。</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>コンテナー イメージ: コンソールが応答すると 0 で終了します（イメージのヘルス チェック）。</td></tr>
+  <tr><td><code>--apply-update</code></td><td>コンソールで要求された更新をインストールします。手動ではなく、<code>backupzit-update</code> サービスが root として実行します。</td></tr>
   <tr><td><code>--version</code></td><td>バージョンを表示します。</td></tr>
 </table>
 <pre>systemctl status backupzit-server

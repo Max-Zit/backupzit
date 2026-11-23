@@ -80,8 +80,9 @@ func TestTargetScanImport(t *testing.T) {
 	if b := page("/agents"); !strings.Contains(b, "OLD-PC") {
 		t.Fatal("imported backups not listed under removed agents")
 	}
-	if b := page("/runs"); strings.Count(b, "OLD-PC") != 2 || !strings.Contains(b, "Files "+src) {
-		t.Fatalf("imported runs not in Activity")
+	if b := page("/runs"); strings.Count(b, "OLD-PC") != 2 || !strings.Contains(b, "Files "+filepath.Clean(src)) {
+		i := strings.Index(b, "OLD-PC")
+		t.Fatalf("imported runs not in Activity: %d times OLD-PC, want %q:\n%s", strings.Count(b, "OLD-PC"), "Files "+filepath.Clean(src), b[max(i-1500, 0):min(i+1500, len(b))])
 	}
 	runs, err := x.e.store.ListRuns(ctx, server.RunFilter{Limit: 500})
 	if err != nil {

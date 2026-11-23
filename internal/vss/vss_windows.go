@@ -565,6 +565,120 @@ func (vss *IVssBackupComponents) GetSnapshotProperties(snapshotID ole.GUID,
 	return newVssErrorIfResultNotOK("GetSnapshotProperties() failed", HRESULT(result))
 }
 
+// QuerySnapshots calls Query for all snapshots visible in the current context.
+func (vss *IVssBackupComponents) QuerySnapshots() (*IVssEnumObject, error) {
+	var enum *IVssEnumObject
+	var result uintptr
+
+	if runtime.GOARCH == "386" {
+		// GUID_NULL passed by value as four zero words.
+		result, _, _ = syscall.Syscall9(vss.getVTable().query, 8,
+			uintptr(unsafe.Pointer(vss)), 0, 0, 0, 0, // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(VSS_OBJECT_NONE), uintptr(VSS_OBJECT_SNAPSHOT), uintptr(unsafe.Pointer(&enum)), 0) // #nosec G103 -- COM call through the VSS interface's vtable
+	} else {
+		var null ole.GUID
+		result, _, _ = syscall.Syscall6(vss.getVTable().query, 5,
+			uintptr(unsafe.Pointer(vss)), uintptr(unsafe.Pointer(&null)), // #nosec G103 -- COM call through the VSS interface's vtable
+			uintptr(VSS_OBJECT_NONE), uintptr(VSS_OBJECT_SNAPSHOT), uintptr(unsafe.Pointer(&enum)), 0) // #nosec G103 -- COM call through the VSS interface's vtable
+	}
+
+	if err := newVssErrorIfResultNotOK("Query() failed", HRESULT(result)); err != nil {
+		return nil, err
+	}
+	if enum == nil {
+		return nil, newVssTextError("Query() returned no enumerator")
+	}
+	return enum, nil
+}
+
+// snapshotPropertiesFromQuery finds snapshotID among the snapshots Query
+// returns and copies its properties to properties.
+func (vss *IVssBackupComponents) snapshotPropertiesFromQuery(snapshotID ole.GUID,
+	properties *vssSnapshotProperties) error {
+	if runtime.GOARCH != "amd64" {
+		// On 386 Go aligns the 64-bit fields of the properties to 4 bytes,
+		// C to 8: VSS_OBJECT_PROP would be read at the wrong offsets.
+		return newVssTextError("reading snapshot properties from Query() is supported on 64-bit Windows only")
+	}
+	enum, err := vss.QuerySnapshots()
+	if err != nil {
+		return err
+	}
+	defer enum.Release()
+
+	for {
+		var prop vssObjectProp
+		n, err := enum.Next(1, unsafe.Pointer(&prop)) // #nosec G103 -- COM call through the VSS interface's vtable
+		if err != nil {
+			return err
+		}
+		if n < 1 {
+			return newVssTextError(fmt.Sprintf("snapshot %s not found by Query()", snapshotID.String()))
+		}
+		if prop.objectType != vssObjectType32(VSS_OBJECT_SNAPSHOT) {
+			// Only snapshots were asked for; anything else is left alone
+			// (a leak at worst) rather than freed as snapshot properties.
+			continue
+		}
+		if prop.snapshot.snapshotID == snapshotID {
+			*properties = prop.snapshot
+			return nil
+		}
+		_ = vssFreeSnapshotProperties(&prop.snapshot)
+	}
+}
+
+// vssObjectType32 is VSS_OBJECT_TYPE as stored in VSS_OBJECT_PROP (a C enum,
+// 32 bits).
+type vssObjectType32 uint32
+
+// vssObjectProp is VSS_OBJECT_PROP holding a snapshot: the object type,
+// then the union aligned to 8 bytes, which Go reproduces on amd64 because
+// the properties contain pointers (136 bytes, the union at offset 8).
+type vssObjectProp struct {
+	objectType vssObjectType32
+	snapshot   vssSnapshotProperties
+}
+
+// readSnapshotProperties returns the properties of a snapshot just created.
+func readSnapshotProperties(vss *IVssBackupComponents, snapshotID ole.GUID) (vssSnapshotProperties, error) {
+	return resolveSnapshotProperties(snapshotID, vss.GetSnapshotProperties, vss.snapshotPropertiesFromQuery,
+		func(p *vssSnapshotProperties) { _ = vssFreeSnapshotProperties(p) })
+}
+
+// resolveSnapshotProperties reads the properties of a snapshot with get and
+// makes sure they name the snapshot's device. Some VSS providers - the QEMU
+// guest agent's from version 110.2.1 on - answer GetSnapshotProperties with
+// S_OK but leave every field empty; then the properties are read from Query,
+// which still has them. Without a device the snapshot cannot be read: going
+// on would read the live volume (an empty device turns C:\x into \x) while
+// the backup reports that it read a snapshot, so that is an error.
+func resolveSnapshotProperties(snapshotID ole.GUID,
+	get, query func(ole.GUID, *vssSnapshotProperties) error,
+	free func(*vssSnapshotProperties)) (vssSnapshotProperties, error) {
+	var p vssSnapshotProperties
+	if err := get(snapshotID, &p); err != nil {
+		return vssSnapshotProperties{}, err
+	}
+	if p.GetSnapshotDeviceObject() != "" {
+		return p, nil
+	}
+	free(&p)
+
+	var q vssSnapshotProperties
+	if err := query(snapshotID, &q); err != nil {
+		return vssSnapshotProperties{}, newVssTextError(fmt.Sprintf(
+			"the VSS provider returned no device for snapshot %s, and Query() failed: %s",
+			snapshotID.String(), err))
+	}
+	if q.GetSnapshotDeviceObject() == "" {
+		free(&q)
+		return vssSnapshotProperties{}, newVssTextError(fmt.Sprintf(
+			"the VSS provider returned no device for snapshot %s", snapshotID.String()))
+	}
+	return q, nil
+}
+
 // vssFreeSnapshotProperties calls the equivalent VSS api.
 func vssFreeSnapshotProperties(properties *vssSnapshotProperties) error {
 	proc, err := findVssProc("VssFreeSnapshotProperties")
@@ -814,7 +928,12 @@ type vssSnapshot struct {
 	snapshotProperties   vssSnapshotProperties
 	snapshotDeviceObject string
 	mountPointInfo       map[string]mountPoint
-	timeout              time.Duration
+	// extra are further volumes of the same snapshot set.
+	extra   map[string]mountPoint
+	timeout time.Duration
+	// volume is the one the snapshot ID above belongs to: the first
+	// supported volume of the set.
+	volume string
 }
 
 // GetSnapshotDeviceObject returns root path to access the snapshot files
@@ -896,7 +1015,7 @@ func HasSufficientPrivilegesForVSS() error {
 // newVssSnapshot creates a new vss snapshot. If creating the snapshots doesn't
 // finish within the timeout an error is returned.
 func newVssSnapshot(provider string,
-	volume string, timeout time.Duration, filter volumeFilter, msgError ErrorHandler) (vssSnapshot, error) {
+	volume string, extra []string, timeout time.Duration, filter volumeFilter, msgError ErrorHandler) (vssSnapshot, error) {
 	is64Bit, err := isRunningOn64BitWindows()
 	if err != nil {
 		return vssSnapshot{}, newVssTextError(fmt.Sprintf(
@@ -973,14 +1092,16 @@ func newVssSnapshot(provider string,
 		return vssSnapshot{}, err
 	}
 
-	if isSupported, err := iVssBackupComponents.IsVolumeSupported(providerID, volume); err != nil {
+	// The first supported volume carries the set; unsupported ones are left
+	// out wherever they are in the list.
+	vols, err := supportedVolumes(append([]string{volume}, extra...), func(v string) (bool, error) {
+		return iVssBackupComponents.IsVolumeSupported(providerID, v)
+	}, msgError)
+	if err != nil {
 		iVssBackupComponents.Release()
 		return vssSnapshot{}, err
-	} else if !isSupported {
-		iVssBackupComponents.Release()
-		return vssSnapshot{}, newVssTextError(fmt.Sprintf("Snapshots are not supported for volume "+
-			"%s", volume))
 	}
+	volume, extra = vols[0], vols[1:]
 
 	const retryStartSnapshotSetSleep = 5 * time.Second
 	var snapshotSetID ole.GUID
@@ -1004,6 +1125,18 @@ func newVssSnapshot(provider string,
 	if err := iVssBackupComponents.AddToSnapshotSet(volume, providerID, &snapshotSetID); err != nil {
 		iVssBackupComponents.Release()
 		return vssSnapshot{}, err
+	}
+
+	// Further volumes in the same set: all of them are snapshotted at the
+	// same moment, so the disks are consistent with each other (L-35).
+	extraInfo := make(map[string]mountPoint)
+	for _, v := range extra {
+		var id ole.GUID
+		if err := iVssBackupComponents.AddToSnapshotSet(v, providerID, &id); err != nil {
+			iVssBackupComponents.Release()
+			return vssSnapshot{}, err
+		}
+		extraInfo[v] = mountPoint{isSnapshotted: true, snapshotSetID: id}
 	}
 
 	mountPointInfo := make(map[string]mountPoint)
@@ -1065,8 +1198,7 @@ func newVssSnapshot(provider string,
 		return vssSnapshot{}, err
 	}
 
-	var snapshotProperties vssSnapshotProperties
-	err = iVssBackupComponents.GetSnapshotProperties(snapshotSetID, &snapshotProperties)
+	snapshotProperties, err := readSnapshotProperties(iVssBackupComponents, snapshotSetID)
 	if err != nil {
 		_ = iVssBackupComponents.AbortBackup()
 		iVssBackupComponents.Release()
@@ -1078,8 +1210,8 @@ func newVssSnapshot(provider string,
 			continue
 		}
 
-		err := iVssBackupComponents.GetSnapshotProperties(info.snapshotSetID,
-			&info.snapshotProperties)
+		props, err := readSnapshotProperties(iVssBackupComponents, info.snapshotSetID)
+		info.snapshotProperties = props
 		if err != nil {
 			msgError(mountPoint, fmt.Errorf(
 				"VSS error: GetSnapshotProperties() for mount point %s returned error: %w",
@@ -1092,10 +1224,58 @@ func newVssSnapshot(provider string,
 		mountPointInfo[mountPoint] = info
 	}
 
+	for v, info := range extraInfo {
+		props, err := readSnapshotProperties(iVssBackupComponents, info.snapshotSetID)
+		if err != nil {
+			msgError(v, fmt.Errorf("VSS error: GetSnapshotProperties() for volume %s returned error: %w", v, err))
+			delete(extraInfo, v)
+			continue
+		}
+		info.snapshotProperties = props
+		info.snapshotDeviceObject = props.GetSnapshotDeviceObject()
+		extraInfo[v] = info
+	}
+
 	return vssSnapshot{
 		iVssBackupComponents, snapshotSetID, snapshotProperties,
-		snapshotProperties.GetSnapshotDeviceObject(), mountPointInfo, time.Until(deadline),
+		snapshotProperties.GetSnapshotDeviceObject(), mountPointInfo, extraInfo, time.Until(deadline), volume,
 	}, nil
+}
+
+// supportedVolumes keeps the volumes of one snapshot set that VSS supports.
+// An unsupported volume is reported through msgError and read without a
+// snapshot, wherever it is in the list: before, one at the front failed the
+// whole set, which cost a second timeout for the per-volume fallback and
+// warned that the volumes are not consistent (L-35). A single volume that
+// is not supported, or a set without any supported one, is an error.
+func supportedVolumes(volumes []string, supported func(string) (bool, error), msgError ErrorHandler) ([]string, error) {
+	if len(volumes) == 1 {
+		ok, err := supported(volumes[0])
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, newVssTextError(fmt.Sprintf("Snapshots are not supported for volume %s", volumes[0]))
+		}
+		return volumes, nil
+	}
+	var out, left []string
+	for _, v := range volumes {
+		if ok, err := supported(v); err != nil || !ok {
+			left = append(left, v)
+			continue
+		}
+		out = append(out, v)
+	}
+	if len(out) == 0 {
+		return nil, newVssTextError("Snapshots are not supported for any of the volumes " + strings.Join(volumes, ", "))
+	}
+	if msgError != nil {
+		for _, v := range left {
+			msgError(v, fmt.Errorf("VSS is not available for volume %s; it is read without a snapshot", v))
+		}
+	}
+	return out, nil
 }
 
 // Delete deletes the created snapshot.
@@ -1112,6 +1292,9 @@ func (p *vssSnapshot) Delete() error {
 			}
 		}
 	}
+	for _, x := range p.extra {
+		_ = vssFreeSnapshotProperties(&x.snapshotProperties)
+	}
 
 	if p.iVssBackupComponents != nil {
 		defer p.iVssBackupComponents.Release()
@@ -1124,6 +1307,11 @@ func (p *vssSnapshot) Delete() error {
 			return err
 		}
 
+		// The other volumes of the set (they go with the set anyway when the
+		// backup components are released; this frees them at once).
+		for _, x := range p.extra {
+			_, _, _ = p.iVssBackupComponents.DeleteSnapshots(x.snapshotSetID)
+		}
 		if _, _, e := p.iVssBackupComponents.DeleteSnapshots(p.snapshotID); e != nil {
 			err = newVssTextError(fmt.Sprintf("Failed to delete snapshot: %s", e.Error()))
 			_ = p.iVssBackupComponents.AbortBackup()

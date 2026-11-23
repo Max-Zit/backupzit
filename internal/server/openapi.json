@@ -101,6 +101,10 @@
     "schemas": {
       "Agent": {
         "properties": {
+          "display_name": {
+            "description": "Name set in the console; empty when the host name is shown",
+            "type": "string"
+          },
           "enrolled": {
             "format": "date-time",
             "type": "string"
@@ -127,6 +131,10 @@
           "max_runs": {
             "type": "integer"
           },
+          "name": {
+            "description": "Name shown in the console: the display name, else the host name",
+            "type": "string"
+          },
           "online": {
             "type": "boolean"
           },
@@ -139,6 +147,13 @@
           },
           "seen_from": {
             "type": "string"
+          },
+          "tags": {
+            "description": "Labels set in the console",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "version": {
             "type": "string"

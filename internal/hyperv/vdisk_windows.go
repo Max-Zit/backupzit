@@ -195,11 +195,17 @@ func (d *attachedDisk) rctChanges(since string) ([][2]uint64, error) {
 		if err := callErr(r); err != nil {
 			return nil, err
 		}
+		if count > batch {
+			return nil, fmt.Errorf("change tracking returned %d ranges for a buffer of %d", count, batch)
+		}
 		for i := 0; i < int(count); i++ {
 			out = append(out, [2]uint64{ranges[i*3], ranges[i*3+1]})
 		}
-		if processed == 0 {
-			break
+		// Without progress the rest of the disk would silently count as
+		// unchanged and the backup would keep stale blocks: fail instead, so
+		// planDiskRead reads the whole disk.
+		if processed == 0 || processed > d.size-off {
+			return nil, fmt.Errorf("change tracking stopped at byte %d of %d (processed %d)", off, d.size, processed)
 		}
 		off += processed
 	}

@@ -32,6 +32,17 @@ if ! cp dist/backupzit-agent-${VERSION}-x64*.msi bin/linux/agents/ 2>/dev/null; 
     [ -n "${NO_MSI:-}" ] || { echo "no MSI for $VERSION in dist/: build it first (packaging/windows/build-msi.ps1 -Version $VERSION, and -Legacy)" >&2; exit 1; }
     echo "note: no MSI for $VERSION (NO_MSI set)"
 fi
+# The signed list of these installers (GHSA-v284-8576-jp84): agents 0.56
+# and newer install an update from the console only when this list, checked
+# with the release keys built into them, names the installer. KEY is the
+# release signing key; NO_AGENT_LIST=1 builds without it (a test build whose
+# console cannot update agents 0.56+).
+if [ -n "${KEY:-}" ]; then
+    go run ./tools/release sign-agents -key "$KEY" -version "$VERSION" -dir bin/linux/agents
+elif [ -z "${NO_AGENT_LIST:-}" ]; then
+    echo "set KEY=/path/to/release.key: the server package carries the signed list of the agent installers (NO_AGENT_LIST=1 for a test build)" >&2
+    exit 1
+fi
 for fmt in deb rpm; do
     $NFPM package --config packaging/linux/nfpm-server.yaml --packager "$fmt" --target dist/
 done

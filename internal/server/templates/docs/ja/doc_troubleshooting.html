@@ -27,6 +27,7 @@
   <tr><td>「no matching backup disk is connected」</td><td>ローテーション用 USB ディスクのいずれかを接続してください（メッセージに必要なラベルと、接続されているラベル付きディスクが表示されます）。復元には、バックアップの実行に表示されたディスクそのものが必要です。</td></tr>
   <tr><td>「several backup disks are connected」</td><td>ローテーション用ディスクは一度に 1 台だけ接続してください。</td></tr>
   <tr><td>復元テストが失敗した</td><td>実行を開くと、メッセージに破損したファイルやブロック、または理由（例: ストレージ上でバックアップが削除された）が表示されます。リポジトリに対して <code>backupzit-agent check --read-data</code> を実行し、ストレージを確認して新しいバックアップを開始してください。変更不可のストレージでバックアップが削除された場合は、<a href="/docs/ransomware">ランサムウェア対策</a> を参照してください。</td></tr>
+  <tr id="repair"><td>データ確認で破損したデータパックが見つかった</td><td>ストレージがデータを失ったか変更しました（たとえばプロバイダーの障害）。破損したパックがインデックスに残っている間、新しいバックアップはそのデータを再利用し続けます。確認の実行ページで <b>修復: 破損したデータをインデックスから外す</b> をクリックするか、<code>backupzit-agent repair --repo …</code> を実行します（<code>--dry-run</code> は一覧表示のみ）。ストレージは排他ロックのもとで再度読み取られ、破損したパックはインデックスから外され、実行は失われたデータを必要とするバックアップを一覧表示します。それらは残り、残っている分を復元できます。<b>失われたデータを必要とするバックアップも削除する</b> をオンにすると削除され、以降のデータ確認と保持期間後の領域解放が再び機能します。削除にはパスワードまたは 2 要素コードが必要で、4 つの目による承認がオンのときは 2 人目のユーザーの承認も必要です。VM が実行中のバックアップ（インスタント リカバリ）は残り、不審なバックアップの後に保持が一時停止している間は拒否されます。次のバックアップがそのデータを再び保存します。エージェント 0.55 以降。0.55 からは、損傷が証明されたパック（欠落している、または全体を読み取ったときに内容と一致しない）だけが外されます。ストレージには完全にあるのにこのエージェントには短く届くパックは、間隔を置いて再読み取りし、それでも駄目なら一覧に表示してそのままにします。ネットワーク経路（プロキシ、ファイアウォール、IPS、NAT）を確認してください。パック ファイル自体は次のクリーンアップで削除されます。 このエージェントからフォルダー一覧を読み取れないバックアップは残され、影響ありとして削除されることはありません。データパックを 20 個続けて読み取れない場合、確認は「the storage stopped answering」で停止し、何も判定しません。ストレージとネットワーク経路を確認してから、もう一度実行してください。0.56 以降、ストレージのファイル一覧にないパックは、欠落と判断する前に個別に何度か確認されます。一覧が空の場合や、大半のパックが一度に欠けている場合は判定を行わず、確認は理由を示して失敗するため、ストレージの一時的な不調でデータがインデックスから外されることはありません。</td></tr>
   <tr><td>バックアップが <i>不審</i> とマークされた</td><td>マシンにランサムウェアや大量削除（例: 同期フォルダーが空になった）がないか確認してください。問題がなければ（例: 計画的な移行）、ジョブのページで <i>確認済み — 保持を再開</i> をクリックします。</td></tr>
   <tr><td>Let's Encrypt: 「could not verify … is port 80 … reachable」</td><td>HTTP 確認にはインターネットからポート 80 に到達できる必要があります。社内のコンソールでは Cloudflare 経由の DNS 確認を使ってください。</td></tr>
   <tr><td>Let's Encrypt: 「no Cloudflare zone … is accessible with this token」</td><td>トークンには、コンソールの名前を含むゾーンに対する Zone → DNS → Edit の権限が必要です。</td></tr>
@@ -34,11 +35,13 @@
   <tr><td>更新: 「updates from the console need the Linux package of the console」</td><td>コンソールが deb/rpm パッケージからインストールされていません（例: 評価モード）。インストールしたのと同じ方法で更新してください。</td></tr>
   <tr><td>更新: 「the release is not signed with a BackupZit release key」</td><td>更新元に公式リリースがないか、途中でファイルが改変されています。公式のアドレスから再度ダウンロードしてください。</td></tr>
   <tr><td>更新: 状態が <i>rolled-back</i></td><td>新しいバージョンが起動しなかったため、以前のバージョンとそのデータベースが復元されました。起動に失敗したときのログは更新ページにあります。サポートに送ってください。</td></tr>
+  <tr><td>"The agent is no longer running this"</td><td>実行中にエージェントが再起動または停止された（コンピューターやサービスの再起動など）か、結果を送信できませんでした。0.52.0 以降のエージェントは処理中の実行を報告するため、コンソールはその実行を誰かが停止するまで実行中と表示するのではなく、約 2 分以内に失敗として記録します。古いエージェントでは、その実行のページで停止してください。何が起きたかはエージェント ページの <i>ログを取得</i> で確認できます。次のスケジュール実行は通常どおり開始されます。 エージェントが正常に停止した場合（サービスの停止、更新のための再起動）、実行は代わりに "The agent was stopped during the run" で終了します。</td></tr>
+  <tr><td>"agent stopped responding while the run was in progress"</td><td>実行中にエージェントが 10 分を超えてコンソールに接続しませんでした（ネットワーク障害、またはエージェントのマシンが停止）。コンソール自体が停止していた時間は数えません。エージェントは 2 時間結果の送信を試み、届くと実行には実際の結果が表示され、そのバックアップを復元できます。</td></tr>
   <tr><td>オペレーティング システム: 「no supported package manager」</td><td>オペレーティング システムの更新は Debian、Ubuntu（apt）と AlmaLinux、Rocky Linux、RHEL（dnf）でサポートされています。</td></tr>
   <tr><td>コンソールのバックアップ: 「the backup was made by a newer BackupZit」</td><td>復元する前に、新しいコンソールにバックアップを作成したバージョン以降をインストールしてください。</td></tr>
   <tr><td>コンソールのバックアップ: 「console backups need network storage」</td><td>SFTP、S3、SMB、Azure、または強化リポジトリのストレージ先を選んでください。エージェントのローカル パスにはコンソールから到達できません。</td></tr>
   <tr><td>「サインインの失敗が多すぎます」</td><td>誤ったパスワードが繰り返されたため、アドレスがブロックされました: 既定では 30 分、繰り返すとさらに長くなります。管理者は <a href="/settings/security">設定 → サインインとセキュリティ</a> でブロックを解除できます。サーバー上では <code>backupzit-server --unblock-ip all</code> ですべてのブロックを解除できます。アカウントが恒久的にロックされることはありません。</td></tr>
-  <tr><td>2 要素サインイン用の電話を紛失した</td><td>リカバリー コードのいずれかを使います。ない場合は、管理者がユーザーのページで 2 要素をリセットします。最後の管理者は、サーバー上で <code>backupzit-server --set-admin-password</code> を使って自分のパスワードをリセットできます。</td></tr>
+  <tr><td>2 要素サインイン用の電話を紛失した</td><td>回復コードのいずれかを使います。使えない場合は、管理者がユーザーページで 2 要素サインインをリセットします。サインインできる管理者がいなくなった場合は、サーバーで <code>backupzit-server --reset-two-factor USER</code> を実行します(Docker: <code>docker compose exec backupzit backupzit-server --reset-two-factor USER</code>)。そのユーザーの 2 要素サインインをオフにしてサインアウトさせ、監査ログに記録されます。その後パスワードでサインインし、設定し直してください。</td></tr>
   <tr><td>「your directory account is not in any BackupZit group」</td><td><a href="/settings/ldap">設定 → LDAP / Active Directory</a> で対応付けたグループのいずれかにユーザーを追加するか、さらにグループを対応付けてください。そのページの <i>テスト</i> で、ユーザーに対して見つかったグループを確認できます。</td></tr>
   <tr><td>API が 401 / 403 を返す</td><td>401: トークンがない、失効している、期限切れ、または所有者が無効化されている。403: トークンのロールが要求に対して低すぎます。</td></tr>
   <tr><td>Azure: AuthenticationFailed / AuthorizationPermissionMismatch</td><td>アカウント キーが誤っているか、SAS トークンに読み取り、書き込み、削除、一覧表示の権限がないか、期限が切れています。</td></tr>
@@ -49,14 +52,18 @@
 <table>
   <tr><th>状況</th><th>対処</th></tr>
   <tr><td>Proxmox: 「the guest is running and one of its disks is on storage without snapshot support」</td><td>稼働中のゲストには LVM-thin、ZFS、Ceph RBD、qcow2 のディスクが必要です。ディスクを移動する（<i>Disk Action → Move Storage</i>）か、ゲストを停止した状態でバックアップしてください。</td></tr>
+  <tr><td>Proxmox: 「container volumes that are directories on dir storage are not supported yet」</td><td>コンテナーのボリュームが、ディレクトリ、NFS、btrfs ストレージ上のディレクトリです。ファイル単位でバックアップされるのは ZFS 上のディレクトリ（サブボリューム）だけです。ボリュームを ZFS、LVM-thin、Ceph RBD に移動してください（<i>Volume Action → Move Storage</i>）。</td></tr>
   <tr><td>Hyper-V: 実行に「crash-consistent」と表示される</td><td>ゲストがチェックポイントの準備をできませんでした。Windows ゲストでは、VM の設定で Hyper-V 統合サービス（<i>Backup (volume shadow copy)</i>）が有効か確認してください。Linux ゲストには <code>hyperv-daemons</code>（RHEL）または <code>linux-cloud-tools</code> / <code>hyperv-daemons</code>（Debian/Ubuntu）をインストールしてください。</td></tr>
   <tr><td>VMware: 「SSH off」または「SSH to …: connection refused」</td><td>ESXi ホストで SSH を有効にしてください: Host → Actions → Services → Enable Secure Shell（ホストと一緒に起動するよう設定）。復元、および無償ライセンスでのバックアップに必要です。</td></tr>
   <tr><td>VMware: 「changed block tracking is off and can be enabled … only while the VM is off」</td><td>無償の ESXi ライセンス: VM を一度シャットダウンしてからジョブを実行してください。BackupZit が変更ブロック トラッキングを有効にし、以降のバックアップは変更されたブロックだけを読み取ります。</td></tr>
   <tr><td>VMware: 「copy the disk on the datastore (needs free space …)」</td><td>稼働中の VM はデータストア上で一時的にコピーされます。そこに（ディスクの使用量分の）空き容量を作るか、VM を停止した状態でバックアップしてください。</td></tr>
-  <tr><td>VMware: 「… is a snapshot delta disk」</td><td>VM に独自のスナップショットがあります。ESXi Host Client で削除または統合してください（Snapshots → Delete all）。</td></tr>
-  <tr><td>VMware: 「the ESXi certificate changed」</td><td>ホストが再インストールされたか、別のマシンがそのアドレスで応答しています。想定どおりであれば、エージェントでホストを削除して再度追加し、新しい証明書をピン留めしてください。</td></tr>
+  <tr><td>VMware: 「… is a snapshot delta disk」</td><td>VM に独自のスナップショットがあります。ESXi Host Client で削除または統合してください（Snapshots → Delete all）。BackupZit がそれらに触れることはありません。スナップショットがなく、ディスクの統合だけが必要な VM（スナップショットの削除が完了しなかった場合）は、バックアップの前にエージェントが統合します（エージェント 0.57、vSphere API）。無償ライセンスでは Host Client で Snapshots → Consolidate を実行してください。0.58 より前のエージェントは、VM にスナップショットがなくても、一部のホスト（ESXi 6.7、VMware Tools 実行中）で静止化されたスナップショットが書き込む小さな差分も拒否していました。エージェントを更新してください。</td></tr>
+  <tr><td>VMware: 「The session is not authenticated」または「401 Unauthorized」</td><td>実行中に vSphere セッションが終了しました。原因は、0.55 より前のエージェントでの長いディスク読み取り、またはホストの管理サービスの再起動です。エージェント 0.57 は再度サインインし、次の VM とスナップショットの削除を続けます。古いエージェントは更新してください。残ったスナップショットは、ダッシュボードに<b>今すぐ削除</b>とともに表示されます。</td></tr>
+  <tr id="leftovers"><td>ダッシュボード: 「バックアップ スナップショット … が … に … 残っています」、「バックアップ チェックポイント …」、「一時ディスク コピー …」または「バックアップ ロック」</td><td>バックアップが、ハイパーバイザー上に作成したものを削除できませんでした（エージェントが途中で停止したか、削除に失敗しました）。残っている間は VM のディスクが大きくなり続け、ロックの場合はゲストを起動できません。エージェントは自動的に再試行します（Proxmox VE と Hyper-V は 15 分ごと、VMware は接続の次回のバックアップ時）。すぐに試行させるには <b>今すぐ削除</b> をクリックします。アクティビティ ページのクリーンアップの実行に、削除されたものと残りが失敗した理由（データストアやストレージがビジー、別のプログラムがファイルをロックしているなど）が表示されます。失敗が続く場合は、ハイパーバイザー自身のツールで削除してください: vSphere Client（Snapshots → Delete の後 Consolidate）、Proxmox VE（<code>qm delsnapshot ID NAME --force</code>、<code>qm unlock ID</code>）、Hyper-V マネージャー（Checkpoints → Delete）。<a href="/docs/vmware#leftovers">VMware</a>、<a href="/docs/proxmox#leftovers">Proxmox VE</a>、<a href="/docs/hyperv#leftovers">Hyper-V</a> を参照してください。</td></tr>
+  <tr><td>Proxmox: 「guest … already has the backup lock」</td><td>ゲストの別のバックアップ（BackupZit または vzdump）が実行中か、中断された実行がロックを残しています。エージェントは自分で設定したロックを 15 分以内に削除します。それ以外のロックは、バックアップが実行されていないときに <code>qm unlock ID</code>（コンテナー: <code>pct unlock ID</code>）で削除します。</td></tr>
+  <tr><td>VMware: 「the ESXi certificate changed」</td><td>ホストが再インストールされたか、別のマシンがそのアドレスで応答しています。想定どおりであれば、フィンガープリントを確認し、エージェント ページでホストの横にある <b>新しい証明書を受け入れる</b> をクリックしてください。</td></tr>
   <tr><td>VMware: VM ディスクの横に <code>*.replaced-DATE.vmdk</code> ファイルがある</td><td>元の場所に復元した VM の古いディスクです。復元した VM が動作したら、データストア ブラウザーで削除してください。</td></tr>
-  <tr><td>Hyper-V: VM ディスクの横に <code>*.replaced-DATE</code> ファイルがある</td><td>元の場所に復元した VM の古いディスクです。復元した VM が動作したら削除してください。</td></tr>
+  <tr><td>Hyper-V: 元の場所への復元後に古い VHDX ファイルが残る</td><td>復元では VM の古いディスクが切り離され、元の場所に残されます（実行には各ディスクが <i>old disk kept at …</i> と表示されます）。復元されたディスクは <code>backupzit-restore-…</code> サブフォルダーにあります。復元した VM が動作したら古いファイルを削除してください。</td></tr>
   <tr><td>Proxmox のインスタント リカバリー: VM が起動しない、またはハングする</td><td>ディスク サーバーを確認してください: ノードで <code>systemctl status backupzit-instant-ID</code> と <code>journalctl -u backupzit-instant-ID</code>。バックアップ ストレージに到達できる状態を保つ必要があります。リポジトリを読み取れないと、VM のディスク読み取りが止まります。</td></tr>
   <tr><td>Proxmox のインスタント リカバリー: 「efidisk0 stays on storage backupzit-instant」</td><td>VM の稼働中は QEMU が EFI 変数ストアを移動できません。VM をシャットダウンして <code>qm disk move ID efidisk0 STORAGE --delete 1</code> を実行してください。これはバックアップに依存しません。</td></tr>
   <tr><td>Proxmox: 「runs on node X; install the BackupZit agent on X」</td><td>ゲストが移行されました。すべてのノードにエージェントをインストールし、各ノードのゲストはそのノードのエージェントでバックアップしてください。</td></tr>
@@ -65,8 +72,8 @@
   <tr><td>Linux システムの復元: 「missing programs …」</td><td>復元を行うマシンに表示されたパッケージをインストールするか、それらを含む BackupZit の Linux リカバリ ISO から起動してください。</td></tr>
   <tr><td>復元した Linux マシンがネットワークに接続できない</td><td>ネットワーク設定が古い MAC アドレスに結び付いていました（netplan <code>match: macaddress</code>）。<i>別のハードウェア</i> で復元するか、<code>/etc/netplan/</code> の <code>match</code> 行を削除してください。</td></tr>
   <tr><td>復元した Windows が INACCESSIBLE_BOOT_DEVICE で停止する</td><td><i>異なるハードウェアに復元</i> で再度復元するか、リカバリー ISO から起動して <code>backupzit-agent prepare-hardware --disk 0 [--drivers E:\Drivers]</code> を実行してください。</td></tr>
-  <tr><td>復元したマシンのコピーが元のエージェントとして表示される</td><td>新しい Proxmox VM への復元では、コピー内のエージェントの登録が自動的に解除されます。それ以外のコピーでは、コピー内の <code>agent.json</code> を削除し、新しいマシンとして登録してください。</td></tr>
-  <tr><td>エージェントの更新が完了しない</td><td><code>C:\ProgramData\backupzit\updates</code> または <code>/var/tmp/backupzit-updates</code> のインストーラーのログを確認してください。0.21 より前のエージェントは一度手動で更新する必要があります。</td></tr>
+  <tr><td>復元したマシンのコピーが元のエージェントとして表示される</td><td>新しい VM として復元した Linux システムは、自動的に登録解除されます。それ以外のコピー（新しい VM として復元した VM、インスタント リカバリ、レプリカ、クローンしたディスク）では、コンソールはエージェントの実行を保留し、<i>2 台のマシン</i> と表示します。コピーを新しいマシンとして登録してください（<a href="/docs/agents#duplicate">1 つのエージェントを使う 2 台のマシン</a> を参照）。</td></tr>
+  <tr><td>エージェントの更新が完了しない</td><td><code>C:\ProgramData\backupzit\updates</code> または <code>/var/lib/backupzit-agent/updates</code> のインストーラーのログを確認してください。0.21 より前のエージェントは一度手動で更新する必要があります。</td></tr>
   <tr><td>トレイ アイコンが表示されない</td><td>時計の横の <b>^</b> 矢印をクリックして BackupZit のアイコンをタスク バーにドラッグするか、スタート メニューから <i>BackupZit Agent</i> を起動してください。</td></tr>
 </table>
 
@@ -89,7 +96,7 @@
   <tr><td>Linux のエージェント</td><td><code>/var/log/backupzit/agent.log</code> と <code>journalctl -u backupzit-agent</code></td></tr>
   <tr><td>任意のエージェント（コンソールから）</td><td><a href="/agents">エージェント</a> ページの <b>ログを取得</b>: エージェントがログの末尾と最新のインストーラー ログを送信します。実行ページで閲覧またはダウンロードできます（30 日間保存。エージェント 0.38.0 以降）。</td></tr>
   <tr><td>個々のバックアップや復元</td><td><a href="/runs">アクティビティ</a> にあるそのページ: メッセージ、エラー、統計、バックアップ前後のコマンドの出力</td></tr>
-  <tr><td>エージェントの更新</td><td><code>C:\ProgramData\backupzit\updates</code>（Windows）または <code>/var/tmp/backupzit-updates</code>（Linux）のインストーラー ログ。<b>ログを取得</b> にも含まれます</td></tr>
+  <tr><td>エージェントの更新</td><td><code>C:\ProgramData\backupzit\updates</code>（Windows）または <code>/var/lib/backupzit-agent/updates</code>（Linux）のインストーラー ログ。<b>ログを取得</b> にも含まれます</td></tr>
   <tr><td>コンソールの更新</td><td><code>journalctl -u backupzit-update</code>。以前のバージョンとデータベースのダンプは <code>/var/lib/backupzit-update</code> に保存されます</td></tr>
   <tr><td>強化リポジトリ</td><td><code>journalctl -u backupzit-repo</code></td></tr>
   <tr><td>誰が何を変更したか</td><td><a href="/audit">監査ログ</a>（syslog サーバーにも送信可能）</td></tr>
@@ -102,9 +109,9 @@
 <h3>バックアップを別のストレージに移動できますか？</h3>
 <p>リポジトリ フォルダー（またはバケットのプレフィックス）をそのままコピーし — それ自体で完結しています — 同じリカバリー キーで新しい場所を指すストレージ先を追加してください。</p>
 <h3>ジョブを削除するとバックアップも削除されますか？</h3>
-<p>いいえ。バックアップはストレージに残り、アクティビティやコマンドラインから復元できます。</p>
+<p>いいえ。バックアップはストレージに残り、アクティビティやコマンドラインから復元できます。削除したジョブのコピー ジョブも一緒に削除されますが、それらが作成したコピーはそれぞれのストレージに残ります。</p>
 <h3>コンソールが停止するとどうなりますか？</h3>
-<p>復旧するまで新しいスケジュール バックアップは開始されず、キューの実行はその後に続行されます。復元はリカバリーシートを使えば、コマンドラインからいつでも可能です。</p>
+<p>復旧するまで新しいスケジュール バックアップは開始されません。復旧後、スケジュール時刻を過ぎたジョブはそれぞれ 1 回実行され（バックアップ時間帯が終わっている場合を除く）、キューの実行も続行されます。復元はリカバリーシートを使えば、コマンドラインからいつでも可能です。</p>
 <h3>バックアップにはどれくらいの容量が必要ですか？</h3>
 <p>最初のバックアップでは、圧縮後のデータ量とほぼ同じ容量に、保持する日数分の日々の変更が加わります。レポート ページで、ジョブごとの送信量を確認できます。</p>
 {{template "docpager" .}}

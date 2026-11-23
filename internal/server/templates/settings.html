@@ -66,8 +66,8 @@
       <label>{{T "Password"}} <small>{{if $.Data.HasPassword}}{{T "stored — leave empty to keep it"}}{{else}}{{T "\u00a0"}}{{end}}</small><input type="password" name="password" autocomplete="new-password"></label>
     </div>
     <div class="row">
-      <label>{{T "From"}} <input name="from" value="{{.From}}" placeholder="{{T "backup@company.com"}}"></label>
-      <label>{{T "To"}} <small>{{T "one or more addresses, separated by commas"}}</small><input name="to" value="{{join .To ", "}}" placeholder="{{T "it@company.com"}}"></label>
+      <label>{{T "From (email sender)"}} <input name="from" value="{{.From}}" placeholder="{{T "backup@company.com"}}"></label>
+      <label>{{T "To (email recipients)"}} <small>{{T "one or more addresses, separated by commas"}}</small><input name="to" value="{{join .To ", "}}" placeholder="{{T "it@company.com"}}"></label>
     </div>
     <label>{{T "Language of emails, chat messages and reports"}}
       <select name="language" class="narrow">{{$cur := .Language}}{{if not $cur}}{{$cur = lang}}{{end}}{{range languages}}<option value="{{.Code}}" {{if eq .Code $cur}}selected{{end}} lang="{{.Code}}">{{.Name}}</option>{{end}}</select>
@@ -132,7 +132,7 @@
       </label>
     </div>
     <label class="check"><input type="checkbox" name="progressive" {{if .Progressive}}checked{{end}}> {{T "Block repeat offenders longer"}} <small>{{T "every further block within a day lasts twice as long (30 min, 1 h, 2 h, … up to 7 days)"}}</small></label>
-    <label>{{T "Failed attempts per username"}} <small>{{T "from any addresses within the counting period; further attempts for that username are refused until the period has passed — the account itself is never locked"}}</small>
+    <label>{{T "Failed attempts per username"}} <small>{{T "from any addresses within the counting period; further attempts for that username are refused until the period has passed — the account itself is never locked"}}. {{T "At least the number per address, at most 1000."}}</small>
       <input type="number" name="max_user_attempts" min="3" max="1000" value="{{.MaxUserAttempts}}" required class="narrow">
     </label>
     <div class="row">
@@ -491,6 +491,7 @@ systemctl start backupzit-server</pre></li>
       </div>
       <div><button name="action" value="test" class="secondary">{{T "Test connection"}}</button></div>
     </details>
+    {{template "reauth_admin" $.Me}}
     <div><button name="action" value="save">{{T "Save LDAP settings"}}</button></div>
   </form>
 </div>
@@ -550,6 +551,7 @@ systemctl start backupzit-server</pre></li>
           <option value="admin" {{if eq .DefaultRole "admin"}}selected{{end}}>{{T "Administrator"}}</option>
         </select></label>
     </fieldset>
+    {{template "reauth_admin" $.Me}}
     <div><button>{{T "Save single sign-on settings"}}</button></div>
   </form>
   <p class="muted small mt">{{T "Saving checks the identity provider. Test the sign-in in a private browser window before you sign out."}}</p>

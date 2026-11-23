@@ -5,7 +5,7 @@
 <h2>トークン</h2>
 <p><a href="/account#tokens">マイ アカウント → API トークン</a> でトークンを作成します。必要最小限のロールを付与してください — 監視には <b>閲覧者</b>、バックアップや復元テストも開始するなら <b>復元オペレーター</b>。トークンは一度だけ表示されます。すべてのリクエストで送信してください:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>トークンには有効期限を設定でき、所有者または管理者が失効させることができ（<a href="/users">ユーザー</a>）、所有者が無効化されると使えなくなります。トークンで行った操作は、トークン名とともに監査ログに記録されます。</p>
+<p>トークンには有効期限を設定でき、所有者または管理者が失効させることができ（<a href="/users">ユーザー</a>）、所有者が無効化されると使えなくなります。トークンで行った操作は、トークン名とともに監査ログに記録されます。管理者が新しいパスワードを設定すると、所有者のトークンも失効します。</p>
 
 <h2>エンドポイント</h2>
 <p>すべての応答は JSON です。ベース URL: <code>https://&lt;コンソール&gt;:8443</code>。</p>
@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>トークン不要</td><td>この API の OpenAPI 3 仕様（ツールやクライアント生成用。リポジトリの <code>internal/server/openapi.json</code> にもあります）</td></tr>
 </table>
 <p>期間: <code>today</code>、<code>yesterday</code>、<code>last7</code>、<code>last30</code>、<code>last90</code>、<code>thisweek</code>、<code>lastweek</code>、<code>thismonth</code>、<code>lastmonth</code>、または <code>custom</code> と <code>from=2026-09-01&amp;to=2026-09-30</code>。</p>
-<p>エラーは <code>{"error": "..."}</code> を返し、ステータスは 400（不正なリクエスト）、401（トークンがない、無効、または期限切れ）、403（ロールの権限不足）、404、409 です。</p>
+<p>エラーは <code>{"error": "..."}</code> を返し、ステータスは 400（不正なリクエスト）、401（トークンがない、無効、または期限切れ）、403（ロールの権限不足）、404（見つからない）、409（現在は実行できない: ジョブがすでに実行中、エージェントがこの要求には古すぎる、または 4 つの目の承認がオン）、429（そのアドレスからのトークンの失敗が多すぎる。ブロックが終わるまで待つ）、500（内部エラー。コンソールのログを参照）です。</p>
 
 <h2>例</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>メトリクス</th><th>ラベル</th><th>意味</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>常に 1。コンソールのバージョン</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code>（online、offline）</td><td>エージェントの数</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>待機中または実行中の実行</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code>（failed、warning、all）</td><td>過去 24 時間の実行</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>まだ確認されていない疑わしいバックアップ</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>、<code>agent</code>、<code>version</code></td><td>エージェントが最近コンソールをポーリングした場合は 1</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>、<code>agent</code></td><td>エージェントが最後にポーリングした時刻</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>、<code>job</code>、<code>kind</code>、<code>agent</code></td><td>ジョブがスケジュールどおりに実行される場合は 1</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>同上</td><td>最後に終了した実行: 0 成功、1 警告、2 失敗</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>同上</td><td>成功または警告付きで終わった最後のバックアップ</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>同上、<code>rpo_hours</code></td><td>RPO 内なら 1、未達成なら 0（RPO のあるジョブ）</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>、<code>target</code></td><td>リポジトリが使用している容量</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>、<code>target</code></td><td>空き容量（ストレージが報告する場合）</td></tr>
+</table>
 <p>たとえば <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code>（2 日間正常なバックアップがない）のときに通知します。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

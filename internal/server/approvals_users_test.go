@@ -22,7 +22,7 @@ func TestFourEyesNoSelfApprover(t *testing.T) {
 	admin.login("admin", "admin-pass-123")
 	const pw = "correct-horse-9"
 	create := func(name, role string) string {
-		_, loc, _ := admin.do("POST", "/users", url.Values{"username": {name}, "role": {role}, "password": {pw}, "password2": {pw}})
+		_, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {name}, "role": {role}, "password": {pw}, "password2": {pw}})
 		return loc
 	}
 	for _, u := range [][2]string{{"admin2", "admin"}, {"v1", "viewer"}} {
@@ -71,14 +71,18 @@ func TestFourEyesNoSelfApprover(t *testing.T) {
 
 	// More rights, password and two-factor resets of approvers.
 	v1 := userID("v1")
-	_, loc, _ := admin.do("POST", fmt.Sprintf("/users/%d", v1), url.Values{"role": {"admin"}})
+	// More rights need the current password first (M-N1, 0.56).
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/users/%d", v1), url.Values{"role": {"admin"}}); !strings.Contains(loc, "Enter+your+password") {
+		t.Errorf("role raise without the password: %s", loc)
+	}
+	_, loc, _ := admin.do("POST", fmt.Sprintf("/users/%d", v1), url.Values{"role": {"admin"}, "reauth_password": {"admin-pass-123"}})
 	held("role change", loc)
 	roleReq := pending()
 	if u, _ := e.store.GetUser(ctx, v1); u.Role != "viewer" {
 		t.Error("role changed without approval")
 	}
 	a2 := userID("admin2")
-	_, loc, _ = admin.do("POST", fmt.Sprintf("/users/%d/password", a2), url.Values{"password": {"new-secret-77x"}, "password2": {"new-secret-77x"}})
+	_, loc, _ = admin.do("POST", fmt.Sprintf("/users/%d/password", a2), url.Values{"reauth_password": {"admin-pass-123"}, "password": {"new-secret-77x"}, "password2": {"new-secret-77x"}})
 	held("password reset", loc)
 	var payload string
 	e.pool.QueryRow(ctx, `SELECT payload::text FROM approvals WHERE id=$1`, pending()).Scan(&payload)
@@ -91,7 +95,7 @@ func TestFourEyesNoSelfApprover(t *testing.T) {
 	_, loc, _ = admin.do("POST", fmt.Sprintf("/users/%d/2fa-reset", a2), url.Values{})
 	held("two-factor reset", loc)
 	// A viewer's password is reset at once.
-	if _, loc, _ := admin.do("POST", fmt.Sprintf("/users/%d/password", v1), url.Values{"password": {"viewer-pass-88"}, "password2": {"viewer-pass-88"}}); !strings.Contains(loc, "msg=Password") {
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/users/%d/password", v1), url.Values{"reauth_password": {"admin-pass-123"}, "password": {"viewer-pass-88"}, "password2": {"viewer-pass-88"}}); !strings.Contains(loc, "msg=Password") {
 		t.Errorf("viewer password: %s", loc)
 	}
 
@@ -130,7 +134,7 @@ func TestFourEyesNoSelfApprover(t *testing.T) {
 
 	// LDAP changes wait; the bind password is not readable in the request.
 	ldap := url.Values{"enabled": {"on"}, "url": {"ldaps://dc1.example.local:636"}, "bind_dn": {"cn=svc"}, "bind_password": {"ldap-bind-secret"},
-		"base_dn": {"dc=example,dc=local"}, "admin_group": {"cn=Domain Users"}}
+		"base_dn": {"dc=example,dc=local"}, "admin_group": {"cn=Domain Users"}, "reauth_password": {"admin-pass-123"}}
 	_, loc, _ = admin.do("POST", "/settings/ldap", ldap)
 	held("LDAP change", loc)
 	e.pool.QueryRow(ctx, `SELECT payload::text FROM approvals WHERE id=$1`, pending()).Scan(&payload)

@@ -14,7 +14,7 @@
       <li>bestanden uit een schijfimage</li>
       <li>een database (naar een tijdstip)</li>
       <li>een volledig Linux-systeem</li>
-      <li>Microsoft 365-e-mail en OneDrive (zie <a href="/docs/m365">Microsoft 365</a>)</li>
+      <li>Microsoft 365-e-mail, OneDrive, agenda’s en contactpersonen en SharePoint-bestanden (zie <a href="/docs/m365">Microsoft 365</a>)</li>
     </ul>
     Bij elke keuze ziet u hoeveel herstelpunten er zijn.</li>
   <li><b>Bron</b>: de virtuele machine (over alle hypervisors en taken heen), of de back-uptaak en de machine ervan.</li>
@@ -36,7 +36,7 @@
   <li>Kies waar:
     <ul>
       <li><b>Naar een map herstellen</b> (aanbevolen) — bijv. <code>D:\Restore</code>. Daaronder wordt de oorspronkelijke structuur nagebouwd: <code>D:\Restore\C\Users\ana\Documents\…</code>. Niets bestaands wordt aangeraakt.</li>
-      <li><b>Herstellen op de oorspronkelijke locatie</b> — schrijft de bestanden terug waar ze stonden en <b>overschrijft</b> huidige versies. Bij een NAS-share verbindt de agent de share opnieuw, beschrijfbaar.</li>
+      <li><b>Herstellen op de oorspronkelijke locatie</b> — schrijft de bestanden terug waar ze stonden en <b>overschrijft</b> huidige versies. Bij een NAS-share verbindt de agent de share opnieuw, beschrijfbaar. Sparse bestanden (VM-images, databases) komen sparse terug. Op Windows wordt alleen een bestand dat sparse was weer als sparse gemarkeerd; andere, zoals VHD/VHDX-schijven (Hyper-V weigert sparse schijven), komen terug als gewone bestanden, net als alle bestanden van back-ups die zijn gemaakt met agents van vóór 0.57, die het attribuut niet vastlegden. Er wordt nooit door een symbolische koppeling of junction geschreven die in de weg zit: herstellen naar een map vervangt die door een map, en elk herstel schrijft alleen in de mappen die het heeft geopend, ook als er tijdens het herstel een koppeling verschijnt (0.58: ook voor bestandsback-ups en op de oorspronkelijke locatie; de root van een volume zoals / of C: kan niet worden gekozen als map voor bestanden uit VM- en imageback-ups). Op de oorspronkelijke locatie worden alleen koppelingen van het systeem gevolgd (eigenaar root of de gebruiker van de agent op Linux, SYSTEM, TrustedInstaller of een beheerder op Windows, en niemand anders mag ze wijzigen of vervangen: de oude compatibiliteitskoppelingen in gebruikersprofielen zoals <i>Application Data</i> worden niet gevolgd); een koppeling naar een map die niet bestaat is een fout en er wordt niets aangemaakt waar ze naar wijst. Eigenaar, machtigingen en attributen worden op het herstelde bestand zelf ingesteld, nooit via een koppeling die op zijn plaats is gezet.</li>
     </ul>
   </li>
   <li>Beperk optioneel tot <b>Alleen deze paden</b>, één per regel, bijv. <code>C:\Users\ana\Documents\Contracts</code> — of kies ze in de bestandsbrowser (hieronder).</li>
@@ -57,10 +57,11 @@
 <div class="callout tip"><p><b>De juiste back-up vinden:</b> gebruik de <a href="/calendar">Kalender</a> om te zien welke back-ups op welke dag draaiden, of de geschiedenis op de taakpagina.</p></div>
 
 <h2>Losse bestanden herstellen uit een schijfimage</h2>
-<p>Klik bij imageback-ups op <b>Bestanden bladeren</b> in de back-upuitvoering. U kunt het NTFS-bestandssysteem in de image direct in de console doorlopen, bestanden en mappen aanvinken en ze op een willekeurige agent herstellen — zonder de hele schijf te herstellen. Bij herstel naar een map krijgen de bestanden dezelfde indeling als bij een bestandsback-up: de stationsletter wordt de eerste map (<code>D:RestoreCUsers…</code>).</p>
+<p>Klik bij imageback-ups op <b>Bestanden bladeren</b> in de back-upuitvoering. U kunt het NTFS-bestandssysteem in de image direct in de console doorlopen, bestanden en mappen aanvinken en ze op een willekeurige agent herstellen — zonder de hele schijf te herstellen. Bij herstel naar een map krijgen de bestanden dezelfde indeling als bij een bestandsback-up: de stationsletter wordt de eerste map (<code>D:\Restore\C\Users\…</code>).</p>
+<p>U kunt de aangevinkte bestanden ook direct in de browser <b>downloaden</b>: één bestand komt zoals het is, meerdere bestanden of mappen als ZIP-archief — handig voor één document uit een grote image-back-up. Net als bladeren werkt het voor image-back-ups op netwerkopslag, is de machtiging <b>Herstellen</b> nodig, en het auditlogboek legt vast welke paden zijn gedownload.</p>
 
 <h2>Losse bestanden herstellen uit een VM (Proxmox VE, Hyper-V, VMware)</h2>
-<p>Klik in een VM-back-upuitvoering naast de gast op <b>Bestanden bladeren</b>. De console toont de partities en LVM-volumes van de schijven en laat u NTFS-, ext4- en XFS-bestandssystemen doorbladeren. <b>Download</b> de aangevinkte bestanden (meerdere als ZIP-archief) of herstel ze op een willekeurige agent. Zie <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> en <a href="/docs/vmware">VMware ESXi</a>. Op een agent teruggezette bestanden behouden de Unix-rechten die ze in de VM hadden (ext4, XFS), zodat teruggezette geheimen zoals <code>/etc/shadow</code> privé blijven; bestanden van NTFS-volumes zijn op Linux alleen leesbaar voor hun eigenaar.</p>
+<p>Klik in een VM-back-upuitvoering naast de gast op <b>Bestanden bladeren</b>. De console toont de partities en LVM-volumes van de schijven en laat u NTFS-, ext4- en XFS-bestandssystemen doorbladeren. <b>Download</b> de aangevinkte bestanden (meerdere als ZIP-archief) of herstel ze op een willekeurige agent. Zie <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> en <a href="/docs/vmware">VMware ESXi</a>. Op een agent teruggezette bestanden behouden de Unix-rechten die ze in de VM hadden (ext4, XFS), zodat teruggezette geheimen zoals <code>/etc/shadow</code> privé blijven; bestanden van NTFS-volumes zijn op Linux alleen leesbaar voor hun eigenaar. Bij herstel op een Windows-agent worden namen met <code>:</code> uit Linux-gasten (ext4, XFS) overgeslagen en vermeld: Windows zou het deel na de dubbele punt lezen als een stream van een ander bestand. Alternatieve NTFS-gegevensstromen worden als streams teruggezet.</p>
 
 <h2>Hele machines herstellen</h2>
 <ul>
@@ -84,15 +85,16 @@
       <li>Kopieer de ISO optioneel naar de map <code>/var/lib/backupzit/dist</code> van de console; hij wordt dan aangeboden op de pagina Herstelmedia.</li>
     </ol></li>
 </ul>
-<p>Bestanden bladeren in de console werkt voor back-ups op netwerkopslag (SFTP, S3, SMB, Azure, geharde repository); de console leest ze rechtstreeks. Gebruik voor back-ups op een lokale schijf van een agent de opdrachtregel.</p>
+<p>Bestanden bladeren in de console werkt voor back-ups op netwerkopslag (SFTP, S3, SMB, Azure, geharde repository); de console leest ze rechtstreeks. Voor back-ups op een lokale schijf van een agent, of op SFTP met een SSH-sleutel, werkt een herstel met <i>Alleen deze paden</i> nog steeds vanuit de console; gebruik de opdrachtregel om erin te kijken.</p>
 
 <h2>Herstellen zonder de console</h2>
 <p>Gaat de console zelf verloren, dan kan elke machine met de agent rechtstreeks vanaf de opslag herstellen met het <b>herstelblad</b> van het opslagdoel:</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (the SFTP host key, on the recovery sheet)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>Zie <a href="/docs/cli">Opdrachtregelreferentie</a>.</p>
+<p><code>latest</code> is de nieuwste back-up van een willekeurige taak van die computer; gebruik voor het herstellen van een bepaalde taak een snapshot-ID uit <code>snapshots</code>. Zie <a href="/docs/cli">Opdrachtregelreferentie</a>.</p>
 
 <h2>Automatische hersteltests</h2>
 <p>BackupZit stelt uw back-ups regelmatig op de proef zonder dat u iets hoeft te doen: wekelijks (in te stellen onder <a href="/settings/tests">Instellingen → Hersteltests</a>) herstelt de agent van elke taak een <b>willekeurige steekproef van bestanden</b> uit de nieuwste back-up naar een tijdelijke map, controleert elke byte tegen de opgeslagen controlesommen en verwijdert hem weer. Bij schijfimages worden willekeurige blokken gelezen en gecontroleerd. Zo wordt de hele keten getest — opslagtoegang, referenties, versleutelingssleutel en gegevensintegriteit.</p>
@@ -110,7 +112,7 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>De uitvoeringspagina toont elke VM met het resultaat en hoe lang het opstarten duurde.</li>
 </ul>
 <h3 id="data-check">Controle van alle opgeslagen gegevens</h3>
-<p>Hersteltests lezen een steekproef. Daarnaast leest een agent <b>alle</b> gegevens van elke repository, controleert ze tegen hun controlesom en controleert of de mappen en gegevens van elke back-up aanwezig zijn — standaard maandelijks (Instellingen → Hersteltests: <b>Opgeslagen gegevens controleren</b>: maandelijks, elke drie maanden of nooit). Zo vindt u schade aan de opslag zelf, zoals een falende schijf in een NAS of bitrot, voordat u de back-up nodig hebt. Elke repository wordt één keer gecontroleerd (de taken van één agent op één opslag delen haar), door de agent die erin schrijft. De controle leest alles wat de repository bevat; op cloudopslag (S3, Azure) draait ze daarom alleen met <b>Ook op cloudopslag</b>. Problemen laten de uitvoering <i>Gegevenscontrole</i> mislukken en sturen een foutmelding; <b>Gegevens controleren</b> op de pagina van een taak start meteen een controle. Vereist agents 0.39.0 of nieuwer.</p>
+<p>Hersteltests lezen een steekproef. Daarnaast leest een agent <b>alle</b> gegevens van elke repository, controleert ze tegen hun controlesom en controleert of de mappen en gegevens van elke back-up aanwezig zijn — standaard maandelijks (Instellingen → Hersteltests: <b>Opgeslagen gegevens controleren</b>: maandelijks, elke drie maanden of nooit). Zo vindt u schade aan de opslag zelf, zoals een falende schijf in een NAS of bitrot, voordat u de back-up nodig hebt. Elke repository wordt één keer gecontroleerd (de taken van één agent op één opslag delen haar), door de agent die erin schrijft. De controle leest alles wat de repository bevat; op cloudopslag (S3, Azure) draait ze daarom alleen met <b>Ook op cloudopslag</b>. Problemen laten de uitvoering <i>Gegevenscontrole</i> mislukken en sturen een foutmelding; <b>Gegevens controleren</b> op de pagina van een taak start meteen een controle. Vereist agents 0.39.0 of nieuwer. Op S3, Azure en geharde opslag leest de controle meerdere gegevenspakketten tegelijk (agents 0.54.2 en nieuwer). Een controle die beschadigde gegevenspakketten vindt, biedt <b>Herstel</b> aan op de pagina van de run (<a href="/docs/troubleshooting#repair">Probleemoplossing</a>).</p>
 <p>Herstel daarnaast af en toe (bijv. elk kwartaal) een echte map met de hand en open een paar bestanden — zo oefenen ook de mensen die het in een noodgeval moeten doen.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

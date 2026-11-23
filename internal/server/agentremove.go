@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -50,13 +51,18 @@ type agentRepo struct {
 func (x agentRepo) Local() bool { return x.TargetKind == "local" || x.TargetKind == "usb" }
 
 // agentRepos lists the repositories with backups of the agent (copies that
-// copy jobs made on other storage are not included).
+// copy jobs made on other storage are not included). VMware runs count only
+// while the agent is the job's (the connection's) proxy: the parts a further
+// proxy backed up, and the runs of a former connection proxy, are in the
+// connection's repository with everybody else's backups (removing such an
+// agent must not delete those, H-N1).
 func (s *Store) agentRepos(ctx context.Context, agentID int64) ([]agentRepo, error) {
 	rows, err := s.db.Query(ctx, `SELECT r.target_id, t.name, t.kind, r.repo_url,
 			COALESCE(array_agg(DISTINCT COALESCE(j.name, NULLIF(r.job_name,''))) FILTER (WHERE COALESCE(j.name, NULLIF(r.job_name,'')) IS NOT NULL), '{}'),
 			count(*) FILTER (WHERE r.status IN ('success','warning') AND r.snapshot_id<>'' AND NOT r.expired)
 		FROM runs r JOIN storage_targets t ON t.id=r.target_id LEFT JOIN jobs j ON j.id=r.job_id
 		WHERE r.agent_id=$1 AND r.repo_url<>'' AND r.kind IN ('backup','image-backup','vm-backup','system-backup','sql-backup','sql-log')
+			AND (r.vmware_host_id IS NULL OR j.agent_id = r.agent_id)
 		GROUP BY r.target_id, t.name, t.kind, r.repo_url ORDER BY t.name, r.repo_url`, agentID)
 	if err != nil {
 		return nil, err
@@ -72,26 +78,46 @@ func (s *Store) agentRepos(ctx context.Context, agentID int64) ([]agentRepo, err
 // softRemoveAgent keeps a removed agent as history of its backups: queued
 // runs are dropped, its jobs deleted (runs keep the job's name) and it can
 // no longer sign in.
-func (s *Store) softRemoveAgent(ctx context.Context, id int64) error {
+func (s *Store) softRemoveAgent(ctx context.Context, id int64) ([]int64, error) {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer tx.Rollback(ctx)
+	// Parts of split VMware starts end as failed instead of vanishing, so
+	// the start is decided (chains, copies) once the others are done (M-N3).
+	rows, err := tx.Query(ctx, `UPDATE runs SET status='failed', message='The agent was removed.', finished_at=now()
+		WHERE agent_id=$1 AND (status='running' OR (status='queued' AND batch IS NOT NULL)) RETURNING id`, id)
+	if err != nil {
+		return nil, err
+	}
+	ended, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return nil, err
+	}
 	for _, q := range []string{
 		`UPDATE runs r SET job_name=j.name FROM jobs j WHERE r.job_id=j.id AND r.agent_id=$1`,
 		`DELETE FROM runs WHERE agent_id=$1 AND status='queued'`,
-		`UPDATE runs SET status='failed', message='The agent was removed.', finished_at=now() WHERE agent_id=$1 AND status='running'`,
 		`UPDATE vmware_hosts SET proxy_agent_id=NULL WHERE proxy_agent_id=$1`,
 		`DELETE FROM jobs WHERE agent_id=$1`,
 		`DELETE FROM agent_removals WHERE agent_id=$1`,
 		`UPDATE agents SET removed_at=now() WHERE id=$1`,
 	} {
 		if _, err := tx.Exec(ctx, q, id); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return tx.Commit(ctx)
+	return ended, tx.Commit(ctx)
+}
+
+// hasConnectionParts tells whether the agent backed up parts of a split
+// VMware start for a connection it is not (or no longer) the proxy of.
+func (s *Store) hasConnectionParts(ctx context.Context, agentID int64) bool {
+	var ok bool
+	_ = s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM runs r LEFT JOIN jobs j ON j.id=r.job_id
+		WHERE r.agent_id=$1 AND r.vmware_host_id IS NOT NULL AND r.snapshot_id<>''
+		AND (j.agent_id IS NULL OR j.agent_id<>r.agent_id))`, agentID).Scan(&ok)
+	return ok
 }
 
 // expireSnapshots marks the runs of deleted backups.
@@ -254,7 +280,10 @@ type agentRemoveData struct {
 	CanUninstall bool
 	Pending      bool
 	ProxyJobs    []string
-	Immutable    []string
+	// FurtherProxyOf are the vCenter connections this agent is a further
+	// proxy of: its parts stay in their repositories.
+	FurtherProxyOf []string
+	Immutable      []string
 }
 
 func (s *Server) handleAgentRemovePage(w http.ResponseWriter, r *http.Request, user string) {
@@ -275,6 +304,13 @@ func (s *Server) handleAgentRemovePage(w http.ResponseWriter, r *http.Request, u
 		for _, j := range jobs {
 			if j.AgentID == id && (j.Kind == JobVM || j.Kind == JobM365 || j.Kind == JobNAS) {
 				d.ProxyJobs = append(d.ProxyJobs, j.Name)
+			}
+		}
+	}
+	if hosts, err := s.store.ListVMwareHosts(r.Context()); err == nil {
+		for _, h := range hosts {
+			if slices.Contains(h.ExtraProxies, id) {
+				d.FurtherProxyOf = append(d.FurtherProxyOf, h.Name)
 			}
 		}
 	}
@@ -369,10 +405,17 @@ func (s *Server) completeAgentRemoval(ctx context.Context, a Agent, backups, by,
 	if err != nil {
 		return err
 	}
-	if backups == removeAllBackups || len(repos) == 0 {
+	// The parts a further VMware proxy backed up belong to the connection
+	// and stay restorable: such an agent is always kept as history (runs
+	// go with the agent row).
+	if (backups == removeAllBackups || len(repos) == 0) && !s.store.hasConnectionParts(ctx, a.ID) {
 		err = s.store.DeleteAgent(ctx, a.ID)
 	} else {
-		err = s.store.softRemoveAgent(ctx, a.ID)
+		var ended []int64
+		ended, err = s.store.softRemoveAgent(ctx, a.ID)
+		for _, id := range ended {
+			s.chainAfterRun(ctx, id)
+		}
 	}
 	if err != nil {
 		return err
@@ -476,8 +519,8 @@ func deleteRepository(ctx context.Context, be backend.Backend) string {
 	return fmt.Sprintf("repository deleted (%d files)", len(names))
 }
 
-// keepNewestBackups keeps the newest backup of each job (with the database
-// logs it needs), frees the space of the others and returns their IDs.
+// keepNewestBackups keeps the newest backup of each job (of each part of a
+// split VMware job; with the database logs it needs), frees the space of the others and returns their IDs.
 func keepNewestBackups(ctx context.Context, r *repo.Repository) (string, []string) {
 	lock, err := r.Lock(ctx, true, 2*time.Minute)
 	if err != nil {
@@ -490,11 +533,17 @@ func keepNewestBackups(ctx context.Context, r *repo.Repository) (string, []strin
 	}
 	groups := map[string][]*repo.Snapshot{}
 	for _, sn := range sns {
-		key := ""
+		key, part := "", ""
 		for _, t := range sn.Tags {
 			if strings.HasPrefix(t, "job:") {
 				key = t
 			}
+			if strings.HasPrefix(t, "proxy:") {
+				part = t // each part of a split VMware backup holds other VMs
+			}
+		}
+		if key != "" {
+			key += "|" + part
 		}
 		if key == "" { // made without a job (command line)
 			key = sn.Hostname + "\x00" + strings.Join(sn.Paths, "\x00")

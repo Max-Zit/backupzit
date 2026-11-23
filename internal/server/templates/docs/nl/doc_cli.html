@@ -3,7 +3,7 @@
 <p class="lead">De agent werkt ook zelfstandig vanaf de opdrachtregel: voor scripts, voor herstel zonder de console en voor noodgevallen. Voer <code>backupzit-agent</code> zonder argumenten uit voor een overzicht en <code>backupzit-agent &lt;command&gt; -h</code> voor de opties van een opdracht.</p>
 
 <h2>Repository en referenties</h2>
-<p>Elke opdracht accepteert <code>--repo</code> (of <code>BACKUPZIT_REPO</code>). Gebruik voor geheimen bij voorkeur omgevingsvariabelen. De repository van een agent is <code>&lt;opslaglocatie&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — zie de repositorykolom van een uitvoering in Activiteit, of het herstelblad.</p>
+<p>Elke opdracht die back-ups leest of schrijft, accepteert <code>--repo</code> (of <code>BACKUPZIT_REPO</code>); <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> en <code>disks</code> niet. Gebruik voor geheimen bij voorkeur omgevingsvariabelen. De repository van een agent is <code>&lt;opslaglocatie&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — zie het veld <b>Repository</b> op de pagina van de uitvoering, of het herstelblad.</p>
 <table>
   <tr><th>Locatie</th><th>Referenties</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,9 +23,10 @@
   <tr><td><code>init</code></td><td>Maakt een nieuwe repository (versleuteld als een wachtwoord is opgegeven).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Maakt een back-up van bestanden en mappen. <code>--vss</code> leest uit een volumeschaduwkopie (Windows, beheerder); <code>--force</code> leest alle bestanden, ook ongewijzigde.</td></tr>
   <tr><td><code>snapshots</code></td><td>Toont snapshots met tijd, host, grootte en paden.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Toont de bestanden in een snapshot.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Toont alle bestanden in een snapshot.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Herstelt bestanden onder DIR (de oorspronkelijke mapstructuur wordt nagebouwd). <code>--original</code> schrijft ze in plaats daarvan terug naar hun oorspronkelijke locatie en overschrijft bestaande bestanden.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Controleert de structuur van de repository; met <code>--read-data</code> wordt elke byte gedownload en gecontroleerd.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Leest alle gegevens en haalt beschadigde gegevenspakketten uit de index, zodat de volgende back-ups die gegevens opnieuw opslaan; toont de back-ups die de verloren gegevens nodig hebben. <code>--dry-run</code> toont alleen.</td></tr>
 </table>
 
 <h2>Schijfimages (Windows)</h2>
@@ -76,7 +77,7 @@
 <table>
   <tr><th>Opdracht</th><th>Wat het doet</th></tr>
   <tr><td><code>hyperv list</code></td><td>Toont de VM's van de host met hun BackupZit-nummers, en de mappen voor herstelde schijven.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Maakt een back-up van VM's (standaard: alle) vanuit productiecontrolepunten.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Maakt een back-up van VM's (standaard: alle) vanuit herstelcontrolepunten met Resilient Change Tracking (productiecontrolepunten alleen op hosts zonder herstelcontrolepunten).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Herstelt een VM ter plaatse (standaard) of als nieuwe VM met <code>--new</code>. <code>--overwrite</code> vervangt de schijven van een bestaande VM. Zie <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> en <code>pve extract</code> werken ook met Hyper-V-back-ups.</p>
@@ -95,6 +96,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Stopt en verwijdert een directe VM met haar wijzigingen.</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Biedt de schijven van een VM in een back-up alleen-lezen aan via NBD op een Unix-socket (gestart door direct herstel als systemd-unit).</td></tr>
 </table>
+<p><b><code>latest</code> met <code>--vmid</code></b> (opdrachten voor VMware, Hyper-V en Proxmox VE) is de nieuwste snapshot met die gast, niet de nieuwste van de repository, en de opdracht noemt hem (snapshot, host, tijd, gastnaam). Gast-ID's herhalen zich tussen hosts (elke Proxmox VE begint bij 100): hebben verschillend genoemde gasten van meerdere hosts dat ID, dan wordt <code>latest</code> geweigerd; geef het snapshot-ID uit <code>snapshots</code>. <code>pve show latest</code> toont nog steeds de nieuwste snapshot van de repository.</p>
 
 <h2>Microsoft SQL Server (agent op de SQL Server-machine)</h2>
 <table>
@@ -152,7 +154,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>Opgeslagen en verborgen (verwijderde, nog bewaarde) gegevens.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Maakt bestanden die sinds TIME zijn verwijderd weer zichtbaar.</td></tr>
 </table>
-<p>Configuratie: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p>Configuratie: <code>/etc/backupzit-repo/repo.env</code>, of hetzelfde als opties van <code>serve</code>: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code> (opslagmap, standaard <code>/srv/backupzit</code>), <code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code> (sleutels en certificaat, standaard <code>/etc/backupzit-repo</code>), <code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code> (standaard <code>:8500</code>), <code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code> (onveranderlijkheid in dagen, standaard 30) en <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code> (namen en adressen voor het zelfondertekende certificaat). De sleutelcommando's accepteren ook <code>--data</code> en <code>--config-dir</code>.</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> zet Prometheus-metrieken per toegangssleutel aan op <code>/metrics</code> (header <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Beheerserver (<code>backupzit-server</code>)</h2>
@@ -166,9 +168,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Initieel beheerderswachtwoord (alleen bij de eerste start).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Geheimensleutel (base64) in plaats van het bestand <code>secrets.key</code>.</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>Stelt het wachtwoord van <i>admin</i> opnieuw in (activeert hem weer als lokale beheerder) en stopt.</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>Schakelt het aanmelden in twee stappen uit voor een gebruiker die authenticator en herstelcodes kwijt is, meldt hem af, schrijft het in het auditlogboek en stopt.</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Heft de aanmeldblokkade van een adres, of van alle, op (bescherming tegen brute force) en stopt.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Herstelt de console uit een consoleback-up en stopt (zie <a href="/docs/install">Server installeren</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Alleen voor evaluatie: privé-PostgreSQL in de gegevensmap, onversleuteld HTTP op localhost.</td></tr>
+  <tr><td><code>--setup</code></td><td>Het tekstmenu van de appliance (netwerk, servernaam, beheerderswachtwoord); als root.</td></tr>
+  <tr><td><code>--initial-password</code></td><td>Toont het gegenereerde eerste wachtwoord van <i>admin</i> zolang het nog in gebruik is, en stopt.</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>Containerimage: laadt de kopie van de console die vóór een update is gemaakt (een map in <code>pre-upgrade</code> van de gegevensmap) en stopt; voer het uit met het image van de versie waarvan de kopie is gemaakt. <code>list</code> toont de kopieën.</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>Containerimage: stopt met code 0 als de console antwoordt (de healthcheck van het image).</td></tr>
+  <tr><td><code>--apply-update</code></td><td>Installeert een update die in de console is aangevraagd; wordt door de service <code>backupzit-update</code> als root uitgevoerd, niet met de hand.</td></tr>
   <tr><td><code>--version</code></td><td>Toont de versie.</td></tr>
 </table>
 <pre>systemctl status backupzit-server

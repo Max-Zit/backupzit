@@ -88,6 +88,84 @@ func TestStoreAreas(t *testing.T) {
 	check(&img1, orig1) // the first backup is unchanged
 }
 
+func TestStoreAreasBlockSizeTransition(t *testing.T) {
+	ctx := context.Background()
+	be, err := backend.OpenLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const size = 8 * BlockSize
+	disk := &memDisk{b: make([]byte, size)}
+	rng := rand.New(rand.NewSource(25))
+	if _, err := rng.Read(disk.b); err != nil {
+		t.Fatal(err)
+	}
+	old, err := StoreAreas(ctx, r, disk, size, []Area{{0, size}}, nil, 0, "d", "test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if old.Partitions[0].BlockSize != BlockSize {
+		t.Fatalf("initial block size = %d, want %d", old.Partitions[0].BlockSize, BlockSize)
+	}
+	// Back to 1024 KiB too: each change of geometry is a full read.
+	for _, kib := range []int{512, 256, 1024} {
+		if err := r.SetVMBlockSizeKiB(kib); err != nil {
+			t.Fatal(err)
+		}
+		disk.b[3*BlockSize+123] ^= 0xff
+		var read uint64
+		count := func(n uint64) { read += n }
+		next, err := StoreAreas(ctx, r, disk, size, []Area{{3 * BlockSize, 4096}}, &old, 0, "d", "test", count)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if next.Partitions[0].Method != "full" || read != size {
+			t.Fatalf("transition to %d KiB was not a full read: method=%q read=%d of %d", kib, next.Partitions[0].Method, read, size)
+		}
+		if want := uint32(kib << 10); next.Partitions[0].BlockSize != want {
+			t.Fatalf("transition block size = %d, want %d", next.Partitions[0].BlockSize, want)
+		}
+		if err := r.Flush(ctx); err != nil {
+			t.Fatal(err)
+		}
+		out := &memDisk{b: make([]byte, size)}
+		if err := Write(ctx, r, &next, out, true, nil); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(out.b, disk.b) {
+			t.Fatalf("restore after transition to %d KiB differs", kib)
+		}
+		// The next incremental retains the selected geometry and uses only
+		// changed blocks instead of forcing a second full read.
+		disk.b[2*BlockSize+17] ^= 0x55
+		read = 0
+		incremental, err := StoreAreas(ctx, r, disk, size, []Area{{2 * BlockSize, 512}}, &next, 0, "d", "test", count)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if incremental.Partitions[0].Method != "changed-blocks" || read != uint64(kib<<10) {
+			t.Fatalf("same-size incremental: method=%q read=%d, want one %d KiB block", incremental.Partitions[0].Method, read, kib)
+		}
+		if err := r.Flush(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if err := Write(ctx, r, &incremental, out, true, nil); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(out.b, disk.b) {
+			t.Fatalf("restore of the %d KiB incremental differs", kib)
+		}
+		old = incremental
+	}
+}
+
 func TestWriteChanges(t *testing.T) {
 	ctx := context.Background()
 	be, err := backend.OpenLocal(t.TempDir())
@@ -132,5 +210,112 @@ func TestWriteChanges(t *testing.T) {
 	}
 	if !bytes.Equal(replica.b, src.b) {
 		t.Error("replica differs from the source")
+	}
+}
+
+// A disk that grew keeps the earlier blocks: only the changed areas, the
+// earlier short last block and the new space are read.
+func TestStoreAreasGrown(t *testing.T) {
+	ctx := context.Background()
+	be, err := backend.OpenLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const oldSize, size = 4*BlockSize + 4096, 8 * BlockSize
+	disk := &memDisk{b: make([]byte, size)}
+	rng := rand.New(rand.NewSource(2))
+	rng.Read(disk.b[:oldSize])
+	img1, err := StoreAreas(ctx, r, &memDisk{b: disk.b[:oldSize]}, oldSize, []Area{{0, oldSize}}, nil, 0, "d", "test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Grown by the guest: block 1 changed, the rest of block 4 and block 6
+	// were written after the earlier end.
+	rng.Read(disk.b[BlockSize : BlockSize+10])
+	rng.Read(disk.b[oldSize : 5*BlockSize])
+	rng.Read(disk.b[6*BlockSize : 6*BlockSize+10])
+	var read uint64
+	img2, err := StoreAreas(ctx, r, disk, size, []Area{{BlockSize, 10}}, &img1, 0, "d", "test", func(n uint64) { read += n })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if want := uint64(BlockSize + (size - 4*BlockSize)); read != want {
+		t.Errorf("read %d bytes, want %d (changed block + everything from the earlier end)", read, want)
+	}
+	out := &memDisk{b: bytes.Repeat([]byte{0xee}, size)}
+	if err := Write(ctx, r, &img2, out, true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.b, disk.b) {
+		t.Error("restored grown disk differs")
+	}
+	// A disk that shrank cannot reuse the earlier map.
+	if _, err := StoreAreas(ctx, r, &memDisk{b: disk.b[:BlockSize]}, BlockSize, nil, &img2, 0, "d", "test", nil); err == nil {
+		t.Error("shrunk disk: want an error")
+	}
+}
+
+// The same with 256 KiB blocks (PR #24): the earlier end falls inside a
+// small block, and the restore is identical.
+func TestStoreAreasGrownSmallBlocks(t *testing.T) {
+	ctx := context.Background()
+	be, err := backend.OpenLocal(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := repo.Init(ctx, be)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetVMBlockSizeKiB(256); err != nil {
+		t.Fatal(err)
+	}
+	const bs = 256 << 10
+	const oldSize, size = 9*bs + 4096, 20 * bs
+	disk := &memDisk{b: make([]byte, size)}
+	rng := rand.New(rand.NewSource(3))
+	rng.Read(disk.b[:oldSize])
+	img1, err := StoreAreas(ctx, r, &memDisk{b: disk.b[:oldSize]}, oldSize, []Area{{0, oldSize}}, nil, 0, "d", "test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rng.Read(disk.b[2*bs : 2*bs+10])
+	rng.Read(disk.b[oldSize : 10*bs])
+	rng.Read(disk.b[15*bs : 15*bs+10])
+	var read uint64
+	img2, err := StoreAreas(ctx, r, disk, size, []Area{{2 * bs, 10}}, &img1, 0, "d", "test", func(n uint64) { read += n })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// The change lies in the first MiB, which is read whole for the head
+	// (4 blocks of 256 KiB), plus everything from the earlier end.
+	if want := uint64(4*bs + (size - 9*bs)); read != want {
+		t.Errorf("read %d bytes, want %d", read, want)
+	}
+	if img2.Partitions[0].Method != "changed-blocks" || img2.Partitions[0].BlockSize != bs {
+		t.Errorf("method %q block size %d", img2.Partitions[0].Method, img2.Partitions[0].BlockSize)
+	}
+	out := &memDisk{b: bytes.Repeat([]byte{0xee}, size)}
+	if err := Write(ctx, r, &img2, out, true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.b, disk.b) {
+		t.Error("restored grown disk differs")
 	}
 }

@@ -3,7 +3,9 @@
 #  - grows the root file system when the VM disk was enlarged,
 #  - writes the login screen text (/etc/issue).
 # "backupzit-appliance-boot issue" only rewrites the screen text;
-# "backupzit-appliance-boot dns" writes the DNS servers (see sync_dns).
+# "backupzit-appliance-boot dns" writes the DNS servers (see sync_dns);
+# "backupzit-appliance-boot bzadmin" replaces bzadmin's documented initial
+# password (see bzadmin_password).
 
 log() { echo "backupzit-appliance-boot: $*"; }
 
@@ -53,9 +55,44 @@ grow_root() {
     log "root file system now $(df -h / | awk 'NR == 2 { print $2 }')"
 }
 
+# bzadmin_password replaces the documented initial password "backupzit" of
+# the setup account (installs and images up to 0.55) with a random one while
+# nobody has changed it: anyone on the network could otherwise sign in over
+# SSH, set a password at the forced change and use sudo (H-N3). The new one
+# is shown on this screen only (the hypervisor console) until bzadmin
+# changes it, which is still required at the first sign-in.
+bzadmin_password() {
+    bzfile=/var/lib/backupzit/initial-bzadmin-password.txt
+    entry=$(getent shadow bzadmin) || return 0
+    hash=$(echo "$entry" | cut -d: -f2)
+    lastchg=$(echo "$entry" | cut -d: -f3)
+    if [ "$lastchg" != 0 ]; then
+        rm -f "$bzfile" # the administrator set a password
+        return 0
+    fi
+    [ -f "$bzfile" ] && return 0
+    # Only the documented default is replaced.
+    [ "$(perl -e 'print crypt($ARGV[0], $ARGV[1])' backupzit "$hash")" = "$hash" ] || return 0
+    pw=$(head -c 256 /dev/urandom | tr -dc 'abcdefghjkmnpqrstuvwxyz23456789' | head -c 12)
+    [ ${#pw} -eq 12 ] || return 1
+    mkdir -p /var/lib/backupzit
+    (umask 077 && echo "$pw" > "$bzfile.new") && mv "$bzfile.new" "$bzfile" || return 1
+    echo "bzadmin:$pw" | chpasswd || { rm -f "$bzfile"; return 1; }
+    chage -d 0 bzadmin
+    log "bzadmin got a random initial password (shown on the login screen)"
+}
+
 # write_issue shows the console address and how to sign in. The initial
 # password is shown only while the administrator has not changed it.
 write_issue() {
+    bzadmin_password || log "could not set a random initial password for bzadmin"
+    bzfile=/var/lib/backupzit/initial-bzadmin-password.txt
+    if [ -f "$bzfile" ]; then
+        setup="sign in here as bzadmin (initial password: $(cat "$bzfile"),
+                 must be changed)"
+    else
+        setup="sign in here as bzadmin"
+    fi
     pwfile=/var/lib/backupzit/initial-admin-password.txt
     # The console removes the file at its start once the password was
     # changed; give a just started console a moment.
@@ -76,9 +113,8 @@ BackupZit backup appliance - \n
   Web console:   https://\4:8443
   Sign in as:    $signin
 
-  Setup menu:    sign in here as bzadmin (initial password: backupzit,
-                 must be changed) - network, server name, time zone,
-                 admin password
+  Setup menu:    $setup - network, server name,
+                 time zone, admin password
 
 ISSUE
 }
@@ -111,6 +147,7 @@ sync_dns() {
 
 case "$1" in
 issue) write_issue ;;
+bzadmin) bzadmin_password ;;
 dns) sync_dns ;;
 *)
     grow_root || log "growing the root file system failed"

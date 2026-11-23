@@ -3,35 +3,39 @@
 <p class="lead">Dobijte email kada bekap ne uspe, i dnevni pregled svakog jutra.</p>
 
 <h2>Podešavanje emaila</h2>
-<p>U <a href="/settings/email">Podešavanja → Email obaveštenja</a>:</p>
+<p>U <a href="/settings/email">Podešavanja → Email obaveštenja</a> označite <b>Šalji email obaveštenja</b> (bez toga se ne šalje nijedan email) i popunite:</p>
 <table>
   <tr><th>Polje</th><th>Primer</th></tr>
   <tr><td>SMTP server / port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, interni relej / 25</td></tr>
-  <tr><td>Bezbednost</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) ili bez (samo interni relej)</td></tr>
-  <tr><td>Korisnik / lozinka</td><td>Sanduče koje šalje; ostavite prazno za anonimni relej. Microsoft 365 i Gmail traže lozinku za aplikaciju (app password).</td></tr>
-  <tr><td>Pošiljalac</td><td><code>backup@example.com</code></td></tr>
-  <tr><td>Primaoci</td><td>Jedna ili više adresa, odvojenih zarezom.</td></tr>
+  <tr><td>Bezbednost</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) ili <b>Bez</b> (samo interni relej bez prijave: korisničko ime i lozinka se nikada ne šalju nešifrovani)</td></tr>
+  <tr><td>Korisničko ime / Lozinka</td><td>Sanduče koje šalje; ostavite prazno za relej bez prijave. Gmail traži lozinku za aplikaciju (app password); za Microsoft 365, gde se osnovna (basic) SMTP prijava ukida, SMTP relej ili konektor je sigurniji izbor.</td></tr>
+  <tr><td>Od</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Za</td><td>Jedna ili više adresa, odvojenih zarezom.</td></tr>
 </table>
-<p>Koristite <b>Pošalji test email</b> da proverite podešavanja. Emailovi, poruke u chat-u i izveštaji se pišu na jeziku izabranom u istoj formi (podrazumevano jezik konzole u trenutku čuvanja podešavanja).</p>
+<p>Koristite <b>Pošalji test email</b> da proverite podešavanja, pa kliknite <b>Sačuvaj</b> (test ih ne čuva). Emailovi, poruke u chat-u i izveštaji se pišu na jeziku izabranom u istoj formi (podrazumevano jezik konzole u trenutku čuvanja podešavanja).</p>
 
 <h2>Šta se šalje</h2>
 <ul>
   <li><b>Neuspesi</b> (preporučeno) — jedan email po neuspelom pokretanju sa razlogom: bekapi, kopije, vraćanja i neuspeli <b>testovi vraćanja</b>. Uz ovu opciju dobijate i upozorenje <b>SUSPICIOUS</b> kada bekap liči na ransomware ili masovno brisanje.</li>
   <li><b>Upozorenja</b> — pokretanja u kojima neki fajlovi nisu mogli da se pročitaju.</li>
   <li><b>Uspesi</b> — svako uspešno pokretanje (obično previše; bolje dnevni izveštaj).</li>
-  <li><b>Dnevni izveštaj</b> — u izabrani sat: pokretanja u poslednja 24 sata, problemi i agenti van mreže. Naslov počinje sa <i>OK</i>, <i>WARNINGS</i> ili <i>ATTENTION</i>, pa pravila za poštu mogu da ih razvrstaju.</li>
+  <li><b>Dnevni izveštaj</b> — u izabrani sat: pokretanja u poslednja 24 sata, problemi i agenti van mreže. Naslov se završava sa <i>OK</i>, <i>UPOZORENJA</i> ili <i>PAŽNJA</i> (npr. <code>[BackupZit] Dnevni izveštaj 2026-11-17: OK</code>), pa pravila za poštu mogu da ih razvrstaju.</li>
 </ul>
 <p>Kada je uključeno <b>Neuspesi</b>, prijavljuje se i posao koji propusti svoju ciljnu tačku oporavka (RPO) — jednom, i ponovo tek ako je u međuvremenu bila ispunjena. Izvršavanja koja je zaustavio korisnik (status <i>otkazano</i>) ne šalju email o neuspehu; izvršavanje zaustavljeno zbog vremenskog ograničenja ga šalje.</p>
+<h3 id="mail-filters">Jedan mejl po poslu i filteri za poštu</h3>
+<p>Uključite i <b>Uspesi</b> da dobijate po jedan mejl za svako završeno izvršavanje svakog posla, sa poslom i računarom u naslovu, umesto samo dnevnog pregleda. Za jedan pregled po poslu napravite <a href="/docs/monitoring">zakazani izveštaj</a> za taj posao. Naslov je napisan na jeziku mejlova, pa za pravila u pošti svaki mejl o izvršavanju nosi i zaglavlja koja se ne menjaju sa jezikom: <code>X-BackupZit-Status</code> (<code>success</code>, <code>warning</code> ili <code>failed</code>), <code>X-BackupZit-Job</code>, <code>X-BackupZit-Agent</code> (ime prikazano u konzoli), <code>X-BackupZit-Host</code> (ime koje računar javlja), <code>X-BackupZit-Kind</code> i <code>X-BackupZit-Run</code>. Bekap koji liči na ransomware nosi i <code>X-BackupZit-Suspicious: yes</code> — pazite da ga pravila koja sklanjaju uspešna izvršavanja ne sakriju.</p>
 <p>Nezavisno od ovih opcija, primaoci obaveštenja dobijaju email i kada:</p>
 <ul>
   <li>izmena čeka odobrenje drugog korisnika (odobrenje u četiri oka);</li>
   <li>dve mašine koriste istu registraciju agenta;</li>
   <li>je audit log izmenjen;</li>
   <li>bekap same konzole nije uspeo;</li>
-  <li>obnova HTTPS sertifikata za browsere nije uspela;</li>
+  <li>obnova HTTPS sertifikata za browsere nije uspela ili otpremljeni sertifikat ističe u roku od 21 dana;</li>
+  <li>je dostupna nova verzija BackupZit-a (može da se isključi u Podešavanja → Ažuriranja) ili ažuriranje konzole nije uspelo;</li>
   <li>je adresa blokirana posle previše neuspešnih prijava (može da se isključi u zaštiti od pogađanja lozinki).</li>
 </ul>
 <p>Za nedeljne ili mesečne preglede koristite <a href="/docs/monitoring">zakazane izveštaje</a>; šalju se sa istim podešavanjima pošte i imaju svoje primaoce. Naslovi počinju sa <code>[BackupZit]</code>, pa pravila za poštu mogu da ih razvrstaju. SMTP lozinka se čuva šifrovana. Linkovi u mejlovima, porukama u chat-u i izveštajima vode na konzolu na adresi sa koje je otvarate u pregledaču (ili na adresi podešenoj sa <code>--public-url</code>).</p>
+<p>Kada je uključen HTTPS web port sa pouzdanim sertifikatom (Settings → Certificate), linkovi u mejlovima, chat porukama i izveštajima koriste njegovu adresu, i kada port 8443 služi samo agentima.</p>
 
 <h2>Slack, Microsoft Teams i webhook-ovi</h2>
 <p>U <a href="/settings/chat">Podešavanja → Chat i webhook-ovi</a> dodajte bilo koliko kanala; svaki bira da li dobija neuspehe, upozorenja i uspehe. Neobični bekapi (mogući ransomware) računaju se kao neuspesi. <b>Pošalji test</b> odmah proverava kanal.</p>
@@ -48,6 +52,6 @@
  "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
  "url": "https://backup.example/runs/412"}</pre>
 <p><code>duration_s</code> je trajanje pokretanja u sekundama. Kod backup-a su <code>files</code> i <code>bytes</code> veličina onoga što je bekapovano, <code>bytes_read</code> koliko je pročitano, a <code>bytes_stored</code> koliko je poslato na storage; <code>snapshot</code> je ID novog backup-a.</p>
-<p>Poruke se šalju jednom po pokretanju, i kada je email isključen. Kanal koji ne radi (pogrešan URL, servis nedostupan) beleži se u logu konzole i ne zadržava ostale. URL-ovi webhook-ova se čuvaju šifrovani.</p>
+<p>Posao koji propusti svoju ciljnu tačku oporavka šalje <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code>; prazna polja (kao <code>suspicious</code> ili posao kod pokretanja koje ga nema) se izostavljaju. Slack i Teams URL-ovi moraju da koriste https://. Poruke se šalju jednom po pokretanju, i kada je email isključen. Kanal koji ne radi (pogrešan URL, servis nedostupan) beleži se u logu konzole i ne zadržava ostale. URL-ovi webhook-ova se čuvaju šifrovani.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

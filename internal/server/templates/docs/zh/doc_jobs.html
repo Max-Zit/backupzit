@@ -11,13 +11,13 @@
       <li><b>文件和文件夹</b>——每行一个路径，按代理上的路径填写，例如 <code>C:\Users</code>、<code>D:\Data</code>、<code>/home</code>、<code>/etc</code>。</li>
       <li><b>磁盘映像</b>——整个磁盘或选定分区，可还原到空磁盘或新硬件。参见 <a href="/docs/images">磁盘映像</a>。</li>
       <li><b>Linux 系统</b>——Linux 机器的所有文件系统和磁盘布局，可还原到空磁盘或作为 Proxmox 虚拟机。参见 <a href="/docs/linux-system">Linux 系统备份</a>。</li>
-      <li><b>虚拟机（Proxmox VE、Hyper-V、VMware）</b>——虚拟化主机的虚拟机（以及 Proxmox 容器），客户机内无需代理：由 Proxmox 或 Hyper-V 主机上的代理备份，VMware ESXi 则由该主机的代理服务器代理备份（在代理列表中选择 ESXi 主机）。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。</li>
+      <li><b>虚拟机（Proxmox VE、Hyper-V、VMware）</b>——虚拟化主机的虚拟机（以及 Proxmox 容器），客户机内无需代理：由 Proxmox 或 Hyper-V 主机上的代理备份，VMware ESXi 则由该主机的备份代理备份（在代理列表中选择 ESXi 主机）。参见 <a href="/docs/proxmox">Proxmox VE</a>、<a href="/docs/hyperv">Hyper-V</a> 和 <a href="/docs/vmware">VMware ESXi</a>。</li>
       <li><b>数据库</b>——代理所在机器上的 SQL Server、PostgreSQL 或 MySQL/MariaDB，带有日志备份，可还原到任意时刻。参见 <a href="/docs/sql">数据库</a>。</li>
       <li><b>NAS / 文件共享</b>——由代理读取的 SMB 或 NFS 共享；参见<a href="#nas">下文</a>。</li>
       <li><b>Microsoft 365</b>——Exchange Online 邮箱、日历、联系人、OneDrive 和 SharePoint 网站，由任意代理通过 Microsoft Graph 读取；参见 <a href="/docs/m365">Microsoft 365</a>。</li>
     </ul>
   </li>
-  <li>可选添加<b>排除项</b>，每行一个：名称模式，适用于每个文件夹（<code>*.tmp</code>、<code>node_modules</code>、<code>Thumbs.db</code>、<code>*.iso</code>），或完整路径，仅适用于该文件或文件夹（<code>C:\Data\Temp</code>、<code>/srv/www/cache</code>，也可使用通配符：<code>D:\VMs\*.iso</code>）。在 Windows 上，完整路径不区分大小写。</li>
+  <li>可选添加<b>排除项</b>，每行一个：名称模式，适用于每个文件夹（<code>*.tmp</code>、<code>node_modules</code>、<code>Thumbs.db</code>、<code>*.iso</code>），或完整路径，仅适用于该文件或文件夹（<code>C:\Data\Temp</code>、<code>/srv/www/cache</code>，也可使用通配符：<code>D:\VMs\*.iso</code>）。在 Windows 上，完整路径不区分大小写。在 Linux 上，<code>/proc</code>、<code>/sys</code> 和 <code>/dev</code> 等内核文件系统始终保存为空文件夹，即使作业备份的是 <code>/</code>。</li>
   <li>设置<b>保留备份</b>和<b>计划</b>，然后点击<i>创建作业</i>。</li>
 </ol>
 
@@ -41,14 +41,14 @@
 <p>每次运行时，代理都会连接共享——Windows 代理通过其 UNC 路径（<code>\\nas01\data</code>，仅 SMB），Linux 代理以只读方式挂载到 <code>/mnt/backupzit-nas</code> 下（SMB 需要 <code>cifs-utils</code>，NFS 需要 <code>nfs-common</code> 或 <code>nfs-utils</code>；Proxmox VE 两者都有）——之后断开连接。这些备份是普通的文件备份：经过重复数据删除且为增量，支持保留、复制作业、还原测试、浏览和文件还原。<b>还原到原位置</b>会以可写方式重新连接共享并将文件写回；也可以还原到任意代理上的文件夹或下载。</p>
 
 <h2>打开和锁定的文件（VSS）</h2>
-<p>在 Windows 上，代理使用<b>卷影复制服务</b>：它为卷创建一致的时间点快照并从中备份，因此打开的文件（Outlook PST、数据库、正在编辑的文档）都能一致地备份。支持 VSS 的应用程序（例如 SQL Server）会在创建快照前将数据刷新到磁盘。</p>
+<p>在 Windows 上，代理使用<b>卷影复制服务</b>：它为卷创建一致的时间点快照并从中备份，因此打开的文件（Outlook PST、数据库、正在编辑的文档）都能一致地备份。支持 VSS 的应用程序（例如 SQL Server）会在创建快照前将数据刷新到磁盘。文件夹位于多个卷（C: 和 D:）上的作业会在同一时刻一起为它们创建快照；只有 VSS 无法做到时，才会为每个卷分别创建快照，并且运行会发出警告。</p>
 
 <h2>计划</h2>
 <table>
   <tr><th>选项</th><th>示例</th></tr>
   <tr><td><b>在指定时间</b></td><td>每个工作日 22:00；或每天 12:00 和 18:00。在勾选的日期中每天最多三次。</td></tr>
   <tr><td><b>重复运行</b></td><td>周一至周五 08:00 到 18:00 之间每 2 小时一次。间隔从 15 分钟到 12 小时。</td></tr>
-  <tr><td><b>每月一次</b></td><td>每月 1 日 23:00。</td></tr>
+  <tr><td><b>每月一次</b></td><td>每月 1 日 23:00（可选 1 日到 28 日中的任意一天）。</td></tr>
   <tr><td><b>仅手动</b></td><td>仅在点击<i>立即运行备份</i>时运行。</td></tr>
   <tr><td><b>在另一个作业之后</b></td><td>先数据库，再文件服务器：所选作业成功完成后立即开始本作业——勾选<i>即使该作业失败也运行</i>时，则在任何结果之后开始。链可以更长（A → B → C）；作业不能在其自身之后运行，也不能形成循环。</td></tr>
 </table>
@@ -68,7 +68,7 @@
   <li><b>每周</b>——最近 N 周中每周最新的备份。</li>
   <li><b>每月</b>——最近 N 个月中每月最新的备份。</li>
 </ul>
-<p>示例：3 个最新、7 个每日、4 个每周、6 个每月，可保留约半年的历史，约 20 个还原点。每次成功运行后，不再被选中的快照会被删除（在“活动”中显示为<i>已过期</i>），不再被任何快照使用的数据会从存储中删除。全部为零则保留一切。</p>
+<p>示例：3 个最新、7 个每日、4 个每周、6 个每月，可保留约半年的历史，约 20 个还原点。每次成功运行后，不再被选中的快照会被删除（在“活动”中显示为<i>已过期</i>），不再被任何快照使用的数据会从存储中删除。仍包含部分在用数据的包会被重写为只含这些数据，在对象存储上会同时处理多个；重试后仍无法读取的包会保持原样，运行以警告结束，下一次运行会再次尝试。如果保留根本无法运行（无法列出或锁定存储库），运行同样以警告结束（0.58）。全部为零则保留一切。</p>
 <div class="callout"><p>得益于重复数据删除，长期保留的成本很低：未更改的数据无论被多少快照引用，都只存储一次。</p></div>
 
 <h2>备份复制作业（3-2-1）</h2>
@@ -77,8 +77,8 @@
   <li>由源作业的代理执行复制；受保护的机器<b>不会被再次读取</b>。</li>
   <li>只传输目标中尚不存在的数据，并使用目标的密钥重新加密。</li>
   <li>计划<b>在源作业每次备份后</b>（默认）使副本保持最新；任何普通计划也可以，例如网络较慢时每晚一次。</li>
-  <li>副本有自己的保留策略，例如 NAS 上保留 7 个每日备份，云中保留 12 个每月备份。</li>
-  <li>复制的文件备份和虚拟机备份（Proxmox VE、Hyper-V、VMware）与原始备份一样，可从复制运行的页面或<a href="/restore">还原向导</a>还原——整个虚拟机、虚拟机磁盘中的单个文件以及 Proxmox 即时恢复。由早于 0.29 的代理复制的虚拟机备份无法以这种方式还原；使用较新代理的下一次复制运行会使其最新副本可还原。磁盘映像的副本使用命令行代理还原。</li>
+  <li>副本有自己的保留策略，例如 NAS 上保留 7 个每日备份，云中保留 12 个每月备份。只复制此保留策略会保留的备份：源中有 30 个每日备份、副本保留 12 个每月备份时，只复制每个月最新的备份，其余的不会在每次运行时重新复制。</li>
+  <li>复制的文件备份和虚拟机备份（Proxmox VE、Hyper-V、VMware）与原始备份一样，可从复制运行的页面或<a href="/restore">还原向导</a>还原——整个虚拟机、虚拟机磁盘中的单个文件以及 Proxmox 即时恢复。由早于 0.29 的代理复制的虚拟机备份无法以这种方式还原；使用较新代理的下一次复制运行会使其最新副本可还原。复制的 Microsoft 365 备份也以同样方式还原。磁盘映像、Linux 系统备份和数据库备份的副本使用命令行代理还原。</li>
 </ul>
 
 <h2>更改作业</h2>
@@ -91,7 +91,7 @@
 <p>在作业表单的<b>高级</b>中，<b>将上传速度限制为</b>限制代理向存储发送数据的速度（MB/s）——例如 08:00 至 18:00 限制为 10 MB/s，使工作时间的备份不影响办公室线路的使用；在该时间段之外，作业以全速运行。时间为代理的本地时间，时间段可以跨越午夜（22:00 至 06:00）。该限制适用于备份和复制作业（上传到第二个存储），不适用于还原：还原始终以全速运行。</p>
 
 <h2 id="compression">压缩和重复数据删除</h2>
-<p>每次备份都会进行重复数据删除：存储库中已有的数据——来自同一作业的早期备份，或同一存储目标上的其他作业——不会再次存储。新数据随后使用 zstd 压缩；无法变小的部分（视频、压缩包、加密文件）按原样存储。加密在压缩之后进行。</p>
+<p>每次备份都会进行重复数据删除：存储库中已有的数据——来自同一作业的早期备份，或同一代理在同一存储目标上的其他作业——不会再次存储。每个代理都有自己的存储库（VMware 主机、Hyper-V 群集和 Microsoft 365 租户也是如此），因此不同计算机之间不进行重复数据删除。新数据随后使用 zstd 压缩；无法变小的部分（视频、压缩包、加密文件）按原样存储。加密在压缩之后进行。</p>
 <p>压缩级别是作业设置（<b>编辑 → 高级</b>）：</p>
 <table>
   <tr><th>级别</th><th>适用场景</th></tr>
@@ -102,6 +102,10 @@
 </table>
 <p>该级别从下次运行开始应用于新数据；现有备份保持不变，还原也从不依赖它。运行页面显示结果：新数据的压缩比（例如 <i>2.4×</i>）以及读取的数据中有多少已经存储过（重复数据删除）。</p>
 
+<p><b>虚拟机去重块大小</b>(编辑 → 高级)可为 Hyper-V、Proxmox VE 和 VMware 上的虚拟磁盘选择 256 KiB、512 KiB 或 1 MiB(原有默认值)。较小的块可能改善去重效果,但元数据更多。选择较小的大小之前,请先更新代理。每个镜像记录自己的块大小:旧备份仍可恢复;更改后,每个磁盘会先完整读取一次,然后再继续基于更改块的增量备份。不会改写旧备份,也不改变文件备份的分块方式。</p>
+
+<p>命令行:在 <code>hyperv backup</code>、<code>pve backup</code> 和 <code>vmware backup</code> 中使用 <code>--block-size-kib 256</code>、<code>512</code> 或 <code>1024</code>。</p>
+
 <h2>备份前后的命令</h2>
 <p>管理员可以让作业在每次备份前后在代理上运行命令——例如数据库转储、为获得一致副本而停止服务，或发送通知：</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
@@ -110,7 +114,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>命令以代理的服务帐户（Linux 上为 root，Windows 上为 SYSTEM）通过 <code>sh</code> 或 <code>cmd</code> 运行；允许多行。只有<b>管理员</b>可以查看和更改——否则备份操作员就能在每台机器上运行任意命令。</li>
   <li>如果<b>之前</b>的命令失败（退出代码不为 0）或运行时间超过时间限制（默认 30 分钟），则不运行备份，运行会失败并显示命令的输出。</li>
   <li><b>之后</b>的命令在备份失败时也会运行，以便重新启动第一个命令停止的内容。备份后的命令失败会使运行变为警告。</li>
-  <li>两者都会获得 <code>BACKUPZIT_STAGE</code>（pre 或 post）、<code>BACKUPZIT_JOB</code>、<code>BACKUPZIT_JOB_ID</code>、<code>BACKUPZIT_RUN_ID</code>，备份后还有 <code>BACKUPZIT_STATUS</code>（success、warning 或 failed）。</li>
+  <li>两者都会获得 <code>BACKUPZIT_STAGE</code>（pre 或 post）、<code>BACKUPZIT_JOB</code>、<code>BACKUPZIT_JOB_ID</code>、<code>BACKUPZIT_RUN_ID</code>，备份后还有 <code>BACKUPZIT_STATUS</code>（success、warning 或 failed）。它们在只有服务帐户可以更改的文件夹中运行（<code>C:\ProgramData\backupzit\commands</code>、<code>/var/lib/backupzit-agent/commands</code>）；请为您自己的文件使用完整路径。</li>
   <li>运行页面会显示每个命令的结果和输出，命令成功时也会显示。</li>
   <li>对于虚拟机作业，命令在虚拟化主机（或 VMware 代理服务器）上运行，而不是在虚拟机内运行。复制作业没有命令。</li>
 </ul>
@@ -120,7 +124,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>立即运行备份</b>（复制作业为<b>立即复制</b>）会立即将作业加入队列。</li>
   <li><b>测试还原</b>会还原最新备份的随机样本并进行验证（参见 <a href="/docs/restore">还原</a>）。</li>
   <li><b>禁用</b>会暂停计划而不丢失作业（启用四眼审批时，需要第二个用户批准）。</li>
-  <li><b>删除</b>会移除作业；现有备份保留在存储上，仍可从“活动”中还原。</li>
+  <li><b>删除</b>会移除作业（启用四眼审批时，需在第二个用户批准后）；现有备份保留在存储上，仍可从“活动”中还原。该作业的复制作业会随之删除；它们的副本保留在各自的存储上。</li>
 </ul>
 
 <h2>停止运行</h2>
@@ -133,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>备份运行报告的内容</h2>
 <p>在 <a href="/runs">活动</a> 中打开一次运行：文件数量、新增/更改的文件、读取的数据、上传的新数据（经过重复数据删除和压缩后，附带压缩比和已存储的比例——参见<a href="#compression">压缩</a>）、持续时间以及无法读取的文件。包含无法读取文件的运行以<b>警告</b>状态结束——其余数据已备份。</p>
+<p>某个客户机(重试后仍)未能备份的虚拟机备份会以<i>失败</i>结束并列出该客户机,避免它淹没在警告中;其他客户机会保留并可恢复,同时跳过保留策略,因此该客户机较早的恢复点会保留。</p>
 {{template "docpager" .}}
 </article></div>{{end}}

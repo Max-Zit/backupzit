@@ -2,14 +2,18 @@ package pve
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/max-zit/backupzit/internal/diskimg"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmlock"
 )
 
 // Replication keeps a stopped copy of a guest (the replica) up to date from
@@ -49,6 +53,25 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 	if err != nil {
 		return nil, err
 	}
+	for _, d := range g.Disks {
+		if d.Path != "" {
+			// Updating a replica compares disk blocks; these volumes are files.
+			return nil, fmt.Errorf("container %d is backed up as files (ZFS subvolume %s): replicas of such containers are not supported yet; restore it instead", g.VMID, d.Key)
+		}
+	}
+	// The update writes the replica's disks: not while a backup of the
+	// replica (a job over all guests) holds its snapshot (M-13). Taken
+	// before the guest list is read, so a replica started during the wait
+	// is seen as running.
+	unlockVM := func() {}
+	defer func() { unlockVM() }()
+	if opts.ReplicaVMID > 0 {
+		unlock, err := vmlock.Lock(ctx, vmLockKey(opts.ReplicaVMID))
+		if err != nil {
+			return nil, err
+		}
+		unlockVM = unlock
+	}
 	inv, err := GetInventory(ctx)
 	if err != nil {
 		return nil, err
@@ -69,6 +92,9 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 			res.Notes = append(res.Notes, fmt.Sprintf("replica %d did not exist and was created again", opts.ReplicaVMID))
 		}
 		opts.Log("creating replica", "vmid", g.VMID)
+		// Restore locks the new guest itself (vmlock is not reentrant).
+		unlockVM()
+		unlockVM = func() {}
 		rr, err := Restore(ctx, r, sn, RestoreOptions{VMID: g.VMID, NewVMID: newID, Name: res.Name, Storage: opts.Storage, Progress: opts.Progress, Log: opts.Log})
 		if err != nil {
 			return nil, err
@@ -130,6 +156,20 @@ func Replicate(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts 
 	}
 	if prevGuest == nil {
 		res.Notes = append(res.Notes, "the backup the replica holds is no longer available: all blocks were compared by writing them")
+	} else if why := replicaDiverged(ctx, conf, opts.Prev.ID.String(), g.Type, existing.VMID); why != "" {
+		opts.Log("comparing all blocks of the replica", "replica", existing.VMID, "why", why)
+		prevGuest = nil
+		res.Notes = append(res.Notes, why+": all blocks were compared by writing them")
+	}
+	// The state token says the disks hold the backup named in it. It goes
+	// before the first write and comes back (markReplica) only once every
+	// disk is written: an update cut short by an agent or node crash leaves
+	// disks that hold parts of two backups, and the next update must then
+	// compare every block (L-N21).
+	if stateToken.MatchString(conf) {
+		if err := os.WriteFile(p, []byte(stateToken.ReplaceAllString(conf, "")), 0o640); err != nil { // #nosec G306 G703 -- p is configPath: the Proxmox folder and a guest number; 0640 as Proxmox writes it
+			return res, fmt.Errorf("replica %d: clear its state before the update: %w", existing.VMID, err)
+		}
 	}
 	var total, done uint64
 	for _, d := range g.Disks {
@@ -211,7 +251,8 @@ func markReplica(g *repo.Guest, vmid int, sn *repo.Snapshot) error {
 	}
 	var out strings.Builder
 	out.WriteString("description: " + replicaMarker(g.VMID) + " (" + g.Name + "), updated from the backup of " +
-		sn.Time.Local().Format("2006-01-02 15:04") + ". Start it only if the original is lost; replication pauses while it runs.\n")
+		sn.Time.Local().Format("2006-01-02 15:04") + ". Start it only if the original is lost; replication pauses while it runs. " +
+		replicaState(sn.ID.String(), time.Now()) + "\n")
 	for _, l := range strings.SplitAfter(string(b), "\n") {
 		if strings.HasPrefix(l, "description:") || strings.HasPrefix(l, "#") || strings.HasPrefix(l, "onboot:") {
 			continue
@@ -235,8 +276,80 @@ func StartReplica(ctx context.Context, replicaVMID, vmid int) error {
 		if !strings.Contains(string(b), replicaMarker(vmid)) {
 			return fmt.Errorf("guest %d is not the replica of guest %d", replicaVMID, vmid)
 		}
+		// Once started, its disks no longer hold the backup: the next update
+		// compares every block.
+		if err := os.WriteFile(p, []byte(stateToken.ReplaceAllString(string(b), "")), 0o640); err != nil { // #nosec G306 G703 -- p is configPath: the Proxmox folder and a guest number; 0640 as Proxmox writes it
+			return err
+		}
 		_, err = command(ctx, guestTool(typ), "start", strconv.Itoa(replicaVMID))
 		return err
 	}
 	return errors.New("replica " + strconv.Itoa(replicaVMID) + " does not exist on this node")
+}
+
+// stateToken records in a replica's description which backup it holds and
+// when it was written. A started replica loses it (StartReplica), and so
+// does one while an update writes its disks (Replicate), so the next update
+// compares every block instead of only the changed ones.
+var stateToken = regexp.MustCompile(` ?\[BackupZit state [0-9a-f]+ [0-9]+\]`)
+
+func replicaState(snapshotID string, at time.Time) string {
+	return fmt.Sprintf("[BackupZit state %s %d]", snapshotID, at.Unix())
+}
+
+// replicaDiverged tells why a replica's disks may no longer hold the backup
+// prevID ("" when they do): the state token is missing (started through
+// BackupZit, an update cut short, or written by an older version) or names
+// another backup, or Proxmox VE started the guest since (for example in its
+// web interface), or its task log cannot tell.
+func replicaDiverged(ctx context.Context, conf, prevID, typ string, vmid int) string {
+	var id string
+	var at int64
+	if m := stateToken.FindString(conf); m != "" {
+		_, _ = fmt.Sscanf(strings.TrimSpace(m), "[BackupZit state %s %d]", &id, &at)
+	}
+	if id != prevID || at == 0 {
+		return "the replica may have been started since its last update"
+	}
+	started, err := startedSince(ctx, typ, vmid, at)
+	if err != nil {
+		// Fail closed: a start in the web interface would go unseen, and
+		// only the changes would be written over the diverged disks (L-N8).
+		return "the Proxmox VE task log could not be read (" + err.Error() + "), so the replica may have been started since its last update"
+	}
+	if started != "" {
+		return "the replica was started " + started + " since its last update"
+	}
+	return ""
+}
+
+// startedSince finds a start task of the guest in the Proxmox VE task log
+// after the given time (Unix seconds): "" when there is none, an error when
+// the log could not be read.
+func startedSince(ctx context.Context, typ string, vmid int, since int64) (string, error) {
+	filter := "qmstart"
+	if typ == "lxc" {
+		filter = "vzstart"
+	}
+	out, err := command(ctx, "pvesh", "get", "/nodes/"+LocalNode()+"/tasks", "--vmid", strconv.Itoa(vmid),
+		"--typefilter", filter, "--since", strconv.FormatInt(since, 10), "--limit", "1", "--output-format", "json")
+	if err != nil {
+		return "", err
+	}
+	var tasks []struct {
+		Start int64 `json:"starttime"`
+	}
+	if err := json.Unmarshal(out, &tasks); err != nil {
+		return "", fmt.Errorf("unexpected task list: %w", err)
+	}
+	if len(tasks) == 0 {
+		return "", nil
+	}
+	if tasks[0].Start == 0 {
+		return "", errors.New("unexpected task list: a task without a start time")
+	}
+	if tasks[0].Start < since {
+		return "", nil
+	}
+	return "on " + time.Unix(tasks[0].Start, 0).Local().Format("2006-01-02 15:04"), nil
 }

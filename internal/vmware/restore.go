@@ -12,6 +12,7 @@ import (
 
 	"github.com/max-zit/backupzit/internal/diskimg"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmlock"
 )
 
 // RestoreOptions choose where and how a VM is restored.
@@ -316,6 +317,17 @@ func checkNetworks(v *vmx, nets []string) []string {
 // are kept renamed (.replaced-…).
 func (c *Client) restoreInPlace(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, g *repo.Guest, cfg guestConfig, vm VM,
 	opts RestoreOptions, progress func(uint64)) (*RestoreResult, error) {
+	// The restore turns the VM off and deletes all its snapshots: not while
+	// a backup of the VM on this agent holds its snapshot (M-13). The VM's
+	// state is read again after the wait.
+	unlockVM, err := vmlock.Lock(ctx, c.vmLockKey(vm.UUID))
+	if err != nil {
+		return nil, err
+	}
+	defer unlockVM()
+	if vm, err = c.vm(ctx, vm.Ref); err != nil {
+		return nil, err
+	}
 	res := &RestoreResult{Name: vm.Name, MoID: vm.MoID, VMX: vm.VMX}
 	cur := map[string]Disk{}
 	for _, d := range vm.Disks {
@@ -337,7 +349,6 @@ func (c *Client) restoreInPlace(ctx context.Context, r *repo.Repository, sn *rep
 		if err := c.removeAllSnapshots(ctx, vm.MoID); err != nil {
 			return nil, fmt.Errorf("delete snapshots: %w", err)
 		}
-		var err error
 		if vm, err = c.vm(ctx, vm.Ref); err != nil {
 			return nil, err
 		}

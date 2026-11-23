@@ -1,6 +1,9 @@
 #!/bin/sh
 # First start of the BackupZit appliance: database, configuration, console.
 set -e
+# A random initial password for bzadmin before SSH can answer (the image
+# was built with the documented one).
+/usr/local/sbin/backupzit-appliance-boot bzadmin || true
 # VM images ship without SSH host keys: every copy gets its own.
 if ! ls /etc/ssh/ssh_host_*_key >/dev/null 2>&1; then
     ssh-keygen -A
@@ -16,11 +19,19 @@ for i in $(seq 120); do
 done
 DB_PASS=$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)
 systemctl start postgresql
-su postgres -c "psql -qc \"CREATE USER backupzit PASSWORD '$DB_PASS';\"" 2>/dev/null ||
-    su postgres -c "psql -qc \"ALTER USER backupzit PASSWORD '$DB_PASS';\""
+# The password stays out of the process list: the SQL goes to psql on
+# stdin (printf is a shell builtin) and the URL reaches awk through its
+# environment. ON_ERROR_STOP makes psql fail on an existing user, as -c did.
+pg_sql() { printf '%s\n' "$1" | su postgres -c "psql -X -q -v ON_ERROR_STOP=1"; }
+pg_sql "CREATE USER backupzit PASSWORD '$DB_PASS';" 2>/dev/null ||
+    pg_sql "ALTER USER backupzit PASSWORD '$DB_PASS';"
 su postgres -c "createdb -O backupzit backupzit" 2>/dev/null || true
 ENV=/etc/backupzit/server.env
-sed -i "s#^BACKUPZIT_DB=.*#BACKUPZIT_DB=postgres://backupzit:$DB_PASS@localhost:5432/backupzit?sslmode=disable#" $ENV
+tmp=$(mktemp)
+DB_URL="postgres://backupzit:$DB_PASS@localhost:5432/backupzit?sslmode=disable" \
+    awk '/^BACKUPZIT_DB=/ { print "BACKUPZIT_DB=" ENVIRON["DB_URL"]; next } { print }' $ENV > "$tmp"
+cat "$tmp" > $ENV
+rm -f "$tmp"
 # The certificate names the server; agents pin it, browsers show a warning
 # until a trusted certificate is set up under Settings → Certificate.
 grep -q '^BACKUPZIT_TLS_HOSTS=' $ENV || echo "BACKUPZIT_TLS_HOSTS=${IP:+$IP,}$(hostname -f)" >> $ENV

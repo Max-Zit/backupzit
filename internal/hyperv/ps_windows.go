@@ -32,5 +32,11 @@ var ps = func(ctx context.Context, script string) ([]byte, error) {
 	return []byte(winenc.Text(out)), nil
 }
 
-// psq quotes a value for a single-quoted PowerShell string.
-func psq(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
+// psq quotes a value for a single-quoted PowerShell string. PowerShell ends
+// such a string at any of five quote characters, the ASCII one and the
+// typographic ‘ ’ ‚ ‛, and each is escaped by doubling it: with only
+// the ASCII one doubled, a VM name like "x’; <command>; ’" ran the command
+// on the Hyper-V host.
+func psq(s string) string { return "'" + psQuotes.Replace(s) + "'" }
+
+var psQuotes = strings.NewReplacer("'", "''", "‘", "‘‘", "’", "’’", "‚", "‚‚", "‛", "‛‛")

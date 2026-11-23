@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Macchine virtuali Proxmox VE</h1>
-<p class="lead">BackupZit esegue il backup di macchine virtuali (QEMU) e container (LXC) di Proxmox VE senza installare nulla nei guest. L'agente gira sull'host Proxmox, crea uno snapshot di ogni guest, ne legge i dischi e li archivia deduplicati su qualsiasi destinazione di archiviazione.</p>
+<p class="lead">BackupZit esegue il backup di macchine virtuali (QEMU) e container (LXC) di Proxmox VE senza installare nulla nei guest. L'agente gira sull'host Proxmox, crea uno snapshot di ogni guest, ne legge i dischi e li archivia deduplicati su qualsiasi destinazione di archiviazione. I dischi delle VM sono salvati come immagini disco; i container su ZFS vengono salvati file per file (vedi <a href="#lxc-zfs">Container (LXC) su ZFS</a>).</p>
 
 <h2>Configurazione</h2>
 <ol>
@@ -18,10 +18,10 @@ systemctl enable --now backupzit-agent</pre></li>
 <ol>
   <li>Viene creato uno snapshot Proxmox temporaneo (<code>backupzit_…</code>, visibile in <i>Snapshots</i> per alcuni secondi o minuti). Il guest continua a funzionare.</li>
   <li>Se nella VM gira il <b>QEMU guest agent</b> (ed è abilitato nelle opzioni della VM), Proxmox congela i file system per lo snapshot — il backup è allora coerente a livello applicativo. Senza di esso, il backup è crash-consistent, come dopo un'interruzione di corrente. Installa <code>qemu-guest-agent</code> nelle VM Linux e i VirtIO guest tools nelle VM Windows.</li>
-  <li>Ogni disco viene letto dallo snapshot in blocchi da 1 MiB. I blocchi vuoti non vengono memorizzati e i blocchi già presenti nel repository non vengono ricaricati, quindi dopo il primo backup si trasferiscono solo i dati modificati.  Le VM in esecuzione con dischi su LVM-thin, ZFS, Ceph RBD o file qcow2 hanno anche il <b>tracciamento dei blocchi modificati</b> (dirty bitmap di QEMU): dal secondo backup in poi vengono lette solo le aree scritte dopo il backup precedente, il che richiede secondi invece di minuti. Dopo che la VM è stata fermata, riavviata o spostata su un altro nodo, il backup successivo legge una volta i dischi per intero; la pagina dell’esecuzione mostra quali dischi sono stati letti solo come blocchi modificati.</li>
+  <li>Ogni disco viene letto dallo snapshot in blocchi da 1 MiB. I blocchi vuoti non vengono memorizzati e i blocchi già presenti nel repository non vengono ricaricati, quindi dopo il primo backup si trasferiscono solo i dati modificati.  Le VM in esecuzione con dischi su LVM-thin, ZFS, Ceph RBD o file qcow2 hanno anche il <b>tracciamento dei blocchi modificati</b> (dirty bitmap di QEMU): dal secondo backup in poi vengono lette solo le aree scritte dopo il backup precedente, il che richiede secondi invece di minuti. Dopo che la VM è stata fermata, riavviata o spostata su un altro nodo, o dopo il ridimensionamento di un disco, il backup successivo legge una volta i dischi per intero; la pagina dell’esecuzione mostra quali dischi sono stati letti solo come blocchi modificati. È la dimensione di blocco predefinita; un job può usare invece 256 o 512 KiB (vedete <a href="/docs/jobs#compression">Job</a>).</li>
   <li>Lo snapshot viene rimosso. La configurazione del guest (CPU, memoria, rete, dischi) viene salvata con il backup.</li>
 </ol>
-<p>La pagina dell'esecuzione elenca ogni guest, i suoi dischi e come è stato acquisito. I test di ripristino controllano blocchi casuali dei backup di VM come per le immagini disco e, con il <a href="/docs/restore">test di avvio</a> attivo, avviano ogni VM dal backup, isolata dalla rete, per dimostrare che si avvia.</p>
+<p>La pagina dell'esecuzione elenca ogni guest, i suoi dischi e come è stato acquisito. I test di ripristino controllano blocchi casuali dei backup di VM come per le immagini disco e, con il <a href="/docs/restore">test di avvio</a> attivo, avviano ogni VM dal backup, isolata dalla rete, per dimostrare che si avvia. I container su ZFS vengono verificati ripristinando file a caso.</p>
 
 <h3>Storage supportati</h3>
 <table>
@@ -31,9 +31,27 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ceph RBD</td><td>sì, snapshot</td><td>sì</td></tr>
   <tr><td>Directory, NFS, CIFS con dischi <b>qcow2</b></td><td>sì, snapshot</td><td>sì</td></tr>
   <tr><td>Directory, NFS, CIFS con dischi raw, LVM thick</td><td>no — arresta il guest o sposta il disco</td><td>sì</td></tr>
-  <tr><td>Subvolumi ZFS dei container</td><td colspan="2">non ancora supportati</td></tr>
+  <tr><td>Subvolumi ZFS dei container (LXC)</td><td>sì, snapshot, file per file</td><td>sì, file per file</td></tr>
 </table>
-<p>I dischi contrassegnati con <i>Backup: no</i> (<code>backup=0</code>) in Proxmox, i dischi fisici in passthrough e i bind mount vengono saltati e indicati come avvisi. Le unità cloud-init non vengono salvate; vengono ricreate dalla configurazione al ripristino.</p>
+<p>I dischi contrassegnati con <i>Backup: no</i> (<code>backup=0</code>) in Proxmox, i dischi fisici in passthrough e i bind mount vengono saltati e indicati come avvisi. Le unità cloud-init non vengono salvate; vengono ricreate dalla configurazione al ripristino. Un guest fermo i cui dischi vengono letti senza snapshot porta nel frattempo il blocco di backup di Proxmox VE, come con vzdump: non può essere avviato (neanche dall'HA) finché i suoi dischi non sono stati letti.</p>
+<p id="leftovers"><b>Snapshot e blocchi rimasti.</b> L'agente registra ogni snapshot di backup prima di crearlo, e il blocco di backup di un guest fermo appena viene impostato, e cancella la registrazione solo quando la configurazione del guest mostra che non c'è più (uno snapshot viene rimosso con <code>--force</code> quando la rimozione normale non riesce, fino a tre tentativi nell'arco di una decina di minuti). Dopo un arresto anomalo dell'agente o un'interruzione di corrente l'agente li rimuove da solo, all'avvio e ogni 15 minuti:</p>
+<ul>
+  <li>I guest su cui sta lavorando un backup o un ripristino dell'agente, e i guest per cui Proxmox VE esegue un task (un backup vzdump, una migrazione), non vengono toccati.</li>
+  <li>Un blocco di snapshot (<code>lock: snapshot</code>) lasciato da una creazione interrotta viene rimosso insieme allo snapshot; prima vengono scollegati (unmap) i dispositivi Ceph RBD dello snapshot.</li>
+  <li>Vengono rimossi anche gli snapshot <code>backupzit_…</code> più vecchi di un giorno di cui l'agente non ha registrazione (per esempio di versioni precedenti). I tuoi snapshot non vengono mai toccati.</li>
+  <li>Un blocco di backup viene rimosso solo quando la registrazione mostra che l'ha impostato BackupZit. Un blocco che non ha impostato viene segnalato con il comando che lo rimuove (<code>qm unlock</code>, <code>pct unlock</code>), perché vzdump usa lo stesso blocco.</li>
+  <li>Ciò che non si può rimuovere compare nella dashboard in <i>Richiede attenzione</i> con <b>Rimuovi ora</b> e viene notificato una volta.</li>
+</ul>
+
+<h3 id="lxc-zfs">Container (LXC) su ZFS</h3>
+<p>Su uno storage ZFS, Proxmox conserva i volumi di un container (LXC) come dataset (<code>subvol-&lt;ID&gt;-disk-N</code>): file system, non dischi virtuali come gli zvol di una VM (QEMU). Per questo BackupZit salva questi container file per file:</p>
+<ul>
+  <li>Lo snapshot temporaneo è lo stesso; l’agente legge i file dallo snapshot ZFS di ogni subvolume (<code>.zfs/snapshot</code>, anche se è nascosto) mentre il container continua a funzionare.</li>
+  <li>Proprietari (anche gli ID traslati dei container non privilegiati), permessi, date, attributi estesi e ACL, link fisici e simbolici e file di dispositivo vengono conservati. I socket vengono tralasciati, come con vzdump; i servizi del container li ricreano.</li>
+  <li>Dal secondo backup in poi si leggono solo i file la cui dimensione o data di modifica è cambiata; gli altri vengono presi dal backup precedente.</li>
+  <li>Un container di questo tipo viene ripristinato su uno storage ZFS, come nuovi subvolumi con la dimensione (quota) dei volumi originali.</li>
+</ul>
+<p>I container su LVM-thin o Ceph RBD hanno dischi virtuali e vengono salvati a blocchi, come le VM. La pagina dell’esecuzione elenca le VM (QEMU) e i container (LXC) in tabelle separate e mostra come è stato salvato ogni container. Servono agenti 0.53 o successivi.</p>
 
 <h2>Ripristinare una VM o un container</h2>
 <p>Apri un'esecuzione di backup di VM (dalla pagina del job o da <a href="/runs">Attività</a>) e usa <b>Ripristina una VM o un container</b>:</p>
@@ -45,7 +63,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Nome</b> e <b>Archiviazione per i dischi</b> — ad es. ripristinare su uno storage diverso dall'originale.</li>
   <li><b>Avvia il guest dopo il ripristino</b>.</li>
 </ul>
-<p>Ogni ripristino assegna alle VM un nuovo ID di generazione (<code>vmgenid</code>), così i controller di dominio Windows e altri software rilevano il rollback in sicurezza. I dischi vengono allocati con <code>pvesm</code> sullo storage scelto; su storage di tipo directory vengono ripristinati come file raw.</p>
+<p>Ogni ripristino assegna alle VM un nuovo ID di generazione (<code>vmgenid</code>), così i controller di dominio Windows e altri software rilevano il rollback in sicurezza. I dischi vengono allocati con <code>pvesm</code> sullo storage scelto; su storage di tipo directory vengono ripristinati come file raw. L’elenco degli storage offre solo quelli adatti al guest scelto: dischi di VM per una VM, volumi di container per un container e ZFS per un container salvato file per file.</p>
 
 <h2>Ripristino istantaneo</h2>
 <p>Ripristinare una VM grande richiede quanto copiare i suoi dischi. Con <b>Subito, in esecuzione dal backup</b> nel modulo di ripristino, la VM gira invece in pochi secondi, mentre i suoi dischi sono ancora nel backup:</p>
@@ -61,7 +79,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>La prima volta la replica viene ripristinata come un nuovo guest (primo ID libero, nome <i>original-replica</i>, nuovi indirizzi MAC, mai avviata con il nodo).</li>
   <li>In seguito vengono scritti solo i blocchi cambiati dal backup contenuto nella replica — in genere pochi secondi per backup.</li>
-  <li>La pagina del job elenca le repliche, il backup contenuto in ciascuna e il loro stato. Se un guest va perso, fai clic su <b>Avvia replica</b>: gira con i dati dell'ultimo backup, senza ripristino. Avviala solo quando l'originale non c'è davvero più — entrambi in rete contemporaneamente possono andare in conflitto.</li>
+  <li>La pagina del job elenca le repliche, il backup contenuto in ciascuna e il loro stato. Se un guest va perso, fai clic su <b>Avvia replica</b>: gira con i dati dell'ultimo backup, senza ripristino. Avviala solo quando l'originale non c'è davvero più — entrambi in rete contemporaneamente possono andare in conflitto. Dopo l'avvio di una replica (anche nell'interfaccia di Proxmox VE, ad esempio per un test di failover), l'aggiornamento successivo confronta ogni blocco invece di scrivere solo le modifiche, così la replica torna a corrispondere al backup. Lo stesso avviene dopo un aggiornamento interrotto (arresto anomalo dell'agente o del nodo) e quando il registro dei task di Proxmox VE non si può leggere per sapere se la replica è stata avviata.</li>
   <li>Mentre una replica gira non viene più aggiornata (l'esecuzione lo segnala). Per replicare di nuovo, elimina il guest replica in Proxmox; il backup successivo ne crea uno nuovo. Anche le repliche con snapshot Proxmox non vengono aggiornate.</li>
   <li>I dischi aggiunti in seguito a un guest non vengono replicati (elimina la replica per ricominciare); i dischi ingranditi vengono ingranditi anche sulla replica. Le modifiche alla configurazione (memoria, CPU) vengono applicate alla creazione della replica.</li>
   <li>La replica legge i backup come un ripristino: il nodo della replica deve raggiungere lo storage. Disattivare la replica lascia le repliche come sono.</li>
@@ -87,6 +105,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>Ripristina sull’agente</b> — copiali in una cartella su qualsiasi agente, ad es. di nuovo nella VM (se esegue l'agente BackupZit) o su un file server.</li>
 </ul>
 <p>Da riga di comando: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> e <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> seleziona una partizione o un volume logico (<code>pve ls</code> senza percorso li elenca). Sfogliare dalla console richiede che il backup sia su uno storage di rete (SFTP, S3, SMB, Azure, repository protetto).</p>
+<p>Per i container (LXC) su ZFS, <b>Sfoglia file</b> apre direttamente i loro file, come quelli di un backup di file; le cartelle <code>rootfs</code>, <code>mp0</code>, <code>mp1</code>… sono i volumi del container. I file ripristinati su un agente mantengono proprietari e permessi. Vengono ripristinati in una cartella, non nella posizione originale: i percorsi del backup sono quelli all'interno del container, non dell'host. Un collegamento simbolico viene seguito solo all'interno del suo volume. Le repliche di container salvati file per file non sono ancora supportate; ripristinali invece.</p>
 
 <h2 id="host">Backup della configurazione dell’host</h2><p>I guest sono solo metà di un nodo Proxmox: definizioni degli storage, rete, utenti, firewall, certificati e impostazioni di ogni VM e container sono nella sua configurazione. Eseguine il backup con un normale job di file sull’agente del nodo: in <a href="/jobs">Job di backup</a> scegli l’agente del nodo e <b>File e cartelle</b>, poi fai clic su <b>Compila la configurazione dell’host</b>. Vengono inseriti i percorsi <code>/etc</code> (con <code>/etc/pve</code>, la rete e <code>/etc/hosts</code>), <code>/var/lib/pve-cluster</code> (il database di configurazione <code>config.db</code>) e <code>/root</code>; esegui il job ad esempio ogni giorno. Il database cambia mentre il nodo è in funzione, quindi l’agente ne crea prima una copia coerente, che il backup contiene come <code>/var/lib/backupzit/pve-config/config.db</code>; non servono pacchetti aggiuntivi.</p><p>Per ricostruire un nodo guasto: installa la stessa versione di Proxmox VE con lo stesso nome host e indirizzo, installa l’agente, ripristina <code>/etc/network/interfaces</code> e <code>/etc/hosts</code> al loro posto, poi ferma il servizio del cluster (<code>systemctl stop pve-cluster</code>), elimina <code>config.db-wal</code> e <code>config.db-shm</code> in <code>/var/lib/pve-cluster</code> se esistono, ripristina la copia coerente da <code>/var/lib/backupzit/pve-config</code> in <code>/var/lib/pve-cluster</code> (<code>config.db</code>, e <code>config.db-wal</code> se il backup ne contiene uno), riavvia il servizio e ripristina i guest. In un cluster, aggiungi di nuovo al cluster un nodo reinstallato invece di ripristinare <code>config.db</code>.</p>
 <h2>Non ancora incluso</h2>

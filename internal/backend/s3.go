@@ -3,11 +3,14 @@ package backend
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -62,10 +65,16 @@ func OpenS3(ctx context.Context, u *url.URL, opts Options) (*S3, error) {
 		prefix = strings.Trim(parts[1], "/")
 	}
 	secure := u.Query().Get("tls") != "false"
+	tr, err := s3Transport(secure)
+	if err != nil {
+		return nil, fmt.Errorf("s3: %w", err)
+	}
 	client, err := minio.New(u.Host, &minio.Options{
-		Creds:  credentials.NewStaticV4(opts.S3AccessKey, opts.S3SecretKey, ""),
-		Secure: secure,
-		Region: opts.S3Region,
+		Creds:      credentials.NewStaticV4(opts.S3AccessKey, opts.S3SecretKey, ""),
+		Secure:     secure,
+		Region:     opts.S3Region,
+		Transport:  tr,
+		MaxRetries: s3ClientRetries,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("s3: %w", err)
@@ -169,16 +178,38 @@ func (s *S3) Save(ctx context.Context, name string, data []byte) error {
 	}
 	// Packs are ~16-24 MiB: a single PUT (up to 5 GiB) keeps uploads atomic
 	// and avoids multipart bookkeeping.
-	opts := minio.PutObjectOptions{ContentType: "application/octet-stream", DisableMultipart: true}
+	// Content-MD5 on every PUT: the storage checks the whole body before it
+	// answers (before 0.54.2 only with Object Lock, where S3 requires it).
+	opts := minio.PutObjectOptions{ContentType: "application/octet-stream", DisableMultipart: true, SendContentMd5: true}
 	if s.lockDays > 0 && !strings.HasPrefix(name, "locks/") {
 		// One extra day keeps the object locked for the full period after
 		// a long backup that reuses it (see KeepLocked).
 		until := time.Now().Add(time.Duration(s.lockDays+1) * 24 * time.Hour).UTC()
 		opts.Mode = minio.Compliance
 		opts.RetainUntilDate = until
-		opts.SendContentMd5 = true // required for PUTs with Object Lock
 	}
-	if _, err := s.client.PutObject(ctx, s.bucket, s.key(name), bytes.NewReader(data), int64(len(data)), opts); err != nil {
+	if err := retryS3(ctx, func() error {
+		if _, err := s.client.PutObject(ctx, s.bucket, s.key(name), bytes.NewReader(data), int64(len(data)), opts); err != nil {
+			return err
+		}
+		if strings.HasPrefix(name, "locks/") {
+			return nil // small, short-lived and rewritten often
+		}
+		// The size the storage kept: a provider answered success and later
+		// served a shorter object (#38). Another PUT replaces it (with Object
+		// Lock, as a new version).
+		st, err := s.client.StatObject(ctx, s.bucket, s.key(name), minio.StatObjectOptions{})
+		if err != nil {
+			if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+				return fmt.Errorf("%w: not visible yet after the upload", errShortStored)
+			}
+			return fmt.Errorf("check the stored size: %w", err)
+		}
+		if st.Size != int64(len(data)) {
+			return fmt.Errorf("%w: %d bytes kept of %d", errShortStored, st.Size, len(data))
+		}
+		return nil
+	}); err != nil {
 		return fmt.Errorf("s3 put %s: %w", name, withClockHint(err))
 	}
 	if s.lockDays > 0 && !opts.RetainUntilDate.IsZero() {
@@ -188,6 +219,15 @@ func (s *S3) Save(ctx context.Context, name string, data []byte) error {
 }
 
 func (s *S3) Load(ctx context.Context, name string) ([]byte, error) {
+	var b []byte
+	err := retryS3(ctx, func() (err error) {
+		b, err = s.loadOnce(ctx, name)
+		return err
+	})
+	return b, err
+}
+
+func (s *S3) loadOnce(ctx context.Context, name string) ([]byte, error) {
 	o, err := s.getOpts(name)
 	if err != nil {
 		return nil, err
@@ -204,7 +244,22 @@ func (s *S3) Load(ctx context.Context, name string) ([]byte, error) {
 	return b, nil
 }
 
+// LoadRange reads length bytes at offset. A short read is retried: it is
+// usually a dropped connection, but if it repeats, the pack may really be
+// shorter on the storage (damaged), and the message says so.
 func (s *S3) LoadRange(ctx context.Context, name string, offset int64, length int) ([]byte, error) {
+	var b []byte
+	err := retryS3(ctx, func() (err error) {
+		b, err = s.loadRangeOnce(ctx, name, offset, length)
+		return err
+	})
+	if errors.Is(err, errShortRead) {
+		return nil, fmt.Errorf("%w; it was read again several times: the file may be shorter on the storage, or downloads to this machine are cut short on the way (proxy, firewall, IPS, NAT); a data check tells them apart (Check data on the job page)", err)
+	}
+	return b, err
+}
+
+func (s *S3) loadRangeOnce(ctx context.Context, name string, offset int64, length int) ([]byte, error) {
 	o, err := s.getOpts(name)
 	if err != nil {
 		return nil, err
@@ -227,8 +282,8 @@ func (s *S3) LoadRange(ctx context.Context, name string, offset int64, length in
 	if n == length {
 		return buf, nil
 	}
-	if err == nil {
-		err = io.ErrUnexpectedEOF
+	if err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return nil, fmt.Errorf("read %s@%d+%d: got %d bytes: %w", name, offset, length, n, errShortRead)
 	}
 	return nil, fmt.Errorf("read %s@%d+%d: %w", name, offset, length, s3NotFound(name, err))
 }
@@ -241,11 +296,16 @@ func (s *S3) Size(ctx context.Context, name string) (int64, error) {
 		}
 		return v.size, nil
 	}
-	st, err := s.client.StatObject(ctx, s.bucket, s.key(name), minio.StatObjectOptions{})
-	if err != nil {
-		return 0, s3NotFound(name, err)
-	}
-	return st.Size, nil
+	var size int64
+	err := retryS3(ctx, func() error {
+		st, err := s.client.StatObject(ctx, s.bucket, s.key(name), minio.StatObjectOptions{})
+		if err != nil {
+			return s3NotFound(name, err)
+		}
+		size = st.Size
+		return nil
+	})
+	return size, err
 }
 
 func (s *S3) List(ctx context.Context, dir string) ([]string, error) {
@@ -266,11 +326,18 @@ func (s *S3) List(ctx context.Context, dir string) ([]string, error) {
 		sort.Strings(out)
 		return out, nil
 	}
-	for obj := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
-		if obj.Err != nil {
-			return nil, fmt.Errorf("s3 list %s: %w", dir, withClockHint(obj.Err))
+	err := retryS3(ctx, func() error {
+		out = out[:0]
+		for obj := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+			if obj.Err != nil {
+				return obj.Err
+			}
+			out = append(out, trim(obj.Key))
 		}
-		out = append(out, trim(obj.Key))
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("s3 list %s: %w", dir, withClockHint(err))
 	}
 	return out, nil
 }
@@ -286,16 +353,87 @@ func (s *S3) Remove(ctx context.Context, name string) error {
 	if _, err := s.Size(ctx, name); err != nil {
 		return err
 	}
-	return s.client.RemoveObject(ctx, s.bucket, s.key(name), minio.RemoveObjectOptions{})
+	return retryS3(ctx, func() error {
+		return s.client.RemoveObject(ctx, s.bucket, s.key(name), minio.RemoveObjectOptions{})
+	})
 }
 
 func (s *S3) Close() error { return nil }
 
-// retainCache remembers retain-until dates known to this process (keyed by
-// bucket/key), so repeated backups do not query every shared pack again.
+// retainCache remembers known retain-until dates (keyed by endpoint, bucket
+// and key), so repeated backups do not query every shared pack again. With
+// RetainCacheFile set it survives restarts and updates of the agent: a lock
+// can only be extended, never shortened, so a remembered date is never
+// later than the real one.
 var retainCache sync.Map
 
-func (s *S3) cacheKey(name string) string { return s.bucket + "/" + s.key(name) }
+// RetainCacheFile is where the agent keeps retainCache ("" = memory only).
+var RetainCacheFile string
+
+var (
+	retainLoadOnce sync.Once
+	retainSaveMu   sync.Mutex
+)
+
+func loadRetainCache() {
+	retainLoadOnce.Do(func() {
+		if RetainCacheFile == "" {
+			return
+		}
+		b, err := os.ReadFile(RetainCacheFile) // #nosec G304 -- fixed file in the agent's folder (set by the service)
+		if err != nil {
+			return
+		}
+		var m map[string]int64
+		if json.Unmarshal(b, &m) != nil {
+			return
+		}
+		now := time.Now()
+		for k, u := range m {
+			if t := time.Unix(u, 0); t.After(now) {
+				retainCache.LoadOrStore(k, t)
+			}
+		}
+	})
+}
+
+func saveRetainCache() {
+	if RetainCacheFile == "" {
+		return
+	}
+	retainSaveMu.Lock()
+	defer retainSaveMu.Unlock()
+	m := map[string]int64{}
+	now := time.Now()
+	retainCache.Range(func(k, v any) bool {
+		if t := v.(time.Time); t.After(now) {
+			m[k.(string)] = t.Unix()
+		}
+		return true
+	})
+	b, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(RetainCacheFile), 0o700); err != nil {
+		return
+	}
+	f, err := os.CreateTemp(filepath.Dir(RetainCacheFile), ".retain-*.tmp")
+	if err != nil {
+		return
+	}
+	_, err = f.Write(b)
+	if cerr := f.Close(); err == nil && cerr == nil {
+		err = os.Rename(f.Name(), RetainCacheFile)
+	}
+	if err != nil {
+		_ = os.Remove(f.Name())
+	}
+}
+
+// The endpoint is part of the key: two endpoints may have a bucket and
+// prefix of the same name (L-26).
+func (s *S3) cacheKey(name string) string { return s.loc + "|" + s.key(name) }
 
 func (s *S3) LockDays() int { return s.lockDays }
 
@@ -311,35 +449,135 @@ func (s *S3) KeepLocked(ctx context.Context, names []string) (int, error) {
 		return 0, ErrReadOnly
 	}
 	period := time.Duration(s.lockDays) * 24 * time.Hour
+	get := func(ctx context.Context, name string) (*time.Time, error) {
+		_, until, err := s.client.GetObjectRetention(ctx, s.bucket, s.key(name), "")
+		if err != nil && minio.ToErrorResponse(err).Code == "NoSuchObjectLockConfiguration" {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, s3NotFound(name, err)
+		}
+		return until, nil
+	}
+	put := func(ctx context.Context, name string, until time.Time) error {
+		mode := minio.Compliance
+		return s.client.PutObjectRetention(ctx, s.bucket, s.key(name), minio.PutObjectRetentionOptions{
+			Mode: &mode, RetainUntilDate: &until})
+	}
+	return extendLocks(ctx, names, period, s.cacheKey, get, put)
+}
+
+// extendLocks extends the lock of each object that would end within period
+// to period and a half. Each object gets the retries of other requests; one
+// that still fails keeps its current lock (the next run tries again) and
+// the others are extended anyway. Only a storage that keeps failing
+// (keepGiveUp objects in a row) stops the step.
+func extendLocks(ctx context.Context, names []string, period time.Duration, cacheKey func(string) string,
+	get func(context.Context, string) (*time.Time, error), put func(context.Context, string, time.Time) error) (int, error) {
+	loadRetainCache()
+	defer saveRetainCache()
 	need := time.Now().Add(period)
-	extended := 0
+	// Several objects at a time: one request after another took hours on a
+	// slow provider with ~10,000 packs (#38).
+	wctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var mu sync.Mutex
+	var extended, failed, inARow int
+	var firstErr, stopErr error
+	fail := func(err error) {
+		mu.Lock()
+		defer mu.Unlock()
+		failed++
+		inARow++
+		if firstErr == nil {
+			firstErr = err
+		}
+		if stopErr == nil && inARow >= keepGiveUp && ctx.Err() == nil {
+			stopErr = fmt.Errorf("%d objects in a row could not be extended, stopping: %w: %w", inARow, ErrKeepStopped, firstErr)
+			cancel()
+		}
+	}
+	done := func(ext bool) {
+		mu.Lock()
+		defer mu.Unlock()
+		if ext {
+			extended++
+		}
+		inARow = 0
+	}
+	one := func(name string) {
+		ck := cacheKey(name)
+		var until *time.Time
+		err := retryS3(wctx, func() error {
+			var err error
+			until, err = get(wctx, name)
+			return err
+		})
+		if err != nil {
+			fail(fmt.Errorf("s3 retention of %s: %w", name, err))
+			return
+		}
+		if until != nil && !until.Before(need) {
+			retainCache.Store(ck, *until)
+			done(false)
+			return
+		}
+		newUntil := need.Add(period / 2).UTC().Truncate(time.Second)
+		if err := retryS3(wctx, func() error { return put(wctx, name, newUntil) }); err != nil {
+			fail(fmt.Errorf("s3 extend retention of %s: %w", name, err))
+			return
+		}
+		retainCache.Store(ck, newUntil)
+		done(true)
+	}
+	jobs := make(chan string)
+	var wg sync.WaitGroup
+	for w := 0; w < keepWorkers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for name := range jobs {
+				one(name)
+			}
+		}()
+	}
+feed:
 	for _, name := range names {
 		if strings.HasPrefix(name, "locks/") {
 			continue
 		}
-		ck := s.cacheKey(name)
-		if v, ok := retainCache.Load(ck); ok && !v.(time.Time).Before(need) {
+		if v, ok := retainCache.Load(cacheKey(name)); ok && !v.(time.Time).Before(need) {
 			continue
 		}
-		_, until, err := s.client.GetObjectRetention(ctx, s.bucket, s.key(name), "")
-		if err != nil && minio.ToErrorResponse(err).Code != "NoSuchObjectLockConfiguration" {
-			return extended, fmt.Errorf("s3 retention of %s: %w", name, s3NotFound(name, err))
+		select {
+		case jobs <- name:
+		case <-wctx.Done():
+			break feed
 		}
-		if until != nil && !until.Before(need) {
-			retainCache.Store(ck, *until)
-			continue
-		}
-		newUntil := need.Add(period / 2).UTC().Truncate(time.Second)
-		mode := minio.Compliance
-		if err := s.client.PutObjectRetention(ctx, s.bucket, s.key(name), minio.PutObjectRetentionOptions{
-			Mode: &mode, RetainUntilDate: &newUntil}); err != nil {
-			return extended, fmt.Errorf("s3 extend retention of %s: %w", name, err)
-		}
-		retainCache.Store(ck, newUntil)
-		extended++
+	}
+	close(jobs)
+	wg.Wait()
+	switch {
+	case ctx.Err() != nil:
+		return extended, ctx.Err()
+	case stopErr != nil:
+		return extended, stopErr
+	case failed > 0:
+		return extended, fmt.Errorf("the lock of %d of %d objects could not be extended (they keep their current lock; the next run tries again): %w", failed, len(names), firstErr)
 	}
 	return extended, nil
 }
+
+// ErrKeepStopped marks extending locks that stopped because the storage
+// kept failing (callers stop sending more objects).
+var ErrKeepStopped = errors.New("the storage keeps failing")
+
+// keepWorkers is how many objects get their lock extended at a time.
+const keepWorkers = 16
+
+// keepGiveUp is how many objects in a row may fail (after their retries)
+// before extending locks stops: the storage is then down, not slow.
+const keepGiveUp = 5
 
 // DefaultRetention returns the bucket's default Object Lock retention
 // (mode "COMPLIANCE" or "GOVERNANCE", and days), "" when the bucket has

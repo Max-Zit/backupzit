@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -92,6 +93,9 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 	}
 	s.clocks.seen(a.ID, req.Time, s.clock())
 	resp := api.PollResponse{PollIntervalSec: s.PollInterval}
+	if _, ok := s.inventoryWanted.LoadAndDelete(a.ID); ok {
+		resp.SendInventory = true
+	}
 	if req.WantStatus {
 		if st, err := s.agentStatus(r.Context(), a.ID); err == nil {
 			resp.Status = st
@@ -100,11 +104,26 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 	// Runs wait while two machines use this enrollment (a running copy);
 	// only agent updates go out, after which agents tell themselves apart.
 	held := s.agentDuplicate(r.Context(), a, req.Instance, req.Hostname, req.IPs, remoteIP(r))
+	// With two copies polling, one copy's list says nothing about the other.
+	if req.ReportsRuns && !held {
+		s.failOrphanedRuns(r.Context(), a, req.Runs)
+	}
 	// A busy agent may take another run if it can run several at once
 	// (MaxRuns); agent updates wait until it is idle.
 	free := !req.Busy || (req.Parallel && req.Running < max(a.MaxRuns, 1) && !held)
 	if req.Busy {
 		resp.Cancel = s.store.cancelRequests(r.Context(), a.ID)
+	}
+	if !free && req.Parallel && !held {
+		// A check of a VMware host takes seconds: it does not wait behind
+		// the agent's backups (#51).
+		if run, err := s.store.claimProbe(r.Context(), a.ID); err == nil && run != nil {
+			if ar, err := s.toAPIRun(r.Context(), run); err == nil {
+				resp.Run = ar
+			} else if s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()}) == nil {
+				_ = s.store.applyVMwareProbe(r.Context(), *run, api.RunResult{Status: api.StatusFailed, Message: err.Error()})
+			}
+		}
 	}
 	if free {
 		run, err := s.store.claimRunIdle(r.Context(), a.ID, held, !req.Busy)
@@ -115,8 +134,13 @@ func (s *Server) handlePoll(w http.ResponseWriter, r *http.Request) {
 		}
 		if run != nil {
 			ar, err := s.toAPIRun(r.Context(), run)
+			if err == nil && ar.Repository.NeedsVMBlocks && !req.ConfigurableVMBlocks {
+				err = errors.New("update the agent to use configurable VM block sizes")
+			}
 			if err != nil {
-				_ = s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()})
+				if s.store.FinishRun(r.Context(), a.ID, run.ID, api.RunResult{Status: api.StatusFailed, Message: err.Error()}) == nil {
+					s.chainAfterRun(r.Context(), run.ID)
+				}
 			} else {
 				resp.Run = ar
 				s.log.Info("run assigned", "run", run.ID, "kind", run.Kind, "agent", a.Hostname)
@@ -133,6 +157,19 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	}
 	if run.Kind == api.KindAgentLog || run.Kind == api.KindAgentUninstall {
 		return &api.Run{ID: run.ID, Kind: run.Kind}, nil
+	}
+	if run.Kind == api.KindLeftoverCleanup { // needs no storage
+		return s.cleanupRun(ctx, run)
+	}
+	if run.Kind == api.KindVMwareProbe {
+		ar := &api.Run{ID: run.ID, Kind: run.Kind}
+		if err := s.addVMware(ctx, run, ar); err != nil {
+			return nil, err
+		}
+		if ar.VMware == nil {
+			return nil, errors.New("the VMware host was removed from the console")
+		}
+		return ar, nil
 	}
 	if run.Kind == api.KindVMReplicaStart { // needs no storage
 		ar := &api.Run{ID: run.ID, Kind: run.Kind}
@@ -156,6 +193,15 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	switch run.Kind {
 	case api.KindRepoScan:
 		ar.Repository = targetRepository(t, t.URL)
+	case api.KindRepoRepair:
+		// Removing the affected backups keeps the ones VMs run from (instant
+		// recovery) and stops while retention is paused after a suspicious
+		// backup (checked again here: the hold may have started since).
+		if slices.Contains(run.Paths, repairForgetFlag) && run.TargetID != nil && !s.store.repoRetentionHold(ctx, *run.TargetID, run.RepoURL) {
+			if keep, err := s.store.instantSnapshots(ctx); err == nil {
+				ar.RepairForget, ar.KeepSnapshots = true, keep
+			}
+		}
 	case api.KindBackup:
 		s.addRetention(ctx, run, ar)
 		ar.Paths, ar.Excludes = run.Paths, run.Excludes
@@ -217,9 +263,19 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 					}
 					ar.VMExcludeDisks = j.Options.ExcludeDisks
 				}
+				ar.VMCrashConsistentOK = j.Options.CrashConsistentOK
+				if j.Options.VMwareNoQuiesce {
+					if a, err := s.store.GetAgent(ctx, run.AgentID); err == nil && strings.Count(a.Version, ".") == 2 && update.Newer(minNoQuiesceVersion, a.Version) {
+						return nil, fmt.Errorf("the agent on %s (%s) cannot take snapshots without quiescing yet and would quiesce the guests; update it to %s or newer (Agents page)", a.Hostname, a.Version, minNoQuiesceVersion)
+					}
+					ar.VMwareNoQuiesce = true
+				}
 			}
 		}
 		if err := s.addVMware(ctx, run, ar); err != nil {
+			return nil, err
+		}
+		if err := s.addPart(ctx, run, ar); err != nil {
 			return nil, err
 		}
 	case api.KindSQLBackup, api.KindSQLLog:
@@ -259,6 +315,9 @@ func (s *Server) toAPIRun(ctx context.Context, run *Run) (*api.Run, error) {
 	case api.KindCopy:
 		s.addRetention(ctx, run, ar)
 		if err := s.addCopySource(ctx, run, ar); err != nil {
+			return nil, err
+		}
+		if err := s.addCopyPart(ctx, run, ar); err != nil {
 			return nil, err
 		}
 	case api.KindImageRestore:
@@ -301,15 +360,26 @@ func (s *Server) handleRunFinish(w http.ResponseWriter, r *http.Request) {
 		s.agentUninstalled(context.WithoutCancel(r.Context()), a, id, res)
 		writeJSON(w, http.StatusOK, struct{}{})
 		return
+	} else if err == nil && run.Kind == api.KindVMwareProbe {
+		// What the proxy saw of its VMware host (#51): no chains, no alerts.
+		if err := s.store.applyVMwareProbe(context.WithoutCancel(r.Context()), run, res); err != nil {
+			s.log.Error("store the VMware host check", "run", id, "err", err)
+		}
+		writeJSON(w, http.StatusOK, struct{}{})
+		return
 	}
 	s.chainAfterRun(r.Context(), id)
-	if res.Status != api.StatusFailed {
-		if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && isBackupKind(run.Kind) {
+	if run, err := s.store.GetRun(r.Context(), id); err == nil && run.JobID != nil && isBackupKind(run.Kind) {
+		// A backup split over several proxies is copied once, after its last
+		// part: chainAfterRun queues those copies when it decides the chain.
+		if res.Status != api.StatusFailed && run.Batch == nil {
 			if ids, err := s.store.QueueCopiesAfter(r.Context(), *run.JobID); err != nil {
 				s.log.Error("queue copy jobs", "job", *run.JobID, "err", err)
 			} else if len(ids) > 0 {
 				s.log.Info("copy jobs queued after backup", "job", *run.JobID, "runs", ids)
 			}
+		}
+		if res.Status != api.StatusFailed {
 			if rid, err := s.store.QueueReplica(r.Context(), run); err != nil {
 				s.log.Error("queue replication", "job", *run.JobID, "err", err)
 			} else if rid != 0 {
@@ -368,6 +438,10 @@ const minAllDisksVersion = "0.33.7"
 // minAppConsistentVersion is the first agent that honours AppConsistent;
 // older agents would quietly fall back to crash-consistent checkpoints.
 const minAppConsistentVersion = "0.48.0"
+
+// minNoQuiesceVersion is the first agent that honours VMwareNoQuiesce;
+// older ones would still quiesce the guests.
+const minNoQuiesceVersion = "0.58.0"
 
 // minExcludeDisksVersion is the first agent that honours VMExcludeDisks;
 // older ones would silently back up the excluded disks.

@@ -110,6 +110,17 @@ func TestVMwareHosts(t *testing.T) {
 		t.Errorf("after automatic: %+v", h2)
 	}
 
+	// Hot-add is off until chosen, and goes to the proxy with each run.
+	if _, _, body := admin.do("GET", "/agents", nil); !strings.Contains(body, fmt.Sprintf(`action="/vmware/%d/hotadd"`, h.ID)) || strings.Contains(body, `name="hot_add" data-autosubmit checked`) {
+		t.Error("agents page lacks the hot-add checkbox, or it is on by default")
+	}
+	if _, loc, _ := admin.do("POST", fmt.Sprintf("/vmware/%d/hotadd", h.ID), url.Values{"hot_add": {"on"}}); !strings.Contains(loc, "msg=") {
+		t.Errorf("hot-add on: %s", loc)
+	}
+	if h2, _ := e.store.GetVMwareHost(ctx, h.ID); !h2.HotAdd {
+		t.Errorf("hot-add not stored: %+v", h2)
+	}
+
 	// A VM job on the host runs on the proxy agent.
 	g := inv.Guests[0]
 	_, loc, _ = admin.do("POST", "/jobs", url.Values{"name": {"esx vms"}, "agent_id": {fmt.Sprintf("vmware:%d", h.ID)}, "target_id": {fmt.Sprint(targetID)},
@@ -146,7 +157,7 @@ func TestVMwareHosts(t *testing.T) {
 	}
 	run := poll()
 	if run == nil || run.ID != runID || run.VMware == nil || run.VMware.Password != simPass || run.VMware.Thumbprint != h.Thumbprint ||
-		!strings.Contains(run.Repository.URL, "esxi-esxi1_") || len(run.VMs) != 1 {
+		!strings.Contains(run.Repository.URL, "esxi-esxi1_") || len(run.VMs) != 1 || !run.VMware.HotAdd {
 		t.Fatalf("run for the proxy: %+v", run)
 	}
 	details, _ := json.Marshal(map[string]any{"guests": []map[string]any{{"vmid": g.VMID, "type": "vm", "name": g.Name, "platform": "vmware",
@@ -312,9 +323,12 @@ func TestConsoleBackupRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := t.TempDir()
-	os.WriteFile(filepath.Join(data, server.SecretKeyFile), []byte("secret key bytes"), 0o600)
-	os.WriteFile(filepath.Join(data, "cert.pem"), []byte("pinned certificate"), 0o644)
-	os.WriteFile(filepath.Join(data, "key.pem"), []byte("certificate key"), 0o600)
+	// Written with checks: under heavy load Windows can refuse a write
+	// ("insufficient system resources"), which made the test report a file
+	// missing from the backup instead of the real cause.
+	mustWriteFile(t, filepath.Join(data, server.SecretKeyFile), "secret key bytes", 0o600)
+	mustWriteFile(t, filepath.Join(data, "cert.pem"), "pinned certificate", 0o644)
+	mustWriteFile(t, filepath.Join(data, "key.pem"), "certificate key", 0o600)
 	e.srv.StartConsoleBackup(ctx, data)
 	if _, err := e.store.CreateUser(ctx, server.User{Username: "ana", DisplayName: "Ana", Role: "operator"}, "ana-password-1"); err != nil {
 		t.Fatal(err)
@@ -377,6 +391,22 @@ func TestConsoleBackupRestore(t *testing.T) {
 	if _, loc, _ := newClientLogin(t, e, "ana", "ana-password-1"); loc != "/" {
 		t.Errorf("restored user cannot sign in: %s", loc)
 	}
+}
+
+// mustWriteFile writes a test file, retrying briefly when the system is
+// short of resources, and stops the test if it still cannot.
+func mustWriteFile(t *testing.T, path, content string, mode os.FileMode) {
+	t.Helper()
+	var err error
+	for i := 0; i < 5; i++ {
+		if err = os.WriteFile(path, []byte(content), mode); err == nil {
+			if b, rerr := os.ReadFile(path); rerr == nil && string(b) == content {
+				return
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	t.Fatalf("write %s: %v", path, err)
 }
 
 func newClientLogin(t *testing.T, e *env, user, pw string) (*client, string, string) {

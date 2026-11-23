@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Bekap Linux sistema i P2V</h1>
 <p class="lead">Posao <b>Linux sistem</b> pravi bekap cele Linux mašine, tako da može ponovo da se napravi na praznom disku — ista mašina posle kvara diska, nov hardver, ili virtuelna mašina u Proxmox VE (fizičko u virtuelno, P2V).</p>
+<p>Testirano sa Debianom, Ubuntu 22.04 i Rocky Linux 9 (isto važi za AlmaLinux i RHEL 9). Na Ubuntu 22.04 i sistemima nalik RHEL 9 bekapi Linux sistema traže agent 0.50.0 ili noviji.</p>
 
 <h2>Šta se čuva</h2>
 <ul>
@@ -10,15 +11,17 @@
 <p>Kao i Relax-and-Recover, BackupZit ne kopira disk koji radi blok po blok: Linux nema ugrađen snimak diska koji radi, pa bi sirova kopija bila nekonzistentna. Svaki fajl se čita ceo, a raspored čini da se vraćeni disk ponovo pokreće. Za baze podataka napravite dump pre bekapa ili ih čuvajte njihovim alatima.</p>
 <p>Pojedinačni fajlovi i folderi se iz bekapa sistema vraćaju kao iz bilo kog bekapa fajlova (<b>Vrati fajlove iz ovog bekapa</b> na stranici pokretanja).</p>
 <h3>Još nije podržano</h3>
-<p>Šifrovani diskovi (LUKS), softverski RAID (mdadm), btrfs i sistemi raspoređeni na više diskova. Posao ovo jasno javlja umesto da napravi nepotpun bekap.</p>
+<p>Šifrovani diskovi (LUKS), softverski RAID (mdadm) i btrfs: posao ih jasno javlja umesto da napravi nepotpun bekap. Sistemi raspoređeni na više diskova se bekapuju, ali vraćanje celog sistema ponovo pravi jedan disk (komandna linija ga bira sa <code>--disk</code>); MBR diskovi sa logičkim particijama ne mogu da se vrate u celini. Polje <b>Izuzmi</b> u poslu izostavlja putanje, kao <code>--exclude</code> u komandnoj liniji.</p>
 
 <h2>Vraćanje celog sistema</h2>
 <p>Otvorite pokretanje bekapa sistema (stranica posla ili <a href="/runs">Aktivnost</a>) i koristite <b>Vrati ceo sistem</b>:</p>
 <h3>Kao nova Proxmox VM</h3>
-<p>Izaberite Proxmox čvor (posao radi njegov BackupZit agent), skladište, ID VM-a, ime, memoriju i jezgra. BackupZit pravi VM sa istim firmverom kao original (UEFI/OVMF ili BIOS), VirtIO SCSI diskom i mrežnom karticom, ponovo pravi disk, vraća sve fajlove i može da pokrene VM. Pošto je VM kopija koja može da radi pored originala:</p>
+<p>Izaberite Proxmox čvor (posao radi njegov BackupZit agent), skladište, ID VM-a, ime, memoriju (podrazumevano 2048 MiB), jezgra (podrazumevano 2) i mrežni bridge (podrazumevano <code>vmbr0</code>). BackupZit pravi VM sa istim firmverom kao original (UEFI/OVMF ili BIOS), VirtIO SCSI diskom i mrežnom karticom, ponovo pravi disk, vraća sve fajlove i može da pokrene VM. Pošto je VM kopija koja može da radi pored originala:</p>
 <ul>
   <li>mrežna podešavanja vezana za stare MAC adrese (česta u cloud slikama: netplan <code>match: macaddress</code>) menjaju se tako da važe za bilo koji žičani interfejs,</li>
   <li>BackupZit agent u kopiji se odjavljuje, da se ne bi javljao kao originalna mašina.</li>
+  <li>VM dobija tip procesora <code>x86-64-v2-AES</code>, koji je potreban RHEL 9 i njegovim klonovima (Rocky, Alma) da se podignu (na verzijama Proxmox VE bez njega, podrazumevani tip);</li>
+  <li>sistem sa uključenim SELinux-om (RHEL, Rocky, Alma, Fedora) pri prvom pokretanju ponovo označi svoje fajlove i jednom se restartuje.</li>
 </ul>
 <h3>Na disk</h3>
 <p>Vratite na prazan disk Linux agenta, npr. drugi disk (<code>/dev/sdb</code>), ili na samu novu mašinu („goli metal“):</p>

@@ -16,15 +16,15 @@
 <h2>Ripristinare un'immagine su un disco</h2>
 <p>Nell'esecuzione del backup d'immagine usa <b>Ripristina questa immagine su un disco</b>:</p>
 <ul>
-  <li><b>Ripristina sull’agente</b> — la macchina che ha il disco di destinazione. Può essere una macchina in funzione con un disco libero, o una macchina avviata dalla ISO di ripristino.</li>
-  <li><b>Disco di destinazione</b> — deve essere grande almeno quanto l'area usata dell'originale. <b>Tutti i dati su di esso vengono distrutti.</b></li>
+  <li><b>Ripristina sull’agente</b> — la macchina Windows che ha il disco di destinazione. Può essere una macchina in funzione con un disco libero, o una macchina avviata dalla ISO di ripristino; il disco da cui è in esecuzione Windows non si può scegliere, quindi per ripristinare il disco di sistema di una macchina serve la ISO di ripristino.</li>
+  <li><b>Disco di destinazione</b> — deve arrivare almeno fino alla fine dell'ultima partizione del disco originale (le partizioni vengono ricreate con le dimensioni originali, non ridotte) e avere la stessa dimensione di settore (512 o 4096 byte). <b>Tutti i dati su di esso vengono distrutti.</b></li>
   <li><b>Lascia poi il disco offline</b> — selezionalo quando il disco originale è nella stessa macchina, così Windows non cambia gli ID disco della copia.</li>
 </ul>
 <p>Sono supportati dischi GPT e MBR, avvio EFI e BIOS. Il layout delle partizioni e gli ID vengono ricreati, quindi il disco ripristinato si avvia come prima.</p>
 
 <h2>Ripristino bare-metal con la ISO di ripristino</h2>
 <ol>
-  <li>In <a href="/recovery">Supporti di ripristino</a> scarica la ISO di ripristino (Windows). Scrivila su una chiavetta USB (Rufus, modalità "immagine DD" o "ISO") o collegala a una macchina virtuale.</li>
+  <li>Crea una volta la ISO di ripristino di Windows (vedi <a href="/docs/restore#recovery-iso">ISO di ripristino</a>; Windows PE non può essere ridistribuito), oppure scaricala da <a href="/recovery">Supporti di ripristino</a> se è stata copiata nella console. Scrivila su una chiavetta USB (Rufus in modalità <b>ISO</b>, così puoi aggiungere la cartella del passaggio successivo) o collegala a una macchina virtuale.</li>
   <li>Facoltativamente crea un <b>codice di ripristino</b> e scarica <code>recovery.json</code>; copialo in una cartella <code>backupzit</code> sulla chiavetta, così la macchina si collega senza digitare nulla.</li>
   <li>Avvia dalla chiavetta la macchina da ripristinare. Avvia l'agente in modalità ripristino e si collega alla console (oppure chiede l'indirizzo del server e il codice di ripristino).</li>
   <li>La macchina compare come agente di <span class="badge">ripristino</span> con i suoi dischi.</li>

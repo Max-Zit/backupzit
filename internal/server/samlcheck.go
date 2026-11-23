@@ -13,11 +13,12 @@ import (
 	"github.com/crewjam/saml/xmlenc"
 )
 
-// GO-2026-6909: crewjam/saml up to v0.5.1 binds some assertion elements
+// GO-2026-6909: crewjam/saml (v0.6.3 too: the vulnerability database lists
+// no fixed release) binds some assertion elements
 // without their namespace (a NameID of any namespace fills Subject.NameID,
 // so it could be spoofed inside a signed assertion) and dereferences an
 // optional Subject without a check (a panic). Until a fixed release is
-// out, the console checks every SAML response itself before the library
+// listed, the console checks every SAML response itself before the library
 // reads it: these elements must be in the SAML assertion namespace, and
 // every assertion needs a Subject. Encrypted assertions are decrypted and
 // checked the same way.
@@ -90,11 +91,25 @@ func checkSAMLResponse(raw []byte, key crypto.Signer) error {
 	if err := checkSAMLXML(raw); err != nil {
 		return err
 	}
+	return checkEncrypted(raw, key, 0)
+}
+
+// checkEncrypted decrypts every encrypted assertion and encrypted NameID
+// (EncryptedID, which the library decrypts into the subject's NameID: it
+// went unchecked, L-N1) in the XML b and checks the plaintext, also the
+// encrypted parts inside a decrypted assertion.
+func checkEncrypted(b []byte, key crypto.Signer, depth int) error {
+	if depth > 2 {
+		return errSAMLShape
+	}
 	doc := etree.NewDocument()
-	if err := doc.ReadFromBytes(raw); err != nil {
+	if err := doc.ReadFromBytes(b); err != nil {
 		return fmt.Errorf("SAML response is not valid XML: %w", err)
 	}
-	for _, enc := range doc.FindElements("//EncryptedAssertion") {
+	var encs []*etree.Element
+	encs = append(encs, doc.FindElements("//EncryptedAssertion")...)
+	encs = append(encs, doc.FindElements("//EncryptedID")...)
+	for _, enc := range encs {
 		data := enc.FindElement("./EncryptedData")
 		if data == nil {
 			return errSAMLShape
@@ -108,10 +123,15 @@ func checkSAMLResponse(raw []byte, key crypto.Signer) error {
 		}
 		plain, err := xmlenc.Decrypt(k, data)
 		if err != nil {
-			return fmt.Errorf("SAML assertion: %w", err)
+			return fmt.Errorf("SAML %s: %w", enc.Tag, err)
 		}
 		if err := checkSAMLXML(plain); err != nil {
 			return err
+		}
+		if enc.Tag == "EncryptedAssertion" {
+			if err := checkEncrypted(plain, key, depth+1); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

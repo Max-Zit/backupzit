@@ -8,20 +8,23 @@
   <li><b>Een gebruiker met beheerdersrechten op de host</b>, meestal <code>root</code>.</li>
   <li><b>SSH ingeschakeld op hosts met de gratis licentie:</b> Host → Actions → Services → Enable Secure Shell. De gratis ESXi-licentie maakt de API alleen-lezen, dus snapshots en herstelbewerkingen lopen via SSH. Gelicentieerde hosts worden via de vSphere-API gewijzigd en hebben geen SSH nodig.</li>
   <li><b>Een proxy-agent:</b> een willekeurige Windows- of Linux-agent die de host bereikt op poort 443 (en 22 als SSH wordt gebruikt). De back-upgegevens lopen erdoorheen, zet hem dus op een snel netwerk dicht bij de host en de opslag.</li>
-  <li><b>Vrije ruimte op de datastore van de VM</b> terwijl een draaiende VM wordt geback-upt. BackupZit kopieert de schijf daar even (zie hieronder). De kopie is thin, dus hij heeft zoveel ruimte nodig als de schijf werkelijk gebruikt.</li>
+  <li><b>Vrije ruimte op de datastore van de VM</b> terwijl een draaiende VM wordt geback-upt. BackupZit kopieert de schijf daar even (zie hieronder). De kopie is thin, dus hij heeft zoveel ruimte nodig als de schijf werkelijk gebruikt. Met <a href="#hot-add">hot-add</a> wordt geen kopie gemaakt.</li>
 </ul>
 
 <h2>Een host toevoegen</h2>
 <ol>
-  <li>Open <a href="/agents#vmware">Agents → VMware ESXi-hosts</a> → <i>Een ESXi-host toevoegen</i>.</li>
+  <li>Open <a href="/agents#vmware">Agents → VMware ESXi-hosts</a> → <i>Een ESXi-host of vCenter Server toevoegen</i>.</li>
   <li>Voer het adres, de gebruiker, het wachtwoord en de proxy-agent in.</li>
   <li>De console maakt één keer verbinding om ze te controleren. Hij leest de VM-lijst en de licentie, en <b>pint het HTTPS-certificaat en de SSH-hostsleutel van de host</b>. Als de host later wordt vervangen door een andere machine met hetzelfde adres, weigert BackupZit verbinding te maken in plaats van die het wachtwoord te sturen. Wijzigt het certificaat om een bekende reden — de host is opnieuw geïnstalleerd, heeft een nieuw certificaat gekregen of is aan vCenter toegevoegd (dat de certificaten van zijn hosts vervangt) —, dan toont de host op de pagina Agents de nieuwe vingerafdruk met een knop <b>Nieuw certificaat accepteren</b>. Vergelijk de vingerafdruk met de host voordat u hem accepteert.</li>
 </ol>
-<p>Het wachtwoord wordt versleuteld opgeslagen, zoals alle andere geheimen. De VM-lijst wordt elke 10 minuten vernieuwd, of direct met <i>Vernieuwen</i>. De tabel toont de modus van elke host:</p>
+<p>Het wachtwoord wordt versleuteld opgeslagen, zoals alle andere geheimen. De console maakt zelf verbinding met de host (HTTPS 443, en SSH 22 bij de gratis licentie) bij het toevoegen, bij <i>Vernieuwen</i> en elke 10 minuten om de VM-lijst te vernieuwen, tenzij de host <a href="#via-proxy">via de proxyagent</a> wordt bereikt. <i>Verwijderen</i> verwijdert de host samen met zijn back-uptaken; de back-ups blijven op de opslag. De tabel toont de modus van elke host:</p>
 <ul>
   <li><b>vSphere-API (gelicentieerde host, geen SSH nodig):</b> snapshots, schijfkopieën, herstel en direct herstel lopen via de API.</li>
+  <li><b>vCenter Server (vSphere-API):</b> een vCenter met zijn ESXi-hosts; alles loopt via de API van vCenter.</li>
   <li><b>gratis licentie: snapshots en herstel via SSH:</b> de API van de host is alleen-lezen, dus deze stappen lopen via SSH.</li>
+  <li><b>SSH (gekozen voor deze host):</b> de host wordt via SSH gewijzigd, ook al zou zijn API dat kunnen (<i>Altijd SSH</i> bij het toevoegen van de host).</li>
 </ul>
+<p id="via-proxy"><b>Via de proxyagent</b> (agent 0.56 of nieuwer): vink bij het toevoegen van de host <b>Verbinden via de proxyagent</b> aan, of <b>Verbinden via de proxy</b> in zijn rij, en de console maakt nooit zelf verbinding met de host. De proxyagent controleert het adres en het wachtwoord, leest de VM-lijst, de versie en de licentie, en meldt het HTTPS-certificaat en de SSH-hostsleutel die hij zag; de console pint ze de eerste keer, net als bij een directe verbinding, en vanaf dan weigert de proxyagent een host die een ander certificaat toont (de rij van de host biedt dan <b>Nieuw certificaat accepteren</b>). <i>Vernieuwen</i> en de VM-lijst elke 10 minuten komen ook van de proxyagent; deze controles verschijnen niet in Activiteit. Alleen de proxyagent moet de host kunnen bereiken, precies zoals voor back-ups en herstel, dus de console kan in een ander netwerk, achter NAT of in een overlappend adresbereik staan. Een verkeerd adres of wachtwoord verschijnt na de eerste controle van de proxyagent als fout van de host: verwijder de host en voeg hem opnieuw toe. Zolang de proxyagent offline of bezig is, blijft de laatste VM-lijst staan.</p>
 <p>Met <b>Automatisch</b> kiest de console zelf, dus een host die later een licentie krijgt, schakelt zonder verdere instellingen over op de API. <b>Hoe de host wordt gewijzigd</b> in de rij van de host (en bij het toevoegen) kan <b>Altijd SSH</b> of <b>Altijd de vSphere-API</b> afdwingen; de wijziging wordt meteen gecontroleerd. Eerdere back-ups en hun herstelpunten hangen niet af van de methode.</p>
 
 <h2 id="vcenter">vCenter Server</h2>
@@ -46,17 +49,44 @@
       <li>Op gratis hosts kan CBT alleen worden ingeschakeld terwijl de VM uit staat. BackupZit doet het bij de eerste back-up die de VM uitgeschakeld aantreft. Tot dan leest elke back-up de volledige schijven en toont de run een waarschuwing.</li>
     </ul>
   </li>
-  <li>Er wordt een snapshot <code>backupzit_…</code> gemaakt. Als <b>VMware Tools</b> in de gast draaien, wordt de snapshot <b>gequiesced</b>: toepassingen en bestandssystemen worden eerst geleegd, wat de back-up applicatieconsistent maakt. Zonder VMware Tools is hij crash-consistent. Installeer <code>open-vm-tools</code> in Linux-VM's en VMware Tools in Windows-VM's.</li>
+  <li>Er wordt een snapshot <code>backupzit_…</code> gemaakt. Als <b>VMware Tools</b> in de gast draaien, wordt de snapshot <b>gequiesced</b>: toepassingen en bestandssystemen worden eerst geleegd, wat de back-up applicatieconsistent maakt. Zonder VMware Tools is hij crash-consistent. Installeer <code>open-vm-tools</code> in Linux-VM's en VMware Tools in Windows-VM's. Vink voor een gast waarbij quiescing mislukt of niet goed werkt <i>Crash-consistente snapshots (zonder quiescing door VMware Tools)</i> aan in de taak: zijn back-ups zijn dan crash-consistent, zoals na een stroomuitval (agent 0.58). Op sommige hosts (ESXi 6.7) is de schijf van een gequiescede snapshot een kleine delta die het quiescen zelf heeft geschreven; de agent leest die met de snapshot (agent 0.58; oudere agents weigerden hem als snapshot-deltaschijf).</li>
   <li>CBT meldt welke blokken gelezen moeten worden:
     <ul>
       <li>bij de eerste back-up alleen de gebruikte blokken;</li>
       <li>daarna alleen de blokken die sinds de vorige back-up zijn gewijzigd.</li>
     </ul>
   </li>
-  <li>Een draaiende VM houdt zijn schijven vergrendeld. Zijn schijven worden daarom op de datastore gekopieerd (thin) en <b>de snapshot wordt meteen verwijderd</b>, meestal na enkele seconden. De kopie wordt daarna via HTTPS gelezen en verwijderd. Uitgeschakelde VM's worden direct gelezen.</li>
+  <li>Een draaiende VM houdt zijn schijven vergrendeld. Zijn schijven worden daarom op de datastore gekopieerd (thin) en <b>de snapshot wordt meteen verwijderd</b>, meestal na enkele seconden. De kopie wordt daarna via HTTPS gelezen en verwijderd. Uitgeschakelde VM's worden direct gelezen. Met <a href="#hot-add">hot-add</a> worden de schijven van draaiende VM's in plaats daarvan via de eigen VM van de proxy gelezen, zonder kopie.</li>
   <li>De configuratie van de VM (<code>.vmx</code>) en de NVRAM worden met de back-up opgeslagen.</li>
 </ol>
 <p>Voorbeeld uit het testlab: een Debian-VM met een schijf van 8 GB, waarvan 1,6 GB in gebruik. De eerste back-up las 1,6 GB. De volgende, na 50 MB nieuwe gegevens, las 70 MB en duurde 23 seconden.</p>
+
+<h3 id="hot-add">Hot-add: geen kopie op de datastore</h3>
+<p>Het kopiëren van de schijven van een draaiende VM kost bij elke back-up, ook bij incrementele, tijd en I/O op de productiedatastore en vraagt vrije ruimte voor de gebruikte blokken van de schijven. Bij grote VM's op trage schijven telt dat. Met <b>Hot-add</b> (<a href="/agents#vmware">Agents → VMware ESXi-hosts</a>, het selectievakje onder de proxyagent) leest de proxy ze in plaats daarvan ter plekke:</p>
+<ul>
+  <li><b>Vereisten:</b> de proxy is een <b>Linux-agent in een VM</b> die de datastores van de VM ziet (op dezelfde host, of op een host van hetzelfde vCenter met toegang ertoe), en de host wordt via de vSphere-API gewijzigd (vCenter of een gelicentieerde host). De proxy vindt zijn eigen VM aan de hand van de BIOS-UUID.</li>
+  <li><b>Hoe:</b> zolang de snapshot bestaat, wordt elke schijf <b>independent-nonpersistent</b> aan de VM van de proxy gekoppeld. De proxy opent hem alleen-lezen; alles wat ernaar geschreven zou worden, gaat naar een redo log die vSphere weggooit wanneer de schijf wordt ontkoppeld, dus de schijf van de VM wordt nooit gewijzigd. De proxy leest alleen de blokken die CBT meldt, ontkoppelt de schijf en daarna wordt de snapshot verwijderd.</li>
+  <li><b>Wat het bespaart:</b> geen tijdelijke kopie en geen extra ruimte op de datastore. Een incrementele back-up van een VM van 2 TB met 20 GB aan wijzigingen leest 20 GB. De snapshot blijft bestaan zolang de schijven worden gelezen (in plaats van alleen tijdens het kopiëren), dus de VM schrijft iets langer in de snapshot.</li>
+  <li><b>Terugval:</b> als de proxy geen VM van de host is, of het koppelen of lezen van een schijf mislukt, wordt die schijf zoals voorheen op de datastore gekopieerd en toont de run een waarschuwing met de reden. Hot-add staat standaard uit; agents ouder dan 0.54 negeren het. De pagina van de run toont hoeveel schijven via hot-add zijn gelezen.</li>
+  <li><b>Op de proxy-VM:</b> voorkom met het devices-bestand van LVM dat LVM volumes van de gekoppelde schijven activeert (<code>use_devicesfile = 1</code> in <code>/etc/lvm/lvm.conf</code>, met de eigen schijven van de proxy geregistreerd via <code>lvmdevices</code>). Volumes die LVM toch activeert, worden verwijderd voordat de schijf wordt ontkoppeld. Koppel niet met de hand schijven van andere VM's aan de proxy: een independent-nonpersistent schijf uit de map van een andere VM wordt aangezien voor een schijf die een onderbroken back-up heeft achtergelaten, en ontkoppeld.</li>
+</ul>
+
+<h3 id="proxies">Meerdere proxyagents (vCenter)</h3>
+<p>Eén proxyagent leest de ene schijf na de andere, en via hot-add alleen op de hosts waarvan hij de datastores ziet. Voeg bij een vCenter-verbinding <b>een Linux-agent in een VM op elke ESXi-host</b> toe als extra proxyagent (<a href="/agents#vmware">Agents → VMware ESXi-hosts</a>, <i>Extra proxyagents</i> onder de proxyagent; agents 0.55 of nieuwer):</p>
+<ul>
+  <li><b>Verdeling per host:</b> elke back-up van de taak wordt verdeeld. Elke VM gaat naar de proxyagent op de ESXi-host waarop hij draait (volgens de laatste VM-lijst), elke andere VM naar de proxyagent van de verbinding. Elke proxyagent maakt een back-up van zijn deel als eigen uitvoering, tegelijk met de andere, via hot-add op zijn eigen host. Alleen proxyagents die online zijn doen mee: de VM's van een uitgeschakelde proxyagent gaan naar de proxyagent van de verbinding. De eerste back-up in een nieuwe repository en back-ups naar een lokaal of USB-doel worden niet verdeeld.</li>
+  <li><b>Eén start:</b> de taak toont de delen van een start als geheel: bezig zolang een deel loopt, mislukt als een deel mislukte. RPO-meldingen en het dashboard tellen een back-up pas als alle delen geslaagd zijn; een gekoppelde taak of een kopie "na elke back-up" start één keer, na het laatste deel.</li>
+  <li><b>Geen overlap:</b> back-ups en herstelacties van de verbinding op verschillende proxyagents lopen niet tegelijk (alleen de delen van één start), dus een VM die tussen hosts is verplaatst, wordt nooit door twee proxyagents tegelijk behandeld.</li>
+  <li><b>Bewaring per proxyagent:</b> elk deel bewaart het ingestelde aantal back-ups van zijn VM's, en kopieertaken kopiëren en bewaren ze ook per deel. Back-ups van voordat de taak werd verdeeld en die van een verwijderde proxyagent blijven zoals ze zijn: ze blijven herstelpunten van hun VM's. Een VM die naar een andere host is verplaatst (vMotion) gaat vanaf de volgende vernieuwing van de VM-lijst naar de proxyagent van die host.</li>
+  <li>BackupZit vindt de host van een proxyagent via de BIOS-UUID die zijn agent meldt; de pagina Agents toont hem naast elke agent. <i>ESXi-host niet gevonden</i>: de agent is geen VM van dit vCenter, of de VM-lijst is ouder dan de agent (klik op <i>Vernieuwen</i>).</li>
+</ul>
+<p><b>Annuleren</b> van een VMware-back-up (Activiteit → Annuleren) stopt ook een lopende schijfkopie op de datastore en verwijdert de onvolledige kopie; de snapshot wordt verwijderd zoals na elke back-up. Een snapshot die nog wordt gemaakt op het moment dat de back-up wordt geannuleerd, wordt afgewacht (tot vijf minuten) en eveneens verwijderd.</p>
+<p id="leftovers"><b>Achtergebleven snapshots.</b> De proxyagent legt elke snapshot en tijdelijke schijfkopie vast voordat hij die maakt, en wist de vastlegging pas als hij ziet dat het object weg is: na het verwijderen vraagt hij de snapshots van de VM opnieuw op, probeert het tot drie keer in ongeveer tien minuten, meldt zich opnieuw aan wanneer de vSphere-sessie is beëindigd (ook vóór elke VM, zodat één verloren sessie de VM's daarna niet laat mislukken) en consolideert de schijven wanneer vSphere meldt dat dat nodig is; een VM zonder snapshots waarvan de schijven na een eerdere verwijdering nog consolidatie nodig hebben, wordt vóór de volgende back-up geconsolideerd. Stopt de agent halverwege (crash, stroomuitval) of blijft het verwijderen mislukken, dan blijft de vastlegging staan:</p>
+<ul>
+  <li>De console zet een opschoonrun op de proxyagent in de wachtrij (alleen de proxyagent heeft de aanmeldgegevens van de host), en de proxyagent verwijdert zulke restanten ook na elke back-up van de verbinding. VM's waaraan een back-up of herstel van de proxyagent werkt, blijven ongemoeid.</li>
+  <li>Het dashboard toont elk restant onder <i>Vraagt aandacht</i> (VM, sinds wanneer, waarom) met <b>Nu verwijderen</b>, en voor elk restant dat blijft, gaat één keer een melding (e-mail, chat) uit.</li>
+  <li>De console zoekt ook naar <code>backupzit_…</code>-snapshots ouder dan zes uur in de VM-lijst die ze elke 10 minuten vernieuwt, zolang er geen back-up van de verbinding loopt, zodat ook restanten van oudere agents verschijnen. Alleen snapshots met de naam <code>backupzit_…</code> worden ooit verwijderd; de eigen snapshots van de VM blijven altijd onaangeroerd.</li>
+</ul>
 
 <h2>Een VM herstellen</h2>
 <p>Gebruik de <a href="/restore">herstelwizard</a> (<i>Volledige virtuele machine</i>) of de pagina van de back-up in Activiteit. Kies:</p>
@@ -96,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Nog niet inbegrepen</h2>
 <ul>
   <li><b>vCenter met meerdere datacenters.</b> Alleen een vCenter met één datacenter kan worden toegevoegd; voeg de hosts van de andere rechtstreeks toe.</li>
-  <li><b>VM's met eigen snapshots.</b> Hun schijven zijn delta's; verwijder of consolideer de snapshots eerst.</li>
+  <li><b>VM's met eigen snapshots.</b> Hun schijven zijn delta's; verwijder of consolideer de snapshots eerst. (De kleine delta die een gequiescede snapshot schrijft, hoort bij de back-up zelf en wordt ermee gelezen.)</li>
   <li><b>Sommige schijftypen.</b> Raw device mappings (RDM) en onafhankelijke schijven.</li>
   <li><b>Direct herstel via een Windows-proxy-agent.</b> Direct herstel vereist een Linux-proxy-agent.</li>
 </ul>

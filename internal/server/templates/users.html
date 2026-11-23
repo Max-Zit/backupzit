@@ -40,6 +40,7 @@
         <label>{{T "Password"}} <small>{{T "at least"}} {{.Data.MinPassword}} {{T "characters"}}</small><input name="password" type="password" required minlength="{{.Data.MinPassword}}" autocomplete="new-password"></label>
         <label>{{T "Repeat password"}} <input name="password2" type="password" required minlength="{{.Data.MinPassword}}" autocomplete="new-password"></label>
       </div>
+      <div class="row">{{template "reauth_admin" $.Me}}</div>
       <div><button>{{T "Create user"}}</button></div>
     </form>
   </div>

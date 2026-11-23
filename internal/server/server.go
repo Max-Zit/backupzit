@@ -80,7 +80,16 @@ type Server struct {
 	// image started on it ("" otherwise).
 	UpdatedFrom string
 
-	pages map[string]map[string]*template.Template // language -> page -> template
+	// pageSrc is the source of each page per language (language -> page ->
+	// file); pages holds those parsed so far. A page is parsed the first time
+	// it is shown in a language: all 14 languages parsed at start took about
+	// 440 MB, most of it for languages nobody uses.
+	pageSrc map[string]map[string]string
+	pagesMu sync.Mutex
+	pages   map[string]map[string]*template.Template
+	// inventoryWanted holds the agents asked to send their inventory with
+	// their next poll (Refresh on the Agents page).
+	inventoryWanted sync.Map
 	// Notifier is triggered when a run finishes (optional).
 	Notifier *Notifier
 	cache    *repoCache
@@ -203,6 +212,16 @@ var funcs = template.FuncMap{
 	"vmsel": func(paths []string, exclude ...[]string) string {
 		return describeVMSelection(languages[0], paths, exclude...)
 	},
+	// guests of one kind: "lxc" for Proxmox containers, "vm" for the others.
+	"guestsof": func(kind string, gs []pve.Guest) []pve.Guest {
+		var out []pve.Guest
+		for _, g := range gs {
+			if (g.Type == "lxc") == (kind == "lxc") {
+				out = append(out, g)
+			}
+		}
+		return out
+	},
 	"bytes64": func(n int64) string { return humanBytes(uint64(n)) },
 	"upper":   strings.ToUpper,
 	"seq":     func(n int) []int { return make([]int, n) },
@@ -308,6 +327,7 @@ func fileExists(name string) bool {
 }
 
 func (s *Server) loadTemplates() error {
+	s.pageSrc = map[string]map[string]string{}
 	s.pages = map[string]map[string]*template.Template{}
 	entries, err := fs.ReadDir(templateFS, "templates")
 	if err != nil {
@@ -315,6 +335,7 @@ func (s *Server) loadTemplates() error {
 	}
 	// One set per language: T and the text helpers are bound to it.
 	for _, l := range languages {
+		s.pageSrc[l.Code] = map[string]string{}
 		s.pages[l.Code] = map[string]*template.Template{}
 		for _, e := range entries {
 			name := e.Name()
@@ -333,14 +354,47 @@ func (s *Server) loadTemplates() error {
 					src = tr
 				}
 			}
-			t, err := template.New("layout.html").Funcs(funcs).Funcs(langFuncs(l)).ParseFS(templateFS, "templates/layout.html", "templates/_*.html", src)
-			if err != nil {
-				return fmt.Errorf("template %s: %w", src, err)
-			}
-			s.pages[l.Code][strings.TrimSuffix(name, ".html")] = t
+			s.pageSrc[l.Code][strings.TrimSuffix(name, ".html")] = src
 		}
 	}
+	// The login page is parsed now, so that a broken template set shows at
+	// start, not at the first sign-in.
+	if _, err := s.parsePage("en", "login"); err != nil {
+		return err
+	}
 	return nil
+}
+
+// page returns the template of a page in a language, parsing it the first
+// time it is needed.
+func (s *Server) page(lang, name string) (*template.Template, bool) {
+	t, err := s.parsePage(lang, name)
+	if err != nil {
+		if s.log != nil {
+			s.log.Error("page template", "page", name, "language", lang, "err", err)
+		}
+		return nil, false
+	}
+	return t, t != nil
+}
+
+func (s *Server) parsePage(lang, name string) (*template.Template, error) {
+	s.pagesMu.Lock()
+	defer s.pagesMu.Unlock()
+	if t := s.pages[lang][name]; t != nil {
+		return t, nil
+	}
+	src, ok := s.pageSrc[lang][name]
+	if !ok {
+		return nil, nil
+	}
+	l := languageByCode(lang)
+	t, err := template.New("layout.html").Funcs(funcs).Funcs(langFuncs(l)).ParseFS(templateFS, "templates/layout.html", "templates/_*.html", src)
+	if err != nil {
+		return nil, fmt.Errorf("template %s: %w", src, err)
+	}
+	s.pages[lang][name] = t
+	return t, nil
 }
 
 // Handler returns the HTTP handler for UI and agent API.
@@ -380,21 +434,28 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /logout", s.ui("", s.handleLogout))
 	mux.HandleFunc("GET /{$}", s.ui(PermView, s.handleDashboard))
 	mux.HandleFunc("GET /agents", s.ui(PermView, s.handleAgents))
-	mux.HandleFunc("POST /agents/token", s.ui(PermAgents, s.handleAgentToken))
-	mux.HandleFunc("POST /agents/install", s.ui(PermAgents, s.handleDeployStart))
-	mux.HandleFunc("GET /agents/install/{id}", s.ui(PermAgents, s.handleDeployPage))
+	mux.HandleFunc("POST /agents/token", s.ui(PermStorage, s.handleAgentToken))
+	mux.HandleFunc("POST /agents/install", s.ui(PermStorage, s.handleDeployStart))
+	mux.HandleFunc("GET /agents/install/{id}", s.ui(PermStorage, s.handleDeployPage))
 	mux.HandleFunc("GET /agents/remove/{id}", s.ui(PermAgents, s.handleAgentRemovePage))
 	mux.HandleFunc("POST /agents/{id}/delete", s.ui(PermAgents, s.handleAgentDelete))
 	mux.HandleFunc("POST /agents/{id}/adopt", s.ui(PermAgents, s.handleAgentAdopt))
 	mux.HandleFunc("POST /agents/{id}/update", s.ui(PermAgents, s.handleAgentUpdate))
 	mux.HandleFunc("POST /agents/{id}/max-runs", s.ui(PermAgents, s.handleAgentMaxRuns))
+	mux.HandleFunc("GET /agents/{id}", s.ui(PermView, s.handleAgentPage))
+	mux.HandleFunc("POST /agents/{id}/labels", s.ui(PermAgents, s.handleAgentLabels))
 	mux.HandleFunc("POST /agents/{id}/log", s.ui(PermAgents, s.handleAgentLogRequest))
+	mux.HandleFunc("POST /agents/{id}/inventory", s.ui(PermAgents, s.handleAgentInventoryRequest))
+	mux.HandleFunc("POST /leftovers/clean", s.ui(PermAgents, s.handleLeftoverClean))
 	mux.HandleFunc("GET /runs/{id}/log", s.ui(PermAgents, s.handleAgentLogDownload))
 	mux.HandleFunc("POST /agents/update-all", s.ui(PermAgents, s.handleAgentUpdateAll))
-	mux.HandleFunc("POST /vmware", s.ui(PermAgents, s.handleVMwareCreate))
+	mux.HandleFunc("POST /vmware", s.ui(PermStorage, s.handleVMwareCreate))
 	mux.HandleFunc("POST /vmware/{id}/refresh", s.ui(PermAgents, s.handleVMwareRefresh))
-	mux.HandleFunc("POST /vmware/{id}/proxy", s.ui(PermAgents, s.handleVMwareProxy))
+	mux.HandleFunc("POST /vmware/{id}/proxy", s.ui(PermStorage, s.handleVMwareProxy))
 	mux.HandleFunc("POST /vmware/{id}/method", s.ui(PermAgents, s.handleVMwareMethod))
+	mux.HandleFunc("POST /vmware/{id}/hotadd", s.ui(PermAgents, s.handleVMwareHotAdd))
+	mux.HandleFunc("POST /vmware/{id}/connection", s.ui(PermStorage, s.handleVMwareConnection))
+	mux.HandleFunc("POST /vmware/{id}/proxies", s.ui(PermStorage, s.handleVMwareProxies))
 	mux.HandleFunc("POST /vmware/{id}/certificate", s.ui(PermAgents, s.handleVMwareCertificate))
 	mux.HandleFunc("POST /vmware/{id}/delete", s.ui(PermAgents, s.handleVMwareDelete))
 	mux.HandleFunc("GET /targets", s.ui(PermView, s.handleTargets))
@@ -419,6 +480,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /jobs/{id}/run", s.ui(PermRun, s.handleJobRun))
 	mux.HandleFunc("POST /jobs/{id}/test", s.ui(PermRun, s.handleJobTest))
 	mux.HandleFunc("POST /jobs/{id}/check", s.ui(PermRun, s.handleJobCheck))
+	mux.HandleFunc("POST /runs/{id}/repair", s.ui(PermJobs, s.handleRepoRepair))
 	mux.HandleFunc("POST /jobs/{id}/release-hold", s.ui(PermJobs, s.handleJobReleaseHold))
 	mux.HandleFunc("POST /jobs/{id}/enable", s.ui(PermJobs, s.handleJobEnable(true)))
 	mux.HandleFunc("POST /jobs/{id}/disable", s.ui(PermJobs, s.handleJobEnable(false)))
@@ -439,6 +501,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /runs/{id}/instant", s.ui(PermRestore, s.handleInstantEnd))
 	mux.HandleFunc("GET /runs/{id}/browse", s.ui(PermRestore, s.handleBrowse))
 	mux.HandleFunc("POST /runs/{id}/files-restore", s.ui(PermRestore, s.handleFilesRestore))
+	mux.HandleFunc("POST /runs/{id}/image-download", s.ui(PermRestore, s.handleImageDownload))
 	mux.HandleFunc("GET /runs/{id}/vmbrowse", s.ui(PermRestore, s.handleVMBrowse))
 	mux.HandleFunc("POST /runs/{id}/vmdownload", s.ui(PermRestore, s.handleVMDownload))
 	mux.HandleFunc("POST /runs/{id}/vmfiles-restore", s.ui(PermRestore, s.handleVMFilesRestore))
@@ -485,6 +548,7 @@ func (s *Server) handler(main bool) http.Handler {
 	mux.HandleFunc("POST /settings/updates/check", s.ui(PermSettings, s.handleUpdateCheck))
 	mux.HandleFunc("POST /settings/updates/install", s.ui(PermSettings, s.handleUpdateInstall))
 	mux.HandleFunc("POST /settings/updates/upload", s.ui(PermSettings, s.handleUpdateUpload))
+	mux.HandleFunc("POST /settings/updates/hide-banner", s.ui(PermSettings, s.handleUpdateBannerHide))
 	mux.HandleFunc("POST /settings/os", s.ui(PermSettings, s.handleOSAction))
 	mux.HandleFunc("POST /settings/network", s.ui(PermSettings, s.handleNetworkSettings))
 	mux.HandleFunc("POST /settings/ssh", s.ui(PermSettings, s.handleSSHSettings))
@@ -538,6 +602,8 @@ type pageData struct {
 	Approvals int
 	// SSO is the sign-in button text when single sign-on is set up (login page).
 	SSO string
+	// Update is the "new version available" banner (set by render).
+	Update *updateBanner
 }
 
 // ui requires a signed-in user whose role has perm, and rejects
@@ -592,7 +658,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d p
 		s.noteConsoleURL(r)
 	}
 	lang := requestLanguage(r)
-	t, ok := s.pages[lang.Code][page]
+	t, ok := s.page(lang.Code, page)
 	if page == "login" {
 		if c := s.ssoSettings(r.Context()); c.Protocol != "" {
 			d.SSO = c.label()
@@ -619,6 +685,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, d p
 	if d.Me != nil {
 		d.FourEyes = s.store.fourEyes(r.Context())
 		d.Approvals = s.store.PendingApprovals(r.Context())
+		d.Update = s.updateBannerFor(r.Context(), d.Me, r.URL.Path)
 	}
 	if d.User != "" {
 		w.Header().Set("Cache-Control", "no-store")
@@ -780,6 +847,17 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		s.serverError(w, err)
 		return
 	}
+	allAgents, allTags := agents, agentTags(agents)
+	tag := strings.TrimSpace(r.URL.Query().Get("tag"))
+	if tag != "" {
+		var sel []Agent
+		for _, a := range agents {
+			if a.HasTag(tag) {
+				sel = append(sel, a)
+			}
+		}
+		agents = sel
+	}
 	removed, _ := s.store.listRemovedAgents(r.Context())
 	hosts, err := s.store.ListVMwareHosts(r.Context())
 	if err != nil {
@@ -793,8 +871,8 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request, user string,
 		}
 	}
 	s.render(w, r, "agents", pageData{Title: "Agents", Nav: "agents", User: user, Data: map[string]any{
-		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(agents), "VMwareHosts": hosts, "Duplicates": s.dups.current(s.clock()), "ClockSkew": s.clocks.skewed(s.clock()), "Removed": removed,
-		"Unprotected": unprotected,
+		"Agents": agents, "Enroll": enroll, "Downloads": s.downloads(), "Updates": s.availableUpdates(allAgents), "VMwareHosts": hosts, "Duplicates": s.dups.current(s.clock()), "ClockSkew": s.clocks.skewed(s.clock()), "Removed": removed,
+		"Unprotected": unprotected, "AllTags": allTags, "Tag": tag, "ProxyChoices": s.store.proxyChoices(r.Context(), hosts, allAgents),
 	}})
 }
 
@@ -1098,6 +1176,17 @@ func (s *Server) handleJob(w http.ResponseWriter, r *http.Request, user string) 
 	if pr, err := s.store.newestBackup(r.Context(), j.ID); err == nil && pr != nil {
 		data["ProtectedRun"] = pr
 		if d := vmDetails(*pr); d != nil {
+			// A split VMware backup: the VMs of all its parts (C11).
+			if pr.Batch != nil {
+				for _, o := range s.store.batchRuns(r.Context(), *pr.Batch) {
+					if od := vmDetails(o); o.ID != pr.ID && od != nil && (o.Status == api.StatusSuccess || o.Status == api.StatusWarning) {
+						for _, g := range od.Guests {
+							g.RunID = o.ID
+							d.Guests = append(d.Guests, g)
+						}
+					}
+				}
+			}
 			data["Protected"] = d
 		}
 		if d := sqlDetails(*pr); d != nil {
@@ -1133,10 +1222,12 @@ func (s *Server) handleJobEditPage(w http.ResponseWriter, r *http.Request, user 
 func (s *Server) handleJobRun(w http.ResponseWriter, r *http.Request, _ string) {
 	id, _ := pathID(r)
 	back := fmt.Sprintf("/jobs/%d", id)
-	if _, err := s.store.QueueBackup(r.Context(), id, "manual"); err != nil {
+	rid, err := s.store.QueueBackup(r.Context(), id, "manual")
+	if err != nil {
 		redirectErr(w, r, back, err)
 		return
 	}
+	s.audit(r, "job.run", "job %d, run %d", id, rid) // as the API does (L-7)
 	redirectMsg(w, r, back, "Backup queued. The agent picks it up on its next poll.")
 }
 
@@ -1239,7 +1330,9 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request, user string) 
 		"Instant": runInstant(run), "InstantStorage": s.instantStorage(r.Context(), run), "BootTests": bootTests(run)} {
 		data[k] = v
 	}
-	if run.Kind == api.KindAgentLog {
+	// The log may hold paths, host names and errors of the agent: only
+	// those who may download it (the agents permission) see its tail.
+	if me := currentUser(r); run.Kind == api.KindAgentLog && me.Can(string(PermAgents)) {
 		if text, err := s.store.AgentLog(r.Context(), run.ID); err == nil && text != "" {
 			data["AgentLog"] = logTail(text, 200)
 		}
@@ -1267,12 +1360,12 @@ func (s *Server) restoreFormData(ctx context.Context, run Run) (map[string]any, 
 		}
 	}
 	return map[string]any{
-		"Run": run, "Agents": agents, "Inventory": inventories(agents), "VMwareHosts": hosts,
+		"Run": run, "Agents": agents, "Inventory": inventories(agents), "VMwareHosts": hosts, "Damaged": damagedPacks(run),
 		"VM": vm, "PVEAgents": pveAgents(agents), "VMAgents": hypervisorAgents(agents, vm.Platform()), "VMPlatform": vm.Platform(),
 		"System": sysDetails(run), "LinuxAgents": linuxAgents(agents), "SelectedVMID": 0,
 		"SQL": sqlDetails(run), "SQLPoints": s.store.sqlRestorePoints(ctx, run), "WindowsAgents": sqlRestoreAgents(agents, sqlDetails(run)),
 		"SQLInstance": s.store.jobSQLInstance(ctx, run), "SelectedDB": "", "SQLRestore": sqlRestoreOptions(run),
-		"M365": s.store.isM365Run(ctx, run),
+		"M365": s.store.isM365Run(ctx, run), "Containers": containerFiles(run),
 	}, nil
 }
 
@@ -1338,5 +1431,5 @@ func Shutdown(srv *http.Server) {
 
 // kindTitleEN names a run kind for people (English).
 func kindTitleEN(k string) string {
-	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "repo-scan": "Find backups", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore"}[k]
+	return map[string]string{"backup": "Backup", "restore": "Restore", "image-backup": "Image backup", "image-restore": "Image restore", "image-file-restore": "File restore from image", "copy": "Backup copy", "verify": "Restore test", "vm-backup": "VM backup", "vm-restore": "VM restore", "agent-update": "Agent update", "agent-log": "Agent log", "repo-check": "Data check", "repo-repair": "Data repair", "repo-scan": "Find backups", "system-backup": "System backup", "system-restore": "System restore", "vm-file-restore": "File restore from VM", "vm-instant": "Instant VM recovery", "vm-instant-finish": "Instant recovery finish", "vm-instant-discard": "Instant recovery discard", "vm-replica": "Replication", "vm-replica-start": "Replica start", "sql-backup": "Database backup", "sql-log": "Database log backup", "sql-restore": "Database restore", "leftover-cleanup": "Leftover clean-up"}[k]
 }

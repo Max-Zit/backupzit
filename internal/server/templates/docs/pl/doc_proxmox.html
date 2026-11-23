@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Maszyny wirtualne Proxmox VE</h1>
-<p class="lead">BackupZit tworzy kopie maszyn wirtualnych (QEMU) i kontenerów (LXC) Proxmox VE bez instalowania czegokolwiek w gościach. Agent działa na hoście Proxmox, tworzy migawkę każdego gościa, odczytuje jego dyski i zapisuje je z deduplikacją w dowolnym magazynie.</p>
+<p class="lead">BackupZit tworzy kopie maszyn wirtualnych (QEMU) i kontenerów (LXC) Proxmox VE bez instalowania czegokolwiek w gościach. Agent działa na hoście Proxmox, tworzy migawkę każdego gościa, odczytuje jego dyski i zapisuje je z deduplikacją w dowolnym magazynie. Dyski VM są zapisywane jako obrazy dysków; kontenery na ZFS są kopiowane plik po pliku (zob. <a href="#lxc-zfs">Kontenery (LXC) na ZFS</a>).</p>
 
 <h2>Konfiguracja</h2>
 <ol>
@@ -18,10 +18,10 @@ systemctl enable --now backupzit-agent</pre></li>
 <ol>
   <li>Tworzona jest tymczasowa migawka Proxmox (<code>backupzit_…</code>, widoczna w <i>Snapshots</i> przez kilka sekund do kilku minut). Gość działa dalej.</li>
   <li>Jeśli w maszynie działa <b>agent gościa QEMU</b> (i jest włączony w opcjach maszyny), Proxmox zamraża systemy plików na czas migawki — kopia jest wtedy spójna aplikacyjnie. Bez niego kopia jest spójna awaryjnie, jak po zaniku zasilania. Zainstaluj <code>qemu-guest-agent</code> w maszynach Linux i narzędzia gościa VirtIO w maszynach Windows.</li>
-  <li>Każdy dysk jest odczytywany z migawki w blokach po 1 MiB. Puste bloki nie są zapisywane, a bloki już obecne w repozytorium nie są wysyłane ponownie, więc po pierwszej kopii przesyłane są tylko zmienione dane.  Działające maszyny wirtualne z dyskami na LVM-thin, ZFS, Ceph RBD lub w plikach qcow2 mają też <b>śledzenie zmienionych bloków</b> (dirty bitmapy QEMU): od drugiej kopii odczytywane są tylko obszary zapisane od poprzedniej kopii, co trwa sekundy zamiast minut. Po zatrzymaniu, ponownym uruchomieniu lub przeniesieniu maszyny na inny węzeł następna kopia raz odczytuje jej dyski w całości; strona uruchomienia pokazuje, które dyski odczytano jako same zmienione bloki.</li>
+  <li>Każdy dysk jest odczytywany z migawki w blokach po 1 MiB. Puste bloki nie są zapisywane, a bloki już obecne w repozytorium nie są wysyłane ponownie, więc po pierwszej kopii przesyłane są tylko zmienione dane.  Działające maszyny wirtualne z dyskami na LVM-thin, ZFS, Ceph RBD lub w plikach qcow2 mają też <b>śledzenie zmienionych bloków</b> (dirty bitmapy QEMU): od drugiej kopii odczytywane są tylko obszary zapisane od poprzedniej kopii, co trwa sekundy zamiast minut. Po zatrzymaniu, ponownym uruchomieniu lub przeniesieniu maszyny na inny węzeł albo po zmianie rozmiaru dysku następna kopia raz odczytuje jej dyski w całości; strona uruchomienia pokazuje, które dyski odczytano jako same zmienione bloki. To domyślny rozmiar bloku; zadanie może zamiast tego używać 256 lub 512 KiB (zobacz <a href="/docs/jobs#compression">Zadania</a>).</li>
   <li>Migawka jest usuwana. Konfiguracja gościa (procesor, pamięć, sieć, dyski) jest zapisywana razem z kopią.</li>
 </ol>
-<p>Strona uruchomienia wymienia każdego gościa, jego dyski i sposób przechwycenia. Testy przywracania sprawdzają losowe bloki kopii maszyn jak w obrazach dysków, a przy włączonym <a href="/docs/restore">teście rozruchu</a> uruchamiają każdą maszynę z kopii, odizolowaną od sieci, aby udowodnić, że się uruchamia.</p>
+<p>Strona uruchomienia wymienia każdego gościa, jego dyski i sposób przechwycenia. Testy przywracania sprawdzają losowe bloki kopii maszyn jak w obrazach dysków, a przy włączonym <a href="/docs/restore">teście rozruchu</a> uruchamiają każdą maszynę z kopii, odizolowaną od sieci, aby udowodnić, że się uruchamia. Kontenery na ZFS są testowane przez przywrócenie losowych plików.</p>
 
 <h3>Obsługiwane magazyny</h3>
 <table>
@@ -31,9 +31,27 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ceph RBD</td><td>tak, migawka</td><td>tak</td></tr>
   <tr><td>Katalog, NFS, CIFS z dyskami <b>qcow2</b></td><td>tak, migawka</td><td>tak</td></tr>
   <tr><td>Katalog, NFS, CIFS z dyskami raw, gruby LVM</td><td>nie — zatrzymaj gościa lub przenieś dysk</td><td>tak</td></tr>
-  <tr><td>Podwoluminy ZFS kontenerów</td><td colspan="2">jeszcze nieobsługiwane</td></tr>
+  <tr><td>Podwoluminy ZFS kontenerów (LXC)</td><td>tak, migawka, plik po pliku</td><td>tak, plik po pliku</td></tr>
 </table>
-<p>Dyski oznaczone w Proxmox jako <i>Backup: no</i> (<code>backup=0</code>), przekazane dyski fizyczne i montowania bind są pomijane i wymieniane jako ostrzeżenia. Napędy cloud-init nie są zapisywane; przy przywracaniu są odtwarzane z konfiguracji.</p>
+<p>Dyski oznaczone w Proxmox jako <i>Backup: no</i> (<code>backup=0</code>), przekazane dyski fizyczne i montowania bind są pomijane i wymieniane jako ostrzeżenia. Napędy cloud-init nie są zapisywane; przy przywracaniu są odtwarzane z konfiguracji. Zatrzymany gość, którego dyski są czytane bez migawki, ma w tym czasie blokadę kopii zapasowej Proxmox VE, jak przy vzdump: nie można go uruchomić (także przez HA), dopóki jego dyski nie zostaną przeczytane.</p>
+<p id="leftovers"><b>Pozostawione migawki i blokady.</b> Agent zapisuje każdą migawkę kopii zapasowej, zanim ją utworzy, oraz blokadę kopii zapasowej zatrzymanego gościa, gdy tylko zostanie założona, i usuwa wpis dopiero wtedy, gdy konfiguracja gościa pokazuje, że jej już nie ma (migawka jest usuwana z <code>--force</code>, gdy zwykłe usunięcie się nie powiedzie, do trzech prób w ciągu mniej więcej dziesięciu minut). Po awarii agenta lub zaniku zasilania agent sam je usuwa, przy starcie i co 15 minut:</p>
+<ul>
+  <li>Goście, nad którymi pracuje kopia lub przywracanie agenta, oraz goście, dla których Proxmox VE wykonuje operację (kopię vzdump, migrację), pozostają nietknięci.</li>
+  <li>Blokada migawki (<code>lock: snapshot</code>) pozostawiona przez przerwane tworzenie jest usuwana razem z migawką; urządzenia Ceph RBD migawki są wcześniej odmapowywane (unmap).</li>
+  <li>Migawki <code>backupzit_…</code> starsze niż jeden dzień, o których agent nie ma wpisu (na przykład ze starszych wersji), także są usuwane. Twoje własne migawki nigdy nie są ruszane.</li>
+  <li>Blokada kopii zapasowej jest usuwana tylko wtedy, gdy wpis pokazuje, że założył ją BackupZit. Blokada, której nie założył, jest zgłaszana wraz z poleceniem, które ją usuwa (<code>qm unlock</code>, <code>pct unlock</code>), ponieważ vzdump używa tej samej blokady.</li>
+  <li>To, czego nie da się usunąć, pojawia się na pulpicie w sekcji <i>Wymaga uwagi</i> z przyciskiem <b>Usuń teraz</b> i jest zgłaszane jeden raz.</li>
+</ul>
+
+<h3 id="lxc-zfs">Kontenery (LXC) na ZFS</h3>
+<p>Na magazynie ZFS Proxmox przechowuje woluminy kontenera (LXC) jako zbiory danych (<code>subvol-&lt;ID&gt;-disk-N</code>): systemy plików, a nie dyski wirtualne jak zvole maszyny wirtualnej (QEMU). Dlatego BackupZit kopiuje te kontenery plik po pliku:</p>
+<ul>
+  <li>Tymczasowa migawka jest taka sama; agent odczytuje pliki z migawki ZFS każdego podwoluminu (<code>.zfs/snapshot</code>, także gdy jest ukryta), a kontener nadal działa.</li>
+  <li>Zachowywani są właściciele (także przesunięte identyfikatory kontenerów nieuprzywilejowanych), uprawnienia, czasy, atrybuty rozszerzone i listy ACL, dowiązania twarde i symboliczne oraz pliki urządzeń. Gniazda są pomijane, jak w vzdump; usługi w kontenerze tworzą je ponownie.</li>
+  <li>Od drugiej kopii odczytywane są tylko pliki, których rozmiar lub czas modyfikacji się zmienił; pozostałe są brane z poprzedniej kopii.</li>
+  <li>Taki kontener jest przywracany na magazyn ZFS jako nowe podwoluminy o rozmiarze (limicie) oryginalnych woluminów.</li>
+</ul>
+<p>Kontenery na LVM-thin lub Ceph RBD mają dyski wirtualne i są kopiowane blok po bloku, jak maszyny wirtualne. Strona uruchomienia pokazuje VM (QEMU) i kontenery (LXC) w osobnych tabelach oraz sposób zapisania każdego kontenera. Wymaga agentów 0.53 lub nowszych.</p>
 
 <h2>Przywracanie maszyny lub kontenera</h2>
 <p>Otwórz uruchomienie kopii maszyny (ze strony zadania lub z <a href="/runs">Aktywność</a>) i użyj <b>Przywróć VM lub kontener</b>:</p>
@@ -45,7 +63,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Nazwa</b> i <b>Magazyn dla dysków</b> — np. przywróć do innego magazynu niż oryginał.</li>
   <li><b>Uruchom gościa po przywróceniu</b>.</li>
 </ul>
-<p>Każde przywrócenie nadaje maszynom nowy identyfikator generacji (<code>vmgenid</code>), aby kontrolery domeny Windows i inne oprogramowanie bezpiecznie wykryły cofnięcie stanu. Dyski są przydzielane przez <code>pvesm</code> w wybranym magazynie; w magazynie katalogowym są przywracane jako pliki raw.</p>
+<p>Każde przywrócenie nadaje maszynom nowy identyfikator generacji (<code>vmgenid</code>), aby kontrolery domeny Windows i inne oprogramowanie bezpiecznie wykryły cofnięcie stanu. Dyski są przydzielane przez <code>pvesm</code> w wybranym magazynie; w magazynie katalogowym są przywracane jako pliki raw. Lista magazynów oferuje tylko te, które pasują do wybranego gościa: dyski VM dla maszyny wirtualnej, woluminy kontenerów dla kontenera i ZFS dla kontenera kopiowanego plik po pliku.</p>
 
 <h2>Natychmiastowe odzyskiwanie</h2>
 <p>Przywrócenie dużej maszyny trwa tyle, co skopiowanie jej dysków. Z opcją <b>Natychmiast, działając z kopii</b> w formularzu przywracania maszyna działa już po kilku sekundach, podczas gdy jej dyski wciąż są w kopii:</p>
@@ -61,7 +79,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>Za pierwszym razem replika jest przywracana jak nowy gość (następne wolne ID, nazwa <i>original-replica</i>, nowe adresy MAC, nigdy nie startuje razem z węzłem).</li>
   <li>Później zapisywane są tylko bloki zmienione od kopii, którą zawiera replika — zwykle kilka sekund na kopię.</li>
-  <li>Strona zadania wymienia repliki, kopię, którą zawiera każda z nich, i ich stan. Jeśli gość zostanie utracony, kliknij <b>Uruchom replikę</b>: działa z danymi z ostatniej kopii, bez przywracania. Uruchamiaj ją tylko wtedy, gdy oryginału naprawdę już nie ma — oba w sieci jednocześnie mogą powodować konflikty.</li>
+  <li>Strona zadania wymienia repliki, kopię, którą zawiera każda z nich, i ich stan. Jeśli gość zostanie utracony, kliknij <b>Uruchom replikę</b>: działa z danymi z ostatniej kopii, bez przywracania. Uruchamiaj ją tylko wtedy, gdy oryginału naprawdę już nie ma — oba w sieci jednocześnie mogą powodować konflikty. Po uruchomieniu repliki (także w interfejsie Proxmox VE, np. do testu przełączenia) kolejna aktualizacja porównuje każdy blok zamiast zapisywać tylko zmiany, aby replika znów odpowiadała kopii. To samo dzieje się po przerwanej aktualizacji (awaria agenta lub węzła) oraz wtedy, gdy z dziennika zadań Proxmox VE nie da się odczytać, czy replika została uruchomiona.</li>
   <li>Gdy replika działa, nie jest już aktualizowana (uruchomienie to zgłasza). Aby replikować ponownie, usuń gościa-replikę w Proxmox; następna kopia utworzy nową. Repliki z migawkami Proxmox również nie są aktualizowane.</li>
   <li>Dyski dodane później do gościa nie są replikowane (usuń replikę, aby zacząć od nowa); powiększone dyski są powiększane także w replice. Zmiany konfiguracji (pamięć, procesory) są przejmowane przy tworzeniu repliki.</li>
   <li>Replikacja odczytuje kopie jak przywracanie: węzeł repliki musi mieć dostęp do magazynu. Wyłączenie replikacji pozostawia repliki bez zmian.</li>
@@ -87,6 +105,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>Przywróć na agencie</b> — skopiuj je do folderu na dowolnym agencie, np. z powrotem do maszyny (jeśli działa w niej agent BackupZit) albo na serwer plików.</li>
 </ul>
 <p>W wierszu poleceń: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> i <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> wybiera partycję lub wolumin logiczny (<code>pve ls</code> bez ścieżki je wymienia). Przeglądanie w konsoli wymaga kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, utwardzone repozytorium).</p>
+<p>W przypadku kontenerów (LXC) na ZFS <b>Przeglądaj pliki</b> otwiera bezpośrednio ich pliki, jak w kopii plików; foldery <code>rootfs</code>, <code>mp0</code>, <code>mp1</code>… to woluminy kontenera. Pliki przywrócone na agenta zachowują właścicieli i uprawnienia. Przywraca się je do folderu, a nie do oryginalnej lokalizacji: ścieżki w kopii są ścieżkami wewnątrz kontenera, a nie na hoście. Dowiązanie symboliczne jest śledzone tylko wewnątrz swojego woluminu. Repliki kontenerów kopiowanych plik po pliku nie są jeszcze obsługiwane; zamiast tego je przywróć.</p>
 
 <h2 id="host">Kopia konfiguracji hosta</h2><p>Goście to tylko połowa węzła Proxmox: definicje magazynów, sieć, użytkownicy, zapora, certyfikaty i ustawienia każdej maszyny wirtualnej i kontenera są w jego konfiguracji. Wykonuj jej kopię zwykłym zadaniem plików na agencie węzła: w <a href="/jobs">Zadaniach kopii</a> wybierz agenta węzła i <b>Pliki i foldery</b>, a następnie kliknij <b>Wypełnij konfigurację hosta</b>. Wpisuje to ścieżki <code>/etc</code> (z <code>/etc/pve</code>, siecią i <code>/etc/hosts</code>), <code>/var/lib/pve-cluster</code> (baza konfiguracji <code>config.db</code>) i <code>/root</code>; uruchamiaj zadanie np. codziennie. Baza zmienia się podczas pracy węzła, dlatego agent najpierw tworzy jej spójną kopię, którą kopia zapasowa zawiera jako <code>/var/lib/backupzit/pve-config/config.db</code>; dodatkowe pakiety nie są potrzebne.</p><p>Odbudowa uszkodzonego węzła: zainstaluj tę samą wersję Proxmox VE z tą samą nazwą hosta i adresem, zainstaluj agenta, przywróć <code>/etc/network/interfaces</code> i <code>/etc/hosts</code> na miejsce, następnie zatrzymaj usługę klastra (<code>systemctl stop pve-cluster</code>), usuń <code>config.db-wal</code> i <code>config.db-shm</code> w <code>/var/lib/pve-cluster</code>, jeśli istnieją, przywróć spójną kopię z <code>/var/lib/backupzit/pve-config</code> do <code>/var/lib/pve-cluster</code> (<code>config.db</code> oraz <code>config.db-wal</code>, jeśli kopia go zawiera), uruchom usługę ponownie i przywróć gości. W klastrze dodaj ponownie zainstalowany węzeł z powrotem do klastra zamiast przywracać <code>config.db</code>.</p>
 <h2>Jeszcze nieobsługiwane</h2>

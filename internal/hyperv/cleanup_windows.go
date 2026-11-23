@@ -1,6 +1,7 @@
 package hyperv
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -40,6 +41,11 @@ func CleanupCheckpoints(ctx context.Context) ([]string, error) {
   disk = "$(@(Get-VMHardDiskDrive -VM $vm)[0].Path)" } } }) | ConvertTo-Json -Compress`)
 	if err != nil {
 		return nil, err
+	}
+	// No leftover checkpoints: ConvertTo-Json prints nothing (not "[]").
+	out = bytes.TrimSpace(out)
+	if len(out) == 0 {
+		return nil, nil
 	}
 	var cps []struct {
 		ID, VM, Name, Disk string

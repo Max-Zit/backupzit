@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/max-zit/backupzit/internal/api"
+	"github.com/max-zit/backupzit/internal/update"
 )
 
 // QueueAgentUpdate queues the installation of an agent package. The run
@@ -36,6 +38,30 @@ func (s *Server) addUpdate(run *Run, ar *api.Run) error {
 		return fmt.Errorf("installer %s: %w", run.Paths[0], err)
 	}
 	ar.UpdateFile, ar.UpdateVersion, ar.UpdateSHA256 = filepath.Base(run.Paths[0]), run.Paths[1], sum
+	// The signed list of the installers of that version, from the server
+	// package (GHSA-v284-8576-jp84): agents 0.56 and newer install only
+	// what it lists. Checked here too, so a changed installer fails at once
+	// with a clear message instead of on the agent.
+	mpath := filepath.Join(s.DistDir, update.AgentManifestName(ar.UpdateVersion))
+	raw, err := os.ReadFile(mpath) // #nosec G304 -- a file of the console's own installer folder
+	if errors.Is(err, os.ErrNotExist) {
+		return nil // older consoles' installers; agents 0.56+ refuse them
+	}
+	if err != nil {
+		return err
+	}
+	sig, err := os.ReadFile(mpath + ".sig") // #nosec G304 -- a file of the console's own installer folder
+	if err != nil {
+		return fmt.Errorf("the signature of the list of agent installers is missing: %w", err)
+	}
+	f, err := update.VerifyAgentInstaller(raw, string(sig), nil, ar.UpdateVersion, ar.UpdateFile)
+	if err != nil {
+		return fmt.Errorf("agent installer %s: %w", ar.UpdateFile, err)
+	}
+	if !strings.EqualFold(f.SHA256, sum) {
+		return fmt.Errorf("agent installer %s on the console is not the one of release %s (checksum mismatch): it was changed or damaged; install the console package again", ar.UpdateFile, ar.UpdateVersion)
+	}
+	ar.UpdateManifest, ar.UpdateManifestSig = string(raw), strings.TrimSpace(string(sig))
 	return nil
 }
 

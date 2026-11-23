@@ -52,6 +52,7 @@
     <div>
       <h2>{{T "2. Enter the code"}}</h2>
       <form method="post" action="/account/2fa/enable" class="stack">
+        {{if eq $.Me.Source "sso"}}<p class="muted small">{{T "Sign in again through single sign-on, then turn on two-factor sign-in within 10 minutes."}}</p>{{else}}<label>{{T "Current password"}} <input name="password" type="password" required autocomplete="current-password"></label>{{end}}
         <label>{{T "6-digit code from the app"}} <input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" required class="otp" placeholder="123 456"></label>
         <div><button>{{T "Turn on two-factor authentication"}}</button></div>
       </form>

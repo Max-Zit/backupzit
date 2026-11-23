@@ -1,0 +1,21 @@
+This is a copy of github.com/masahiro331/go-ext4-filesystem at
+v0.0.0-20260423010602-fe51f5b5e52b (Apache License 2.0, see LICENSE),
+used by BackupZit through a replace directive in its go.mod.
+
+Changes by BackupZit (2026-11-19):
+- ext4/inode.go: Extent.IsUninitialized and Extent.GetLen follow the
+  Linux kernel (ext4_ext_is_unwritten, ext4_ext_get_actual_len): an
+  extent of length 0x8000 is an initialized extent of 32768 blocks, not
+  an unwritten one. Before, files restored from ext4 returned zeros for
+  every such extent (most files above 128 MiB). Reported with a fix by
+  gtawelt (BackupZit PR #49; upstream masahiro331/go-ext4-filesystem#24).
+- ext4/fs.go (2026-11-20): Open follows at most 40 symbolic links (a link to
+  itself recursed until the stack overflowed), reads a link by its full
+  path, and resolves a relative target in the link's folder.
+- ext4/fs.go, ext4/ext4.go (2026-11-20): NewFS refuses an implausible
+  superblock (block size above 64 KiB, zero blocks or inodes per group,
+  more groups than the volume holds); the extent tree walk stops after as
+  many nodes and extents as the volume has blocks (at most 4 Mi).
+- The upstream tests are left out.
+
+Drop this copy once upstream has the fix.

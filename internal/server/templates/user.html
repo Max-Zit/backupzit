@@ -24,24 +24,30 @@
         <dt>{{T "Last sign-in"}}</dt><dd>{{if .LastLogin}}{{ts .LastLogin}}{{else}}{{T "never"}}{{end}}</dd>
         <dt>{{T "Two-factor"}}</dt><dd>{{if .TwoFactor}}<span class="badge success"><i></i>{{T "on"}}</span>{{else}}<span class="badge"><i></i>{{T "off"}}</span>{{end}}</dd>
       </dl>
+      {{if not $.Data.Self}}{{template "reauth_admin_opt" $.Me}}{{end}}
       <div><button>{{T "Save"}}</button></div>
     </form>
   </div>
 
   <div>
-    {{if eq .Source "local"}}
+    {{if and (eq .Source "local") $.Data.Self}}
+    <div class="panel"><h2>{{T "Password"}}</h2><p class="muted">{{T "Change your own password under My account; it asks for the current one."}} <a href="/account">{{T "My account"}}</a></p></div>
+    {{else if eq .Source "local"}}
     <div class="panel">
       <h2>{{template "icon" "lock"}} {{T "Set a new password"}}</h2>
       <form method="post" action="/users/{{.ID}}/password" class="stack">
         <label>{{T "New password"}} <small>{{T "at least"}} {{$.Data.MinPassword}} {{T "characters"}}</small><input name="password" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
         <label>{{T "Repeat"}} <input name="password2" type="password" required minlength="{{$.Data.MinPassword}}" autocomplete="new-password"></label>
+        {{template "reauth_admin" $.Me}}
         <div><button class="secondary">{{T "Set password"}}</button></div>
       </form>
     </div>
     {{else}}
     <div class="panel"><h2>{{T "Password"}}</h2><p class="muted">{{T "This user signs in with the directory password; change it in Active Directory / LDAP."}}</p></div>
     {{end}}
-    {{if .TwoFactor}}
+    {{if and .TwoFactor $.Data.Self}}
+    <div class="panel"><h2>{{T "Two-factor authentication"}}</h2><p class="muted">{{T "Turn off your own two-factor sign-in under My account; it asks for a current code. If you lost it, another administrator can reset it."}} <a href="/account/2fa">{{T "My account"}}</a></p></div>
+    {{else if .TwoFactor}}
     <div class="panel">
       <h2>{{T "Two-factor authentication"}}</h2>
       <p class="muted">{{T "If the user lost their phone and recovery codes, reset it; they can sign in with the password and set it up again."}}</p>

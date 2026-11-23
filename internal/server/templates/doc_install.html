@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>checksums of the images and the ISO</td></tr>
 </table>
 <p>The packages (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agents) are listed on the release page. The images are about 1.5 GB each. Check a download with <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) or <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+<p>To check that the checksums themselves come from BackupZit, verify the signature <code>SHA256SUMS.sig</code> with the release key first (OpenSSL 3); <code>release-files.sha256</code> and <code>release-files.sha256.sig</code> do the same for <code>install.sh</code>, <code>build-winpe.ps1</code> and the recovery ISO.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Ready-made VM image</h2>
 <p>A finished appliance (Debian, PostgreSQL, the console, automatic security updates) that starts in under a minute and needs no internet access:</p>
@@ -53,14 +58,14 @@
 <p>The appliance has two separate accounts:</p>
 <ul>
   <li><b>admin</b> in the web console (<code>https://&lt;address&gt;:8443</code>) for everyday work. Its initial password is shown on the server's screen after the first start; change it under <b>My account</b>.</li>
-  <li><b>bzadmin</b> on the server itself (its screen in the hypervisor console, or SSH), initial password <code>backupzit</code>. You must change it at the first sign-in; the user can use <code>sudo</code>. Root cannot sign in.</li>
+  <li><b>bzadmin</b> on the server itself (its screen in the hypervisor console, or SSH), initial password shown on the server's screen (random for each appliance since 0.56; before, <code>backupzit</code>). You must change it at the first sign-in; the user can use <code>sudo</code>. Root cannot sign in.</li>
 </ul>
 <p>Updates of BackupZit and of the operating system are managed from the console (see below). VMware Tools and the QEMU guest agent are included, so hypervisors show the appliance's address.</p>
 <h3 id="setup-menu">Setup menu on the server's screen</h3>
 <p>When bzadmin signs in on the server's own screen (not over SSH), a menu opens:</p>
 <table>
   <tr><th>Item</th><th>What it does</th></tr>
-  <tr><td>1 Network</td><td>DHCP or a static address with prefix length (e.g. <code>192.168.1.20/24</code>), gateway and up to three DNS servers. With DHCP the DNS servers come from the DHCP server, unless you enter your own.</td></tr>
+  <tr><td>1 Network</td><td>DHCP or a static address with prefix length (e.g. <code>192.168.1.20/24</code>), gateway and up to three DNS servers. With DHCP the DNS servers come from the DHCP server; to use your own with DHCP, set them later under Settings → Network.</td></tr>
   <tr><td>2 Server name</td><td>The host name (letters, digits and -).</td></tr>
   <tr><td>3 SSH</td><td>Switch the SSH server on or off and change its port. The ports of the console (80, 443, 8443), PostgreSQL (5432) and instant recovery (111, 2049) cannot be used.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>For a forgotten web console password; also lifts sign-in blocks. The screen then stops showing the generated initial password (it also does once admin's password is changed in the web console, from the next start).</td></tr>
@@ -110,6 +115,7 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 docker compose exec backupzit backupzit-server --initial-password</pre>
 <p>Open <code>https://&lt;host&gt;:8443</code> and sign in as <code>admin</code> with that password. The database and the console's data (secrets key, certificate, agent installers) live in the volumes <code>db</code> and <code>data</code>; back up both, or use <a href="#console-backup">the console backup</a>. Agents are installed on the computers as usual and connect to the host's port 8443. For a local disk target, mount a host folder into the container (see the comment in the file) and use the path inside the container.</p>
 <p><b>Updates:</b> the console checks for new versions and shows them under Settings → Updates with the commands to run in the folder of the file: <code>docker compose pull</code> and <code>docker compose up -d</code> (the tag <code>latest</code> follows the official releases, <code>testing</code> the release candidates; set <code>BACKUPZIT_TAG</code> in <code>.env</code> to stay on one version). Before a new version changes the database, it keeps a copy of the console in <code>pre-upgrade</code> in the data volume (the last three). To go back: set <code>BACKUPZIT_TAG</code> to the previous version, run <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;folder&gt;</code> with the folder of the copy, then <code>docker compose up -d</code>. Agents are updated from the console as always. In the container, the settings of the appliance (network, operating system updates, SSH) are not shown: they belong to the Docker host.</p>
+<p id="docker-logs"><b>Logs:</b> <code>docker compose logs -f backupzit</code> shows the console's log. The same log is kept as <code>logs/server.log</code> in the data volume and is part of the download under <a href="/settings/diagnostics">Settings → Diagnostics</a>. The image has no shell; <code>docker compose run --rm backupzit --restore-pre-upgrade list</code> shows the copies made before updates, newest first.</p>
 
 <h2 id="first">First sign-in</h2>
 <p>Open <code>https://&lt;server&gt;:8443</code>. The initial administrator is <b>admin</b>; the password is in <code>/var/lib/backupzit/initial-admin-password.txt</code> (or set <code>BACKUPZIT_ADMIN_PASSWORD</code> before the first start). Change it after signing in. To reset a forgotten password on the server:</p>
@@ -146,6 +152,11 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>443/tcp</td><td>agents, console</td><td>Azure / cloud storage</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
   <tr><td>636/tcp (389 with StartTLS)</td><td>console</td><td>domain controllers</td><td>LDAP / Active Directory sign-in</td></tr>
   <tr><td>587/465/25</td><td>console</td><td>mail server</td><td>email notifications</td></tr>
+  <tr><td>443/tcp (22/tcp on the free license)</td><td>console, proxy agent</td><td>ESXi hosts, vCenter</td><td>VMware: inventory, snapshots, disk reads and restores</td></tr>
+  <tr><td>2049/tcp, 111/tcp+udp</td><td>ESXi hosts</td><td>proxy agent</td><td>VMware instant recovery (the agent serves the backup as an NFS datastore)</td></tr>
+  <tr><td>443/tcp</td><td>agent of a Microsoft 365 job</td><td>graph.microsoft.com, login.microsoftonline.com</td><td>Microsoft 365 backups</td></tr>
+  <tr><td>514/udp or tcp, 6514/tcp (TLS)</td><td>console</td><td>syslog server / SIEM</td><td>optional: audit log export (the port you enter)</td></tr>
+  <tr><td>443/tcp</td><td>console</td><td>github.com and its download servers</td><td>update checks and downloads from the default update source; agents get their updates from the console</td></tr>
 </table>
 <p>The console also connects to the storage itself to let you browse files inside disk images and VM backups (and download them), so it needs the same storage access as the agents.</p>
 
@@ -153,13 +164,14 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>By default the console takes updates from the official BackupZit releases on GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Under <a href="/settings/updates">Settings → Updates</a> you can enter another <b>update source</b> instead — your own HTTPS mirror or a folder on the server. Whatever the source, every release must carry a valid BackupZit signature. The console checks every day for new releases and emails the administrators when one is available. To install it, click <b>Install</b>:</p>
 <p><b>Release candidates:</b> each version is first published as a <i>pre-release</i> and tested; only then does it become the official release, with the same files. The update source <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> always holds the newest candidate — use it only on a test console, as a candidate can still be replaced by a corrected one. Consoles with the default source only get approved releases.</p>
 <ol>
-  <li>The console checks the release signature and the package checksum, and waits until no backup or restore is running.</li>
+  <li>The console checks the release signature and the package checksum, and refuses to start the update while a backup or restore is running; install it when they have finished.</li>
   <li>A system service (<code>backupzit-update</code>, running as root) checks the signature again with the release keys built into BackupZit. Even a compromised console cannot get any other package installed.</li>
   <li>It backs up the database (<code>pg_dump</code>), keeps the current program, installs the package and restarts the console.</li>
   <li>If the new version does not answer within two minutes, the previous program and the database as it was are restored automatically. The result, with the log of the failed start, is shown on the Updates page, recorded in the audit log and emailed.</li>
   <li>After a successful update the agents are updated too: each one installs the new version when it is idle. Turn this off on the same page if you prefer to update them yourself.</li>
 </ol>
 <p>The console is unavailable for about a minute. The database backups and previous programs of the last three updates are kept in <code>/var/lib/backupzit-update</code>.</p>
+<p id="update-banner"><b>Notice in the console:</b> users who may install updates (administrators) also see a new version at the top of every page, with <i>Install</i> (opens this Updates page) and <i>Release notes</i>. <b>×</b> hides it for that user for five days, in every browser; a still newer version shows it again at once. Other roles do not see it. On a Docker console the notice points to the commands for pulling the new image instead.</p>
 <p><b>Without internet access:</b> download the release files (<code>manifest.json</code>, <code>manifest.json.sig</code> and the server package) on another computer. Then upload them under <i>Install an update from files</i>, or copy them into a folder on the server and use that folder as the update source.</p>
 <p>You can still update with the package manager (<code>apt install ./backupzit-server_….deb</code>); the database is migrated when the new version starts.</p>
 
@@ -168,7 +180,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Switch on automatic security updates</b> (recommended). The system's own tool installs only security fixes, daily: <code>unattended-upgrades</code> on Debian and Ubuntu, <code>dnf-automatic</code> on AlmaLinux and Rocky Linux.</li>
   <li><b>Install all updates now</b>. Services such as PostgreSQL may restart briefly, and the console reconnects by itself.</li>
-  <li><b>Restart the server</b>, for example after a kernel update. The console refuses while backups or restores are running. Agents keep their jobs and report the results when the console is back.</li>
+  <li><b>Restart the server</b>, for example after a kernel update. The console refuses while backups or restores are running. Backups whose scheduled time passes during the restart start once the console is back.</li>
 </ul>
 <p>These tasks run through the same root service as console updates. They are recorded in the audit log, and the output of the last task is shown on the page.</p>
 
@@ -181,6 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>the console's certificate, which agents pin.</li>
 </ul>
 <p>It is encrypted with the target's recovery key and deduplicated. The newest backups are kept: 14 by default.</p>
+<p id="console-backup-page">On the page choose the <i>Storage target</i> (network storage only: SFTP, S3, SMB, Azure or a hardened repository; the backup goes into the folder <code>backupzit-console</code> there), the hour of the daily backup (<i>At</i>, console time) and how many backups to <i>Keep</i>. <i>Back up now</i> makes one at once. The page shows the last backup with its size and the repository address you need for a restore.</p>
 <h3>Restoring the console</h3>
 <ol>
   <li>Install a new console with the same or a newer version, for example from the appliance ISO.</li>

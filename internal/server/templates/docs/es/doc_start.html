@@ -57,7 +57,7 @@
 
 <h3>Idioma</h3>
 <p>La consola está disponible en 14 idiomas: inglés, alemán, francés, español, italiano, portugués (Brasil), neerlandés, polaco, checo, serbio (alfabeto latino), turco, ruso, chino (simplificado) y japonés. Elija uno en la lista de idiomas arriba a la derecha o en la página de inicio de sesión; la elección se recuerda en el navegador. Sin elección, decide el idioma del navegador (los navegadores croatas, bosnios y montenegrinos obtienen serbio, los eslovacos checo, los demás idiomas inglés). Esta guía también está traducida (una página sin traducción se muestra en inglés). Los correos, las notificaciones de chat y los informes usan el idioma elegido en Configuración → Notificaciones por correo; los mensajes enviados por los agentes se mantienen en inglés.</p>
-<p>Las traducciones están en el código fuente, en <code>internal/server/i18n/es.json</code>: el texto en inglés es la clave y la traducción su valor. <code>go run ./tools/i18n missing es</code> muestra los textos sin traducción; los textos no traducidos se muestran en inglés.</p>
+<p>Las traducciones están en el código fuente, en <code>internal/server/i18n/&lt;idioma&gt;.json</code> (p. ej. <code>es.json</code>): el texto en inglés es la clave y la traducción su valor. <code>go run ./tools/i18n missing es</code> muestra los textos sin traducción; los textos no traducidos se muestran en inglés.</p>
 <h3>Tema claro y oscuro</h3><p>La consola sigue el ajuste claro u oscuro del sistema operativo. El botón de la luna arriba a la derecha (y en la página de inicio de sesión) cambia entre claro y oscuro; la elección se recuerda en este navegador.</p>
 
 <h2>Conceptos clave</h2>
@@ -74,7 +74,7 @@
   <li><b>Detección de ransomware</b>: las copias inusuales (cambios masivos, datos cifrados, borrado masivo, saltos bruscos del volumen de datos) se marcan y la retención se pausa (<a href="/docs/ransomware">Protección contra ransomware</a>).</li>
   <li><b>Alertas e informes</b>: correos ante fallos y un resumen diario; informes programados para la dirección (<a href="/docs/notifications">Notificaciones por correo</a>, <a href="/docs/monitoring">Supervisión</a>).</li>
   <li><b>Objetivos de punto de recuperación</b> — un trabajo cuya copia buena más reciente supera su RPO aparece en el panel y se notifica una vez por correo y chat (<a href="/docs/jobs#rpo">Trabajos de copia</a>).</li>
-  <li><b>Verificaciones de datos</b> — una vez al mes cada repositorio se lee por completo y se verifica, lo que detecta daños en el propio almacenamiento (<a href="/docs/restore#data-check">Restauración</a>).</li>
+  <li><b>Verificaciones de datos</b> — una vez al mes cada repositorio se lee por completo y se verifica (en S3 y Azure solo con <i>También en almacenamiento en la nube</i>, por los cargos por descarga), lo que detecta daños en el propio almacenamiento (<a href="/docs/restore#data-check">Restauración</a>).</li>
 </ul>
 
 <h2>Licencia y soporte</h2>

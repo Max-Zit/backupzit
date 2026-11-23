@@ -22,7 +22,7 @@ const preservedAttrs = syscall.FILE_ATTRIBUTE_READONLY |
 // WinAttrs returns the preserved Windows file attributes of fi.
 func WinAttrs(fi fs.FileInfo) uint32 {
 	if d, ok := fi.Sys().(*syscall.Win32FileAttributeData); ok {
-		return d.FileAttributes & preservedAttrs
+		return d.FileAttributes & (preservedAttrs | AttrSparse)
 	}
 	return 0
 }

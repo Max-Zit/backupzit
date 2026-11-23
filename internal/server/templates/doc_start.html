@@ -57,7 +57,7 @@
 
 <h3>Language</h3>
 <p>The console is available in 14 languages: English, German, French, Spanish, Italian, Portuguese (Brazil), Dutch, Polish, Czech, Serbian (Latin script), Turkish, Russian, Chinese (Simplified) and Japanese. Pick one in the language list at the top right or on the sign-in page; the choice is remembered in the browser. Without a choice, the browser's language decides (Croatian, Bosnian and Montenegrin browsers get Serbian, Slovak browsers Czech, other languages English). This guide is translated as well (a page without a translation is shown in English). Emails, chat notifications and reports use the language chosen under Settings → Email notifications; messages reported by the agents stay in English.</p>
-<p>The translations are in <code>internal/server/i18n/sr.json</code> in the source code: the English text is the key, the translation its value. <code>go run ./tools/i18n missing sr</code> lists texts without a translation; untranslated texts are shown in English.</p>
+<p>The translations are in <code>internal/server/i18n/&lt;language&gt;.json</code> in the source code (e.g. <code>de.json</code>): the English text is the key, the translation its value. <code>go run ./tools/i18n missing de</code> lists texts without a translation; untranslated texts are shown in English.</p>
 <h3>Light and dark theme</h3><p>The console follows the light or dark setting of the operating system. The moon button at the top right (and on the sign-in page) switches between light and dark; the choice is remembered in this browser.</p>
 
 <h2>Key concepts</h2>
@@ -74,7 +74,7 @@
   <li><b>Ransomware detection</b> — unusual backups (mass changes, encrypted data, mass deletion, sudden data volume jumps) are flagged and retention is paused (<a href="/docs/ransomware">Ransomware protection</a>).</li>
   <li><b>Alerts and reports</b> — emails for failures and a daily summary; scheduled reports for management (<a href="/docs/notifications">Email notifications</a>, <a href="/docs/monitoring">Monitoring</a>).</li>
   <li><b>Recovery point objectives</b> — a job whose newest good backup gets older than its RPO is listed on the dashboard and reported once by email and chat (<a href="/docs/jobs#rpo">Backup jobs</a>).</li>
-  <li><b>Data checks</b> — once a month every repository is read completely and verified, which finds damage on the storage itself (<a href="/docs/restore#data-check">Restoring</a>).</li>
+  <li><b>Data checks</b> — once a month every repository is read completely and verified (on S3 and Azure only with <i>Also on cloud storage</i>, because of download fees), which finds damage on the storage itself (<a href="/docs/restore#data-check">Restoring</a>).</li>
 </ul>
 
 <h2>License and support</h2>

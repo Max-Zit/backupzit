@@ -25,7 +25,7 @@
       <small class="muted">{{T "You will be signed out everywhere and sign in again with the new password."}}</small>
       <div><button>{{T "Change password"}}</button></div>
     </form>
-    {{else}}<p class="muted">{{T "You sign in with your directory account; change the password in Active Directory / LDAP."}}</p>{{end}}
+    {{else if eq .Source "sso"}}<p class="muted">{{T "You sign in through single sign-on; change the password at your identity provider."}}</p>{{else}}<p class="muted">{{T "You sign in with your directory account; change the password in Active Directory / LDAP."}}</p>{{end}}
   </div>
 </div>
 {{end}}

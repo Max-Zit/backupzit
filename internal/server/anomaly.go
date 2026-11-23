@@ -87,8 +87,10 @@ func (s *Store) checkAnomaly(ctx context.Context, runID int64) (string, error) {
 	if json.Unmarshal(r.Stats, &cur) != nil {
 		return "", nil
 	}
-	rows, err := s.db.Query(ctx, `SELECT stats FROM runs WHERE job_id=$1 AND id<>$2 AND kind=$3
-		AND status IN ('success','warning') AND stats IS NOT NULL AND anomaly='' ORDER BY finished_at DESC LIMIT 10`, *r.JobID, r.ID, r.Kind)
+	// A part of a split VMware backup is compared with the same part only
+	// (the proxies back up different VMs).
+	rows, err := s.db.Query(ctx, `SELECT stats FROM runs WHERE job_id=$1 AND id<>$2 AND kind=$3 AND part=$4
+		AND status IN ('success','warning') AND stats IS NOT NULL AND anomaly='' ORDER BY finished_at DESC LIMIT 10`, *r.JobID, r.ID, r.Kind, r.Part)
 	if err != nil {
 		return "", err
 	}

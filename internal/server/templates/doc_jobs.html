@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — Exchange Online mailboxes, calendars, contacts, OneDrive and SharePoint sites, read through Microsoft Graph by any agent; see <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Optionally add <b>excludes</b>, one per line: a name pattern, which applies in every folder (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), or a full path, which applies to that one file or folder (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, also with wildcards: <code>D:\VMs\*.iso</code>). Full paths ignore upper and lower case on Windows.</li>
+  <li>Optionally add <b>excludes</b>, one per line: a name pattern, which applies in every folder (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), or a full path, which applies to that one file or folder (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, also with wildcards: <code>D:\VMs\*.iso</code>). Full paths ignore upper and lower case on Windows. On Linux, kernel file systems such as <code>/proc</code>, <code>/sys</code> and <code>/dev</code> are always kept as empty folders, also when the job backs up <code>/</code>.</li>
   <li>Set <b>Keep backups</b> and the <b>Schedule</b>, then <i>Create job</i>.</li>
 </ol>
 
@@ -41,14 +41,14 @@
 <p>For every run the agent connects the share — Windows agents through its UNC path (<code>\\nas01\data</code>, SMB only), Linux agents by mounting it read-only below <code>/mnt/backupzit-nas</code> (needs <code>cifs-utils</code> for SMB, <code>nfs-common</code> or <code>nfs-utils</code> for NFS; Proxmox VE has both) — and disconnects it afterwards. The backups are ordinary file backups: deduplicated and incremental, with retention, copy jobs, restore tests, browsing and file restore. <b>Restore to the original location</b> connects the share again, writable, and writes the files back onto it; or restore into a folder on any agent, or download.</p>
 
 <h2>Open and locked files (VSS)</h2>
-<p>On Windows the agent uses the <b>Volume Shadow Copy Service</b>: it takes a consistent, point-in-time snapshot of the volume and backs up from that, so open files (Outlook PST, databases, documents being edited) are backed up consistently. Applications that support VSS (for example SQL Server) flush their data to disk before the snapshot is taken.</p>
+<p>On Windows the agent uses the <b>Volume Shadow Copy Service</b>: it takes a consistent, point-in-time snapshot of the volume and backs up from that, so open files (Outlook PST, databases, documents being edited) are backed up consistently. Applications that support VSS (for example SQL Server) flush their data to disk before the snapshot is taken. A job with folders on several volumes (C: and D:) snapshots them together, at the same moment; only if VSS cannot, each volume gets its own snapshot and the run warns.</p>
 
 <h2>Schedules</h2>
 <table>
   <tr><th>Option</th><th>Example</th></tr>
   <tr><td><b>At specific times</b></td><td>Every working day at 22:00; or at 12:00 and 18:00 every day. Up to three times a day, on the days you tick.</td></tr>
   <tr><td><b>Repeatedly</b></td><td>Every 2 hours between 08:00 and 18:00, Monday–Friday. Intervals from 15 minutes to 12 hours.</td></tr>
-  <tr><td><b>Once a month</b></td><td>On the 1st at 23:00.</td></tr>
+  <tr><td><b>Once a month</b></td><td>On the 1st at 23:00 (any day from 1 to 28).</td></tr>
   <tr><td><b>Manually only</b></td><td>Runs only when you click <i>Run backup now</i>.</td></tr>
   <tr><td><b>After another job</b></td><td>First the database, then the file server: the job starts as soon as the chosen job has finished successfully — or after any result, with <i>also when that job failed</i>. Chains can be longer (A → B → C); a job cannot run after itself or in a circle.</td></tr>
 </table>
@@ -68,7 +68,7 @@
   <li><b>Weekly</b> — the newest backup of each of the last N weeks.</li>
   <li><b>Monthly</b> — the newest backup of each of the last N months.</li>
 </ul>
-<p>Example: 3 recent, 7 daily, 4 weekly, 6 monthly keeps about half a year of history with ~20 restore points. After each successful run, snapshots no longer selected are removed (shown as <i>expired</i> in Activity) and data that is no longer used by any snapshot is deleted from the storage. All zeros keeps everything.</p>
+<p>Example: 3 recent, 7 daily, 4 weekly, 6 monthly keeps about half a year of history with ~20 restore points. After each successful run, snapshots no longer selected are removed (shown as <i>expired</i> in Activity) and data that is no longer used by any snapshot is deleted from the storage. Packs that still hold some used data are rewritten with only that data, several at a time on object storage; a pack that cannot be read even after the retries stays as it is, the run ends with a warning and the next run tries again. If retention cannot run at all (the repository could not be listed or locked), the run ends with a warning as well (0.58). All zeros keeps everything.</p>
 <div class="callout"><p>Thanks to deduplication, long retention is cheap: unchanged data is stored only once no matter how many snapshots reference it.</p></div>
 
 <h2>Backup copy jobs (3-2-1)</h2>
@@ -77,8 +77,8 @@
   <li>The agent of the source job does the copying; the protected machine is <b>not read again</b>.</li>
   <li>Only data that is not yet at the destination is transferred, re-encrypted with the destination's key.</li>
   <li>Schedule <b>After each backup of the source job</b> (default) keeps the copy current; any normal schedule works too, e.g. once a night for a slow internet line.</li>
-  <li>The copy has its own retention, e.g. 7 daily on the NAS and 12 monthly in the cloud.</li>
-  <li>Copied file backups and VM backups (Proxmox VE, Hyper-V, VMware) are restored from the copy run's page or the <a href="/restore">restore wizard</a>, like the originals — whole VMs, single files from VM disks, and Proxmox instant recovery. VM backups copied by an agent older than 0.29 cannot be restored this way; the next copy run with a newer agent makes its newest copy restorable. Copies of disk images are restored with the command line agent.</li>
+  <li>The copy has its own retention, e.g. 7 daily on the NAS and 12 monthly in the cloud. Only the backups this retention keeps are copied: with 30 daily backups at the source and 12 monthly in the copy, the newest backup of each month is copied, not the others again on every run.</li>
+  <li>Copied file backups and VM backups (Proxmox VE, Hyper-V, VMware) are restored from the copy run's page or the <a href="/restore">restore wizard</a>, like the originals — whole VMs, single files from VM disks, and Proxmox instant recovery. VM backups copied by an agent older than 0.29 cannot be restored this way; the next copy run with a newer agent makes its newest copy restorable. Copied Microsoft 365 backups are restored the same way. Copies of disk images, Linux system and database backups are restored with the command line agent.</li>
 </ul>
 
 <h2>Changing a job</h2>
@@ -91,7 +91,7 @@
 <p>Under <b>Advanced</b> in the job form, <b>Limit the upload speed</b> caps how fast the agent sends data to the storage, in MB/s — for example 10 MB/s from 08:00 to 18:00, so backups during working hours leave the office line usable; outside the window the job runs at full speed. The hours are the agent's local time, and a window may span midnight (22:00 to 06:00). The limit applies to backups and to copy jobs (the upload to the second storage), not to restores: a restore always runs at full speed.</p>
 
 <h2 id="compression">Compression and deduplication</h2>
-<p>Every backup is deduplicated: data that is already in the repository — from earlier backups of the same job, or from other jobs on the same storage target — is not stored again. New data is then compressed with zstd; pieces that do not get smaller (video, archives, encrypted files) are stored as they are. Encryption comes after compression.</p>
+<p>Every backup is deduplicated: data that is already in the repository — from earlier backups of the same job, or from other jobs of the same agent on the same storage target — is not stored again. Each agent has its own repository (so do VMware hosts, Hyper-V clusters and Microsoft 365 tenants), so there is no deduplication between computers. New data is then compressed with zstd; pieces that do not get smaller (video, archives, encrypted files) are stored as they are. Encryption comes after compression.</p>
 <p>The compression level is a job setting (<b>Edit → Advanced</b>):</p>
 <table>
   <tr><th>Level</th><th>When to use it</th></tr>
@@ -102,6 +102,10 @@
 </table>
 <p>The level applies to new data from the next run; existing backups stay as they are, and restoring never depends on it. The run page shows the result: the compression ratio of the new data (e.g. <i>2.4×</i>) and how much of the data read was already stored (deduplication).</p>
 
+<p><b>VM deduplication block size</b> (Edit → Advanced) selects 256 KiB, 512 KiB or 1 MiB (the existing default) for virtual disks on Hyper-V, Proxmox VE and VMware. Smaller blocks may improve deduplication at the cost of more metadata. Update the agents before selecting a smaller size. Each image records its own block size: old backups stay restorable, and a change reads each disk in full once before changed-block incrementals resume. This does not rewrite old backups or change file backup chunking.</p>
+
+<p>CLI: use <code>--block-size-kib 256</code>, <code>512</code> or <code>1024</code> with <code>hyperv backup</code>, <code>pve backup</code> and <code>vmware backup</code>.</p>
+
 <h2>Commands before and after the backup</h2>
 <p>Administrators can let a job run a command on the agent before and after each backup — for example a database dump, stopping a service for a consistent copy, or a notification:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
@@ -110,7 +114,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>Commands run as the agent's service account (root on Linux, SYSTEM on Windows) with <code>sh</code> or <code>cmd</code>; several lines are allowed. Only <b>Administrators</b> can see and change them — a backup operator could otherwise run anything on every machine.</li>
   <li>If the command <b>before</b> fails (exit code not 0) or runs longer than the time limit (default 30 minutes), the backup does not run and the run fails with the command's output.</li>
   <li>The command <b>after</b> runs also when the backup failed, so it can restart what the first command stopped. A failing command after the backup turns the run into a warning.</li>
-  <li>Both get <code>BACKUPZIT_STAGE</code> (pre or post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> and, after the backup, <code>BACKUPZIT_STATUS</code> (success, warning or failed).</li>
+  <li>Both get <code>BACKUPZIT_STAGE</code> (pre or post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> and, after the backup, <code>BACKUPZIT_STATUS</code> (success, warning or failed). They run in a folder only the service account can change (<code>C:\ProgramData\backupzit\commands</code>, <code>/var/lib/backupzit-agent/commands</code>); use full paths for your own files.</li>
   <li>The run page shows the result and the output of each command, also when it succeeded.</li>
   <li>For VM jobs the commands run on the hypervisor host (or the VMware proxy), not inside the VMs. Copy jobs have no commands.</li>
 </ul>
@@ -120,7 +124,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Run backup now</b> (<b>Copy now</b> for copy jobs) queues the job immediately.</li>
   <li><b>Test restore</b> restores a random sample of the newest backup and verifies it (see <a href="/docs/restore">Restoring</a>).</li>
   <li><b>Disable</b> pauses the schedule without losing the job (with four-eyes approval on, a second user has to approve it).</li>
-  <li><b>Delete</b> removes the job; existing backups stay on the storage and remain restorable from Activity.</li>
+  <li><b>Delete</b> removes the job (with four-eyes approval on, after a second user approves); existing backups stay on the storage and remain restorable from Activity. Copy jobs of the job are deleted with it; their copies stay on their storage.</li>
 </ul>
 
 <h2>Stopping a run</h2>
@@ -133,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>What a backup run reports</h2>
 <p>Open a run in <a href="/runs">Activity</a>: number of files, new/changed files, data read, new data uploaded (after deduplication and compression, with the compression ratio and the share already stored — see <a href="#compression">Compression</a>), duration, and any files that could not be read. A run with unreadable files ends with status <b>warning</b> — the rest of the data is backed up.</p>
+<p>A VM backup in which a guest could not be backed up (also after the retries) ends as <i>failed</i> and names that guest, so it is not lost among the warnings; the other guests are kept and can be restored, and retention is skipped, so the older restore points of that guest stay.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

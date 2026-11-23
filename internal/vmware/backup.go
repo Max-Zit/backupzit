@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"path"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/max-zit/backupzit/internal/diskimg"
+	"github.com/max-zit/backupzit/internal/leftover"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmlock"
 )
 
 // BackupOptions select the VMs to back up.
@@ -24,6 +27,13 @@ type BackupOptions struct {
 	Tags     []string
 	Progress func(done, total uint64)
 	Log      func(msg string, args ...any)
+	// VMStarted and VMFinished (optional) tell which VM the backup works
+	// on and the result of each, for the run's progress (0.57).
+	VMStarted  func(name string, total int)
+	VMFinished func(name string, failed bool)
+	// NoQuiesce: snapshots of running VMs are taken without VMware Tools
+	// quiescing (crash-consistent), for guests whose quiescing fails (0.58).
+	NoQuiesce bool
 }
 
 // guestConfig is stored as repo.Guest.Config of VMware guests.
@@ -35,6 +45,9 @@ type guestConfig struct {
 	// Node is the ESXi host the VM ran on (vCenter).
 	Node string `json:"node,omitempty"`
 }
+
+// ErrNoVMs: none of the selected VMs is on the host (or the connection).
+var ErrNoVMs = errors.New("no virtual machines on this ESXi host")
 
 // Backup snapshots the selected VMs and stores their disks and
 // configuration in one repository snapshot.
@@ -84,7 +97,7 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 		}
 	}
 	if len(sel) == 0 && len(stats.Errors) == 0 {
-		return nil, errors.New("no virtual machines on this ESXi host")
+		return nil, ErrNoVMs
 	}
 	prev, err := diskimg.PreviousDisks(ctx, r, "vmware")
 	if err != nil {
@@ -103,23 +116,59 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 	start := time.Now()
 	before := r.Stats()
 	sn := &repo.Snapshot{Time: start.UTC(), Hostname: opts.Hostname, Tags: append([]string{"vmware"}, opts.Tags...), ProgramVersion: opts.Version}
+	ha, haErr := c.hotAddProxy(ctx, opts.Log)
+	if haErr != nil {
+		addErr("hot-add", fmt.Errorf("%w; the disks of running VMs were copied on the datastore instead", haErr))
+	}
 	for _, v := range sel {
 		opts.Log("backing up VM", "name", v.Name, "uuid", v.UUID)
-		g, warns, err := c.backupVM(ctx, r, v, sn, prev, progress)
+		if opts.VMStarted != nil {
+			opts.VMStarted(v.Name, len(sel))
+		}
+		finished := func(failed bool) {
+			if opts.VMFinished != nil {
+				opts.VMFinished(v.Name, failed)
+			}
+		}
+		// A session that ended during the previous VM (a long read) fails
+		// only that VM's clean-up at most, not every VM after it (#44).
+		n := c.Relogins
+		if ctx.Err() != nil {
+			return nil, leftover.CancelError(ctx.Err(), stats.Errors)
+		}
+		if err := c.ensureSession(ctx); err != nil {
+			if ctx.Err() != nil {
+				return nil, leftover.CancelError(ctx.Err(), stats.Errors)
+			}
+			// Checking failed (a short network error, or signing in again
+			// failed): the VM's own calls tell what is wrong.
+			opts.Log("checking the vSphere session failed", "error", err)
+		}
+		g, warns, err := c.backupVM(ctx, r, v, sn, prev, progress, ha, opts.NoQuiesce)
+		if c.Relogins > n {
+			opts.Log("the vSphere session had ended; signed in again", "host", c.conn.Host, "times", c.Relogins-n)
+		}
 		for _, w := range warns {
 			addErr(v.Name, errors.New(w))
 		}
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil, ctx.Err()
+				// A snapshot or disk copy that could not be removed is
+				// still told about when the run was cancelled (S-1).
+				return nil, leftover.CancelError(ctx.Err(), stats.Errors) // the warnings are in it
 			}
 			addErr(v.Name, err)
+			stats.Failed = append(stats.Failed, v.Name)
+			finished(true)
 			continue
 		}
 		sn.Guests = append(sn.Guests, *g)
 		sn.Paths = append(sn.Paths, "vmware/"+v.UUID)
 		stats.Files++
+		finished(false)
 	}
+	// What earlier runs left on other VMs of the connection (S-2).
+	c.cleanAfterBackup(ctx, opts.Log)
 	if len(sn.Guests) == 0 {
 		return nil, fmt.Errorf("no VM could be backed up: %s", strings.Join(stats.Errors, "; "))
 	}
@@ -145,10 +194,22 @@ func (c *Client) Backup(ctx context.Context, r *repo.Repository, opts BackupOpti
 	return sn, nil
 }
 
-func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64)) (_ *repo.Guest, warns []string, _ error) {
+// vmLockKey names a VM for vmlock: backups and in-place restores of one VM
+// through this agent run one at a time.
+func (c *Client) vmLockKey(uuid string) string { return "vmware-" + c.conn.Host + "-" + uuid }
+
+func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *repo.Snapshot, prev map[string]diskimg.Previous, progress func(uint64), ha *hotAdd, noQuiesce bool) (_ *repo.Guest, warns []string, _ error) {
 	if len(v.Disks) == 0 {
 		return nil, nil, errors.New("the VM has no virtual disks")
 	}
+	// One BackupZit operation per VM on this proxy: the leftover sweep
+	// removes every backupzit snapshot and the clone path is shared, so a
+	// parallel run of the same VM would lose its snapshot or clone (M-13).
+	unlockVM, err := vmlock.Lock(ctx, c.vmLockKey(v.UUID))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer unlockVM()
 	vmxPath, err := parseDSPath(v.VMX)
 	if err != nil {
 		return nil, nil, err
@@ -190,20 +251,65 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 		if v, err = c.vm(ctx, v.Ref); err != nil {
 			return nil, warns, err
 		}
-		// Remove snapshots left behind by an interrupted backup.
+		// Remove snapshots left behind by an interrupted backup (the VM's
+		// lock is held: none of them belongs to a running run of this agent).
 		if old, err := c.leftovers(ctx, v.Ref); err == nil {
 			for _, s := range old {
-				_ = c.removeSnapshot(ctx, v, s)
+				it := c.snapshotItem(v, s.Name)
+				it.Created = s.Created.UTC()
+				leftover.Add(context.Background(), it) // since when, for the console
+				if _, err := c.removeSnapshotVerified(ctx, v, s.Name, nil); err != nil {
+					warns = append(warns, fmt.Sprintf("the snapshot %s left by an earlier backup could not be removed (%v); the agent tries again and the dashboard lists it until it is gone", s.Name, err))
+				}
+			}
+		}
+		// Disks that are still deltas although the VM has no snapshot are
+		// what a snapshot removal that did not finish leaves (the session
+		// ended during it, #44): consolidate them first, or the backup would
+		// refuse the delta disk. A VM with snapshots of its own is never
+		// touched; its backup names them.
+		if v.hasDelta() {
+			if own, err := c.hasSnapshots(ctx, v.Ref); err == nil && !own {
+				if note := c.consolidate(ctx, v, "before the backup (an earlier snapshot removal did not finish)"); note != "" {
+					warns = append(warns, note)
+				}
+				if v, err = c.vm(ctx, v.Ref); err != nil {
+					return nil, warns, err
+				}
 			}
 		}
 		name := snapPrefix + strconv.FormatInt(time.Now().Unix(), 10)
-		quiesce := v.Tools && v.Power == "poweredOn"
-		s, err := c.createSnapshot(ctx, v, name, quiesce)
-		if err != nil && quiesce {
-			warns = append(warns, "quiesced snapshot failed ("+err.Error()+"), took a crash-consistent one")
-			s, err = c.createSnapshot(ctx, v, name, false)
+		// Recorded before it exists: an agent crash or a cancel during the
+		// creation leaves a record the janitor finds the snapshot by (S-1).
+		leftover.Add(ctx, c.snapshotItem(v, name))
+		bg := func() (context.Context, context.CancelFunc) {
+			return context.WithTimeout(context.WithoutCancel(ctx), 30*time.Minute)
 		}
-		if err != nil {
+		quiesce := v.Tools && v.Power == "poweredOn" && !noQuiesce
+		s, err := c.createSnapshot(ctx, v, name, quiesce)
+		if err != nil && quiesce && ctx.Err() == nil {
+			// A failed quiesced snapshot may still be listed: it goes first,
+			// the second one has the same name.
+			c2, cancel := bg()
+			_, rerr := c.removeSnapshotVerified(c2, v, name, nil)
+			cancel()
+			if rerr == nil {
+				leftover.Add(ctx, c.snapshotItem(v, name))
+				warns = append(warns, "quiesced snapshot failed ("+err.Error()+"), took a crash-consistent one")
+				s, err = c.createSnapshot(ctx, v, name, false)
+			}
+		}
+		if err != nil || ctx.Err() != nil {
+			// Created after all (a cancel, a task that reported an error
+			// late), or not: look it up by name and remove it.
+			c2, cancel := bg()
+			defer cancel()
+			if _, rerr := c.removeSnapshotVerified(c2, v, name, leftover.RunWaits); rerr != nil {
+				warns = append(warns, fmt.Sprintf("the backup snapshot %s of VM %s could not be removed after the failed creation (%v); the agent tries again and the dashboard lists it until it is gone", name, v.Name, rerr))
+			}
+			if err == nil {
+				err = ctx.Err()
+			}
 			return nil, warns, fmt.Errorf("create snapshot: %w", err)
 		}
 		removed := false
@@ -212,10 +318,14 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 				return
 			}
 			removed = true
-			c2, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			c2, cancel := bg()
 			defer cancel()
-			if err := c.removeSnapshot(c2, v, *s); err != nil {
-				warns = append(warns, "remove snapshot "+name+": "+err.Error())
+			note, err := c.removeSnapshotVerified(c2, v, name, leftover.RunWaits)
+			switch {
+			case err != nil:
+				warns = append(warns, fmt.Sprintf("the backup snapshot %s of VM %s could not be removed (%v); the agent tries again and the dashboard lists it until it is gone", name, v.Name, err))
+			case note != "":
+				warns = append(warns, note)
 			}
 		}
 		defer removeSnap()
@@ -224,6 +334,8 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 			g.Consistency = "VM was off, disks read from a snapshot"
 		case s.Quiesced:
 			g.Consistency = "snapshot, guest quiesced by VMware Tools (application-consistent)"
+		case noQuiesce && v.Tools:
+			g.Consistency = "snapshot, crash-consistent (quiescing switched off in the job)"
 		default:
 			g.Consistency = "snapshot, crash-consistent (VMware Tools not running)"
 		}
@@ -240,11 +352,17 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 		}
 		// A running VM keeps its base disks locked while the snapshot
 		// exists: copy them on the datastore, then drop the snapshot at once.
+		// With hot-add they are read through the agent's VM while the
+		// snapshot exists instead; a disk that fails there is copied.
 		if v.Power != "poweredOff" {
 			defer func() {
 				for _, p := range plans {
 					if p.clone != nil {
-						_ = c.deleteDisk(context.Background(), *p.clone)
+						c2, cancel := bg()
+						if err := c.deleteCopy(c2, v, *p.clone); err != nil {
+							warns = append(warns, fmt.Sprintf("the temporary disk copy %s could not be deleted (%v); the agent tries again and the dashboard lists it until it is gone", p.clone, err))
+						}
+						cancel()
 					}
 				}
 				for _, p := range plans {
@@ -254,6 +372,17 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 				}
 			}()
 			for i := range plans {
+				if ha != nil {
+					img, err := c.storeDiskHotAdd(ctx, ha, r, v, plans[i], sn, progress)
+					if err == nil {
+						plans[i].stored = &img
+						continue
+					}
+					if ctx.Err() != nil {
+						return nil, warns, ctx.Err()
+					}
+					warns = append(warns, fmt.Sprintf("%s: hot-add failed, the disk was copied on the datastore instead: %v", plans[i].disk.Key, err))
+				}
 				if err := c.cloneDisk(ctx, v, &plans[i]); err != nil {
 					return nil, warns, fmt.Errorf("%s: %w", plans[i].disk.Key, err)
 				}
@@ -262,6 +391,10 @@ func (c *Client) backupVM(ctx context.Context, r *repo.Repository, v VM, sn *rep
 		removeSnap()
 	}
 	for _, p := range plans {
+		if p.stored != nil {
+			g.Disks = append(g.Disks, *p.stored)
+			continue
+		}
 		img, err := c.storeDisk(ctx, r, v, p, sn, progress)
 		if err != nil {
 			return nil, warns, fmt.Errorf("%s: %w", p.disk.Key, err)
@@ -281,16 +414,36 @@ type diskPlan struct {
 	method string
 	// clone is a temporary copy of the disk read instead of the original.
 	clone *dsPath
+	// stored is the disk already read through hot-add.
+	stored *repo.GuestDisk
+	// volume is the VM's disk recorded with the backup: the base disk also
+	// when a delta of the backup's own snapshot is read.
+	volume string
+	// chain: disk is a delta of the backup's own snapshot, read only
+	// through hot-add or a copy on the datastore (never its file directly).
+	chain bool
 }
 
 // planDisk decides which areas of a disk to read: with changed block
 // tracking only what changed since the previous backup, or the allocated
-// areas; otherwise the whole disk.
+// areas; otherwise the whole disk. v is the VM as it was before the
+// backup's snapshot s.
 func (c *Client) planDisk(ctx context.Context, v VM, s *snapshot, d Disk, prev map[string]diskimg.Previous) (diskPlan, error) {
+	volume, chain := d.File, false
 	if d.Delta {
-		return diskPlan{}, fmt.Errorf("%s is a snapshot delta disk; delete or consolidate the VM's own snapshots before backing it up", d.File)
+		// A quiesced snapshot (VMware Tools, VSS) may list the disk as a
+		// small delta written by the quiescing, on top of the base disk the
+		// VM had before the snapshot (#59). That delta belongs to the
+		// backup's own snapshot and is read with it. A delta the VM already
+		// had is one of its own snapshots: refused as before.
+		had, ok := v.disk(d.DevKey)
+		if !ok || had.Delta || d.Base == "" || d.Base != had.File || v.Power == "poweredOff" {
+			return diskPlan{}, fmt.Errorf("%s is a snapshot delta disk; delete or consolidate the VM's own snapshots before backing it up", d.File)
+		}
+		d.Thin = had.Thin // restored as the VM's disk was, not as the delta
+		volume, chain = had.File, true
 	}
-	p := diskPlan{disk: d, areas: []diskimg.Area{{Offset: 0, Length: d.Capacity}}, method: "whole disk"}
+	p := diskPlan{disk: d, volume: volume, chain: chain, areas: []diskimg.Area{{Offset: 0, Length: d.Capacity}}, method: "whole disk"}
 	if d.ChangeID == "" {
 		return p, nil
 	}
@@ -322,7 +475,16 @@ func (c *Client) cloneDisk(ctx context.Context, v VM, p *diskPlan) error {
 	if err := c.mkdir(ctx, dst.DS, tmpDir); err != nil {
 		return fmt.Errorf("create %s on datastore %s: %w", tmpDir, dst.DS, err)
 	}
+	// Recorded before the copy starts: a crash leaves a record (S-2).
+	leftover.Add(ctx, c.copyItem(v, dst))
 	if err := c.copyDisk(ctx, src, dst); err != nil {
+		// A partial copy takes datastore space: delete it now, also when
+		// the run was cancelled.
+		dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
+		defer cancel()
+		if derr := c.deleteCopy(dctx, v, dst); derr != nil {
+			err = fmt.Errorf("%w; the partial copy %s could not be deleted (%v), the agent tries again", err, dst, derr)
+		}
 		return fmt.Errorf("copy the disk on the datastore (needs free space for its used blocks): %w", err)
 	}
 	p.clone = &dst
@@ -338,14 +500,41 @@ func (c *Client) storeDisk(ctx context.Context, r *repo.Repository, v VM, p disk
 	read := src
 	if p.clone != nil {
 		read = *p.clone
+	} else if p.chain {
+		return repo.GuestDisk{}, fmt.Errorf("%s is a delta of the backup's snapshot and can only be read through hot-add or a copy on the datastore", p.disk.File)
 	}
 	flat, err := c.flatFile(ctx, read)
 	if err != nil {
 		return repo.GuestDisk{}, err
 	}
+	return c.storeImage(ctx, r, v, p, sn, progress, &fileReader{ctx: ctx, c: c, url: c.fileURL(flat)}, p.method)
+}
+
+// storeDiskHotAdd reads a disk of the snapshot through the agent's VM.
+func (c *Client) storeDiskHotAdd(ctx context.Context, ha *hotAdd, r *repo.Repository, v VM, p diskPlan, sn *repo.Snapshot, progress func(uint64)) (repo.GuestDisk, error) {
+	dev, release, err := ha.attach(ctx, p.disk.File, p.disk.Capacity)
+	if err != nil {
+		return repo.GuestDisk{}, err
+	}
+	defer release()
+	gd, err := c.storeImage(ctx, r, v, p, sn, progress, dev, p.method+", hot-add")
+	gd.Via = "hot-add"
+	return gd, err
+}
+
+// storeImage stores the planned areas of a disk read from ra.
+func (c *Client) storeImage(ctx context.Context, r *repo.Repository, v VM, p diskPlan, sn *repo.Snapshot, progress func(uint64), ra io.ReaderAt, method string) (repo.GuestDisk, error) {
+	vol := p.volume
+	if vol == "" {
+		vol = p.disk.File
+	}
+	src, err := parseDSPath(vol)
+	if err != nil {
+		return repo.GuestDisk{}, err
+	}
 	d := p.disk
-	img, err := diskimg.StoreAreas(ctx, r, &fileReader{ctx: ctx, c: c, url: c.fileURL(flat)}, d.Capacity, p.areas, p.base,
-		len(sn.Images), fmt.Sprintf("vmware %s %s %s (%s)", v.Name, d.Key, d.File, p.method), "snapshot", progress)
+	img, err := diskimg.StoreAreas(ctx, r, ra, d.Capacity, p.areas, p.base,
+		len(sn.Images), fmt.Sprintf("vmware %s %s %s (%s)", v.Name, d.Key, vol, method), "snapshot", progress)
 	if err != nil {
 		return repo.GuestDisk{}, err
 	}
@@ -354,6 +543,6 @@ func (c *Client) storeDisk(ctx context.Context, r *repo.Repository, v VM, p disk
 	if d.Thin {
 		format = "thin"
 	}
-	return repo.GuestDisk{Key: d.Key, Volume: d.File, Storage: src.DS, Format: format, Size: d.Capacity,
+	return repo.GuestDisk{Key: d.Key, Volume: vol, Storage: src.DS, Format: format, Size: d.Capacity,
 		Image: len(sn.Images) - 1, ChangeID: d.ChangeID}, nil
 }

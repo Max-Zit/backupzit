@@ -2,8 +2,10 @@ package pgsql
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"os"
@@ -52,7 +54,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 	if err != nil {
 		return nil, nil, err
 	}
-	stage, err := workDir(ctx, fmt.Sprintf("stage-%d", time.Now().UnixNano()))
+	stage, err := workDir(fmt.Sprintf("stage-%d", time.Now().UnixNano()))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -65,17 +67,32 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		if !o.PITR {
 			return nil, nil, nil
 		}
+		if err := s.UpgradeArchiveCommand(ctx); err != nil {
+			problems = append(problems, "could not update archive_command: "+err.Error())
+		}
 		if ok, problem, err := s.ArchiveState(ctx); err != nil {
 			return nil, nil, err
 		} else if !ok {
 			return nil, []string{"WAL archiving is not active: " + problem}, nil
 		}
+		// A segment is taken only with its full size: one PostgreSQL is still
+		// copying (archive_command of agents before 0.55) waits for the next
+		// log backup and stays in the spool.
+		var segBytes int64
+		if out, err := s.Query(ctx, "", "SELECT pg_size_bytes(current_setting('wal_segment_size'))"); err == nil {
+			segBytes, _ = strconv.ParseInt(strings.TrimSpace(out), 10, 64)
+		}
 		// Close the current segment so recent changes are archived.
 		before := time.Now()
 		_, _ = s.Query(ctx, "", "SELECT pg_switch_wal()")
-		waitArchived(ctx, s, before)
+		caughtUp := waitArchived(ctx, s, before)
+		// A short segment that stays in the spool can stop archiving for
+		// good (PostgreSQL retries it and the command refuses an existing
+		// file); what PostgreSQL reports decides what is done with it.
+		ast, astErr := s.archiverState(ctx)
+		reported := false
 		dir := filepath.Join(stage, "wal")
-		if err := os.MkdirAll(dir, 0o700); err != nil {
+		if err := os.Mkdir(dir, 0o700); err != nil {
 			return nil, nil, err
 		}
 		entries, _ := os.ReadDir(WALSpool)
@@ -86,8 +103,24 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			if !IsSegment(n) && !strings.HasSuffix(n, ".history") && !strings.HasSuffix(n, ".backup") {
 				continue
 			}
+			if IsSegment(n) && segBytes > 0 {
+				fi, err := e.Info()
+				if err != nil {
+					continue
+				}
+				if fi.Size() != segBytes {
+					if astErr == nil {
+						if msg := handlePartial(filepath.Join(WALSpool, n), fi, segBytes, ast, time.Now()); msg != "" {
+							o.Log(msg)
+							problems = append(problems, msg)
+							reported = reported || n == ast.lastFailed
+						}
+					}
+					continue
+				}
+			}
 			if err := copyFile(filepath.Join(WALSpool, n), filepath.Join(dir, n)); err != nil {
-				return nil, nil, err
+				return nil, problems, err
 			}
 			if fi, err := e.Info(); err == nil {
 				size += uint64(fi.Size()) // #nosec G115 -- file sizes and counts are not negative
@@ -97,8 +130,14 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 				segs = append(segs, n)
 			}
 		}
+		// Archiving that fails for another reason (spool disk full, folder
+		// gone) must not go unnoticed either: pg_wal grows meanwhile.
+		if astErr == nil && ast.stuck && !caughtUp && !reported {
+			problems = append(problems, fmt.Sprintf("PostgreSQL cannot archive WAL segment %s (archive_command failed, last at %s); point-in-time recovery stops there and pg_wal grows until it works again — see the PostgreSQL log",
+				ast.lastFailed, ast.failedAt.Format("2006-01-02 15:04:05")))
+		}
 		if len(segs) == 0 {
-			return nil, nil, nil
+			return nil, problems, nil
 		}
 		sort.Strings(segs)
 		now := time.Now()
@@ -106,6 +145,9 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 	default:
 		meta.Kind = "full"
 		if o.PITR {
+			if err := s.UpgradeArchiveCommand(ctx); err != nil {
+				problems = append(problems, "could not update archive_command: "+err.Error())
+			}
 			if ok, problem, err := s.ArchiveState(ctx); err != nil {
 				return nil, nil, err
 			} else if !ok {
@@ -120,7 +162,11 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		}
 		start := time.Now()
 		o.Log("pg_basebackup", "port", s.Port)
-		cdir := filepath.Join(stage, "cluster")
+		// pg_basebackup writes as postgres into an empty folder of its own.
+		cdir, err := pgDir(stage, "cluster")
+		if err != nil {
+			return nil, problems, err
+		}
 		out, err := asPostgres(ctx, s.bin("pg_basebackup"), "-p", strconv.Itoa(s.Port), "-D", cdir, "-Ft", "-X", "fetch", "-c", "fast", "-v", "--no-password")
 		if err != nil {
 			return nil, problems, err
@@ -144,7 +190,9 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			FirstLSN: first, LastLSN: last, Start: start, Finish: time.Now()})
 		gfile := filepath.Join(stage, "globals.sql")
 		if out, err := asPostgres(ctx, s.bin("pg_dumpall"), "-p", strconv.Itoa(s.Port), "--globals-only"); err == nil {
-			_ = os.WriteFile(gfile, out, 0o600)
+			if err := writeNew(gfile, out, 0o600); err != nil {
+				return nil, problems, err
+			}
 			meta.Databases = append(meta.Databases, repo.SQLDatabase{Name: Globals, File: gfile, Size: uint64(len(out)), Start: time.Now(), Finish: time.Now()})
 		} else {
 			problems = append(problems, "roles were not saved: "+err.Error())
@@ -153,9 +201,10 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 		if err != nil {
 			return nil, problems, err
 		}
-		ddir := filepath.Join(stage, "dumps")
-		_ = os.MkdirAll(ddir, 0o700)
-		_ = exec.CommandContext(ctx, "chown", "postgres:", ddir).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
+		ddir, err := pgDir(stage, "dumps")
+		if err != nil {
+			return nil, problems, err
+		}
 		for _, d := range dbs {
 			if len(o.Databases) > 0 && !containsFold(o.Databases, d.Name) {
 				continue
@@ -163,7 +212,7 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 			f := filepath.Join(ddir, safeName(d.Name)+".dump")
 			t0 := time.Now()
 			o.Log("pg_dump", "database", d.Name)
-			if _, err := asPostgres(ctx, s.bin("pg_dump"), "-p", strconv.Itoa(s.Port), "-Fc", "-Z", "0", "-f", f, d.Name); err != nil {
+			if _, err := asPostgres(ctx, s.bin("pg_dump"), "-p", strconv.Itoa(s.Port), "-Fc", "-Z", "0", "-f", f, dbnameArg(d.Name)); err != nil {
 				problems = append(problems, fmt.Sprintf("database %s: %v", d.Name, err))
 				continue
 			}
@@ -188,8 +237,12 @@ func BackupToRepo(ctx context.Context, r *repo.Repository, o BackupOptions) (*re
 	if err != nil {
 		return nil, problems, err
 	}
-	for _, f := range stored {
-		_ = os.Remove(f)
+	// Spooled WAL goes only when everything was read: otherwise the next log
+	// backup takes it again (PostgreSQL counts it as archived already).
+	if len(sn.Stats.Errors) == 0 {
+		for _, f := range stored {
+			_ = os.Remove(f)
+		}
 	}
 	return sn, problems, nil
 }
@@ -209,21 +262,137 @@ func basebackupLSNs(dir string) (start, end string) {
 }
 
 // waitArchived waits briefly until the archiver has handled the segment
-// switched at t.
-func waitArchived(ctx context.Context, s *Server, t time.Time) {
+// switched at t; false: it did not within the wait.
+func waitArchived(ctx context.Context, s *Server, t time.Time) bool {
 	for i := 0; i < 30; i++ {
 		out, err := s.Query(ctx, "", "SELECT coalesce(extract(epoch from last_archived_time)::bigint, 0) FROM pg_stat_archiver")
 		if err == nil {
 			if n, _ := strconv.ParseInt(out, 10, 64); n >= t.Unix() {
-				return
+				return true
 			}
 		}
 		select {
 		case <-ctx.Done():
-			return
+			return false
 		case <-time.After(time.Second):
 		}
 	}
+	return false
+}
+
+// archiverState is PostgreSQL's view of WAL archiving (pg_stat_archiver).
+type archiverState struct {
+	lastArchived string    // last WAL file archived
+	lastFailed   string    // last WAL file the archive_command failed on
+	failedAt     time.Time // when that was
+	stuck        bool      // the latest attempt failed (no success since)
+}
+
+func (s *Server) archiverState(ctx context.Context) (archiverState, error) {
+	out, err := s.Query(ctx, "", "SELECT coalesce(last_archived_wal, ''), coalesce(last_failed_wal, ''), coalesce(extract(epoch from last_failed_time)::bigint, 0), "+
+		"(last_failed_time IS NOT NULL AND (last_archived_time IS NULL OR last_failed_time > last_archived_time))::int FROM pg_stat_archiver")
+	if err != nil {
+		return archiverState{}, err
+	}
+	f := strings.Split(out, "|")
+	if len(f) != 4 {
+		return archiverState{}, fmt.Errorf("unexpected pg_stat_archiver row %q", out)
+	}
+	at, _ := strconv.ParseInt(f[2], 10, 64)
+	return archiverState{lastArchived: f[0], lastFailed: f[1], failedAt: time.Unix(at, 0), stuck: f[3] == "1"}, nil
+}
+
+// partialAge is how long a short segment in the spool must be untouched
+// before it counts as stale: a copy in progress changes it all the time.
+const partialAge = 5 * time.Minute
+
+// partialVerdict is what a log backup does with a segment in the spool that
+// is shorter than a WAL segment.
+type partialVerdict int
+
+const (
+	partialWait    partialVerdict = iota // probably still being copied: looked at again next time
+	partialBlocked                       // archiving fails on it, but it may still be written: reported
+	partialRetry                         // stale copy that stops archiving: removed, PostgreSQL copies it again
+	partialLost                          // stale copy PostgreSQL never sends again: removed, the gap reported
+)
+
+// judgePartial decides about the short spool segment name, last written at
+// mtime. Only a copy nothing can still be writing is removed: PostgreSQL
+// fails on it since a time after it was written, or has archived later
+// segments of the same timeline.
+func judgePartial(name string, mtime, now time.Time, st archiverState) partialVerdict {
+	old := now.Sub(mtime) > partialAge
+	switch {
+	case st.stuck && st.lastFailed == name:
+		// PostgreSQL keeps a segment in pg_wal until it is archived, so the
+		// spool copy is not the only one.
+		if old && mtime.Before(st.failedAt) {
+			return partialRetry
+		}
+		return partialBlocked
+	case old && segmentAfter(st.lastArchived, name):
+		return partialLost
+	}
+	return partialWait
+}
+
+// segmentAfter reports whether the WAL file a (a segment, or a .partial or
+// .backup file named after one) is a later segment than seg on the same
+// timeline.
+func segmentAfter(a, seg string) bool {
+	if len(a) < 24 || !IsSegment(a[:24]) || !IsSegment(seg) {
+		return false
+	}
+	return a[:8] == seg[:8] && a[:24] > seg
+}
+
+// partialCopy reports whether the spool file p of size bytes is provably an
+// incomplete copy: shorter than a segment, and not a complete segment of
+// another size either (the long header of a segment's first page records
+// its size, at offset 32, in the server's byte order).
+func partialCopy(p string, size, segBytes int64) bool {
+	if size >= segBytes {
+		return false
+	}
+	f, err := os.OpenFile(p, os.O_RDONLY|oNoFollow, 0) // #nosec G304 -- a file in the agent's WAL spool (not through a link)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	h := make([]byte, 40)
+	if n, _ := io.ReadFull(f, h); n < len(h) {
+		return true
+	}
+	le, be := binary.LittleEndian.Uint32(h[32:]), binary.BigEndian.Uint32(h[32:])
+	return int64(le) != size && int64(be) != size
+}
+
+// handlePartial acts on the short spool segment p and returns what the run
+// reports about it ("" when it is most likely still being copied).
+func handlePartial(p string, fi fs.FileInfo, segBytes int64, st archiverState, now time.Time) string {
+	name := filepath.Base(p)
+	if !partialCopy(p, fi.Size(), segBytes) {
+		return ""
+	}
+	switch judgePartial(name, fi.ModTime(), now, st) {
+	case partialBlocked:
+		return fmt.Sprintf("WAL archiving is stuck at segment %s: an incomplete copy (%d of %d bytes) is in %s and PostgreSQL's archive_command fails on it; a later log backup removes it once nothing writes to it",
+			name, fi.Size(), segBytes, WALSpool)
+	case partialRetry:
+		if err := os.Remove(p); err != nil {
+			return fmt.Sprintf("WAL archiving is stuck at segment %s: an incomplete copy (%d of %d bytes) in %s could not be removed: %v", name, fi.Size(), segBytes, WALSpool, err)
+		}
+		return fmt.Sprintf("WAL segment %s in %s was an incomplete copy (%d of %d bytes) that stopped WAL archiving; it was removed and PostgreSQL archives the segment again",
+			name, WALSpool, fi.Size(), segBytes)
+	case partialLost:
+		if err := os.Remove(p); err != nil {
+			return fmt.Sprintf("WAL segment %s in %s is incomplete (%d of %d bytes) and could not be removed: %v", name, WALSpool, fi.Size(), segBytes, err)
+		}
+		return fmt.Sprintf("WAL segment %s in %s was incomplete (%d of %d bytes, probably left by a crash) and PostgreSQL does not archive it again; it was removed. Point-in-time recovery from earlier full backups cannot go past it: run a full backup",
+			name, WALSpool, fi.Size(), segBytes)
+	}
+	return ""
 }
 
 // RestoreOptions select what RestoreFromRepo restores.
@@ -265,7 +434,9 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 	if err != nil && o.Database != Cluster {
 		return nil, err
 	}
-	work, err := workDir(ctx, "restore-"+time.Now().Format("20060102-150405"))
+	// Root fills the folder while it is root's and hands it to postgres only
+	// once it stops writing there (startRecovered, before pg_restore).
+	work, err := workDir("restore-" + time.Now().Format("20060102-150405"))
 	if err != nil {
 		return nil, err
 	}
@@ -278,8 +449,14 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 	res := &RestoreResult{Database: o.Database}
 	fetch := func(sn *repo.Snapshot, path, sub string) (string, error) {
 		target := filepath.Join(work, sub)
-		if _, err := restorer.Run(ctx, r, sn, restorer.Options{Target: target, Include: []string{path}}); err != nil {
+		st, err := restorer.Run(ctx, r, sn, restorer.Options{Target: target, Include: []string{path}})
+		if err != nil {
 			return "", err
+		}
+		// One unreadable WAL segment would make the recovery stop early
+		// or replay across a gap while reporting success.
+		if len(st.Errors) > 0 {
+			return "", fmt.Errorf("could not read the backup completely: %s", strings.Join(st.Errors, "; "))
 		}
 		return filepath.Join(target, strings.TrimPrefix(path, "/")), nil
 	}
@@ -303,7 +480,9 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 			return nil, err
 		}
 		walDir := filepath.Join(work, "wal")
-		_ = os.MkdirAll(walDir, 0o700)
+		if err := os.Mkdir(walDir, 0o700); err != nil {
+			return nil, err
+		}
 		next := NextSegment(cl.LastLSN)
 		for _, sn := range wals {
 			w := find(sn, WAL)
@@ -345,16 +524,22 @@ func RestoreFromRepo(ctx context.Context, r *repo.Repository, full *repo.Snapsho
 			return res, nil
 		}
 		defer inst.stop(context.Background())
+		// work is postgres's by now: a new file only, never through a link.
 		dump = filepath.Join(work, "pitr.dump")
-		_ = os.WriteFile(dump, nil, 0o600)
-		_ = exec.CommandContext(ctx, "chown", "postgres:", dump).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
+		if err := writeNew(dump, nil, 0o600); err != nil {
+			return nil, err
+		}
+		if err := givePostgres(dump); err != nil {
+			return nil, err
+		}
 		o.Log("pg_dump from the recovered instance", "database", o.Database)
-		if _, err := asPostgres(ctx, inst.bin("pg_dump"), "-h", inst.Socket, "-p", strconv.Itoa(inst.Port), "-Fc", "-Z", "0", "-f", dump, o.Database); err != nil {
+		if _, err := asPostgres(ctx, inst.bin("pg_dump"), "-h", inst.Socket, "-p", strconv.Itoa(inst.Port), "-Fc", "-Z", "0", "-f", dump, dbnameArg(o.Database)); err != nil {
 			return nil, err
 		}
 	}
-	// pg_restore runs as postgres: give it the restored files.
-	_ = exec.CommandContext(ctx, "chown", "-R", "postgres:", work).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
+	// pg_restore runs as postgres: give it the restored files (-h: a link
+	// postgres put there keeps its target's owner).
+	_ = exec.CommandContext(ctx, "chown", "-R", "-h", "postgres:", work).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
 	if err := s.restoreDump(ctx, dump, o); err != nil {
 		return nil, err
 	}
@@ -387,7 +572,7 @@ func (s *Server) restoreDump(ctx context.Context, dump string, o RestoreOptions)
 		return err
 	}
 	o.Log("pg_restore", "database", target)
-	if _, err := asPostgres(ctx, s.bin("pg_restore"), "-p", strconv.Itoa(s.Port), "-d", target, "--no-password", dump); err != nil {
+	if _, err := asPostgres(ctx, s.bin("pg_restore"), "-p", strconv.Itoa(s.Port), dbnameArg(target), "--no-password", dump); err != nil {
 		return fmt.Errorf("pg_restore into %s: %w", target, err)
 	}
 	return nil
@@ -410,18 +595,42 @@ func (i *instance) stop(ctx context.Context) {
 	_, _ = asPostgres(ctx, i.bin("pg_ctl"), "-D", i.DataDir, "-m", "fast", "-w", "stop")
 }
 
+// stopTimeout bounds the stop after a failed start (pg_ctl itself waits up
+// to 60 seconds).
+const stopTimeout = 90 * time.Second
+
+// start runs pg_ctl start and waits for the server to accept connections.
+func (i *instance) start(ctx context.Context, logFile string) error {
+	_, err := asPostgres(ctx, i.bin("pg_ctl"), "-D", i.DataDir, "-l", logFile, "-w", "-t", "3600", "start")
+	if err != nil {
+		// pg_ctl may have started the server before it failed or was
+		// cancelled (its wait cut short): stop it with a context of its
+		// own, or the caller's clean-up deletes the data folder under a
+		// running server (L-N16). Without a server this fails at once.
+		sctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
+		defer cancel()
+		i.stop(sctx)
+	}
+	return err
+}
+
 // startRecovered unpacks a tar base backup into work/data and starts it on
 // a free port, replaying WAL from walDir up to stopAt (zero: all).
 func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.Time, bindir, version string, log func(string, ...any)) (*instance, error) {
 	data := filepath.Join(work, "data")
-	if err := os.MkdirAll(data, 0o700); err != nil {
+	if err := os.Mkdir(data, 0o700); err != nil {
 		return nil, err
 	}
 	if out, err := exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "base.tar"), "-C", data).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
 		return nil, fmt.Errorf("unpack base.tar: %v: %s", err, out)
 	}
 	if _, err := os.Stat(filepath.Join(base, "pg_wal.tar")); err == nil {
-		_ = exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "pg_wal.tar"), "-C", filepath.Join(data, "pg_wal")).Run() // #nosec G204 -- fixed program; arguments are separate values, no shell
+		if out, err := exec.CommandContext(ctx, "tar", "-xf", filepath.Join(base, "pg_wal.tar"), "-C", filepath.Join(data, "pg_wal")).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
+			return nil, fmt.Errorf("unpack pg_wal.tar: %v: %s", err, out)
+		}
+	}
+	if err := mapTablespaces(ctx, data, base, filepath.Join(work, "tablespaces")); err != nil {
+		return nil, err
 	}
 	port, err := freePort()
 	if err != nil {
@@ -445,7 +654,7 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 	for _, d := range []string{work, walDir} {
 		_ = os.Chmod(d, 0o700) // #nosec G302 -- a directory needs the x bit
 	}
-	if out, err := exec.CommandContext(ctx, "chown", "-R", "postgres:", work).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
+	if out, err := exec.CommandContext(ctx, "chown", "-R", "-h", "postgres:", work).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
 		return nil, fmt.Errorf("chown: %v: %s", err, out)
 	}
 	if bindir == "" {
@@ -453,8 +662,8 @@ func startRecovered(ctx context.Context, work, base, walDir string, stopAt time.
 	}
 	inst := &instance{DataDir: data, Socket: work, BinDir: bindir, Port: port}
 	log("starting the recovered cluster", "port", port)
-	if _, err := asPostgres(ctx, inst.bin("pg_ctl"), "-D", data, "-l", filepath.Join(work, "postgres.log"), "-w", "-t", "3600", "start"); err != nil {
-		b, _ := os.ReadFile(filepath.Join(work, "postgres.log")) // #nosec G304 -- PostgreSQL files and dumps in the agent's working folder
+	if err := inst.start(ctx, filepath.Join(work, "postgres.log")); err != nil {
+		b, _ := readNoFollow(filepath.Join(work, "postgres.log"), 1<<20)
 		return nil, fmt.Errorf("the recovered cluster did not start: %s", lastLines(strings.TrimSpace(string(b)), 4))
 	}
 	// Wait for the end of recovery (promotion).
@@ -529,10 +738,52 @@ func safeName(s string) string {
 	}, s)
 }
 
+// copyFile copies a segment of the WAL spool (written by postgres) into the
+// stage: not through a link in either place (H-N4).
 func copyFile(src, dst string) error {
-	b, err := os.ReadFile(src) // #nosec G304 -- PostgreSQL files and dumps in the agent's working folder
+	b, err := readNoFollow(src, 0)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, b, 0o600) // #nosec G703 -- dump file in the agent's working folder
+	return writeNew(dst, b, 0o600)
+}
+
+// mapTablespaces unpacks the user tablespaces of a tar base backup
+// (<oid>.tar next to base.tar) into dir and points tablespace_map there.
+// Otherwise PostgreSQL links pg_tblspc to the original absolute paths when
+// the recovered cluster starts: on the same server those belong to the live
+// cluster, and the recovery would write into production data.
+func mapTablespaces(ctx context.Context, data, base, dir string) error {
+	p := filepath.Join(data, "tablespace_map")
+	b, err := os.ReadFile(p) // #nosec G304 -- file of the base backup in the agent's working folder
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var out strings.Builder
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimRight(line, "\r")
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		oid, _, _ := strings.Cut(line, " ")
+		if oid == "" || strings.Trim(oid, "0123456789") != "" {
+			return fmt.Errorf("unexpected line in tablespace_map: %q", line)
+		}
+		tarFile := filepath.Join(base, oid+".tar")
+		if _, err := os.Stat(tarFile); err != nil { // #nosec G703 -- oid is digits only (checked above), base is the agent's working folder
+			return fmt.Errorf("tablespace %s is not in the backup (%s.tar is missing)", oid, oid)
+		}
+		target := filepath.Join(dir, oid)
+		if err := os.MkdirAll(target, 0o700); err != nil { // #nosec G703 -- oid is digits only, dir is the agent's working folder
+			return err
+		}
+		if o, err := exec.CommandContext(ctx, "tar", "-xf", tarFile, "-C", target).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
+			return fmt.Errorf("unpack tablespace %s: %v: %s", oid, err, o)
+		}
+		fmt.Fprintf(&out, "%s %s\n", oid, target)
+	}
+	return os.WriteFile(p, []byte(out.String()), 0o600)
 }

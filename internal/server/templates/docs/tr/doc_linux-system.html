@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Linux sistem yedeği ve P2V</h1>
 <p class="lead"><b>Linux sistemi</b> işi, bir Linux makinesinin tamamını yedekler; böylece boş bir diskte yeniden oluşturulabilir — disk arızasından sonra aynı makine, yeni donanım veya Proxmox VE'de bir sanal makine (fizikselden sanala, P2V).</p>
+<p>Debian, Ubuntu 22.04 ve Rocky Linux 9 ile test edildi (aynısı AlmaLinux ve RHEL 9 için de geçerlidir). Ubuntu 22.04 ve RHEL benzeri 9 sistemlerde Linux sistem yedekleri için 0.50.0 veya daha yeni bir ajan gerekir.</p>
 
 <h2>Neler yedeklenir</h2>
 <ul>
@@ -10,15 +11,17 @@
 <p>Relax-and-Recover gibi BackupZit de çalışan diski blok blok kopyalamaz: Linux'ta çalışan bir diskin yerleşik anlık görüntüsü yoktur, bu yüzden ham kopya tutarsız olur. Her dosya bütün olarak okunur ve düzen, geri yüklenen diski yeniden önyüklenebilir yapar. Veritabanları yedeklemeden önce dışa aktarılmalı veya kendi araçlarıyla yedeklenmelidir.</p>
 <p>Tek tek dosyalar ve klasörler, sistem yedeğinden de herhangi bir dosya yedeğinden olduğu gibi geri yüklenir (çalıştırma sayfasında <b>Bu yedekten dosyaları geri yükle</b>).</p>
 <h3>Henüz desteklenmeyenler</h3>
-<p>Şifreli diskler (LUKS), yazılım RAID'i (mdadm), btrfs ve birden fazla diske yayılmış sistemler. İş eksik bir yedek oluşturmak yerine bunları açıkça bildirir.</p>
+<p>Şifreli diskler (LUKS), yazılım RAID'i (mdadm) ve btrfs: iş eksik bir yedek oluşturmak yerine bunları açıkça bildirir. Birden fazla diske yayılmış sistemler yedeklenir, ancak tüm sistemin geri yüklenmesi tek bir disk yeniden oluşturur (komut satırında bu disk <code>--disk</code> ile seçilir); mantıksal bölümler içeren MBR diskleri bütün olarak geri yüklenemez. İşin <b>Hariç tut</b> alanı, komut satırındaki <code>--exclude</code> gibi yolları dışarıda bırakır.</p>
 
 <h2>Tüm sistemi geri yükleme</h2>
 <p>Sistem yedeği çalıştırmasını açın (iş sayfası veya <a href="/runs">Etkinlik</a>) ve <b>Tüm sistemi geri yükle</b>'yi kullanın:</p>
 <h3>Yeni bir Proxmox VM olarak</h3>
-<p>Proxmox düğümünü (işi onun BackupZit aracısı yapar), depolamayı, VM kimliğini, adı, belleği ve çekirdekleri seçin. BackupZit, VM'yi orijinaliyle aynı ürün yazılımıyla (UEFI/OVMF veya BIOS), bir VirtIO SCSI disk ve ağ kartıyla oluşturur, diski yeniden oluşturur, tüm dosyaları geri yükler ve VM'yi başlatabilir. VM orijinalin yanında çalışabilecek bir kopya olduğundan:</p>
+<p>Proxmox düğümünü (işi onun BackupZit aracısı yapar), depolamayı, VM kimliğini, adı, belleği (varsayılan 2048 MiB), çekirdekleri (varsayılan 2) ve ağ köprüsünü (varsayılan <code>vmbr0</code>) seçin. BackupZit, VM'yi orijinaliyle aynı ürün yazılımıyla (UEFI/OVMF veya BIOS), bir VirtIO SCSI disk ve ağ kartıyla oluşturur, diski yeniden oluşturur, tüm dosyaları geri yükler ve VM'yi başlatabilir. VM orijinalin yanında çalışabilecek bir kopya olduğundan:</p>
 <ul>
   <li>eski MAC adreslerine bağlı ağ ayarları (bulut görüntülerinde yaygın: netplan <code>match: macaddress</code>) herhangi bir kablolu arabirim için geçerli olacak şekilde değiştirilir,</li>
   <li>kopyanın içindeki BackupZit aracısının kaydı silinir, böylece kendini orijinal makine olarak bildirmez.</li>
+  <li>VM, RHEL 9 ve klonlarının (Rocky, Alma) açılmak için ihtiyaç duyduğu <code>x86-64-v2-AES</code> işlemci türünü alır (bu türü bilmeyen Proxmox VE sürümlerinde varsayılan tür);</li>
+  <li>SELinux açık bir sistem (RHEL, Rocky, Alma, Fedora) ilk açılışta dosyalarını yeniden etiketler ve bir kez yeniden başlar.</li>
 </ul>
 <h3>Bir diske</h3>
 <p>Bir Linux aracısının boş diskine, ör. ikinci bir diske (<code>/dev/sdb</code>) veya yeni makinenin kendisine (çıplak donanım) geri yükleyin:</p>

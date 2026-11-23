@@ -8,8 +8,8 @@
 <p><b>RPO içindeki işler</b> kartı, en yeni iyi yedeği kurtarma noktası hedefinden yeni olan işleri sayar (bkz. <a href="/docs/jobs#rpo">Yedekleme işleri</a>); hedefi kaçıran bir iş <b>İlgi gerekiyor</b> altında da listelenir. Bu liste ayrıca <code>admin</code> hesabı hâlâ oluşturulan ilk parolayı kullanıyorsa ve iki makine aynı aracı kaydını kullanıyorsa uyarır (bkz. <a href="/docs/agents">Aracılar</a>). Bir yedekten çalışan VM'ler (anında kurtarma) tamamlanana veya atılana kadar kartların üstünde gösterilir. Etkin hiçbir yedekleme işinde olmayan aracıları da listeler (kayıttan bir saat sonra).</p>
 
 <h2>Etkinlik</h2>
-<p>Her çalıştırma, en yenisi önce. Ayrıntılar için bir çalıştırmaya tıklayın: neyin işlendiği, istatistikler, dosya başına hatalar ve — yedekler için — geri yükleme seçenekleri. Süren çalıştırmalar otomatik yenilenir. Zamanlanmış çalıştırmalar bir saat simgesi gösterir.</p>
-<p>Çalışan bir yedek, durumunun altında ne kadar ilerlediğini pano, iş sayfası, Etkinlik ve çalıştırma sayfasında gösterir: yüzdeyi gösteren bir çubuk, işlenen veri (biliniyorsa toplamın, örneğin disk görüntülerinde ve VM'lerde) ve dosya sayısı. Dosya yedekleri boyutlarını önceden bilmez; yüzdeleri işin önceki yedeğinin dosyalarından ve boyutundan tahmin edilir ve ≈ ile işaretlenir. Yedek ikisini de aştığında yalnızca veri ve dosya sayısı gösterilir. Geri yüklemeler ilerlemelerini aynı şekilde gösterir; tüm bir yedeğin geri yüklenmesi boyutunun yüzdesini gösterir. Aracı ilerlemeyi her yoklamada bildirir (her 15 saniyede veya bir çalıştırma sürerken daha sık).</p>
+<p>En yeni 200 çalıştırma, en yenisi önce (iş ve aracı sayfaları ile raporlar daha geriye uzanır). Ayrıntılar için bir çalıştırmaya tıklayın: neyin işlendiği, istatistikler, dosya başına hatalar ve — yedekler için — geri yükleme seçenekleri. Süren çalıştırmalar otomatik yenilenir. Zamanlanmış çalıştırmalar bir saat simgesi gösterir.</p>
+<p>Çalışan bir yedek, durumunun altında ne kadar ilerlediğini pano, iş sayfası, Etkinlik ve çalıştırma sayfasında gösterir: yüzdeyi gösteren bir çubuk, işlenen veri (biliniyorsa toplamın, örneğin disk görüntülerinde ve VM'lerde) ve dosya sayısı. Dosya yedekleri boyutlarını önceden bilmez; yüzdeleri işin önceki yedeğinin dosyalarından ve boyutundan tahmin edilir ve ≈ ile işaretlenir. Yedek ikisini de aştığında yalnızca veri ve dosya sayısı gösterilir. Bir VM yedeği ayrıca üzerinde çalıştığı VM'yi gösterir (<i>VM 2 / 4: ad</i>, aracı 0.57 veya daha yenisi) ve çalıştırma sayfası şimdiye kadar biten VM'leri sonuçlarıyla listeler. Geri yüklemeler ilerlemelerini aynı şekilde gösterir; tüm bir yedeğin geri yüklenmesi boyutunun yüzdesini gösterir. Aracı ilerlemeyi her yoklamada bildirir (her 15 saniyede veya bir çalıştırma sürerken daha sık).</p>
 <h3>Çalıştırma türleri</h3>
 <table>
   <tr><th>Tür</th><th>Nedir</th></tr>
@@ -26,6 +26,7 @@
   <tr><td>verify</td><td>Otomatik veya elle başlatılan <a href="/docs/restore">geri yükleme testi</a>.</td></tr>
   <tr><td>restore, image-restore, image-file-restore</td><td>Dosyaların, bütün bir diskin veya bir görüntüdeki dosyaların geri yüklenmesi.</td></tr>
   <tr><td>repo-check</td><td>Veri denetimi: bir aracı bir depodaki tüm verileri okur ve doğrular (bkz. <a href="/docs/restore#data-check">Geri yükleme</a>).</td></tr>
+  <tr><td>repo-repair</td><td>Veri onarımı: hasarlı veri paketleri bulan bir veri denetiminden sonra agent yeniden denetler ve onları dizinden çıkarır (bkz. <a href="/docs/troubleshooting#repair">Sorun giderme</a>).</td></tr>
   <tr><td>agent-log</td><td>Bir aracının istek üzerine gönderdiği günlük (Aracılar sayfasında <b>Günlüğü al</b>).</td></tr>
 </table>
 <h3>Durum</h3>

@@ -14,7 +14,7 @@
       <li>pliki z obrazu dysku</li>
       <li>bazę danych (do danej chwili)</li>
       <li>cały system Linux</li>
-      <li>pocztę Microsoft 365 i OneDrive (zobacz <a href="/docs/m365">Microsoft 365</a>)</li>
+      <li>pocztę Microsoft 365, OneDrive, kalendarze i kontakty oraz pliki SharePoint (zobacz <a href="/docs/m365">Microsoft 365</a>)</li>
     </ul>
     Przy każdym wyborze widać, ile jest punktów przywracania.</li>
   <li><b>Źródło</b>: maszyna wirtualna (we wszystkich hipernadzorcach i zadaniach) albo zadanie kopii i jego maszyna.</li>
@@ -36,7 +36,7 @@
   <li>Wybierz, gdzie:
     <ul>
       <li><b>Przywróć do folderu</b> (zalecane) — np. <code>D:\Restore</code>. Pod nim odtwarzana jest oryginalna struktura: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nic istniejącego nie jest ruszane.</li>
-      <li><b>Przywróć do pierwotnej lokalizacji</b> — zapisuje pliki tam, gdzie były, <b>nadpisując</b> bieżące wersje. W przypadku udziału NAS agent ponownie podłącza udział z prawem zapisu.</li>
+      <li><b>Przywróć do pierwotnej lokalizacji</b> — zapisuje pliki tam, gdzie były, <b>nadpisując</b> bieżące wersje. W przypadku udziału NAS agent ponownie podłącza udział z prawem zapisu. Pliki rozrzedzone (obrazy maszyn wirtualnych, bazy danych) wracają jako rozrzedzone. W systemie Windows jako rozrzedzony ponownie oznaczany jest tylko plik, który był rozrzedzony; inne, np. dyski VHD/VHDX (Hyper-V odrzuca dyski rozrzedzone), wracają jako zwykłe pliki, podobnie jak wszystkie pliki kopii wykonanych agentami starszymi niż 0.57, które nie zapisywały tego atrybutu. Nigdy nie zapisuje się przez dowiązanie symboliczne ani połączenie (junction), które stoi na drodze: przywracanie do folderu zastępuje je folderem, a każde przywracanie zapisuje tylko w folderach, które samo otworzyło, nawet gdy w trakcie pojawi się dowiązanie (0.58: także dla kopii plików i w oryginalnej lokalizacji; katalogu głównego woluminu, takiego jak / czy C:, nie można wybrać jako folderu dla plików z kopii maszyn wirtualnych i obrazów). W oryginalnej lokalizacji śledzone są tylko dowiązania systemu (należące do roota lub użytkownika agenta w systemie Linux, do SYSTEM, TrustedInstaller lub administratora w systemie Windows, których nikt inny nie może zmienić ani zastąpić: stare dowiązania zgodności w profilach użytkowników, takie jak <i>Application Data</i>, nie są śledzone); dowiązanie do folderu, który nie istnieje, jest błędem i w miejscu, na które wskazuje, nic nie jest tworzone. Właściciel, uprawnienia i atrybuty są ustawiane na samym przywróconym pliku, nigdy przez dowiązanie podstawione na jego miejsce.</li>
     </ul>
   </li>
   <li>Opcjonalnie ogranicz do <b>Tylko te ścieżki</b>, po jednej w wierszu, np. <code>C:\Users\ana\Documents\Contracts</code> — albo wybierz je w przeglądarce plików (niżej).</li>
@@ -57,10 +57,11 @@
 <div class="callout tip"><p><b>Jak znaleźć właściwą kopię:</b> użyj <a href="/calendar">Kalendarza</a>, aby zobaczyć, które kopie wykonano danego dnia, albo historii na stronie zadania.</p></div>
 
 <h2>Przywracanie pojedynczych plików z obrazu dysku</h2>
-<p>Dla kopii obrazów kliknij <b>Przeglądaj pliki</b> w uruchomieniu kopii. Możesz przeglądać system plików NTFS obrazu bezpośrednio w konsoli, zaznaczać pliki i foldery i przywracać je na dowolnego agenta — bez przywracania całego dysku. Przy przywracaniu do folderu pliki dostają ten sam układ co z kopii plików: litera dysku staje się pierwszym folderem (<code>D:RestoreCUsers…</code>).</p>
+<p>Dla kopii obrazów kliknij <b>Przeglądaj pliki</b> w uruchomieniu kopii. Możesz przeglądać system plików NTFS obrazu bezpośrednio w konsoli, zaznaczać pliki i foldery i przywracać je na dowolnego agenta — bez przywracania całego dysku. Przy przywracaniu do folderu pliki dostają ten sam układ co z kopii plików: litera dysku staje się pierwszym folderem (<code>D:\Restore\C\Users\…</code>).</p>
+<p>Zaznaczone pliki można też <b>pobrać</b> bezpośrednio w przeglądarce: jeden plik przychodzi bez zmian, kilka plików lub folderów jako archiwum ZIP — wygodne dla pojedynczego dokumentu z dużej kopii obrazu. Podobnie jak przeglądanie działa dla kopii obrazu w pamięci sieciowej, wymaga uprawnienia <b>Przywracanie</b>, a dziennik audytu zapisuje, które ścieżki pobrano.</p>
 
 <h2>Przywracanie pojedynczych plików z maszyny wirtualnej (Proxmox VE, Hyper-V, VMware)</h2>
-<p>W uruchomieniu kopii maszyny wirtualnej kliknij <b>Przeglądaj pliki</b> obok gościa. Konsola pokazuje partycje i woluminy LVM jego dysków i pozwala przeglądać systemy plików NTFS, ext4 i XFS. <b>Pobierz</b> zaznaczone pliki (kilka jako archiwum ZIP) lub przywróć je na dowolnym agencie. Zobacz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>. Pliki przywrócone na agencie zachowują uprawnienia Unix, które miały w maszynie wirtualnej (ext4, XFS), więc przywrócone sekrety, takie jak <code>/etc/shadow</code>, pozostają prywatne; pliki z woluminów NTFS w Linuksie może czytać tylko ich właściciel.</p>
+<p>W uruchomieniu kopii maszyny wirtualnej kliknij <b>Przeglądaj pliki</b> obok gościa. Konsola pokazuje partycje i woluminy LVM jego dysków i pozwala przeglądać systemy plików NTFS, ext4 i XFS. <b>Pobierz</b> zaznaczone pliki (kilka jako archiwum ZIP) lub przywróć je na dowolnym agencie. Zobacz <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> i <a href="/docs/vmware">VMware ESXi</a>. Pliki przywrócone na agencie zachowują uprawnienia Unix, które miały w maszynie wirtualnej (ext4, XFS), więc przywrócone sekrety, takie jak <code>/etc/shadow</code>, pozostają prywatne; pliki z woluminów NTFS w Linuksie może czytać tylko ich właściciel. Przy przywracaniu na agencie Windows nazwy z <code>:</code> z gości Linux (ext4, XFS) są pomijane i wypisywane: Windows odczytałby część po dwukropku jako strumień innego pliku. Alternatywne strumienie danych NTFS są przywracane jako strumienie.</p>
 
 <h2>Przywracanie całych maszyn</h2>
 <ul>
@@ -84,15 +85,16 @@
       <li>Opcjonalnie skopiuj ISO do katalogu <code>/var/lib/backupzit/dist</code> konsoli; wtedy jest ono oferowane na stronie Nośniki odzyskiwania.</li>
     </ol></li>
 </ul>
-<p>Przeglądanie plików w konsoli działa dla kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, utwardzone repozytorium); konsola czyta je bezpośrednio. Dla kopii na dysku lokalnym agenta użyj wiersza poleceń.</p>
+<p>Przeglądanie plików w konsoli działa dla kopii w magazynie sieciowym (SFTP, S3, SMB, Azure, utwardzone repozytorium); konsola czyta je bezpośrednio. Dla kopii na dysku lokalnym agenta lub na SFTP z kluczem SSH przywracanie z opcją <i>Tylko te ścieżki</i> nadal działa z konsoli; aby zajrzeć do ich zawartości, użyj wiersza poleceń.</p>
 
 <h2>Przywracanie bez konsoli</h2>
 <p>Jeśli zostanie utracona sama konsola, każda maszyna z zainstalowanym agentem może przywracać bezpośrednio z magazynu, korzystając z <b>arkusza odzyskiwania</b> miejsca docelowego:</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (the SFTP host key, on the recovery sheet)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>Zobacz <a href="/docs/cli">Dokumentacja wiersza poleceń</a>.</p>
+<p><code>latest</code> to najnowsza kopia dowolnego zadania tego komputera; aby przywrócić konkretne zadanie, użyj ID migawki z <code>snapshots</code>. Zobacz <a href="/docs/cli">Dokumentacja wiersza poleceń</a>.</p>
 
 <h2>Automatyczne testy przywracania</h2>
 <p>BackupZit regularnie sprawdza Twoje kopie bez Twojego udziału: co tydzień (do ustawienia w <a href="/settings/tests">Ustawienia → Testy przywracania</a>) agent każdego zadania przywraca <b>losową próbkę plików</b> z najnowszej kopii do folderu tymczasowego, weryfikuje każdy bajt z zapisanymi sumami kontrolnymi i ponownie go usuwa. W przypadku obrazów dysków odczytywane i weryfikowane są losowe bloki. Sprawdza to cały łańcuch — dostęp do magazynu, dane dostępu, klucz szyfrowania i integralność danych.</p>
@@ -110,7 +112,7 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Strona uruchomienia wymienia każdą maszynę z wynikiem i czasem uruchamiania.</li>
 </ul>
 <h3 id="data-check">Sprawdzenie wszystkich zapisanych danych</h3>
-<p>Testy odtwarzania czytają próbkę. Dodatkowo agent odczytuje <b>wszystkie</b> dane każdego repozytorium, weryfikuje je z sumą kontrolną i sprawdza, czy foldery i dane każdej kopii są na miejscu — domyślnie raz w miesiącu (Ustawienia → Testy odtwarzania: <b>Sprawdzaj zapisane dane</b>: co miesiąc, co trzy miesiące lub nigdy). Wykrywa to uszkodzenia samego magazynu, np. awarię dysku w NAS lub degradację danych, zanim kopia będzie potrzebna. Każde repozytorium jest sprawdzane raz (zadania jednego agenta w jednym magazynie je współdzielą), przez agenta, który do niego zapisuje. Sprawdzenie odczytuje całą zawartość repozytorium, więc w chmurze (S3, Azure) działa tylko z opcją <b>Także w chmurze</b>. Problemy kończą uruchomienie <i>Sprawdzenie danych</i> błędem i wysyłają powiadomienie; <b>Sprawdź dane</b> na stronie zadania od razu uruchamia sprawdzenie. Wymaga agentów 0.39.0 lub nowszych.</p>
+<p>Testy odtwarzania czytają próbkę. Dodatkowo agent odczytuje <b>wszystkie</b> dane każdego repozytorium, weryfikuje je z sumą kontrolną i sprawdza, czy foldery i dane każdej kopii są na miejscu — domyślnie raz w miesiącu (Ustawienia → Testy odtwarzania: <b>Sprawdzaj zapisane dane</b>: co miesiąc, co trzy miesiące lub nigdy). Wykrywa to uszkodzenia samego magazynu, np. awarię dysku w NAS lub degradację danych, zanim kopia będzie potrzebna. Każde repozytorium jest sprawdzane raz (zadania jednego agenta w jednym magazynie je współdzielą), przez agenta, który do niego zapisuje. Sprawdzenie odczytuje całą zawartość repozytorium, więc w chmurze (S3, Azure) działa tylko z opcją <b>Także w chmurze</b>. Problemy kończą uruchomienie <i>Sprawdzenie danych</i> błędem i wysyłają powiadomienie; <b>Sprawdź dane</b> na stronie zadania od razu uruchamia sprawdzenie. Wymaga agentów 0.39.0 lub nowszych. Na S3, Azure i magazynie utwardzonym sprawdzenie czyta kilka pakietów danych naraz (agenci 0.54.2 i nowsi). Sprawdzenie, które znajdzie uszkodzone pakiety danych, oferuje <b>Naprawa</b> na stronie swojego uruchomienia (<a href="/docs/troubleshooting#repair">Rozwiązywanie problemów</a>).</p>
 <p>Dodatkowo od czasu do czasu (np. co kwartał) przywróć ręcznie prawdziwy folder i otwórz kilka plików — to także szkoli osoby, które będą musiały to zrobić w sytuacji awaryjnej.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

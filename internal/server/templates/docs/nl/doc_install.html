@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>controlesommen van de images en de ISO</td></tr>
 </table>
 <p>De pakketten (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agents) staan op de versiepagina. De images zijn elk ongeveer 1,5 GB. Controleer een download met <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) of <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+<p>Om te controleren dat de controlesommen zelf van BackupZit komen, verifieert u eerst de handtekening <code>SHA256SUMS.sig</code> met de releasesleutel (OpenSSL 3); <code>release-files.sha256</code> en <code>release-files.sha256.sig</code> doen hetzelfde voor <code>install.sh</code>, <code>build-winpe.ps1</code> en de herstel-ISO.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Kant-en-klare VM-image</h2>
 <p>Een kant-en-klare appliance (Debian, PostgreSQL, de console, automatische beveiligingsupdates) die in minder dan een minuut start en geen internettoegang nodig heeft:</p>
@@ -53,14 +58,14 @@
 <p>De appliance heeft twee aparte accounts:</p>
 <ul>
   <li><b>admin</b> in de webconsole (<code>https://&lt;address&gt;:8443</code>) voor het dagelijkse werk. Het initiële wachtwoord wordt na de eerste start op het scherm van de server getoond; wijzig het onder <b>Mijn account</b>.</li>
-  <li><b>bzadmin</b> op de server zelf (het scherm in de hypervisorconsole, of SSH), initieel wachtwoord <code>backupzit</code>. U moet het bij de eerste aanmelding wijzigen; de gebruiker kan <code>sudo</code> gebruiken. Root kan zich niet aanmelden.</li>
+  <li><b>bzadmin</b> op de server zelf (het scherm in de hypervisorconsole, of SSH), initieel wachtwoord op het scherm van de server (sinds 0.56 willekeurig per appliance; daarvoor <code>backupzit</code>). U moet het bij de eerste aanmelding wijzigen; de gebruiker kan <code>sudo</code> gebruiken. Root kan zich niet aanmelden.</li>
 </ul>
 <p>Updates van BackupZit en van het besturingssysteem worden vanuit de console beheerd (zie hieronder). VMware Tools en de QEMU-gastagent zijn inbegrepen, zodat hypervisors het adres van de appliance tonen.</p>
 <h3 id="setup-menu">Setupmenu op het scherm van de server</h3>
 <p>Wanneer bzadmin zich op het eigen scherm van de server aanmeldt (niet via SSH), opent een menu:</p>
 <table>
   <tr><th>Item</th><th>Wat het doet</th></tr>
-  <tr><td>1 Network</td><td>DHCP of een statisch adres met prefixlengte (bijv. <code>192.168.1.20/24</code>), gateway en maximaal drie DNS-servers. Met DHCP komen de DNS-servers van de DHCP-server, tenzij u eigen servers invult.</td></tr>
+  <tr><td>1 Network</td><td>DHCP of een statisch adres met prefixlengte (bijv. <code>192.168.1.20/24</code>), gateway en maximaal drie DNS-servers. Met DHCP komen de DNS-servers van de DHCP-server; wilt u met DHCP eigen servers gebruiken, stel ze dan later in onder Instellingen → Netwerk.</td></tr>
   <tr><td>2 Server name</td><td>De hostnaam (letters, cijfers en -).</td></tr>
   <tr><td>3 SSH</td><td>De SSH-server in- of uitschakelen en de poort ervan wijzigen. De poorten van de console (80, 443, 8443), PostgreSQL (5432) en direct herstel (111, 2049) kunnen niet worden gebruikt.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Voor een vergeten wachtwoord van de webconsole; heft ook aanmeldblokkades op. Daarna toont het scherm het gegenereerde initiële wachtwoord niet meer (ook vanaf de volgende start, zodra het wachtwoord van admin in de webconsole is gewijzigd).</td></tr>
@@ -109,7 +114,8 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>docker compose up -d
 docker compose exec backupzit backupzit-server --initial-password</pre>
 <p>Open <code>https://&lt;host&gt;:8443</code> en meld u aan als <code>admin</code> met dat wachtwoord. De database en de gegevens van de console (geheimensleutel, certificaat, agentinstallers) staan in de volumes <code>db</code> en <code>data</code>; maak van beide een back-up of gebruik <a href="#console-backup">de back-up van de console</a>. Agents installeert u zoals gewoonlijk op de computers; ze verbinden met poort 8443 van de host. Voor een lokale schijf als doel koppelt u een map van de host in de container (zie de opmerking in het bestand) en gebruikt u het pad in de container.</p>
-<p><b>Updates:</b> de console controleert op nieuwe versies en toont ze onder Settings → Updates met de commando's die u in de map van het bestand uitvoert: <code>docker compose pull</code> en <code>docker compose up -d</code> (de tag <code>latest</code> volgt de officiële versies, <code>testing</code> de releasekandidaten; zet <code>BACKUPZIT_TAG</code> in <code>.env</code> om op één versie te blijven). Voordat een nieuwe versie de database wijzigt, bewaart ze een kopie van de console in <code>pre-upgrade</code> in het datavolume (de laatste drie). Terug: zet <code>BACKUPZIT_TAG</code> op de vorige versie, voer <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;map&gt;</code> uit met de map van de kopie, daarna <code>docker compose up -d</code>. Agents worden zoals altijd vanuit de console bijgewerkt. In de container worden de instellingen van de appliance (netwerk, updates van het besturingssysteem, SSH) niet getoond: die horen bij de Docker-host.</p>
+<p><b>Updates:</b> de console controleert op nieuwe versies en toont ze onder Instellingen → Updates met de commando's die u in de map van het bestand uitvoert: <code>docker compose pull</code> en <code>docker compose up -d</code> (de tag <code>latest</code> volgt de officiële versies, <code>testing</code> de releasekandidaten; zet <code>BACKUPZIT_TAG</code> in <code>.env</code> om op één versie te blijven). Voordat een nieuwe versie de database wijzigt, bewaart ze een kopie van de console in <code>pre-upgrade</code> in het datavolume (de laatste drie). Terug: zet <code>BACKUPZIT_TAG</code> op de vorige versie, voer <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;map&gt;</code> uit met de map van de kopie, daarna <code>docker compose up -d</code>. Agents worden zoals altijd vanuit de console bijgewerkt. In de container worden de instellingen van de appliance (netwerk, updates van het besturingssysteem, SSH) niet getoond: die horen bij de Docker-host.</p>
+<p id="docker-logs"><b>Logboeken:</b> <code>docker compose logs -f backupzit</code> toont het logboek van de console. Hetzelfde logboek wordt bewaard als <code>logs/server.log</code> in het datavolume en zit in de download onder <a href="/settings/diagnostics">Instellingen → Diagnose</a>. Het image heeft geen shell; <code>docker compose run --rm backupzit --restore-pre-upgrade list</code> toont de kopieën die vóór updates zijn gemaakt, nieuwste eerst.</p>
 
 <h2 id="first">Eerste aanmelding</h2>
 <p>Open <code>https://&lt;server&gt;:8443</code>. De initiële beheerder is <b>admin</b>; het wachtwoord staat in <code>/var/lib/backupzit/initial-admin-password.txt</code> (of stel <code>BACKUPZIT_ADMIN_PASSWORD</code> in vóór de eerste start). Wijzig het na het aanmelden. Een vergeten wachtwoord stelt u op de server zo opnieuw in:</p>
@@ -146,6 +152,11 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>443/tcp</td><td>agents, console</td><td>Azure / cloudopslag</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
   <tr><td>636/tcp (389 met StartTLS)</td><td>console</td><td>domeincontrollers</td><td>aanmelding via LDAP / Active Directory</td></tr>
   <tr><td>587/465/25</td><td>console</td><td>mailserver</td><td>e-mailmeldingen</td></tr>
+  <tr><td>443/tcp (22/tcp bij de gratis licentie)</td><td>console, proxy-agent</td><td>ESXi-hosts, vCenter</td><td>VMware: VM-lijst, snapshots, lezen van schijven en herstel</td></tr>
+  <tr><td>2049/tcp, 111/tcp+udp</td><td>ESXi-hosts</td><td>proxy-agent</td><td>VMware: direct herstel (de agent biedt de back-up aan als NFS-datastore)</td></tr>
+  <tr><td>443/tcp</td><td>agent van een Microsoft 365-taak</td><td>graph.microsoft.com, login.microsoftonline.com</td><td>Microsoft 365-back-ups</td></tr>
+  <tr><td>514/udp of tcp, 6514/tcp (TLS)</td><td>console</td><td>syslog-server / SIEM</td><td>optioneel: export van het auditlogboek (de poort die u invoert)</td></tr>
+  <tr><td>443/tcp</td><td>console</td><td>github.com en zijn downloadservers</td><td>controle op updates en downloads van de standaard-updatebron; agents krijgen hun updates van de console</td></tr>
 </table>
 <p>De console maakt ook zelf verbinding met de opslag, zodat u bestanden in schijfimages en VM-back-ups kunt doorbladeren (en downloaden); ze heeft dus dezelfde opslagtoegang nodig als de agents.</p>
 
@@ -153,13 +164,14 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Standaard haalt de console updates uit de officiële BackupZit-versies op GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Onder <a href="/settings/updates">Instellingen → Updates</a> kunt u in plaats daarvan een andere <b>updatebron</b> invoeren — uw eigen HTTPS-mirror of een map op de server. Welke bron ook, elke versie moet een geldige BackupZit-handtekening dragen. De console controleert dagelijks op nieuwe versies en mailt de beheerders als er een beschikbaar is. Klik op <b>Installeren</b> om hem te installeren:</p>
 <p><b>Releasekandidaten:</b> elke versie wordt eerst als <i>pre-release</i> gepubliceerd en getest; pas daarna wordt ze de officiële release, met dezelfde bestanden. De updatebron <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> bevat altijd de nieuwste kandidaat — gebruik die alleen op een testconsole, want een kandidaat kan nog door een verbeterde worden vervangen. Consoles met de standaardbron krijgen alleen goedgekeurde releases.</p>
 <ol>
-  <li>De console controleert de handtekening van de versie en de controlesom van het pakket, en wacht tot er geen back-up of herstel loopt.</li>
+  <li>De console controleert de handtekening van de versie en de controlesom van het pakket, en weigert de update te starten zolang er een back-up of herstel loopt; installeer hem wanneer die klaar zijn.</li>
   <li>Een systeemservice (<code>backupzit-update</code>, draait als root) controleert de handtekening opnieuw met de releasesleutels die in BackupZit zijn ingebouwd. Zelfs een gecompromitteerde console kan zo geen ander pakket laten installeren.</li>
   <li>Hij maakt een back-up van de database (<code>pg_dump</code>), bewaart het huidige programma, installeert het pakket en herstart de console.</li>
   <li>Antwoordt de nieuwe versie niet binnen twee minuten, dan worden het vorige programma en de database zoals die was automatisch hersteld. Het resultaat, met het logboek van de mislukte start, wordt op de pagina Updates getoond, vastgelegd in het auditlogboek en gemaild.</li>
   <li>Na een geslaagde update worden ook de agents bijgewerkt: elke agent installeert de nieuwe versie zodra hij inactief is. Schakel dat op dezelfde pagina uit als u ze liever zelf bijwerkt.</li>
 </ol>
 <p>De console is ongeveer een minuut niet beschikbaar. De databaseback-ups en vorige programma's van de laatste drie updates worden bewaard in <code>/var/lib/backupzit-update</code>.</p>
+<p id="update-banner"><b>Melding in de console:</b> gebruikers die updates mogen installeren (beheerders) zien een nieuwe versie ook bovenaan elke pagina, met <i>Installeren</i> (opent deze pagina Instellingen → Updates) en <i>Release-opmerkingen</i>. <b>×</b> verbergt de melding voor die gebruiker vijf dagen, in elke browser; een nog nieuwere versie toont hem meteen weer. Andere rollen zien hem niet. Op een Docker-console verwijst de melding in plaats daarvan naar de opdrachten om de nieuwe image op te halen.</p>
 <p><b>Zonder internettoegang:</b> download de versiebestanden (<code>manifest.json</code>, <code>manifest.json.sig</code> en het serverpakket) op een andere computer. Upload ze daarna onder <i>Een update uit bestanden installeren</i>, of kopieer ze naar een map op de server en gebruik die map als updatebron.</p>
 <p>U kunt nog steeds bijwerken met de pakketbeheerder (<code>apt install ./backupzit-server_….deb</code>); de database wordt gemigreerd wanneer de nieuwe versie start.</p>
 
@@ -168,7 +180,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Automatische beveiligingsupdates inschakelen</b> (aanbevolen). Het eigen hulpmiddel van het systeem installeert dagelijks alleen beveiligingsfixes: <code>unattended-upgrades</code> op Debian en Ubuntu, <code>dnf-automatic</code> op AlmaLinux en Rocky Linux.</li>
   <li><b>Nu alle updates installeren</b>. Services zoals PostgreSQL kunnen kort herstarten, en de console maakt vanzelf opnieuw verbinding.</li>
-  <li><b>Server herstarten</b>, bijvoorbeeld na een kernelupdate. De console weigert dat zolang er back-ups of herstelacties lopen. Agents behouden hun taken en melden de resultaten zodra de console terug is.</li>
+  <li><b>Server herstarten</b>, bijvoorbeeld na een kernelupdate. De console weigert dat zolang er back-ups of herstelacties lopen. Back-ups waarvan het geplande tijdstip tijdens de herstart verstrijkt, starten zodra de console terug is.</li>
 </ul>
 <p>Deze taken lopen via dezelfde root-service als console-updates. Ze worden vastgelegd in het auditlogboek, en de uitvoer van de laatste taak wordt op de pagina getoond.</p>
 
@@ -181,6 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>het certificaat van de console, dat de agents vastpinnen.</li>
 </ul>
 <p>Ze is versleuteld met de herstelsleutel van het doel en gededupliceerd. De nieuwste back-ups worden bewaard: standaard 14.</p>
+<p id="console-backup-page">Kies op de pagina het <i>Opslagdoel</i> (alleen netwerkopslag: SFTP, S3, SMB, Azure of een geharde repository; de back-up komt daar in de map <code>backupzit-console</code>), het uur van de dagelijkse back-up (<i>Om</i>, tijd van de console) en bij <i>Bewaren</i> hoeveel back-ups er blijven. <i>Nu back-uppen</i> maakt er meteen een. De pagina toont de laatste back-up en de grootte ervan, en het repositoryadres dat u nodig hebt voor een herstel.</p>
 <h3>De console herstellen</h3>
 <ol>
   <li>Installeer een nieuwe console met dezelfde of een nieuwere versie, bijvoorbeeld vanaf de appliance-ISO.</li>

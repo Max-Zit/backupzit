@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/repo"
@@ -42,6 +44,13 @@ type JobOptions struct {
 	// ExcludeDisks: Hyper-V VM jobs leave these disk files out (name
 	// patterns such as *-data.vhdx, or full paths).
 	ExcludeDisks []string `json:"exclude_disks,omitempty"`
+	// CrashConsistentOK: Hyper-V VMs (names or patterns) that cannot prepare
+	// a checkpoint themselves; a crash-consistent one is no warning for them.
+	CrashConsistentOK []string `json:"crash_consistent_ok,omitempty"`
+	// VMwareNoQuiesce: VMware VM jobs take their snapshots without VMware
+	// Tools quiescing (crash-consistent), for guests whose quiescing fails
+	// or misbehaves (#59). Off by default: application-consistent.
+	VMwareNoQuiesce bool `json:"vmware_no_quiesce,omitempty"`
 	// SQL Server jobs: the instance ("" = default), whether system
 	// databases are included when all are backed up, and how often the
 	// transaction logs are backed up (minutes, 0 = never).
@@ -77,6 +86,13 @@ type JobOptions struct {
 	m365PickNone struct{ users, sites bool }
 	// Compression of new data: "" (default), "off", "fast" or "max".
 	Compression string `json:"compression,omitempty"`
+	// VMBlockSizeKiB is the block size of new VM disk images (0 = 1024).
+	VMBlockSizeKiB int `json:"vm_block_size_kib,omitempty"`
+	// VMBlocksCustom stays set once a size other than 1 MiB was chosen:
+	// the repository may then hold such images, which agents without
+	// configurable block sizes cannot use as a base, even after the job
+	// returns to 1 MiB.
+	VMBlocksCustom bool `json:"vm_blocks_custom,omitempty"`
 	// MaxHours stops a backup or copy that runs longer (0 = no limit).
 	MaxHours int `json:"max_hours,omitempty"`
 	// RPOHours is the recovery point objective: the newest good backup
@@ -123,6 +139,17 @@ func (o JobOptions) Validate() error {
 	default:
 		return errors.New("unknown compression level")
 	}
+	if err := repo.ValidateVMBlockSizeKiB(o.VMBlockSizeKiB); err != nil {
+		return err
+	}
+	if len(o.CrashConsistentOK) > 200 {
+		return errors.New("list at most 200 VMs that may be crash-consistent")
+	}
+	for _, p := range o.CrashConsistentOK {
+		if _, err := path.Match(p, ""); err != nil || len(p) > 200 || strings.ContainsFunc(p, unicode.IsControl) {
+			return fmt.Errorf("%q is not a VM name or pattern (one per line, * and ? allowed)", p)
+		}
+	}
 	if o.Window && (o.WindowFrom < 0 || o.WindowFrom > 23 || o.WindowTo < 0 || o.WindowTo > 23 || o.WindowFrom == o.WindowTo) {
 		return errors.New("the backup window needs a start and a different end hour")
 	}
@@ -159,6 +186,10 @@ func (o JobOptions) apply(ar *api.Run, kind string) {
 		ar.Limit = &api.SpeedLimit{BytesPerSec: int64(o.LimitMBps) << 20, FromHour: o.LimitFrom, ToHour: o.LimitTo}
 	}
 	ar.Repository.Compression = o.Compression
+	if kind == api.KindVMBackup {
+		ar.Repository.VMBlockSizeKiB = o.VMBlockSizeKiB
+		ar.Repository.NeedsVMBlocks = o.VMBlocksCustom || (o.VMBlockSizeKiB != 0 && o.VMBlockSizeKiB != 1024)
+	}
 	if kind != api.KindCopy && o.HasCommands() {
 		min := o.CommandMinutes
 		if min == 0 {
@@ -212,6 +243,11 @@ type jobForm struct {
 	ReplicaAgents []pveAgent
 	// ChainJobs are the jobs this one can run after.
 	ChainJobs []Job
+	// HyperV: an edited VM job of a Hyper-V host or cluster (the options
+	// for checkpoints and excluded disks apply to Hyper-V only).
+	HyperV bool
+	// VMware: an edited VM job of a VMware host (quiescing option).
+	VMware bool
 }
 
 // newJobForm prepares the form for job j (a new job: defaults).
@@ -291,10 +327,23 @@ func optionsFromForm(r *http.Request, old JobOptions, canCommands bool) JobOptio
 	o.SQLLogMinutes = atoiDefault(r.FormValue("sql_log_minutes"))
 	o.AppConsistent = r.FormValue("app_consistent") == "on"
 	o.ExcludeDisks = lines(r.FormValue("exclude_disks"))
+	o.CrashConsistentOK = lines(r.FormValue("crash_consistent_ok"))
+	o.VMwareNoQuiesce = r.FormValue("vmware_no_quiesce") == "on"
 	if r.FormValue("replicate") == "on" {
 		o.ReplicaAgentID, o.ReplicaStorage = formID(r, "replica_agent"), r.FormValue("replica_storage")
 	}
 	o.Compression = r.FormValue("compression")
+	// Preserve the setting for clients that omit the new field. Malformed
+	// values must not silently become the default through atoiDefault.
+	o.VMBlockSizeKiB = old.VMBlockSizeKiB
+	if values, ok := r.Form["vm_block_size_kib"]; ok && len(values) > 0 {
+		var err error
+		o.VMBlockSizeKiB, err = strconv.Atoi(values[0])
+		if err != nil {
+			o.VMBlockSizeKiB = -1 // rejected by Validate
+		}
+	}
+	o.VMBlocksCustom = old.VMBlocksCustom || (o.VMBlockSizeKiB > 0 && o.VMBlockSizeKiB != 1024)
 	o.NASURL = strings.TrimSpace(r.FormValue("nas_url"))
 	o.NASUser = strings.TrimSpace(r.FormValue("nas_user"))
 	o.NASDomain = strings.TrimSpace(r.FormValue("nas_domain"))
@@ -446,6 +495,15 @@ func (s *Server) jobForm(r *http.Request, j Job, edit bool, agents []Agent) jobF
 		agents, _ = s.store.ListAgents(r.Context())
 	}
 	f.ReplicaAgents = pveAgents(agents)
+	f.VMware = edit && j.Kind == JobVM && j.VMwareHostID != nil
+	if edit && j.Kind == JobVM && j.VMwareHostID == nil {
+		f.HyperV = j.Options.HVCluster != ""
+		for _, a := range agents {
+			if a.ID == j.AgentID && a.Platform() == "hyperv" {
+				f.HyperV = true
+			}
+		}
+	}
 	if jobs, err := s.store.ListJobs(r.Context()); err == nil {
 		f.ChainJobs = chainTargets(jobs, j.ID)
 	}

@@ -16,5 +16,9 @@ func snapshotVolume(string, time.Duration, ErrorHandler) (string, func() error, 
 	return "", nil, errUnsupported
 }
 
+func snapshotVolumes([]string, time.Duration, ErrorHandler) (map[string]string, func() error, error) {
+	return nil, nil, errUnsupported
+}
+
 // Available reports whether snapshots can be created.
 func Available() error { return errUnsupported }

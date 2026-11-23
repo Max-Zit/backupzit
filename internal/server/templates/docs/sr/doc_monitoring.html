@@ -8,8 +8,8 @@
 <p>Kartica <b>poslova u okviru RPO-a</b> broji poslove čiji je najnoviji dobar bekap mlađi od njihove ciljne tačke oporavka (vidi <a href="/docs/jobs#rpo">Poslovi bekapa</a>); posao koji ju je propustio navodi se i pod <b>Zahteva pažnju</b>. Ta lista upozorava i kada nalog <code>admin</code> još ima generisanu početnu lozinku i kada dve mašine koriste istu registraciju agenta (vidi <a href="/docs/agents">Agenti</a>). Virtuelne mašine koje rade iz bekapa (instant recovery) prikazuju se iznad kartica dok se ne završe ili odbace. Navodi i agente koji nisu ni u jednom uključenom backup poslu (od sat vremena posle prijave).</p>
 
 <h2>Aktivnost</h2>
-<p>Svako pokretanje, od najnovijeg. Kliknite pokretanje za detalje: šta je obrađeno, statistika, greške po fajlu, i — za bekape — opcije vraćanja. Pokretanja u toku se automatski osvežavaju. Zakazana pokretanja imaju ikonu sata.</p>
-<p>Backup koji je u toku prikazuje dokle je stigao ispod svog statusa, na kontrolnoj tabli, stranici posla, u Aktivnosti i na stranici pokretanja: traku sa procentom, obrađene podatke (od ukupnih kada su poznati, npr. kod slika diska i VM-ova) i broj fajlova. Backup fajlova ne zna unapred svoju veličinu; njegov procenat se procenjuje iz broja fajlova i veličine prethodnog backup-a posla i označen je sa ≈. Kada backup preraste oba, prikazuju se samo podaci i broj fajlova. Vraćanja prikazuju napredak na isti način; vraćanje celog backup-a prikazuje procenat njegove veličine. Agent javlja napredak pri svakom javljanju (na svakih 15 sekundi ili češće dok pokretanje traje).</p>
+<p>Najnovijih 200 pokretanja, od najnovijeg (stranice poslova i agenata i izveštaji sežu dalje unazad). Kliknite pokretanje za detalje: šta je obrađeno, statistika, greške po fajlu, i — za bekape — opcije vraćanja. Pokretanja u toku se automatski osvežavaju. Zakazana pokretanja imaju ikonu sata.</p>
+<p>Backup koji je u toku prikazuje dokle je stigao ispod svog statusa, na kontrolnoj tabli, stranici posla, u Aktivnosti i na stranici pokretanja: traku sa procentom, obrađene podatke (od ukupnih kada su poznati, npr. kod slika diska i VM-ova) i broj fajlova. Backup fajlova ne zna unapred svoju veličinu; njegov procenat se procenjuje iz broja fajlova i veličine prethodnog backup-a posla i označen je sa ≈. Kada backup preraste oba, prikazuju se samo podaci i broj fajlova. Backup VM-ova prikazuje i VM na kome trenutno radi (<i>VM 2 od 4: ime</i>, agent 0.57 ili noviji), a stranica njegovog pokretanja navodi do sada završene VM-ove sa njihovim rezultatom. Vraćanja prikazuju napredak na isti način; vraćanje celog backup-a prikazuje procenat njegove veličine. Agent javlja napredak pri svakom javljanju (na svakih 15 sekundi ili češće dok pokretanje traje).</p>
 <h3>Vrste pokretanja</h3>
 <table>
   <tr><th>Vrsta</th><th>Šta je</th></tr>
@@ -26,6 +26,7 @@
   <tr><td>verify</td><td>Automatski ili ručni <a href="/docs/restore">test vraćanja</a>.</td></tr>
   <tr><td>restore, image-restore, image-file-restore</td><td>Vraćanja fajlova, celog diska, ili fajlova iz slike.</td></tr>
   <tr><td>repo-check</td><td>Provera podataka: agent čita svaki deo podataka u repozitorijumu i proverava ga (vidi <a href="/docs/restore#data-check">Vraćanje</a>).</td></tr>
+  <tr><td>repo-repair</td><td>Popravka podataka: posle provere podataka koja je našla oštećene pakete, agent ponovo proverava i izbacuje ih iz indeksa (vidi <a href="/docs/troubleshooting#repair">Rešavanje problema</a>).</td></tr>
   <tr><td>agent-log</td><td>Log koji je agent poslao na zahtev (<b>Preuzmi log</b> na stranici Agenti).</td></tr>
 </table>
 <h3>Status</h3>

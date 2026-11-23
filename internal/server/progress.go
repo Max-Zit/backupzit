@@ -60,6 +60,15 @@ type runProgress struct {
 	Total     string // "" if unknown
 	Files     int
 	FilesAll  uint64 // files of the previous backup, 0 if unknown
+	// Stage is a step after the data ("locks": extending object locks)
+	// with its own count.
+	Stage                 string
+	StageDone, StageTotal uint64
+	// VM is the VM a VM backup works on, number VMsDone+1 of VMsTotal;
+	// VMsFinished are the VMs done so far (0.57).
+	VM                 string
+	VMNumber, VMsTotal int
+	VMsFinished        []api.VMFinished
 }
 
 // withProgress adds the reported progress to the running runs.
@@ -69,10 +78,15 @@ func (s *Server) withProgress(ctx context.Context, runs []Run) []Run {
 			continue
 		}
 		x, ok := s.live.get(runs[i].AgentID, runs[i].ID)
-		if !ok || (x.Done == 0 && x.Total == 0 && x.Files == 0) {
+		if !ok || (x.Done == 0 && x.Total == 0 && x.Files == 0 && x.Stage == "" && x.VMsTotal == 0) {
 			continue
 		}
-		p := &runProgress{Percent: -1, Done: humanBytes(x.Done), Files: int(x.Files)} // #nosec G115 -- sizes and counts for display and statistics, not negative
+		p := &runProgress{Percent: -1, Done: humanBytes(x.Done), Files: int(x.Files), // #nosec G115 -- sizes and counts for display and statistics, not negative
+			Stage: x.Stage, StageDone: x.StageDone, StageTotal: x.StageTotal,
+			VM: x.VM, VMsTotal: x.VMsTotal, VMsFinished: x.VMsFinished}
+		if x.VM != "" {
+			p.VMNumber = min(x.VMsDone+1, x.VMsTotal)
+		}
 		switch {
 		case x.Total > 0:
 			p.Total = humanBytes(x.Total)
@@ -123,8 +137,9 @@ func estimatePercent(files, prevFiles, scanned, prevBytes uint64) (int, bool) {
 // successful backup before run (0 if none).
 func (s *Store) lastBackupSize(ctx context.Context, jobID, runID int64) (files, bytes uint64) {
 	var stats json.RawMessage
+	// Of the same part of a split VMware backup (the parts hold other VMs).
 	if s.db.QueryRow(ctx, `SELECT stats FROM runs WHERE job_id=$1 AND id<>$2 AND status IN ('success','warning') AND stats IS NOT NULL
-		ORDER BY finished_at DESC LIMIT 1`, jobID, runID).Scan(&stats) != nil {
+		AND part=(SELECT part FROM runs WHERE id=$2) ORDER BY finished_at DESC LIMIT 1`, jobID, runID).Scan(&stats) != nil {
 		return 0, 0
 	}
 	var st struct {

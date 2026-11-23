@@ -4,15 +4,16 @@
 
 <h2>Proteções embutidas</h2>
 <ul>
-  <li><b>Criptografia na origem</b> — AES-256-GCM no agente; o armazenamento só vê dados criptografados. As chaves são derivadas com Argon2id.</li>
+  <li><b>Criptografia na origem</b> — AES-256-GCM no agente; o armazenamento só vê dados criptografados. As chaves são derivadas com Argon2id. Um repositório em um destino criptografado que diz não ser criptografado (sua configuração foi substituída no armazenamento) é recusado, então nada é gravado nele sem criptografia.</li>
   <li><b>Conexões fixadas</b> — os agentes fixam o certificado do console; chaves de host SFTP e certificados de repositórios protegidos também são fixados. Nenhuma autoridade certificadora pode ser usada para se passar por eles.</li>
   <li><b>Certificado confiável para navegadores</b> — opcionalmente um certificado enviado ou do Let's Encrypt (TLS 1.2+) em um endereço separado, renovado automaticamente; veja <a href="/docs/install">Instalar o servidor</a>.</li>
   <li><b>Segredos em repouso</b> — senhas e chaves de armazenamento, chaves de recuperação, senhas SMTP/LDAP e segredos de dois fatores são criptografados no banco de dados com uma chave mantida fora dele (<code>secrets.key</code>).</li>
   <li><b>Segredos dos agentes</b> — cada agente tem seu próprio segredo, armazenado só como hash no console e, no agente, em um arquivo que só administradores podem ler.</li>
   <li><b>Console web</b> — cookies de sessão HttpOnly e SameSite=Strict; proteção contra requisições entre sites e clickjacking; Content-Security-Policy rígida; senhas com hash bcrypt; páginas sensíveis nunca ficam em cache.</li>
+  <li><b>Confirmação de alterações sensíveis</b> — salvar ou testar as configurações de LDAP, salvar as configurações de login único e dar mais direitos a um usuário (uma função mais alta, ativar a conta) pedem sua senha atual ou o código de dois fatores, para que uma sessão roubada não possa direcionar o login para um servidor próprio. Um segredo salvo de LDAP, SMTP ou login único só é reutilizado para o mesmo servidor e a mesma conta: alterar apenas o endereço pede o segredo de novo.</li>
   <li><b>Proteção contra força bruta</b> — endereços que falham no login vezes demais são bloqueados: senhas, códigos de dois fatores e tokens de API. Os bloqueios sobrevivem a reinicializações, reincidentes ficam bloqueados por mais tempo e os administradores recebem um e-mail. Veja abaixo.</li>
-  <li><b>Contas</b> — funções com privilégio mínimo, autenticação de dois fatores opcional (TOTP) e login LDAPS; tokens de API com função própria, mais baixa, e validade.</li>
-  <li><b>Aprovação a quatro olhos</b> (opcional) — excluir ou desativar tarefas, excluir agentes, hosts ESXi, destinos de armazenamento e usuários, encurtar a retenção, desligar a aprovação e tudo o que poderia dar a um administrador um segundo aprovador (novos aprovadores, mais direitos, redefinição de senha e dois fatores, mudanças em LDAP e SSO) exigem a aprovação de um segundo usuário. Veja <a href="/docs/users">Usuários, funções e LDAP</a>.</li>
+  <li><b>Contas</b> — funções com privilégio mínimo, autenticação de dois fatores opcional (TOTP), login LDAP via LDAPS ou StartTLS e login único (OpenID Connect, SAML); tokens de API com função própria, mais baixa, e validade.</li>
+  <li><b>Aprovação a quatro olhos</b> (opcional) — excluir ou desativar tarefas, excluir agentes, hosts ESXi, destinos de armazenamento e usuários, encurtar a retenção, retomar a retenção após um backup suspeito, reparos que removem backups, excluir, desativar ou reduzir uma tarefa para vários agentes, desligar a aprovação e tudo o que poderia dar a um administrador um segundo aprovador (novos aprovadores, mais direitos, redefinição de senha e dois fatores, mudanças em LDAP e SSO) exigem a aprovação de um segundo usuário. Veja <a href="/docs/users">Usuários, funções e LDAP</a>.</li>
   <li><b>Trilha de auditoria</b> — logins, logins com falha, alterações de usuários e funções, tarefas, destinos de armazenamento, restaurações, chaves de recuperação exibidas, alterações de configuração e ações de API são registrados no <a href="/audit">log de auditoria</a>; as entradas são encadeadas para que alterações e exclusões no banco sejam detectadas, e podem ser copiadas para um servidor syslog ou SIEM (<a href="/docs/users#audit-integrity">Proteção contra alterações</a>); exclusões em um repositório protegido são registradas naquele servidor.</li>
   <li><b>Atualizações do console</b> — as versões são assinadas com a chave de release do BackupZit (Ed25519). O console e o serviço root que as instala verificam a assinatura, o banco de dados é copiado antes e uma atualização com falha é revertida.</li>
   <li><b>Atualizações dos agentes</b> — os agentes só baixam novas versões do próprio console pela conexão fixada e só as instalam se o checksum SHA-256 conferir.</li>
@@ -46,20 +47,20 @@
   <tr><td>Endereços permitidos</td><td>Endereços IP ou redes (por ex. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). O console web, a REST API e todas as páginas só respondem a esses endereços; os demais recebem "not found", como se não houvesse console. Os agentes sempre alcançam a API deles (registro, consultas, resultados, downloads, instalação remota). Vazio: todos. O console recusa uma lista que não contenha o seu próprio endereço.</td></tr>
   <tr><td>Porta 8443 só para agentes</td><td>O console web fica então só na porta web com o certificado confiável (<a href="/docs/install">Configurações → Certificado</a>, normalmente 443), de modo que um firewall pode abrir a 8443 para todos e a 443 só para seus endereços. Disponível quando a porta web estiver ativa; altere-a pela porta web, não pela 8443.</td></tr>
 </table>
-<p>Um firewall típico para um console público: 8443 aberta para todos (agentes), 443 e 80 (verificação HTTP do Let's Encrypt) só a partir dos seus endereços, SSH só a partir dos seus endereços ou desligado, todo o resto fechado.</p>
+<p>Um firewall típico para um console público: 8443 aberta para todos (agentes), 443 só a partir dos seus endereços, 80 aberta para todos só se você usar a verificação HTTP do Let's Encrypt (o Let's Encrypt a faz a partir dos próprios servidores; a porta só responde à verificação e redireciona para HTTPS), caso contrário fechada, usando a verificação por DNS; SSH só a partir dos seus endereços ou desligado; todo o resto fechado.</p>
 <p>O appliance não responde a solicitações ICMP timestamp, que revelariam o relógio dele a qualquer um na rede (um achado de scanners de rede); ele usa para isso a própria pequena tabela nftables e não mexe nas outras regras de firewall.</p>
 <p>Ficou trancado do lado de fora? No próprio servidor (<code>localhost</code>) o console sempre responde. No appliance, o item 5 do menu de configuração na tela dele remove bloqueios de login e essas restrições.</p>
 
 <h2>Recomendações</h2>
 <h3>Console</h3>
 <ul>
-  <li>Mantenha o console em uma rede interna; não publique a porta 8443 na internet. Use VPN para administração remota.</li>
+  <li>Mantenha o console em uma rede interna sempre que possível. Se agentes de outros locais precisarem alcançá-lo, publique só a porta 8443 e limite o console web como descrito em <a href="#web-access">Acesso ao console web</a>; use VPN para a administração.</li>
   <li>Use uma senha de administrador longa e única e troque a inicial.</li>
   <li>Exija <b>autenticação de dois fatores</b> para administradores (<a href="/settings/security">Configurações → Login e segurança</a>).</li>
   <li>Dê a cada pessoa sua própria conta com a função mais baixa que funcione; use tokens de API com a função Visualizador para monitoramento.</li>
   <li>Faça backup do <code>secrets.key</code> separado do banco de dados (<a href="/docs/install">Instalar o servidor</a>).</li>
   <li>Escolha em <a href="/settings/security">Configurações → Login e segurança</a> uma duração de sessão adequada (mais curta é mais segura).</li>
-  <li>Mantenha o servidor atualizado (<code>apt upgrade</code> / <code>dnf upgrade</code>), incluindo o PostgreSQL.</li>
+  <li>Mantenha o servidor atualizado, incluindo o PostgreSQL: no appliance, em <b>Configurações → Atualizações → Sistema operacional</b> (as atualizações de segurança são instaladas automaticamente); no seu próprio servidor, com <code>apt upgrade</code> / <code>dnf upgrade</code>.</li>
 </ul>
 <h3>Armazenamento</h3>
 <ul>
@@ -82,6 +83,6 @@
 </ul>
 
 <h2>Relatar um problema de segurança</h2>
-<p>Relate vulnerabilidades em particular aos mantenedores do BackupZit, em vez de abrir uma issue pública.</p>
+<p>Relate vulnerabilidades em particular, em vez de abrir uma issue pública: em <a href="https://github.com/Max-Zit/backupzit/security">github.com/Max-Zit/backupzit</a>, abra a aba <b>Security</b> e escolha <b>Report a vulnerability</b>.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

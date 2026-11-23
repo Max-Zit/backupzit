@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/max-zit/backupzit/internal/api"
 )
 
@@ -87,17 +89,59 @@ func (s *Store) QueueChainAfter(ctx context.Context, jobID int64, ok bool) ([]in
 
 // chainAfterRun starts the jobs chained after a finished run's job.
 func (s *Server) chainAfterRun(ctx context.Context, runID int64) {
-	run, err := s.store.GetRun(ctx, runID)
+	if ids, err := s.store.chainAfterRun(ctx, runID); err != nil {
+		s.log.Error("queue chained jobs", "run", runID, "err", err)
+	} else if len(ids) > 0 {
+		s.log.Info("chained jobs queued", "after_run", runID, "runs", ids)
+	}
+}
+
+// chainAfterRun queues the jobs chained after the job of a finished run.
+// Also runs the console ends itself (the time limit, a run that could not
+// be handed out) trigger the chains that follow failures (L-14).
+func (s *Store) chainAfterRun(ctx context.Context, runID int64) ([]int64, error) {
+	run, err := s.GetRun(ctx, runID)
 	if err != nil || run.JobID == nil || !chainKinds[run.Kind] || run.Status == api.StatusCancelled {
-		return
+		return nil, nil
 	}
 	ok := run.Status == api.StatusSuccess || run.Status == api.StatusWarning
-	ids, err := s.store.QueueChainAfter(ctx, *run.JobID, ok)
-	if err != nil {
-		s.log.Error("queue chained jobs", "job", *run.JobID, "err", err)
-	} else if len(ids) > 0 {
-		s.log.Info("chained jobs queued", "after_job", *run.JobID, "runs", ids)
+	if run.Batch == nil {
+		// Once per run: the console may end a run (stale agent) and the agent
+		// still report it later; the chain was decided the first time.
+		ct, err := s.db.Exec(ctx, `UPDATE runs SET chained=true WHERE id=$1 AND NOT chained`, run.ID)
+		if err != nil {
+			return nil, err
+		}
+		if ct.RowsAffected() == 0 {
+			return nil, nil
+		}
 	}
+	if run.Batch != nil {
+		// A backup split over several proxies: the chain follows once, after
+		// the last part, and as a success only if every part succeeded. The
+		// claim on the first run decides who queues it.
+		var allOK, anyOK, cancelled bool
+		err := s.db.QueryRow(ctx, `UPDATE runs SET chained=true WHERE id=$1 AND NOT chained
+			AND NOT EXISTS (SELECT 1 FROM runs o WHERE o.batch=$1 AND o.status IN ('queued','running'))
+			RETURNING (SELECT bool_and(o.status IN ('success','warning')) FROM runs o WHERE o.batch=$1),
+				(SELECT bool_or(o.status IN ('success','warning')) FROM runs o WHERE o.batch=$1),
+				(SELECT bool_or(o.status='cancelled') FROM runs o WHERE o.batch=$1)`, *run.Batch).Scan(&allOK, &anyOK, &cancelled)
+		if errors.Is(err, pgx.ErrNoRows) || cancelled {
+			return nil, nil // parts still run, already decided, or one was cancelled
+		}
+		if err != nil {
+			return nil, err
+		}
+		ok = allOK
+		// "After each backup" copies follow once too, when a part has a
+		// backup to copy (also when the console ended the last part).
+		if anyOK && isBackupKind(run.Kind) {
+			if _, err := s.QueueCopiesAfter(ctx, *run.JobID); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return s.QueueChainAfter(ctx, *run.JobID, ok)
 }
 
 // chainTargets are the jobs a job can run after (not itself).

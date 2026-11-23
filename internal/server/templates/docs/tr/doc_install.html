@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>görüntülerin ve ISO'nun sağlama toplamları</td></tr>
 </table>
 <p>Paketler (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, aracılar) sürüm sayfasında listelenir. Görüntülerin her biri yaklaşık 1,5 GB'dir. Bir indirmeyi <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) veya <code>Get-FileHash file -Algorithm SHA256</code> (Windows) ile denetleyin.</p>
+<p>Sağlama toplamlarının kendisinin BackupZit'ten geldiğini denetlemek için önce <code>SHA256SUMS.sig</code> imzasını sürüm anahtarıyla doğrulayın (OpenSSL 3); <code>release-files.sha256</code> ve <code>release-files.sha256.sig</code> aynısını <code>install.sh</code>, <code>build-winpe.ps1</code> ve kurtarma ISO'su için yapar.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Hazır VM görüntüsü</h2>
 <p>Bir dakikadan kısa sürede açılan ve internet erişimi gerektirmeyen hazır bir appliance (Debian, PostgreSQL, konsol, otomatik güvenlik güncellemeleri):</p>
@@ -53,14 +58,14 @@
 <p>Appliance'ın iki ayrı hesabı vardır:</p>
 <ul>
   <li>Günlük işler için web konsolunda (<code>https://&lt;address&gt;:8443</code>) <b>admin</b>. İlk parolası ilk açılıştan sonra sunucunun ekranında gösterilir; <b>Hesabım</b> altında değiştirin.</li>
-  <li>Sunucunun kendisinde (hipervizör konsolundaki ekranı veya SSH) <b>bzadmin</b>, ilk parola <code>backupzit</code>. İlk oturum açmada değiştirmeniz gerekir; kullanıcı <code>sudo</code> kullanabilir. Root oturum açamaz.</li>
+  <li>Sunucunun kendisinde (hipervizör konsolundaki ekranı veya SSH) <b>bzadmin</b>, ilk parola sunucunun ekranında gösterilir (0.56'dan beri her cihaz için rastgele; önceden <code>backupzit</code>). İlk oturum açmada değiştirmeniz gerekir; kullanıcı <code>sudo</code> kullanabilir. Root oturum açamaz.</li>
 </ul>
 <p>BackupZit ve işletim sistemi güncellemeleri konsoldan yönetilir (aşağıya bakın). VMware Tools ve QEMU konuk aracısı dahildir; böylece hipervizörler appliance'ın adresini gösterir.</p>
 <h3 id="setup-menu">Sunucunun ekranındaki kurulum menüsü</h3>
 <p>bzadmin sunucunun kendi ekranında (SSH üzerinden değil) oturum açtığında bir menü açılır:</p>
 <table>
   <tr><th>Öğe</th><th>Ne yapar</th></tr>
-  <tr><td>1 Network</td><td>DHCP veya önek uzunluğuyla statik bir adres (ör. <code>192.168.1.20/24</code>), ağ geçidi ve en fazla üç DNS sunucusu. DHCP ile DNS sunucuları, kendi sunucularınızı girmediğiniz sürece DHCP sunucusundan gelir.</td></tr>
+  <tr><td>1 Network</td><td>DHCP veya önek uzunluğuyla statik bir adres (ör. <code>192.168.1.20/24</code>), ağ geçidi ve en fazla üç DNS sunucusu. DHCP ile DNS sunucuları DHCP sunucusundan gelir; DHCP ile kendi DNS sunucularınızı kullanmak için bunları daha sonra Ayarlar → Ağ altında ayarlayın.</td></tr>
   <tr><td>2 Server name</td><td>Ana bilgisayar adı (harfler, rakamlar ve -).</td></tr>
   <tr><td>3 SSH</td><td>SSH sunucusunu açar veya kapatır ve bağlantı noktasını değiştirir. Konsolun (80, 443, 8443), PostgreSQL'in (5432) ve anında kurtarmanın (111, 2049) bağlantı noktaları kullanılamaz.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Unutulan bir web konsolu parolası için; oturum açma engellerini de kaldırır. Ardından ekran üretilen ilk parolayı göstermeyi bırakır (admin'in parolası web konsolunda değiştirildiğinde de bir sonraki açılıştan itibaren böyledir).</td></tr>
@@ -109,7 +114,8 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>docker compose up -d
 docker compose exec backupzit backupzit-server --initial-password</pre>
 <p><code>https://&lt;host&gt;:8443</code> adresini açın ve bu parolayla <code>admin</code> olarak oturum açın. Veritabanı ve konsol verileri (gizli anahtar, sertifika, aracı yükleyicileri) <code>db</code> ve <code>data</code> birimlerindedir; ikisini de yedekleyin veya <a href="#console-backup">konsol yedeğini</a> kullanın. Aracılar bilgisayarlara her zamanki gibi kurulur ve sunucunun 8443 portuna bağlanır. Yerel disk hedefi için sunucudaki bir klasörü konteynere bağlayın (dosyadaki açıklamaya bakın) ve konteyner içindeki yolu kullanın.</p>
-<p><b>Güncellemeler:</b> konsol yeni sürümleri kontrol eder ve bunları Settings → Updates altında, dosyanın klasöründe çalıştırılacak komutlarla gösterir: <code>docker compose pull</code> ve <code>docker compose up -d</code> (<code>latest</code> etiketi resmi sürümleri, <code>testing</code> aday sürümleri izler; tek bir sürümde kalmak için <code>.env</code> içinde <code>BACKUPZIT_TAG</code> ayarlayın). Yeni bir sürüm veritabanını değiştirmeden önce konsolun bir kopyasını veri birimindeki <code>pre-upgrade</code> klasöründe saklar (son üç tane). Geri dönmek için: <code>BACKUPZIT_TAG</code> değerini önceki sürüme ayarlayın, kopyanın klasörüyle <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;klasör&gt;</code> çalıştırın, ardından <code>docker compose up -d</code>. Aracılar her zamanki gibi konsoldan güncellenir. Konteynerde appliance ayarları (ağ, işletim sistemi güncellemeleri, SSH) gösterilmez: bunlar Docker sunucusuna aittir.</p>
+<p><b>Güncellemeler:</b> konsol yeni sürümleri kontrol eder ve bunları Ayarlar → Güncellemeler altında, dosyanın klasöründe çalıştırılacak komutlarla gösterir: <code>docker compose pull</code> ve <code>docker compose up -d</code> (<code>latest</code> etiketi resmi sürümleri, <code>testing</code> aday sürümleri izler; tek bir sürümde kalmak için <code>.env</code> içinde <code>BACKUPZIT_TAG</code> ayarlayın). Yeni bir sürüm veritabanını değiştirmeden önce konsolun bir kopyasını veri birimindeki <code>pre-upgrade</code> klasöründe saklar (son üç tane). Geri dönmek için: <code>BACKUPZIT_TAG</code> değerini önceki sürüme ayarlayın, kopyanın klasörüyle <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;klasör&gt;</code> çalıştırın, ardından <code>docker compose up -d</code>. Aracılar her zamanki gibi konsoldan güncellenir. Konteynerde appliance ayarları (ağ, işletim sistemi güncellemeleri, SSH) gösterilmez: bunlar Docker sunucusuna aittir.</p>
+<p id="docker-logs"><b>Günlükler:</b> <code>docker compose logs -f backupzit</code> konsolun günlüğünü gösterir. Aynı günlük veri biriminde <code>logs/server.log</code> olarak tutulur ve <a href="/settings/diagnostics">Ayarlar → Tanılama</a> altındaki indirmeye dahildir. İmajda kabuk yoktur; <code>docker compose run --rm backupzit --restore-pre-upgrade list</code> güncellemelerden önce alınan kopyaları en yenisi önce olmak üzere gösterir.</p>
 
 <h2 id="first">İlk oturum açma</h2>
 <p><code>https://&lt;server&gt;:8443</code> adresini açın. İlk yönetici <b>admin</b>'dir; parola <code>/var/lib/backupzit/initial-admin-password.txt</code> dosyasındadır (veya ilk açılıştan önce <code>BACKUPZIT_ADMIN_PASSWORD</code> ayarlayın). Oturum açtıktan sonra değiştirin. Unutulan bir parolayı sunucuda sıfırlamak için:</p>
@@ -146,6 +152,11 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>443/tcp</td><td>aracılar, konsol</td><td>Azure / bulut depolama</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
   <tr><td>636/tcp (StartTLS ile 389)</td><td>konsol</td><td>etki alanı denetleyicileri</td><td>LDAP / Active Directory ile oturum açma</td></tr>
   <tr><td>587/465/25</td><td>konsol</td><td>posta sunucusu</td><td>e-posta bildirimleri</td></tr>
+  <tr><td>443/tcp (ücretsiz lisansta 22/tcp)</td><td>konsol, vekil aracı</td><td>ESXi ana bilgisayarları, vCenter</td><td>VMware: envanter, anlık görüntüler, disk okumaları ve geri yüklemeler</td></tr>
+  <tr><td>2049/tcp, 111/tcp+udp</td><td>ESXi ana bilgisayarları</td><td>vekil aracı</td><td>VMware anında kurtarma (aracı yedeği bir NFS datastore'u olarak sunar)</td></tr>
+  <tr><td>443/tcp</td><td>bir Microsoft 365 işinin aracısı</td><td>graph.microsoft.com, login.microsoftonline.com</td><td>Microsoft 365 yedekleri</td></tr>
+  <tr><td>514/udp veya tcp, 6514/tcp (TLS)</td><td>konsol</td><td>syslog sunucusu / SIEM</td><td>isteğe bağlı: denetim günlüğünün dışa aktarımı (girdiğiniz bağlantı noktası)</td></tr>
+  <tr><td>443/tcp</td><td>konsol</td><td>github.com ve indirme sunucuları</td><td>varsayılan güncelleme kaynağından güncelleme denetimleri ve indirmeler; aracılar güncellemelerini konsoldan alır</td></tr>
 </table>
 <p>Konsol, disk görüntüleri ve VM yedeklerindeki dosyalara göz atmanıza (ve onları indirmenize) izin vermek için depolamaya kendisi de bağlanır; bu yüzden aracılarla aynı depolama erişimine ihtiyaç duyar.</p>
 
@@ -153,13 +164,14 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Varsayılan olarak konsol güncellemeleri GitHub'daki resmi BackupZit sürümlerinden alır (<code>https://github.com/Max-Zit/backupzit/releases</code>). <a href="/settings/updates">Ayarlar → Güncellemeler</a> altında bunun yerine başka bir <b>güncelleme kaynağı</b> girebilirsiniz — kendi HTTPS yansınız veya sunucudaki bir klasör. Kaynak ne olursa olsun, her sürüm geçerli bir BackupZit imzası taşımalıdır. Konsol her gün yeni sürümleri denetler ve biri kullanılabilir olduğunda yöneticilere e-posta gönderir. Kurmak için <b>Kur</b>'a tıklayın:</p>
 <p><b>Sürüm adayları:</b> her sürüm önce <i>ön sürüm</i> olarak yayımlanır ve test edilir; ancak bundan sonra aynı dosyalarla resmi sürüm olur. <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> güncelleme kaynağı her zaman en yeni adayı içerir; bir aday hâlâ düzeltilmiş bir adayla değiştirilebileceği için bunu yalnızca bir test konsolunda kullanın. Varsayılan kaynağı kullanan konsollar yalnızca onaylanmış sürümleri alır.</p>
 <ol>
-  <li>Konsol sürüm imzasını ve paket sağlama toplamını denetler ve hiçbir yedekleme veya geri yükleme çalışmayana kadar bekler.</li>
+  <li>Konsol sürüm imzasını ve paket sağlama toplamını denetler; bir yedekleme veya geri yükleme çalışırken güncellemeyi başlatmayı reddeder, bunlar bittiğinde güncellemeyi kurun.</li>
   <li>Bir sistem hizmeti (<code>backupzit-update</code>, root olarak çalışır) imzayı BackupZit'e gömülü sürüm anahtarlarıyla yeniden denetler. Ele geçirilmiş bir konsol bile başka bir paketin kurulmasını sağlayamaz.</li>
   <li>Veritabanını yedekler (<code>pg_dump</code>), mevcut programı saklar, paketi kurar ve konsolu yeniden başlatır.</li>
   <li>Yeni sürüm iki dakika içinde yanıt vermezse önceki program ve veritabanının önceki hâli otomatik olarak geri yüklenir. Sonuç, başarısız başlatmanın günlüğüyle birlikte Güncellemeler sayfasında gösterilir, denetim günlüğüne kaydedilir ve e-postayla gönderilir.</li>
   <li>Başarılı bir güncellemeden sonra aracılar da güncellenir: her biri boşta olduğunda yeni sürümü kurar. Bunları kendiniz güncellemeyi tercih ederseniz aynı sayfada kapatın.</li>
 </ol>
 <p>Konsol yaklaşık bir dakika kullanılamaz. Son üç güncellemenin veritabanı yedekleri ve önceki programları <code>/var/lib/backupzit-update</code> içinde tutulur.</p>
+<p id="update-banner"><b>Konsoldaki bildirim:</b> güncelleme yükleyebilen kullanıcılar (yöneticiler) yeni bir sürümü her sayfanın üstünde de görür; yanında <i>Kur</i> (bu Ayarlar → Güncellemeler sayfasını açar) ve <i>Sürüm notları</i> bulunur. <b>×</b> bildirimi o kullanıcı için her tarayıcıda beş gün gizler; daha da yeni bir sürüm onu hemen yeniden gösterir. Diğer roller onu görmez. Docker konsolunda bildirim bunun yerine yeni imajı çekme komutlarına yönlendirir.</p>
 <p><b>İnternet erişimi olmadan:</b> sürüm dosyalarını (<code>manifest.json</code>, <code>manifest.json.sig</code> ve sunucu paketi) başka bir bilgisayarda indirin. Ardından bunları <i>Dosyalardan güncelleme kur</i> altında yükleyin ya da sunucudaki bir klasöre kopyalayıp o klasörü güncelleme kaynağı olarak kullanın.</p>
 <p>Paket yöneticisiyle de güncellemeye devam edebilirsiniz (<code>apt install ./backupzit-server_….deb</code>); veritabanı yeni sürüm başladığında taşınır.</p>
 
@@ -168,7 +180,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Otomatik güvenlik güncellemelerini aç</b> (önerilir). Sistemin kendi aracı her gün yalnızca güvenlik düzeltmelerini kurar: Debian ve Ubuntu'da <code>unattended-upgrades</code>, AlmaLinux ve Rocky Linux'ta <code>dnf-automatic</code>.</li>
   <li><b>Tüm güncellemeleri şimdi kur</b>. PostgreSQL gibi hizmetler kısa süreliğine yeniden başlayabilir ve konsol kendiliğinden yeniden bağlanır.</li>
-  <li><b>Sunucuyu yeniden başlat</b>, örneğin bir çekirdek güncellemesinden sonra. Yedeklemeler veya geri yüklemeler çalışırken konsol bunu reddeder. Aracılar işlerini korur ve konsol geri geldiğinde sonuçları bildirir.</li>
+  <li><b>Sunucuyu yeniden başlat</b>, örneğin bir çekirdek güncellemesinden sonra. Yedeklemeler veya geri yüklemeler çalışırken konsol bunu reddeder. Zamanlanmış saati yeniden başlatma sırasında geçen yedeklemeler, konsol geri geldiğinde başlar.</li>
 </ul>
 <p>Bu görevler konsol güncellemeleriyle aynı root hizmeti üzerinden çalışır. Denetim günlüğüne kaydedilir ve son görevin çıktısı sayfada gösterilir.</p>
 
@@ -181,6 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>aracıların sabitlediği konsol sertifikası.</li>
 </ul>
 <p>Hedefin kurtarma anahtarıyla şifrelenir ve tekilleştirilir. En yeni yedekler tutulur: varsayılan olarak 14.</p>
+<p id="console-backup-page">Sayfada <i>Depolama hedefi</i>'ni (yalnızca ağ depolaması: SFTP, S3, SMB, Azure veya güçlendirilmiş depo; yedek oradaki <code>backupzit-console</code> klasörüne gider), günlük yedeğin saatini (<i>Saat</i>, konsol saati) ve kaç yedeğin tutulacağını (<i>Sakla</i>) seçin. <i>Şimdi yedekle</i> hemen bir yedek alır. Sayfa son yedeği boyutuyla ve geri yükleme için gereken depo adresiyle birlikte gösterir.</p>
 <h3>Konsolu geri yükleme</h3>
 <ol>
   <li>Aynı veya daha yeni sürümde yeni bir konsol kurun, örneğin appliance ISO'sundan.</li>

@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — caixas de correio do Exchange Online, calendários, contatos, OneDrive e sites do SharePoint, lidos via Microsoft Graph por qualquer agente; veja <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>Opcionalmente adicione <b>exclusões</b>, uma por linha: um padrão de nome, que vale em todas as pastas (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), ou um caminho completo, que vale só para esse arquivo ou pasta (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, também com curingas: <code>D:\VMs\*.iso</code>). No Windows, caminhos completos ignoram maiúsculas e minúsculas.</li>
+  <li>Opcionalmente adicione <b>exclusões</b>, uma por linha: um padrão de nome, que vale em todas as pastas (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>), ou um caminho completo, que vale só para esse arquivo ou pasta (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, também com curingas: <code>D:\VMs\*.iso</code>). No Windows, caminhos completos ignoram maiúsculas e minúsculas. No Linux, sistemas de arquivos do kernel como <code>/proc</code>, <code>/sys</code> e <code>/dev</code> são sempre guardados como pastas vazias, também quando a tarefa faz backup de <code>/</code>.</li>
   <li>Defina <b>Manter backups</b> e o <b>Agendamento</b> e depois <i>Criar tarefa</i>.</li>
 </ol>
 
@@ -41,14 +41,14 @@
 <p>Em cada execução o agente conecta o compartilhamento — agentes Windows pelo caminho UNC (<code>\\nas01\data</code>, só SMB), agentes Linux montando-o somente leitura em <code>/mnt/backupzit-nas</code> (precisa de <code>cifs-utils</code> para SMB, <code>nfs-common</code> ou <code>nfs-utils</code> para NFS; o Proxmox VE tem ambos) — e depois desconecta-o. Os backups são backups de arquivos comuns: desduplicados e incrementais, com retenção, tarefas de cópia, testes de restauração, navegação e restauração de arquivos. <b>Restaurar no local original</b> volta a conectar o compartilhamento com escrita e grava os arquivos nele; ou restaure para uma pasta em qualquer agente, ou baixe.</p>
 
 <h2>Arquivos abertos e bloqueados (VSS)</h2>
-<p>No Windows o agente usa o <b>Serviço de Cópias de Sombra de Volume</b>: tira um snapshot consistente do volume num dado momento e faz o backup a partir dele, para que arquivos abertos (PST do Outlook, bancos de dados, documentos em edição) sejam copiados de forma consistente. Aplicações compatíveis com VSS (por exemplo o SQL Server) gravam os seus dados no disco antes do snapshot.</p>
+<p>No Windows o agente usa o <b>Serviço de Cópias de Sombra de Volume</b>: tira um snapshot consistente do volume num dado momento e faz o backup a partir dele, para que arquivos abertos (PST do Outlook, bancos de dados, documentos em edição) sejam copiados de forma consistente. Aplicações compatíveis com VSS (por exemplo o SQL Server) gravam os seus dados no disco antes do snapshot. Uma tarefa com pastas em vários volumes (C: e D:) os captura juntos, no mesmo instante; só se o VSS não puder, cada volume recebe seu próprio snapshot e a execução avisa.</p>
 
 <h2>Agendamentos</h2>
 <table>
   <tr><th>Opção</th><th>Exemplo</th></tr>
   <tr><td><b>Em horários específicos</b></td><td>Todos os dias úteis às 22:00; ou às 12:00 e 18:00 todos os dias. Até três vezes por dia, nos dias marcados.</td></tr>
   <tr><td><b>Repetidamente</b></td><td>A cada 2 horas entre 08:00 e 18:00, de segunda a sexta. Intervalos de 15 minutos a 12 horas.</td></tr>
-  <tr><td><b>Uma vez por mês</b></td><td>No dia 1 às 23:00.</td></tr>
+  <tr><td><b>Uma vez por mês</b></td><td>No dia 1 às 23:00 (qualquer dia de 1 a 28).</td></tr>
   <tr><td><b>Somente manualmente</b></td><td>Só é executada quando clica em <i>Executar backup agora</i>.</td></tr>
   <tr><td><b>Depois de outra tarefa</b></td><td>Primeiro o banco de dados, depois o servidor de arquivos: a tarefa começa assim que a tarefa escolhida termina com sucesso — ou após qualquer resultado, com <i>também quando essa tarefa falhou</i>. As cadeias podem ser mais longas (A → B → C); uma tarefa não pode executar depois de si mesma nem em círculo.</td></tr>
 </table>
@@ -68,7 +68,7 @@
   <li><b>Semanal</b> — o backup mais recente de cada uma das últimas N semanas.</li>
   <li><b>Mensal</b> — o backup mais recente de cada um dos últimos N meses.</li>
 </ul>
-<p>Exemplo: 3 recentes, 7 diários, 4 semanais, 6 mensais mantêm cerca de meio ano de histórico com ~20 pontos de restauração. Após cada execução bem-sucedida, os snapshots que já não são selecionados são removidos (aparecem como <i>expirado</i> em Atividade) e os dados que nenhum snapshot usa são apagados do armazenamento. Tudo a zero mantém tudo.</p>
+<p>Exemplo: 3 recentes, 7 diários, 4 semanais, 6 mensais mantêm cerca de meio ano de histórico com ~20 pontos de restauração. Após cada execução bem-sucedida, os snapshots que já não são selecionados são removidos (aparecem como <i>expirado</i> em Atividade) e os dados que nenhum snapshot usa são apagados do armazenamento. Os packs que ainda contêm dados em uso são regravados só com esses dados, vários de cada vez no armazenamento de objetos; um pack que não pode ser lido nem depois das novas tentativas fica como está, a execução termina com um aviso e a execução seguinte tenta de novo. Se a retenção não puder ser executada de forma alguma (não foi possível listar ou bloquear o repositório), a execução também termina com um aviso (0.58). Tudo a zero mantém tudo.</p>
 <div class="callout"><p>Graças à desduplicação, uma retenção longa é barata: dados inalterados são guardados só uma vez, por mais snapshots que os referenciem.</p></div>
 
 <h2>Tarefas de cópia de backup (3-2-1)</h2>
@@ -77,8 +77,8 @@
   <li>Quem copia é o agente da tarefa de origem; a máquina protegida <b>não é lida de novo</b>.</li>
   <li>Só são transferidos os dados que ainda não estão no destino, recriptografados com a chave do destino.</li>
   <li>O agendamento <b>Após cada backup da tarefa de origem</b> (padrão) mantém a cópia atualizada; qualquer agendamento normal também funciona, p. ex. uma vez por noite numa linha de internet lenta.</li>
-  <li>A cópia tem a sua própria retenção, p. ex. 7 diários no NAS e 12 mensais na nuvem.</li>
-  <li>Backups de arquivos e de VMs copiados (Proxmox VE, Hyper-V, VMware) são restaurados a partir da página da execução de cópia ou do <a href="/restore">assistente de restauração</a>, como os originais — VMs inteiras, arquivos individuais de discos de VM e recuperação instantânea do Proxmox. Backups de VM copiados por um agente anterior à 0.29 não podem ser restaurados assim; a próxima execução de cópia com um agente mais novo torna restaurável a sua cópia mais recente. Cópias de imagens de disco são restauradas com o agente de linha de comandos.</li>
+  <li>A cópia tem a sua própria retenção, p. ex. 7 diários no NAS e 12 mensais na nuvem. Só são copiados os backups que esta retenção mantém: com 30 backups diários na origem e 12 mensais na cópia, copia-se o mais recente de cada mês, não os outros de novo a cada execução.</li>
+  <li>Backups de arquivos e de VMs copiados (Proxmox VE, Hyper-V, VMware) são restaurados a partir da página da execução de cópia ou do <a href="/restore">assistente de restauração</a>, como os originais — VMs inteiras, arquivos individuais de discos de VM e recuperação instantânea do Proxmox. Backups de VM copiados por um agente anterior à 0.29 não podem ser restaurados assim; a próxima execução de cópia com um agente mais novo torna restaurável a sua cópia mais recente. Backups do Microsoft 365 copiados são restaurados da mesma forma. Cópias de imagens de disco, de backups de sistema Linux e de backups de bancos de dados são restauradas com o agente de linha de comandos.</li>
 </ul>
 
 <h2>Alterar uma tarefa</h2>
@@ -91,7 +91,7 @@
 <p>Em <b>Avançado</b> no formulário da tarefa, <b>Limitar a velocidade de envio a</b> limita a velocidade com que o agente envia dados ao armazenamento, em MB/s — por exemplo 10 MB/s das 08:00 às 18:00, para que os backups em horário de trabalho deixem a linha do escritório utilizável; fora da janela a tarefa corre à velocidade máxima. Os horários são a hora local do agente, e uma janela pode passar a meia-noite (22:00 a 06:00). O limite aplica-se a backups e tarefas de cópia (o envio para o segundo armazenamento), não a restaurações: uma restauração corre sempre à velocidade máxima.</p>
 
 <h2 id="compression">Compressão e desduplicação</h2>
-<p>Cada backup é desduplicado: dados que já estão no repositório — de backups anteriores da mesma tarefa ou de outras tarefas no mesmo destino de armazenamento — não são guardados de novo. Os dados novos são depois comprimidos com zstd; pedaços que não ficam menores (vídeo, arquivos compactados, arquivos criptografados) são guardados como estão. A criptografia vem depois da compressão.</p>
+<p>Cada backup é desduplicado: dados que já estão no repositório — de backups anteriores da mesma tarefa ou de outras tarefas do mesmo agente no mesmo destino de armazenamento — não são guardados de novo. Cada agente tem o seu próprio repositório (assim como os hosts VMware, os clusters Hyper-V e os locatários Microsoft 365), por isso não há desduplicação entre computadores. Os dados novos são depois comprimidos com zstd; pedaços que não ficam menores (vídeo, arquivos compactados, arquivos criptografados) são guardados como estão. A criptografia vem depois da compressão.</p>
 <p>O nível de compressão é uma configuração da tarefa (<b>Editar → Avançado</b>):</p>
 <table>
   <tr><th>Nível</th><th>Quando usar</th></tr>
@@ -102,6 +102,10 @@
 </table>
 <p>O nível aplica-se aos dados novos a partir da próxima execução; os backups existentes ficam como estão e a restauração nunca depende dele. A página da execução mostra o resultado: a taxa de compressão dos dados novos (p. ex. <i>2.4×</i>) e quanto dos dados lidos já estava guardado (desduplicação).</p>
 
+<p><b>Tamanho do bloco de deduplicação de VM</b> (Editar → Avançado) escolhe 256 KiB, 512 KiB ou 1 MiB (o valor predefinido existente) para discos virtuais no Hyper-V, Proxmox VE e VMware. Blocos menores podem melhorar a deduplicação à custa de mais metadados. Atualize os agentes antes de escolher um tamanho menor. Cada imagem regista o seu próprio tamanho de bloco: as cópias antigas continuam restauráveis e, após uma alteração, cada disco é lido uma vez por inteiro antes de as cópias incrementais de blocos alterados recomeçarem. As cópias antigas não são reescritas e a divisão das cópias de ficheiros não muda.</p>
+
+<p>Linha de comandos: use <code>--block-size-kib 256</code>, <code>512</code> ou <code>1024</code> com <code>hyperv backup</code>, <code>pve backup</code> e <code>vmware backup</code>.</p>
+
 <h2>Comandos antes e depois do backup</h2>
 <p>Os administradores podem fazer uma tarefa executar um comando no agente antes e depois de cada backup — por exemplo um dump de banco de dados, parar um serviço para uma cópia consistente, ou uma notificação:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
@@ -110,7 +114,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>Os comandos são executados com a conta de serviço do agente (root no Linux, SYSTEM no Windows) via <code>sh</code> ou <code>cmd</code>; várias linhas são permitidas. Só os <b>Administradores</b> podem vê-los e alterá-los — caso contrário um operador de backup poderia executar qualquer coisa em todas as máquinas.</li>
   <li>Se o comando <b>antes</b> falhar (código de saída diferente de 0) ou demorar mais que o limite de tempo (padrão 30 minutos), o backup não é executado e a execução falha com a saída do comando.</li>
   <li>O comando <b>depois</b> é executado também quando o backup falhou, para poder reiniciar o que o primeiro parou. Se o comando depois do backup falhar, a execução fica com aviso.</li>
-  <li>Ambos recebem <code>BACKUPZIT_STAGE</code> (pre ou post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> e, depois do backup, <code>BACKUPZIT_STATUS</code> (success, warning ou failed).</li>
+  <li>Ambos recebem <code>BACKUPZIT_STAGE</code> (pre ou post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> e, depois do backup, <code>BACKUPZIT_STATUS</code> (success, warning ou failed). Eles rodam em uma pasta que só a conta do serviço pode alterar (<code>C:\ProgramData\backupzit\commands</code>, <code>/var/lib/backupzit-agent/commands</code>); use caminhos completos para seus próprios arquivos.</li>
   <li>A página da execução mostra o resultado e a saída de cada comando, também quando ele teve sucesso.</li>
   <li>Em tarefas de VM os comandos são executados no host hipervisor (ou no proxy VMware), não dentro das VMs. Tarefas de cópia não têm comandos.</li>
 </ul>
@@ -120,7 +124,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Executar backup agora</b> (<b>Copiar agora</b> em tarefas de cópia) põe a tarefa na fila imediatamente.</li>
   <li><b>Testar restauração</b> restaura uma amostra aleatória do backup mais recente e verifica-a (veja <a href="/docs/restore">Restauração</a>).</li>
   <li><b>Desativar</b> pausa o agendamento sem perder a tarefa (com a aprovação de quatro olhos ativada, um segundo usuário tem de aprovar).</li>
-  <li><b>Excluir</b> remove a tarefa; os backups existentes permanecem no armazenamento e continuam restauráveis a partir de Atividade.</li>
+  <li><b>Excluir</b> remove a tarefa (com a aprovação de quatro olhos ativada, depois que um segundo usuário aprovar); os backups existentes permanecem no armazenamento e continuam restauráveis a partir de Atividade. As tarefas de cópia da tarefa são excluídas com ela; as suas cópias permanecem no armazenamento delas.</li>
 </ul>
 
 <h2>Parar uma execução</h2>
@@ -133,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>O que uma execução de backup reporta</h2>
 <p>Abra uma execução em <a href="/runs">Atividade</a>: número de arquivos, arquivos novos/alterados, dados lidos, dados novos enviados (após desduplicação e compressão, com a taxa de compressão e a parte já guardada — veja <a href="#compression">Compressão</a>), duração e os arquivos que não puderam ser lidos. Uma execução com arquivos ilegíveis termina com o estado <b>aviso</b> — o resto dos dados fica copiado.</p>
+<p>Uma cópia de VM em que um convidado não pôde ser copiado (nem após as repetições) termina como <i>falhada</i> e indica esse convidado, para que não se perca entre os avisos; os outros convidados são mantidos e podem ser restaurados, e a retenção é ignorada, pelo que os pontos de restauro anteriores desse convidado ficam.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

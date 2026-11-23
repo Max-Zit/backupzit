@@ -11,19 +11,19 @@ require (
 	github.com/beevik/etree v1.8.1
 	github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/crewjam/saml v0.5.1
+	github.com/crewjam/saml v0.6.3
 	github.com/fergusstrange/embedded-postgres v1.34.0
 	github.com/go-git/go-billy/v5 v5.9.2
-	github.com/go-jose/go-jose/v4 v4.1.6
+	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/go-ldap/ldap/v3 v3.4.15
 	github.com/go-ole/go-ole v1.3.0
 	github.com/go-pdf/fpdf v0.9.0
-	github.com/jackc/pgx/v5 v5.12.0
+	github.com/jackc/pgx/v5 v5.13.0
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	github.com/johannesboyne/gofakes3 v1.2.0
 	github.com/kardianos/service v1.3.0
-	github.com/klauspost/compress v1.20.3
-	github.com/letsencrypt/pebble/v2 v2.10.1
+	github.com/klauspost/compress v1.20.4
+	github.com/letsencrypt/pebble/v2 v2.10.3
 	github.com/lxn/walk v0.0.0-20210112085537-c389da54e794
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/masahiro331/go-ext4-filesystem v0.0.0-20260423010602-fe51f5b5e52b
@@ -36,11 +36,11 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/vmware/govmomi v0.56.2
 	github.com/willscott/go-nfs v0.0.4
-	golang.org/x/crypto v0.58.0
-	golang.org/x/net v0.62.0
-	golang.org/x/oauth2 v0.37.0
-	golang.org/x/sys v0.49.0
-	golang.org/x/term v0.47.0
+	golang.org/x/crypto v0.59.0
+	golang.org/x/net v0.63.0
+	golang.org/x/oauth2 v0.38.0
+	golang.org/x/sys v0.50.0
+	golang.org/x/term v0.48.0
 	rsc.io/qr v0.2.0
 	www.velocidex.com/golang/go-ntfs v0.2.1
 )
@@ -87,7 +87,6 @@ require (
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40 // indirect
 	github.com/masterzen/simplexml v0.0.0-20190410153822-31eea3082786 // indirect
-	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
 	github.com/miekg/dns v1.1.62 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
@@ -107,12 +106,16 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/exp v0.0.0-20260813180055-c1d0aacb2297 // indirect
-	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
-	golang.org/x/tools v0.51.0 // indirect
+	golang.org/x/mod v0.42.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
+	golang.org/x/tools v0.52.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/Knetic/govaluate.v3 v3.0.0 // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// Patched copy: extents of the full length (32768 blocks) were read as
+// zeros; see third_party/go-ext4-filesystem/NOTICE.BackupZit.
+replace github.com/masahiro331/go-ext4-filesystem => ./third_party/go-ext4-filesystem

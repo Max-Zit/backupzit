@@ -235,7 +235,9 @@ func (s *Server) ldapFromForm(r *http.Request) (LDAPSettings, error) {
 		NestedGroups: r.FormValue("nested_groups") == "on",
 		AdminGroup:   t("admin_group"), OperatorGroup: t("operator_group"), RestoreGroup: t("restore_group"), ViewerGroup: t("viewer_group"),
 	}
-	if l.BindPassword == "" {
+	// The stored bind password only for the same account on the same server:
+	// a stolen session must not send it to a directory of its own (M-N5).
+	if l.BindPassword == "" && l.URL == old.URL && strings.EqualFold(l.BindDN, old.BindDN) {
 		l.BindPassword = old.BindPassword
 	}
 	if l.UserFilter == "" {
@@ -245,12 +247,20 @@ func (s *Server) ldapFromForm(r *http.Request) (LDAPSettings, error) {
 }
 
 func (s *Server) handleSettingsLDAP(w http.ResponseWriter, r *http.Request, _ string) {
+	// The directory decides who signs in and with which role: a stolen
+	// session pointing it at a directory of its own would make an admin it
+	// knows the password of (M-N1).
+	if err := s.confirmAdmin(r); err != nil {
+		redirectErr(w, r, "/settings/ldap", err)
+		return
+	}
 	l, err := s.ldapFromForm(r)
 	if err != nil {
 		redirectErr(w, r, "/settings/ldap", err)
 		return
 	}
 	if r.FormValue("action") == "test" {
+		s.audit(r, "settings.ldap.test", "LDAP test against %s", l.URL)
 		l.Enabled = true
 		if err := l.Validate(); err != nil {
 			redirectErr(w, r, "/settings/ldap", err)

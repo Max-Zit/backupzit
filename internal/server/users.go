@@ -21,11 +21,13 @@ import (
 type Perm string
 
 const (
-	PermView     Perm = "view"     // dashboards, activity, calendar, reports, docs
-	PermRun      Perm = "run"      // start a backup of an existing job
-	PermRestore  Perm = "restore"  // restore files and disk images
-	PermJobs     Perm = "jobs"     // create, change, delete jobs; report schedules
-	PermAgents   Perm = "agents"   // enroll and remove agents, recovery codes
+	PermView    Perm = "view"    // dashboards, activity, calendar, reports, docs
+	PermRun     Perm = "run"     // start a backup of an existing job
+	PermRestore Perm = "restore" // restore files and disk images
+	PermJobs    Perm = "jobs"    // create, change, delete jobs; report schedules
+	PermAgents  Perm = "agents"  // update and remove agents, recovery codes
+	// PermStorage also adds agents and chooses VMware proxies: an agent gets
+	// the storage credentials and recovery key of its jobs (H-N2).
 	PermStorage  Perm = "storage"  // storage targets, credentials, recovery keys
 	PermSettings Perm = "settings" // email, sessions, LDAP
 	PermUsers    Perm = "users"    // users and the audit log
@@ -40,7 +42,7 @@ type Role struct {
 var Roles = []Role{
 	{"admin", "Administrator", "Full access, including users, settings, storage credentials and recovery keys.",
 		[]Perm{PermView, PermRun, PermRestore, PermJobs, PermAgents, PermStorage, PermSettings, PermUsers}},
-	{"operator", "Backup operator", "Manages agents, jobs and schedules, runs backups and restores. Cannot see storage credentials or recovery keys, or change users and settings.",
+	{"operator", "Backup operator", "Manages jobs and schedules, runs backups and restores, updates and removes agents. Cannot add agents or VMware proxies (they receive storage credentials), see storage credentials or recovery keys, or change users and settings.",
 		[]Perm{PermView, PermRun, PermRestore, PermJobs, PermAgents}},
 	{"restore", "Restore operator", "Help desk: sees everything, restores files and disks and can start backups, but cannot change jobs.",
 		[]Perm{PermView, PermRun, PermRestore}},
@@ -54,8 +56,8 @@ var AllPerms = []struct {
 	Name string
 }{
 	{PermView, "View dashboards, activity, reports"}, {PermRun, "Start backups"}, {PermRestore, "Restore files and disks"},
-	{PermJobs, "Manage jobs and report schedules"}, {PermAgents, "Enroll and remove agents"},
-	{PermStorage, "Storage targets and recovery keys"}, {PermSettings, "Settings and LDAP"}, {PermUsers, "Users and audit log"},
+	{PermJobs, "Manage jobs and report schedules"}, {PermAgents, "Update and remove agents"},
+	{PermStorage, "Storage targets, recovery keys, adding agents and VMware proxies"}, {PermSettings, "Settings and LDAP"}, {PermUsers, "Users and audit log"},
 }
 
 func roleByKey(k string) (Role, bool) {
@@ -402,6 +404,10 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request, _ stri
 		redirectErr(w, r, "/users", errors.New("the passwords do not match"))
 		return
 	}
+	if err := s.confirmAdmin(r); err != nil {
+		redirectErr(w, r, "/users", err)
+		return
+	}
 	u := User{Username: r.FormValue("username"), DisplayName: r.FormValue("display_name"), Email: r.FormValue("email"), Role: r.FormValue("role")}
 	if s.store.fourEyes(r.Context()) && canApproveRole(u.Role) {
 		// A new approver could decide the requests of its creator.
@@ -469,6 +475,15 @@ func (s *Server) handleUserUpdate(w http.ResponseWriter, r *http.Request, _ stri
 		redirectErr(w, r, back, err)
 		return
 	}
+	// More rights for a user (a higher role, or enabling the account) need
+	// the current password: a stolen session could raise an account it
+	// knows the password of (M-N1).
+	if raisesRights(old, u) {
+		if err := s.confirmAdmin(r); err != nil {
+			redirectErr(w, r, back, err)
+			return
+		}
+	}
 	if s.store.fourEyes(r.Context()) && gainsApproval(old.Role, old.Disabled, u.Role, u.Disabled) {
 		p := User{DisplayName: u.DisplayName, Email: u.Email, Role: u.Role, Disabled: u.Disabled}
 		if s.needsApproval(w, r, back, "user.role", u.ID, u.Username+" → "+u.RoleName(), p) {
@@ -489,8 +504,17 @@ func (s *Server) handleUserPassword(w http.ResponseWriter, r *http.Request, _ st
 		return
 	}
 	back := fmt.Sprintf("/users/%d", u.ID)
+	if u.ID == currentUser(r).ID {
+		// Without the current password: a stolen session could take over the account.
+		redirectErr(w, r, back, errOwnPassword)
+		return
+	}
 	if r.FormValue("password") != r.FormValue("password2") {
 		redirectErr(w, r, back, errors.New("the passwords do not match"))
+		return
+	}
+	if err := s.confirmAdmin(r); err != nil {
+		redirectErr(w, r, back, err)
 		return
 	}
 	if u.ID != currentUser(r).ID && u.Source == "local" && !u.Disabled && s.store.fourEyes(r.Context()) && canApproveRole(u.Role) {
@@ -509,8 +533,11 @@ func (s *Server) handleUserPassword(w http.ResponseWriter, r *http.Request, _ st
 		return
 	}
 	s.initialPasswordUsed(u.Username)
+	if n, err := s.store.revokeTokens(r.Context(), u.ID); err == nil && n > 0 {
+		s.audit(r, "token.revoke", "%d API tokens of %s revoked with the password reset", n, u.Username)
+	}
 	s.audit(r, "user.password", "password of %s reset", u.Username)
-	redirectMsg(w, r, back, "Password changed; the user was signed out everywhere.")
+	redirectMsg(w, r, back, "Password changed; the user was signed out everywhere and their API tokens were revoked.")
 }
 
 // checkUserDeletable keeps the last enabled local administrator.
@@ -587,10 +614,16 @@ func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, user, new
 
 func (s *Server) handleAccountPassword(w http.ResponseWriter, r *http.Request, _ string) {
 	me := currentUser(r)
+	if wait := s.guard.Blocked(r, me.Username); wait > 0 {
+		redirectErr(w, r, "/account", fmt.Errorf("Too many failed sign-ins. Try again in %d minutes.", int(wait.Minutes())+1))
+		return
+	}
 	if _, err := s.authenticate(r.Context(), me.Username, r.FormValue("current")); err != nil || me.Source != "local" {
+		s.guard.Fail(r, me.Username, "confirmations")
 		redirectErr(w, r, "/account", errors.New("the current password is wrong"))
 		return
 	}
+	s.guard.Success(r, me.Username)
 	if r.FormValue("password") != r.FormValue("password2") {
 		redirectErr(w, r, "/account", errors.New("the new passwords do not match"))
 		return

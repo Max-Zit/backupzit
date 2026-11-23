@@ -6,6 +6,7 @@ import (
 
 	"github.com/max-zit/backupzit/internal/api"
 	"github.com/max-zit/backupzit/internal/netcfg"
+	"github.com/max-zit/backupzit/internal/update"
 )
 
 // EnableUpdateHelper pretends the root update helper is installed (tests).
@@ -33,4 +34,34 @@ func UseNetSystem(s *netcfg.System) func() {
 	saved := netSystem
 	netSystem = s
 	return func() { netSystem = saved }
+}
+
+// SetAvailableUpdate pretends the release check found version (tests).
+func (s *Server) SetAvailableUpdate(version string) {
+	s.upd.mu.Lock()
+	s.upd.available = &update.Manifest{Version: version}
+	s.upd.mu.Unlock()
+}
+
+// SetOrphanGrace changes how long a run may be missing from the agent's
+// list before it is failed (tests); it returns the old value.
+func SetOrphanGrace(d time.Duration) time.Duration {
+	old := orphanGrace
+	orphanGrace = d
+	return old
+}
+
+// ChainAfterRun is chainAfterRun for tests.
+func (s *Store) ChainAfterRun(ctx context.Context, runID int64) ([]int64, error) {
+	return s.chainAfterRun(ctx, runID)
+}
+
+// AgentRepoURLs are the repositories agent removal treats as the agent's.
+func (s *Store) AgentRepoURLs(ctx context.Context, agentID int64) []string {
+	repos, _ := s.agentRepos(ctx, agentID)
+	var out []string
+	for _, r := range repos {
+		out = append(out, r.URL)
+	}
+	return out
 }

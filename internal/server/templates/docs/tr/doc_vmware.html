@@ -8,20 +8,23 @@
   <li><b>Ana bilgisayarda yönetici haklarına sahip bir kullanıcı</b>, genellikle <code>root</code>.</li>
   <li><b>Ücretsiz lisanslı ana bilgisayarlarda SSH etkin:</b> Host → Actions → Services → Enable Secure Shell. Ücretsiz ESXi lisansı API'yi salt okunur yapar; bu yüzden anlık görüntüler ve geri yüklemeler SSH üzerinden yapılır. Lisanslı ana bilgisayarlar vSphere API üzerinden değiştirilir ve SSH gerektirmez.</li>
   <li><b>Bir vekil aracı:</b> ana bilgisayara 443 numaralı bağlantı noktasından (SSH kullanıldığında 22'den de) ulaşan herhangi bir Windows veya Linux aracısı. Yedek verileri onun üzerinden akar; bu yüzden onu ana bilgisayara ve depolamaya yakın, hızlı bir ağa koyun.</li>
-  <li>Çalışan bir VM yedeklenirken <b>VM'nin datastore'unda boş alan</b>. BackupZit diski kısa süreliğine oraya kopyalar (aşağıya bakın). Kopya thin olduğundan diskin gerçekten kullandığı kadar alan gerekir.</li>
+  <li>Çalışan bir VM yedeklenirken <b>VM'nin datastore'unda boş alan</b>. BackupZit diski kısa süreliğine oraya kopyalar (aşağıya bakın). Kopya thin olduğundan diskin gerçekten kullandığı kadar alan gerekir. <a href="#hot-add">Hot-add</a> ile hiç kopya oluşturulmaz.</li>
 </ul>
 
 <h2>Ana bilgisayar ekleme</h2>
 <ol>
-  <li><a href="/agents#vmware">Aracılar → VMware ESXi ana bilgisayarları</a> → <i>ESXi ana bilgisayarı ekleyin</i>'i açın.</li>
+  <li><a href="/agents#vmware">Aracılar → VMware ESXi ana bilgisayarları</a> → <i>Bir ESXi ana bilgisayarı veya vCenter Server ekle</i>'yi açın.</li>
   <li>Adresi, kullanıcıyı, parolayı ve vekil aracıyı girin.</li>
   <li>Konsol bunları denetlemek için bir kez bağlanır. VM listesini ve lisansı okur ve <b>ana bilgisayarın HTTPS sertifikasını ve SSH ana bilgisayar anahtarını sabitler</b>. Ana bilgisayar daha sonra aynı adrese sahip başka bir makineyle değiştirilirse, BackupZit parolayı ona göndermek yerine bağlanmayı reddeder. Sertifika bilinen bir nedenle değişirse — ana bilgisayar yeniden kuruldu, yeni bir sertifika aldı veya vCenter'a eklendi (vCenter ana bilgisayarlarının sertifikalarını değiştirir) — Aracılar sayfasında ana bilgisayar yeni parmak izini <b>Yeni sertifikayı kabul et</b> düğmesiyle gösterir. Kabul etmeden önce parmak izini ana bilgisayardakiyle karşılaştırın.</li>
 </ol>
-<p>Parola, diğer tüm gizli bilgiler gibi şifreli saklanır. VM listesi her 10 dakikada bir veya <i>Yenile</i> ile hemen yenilenir. Tablo her ana bilgisayarın modunu gösterir:</p>
+<p>Parola, diğer tüm gizli bilgiler gibi şifreli saklanır. Ana bilgisayara konsolun kendisi bağlanır (HTTPS 443, ücretsiz lisansta ayrıca SSH 22): ana bilgisayar eklendiğinde, <i>Yenile</i> ile ve VM listesini yenilemek için her 10 dakikada bir (ana bilgisayara <a href="#via-proxy">proxy aracısı üzerinden</a> ulaşılmıyorsa). <i>Kaldır</i>, ana bilgisayarı yedekleme işleriyle birlikte siler; yedekler depolamada kalır. Tablo her ana bilgisayarın modunu gösterir:</p>
 <ul>
   <li><b>vSphere API (lisanslı ana bilgisayar, SSH gerekmez):</b> anlık görüntüler, disk kopyaları, geri yüklemeler ve anında kurtarma API üzerinden yapılır.</li>
+  <li><b>vCenter Server (vSphere API):</b> ESXi ana bilgisayarlarıyla birlikte bir vCenter; her şey vCenter API'si üzerinden yapılır.</li>
   <li><b>ücretsiz lisans: anlık görüntüler ve geri yüklemeler SSH üzerinden:</b> ana bilgisayarın API'si salt okunurdur; bu yüzden bu adımlar SSH üzerinden yapılır.</li>
+  <li><b>SSH (bu ana bilgisayar için seçildi):</b> API'si bunu yapabilecek olsa da ana bilgisayar SSH üzerinden değiştirilir (ana bilgisayarı eklerken <i>Her zaman SSH</i>).</li>
 </ul>
+<p id="via-proxy"><b>Proxy aracısı üzerinden</b> (aracı 0.56 veya daha yeni): ana bilgisayarı eklerken <b>Proxy aracısı üzerinden bağlan</b> seçeneğini ya da satırındaki <b>Proxy üzerinden bağlan</b> seçeneğini işaretleyin; konsol ana bilgisayara hiçbir zaman kendisi bağlanmaz. Proxy aracısı adresi ve parolayı denetler, VM listesini, sürümü ve lisansı okur ve gördüğü HTTPS sertifikasını ve SSH ana bilgisayar anahtarını bildirir; konsol, doğrudan bağlantıda olduğu gibi bunları ilk seferde sabitler ve o andan itibaren proxy aracısı başka bir sertifika sunan ana bilgisayarı reddeder (ana bilgisayarın satırı o zaman <b>Yeni sertifikayı kabul et</b> seçeneğini sunar). <i>Yenile</i> ve 10 dakikada bir alınan VM listesi de proxy aracısından gelir; bu denetimler Etkinlik'te görünmez. Ana bilgisayara yalnızca proxy aracısının ulaşması gerekir, tıpkı yedeklemeler ve geri yüklemelerdeki gibi; böylece konsol başka bir ağda, NAT arkasında veya çakışan bir adres aralığında olabilir. Yanlış bir adres veya parola, proxy aracısının ilk denetiminden sonra ana bilgisayarın hatası olarak görünür: ana bilgisayarı kaldırın ve yeniden ekleyin. Proxy aracısı çevrimdışı veya meşgulken son VM listesi kalır.</p>
 <p><b>Otomatik</b> ile konsol kendisi seçer; böylece sonradan lisans alan bir ana bilgisayar ek ayar yapmadan API'ye geçer. Ana bilgisayarın satırındaki (ve eklerken) <b>Ana bilgisayarın nasıl değiştirildiği</b>, <b>Her zaman SSH</b> veya <b>Her zaman vSphere API</b> seçeneğini zorlayabilir; değişiklik hemen denetlenir. Önceki yedekler ve geri yükleme noktaları yönteme bağlı değildir.</p>
 
 <h2 id="vcenter">vCenter Server</h2>
@@ -46,17 +49,44 @@
       <li>Ücretsiz ana bilgisayarlarda CBT yalnızca VM kapalıyken açılabilir. BackupZit bunu VM'yi kapalı bulan ilk yedeklemede yapar. O zamana kadar her yedek disklerin tamamını okur ve çalıştırma bir uyarı gösterir.</li>
     </ul>
   </li>
-  <li>Bir <code>backupzit_…</code> anlık görüntüsü alınır. Konukta <b>VMware Tools</b> çalışıyorsa anlık görüntü <b>sessize alınır</b> (quiesced): uygulamalar ve dosya sistemleri önce boşaltılır, bu da yedeği uygulama tutarlı yapar. VMware Tools olmadan çökme tutarlıdır. Linux VM'lere <code>open-vm-tools</code>, Windows VM'lere VMware Tools kurun.</li>
+  <li>Bir <code>backupzit_…</code> anlık görüntüsü alınır. Konukta <b>VMware Tools</b> çalışıyorsa anlık görüntü <b>sessize alınır</b> (quiesced): uygulamalar ve dosya sistemleri önce boşaltılır, bu da yedeği uygulama tutarlı yapar. VMware Tools olmadan çökme tutarlıdır. Linux VM'lere <code>open-vm-tools</code>, Windows VM'lere VMware Tools kurun. Sessize alma işlemi başarısız olan veya hatalı çalışan bir konuk için işte <i>Çökme tutarlı anlık görüntüler (VMware Tools ile sessize alma olmadan)</i> seçeneğini işaretleyin: yedekleri o zaman bir elektrik kesintisinden sonraki gibi çökme tutarlı olur (aracı 0.58). Bazı ana bilgisayarlarda (ESXi 6.7) sessize alınmış bir anlık görüntünün diski, sessize alma işleminin kendisinin yazdığı küçük bir deltadır; aracı bunu anlık görüntüyle birlikte okur (aracı 0.58; eski aracılar bunu anlık görüntü delta diski olarak reddediyordu).</li>
   <li>CBT hangi blokların okunacağını bildirir:
     <ul>
       <li>ilk yedekte yalnızca kullanılan bloklar;</li>
       <li>sonrasında yalnızca önceki yedekten bu yana değişen bloklar.</li>
     </ul>
   </li>
-  <li>Çalışan bir VM disklerini kilitli tutar. Bu yüzden diskleri datastore üzerinde kopyalanır (thin) ve <b>anlık görüntü hemen kaldırılır</b>, genellikle birkaç saniye sonra. Kopya ardından HTTPS üzerinden okunur ve silinir. Kapalı VM'ler doğrudan okunur.</li>
+  <li>Çalışan bir VM disklerini kilitli tutar. Bu yüzden diskleri datastore üzerinde kopyalanır (thin) ve <b>anlık görüntü hemen kaldırılır</b>, genellikle birkaç saniye sonra. Kopya ardından HTTPS üzerinden okunur ve silinir. Kapalı VM'ler doğrudan okunur. <a href="#hot-add">Hot-add</a> ile çalışan VM'lerin diskleri bunun yerine vekilin kendi VM'si üzerinden, kopya olmadan okunur.</li>
   <li>VM'nin yapılandırması (<code>.vmx</code>) ve NVRAM yedekle birlikte saklanır.</li>
 </ol>
 <p>Test laboratuvarından örnek: 8 GB diskli, 1,6 GB'ı kullanılan bir Debian VM. İlk yedek 1,6 GB okudu. Sonraki, 50 MB yeni veriden sonra, 70 MB okudu ve 23 saniye sürdü.</p>
+
+<h3 id="hot-add">Hot-add: datastore üzerinde kopya yok</h3>
+<p>Çalışan bir VM'nin disklerini kopyalamak, artımlı olanlar dahil her yedekte üretim datastore'unda zaman ve G/Ç harcar ve disklerin kullanılan blokları için boş alan gerektirir. Yavaş disklerdeki büyük VM'lerde bu önemlidir. <b>Hot-add</b> ile (<a href="/agents#vmware">Aracılar → VMware ESXi ana bilgisayarları</a>, proxy aracısının altındaki onay kutusu) vekil bunun yerine diskleri yerinde okur:</p>
+<ul>
+  <li><b>Gereksinimler:</b> vekil, VM'nin datastore'larını gören (aynı ana bilgisayarda veya aynı vCenter'ın bunlara erişimi olan bir ana bilgisayarında) <b>bir VM içindeki Linux aracısıdır</b> ve ana bilgisayar vSphere API üzerinden değiştirilir (vCenter veya lisanslı ana bilgisayar). Vekil kendi VM'sini BIOS UUID'sinden bulur.</li>
+  <li><b>Nasıl:</b> anlık görüntü var olduğu sürece her disk vekilin VM'sine <b>independent-nonpersistent</b> olarak bağlanır. Vekil diski salt okunur açar; ona yazılan her şey, disk ayrıldığında vSphere'in attığı bir redo log'a giderdi, bu yüzden VM'nin diski asla değişmez. Vekil yalnızca CBT'nin bildirdiği blokları okur, diski ayırır ve ardından anlık görüntü kaldırılır.</li>
+  <li><b>Ne kazandırır:</b> geçici kopya yok, datastore üzerinde ek alan yok. 20 GB değişikliği olan 2 TB'lık bir VM'nin artımlı yedeği 20 GB okur. Anlık görüntü, diskler okunduğu sürece kalır (yalnızca kopyalama süresince değil), bu yüzden VM anlık görüntüye biraz daha uzun süre yazar.</li>
+  <li><b>Yedek yol:</b> vekil ana bilgisayarın bir VM'si değilse veya bir diskin bağlanması ya da okunması başarısız olursa, o disk eskisi gibi datastore üzerinde kopyalanır ve çalıştırma nedenini içeren bir uyarı gösterir. Hot-add varsayılan olarak kapalıdır; 0.54 öncesi aracılar bunu yok sayar. Çalıştırma sayfası, kaç diskin hot-add ile okunduğunu gösterir.</li>
+  <li><b>Vekil VM'de:</b> LVM'nin aygıt dosyasıyla (<code>/etc/lvm/lvm.conf</code> içinde <code>use_devicesfile = 1</code>, vekilin kendi diskleri <code>lvmdevices</code> ile kayıtlı) LVM'nin bağlanan disklerdeki birimleri etkinleştirmesini önleyin. LVM'nin yine de etkinleştirdiği birimler disk ayrılmadan önce kaldırılır. Başka VM'lerin disklerini vekile elle bağlamayın: başka bir VM'nin klasöründen gelen independent-nonpersistent bir disk, yarıda kalmış bir yedeğin geride bıraktığı disk sanılır ve ayrılır.</li>
+</ul>
+
+<h3 id="proxies">Birden fazla proxy aracısı (vCenter)</h3>
+<p>Tek bir proxy aracısı diskleri birbiri ardına okur ve hot-add ile yalnızca datastore'larını gördüğü ana bilgisayarlarda okuyabilir. Bir vCenter bağlantısında, ek proxy aracısı olarak <b>her ESXi ana bilgisayarındaki bir VM'de çalışan bir Linux aracısı</b> ekleyin (<a href="/agents#vmware">Aracılar → VMware ESXi ana bilgisayarları</a>, proxy aracısının altındaki <i>Ek proxy aracıları</i>; 0.55 veya daha yeni aracılar):</p>
+<ul>
+  <li><b>Ana bilgisayara göre bölme:</b> işin her yedeği bölünür. Her VM, çalıştığı ESXi ana bilgisayarındaki proxy aracısına (son VM listesine göre), diğer her VM bağlantının proxy aracısına gider. Her proxy aracısı kendi payını ayrı bir çalıştırma olarak, diğerleriyle aynı anda, kendi ana bilgisayarında hot-add ile yedekler. Yalnızca çevrimiçi proxy aracıları katılır: kapalı bir proxy aracısının VM'leri bağlantının proxy aracısına gider. Yeni bir depoya alınan ilk yedek ve yerel ya da USB hedefe alınan yedekler bölünmez.</li>
+  <li><b>Tek başlatma:</b> iş, bir başlatmanın parçalarını bir bütün olarak gösterir: bir parça çalıştıkça çalışıyor, bir parça başarısız olduysa başarısız. RPO uyarıları ve pano, bir yedeği ancak tüm parçalar başarılı olunca sayar; zincirlenmiş bir iş veya "her yedekten sonra" kopyası son parçadan sonra bir kez başlar.</li>
+  <li><b>Çakışma yok:</b> bağlantının farklı proxy aracılarındaki yedekleri ve geri yüklemeleri aynı anda çalışmaz (yalnızca bir başlatmanın parçaları aynı anda çalışır), bu yüzden ana bilgisayarlar arasında taşınan bir VM'yi asla iki proxy aracısı aynı anda işlemez.</li>
+  <li><b>Proxy aracısı başına saklama:</b> her parça kendi VM'lerinin işte ayarlı sayıdaki yedeğini saklar; kopyalama işleri de bunları parça başına kopyalar ve saklar. İş bölünmeden önceki yedekler ve kaldırılan bir proxy aracısının yedekleri olduğu gibi kalır: VM'lerinin geri yükleme noktaları olmaya devam eder. Başka bir ana bilgisayara taşınan bir VM (vMotion), VM listesinin bir sonraki yenilenmesinden itibaren o ana bilgisayarın proxy aracısına gider.</li>
+  <li>BackupZit bir proxy aracısının ana bilgisayarını, aracısının bildirdiği BIOS UUID ile bulur; Aracılar sayfası bunu her aracının yanında gösterir. <i>ESXi ana bilgisayarı bulunamadı</i>: aracı bu vCenter'ın bir VM'i değil ya da VM listesi aracıdan eski (<i>Yenile</i>'ye tıklayın).</li>
+</ul>
+<p>Bir VMware yedeğini <b>iptal etmek</b> (Etkinlik → İptal) datastore üzerinde süren bir disk kopyasını da durdurur ve yarım kopyayı siler; anlık görüntü her yedekten sonra olduğu gibi kaldırılır. Yedek iptal edildiğinde hâlâ oluşturulmakta olan bir anlık görüntü beklenir (en fazla beş dakika) ve o da kaldırılır.</p>
+<p id="leftovers"><b>Geride kalan anlık görüntüler.</b> Proxy aracısı her anlık görüntüyü ve geçici disk kopyasını oluşturmadan önce kaydeder ve kaydı ancak nesnenin gittiğini gördüğünde siler: kaldırmadan sonra VM'nin anlık görüntülerini yeniden listeler, yaklaşık on dakika içinde en fazla üç kez dener, vSphere oturumu sona erdiğinde yeniden oturum açar (her VM'den önce de; böylece kaybedilen tek bir oturum sonraki VM'lerin başarısız olmasına yol açmaz) ve vSphere disklerin birleştirilmesi gerektiğini bildirdiğinde diskleri birleştirir; anlık görüntüsü olmayan ama diskleri önceki bir kaldırmadan dolayı hâlâ birleştirme gerektiren bir VM, sonraki yedeklemesinden önce birleştirilir. Aracı yarıda durursa (çökme, elektrik kesintisi) veya kaldırma sürekli başarısız olursa kayıt kalır:</p>
+<ul>
+  <li>Konsol, proxy aracısında bir temizleme çalıştırmasını kuyruğa alır (ana bilgisayarın kimlik bilgileri yalnızca onda vardır) ve proxy aracısı bu tür kalıntıları bağlantının her yedeğinden sonra da kaldırır. Proxy aracısının bir yedeklemesinin veya geri yüklemesinin üzerinde çalıştığı VM'lere dokunulmaz.</li>
+  <li>Pano her kalıntıyı <i>İlgi gerekiyor</i> altında (VM, ne zamandan beri, neden) <b>Şimdi kaldır</b> ile listeler ve kalmaya devam eden her kalıntı için bir kez bildirim (e-posta, sohbet) gönderilir.</li>
+  <li>Konsol ayrıca, bağlantının hiçbir yedeklemesi çalışmazken, 10 dakikada bir yenilediği VM listesinde altı saatten eski <code>backupzit_…</code> anlık görüntülerini arar; böylece eski aracıların kalıntıları da görünür. Yalnızca <code>backupzit_…</code> adlı anlık görüntüler kaldırılır; VM'nin kendi anlık görüntülerine asla dokunulmaz.</li>
+</ul>
 
 <h2>Bir VM'yi geri yükleme</h2>
 <p><a href="/restore">Geri yükleme sihirbazını</a> (<i>Tüm sanal makine</i>) veya yedeğin Etkinlik'teki sayfasını kullanın. Şunları seçin:</p>
@@ -96,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Henüz dahil olmayanlar</h2>
 <ul>
   <li><b>Birden çok veri merkezi olan vCenter.</b> Yalnızca tek veri merkezli bir vCenter eklenebilir; diğerlerinin ana bilgisayarlarını doğrudan ekleyin.</li>
-  <li><b>Kendi anlık görüntüleri olan VM'ler.</b> Diskleri deltadır; önce anlık görüntüleri silin veya birleştirin.</li>
+  <li><b>Kendi anlık görüntüleri olan VM'ler.</b> Diskleri deltadır; önce anlık görüntüleri silin veya birleştirin. (Sessize alınmış bir anlık görüntünün yazdığı küçük delta yedeğin kendisine aittir ve onunla birlikte okunur.)</li>
   <li><b>Bazı disk türleri.</b> Ham aygıt eşlemeleri (RDM) ve bağımsız diskler.</li>
   <li><b>Windows vekil aracısı üzerinden anında kurtarma.</b> Anında kurtarma bir Linux vekil aracısı gerektirir.</li>
 </ul>

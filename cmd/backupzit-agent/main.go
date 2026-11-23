@@ -44,6 +44,7 @@ Files and folders:
   ls             List files in a snapshot
   restore        Restore files from a snapshot
   check          Verify repository integrity (--read-data reads everything)
+  repair         Take damaged data packs (found by reading everything) out of the index
 
 Disk images (Windows):
   disks          Show disks and partitions
@@ -115,10 +116,15 @@ func (m *multiFlag) String() string     { return strings.Join(*m, ",") }
 func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }
 
 type repoFlags struct {
-	location string
-	password string
-	opts     backend.Options
-	asOf     string
+	location       string
+	password       string
+	opts           backend.Options
+	asOf           string
+	vmBlockSizeKiB int
+}
+
+func (rf *repoFlags) addVMBlockSizeFlag(fs *flag.FlagSet) {
+	fs.IntVar(&rf.vmBlockSizeKiB, "block-size-kib", 0, "VM disk deduplication block size: 256, 512 or 1024 KiB (default 1024); changing size reads each disk in full once")
 }
 
 func addRepoFlags(fs *flag.FlagSet) *repoFlags {
@@ -159,6 +165,9 @@ func (rf *repoFlags) backend(ctx context.Context) (backend.Backend, error) {
 }
 
 func (rf *repoFlags) open(ctx context.Context) (*repo.Repository, error) {
+	if err := repo.ValidateVMBlockSizeKiB(rf.vmBlockSizeKiB); err != nil {
+		return nil, err
+	}
 	be, err := rf.backend(ctx)
 	if err != nil {
 		return nil, err
@@ -166,6 +175,10 @@ func (rf *repoFlags) open(ctx context.Context) (*repo.Repository, error) {
 	r, err := repo.Open(ctx, be, repo.Password(rf.password))
 	if err != nil {
 		_ = be.Close()
+		return nil, err
+	}
+	if err := r.SetVMBlockSizeKiB(rf.vmBlockSizeKiB); err != nil {
+		_ = r.Close()
 		return nil, err
 	}
 	return r, nil
@@ -202,6 +215,8 @@ func run(ctx context.Context, args []string) error {
 		return cmdRestore(ctx, rest)
 	case "check":
 		return cmdCheck(ctx, rest)
+	case "repair":
+		return cmdRepair(ctx, rest)
 	case "image-backup":
 		return cmdImageBackup(ctx, rest)
 	case "image-restore":
@@ -532,4 +547,59 @@ func parseAsOf(s string) (time.Time, error) {
 		}
 	}
 	return time.Time{}, fmt.Errorf("invalid --as-of %q (use e.g. 2026-10-01T14:30)", s)
+}
+
+// cmdRepair reads all data under the exclusive lock and takes the damaged
+// packs out of the index, so that the next backups store that data again
+// (otherwise they keep reusing it). It lists the snapshots that need the
+// lost data; they are kept.
+func cmdRepair(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("repair", flag.ExitOnError)
+	rf := addRepoFlags(fs)
+	dry := fs.Bool("dry-run", false, "only check and list what would be taken out")
+	_ = fs.Parse(args)
+	r, err := rf.open(ctx)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	lock, err := r.Lock(ctx, !*dry, time.Minute)
+	if err != nil {
+		return err
+	}
+	defer lock.Unlock()
+	fmt.Println("reading all data (this takes as long as a data check) ...")
+	res, err := checker.Run(ctx, r, checker.Options{ReadData: true})
+	if err != nil {
+		return err
+	}
+	for _, e := range res.Errors {
+		fmt.Println("ERROR:", e)
+	}
+	for _, p := range res.Unreadable {
+		fmt.Println("not readable from here (left alone; check the network path):", p.String())
+	}
+	if len(res.Damaged) == 0 {
+		fmt.Printf("read %d packs: no damaged pack, nothing to repair\n", res.PacksRead)
+		if !res.OK() {
+			return fmt.Errorf("check found %d errors that repair does not fix", len(res.Errors))
+		}
+		return nil
+	}
+	for _, p := range res.Damaged {
+		fmt.Println("damaged pack:", p.String())
+	}
+	if *dry {
+		fmt.Printf("%d damaged packs; run without --dry-run to take them out of the index\n", len(res.Damaged))
+		return nil
+	}
+	rep, err := r.DropDamagedPacks(ctx, res.Damaged)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("took %d packs (%d blobs) out of the index (their files go with the next cleanup); the next backups store that data again\n", rep.Packs, rep.Blobs)
+	for _, sn := range rep.Snapshots {
+		fmt.Printf("snapshot %s of %s from %s needs lost data\n", sn.ID.Short(), sn.Hostname, sn.Time.Local().Format("2006-01-02 15:04"))
+	}
+	return nil
 }

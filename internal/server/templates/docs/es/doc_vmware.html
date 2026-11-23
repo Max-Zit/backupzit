@@ -8,20 +8,23 @@
   <li><b>Un usuario con derechos de administrador en el host</b>, normalmente <code>root</code>.</li>
   <li><b>SSH habilitado en los hosts con licencia gratuita:</b> Host → Actions → Services → Enable Secure Shell. La licencia gratuita de ESXi deja la API en solo lectura, así que las instantáneas y restauraciones van por SSH. Los hosts con licencia se modifican mediante la API de vSphere y no necesitan SSH.</li>
   <li><b>Un agente proxy:</b> cualquier agente Windows o Linux que llegue al host por el puerto 443 (y el 22 cuando se usa SSH). Los datos de copia pasan por él, así que colóquelo en una red rápida cerca del host y del almacenamiento.</li>
-  <li><b>Espacio libre en el datastore de la VM</b> mientras se copia una VM en marcha. BackupZit copia allí el disco por un momento (ver abajo). La copia es thin, así que necesita tanto espacio como el disco usa realmente.</li>
+  <li><b>Espacio libre en el datastore de la VM</b> mientras se copia una VM en marcha. BackupZit copia allí el disco por un momento (ver abajo). La copia es thin, así que necesita tanto espacio como el disco usa realmente. Con <a href="#hot-add">hot-add</a> no se hace ninguna copia.</li>
 </ul>
 
 <h2>Añadir un host</h2>
 <ol>
-  <li>Abra <a href="/agents#vmware">Agentes → Hosts VMware ESXi</a> → <i>Añadir un host ESXi</i>.</li>
+  <li>Abra <a href="/agents#vmware">Agentes → Hosts VMware ESXi</a> → <i>Añadir un host ESXi o vCenter Server</i>.</li>
   <li>Introduzca la dirección, el usuario, la contraseña y el agente proxy.</li>
   <li>La consola se conecta una vez para comprobarlos. Lee la lista de VM y la licencia, y <b>fija el certificado HTTPS y la clave de host SSH del host</b>. Si más adelante el host se sustituye por otra máquina con la misma dirección, BackupZit se niega a conectarse en lugar de enviarle la contraseña. Si el certificado cambia por un motivo conocido — el host se reinstaló, recibió un nuevo certificado o se añadió a vCenter (que sustituye los certificados de sus hosts) —, el host muestra la nueva huella con un botón <b>Aceptar el nuevo certificado</b> en la página Agentes. Compare la huella con la del host antes de aceptarla.</li>
 </ol>
-<p>La contraseña se guarda cifrada, como todos los demás secretos. La lista de VM se actualiza cada 10 minutos, o al instante con <i>Actualizar</i>. La tabla muestra el modo de cada host:</p>
+<p>La contraseña se guarda cifrada, como todos los demás secretos. La propia consola se conecta al host (HTTPS 443, y SSH 22 con la licencia gratuita) al añadirlo, con <i>Actualizar</i> y cada 10 minutos para actualizar la lista de VM, salvo que se llegue al host <a href="#via-proxy">a través del agente proxy</a>. <i>Quitar</i> elimina el host junto con sus trabajos de copia; las copias permanecen en el almacenamiento. La tabla muestra el modo de cada host:</p>
 <ul>
   <li><b>API de vSphere (host con licencia, SSH no necesario):</b> las instantáneas, copias de discos, restauraciones y la recuperación instantánea van por la API.</li>
+  <li><b>vCenter Server (API de vSphere):</b> un vCenter con sus hosts ESXi; todo va por la API de vCenter.</li>
   <li><b>licencia gratuita: instantáneas y restauraciones por SSH:</b> la API del host es de solo lectura, así que estos pasos van por SSH.</li>
+  <li><b>SSH (elegido para este host):</b> el host se modifica por SSH aunque su API podría hacerlo (<i>Siempre SSH</i> al añadir el host).</li>
 </ul>
+<p id="via-proxy"><b>A través del agente proxy</b> (agente 0.56 o posterior): marque <b>Conectar a través del agente proxy</b> al añadir el host, o <b>Conectar a través del proxy</b> en su fila, y la consola nunca se conectará al host por sí misma. El agente proxy comprueba la dirección y la contraseña, lee la lista de VM, la versión y la licencia, e informa del certificado HTTPS y la clave de host SSH que ha visto; la consola los fija la primera vez, igual que con una conexión directa, y a partir de entonces el agente proxy rechaza un host que presente otro certificado (la fila del host ofrece entonces <b>Aceptar el nuevo certificado</b>). <i>Actualizar</i> y la lista de VM cada 10 minutos también vienen del agente proxy; estas comprobaciones no aparecen en Actividad. Solo el agente proxy necesita llegar al host, exactamente como para las copias de seguridad y las restauraciones, así que la consola puede estar en otra red, detrás de NAT o en un rango de direcciones solapado. Una dirección o contraseña incorrecta aparece como error del host tras la primera comprobación del agente proxy: quite el host y vuelva a añadirlo. Mientras el agente proxy esté sin conexión u ocupado, se mantiene la última lista de VM.</p>
 <p>Con <b>Automático</b> la consola elige sola, así que un host que reciba una licencia más tarde pasa a la API sin más configuración. <b>Cómo se modifica el host</b>, en la fila del host (y al añadirlo), puede forzar <b>Siempre SSH</b> o <b>Siempre la API de vSphere</b>; el cambio se comprueba al instante. Las copias anteriores y sus puntos de restauración no dependen del método.</p>
 
 <h2 id="vcenter">vCenter Server</h2>
@@ -46,17 +49,44 @@
       <li>En hosts gratuitos, el CBT solo puede activarse con la VM apagada. BackupZit lo hace en la primera copia que encuentra la VM apagada. Hasta entonces, cada copia lee los discos completos y la ejecución muestra una advertencia.</li>
     </ul>
   </li>
-  <li>Se toma una instantánea <code>backupzit_…</code>. Cuando las <b>VMware Tools</b> se ejecutan en el invitado, la instantánea se <b>pone en reposo</b> (quiesced): primero se vacían las aplicaciones y los sistemas de archivos, lo que hace la copia coherente con las aplicaciones. Sin VMware Tools es coherente ante bloqueos. Instale <code>open-vm-tools</code> en las VM Linux y VMware Tools en las VM Windows.</li>
+  <li>Se toma una instantánea <code>backupzit_…</code>. Cuando las <b>VMware Tools</b> se ejecutan en el invitado, la instantánea se <b>pone en reposo</b> (quiesced): primero se vacían las aplicaciones y los sistemas de archivos, lo que hace la copia coherente con las aplicaciones. Sin VMware Tools es coherente ante bloqueos. Instale <code>open-vm-tools</code> en las VM Linux y VMware Tools en las VM Windows. Para un invitado cuya puesta en reposo falla o se comporta mal, marque <i>Instantáneas coherentes ante bloqueos (sin puesta en reposo de VMware Tools)</i> en la tarea: sus copias son entonces coherentes ante bloqueos, como tras un corte de corriente (agente 0.58). En algunos hosts (ESXi 6.7) el disco de una instantánea puesta en reposo es un pequeño delta que escribió la propia puesta en reposo; el agente lo lee con la instantánea (agente 0.58; los agentes anteriores lo rechazaban como disco delta de instantánea).</li>
   <li>El CBT indica qué bloques leer:
     <ul>
       <li>en la primera copia, solo los bloques en uso;</li>
       <li>después, solo los bloques cambiados desde la copia anterior.</li>
     </ul>
   </li>
-  <li>Una VM en marcha mantiene sus discos bloqueados. Por eso sus discos se copian en el datastore (thin) y <b>la instantánea se elimina enseguida</b>, normalmente tras unos segundos. Luego la copia se lee por HTTPS y se borra. Las VM apagadas se leen directamente.</li>
+  <li>Una VM en marcha mantiene sus discos bloqueados. Por eso sus discos se copian en el datastore (thin) y <b>la instantánea se elimina enseguida</b>, normalmente tras unos segundos. Luego la copia se lee por HTTPS y se borra. Las VM apagadas se leen directamente. Con <a href="#hot-add">hot-add</a>, los discos de las VM en marcha se leen en cambio a través de la propia VM del proxy, sin copia.</li>
   <li>La configuración de la VM (<code>.vmx</code>) y la NVRAM se guardan con la copia.</li>
 </ol>
 <p>Ejemplo del laboratorio de pruebas: una VM Debian con un disco de 8 GB, 1,6 GB en uso. La primera copia leyó 1,6 GB. La siguiente, tras 50 MB de datos nuevos, leyó 70 MB y tardó 23 segundos.</p>
+
+<h3 id="hot-add">Hot-add: sin copia en el datastore</h3>
+<p>Copiar los discos de una VM en marcha cuesta tiempo y E/S en el datastore de producción en cada copia de seguridad, también en las incrementales, y necesita espacio libre para los bloques usados de los discos. Con VM grandes en discos lentos, eso importa. Con <b>Hot-add</b> (<a href="/agents#vmware">Agentes → Hosts VMware ESXi</a>, la casilla bajo el agente proxy), el proxy los lee en cambio en su sitio:</p>
+<ul>
+  <li><b>Requisitos:</b> el proxy es un <b>agente Linux en una VM</b> que ve los datastores de la VM (en el mismo host, o en un host del mismo vCenter con acceso a ellos), y el host se modifica mediante la API de vSphere (vCenter o un host con licencia). El proxy encuentra su propia VM por su BIOS UUID.</li>
+  <li><b>Cómo:</b> mientras existe la instantánea, cada disco se conecta a la VM del proxy como <b>independent-nonpersistent</b>. El proxy lo abre en solo lectura; todo lo que se escribiera en él iría a un redo log que vSphere descarta al desconectar el disco, así que el disco de la VM nunca se modifica. El proxy lee solo los bloques que indica el CBT, desconecta el disco y después se elimina la instantánea.</li>
+  <li><b>Qué ahorra:</b> ni copia temporal ni espacio adicional en el datastore. Una copia incremental de una VM de 2 TB con 20 GB de cambios lee 20 GB. La instantánea se mantiene mientras se leen los discos (en lugar de solo durante la copia), así que la VM escribe en la instantánea un poco más de tiempo.</li>
+  <li><b>Alternativa:</b> si el proxy no es una VM del host, o falla la conexión o la lectura de un disco, ese disco se copia en el datastore como antes y la ejecución muestra una advertencia con el motivo. Hot-add está desactivado de forma predeterminada; los agentes anteriores a 0.54 lo ignoran. La página de la ejecución muestra cuántos discos se leyeron mediante hot-add.</li>
+  <li><b>En la VM del proxy:</b> impida que LVM active volúmenes de los discos conectados, con el archivo de dispositivos de LVM (<code>use_devicesfile = 1</code> en <code>/etc/lvm/lvm.conf</code>, con los discos propios del proxy registrados mediante <code>lvmdevices</code>). Los volúmenes que LVM active de todos modos se retiran antes de desconectar el disco. No conecte a mano discos de otras VM al proxy: un disco independent-nonpersistent de la carpeta de otra VM se toma por uno que dejó una copia interrumpida, y se desconecta.</li>
+</ul>
+
+<h3 id="proxies">Varios agentes proxy (vCenter)</h3>
+<p>Un agente proxy lee un disco tras otro y, mediante hot-add, solo en los hosts cuyos datastores ve. Con una conexión vCenter, añada <b>un agente Linux en una VM de cada host ESXi</b> como agente proxy adicional (<a href="/agents#vmware">Agentes → Hosts VMware ESXi</a>, <i>Agentes proxy adicionales</i> bajo el agente proxy; agentes 0.55 o posteriores):</p>
+<ul>
+  <li><b>División por host:</b> cada copia de seguridad del trabajo se divide. Cada VM va al agente proxy del host ESXi en el que se ejecuta (según la última lista de VM), y cualquier otra VM al agente proxy de la conexión. Cada agente proxy respalda su parte como una ejecución propia, a la vez que los demás, mediante hot-add en su propio host. Solo participan los agentes proxy en línea: las VM de un agente proxy apagado van al agente proxy de la conexión. La primera copia de seguridad en un repositorio nuevo y las copias a un destino local o USB no se dividen.</li>
+  <li><b>Un inicio:</b> el trabajo muestra las partes de un inicio como una sola: en ejecución mientras una parte se ejecuta, fallida si una parte falló. Las alertas de RPO y el panel cuentan una copia de seguridad cuando todas las partes tuvieron éxito; un trabajo encadenado o una copia «después de cada copia de seguridad» se inicia una vez, tras la última parte.</li>
+  <li><b>Sin solapamiento:</b> las copias de seguridad y restauraciones de la conexión en distintos agentes proxy no se ejecutan a la vez (solo las partes de un mismo inicio), así que una VM movida entre hosts nunca la tratan dos agentes proxy al mismo tiempo.</li>
+  <li><b>Retención por agente proxy:</b> cada parte conserva el número de copias de seguridad del trabajo para sus VM, y los trabajos de copia también las copian y conservan por parte. Las copias de seguridad de antes de dividir el trabajo y las de un agente proxy quitado se quedan como están: siguen siendo puntos de restauración de sus VM. Una VM movida a otro host (vMotion) pasa al agente proxy de ese host a partir de la siguiente actualización de la lista de VM.</li>
+  <li>BackupZit encuentra el host de un agente proxy por el BIOS UUID que informa su agente; la página Agentes lo muestra junto a cada agente. <i>Host ESXi no encontrado</i>: el agente no es una VM de este vCenter, o la lista de VM es anterior al agente (haga clic en <i>Actualizar</i>).</li>
+</ul>
+<p><b>Cancelar</b> una copia de seguridad de VMware (Actividad → Cancelar) también detiene una copia de disco en curso en el datastore y elimina la copia parcial; la instantánea se elimina como tras cada copia de seguridad. Si al cancelar todavía se está creando una instantánea, se espera a que termine (hasta cinco minutos) y también se elimina.</p>
+<p id="leftovers"><b>Instantáneas que quedan atrás.</b> El agente proxy registra cada instantánea y cada copia temporal de disco antes de crearlas, y borra el registro solo cuando comprueba que el objeto ha desaparecido: tras la eliminación vuelve a listar las instantáneas de la VM, lo intenta hasta tres veces durante unos diez minutos, vuelve a iniciar sesión cuando la sesión de vSphere ha terminado (también antes de cada VM, para que una sesión perdida no haga fallar las VM siguientes) y consolida los discos cuando vSphere indica que lo necesitan; una VM sin instantáneas cuyos discos aún necesitan consolidación por una eliminación anterior se consolida antes de su siguiente copia. Si el agente se detiene a medias (fallo, corte de corriente) o la eliminación sigue fallando, el registro se mantiene:</p>
+<ul>
+  <li>La consola pone en cola una ejecución de limpieza en el agente proxy (solo él tiene las credenciales del host), y el agente proxy también elimina esos restos tras cada copia de seguridad de la conexión. Las VM con las que está trabajando una copia o restauración del agente proxy no se tocan.</li>
+  <li>El panel muestra cada resto en <i>Requiere atención</i> (VM, desde cuándo, por qué) con <b>Quitar ahora</b>, y se envía una notificación (correo, chat) una sola vez por cada resto que permanece.</li>
+  <li>La consola también busca instantáneas <code>backupzit_…</code> de más de seis horas en la lista de VM que actualiza cada 10 minutos, mientras no se ejecuta ninguna copia de seguridad de la conexión, así que también aparecen los restos de agentes más antiguos. Solo se eliminan instantáneas llamadas <code>backupzit_…</code>; las instantáneas propias de la VM nunca se tocan.</li>
+</ul>
 
 <h2>Restaurar una VM</h2>
 <p>Use el <a href="/restore">asistente de restauración</a> (<i>Máquina virtual completa</i>) o la página de la copia en Actividad. Elija:</p>
@@ -96,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Aún no incluido</h2>
 <ul>
   <li><b>vCenter con varios datacenters.</b> Solo se puede añadir un vCenter con un datacenter; añada directamente los hosts de los demás.</li>
-  <li><b>VM con instantáneas propias.</b> Sus discos son deltas; elimine o consolide primero las instantáneas.</li>
+  <li><b>VM con instantáneas propias.</b> Sus discos son deltas; elimine o consolide primero las instantáneas. (El pequeño delta que escribe una instantánea puesta en reposo es de la propia copia y se lee con ella.)</li>
   <li><b>Algunos tipos de disco.</b> Asignaciones de dispositivos sin formato (RDM) y discos independientes.</li>
   <li><b>Recuperación instantánea mediante un agente proxy Windows.</b> La recuperación instantánea necesita un agente proxy Linux.</li>
 </ul>

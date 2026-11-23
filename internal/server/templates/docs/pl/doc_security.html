@@ -4,15 +4,16 @@
 
 <h2>Wbudowana ochrona</h2>
 <ul>
-  <li><b>Szyfrowanie u źródła</b> — AES-256-GCM w agencie; magazyn widzi tylko zaszyfrowane dane. Klucze są wyprowadzane za pomocą Argon2id.</li>
+  <li><b>Szyfrowanie u źródła</b> — AES-256-GCM w agencie; magazyn widzi tylko zaszyfrowane dane. Klucze są wyprowadzane za pomocą Argon2id. Repozytorium na zaszyfrowanym celu, które podaje się za niezaszyfrowane (jego konfiguracja została podmieniona w magazynie), jest odrzucane, więc nic nie zostaje do niego zapisane jawnym tekstem.</li>
   <li><b>Przypięte połączenia</b> — agenci przypinają certyfikat konsoli; klucze hosta SFTP i certyfikaty utwardzonych repozytoriów także są przypinane. Żadnego urzędu certyfikacji nie da się wykorzystać do podszycia się pod nie.</li>
   <li><b>Zaufany certyfikat dla przeglądarek</b> — opcjonalnie wgrany certyfikat lub certyfikat Let's Encrypt (TLS 1.2+) na osobnym adresie, odnawiany automatycznie; zobacz <a href="/docs/install">Instalacja serwera</a>.</li>
   <li><b>Sekrety w spoczynku</b> — hasła i klucze magazynów, klucze odzyskiwania, hasła SMTP/LDAP i sekrety uwierzytelniania dwuskładnikowego są szyfrowane w bazie kluczem przechowywanym poza nią (<code>secrets.key</code>).</li>
   <li><b>Sekrety agentów</b> — każdy agent ma własny sekret, przechowywany w konsoli tylko jako skrót, a na agencie w pliku, który mogą czytać tylko administratorzy.</li>
   <li><b>Konsola WWW</b> — ciasteczka sesji HttpOnly i SameSite=Strict; ochrona przed żądaniami międzywitrynowymi i clickjackingiem; ścisła Content-Security-Policy; hasła haszowane bcryptem; wrażliwe strony nigdy nie trafiają do pamięci podręcznej.</li>
+  <li><b>Potwierdzanie wrażliwych zmian</b> — zapisanie lub przetestowanie ustawień LDAP, zapisanie ustawień logowania jednokrotnego i nadanie użytkownikowi większych uprawnień (wyższa rola, włączenie konta) wymagają bieżącego hasła lub kodu dwuskładnikowego, więc skradziona sesja nie może przekierować logowania na własny serwer. Zapisany sekret LDAP, SMTP lub logowania jednokrotnego jest ponownie używany tylko dla tego samego serwera i konta: zmiana samego adresu wymaga ponownego podania sekretu.</li>
   <li><b>Ochrona przed atakami siłowymi</b> — adresy, z których logowanie zbyt często się nie udaje, są blokowane: hasła, kody dwuskładnikowe i tokeny API. Blokady przetrwają restarty, recydywiści są blokowani dłużej, a administratorzy dostają e-mail. Zobacz niżej.</li>
-  <li><b>Konta</b> — role z minimalnymi uprawnieniami, opcjonalne uwierzytelnianie dwuskładnikowe (TOTP) i logowanie LDAPS; tokeny API z własną, niższą rolą i datą ważności.</li>
-  <li><b>Zatwierdzanie na cztery oczy</b> (opcjonalne) — usuwanie lub wyłączanie zadań, usuwanie agentów, hostów ESXi, magazynów i użytkowników, skracanie przechowywania, wyłączanie zatwierdzania oraz wszystko, co mogłoby dać administratorowi drugiego zatwierdzającego (nowi zatwierdzający, więcej uprawnień, reset hasła i dwuskładnikowego logowania, zmiany LDAP i SSO), wymaga zatwierdzenia drugiego użytkownika. Zobacz <a href="/docs/users">Użytkownicy, role i LDAP</a>.</li>
+  <li><b>Konta</b> — role z minimalnymi uprawnieniami, opcjonalne uwierzytelnianie dwuskładnikowe (TOTP), logowanie LDAP przez LDAPS lub StartTLS oraz logowanie jednokrotne (OpenID Connect, SAML); tokeny API z własną, niższą rolą i datą ważności.</li>
+  <li><b>Zatwierdzanie na cztery oczy</b> (opcjonalne) — usuwanie lub wyłączanie zadań, usuwanie agentów, hostów ESXi, magazynów i użytkowników, skracanie przechowywania, wznawianie przechowywania po podejrzanej kopii, naprawy usuwające kopie, usuwanie, wyłączanie lub ograniczanie zadania dla kilku agentów, wyłączanie zatwierdzania oraz wszystko, co mogłoby dać administratorowi drugiego zatwierdzającego (nowi zatwierdzający, więcej uprawnień, reset hasła i dwuskładnikowego logowania, zmiany LDAP i SSO), wymaga zatwierdzenia drugiego użytkownika. Zobacz <a href="/docs/users">Użytkownicy, role i LDAP</a>.</li>
   <li><b>Ślad audytowy</b> — logowania, nieudane logowania, zmiany użytkowników i ról, zadania, magazyny, przywracania, wyświetlone klucze odzyskiwania, zmiany ustawień i działania API są zapisywane w <a href="/audit">dzienniku audytu</a>; wpisy są powiązane łańcuchem, więc zmiany i usunięcia w bazie są wykrywane, i można je kopiować na serwer syslog lub SIEM (<a href="/docs/users#audit-integrity">Ochrona przed zmianami</a>); usunięcia w utwardzonym repozytorium są logowane na tym serwerze.</li>
   <li><b>Aktualizacje konsoli</b> — wydania są podpisane kluczem wydań BackupZit (Ed25519). Konsola i instalująca je usługa root sprawdzają podpis, baza jest najpierw kopiowana, a nieudana aktualizacja jest wycofywana.</li>
   <li><b>Aktualizacje agentów</b> — agenci pobierają nowe wersje tylko ze swojej konsoli przez przypięte połączenie i instalują je tylko wtedy, gdy suma kontrolna SHA-256 się zgadza.</li>
@@ -46,20 +47,20 @@
   <tr><td>Dozwolone adresy</td><td>Adresy IP lub sieci (np. <code>203.0.113.10</code>, <code>10.0.0.0/24</code>). Konsola WWW, REST API i każda strona odpowiadają tylko tym adresom; pozostałe dostają „not found”, jakby konsoli nie było. Agenci zawsze docierają do swojego API (rejestracja, odpytywanie, wyniki, pobieranie, instalacja zdalna). Puste: wszyscy. Konsola odrzuca listę, która nie zawiera Twojego własnego adresu.</td></tr>
   <tr><td>Port 8443 tylko dla agentów</td><td>Konsola WWW jest wtedy dostępna tylko na porcie WWW z zaufanym certyfikatem (<a href="/docs/install">Ustawienia → Certyfikat</a>, zwykle 443), więc zapora może otworzyć 8443 dla wszystkich, a 443 tylko dla Twoich adresów. Dostępne, gdy port WWW działa; zmieniaj to z portu WWW, nie z 8443.</td></tr>
 </table>
-<p>Typowa zapora dla publicznej konsoli: 8443 otwarty dla wszystkich (agenci), 443 i 80 (sprawdzenie HTTP Let's Encrypt) tylko z Twoich adresów, SSH tylko z Twoich adresów lub wyłączone, wszystko inne zamknięte.</p>
+<p>Typowa zapora dla publicznej konsoli: 8443 otwarty dla wszystkich (agenci), 443 tylko z Twoich adresów, 80 otwarty dla wszystkich tylko wtedy, gdy używasz sprawdzenia HTTP Let's Encrypt (Let's Encrypt sprawdza go ze swoich serwerów; port odpowiada tylko na sprawdzenie i przekierowuje na HTTPS), w przeciwnym razie zamknięty, a używane jest sprawdzenie DNS; SSH tylko z Twoich adresów lub wyłączone; wszystko inne zamknięte.</p>
 <p>Appliance nie odpowiada na żądania ICMP timestamp, które zdradzałyby jego zegar każdemu w sieci (wynik skanerów sieci); używa do tego własnej małej tabeli nftables i nie zmienia innych reguł zapory.</p>
 <p>Odcięty dostęp? Na samym serwerze (<code>localhost</code>) konsola zawsze odpowiada. Na urządzeniu (appliance) pozycja 5 menu konfiguracji na jego ekranie zdejmuje blokady logowania i te ograniczenia.</p>
 
 <h2>Zalecenia</h2>
 <h3>Konsola</h3>
 <ul>
-  <li>Trzymaj konsolę w sieci wewnętrznej; nie publikuj portu 8443 w internecie. Do zdalnej administracji używaj VPN.</li>
+  <li>Jeśli to możliwe, trzymaj konsolę w sieci wewnętrznej. Jeśli agenci w innych lokalizacjach muszą się z nią łączyć, publikuj tylko port 8443 i ogranicz konsolę WWW, jak opisano w <a href="#web-access">Dostęp do konsoli WWW</a>; do administracji używaj VPN.</li>
   <li>Używaj długiego, unikalnego hasła administratora i zmień początkowe.</li>
   <li>Wymagaj <b>uwierzytelniania dwuskładnikowego</b> od administratorów (<a href="/settings/security">Ustawienia → Logowanie i bezpieczeństwo</a>).</li>
   <li>Daj każdej osobie własne konto z najniższą działającą rolą; do monitoringu używaj tokenów API z rolą Obserwator.</li>
   <li>Kopiuj <code>secrets.key</code> osobno od bazy danych (<a href="/docs/install">Instalacja serwera</a>).</li>
   <li>Wybierz w <a href="/settings/security">Ustawienia → Logowanie i bezpieczeństwo</a> odpowiedni czas trwania sesji (krótszy jest bezpieczniejszy).</li>
-  <li>Utrzymuj serwer zaktualizowany (<code>apt upgrade</code> / <code>dnf upgrade</code>), łącznie z PostgreSQL.</li>
+  <li>Utrzymuj serwer zaktualizowany, łącznie z PostgreSQL: na urządzeniu w <b>Ustawienia → Aktualizacje → System operacyjny</b> (aktualizacje zabezpieczeń instalują się automatycznie), na własnym serwerze poleceniem <code>apt upgrade</code> / <code>dnf upgrade</code>.</li>
 </ul>
 <h3>Magazyny</h3>
 <ul>
@@ -82,6 +83,6 @@
 </ul>
 
 <h2>Zgłaszanie problemu bezpieczeństwa</h2>
-<p>Zgłaszaj podatności prywatnie opiekunom BackupZit zamiast otwierać publiczne zgłoszenie.</p>
+<p>Zgłaszaj podatności prywatnie zamiast otwierać publiczne zgłoszenie: na <a href="https://github.com/Max-Zit/backupzit/security">github.com/Max-Zit/backupzit</a> otwórz kartę <b>Security</b> i wybierz <b>Report a vulnerability</b>.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

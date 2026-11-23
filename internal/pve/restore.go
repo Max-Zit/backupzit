@@ -8,11 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/max-zit/backupzit/internal/diskimg"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmlock"
 )
 
 // RestoreOptions control a guest restore.
@@ -81,14 +83,6 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	if err != nil {
 		return nil, err
 	}
-	inv, err := GetInventory(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list guests: %w", err)
-	}
-	stores, err := readStorage()
-	if err != nil {
-		return nil, fmt.Errorf("read storage configuration: %w", err)
-	}
 	target := opts.NewVMID
 	switch {
 	case target == 0:
@@ -100,6 +94,22 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	}
 	if target < 100 || target > 999999999 {
 		return nil, fmt.Errorf("invalid guest ID %d", target)
+	}
+	// A restore over an existing guest stops and deletes it: not while a
+	// backup of that guest on this node holds its snapshot (M-13). The
+	// guest list is read after the wait.
+	unlockVM, err := vmlock.Lock(ctx, vmLockKey(target))
+	if err != nil {
+		return nil, err
+	}
+	defer unlockVM()
+	inv, err := GetInventory(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list guests: %w", err)
+	}
+	stores, err := readStorage()
+	if err != nil {
+		return nil, fmt.Errorf("read storage configuration: %w", err)
 	}
 	res := &RestoreResult{VMID: target, Type: g.Type, Name: g.Name, Node: inv.Node}
 
@@ -154,8 +164,11 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		if !st.has(content) {
 			return st, fmt.Errorf("storage %q does not hold %s", id, map[string]string{"images": "VM disks", "rootdir": "container volumes"}[content])
 		}
-		if g.Type == "lxc" && st.Type == "zfspool" {
-			return st, fmt.Errorf("containers on ZFS storage (%s) are not supported yet; choose another storage", id)
+		switch {
+		case d.Files() && st.Type != "zfspool":
+			return st, fmt.Errorf("%s was backed up as files from a ZFS subvolume; restore it to a ZFS storage (%s is %s storage)", d.Key, id, st.Type)
+		case !d.Files() && g.Type == "lxc" && st.Type == "zfspool":
+			return st, fmt.Errorf("%s was backed up as a disk image; restoring it to ZFS storage (%s) is not supported yet, choose another storage", d.Key, id)
 		}
 		return st, nil
 	}
@@ -165,7 +178,11 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 		if _, err := storageFor(d); err != nil {
 			return nil, err
 		}
-		total += d.Size
+		if d.Files() {
+			total += d.Bytes
+		} else {
+			total += d.Size
+		}
 	}
 	var done uint64
 	progress := func(n uint64) {
@@ -191,6 +208,21 @@ func Restore(ctx context.Context, r *repo.Repository, sn *repo.Snapshot, opts Re
 	newVol := map[string]string{} // disk key -> new volume ID
 	for _, d := range g.Disks {
 		st, _ := storageFor(d)
+		if d.Files() {
+			volid, err := allocSubvol(ctx, st, target, d.Size)
+			if err != nil {
+				return nil, fmt.Errorf("%s: allocate a subvolume on %s: %w", d.Key, st.ID, err)
+			}
+			allocated = append(allocated, volid)
+			newVol[d.Key] = volid
+			opts.Log("restoring volume files", "key", d.Key, "volume", volid)
+			if err := writeVolumeFiles(ctx, r, sn, d, volid, progress); err != nil {
+				return nil, fmt.Errorf("%s: restore files to %s: %w", d.Key, volid, err)
+			}
+			res.Disks = append(res.Disks, d.Key+" → "+volid)
+			res.Bytes += d.Bytes
+			continue
+		}
 		volid, err := allocDisk(ctx, st, target, d.Size)
 		if err != nil {
 			return nil, fmt.Errorf("%s: allocate %s on %s: %w", d.Key, formatSize(d.Size), st.ID, err)
@@ -313,6 +345,7 @@ func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone b
 	if g.Type == "lxc" {
 		re = lxcDiskKey
 	}
+	var hostKeys []string
 	for _, line := range strings.Split(strings.TrimRight(g.Config, "\n"), "\n") {
 		// Snapshot and pending sections describe the original's own
 		// snapshots and volumes: not part of the restored guest.
@@ -330,11 +363,16 @@ func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone b
 		if unusedKey.MatchString(k) || k == "parent" {
 			continue
 		}
+		if actsOnHost(g.Type, k) && !slices.Contains(hostKeys, k) {
+			hostKeys = append(hostKeys, k)
+		}
 		switch {
 		case re.MatchString(k):
 			vol, opts, _ := strings.Cut(v, ",")
 			if nv, ok := newVol[k]; ok {
-				opts = setOpt(opts, "size", formatSize(disks[k].Size))
+				if disks[k].Size > 0 || !disks[k].Files() {
+					opts = setOpt(opts, "size", formatSize(disks[k].Size))
+				}
 				if g.Type == "lxc" && strings.HasPrefix(k, "mp") && strings.HasPrefix(vol, "volume=") {
 					nv = "volume=" + nv
 				}
@@ -362,8 +400,33 @@ func restoreConfig(g *repo.Guest, newVol map[string]string, name string, clone b
 		}
 		b.WriteString(line + "\n")
 	}
+	if len(hostKeys) > 0 {
+		// Kept like Proxmox VE's own restore does, but they act on this host:
+		// from a backup of another (or a compromised) host they deserve a look.
+		notes = append(notes, fmt.Sprintf("kept settings from the backup that act on this host: %s; check them before starting the guest", strings.Join(hostKeys, ", ")))
+	}
 	return b.String(), cloudInit, notes
 }
+
+// actsOnHost reports whether a configuration key runs code on, or gives
+// the guest access to, the Proxmox host: hook scripts, raw LXC keys (mounts,
+// devices, hooks), raw QEMU arguments and passed-through devices.
+func actsOnHost(typ, k string) bool {
+	switch {
+	case k == "hookscript":
+		return true
+	case typ == "lxc":
+		return strings.HasPrefix(k, "lxc.") || hostDevKey.MatchString(k)
+	default:
+		return k == "args" || hostPCIKey.MatchString(k) || usbKey.MatchString(k)
+	}
+}
+
+var (
+	hostDevKey = regexp.MustCompile(`^dev\d+$`)
+	hostPCIKey = regexp.MustCompile(`^hostpci\d+$`)
+	usbKey     = regexp.MustCompile(`^usb\d+$`)
+)
 
 var unusedKey = regexp.MustCompile(`^unused\d+$`)
 

@@ -48,7 +48,7 @@
   <div class="stack">
     <div class="row">
       <label>{{T "Agent"}}
-        <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}</option>{{end}}</select>
+        <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Label}}</option>{{end}}</select>
       </label>
       <label>{{T "Folder"}} <small>{{T "the path inside the volume is recreated below it"}}</small><input name="target" placeholder="{{T "/srv/restore or D:\\Restore"}}"></label>
     </div>

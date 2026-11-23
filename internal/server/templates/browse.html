@@ -4,7 +4,7 @@
 <p class="muted">{{.Hostname}} · {{ts .FinishedAt}} {{T "· partition"}} {{$.Data.PartLabel}}{{with $.Data.Partition}} — {{join .MountPoints " "}}{{if .Label}} “{{.Label}}”{{end}} {{.FileSystem}}{{end}} · <a href="/runs/{{.ID}}">{{T "back to the backup"}}</a></p>
 {{end}}
 
-<form method="post" action="/runs/{{.Data.Run.ID}}/files-restore" class="stack">
+<form method="post" action="/runs/{{.Data.Run.ID}}/files-restore" class="stack" id="imgfiles">
 <input type="hidden" name="part" value="{{.Data.Part}}">
 <input type="hidden" name="path" value="{{.Data.Path}}">
 <div class="panel">
@@ -26,10 +26,12 @@
 
 {{if .Data.Entries}}
 <div class="panel">
-  <h2>{{T "Restore ticked files and folders"}}</h2>
+  <h2>{{T "Ticked files and folders"}}</h2>
+  <p><button class="secondary" formaction="/runs/{{.Data.Run.ID}}/image-download">{{T "Download"}}</button> <span class="muted small">{{T "one file as is, several files or folders as a ZIP archive"}}</span></p>
+  <h3 class="mt">{{T "Or restore them on an agent"}}</h3>
   <div class="stack">
     <label>{{T "Restore on agent"}}
-      <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+      <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.Run.AgentID}}selected{{end}}>{{.Label}}</option>{{end}}</select>
     </label>
     <label class="check"><input type="radio" name="mode" value="folder" checked> {{T "Restore into a folder"}}</label>
     <label>{{T "Folder"}} <small>{{T "the original path structure is recreated below it, e.g. D:\\Restore\\C\\Users\\..."}}</small><input name="target" placeholder="{{T "C:\\Restore"}}"></label>

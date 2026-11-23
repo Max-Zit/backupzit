@@ -119,6 +119,28 @@ func sendMail(ctx context.Context, e EmailSettings, subject, body string) error 
 }
 
 func sendMailWith(ctx context.Context, e EmailSettings, subject, body string, atts []attachment) error {
+	return sendMailFull(ctx, e, subject, body, atts, nil)
+}
+
+// mailHeader is an extra header of a message (X-BackupZit-...).
+type mailHeader struct{ Name, Value string }
+
+// maxHeaderValue bounds an extra header value (in runes, before encoding).
+const maxHeaderValue = 200
+
+// headerLine renders an extra header. The values come from users (job
+// names) and from agents (host names, untrusted): they are cut to
+// maxHeaderValue runes and Q-encoded, which encodes every control
+// character, so a line break can never start a header of its own.
+func headerLine(h mailHeader) string {
+	v := h.Value
+	if r := []rune(v); len(r) > maxHeaderValue {
+		v = string(r[:maxHeaderValue])
+	}
+	return h.Name + ": " + mime.QEncoding.Encode("utf-8", v) + "\r\n"
+}
+
+func sendMailFull(ctx context.Context, e EmailSettings, subject, body string, atts []attachment, extra []mailHeader) error {
 	// Addresses go into message headers: whatever path they came from,
 	// line breaks there would let them add headers of their own.
 	for _, a := range append([]string{e.From}, e.To...) {
@@ -171,6 +193,9 @@ func sendMailWith(ctx context.Context, e EmailSettings, subject, body string, at
 	rand.Read(id[:])
 	hdr := fmt.Sprintf("From: BackupZit <%s>\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMessage-ID: <%s@backupzit>\r\nMIME-Version: 1.0\r\n",
 		e.From, strings.Join(e.To, ", "), mime.QEncoding.Encode("utf-8", subject), time.Now().Format(time.RFC1123Z), hex.EncodeToString(id[:]))
+	for _, h := range extra {
+		hdr += headerLine(h)
+	}
 	text := strings.ReplaceAll(strings.ReplaceAll(body, "\r\n", "\n"), "\n", "\r\n")
 	msg := hdr + "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n" + text
 	if len(atts) > 0 {
@@ -198,7 +223,10 @@ func sendMailWith(ctx context.Context, e EmailSettings, subject, body string, at
 	if err := w.Close(); err != nil {
 		return err
 	}
-	return c.Quit()
+	// The server accepted the message with the end of DATA: a failing QUIT
+	// must not count as an error, or the mail is sent again on every pass.
+	_ = c.Quit()
+	return nil
 }
 
 // Notifier sends run alerts and daily reports.
@@ -209,10 +237,15 @@ type Notifier struct {
 	mu        sync.Mutex // one pass at a time
 	send      func(ctx context.Context, e EmailSettings, subject, body string) error
 	sendWith  func(ctx context.Context, e EmailSettings, subject, body string, atts []attachment) error
+	// sendRun sends a run alert with its X-BackupZit headers.
+	sendRun func(ctx context.Context, e EmailSettings, subject, body string, hdr []mailHeader) error
 }
 
 func NewNotifier(store *Store, log *slog.Logger, publicURL func() string) *Notifier {
-	return &Notifier{store: store, log: log, publicURL: publicURL, send: sendMail, sendWith: sendMailWith}
+	return &Notifier{store: store, log: log, publicURL: publicURL, send: sendMail, sendWith: sendMailWith,
+		sendRun: func(ctx context.Context, e EmailSettings, subject, body string, hdr []mailHeader) error {
+			return sendMailFull(ctx, e, subject, body, nil, hdr)
+		}}
 }
 
 func wants(e EmailSettings, status string) bool {
@@ -240,6 +273,7 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 	l := notifyLanguage(e)
 	n.runAlerts(ctx, l, e, n.store.chatSettings(ctx))
 	n.rpoAlerts(ctx, l, e, n.store.chatSettings(ctx), now)
+	n.leftoverAlerts(ctx, l, e, n.store.chatSettings(ctx), now)
 	if e.Enabled {
 		n.scheduledReports(ctx, l, e, now)
 	}
@@ -258,49 +292,71 @@ func (n *Notifier) Pass(ctx context.Context, now time.Time) {
 }
 
 func (n *Notifier) runAlerts(ctx context.Context, l *language, e EmailSettings, chat ChatSettings) {
-	rows, err := n.store.db.Query(ctx, `SELECT id FROM runs WHERE NOT notified AND finished_at IS NOT NULL ORDER BY finished_at LIMIT 50`)
+	// Runs whose chat alerts are still due come first: a backlog of emails
+	// waiting for a broken mail server must not hold them back.
+	rows, err := n.store.db.Query(ctx, `SELECT id, chat_notified FROM runs WHERE NOT notified AND finished_at IS NOT NULL
+		ORDER BY chat_notified, finished_at LIMIT 100`)
 	if err != nil {
 		n.log.Error("pending notifications", "err", err)
 		return
 	}
-	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	type pending struct {
+		ID       int64
+		ChatSent bool
+	}
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (pending, error) {
+		var p pending
+		return p, r.Scan(&p.ID, &p.ChatSent)
+	})
 	if err != nil {
 		return
 	}
-	for _, id := range ids {
-		run, err := n.store.GetRun(ctx, id)
+	mailBroken := false
+	for _, p := range list {
+		run, err := n.store.GetRun(ctx, p.ID)
 		if err != nil {
 			continue
 		}
+		mailDone := true
 		if e.Enabled && (wants(e, run.Status) || (run.Anomaly != "" && e.OnFailure)) {
-			subject, body := n.runMessage(l, run)
-			if err := n.send(ctx, e, subject, body); err != nil {
-				// Leave unhandled to retry on the next pass; stop to avoid
-				// hammering a broken mail server.
-				n.log.Warn("send run notification", "run", id, "err", err)
-				return
-			}
-			n.log.Info("notification sent", "run", id, "status", run.Status)
-		}
-		// Chat and webhooks: best effort, a failing channel does not hold
-		// back the others or later runs.
-		for _, c := range chat.Channels {
-			if !c.wantsStatus(run.Status, run.Anomaly != "") {
-				continue
-			}
-			if err := n.sendChat(ctx, l, c, run); err != nil {
-				n.log.Warn("send chat notification", "run", id, "channel", c.Name, "err", err)
+			if mailBroken {
+				mailDone = false
+			} else {
+				subject, body := n.runMessage(l, run)
+				if err := n.sendRun(ctx, e, subject, body, runHeaders(run)); err != nil {
+					// Retried on the next pass; no more mail this pass, so a
+					// broken mail server is not hammered. Chat goes on.
+					n.log.Warn("send run notification", "run", p.ID, "err", err)
+					mailBroken, mailDone = true, false
+				} else {
+					n.log.Info("notification sent", "run", p.ID, "status", run.Status)
+				}
 			}
 		}
-		_, _ = n.store.db.Exec(ctx, `UPDATE runs SET notified=true WHERE id=$1`, id)
+		// Chat and webhooks: once, best effort; a failing channel does not
+		// hold back the others, later runs or the email.
+		if !p.ChatSent {
+			for _, c := range chat.Channels {
+				if !c.wantsStatus(run.Status, run.Anomaly != "") {
+					continue
+				}
+				if err := n.sendChat(ctx, l, c, run); err != nil {
+					n.log.Warn("send chat notification", "run", p.ID, "channel", c.Name, "err", err)
+				}
+			}
+			_, _ = n.store.db.Exec(ctx, `UPDATE runs SET chat_notified=true WHERE id=$1`, p.ID)
+		}
+		if mailDone {
+			_, _ = n.store.db.Exec(ctx, `UPDATE runs SET notified=true WHERE id=$1`, p.ID)
+		}
 	}
 }
 
 func kindName(k string) string {
 	return map[string]string{
 		api.KindBackup: "Backup", api.KindRestore: "Restore", api.KindImageBackup: "Image backup",
-		api.KindImageRestore: "Image restore", api.KindImageFileRestore: "File restore from image", api.KindVMBackup: "VM backup", api.KindVMRestore: "VM restore", api.KindAgentUpdate: "Agent update", api.KindAgentLog: "Agent log", api.KindAgentUninstall: "Agent uninstall", api.KindRepoCheck: "Data check", api.KindRepoScan: "Find backups", api.KindSystemBackup: "System backup", api.KindSystemRestore: "System restore", api.KindVMFileRestore: "File restore from VM", api.KindVMInstant: "Instant VM recovery", api.KindVMInstantFinish: "Instant recovery finish", api.KindVMInstantDiscard: "Instant recovery discard", api.KindVMReplica: "Replication", api.KindVMReplicaStart: "Replica start", api.KindSQLBackup: "Database backup", api.KindSQLLog: "Database log backup", api.KindSQLRestore: "Database restore",
-		api.KindCopy: "Backup copy", api.KindVerify: "Restore test",
+		api.KindImageRestore: "Image restore", api.KindImageFileRestore: "File restore from image", api.KindVMBackup: "VM backup", api.KindVMRestore: "VM restore", api.KindAgentUpdate: "Agent update", api.KindAgentLog: "Agent log", api.KindAgentUninstall: "Agent uninstall", api.KindRepoCheck: "Data check", api.KindRepoRepair: "Data repair", api.KindRepoScan: "Find backups", api.KindSystemBackup: "System backup", api.KindSystemRestore: "System restore", api.KindVMFileRestore: "File restore from VM", api.KindVMInstant: "Instant VM recovery", api.KindVMInstantFinish: "Instant recovery finish", api.KindVMInstantDiscard: "Instant recovery discard", api.KindVMReplica: "Replication", api.KindVMReplicaStart: "Replica start", api.KindSQLBackup: "Database backup", api.KindSQLLog: "Database log backup", api.KindSQLRestore: "Database restore",
+		api.KindCopy: "Backup copy", api.KindVerify: "Restore test", api.KindLeftoverCleanup: "Leftover clean-up",
 	}[k]
 }
 
@@ -345,11 +401,13 @@ func (n *Notifier) runMessage(l *language, r Run) (string, string) {
 }
 
 func (n *Notifier) dailyReport(ctx context.Context, l *language, e EmailSettings, now time.Time) error {
-	runs, err := n.store.ListRuns(ctx, RunFilter{Limit: 1000})
+	// All runs of the last 24 hours, selected in SQL: a busy console (log
+	// backups every few minutes) has more than any fixed number of runs.
+	since := now.Add(-24 * time.Hour)
+	runs, err := n.store.ListRuns(ctx, RunFilter{Since: since, Limit: 1_000_000})
 	if err != nil {
 		return err
 	}
-	since := now.Add(-24 * time.Hour)
 	count := map[string]int{}
 	var problems []Run
 	for _, r := range runs {
@@ -368,7 +426,7 @@ func (n *Notifier) dailyReport(ctx context.Context, l *language, e EmailSettings
 	var offline []string
 	for _, a := range agents {
 		if !a.Online() && !a.Recovery {
-			offline = append(offline, a.Hostname)
+			offline = append(offline, a.Name())
 		}
 	}
 	state := reportState(l, count[api.StatusFailed] > 0 || len(offline) > 0, count[api.StatusWarning] > 0)
@@ -412,4 +470,23 @@ func notifyLanguage(e EmailSettings) *language {
 		return l
 	}
 	return languages[0]
+}
+
+// runHeaders are the language-independent headers of a run alert, for mail
+// filters: the subject is translated, these are not. A suspicious run is
+// marked separately, so a filter on "success" cannot hide it.
+func runHeaders(r Run) []mailHeader {
+	h := []mailHeader{{"X-BackupZit-Status", r.Status}, {"X-BackupZit-Kind", r.Kind}, {"X-BackupZit-Run", strconv.FormatInt(r.ID, 10)}}
+	if r.JobName != nil {
+		h = append(h, mailHeader{"X-BackupZit-Job", *r.JobName})
+	}
+	host := r.ReportedHost
+	if host == "" {
+		host = r.Hostname
+	}
+	h = append(h, mailHeader{"X-BackupZit-Host", host}, mailHeader{"X-BackupZit-Agent", r.Hostname})
+	if r.Anomaly != "" {
+		h = append(h, mailHeader{"X-BackupZit-Suspicious", "yes"})
+	}
+	return h
 }

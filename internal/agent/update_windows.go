@@ -25,3 +25,10 @@ func installerCommand(path string) (func() error, error) {
 		return cmd.Process.Release()
 	}, nil
 }
+
+// privateDir: the update folder below ProgramData\backupzit. It is
+// protected like the agent's own folder (owner SYSTEM, access for
+// SYSTEM and Administrators only): the MSI waits there between its
+// checksum check and msiexec, and the folder may have been created by
+// someone else before the agent (M-N10).
+func privateDir(dir string) error { return protectDir(dir) }

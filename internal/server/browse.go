@@ -68,7 +68,7 @@ func (c *repoCache) expire() {
 }
 
 // ErrBrowseLocal means the repository lives on the agent's own disk.
-var ErrBrowseLocal = errors.New("this backup is stored on a local path of the agent; the console can only browse backups on network storage (SFTP, S3 or SMB)")
+var ErrBrowseLocal = errors.New("this backup is stored on a local path of the agent; the console can only browse backups on network storage (SFTP, S3, SMB, Azure or a hardened repository)")
 
 func (c *repoCache) repo(ctx context.Context, t Target, url string) (*repo.Repository, error) {
 	c.mu.Lock()
@@ -244,6 +244,9 @@ func (s *Store) QueueImageFileRestore(ctx context.Context, backupRunID, agentID 
 	}
 	if b.Kind != api.KindImageBackup || b.SnapshotID == "" {
 		return 0, errors.New("run has no disk image")
+	}
+	if b.Expired { // L-7: like the other restores
+		return 0, errors.New("this backup was removed by the retention policy")
 	}
 	if _, err := s.GetAgent(ctx, agentID); err != nil {
 		return 0, errors.New("unknown agent")

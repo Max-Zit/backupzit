@@ -298,11 +298,27 @@ func TestAgentLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	time.Sleep(1100 * time.Millisecond)
-	if n, err := e.store.FailStaleRuns(ctx, time.Second); err != nil || n != 1 {
-		t.Fatalf("fail stale: n=%d err=%v", n, err)
+	// M-1 (0.55): the silence counts from the console's start: right after a
+	// restart the agents get their time to poll again.
+	if ids, err := e.store.FailStaleRuns(ctx, time.Second, time.Now()); err != nil || len(ids) != 0 {
+		t.Fatalf("run failed right after the console started: %v err=%v", ids, err)
+	}
+	if ids, err := e.store.FailStaleRuns(ctx, time.Second, time.Now().Add(-time.Hour)); err != nil || len(ids) != 1 || ids[0] != stale {
+		t.Fatalf("fail stale: %v err=%v", ids, err)
 	}
 	if r, _ := e.store.GetRun(ctx, stale); r.Status != api.StatusFailed {
 		t.Errorf("stale run status %s", r.Status)
+	}
+	// The agent's late result is still taken (the backup exists).
+	if err := e.store.FinishRun(ctx, agentID, stale, api.RunResult{Status: api.StatusSuccess, SnapshotID: strings.Repeat("ab", 32)}); err != nil {
+		t.Fatalf("late result refused: %v", err)
+	}
+	if r, _ := e.store.GetRun(ctx, stale); r.Status != api.StatusSuccess || r.SnapshotID == "" {
+		t.Errorf("late result: %s %q", r.Status, r.SnapshotID)
+	}
+	// A second result for the same run is refused.
+	if err := e.store.FinishRun(ctx, agentID, stale, api.RunResult{Status: api.StatusFailed}); err == nil {
+		t.Error("a finished run accepted another result")
 	}
 }
 
@@ -1090,16 +1106,16 @@ func TestUsersAndRoles(t *testing.T) {
 	}
 	// Create one user per role.
 	for _, role := range []string{"operator", "restore", "viewer"} {
-		_, loc, _ := admin.do("POST", "/users", url.Values{"username": {role + "1"}, "role": {role}, "display_name": {"User " + role},
+		_, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {role + "1"}, "role": {role}, "display_name": {"User " + role},
 			"password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
 		if !strings.Contains(loc, "msg=") {
 			t.Fatalf("create %s: %s", role, loc)
 		}
 	}
-	if _, loc, _ := admin.do("POST", "/users", url.Values{"username": {"short"}, "role": {"viewer"}, "password": {"abc"}, "password2": {"abc"}}); !strings.Contains(loc, "err=") {
+	if _, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"short"}, "role": {"viewer"}, "password": {"abc"}, "password2": {"abc"}}); !strings.Contains(loc, "err=") {
 		t.Error("short password accepted")
 	}
-	if _, loc, _ := admin.do("POST", "/users", url.Values{"username": {"Operator1"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}}); !strings.Contains(loc, "err=") {
+	if _, loc, _ := admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"Operator1"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}}); !strings.Contains(loc, "err=") {
 		t.Error("duplicate (case-insensitive) username accepted")
 	}
 
@@ -1126,8 +1142,16 @@ func TestUsersAndRoles(t *testing.T) {
 
 	op := newClient(t, e)
 	op.login("operator1", "correct-horse-9")
-	if code, _, _ := op.do("POST", "/agents/token", url.Values{}); code != 200 {
+	// H-N2: an agent gets the storage credentials and recovery key of its
+	// jobs, so adding agents is the storage permission's (administrators).
+	if code, _, _ := op.do("POST", "/agents/token", url.Values{}); code != http.StatusForbidden {
 		t.Errorf("operator enrollment token: %d", code)
+	}
+	if code, _, _ := op.do("POST", "/vmware/1/proxies", url.Values{}); code != http.StatusForbidden {
+		t.Errorf("operator further proxies: %d", code)
+	}
+	if code, _, _ := admin.do("POST", "/agents/token", url.Values{}); code != 200 {
+		t.Errorf("admin enrollment token: %d", code)
 	}
 	if code, _, _ := op.do("POST", "/targets", url.Values{"name": {"x"}, "kind": {"local"}, "url": {"/tmp/x"}}); code != http.StatusForbidden {
 		t.Errorf("operator created storage: %d", code)
@@ -1325,7 +1349,7 @@ func TestTwoFactor(t *testing.T) {
 	server.SetClock(e.srv, func() time.Time { return now })
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
-	admin.do("POST", "/users", url.Values{"username": {"ana"}, "role": {"operator"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
+	admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"ana"}, "role": {"operator"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
 
 	ana := newClient(t, e)
 	if !ana.login("ana", "correct-horse-9") {
@@ -1340,10 +1364,10 @@ func TestTwoFactor(t *testing.T) {
 		t.Fatal("setup page lacks secret or QR code")
 	}
 	secret := strings.ReplaceAll(m[1], " ", "")
-	if _, loc, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {"000000"}}); !strings.Contains(loc, "err=") {
+	if _, loc, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {"000000"}, "password": {"correct-horse-9"}}); !strings.Contains(loc, "err=") {
 		t.Error("wrong code enabled 2FA")
 	}
-	code, _, body := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, now)}})
+	code, _, body := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, now)}, "password": {"correct-horse-9"}})
 	recovery := regexp.MustCompile(`<li class="mono">([A-Z2-7]{4}-[A-Z2-7]{4})</li>`).FindAllStringSubmatch(body, -1)
 	if code != 200 || len(recovery) != 10 {
 		t.Fatalf("enable: %d, %d recovery codes", code, len(recovery))
@@ -1528,7 +1552,7 @@ func TestRESTAPI(t *testing.T) {
 	ctx := e.ctx
 	admin := newClient(t, e)
 	admin.login("admin", "admin-pass-123")
-	admin.do("POST", "/users", url.Values{"username": {"mon"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
+	admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"mon"}, "role": {"viewer"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
 	token, _, _ := e.store.CreateEnrollmentToken(ctx, time.Hour)
 	cfg, err := agent.Enroll(ctx, e.ts.URL, token, e.fp, "test")
 	if err != nil {
@@ -1728,6 +1752,12 @@ func TestProxmoxJobs(t *testing.T) {
 	}
 	if r, _ := e.store.GetRun(ctx, runID); r.SnapshotID == "" {
 		t.Fatal("snapshot ID of the VM backup not stored")
+	}
+	// B4 (round 4): the file restore call said "run has no snapshot to
+	// restore" for a VM backup, which has one; it now says where VM backups
+	// are restored.
+	if _, err := e.store.QueueRestore(ctx, runID, a.ID, "/restore", nil, false); err == nil || !strings.Contains(err.Error(), "restored on the run page") {
+		t.Errorf("file restore of a VM backup: %v", err)
 	}
 
 	if _, err := e.store.QueueVMRestore(ctx, runID, a.ID, api.VMRestore{VMID: 999}); err == nil {

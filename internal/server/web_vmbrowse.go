@@ -9,9 +9,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/max-zit/backupzit/internal/api"
@@ -21,7 +21,11 @@ import (
 
 // cachedVMDisk keeps the volumes and opened file systems of a guest disk.
 type cachedVMDisk struct {
-	vols  []vmfs.Volume
+	vols []vmfs.Volume
+	// mu guards fss: two browse or download requests of the same disk at
+	// once used to write the map together ("concurrent map writes" ends
+	// the whole console).
+	mu    sync.Mutex
 	fss   map[string]vmfs.FS
 	disk  string
 	disks []string
@@ -87,6 +91,8 @@ func (c *cachedVMDisk) fs(volID string) (vmfs.Volume, vmfs.FS, error) {
 	if err != nil {
 		return v, nil, err
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if f, ok := c.fss[v.ID]; ok {
 		return v, f, nil
 	}
@@ -124,6 +130,16 @@ func (s *Server) vmBrowseParams(r *http.Request) (vmBrowseParams, error) {
 	return p, nil
 }
 
+// hasVolume tells whether id names one of vols.
+func hasVolume(vols []vmfs.Volume, id string) bool {
+	for _, v := range vols {
+		if v.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func vmCrumbs(dir string) []crumb {
 	out := []crumb{{Name: "/", Path: "/"}}
 	cur := ""
@@ -142,6 +158,15 @@ func (s *Server) handleVMBrowse(w http.ResponseWriter, r *http.Request, user str
 	if errors.Is(err, ErrNotFound) {
 		http.NotFound(w, r)
 		return
+	}
+	if d := vmDetails(p.run); d != nil {
+		for _, g := range d.Guests {
+			// LXC containers on ZFS are files in the snapshot's tree, not disks.
+			if g.VMID == p.vmid && g.Files > 0 && g.Path != "" {
+				http.Redirect(w, r, fileBack(p.run, g.Path), http.StatusSeeOther)
+				return
+			}
+		}
 	}
 	data := map[string]any{"Run": p.run, "VMID": p.vmid, "Path": p.dir, "Crumbs": vmCrumbs(p.dir)}
 	// Proxmox guests are known by their ID, Hyper-V and VMware VMs by name only.
@@ -168,6 +193,14 @@ func (s *Server) handleVMBrowse(w http.ResponseWriter, r *http.Request, user str
 			var v vmfs.Volume
 			var f vmfs.FS
 			v, f, err = c.fs(p.volume)
+			if err != nil && p.volume != "" && !hasVolume(c.vols, p.volume) {
+				// The form sends the partition of the disk shown before
+				// when only the disk is changed ("no volume p3", B10):
+				// start at the first browsable partition of this disk.
+				p.volume, p.dir = "", "/"
+				data["Path"], data["Crumbs"] = p.dir, vmCrumbs(p.dir)
+				v, f, err = c.fs("")
+			}
 			data["Volume"] = v
 			if err == nil {
 				var entries []vmfs.Entry
@@ -215,7 +248,15 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 		redirectErr(w, r, vmBack(p), err)
 		return
 	}
-	s.audit(r, "restore.download", "%d paths from guest %d (%s) of backup #%d", len(sel), p.vmid, v.ID, p.run.ID)
+	// Find every ticked entry before anything is sent: a read error must
+	// show as a message, not as a broken download.
+	for _, sp := range sel {
+		if _, err := f.Stat(sp); err != nil {
+			redirectErr(w, r, vmBack(p), err)
+			return
+		}
+	}
+	s.audit(r, "restore.download", "%d paths from guest %d (%s) of backup #%d: %s", len(sel), p.vmid, v.ID, p.run.ID, auditPaths(sel))
 	if len(sel) == 1 {
 		if e, err := f.Stat(sel[0]); err == nil && !e.IsDir {
 			rd, size, err := f.ReadFile(vmfs.Clean(sel[0]))
@@ -223,38 +264,46 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 				redirectErr(w, r, vmBack(p), err)
 				return
 			}
-			w.Header().Set("Content-Type", "application/octet-stream")
-			w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(vmfs.Base(sel[0])))
-			w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
-			_, _ = io.Copy(w, rd)
+			setAttachment(w, vmfs.Base(sel[0]), "application/octet-stream", size)
+			if _, err := io.Copy(w, rd); err != nil {
+				s.abortDownload("guest file", err)
+			}
 			return
 		}
 	}
 	name := fmt.Sprintf("vm%d-%s.zip", p.vmid, time.Now().Format("20060102-1504"))
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(name))
+	setAttachment(w, name, "application/zip", -1)
 	zw := zip.NewWriter(w)
-	defer zw.Close()
 	base := p.dir
-	var add func(e vmfs.Entry) error
-	add = func(e vmfs.Entry) error {
+	// A folder already in the archive (a loop in a damaged or crafted file
+	// system) is not walked again (P6).
+	seen := vmfs.Visited{}
+	var add func(e vmfs.Entry, depth int) error
+	add = func(e vmfs.Entry, depth int) error {
 		if err := r.Context().Err(); err != nil {
 			return err
+		}
+		if depth > vmfs.MaxDepth {
+			return fmt.Errorf("%s: more than %d folders deep (damaged file system?)", e.Path, vmfs.MaxDepth)
 		}
 		rel := strings.TrimPrefix(strings.TrimPrefix(e.Path, base), "/")
 		if rel == "" {
 			rel = vmfs.Base(e.Path)
 		}
+		rel = zipEntryName(rel)
 		if e.IsDir {
+			if !seen.Enter(e.ID) {
+				return nil
+			}
 			children, err := f.List(e.Path)
 			if err != nil {
-				return nil
+				return err
 			}
 			if len(children) == 0 {
 				_, _ = zw.CreateHeader(&zip.FileHeader{Name: rel + "/", Modified: e.ModTime})
 			}
 			for _, ch := range children {
-				if err := add(ch); err != nil {
+				if err := add(ch, depth+1); err != nil {
 					return err
 				}
 			}
@@ -262,9 +311,9 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 		}
 		rd, _, err := f.ReadFile(e.Path)
 		if err != nil {
-			return nil
+			return err
 		}
-		zf, err := zw.CreateHeader(&zip.FileHeader{Name: path.Clean(rel), Method: zip.Deflate, Modified: e.ModTime})
+		zf, err := zw.CreateHeader(&zip.FileHeader{Name: rel, Method: zip.Deflate, Modified: e.ModTime})
 		if err != nil {
 			return err
 		}
@@ -273,13 +322,17 @@ func (s *Server) handleVMDownload(w http.ResponseWriter, r *http.Request, user s
 	}
 	for _, sp := range sel {
 		e, err := f.Stat(sp)
+		if err == nil {
+			e.Path = vmfs.Clean(sp)
+			seen = vmfs.Visited{}
+			err = add(e, 0)
+		}
 		if err != nil {
-			continue
+			s.abortDownload("guest archive", err)
 		}
-		e.Path = vmfs.Clean(sp)
-		if add(e) != nil {
-			return
-		}
+	}
+	if err := zw.Close(); err != nil {
+		s.abortDownload("guest archive", err)
 	}
 }
 

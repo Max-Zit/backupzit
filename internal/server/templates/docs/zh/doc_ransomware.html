@@ -26,10 +26,11 @@
 <ol>
   <li>创建一个<b>启用 Object Lock</b> 的存储桶（AWS、Wasabi、Backblaze B2、MinIO：<code>mc mb --with-lock</code>）。</li>
   <li>添加一条生命周期规则，在 1 天后删除<i>非当前版本</i>（noncurrent versions）（MinIO：<code>mc ilm rule add --noncurrent-expire-days 1 --expire-delete-marker</code>）。</li>
-  <li>添加 S3 目标并勾选 <b>N 天内不可变备份</b>。N 至少应与您需要保护的最长保留期一样长，例如 30。</li>
+  <li>为存储桶设置合规（compliance）模式下至少 N 天的默认保留期（MinIO：<code>mc retention set --default COMPLIANCE 30d</code>），这样即使被入侵的计算机写入对象时不加锁，对象也会被锁定；如果未设置默认保留期或保留期更短，<b>测试连接</b>会发出警告。</li>
+  <li>添加 S3 目标并勾选 <b>N 天内不可变备份</b>。N 至少应与备份必须保持受保护的时间一样长，例如 30。</li>
 </ol>
-<p>每个还原点在创建后至少锁定 N 天；与较新备份共享的数据会自动延长锁定期。</p>
-<p id="lock-retained">每次备份后，代理会延长作业保留策略仍保留的所有数据的锁定，而不仅是新备份复用的数据：保留一年的月度备份在这一年内都保持锁定。这适用于 S3 Object Lock 和加固存储库。缩短保留期以释放空间时，空间要等现有锁定到期后才会释放，最多晚一个半锁定期。</p>
+<p>每个还原点在创建后至少锁定 N 天；每次备份后，代理会延长作业保留策略仍保留的所有数据的锁定。</p>
+<p id="lock-retained">每次备份后，代理会延长作业保留策略仍保留的所有数据的锁定，而不仅是新备份复用的数据：保留一年的月度备份在这一年内都保持锁定。这适用于 S3 Object Lock 和加固存储库。缩短保留期以释放空间时，空间要等现有锁定到期后才会释放，最多晚一个半锁定期。 如果存储在重试后仍未对某些文件作出响应，这些文件保留当前锁定，运行会给出带数量的警告，下一次备份会再次尝试；其他所有文件照常延长。</p>
 
 <h2>加固存储库</h2>
 <p>一台运行 <code>backupzit-repo</code> 的专用 Linux 服务器：</p>

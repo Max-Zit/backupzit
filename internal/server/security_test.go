@@ -38,8 +38,13 @@ func TestLoginGuard(t *testing.T) {
 	}
 	g.Fail(r, "admin", "sign-ins")
 	g.Success(r, "admin")
-	if g.fails["ip:10.0.0.9"] != nil || g.fails[userKey("admin")] != nil {
-		t.Errorf("success did not reset: %v", g.fails)
+	if g.fails[userKey("admin")] != nil {
+		t.Errorf("success did not reset the username: %v", g.fails)
+	}
+	// The address keeps its count (L-3): one valid account must not reset
+	// it between guesses at other usernames.
+	if g.fails["ip:10.0.0.9"] == nil {
+		t.Error("success reset the failures of the address")
 	}
 
 	// Client address behind trusted proxies.

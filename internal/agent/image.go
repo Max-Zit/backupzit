@@ -148,7 +148,7 @@ func (a *Agent) imageFileRestore(ctx context.Context, run api.Run) api.RunResult
 	if err != nil {
 		return failed(err)
 	}
-	st, err := v.Extract(ctx, run.Includes, dest, nil)
+	st, err := v.ExtractBelow(ctx, run.Includes, run.RestoreTarget, dest, nil)
 	if err != nil {
 		return failed(err)
 	}

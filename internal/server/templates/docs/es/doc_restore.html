@@ -14,7 +14,7 @@
       <li>archivos de una imagen de disco</li>
       <li>una base de datos (a un momento concreto)</li>
       <li>un sistema Linux completo</li>
-      <li>correo de Microsoft 365 y OneDrive (consulte <a href="/docs/m365">Microsoft 365</a>)</li>
+      <li>correo de Microsoft 365, OneDrive, calendarios y contactos y archivos de SharePoint (consulte <a href="/docs/m365">Microsoft 365</a>)</li>
     </ul>
     Cada opción muestra cuántos puntos de restauración hay.</li>
   <li><b>Origen</b>: la máquina virtual (en todos los hipervisores y trabajos), o el trabajo de copia y su equipo.</li>
@@ -36,7 +36,7 @@
   <li>Elija dónde:
     <ul>
       <li><b>Restaurar en una carpeta</b> (recomendado): p. ej. <code>D:\Restore</code>. Debajo se recrea la estructura original: <code>D:\Restore\C\Users\ana\Documents\…</code>. No se toca nada existente.</li>
-      <li><b>Restaurar en la ubicación original</b>: escribe los archivos donde estaban, <b>sobrescribiendo</b> las versiones actuales. En un recurso NAS, el agente vuelve a conectar el recurso con escritura.</li>
+      <li><b>Restaurar en la ubicación original</b>: escribe los archivos donde estaban, <b>sobrescribiendo</b> las versiones actuales. En un recurso NAS, el agente vuelve a conectar el recurso con escritura. Los archivos dispersos (imágenes de VM, bases de datos) vuelven como dispersos. En Windows solo se vuelve a marcar como disperso un archivo que lo era; los demás, como los discos VHD/VHDX (Hyper-V rechaza los dispersos), vuelven como archivos normales, igual que todos los archivos de copias hechas con agentes anteriores a 0.57, que no registraban el atributo. Nunca se escribe a través de un enlace simbólico o una unión (junction) que esté en el camino: al restaurar en una carpeta se sustituye por una carpeta, y toda restauración escribe solo en las carpetas que abrió, aunque aparezca un enlace mientras se ejecuta (0.58: también en copias de archivos y en la ubicación original; la raíz de un volumen como / o C: no se puede elegir como carpeta para archivos de copias de VM y de imagen). En la ubicación original solo se siguen los enlaces del sistema (propiedad de root o del usuario del agente en Linux; de SYSTEM, TrustedInstaller o un administrador en Windows; y que nadie más puede cambiar ni sustituir: los antiguos enlaces de compatibilidad de los perfiles de usuario, como <i>Application Data</i>, no se siguen); un enlace a una carpeta que no existe es un error y no se crea nada donde apunta. El propietario, los permisos y los atributos se establecen en el propio archivo restaurado, nunca a través de un enlace puesto en su lugar.</li>
     </ul>
   </li>
   <li>Opcionalmente limite a <b>Solo estas rutas</b>, una por línea, p. ej. <code>C:\Users\ana\Documents\Contracts</code>, o elíjalas en el explorador de archivos (abajo).</li>
@@ -57,10 +57,11 @@
 <div class="callout tip"><p><b>Encontrar la copia correcta:</b> use el <a href="/calendar">Calendario</a> para ver qué copias se ejecutaron cada día, o el historial de la página del trabajo.</p></div>
 
 <h2>Restaurar archivos sueltos de una imagen de disco</h2>
-<p>En las copias de imagen, haga clic en <b>Examinar archivos</b> en la ejecución de copia. Puede recorrer el sistema de archivos NTFS de la imagen directamente en la consola, marcar archivos y carpetas y restaurarlos en cualquier agente, sin restaurar el disco completo. Al restaurar en una carpeta, los archivos tienen la misma estructura que desde una copia de archivos: la letra de unidad pasa a ser la primera carpeta (<code>D:RestoreCUsers…</code>).</p>
+<p>En las copias de imagen, haga clic en <b>Examinar archivos</b> en la ejecución de copia. Puede recorrer el sistema de archivos NTFS de la imagen directamente en la consola, marcar archivos y carpetas y restaurarlos en cualquier agente, sin restaurar el disco completo. Al restaurar en una carpeta, los archivos tienen la misma estructura que desde una copia de archivos: la letra de unidad pasa a ser la primera carpeta (<code>D:\Restore\C\Users\…</code>).</p>
+<p>También puede <b>descargar</b> los archivos marcados directamente en el navegador: un archivo llega tal cual, varios archivos o carpetas en un archivo ZIP — práctico para un solo documento de una copia de imagen grande. Como la exploración, funciona para copias de imagen en almacenamiento de red, requiere el permiso <b>Restaurar</b>, y el registro de auditoría guarda qué rutas se descargaron.</p>
 
 <h2>Restaurar archivos sueltos de una VM (Proxmox VE, Hyper-V, VMware)</h2>
-<p>En una ejecución de copia de VM, haga clic en <b>Examinar archivos</b> junto al invitado. La consola muestra las particiones y volúmenes LVM de sus discos y permite explorar sistemas de archivos NTFS, ext4 y XFS. <b>Descargue</b> los archivos marcados (varios como archivo ZIP) o restáurelos en cualquier agente. Consulte <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> y <a href="/docs/vmware">VMware ESXi</a>. Los archivos restaurados en un agente conservan los permisos Unix que tenían en la VM (ext4, XFS), así que los secretos restaurados como <code>/etc/shadow</code> siguen siendo privados; en Linux, los archivos de volúmenes NTFS solo los puede leer su propietario.</p>
+<p>En una ejecución de copia de VM, haga clic en <b>Examinar archivos</b> junto al invitado. La consola muestra las particiones y volúmenes LVM de sus discos y permite explorar sistemas de archivos NTFS, ext4 y XFS. <b>Descargue</b> los archivos marcados (varios como archivo ZIP) o restáurelos en cualquier agente. Consulte <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> y <a href="/docs/vmware">VMware ESXi</a>. Los archivos restaurados en un agente conservan los permisos Unix que tenían en la VM (ext4, XFS), así que los secretos restaurados como <code>/etc/shadow</code> siguen siendo privados; en Linux, los archivos de volúmenes NTFS solo los puede leer su propietario. Al restaurar en un agente Windows, los nombres con <code>:</code> de invitados Linux (ext4, XFS) se omiten y se enumeran: Windows leería la parte tras los dos puntos como un flujo de otro archivo. Los flujos de datos alternativos de NTFS se restauran como flujos.</p>
 
 <h2>Restaurar equipos completos</h2>
 <ul>
@@ -84,15 +85,16 @@
       <li>Opcionalmente copie la ISO en el directorio <code>/var/lib/backupzit/dist</code> de la consola; entonces se ofrece en la página Medios de recuperación.</li>
     </ol></li>
 </ul>
-<p>Explorar archivos en la consola funciona con copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); la consola las lee directamente. Para copias en un disco local de un agente, use la línea de comandos.</p>
+<p>Explorar archivos en la consola funciona con copias en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado); la consola las lee directamente. Para copias en un disco local de un agente, o en SFTP con una clave SSH, una restauración con <i>Solo estas rutas</i> sigue funcionando desde la consola; para ver su contenido, use la línea de comandos.</p>
 
 <h2>Restaurar sin la consola</h2>
 <p>Si se pierde la propia consola, cualquier equipo con el agente instalado puede restaurar directamente desde el almacenamiento con la <b>hoja de recuperación</b> del destino de almacenamiento:</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (the SFTP host key, on the recovery sheet)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>Consulte <a href="/docs/cli">Referencia de la línea de comandos</a>.</p>
+<p><code>latest</code> es la copia más reciente de cualquier trabajo de ese equipo; para restaurar un trabajo concreto, use un ID de instantánea de <code>snapshots</code>. Consulte <a href="/docs/cli">Referencia de la línea de comandos</a>.</p>
 
 <h2>Pruebas de restauración automáticas</h2>
 <p>BackupZit pone a prueba sus copias con regularidad sin que tenga que hacer nada: cada semana (configurable en <a href="/settings/tests">Configuración → Pruebas de restauración</a>) el agente de cada trabajo restaura una <b>muestra aleatoria de archivos</b> de la copia más reciente en una carpeta temporal, verifica cada byte con las sumas de comprobación guardadas y vuelve a borrarla. En las imágenes de disco se leen y verifican bloques aleatorios. Así se comprueba toda la cadena: acceso al almacenamiento, credenciales, clave de cifrado e integridad de los datos.</p>
@@ -110,7 +112,7 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>La página de la ejecución lista cada VM con su resultado y cuánto tardó en arrancar.</li>
 </ul>
 <h3 id="data-check">Verificación de todos los datos guardados</h3>
-<p>Las pruebas de restauración leen una muestra. Además, un agente lee <b>todos</b> los datos de cada repositorio, los verifica con su suma de comprobación y comprueba que las carpetas y datos de cada copia estén presentes — una vez al mes por defecto (Configuración → Pruebas de restauración: <b>Verificar los datos guardados</b>: mensual, cada tres meses o nunca). Así se detectan daños en el propio almacenamiento, como un disco que falla en un NAS o la degradación de datos, antes de necesitar la copia. Cada repositorio se verifica una vez (los trabajos de un agente en un almacenamiento lo comparten), por el agente que escribe en él. La verificación lee todo lo que contiene el repositorio; en almacenamiento en la nube (S3, Azure) solo se ejecuta con <b>También en almacenamiento en la nube</b>. Los problemas hacen fallar la ejecución <i>Verificación de datos</i> y envían una notificación de fallo; <b>Verificar datos</b> en la página de un trabajo inicia una verificación al momento. Requiere agentes 0.39.0 o posteriores.</p>
+<p>Las pruebas de restauración leen una muestra. Además, un agente lee <b>todos</b> los datos de cada repositorio, los verifica con su suma de comprobación y comprueba que las carpetas y datos de cada copia estén presentes — una vez al mes por defecto (Configuración → Pruebas de restauración: <b>Verificar los datos guardados</b>: mensual, cada tres meses o nunca). Así se detectan daños en el propio almacenamiento, como un disco que falla en un NAS o la degradación de datos, antes de necesitar la copia. Cada repositorio se verifica una vez (los trabajos de un agente en un almacenamiento lo comparten), por el agente que escribe en él. La verificación lee todo lo que contiene el repositorio; en almacenamiento en la nube (S3, Azure) solo se ejecuta con <b>También en almacenamiento en la nube</b>. Los problemas hacen fallar la ejecución <i>Verificación de datos</i> y envían una notificación de fallo; <b>Verificar datos</b> en la página de un trabajo inicia una verificación al momento. Requiere agentes 0.39.0 o posteriores. En S3, Azure y almacenamiento reforzado la verificación lee varios paquetes de datos a la vez (agentes 0.54.2 y posteriores). Una verificación que encuentra paquetes de datos dañados ofrece <b>Reparación</b> en la página de su ejecución (<a href="/docs/troubleshooting#repair">Solución de problemas</a>).</p>
 <p>Además, restaure de vez en cuando (p. ej. cada trimestre) una carpeta real a mano y abra algunos archivos; así también se entrena a las personas que tendrán que hacerlo en una emergencia.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

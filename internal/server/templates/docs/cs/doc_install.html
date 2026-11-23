@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>kontrolní součty obrazů a ISO</td></tr>
 </table>
 <p>Balíčky (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, agenti) jsou uvedeny na stránce vydání. Obrazy mají každý zhruba 1,5 GB. Stažený soubor ověřte příkazem <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) nebo <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+<p>Chcete-li ověřit, že samotné kontrolní součty pocházejí od BackupZit, ověřte nejprve podpis <code>SHA256SUMS.sig</code> klíčem vydání (OpenSSL 3); <code>release-files.sha256</code> a <code>release-files.sha256.sig</code> slouží ke stejnému účelu pro <code>install.sh</code>, <code>build-winpe.ps1</code> a ISO pro obnovu.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Hotový obraz VM</h2>
 <p>Hotová appliance (Debian, PostgreSQL, konzole, automatické bezpečnostní aktualizace), která naběhne za méně než minutu a nepotřebuje přístup k internetu:</p>
@@ -53,14 +58,14 @@
 <p>Appliance má dva oddělené účty:</p>
 <ul>
   <li><b>admin</b> ve webové konzoli (<code>https://&lt;address&gt;:8443</code>) pro každodenní práci. Jeho počáteční heslo se po prvním spuštění zobrazí na obrazovce serveru; změňte ho v části <b>Můj účet</b>.</li>
-  <li><b>bzadmin</b> přímo na serveru (jeho obrazovka v konzoli hypervizoru, nebo SSH), počáteční heslo <code>backupzit</code>. Při prvním přihlášení ho musíte změnit; uživatel může používat <code>sudo</code>. Root se přihlásit nemůže.</li>
+  <li><b>bzadmin</b> přímo na serveru (jeho obrazovka v konzoli hypervizoru, nebo SSH), počáteční heslo zobrazené na obrazovce serveru (od 0.56 náhodné pro každé zařízení; dříve <code>backupzit</code>). Při prvním přihlášení ho musíte změnit; uživatel může používat <code>sudo</code>. Root se přihlásit nemůže.</li>
 </ul>
 <p>Aktualizace BackupZit a operačního systému se spravují z konzole (viz níže). VMware Tools a agent hosta QEMU jsou součástí, takže hypervizory zobrazují adresu appliance.</p>
 <h3 id="setup-menu">Nabídka nastavení na obrazovce serveru</h3>
 <p>Když se bzadmin přihlásí na vlastní obrazovce serveru (ne přes SSH), otevře se nabídka:</p>
 <table>
   <tr><th>Položka</th><th>Co dělá</th></tr>
-  <tr><td>1 Network</td><td>DHCP nebo statická adresa s délkou prefixu (např. <code>192.168.1.20/24</code>), brána a až tři servery DNS. S DHCP dodá servery DNS server DHCP, pokud nezadáte vlastní.</td></tr>
+  <tr><td>1 Network</td><td>DHCP nebo statická adresa s délkou prefixu (např. <code>192.168.1.20/24</code>), brána a až tři servery DNS. S DHCP dodá servery DNS server DHCP; chcete-li s DHCP použít vlastní, nastavte je později v Nastavení → Síť.</td></tr>
   <tr><td>2 Server name</td><td>Název hostitele (písmena, číslice a -).</td></tr>
   <tr><td>3 SSH</td><td>Zapne nebo vypne server SSH a změní jeho port. Porty konzole (80, 443, 8443), PostgreSQL (5432) a okamžité obnovy (111, 2049) použít nelze.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Pro zapomenuté heslo webové konzole; zruší také blokování přihlášení. Obrazovka pak přestane zobrazovat vygenerované počáteční heslo (stejně tak od dalšího spuštění poté, co se heslo admina změní ve webové konzoli).</td></tr>
@@ -109,7 +114,8 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>docker compose up -d
 docker compose exec backupzit backupzit-server --initial-password</pre>
 <p>Otevřete <code>https://&lt;host&gt;:8443</code> a přihlaste se jako <code>admin</code> tímto heslem. Databáze a data konzole (klíč tajemství, certifikát, instalátory agentů) jsou ve svazcích <code>db</code> a <code>data</code>; zálohujte oba, nebo použijte <a href="#console-backup">zálohu konzole</a>. Agenty instalujete na počítače jako obvykle; připojují se k portu 8443 hostitele. Pro místní disk jako cíl připojte do kontejneru složku hostitele (viz komentář v souboru) a použijte cestu uvnitř kontejneru.</p>
-<p><b>Aktualizace:</b> konzole hledá nové verze a ukazuje je v Settings → Updates s příkazy ke spuštění ve složce souboru: <code>docker compose pull</code> a <code>docker compose up -d</code> (značka <code>latest</code> sleduje oficiální verze, <code>testing</code> kandidáty; nastavte <code>BACKUPZIT_TAG</code> v <code>.env</code>, chcete-li zůstat u jedné verze). Než nová verze změní databázi, uloží kopii konzole do <code>pre-upgrade</code> ve svazku dat (poslední tři). Návrat: nastavte <code>BACKUPZIT_TAG</code> na předchozí verzi, spusťte <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;složka&gt;</code> se složkou kopie, pak <code>docker compose up -d</code>. Agenty se aktualizují z konzole jako vždy. V kontejneru se nezobrazují nastavení appliance (síť, aktualizace systému, SSH): patří Docker hostiteli.</p>
+<p><b>Aktualizace:</b> konzole hledá nové verze a ukazuje je v Nastavení → Aktualizace s příkazy ke spuštění ve složce souboru: <code>docker compose pull</code> a <code>docker compose up -d</code> (značka <code>latest</code> sleduje oficiální verze, <code>testing</code> kandidáty; nastavte <code>BACKUPZIT_TAG</code> v <code>.env</code>, chcete-li zůstat u jedné verze). Než nová verze změní databázi, uloží kopii konzole do <code>pre-upgrade</code> ve svazku dat (poslední tři). Návrat: nastavte <code>BACKUPZIT_TAG</code> na předchozí verzi, spusťte <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;složka&gt;</code> se složkou kopie, pak <code>docker compose up -d</code>. Agenty se aktualizují z konzole jako vždy. V kontejneru se nezobrazují nastavení appliance (síť, aktualizace systému, SSH): patří Docker hostiteli.</p>
+<p id="docker-logs"><b>Protokoly:</b> <code>docker compose logs -f backupzit</code> zobrazí protokol konzole. Stejný protokol se ukládá jako <code>logs/server.log</code> ve svazku dat a je součástí souboru ke stažení v <a href="/settings/diagnostics">Nastavení → Diagnostika</a>. Obraz nemá shell; <code>docker compose run --rm backupzit --restore-pre-upgrade list</code> vypíše kopie pořízené před aktualizacemi, od nejnovější.</p>
 
 <h2 id="first">První přihlášení</h2>
 <p>Otevřete <code>https://&lt;server&gt;:8443</code>. Počátečním správcem je <b>admin</b>; heslo je v <code>/var/lib/backupzit/initial-admin-password.txt</code> (nebo před prvním spuštěním nastavte <code>BACKUPZIT_ADMIN_PASSWORD</code>). Po přihlášení ho změňte. Zapomenuté heslo obnovíte na serveru takto:</p>
@@ -146,6 +152,11 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>443/tcp</td><td>agenti, konzole</td><td>Azure / cloudové úložiště</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
   <tr><td>636/tcp (389 se StartTLS)</td><td>konzole</td><td>řadiče domény</td><td>přihlášení přes LDAP / Active Directory</td></tr>
   <tr><td>587/465/25</td><td>konzole</td><td>poštovní server</td><td>e-mailová oznámení</td></tr>
+  <tr><td>443/tcp (22/tcp u bezplatné licence)</td><td>konzole, proxy agent</td><td>hostitelé ESXi, vCenter</td><td>VMware: seznam VM, snímky, čtení disků a obnovy</td></tr>
+  <tr><td>2049/tcp, 111/tcp+udp</td><td>hostitelé ESXi</td><td>proxy agent</td><td>VMware: okamžitá obnova (agent poskytuje zálohu jako datastore NFS)</td></tr>
+  <tr><td>443/tcp</td><td>agent úlohy Microsoft 365</td><td>graph.microsoft.com, login.microsoftonline.com</td><td>zálohy Microsoft 365</td></tr>
+  <tr><td>514/udp nebo tcp, 6514/tcp (TLS)</td><td>konzole</td><td>server syslog / SIEM</td><td>volitelně: export protokolu auditu (port, který zadáte)</td></tr>
+  <tr><td>443/tcp</td><td>konzole</td><td>github.com a jeho servery pro stahování</td><td>kontrola a stahování aktualizací z výchozího zdroje aktualizací; agenti dostávají aktualizace od konzole</td></tr>
 </table>
 <p>Konzole se k úložišti připojuje i sama, abyste mohli procházet soubory v obrazech disků a zálohách VM (a stahovat je), takže potřebuje stejný přístup k úložišti jako agenti.</p>
 
@@ -153,13 +164,14 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Ve výchozím stavu konzole stahuje aktualizace z oficiálních vydání BackupZit na GitHubu (<code>https://github.com/Max-Zit/backupzit/releases</code>). V <a href="/settings/updates">Nastavení → Aktualizace</a> můžete místo toho zadat jiný <b>zdroj aktualizací</b> — vlastní zrcadlo HTTPS nebo složku na serveru. Ať je zdroj jakýkoli, každé vydání musí mít platný podpis BackupZit. Konzole denně kontroluje nová vydání a pošle správcům e-mail, když je některé k dispozici. Pro instalaci klikněte na <b>Instalovat</b>:</p>
 <p><b>Kandidáti na vydání:</b> každá verze se nejprve zveřejní jako <i>předběžné vydání</i> a otestuje; teprve potom se stane oficiálním vydáním se stejnými soubory. Zdroj aktualizací <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> obsahuje vždy nejnovějšího kandidáta — používejte jej jen na testovací konzoli, protože kandidáta může ještě nahradit opravený. Konzole s výchozím zdrojem dostávají jen schválená vydání.</p>
 <ol>
-  <li>Konzole ověří podpis vydání a kontrolní součet balíčku a počká, až neběží žádná záloha ani obnova.</li>
+  <li>Konzole ověří podpis vydání a kontrolní součet balíčku a odmítne aktualizaci spustit, dokud běží záloha nebo obnova; nainstalujte ji, až skončí.</li>
   <li>Systémová služba (<code>backupzit-update</code>, běží jako root) ověří podpis znovu pomocí klíčů vydání zabudovaných v BackupZit. Ani kompromitovaná konzole tak nemůže nechat nainstalovat jiný balíček.</li>
   <li>Zazálohuje databázi (<code>pg_dump</code>), ponechá si aktuální program, nainstaluje balíček a restartuje konzoli.</li>
   <li>Pokud nová verze do dvou minut neodpoví, předchozí program a databáze v původním stavu se automaticky obnoví. Výsledek s protokolem neúspěšného spuštění se zobrazí na stránce Aktualizace, zapíše se do protokolu auditu a odešle e-mailem.</li>
   <li>Po úspěšné aktualizaci se aktualizují i agenti: každý nainstaluje novou verzi, když je nečinný. Pokud je chcete aktualizovat sami, vypněte to na stejné stránce.</li>
 </ol>
 <p>Konzole je asi minutu nedostupná. Zálohy databáze a předchozí programy z posledních tří aktualizací se uchovávají v <code>/var/lib/backupzit-update</code>.</p>
+<p id="update-banner"><b>Upozornění v konzoli:</b> uživatelé, kteří smějí instalovat aktualizace (správci), vidí novou verzi také nahoře na každé stránce, s tlačítky <i>Instalovat</i> (otevře tuto stránku Nastavení → Aktualizace) a <i>Poznámky k vydání</i>. <b>×</b> je tomuto uživateli skryje na pět dní, v každém prohlížeči; ještě novější verze je hned zobrazí znovu. Ostatní role je nevidí. Na konzoli v Dockeru upozornění místo toho odkazuje na příkazy pro stažení nového image.</p>
 <p><b>Bez přístupu k internetu:</b> stáhněte soubory vydání (<code>manifest.json</code>, <code>manifest.json.sig</code> a balíček serveru) na jiném počítači. Pak je nahrajte v části <i>Nainstalovat aktualizaci ze souborů</i>, nebo je zkopírujte do složky na serveru a tuto složku použijte jako zdroj aktualizací.</p>
 <p>Aktualizovat můžete i nadále správcem balíčků (<code>apt install ./backupzit-server_….deb</code>); databáze se převede při spuštění nové verze.</p>
 
@@ -168,7 +180,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Zapnout automatické bezpečnostní aktualizace</b> (doporučeno). Nástroj samotného systému denně instaluje jen bezpečnostní opravy: <code>unattended-upgrades</code> v Debianu a Ubuntu, <code>dnf-automatic</code> v AlmaLinuxu a Rocky Linuxu.</li>
   <li><b>Nainstalovat nyní všechny aktualizace</b>. Služby jako PostgreSQL se mohou krátce restartovat a konzole se znovu připojí sama.</li>
-  <li><b>Restartovat server</b>, například po aktualizaci jádra. Konzole to odmítne, dokud běží zálohy nebo obnovy. Agenti si ponechají své úlohy a výsledky nahlásí, až bude konzole zpět.</li>
+  <li><b>Restartovat server</b>, například po aktualizaci jádra. Konzole to odmítne, dokud běží zálohy nebo obnovy. Zálohy, jejichž plánovaný čas uplyne během restartu, se spustí, až bude konzole zpět.</li>
 </ul>
 <p>Tyto úlohy běží přes stejnou službu root jako aktualizace konzole. Zaznamenávají se do protokolu auditu a výstup poslední úlohy se zobrazí na stránce.</p>
 
@@ -181,6 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>certifikát konzole, který si agenti připínají.</li>
 </ul>
 <p>Je šifrována klíčem pro obnovení daného cíle a deduplikována. Uchovávají se nejnovější zálohy: ve výchozím stavu 14.</p>
+<p id="console-backup-page">Na stránce zvolte <i>Cílové úložiště</i> (jen síťové úložiště: SFTP, S3, SMB, Azure nebo zabezpečené úložiště; záloha jde tam do složky <code>backupzit-console</code>), hodinu denní zálohy (<i>V</i>, čas konzole) a počet záloh v poli <i>Ponechat</i>. <i>Zálohovat nyní</i> vytvoří zálohu hned. Stránka ukazuje poslední zálohu s její velikostí a adresu repozitáře, kterou potřebujete pro obnovu.</p>
 <h3>Obnova konzole</h3>
 <ol>
   <li>Nainstalujte novou konzoli ve stejné nebo novější verzi, například z ISO appliance.</li>

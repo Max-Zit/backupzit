@@ -1,6 +1,7 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Linux 系统备份和 P2V</h1>
 <p class="lead"><b>Linux 系统</b>作业会备份整台 Linux 机器，以便在空磁盘上重建它 —— 磁盘故障后的同一台机器、新硬件，或 Proxmox VE 中的虚拟机（物理到虚拟，P2V）。</p>
+<p>已在 Debian、Ubuntu 22.04 和 Rocky Linux 9 上测试(AlmaLinux 和 RHEL 9 同样适用)。在 Ubuntu 22.04 和类 RHEL 9 系统上,Linux 系统备份需要 0.50.0 或更新版本的代理。</p>
 
 <h2>备份内容</h2>
 <ul>
@@ -10,15 +11,17 @@
 <p>与 Relax-and-Recover 一样，BackupZit 不会逐块复制正在运行的磁盘：Linux 没有内置的运行中磁盘快照，因此原始复制会不一致。每个文件都被完整读取，而布局信息使还原后的磁盘能够再次引导。数据库应在备份前导出，或使用其自身的工具备份。</p>
 <p>单个文件和文件夹可以像任何文件备份一样从系统备份中还原（运行页面上的 <b>从此备份还原文件</b>）。</p>
 <h3>暂不支持</h3>
-<p>加密磁盘（LUKS）、软件 RAID（mdadm）、btrfs 以及分布在多块磁盘上的系统。作业会明确报告这些情况，而不是创建不完整的备份。</p>
+<p>加密磁盘（LUKS）、软件 RAID（mdadm）和 btrfs：作业会明确报告这些情况，而不是创建不完整的备份。分布在多块磁盘上的系统可以备份，但整个系统还原只重建一块磁盘（命令行中用 <code>--disk</code> 选择）；带有逻辑分区的 MBR 磁盘无法整体还原。作业的<b>排除</b>字段用于排除路径，作用与命令行中的 <code>--exclude</code> 相同。</p>
 
 <h2>还原整个系统</h2>
 <p>打开系统备份的运行（作业页面或 <a href="/runs">活动</a>），使用 <b>还原整个系统</b>：</p>
 <h3>作为新的 Proxmox 虚拟机</h3>
-<p>选择 Proxmox 节点（由其 BackupZit 代理执行）、存储、虚拟机 ID、名称、内存和核心数。BackupZit 会使用与原机相同的固件（UEFI/OVMF 或 BIOS）创建虚拟机，配备 VirtIO SCSI 磁盘和网卡，重建磁盘，还原所有文件，并可启动虚拟机。由于该虚拟机是可与原机并行运行的副本：</p>
+<p>选择 Proxmox 节点（由其 BackupZit 代理执行）、存储、虚拟机 ID、名称、内存（默认 2048 MiB）、核心数（默认 2）和网桥（默认 <code>vmbr0</code>）。BackupZit 会使用与原机相同的固件（UEFI/OVMF 或 BIOS）创建虚拟机，配备 VirtIO SCSI 磁盘和网卡，重建磁盘，还原所有文件，并可启动虚拟机。由于该虚拟机是可与原机并行运行的副本：</p>
 <ul>
   <li>绑定到旧 MAC 地址的网络设置（在云镜像中很常见：netplan <code>match: macaddress</code>）会被改为适用于任意有线接口，</li>
   <li>副本中的 BackupZit 代理会被取消注册，因此不会冒充原机器上报。</li>
+  <li>虚拟机使用 CPU 类型 <code>x86-64-v2-AES</code>,RHEL 9 及其衍生版(Rocky、Alma)需要它才能启动(在不支持该类型的 Proxmox VE 版本上使用默认类型);</li>
+  <li>启用了 SELinux 的系统(RHEL、Rocky、Alma、Fedora)会在首次启动时重新标记其文件,并重启一次。</li>
 </ul>
 <h3>到磁盘</h3>
 <p>还原到 Linux 代理的空磁盘，例如第二块磁盘（<code>/dev/sdb</code>），或还原到新机器本身（裸机）：</p>

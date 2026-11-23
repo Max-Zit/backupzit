@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Máquinas virtuales de Proxmox VE</h1>
-<p class="lead">BackupZit copia máquinas virtuales (QEMU) y contenedores (LXC) de Proxmox VE sin instalar nada dentro de los invitados. El agente se ejecuta en el host Proxmox, toma una instantánea de cada invitado, lee sus discos y los guarda deduplicados en cualquier destino de almacenamiento.</p>
+<p class="lead">BackupZit copia máquinas virtuales (QEMU) y contenedores (LXC) de Proxmox VE sin instalar nada dentro de los invitados. El agente se ejecuta en el host Proxmox, toma una instantánea de cada invitado, lee sus discos y los guarda deduplicados en cualquier destino de almacenamiento. Los discos de las VM se guardan como imágenes de disco; los contenedores en ZFS se copian archivo por archivo (vea <a href="#lxc-zfs">Contenedores (LXC) en ZFS</a>).</p>
 
 <h2>Configuración</h2>
 <ol>
@@ -18,10 +18,10 @@ systemctl enable --now backupzit-agent</pre></li>
 <ol>
   <li>Se toma una instantánea temporal de Proxmox (<code>backupzit_…</code>, visible en <i>Snapshots</i> durante unos segundos o minutos). El invitado sigue funcionando.</li>
   <li>Si el <b>agente invitado de QEMU</b> se ejecuta en la VM (y está habilitado en las opciones de la VM), Proxmox congela los sistemas de archivos para la instantánea: la copia es entonces coherente con las aplicaciones. Sin él, la copia es coherente ante bloqueos, como un corte de corriente. Instale <code>qemu-guest-agent</code> en las VM Linux y las herramientas de invitado VirtIO en las VM Windows.</li>
-  <li>Cada disco se lee de la instantánea en bloques de 1 MiB. Los bloques vacíos no se guardan y los bloques ya presentes en el repositorio no se vuelven a enviar, así que tras la primera copia solo se transfieren los datos modificados.  Las VM en ejecución con discos en LVM-thin, ZFS, Ceph RBD o archivos qcow2 tienen además <b>seguimiento de bloques modificados</b> (dirty bitmaps de QEMU): a partir de la segunda copia solo se leen las zonas escritas desde la copia anterior, lo que tarda segundos en lugar de minutos. Después de detener, reiniciar o mover la VM a otro nodo, la siguiente copia lee sus discos completos una vez; la página de la ejecución muestra qué discos se leyeron solo como bloques modificados.</li>
+  <li>Cada disco se lee de la instantánea en bloques de 1 MiB. Los bloques vacíos no se guardan y los bloques ya presentes en el repositorio no se vuelven a enviar, así que tras la primera copia solo se transfieren los datos modificados.  Las VM en ejecución con discos en LVM-thin, ZFS, Ceph RBD o archivos qcow2 tienen además <b>seguimiento de bloques modificados</b> (dirty bitmaps de QEMU): a partir de la segunda copia solo se leen las zonas escritas desde la copia anterior, lo que tarda segundos en lugar de minutos. Después de detener, reiniciar o mover la VM a otro nodo, o de cambiar el tamaño de un disco, la siguiente copia lee sus discos completos una vez; la página de la ejecución muestra qué discos se leyeron solo como bloques modificados. Es el tamaño de bloque predeterminado; una tarea puede usar 256 o 512 KiB en su lugar (consulte <a href="/docs/jobs#compression">Tareas</a>).</li>
   <li>La instantánea se elimina. La configuración del invitado (CPU, memoria, red, discos) se guarda con la copia.</li>
 </ol>
-<p>La página de la ejecución muestra cada invitado, sus discos y cómo se capturó. Las pruebas de restauración comprueban bloques aleatorios de las copias de VM igual que con las imágenes de disco y, con la <a href="/docs/restore">prueba de arranque</a> activada, inician cada VM desde la copia, aislada de la red, para demostrar que arranca.</p>
+<p>La página de la ejecución muestra cada invitado, sus discos y cómo se capturó. Las pruebas de restauración comprueban bloques aleatorios de las copias de VM igual que con las imágenes de disco y, con la <a href="/docs/restore">prueba de arranque</a> activada, inician cada VM desde la copia, aislada de la red, para demostrar que arranca. Los contenedores en ZFS se prueban restaurando archivos al azar.</p>
 
 <h3>Almacenamiento compatible</h3>
 <table>
@@ -31,9 +31,27 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ceph RBD</td><td>sí, instantánea</td><td>sí</td></tr>
   <tr><td>Directorio, NFS, CIFS con discos <b>qcow2</b></td><td>sí, instantánea</td><td>sí</td></tr>
   <tr><td>Directorio, NFS, CIFS con discos raw, LVM grueso</td><td>no: detenga el invitado o mueva el disco</td><td>sí</td></tr>
-  <tr><td>Subvolúmenes ZFS de contenedores</td><td colspan="2">aún no compatible</td></tr>
+  <tr><td>Subvolúmenes ZFS de contenedores (LXC)</td><td>sí, snapshot, archivo por archivo</td><td>sí, archivo por archivo</td></tr>
 </table>
-<p>Los discos marcados como <i>Backup: no</i> (<code>backup=0</code>) en Proxmox, los discos físicos en passthrough y los montajes bind se omiten y se muestran como advertencias. Las unidades cloud-init no se guardan; se recrean a partir de la configuración al restaurar.</p>
+<p>Los discos marcados como <i>Backup: no</i> (<code>backup=0</code>) en Proxmox, los discos físicos en passthrough y los montajes bind se omiten y se muestran como advertencias. Las unidades cloud-init no se guardan; se recrean a partir de la configuración al restaurar. Un invitado detenido cuyos discos se leen sin instantánea lleva mientras tanto el bloqueo de copia de Proxmox VE, como con vzdump: no se puede iniciar (tampoco por HA) hasta que se hayan leído sus discos.</p>
+<p id="leftovers"><b>Instantáneas y bloqueos que quedan atrás.</b> El agente registra cada instantánea de copia antes de tomarla, y el bloqueo de copia de un invitado detenido en cuanto se establece, y borra el registro solo cuando la configuración del invitado muestra que ha desaparecido (una instantánea se elimina con <code>--force</code> cuando la eliminación normal falla, hasta tres intentos durante unos diez minutos). Tras un fallo del agente o un corte de corriente, el agente los elimina por sí mismo, al iniciarse y cada 15 minutos:</p>
+<ul>
+  <li>Los invitados con los que está trabajando una copia o restauración del agente, y aquellos para los que Proxmox VE ejecuta una tarea (una copia vzdump, una migración), no se tocan.</li>
+  <li>Un bloqueo de instantánea (<code>lock: snapshot</code>) que dejó una creación interrumpida se elimina junto con la instantánea; antes se desasignan (unmap) los dispositivos Ceph RBD de la instantánea.</li>
+  <li>También se eliminan las instantáneas <code>backupzit_…</code> de más de un día de las que el agente no tiene registro (por ejemplo, de versiones anteriores). Sus propias instantáneas nunca se tocan.</li>
+  <li>Un bloqueo de copia solo se elimina cuando el registro muestra que lo estableció BackupZit. Uno que no estableció se notifica junto con el comando que lo elimina (<code>qm unlock</code>, <code>pct unlock</code>), porque vzdump usa el mismo bloqueo.</li>
+  <li>Lo que no se puede eliminar aparece en el panel, en <i>Requiere atención</i>, con <b>Quitar ahora</b>, y se notifica una vez.</li>
+</ul>
+
+<h3 id="lxc-zfs">Contenedores (LXC) en ZFS</h3>
+<p>En un almacenamiento ZFS, Proxmox guarda los volúmenes de un contenedor (LXC) como datasets (<code>subvol-&lt;ID&gt;-disk-N</code>): sistemas de archivos, no discos virtuales como los zvols de una VM (QEMU). Por eso BackupZit copia estos contenedores archivo por archivo:</p>
+<ul>
+  <li>El snapshot temporal es el mismo; el agente lee los archivos del snapshot ZFS de cada subvolumen (<code>.zfs/snapshot</code>, también si está oculto) mientras el contenedor sigue en marcha.</li>
+  <li>Se conservan propietarios (también los ID desplazados de los contenedores sin privilegios), permisos, fechas, atributos extendidos y ACL, enlaces duros y simbólicos y archivos de dispositivo. Los sockets se omiten, como con vzdump; los servicios del contenedor los vuelven a crear.</li>
+  <li>A partir de la segunda copia solo se leen los archivos cuyo tamaño o fecha de modificación cambió; los demás se toman de la copia anterior.</li>
+  <li>Un contenedor así se restaura en un almacenamiento ZFS, como subvolúmenes nuevos con el tamaño (cuota) de los volúmenes originales.</li>
+</ul>
+<p>Los contenedores en LVM-thin o Ceph RBD tienen discos virtuales y se copian bloque a bloque, como las VM. La página de la ejecución muestra las VM (QEMU) y los contenedores (LXC) en tablas separadas e indica cómo se guardó cada contenedor. Requiere agentes 0.53 o posteriores.</p>
 
 <h2>Restaurar una VM o un contenedor</h2>
 <p>Abra una ejecución de copia de VM (desde la página del trabajo o <a href="/runs">Actividad</a>) y use <b>Restaurar una VM o un contenedor</b>:</p>
@@ -45,7 +63,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Nombre</b> y <b>Almacenamiento para los discos</b>: p. ej., restaurar en un almacenamiento distinto del original.</li>
   <li><b>Iniciar el invitado tras la restauración</b>.</li>
 </ul>
-<p>Cada restauración da a las VM un nuevo ID de generación (<code>vmgenid</code>), para que los controladores de dominio de Windows y otro software detecten la vuelta atrás de forma segura. Los discos se asignan con <code>pvesm</code> en el almacenamiento elegido; en almacenamiento de tipo directorio se restauran como archivos raw.</p>
+<p>Cada restauración da a las VM un nuevo ID de generación (<code>vmgenid</code>), para que los controladores de dominio de Windows y otro software detecten la vuelta atrás de forma segura. Los discos se asignan con <code>pvesm</code> en el almacenamiento elegido; en almacenamiento de tipo directorio se restauran como archivos raw. La lista de almacenamientos solo ofrece los que sirven para el invitado elegido: discos de VM para una VM, volúmenes de contenedor para un contenedor y ZFS para un contenedor copiado archivo por archivo.</p>
 
 <h2>Recuperación instantánea</h2>
 <p>Restaurar una VM grande tarda lo mismo que copiar sus discos. Con <b>Al instante, ejecutándose desde la copia</b> en el formulario de restauración, la VM funciona en cambio en segundos, mientras sus discos siguen en la copia:</p>
@@ -61,7 +79,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>La primera vez, la réplica se restaura como un invitado nuevo (siguiente ID libre, nombre <i>original-replica</i>, direcciones MAC nuevas, nunca se inicia con el nodo).</li>
   <li>Después solo se escriben los bloques que cambiaron desde la copia que contiene la réplica: normalmente unos segundos por copia.</li>
-  <li>La página del trabajo muestra las réplicas, la copia que contiene cada una y su estado. Si se pierde un invitado, haga clic en <b>Iniciar réplica</b>: funciona con los datos de la última copia, sin restauración. Iníciela solo si el original ya no existe de verdad: ambos en la red a la vez pueden entrar en conflicto.</li>
+  <li>La página del trabajo muestra las réplicas, la copia que contiene cada una y su estado. Si se pierde un invitado, haga clic en <b>Iniciar réplica</b>: funciona con los datos de la última copia, sin restauración. Iníciela solo si el original ya no existe de verdad: ambos en la red a la vez pueden entrar en conflicto. Después de iniciar una réplica (también en la interfaz de Proxmox VE, por ejemplo para una prueba de conmutación), la siguiente actualización compara cada bloque en lugar de escribir solo los cambios, para que la réplica vuelva a coincidir con la copia. Lo mismo ocurre tras una actualización interrumpida (un fallo del agente o del nodo) y cuando no se puede leer el registro de tareas de Proxmox VE para saber si la réplica se inició.</li>
   <li>Mientras una réplica está en marcha deja de actualizarse (la ejecución lo indica). Para volver a replicar, elimine el invitado réplica en Proxmox; la siguiente copia crea uno nuevo. Las réplicas con instantáneas de Proxmox tampoco se actualizan.</li>
   <li>Los discos añadidos más tarde a un invitado no se replican (elimine la réplica para empezar de nuevo); los discos que crecieron también crecen en la réplica. Los cambios de configuración (memoria, CPU) se aplican al crear la réplica.</li>
   <li>La replicación lee las copias como una restauración: el nodo de la réplica debe llegar al almacenamiento. Desactivar la replicación deja las réplicas como están.</li>
@@ -87,6 +105,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>Restaurar en el agente</b>: copiarlos a una carpeta de cualquier agente, p. ej., de vuelta a la VM (si ejecuta el agente BackupZit) o a un servidor de archivos.</li>
 </ul>
 <p>En la línea de comandos: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> y <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> selecciona una partición o volumen lógico (<code>pve ls</code> sin ruta los muestra). Examinar en la consola requiere que la copia esté en almacenamiento de red (SFTP, S3, SMB, Azure, repositorio reforzado).</p>
+<p>En los contenedores (LXC) en ZFS, <b>Examinar archivos</b> abre directamente sus archivos, como los de una copia de archivos; las carpetas <code>rootfs</code>, <code>mp0</code>, <code>mp1</code>… son los volúmenes del contenedor. Los archivos restaurados en un agente conservan sus propietarios y permisos. Se restauran en una carpeta, no en la ubicación original: las rutas de la copia son las de dentro del contenedor, no las del host. Un enlace simbólico solo se sigue dentro de su volumen. Las réplicas de contenedores copiados archivo por archivo aún no son compatibles; restáurelos en su lugar.</p>
 
 <h2 id="host">Copia de la configuración del host</h2><p>Los invitados son solo la mitad de un nodo Proxmox: definiciones de almacenamiento, red, usuarios, cortafuegos, certificados y los ajustes de cada VM y contenedor están en su configuración. Haga su copia con una tarea de archivos normal en el agente del nodo: en <a href="/jobs">Tareas de copia</a> elija el agente del nodo y <b>Archivos y carpetas</b> y haga clic en <b>Rellenar la configuración del host</b>. Introduce las rutas <code>/etc</code> (con <code>/etc/pve</code>, la red y <code>/etc/hosts</code>), <code>/var/lib/pve-cluster</code> (la base de datos de configuración <code>config.db</code>) y <code>/root</code>; ejecute la tarea, por ejemplo, a diario. La base de datos cambia mientras el nodo funciona, así que el agente hace primero una copia coherente de ella, que la copia de seguridad contiene como <code>/var/lib/backupzit/pve-config/config.db</code>; no hacen falta paquetes adicionales.</p><p>Para reconstruir un nodo averiado: instale la misma versión de Proxmox VE con el mismo nombre de host y dirección, instale el agente, restaure <code>/etc/network/interfaces</code> y <code>/etc/hosts</code> en su sitio, detenga el servicio del clúster (<code>systemctl stop pve-cluster</code>), borre <code>config.db-wal</code> y <code>config.db-shm</code> en <code>/var/lib/pve-cluster</code> si existen, restaure la copia coherente de <code>/var/lib/backupzit/pve-config</code> en <code>/var/lib/pve-cluster</code> (<code>config.db</code>, y <code>config.db-wal</code> si la copia lo tiene), vuelva a iniciar el servicio y restaure los invitados. En un clúster, vuelva a unir al clúster un nodo reinstalado en lugar de restaurar <code>config.db</code>.</p>
 <h2>Aún no incluido</h2>

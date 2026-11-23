@@ -45,10 +45,11 @@ func (a *Agent) jobCommand(ctx context.Context, run api.Run, stage, command, sta
 		ext, shell, args = ".cmd", "cmd.exe", []string{"/D", "/C"}
 		command = "@echo off\r\n" + strings.ReplaceAll(strings.ReplaceAll(command, "\r\n", "\n"), "\n", "\r\n") + "\r\n"
 	}
-	f, err := os.CreateTemp("", "backupzit-"+stage+"-*"+ext)
+	f, cleanup, err := commandFile(stage, ext)
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
 	defer os.Remove(f.Name())
 	_, _ = f.WriteString(command)
 	_ = f.Close()
@@ -106,4 +107,32 @@ func tailOutput(out []byte) string {
 		s = "…" + s[i:]
 	}
 	return s
+}
+
+// commandFile creates the script of a job command in a folder only the
+// agent's account can change; the command runs in that folder. The system
+// temp folder of the legacy Windows build (C:\Windows\Temp) lets every user
+// create files, and cmd.exe finds programs in the current folder first: a
+// planted whoami.exe there would run as SYSTEM.
+func commandFile(stage, ext string) (*os.File, func(), error) {
+	dir := "/var/lib/backupzit-agent/commands"
+	if runtime.GOOS == "windows" {
+		dir = filepath.Join(filepath.Dir(DefaultConfigPath()), "commands")
+	}
+	if os.MkdirAll(dir, 0o700) == nil && protectDir(dir) == nil && privateDir(dir) == nil {
+		if f, err := os.CreateTemp(dir, "backupzit-"+stage+"-*"+ext); err == nil {
+			return f, func() {}, nil
+		}
+	}
+	// Not the service (tests, a user's own command line): a new private folder.
+	d, err := os.MkdirTemp("", "backupzit-commands-")
+	if err != nil {
+		return nil, nil, err
+	}
+	f, err := os.CreateTemp(d, "backupzit-"+stage+"-*"+ext)
+	if err != nil {
+		_ = os.RemoveAll(d)
+		return nil, nil, err
+	}
+	return f, func() { _ = os.RemoveAll(d) }, nil
 }

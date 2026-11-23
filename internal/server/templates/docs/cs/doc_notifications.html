@@ -3,35 +3,39 @@
 <p class="lead">Dostaňte e-mail, když záloha selže, a každé ráno denní souhrn.</p>
 
 <h2>Nastavení e-mailu</h2>
-<p>V <a href="/settings/email">Nastavení → E-mailová oznámení</a>:</p>
+<p>V <a href="/settings/email">Nastavení → E-mailová oznámení</a> zaškrtněte <b>Posílat e-mailová oznámení</b> (bez toho se žádný e-mail neodešle) a vyplňte:</p>
 <table>
   <tr><th>Pole</th><th>Příklad</th></tr>
   <tr><td>Server SMTP / port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, interní relay / 25</td></tr>
-  <tr><td>Zabezpečení</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) nebo žádné (jen interní relay)</td></tr>
-  <tr><td>Uživatel / heslo</td><td>Schránka, ze které se odesílá; pro anonymní relay nechte prázdné. Microsoft 365 a Gmail vyžadují heslo aplikace.</td></tr>
-  <tr><td>Odesílatel</td><td><code>backup@example.com</code></td></tr>
-  <tr><td>Příjemci</td><td>Jedna nebo více adres oddělených čárkou.</td></tr>
+  <tr><td>Zabezpečení</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) nebo <b>Žádné</b> (jen interní relay bez přihlášení: uživatelské jméno a heslo se nikdy neposílají nešifrovaně)</td></tr>
+  <tr><td>Uživatelské jméno / Heslo</td><td>Schránka, ze které se odesílá; pro relay bez přihlášení nechte prázdné. Gmail vyžaduje heslo aplikace; pro Microsoft 365, kde se základní přihlašování SMTP postupně ruší, je bezpečnější volbou SMTP relay nebo konektor.</td></tr>
+  <tr><td>Od</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>Komu</td><td>Jedna nebo více adres oddělených čárkou.</td></tr>
 </table>
-<p>Nastavení ověříte tlačítkem <b>Odeslat testovací e-mail</b>. E-maily, zprávy do chatu a sestavy se píší v jazyce zvoleném ve stejném formuláři (výchozí je jazyk konzole při uložení).</p>
+<p>Nastavení ověříte tlačítkem <b>Odeslat testovací e-mail</b>; potom klikněte na <b>Uložit</b> (test je neuloží). E-maily, zprávy do chatu a sestavy se píší v jazyce zvoleném ve stejném formuláři (výchozí je jazyk konzole při uložení).</p>
 
 <h2>Co se odesílá</h2>
 <ul>
   <li><b>Chyby</b> (doporučeno) — jeden e-mail za každý neúspěšný běh s důvodem: zálohy, kopie, obnovy a neúspěšné <b>testy obnovy</b>. S touto volbou dostanete také upozornění <b>SUSPICIOUS</b>, když záloha vypadá jako ransomware nebo hromadné mazání.</li>
   <li><b>Varování</b> — běhy, ve kterých nešlo přečíst některé soubory.</li>
   <li><b>Úspěchy</b> — každý úspěšný běh (obvykle příliš mnoho; lepší je denní zpráva).</li>
-  <li><b>Denní zpráva</b> — ve zvolenou hodinu: běhy za posledních 24 hodin, problémy a agenti offline. Předmět začíná <i>OK</i>, <i>WARNINGS</i> nebo <i>ATTENTION</i>, takže je pravidla pošty mohou třídit.</li>
+  <li><b>Denní zpráva</b> — ve zvolenou hodinu: běhy za posledních 24 hodin, problémy a agenti offline. Předmět končí na <i>OK</i>, <i>WARNINGS</i> nebo <i>ATTENTION</i> (např. <code>[BackupZit] Daily report 2026-11-17: OK</code>), takže je pravidla pošty mohou třídit.</li>
 </ul>
 <p>Při zapnutých <b>Chybách</b> se ohlásí i úloha, která nedodrží svůj cíl bodu obnovy (RPO) — jednou a znovu až poté, co ho mezitím dodržela. Běhy zastavené uživatelem (stav <i>zrušeno</i>) neposílají e-mail o selhání; běh zastavený časovým limitem ano.</p>
+<h3 id="mail-filters">Jeden e-mail na úlohu a poštovní filtry</h3>
+<p>Zapněte také <b>Úspěchy</b>, abyste dostávali jeden e-mail za každé dokončené spuštění každé úlohy, s úlohou a počítačem v předmětu, místo pouze denního přehledu. Pro jeden přehled na úlohu vytvořte pro tu úlohu <a href="/docs/monitoring">plánovaný report</a>. Předmět je psaný v jazyce e-mailů, proto pro poštovní pravidla nese každý e-mail o spuštění také hlavičky, které se s jazykem nemění: <code>X-BackupZit-Status</code> (<code>success</code>, <code>warning</code> nebo <code>failed</code>), <code>X-BackupZit-Job</code>, <code>X-BackupZit-Agent</code> (název zobrazený v konzoli), <code>X-BackupZit-Host</code> (název hostitele hlášený počítačem), <code>X-BackupZit-Kind</code> a <code>X-BackupZit-Run</code>. Záloha, která vypadá jako ransomware, nese navíc <code>X-BackupZit-Suspicious: yes</code> — nedovolte, aby ji pravidla odkládající úspěšná spuštění skryla.</p>
 <p>Nezávisle na těchto volbách dostanou příjemci oznámení e-mail také, když:</p>
 <ul>
   <li>změna čeká na schválení druhým uživatelem (princip čtyř očí);</li>
   <li>dva počítače používají jednu registraci agenta;</li>
   <li>byl změněn protokol auditu;</li>
   <li>selhala záloha samotné konzole;</li>
-  <li>selhalo obnovení certifikátu HTTPS pro prohlížeče;</li>
+  <li>selhalo obnovení certifikátu HTTPS pro prohlížeče nebo nahraný certifikát vyprší do 21 dnů;</li>
+  <li>je k dispozici nová verze BackupZit (lze vypnout v Nastavení → Aktualizace) nebo selhala aktualizace konzole;</li>
   <li>byla zablokována adresa po příliš mnoha neúspěšných přihlášeních (lze vypnout v ochraně proti útokům hrubou silou).</li>
 </ul>
 <p>Pro týdenní nebo měsíční souhrny použijte <a href="/docs/monitoring">plánované přehledy</a>; odesílají se se stejným nastavením pošty a mají vlastní příjemce. Předměty začínají <code>[BackupZit]</code>, takže je pravidla pošty mohou třídit. Heslo SMTP se ukládá šifrovaně. Odkazy v e-mailech, zprávách do chatu a sestavách vedou na konzoli na adrese, kterou ji otevíráte v prohlížeči (nebo na adrese nastavené přes <code>--public-url</code>).</p>
+<p>Když je zapnutý webový port HTTPS s důvěryhodným certifikátem (Nastavení → Certifikát), odkazy v e-mailech, zprávách chatu a reportech používají jeho adresu, i když port 8443 slouží jen agentům.</p>
 
 <h2>Slack, Microsoft Teams a webhooky</h2>
 <p>V <a href="/settings/chat">Nastavení → Chat a webhooky</a> přidejte libovolný počet kanálů; každý volí, zda dostává chyby, varování a úspěchy. Neobvyklé zálohy (možný ransomware) se počítají jako chyby. <b>Odeslat test</b> kanál hned ověří.</p>
@@ -48,6 +52,6 @@
  "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
  "url": "https://backup.example/runs/412"}</pre>
 <p><code>duration_s</code> je doba běhu v sekundách. U záloh jsou <code>files</code> a <code>bytes</code> velikost zálohovaných dat, <code>bytes_read</code> kolik se z nich přečetlo a <code>bytes_stored</code> kolik se nahrálo na úložiště; <code>snapshot</code> je ID nové zálohy.</p>
-<p>Zprávy se odesílají jednou za běh, i když je e-mail vypnutý. Kanál, který selže (špatná URL, nedostupná služba), se zapíše do protokolu konzole a nezdržuje ostatní. URL webhooků se ukládají šifrovaně.</p>
+<p>Úloha, která nedodrží svůj cíl bodu obnovy, odešle <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code>; prázdná pole (například <code>suspicious</code> nebo úloha u běhu bez úlohy) se vynechají. URL pro Slack a Teams musí používat https://. Zprávy se odesílají jednou za běh, i když je e-mail vypnutý. Kanál, který selže (špatná URL, nedostupná služba), se zapíše do protokolu konzole a nezdržuje ostatní. URL webhooků se ukládají šifrovaně.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

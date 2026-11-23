@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/max-zit/backupzit/internal/diskimg"
+	"github.com/max-zit/backupzit/internal/leftover"
 	"github.com/max-zit/backupzit/internal/repo"
+	"github.com/max-zit/backupzit/internal/vmlock"
 )
 
 // BackupOptions select the guests to back up.
@@ -28,6 +30,10 @@ type BackupOptions struct {
 	Progress func(done, total uint64)
 	// Log receives progress messages.
 	Log func(msg string, args ...any)
+	// VMStarted and VMFinished (optional) tell which VM the backup works
+	// on and the result of each, for the run's progress (0.57).
+	VMStarted  func(name string, total int)
+	VMFinished func(name string, failed bool)
 }
 
 // Backup snapshots the selected guests and stores their disks and
@@ -97,6 +103,8 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	// Changed block tracking: the bitmaps of the previous backups are
 	// dropped only once this backup is saved.
 	prev := previousDisks(ctx, r)
+	prevVolumes := previousVolumes(ctx, r, opts.Hostname)
+	volumes := map[string]repo.Node{}
 	var trackers []*tracker
 	saved := false
 	defer func() {
@@ -116,7 +124,10 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	}
 	for _, g := range guests {
 		opts.Log("backing up guest", "vmid", g.VMID, "name", g.Name)
-		gi, trk, warns, err := backupGuest(ctx, r, stores, g, sn, guestRun{prev: prev, progress: progress, read: &bytesRead, log: opts.Log})
+		if opts.VMStarted != nil {
+			opts.VMStarted(guestLabel(g), len(guests))
+		}
+		gi, trk, warns, err := backupGuest(ctx, r, stores, g, sn, guestRun{prev: prev, prevVolumes: prevVolumes, volumes: volumes, progress: progress, read: &bytesRead, log: opts.Log})
 		for _, w := range warns {
 			addErr(guestLabel(g), errors.New(w))
 		}
@@ -129,14 +140,21 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 		}
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil, ctx.Err()
+				return nil, leftover.CancelError(ctx.Err(), stats.Errors) // with what its clean-up reported
 			}
 			addErr(guestLabel(g), err)
+			stats.Failed = append(stats.Failed, guestLabel(g))
+			if opts.VMFinished != nil {
+				opts.VMFinished(guestLabel(g), true)
+			}
 			continue
 		}
 		sn.Guests = append(sn.Guests, *gi)
 		sn.Paths = append(sn.Paths, fmt.Sprintf("%s/%d", g.Type, g.VMID))
 		stats.Files++
+		if opts.VMFinished != nil {
+			opts.VMFinished(guestLabel(g), false)
+		}
 	}
 	if len(sn.Guests) == 0 {
 		return nil, fmt.Errorf("no guest could be backed up: %s", strings.Join(stats.Errors, "; "))
@@ -144,9 +162,15 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 	for _, img := range sn.Images {
 		stats.Bytes += img.Partitions[0].StoredBytes
 	}
+	for _, g := range sn.Guests {
+		for _, d := range g.Disks {
+			stats.Bytes += d.Bytes
+		}
+	}
 	stats.BytesRead = bytesRead
 
-	treeID, err := r.SaveTree(ctx, &repo.Tree{})
+	// Container volumes stored as files; empty for VMs only.
+	treeID, err := saveVolumeTree(ctx, r, sn.Guests, volumes)
 	if err != nil {
 		return nil, err
 	}
@@ -168,10 +192,14 @@ func Backup(ctx context.Context, r *repo.Repository, opts BackupOptions) (*repo.
 
 // guestRun is what backupGuest needs from the whole backup.
 type guestRun struct {
-	prev     map[string]diskimg.Previous
-	progress func(uint64) // bytes done (read or taken from the previous backup)
-	read     *uint64      // bytes actually read
-	log      func(string, ...any)
+	prev map[string]diskimg.Previous
+	// prevVolumes are the volumes stored as files in earlier backups, by
+	// path in the tree; volumes receives those of this backup.
+	prevVolumes map[string]*repo.Node
+	volumes     map[string]repo.Node
+	progress    func(uint64) // bytes done (read or taken from the previous backup)
+	read        *uint64      // bytes actually read
+	log         func(string, ...any)
 }
 
 func guestLabel(g Guest) string {
@@ -192,14 +220,30 @@ func snapshotCapable(st storage, volname string) bool {
 	case "lvmthin", "rbd":
 		return true
 	case "zfspool":
-		return volumeFormat(volname) != "subvol"
+		return true // zvols, and subvolumes read as files
 	case "dir", "nfs", "cifs", "glusterfs", "cephfs":
 		return volumeFormat(volname) == "qcow2"
 	}
 	return false
 }
 
+// vmLockKey names a guest for vmlock: backups, in-place restores and
+// replica updates of one guest on this node run one at a time.
+func vmLockKey(vmid int) string { return fmt.Sprintf("pve-%d", vmid) }
+
 func backupGuest(ctx context.Context, r *repo.Repository, stores map[string]storage, g Guest, sn *repo.Snapshot, run guestRun) (*repo.Guest, *tracker, []string, error) {
+	// One BackupZit operation per guest at a time: the sweep of old
+	// snapshots removes every backupzit_* snapshot, also the live one of a
+	// parallel run (M-13). The lock comes first, so the guest's state
+	// (running, configuration, disks) is read after a long wait and not
+	// before, and it is held until QEMU's NBD server is stopped: there is
+	// one per VM, and stopping it later would end the export of the run
+	// that waited.
+	unlockVM, err := vmlock.Lock(ctx, vmLockKey(g.VMID))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer unlockVM()
 	gi, trk, warns, err := backupGuestDisks(ctx, r, stores, g, sn, run)
 	if trk != nil && trk.started {
 		trk.stopServer()
@@ -227,12 +271,12 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		if !ok {
 			return nil, nil, warns, fmt.Errorf("%s: unknown storage %q", d.Key, sid)
 		}
+		if volumeFormat(vol) == "subvol" && !isFilesVolume(st, vol) {
+			return nil, nil, warns, fmt.Errorf("%s: container volumes that are directories on %s storage are not supported yet (only on ZFS)", d.Key, st.Type)
+		}
 		if !snapshotCapable(st, vol) {
 			if d.CloudInit {
 				continue
-			}
-			if volumeFormat(vol) == "subvol" {
-				return nil, nil, warns, fmt.Errorf("%s: ZFS subvolumes of containers are not supported yet", d.Key)
 			}
 			useSnap = false
 		}
@@ -246,15 +290,27 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		Platform: "proxmox", Type: g.Type, VMID: g.VMID, Name: g.Name, Node: g.Node, Running: running,
 		Config: cleanConfig(conf),
 	}
+	// backupGuest holds the guest's vmlock: the sweep below cannot remove
+	// the live snapshot of a parallel run.
 	snap := ""
 	if useSnap {
 		// Remove snapshots left behind by an interrupted backup.
 		for _, n := range snapshotNames(conf) {
 			if strings.HasPrefix(n, snapPrefix) {
-				_, _ = command(ctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), n, "--force")
+				it := snapshotItem(g, n)
+				if at, ok := snapshotTime(n); ok {
+					it.Created = at
+				}
+				leftover.Add(context.Background(), it) // since when, for the console
+				if _, err := removeGuestSnapshot(ctx, g, n, nil); err != nil {
+					warns = append(warns, fmt.Sprintf("the snapshot %s left by an earlier backup could not be removed (%v); the agent tries again and the dashboard lists it until it is gone", n, err))
+				}
 			}
 		}
 		snap = snapPrefix + strconv.FormatInt(time.Now().Unix(), 10)
+		// Recorded before it exists: a crash or cancel during the creation
+		// leaves a record the janitor finds it by (S-1).
+		leftover.Add(ctx, snapshotItem(g, snap))
 		args := []string{"snapshot", strconv.Itoa(g.VMID), snap, "--description", "Temporary snapshot for a BackupZit backup; removed automatically"}
 		if g.Type == "qemu" {
 			args = append(args, "--vmstate", "0")
@@ -275,17 +331,25 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 				trk = nil
 			}
 		}
+		removeSnap := func(waits []time.Duration) {
+			cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Minute)
+			defer cancel()
+			forced, err := removeGuestSnapshot(cctx, g, snap, waits)
+			switch {
+			case err != nil:
+				warns = append(warns, fmt.Sprintf("the backup snapshot %s of guest %d could not be removed (%v); the agent tries again and the dashboard lists it until it is gone", snap, g.VMID, err))
+			case forced:
+				warns = append(warns, fmt.Sprintf("the backup snapshot %s of guest %d was removed only with --force", snap, g.VMID))
+			}
+		}
 		if _, err := command(ctx, guestTool(g.Type), args...); err != nil {
+			// A failed or cancelled creation can leave the snapshot (or a
+			// half-made one, snapstate prepare) in the configuration.
+			removeSnap(nil)
 			return nil, trk, warns, fmt.Errorf("create snapshot: %w", err)
 		}
 		trk.verify(ctx)
-		defer func() {
-			cctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-			defer cancel()
-			if _, err := command(cctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap); err != nil {
-				_, _ = command(cctx, guestTool(g.Type), "delsnapshot", strconv.Itoa(g.VMID), snap, "--force")
-			}
-		}()
+		defer removeSnap(leftover.RunWaits)
 		switch {
 		case !running:
 			gi.Consistency = "snapshot of the stopped guest"
@@ -300,6 +364,23 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		gi.Consistency = "stopped guest, disks read directly"
 		if g.Template {
 			gi.Consistency = "template, disks read directly"
+		} else {
+			// Without a snapshot nothing holds the disks still: HA, onboot
+			// or a user could start the guest during the read and the image
+			// would be torn. Proxmox VE's backup lock refuses that start, as
+			// with vzdump (M-15).
+			if err := lockGuest(ctx, g); err != nil {
+				return nil, nil, warns, err
+			}
+			defer unlockGuest(g)
+			if guestRunning(ctx, g) {
+				return nil, nil, warns, errors.New("the guest was started before its disks could be read; run the backup again")
+			}
+			defer func() {
+				if err == nil && guestRunning(ctx, g) {
+					err = errors.New("the guest was started while its disks were read: this backup could be torn, run it again")
+				}
+			}()
 		}
 	}
 
@@ -310,6 +391,15 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 		}
 		sid, vol, _ := strings.Cut(d.Volume, ":")
 		st := stores[sid]
+		if isFilesVolume(st, vol) {
+			gd, vwarns, err := run.backupVolumeFiles(ctx, r, g, d, st, vol, snap)
+			warns = append(warns, vwarns...)
+			if err != nil {
+				return nil, trk, warns, fmt.Errorf("%s (%s): %w", d.Key, d.Volume, err)
+			}
+			gi.Disks = append(gi.Disks, gd)
+			continue
+		}
 		var src *source
 		if snap != "" {
 			src, err = openSnapshot(ctx, st, vol, d.Volume, snap)
@@ -340,12 +430,42 @@ func backupGuestDisks(ctx context.Context, r *repo.Repository, stores map[string
 	return gi, trk, warns, nil
 }
 
+// backupVolumeFiles stores a container's ZFS subvolume as files.
+func (run guestRun) backupVolumeFiles(ctx context.Context, r *repo.Repository, g Guest, d diskEntry, st storage, vol, snap string) (repo.GuestDisk, []string, error) {
+	sid, _, _ := strings.Cut(d.Volume, ":")
+	size, _ := parseSize(optValue(d.Opts, "size"))
+	dir, err := subvolDir(ctx, st, vol, snap)
+	if err != nil {
+		return repo.GuestDisk{}, nil, err
+	}
+	path := volumePathInTree(g.Type, g.VMID, d.Key)
+	n, vst, err := run.archiveVolume(ctx, r, dir, d.Key, path)
+	if err != nil {
+		return repo.GuestDisk{}, nil, err
+	}
+	// The quota was counted for progress; the files are what was there.
+	if size > vst.Bytes {
+		run.progress(size - vst.Bytes)
+	}
+	run.volumes[path] = n
+	run.log("stored container volume as files", "vmid", g.VMID, "key", d.Key, "files", vst.Files, "unchanged", vst.FilesSkipped, "bytes", vst.Bytes)
+	return repo.GuestDisk{
+		Key: d.Key, Volume: d.Volume, Storage: sid, Format: "subvol", Size: size,
+		Image: -1, Path: path, Bytes: vst.Bytes,
+	}, volumeErrors(d.Key, dir, vst.Errors), nil
+}
+
 // imageGuestDisk stores a disk: only the areas changed since the previous
 // backup when its bitmap is still there, otherwise the whole disk.
 func (run guestRun) imageGuestDisk(ctx context.Context, r *repo.Repository, src *source, number int, model string, trk *tracker, key string, prev diskimg.Previous) (repo.DiskImage, error) {
 	read := func(n uint64) { *run.read += n; run.progress(n) }
 	if trk.tracking(key) && prev.Image != nil && prev.ChangeID != "" {
 		areas, size, err := trk.changes(ctx, key, prev.ChangeID)
+		if err == nil && prev.Image.Size != size {
+			// A resized disk is read completely: whether QEMU keeps the dirty
+			// bitmap of the old part across a resize is not checked here.
+			err = fmt.Errorf("the disk size changed from %d to %d bytes", prev.Image.Size, size)
+		}
 		if err == nil {
 			img, n, err := imageDiskAreas(ctx, r, src, size, areas, prev.Image, number, model, read)
 			if err == nil {
@@ -648,4 +768,39 @@ func configuredSize(g Guest) uint64 {
 		}
 	}
 	return n
+}
+
+// lockGuest sets Proxmox VE's backup lock on a guest (qm/pct set --lock
+// backup): while it is set the guest cannot be started. A guest that is
+// already locked (another backup, a migration) is not read.
+func lockGuest(ctx context.Context, g Guest) error {
+	if _, err := command(ctx, guestTool(g.Type), "set", strconv.Itoa(g.VMID), "--lock", "backup"); err != nil {
+		if strings.Contains(err.Error(), "locked (backup)") {
+			// Proxmox VE's own backups (vzdump) use the same lock: the agent
+			// removes only one its ledger says it set (CleanLeftovers); the
+			// message names the way out for any other (M-N11).
+			return fmt.Errorf("guest %d already has the backup lock: if no backup of it is running (BackupZit or vzdump), it may be left over from an interrupted run (agent crash, power loss); the agent removes a lock it set itself within 15 minutes, `%s unlock %d` removes any other: %w", g.VMID, guestTool(g.Type), g.VMID, err)
+		}
+		return fmt.Errorf("lock the guest for the backup (is it locked by another operation?): %w", err)
+	}
+	// Recorded once it is ours (a lock that could not be set may be
+	// vzdump's): a crash leaves a record the janitor removes it by (S-2).
+	leftover.Add(ctx, lockItem(g))
+	return nil
+}
+
+// unlockGuest removes the backup lock again.
+func unlockGuest(g Guest) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	_, err := command(ctx, guestTool(g.Type), "unlock", strconv.Itoa(g.VMID))
+	conf, ok, cerr := guestConf(g)
+	switch {
+	case cerr == nil && (!ok || configLock(conf) != "backup"):
+		leftover.Done(lockItem(g))
+	case err != nil:
+		leftover.Failed(lockItem(g), err)
+	default:
+		leftover.Failed(lockItem(g), cerr)
+	}
 }

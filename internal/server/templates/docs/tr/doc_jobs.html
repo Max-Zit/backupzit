@@ -17,7 +17,7 @@
       <li><b>Microsoft 365</b> — Exchange Online posta kutuları, takvimler, kişiler, OneDrive ve SharePoint siteleri; herhangi bir aracı tarafından Microsoft Graph üzerinden okunur; bkz. <a href="/docs/m365">Microsoft 365</a>.</li>
     </ul>
   </li>
-  <li>İsteğe bağlı olarak satır başına bir <b>hariç tutma</b> ekleyin: her klasörde geçerli bir ad deseni (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>) veya yalnızca o dosya ya da klasör için geçerli tam yol (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, joker karakterlerle de: <code>D:\VMs\*.iso</code>). Windows'ta tam yollar büyük/küçük harf ayrımı yapmaz.</li>
+  <li>İsteğe bağlı olarak satır başına bir <b>hariç tutma</b> ekleyin: her klasörde geçerli bir ad deseni (<code>*.tmp</code>, <code>node_modules</code>, <code>Thumbs.db</code>, <code>*.iso</code>) veya yalnızca o dosya ya da klasör için geçerli tam yol (<code>C:\Data\Temp</code>, <code>/srv/www/cache</code>, joker karakterlerle de: <code>D:\VMs\*.iso</code>). Windows'ta tam yollar büyük/küçük harf ayrımı yapmaz. Linux'ta <code>/proc</code>, <code>/sys</code> ve <code>/dev</code> gibi çekirdek dosya sistemleri, iş <code>/</code> yedeklese bile her zaman boş klasörler olarak saklanır.</li>
   <li><b>Yedekleri sakla</b> ve <b>Zamanlama</b> ayarlarını yapın, ardından <i>İş oluştur</i>.</li>
 </ol>
 
@@ -41,14 +41,14 @@
 <p>Her çalıştırmada aracı paylaşımı bağlar — Windows aracıları UNC yoluyla (<code>\\nas01\data</code>, yalnızca SMB), Linux aracıları <code>/mnt/backupzit-nas</code> altına salt okunur bağlayarak (SMB için <code>cifs-utils</code>, NFS için <code>nfs-common</code> veya <code>nfs-utils</code> gerekir; Proxmox VE'de ikisi de vardır) — ve ardından bağlantıyı keser. Yedekler sıradan dosya yedekleridir: tekilleştirilmiş ve artımlı; saklama, kopyalama işleri, geri yükleme testleri, göz atma ve dosya geri yükleme ile. <b>Özgün konuma geri yükle</b> paylaşımı yazılabilir olarak yeniden bağlar ve dosyaları üzerine geri yazar; ya da herhangi bir aracıdaki bir klasöre geri yükleyin veya indirin.</p>
 
 <h2>Açık ve kilitli dosyalar (VSS)</h2>
-<p>Windows'ta aracı <b>Birim Gölge Kopyası Hizmeti</b>'ni kullanır: birimin tutarlı, belirli bir andaki anlık görüntüsünü alır ve yedeği ondan yapar; böylece açık dosyalar (Outlook PST, veritabanları, düzenlenmekte olan belgeler) tutarlı biçimde yedeklenir. VSS destekleyen uygulamalar (örneğin SQL Server) anlık görüntü alınmadan önce verilerini diske yazar.</p>
+<p>Windows'ta aracı <b>Birim Gölge Kopyası Hizmeti</b>'ni kullanır: birimin tutarlı, belirli bir andaki anlık görüntüsünü alır ve yedeği ondan yapar; böylece açık dosyalar (Outlook PST, veritabanları, düzenlenmekte olan belgeler) tutarlı biçimde yedeklenir. VSS destekleyen uygulamalar (örneğin SQL Server) anlık görüntü alınmadan önce verilerini diske yazar. Birden çok birimde (C: ve D:) klasörleri olan bir iş bunları aynı anda birlikte anlık görüntüler; yalnızca VSS bunu yapamazsa her birim kendi anlık görüntüsünü alır ve çalıştırma uyarır.</p>
 
 <h2>Zamanlamalar</h2>
 <table>
   <tr><th>Seçenek</th><th>Örnek</th></tr>
   <tr><td><b>Belirli saatlerde</b></td><td>Her iş günü 22:00'de; ya da her gün 12:00 ve 18:00'de. İşaretlenen günlerde günde en fazla üç kez.</td></tr>
   <tr><td><b>Tekrar tekrar</b></td><td>Pazartesi–cuma, 08:00 ile 18:00 arasında 2 saatte bir. 15 dakikadan 12 saate kadar aralıklar.</td></tr>
-  <tr><td><b>Ayda bir</b></td><td>Ayın 1'inde 23:00'te.</td></tr>
+  <tr><td><b>Ayda bir</b></td><td>Ayın 1'inde 23:00'te (1 ile 28 arasında herhangi bir gün).</td></tr>
   <tr><td><b>Yalnızca elle</b></td><td>Yalnızca <i>Yedeklemeyi şimdi çalıştır</i>'a tıkladığınızda çalışır.</td></tr>
   <tr><td><b>Başka bir işten sonra</b></td><td>Önce veritabanı, sonra dosya sunucusu: iş, seçilen iş başarıyla biter bitmez başlar — veya <i>o iş başarısız olsa da</i> seçiliyse her sonuçtan sonra. Zincirler daha uzun olabilir (A → B → C); bir iş kendisinden sonra veya döngü içinde çalışamaz.</td></tr>
 </table>
@@ -68,7 +68,7 @@
   <li><b>Haftalık</b> — son N haftanın her birinin en yeni yedeği.</li>
   <li><b>Aylık</b> — son N ayın her birinin en yeni yedeği.</li>
 </ul>
-<p>Örnek: 3 en yeni, 7 günlük, 4 haftalık, 6 aylık; ~20 geri yükleme noktasıyla yaklaşık yarım yıllık geçmiş tutar. Her başarılı çalıştırmadan sonra artık seçilmeyen anlık görüntüler kaldırılır (Etkinlik'te <i>süresi doldu</i> olarak gösterilir) ve hiçbir anlık görüntünün kullanmadığı veriler depolamadan silinir. Hepsi sıfır olursa her şey tutulur.</p>
+<p>Örnek: 3 en yeni, 7 günlük, 4 haftalık, 6 aylık; ~20 geri yükleme noktasıyla yaklaşık yarım yıllık geçmiş tutar. Her başarılı çalıştırmadan sonra artık seçilmeyen anlık görüntüler kaldırılır (Etkinlik'te <i>süresi doldu</i> olarak gösterilir) ve hiçbir anlık görüntünün kullanmadığı veriler depolamadan silinir. Hâlâ kullanılan bazı veriler içeren paketler yalnızca bu verilerle yeniden yazılır, nesne depolamada aynı anda birkaçı; yeniden denemelerden sonra bile okunamayan bir paket olduğu gibi kalır, çalıştırma bir uyarıyla biter ve sonraki çalıştırma yeniden dener. Saklama hiç çalıştırılamazsa (depo listelenemedi veya kilitlenemedi), çalıştırma bu durumda da bir uyarıyla biter (0.58). Hepsi sıfır olursa her şey tutulur.</p>
 <div class="callout"><p>Tekilleştirme sayesinde uzun saklama ucuzdur: değişmeyen veriler, kaç anlık görüntü başvurursa başvursun yalnızca bir kez saklanır.</p></div>
 
 <h2>Yedek kopyalama işleri (3-2-1)</h2>
@@ -77,8 +77,8 @@
   <li>Kopyalamayı kaynak işin aracısı yapar; korunan makine <b>yeniden okunmaz</b>.</li>
   <li>Yalnızca hedefte henüz olmayan veriler aktarılır, hedefin anahtarıyla yeniden şifrelenir.</li>
   <li><b>Kaynak işin her yedeğinden sonra</b> zamanlaması (varsayılan) kopyayı güncel tutar; herhangi bir normal zamanlama da çalışır, ör. yavaş bir internet hattı için her gece bir kez.</li>
-  <li>Kopyanın kendi saklama ayarı vardır, ör. NAS'ta 7 günlük ve bulutta 12 aylık.</li>
-  <li>Kopyalanmış dosya yedekleri ve VM yedekleri (Proxmox VE, Hyper-V, VMware), özgünleri gibi kopyalama çalıştırmasının sayfasından veya <a href="/restore">geri yükleme sihirbazı</a>ndan geri yüklenir — tüm VM'ler, VM disklerinden tek tek dosyalar ve Proxmox anında kurtarma. 0.29'dan eski bir aracının kopyaladığı VM yedekleri bu şekilde geri yüklenemez; daha yeni bir aracıyla yapılan bir sonraki kopyalama çalıştırması en yeni kopyasını geri yüklenebilir yapar. Disk görüntüsü kopyaları komut satırı aracısıyla geri yüklenir.</li>
+  <li>Kopyanın kendi saklama ayarı vardır, ör. NAS'ta 7 günlük ve bulutta 12 aylık. Yalnızca bu saklama ayarının tuttuğu yedekler kopyalanır: kaynakta 30 günlük ve kopyada 12 aylık yedekle her ayın en yeni yedeği kopyalanır, diğerleri her çalıştırmada yeniden kopyalanmaz.</li>
+  <li>Kopyalanmış dosya yedekleri ve VM yedekleri (Proxmox VE, Hyper-V, VMware), özgünleri gibi kopyalama çalıştırmasının sayfasından veya <a href="/restore">geri yükleme sihirbazı</a>ndan geri yüklenir — tüm VM'ler, VM disklerinden tek tek dosyalar ve Proxmox anında kurtarma. 0.29'dan eski bir aracının kopyaladığı VM yedekleri bu şekilde geri yüklenemez; daha yeni bir aracıyla yapılan bir sonraki kopyalama çalıştırması en yeni kopyasını geri yüklenebilir yapar. Kopyalanmış Microsoft 365 yedekleri de aynı şekilde geri yüklenir. Disk görüntüsü, Linux sistem ve veritabanı yedeklerinin kopyaları komut satırı aracısıyla geri yüklenir.</li>
 </ul>
 
 <h2>Bir işi değiştirme</h2>
@@ -91,7 +91,7 @@
 <p>İş formundaki <b>Gelişmiş</b> altında <b>Yükleme hızını şununla sınırla</b>, aracının depolamaya veri gönderme hızını MB/s cinsinden sınırlar — örneğin 08:00'den 18:00'e 10 MB/s, böylece mesai saatlerindeki yedekler ofis hattını kullanılabilir bırakır; zaman aralığı dışında iş tam hızda çalışır. Saatler aracının yerel saatidir ve bir aralık gece yarısını geçebilir (22:00'den 06:00'ya). Sınır yedeklere ve kopyalama işlerine (ikinci depolamaya yükleme) uygulanır, geri yüklemelere uygulanmaz: geri yükleme her zaman tam hızda çalışır.</p>
 
 <h2 id="compression">Sıkıştırma ve tekilleştirme</h2>
-<p>Her yedek tekilleştirilir: depoda zaten bulunan veriler — aynı işin önceki yedeklerinden veya aynı depolama hedefindeki diğer işlerden — yeniden saklanmaz. Yeni veriler ardından zstd ile sıkıştırılır; küçülmeyen parçalar (video, arşivler, şifreli dosyalar) olduğu gibi saklanır. Şifreleme sıkıştırmadan sonra gelir.</p>
+<p>Her yedek tekilleştirilir: depoda zaten bulunan veriler — aynı işin önceki yedeklerinden veya aynı aracının aynı depolama hedefindeki diğer işlerinden — yeniden saklanmaz. Her aracının kendi deposu vardır (VMware ana bilgisayarları, Hyper-V kümeleri ve Microsoft 365 kiracıları da öyle); bu yüzden bilgisayarlar arasında tekilleştirme yapılmaz. Yeni veriler ardından zstd ile sıkıştırılır; küçülmeyen parçalar (video, arşivler, şifreli dosyalar) olduğu gibi saklanır. Şifreleme sıkıştırmadan sonra gelir.</p>
 <p>Sıkıştırma düzeyi bir iş ayarıdır (<b>Düzenle → Gelişmiş</b>):</p>
 <table>
   <tr><th>Düzey</th><th>Ne zaman kullanılır</th></tr>
@@ -102,6 +102,10 @@
 </table>
 <p>Düzey, sonraki çalıştırmadan itibaren yeni verilere uygulanır; mevcut yedekler olduğu gibi kalır ve geri yükleme asla buna bağlı değildir. Çalıştırma sayfası sonucu gösterir: yeni verilerin sıkıştırma oranı (ör. <i>2.4×</i>) ve okunan verilerin ne kadarının zaten saklandığı (tekilleştirme).</p>
 
+<p><b>VM tekilleştirme blok boyutu</b> (Düzenle → Gelişmiş), Hyper-V, Proxmox VE ve VMware üzerindeki sanal diskler için 256 KiB, 512 KiB veya 1 MiB (mevcut varsayılan) seçer. Daha küçük bloklar daha fazla meta veri pahasına tekilleştirmeyi iyileştirebilir. Daha küçük bir boyut seçmeden önce ajanları güncelleyin. Her imaj kendi blok boyutunu kaydeder: eski yedekler geri yüklenebilir kalır ve bir değişiklikten sonra, değişen blokların artımlı yedekleri sürmeden önce her disk bir kez tamamen okunur. Eski yedekler yeniden yazılmaz ve dosya yedeklerinin bölünmesi değişmez.</p>
+
+<p>Komut satırı: <code>hyperv backup</code>, <code>pve backup</code> ve <code>vmware backup</code> ile <code>--block-size-kib 256</code>, <code>512</code> veya <code>1024</code> kullanın.</p>
+
 <h2>Yedekten önce ve sonra komutlar</h2>
 <p>Yöneticiler bir işin her yedekten önce ve sonra aracıda bir komut çalıştırmasını sağlayabilir — örneğin bir veritabanı dökümü, tutarlı bir kopya için bir hizmeti durdurma veya bir bildirim:</p>
 <pre>pg_dump -U postgres app &gt; /var/backups/app.sql          # Linux, before
@@ -110,7 +114,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li>Komutlar aracının hizmet hesabıyla (Linux'ta root, Windows'ta SYSTEM) <code>sh</code> veya <code>cmd</code> ile çalışır; birden fazla satıra izin verilir. Bunları yalnızca <b>Yöneticiler</b> görebilir ve değiştirebilir — aksi halde bir yedekleme operatörü her makinede her şeyi çalıştırabilirdi.</li>
   <li><b>Önceki</b> komut başarısız olursa (çıkış kodu 0 değil) veya zaman sınırından (varsayılan 30 dakika) uzun sürerse yedek çalıştırılmaz ve çalıştırma komutun çıktısıyla başarısız olur.</li>
   <li><b>Sonraki</b> komut yedek başarısız olduğunda da çalışır; böylece ilk komutun durdurduğunu yeniden başlatabilir. Yedekten sonraki komutun başarısız olması çalıştırmayı uyarıya dönüştürür.</li>
-  <li>İkisi de <code>BACKUPZIT_STAGE</code> (pre veya post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> ve yedekten sonra <code>BACKUPZIT_STATUS</code> (success, warning veya failed) alır.</li>
+  <li>İkisi de <code>BACKUPZIT_STAGE</code> (pre veya post), <code>BACKUPZIT_JOB</code>, <code>BACKUPZIT_JOB_ID</code>, <code>BACKUPZIT_RUN_ID</code> ve yedekten sonra <code>BACKUPZIT_STATUS</code> (success, warning veya failed) alır. Yalnızca hizmet hesabının değiştirebildiği bir klasörde çalışırlar (<code>C:\ProgramData\backupzit\commands</code>, <code>/var/lib/backupzit-agent/commands</code>); kendi dosyalarınız için tam yollar kullanın.</li>
   <li>Çalıştırma sayfası her komutun sonucunu ve çıktısını, başarılı olduğunda da gösterir.</li>
   <li>VM işlerinde komutlar VM'lerin içinde değil, hipervizör ana bilgisayarında (veya VMware proxy'sinde) çalışır. Kopyalama işlerinin komutu yoktur.</li>
 </ul>
@@ -120,7 +124,7 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
   <li><b>Yedeklemeyi şimdi çalıştır</b> (kopyalama işlerinde <b>Şimdi kopyala</b>) işi hemen kuyruğa alır.</li>
   <li><b>Geri yüklemeyi test et</b>, en yeni yedekten rastgele bir örneği geri yükler ve doğrular (bkz. <a href="/docs/restore">Geri yükleme</a>).</li>
   <li><b>Devre dışı bırak</b>, işi kaybetmeden zamanlamayı duraklatır (dört göz onayı açıkken ikinci bir kullanıcının onaylaması gerekir).</li>
-  <li><b>Sil</b> işi kaldırır; mevcut yedekler depolamada kalır ve Etkinlik'ten geri yüklenebilir olmayı sürdürür.</li>
+  <li><b>Sil</b> işi kaldırır (dört göz onayı açıkken ikinci bir kullanıcı onayladıktan sonra); mevcut yedekler depolamada kalır ve Etkinlik'ten geri yüklenebilir olmayı sürdürür. İşin kopyalama işleri de onunla birlikte silinir; kopyaları kendi depolamalarında kalır.</li>
 </ul>
 
 <h2>Bir çalıştırmayı durdurma</h2>
@@ -133,5 +137,6 @@ sqlcmd -S . -Q "BACKUP DATABASE app TO DISK='D:\dump\app.bak'"   # Windows, befo
 
 <h2>Bir yedekleme çalıştırması neyi raporlar</h2>
 <p><a href="/runs">Etkinlik</a>'te bir çalıştırmayı açın: dosya sayısı, yeni/değişen dosyalar, okunan veri, yüklenen yeni veri (tekilleştirme ve sıkıştırmadan sonra, sıkıştırma oranı ve zaten saklanmış payla — bkz. <a href="#compression">Sıkıştırma</a>), süre ve okunamayan dosyalar. Okunamayan dosyaları olan bir çalıştırma <b>uyarı</b> durumuyla biter — verilerin geri kalanı yedeklenmiştir.</p>
+<p>Bir konuğun (yeniden denemelerden sonra da) yedeklenemediği bir VM yedeklemesi <i>başarısız</i> olarak biter ve o konuğun adını verir, böylece uyarıların arasında kaybolmaz; diğer konuklar korunur ve geri yüklenebilir, saklama atlanır, böylece o konuğun eski geri yükleme noktaları kalır.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

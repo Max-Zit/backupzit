@@ -8,20 +8,23 @@
   <li><b>Um usuário com direitos de administrador no host</b>, normalmente <code>root</code>.</li>
   <li><b>SSH ativado nos hosts com licença gratuita:</b> Host → Actions → Services → Enable Secure Shell. A licença gratuita do ESXi deixa a API somente leitura, então snapshots e restaurações passam por SSH. Hosts licenciados são alterados pela API do vSphere e não precisam de SSH.</li>
   <li><b>Um agente proxy:</b> qualquer agente Windows ou Linux que alcance o host na porta 443 (e na 22 quando o SSH é usado). Os dados do backup passam por ele, então coloque-o em uma rede rápida, perto do host e do armazenamento.</li>
-  <li><b>Espaço livre no datastore da VM</b> enquanto uma VM ligada é copiada. O BackupZit copia o disco ali por um momento (veja abaixo). A cópia é thin, então precisa de tanto espaço quanto o disco realmente usa.</li>
+  <li><b>Espaço livre no datastore da VM</b> enquanto uma VM ligada é copiada. O BackupZit copia o disco ali por um momento (veja abaixo). A cópia é thin, então precisa de tanto espaço quanto o disco realmente usa. Com <a href="#hot-add">hot-add</a> nenhuma cópia é feita.</li>
 </ul>
 
 <h2>Adicionar um host</h2>
 <ol>
-  <li>Abra <a href="/agents#vmware">Agentes → Hosts VMware ESXi</a> → <i>Adicionar um host ESXi</i>.</li>
+  <li>Abra <a href="/agents#vmware">Agentes → Hosts VMware ESXi</a> → <i>Adicionar um host ESXi ou vCenter Server</i>.</li>
   <li>Informe o endereço, o usuário, a senha e o agente proxy.</li>
   <li>O console se conecta uma vez para verificá-los. Ele lê a lista de VMs e a licença, e <b>fixa o certificado HTTPS e a chave de host SSH do host</b>. Se mais tarde o host for substituído por outra máquina com o mesmo endereço, o BackupZit se recusa a conectar em vez de enviar a senha a ela. Se o certificado mudar por um motivo conhecido — o host foi reinstalado, recebeu um novo certificado ou foi adicionado ao vCenter (que substitui os certificados dos seus hosts) —, o host mostra a nova impressão digital com um botão <b>Aceitar o novo certificado</b> na página Agentes. Compare a impressão digital com a do host antes de aceitá-la.</li>
 </ol>
-<p>A senha é armazenada criptografada, como todos os outros segredos. A lista de VMs é atualizada a cada 10 minutos, ou na hora com <i>Atualizar</i>. A tabela mostra o modo de cada host:</p>
+<p>A senha é armazenada criptografada, como todos os outros segredos. O próprio console se conecta ao host (HTTPS 443, e SSH 22 na licença gratuita) quando ele é adicionado, com <i>Atualizar</i> e a cada 10 minutos para atualizar a lista de VMs, a menos que o host seja acessado <a href="#via-proxy">pelo agente proxy</a>. <i>Remover</i> exclui o host junto com as suas tarefas de backup; os backups continuam no armazenamento. A tabela mostra o modo de cada host:</p>
 <ul>
   <li><b>API do vSphere (host licenciado, SSH desnecessário):</b> snapshots, cópias de discos, restaurações e recuperação instantânea passam pela API.</li>
+  <li><b>vCenter Server (API do vSphere):</b> um vCenter com os seus hosts ESXi; tudo passa pela API do vCenter.</li>
   <li><b>licença gratuita: snapshots e restaurações por SSH:</b> a API do host é somente leitura, então essas etapas passam por SSH.</li>
+  <li><b>SSH (escolhido para este host):</b> o host é alterado por SSH, embora a API dele pudesse fazê-lo (<i>Sempre SSH</i> ao adicionar o host).</li>
 </ul>
+<p id="via-proxy"><b>Pelo agente proxy</b> (agente 0.56 ou mais novo): marque <b>Conectar pelo agente proxy</b> ao adicionar o host, ou <b>Conectar pelo proxy</b> na linha dele, e o console nunca se conecta ao host por conta própria. O agente proxy verifica o endereço e a senha, lê a lista de VMs, a versão e a licença, e informa o certificado HTTPS e a chave de host SSH que viu; o console os fixa na primeira vez, como faz em uma conexão direta, e a partir daí o agente proxy recusa um host que apresente outro certificado (a linha do host oferece então <b>Aceitar o novo certificado</b>). <i>Atualizar</i> e a lista de VMs a cada 10 minutos também vêm do agente proxy; essas verificações não aparecem em Atividade. Só o agente proxy precisa alcançar o host, exatamente como para backups e restaurações, então o console pode estar em outra rede, atrás de NAT ou em uma faixa de endereços sobreposta. Um endereço ou uma senha errados aparecem como erro do host após a primeira verificação do agente proxy: remova o host e adicione-o de novo. Enquanto o agente proxy estiver offline ou ocupado, a última lista de VMs permanece.</p>
 <p>Com <b>Automático</b> o console escolhe sozinho, então um host que receber uma licença depois passa para a API sem outra configuração. <b>Como o host é alterado</b>, na linha do host (e ao adicioná-lo), pode forçar <b>Sempre SSH</b> ou <b>Sempre a API do vSphere</b>; a mudança é verificada na hora. Backups anteriores e seus pontos de restauração não dependem do método.</p>
 
 <h2 id="vcenter">vCenter Server</h2>
@@ -46,17 +49,44 @@
       <li>Em hosts gratuitos o CBT só pode ser ligado com a VM desligada. O BackupZit faz isso no primeiro backup que encontrar a VM desligada. Até lá, todo backup lê os discos inteiros e a execução mostra um aviso.</li>
     </ul>
   </li>
-  <li>Um snapshot <code>backupzit_…</code> é criado. Quando o <b>VMware Tools</b> roda no convidado, o snapshot é <b>quiesced</b>: aplicações e sistemas de arquivos são descarregados antes, o que torna o backup consistente com as aplicações. Sem VMware Tools, ele tem consistência de falha. Instale <code>open-vm-tools</code> em VMs Linux e o VMware Tools em VMs Windows.</li>
+  <li>Um snapshot <code>backupzit_…</code> é criado. Quando o <b>VMware Tools</b> roda no convidado, o snapshot é <b>quiesced</b>: aplicações e sistemas de arquivos são descarregados antes, o que torna o backup consistente com as aplicações. Sem VMware Tools, ele tem consistência de falha. Instale <code>open-vm-tools</code> em VMs Linux e o VMware Tools em VMs Windows. Para um convidado cujo quiescing falha ou funciona mal, marque <i>Snapshots consistentes com falhas (sem quiescing do VMware Tools)</i> na tarefa: os backups dele passam a ser consistentes com falhas, como após uma queda de energia (agente 0.58). Em alguns hosts (ESXi 6.7) o disco de um snapshot quiesced é um pequeno delta que o próprio quiescing gravou; o agente o lê junto com o snapshot (agente 0.58; agentes mais antigos o recusavam como disco delta de snapshot).</li>
   <li>O CBT informa quais blocos ler:
     <ul>
       <li>no primeiro backup, só os blocos em uso;</li>
       <li>depois, só os blocos alterados desde o backup anterior.</li>
     </ul>
   </li>
-  <li>Uma VM ligada mantém seus discos bloqueados. Por isso seus discos são copiados no datastore (thin) e <b>o snapshot é removido na hora</b>, normalmente após segundos. A cópia é então lida por HTTPS e excluída. VMs desligadas são lidas diretamente.</li>
+  <li>Uma VM ligada mantém seus discos bloqueados. Por isso seus discos são copiados no datastore (thin) e <b>o snapshot é removido na hora</b>, normalmente após segundos. A cópia é então lida por HTTPS e excluída. VMs desligadas são lidas diretamente. Com <a href="#hot-add">hot-add</a>, os discos de VMs ligadas são lidos pela própria VM do proxy, sem cópia.</li>
   <li>A configuração da VM (<code>.vmx</code>) e a NVRAM são armazenadas com o backup.</li>
 </ol>
 <p>Exemplo do laboratório de testes: uma VM Debian com um disco de 8 GB, 1,6 GB em uso. O primeiro backup leu 1,6 GB. O seguinte, após 50 MB de dados novos, leu 70 MB e levou 23 segundos.</p>
+
+<h3 id="hot-add">Hot-add: sem cópia no datastore</h3>
+<p>Copiar os discos de uma VM ligada custa tempo e E/S no datastore de produção a cada backup, inclusive nos incrementais, e precisa de espaço livre para os blocos usados dos discos. Com VMs grandes em discos lentos, isso pesa. Com <b>Hot-add</b> (<a href="/agents#vmware">Agentes → Hosts VMware ESXi</a>, a caixa de seleção abaixo do agente proxy), o proxy os lê no próprio lugar:</p>
+<ul>
+  <li><b>Requisitos:</b> o proxy é um <b>agente Linux em uma VM</b> que enxerga os datastores da VM (no mesmo host, ou em um host do mesmo vCenter com acesso a eles), e o host é alterado pela API do vSphere (vCenter ou host licenciado). O proxy encontra a própria VM pelo seu BIOS UUID.</li>
+  <li><b>Como:</b> enquanto o snapshot existe, cada disco é anexado à VM do proxy como <b>independent-nonpersistent</b>. O proxy o abre somente leitura; qualquer coisa gravada nele iria para um redo log que o vSphere descarta quando o disco é desanexado, então o disco da VM nunca é alterado. O proxy lê só os blocos que o CBT informa, desanexa o disco e então o snapshot é removido.</li>
+  <li><b>O que economiza:</b> nenhuma cópia temporária e nenhum espaço extra no datastore. Um backup incremental de uma VM de 2 TB com 20 GB de alterações lê 20 GB. O snapshot fica enquanto os discos são lidos (em vez de só durante a cópia), então a VM grava no snapshot por um pouco mais de tempo.</li>
+  <li><b>Alternativa:</b> se o proxy não for uma VM do host, ou se anexar ou ler um disco falhar, esse disco é copiado no datastore como antes, e a execução mostra um aviso com o motivo. O Hot-add vem desativado por padrão; agentes anteriores à 0.54 o ignoram. A página da execução mostra quantos discos foram lidos por hot-add.</li>
+  <li><b>Na VM do proxy:</b> impeça que o LVM ative volumes dos discos anexados, com o arquivo de dispositivos do LVM (<code>use_devicesfile = 1</code> em <code>/etc/lvm/lvm.conf</code>, com os discos do próprio proxy registrados com <code>lvmdevices</code>). Volumes que o LVM ativar mesmo assim são removidos antes de o disco ser desanexado. Não anexe manualmente discos de outras VMs ao proxy: um disco independent-nonpersistent da pasta de outra VM é tomado por um que um backup interrompido deixou para trás, e desanexado.</li>
+</ul>
+
+<h3 id="proxies">Vários agentes proxy (vCenter)</h3>
+<p>Um agente proxy lê um disco após o outro, e via hot-add só nos hosts cujos datastores enxerga. Com uma conexão vCenter, adicione <b>um agente Linux em uma VM em cada host ESXi</b> como agente proxy adicional (<a href="/agents#vmware">Agentes → Hosts VMware ESXi</a>, <i>Agentes proxy adicionais</i> abaixo do agente proxy; agentes 0.55 ou mais novos):</p>
+<ul>
+  <li><b>Divisão por host:</b> cada backup do job é dividido. Cada VM vai para o agente proxy do host ESXi em que roda (conforme a última lista de VMs), e qualquer outra VM para o agente proxy da conexão. Cada agente proxy faz o backup da sua parte como uma execução própria, ao mesmo tempo que os outros, via hot-add no seu próprio host. Só participam agentes proxy online: as VMs de um agente proxy desligado vão para o agente proxy da conexão. O primeiro backup em um repositório novo e os backups para um destino local ou USB não são divididos.</li>
+  <li><b>Um início:</b> o job mostra as partes de um início como uma só: em execução enquanto uma parte roda, com falha se uma parte falhou. Os alertas de RPO e o painel contam um backup quando todas as partes tiveram sucesso; um job encadeado ou uma cópia "após cada backup" inicia uma vez, depois da última parte.</li>
+  <li><b>Sem sobreposição:</b> backups e restaurações da conexão em agentes proxy diferentes não rodam ao mesmo tempo (só as partes de um mesmo início), então uma VM movida entre hosts nunca é tratada por dois agentes proxy de uma vez.</li>
+  <li><b>Retenção por agente proxy:</b> cada parte mantém o número de backups do job para suas VMs, e os jobs de cópia também os copiam e mantêm por parte. Os backups de antes da divisão do job e os de um agente proxy removido ficam como estão: continuam sendo pontos de restauração das suas VMs. Uma VM movida para outro host (vMotion) passa para o agente proxy desse host a partir da próxima atualização da lista de VMs.</li>
+  <li>O BackupZit encontra o host de um agente proxy pelo BIOS UUID que seu agente informa; a página Agentes o mostra ao lado de cada agente. <i>Host ESXi não encontrado</i>: o agente não é uma VM deste vCenter, ou a lista de VMs é mais antiga que o agente (clique em <i>Atualizar</i>).</li>
+</ul>
+<p><b>Cancelar</b> um backup VMware (Atividade → Cancelar) também interrompe uma cópia de disco em andamento no datastore e exclui a cópia parcial; o snapshot é removido como após cada backup. Um snapshot que ainda está sendo criado quando o backup é cancelado é aguardado (até cinco minutos) e também removido.</p>
+<p id="leftovers"><b>Snapshots que ficam para trás.</b> O agente proxy registra cada snapshot e cada cópia temporária de disco antes de criá-los e só apaga o registro quando vê que o objeto sumiu: após a remoção, lista de novo os snapshots da VM, tenta até três vezes em cerca de dez minutos, faz login de novo quando a sessão do vSphere terminou (também antes de cada VM, para que uma sessão perdida não faça falhar as VMs seguintes) e consolida os discos quando o vSphere informa que eles precisam disso; uma VM sem snapshots cujos discos ainda precisam de consolidação por uma remoção anterior é consolidada antes do próximo backup. Se o agente parar no meio (falha, queda de energia) ou a remoção continuar falhando, o registro permanece:</p>
+<ul>
+  <li>O console coloca na fila uma execução de limpeza no agente proxy (só ele tem as credenciais do host), e o agente proxy também remove esses restos após cada backup da conexão. VMs em que um backup ou uma restauração do agente proxy está trabalhando não são tocadas.</li>
+  <li>O painel lista cada resto em <i>Requer atenção</i> (VM, desde quando, por quê) com <b>Remover agora</b>, e uma notificação (e-mail, chat) é enviada uma única vez para cada resto que permanece.</li>
+  <li>O console também procura snapshots <code>backupzit_…</code> com mais de seis horas na lista de VMs que atualiza a cada 10 minutos, enquanto nenhum backup da conexão está em execução, de modo que restos de agentes mais antigos também aparecem. Somente snapshots chamados <code>backupzit_…</code> são removidos; os snapshots próprios da VM nunca são tocados.</li>
+</ul>
 
 <h2>Restaurar uma VM</h2>
 <p>Use o <a href="/restore">assistente de restauração</a> (<i>Máquina virtual inteira</i>) ou a página do backup em Atividade. Escolha:</p>
@@ -96,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Ainda não incluído</h2>
 <ul>
   <li><b>vCenter com vários datacenters.</b> Só é possível adicionar um vCenter com um datacenter; adicione diretamente os hosts dos outros.</li>
-  <li><b>VMs com snapshots próprios.</b> Seus discos são deltas; exclua ou consolide os snapshots antes.</li>
+  <li><b>VMs com snapshots próprios.</b> Seus discos são deltas; exclua ou consolide os snapshots antes. (O pequeno delta que um snapshot quiesced grava é do próprio backup e é lido com ele.)</li>
   <li><b>Alguns tipos de disco.</b> Mapeamentos de dispositivo bruto (RDM) e discos independentes.</li>
   <li><b>Recuperação instantânea por um agente proxy Windows.</b> A recuperação instantânea precisa de um agente proxy Linux.</li>
 </ul>

@@ -175,16 +175,37 @@ func (s *SFTP) Save(_ context.Context, name string, data []byte) error {
 		// Server without posix-rename: plain rename fails if target exists.
 		if err2 := s.client.Rename(tmp, p); err2 != nil {
 			if _, statErr := s.client.Stat(p); statErr == nil {
-				// Names are content addressed (or rewritten whole), so an
-				// existing target holds equivalent data.
-				_ = s.client.Remove(tmp)
-				return nil
+				if contentAddressed(name) {
+					// The name is the hash of the content: the existing
+					// file holds the same data.
+					_ = s.client.Remove(tmp)
+					return nil
+				}
+				// A file that is rewritten (a lock being refreshed): keeping
+				// the old one would let the lock go stale during a long
+				// backup, and another job's prune could take the storage.
+				if err3 := s.client.Remove(p); err3 == nil {
+					if err2 = s.client.Rename(tmp, p); err2 == nil {
+						return nil
+					}
+				}
 			}
 			_ = s.client.Remove(tmp)
 			return fmt.Errorf("sftp rename %s: %w", p, err2)
 		}
 	}
 	return nil
+}
+
+// contentAddressed tells whether a repository file is named by the hash of
+// its content (it never changes once written).
+func contentAddressed(name string) bool {
+	for _, d := range []string{"data/", "index/", "snapshots/", "keys/"} {
+		if strings.HasPrefix(name, d) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *SFTP) Load(_ context.Context, name string) ([]byte, error) {

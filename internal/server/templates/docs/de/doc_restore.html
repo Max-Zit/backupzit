@@ -14,7 +14,7 @@
       <li>Dateien aus einem Festplattenabbild</li>
       <li>eine Datenbank (zu einem Zeitpunkt)</li>
       <li>ein ganzes Linux-System</li>
-      <li>Microsoft-365-E-Mail und OneDrive (siehe <a href="/docs/m365">Microsoft 365</a>)</li>
+      <li>Microsoft-365-E-Mail, OneDrive, Kalender und Kontakte sowie SharePoint-Dateien (siehe <a href="/docs/m365">Microsoft 365</a>)</li>
     </ul>
     Jede Auswahl zeigt, wie viele Wiederherstellungspunkte es dafür gibt.</li>
   <li><b>Quelle</b>: die virtuelle Maschine (über alle Hypervisoren und Aufträge hinweg) oder der Sicherungsauftrag und sein Rechner.</li>
@@ -36,7 +36,7 @@
   <li>Wählen Sie, wohin:
     <ul>
       <li><b>In einen Ordner wiederherstellen</b> (empfohlen) — z. B. <code>D:\Restore</code>. Darunter wird die ursprüngliche Struktur nachgebildet: <code>D:\Restore\C\Users\ana\Documents\…</code>. Nichts Vorhandenes wird angetastet.</li>
-      <li><b>Am ursprünglichen Ort wiederherstellen</b> — schreibt die Dateien dorthin zurück, wo sie waren, und <b>überschreibt</b> aktuelle Versionen. Bei einer NAS-Freigabe verbindet der Agent die Freigabe erneut, beschreibbar.</li>
+      <li><b>Am ursprünglichen Ort wiederherstellen</b> — schreibt die Dateien dorthin zurück, wo sie waren, und <b>überschreibt</b> aktuelle Versionen. Bei einer NAS-Freigabe verbindet der Agent die Freigabe erneut, beschreibbar. Sparse-Dateien (VM-Abbilder, Datenbanken) werden wieder als Sparse-Dateien angelegt. Unter Windows wird nur eine Datei wieder als sparse markiert, die sparse war; andere, etwa VHD/VHDX-Festplatten (Hyper-V lehnt Sparse-Festplatten ab), werden als normale Dateien wiederhergestellt, ebenso alle Dateien von Sicherungen, die mit Agenten vor 0.57 erstellt wurden, da diese das Attribut nicht festgehalten haben. Durch eine symbolische Verknüpfung oder Junction, die im Weg liegt, wird nie geschrieben: Beim Wiederherstellen in einen Ordner wird sie durch einen Ordner ersetzt, und jede Wiederherstellung schreibt nur in die Ordner, die sie geöffnet hat, auch wenn währenddessen eine Verknüpfung auftaucht (0.58: auch bei Dateisicherungen und am ursprünglichen Ort; das Stammverzeichnis eines Volumes wie / oder C: kann nicht als Ordner für Dateien aus VM- und Abbildsicherungen gewählt werden). Am ursprünglichen Ort werden nur Verknüpfungen des Systems verfolgt (Eigentümer root oder der Benutzer des Agenten unter Linux, SYSTEM, TrustedInstaller oder ein Administrator unter Windows, und niemand sonst darf sie ändern oder ersetzen: Die alten Kompatibilitätsverknüpfungen in Benutzerprofilen wie <i>Application Data</i> werden nicht verfolgt); eine Verknüpfung auf einen Ordner, der nicht existiert, ist ein Fehler, und an ihrem Ziel wird nichts angelegt. Eigentümer, Berechtigungen und Attribute werden an der wiederhergestellten Datei selbst gesetzt, nie über eine Verknüpfung, die an ihre Stelle gelegt wurde.</li>
     </ul>
   </li>
   <li>Beschränken Sie optional auf <b>Nur diese Pfade</b>, einen pro Zeile, z. B. <code>C:\Users\ana\Documents\Contracts</code> — oder wählen Sie sie im Dateibrowser aus (siehe unten).</li>
@@ -57,10 +57,11 @@
 <div class="callout tip"><p><b>Die richtige Sicherung finden:</b> Im <a href="/calendar">Kalender</a> sehen Sie, welche Sicherungen an welchem Tag liefen, oder nutzen Sie den Verlauf auf der Auftragsseite.</p></div>
 
 <h2>Einzelne Dateien aus einem Festplattenabbild wiederherstellen</h2>
-<p>Bei Abbildsicherungen klicken Sie im Sicherungslauf auf <b>Dateien durchsuchen</b>. Sie können das NTFS-Dateisystem im Abbild direkt in der Konsole durchsuchen, Dateien und Ordner anhaken und sie auf einen beliebigen Agenten wiederherstellen — ohne die ganze Festplatte wiederherzustellen. Beim Wiederherstellen in einen Ordner erhalten die Dateien dieselbe Struktur wie bei einer Dateisicherung: Der Laufwerksbuchstabe wird zum ersten Ordner (<code>D:RestoreCUsers…</code>).</p>
+<p>Bei Abbildsicherungen klicken Sie im Sicherungslauf auf <b>Dateien durchsuchen</b>. Sie können das NTFS-Dateisystem im Abbild direkt in der Konsole durchsuchen, Dateien und Ordner anhaken und sie auf einen beliebigen Agenten wiederherstellen — ohne die ganze Festplatte wiederherzustellen. Beim Wiederherstellen in einen Ordner erhalten die Dateien dieselbe Struktur wie bei einer Dateisicherung: Der Laufwerksbuchstabe wird zum ersten Ordner (<code>D:\Restore\C\Users\…</code>).</p>
+<p>Sie können die angehakten Dateien auch direkt im Browser <b>herunterladen</b>: eine Datei kommt unverändert, mehrere Dateien oder Ordner als ZIP-Archiv — praktisch für ein einzelnes Dokument aus einer großen Image-Sicherung. Wie das Durchsuchen funktioniert es für Image-Sicherungen auf Netzwerkspeicher, erfordert die Berechtigung <b>Wiederherstellen</b>, und das Audit-Log hält fest, welche Pfade heruntergeladen wurden.</p>
 
 <h2>Einzelne Dateien aus einer VM wiederherstellen (Proxmox VE, Hyper-V, VMware)</h2>
-<p>Klicken Sie in einem VM-Sicherungslauf neben dem Gast auf <b>Dateien durchsuchen</b>. Die Konsole zeigt die Partitionen und LVM-Volumes seiner Festplatten und lässt Sie NTFS-, ext4- und XFS-Dateisysteme durchsuchen. <b>Laden Sie</b> die angehakten Dateien <b>herunter</b> (mehrere als ZIP-Archiv) oder stellen Sie sie auf einem beliebigen Agenten wieder her. Siehe <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> und <a href="/docs/vmware">VMware ESXi</a>. Auf einem Agenten wiederhergestellte Dateien behalten die Unix-Rechte aus der VM (ext4, XFS), sodass wiederhergestellte Geheimnisse wie <code>/etc/shadow</code> privat bleiben; Dateien von NTFS-Volumes kann unter Linux nur ihr Besitzer lesen.</p>
+<p>Klicken Sie in einem VM-Sicherungslauf neben dem Gast auf <b>Dateien durchsuchen</b>. Die Konsole zeigt die Partitionen und LVM-Volumes seiner Festplatten und lässt Sie NTFS-, ext4- und XFS-Dateisysteme durchsuchen. <b>Laden Sie</b> die angehakten Dateien <b>herunter</b> (mehrere als ZIP-Archiv) oder stellen Sie sie auf einem beliebigen Agenten wieder her. Siehe <a href="/docs/proxmox">Proxmox VE</a>, <a href="/docs/hyperv">Hyper-V</a> und <a href="/docs/vmware">VMware ESXi</a>. Auf einem Agenten wiederhergestellte Dateien behalten die Unix-Rechte aus der VM (ext4, XFS), sodass wiederhergestellte Geheimnisse wie <code>/etc/shadow</code> privat bleiben; Dateien von NTFS-Volumes kann unter Linux nur ihr Besitzer lesen. Bei der Wiederherstellung auf einem Windows-Agenten werden Namen mit <code>:</code> aus Linux-Gästen (ext4, XFS) übersprungen und aufgeführt: Windows würde den Teil nach dem Doppelpunkt als Datenstrom einer anderen Datei lesen. Alternative NTFS-Datenströme werden als Datenströme wiederhergestellt.</p>
 
 <h2>Ganze Rechner wiederherstellen</h2>
 <ul>
@@ -84,15 +85,16 @@
       <li>Kopieren Sie das ISO optional in das Verzeichnis <code>/var/lib/backupzit/dist</code> der Konsole; es wird dann auf der Seite Wiederherstellungsmedien angeboten.</li>
     </ol></li>
 </ul>
-<p>Das Durchsuchen von Dateien in der Konsole funktioniert für Sicherungen auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository); die Konsole liest sie direkt. Für Sicherungen auf einer lokalen Festplatte eines Agenten verwenden Sie die Befehlszeile.</p>
+<p>Das Durchsuchen von Dateien in der Konsole funktioniert für Sicherungen auf Netzwerkspeicher (SFTP, S3, SMB, Azure, gehärtetes Repository); die Konsole liest sie direkt. Für Sicherungen auf einer lokalen Festplatte eines Agenten oder auf SFTP mit SSH-Schlüssel funktioniert eine Wiederherstellung mit <i>Nur diese Pfade</i> weiterhin aus der Konsole; um ihren Inhalt anzusehen, verwenden Sie die Befehlszeile.</p>
 
 <h2>Ohne die Konsole wiederherstellen</h2>
 <p>Geht die Konsole selbst verloren, kann jeder Rechner mit installiertem Agenten mit dem <b>Wiederherstellungsblatt</b> des Speicherziels direkt vom Speicher wiederherstellen:</p>
 <pre>set BACKUPZIT_PASSWORD=&lt;recovery key&gt;
 set BACKUPZIT_SFTP_PASSWORD=...           (or the S3/SMB/hardened credentials)
+set BACKUPZIT_SFTP_HOSTKEY=SHA256:...      (the SFTP host key, on the recovery sheet)
 backupzit-agent snapshots --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d
 backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --target D:\Restore latest</pre>
-<p>Siehe <a href="/docs/cli">Befehlszeilenreferenz</a>.</p>
+<p><code>latest</code> ist die neueste Sicherung eines beliebigen Auftrags dieses Computers; um einen bestimmten Auftrag wiederherzustellen, verwenden Sie eine Snapshot-ID aus <code>snapshots</code>. Siehe <a href="/docs/cli">Befehlszeilenreferenz</a>.</p>
 
 <h2>Automatische Wiederherstellungstests</h2>
 <p>BackupZit prüft Ihre Sicherungen regelmäßig, ohne dass Sie etwas tun: Wöchentlich (einstellbar unter <a href="/settings/tests">Einstellungen → Wiederherstellungstests</a>) stellt der Agent jedes Auftrags eine <b>Zufallsstichprobe von Dateien</b> aus der neuesten Sicherung in einen temporären Ordner wieder her, prüft jedes Byte gegen die gespeicherten Prüfsummen und löscht sie wieder. Bei Festplattenabbildern werden zufällige Blöcke gelesen und geprüft. So wird die ganze Kette geprüft — Speicherzugriff, Zugangsdaten, Verschlüsselungsschlüssel und Datenintegrität.</p>
@@ -110,7 +112,7 @@ backupzit-agent restore   --repo sftp://backup@nas:22/backups/pc1_1a2b3c4d --tar
   <li>Die Laufseite listet jede VM mit ihrem Ergebnis und der Startdauer auf.</li>
 </ul>
 <h3 id="data-check">Prüfung aller gespeicherten Daten</h3>
-<p>Wiederherstellungstests lesen eine Stichprobe. Zusätzlich liest ein Agent <b>alle</b> Daten jedes Repositorys, prüft sie gegen ihre Prüfsumme und kontrolliert, dass Ordner und Daten jeder Sicherung vorhanden sind — standardmäßig monatlich (Einstellungen → Wiederherstellungstests: <b>Gespeicherte Daten prüfen</b>: monatlich, alle drei Monate oder nie). So werden Schäden am Speicher selbst gefunden, etwa eine ausfallende Festplatte im NAS oder schleichender Datenverfall, bevor Sie die Sicherung brauchen. Jedes Repository wird einmal geprüft (die Aufträge eines Agenten auf einem Speicher teilen es), vom Agenten, der hineinschreibt. Die Prüfung liest so viel, wie das Repository enthält; auf Cloud-Speicher (S3, Azure) läuft sie daher nur mit <b>Auch auf Cloud-Speicher</b>. Probleme lassen den Lauf <i>Datenprüfung</i> fehlschlagen und senden eine Fehlerbenachrichtigung; <b>Daten prüfen</b> auf der Auftragsseite startet sofort eine Prüfung. Benötigt Agenten ab 0.39.0.</p>
+<p>Wiederherstellungstests lesen eine Stichprobe. Zusätzlich liest ein Agent <b>alle</b> Daten jedes Repositorys, prüft sie gegen ihre Prüfsumme und kontrolliert, dass Ordner und Daten jeder Sicherung vorhanden sind — standardmäßig monatlich (Einstellungen → Wiederherstellungstests: <b>Gespeicherte Daten prüfen</b>: monatlich, alle drei Monate oder nie). So werden Schäden am Speicher selbst gefunden, etwa eine ausfallende Festplatte im NAS oder schleichender Datenverfall, bevor Sie die Sicherung brauchen. Jedes Repository wird einmal geprüft (die Aufträge eines Agenten auf einem Speicher teilen es), vom Agenten, der hineinschreibt. Die Prüfung liest so viel, wie das Repository enthält; auf Cloud-Speicher (S3, Azure) läuft sie daher nur mit <b>Auch auf Cloud-Speicher</b>. Probleme lassen den Lauf <i>Datenprüfung</i> fehlschlagen und senden eine Fehlerbenachrichtigung; <b>Daten prüfen</b> auf der Auftragsseite startet sofort eine Prüfung. Benötigt Agenten ab 0.39.0. Auf S3, Azure und gehärtetem Speicher liest die Prüfung mehrere Datenpakete gleichzeitig (Agenten 0.54.2 und neuer). Eine Prüfung, die beschädigte Datenpakete findet, bietet auf ihrer Laufseite <b>Reparatur</b> an (<a href="/docs/troubleshooting#repair">Fehlerbehebung</a>).</p>
 <p>Stellen Sie zusätzlich ab und zu (z. B. vierteljährlich) einen echten Ordner von Hand wieder her und öffnen Sie ein paar Dateien — das schult auch die Personen, die es im Notfall tun müssen.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

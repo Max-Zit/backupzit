@@ -5,6 +5,7 @@ package runinfo
 
 import (
 	"encoding/json"
+	"path"
 
 	"github.com/max-zit/backupzit/internal/repo"
 )
@@ -34,8 +35,15 @@ type GuestSummary struct {
 	// Changed is the number of disks of which only the blocks changed
 	// since the previous backup were read (changed block tracking).
 	Changed int `json:"changed,omitempty"`
+	// HotAdd is the number of disks read through hot-add (VMware).
+	HotAdd int `json:"hot_add,omitempty"`
 	// Excluded are the disk files the job left out of the backup.
 	Excluded []string `json:"excluded,omitempty"`
+	// Files is the number of volumes stored as files rather than as disk
+	// images (Proxmox LXC containers on ZFS); they are browsed in the
+	// snapshot's tree below Path.
+	Files int    `json:"files,omitempty"`
+	Path  string `json:"path,omitempty"`
 }
 
 // Guests lists the guests of a VM backup.
@@ -48,7 +56,16 @@ func Guests(sn *repo.Snapshot) json.RawMessage {
 		}
 		for _, d := range g.Disks {
 			s.Size += d.Size
-			if d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {
+			if d.Files() {
+				s.Stored += d.Bytes
+				s.Files++
+				s.Path = path.Dir(d.Path)
+				continue
+			}
+			if d.Via == "hot-add" {
+				s.HotAdd++
+			}
+			if d.Image >= 0 && d.Image < len(sn.Images) && len(sn.Images[d.Image].Partitions) == 1 {
 				p := sn.Images[d.Image].Partitions[0]
 				s.Stored += p.StoredBytes
 				if p.Method == "changed-blocks" {

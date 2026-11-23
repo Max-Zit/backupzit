@@ -184,7 +184,7 @@ func TestCancelRuns(t *testing.T) {
 		t.Errorf("cancel all without runs: %s", loc)
 	}
 	viewer := newClient(t, e)
-	admin.do("POST", "/users", url.Values{"username": {"vera"}, "password": {"viewer-pass-123"}, "password2": {"viewer-pass-123"}, "role": {"viewer"}})
+	admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"vera"}, "password": {"viewer-pass-123"}, "password2": {"viewer-pass-123"}, "role": {"viewer"}})
 	viewer.login("vera", "viewer-pass-123")
 	if code, _, _ := viewer.do("POST", "/runs/cancel-all", url.Values{"id": {fmt.Sprint(later)}}); code != 403 {
 		t.Errorf("viewer cancel all: %d", code)

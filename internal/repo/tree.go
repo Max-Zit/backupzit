@@ -97,6 +97,9 @@ type SnapshotStats struct {
 	BytesStored  uint64        `json:"bytes_stored"` // new unique data, as uploaded
 	Duration     time.Duration `json:"duration_ns"`
 	Errors       []string      `json:"errors,omitempty"`
+	// Failed names the guests of a VM backup that could not be backed up in
+	// this run: they have no restore point in it.
+	Failed []string `json:"failed,omitempty"`
 }
 
 // UnixMeta is the Unix specific metadata of a node.

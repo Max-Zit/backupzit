@@ -210,7 +210,21 @@ func thinSpec(adapter string) *types.FileBackedVirtualDiskSpec {
 func (c *Client) copyDisk(ctx context.Context, src, dst dsPath) error {
 	if c.useAPI {
 		t, err := object.NewVirtualDiskManager(c.vim).CopyVirtualDisk(ctx, src.String(), c.dc, dst.String(), c.dc, thinSpec(""), false)
-		return c.wait(ctx, t, err)
+		if err != nil {
+			return err
+		}
+		if err := t.Wait(ctx); err != nil {
+			if ctx.Err() != nil {
+				// The run was cancelled: vSphere goes on copying unless the
+				// task is cancelled too (for a large disk, for hours).
+				cctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				defer cancel()
+				_ = t.Cancel(cctx)
+				_ = t.Wait(cctx)
+			}
+			return err
+		}
+		return nil
 	}
 	_, err := c.run(ctx, "vmkfstools -i "+sq(src.local())+" -d thin "+sq(dst.local()))
 	return err
@@ -348,17 +362,31 @@ func (c *Client) powerOn(ctx context.Context, moid string) error {
 	return err
 }
 
-// powerOff stops a VM hard (no error if it is off).
+// powerOff stops a VM hard (no error if it is off). A suspended VM is
+// powered off too, which discards its suspended state: resuming old memory
+// on top of restored disks would corrupt the guest's file systems. An
+// unknown state is an error, not "off".
 func (c *Client) powerOff(ctx context.Context, moid string) error {
-	if c.powerState(ctx, moid) != "poweredOn" {
+	switch c.powerState(ctx, moid) {
+	case "poweredOff":
 		return nil
+	case "":
+		return errors.New("the power state of the VM could not be read")
 	}
+	var err error
 	if c.useAPI {
-		t, err := object.NewVirtualMachine(c.vim, vmRef(moid)).PowerOff(ctx)
-		return c.wait(ctx, t, err)
+		t, e := object.NewVirtualMachine(c.vim, vmRef(moid)).PowerOff(ctx)
+		err = c.wait(ctx, t, e)
+	} else {
+		_, err = c.run(ctx, "vim-cmd vmsvc/power.off "+sq(moid))
 	}
-	_, err := c.run(ctx, "vim-cmd vmsvc/power.off "+sq(moid))
-	return err
+	if err != nil {
+		return err
+	}
+	if st := c.powerState(ctx, moid); st != "poweredOff" {
+		return fmt.Errorf("the VM is still %q after powering it off", st)
+	}
+	return nil
 }
 
 // shutdown asks VMware Tools to shut the guest down and waits up to five

@@ -16,15 +16,15 @@
 <h2>Restaurar una imagen en un disco</h2>
 <p>En la ejecución de la copia de imagen, use <b>Restaurar esta imagen en un disco</b>:</p>
 <ul>
-  <li><b>Restaurar en el agente</b>: la máquina que tiene el disco de destino. Puede ser una máquina en marcha con un disco libre o una máquina arrancada desde la ISO de recuperación.</li>
-  <li><b>Disco de destino</b>: debe ser al menos tan grande como el área usada del original. <b>Se destruyen todos sus datos.</b></li>
+  <li><b>Restaurar en el agente</b>: la máquina Windows que tiene el disco de destino. Puede ser una máquina en marcha con un disco libre o una máquina arrancada desde la ISO de recuperación; el disco desde el que se ejecuta Windows no se puede elegir, así que para restaurar el disco del sistema de una máquina se necesita la ISO de recuperación.</li>
+  <li><b>Disco de destino</b>: debe llegar al menos hasta el final de la última partición del disco original (las particiones se recrean con sus tamaños originales, no se reducen) y tener el mismo tamaño de sector (512 o 4096 bytes). <b>Se destruyen todos sus datos.</b></li>
   <li><b>Dejar el disco sin conexión después</b>: márquelo cuando el disco original esté en la misma máquina, para que Windows no cambie los identificadores de disco de la copia.</li>
 </ul>
 <p>Se admiten discos GPT y MBR, y arranque EFI y BIOS. La disposición de particiones y los identificadores se recrean, así que el disco restaurado arranca como antes.</p>
 
 <h2>Recuperación bare-metal con la ISO de recuperación</h2>
 <ol>
-  <li>En <a href="/recovery">Medios de recuperación</a> descargue la ISO de recuperación (de Windows). Grábela en una memoria USB (Rufus, modo «imagen DD» o «ISO») o conéctela a una máquina virtual.</li>
+  <li>Genere una vez la ISO de recuperación de Windows (consulte <a href="/docs/restore#recovery-iso">ISO de recuperación</a>; Windows PE no se puede redistribuir), o descárguela de <a href="/recovery">Medios de recuperación</a> si se copió en la consola. Grábela en una memoria USB (Rufus en modo <b>ISO</b>, para poder añadir la carpeta del paso siguiente) o conéctela a una máquina virtual.</li>
   <li>Si lo desea, cree un <b>código de recuperación</b> y descargue <code>recovery.json</code>; cópielo en una carpeta <code>backupzit</code> de la memoria para que la máquina se conecte sin escribir nada.</li>
   <li>Arranque desde la memoria la máquina que va a restaurar. Inicia el agente en modo de recuperación y se conecta a la consola (o pide la dirección del servidor y el código de recuperación).</li>
   <li>La máquina aparece como agente de <span class="badge">recuperación</span> con sus discos.</li>

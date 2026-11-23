@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Proxmox VE sanal makineleri</h1>
-<p class="lead">BackupZit, Proxmox VE sanal makinelerini (QEMU) ve kapsayıcılarını (LXC) konukların içine hiçbir şey kurmadan yedekler. Aracı Proxmox ana bilgisayarında çalışır, her konuğun anlık görüntüsünü alır, disklerini okur ve tekilleştirilmiş olarak herhangi bir depolama hedefine kaydeder.</p>
+<p class="lead">BackupZit, Proxmox VE sanal makinelerini (QEMU) ve kapsayıcılarını (LXC) konukların içine hiçbir şey kurmadan yedekler. Aracı Proxmox ana bilgisayarında çalışır, her konuğun anlık görüntüsünü alır, disklerini okur ve tekilleştirilmiş olarak herhangi bir depolama hedefine kaydeder. VM diskleri disk görüntüsü olarak saklanır; ZFS üzerindeki kapsayıcılar dosya dosya yedeklenir (bkz. <a href="#lxc-zfs">ZFS üzerinde kapsayıcılar (LXC)</a>).</p>
 
 <h2>Kurulum</h2>
 <ol>
@@ -18,10 +18,10 @@ systemctl enable --now backupzit-agent</pre></li>
 <ol>
   <li>Geçici bir Proxmox anlık görüntüsü alınır (<code>backupzit_…</code>, birkaç saniye ile birkaç dakika arasında <i>Snapshots</i> altında görünür). Konuk çalışmaya devam eder.</li>
   <li>VM'de <b>QEMU konuk aracısı</b> çalışıyorsa (ve VM seçeneklerinde etkinse), Proxmox anlık görüntü için dosya sistemlerini dondurur — yedek bu durumda uygulama tutarlıdır. Bu olmadan yedek, elektrik kesintisindeki gibi çökme tutarlıdır. Linux VM'lere <code>qemu-guest-agent</code>, Windows VM'lere VirtIO konuk araçlarını kurun.</li>
-  <li>Her disk anlık görüntüden 1 MiB'lik bloklar halinde okunur. Boş bloklar saklanmaz ve depoda zaten bulunan bloklar yeniden yüklenmez; böylece ilk yedekten sonra yalnızca değişen veriler aktarılır.  Diskleri LVM-thin, ZFS, Ceph RBD veya qcow2 dosyalarında olan çalışan VM'ler ayrıca <b>değişen blok takibi</b> (QEMU dirty bitmap) alır: ikinci yedekten itibaren yalnızca önceki yedekten sonra yazılan alanlar okunur; bu dakikalar yerine saniyeler sürer. VM durdurulduktan, yeniden başlatıldıktan veya başka bir düğüme taşındıktan sonra sonraki yedek disklerini bir kez tamamen okur; çalıştırma sayfası hangi disklerin yalnızca değişen bloklar olarak okunduğunu gösterir.</li>
+  <li>Her disk anlık görüntüden 1 MiB'lik bloklar halinde okunur. Boş bloklar saklanmaz ve depoda zaten bulunan bloklar yeniden yüklenmez; böylece ilk yedekten sonra yalnızca değişen veriler aktarılır.  Diskleri LVM-thin, ZFS, Ceph RBD veya qcow2 dosyalarında olan çalışan VM'ler ayrıca <b>değişen blok takibi</b> (QEMU dirty bitmap) alır: ikinci yedekten itibaren yalnızca önceki yedekten sonra yazılan alanlar okunur; bu dakikalar yerine saniyeler sürer. VM durdurulduktan, yeniden başlatıldıktan veya başka bir düğüme taşındıktan ya da bir diskin boyutu değiştirildikten sonra sonraki yedek disklerini bir kez tamamen okur; çalıştırma sayfası hangi disklerin yalnızca değişen bloklar olarak okunduğunu gösterir. Bu varsayılan blok boyutudur; bir iş bunun yerine 256 veya 512 KiB kullanabilir (bkz. <a href="/docs/jobs#compression">İşler</a>).</li>
   <li>Anlık görüntü kaldırılır. Konuk yapılandırması (CPU, bellek, ağ, diskler) yedekle birlikte saklanır.</li>
 </ol>
-<p>Çalıştırma sayfası her konuğu, disklerini ve nasıl yakalandığını listeler. Geri yükleme testleri VM yedeklerinin rastgele bloklarını disk görüntülerindeki gibi denetler ve <a href="/docs/restore">önyükleme testi</a> açıkken her VM'yi ağdan yalıtılmış olarak yedekten başlatıp önyüklendiğini kanıtlar.</p>
+<p>Çalıştırma sayfası her konuğu, disklerini ve nasıl yakalandığını listeler. Geri yükleme testleri VM yedeklerinin rastgele bloklarını disk görüntülerindeki gibi denetler ve <a href="/docs/restore">önyükleme testi</a> açıkken her VM'yi ağdan yalıtılmış olarak yedekten başlatıp önyüklendiğini kanıtlar. ZFS üzerindeki kapsayıcılar rastgele dosyalar geri yüklenerek sınanır.</p>
 
 <h3>Desteklenen depolama</h3>
 <table>
@@ -31,9 +31,27 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ceph RBD</td><td>evet, anlık görüntü</td><td>evet</td></tr>
   <tr><td><b>qcow2</b> diskli dizin, NFS, CIFS</td><td>evet, anlık görüntü</td><td>evet</td></tr>
   <tr><td>Ham (raw) diskli dizin, NFS, CIFS, kalın LVM</td><td>hayır — konuğu durdurun veya diski taşıyın</td><td>evet</td></tr>
-  <tr><td>Kapsayıcıların ZFS alt birimleri</td><td colspan="2">henüz desteklenmiyor</td></tr>
+  <tr><td>Kapsayıcıların (LXC) ZFS alt birimleri</td><td>evet, anlık görüntü, dosya dosya</td><td>evet, dosya dosya</td></tr>
 </table>
-<p>Proxmox'ta <i>Backup: no</i> (<code>backup=0</code>) olarak işaretlenmiş diskler, doğrudan aktarılan fiziksel diskler ve bind bağlamaları atlanır ve uyarı olarak listelenir. Cloud-init sürücüleri saklanmaz; geri yüklemede yapılandırmadan yeniden oluşturulur.</p>
+<p>Proxmox'ta <i>Backup: no</i> (<code>backup=0</code>) olarak işaretlenmiş diskler, doğrudan aktarılan fiziksel diskler ve bind bağlamaları atlanır ve uyarı olarak listelenir. Cloud-init sürücüleri saklanmaz; geri yüklemede yapılandırmadan yeniden oluşturulur. Diskleri anlık görüntü olmadan okunan durdurulmuş bir konuk, bu sırada vzdump'taki gibi Proxmox VE yedekleme kilidini taşır: diskleri okunana kadar (HA ile de) başlatılamaz.</p>
+<p id="leftovers"><b>Geride kalan anlık görüntüler ve kilitler.</b> Aracı her yedekleme anlık görüntüsünü almadan önce, durdurulmuş bir konuğun yedekleme kilidini de konduğu anda kaydeder ve kaydı ancak konuğun yapılandırması bunların gittiğini gösterdiğinde siler (normal kaldırma başarısız olursa anlık görüntü <code>--force</code> ile kaldırılır; yaklaşık on dakika içinde en fazla üç deneme). Aracı çökmesi veya elektrik kesintisinden sonra aracı bunları başlangıçta ve 15 dakikada bir kendisi kaldırır:</p>
+<ul>
+  <li>Aracının bir yedeklemesinin veya geri yüklemesinin üzerinde çalıştığı konuklara ve Proxmox VE'nin bir görev (vzdump yedeği, geçiş) yürüttüğü konuklara dokunulmaz.</li>
+  <li>Yarıda kalan bir oluşturmanın bıraktığı anlık görüntü kilidi (<code>lock: snapshot</code>) anlık görüntüyle birlikte kaldırılır; anlık görüntünün Ceph RBD aygıtlarının eşlemesi önce kaldırılır (unmap).</li>
+  <li>Aracının kaydı olmayan, bir günden eski <code>backupzit_…</code> anlık görüntüleri (örneğin eski sürümlerden) de kaldırılır. Kendi anlık görüntülerinize asla dokunulmaz.</li>
+  <li>Bir yedekleme kilidi yalnızca kayıt onu BackupZit'in koyduğunu gösteriyorsa kaldırılır. BackupZit'in koymadığı bir kilit, vzdump aynı kilidi kullandığı için, onu kaldıran komutla (<code>qm unlock</code>, <code>pct unlock</code>) birlikte bildirilir.</li>
+  <li>Kaldırılamayanlar panoda <i>İlgi gerekiyor</i> altında <b>Şimdi kaldır</b> ile listelenir ve bir kez bildirilir.</li>
+</ul>
+
+<h3 id="lxc-zfs">ZFS üzerinde kapsayıcılar (LXC)</h3>
+<p>Bir ZFS depolamasında Proxmox, bir kapsayıcının (LXC) birimlerini veri kümeleri olarak tutar (<code>subvol-&lt;ID&gt;-disk-N</code>): bir VM'nin (QEMU) zvol'leri gibi sanal diskler değil, dosya sistemleri. Bu yüzden BackupZit bu kapsayıcıları dosya dosya yedekler:</p>
+<ul>
+  <li>Geçici anlık görüntü aynıdır; kapsayıcı çalışmaya devam ederken ajan dosyaları her alt birimin ZFS anlık görüntüsünden (<code>.zfs/snapshot</code>, gizli olsa da) okur.</li>
+  <li>Sahipler (ayrıcalıksız kapsayıcıların kaydırılmış kimlikleri de), izinler, zamanlar, genişletilmiş öznitelikler ve ACL'ler, sabit ve sembolik bağlantılar ve aygıt dosyaları korunur. Soketler vzdump'taki gibi atlanır; kapsayıcıdaki hizmetler bunları yeniden oluşturur.</li>
+  <li>İkinci yedeklemeden itibaren yalnızca boyutu veya değiştirilme zamanı değişen dosyalar okunur; diğerleri önceki yedekten alınır.</li>
+  <li>Böyle bir kapsayıcı bir ZFS depolamasına, özgün birimlerin boyutunda (kota) yeni alt birimler olarak geri yüklenir.</li>
+</ul>
+<p>LVM-thin veya Ceph RBD üzerindeki kapsayıcıların sanal diskleri vardır ve VM'ler gibi blok blok yedeklenir. Çalıştırma sayfası VM'leri (QEMU) ve kapsayıcıları (LXC) ayrı tablolarda listeler ve her kapsayıcının nasıl saklandığını gösterir. 0.53 veya daha yeni ajanlar gerekir.</p>
 
 <h2>Bir VM veya kapsayıcıyı geri yükleme</h2>
 <p>Bir VM yedeği çalıştırmasını açın (iş sayfasından veya <a href="/runs">Etkinlik</a>'ten) ve <b>Bir VM veya kapsayıcıyı geri yükle</b>'yi kullanın:</p>
@@ -45,7 +63,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Ad</b> ve <b>Diskler için depolama</b> — ör. orijinalden farklı bir depolamaya geri yükleme.</li>
   <li><b>Geri yüklemeden sonra konuğu başlat</b>.</li>
 </ul>
-<p>Her geri yükleme VM'lere yeni bir nesil kimliği (<code>vmgenid</code>) verir; böylece Windows etki alanı denetleyicileri ve diğer yazılımlar geri dönüşü güvenle algılar. Diskler seçilen depolamada <code>pvesm</code> ile ayrılır; dizin depolamada ham dosya olarak geri yüklenir.</p>
+<p>Her geri yükleme VM'lere yeni bir nesil kimliği (<code>vmgenid</code>) verir; böylece Windows etki alanı denetleyicileri ve diğer yazılımlar geri dönüşü güvenle algılar. Diskler seçilen depolamada <code>pvesm</code> ile ayrılır; dizin depolamada ham dosya olarak geri yüklenir. Depolama listesi yalnızca seçilen konuğa uyan depolamaları sunar: bir VM için VM diskleri, bir kapsayıcı için kapsayıcı birimleri ve dosya dosya yedeklenmiş bir kapsayıcı için ZFS.</p>
 
 <h2>Anında kurtarma</h2>
 <p>Büyük bir VM'yi geri yüklemek, disklerini kopyalamak kadar sürer. Geri yükleme formunda <b>Anında, yedekten çalışarak</b> seçeneğiyle VM, diskleri hâlâ yedekteyken birkaç saniye içinde çalışır:</p>
@@ -61,7 +79,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>İlk seferde replika yeni bir konuk gibi geri yüklenir (sonraki boş kimlik, ad <i>original-replica</i>, yeni MAC adresleri, düğümle asla başlatılmaz).</li>
   <li>Sonrasında yalnızca replikanın tuttuğu yedekten bu yana değişen bloklar yazılır — genellikle yedek başına birkaç saniye.</li>
-  <li>İş sayfası replikaları, her birinin tuttuğu yedeği ve durumlarını listeler. Bir konuk kaybolursa <b>Replikayı başlat</b>'a tıklayın: geri yükleme olmadan son yedeğin verileriyle çalışır. Yalnızca orijinal gerçekten yok olduğunda başlatın — ikisinin aynı anda ağda olması çakışmaya yol açabilir.</li>
+  <li>İş sayfası replikaları, her birinin tuttuğu yedeği ve durumlarını listeler. Bir konuk kaybolursa <b>Replikayı başlat</b>'a tıklayın: geri yükleme olmadan son yedeğin verileriyle çalışır. Yalnızca orijinal gerçekten yok olduğunda başlatın — ikisinin aynı anda ağda olması çakışmaya yol açabilir. Bir kopya başlatıldıktan sonra (Proxmox VE arayüzünde de, örneğin bir yük devri testi için), sonraki güncelleme yalnızca değişiklikleri yazmak yerine her bloğu karşılaştırır; böylece kopya yeniden yedekle eşleşir. Aynısı yarıda kalan bir güncellemeden sonra (aracı veya düğüm çökmesi) ve replikanın başlatılıp başlatılmadığı Proxmox VE görev günlüğünden okunamadığında da olur.</li>
   <li>Bir replika çalışırken artık güncellenmez (çalıştırma bunu bildirir). Yeniden çoğaltmak için replika konuğunu Proxmox'ta silin; sonraki yedek yenisini oluşturur. Proxmox anlık görüntüleri olan replikalar da güncellenmez.</li>
   <li>Bir konuğa sonradan eklenen diskler çoğaltılmaz (baştan başlamak için replikayı silin); büyüyen diskler replikada da büyütülür. Yapılandırma değişiklikleri (bellek, CPU) replika oluşturulurken alınır.</li>
   <li>Çoğaltma, yedekleri bir geri yükleme gibi okur: replika düğümünün depolamaya erişebilmesi gerekir. Çoğaltmayı kapatmak replikaları olduğu gibi bırakır.</li>
@@ -87,6 +105,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>Aracıda geri yükle</b> — bunları herhangi bir aracıdaki bir klasöre kopyalayın; ör. VM'ye geri (içinde BackupZit aracısı çalışıyorsa) veya bir dosya sunucusuna.</li>
 </ul>
 <p>Komut satırında: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> ve <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> bir bölüm veya mantıksal birim seçer (yol olmadan <code>pve ls</code> bunları listeler). Konsolda göz atmak için yedeğin ağ depolamasında (SFTP, S3, SMB, Azure, güçlendirilmiş depo) olması gerekir.</p>
+<p>ZFS üzerindeki kapsayıcılarda (LXC) <b>Dosyalara göz at</b>, bir dosya yedeğindeki gibi doğrudan dosyalarını açar; <code>rootfs</code>, <code>mp0</code>, <code>mp1</code>… klasörleri kapsayıcının birimleridir. Bir ajana geri yüklenen dosyalar sahiplerini ve izinlerini korur. Bunlar özgün konuma değil, bir klasöre geri yüklenir: yedekteki yollar ana makinedeki değil, kapsayıcının içindeki yollardır. Sembolik bağlantı yalnızca kendi birimi içinde izlenir. Dosya dosya yedeklenen kapsayıcıların replikaları henüz desteklenmiyor; bunun yerine onları geri yükleyin.</p>
 
 <h2 id="host">Ana makine yapılandırmasını yedekleme</h2><p>Konuklar bir Proxmox düğümünün yalnızca yarısıdır: depolama tanımları, ağ, kullanıcılar, güvenlik duvarı, sertifikalar ve her VM ile kapsayıcının ayarları onun yapılandırmasındadır. Bunu düğümün aracısında sıradan bir dosya işiyle yedekleyin: <a href="/jobs">Yedekleme işleri</a> sayfasında düğümün aracısını ve <b>Dosyalar ve klasörler</b> seçeneğini seçin, ardından <b>Ana makine yapılandırmasını doldur</b> düğmesine tıklayın. Bu, <code>/etc</code> (<code>/etc/pve</code>, ağ ve <code>/etc/hosts</code> ile), <code>/var/lib/pve-cluster</code> (yapılandırma veritabanı <code>config.db</code>) ve <code>/root</code> yollarını girer; işi örneğin her gün çalıştırın. Veritabanı düğüm çalışırken değişir; bu yüzden aracı önce onun tutarlı bir kopyasını oluşturur ve yedek bunu <code>/var/lib/backupzit/pve-config/config.db</code> olarak içerir; ek paket gerekmez.</p><p>Arızalanan bir düğümü yeniden kurmak için: aynı Proxmox VE sürümünü aynı ana makine adı ve adresle kurun, aracıyı kurun, <code>/etc/network/interfaces</code> ve <code>/etc/hosts</code> dosyalarını yerlerine geri yükleyin, ardından küme hizmetini durdurun (<code>systemctl stop pve-cluster</code>), varsa <code>/var/lib/pve-cluster</code> içindeki <code>config.db-wal</code> ve <code>config.db-shm</code> dosyalarını silin, tutarlı kopyayı <code>/var/lib/backupzit/pve-config</code> konumundan <code>/var/lib/pve-cluster</code> içine geri yükleyin (<code>config.db</code> ve yedekte varsa <code>config.db-wal</code>), hizmeti yeniden başlatın ve konukları geri yükleyin. Bir kümede, <code>config.db</code> geri yüklemek yerine yeniden kurulan düğümü kümeye tekrar ekleyin.</p>
 <h2>Henüz dahil olmayanlar</h2>

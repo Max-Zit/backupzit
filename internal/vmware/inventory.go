@@ -36,10 +36,16 @@ type VM struct {
 	Template bool   `json:"template,omitempty"`
 	// Snapshots is true when the VM has snapshots of its own.
 	Snapshots bool `json:"snapshots,omitempty"`
+	// BackupSnapshots are its BackupZit snapshots (leftovers when no backup
+	// runs); not stored with backups.
+	BackupSnapshots []pve.SnapRef `json:"-"`
 	// Host is the ESXi host the VM is registered on (vCenter).
-	Host  string `json:"host,omitempty"`
-	Disks []Disk `json:"disks"`
-	NICs  []NIC  `json:"nics"`
+	Host string `json:"host,omitempty"`
+	// BIOSUUID is config.uuid (lower case): a proxy agent in this VM reports
+	// it as its machine UUID, so the console knows on which host it runs.
+	BIOSUUID string `json:"bios_uuid,omitempty"`
+	Disks    []Disk `json:"disks"`
+	NICs     []NIC  `json:"nics"`
 }
 
 // Disk is a virtual disk of a VM.
@@ -52,6 +58,9 @@ type Disk struct {
 	// Delta is true when File is a snapshot delta, not the base disk.
 	Delta    bool   `json:"delta,omitempty"`
 	ChangeID string `json:"change_id,omitempty"`
+	// Base is the base disk at the end of a delta's parent chain ("" for a
+	// base disk, or a delta whose chain is not known).
+	Base string `json:"-"`
 }
 
 // NIC is a network adapter.
@@ -79,6 +88,18 @@ func vmFromMO(m mo.VirtualMachine) VM {
 	v := VM{Ref: m.Self, MoID: m.Self.Value, Name: m.Name, Power: string(m.Runtime.PowerState),
 		VMX: m.Summary.Config.VmPathName, Tools: m.Guest != nil && m.Guest.ToolsRunningStatus == "guestToolsRunning",
 		Snapshots: m.Snapshot != nil}
+	if m.Snapshot != nil {
+		var walk func([]types.VirtualMachineSnapshotTree)
+		walk = func(ts []types.VirtualMachineSnapshotTree) {
+			for _, t := range ts {
+				if strings.HasPrefix(t.Name, snapPrefix) {
+					v.BackupSnapshots = append(v.BackupSnapshots, pve.SnapRef{Name: t.Name, Created: t.CreateTime.UTC()})
+				}
+				walk(t.ChildSnapshotList)
+			}
+		}
+		walk(m.Snapshot.RootSnapshotList)
+	}
 	if m.Config != nil {
 		v.UUID = m.Config.InstanceUuid
 		if v.UUID == "" { // VMs created without vCenter IDs: the BIOS UUID
@@ -93,6 +114,9 @@ func vmFromMO(m mo.VirtualMachine) VM {
 		v.Disks, v.NICs = devices(m.Config.Hardware.Device)
 	}
 	v.VMID = VMIDFor(v.UUID)
+	if m.Config != nil {
+		v.BIOSUUID = strings.ToLower(m.Config.Uuid)
+	}
 	if m.Config != nil && m.Config.InstanceUuid != "" && m.Config.Uuid != "" {
 		if id := VMIDFor(m.Config.Uuid); id != v.VMID {
 			v.BIOSVMID = id
@@ -132,9 +156,19 @@ func devices(devs object.VirtualDeviceList) ([]Disk, []NIC) {
 			if b, ok := x.Backing.(*types.VirtualDiskFlatVer2BackingInfo); ok {
 				disk.File, disk.ChangeID, disk.Delta = b.FileName, b.ChangeId, b.Parent != nil
 				disk.Thin = b.ThinProvisioned != nil && *b.ThinProvisioned
+				for p := b.Parent; p != nil; p = p.Parent {
+					disk.Base = p.FileName
+				}
+			} else if b, ok := x.Backing.(*types.VirtualDiskSeSparseBackingInfo); ok {
+				// SEsparse, the delta format on VMFS 6: never read directly,
+				// only through hot-add or a copy on the datastore.
+				disk.File, disk.ChangeID, disk.Delta, disk.Thin = b.FileName, b.ChangeId, true, true
+				for p := b.Parent; p != nil; p = p.Parent {
+					disk.Base = p.FileName
+				}
 			} else if b, ok := x.Backing.(types.BaseVirtualDeviceFileBackingInfo); ok {
 				disk.File = b.GetVirtualDeviceFileBackingInfo().FileName
-				disk.Delta = true // seSparse / other formats are not read directly
+				disk.Delta = true // other formats are not read directly
 			}
 			disks = append(disks, disk)
 		case types.BaseVirtualEthernetCard:
@@ -315,11 +349,32 @@ func (c *Client) Inventory(ctx context.Context, host string) (*pve.Inventory, er
 		if c.VCenter && v.Host != "" {
 			node = v.Host
 		}
-		inv.Guests = append(inv.Guests, pve.Guest{VMID: v.VMID, FormerVMID: v.BIOSVMID, ID: v.UUID, Name: v.Name, Type: "vm", Node: node,
-			Status: status, MaxDisk: v.DiskSize(), MaxMem: uint64(v.MemoryMB) << 20, Template: v.Template}) // #nosec G115 -- disk and datastore sizes from vSphere are within range
+		inv.Guests = append(inv.Guests, pve.Guest{VMID: v.VMID, FormerVMID: v.BIOSVMID, ID: v.UUID, BIOSUUID: v.BIOSUUID, Name: v.Name, Type: "vm", Node: node,
+			Status: status, MaxDisk: v.DiskSize(), MaxMem: uint64(v.MemoryMB) << 20, Template: v.Template, BackupSnapshots: v.BackupSnapshots}) // #nosec G115 -- disk and datastore sizes from vSphere are within range
 	}
 	for _, d := range dss {
 		inv.Storage = append(inv.Storage, d.Name)
 	}
 	return inv, nil
+}
+
+// disk returns the VM's disk with the device key k.
+func (v VM) disk(k int32) (Disk, bool) {
+	for _, d := range v.Disks {
+		if d.DevKey == k {
+			return d, true
+		}
+	}
+	return Disk{}, false
+}
+
+// hasDelta tells whether a disk of the VM is not a plain base disk (a
+// snapshot delta, or a format that is not read directly).
+func (v VM) hasDelta() bool {
+	for _, d := range v.Disks {
+		if d.Delta {
+			return true
+		}
+	}
+	return false
 }

@@ -51,7 +51,7 @@ type InstantVM struct {
 
 // RunningInstantVMs lists the VMs that still run from a backup.
 func (s *Store) RunningInstantVMs(ctx context.Context) ([]InstantVM, error) {
-	rows, err := s.db.Query(ctx, `SELECT r.id, r.agent_id, a.hostname, (r.details->>'instant_vmid')::int, coalesce(r.details->>'name',''), coalesce(r.finished_at, r.queued_at)
+	rows, err := s.db.Query(ctx, `SELECT r.id, r.agent_id, `+agentNameSQL+`, (r.details->>'instant_vmid')::int, coalesce(r.details->>'name',''), coalesce(r.finished_at, r.queued_at)
 		FROM runs r JOIN agents a ON a.id=r.agent_id
 		WHERE r.kind='vm-instant' AND r.status='success' AND r.details->>'state'='running' ORDER BY r.id`)
 	if err != nil {

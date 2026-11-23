@@ -68,20 +68,35 @@ type replicaDetail struct {
 }
 
 // replicas returns the replicas of a job as the vm-replica runs recorded
-// them, oldest run first so that later results win.
+// them, oldest run first so that later results win. A failover start
+// (vm-replica-start, also one that failed) forgets what the replica holds:
+// its disks may have changed, so the next update compares every block.
 func (s *Store) replicas(ctx context.Context, jobID int64) ([]ReplicaView, error) {
-	rows, err := s.db.Query(ctx, `SELECT details, coalesce(finished_at, queued_at) FROM runs WHERE job_id=$1 AND kind='vm-replica'
-		AND status IN ('success','warning','failed') AND details IS NOT NULL ORDER BY id`, jobID)
+	rows, err := s.db.Query(ctx, `SELECT kind, coalesce(details, vm_restore), coalesce(finished_at, queued_at) FROM runs WHERE job_id=$1
+		AND ((kind='vm-replica' AND status IN ('success','warning','failed') AND details IS NOT NULL)
+		  OR (kind='vm-replica-start' AND status IN ('running','success','warning','failed') AND vm_restore IS NOT NULL)) ORDER BY id`, jobID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	byVM := map[int]*ReplicaView{}
 	for rows.Next() {
+		var kind string
 		var b []byte
 		var at time.Time
-		if err := rows.Scan(&b, &at); err != nil {
+		if err := rows.Scan(&kind, &b, &at); err != nil {
 			return nil, err
+		}
+		if kind == api.KindVMReplicaStart {
+			var o api.ReplicaRun
+			if json.Unmarshal(b, &o) == nil {
+				for _, g := range o.Guests {
+					if v := byVM[g.VMID]; v != nil {
+						v.SnapshotID = ""
+					}
+				}
+			}
+			continue
 		}
 		var d struct {
 			Replicas []replicaDetail `json:"replicas"`

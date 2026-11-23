@@ -3,35 +3,39 @@
 <p class="lead">Recevez un e-mail quand une sauvegarde échoue, et un résumé quotidien chaque matin.</p>
 
 <h2>Configurer l'e-mail</h2>
-<p>Dans <a href="/settings/email">Paramètres → Notifications par e-mail</a> :</p>
+<p>Dans <a href="/settings/email">Paramètres → Notifications par e-mail</a>, cochez <b>Envoyer des notifications par e-mail</b> (sans cela, aucun e-mail n'est envoyé) et remplissez :</p>
 <table>
   <tr><th>Champ</th><th>Exemple</th></tr>
   <tr><td>Serveur SMTP / port</td><td><code>smtp.office365.com</code> / 587, <code>smtp.gmail.com</code> / 587, relais interne / 25</td></tr>
-  <tr><td>Sécurité</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) ou aucune (relais interne uniquement)</td></tr>
-  <tr><td>Utilisateur / mot de passe</td><td>La boîte aux lettres utilisée pour l'envoi ; laissez vide pour un relais anonyme. Microsoft 365 et Gmail exigent un mot de passe d'application.</td></tr>
-  <tr><td>Expéditeur</td><td><code>backup@example.com</code></td></tr>
-  <tr><td>Destinataires</td><td>Une ou plusieurs adresses, séparées par des virgules.</td></tr>
+  <tr><td>Sécurité</td><td><b>STARTTLS</b> (port 587), <b>TLS</b> (port 465) ou <b>Aucune</b> (uniquement pour un relais interne sans authentification : un nom d'utilisateur et un mot de passe ne sont jamais envoyés en clair)</td></tr>
+  <tr><td>Nom d'utilisateur / Mot de passe</td><td>La boîte aux lettres utilisée pour l'envoi ; laissez vide pour un relais sans authentification. Gmail exige un mot de passe d'application ; pour Microsoft 365, où l'authentification SMTP de base est en cours de retrait, un relais ou un connecteur SMTP est le choix le plus sûr.</td></tr>
+  <tr><td>De</td><td><code>backup@example.com</code></td></tr>
+  <tr><td>À</td><td>Une ou plusieurs adresses, séparées par des virgules.</td></tr>
 </table>
-<p>Utilisez <b>Envoyer un e-mail de test</b> pour vérifier les paramètres. Les e-mails, messages de chat et rapports sont rédigés dans la langue choisie dans le même formulaire (par défaut, la langue de la console lors de l'enregistrement).</p>
+<p>Utilisez <b>Envoyer un e-mail de test</b> pour vérifier les paramètres, puis cliquez sur <b>Enregistrer</b> (le test ne les enregistre pas). Les e-mails, messages de chat et rapports sont rédigés dans la langue choisie dans le même formulaire (par défaut, la langue de la console lors de l'enregistrement).</p>
 
 <h2>Ce qui est envoyé</h2>
 <ul>
   <li><b>Échecs</b> (recommandé) — un e-mail par exécution échouée avec la raison : sauvegardes, copies, restaurations et <b>tests de restauration</b> échoués. Avec cette option, vous recevez aussi une alerte <b>SUSPICIOUS</b> lorsqu'une sauvegarde ressemble à un rançongiciel ou à une suppression massive.</li>
   <li><b>Avertissements</b> — exécutions où certains fichiers n'ont pas pu être lus.</li>
   <li><b>Réussites</b> — chaque exécution réussie (souvent trop ; préférez le rapport quotidien).</li>
-  <li><b>Rapport quotidien</b> — à l'heure choisie : exécutions des dernières 24 heures, problèmes et agents hors ligne. L'objet commence par <i>OK</i>, <i>WARNINGS</i> ou <i>ATTENTION</i>, afin que les règles de messagerie puissent les trier.</li>
+  <li><b>Rapport quotidien</b> — à l'heure choisie : exécutions des dernières 24 heures, problèmes et agents hors ligne. L'objet se termine par <i>OK</i>, <i>AVERTISSEMENTS</i> ou <i>ATTENTION</i> (p. ex. <code>[BackupZit] Rapport quotidien 2026-11-17 : OK</code>), afin que les règles de messagerie puissent les trier.</li>
 </ul>
 <p>Avec <b>Échecs</b> activé, une tâche qui manque son objectif de point de récupération (RPO) est aussi signalée — une fois, puis à nouveau seulement après l'avoir respecté entre-temps. Les exécutions arrêtées par un utilisateur (statut <i>annulée</i>) n'envoient pas d'e-mail d'échec ; une exécution arrêtée par sa durée maximale, si.</p>
+<h3 id="mail-filters">Un e-mail par tâche, et filtres de messagerie</h3>
+<p>Activez aussi <b>Réussites</b> pour recevoir un e-mail pour chaque exécution terminée de chaque tâche, avec la tâche et l’ordinateur dans l’objet, au lieu du seul résumé quotidien. Pour un résumé par tâche, créez un <a href="/docs/monitoring">rapport planifié</a> pour cette tâche. L’objet est rédigé dans la langue des e-mails ; pour les règles de messagerie, chaque e-mail d’exécution porte donc aussi des en-têtes qui ne changent pas avec la langue : <code>X-BackupZit-Status</code> (<code>success</code>, <code>warning</code> ou <code>failed</code>), <code>X-BackupZit-Job</code>, <code>X-BackupZit-Agent</code> (le nom affiché dans la console), <code>X-BackupZit-Host</code> (le nom d’hôte signalé par l’ordinateur), <code>X-BackupZit-Kind</code> et <code>X-BackupZit-Run</code>. Une sauvegarde qui ressemble à un rançongiciel porte aussi <code>X-BackupZit-Suspicious: yes</code> — veillez à ce que les règles qui classent les exécutions réussies ne la cachent pas.</p>
 <p>Indépendamment de ces options, les destinataires des notifications reçoivent aussi un e-mail quand :</p>
 <ul>
   <li>une modification attend l'approbation d'un second utilisateur (principe des quatre yeux) ;</li>
   <li>deux machines utilisent une même inscription d'agent ;</li>
   <li>le journal d'audit a été modifié ;</li>
   <li>la sauvegarde de la console elle-même a échoué ;</li>
-  <li>le renouvellement du certificat HTTPS pour les navigateurs a échoué ;</li>
+  <li>le renouvellement du certificat HTTPS pour les navigateurs a échoué, ou un certificat importé expire dans les 21 jours ;</li>
+  <li>une nouvelle version de BackupZit est disponible (désactivable dans Paramètres → Mises à jour), ou une mise à jour de la console a échoué ;</li>
   <li>une adresse a été bloquée après trop de connexions échouées (désactivable dans la protection contre la force brute).</li>
 </ul>
 <p>Pour des résumés hebdomadaires ou mensuels, utilisez les <a href="/docs/monitoring">rapports planifiés</a> ; ils sont envoyés avec les mêmes paramètres de messagerie et ont leurs propres destinataires. Les objets commencent par <code>[BackupZit]</code> afin que les règles de messagerie puissent les trier. Le mot de passe SMTP est stocké chiffré. Les liens des e-mails, messages de chat et rapports mènent à la console à l'adresse avec laquelle vous l'ouvrez dans le navigateur (ou celle définie avec <code>--public-url</code>).</p>
+<p>Quand le port web HTTPS avec un certificat de confiance est activé (Paramètres → Certificat), les liens des e-mails, messages de chat et rapports utilisent son adresse, même quand le port 8443 ne sert que les agents.</p>
 
 <h2>Slack, Microsoft Teams et webhooks</h2>
 <p>Dans <a href="/settings/chat">Paramètres → Chat et webhooks</a>, ajoutez autant de canaux que vous voulez ; chacun choisit s'il reçoit les échecs, les avertissements et les réussites. Les sauvegardes inhabituelles (rançongiciel possible) comptent comme des échecs. <b>Envoyer un test</b> vérifie immédiatement un canal.</p>
@@ -48,6 +52,6 @@
  "bytes_read": 12884901888, "bytes_stored": 1073741824, "snapshot": "9f3c2a1b",
  "url": "https://backup.example/runs/412"}</pre>
 <p><code>duration_s</code> est la durée de l'exécution en secondes. Pour les sauvegardes, <code>files</code> et <code>bytes</code> sont la taille des données sauvegardées, <code>bytes_read</code> ce qui a été lu et <code>bytes_stored</code> ce qui a été envoyé vers le stockage ; <code>snapshot</code> est l'ID de la nouvelle sauvegarde.</p>
-<p>Les messages sont envoyés une fois par exécution, même lorsque l'e-mail est désactivé. Un canal en échec (mauvaise URL, service indisponible) est consigné dans le journal de la console et ne bloque pas les autres. Les URL de webhook sont stockées chiffrées.</p>
+<p>Une tâche qui manque son objectif de point de récupération envoie <code>{"event": "rpo.missed", "job_id", "job", "agent", "rpo_hours", "last_good_backup", "url"}</code> ; les champs vides (comme <code>suspicious</code> ou la tâche d'une exécution qui n'en a pas) sont omis. Les URL Slack et Teams doivent utiliser https://. Les messages sont envoyés une fois par exécution, même lorsque l'e-mail est désactivé. Un canal en échec (mauvaise URL, service indisponible) est consigné dans le journal de la console et ne bloque pas les autres. Les URL de webhook sont stockées chiffrées.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

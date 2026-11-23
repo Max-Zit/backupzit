@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -25,24 +26,94 @@ const WALSpool = BaseDir + "/wal"
 // enter it but not list it.
 const BaseDir = "/var/lib/backupzit-pg"
 
-// workDir creates a directory below BaseDir owned by postgres.
-func workDir(ctx context.Context, name string) (string, error) {
+// workDir creates a new directory below BaseDir owned by root (0711, so
+// postgres can reach a folder of its own inside, see pgDir). It stays
+// root's: what root writes there cannot be swapped for a link (H-N4).
+func workDir(name string) (string, error) {
 	if err := os.MkdirAll(BaseDir, 0o711); err != nil { // #nosec G301 -- postgres must traverse it
 		return "", err
 	}
 	_ = os.Chmod(BaseDir, 0o711) // #nosec G302 -- a directory needs the x bit
 	d := filepath.Join(BaseDir, name)
-	if err := os.MkdirAll(d, 0o700); err != nil {
+	if err := os.Mkdir(d, 0o711); err != nil { // #nosec G301 -- postgres must traverse it; a new name only
 		return "", err
 	}
-	if out, err := exec.CommandContext(ctx, "chown", "postgres:", d).CombinedOutput(); err != nil { // #nosec G204 -- fixed program; arguments are separate values, no shell
-		return "", fmt.Errorf("chown %s: %v: %s", d, err, out)
-	}
+	_ = os.Chmod(d, 0o711) // #nosec G302 -- a directory needs the x bit (umask)
 	return d, nil
 }
 
-// ArchiveCommand is the archive_command BackupZit sets.
-const ArchiveCommand = "test ! -f " + WALSpool + "/%f && cp %p " + WALSpool + "/%f"
+// spoolDir creates the WAL spool (WALSpool), which archive_command writes
+// as postgres. It sits in the root-owned BaseDir, so postgres cannot put a
+// link in its place.
+func spoolDir() error {
+	if err := os.MkdirAll(BaseDir, 0o711); err != nil { // #nosec G301 -- postgres must traverse it
+		return err
+	}
+	_ = os.Chmod(BaseDir, 0o711) // #nosec G302 -- a directory needs the x bit
+	fi, err := os.Lstat(WALSpool)
+	switch {
+	case os.IsNotExist(err):
+		if err := os.Mkdir(WALSpool, 0o700); err != nil {
+			return err
+		}
+	case err != nil:
+		return err
+	case !fi.IsDir():
+		return fmt.Errorf("%s is not a folder", WALSpool)
+	}
+	return givePostgres(WALSpool)
+}
+
+// pgDir creates the folder name inside the root-owned dir for postgres to
+// write in (pg_basebackup, pg_dump output).
+func pgDir(dir, name string) (string, error) {
+	p := filepath.Join(dir, name)
+	if err := os.Mkdir(p, 0o700); err != nil {
+		return "", err
+	}
+	if err := givePostgres(p); err != nil {
+		return "", fmt.Errorf("give %s to postgres: %w", p, err)
+	}
+	return p, nil
+}
+
+// ArchiveCommand is the archive_command BackupZit sets (run by /bin/sh). It
+// copies to a temporary name, syncs the copy to disk and only then renames
+// it (and syncs the folder), so a segment in the spool is always complete:
+// the agent may read the spool while PostgreSQL is still copying, and a
+// power loss cannot leave a short file under the final name. A segment that
+// is already there is accepted when it is identical: PostgreSQL archives a
+// segment again after a crash, and refusing it would stop archiving.
+const ArchiveCommand = "if test -f " + WALSpool + "/%f; then cmp -s %p " + WALSpool + "/%f; " +
+	"else cp %p " + WALSpool + "/%f.part && sync " + WALSpool + "/%f.part && mv " + WALSpool + "/%f.part " + WALSpool + "/%f && sync " + WALSpool + "; fi"
+
+// olderArchiveCommands are the archive_commands of earlier agents, which
+// UpgradeArchiveCommand replaces: before 0.55 the copy went in place (a
+// failed copy stayed as a short segment), the first 0.55 builds renamed it
+// without syncing.
+var olderArchiveCommands = []string{
+	"test ! -f " + WALSpool + "/%f && cp %p " + WALSpool + "/%f",
+	"test ! -f " + WALSpool + "/%f && cp %p " + WALSpool + "/%f.part && mv " + WALSpool + "/%f.part " + WALSpool + "/%f",
+}
+
+// ownArchiveCommand reports whether command was set by BackupZit.
+func ownArchiveCommand(command string) bool {
+	return command == ArchiveCommand || slices.Contains(olderArchiveCommands, command)
+}
+
+// UpgradeArchiveCommand replaces BackupZit's old archive_command with
+// ArchiveCommand (a reload, no restart).
+func (s *Server) UpgradeArchiveCommand(ctx context.Context) error {
+	cur, err := s.Query(ctx, "", "SELECT current_setting('archive_command')")
+	if err != nil || !slices.Contains(olderArchiveCommands, cur) {
+		return err
+	}
+	if _, err := s.Query(ctx, "", "ALTER SYSTEM SET archive_command = '"+strings.ReplaceAll(ArchiveCommand, "'", "''")+"'"); err != nil {
+		return err
+	}
+	_, err = s.Query(ctx, "", "SELECT pg_reload_conf()")
+	return err
+}
 
 // Server is the local PostgreSQL cluster on Port.
 type Server struct {
@@ -59,8 +130,8 @@ type Database struct {
 }
 
 // asPostgres runs a command as the postgres account (in /, which it can
-// read) and returns its standard output.
-func asPostgres(ctx context.Context, name string, args ...string) ([]byte, error) {
+// read) and returns its standard output; tests replace it.
+var asPostgres = func(ctx context.Context, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "runuser", append([]string{"-u", "postgres", "--", name}, args...)...) // #nosec G204 -- fixed program; arguments are separate values, no shell
 	cmd.Dir = "/"
 	cmd.Env = append(os.Environ(), "LC_ALL=C", "PGCONNECT_TIMEOUT=20")
@@ -132,8 +203,22 @@ func (s *Server) Query(ctx context.Context, db, sql string) (string, error) {
 	if db == "" {
 		db = "postgres"
 	}
-	out, err := asPostgres(ctx, s.bin("psql"), "-XAtq", "-p", strconv.Itoa(s.Port), "-d", db, "-c", sql)
+	out, err := asPostgres(ctx, s.bin("psql"), "-XAtq", "-p", strconv.Itoa(s.Port), dbnameArg(db), "-c", sql)
 	return strings.TrimSpace(string(out)), err
+}
+
+// dbnameArg is the argument that names database db for psql, pg_dump and
+// pg_restore. They read a database name containing = (or starting with
+// postgres://) as a connection string, so a role that may create databases
+// could name one "host=elsewhere ..." and send the nightly dump there.
+// Wrapped as dbname='...' the name is only ever a name; host and port stay
+// those of the command line.
+func dbnameArg(db string) string { return "--dbname=dbname=" + conninfoQuote(db) }
+
+// conninfoQuote quotes a value for a libpq connection string: in single
+// quotes, with backslash and single quote escaped by a backslash.
+func conninfoQuote(v string) string {
+	return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(v) + "'"
 }
 
 // Databases lists the databases except templates.
@@ -169,9 +254,9 @@ func (s *Server) ArchiveState(ctx context.Context) (ok bool, problem string, err
 	switch {
 	case level == "minimal":
 		return false, "wal_level is minimal; set it to replica and restart PostgreSQL", nil
-	case command != ArchiveCommand && command != "" && command != "(disabled)":
+	case !ownArchiveCommand(command) && command != "" && command != "(disabled)":
 		return false, "archive_command is already set by another tool (" + command + "); BackupZit does not change it", nil
-	case command != ArchiveCommand:
+	case !ownArchiveCommand(command):
 		return false, "archive_command is not set", nil
 	case mode == "off":
 		return false, "archive_mode is off", nil
@@ -182,7 +267,7 @@ func (s *Server) ArchiveState(ctx context.Context) (ok bool, problem string, err
 // EnableArchiving sets archive_mode and archive_command (ALTER SYSTEM). It
 // returns true when PostgreSQL must be restarted for archive_mode.
 func (s *Server) EnableArchiving(ctx context.Context) (restart bool, err error) {
-	if _, err := workDir(ctx, "wal"); err != nil {
+	if err := spoolDir(); err != nil {
 		return false, err
 	}
 	mode, _ := s.Query(ctx, "", "SHOW archive_mode")

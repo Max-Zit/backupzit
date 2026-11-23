@@ -3,7 +3,7 @@
 <p class="lead">Agent funguje i samostatně z příkazového řádku — pro skripty, pro obnovu bez konzole a pro nouzové situace. Spusťte <code>backupzit-agent</code> bez argumentů pro přehled a <code>backupzit-agent &lt;command&gt; -h</code> pro volby příkazu.</p>
 
 <h2>Repozitář a přihlašovací údaje</h2>
-<p>Každý příkaz přijímá <code>--repo</code> (nebo <code>BACKUPZIT_REPO</code>). Pro tajné údaje dávejte přednost proměnným prostředí. Repozitář agenta je <code>&lt;umístění úložiště&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — viz sloupec repozitáře u běhu v Aktivitě nebo list pro obnovu.</p>
+<p>Každý příkaz, který čte nebo zapisuje zálohy, přijímá <code>--repo</code> (nebo <code>BACKUPZIT_REPO</code>); <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> a <code>disks</code> ne. Pro tajné údaje dávejte přednost proměnným prostředí. Repozitář agenta je <code>&lt;umístění úložiště&gt;/&lt;hostname&gt;_&lt;id&gt;</code> — viz pole <b>Úložiště záloh</b> na stránce běhu nebo list pro obnovu.</p>
 <table>
   <tr><th>Umístění</th><th>Přihlašovací údaje</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,9 +23,10 @@
   <tr><td><code>init</code></td><td>Vytvoří nový repozitář (šifrovaný, pokud je zadáno heslo).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Zálohuje soubory a složky. <code>--vss</code> čte ze stínové kopie svazku (Windows, správce); <code>--force</code> čte všechny soubory, i nezměněné.</td></tr>
   <tr><td><code>snapshots</code></td><td>Vypíše snímky s časem, hostitelem, velikostí a cestami.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Vypíše soubory ve snímku.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Vypíše všechny soubory ve snímku.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Obnoví soubory pod DIR (původní struktura složek se vytvoří znovu). <code>--original</code> je místo toho zapíše na původní místo a přepíše existující soubory.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Zkontroluje strukturu repozitáře; s <code>--read-data</code> se každý bajt stáhne a ověří.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Přečte všechna data a odebere poškozené datové balíky z indexu, aby další zálohy tato data uložily znovu; vypíše zálohy, které ztracená data potřebují. <code>--dry-run</code> jen vypíše.</td></tr>
 </table>
 
 <h2>Obrazy disků (Windows)</h2>
@@ -76,7 +77,7 @@
 <table>
   <tr><th>Příkaz</th><th>Co dělá</th></tr>
   <tr><td><code>hyperv list</code></td><td>Vypíše VM hostitele s jejich čísly BackupZit a složky pro obnovené disky.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Zálohuje VM (výchozí: všechny) z produkčních kontrolních bodů.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Zálohuje VM (výchozí: všechny) z kontrolních bodů pro obnovu s Resilient Change Tracking (produkční kontrolní body jen na hostitelích, které je nemají).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Obnoví VM na místě (výchozí) nebo jako novou VM s <code>--new</code>. <code>--overwrite</code> nahradí disky existující VM. Viz <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> a <code>pve extract</code> fungují i se zálohami Hyper-V.</p>
@@ -95,6 +96,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Zastaví a smaže okamžitou VM i s jejími změnami.</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Poskytuje disky VM ze zálohy jen pro čtení přes NBD na unixovém soketu (spouští ho okamžitá obnova jako jednotku systemd).</td></tr>
 </table>
+<p><b><code>latest</code> s <code>--vmid</code></b> (příkazy VMware, Hyper-V a Proxmox VE) je nejnovější snímek, který obsahuje daného hosta, ne nejnovější snímek repozitáře, a příkaz jej vypíše (snímek, hostitel, čas, název hosta). ID hostů se mezi hostiteli opakují (každý Proxmox VE začíná na 100): pokud toto ID mají různě pojmenovaní hosté několika hostitelů, <code>latest</code> se odmítne; zadejte ID snímku z <code>snapshots</code>. <code>pve show latest</code> dál ukazuje nejnovější snímek repozitáře.</p>
 
 <h2>Microsoft SQL Server (agent na počítači se SQL Serverem)</h2>
 <table>
@@ -152,7 +154,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>Uložená a skrytá (smazaná, ještě uchovávaná) data.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Znovu zviditelní soubory smazané od TIME.</td></tr>
 </table>
-<p>Konfigurace: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p>Konfigurace: <code>/etc/backupzit-repo/repo.env</code>, nebo totéž jako volby <code>serve</code>: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code> (adresář úložiště, výchozí <code>/srv/backupzit</code>), <code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code> (klíče a certifikát, výchozí <code>/etc/backupzit-repo</code>), <code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code> (výchozí <code>:8500</code>), <code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code> (neměnnost ve dnech, výchozí 30) a <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code> (názvy a adresy pro certifikát podepsaný sám sebou). Příkazy pro klíče přijímají také <code>--data</code> a <code>--config-dir</code>.</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> zapne metriky Prometheus pro každý přístupový klíč na <code>/metrics</code> (hlavička <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Správcovský server (<code>backupzit-server</code>)</h2>
@@ -166,9 +168,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Počáteční heslo správce (jen při prvním spuštění).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Klíč tajných údajů (base64) místo souboru <code>secrets.key</code>.</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>Obnoví heslo účtu <i>admin</i> (znovu ho povolí jako místního správce) a skončí.</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>Vypne dvoufázové přihlášení uživateli, který ztratil ověřovací aplikaci i kódy pro obnovení, odhlásí ho, zapíše to do protokolu auditu a skončí.</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Zruší blokování přihlášení adresy nebo všech adres (ochrana proti hrubé síle) a skončí.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Obnoví konzoli ze zálohy konzole a skončí (viz <a href="/docs/install">Instalace serveru</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Jen pro vyzkoušení: soukromý PostgreSQL v datovém adresáři, nešifrované HTTP na localhost.</td></tr>
+  <tr><td><code>--setup</code></td><td>Textové menu appliance (síť, název serveru, heslo správce); jako root.</td></tr>
+  <tr><td><code>--initial-password</code></td><td>Vypíše vygenerované první heslo účtu <i>admin</i>, dokud se ještě používá, a skončí.</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>Obraz kontejneru: načte kopii konzole pořízenou před aktualizací (složku v <code>pre-upgrade</code> datového adresáře) a skončí; spusťte ho s obrazem verze, ze které kopie pochází. <code>list</code> vypíše kopie.</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>Obraz kontejneru: skončí s kódem 0, když konzole odpovídá (kontrola stavu obrazu).</td></tr>
+  <tr><td><code>--apply-update</code></td><td>Nainstaluje aktualizaci vyžádanou v konzoli; spouští ji služba <code>backupzit-update</code> jako root, ne ručně.</td></tr>
   <tr><td><code>--version</code></td><td>Vypíše verzi.</td></tr>
 </table>
 <pre>systemctl status backupzit-server

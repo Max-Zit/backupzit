@@ -3,7 +3,10 @@ package repo
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 // PruneOptions control how aggressively space is reclaimed.
@@ -25,6 +28,67 @@ type PruneStats struct {
 	BlobsRepacked  int    `json:"blobs_repacked"`
 	BytesFreed     uint64 `json:"bytes_freed"`
 	BytesRemaining uint64 `json:"bytes_remaining"`
+	// PacksSkipped packs could not be read for repacking (after the
+	// backend's retries); they stay as they are, the next prune tries
+	// again. SkipReason is the first error.
+	PacksSkipped int    `json:"packs_skipped,omitempty"`
+	SkipReason   string `json:"skip_reason,omitempty"`
+}
+
+// repackGiveUp is how many packs in a row may fail to be read before prune
+// stops repacking (the storage is then down, not slow); the packs left
+// stay as they are.
+const repackGiveUp = 3
+
+// repackGap is how much unused data between two used blobs of a pack is
+// read along instead of a second request; repackMaxRead caps one read.
+const (
+	repackGap     = 1 << 20
+	repackMaxRead = 64 << 20
+	repackMemory  = 128 << 20
+)
+
+// fetchUsed reads the used blobs of pack p in as few ranged reads as
+// possible and verifies each of them.
+func (r *Repository) fetchUsed(ctx context.Context, p ID, blobs []PackedBlob, used map[BlobHandle]bool) ([]PackedBlob, [][]byte, error) {
+	var want []PackedBlob
+	for _, b := range blobs {
+		if used[BlobHandle{Type: b.Type, ID: b.ID}] {
+			want = append(want, b)
+		}
+	}
+	sort.Slice(want, func(i, j int) bool { return want[i].Offset < want[j].Offset })
+	data := make([][]byte, len(want))
+	for i := 0; i < len(want); {
+		start := uint64(want[i].Offset)
+		end := start + uint64(want[i].Length)
+		j := i + 1
+		for j < len(want) {
+			o, e := uint64(want[j].Offset), uint64(want[j].Offset)+uint64(want[j].Length)
+			if o > end+repackGap || e-start > repackMaxRead {
+				break
+			}
+			end = max(end, e)
+			j++
+		}
+		buf, err := r.be.LoadRange(ctx, packName(p), int64(start), int(end-start)) // #nosec G115 -- pack offsets, below repackMaxRead apart
+		if err != nil {
+			return nil, nil, err
+		}
+		if uint64(len(buf)) != end-start {
+			return nil, nil, fmt.Errorf("short read: %d of %d bytes", len(buf), end-start)
+		}
+		for k := i; k < j; k++ {
+			off := uint64(want[k].Offset) - start
+			stored := buf[off : off+uint64(want[k].Length)]
+			if _, err := r.decodeBlob(want[k].ID, want[k].Type, stored, want[k].Raw); err != nil {
+				return nil, nil, err
+			}
+			data[k] = stored
+		}
+		i = j
+	}
+	return want, data, nil
 }
 
 // Each calls fn for every indexed blob.
@@ -46,88 +110,6 @@ func (r *Repository) UsedBlobs(ctx context.Context) (map[BlobHandle]bool, int, e
 	return used, len(sns), err
 }
 
-// BlobsOf returns every blob referenced by the given snapshots.
-func (r *Repository) BlobsOf(ctx context.Context, sns []*Snapshot) (map[BlobHandle]bool, error) {
-	used := map[BlobHandle]bool{}
-	var walk func(id ID) error
-	walk = func(id ID) error {
-		h := BlobHandle{Type: TreeBlob, ID: id}
-		if used[h] {
-			return nil
-		}
-		used[h] = true
-		t, err := r.LoadTree(ctx, id)
-		if err != nil {
-			return err
-		}
-		for _, n := range t.Nodes {
-			for _, c := range n.Content {
-				used[BlobHandle{Type: DataBlob, ID: c}] = true
-			}
-			if n.Subtree != nil {
-				if err := walk(*n.Subtree); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	}
-	for _, sn := range sns {
-		if err := walk(sn.Tree); err != nil {
-			return nil, fmt.Errorf("snapshot %s: %w", sn.ID.Short(), err)
-		}
-		for _, g := range sn.Guests {
-			ids, err := g.StateBlobs()
-			if err != nil {
-				return nil, fmt.Errorf("snapshot %s guest %d: %w", sn.ID.Short(), g.VMID, err)
-			}
-			for _, id := range ids {
-				h := BlobHandle{Type: DataBlob, ID: id}
-				if !r.idx.Has(h) {
-					return nil, fmt.Errorf("snapshot %s guest %d: state blob %s missing", sn.ID.Short(), g.VMID, id.Short())
-				}
-				used[h] = true
-			}
-		}
-		if sys := sn.System; sys != nil {
-			for _, d := range sys.Disks {
-				if !d.Head.IsNull() {
-					used[BlobHandle{Type: DataBlob, ID: d.Head}] = true
-				}
-				for _, p := range d.Partitions {
-					for _, id := range p.Raw {
-						if !id.IsNull() {
-							used[BlobHandle{Type: DataBlob, ID: id}] = true
-						}
-					}
-				}
-			}
-		}
-		for _, img := range sn.Images {
-			used[BlobHandle{Type: DataBlob, ID: img.Head}] = true
-			for i := range img.Partitions {
-				p := &img.Partitions[i]
-				if !p.Included {
-					continue
-				}
-				for _, m := range p.Maps {
-					used[BlobHandle{Type: MapBlob, ID: m}] = true
-				}
-				ids, err := r.LoadBlockMap(ctx, p)
-				if err != nil {
-					return nil, fmt.Errorf("snapshot %s: %w", sn.ID.Short(), err)
-				}
-				for _, id := range ids {
-					if !id.IsNull() {
-						used[BlobHandle{Type: DataBlob, ID: id}] = true
-					}
-				}
-			}
-		}
-	}
-	return used, nil
-}
-
 // Prune deletes data no longer referenced by any snapshot. The caller must
 // hold an exclusive lock. The order of operations keeps the repository
 // consistent if prune is interrupted: new packs and the new index are
@@ -143,11 +125,14 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 	}
 	st := &PruneStats{}
 
+	say("reading the backups")
+	start := time.Now()
 	used, nsn, err := r.UsedBlobs(ctx)
 	if err != nil {
 		return nil, err
 	}
 	st.Snapshots = nsn
+	say("read %d backups in %s", nsn, time.Since(start).Round(time.Second))
 	oldIndexes, err := r.be.List(ctx, "index")
 	if err != nil {
 		return nil, err
@@ -201,30 +186,109 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 		return st, nil
 	}
 
-	// Copy used blobs out of packs that are mostly garbage.
+	// Copy used blobs out of packs that are mostly garbage: the used blobs
+	// of a pack in as few ranged reads as possible, several packs at a time
+	// on an object store (one request per blob took over two hours for
+	// 1,013 packs on a slow provider, #38). A pack that still cannot be read
+	// after the backend's retries stays as it is, with none of its blobs
+	// copied, and the next prune tries again: one slow read used to fail the
+	// whole prune.
 	say("repacking %d packs", len(repack))
-	for _, p := range repack {
+	type fetched struct {
+		p     ID
+		blobs []PackedBlob
+		data  [][]byte
+		err   error
+	}
+	rctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	jobs := make(chan ID)
+	results := make(chan fetched)
+	var wg sync.WaitGroup
+	// Each worker holds the used data of one pack: at most repackMemory in
+	// all (large packs are read one at a time).
+	workers := max(1, min(r.Concurrency(), repackMemory/max(r.cfg.PackSize, 1), len(repack)))
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for p := range jobs {
+				blobs, data, err := r.fetchUsed(rctx, p, packs[p].blobs, used)
+				select {
+				case results <- fetched{p, blobs, data, err}:
+				case <-rctx.Done():
+					return
+				}
+			}
+		}()
+	}
+	go func() {
+		defer close(jobs)
+		for _, p := range repack {
+			select {
+			case jobs <- p:
+			case <-rctx.Done():
+				return
+			}
+		}
+	}()
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+	handled := map[ID]bool{}
+	stopped, inARow, step := false, 0, max(len(repack)/10, 1)
+	skip := func(p ID, err error) {
 		pi := packs[p]
-		for _, b := range pi.blobs {
-			if !used[BlobHandle{Type: b.Type, ID: b.ID}] {
-				continue
+		keep = append(keep, indexPack{ID: p, Blobs: pi.blobs})
+		st.BytesRemaining += pi.totalBytes
+		st.PacksSkipped++
+		if st.SkipReason == "" && err != nil {
+			st.SkipReason = fmt.Sprintf("repack %s: %v", p.Short(), err)
+		}
+	}
+	for f := range results {
+		if stopped {
+			continue // drained: these packs stay as they are
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		handled[f.p] = true
+		if f.err != nil {
+			skip(f.p, f.err)
+			if inARow++; inARow >= repackGiveUp {
+				stopped = true
+				cancel()
 			}
-			stored, err := r.be.LoadRange(ctx, packName(p), int64(b.Offset), int(b.Length))
-			if err != nil {
-				return nil, fmt.Errorf("repack %s: %w", p.Short(), err)
-			}
-			if _, err := r.decodeBlob(b.ID, b.Type, stored, b.Raw); err != nil {
-				return nil, fmt.Errorf("repack %s: %w", p.Short(), err)
-			}
-			if err := r.addStoredBlob(ctx, b.Type, b.ID, stored, b.Raw); err != nil {
+			continue
+		}
+		inARow = 0
+		for i, b := range f.blobs {
+			if err := r.addStoredBlob(ctx, b.Type, b.ID, f.data[i], b.Raw); err != nil {
 				return nil, err
 			}
 			st.BlobsRepacked++
 			st.BytesRemaining += uint64(b.Length)
 		}
+		pi := packs[f.p]
 		st.BytesFreed += pi.totalBytes - pi.usedBytes
 		st.PacksRepacked++
-		deletePacks = append(deletePacks, p)
+		deletePacks = append(deletePacks, f.p)
+		if n := len(handled); n%step == 0 && n < len(repack) {
+			say("repacked %d of %d packs", n, len(repack))
+		}
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	for _, p := range repack {
+		if !handled[p] {
+			skip(p, nil) // after repackGiveUp failures in a row
+		}
+	}
+	if st.PacksSkipped > 0 {
+		say("%d packs could not be read and stay as they are: %s", st.PacksSkipped, st.SkipReason)
 	}
 
 	// Write the new index: kept packs plus the repacked ones (Flush writes
@@ -264,7 +328,10 @@ func (r *Repository) Prune(ctx context.Context, opts PruneOptions) (*PruneStats,
 	r.mu.Lock()
 	r.idx = newIndex()
 	r.mu.Unlock()
-	if err := r.loadIndex(ctx); err != nil {
+	r.indexMu.Lock()
+	r.indexFiles = map[string]bool{}
+	r.indexMu.Unlock()
+	if err := r.loadIndex(ctx, nil); err != nil {
 		return nil, err
 	}
 	return st, nil

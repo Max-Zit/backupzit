@@ -5,7 +5,7 @@
 <h2>Belirteçler</h2>
 <p><a href="/account#tokens">Hesabım → API belirteçleri</a> altında bir belirteç oluşturun. Ona yeterli olan en düşük rolü verin — izleme için <b>Görüntüleyici</b>, yedeklemeleri ve geri yükleme testlerini de başlatmak için <b>Geri yükleme operatörü</b>. Belirteç yalnızca bir kez gösterilir; her istekte gönderin:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Belirteçlerin süresi dolabilir, sahibi veya bir yönetici tarafından iptal edilebilir (<a href="/users">Kullanıcılar</a>) ve sahibi devre dışı bırakıldığında çalışmaz. Bir belirteçle yapılan işlemler denetim günlüğünde belirtecin adıyla görünür.</p>
+<p>Belirteçlerin süresi dolabilir, sahibi veya bir yönetici tarafından iptal edilebilir (<a href="/users">Kullanıcılar</a>) ve sahibi devre dışı bırakıldığında çalışmaz. Bir belirteçle yapılan işlemler denetim günlüğünde belirtecin adıyla görünür. Bir yöneticinin belirlediği yeni parola, sahibin belirteçlerini de iptal eder.</p>
 
 <h2>Uç noktalar</h2>
 <p>Tüm yanıtlar JSON'dur. Temel URL: <code>https://&lt;konsol&gt;:8443</code>.</p>
@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>belirteç yok</td><td>Bu API'nin OpenAPI 3 belirtimi, araçlar ve istemci üreticileri için (depoda da: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Dönemler: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code> veya <code>from=2026-09-01&amp;to=2026-09-30</code> ile <code>custom</code>.</p>
-<p>Hatalar <code>{"error": "..."}</code> döndürür: 400 (hatalı istek), 401 (belirteç eksik, geçersiz veya süresi dolmuş), 403 (rol yetersiz), 404 veya 409.</p>
+<p>Hatalar <code>{"error": "..."}</code> döndürür: 400 (hatalı istek), 401 (belirteç eksik, geçersiz veya süresi dolmuş), 403 (rol yetersiz), 404 (bulunamadı), 409 (şu anda mümkün değil: iş zaten çalışıyor, ajan bu istek için fazla eski veya dört göz onayı açık), 429 (adresten çok fazla başarısız belirteç denemesi; engel bitene kadar bekleyin) veya 500 (iç hata; konsolun günlüğüne bakın).</p>
 
 <h2>Örnekler</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>Metrik</th><th>Etiketler</th><th>Anlamı</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>her zaman 1; konsol sürümü</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code> (online, offline)</td><td>ajan sayısı</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>kuyrukta bekleyen veya çalışan çalıştırmalar</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code> (failed, warning, all)</td><td>son 24 saatin çalıştırmaları</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>henüz incelenmemiş şüpheli yedekler</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>, <code>agent</code>, <code>version</code></td><td>ajan konsolu yakın zamanda yokladıysa 1</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>, <code>agent</code></td><td>ajanın konsolu son yokladığı zaman</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>, <code>job</code>, <code>kind</code>, <code>agent</code></td><td>iş zamanlamasına göre çalışıyorsa 1</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>yukarıdaki gibi</td><td>son biten çalıştırma: 0 başarılı, 1 uyarı, 2 başarısız</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>yukarıdaki gibi</td><td>başarılı veya uyarılarla biten son yedek</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>yukarıdaki gibi, <code>rpo_hours</code></td><td>RPO içindeyse 1, kaçırıldıysa 0 (RPO'su olan işler)</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>depoların kapladığı alan</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>boş alan, depolama bunu bildiriyorsa</td></tr>
+</table>
 <p>Örneğin <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> olduğunda (iki gündür iyi yedek yok) uyarı verin.</p>
 {{template "docpager" .}}
 </article></div>{{end}}

@@ -52,6 +52,7 @@ func run() error {
 	devDB := flag.Bool("dev-embedded-db", false, "start a private PostgreSQL in the data directory (development/evaluation only)")
 	setPassword := flag.String("set-admin-password", "", "set the password of user 'admin' and exit")
 	unblock := flag.String("unblock-ip", "", "lift the sign-in block of an address (or \"all\") and exit")
+	resetTwoFactor := flag.String("reset-two-factor", "", "turn off two-factor sign-in of this user (lost authenticator and recovery codes), sign the user out, and exit")
 	devHTTP := flag.String("dev-http", "", "also serve plain HTTP on this loopback address, e.g. 127.0.0.1:8080 (development only)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	restoreConsole := flag.Bool("restore-console", false, "restore a console backup into the database and data directory, then exit (stop the service first; credentials as on the storage target's recovery sheet, in the environment)")
@@ -61,7 +62,7 @@ func run() error {
 	setup := flag.Bool("setup", false, "the text menu of the appliance (network, server name, admin password); run as root")
 	healthcheck := flag.Bool("healthcheck", false, "container image: exit 0 when the console answers on its listen address (used by HEALTHCHECK)")
 	showInitial := flag.Bool("initial-password", false, "print the generated first password of user 'admin' (while it is still in use) and exit")
-	restorePre := flag.String("restore-pre-upgrade", "", "container image: load the copy of the console made before an update (a folder in <data-dir>/pre-upgrade) and exit; run it with the image of the version the copy was made from")
+	restorePre := flag.String("restore-pre-upgrade", "", "container image: load the copy of the console made before an update (a folder in <data-dir>/pre-upgrade) and exit; \"list\" shows the copies; run it with the image of the version the copy was made from")
 	flag.Parse()
 
 	if *showVersion {
@@ -90,6 +91,16 @@ func run() error {
 	}
 	if *restoreConsole {
 		return runRestoreConsole(ctx, *dbURL, *dataDir, *restoreRepo, *restoreSnapshot)
+	}
+	if *restorePre == "list" { // the image has no shell to look into the volume
+		names := server.PreUpgradeCopies(*dataDir)
+		if len(names) == 0 {
+			fmt.Println("no copies made before updates in", filepath.Join(*dataDir, server.PreUpgradeDir))
+		}
+		for _, n := range names {
+			fmt.Println(n)
+		}
+		return nil
 	}
 	if *restorePre != "" {
 		dir := *restorePre
@@ -169,6 +180,13 @@ func run() error {
 			return err
 		}
 		fmt.Println("password for 'admin' updated")
+		return nil
+	}
+	if *resetTwoFactor != "" {
+		if err := store.ResetTwoFactor(ctx, *resetTwoFactor); err != nil {
+			return err
+		}
+		fmt.Printf("two-factor sign-in of %q turned off; sign in with the password and set it up again under My account%s", *resetTwoFactor, "\n")
 		return nil
 	}
 	if *unblock != "" {

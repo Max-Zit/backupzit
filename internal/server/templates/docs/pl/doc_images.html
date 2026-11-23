@@ -16,15 +16,15 @@
 <h2>Przywracanie obrazu na dysk</h2>
 <p>W uruchomieniu kopii obrazu użyj <b>Przywróć ten obraz na dysk</b>:</p>
 <ul>
-  <li><b>Przywróć na agencie</b> — maszyna z dyskiem docelowym. Może to być działająca maszyna z wolnym dyskiem albo maszyna uruchomiona z ISO odzyskiwania.</li>
-  <li><b>Dysk docelowy</b> — musi być co najmniej tak duży jak zajęty obszar oryginału. <b>Wszystkie dane na nim zostaną zniszczone.</b></li>
+  <li><b>Przywróć na agencie</b> — maszyna Windows z dyskiem docelowym. Może to być działająca maszyna z wolnym dyskiem albo maszyna uruchomiona z ISO odzyskiwania; nie można wybrać dysku, z którego działa Windows, więc przywrócenie dysku systemowego maszyny wymaga ISO odzyskiwania.</li>
+  <li><b>Dysk docelowy</b> — musi sięgać co najmniej do końca ostatniej partycji oryginalnego dysku (partycje są odtwarzane w oryginalnych rozmiarach, a nie zmniejszane) i mieć ten sam rozmiar sektora (512 lub 4096 bajtów). <b>Wszystkie dane na nim zostaną zniszczone.</b></li>
   <li><b>Pozostaw potem dysk offline</b> — zaznacz, gdy oryginalny dysk jest w tej samej maszynie, aby Windows nie zmienił identyfikatorów dysku kopii.</li>
 </ul>
 <p>Obsługiwane są dyski GPT i MBR oraz rozruch EFI i BIOS. Układ partycji i identyfikatory są odtwarzane, więc przywrócony dysk uruchamia się jak wcześniej.</p>
 
 <h2>Odtwarzanie bare-metal z ISO odzyskiwania</h2>
 <ol>
-  <li>W <a href="/recovery">Nośniki odzyskiwania</a> pobierz ISO odzyskiwania (Windows). Zapisz je na pendrive (Rufus, tryb „obraz DD” lub „ISO”) lub podłącz do maszyny wirtualnej.</li>
+  <li>Zbuduj raz ISO odzyskiwania Windows (zobacz <a href="/docs/restore#recovery-iso">ISO odzyskiwania</a>; Windows PE nie może być redystrybuowany) albo pobierz je ze strony <a href="/recovery">Nośniki odzyskiwania</a>, jeśli zostało skopiowane do konsoli. Zapisz je na pendrive (Rufus w trybie <b>ISO</b>, aby można było dodać poniższy folder) lub podłącz do maszyny wirtualnej.</li>
   <li>Opcjonalnie utwórz <b>kod odzyskiwania</b> i pobierz <code>recovery.json</code>; skopiuj go do folderu <code>backupzit</code> na pendrivie, aby maszyna połączyła się bez wpisywania.</li>
   <li>Uruchom przywracaną maszynę z pendrive'a. Uruchamia ona agenta w trybie odzyskiwania i łączy się z konsolą (lub pyta o adres serwera i kod odzyskiwania).</li>
   <li>Maszyna pojawia się jako agent <span class="badge">odzyskiwanie</span> ze swoimi dyskami.</li>

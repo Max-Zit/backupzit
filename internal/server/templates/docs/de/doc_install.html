@@ -31,6 +31,11 @@
   <tr><td><a href="https://github.com/Max-Zit/backupzit/releases/latest/download/SHA256SUMS">SHA256SUMS</a></td><td>Prüfsummen der Images und des ISO</td></tr>
 </table>
 <p>Die Pakete (<code>backupzit-server_X_amd64.deb</code>, <code>backupzit-server-X.x86_64.rpm</code>, Agenten) sind auf der Versionsseite aufgeführt. Die Images sind jeweils etwa 1,5 GB groß. Prüfen Sie einen Download mit <code>sha256sum -c SHA256SUMS --ignore-missing</code> (Linux) oder <code>Get-FileHash file -Algorithm SHA256</code> (Windows).</p>
+<p>Um zu prüfen, dass die Prüfsummen selbst von BackupZit stammen, verifizieren Sie zuerst die Signatur <code>SHA256SUMS.sig</code> mit dem Release-Schlüssel (OpenSSL 3); <code>release-files.sha256</code> und <code>release-files.sha256.sig</code> leisten dasselbe für <code>install.sh</code>, <code>build-winpe.ps1</code> und das Wiederherstellungs-ISO.</p>
+<pre>printf -- '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA+ad/LUTVtGXwVv4qyca7QgmSErAbXTFmje1iWyFlmGo=\n-----END PUBLIC KEY-----\n' &gt; backupzit-release.pem
+base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin
+openssl pkeyutl -verify -pubin -inkey backupzit-release.pem -rawin -in SHA256SUMS -sigfile SHA256SUMS.sig.bin
+sha256sum -c SHA256SUMS --ignore-missing</pre>
 
 <h2>1. Fertiges VM-Image</h2>
 <p>Eine fertige Appliance (Debian, PostgreSQL, die Konsole, automatische Sicherheitsupdates), die in weniger als einer Minute startet und keinen Internetzugang braucht:</p>
@@ -53,14 +58,14 @@
 <p>Die Appliance hat zwei getrennte Konten:</p>
 <ul>
   <li><b>admin</b> in der Webkonsole (<code>https://&lt;address&gt;:8443</code>) für die tägliche Arbeit. Sein Anfangspasswort wird nach dem ersten Start auf dem Bildschirm des Servers angezeigt; ändern Sie es unter <b>Mein Konto</b>.</li>
-  <li><b>bzadmin</b> auf dem Server selbst (sein Bildschirm in der Hypervisor-Konsole oder SSH), Anfangspasswort <code>backupzit</code>. Sie müssen es bei der ersten Anmeldung ändern; der Benutzer kann <code>sudo</code> verwenden. Root kann sich nicht anmelden.</li>
+  <li><b>bzadmin</b> auf dem Server selbst (sein Bildschirm in der Hypervisor-Konsole oder SSH), Anfangspasswort wird auf dem Bildschirm des Servers angezeigt (seit 0.56 für jede Appliance zufällig; davor <code>backupzit</code>). Sie müssen es bei der ersten Anmeldung ändern; der Benutzer kann <code>sudo</code> verwenden. Root kann sich nicht anmelden.</li>
 </ul>
 <p>Updates von BackupZit und dem Betriebssystem werden aus der Konsole verwaltet (siehe unten). VMware Tools und der QEMU-Gast-Agent sind enthalten, sodass Hypervisoren die Adresse der Appliance anzeigen.</p>
 <h3 id="setup-menu">Setup-Menü auf dem Bildschirm des Servers</h3>
 <p>Wenn sich bzadmin am eigenen Bildschirm des Servers anmeldet (nicht über SSH), öffnet sich ein Menü:</p>
 <table>
   <tr><th>Punkt</th><th>Was er tut</th></tr>
-  <tr><td>1 Network</td><td>DHCP oder eine statische Adresse mit Präfixlänge (z. B. <code>192.168.1.20/24</code>), Gateway und bis zu drei DNS-Server. Mit DHCP kommen die DNS-Server vom DHCP-Server, sofern Sie keine eigenen eintragen.</td></tr>
+  <tr><td>1 Network</td><td>DHCP oder eine statische Adresse mit Präfixlänge (z. B. <code>192.168.1.20/24</code>), Gateway und bis zu drei DNS-Server. Mit DHCP kommen die DNS-Server vom DHCP-Server; um mit DHCP eigene zu verwenden, tragen Sie sie später unter Einstellungen → Netzwerk ein.</td></tr>
   <tr><td>2 Server name</td><td>Der Hostname (Buchstaben, Ziffern und -).</td></tr>
   <tr><td>3 SSH</td><td>SSH-Server ein- oder ausschalten und seinen Port ändern. Die Ports der Konsole (80, 443, 8443), von PostgreSQL (5432) und der Sofortwiederherstellung (111, 2049) können nicht verwendet werden.</td></tr>
   <tr><td>4 Reset the password of "admin"</td><td>Bei einem vergessenen Webkonsolen-Passwort; hebt auch Anmeldesperren auf. Danach zeigt der Bildschirm das erzeugte Anfangspasswort nicht mehr an (ebenso ab dem nächsten Start, sobald das Passwort von admin in der Webkonsole geändert wurde).</td></tr>
@@ -109,7 +114,8 @@ BACKUPZIT_TLS_HOSTS=backup.example.local,10.0.0.10</pre>
 <pre>docker compose up -d
 docker compose exec backupzit backupzit-server --initial-password</pre>
 <p>Öffnen Sie <code>https://&lt;Host&gt;:8443</code> und melden Sie sich als <code>admin</code> mit diesem Passwort an. Datenbank und Daten der Konsole (Geheimnisschlüssel, Zertifikat, Agent-Installer) liegen in den Volumes <code>db</code> und <code>data</code>; sichern Sie beide oder nutzen Sie <a href="#console-backup">die Sicherung der Konsole</a>. Agenten werden wie gewohnt auf den Computern installiert und verbinden sich mit Port 8443 des Hosts. Für ein lokales Laufwerk als Ziel binden Sie einen Ordner des Hosts in den Container ein (siehe Kommentar in der Datei) und verwenden den Pfad im Container.</p>
-<p><b>Updates:</b> Die Konsole prüft auf neue Versionen und zeigt sie unter Settings → Updates mit den Befehlen, die im Ordner der Datei auszuführen sind: <code>docker compose pull</code> und <code>docker compose up -d</code> (das Tag <code>latest</code> folgt den offiziellen Versionen, <code>testing</code> den Release-Kandidaten; setzen Sie <code>BACKUPZIT_TAG</code> in <code>.env</code>, um bei einer Version zu bleiben). Bevor eine neue Version die Datenbank ändert, legt sie eine Kopie der Konsole in <code>pre-upgrade</code> im Daten-Volume ab (die letzten drei). Zurück: <code>BACKUPZIT_TAG</code> auf die vorherige Version setzen, <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;Ordner&gt;</code> mit dem Ordner der Kopie ausführen, dann <code>docker compose up -d</code>. Agenten werden wie immer aus der Konsole aktualisiert. Im Container werden die Einstellungen der Appliance (Netzwerk, Betriebssystem-Updates, SSH) nicht angezeigt: sie gehören zum Docker-Host.</p>
+<p><b>Updates:</b> Die Konsole prüft auf neue Versionen und zeigt sie unter Einstellungen → Updates mit den Befehlen, die im Ordner der Datei auszuführen sind: <code>docker compose pull</code> und <code>docker compose up -d</code> (das Tag <code>latest</code> folgt den offiziellen Versionen, <code>testing</code> den Release-Kandidaten; setzen Sie <code>BACKUPZIT_TAG</code> in <code>.env</code>, um bei einer Version zu bleiben). Bevor eine neue Version die Datenbank ändert, legt sie eine Kopie der Konsole in <code>pre-upgrade</code> im Daten-Volume ab (die letzten drei). Zurück: <code>BACKUPZIT_TAG</code> auf die vorherige Version setzen, <code>docker compose run --rm backupzit --restore-pre-upgrade &lt;Ordner&gt;</code> mit dem Ordner der Kopie ausführen, dann <code>docker compose up -d</code>. Agenten werden wie immer aus der Konsole aktualisiert. Im Container werden die Einstellungen der Appliance (Netzwerk, Betriebssystem-Updates, SSH) nicht angezeigt: sie gehören zum Docker-Host.</p>
+<p id="docker-logs"><b>Protokolle:</b> <code>docker compose logs -f backupzit</code> zeigt das Protokoll der Konsole. Dasselbe Protokoll liegt als <code>logs/server.log</code> im Daten-Volume und ist Teil des Downloads unter <a href="/settings/diagnostics">Einstellungen → Diagnose</a>. Das Image hat keine Shell; <code>docker compose run --rm backupzit --restore-pre-upgrade list</code> zeigt die vor Updates angelegten Kopien, die neueste zuerst.</p>
 
 <h2 id="first">Erste Anmeldung</h2>
 <p>Öffnen Sie <code>https://&lt;server&gt;:8443</code>. Der anfängliche Administrator ist <b>admin</b>; das Passwort steht in <code>/var/lib/backupzit/initial-admin-password.txt</code> (oder setzen Sie <code>BACKUPZIT_ADMIN_PASSWORD</code> vor dem ersten Start). Ändern Sie es nach der Anmeldung. Ein vergessenes Passwort setzen Sie auf dem Server so zurück:</p>
@@ -146,6 +152,11 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <tr><td>443/tcp</td><td>Agenten, Konsole</td><td>Azure / Cloud-Speicher</td><td>Azure Blob, AWS, Wasabi, Google Cloud …</td></tr>
   <tr><td>636/tcp (389 mit StartTLS)</td><td>Konsole</td><td>Domänencontroller</td><td>LDAP-/Active-Directory-Anmeldung</td></tr>
   <tr><td>587/465/25</td><td>Konsole</td><td>Mailserver</td><td>E-Mail-Benachrichtigungen</td></tr>
+  <tr><td>443/tcp (22/tcp bei der kostenlosen Lizenz)</td><td>Konsole, Proxy-Agent</td><td>ESXi-Hosts, vCenter</td><td>VMware: Inventar, Snapshots, Lesen der Festplatten und Wiederherstellungen</td></tr>
+  <tr><td>2049/tcp, 111/tcp+udp</td><td>ESXi-Hosts</td><td>Proxy-Agent</td><td>VMware-Sofortwiederherstellung (der Agent stellt die Sicherung als NFS-Datastore bereit)</td></tr>
+  <tr><td>443/tcp</td><td>Agent eines Microsoft-365-Auftrags</td><td>graph.microsoft.com, login.microsoftonline.com</td><td>Microsoft-365-Sicherungen</td></tr>
+  <tr><td>514/udp oder tcp, 6514/tcp (TLS)</td><td>Konsole</td><td>Syslog-Server / SIEM</td><td>optional: Export des Audit-Protokolls (der eingetragene Port)</td></tr>
+  <tr><td>443/tcp</td><td>Konsole</td><td>github.com und seine Download-Server</td><td>Update-Prüfungen und Downloads aus der Standard-Update-Quelle; Agenten erhalten ihre Updates von der Konsole</td></tr>
 </table>
 <p>Die Konsole verbindet sich auch selbst mit dem Speicher, damit Sie Dateien in Festplattenabbildern und VM-Sicherungen durchsuchen (und herunterladen) können; sie braucht daher denselben Speicherzugang wie die Agenten.</p>
 
@@ -153,13 +164,14 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <p>Standardmäßig bezieht die Konsole Updates aus den offiziellen BackupZit-Versionen auf GitHub (<code>https://github.com/Max-Zit/backupzit/releases</code>). Unter <a href="/settings/updates">Einstellungen → Updates</a> können Sie stattdessen eine andere <b>Update-Quelle</b> eintragen — Ihren eigenen HTTPS-Spiegel oder einen Ordner auf dem Server. Unabhängig von der Quelle muss jede Version eine gültige BackupZit-Signatur tragen. Die Konsole prüft täglich auf neue Versionen und schickt den Administratoren eine E-Mail, wenn eine verfügbar ist. Zum Installieren klicken Sie auf <b>Installieren</b>:</p>
 <p><b>Release-Kandidaten:</b> Jede Version wird zuerst als <i>Pre-Release</i> veröffentlicht und getestet; erst dann wird sie mit denselben Dateien zum offiziellen Release. Die Update-Quelle <code>https://github.com/Max-Zit/backupzit/releases/download/testing</code> enthält immer den neuesten Kandidaten – verwenden Sie sie nur auf einer Testkonsole, da ein Kandidat noch durch einen korrigierten ersetzt werden kann. Konsolen mit der Standardquelle erhalten nur freigegebene Releases.</p>
 <ol>
-  <li>Die Konsole prüft die Versionssignatur und die Paketprüfsumme und wartet, bis keine Sicherung oder Wiederherstellung läuft.</li>
+  <li>Die Konsole prüft die Versionssignatur und die Paketprüfsumme und startet das Update nicht, solange eine Sicherung oder Wiederherstellung läuft; installieren Sie es, wenn diese beendet sind.</li>
   <li>Ein Systemdienst (<code>backupzit-update</code>, läuft als root) prüft die Signatur erneut mit den in BackupZit eingebauten Versionsschlüsseln. Selbst eine kompromittierte Konsole kann so kein anderes Paket installieren lassen.</li>
   <li>Er sichert die Datenbank (<code>pg_dump</code>), behält das aktuelle Programm, installiert das Paket und startet die Konsole neu.</li>
   <li>Antwortet die neue Version nicht innerhalb von zwei Minuten, werden das vorherige Programm und die Datenbank im vorherigen Zustand automatisch wiederhergestellt. Das Ergebnis mit dem Protokoll des fehlgeschlagenen Starts wird auf der Seite Updates angezeigt, im Audit-Protokoll festgehalten und per E-Mail versendet.</li>
   <li>Nach einem erfolgreichen Update werden auch die Agenten aktualisiert: Jeder installiert die neue Version, wenn er untätig ist. Schalten Sie das auf derselben Seite aus, wenn Sie sie lieber selbst aktualisieren.</li>
 </ol>
 <p>Die Konsole ist etwa eine Minute lang nicht verfügbar. Die Datenbanksicherungen und vorherigen Programme der letzten drei Updates werden in <code>/var/lib/backupzit-update</code> aufbewahrt.</p>
+<p id="update-banner"><b>Hinweis in der Konsole:</b> Benutzer, die Updates installieren dürfen (Administratoren), sehen eine neue Version auch oben auf jeder Seite, mit <i>Installieren</i> (öffnet diese Seite, Einstellungen → Updates) und <i>Versionshinweise</i>. <b>×</b> blendet den Hinweis für diesen Benutzer fünf Tage lang aus, in jedem Browser; eine noch neuere Version zeigt ihn sofort wieder. Andere Rollen sehen ihn nicht. Auf einer Docker-Konsole verweist der Hinweis stattdessen auf die Befehle zum Herunterladen des neuen Images.</p>
 <p><b>Ohne Internetzugang:</b> Laden Sie die Versionsdateien (<code>manifest.json</code>, <code>manifest.json.sig</code> und das Serverpaket) auf einem anderen Computer herunter. Laden Sie sie dann unter <i>Update aus Dateien installieren</i> hoch, oder kopieren Sie sie in einen Ordner auf dem Server und verwenden Sie diesen Ordner als Update-Quelle.</p>
 <p>Sie können weiterhin mit dem Paketmanager aktualisieren (<code>apt install ./backupzit-server_….deb</code>); die Datenbank wird migriert, wenn die neue Version startet.</p>
 
@@ -168,7 +180,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
 <ul>
   <li><b>Automatische Sicherheitsupdates einschalten</b> (empfohlen). Das systemeigene Werkzeug installiert täglich nur Sicherheitskorrekturen: <code>unattended-upgrades</code> unter Debian und Ubuntu, <code>dnf-automatic</code> unter AlmaLinux und Rocky Linux.</li>
   <li><b>Jetzt alle Updates installieren</b>. Dienste wie PostgreSQL können kurz neu starten, und die Konsole verbindet sich von selbst wieder.</li>
-  <li><b>Server neu starten</b>, zum Beispiel nach einem Kernel-Update. Die Konsole verweigert das, während Sicherungen oder Wiederherstellungen laufen. Agenten behalten ihre Aufträge und melden die Ergebnisse, sobald die Konsole zurück ist.</li>
+  <li><b>Server neu starten</b>, zum Beispiel nach einem Kernel-Update. Die Konsole verweigert das, während Sicherungen oder Wiederherstellungen laufen. Sicherungen, deren geplante Zeit während des Neustarts verstreicht, starten, sobald die Konsole zurück ist.</li>
 </ul>
 <p>Diese Aufgaben laufen über denselben root-Dienst wie Konsolen-Updates. Sie werden im Audit-Protokoll festgehalten, und die Ausgabe der letzten Aufgabe wird auf der Seite angezeigt.</p>
 
@@ -181,6 +193,7 @@ backupzit-server --set-admin-password 'NEW-PASSWORD'</pre>
   <li>das Zertifikat der Konsole, das die Agenten pinnen.</li>
 </ul>
 <p>Sie ist mit dem Wiederherstellungsschlüssel des Ziels verschlüsselt und dedupliziert. Die neuesten Sicherungen werden behalten: standardmäßig 14.</p>
+<p id="console-backup-page">Wählen Sie auf der Seite das <i>Speicherziel</i> (nur Netzwerkspeicher: SFTP, S3, SMB, Azure oder ein gehärtetes Repository; die Sicherung kommt dort in den Ordner <code>backupzit-console</code>), die Stunde der täglichen Sicherung (<i>Um</i>, Zeit der Konsole) und wie viele Sicherungen zu behalten sind (<i>Behalten</i>). <i>Jetzt sichern</i> erstellt sofort eine. Die Seite zeigt die letzte Sicherung mit ihrer Größe und die Repository-Adresse, die Sie für eine Wiederherstellung brauchen.</p>
 <h3>Die Konsole wiederherstellen</h3>
 <ol>
   <li>Installieren Sie eine neue Konsole mit derselben oder einer neueren Version, zum Beispiel vom Appliance-ISO.</li>

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -124,10 +125,16 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 	}
 	_ = os.Remove(filepath.Join(a.Dir, f.Name))
 
+	conn, removePass, err := pgConnection(a.DBURL, a.Work)
+	if err != nil {
+		res.Status, res.Message = "failed", "database backup failed, nothing was changed: "+err.Error()
+		return a.finish(res)
+	}
+	defer removePass()
 	stamp := time.Now().UTC().Format("20060102-150405")
 	dump := filepath.Join(a.Work, fmt.Sprintf("db-before-%s-%s.dump", m.Version, stamp))
 	a.logf("backing up the database to %s", dump)
-	if _, err := a.Run(ctx, "pg_dump", "--format=custom", "--file="+dump, "--dbname="+a.DBURL); err != nil {
+	if _, err := a.Run(ctx, "pg_dump", "--format=custom", "--file="+dump, "--dbname="+conn); err != nil {
 		res.Status, res.Message = "failed", "database backup failed, nothing was changed: "+err.Error()
 		return a.finish(res)
 	}
@@ -165,7 +172,7 @@ func (a *Applier) Apply(ctx context.Context) (*Result, error) {
 	_, err1 := a.Run(ctx, "systemctl", "stop", a.Service)
 	err2 := copyRegular(prev, a.Binary)
 	_ = os.Chmod(a.Binary, 0o755) // #nosec G302 -- executable program
-	_, err3 := a.Run(ctx, "pg_restore", "--clean", "--if-exists", "--no-owner", "--dbname="+a.DBURL, dump)
+	_, err3 := a.Run(ctx, "pg_restore", "--clean", "--if-exists", "--no-owner", "--dbname="+conn, dump)
 	_, err4 := a.Run(ctx, "systemctl", "start", a.Service)
 	res.Status = "rolled-back"
 	res.Message = fmt.Sprintf("installing %s failed (%v); version %s and its database were restored", m.Version, ierr, a.CurrentVersion)
@@ -237,6 +244,52 @@ func (a *Applier) prune() {
 	for _, p := range append(pkgs, rpms...) {
 		_ = os.Remove(p)
 	}
+}
+
+// pgConnection returns the database URL for pg_dump and pg_restore without
+// its password, which would otherwise show in the process list to every
+// local user. The password goes into a temporary 0600 password file in
+// dir (root's own directory), named by libpq's passfile parameter; remove
+// deletes it. A URL without a password, or a connection string that is
+// not a postgres:// URL, is passed on unchanged.
+func pgConnection(dbURL, dir string) (conn string, remove func(), err error) {
+	remove = func() {}
+	u, perr := url.Parse(dbURL)
+	if perr != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") {
+		return dbURL, remove, nil
+	}
+	pass, _ := u.User.Password()
+	q := u.Query()
+	if p := q.Get("password"); p != "" {
+		pass = p
+		q.Del("password")
+	}
+	if pass == "" || strings.ContainsAny(pass, "\r\n") {
+		return dbURL, remove, nil
+	}
+	f, err := os.CreateTemp(dir, ".pgpass-")
+	if err != nil {
+		return "", remove, err
+	}
+	name := f.Name()
+	remove = func() { _ = os.Remove(name) }
+	// Any host, port, database and user: the file is only for this URL.
+	esc := strings.NewReplacer(`\`, `\\`, `:`, `\:`).Replace(pass)
+	if _, err := fmt.Fprintf(f, "*:*:*:*:%s\n", esc); err != nil {
+		_ = f.Close()
+		remove()
+		return "", func() {}, err
+	}
+	if err := f.Close(); err != nil {
+		remove()
+		return "", func() {}, err
+	}
+	if u.User != nil {
+		u.User = url.User(u.User.Username())
+	}
+	q.Set("passfile", name)
+	u.RawQuery = q.Encode()
+	return u.String(), remove, nil
 }
 
 // copyRegular copies a regular file (no symlinks or devices).

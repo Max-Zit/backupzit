@@ -10,7 +10,7 @@
   <p>{{T "A local or USB disk is only reachable by the agent of the computer it is connected to. Choose that agent: it searches the disk and reads the backups on it."}}</p>
   {{if .Data.Agents}}
   <form method="post" action="/targets/{{$t.ID}}/scan" class="row">
-    <label>{{T "Agent"}} <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Hostname}}{{if not .Online}} ({{T "offline"}}){{end}}</option>{{end}}</select></label>
+    <label>{{T "Agent"}} <select name="agent_id">{{range .Data.Agents}}<option value="{{.ID}}">{{.Label}}{{if not .Online}} ({{T "offline"}}){{end}}</option>{{end}}</select></label>
     <div class="actions"><button>{{T "Search the disk"}}</button> <a class="btn secondary-link" href="/targets">{{T "Cancel"}}</a></div>
   </form>
   {{else}}<p class="muted">{{T "No agents yet."}}</p>{{end}}

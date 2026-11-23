@@ -41,6 +41,7 @@ func cmdPVE(ctx context.Context, args []string) error {
 	case "backup":
 		fs := flag.NewFlagSet("pve backup", flag.ExitOnError)
 		rf := addRepoFlags(fs)
+		rf.addVMBlockSizeFlag(fs)
 		ids := fs.String("vmid", "", "comma-separated guest IDs (default: all guests on this node)")
 		excl := fs.String("exclude", "", "comma-separated guest IDs to skip when backing up all guests")
 		_ = fs.Parse(args[1:])
@@ -137,7 +138,7 @@ func cmdPVE(ctx context.Context, args []string) error {
 			return err
 		}
 		defer lock.Unlock()
-		sn, err := r.LoadSnapshot(ctx, fs.Arg(0))
+		sn, err := loadGuestSnapshot(ctx, r, fs.Arg(0), "", *vmid)
 		if err != nil {
 			return err
 		}
@@ -166,8 +167,12 @@ func printGuests(gs []repo.Guest, imgs []repo.DiskImage) {
 	for _, g := range gs {
 		fmt.Printf("  %s %d %q: %s\n", g.Type, g.VMID, g.Name, g.Consistency)
 		for _, d := range g.Disks {
+			if d.Files() {
+				fmt.Printf("    %-10s %-28s %8s, %s in files\n", d.Key, d.Volume, humanBytes(d.Size), humanBytes(d.Bytes))
+				continue
+			}
 			stored := uint64(0)
-			if d.Image < len(imgs) && len(imgs[d.Image].Partitions) == 1 {
+			if d.Image >= 0 && d.Image < len(imgs) && len(imgs[d.Image].Partitions) == 1 {
 				stored = imgs[d.Image].Partitions[0].StoredBytes
 			}
 			fmt.Printf("    %-10s %-28s %8s, %s with data\n", d.Key, d.Volume, humanBytes(d.Size), humanBytes(stored))
@@ -199,7 +204,7 @@ func cmdPVEFiles(ctx context.Context, cmd string, args []string) error {
 		return err
 	}
 	defer r.Close()
-	sn, err := r.LoadSnapshot(ctx, fs.Arg(0))
+	sn, err := loadGuestSnapshot(ctx, r, fs.Arg(0), "", *vmid)
 	if err != nil {
 		return err
 	}
@@ -233,6 +238,11 @@ func cmdPVEFiles(ctx context.Context, cmd string, args []string) error {
 		fmt.Printf("extracted %d files and %d folders (%s) from %s into %s\n", st.Files, st.Dirs, humanBytes(st.Bytes), v.Name, *target)
 		for _, e := range st.Errors {
 			fmt.Println("  error:", e)
+		}
+		// Like image-extract: a restore that left files out must not end
+		// with exit code 0, or scripts take it for complete (B8).
+		if len(st.Errors) > 0 {
+			return fmt.Errorf("extract finished with %d errors", len(st.Errors))
 		}
 		return nil
 	}

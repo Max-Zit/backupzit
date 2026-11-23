@@ -5,7 +5,7 @@
   <div class="actions">
     <form method="get" action="/calendar" class="inline calfilter">
       <input type="hidden" name="month" value="{{.Month.Format "2006-01"}}">
-      <select name="agent" data-autosubmit><option value="">{{T "All agents"}}</option>{{range .Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.AgentID}}selected{{end}}>{{.Hostname}}</option>{{end}}</select>
+      <select name="agent" data-autosubmit><option value="">{{T "All agents"}}</option>{{range .Agents}}<option value="{{.ID}}" {{if eq .ID $.Data.AgentID}}selected{{end}}>{{.Label}}</option>{{end}}</select>
     </form>
     <a class="btn secondary-link" href="/calendar?month={{.Prev}}{{if .AgentID}}&agent={{.AgentID}}{{end}}" aria-label="{{T "Previous month"}}">{{template "icon" "chevl"}}</a>
     <a class="btn secondary-link" href="/calendar{{if .AgentID}}?agent={{.AgentID}}{{end}}">{{T "Today"}}</a>
@@ -38,7 +38,7 @@
     <ul class="agenda-list">
       {{range .Upcoming}}
       <li><div class="when"><b>{{.First.Format "Mon 2 Jan"}}</b><span>{{.First.Format "15:04"}}</span></div>
-        <div><a href="/jobs/{{.JobID}}" class="strong">{{.JobName}}</a><div class="muted small">{{.Hostname}} · {{if eq .Kind "image"}}{{T "disk image"}}{{else}}{{T "files"}}{{end}}</div></div></li>
+        <div><a href="/jobs/{{.JobID}}" class="strong">{{.JobName}}</a><div class="muted small">{{.Hostname}} · {{T .KindLabel}}</div></div></li>
       {{end}}
     </ul>
     {{else}}<div class="empty">{{template "icon" "calendar"}}<p>{{T "No scheduled backups in the next 7 days."}}</p></div>{{end}}

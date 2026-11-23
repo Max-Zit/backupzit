@@ -3,7 +3,7 @@
 <p class="lead">El agente también funciona por sí solo desde la línea de comandos: para scripts, para restaurar sin la consola y para emergencias. Ejecute <code>backupzit-agent</code> sin argumentos para ver un resumen y <code>backupzit-agent &lt;command&gt; -h</code> para las opciones de un comando.</p>
 
 <h2>Repositorio y credenciales</h2>
-<p>Todos los comandos aceptan <code>--repo</code> (o <code>BACKUPZIT_REPO</code>). Para los secretos, mejor use variables de entorno. El repositorio de un agente es <code>&lt;ubicación de almacenamiento&gt;/&lt;hostname&gt;_&lt;id&gt;</code>: vea la columna de repositorio de una ejecución en Actividad, o la hoja de recuperación.</p>
+<p>Todos los comandos que leen o escriben copias aceptan <code>--repo</code> (o <code>BACKUPZIT_REPO</code>); <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> y <code>disks</code> no lo usan. Para los secretos, mejor use variables de entorno. El repositorio de un agente es <code>&lt;ubicación de almacenamiento&gt;/&lt;hostname&gt;_&lt;id&gt;</code>: vea el campo <b>Repositorio</b> en la página de la ejecución, o la hoja de recuperación.</p>
 <table>
   <tr><th>Ubicación</th><th>Credenciales</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,9 +23,10 @@
   <tr><td><code>init</code></td><td>Crea un repositorio nuevo (cifrado si se indica una contraseña).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Copia archivos y carpetas. <code>--vss</code> lee de una instantánea de volumen (Windows, administrador); <code>--force</code> lee todos los archivos aunque no hayan cambiado.</td></tr>
   <tr><td><code>snapshots</code></td><td>Muestra las instantáneas con hora, host, tamaño y rutas.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Muestra los archivos de una instantánea.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Muestra todos los archivos de una instantánea.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Restaura archivos bajo DIR (se recrea la estructura de carpetas original). <code>--original</code> los escribe en cambio en su ubicación original, sobrescribiendo los archivos existentes.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Verifica la estructura del repositorio; con <code>--read-data</code> se descarga y comprueba cada byte.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Lee todos los datos y saca del índice los paquetes de datos dañados, para que las próximas copias guarden esos datos de nuevo; enumera las copias que necesitan los datos perdidos. <code>--dry-run</code> solo enumera.</td></tr>
 </table>
 
 <h2>Imágenes de disco (Windows)</h2>
@@ -76,7 +77,7 @@
 <table>
   <tr><th>Comando</th><th>Qué hace</th></tr>
   <tr><td><code>hyperv list</code></td><td>Muestra las VM del host con sus números de BackupZit, y las carpetas para los discos restaurados.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Copia VM (por defecto: todas) a partir de puntos de control de producción.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>Copia VM (por defecto: todas) a partir de puntos de control de recuperación con Resilient Change Tracking (puntos de control de producción solo en hosts que no los tienen).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Restaura una VM en el sitio (por defecto) o como VM nueva con <code>--new</code>. <code>--overwrite</code> sustituye los discos de una VM existente. Consulte <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> y <code>pve extract</code> también funcionan con copias de Hyper-V.</p>
@@ -95,6 +96,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Detiene y elimina una VM instantánea con sus cambios.</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Sirve los discos de una VM de una copia en solo lectura por NBD en un socket Unix (la recuperación instantánea lo inicia como unidad systemd).</td></tr>
 </table>
+<p><b><code>latest</code> con <code>--vmid</code></b> (comandos de VMware, Hyper-V y Proxmox VE) es la instantánea más reciente que contiene ese invitado, no la más reciente del repositorio, y el comando la indica (instantánea, host, hora, nombre del invitado). Los ID de invitado se repiten entre hosts (todo Proxmox VE empieza en 100): si invitados con nombres distintos de varios hosts tienen ese ID, <code>latest</code> se rechaza; indique el ID de la instantánea que muestra <code>snapshots</code>. <code>pve show latest</code> sigue mostrando la instantánea más reciente del repositorio.</p>
 
 <h2>Microsoft SQL Server (agente en la máquina de SQL Server)</h2>
 <table>
@@ -152,7 +154,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>Datos guardados y ocultos (borrados, aún conservados).</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>Vuelve a hacer visibles los archivos borrados desde TIME.</td></tr>
 </table>
-<p>Configuración: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p>Configuración: <code>/etc/backupzit-repo/repo.env</code>, o lo mismo como opciones de <code>serve</code>: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code> (directorio de almacenamiento, por defecto <code>/srv/backupzit</code>), <code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code> (claves y certificado, por defecto <code>/etc/backupzit-repo</code>), <code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code> (por defecto <code>:8500</code>), <code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code> (inmutabilidad en días, por defecto 30) y <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code> (nombres y direcciones para el certificado autofirmado). Los comandos de claves también aceptan <code>--data</code> y <code>--config-dir</code>.</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code> activa métricas de Prometheus por clave de acceso en <code>/metrics</code> (cabecera <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Servidor de gestión (<code>backupzit-server</code>)</h2>
@@ -166,9 +168,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>Contraseña inicial del administrador (solo en el primer arranque).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td>Clave de secretos (base64) en lugar del archivo <code>secrets.key</code>.</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td>Restablece la contraseña de <i>admin</i> (lo vuelve a habilitar como administrador local) y termina.</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>Desactiva el inicio de sesión en dos pasos de un usuario que perdió el autenticador y los códigos de recuperación, cierra sus sesiones, lo anota en el registro de auditoría y termina.</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Levanta el bloqueo de inicio de sesión de una dirección, o de todas (protección contra fuerza bruta), y termina.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Restaura la consola desde una copia de la consola y termina (consulte <a href="/docs/install">Instalar el servidor</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Solo para evaluación: PostgreSQL privado en el directorio de datos, HTTP sin cifrar en localhost.</td></tr>
+  <tr><td><code>--setup</code></td><td>El menú de texto del appliance (red, nombre del servidor, contraseña de admin); como root.</td></tr>
+  <tr><td><code>--initial-password</code></td><td>Muestra la primera contraseña generada de <i>admin</i> mientras siga en uso, y termina.</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>Imagen de contenedor: carga la copia de la consola hecha antes de una actualización (una carpeta en <code>pre-upgrade</code> del directorio de datos) y termina; ejecútela con la imagen de la versión con la que se hizo la copia. <code>list</code> muestra las copias.</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>Imagen de contenedor: termina con 0 cuando la consola responde (la comprobación de estado de la imagen).</td></tr>
+  <tr><td><code>--apply-update</code></td><td>Instala una actualización solicitada en la consola; la ejecuta el servicio <code>backupzit-update</code> como root, no a mano.</td></tr>
   <tr><td><code>--version</code></td><td>Muestra la versión.</td></tr>
 </table>
 <pre>systemctl status backupzit-server

@@ -38,7 +38,7 @@ func TestDeleteBackupsConfirmsIdentity(t *testing.T) {
 	// An administrator with two-factor sign-in confirms with a code.
 	now := time.Unix(1_800_000_000, 0)
 	server.SetClock(x.e.srv, func() time.Time { return now })
-	x.admin.do("POST", "/users", url.Values{"username": {"ana"}, "role": {"admin"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
+	x.admin.do("POST", "/users", url.Values{"reauth_password": {"admin-pass-123"}, "username": {"ana"}, "role": {"admin"}, "password": {"correct-horse-9"}, "password2": {"correct-horse-9"}})
 	ana := newClient(t, x.e)
 	ana.login("ana", "correct-horse-9")
 	_, _, page := ana.do("GET", "/account/2fa", nil)
@@ -47,7 +47,7 @@ func TestDeleteBackupsConfirmsIdentity(t *testing.T) {
 		t.Fatal("no two-factor secret")
 	}
 	secret := strings.ReplaceAll(m[1], " ", "")
-	if code, _, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, now)}}); code != 200 {
+	if code, _, _ := ana.do("POST", "/account/2fa/enable", url.Values{"code": {server.TOTPCodeForTest(secret, now)}, "password": {"correct-horse-9"}}); code != 200 {
 		t.Fatalf("enable 2FA: %d", code)
 	}
 	now = now.Add(time.Minute) // a new code; the used one cannot be replayed

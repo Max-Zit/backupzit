@@ -16,6 +16,7 @@
     {{if .Excludes}}<dt>{{T "Exclude"}}</dt><dd class="mono">{{range .Excludes}}{{.}}<br>{{end}}</dd>{{end}}
     <dt>{{T "Storage"}}</dt><dd>{{.TargetName}} <span class="muted small">{{if eq .Kind "vm"}}{{T "one repository of the cluster for all its nodes"}}{{else}}{{T "each agent in its own repository"}}{{end}}</span></dd>
     <dt>{{T "Schedule"}}</dt><dd>{{schedule .Schedule}}</dd>
+    {{if eq .Kind "vm"}}<dt>{{T "VM deduplication block size"}}</dt><dd>{{if eq .Options.VMBlockSizeKiB 256}}{{T "256 KiB"}}{{else if eq .Options.VMBlockSizeKiB 512}}{{T "512 KiB"}}{{else}}{{T "1 MiB (default)"}}{{end}}</dd>{{end}}
   </dl>
 </div>
 {{end}}
@@ -24,7 +25,7 @@
   {{if .Data.Rows}}<div class="table-wrap"><table>
     <tr><th>{{T "Agent"}}</th><th>{{T "Last result"}}</th><th>{{T "Next run"}}</th><th></th></tr>
     {{range .Data.Rows}}<tr>
-      <td class="nowrap"><a href="/agents/{{.Agent.ID}}">{{.Agent.Hostname}}</a> <span class="muted small">{{.Agent.OS}}</span></td>
+      <td class="nowrap"><a href="/agents/{{.Agent.ID}}">{{.Agent.Label}}</a> <span class="muted small">{{.Agent.OS}}</span></td>
       {{if .Job}}{{with .Job}}<td class="nowrap">{{if .LastStatus}}{{template "status" (deref .LastStatus)}} <span class="muted small">{{ago .LastFinished}}</span>{{else}}<span class="muted">{{T "never ran"}}</span>{{end}}{{if not .Enabled}} <span class="badge">{{T "disabled"}}</span>{{end}}</td>
       <td>{{if .Enabled}}{{nextrun .Schedule}}{{else}}—{{end}}</td>
       <td><a href="/jobs/{{.ID}}">{{T "history and restores"}}</a></td>{{end}}

@@ -75,7 +75,9 @@ func (s *Server) emailFromForm(r *http.Request) (EmailSettings, error) {
 	if languageByCode(e.Language) == nil {
 		e.Language = ""
 	}
-	if e.Password == "" && e.Username == old.Username {
+	// The stored password only for the same account on the same server: a
+	// stolen session must not send it to a server of its own (M-N5).
+	if e.Password == "" && e.Username == old.Username && strings.EqualFold(strings.TrimSpace(e.Host), strings.TrimSpace(old.Host)) && e.Port == old.Port {
 		e.Password = old.Password
 	}
 	return e, e.Validate()

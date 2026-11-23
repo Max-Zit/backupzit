@@ -68,6 +68,9 @@ type Archiver struct {
 	// parentDev is the file system of the directory being archived
 	// (OneFileSystem).
 	parentDev *uint64
+	// pseudo are mount points of kernel file systems (Linux): kept as empty
+	// folders, never read.
+	pseudo map[string]bool
 	// links maps hard link keys to the first stored node.
 	links map[string]*repo.Node
 }
@@ -75,6 +78,18 @@ type Archiver struct {
 // src maps an original path to where its data is read from (the VSS
 // snapshot when one exists for its volume).
 func (a *Archiver) src(p string) string { return a.snaps.Map(p) }
+
+// storeEmpty tells whether the directory p on device dev is kept as an empty
+// folder: a mount point of another file system with OneFileSystem, or a
+// kernel file system. A path listed in ExtraMounts was asked for explicitly
+// and is always read (a system backup lists /boot even when it is also
+// seen as an automount point).
+func (a *Archiver) storeEmpty(p string, dev uint64) bool {
+	if slices.Contains(a.opts.ExtraMounts, p) {
+		return false
+	}
+	return a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev || a.pseudo[p]
+}
 
 // Run backs up opts.Paths and saves a snapshot.
 func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot, error) {
@@ -107,10 +122,11 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 	}
 
 	a := &Archiver{
-		r:    r,
-		opts: opts,
-		buf:  make([]byte, chunker.MaxSize),
-		chk:  chunker.New(nil, r.ChunkerPolynomial()),
+		r:      r,
+		opts:   opts,
+		buf:    make([]byte, chunker.MaxSize),
+		chk:    chunker.New(nil, r.ChunkerPolynomial()),
+		pseudo: pseudoMounts(),
 	}
 	start := time.Now()
 	before := r.Stats()
@@ -152,11 +168,15 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		root := buildVTree(abs)
 		var parentTree *repo.Tree
 		if opts.Parent != nil {
-			t, err := r.LoadTree(ctx, opts.Parent.Tree)
-			if err != nil {
-				return nil, fmt.Errorf("load parent tree: %w", err)
+			// A parent tree that is gone (a damaged pack that repair took out
+			// of the index) or unreadable: back up without a parent, reading
+			// every file, instead of failing every later backup. Subtrees and
+			// file contents of the parent are checked the same way below.
+			if t, err := r.LoadTree(ctx, opts.Parent.Tree); err == nil {
+				parentTree = t
+			} else {
+				opts.Parent = nil
 			}
-			parentTree = t
 		}
 		id, err := a.saveVDir(ctx, root, parentTree)
 		if err != nil {
@@ -201,6 +221,33 @@ func Run(ctx context.Context, r *repo.Repository, opts Options) (*repo.Snapshot,
 		return nil, fmt.Errorf("save snapshot: %w", err)
 	}
 	return sn, nil
+}
+
+// Dir stores the directory dir and everything below it as one node named
+// name, without saving a snapshot: the caller places the node in its own
+// tree. Unchanged files are taken from parent, the node of the same
+// directory in an earlier backup (nil: read everything). Only opts.Excludes,
+// opts.OneFileSystem and opts.Progress are used. Files that cannot be read
+// are listed in the returned stats' errors.
+func Dir(ctx context.Context, r *repo.Repository, dir, name string, parent *repo.Node, opts Options) (repo.Node, repo.SnapshotStats, error) {
+	a := &Archiver{
+		r:      r,
+		opts:   opts,
+		buf:    make([]byte, chunker.MaxSize),
+		chk:    chunker.New(nil, r.ChunkerPolynomial()),
+		pseudo: pseudoMounts(),
+	}
+	n, ok, err := a.archivePath(ctx, dir, name, parent)
+	if err != nil {
+		return n, a.stats, err
+	}
+	if !ok || n.Type != repo.NodeDir || n.Subtree == nil {
+		if len(a.stats.Errors) > 0 {
+			return n, a.stats, errors.New(a.stats.Errors[0])
+		}
+		return n, a.stats, fmt.Errorf("%s is not a directory", dir)
+	}
+	return n, a.stats, nil
 }
 
 // The parent is the newest snapshot of the host with the same paths; else
@@ -389,7 +436,7 @@ func (a *Archiver) archivePath(ctx context.Context, p, name string, parent *repo
 		n.Type = repo.NodeDir
 		a.stats.Dirs++
 		dev, _ := deviceOf(fi)
-		if a.opts.OneFileSystem && a.parentDev != nil && dev != *a.parentDev && !slices.Contains(a.opts.ExtraMounts, p) {
+		if a.storeEmpty(p, dev) {
 			// A mount point of another file system: keep the directory, not
 			// its contents (system backups list each file system as a path).
 			id, err := a.r.SaveTree(ctx, &repo.Tree{})

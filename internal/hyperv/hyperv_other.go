@@ -22,6 +22,10 @@ func GetInventory(context.Context) (*pve.Inventory, error) { return nil, errUnsu
 
 func CleanupCheckpoints(context.Context) ([]string, error) { return nil, errUnsupported }
 
+func CleanLeftovers(context.Context, func(string, ...any)) ([]string, error) {
+	return nil, errUnsupported
+}
+
 type BackupOptions struct {
 	VMIDs    []int
 	Exclude  []int
@@ -32,9 +36,14 @@ type BackupOptions struct {
 	// RequireAppConsistent: no crash-consistent fallback (see ErrNotAppConsistent).
 	RequireAppConsistent bool
 	// ExcludeDisks are disk files left out (see DiskExcluded).
-	ExcludeDisks []string
-	Progress     func(done, total uint64)
-	Log          func(msg string, args ...any)
+	ExcludeDisks      []string
+	CrashConsistentOK []string
+	Progress          func(done, total uint64)
+	Log               func(msg string, args ...any)
+	// VMStarted and VMFinished (optional) tell which VM the backup works
+	// on and the result of each, for the run's progress (0.57).
+	VMStarted  func(name string, total int)
+	VMFinished func(name string, failed bool)
 }
 
 func Backup(context.Context, *repo.Repository, BackupOptions) (*repo.Snapshot, error) {

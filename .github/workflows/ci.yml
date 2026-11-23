@@ -77,8 +77,9 @@ jobs:
       - name: gosec (reviewed false positives carry "#nosec <rule> -- reason")
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@v2.30.0
-          gosec -quiet ./...
-          GOOS=windows gosec -quiet ./...
+          # third_party/ holds patched copies of other projects (see their NOTICE.BackupZit).
+          gosec -quiet -exclude-dir=third_party ./...
+          GOOS=windows gosec -quiet -exclude-dir=third_party ./...
 
   govulncheck:
     name: govulncheck (Go vulnerability database)
@@ -96,7 +97,7 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           govulncheck -format sarif ./... > govulncheck.sarif
-      - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         if: always()
         with:
           sarif_file: govulncheck.sarif
@@ -105,7 +106,7 @@ jobs:
   race:
     name: Race detector (Linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -113,8 +114,41 @@ jobs:
           go-version-file: go.mod
       - name: Fetch the test PostgreSQL once (parallel test binaries would all download it)
         run: go test -race -count=1 -run '^TestJobEnableAudited$' ./internal/server
-      - name: Tests with -race
-        run: go test -race -count=1 -timeout 80m ./...
+      - name: Tests with -race (all packages except internal/server, which has its own job)
+        run: go test -race -count=1 -timeout 60m $(go list ./... | grep -v '/internal/server$')
+
+  race-server:
+    # The console's tests under -race in one process outgrew a runner: it
+    # was shut down after 40-50 min (0.52, 0.53). They run in four parts by
+    # test name, each in its own process and runner; together they cover
+    # every test, fuzz seed and example of the package. The memory and disk
+    # in use are logged every two minutes.
+    name: Race detector (Linux, console ${{ matrix.part }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: A-C
+            tests: '^(Test[A-C]|Fuzz|Example)'
+          - part: D-L
+            tests: '^Test[D-L]'
+          - part: M-R
+            tests: '^Test[M-R]'
+          - part: S-Z
+            tests: '^Test([S-Z]|[^A-Z])'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Tests with -race (internal/server, ${{ matrix.part }})
+        env:
+          TESTS: ${{ matrix.tests }}
+        run: |
+          (while sleep 120; do echo "resources: memory $(free -m | awk '/^Mem:/{print $3 "/" $2}') MB, disk $(df -h / | awk 'NR==2{print $3 "/" $2}')"; done) &
+          go test -race -count=1 -timeout 80m -run "$TESTS" ./internal/server
 
   fuzz:
     name: Fuzz parsers of untrusted input (short)

@@ -1,6 +1,6 @@
 {{define "content"}}<div class="docs">{{template "docnav" .}}<article class="doc">
 <h1>Virtuele machines in Proxmox VE</h1>
-<p class="lead">BackupZit maakt back-ups van virtuele machines (QEMU) en containers (LXC) in Proxmox VE zonder iets in de gasten te installeren. De agent draait op de Proxmox-host, maakt een snapshot van elke gast, leest de schijven en slaat ze gededupliceerd op elk opslagdoel op.</p>
+<p class="lead">BackupZit maakt back-ups van virtuele machines (QEMU) en containers (LXC) in Proxmox VE zonder iets in de gasten te installeren. De agent draait op de Proxmox-host, maakt een snapshot van elke gast, leest de schijven en slaat ze gededupliceerd op elk opslagdoel op. VM-schijven worden als schijfimages opgeslagen; containers op ZFS worden bestand voor bestand geback-upt (zie <a href="#lxc-zfs">Containers (LXC) op ZFS</a>).</p>
 
 <h2>Instellen</h2>
 <ol>
@@ -18,10 +18,10 @@ systemctl enable --now backupzit-agent</pre></li>
 <ol>
   <li>Er wordt een tijdelijke Proxmox-snapshot gemaakt (<code>backupzit_…</code>, enkele seconden tot minuten zichtbaar onder <i>Snapshots</i>). De gast blijft draaien.</li>
   <li>Als de <b>QEMU-gastagent</b> in de VM draait (en in de VM-opties is ingeschakeld), bevriest Proxmox de bestandssystemen voor de snapshot — de back-up is dan applicatieconsistent. Zonder agent is de back-up crash-consistent, zoals bij een stroomstoring. Installeer <code>qemu-guest-agent</code> in Linux-VM's en de VirtIO-gasttools in Windows-VM's.</li>
-  <li>Elke schijf wordt uit de snapshot gelezen in blokken van 1 MiB. Lege blokken worden niet opgeslagen en blokken die al in de repository staan niet opnieuw geüpload, dus na de eerste back-up worden alleen gewijzigde gegevens overgedragen.  Draaiende VM's met schijven op LVM-thin, ZFS, Ceph RBD of qcow2-bestanden krijgen ook <b>bijhouden van gewijzigde blokken</b> (QEMU dirty bitmaps): vanaf de tweede back-up worden alleen de gebieden gelezen die sinds de vorige back-up zijn geschreven, wat seconden duurt in plaats van minuten. Nadat de VM is gestopt, herstart of naar een andere node is verplaatst, leest de volgende back-up de schijven één keer volledig; de pagina van de uitvoering toont welke schijven alleen als gewijzigde blokken zijn gelezen.</li>
+  <li>Elke schijf wordt uit de snapshot gelezen in blokken van 1 MiB. Lege blokken worden niet opgeslagen en blokken die al in de repository staan niet opnieuw geüpload, dus na de eerste back-up worden alleen gewijzigde gegevens overgedragen.  Draaiende VM's met schijven op LVM-thin, ZFS, Ceph RBD of qcow2-bestanden krijgen ook <b>bijhouden van gewijzigde blokken</b> (QEMU dirty bitmaps): vanaf de tweede back-up worden alleen de gebieden gelezen die sinds de vorige back-up zijn geschreven, wat seconden duurt in plaats van minuten. Nadat de VM is gestopt, herstart of naar een andere node is verplaatst, of nadat een schijf is vergroot of verkleind, leest de volgende back-up de schijven één keer volledig; de pagina van de uitvoering toont welke schijven alleen als gewijzigde blokken zijn gelezen. Dit is de standaardblokgrootte; een taak kan in plaats daarvan 256 of 512 KiB gebruiken (zie <a href="/docs/jobs#compression">Taken</a>).</li>
   <li>De snapshot wordt verwijderd. De gastconfiguratie (CPU, geheugen, netwerk, schijven) wordt met de back-up opgeslagen.</li>
 </ol>
-<p>De runpagina toont elke gast, zijn schijven en hoe hij is vastgelegd. Hersteltests controleren willekeurige blokken van VM-back-ups zoals bij schijfimages en starten — met de <a href="/docs/restore">opstarttest</a> ingeschakeld — elke VM vanuit de back-up, geïsoleerd van het netwerk, om te bewijzen dat hij opstart.</p>
+<p>De runpagina toont elke gast, zijn schijven en hoe hij is vastgelegd. Hersteltests controleren willekeurige blokken van VM-back-ups zoals bij schijfimages en starten — met de <a href="/docs/restore">opstarttest</a> ingeschakeld — elke VM vanuit de back-up, geïsoleerd van het netwerk, om te bewijzen dat hij opstart. Containers op ZFS worden getest door willekeurige bestanden terug te zetten.</p>
 
 <h3>Ondersteunde opslag</h3>
 <table>
@@ -31,9 +31,27 @@ systemctl enable --now backupzit-agent</pre></li>
   <tr><td>Ceph RBD</td><td>ja, snapshot</td><td>ja</td></tr>
   <tr><td>Directory, NFS, CIFS met <b>qcow2</b>-schijven</td><td>ja, snapshot</td><td>ja</td></tr>
   <tr><td>Directory, NFS, CIFS met raw-schijven, thick LVM</td><td>nee — stop de gast of verplaats de schijf</td><td>ja</td></tr>
-  <tr><td>ZFS-subvolumes van containers</td><td colspan="2">nog niet ondersteund</td></tr>
+  <tr><td>ZFS-subvolumes van containers (LXC)</td><td>ja, snapshot, bestand voor bestand</td><td>ja, bestand voor bestand</td></tr>
 </table>
-<p>Schijven die in Proxmox als <i>Backup: no</i> (<code>backup=0</code>) zijn gemarkeerd, doorgegeven fysieke schijven en bind mounts worden overgeslagen en als waarschuwingen vermeld. Cloud-init-stations worden niet opgeslagen; ze worden bij het herstel uit de configuratie opnieuw gemaakt.</p>
+<p>Schijven die in Proxmox als <i>Backup: no</i> (<code>backup=0</code>) zijn gemarkeerd, doorgegeven fysieke schijven en bind mounts worden overgeslagen en als waarschuwingen vermeld. Cloud-init-stations worden niet opgeslagen; ze worden bij het herstel uit de configuratie opnieuw gemaakt. Een gestopte gast waarvan de schijven zonder snapshot worden gelezen, heeft intussen de back-upvergrendeling van Proxmox VE, zoals bij vzdump: hij kan pas worden gestart (ook niet door HA) als zijn schijven zijn gelezen.</p>
+<p id="leftovers"><b>Achtergebleven snapshots en vergrendelingen.</b> De agent legt elke back-upsnapshot vast voordat hij die maakt, en de back-upvergrendeling van een gestopte gast zodra die is gezet, en wist de vastlegging pas als de configuratie van de gast laat zien dat die weg is (een snapshot wordt met <code>--force</code> verwijderd als het gewone verwijderen mislukt, tot drie pogingen in ongeveer tien minuten). Na een crash van de agent of een stroomuitval verwijdert de agent ze zelf, bij het starten en elke 15 minuten:</p>
+<ul>
+  <li>Gasten waaraan een back-up of herstel van de agent werkt, en gasten waarvoor Proxmox VE een taak uitvoert (een vzdump-back-up, een migratie), blijven ongemoeid.</li>
+  <li>Een snapshotvergrendeling (<code>lock: snapshot</code>) die een onderbroken aanmaak heeft achtergelaten, wordt samen met de snapshot verwijderd; Ceph RBD-apparaten van de snapshot worden eerst ontkoppeld (unmap).</li>
+  <li><code>backupzit_…</code>-snapshots ouder dan een dag waarvan de agent geen vastlegging heeft (bijvoorbeeld van oudere versies), worden ook verwijderd. Uw eigen snapshots blijven altijd onaangeroerd.</li>
+  <li>Een back-upvergrendeling wordt alleen verwijderd als de vastlegging laat zien dat BackupZit die heeft gezet. Een vergrendeling die BackupZit niet heeft gezet, wordt gemeld met de opdracht die haar verwijdert (<code>qm unlock</code>, <code>pct unlock</code>), omdat vzdump dezelfde vergrendeling gebruikt.</li>
+  <li>Wat niet te verwijderen is, staat op het dashboard onder <i>Vraagt aandacht</i> met <b>Nu verwijderen</b> en wordt één keer gemeld.</li>
+</ul>
+
+<h3 id="lxc-zfs">Containers (LXC) op ZFS</h3>
+<p>Op een ZFS-opslag bewaart Proxmox de volumes van een container (LXC) als datasets (<code>subvol-&lt;ID&gt;-disk-N</code>): bestandssystemen, geen virtuele schijven zoals de zvols van een VM (QEMU). Daarom maakt BackupZit van deze containers bestand voor bestand een back-up:</p>
+<ul>
+  <li>De tijdelijke snapshot is dezelfde; de agent leest de bestanden uit de ZFS-snapshot van elk subvolume (<code>.zfs/snapshot</code>, ook als die verborgen is) terwijl de container blijft draaien.</li>
+  <li>Eigenaren (ook de verschoven ID's van niet-geprivilegieerde containers), rechten, tijden, uitgebreide attributen en ACL's, harde en symbolische koppelingen en apparaatbestanden blijven behouden. Sockets worden overgeslagen, zoals bij vzdump; de diensten in de container maken ze opnieuw aan.</li>
+  <li>Vanaf de tweede back-up worden alleen bestanden gelezen waarvan de grootte of wijzigingstijd veranderde; de andere worden uit de vorige back-up overgenomen.</li>
+  <li>Zo'n container wordt teruggezet op een ZFS-opslag, als nieuwe subvolumes met de grootte (quota) van de oorspronkelijke volumes.</li>
+</ul>
+<p>Containers op LVM-thin of Ceph RBD hebben virtuele schijven en worden blok voor blok geback-upt, zoals VM's. De pagina van de run toont de VM's (QEMU) en de containers (LXC) in aparte tabellen en laat zien hoe elke container is opgeslagen. Hiervoor zijn agents 0.53 of nieuwer nodig.</p>
 
 <h2>Een VM of container herstellen</h2>
 <p>Open een run van een VM-back-up (vanaf de taakpagina of <a href="/runs">Activiteit</a>) en gebruik <b>Een VM of container herstellen</b>:</p>
@@ -45,7 +63,7 @@ systemctl enable --now backupzit-agent</pre></li>
   <li><b>Naam</b> en <b>Opslag voor de schijven</b> — bijv. herstellen naar een andere opslag dan het origineel.</li>
   <li><b>De gast na het herstel starten</b>.</li>
 </ul>
-<p>Elk herstel geeft VM's een nieuwe generatie-ID (<code>vmgenid</code>), zodat Windows-domeincontrollers en andere software het terugzetten veilig detecteren. Schijven worden met <code>pvesm</code> op de gekozen opslag toegewezen; op directory-opslag worden ze als raw-bestanden hersteld.</p>
+<p>Elk herstel geeft VM's een nieuwe generatie-ID (<code>vmgenid</code>), zodat Windows-domeincontrollers en andere software het terugzetten veilig detecteren. Schijven worden met <code>pvesm</code> op de gekozen opslag toegewezen; op directory-opslag worden ze als raw-bestanden hersteld. De opslaglijst biedt alleen opslag aan die past bij de gekozen gast: VM-schijven voor een VM, containervolumes voor een container en ZFS voor een container die bestand voor bestand is geback-upt.</p>
 
 <h2>Direct herstel</h2>
 <p>Het herstellen van een grote VM duurt even lang als het kopiëren van zijn schijven. Met <b>Direct, draaiend vanuit de back-up</b> in het herstelformulier draait de VM in plaats daarvan binnen enkele seconden, terwijl zijn schijven nog in de back-up staan:</p>
@@ -61,7 +79,7 @@ systemctl enable --now backupzit-agent</pre></li>
 <ul>
   <li>De eerste keer wordt de replica hersteld als een nieuwe gast (volgende vrije ID, naam <i>original-replica</i>, nieuwe MAC-adressen, start nooit mee met de node).</li>
   <li>Daarna worden alleen de blokken geschreven die zijn gewijzigd sinds de back-up die de replica bevat — meestal een paar seconden per back-up.</li>
-  <li>De taakpagina toont de replica's, de back-up die elke replica bevat en hun status. Als een gast verloren gaat, klikt u op <b>Replica starten</b>: hij draait met de gegevens van de laatste back-up, zonder herstel. Start hem alleen als het origineel echt weg is — beide tegelijk op het netwerk kan conflicten geven.</li>
+  <li>De taakpagina toont de replica's, de back-up die elke replica bevat en hun status. Als een gast verloren gaat, klikt u op <b>Replica starten</b>: hij draait met de gegevens van de laatste back-up, zonder herstel. Start hem alleen als het origineel echt weg is — beide tegelijk op het netwerk kan conflicten geven. Nadat een replica is gestart (ook in de Proxmox VE-interface, bijvoorbeeld voor een failovertest), vergelijkt de volgende update elk blok in plaats van alleen de wijzigingen te schrijven, zodat de replica weer met de back-up overeenkomt. Hetzelfde gebeurt na een onderbroken update (een crash van de agent of het knooppunt) en wanneer uit het takenlogboek van Proxmox VE niet te lezen is of de replica is gestart.</li>
   <li>Zolang een replica draait, wordt hij niet meer bijgewerkt (de run meldt dat). Om opnieuw te repliceren verwijdert u de replicagast in Proxmox; de volgende back-up maakt een nieuwe. Replica's met Proxmox-snapshots worden ook niet bijgewerkt.</li>
   <li>Schijven die later aan een gast worden toegevoegd, worden niet gerepliceerd (verwijder de replica om opnieuw te beginnen); gegroeide schijven groeien ook op de replica. Configuratiewijzigingen (geheugen, CPU's) worden overgenomen bij het aanmaken van de replica.</li>
   <li>Replicatie leest de back-ups zoals een herstel: de replicanode moet de opslag kunnen bereiken. Replicatie uitschakelen laat de replica's zoals ze zijn.</li>
@@ -87,6 +105,7 @@ backupzit-agent pve instant-discard --vmid 101</pre>
   <li><b>Herstellen op agent</b> — kopieer ze naar een map op een willekeurige agent, bijv. terug in de VM (als die de BackupZit-agent draait) of naar een bestandsserver.</li>
 </ul>
 <p>Op de opdrachtregel: <code>backupzit-agent pve ls --vmid 100 latest /etc</code> en <code>backupzit-agent pve extract --vmid 100 --target /srv/restore latest /etc/nginx</code>; <code>--volume</code> kiest een partitie of logisch volume (<code>pve ls</code> zonder pad toont ze). Bladeren in de console vereist dat de back-up op netwerkopslag staat (SFTP, S3, SMB, Azure, geharde repository).</p>
+<p>Bij containers (LXC) op ZFS opent <b>Bestanden bladeren</b> direct hun bestanden, zoals die van een bestandsback-up; de mappen <code>rootfs</code>, <code>mp0</code>, <code>mp1</code>… zijn de volumes van de container. Bestanden die op een agent worden teruggezet, behouden hun eigenaren en rechten. Ze worden naar een map hersteld, niet naar de oorspronkelijke locatie: de paden in de back-up zijn die in de container, niet op de host. Een symbolische koppeling wordt alleen binnen haar volume gevolgd. Replica's van containers die bestand voor bestand zijn geback-upt, worden nog niet ondersteund; herstel ze in plaats daarvan.</p>
 
 <h2 id="host">Back-up van de hostconfiguratie</h2><p>De gasten zijn maar de helft van een Proxmox-node: opslagdefinities, netwerk, gebruikers, firewall, certificaten en de instellingen van elke VM en container staan in de configuratie. Maak er een back-up van met een gewone bestandentaak op de agent van de node: kies bij <a href="/jobs">Back-uptaken</a> de agent van de node en <b>Bestanden en mappen</b> en klik dan op <b>Hostconfiguratie invullen</b>. Dat vult de paden <code>/etc</code> (met <code>/etc/pve</code>, het netwerk en <code>/etc/hosts</code>), <code>/var/lib/pve-cluster</code> (de configuratiedatabase <code>config.db</code>) en <code>/root</code> in; voer de taak bijvoorbeeld dagelijks uit. De database verandert terwijl de node draait, dus maakt de agent er eerst een consistente kopie van, die de back-up bevat als <code>/var/lib/backupzit/pve-config/config.db</code>; extra pakketten zijn niet nodig.</p><p>Een uitgevallen node opnieuw opbouwen: installeer dezelfde Proxmox VE-versie met dezelfde hostnaam en hetzelfde adres, installeer de agent, zet <code>/etc/network/interfaces</code> en <code>/etc/hosts</code> terug op hun plaats, stop dan de clusterdienst (<code>systemctl stop pve-cluster</code>), verwijder <code>config.db-wal</code> en <code>config.db-shm</code> in <code>/var/lib/pve-cluster</code> als ze bestaan, zet de consistente kopie uit <code>/var/lib/backupzit/pve-config</code> terug in <code>/var/lib/pve-cluster</code> (<code>config.db</code>, en <code>config.db-wal</code> als de back-up er een heeft), start de dienst weer en zet de gasten terug. Voeg in een cluster een opnieuw geïnstalleerde node weer aan het cluster toe in plaats van <code>config.db</code> terug te zetten.</p>
 <h2>Nog niet inbegrepen</h2>

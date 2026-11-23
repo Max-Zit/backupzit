@@ -335,6 +335,11 @@ type Agent struct {
 	Hypervisor json.RawMessage
 	// RemovedAt is set for removed agents kept for their backups.
 	RemovedAt *time.Time
+	// DisplayName is the name shown in the console, set by its users (empty:
+	// the host name). Tags are free labels for finding agents. The agent
+	// never sets either.
+	DisplayName string
+	Tags        []string
 }
 
 // Disks decodes the reported disk inventory.
@@ -351,11 +356,11 @@ func (a Agent) Online() bool {
 	return a.LastSeen != nil && time.Since(*a.LastSeen) < 3*time.Minute
 }
 
-const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, max_runs, removed_at`
+const agentCols = `id, uuid, hostname, repo_dir, os, arch, version, enrolled_at, last_seen_at, inventory, inventory_at, recovery, local_ips, remote_addr, hypervisor, max_runs, removed_at, display_name, tags`
 
 func scanAgent(r pgx.Row, extra ...any) (Agent, error) {
 	var a Agent
-	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.MaxRuns, &a.RemovedAt}, extra...)
+	dest := append([]any{&a.ID, &a.UUID, &a.Hostname, &a.RepoDir, &a.OS, &a.Arch, &a.Version, &a.EnrolledAt, &a.LastSeen, &a.Inventory, &a.InventoryAt, &a.Recovery, &a.LocalIPs, &a.RemoteAddr, &a.Hypervisor, &a.MaxRuns, &a.RemovedAt, &a.DisplayName, &a.Tags}, extra...)
 	err := r.Scan(dest...)
 	return a, err
 }
@@ -385,6 +390,9 @@ func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest, r
 			return err
 		}
 	}
+	if err := s.saveLeftovers(ctx, id, req.Leftovers); err != nil {
+		return err
+	}
 	if len(req.IPs) > 16 {
 		req.IPs = req.IPs[:16]
 	}
@@ -399,9 +407,17 @@ func (s *Store) TouchAgent(ctx context.Context, id int64, req api.PollRequest, r
 	}
 	_, err := s.db.Exec(ctx, `UPDATE agents SET last_seen_at=now(),
 		hostname=COALESCE(NULLIF($2,''),hostname), os=COALESCE(NULLIF($3,''),os),
-		arch=COALESCE(NULLIF($4,''),arch), version=COALESCE(NULLIF($5,''),version) WHERE id=$1`,
-		id, req.Hostname, req.OS, req.Arch, req.Version)
+		arch=COALESCE(NULLIF($4,''),arch), version=COALESCE(NULLIF($5,''),version),
+		machine_uuid=COALESCE(NULLIF($6,''),machine_uuid) WHERE id=$1`,
+		id, req.Hostname, req.OS, req.Arch, req.Version, strings.ToLower(clip(req.MachineUUID, 64)))
 	return err
+}
+
+// agentMachineUUID is the BIOS UUID the agent reported ("" if none).
+func (s *Store) agentMachineUUID(ctx context.Context, id int64) string {
+	var u string
+	_ = s.db.QueryRow(ctx, `SELECT machine_uuid FROM agents WHERE id=$1`, id).Scan(&u)
+	return u
 }
 
 func (s *Store) ListAgents(ctx context.Context) ([]Agent, error) {
@@ -633,10 +649,10 @@ func (s *Store) CreateJob(ctx context.Context, j Job) (int64, error) {
 	return id, err
 }
 
-const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.retention, j.agent_id, a.hostname, j.target_id, st.name, j.name, j.paths, j.excludes,
+const jobCols = `j.id, j.kind, j.image_disk, j.image_partitions, j.retention, j.agent_id, ` + agentNameSQL + `, j.target_id, st.name, j.name, j.paths, j.excludes,
 	j.schedule, j.enabled, j.last_scheduled_at, j.created_at,
-	(SELECT r.status FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') ORDER BY r.queued_at DESC LIMIT 1),
-	(SELECT r.finished_at FROM runs r WHERE r.job_id=j.id AND r.kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') ORDER BY r.queued_at DESC LIMIT 1),
+	` + lastStatusSQL + `,
+	` + lastFinishedSQL + `,
 	j.source_job_id, (SELECT sj.name FROM jobs sj WHERE sj.id=j.source_job_id), j.retention_hold,
 	j.vmware_host_id, (SELECT vh.name FROM vmware_hosts vh WHERE vh.id=j.vmware_host_id), j.options,
 	j.group_id, (SELECT g.name FROM job_groups g WHERE g.id=j.group_id)`
@@ -726,6 +742,21 @@ func (s *Store) QueueBackup(ctx context.Context, jobID int64, trigger string) (i
 		return 0, err
 	}
 	repo := repoURL(t, Agent{RepoDir: dir})
+	// A vCenter connection with further proxies: one run per proxy (V-1).
+	// While it has them, even an unsplit start is a part of the connection's
+	// proxy, so its retention leaves the other proxies' backups alone.
+	if j.Kind == JobVM && j.VMwareHostID != nil {
+		if h, err := s.GetVMwareHost(ctx, *j.VMwareHostID); err == nil && h.ProxyAgentID != nil && len(h.ExtraProxies) > 0 {
+			var parts []vmwarePart
+			if s.canSplit(ctx, t, repo) {
+				parts = s.vmwareParts(ctx, h, j)
+			}
+			if parts == nil {
+				parts = []vmwarePart{{agentID: *h.ProxyAgentID, paths: j.Paths, excludes: j.Excludes, primary: true}}
+			}
+			return s.queueVMwareParts(ctx, j, repo, t.ID, trigger, parts)
+		}
+	}
 	var id int64
 	err = s.db.QueryRow(ctx, `INSERT INTO runs(agent_id, job_id, kind, trigger, repo_url, target_id, paths, excludes, image_disk, image_partitions, vmware_host_id)
 		SELECT $1,$2,$8,$3,$4,$5,$6,$7,$9,$10,$11
@@ -746,14 +777,30 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 	if err != nil {
 		return 0, err
 	}
-	if (b.Kind != api.KindBackup && b.Kind != api.KindCopy && b.Kind != api.KindSystemBackup) || b.SnapshotID == "" {
+	// VM and image backups have a snapshot too, but are restored on their
+	// run page in the console (a whole VM, or files from a VM or an image):
+	// say so instead of claiming there is no snapshot (B4).
+	if (b.Kind == api.KindVMBackup || b.Kind == api.KindImageBackup) && b.SnapshotID != "" && !containerFiles(b) {
+		return 0, errors.New("VM and image backups are restored on the run page in the console (Restore, or Browse files for single files); this call restores file, system and copy backups")
+	}
+	if (b.Kind != api.KindBackup && b.Kind != api.KindCopy && b.Kind != api.KindSystemBackup && !containerFiles(b)) || b.SnapshotID == "" {
 		return 0, errors.New("run has no snapshot to restore")
 	}
-	if b.Kind == api.KindCopy && !s.copyOfFiles(ctx, b) {
+	// Like the API: the snapshot is gone (retention, a repair). The pages
+	// hide the form, so only a crafted request gets here (L-7).
+	if b.Expired {
+		return 0, errors.New("this backup was removed by the retention policy")
+	}
+	if b.Kind == api.KindCopy && !s.copyOfFiles(ctx, b) && !containerFiles(b) {
 		return 0, errors.New("copies of disk images are restored with the command line agent (see Documentation)")
 	}
 	if _, err := s.GetAgent(ctx, agentID); err != nil {
 		return 0, errors.New("unknown agent")
+	}
+	if target == "" && containerFiles(b) {
+		// The paths are those inside the container (lxc/<ID>/rootfs/...),
+		// not on the host the agent runs on.
+		return 0, errors.New("files of a container are restored into a folder, not to the original location; to put the whole container back, restore the guest")
 	}
 	if target == "" && s.isM365Run(ctx, b) {
 		return 0, errors.New("Microsoft 365 backups are restored into a folder (as .eml messages and files) or downloaded; enter a folder")
@@ -769,9 +816,16 @@ func (s *Store) QueueRestore(ctx context.Context, backupRunID, agentID int64, ta
 }
 
 type Run struct {
-	ID       int64
-	AgentID  int64
-	Hostname string
+	ID      int64
+	AgentID int64
+	// Hostname is the name shown for the agent (its display name, else the
+	// host name); ReportedHost is the host name the computer reports.
+	Hostname     string
+	ReportedHost string
+	// Part tags a run of a VMware job split over several proxies
+	// ("proxy:<agent>"); Batch is the first run of that start (0.55).
+	Part  string
+	Batch *int64
 	// AgentRemoved marks runs of a removed agent kept for its backups.
 	AgentRemoved bool
 	// Progress is set for running runs whose agent reports it.
@@ -832,9 +886,9 @@ func (r Run) Duration() time.Duration {
 	return end.Sub(*r.StartedAt).Round(time.Second)
 }
 
-const runCols = `r.id, r.agent_id, a.hostname, a.removed_at IS NOT NULL, r.job_id, COALESCE(j.name, NULLIF(r.job_name,'')), r.kind, r.status, r.trigger, r.repo_url,
+const runCols = `r.id, r.agent_id, ` + agentNameSQL + `, a.removed_at IS NOT NULL, r.job_id, COALESCE(j.name, NULLIF(r.job_name,'')), r.kind, r.status, r.trigger, r.repo_url,
 	r.target_id, r.paths, r.excludes, r.snapshot_id, r.restore_target, r.restore_verify, r.queued_at, r.started_at, r.finished_at,
-	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url, r.anomaly, r.anomaly_ack, r.vm_restore, r.new_hardware, r.driver_path, r.system_restore, r.commands, r.cancel_reason`
+	r.stats, r.errors, r.message, r.image_disk, r.image_partitions, r.target_disk, r.keep_offline, r.details, r.expired, r.source_target_id, r.source_repo_url, r.anomaly, r.anomaly_ack, r.vm_restore, r.new_hardware, r.driver_path, r.system_restore, r.commands, r.cancel_reason, a.hostname, r.part, r.batch`
 
 const runFrom = ` FROM runs r JOIN agents a ON a.id=r.agent_id LEFT JOIN jobs j ON j.id=r.job_id`
 
@@ -843,7 +897,7 @@ func scanRun(row pgx.Row) (Run, error) {
 	err := row.Scan(&r.ID, &r.AgentID, &r.Hostname, &r.AgentRemoved, &r.JobID, &r.JobName, &r.Kind, &r.Status,
 		&r.Trigger, &r.RepoURL, &r.TargetID, &r.Paths, &r.Excludes, &r.SnapshotID, &r.RestoreTarget, &r.RestoreVerify,
 		&r.QueuedAt, &r.StartedAt, &r.FinishedAt, &r.Stats, &r.Errors, &r.Message,
-		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL, &r.Anomaly, &r.AnomalyAck, &r.VMRestore, &r.NewHardware, &r.DriverPath, &r.SystemRestore, &r.Commands, &r.CancelReason)
+		&r.ImageDisk, &r.ImagePartitions, &r.TargetDisk, &r.KeepOffline, &r.Details, &r.Expired, &r.SourceTargetID, &r.SourceRepoURL, &r.Anomaly, &r.AnomalyAck, &r.VMRestore, &r.NewHardware, &r.DriverPath, &r.SystemRestore, &r.Commands, &r.CancelReason, &r.ReportedHost, &r.Part, &r.Batch)
 	return r, err
 }
 
@@ -856,15 +910,22 @@ func (s *Store) GetRun(ctx context.Context, id int64) (Run, error) {
 type RunFilter struct {
 	JobID   int64
 	AgentID int64
-	Limit   int
+	// Since keeps runs queued at or after it (zero: all).
+	Since time.Time
+	Limit int
 }
 
 func (s *Store) ListRuns(ctx context.Context, f RunFilter) ([]Run, error) {
 	if f.Limit <= 0 {
 		f.Limit = 100
 	}
-	q := `SELECT ` + runCols + runFrom + ` WHERE ($1::bigint=0 OR r.job_id=$1) AND ($2::bigint=0 OR r.agent_id=$2) ORDER BY r.queued_at DESC LIMIT $3`
-	rows, err := s.db.Query(ctx, q, f.JobID, f.AgentID, f.Limit)
+	var since any
+	if !f.Since.IsZero() {
+		since = f.Since
+	}
+	q := `SELECT ` + runCols + runFrom + ` WHERE r.kind <> 'vmware-probe' AND ($1::bigint=0 OR r.job_id=$1) AND ($2::bigint=0 OR r.agent_id=$2)
+		AND ($4::timestamptz IS NULL OR r.queued_at >= $4) ORDER BY r.queued_at DESC LIMIT $3`
+	rows, err := s.db.Query(ctx, q, f.JobID, f.AgentID, f.Limit, since)
 	if err != nil {
 		return nil, err
 	}
@@ -885,16 +946,31 @@ func (s *Store) claimRun(ctx context.Context, agentID int64, onlyUpdate bool) (*
 // claimRunIdle is claimRun for an agent that is idle or already runs
 // something (then no agent update, which restarts the agent).
 func (s *Store) claimRunIdle(ctx context.Context, agentID int64, onlyUpdate, idle bool) (*Run, error) {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	// Claims by agents with a queued VMware VM run take turns: two proxies
+	// polling at the same moment would otherwise both pass the busy check
+	// of the connection (vmwareBusySQL, L-N3). The lock ends with the
+	// transaction; other agents are not held up.
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(7316541) WHERE EXISTS (SELECT 1 FROM runs WHERE agent_id=$1 AND status='queued' AND vmware_host_id IS NOT NULL)`, agentID); err != nil {
+		return nil, err
+	}
 	var id int64
-	err := s.db.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
+	err = tx.QueryRow(ctx, `UPDATE runs SET status='running', started_at=now()
 		WHERE id = (SELECT r.id FROM runs r LEFT JOIN jobs j ON j.id=r.job_id WHERE r.agent_id=$1 AND r.status='queued' AND (NOT $2 OR r.kind='agent-update')
-			AND ($3 OR r.kind<>'agent-update') AND NOT `+windowClosed(4)+`
+			AND ($3 OR r.kind<>'agent-update') AND NOT `+windowClosed(4)+` AND NOT `+vmwareBusySQL+`
 			ORDER BY r.kind IN ('verify','repo-check'), r.queued_at LIMIT 1 FOR UPDATE OF r SKIP LOCKED)
 		RETURNING id`, agentID, onlyUpdate, idle, time.Now().Hour()).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 	r, err := s.GetRun(ctx, id)
@@ -926,9 +1002,10 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	ct, err := s.db.Exec(ctx, `UPDATE runs SET status=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' AND cancel_by<>'' THEN 'cancelled' ELSE $3 END,
 		finished_at=now(), stats=$4, errors=$5,
 		message=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_reason ELSE $6 END,
-		notified=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_by<>'' ELSE notified END,
-		snapshot_id=CASE WHEN kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') THEN $7 ELSE snapshot_id END, details=$8, commands=$9
-		WHERE id=$2 AND agent_id=$1 AND status='running'`,
+		notified=CASE WHEN cancel_reason IS NOT NULL AND $3='failed' THEN cancel_by<>'' ELSE notified AND NOT stale_failed END,
+		snapshot_id=CASE WHEN kind IN ('backup','image-backup','vm-backup','system-backup','copy','sql-backup','sql-log') THEN $7 ELSE snapshot_id END, details=$8, commands=$9,
+		chat_notified=chat_notified AND NOT stale_failed, stale_failed=false
+		WHERE id=$2 AND agent_id=$1 AND (status='running' OR (status='failed' AND stale_failed))`,
 		agentID, runID, res.Status, stats, res.Errors, res.Message, res.SnapshotID, details, commands)
 	if err != nil {
 		return err
@@ -955,7 +1032,11 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 		}
 	}
 	if len(res.Forgotten) > 0 {
-		if _, err := s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE snapshot_id = ANY($1)`, res.Forgotten); err != nil {
+		// Only runs of the same repository: copies on other storage keep the
+		// snapshot IDs, and an agent must not hide other agents' backups.
+		if _, err := s.db.Exec(ctx, `UPDATE runs SET expired=true WHERE snapshot_id = ANY($1)
+			AND repo_url IS NOT DISTINCT FROM (SELECT repo_url FROM runs WHERE id=$2)
+			AND target_id IS NOT DISTINCT FROM (SELECT target_id FROM runs WHERE id=$2)`, res.Forgotten, runID); err != nil {
 			return err
 		}
 	}
@@ -965,16 +1046,38 @@ func (s *Store) FinishRun(ctx context.Context, agentID, runID int64, res api.Run
 	return nil
 }
 
-// FailStaleRuns marks running runs as failed when their agent stopped polling.
-func (s *Store) FailStaleRuns(ctx context.Context, after time.Duration) (int64, error) {
-	ct, err := s.db.Exec(ctx, `UPDATE runs r SET status='failed', finished_at=now(),
+// FailStaleRuns marks running runs as failed when their agent stopped
+// polling for longer than after. The silence counts from the console's own
+// start at the earliest: while the console was down (a restart, an
+// appliance update) no agent could poll. Such runs keep stale_failed, so
+// the agent's result is still taken when it comes (FinishRun).
+func (s *Store) FailStaleRuns(ctx context.Context, after time.Duration, consoleStart time.Time) ([]int64, error) {
+	rows, err := s.db.Query(ctx, `UPDATE runs r SET status='failed', finished_at=now(), stale_failed=true,
 		message='agent stopped responding while the run was in progress'
 		FROM agents a WHERE a.id=r.agent_id AND r.status='running'
-		AND (a.last_seen_at IS NULL OR a.last_seen_at < now() - make_interval(secs => $1))`, after.Seconds())
+		AND GREATEST(coalesce(a.last_seen_at, $2::timestamptz), $2::timestamptz) < now() - make_interval(secs => $1)
+		RETURNING r.id`, after.Seconds(), consoleStart)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return ct.RowsAffected(), nil
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+// failStaleParts fails the queued parts of a split VMware start whose
+// proxy has not polled for longer than after: they would never start and
+// would hold up every later start of the job (M-N3). The parts are only
+// given to proxies that poll, so this is a proxy that went away since.
+func (s *Store) failStaleParts(ctx context.Context, after time.Duration) ([]int64, error) {
+	rows, err := s.db.Query(ctx, `UPDATE runs r SET status='failed', finished_at=now(),
+		message='the proxy agent did not pick up its part (it has not contacted the console since)'
+		FROM agents a WHERE a.id=r.agent_id AND r.status='queued' AND r.batch IS NOT NULL
+		AND r.queued_at < now() - make_interval(secs => $1)
+		AND coalesce(a.last_seen_at, 'epoch'::timestamptz) < now() - make_interval(secs => $1)
+		RETURNING r.id`, after.Seconds())
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }
 
 // Summary holds dashboard counters.
@@ -991,10 +1094,10 @@ func (s *Store) Summary(ctx context.Context) (Summary, error) {
 		(SELECT count(*) FROM agents WHERE removed_at IS NULL AND last_seen_at > now() - interval '3 minutes'),
 		(SELECT count(*) FROM jobs),
 		(SELECT count(*) FROM storage_targets),
-		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours'),
-		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='failed'),
-		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='warning'),
-		(SELECT count(*) FROM runs WHERE status IN ('queued','running')),
+		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND kind<>'vmware-probe'),
+		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='failed' AND kind<>'vmware-probe'),
+		(SELECT count(*) FROM runs WHERE queued_at > now() - interval '24 hours' AND status='warning' AND kind<>'vmware-probe'),
+		(SELECT count(*) FROM runs WHERE status IN ('queued','running') AND kind<>'vmware-probe'),
 		(SELECT count(*) FROM runs WHERE anomaly<>'' AND NOT anomaly_ack)`).
 		Scan(&x.Agents, &x.AgentsOnline, &x.Jobs, &x.Targets, &x.Runs24h, &x.Failed24h, &x.Warning24h, &x.Running, &x.Suspicious)
 	return x, err

@@ -179,6 +179,11 @@ func TestWebTLSUpload(t *testing.T) {
 	if info, _ := w.status(); info == nil || info.Subject != "backup.example.com" || w.WebAddress() != "https://backup.example.com" {
 		t.Errorf("status %+v %s", info, w.WebAddress())
 	}
+	// Links in emails use the web port, not the agents' address (issue #37).
+	w.s.web, w.s.PublicURL = w, "https://backup.example.com:8443"
+	if u := w.s.ConsoleURL(); u != "https://backup.example.com" {
+		t.Errorf("console URL for links %q", u)
+	}
 	// Back to the console certificate only: the listeners stop.
 	https := addr(":443")
 	if err := w.apply(CertSettings{Mode: "self"}); err != nil {

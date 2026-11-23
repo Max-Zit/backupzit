@@ -5,7 +5,7 @@
 <h2>Tokens</h2>
 <p>Maak een token aan onder <a href="/account#tokens">Mijn account → API-tokens</a>. Geef het de laagste rol die volstaat — <b>Kijker</b> voor monitoring, <b>Herstelmedewerker</b> om ook back-ups en hersteltests te starten. Het token wordt één keer getoond; stuur het mee met elk verzoek:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Tokens kunnen verlopen, kunnen door hun eigenaar of een beheerder worden ingetrokken (<a href="/users">Gebruikers</a>) en werken niet meer wanneer de eigenaar wordt uitgeschakeld. Acties met een token verschijnen in het auditlogboek met de naam van het token.</p>
+<p>Tokens kunnen verlopen, kunnen door hun eigenaar of een beheerder worden ingetrokken (<a href="/users">Gebruikers</a>) en werken niet meer wanneer de eigenaar wordt uitgeschakeld. Acties met een token verschijnen in het auditlogboek met de naam van het token. Een nieuw wachtwoord dat een beheerder instelt, trekt ook de tokens van de eigenaar in.</p>
 
 <h2>Eindpunten</h2>
 <p>Alle antwoorden zijn JSON. Basis-URL: <code>https://&lt;console&gt;:8443</code>.</p>
@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>geen token</td><td>De OpenAPI 3-specificatie van deze API, voor tools en clientgeneratoren (ook in de repository: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Perioden: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, of <code>custom</code> met <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
-<p>Fouten geven <code>{"error": "..."}</code> terug met 400 (ongeldig verzoek), 401 (token ontbreekt, ongeldig of verlopen), 403 (rol te laag), 404 of 409.</p>
+<p>Fouten geven <code>{"error": "..."}</code> terug met 400 (ongeldig verzoek), 401 (token ontbreekt, ongeldig of verlopen), 403 (rol te laag), 404 (niet gevonden), 409 (nu niet mogelijk: de taak loopt al, de agent is te oud voor het verzoek, of vier-ogengoedkeuring staat aan), 429 (te veel mislukte tokenpogingen vanaf het adres; wacht tot de blokkade afloopt) of 500 (interne fout; zie het logboek van de console).</p>
 
 <h2>Voorbeelden</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>Metric</th><th>Labels</th><th>Betekenis</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>altijd 1; de versie van de console</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code> (online, offline)</td><td>aantal agents</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>wachtende of lopende runs</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code> (failed, warning, all)</td><td>runs van de laatste 24 uur</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>verdachte back-ups die nog niet zijn gecontroleerd</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>, <code>agent</code>, <code>version</code></td><td>1 als de agent zich onlangs bij de console heeft gemeld</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>, <code>agent</code></td><td>wanneer de agent zich het laatst meldde</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>, <code>job</code>, <code>kind</code>, <code>agent</code></td><td>1 als de taak volgens haar schema loopt</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>zoals hierboven</td><td>laatste voltooide run: 0 geslaagd, 1 waarschuwing, 2 mislukt</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>zoals hierboven</td><td>laatste back-up die geslaagd is of met waarschuwingen</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>zoals hierboven, <code>rpo_hours</code></td><td>1 binnen de RPO, 0 gemist (taken met een RPO)</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>ruimte die de repository's innemen</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>vrije ruimte, als de opslag die meldt</td></tr>
+</table>
 <p>Alarmeer bijvoorbeeld wanneer <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (twee dagen geen goede back-up).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

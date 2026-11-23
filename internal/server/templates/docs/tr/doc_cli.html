@@ -3,7 +3,7 @@
 <p class="lead">Aracı komut satırından tek başına da çalışır — betikler için, konsol olmadan geri yükleme için ve acil durumlar için. Genel bakış için <code>backupzit-agent</code> komutunu argümansız, bir komutun seçenekleri için <code>backupzit-agent &lt;command&gt; -h</code> komutunu çalıştırın.</p>
 
 <h2>Depo ve kimlik bilgileri</h2>
-<p>Her komut <code>--repo</code> (veya <code>BACKUPZIT_REPO</code>) alır. Gizli bilgiler için ortam değişkenlerini tercih edin. Bir aracının deposu <code>&lt;depolama konumu&gt;/&lt;hostname&gt;_&lt;id&gt;</code> şeklindedir — Etkinlik'te bir çalıştırmanın depo sütununa veya kurtarma sayfasına bakın.</p>
+<p>Yedek okuyan veya yazan her komut <code>--repo</code> (veya <code>BACKUPZIT_REPO</code>) alır; <code>list</code>, <code>status</code>, <code>enroll</code>, <code>service</code> ve <code>disks</code> almaz. Gizli bilgiler için ortam değişkenlerini tercih edin. Bir aracının deposu <code>&lt;depolama konumu&gt;/&lt;hostname&gt;_&lt;id&gt;</code> şeklindedir — çalıştırma sayfasındaki <b>Depo</b> alanına veya kurtarma sayfasına bakın.</p>
 <table>
   <tr><th>Konum</th><th>Kimlik bilgileri</th></tr>
   <tr><td><code>D:\Backups\pc1</code>, <code>/mnt/backup/pc1</code></td><td>—</td></tr>
@@ -23,9 +23,10 @@
   <tr><td><code>init</code></td><td>Yeni bir depo oluşturur (parola verilirse şifreli).</td></tr>
   <tr><td><code>backup [--vss] [--exclude PATTERN]… [--tag TAG]… [--force] [--host NAME] PATH…</code></td><td>Dosya ve klasörleri yedekler. <code>--vss</code> bir birim gölge kopyasından okur (Windows, yönetici); <code>--force</code> değişmemiş olanlar dahil tüm dosyaları okur.</td></tr>
   <tr><td><code>snapshots</code></td><td>Anlık görüntüleri zaman, ana bilgisayar, boyut ve yollarla listeler.</td></tr>
-  <tr><td><code>ls SNAPSHOT|latest [PATH]</code></td><td>Bir anlık görüntüdeki dosyaları listeler.</td></tr>
+  <tr><td><code>ls SNAPSHOT|latest</code></td><td>Bir anlık görüntüdeki tüm dosyaları listeler.</td></tr>
   <tr><td><code>restore --target DIR [--include PATH]… [--verify] SNAPSHOT|latest</code></td><td>Dosyaları DIR altına geri yükler (özgün klasör yapısı yeniden oluşturulur). <code>--original</code> bunun yerine dosyaları özgün konumlarına yazar ve mevcut dosyaların üzerine yazar.</td></tr>
   <tr><td><code>check [--read-data]</code></td><td>Depo yapısını denetler; <code>--read-data</code> ile her bayt indirilip doğrulanır.</td></tr>
+  <tr><td><code>repair [--dry-run]</code></td><td>Tüm verileri okur ve hasarlı veri paketlerini dizinden çıkarır, böylece sonraki yedekler bu verileri yeniden kaydeder; kaybolan verilere ihtiyaç duyan yedekleri listeler. <code>--dry-run</code> yalnızca listeler.</td></tr>
 </table>
 
 <h2>Disk görüntüleri (Windows)</h2>
@@ -76,7 +77,7 @@
 <table>
   <tr><th>Komut</th><th>Ne yapar</th></tr>
   <tr><td><code>hyperv list</code></td><td>Ana bilgisayarın VM'lerini BackupZit numaralarıyla ve geri yüklenen diskler için klasörleri listeler.</td></tr>
-  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>VM'leri (varsayılan: tümü) üretim denetim noktalarından yedekler.</td></tr>
+  <tr><td><code>hyperv backup [--vmid N,N]</code></td><td>VM'leri (varsayılan: tümü) Resilient Change Tracking kullanan kurtarma denetim noktalarından yedekler (üretim denetim noktaları yalnızca bunları desteklemeyen ana bilgisayarlarda kullanılır).</td></tr>
   <tr><td><code>hyperv restore --vmid N [--new] [--name X] [--folder DIR] [--overwrite] [--start] SNAPSHOT|latest</code></td><td>Bir VM'yi yerinde (varsayılan) veya <code>--new</code> ile yeni VM olarak geri yükler. <code>--overwrite</code> mevcut bir VM'nin disklerini değiştirir. Bkz. <a href="/docs/hyperv">Hyper-V</a>.</td></tr>
 </table>
 <p><code>pve show</code>, <code>pve ls</code> ve <code>pve extract</code> Hyper-V yedekleriyle de çalışır.</p>
@@ -95,6 +96,7 @@
   <tr><td><code>pve instant-discard --vmid N</code></td><td>Anında VM'yi değişiklikleriyle birlikte durdurur ve siler.</td></tr>
   <tr><td><code>nbd-serve --snapshot ID --vmid N --socket PATH</code></td><td>Bir yedekteki VM'nin disklerini bir Unix soketinde NBD üzerinden salt okunur sunar (anında kurtarma tarafından systemd birimi olarak başlatılır).</td></tr>
 </table>
+<p><b><code>--vmid</code> ile <code>latest</code></b> (VMware, Hyper-V ve Proxmox VE komutları), deponun en yeni snapshot'ı değil, o konuğu içeren en yeni snapshot'tır; komut bunu (snapshot, host, saat, konuk adı) yazar. Konuk kimlikleri hostlar arasında tekrarlanır (her Proxmox VE 100'den başlar): bu kimliğe birden fazla hostta farklı adlı konuklar sahipse <code>latest</code> reddedilir; <code>snapshots</code> ile gösterilen snapshot kimliğini verin. <code>pve show latest</code> deponun en yeni snapshot'ını göstermeye devam eder.</p>
 
 <h2>Microsoft SQL Server (SQL Server makinesindeki aracı)</h2>
 <table>
@@ -152,7 +154,7 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>backupzit-repo status</code></td><td>Saklanan ve gizli (silinmiş, hâlâ tutulan) veriler.</td></tr>
   <tr><td><code>backupzit-repo undelete --since TIME</code></td><td>TIME'dan beri silinen dosyaları yeniden görünür yapar.</td></tr>
 </table>
-<p>Yapılandırma: <code>/etc/backupzit-repo/repo.env</code> — <code>BACKUPZIT_REPO_LOCK_DAYS</code>, <code>BACKUPZIT_REPO_DATA</code>, <code>BACKUPZIT_REPO_LISTEN</code>, <code>BACKUPZIT_REPO_TLS_HOSTS</code>.</p>
+<p>Yapılandırma: <code>/etc/backupzit-repo/repo.env</code> veya aynı ayarlar <code>serve</code> seçenekleri olarak: <code>BACKUPZIT_REPO_DATA</code> / <code>--data</code> (depolama dizini, varsayılan <code>/srv/backupzit</code>), <code>BACKUPZIT_REPO_CONFIG</code> / <code>--config-dir</code> (anahtarlar ve sertifika, varsayılan <code>/etc/backupzit-repo</code>), <code>BACKUPZIT_REPO_LISTEN</code> / <code>--listen</code> (varsayılan <code>:8500</code>), <code>BACKUPZIT_REPO_LOCK_DAYS</code> / <code>--lock-days</code> (gün olarak değiştirilemezlik, varsayılan 30) ve <code>BACKUPZIT_REPO_TLS_HOSTS</code> / <code>--tls-hosts</code> (kendinden imzalı sertifika için adlar ve adresler). Anahtar komutları da <code>--data</code> ve <code>--config-dir</code> kabul eder.</p>
 <p id="cli-repo-metrics"><code>BACKUPZIT_REPO_METRICS_TOKEN</code>, <code>/metrics</code> adresinde erişim anahtarı başına Prometheus metriklerini açar (başlık <code>Authorization: Bearer &lt;token&gt;</code>).</p>
 
 <h2>Yönetim sunucusu (<code>backupzit-server</code>)</h2>
@@ -166,9 +168,15 @@ backupzit-agent snapshots --repo hardened://vault:8500/backupzit/pc1_1a2b3c4d --
   <tr><td><code>BACKUPZIT_ADMIN_PASSWORD</code></td><td>İlk yönetici parolası (yalnızca ilk başlatmada).</td></tr>
   <tr><td><code>BACKUPZIT_SECRETS_KEY</code></td><td><code>secrets.key</code> dosyası yerine gizli bilgi anahtarı (base64).</td></tr>
   <tr><td><code>--set-admin-password NEW</code></td><td><i>admin</i> parolasını sıfırlar (onu yerel yönetici olarak yeniden etkinleştirir) ve çıkar.</td></tr>
+  <tr><td><code>--reset-two-factor USER</code></td><td>Doğrulayıcı uygulamasını ve kurtarma kodlarını kaybetmiş bir kullanıcının iki aşamalı oturum açmasını kapatır, oturumlarını kapatır, bunu denetim günlüğüne yazar ve çıkar.</td></tr>
   <tr><td><code>--unblock-ip ADDRESS|all</code></td><td>Bir adresin veya tüm adreslerin oturum açma engelini kaldırır (kaba kuvvet koruması) ve çıkar.</td></tr>
   <tr><td><code>--restore-console --repo R [--snapshot ID]</code></td><td>Konsolu bir konsol yedeğinden geri yükler ve çıkar (bkz. <a href="/docs/install">Sunucuyu kurma</a>).</td></tr>
   <tr><td><code>--dev-embedded-db</code>, <code>--dev-http ADDR</code></td><td>Yalnızca deneme için: veri dizininde özel PostgreSQL, localhost üzerinde şifresiz HTTP.</td></tr>
+  <tr><td><code>--setup</code></td><td>Appliance'ın metin menüsü (ağ, sunucu adı, yönetici parolası); root olarak.</td></tr>
+  <tr><td><code>--initial-password</code></td><td><i>admin</i> için oluşturulan ilk parolayı, hâlâ kullanımdayken yazdırır ve çıkar.</td></tr>
+  <tr><td><code>--restore-pre-upgrade FOLDER</code> / <code>list</code></td><td>Konteyner imajı: bir güncellemeden önce alınan konsol kopyasını (veri dizinindeki <code>pre-upgrade</code> içinde bir klasör) yükler ve çıkar; kopyanın alındığı sürümün imajıyla çalıştırın. <code>list</code> kopyaları gösterir.</td></tr>
+  <tr><td><code>--healthcheck</code></td><td>Konteyner imajı: konsol yanıt verdiğinde 0 ile çıkar (imajın sağlık denetimi).</td></tr>
+  <tr><td><code>--apply-update</code></td><td>Konsolda istenen bir güncellemeyi kurar; elle değil, <code>backupzit-update</code> hizmeti tarafından root olarak çalıştırılır.</td></tr>
   <tr><td><code>--version</code></td><td>Sürümü yazdırır.</td></tr>
 </table>
 <pre>systemctl status backupzit-server

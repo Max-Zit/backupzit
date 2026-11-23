@@ -3,7 +3,9 @@
 package vss
 
 import (
+	"errors"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/go-ole/go-ole"
@@ -13,14 +15,35 @@ import (
 // provider and returns its device path. Mounted folders inside the volume
 // are not included.
 func snapshotVolume(volume string, timeout time.Duration, onErr ErrorHandler) (string, func() error, error) {
-	// COM is initialized per OS thread; keep each VSS conversation on one.
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	snap, err := newVssSnapshot("", volume, timeout, nil, onErr)
+	devs, closeFn, err := snapshotVolumes([]string{volume}, timeout, onErr)
 	if err != nil {
 		return "", nil, err
 	}
-	return snap.GetSnapshotDeviceObject(), func() error {
+	return devs[strings.ToLower(volume)], closeFn, nil
+}
+
+// snapshotVolumes snapshots all volumes in one snapshot set, so they are
+// consistent with each other (a database on D: with its log on E:). It
+// returns the device of each snapshotted volume (keyed in lower case); a
+// volume VSS does not support is reported through onErr and left out.
+func snapshotVolumes(volumes []string, timeout time.Duration, onErr ErrorHandler) (map[string]string, func() error, error) {
+	if len(volumes) == 0 {
+		return nil, nil, errors.New("no volume to snapshot")
+	}
+	// COM is initialized per OS thread; keep each VSS conversation on one.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	snap, err := newVssSnapshot("", volumes[0], volumes[1:], timeout, nil, onErr)
+	if err != nil {
+		return nil, nil, err
+	}
+	// An unsupported first volume is left out of the set: the snapshot's
+	// own device belongs to the first supported one.
+	devs := map[string]string{strings.ToLower(snap.volume): snap.GetSnapshotDeviceObject()}
+	for v, x := range snap.extra {
+		devs[strings.ToLower(v)] = x.snapshotDeviceObject
+	}
+	return devs, func() error {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		_ = ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED) // S_FALSE if already initialized

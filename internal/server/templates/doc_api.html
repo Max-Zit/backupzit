@@ -5,7 +5,7 @@
 <h2>Tokens</h2>
 <p>Create a token under <a href="/account#tokens">My account → API tokens</a>. Give it the lowest role that is enough — <b>Viewer</b> for monitoring, <b>Restore operator</b> to also start backups and restore tests. The token is shown once; send it in every request:</p>
 <pre>Authorization: Bearer bzt_...</pre>
-<p>Tokens can expire, can be revoked by their owner or an administrator (<a href="/users">Users</a>), and stop working when the owner is disabled. Actions done with a token appear in the audit log with the token's name.</p>
+<p>Tokens can expire, can be revoked by their owner or an administrator (<a href="/users">Users</a>), and stop working when the owner is disabled. Actions done with a token appear in the audit log with the token's name. A new password set by an administrator also revokes the owner's tokens.</p>
 
 <h2>Endpoints</h2>
 <p>All responses are JSON. Base URL: <code>https://&lt;console&gt;:8443</code>.</p>
@@ -31,7 +31,7 @@
   <tr><td><code>GET /api/v1/openapi.json</code></td><td>no token</td><td>The OpenAPI 3 specification of this API, for tools and client generators (also in the repository: <code>internal/server/openapi.json</code>)</td></tr>
 </table>
 <p>Periods: <code>today</code>, <code>yesterday</code>, <code>last7</code>, <code>last30</code>, <code>last90</code>, <code>thisweek</code>, <code>lastweek</code>, <code>thismonth</code>, <code>lastmonth</code>, or <code>custom</code> with <code>from=2026-09-01&amp;to=2026-09-30</code>.</p>
-<p>Errors return <code>{"error": "..."}</code> with 400 (bad request), 401 (missing, invalid or expired token), 403 (role too low), 404 or 409.</p>
+<p>Errors return <code>{"error": "..."}</code> with 400 (bad request), 401 (missing, invalid or expired token), 403 (role too low), 404 (not found), 409 (not possible now: the job is already running, the agent is too old for the request, or four-eyes approval is on), 429 (too many failed token attempts from the address; wait until the block ends) or 500 (internal error; see the console's log).</p>
 
 <h2>Examples</h2>
 <h3>curl</h3>
@@ -54,6 +54,22 @@ if (-not $s.ok) { Write-Warning "BackupZit needs attention: $($s.failed_24h) fai
     credentials: bzt_...
   static_configs:
     - targets: ['backup.example.local:8443']</pre>
+<table id="metrics">
+  <tr><th>Metric</th><th>Labels</th><th>Meaning</th></tr>
+  <tr><td><code>backupzit_info</code></td><td><code>version</code></td><td>always 1; the console version</td></tr>
+  <tr><td><code>backupzit_agents</code></td><td><code>state</code> (online, offline)</td><td>number of agents</td></tr>
+  <tr><td><code>backupzit_runs_active</code></td><td></td><td>runs queued or running</td></tr>
+  <tr><td><code>backupzit_runs_24h</code></td><td><code>status</code> (failed, warning, all)</td><td>runs of the last 24 hours</td></tr>
+  <tr><td><code>backupzit_suspicious_backups</code></td><td></td><td>suspicious backups not reviewed yet</td></tr>
+  <tr><td><code>backupzit_agent_online</code></td><td><code>agent_id</code>, <code>agent</code>, <code>version</code></td><td>1 if the agent polled the console recently</td></tr>
+  <tr><td><code>backupzit_agent_last_seen_timestamp_seconds</code></td><td><code>agent_id</code>, <code>agent</code></td><td>when the agent last polled</td></tr>
+  <tr><td><code>backupzit_job_enabled</code></td><td><code>job_id</code>, <code>job</code>, <code>kind</code>, <code>agent</code></td><td>1 if the job runs on its schedule</td></tr>
+  <tr><td><code>backupzit_job_last_status</code></td><td>as above</td><td>last finished run: 0 success, 1 warning, 2 failed</td></tr>
+  <tr><td><code>backupzit_job_last_success_timestamp_seconds</code></td><td>as above</td><td>last backup with success or warnings</td></tr>
+  <tr><td><code>backupzit_job_rpo_met</code></td><td>as above, <code>rpo_hours</code></td><td>1 within the RPO, 0 missed (jobs with an RPO)</td></tr>
+  <tr><td><code>backupzit_storage_used_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>space the repositories take</td></tr>
+  <tr><td><code>backupzit_storage_free_bytes</code></td><td><code>target_id</code>, <code>target</code></td><td>free space, when the storage reports it</td></tr>
+</table>
 <p>Alert, for example, when <code>time() - backupzit_job_last_success_timestamp_seconds &gt; 2*86400</code> (no good backup for two days).</p>
 {{template "docpager" .}}
 </article></div>{{end}}

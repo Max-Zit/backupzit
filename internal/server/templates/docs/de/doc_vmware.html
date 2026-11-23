@@ -8,20 +8,23 @@
   <li><b>Ein Benutzer mit Administratorrechten auf dem Host</b>, meist <code>root</code>.</li>
   <li><b>SSH auf Hosts mit der kostenlosen Lizenz aktiviert:</b> Host → Actions → Services → Enable Secure Shell. Die kostenlose ESXi-Lizenz macht die API nur lesbar, daher laufen Snapshots und Wiederherstellungen über SSH. Lizenzierte Hosts werden über die vSphere-API geändert und brauchen kein SSH.</li>
   <li><b>Ein Proxy-Agent:</b> ein beliebiger Windows- oder Linux-Agent, der den Host auf Port 443 erreicht (und 22, wenn SSH verwendet wird). Die Sicherungsdaten fließen durch ihn, stellen Sie ihn also in ein schnelles Netz nahe am Host und am Speicher.</li>
-  <li><b>Freier Platz auf dem Datastore der VM</b>, während eine laufende VM gesichert wird. BackupZit kopiert die Festplatte dort kurz (siehe unten). Die Kopie ist thin, sie braucht also so viel Platz, wie die Festplatte tatsächlich belegt.</li>
+  <li><b>Freier Platz auf dem Datastore der VM</b>, während eine laufende VM gesichert wird. BackupZit kopiert die Festplatte dort kurz (siehe unten). Die Kopie ist thin, sie braucht also so viel Platz, wie die Festplatte tatsächlich belegt. Mit <a href="#hot-add">Hot-Add</a> wird keine Kopie erstellt.</li>
 </ul>
 
 <h2>Einen Host hinzufügen</h2>
 <ol>
-  <li>Öffnen Sie <a href="/agents#vmware">Agenten → VMware-ESXi-Hosts</a> → <i>ESXi-Host hinzufügen</i>.</li>
+  <li>Öffnen Sie <a href="/agents#vmware">Agenten → VMware-ESXi-Hosts</a> → <i>ESXi-Host oder vCenter Server hinzufügen</i>.</li>
   <li>Geben Sie Adresse, Benutzer, Passwort und Proxy-Agenten ein.</li>
   <li>Die Konsole verbindet sich einmal, um sie zu prüfen. Sie liest die VM-Liste und die Lizenz und <b>pinnt das HTTPS-Zertifikat und den SSH-Hostschlüssel des Hosts</b>. Wird der Host später durch eine andere Maschine mit derselben Adresse ersetzt, verweigert BackupZit die Verbindung, statt ihr das Passwort zu senden. Ändert sich das Zertifikat aus einem bekannten Grund — der Host wurde neu installiert, hat ein neues Zertifikat erhalten oder wurde zu vCenter hinzugefügt (das die Zertifikate seiner Hosts ersetzt) —, zeigt der Host auf der Seite Agenten den neuen Fingerabdruck mit der Schaltfläche <b>Neues Zertifikat akzeptieren</b>. Vergleichen Sie den Fingerabdruck vor dem Akzeptieren mit dem Host.</li>
 </ol>
-<p>Das Passwort wird wie alle anderen Geheimnisse verschlüsselt gespeichert. Die VM-Liste wird alle 10 Minuten aktualisiert oder sofort mit <i>Aktualisieren</i>. Die Tabelle zeigt den Modus jedes Hosts:</p>
+<p>Das Passwort wird wie alle anderen Geheimnisse verschlüsselt gespeichert. Die Konsole selbst verbindet sich mit dem Host (HTTPS 443, bei der kostenlosen Lizenz auch SSH 22), wenn er hinzugefügt wird, bei <i>Aktualisieren</i> und alle 10 Minuten, um die VM-Liste zu aktualisieren, es sei denn, der Host wird <a href="#via-proxy">über den Proxy-Agenten</a> erreicht. <i>Entfernen</i> löscht den Host samt seinen Sicherungsaufträgen; die Sicherungen bleiben auf dem Speicher. Die Tabelle zeigt den Modus jedes Hosts:</p>
 <ul>
   <li><b>vSphere-API (lizenzierter Host, kein SSH nötig):</b> Snapshots, Festplattenkopien, Wiederherstellungen und Instant Recovery laufen über die API.</li>
+  <li><b>vCenter Server (vSphere-API):</b> ein vCenter mit seinen ESXi-Hosts; alles läuft über die vCenter-API.</li>
   <li><b>kostenlose Lizenz: Snapshots und Wiederherstellungen über SSH:</b> Die API des Hosts ist nur lesbar, daher laufen diese Schritte über SSH.</li>
+  <li><b>SSH (für diesen Host gewählt):</b> Der Host wird über SSH geändert, obwohl seine API das könnte (<i>Immer SSH</i> beim Hinzufügen des Hosts).</li>
 </ul>
+<p id="via-proxy"><b>Über den Proxy-Agenten</b> (Agent ab 0.56): Setzen Sie beim Hinzufügen des Hosts den Haken bei <b>Über den Proxy-Agenten verbinden</b> oder in seiner Zeile bei <b>Über den Proxy verbinden</b>, dann verbindet sich die Konsole nie selbst mit dem Host. Der Proxy-Agent prüft Adresse und Passwort, liest VM-Liste, Version und Lizenz und meldet das HTTPS-Zertifikat und den SSH-Hostschlüssel, die er gesehen hat; die Konsole pinnt sie beim ersten Mal wie bei einer direkten Verbindung, und danach lehnt der Proxy-Agent einen Host ab, der ein anderes Zertifikat vorlegt (die Zeile des Hosts bietet dann <b>Neues Zertifikat akzeptieren</b> an). <i>Aktualisieren</i> und die VM-Liste alle 10 Minuten kommen ebenfalls vom Proxy-Agenten; diese Prüfungen erscheinen nicht unter Aktivität. Nur der Proxy-Agent muss den Host erreichen, genau wie für Sicherungen und Wiederherstellungen, sodass die Konsole in einem anderen Netz, hinter NAT oder in einem überlappenden Adressbereich stehen kann. Eine falsche Adresse oder ein falsches Passwort erscheint nach der ersten Prüfung des Proxy-Agenten als Fehler des Hosts: Entfernen Sie den Host und fügen Sie ihn neu hinzu. Solange der Proxy-Agent offline oder beschäftigt ist, bleibt die letzte VM-Liste stehen.</p>
 <p>Mit <b>Automatisch</b> wählt die Konsole selbst, sodass ein Host, der später eine Lizenz erhält, ohne weitere Einrichtung zur API wechselt. <b>Wie der Host geändert wird</b> in der Zeile des Hosts (und beim Hinzufügen) kann <b>Immer SSH</b> oder <b>Immer vSphere-API</b> erzwingen; die Änderung wird sofort geprüft. Frühere Sicherungen und ihre Wiederherstellungspunkte hängen nicht von der Methode ab.</p>
 
 <h2 id="vcenter">vCenter Server</h2>
@@ -46,17 +49,44 @@
       <li>Auf kostenlosen Hosts kann CBT nur eingeschaltet werden, während die VM ausgeschaltet ist. BackupZit tut das bei der ersten Sicherung, die die VM ausgeschaltet vorfindet. Bis dahin liest jede Sicherung die ganzen Festplatten, und der Lauf zeigt eine Warnung.</li>
     </ul>
   </li>
-  <li>Ein Snapshot <code>backupzit_…</code> wird erstellt. Laufen <b>VMware Tools</b> im Gast, wird der Snapshot <b>stillgelegt</b> (quiesced): Anwendungen und Dateisysteme werden vorher geleert, was die Sicherung anwendungskonsistent macht. Ohne VMware Tools ist sie absturzkonsistent. Installieren Sie <code>open-vm-tools</code> in Linux-VMs und VMware Tools in Windows-VMs.</li>
+  <li>Ein Snapshot <code>backupzit_…</code> wird erstellt. Laufen <b>VMware Tools</b> im Gast, wird der Snapshot <b>stillgelegt</b> (quiesced): Anwendungen und Dateisysteme werden vorher geleert, was die Sicherung anwendungskonsistent macht. Ohne VMware Tools ist sie absturzkonsistent. Installieren Sie <code>open-vm-tools</code> in Linux-VMs und VMware Tools in Windows-VMs. Für einen Gast, dessen Stilllegung fehlschlägt oder fehlerhaft arbeitet, aktivieren Sie im Job <i>Absturzkonsistente Snapshots (ohne Stilllegung durch VMware Tools)</i>: Seine Sicherungen sind dann absturzkonsistent, wie nach einem Stromausfall (Agent 0.58). Auf manchen Hosts (ESXi 6.7) ist die Festplatte eines stillgelegten Snapshots ein kleines Delta, das die Stilllegung selbst geschrieben hat; der Agent liest es mit dem Snapshot (Agent 0.58; ältere Agenten lehnten es als Snapshot-Delta-Festplatte ab).</li>
   <li>CBT meldet, welche Blöcke zu lesen sind:
     <ul>
       <li>bei der ersten Sicherung nur die belegten Blöcke;</li>
       <li>danach nur die seit der vorigen Sicherung geänderten Blöcke.</li>
     </ul>
   </li>
-  <li>Eine laufende VM hält ihre Festplatten gesperrt. Ihre Festplatten werden deshalb auf dem Datastore kopiert (thin), und <b>der Snapshot wird sofort entfernt</b>, meist nach Sekunden. Die Kopie wird dann über HTTPS gelesen und gelöscht. Ausgeschaltete VMs werden direkt gelesen.</li>
+  <li>Eine laufende VM hält ihre Festplatten gesperrt. Ihre Festplatten werden deshalb auf dem Datastore kopiert (thin), und <b>der Snapshot wird sofort entfernt</b>, meist nach Sekunden. Die Kopie wird dann über HTTPS gelesen und gelöscht. Ausgeschaltete VMs werden direkt gelesen. Mit <a href="#hot-add">Hot-Add</a> werden die Festplatten laufender VMs stattdessen über die eigene VM des Proxys gelesen, ohne Kopie.</li>
   <li>Die Konfiguration der VM (<code>.vmx</code>) und der NVRAM werden mit der Sicherung gespeichert.</li>
 </ol>
 <p>Beispiel aus dem Testlabor: eine Debian-VM mit einer 8-GB-Festplatte, davon 1,6 GB belegt. Die erste Sicherung las 1,6 GB. Die nächste, nach 50 MB neuen Daten, las 70 MB und dauerte 23 Sekunden.</p>
+
+<h3 id="hot-add">Hot-Add: keine Kopie auf dem Datastore</h3>
+<p>Das Kopieren der Festplatten einer laufenden VM kostet bei jeder Sicherung, auch bei inkrementellen, Zeit und I/O auf dem produktiven Datastore und braucht freien Platz für die belegten Blöcke der Festplatten. Bei großen VMs auf langsamen Festplatten fällt das ins Gewicht. Mit <b>Hot-Add</b> (<a href="/agents#vmware">Agenten → VMware-ESXi-Hosts</a>, das Kontrollkästchen unter dem Proxy-Agenten) liest der Proxy sie stattdessen direkt an Ort und Stelle:</p>
+<ul>
+  <li><b>Voraussetzungen:</b> Der Proxy ist ein <b>Linux-Agent in einer VM</b>, die die Datastores der VM sieht (auf demselben Host oder auf einem Host desselben vCenter mit Zugriff darauf), und der Host wird über die vSphere-API geändert (vCenter oder ein lizenzierter Host). Der Proxy findet seine eigene VM an ihrer BIOS-UUID.</li>
+  <li><b>Ablauf:</b> Solange der Snapshot besteht, wird jede Festplatte als <b>independent-nonpersistent</b> an die VM des Proxys angehängt. Der Proxy öffnet sie nur lesend; alles, was auf sie geschrieben würde, ginge in ein Redo-Log, das vSphere beim Trennen der Festplatte verwirft, die Festplatte der VM wird also nie verändert. Der Proxy liest nur die Blöcke, die CBT meldet, trennt die Festplatte, und danach wird der Snapshot entfernt.</li>
+  <li><b>Was es spart:</b> keine temporäre Kopie und kein zusätzlicher Platz auf dem Datastore. Eine inkrementelle Sicherung einer 2-TB-VM mit 20 GB Änderungen liest 20 GB. Der Snapshot bleibt bestehen, solange die Festplatten gelesen werden (statt nur für die Kopie), die VM schreibt also etwas länger in den Snapshot.</li>
+  <li><b>Fallback:</b> Ist der Proxy keine VM des Hosts oder schlägt das Anhängen oder Lesen einer Festplatte fehl, wird diese Festplatte wie bisher auf dem Datastore kopiert, und der Lauf zeigt eine Warnung mit dem Grund. Hot-Add ist standardmäßig aus; Agenten vor 0.54 ignorieren es. Die Seite des Laufs zeigt, wie viele Festplatten über Hot-Add gelesen wurden.</li>
+  <li><b>Auf der Proxy-VM:</b> Verhindern Sie mit der Devices-Datei von LVM, dass LVM Volumes der angehängten Festplatten aktiviert (<code>use_devicesfile = 1</code> in <code>/etc/lvm/lvm.conf</code>, die eigenen Festplatten des Proxys mit <code>lvmdevices</code> eingetragen). Volumes, die LVM trotzdem aktiviert, werden vor dem Trennen der Festplatte entfernt. Hängen Sie Festplatten anderer VMs nicht von Hand an den Proxy an: Eine independent-nonpersistent-Festplatte aus dem Ordner einer anderen VM wird für eine gehalten, die eine unterbrochene Sicherung zurückgelassen hat, und getrennt.</li>
+</ul>
+
+<h3 id="proxies">Mehrere Proxy-Agenten (vCenter)</h3>
+<p>Ein Proxy-Agent liest eine Festplatte nach der anderen, und per Hot-Add nur auf den Hosts, deren Datastores er sieht. Fügen Sie bei einer vCenter-Verbindung <b>einen Linux-Agenten in einer VM auf jedem ESXi-Host</b> als weiteren Proxy-Agenten hinzu (<a href="/agents#vmware">Agenten → VMware-ESXi-Hosts</a>, <i>Weitere Proxy-Agenten</i> unter dem Proxy-Agenten; Agenten ab 0.55):</p>
+<ul>
+  <li><b>Aufteilung nach Host:</b> jede Sicherung des Jobs wird aufgeteilt. Jede VM geht an den Proxy-Agenten auf dem ESXi-Host, auf dem sie läuft (laut der letzten VM-Liste), jede andere VM an den Proxy-Agenten der Verbindung. Jeder Proxy-Agent sichert seinen Anteil als eigenen Lauf, gleichzeitig mit den anderen, per Hot-Add auf seinem eigenen Host. Nur Proxy-Agenten, die online sind, nehmen teil: die VMs eines ausgeschalteten Proxy-Agenten gehen an den Proxy-Agenten der Verbindung. Die erste Sicherung in ein neues Repository und Sicherungen auf ein lokales oder USB-Ziel werden nicht aufgeteilt.</li>
+  <li><b>Ein Start:</b> der Job zeigt die Teile eines Starts als Ganzes: läuft, solange ein Teil läuft, fehlgeschlagen, wenn ein Teil fehlschlug. RPO-Warnungen und das Dashboard zählen eine Sicherung erst, wenn alle Teile erfolgreich waren; ein verketteter Job oder eine Kopie „nach jeder Sicherung“ startet einmal, nach dem letzten Teil.</li>
+  <li><b>Keine Überschneidung:</b> Sicherungen und Wiederherstellungen der Verbindung auf verschiedenen Proxy-Agenten laufen nicht gleichzeitig (nur die Teile eines Starts), daher wird eine VM, die zwischen Hosts verschoben wurde, nie von zwei Proxy-Agenten zugleich bearbeitet.</li>
+  <li><b>Aufbewahrung je Proxy-Agent:</b> jeder Teil behält die eingestellte Zahl an Sicherungen seiner VMs, und Kopierjobs kopieren und behalten sie ebenfalls je Teil. Sicherungen von vor der Aufteilung des Jobs und die eines entfernten Proxy-Agenten bleiben, wie sie sind: sie bleiben Wiederherstellungspunkte ihrer VMs. Eine auf einen anderen Host verschobene VM (vMotion) geht ab der nächsten Aktualisierung der VM-Liste an den Proxy-Agenten dieses Hosts.</li>
+  <li>Den Host eines Proxy-Agenten findet BackupZit über die BIOS-UUID, die sein Agent meldet; die Seite Agenten zeigt ihn neben jedem Agenten. <i>ESXi-Host nicht gefunden</i>: der Agent ist keine VM dieses vCenter, oder die VM-Liste ist älter als der Agent (klicken Sie auf <i>Aktualisieren</i>).</li>
+</ul>
+<p><b>Abbrechen</b> einer VMware-Sicherung (Aktivität → Abbrechen) stoppt auch eine laufende Festplattenkopie auf dem Datastore und löscht die unvollständige Kopie; der Snapshot wird wie nach jeder Sicherung entfernt. Ein Snapshot, der beim Abbrechen noch erstellt wird, wird abgewartet (bis zu fünf Minuten) und ebenfalls entfernt.</p>
+<p id="leftovers"><b>Zurückgebliebene Snapshots.</b> Der Proxy-Agent vermerkt jeden Snapshot und jede temporäre Festplattenkopie, bevor er sie erstellt, und löscht den Vermerk erst, wenn er sieht, dass das Objekt weg ist: Nach dem Entfernen listet er die Snapshots der VM erneut auf, versucht es bis zu dreimal über etwa zehn Minuten, meldet sich erneut an, wenn die vSphere-Sitzung beendet ist (auch vor jeder VM, sodass eine verlorene Sitzung nicht die VMs danach scheitern lässt), und konsolidiert die Festplatten, wenn vSphere meldet, dass sie es brauchen; eine VM ohne Snapshots, deren Festplatten nach einem früheren Entfernen noch eine Konsolidierung brauchen, wird vor ihrer nächsten Sicherung konsolidiert. Bricht der Agent mittendrin ab (Absturz, Stromausfall) oder schlägt das Entfernen immer wieder fehl, bleibt der Vermerk bestehen:</p>
+<ul>
+  <li>Die Konsole reiht einen Bereinigungslauf auf dem Proxy-Agenten ein (nur er hat die Zugangsdaten des Hosts), und der Proxy-Agent entfernt solche Überreste auch nach jeder Sicherung der Verbindung. VMs, an denen eine Sicherung oder Wiederherstellung des Proxy-Agenten gerade arbeitet, bleiben unberührt.</li>
+  <li>Das Dashboard listet jeden Überrest unter <i>Benötigt Aufmerksamkeit</i> auf (VM, seit wann, warum), mit <b>Jetzt entfernen</b>, und für jeden Überrest, der bestehen bleibt, geht einmal eine Benachrichtigung (E-Mail, Chat) hinaus.</li>
+  <li>Die Konsole sucht außerdem in der VM-Liste, die sie alle 10 Minuten aktualisiert, nach <code>backupzit_…</code>-Snapshots, die älter als sechs Stunden sind, solange keine Sicherung der Verbindung läuft; so tauchen auch Überreste älterer Agenten auf. Entfernt werden ausschließlich Snapshots namens <code>backupzit_…</code>; die eigenen Snapshots der VM werden nie angetastet.</li>
+</ul>
 
 <h2>Eine VM wiederherstellen</h2>
 <p>Verwenden Sie den <a href="/restore">Wiederherstellungsassistenten</a> (<i>Ganze virtuelle Maschine</i>) oder die Seite der Sicherung in Aktivität. Wählen Sie:</p>
@@ -96,7 +126,7 @@ backupzit-agent vmware restore --host … --repo … --vmid N [--new] [--name NA
 <h2>Noch nicht enthalten</h2>
 <ul>
   <li><b>vCenter mit mehreren Datacentern.</b> Nur ein vCenter mit einem Datacenter kann hinzugefügt werden; fügen Sie die Hosts der anderen direkt hinzu.</li>
-  <li><b>VMs mit eigenen Snapshots.</b> Ihre Festplatten sind Deltas; löschen oder konsolidieren Sie die Snapshots zuerst.</li>
+  <li><b>VMs mit eigenen Snapshots.</b> Ihre Festplatten sind Deltas; löschen oder konsolidieren Sie die Snapshots zuerst. (Das kleine Delta, das ein stillgelegter Snapshot schreibt, gehört zur Sicherung selbst und wird mit ihr gelesen.)</li>
   <li><b>Einige Festplattentypen.</b> Raw Device Mappings (RDM) und unabhängige Festplatten.</li>
   <li><b>Sofortige Wiederherstellung über einen Windows-Proxy-Agenten.</b> Die sofortige Wiederherstellung braucht einen Linux-Proxy-Agenten.</li>
 </ul>
